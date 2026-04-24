@@ -1,4 +1,54 @@
-# Temporary: ignore everything in this project.
-*
-*/
-!.gitignore
+# Unreal Engine generated folders
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Content policy for showcase repository
+# Ignore all content by default, then allow gameplay logic assets only.
+Content/**
+!Content/**/
+!Content/**/BP_*.uasset
+!Content/**/ABP_*.uasset
+!Content/**/ALI_*.uasset
+!Content/**/AM_*.uasset
+!Content/**/WBP_*.uasset
+!Content/**/DA_*.uasset
+!Content/**/GA_*.uasset
+!Content/**/GE_*.uasset
+!Content/**/GCN_*.uasset
+!Content/**/IA_*.uasset
+!Content/**/IMC_*.uasset
+
+# Ignore backup copies of assets
+Content/**/*.pre_restore_*.uasset
+Content/**/*.before_recover_*.uasset
+
+# Ignore marketplace / art-heavy packs even if they contain blueprint assets
+Content/IgniteStarterPack/**
+Content/SwordAndShield/**
+
+# IDE and local tooling
+.idea/
+.vs/
+.codex/
+
+# Rider / Visual Studio user files
+*.sln
+*.sln.DotSettings.user
+*.vcxproj.user
+*.VC.db
+*.VC.opendb
+*.opensdf
+*.sdf
+*.suo
+*.user
+.vsconfig
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# OS junk
+Thumbs.db
+Desktop.ini
