@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "Common/Enum_Operation.h"
 #include "Common/Enum_Direction.h"
 #include "InputActionValue.h"
 #include "GameplayTagContainer.h"
@@ -11,8 +11,9 @@
 #include "PdPlayerController.generated.h"
 
 class UStatusViewModel;
-class UPdUiSubsystem;
+class UUiSubsystem;
 class UGameplayEffect;
+class UAbilitySystemComponent;
 class UInputAction;
 class UInputMappingContext;
 class APdPlayerState;
@@ -80,7 +81,11 @@ public:
 
 	// 스탯 태그와 수치를 기반으로 GameplayEffect를 적용합니다. 클라이언트 호출은 서버 RPC로 전달됩니다.
 	UFUNCTION(BlueprintCallable, Category = "!AbilitySystem|Stat", meta = (GameplayTagFilter = "Status"))
-	bool ApplyStatUpEffectByTag(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EPdStatChangeOperation Operation = EPdStatChangeOperation::Add, float Level = 1.f);
+	bool ApplyStatUpEffectByTag(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EEnum_Operation Operation = EEnum_Operation::Add, float Level = 1.f);
+
+	// 스탯 업 버튼 클릭 시 태그 카테고리에 맞는 기본 배율과 연산으로 GameplayEffect를 적용합니다.
+	UFUNCTION(BlueprintCallable, Category = "!AbilitySystem|Stat", meta = (GameplayTagFilter = "Status"))
+	void OnClicked_StatUpButton(FGameplayTag StatTag);
 
 	// 로컬 플레이어의 Enhanced Input Subsystem에 기본 MappingContext를 한 번만 추가합니다.
 	UFUNCTION(BlueprintCallable, Category = "!Input")
@@ -148,6 +153,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input")
 	TObjectPtr<UInputAction> AttackInputAction;
 
+	// 스탯 업 버튼 클릭 시 사용할 기본 GameplayEffect 클래스입니다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AbilitySystem|Stat")
+	TSubclassOf<UGameplayEffect> StatUpGameplayEffectClass;
+
 	// 하위 호환용 캐시입니다. 신규 코드는 GetStatusViewModel() 또는 ApplyStatusViewModelToWidget()을 사용합니다.
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!ViewModel", meta = (DeprecatedProperty, DeprecationMessage = "StatusViewModel is owned by PdUiSubsystem. Use GetStatusViewModel() or ApplyStatusViewModelToWidget() instead."))
 	TObjectPtr<UStatusViewModel> StatusViewModel;
@@ -167,13 +176,13 @@ public:
 protected:
 	// 스탯 변경 GameplayEffect 적용을 서버 권한에서 처리합니다.
 	UFUNCTION(Server, Reliable)
-	void ServerApplyStatUpEffectByTag(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EPdStatChangeOperation Operation, float Level);
+	void ServerApplyStatUpEffectByTag(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EEnum_Operation Operation, float Level);
 
 	// 클라이언트 상호작용 요청을 서버 권한에서 처리합니다.
 	UFUNCTION(Server, Reliable)
 	void ServerHandleInteract(AActor* InteractableActor);
 	UFUNCTION(Server, Reliable)
-	void ServerRequestAttackJumpSection();
+	void ServerRequestAttackJumpSection(FName RequestedSectionName);
 
 	// 이동 입력 값을 Pawn의 이동 입력으로 변환합니다.
 	void HandleMoveInput(const FInputActionValue& InputValue);
@@ -186,14 +195,10 @@ protected:
 
 	// 공격 입력을 공격 Ability 활성화 요청으로 변환합니다.
 	void HandleAttackInput(const FInputActionValue& InputValue);
-	void SendAttackGameplayEvent(AActor* TargetActor, const FGameplayTag& EventTag, float EventMagnitude = 0.f) const;
 	bool HasActiveAbilityWithTags(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
 
 	// 실제 스탯 변경 GameplayEffect 적용을 수행합니다. 서버 권한에서 호출됩니다.
-	bool ApplyStatUpEffectByTagInternal(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EPdStatChangeOperation Operation, float Level);
-
-	// InteractableInterface에서 보상 데이터를 읽어 인벤토리, 스킨, 판도라 컴포넌트에 반영합니다.
-	void ProcessInteractRewards(AActor* InteractableActor);
+	bool ApplyStatUpEffectByTagInternal(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EEnum_Operation Operation, float Level);
 
 	// Pawn, PdPlayerState, Input 준비 상태를 검사하고 준비 이벤트를 필요한 시점에 한 번씩 호출합니다.
 	void EvaluateInitializationState();
@@ -202,7 +207,7 @@ protected:
 	void RefreshUiBindings();
 
 	// 현재 LocalPlayer가 소유한 UI Subsystem을 조회합니다.
-	UPdUiSubsystem* GetUiSubsystem() const;
+	UUiSubsystem* GetUiSubsystem() const;
 
 	// 기본 MappingContext를 중복 등록하지 않기 위한 플래그입니다.
 	UPROPERTY(Transient)

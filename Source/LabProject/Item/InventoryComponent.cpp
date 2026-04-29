@@ -3,11 +3,13 @@
 #include "Engine/AssetManager.h"
 #include "Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InventoryComponent)
 
 DEFINE_LOG_CATEGORY(InventoryComponentLog);
 
+/** 엔트리 추가 복제 후 캐시를 갱신합니다. */
 void FReplicatedInventoryEntry::PostReplicatedAdd(const FReplicatedInventoryList& InArraySerializer)
 {
 	if (InArraySerializer.Owner)
@@ -16,6 +18,7 @@ void FReplicatedInventoryEntry::PostReplicatedAdd(const FReplicatedInventoryList
 	}
 }
 
+/** 엔트리 변경 복제 후 캐시를 갱신합니다. */
 void FReplicatedInventoryEntry::PostReplicatedChange(const FReplicatedInventoryList& InArraySerializer)
 {
 	if (InArraySerializer.Owner)
@@ -24,6 +27,7 @@ void FReplicatedInventoryEntry::PostReplicatedChange(const FReplicatedInventoryL
 	}
 }
 
+/** 엔트리 제거 복제 전에 캐시 제거를 요청합니다. */
 void FReplicatedInventoryEntry::PreReplicatedRemove(const FReplicatedInventoryList& InArraySerializer)
 {
 	if (InArraySerializer.Owner)
@@ -32,19 +36,30 @@ void FReplicatedInventoryEntry::PreReplicatedRemove(const FReplicatedInventoryLi
 	}
 }
 
+/** 인벤토리 컴포넌트 기본 상태를 초기화합니다. */
 UInventoryComponent::UInventoryComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// =================================================================================================================
+	// === 기본 설정
+
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
 	ReplicatedEntries.Owner = this;
 }
 
+/** 시작 시 캐시와 복제 상태를 초기화합니다. */
 void UInventoryComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// =================================================================================================================
+	// === Owner 포인터 보정
+
 	ReplicatedEntries.Owner = this;
+
+	// =================================================================================================================
+	// === 권한별 초기화
 
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
@@ -57,25 +72,40 @@ void UInventoryComponent::BeginPlay()
 	}
 }
 
+/** 복제 프로퍼티를 등록합니다. */
 void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(UInventoryComponent, ReplicatedEntries);
+
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+
+	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, ReplicatedEntries, Params);
 }
 
+/** PrimaryAssetId 배열로 아이템을 추가합니다. */
 void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& ItemDefinitions)
 {
+	// =================================================================================================================
+	// === 서버 권한 검사
+
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		UE_LOG(InventoryComponentLog, Warning, TEXT("AddItemsByPrimaryAssetIds failed: inventory can only be modified on the authority."));
 		return;
 	}
 
+	// =================================================================================================================
+	// === 빈 입력 처리
+
 	if (ItemDefinitions.IsEmpty())
 	{
 		RebuildFilteredItemMap();
 		return;
 	}
+
+	// =================================================================================================================
+	// === 에셋 비동기 로드
 
 	UAssetManager& AssetManager = UAssetManager::Get();
 	AssetManager.LoadPrimaryAssets(
@@ -84,6 +114,9 @@ void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId
 		FStreamableDelegate::CreateWeakLambda(this, [this, ItemDefinitions]()
 		{
 			UAssetManager& LoadedAssetManager = UAssetManager::Get();
+
+			// =================================================================================================================
+			// === 로드 완료 후 아이템 생성
 
 			for (const FPrimaryAssetId& ItemDefinitionId : ItemDefinitions)
 			{
@@ -94,22 +127,21 @@ void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId
 					continue;
 				}
 
-				// 복제 엔트리에는 값 데이터만 저장합니다.
-				// UObject 인스턴스는 런타임 캐시로 유지되고, 클라이언트에서는 복제 원본 기준으로 다시 만들어집니다.
 				UItemInstance* NewItemInstance = NewObject<UItemInstance>(this);
 				NewItemInstance->ItemDefinition = ItemDefinition;
 				NewItemInstance->Quantity = 1;
 				AddReplicatedItem(NewItemInstance);
+				FilterItem(NewItemInstance);
 			}
-
-			// 배치 추가가 모두 끝난 뒤 카테고리 맵을 한 번 다시 만들어
-			// 모든 런타임 캐시 뷰가 같은 상태를 보도록 맞춥니다.
-			RebuildFilteredItemMap();
 		}));
 }
 
+/** ItemId로 아이템을 제거합니다. */
 bool UInventoryComponent::RemoveItemById(FGuid ItemId)
 {
+	// =================================================================================================================
+	// === 서버 권한 검사
+
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		UE_LOG(InventoryComponentLog, Warning, TEXT("RemoveItemById failed: inventory can only be modified on the authority."));
@@ -119,8 +151,12 @@ bool UInventoryComponent::RemoveItemById(FGuid ItemId)
 	return RemoveReplicatedItemById(ItemId);
 }
 
+/** ItemId로 수량을 바꿉니다. */
 bool UInventoryComponent::SetItemQuantity(FGuid ItemId, int32 NewQuantity)
 {
+	// =================================================================================================================
+	// === 서버 권한 검사
+
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		UE_LOG(InventoryComponentLog, Warning, TEXT("SetItemQuantity failed: inventory can only be modified on the authority."));
@@ -130,16 +166,22 @@ bool UInventoryComponent::SetItemQuantity(FGuid ItemId, int32 NewQuantity)
 	return SetReplicatedItemQuantityById(ItemId, NewQuantity);
 }
 
+/** 아이템을 필터 맵에 분류합니다. */
 void UInventoryComponent::FilterItem(UItemInstance* ItemInstance)
 {
+	// =================================================================================================================
+	// === 정의 데이터 검사
+
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	if (!ItemDefinition)
 	{
 		return;
 	}
 
-	const TArray<FGameplayTag>& TypeTags = GetFilterTypeTags();
-	for (const FGameplayTag& TypeTag : TypeTags)
+	// =================================================================================================================
+	// === 타입 태그 매칭
+
+	for (const FGameplayTag& TypeTag : FilterTypeTags)
 	{
 		if (ItemDefinition->IdTag.MatchesTag(TypeTag))
 		{
@@ -148,6 +190,7 @@ void UInventoryComponent::FilterItem(UItemInstance* ItemInstance)
 	}
 }
 
+/** 타입 태그 맵에 아이템을 추가합니다. */
 void UInventoryComponent::AddValueToMap(FGameplayTag TypeTag, UItemInstance* ItemInstance)
 {
 	if (!IsValid(ItemInstance))
@@ -158,11 +201,13 @@ void UInventoryComponent::AddValueToMap(FGameplayTag TypeTag, UItemInstance* Ite
 	Map_Type_ItemList.FindOrAdd(TypeTag).Items.AddUnique(ItemInstance);
 }
 
+/** 아이템의 ItemId를 반환하거나 새로 만듭니다. */
 FGuid UInventoryComponent::GetOrCreateItemId(UItemInstance* ItemInstance)
 {
 	return IsValid(ItemInstance) ? ItemInstance->GetOrCreateItemId() : FGuid();
 }
 
+/** ItemId로 런타임 아이템 인스턴스를 찾습니다. */
 UItemInstance* UInventoryComponent::FindItemInstanceById(FGuid ItemId) const
 {
 	if (!ItemId.IsValid())
@@ -181,6 +226,7 @@ UItemInstance* UInventoryComponent::FindItemInstanceById(FGuid ItemId) const
 	return nullptr;
 }
 
+/** 기존 런타임 아이템을 복제 엔트리로 변환합니다. */
 void UInventoryComponent::InitializeReplicatedEntriesFromRuntimeItems()
 {
 	for (UItemInstance* ItemInstance : AllItemList.Items)
@@ -189,9 +235,16 @@ void UInventoryComponent::InitializeReplicatedEntriesFromRuntimeItems()
 	}
 }
 
+/** 복제 엔트리 기준으로 런타임 캐시를 다시 만듭니다. */
 void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
 {
+	// =================================================================================================================
+	// === 런타임 캐시 초기화
+
 	AllItemList.Items.Reset();
+
+	// =================================================================================================================
+	// === 복제 엔트리 기반 재구성
 
 	for (const FReplicatedInventoryEntry& Entry : ReplicatedEntries.Entries)
 	{
@@ -210,6 +263,7 @@ void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
 	RebuildFilteredItemMap();
 }
 
+/** 현재 런타임 캐시 기준으로 필터 맵을 다시 만듭니다. */
 void UInventoryComponent::RebuildFilteredItemMap()
 {
 	Map_Type_ItemList.Reset();
@@ -220,33 +274,56 @@ void UInventoryComponent::RebuildFilteredItemMap()
 	}
 }
 
+/** 복제 엔트리 추가 또는 변경을 반영합니다. */
 void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry)
 {
+	// =================================================================================================================
+	// === 엔트리 유효성 검사
+
 	if (!Entry.ItemId.IsValid() || !IsValid(Entry.ItemDefinition))
 	{
 		return;
 	}
 
+	// =================================================================================================================
+	// === 기존 캐시 조회 또는 새 생성
+
 	UItemInstance* ItemInstance = FindItemInstanceById(Entry.ItemId);
+	const bool bWasNewItemInstance = !IsValid(ItemInstance);
+	const UItemDefinition* PreviousItemDefinition = bWasNewItemInstance ? nullptr : ItemInstance->ItemDefinition.Get();
 	if (!IsValid(ItemInstance))
 	{
 		ItemInstance = NewObject<UItemInstance>(this);
 		AllItemList.Items.Add(ItemInstance);
 	}
 
+	// =================================================================================================================
+	// === 캐시 동기화
+
 	ItemInstance->ItemId = Entry.ItemId;
 	ItemInstance->ItemDefinition = Entry.ItemDefinition;
 	ItemInstance->Quantity = Entry.Quantity;
 
-	RebuildFilteredItemMap();
+	if (bWasNewItemInstance)
+	{
+		FilterItem(ItemInstance);
+	}
+	else if (PreviousItemDefinition != Entry.ItemDefinition)
+	{
+		RebuildFilteredItemMap();
+	}
 }
 
+/** 복제 엔트리 제거를 반영합니다. */
 void UInventoryComponent::HandleReplicatedEntryRemoved(FGuid ItemId)
 {
 	if (!ItemId.IsValid())
 	{
 		return;
 	}
+
+	// =================================================================================================================
+	// === 런타임 캐시에서 제거
 
 	for (int32 Index = AllItemList.Items.Num() - 1; Index >= 0; --Index)
 	{
@@ -261,8 +338,12 @@ void UInventoryComponent::HandleReplicatedEntryRemoved(FGuid ItemId)
 	RebuildFilteredItemMap();
 }
 
+/** 런타임 아이템을 복제 엔트리에 추가하거나 갱신합니다. */
 void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 {
+	// =================================================================================================================
+	// === 서버 권한 및 입력 검사
+
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		return;
@@ -273,8 +354,14 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 		return;
 	}
 
+	// =================================================================================================================
+	// === ItemId 보장 및 런타임 캐시 추가
+
 	ItemInstance->EnsureItemId();
 	AllItemList.Items.AddUnique(ItemInstance);
+
+	// =================================================================================================================
+	// === 기존 엔트리 갱신 또는 새 엔트리 추가
 
 	if (FReplicatedInventoryEntry* ExistingEntry = FindReplicatedEntryById(ItemInstance->GetItemId()))
 	{
@@ -292,6 +379,7 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 	}
 }
 
+/** ItemId로 복제 엔트리를 제거합니다. */
 bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 {
 	if (!ItemId.IsValid())
@@ -299,14 +387,18 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 		return false;
 	}
 
+	// =================================================================================================================
+	// === 엔트리 인덱스 조회
+
 	const int32 EntryIndex = FindReplicatedEntryIndexById(ItemId);
 	if (EntryIndex == INDEX_NONE)
 	{
 		return false;
 	}
 
-	// 런타임 캐시는 서버에서 편의상 같이 들고 있는 뷰입니다.
-	// 서버 측 UI/게임플레이 조회에서 즉시 사라지도록 여기서 먼저 제거합니다.
+	// =================================================================================================================
+	// === 서버 런타임 캐시 제거
+
 	for (int32 Index = AllItemList.Items.Num() - 1; Index >= 0; --Index)
 	{
 		UItemInstance* ItemInstance = AllItemList.Items[Index];
@@ -317,13 +409,16 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 		}
 	}
 
-	// 엔트리 제거는 배열 구조 자체를 바꾸므로 FastArray에 배열 Dirty 표시가 필요합니다.
+	// =================================================================================================================
+	// === 복제 엔트리 제거
+
 	ReplicatedEntries.Entries.RemoveAt(EntryIndex);
 	ReplicatedEntries.MarkArrayDirty();
 	RebuildFilteredItemMap();
 	return true;
 }
 
+/** ItemId로 복제 엔트리 수량을 바꿉니다. */
 bool UInventoryComponent::SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQuantity)
 {
 	if (!ItemId.IsValid())
@@ -331,10 +426,16 @@ bool UInventoryComponent::SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQ
 		return false;
 	}
 
+	// =================================================================================================================
+	// === 0 이하 수량은 제거로 처리
+
 	if (NewQuantity <= 0)
 	{
 		return RemoveReplicatedItemById(ItemId);
 	}
+
+	// =================================================================================================================
+	// === 엔트리와 캐시 조회
 
 	FReplicatedInventoryEntry* Entry = FindReplicatedEntryById(ItemId);
 	UItemInstance* ItemInstance = FindItemInstanceById(ItemId);
@@ -343,8 +444,9 @@ bool UInventoryComponent::SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQ
 		return false;
 	}
 
-	// 수량은 두 계층에서 항상 같아야 합니다.
-	// 하나는 게임플레이/UI가 읽는 런타임 UObject 캐시이고, 다른 하나는 원격 클라이언트 캐시를 다시 만드는 복제 FastArray 엔트리입니다.
+	// =================================================================================================================
+	// === 수량 동기화
+
 	ItemInstance->Quantity = NewQuantity;
 	Entry->Quantity = NewQuantity;
 	ReplicatedEntries.MarkEntryDirty(*Entry);
@@ -352,27 +454,7 @@ bool UInventoryComponent::SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQ
 	return true;
 }
 
-const TArray<FGameplayTag>& UInventoryComponent::GetFilterTypeTags()
-{
-	static const TArray<FGameplayTag> TypeTags =
-	{
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Equipment")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Consumable")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Valuable")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Equipment.Hat")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Equipment.Top")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Equipment.Bottom")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Equipment.Shoes")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Equipment.Earring")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Equipment.Necklace")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Equipment.Ring")),
-		FGameplayTag::RequestGameplayTag(TEXT("Item.Equipment.Rune"))
-	};
-
-	return TypeTags;
-}
-
+/** ItemId로 복제 엔트리 인덱스를 찾습니다. */
 int32 UInventoryComponent::FindReplicatedEntryIndexById(FGuid ItemId) const
 {
 	if (!ItemId.IsValid())
@@ -391,12 +473,14 @@ int32 UInventoryComponent::FindReplicatedEntryIndexById(FGuid ItemId) const
 	return INDEX_NONE;
 }
 
+/** ItemId로 복제 엔트리를 찾습니다. */
 FReplicatedInventoryEntry* UInventoryComponent::FindReplicatedEntryById(FGuid ItemId)
 {
 	const int32 EntryIndex = FindReplicatedEntryIndexById(ItemId);
 	return EntryIndex != INDEX_NONE ? &ReplicatedEntries.Entries[EntryIndex] : nullptr;
 }
 
+/** ItemId로 상수 복제 엔트리를 찾습니다. */
 const FReplicatedInventoryEntry* UInventoryComponent::FindReplicatedEntryById(FGuid ItemId) const
 {
 	const int32 EntryIndex = FindReplicatedEntryIndexById(ItemId);

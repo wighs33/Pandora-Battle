@@ -4,24 +4,22 @@
 #include "PdPlayerController.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
-#include "Ability/AttackAbility.h"
+#include "AbilitySystem/Ability/AttackAbility.h"
 #include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "GameplayEffect.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Components/GameFrameworkComponentManager.h"
-#include "Equipment/EquipmentComponent.h"
+#include "PlayerComponent/EquipmentComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
 #include "Interface/InteractableInterface.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
-#include "Item/InventoryComponent.h"
 #include "Item/ItemInstance.h"
-#include "Mode/PdCharacterBase.h"
+#include "Character/PdPlayer.h"
 #include "Mode/PdPlayerState.h"
-#include "Pandora/PandoraComponent.h"
-#include "Skin/SkinComponent.h"
-#include "UI/PdUiSubsystem.h"
+#include "UI/UiSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -30,6 +28,13 @@
 DEFINE_LOG_CATEGORY(PdPlayerControllerLog);
 namespace
 {
+	constexpr float OffenseStatUpMagnitude = 1.3f;
+	constexpr float DefenseStatUpMagnitude = 1.2f;
+	constexpr float ResistanceStatUpMagnitude = 1.0f;
+	constexpr float PandoraStatUpMagnitude = 1.0f;
+	constexpr float ResourceStatUpMagnitude = 1.4f;
+	constexpr float AgilityStatUpMagnitude = 2.0f;
+
 	UAttackAbility* ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags)
 	{
 		if (!AbilitySystemComponent || AbilityTags.IsEmpty())
@@ -54,15 +59,66 @@ namespace
 
 		return nullptr;
 	}
+
+	bool ResolveStatUpButtonSettings(const FGameplayTag& StatTag, float& OutMagnitude, EEnum_Operation& OutOperation)
+	{
+		static const FGameplayTag OffenseRootTag = FGameplayTag::RequestGameplayTag(TEXT("Status.Offense"));
+		static const FGameplayTag DefenseRootTag = FGameplayTag::RequestGameplayTag(TEXT("Status.Defense"));
+		static const FGameplayTag ResistanceRootTag = FGameplayTag::RequestGameplayTag(TEXT("Status.Resistance"));
+		static const FGameplayTag PandoraRootTag = FGameplayTag::RequestGameplayTag(TEXT("Status.PandoraForce"));
+		static const FGameplayTag ResourceRootTag = FGameplayTag::RequestGameplayTag(TEXT("Status.Resource"));
+		static const FGameplayTag AgilityRootTag = FGameplayTag::RequestGameplayTag(TEXT("Status.Agility"));
+
+		if (StatTag.MatchesTag(OffenseRootTag))
+		{
+			OutMagnitude = OffenseStatUpMagnitude;
+			OutOperation = EEnum_Operation::Multiply;
+			return true;
+		}
+
+		if (StatTag.MatchesTag(DefenseRootTag))
+		{
+			OutMagnitude = DefenseStatUpMagnitude;
+			OutOperation = EEnum_Operation::Multiply;
+			return true;
+		}
+
+		if (StatTag.MatchesTag(ResistanceRootTag))
+		{
+			OutMagnitude = ResistanceStatUpMagnitude;
+			OutOperation = EEnum_Operation::Add;
+			return true;
+		}
+
+		if (StatTag.MatchesTag(PandoraRootTag))
+		{
+			OutMagnitude = PandoraStatUpMagnitude;
+			OutOperation = EEnum_Operation::Add;
+			return true;
+		}
+
+		if (StatTag.MatchesTag(ResourceRootTag))
+		{
+			OutMagnitude = ResourceStatUpMagnitude;
+			OutOperation = EEnum_Operation::Multiply;
+			return true;
+		}
+
+		if (StatTag.MatchesTag(AgilityRootTag))
+		{
+			OutMagnitude = AgilityStatUpMagnitude;
+			OutOperation = EEnum_Operation::Add;
+			return true;
+		}
+
+		return false;
+	}
 }
 
 
 // 생성자에서 기본 입력 매핑과 입력 액션 에셋을 로드합니다.
 APdPlayerController::APdPlayerController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	EquipAbilityTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Equip"));
-	UnequipAbilityTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Unequip.Sword"));
-	AttackAbilityTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Attack.Sword"));
 }
 
 // GameFrameworkComponentManager가 이 컨트롤러를 인식할 수 있도록 수신자로 등록합니다.
@@ -192,7 +248,7 @@ void APdPlayerController::OnSelectedPandoraAndWeapon(EEnum_Direction Direction)
 {
 	// =================================================================================================================
 	// ### 장비 요청에 필요한 Pawn, EquipmentComponent, AbilitySystemComponent를 확보합니다.
-	APdCharacterBase* PlayerCharacter = Cast<APdCharacterBase>(GetPawn());
+	APdPlayer* PlayerCharacter = Cast<APdPlayer>(GetPawn());
 	if (!PlayerCharacter)
 	{
 		return;
@@ -356,7 +412,7 @@ void APdPlayerController::EvaluateInitializationState()
 // ### 위젯에 PdUiSubsystem이 소유한 StatusViewModel을 적용합니다.
 void APdPlayerController::ApplyStatusViewModelToWidget(UUserWidget* InWidget)
 {
-	if (UPdUiSubsystem* UiSubsystem = GetUiSubsystem())
+	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
 	{
 		UiSubsystem->ApplyStatusViewModelToWidget(InWidget);
 		StatusViewModel = UiSubsystem->GetStatusViewModel();
@@ -367,7 +423,7 @@ void APdPlayerController::ApplyStatusViewModelToWidget(UUserWidget* InWidget)
 // ### UI에서 사용할 StatusViewModel을 반환합니다.
 UStatusViewModel* APdPlayerController::GetStatusViewModel() const
 {
-	if (UPdUiSubsystem* UiSubsystem = GetUiSubsystem())
+	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
 	{
 		return UiSubsystem->GetStatusViewModel();
 	}
@@ -377,7 +433,7 @@ UStatusViewModel* APdPlayerController::GetStatusViewModel() const
 
 // =================================================================================================================
 // ### 스탯 변경 GameplayEffect 적용 요청을 권한에 맞게 서버 또는 내부 처리로 분기합니다.
-bool APdPlayerController::ApplyStatUpEffectByTag(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EPdStatChangeOperation Operation, float Level)
+bool APdPlayerController::ApplyStatUpEffectByTag(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EEnum_Operation Operation, float Level)
 {
 	if (!GameplayEffectClass || !StatTag.IsValid())
 	{
@@ -394,8 +450,37 @@ bool APdPlayerController::ApplyStatUpEffectByTag(TSubclassOf<UGameplayEffect> Ga
 }
 
 // =================================================================================================================
+// ### 스탯 업 버튼 클릭 시 태그 카테고리에 맞는 기본 수치로 StatUp GameplayEffect를 적용합니다.
+void APdPlayerController::OnClicked_StatUpButton(FGameplayTag StatTag)
+{
+	if (!StatTag.IsValid())
+	{
+		return;
+	}
+
+	if (!StatUpGameplayEffectClass)
+	{
+		UE_LOG(PdPlayerControllerLog, Warning, TEXT("OnClicked_StatUpButton failed: '%s' has no StatUp gameplay effect class."), *GetNameSafe(this));
+		return;
+	}
+
+	float Magnitude = 0.f;
+	EEnum_Operation Operation = EEnum_Operation::Add;
+	if (!ResolveStatUpButtonSettings(StatTag, Magnitude, Operation))
+	{
+		UE_LOG(PdPlayerControllerLog, Warning, TEXT("OnClicked_StatUpButton skipped unsupported stat tag '%s'."), *StatTag.ToString());
+		return;
+	}
+
+	if (!ApplyStatUpEffectByTag(StatUpGameplayEffectClass, StatTag, Magnitude, Operation, 1.f))
+	{
+		UE_LOG(PdPlayerControllerLog, Warning, TEXT("OnClicked_StatUpButton failed to apply StatUp effect for tag '%s'."), *StatTag.ToString());
+	}
+}
+
+// =================================================================================================================
 // ### 클라이언트에서 요청한 스탯 변경 GameplayEffect를 서버 권한으로 적용합니다.
-void APdPlayerController::ServerApplyStatUpEffectByTag_Implementation(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EPdStatChangeOperation Operation, float Level)
+void APdPlayerController::ServerApplyStatUpEffectByTag_Implementation(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EEnum_Operation Operation, float Level)
 {
 	ApplyStatUpEffectByTagInternal(GameplayEffectClass, StatTag, Magnitude, Operation, Level);
 }
@@ -404,12 +489,26 @@ void APdPlayerController::ServerApplyStatUpEffectByTag_Implementation(TSubclassO
 // ### 클라이언트에서 요청한 상호작용 보상 처리를 서버 권한으로 실행합니다.
 void APdPlayerController::ServerHandleInteract_Implementation(AActor* InteractableActor)
 {
-	ProcessInteractRewards(InteractableActor);
+	APdPlayer* PlayerCharacter = Cast<APdPlayer>(GetPawn());
+	if (!PlayerCharacter || !PlayerCharacter->CanInteractWithActor(InteractableActor))
+	{
+		return;
+	}
+
+	if (APdPlayerState* PdPlayerState = GetPdPlayerState())
+	{
+		PdPlayerState->ApplyInteractRewards(InteractableActor);
+	}
 }
 
-void APdPlayerController::ServerRequestAttackJumpSection_Implementation()
+void APdPlayerController::ServerRequestAttackJumpSection_Implementation(FName RequestedSectionName)
 {
-	APdCharacterBase* PlayerCharacter = Cast<APdCharacterBase>(GetPawn());
+	if (RequestedSectionName.IsNone())
+	{
+		return;
+	}
+
+	APdPlayer* PlayerCharacter = Cast<APdPlayer>(GetPawn());
 	if (!PlayerCharacter)
 	{
 		return;
@@ -431,13 +530,13 @@ void APdPlayerController::ServerRequestAttackJumpSection_Implementation()
 
 	if (UAttackAbility* ActiveAttackAbility = ResolveActiveAttackAbility(AbilitySystemComponent, AttackTagContainer))
 	{
-		SendAttackGameplayEvent(PlayerCharacter, ActiveAttackAbility->GetJumpSectionEventTag(), 1.f);
+		ActiveAttackAbility->RequestJumpToSection(RequestedSectionName);
 	}
 }
 
 // =================================================================================================================
 // ### PdPlayerState의 AbilitySystemComponent를 통해 스탯 변경 GameplayEffect를 실제로 적용합니다.
-bool APdPlayerController::ApplyStatUpEffectByTagInternal(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EPdStatChangeOperation Operation, float Level)
+bool APdPlayerController::ApplyStatUpEffectByTagInternal(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude, EEnum_Operation Operation, float Level)
 {
 	APdPlayerState* PdPlayerState = GetPlayerState<APdPlayerState>();
 	if (!PdPlayerState || !GameplayEffectClass || !StatTag.IsValid())
@@ -511,7 +610,7 @@ void APdPlayerController::HandleInteractInput(const FInputActionValue& InputValu
 
 	// =================================================================================================================
 	// ### Pawn에서 현재 상호작용 가능한 대상 목록을 가져옵니다.
-	APdCharacterBase* PlayerCharacter = Cast<APdCharacterBase>(GetPawn());
+	APdPlayer* PlayerCharacter = Cast<APdPlayer>(GetPawn());
 	if (!PlayerCharacter)
 	{
 		return;
@@ -535,7 +634,15 @@ void APdPlayerController::HandleInteractInput(const FInputActionValue& InputValu
 	// ### 서버 권한이면 즉시 처리하고, 클라이언트면 서버 RPC로 요청합니다.
 	if (HasAuthority())
 	{
-		ProcessInteractRewards(InteractableActor);
+		if (!PlayerCharacter->CanInteractWithActor(InteractableActor))
+		{
+			return;
+		}
+
+		if (APdPlayerState* PdPlayerState = GetPdPlayerState())
+		{
+			PdPlayerState->ApplyInteractRewards(InteractableActor);
+		}
 		return;
 	}
 
@@ -548,7 +655,7 @@ void APdPlayerController::HandleAttackInput(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
 
-	APdCharacterBase* PlayerCharacter = Cast<APdCharacterBase>(GetPawn());
+	APdPlayer* PlayerCharacter = Cast<APdPlayer>(GetPawn());
 	if (!PlayerCharacter)
 	{
 		return;
@@ -570,27 +677,20 @@ void APdPlayerController::HandleAttackInput(const FInputActionValue& InputValue)
 
 	if (UAttackAbility* ActiveAttackAbility = ResolveActiveAttackAbility(AbilitySystemComponent, AttackTagContainer))
 	{
-		SendAttackGameplayEvent(PlayerCharacter, ActiveAttackAbility->GetJumpSectionEventTag(), 1.f);
+		const FName RequestedSectionName = ActiveAttackAbility->GetNextAttackSectionName();
+		if (RequestedSectionName.IsNone() || !ActiveAttackAbility->RequestJumpToSection(RequestedSectionName))
+		{
+			return;
+		}
+
 		if (!HasAuthority())
 		{
-			ServerRequestAttackJumpSection();
+			ServerRequestAttackJumpSection(RequestedSectionName);
 		}
 		return;
 	}
 
 	AbilitySystemComponent->TryActivateAbilitiesByTag(AttackTagContainer, true);
-}
-
-void APdPlayerController::SendAttackGameplayEvent(AActor* TargetActor, const FGameplayTag& EventTag, float EventMagnitude) const
-{
-	if (!IsValid(TargetActor) || !EventTag.IsValid())
-	{
-		return;
-	}
-
-	FGameplayEventData Payload;
-	Payload.EventMagnitude = EventMagnitude;
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetActor, EventTag, Payload);
 }
 
 bool APdPlayerController::HasActiveAbilityWithTags(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const
@@ -617,60 +717,10 @@ bool APdPlayerController::HasActiveAbilityWithTags(UAbilitySystemComponent* Abil
 }
 
 // =================================================================================================================
-// ### 상호작용 대상에서 보상 데이터를 읽어 PlayerState 소속 컴포넌트에 반영합니다.
-void APdPlayerController::ProcessInteractRewards(AActor* InteractableActor)
-{
-	// =================================================================================================================
-	// ### 상호작용 대상과 인터페이스 구현 여부를 검증합니다.
-	if (!IsValid(InteractableActor) || !InteractableActor->GetClass()->ImplementsInterface(UInteractableInterface::StaticClass()))
-	{
-		return;
-	}
-
-	// =================================================================================================================
-	// ### 보상을 저장할 PlayerState를 확보합니다.
-	APdPlayerState* PdPlayerState = GetPdPlayerState();
-	if (!PdPlayerState)
-	{
-		return;
-	}
-
-	// =================================================================================================================
-	// ### InteractableInterface에서 아이템, 스킨, 판도라 보상 목록을 가져옵니다.
-	TArray<FPrimaryAssetId> RewardItemDefinitions;
-	TArray<FPrimaryAssetId> RewardSkinDefinitions;
-	TArray<FPrimaryAssetId> RewardPandoraDefinitions;
-	IInteractableInterface::Execute_GetRewardItems(InteractableActor, RewardItemDefinitions);
-	IInteractableInterface::Execute_GetRewardSkins(InteractableActor, RewardSkinDefinitions);
-	IInteractableInterface::Execute_GetRewardPandoras(InteractableActor, RewardPandoraDefinitions);
-
-	// =================================================================================================================
-	// ### 보상 아이템을 인벤토리 컴포넌트에 추가합니다.
-	if (UInventoryComponent* InventoryComponent = PdPlayerState->FindComponentByClass<UInventoryComponent>())
-	{
-		InventoryComponent->AddItemsByPrimaryAssetIds(RewardItemDefinitions);
-	}
-
-	// =================================================================================================================
-	// ### 보상 스킨을 스킨 컴포넌트에 추가합니다.
-	if (USkinComponent* SkinComponent = PdPlayerState->FindComponentByClass<USkinComponent>())
-	{
-		SkinComponent->MakeAndAddSkins(RewardSkinDefinitions);
-	}
-
-	// =================================================================================================================
-	// ### 보상 판도라를 판도라 컴포넌트에 활성화합니다.
-	if (UPandoraComponent* PandoraComponent = PdPlayerState->FindComponentByClass<UPandoraComponent>())
-	{
-		PandoraComponent->ActivatePandoras(RewardPandoraDefinitions);
-	}
-}
-
-// =================================================================================================================
 // ### PdUiSubsystem의 StatusViewModel을 갱신하고 컨트롤러의 하위 호환 캐시를 동기화합니다.
 void APdPlayerController::RefreshUiBindings()
 {
-	if (UPdUiSubsystem* UiSubsystem = GetUiSubsystem())
+	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
 	{
 		UiSubsystem->RefreshStatusViewModel();
 		StatusViewModel = UiSubsystem->GetStatusViewModel();
@@ -683,8 +733,8 @@ void APdPlayerController::RefreshUiBindings()
 
 // =================================================================================================================
 // ### 현재 LocalPlayer가 소유한 UI Subsystem을 조회합니다.
-UPdUiSubsystem* APdPlayerController::GetUiSubsystem() const
+UUiSubsystem* APdPlayerController::GetUiSubsystem() const
 {
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	return LocalPlayer ? LocalPlayer->GetSubsystem<UPdUiSubsystem>() : nullptr;
+	return LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 }

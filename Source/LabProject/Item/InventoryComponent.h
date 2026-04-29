@@ -11,61 +11,86 @@ class UInventoryComponent;
 class UItemDefinition;
 class UItemInstance;
 
+// 인벤토리 로그 카테고리입니다.
 DECLARE_LOG_CATEGORY_EXTERN(InventoryComponentLog, Log, All);
 
+/**
+ * <인벤토리 런타임 캐시>
+ * - UI와 BP에서 직접 보는 캐시입니다.
+ * - 실제 복제 원본은 ReplicatedEntries입니다.
+ */
 USTRUCT(BlueprintType)
 struct FItemList
 {
 	GENERATED_BODY()
 
 public:
-	// UI/BP에서 사용하는 런타임 캐시입니다. 실제 복제 원본 데이터는 ReplicatedEntries에 있습니다.
+	// 런타임 아이템 캐시입니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
 	TArray<TObjectPtr<UItemInstance>> Items;
 };
 
+/**
+ * <복제용 인벤토리 엔트리>
+ * - FastArray 한 칸 데이터입니다.
+ * - 아이템 식별자, 정의, 수량을 가집니다.
+ */
 USTRUCT()
 struct LABPROJECT_API FReplicatedInventoryEntry : public FFastArraySerializerItem
 {
 	GENERATED_BODY()
 
 public:
+	/** 엔트리 추가 복제 후 캐시를 갱신합니다. */
 	void PostReplicatedAdd(const struct FReplicatedInventoryList& InArraySerializer);
+
+	/** 엔트리 변경 복제 후 캐시를 갱신합니다. */
 	void PostReplicatedChange(const struct FReplicatedInventoryList& InArraySerializer);
+
+	/** 엔트리 제거 복제 전에 캐시 제거를 요청합니다. */
 	void PreReplicatedRemove(const struct FReplicatedInventoryList& InArraySerializer);
 
-	// 장착 처리와 서버 검증에서 사용하는 안정적인 아이템 식별자입니다.
+	// 안정적인 아이템 식별자입니다.
 	UPROPERTY()
 	FGuid ItemId;
 
-	// 클라이언트에서 런타임 아이템 인스턴스를 다시 만들 때 필요한 복제 데이터입니다.
+	// 런타임 인스턴스 재구성용 정의 데이터입니다.
 	UPROPERTY()
 	TObjectPtr<const UItemDefinition> ItemDefinition = nullptr;
 
+	// 아이템 수량입니다.
 	UPROPERTY()
 	int32 Quantity = 0;
 };
 
+/**
+ * <복제용 인벤토리 리스트>
+ * - FastArray 복제 컨테이너입니다.
+ * - 엔트리 델타 복제를 담당합니다.
+ */
 USTRUCT()
 struct LABPROJECT_API FReplicatedInventoryList : public FIrisFastArraySerializer
 {
 	GENERATED_BODY()
 
 public:
+	/** FastArray 델타 복제를 처리합니다. */
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 	{
 		return FFastArraySerializer::FastArrayDeltaSerialize<FReplicatedInventoryEntry, FReplicatedInventoryList>(Entries, DeltaParms, *this);
 	}
 
-	// 모든 변경은 Dirty 표시를 해야 Iris가 변경분만 델타 복제할 수 있습니다.
+	/** 엔트리를 Dirty 상태로 표시합니다. */
 	void MarkEntryDirty(FReplicatedInventoryEntry& Entry)
 	{
 		MarkItemDirty(Entry);
 	}
 
+	// 복제 원본 엔트리 배열입니다.
 	UPROPERTY()
 	TArray<FReplicatedInventoryEntry> Entries;
 
+	// 소유 인벤토리 컴포넌트입니다.
 	UPROPERTY(NotReplicated)
 	TObjectPtr<UInventoryComponent> Owner = nullptr;
 };
@@ -76,6 +101,12 @@ struct TStructOpsTypeTraits<FReplicatedInventoryList> : public TStructOpsTypeTra
 	enum { WithNetDeltaSerializer = true };
 };
 
+/**
+ * <플레이어 인벤토리 컴포넌트>
+ * - 런타임 캐시와 복제 원본을 함께 관리합니다.
+ * - 서버에서 원본을 수정합니다.
+ * - 클라는 복제값으로 캐시를 다시 만듭니다.
+ */
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UInventoryComponent : public UPlayerStateComponent
 {
@@ -84,76 +115,93 @@ class LABPROJECT_API UInventoryComponent : public UPlayerStateComponent
 	friend struct FReplicatedInventoryEntry;
 
 public:
+	/** 인벤토리 컴포넌트 기본 상태를 초기화합니다. */
 	UInventoryComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	/** 시작 시 캐시와 복제 상태를 초기화합니다. */
 	virtual void BeginPlay() override;
+
+	/** 복제 프로퍼티를 등록합니다. */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// 아이템 추가
+	/** PrimaryAssetId 배열로 아이템을 추가합니다. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Inventory")
 	void AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& ItemDefinitions);
 
-	// 아이템 하나를 런타임 캐시와 복제 엔트리에서 함께 제거
+	/** ItemId로 아이템을 제거합니다. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Inventory")
 	bool RemoveItemById(FGuid ItemId);
 	
-	// 새 수량이 0 이하이면 RemoveItemById와 같은 경로로 제거
+	/** ItemId로 수량을 바꿉니다. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Inventory")
 	bool SetItemQuantity(FGuid ItemId, int32 NewQuantity);
 
-	// 내부 분류 helper
+	/** 아이템을 필터 맵에 분류합니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Inventory")
 	void FilterItem(UItemInstance* ItemInstance);
 
-	// 카테고리별 맵을 다시 만들 때 사용하는 내부 helper입니다.
-	// 이 함수 자체는 인벤토리 아이템을 생성, 제거, 복제하지 않습니다.
+	/** 타입 태그 맵에 아이템을 추가합니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Inventory")
 	void AddValueToMap(FGameplayTag TypeTag, UItemInstance* ItemInstance);
 
+	/** 아이템의 ItemId를 반환하거나 새로 만듭니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Inventory")
 	FGuid GetOrCreateItemId(UItemInstance* ItemInstance);
 
+	/** ItemId로 런타임 아이템 인스턴스를 찾습니다. */
 	UFUNCTION(BlueprintPure, Category = "!Inventory")
 	UItemInstance* FindItemInstanceById(FGuid ItemId) const;
 
 protected:
-	// AllItemList에 이미 들어있는 에디터/런타임 기본 아이템을 복제 엔트리로 변환합니다.
+	/** 기존 런타임 아이템을 복제 엔트리로 변환합니다. */
 	void InitializeReplicatedEntriesFromRuntimeItems();
 
-	// 복제된 값 데이터 기준으로 런타임 UObject 인스턴스를 다시 만듭니다.
-	// 주로 클라이언트에서 게임플레이 코드가 캐시를 조회하기 전에 FastArray 상태를 먼저 받았을 때 사용합니다.
+	/** 복제 엔트리 기준으로 런타임 캐시를 다시 만듭니다. */
 	void RebuildRuntimeItemsFromReplicatedEntries();
 
-	// AllItemList를 기준으로 각 아이템에 FilterItem을 호출해 Map_Type_ItemList를 다시 만듭니다.
+	/** 현재 런타임 캐시 기준으로 필터 맵을 다시 만듭니다. */
 	void RebuildFilteredItemMap();
 
-	// FastArray 콜백은 여기로 모아서, 캐시 재구성 로직을 컴포넌트가 직접 소유하게 합니다.
+	/** 복제 엔트리 추가 또는 변경을 반영합니다. */
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry);
+
+	/** 복제 엔트리 제거를 반영합니다. */
 	void HandleReplicatedEntryRemoved(FGuid ItemId);
 
-	// 런타임 아이템 인스턴스에 대응하는 복제 원본 엔트리를 추가하거나 갱신합니다.
+	/** 런타임 아이템을 복제 엔트리에 추가하거나 갱신합니다. */
 	void AddReplicatedItem(UItemInstance* ItemInstance);
 
-	// 공개 API가 사용하는 내부 변경 helper입니다.
-	// 이 경로를 분리해두면 런타임 캐시와 복제 엔트리를 항상 같은 상태로 맞추기 쉬워집니다.
+	/** ItemId로 복제 엔트리를 제거합니다. */
 	bool RemoveReplicatedItemById(FGuid ItemId);
+
+	/** ItemId로 복제 엔트리 수량을 바꿉니다. */
 	bool SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQuantity);
 
-	// 현재 정적 필터 정책은 기존 블루프린트의 로컬 변수 목록과 동일하게 유지합니다.
-	static const TArray<FGameplayTag>& GetFilterTypeTags();
+	/** 필터용 타입 태그 목록을 반환합니다. */
 
+	/** ItemId로 복제 엔트리 인덱스를 찾습니다. */
 	int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
+
+	/** ItemId로 복제 엔트리를 찾습니다. */
 	FReplicatedInventoryEntry* FindReplicatedEntryById(FGuid ItemId);
+
+	/** ItemId로 상수 복제 엔트리를 찾습니다. */
 	const FReplicatedInventoryEntry* FindReplicatedEntryById(FGuid ItemId) const;
 
 public:
+	// 전체 런타임 아이템 캐시입니다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (Categories = "Item"))
+	TArray<FGameplayTag> FilterTypeTags;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
 	FItemList AllItemList;
 
+	// 타입별 아이템 캐시 맵입니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
 	TMap<FGameplayTag, FItemList> Map_Type_ItemList;
 
 protected:
+	// 복제 원본 엔트리입니다.
 	UPROPERTY(Replicated)
 	FReplicatedInventoryList ReplicatedEntries;
 };

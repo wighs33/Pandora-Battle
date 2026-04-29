@@ -5,6 +5,10 @@
 #include "Components/GameFrameworkComponentManager.h"
 #include "AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystem/PdAttributeSet.h"
+#include "Item/InventoryComponent.h"
+#include "Pandora/PandoraComponent.h"
+#include "PlayerComponent/PlayerRewardComponent.h"
+#include "Skin/SkinComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayerState)
 
 APdPlayerState::APdPlayerState(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -16,6 +20,10 @@ APdPlayerState::APdPlayerState(const FObjectInitializer& ObjectInitializer) : Su
 	AbilitySystemComponent = CreateDefaultSubobject<UPdAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
 	AttributeSet = CreateDefaultSubobject<UPdAttributeSet>(TEXT("AttributeSet"));
+	PlayerRewardComponent = CreateDefaultSubobject<UPlayerRewardComponent>(TEXT("PlayerRewardComponent"));
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+	SkinComponent = CreateDefaultSubobject<USkinComponent>(TEXT("SkinComponent"));
+	PandoraComponent = CreateDefaultSubobject<UPandoraComponent>(TEXT("PandoraComponent"));
 }
 
 void APdPlayerState::PreInitializeComponents()
@@ -40,4 +48,9 @@ void APdPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 UAbilitySystemComponent* APdPlayerState::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
+}
+
+bool APdPlayerState::ApplyInteractRewards(AActor* InteractableActor)
+{
+	return PlayerRewardComponent && PlayerRewardComponent->ApplyInteractRewards(InteractableActor);
 }

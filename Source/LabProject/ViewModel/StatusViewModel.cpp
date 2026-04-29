@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "StatusViewModel.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/PdAttributeSet.h"
@@ -12,6 +10,7 @@ const FName UStatusViewModel::ViewModelName = TEXT("StatusViewModel");
 
 namespace StatusViewModel
 {
+	/** ASC에서 Attribute 값을 읽습니다. */
 	float GetAttributeValue(UAbilitySystemComponent* ASC, const FGameplayAttribute& Attribute)
 	{
 		bool bFound = false;
@@ -19,12 +18,17 @@ namespace StatusViewModel
 	}
 }
 
+/** 상태창 ViewModel 기본 상태를 초기화합니다. */
 UStatusViewModel::UStatusViewModel()
 {
 }
 
+/** SourceObject로부터 ASC를 찾아 초기화합니다. */
 void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 {
+	// =================================================================================================================
+	// === ASC 확인
+
 	UAbilitySystemComponent* InASC = Cast<UAbilitySystemComponent>(SourceObject);
 	if (!InASC)
 	{
@@ -32,11 +36,17 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 		return;
 	}
 
+	// =================================================================================================================
+	// === 같은 ASC 재사용
+
 	if (ASC.Get() == InASC && IsViewModelInitialized())
 	{
 		UpdateAllData();
 		return;
 	}
+
+	// =================================================================================================================
+	// === 기존 바인딩 정리
 
 	if (IsViewModelInitialized())
 	{
@@ -44,6 +54,9 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 	}
 
 	ASC = InASC;
+
+	// =================================================================================================================
+	// === 델리게이트 바인딩
 
 	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetStrengthAttribute()).AddUObject(this, &ThisClass::OnOffenseChanged);
 	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetIntelligenceAttribute()).AddUObject(this, &ThisClass::OnOffenseChanged);
@@ -77,8 +90,12 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 	Super::InitializeViewModel(SourceObject);
 }
 
+/** ASC 바인딩을 해제합니다. */
 void UStatusViewModel::UninitializeViewModel()
 {
+	// =================================================================================================================
+	// === 델리게이트 해제
+
 	if (UAbilitySystemComponent* ASCPtr = ASC.Get())
 	{
 		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetStrengthAttribute()).RemoveAll(this);
@@ -114,6 +131,7 @@ void UStatusViewModel::UninitializeViewModel()
 	Super::UninitializeViewModel();
 }
 
+/** 공격 관련 값을 갱신합니다. */
 void UStatusViewModel::UpdateOffenseData()
 {
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
@@ -127,6 +145,7 @@ void UStatusViewModel::UpdateOffenseData()
 	UE_MVVM_SET_PROPERTY_VALUE(Arcane, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetArcaneAttribute()));
 }
 
+/** 방어 관련 값을 갱신합니다. */
 void UStatusViewModel::UpdateDefenseData()
 {
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
@@ -140,6 +159,7 @@ void UStatusViewModel::UpdateDefenseData()
 	UE_MVVM_SET_PROPERTY_VALUE(MagicResistance, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetMagicResistanceAttribute()));
 }
 
+/** 저항 관련 값을 갱신합니다. */
 void UStatusViewModel::UpdateResistanceData()
 {
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
@@ -153,6 +173,7 @@ void UStatusViewModel::UpdateResistanceData()
 	UE_MVVM_SET_PROPERTY_VALUE(Sanity, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetSanityAttribute()));
 }
 
+/** 판도라 관련 값을 갱신합니다. */
 void UStatusViewModel::UpdatePandoraForceData()
 {
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
@@ -166,6 +187,7 @@ void UStatusViewModel::UpdatePandoraForceData()
 	UE_MVVM_SET_PROPERTY_VALUE(ThirdPandora, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetThirdPandoraAttribute()));
 }
 
+/** 민첩 관련 값을 갱신합니다. */
 void UStatusViewModel::UpdateAgilityData()
 {
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
@@ -179,6 +201,7 @@ void UStatusViewModel::UpdateAgilityData()
 	UE_MVVM_SET_PROPERTY_VALUE(CriticalChance, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetCriticalChanceAttribute()));
 }
 
+/** 체력 관련 값을 갱신합니다. */
 void UStatusViewModel::UpdateHealthData()
 {
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
@@ -195,6 +218,7 @@ void UStatusViewModel::UpdateHealthData()
 	UE_MVVM_SET_PROPERTY_VALUE(HealthPercent, CurrentMaxHealth > 0.f ? CurrentHealth / CurrentMaxHealth : 0.f);
 }
 
+/** 마나 관련 값을 갱신합니다. */
 void UStatusViewModel::UpdateManaData()
 {
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
@@ -211,6 +235,7 @@ void UStatusViewModel::UpdateManaData()
 	UE_MVVM_SET_PROPERTY_VALUE(ManaPercent, CurrentMaxMana > 0.f ? CurrentMana / CurrentMaxMana : 0.f);
 }
 
+/** 스태미나 관련 값을 갱신합니다. */
 void UStatusViewModel::UpdateStaminaData()
 {
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
@@ -227,6 +252,7 @@ void UStatusViewModel::UpdateStaminaData()
 	UE_MVVM_SET_PROPERTY_VALUE(StaminaPercent, CurrentMaxStamina > 0.f ? CurrentStamina / CurrentMaxStamina : 0.f);
 }
 
+/** 모든 값을 갱신합니다. */
 void UStatusViewModel::UpdateAllData()
 {
 	UpdateOffenseData();
@@ -239,57 +265,79 @@ void UStatusViewModel::UpdateAllData()
 	UpdateStaminaData();
 }
 
+/** 공격 수치 변경을 처리합니다. */
 void UStatusViewModel::OnOffenseChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdateOffenseData();
 }
 
+/** 방어 수치 변경을 처리합니다. */
 void UStatusViewModel::OnDefenseChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdateDefenseData();
 }
 
+/** 저항 수치 변경을 처리합니다. */
 void UStatusViewModel::OnResistanceChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdateResistanceData();
 }
 
+/** 판도라 수치 변경을 처리합니다. */
 void UStatusViewModel::OnPandoraForceChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdatePandoraForceData();
 }
 
+/** 민첩 수치 변경을 처리합니다. */
 void UStatusViewModel::OnAgilityChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdateAgilityData();
 }
 
+/** 체력 변경을 처리합니다. */
 void UStatusViewModel::OnHealthChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdateHealthData();
 }
 
+/** 최대 체력 변경을 처리합니다. */
 void UStatusViewModel::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdateHealthData();
 }
 
+/** 마나 변경을 처리합니다. */
 void UStatusViewModel::OnManaChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdateManaData();
 }
 
+/** 최대 마나 변경을 처리합니다. */
 void UStatusViewModel::OnMaxManaChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdateManaData();
 }
 
+/** 스태미나 변경을 처리합니다. */
 void UStatusViewModel::OnStaminaChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdateStaminaData();
 }
 
+/** 최대 스태미나 변경을 처리합니다. */
 void UStatusViewModel::OnMaxStaminaChanged(const FOnAttributeChangeData& Data)
 {
+	static_cast<void>(Data);
 	UpdateStaminaData();
 }

@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "GameplayEffect.h"
 #include "Engine/DataAsset.h"
 #include "UObject/SoftObjectPtr.h"
 #include "ItemDefinition.generated.h"
@@ -10,7 +9,6 @@
 class AWeaponBase;
 class UAnimInstance;
 class UAnimMontage;
-class UGameplayEffect;
 class UTexture2D;
 
 DECLARE_LOG_CATEGORY_EXTERN(ItemDefinitionLog, Log, All);
@@ -65,17 +63,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Attack")
 	TSoftObjectPtr<UAnimMontage> AttackMontage = nullptr;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Attack")
-	TSoftClassPtr<UGameplayEffect> AttackEffectClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Equip")
-	TSoftClassPtr<UGameplayEffect> EquipEffectClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Equip")
-	TSoftClassPtr<UGameplayEffect> UnequipEffectClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Equip", meta = (Categories = "GameplayCue"))
-	FGameplayTag EquipCueTag;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|HitReact")
+	TSoftObjectPtr<UAnimMontage> HitReactMontage = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Equip")
 	TSoftClassPtr<UAnimInstance> EquipAnimLayer;

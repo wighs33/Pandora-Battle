@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "UObject/Object.h"
 #include "ItemInstance.generated.h"
 
@@ -23,6 +24,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Item")
 	TObjectPtr<const UItemDefinition> ItemDefinition;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Item|Stat")
+	TMap<FGameplayTag, float> Map_EnhancedStat_Magnitude;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Item")
 	int32 Quantity = 0;

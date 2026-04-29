@@ -5,12 +5,19 @@
 #include "AbilitySystemComponent.h"
 #include "PdAttributeSet.generated.h"
 
+// Attribute 프로퍼티에 대한 Getter / Setter / Init 함수를 한 번에 생성합니다.
 #define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
 GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
 GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName) \
 GAMEPLAYATTRIBUTE_VALUE_SETTER(PropertyName) \
 GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 
+/**
+ * <프로젝트 전용 AttributeSet>
+ * - 캐릭터의 전투, 저항, 자원, 판도라 관련 스탯을 보관합니다.
+ * - 각 Attribute는 GAS 방식으로 접근할 수 있도록 접근자 매크로를 함께 선언합니다.
+ * - 복제, 값 변경 전후 처리, GameplayEffect 적용 후처리를 담당합니다.
+ */
 UCLASS()
 class LABPROJECT_API UPdAttributeSet : public UAttributeSet
 {
