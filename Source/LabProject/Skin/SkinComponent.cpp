@@ -1,7 +1,6 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "SkinComponent.h"
 
+#include "Common/ProjectTagConfig.h"
 #include "Engine/AssetManager.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -49,6 +48,7 @@ void USkinComponent::BeginPlay()
 
 	ReplicatedEntries.Owner = this;
 
+	UProjectTagConfig::Get(this)->GetSkinFilterTypeTags(FilterTypeTags);
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
 		InitializeReplicatedEntriesFromRuntimeSkins();
@@ -125,6 +125,12 @@ void USkinComponent::FilterSkin(USkinInstance* SkinInstance)
 		return;
 	}
 
+	if (!SkinDefinition->IdTag.IsValid())
+	{
+		UE_LOG(SkinComponentLog, Warning, TEXT("FilterSkin skipped skin '%s': invalid IdTag."), *GetNameSafe(SkinDefinition));
+		return;
+	}
+
 	for (const FGameplayTag& TypeTag : FilterTypeTags)
 	{
 		if (SkinDefinition->IdTag.MatchesTag(TypeTag))
@@ -142,6 +148,14 @@ void USkinComponent::AddValueToMap(FGameplayTag TypeTag, USkinInstance* SkinInst
 	}
 
 	Map_Type_SkinList.FindOrAdd(TypeTag).Skins.AddUnique(SkinInstance);
+}
+
+void USkinComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig)
+{
+	const UProjectTagConfig* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagConfig::GetDefaultConfig();
+	EffectiveConfig->GetSkinFilterTypeTags(FilterTypeTags);
+
+	RebuildFilteredSkinMap();
 }
 
 void USkinComponent::InitializeReplicatedEntriesFromRuntimeSkins()
@@ -241,6 +255,7 @@ void USkinComponent::AddReplicatedSkin(USkinInstance* SkinInstance)
 	FReplicatedSkinEntry& NewEntry = ReplicatedEntries.Entries.AddDefaulted_GetRef();
 	NewEntry.SkinDefinition = SkinDefinition;
 	ReplicatedEntries.MarkEntryDirty(NewEntry);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USkinComponent, ReplicatedEntries, this);
 }
 
 USkinInstance* USkinComponent::FindSkinInstanceByDefinition(const USkinDefinition* SkinDefinition) const

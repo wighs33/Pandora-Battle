@@ -13,6 +13,7 @@ UUnequipAbility::UUnequipAbility(const FObjectInitializer& ObjectInitializer)
 }
 
 /** 장착해제중 태그 제거 */
+// State helpers
 void UUnequipAbility::ClearActiveUnequipEffect()
 {
 	// =================================================================================================================
@@ -25,11 +26,22 @@ void UUnequipAbility::ClearActiveUnequipEffect()
 }
 
 /** 몽타주 완료 시*/
-void UUnequipAbility::HandleUnequipMontageCompleted()
+// Timing callbacks
+void UUnequipAbility::OnUnequipMontageCompleted()
 {
 	// =================================================================================================================
 	// === 장착 해제 진행 상태 정리
 	
+	bool bShouldActivateRequestedEquip = false;
+	if (const APdCharacterBase* Character = GetPdCharacterFromActorInfo())
+	{
+		if (const UEquipmentComponent* EquipmentComponent = Character->GetEquipmentComponent())
+		{
+			bShouldActivateRequestedEquip = EquipmentComponent->GetRequestedWeaponDefinition() != nullptr
+				&& PostUnequipEquipAbilityTag.IsValid();
+		}
+	}
+
 	ClearActiveUnequipEffect();
 
 	// 애니메이션 레이어를 기본 상태로 복구합니다.
@@ -39,10 +51,17 @@ void UUnequipAbility::HandleUnequipMontageCompleted()
 	}
 
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+
+	if (bShouldActivateRequestedEquip)
+	{
+		FGameplayTagContainer EquipAbilityTags;
+		EquipAbilityTags.AddTag(PostUnequipEquipAbilityTag);
+		TryActivateAbilitiesByTags(EquipAbilityTags, true);
+	}
 }
 
 /** 몽타주 중단 시*/
-void UUnequipAbility::HandleUnequipMontageInterrupted()
+void UUnequipAbility::OnUnequipMontageInterrupted()
 {
 	// =================================================================================================================
 	// === 장착 해제 진행 상태 정리
@@ -59,7 +78,7 @@ void UUnequipAbility::HandleUnequipMontageInterrupted()
 }
 
 /** 몽타주 취소 시*/
-void UUnequipAbility::HandleUnequipMontageCancelled()
+void UUnequipAbility::OnUnequipMontageCancelled()
 {
 	ClearActiveUnequipEffect();
 
@@ -72,12 +91,12 @@ void UUnequipAbility::HandleUnequipMontageCancelled()
 }
 
 /** 검 제거 노티파이 이벤트 수신 시점*/
-void UUnequipAbility::HandleUnequipCommitEvent(FGameplayEventData Payload)
+void UUnequipAbility::OnUnequipCommitTiming(FGameplayEventData Payload)
 {
 	// =================================================================================================================
 	// === 실제 장착 해제 반영 조건 검사
 
-	if (!HasAuthority(&CurrentActivationInfo) || !ActiveUnequipItemDefinition)
+	if (!HasAuthority(&CurrentActivationInfo) || !ActiveUnequipWeaponDefinition)
 	{
 		return;
 	}
@@ -86,9 +105,9 @@ void UUnequipAbility::HandleUnequipCommitEvent(FGameplayEventData Payload)
 	// === 제거 대상 아이템 태그 구성
 
 	FGameplayTagContainer GrantedTags;
-	if (ActiveUnequipItemDefinition->IdTag.IsValid())
+	if (ActiveUnequipWeaponDefinition->IdTag.IsValid())
 	{
-		GrantedTags.AddTag(ActiveUnequipItemDefinition->IdTag);
+		GrantedTags.AddTag(ActiveUnequipWeaponDefinition->IdTag);
 	}
 	
 	// =================================================================================================================
@@ -100,10 +119,11 @@ void UUnequipAbility::HandleUnequipCommitEvent(FGameplayEventData Payload)
 	}
 
 	// 장착 해제 대상 캐시를 비웁니다.
-	ActiveUnequipItemDefinition = nullptr;
+	ActiveUnequipWeaponDefinition = nullptr;
 }
 
 /** 장착 해제 어빌리티를 활성화하고 몽타주와 이벤트 태스크를 시작합니다. */
+// Ability flow
 void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
@@ -131,7 +151,7 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		return;
 	}
 
-	ActiveUnequipItemDefinition = UnequipVisualData.ItemDefinition;
+	ActiveUnequipWeaponDefinition = UnequipVisualData.ItemDefinition;
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
@@ -152,7 +172,7 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 			true);
 		if (ensure(CommitEventTask))
 		{
-			CommitEventTask->EventReceived.AddDynamic(this, &UUnequipAbility::HandleUnequipCommitEvent);
+			CommitEventTask->EventReceived.AddDynamic(this, &UUnequipAbility::OnUnequipCommitTiming);
 			CommitEventTask->ReadyForActivation();
 		}
 	}
@@ -176,9 +196,9 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		return;
 	}
 
-	MontageTask->OnCompleted.AddDynamic(this, &UUnequipAbility::HandleUnequipMontageCompleted);
-	MontageTask->OnInterrupted.AddDynamic(this, &UUnequipAbility::HandleUnequipMontageInterrupted);
-	MontageTask->OnCancelled.AddDynamic(this, &UUnequipAbility::HandleUnequipMontageCancelled);
+	MontageTask->OnCompleted.AddDynamic(this, &UUnequipAbility::OnUnequipMontageCompleted);
+	MontageTask->OnInterrupted.AddDynamic(this, &UUnequipAbility::OnUnequipMontageInterrupted);
+	MontageTask->OnCancelled.AddDynamic(this, &UUnequipAbility::OnUnequipMontageCancelled);
 	MontageTask->ReadyForActivation();
 
 	// =================================================================================================================

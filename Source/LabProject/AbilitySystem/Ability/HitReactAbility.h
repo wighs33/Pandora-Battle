@@ -18,18 +18,21 @@ public:
 	UHitReactAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
+	// Timing hooks
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
+	// Delegate callbacks
 	UFUNCTION()
-	void HandleHitReactMontageCompleted();
+	void OnHitReactMontageCompleted();
 
 	UFUNCTION()
-	void HandleHitReactMontageInterrupted();
+	void OnHitReactMontageInterrupted();
 
 	UFUNCTION()
-	void HandleHitReactMontageCancelled();
+	void OnHitReactMontageCancelled();
 
+	// State helpers
 	void ClearActiveHitReactEffect();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Animation")

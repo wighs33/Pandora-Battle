@@ -24,21 +24,24 @@ public:
 	UUnequipAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
+	// Timing hooks
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
+	// Delegate callbacks
 	UFUNCTION()
-	void HandleUnequipMontageCompleted();
+	void OnUnequipMontageCompleted();
 
 	UFUNCTION()
-	void HandleUnequipMontageInterrupted();
+	void OnUnequipMontageInterrupted();
 
 	UFUNCTION()
-	void HandleUnequipMontageCancelled();
+	void OnUnequipMontageCancelled();
 
 	UFUNCTION()
-	void HandleUnequipCommitEvent(FGameplayEventData Payload);
+	void OnUnequipCommitTiming(FGameplayEventData Payload);
 
+	// State helpers
 	void ClearActiveUnequipEffect();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
@@ -47,6 +50,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Event", meta = (Categories = "GameplayEvent"))
 	FGameplayTag CommitUnequipEventTag;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Activation", meta = (Categories = "Action"))
+	FGameplayTag PostUnequipEquipAbilityTag;
+
 	UPROPERTY(Transient)
-	TObjectPtr<const UItemDefinition> ActiveUnequipItemDefinition;
+	TObjectPtr<const UItemDefinition> ActiveUnequipWeaponDefinition;
 };

@@ -21,40 +21,48 @@ class LABPROJECT_API UAttackAbility : public UPdGameplayAbility
 
 public:
 	UAttackAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	const FGameplayTag& GetJumpSectionEventTag() const { return JumpSectionEventTag; }
 	FName GetNextAttackSectionName() const;
 	bool RequestJumpToSection(FName RequestedSectionName);
 
 protected:
+	// Timing hooks
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
+	// Delegate callbacks
 	UFUNCTION()
-	void HandleAttackMontageCompleted();
+	void OnAttackMontageCompleted();
 
 	UFUNCTION()
-	void HandleAttackMontageInterrupted();
+	void OnAttackMontageInterrupted();
 
 	UFUNCTION()
-	void HandleAttackMontageCancelled();
+	void OnAttackMontageCancelled();
 
 	UFUNCTION()
-	void HandleJumpSectionEvent(FGameplayEventData Payload);
+	void OnJumpSectionTiming(FGameplayEventData Payload);
 
 	UFUNCTION()
-	void HandleAttackInputWindowStartedEvent(FGameplayEventData Payload);
+	void OnAttackInputWindowOpened(FGameplayEventData Payload);
 
 	UFUNCTION()
-	void HandleAttackInputWindowEndedEvent(FGameplayEventData Payload);
-	
+	void OnAttackInputWindowClosed(FGameplayEventData Payload);
+
+	// State helpers
 	void CleanupAttackState();
 	void ResetAttackInputState();
+
+	// Query helpers
 	AWeaponBase* GetCurrentWeaponActor() const;
-	void SetCurrentWeaponBeginOverlapEnabled(bool bEnabled) const;
 	FName GetCurrentAttackSectionName() const;
 	bool IsAttackSectionNameValid(FName SectionName) const;
+
+	// Action helpers
+	void SetCurrentWeaponBeginOverlapEnabled(bool bEnabled) const;
 	bool TryJumpToSection(FName SectionName);
 	bool TryJumpToNextSection();
 

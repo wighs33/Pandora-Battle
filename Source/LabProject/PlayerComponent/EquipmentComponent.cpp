@@ -1,11 +1,11 @@
 #include "PlayerComponent/EquipmentComponent.h"
 
 #include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "Character/PdCharacterBase.h"
+#include "Common/Enum_Operation.h"
+#include "Common/ProjectTagConfig.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
-#include "GameFramework/Character.h"
-#include "GameFramework/Pawn.h"
-#include "GameFramework/PlayerState.h"
 #include "Item/InventoryComponent.h"
 #include "Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
@@ -21,11 +21,33 @@ DEFINE_LOG_CATEGORY(EquipmentComponentLog);
 UEquipmentComponent::UEquipmentComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// =================================================================================================================
 	// === 기본 설정
 
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
+}
+
+/** 시작 시 캐시를 갱신합니다. */
+void UEquipmentComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	RefreshCachedReferences();
+}
+
+/** 소유 캐릭터, ASC, Inventory 캐시를 갱신합니다. */
+void UEquipmentComponent::RefreshCachedReferences()
+{
+	CachedOwner = Cast<APdCharacterBase>(GetOwner());
+	const APdPlayerState* PdPlayerState = CachedOwner ? Cast<APdPlayerState>(CachedOwner->GetPlayerState()) : nullptr;
+	CachedASC = CachedOwner ? CachedOwner->GetPdAbilitySystemComponent() : nullptr;
+	CachedInventory = PdPlayerState ? PdPlayerState->GetInventoryComponent() : nullptr;
+
+	UE_LOG(EquipmentComponentLog, Log, TEXT("RefreshCachedReferences: owner=%s playerState=%s asc=%s inventory=%s"),
+		*GetNameSafe(CachedOwner.Get()),
+		*GetNameSafe(PdPlayerState),
+		*GetNameSafe(CachedASC.Get()),
+		*GetNameSafe(CachedInventory.Get()));
 }
 
 /** 복제 프로퍼티를 등록합니다. */
@@ -39,26 +61,26 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	FDoRepLifetimeParams CurrentWeaponParams;
 	CurrentWeaponParams.bIsPushBased = true;
 
-	FDoRepLifetimeParams CurrentItemIdParams;
-	CurrentItemIdParams.bIsPushBased = true;
-	CurrentItemIdParams.Condition = COND_OwnerOnly;
+	FDoRepLifetimeParams CurrentWeaponIdParams;
+	CurrentWeaponIdParams.bIsPushBased = true;
+	CurrentWeaponIdParams.Condition = COND_OwnerOnly;
 
 	// =================================================================================================================
 	// === 복제 등록
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UEquipmentComponent, CurrentWeaponActor, CurrentWeaponParams);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UEquipmentComponent, CurrentItemId, CurrentItemIdParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UEquipmentComponent, CurrentWeaponId, CurrentWeaponIdParams);
 }
 
 /** 요청된 아이템 정의를 반환합니다. */
-const UItemDefinition* UEquipmentComponent::GetRequestedItemDefinition() const
+const UItemDefinition* UEquipmentComponent::GetRequestedWeaponDefinition() const
 {
 	// =================================================================================================================
 	// === 요청 아이템 조회
 
-	if (RequestedItemId.IsValid())
+	if (RequestedWeaponId.IsValid())
 	{
-		if (const UItemInstance* ItemInstance = FindOwnedItemInstanceById(RequestedItemId))
+		if (const UItemInstance* ItemInstance = FindOwnedItemInstanceById(RequestedWeaponId))
 		{
 			return ItemInstance->ItemDefinition.Get();
 		}
@@ -75,15 +97,22 @@ bool UEquipmentComponent::GetEquipData(FEquipData& OutEquipData) const
 	
 	OutEquipData = FEquipData();
 
-	const UItemDefinition* ItemDefinition = GetRequestedItemDefinition();
+	const UItemDefinition* ItemDefinition = GetRequestedWeaponDefinition();
 	if (!ensure(ItemDefinition))
 	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("GetEquipData failed: requested weapon definition is null. owner=%s requestedId=%s"),
+			*GetNameSafe(GetOwner()),
+			*RequestedWeaponId.ToString());
 		return false;
 	}
 
-	UAnimMontage* EquipMontage = ItemDefinition->EquipMontage.LoadSynchronous();
+	const FWeaponEquipDefinitionData& EquipDefinitionData = ItemDefinition->WeaponData.Equip;
+	UAnimMontage* EquipMontage = EquipDefinitionData.EquipMontage.LoadSynchronous();
 	if (!ensure(EquipMontage))
 	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("GetEquipData failed: missing EquipMontage. definition=%s idTag=%s"),
+			*GetNameSafe(ItemDefinition),
+			*ItemDefinition->IdTag.ToString());
 		return false;
 	}
 	
@@ -92,7 +121,7 @@ bool UEquipmentComponent::GetEquipData(FEquipData& OutEquipData) const
 	
 	OutEquipData.ItemDefinition = ItemDefinition;
 	OutEquipData.EquipMontage = EquipMontage;
-	OutEquipData.EquipAnimLayer = ItemDefinition->EquipAnimLayer.LoadSynchronous();
+	OutEquipData.EquipAnimLayer = EquipDefinitionData.AnimLayer.LoadSynchronous();
 	return true;
 }
 
@@ -104,15 +133,23 @@ bool UEquipmentComponent::GetUnequipData(FUnequipData& OutUnequipData) const
 	
 	OutUnequipData = FUnequipData();
 
-	const UItemDefinition* ItemDefinition = GetCurrentItemDefinition();
+	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
 	if (!ItemDefinition)
 	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("GetUnequipData failed: current weapon definition is null. owner=%s currentId=%s actor=%s"),
+			*GetNameSafe(GetOwner()),
+			*CurrentWeaponId.ToString(),
+			*GetNameSafe(CurrentWeaponActor));
 		return false;
 	}
 
-	UAnimMontage* UnequipMontage = ItemDefinition->UnequipMontage.LoadSynchronous();
+	const FWeaponEquipDefinitionData& EquipDefinitionData = ItemDefinition->WeaponData.Equip;
+	UAnimMontage* UnequipMontage = EquipDefinitionData.UnequipMontage.LoadSynchronous();
 	if (!ensure(UnequipMontage))
 	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("GetUnequipData failed: missing UnequipMontage. definition=%s idTag=%s"),
+			*GetNameSafe(ItemDefinition),
+			*ItemDefinition->IdTag.ToString());
 		return false;
 	}
 		
@@ -125,70 +162,200 @@ bool UEquipmentComponent::GetUnequipData(FUnequipData& OutUnequipData) const
 }
 
 /** 요청 아이템을 저장합니다. */
-bool UEquipmentComponent::SetRequestedItemInstance(UItemInstance* ItemInstance)
+bool UEquipmentComponent::SetRequestedWeaponInstance(UItemInstance* WeaponInstance)
 {
 	// =================================================================================================================
 	// === 초기화 & 안전 가드
 	
-	UInventoryComponent* InventoryComponent = FindInventoryComponent();
-	if (!IsValid(ItemInstance) || !InventoryComponent)
+	UInventoryComponent* InventoryComponent = CachedInventory.Get();
+	if (!IsValid(WeaponInstance) || !InventoryComponent)
 	{
-		ClearRequestedItem();
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("SetRequestedWeaponInstance failed: weapon=%s inventory=%s owner=%s"),
+			*GetNameSafe(WeaponInstance),
+			*GetNameSafe(InventoryComponent),
+			*GetNameSafe(GetOwner()));
+		ClearRequestedWeapon();
 		return false;
 	}
 
-	const FGuid ItemId = InventoryComponent->GetOrCreateItemId(ItemInstance);
-	if (!ItemId.IsValid())
+	const FGuid WeaponId = InventoryComponent->GetOrCreateItemId(WeaponInstance);
+	if (!WeaponId.IsValid())
 	{
-		ClearRequestedItem();
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("SetRequestedWeaponInstance failed: invalid item id. weapon=%s definition=%s"),
+			*GetNameSafe(WeaponInstance),
+			*GetNameSafe(WeaponInstance->ItemDefinition.Get()));
+		ClearRequestedWeapon();
 		return false;
 	}
 	
 	// =================================================================================================================
 	// === 요청 상태 갱신
 
-	RequestedItemId = ItemId;
+	RequestedWeaponId = WeaponId;
+	UE_LOG(EquipmentComponentLog, Log, TEXT("SetRequestedWeaponInstance succeeded: owner=%s weapon=%s definition=%s requestedId=%s hasAuthority=%s"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(WeaponInstance),
+		*GetNameSafe(WeaponInstance->ItemDefinition.Get()),
+		*RequestedWeaponId.ToString(),
+		GetOwner() && GetOwner()->HasAuthority() ? TEXT("true") : TEXT("false"));
 	if (GetOwner() && !GetOwner()->HasAuthority())
 	{
-		ServerSetRequestedItem(ItemId);
+		UE_LOG(EquipmentComponentLog, Log, TEXT("SetRequestedWeaponInstance sending ServerSetRequestedWeapon: id=%s"), *WeaponId.ToString());
+		ServerSetRequestedWeapon(WeaponId);
 	}
 
 	return true;
 }
 
-/** 요청된 아이템을 장착합니다. */
-bool UEquipmentComponent::EquipRequestedItem()
+void UEquipmentComponent::ClearRequestedWeaponInstance()
 {
-	if (!ensure(RequestedItemId.IsValid()))
-	{
-		return false;
-	}
-
-	const FGuid RequestedItem = RequestedItemId;
-	ClearRequestedItem();
-	return EquipItemById(RequestedItem);
+	ClearRequestedWeapon();
 }
 
-/** 아이템을 즉시 장착합니다. */
-bool UEquipmentComponent::EquipItem(UItemInstance* ItemInstance)
+/** 요청된 무기를 장착합니다. */
+bool UEquipmentComponent::RequestWeaponSelection(UItemInstance* WeaponInstance)
 {
-	UInventoryComponent* InventoryComponent = FindInventoryComponent();
-	if (!ensure(ItemInstance) || !ensure(ItemInstance->ItemDefinition) || !ensure(InventoryComponent))
+	RefreshCachedReferences();
+
+	const FGameplayTag EquipAbilityTag = GetEquipAbilityTag();
+	const FGameplayTag UnequipAbilityTag = GetUnequipAbilityTag();
+
+	UE_LOG(EquipmentComponentLog, Log, TEXT("RequestWeaponSelection started: owner=%s weapon=%s definition=%s currentId=%s currentActor=%s equipTag=%s unequipTag=%s"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(WeaponInstance),
+		*GetNameSafe(WeaponInstance ? WeaponInstance->ItemDefinition.Get() : nullptr),
+		*CurrentWeaponId.ToString(),
+		*GetNameSafe(CurrentWeaponActor),
+		*EquipAbilityTag.ToString(),
+		*UnequipAbilityTag.ToString());
+
+	UInventoryComponent* InventoryComponent = CachedInventory.Get();
+	if (!IsValid(WeaponInstance) || !InventoryComponent)
 	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("RequestWeaponSelection failed: weapon=%s inventory=%s"),
+			*GetNameSafe(WeaponInstance),
+			*GetNameSafe(InventoryComponent));
 		return false;
 	}
 
-	const FGuid ItemId = InventoryComponent->GetOrCreateItemId(ItemInstance);
-	if (!ensure(ItemId.IsValid()))
+	const FGuid SelectedWeaponId = InventoryComponent->GetOrCreateItemId(WeaponInstance);
+	if (!SelectedWeaponId.IsValid() || IsCurrentWeapon(SelectedWeaponId))
 	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("RequestWeaponSelection failed: selectedId=%s valid=%s alreadyCurrent=%s"),
+			*SelectedWeaponId.ToString(),
+			SelectedWeaponId.IsValid() ? TEXT("true") : TEXT("false"),
+			IsCurrentWeapon(SelectedWeaponId) ? TEXT("true") : TEXT("false"));
 		return false;
 	}
 
-	return EquipItemById(ItemId);
+	if (!SetRequestedWeaponInstance(WeaponInstance))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("RequestWeaponSelection failed: SetRequestedWeaponInstance returned false."));
+		return false;
+	}
+
+	if (CurrentWeaponActor)
+	{
+		FGameplayTagContainer UnequipTagContainer;
+		UnequipTagContainer.AddTag(UnequipAbilityTag);
+		if (HasActiveAbilityWithTags(UnequipTagContainer))
+		{
+			UE_LOG(EquipmentComponentLog, Warning, TEXT("RequestWeaponSelection failed: unequip ability already active. tag=%s"),
+				*UnequipAbilityTag.ToString());
+			return false;
+		}
+
+		const bool bActivatedUnequip = TryActivateSingleAbilityTag(UnequipAbilityTag);
+		UE_LOG(EquipmentComponentLog, Log, TEXT("RequestWeaponSelection activated unequip for weapon swap: tag=%s result=%s"),
+			*UnequipAbilityTag.ToString(),
+			bActivatedUnequip ? TEXT("true") : TEXT("false"));
+		return bActivatedUnequip;
+	}
+
+	const bool bActivatedEquip = TryActivateSingleAbilityTag(EquipAbilityTag);
+	UE_LOG(EquipmentComponentLog, Log, TEXT("RequestWeaponSelection activated equip: tag=%s result=%s"),
+		*EquipAbilityTag.ToString(),
+		bActivatedEquip ? TEXT("true") : TEXT("false"));
+	return bActivatedEquip;
+}
+
+bool UEquipmentComponent::RequestWeaponUnequip()
+{
+	RefreshCachedReferences();
+	ClearRequestedWeaponInstance();
+
+	const FGameplayTag UnequipAbilityTag = GetUnequipAbilityTag();
+
+	UE_LOG(EquipmentComponentLog, Log, TEXT("RequestWeaponUnequip started: owner=%s currentId=%s currentActor=%s unequipTag=%s"),
+		*GetNameSafe(GetOwner()),
+		*CurrentWeaponId.ToString(),
+		*GetNameSafe(CurrentWeaponActor),
+		*UnequipAbilityTag.ToString());
+
+	FGameplayTagContainer UnequipTagContainer;
+	UnequipTagContainer.AddTag(UnequipAbilityTag);
+	if (HasActiveAbilityWithTags(UnequipTagContainer))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("RequestWeaponUnequip failed: unequip ability already active. tag=%s"),
+			*UnequipAbilityTag.ToString());
+		return false;
+	}
+
+	const bool bActivated = TryActivateSingleAbilityTag(UnequipAbilityTag);
+	UE_LOG(EquipmentComponentLog, Log, TEXT("RequestWeaponUnequip activated unequip: tag=%s result=%s"),
+		*UnequipAbilityTag.ToString(),
+		bActivated ? TEXT("true") : TEXT("false"));
+	return bActivated;
+}
+
+bool UEquipmentComponent::EquipWeapon()
+{
+	if (!RequestedWeaponId.IsValid())
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeapon failed: RequestedWeaponId is invalid. owner=%s"),
+			*GetNameSafe(GetOwner()));
+		return false;
+	}
+
+	if (!ensure(GetOwner()))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeapon failed: owner is null."));
+		return false;
+	}
+
+	if (!GetOwner()->HasAuthority())
+	{
+		UE_LOG(EquipmentComponentLog, Log, TEXT("EquipWeapon forwarding to server: owner=%s requestedId=%s"),
+			*GetNameSafe(GetOwner()),
+			*RequestedWeaponId.ToString());
+		ServerEquipWeapon();
+		ClearRequestedWeapon();
+		return true;
+	}
+
+	const FGuid WeaponId = RequestedWeaponId;
+	ClearRequestedWeapon();
+
+	UItemInstance* WeaponInstance = FindOwnedItemInstanceById(WeaponId);
+	if (!ensure(WeaponInstance))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeapon failed: could not find owned item by id=%s owner=%s inventory=%s"),
+			*WeaponId.ToString(),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(CachedInventory.Get()));
+		return false;
+	}
+
+	const bool bEquipped = EquipWeaponInternal(WeaponInstance);
+	UE_LOG(EquipmentComponentLog, Log, TEXT("EquipWeapon completed: id=%s weapon=%s result=%s"),
+		*WeaponId.ToString(),
+		*GetNameSafe(WeaponInstance),
+		bEquipped ? TEXT("true") : TEXT("false"));
+	return bEquipped;
 }
 
 /** 현재 아이템을 해제합니다. */
-bool UEquipmentComponent::UnequipCurrentItem()
+bool UEquipmentComponent::UnequipCurrentWeapon()
 {
 	if (!ensure(GetOwner()))
 	{
@@ -200,140 +367,260 @@ bool UEquipmentComponent::UnequipCurrentItem()
 		return false;
 	}
 	
-	return UnequipCurrentItemInternal();
+	return UnequipCurrentWeaponInternal();
 }
 
-/** 서버에 장착 아이템 ID를 전달합니다. */
-void UEquipmentComponent::ServerEquipItem_Implementation(FGuid ItemId)
+/** 서버에 요청된 무기 장착을 요청합니다. */
+void UEquipmentComponent::ServerEquipWeapon_Implementation()
 {
-	if (!ensure(ItemId.IsValid()))
-	{
-		return;
-	}
-	
-	EquipItemById(ItemId);
+	UE_LOG(EquipmentComponentLog, Log, TEXT("ServerEquipWeapon received: owner=%s requestedId=%s"),
+		*GetNameSafe(GetOwner()),
+		*RequestedWeaponId.ToString());
+	EquipWeapon();
 }
 
 /** 서버에 요청 아이템 ID를 전달합니다. */
-void UEquipmentComponent::ServerSetRequestedItem_Implementation(FGuid ItemId)
+void UEquipmentComponent::ServerSetRequestedWeapon_Implementation(FGuid WeaponId)
 {
 	// =================================================================================================================
 	// === 초기화 & 안전 가드
 	
-	if (!ensure(ItemId.IsValid()))
+	if (!ensure(WeaponId.IsValid()))
 	{
-		ClearRequestedItem();
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("ServerSetRequestedWeapon failed: invalid weapon id. owner=%s"),
+			*GetNameSafe(GetOwner()));
+		ClearRequestedWeapon();
 		return;
 	}
 
 	// =================================================================================================================
 	// === 요청 아이디 설정
 	
-	RequestedItemId = ItemId;
-	ensure(FindOwnedItemInstanceById(ItemId));
-}
-
-/** ID 기준으로 장착을 처리합니다. */
-bool UEquipmentComponent::EquipItemById(FGuid ItemId)
-{
-	if (!ensure(ItemId.IsValid()) || !ensure(GetOwner()))
-	{
-		return false;
-	}
-
-	if (!GetOwner()->HasAuthority())
-	{
-		ServerEquipItem(ItemId);
-		return true;
-	}
-
-	UItemInstance* ItemInstance = FindOwnedItemInstanceById(ItemId);
-	if (!ensure(ItemInstance))
-	{
-		return false;
-	}
-
-	return EquipItemInternal(ItemInstance);
+	RequestedWeaponId = WeaponId;
+	UItemInstance* FoundItem = FindOwnedItemInstanceById(WeaponId);
+	UE_LOG(EquipmentComponentLog, Log, TEXT("ServerSetRequestedWeapon applied: owner=%s requestedId=%s foundItem=%s definition=%s"),
+		*GetNameSafe(GetOwner()),
+		*WeaponId.ToString(),
+		*GetNameSafe(FoundItem),
+		*GetNameSafe(FoundItem ? FoundItem->ItemDefinition.Get() : nullptr));
+	ensure(FoundItem);
 }
 
 /** 실제 장착 로직을 처리합니다. */
-bool UEquipmentComponent::EquipItemInternal(UItemInstance* ItemInstance)
+bool UEquipmentComponent::EquipWeaponInternal(UItemInstance* WeaponInstance)
 {
-	// =================================================================================================================
-	// === 초기화 & 안전 가드
-	
-	ACharacter* CharacterOwner = GetCharacterOwner();
-	const UItemDefinition* ItemDefinition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr;
-	UInventoryComponent* InventoryComponent = FindInventoryComponent();
-	if (!ensure(CharacterOwner) || !ensure(ItemDefinition))
+	UE_LOG(EquipmentComponentLog, Log, TEXT("EquipWeaponInternal started: owner=%s weapon=%s definition=%s"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(WeaponInstance),
+		*GetNameSafe(WeaponInstance ? WeaponInstance->ItemDefinition.Get() : nullptr));
+
+	const UItemDefinition* ItemDefinition = nullptr;
+	FGuid NewCurrentWeaponId;
+	if (!ResolveWeaponEquipRequest(WeaponInstance, ItemDefinition, NewCurrentWeaponId))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeaponInternal failed: ResolveWeaponEquipRequest returned false."));
+		return false;
+	}
+
+	if (IsCurrentWeapon(NewCurrentWeaponId))
+	{
+		UE_LOG(EquipmentComponentLog, Log, TEXT("EquipWeaponInternal skipped: weapon is already current. id=%s actor=%s"),
+			*NewCurrentWeaponId.ToString(),
+			*GetNameSafe(CurrentWeaponActor));
+		return true;
+	}
+
+	TSubclassOf<AWeaponBase> WeaponClass = LoadWeaponActorClass(ItemDefinition);
+	if (!WeaponClass)
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeaponInternal failed: weapon actor class load failed. definition=%s idTag=%s"),
+			*GetNameSafe(ItemDefinition),
+			ItemDefinition ? *ItemDefinition->IdTag.ToString() : TEXT("None"));
+		return false;
+	}
+
+	FEquippedItemStatSnapshot PendingStatSnapshot;
+	if (!BuildItemStatSnapshot(WeaponInstance, PendingStatSnapshot))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeaponInternal failed: BuildItemStatSnapshot returned false. weapon=%s definition=%s"),
+			*GetNameSafe(WeaponInstance),
+			*GetNameSafe(ItemDefinition));
+		return false;
+	}
+
+	UnequipCurrentWeaponInternal();
+
+	AWeaponBase* SpawnedWeapon = SpawnAndAttachWeaponActor(WeaponClass, ItemDefinition);
+	if (!SpawnedWeapon)
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeaponInternal failed: SpawnAndAttachWeaponActor returned null. class=%s definition=%s"),
+			*GetNameSafe(WeaponClass.Get()),
+			*GetNameSafe(ItemDefinition));
+		return false;
+	}
+
+	ApplyAndStoreWeaponStats(ItemDefinition, PendingStatSnapshot);
+	CommitCurrentWeaponState(NewCurrentWeaponId, SpawnedWeapon);
+	UE_LOG(EquipmentComponentLog, Log, TEXT("EquipWeaponInternal succeeded: id=%s weaponActor=%s definition=%s"),
+		*NewCurrentWeaponId.ToString(),
+		*GetNameSafe(SpawnedWeapon),
+		*GetNameSafe(ItemDefinition));
+	return true;
+}
+
+/** 장착에 필요한 아이템, ID, 액터 클래스, 스탯 정보를 구성합니다. */
+bool UEquipmentComponent::ResolveWeaponEquipRequest(UItemInstance* WeaponInstance, const UItemDefinition*& OutItemDefinition, FGuid& OutWeaponId) const
+{
+	OutItemDefinition = nullptr;
+	OutWeaponId.Invalidate();
+
+	APdCharacterBase* CharacterOwner = CachedOwner.Get();
+	const UItemDefinition* ItemDefinition = WeaponInstance ? WeaponInstance->ItemDefinition.Get() : nullptr;
+	UInventoryComponent* InventoryComponent = CachedInventory.Get();
+	if (!ensure(CharacterOwner) || !ensure(ItemDefinition) || !ensure(InventoryComponent))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("ResolveWeaponEquipRequest failed: character=%s weapon=%s definition=%s inventory=%s"),
+			*GetNameSafe(CharacterOwner),
+			*GetNameSafe(WeaponInstance),
+			*GetNameSafe(ItemDefinition),
+			*GetNameSafe(InventoryComponent));
+		return false;
+	}
+
+	const FGuid NewCurrentWeaponId = InventoryComponent->GetOrCreateItemId(WeaponInstance);
+	if (!ensure(NewCurrentWeaponId.IsValid()))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("ResolveWeaponEquipRequest failed: invalid item id. weapon=%s definition=%s"),
+			*GetNameSafe(WeaponInstance),
+			*GetNameSafe(ItemDefinition));
+		return false;
+	}
+
+	OutItemDefinition = ItemDefinition;
+	OutWeaponId = NewCurrentWeaponId;
+	return true;
+}
+
+/** 이미 현재 장착된 무기인지 반환합니다. */
+bool UEquipmentComponent::IsCurrentWeapon(FGuid WeaponId) const
+{
+	return CurrentWeaponActor
+		&& CurrentWeaponId.IsValid()
+		&& CurrentWeaponId == WeaponId;
+}
+
+bool UEquipmentComponent::TryActivateSingleAbilityTag(const FGameplayTag& AbilityTag) const
+{
+	UPdAbilitySystemComponent* ASC = CachedASC.Get();
+	if (!ASC || !AbilityTag.IsValid())
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("TryActivateSingleAbilityTag failed: asc=%s tag=%s owner=%s"),
+			*GetNameSafe(ASC),
+			*AbilityTag.ToString(),
+			*GetNameSafe(GetOwner()));
+		return false;
+	}
+
+	FGameplayTagContainer AbilityTagContainer;
+	AbilityTagContainer.AddTag(AbilityTag);
+	const bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTagContainer, true);
+	UE_LOG(EquipmentComponentLog, Log, TEXT("TryActivateSingleAbilityTag: owner=%s asc=%s tag=%s result=%s abilityCount=%d"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(ASC),
+		*AbilityTag.ToString(),
+		bActivated ? TEXT("true") : TEXT("false"),
+		ASC->GetActivatableAbilities().Num());
+	return bActivated;
+}
+
+bool UEquipmentComponent::HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const
+{
+	UPdAbilitySystemComponent* ASC = CachedASC.Get();
+	if (!ASC || AbilityTags.IsEmpty())
 	{
 		return false;
 	}
 
-	// =================================================================================================================
-	// === 중복 장착 검사
-	
-	if (CurrentItemId.IsValid() && ItemInstance && CurrentWeaponActor)
+	for (const FGameplayAbilitySpec& AbilitySpec : ASC->GetActivatableAbilities())
 	{
-		if (InventoryComponent)
+		if (!AbilitySpec.IsActive() || !AbilitySpec.Ability)
 		{
-			const FGuid RequestedEquipItemId = InventoryComponent->GetOrCreateItemId(ItemInstance);
-			if (RequestedEquipItemId.IsValid() && CurrentItemId == RequestedEquipItemId)
-			{
-				return true;
-			}
+			continue;
+		}
+
+		if (AbilitySpec.Ability->GetAssetTags().HasAny(AbilityTags))
+		{
+			return true;
 		}
 	}
 
-	// =================================================================================================================
-	// === 메시 확보
-	
-	USkeletalMeshComponent* OwnerMesh = CharacterOwner->GetMesh();
-	if (!ensure(OwnerMesh))
+	return false;
+}
+
+FGameplayTag UEquipmentComponent::GetEquipAbilityTag() const
+{
+	return UProjectTagConfig::Get(this)->GetEquipmentEquipAbilityTag();
+}
+
+FGameplayTag UEquipmentComponent::GetUnequipAbilityTag() const
+{
+	return UProjectTagConfig::Get(this)->GetEquipmentUnequipAbilityTag();
+}
+
+TSubclassOf<AWeaponBase> UEquipmentComponent::LoadWeaponActorClass(const UItemDefinition* ItemDefinition) const
+{
+	if (!ensure(ItemDefinition))
 	{
-		return false;
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("LoadWeaponActorClass failed: item definition is null."));
+		return nullptr;
 	}
 
-	// =================================================================================================================
-	// === 무기 클래스 로드
-	
-	TSubclassOf<AWeaponBase> WeaponClass = ItemDefinition->EquippedActorClass.LoadSynchronous();
+	TSubclassOf<AWeaponBase> WeaponClass = ItemDefinition->WeaponData.Equip.ActorClass.LoadSynchronous();
 	if (!ensure(WeaponClass))
 	{
-		return false;
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("LoadWeaponActorClass failed: ActorClass is empty or failed to load. definition=%s idTag=%s"),
+			*GetNameSafe(ItemDefinition),
+			*ItemDefinition->IdTag.ToString());
+		return nullptr;
 	}
 
-	// =================================================================================================================
-	// === 스탯 스냅샷 준비
-	
-	FEquippedItemStatSnapshot PendingStatSnapshot;
-	if (!BuildItemStatSnapshot(ItemInstance, PendingStatSnapshot))
-	{
-		return false;
-	}
+	UE_LOG(EquipmentComponentLog, Log, TEXT("LoadWeaponActorClass succeeded: definition=%s class=%s"),
+		*GetNameSafe(ItemDefinition),
+		*GetNameSafe(WeaponClass.Get()));
+	return WeaponClass;
+}
 
-	UnequipCurrentItemInternal();
-
-	// =================================================================================================================
-	// === 스폰 위치 계산
-	
-	FTransform SpawnTransform = OwnerMesh->GetComponentTransform();
-	if (ItemDefinition->EquipAttachSocketName != NAME_None && OwnerMesh->DoesSocketExist(ItemDefinition->EquipAttachSocketName))
-	{
-		SpawnTransform = OwnerMesh->GetSocketTransform(ItemDefinition->EquipAttachSocketName);
-	}
-	
-	// =================================================================================================================
-	// === 월드 검사
-
+/** 무기 액터를 생성하고 소유자 메시에 부착합니다. */
+AWeaponBase* UEquipmentComponent::SpawnAndAttachWeaponActor(TSubclassOf<AWeaponBase> WeaponClass, const UItemDefinition* ItemDefinition) const
+{
+	APdCharacterBase* CharacterOwner = CachedOwner.Get();
+	USkeletalMeshComponent* OwnerMesh = CharacterOwner ? CharacterOwner->GetMesh() : nullptr;
 	UWorld* World = GetWorld();
-	if (!World)
+	if (!ensure(WeaponClass) || !ensure(ItemDefinition) || !ensure(CharacterOwner) || !ensure(OwnerMesh) || !World)
 	{
-		return false;
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("SpawnAndAttachWeaponActor failed: class=%s definition=%s character=%s mesh=%s world=%s"),
+			*GetNameSafe(WeaponClass.Get()),
+			*GetNameSafe(ItemDefinition),
+			*GetNameSafe(CharacterOwner),
+			*GetNameSafe(OwnerMesh),
+			*GetNameSafe(World));
+		return nullptr;
 	}
-	
-	// =================================================================================================================
-	// === 무기 스폰 및 부착
+
+	FTransform SpawnTransform = OwnerMesh->GetComponentTransform();
+	const FName AttachSocketName = ItemDefinition->WeaponData.Equip.GetResolvedAttachSocketName();
+	if (AttachSocketName != NAME_None && OwnerMesh->DoesSocketExist(AttachSocketName))
+	{
+		SpawnTransform = OwnerMesh->GetSocketTransform(AttachSocketName);
+	}
+	else if (AttachSocketName != NAME_None)
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("SpawnAndAttachWeaponActor: attach socket does not exist. character=%s mesh=%s socket=%s definition=%s"),
+			*GetNameSafe(CharacterOwner),
+			*GetNameSafe(OwnerMesh),
+			*AttachSocketName.ToString(),
+			*GetNameSafe(ItemDefinition));
+	}
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = CharacterOwner;
@@ -343,40 +630,73 @@ bool UEquipmentComponent::EquipItemInternal(UItemInstance* ItemInstance)
 	AWeaponBase* SpawnedWeapon = World->SpawnActor<AWeaponBase>(WeaponClass, SpawnTransform, SpawnParams);
 	if (!ensure(SpawnedWeapon))
 	{
-		return false;
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("SpawnAndAttachWeaponActor failed: SpawnActor returned null. class=%s definition=%s"),
+			*GetNameSafe(WeaponClass.Get()),
+			*GetNameSafe(ItemDefinition));
+		return nullptr;
 	}
 
+	SpawnedWeapon->InitializeFromItemDefinition(ItemDefinition);
 	SpawnedWeapon->SetReplicates(true);
 	AttachWeaponToOwner(SpawnedWeapon, ItemDefinition);
+	UE_LOG(EquipmentComponentLog, Log, TEXT("SpawnAndAttachWeaponActor succeeded: actor=%s class=%s socket=%s definition=%s"),
+		*GetNameSafe(SpawnedWeapon),
+		*GetNameSafe(WeaponClass.Get()),
+		*AttachSocketName.ToString(),
+		*GetNameSafe(ItemDefinition));
+	return SpawnedWeapon;
+}
 
-	// =================================================================================================================
-	// === 스탯 적용
-
+/** 장착 스탯 GameplayEffect를 적용하고 현재 스냅샷으로 저장합니다. */
+void UEquipmentComponent::ApplyAndStoreWeaponStats(const UItemDefinition* ItemDefinition, FEquippedItemStatSnapshot& PendingStatSnapshot)
+{
 	if (!ApplyItemStatSnapshot(PendingStatSnapshot, 1.f))
 	{
-		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipItemInternal: failed to apply item stat snapshot for '%s', but keeping weapon equipped."),
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeaponInternal: failed to apply item stat snapshot for '%s', but keeping weapon equipped."),
 			*GetNameSafe(ItemDefinition));
 	}
-	else
+	else if (PendingStatSnapshot.HasAnyMagnitude())
 	{
-		CurrentEquippedItemStatSnapshot = MoveTemp(PendingStatSnapshot);
-		bHasAppliedCurrentEquippedItemStatSnapshot = true;
+		CurrentWeaponStatSnapshot = MoveTemp(PendingStatSnapshot);
 	}
-	
-	// =================================================================================================================
-	// === 장착 상태 확정
+}
 
-	const FGuid NewCurrentItemId = InventoryComponent ? InventoryComponent->GetOrCreateItemId(ItemInstance) : FGuid();
-	const bool bCurrentItemChanged = CurrentItemId != NewCurrentItemId;
-	const bool bCurrentWeaponChanged = CurrentWeaponActor != SpawnedWeapon;
-	CurrentItemId = NewCurrentItemId;
-	CurrentWeaponActor = SpawnedWeapon;
+/** 현재 장착 스탯 GameplayEffect를 역적용합니다. */
+void UEquipmentComponent::RemoveCurrentWeaponStats()
+{
+	if (!CurrentWeaponStatSnapshot.HasAnyMagnitude())
+	{
+		return;
+	}
+
+	if (!ApplyItemStatSnapshot(CurrentWeaponStatSnapshot, -1.f))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("RemoveCurrentWeaponStats failed: equipment stat GameplayEffect was not reverted."));
+	}
+
+	CurrentWeaponStatSnapshot.Reset();
+}
+
+/** 현재 무기 상태를 확정하고 복제 dirty 플래그를 표시합니다. */
+void UEquipmentComponent::CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor)
+{
+	const bool bCurrentWeaponChanged = CurrentWeaponActor != NewWeaponActor;
+	const bool bCurrentWeaponIdChanged = CurrentWeaponId != NewCurrentWeaponId;
+	CurrentWeaponActor = NewWeaponActor;
+	CurrentWeaponId = NewCurrentWeaponId;
+
+	UE_LOG(EquipmentComponentLog, Log, TEXT("CommitCurrentWeaponState: owner=%s id=%s actor=%s changedActor=%s changedId=%s"),
+		*GetNameSafe(GetOwner()),
+		*CurrentWeaponId.ToString(),
+		*GetNameSafe(CurrentWeaponActor),
+		bCurrentWeaponChanged ? TEXT("true") : TEXT("false"),
+		bCurrentWeaponIdChanged ? TEXT("true") : TEXT("false"));
 
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
-		if (bCurrentItemChanged)
+		if (bCurrentWeaponIdChanged)
 		{
-			MARK_PROPERTY_DIRTY_FROM_NAME(UEquipmentComponent, CurrentItemId, this);
+			MARK_PROPERTY_DIRTY_FROM_NAME(UEquipmentComponent, CurrentWeaponId, this);
 		}
 
 		if (bCurrentWeaponChanged)
@@ -384,30 +704,27 @@ bool UEquipmentComponent::EquipItemInternal(UItemInstance* ItemInstance)
 			MARK_PROPERTY_DIRTY_FROM_NAME(UEquipmentComponent, CurrentWeaponActor, this);
 		}
 	}
-	return true;
 }
 
 /** 실제 장착 해제 로직을 처리합니다. */
-bool UEquipmentComponent::UnequipCurrentItemInternal()
+bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 {
 	// =================================================================================================================
 	// === 해제 가능 여부 검사
 	
-	if (!CurrentItemId.IsValid() && !CurrentWeaponActor)
+	if (!CurrentWeaponId.IsValid() && !CurrentWeaponActor)
 	{
+		UE_LOG(EquipmentComponentLog, Log, TEXT("UnequipCurrentWeaponInternal skipped: no current weapon. owner=%s"),
+			*GetNameSafe(GetOwner()));
 		return false;
 	}
 
-	// =================================================================================================================
-	// === 스탯 되돌리기
+	UE_LOG(EquipmentComponentLog, Log, TEXT("UnequipCurrentWeaponInternal started: owner=%s currentId=%s currentActor=%s"),
+		*GetNameSafe(GetOwner()),
+		*CurrentWeaponId.ToString(),
+		*GetNameSafe(CurrentWeaponActor));
 
-	if (bHasAppliedCurrentEquippedItemStatSnapshot)
-	{
-		if (!ApplyItemStatSnapshot(CurrentEquippedItemStatSnapshot, -1.f))
-		{
-			UE_LOG(EquipmentComponentLog, Warning, TEXT("UnequipCurrentItemInternal: failed to revert current equipped item stat snapshot, but continuing unequip."));
-		}
-	}
+	RemoveCurrentWeaponStats();
 
 	// =================================================================================================================
 	// === 무기 제거
@@ -421,26 +738,24 @@ bool UEquipmentComponent::UnequipCurrentItemInternal()
 	// === 상태 정리
 
 	const bool bCurrentWeaponChanged = CurrentWeaponActor != nullptr;
-	const bool bCurrentItemChanged = CurrentItemId.IsValid();
+	const bool bCurrentWeaponIdChanged = CurrentWeaponId.IsValid();
 	CurrentWeaponActor = nullptr;
-	CurrentItemId.Invalidate();
+	CurrentWeaponId.Invalidate();
 
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
+		if (bCurrentWeaponIdChanged)
+		{
+			MARK_PROPERTY_DIRTY_FROM_NAME(UEquipmentComponent, CurrentWeaponId, this);
+		}
+
 		if (bCurrentWeaponChanged)
 		{
 			MARK_PROPERTY_DIRTY_FROM_NAME(UEquipmentComponent, CurrentWeaponActor, this);
 		}
 
-		if (bCurrentItemChanged)
-		{
-			MARK_PROPERTY_DIRTY_FROM_NAME(UEquipmentComponent, CurrentItemId, this);
-		}
 	}
-
-	ClearRequestedItem();
-	CurrentEquippedItemStatSnapshot.Reset();
-	bHasAppliedCurrentEquippedItemStatSnapshot = false;
+	UE_LOG(EquipmentComponentLog, Log, TEXT("UnequipCurrentWeaponInternal succeeded: owner=%s"), *GetNameSafe(GetOwner()));
 	return true;
 }
 
@@ -449,13 +764,14 @@ bool UEquipmentComponent::GetAttackData(FAttackData& OutAttackData) const
 {
 	OutAttackData = FAttackData();
 
-	const UItemDefinition* ItemDefinition = GetCurrentItemDefinition();
+	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
 	if (!ensure(ItemDefinition))
 	{
 		return false;
 	}
 
-	UAnimMontage* AttackMontage = ItemDefinition->AttackMontage.LoadSynchronous();
+	const FWeaponAttackDefinitionData& AttackDefinitionData = ItemDefinition->WeaponData.Attack;
+	UAnimMontage* AttackMontage = AttackDefinitionData.AttackMontage.LoadSynchronous();
 	if (!ensure(AttackMontage))
 	{
 		return false;
@@ -466,29 +782,45 @@ bool UEquipmentComponent::GetAttackData(FAttackData& OutAttackData) const
 	return true;
 }
 
-/** 요청 아이템을 초기화합니다. */
-UAnimMontage* UEquipmentComponent::GetCurrentHitReactMontage() const
+bool UEquipmentComponent::AllowsMovementDuringAttack() const
 {
-	const UItemDefinition* ItemDefinition = GetCurrentItemDefinition();
-	if (!ItemDefinition || ItemDefinition->HitReactMontage.IsNull())
-	{
-		return nullptr;
-	}
-
-	return ItemDefinition->HitReactMontage.LoadSynchronous();
+	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
+	return !ItemDefinition || ItemDefinition->WeaponData.Attack.bAllowMovementDuringAttack;
 }
 
-void UEquipmentComponent::ClearRequestedItem()
+/** 피격 리액션 데이터를 반환합니다. */
+bool UEquipmentComponent::GetHitReactData(FHitReactData& OutHitReactData) const
 {
-	RequestedItemId.Invalidate();
+	OutHitReactData = FHitReactData();
+
+	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
+	if (!ItemDefinition || ItemDefinition->WeaponData.HitReact.HitReactMontage.IsNull())
+	{
+		return false;
+	}
+
+	UAnimMontage* HitReactMontage = ItemDefinition->WeaponData.HitReact.HitReactMontage.LoadSynchronous();
+	if (!HitReactMontage)
+	{
+		return false;
+	}
+
+	OutHitReactData.ItemDefinition = ItemDefinition;
+	OutHitReactData.HitReactMontage = HitReactMontage;
+	return true;
+}
+
+void UEquipmentComponent::ClearRequestedWeapon()
+{
+	RequestedWeaponId.Invalidate();
 }
 
 /** 현재 아이템 정의를 반환합니다. */
-const UItemDefinition* UEquipmentComponent::GetCurrentItemDefinition() const
+const UItemDefinition* UEquipmentComponent::GetCurrentWeaponDefinition() const
 {
-	if (CurrentItemId.IsValid())
+	if (CurrentWeaponId.IsValid())
 	{
-		if (const UItemInstance* EquippedItemInstance = FindOwnedItemInstanceById(CurrentItemId))
+		if (const UItemInstance* EquippedItemInstance = FindOwnedItemInstanceById(CurrentWeaponId))
 		{
 			return EquippedItemInstance->ItemDefinition.Get();
 		}
@@ -531,7 +863,7 @@ bool UEquipmentComponent::BuildItemStatSnapshot(const UItemInstance* ItemInstanc
 	return true;
 }
 
-/** 스탯 스냅샷을 적용합니다. */
+/** 스탯 스냅샷을 GameplayEffect로 적용합니다. */
 bool UEquipmentComponent::ApplyItemStatSnapshot(const FEquippedItemStatSnapshot& StatSnapshot, float MagnitudeScale) const
 {
 	if (!StatSnapshot.HasAnyMagnitude())
@@ -539,16 +871,15 @@ bool UEquipmentComponent::ApplyItemStatSnapshot(const FEquippedItemStatSnapshot&
 		return true;
 	}
 
-	UPdAbilitySystemComponent* ASC = FindOwnerPdAbilitySystemComponent();
+	UPdAbilitySystemComponent* ASC = CachedASC.Get();
 	if (!ASC)
 	{
 		UE_LOG(EquipmentComponentLog, Warning, TEXT("ApplyItemStatSnapshot failed: '%s' has no valid PdAbilitySystemComponent."), *GetNameSafe(GetOwner()));
 		return false;
 	}
 
-	bool bAppliedAnyModifier = false;
-
-	const auto ApplyMagnitudeMap = [ASC, MagnitudeScale, &bAppliedAnyModifier](const TMap<FGameplayTag, float>& StatMagnitudes)
+	TMap<FGameplayTag, float> CombinedStatMagnitudes;
+	const auto AddMagnitudeMap = [MagnitudeScale, &CombinedStatMagnitudes](const TMap<FGameplayTag, float>& StatMagnitudes)
 	{
 		for (const TPair<FGameplayTag, float>& Pair : StatMagnitudes)
 		{
@@ -558,22 +889,30 @@ bool UEquipmentComponent::ApplyItemStatSnapshot(const FEquippedItemStatSnapshot&
 				continue;
 			}
 
-			FGameplayAttribute Attribute;
-			if (!ASC->ResolveAttributeFromTag(Pair.Key, Attribute))
-			{
-				UE_LOG(EquipmentComponentLog, Warning, TEXT("ApplyItemStatSnapshot skipped unresolved stat tag '%s'."), *Pair.Key.ToString());
-				continue;
-			}
-
-			const float NewBaseValue = ASC->GetNumericAttributeBase(Attribute) + ScaledMagnitude;
-			ASC->SetNumericAttributeBase(Attribute, NewBaseValue);
-			bAppliedAnyModifier = true;
+			CombinedStatMagnitudes.FindOrAdd(Pair.Key) += ScaledMagnitude;
 		}
 	};
 
-	ApplyMagnitudeMap(StatSnapshot.BaseStatMagnitudes);
-	ApplyMagnitudeMap(StatSnapshot.EnhancedStatMagnitudes);
-	return bAppliedAnyModifier;
+	AddMagnitudeMap(StatSnapshot.BaseStatMagnitudes);
+	AddMagnitudeMap(StatSnapshot.EnhancedStatMagnitudes);
+	if (CombinedStatMagnitudes.IsEmpty())
+	{
+		return true;
+	}
+
+	if (!StatUpGameplayEffectClass)
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("ApplyItemStatSnapshot failed: missing StatUpGameplayEffectClass."));
+		return false;
+	}
+
+	if (!ASC->ApplyStatUpEffectByTags(StatUpGameplayEffectClass, CombinedStatMagnitudes, EEnum_Operation::Add))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("ApplyItemStatSnapshot failed: equipment stat GameplayEffect was not applied."));
+		return false;
+	}
+
+	return true;
 }
 
 /** 소유 인벤토리에서 아이템 인스턴스를 찾습니다. */
@@ -582,47 +921,35 @@ UItemInstance* UEquipmentComponent::FindOwnedItemInstanceById(FGuid ItemId) cons
 	// =================================================================================================================
 	// === 인벤토리 조회
 	
-	UInventoryComponent* InventoryComponent = FindInventoryComponent();
+	UInventoryComponent* InventoryComponent = CachedInventory.Get();
 	if (!ensure(InventoryComponent))
 	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("FindOwnedItemInstanceById failed: inventory is null. owner=%s itemId=%s"),
+			*GetNameSafe(GetOwner()),
+			*ItemId.ToString());
 		return nullptr;
 	}
 
-	return InventoryComponent->FindItemInstanceById(ItemId);
+	UItemInstance* FoundItem = InventoryComponent->FindItemInstanceById(ItemId);
+	if (!FoundItem)
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("FindOwnedItemInstanceById failed: item not found. inventory=%s itemId=%s"),
+			*GetNameSafe(InventoryComponent),
+			*ItemId.ToString());
+	}
+	return FoundItem;
 }
-
-/** 소유 인벤토리 컴포넌트를 반환합니다. */
-UInventoryComponent* UEquipmentComponent::FindInventoryComponent() const
-{
-	// =================================================================================================================
-	// === PlayerState 기준 조회
-	
-	const APawn* PawnOwner = Cast<APawn>(GetOwner());
-	const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PawnOwner ? PawnOwner->GetPlayerState() : nullptr);
-	return PdPlayerState ? PdPlayerState->GetInventoryComponent() : nullptr;
-}
-
-/** 소유 ASC를 반환합니다. */
-UPdAbilitySystemComponent* UEquipmentComponent::FindOwnerPdAbilitySystemComponent() const
-{
-	const APawn* PawnOwner = Cast<APawn>(GetOwner());
-	const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PawnOwner ? PawnOwner->GetPlayerState() : nullptr);
-	return PdPlayerState ? PdPlayerState->GetPdAbilitySystemComponent() : nullptr;
-}
-
-/** 소유 캐릭터를 반환합니다. */
-ACharacter* UEquipmentComponent::GetCharacterOwner() const
-{
-	return Cast<ACharacter>(GetOwner());
-}
-
 /** 무기를 소유자 메시에 부착합니다. */
 void UEquipmentComponent::AttachWeaponToOwner(AWeaponBase* WeaponActor, const UItemDefinition* ItemDefinition) const
 {
-	ACharacter* CharacterOwner = GetCharacterOwner();
+	APdCharacterBase* CharacterOwner = CachedOwner.Get();
 	USkeletalMeshComponent* OwnerMesh = CharacterOwner ? CharacterOwner->GetMesh() : nullptr;
 	if (!WeaponActor || !OwnerMesh)
 	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("AttachWeaponToOwner failed: weapon=%s mesh=%s owner=%s"),
+			*GetNameSafe(WeaponActor),
+			*GetNameSafe(OwnerMesh),
+			*GetNameSafe(GetOwner()));
 		return;
 	}
 
@@ -632,5 +959,10 @@ void UEquipmentComponent::AttachWeaponToOwner(AWeaponBase* WeaponActor, const UI
 	WeaponActor->AttachToComponent(
 		OwnerMesh,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-		ItemDefinition ? ItemDefinition->EquipAttachSocketName : NAME_None);
+		ItemDefinition ? ItemDefinition->WeaponData.Equip.GetResolvedAttachSocketName() : NAME_None);
+	UE_LOG(EquipmentComponentLog, Log, TEXT("AttachWeaponToOwner: weapon=%s owner=%s mesh=%s socket=%s"),
+		*GetNameSafe(WeaponActor),
+		*GetNameSafe(CharacterOwner),
+		*GetNameSafe(OwnerMesh),
+		ItemDefinition ? *ItemDefinition->WeaponData.Equip.GetResolvedAttachSocketName().ToString() : TEXT("None"));
 }

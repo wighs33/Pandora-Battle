@@ -14,7 +14,14 @@ namespace StatusViewModel
 	float GetAttributeValue(UAbilitySystemComponent* ASC, const FGameplayAttribute& Attribute)
 	{
 		bool bFound = false;
-		return ASC ? ASC->GetGameplayAttributeValue(Attribute, bFound) : 0.f;
+		const float Value = ASC ? ASC->GetGameplayAttributeValue(Attribute, bFound) : 0.f;
+		UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] StatusViewModel read attribute: vmASC=%s owner=%s attribute=%s value=%.3f found=%s"),
+			*GetNameSafe(ASC),
+			*GetNameSafe(ASC ? ASC->GetOwner() : nullptr),
+			*Attribute.GetName(),
+			Value,
+			bFound ? TEXT("true") : TEXT("false"));
+		return Value;
 	}
 }
 
@@ -32,15 +39,22 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 	UAbilitySystemComponent* InASC = Cast<UAbilitySystemComponent>(SourceObject);
 	if (!InASC)
 	{
-		UE_LOG(StatusViewModelLog, Warning, TEXT("InitializeViewModel failed: SourceObject is not an ASC."));
+		UE_LOG(StatusViewModelLog, Warning, TEXT("[StatUpgrade] InitializeViewModel failed: SourceObject is not an ASC. source=%s"),
+			*GetNameSafe(SourceObject));
 		return;
 	}
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] InitializeViewModel: viewModel=%s asc=%s owner=%s initialized=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(InASC),
+		*GetNameSafe(InASC->GetOwner()),
+		IsViewModelInitialized() ? TEXT("true") : TEXT("false"));
 
 	// =================================================================================================================
 	// === 같은 ASC 재사용
 
 	if (ASC.Get() == InASC && IsViewModelInitialized())
 	{
+		UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] InitializeViewModel reused same ASC. Updating all data."));
 		UpdateAllData();
 		return;
 	}
@@ -86,6 +100,9 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMaxStaminaAttribute()).AddUObject(this, &ThisClass::OnMaxStaminaChanged);
 
 	UpdateAllData();
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] InitializeViewModel completed: viewModel=%s asc=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(InASC));
 
 	Super::InitializeViewModel(SourceObject);
 }
@@ -137,12 +154,17 @@ void UStatusViewModel::UpdateOffenseData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
+		UE_LOG(StatusViewModelLog, Warning, TEXT("[StatUpgrade] UpdateOffenseData skipped: ASC is null."));
 		return;
 	}
 
 	UE_MVVM_SET_PROPERTY_VALUE(Strength, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetStrengthAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(Intelligence, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetIntelligenceAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(Arcane, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetArcaneAttribute()));
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateOffenseData applied: strength=%.3f intelligence=%.3f arcane=%.3f"),
+		Strength,
+		Intelligence,
+		Arcane);
 }
 
 /** 방어 관련 값을 갱신합니다. */
@@ -151,12 +173,17 @@ void UStatusViewModel::UpdateDefenseData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
+		UE_LOG(StatusViewModelLog, Warning, TEXT("[StatUpgrade] UpdateDefenseData skipped: ASC is null."));
 		return;
 	}
 
 	UE_MVVM_SET_PROPERTY_VALUE(Toughness, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetToughnessAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(Recovery, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetRecoveryAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(MagicResistance, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetMagicResistanceAttribute()));
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateDefenseData applied: toughness=%.3f recovery=%.3f magicResistance=%.3f"),
+		Toughness,
+		Recovery,
+		MagicResistance);
 }
 
 /** 저항 관련 값을 갱신합니다. */
@@ -165,12 +192,17 @@ void UStatusViewModel::UpdateResistanceData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
+		UE_LOG(StatusViewModelLog, Warning, TEXT("[StatUpgrade] UpdateResistanceData skipped: ASC is null."));
 		return;
 	}
 
 	UE_MVVM_SET_PROPERTY_VALUE(Immunity, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetImmunityAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(Fortitude, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetFortitudeAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(Sanity, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetSanityAttribute()));
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateResistanceData applied: immunity=%.3f fortitude=%.3f sanity=%.3f"),
+		Immunity,
+		Fortitude,
+		Sanity);
 }
 
 /** 판도라 관련 값을 갱신합니다. */
@@ -179,12 +211,17 @@ void UStatusViewModel::UpdatePandoraForceData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
+		UE_LOG(StatusViewModelLog, Warning, TEXT("[StatUpgrade] UpdatePandoraForceData skipped: ASC is null."));
 		return;
 	}
 
 	UE_MVVM_SET_PROPERTY_VALUE(FirstPandora, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetFirstPandoraAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(SecondPandora, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetSecondPandoraAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(ThirdPandora, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetThirdPandoraAttribute()));
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdatePandoraForceData applied: first=%.3f second=%.3f third=%.3f"),
+		FirstPandora,
+		SecondPandora,
+		ThirdPandora);
 }
 
 /** 민첩 관련 값을 갱신합니다. */
@@ -193,12 +230,17 @@ void UStatusViewModel::UpdateAgilityData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
+		UE_LOG(StatusViewModelLog, Warning, TEXT("[StatUpgrade] UpdateAgilityData skipped: ASC is null."));
 		return;
 	}
 
 	UE_MVVM_SET_PROPERTY_VALUE(AttackSpeed, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetAttackSpeedAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(MovementSpeed, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetMovementSpeedAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(CriticalChance, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetCriticalChanceAttribute()));
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateAgilityData applied: attackSpeed=%.3f movementSpeed=%.3f criticalChance=%.3f"),
+		AttackSpeed,
+		MovementSpeed,
+		CriticalChance);
 }
 
 /** 체력 관련 값을 갱신합니다. */
@@ -207,6 +249,7 @@ void UStatusViewModel::UpdateHealthData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
+		UE_LOG(StatusViewModelLog, Warning, TEXT("[StatUpgrade] UpdateHealthData skipped: ASC is null."));
 		return;
 	}
 
@@ -216,6 +259,10 @@ void UStatusViewModel::UpdateHealthData()
 	UE_MVVM_SET_PROPERTY_VALUE(Health, CurrentHealth);
 	UE_MVVM_SET_PROPERTY_VALUE(MaxHealth, CurrentMaxHealth);
 	UE_MVVM_SET_PROPERTY_VALUE(HealthPercent, CurrentMaxHealth > 0.f ? CurrentHealth / CurrentMaxHealth : 0.f);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateHealthData applied: health=%.3f maxHealth=%.3f percent=%.3f"),
+		Health,
+		MaxHealth,
+		HealthPercent);
 }
 
 /** 마나 관련 값을 갱신합니다. */
@@ -224,6 +271,7 @@ void UStatusViewModel::UpdateManaData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
+		UE_LOG(StatusViewModelLog, Warning, TEXT("[StatUpgrade] UpdateManaData skipped: ASC is null."));
 		return;
 	}
 
@@ -233,6 +281,10 @@ void UStatusViewModel::UpdateManaData()
 	UE_MVVM_SET_PROPERTY_VALUE(Mana, CurrentMana);
 	UE_MVVM_SET_PROPERTY_VALUE(MaxMana, CurrentMaxMana);
 	UE_MVVM_SET_PROPERTY_VALUE(ManaPercent, CurrentMaxMana > 0.f ? CurrentMana / CurrentMaxMana : 0.f);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateManaData applied: mana=%.3f maxMana=%.3f percent=%.3f"),
+		Mana,
+		MaxMana,
+		ManaPercent);
 }
 
 /** 스태미나 관련 값을 갱신합니다. */
@@ -241,6 +293,7 @@ void UStatusViewModel::UpdateStaminaData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
+		UE_LOG(StatusViewModelLog, Warning, TEXT("[StatUpgrade] UpdateStaminaData skipped: ASC is null."));
 		return;
 	}
 
@@ -250,11 +303,18 @@ void UStatusViewModel::UpdateStaminaData()
 	UE_MVVM_SET_PROPERTY_VALUE(Stamina, CurrentStamina);
 	UE_MVVM_SET_PROPERTY_VALUE(MaxStamina, CurrentMaxStamina);
 	UE_MVVM_SET_PROPERTY_VALUE(StaminaPercent, CurrentMaxStamina > 0.f ? CurrentStamina / CurrentMaxStamina : 0.f);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateStaminaData applied: stamina=%.3f maxStamina=%.3f percent=%.3f"),
+		Stamina,
+		MaxStamina,
+		StaminaPercent);
 }
 
 /** 모든 값을 갱신합니다. */
 void UStatusViewModel::UpdateAllData()
 {
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateAllData started: viewModel=%s asc=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(ASC.Get()));
 	UpdateOffenseData();
 	UpdateDefenseData();
 	UpdateResistanceData();
@@ -268,76 +328,109 @@ void UStatusViewModel::UpdateAllData()
 /** 공격 수치 변경을 처리합니다. */
 void UStatusViewModel::OnOffenseChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnOffenseChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdateOffenseData();
 }
 
 /** 방어 수치 변경을 처리합니다. */
 void UStatusViewModel::OnDefenseChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnDefenseChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdateDefenseData();
 }
 
 /** 저항 수치 변경을 처리합니다. */
 void UStatusViewModel::OnResistanceChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnResistanceChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdateResistanceData();
 }
 
 /** 판도라 수치 변경을 처리합니다. */
 void UStatusViewModel::OnPandoraForceChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnPandoraForceChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdatePandoraForceData();
 }
 
 /** 민첩 수치 변경을 처리합니다. */
 void UStatusViewModel::OnAgilityChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnAgilityChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdateAgilityData();
 }
 
 /** 체력 변경을 처리합니다. */
 void UStatusViewModel::OnHealthChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnHealthChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdateHealthData();
 }
 
 /** 최대 체력 변경을 처리합니다. */
 void UStatusViewModel::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnMaxHealthChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdateHealthData();
 }
 
 /** 마나 변경을 처리합니다. */
 void UStatusViewModel::OnManaChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnManaChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdateManaData();
 }
 
 /** 최대 마나 변경을 처리합니다. */
 void UStatusViewModel::OnMaxManaChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnMaxManaChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdateManaData();
 }
 
 /** 스태미나 변경을 처리합니다. */
 void UStatusViewModel::OnStaminaChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnStaminaChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdateStaminaData();
 }
 
 /** 최대 스태미나 변경을 처리합니다. */
 void UStatusViewModel::OnMaxStaminaChanged(const FOnAttributeChangeData& Data)
 {
-	static_cast<void>(Data);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnMaxStaminaChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
 	UpdateStaminaData();
 }

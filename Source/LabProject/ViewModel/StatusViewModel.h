@@ -25,12 +25,49 @@ public:
 	/** 상태창 ViewModel 기본 상태를 초기화합니다. */
 	UStatusViewModel();
 
+	// Timing hooks
 	/** SourceObject로부터 ASC를 찾아 초기화합니다. */
 	virtual void InitializeViewModel(UObject* SourceObject) override;
 
 	/** ASC 바인딩을 해제합니다. */
 	virtual void UninitializeViewModel() override;
 
+private:
+	// Attribute delegate callbacks
+	/** 공격 수치 변경을 처리합니다. */
+	void OnOffenseChanged(const FOnAttributeChangeData& Data);
+
+	/** 방어 수치 변경을 처리합니다. */
+	void OnDefenseChanged(const FOnAttributeChangeData& Data);
+
+	/** 저항 수치 변경을 처리합니다. */
+	void OnResistanceChanged(const FOnAttributeChangeData& Data);
+
+	/** 판도라 수치 변경을 처리합니다. */
+	void OnPandoraForceChanged(const FOnAttributeChangeData& Data);
+
+	/** 민첩 수치 변경을 처리합니다. */
+	void OnAgilityChanged(const FOnAttributeChangeData& Data);
+
+	/** 체력 변경을 처리합니다. */
+	void OnHealthChanged(const FOnAttributeChangeData& Data);
+
+	/** 최대 체력 변경을 처리합니다. */
+	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
+
+	/** 마나 변경을 처리합니다. */
+	void OnManaChanged(const FOnAttributeChangeData& Data);
+
+	/** 최대 마나 변경을 처리합니다. */
+	void OnMaxManaChanged(const FOnAttributeChangeData& Data);
+
+	/** 스태미나 변경을 처리합니다. */
+	void OnStaminaChanged(const FOnAttributeChangeData& Data);
+
+	/** 최대 스태미나 변경을 처리합니다. */
+	void OnMaxStaminaChanged(const FOnAttributeChangeData& Data);
+
+public:
 	/** 힘 수치입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Offense")
 	float Strength = 10.f;
@@ -162,38 +199,4 @@ protected:
 	/** 현재 바인딩된 ASC입니다. */
 	UPROPERTY()
 	TWeakObjectPtr<UAbilitySystemComponent> ASC;
-
-private:
-	/** 공격 수치 변경을 처리합니다. */
-	void OnOffenseChanged(const FOnAttributeChangeData& Data);
-
-	/** 방어 수치 변경을 처리합니다. */
-	void OnDefenseChanged(const FOnAttributeChangeData& Data);
-
-	/** 저항 수치 변경을 처리합니다. */
-	void OnResistanceChanged(const FOnAttributeChangeData& Data);
-
-	/** 판도라 수치 변경을 처리합니다. */
-	void OnPandoraForceChanged(const FOnAttributeChangeData& Data);
-
-	/** 민첩 수치 변경을 처리합니다. */
-	void OnAgilityChanged(const FOnAttributeChangeData& Data);
-
-	/** 체력 변경을 처리합니다. */
-	void OnHealthChanged(const FOnAttributeChangeData& Data);
-
-	/** 최대 체력 변경을 처리합니다. */
-	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
-
-	/** 마나 변경을 처리합니다. */
-	void OnManaChanged(const FOnAttributeChangeData& Data);
-
-	/** 최대 마나 변경을 처리합니다. */
-	void OnMaxManaChanged(const FOnAttributeChangeData& Data);
-
-	/** 스태미나 변경을 처리합니다. */
-	void OnStaminaChanged(const FOnAttributeChangeData& Data);
-
-	/** 최대 스태미나 변경을 처리합니다. */
-	void OnMaxStaminaChanged(const FOnAttributeChangeData& Data);
 };

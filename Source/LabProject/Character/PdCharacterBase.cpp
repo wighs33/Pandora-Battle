@@ -1,12 +1,12 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "Character/PdCharacterBase.h"
 
 #include "AbilitySystem/Ability/HitReactAbility.h"
+#include "AbilitySystem/Ability/RangedAttackAbility.h"
 #include "AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystemComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/GameFrameworkComponentManager.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -14,11 +14,37 @@
 #include "Net/UnrealNetwork.h"
 #include "PlayerComponent/CombatComponent.h"
 #include "PlayerComponent/EquipmentComponent.h"
+#include "TimerManager.h"
+#include "UI/DamageIndicatorComponent.h"
 #include "View/MVVMView.h"
 #include "ViewModel/HealthBarViewModel.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdCharacterBase)
 
 DEFINE_LOG_CATEGORY(PdCharacterBaseLog);
+
+namespace
+{
+	template<typename ComponentType>
+	ComponentType* FindConfiguredComponent(const AActor* Owner, ComponentType* FallbackComponent)
+	{
+		if (!Owner)
+		{
+			return FallbackComponent;
+		}
+
+		TArray<ComponentType*> Components;
+		Owner->GetComponents<ComponentType>(Components);
+		for (ComponentType* Component : Components)
+		{
+			if (Component && Component != FallbackComponent)
+			{
+				return Component;
+			}
+		}
+
+		return FallbackComponent ? FallbackComponent : (Components.IsEmpty() ? nullptr : Components[0]);
+	}
+}
 
 /** 캐릭터 기본 상태를 초기화합니다. */
 APdCharacterBase::APdCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -41,9 +67,6 @@ APdCharacterBase::APdCharacterBase(const FObjectInitializer& ObjectInitializer)
 
 	// =================================================================================================================
 	// === 기본 컴포넌트 생성
-
-	EquipmentComponent = CreateDefaultSubobject<UEquipmentComponent>(TEXT("EquipmentComponent"));
-	CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
 
 	HealthBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("WidgetComponent"));
 	HealthBarWidget->SetupAttachment(GetRootComponent());
@@ -84,6 +107,7 @@ void APdCharacterBase::BeginPlay()
 void APdCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	UpdateAimOffsetForAnimation();
 	UpdateHealthBarFacing();
 }
 
@@ -105,6 +129,8 @@ void APdCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	Params.bIsPushBased = true;
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(APdCharacterBase, CurrentAnimLayer, Params);
+	DOREPLIFETIME_CONDITION(APdCharacterBase, AimYawForAnimation, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(APdCharacterBase, AimPitchForAnimation, COND_SkipOwner);
 }
 
 /** 빙의 시 ASC를 초기화하고 기본 Ability를 지급합니다. */
@@ -158,19 +184,29 @@ int32 APdCharacterBase::GiveDefaultAbilities()
 	TArray<TSubclassOf<UGameplayAbility>> AbilityClassesToGrant = DefaultAbilities;
 
 	bool bHasHitReactAbilityClass = false;
+	bool bHasRangedAttackAbilityClass = false;
 	for (TSubclassOf<UGameplayAbility> AbilityClass : AbilityClassesToGrant)
 	{
 		const UClass* AbilityClassType = AbilityClass.Get();
 		if (AbilityClassType && AbilityClassType->IsChildOf(UHitReactAbility::StaticClass()))
 		{
 			bHasHitReactAbilityClass = true;
-			break;
+		}
+
+		if (AbilityClassType && AbilityClassType->IsChildOf(URangedAttackAbility::StaticClass()))
+		{
+			bHasRangedAttackAbilityClass = true;
 		}
 	}
 
 	if (!bHasHitReactAbilityClass)
 	{
 		AbilityClassesToGrant.Add(UHitReactAbility::StaticClass());
+	}
+
+	if (!bHasRangedAttackAbilityClass)
+	{
+		AbilityClassesToGrant.Add(URangedAttackAbility::StaticClass());
 	}
 
 	// =================================================================================================================
@@ -213,11 +249,20 @@ void APdCharacterBase::InitializeAbilitySystemActorInfo()
 	// =================================================================================================================
 	// === ASC 구성 요소 조회
 
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	UPdAbilitySystemComponent* PdASC = GetPdAbilitySystemComponent();
+	UAbilitySystemComponent* ASC = PdASC;
 	AActor* OwnerActor = GetAbilitySystemOwnerActor();
 	AActor* AvatarActor = GetAbilitySystemAvatarActor();
 	if (!ASC || !OwnerActor || !AvatarActor)
 	{
+		QueueAbilitySystemActorInfoInitializationRetry();
+		RefreshHealthBarViewModel();
+		return;
+	}
+
+	if (!PdASC->IsRegistered() || !PdASC->HasAbilityActorInfoAllocated())
+	{
+		QueueAbilitySystemActorInfoInitializationRetry();
 		RefreshHealthBarViewModel();
 		return;
 	}
@@ -225,7 +270,18 @@ void APdCharacterBase::InitializeAbilitySystemActorInfo()
 	// =================================================================================================================
 	// === ActorInfo 초기화
 
+	bAbilitySystemActorInfoInitializationQueued = false;
 	ASC->InitAbilityActorInfo(OwnerActor, AvatarActor);
+
+	if (UEquipmentComponent* CurrentEquipmentComponent = GetEquipmentComponent())
+	{
+		CurrentEquipmentComponent->RefreshCachedReferences();
+	}
+
+	if (UCombatComponent* CurrentCombatComponent = GetCombatComponent())
+	{
+		CurrentCombatComponent->RefreshCachedReferences();
+	}
 
 	if (HasAuthority())
 	{
@@ -233,6 +289,21 @@ void APdCharacterBase::InitializeAbilitySystemActorInfo()
 	}
 
 	RefreshHealthBarViewModel();
+}
+
+void APdCharacterBase::QueueAbilitySystemActorInfoInitializationRetry()
+{
+	if (bAbilitySystemActorInfoInitializationQueued || !GetWorld())
+	{
+		return;
+	}
+
+	bAbilitySystemActorInfoInitializationQueued = true;
+	GetWorldTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		bAbilitySystemActorInfoInitializationQueued = false;
+		InitializeAbilitySystemActorInfo();
+	}));
 }
 
 /** ASC ActorInfo를 정리합니다. */
@@ -297,7 +368,10 @@ void APdCharacterBase::ApplyHealthBarViewModelToWidget(UUserWidget* InWidget)
 		UE_LOG(PdCharacterBaseLog, Warning, TEXT("ApplyHealthBarViewModelToWidget failed: could not set viewmodel '%s' on widget '%s'."),
 			*UHealthBarViewModel::ViewModelName.ToString(),
 			*GetNameSafe(InWidget));
+		return;
 	}
+
+	HealthBarViewModel->UpdateAllData();
 }
 
 /** 체력바 위젯 컴포넌트에 ViewModel을 적용합니다. */
@@ -353,6 +427,21 @@ void APdCharacterBase::BindHealthBarViewModelToASC(UAbilitySystemComponent* InAS
 }
 
 /** 기본 애님 레이어로 되돌립니다. */
+void APdCharacterBase::UpdateAimOffsetForAnimation()
+{
+	if (!HasAuthority() && !IsLocallyControlled())
+	{
+		return;
+	}
+
+	const FRotator AimRotation = GetBaseAimRotation();
+	const FRotator ActorRotation = GetActorRotation();
+	const FRotator AimDelta = (AimRotation - ActorRotation).GetNormalized();
+
+	AimYawForAnimation = AimDelta.Yaw;
+	AimPitchForAnimation = AimDelta.Pitch;
+}
+
 void APdCharacterBase::UpdateHealthBarFacing()
 {
 	if (GetNetMode() == NM_DedicatedServer || !HealthBarWidget)
@@ -445,6 +534,23 @@ UPdAbilitySystemComponent* APdCharacterBase::GetPdAbilitySystemComponent() const
 	return Cast<UPdAbilitySystemComponent>(GetAbilitySystemComponent());
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+//--- Component
+UEquipmentComponent* APdCharacterBase::GetEquipmentComponent() const
+{
+	return FindConfiguredComponent(this, EquipmentComponent.Get());
+}
+
+UCombatComponent* APdCharacterBase::GetCombatComponent() const
+{
+	return FindConfiguredComponent(this, CombatComponent.Get());
+}
+
+UDamageIndicatorComponent* APdCharacterBase::GetDamageIndicatorComponent() const
+{
+	return FindConfiguredComponent(this, DamageIndicatorComponent.Get());
+}
+
 /** ASC OwnerActor를 반환합니다. */
 AActor* APdCharacterBase::GetAbilitySystemOwnerActor() const
 {
@@ -465,6 +571,45 @@ void APdCharacterBase::HandleDeathAuth()
 }
 
 /** 진영 ID를 반환합니다. */
+void APdCharacterBase::HandleDamageTaken(float DamageAmount, bool bCriticalHit)
+{
+	const float DisplayDamageAmount = FMath::Max(DamageAmount, 0.0f);
+
+	if (HasAuthority())
+	{
+		MulticastHandleDamageTaken(DisplayDamageAmount, bCriticalHit, GetDamageIndicatorWorldLocation());
+	}
+}
+
+FVector APdCharacterBase::GetDamageIndicatorWorldLocation() const
+{
+	if (UDamageIndicatorComponent* CurrentDamageIndicatorComponent = GetDamageIndicatorComponent())
+	{
+		return CurrentDamageIndicatorComponent->ResolveDamageIndicatorWorldLocation();
+	}
+
+	const UCapsuleComponent* CharacterCapsule = GetCapsuleComponent();
+	const float HeightOffset = CharacterCapsule ? CharacterCapsule->GetScaledCapsuleHalfHeight() + 40.0f : 120.0f;
+	return GetActorLocation() + FVector(0.0f, 0.0f, HeightOffset);
+}
+
+void APdCharacterBase::MulticastHandleDamageTaken_Implementation(float DamageAmount, bool bCriticalHit, FVector_NetQuantize WorldLocation)
+{
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	const float DisplayDamageAmount = FMath::Max(DamageAmount, 0.0f);
+
+	if (UDamageIndicatorComponent* CurrentDamageIndicatorComponent = GetDamageIndicatorComponent())
+	{
+		CurrentDamageIndicatorComponent->ShowDamageIndicator(DisplayDamageAmount, WorldLocation, bCriticalHit);
+	}
+
+	OnDamageTaken(DisplayDamageAmount, bCriticalHit, WorldLocation);
+}
+
 int32 APdCharacterBase::GetFactionId() const
 {
 	return FactionId;

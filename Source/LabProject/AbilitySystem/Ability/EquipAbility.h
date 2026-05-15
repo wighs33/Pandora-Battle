@@ -8,6 +8,7 @@
 
 class UGameplayEffect;
 class UItemDefinition;
+class UAnimInstance;
 
 /**
  * < 장착 베이스 어빌리티 >
@@ -24,23 +25,27 @@ public:
 	UEquipAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
+	// Timing hooks
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	                             const FGameplayAbilityActivationInfo ActivationInfo,
 	                             const FGameplayEventData* TriggerEventData) override;
 
+	// Delegate callbacks
 	UFUNCTION()
-	void HandleEquipMontageCompleted();
+	void OnEquipMontageCompleted();
 
 	UFUNCTION()
-	void HandleEquipMontageInterrupted();
+	void OnEquipMontageInterrupted();
 
 	UFUNCTION()
-	void HandleEquipMontageCancelled();
+	void OnEquipMontageCancelled();
 
 	UFUNCTION()
-	void HandleEquipCommitEvent(FGameplayEventData Payload);
+	void OnEquipCommitTiming(FGameplayEventData Payload);
 
+	// State helpers
 	void ClearActiveEquipEffect();
+	void ClearPendingEquipState();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> EquippedItemEffectClass;
@@ -55,5 +60,8 @@ protected:
 	FGameplayTag CommitEquipEventTag;
 
 	UPROPERTY(Transient)
-	TObjectPtr<const UItemDefinition> ActiveEquipItemDefinition;
+	TObjectPtr<const UItemDefinition> ActiveEquipWeaponDefinition;
+
+	UPROPERTY(Transient)
+	TSubclassOf<UAnimInstance> PendingEquipAnimLayer;
 };

@@ -1,7 +1,12 @@
 #include "Animation/PdAnimInstance.h"
+#include "Character/PdCharacterBase.h"
+#include "Character/PdPlayer.h"
+#include "Common/WeaponAnimNotifyNames.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "KismetAnimationLibrary.h"
+#include "PlayerComponent/EquipmentComponent.h"
+#include "Weapon/WeaponBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdAnimInstance)
 
 DEFINE_LOG_CATEGORY(CommonAnimInstanceLog);
@@ -35,6 +40,29 @@ void UPdAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 	UpdateMovementStates();
 	UpdateAcceleration(DeltaSeconds);
 	UpdateAimingData();
+}
+
+void UPdAnimInstance::AnimNotify_RedrawBow()
+{
+	APdPlayer* PlayerCharacter = Cast<APdPlayer>(CachedCharacter.Get());
+	if (!PlayerCharacter)
+	{
+		PlayerCharacter = Cast<APdPlayer>(GetOwningActor());
+	}
+
+	if (!PlayerCharacter)
+	{
+		return;
+	}
+
+	UEquipmentComponent* EquipmentComponent = PlayerCharacter->GetEquipmentComponent();
+	AWeaponBase* WeaponActor = EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
+	if (!WeaponActor)
+	{
+		return;
+	}
+
+	WeaponActor->OnWeaponAnimNotifyTiming(WeaponAnimNotifyNames::RedrawBow(), PlayerCharacter);
 }
 
 void UPdAnimInstance::UpdateLocationData(float DeltaSeconds)
@@ -80,7 +108,14 @@ void UPdAnimInstance::UpdateAimingData()
 {
 	// Control Rotation: 카메라/마우스가 바라보는 방향
 	// Actor Rotation: 캐릭터 몸이 향하는 방향
-	const FRotator ControlRotation = CachedCharacter->GetControlRotation();
+	if (const APdCharacterBase* PdCharacter = Cast<APdCharacterBase>(CachedCharacter.Get()))
+	{
+		AimYaw = PdCharacter->GetAimYawForAnimation();
+		AimPitch = PdCharacter->GetAimPitchForAnimation();
+		return;
+	}
+
+	const FRotator ControlRotation = CachedCharacter->GetBaseAimRotation();
 	const FRotator ActorRotation = CachedCharacter->GetActorRotation();
 
 	// 차이 계산 후 정규화 (-180 ~ 180)

@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -12,6 +10,7 @@
 class USkinComponent;
 class USkinDefinition;
 class USkinInstance;
+class UProjectTagConfig;
 
 DECLARE_LOG_CATEGORY_EXTERN(SkinComponentLog, Log, All);
 
@@ -68,7 +67,7 @@ struct TStructOpsTypeTraits<FReplicatedSkinList> : public TStructOpsTypeTraitsBa
 	enum { WithNetDeltaSerializer = true };
 };
 
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API USkinComponent : public UPlayerStateComponent
 {
 	GENERATED_BODY()
@@ -78,6 +77,7 @@ class LABPROJECT_API USkinComponent : public UPlayerStateComponent
 public:
 	USkinComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	// Timing hooks
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -93,12 +93,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Inventory")
 	void AddValueToMap(FGameplayTag TypeTag, USkinInstance* SkinInstance);
 
+	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
+
 protected:
+	// Replication timing callbacks
+	void HandleReplicatedEntryAddedOrChanged(const FReplicatedSkinEntry& Entry);
+	void HandleReplicatedEntryRemoved(const USkinDefinition* SkinDefinition);
+
+	// State rebuild helpers
 	void InitializeReplicatedEntriesFromRuntimeSkins();
 	void RebuildRuntimeSkinsFromReplicatedEntries();
 	void RebuildFilteredSkinMap();
-	void HandleReplicatedEntryAddedOrChanged(const FReplicatedSkinEntry& Entry);
-	void HandleReplicatedEntryRemoved(const USkinDefinition* SkinDefinition);
 	void AddReplicatedSkin(USkinInstance* SkinInstance);
 	USkinInstance* FindSkinInstanceByDefinition(const USkinDefinition* SkinDefinition) const;
 	int32 FindReplicatedEntryIndexByDefinition(const USkinDefinition* SkinDefinition) const;
@@ -106,7 +111,7 @@ protected:
 	const FReplicatedSkinEntry* FindReplicatedEntryByDefinition(const USkinDefinition* SkinDefinition) const;
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (Categories = "Skin"))
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter")
 	TArray<FGameplayTag> FilterTypeTags;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")

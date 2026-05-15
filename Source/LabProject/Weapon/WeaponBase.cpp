@@ -1,50 +1,43 @@
 #include "Weapon/WeaponBase.h"
 
-#include "DrawDebugHelpers.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
+#include "Character/PdPlayer.h"
 #include "Character/PdCharacterBase.h"
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
-#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "DrawDebugHelpers.h"
+#include "Item/ItemDefinition.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Net/UnrealNetwork.h"
 #include "PlayerComponent/CombatComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WeaponBase)
 
-/** 무기 기본 상태를 초기화합니다. */
+DEFINE_LOG_CATEGORY_STATIC(LogWeaponBase, Log, All);
+
 AWeaponBase::AWeaponBase()
 {
-	// =================================================================================================================
-	// === 기본 설정
-
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 	SetReplicateMovement(false);
 
-	// =================================================================================================================
-	// === 루트 설정
-
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	SetRootComponent(SceneRoot);
 
-	// =================================================================================================================
-	// === 메시 설정
-
-	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
 	WeaponMesh->SetupAttachment(SceneRoot);
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	// =================================================================================================================
-	// === 충돌 박스 설정
-
-	Box = CreateDefaultSubobject<UBoxComponent>(TEXT("Box"));
-	Box->SetupAttachment(WeaponMesh);
-	Box->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	Box->SetGenerateOverlapEvents(false);
-	Box->SetCollisionResponseToAllChannels(ECR_Ignore);
-	Box->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	Box->OnComponentBeginOverlap.AddDynamic(this, &AWeaponBase::HandleBoxBeginOverlap);
 }
 
-/** 서버에 데미지 적용을 요청합니다. */
+void AWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AWeaponBase, SourceItemDefinition);
+}
+
 void AWeaponBase::RequestServerApplyDamage(AActor* TargetActor)
 {
 	if (HasAuthority())
@@ -56,33 +49,310 @@ void AWeaponBase::RequestServerApplyDamage(AActor* TargetActor)
 	ServerApplyDamage(TargetActor);
 }
 
-/** BeginOverlap 판정을 켜거나 끕니다. */
 void AWeaponBase::SetBeginOverlapEnabled(bool bEnabled)
 {
-	if (!Box)
+	UBoxComponent* CollisionBox = GetCollisionBox();
+	if (!CollisionBox)
 	{
 		return;
 	}
-
-	// =================================================================================================================
-	// === 새 공격 시작 시 히트 목록 초기화
 
 	if (bEnabled)
 	{
 		HitActorsInCurrentAttack.Reset();
 	}
 
-	Box->SetGenerateOverlapEvents(bEnabled);
-	Box->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+	CollisionBox->SetGenerateOverlapEvents(bEnabled);
+	CollisionBox->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
 }
 
-/** 서버에서 데미지를 적용합니다. */
+bool AWeaponBase::PlayWeaponMontage(FName StartingSection)
+{
+	if (!WeaponMesh)
+	{
+		UE_LOG(LogWeaponBase, Warning, TEXT("%s failed to play weapon montage: WeaponMesh is null."), *GetName());
+		return false;
+	}
+
+	UAnimInstance* AnimInstance = WeaponMesh->GetAnimInstance();
+	UAnimMontage* Montage = GetConfiguredWeaponMontage();
+	if (!AnimInstance || !Montage)
+	{
+		UE_LOG(
+			LogWeaponBase,
+			Warning,
+			TEXT("%s failed to play weapon montage: AnimInstance=%s Montage=%s"),
+			*GetName(),
+			AnimInstance ? TEXT("Valid") : TEXT("Null"),
+			*GetNameSafe(Montage));
+		return false;
+	}
+
+	if (AnimInstance->Montage_Play(Montage) <= 0.0f)
+	{
+		return false;
+	}
+
+	if (!StartingSection.IsNone())
+	{
+		AnimInstance->Montage_JumpToSection(StartingSection, Montage);
+	}
+
+	return true;
+}
+
+bool AWeaponBase::JumpToWeaponMontageSectionAndResume(FName SectionName)
+{
+	if (!WeaponMesh)
+	{
+		UE_LOG(LogWeaponBase, Warning, TEXT("%s failed to jump weapon montage section: WeaponMesh is null."), *GetName());
+		return false;
+	}
+
+	UAnimInstance* AnimInstance = WeaponMesh->GetAnimInstance();
+	UAnimMontage* Montage = GetConfiguredWeaponMontage();
+	if (!AnimInstance || !Montage)
+	{
+		UE_LOG(
+			LogWeaponBase,
+			Warning,
+			TEXT("%s failed to jump weapon montage section: AnimInstance=%s Montage=%s"),
+			*GetName(),
+			AnimInstance ? TEXT("Valid") : TEXT("Null"),
+			*GetNameSafe(Montage));
+		return false;
+	}
+
+	if (!SectionName.IsNone())
+	{
+		AnimInstance->Montage_JumpToSection(SectionName, Montage);
+	}
+
+	AnimInstance->Montage_Resume(Montage);
+	return true;
+}
+
+void AWeaponBase::StopWeaponMontage(float BlendOutTime)
+{
+	if (!WeaponMesh)
+	{
+		return;
+	}
+
+	UAnimInstance* AnimInstance = WeaponMesh->GetAnimInstance();
+	UAnimMontage* Montage = GetConfiguredWeaponMontage();
+	if (!AnimInstance || !Montage)
+	{
+		return;
+	}
+
+	AnimInstance->Montage_Stop(BlendOutTime, Montage);
+}
+
+void AWeaponBase::InitializeFromItemDefinition(const UItemDefinition* InItemDefinition)
+{
+	SourceItemDefinition = const_cast<UItemDefinition*>(InItemDefinition);
+}
+
+bool AWeaponBase::SupportsAimInput() const
+{
+	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	{
+		return ItemDefinition->WeaponData.Aim.bSupportsInput;
+	}
+
+	return false;
+}
+
+FGameplayTag AWeaponBase::GetAimCrosshairWidgetTag() const
+{
+	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	{
+		return ItemDefinition->WeaponData.Aim.CrosshairWidgetTag;
+	}
+
+	return FGameplayTag();
+}
+
+const FWeaponAimCameraSettings& AWeaponBase::GetAimCameraSettings() const
+{
+	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	{
+		return ItemDefinition->WeaponData.Aim.CameraSettings;
+	}
+
+	static const FWeaponAimCameraSettings DefaultAimCameraSettings;
+	return DefaultAimCameraSettings;
+}
+
+bool AWeaponBase::HandleAimStart(APdPlayer* PlayerCharacter)
+{
+	if (!SupportsAimInput() || !PlayerCharacter)
+	{
+		return false;
+	}
+
+	PlayerCharacter->SetWeaponAimActive(true, GetAimCameraSettings());
+	return true;
+}
+
+void AWeaponBase::HandleAimEnd(APdPlayer* PlayerCharacter)
+{
+	if (!SupportsAimInput() || !PlayerCharacter)
+	{
+		return;
+	}
+
+	PlayerCharacter->SetWeaponAimActive(false, GetAimCameraSettings());
+}
+
+bool AWeaponBase::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
+{
+	static_cast<void>(PlayerCharacter);
+	return false;
+}
+
+bool AWeaponBase::SupportsAutomaticFire() const
+{
+	return false;
+}
+
+float AWeaponBase::GetAutomaticFireInterval() const
+{
+	return 0.0f;
+}
+
+bool AWeaponBase::OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter)
+{
+	static_cast<void>(NotifyName);
+	static_cast<void>(PlayerCharacter);
+	return false;
+}
+
+const UItemDefinition* AWeaponBase::GetSourceItemDefinition() const
+{
+	return SourceItemDefinition.Get();
+}
+
+bool AWeaponBase::TryGetOwnerMeshSocketLocation(const APdPlayer* PlayerCharacter, FName SocketName, FVector& OutLocation) const
+{
+	const USkeletalMeshComponent* CharacterMesh = PlayerCharacter ? PlayerCharacter->GetMesh() : nullptr;
+	if (!CharacterMesh || SocketName.IsNone() || !CharacterMesh->DoesSocketExist(SocketName))
+	{
+		return false;
+	}
+
+	OutLocation = CharacterMesh->GetSocketLocation(SocketName);
+	return true;
+}
+
+bool AWeaponBase::ResolveServerAimViewPoint(
+	const APdPlayer* PlayerCharacter,
+	const FVector& RequestedViewLocation,
+	const FVector& RequestedViewDirection,
+	FVector& OutViewLocation,
+	FVector& OutViewDirection) const
+{
+	if (!PlayerCharacter)
+	{
+		return false;
+	}
+
+	const FVector RequestedDirection = RequestedViewDirection.GetSafeNormal();
+	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
+	const float MaxAcceptedViewDistance = ItemDefinition ? ItemDefinition->WeaponData.Aim.MaxAcceptedServerViewDistance : 0.0f;
+	if (!RequestedDirection.IsNearlyZero()
+		&& MaxAcceptedViewDistance > 0.0f
+		&& FVector::DistSquared(RequestedViewLocation, PlayerCharacter->GetActorLocation()) <= FMath::Square(MaxAcceptedViewDistance))
+	{
+		OutViewLocation = RequestedViewLocation;
+		OutViewDirection = RequestedDirection;
+		return true;
+	}
+
+	return PlayerCharacter->GetWeaponAimViewPoint(OutViewLocation, OutViewDirection);
+}
+
+bool AWeaponBase::TryGetWeaponAimTargetLocation(
+	const APdPlayer* PlayerCharacter,
+	float TraceRange,
+	const TArray<AActor*>& ActorsToIgnore,
+	FVector& OutTargetLocation) const
+{
+	FVector ViewTraceStart = FVector::ZeroVector;
+	FVector ViewTraceDirection = FVector::ZeroVector;
+	if (!PlayerCharacter || TraceRange <= 0.0f || !PlayerCharacter->GetWeaponAimViewPoint(ViewTraceStart, ViewTraceDirection))
+	{
+		return false;
+	}
+
+	const FVector SafeViewTraceDirection = ViewTraceDirection.GetSafeNormal();
+	if (SafeViewTraceDirection.IsNearlyZero())
+	{
+		return false;
+	}
+
+	const FVector ViewTraceEnd = ViewTraceStart + (SafeViewTraceDirection * TraceRange);
+
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
+
+	FHitResult ViewHitResult;
+	const bool bViewHit = UKismetSystemLibrary::LineTraceSingleForObjects(
+		this,
+		ViewTraceStart,
+		ViewTraceEnd,
+		ObjectTypes,
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::None,
+		ViewHitResult,
+		true,
+		FLinearColor::Red,
+		FLinearColor::Green,
+		5.0f);
+
+	OutTargetLocation = bViewHit ? ViewHitResult.Location : ViewTraceEnd;
+	return true;
+}
+
+UBoxComponent* AWeaponBase::GetCollisionBox() const
+{
+	return nullptr;
+}
+
+void AWeaponBase::InitializeCollisionBox(UBoxComponent* CollisionBox)
+{
+	if (!CollisionBox)
+	{
+		return;
+	}
+
+	CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	CollisionBox->SetGenerateOverlapEvents(false);
+	CollisionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	CollisionBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &AWeaponBase::OnCollisionBoxBeginOverlap);
+}
+
+UAnimMontage* AWeaponBase::GetConfiguredWeaponMontage() const
+{
+	return nullptr;
+}
+
+FName AWeaponBase::GetConfiguredPrimaryAttackResumeWeaponMontageSectionName() const
+{
+	return NAME_None;
+}
+
 void AWeaponBase::ServerApplyDamage_Implementation(AActor* TargetActor)
 {
 	ApplyDamageToTarget(TargetActor);
 }
 
-/** 소유 캐릭터를 반환합니다. */
 APdCharacterBase* AWeaponBase::GetOwningCharacter() const
 {
 	if (APdCharacterBase* OwnerCharacter = Cast<APdCharacterBase>(GetOwner()))
@@ -93,36 +363,26 @@ APdCharacterBase* AWeaponBase::GetOwningCharacter() const
 	return Cast<APdCharacterBase>(GetAttachParentActor());
 }
 
-/** 현재 오버랩을 처리할 수 있는지 반환합니다. */
 bool AWeaponBase::CanProcessOverlapWith(AActor* OtherActor, UPrimitiveComponent* OtherComp) const
 {
-	// =================================================================================================================
-	// === 기본 조건 검사
-
 	if (!Cast<APdCharacterBase>(OtherActor) || OtherActor == GetAttachParentActor() || !OtherComp)
 	{
 		return false;
 	}
-
-	// =================================================================================================================
-	// === 중복 타격 방지
 
 	if (HitActorsInCurrentAttack.Contains(OtherActor))
 	{
 		return false;
 	}
 
-	// =================================================================================================================
-	// === 로컬 제어 캐릭터만 처리
-
 	const APdCharacterBase* OwnerCharacter = GetOwningCharacter();
 	return OwnerCharacter && OwnerCharacter->IsLocallyControlled();
 }
 
-/** 오버랩 대상을 BoxTrace로 다시 확인합니다. */
 bool AWeaponBase::TryTraceOverlapTarget(UPrimitiveComponent* OtherComp, FHitResult& OutHitResult) const
 {
-	if (!Box || !OtherComp)
+	const UBoxComponent* CollisionBox = GetCollisionBox();
+	if (!CollisionBox || !OtherComp)
 	{
 		return false;
 	}
@@ -132,10 +392,10 @@ bool AWeaponBase::TryTraceOverlapTarget(UPrimitiveComponent* OtherComp, FHitResu
 
 	return UKismetSystemLibrary::BoxTraceSingleForObjects(
 		this,
-		Box->GetComponentLocation(),
+		CollisionBox->GetComponentLocation(),
 		OtherComp->GetComponentLocation(),
-		Box->GetComponentScale() * 0.5f,
-		Box->GetComponentRotation(),
+		CollisionBox->GetComponentScale() * 0.5f,
+		CollisionBox->GetComponentRotation(),
 		ObjectTypes,
 		false,
 		{},
@@ -147,7 +407,6 @@ bool AWeaponBase::TryTraceOverlapTarget(UPrimitiveComponent* OtherComp, FHitResu
 		5.f);
 }
 
-/** 성공한 타격을 디버그 출력합니다. */
 void AWeaponBase::DebugSuccessfulHit(const FHitResult& HitResult) const
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -158,8 +417,7 @@ void AWeaponBase::DebugSuccessfulHit(const FHitResult& HitResult) const
 #endif
 }
 
-/** 박스 BeginOverlap을 처리합니다. */
-void AWeaponBase::HandleBoxBeginOverlap(
+void AWeaponBase::OnCollisionBoxBeginOverlap(
 	UPrimitiveComponent* OverlappedComponent,
 	AActor* OtherActor,
 	UPrimitiveComponent* OtherComp,
@@ -172,16 +430,10 @@ void AWeaponBase::HandleBoxBeginOverlap(
 	static_cast<void>(bFromSweep);
 	static_cast<void>(SweepResult);
 
-	// =================================================================================================================
-	// === 오버랩 처리 가능 여부 검사
-
 	if (!CanProcessOverlapWith(OtherActor, OtherComp))
 	{
 		return;
 	}
-
-	// =================================================================================================================
-	// === 트레이스로 실제 타격 확인
 
 	FHitResult HitResult;
 	if (!TryTraceOverlapTarget(OtherComp, HitResult))
@@ -189,29 +441,19 @@ void AWeaponBase::HandleBoxBeginOverlap(
 		return;
 	}
 
-	// =================================================================================================================
-	// === 히트 기록 및 데미지 요청
-
 	HitActorsInCurrentAttack.Add(OtherActor);
 	DebugSuccessfulHit(HitResult);
 	RequestServerApplyDamage(OtherActor);
 }
 
-/** 대상에게 실제 데미지를 적용합니다. */
 void AWeaponBase::ApplyDamageToTarget(AActor* TargetActor)
 {
-	// =================================================================================================================
-	// === 공격 주체와 대상 확인
-
 	APdCharacterBase* SourceCharacter = GetOwningCharacter();
 	APdCharacterBase* TargetCharacter = Cast<APdCharacterBase>(TargetActor);
 	if (!SourceCharacter || !TargetCharacter || SourceCharacter == TargetCharacter)
 	{
 		return;
 	}
-
-	// =================================================================================================================
-	// === 전투 컴포넌트로 위임
 
 	UCombatComponent* CombatComponent = SourceCharacter->GetCombatComponent();
 	if (!CombatComponent)

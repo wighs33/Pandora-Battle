@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 using UnrealBuildTool;
 
 public class LabProject : ModuleRules
@@ -22,16 +20,21 @@ public class LabProject : ModuleRules
 			"NetCore",
 			"IrisCore",
 			"ModularGameplay", 
+			"GameFeatures",
 			"GameplayTags", 
 			"GameplayAbilities",
 			"GameplayTasks",
+			"StructUtils",
 			"ModelViewViewModel",
 			"UMG",
-			"AnimGraphRuntime"
+			"AnimGraphRuntime",
+			"Niagara"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
+			"Slate",
+			"SlateCore"
 		});
 
 		// Uncomment if you are using Slate UI

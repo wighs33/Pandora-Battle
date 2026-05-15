@@ -1,6 +1,8 @@
 #include "Item/InventoryComponent.h"
 
+#include "Common/ProjectTagConfig.h"
 #include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -58,9 +60,9 @@ void UInventoryComponent::BeginPlay()
 
 	ReplicatedEntries.Owner = this;
 
+	UProjectTagConfig::Get(this)->GetItemFilterTypeTags(FilterTypeTags);
 	// =================================================================================================================
 	// === 권한별 초기화
-
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
 		InitializeReplicatedEntriesFromRuntimeItems();
@@ -88,10 +90,10 @@ void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId
 {
 	// =================================================================================================================
 	// === 서버 권한 검사
-
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(InventoryComponentLog, Warning, TEXT("AddItemsByPrimaryAssetIds failed: inventory can only be modified on the authority."));
+		UE_LOG(InventoryComponentLog, Warning, TEXT("[InventoryAdd] failed: inventory can only be modified on authority owner=%s"),
+			*GetNameSafe(GetOwner()));
 		return;
 	}
 
@@ -108,7 +110,7 @@ void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId
 	// === 에셋 비동기 로드
 
 	UAssetManager& AssetManager = UAssetManager::Get();
-	AssetManager.LoadPrimaryAssets(
+	TSharedPtr<FStreamableHandle> LoadHandle = AssetManager.LoadPrimaryAssets(
 		ItemDefinitions,
 		{},
 		FStreamableDelegate::CreateWeakLambda(this, [this, ItemDefinitions]()
@@ -123,7 +125,9 @@ void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId
 				const UItemDefinition* ItemDefinition = Cast<UItemDefinition>(LoadedAssetManager.GetPrimaryAssetObject(ItemDefinitionId));
 				if (!IsValid(ItemDefinition))
 				{
-					UE_LOG(InventoryComponentLog, Warning, TEXT("AddItemsByPrimaryAssetIds failed: could not resolve item definition '%s'."), *ItemDefinitionId.ToString());
+					UE_LOG(InventoryComponentLog, Warning, TEXT("[InventoryAdd] failed: could not resolve item definition=%s owner=%s"),
+						*ItemDefinitionId.ToString(),
+						*GetNameSafe(GetOwner()));
 					continue;
 				}
 
@@ -133,7 +137,24 @@ void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId
 				AddReplicatedItem(NewItemInstance);
 				FilterItem(NewItemInstance);
 			}
+
+			PendingItemLoadHandles.RemoveAll(
+				[](const TSharedPtr<FStreamableHandle>& PendingHandle)
+				{
+					return !PendingHandle.IsValid() || PendingHandle->HasLoadCompleted();
+				});
 		}));
+
+	if (LoadHandle.IsValid())
+	{
+		PendingItemLoadHandles.Add(LoadHandle);
+	}
+	else
+	{
+		UE_LOG(InventoryComponentLog, Warning, TEXT("[InventoryAdd] failed: could not request load count=%d owner=%s"),
+			ItemDefinitions.Num(),
+			*GetNameSafe(GetOwner()));
+	}
 }
 
 /** ItemId로 아이템을 제거합니다. */
@@ -141,7 +162,6 @@ bool UInventoryComponent::RemoveItemById(FGuid ItemId)
 {
 	// =================================================================================================================
 	// === 서버 권한 검사
-
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		UE_LOG(InventoryComponentLog, Warning, TEXT("RemoveItemById failed: inventory can only be modified on the authority."));
@@ -156,7 +176,6 @@ bool UInventoryComponent::SetItemQuantity(FGuid ItemId, int32 NewQuantity)
 {
 	// =================================================================================================================
 	// === 서버 권한 검사
-
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		UE_LOG(InventoryComponentLog, Warning, TEXT("SetItemQuantity failed: inventory can only be modified on the authority."));
@@ -171,22 +190,59 @@ void UInventoryComponent::FilterItem(UItemInstance* ItemInstance)
 {
 	// =================================================================================================================
 	// === 정의 데이터 검사
-
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	if (!ItemDefinition)
 	{
+		UE_LOG(InventoryComponentLog, Warning, TEXT("[InventoryFilter] skipped: invalid item or definition item=%s"),
+			*GetNameSafe(ItemInstance));
+		return;
+	}
+
+	if (!ItemDefinition->IdTag.IsValid())
+	{
+		UE_LOG(
+			InventoryComponentLog,
+			Warning,
+			TEXT("FilterItem skipped item '%s': invalid IdTag."),
+			*GetNameSafe(ItemDefinition));
+		return;
+	}
+
+	if (FilterTypeTags.IsEmpty())
+	{
+		UE_LOG(InventoryComponentLog, Warning, TEXT("[InventoryFilter] FilterItem skipped: FilterTypeTags is empty. item=%s definition=%s idTag=%s owner=%s"),
+			*GetNameSafe(ItemInstance),
+			*GetNameSafe(ItemDefinition),
+			*ItemDefinition->IdTag.ToString(),
+			*GetNameSafe(GetOwner()));
 		return;
 	}
 
 	// =================================================================================================================
 	// === 타입 태그 매칭
 
+	bool bMatchedAnyType = false;
 	for (const FGameplayTag& TypeTag : FilterTypeTags)
 	{
 		if (ItemDefinition->IdTag.MatchesTag(TypeTag))
 		{
 			AddValueToMap(TypeTag, ItemInstance);
+			bMatchedAnyType = true;
+			UE_LOG(InventoryComponentLog, Log, TEXT("[InventoryFilter] Item matched filter type: item=%s definition=%s idTag=%s typeTag=%s"),
+				*GetNameSafe(ItemInstance),
+				*GetNameSafe(ItemDefinition),
+				*ItemDefinition->IdTag.ToString(),
+				*TypeTag.ToString());
 		}
+	}
+
+	if (!bMatchedAnyType)
+	{
+		UE_LOG(InventoryComponentLog, Warning, TEXT("[InventoryFilter] Item did not match any filter type: item=%s definition=%s idTag=%s filterTypeCount=%d"),
+			*GetNameSafe(ItemInstance),
+			*GetNameSafe(ItemDefinition),
+			*ItemDefinition->IdTag.ToString(),
+			FilterTypeTags.Num());
 	}
 }
 
@@ -198,7 +254,14 @@ void UInventoryComponent::AddValueToMap(FGameplayTag TypeTag, UItemInstance* Ite
 		return;
 	}
 
-	Map_Type_ItemList.FindOrAdd(TypeTag).Items.AddUnique(ItemInstance);
+	FItemList& ItemList = Map_Type_ItemList.FindOrAdd(TypeTag);
+	ItemList.Items.AddUnique(ItemInstance);
+	UE_LOG(InventoryComponentLog, Log, TEXT("[InventoryFilter] AddValueToMap: owner=%s typeTag=%s item=%s definition=%s typeCount=%d"),
+		*GetNameSafe(GetOwner()),
+		*TypeTag.ToString(),
+		*GetNameSafe(ItemInstance),
+		*GetNameSafe(ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr),
+		ItemList.Items.Num());
 }
 
 /** 아이템의 ItemId를 반환하거나 새로 만듭니다. */
@@ -226,6 +289,15 @@ UItemInstance* UInventoryComponent::FindItemInstanceById(FGuid ItemId) const
 	return nullptr;
 }
 
+void UInventoryComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig)
+{
+	const UProjectTagConfig* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagConfig::GetDefaultConfig();
+	EffectiveConfig->GetItemFilterTypeTags(FilterTypeTags);
+
+	RebuildFilteredItemMap();
+	OnInventoryChanged.Broadcast();
+}
+
 /** 기존 런타임 아이템을 복제 엔트리로 변환합니다. */
 void UInventoryComponent::InitializeReplicatedEntriesFromRuntimeItems()
 {
@@ -240,12 +312,10 @@ void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
 {
 	// =================================================================================================================
 	// === 런타임 캐시 초기화
-
 	AllItemList.Items.Reset();
 
 	// =================================================================================================================
 	// === 복제 엔트리 기반 재구성
-
 	for (const FReplicatedInventoryEntry& Entry : ReplicatedEntries.Entries)
 	{
 		if (!Entry.ItemId.IsValid() || !IsValid(Entry.ItemDefinition))
@@ -266,12 +336,28 @@ void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
 /** 현재 런타임 캐시 기준으로 필터 맵을 다시 만듭니다. */
 void UInventoryComponent::RebuildFilteredItemMap()
 {
+	UE_LOG(InventoryComponentLog, Log, TEXT("[InventoryFilter] RebuildFilteredItemMap started: owner=%s allCount=%d filterTypeCount=%d"),
+		*GetNameSafe(GetOwner()),
+		AllItemList.Items.Num(),
+		FilterTypeTags.Num());
+
 	Map_Type_ItemList.Reset();
+
+	if (FilterTypeTags.IsEmpty())
+	{
+		UE_LOG(InventoryComponentLog, Warning, TEXT("[InventoryFilter] RebuildFilteredItemMap skipped: FilterTypeTags is empty. owner=%s"),
+			*GetNameSafe(GetOwner()));
+		return;
+	}
 
 	for (UItemInstance* ItemInstance : AllItemList.Items)
 	{
 		FilterItem(ItemInstance);
 	}
+
+	UE_LOG(InventoryComponentLog, Log, TEXT("[InventoryFilter] RebuildFilteredItemMap completed: owner=%s mapTypes=%d"),
+		*GetNameSafe(GetOwner()),
+		Map_Type_ItemList.Num());
 }
 
 /** 복제 엔트리 추가 또는 변경을 반영합니다. */
@@ -279,9 +365,12 @@ void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedI
 {
 	// =================================================================================================================
 	// === 엔트리 유효성 검사
-
 	if (!Entry.ItemId.IsValid() || !IsValid(Entry.ItemDefinition))
 	{
+		UE_LOG(InventoryComponentLog, Warning, TEXT("[InventoryRep] skipped invalid replicated entry itemId=%s definition=%s owner=%s"),
+			*Entry.ItemId.ToString(),
+			*GetNameSafe(Entry.ItemDefinition),
+			*GetNameSafe(GetOwner()));
 		return;
 	}
 
@@ -299,7 +388,6 @@ void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedI
 
 	// =================================================================================================================
 	// === 캐시 동기화
-
 	ItemInstance->ItemId = Entry.ItemId;
 	ItemInstance->ItemDefinition = Entry.ItemDefinition;
 	ItemInstance->Quantity = Entry.Quantity;
@@ -312,6 +400,8 @@ void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedI
 	{
 		RebuildFilteredItemMap();
 	}
+
+	OnInventoryChanged.Broadcast();
 }
 
 /** 복제 엔트리 제거를 반영합니다. */
@@ -336,6 +426,7 @@ void UInventoryComponent::HandleReplicatedEntryRemoved(FGuid ItemId)
 	}
 
 	RebuildFilteredItemMap();
+	OnInventoryChanged.Broadcast();
 }
 
 /** 런타임 아이템을 복제 엔트리에 추가하거나 갱신합니다. */
@@ -343,14 +434,19 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 {
 	// =================================================================================================================
 	// === 서버 권한 및 입력 검사
-
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
+		UE_LOG(InventoryComponentLog, Warning, TEXT("[InventoryCache] add skipped: no authority owner=%s item=%s"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(ItemInstance));
 		return;
 	}
 
 	if (!IsValid(ItemInstance) || !IsValid(ItemInstance->ItemDefinition))
 	{
+		UE_LOG(InventoryComponentLog, Warning, TEXT("[InventoryCache] add skipped: invalid item or definition owner=%s item=%s"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(ItemInstance));
 		return;
 	}
 
@@ -368,6 +464,7 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 		ExistingEntry->ItemDefinition = ItemInstance->ItemDefinition;
 		ExistingEntry->Quantity = ItemInstance->Quantity;
 		ReplicatedEntries.MarkEntryDirty(*ExistingEntry);
+		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
 	}
 	else
 	{
@@ -376,7 +473,10 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 		NewEntry.ItemDefinition = ItemInstance->ItemDefinition;
 		NewEntry.Quantity = ItemInstance->Quantity;
 		ReplicatedEntries.MarkEntryDirty(NewEntry);
+		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
 	}
+
+	OnInventoryChanged.Broadcast();
 }
 
 /** ItemId로 복제 엔트리를 제거합니다. */
@@ -414,7 +514,9 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 
 	ReplicatedEntries.Entries.RemoveAt(EntryIndex);
 	ReplicatedEntries.MarkArrayDirty();
+	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
 	RebuildFilteredItemMap();
+	OnInventoryChanged.Broadcast();
 	return true;
 }
 
@@ -446,11 +548,12 @@ bool UInventoryComponent::SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQ
 
 	// =================================================================================================================
 	// === 수량 동기화
-
 	ItemInstance->Quantity = NewQuantity;
 	Entry->Quantity = NewQuantity;
 	ReplicatedEntries.MarkEntryDirty(*Entry);
+	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
 	RebuildFilteredItemMap();
+	OnInventoryChanged.Broadcast();
 	return true;
 }
 

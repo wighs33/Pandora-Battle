@@ -22,11 +22,15 @@ class LABPROJECT_API UPdAnimInstance : public UAnimInstance
 
 public:
 	//-----------------------------------------------------------------------------
-	// UAnimInstance 오버라이드
+	// Timing hooks
 	//-----------------------------------------------------------------------------
 
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
+
+	// Anim notify callbacks
+	UFUNCTION()
+	void AnimNotify_RedrawBow();
 
 protected:
 	//-----------------------------------------------------------------------------

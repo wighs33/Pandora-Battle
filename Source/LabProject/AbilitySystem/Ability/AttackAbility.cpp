@@ -14,6 +14,7 @@ UAttackAbility::UAttackAbility(const FObjectInitializer& ObjectInitializer)
 {
 }
 
+// State helpers
 void UAttackAbility::CleanupAttackState()
 {
 	SetCurrentWeaponBeginOverlapEnabled(false);
@@ -25,22 +26,23 @@ void UAttackAbility::CleanupAttackState()
 	}
 }
 
-void UAttackAbility::HandleAttackMontageCompleted()
+// Timing callbacks
+void UAttackAbility::OnAttackMontageCompleted()
 {
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
-void UAttackAbility::HandleAttackMontageInterrupted()
+void UAttackAbility::OnAttackMontageInterrupted()
 {
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
-void UAttackAbility::HandleAttackMontageCancelled()
+void UAttackAbility::OnAttackMontageCancelled()
 {
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
-void UAttackAbility::HandleJumpSectionEvent(FGameplayEventData Payload)
+void UAttackAbility::OnJumpSectionTiming(FGameplayEventData Payload)
 {
 	if (Payload.EventMagnitude > 0.f)
 	{
@@ -55,7 +57,7 @@ void UAttackAbility::HandleJumpSectionEvent(FGameplayEventData Payload)
 	}
 }
 
-void UAttackAbility::HandleAttackInputWindowStartedEvent(FGameplayEventData Payload)
+void UAttackAbility::OnAttackInputWindowOpened(FGameplayEventData Payload)
 {
 	static_cast<void>(Payload);
 
@@ -65,7 +67,7 @@ void UAttackAbility::HandleAttackInputWindowStartedEvent(FGameplayEventData Payl
 	BufferedJumpSectionName = NAME_None;
 }
 
-void UAttackAbility::HandleAttackInputWindowEndedEvent(FGameplayEventData Payload)
+void UAttackAbility::OnAttackInputWindowClosed(FGameplayEventData Payload)
 {
 	static_cast<void>(Payload);
 
@@ -73,6 +75,7 @@ void UAttackAbility::HandleAttackInputWindowEndedEvent(FGameplayEventData Payloa
 	ResetAttackInputState();
 }
 
+// Ability flow
 void UAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
@@ -124,7 +127,7 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 			true);
 		if (ensure(AttackInputWindowStartedEventTask))
 		{
-			AttackInputWindowStartedEventTask->EventReceived.AddDynamic(this, &UAttackAbility::HandleAttackInputWindowStartedEvent);
+			AttackInputWindowStartedEventTask->EventReceived.AddDynamic(this, &UAttackAbility::OnAttackInputWindowOpened);
 			AttackInputWindowStartedEventTask->ReadyForActivation();
 		}
 	}
@@ -139,7 +142,7 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 			true);
 		if (ensure(AttackInputWindowEndedEventTask))
 		{
-			AttackInputWindowEndedEventTask->EventReceived.AddDynamic(this, &UAttackAbility::HandleAttackInputWindowEndedEvent);
+			AttackInputWindowEndedEventTask->EventReceived.AddDynamic(this, &UAttackAbility::OnAttackInputWindowClosed);
 			AttackInputWindowEndedEventTask->ReadyForActivation();
 		}
 	}
@@ -154,7 +157,7 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 			true);
 		if (ensure(JumpSectionEventTask))
 		{
-			JumpSectionEventTask->EventReceived.AddDynamic(this, &UAttackAbility::HandleJumpSectionEvent);
+			JumpSectionEventTask->EventReceived.AddDynamic(this, &UAttackAbility::OnJumpSectionTiming);
 			JumpSectionEventTask->ReadyForActivation();
 		}
 	}
@@ -175,9 +178,9 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 		return;
 	}
 
-	MontageTask->OnCompleted.AddDynamic(this, &UAttackAbility::HandleAttackMontageCompleted);
-	MontageTask->OnInterrupted.AddDynamic(this, &UAttackAbility::HandleAttackMontageInterrupted);
-	MontageTask->OnCancelled.AddDynamic(this, &UAttackAbility::HandleAttackMontageCancelled);
+	MontageTask->OnCompleted.AddDynamic(this, &UAttackAbility::OnAttackMontageCompleted);
+	MontageTask->OnInterrupted.AddDynamic(this, &UAttackAbility::OnAttackMontageInterrupted);
+	MontageTask->OnCancelled.AddDynamic(this, &UAttackAbility::OnAttackMontageCancelled);
 
 	if (AttackingEffectClass && !HasActiveGameplayEffect(AttackingEffectClass))
 	{
@@ -187,6 +190,7 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 	MontageTask->ReadyForActivation();
 }
 
+// Query helpers
 FName UAttackAbility::GetCurrentAttackSectionName() const
 {
 	UAnimMontage* CurrentAttackMontage = GetCurrentMontage();
@@ -235,6 +239,7 @@ FName UAttackAbility::GetNextAttackSectionName() const
 	return CurrentAttackMontage->GetSectionName(NextSectionIndex);
 }
 
+// Public requests
 bool UAttackAbility::RequestJumpToSection(FName RequestedSectionName)
 {
 	if (!bCanReceiveAttackInput || RequestedSectionName.IsNone() || !IsAttackSectionNameValid(RequestedSectionName))
@@ -251,6 +256,7 @@ bool UAttackAbility::RequestJumpToSection(FName RequestedSectionName)
 	return true;
 }
 
+// State helpers
 void UAttackAbility::ResetAttackInputState()
 {
 	bCanReceiveAttackInput = false;
@@ -265,6 +271,7 @@ AWeaponBase* UAttackAbility::GetCurrentWeaponActor() const
 	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
 }
 
+// Action helpers
 void UAttackAbility::SetCurrentWeaponBeginOverlapEnabled(bool bEnabled) const
 {
 	AWeaponBase* CurrentWeapon = GetCurrentWeaponActor();
@@ -276,6 +283,7 @@ void UAttackAbility::SetCurrentWeaponBeginOverlapEnabled(bool bEnabled) const
 	CurrentWeapon->SetBeginOverlapEnabled(bEnabled);
 }
 
+// Query helpers
 bool UAttackAbility::IsAttackSectionNameValid(FName SectionName) const
 {
 	UAnimMontage* CurrentAttackMontage = GetCurrentMontage();
@@ -284,6 +292,7 @@ bool UAttackAbility::IsAttackSectionNameValid(FName SectionName) const
 		&& CurrentAttackMontage->GetSectionIndex(SectionName) != INDEX_NONE;
 }
 
+// Action helpers
 bool UAttackAbility::TryJumpToSection(FName SectionName)
 {
 	if (!IsAttackSectionNameValid(SectionName))

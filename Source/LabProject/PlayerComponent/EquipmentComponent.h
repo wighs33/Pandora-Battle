@@ -1,86 +1,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Common/EquipmentAbilityData.h"
 #include "GameplayTagContainer.h"
 #include "Components/ActorComponent.h"
 #include "EquipmentComponent.generated.h"
 
-class ACharacter;
 class AWeaponBase;
-class UAnimInstance;
-class UAnimMontage;
+class APdCharacterBase;
 class UInventoryComponent;
 class UItemDefinition;
 class UItemInstance;
+class UGameplayEffect;
 class UPdAbilitySystemComponent;
 
 /** 장비 컴포넌트 로그 카테고리입니다. */
 DECLARE_LOG_CATEGORY_EXTERN(EquipmentComponentLog, Log, All);
-
-/**
- * <장착 데이터>
- * - 장착 연출에 필요한 데이터입니다.
- * - 장착 어빌리티가 사용합니다.
- */
-struct FEquipData
-{
-	/** 장착 대상 아이템 정의입니다. */
-	const UItemDefinition* ItemDefinition = nullptr;
-
-	/** 장착 몽타주입니다. */
-	UAnimMontage* EquipMontage = nullptr;
-
-	/** 장착 애님 레이어입니다. */
-	TSubclassOf<UAnimInstance> EquipAnimLayer;
-
-	/** 장착 큐 태그입니다. */
-
-	/** 데이터 유효성을 반환합니다. */
-	bool IsValid() const
-	{
-		return ItemDefinition != nullptr && EquipMontage != nullptr;
-	}
-};
-
-/**
- * <장착 해제 데이터>
- * - 장착 해제 연출에 필요한 데이터입니다.
- * - 장착 해제 어빌리티가 사용합니다.
- */
-struct FUnequipData
-{
-	/** 장착 해제 대상 아이템 정의입니다. */
-	const UItemDefinition* ItemDefinition = nullptr;
-
-	/** 장착 해제 몽타주입니다. */
-	UAnimMontage* UnequipMontage = nullptr;
-
-	/** 데이터 유효성을 반환합니다. */
-	bool IsValid() const
-	{
-		return ItemDefinition != nullptr && UnequipMontage != nullptr;
-	}
-};
-
-/**
- * <공격 데이터>
- * - 공격 연출에 필요한 데이터입니다.
- * - 공격 어빌리티가 사용합니다.
- */
-struct FAttackData
-{
-	/** 현재 공격 아이템 정의입니다. */
-	const UItemDefinition* ItemDefinition = nullptr;
-
-	/** 공격 몽타주입니다. */
-	UAnimMontage* AttackMontage = nullptr;
-
-	/** 데이터 유효성을 반환합니다. */
-	bool IsValid() const
-	{
-		return ItemDefinition != nullptr && AttackMontage != nullptr;
-	}
-};
 
 /**
  * <장착 스탯 스냅샷>
@@ -120,7 +55,7 @@ struct FEquippedItemStatSnapshot
  * - 무기 액터를 생성, 부착, 제거합니다.
  * - 장착 스탯 적용과 해제를 처리합니다.
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UEquipmentComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -132,8 +67,11 @@ public:
 	/** 복제 프로퍼티를 등록합니다. */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	/** 소유 캐릭터, ASC, Inventory 캐시를 갱신합니다. */
+	void RefreshCachedReferences();
+
 	/** 요청된 아이템 정의를 반환합니다. */
-	const UItemDefinition* GetRequestedItemDefinition() const;
+	const UItemDefinition* GetRequestedWeaponDefinition() const;
 
 	/** 장착 데이터를 반환합니다. */
 	bool GetEquipData(FEquipData& OutEquipData) const;
@@ -143,93 +81,134 @@ public:
 
 	/** 공격 데이터를 반환합니다. */
 	bool GetAttackData(FAttackData& OutAttackData) const;
-	UAnimMontage* GetCurrentHitReactMontage() const;
+
+	bool AllowsMovementDuringAttack() const;
+
+	/** 피격 리액션 데이터를 반환합니다. */
+	bool GetHitReactData(FHitReactData& OutHitReactData) const;
 
 
 	/** 현재 무기 액터를 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	AWeaponBase* GetCurrentWeaponActor() const { return CurrentWeaponActor; }
 
+	UFUNCTION(BlueprintPure, Category = "!Equipment")
+	FGuid GetCurrentWeaponId() const { return CurrentWeaponId; }
+
 	/** 요청 아이템을 저장합니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
-	bool SetRequestedItemInstance(UItemInstance* ItemInstance);
+	bool SetRequestedWeaponInstance(UItemInstance* WeaponInstance);
 
-	/** 요청된 아이템을 장착합니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
-	bool EquipRequestedItem();
-	
-	/** 아이템을 즉시 장착합니다. */
+	void ClearRequestedWeaponInstance();
+
+	bool RequestWeaponSelection(UItemInstance* WeaponInstance);
+
+	bool RequestWeaponUnequip();
+
+	/** 요청된 무기를 장착합니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
-	bool EquipItem(UItemInstance* ItemInstance);
+	bool EquipWeapon();
 
 	/** 현재 아이템을 해제합니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
-	bool UnequipCurrentItem();
+	bool UnequipCurrentWeapon();
 
 protected:
+	// Timing hooks
+	virtual void BeginPlay() override;
+
+	// Network timing callbacks
 	/** 서버에 요청 아이템 ID를 전달합니다. */
 	UFUNCTION(Server, Reliable)
-	void ServerSetRequestedItem(FGuid ItemId);
+	void ServerSetRequestedWeapon(FGuid WeaponId);
 
-	/** 서버에 장착 아이템 ID를 전달합니다. */
+	/** 서버에 요청된 무기 장착을 요청합니다. */
 	UFUNCTION(Server, Reliable)
-	void ServerEquipItem(FGuid ItemId);
-
-	/** ID 기준으로 장착을 처리합니다. */
-	bool EquipItemById(FGuid ItemId);
+	void ServerEquipWeapon();
 
 	/** 실제 장착 로직을 처리합니다. */
-	bool EquipItemInternal(UItemInstance* ItemInstance);
+	bool EquipWeaponInternal(UItemInstance* WeaponInstance);
+
+	/** 장착에 필요한 아이템, ID, 액터 클래스, 스탯 정보를 구성합니다. */
+	bool ResolveWeaponEquipRequest(UItemInstance* WeaponInstance, const UItemDefinition*& OutItemDefinition, FGuid& OutWeaponId) const;
+
+	/** 이미 현재 장착된 무기인지 반환합니다. */
+	bool IsCurrentWeapon(FGuid WeaponId) const;
+
+	bool TryActivateSingleAbilityTag(const FGameplayTag& AbilityTag) const;
+
+	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
+	FGameplayTag GetEquipAbilityTag() const;
+	FGameplayTag GetUnequipAbilityTag() const;
+
+	TSubclassOf<AWeaponBase> LoadWeaponActorClass(const UItemDefinition* ItemDefinition) const;
+
+	/** 무기 액터를 생성하고 소유자 메시에 부착합니다. */
+	AWeaponBase* SpawnAndAttachWeaponActor(TSubclassOf<AWeaponBase> WeaponClass, const UItemDefinition* ItemDefinition) const;
+
+	/** 장착 스탯 GameplayEffect를 적용하고 현재 스냅샷으로 저장합니다. */
+	void ApplyAndStoreWeaponStats(const UItemDefinition* ItemDefinition, FEquippedItemStatSnapshot& PendingStatSnapshot);
+
+	/** 현재 장착 스탯 GameplayEffect를 역적용합니다. */
+	void RemoveCurrentWeaponStats();
+
+	/** 현재 무기 상태를 확정하고 복제 dirty 플래그를 표시합니다. */
+	void CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor);
 
 	/** 실제 장착 해제 로직을 처리합니다. */
-	bool UnequipCurrentItemInternal();
+	bool UnequipCurrentWeaponInternal();
 
 	/** 요청 아이템을 초기화합니다. */
-	void ClearRequestedItem();
+	void ClearRequestedWeapon();
 
 	/** 현재 아이템 정의를 반환합니다. */
-	const UItemDefinition* GetCurrentItemDefinition() const;
+	const UItemDefinition* GetCurrentWeaponDefinition() const;
 
 	/** 아이템 스탯 스냅샷을 구성합니다. */
 	bool BuildItemStatSnapshot(const UItemInstance* ItemInstance, FEquippedItemStatSnapshot& OutSnapshot) const;
 
-	/** 스탯 스냅샷을 적용합니다. */
+	/** 스탯 스냅샷을 GameplayEffect로 적용합니다. */
 	bool ApplyItemStatSnapshot(const FEquippedItemStatSnapshot& StatSnapshot, float MagnitudeScale) const;
 
 	/** 소유 인벤토리에서 아이템 인스턴스를 찾습니다. */
 	UItemInstance* FindOwnedItemInstanceById(FGuid ItemId) const;
 
-	/** 소유 인벤토리 컴포넌트를 반환합니다. */
-	UInventoryComponent* FindInventoryComponent() const;
-
-	/** 소유 ASC를 반환합니다. */
-	UPdAbilitySystemComponent* FindOwnerPdAbilitySystemComponent() const;
-
-	/** 소유 캐릭터를 반환합니다. */
-	ACharacter* GetCharacterOwner() const;
-
 	/** 무기를 소유자 메시에 부착합니다. */
 	void AttachWeaponToOwner(AWeaponBase* WeaponActor, const UItemDefinition* ItemDefinition) const;
 
 protected:
+
+	/** 소유 캐릭터 캐시입니다. */
+	UPROPERTY(Transient)
+	TObjectPtr<APdCharacterBase> CachedOwner;
+
+	/** 소유 ASC 캐시입니다. */
+	UPROPERTY(Transient)
+	TObjectPtr<UPdAbilitySystemComponent> CachedASC;
+
+	/** 소유 Inventory 캐시입니다. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInventoryComponent> CachedInventory;
+
 	/** 현재 무기 액터입니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Equipment|Stat", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UGameplayEffect> StatUpGameplayEffectClass;
+
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	TObjectPtr<AWeaponBase> CurrentWeaponActor;
 
 
-	/** 현재 장착 아이템 ID입니다. */
-	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
-	FGuid CurrentItemId;
-
 	/** 요청된 아이템 ID입니다. */
 	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
-	FGuid RequestedItemId;
+	FGuid RequestedWeaponId;
 
-	/** 현재 장착 스탯 스냅샷입니다. */
-	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
-	FEquippedItemStatSnapshot CurrentEquippedItemStatSnapshot;
+	/** 현재 무기 아이템 ID입니다. */
+	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
+	FGuid CurrentWeaponId;
 
-	/** 현재 스탯 스냅샷 적용 여부입니다. */
+	/** 현재 무기 스탯 스냅샷입니다. 해제 시 반대 수치로 GE를 적용해 되돌립니다. */
 	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
-	bool bHasAppliedCurrentEquippedItemStatSnapshot = false;
+	FEquippedItemStatSnapshot CurrentWeaponStatSnapshot;
+
 };

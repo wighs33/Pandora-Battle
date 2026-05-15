@@ -25,12 +25,22 @@ public:
 	/** 체력바 ViewModel 기본 상태를 초기화합니다. */
 	UHealthBarViewModel();
 
+	// Timing hooks
 	/** SourceObject로부터 ASC를 찾아 ViewModel을 초기화합니다. */
 	virtual void InitializeViewModel(UObject* SourceObject) override;
 
 	/** ASC 바인딩을 해제하고 ViewModel을 초기화합니다. */
 	virtual void UninitializeViewModel() override;
 
+private:
+	// Attribute delegate callbacks
+	/** 체력 변경 시 데이터를 갱신합니다. */
+	void OnHealthChanged(const FOnAttributeChangeData& Data);
+
+	/** 최대 체력 변경 시 데이터를 갱신합니다. */
+	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
+
+public:
 	/** 현재 체력입니다. */
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!HealthBar ViewModel")
 	float Health = 0.f;
@@ -67,13 +77,6 @@ private:
 	/** 표시값을 기본값으로 초기화합니다. */
 	void ResetViewData();
 
-	/** 체력 변경 시 데이터를 갱신합니다. */
-	void OnHealthChanged(const FOnAttributeChangeData& Data);
-
-	/** 최대 체력 변경 시 데이터를 갱신합니다. */
-	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
-
-private:
 	/** 현재 바인딩된 ASC입니다. */
 	UPROPERTY()
 	TWeakObjectPtr<UAbilitySystemComponent> ASC;

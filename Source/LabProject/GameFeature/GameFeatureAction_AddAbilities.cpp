@@ -1,0 +1,300 @@
+#include "GameFeature/GameFeatureAction_AddAbilities.h"
+
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
+#include "Abilities/GameplayAbility.h"
+#include "AssetRegistry/AssetBundleData.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "GameFeature/PdActorExtensionWorldSubsystem.h"
+#include "GameFeaturesSubsystemSettings.h"
+#include "TimerManager.h"
+
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddAbilities)
+
+DEFINE_LOG_CATEGORY(PdGameFeatureAction_AddAbilitiesLog);
+
+UGameFeatureAction_AddAbilities::UGameFeatureAction_AddAbilities()
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+//--- Game Feature Events
+void UGameFeatureAction_AddAbilities::OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context)
+{
+	Super::OnGameFeatureDeactivating(Context);
+
+	const FGameFeatureStateChangeContext ChangeContext(Context);
+	FPdGameFeatureAbilityGrantHandles* Handles = ContextHandles.Find(ChangeContext);
+	if (!Handles)
+	{
+		return;
+	}
+
+	RemoveAllGrantedAbilities(*Handles);
+	Handles->ExtensionRequestHandles.Reset();
+	ContextHandles.Remove(ChangeContext);
+}
+
+#if WITH_EDITOR
+EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(FDataValidationContext& Context) const
+{
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
+
+	if (TargetClass.IsNull())
+	{
+		Result = EDataValidationResult::Invalid;
+		Context.AddError(NSLOCTEXT("PdGameFeatureAction_AddAbilities", "MissingTargetClass", "TargetClass is required."));
+	}
+
+	if (!bClientAction && !bServerAction)
+	{
+		Result = EDataValidationResult::Invalid;
+		Context.AddError(NSLOCTEXT("PdGameFeatureAction_AddAbilities", "MissingNetwork", "At least one Network option is required."));
+	}
+
+	if (Abilities.IsEmpty())
+	{
+		Result = EDataValidationResult::Invalid;
+		Context.AddError(NSLOCTEXT("PdGameFeatureAction_AddAbilities", "EmptyAbilities", "At least one ability entry is required."));
+	}
+
+	TSet<FSoftObjectPath> AbilityPaths;
+	for (int32 EntryIndex = 0; EntryIndex < Abilities.Num(); ++EntryIndex)
+	{
+		if (Abilities[EntryIndex].Ability.IsNull())
+		{
+			Result = EDataValidationResult::Invalid;
+			Context.AddError(FText::Format(
+				NSLOCTEXT("PdGameFeatureAction_AddAbilities", "MissingAbility", "Ability entry {0} has no Ability."),
+				FText::AsNumber(EntryIndex)));
+			continue;
+		}
+
+		if (Abilities[EntryIndex].Level < 1)
+		{
+			Result = EDataValidationResult::Invalid;
+			Context.AddError(FText::Format(
+				NSLOCTEXT("PdGameFeatureAction_AddAbilities", "InvalidAbilityLevel", "Ability entry {0} must have Level >= 1."),
+				FText::AsNumber(EntryIndex)));
+		}
+
+		const FSoftObjectPath AbilityPath = Abilities[EntryIndex].Ability.ToSoftObjectPath();
+		if (AbilityPaths.Contains(AbilityPath))
+		{
+			Context.AddWarning(FText::Format(
+				NSLOCTEXT("PdGameFeatureAction_AddAbilities", "DuplicateAbility", "Ability entry {0} duplicates '{1}'. It will be granted only once at runtime."),
+				FText::AsNumber(EntryIndex),
+				FText::FromString(AbilityPath.ToString())));
+			continue;
+		}
+
+		AbilityPaths.Add(AbilityPath);
+	}
+
+	return Result;
+}
+#endif
+
+#if WITH_EDITORONLY_DATA
+void UGameFeatureAction_AddAbilities::AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData)
+{
+	for (const FPdGameFeatureAbilityEntry& Entry : Abilities)
+	{
+		if (!Entry.Ability.IsNull())
+		{
+			AssetBundleData.AddBundleAsset(
+				UGameFeaturesSubsystemSettings::LoadStateServer,
+				Entry.Ability.ToSoftObjectPath().GetAssetPath());
+		}
+	}
+}
+#endif
+
+//----------------------------------------------------------------------------------------------------------------------
+//--- Activation
+void UGameFeatureAction_AddAbilities::AddToWorld(const FWorldContext& WorldContext,
+	const FGameFeatureStateChangeContext& ChangeContext)
+{
+	UWorld* World = WorldContext.World();
+	if (!World || !World->IsGameWorld() || TargetClass.IsNull())
+	{
+		return;
+	}
+
+	RegisterAbilityExtension(World, ChangeContext);
+}
+
+void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(
+	UWorld* World,
+	FGameFeatureStateChangeContext ChangeContext)
+{
+	if (!World || TargetClass.IsNull())
+	{
+		return;
+	}
+
+	UPdActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UPdActorExtensionWorldSubsystem>();
+	if (!ExtensionSubsystem)
+	{
+		TWeakObjectPtr<UWorld> WeakWorld = World;
+		TWeakObjectPtr<ThisClass> WeakThis = this;
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakThis, WeakWorld, ChangeContext]()
+		{
+			if (ThisClass* This = WeakThis.Get())
+			{
+				This->RegisterAbilityExtension(WeakWorld.Get(), ChangeContext);
+			}
+		}));
+		return;
+	}
+
+	TSubclassOf<AActor> LoadedTargetClass = TargetClass.LoadSynchronous();
+	if (!LoadedTargetClass)
+	{
+		UE_LOG(PdGameFeatureAction_AddAbilitiesLog, Error, TEXT("AddAbilities skipped '%s': failed to load target class."),
+			*TargetClass.ToString());
+		return;
+	}
+
+	FPdGameFeatureAbilityGrantHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
+
+	FPdActorExtensionSpec ExtensionSpec;
+	ExtensionSpec.DebugName = GetFName();
+	ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateWeakLambda(this, [this](AActor* Actor)
+	{
+		return Actor && Actor->HasAuthority() && GetAbilitySystemComponent(Actor) != nullptr;
+	});
+	ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
+	{
+		if (FPdGameFeatureAbilityGrantHandles* FoundHandles = ContextHandles.Find(ChangeContext))
+		{
+			GrantAbilitiesToActor(Actor, *FoundHandles);
+		}
+	});
+	ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
+	{
+		if (FPdGameFeatureAbilityGrantHandles* FoundHandles = ContextHandles.Find(ChangeContext))
+		{
+			RemoveAbilitiesFromActor(Actor, *FoundHandles);
+		}
+	});
+
+	if (TSharedPtr<FPdActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
+	{
+		Handles.ExtensionRequestHandles.Add(ExtensionHandle);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+//--- Ability Grants
+void UGameFeatureAction_AddAbilities::GrantAbilitiesToActor(AActor* Actor, FPdGameFeatureAbilityGrantHandles& Handles)
+{
+	if (!Actor || !Actor->HasAuthority() || Handles.AbilitySpecHandles.Contains(Actor))
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
+	if (!AbilitySystemComponent)
+	{
+		UE_LOG(PdGameFeatureAction_AddAbilitiesLog, Warning, TEXT("AddAbilities skipped '%s': no AbilitySystemComponent."), *GetNameSafe(Actor));
+		return;
+	}
+
+	TArray<FGameplayAbilitySpecHandle>& ActorHandles = Handles.AbilitySpecHandles.Add(Actor);
+	for (const FPdGameFeatureAbilityEntry& Entry : Abilities)
+	{
+		TSubclassOf<UGameplayAbility> AbilityClass = Entry.Ability.LoadSynchronous();
+		if (!AbilityClass || HasAbilityClass(AbilitySystemComponent, AbilityClass))
+		{
+			continue;
+		}
+
+		const int32 SafeLevel = FMath::Max(1, Entry.Level);
+		FGameplayAbilitySpec AbilitySpec(AbilityClass, SafeLevel, INDEX_NONE, Actor);
+		if (Entry.InputTag.IsValid())
+		{
+			AbilitySpec.GetDynamicSpecSourceTags().AddTag(Entry.InputTag);
+		}
+
+		const FGameplayAbilitySpecHandle GrantedHandle = AbilitySystemComponent->GiveAbility(AbilitySpec);
+		if (GrantedHandle.IsValid())
+		{
+			ActorHandles.Add(GrantedHandle);
+		}
+	}
+
+	if (ActorHandles.IsEmpty())
+	{
+		Handles.AbilitySpecHandles.Remove(Actor);
+	}
+}
+
+void UGameFeatureAction_AddAbilities::RemoveAbilitiesFromActor(AActor* Actor, FPdGameFeatureAbilityGrantHandles& Handles) const
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	TArray<FGameplayAbilitySpecHandle> ActorHandles;
+	if (!Handles.AbilitySpecHandles.RemoveAndCopyValue(Actor, ActorHandles))
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	for (const FGameplayAbilitySpecHandle& AbilityHandle : ActorHandles)
+	{
+		if (AbilityHandle.IsValid())
+		{
+			AbilitySystemComponent->ClearAbility(AbilityHandle);
+		}
+	}
+}
+
+void UGameFeatureAction_AddAbilities::RemoveAllGrantedAbilities(FPdGameFeatureAbilityGrantHandles& Handles) const
+{
+	TArray<TWeakObjectPtr<AActor>> Actors;
+	Handles.AbilitySpecHandles.GetKeys(Actors);
+
+	for (const TWeakObjectPtr<AActor>& Actor : Actors)
+	{
+		RemoveAbilitiesFromActor(Actor.Get(), Handles);
+	}
+
+	Handles.AbilitySpecHandles.Reset();
+}
+
+UAbilitySystemComponent* UGameFeatureAction_AddAbilities::GetAbilitySystemComponent(AActor* Actor) const
+{
+	return Actor ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor) : nullptr;
+}
+
+bool UGameFeatureAction_AddAbilities::HasAbilityClass(const UAbilitySystemComponent* AbilitySystemComponent, TSubclassOf<UGameplayAbility> AbilityClass) const
+{
+	if (!AbilitySystemComponent || !AbilityClass)
+	{
+		return false;
+	}
+
+	for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (AbilitySpec.Ability && AbilitySpec.Ability->GetClass() == AbilityClass)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}

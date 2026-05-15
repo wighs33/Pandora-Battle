@@ -1,7 +1,6 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "PandoraComponent.h"
 
+#include "Common/ProjectTagConfig.h"
 #include "Engine/AssetManager.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -50,6 +49,7 @@ void UPandoraComponent::BeginPlay()
 
 	ReplicatedEntries.Owner = this;
 
+	UProjectTagConfig::Get(this)->GetPandoraFilterTypeTags(FilterTypeTags);
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
 		InitializeReplicatedEntriesFromRuntimePandoras();
@@ -150,6 +150,7 @@ void UPandoraComponent::ActivatePandoras(const TArray<FPrimaryAssetId>& PandoraD
 					{
 						ExistingEntry->IsOwned = true;
 						ReplicatedEntries.MarkEntryDirty(*ExistingEntry);
+						MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, ReplicatedEntries, this);
 					}
 
 					if (UPandoraInstance* PandoraInstance = FindPandoraInstanceByDefinition(PandoraDefinition))
@@ -184,6 +185,12 @@ void UPandoraComponent::FilterPandoras(UPandoraInstance* PandoraInstance)
 		return;
 	}
 
+	if (!PandoraDefinition->IdTag.IsValid())
+	{
+		UE_LOG(PandoraComponentLog, Warning, TEXT("FilterPandoras skipped pandora '%s': invalid IdTag."), *GetNameSafe(PandoraDefinition));
+		return;
+	}
+
 	for (const FGameplayTag& TypeTag : FilterTypeTags)
 	{
 		if (PandoraDefinition->IdTag.MatchesTag(TypeTag))
@@ -201,6 +208,14 @@ void UPandoraComponent::AddValueToMap(FGameplayTag TypeTag, UPandoraInstance* Pa
 	}
 
 	Map_Type_PandoraList.FindOrAdd(TypeTag).Pandoras.AddUnique(PandoraInstance);
+}
+
+void UPandoraComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig)
+{
+	const UProjectTagConfig* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagConfig::GetDefaultConfig();
+	EffectiveConfig->GetPandoraFilterTypeTags(FilterTypeTags);
+
+	RebuildFilteredPandoraMap();
 }
 
 void UPandoraComponent::InitializeReplicatedEntriesFromRuntimePandoras()
@@ -302,6 +317,7 @@ void UPandoraComponent::AddReplicatedPandora(UPandoraInstance* PandoraInstance)
 		{
 			ExistingEntry->IsOwned = PandoraInstance->IsOwned;
 			ReplicatedEntries.MarkEntryDirty(*ExistingEntry);
+			MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, ReplicatedEntries, this);
 		}
 
 		if (UPandoraInstance* ExistingInstance = FindPandoraInstanceByDefinition(PandoraDefinition))
@@ -319,6 +335,7 @@ void UPandoraComponent::AddReplicatedPandora(UPandoraInstance* PandoraInstance)
 	NewEntry.PandoraDefinition = PandoraDefinition;
 	NewEntry.IsOwned = PandoraInstance->IsOwned;
 	ReplicatedEntries.MarkEntryDirty(NewEntry);
+	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, ReplicatedEntries, this);
 }
 
 UPandoraInstance* UPandoraComponent::FindPandoraInstanceByDefinition(const UPandoraDefinition* PandoraDefinition) const

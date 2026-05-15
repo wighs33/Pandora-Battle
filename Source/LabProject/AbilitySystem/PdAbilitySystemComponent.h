@@ -1,22 +1,57 @@
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Common/Enum_Operation.h"
-#include "GameplayTagContainer.h"
 #include "AbilitySystemComponent.h"
+#include "AttributeSet.h"
+#include "Common/Enum_Operation.h"
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "PdAbilitySystemComponent.generated.h"
 
 class UGameplayEffect;
-class UAttributeDefinition;
-class UEffectSetByCallerDefinition;
+
+USTRUCT(BlueprintType)
+struct FPdAttributeTagMapping
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!AbilitySystem|Attribute", meta = (Categories = "Status"))
+	FGameplayTag StatTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!AbilitySystem|Attribute")
+	FGameplayAttribute Attribute;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!AbilitySystem|Attribute")
+	float DefaultValue = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!AbilitySystem|Attribute")
+	int32 DefaultValuePriority = 0;
+
+	bool IsValid() const
+	{
+		return StatTag.IsValid() && Attribute.IsValid();
+	}
+};
+
+USTRUCT(BlueprintType)
+struct FPdAttributeConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!AbilitySystem|Attribute", meta = (TitleProperty = "StatTag"))
+	TArray<FPdAttributeTagMapping> AttributeMappings;
+
+	bool HasAnyData() const
+	{
+		return !AttributeMappings.IsEmpty();
+	}
+};
 
 /**
- * <프로젝트 전용 AbilitySystemComponent>
- * - AttributeDefinition을 통해 스탯 태그를 실제 Attribute로 해석합니다.
- * - EffectSetByCallerDefinition을 통해 공통 SetByCaller 태그를 해석합니다.
- * - SetByCaller 기반의 GameplayEffect를 사용해 단일 스탯 증가 효과를 적용합니다.
+ * Project AbilitySystemComponent.
+ * - GameFeature AttributeConfig binds stat tags to actual attributes.
+ * - Native gameplay tags resolve shared SetByCaller tags.
  */
-UCLASS()
+UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UPdAbilitySystemComponent : public UAbilitySystemComponent
 {
 	GENERATED_BODY()
@@ -24,31 +59,28 @@ class LABPROJECT_API UPdAbilitySystemComponent : public UAbilitySystemComponent
 public:
 	UPdAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	/** 현재 사용하는 AttributeDefinition 데이터 애셋을 반환합니다. */
-	UFUNCTION(BlueprintPure, Category = "!AbilitySystem|Attribute")
-	const UAttributeDefinition* GetAttributeDefinition() const { return AttributeDefinition; }
+	virtual void OnRegister() override;
+	bool HasAbilityActorInfoAllocated() const { return AbilityActorInfo.IsValid(); }
 
-	/** 현재 사용하는 EffectSetByCallerDefinition 데이터 애셋을 반환합니다. */
-	UFUNCTION(BlueprintPure, Category = "!AbilitySystem|SetByCaller")
-	const UEffectSetByCallerDefinition* GetEffectSetByCallerDefinition() const { return EffectSetByCallerDefinition; }
+	int32 AddAttributeConfig(const FPdAttributeConfig& AttributeConfig);
+	void RemoveAttributeConfig(int32 AttributeConfigHandle);
+	bool ApplyAttributeDefaultValues(const FPdAttributeConfig& AttributeConfig);
 
-	/** EffectSetByCallerDefinition의 Operation SetByCaller 태그를 사용해 단일 스탯 증가 효과를 적용합니다. */
+	void AbilityInputTagPressed(const FGameplayTag& InputTag);
+	void AbilityInputTagReleased(const FGameplayTag& InputTag);
+
 	bool ApplyStatUpEffectByTag(TSubclassOf<UGameplayEffect> GameplayEffectClass, FGameplayTag StatTag, float Magnitude,
 		EEnum_Operation Operation = EEnum_Operation::Add, float Level = 1.f);
-	
-	/** 스탯 태그를 실제 Attribute로 해석합니다. */
+
+	bool ApplyStatUpEffectByTags(TSubclassOf<UGameplayEffect> GameplayEffectClass, const TMap<FGameplayTag, float>& StatMagnitudes,
+		EEnum_Operation Operation = EEnum_Operation::Add, float Level = 1.f);
+
 	bool ResolveAttributeFromTag(const FGameplayTag& StatTag, FGameplayAttribute& OutAttribute) const;
-
-	/** EffectSetByCallerDefinition에서 데미지 수치 전달용 태그를 해석합니다. */
 	bool ResolveDamageMagnitudeSetByCallerTag(FGameplayTag& OutTag) const;
-
-	/** EffectSetByCallerDefinition에서 StatUp Operation 전달용 태그를 해석합니다. */
 	bool ResolveStatUpOperationSetByCallerTag(FGameplayTag& OutTag) const;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AbilitySystem|Attribute")
-	TObjectPtr<UAttributeDefinition> AttributeDefinition;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AbilitySystem|SetByCaller")
-	TObjectPtr<UEffectSetByCallerDefinition> EffectSetByCallerDefinition;
+	TMap<int32, FPdAttributeConfig> ActiveAttributeConfigs;
+	TArray<int32> AttributeConfigOrder;
+	int32 NextAttributeConfigHandle = 1;
 };

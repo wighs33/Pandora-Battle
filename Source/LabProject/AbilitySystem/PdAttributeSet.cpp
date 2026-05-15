@@ -6,6 +6,18 @@
 #include "Character/PdCharacterBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdAttributeSet)
 
+DEFINE_LOG_CATEGORY_STATIC(LogPdAttributeSet, Log, All);
+
+namespace
+{
+	bool RollPercentChance(float PercentChance)
+	{
+		const float ClampedPercentChance = FMath::Clamp(PercentChance, 0.f, 100.f);
+		return ClampedPercentChance >= 100.f
+			|| (ClampedPercentChance > 0.f && FMath::FRandRange(0.f, 100.f) < ClampedPercentChance);
+	}
+}
+
 UPdAttributeSet::UPdAttributeSet()
 {
 }
@@ -55,6 +67,7 @@ void UPdAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME_WITH_PARAMS_FAST(UPdAttributeSet, AttackSpeed, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UPdAttributeSet, MovementSpeed, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UPdAttributeSet, CriticalChance, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UPdAttributeSet, CriticalDamageMultiplier, Params);
 	
 	// =================================================================================================================
 	// === 자원 스탯 복제 등록
@@ -75,19 +88,37 @@ void UPdAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 	// =================================================================================================================
 	// === 데미지 Attribute 후처리
 
-	if (Data.EvaluatedData.Attribute == GetDamageAttribute())
+	if (Data.EvaluatedData.Attribute == GetOutgoingDamageAttribute())
 	{
-		// 계산용 Damage 값을 읽고 즉시 초기화합니다.
-		const float IncomingDamage = GetDamage();
-		SetDamage(0.f);
+		bLastOutgoingDamageCriticalHit = false;
 
-		// 실제 체력 감소는 Damage를 통해 간접 반영합니다.
-		if (IncomingDamage > 0.f)
+		float FinalOutgoingDamage = GetOutgoingDamage();
+		if (FinalOutgoingDamage <= 0.f)
 		{
-			const float NewHealth = FMath::Max(GetHealth() - IncomingDamage, 0.f);
-			SetHealth(NewHealth);
+			SetOutgoingDamage(0.f);
+			return;
 		}
+
+		if (GetCriticalDamageMultiplier() > 0.f && RollPercentChance(GetCriticalChance()))
+		{
+			FinalOutgoingDamage *= GetCriticalDamageMultiplier();
+			bLastOutgoingDamageCriticalHit = true;
+		}
+
+		SetOutgoingDamage(FinalOutgoingDamage);
+		return;
 	}
+
+	if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
+	{
+		const float AppliedIncomingDamage = GetIncomingDamage();
+		const bool bCriticalHit = bPendingIncomingDamageCriticalHit;
+		bPendingIncomingDamageCriticalHit = false;
+		SetIncomingDamage(0.f);
+		ApplyIncomingDamage(AppliedIncomingDamage, bCriticalHit);
+		return;
+	}
+
 }
 
 /** Attribute 값이 변경되기 전에 보정합니다. */
@@ -115,6 +146,12 @@ void UPdAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, f
 
 	if (OldValue != NewValue)
 	{
+		UE_LOG(LogPdAttributeSet, Log, TEXT("[StatUpgrade] Attribute changed: owner=%s attribute=%s old=%.3f new=%.3f"),
+			*GetNameSafe(GetOwningActor()),
+			*Attribute.GetName(),
+			OldValue,
+			NewValue);
+
 		if (FProperty* Property = Attribute.GetUProperty())
 		{
 			MARK_PROPERTY_DIRTY(this, Property);
@@ -134,6 +171,45 @@ void UPdAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, f
 			}
 		}
 	}
+}
+
+float UPdAttributeSet::ConsumeOutgoingDamage()
+{
+	const float ConsumedOutgoingDamage = GetOutgoingDamage();
+	SetOutgoingDamage(0.f);
+	return ConsumedOutgoingDamage;
+}
+
+bool UPdAttributeSet::ConsumeOutgoingDamageCriticalHit()
+{
+	const bool bConsumedCriticalHit = bLastOutgoingDamageCriticalHit;
+	bLastOutgoingDamageCriticalHit = false;
+	return bConsumedCriticalHit;
+}
+
+void UPdAttributeSet::SetPendingIncomingDamageCriticalHit(bool bCriticalHit)
+{
+	bPendingIncomingDamageCriticalHit = bCriticalHit;
+}
+
+void UPdAttributeSet::ApplyIncomingDamage(float IncomingDamageAmount, bool bCriticalHit)
+{
+	const float FinalDamage = FMath::Max(IncomingDamageAmount - GetToughness(), 0.f);
+	if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+	{
+		if (APdCharacterBase* Character = Cast<APdCharacterBase>(ASC->GetAvatarActor()))
+		{
+			Character->HandleDamageTaken(FinalDamage, bCriticalHit);
+		}
+	}
+
+	if (FinalDamage <= 0.f)
+	{
+		return;
+	}
+
+	const float NewHealth = FMath::Max(GetHealth() - FinalDamage, 0.f);
+	SetHealth(NewHealth);
 }
 
 void UPdAttributeSet::OnRep_Strength(const FGameplayAttributeData& OldValue)
@@ -209,6 +285,11 @@ void UPdAttributeSet::OnRep_MovementSpeed(const FGameplayAttributeData& OldValue
 void UPdAttributeSet::OnRep_CriticalChance(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPdAttributeSet, CriticalChance, OldValue);
+}
+
+void UPdAttributeSet::OnRep_CriticalDamageMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPdAttributeSet, CriticalDamageMultiplier, OldValue);
 }
 
 void UPdAttributeSet::OnRep_Health(const FGameplayAttributeData& OldValue)

@@ -38,11 +38,19 @@
 			"Enabled": true
 		},
 		{
+			"Name": "StructUtils",
+			"Enabled": true
+		},
+		{
 			"Name": "AIAssistant",
 			"Enabled": true
 		},
 		{
 			"Name": "Iris",
+			"Enabled": true
+		},
+		{
+			"Name": "GF_Pandoras",
 			"Enabled": true
 		}
 	]

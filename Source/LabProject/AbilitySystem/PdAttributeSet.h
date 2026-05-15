@@ -26,12 +26,19 @@ class LABPROJECT_API UPdAttributeSet : public UAttributeSet
 public:
 	UPdAttributeSet();
 
+	// Timing hooks
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
 	virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) override;
 
+	// Public API
+	float ConsumeOutgoingDamage();
+	bool ConsumeOutgoingDamageCriticalHit();
+	void SetPendingIncomingDamageCriticalHit(bool bCriticalHit);
+
 protected:
+	// Replication callbacks
 	UFUNCTION()
 	void OnRep_Strength(const FGameplayAttributeData& OldValue);
 
@@ -78,6 +85,9 @@ protected:
 	void OnRep_CriticalChance(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
+	void OnRep_CriticalDamageMultiplier(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
@@ -95,92 +105,106 @@ protected:
 	UFUNCTION()
 	void OnRep_MaxStamina(const FGameplayAttributeData& OldValue);
 
+	void ApplyIncomingDamage(float IncomingDamageAmount, bool bCriticalHit);
+
+private:
+	bool bLastOutgoingDamageCriticalHit = false;
+	bool bPendingIncomingDamageCriticalHit = false;
+
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Offense", ReplicatedUsing = OnRep_Strength)
-	FGameplayAttributeData Strength = 20.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Offense", ReplicatedUsing = OnRep_Strength)
+	FGameplayAttributeData Strength = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Strength)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Offense", ReplicatedUsing = OnRep_Intelligence)
-	FGameplayAttributeData Intelligence = 20.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Offense", ReplicatedUsing = OnRep_Intelligence)
+	FGameplayAttributeData Intelligence = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Intelligence)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Offense", ReplicatedUsing = OnRep_Arcane)
-	FGameplayAttributeData Arcane = 20.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Offense", ReplicatedUsing = OnRep_Arcane)
+	FGameplayAttributeData Arcane = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Arcane)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Defense", ReplicatedUsing = OnRep_Toughness)
-	FGameplayAttributeData Toughness = 5.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Defense", ReplicatedUsing = OnRep_Toughness)
+	FGameplayAttributeData Toughness = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Toughness)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Defense", ReplicatedUsing = OnRep_Recovery)
-	FGameplayAttributeData Recovery = 5.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Defense", ReplicatedUsing = OnRep_Recovery)
+	FGameplayAttributeData Recovery = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Recovery)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Defense", ReplicatedUsing = OnRep_MagicResistance)
-	FGameplayAttributeData MagicResistance = 5.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Defense", ReplicatedUsing = OnRep_MagicResistance)
+	FGameplayAttributeData MagicResistance = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, MagicResistance)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Resistance", ReplicatedUsing = OnRep_Immunity)
+	UPROPERTY(BlueprintReadOnly, Category = "!Resistance", ReplicatedUsing = OnRep_Immunity)
 	FGameplayAttributeData Immunity = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Immunity)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Resistance", ReplicatedUsing = OnRep_Fortitude)
+	UPROPERTY(BlueprintReadOnly, Category = "!Resistance", ReplicatedUsing = OnRep_Fortitude)
 	FGameplayAttributeData Fortitude = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Fortitude)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Resistance", ReplicatedUsing = OnRep_Sanity)
+	UPROPERTY(BlueprintReadOnly, Category = "!Resistance", ReplicatedUsing = OnRep_Sanity)
 	FGameplayAttributeData Sanity = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Sanity)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!PandoraForce", ReplicatedUsing = OnRep_FirstPandora)
-	FGameplayAttributeData FirstPandora = 1.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!PandoraForce", ReplicatedUsing = OnRep_FirstPandora)
+	FGameplayAttributeData FirstPandora = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, FirstPandora)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!PandoraForce", ReplicatedUsing = OnRep_SecondPandora)
-	FGameplayAttributeData SecondPandora = 1.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!PandoraForce", ReplicatedUsing = OnRep_SecondPandora)
+	FGameplayAttributeData SecondPandora = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, SecondPandora)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!PandoraForce", ReplicatedUsing = OnRep_ThirdPandora)
-	FGameplayAttributeData ThirdPandora = 1.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!PandoraForce", ReplicatedUsing = OnRep_ThirdPandora)
+	FGameplayAttributeData ThirdPandora = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, ThirdPandora)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Offense", ReplicatedUsing = OnRep_AttackSpeed)
+	UPROPERTY(BlueprintReadOnly, Category = "!Offense", ReplicatedUsing = OnRep_AttackSpeed)
 	FGameplayAttributeData AttackSpeed = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, AttackSpeed)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Offense", ReplicatedUsing = OnRep_MovementSpeed)
+	UPROPERTY(BlueprintReadOnly, Category = "!Offense", ReplicatedUsing = OnRep_MovementSpeed)
 	FGameplayAttributeData MovementSpeed = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, MovementSpeed)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Offense", ReplicatedUsing = OnRep_CriticalChance)
+	UPROPERTY(BlueprintReadOnly, Category = "!Offense", ReplicatedUsing = OnRep_CriticalChance)
 	FGameplayAttributeData CriticalChance = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, CriticalChance)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Resource", ReplicatedUsing = OnRep_Health)
-	FGameplayAttributeData Health = 100.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Offense", ReplicatedUsing = OnRep_CriticalDamageMultiplier)
+	FGameplayAttributeData CriticalDamageMultiplier = 0.f;
+	ATTRIBUTE_ACCESSORS(UPdAttributeSet, CriticalDamageMultiplier)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Resource", ReplicatedUsing = OnRep_Health)
+	FGameplayAttributeData Health = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Health)
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Resource", ReplicatedUsing = OnRep_MaxHealth, meta = (ShowOnlyInnerProperties))
-	FGameplayAttributeData MaxHealth = 100.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Resource", ReplicatedUsing = OnRep_MaxHealth)
+	FGameplayAttributeData MaxHealth = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, MaxHealth)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Resource", ReplicatedUsing = OnRep_Mana)
-	FGameplayAttributeData Mana = 100.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Resource", ReplicatedUsing = OnRep_Mana)
+	FGameplayAttributeData Mana = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Mana)
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Resource", ReplicatedUsing = OnRep_MaxMana, meta = (ShowOnlyInnerProperties))
-	FGameplayAttributeData MaxMana = 100.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Resource", ReplicatedUsing = OnRep_MaxMana)
+	FGameplayAttributeData MaxMana = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, MaxMana)
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Resource", ReplicatedUsing = OnRep_Stamina)
-	FGameplayAttributeData Stamina = 100.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Resource", ReplicatedUsing = OnRep_Stamina)
+	FGameplayAttributeData Stamina = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Stamina)
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Resource", ReplicatedUsing = OnRep_MaxStamina, meta = (ShowOnlyInnerProperties))
-	FGameplayAttributeData MaxStamina = 100.f;
+	UPROPERTY(BlueprintReadOnly, Category = "!Resource", ReplicatedUsing = OnRep_MaxStamina)
+	FGameplayAttributeData MaxStamina = 0.f;
 	ATTRIBUTE_ACCESSORS(UPdAttributeSet, MaxStamina)
 
 	UPROPERTY(BlueprintReadWrite, Category = "!Damage")
-	FGameplayAttributeData Damage = 0.f;
-	ATTRIBUTE_ACCESSORS(UPdAttributeSet, Damage)
+	FGameplayAttributeData OutgoingDamage = 0.f;
+	ATTRIBUTE_ACCESSORS(UPdAttributeSet, OutgoingDamage)
+
+	UPROPERTY(BlueprintReadWrite, Category = "!Damage")
+	FGameplayAttributeData IncomingDamage = 0.f;
+	ATTRIBUTE_ACCESSORS(UPdAttributeSet, IncomingDamage)
 };

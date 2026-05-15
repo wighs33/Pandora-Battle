@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -12,6 +10,7 @@
 class UPandoraComponent;
 class UPandoraDefinition;
 class UPandoraInstance;
+class UProjectTagConfig;
 
 DECLARE_LOG_CATEGORY_EXTERN(PandoraComponentLog, Log, All);
 
@@ -71,7 +70,7 @@ struct TStructOpsTypeTraits<FReplicatedPandoraList> : public TStructOpsTypeTrait
 	enum { WithNetDeltaSerializer = true };
 };
 
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UPandoraComponent : public UPlayerStateComponent
 {
 	GENERATED_BODY()
@@ -81,6 +80,7 @@ class LABPROJECT_API UPandoraComponent : public UPlayerStateComponent
 public:
 	UPandoraComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	// Timing hooks
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -96,12 +96,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Inventory")
 	void AddValueToMap(FGameplayTag TypeTag, UPandoraInstance* PandoraInstance);
 
+	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
+
 protected:
+	// Replication timing callbacks
+	void HandleReplicatedEntryAddedOrChanged(const FReplicatedPandoraEntry& Entry);
+	void HandleReplicatedEntryRemoved(const UPandoraDefinition* PandoraDefinition);
+
+	// State rebuild helpers
 	void InitializeReplicatedEntriesFromRuntimePandoras();
 	void RebuildRuntimePandorasFromReplicatedEntries();
 	void RebuildFilteredPandoraMap();
-	void HandleReplicatedEntryAddedOrChanged(const FReplicatedPandoraEntry& Entry);
-	void HandleReplicatedEntryRemoved(const UPandoraDefinition* PandoraDefinition);
 	void AddReplicatedPandora(UPandoraInstance* PandoraInstance);
 	UPandoraInstance* FindPandoraInstanceByDefinition(const UPandoraDefinition* PandoraDefinition) const;
 	int32 FindReplicatedEntryIndexByDefinition(const UPandoraDefinition* PandoraDefinition) const;
@@ -112,7 +117,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Default", meta = (DisplayName = "All Pandroa Definition"))
 	TArray<FPrimaryAssetId> AllPandroaDefinition;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (Categories = "Pandora"))
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter")
 	TArray<FGameplayTag> FilterTypeTags;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")

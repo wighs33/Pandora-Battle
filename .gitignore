@@ -27,6 +27,7 @@ Content/**/*.before_recover_*.uasset
 # Ignore marketplace / art-heavy packs even if they contain blueprint assets
 Content/IgniteStarterPack/**
 Content/SwordAndShield/**
+Content/MuzzleFlash/Demo/**
 
 # IDE and local tooling
 .idea/

@@ -10,9 +10,12 @@
 class UInventoryComponent;
 class UItemDefinition;
 class UItemInstance;
+class UProjectTagConfig;
+struct FStreamableHandle;
 
 // 인벤토리 로그 카테고리입니다.
 DECLARE_LOG_CATEGORY_EXTERN(InventoryComponentLog, Log, All);
+DECLARE_MULTICAST_DELEGATE(FPdInventoryChanged);
 
 /**
  * <인벤토리 런타임 캐시>
@@ -107,7 +110,7 @@ struct TStructOpsTypeTraits<FReplicatedInventoryList> : public TStructOpsTypeTra
  * - 서버에서 원본을 수정합니다.
  * - 클라는 복제값으로 캐시를 다시 만듭니다.
  */
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UInventoryComponent : public UPlayerStateComponent
 {
 	GENERATED_BODY()
@@ -118,6 +121,7 @@ public:
 	/** 인벤토리 컴포넌트 기본 상태를 초기화합니다. */
 	UInventoryComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	// Timing hooks
 	/** 시작 시 캐시와 복제 상태를 초기화합니다. */
 	virtual void BeginPlay() override;
 
@@ -152,7 +156,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Inventory")
 	UItemInstance* FindItemInstanceById(FGuid ItemId) const;
 
+	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
+
+	FPdInventoryChanged OnInventoryChanged;
+
 protected:
+	// Replication timing callbacks
+	/** 복제 엔트리 추가 또는 변경을 반영합니다. */
+	void HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry);
+
+	/** 복제 엔트리 제거를 반영합니다. */
+	void HandleReplicatedEntryRemoved(FGuid ItemId);
+
+	// State rebuild helpers
 	/** 기존 런타임 아이템을 복제 엔트리로 변환합니다. */
 	void InitializeReplicatedEntriesFromRuntimeItems();
 
@@ -161,12 +177,6 @@ protected:
 
 	/** 현재 런타임 캐시 기준으로 필터 맵을 다시 만듭니다. */
 	void RebuildFilteredItemMap();
-
-	/** 복제 엔트리 추가 또는 변경을 반영합니다. */
-	void HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry);
-
-	/** 복제 엔트리 제거를 반영합니다. */
-	void HandleReplicatedEntryRemoved(FGuid ItemId);
 
 	/** 런타임 아이템을 복제 엔트리에 추가하거나 갱신합니다. */
 	void AddReplicatedItem(UItemInstance* ItemInstance);
@@ -190,7 +200,7 @@ protected:
 
 public:
 	// 전체 런타임 아이템 캐시입니다.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (Categories = "Item"))
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter")
 	TArray<FGameplayTag> FilterTypeTags;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
@@ -204,4 +214,6 @@ protected:
 	// 복제 원본 엔트리입니다.
 	UPROPERTY(Replicated)
 	FReplicatedInventoryList ReplicatedEntries;
+
+	TArray<TSharedPtr<FStreamableHandle>> PendingItemLoadHandles;
 };

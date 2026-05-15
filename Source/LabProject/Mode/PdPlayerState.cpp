@@ -1,31 +1,35 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+#include "Mode/PdPlayerState.h"
 
-
-#include "PdPlayerState.h"
-#include "Components/GameFrameworkComponentManager.h"
 #include "AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystem/PdAttributeSet.h"
+#include "Components/GameFrameworkComponentManager.h"
 #include "Item/InventoryComponent.h"
 #include "Pandora/PandoraComponent.h"
 #include "PlayerComponent/PlayerRewardComponent.h"
+#include "PlayerComponent/StatUpgradeComponent.h"
 #include "Skin/SkinComponent.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayerState)
 
-APdPlayerState::APdPlayerState(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+namespace
 {
-	// PlayerState의 기본 NetUpdateFrequency가 낮아서(1) ASC 데이터(Attribute, Tag, Effect) 동기화가 지연됩니다
-	// ASC가 PlayerState에 있으므로 업데이트 빈도를 높여 즉각적인 동기화를 보장합니다
-	SetNetUpdateFrequency(100.f);
-
-	AbilitySystemComponent = CreateDefaultSubobject<UPdAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
-	AbilitySystemComponent->SetIsReplicated(true);
-	AttributeSet = CreateDefaultSubobject<UPdAttributeSet>(TEXT("AttributeSet"));
-	PlayerRewardComponent = CreateDefaultSubobject<UPlayerRewardComponent>(TEXT("PlayerRewardComponent"));
-	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
-	SkinComponent = CreateDefaultSubobject<USkinComponent>(TEXT("SkinComponent"));
-	PandoraComponent = CreateDefaultSubobject<UPandoraComponent>(TEXT("PandoraComponent"));
+	template<typename ComponentType>
+	ComponentType* FindPlayerStateComponent(const AActor* Owner)
+	{
+		return Owner ? Owner->FindComponentByClass<ComponentType>() : nullptr;
+	}
 }
 
+APdPlayerState::APdPlayerState(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SetNetUpdateFrequency(100.0f);
+
+	AbilitySystemComponent = CreateDefaultSubobject<UPdAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+//--- Engine Callbacks
 void APdPlayerState::PreInitializeComponents()
 {
 	Super::PreInitializeComponents();
@@ -35,6 +39,7 @@ void APdPlayerState::PreInitializeComponents()
 void APdPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
+
 	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(this, UGameFrameworkComponentManager::NAME_GameActorReady);
 }
 
@@ -44,13 +49,47 @@ void APdPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-
+//----------------------------------------------------------------------------------------------------------------------
+//--- Ability System
 UAbilitySystemComponent* APdPlayerState::GetAbilitySystemComponent() const
 {
-	return AbilitySystemComponent;
+	return GetPdAbilitySystemComponent();
 }
 
-bool APdPlayerState::ApplyInteractRewards(AActor* InteractableActor)
+UPdAbilitySystemComponent* APdPlayerState::GetPdAbilitySystemComponent() const
 {
-	return PlayerRewardComponent && PlayerRewardComponent->ApplyInteractRewards(InteractableActor);
+	return AbilitySystemComponent.Get();
+}
+
+UPdAttributeSet* APdPlayerState::GetPdAttributeSet() const
+{
+	const UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponent();
+	return ASC ? const_cast<UPdAttributeSet*>(ASC->GetSet<UPdAttributeSet>()) : nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+//--- Components
+UPlayerRewardComponent* APdPlayerState::GetPlayerRewardComponent() const
+{
+	return FindPlayerStateComponent<UPlayerRewardComponent>(this);
+}
+
+UStatUpgradeComponent* APdPlayerState::GetStatUpgradeComponent() const
+{
+	return FindPlayerStateComponent<UStatUpgradeComponent>(this);
+}
+
+UInventoryComponent* APdPlayerState::GetInventoryComponent() const
+{
+	return FindPlayerStateComponent<UInventoryComponent>(this);
+}
+
+USkinComponent* APdPlayerState::GetSkinComponent() const
+{
+	return FindPlayerStateComponent<USkinComponent>(this);
+}
+
+UPandoraComponent* APdPlayerState::GetPandoraComponent() const
+{
+	return FindPlayerStateComponent<UPandoraComponent>(this);
 }

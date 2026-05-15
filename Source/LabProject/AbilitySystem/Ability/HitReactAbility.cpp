@@ -12,6 +12,7 @@ UHitReactAbility::UHitReactAbility(const FObjectInitializer& ObjectInitializer)
 	bRetriggerInstancedAbility = true;
 }
 
+// State helpers
 void UHitReactAbility::ClearActiveHitReactEffect()
 {
 	if (HitReactEffectClass && HasAuthority(&CurrentActivationInfo))
@@ -20,24 +21,26 @@ void UHitReactAbility::ClearActiveHitReactEffect()
 	}
 }
 
-void UHitReactAbility::HandleHitReactMontageCompleted()
+// Timing callbacks
+void UHitReactAbility::OnHitReactMontageCompleted()
 {
 	ClearActiveHitReactEffect();
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
-void UHitReactAbility::HandleHitReactMontageInterrupted()
+void UHitReactAbility::OnHitReactMontageInterrupted()
 {
 	ClearActiveHitReactEffect();
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
-void UHitReactAbility::HandleHitReactMontageCancelled()
+void UHitReactAbility::OnHitReactMontageCancelled()
 {
 	ClearActiveHitReactEffect();
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
+// Ability flow
 void UHitReactAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
@@ -52,7 +55,11 @@ void UHitReactAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, 
 	FName StartSectionName = HitReactStartSectionName;
 	if (const UEquipmentComponent* EquipmentComponent = Character->FindComponentByClass<UEquipmentComponent>())
 	{
-		Montage = EquipmentComponent->GetCurrentHitReactMontage();
+		FHitReactData HitReactData;
+		if (EquipmentComponent->GetHitReactData(HitReactData))
+		{
+			Montage = HitReactData.HitReactMontage;
+		}
 	}
 
 	if (!Montage)
@@ -96,9 +103,9 @@ void UHitReactAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, 
 		return;
 	}
 
-	MontageTask->OnCompleted.AddDynamic(this, &UHitReactAbility::HandleHitReactMontageCompleted);
-	MontageTask->OnInterrupted.AddDynamic(this, &UHitReactAbility::HandleHitReactMontageInterrupted);
-	MontageTask->OnCancelled.AddDynamic(this, &UHitReactAbility::HandleHitReactMontageCancelled);
+	MontageTask->OnCompleted.AddDynamic(this, &UHitReactAbility::OnHitReactMontageCompleted);
+	MontageTask->OnInterrupted.AddDynamic(this, &UHitReactAbility::OnHitReactMontageInterrupted);
+	MontageTask->OnCancelled.AddDynamic(this, &UHitReactAbility::OnHitReactMontageCancelled);
 	MontageTask->ReadyForActivation();
 
 	if (HitReactEffectClass)

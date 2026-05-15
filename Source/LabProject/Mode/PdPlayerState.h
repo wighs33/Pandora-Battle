@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,57 +5,45 @@
 #include "GameFramework/PlayerState.h"
 #include "PdPlayerState.generated.h"
 
+class UPandoraComponent;
 class UPdAbilitySystemComponent;
 class UPdAttributeSet;
-class UPlayerRewardComponent;
 class UInventoryComponent;
+class UPlayerRewardComponent;
 class USkinComponent;
-class UPandoraComponent;
-class AActor;
+class UStatUpgradeComponent;
 
 UCLASS()
 class LABPROJECT_API APdPlayerState : public APlayerState, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
-	
+
 public:
 	APdPlayerState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	
+
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Ability System
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-	bool ApplyInteractRewards(AActor* InteractableActor);
+	UPdAbilitySystemComponent* GetPdAbilitySystemComponent() const;
+	UPdAttributeSet* GetPdAttributeSet() const;
 
-	/** CommonAbilitySystemComponent를 반환합니다 */
-	UPdAbilitySystemComponent* GetPdAbilitySystemComponent() const { return AbilitySystemComponent; }
-
-	/** 플레이어의 기본 AttributeSet을 반환합니다 */
-	UPdAttributeSet* GetPdAttributeSet() const { return AttributeSet; }
-	UPlayerRewardComponent* GetPlayerRewardComponent() const { return PlayerRewardComponent; }
-	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
-	USkinComponent* GetSkinComponent() const { return SkinComponent; }
-	UPandoraComponent* GetPandoraComponent() const { return PandoraComponent; }
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Components
+	UPlayerRewardComponent* GetPlayerRewardComponent() const;
+	UStatUpgradeComponent* GetStatUpgradeComponent() const;
+	UInventoryComponent* GetInventoryComponent() const;
+	USkinComponent* GetSkinComponent() const;
+	UPandoraComponent* GetPandoraComponent() const;
 
 private:
-	/** Ability System Component */
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Ability System
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPdAbilitySystemComponent> AbilitySystemComponent;
-
-	/** 기본 AttributeSet */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UPdAttributeSet> AttributeSet;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Reward", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UPlayerRewardComponent> PlayerRewardComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInventoryComponent> InventoryComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skin", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<USkinComponent> SkinComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pandora", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UPandoraComponent> PandoraComponent;
 };
