@@ -92,7 +92,7 @@ private:
 	void HandleArcaneClicked();
 
 	UFUNCTION()
-	void HandleToughnessClicked();
+	void HandleArmorClicked();
 
 	UFUNCTION()
 	void HandleRecoveryClicked();
@@ -143,7 +143,7 @@ private:
 	FGameplayTag GetStrengthStatTag() const;
 	FGameplayTag GetIntelligenceStatTag() const;
 	FGameplayTag GetArcaneStatTag() const;
-	FGameplayTag GetToughnessStatTag() const;
+	FGameplayTag GetArmorStatTag() const;
 	FGameplayTag GetRecoveryStatTag() const;
 	FGameplayTag GetMagicResistanceStatTag() const;
 	FGameplayTag GetImmunityStatTag() const;

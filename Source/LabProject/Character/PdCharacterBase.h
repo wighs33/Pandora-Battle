@@ -1,33 +1,37 @@
 #pragma once
 
 #include "AbilitySystemInterface.h"
+#include "Abilities/GameplayAbilityTypes.h"
 #include "CoreMinimal.h"
 #include "Engine/NetSerialization.h"
 #include "GameFramework/Character.h"
+#include "GameplayCueInterface.h"
+#include "TimerManager.h"
 #include "PdCharacterBase.generated.h"
 
 class UAbilitySystemComponent;
 class UAnimInstance;
 class UCombatComponent;
 class UDamageIndicatorComponent;
-class UGameplayAbility;
+class UGameplayEffect;
 class UEquipmentComponent;
 class UHealthBarViewModel;
 class UPdAbilitySystemComponent;
 class UUserWidget;
 class UWidgetComponent;
+struct FOnAttributeChangeData;
 
-/** 캐릭터 로그 카테고리입니다. */
+/** 캐릭??로그 카테고리?�니?? */
 DECLARE_LOG_CATEGORY_EXTERN(PdCharacterBaseLog, Log, All);
 
 /**
- * <공용 캐릭터 베이스>
- * - ASC 초기화를 담당합니다.
- * - 기본 Ability 지급을 담당합니다.
- * - 체력바 ViewModel과 애님 레이어를 관리합니다.
+ * <공용 캐릭??베이??
+ * - ASC 초기?��? ?�당?�니??
+ * - Startup abilities are granted by GameFeatureAction_AddAbilities.
+ * - 체력�?ViewModel�??�님 ?�이?��? 관리합?�다.
  */
 UCLASS()
-class LABPROJECT_API APdCharacterBase : public ACharacter, public IAbilitySystemInterface
+class LABPROJECT_API APdCharacterBase : public ACharacter, public IAbilitySystemInterface, public IGameplayCueInterface
 {
 	GENERATED_BODY()
 
@@ -53,12 +57,17 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Ability System
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	virtual void HandleGameplayCue(AActor* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType,
+		const FGameplayCueParameters& Parameters) override;
 
 	UFUNCTION(BlueprintPure, Category = "!AbilitySystem")
 	UPdAbilitySystemComponent* GetPdAbilitySystemComponent() const;
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!AbilitySystem|Grant")
-	int32 GiveDefaultAbilities();
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "!AbilitySystem")
+	void ServerSendGameplayEventToSelf(FGameplayEventData EventData);
+
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "!AbilitySystem")
+	void MulticastSendGameplayEventToActor(AActor* TargetActor, FGameplayEventData EventData);
 
 	void InitializeAbilitySystemActorInfo();
 	void ClearAbilitySystemActorInfo();
@@ -106,16 +115,28 @@ public:
 	void HandleDeathAuth();
 	void HandleDamageTaken(float DamageAmount, bool bCriticalHit = false);
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "!Damage")
+	void HandleDeath();
+
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Faction
 	UFUNCTION(BlueprintPure, Category = "!Faction")
 	int32 GetFactionId() const;
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "!AbilitySystem|Cue", meta = (DisplayName = "On Dash Cue Activated"))
+	void OnDashCueActivated(const FGameplayCueParameters& Parameters);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "!AbilitySystem|Cue", meta = (DisplayName = "On Dash Cue Removed"))
+	void OnDashCueRemoved(const FGameplayCueParameters& Parameters);
 
 protected:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Network Callbacks
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastHandleDamageTaken(float DamageAmount, bool bCriticalHit, FVector_NetQuantize WorldLocation);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastHandleDeath();
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Replication Callbacks
@@ -127,11 +148,25 @@ protected:
 	void QueueAbilitySystemActorInfoInitializationRetry();
 	virtual AActor* GetAbilitySystemOwnerActor() const;
 	virtual AActor* GetAbilitySystemAvatarActor() const;
+	void HandleDashGameplayCue(EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters);
+	void BindStaminaRegenToASC(UAbilitySystemComponent* InASC);
+	void UnbindStaminaRegenFromASC();
+	void BindDeadTagEvent(UAbilitySystemComponent* InASC);
+	void UnbindDeadTagEvent();
+	void OnDeadTagChanged(const FGameplayTag CallbackTag, int32 NewCount);
+	void HandleStaminaChanged(const FOnAttributeChangeData& Data);
+	void ApplyStaminaRegenEffect();
+	void RemoveStaminaRegenEffects();
+	float GetCurrentMaxStamina() const;
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- ViewModel Helpers
-	void ApplyHealthBarViewModelToWidget();
-	void BindHealthBarViewModelToASC(UAbilitySystemComponent* InASC);
+	bool TryApplyHealthBarViewModelToWidget(UUserWidget* InWidget);
+	bool TryApplyHealthBarViewModelToWidget();
+	bool BindHealthBarViewModelToASC(UAbilitySystemComponent* InASC);
+	bool IsHealthBarAttributeDataReady(const UAbilitySystemComponent* InASC) const;
+	void QueueHealthBarViewModelRefreshRetry();
+	void RetryRefreshHealthBarViewModel();
 	void UpdateHealthBarFacing();
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -143,13 +178,41 @@ protected:
 	FVector GetDamageIndicatorWorldLocation() const;
 
 protected:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Ability System
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AbilitySystem|Grant")
-	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
-
 	UPROPERTY(Transient)
 	bool bAbilitySystemActorInfoInitializationQueued = false;
+
+	UPROPERTY(Transient)
+	bool bDeathHandled = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage|Death", meta = (ClampMin = "0.0", AllowPrivateAccess = "true"))
+	float DeathImpulseHorizontalStrength = 35000.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage|Death", meta = (ClampMin = "0.0", AllowPrivateAccess = "true"))
+	float DeathImpulseUpwardStrength = 12000.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage|Death", meta = (AllowPrivateAccess = "true"))
+	float DeathImpulseSideStrength = 8000.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage|Death", meta = (ClampMin = "0.0", AllowPrivateAccess = "true"))
+	float DeathImpulseLocationZOffset = 80.0f;
+
+	TWeakObjectPtr<UAbilitySystemComponent> DeadTagBoundAbilitySystemComponent;
+	FDelegateHandle DeadTagChangedDelegateHandle;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AbilitySystem|Stamina", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UGameplayEffect> StaminaRegenEffectClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AbilitySystem|Stamina", meta = (ClampMin = "0.0", ForceUnits = "s", AllowPrivateAccess = "true"))
+	float StaminaRegenDelay = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AbilitySystem|Stamina", meta = (ClampMin = "1.0", AllowPrivateAccess = "true"))
+	float StaminaRegenEffectLevel = 1.0f;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UAbilitySystemComponent> StaminaRegenASC;
+
+	FDelegateHandle StaminaChangedDelegateHandle;
+	FTimerHandle StaminaRegenDelayTimerHandle;
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Animation
@@ -183,6 +246,8 @@ protected:
 	//--- ViewModel
 	UPROPERTY(Transient)
 	TObjectPtr<UHealthBarViewModel> HealthBarViewModel;
+
+	FTimerHandle HealthBarViewModelRetryTimerHandle;
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Faction

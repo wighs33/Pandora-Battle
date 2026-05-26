@@ -1,6 +1,6 @@
 #include "StatusViewModel.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/PdAttributeSet.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatusViewModel)
 
@@ -23,6 +23,7 @@ namespace StatusViewModel
 			bFound ? TEXT("true") : TEXT("false"));
 		return Value;
 	}
+
 }
 
 /** 상태창 ViewModel 기본 상태를 초기화합니다. */
@@ -72,32 +73,34 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 	// =================================================================================================================
 	// === 델리게이트 바인딩
 
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetStrengthAttribute()).AddUObject(this, &ThisClass::OnOffenseChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetIntelligenceAttribute()).AddUObject(this, &ThisClass::OnOffenseChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetArcaneAttribute()).AddUObject(this, &ThisClass::OnOffenseChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetStrengthAttribute()).AddUObject(this, &ThisClass::OnOffenseChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetIntelligenceAttribute()).AddUObject(this, &ThisClass::OnOffenseChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetArcaneAttribute()).AddUObject(this, &ThisClass::OnOffenseChanged);
 
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetToughnessAttribute()).AddUObject(this, &ThisClass::OnDefenseChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetRecoveryAttribute()).AddUObject(this, &ThisClass::OnDefenseChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMagicResistanceAttribute()).AddUObject(this, &ThisClass::OnDefenseChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetArmorAttribute()).AddUObject(this, &ThisClass::OnDefenseChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetRecoveryAttribute()).AddUObject(this, &ThisClass::OnDefenseChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMagicResistanceAttribute()).AddUObject(this, &ThisClass::OnDefenseChanged);
 
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetImmunityAttribute()).AddUObject(this, &ThisClass::OnResistanceChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetFortitudeAttribute()).AddUObject(this, &ThisClass::OnResistanceChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetSanityAttribute()).AddUObject(this, &ThisClass::OnResistanceChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetImmunityAttribute()).AddUObject(this, &ThisClass::OnResistanceChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetFortitudeAttribute()).AddUObject(this, &ThisClass::OnResistanceChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetSanityAttribute()).AddUObject(this, &ThisClass::OnResistanceChanged);
 
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetFirstPandoraAttribute()).AddUObject(this, &ThisClass::OnPandoraForceChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetSecondPandoraAttribute()).AddUObject(this, &ThisClass::OnPandoraForceChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetThirdPandoraAttribute()).AddUObject(this, &ThisClass::OnPandoraForceChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetFirstPandoraAttribute()).AddUObject(this, &ThisClass::OnPandoraForceChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetSecondPandoraAttribute()).AddUObject(this, &ThisClass::OnPandoraForceChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetThirdPandoraAttribute()).AddUObject(this, &ThisClass::OnPandoraForceChanged);
 
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetAttackSpeedAttribute()).AddUObject(this, &ThisClass::OnAgilityChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMovementSpeedAttribute()).AddUObject(this, &ThisClass::OnAgilityChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetCriticalChanceAttribute()).AddUObject(this, &ThisClass::OnAgilityChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetAttackSpeedAttribute()).AddUObject(this, &ThisClass::OnAgilityChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMovementSpeedAttribute()).AddUObject(this, &ThisClass::OnAgilityChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetCriticalChanceAttribute()).AddUObject(this, &ThisClass::OnAgilityChanged);
 
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMaxHealthAttribute()).AddUObject(this, &ThisClass::OnMaxHealthChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetManaAttribute()).AddUObject(this, &ThisClass::OnManaChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMaxManaAttribute()).AddUObject(this, &ThisClass::OnMaxManaChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetStaminaAttribute()).AddUObject(this, &ThisClass::OnStaminaChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMaxStaminaAttribute()).AddUObject(this, &ThisClass::OnMaxStaminaChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxHealthAttribute()).AddUObject(this, &ThisClass::OnMaxHealthChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetShieldAttribute()).AddUObject(this, &ThisClass::OnShieldChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxShieldAttribute()).AddUObject(this, &ThisClass::OnMaxShieldChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetManaAttribute()).AddUObject(this, &ThisClass::OnManaChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxManaAttribute()).AddUObject(this, &ThisClass::OnMaxManaChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetStaminaAttribute()).AddUObject(this, &ThisClass::OnStaminaChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxStaminaAttribute()).AddUObject(this, &ThisClass::OnMaxStaminaChanged);
 
 	UpdateAllData();
 	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] InitializeViewModel completed: viewModel=%s asc=%s"),
@@ -115,32 +118,34 @@ void UStatusViewModel::UninitializeViewModel()
 
 	if (UAbilitySystemComponent* ASCPtr = ASC.Get())
 	{
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetStrengthAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetIntelligenceAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetArcaneAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetStrengthAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetIntelligenceAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetArcaneAttribute()).RemoveAll(this);
 
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetToughnessAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetRecoveryAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMagicResistanceAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetArmorAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetRecoveryAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMagicResistanceAttribute()).RemoveAll(this);
 
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetImmunityAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetFortitudeAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetSanityAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetImmunityAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetFortitudeAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetSanityAttribute()).RemoveAll(this);
 
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetFirstPandoraAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetSecondPandoraAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetThirdPandoraAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetFirstPandoraAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetSecondPandoraAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetThirdPandoraAttribute()).RemoveAll(this);
 
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetAttackSpeedAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMovementSpeedAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetCriticalChanceAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetAttackSpeedAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMovementSpeedAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetCriticalChanceAttribute()).RemoveAll(this);
 
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetHealthAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMaxHealthAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetManaAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMaxManaAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetStaminaAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMaxStaminaAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxHealthAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetShieldAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxShieldAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetManaAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxManaAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetStaminaAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxStaminaAttribute()).RemoveAll(this);
 	}
 
 	ASC.Reset();
@@ -158,9 +163,9 @@ void UStatusViewModel::UpdateOffenseData()
 		return;
 	}
 
-	UE_MVVM_SET_PROPERTY_VALUE(Strength, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetStrengthAttribute()));
-	UE_MVVM_SET_PROPERTY_VALUE(Intelligence, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetIntelligenceAttribute()));
-	UE_MVVM_SET_PROPERTY_VALUE(Arcane, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetArcaneAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(Strength, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetStrengthAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(Intelligence, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetIntelligenceAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(Arcane, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetArcaneAttribute()));
 	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateOffenseData applied: strength=%.3f intelligence=%.3f arcane=%.3f"),
 		Strength,
 		Intelligence,
@@ -177,11 +182,11 @@ void UStatusViewModel::UpdateDefenseData()
 		return;
 	}
 
-	UE_MVVM_SET_PROPERTY_VALUE(Toughness, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetToughnessAttribute()));
-	UE_MVVM_SET_PROPERTY_VALUE(Recovery, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetRecoveryAttribute()));
-	UE_MVVM_SET_PROPERTY_VALUE(MagicResistance, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetMagicResistanceAttribute()));
-	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateDefenseData applied: toughness=%.3f recovery=%.3f magicResistance=%.3f"),
-		Toughness,
+	UE_MVVM_SET_PROPERTY_VALUE(Armor, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetArmorAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(Recovery, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetRecoveryAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(MagicResistance, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMagicResistanceAttribute()));
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateDefenseData applied: Armor=%.3f recovery=%.3f magicResistance=%.3f"),
+		Armor,
 		Recovery,
 		MagicResistance);
 }
@@ -196,9 +201,9 @@ void UStatusViewModel::UpdateResistanceData()
 		return;
 	}
 
-	UE_MVVM_SET_PROPERTY_VALUE(Immunity, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetImmunityAttribute()));
-	UE_MVVM_SET_PROPERTY_VALUE(Fortitude, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetFortitudeAttribute()));
-	UE_MVVM_SET_PROPERTY_VALUE(Sanity, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetSanityAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(Immunity, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetImmunityAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(Fortitude, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetFortitudeAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(Sanity, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetSanityAttribute()));
 	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateResistanceData applied: immunity=%.3f fortitude=%.3f sanity=%.3f"),
 		Immunity,
 		Fortitude,
@@ -215,9 +220,9 @@ void UStatusViewModel::UpdatePandoraForceData()
 		return;
 	}
 
-	UE_MVVM_SET_PROPERTY_VALUE(FirstPandora, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetFirstPandoraAttribute()));
-	UE_MVVM_SET_PROPERTY_VALUE(SecondPandora, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetSecondPandoraAttribute()));
-	UE_MVVM_SET_PROPERTY_VALUE(ThirdPandora, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetThirdPandoraAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(FirstPandora, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetFirstPandoraAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(SecondPandora, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetSecondPandoraAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(ThirdPandora, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetThirdPandoraAttribute()));
 	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdatePandoraForceData applied: first=%.3f second=%.3f third=%.3f"),
 		FirstPandora,
 		SecondPandora,
@@ -234,9 +239,9 @@ void UStatusViewModel::UpdateAgilityData()
 		return;
 	}
 
-	UE_MVVM_SET_PROPERTY_VALUE(AttackSpeed, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetAttackSpeedAttribute()));
-	UE_MVVM_SET_PROPERTY_VALUE(MovementSpeed, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetMovementSpeedAttribute()));
-	UE_MVVM_SET_PROPERTY_VALUE(CriticalChance, StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetCriticalChanceAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(AttackSpeed, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetAttackSpeedAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(MovementSpeed, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMovementSpeedAttribute()));
+	UE_MVVM_SET_PROPERTY_VALUE(CriticalChance, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetCriticalChanceAttribute()));
 	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateAgilityData applied: attackSpeed=%.3f movementSpeed=%.3f criticalChance=%.3f"),
 		AttackSpeed,
 		MovementSpeed,
@@ -253,8 +258,8 @@ void UStatusViewModel::UpdateHealthData()
 		return;
 	}
 
-	const float CurrentHealth = StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetHealthAttribute());
-	const float CurrentMaxHealth = StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetMaxHealthAttribute());
+	const float CurrentHealth = StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetHealthAttribute());
+	const float CurrentMaxHealth = StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxHealthAttribute());
 
 	UE_MVVM_SET_PROPERTY_VALUE(Health, CurrentHealth);
 	UE_MVVM_SET_PROPERTY_VALUE(MaxHealth, CurrentMaxHealth);
@@ -265,7 +270,28 @@ void UStatusViewModel::UpdateHealthData()
 		HealthPercent);
 }
 
-/** 마나 관련 값을 갱신합니다. */
+/** Shield related values. */
+void UStatusViewModel::UpdateShieldData()
+{
+	UAbilitySystemComponent* ASCPtr = ASC.Get();
+	if (!ASCPtr)
+	{
+		UE_LOG(StatusViewModelLog, Warning, TEXT("[StatUpgrade] UpdateShieldData skipped: ASC is null."));
+		return;
+	}
+
+	const float CurrentShield = StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetShieldAttribute());
+	const float CurrentMaxShield = StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxShieldAttribute());
+
+	UE_MVVM_SET_PROPERTY_VALUE(Shield, CurrentShield);
+	UE_MVVM_SET_PROPERTY_VALUE(MaxShield, CurrentMaxShield);
+	UE_MVVM_SET_PROPERTY_VALUE(ShieldPercent, CurrentMaxShield > 0.f ? CurrentShield / CurrentMaxShield : 0.f);
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] UpdateShieldData applied: shield=%.3f maxShield=%.3f percent=%.3f"),
+		Shield,
+		MaxShield,
+		ShieldPercent);
+}
+
 void UStatusViewModel::UpdateManaData()
 {
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
@@ -275,8 +301,8 @@ void UStatusViewModel::UpdateManaData()
 		return;
 	}
 
-	const float CurrentMana = StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetManaAttribute());
-	const float CurrentMaxMana = StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetMaxManaAttribute());
+	const float CurrentMana = StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetManaAttribute());
+	const float CurrentMaxMana = StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxManaAttribute());
 
 	UE_MVVM_SET_PROPERTY_VALUE(Mana, CurrentMana);
 	UE_MVVM_SET_PROPERTY_VALUE(MaxMana, CurrentMaxMana);
@@ -297,8 +323,8 @@ void UStatusViewModel::UpdateStaminaData()
 		return;
 	}
 
-	const float CurrentStamina = StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetStaminaAttribute());
-	const float CurrentMaxStamina = StatusViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetMaxStaminaAttribute());
+	const float CurrentStamina = StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetStaminaAttribute());
+	const float CurrentMaxStamina = StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxStaminaAttribute());
 
 	UE_MVVM_SET_PROPERTY_VALUE(Stamina, CurrentStamina);
 	UE_MVVM_SET_PROPERTY_VALUE(MaxStamina, CurrentMaxStamina);
@@ -321,6 +347,7 @@ void UStatusViewModel::UpdateAllData()
 	UpdatePandoraForceData();
 	UpdateAgilityData();
 	UpdateHealthData();
+	UpdateShieldData();
 	UpdateManaData();
 	UpdateStaminaData();
 }
@@ -395,7 +422,25 @@ void UStatusViewModel::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 	UpdateHealthData();
 }
 
-/** 마나 변경을 처리합니다. */
+/** Shield changed. */
+void UStatusViewModel::OnShieldChanged(const FOnAttributeChangeData& Data)
+{
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnShieldChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
+	UpdateShieldData();
+}
+
+void UStatusViewModel::OnMaxShieldChanged(const FOnAttributeChangeData& Data)
+{
+	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnMaxShieldChanged: attribute=%s old=%.3f new=%.3f"),
+		*Data.Attribute.GetName(),
+		Data.OldValue,
+		Data.NewValue);
+	UpdateShieldData();
+}
+
 void UStatusViewModel::OnManaChanged(const FOnAttributeChangeData& Data)
 {
 	UE_LOG(StatusViewModelLog, Log, TEXT("[StatUpgrade] OnManaChanged: attribute=%s old=%.3f new=%.3f"),

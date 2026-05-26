@@ -5,14 +5,19 @@
 #include "Iris/ReplicationState/IrisFastArraySerializer.h"
 #include "UObject/PrimaryAssetId.h"
 #include "Components/PlayerStateComponent.h"
+#include "Pandora/PandoraLoadoutTypes.h"
+#include "Pandora/PandoraSelectedContent.h"
 #include "PandoraComponent.generated.h"
 
 class UPandoraComponent;
 class UPandoraDefinition;
 class UPandoraInstance;
 class UProjectTagConfig;
+class UItemDefinition;
 
 DECLARE_LOG_CATEGORY_EXTERN(PandoraComponentLog, Log, All);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdPandoraSelectionChangedDelegate, UPandoraDefinition*, PandoraDefinition);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraLoadoutChangedDelegate);
 
 USTRUCT(BlueprintType, Blueprintable)
 struct FPandoraList
@@ -96,6 +101,42 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Inventory")
 	void AddValueToMap(FGameplayTag TypeTag, UPandoraInstance* PandoraInstance);
 
+	UFUNCTION(BlueprintCallable, Category = "!Pandora|Skill")
+	bool RequestPandoraSelection(const UPandoraDefinition* PandoraDefinition);
+
+	UFUNCTION(BlueprintCallable, Category = "!Pandora|Loadout")
+	bool RequestSetPandoraLoadoutSlot(EEnum_Direction Direction, const UPandoraDefinition* PandoraDefinition);
+
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Pandora|Loadout")
+	bool RestorePandoraLoadoutSlot(EEnum_Direction Direction, const UPandoraDefinition* PandoraDefinition);
+
+	UFUNCTION(BlueprintPure, Category = "!Pandora|Loadout")
+	const UPandoraDefinition* GetPandoraLoadoutDefinition(EEnum_Direction Direction) const;
+
+	UFUNCTION(BlueprintPure, Category = "!Pandora|Loadout")
+	UPandoraInstance* GetPandoraLoadoutInstance(EEnum_Direction Direction) const;
+
+	UFUNCTION(BlueprintPure, Category = "!Pandora|Loadout")
+	TMap<FName, FName> GetPandoraLoadoutSaveNames() const;
+
+	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
+	const UPandoraDefinition* GetCurrentPandoraDefinition() const { return CurrentPandoraDefinition; }
+
+	UPROPERTY(BlueprintAssignable, Category = "!Pandora|Skill")
+	FPdPandoraSelectionChangedDelegate OnPandoraSelectionChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "!Pandora|Loadout")
+	FPdPandoraLoadoutChangedDelegate OnPandoraLoadoutChanged;
+
+	UFUNCTION(BlueprintCallable, Category = "!Pandora")
+	void RefreshSelectedPandoraAbilityBindings(class UPdAbilitySystemComponent* AbilitySystemComponent = nullptr) const;
+
+	UFUNCTION(BlueprintCallable, Category = "!Pandora|Skill")
+	void RefreshCurrentPandoraForWeaponChange();
+
+	UFUNCTION(BlueprintPure, Category = "!Pandora|Weapon")
+	bool IsPandoraCompatibleWithCurrentWeapon(const UPandoraDefinition* PandoraDefinition) const;
+
 	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
 
 protected:
@@ -108,10 +149,33 @@ protected:
 	void RebuildRuntimePandorasFromReplicatedEntries();
 	void RebuildFilteredPandoraMap();
 	void AddReplicatedPandora(UPandoraInstance* PandoraInstance);
+	bool SelectPandoraByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId);
+	void ClearSelectedPandoraContent();
+	int32 ResolveSelectedPandoraRuntimeLevel(const UPandoraDefinition* PandoraDefinition) const;
+	const UItemDefinition* GetCurrentWeaponDefinition() const;
 	UPandoraInstance* FindPandoraInstanceByDefinition(const UPandoraDefinition* PandoraDefinition) const;
+	UPandoraInstance* FindPandoraInstanceByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId) const;
 	int32 FindReplicatedEntryIndexByDefinition(const UPandoraDefinition* PandoraDefinition) const;
 	FReplicatedPandoraEntry* FindReplicatedEntryByDefinition(const UPandoraDefinition* PandoraDefinition);
 	const FReplicatedPandoraEntry* FindReplicatedEntryByDefinition(const UPandoraDefinition* PandoraDefinition) const;
+
+	UFUNCTION(Server, Reliable)
+	void ServerRequestPandoraSelection(FPrimaryAssetId PandoraDefinitionId);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetPandoraLoadoutSlot(EEnum_Direction Direction, FPrimaryAssetId PandoraDefinitionId);
+
+	UFUNCTION()
+	void OnRep_CurrentPandoraDefinition();
+
+	UFUNCTION()
+	void OnRep_PandoraLoadoutSlots();
+
+	void NotifyPandoraSelectionChanged();
+	void NotifyPandoraLoadoutChanged();
+	bool SetPandoraLoadoutSlotInternal(EEnum_Direction Direction, const UPandoraDefinition* PandoraDefinition, bool bRequireOwnedPandora);
+	FPandoraLoadoutSlot* FindPandoraLoadoutSlot(EEnum_Direction Direction);
+	const FPandoraLoadoutSlot* FindPandoraLoadoutSlot(EEnum_Direction Direction) const;
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Default", meta = (DisplayName = "All Pandroa Definition"))
@@ -127,6 +191,18 @@ public:
 	TMap<FGameplayTag, FPandoraList> Map_Type_PandoraList;
 
 protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Pandora|Selection")
+	bool bApplyPandoraContentOnSelection = true;
+
 	UPROPERTY(Replicated)
 	FReplicatedPandoraList ReplicatedEntries;
+
+	UPROPERTY(Transient)
+	FPandoraSelectedContent SelectedPandoraContent;
+
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentPandoraDefinition)
+	TObjectPtr<const UPandoraDefinition> CurrentPandoraDefinition;
+
+	UPROPERTY(ReplicatedUsing = OnRep_PandoraLoadoutSlots)
+	TArray<FPandoraLoadoutSlot> PandoraLoadoutSlots;
 };

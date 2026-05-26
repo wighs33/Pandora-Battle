@@ -7,6 +7,8 @@
 #include "Experience/PdWorldSettings.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/ExperienceGameState.h"
+#include "Mode/PdHUD.h"
+#include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 
@@ -21,6 +23,7 @@ AExperienceGameMode::AExperienceGameMode(const FObjectInitializer& ObjectInitial
 	PlayerControllerClass = APdPlayerController::StaticClass();
 	PlayerStateClass = APdPlayerState::StaticClass();
 	DefaultPawnClass = APdPlayer::StaticClass();
+	HUDClass = APdHUD::StaticClass();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -30,6 +33,16 @@ void AExperienceGameMode::InitGameState()
 	Super::InitGameState();
 
 	StartExperienceLoad();
+}
+
+void AExperienceGameMode::PostLogin(APlayerController* NewPlayer)
+{
+	Super::PostLogin(NewPlayer);
+
+	if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
+	{
+		PdGameInstance->LoadGame(GetNameSafe(NewPlayer));
+	}
 }
 
 void AExperienceGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)

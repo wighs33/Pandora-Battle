@@ -5,11 +5,13 @@
 #include "PlayerComponent/EquipmentComponent.h"
 #include "Item/ItemDefinition.h"
 #include "Character/PdCharacterBase.h"
+#include "Common/LabGameplayTags.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UnequipAbility)
 
 UUnequipAbility::UUnequipAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ActivationBlockedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
 }
 
 /** 장착해제중 태그 제거 */
@@ -27,11 +29,87 @@ void UUnequipAbility::ClearActiveUnequipEffect()
 
 /** 몽타주 완료 시*/
 // Timing callbacks
+void UUnequipAbility::FinalizeUnequipCommit()
+{
+	if (bUnequipCommitted || !ActiveUnequipWeaponDefinition)
+	{
+		return;
+	}
+
+	if (!HasAuthority(&CurrentActivationInfo))
+	{
+		return;
+	}
+
+	bUnequipCommitted = true;
+
+	FGameplayTagContainer GrantedTags;
+	if (ActiveUnequipWeaponDefinition->IdTag.IsValid())
+	{
+		GrantedTags.AddTag(ActiveUnequipWeaponDefinition->IdTag);
+	}
+
+	if (!GrantedTags.IsEmpty())
+	{
+		RemoveGameplayEffectsWithGrantedTags(GrantedTags);
+	}
+
+	ActiveUnequipWeaponDefinition = nullptr;
+}
+
+bool UUnequipAbility::CommitPendingUnequipIfPossible()
+{
+	if (bUnequipCommitted || !ActiveUnequipWeaponDefinition || !HasAuthority(&CurrentActivationInfo))
+	{
+		return false;
+	}
+
+	APdCharacterBase* Character = GetPdCharacterFromActorInfo();
+	UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
+	if (!EquipmentComponent)
+	{
+		return false;
+	}
+
+	if (!EquipmentComponent->UnequipCurrentWeapon())
+	{
+		return false;
+	}
+
+	FinalizeUnequipCommit();
+	return true;
+}
+
+bool UUnequipAbility::ShouldActivateRequestedEquip() const
+{
+	if (!PostUnequipEquipAbilityTag.IsValid())
+	{
+		return false;
+	}
+
+	const APdCharacterBase* Character = GetPdCharacterFromActorInfo();
+	const UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
+	return EquipmentComponent && EquipmentComponent->GetRequestedWeaponDefinition() != nullptr;
+}
+
+void UUnequipAbility::ActivateRequestedEquipIfNeeded(bool bShouldActivate)
+{
+	if (!bShouldActivate)
+	{
+		return;
+	}
+
+	FGameplayTagContainer EquipAbilityTags;
+	EquipAbilityTags.AddTag(PostUnequipEquipAbilityTag);
+	TryActivateAbilitiesByTags(EquipAbilityTags, true);
+}
+
 void UUnequipAbility::OnUnequipMontageCompleted()
 {
 	// =================================================================================================================
 	// === 장착 해제 진행 상태 정리
 	
+	CommitPendingUnequipIfPossible();
 	bool bShouldActivateRequestedEquip = false;
 	if (const APdCharacterBase* Character = GetPdCharacterFromActorInfo())
 	{
@@ -63,6 +141,8 @@ void UUnequipAbility::OnUnequipMontageCompleted()
 /** 몽타주 중단 시*/
 void UUnequipAbility::OnUnequipMontageInterrupted()
 {
+	CommitPendingUnequipIfPossible();
+	const bool bShouldActivateRequestedEquip = ShouldActivateRequestedEquip();
 	// =================================================================================================================
 	// === 장착 해제 진행 상태 정리
 	
@@ -75,11 +155,14 @@ void UUnequipAbility::OnUnequipMontageInterrupted()
 	}
 
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+	ActivateRequestedEquipIfNeeded(bShouldActivateRequestedEquip);
 }
 
 /** 몽타주 취소 시*/
 void UUnequipAbility::OnUnequipMontageCancelled()
 {
+	CommitPendingUnequipIfPossible();
+	const bool bShouldActivateRequestedEquip = ShouldActivateRequestedEquip();
 	ClearActiveUnequipEffect();
 
 	if (APdCharacterBase* Character = GetPdCharacterFromActorInfo())
@@ -88,15 +171,19 @@ void UUnequipAbility::OnUnequipMontageCancelled()
 	}
 
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+	ActivateRequestedEquipIfNeeded(bShouldActivateRequestedEquip);
 }
 
 /** 검 제거 노티파이 이벤트 수신 시점*/
 void UUnequipAbility::OnUnequipCommitTiming(FGameplayEventData Payload)
 {
+	static_cast<void>(Payload);
+	FinalizeUnequipCommit();
+
 	// =================================================================================================================
 	// === 실제 장착 해제 반영 조건 검사
 
-	if (!HasAuthority(&CurrentActivationInfo) || !ActiveUnequipWeaponDefinition)
+	if (bUnequipCommitted || !HasAuthority(&CurrentActivationInfo) || !ActiveUnequipWeaponDefinition)
 	{
 		return;
 	}
@@ -151,6 +238,7 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		return;
 	}
 
+	bUnequipCommitted = false;
 	ActiveUnequipWeaponDefinition = UnequipVisualData.ItemDefinition;
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))

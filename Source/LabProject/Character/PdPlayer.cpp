@@ -1,23 +1,59 @@
 #include "Character/PdPlayer.h"
 
 #include "Camera/CameraComponent.h"
+#include "Common/Enum_Direction.h"
 #include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
+#include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerState.h"
+#include "Pandora/PandoraComponent.h"
+#include "Pandora/PandoraDefinition.h"
+#include "SavedGameData/PdSaveGame.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayer)
 
 DEFINE_LOG_CATEGORY_STATIC(PdPlayerLog, Log, All);
 
-/** 플레이어 기본 상태를 초기화합니다. */
+namespace
+{
+	FName GetPandoraDefinitionSaveName(const UPandoraDefinition* PandoraDefinition)
+	{
+		return IsValid(PandoraDefinition) ? PandoraDefinition->GetFName() : NAME_None;
+	}
+
+	bool TryGetPandoraLoadoutDirectionFromSaveName(const FName DirectionName, EEnum_Direction& OutDirection)
+	{
+		if (DirectionName == TEXT("Left"))
+		{
+			OutDirection = EEnum_Direction::Left;
+			return true;
+		}
+
+		if (DirectionName == TEXT("Up"))
+		{
+			OutDirection = EEnum_Direction::Up;
+			return true;
+		}
+
+		if (DirectionName == TEXT("Right"))
+		{
+			OutDirection = EEnum_Direction::Right;
+			return true;
+		}
+
+		return false;
+	}
+}
+/** ?�레?�어 기본 ?�태�?초기?�합?�다. */
 APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// =================================================================================================================
-	// === 상호작용 박스 설정
+	// === ?�호?�용 박스 ?�정
 
 	InteractionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("InteractionBox"));
 	InteractionBox->SetupAttachment(GetRootComponent());
@@ -32,7 +68,7 @@ APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 	InteractionBox->OnComponentEndOverlap.AddDynamic(this, &APdPlayer::HandleInteractionBoxEndOverlap);
 
 	// =================================================================================================================
-	// === 카메라 붐 설정
+	// === 카메??�??�정
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(GetRootComponent());
@@ -40,7 +76,7 @@ APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 	CameraBoom->bUsePawnControlRotation = true;
 
 	// =================================================================================================================
-	// === 추적 카메라 설정
+	// === 추적 카메???�정
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
@@ -62,13 +98,19 @@ void APdPlayer::BeginPlay()
 	bHasCachedWeaponAimCameraDefaults = true;
 }
 
+void APdPlayer::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	InitializePandoraTreeFromSave(NewController);
+}
+
 void APdPlayer::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	UpdateWeaponAimCamera(DeltaSeconds);
 }
 
-/** PlayerState 기준 ASC를 반환합니다. */
+/** PlayerState 기�? ASC�?반환?�니?? */
 UAbilitySystemComponent* APdPlayer::GetAbilitySystemComponent() const
 {
 	if (const APdPlayerState* PdPlayerState = GetPdPlayerState())
@@ -79,19 +121,206 @@ UAbilitySystemComponent* APdPlayer::GetAbilitySystemComponent() const
 	return nullptr;
 }
 
-/** ASC 소유 액터를 반환합니다. */
+/** ASC ?�유 ?�터�?반환?�니?? */
 AActor* APdPlayer::GetAbilitySystemOwnerActor() const
 {
 	return GetPdPlayerState();
 }
 
-/** PlayerState를 프로젝트 타입으로 반환합니다. */
+/** PlayerState�??�로?�트 ?�?�으�?반환?�니?? */
 APdPlayerState* APdPlayer::GetPdPlayerState() const
 {
 	return GetPlayerState<APdPlayerState>();
 }
 
-/** 현재 상호작용 대상이 있는지 반환합니다. */
+void APdPlayer::InitializePandoraTreeFromSave(AController* NewController)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	APdPlayerState* PdPlayerState = GetPdPlayerState();
+	UPandoraTreeComponent* PandoraTreeComponent = PdPlayerState ? PdPlayerState->GetPandoraTreeComponent() : nullptr;
+	UPandoraComponent* PandoraComponent = PdPlayerState ? PdPlayerState->GetPandoraComponent() : nullptr;
+	if (!PandoraTreeComponent)
+	{
+		return;
+	}
+
+	CachedPlayerSaveId = GetPlayerSaveId(NewController);
+	UPdGameInstance* PdGameInstance = GetWorld() ? Cast<UPdGameInstance>(GetWorld()->GetGameInstance()) : nullptr;
+	PlayerSaveGameData = PdGameInstance ? PdGameInstance->GetOrCreateSaveGame(CachedPlayerSaveId) : nullptr;
+
+	TArray<FGrantedPandora> SavedGrantedPandoras;
+	int32 SavedPandoraPoints = -1;
+	FName SavedSelectedPandoraName = NAME_None;
+	TMap<FName, FName> SavedPandoraLoadoutByDirection;
+	if (PdGameInstance && PlayerSaveGameData)
+	{
+		SavedPandoraPoints = PlayerSaveGameData->PlayerPandoraData.PandoraPoints;
+		SavedSelectedPandoraName = PlayerSaveGameData->PlayerPandoraData.SelectedPandoraName;
+		SavedPandoraLoadoutByDirection = PlayerSaveGameData->PlayerPandoraData.PandoraLoadoutByDirection;
+		PdGameInstance->BuildGrantedPandorasFromNames(PlayerSaveGameData->PlayerPandoraData.GrantedPandorasByName, SavedGrantedPandoras);
+	}
+
+	if (BoundPandoraTreeComponent)
+	{
+		BoundPandoraTreeComponent->OnPandorasChanged.RemoveDynamic(this, &ThisClass::HandlePandoraTreePandorasChanged);
+		BoundPandoraTreeComponent->OnPointsChanged.RemoveDynamic(this, &ThisClass::HandlePandoraTreePointsChanged);
+	}
+
+	if (BoundPandoraComponent)
+	{
+		BoundPandoraComponent->OnPandoraSelectionChanged.RemoveDynamic(this, &ThisClass::HandlePandoraSelectionChanged);
+		BoundPandoraComponent->OnPandoraLoadoutChanged.RemoveDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
+	}
+
+	BoundPandoraTreeComponent = PandoraTreeComponent;
+	BoundPandoraTreeComponent->OnPandorasChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraTreePandorasChanged);
+	BoundPandoraTreeComponent->OnPointsChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraTreePointsChanged);
+
+	BoundPandoraComponent = PandoraComponent;
+	if (BoundPandoraComponent)
+	{
+		BoundPandoraComponent->OnPandoraSelectionChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraSelectionChanged);
+		BoundPandoraComponent->OnPandoraLoadoutChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
+	}
+
+	BoundPandoraTreeComponent->InitializePandoraTree(SavedGrantedPandoras, SavedPandoraPoints);
+
+	if (BoundPandoraComponent && PdGameInstance && !SavedPandoraLoadoutByDirection.IsEmpty())
+	{
+		for (const TPair<FName, FName>& SavedLoadoutSlot : SavedPandoraLoadoutByDirection)
+		{
+			EEnum_Direction Direction = EEnum_Direction::Center;
+			if (!TryGetPandoraLoadoutDirectionFromSaveName(SavedLoadoutSlot.Key, Direction))
+			{
+				continue;
+			}
+
+			UPandoraDefinition* SavedLoadoutPandora = PdGameInstance->GetPandoraDefinitionByName(SavedLoadoutSlot.Value);
+			if (SavedLoadoutPandora)
+			{
+				BoundPandoraComponent->RestorePandoraLoadoutSlot(Direction, SavedLoadoutPandora);
+			}
+		}
+	}
+
+	if (BoundPandoraComponent && PdGameInstance && !SavedSelectedPandoraName.IsNone())
+	{
+		UPandoraDefinition* SavedSelectedPandora = PdGameInstance->GetPandoraDefinitionByName(SavedSelectedPandoraName);
+		if (SavedSelectedPandora)
+		{
+			bRestoringPandoraSelectionFromSave = true;
+			BoundPandoraComponent->RequestPandoraSelection(SavedSelectedPandora);
+
+			TWeakObjectPtr<APdPlayer> WeakThis = this;
+			TWeakObjectPtr<UPandoraComponent> WeakPandoraComponent = BoundPandoraComponent;
+			TWeakObjectPtr<UPandoraDefinition> WeakSavedSelectedPandora = SavedSelectedPandora;
+			if (UWorld* World = GetWorld())
+			{
+				World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [WeakThis, WeakPandoraComponent, WeakSavedSelectedPandora]()
+				{
+					if (UPandoraComponent* Component = WeakPandoraComponent.Get())
+					{
+						Component->RequestPandoraSelection(WeakSavedSelectedPandora.Get());
+					}
+
+					if (APdPlayer* Player = WeakThis.Get())
+					{
+						Player->bRestoringPandoraSelectionFromSave = false;
+					}
+				}));
+			}
+			else
+			{
+				bRestoringPandoraSelectionFromSave = false;
+			}
+		}
+	}
+}
+
+FString APdPlayer::GetPlayerSaveId(AController* InController) const
+{
+	return GetNameSafe(InController);
+}
+
+void APdPlayer::SavePlayerPandoraData(const FPlayerPandoraData& InPlayerPandoraData)
+{
+	if (!HasAuthority() || CachedPlayerSaveId.IsEmpty())
+	{
+		return;
+	}
+
+	UPdGameInstance* PdGameInstance = GetWorld() ? Cast<UPdGameInstance>(GetWorld()->GetGameInstance()) : nullptr;
+	if (!PdGameInstance)
+	{
+		return;
+	}
+
+	if (!PlayerSaveGameData)
+	{
+		PlayerSaveGameData = PdGameInstance->GetOrCreateSaveGame(CachedPlayerSaveId);
+	}
+
+	if (!PlayerSaveGameData)
+	{
+		return;
+	}
+
+	PlayerSaveGameData->PlayerPandoraData = InPlayerPandoraData;
+	PdGameInstance->SaveGame(CachedPlayerSaveId);
+}
+
+void APdPlayer::HandlePandoraTreePandorasChanged()
+{
+	if (!HasAuthority() || !BoundPandoraTreeComponent || !PlayerSaveGameData)
+	{
+		return;
+	}
+
+	FPlayerPandoraData PlayerPandoraData = PlayerSaveGameData->PlayerPandoraData;
+	PlayerPandoraData.GrantedPandorasByName = BoundPandoraTreeComponent->GetGrantedPandoraLevelsByName();
+	SavePlayerPandoraData(PlayerPandoraData);
+}
+
+void APdPlayer::HandlePandoraTreePointsChanged(int32 NewPointsAvailable)
+{
+	if (!HasAuthority() || !BoundPandoraTreeComponent || !PlayerSaveGameData)
+	{
+		return;
+	}
+
+	FPlayerPandoraData PlayerPandoraData = PlayerSaveGameData->PlayerPandoraData;
+	PlayerPandoraData.PandoraPoints = NewPointsAvailable;
+	SavePlayerPandoraData(PlayerPandoraData);
+}
+
+void APdPlayer::HandlePandoraSelectionChanged(UPandoraDefinition* NewPandoraDefinition)
+{
+	if (!HasAuthority() || !PlayerSaveGameData || bRestoringPandoraSelectionFromSave)
+	{
+		return;
+	}
+
+	FPlayerPandoraData PlayerPandoraData = PlayerSaveGameData->PlayerPandoraData;
+	PlayerPandoraData.SelectedPandoraName = GetPandoraDefinitionSaveName(NewPandoraDefinition);
+	SavePlayerPandoraData(PlayerPandoraData);
+}
+
+void APdPlayer::HandlePandoraLoadoutChanged()
+{
+	if (!HasAuthority() || !BoundPandoraComponent || !PlayerSaveGameData)
+	{
+		return;
+	}
+
+	FPlayerPandoraData PlayerPandoraData = PlayerSaveGameData->PlayerPandoraData;
+	PlayerPandoraData.PandoraLoadoutByDirection = BoundPandoraComponent->GetPandoraLoadoutSaveNames();
+	SavePlayerPandoraData(PlayerPandoraData);
+}
+/** ?�재 ?�호?�용 ?�?�이 ?�는지 반환?�니?? */
 bool APdPlayer::HasCurrentInteractActors(TArray<TScriptInterface<IInteractableInterface>>& OutCurrentInteractActors) const
 {
 	OutCurrentInteractActors = CurrentInteractActors;
@@ -111,6 +340,84 @@ void APdPlayer::SetWeaponAimActive(bool bEnabled, const FWeaponAimCameraSettings
 	}
 }
 
+void APdPlayer::SetAbilityCameraOverrideActive(bool bEnabled, const FWeaponAimCameraSettings& CameraSettings)
+{
+	if (!IsLocallyControlled())
+	{
+		UE_LOG(PdPlayerLog, Verbose,
+			TEXT("[AbilityCamera] ignored non-local pawn=%s enabled=%s"),
+			*GetNameSafe(this),
+			bEnabled ? TEXT("true") : TEXT("false"));
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AbilityCameraOverrideTimerHandle);
+	}
+
+	if (bEnabled)
+	{
+		ActiveAbilityCameraOverrideSettings = CameraSettings;
+	}
+
+	bAbilityCameraOverrideActive = bEnabled;
+
+	UE_LOG(PdPlayerLog, Log,
+		TEXT("[AbilityCamera] pawn=%s enabled=%s fov=%.1f offset=%s rotation=%s interp=%.1f currentFOV=%.1f currentOffset=%s currentRotation=%s"),
+		*GetNameSafe(this),
+		bAbilityCameraOverrideActive ? TEXT("true") : TEXT("false"),
+		CameraSettings.TargetFOV,
+		*CameraSettings.TargetBoomSocketOffset.ToCompactString(),
+		*CameraSettings.TargetCameraRotation.ToCompactString(),
+		CameraSettings.InterpSpeed,
+		FollowCamera ? FollowCamera->FieldOfView : 0.0f,
+		CameraBoom ? *CameraBoom->SocketOffset.ToCompactString() : TEXT("None"),
+		FollowCamera ? *FollowCamera->GetRelativeRotation().ToCompactString() : TEXT("None"));
+}
+
+void APdPlayer::SetAbilityCameraOverrideActiveForDuration(bool bEnabled, const FWeaponAimCameraSettings& CameraSettings, float Duration)
+{
+	SetAbilityCameraOverrideActive(bEnabled, CameraSettings);
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AbilityCameraOverrideTimerHandle);
+
+		if (bEnabled && IsLocallyControlled() && Duration > 0.0f)
+		{
+			World->GetTimerManager().SetTimer(
+				AbilityCameraOverrideTimerHandle,
+				this,
+				&ThisClass::ClearAbilityCameraOverride,
+				Duration,
+				false);
+		}
+	}
+
+	UE_LOG(PdPlayerLog, Warning,
+		TEXT("[ProjectileCameraDebug] AbilityCamera duration pawn=%s enabled=%s local=%s duration=%.2f timerActive=%s"),
+		*GetNameSafe(this),
+		bEnabled ? TEXT("true") : TEXT("false"),
+		IsLocallyControlled() ? TEXT("true") : TEXT("false"),
+		Duration,
+		GetWorld() && GetWorld()->GetTimerManager().IsTimerActive(AbilityCameraOverrideTimerHandle) ? TEXT("true") : TEXT("false"));
+}
+
+void APdPlayer::ClearAbilityCameraOverride()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AbilityCameraOverrideTimerHandle);
+	}
+
+	UE_LOG(PdPlayerLog, Warning,
+		TEXT("[ProjectileCameraDebug] AbilityCamera duration expired pawn=%s local=%s"),
+		*GetNameSafe(this),
+		IsLocallyControlled() ? TEXT("true") : TEXT("false"));
+
+	SetAbilityCameraOverrideActive(false, FWeaponAimCameraSettings());
+}
 void APdPlayer::ApplyWeaponAimState(bool bEnabled, const FWeaponAimCameraSettings& AimCameraSettings)
 {
 	UCharacterMovementComponent* MovementComponent = GetCharacterMovement();
@@ -153,10 +460,20 @@ void APdPlayer::UpdateWeaponAimCamera(float DeltaSeconds)
 		return;
 	}
 
-	const float TargetFOV = bWeaponAimCameraActive ? ActiveWeaponAimCameraSettings.TargetFOV : DefaultCameraFOV;
-	const FVector TargetSocketOffset = bWeaponAimCameraActive ? ActiveWeaponAimCameraSettings.TargetBoomSocketOffset : DefaultCameraBoomSocketOffset;
-	const FRotator TargetCameraRotation = bWeaponAimCameraActive ? ActiveWeaponAimCameraSettings.TargetCameraRotation : DefaultFollowCameraRelativeRotation;
-	const float CameraTransitionSpeed = ActiveWeaponAimCameraSettings.InterpSpeed;
+	const FWeaponAimCameraSettings* DesiredCameraSettings = nullptr;
+	if (bAbilityCameraOverrideActive)
+	{
+		DesiredCameraSettings = &ActiveAbilityCameraOverrideSettings;
+	}
+	else if (bWeaponAimCameraActive)
+	{
+		DesiredCameraSettings = &ActiveWeaponAimCameraSettings;
+	}
+
+	const float TargetFOV = DesiredCameraSettings ? DesiredCameraSettings->TargetFOV : DefaultCameraFOV;
+	const FVector TargetSocketOffset = DesiredCameraSettings ? DesiredCameraSettings->TargetBoomSocketOffset : DefaultCameraBoomSocketOffset;
+	const FRotator TargetCameraRotation = DesiredCameraSettings ? DesiredCameraSettings->TargetCameraRotation : DefaultFollowCameraRelativeRotation;
+	const float CameraTransitionSpeed = DesiredCameraSettings ? DesiredCameraSettings->InterpSpeed : ActiveWeaponAimCameraSettings.InterpSpeed;
 
 	if (CameraTransitionSpeed <= 0.0f)
 	{
@@ -232,11 +549,11 @@ bool APdPlayer::CanInteractWithActor(AActor* InteractableActor) const
 	return bWithinDistance;
 }
 
-/** 액터를 상호작용 엔트리로 변환합니다. */
+/** ?�터�??�호?�용 ?�트리로 변?�합?�다. */
 bool APdPlayer::TryMakeInteractableEntry(AActor* OtherActor, TScriptInterface<IInteractableInterface>& OutInteractableActor) const
 {
 	// =================================================================================================================
-	// === 유효성 검사
+	// === ?�효??검??
 
 	if (!IsValid(OtherActor) || OtherActor == this || !OtherActor->GetClass()->ImplementsInterface(UInteractableInterface::StaticClass()))
 	{
@@ -244,14 +561,14 @@ bool APdPlayer::TryMakeInteractableEntry(AActor* OtherActor, TScriptInterface<II
 	}
 
 	// =================================================================================================================
-	// === 인터페이스 엔트리 구성
+	// === ?�터?�이???�트�?구성
 
 	OutInteractableActor.SetObject(OtherActor);
 	OutInteractableActor.SetInterface(Cast<IInteractableInterface>(OtherActor));
 	return true;
 }
 
-/** 상호작용 박스 진입을 처리합니다. */
+/** ?�호?�용 박스 진입??처리?�니?? */
 void APdPlayer::HandleInteractionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
@@ -262,7 +579,7 @@ void APdPlayer::HandleInteractionBoxBeginOverlap(UPrimitiveComponent* Overlapped
 	static_cast<void>(SweepResult);
 
 	// =================================================================================================================
-	// === 상호작용 엔트리 생성
+	// === ?�호?�용 ?�트�??�성
 
 	TScriptInterface<IInteractableInterface> InteractableActor;
 	if (!TryMakeInteractableEntry(OtherActor, InteractableActor))
@@ -274,7 +591,7 @@ void APdPlayer::HandleInteractionBoxBeginOverlap(UPrimitiveComponent* Overlapped
 	}
 
 	// =================================================================================================================
-	// === 중복 추적 방지
+	// === 중복 추적 방�?
 
 	const bool bAlreadyTracked = CurrentInteractActors.ContainsByPredicate(
 		[OtherActor](const TScriptInterface<IInteractableInterface>& Entry)
@@ -292,7 +609,7 @@ void APdPlayer::HandleInteractionBoxBeginOverlap(UPrimitiveComponent* Overlapped
 	}
 
 	// =================================================================================================================
-	// === 목록 추가
+	// === 목록 추�?
 
 	CurrentInteractActors.Add(InteractableActor);
 	UE_LOG(PdPlayerLog, Log, TEXT("[InteractActors] begin overlap added pawn=%s actor=%s count=%d"),
@@ -301,12 +618,12 @@ void APdPlayer::HandleInteractionBoxBeginOverlap(UPrimitiveComponent* Overlapped
 		CurrentInteractActors.Num());
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	// 디버그 안내 문구입니다.
+	// ?�버�??�내 문구?�니??
 	UKismetSystemLibrary::PrintString(this, TEXT("Interact (X)"), true, true, FLinearColor(0.0f, 0.66f, 1.0f), 2.0f);
 #endif
 }
 
-/** 상호작용 박스 이탈을 처리합니다. */
+/** ?�호?�용 박스 ?�탈??처리?�니?? */
 void APdPlayer::HandleInteractionBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
@@ -315,7 +632,7 @@ void APdPlayer::HandleInteractionBoxEndOverlap(UPrimitiveComponent* OverlappedCo
 	static_cast<void>(OtherBodyIndex);
 
 	// =================================================================================================================
-	// === 상호작용 엔트리 확인
+	// === ?�호?�용 ?�트�??�인
 
 	TScriptInterface<IInteractableInterface> InteractableActor;
 	if (!TryMakeInteractableEntry(OtherActor, InteractableActor))
@@ -327,7 +644,7 @@ void APdPlayer::HandleInteractionBoxEndOverlap(UPrimitiveComponent* OverlappedCo
 	}
 
 	// =================================================================================================================
-	// === 목록 제거
+	// === 목록 ?�거
 
 	CurrentInteractActors.RemoveAll(
 		[OtherActor](const TScriptInterface<IInteractableInterface>& Entry)

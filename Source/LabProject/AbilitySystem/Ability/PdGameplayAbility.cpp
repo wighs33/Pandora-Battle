@@ -1,68 +1,119 @@
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/Interfaces/TargetingInterface.h"
 #include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "AbilitySystem/Skills/SkillTypes.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "GameplayEffect.h"
 #include "Character/PdCharacterBase.h"
+#include "Common/LabGameplayTags.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "Pandora/PandoraComponent.h"
+#include "Pandora/PandoraDefinition.h"
+#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdGameplayAbility)
 
-// 로그 카테고리 정의입니다.
+// 로그 카테고리 ?�의?�니??
 DEFINE_LOG_CATEGORY(PdGameplayAbilityLog);
 
-/** 공용 GameplayAbility 기본 설정을 초기화합니다. */
+/** 공용 GameplayAbility 기본 ?�정??초기?�합?�다. */
+namespace
+{
+	bool IsDeadCharacter(const AActor* Actor)
+	{
+		const APdCharacterBase* Character = Cast<APdCharacterBase>(Actor);
+		const UAbilitySystemComponent* ASC = Character ? Character->GetAbilitySystemComponent() : nullptr;
+		return ASC && ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
+	}
+
+
+	int32 GetPandoraSkillIndexFromAbilitySpec(const FGameplayAbilitySpec* AbilitySpec)
+	{
+		if (!AbilitySpec)
+		{
+			return INDEX_NONE;
+		}
+
+		const FGameplayTagContainer& SourceTags = AbilitySpec->GetDynamicSpecSourceTags();
+		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill1))
+		{
+			return 0;
+		}
+
+		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill2))
+		{
+			return 1;
+		}
+
+		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill3))
+		{
+			return 2;
+		}
+
+		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill4))
+		{
+			return 3;
+		}
+
+		return INDEX_NONE;
+	}
+}
+
 UPdGameplayAbility::UPdGameplayAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// =================================================================================================================
-	// === Ability 기본 실행 정책 설정
+	// === Ability 기본 ?�행 ?�책 ?�정
 
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
+	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
+	ActivationBlockedTags.AddTag(LabGameplayTags::State_Dead);
 }
 
-/** 현재 AvatarActor를 프로젝트 캐릭터 타입으로 반환합니다. */
+/** ?�재 AvatarActor�??�로?�트 캐릭???�?�으�?반환?�니?? */
 APdCharacterBase* UPdGameplayAbility::GetPdCharacterFromActorInfo() const
 {
 	return Cast<APdCharacterBase>(GetAvatarActorFromActorInfo());
 }
 
-/** 현재 ActorInfo의 PlayerController를 프로젝트 타입으로 반환합니다. */
+/** ?�재 ActorInfo??PlayerController�??�로?�트 ?�?�으�?반환?�니?? */
 APdPlayerController* UPdGameplayAbility::GetPdPlayerControllerFromActorInfo() const
 {
 	return Cast<APdPlayerController>(GetCurrentActorInfo() ? GetCurrentActorInfo()->PlayerController.Get() : nullptr);
 }
 
-/** 현재 ActorInfo 기준 PlayerState를 프로젝트 타입으로 반환합니다. */
+/** ?�재 ActorInfo 기�? PlayerState�??�로?�트 ?�?�으�?반환?�니?? */
 APdPlayerState* UPdGameplayAbility::GetPdPlayerStateFromActorInfo() const
 {
 	// =================================================================================================================
-	// === Character 기준 PlayerState 우선 조회
+	// === Character 기�? PlayerState ?�선 조회
 
 	if (const APdCharacterBase* Character = GetPdCharacterFromActorInfo())
 	{
 		return Character->GetPlayerState<APdPlayerState>();
 	}
 
-	// OwningActor가 곧 PlayerState인 경우를 보조 처리합니다.
+	// OwningActor가 �?PlayerState??경우�?보조 처리?�니??
 	return Cast<APdPlayerState>(GetOwningActorFromActorInfo());
 }
 
-/** 현재 ActorInfo의 ASC를 프로젝트 타입으로 반환합니다. */
+/** ?�재 ActorInfo??ASC�??�로?�트 ?�?�으�?반환?�니?? */
 UPdAbilitySystemComponent* UPdGameplayAbility::GetPdAbilitySystemComponentFromActorInfo() const
 {
 	return Cast<UPdAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
 }
 
-/** 전달된 태그를 가진 Ability들의 활성화를 시도합니다. */
+/** ?�달???�그�?가�?Ability?�의 ?�성?��? ?�도?�니?? */
 bool UPdGameplayAbility::TryActivateAbilitiesByTags(FGameplayTagContainer InAbilityTags, bool bAllowRemoteActivation) const
 {
 	// =================================================================================================================
-	// === ASC 및 입력 태그 검사
-
+	// === ASC �??�력 ?�그 검??
 	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
 	if (!ASC || InAbilityTags.IsEmpty())
 	{
@@ -72,18 +123,16 @@ bool UPdGameplayAbility::TryActivateAbilitiesByTags(FGameplayTagContainer InAbil
 	return ASC->TryActivateAbilitiesByTag(InAbilityTags, bAllowRemoteActivation);
 }
 
-/** 가장 가까운 적을 찾고 좌우 방향 정보를 반환합니다. */
+/** 가??가까운 ?�을 찾고 좌우 방향 ?�보�?반환?�니?? */
 bool UPdGameplayAbility::GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRight, float SearchRadius, float ForwardOffset) const
 {
 	// =================================================================================================================
-	// === 반환값 초기화
-
+	// === 반환�?초기??
 	ClosestEnemy = nullptr;
 	bLeftOrRight = false;
 
 	// =================================================================================================================
-	// === 소유자와 탐색 반경 유효성 검사
-
+	// === ?�유?��? ?�색 반경 ?�효??검??
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	if (!IsValid(AvatarActor) || SearchRadius <= 0.f)
 	{
@@ -91,7 +140,7 @@ bool UPdGameplayAbility::GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRig
 	}
 
 	// =================================================================================================================
-	// === 소유자 진영 정보 확인
+	// === ?�유??진영 ?�보 ?�인
 
 	const APdCharacterBase* OwnerCharacter = Cast<APdCharacterBase>(AvatarActor);
 	if (!OwnerCharacter)
@@ -100,7 +149,7 @@ bool UPdGameplayAbility::GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRig
 	}
 
 	// =================================================================================================================
-	// === 월드 및 탐색 기준 위치 설정
+	// === ?�드 �??�색 기�? ?�치 ?�정
 
 	UWorld* World = AvatarActor->GetWorld();
 	if (!World)
@@ -113,7 +162,7 @@ bool UPdGameplayAbility::GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRig
 	const FVector SearchOrigin = AvatarLocation + (AvatarActor->GetActorForwardVector() * ForwardOffset);
 
 	// =================================================================================================================
-	// === Pawn 대상 구형 오버랩 설정
+	// === Pawn ?�??구형 ?�버???�정
 
 	FCollisionObjectQueryParams ObjectQueryParams;
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
@@ -122,7 +171,7 @@ bool UPdGameplayAbility::GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRig
 	FCollisionShape SphereShape = FCollisionShape::MakeSphere(SearchRadius);
 
 	// =================================================================================================================
-	// === 주변 Pawn 오버랩 탐색
+	// === 주�? Pawn ?�버???�색
 
 	TArray<FOverlapResult> OverlapResults;
 	if (!World->OverlapMultiByObjectType(OverlapResults, SearchOrigin, FQuat::Identity, ObjectQueryParams, SphereShape, QueryParams))
@@ -131,7 +180,7 @@ bool UPdGameplayAbility::GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRig
 	}
 
 	// =================================================================================================================
-	// === 가장 가까운 적 탐색
+	// === 가??가까운 ???�색
 
 	double BestDistanceSq = TNumericLimits<double>::Max();
 
@@ -145,6 +194,11 @@ bool UPdGameplayAbility::GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRig
 
 		const APdCharacterBase* OtherCharacter = Cast<APdCharacterBase>(OtherActor);
 		if (!OtherCharacter)
+		{
+			continue;
+		}
+
+		if (IsDeadCharacter(OtherActor))
 		{
 			continue;
 		}
@@ -168,19 +222,135 @@ bool UPdGameplayAbility::GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRig
 	}
 
 	// =================================================================================================================
-	// === 목표의 좌우 방향 계산
+	// === 목표??좌우 방향 계산
 
 	const FVector ToEnemy = ClosestEnemy->GetActorLocation() - AvatarLocation;
 	bLeftOrRight = FVector::DotProduct(AvatarActor->GetActorRightVector(), ToEnemy) < 0.f;
 	return true;
 }
 
-/** 전달된 Ability 클래스들을 중복 없이 부여합니다. */
+bool UPdGameplayAbility::HasPlayerController() const
+{
+	const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
+	const AController* Controller = AvatarPawn ? AvatarPawn->GetController() : nullptr;
+	return Controller && Controller->IsPlayerController();
+}
+
+AActor* UPdGameplayAbility::GetAttackTargetFromAvatar() const
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor))
+	{
+		return nullptr;
+	}
+
+	if (AvatarActor->GetClass()->ImplementsInterface(UTargetingInterface::StaticClass()))
+	{
+		AActor* AttackTarget = ITargetingInterface::Execute_GetAttackTarget(AvatarActor);
+		return IsDeadCharacter(AttackTarget) ? nullptr : AttackTarget;
+	}
+
+	return nullptr;
+}
+
+USkillDataAsset* UPdGameplayAbility::GetSourceSkillDataAsset() const
+{
+	if (const UPandoraSkillRuntimeContext* RuntimeContext = GetSourceSkillRuntimeContext())
+	{
+		return const_cast<USkillDataAsset*>(RuntimeContext->GetSkillDataAsset());
+	}
+
+	return Cast<USkillDataAsset>(GetCurrentAbilitySpecSourceObject());
+}
+
+UPandoraSkillRuntimeContext* UPdGameplayAbility::GetSourceSkillRuntimeContext() const
+{
+	if (UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(GetCurrentAbilitySpecSourceObject()))
+	{
+		return RuntimeContext;
+	}
+
+	return ResolveSourceSkillRuntimeContextFromSelectedPandora();
+}
+
+TArray<FProjectileImpactEffectAreaSpawnConfig> UPdGameplayAbility::GetSourceProjectileImpactEffectAreasForLevel(const int32 Level) const
+{
+	if (const UPandoraSkillRuntimeContext* RuntimeContext = GetSourceSkillRuntimeContext())
+	{
+		return RuntimeContext->GetProjectileImpactEffectAreasForLevel(Level);
+	}
+
+	if (const USkillDataAsset* SourceSkill = Cast<USkillDataAsset>(GetCurrentAbilitySpecSourceObject()))
+	{
+		return SourceSkill->GetLegacyProjectileImpactEffectAreasForLevel(Level);
+	}
+
+	return TArray<FProjectileImpactEffectAreaSpawnConfig>();
+}
+
+const FGameplayAbilitySpec* UPdGameplayAbility::ResolveCurrentAbilitySpec() const
+{
+	if (const FGameplayAbilitySpec* AbilitySpec = GetCurrentAbilitySpec())
+	{
+		return AbilitySpec;
+	}
+
+	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
+	const FGameplayAbilitySpecHandle SpecHandle = GetCurrentAbilitySpecHandle();
+	return ASC && SpecHandle.IsValid() ? ASC->FindAbilitySpecFromHandle(SpecHandle) : nullptr;
+}
+
+UObject* UPdGameplayAbility::GetCurrentAbilitySpecSourceObject() const
+{
+	const FGameplayAbilitySpec* AbilitySpec = ResolveCurrentAbilitySpec();
+	return AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr;
+}
+
+UPandoraSkillRuntimeContext* UPdGameplayAbility::ResolveSourceSkillRuntimeContextFromSelectedPandora() const
+{
+	const FGameplayAbilitySpec* AbilitySpec = ResolveCurrentAbilitySpec();
+	const int32 SkillIndex = GetPandoraSkillIndexFromAbilitySpec(AbilitySpec);
+	if (SkillIndex == INDEX_NONE)
+	{
+		return nullptr;
+	}
+
+	const APdPlayerState* PlayerState = GetPdPlayerStateFromActorInfo();
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	const UPandoraDefinition* PandoraDefinition = PandoraComponent ? PandoraComponent->GetCurrentPandoraDefinition() : nullptr;
+	if (!PandoraDefinition || !PandoraDefinition->Skill.IsValidIndex(SkillIndex))
+	{
+		return nullptr;
+	}
+
+	const FSkill& Skill = PandoraDefinition->Skill[SkillIndex];
+	const USkillDataAsset* SkillDataAsset = Skill.SkillDefinition.Get();
+	if (!SkillDataAsset)
+	{
+		return nullptr;
+	}
+
+	const int32 RuntimeLevel = AbilitySpec ? FMath::Max(AbilitySpec->Level, 1) : FMath::Max(GetAbilityLevel(), 1);
+	if (CachedResolvedSourceSkillRuntimeContext
+		&& CachedResolvedSourceSkillRuntimeContext->GetPandoraDefinition() == PandoraDefinition
+		&& CachedResolvedSourceSkillRuntimeContext->GetSkillDataAsset() == SkillDataAsset
+		&& CachedResolvedSourceSkillRuntimeContext->GetSkillIndex() == SkillIndex
+		&& CachedResolvedSourceSkillRuntimeContext->GetPandoraLevel() == RuntimeLevel)
+	{
+		return CachedResolvedSourceSkillRuntimeContext.Get();
+	}
+
+	UPdGameplayAbility* MutableThis = const_cast<UPdGameplayAbility*>(this);
+	MutableThis->CachedResolvedSourceSkillRuntimeContext = NewObject<UPandoraSkillRuntimeContext>(MutableThis);
+	MutableThis->CachedResolvedSourceSkillRuntimeContext->Initialize(PandoraDefinition, SkillDataAsset, SkillIndex, RuntimeLevel);
+	return MutableThis->CachedResolvedSourceSkillRuntimeContext.Get();
+}
+
+/** Granted Ability classes are added without duplicates. */
 int32 UPdGameplayAbility::GrantAbilities(const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, int32 AbilityLevel)
 {
 	// =================================================================================================================
-	// === ASC 및 입력 배열 검사
-
+	// === ASC �??�력 배열 검??
 	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
 	if (!ASC || AbilityClasses.IsEmpty())
 	{
@@ -188,33 +358,20 @@ int32 UPdGameplayAbility::GrantAbilities(const TArray<TSubclassOf<UGameplayAbili
 	}
 
 	// =================================================================================================================
-	// === 서버 권한 검사
-
+	// === ?�버 권한 검??
 	if (!ensure(ASC->IsOwnerActorAuthoritative()))
 	{
 		return 0;
 	}
 
-	// =================================================================================================================
-	// === 중복 없이 Ability 부여
-
-	int32 GrantedCount = 0;
-	for (TSubclassOf<UGameplayAbility> AbilityClass : AbilityClasses)
-	{
-		if (GrantAbilityIfMissing(AbilityClass, AbilityLevel))
-		{
-			++GrantedCount;
-		}
-	}
-
-	return GrantedCount;
+	return ASC->GrantAbilities(AbilityClasses, AbilityLevel, GetAvatarActorFromActorInfo()).Num();
 }
 
-/** 전달된 GameplayEffect 클래스들을 순서대로 적용합니다. */
+/** ?�달??GameplayEffect ?�래?�들???�서?��??�용?�니?? */
 int32 UPdGameplayAbility::ApplyGameplayEffects(const TArray<TSubclassOf<UGameplayEffect>>& GameplayEffectClasses, float EffectLevel, int32 StackCount)
 {
 	// =================================================================================================================
-	// === Effect 배열 순차 적용
+	// === Effect 배열 ?�차 ?�용
 
 	int32 AppliedCount = 0;
 	for (TSubclassOf<UGameplayEffect> GameplayEffectClass : GameplayEffectClasses)
@@ -228,26 +385,25 @@ int32 UPdGameplayAbility::ApplyGameplayEffects(const TArray<TSubclassOf<UGamepla
 	return AppliedCount;
 }
 
-/** 단일 GameplayEffect를 적용합니다. */
+/** ?�일 GameplayEffect�??�용?�니?? */
 bool UPdGameplayAbility::ApplyGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel, int32 StackCount)
 {
 	return ApplyGameplayEffectHandle(GameplayEffectClass, EffectLevel, StackCount).WasSuccessfullyApplied();
 }
 
-/** 단일 GameplayEffect를 핸들 형태로 적용합니다. */
+/** ?�일 GameplayEffect�??�들 ?�태�??�용?�니?? */
 FActiveGameplayEffectHandle UPdGameplayAbility::ApplyGameplayEffectHandle(TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel, int32 StackCount)
 {
 	const FGameplayTagContainer DynamicGrantedTags;
 	return ApplyGameplayEffectHandle(GameplayEffectClass, DynamicGrantedTags, EffectLevel, StackCount);
 }
 
-/** 동적 부여 태그를 포함한 GameplayEffect를 핸들 형태로 적용합니다. */
+/** ?�적 부???�그�??�함??GameplayEffect�??�들 ?�태�??�용?�니?? */
 FActiveGameplayEffectHandle UPdGameplayAbility::ApplyGameplayEffectHandle(TSubclassOf<UGameplayEffect> GameplayEffectClass,
 	const FGameplayTagContainer& DynamicGrantedTags, float EffectLevel, int32 StackCount)
 {
 	// =================================================================================================================
-	// === ASC 및 GameplayEffect 클래스 검사
-
+	// === ASC �?GameplayEffect ?�래??검??
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
 	if (!ASC || !GameplayEffectClass)
@@ -256,15 +412,14 @@ FActiveGameplayEffectHandle UPdGameplayAbility::ApplyGameplayEffectHandle(TSubcl
 	}
 
 	// =================================================================================================================
-	// === 권한 또는 예측 키 검사
-
+	// === 권한 ?�는 ?�측 ??검??
 	if (!ensure(ActorInfo) || !HasAuthorityOrPredictionKey(ActorInfo, &CurrentActivationInfo))
 	{
 		return FActiveGameplayEffectHandle();
 	}
 
 	// =================================================================================================================
-	// === GameplayEffectSpec 생성
+	// === GameplayEffectSpec ?�성
 
 	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(GameplayEffectClass, FMath::Max(EffectLevel, 1.f));
 	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
@@ -273,19 +428,18 @@ FActiveGameplayEffectHandle UPdGameplayAbility::ApplyGameplayEffectHandle(TSubcl
 	}
 
 	// =================================================================================================================
-	// === 스택 수와 동적 부여 태그 설정 후 자기 자신에게 적용
+	// === ?�택 ?��? ?�적 부???�그 ?�정 ???�기 ?�신?�게 ?�용
 
 	SpecHandle.Data->SetStackCount(FMath::Max(StackCount, 1));
 	SpecHandle.Data->DynamicGrantedTags.AppendTags(DynamicGrantedTags);
 	return ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 }
 
-/** 지정한 GameplayEffect가 현재 활성 상태인지 확인합니다. */
+/** 지?�한 GameplayEffect가 ?�재 ?�성 ?�태?��? ?�인?�니?? */
 bool UPdGameplayAbility::HasActiveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass) const
 {
 	// =================================================================================================================
-	// === ASC 및 GameplayEffect 클래스 검사
-
+	// === ASC �?GameplayEffect ?�래??검??
 	const UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
 	if (!ASC || !GameplayEffectClass)
 	{
@@ -293,18 +447,18 @@ bool UPdGameplayAbility::HasActiveGameplayEffect(TSubclassOf<UGameplayEffect> Ga
 	}
 
 	// =================================================================================================================
-	// === Effect 정의 기준 활성 여부 조회
+	// === Effect ?�의 기�? ?�성 ?��? 조회
 
 	FGameplayEffectQuery Query;
 	Query.EffectDefinition = GameplayEffectClass;
 	return ASC->GetActiveEffects(Query).Num() > 0;
 }
 
-/** 전달된 GameplayEffect 클래스들을 순서대로 제거합니다. */
+/** ?�달??GameplayEffect ?�래?�들???�서?��??�거?�니?? */
 int32 UPdGameplayAbility::RemoveGameplayEffects(const TArray<TSubclassOf<UGameplayEffect>>& GameplayEffectClasses)
 {
 	// =================================================================================================================
-	// === Effect 배열 순차 제거
+	// === Effect 배열 ?�차 ?�거
 
 	int32 RemovedCount = 0;
 	for (TSubclassOf<UGameplayEffect> GameplayEffectClass : GameplayEffectClasses)
@@ -318,12 +472,11 @@ int32 UPdGameplayAbility::RemoveGameplayEffects(const TArray<TSubclassOf<UGamepl
 	return RemovedCount;
 }
 
-/** 단일 GameplayEffect를 제거합니다. */
+/** ?�일 GameplayEffect�??�거?�니?? */
 bool UPdGameplayAbility::RemoveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass)
 {
 	// =================================================================================================================
-	// === ASC 및 GameplayEffect 클래스 검사
-
+	// === ASC �?GameplayEffect ?�래??검??
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
 	if (!ASC || !GameplayEffectClass)
@@ -332,27 +485,25 @@ bool UPdGameplayAbility::RemoveGameplayEffect(TSubclassOf<UGameplayEffect> Gamep
 	}
 
 	// =================================================================================================================
-	// === 서버 권한 검사
-
+	// === ?�버 권한 검??
 	if (!ensure(ActorInfo) || !HasAuthority(&CurrentActivationInfo))
 	{
 		return false;
 	}
 
 	// =================================================================================================================
-	// === Effect 정의 기준 활성 Effect 제거
+	// === Effect ?�의 기�? ?�성 Effect ?�거
 
 	FGameplayEffectQuery Query;
 	Query.EffectDefinition = GameplayEffectClass;
 	return ASC->RemoveActiveEffects(Query) > 0;
 }
 
-/** 지정 태그를 부여한 활성 GameplayEffect들을 제거합니다. */
+/** 지???�그�?부?�한 ?�성 GameplayEffect?�을 ?�거?�니?? */
 int32 UPdGameplayAbility::RemoveGameplayEffectsWithGrantedTags(const FGameplayTagContainer& GrantedTags)
 {
 	// =================================================================================================================
-	// === ASC 및 입력 태그 검사
-
+	// === ASC �??�력 ?�그 검??
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
 	if (!ASC || GrantedTags.IsEmpty())
@@ -361,8 +512,7 @@ int32 UPdGameplayAbility::RemoveGameplayEffectsWithGrantedTags(const FGameplayTa
 	}
 
 	// =================================================================================================================
-	// === 서버 권한 검사
-
+	// === ?�버 권한 검??
 	if (!ensure(ActorInfo) || !HasAuthority(&CurrentActivationInfo))
 	{
 		return 0;
@@ -371,12 +521,11 @@ int32 UPdGameplayAbility::RemoveGameplayEffectsWithGrantedTags(const FGameplayTa
 	return ASC->RemoveActiveEffectsWithGrantedTags(GrantedTags);
 }
 
-/** 지정한 Ability가 없을 때만 새로 부여합니다. */
+/** 지?�한 Ability가 ?�을 ?�만 ?�로 부?�합?�다. */
 bool UPdGameplayAbility::GrantAbilityIfMissing(TSubclassOf<UGameplayAbility> AbilityClass, int32 AbilityLevel)
 {
 	// =================================================================================================================
-	// === ASC 및 Ability 클래스 검사
-
+	// === ASC �?Ability ?�래??검??
 	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
 	if (!ASC || !AbilityClass)
 	{
@@ -384,8 +533,7 @@ bool UPdGameplayAbility::GrantAbilityIfMissing(TSubclassOf<UGameplayAbility> Abi
 	}
 
 	// =================================================================================================================
-	// === 서버 권한 및 중복 부여 여부 검사
-
+	// === ?�버 권한 �?중복 부???��? 검??
 	if (!ASC->IsOwnerActorAuthoritative())
 	{
 		return false;
@@ -397,19 +545,24 @@ bool UPdGameplayAbility::GrantAbilityIfMissing(TSubclassOf<UGameplayAbility> Abi
 	}
 
 	// =================================================================================================================
-	// === AbilitySpec 생성 후 Ability 부여
-
+	// === AbilitySpec ?�성 ??Ability 부??
 	FGameplayAbilitySpec AbilitySpec(AbilityClass, FMath::Max(AbilityLevel, 1), INDEX_NONE, GetAvatarActorFromActorInfo());
-	ASC->GiveAbility(AbilitySpec);
+	const UPdGameplayAbility* AbilityCDO = Cast<UPdGameplayAbility>(AbilityClass->GetDefaultObject());
+	const bool bShouldAutoActivateWhenGranted = AbilityCDO && AbilityCDO->ShouldAutoActivateWhenGranted();
+
+	const FGameplayAbilitySpecHandle GrantedHandle = ASC->GiveAbility(AbilitySpec);
+	if (bShouldAutoActivateWhenGranted && GrantedHandle.IsValid())
+	{
+		ASC->TryActivateAbility(GrantedHandle);
+	}
 	return true;
 }
 
-/** 지정한 Ability가 이미 부여되어 있는지 확인합니다. */
+/** 지?�한 Ability가 ?��? 부?�되???�는지 ?�인?�니?? */
 bool UPdGameplayAbility::HasGrantedAbility(TSubclassOf<UGameplayAbility> AbilityClass) const
 {
 	// =================================================================================================================
-	// === ASC 및 Ability 클래스 검사
-
+	// === ASC �?Ability ?�래??검??
 	const UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
 	const UClass* AbilityClassType = AbilityClass.Get();
 	if (!ASC || !AbilityClassType)
@@ -418,8 +571,7 @@ bool UPdGameplayAbility::HasGrantedAbility(TSubclassOf<UGameplayAbility> Ability
 	}
 
 	// =================================================================================================================
-	// === 활성화 가능 Ability 목록에서 동일 클래스 검색
-
+	// === ?�성??가??Ability 목록?�서 ?�일 ?�래??검??
 	for (const FGameplayAbilitySpec& AbilitySpec : ASC->GetActivatableAbilities())
 	{
 		if (AbilitySpec.Ability && AbilitySpec.Ability->GetClass() == AbilityClassType)

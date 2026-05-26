@@ -1,8 +1,11 @@
 #include "PlayerComponent/ControllerInputComponent.h"
 
+#include "Abilities/GameplayAbilityTargetTypes.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystem/PdAbilitySystemComponent.h"
 #include "Character/PdPlayer.h"
+#include "Common/LabGameplayTags.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -13,12 +16,12 @@
 #include "InputMappingContext.h"
 #include "Interface/InteractableInterface.h"
 #include "Mode/PdPlayerController.h"
+#include "Mode/PdHUD.h"
 #include "Mode/PdPlayerState.h"
 #include "PlayerComponent/CombatComponent.h"
 #include "PlayerComponent/ControllerInputDefinition.h"
 #include "PlayerComponent/EquipmentComponent.h"
 #include "PlayerComponent/PlayerRewardComponent.h"
-#include "UI/ControllerUiComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerInputComponent)
 
@@ -139,7 +142,6 @@ bool UControllerInputComponent::ApplyInputDefinition()
 	}
 
 	BindNativeInputActions(*EnhancedInputComponent, *LoadedDefinition);
-	BindAbilityInputActions(*EnhancedInputComponent, *LoadedDefinition);
 
 	bAppliedInputDefinition = bAddedInputMapping || !BindingHandles.IsEmpty();
 	if (!bAppliedInputDefinition)
@@ -292,55 +294,58 @@ void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& 
 		FEnhancedInputActionEventBinding& CanceledBinding = EnhancedInputComponent.BindAction(SelectPandoraAction, ETriggerEvent::Canceled, this, &ThisClass::HandleSelectPandoraInputEnded);
 		AddInputBindingHandle(CanceledBinding.GetHandle());
 	}
-}
 
-void UControllerInputComponent::BindAbilityInputActions(UEnhancedInputComponent& EnhancedInputComponent,
-	const UControllerInputDefinition& Definition)
-{
-	for (const FPdAbilityInputAction& AbilityInputAction : Definition.GetAbilityInputActions())
+	if (UInputAction* PandoraTreeAction = LoadInputAction(Definition.GetPandoraTreeInputAction()))
 	{
-		if (!AbilityInputAction.IsValid())
-		{
-			continue;
-		}
+		FEnhancedInputActionEventBinding& Binding = EnhancedInputComponent.BindAction(PandoraTreeAction, ETriggerEvent::Started, this, &ThisClass::HandlePandoraTreeInputStarted);
+		AddInputBindingHandle(Binding.GetHandle());
+	}
 
-		UInputAction* InputAction = LoadInputAction(AbilityInputAction.InputAction);
-		if (!InputAction)
-		{
-			continue;
-		}
-
-		const FGameplayTag InputTag = AbilityInputAction.InputTag;
-		FEnhancedInputActionEventBinding& StartedBinding = EnhancedInputComponent.BindAction(InputAction, ETriggerEvent::Started, this, &ThisClass::HandleAbilityInputStarted, InputTag);
+	if (UInputAction* Skill1Action = LoadInputAction(Definition.GetSkill1InputAction()))
+	{
+		FEnhancedInputActionEventBinding& StartedBinding = EnhancedInputComponent.BindAction(Skill1Action, ETriggerEvent::Started, this, &ThisClass::HandleSkill1InputStarted);
 		AddInputBindingHandle(StartedBinding.GetHandle());
-		FEnhancedInputActionEventBinding& CompletedBinding = EnhancedInputComponent.BindAction(InputAction, ETriggerEvent::Completed, this, &ThisClass::HandleAbilityInputEnded, InputTag);
+		FEnhancedInputActionEventBinding& CompletedBinding = EnhancedInputComponent.BindAction(Skill1Action, ETriggerEvent::Completed, this, &ThisClass::HandleSkill1InputEnded);
 		AddInputBindingHandle(CompletedBinding.GetHandle());
-		FEnhancedInputActionEventBinding& CanceledBinding = EnhancedInputComponent.BindAction(InputAction, ETriggerEvent::Canceled, this, &ThisClass::HandleAbilityInputEnded, InputTag);
+		FEnhancedInputActionEventBinding& CanceledBinding = EnhancedInputComponent.BindAction(Skill1Action, ETriggerEvent::Canceled, this, &ThisClass::HandleSkill1InputEnded);
 		AddInputBindingHandle(CanceledBinding.GetHandle());
 	}
-}
 
-void UControllerInputComponent::HandleAbilityInputStarted(const FInputActionValue& InputValue, FGameplayTag InputTag)
-{
-	static_cast<void>(InputValue);
-
-	APdPlayer* PlayerCharacter = GetPlayerCharacter();
-	UPdAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetPdAbilitySystemComponent() : nullptr;
-	if (AbilitySystemComponent)
+	if (UInputAction* Skill2Action = LoadInputAction(Definition.GetSkill2InputAction()))
 	{
-		AbilitySystemComponent->AbilityInputTagPressed(InputTag);
+		FEnhancedInputActionEventBinding& StartedBinding = EnhancedInputComponent.BindAction(Skill2Action, ETriggerEvent::Started, this, &ThisClass::HandleSkill2InputStarted);
+		AddInputBindingHandle(StartedBinding.GetHandle());
+		FEnhancedInputActionEventBinding& CompletedBinding = EnhancedInputComponent.BindAction(Skill2Action, ETriggerEvent::Completed, this, &ThisClass::HandleSkill2InputEnded);
+		AddInputBindingHandle(CompletedBinding.GetHandle());
+		FEnhancedInputActionEventBinding& CanceledBinding = EnhancedInputComponent.BindAction(Skill2Action, ETriggerEvent::Canceled, this, &ThisClass::HandleSkill2InputEnded);
+		AddInputBindingHandle(CanceledBinding.GetHandle());
 	}
-}
 
-void UControllerInputComponent::HandleAbilityInputEnded(const FInputActionValue& InputValue, FGameplayTag InputTag)
-{
-	static_cast<void>(InputValue);
-
-	APdPlayer* PlayerCharacter = GetPlayerCharacter();
-	UPdAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetPdAbilitySystemComponent() : nullptr;
-	if (AbilitySystemComponent)
+	if (UInputAction* Skill3Action = LoadInputAction(Definition.GetSkill3InputAction()))
 	{
-		AbilitySystemComponent->AbilityInputTagReleased(InputTag);
+		FEnhancedInputActionEventBinding& StartedBinding = EnhancedInputComponent.BindAction(Skill3Action, ETriggerEvent::Started, this, &ThisClass::HandleSkill3InputStarted);
+		AddInputBindingHandle(StartedBinding.GetHandle());
+		FEnhancedInputActionEventBinding& CompletedBinding = EnhancedInputComponent.BindAction(Skill3Action, ETriggerEvent::Completed, this, &ThisClass::HandleSkill3InputEnded);
+		AddInputBindingHandle(CompletedBinding.GetHandle());
+		FEnhancedInputActionEventBinding& CanceledBinding = EnhancedInputComponent.BindAction(Skill3Action, ETriggerEvent::Canceled, this, &ThisClass::HandleSkill3InputEnded);
+		AddInputBindingHandle(CanceledBinding.GetHandle());
+	}
+
+	if (UInputAction* Skill4Action = LoadInputAction(Definition.GetSkill4InputAction()))
+	{
+		FEnhancedInputActionEventBinding& StartedBinding = EnhancedInputComponent.BindAction(Skill4Action, ETriggerEvent::Started, this, &ThisClass::HandleSkill4InputStarted);
+		AddInputBindingHandle(StartedBinding.GetHandle());
+		FEnhancedInputActionEventBinding& CompletedBinding = EnhancedInputComponent.BindAction(Skill4Action, ETriggerEvent::Completed, this, &ThisClass::HandleSkill4InputEnded);
+		AddInputBindingHandle(CompletedBinding.GetHandle());
+		FEnhancedInputActionEventBinding& CanceledBinding = EnhancedInputComponent.BindAction(Skill4Action, ETriggerEvent::Canceled, this, &ThisClass::HandleSkill4InputEnded);
+		AddInputBindingHandle(CanceledBinding.GetHandle());
+	}
+
+	if (UInputAction* TargetConfirmAction = LoadInputAction(Definition.GetTargetConfirmInputAction()))
+	{
+		FEnhancedInputActionEventBinding& StartedBinding =
+			EnhancedInputComponent.BindAction(TargetConfirmAction, ETriggerEvent::Started, this, &ThisClass::HandleTargetConfirmInputStarted);
+		AddInputBindingHandle(StartedBinding.GetHandle());
 	}
 }
 
@@ -480,9 +485,9 @@ void UControllerInputComponent::HandleOpenInfoUiInputStarted(const FInputActionV
 {
 	static_cast<void>(InputValue);
 
-	if (UControllerUiComponent* ControllerUiComponent = GetControllerUiComponent())
+	if (APdHUD* HUD = GetPdHUD())
 	{
-		ControllerUiComponent->OnOpenInfoUiInputStarted(InputValue);
+		HUD->OnOpenInfoUiInputStarted(InputValue);
 	}
 }
 
@@ -490,9 +495,9 @@ void UControllerInputComponent::HandleSelectPandoraInputStarted(const FInputActi
 {
 	static_cast<void>(InputValue);
 
-	if (UControllerUiComponent* ControllerUiComponent = GetControllerUiComponent())
+	if (APdHUD* HUD = GetPdHUD())
 	{
-		ControllerUiComponent->OnSelectPandoraInputStarted(InputValue);
+		HUD->OnSelectPandoraInputStarted(InputValue);
 	}
 }
 
@@ -500,9 +505,19 @@ void UControllerInputComponent::HandleSelectPandoraInputEnded(const FInputAction
 {
 	static_cast<void>(InputValue);
 
-	if (UControllerUiComponent* ControllerUiComponent = GetControllerUiComponent())
+	if (APdHUD* HUD = GetPdHUD())
 	{
-		ControllerUiComponent->OnSelectPandoraInputEnded(InputValue);
+		HUD->OnSelectPandoraInputEnded(InputValue);
+	}
+}
+
+void UControllerInputComponent::HandlePandoraTreeInputStarted(const FInputActionValue& InputValue)
+{
+	static_cast<void>(InputValue);
+
+	if (APdHUD* HUD = GetPdHUD())
+	{
+		HUD->OnPandoraTreeInputStarted(InputValue);
 	}
 }
 
@@ -546,9 +561,157 @@ void UControllerInputComponent::HandleAimInputEnded(const FInputActionValue& Inp
 	}
 }
 
+void UControllerInputComponent::HandleDashInputStarted(const FInputActionValue& InputValue)
+{
+	static_cast<void>(InputValue);
+
+	if (IsGameplayInputBlockedByUi())
+	{
+		return;
+	}
+
+	APdPlayer* PlayerCharacter = GetPlayerCharacter();
+	UPdAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetPdAbilitySystemComponent() : nullptr;
+	if (AbilitySystemComponent)
+	{
+		FVector DashDirection = PlayerCharacter->GetLastMovementInputVector();
+		DashDirection.Z = 0.0f;
+		if (DashDirection.IsNearlyZero())
+		{
+			DashDirection = PlayerCharacter->GetActorForwardVector();
+			DashDirection.Z = 0.0f;
+		}
+
+		if (!DashDirection.IsNearlyZero())
+		{
+			DashDirection.Normalize();
+		}
+
+		FHitResult DirectionPayload;
+		DirectionPayload.Location = DashDirection;
+
+		FGameplayEventData EventData;
+		EventData.EventTag = LabGameplayTags::Event_ActivateAbility_Dash;
+		EventData.Instigator = PlayerCharacter;
+		EventData.Target = PlayerCharacter;
+		EventData.TargetData.Add(new FGameplayAbilityTargetData_SingleTargetHit(DirectionPayload));
+
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(PlayerCharacter, LabGameplayTags::Event_ActivateAbility_Dash, EventData);
+	}
+}
+
+void UControllerInputComponent::HandleDashInputEnded(const FInputActionValue& InputValue)
+{
+	static_cast<void>(InputValue);
+
+	APdPlayer* PlayerCharacter = GetPlayerCharacter();
+	UPdAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetPdAbilitySystemComponent() : nullptr;
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->AbilityInputTagReleased(LabGameplayTags::Input_Ability_Movement_Dash);
+	}
+}
+
+void UControllerInputComponent::HandleSkill1InputStarted(const FInputActionValue& InputValue)
+{
+	HandleAbilityInputStarted(InputValue, LabGameplayTags::Input_Ability_Skill1);
+}
+
+void UControllerInputComponent::HandleSkill1InputEnded(const FInputActionValue& InputValue)
+{
+	HandleAbilityInputEnded(InputValue, LabGameplayTags::Input_Ability_Skill1);
+}
+
+void UControllerInputComponent::HandleSkill2InputStarted(const FInputActionValue& InputValue)
+{
+	HandleAbilityInputStarted(InputValue, LabGameplayTags::Input_Ability_Skill2);
+}
+
+void UControllerInputComponent::HandleSkill2InputEnded(const FInputActionValue& InputValue)
+{
+	HandleAbilityInputEnded(InputValue, LabGameplayTags::Input_Ability_Skill2);
+}
+
+void UControllerInputComponent::HandleSkill3InputStarted(const FInputActionValue& InputValue)
+{
+	HandleAbilityInputStarted(InputValue, LabGameplayTags::Input_Ability_Skill3);
+}
+
+void UControllerInputComponent::HandleSkill3InputEnded(const FInputActionValue& InputValue)
+{
+	HandleAbilityInputEnded(InputValue, LabGameplayTags::Input_Ability_Skill3);
+}
+
+void UControllerInputComponent::HandleSkill4InputStarted(const FInputActionValue& InputValue)
+{
+	HandleAbilityInputStarted(InputValue, LabGameplayTags::Input_Ability_Skill4);
+}
+
+void UControllerInputComponent::HandleSkill4InputEnded(const FInputActionValue& InputValue)
+{
+	HandleAbilityInputEnded(InputValue, LabGameplayTags::Input_Ability_Skill4);
+}
+
+void UControllerInputComponent::HandleTargetConfirmInputStarted(const FInputActionValue& InputValue)
+{
+	static_cast<void>(InputValue);
+
+	if (IsGameplayInputBlockedByUi())
+	{
+		return;
+	}
+
+	APdPlayer* PlayerCharacter = GetPlayerCharacter();
+	UPdAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetPdAbilitySystemComponent() : nullptr;
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->LocalInputConfirm();
+	}
+}
+
+void UControllerInputComponent::HandleAbilityInputStarted(const FInputActionValue& InputValue, const FGameplayTag& InputTag)
+{
+	static_cast<void>(InputValue);
+
+	if (IsGameplayInputBlockedByUi() || !InputTag.IsValid())
+	{
+		return;
+	}
+
+	APdPlayer* PlayerCharacter = GetPlayerCharacter();
+	UPdAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetPdAbilitySystemComponent() : nullptr;
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->AbilityInputTagPressed(InputTag);
+	}
+}
+
+void UControllerInputComponent::HandleAbilityInputEnded(const FInputActionValue& InputValue, const FGameplayTag& InputTag)
+{
+	static_cast<void>(InputValue);
+
+	if (!InputTag.IsValid())
+	{
+		return;
+	}
+
+	APdPlayer* PlayerCharacter = GetPlayerCharacter();
+	UPdAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetPdAbilitySystemComponent() : nullptr;
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->AbilityInputTagReleased(InputTag);
+	}
+}
+
 APdPlayerController* UControllerInputComponent::GetPdController() const
 {
 	return Cast<APdPlayerController>(GetOwner());
+}
+
+APdHUD* UControllerInputComponent::GetPdHUD() const
+{
+	const APdPlayerController* Controller = GetPdController();
+	return Controller ? Cast<APdHUD>(Controller->GetHUD()) : nullptr;
 }
 
 APdPlayer* UControllerInputComponent::GetPlayerCharacter() const
@@ -570,13 +733,8 @@ UCombatComponent* UControllerInputComponent::GetPlayerCombatComponent() const
 	return PlayerCharacter ? PlayerCharacter->GetCombatComponent() : nullptr;
 }
 
-UControllerUiComponent* UControllerInputComponent::GetControllerUiComponent() const
-{
-	return GetOwner() ? GetOwner()->FindComponentByClass<UControllerUiComponent>() : nullptr;
-}
-
 bool UControllerInputComponent::IsGameplayInputBlockedByUi() const
 {
-	const UControllerUiComponent* ControllerUiComponent = GetControllerUiComponent();
-	return ControllerUiComponent && ControllerUiComponent->IsGameplayInputBlockedByUi();
+	const APdHUD* HUD = GetPdHUD();
+	return HUD && HUD->IsGameplayInputBlockedByUi();
 }

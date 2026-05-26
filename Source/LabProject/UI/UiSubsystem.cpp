@@ -28,11 +28,11 @@ void UUiSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UUiSubsystem::RefreshStatusViewModel()
+bool UUiSubsystem::RefreshStatusViewModel()
 {
 	if (!StatusViewModel)
 	{
-		return;
+		return false;
 	}
 
 	UAbilitySystemComponent* ASC = ResolveAbilitySystemComponent();
@@ -42,26 +42,27 @@ void UUiSubsystem::RefreshStatusViewModel()
 		{
 			StatusViewModel->UninitializeViewModel();
 		}
-		return;
+		return false;
 	}
 
 	StatusViewModel->InitializeViewModel(ASC);
+	return StatusViewModel->IsViewModelInitialized();
 }
 
-void UUiSubsystem::ApplyStatusViewModelToWidget(UUserWidget* InWidget)
+bool UUiSubsystem::ApplyStatusViewModelToWidget(UUserWidget* InWidget)
 {
 	if (!InWidget || !StatusViewModel)
 	{
-		return;
+		return false;
 	}
 
-	RefreshStatusViewModel();
+	const bool bViewModelReady = RefreshStatusViewModel();
 
 	UMVVMView* ViewExtension = InWidget->GetExtension<UMVVMView>();
 	if (!ViewExtension)
 	{
 		UE_LOG(PdUiSubsystemLog, Warning, TEXT("ApplyStatusViewModelToWidget failed: widget '%s' does not have an MVVMView extension."), *GetNameSafe(InWidget));
-		return;
+		return false;
 	}
 
 	const bool bSuccess = ViewExtension->SetViewModel(UStatusViewModel::ViewModelName, StatusViewModel);
@@ -73,10 +74,15 @@ void UUiSubsystem::ApplyStatusViewModelToWidget(UUserWidget* InWidget)
 			TEXT("ApplyStatusViewModelToWidget failed: could not set viewmodel '%s' on widget '%s'."),
 			*UStatusViewModel::ViewModelName.ToString(),
 			*GetNameSafe(InWidget));
-		return;
+		return false;
 	}
 
-	StatusViewModel->UpdateAllData();
+	if (bViewModelReady)
+	{
+		StatusViewModel->UpdateAllData();
+	}
+
+	return bViewModelReady;
 }
 
 UAbilitySystemComponent* UUiSubsystem::ResolveAbilitySystemComponent() const

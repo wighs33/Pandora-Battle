@@ -46,6 +46,8 @@ protected:
 	// State helpers
 	void ClearActiveEquipEffect();
 	void ClearPendingEquipState();
+	void FinalizeEquipCommit();
+	bool CommitPendingEquipIfPossible();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> EquippedItemEffectClass;
@@ -64,4 +66,7 @@ protected:
 
 	UPROPERTY(Transient)
 	TSubclassOf<UAnimInstance> PendingEquipAnimLayer;
+
+	UPROPERTY(Transient)
+	bool bEquipCommitted = false;
 };

@@ -22,32 +22,6 @@ EDataValidationResult UControllerInputDefinition::IsDataValid(FDataValidationCon
 		Context.AddError(NSLOCTEXT("ControllerInputDefinition", "MissingInputMapping", "InputMapping is required."));
 	}
 
-	TSet<FGameplayTag> AbilityInputTags;
-	for (int32 EntryIndex = 0; EntryIndex < AbilityInputActions.Num(); ++EntryIndex)
-	{
-		const FPdAbilityInputAction& Entry = AbilityInputActions[EntryIndex];
-		if (!Entry.IsValid())
-		{
-			Result = EDataValidationResult::Invalid;
-			Context.AddError(FText::Format(
-				NSLOCTEXT("ControllerInputDefinition", "InvalidAbilityInputAction", "AbilityInputActions entry {0} requires both InputTag and InputAction."),
-				FText::AsNumber(EntryIndex)));
-			continue;
-		}
-
-		if (AbilityInputTags.Contains(Entry.InputTag))
-		{
-			Result = EDataValidationResult::Invalid;
-			Context.AddError(FText::Format(
-				NSLOCTEXT("ControllerInputDefinition", "DuplicateAbilityInputTag", "AbilityInputActions entry {0} duplicates InputTag '{1}'."),
-				FText::AsNumber(EntryIndex),
-				FText::FromString(Entry.InputTag.ToString())));
-			continue;
-		}
-
-		AbilityInputTags.Add(Entry.InputTag);
-	}
-
 	const bool bHasNativeInputAction =
 		!MoveInputAction.IsNull()
 		|| !LookInputAction.IsNull()
@@ -56,10 +30,16 @@ EDataValidationResult UControllerInputDefinition::IsDataValid(FDataValidationCon
 		|| !InteractInputAction.IsNull()
 		|| !AttackInputAction.IsNull()
 		|| !AimInputAction.IsNull()
+		|| !Skill1InputAction.IsNull()
+		|| !Skill2InputAction.IsNull()
+		|| !Skill3InputAction.IsNull()
+		|| !Skill4InputAction.IsNull()
+		|| !TargetConfirmInputAction.IsNull()
 		|| !OpenInfoUiInputAction.IsNull()
-		|| !SelectPandoraInputAction.IsNull();
+		|| !SelectPandoraInputAction.IsNull()
+		|| !PandoraTreeInputAction.IsNull();
 
-	if (!bHasNativeInputAction && AbilityInputActions.IsEmpty())
+	if (!bHasNativeInputAction)
 	{
 		Context.AddWarning(NSLOCTEXT("ControllerInputDefinition", "NoInputActions", "ControllerInputDefinition has no input actions."));
 	}

@@ -52,10 +52,10 @@ protected:
 	TObjectPtr<USkinEquipSlotWidget> ShoesSlot;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Skin|Bind")
-	TObjectPtr<USkinEquipSlotWidget> HairSlot;
+	TObjectPtr<USkinEquipSlotWidget> HeadSlot;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Skin|Bind")
-	TObjectPtr<USkinEquipSlotWidget> FaceSlot;
+	TObjectPtr<USkinEquipSlotWidget> SkinColorSlot;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Skin|Bind")
 	TObjectPtr<USkinEquipSlotWidget> BackSlot;

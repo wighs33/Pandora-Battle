@@ -369,6 +369,7 @@ void UGameFeatureAction_AddAttributes::CollectAttributeSetClasses(TArray<TSubcla
 			OutAttributeSetClasses.AddUnique(AttributeSetClass);
 		}
 	}
+
 }
 
 UAttributeSet* UGameFeatureAction_AddAttributes::FindExistingAttributeSet(AActor* Actor, TSubclassOf<UAttributeSet> AttributeSetClass) const

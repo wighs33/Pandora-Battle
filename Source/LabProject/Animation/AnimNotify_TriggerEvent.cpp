@@ -2,49 +2,86 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Animation/AnimSequenceBase.h"
+#include "Character/PdCharacterBase.h"
 #include "Components/SkeletalMeshComponent.h"
 
-/** 애님 노티파이 시점에 지정한 게임플레이 이벤트를 전송합니다. */
+DEFINE_LOG_CATEGORY_STATIC(LogAnimNotifyTriggerEvent, Log, All);
+
+/** ?�님 ?�티?�이 ?�점??지?�한 게임?�레???�벤?��? ?�송?�니?? */
 void UAnimNotify_TriggerEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-	// 사용하지 않는 인자 경고를 방지합니다.
+	// ?�용?��? ?�는 ?�자 경고�?방�??�니??
 	static_cast<void>(Animation);
 	static_cast<void>(EventReference);
 
 	// =================================================================================================================
-	// === 기본 유효성 검사
-
+	// === 기본 ?�효??검??
 	if (!IsValid(MeshComp))
 	{
+		UE_LOG(LogAnimNotifyTriggerEvent, Warning,
+			TEXT("Notify skipped: MeshComp is invalid. notify=%s eventTag=%s"),
+			*GetNameSafe(this),
+			*EventTag.ToString());
 		return;
 	}
 
 	AActor* OwnerActor = MeshComp->GetOwner();
 	if (!IsValid(OwnerActor) || !EventTag.IsValid())
 	{
+		UE_LOG(LogAnimNotifyTriggerEvent, Warning,
+			TEXT("Notify skipped: owner/tag invalid. notify=%s owner=%s eventTag=%s animation=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(OwnerActor),
+			*EventTag.ToString(),
+			*GetNameSafe(Animation));
 		return;
 	}
 
 	// =================================================================================================================
-	// === AbilitySystemComponent 존재 여부 확인
+	// === AbilitySystemComponent 존재 ?��? ?�인
 
 	if (!UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerActor))
 	{
+		UE_LOG(LogAnimNotifyTriggerEvent, Warning,
+			TEXT("Notify skipped: owner has no ASC. owner=%s eventTag=%s animation=%s"),
+			*GetNameSafe(OwnerActor),
+			*EventTag.ToString(),
+			*GetNameSafe(Animation));
 		return;
 	}
 
 	// =================================================================================================================
-	// === 게임플레이 이벤트 전송
+	// === 게임?�레???�벤???�송
 
+	APdCharacterBase* Character = Cast<APdCharacterBase>(OwnerActor);
 	FGameplayEventData Payload;
+	Payload.EventTag = EventTag;
+	Payload.Instigator = OwnerActor;
+	Payload.Target = OwnerActor;
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(OwnerActor, EventTag, Payload);
+	UE_LOG(LogAnimNotifyTriggerEvent, Log,
+		TEXT("Notify sent gameplay event locally. owner=%s eventTag=%s animation=%s authority=%s localControlled=%s"),
+		*GetNameSafe(OwnerActor),
+		*EventTag.ToString(),
+		*GetNameSafe(Animation),
+		OwnerActor->HasAuthority() ? TEXT("true") : TEXT("false"),
+		Character && Character->IsLocallyControlled() ? TEXT("true") : TEXT("false"));
+	if (Character && Character->IsLocallyControlled() && !Character->HasAuthority())
+	{
+		Character->ServerSendGameplayEventToSelf(Payload);
+		UE_LOG(LogAnimNotifyTriggerEvent, Log,
+			TEXT("Notify forwarded gameplay event to server. owner=%s eventTag=%s animation=%s"),
+			*GetNameSafe(OwnerActor),
+			*EventTag.ToString(),
+			*GetNameSafe(Animation));
+	}
 }
 
-/** 에디터와 디버그에서 표시할 노티파이 이름을 반환합니다. */
+/** ?�디?��? ?�버그에???�시???�티?�이 ?�름??반환?�니?? */
 FString UAnimNotify_TriggerEvent::GetNotifyName_Implementation() const
 {
 	// =================================================================================================================
-	// === 이벤트 태그 포함 노티파이 이름 구성
+	// === ?�벤???�그 ?�함 ?�티?�이 ?�름 구성
 
 	return EventTag.IsValid()
 		? FString::Printf(TEXT("TriggerEvent: %s"), *EventTag.ToString())

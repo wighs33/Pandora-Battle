@@ -47,8 +47,8 @@ public:
 	const FGameplayTag& GetSkinTopEquipTypeTag() const { return ResolveTag(SkinTopEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Top); }
 	const FGameplayTag& GetSkinBottomEquipTypeTag() const { return ResolveTag(SkinBottomEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Bottom); }
 	const FGameplayTag& GetSkinShoesEquipTypeTag() const { return ResolveTag(SkinShoesEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Shoes); }
-	const FGameplayTag& GetSkinHairEquipTypeTag() const { return ResolveTag(SkinHairEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Hair); }
-	const FGameplayTag& GetSkinFaceEquipTypeTag() const { return ResolveTag(SkinFaceEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Face); }
+	const FGameplayTag& GetSkinHeadEquipTypeTag() const { return ResolveTag(SkinHeadEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Head); }
+	const FGameplayTag& GetSkinColorEquipTypeTag() const { return ResolveTag(SkinColorEquipTypeTag, LabGameplayTags::Skin_Cosmetics_SkinColor); }
 	const FGameplayTag& GetSkinBackEquipTypeTag() const { return ResolveTag(SkinBackEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Back); }
 	const FGameplayTag& GetSkinAuraEquipTypeTag() const { return ResolveTag(SkinAuraEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Aura); }
 
@@ -64,7 +64,7 @@ public:
 	const FGameplayTag& GetStatusStrengthTag() const { return ResolveTag(StatusStrengthTag, LabGameplayTags::Status_Offense_Strength); }
 	const FGameplayTag& GetStatusIntelligenceTag() const { return ResolveTag(StatusIntelligenceTag, LabGameplayTags::Status_Offense_Intelligence); }
 	const FGameplayTag& GetStatusArcaneTag() const { return ResolveTag(StatusArcaneTag, LabGameplayTags::Status_Offense_Arcane); }
-	const FGameplayTag& GetStatusToughnessTag() const { return ResolveTag(StatusToughnessTag, LabGameplayTags::Status_Defense_Toughness); }
+	const FGameplayTag& GetStatusArmorTag() const { return ResolveTag(StatusArmorTag, LabGameplayTags::Status_Defense_Armor); }
 	const FGameplayTag& GetStatusRecoveryTag() const { return ResolveTag(StatusRecoveryTag, LabGameplayTags::Status_Defense_Recovery); }
 	const FGameplayTag& GetStatusMagicResistanceTag() const { return ResolveTag(StatusMagicResistanceTag, LabGameplayTags::Status_Defense_MagicResistance); }
 	const FGameplayTag& GetStatusImmunityTag() const { return ResolveTag(StatusImmunityTag, LabGameplayTags::Status_Resistance_Immunity); }
@@ -74,6 +74,7 @@ public:
 	const FGameplayTag& GetStatusSecondPandoraTag() const { return ResolveTag(StatusSecondPandoraTag, LabGameplayTags::Status_PandoraForce_SecondPandora); }
 	const FGameplayTag& GetStatusThirdPandoraTag() const { return ResolveTag(StatusThirdPandoraTag, LabGameplayTags::Status_PandoraForce_ThirdPandora); }
 	const FGameplayTag& GetStatusMaxHealthTag() const { return ResolveTag(StatusMaxHealthTag, LabGameplayTags::Status_Resource_MaxHealth); }
+	const FGameplayTag& GetStatusMaxShieldTag() const { return ResolveTag(StatusMaxShieldTag, LabGameplayTags::Status_Resource_MaxShield); }
 	const FGameplayTag& GetStatusMaxManaTag() const { return ResolveTag(StatusMaxManaTag, LabGameplayTags::Status_Resource_MaxMana); }
 	const FGameplayTag& GetStatusMaxStaminaTag() const { return ResolveTag(StatusMaxStaminaTag, LabGameplayTags::Status_Resource_MaxStamina); }
 	const FGameplayTag& GetStatusAttackSpeedTag() const { return ResolveTag(StatusAttackSpeedTag, LabGameplayTags::Status_Agility_AttackSpeed); }
@@ -172,10 +173,10 @@ private:
 	FGameplayTag SkinShoesEquipTypeTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Tags|Skin|Equipment", meta = (Categories = "Skin.Cosmetics", AllowPrivateAccess = "true"))
-	FGameplayTag SkinHairEquipTypeTag;
+	FGameplayTag SkinHeadEquipTypeTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Tags|Skin|Equipment", meta = (Categories = "Skin.Cosmetics", AllowPrivateAccess = "true"))
-	FGameplayTag SkinFaceEquipTypeTag;
+	FGameplayTag SkinColorEquipTypeTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Tags|Skin|Equipment", meta = (Categories = "Skin.Cosmetics", AllowPrivateAccess = "true"))
 	FGameplayTag SkinBackEquipTypeTag;
@@ -217,7 +218,7 @@ private:
 	FGameplayTag StatusArcaneTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Tags|Status", meta = (Categories = "Status.Defense", AllowPrivateAccess = "true"))
-	FGameplayTag StatusToughnessTag;
+	FGameplayTag StatusArmorTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Tags|Status", meta = (Categories = "Status.Defense", AllowPrivateAccess = "true"))
 	FGameplayTag StatusRecoveryTag;
@@ -245,6 +246,9 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Tags|Status", meta = (Categories = "Status.Resource", AllowPrivateAccess = "true"))
 	FGameplayTag StatusMaxHealthTag;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Tags|Status", meta = (Categories = "Status.Resource", AllowPrivateAccess = "true"))
+	FGameplayTag StatusMaxShieldTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Tags|Status", meta = (Categories = "Status.Resource", AllowPrivateAccess = "true"))
 	FGameplayTag StatusMaxManaTag;

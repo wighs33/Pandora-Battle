@@ -89,8 +89,8 @@ void ULeftSkinWidget::RebuildSkinEquipSlotList()
 	SkinEquipSlotList.Add(TopSlot);
 	SkinEquipSlotList.Add(BottomSlot);
 	SkinEquipSlotList.Add(ShoesSlot);
-	SkinEquipSlotList.Add(HairSlot);
-	SkinEquipSlotList.Add(FaceSlot);
+	SkinEquipSlotList.Add(HeadSlot);
+	SkinEquipSlotList.Add(SkinColorSlot);
 	SkinEquipSlotList.Add(BackSlot);
 	SkinEquipSlotList.Add(AuraSlot);
 	SkinEquipSlotList.Add(GestureSlot1);
@@ -108,8 +108,8 @@ void ULeftSkinWidget::RebuildEquipSlotNameList()
 			FText::FromString(TEXT("Top")),
 			FText::FromString(TEXT("Bottom")),
 			FText::FromString(TEXT("Shoes")),
-			FText::FromString(TEXT("Hair")),
-			FText::FromString(TEXT("Face")),
+			FText::FromString(TEXT("Head")),
+			FText::FromString(TEXT("Skin Color")),
 			FText::FromString(TEXT("Back")),
 			FText::FromString(TEXT("Aura")),
 			FText::FromString(TEXT("1")),
@@ -177,14 +177,14 @@ FGameplayTag ULeftSkinWidget::ResolveSkinEquipTypeTagForSlot(const USkinEquipSlo
 		return UProjectTagConfig::Get(this)->GetSkinShoesEquipTypeTag();
 	}
 
-	if (SkinEquipSlot == HairSlot)
+	if (SkinEquipSlot == HeadSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinHairEquipTypeTag();
+		return UProjectTagConfig::Get(this)->GetSkinHeadEquipTypeTag();
 	}
 
-	if (SkinEquipSlot == FaceSlot)
+	if (SkinEquipSlot == SkinColorSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinFaceEquipTypeTag();
+		return UProjectTagConfig::Get(this)->GetSkinColorEquipTypeTag();
 	}
 
 	if (SkinEquipSlot == BackSlot)

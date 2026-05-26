@@ -33,8 +33,8 @@ UProjectTagConfig::UProjectTagConfig()
 	SkinTopEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Top;
 	SkinBottomEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Bottom;
 	SkinShoesEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Shoes;
-	SkinHairEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Hair;
-	SkinFaceEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Face;
+	SkinHeadEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Head;
+	SkinColorEquipTypeTag = LabGameplayTags::Skin_Cosmetics_SkinColor;
 	SkinBackEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Back;
 	SkinAuraEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Aura;
 
@@ -50,7 +50,7 @@ UProjectTagConfig::UProjectTagConfig()
 	StatusStrengthTag = LabGameplayTags::Status_Offense_Strength;
 	StatusIntelligenceTag = LabGameplayTags::Status_Offense_Intelligence;
 	StatusArcaneTag = LabGameplayTags::Status_Offense_Arcane;
-	StatusToughnessTag = LabGameplayTags::Status_Defense_Toughness;
+	StatusArmorTag = LabGameplayTags::Status_Defense_Armor;
 	StatusRecoveryTag = LabGameplayTags::Status_Defense_Recovery;
 	StatusMagicResistanceTag = LabGameplayTags::Status_Defense_MagicResistance;
 	StatusImmunityTag = LabGameplayTags::Status_Resistance_Immunity;
@@ -60,6 +60,7 @@ UProjectTagConfig::UProjectTagConfig()
 	StatusSecondPandoraTag = LabGameplayTags::Status_PandoraForce_SecondPandora;
 	StatusThirdPandoraTag = LabGameplayTags::Status_PandoraForce_ThirdPandora;
 	StatusMaxHealthTag = LabGameplayTags::Status_Resource_MaxHealth;
+	StatusMaxShieldTag = LabGameplayTags::Status_Resource_MaxShield;
 	StatusMaxManaTag = LabGameplayTags::Status_Resource_MaxMana;
 	StatusMaxStaminaTag = LabGameplayTags::Status_Resource_MaxStamina;
 	StatusAttackSpeedTag = LabGameplayTags::Status_Agility_AttackSpeed;

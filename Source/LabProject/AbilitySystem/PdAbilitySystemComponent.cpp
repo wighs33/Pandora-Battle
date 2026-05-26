@@ -1,10 +1,15 @@
 #include "AbilitySystem/PdAbilitySystemComponent.h"
 
 #include "AbilitySystemGlobals.h"
+#include "AbilitySystem/Ability/PdGameplayAbility.h"
+#include "Abilities/GameplayAbility.h"
+#include "Abilities/GameplayAbilityTypes.h"
+#include "Common/LabGameplayTags.h"
 #include "Common/ProjectTagConfig.h"
 #include "GameplayEffect.h"
 #include "GameFramework/Actor.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdAbilitySystemComponent)
 
@@ -12,6 +17,29 @@ DEFINE_LOG_CATEGORY_STATIC(PdAbilitySystemComponentLog, Log, All);
 
 namespace
 {
+	void TryActivateGrantedAbilityNextTick(UAbilitySystemComponent* AbilitySystemComponent, FGameplayAbilitySpecHandle AbilityHandle)
+	{
+		if (!AbilitySystemComponent || !AbilityHandle.IsValid())
+		{
+			return;
+		}
+
+		if (UWorld* World = AbilitySystemComponent->GetWorld())
+		{
+			TWeakObjectPtr<UAbilitySystemComponent> WeakASC = AbilitySystemComponent;
+			World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakASC, AbilityHandle]()
+			{
+				if (UAbilitySystemComponent* ASC = WeakASC.Get())
+				{
+					ASC->TryActivateAbility(AbilityHandle);
+				}
+			}));
+			return;
+		}
+
+		AbilitySystemComponent->TryActivateAbility(AbilityHandle);
+	}
+
 	bool SetAttributeDataDefaultValue(UAttributeSet* AttributeSet, const FGameplayAttribute& Attribute, float DefaultValue)
 	{
 		if (!AttributeSet || !Attribute.IsValid())
@@ -48,6 +76,43 @@ void UPdAbilitySystemComponent::OnRegister()
 	}
 
 	Super::OnRegister();
+}
+
+void UPdAbilitySystemComponent::OnGiveAbility(FGameplayAbilitySpec& AbilitySpec)
+{
+	Super::OnGiveAbility(AbilitySpec);
+	NotifyAbilitiesChanged();
+}
+
+void UPdAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& AbilitySpec)
+{
+	Super::OnRemoveAbility(AbilitySpec);
+	NotifyAbilitiesChanged();
+}
+
+void UPdAbilitySystemComponent::OnRep_ActivateAbilities()
+{
+	Super::OnRep_ActivateAbilities();
+
+	if (!HasReplicatedAbilityListChanged())
+	{
+		return;
+	}
+
+	CacheReplicatedAbilityList();
+	NotifyAbilitiesChanged();
+}
+
+void UPdAbilitySystemComponent::NotifyAbilitiesChanged()
+{
+	OnAbilitiesChanged.Broadcast();
+	OnAbilitiesChangedNative.Broadcast();
+
+	FGameplayEventData EventData;
+	EventData.EventTag = LabGameplayTags::Event_Abilities_Changed;
+	EventData.Instigator = GetAvatarActor();
+	EventData.Target = GetAvatarActor();
+	HandleGameplayEvent(LabGameplayTags::Event_Abilities_Changed, &EventData);
 }
 
 int32 UPdAbilitySystemComponent::AddAttributeConfig(const FPdAttributeConfig& AttributeConfig)
@@ -90,7 +155,9 @@ bool UPdAbilitySystemComponent::ApplyAttributeDefaultValues(const FPdAttributeCo
 			continue;
 		}
 
-		TSubclassOf<UAttributeSet> AttributeSetClass = const_cast<UClass*>(Entry.Attribute.GetAttributeSetClass());
+		const FGameplayAttribute& AttributeToInitialize = Entry.Attribute;
+
+		TSubclassOf<UAttributeSet> AttributeSetClass = const_cast<UClass*>(AttributeToInitialize.GetAttributeSetClass());
 		if (!AttributeSetClass)
 		{
 			UE_LOG(PdAbilitySystemComponentLog, Warning, TEXT("ApplyAttributeDefaultValues skipped '%s': attribute has no AttributeSet class."),
@@ -99,24 +166,24 @@ bool UPdAbilitySystemComponent::ApplyAttributeDefaultValues(const FPdAttributeCo
 		}
 
 		UAttributeSet* AttributeSet = const_cast<UAttributeSet*>(GetAttributeSet(AttributeSetClass));
-		FProperty* Property = Entry.Attribute.GetUProperty();
+		FProperty* Property = AttributeToInitialize.GetUProperty();
 		if (!AttributeSet || !Property)
 		{
 			UE_LOG(PdAbilitySystemComponentLog, Warning,
 				TEXT("ApplyAttributeDefaultValues skipped '%s' -> '%s': missing AttributeSet or property on '%s'."),
 				*Entry.StatTag.ToString(),
-				*Entry.Attribute.GetName(),
+				*AttributeToInitialize.GetName(),
 				*GetNameSafe(GetOwner()));
 			continue;
 		}
 
-		SetNumericAttributeBase(Entry.Attribute, Entry.DefaultValue);
-		if (!SetAttributeDataDefaultValue(AttributeSet, Entry.Attribute, Entry.DefaultValue))
+		SetNumericAttributeBase(AttributeToInitialize, Entry.DefaultValue);
+		if (!SetAttributeDataDefaultValue(AttributeSet, AttributeToInitialize, Entry.DefaultValue))
 		{
 			UE_LOG(PdAbilitySystemComponentLog, Warning,
 				TEXT("ApplyAttributeDefaultValues failed '%s' -> '%s' on '%s'."),
 				*Entry.StatTag.ToString(),
-				*Entry.Attribute.GetName(),
+				*AttributeToInitialize.GetName(),
 				*GetNameSafe(GetOwner()));
 			continue;
 		}
@@ -272,6 +339,113 @@ bool UPdAbilitySystemComponent::ApplyStatUpEffectByTags(TSubclassOf<UGameplayEff
 		*AppliedHandle.ToString(),
 		bApplied ? TEXT("true") : TEXT("false"));
 	return bApplied;
+}
+
+TArray<FGameplayAbilitySpecHandle> UPdAbilitySystemComponent::GrantAbilities(
+	const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
+	int32 AbilityLevel,
+	UObject* SourceObject)
+{
+	TArray<FGameplayAbilitySpecHandle> GrantedHandles;
+	if (!IsOwnerActorAuthoritative() || AbilityClasses.IsEmpty())
+	{
+		return GrantedHandles;
+	}
+
+	for (const TSubclassOf<UGameplayAbility>& AbilityClass : AbilityClasses)
+	{
+		if (!AbilityClass || HasGrantedAbilityClass(AbilityClass))
+		{
+			continue;
+		}
+
+		FGameplayAbilitySpec AbilitySpec(AbilityClass, FMath::Max(AbilityLevel, 1), INDEX_NONE, SourceObject ? SourceObject : GetAvatarActor());
+		const UPdGameplayAbility* AbilityCDO = Cast<UPdGameplayAbility>(AbilityClass->GetDefaultObject());
+		const bool bAutoActivateWhenGranted = AbilityCDO && AbilityCDO->ShouldAutoActivateWhenGranted();
+
+		const FGameplayAbilitySpecHandle GrantedHandle = GiveAbility(AbilitySpec);
+		if (GrantedHandle.IsValid())
+		{
+			GrantedHandles.Add(GrantedHandle);
+			if (bAutoActivateWhenGranted)
+			{
+				TryActivateGrantedAbilityNextTick(this, GrantedHandle);
+			}
+		}
+	}
+
+	return GrantedHandles;
+}
+
+void UPdAbilitySystemComponent::RemoveAbilities(const TArray<FGameplayAbilitySpecHandle>& AbilityHandles)
+{
+	if (!IsOwnerActorAuthoritative() || AbilityHandles.IsEmpty())
+	{
+		return;
+	}
+
+	for (const FGameplayAbilitySpecHandle& AbilityHandle : AbilityHandles)
+	{
+		if (AbilityHandle.IsValid())
+		{
+			ClearAbility(AbilityHandle);
+		}
+	}
+}
+
+bool UPdAbilitySystemComponent::HasGrantedAbilityClass(TSubclassOf<UGameplayAbility> AbilityClass) const
+{
+	const UClass* AbilityClassType = AbilityClass.Get();
+	if (!AbilityClassType)
+	{
+		return false;
+	}
+
+	for (const FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
+	{
+		if (AbilitySpec.Ability && AbilitySpec.Ability->GetClass() == AbilityClassType)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UPdAbilitySystemComponent::HasReplicatedAbilityListChanged() const
+{
+	const TArray<FGameplayAbilitySpec>& CurrentAbilities = ActivatableAbilities.Items;
+	if (LastReplicatedAbilityHandles.Num() != CurrentAbilities.Num()
+		|| LastReplicatedAbilityClasses.Num() != CurrentAbilities.Num())
+	{
+		return true;
+	}
+
+	for (int32 Index = 0; Index < CurrentAbilities.Num(); ++Index)
+	{
+		const FGameplayAbilitySpec& CurrentSpec = CurrentAbilities[Index];
+		const TSubclassOf<UGameplayAbility> CurrentAbilityClass = CurrentSpec.Ability ? CurrentSpec.Ability->GetClass() : nullptr;
+
+		if (LastReplicatedAbilityHandles[Index] != CurrentSpec.Handle
+			|| LastReplicatedAbilityClasses[Index] != CurrentAbilityClass)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UPdAbilitySystemComponent::CacheReplicatedAbilityList()
+{
+	LastReplicatedAbilityHandles.Reset();
+	LastReplicatedAbilityClasses.Reset();
+
+	for (const FGameplayAbilitySpec& AbilitySpec : ActivatableAbilities.Items)
+	{
+		LastReplicatedAbilityHandles.Add(AbilitySpec.Handle);
+		LastReplicatedAbilityClasses.Add(AbilitySpec.Ability ? AbilitySpec.Ability->GetClass() : nullptr);
+	}
 }
 
 bool UPdAbilitySystemComponent::ResolveAttributeFromTag(const FGameplayTag& StatTag, FGameplayAttribute& OutAttribute) const

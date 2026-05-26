@@ -43,6 +43,10 @@ protected:
 
 	// State helpers
 	void ClearActiveUnequipEffect();
+	void FinalizeUnequipCommit();
+	bool CommitPendingUnequipIfPossible();
+	bool ShouldActivateRequestedEquip() const;
+	void ActivateRequestedEquipIfNeeded(bool bShouldActivate);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> UnequipEffectClass;
@@ -55,4 +59,7 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<const UItemDefinition> ActiveUnequipWeaponDefinition;
+
+	UPROPERTY(Transient)
+	bool bUnequipCommitted = false;
 };

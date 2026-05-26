@@ -7,6 +7,22 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftPandoraWidget)
 
+namespace
+{
+	void SetImageResource(UImage* Image, UObject* ResourceObject)
+	{
+		if (!Image)
+		{
+			return;
+		}
+
+		FSlateBrush Brush = Image->GetBrush();
+		Brush.DrawAs = ESlateBrushDrawType::Image;
+		Brush.SetResourceObject(ResourceObject);
+		Image->SetBrush(Brush);
+	}
+}
+
 void ULeftPandoraWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -63,12 +79,12 @@ void ULeftPandoraWidget::SetSkillInfo(const TArray<FSkill>& InSkills)
 
 		if (SkillIconList[SkillIndex])
 		{
-			SkillIconList[SkillIndex]->SetBrushFromTexture(Skill.IconTexture, false);
+			SetImageResource(SkillIconList[SkillIndex], Skill.GetIconResource());
 		}
 
 		if (SkillNameList[SkillIndex])
 		{
-			SkillNameList[SkillIndex]->SetText(Skill.DisplayName);
+			SkillNameList[SkillIndex]->SetText(Skill.GetDisplayName());
 		}
 	}
 }

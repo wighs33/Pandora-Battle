@@ -19,7 +19,7 @@ void URightStatusWidget::NativeConstruct()
 	const FGameplayTag StrengthStatTag = GetStrengthStatTag();
 	const FGameplayTag IntelligenceStatTag = GetIntelligenceStatTag();
 	const FGameplayTag ArcaneStatTag = GetArcaneStatTag();
-	const FGameplayTag ToughnessStatTag = GetToughnessStatTag();
+	const FGameplayTag ArmorStatTag = GetArmorStatTag();
 	const FGameplayTag RecoveryStatTag = GetRecoveryStatTag();
 	const FGameplayTag MagicResistanceStatTag = GetMagicResistanceStatTag();
 	const FGameplayTag ImmunityStatTag = GetImmunityStatTag();
@@ -35,12 +35,12 @@ void URightStatusWidget::NativeConstruct()
 	const FGameplayTag MovementSpeedStatTag = GetMovementSpeedStatTag();
 	const FGameplayTag CriticalChanceStatTag = GetCriticalChanceStatTag();
 
-	UE_LOG(LogRightStatusWidget, Log, TEXT("[StatUpgrade] RightStatus NativeConstruct: widget=%s tags=(str:%s int:%s arc:%s tough:%s rec:%s mr:%s imm:%s fort:%s san:%s p1:%s p2:%s p3:%s maxHp:%s maxMana:%s maxSta:%s atkSpd:%s moveSpd:%s crit:%s)"),
+	UE_LOG(LogRightStatusWidget, Log, TEXT("[StatUpgrade] RightStatus NativeConstruct: widget=%s tags=(str:%s int:%s arc:%s armor:%s rec:%s mr:%s imm:%s fort:%s san:%s p1:%s p2:%s p3:%s maxHp:%s maxMana:%s maxSta:%s atkSpd:%s moveSpd:%s crit:%s)"),
 		*GetNameSafe(this),
 		*StrengthStatTag.ToString(),
 		*IntelligenceStatTag.ToString(),
 		*ArcaneStatTag.ToString(),
-		*ToughnessStatTag.ToString(),
+		*ArmorStatTag.ToString(),
 		*RecoveryStatTag.ToString(),
 		*MagicResistanceStatTag.ToString(),
 		*ImmunityStatTag.ToString(),
@@ -98,9 +98,9 @@ void URightStatusWidget::HandleArcaneClicked()
 	HandleStatUpButtonClicked(GetArcaneStatTag(), TEXT("ArcaneStatTag"), Button_Up_Arcane);
 }
 
-void URightStatusWidget::HandleToughnessClicked()
+void URightStatusWidget::HandleArmorClicked()
 {
-	HandleStatUpButtonClicked(GetToughnessStatTag(), TEXT("ToughnessStatTag"), Button_Up_Toughness);
+	HandleStatUpButtonClicked(GetArmorStatTag(), TEXT("ArmorStatTag"), Button_Up_Toughness);
 }
 
 void URightStatusWidget::HandleRecoveryClicked()
@@ -212,7 +212,7 @@ void URightStatusWidget::ValidateConfiguredStatTags() const
 	ValidateTag(TEXT("StrengthStatTag"), GetStrengthStatTag(), Button_Up_Strength);
 	ValidateTag(TEXT("IntelligenceStatTag"), GetIntelligenceStatTag(), Button_Up_Intelligence);
 	ValidateTag(TEXT("ArcaneStatTag"), GetArcaneStatTag(), Button_Up_Arcane);
-	ValidateTag(TEXT("ToughnessStatTag"), GetToughnessStatTag(), Button_Up_Toughness);
+	ValidateTag(TEXT("ArmorStatTag"), GetArmorStatTag(), Button_Up_Toughness);
 	ValidateTag(TEXT("RecoveryStatTag"), GetRecoveryStatTag(), Button_Up_Recovery);
 	ValidateTag(TEXT("MagicResistanceStatTag"), GetMagicResistanceStatTag(), Button_Up_MagicResistance);
 	ValidateTag(TEXT("ImmunityStatTag"), GetImmunityStatTag(), Button_Up_Immunity);
@@ -234,7 +234,7 @@ void URightStatusWidget::BindButtonCallbacks()
 	Button_Up_Strength->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleStrengthClicked);
 	Button_Up_Intelligence->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleIntelligenceClicked);
 	Button_Up_Arcane->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleArcaneClicked);
-	Button_Up_Toughness->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleToughnessClicked);
+	Button_Up_Toughness->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleArmorClicked);
 	Button_Up_Recovery->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleRecoveryClicked);
 	Button_Up_MagicResistance->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMagicResistanceClicked);
 	Button_Up_Immunity->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleImmunityClicked);
@@ -256,7 +256,7 @@ void URightStatusWidget::UnbindButtonCallbacks()
 	Button_Up_Strength->OnClicked.RemoveDynamic(this, &ThisClass::HandleStrengthClicked);
 	Button_Up_Intelligence->OnClicked.RemoveDynamic(this, &ThisClass::HandleIntelligenceClicked);
 	Button_Up_Arcane->OnClicked.RemoveDynamic(this, &ThisClass::HandleArcaneClicked);
-	Button_Up_Toughness->OnClicked.RemoveDynamic(this, &ThisClass::HandleToughnessClicked);
+	Button_Up_Toughness->OnClicked.RemoveDynamic(this, &ThisClass::HandleArmorClicked);
 	Button_Up_Recovery->OnClicked.RemoveDynamic(this, &ThisClass::HandleRecoveryClicked);
 	Button_Up_MagicResistance->OnClicked.RemoveDynamic(this, &ThisClass::HandleMagicResistanceClicked);
 	Button_Up_Immunity->OnClicked.RemoveDynamic(this, &ThisClass::HandleImmunityClicked);
@@ -288,9 +288,9 @@ FGameplayTag URightStatusWidget::GetArcaneStatTag() const
 	return UProjectTagConfig::Get(this)->GetStatusArcaneTag();
 }
 
-FGameplayTag URightStatusWidget::GetToughnessStatTag() const
+FGameplayTag URightStatusWidget::GetArmorStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusToughnessTag();
+	return UProjectTagConfig::Get(this)->GetStatusArmorTag();
 }
 
 FGameplayTag URightStatusWidget::GetRecoveryStatTag() const

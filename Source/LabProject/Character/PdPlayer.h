@@ -3,6 +3,8 @@
 #include "Character/PdCharacterBase.h"
 #include "Common/WeaponDefinitionData.h"
 #include "Interface/InteractableInterface.h"
+#include "SavedGameData/PlayerPandoraData.h"
+#include "TimerManager.h"
 #include "PdPlayer.generated.h"
 
 class UBoxComponent;
@@ -11,12 +13,16 @@ class UPrimitiveComponent;
 class USpringArmComponent;
 class APdPlayerState;
 class AActor;
+class UPdSaveGame;
+class UPandoraTreeComponent;
+class UPandoraComponent;
+class UPandoraDefinition;
 
 /**
- * <플레이어 캐릭터>
- * - 상호작용 대상 감지를 담당합니다.
- * - 플레이어 전용 카메라 구성을 가집니다.
- * - ASC 소유자를 PlayerState로 사용합니다.
+ * <?�레?�어 캐릭??
+ * - ?�호?�용 ?�??감�?�??�당?�니??
+ * - ?�레?�어 ?�용 카메??구성??가집니??
+ * - ASC ?�유?��? PlayerState�??�용?�니??
  */
 UCLASS()
 class LABPROJECT_API APdPlayer : public APdCharacterBase
@@ -24,22 +30,29 @@ class LABPROJECT_API APdPlayer : public APdCharacterBase
 	GENERATED_BODY()
 
 public:
-	/** 플레이어 기본 상태를 초기화합니다. */
+	/** ?�레?�어 기본 ?�태�?초기?�합?�다. */
 	APdPlayer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// Timing hooks
 	virtual void BeginPlay() override;
+	virtual void PossessedBy(AController* NewController) override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	/** PlayerState 기준 ASC를 반환합니다. */
+	/** PlayerState 기�? ASC�?반환?�니?? */
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-	/** 현재 상호작용 대상이 있는지 반환합니다. */
+	/** ?�재 ?�호?�용 ?�?�이 ?�는지 반환?�니?? */
 	UFUNCTION(BlueprintCallable, Category = "!Interaction", meta = (DisplayName = "HasCurrentInteractActors?"))
 	bool HasCurrentInteractActors(TArray<TScriptInterface<IInteractableInterface>>& OutCurrentInteractActors) const;
 
 	UFUNCTION(BlueprintCallable, Category = "!Weapon|Aim")
 	void SetWeaponAimActive(bool bEnabled, const FWeaponAimCameraSettings& AimCameraSettings);
+
+	UFUNCTION(BlueprintCallable, Category = "!Ability|Camera")
+	void SetAbilityCameraOverrideActive(bool bEnabled, const FWeaponAimCameraSettings& CameraSettings);
+
+	UFUNCTION(BlueprintCallable, Category = "!Ability|Camera", meta = (ClampMin = "0.0", ForceUnits = "s"))
+	void SetAbilityCameraOverrideActiveForDuration(bool bEnabled, const FWeaponAimCameraSettings& CameraSettings, float Duration);
 
 	UFUNCTION(BlueprintPure, Category = "!Weapon|Aim")
 	bool IsWeaponAimActive() const { return bIsWeaponAimActive; }
@@ -50,48 +63,66 @@ public:
 
 protected:
 	// Delegate callbacks
-	/** 상호작용 박스 진입을 처리합니다. */
+	/** ?�호?�용 박스 진입??처리?�니?? */
 	UFUNCTION()
 	void HandleInteractionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-	/** 상호작용 박스 이탈을 처리합니다. */
+	/** ?�호?�용 박스 ?�탈??처리?�니?? */
 	UFUNCTION()
 	void HandleInteractionBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex);
 
 	// Ability-system timing hooks
-	/** ASC 소유 액터를 반환합니다. */
+	/** ASC ?�유 ?�터�?반환?�니?? */
 	virtual AActor* GetAbilitySystemOwnerActor() const override;
 	void ApplyWeaponAimState(bool bEnabled, const FWeaponAimCameraSettings& AimCameraSettings);
 	void UpdateWeaponAimCamera(float DeltaSeconds);
+	void ClearAbilityCameraOverride();
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetWeaponAimActive(bool bEnabled, FWeaponAimCameraSettings AimCameraSettings);
 
-	/** PlayerState를 프로젝트 타입으로 반환합니다. */
+	/** PlayerState�??�로?�트 ?�?�으�?반환?�니?? */
 	APdPlayerState* GetPdPlayerState() const;
+	void InitializePandoraTreeFromSave(AController* NewController);
+	FString GetPlayerSaveId(AController* InController) const;
 
-	/** 액터를 상호작용 엔트리로 변환합니다. */
+	UFUNCTION(BlueprintCallable, Category = "!Pandora|Save")
+	void SavePlayerPandoraData(const FPlayerPandoraData& InPlayerPandoraData);
+
+	UFUNCTION()
+	void HandlePandoraTreePandorasChanged();
+
+	UFUNCTION()
+	void HandlePandoraTreePointsChanged(int32 NewPointsAvailable);
+
+	UFUNCTION()
+	void HandlePandoraSelectionChanged(UPandoraDefinition* NewPandoraDefinition);
+
+	UFUNCTION()
+	void HandlePandoraLoadoutChanged();
+
+	/** ?�터�??�호?�용 ?�트리로 변?�합?�다. */
 	bool TryMakeInteractableEntry(AActor* OtherActor, TScriptInterface<IInteractableInterface>& OutInteractableActor) const;
 
 protected:
-	/** 현재 상호작용 가능한 액터 목록입니다. */
+	/** ?�재 ?�호?�용 가?�한 ?�터 목록?�니?? */
 	UPROPERTY(BlueprintReadWrite, Transient, Category = "!Interaction")
 	TArray<TScriptInterface<IInteractableInterface>> CurrentInteractActors;
 
-	/** 상호작용 감지 박스입니다. */
+	/** ?�호?�용 감�? 박스?�니?? */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Interaction", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBoxComponent> InteractionBox;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Interaction", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	float InteractionServerValidationDistance = 250.0f;
 
-	/** 카메라 붐입니다. */
+	/** 카메??붐입?�다. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> CameraBoom;
 
-	/** 추적 카메라입니다. */
+	/** 추적 카메?�입?�다. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> FollowCamera;
 
@@ -104,6 +135,14 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
 	FWeaponAimCameraSettings ActiveWeaponAimCameraSettings;
 
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Ability|Camera")
+	bool bAbilityCameraOverrideActive = false;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Ability|Camera")
+	FWeaponAimCameraSettings ActiveAbilityCameraOverrideSettings;
+
+	FTimerHandle AbilityCameraOverrideTimerHandle;
+
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
 	bool bHasCachedWeaponAimCameraDefaults = false;
 
@@ -115,4 +154,19 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
 	FRotator DefaultFollowCameraRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Pandora|Save")
+	TObjectPtr<UPdSaveGame> PlayerSaveGameData;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPandoraTreeComponent> BoundPandoraTreeComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPandoraComponent> BoundPandoraComponent;
+
+	UPROPERTY(Transient)
+	bool bRestoringPandoraSelectionFromSave = false;
+
+	UPROPERTY(Transient)
+	FString CachedPlayerSaveId;
 };

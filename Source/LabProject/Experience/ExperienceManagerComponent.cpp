@@ -4,6 +4,7 @@
 #include "Experience/ExperienceDefinition.h"
 #include "GameFeaturePluginOperationResult.h"
 #include "GameFeaturesSubsystem.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ExperienceManagerComponent)
@@ -22,7 +23,10 @@ void UExperienceManagerComponent::GetLifetimeReplicatedProps(TArray<FLifetimePro
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(UExperienceManagerComponent, CurrentExperienceId);
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+
+	DOREPLIFETIME_WITH_PARAMS_FAST(UExperienceManagerComponent, CurrentExperienceId, Params);
 }
 
 void UExperienceManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -55,6 +59,7 @@ void UExperienceManagerComponent::SetCurrentExperienceAuth(FPrimaryAssetId Exper
 	}
 
 	CurrentExperienceId = ExperienceId;
+	MARK_PROPERTY_DIRTY_FROM_NAME(UExperienceManagerComponent, CurrentExperienceId, this);
 	StartExperienceLoad();
 }
 
@@ -223,6 +228,10 @@ void UExperienceManagerComponent::DeactivateExperience()
 	ExperienceLoadHandle.Reset();
 	CurrentExperience = nullptr;
 	CurrentExperienceId = FPrimaryAssetId();
+	if (const AActor* Owner = GetOwner(); Owner && Owner->HasAuthority())
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(UExperienceManagerComponent, CurrentExperienceId, this);
+	}
 	GameFeaturePluginURLs.Reset();
 	PendingGameFeatureLoadCount = 0;
 	LoadState = EPdExperienceLoadState::Unloaded;

@@ -7,6 +7,7 @@
 #include "CombatComponent.generated.h"
 
 class AActor;
+class APdHUD;
 class APdCharacterBase;
 class APdPlayer;
 class AWeaponBase;
@@ -14,7 +15,6 @@ class UAbilitySystemComponent;
 class UAttackAbility;
 class UGameplayEffect;
 class UPdAbilitySystemComponent;
-class UControllerUiComponent;
 struct FGameplayAttribute;
 struct FGameplayAbilitySpec;
 
@@ -60,7 +60,7 @@ private:
 	void ServerRequestAttackJumpSection(FName RequestedSectionName);
 
 	APdPlayer* GetPlayerOwner() const;
-	UControllerUiComponent* GetControllerUiComponent() const;
+	APdHUD* GetPdHUD() const;
 	AWeaponBase* GetCurrentWeaponActor() const;
 	UAbilitySystemComponent* GetPlayerAbilitySystemComponent() const;
 	FGameplayTag GetAttackAbilityTag() const;
@@ -73,6 +73,7 @@ private:
 	UAttackAbility* ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
 
 	void ProcessAttackInput();
+	bool IsPrimaryAttackBlockedByAbilityTags() const;
 	bool TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter, AWeaponBase* WeaponActor) const;
 	bool ShouldUseRangedAttackAbility(const AWeaponBase* WeaponActor) const;
 	FGameplayTag GetSelectedAttackAbilityTag(const AWeaponBase* WeaponActor) const;

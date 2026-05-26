@@ -6,8 +6,9 @@
 #include "PdPlayerState.generated.h"
 
 class UPandoraComponent;
+class UPandoraTreeComponent;
 class UPdAbilitySystemComponent;
-class UPdAttributeSet;
+class UBasicAttributeSet;
 class UInventoryComponent;
 class UPlayerRewardComponent;
 class USkinComponent;
@@ -31,7 +32,7 @@ public:
 	//--- Ability System
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	UPdAbilitySystemComponent* GetPdAbilitySystemComponent() const;
-	UPdAttributeSet* GetPdAttributeSet() const;
+	UBasicAttributeSet* GetPdAttributeSet() const;
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Components
@@ -40,6 +41,9 @@ public:
 	UInventoryComponent* GetInventoryComponent() const;
 	USkinComponent* GetSkinComponent() const;
 	UPandoraComponent* GetPandoraComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "!Components")
+	UPandoraTreeComponent* GetPandoraTreeComponent() const;
 
 private:
 	//------------------------------------------------------------------------------------------------------------------

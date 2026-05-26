@@ -9,6 +9,19 @@
 class UInfoWidget;
 class UInfoUiPresenter;
 class USelectPandoraWidget;
+class UPandoraTreeWidget;
+
+USTRUCT(BlueprintType)
+struct LABPROJECT_API FPlayerHudWidgetSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PlayerHUD", meta = (Categories = "UI.Widget"))
+	FGameplayTag WidgetTag;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PlayerHUD")
+	TSubclassOf<UUserWidget> WidgetClass;
+};
 
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FInfoWidgetSettings
@@ -55,6 +68,18 @@ struct LABPROJECT_API FAimCrosshairWidgetSettings
 	TSubclassOf<UUserWidget> WidgetClass;
 };
 
+USTRUCT(BlueprintType)
+struct LABPROJECT_API FPandoraTreeWidgetSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget", meta = (Categories = "UI.Widget"))
+	FGameplayTag WidgetTag;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget")
+	TSubclassOf<UPandoraTreeWidget> WidgetClass;
+};
+
 UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "Widget Class Definition"))
 class LABPROJECT_API UWidgetClassDefinition : public UPrimaryDataAsset
 {
@@ -68,14 +93,21 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Widget")
 	TSubclassOf<UUserWidget> FindWidgetClassByTag(FGameplayTag WidgetTag) const;
 
+	TSubclassOf<UUserWidget> GetPlayerHudWidgetClass() const;
 	TSubclassOf<UInfoWidget> GetInfoWidgetClass() const;
 	TSubclassOf<USelectPandoraWidget> GetSelectPandoraWidgetClass() const;
 	TSubclassOf<UUserWidget> GetAimCrosshairWidgetClass() const;
+	TSubclassOf<UPandoraTreeWidget> GetPandoraTreeWidgetClass() const;
+	const FPlayerHudWidgetSettings& GetPlayerHudWidgetSettings() const { return PlayerHudWidgetSettings; }
 	const FInfoWidgetSettings& GetInfoWidgetSettings() const { return InfoWidgetSettings; }
 	const FSelectPandoraWidgetSettings& GetSelectPandoraWidgetSettings() const { return SelectPandoraWidgetSettings; }
 	const FAimCrosshairWidgetSettings& GetAimCrosshairWidgetSettings() const { return AimCrosshairWidgetSettings; }
+	const FPandoraTreeWidgetSettings& GetPandoraTreeWidgetSettings() const { return PandoraTreeWidgetSettings; }
 
 private:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PlayerHUD", meta = (AllowPrivateAccess = "true"))
+	FPlayerHudWidgetSettings PlayerHudWidgetSettings;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget", meta = (AllowPrivateAccess = "true"))
 	FInfoWidgetSettings InfoWidgetSettings;
 
@@ -84,4 +116,7 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|AimCrosshairWidget", meta = (AllowPrivateAccess = "true"))
 	FAimCrosshairWidgetSettings AimCrosshairWidgetSettings;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget", meta = (AllowPrivateAccess = "true"))
+	FPandoraTreeWidgetSettings PandoraTreeWidgetSettings;
 };

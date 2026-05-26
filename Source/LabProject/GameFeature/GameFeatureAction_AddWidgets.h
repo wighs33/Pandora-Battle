@@ -1,0 +1,60 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFeature/GameFeatureAction_WorldNetworkBase.h"
+#include "GameFeatureAction_AddWidgets.generated.h"
+
+class AActor;
+class APdHUD;
+class FPdActorExtensionHandle;
+class UWidgetClassDefinition;
+class UWorld;
+struct FAssetBundleData;
+struct FGameFeatureDeactivatingContext;
+struct FGameFeatureStateChangeContext;
+struct FWorldContext;
+
+DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddWidgetsLog, Log, All);
+
+struct FPdGameFeatureWidgetHandles
+{
+	TArray<TSharedPtr<FPdActorExtensionHandle>> ExtensionRequestHandles;
+	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<UWidgetClassDefinition>> WidgetDefinitionsByActor;
+};
+
+UCLASS(meta = (DisplayName = "Add Widgets"))
+class LABPROJECT_API UGameFeatureAction_AddWidgets : public UGameFeatureAction_WorldNetworkBase
+{
+	GENERATED_BODY()
+
+public:
+	UGameFeatureAction_AddWidgets();
+
+	virtual void OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context) override;
+
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	virtual void AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData) override;
+#endif
+
+private:
+	virtual void AddToWorld(const FWorldContext& WorldContext, const FGameFeatureStateChangeContext& ChangeContext) override;
+	void RegisterWidgetExtension(UWorld* World, FGameFeatureStateChangeContext ChangeContext);
+	bool CanActivateWidgetExtension(AActor* Actor) const;
+	void AddWidgetsToActor(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
+	void RemoveWidgetsFromActor(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
+	void RemoveAllWidgets(FPdGameFeatureWidgetHandles& Handles) const;
+
+public:
+	UPROPERTY(EditAnywhere, Category = "UI", meta = (AllowAbstract = "false"))
+	TSoftClassPtr<APdHUD> TargetHudClass;
+
+	UPROPERTY(EditAnywhere, Category = "UI", meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<UWidgetClassDefinition> WidgetClassDefinition;
+
+private:
+	TMap<FGameFeatureStateChangeContext, FPdGameFeatureWidgetHandles> ContextHandles;
+};

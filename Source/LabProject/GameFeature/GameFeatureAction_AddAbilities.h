@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "GameFeature/GameFeatureAction_WorldNetworkBase.h"
 #include "GameplayAbilitySpecHandle.h"
-#include "GameplayTagContainer.h"
 #include "GameFeatureAction_AddAbilities.generated.h"
 
 class AActor;
@@ -28,9 +27,6 @@ struct FPdGameFeatureAbilityEntry
 
 	UPROPERTY(EditAnywhere, Category = "Ability", meta = (ClampMin = "1"))
 	int32 Level = 1;
-
-	UPROPERTY(EditAnywhere, Category = "Ability", meta = (Categories = "Input"))
-	FGameplayTag InputTag;
 };
 
 struct FPdGameFeatureAbilityGrantHandles

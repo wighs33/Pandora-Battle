@@ -1,12 +1,20 @@
 #include "PandoraComponent.h"
 
+#include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
+#include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "Character/PdCharacterBase.h"
 #include "Common/ProjectTagConfig.h"
 #include "Engine/AssetManager.h"
+#include "Item/ItemDefinition.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraInstance.h"
+#include "Pandora/PandoraLoadoutTypes.h"
+#include "Pandora/PandoraSkillBinder.h"
+#include "PlayerComponent/EquipmentComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraComponent)
 
 DEFINE_LOG_CATEGORY(PandoraComponentLog)
@@ -69,6 +77,8 @@ void UPandoraComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	Params.bIsPushBased = true;
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UPandoraComponent, ReplicatedEntries, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UPandoraComponent, CurrentPandoraDefinition, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UPandoraComponent, PandoraLoadoutSlots, Params);
 }
 
 void UPandoraComponent::AddPandorasByPrimaryAssetIds(const TArray<FPrimaryAssetId>& PandoraDefinitions)
@@ -210,6 +220,97 @@ void UPandoraComponent::AddValueToMap(FGameplayTag TypeTag, UPandoraInstance* Pa
 	Map_Type_PandoraList.FindOrAdd(TypeTag).Pandoras.AddUnique(PandoraInstance);
 }
 
+bool UPandoraComponent::RequestPandoraSelection(const UPandoraDefinition* PandoraDefinition)
+{
+	const FPrimaryAssetId PandoraDefinitionId = PandoraDefinition ? PandoraDefinition->GetPrimaryAssetId() : FPrimaryAssetId();
+
+	if (!GetOwner())
+	{
+		return false;
+	}
+
+	if (!GetOwner()->HasAuthority())
+	{
+		ServerRequestPandoraSelection(PandoraDefinitionId);
+		return true;
+	}
+
+	return SelectPandoraByPrimaryAssetId(PandoraDefinitionId);
+}
+
+void UPandoraComponent::ServerRequestPandoraSelection_Implementation(FPrimaryAssetId PandoraDefinitionId)
+{
+	SelectPandoraByPrimaryAssetId(PandoraDefinitionId);
+}
+
+bool UPandoraComponent::RequestSetPandoraLoadoutSlot(
+	const EEnum_Direction Direction,
+	const UPandoraDefinition* PandoraDefinition)
+{
+	if (!PandoraLoadout::IsLoadoutDirection(Direction))
+	{
+		UE_LOG(PandoraComponentLog, Warning, TEXT("RequestSetPandoraLoadoutSlot failed: invalid direction=%d"),
+			static_cast<int32>(Direction));
+		return false;
+	}
+
+	if (!GetOwner())
+	{
+		return false;
+	}
+
+	const FPrimaryAssetId PandoraDefinitionId = PandoraDefinition ? PandoraDefinition->GetPrimaryAssetId() : FPrimaryAssetId();
+	if (!GetOwner()->HasAuthority())
+	{
+		ServerSetPandoraLoadoutSlot(Direction, PandoraDefinitionId);
+		return true;
+	}
+
+	return SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition, true);
+}
+
+bool UPandoraComponent::RestorePandoraLoadoutSlot(
+	const EEnum_Direction Direction,
+	const UPandoraDefinition* PandoraDefinition)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return false;
+	}
+
+	return SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition, false);
+}
+
+void UPandoraComponent::ServerSetPandoraLoadoutSlot_Implementation(
+	EEnum_Direction Direction,
+	FPrimaryAssetId PandoraDefinitionId)
+{
+	const UPandoraDefinition* PandoraDefinition = nullptr;
+	if (PandoraDefinitionId.IsValid())
+	{
+		UPandoraInstance* PandoraInstance = FindPandoraInstanceByPrimaryAssetId(PandoraDefinitionId);
+		PandoraDefinition = IsValid(PandoraInstance) ? PandoraInstance->PandoraDefinition.Get() : nullptr;
+	}
+
+	SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition, true);
+}
+
+const UPandoraDefinition* UPandoraComponent::GetPandoraLoadoutDefinition(const EEnum_Direction Direction) const
+{
+	const FPandoraLoadoutSlot* Slot = FindPandoraLoadoutSlot(Direction);
+	return Slot ? Slot->PandoraDefinition.Get() : nullptr;
+}
+
+UPandoraInstance* UPandoraComponent::GetPandoraLoadoutInstance(const EEnum_Direction Direction) const
+{
+	return FindPandoraInstanceByDefinition(GetPandoraLoadoutDefinition(Direction));
+}
+
+TMap<FName, FName> UPandoraComponent::GetPandoraLoadoutSaveNames() const
+{
+	return PandoraLoadout::MakeSaveNames(PandoraLoadoutSlots);
+}
+
 void UPandoraComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig)
 {
 	const UProjectTagConfig* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagConfig::GetDefaultConfig();
@@ -338,6 +439,262 @@ void UPandoraComponent::AddReplicatedPandora(UPandoraInstance* PandoraInstance)
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, ReplicatedEntries, this);
 }
 
+bool UPandoraComponent::SelectPandoraByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return false;
+	}
+
+	ClearSelectedPandoraContent();
+	CurrentPandoraDefinition = nullptr;
+	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, CurrentPandoraDefinition, this);
+
+	APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
+	UPdAbilitySystemComponent* ASC = PlayerStateOwner ? PlayerStateOwner->GetPdAbilitySystemComponent() : nullptr;
+
+	if (!PandoraDefinitionId.IsValid())
+	{
+		RefreshSelectedPandoraAbilityBindings(ASC);
+		NotifyPandoraSelectionChanged();
+		return true;
+	}
+
+	UPandoraInstance* PandoraInstance = FindPandoraInstanceByPrimaryAssetId(PandoraDefinitionId);
+	const UPandoraDefinition* PandoraDefinition = IsValid(PandoraInstance) ? PandoraInstance->PandoraDefinition.Get() : nullptr;
+	if (!PandoraInstance || !PandoraInstance->IsOwned || !PandoraDefinition)
+	{
+		UE_LOG(PandoraComponentLog, Warning, TEXT("SelectPandoraByPrimaryAssetId failed: id=%s instance=%s owned=%s definition=%s"),
+			*PandoraDefinitionId.ToString(),
+			*GetNameSafe(PandoraInstance),
+			PandoraInstance && PandoraInstance->IsOwned ? TEXT("true") : TEXT("false"),
+			*GetNameSafe(PandoraDefinition));
+		NotifyPandoraSelectionChanged();
+		return false;
+	}
+
+	CurrentPandoraDefinition = PandoraDefinition;
+	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, CurrentPandoraDefinition, this);
+	RefreshCurrentPandoraForWeaponChange();
+	UE_LOG(PandoraComponentLog, Log, TEXT("Selected pandora: owner=%s pandora=%s compatibleWeapon=%s requestedSkills=%d granted=%d"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(PandoraDefinition),
+		IsPandoraCompatibleWithCurrentWeapon(PandoraDefinition) ? TEXT("true") : TEXT("false"),
+		PandoraDefinition->Skill.Num(),
+		SelectedPandoraContent.GetGrantedAbilityCount());
+	return true;
+}
+
+void UPandoraComponent::RefreshCurrentPandoraForWeaponChange()
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
+	UPdAbilitySystemComponent* ASC = PlayerStateOwner ? PlayerStateOwner->GetPdAbilitySystemComponent() : nullptr;
+
+	ClearSelectedPandoraContent();
+
+	const bool bCompatibleWithCurrentWeapon = IsPandoraCompatibleWithCurrentWeapon(CurrentPandoraDefinition);
+	if (ASC && CurrentPandoraDefinition && bApplyPandoraContentOnSelection && bCompatibleWithCurrentWeapon)
+	{
+		FPandoraSkillBindingResult BindingResult = FPandoraSkillBinder::GrantPandoraContent(
+			this,
+			GetOwner(),
+			ASC,
+			CurrentPandoraDefinition,
+			ResolveSelectedPandoraRuntimeLevel(CurrentPandoraDefinition));
+		SelectedPandoraContent.Capture(MoveTemp(BindingResult));
+	}
+	else if (CurrentPandoraDefinition && !bCompatibleWithCurrentWeapon)
+	{
+		const UItemDefinition* CurrentWeaponDefinition = GetCurrentWeaponDefinition();
+		UE_LOG(PandoraComponentLog, Log, TEXT("Selected pandora disabled by current weapon: owner=%s pandora=%s weapon=%s weaponTag=%s"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(CurrentPandoraDefinition.Get()),
+			*GetNameSafe(CurrentWeaponDefinition),
+			CurrentWeaponDefinition && CurrentWeaponDefinition->IdTag.IsValid() ? *CurrentWeaponDefinition->IdTag.ToString() : TEXT("None"));
+	}
+
+	RefreshSelectedPandoraAbilityBindings(ASC);
+	NotifyPandoraSelectionChanged();
+}
+
+bool UPandoraComponent::IsPandoraCompatibleWithCurrentWeapon(const UPandoraDefinition* PandoraDefinition) const
+{
+	return !PandoraDefinition || PandoraDefinition->IsCompatibleWithWeaponDefinition(GetCurrentWeaponDefinition());
+}
+
+void UPandoraComponent::ClearSelectedPandoraContent()
+{
+	APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
+	if (UPdAbilitySystemComponent* ASC = PlayerStateOwner ? PlayerStateOwner->GetPdAbilitySystemComponent() : nullptr)
+	{
+		FPandoraSkillBinder::RemoveGrantedContent(ASC, SelectedPandoraContent.AbilityHandles, SelectedPandoraContent.EffectHandles);
+	}
+
+	SelectedPandoraContent.Reset();
+}
+
+int32 UPandoraComponent::ResolveSelectedPandoraRuntimeLevel(const UPandoraDefinition* PandoraDefinition) const
+{
+	int32 PandoraLevel = 0;
+	if (const APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner()))
+	{
+		if (UPandoraTreeComponent* PandoraTreeComponent = PlayerStateOwner->GetPandoraTreeComponent())
+		{
+			PandoraLevel = PandoraTreeComponent->GetCurrentPandoraLevel(const_cast<UPandoraDefinition*>(PandoraDefinition));
+		}
+	}
+
+	if (PandoraLevel <= 0)
+	{
+		PandoraLevel = 1;
+	}
+
+	const int32 MaxUnlockLevel = PandoraDefinition ? PandoraDefinition->GetMaxLevel() : 1;
+	return FMath::Clamp(PandoraLevel, 1, FMath::Max(MaxUnlockLevel, 1));
+}
+
+const UItemDefinition* UPandoraComponent::GetCurrentWeaponDefinition() const
+{
+	const APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
+	const APdCharacterBase* CharacterOwner = PlayerStateOwner ? Cast<APdCharacterBase>(PlayerStateOwner->GetPawn()) : nullptr;
+	const UEquipmentComponent* EquipmentComponent = CharacterOwner ? CharacterOwner->GetEquipmentComponent() : nullptr;
+	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponDefinition() : nullptr;
+}
+
+void UPandoraComponent::RefreshSelectedPandoraAbilityBindings(UPdAbilitySystemComponent* AbilitySystemComponent) const
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	if (!AbilitySystemComponent)
+	{
+		const APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
+		AbilitySystemComponent = PlayerStateOwner ? PlayerStateOwner->GetPdAbilitySystemComponent() : nullptr;
+	}
+
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	FPandoraSkillBinder::RefreshInputBindings(
+		AbilitySystemComponent,
+		CurrentPandoraDefinition,
+		ResolveSelectedPandoraRuntimeLevel(CurrentPandoraDefinition),
+		CurrentPandoraDefinition && IsPandoraCompatibleWithCurrentWeapon(CurrentPandoraDefinition));
+}
+
+void UPandoraComponent::OnRep_CurrentPandoraDefinition()
+{
+	NotifyPandoraSelectionChanged();
+}
+
+void UPandoraComponent::OnRep_PandoraLoadoutSlots()
+{
+	NotifyPandoraLoadoutChanged();
+}
+
+void UPandoraComponent::NotifyPandoraSelectionChanged()
+{
+	APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
+	if (UPdAbilitySystemComponent* ASC = PlayerStateOwner ? PlayerStateOwner->GetPdAbilitySystemComponent() : nullptr)
+	{
+		ASC->NotifyAbilitiesChanged();
+	}
+
+	OnPandoraSelectionChanged.Broadcast(const_cast<UPandoraDefinition*>(CurrentPandoraDefinition.Get()));
+}
+
+void UPandoraComponent::NotifyPandoraLoadoutChanged()
+{
+	OnPandoraLoadoutChanged.Broadcast();
+}
+
+bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
+	const EEnum_Direction Direction,
+	const UPandoraDefinition* PandoraDefinition,
+	const bool bRequireOwnedPandora)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !PandoraLoadout::IsLoadoutDirection(Direction))
+	{
+		return false;
+	}
+
+	if (PandoraDefinition && bRequireOwnedPandora)
+	{
+		const UPandoraInstance* PandoraInstance = FindPandoraInstanceByDefinition(PandoraDefinition);
+		if (!PandoraInstance || !PandoraInstance->IsOwned)
+		{
+			UE_LOG(PandoraComponentLog, Warning,
+				TEXT("SetPandoraLoadoutSlot failed: pandora is not owned. owner=%s direction=%d pandora=%s instance=%s owned=%s"),
+				*GetNameSafe(GetOwner()),
+				static_cast<int32>(Direction),
+				*GetNameSafe(PandoraDefinition),
+				*GetNameSafe(PandoraInstance),
+				PandoraInstance && PandoraInstance->IsOwned ? TEXT("true") : TEXT("false"));
+			return false;
+		}
+	}
+
+	if (!PandoraDefinition)
+	{
+		for (int32 Index = PandoraLoadoutSlots.Num() - 1; Index >= 0; --Index)
+		{
+			if (PandoraLoadoutSlots[Index].Direction == Direction)
+			{
+				PandoraLoadoutSlots.RemoveAt(Index);
+				MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, PandoraLoadoutSlots, this);
+				NotifyPandoraLoadoutChanged();
+				return true;
+			}
+		}
+
+		return true;
+	}
+
+	if (FPandoraLoadoutSlot* ExistingSlot = FindPandoraLoadoutSlot(Direction))
+	{
+		if (ExistingSlot->PandoraDefinition == PandoraDefinition)
+		{
+			return true;
+		}
+
+		ExistingSlot->PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
+	}
+	else
+	{
+		FPandoraLoadoutSlot& NewSlot = PandoraLoadoutSlots.AddDefaulted_GetRef();
+		NewSlot.Direction = Direction;
+		NewSlot.PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
+	}
+
+	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, PandoraLoadoutSlots, this);
+	NotifyPandoraLoadoutChanged();
+	UE_LOG(PandoraComponentLog, Log, TEXT("SetPandoraLoadoutSlot succeeded: owner=%s direction=%d pandora=%s requireOwned=%s"),
+		*GetNameSafe(GetOwner()),
+		static_cast<int32>(Direction),
+		*GetNameSafe(PandoraDefinition),
+		bRequireOwnedPandora ? TEXT("true") : TEXT("false"));
+	return true;
+}
+
+FPandoraLoadoutSlot* UPandoraComponent::FindPandoraLoadoutSlot(const EEnum_Direction Direction)
+{
+	return PandoraLoadout::FindSlot(PandoraLoadoutSlots, Direction);
+}
+
+const FPandoraLoadoutSlot* UPandoraComponent::FindPandoraLoadoutSlot(const EEnum_Direction Direction) const
+{
+	return PandoraLoadout::FindSlot(PandoraLoadoutSlots, Direction);
+}
+
 UPandoraInstance* UPandoraComponent::FindPandoraInstanceByDefinition(const UPandoraDefinition* PandoraDefinition) const
 {
 	if (!IsValid(PandoraDefinition))
@@ -348,6 +705,25 @@ UPandoraInstance* UPandoraComponent::FindPandoraInstanceByDefinition(const UPand
 	for (UPandoraInstance* PandoraInstance : AllPandoraList.Pandoras)
 	{
 		if (IsValid(PandoraInstance) && PandoraInstance->PandoraDefinition == PandoraDefinition)
+		{
+			return PandoraInstance;
+		}
+	}
+
+	return nullptr;
+}
+
+UPandoraInstance* UPandoraComponent::FindPandoraInstanceByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId) const
+{
+	if (!PandoraDefinitionId.IsValid())
+	{
+		return nullptr;
+	}
+
+	for (UPandoraInstance* PandoraInstance : AllPandoraList.Pandoras)
+	{
+		const UPandoraDefinition* PandoraDefinition = IsValid(PandoraInstance) ? PandoraInstance->PandoraDefinition.Get() : nullptr;
+		if (PandoraDefinition && PandoraDefinition->GetPrimaryAssetId() == PandoraDefinitionId)
 		{
 			return PandoraInstance;
 		}

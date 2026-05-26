@@ -1,7 +1,8 @@
 #include "Mode/PdPlayerState.h"
 
 #include "AbilitySystem/PdAbilitySystemComponent.h"
-#include "AbilitySystem/PdAttributeSet.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Item/InventoryComponent.h"
 #include "Pandora/PandoraComponent.h"
@@ -61,10 +62,10 @@ UPdAbilitySystemComponent* APdPlayerState::GetPdAbilitySystemComponent() const
 	return AbilitySystemComponent.Get();
 }
 
-UPdAttributeSet* APdPlayerState::GetPdAttributeSet() const
+UBasicAttributeSet* APdPlayerState::GetPdAttributeSet() const
 {
 	const UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponent();
-	return ASC ? const_cast<UPdAttributeSet*>(ASC->GetSet<UPdAttributeSet>()) : nullptr;
+	return ASC ? const_cast<UBasicAttributeSet*>(ASC->GetSet<UBasicAttributeSet>()) : nullptr;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -92,4 +93,9 @@ USkinComponent* APdPlayerState::GetSkinComponent() const
 UPandoraComponent* APdPlayerState::GetPandoraComponent() const
 {
 	return FindPlayerStateComponent<UPandoraComponent>(this);
+}
+
+UPandoraTreeComponent* APdPlayerState::GetPandoraTreeComponent() const
+{
+	return FindPlayerStateComponent<UPandoraTreeComponent>(this);
 }

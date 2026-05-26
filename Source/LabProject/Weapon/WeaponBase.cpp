@@ -4,14 +4,15 @@
 #include "Animation/AnimMontage.h"
 #include "Character/PdPlayer.h"
 #include "Character/PdCharacterBase.h"
-#include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Item/ItemDefinition.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "PlayerComponent/CombatComponent.h"
+#include "TimerManager.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WeaponBase)
 
 DEFINE_LOG_CATEGORY_STATIC(LogWeaponBase, Log, All);
@@ -29,13 +30,29 @@ AWeaponBase::AWeaponBase()
 	WeaponMesh->SetupAttachment(SceneRoot);
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
+	AttackTraceStart = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStart"));
+	AttackTraceStart->SetupAttachment(WeaponMesh);
+	AttackTraceStart->bEditableWhenInherited = true;
+
+	AttackTraceEnd = CreateDefaultSubobject<USceneComponent>(TEXT("TraceEnd"));
+	AttackTraceEnd->SetupAttachment(WeaponMesh);
+	AttackTraceEnd->bEditableWhenInherited = true;
 }
 
 void AWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(AWeaponBase, SourceItemDefinition);
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+
+	DOREPLIFETIME_WITH_PARAMS_FAST(AWeaponBase, SourceItemDefinition, Params);
+}
+
+void AWeaponBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	StopAttackTrace();
+	Super::EndPlay(EndPlayReason);
 }
 
 void AWeaponBase::RequestServerApplyDamage(AActor* TargetActor)
@@ -51,19 +68,53 @@ void AWeaponBase::RequestServerApplyDamage(AActor* TargetActor)
 
 void AWeaponBase::SetBeginOverlapEnabled(bool bEnabled)
 {
-	UBoxComponent* CollisionBox = GetCollisionBox();
-	if (!CollisionBox)
+	if (bEnabled)
+	{
+		StartAttackTrace();
+	}
+	else
+	{
+		StopAttackTrace();
+	}
+}
+
+void AWeaponBase::StartAttackTrace()
+{
+	if (!HasAuthority())
 	{
 		return;
 	}
 
-	if (bEnabled)
+	if (bAttackTraceActive)
 	{
-		HitActorsInCurrentAttack.Reset();
+		return;
 	}
 
-	CollisionBox->SetGenerateOverlapEvents(bEnabled);
-	CollisionBox->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+	bAttackTraceActive = true;
+	HitActorsInCurrentAttack.Reset();
+	PerformAttackTrace();
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			AttackTraceTimerHandle,
+			this,
+			&ThisClass::PerformAttackTrace,
+			FMath::Max(AttackTraceInterval, UE_SMALL_NUMBER),
+			true);
+	}
+}
+
+void AWeaponBase::StopAttackTrace()
+{
+	bAttackTraceActive = false;
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AttackTraceTimerHandle);
+	}
+
+	AttackTraceTimerHandle.Invalidate();
 }
 
 bool AWeaponBase::PlayWeaponMontage(FName StartingSection)
@@ -152,6 +203,10 @@ void AWeaponBase::StopWeaponMontage(float BlendOutTime)
 void AWeaponBase::InitializeFromItemDefinition(const UItemDefinition* InItemDefinition)
 {
 	SourceItemDefinition = const_cast<UItemDefinition*>(InItemDefinition);
+	if (HasAuthority())
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(AWeaponBase, SourceItemDefinition, this);
+	}
 }
 
 bool AWeaponBase::SupportsAimInput() const
@@ -319,25 +374,6 @@ bool AWeaponBase::TryGetWeaponAimTargetLocation(
 	return true;
 }
 
-UBoxComponent* AWeaponBase::GetCollisionBox() const
-{
-	return nullptr;
-}
-
-void AWeaponBase::InitializeCollisionBox(UBoxComponent* CollisionBox)
-{
-	if (!CollisionBox)
-	{
-		return;
-	}
-
-	CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	CollisionBox->SetGenerateOverlapEvents(false);
-	CollisionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
-	CollisionBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &AWeaponBase::OnCollisionBoxBeginOverlap);
-}
-
 UAnimMontage* AWeaponBase::GetConfiguredWeaponMontage() const
 {
 	return nullptr;
@@ -363,48 +399,97 @@ APdCharacterBase* AWeaponBase::GetOwningCharacter() const
 	return Cast<APdCharacterBase>(GetAttachParentActor());
 }
 
-bool AWeaponBase::CanProcessOverlapWith(AActor* OtherActor, UPrimitiveComponent* OtherComp) const
+bool AWeaponBase::CanDamageTracedActor(AActor* HitActor) const
 {
-	if (!Cast<APdCharacterBase>(OtherActor) || OtherActor == GetAttachParentActor() || !OtherComp)
+	const APdCharacterBase* TargetCharacter = Cast<APdCharacterBase>(HitActor);
+	const APdCharacterBase* SourceCharacter = GetOwningCharacter();
+	if (!TargetCharacter || !SourceCharacter || TargetCharacter == SourceCharacter)
 	{
 		return false;
 	}
 
-	if (HitActorsInCurrentAttack.Contains(OtherActor))
-	{
-		return false;
-	}
-
-	const APdCharacterBase* OwnerCharacter = GetOwningCharacter();
-	return OwnerCharacter && OwnerCharacter->IsLocallyControlled();
+	return !HitActorsInCurrentAttack.Contains(HitActor);
 }
 
-bool AWeaponBase::TryTraceOverlapTarget(UPrimitiveComponent* OtherComp, FHitResult& OutHitResult) const
+FVector AWeaponBase::GetAttackTraceHalfSize() const
 {
-	const UBoxComponent* CollisionBox = GetCollisionBox();
-	if (!CollisionBox || !OtherComp)
+	if (!AttackTraceHalfSize.IsNearlyZero())
 	{
-		return false;
+		return AttackTraceHalfSize;
+	}
+
+	return FVector(20.0f);
+}
+
+void AWeaponBase::PerformAttackTrace()
+{
+	if (!HasAuthority() || !AttackTraceStart || !AttackTraceEnd)
+	{
+		return;
+	}
+
+	const FVector TraceStartLocation = AttackTraceStart->GetComponentLocation();
+	const FVector TraceEndLocation = AttackTraceEnd->GetComponentLocation();
+	if (TraceStartLocation.Equals(TraceEndLocation, KINDA_SMALL_NUMBER))
+	{
+		return;
 	}
 
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
 
-	return UKismetSystemLibrary::BoxTraceSingleForObjects(
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+	if (AActor* ParentActor = GetAttachParentActor())
+	{
+		ActorsToIgnore.Add(ParentActor);
+	}
+	if (APawn* OwnerInstigator = GetInstigator())
+	{
+		ActorsToIgnore.Add(OwnerInstigator);
+	}
+	if (APdCharacterBase* SourceCharacter = GetOwningCharacter())
+	{
+		ActorsToIgnore.Add(SourceCharacter);
+	}
+
+	TArray<FHitResult> HitResults;
+	const FVector TraceHalfSize = GetAttackTraceHalfSize();
+	const FRotator TraceRotation = AttackTraceStart->GetComponentRotation();
+
+	UKismetSystemLibrary::BoxTraceMultiForObjects(
 		this,
-		CollisionBox->GetComponentLocation(),
-		OtherComp->GetComponentLocation(),
-		CollisionBox->GetComponentScale() * 0.5f,
-		CollisionBox->GetComponentRotation(),
+		TraceStartLocation,
+		TraceEndLocation,
+		TraceHalfSize,
+		TraceRotation,
 		ObjectTypes,
 		false,
-		{},
+		ActorsToIgnore,
 		EDrawDebugTrace::None,
-		OutHitResult,
+		HitResults,
 		true,
 		FLinearColor::Red,
 		FLinearColor::Green,
-		5.f);
+		0.1f);
+
+	if (bDrawAttackTraceDebug)
+	{
+		MulticastDrawAttackTraceDebug(TraceStartLocation, TraceEndLocation, TraceHalfSize, TraceRotation, HitResults);
+	}
+
+	for (const FHitResult& HitResult : HitResults)
+	{
+		AActor* HitActor = HitResult.GetActor();
+		if (!CanDamageTracedActor(HitActor))
+		{
+			continue;
+		}
+
+		HitActorsInCurrentAttack.Add(HitActor);
+		DebugSuccessfulHit(HitResult);
+		ApplyDamageToTarget(HitActor);
+	}
 }
 
 void AWeaponBase::DebugSuccessfulHit(const FHitResult& HitResult) const
@@ -416,34 +501,59 @@ void AWeaponBase::DebugSuccessfulHit(const FHitResult& HitResult) const
 	static_cast<void>(HitResult);
 #endif
 }
-
-void AWeaponBase::OnCollisionBoxBeginOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult)
+void AWeaponBase::MulticastDrawAttackTraceDebug_Implementation(
+	const FVector& StartLocation,
+	const FVector& EndLocation,
+	const FVector& HalfSize,
+	const FRotator& TraceRotation,
+	const TArray<FHitResult>& Hits)
 {
-	static_cast<void>(OverlappedComponent);
-	static_cast<void>(OtherBodyIndex);
-	static_cast<void>(bFromSweep);
-	static_cast<void>(SweepResult);
+	DrawAttackTraceDebug(StartLocation, EndLocation, HalfSize, TraceRotation, Hits);
+}
 
-	if (!CanProcessOverlapWith(OtherActor, OtherComp))
+void AWeaponBase::DrawAttackTraceDebug(
+	const FVector& StartLocation,
+	const FVector& EndLocation,
+	const FVector& HalfSize,
+	const FRotator& TraceRotation,
+	const TArray<FHitResult>& Hits) const
+{
+	UWorld* World = GetWorld();
+	if (!bDrawAttackTraceDebug || !World)
 	{
 		return;
 	}
 
-	FHitResult HitResult;
-	if (!TryTraceOverlapTarget(OtherComp, HitResult))
+	const FColor TraceColor = AttackTraceDebugTraceColor.ToFColor(true);
+	const FColor HitColor = AttackTraceDebugHitColor.ToFColor(true);
+	const FColor SweepColor = Hits.IsEmpty() ? TraceColor : HitColor;
+	const float DrawTime = FMath::Max(0.0f, AttackTraceDebugDrawTime);
+	const FQuat TraceQuat = TraceRotation.Quaternion();
+	const float TraceDistance = FVector::Distance(StartLocation, EndLocation);
+	const float StepDistance = FMath::Max(HalfSize.GetMax() * 2.0f, 1.0f);
+	const int32 StepCount = FMath::Clamp(FMath::CeilToInt(TraceDistance / StepDistance), 1, 8);
+
+	for (int32 StepIndex = 0; StepIndex <= StepCount; ++StepIndex)
 	{
-		return;
+		const float Alpha = static_cast<float>(StepIndex) / static_cast<float>(StepCount);
+		const FVector BoxLocation = FMath::Lerp(StartLocation, EndLocation, Alpha);
+		DrawDebugBox(World, BoxLocation, HalfSize, TraceQuat, SweepColor, false, DrawTime, 0, 1.5f);
 	}
 
-	HitActorsInCurrentAttack.Add(OtherActor);
-	DebugSuccessfulHit(HitResult);
-	RequestServerApplyDamage(OtherActor);
+	DrawDebugLine(World, StartLocation, EndLocation, SweepColor, false, DrawTime, 0, 2.0f);
+	DrawDebugSphere(World, StartLocation, FMath::Max(4.0f, HalfSize.GetMax() * 0.25f), 12, TraceColor, false, DrawTime, 0, 1.5f);
+	DrawDebugSphere(World, EndLocation, FMath::Max(4.0f, HalfSize.GetMax() * 0.25f), 12, SweepColor, false, DrawTime, 0, 1.5f);
+
+	for (const FHitResult& Hit : Hits)
+	{
+		if (!Hit.GetActor())
+		{
+			continue;
+		}
+
+		const FVector HitLocation = Hit.ImpactPoint.IsNearlyZero() ? Hit.Location : Hit.ImpactPoint;
+		DrawDebugSphere(World, HitLocation, FMath::Max(8.0f, HalfSize.GetMax() * 0.35f), 12, HitColor, false, DrawTime, 0, 3.0f);
+	}
 }
 
 void AWeaponBase::ApplyDamageToTarget(AActor* TargetActor)

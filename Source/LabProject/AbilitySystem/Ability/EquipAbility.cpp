@@ -6,6 +6,7 @@
 #include "PlayerComponent/EquipmentComponent.h"
 #include "Item/ItemDefinition.h"
 #include "Character/PdCharacterBase.h"
+#include "Common/LabGameplayTags.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EquipAbility)
 
 DEFINE_LOG_CATEGORY_STATIC(LogEquipAbility, Log, All);
@@ -13,6 +14,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogEquipAbility, Log, All);
 UEquipAbility::UEquipAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ActivationBlockedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
 }
 
 /** 현재 활성화된 장착 중 이펙트를 제거합니다. */
@@ -32,6 +34,84 @@ void UEquipAbility::ClearPendingEquipState()
 {
 	ActiveEquipWeaponDefinition = nullptr;
 	PendingEquipAnimLayer = nullptr;
+	bEquipCommitted = false;
+}
+
+void UEquipAbility::FinalizeEquipCommit()
+{
+	if (bEquipCommitted || !ActiveEquipWeaponDefinition)
+	{
+		return;
+	}
+
+	APdCharacterBase* Character = GetPdCharacterFromActorInfo();
+	if (!HasAuthority(&CurrentActivationInfo))
+	{
+		UE_LOG(LogEquipAbility, Warning, TEXT("FinalizeEquipCommit skipped: authority=false character=%s definition=%s"),
+			*GetNameSafe(Character),
+			*GetNameSafe(ActiveEquipWeaponDefinition.Get()));
+		return;
+	}
+
+	bEquipCommitted = true;
+
+	UE_LOG(LogEquipAbility, Log, TEXT("FinalizeEquipCommit: character=%s definition=%s idTag=%s"),
+		*GetNameSafe(Character),
+		*GetNameSafe(ActiveEquipWeaponDefinition.Get()),
+		*ActiveEquipWeaponDefinition->IdTag.ToString());
+
+	FGameplayTagContainer DynamicGrantedTags;
+	if (ActiveEquipWeaponDefinition->IdTag.IsValid())
+	{
+		DynamicGrantedTags.AddTag(ActiveEquipWeaponDefinition->IdTag);
+	}
+
+	if (EquippedItemEffectClass && !DynamicGrantedTags.IsEmpty())
+	{
+		ApplyGameplayEffectHandle(EquippedItemEffectClass, DynamicGrantedTags, 1.f, 1);
+		UE_LOG(LogEquipAbility, Log, TEXT("Equipped item effect applied: effect=%s tags=%s"),
+			*GetNameSafe(EquippedItemEffectClass.Get()),
+			*DynamicGrantedTags.ToStringSimple());
+	}
+	else
+	{
+		UE_LOG(LogEquipAbility, Warning, TEXT("Equipped item effect skipped: effect=%s tags=%s"),
+			*GetNameSafe(EquippedItemEffectClass.Get()),
+			*DynamicGrantedTags.ToStringSimple());
+	}
+
+	if (Character && PendingEquipAnimLayer)
+	{
+		Character->SetCurrentAnimLayer(PendingEquipAnimLayer);
+		UE_LOG(LogEquipAbility, Log, TEXT("Equip anim layer applied: character=%s animLayer=%s"),
+			*GetNameSafe(Character),
+			*GetNameSafe(PendingEquipAnimLayer.Get()));
+	}
+}
+
+bool UEquipAbility::CommitPendingEquipIfPossible()
+{
+	if (bEquipCommitted || !ActiveEquipWeaponDefinition || !HasAuthority(&CurrentActivationInfo))
+	{
+		return false;
+	}
+
+	APdCharacterBase* Character = GetPdCharacterFromActorInfo();
+	UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
+	if (!EquipmentComponent)
+	{
+		UE_LOG(LogEquipAbility, Warning, TEXT("CommitPendingEquipIfPossible failed: equipment component is null. character=%s"),
+			*GetNameSafe(Character));
+		return false;
+	}
+
+	if (!EquipmentComponent->EquipWeapon())
+	{
+		return false;
+	}
+
+	FinalizeEquipCommit();
+	return true;
 }
 
 /** 몽타주 완료 시*/
@@ -45,6 +125,7 @@ void UEquipAbility::OnEquipMontageCompleted()
 	// =================================================================================================================
 	// === 장착 진행 상태 정리 후 정상 종료
 	
+	CommitPendingEquipIfPossible();
 	ClearActiveEquipEffect();
 	ClearPendingEquipState();
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
@@ -57,6 +138,7 @@ void UEquipAbility::OnEquipMontageInterrupted()
 		*GetNameSafe(this),
 		*GetNameSafe(ActiveEquipWeaponDefinition.Get()));
 
+	CommitPendingEquipIfPossible();
 	ClearActiveEquipEffect();
 	ClearPendingEquipState();
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
@@ -69,6 +151,7 @@ void UEquipAbility::OnEquipMontageCancelled()
 		*GetNameSafe(this),
 		*GetNameSafe(ActiveEquipWeaponDefinition.Get()));
 
+	CommitPendingEquipIfPossible();
 	ClearActiveEquipEffect();
 	ClearPendingEquipState();
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
@@ -78,8 +161,13 @@ void UEquipAbility::OnEquipMontageCancelled()
 void UEquipAbility::OnEquipCommitTiming(FGameplayEventData Payload)
 {
 	static_cast<void>(Payload);
+	FinalizeEquipCommit();
 
 	APdCharacterBase* Character = GetPdCharacterFromActorInfo();
+	if (bEquipCommitted)
+	{
+		return;
+	}
 
 	// =================================================================================================================
 	// === 실제 장착 반영 조건 검사
@@ -176,6 +264,7 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 		return;
 	}
 	// 현재 장착 처리 중인 아이템 정의를 저장합니다.
+	bEquipCommitted = false;
 	ActiveEquipWeaponDefinition = EquipData.ItemDefinition;
 	PendingEquipAnimLayer = EquipData.EquipAnimLayer;
 	UE_LOG(LogEquipAbility, Log, TEXT("Equip data resolved: definition=%s montage=%s animLayer=%s"),

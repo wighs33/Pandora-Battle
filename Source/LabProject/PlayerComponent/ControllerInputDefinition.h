@@ -9,23 +9,6 @@
 class UInputAction;
 class UInputMappingContext;
 
-USTRUCT(BlueprintType)
-struct FPdAbilityInputAction
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Input", meta = (Categories = "Input"))
-	FGameplayTag InputTag;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Input", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<UInputAction> InputAction;
-
-	bool IsValid() const
-	{
-		return InputTag.IsValid() && !InputAction.IsNull();
-	}
-};
-
 UCLASS(BlueprintType, Const)
 class LABPROJECT_API UControllerInputDefinition : public UPrimaryDataAsset
 {
@@ -47,9 +30,14 @@ public:
 	const TSoftObjectPtr<UInputAction>& GetInteractInputAction() const { return InteractInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetAttackInputAction() const { return AttackInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetAimInputAction() const { return AimInputAction; }
+	const TSoftObjectPtr<UInputAction>& GetSkill1InputAction() const { return Skill1InputAction; }
+	const TSoftObjectPtr<UInputAction>& GetSkill2InputAction() const { return Skill2InputAction; }
+	const TSoftObjectPtr<UInputAction>& GetSkill3InputAction() const { return Skill3InputAction; }
+	const TSoftObjectPtr<UInputAction>& GetSkill4InputAction() const { return Skill4InputAction; }
+	const TSoftObjectPtr<UInputAction>& GetTargetConfirmInputAction() const { return TargetConfirmInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetOpenInfoUiInputAction() const { return OpenInfoUiInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetSelectPandoraInputAction() const { return SelectPandoraInputAction; }
-	const TArray<FPdAbilityInputAction>& GetAbilityInputActions() const { return AbilityInputActions; }
+	const TSoftObjectPtr<UInputAction>& GetPandoraTreeInputAction() const { return PandoraTreeInputAction; }
 	const FGameplayTag& GetMovementBlockStateTag() const { return MovementBlockStateTag; }
 
 private:
@@ -84,14 +72,29 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> AimInputAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Ability Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
+	TSoftObjectPtr<UInputAction> Skill1InputAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Ability Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
+	TSoftObjectPtr<UInputAction> Skill2InputAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Ability Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
+	TSoftObjectPtr<UInputAction> Skill3InputAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Ability Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
+	TSoftObjectPtr<UInputAction> Skill4InputAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Ability Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
+	TSoftObjectPtr<UInputAction> TargetConfirmInputAction;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> OpenInfoUiInputAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> SelectPandoraInputAction;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Actions", meta = (TitleProperty = "InputTag", AllowPrivateAccess = "true"))
-	TArray<FPdAbilityInputAction> AbilityInputActions;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
+	TSoftObjectPtr<UInputAction> PandoraTreeInputAction;
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Block State

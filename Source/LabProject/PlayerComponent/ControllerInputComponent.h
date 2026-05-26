@@ -13,8 +13,8 @@ class UEnhancedInputComponent;
 class UInputAction;
 class UInputMappingContext;
 class UCombatComponent;
-class UControllerUiComponent;
 class UPlayerRewardComponent;
+class APdHUD;
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UControllerInputComponent : public UActorComponent
@@ -38,42 +38,56 @@ public:
 private:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Input Events
-	// 이동 입력
+	// ?�동 ?�력
 	void HandleMoveInput(const FInputActionValue& InputValue);
 
-	// 시야 입력
+	// ?�야 ?�력
 	void HandleLookInput(const FInputActionValue& InputValue);
 
-	// 점프 시작
+	// ?�프 ?�작
 	void HandleJumpInputStarted(const FInputActionValue& InputValue);
 
-	// 점프 종료
+	// ?�프 종료
 	void HandleJumpInputEnded(const FInputActionValue& InputValue);
 
-	// 앉기 시작
+	// ?�기 ?�작
 	void HandleCrouchInputStarted(const FInputActionValue& InputValue);
 
-	// 앉기 종료
+	// ?�기 종료
 	void HandleCrouchInputEnded(const FInputActionValue& InputValue);
 
-	// 상호작용 입력
+	// ?�호?�용 ?�력
 	void HandleInteractInput(const FInputActionValue& InputValue);
 
 	void HandleOpenInfoUiInputStarted(const FInputActionValue& InputValue);
 	void HandleSelectPandoraInputStarted(const FInputActionValue& InputValue);
 	void HandleSelectPandoraInputEnded(const FInputActionValue& InputValue);
+	void HandlePandoraTreeInputStarted(const FInputActionValue& InputValue);
 	void HandleAttackInputStarted(const FInputActionValue& InputValue);
 	void HandleAttackInputEnded(const FInputActionValue& InputValue);
 	void HandleAimInputStarted(const FInputActionValue& InputValue);
 	void HandleAimInputEnded(const FInputActionValue& InputValue);
+	void HandleDashInputStarted(const FInputActionValue& InputValue);
+	void HandleDashInputEnded(const FInputActionValue& InputValue);
+	void HandleSkill1InputStarted(const FInputActionValue& InputValue);
+	void HandleSkill1InputEnded(const FInputActionValue& InputValue);
+	void HandleSkill2InputStarted(const FInputActionValue& InputValue);
+	void HandleSkill2InputEnded(const FInputActionValue& InputValue);
+	void HandleSkill3InputStarted(const FInputActionValue& InputValue);
+	void HandleSkill3InputEnded(const FInputActionValue& InputValue);
+	void HandleSkill4InputStarted(const FInputActionValue& InputValue);
+	void HandleSkill4InputEnded(const FInputActionValue& InputValue);
+	void HandleTargetConfirmInputStarted(const FInputActionValue& InputValue);
+	void HandleAbilityInputStarted(const FInputActionValue& InputValue, const FGameplayTag& InputTag);
+	void HandleAbilityInputEnded(const FInputActionValue& InputValue, const FGameplayTag& InputTag);
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Controller Services
 	APdPlayerController* GetPdController() const;
+	APdHUD* GetPdHUD() const;
 	APdPlayer* GetPlayerCharacter() const;
 	UPlayerRewardComponent* GetPlayerRewardComponent() const;
 	UCombatComponent* GetPlayerCombatComponent() const;
-	UControllerUiComponent* GetControllerUiComponent() const;
 	bool IsGameplayInputBlockedByUi() const;
 	UControllerInputDefinition* LoadInputDefinition();
 	bool ApplyInputDefinition();
@@ -81,9 +95,6 @@ private:
 	void AddInputBindingHandle(uint32 BindingHandle);
 	UInputAction* LoadInputAction(const TSoftObjectPtr<UInputAction>& InputAction);
 	void BindNativeInputActions(UEnhancedInputComponent& EnhancedInputComponent, const UControllerInputDefinition& Definition);
-	void BindAbilityInputActions(UEnhancedInputComponent& EnhancedInputComponent, const UControllerInputDefinition& Definition);
-	void HandleAbilityInputStarted(const FInputActionValue& InputValue, FGameplayTag InputTag);
-	void HandleAbilityInputEnded(const FInputActionValue& InputValue, FGameplayTag InputTag);
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Input Definition

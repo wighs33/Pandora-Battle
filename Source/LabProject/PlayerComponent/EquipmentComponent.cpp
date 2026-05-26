@@ -6,12 +6,15 @@
 #include "Common/ProjectTagConfig.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
+#include "GameplayEffect.h"
 #include "Item/InventoryComponent.h"
 #include "Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
+#include "Pandora/PandoraComponent.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Weapon/WeaponBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EquipmentComponent)
 
@@ -25,6 +28,12 @@ UEquipmentComponent::UEquipmentComponent(const FObjectInitializer& ObjectInitial
 
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
+
+	static ConstructorHelpers::FClassFinder<UGameplayEffect> EquippedItemEffectFinder(TEXT("/Game/GAS/Effect/GE_DynamicItemEquipped"));
+	if (EquippedItemEffectFinder.Succeeded())
+	{
+		EquippedItemEffectClass = EquippedItemEffectFinder.Class;
+	}
 }
 
 /** 시작 시 캐시를 갱신합니다. */
@@ -69,6 +78,7 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	// === 복제 등록
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UEquipmentComponent, CurrentWeaponActor, CurrentWeaponParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UEquipmentComponent, CurrentWeaponDefinition, CurrentWeaponParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UEquipmentComponent, CurrentWeaponId, CurrentWeaponIdParams);
 }
 
@@ -354,6 +364,80 @@ bool UEquipmentComponent::EquipWeapon()
 	return bEquipped;
 }
 
+bool UEquipmentComponent::EquipWeaponDefinition(const UItemDefinition* WeaponDefinition)
+{
+	RefreshCachedReferences();
+
+	if (!ensure(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeaponDefinition failed: owner=%s authority=%s definition=%s"),
+			*GetNameSafe(GetOwner()),
+			GetOwner() && GetOwner()->HasAuthority() ? TEXT("true") : TEXT("false"),
+			*GetNameSafe(WeaponDefinition));
+		return false;
+	}
+
+	if (!ensure(WeaponDefinition))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeaponDefinition failed: definition is null. owner=%s"),
+			*GetNameSafe(GetOwner()));
+		return false;
+	}
+
+	if (CurrentWeaponActor && CurrentWeaponDefinition == WeaponDefinition)
+	{
+		UE_LOG(EquipmentComponentLog, Log, TEXT("EquipWeaponDefinition skipped: weapon definition is already current. owner=%s definition=%s actor=%s"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(WeaponDefinition),
+			*GetNameSafe(CurrentWeaponActor));
+		return true;
+	}
+
+	TSubclassOf<AWeaponBase> WeaponClass = LoadWeaponActorClass(WeaponDefinition);
+	if (!WeaponClass)
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeaponDefinition failed: weapon actor class load failed. definition=%s idTag=%s"),
+			*GetNameSafe(WeaponDefinition),
+			*WeaponDefinition->IdTag.ToString());
+		return false;
+	}
+
+	FEquippedItemStatSnapshot PendingStatSnapshot;
+	if (!BuildItemDefinitionStatSnapshot(WeaponDefinition, PendingStatSnapshot))
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeaponDefinition failed: stat snapshot failed. definition=%s"),
+			*GetNameSafe(WeaponDefinition));
+		return false;
+	}
+
+	UnequipCurrentWeaponInternal();
+
+	AWeaponBase* SpawnedWeapon = SpawnAndAttachWeaponActor(WeaponClass, WeaponDefinition);
+	if (!SpawnedWeapon)
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("EquipWeaponDefinition failed: SpawnAndAttachWeaponActor returned null. class=%s definition=%s"),
+			*GetNameSafe(WeaponClass.Get()),
+			*GetNameSafe(WeaponDefinition));
+		return false;
+	}
+
+	ApplyAndStoreWeaponStats(WeaponDefinition, PendingStatSnapshot);
+	ApplyCurrentWeaponTagEffect(WeaponDefinition);
+	CommitCurrentWeaponState(FGuid::NewGuid(), SpawnedWeapon, WeaponDefinition);
+	if (APdCharacterBase* CharacterOwner = CachedOwner.Get())
+	{
+		if (TSubclassOf<UAnimInstance> EquipAnimLayer = WeaponDefinition->WeaponData.Equip.AnimLayer.LoadSynchronous())
+		{
+			CharacterOwner->SetCurrentAnimLayer(EquipAnimLayer);
+		}
+	}
+	UE_LOG(EquipmentComponentLog, Log, TEXT("EquipWeaponDefinition succeeded: owner=%s definition=%s actor=%s"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(WeaponDefinition),
+		*GetNameSafe(SpawnedWeapon));
+	return true;
+}
+
 /** 현재 아이템을 해제합니다. */
 bool UEquipmentComponent::UnequipCurrentWeapon()
 {
@@ -460,7 +544,7 @@ bool UEquipmentComponent::EquipWeaponInternal(UItemInstance* WeaponInstance)
 	}
 
 	ApplyAndStoreWeaponStats(ItemDefinition, PendingStatSnapshot);
-	CommitCurrentWeaponState(NewCurrentWeaponId, SpawnedWeapon);
+	CommitCurrentWeaponState(NewCurrentWeaponId, SpawnedWeapon, ItemDefinition);
 	UE_LOG(EquipmentComponentLog, Log, TEXT("EquipWeaponInternal succeeded: id=%s weaponActor=%s definition=%s"),
 		*NewCurrentWeaponId.ToString(),
 		*GetNameSafe(SpawnedWeapon),
@@ -662,6 +746,77 @@ void UEquipmentComponent::ApplyAndStoreWeaponStats(const UItemDefinition* ItemDe
 }
 
 /** 현재 장착 스탯 GameplayEffect를 역적용합니다. */
+void UEquipmentComponent::ApplyCurrentWeaponTagEffect(const UItemDefinition* ItemDefinition)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	RefreshCachedReferences();
+
+	if (!CachedASC)
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("ApplyCurrentWeaponTagEffect failed: owner=%s has no ASC."),
+			*GetNameSafe(GetOwner()));
+		return;
+	}
+
+	if (!EquippedItemEffectClass || !ItemDefinition || !ItemDefinition->IdTag.IsValid())
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("ApplyCurrentWeaponTagEffect skipped: owner=%s effect=%s definition=%s idTag=%s"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(EquippedItemEffectClass.Get()),
+			*GetNameSafe(ItemDefinition),
+			ItemDefinition ? *ItemDefinition->IdTag.ToString() : TEXT("None"));
+		return;
+	}
+
+	FGameplayEffectContextHandle EffectContext = CachedASC->MakeEffectContext();
+	EffectContext.AddSourceObject(ItemDefinition);
+
+	FGameplayEffectSpecHandle SpecHandle = CachedASC->MakeOutgoingSpec(EquippedItemEffectClass, 1.f, EffectContext);
+	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
+	{
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("ApplyCurrentWeaponTagEffect failed: owner=%s could not make spec for effect=%s tag=%s"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(EquippedItemEffectClass.Get()),
+			*ItemDefinition->IdTag.ToString());
+		return;
+	}
+
+	SpecHandle.Data->DynamicGrantedTags.AddTag(ItemDefinition->IdTag);
+	const FActiveGameplayEffectHandle EffectHandle = CachedASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	UE_LOG(EquipmentComponentLog, Log, TEXT("ApplyCurrentWeaponTagEffect: owner=%s effect=%s tag=%s applied=%s"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(EquippedItemEffectClass.Get()),
+		*ItemDefinition->IdTag.ToString(),
+		EffectHandle.WasSuccessfullyApplied() ? TEXT("true") : TEXT("false"));
+}
+
+void UEquipmentComponent::RemoveCurrentWeaponTagEffect(const UItemDefinition* ItemDefinition)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !ItemDefinition || !ItemDefinition->IdTag.IsValid())
+	{
+		return;
+	}
+
+	RefreshCachedReferences();
+
+	if (!CachedASC)
+	{
+		return;
+	}
+
+	FGameplayTagContainer GrantedTags;
+	GrantedTags.AddTag(ItemDefinition->IdTag);
+	const int32 RemovedCount = CachedASC->RemoveActiveEffectsWithGrantedTags(GrantedTags);
+	UE_LOG(EquipmentComponentLog, Log, TEXT("RemoveCurrentWeaponTagEffect: owner=%s tag=%s removed=%d"),
+		*GetNameSafe(GetOwner()),
+		*ItemDefinition->IdTag.ToString(),
+		RemovedCount);
+}
+
 void UEquipmentComponent::RemoveCurrentWeaponStats()
 {
 	if (!CurrentWeaponStatSnapshot.HasAnyMagnitude())
@@ -678,17 +833,20 @@ void UEquipmentComponent::RemoveCurrentWeaponStats()
 }
 
 /** 현재 무기 상태를 확정하고 복제 dirty 플래그를 표시합니다. */
-void UEquipmentComponent::CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor)
+void UEquipmentComponent::CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor, const UItemDefinition* NewWeaponDefinition)
 {
 	const bool bCurrentWeaponChanged = CurrentWeaponActor != NewWeaponActor;
 	const bool bCurrentWeaponIdChanged = CurrentWeaponId != NewCurrentWeaponId;
+	const bool bCurrentWeaponDefinitionChanged = CurrentWeaponDefinition != NewWeaponDefinition;
 	CurrentWeaponActor = NewWeaponActor;
 	CurrentWeaponId = NewCurrentWeaponId;
+	CurrentWeaponDefinition = NewWeaponDefinition;
 
-	UE_LOG(EquipmentComponentLog, Log, TEXT("CommitCurrentWeaponState: owner=%s id=%s actor=%s changedActor=%s changedId=%s"),
+	UE_LOG(EquipmentComponentLog, Log, TEXT("CommitCurrentWeaponState: owner=%s id=%s actor=%s definition=%s changedActor=%s changedId=%s"),
 		*GetNameSafe(GetOwner()),
 		*CurrentWeaponId.ToString(),
 		*GetNameSafe(CurrentWeaponActor),
+		*GetNameSafe(CurrentWeaponDefinition.Get()),
 		bCurrentWeaponChanged ? TEXT("true") : TEXT("false"),
 		bCurrentWeaponIdChanged ? TEXT("true") : TEXT("false"));
 
@@ -702,6 +860,20 @@ void UEquipmentComponent::CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWe
 		if (bCurrentWeaponChanged)
 		{
 			MARK_PROPERTY_DIRTY_FROM_NAME(UEquipmentComponent, CurrentWeaponActor, this);
+		}
+
+		if (bCurrentWeaponDefinitionChanged)
+		{
+			MARK_PROPERTY_DIRTY_FROM_NAME(UEquipmentComponent, CurrentWeaponDefinition, this);
+		}
+	}
+
+	if (GetOwner() && GetOwner()->HasAuthority() && bCurrentWeaponDefinitionChanged)
+	{
+		const APdPlayerState* PlayerStateOwner = CachedOwner ? Cast<APdPlayerState>(CachedOwner->GetPlayerState()) : nullptr;
+		if (UPandoraComponent* PandoraComponent = PlayerStateOwner ? PlayerStateOwner->GetPandoraComponent() : nullptr)
+		{
+			PandoraComponent->RefreshCurrentPandoraForWeaponChange();
 		}
 	}
 }
@@ -724,6 +896,7 @@ bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 		*CurrentWeaponId.ToString(),
 		*GetNameSafe(CurrentWeaponActor));
 
+	RemoveCurrentWeaponTagEffect(CurrentWeaponDefinition);
 	RemoveCurrentWeaponStats();
 
 	// =================================================================================================================
@@ -739,8 +912,10 @@ bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 
 	const bool bCurrentWeaponChanged = CurrentWeaponActor != nullptr;
 	const bool bCurrentWeaponIdChanged = CurrentWeaponId.IsValid();
+	const bool bCurrentWeaponDefinitionChanged = CurrentWeaponDefinition != nullptr;
 	CurrentWeaponActor = nullptr;
 	CurrentWeaponId.Invalidate();
+	CurrentWeaponDefinition = nullptr;
 
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
@@ -754,6 +929,19 @@ bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 			MARK_PROPERTY_DIRTY_FROM_NAME(UEquipmentComponent, CurrentWeaponActor, this);
 		}
 
+		if (bCurrentWeaponDefinitionChanged)
+		{
+			MARK_PROPERTY_DIRTY_FROM_NAME(UEquipmentComponent, CurrentWeaponDefinition, this);
+		}
+
+		if (bCurrentWeaponDefinitionChanged)
+		{
+			const APdPlayerState* PlayerStateOwner = CachedOwner ? Cast<APdPlayerState>(CachedOwner->GetPlayerState()) : nullptr;
+			if (UPandoraComponent* PandoraComponent = PlayerStateOwner ? PlayerStateOwner->GetPandoraComponent() : nullptr)
+			{
+				PandoraComponent->RefreshCurrentPandoraForWeaponChange();
+			}
+		}
 	}
 	UE_LOG(EquipmentComponentLog, Log, TEXT("UnequipCurrentWeaponInternal succeeded: owner=%s"), *GetNameSafe(GetOwner()));
 	return true;
@@ -818,6 +1006,11 @@ void UEquipmentComponent::ClearRequestedWeapon()
 /** 현재 아이템 정의를 반환합니다. */
 const UItemDefinition* UEquipmentComponent::GetCurrentWeaponDefinition() const
 {
+	if (CurrentWeaponDefinition)
+	{
+		return CurrentWeaponDefinition.Get();
+	}
+
 	if (CurrentWeaponId.IsValid())
 	{
 		if (const UItemInstance* EquippedItemInstance = FindOwnedItemInstanceById(CurrentWeaponId))
@@ -832,9 +1025,29 @@ const UItemDefinition* UEquipmentComponent::GetCurrentWeaponDefinition() const
 /** 아이템 스탯 스냅샷을 구성합니다. */
 bool UEquipmentComponent::BuildItemStatSnapshot(const UItemInstance* ItemInstance, FEquippedItemStatSnapshot& OutSnapshot) const
 {
+	const UItemDefinition* ItemDefinition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr;
+	if (!BuildItemDefinitionStatSnapshot(ItemDefinition, OutSnapshot))
+	{
+		return false;
+	}
+
+	for (const TPair<FGameplayTag, float>& Pair : ItemInstance->Map_EnhancedStat_Magnitude)
+	{
+		if (!Pair.Key.IsValid() || FMath::IsNearlyZero(Pair.Value))
+		{
+			continue;
+		}
+
+		OutSnapshot.EnhancedStatMagnitudes.FindOrAdd(Pair.Key) += Pair.Value;
+	}
+
+	return true;
+}
+
+bool UEquipmentComponent::BuildItemDefinitionStatSnapshot(const UItemDefinition* ItemDefinition, FEquippedItemStatSnapshot& OutSnapshot) const
+{
 	OutSnapshot.Reset();
 
-	const UItemDefinition* ItemDefinition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr;
 	if (!ItemDefinition)
 	{
 		return false;
@@ -848,16 +1061,6 @@ bool UEquipmentComponent::BuildItemStatSnapshot(const UItemInstance* ItemInstanc
 		}
 
 		OutSnapshot.BaseStatMagnitudes.FindOrAdd(Pair.Key) += Pair.Value;
-	}
-
-	for (const TPair<FGameplayTag, float>& Pair : ItemInstance->Map_EnhancedStat_Magnitude)
-	{
-		if (!Pair.Key.IsValid() || FMath::IsNearlyZero(Pair.Value))
-		{
-			continue;
-		}
-
-		OutSnapshot.EnhancedStatMagnitudes.FindOrAdd(Pair.Key) += Pair.Value;
 	}
 
 	return true;

@@ -9,6 +9,7 @@
 #include "Item/ItemInstance.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "Mode/PdHUD.h"
 #include "PlayerComponent/EquipmentComponent.h"
 #include "Pandora/PandoraComponent.h"
 #include "Pandora/PandoraDefinition.h"
@@ -16,12 +17,12 @@
 #include "PlayerComponent/StatUpgradeComponent.h"
 #include "Skin/SkinComponent.h"
 #include "Skin/SkinInstance.h"
-#include "UI/ControllerUiComponent.h"
 #include "UI/Widget/EquipSlotWidget.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/LeftEquipmentWidget.h"
 #include "UI/Widget/LeftPandoraWidget.h"
 #include "UI/Widget/LeftSkinWidget.h"
+#include "UI/PandoraLoadoutUiModel.h"
 #include "UI/Widget/PandoraEquipSlotWidget.h"
 #include "UI/Widget/RightInventoryWidget.h"
 #include "UI/Widget/RightPandoraWidget.h"
@@ -71,6 +72,29 @@ void AppendPandoraListAsObjects(const FPandoraList& PandoraList, TArray<UObject*
 		}
 	}
 }
+
+FString GetItemDisplayNameForLog(const UItemInstance* ItemInstance)
+{
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
+	if (IsValid(ItemDefinition) && !ItemDefinition->DisplayName.IsEmpty())
+	{
+		return ItemDefinition->DisplayName.ToString();
+	}
+
+	return IsValid(ItemDefinition) ? GetNameSafe(ItemDefinition) : GetNameSafe(ItemInstance);
+}
+
+FString GetPandoraDisplayNameForLog(const UPandoraInstance* PandoraInstance)
+{
+	const UPandoraDefinition* PandoraDefinition = IsValid(PandoraInstance) ? PandoraInstance->PandoraDefinition.Get() : nullptr;
+	if (IsValid(PandoraDefinition) && !PandoraDefinition->DisplayName.IsEmpty())
+	{
+		return PandoraDefinition->DisplayName.ToString();
+	}
+
+	return IsValid(PandoraDefinition) ? GetNameSafe(PandoraDefinition) : GetNameSafe(PandoraInstance);
+}
+
 }
 
 UInfoUiPresenter::UInfoUiPresenter(const FObjectInitializer& ObjectInitializer)
@@ -140,11 +164,77 @@ UItemInstance* UInfoUiPresenter::GetSelectedWeapon(EEnum_Direction Direction) co
 	}
 }
 
+UPandoraInstance* UInfoUiPresenter::GetSelectedPandora(EEnum_Direction Direction) const
+{
+	const APdPlayerState* PlayerState = GetCachedPlayerState();
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	return PandoraComponent ? PandoraComponent->GetPandoraLoadoutInstance(Direction) : nullptr;
+}
+
 void UInfoUiPresenter::HandleSelectedPandoraDirection(EEnum_Direction Direction)
 {
 	APdPlayerController* Controller = GetController();
 	APdPlayer* PlayerCharacter = Controller ? Cast<APdPlayer>(Controller->GetPawn()) : nullptr;
 	UEquipmentComponent* EquipmentComponent = PlayerCharacter ? PlayerCharacter->GetEquipmentComponent() : nullptr;
+	APdPlayerState* PlayerState = GetCachedPlayerState();
+	UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+
+	if (Direction == EEnum_Direction::Down)
+	{
+		UE_LOG(LogInfoUiPresenter, Log, TEXT("Select UI confirmed: direction=%d pandora=None weapon=None"),
+			static_cast<int32>(Direction));
+
+		if (EquipmentComponent)
+		{
+			const bool bRequested = EquipmentComponent->RequestWeaponUnequip();
+			UE_LOG(LogInfoUiPresenter, Log, TEXT("Weapon unequip requested from select UI: direction=%d result=%s"),
+				static_cast<int32>(Direction),
+				bRequested ? TEXT("true") : TEXT("false"));
+		}
+
+		if (PandoraComponent)
+		{
+			PandoraComponent->RequestPandoraSelection(nullptr);
+		}
+		return;
+	}
+
+	UPandoraInstance* CurrentPandora = GetSelectedPandora(Direction);
+	const UPandoraDefinition* PandoraDefinition = CurrentPandora ? CurrentPandora->PandoraDefinition.Get() : nullptr;
+	if (!PandoraDefinition && PandoraComponent)
+	{
+		PandoraDefinition = PandoraComponent->GetPandoraLoadoutDefinition(Direction);
+	}
+	UItemInstance* CurrentWeapon = GetSelectedWeapon(Direction);
+	const UItemDefinition* ItemDefinition = CurrentWeapon ? CurrentWeapon->ItemDefinition.Get() : nullptr;
+
+	UE_LOG(LogInfoUiPresenter, Log,
+		TEXT("Select UI confirmed: direction=%d pandora=%s pandoraAsset=%s pandoraTag=%s weapon=%s weaponAsset=%s weaponTag=%s"),
+		static_cast<int32>(Direction),
+		*GetPandoraDisplayNameForLog(CurrentPandora),
+		*GetNameSafe(PandoraDefinition),
+		PandoraDefinition && PandoraDefinition->IdTag.IsValid() ? *PandoraDefinition->IdTag.ToString() : TEXT("None"),
+		*GetItemDisplayNameForLog(CurrentWeapon),
+		*GetNameSafe(ItemDefinition),
+		ItemDefinition && ItemDefinition->IdTag.IsValid() ? *ItemDefinition->IdTag.ToString() : TEXT("None"));
+
+	if (PandoraComponent && PandoraDefinition)
+	{
+		const bool bPandoraRequested = PandoraComponent->RequestPandoraSelection(PandoraDefinition);
+		UE_LOG(LogInfoUiPresenter, Log, TEXT("Pandora selection requested from select UI: direction=%d pandora=%s tag=%s result=%s"),
+			static_cast<int32>(Direction),
+			*GetNameSafe(PandoraDefinition),
+			PandoraDefinition->IdTag.IsValid() ? *PandoraDefinition->IdTag.ToString() : TEXT("None"),
+			bPandoraRequested ? TEXT("true") : TEXT("false"));
+	}
+	else
+	{
+		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Pandora selection skipped: direction=%d component=%s pandora=%s"),
+			static_cast<int32>(Direction),
+			*GetNameSafe(PandoraComponent),
+			*GetNameSafe(PandoraDefinition));
+	}
+
 	if (!EquipmentComponent)
 	{
 		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Weapon selection skipped: direction=%d controller=%s pawn=%s equipment=null"),
@@ -154,16 +244,6 @@ void UInfoUiPresenter::HandleSelectedPandoraDirection(EEnum_Direction Direction)
 		return;
 	}
 
-	if (Direction == EEnum_Direction::Down)
-	{
-		const bool bRequested = EquipmentComponent->RequestWeaponUnequip();
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("Weapon unequip requested from select UI: direction=%d result=%s"),
-			static_cast<int32>(Direction),
-			bRequested ? TEXT("true") : TEXT("false"));
-		return;
-	}
-
-	UItemInstance* CurrentWeapon = GetSelectedWeapon(Direction);
 	if (!IsValid(CurrentWeapon))
 	{
 		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Weapon selection skipped: direction=%d selected weapon is invalid"),
@@ -171,7 +251,6 @@ void UInfoUiPresenter::HandleSelectedPandoraDirection(EEnum_Direction Direction)
 		return;
 	}
 
-	const UItemDefinition* ItemDefinition = CurrentWeapon->ItemDefinition;
 	const bool bRequested = EquipmentComponent->RequestWeaponSelection(CurrentWeapon);
 	UE_LOG(LogInfoUiPresenter, Log, TEXT("Weapon selection requested from select UI: direction=%d item=%s definition=%s tag=%s result=%s"),
 		static_cast<int32>(Direction),
@@ -185,6 +264,8 @@ void UInfoUiPresenter::HandleOpenedInfoUi()
 {
 	BindInventoryChangeNotification();
 	BindStatusWidgetEvents();
+	RefreshSelectPandoraLoadoutImages();
+	RefreshSelectPandoraCompatibilityState();
 
 	UInfoWidget* CurrentInfoWidget = GetInfoWidget();
 	if (!CurrentInfoWidget)
@@ -424,6 +505,7 @@ void UInfoUiPresenter::HandleClickedItemSlot(UObject* Item)
 		*GetNameSafe(ItemInstance),
 		*GetNameSafe(ItemDefinition),
 		*ItemDefinition->IdTag.ToString());
+	RefreshSelectPandoraCompatibilityState();
 }
 
 void UInfoUiPresenter::HandleClickedItemEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* SelectedEquipSlot, bool bIsSelectedAnyButton)
@@ -656,6 +738,15 @@ void UInfoUiPresenter::HandleClickedPandoraSlot(UObject* Item)
 
 	const int32 Nth = CachedSelectedPandoraEquipSlot ? CachedSelectedPandoraEquipSlot->GetNth() : 0;
 	SelectPandoraWidget->SetPandoraImage(Nth, PandoraTexture);
+
+	APdPlayerState* PlayerState = GetCachedPlayerState();
+	UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	if (PandoraComponent)
+	{
+		PandoraComponent->RequestSetPandoraLoadoutSlot(FPandoraLoadoutUiModel::GetDirectionFromSelectSlotNumber(Nth), PandoraDefinition);
+	}
+
+	RefreshSelectPandoraCompatibilityState();
 }
 
 void UInfoUiPresenter::HandleClickedPandoraEquipSlot(UPandoraEquipSlotWidget* SelectedPandoraEquipSlot, bool bIsSelectedAnyButton)
@@ -751,8 +842,8 @@ UInfoWidget* UInfoUiPresenter::GetInfoWidget() const
 USelectPandoraWidget* UInfoUiPresenter::GetSelectPandoraWidget() const
 {
 	APdPlayerController* Controller = GetController();
-	const UControllerUiComponent* ControllerUiComponent = Controller ? Controller->FindComponentByClass<UControllerUiComponent>() : nullptr;
-	return ControllerUiComponent ? ControllerUiComponent->GetSelectPandoraWidget() : nullptr;
+	const APdHUD* HUD = Controller ? Cast<APdHUD>(Controller->GetHUD()) : nullptr;
+	return HUD ? HUD->GetSelectPandoraWidget() : nullptr;
 }
 
 APdPlayerController* UInfoUiPresenter::GetController() const
@@ -789,6 +880,50 @@ FGameplayTag UInfoUiPresenter::GetPandoraEquipmentLeftUiTag() const
 FGameplayTag UInfoUiPresenter::GetWeaponItemTypeTag() const
 {
 	return UProjectTagConfig::Get(this)->GetItemWeaponTypeTag();
+}
+
+void UInfoUiPresenter::RefreshSelectPandoraCompatibilityState() const
+{
+	USelectPandoraWidget* SelectPandoraWidget = GetSelectPandoraWidget();
+	if (!SelectPandoraWidget)
+	{
+		return;
+	}
+
+	const APdPlayerState* PlayerState = GetCachedPlayerState();
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	const TArray<FPandoraSelectSlotUiData> Slots = FPandoraLoadoutUiModel::BuildSelectSlots(
+		PandoraComponent,
+		CachedFirstWeapon,
+		CachedSecondWeapon,
+		CachedThirdWeapon);
+
+	for (const FPandoraSelectSlotUiData& Slot : Slots)
+	{
+		SelectPandoraWidget->SetPandoraEnabled(Slot.SlotNumber, Slot.bCompatibleWithWeapon);
+	}
+}
+
+void UInfoUiPresenter::RefreshSelectPandoraLoadoutImages() const
+{
+	USelectPandoraWidget* SelectPandoraWidget = GetSelectPandoraWidget();
+	if (!SelectPandoraWidget)
+	{
+		return;
+	}
+
+	const APdPlayerState* PlayerState = GetCachedPlayerState();
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	const TArray<FPandoraSelectSlotUiData> Slots = FPandoraLoadoutUiModel::BuildSelectSlots(
+		PandoraComponent,
+		CachedFirstWeapon,
+		CachedSecondWeapon,
+		CachedThirdWeapon);
+
+	for (const FPandoraSelectSlotUiData& Slot : Slots)
+	{
+		SelectPandoraWidget->SetPandoraImage(Slot.SlotNumber, Slot.IconTexture);
+	}
 }
 
 void UInfoUiPresenter::BindInventoryChangeNotification()

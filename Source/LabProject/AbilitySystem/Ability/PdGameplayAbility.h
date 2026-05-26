@@ -4,12 +4,15 @@
 #include "ActiveGameplayEffectHandle.h"
 #include "GameplayTagContainer.h"
 #include "Abilities/GameplayAbility.h"
+#include "AbilitySystem/Skills/SkillTypes.h"
 #include "PdGameplayAbility.generated.h"
 
 class APdCharacterBase;
 class APdPlayerController;
 class APdPlayerState;
 class UGameplayEffect;
+class USkillDataAsset;
+class UPandoraSkillRuntimeContext;
 class UPdAbilitySystemComponent;
 
 DECLARE_LOG_CATEGORY_EXTERN(PdGameplayAbilityLog, Log, All);
@@ -42,6 +45,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Ability")
 	UPdAbilitySystemComponent* GetPdAbilitySystemComponentFromActorInfo() const;
 
+	UFUNCTION(BlueprintPure, Category = "!Ability|Activation")
+	bool ShouldAutoActivateWhenGranted() const { return bAutoActivateWhenGranted; }
+
+	UFUNCTION(BlueprintPure, Category = "!Ability|Skill")
+	USkillDataAsset* GetSourceSkillDataAsset() const;
+
+	UFUNCTION(BlueprintPure, Category = "!Ability|Skill")
+	UPandoraSkillRuntimeContext* GetSourceSkillRuntimeContext() const;
+
+	TArray<FProjectileImpactEffectAreaSpawnConfig> GetSourceProjectileImpactEffectAreasForLevel(int32 Level) const;
+
 	// Activation
 public:
 	UFUNCTION(BlueprintCallable, Category = "!Ability|Activation")
@@ -67,6 +81,12 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "!Ability|Targeting")
 	bool GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRight, float SearchRadius = 350.f, float ForwardOffset = 50.f) const;
+
+	UFUNCTION(BlueprintPure, Category = "!Ability|Targeting")
+	bool HasPlayerController() const;
+
+	UFUNCTION(BlueprintPure, Category = "!Ability|Targeting")
+	AActor* GetAttackTargetFromAvatar() const;
 	
 protected:
 	FActiveGameplayEffectHandle ApplyGameplayEffectHandle(TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel = 1.f, int32 StackCount = 1);
@@ -75,4 +95,13 @@ protected:
 	bool HasActiveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass) const;
 	bool GrantAbilityIfMissing(TSubclassOf<UGameplayAbility> AbilityClass, int32 AbilityLevel);
 	bool HasGrantedAbility(TSubclassOf<UGameplayAbility> AbilityClass) const;
+	const FGameplayAbilitySpec* ResolveCurrentAbilitySpec() const;
+	UObject* GetCurrentAbilitySpecSourceObject() const;
+	UPandoraSkillRuntimeContext* ResolveSourceSkillRuntimeContextFromSelectedPandora() const;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Activation")
+	bool bAutoActivateWhenGranted = false;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPandoraSkillRuntimeContext> CachedResolvedSourceSkillRuntimeContext;
 };

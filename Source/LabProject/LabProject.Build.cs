@@ -28,13 +28,14 @@ public class LabProject : ModuleRules
 			"ModelViewViewModel",
 			"UMG",
 			"AnimGraphRuntime",
-			"Niagara"
+			"Niagara",
+			"AssetRegistry"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"Slate",
-			"SlateCore"
+			"SlateCore", "AIModule"
 		});
 
 		// Uncomment if you are using Slate UI

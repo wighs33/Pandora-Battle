@@ -20,6 +20,7 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Engine Events
 	virtual void InitGameState() override;
+	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;

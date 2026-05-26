@@ -10,6 +10,14 @@ void USelectPandoraWidget::SetPandoraImage(int32 Nth, UTexture2D* PandoraImage)
 	SetImageByIndex({ FirstPandoraImage.Get(), SecondPandoraImage.Get(), ThirdPandoraImage.Get() }, Nth, PandoraImage);
 }
 
+void USelectPandoraWidget::SetPandoraEnabled(int32 Nth, bool bEnabled)
+{
+	SetImageTintByIndex(
+		{ FirstPandoraImage.Get(), SecondPandoraImage.Get(), ThirdPandoraImage.Get() },
+		Nth,
+		bEnabled ? EnabledPandoraTint : DisabledPandoraTint);
+}
+
 void USelectPandoraWidget::SetWeaponImage(int32 Nth, UTexture2D* WeaponImage)
 {
 	SetImageByIndex({ FirstWeaponImage.Get(), SecondWeaponImage.Get(), ThirdWeaponImage.Get() }, Nth, WeaponImage);
@@ -48,6 +56,17 @@ void USelectPandoraWidget::SetImageByIndex(const TArray<UImage*>& Images, int32 
 	}
 
 	Images[ImageIndex]->SetBrushFromTexture(Texture, false);
+}
+
+void USelectPandoraWidget::SetImageTintByIndex(const TArray<UImage*>& Images, int32 Nth, const FLinearColor& TintColor) const
+{
+	const int32 ImageIndex = Nth - 1;
+	if (!Images.IsValidIndex(ImageIndex) || !Images[ImageIndex])
+	{
+		return;
+	}
+
+	Images[ImageIndex]->SetColorAndOpacity(TintColor);
 }
 
 void USelectPandoraWidget::SelectDirection(EEnum_Direction InDirection, bool bBroadcast)

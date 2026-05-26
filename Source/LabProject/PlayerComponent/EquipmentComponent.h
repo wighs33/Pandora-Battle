@@ -95,6 +95,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	FGuid GetCurrentWeaponId() const { return CurrentWeaponId; }
 
+	UFUNCTION(BlueprintPure, Category = "!Equipment")
+	const UItemDefinition* GetCurrentWeaponDefinition() const;
+
 	/** 요청 아이템을 저장합니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
 	bool SetRequestedWeaponInstance(UItemInstance* WeaponInstance);
@@ -109,6 +112,9 @@ public:
 	/** 요청된 무기를 장착합니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
 	bool EquipWeapon();
+
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Equipment")
+	bool EquipWeaponDefinition(const UItemDefinition* WeaponDefinition);
 
 	/** 현재 아이템을 해제합니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
@@ -149,12 +155,14 @@ protected:
 
 	/** 장착 스탯 GameplayEffect를 적용하고 현재 스냅샷으로 저장합니다. */
 	void ApplyAndStoreWeaponStats(const UItemDefinition* ItemDefinition, FEquippedItemStatSnapshot& PendingStatSnapshot);
+	void ApplyCurrentWeaponTagEffect(const UItemDefinition* ItemDefinition);
+	void RemoveCurrentWeaponTagEffect(const UItemDefinition* ItemDefinition);
 
 	/** 현재 장착 스탯 GameplayEffect를 역적용합니다. */
 	void RemoveCurrentWeaponStats();
 
 	/** 현재 무기 상태를 확정하고 복제 dirty 플래그를 표시합니다. */
-	void CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor);
+	void CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor, const UItemDefinition* NewWeaponDefinition);
 
 	/** 실제 장착 해제 로직을 처리합니다. */
 	bool UnequipCurrentWeaponInternal();
@@ -162,11 +170,9 @@ protected:
 	/** 요청 아이템을 초기화합니다. */
 	void ClearRequestedWeapon();
 
-	/** 현재 아이템 정의를 반환합니다. */
-	const UItemDefinition* GetCurrentWeaponDefinition() const;
-
 	/** 아이템 스탯 스냅샷을 구성합니다. */
 	bool BuildItemStatSnapshot(const UItemInstance* ItemInstance, FEquippedItemStatSnapshot& OutSnapshot) const;
+	bool BuildItemDefinitionStatSnapshot(const UItemDefinition* ItemDefinition, FEquippedItemStatSnapshot& OutSnapshot) const;
 
 	/** 스탯 스냅샷을 GameplayEffect로 적용합니다. */
 	bool ApplyItemStatSnapshot(const FEquippedItemStatSnapshot& StatSnapshot, float MagnitudeScale) const;
@@ -195,8 +201,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Equipment|Stat", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UGameplayEffect> StatUpGameplayEffectClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Equipment|Effect", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UGameplayEffect> EquippedItemEffectClass;
+
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	TObjectPtr<AWeaponBase> CurrentWeaponActor;
+
+	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
+	TObjectPtr<const UItemDefinition> CurrentWeaponDefinition;
 
 
 	/** 요청된 아이템 ID입니다. */

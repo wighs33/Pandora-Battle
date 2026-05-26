@@ -55,6 +55,10 @@ private:
 	/** 최대 체력 변경을 처리합니다. */
 	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
 
+	void OnShieldChanged(const FOnAttributeChangeData& Data);
+
+	void OnMaxShieldChanged(const FOnAttributeChangeData& Data);
+
 	/** 마나 변경을 처리합니다. */
 	void OnManaChanged(const FOnAttributeChangeData& Data);
 
@@ -82,7 +86,7 @@ public:
 
 	/** 강인함 수치입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Defense")
-	float Toughness = 2.f;
+	float Armor = 2.f;
 
 	/** 회복 수치입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Defense")
@@ -140,6 +144,15 @@ public:
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Health")
 	float HealthPercent = 1.f;
 
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Shield")
+	float Shield = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Shield")
+	float MaxShield = 100.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Shield")
+	float ShieldPercent = 0.f;
+
 	/** 현재 마나입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Mana")
 	float Mana = 100.f;
@@ -181,6 +194,8 @@ public:
 
 	/** 체력 관련 값을 갱신합니다. */
 	void UpdateHealthData();
+
+	void UpdateShieldData();
 
 	/** 마나 관련 값을 갱신합니다. */
 	void UpdateManaData();

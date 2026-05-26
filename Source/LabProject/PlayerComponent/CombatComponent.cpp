@@ -2,16 +2,17 @@
 
 #include "AbilitySystem/Ability/AttackAbility.h"
 #include "AbilitySystem/PdAbilitySystemComponent.h"
-#include "AbilitySystem/PdAttributeSet.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Character/PdCharacterBase.h"
 #include "Character/PdPlayer.h"
+#include "Common/LabGameplayTags.h"
 #include "Common/ProjectTagConfig.h"
 #include "GameplayEffect.h"
 #include "Mode/PdPlayerController.h"
+#include "Mode/PdHUD.h"
 #include "PlayerComponent/EquipmentComponent.h"
-#include "UI/ControllerUiComponent.h"
 #include "Weapon/WeaponBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CombatComponent)
@@ -44,6 +45,16 @@ void UCombatComponent::RefreshCachedReferences()
 
 void UCombatComponent::StartPrimaryAttack()
 {
+	if (IsPrimaryAttackBlockedByAbilityTags())
+	{
+		if (UAbilitySystemComponent* AbilitySystemComponent = GetPlayerAbilitySystemComponent())
+		{
+			AbilitySystemComponent->LocalInputConfirm();
+		}
+		StopAutomaticFire();
+		return;
+	}
+
 	ProcessAttackInput();
 	TryStartAutomaticFire();
 }
@@ -72,9 +83,9 @@ void UCombatComponent::StartAim()
 		return;
 	}
 
-	if (UControllerUiComponent* ControllerUiComponent = GetControllerUiComponent())
+	if (APdHUD* HUD = GetPdHUD())
 	{
-		ControllerUiComponent->ShowAimCrosshair(WeaponActor->GetAimCrosshairWidgetTag());
+		HUD->ShowAimCrosshair(WeaponActor->GetAimCrosshairWidgetTag());
 	}
 }
 
@@ -86,9 +97,9 @@ void UCombatComponent::StopAim()
 		return;
 	}
 
-	if (UControllerUiComponent* ControllerUiComponent = GetControllerUiComponent())
+	if (APdHUD* HUD = GetPdHUD())
 	{
-		ControllerUiComponent->HideAimCrosshair();
+		HUD->HideAimCrosshair();
 	}
 
 	AWeaponBase* WeaponActor = GetCurrentWeaponActor();
@@ -134,11 +145,11 @@ APdPlayer* UCombatComponent::GetPlayerOwner() const
 	return Cast<APdPlayer>(GetOwner());
 }
 
-UControllerUiComponent* UCombatComponent::GetControllerUiComponent() const
+APdHUD* UCombatComponent::GetPdHUD() const
 {
 	const APdPlayer* PlayerCharacter = GetPlayerOwner();
 	const APdPlayerController* Controller = PlayerCharacter ? Cast<APdPlayerController>(PlayerCharacter->GetController()) : nullptr;
-	return Controller ? Controller->FindComponentByClass<UControllerUiComponent>() : nullptr;
+	return Controller ? Cast<APdHUD>(Controller->GetHUD()) : nullptr;
 }
 
 AWeaponBase* UCombatComponent::GetCurrentWeaponActor() const
@@ -230,6 +241,11 @@ void UCombatComponent::ProcessAttackInput()
 		return;
 	}
 
+	if (IsPrimaryAttackBlockedByAbilityTags())
+	{
+		return;
+	}
+
 	AWeaponBase* CurrentWeaponActor = GetCurrentWeaponActor();
 	if (!TryProcessWeaponPrimaryAttack(PlayerCharacter, CurrentWeaponActor))
 	{
@@ -257,6 +273,14 @@ void UCombatComponent::ProcessAttackInput()
 	}
 
 	TryActivateAttackAbility(AbilitySystemComponent, AttackTagContainer);
+}
+
+bool UCombatComponent::IsPrimaryAttackBlockedByAbilityTags() const
+{
+	const UAbilitySystemComponent* AbilitySystemComponent = GetPlayerAbilitySystemComponent();
+	return AbilitySystemComponent
+		&& (AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
+			|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_ShootProjectile_Active));
 }
 
 bool UCombatComponent::TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter, AWeaponBase* WeaponActor) const
@@ -309,6 +333,12 @@ void UCombatComponent::TryActivateAttackAbility(UAbilitySystemComponent* Ability
 
 bool UCombatComponent::TryStartAutomaticFire()
 {
+	if (IsPrimaryAttackBlockedByAbilityTags())
+	{
+		StopAutomaticFire();
+		return false;
+	}
+
 	AWeaponBase* WeaponActor = GetCurrentWeaponActor();
 	if (!WeaponActor || !WeaponActor->SupportsAutomaticFire())
 	{
@@ -346,6 +376,12 @@ bool UCombatComponent::TryStartAutomaticFire()
 
 void UCombatComponent::HandleAutomaticFireTick()
 {
+	if (IsPrimaryAttackBlockedByAbilityTags())
+	{
+		StopAutomaticFire();
+		return;
+	}
+
 	AWeaponBase* WeaponActor = GetCurrentWeaponActor();
 	if (!WeaponActor || !WeaponActor->SupportsAutomaticFire())
 	{
@@ -390,7 +426,7 @@ bool UCombatComponent::ApplyWeaponDamageToTarget(AActor* TargetActor)
 		return false;
 	}
 
-	UPdAttributeSet* SourceAttributeSet = const_cast<UPdAttributeSet*>(SourceASC->GetSet<UPdAttributeSet>());
+	UBasicAttributeSet* SourceAttributeSet = const_cast<UBasicAttributeSet*>(SourceASC->GetSet<UBasicAttributeSet>());
 	if (!SourceAttributeSet)
 	{
 		return false;
@@ -410,7 +446,7 @@ bool UCombatComponent::ApplyWeaponDamageToTarget(AActor* TargetActor)
 
 	const bool bCriticalHit = SourceAttributeSet->ConsumeOutgoingDamageCriticalHit();
 
-	UPdAttributeSet* TargetAttributeSet = const_cast<UPdAttributeSet*>(TargetASC->GetSet<UPdAttributeSet>());
+	UBasicAttributeSet* TargetAttributeSet = const_cast<UBasicAttributeSet*>(TargetASC->GetSet<UBasicAttributeSet>());
 	if (!TargetAttributeSet)
 	{
 		return false;
@@ -421,14 +457,6 @@ bool UCombatComponent::ApplyWeaponDamageToTarget(AActor* TargetActor)
 	{
 		TargetAttributeSet->SetPendingIncomingDamageCriticalHit(false);
 		return false;
-	}
-
-	const FGameplayTag HitReactAbilityTag = GetHitReactAbilityTag();
-	if (HitReactAbilityTag.IsValid())
-	{
-		FGameplayTagContainer HitReactAbilityTags;
-		HitReactAbilityTags.AddTag(HitReactAbilityTag);
-		TargetASC->TryActivateAbilitiesByTag(HitReactAbilityTags, false);
 	}
 
 	return true;

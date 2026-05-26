@@ -2,16 +2,16 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Animation/AnimSequenceBase.h"
+#include "Character/PdCharacterBase.h"
 #include "Components/SkeletalMeshComponent.h"
 
 namespace
 {
-	/** 지정한 태그의 공격 관련 게임플레이 이벤트를 액터에 전송합니다. */
+	/** 지?�한 ?�그??공격 관??게임?�레???�벤?��? ?�터???�송?�니?? */
 	void SendAttackGameplayEvent(USkeletalMeshComponent* MeshComp, const FGameplayTag& EventTag)
 	{
 		// =================================================================================================================
-		// === 기본 유효성 검사
-
+		// === 기본 ?�효??검??
 		if (!IsValid(MeshComp) || !EventTag.IsValid())
 		{
 			return;
@@ -24,7 +24,7 @@ namespace
 		}
 
 		// =================================================================================================================
-		// === AbilitySystemComponent 존재 여부 확인
+		// === AbilitySystemComponent 존재 ?��? ?�인
 
 		if (!UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerActor))
 		{
@@ -32,47 +32,56 @@ namespace
 		}
 
 		// =================================================================================================================
-		// === 게임플레이 이벤트 전송
+		// === 게임?�레???�벤???�송
 
 		FGameplayEventData Payload;
+		Payload.EventTag = EventTag;
+		Payload.Instigator = OwnerActor;
+		Payload.Target = OwnerActor;
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(OwnerActor, EventTag, Payload);
+
+		APdCharacterBase* Character = Cast<APdCharacterBase>(OwnerActor);
+		if (Character && Character->IsLocallyControlled() && !Character->HasAuthority())
+		{
+			Character->ServerSendGameplayEventToSelf(Payload);
+		}
 	}
 }
 
-/** 노티파이 시작 시점에 공격 입력 가능 시작 이벤트를 전송합니다. */
+/** ?�티?�이 ?�작 ?�점??공격 ?�력 가???�작 ?�벤?��? ?�송?�니?? */
 void UAnimNotifyState_AttackInputWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration,
 	const FAnimNotifyEventReference& EventReference)
 {
-	// 사용하지 않는 인자 경고를 방지합니다.
+	// ?�용?��? ?�는 ?�자 경고�?방�??�니??
 	static_cast<void>(Animation);
 	static_cast<void>(TotalDuration);
 	static_cast<void>(EventReference);
 
 	// =================================================================================================================
-	// === 시작 이벤트 전송
+	// === ?�작 ?�벤???�송
 
 	SendAttackGameplayEvent(MeshComp, StartEventTag);
 }
 
-/** 노티파이 종료 시점에 공격 입력 가능 종료 이벤트를 전송합니다. */
+/** ?�티?�이 종료 ?�점??공격 ?�력 가??종료 ?�벤?��? ?�송?�니?? */
 void UAnimNotifyState_AttackInputWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 	const FAnimNotifyEventReference& EventReference)
 {
-	// 사용하지 않는 인자 경고를 방지합니다.
+	// ?�용?��? ?�는 ?�자 경고�?방�??�니??
 	static_cast<void>(Animation);
 	static_cast<void>(EventReference);
 
 	// =================================================================================================================
-	// === 종료 이벤트 전송
+	// === 종료 ?�벤???�송
 
 	SendAttackGameplayEvent(MeshComp, EndEventTag);
 }
 
-/** 에디터와 디버그에서 표시할 노티파이 이름을 반환합니다. */
+/** ?�디?��? ?�버그에???�시???�티?�이 ?�름??반환?�니?? */
 FString UAnimNotifyState_AttackInputWindow::GetNotifyName_Implementation() const
 {
 	// =================================================================================================================
-	// === 시작/종료 태그 포함 노티파이 이름 구성
+	// === ?�작/종료 ?�그 ?�함 ?�티?�이 ?�름 구성
 
 	return TEXT("AttackInputWindow");
 }

@@ -31,10 +31,10 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- ViewModel
 	UFUNCTION(BlueprintCallable, Category = "!ViewModel")
-	void RefreshStatusViewModel();
+	bool RefreshStatusViewModel();
 
 	UFUNCTION(BlueprintCallable, Category = "!ViewModel")
-	void ApplyStatusViewModelToWidget(UUserWidget* InWidget);
+	bool ApplyStatusViewModelToWidget(UUserWidget* InWidget);
 
 	UFUNCTION(BlueprintPure, Category = "!ViewModel")
 	UStatusViewModel* GetStatusViewModel() const { return StatusViewModel; }

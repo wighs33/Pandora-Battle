@@ -4,15 +4,18 @@
 #include "UI/InfoUiPresenter.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/SelectPandoraWidget.h"
+#include "UI/Widget/PandoraTreeWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetClassDefinition)
 
 UWidgetClassDefinition::UWidgetClassDefinition()
 {
+	PlayerHudWidgetSettings.WidgetTag = LabGameplayTags::UI_Widget_PlayerHUD;
 	InfoWidgetSettings.WidgetTag = LabGameplayTags::UI_Widget_Info;
 	InfoWidgetSettings.PresenterClass = UInfoUiPresenter::StaticClass();
 	SelectPandoraWidgetSettings.WidgetTag = LabGameplayTags::UI_Widget_SelectPandora;
 	AimCrosshairWidgetSettings.WidgetTag = LabGameplayTags::UI_Widget_AimCrosshair;
+	PandoraTreeWidgetSettings.WidgetTag = LabGameplayTags::UI_Widget_PandoraTree;
 }
 
 FPrimaryAssetId UWidgetClassDefinition::GetPrimaryAssetId() const
@@ -25,6 +28,11 @@ TSubclassOf<UUserWidget> UWidgetClassDefinition::FindWidgetClassByTag(FGameplayT
 	if (!WidgetTag.IsValid())
 	{
 		return nullptr;
+	}
+
+	if (PlayerHudWidgetSettings.WidgetTag.MatchesTagExact(WidgetTag))
+	{
+		return PlayerHudWidgetSettings.WidgetClass;
 	}
 
 	if (InfoWidgetSettings.WidgetTag.MatchesTagExact(WidgetTag))
@@ -42,7 +50,17 @@ TSubclassOf<UUserWidget> UWidgetClassDefinition::FindWidgetClassByTag(FGameplayT
 		return AimCrosshairWidgetSettings.WidgetClass;
 	}
 
+	if (PandoraTreeWidgetSettings.WidgetTag.MatchesTagExact(WidgetTag))
+	{
+		return TSubclassOf<UUserWidget>(PandoraTreeWidgetSettings.WidgetClass.Get());
+	}
+
 	return nullptr;
+}
+
+TSubclassOf<UUserWidget> UWidgetClassDefinition::GetPlayerHudWidgetClass() const
+{
+	return PlayerHudWidgetSettings.WidgetClass;
 }
 
 TSubclassOf<UInfoWidget> UWidgetClassDefinition::GetInfoWidgetClass() const
@@ -58,4 +76,9 @@ TSubclassOf<USelectPandoraWidget> UWidgetClassDefinition::GetSelectPandoraWidget
 TSubclassOf<UUserWidget> UWidgetClassDefinition::GetAimCrosshairWidgetClass() const
 {
 	return AimCrosshairWidgetSettings.WidgetClass;
+}
+
+TSubclassOf<UPandoraTreeWidget> UWidgetClassDefinition::GetPandoraTreeWidgetClass() const
+{
+	return PandoraTreeWidgetSettings.WidgetClass;
 }

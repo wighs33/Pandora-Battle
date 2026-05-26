@@ -2,9 +2,11 @@
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/PdCharacterBase.h"
+#include "Common/LabGameplayTags.h"
 #include "PlayerComponent/EquipmentComponent.h"
 #include "Weapon/WeaponBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AttackAbility)
@@ -12,11 +14,22 @@
 UAttackAbility::UAttackAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
+
+	FGameplayTagContainer AbilityAssetTags;
+	AbilityAssetTags.AddTag(LabGameplayTags::Action_Attack);
+	SetAssetTags(AbilityAssetTags);
 }
 
 // State helpers
 void UAttackAbility::CleanupAttackState()
 {
+	if (WaitInputPressTask)
+	{
+		WaitInputPressTask->EndTask();
+		WaitInputPressTask = nullptr;
+	}
+
 	SetCurrentWeaponBeginOverlapEnabled(false);
 	ResetAttackInputState();
 
@@ -65,6 +78,11 @@ void UAttackAbility::OnAttackInputWindowOpened(FGameplayEventData Payload)
 	bCanReceiveAttackInput = true;
 	bReachedJumpSectionTiming = false;
 	BufferedJumpSectionName = NAME_None;
+
+	if (bAIAlwaysContinueCombo && !HasPlayerController())
+	{
+		RequestJumpToSection(GetNextAttackSectionName());
+	}
 }
 
 void UAttackAbility::OnAttackInputWindowClosed(FGameplayEventData Payload)
@@ -73,6 +91,15 @@ void UAttackAbility::OnAttackInputWindowClosed(FGameplayEventData Payload)
 
 	SetCurrentWeaponBeginOverlapEnabled(false);
 	ResetAttackInputState();
+}
+
+void UAttackAbility::OnContinueInputPressed(float TimeWaited)
+{
+	static_cast<void>(TimeWaited);
+
+	WaitInputPressTask = nullptr;
+	RequestJumpToSection(GetNextAttackSectionName());
+	WaitForContinueInput();
 }
 
 // Ability flow
@@ -116,6 +143,7 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 	}
 
 	ResetAttackInputState();
+	WaitForContinueInput();
 
 	if (AttackInputWindowStartEventTag.IsValid())
 	{
@@ -262,6 +290,23 @@ void UAttackAbility::ResetAttackInputState()
 	bCanReceiveAttackInput = false;
 	bReachedJumpSectionTiming = false;
 	BufferedJumpSectionName = NAME_None;
+}
+
+void UAttackAbility::WaitForContinueInput()
+{
+	if (WaitInputPressTask || !IsActive())
+	{
+		return;
+	}
+
+	WaitInputPressTask = UAbilityTask_WaitInputPress::WaitInputPress(this, false);
+	if (!WaitInputPressTask)
+	{
+		return;
+	}
+
+	WaitInputPressTask->OnPress.AddDynamic(this, &ThisClass::OnContinueInputPressed);
+	WaitInputPressTask->ReadyForActivation();
 }
 
 AWeaponBase* UAttackAbility::GetCurrentWeaponActor() const

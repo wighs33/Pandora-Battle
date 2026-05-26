@@ -8,8 +8,65 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Action_Equip, "Action.Equip", "Default equip ability tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Action_Unequip, "Action.Unequip", "Default unequip ability tag.");
 
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Abilities_Changed, "Event.Abilities.Changed", "Gameplay event sent when granted abilities change.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ActivateAbility, "Event.ActivateAbility", "Root gameplay event tag for ability activation.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ActivateAbility_Dash, "Event.ActivateAbility.Dash", "Gameplay event used to activate dash with payload data.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Effect_StackCountChanged, "Event.Effect.StackCountChanged", "Gameplay event sent to status UI when a debuff stack count changes.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Montage_Trigger, "Event.Montage.Trigger", "Gameplay event sent by montage notifies to trigger delayed ability work.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ShootProjectile, "Event.ShootProjectile", "Gameplay event used by montage notifies to spawn a projectile.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility, "GameplayAbility", "Root gameplay ability tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Active, "GameplayAbility.Active", "Common tag owned while any project gameplay ability is active.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_HitReaction, "GameplayAbility.HitReaction", "Hit reaction ability tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Death, "GameplayAbility.Death", "Death ability tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Movement_Dash, "GameplayAbility.Movement.Dash", "Dash movement ability tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Movement_Dash_Active, "GameplayAbility.Movement.Dash.Active", "Dash movement ability active tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_AOEAttack, "GameplayAbility.AOEAttack", "Pandora area targeting attack ability tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_AOEAttack_Active, "GameplayAbility.AOEAttack.Active", "Pandora area targeting attack active tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_ShootProjectile, "GameplayAbility.ShootProjectile", "Projectile shooting ability tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_ShootProjectile_Active, "GameplayAbility.ShootProjectile.Active", "Projectile shooting ability active tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive, "GameplayAbility.Defensive", "Root defensive ability tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_Shield, "GameplayAbility.Defensive.Shield", "Shield defensive ability tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_Shield_Active, "GameplayAbility.Defensive.Shield.Active", "Shield defensive ability active tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_ShieldBubble, "GameplayAbility.Defensive.ShieldBubble", "Shield bubble defensive ability tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_FillShield, "GameplayAbility.Defensive.FillShield", "Fill shield defensive ability tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_FillShield_Active, "GameplayAbility.Defensive.FillShield.Active", "Fill shield defensive ability active tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Dash_Active, "GameplayCue.Dash.Active", "Active dash gameplay cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Movement_Dash, "Input.Ability.Movement.Dash", "Dash ability input tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Skill1, "Input.Ability.Skill1", "Pandora skill slot 1 input tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Skill2, "Input.Ability.Skill2", "Pandora skill slot 2 input tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Skill3, "Input.Ability.Skill3", "Pandora skill slot 3 input tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Skill4, "Input.Ability.Skill4", "Pandora skill slot 4 input tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown, "Cooldown", "Root cooldown tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Dash, "Cooldown.Dash", "Dash cooldown tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_EquipWeapon, "Cooldown.EquipWeapon", "Equip weapon cooldown tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_AOEAttack, "Cooldown.AOEAttack", "Area targeting attack cooldown tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Shield, "Cooldown.Shield", "Shield cooldown tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_StaminaRegen, "Status.StaminaRegen", "Stamina regeneration status tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Buff_Shield, "Status.Buff.Shield", "Active shield buff tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Burning, "Status.Burning", "Burning status effect tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Frozen, "Status.Frozen", "Frozen status effect tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Debuff_Fire, "Debuff.Fire", "Stacking fire debuff tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Debuff_Ice, "Debuff.Ice", "Stacking ice debuff tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_HitReaction, "Effect.HitReaction", "Gameplay effect asset tag that allows damage to trigger hit reaction.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "State tag granted while a character is dead.");
+
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Damage, "Data.Damage", "SetByCaller damage magnitude tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Heal, "Data.Heal", "SetByCaller heal magnitude tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_StatUp, "Data.StatUp", "SetByCaller stat operation tag.");
+
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Damage_Burst, "GameplayCue.Damage.Burst", "Damage burst gameplay cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Heal_Burst, "GameplayCue.Heal.Burst", "Heal burst gameplay cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_ProjectileSpawn_GreenFire, "GameplayCue.ProjectileSpawn.GreenFire", "Green fire projectile spawn gameplay cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_ProjectileImpact_GreenFire, "GameplayCue.ProjectileImpact.GreenFire", "Green fire projectile impact gameplay cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_ProjectileSpawn_Ice, "GameplayCue.ProjectileSpawn.Ice", "Ice projectile spawn gameplay cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_ProjectileImpact_Ice, "GameplayCue.ProjectileImpact.Ice", "Ice projectile impact gameplay cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_AOEIndicator, "GameplayCue.AOEIndicator", "Persistent area attack warning indicator cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_LightningBolt, "GameplayCue.LightningBolt", "Lightning impact burst cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_ShieldBubble, "GameplayCue.ShieldBubble", "Persistent shield bubble cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_ShieldUp, "GameplayCue.ShieldUp", "Persistent shield attribute overlay cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_ShieldDown, "GameplayCue.ShieldDown", "Burst shield break cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Burning, "GameplayCue.Burning", "Persistent burning status cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Frozen, "GameplayCue.Frozen", "Persistent frozen status cue tag.");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Weapon, "Item.Weapon", "Weapon item filter tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Equipment, "Item.Equipment", "Equipment item filter tag.");
@@ -37,8 +94,8 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skin_Cosmetics_Top, "Skin.Cosmetics.Top", "Top skin slot tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skin_Cosmetics_Bottom, "Skin.Cosmetics.Bottom", "Bottom skin slot tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skin_Cosmetics_Shoes, "Skin.Cosmetics.Shoes", "Shoes skin slot tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skin_Cosmetics_Hair, "Skin.Cosmetics.Hair", "Hair skin slot tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skin_Cosmetics_Face, "Skin.Cosmetics.Face", "Face skin slot tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skin_Cosmetics_Head, "Skin.Cosmetics.Head", "Head skin slot tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skin_Cosmetics_SkinColor, "Skin.Cosmetics.SkinColor", "Skin color slot tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skin_Cosmetics_Back, "Skin.Cosmetics.Back", "Back skin slot tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skin_Cosmetics_Aura, "Skin.Cosmetics.Aura", "Aura skin slot tag.");
 
@@ -53,11 +110,13 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Widget_Info, "UI.Widget.Info", "Default info widget class tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Widget_SelectPandora, "UI.Widget.SelectPandora", "Default select pandora widget class tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Widget_AimCrosshair, "UI.Widget.AimCrosshair", "Default aim crosshair widget class tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Widget_PlayerHUD, "UI.Widget.PlayerHUD", "Default player HUD widget class tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Widget_PandoraTree, "UI.Widget.PandoraTree", "Default pandora tree widget class tag.");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Offense_Strength, "Status.Offense.Strength", "Strength stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Offense_Intelligence, "Status.Offense.Intelligence", "Intelligence stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Offense_Arcane, "Status.Offense.Arcane", "Arcane stat tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_Toughness, "Status.Defense.Toughness", "Toughness stat tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_Armor, "Status.Defense.Armor", "Armor stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_Recovery, "Status.Defense.Recovery", "Recovery stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_MagicResistance, "Status.Defense.MagicResistance", "Magic resistance stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resistance_Immunity, "Status.Resistance.Immunity", "Immunity stat tag.");
@@ -68,6 +127,7 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_PandoraForce_ThirdPandora, "Status.PandoraForce.ThirdPandora", "Third pandora force stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resource_MaxHealth, "Status.Resource.MaxHealth", "Maximum health stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resource_MaxMana, "Status.Resource.MaxMana", "Maximum mana stat tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resource_MaxShield, "Status.Resource.MaxShield", "Maximum shield stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resource_MaxStamina, "Status.Resource.MaxStamina", "Maximum stamina stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_AttackSpeed, "Status.Agility.AttackSpeed", "Attack speed stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_MovementSpeed, "Status.Agility.MovementSpeed", "Movement speed stat tag.");

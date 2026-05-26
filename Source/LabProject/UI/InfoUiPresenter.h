@@ -10,7 +10,10 @@ class APdPlayerController;
 class UInventoryComponent;
 class UEquipSlotWidget;
 class UInfoWidget;
+class UItemDefinition;
 class UItemInstance;
+class UPandoraDefinition;
+class UPandoraInstance;
 class UPandoraEquipSlotWidget;
 class USkinEquipSlotWidget;
 
@@ -28,6 +31,7 @@ public:
 	void Deinitialize();
 	void BindInfoUi(UInfoWidget* InInfoWidget);
 	UItemInstance* GetSelectedWeapon(EEnum_Direction Direction) const;
+	UPandoraInstance* GetSelectedPandora(EEnum_Direction Direction) const;
 
 	UFUNCTION()
 	void HandleSelectedPandoraDirection(EEnum_Direction Direction);
@@ -92,6 +96,8 @@ private:
 	FGameplayTag GetSkinEquipmentLeftUiTag() const;
 	FGameplayTag GetPandoraEquipmentLeftUiTag() const;
 	FGameplayTag GetWeaponItemTypeTag() const;
+	void RefreshSelectPandoraCompatibilityState() const;
+	void RefreshSelectPandoraLoadoutImages() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<APdPlayerController> OwningController = nullptr;

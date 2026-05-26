@@ -6,6 +6,7 @@
 #include "AttackAbility.generated.h"
 
 class UGameplayEffect;
+class UAbilityTask_WaitInputPress;
 class AWeaponBase;
 
 /**
@@ -52,9 +53,13 @@ protected:
 	UFUNCTION()
 	void OnAttackInputWindowClosed(FGameplayEventData Payload);
 
+	UFUNCTION()
+	void OnContinueInputPressed(float TimeWaited);
+
 	// State helpers
 	void CleanupAttackState();
 	void ResetAttackInputState();
+	void WaitForContinueInput();
 
 	// Query helpers
 	AWeaponBase* GetCurrentWeaponActor() const;
@@ -84,6 +89,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> AttackingEffectClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|AI")
+	bool bAIAlwaysContinueCombo = true;
+
 	// =================================================================================================================
 	// === 런타임 입력 상태
 	
@@ -95,4 +103,7 @@ protected:
 
 	UPROPERTY(Transient)
 	FName BufferedJumpSectionName = NAME_None;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitInputPress> WaitInputPressTask;
 };

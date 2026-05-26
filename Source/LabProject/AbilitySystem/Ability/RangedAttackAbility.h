@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
+#include "GameplayTagContainer.h"
 #include "RangedAttackAbility.generated.h"
 
 class UGameplayEffect;
+class AWeaponBase;
 
 UCLASS(Blueprintable)
 class LABPROJECT_API URangedAttackAbility : public UPdGameplayAbility
@@ -31,9 +33,23 @@ protected:
 	UFUNCTION()
 	void OnAttackMontageCancelled();
 
+	UFUNCTION()
+	void OnAttackTraceStart(FGameplayEventData Payload);
+
+	UFUNCTION()
+	void OnAttackTraceEnd(FGameplayEventData Payload);
+
 	// State helpers
 	void CleanupAttackState();
+	AWeaponBase* GetCurrentWeaponActor() const;
+	void SetCurrentWeaponTraceEnabled(bool bEnabled) const;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> AttackingEffectClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Event", meta = (Categories = "GameplayEvent"))
+	FGameplayTag AttackTraceStartEventTag;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Event", meta = (Categories = "GameplayEvent"))
+	FGameplayTag AttackTraceEndEventTag;
 };

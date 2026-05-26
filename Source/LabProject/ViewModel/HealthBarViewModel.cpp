@@ -2,7 +2,7 @@
 
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/PdAttributeSet.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 
@@ -78,8 +78,8 @@ void UHealthBarViewModel::InitializeViewModel(UObject* SourceObject)
 	// =================================================================================================================
 	// === 변경 델리게이트 바인딩
 
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
-	InASC->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMaxHealthAttribute()).AddUObject(this, &ThisClass::OnMaxHealthChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
+	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxHealthAttribute()).AddUObject(this, &ThisClass::OnMaxHealthChanged);
 
 	// =================================================================================================================
 	// === 초기 값 갱신
@@ -97,8 +97,8 @@ void UHealthBarViewModel::UninitializeViewModel()
 
 	if (UAbilitySystemComponent* ASCPtr = ASC.Get())
 	{
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetHealthAttribute()).RemoveAll(this);
-		ASCPtr->GetGameplayAttributeValueChangeDelegate(UPdAttributeSet::GetMaxHealthAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute()).RemoveAll(this);
+		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxHealthAttribute()).RemoveAll(this);
 	}
 
 	// =================================================================================================================
@@ -172,8 +172,8 @@ void UHealthBarViewModel::UpdateHealthData()
 	// =================================================================================================================
 	// === 현재 값 계산
 
-	const float CurrentHealth = HealthBarViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetHealthAttribute());
-	const float CurrentMaxHealth = HealthBarViewModel::GetAttributeValue(ASCPtr, UPdAttributeSet::GetMaxHealthAttribute());
+	const float CurrentHealth = HealthBarViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetHealthAttribute());
+	const float CurrentMaxHealth = HealthBarViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxHealthAttribute());
 	const float CurrentHealthPercent = CurrentMaxHealth > 0.f ? FMath::Clamp(CurrentHealth / CurrentMaxHealth, 0.f, 1.f) : 0.f;
 
 	// =================================================================================================================
