@@ -95,6 +95,9 @@ public:
 
 	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
 
+	UFUNCTION(BlueprintPure, Category = "!Inventory")
+	bool HasSkinDefinition(const USkinDefinition* SkinDefinition) const;
+
 protected:
 	// Replication timing callbacks
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedSkinEntry& Entry);

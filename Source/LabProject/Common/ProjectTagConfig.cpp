@@ -111,6 +111,14 @@ void UProjectTagConfig::GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) con
 	OutTags.Reset();
 	AddValidTag(OutTags, GetItemWeaponTypeTag());
 	AddValidTag(OutTags, GetItemEquipmentTypeTag());
+	AddValidTag(OutTags, GetItemHatEquipTypeTag());
+	AddValidTag(OutTags, GetItemTopEquipTypeTag());
+	AddValidTag(OutTags, GetItemBottomEquipTypeTag());
+	AddValidTag(OutTags, GetItemShoesEquipTypeTag());
+	AddValidTag(OutTags, GetItemEarringEquipTypeTag());
+	AddValidTag(OutTags, GetItemNecklaceEquipTypeTag());
+	AddValidTag(OutTags, GetItemRingEquipTypeTag());
+	AddValidTag(OutTags, GetItemRuneEquipTypeTag());
 	AddValidTag(OutTags, GetItemConsumableTypeTag());
 	AddValidTag(OutTags, GetItemValuableTypeTag());
 }
@@ -129,6 +137,14 @@ void UProjectTagConfig::GetSkinFilterTypeTags(TArray<FGameplayTag>& OutTags) con
 	OutTags.Reset();
 	AddValidTag(OutTags, GetSkinPandoraTypeTag());
 	AddValidTag(OutTags, GetSkinCosmeticsTypeTag());
+	AddValidTag(OutTags, GetSkinHatEquipTypeTag());
+	AddValidTag(OutTags, GetSkinTopEquipTypeTag());
+	AddValidTag(OutTags, GetSkinBottomEquipTypeTag());
+	AddValidTag(OutTags, GetSkinShoesEquipTypeTag());
+	AddValidTag(OutTags, GetSkinHeadEquipTypeTag());
+	AddValidTag(OutTags, GetSkinColorEquipTypeTag());
+	AddValidTag(OutTags, GetSkinBackEquipTypeTag());
+	AddValidTag(OutTags, GetSkinAuraEquipTypeTag());
 	AddValidTag(OutTags, GetSkinGestureTypeTag());
 	AddValidTag(OutTags, GetSkinRidingTypeTag());
 }

@@ -1,0 +1,56 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#include "ItemViewData.generated.h"
+
+class UItemInstance;
+class UObject;
+class USkinDefinition;
+class USkinInstance;
+
+USTRUCT(BlueprintType)
+struct LABPROJECT_API FPdItemViewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
+	FText Description;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData", meta = (AllowedClasses = "/Script/Engine.Texture2D,/Script/Engine.MaterialInterface"))
+	TObjectPtr<UObject> IconResource = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
+	TMap<FGameplayTag, float> Stats;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData", meta = (Categories = "Item.Weapon"))
+	FGameplayTagContainer RequiredWeaponTags;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
+	bool bOwned = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
+	bool bActive = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
+	bool bEnabled = true;
+
+	bool HasContent() const
+	{
+		return !DisplayName.IsEmpty() || !Description.IsEmpty() || IconResource != nullptr || !Stats.IsEmpty();
+	}
+};
+
+class LABPROJECT_API FPdItemViewDataBuilder
+{
+public:
+	static FPdItemViewData FromItemInstance(const UItemInstance* ItemInstance, bool bOwned = true, bool bActive = true);
+	static FPdItemViewData FromSkinInstance(const USkinInstance* SkinInstance, bool bOwned = true, bool bActive = true);
+	static FPdItemViewData FromSkinDefinition(const USkinDefinition* SkinDefinition, bool bOwned = true, bool bActive = true);
+
+private:
+	static TMap<FGameplayTag, float> BuildItemStatMap(const UItemInstance* ItemInstance);
+};

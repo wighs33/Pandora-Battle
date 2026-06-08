@@ -6,6 +6,7 @@
 #include "RightSkinWidget.generated.h"
 
 class UButton;
+class USkinSlotViewData;
 class UTileView;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedSkinFilterAllButton);
@@ -40,6 +41,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
 	UTileView* GetTileView() const { return TileView; }
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
+	int32 GetSkinSlotCount() const { return SkinSlotCount; }
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
 	FPdOnClickedSkinFilterAllButton OnClicked_SkinFilterAllButton;
@@ -77,6 +81,12 @@ protected:
 	//--- Tile View
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
 	TObjectPtr<UTileView> TileView;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|Slots", meta = (ClampMin = "0"))
+	int32 SkinSlotCount = 40;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin|Slots")
+	TArray<TObjectPtr<USkinSlotViewData>> CachedSlotViewData;
 
 private:
 	//------------------------------------------------------------------------------------------------------------------

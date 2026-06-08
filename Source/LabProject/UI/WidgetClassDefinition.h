@@ -10,6 +10,7 @@ class UInfoWidget;
 class UInfoUiPresenter;
 class USelectPandoraWidget;
 class UPandoraTreeWidget;
+class URightNotificationsWidget;
 
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FPlayerHudWidgetSettings
@@ -80,6 +81,15 @@ struct LABPROJECT_API FPandoraTreeWidgetSettings
 	TSubclassOf<UPandoraTreeWidget> WidgetClass;
 };
 
+USTRUCT(BlueprintType)
+struct LABPROJECT_API FRightNotificationsWidgetSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|RightNotificationsWidget")
+	TSubclassOf<URightNotificationsWidget> WidgetClass;
+};
+
 UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "Widget Class Definition"))
 class LABPROJECT_API UWidgetClassDefinition : public UPrimaryDataAsset
 {
@@ -98,11 +108,13 @@ public:
 	TSubclassOf<USelectPandoraWidget> GetSelectPandoraWidgetClass() const;
 	TSubclassOf<UUserWidget> GetAimCrosshairWidgetClass() const;
 	TSubclassOf<UPandoraTreeWidget> GetPandoraTreeWidgetClass() const;
+	TSubclassOf<URightNotificationsWidget> GetRightNotificationsWidgetClass() const;
 	const FPlayerHudWidgetSettings& GetPlayerHudWidgetSettings() const { return PlayerHudWidgetSettings; }
 	const FInfoWidgetSettings& GetInfoWidgetSettings() const { return InfoWidgetSettings; }
 	const FSelectPandoraWidgetSettings& GetSelectPandoraWidgetSettings() const { return SelectPandoraWidgetSettings; }
 	const FAimCrosshairWidgetSettings& GetAimCrosshairWidgetSettings() const { return AimCrosshairWidgetSettings; }
 	const FPandoraTreeWidgetSettings& GetPandoraTreeWidgetSettings() const { return PandoraTreeWidgetSettings; }
+	const FRightNotificationsWidgetSettings& GetRightNotificationsWidgetSettings() const { return RightNotificationsWidgetSettings; }
 
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PlayerHUD", meta = (AllowPrivateAccess = "true"))
@@ -119,4 +131,7 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget", meta = (AllowPrivateAccess = "true"))
 	FPandoraTreeWidgetSettings PandoraTreeWidgetSettings;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|RightNotificationsWidget", meta = (AllowPrivateAccess = "true"))
+	FRightNotificationsWidgetSettings RightNotificationsWidgetSettings;
 };

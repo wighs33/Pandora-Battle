@@ -5,11 +5,20 @@
 #include "UI/Widget/SkinEquipSlotWidget.h"
 #include "LeftSkinWidget.generated.h"
 
+class USkinEquipmentComponent;
+class USkinInstance;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FPdOnClickedSkinEquipTypeSlot,
 	FGameplayTag, EquipTypeTag,
 	USkinEquipSlotWidget*, SelectedSkinEquipSlot,
 	bool, bIsSelectedAnySlot);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FPdOnDroppedSkinEquipTypeSlot,
+	FGameplayTag, EquipTypeTag,
+	USkinEquipSlotWidget*, TargetSkinEquipSlot,
+	USkinInstance*, SkinInstance);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API ULeftSkinWidget : public UUserWidget
@@ -28,11 +37,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin", meta = (Categories = "Skin"))
 	void SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* InSelectedSkinEquipSlot);
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
+	void RefreshEquippedSkinSlots(const USkinEquipmentComponent* SkinEquipmentComponent);
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
+	USkinEquipSlotWidget* FindFirstCompatibleSkinEquipSlot(USkinInstance* SkinInstance) const;
+
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin", meta = (Categories = "Skin"))
 	void BroadcastClickedSkinEquipTypeSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* InSelectedSkinEquipSlot, bool bInIsSelectedAnySlot);
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
 	FPdOnClickedSkinEquipTypeSlot OnClicked_SkinEquipTypeSlot;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
+	FPdOnDroppedSkinEquipTypeSlot OnDroppedSkin_SkinEquipTypeSlot;
 
 protected:
 	virtual void NativePreConstruct() override;
@@ -94,9 +112,13 @@ private:
 	UFUNCTION()
 	void HandleSkinEquipSlotClicked(USkinEquipSlotWidget* SkinEquipSlot);
 
+	UFUNCTION()
+	void HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinEquipSlot, USkinInstance* SkinInstance);
+
 	void RebuildSkinEquipSlotList();
 	void RebuildEquipSlotNameList();
 	void ApplyEquipSlotNames();
+	void ApplyResolvedEquipTypeTags();
 	void BindSkinEquipSlotCallbacks();
 	void UnbindSkinEquipSlotCallbacks();
 

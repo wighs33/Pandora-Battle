@@ -27,7 +27,7 @@ namespace
 {
 	const FLinearColor PandoraButtonTransparentColor(1.0f, 1.0f, 1.0f, 0.0f);
 
-	UPandoraTreeComponent* ResolvePandoraTreeComponentFromWidget(const UUserWidget* Widget)
+	UPandoraTreeComponent* ResolvePandoraTreeComponentFromPandoraWidget(const UUserWidget* Widget)
 	{
 		if (!Widget)
 		{
@@ -82,7 +82,7 @@ void UPandoraWidget::NativeConstruct()
 	ResolvePandoraTreeWidget();
 	SetupPandoraDescriptionPopupWidget();
 
-	UE_LOG(LogPandoraWidget, Log,
+	UE_LOG(LogPandoraWidget, Verbose,
 		TEXT("[Construct] widget=%s treeComponent=%s treeWidget=%s pandora=%s button=%s progress=%s descClass=%s popup=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraTreeComponent.Get()),
@@ -117,7 +117,7 @@ void UPandoraWidget::SetPandoraDefinition(UPandoraDefinition* InPandoraDefinitio
 	}
 
 	PandoraDefinition = InPandoraDefinition;
-	UE_LOG(LogPandoraWidget, Log,
+	UE_LOG(LogPandoraWidget, Verbose,
 		TEXT("[SetPandoraDefinition] widget=%s pandora=%s icon=%s activeIcon=%s max=%d skills=%d"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraDefinition.Get()),
@@ -142,7 +142,7 @@ void UPandoraWidget::SetPandoraTreeComponent(UPandoraTreeComponent* InPandoraTre
 	{
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
-	UE_LOG(LogPandoraWidget, Log,
+	UE_LOG(LogPandoraWidget, Verbose,
 		TEXT("[SetTreeComponent] widget=%s treeComponent=%s resolvedPandora=%s points=%d"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraTreeComponent.Get()),
@@ -192,7 +192,7 @@ void UPandoraWidget::SetPandoraInfo()
 		ViewModel->SetAtMaxLevel(ViewData.bAtMaxLevel);
 	}
 
-	UE_LOG(LogPandoraWidget, Log,
+	UE_LOG(LogPandoraWidget, Verbose,
 		TEXT("[SetInfo] widget=%s pandora=%s tree=%s current=%d max=%d points=%d required=%d canSpend=%s unlockRulesMet=%s locked=%s notEnoughPoints=%s atMax=%s inactiveStyle=%s dimmedStyle=%s button=%s progress=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraDefinition.Get()),
@@ -227,7 +227,7 @@ void UPandoraWidget::ConfirmSpendPointOnPandora()
 	{
 		if (PandoraTreeComponent->CanSpendPointOnPandora(PandoraDefinition.Get()))
 		{
-			UE_LOG(LogPandoraWidget, Log,
+			UE_LOG(LogPandoraWidget, Verbose,
 				TEXT("[ConfirmSpend] spending pandora. widget=%s component=%s pandora=%s points=%d current=%d max=%d required=%d"),
 				*GetNameSafe(this),
 				*GetNameSafe(PandoraTreeComponent.Get()),
@@ -324,7 +324,7 @@ void UPandoraWidget::HandleButtonPressed()
 		return;
 	}
 
-	UE_LOG(LogPandoraWidget, Log,
+	UE_LOG(LogPandoraWidget, Verbose,
 		TEXT("[ButtonPressed] accepted. widget=%s pandora=%s holdDuration=%.3f updateInterval=%.3f"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraDefinition.Get()),
@@ -353,7 +353,7 @@ void UPandoraWidget::HandleButtonPressed()
 			&ThisClass::IncrementButtonTimer,
 			ButtonHoldUpdateInterval,
 			true);
-		UE_LOG(LogPandoraWidget, Log,
+		UE_LOG(LogPandoraWidget, Verbose,
 			TEXT("[ButtonPressed] hold timer started. widget=%s pandora=%s progressWidget=%s"),
 			*GetNameSafe(this),
 			*GetNameSafe(PandoraDefinition.Get()),
@@ -383,7 +383,7 @@ void UPandoraWidget::ResolvePandoraTreeComponent()
 {
 	if (!PandoraTreeComponent)
 	{
-		PandoraTreeComponent = ResolvePandoraTreeComponentFromWidget(this);
+		PandoraTreeComponent = ResolvePandoraTreeComponentFromPandoraWidget(this);
 	}
 
 	if (!PandoraDefinition && PandoraTreeComponent)
@@ -391,7 +391,7 @@ void UPandoraWidget::ResolvePandoraTreeComponent()
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
 
-	UE_LOG(LogPandoraWidget, Log,
+	UE_LOG(LogPandoraWidget, Verbose,
 		TEXT("[ResolveTreeComponent] widget=%s tree=%s pandora=%s owningPlayer=%s owningPawn=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraTreeComponent.Get()),
@@ -467,7 +467,7 @@ void UPandoraWidget::ResolveControlWidgets()
 		ButtonProgressBar = Cast<UProgressBar>(GetWidgetFromName(TEXT("PandoraProgressBar")));
 	}
 
-	UE_LOG(LogPandoraWidget, Log,
+	UE_LOG(LogPandoraWidget, Verbose,
 		TEXT("[ResolveControls] widget=%s button=%s progress=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(Button.Get()),
@@ -579,7 +579,7 @@ void UPandoraWidget::SetupPandoraDescriptionPopupWidget()
 		}
 	}
 
-	UE_LOG(LogPandoraWidget, Log,
+	UE_LOG(LogPandoraWidget, Verbose,
 		TEXT("[SetupDescription] widget=%s descClass=%s popup=%s treeWidget=%s popupPanel=%s pandora=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraDescriptionPopupWidgetClass.Get()),
@@ -733,7 +733,7 @@ void UPandoraWidget::ShowPandoraDescriptionPopup()
 	{
 		CreatedPandoraDescriptionPopup->RemoveFromParent();
 		PopupPanel->AddChild(CreatedPandoraDescriptionPopup);
-		UE_LOG(LogPandoraWidget, Log,
+		UE_LOG(LogPandoraWidget, Verbose,
 			TEXT("[ShowDescription] added popup. widget=%s popup=%s panel=%s pandora=%s"),
 			*GetNameSafe(this),
 			*GetNameSafe(CreatedPandoraDescriptionPopup.Get()),

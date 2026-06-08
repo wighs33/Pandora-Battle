@@ -6,6 +6,7 @@
 #include "Components/GameFrameworkComponentManager.h"
 #include "Item/InventoryComponent.h"
 #include "Pandora/PandoraComponent.h"
+#include "PlayerComponent/PlayerNotificationComponent.h"
 #include "PlayerComponent/PlayerRewardComponent.h"
 #include "PlayerComponent/StatUpgradeComponent.h"
 #include "Skin/SkinComponent.h"
@@ -27,6 +28,7 @@ APdPlayerState::APdPlayerState(const FObjectInitializer& ObjectInitializer)
 	SetNetUpdateFrequency(100.0f);
 
 	AbilitySystemComponent = CreateDefaultSubobject<UPdAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	NotificationComponent = CreateDefaultSubobject<UPlayerNotificationComponent>(TEXT("NotificationComponent"));
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -73,6 +75,11 @@ UBasicAttributeSet* APdPlayerState::GetPdAttributeSet() const
 UPlayerRewardComponent* APdPlayerState::GetPlayerRewardComponent() const
 {
 	return FindPlayerStateComponent<UPlayerRewardComponent>(this);
+}
+
+UPlayerNotificationComponent* APdPlayerState::GetPlayerNotificationComponent() const
+{
+	return NotificationComponent.Get();
 }
 
 UStatUpgradeComponent* APdPlayerState::GetStatUpgradeComponent() const

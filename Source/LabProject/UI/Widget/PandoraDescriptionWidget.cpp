@@ -5,6 +5,7 @@
 #include "GameFramework/Pawn.h"
 #include "Mode/PdPlayerState.h"
 #include "Pandora/PandoraDefinition.h"
+#include "UI/Widget/PandoraWidgetViewData.h"
 #include "View/MVVMView.h"
 #include "View/MVVMViewClass.h"
 #include "ViewModel/PandoraDescriptionViewModel.h"
@@ -15,35 +16,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogPandoraDescriptionWidget, Log, All);
 
 namespace
 {
-	FText FormatCurrentLevelText(int32 CurrentLevel)
-	{
-		return FText::Format(
-			NSLOCTEXT("PandoraDescriptionWidget", "CurrentLevelFormat", "Level {0}"),
-			FText::AsNumber(CurrentLevel));
-	}
-
-	FText FormatNextLevelText(int32 NextLevel)
-	{
-		return FText::Format(
-			NSLOCTEXT("PandoraDescriptionWidget", "NextLevelFormat", "Next Level ({0})"),
-			FText::AsNumber(NextLevel));
-	}
-
-	FText FormatPointsRequiredText(int32 Points)
-	{
-		return FText::Format(
-			NSLOCTEXT("PandoraDescriptionWidget", "PointsRequiredFormat", "Points Required: {0}"),
-			FText::AsNumber(Points));
-	}
-
-	FString MakeWeaponTagDisplayName(const FGameplayTag& WeaponTag)
-	{
-		FString TagText = WeaponTag.ToString();
-		TagText.RemoveFromStart(TEXT("Item.Weapon."));
-		return TagText.Replace(TEXT("."), TEXT(" / "));
-	}
-
-	UPandoraTreeComponent* ResolvePandoraTreeComponentFromWidget(const UUserWidget* Widget)
+	UPandoraTreeComponent* ResolvePandoraTreeComponentFromDescriptionWidget(const UUserWidget* Widget)
 	{
 		if (!Widget)
 		{
@@ -69,7 +42,6 @@ namespace
 		return nullptr;
 	}
 }
-
 void UPandoraDescriptionWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -79,7 +51,7 @@ void UPandoraDescriptionWidget::NativeConstruct()
 	ResolvePandoraTreeComponent();
 	SetDetails();
 
-	UE_LOG(LogPandoraDescriptionWidget, Log,
+	UE_LOG(LogPandoraDescriptionWidget, Verbose,
 		TEXT("[Construct] widget=%s tree=%s pandora=%s viewModel=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraTreeComponent.Get()),
@@ -105,7 +77,7 @@ void UPandoraDescriptionWidget::NativeDestruct()
 void UPandoraDescriptionWidget::SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition)
 {
 	PandoraDefinition = InPandoraDefinition;
-	UE_LOG(LogPandoraDescriptionWidget, Log,
+	UE_LOG(LogPandoraDescriptionWidget, Verbose,
 		TEXT("[SetPandoraDefinition] widget=%s pandora=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraDefinition.Get()));
@@ -119,7 +91,7 @@ void UPandoraDescriptionWidget::SetPandoraTreeComponent(UPandoraTreeComponent* I
 	{
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
-	UE_LOG(LogPandoraDescriptionWidget, Log,
+	UE_LOG(LogPandoraDescriptionWidget, Verbose,
 		TEXT("[SetTreeComponent] widget=%s tree=%s pandora=%s points=%d"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraTreeComponent.Get()),
@@ -136,29 +108,40 @@ void UPandoraDescriptionWidget::SetDetails()
 		return;
 	}
 
-	FText TitleText = FText::GetEmpty();
-	FText DescriptionText = FText::GetEmpty();
-	if (PandoraDefinition)
+	ViewModel->SetWeaponRequirementTextColor(WeaponRequirementTextColor);
+
+	const FPandoraDescriptionViewData ViewData = FPandoraDescriptionViewDataBuilder::Build(
+		PandoraDefinition.Get(),
+		PandoraTreeComponent.Get());
+
+	ViewModel->SetTitleText(ViewData.TitleText);
+	ViewModel->SetDescriptionText(ViewData.DescriptionText);
+	ViewModel->SetWeaponRequirementText(ViewData.WeaponRequirementText);
+	ViewModel->SetWeaponRequirementVisibility(ViewData.WeaponRequirementVisibility);
+	ViewModel->SetCurrentLevelVisibility(ViewData.CurrentLevelVisibility);
+	ViewModel->SetCurrentLevelTitleText(ViewData.CurrentLevelTitleText);
+	ViewModel->SetCurrentLevelDescriptionText(ViewData.CurrentLevelDescriptionText);
+	ViewModel->SetNextLevelVisibility(ViewData.NextLevelVisibility);
+	ViewModel->SetNextLevelTitleText(ViewData.NextLevelTitleText);
+	ViewModel->SetNextLevelDescriptionText(ViewData.NextLevelDescriptionText);
+	ViewModel->SetPointsRequiredVisibility(ViewData.PointsRequiredVisibility);
+	ViewModel->SetPointsRequiredText(ViewData.PointsRequiredText);
+	ViewModel->SetSkillSectionVisibility(ViewData.SkillSectionVisibility);
+
+	for (int32 SkillSlotIndex = 0; SkillSlotIndex < 4; ++SkillSlotIndex)
 	{
-		TitleText = PandoraDefinition->GetDisplayName();
-		DescriptionText = PandoraDefinition->GetDescription();
+		const FPandoraSkillSlotViewData* SkillViewData = ViewData.SkillSlots.IsValidIndex(SkillSlotIndex)
+			? &ViewData.SkillSlots[SkillSlotIndex]
+			: nullptr;
+
+		ViewModel->SetSkillSlot(
+			SkillSlotIndex,
+			SkillViewData ? SkillViewData->IconResource : nullptr,
+			SkillViewData ? SkillViewData->DisplayName : FText::GetEmpty(),
+			SkillViewData ? SkillViewData->Description : FText::GetEmpty());
 	}
 
-	ViewModel->SetTitleText(TitleText);
-	ViewModel->SetDescriptionText(DescriptionText);
-	ViewModel->SetWeaponRequirementText(FText::GetEmpty());
-	ViewModel->SetWeaponRequirementTextColor(WeaponRequirementTextColor);
-	ViewModel->SetWeaponRequirementVisibility(ESlateVisibility::Collapsed);
-	ViewModel->SetCurrentLevelVisibility(ESlateVisibility::Collapsed);
-	ViewModel->SetCurrentLevelTitleText(FText::GetEmpty());
-	ViewModel->SetCurrentLevelDescriptionText(FText::GetEmpty());
-	ViewModel->SetNextLevelVisibility(ESlateVisibility::Collapsed);
-	ViewModel->SetNextLevelTitleText(FText::GetEmpty());
-	ViewModel->SetNextLevelDescriptionText(FText::GetEmpty());
-	ViewModel->SetPointsRequiredVisibility(ESlateVisibility::Collapsed);
-	ViewModel->SetPointsRequiredText(FText::GetEmpty());
-
-	if (!PandoraDefinition)
+	if (!ViewData.bHasPandoraDefinition)
 	{
 		UE_LOG(LogPandoraDescriptionWidget, Warning,
 			TEXT("[SetDetails] no pandora definition. widget=%s tree=%s"),
@@ -167,95 +150,36 @@ void UPandoraDescriptionWidget::SetDetails()
 		return;
 	}
 
-	int32 CurrentLevel = 0;
-	int32 NextLevel = 1;
-	int32 MaxLevel = FMath::Max(PandoraDefinition->GetMaxLevel(), 1);
-	if (PandoraTreeComponent && PandoraDefinition)
+	if (ViewData.bLockedByPandoraRequirement)
 	{
-		CurrentLevel = PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition.Get());
-		MaxLevel = FMath::Max(PandoraTreeComponent->GetMaxPandoraLevel(PandoraDefinition.Get()), 1);
-		NextLevel = CurrentLevel + 1 > MaxLevel ? -1 : CurrentLevel + 1;
-
-		ViewModel->SetPointsRequiredText(FormatPointsRequiredText(PandoraTreeComponent->GetRequiredPointsForPandora(PandoraDefinition.Get(), true)));
-	}
-	else
-	{
-		CurrentLevel = 0;
-		NextLevel = CurrentLevel + 1 > MaxLevel ? -1 : CurrentLevel + 1;
-	}
-
-	const bool bLockedByPandoraRequirement = PandoraTreeComponent
-		&& PandoraDefinition
-		&& CurrentLevel <= 0
-		&& !PandoraTreeComponent->ArePandoraUnlockRulesMet(PandoraDefinition.Get());
-	if (bLockedByPandoraRequirement)
-	{
-		FText RequirementText = PandoraTreeComponent->GetPandoraUnlockRequirementsText(PandoraDefinition.Get());
-		if (RequirementText.IsEmpty())
-		{
-			RequirementText = NSLOCTEXT("PandoraDescriptionWidget", "LockedRequirementFallback", "요구 조건이 충족되지 않았습니다.");
-		}
-
-		ViewModel->SetDescriptionText(RequirementText);
-		const FText WeaponRequirement = GetWeaponRequirementText();
-		ViewModel->SetWeaponRequirementText(WeaponRequirement);
-		ViewModel->SetWeaponRequirementVisibility(WeaponRequirement.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
-
-		UE_LOG(LogPandoraDescriptionWidget, Log,
+		UE_LOG(LogPandoraDescriptionWidget, Verbose,
 			TEXT("[SetDetails] locked requirements only. widget=%s pandora=%s tree=%s current=%d max=%d requirements=%s"),
 			*GetNameSafe(this),
 			*GetNameSafe(PandoraDefinition.Get()),
 			*GetNameSafe(PandoraTreeComponent.Get()),
-			CurrentLevel,
-			MaxLevel,
-			*RequirementText.ToString());
+			ViewData.CurrentLevel,
+			ViewData.MaxLevel,
+			*ViewData.DescriptionText.ToString());
 		return;
 	}
 
-	const FText WeaponRequirement = GetWeaponRequirementText();
-	ViewModel->SetWeaponRequirementText(WeaponRequirement);
-	ViewModel->SetWeaponRequirementVisibility(WeaponRequirement.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
-
-	const FText CurrentDescription = GetDescriptionForLevel(CurrentLevel);
-	const bool bHasCurrentDescription = !CurrentDescription.IsEmpty();
-	ViewModel->SetCurrentLevelVisibility(bHasCurrentDescription ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-	if (bHasCurrentDescription)
-	{
-		ViewModel->SetCurrentLevelTitleText(FormatCurrentLevelText(CurrentLevel));
-		ViewModel->SetCurrentLevelDescriptionText(CurrentDescription);
-	}
-
-	const FText NextDescription = GetDescriptionForLevel(NextLevel);
-	const bool bHasNextDescription = !NextDescription.IsEmpty();
-	ViewModel->SetNextLevelVisibility(bHasNextDescription ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-	if (bHasNextDescription)
-	{
-		ViewModel->SetNextLevelTitleText(FormatNextLevelText(NextLevel));
-		ViewModel->SetNextLevelDescriptionText(NextDescription);
-		ViewModel->SetPointsRequiredVisibility(ESlateVisibility::Visible);
-	}
-	else if (CurrentLevel >= MaxLevel)
-	{
-		ViewModel->SetPointsRequiredVisibility(ESlateVisibility::Collapsed);
-	}
-
-	UE_LOG(LogPandoraDescriptionWidget, Log,
+	UE_LOG(LogPandoraDescriptionWidget, Verbose,
 		TEXT("[SetDetails] widget=%s pandora=%s tree=%s current=%d next=%d max=%d currentDesc=%s nextDesc=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraDefinition.Get()),
 		*GetNameSafe(PandoraTreeComponent.Get()),
-		CurrentLevel,
-		NextLevel,
-		MaxLevel,
-		bHasCurrentDescription ? TEXT("true") : TEXT("false"),
-		bHasNextDescription ? TEXT("true") : TEXT("false"));
+		ViewData.CurrentLevel,
+		ViewData.NextLevel,
+		ViewData.MaxLevel,
+		ViewData.CurrentLevelVisibility == ESlateVisibility::Visible ? TEXT("true") : TEXT("false"),
+		ViewData.NextLevelVisibility == ESlateVisibility::Visible ? TEXT("true") : TEXT("false"));
 }
 
 void UPandoraDescriptionWidget::ResolvePandoraTreeComponent()
 {
 	if (!PandoraTreeComponent)
 	{
-		PandoraTreeComponent = ResolvePandoraTreeComponentFromWidget(this);
+		PandoraTreeComponent = ResolvePandoraTreeComponentFromDescriptionWidget(this);
 	}
 
 	if (!PandoraDefinition && PandoraTreeComponent)
@@ -263,7 +187,7 @@ void UPandoraDescriptionWidget::ResolvePandoraTreeComponent()
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
 
-	UE_LOG(LogPandoraDescriptionWidget, Log,
+	UE_LOG(LogPandoraDescriptionWidget, Verbose,
 		TEXT("[ResolveTreeComponent] widget=%s tree=%s pandora=%s owningPlayer=%s owningPawn=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(PandoraTreeComponent.Get()),
@@ -340,40 +264,4 @@ void UPandoraDescriptionWidget::ApplyPandoraDescriptionViewModelToMvvmView()
 			*RuntimeViewModelName.ToString(),
 			*GetNameSafe(PandoraDescriptionViewModel.Get()));
 	}
-}
-
-FText UPandoraDescriptionWidget::GetDescriptionForLevel(int32 Level) const
-{
-	if (PandoraDefinition)
-	{
-		return PandoraDefinition->GetDescriptionForLevel(Level);
-	}
-
-	return FText::GetEmpty();
-}
-
-FText UPandoraDescriptionWidget::GetWeaponRequirementText() const
-{
-	if (!PandoraDefinition || PandoraDefinition->ActivatableWeaponTags.IsEmpty())
-	{
-		return FText::GetEmpty();
-	}
-
-	TArray<FString> WeaponTypeNames;
-	for (const FGameplayTag& WeaponTag : PandoraDefinition->ActivatableWeaponTags)
-	{
-		if (WeaponTag.IsValid())
-		{
-			WeaponTypeNames.Add(MakeWeaponTagDisplayName(WeaponTag));
-		}
-	}
-
-	if (WeaponTypeNames.IsEmpty())
-	{
-		return FText::GetEmpty();
-	}
-
-	return FText::Format(
-		NSLOCTEXT("PandoraDescriptionWidget", "WeaponRequirementFormat", "Required Weapon Type: {0}"),
-		FText::FromString(FString::Join(WeaponTypeNames, TEXT(", "))));
 }

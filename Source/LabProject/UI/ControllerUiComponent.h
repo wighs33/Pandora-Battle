@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
+#include "TimerManager.h"
 #include "ControllerUiComponent.generated.h"
 
 class APdPlayerController;
@@ -63,6 +64,9 @@ public:
 	void OnSelectPandoraInputEnded(const FInputActionValue& InputValue);
 
 private:
+	void FinishCloseInfoUi();
+	void ClearInfoUiCloseTimer();
+
 	APdPlayerController* GetPdController() const;
 	UInfoUiPresenter* GetInfoUiPresenter();
 	UUiSubsystem* GetUiSubsystem() const;
@@ -90,4 +94,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<USelectPandoraWidget> CachedSelectPandoraUI = nullptr;
+
+	FTimerHandle InfoUiCloseTimerHandle;
 };

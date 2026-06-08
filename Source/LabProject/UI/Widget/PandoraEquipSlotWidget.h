@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Blueprint/UserWidget.h"
+#include "Styling/SlateTypes.h"
 #include "PandoraEquipSlotWidget.generated.h"
 
 class UButton;
@@ -44,6 +45,8 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")
 	TObjectPtr<UButton> ItemButton;
@@ -65,4 +68,7 @@ private:
 	void HandleButtonHovered();
 
 	void ApplyButtonStyle();
+
+	FButtonStyle DefaultButtonStyle;
+	bool bHasDefaultButtonStyle = false;
 };

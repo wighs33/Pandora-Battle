@@ -1,13 +1,11 @@
 #pragma once
 
 #include "Blueprint/UserWidget.h"
-#include "Pandora/PandoraDefinition.h"
 #include "UI/Widget/PandoraEquipSlotWidget.h"
 #include "LeftPandoraWidget.generated.h"
 
-class UImage;
+class UPandoraComponent;
 class UPandoraInstance;
-class UTextBlock;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FPdOnClickedPandoraEquipSlot,
@@ -27,7 +25,7 @@ public:
 	void SelectPandoraEquipSlot(UPandoraEquipSlotWidget* InSelectedPandoraEquipSlot);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
-	void SetSkillInfo(const TArray<FSkill>& InSkills);
+	void RefreshPandoraLoadoutSlots(const UPandoraComponent* PandoraComponent);
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
 	FPdOnClickedPandoraEquipSlot OnClicked_PandoraEquipSlot;
@@ -45,36 +43,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
 	TObjectPtr<UPandoraEquipSlotWidget> ThirdPandora;
 
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
-	TObjectPtr<UImage> FirstSkillIcon;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
-	TObjectPtr<UImage> SecondSkillIcon;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
-	TObjectPtr<UImage> ThirdSkillIcon;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
-	TObjectPtr<UImage> FourthSkillIcon;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
-	TObjectPtr<UTextBlock> FirstSkillName;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
-	TObjectPtr<UTextBlock> SecondSkillName;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
-	TObjectPtr<UTextBlock> ThirdSkillName;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
-	TObjectPtr<UTextBlock> FourthSkillName;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Pandora")
-	TArray<TObjectPtr<UImage>> SkillIconList;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Pandora")
-	TArray<TObjectPtr<UTextBlock>> SkillNameList;
-
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Pandora")
 	TArray<TObjectPtr<UPandoraEquipSlotWidget>> PandoraEquipSlotList;
 
@@ -88,12 +56,7 @@ private:
 	UFUNCTION()
 	void HandlePandoraEquipSlotClicked(UPandoraEquipSlotWidget* PandoraEquipSlot);
 
-	UFUNCTION()
-	void HandlePandoraEquipSlotHovered(UPandoraEquipSlotWidget* PandoraEquipSlot);
-
-	void RebuildSkillWidgetLists();
 	void RebuildPandoraEquipSlotList();
 	void BindPandoraEquipSlotCallbacks();
 	void UnbindPandoraEquipSlotCallbacks();
-	UPandoraInstance* GetCachedPandoraInstance(const UPandoraEquipSlotWidget* PandoraEquipSlot) const;
 };

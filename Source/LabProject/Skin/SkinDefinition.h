@@ -6,6 +6,7 @@
 #include "SkinDefinition.generated.h"
 
 class UTexture2D;
+class AActor;
 
 DECLARE_LOG_CATEGORY_EXTERN(SkinDefinitionLog, Log, All);
 
@@ -18,19 +19,25 @@ public:
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 public:
-	/** 아이템 표시 이름 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin")
 	FText DisplayName;
-
-	/** 아이템 설명 */
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin")
 	FText Description;
-
-	/** 아이콘 */
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin")
 	TObjectPtr<UTexture2D> IconTexture = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin|Equip")
+	TSoftClassPtr<AActor> ActorClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin|Equip")
+	FName AttachSocketName = NAME_None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin|Equip")
+	bool bUseOwnerMeshAsLeaderPose = true;
 	
-	/** 게임 플레이 태그 */
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin")
 	FGameplayTag IdTag;
 };

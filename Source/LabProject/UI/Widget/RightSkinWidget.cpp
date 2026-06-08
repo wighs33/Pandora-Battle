@@ -3,6 +3,8 @@
 #include "Common/ProjectTagConfig.h"
 #include "Components/Button.h"
 #include "Components/TileView.h"
+#include "Skin/SkinInstance.h"
+#include "UI/Widget/SkinSlotViewData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RightSkinWidget)
 
@@ -102,13 +104,28 @@ void URightSkinWidget::SetTileView(const TArray<UObject*>& InListItems)
 	}
 
 	TileView->ClearListItems();
+	CachedSlotViewData.Reset();
+
+	TArray<USkinInstance*> SkinInstances;
+	SkinInstances.Reserve(InListItems.Num());
 
 	for (UObject* ListItem : InListItems)
 	{
-		if (ListItem)
+		if (USkinInstance* SkinInstance = Cast<USkinInstance>(ListItem))
 		{
-			TileView->AddItem(ListItem);
+			SkinInstances.Add(SkinInstance);
 		}
+	}
+
+	const int32 SlotCountToDisplay = FMath::Max(SkinSlotCount, SkinInstances.Num());
+	CachedSlotViewData.Reserve(SlotCountToDisplay);
+
+	for (int32 SlotIndex = 0; SlotIndex < SlotCountToDisplay; ++SlotIndex)
+	{
+		USkinSlotViewData* SlotViewData = NewObject<USkinSlotViewData>(this);
+		SlotViewData->Initialize(SlotIndex, SkinInstances.IsValidIndex(SlotIndex) ? SkinInstances[SlotIndex] : nullptr);
+		CachedSlotViewData.Add(SlotViewData);
+		TileView->AddItem(SlotViewData);
 	}
 }
 

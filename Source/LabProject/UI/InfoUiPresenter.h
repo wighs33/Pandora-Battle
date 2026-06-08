@@ -15,7 +15,9 @@ class UItemInstance;
 class UPandoraDefinition;
 class UPandoraInstance;
 class UPandoraEquipSlotWidget;
+class UPandoraComponent;
 class USkinEquipSlotWidget;
+class USkinInstance;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UInfoUiPresenter : public UObject
@@ -52,6 +54,12 @@ public:
 	void HandleClickedItemEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* SelectedEquipSlot, bool bIsSelectedAnyButton);
 
 	UFUNCTION()
+	void HandleDroppedItemEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* TargetEquipSlot, UItemInstance* ItemInstance);
+
+	UFUNCTION()
+	void HandleDroppedItemToCharacterPanel(UItemInstance* ItemInstance);
+
+	UFUNCTION()
 	void HandleClickedItemFilterTypeButton(FGameplayTag TypeTag);
 
 	UFUNCTION()
@@ -62,6 +70,12 @@ public:
 
 	UFUNCTION()
 	void HandleClickedSkinEquipTypeSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* SelectedEquipSlot, bool bIsSelectedAnyButton);
+
+	UFUNCTION()
+	void HandleDroppedSkinEquipTypeSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* TargetSkinEquipSlot, USkinInstance* SkinInstance);
+
+	UFUNCTION()
+	void HandleDroppedSkinToCharacterPanel(USkinInstance* SkinInstance);
 
 	UFUNCTION()
 	void HandleClickedSkinFilterTypeButton(FGameplayTag TypeTag);
@@ -88,8 +102,12 @@ private:
 	class APdPlayerState* GetCachedPlayerState() const;
 	void BindInventoryChangeNotification();
 	void UnbindInventoryChangeNotification();
+	void BindPandoraLoadoutChangeNotification();
+	void UnbindPandoraLoadoutChangeNotification();
 	void BindStatusWidgetEvents();
 	void HandleInventoryChanged();
+	UFUNCTION()
+	void HandlePandoraLoadoutChanged();
 	void RefreshInventoryTileView();
 	FGameplayTag GetProfileLeftUiTag() const;
 	FGameplayTag GetEquipmentLeftUiTag() const;
@@ -98,6 +116,13 @@ private:
 	FGameplayTag GetWeaponItemTypeTag() const;
 	void RefreshSelectPandoraCompatibilityState() const;
 	void RefreshSelectPandoraLoadoutImages() const;
+	void RefreshLeftEquipmentSlots() const;
+	void RefreshLeftSkinSlots() const;
+	void RefreshLeftPandoraSlots() const;
+	void ClearInventoryClickEquipBinding() const;
+	void ClearSkinClickEquipBinding() const;
+	void ClearEquipmentSlot(UEquipSlotWidget* TargetEquipSlot, FGameplayTag EquipTypeTag);
+	void ClearSkinEquipSlot(USkinEquipSlotWidget* TargetSkinEquipSlot, FGameplayTag EquipTypeTag);
 
 	UPROPERTY(Transient)
 	TObjectPtr<APdPlayerController> OwningController = nullptr;
@@ -109,10 +134,19 @@ private:
 	TObjectPtr<UInventoryComponent> BoundInventoryComponent = nullptr;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UPandoraComponent> BoundPandoraComponent = nullptr;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UEquipSlotWidget> CachedSelectedEquipSlot = nullptr;
 
 	UPROPERTY(Transient)
+	FGameplayTag CachedSelectedEquipTypeTag;
+
+	UPROPERTY(Transient)
 	TObjectPtr<USkinEquipSlotWidget> CachedSelectedSkinEquipSlot = nullptr;
+
+	UPROPERTY(Transient)
+	FGameplayTag CachedSelectedSkinEquipTypeTag;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraEquipSlotWidget> CachedSelectedPandoraEquipSlot = nullptr;

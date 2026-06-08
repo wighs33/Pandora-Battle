@@ -1,9 +1,13 @@
 #include "Character/PdPlayer.h"
 
+#include "Animation/AnimMontage.h"
+#include "Animation/AnimInstance.h"
+
 #include "Camera/CameraComponent.h"
 #include "Common/Enum_Direction.h"
 #include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -20,11 +24,6 @@ DEFINE_LOG_CATEGORY_STATIC(PdPlayerLog, Log, All);
 
 namespace
 {
-	FName GetPandoraDefinitionSaveName(const UPandoraDefinition* PandoraDefinition)
-	{
-		return IsValid(PandoraDefinition) ? PandoraDefinition->GetFName() : NAME_None;
-	}
-
 	bool TryGetPandoraLoadoutDirectionFromSaveName(const FName DirectionName, EEnum_Direction& OutDirection)
 	{
 		if (DirectionName == TEXT("Left"))
@@ -48,6 +47,7 @@ namespace
 		return false;
 	}
 }
+
 /** ?åÎ†à?¥Ïñ¥ Í∏∞Î≥∏ ?ÅÌÉúÎ•?Ï¥àÍ∏∞?îÌï©?àÎã§. */
 APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -61,6 +61,7 @@ APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 	InteractionBox->SetRelativeLocation(FVector(80.0f, 0.0f, 0.0f));
 	InteractionBox->SetRelativeRotation(FRotator::ZeroRotator);
 	InteractionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	InteractionBox->SetCollisionObjectType(ECC_WorldDynamic);
 	InteractionBox->SetCollisionResponseToAllChannels(ECR_Overlap);
 	InteractionBox->SetGenerateOverlapEvents(true);
 	InteractionBox->SetCanEverAffectNavigation(false);
@@ -86,6 +87,14 @@ APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 void APdPlayer::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (InteractionBox)
+	{
+		InteractionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		InteractionBox->SetCollisionObjectType(ECC_WorldDynamic);
+		InteractionBox->SetCollisionResponseToAllChannels(ECR_Overlap);
+		InteractionBox->SetGenerateOverlapEvents(true);
+	}
 
 	if (!FollowCamera || !CameraBoom)
 	{
@@ -127,6 +136,162 @@ AActor* APdPlayer::GetAbilitySystemOwnerActor() const
 	return GetPdPlayerState();
 }
 
+void APdPlayer::PlayInteractionMontage(UAnimMontage* Montage, float PlayRate)
+{
+	if (!Montage)
+	{
+		UE_LOG(PdPlayerLog, Warning,
+			TEXT("[InteractionAnimation] skipped: montage missing. pawn=%s authority=%s local=%s"),
+			*GetNameSafe(this),
+			HasAuthority() ? TEXT("true") : TEXT("false"),
+			IsLocallyControlled() ? TEXT("true") : TEXT("false"));
+		return;
+	}
+
+	const float SafePlayRate = PlayRate > 0.0f ? PlayRate : 1.0f;
+	if (HasAuthority())
+	{
+		UE_LOG(PdPlayerLog, Log,
+			TEXT("[InteractionAnimation] multicast requested. pawn=%s montage=%s playRate=%.2f local=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(Montage),
+			SafePlayRate,
+			IsLocallyControlled() ? TEXT("true") : TEXT("false"));
+		MulticastPlayInteractionMontage(Montage, SafePlayRate);
+		return;
+	}
+
+	const float PlayedDuration = PlayAnimMontage(Montage, SafePlayRate);
+	if (PlayedDuration <= 0.0f)
+	{
+		UE_LOG(PdPlayerLog, Warning,
+			TEXT("[InteractionAnimation] local play failed. pawn=%s montage=%s playRate=%.2f mesh=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(Montage),
+			SafePlayRate,
+			*GetNameSafe(GetMesh()));
+		return;
+	}
+
+	ActiveInteractionMontage = Montage;
+
+	UE_LOG(PdPlayerLog, Log,
+		TEXT("[InteractionAnimation] local play started. pawn=%s montage=%s playRate=%.2f duration=%.3f"),
+		*GetNameSafe(this),
+		*GetNameSafe(Montage),
+		SafePlayRate,
+		PlayedDuration);
+}
+
+void APdPlayer::MulticastPlayInteractionMontage_Implementation(UAnimMontage* Montage, float PlayRate)
+{
+	if (!Montage)
+	{
+		UE_LOG(PdPlayerLog, Warning,
+			TEXT("[InteractionAnimation] multicast skipped: montage missing. pawn=%s authority=%s local=%s"),
+			*GetNameSafe(this),
+			HasAuthority() ? TEXT("true") : TEXT("false"),
+			IsLocallyControlled() ? TEXT("true") : TEXT("false"));
+		return;
+	}
+
+	const float SafePlayRate = PlayRate > 0.0f ? PlayRate : 1.0f;
+	const float PlayedDuration = PlayAnimMontage(Montage, SafePlayRate);
+	if (PlayedDuration <= 0.0f)
+	{
+		UE_LOG(PdPlayerLog, Warning,
+			TEXT("[InteractionAnimation] multicast play failed. pawn=%s montage=%s playRate=%.2f authority=%s local=%s mesh=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(Montage),
+			SafePlayRate,
+			HasAuthority() ? TEXT("true") : TEXT("false"),
+			IsLocallyControlled() ? TEXT("true") : TEXT("false"),
+			*GetNameSafe(GetMesh()));
+		return;
+	}
+
+	ActiveInteractionMontage = Montage;
+
+	UE_LOG(PdPlayerLog, Log,
+		TEXT("[InteractionAnimation] multicast play started. pawn=%s montage=%s playRate=%.2f duration=%.3f authority=%s local=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(Montage),
+		SafePlayRate,
+		PlayedDuration,
+		HasAuthority() ? TEXT("true") : TEXT("false"),
+		IsLocallyControlled() ? TEXT("true") : TEXT("false"));
+}
+
+void APdPlayer::StopInteractionMontage(float BlendOutTime)
+{
+	const float SafeBlendOutTime = FMath::Max(0.0f, BlendOutTime);
+	if (!IsInteractionMontagePlaying())
+	{
+		ActiveInteractionMontage = nullptr;
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		MulticastStopInteractionMontage(SafeBlendOutTime);
+		return;
+	}
+
+	StopInteractionMontageLocally(SafeBlendOutTime);
+	ServerStopInteractionMontage(SafeBlendOutTime);
+}
+
+bool APdPlayer::IsInteractionMontagePlaying() const
+{
+	if (!ActiveInteractionMontage)
+	{
+		return false;
+	}
+
+	const USkeletalMeshComponent* MeshComponent = GetMesh();
+	const UAnimInstance* AnimInstance = MeshComponent ? MeshComponent->GetAnimInstance() : nullptr;
+	return AnimInstance && AnimInstance->Montage_IsPlaying(ActiveInteractionMontage);
+}
+
+void APdPlayer::ServerStopInteractionMontage_Implementation(float BlendOutTime)
+{
+	MulticastStopInteractionMontage(FMath::Max(0.0f, BlendOutTime));
+}
+
+void APdPlayer::MulticastStopInteractionMontage_Implementation(float BlendOutTime)
+{
+	UAnimMontage* MontageBeforeStop = ActiveInteractionMontage.Get();
+	const bool bStopped = StopInteractionMontageLocally(FMath::Max(0.0f, BlendOutTime));
+	UE_LOG(PdPlayerLog, Log,
+		TEXT("[InteractionAnimation] stop requested. pawn=%s montage=%s stopped=%s authority=%s local=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(MontageBeforeStop),
+		bStopped ? TEXT("true") : TEXT("false"),
+		HasAuthority() ? TEXT("true") : TEXT("false"),
+		IsLocallyControlled() ? TEXT("true") : TEXT("false"));
+}
+
+bool APdPlayer::StopInteractionMontageLocally(float BlendOutTime)
+{
+	UAnimMontage* MontageToStop = ActiveInteractionMontage.Get();
+	if (!MontageToStop)
+	{
+		return false;
+	}
+
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	UAnimInstance* AnimInstance = MeshComponent ? MeshComponent->GetAnimInstance() : nullptr;
+	if (!AnimInstance || !AnimInstance->Montage_IsPlaying(MontageToStop))
+	{
+		ActiveInteractionMontage = nullptr;
+		return false;
+	}
+
+	AnimInstance->Montage_Stop(BlendOutTime, MontageToStop);
+	ActiveInteractionMontage = nullptr;
+	return true;
+}
+
 /** PlayerStateÎ•??ÑÎ°ú?ùÌä∏ ?Ä?ÖÏúºÎ°?Î∞òÌôò?©Îãà?? */
 APdPlayerState* APdPlayer::GetPdPlayerState() const
 {
@@ -154,14 +319,32 @@ void APdPlayer::InitializePandoraTreeFromSave(AController* NewController)
 
 	TArray<FGrantedPandora> SavedGrantedPandoras;
 	int32 SavedPandoraPoints = -1;
-	FName SavedSelectedPandoraName = NAME_None;
-	TMap<FName, FName> SavedPandoraLoadoutByDirection;
 	if (PdGameInstance && PlayerSaveGameData)
 	{
 		SavedPandoraPoints = PlayerSaveGameData->PlayerPandoraData.PandoraPoints;
-		SavedSelectedPandoraName = PlayerSaveGameData->PlayerPandoraData.SelectedPandoraName;
-		SavedPandoraLoadoutByDirection = PlayerSaveGameData->PlayerPandoraData.PandoraLoadoutByDirection;
 		PdGameInstance->BuildGrantedPandorasFromNames(PlayerSaveGameData->PlayerPandoraData.GrantedPandorasByName, SavedGrantedPandoras);
+		if (!PlayerSaveGameData->PlayerPandoraData.SelectedPandoraName.IsNone())
+		{
+			UE_LOG(PdPlayerLog, Log,
+				TEXT("[PandoraSave] Clearing persisted selected pandora on startup. Selection is session-only now. player=%s selected=%s"),
+				*CachedPlayerSaveId,
+				*PlayerSaveGameData->PlayerPandoraData.SelectedPandoraName.ToString());
+
+			FPlayerPandoraData SanitizedPandoraData = PlayerSaveGameData->PlayerPandoraData;
+			SanitizedPandoraData.SelectedPandoraName = NAME_None;
+			SavePlayerPandoraData(SanitizedPandoraData);
+		}
+		if (!PlayerSaveGameData->PlayerPandoraData.PandoraLoadoutByDirection.IsEmpty())
+		{
+			UE_LOG(PdPlayerLog, Log,
+				TEXT("[PandoraSave] Clearing persisted pandora loadout on startup. Loadout slots are session-only now. player=%s slotCount=%d"),
+				*CachedPlayerSaveId,
+				PlayerSaveGameData->PlayerPandoraData.PandoraLoadoutByDirection.Num());
+
+			FPlayerPandoraData SanitizedPandoraData = PlayerSaveGameData->PlayerPandoraData;
+			SanitizedPandoraData.PandoraLoadoutByDirection.Reset();
+			SavePlayerPandoraData(SanitizedPandoraData);
+		}
 	}
 
 	if (BoundPandoraTreeComponent)
@@ -189,56 +372,9 @@ void APdPlayer::InitializePandoraTreeFromSave(AController* NewController)
 
 	BoundPandoraTreeComponent->InitializePandoraTree(SavedGrantedPandoras, SavedPandoraPoints);
 
-	if (BoundPandoraComponent && PdGameInstance && !SavedPandoraLoadoutByDirection.IsEmpty())
-	{
-		for (const TPair<FName, FName>& SavedLoadoutSlot : SavedPandoraLoadoutByDirection)
-		{
-			EEnum_Direction Direction = EEnum_Direction::Center;
-			if (!TryGetPandoraLoadoutDirectionFromSaveName(SavedLoadoutSlot.Key, Direction))
-			{
-				continue;
-			}
-
-			UPandoraDefinition* SavedLoadoutPandora = PdGameInstance->GetPandoraDefinitionByName(SavedLoadoutSlot.Value);
-			if (SavedLoadoutPandora)
-			{
-				BoundPandoraComponent->RestorePandoraLoadoutSlot(Direction, SavedLoadoutPandora);
-			}
-		}
-	}
-
-	if (BoundPandoraComponent && PdGameInstance && !SavedSelectedPandoraName.IsNone())
-	{
-		UPandoraDefinition* SavedSelectedPandora = PdGameInstance->GetPandoraDefinitionByName(SavedSelectedPandoraName);
-		if (SavedSelectedPandora)
-		{
-			bRestoringPandoraSelectionFromSave = true;
-			BoundPandoraComponent->RequestPandoraSelection(SavedSelectedPandora);
-
-			TWeakObjectPtr<APdPlayer> WeakThis = this;
-			TWeakObjectPtr<UPandoraComponent> WeakPandoraComponent = BoundPandoraComponent;
-			TWeakObjectPtr<UPandoraDefinition> WeakSavedSelectedPandora = SavedSelectedPandora;
-			if (UWorld* World = GetWorld())
-			{
-				World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [WeakThis, WeakPandoraComponent, WeakSavedSelectedPandora]()
-				{
-					if (UPandoraComponent* Component = WeakPandoraComponent.Get())
-					{
-						Component->RequestPandoraSelection(WeakSavedSelectedPandora.Get());
-					}
-
-					if (APdPlayer* Player = WeakThis.Get())
-					{
-						Player->bRestoringPandoraSelectionFromSave = false;
-					}
-				}));
-			}
-			else
-			{
-				bRestoringPandoraSelectionFromSave = false;
-			}
-		}
-	}
+	// Pandora loadout slots are not restored from save; the UI starts empty until the player places them.
+	// Current Pandora selection grants gameplay abilities, so it is intentionally not restored from save.
+	// The player must select/equip a Pandora from the UI each session.
 }
 
 FString APdPlayer::GetPlayerSaveId(AController* InController) const
@@ -299,35 +435,98 @@ void APdPlayer::HandlePandoraTreePointsChanged(int32 NewPointsAvailable)
 
 void APdPlayer::HandlePandoraSelectionChanged(UPandoraDefinition* NewPandoraDefinition)
 {
-	if (!HasAuthority() || !PlayerSaveGameData || bRestoringPandoraSelectionFromSave)
+	(void)NewPandoraDefinition;
+
+	if (!HasAuthority() || !PlayerSaveGameData)
 	{
 		return;
 	}
 
-	FPlayerPandoraData PlayerPandoraData = PlayerSaveGameData->PlayerPandoraData;
-	PlayerPandoraData.SelectedPandoraName = GetPandoraDefinitionSaveName(NewPandoraDefinition);
-	SavePlayerPandoraData(PlayerPandoraData);
+	if (!PlayerSaveGameData->PlayerPandoraData.SelectedPandoraName.IsNone())
+	{
+		FPlayerPandoraData PlayerPandoraData = PlayerSaveGameData->PlayerPandoraData;
+		PlayerPandoraData.SelectedPandoraName = NAME_None;
+		SavePlayerPandoraData(PlayerPandoraData);
+	}
 }
 
 void APdPlayer::HandlePandoraLoadoutChanged()
 {
-	if (!HasAuthority() || !BoundPandoraComponent || !PlayerSaveGameData)
+	if (!HasAuthority() || !PlayerSaveGameData)
 	{
 		return;
 	}
 
-	FPlayerPandoraData PlayerPandoraData = PlayerSaveGameData->PlayerPandoraData;
-	PlayerPandoraData.PandoraLoadoutByDirection = BoundPandoraComponent->GetPandoraLoadoutSaveNames();
-	SavePlayerPandoraData(PlayerPandoraData);
+	if (!PlayerSaveGameData->PlayerPandoraData.PandoraLoadoutByDirection.IsEmpty())
+	{
+		FPlayerPandoraData PlayerPandoraData = PlayerSaveGameData->PlayerPandoraData;
+		PlayerPandoraData.PandoraLoadoutByDirection.Reset();
+		SavePlayerPandoraData(PlayerPandoraData);
+	}
 }
+
 /** ?ÑÏû¨ ?ÅÌò∏?ëÏö© ?Ä?ÅÏù¥ ?àÎäîÏßÄ Î∞òÌôò?©Îãà?? */
 bool APdPlayer::HasCurrentInteractActors(TArray<TScriptInterface<IInteractableInterface>>& OutCurrentInteractActors) const
 {
 	OutCurrentInteractActors = CurrentInteractActors;
-	UE_LOG(PdPlayerLog, Log, TEXT("[InteractActors] pawn=%s count=%d"),
+	UE_LOG(PdPlayerLog, Verbose, TEXT("[InteractActors] pawn=%s count=%d"),
 		*GetNameSafe(this),
 		OutCurrentInteractActors.Num());
 	return OutCurrentInteractActors.Num() > 0;
+}
+AActor* APdPlayer::GetCurrentInteractActor() const
+{
+	for (const TScriptInterface<IInteractableInterface>& InteractableEntry : CurrentInteractActors)
+	{
+		AActor* InteractableActor = Cast<AActor>(InteractableEntry.GetObject());
+		if (CanInteractWithActor(InteractableActor))
+		{
+			return InteractableActor;
+		}
+	}
+
+	return nullptr;
+}
+
+bool APdPlayer::InteractWithCurrentTarget()
+{
+	AActor* InteractableActor = GetCurrentInteractActor();
+	if (!IsValid(InteractableActor))
+	{
+		UE_LOG(PdPlayerLog, Warning,
+			TEXT("[Interact] failed: no valid current target. pawn=%s trackedCount=%d"),
+			*GetNameSafe(this),
+			CurrentInteractActors.Num());
+		return false;
+	}
+
+	if (!InteractableActor->GetClass()->ImplementsInterface(UInteractableInterface::StaticClass()))
+	{
+		UE_LOG(PdPlayerLog, Warning,
+			TEXT("[Interact] failed: target no longer implements interface. pawn=%s target=%s class=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(InteractableActor),
+			*GetNameSafe(InteractableActor->GetClass()));
+		return false;
+	}
+
+	if (!IInteractableInterface::Execute_CanInteract(InteractableActor, this))
+	{
+		UE_LOG(PdPlayerLog, Verbose,
+			TEXT("[Interact] target rejected interaction. pawn=%s target=%s class=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(InteractableActor),
+			*GetNameSafe(InteractableActor->GetClass()));
+		return false;
+	}
+
+	UE_LOG(PdPlayerLog, Verbose,
+		TEXT("[Interact] executing target interface. pawn=%s target=%s class=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(InteractableActor),
+		*GetNameSafe(InteractableActor->GetClass()));
+
+	return IInteractableInterface::Execute_Interact(InteractableActor, this);
 }
 
 void APdPlayer::SetWeaponAimActive(bool bEnabled, const FWeaponAimCameraSettings& AimCameraSettings)
@@ -522,6 +721,7 @@ bool APdPlayer::CanInteractWithActor(AActor* InteractableActor) const
 		return false;
 	}
 
+
 	if (IsValid(InteractionBox) && InteractionBox->IsOverlappingActor(InteractableActor))
 	{
 		UE_LOG(PdPlayerLog, Log, TEXT("[InteractValidation] accepted by overlap pawn=%s actor=%s"),
@@ -584,7 +784,7 @@ void APdPlayer::HandleInteractionBoxBeginOverlap(UPrimitiveComponent* Overlapped
 	TScriptInterface<IInteractableInterface> InteractableActor;
 	if (!TryMakeInteractableEntry(OtherActor, InteractableActor))
 	{
-		UE_LOG(PdPlayerLog, Log, TEXT("[InteractActors] begin overlap ignored pawn=%s actor=%s"),
+		UE_LOG(PdPlayerLog, Verbose, TEXT("[InteractActors] begin overlap ignored pawn=%s actor=%s"),
 			*GetNameSafe(this),
 			*GetNameSafe(OtherActor));
 		return;
@@ -601,7 +801,7 @@ void APdPlayer::HandleInteractionBoxBeginOverlap(UPrimitiveComponent* Overlapped
 
 	if (bAlreadyTracked)
 	{
-		UE_LOG(PdPlayerLog, Log, TEXT("[InteractActors] begin overlap duplicate pawn=%s actor=%s count=%d"),
+		UE_LOG(PdPlayerLog, Verbose, TEXT("[InteractActors] begin overlap duplicate pawn=%s actor=%s count=%d"),
 			*GetNameSafe(this),
 			*GetNameSafe(OtherActor),
 			CurrentInteractActors.Num());
@@ -612,7 +812,7 @@ void APdPlayer::HandleInteractionBoxBeginOverlap(UPrimitiveComponent* Overlapped
 	// === Î™©Î°ù Ï∂îÍ?
 
 	CurrentInteractActors.Add(InteractableActor);
-	UE_LOG(PdPlayerLog, Log, TEXT("[InteractActors] begin overlap added pawn=%s actor=%s count=%d"),
+	UE_LOG(PdPlayerLog, Verbose, TEXT("[InteractActors] begin overlap added pawn=%s actor=%s count=%d"),
 		*GetNameSafe(this),
 		*GetNameSafe(OtherActor),
 		CurrentInteractActors.Num());
@@ -637,7 +837,7 @@ void APdPlayer::HandleInteractionBoxEndOverlap(UPrimitiveComponent* OverlappedCo
 	TScriptInterface<IInteractableInterface> InteractableActor;
 	if (!TryMakeInteractableEntry(OtherActor, InteractableActor))
 	{
-		UE_LOG(PdPlayerLog, Log, TEXT("[InteractActors] end overlap ignored pawn=%s actor=%s"),
+		UE_LOG(PdPlayerLog, Verbose, TEXT("[InteractActors] end overlap ignored pawn=%s actor=%s"),
 			*GetNameSafe(this),
 			*GetNameSafe(OtherActor));
 		return;
@@ -651,7 +851,7 @@ void APdPlayer::HandleInteractionBoxEndOverlap(UPrimitiveComponent* OverlappedCo
 		{
 			return Entry.GetObject() == OtherActor;
 		});
-	UE_LOG(PdPlayerLog, Log, TEXT("[InteractActors] end overlap removed pawn=%s actor=%s count=%d"),
+	UE_LOG(PdPlayerLog, Verbose, TEXT("[InteractActors] end overlap removed pawn=%s actor=%s count=%d"),
 		*GetNameSafe(this),
 		*GetNameSafe(OtherActor),
 		CurrentInteractActors.Num());

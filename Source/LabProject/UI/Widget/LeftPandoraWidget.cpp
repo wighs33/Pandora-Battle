@@ -1,33 +1,15 @@
 #include "UI/Widget/LeftPandoraWidget.h"
 
-#include "Components/Image.h"
-#include "Components/TextBlock.h"
-#include "Pandora/PandoraDefinition.h"
+#include "Common/Enum_Direction.h"
+#include "Pandora/PandoraComponent.h"
 #include "Pandora/PandoraInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftPandoraWidget)
-
-namespace
-{
-	void SetImageResource(UImage* Image, UObject* ResourceObject)
-	{
-		if (!Image)
-		{
-			return;
-		}
-
-		FSlateBrush Brush = Image->GetBrush();
-		Brush.DrawAs = ESlateBrushDrawType::Image;
-		Brush.SetResourceObject(ResourceObject);
-		Image->SetBrush(Brush);
-	}
-}
 
 void ULeftPandoraWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	RebuildSkillWidgetLists();
 	RebuildPandoraEquipSlotList();
 	BindPandoraEquipSlotCallbacks();
 }
@@ -68,59 +50,29 @@ void ULeftPandoraWidget::SelectPandoraEquipSlot(UPandoraEquipSlotWidget* InSelec
 	bIsSelectedAnyButton = !bIsSelectedAnyButton;
 }
 
-void ULeftPandoraWidget::SetSkillInfo(const TArray<FSkill>& InSkills)
+void ULeftPandoraWidget::RefreshPandoraLoadoutSlots(const UPandoraComponent* PandoraComponent)
 {
-	RebuildSkillWidgetLists();
+	RebuildPandoraEquipSlotList();
 
-	const int32 SkillCount = FMath::Min3(InSkills.Num(), SkillIconList.Num(), SkillNameList.Num());
-	for (int32 SkillIndex = 0; SkillIndex < SkillCount; ++SkillIndex)
+	if (FirstPandora)
 	{
-		const FSkill& Skill = InSkills[SkillIndex];
+		FirstPandora->SetData(PandoraComponent ? PandoraComponent->GetPandoraLoadoutInstance(EEnum_Direction::Left) : nullptr);
+	}
 
-		if (SkillIconList[SkillIndex])
-		{
-			SetImageResource(SkillIconList[SkillIndex], Skill.GetIconResource());
-		}
+	if (SecondPandora)
+	{
+		SecondPandora->SetData(PandoraComponent ? PandoraComponent->GetPandoraLoadoutInstance(EEnum_Direction::Up) : nullptr);
+	}
 
-		if (SkillNameList[SkillIndex])
-		{
-			SkillNameList[SkillIndex]->SetText(Skill.GetDisplayName());
-		}
+	if (ThirdPandora)
+	{
+		ThirdPandora->SetData(PandoraComponent ? PandoraComponent->GetPandoraLoadoutInstance(EEnum_Direction::Right) : nullptr);
 	}
 }
 
 void ULeftPandoraWidget::HandlePandoraEquipSlotClicked(UPandoraEquipSlotWidget* PandoraEquipSlot)
 {
 	SelectPandoraEquipSlot(PandoraEquipSlot);
-}
-
-void ULeftPandoraWidget::HandlePandoraEquipSlotHovered(UPandoraEquipSlotWidget* PandoraEquipSlot)
-{
-	const UPandoraInstance* PandoraInstance = GetCachedPandoraInstance(PandoraEquipSlot);
-	const UPandoraDefinition* PandoraDefinition = PandoraInstance ? PandoraInstance->PandoraDefinition.Get() : nullptr;
-	if (!PandoraDefinition)
-	{
-		return;
-	}
-
-	SetSkillInfo(PandoraDefinition->Skill);
-}
-
-void ULeftPandoraWidget::RebuildSkillWidgetLists()
-{
-	SkillIconList.Reset();
-	SkillIconList.Reserve(4);
-	SkillIconList.Add(FirstSkillIcon);
-	SkillIconList.Add(SecondSkillIcon);
-	SkillIconList.Add(ThirdSkillIcon);
-	SkillIconList.Add(FourthSkillIcon);
-
-	SkillNameList.Reset();
-	SkillNameList.Reserve(4);
-	SkillNameList.Add(FirstSkillName);
-	SkillNameList.Add(SecondSkillName);
-	SkillNameList.Add(ThirdSkillName);
-	SkillNameList.Add(FourthSkillName);
 }
 
 void ULeftPandoraWidget::RebuildPandoraEquipSlotList()
@@ -141,7 +93,6 @@ void ULeftPandoraWidget::BindPandoraEquipSlotCallbacks()
 		if (PandoraEquipSlot)
 		{
 			PandoraEquipSlot->OnClicked_PandoraEquipSlot.AddUniqueDynamic(this, &ThisClass::HandlePandoraEquipSlotClicked);
-			PandoraEquipSlot->OnHovered_PandoraEquipSlot.AddUniqueDynamic(this, &ThisClass::HandlePandoraEquipSlotHovered);
 		}
 	}
 }
@@ -153,17 +104,6 @@ void ULeftPandoraWidget::UnbindPandoraEquipSlotCallbacks()
 		if (PandoraEquipSlot)
 		{
 			PandoraEquipSlot->OnClicked_PandoraEquipSlot.RemoveDynamic(this, &ThisClass::HandlePandoraEquipSlotClicked);
-			PandoraEquipSlot->OnHovered_PandoraEquipSlot.RemoveDynamic(this, &ThisClass::HandlePandoraEquipSlotHovered);
 		}
 	}
-}
-
-UPandoraInstance* ULeftPandoraWidget::GetCachedPandoraInstance(const UPandoraEquipSlotWidget* PandoraEquipSlot) const
-{
-	if (!PandoraEquipSlot)
-	{
-		return nullptr;
-	}
-
-	return PandoraEquipSlot->GetCachedData();
 }

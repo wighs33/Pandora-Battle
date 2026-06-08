@@ -24,6 +24,11 @@ void UPandoraDescriptionViewModel::ResetViewData()
 	UE_MVVM_SET_PROPERTY_VALUE(NextLevelDescriptionText, FText::GetEmpty());
 	UE_MVVM_SET_PROPERTY_VALUE(PointsRequiredVisibility, ESlateVisibility::Collapsed);
 	UE_MVVM_SET_PROPERTY_VALUE(PointsRequiredText, FText::GetEmpty());
+	UE_MVVM_SET_PROPERTY_VALUE(SkillSectionVisibility, ESlateVisibility::Collapsed);
+	SetSkillSlot(0, nullptr, FText::GetEmpty(), FText::GetEmpty());
+	SetSkillSlot(1, nullptr, FText::GetEmpty(), FText::GetEmpty());
+	SetSkillSlot(2, nullptr, FText::GetEmpty(), FText::GetEmpty());
+	SetSkillSlot(3, nullptr, FText::GetEmpty(), FText::GetEmpty());
 }
 
 void UPandoraDescriptionViewModel::SetTitleText(const FText& InTitleText)
@@ -89,4 +94,48 @@ void UPandoraDescriptionViewModel::SetPointsRequiredVisibility(ESlateVisibility 
 void UPandoraDescriptionViewModel::SetPointsRequiredText(const FText& InPointsRequiredText)
 {
 	UE_MVVM_SET_PROPERTY_VALUE(PointsRequiredText, InPointsRequiredText);
+}
+
+void UPandoraDescriptionViewModel::SetSkillSectionVisibility(const ESlateVisibility InVisibility)
+{
+	UE_MVVM_SET_PROPERTY_VALUE(SkillSectionVisibility, InVisibility);
+}
+
+void UPandoraDescriptionViewModel::SetSkillSlot(
+	const int32 SlotIndex,
+	UObject* InIconResource,
+	const FText& InNameText,
+	const FText& InDescriptionText)
+{
+	const ESlateVisibility IconVisibility = InIconResource ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+
+	switch (SlotIndex)
+	{
+	case 0:
+		UE_MVVM_SET_PROPERTY_VALUE(SkillIconResource1, InIconResource);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillNameText1, InNameText);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillDescriptionText1, InDescriptionText);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillIconVisibility1, IconVisibility);
+		break;
+	case 1:
+		UE_MVVM_SET_PROPERTY_VALUE(SkillIconResource2, InIconResource);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillNameText2, InNameText);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillDescriptionText2, InDescriptionText);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillIconVisibility2, IconVisibility);
+		break;
+	case 2:
+		UE_MVVM_SET_PROPERTY_VALUE(SkillIconResource3, InIconResource);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillNameText3, InNameText);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillDescriptionText3, InDescriptionText);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillIconVisibility3, IconVisibility);
+		break;
+	case 3:
+		UE_MVVM_SET_PROPERTY_VALUE(SkillIconResource4, InIconResource);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillNameText4, InNameText);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillDescriptionText4, InDescriptionText);
+		UE_MVVM_SET_PROPERTY_VALUE(SkillIconVisibility4, IconVisibility);
+		break;
+	default:
+		break;
+	}
 }

@@ -3,6 +3,7 @@
 #include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
 #include "Animation/WidgetAnimation.h"
 #include "Blueprint/WidgetTree.h"
+#include "Camera/CameraComponent.h"
 #include "Components/Button.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -23,7 +24,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogPandoraTreeWidget, Log, All);
 
 namespace
 {
-	UPandoraTreeComponent* ResolvePandoraTreeComponentFromWidget(const UUserWidget* Widget)
+	UPandoraTreeComponent* ResolvePandoraTreeComponentFromTreeWidget(const UUserWidget* Widget)
 	{
 		if (!Widget)
 		{
@@ -59,6 +60,36 @@ namespace
 		if (UFunction* Function = Object->FindFunction(FunctionName))
 		{
 			Object->ProcessEvent(Function, nullptr);
+		}
+	}
+
+	void DisablePreviewCameraLetterboxing(AActor* ViewTarget)
+	{
+		if (!IsValid(ViewTarget))
+		{
+			return;
+		}
+
+		TArray<UCameraComponent*> CameraComponents;
+		ViewTarget->GetComponents<UCameraComponent>(CameraComponents);
+
+		for (UCameraComponent* CameraComponent : CameraComponents)
+		{
+			if (!IsValid(CameraComponent))
+			{
+				continue;
+			}
+
+			CameraComponent->SetConstraintAspectRatio(false);
+			CameraComponent->bOverrideAspectRatioAxisConstraint = false;
+		}
+
+		if (!CameraComponents.IsEmpty())
+		{
+			UE_LOG(LogPandoraTreeWidget, Log,
+				TEXT("[PandoraPreview] Disabled preview camera aspect constraint. viewTarget=%s cameraCount=%d"),
+				*GetNameSafe(ViewTarget),
+				CameraComponents.Num());
 		}
 	}
 }
@@ -299,7 +330,7 @@ void UPandoraTreeWidget::ResolvePandoraTreeComponent()
 {
 	if (!PandoraTreeComponent)
 	{
-		PandoraTreeComponent = ResolvePandoraTreeComponentFromWidget(this);
+		PandoraTreeComponent = ResolvePandoraTreeComponentFromTreeWidget(this);
 	}
 
 	if (!PandoraDefinition && PandoraTreeComponent)
@@ -560,6 +591,8 @@ void UPandoraTreeWidget::SpawnCharacterPreview()
 
 	if (IsValid(SpawnedCharacterPreview))
 	{
+		DisablePreviewCameraLetterboxing(SpawnedCharacterPreview.Get());
+
 		if (APlayerController* PlayerController = GetOwningPlayer())
 		{
 			PlayerController->SetViewTargetWithBlend(
@@ -595,6 +628,8 @@ void UPandoraTreeWidget::SpawnCharacterPreview()
 			EAttachmentRule::KeepRelative,
 			EAttachmentRule::KeepRelative,
 			true));
+
+	DisablePreviewCameraLetterboxing(SpawnedCharacterPreview.Get());
 
 	if (APlayerController* PlayerController = GetOwningPlayer())
 	{

@@ -53,6 +53,57 @@ public:
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
 	FText PointsRequiredText;
 
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	ESlateVisibility SkillSectionVisibility = ESlateVisibility::Collapsed;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	TObjectPtr<UObject> SkillIconResource1;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillNameText1;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillDescriptionText1;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	ESlateVisibility SkillIconVisibility1 = ESlateVisibility::Collapsed;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	TObjectPtr<UObject> SkillIconResource2;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillNameText2;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillDescriptionText2;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	ESlateVisibility SkillIconVisibility2 = ESlateVisibility::Collapsed;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	TObjectPtr<UObject> SkillIconResource3;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillNameText3;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillDescriptionText3;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	ESlateVisibility SkillIconVisibility3 = ESlateVisibility::Collapsed;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	TObjectPtr<UObject> SkillIconResource4;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillNameText4;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillDescriptionText4;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	ESlateVisibility SkillIconVisibility4 = ESlateVisibility::Collapsed;
+
 	void ResetViewData();
 	void SetTitleText(const FText& InTitleText);
 	void SetDescriptionText(const FText& InDescriptionText);
@@ -67,6 +118,8 @@ public:
 	void SetNextLevelDescriptionText(const FText& InNextLevelDescriptionText);
 	void SetPointsRequiredVisibility(ESlateVisibility InVisibility);
 	void SetPointsRequiredText(const FText& InPointsRequiredText);
+	void SetSkillSectionVisibility(ESlateVisibility InVisibility);
+	void SetSkillSlot(int32 SlotIndex, UObject* InIconResource, const FText& InNameText, const FText& InDescriptionText);
 
 	static const FName ViewModelName;
 };

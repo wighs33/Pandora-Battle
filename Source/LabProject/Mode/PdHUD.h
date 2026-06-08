@@ -4,11 +4,13 @@
 #include "GameFramework/HUD.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
+#include "UI/NotificationData.h"
 #include "PdHUD.generated.h"
 
 class APdPlayerController;
 class UInfoUiPresenter;
 class UInfoWidget;
+class URightNotificationsWidget;
 class USelectPandoraWidget;
 class UPandoraTreeWidget;
 class UUiSubsystem;
@@ -67,6 +69,7 @@ public:
 	void UpdateSelectPandoraDirectionFromMouse();
 	void ShowAimCrosshair(FGameplayTag DesiredCrosshairWidgetTag);
 	void HideAimCrosshair();
+	void ShowRightNotification(const FPdNotificationData& NotificationData);
 	void RefreshUiBindings();
 
 	UInfoWidget* GetInfoWidget() const { return CachedInfoUI; }
@@ -86,6 +89,8 @@ private:
 	bool ApplyStatusViewModelToPlayerHud();
 	void ApplyStatusViewModelToPlayerHudRecursive(UUserWidget* RootWidget, bool& bFoundPlayerVitals, bool& bAppliedViewModel);
 	void RetryApplyStatusViewModelToPlayerHud();
+	void FinishCloseInfoUi();
+	void ClearInfoUiCloseTimer();
 	void RemoveAllUiWidgets();
 
 	UPROPERTY(Transient)
@@ -100,7 +105,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> CachedPlayerHUD = nullptr;
 
+	UPROPERTY(Transient)
+	TObjectPtr<URightNotificationsWidget> CachedRightNotificationsUI = nullptr;
+
 	FTimerHandle PlayerHudStatusViewModelRetryTimerHandle;
+	FTimerHandle InfoUiCloseTimerHandle;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoUiPresenter> CachedInfoUiPresenter = nullptr;

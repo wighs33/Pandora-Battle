@@ -14,7 +14,6 @@
 #include "GameplayTagContainer.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
-#include "Interface/InteractableInterface.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerState.h"
@@ -22,6 +21,7 @@
 #include "PlayerComponent/ControllerInputDefinition.h"
 #include "PlayerComponent/EquipmentComponent.h"
 #include "PlayerComponent/PlayerRewardComponent.h"
+#include "UI/Widget/InfoWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerInputComponent)
 
@@ -364,7 +364,16 @@ void UControllerInputComponent::HandleMoveInput(const FInputActionValue& InputVa
 		return;
 	}
 
-	const APdPlayer* PlayerCharacter = Cast<APdPlayer>(ControlledPawn);
+	if (const APdHUD* HUD = GetPdHUD())
+	{
+		const UInfoWidget* InfoWidget = HUD->GetInfoWidget();
+		if (InfoWidget && InfoWidget->IsInViewport())
+		{
+			return;
+		}
+	}
+
+	APdPlayer* PlayerCharacter = Cast<APdPlayer>(ControlledPawn);
 	const UEquipmentComponent* EquipmentComponent = PlayerCharacter ? PlayerCharacter->GetEquipmentComponent() : nullptr;
 	const UAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetAbilitySystemComponent() : nullptr;
 	const FGameplayTag MovementBlockStateTag = LoadedInputDefinition ? LoadedInputDefinition->GetMovementBlockStateTag() : FGameplayTag();
@@ -381,6 +390,11 @@ void UControllerInputComponent::HandleMoveInput(const FInputActionValue& InputVa
 	const FRotator YawRotation(0.f, CurrentControlRotation.Yaw, 0.f);
 	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+
+	if (PlayerCharacter)
+	{
+		PlayerCharacter->StopInteractionMontage();
+	}
 
 	ControlledPawn->AddMovementInput(RightDirection, static_cast<float>(MoveValue.X));
 	ControlledPawn->AddMovementInput(ForwardDirection, static_cast<float>(MoveValue.Y));
@@ -454,31 +468,57 @@ void UControllerInputComponent::HandleInteractInput(const FInputActionValue& Inp
 
 	if (IsGameplayInputBlockedByUi())
 	{
+		UE_LOG(PdControllerInputComponentLog, Warning,
+			TEXT("[InteractInput] blocked by UI. controller=%s hud=%s"),
+			*GetNameSafe(GetPdController()),
+			*GetNameSafe(GetPdHUD()));
 		return;
 	}
 
 	APdPlayer* PlayerCharacter = GetPlayerCharacter();
 	if (!PlayerCharacter)
 	{
+		UE_LOG(PdControllerInputComponentLog, Warning,
+			TEXT("[InteractInput] failed: no player character. controller=%s"),
+			*GetNameSafe(GetPdController()));
 		return;
 	}
 
-	TArray<TScriptInterface<IInteractableInterface>> CurrentInteractActors;
-	if (!PlayerCharacter->HasCurrentInteractActors(CurrentInteractActors) || CurrentInteractActors.IsEmpty())
-	{
-		return;
-	}
-
-	AActor* InteractableActor = Cast<AActor>(CurrentInteractActors[0].GetObject());
+	AActor* InteractableActor = PlayerCharacter->GetCurrentInteractActor();
 	if (!IsValid(InteractableActor))
 	{
+		UE_LOG(PdControllerInputComponentLog, Warning,
+			TEXT("[InteractInput] failed: no current interact target. player=%s"),
+			*GetNameSafe(PlayerCharacter));
 		return;
 	}
 
-	if (UPlayerRewardComponent* PlayerRewardComponent = GetPlayerRewardComponent())
+	UE_LOG(PdControllerInputComponentLog, Verbose,
+		TEXT("[InteractInput] pressed. player=%s target=%s"),
+		*GetNameSafe(PlayerCharacter),
+		*GetNameSafe(InteractableActor));
+
+	if (PlayerCharacter->InteractWithCurrentTarget())
 	{
-		PlayerRewardComponent->ApplyInteractRewards(InteractableActor);
+		return;
 	}
+
+	UPlayerRewardComponent* PlayerRewardComponent = GetPlayerRewardComponent();
+	if (!PlayerRewardComponent)
+	{
+		UE_LOG(PdControllerInputComponentLog, Warning,
+			TEXT("[InteractInput] failed: target did not handle interaction and reward component is missing. player=%s target=%s"),
+			*GetNameSafe(PlayerCharacter),
+			*GetNameSafe(InteractableActor));
+		return;
+	}
+
+	UE_LOG(PdControllerInputComponentLog, Verbose,
+		TEXT("[InteractInput] target deferred to reward component. player=%s target=%s rewardComponent=%s"),
+		*GetNameSafe(PlayerCharacter),
+		*GetNameSafe(InteractableActor),
+		*GetNameSafe(PlayerRewardComponent));
+	PlayerRewardComponent->ApplyInteractRewards(InteractableActor);
 }
 
 void UControllerInputComponent::HandleOpenInfoUiInputStarted(const FInputActionValue& InputValue)
@@ -719,6 +759,7 @@ APdPlayer* UControllerInputComponent::GetPlayerCharacter() const
 	const APdPlayerController* Controller = GetPdController();
 	return Controller ? Cast<APdPlayer>(Controller->GetPawn()) : nullptr;
 }
+
 
 UPlayerRewardComponent* UControllerInputComponent::GetPlayerRewardComponent() const
 {

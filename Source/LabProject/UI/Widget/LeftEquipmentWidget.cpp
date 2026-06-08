@@ -1,6 +1,8 @@
 #include "UI/Widget/LeftEquipmentWidget.h"
 
 #include "Common/ProjectTagConfig.h"
+#include "Item/ItemDefinition.h"
+#include "Item/ItemInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftEquipmentWidget)
 
@@ -17,6 +19,7 @@ void ULeftEquipmentWidget::NativePreConstruct()
 
 	RebuildEquipSlotList();
 	RebuildEquipSlotNameList();
+	ApplyResolvedEquipTypeTags();
 	ApplyEquipSlotNames();
 }
 
@@ -26,12 +29,13 @@ void ULeftEquipmentWidget::NativeConstruct()
 
 	RebuildEquipSlotList();
 	RebuildEquipSlotNameList();
+	ApplyResolvedEquipTypeTags();
 	ApplyEquipSlotNames();
 	BindEquipSlotCallbacks();
 
 	const FGameplayTag WeaponEquipTypeTag = ResolveEquipTypeTagForSlot(Weapon1);
 	const FGameplayTag ConsumableEquipTypeTag = ResolveEquipTypeTagForSlot(QuickSlot1);
-	const FGameplayTag ValuableEquipTypeTag = ResolveEquipTypeTagForSlot(ToolSlot);
+	const FGameplayTag ValuableEquipTypeTag = ResolveEquipTypeTagForSlot(ToolSlot1);
 
 	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] LeftEquipment NativeConstruct: widget=%s slotCount=%d weaponTag=%s consumableTag=%s valuableTag=%s"),
 		*GetNameSafe(this),
@@ -50,7 +54,15 @@ void ULeftEquipmentWidget::NativeDestruct()
 
 void ULeftEquipmentWidget::InitialzeEquipSlots()
 {
-	ToggleActiveEquipSlots(true);
+	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
+	{
+		if (EquipSlot)
+		{
+			EquipSlot->SetIsEnabled(true);
+			EquipSlot->SetSelected(false);
+		}
+	}
+	SelectedEquipSlot = nullptr;
 	bIsSelectedAnyButton = false;
 	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] Equipment slots initialized: widget=%s slotCount=%d"),
 		*GetNameSafe(this),
@@ -82,18 +94,138 @@ void ULeftEquipmentWidget::SelectEquipSlot(FGameplayTag EquipTypeTag, UEquipSlot
 
 	SelectedEquipSlot = InSelectedEquipSlot;
 
-	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] SelectEquipSlot: widget=%s slot=%s nth=%d tag=%s selectedAnyBefore=%s"),
+	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] EquipSlot clicked for filter/clear: widget=%s slot=%s nth=%d tag=%s occupied=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(SelectedEquipSlot),
 		SelectedEquipSlot ? SelectedEquipSlot->GetNth() : INDEX_NONE,
 		*EquipTypeTag.ToString(),
-		bIsSelectedAnyButton ? TEXT("true") : TEXT("false"));
+		SelectedEquipSlot && SelectedEquipSlot->HasEquippedItem() ? TEXT("true") : TEXT("false"));
 
-	BroadcastClickedEquipTypeSlot(EquipTypeTag, SelectedEquipSlot, bIsSelectedAnyButton);
-	ToggleActiveEquipSlots(bIsSelectedAnyButton);
+	BroadcastClickedEquipTypeSlot(EquipTypeTag, SelectedEquipSlot, false);
 
-	SelectedEquipSlot->SetIsEnabled(true);
-	bIsSelectedAnyButton = !bIsSelectedAnyButton;
+	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
+	{
+		if (EquipSlot)
+		{
+			EquipSlot->SetIsEnabled(true);
+			EquipSlot->SetSelected(false);
+		}
+	}
+
+	bIsSelectedAnyButton = false;
+}
+
+void ULeftEquipmentWidget::SetWeaponSlotData(const int32 WeaponSlotNumber, UItemInstance* ItemInstance)
+{
+	UEquipSlotWidget* TargetSlot = nullptr;
+	switch (WeaponSlotNumber)
+	{
+	case 1:
+		TargetSlot = Weapon1;
+		break;
+	case 2:
+		TargetSlot = Weapon2;
+		break;
+	case 3:
+		TargetSlot = Weapon3;
+		break;
+	default:
+		break;
+	}
+
+	if (TargetSlot)
+	{
+		UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[EquipSlotFlow] SetWeaponSlotData: widget=%s weaponSlot=%d targetSlot=%s targetNth=%d item=%s definition=%s"),
+			*GetNameSafe(this),
+			WeaponSlotNumber,
+			*GetNameSafe(TargetSlot),
+			TargetSlot->GetNth(),
+			*GetNameSafe(ItemInstance),
+			*GetNameSafe(ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr));
+		TargetSlot->SetData(ItemInstance);
+	}
+	else
+	{
+		UE_LOG(LogLeftEquipmentWidget, Warning, TEXT("[EquipSlotFlow] SetWeaponSlotData skipped: widget=%s weaponSlot=%d targetSlot=null item=%s"),
+			*GetNameSafe(this),
+			WeaponSlotNumber,
+			*GetNameSafe(ItemInstance));
+	}
+}
+
+UEquipSlotWidget* ULeftEquipmentWidget::FindFirstCompatibleEquipSlot(UItemInstance* ItemInstance) const
+{
+	const UItemDefinition* ItemDefinition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr;
+	if (!ItemDefinition || !ItemDefinition->IdTag.IsValid())
+	{
+		return nullptr;
+	}
+
+	UEquipSlotWidget* FirstCompatibleSlot = nullptr;
+	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
+	{
+		if (!EquipSlot)
+		{
+			continue;
+		}
+
+		const FGameplayTag SlotTag = ResolveEquipTypeTagForSlot(EquipSlot);
+		if (!SlotTag.IsValid() || !ItemDefinition->IdTag.MatchesTag(SlotTag))
+		{
+			continue;
+		}
+
+		if (!FirstCompatibleSlot)
+		{
+			FirstCompatibleSlot = EquipSlot;
+		}
+
+		if (!EquipSlot->HasEquippedItem())
+		{
+			UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[CharacterPanelDrop] Found empty compatible equipment slot: widget=%s slot=%s tag=%s item=%s idTag=%s"),
+				*GetNameSafe(this),
+				*GetNameSafe(EquipSlot),
+				*SlotTag.ToString(),
+				*GetNameSafe(ItemInstance),
+				*ItemDefinition->IdTag.ToString());
+			return EquipSlot;
+		}
+	}
+
+	if (FirstCompatibleSlot)
+	{
+		UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[CharacterPanelDrop] No empty compatible equipment slot, replacing first compatible slot: widget=%s slot=%s item=%s idTag=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(FirstCompatibleSlot),
+			*GetNameSafe(ItemInstance),
+			*ItemDefinition->IdTag.ToString());
+	}
+	return FirstCompatibleSlot;
+}
+
+UEquipSlotWidget* ULeftEquipmentWidget::FindFirstEquippedCompatibleEquipSlot(UItemInstance* ItemInstance) const
+{
+	const UItemDefinition* ItemDefinition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr;
+	if (!ItemDefinition || !ItemDefinition->IdTag.IsValid())
+	{
+		return nullptr;
+	}
+
+	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
+	{
+		if (!EquipSlot || !EquipSlot->HasEquippedItem())
+		{
+			continue;
+		}
+
+		const FGameplayTag SlotTag = ResolveEquipTypeTagForSlot(EquipSlot);
+		if (SlotTag.IsValid() && ItemDefinition->IdTag.MatchesTag(SlotTag))
+		{
+			return EquipSlot;
+		}
+	}
+
+	return nullptr;
 }
 
 void ULeftEquipmentWidget::BroadcastClickedEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* InSelectedEquipSlot, bool bInIsSelectedAnyButton)
@@ -121,7 +253,7 @@ void ULeftEquipmentWidget::HandleEquipSlotClicked(UEquipSlotWidget* ItemSlot)
 void ULeftEquipmentWidget::RebuildEquipSlotList()
 {
 	EquipSlotList.Reset();
-	EquipSlotList.Reserve(16);
+	EquipSlotList.Reserve(19);
 
 	EquipSlotList.Add(HatSlot);
 	EquipSlotList.Add(TopSlot);
@@ -135,7 +267,10 @@ void ULeftEquipmentWidget::RebuildEquipSlotList()
 	EquipSlotList.Add(QuickSlot2);
 	EquipSlotList.Add(QuickSlot3);
 	EquipSlotList.Add(QuickSlot4);
-	EquipSlotList.Add(ToolSlot);
+	EquipSlotList.Add(ToolSlot1);
+	EquipSlotList.Add(ToolSlot2);
+	EquipSlotList.Add(ToolSlot3);
+	EquipSlotList.Add(ToolSlot4);
 	EquipSlotList.Add(Weapon1);
 	EquipSlotList.Add(Weapon2);
 	EquipSlotList.Add(Weapon3);
@@ -163,7 +298,10 @@ void ULeftEquipmentWidget::RebuildEquipSlotNameList()
 			FText::FromString(TEXT("2")),
 			FText::FromString(TEXT("3")),
 			FText::FromString(TEXT("4")),
-			FText::FromString(TEXT("Tool")),
+			FText::FromString(TEXT("1")),
+			FText::FromString(TEXT("2")),
+			FText::FromString(TEXT("3")),
+			FText::FromString(TEXT("4")),
 			FText::FromString(TEXT("First\r\nWeapon")),
 			FText::FromString(TEXT("Second\r\nWeapon")),
 			FText::FromString(TEXT("Third\r\nWeapon")),
@@ -183,6 +321,17 @@ void ULeftEquipmentWidget::ApplyEquipSlotNames()
 	}
 }
 
+void ULeftEquipmentWidget::ApplyResolvedEquipTypeTags()
+{
+	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
+	{
+		if (EquipSlot)
+		{
+			EquipSlot->SetResolvedEquipTypeTag(ResolveEquipTypeTagForSlot(EquipSlot));
+		}
+	}
+}
+
 void ULeftEquipmentWidget::BindEquipSlotCallbacks()
 {
 	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
@@ -190,6 +339,7 @@ void ULeftEquipmentWidget::BindEquipSlotCallbacks()
 		if (EquipSlot)
 		{
 			EquipSlot->OnClicked_EquipSlot.AddUniqueDynamic(this, &ThisClass::HandleEquipSlotClicked);
+			EquipSlot->OnDroppedItem_EquipSlot.AddUniqueDynamic(this, &ThisClass::HandleEquipSlotItemDropped);
 		}
 	}
 	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] Equip slot callbacks bound: count=%d"),
@@ -203,12 +353,36 @@ void ULeftEquipmentWidget::UnbindEquipSlotCallbacks()
 		if (EquipSlot)
 		{
 			EquipSlot->OnClicked_EquipSlot.RemoveDynamic(this, &ThisClass::HandleEquipSlotClicked);
+			EquipSlot->OnDroppedItem_EquipSlot.RemoveDynamic(this, &ThisClass::HandleEquipSlotItemDropped);
 		}
 	}
 }
 
+void ULeftEquipmentWidget::HandleEquipSlotItemDropped(UEquipSlotWidget* ItemSlot, UItemInstance* ItemInstance)
+{
+	const FGameplayTag ResolvedTag = ResolveEquipTypeTagForSlot(ItemSlot);
+	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[EquipSlotDragDrop] Item dropped on left equipment slot: widget=%s slot=%s nth=%d resolvedTag=%s item=%s definition=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(ItemSlot),
+		ItemSlot ? ItemSlot->GetNth() : INDEX_NONE,
+		ResolvedTag.IsValid() ? *ResolvedTag.ToString() : TEXT("None"),
+		*GetNameSafe(ItemInstance),
+		*GetNameSafe(ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr));
+	OnDroppedItem_EquipTypeSlot.Broadcast(ResolvedTag, ItemSlot, ItemInstance);
+}
+
 FGameplayTag ULeftEquipmentWidget::ResolveEquipTypeTagForSlot(const UEquipSlotWidget* ItemSlot) const
 {
+	if (ItemSlot && ItemSlot->GetEquipTypeTag().IsValid())
+	{
+		UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[EquipSlotFlow] ResolveEquipTypeTagForSlot using slot override: widget=%s slot=%s nth=%d tag=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(ItemSlot),
+			ItemSlot->GetNth(),
+			*ItemSlot->GetEquipTypeTag().ToString());
+		return ItemSlot->GetEquipTypeTag();
+	}
+
 	if (ItemSlot == HatSlot)
 	{
 		return UProjectTagConfig::Get(this)->GetItemHatEquipTypeTag();
@@ -254,7 +428,7 @@ FGameplayTag ULeftEquipmentWidget::ResolveEquipTypeTagForSlot(const UEquipSlotWi
 		return UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
 	}
 
-	if (ItemSlot == ToolSlot)
+	if (ItemSlot == ToolSlot1 || ItemSlot == ToolSlot2 || ItemSlot == ToolSlot3 || ItemSlot == ToolSlot4)
 	{
 		return UProjectTagConfig::Get(this)->GetItemValuableTypeTag();
 	}

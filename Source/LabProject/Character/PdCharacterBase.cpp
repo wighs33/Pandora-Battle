@@ -18,6 +18,7 @@
 #include "Net/UnrealNetwork.h"
 #include "PlayerComponent/CombatComponent.h"
 #include "PlayerComponent/EquipmentComponent.h"
+#include "Skin/SkinEquipmentComponent.h"
 #include "TimerManager.h"
 #include "UI/DamageIndicatorComponent.h"
 #include "UI/Widget/EnemyAvatarWidget.h"
@@ -83,6 +84,8 @@ APdCharacterBase::APdCharacterBase(const FObjectInitializer& ObjectInitializer)
 	HealthBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("WidgetComponent"));
 	HealthBarWidget->SetupAttachment(GetRootComponent());
 	HealthBarWidget->SetUsingAbsoluteRotation(true);
+
+	SkinEquipmentComponent = CreateDefaultSubobject<USkinEquipmentComponent>(TEXT("SkinEquipmentComponent"));
 }
 
 /** 컴포?�트 초기???�에 리시버�? ?�록?�니?? */

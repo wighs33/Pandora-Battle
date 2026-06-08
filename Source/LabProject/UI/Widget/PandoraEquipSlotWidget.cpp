@@ -3,10 +3,13 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
+#include "GameFramework/PlayerController.h"
+#include "Mode/PdHUD.h"
 #include "Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraInstance.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateTypes.h"
+#include "UI/Widget/InfoWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraEquipSlotWidget)
 
@@ -20,6 +23,13 @@ FSlateBrush MakePandoraButtonBrush(UTexture2D* IconTexture, const FLinearColor& 
 	Brush.SetResourceObject(IconTexture);
 	return Brush;
 }
+
+UInfoWidget* ResolveInfoWidgetFromPandoraEquipSlot(const UUserWidget* Widget)
+{
+	const APlayerController* PlayerController = Widget ? Widget->GetOwningPlayer() : nullptr;
+	const APdHUD* Hud = PlayerController ? PlayerController->GetHUD<APdHUD>() : nullptr;
+	return Hud ? Hud->GetInfoWidget() : nullptr;
+}
 }
 
 void UPandoraEquipSlotWidget::NativeConstruct()
@@ -28,6 +38,12 @@ void UPandoraEquipSlotWidget::NativeConstruct()
 
 	if (ItemButton)
 	{
+		if (!bHasDefaultButtonStyle)
+		{
+			DefaultButtonStyle = ItemButton->GetStyle();
+			bHasDefaultButtonStyle = true;
+		}
+
 		ItemButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleButtonClicked);
 		ItemButton->OnHovered.AddUniqueDynamic(this, &ThisClass::HandleButtonHovered);
 	}
@@ -42,6 +58,33 @@ void UPandoraEquipSlotWidget::NativeDestruct()
 	}
 
 	Super::NativeDestruct();
+}
+
+void UPandoraEquipSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
+
+	if (UInfoWidget* InfoWidget = ResolveInfoWidgetFromPandoraEquipSlot(this))
+	{
+		if (CachedData)
+		{
+			InfoWidget->ShowPandoraDescriptionDetailAtWidget(CachedData, this, false);
+		}
+		else
+		{
+			InfoWidget->HideDetailWidgets();
+		}
+	}
+}
+
+void UPandoraEquipSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+{
+	if (UInfoWidget* InfoWidget = ResolveInfoWidgetFromPandoraEquipSlot(this))
+	{
+		InfoWidget->HideDetailWidgets();
+	}
+
+	Super::NativeOnMouseLeave(InMouseEvent);
 }
 
 void UPandoraEquipSlotWidget::BroadcastClickedPandoraEquipSlot(UPandoraEquipSlotWidget* PandoraEquipSlot)
@@ -83,6 +126,10 @@ void UPandoraEquipSlotWidget::ApplyButtonStyle()
 	const UPandoraDefinition* PandoraDefinition = CachedData ? CachedData->PandoraDefinition.Get() : nullptr;
 	if (!ItemButton || !PandoraDefinition)
 	{
+		if (ItemButton && bHasDefaultButtonStyle)
+		{
+			ItemButton->SetStyle(DefaultButtonStyle);
+		}
 		return;
 	}
 

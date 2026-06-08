@@ -11,6 +11,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	UEquipSlotWidget*, SelectedEquipSlot,
 	bool, bIsSelectedAnyButton);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FPdOnDroppedItemEquipTypeSlot,
+	FGameplayTag, EquipTypeTag,
+	UEquipSlotWidget*, TargetEquipSlot,
+	UItemInstance*, ItemInstance);
+
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API ULeftEquipmentWidget : public UUserWidget
 {
@@ -28,11 +34,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
 	void SelectEquipSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* InSelectedEquipSlot);
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
+	void SetWeaponSlotData(int32 WeaponSlotNumber, UItemInstance* ItemInstance);
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Equipment")
+	UEquipSlotWidget* FindFirstCompatibleEquipSlot(UItemInstance* ItemInstance) const;
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Equipment")
+	UEquipSlotWidget* FindFirstEquippedCompatibleEquipSlot(UItemInstance* ItemInstance) const;
+
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment", meta = (Categories = "Item"))
 	void BroadcastClickedEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* InSelectedEquipSlot, bool bInIsSelectedAnyButton);
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Equipment")
 	FPdOnClickedEquipTypeSlot OnClicked_EquipTypeSlot;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Equipment")
+	FPdOnDroppedItemEquipTypeSlot OnDroppedItem_EquipTypeSlot;
 
 protected:
 	virtual void NativePreConstruct() override;
@@ -76,7 +94,16 @@ protected:
 	TObjectPtr<UEquipSlotWidget> QuickSlot4;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Equipment|Bind")
-	TObjectPtr<UEquipSlotWidget> ToolSlot;
+	TObjectPtr<UEquipSlotWidget> ToolSlot1;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Equipment|Bind")
+	TObjectPtr<UEquipSlotWidget> ToolSlot2;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Equipment|Bind")
+	TObjectPtr<UEquipSlotWidget> ToolSlot3;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Equipment|Bind")
+	TObjectPtr<UEquipSlotWidget> ToolSlot4;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Equipment|Bind")
 	TObjectPtr<UEquipSlotWidget> Weapon1;
@@ -103,9 +130,13 @@ private:
 	UFUNCTION()
 	void HandleEquipSlotClicked(UEquipSlotWidget* ItemSlot);
 
+	UFUNCTION()
+	void HandleEquipSlotItemDropped(UEquipSlotWidget* ItemSlot, UItemInstance* ItemInstance);
+
 	void RebuildEquipSlotList();
 	void RebuildEquipSlotNameList();
 	void ApplyEquipSlotNames();
+	void ApplyResolvedEquipTypeTags();
 	void BindEquipSlotCallbacks();
 	void UnbindEquipSlotCallbacks();
 	FGameplayTag ResolveEquipTypeTagForSlot(const UEquipSlotWidget* ItemSlot) const;

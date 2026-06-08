@@ -5,6 +5,7 @@
 #include "RightInventoryWidget.generated.h"
 
 class UButton;
+class UInventorySlotViewData;
 class UTileView;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedInventoryFilterAllButton);
@@ -39,6 +40,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
 	UTileView* GetTileView() const { return TileView; }
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
+	int32 GetInventorySlotCount() const { return InventorySlotCount; }
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Inventory")
 	FPdOnClickedInventoryFilterAllButton OnClicked_FilterAllButton;
@@ -76,6 +80,12 @@ protected:
 	//--- Tile View
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory", meta = (BindWidget))
 	TObjectPtr<UTileView> TileView;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Inventory|Slots", meta = (ClampMin = "0"))
+	int32 InventorySlotCount = 40;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Inventory|Slots")
+	TArray<TObjectPtr<UInventorySlotViewData>> CachedSlotViewData;
 
 private:
 	//------------------------------------------------------------------------------------------------------------------

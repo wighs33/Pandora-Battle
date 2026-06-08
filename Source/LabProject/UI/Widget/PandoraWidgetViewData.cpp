@@ -2,10 +2,65 @@
 
 #include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
 #include "Pandora/PandoraDefinition.h"
+#include "Pandora/PandoraInstance.h"
 
 namespace
 {
 	const FText MaxLevelText = NSLOCTEXT("PandoraWidget", "MaxLevel", "MAX");
+
+	FText FormatCurrentLevelText(int32 CurrentLevel)
+	{
+		return FText::Format(
+			NSLOCTEXT("PandoraDescriptionWidget", "CurrentLevelFormat", "Level {0}"),
+			FText::AsNumber(CurrentLevel));
+	}
+
+	FText FormatNextLevelText(int32 NextLevel)
+	{
+		return FText::Format(
+			NSLOCTEXT("PandoraDescriptionWidget", "NextLevelFormat", "Next Level ({0})"),
+			FText::AsNumber(NextLevel));
+	}
+
+	FText FormatPointsRequiredText(int32 Points)
+	{
+		return FText::Format(
+			NSLOCTEXT("PandoraDescriptionWidget", "PointsRequiredFormat", "Points Required: {0}"),
+			FText::AsNumber(Points));
+	}
+
+	FString MakeWeaponTagDisplayName(const FGameplayTag& WeaponTag)
+	{
+		FString TagText = WeaponTag.ToString();
+		TagText.RemoveFromStart(TEXT("Item.Weapon."));
+		return TagText.Replace(TEXT("."), TEXT(" / "));
+	}
+
+	FText MakeWeaponRequirementText(const FGameplayTagContainer& RequiredWeaponTags)
+	{
+		if (RequiredWeaponTags.IsEmpty())
+		{
+			return FText::GetEmpty();
+		}
+
+		TArray<FString> WeaponTypeNames;
+		for (const FGameplayTag& WeaponTag : RequiredWeaponTags)
+		{
+			if (WeaponTag.IsValid())
+			{
+				WeaponTypeNames.Add(MakeWeaponTagDisplayName(WeaponTag));
+			}
+		}
+
+		if (WeaponTypeNames.IsEmpty())
+		{
+			return FText::GetEmpty();
+		}
+
+		return FText::Format(
+			NSLOCTEXT("PandoraDescriptionWidget", "WeaponRequirementFormat", "Required Weapon Type: {0}"),
+			FText::FromString(FString::Join(WeaponTypeNames, TEXT(", "))));
+	}
 }
 
 FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
@@ -18,13 +73,16 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 	if (PandoraDefinition)
 	{
 		ViewData.DisplayName = PandoraDefinition->GetDisplayName();
+		ViewData.Description = PandoraDefinition->GetDescription();
 		ViewData.MaxLevel = PandoraDefinition->GetMaxLevel();
+		ViewData.RequiredWeaponTags = PandoraDefinition->ActivatableWeaponTags;
 	}
 
 	ViewData.CurrentLevel = PandoraTreeComponent && PandoraDefinition
 		? PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition)
 		: 0;
 	const bool bHasPandora = ViewData.CurrentLevel > 0;
+	ViewData.bOwned = bHasPandora;
 
 	ViewData.bCanSpend = PandoraTreeComponent
 		&& PandoraDefinition
@@ -47,6 +105,7 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 		&& ViewData.PointsAvailable >= 0
 		&& ViewData.PointsAvailable < ViewData.RequiredPoints;
 	const bool bAvailableStyle = !PandoraTreeComponent || ViewData.bCanSpend || ViewData.bAtMaxLevel;
+	ViewData.bActive = bAvailableStyle && !ViewData.bLocked && !ViewData.bNotEnoughPoints;
 	ViewData.bInactiveStyle = PandoraTreeComponent && PandoraDefinition && ViewData.CurrentLevel <= 0;
 	ViewData.bDimmedStyle = ViewData.bInactiveStyle || !bAvailableStyle || ViewData.bLocked || ViewData.bNotEnoughPoints;
 	ViewData.OverlayColor = ViewData.bLocked
@@ -79,4 +138,113 @@ FText FPandoraWidgetViewDataBuilder::MakeLevelText(
 		NSLOCTEXT("PandoraWidget", "PandoraLevelFormat", "{0}/{1}"),
 		FText::AsNumber(CurrentLevel),
 		FText::AsNumber(MaxLevel));
+}
+
+FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(const UPandoraInstance* PandoraInstance)
+{
+	FPandoraSlotViewData ViewData;
+	const UPandoraDefinition* PandoraDefinition = IsValid(PandoraInstance)
+		? PandoraInstance->PandoraDefinition.Get()
+		: nullptr;
+
+	ViewData.bOwned = IsValid(PandoraInstance) && PandoraInstance->IsOwned;
+	ViewData.bActive = ViewData.bOwned;
+	ViewData.bEnabled = ViewData.bOwned;
+
+	if (!PandoraDefinition)
+	{
+		return ViewData;
+	}
+
+	ViewData.DisplayName = PandoraDefinition->GetDisplayName();
+	ViewData.Description = PandoraDefinition->GetDescription();
+	ViewData.IconResource = PandoraDefinition->GetIconResource();
+	ViewData.RequiredWeaponTags = PandoraDefinition->ActivatableWeaponTags;
+	return ViewData;
+}
+
+FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
+	UPandoraDefinition* PandoraDefinition,
+	const UPandoraTreeComponent* PandoraTreeComponent)
+{
+	FPandoraDescriptionViewData ViewData;
+	ViewData.SkillSlots.SetNum(4);
+	ViewData.bHasPandoraDefinition = PandoraDefinition != nullptr;
+
+	if (!PandoraDefinition)
+	{
+		return ViewData;
+	}
+
+	ViewData.TitleText = PandoraDefinition->GetDisplayName();
+	ViewData.DescriptionText = PandoraDefinition->GetDescription();
+	ViewData.SkillSectionVisibility = ESlateVisibility::Visible;
+	ViewData.MaxLevel = FMath::Max(PandoraDefinition->GetMaxLevel(), 1);
+
+	if (PandoraTreeComponent)
+	{
+		ViewData.CurrentLevel = PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition);
+		ViewData.MaxLevel = FMath::Max(PandoraTreeComponent->GetMaxPandoraLevel(PandoraDefinition), 1);
+		ViewData.PointsRequiredText = FormatPointsRequiredText(PandoraTreeComponent->GetRequiredPointsForPandora(PandoraDefinition, true));
+	}
+
+	ViewData.NextLevel = ViewData.CurrentLevel + 1 > ViewData.MaxLevel ? -1 : ViewData.CurrentLevel + 1;
+
+	const int32 EffectiveSkillLevel = FMath::Max(ViewData.CurrentLevel, 1);
+	for (int32 SkillIndex = 0; SkillIndex < ViewData.SkillSlots.Num(); ++SkillIndex)
+	{
+		if (!PandoraDefinition->Skill.IsValidIndex(SkillIndex))
+		{
+			continue;
+		}
+
+		const FSkill& Skill = PandoraDefinition->Skill[SkillIndex];
+		FPandoraSkillSlotViewData& SkillViewData = ViewData.SkillSlots[SkillIndex];
+		SkillViewData.IconResource = Skill.GetIconResource();
+		SkillViewData.DisplayName = Skill.GetDisplayName();
+		SkillViewData.Description = Skill.GetDescriptionForLevel(EffectiveSkillLevel);
+	}
+
+	ViewData.bLockedByPandoraRequirement = PandoraTreeComponent
+		&& ViewData.CurrentLevel <= 0
+		&& !PandoraTreeComponent->ArePandoraUnlockRulesMet(PandoraDefinition);
+
+	const FText WeaponRequirement = MakeWeaponRequirementText(PandoraDefinition->ActivatableWeaponTags);
+	ViewData.WeaponRequirementText = WeaponRequirement;
+	ViewData.WeaponRequirementVisibility = WeaponRequirement.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+
+	if (ViewData.bLockedByPandoraRequirement)
+	{
+		FText RequirementText = PandoraTreeComponent->GetPandoraUnlockRequirementsText(PandoraDefinition);
+		if (RequirementText.IsEmpty())
+		{
+			RequirementText = NSLOCTEXT("PandoraDescriptionWidget", "LockedRequirementFallback", "Unlock requirements are not met.");
+		}
+
+		ViewData.DescriptionText = RequirementText;
+		return ViewData;
+	}
+
+	const FText CurrentDescription = PandoraDefinition->GetDescriptionForLevel(ViewData.CurrentLevel);
+	if (!CurrentDescription.IsEmpty())
+	{
+		ViewData.CurrentLevelVisibility = ESlateVisibility::Visible;
+		ViewData.CurrentLevelTitleText = FormatCurrentLevelText(ViewData.CurrentLevel);
+		ViewData.CurrentLevelDescriptionText = CurrentDescription;
+	}
+
+	const FText NextDescription = PandoraDefinition->GetDescriptionForLevel(ViewData.NextLevel);
+	if (!NextDescription.IsEmpty())
+	{
+		ViewData.NextLevelVisibility = ESlateVisibility::Visible;
+		ViewData.NextLevelTitleText = FormatNextLevelText(ViewData.NextLevel);
+		ViewData.NextLevelDescriptionText = NextDescription;
+		ViewData.PointsRequiredVisibility = ESlateVisibility::Visible;
+	}
+	else if (ViewData.CurrentLevel >= ViewData.MaxLevel)
+	{
+		ViewData.PointsRequiredVisibility = ESlateVisibility::Collapsed;
+	}
+
+	return ViewData;
 }

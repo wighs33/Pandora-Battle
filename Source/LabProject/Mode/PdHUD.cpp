@@ -14,9 +14,12 @@
 #include "UI/Widget/PlayerVitalsWidget.h"
 #include "UI/Widget/SelectPandoraWidget.h"
 #include "UI/Widget/PandoraTreeWidget.h"
+#include "UI/Widget/RightNotificationsWidget.h"
 #include "UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdHUD)
+
+DEFINE_LOG_CATEGORY_STATIC(LogPdHUD, Log, All);
 
 APdHUD::APdHUD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -40,6 +43,7 @@ void APdHUD::BeginPlay()
 void APdHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UGameFrameworkComponentManager::RemoveGameFrameworkComponentReceiver(this);
+	ClearInfoUiCloseTimer();
 	RemoveAllUiWidgets();
 	Super::EndPlay(EndPlayReason);
 }
@@ -79,6 +83,15 @@ void APdHUD::CreateAllUi()
 	const TSubclassOf<USelectPandoraWidget> SelectPandoraWidgetClass = WidgetClassDefinition->GetSelectPandoraWidgetClass();
 	const TSubclassOf<UUserWidget> AimCrosshairWidgetClass = WidgetClassDefinition->GetAimCrosshairWidgetClass();
 	const TSubclassOf<UPandoraTreeWidget> PandoraTreeWidgetClass = WidgetClassDefinition->GetPandoraTreeWidgetClass();
+	const TSubclassOf<URightNotificationsWidget> RightNotificationsWidgetClass = WidgetClassDefinition->GetRightNotificationsWidgetClass();
+
+	UE_LOG(LogPdHUD, Log,
+		TEXT("[Notification] CreateAllUi. hud=%s controller=%s widgetDefinition=%s rightNotificationClass=%s cachedRightNotification=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(Controller),
+		*GetNameSafe(WidgetClassDefinition),
+		*GetNameSafe(RightNotificationsWidgetClass.Get()),
+		*GetNameSafe(CachedRightNotificationsUI.Get()));
 
 	if (!CachedPlayerHUD && PlayerHudWidgetClass)
 	{
@@ -111,6 +124,29 @@ void APdHUD::CreateAllUi()
 		CachedPandoraTreeUI = CreateWidget<UPandoraTreeWidget>(Controller, PandoraTreeWidgetClass);
 	}
 
+	if (!CachedRightNotificationsUI && RightNotificationsWidgetClass)
+	{
+		CachedRightNotificationsUI = CreateWidget<URightNotificationsWidget>(Controller, RightNotificationsWidgetClass);
+		UE_LOG(LogPdHUD, Log,
+			TEXT("[Notification] created RightNotifications widget. class=%s widget=%s"),
+			*GetNameSafe(RightNotificationsWidgetClass.Get()),
+			*GetNameSafe(CachedRightNotificationsUI.Get()));
+	}
+	else if (!RightNotificationsWidgetClass)
+	{
+		UE_LOG(LogPdHUD, Warning,
+			TEXT("[Notification] RightNotificationsWidgetClass is not set. widgetDefinition=%s"),
+			*GetNameSafe(WidgetClassDefinition));
+	}
+
+	if (CachedRightNotificationsUI && !CachedRightNotificationsUI->IsInViewport())
+	{
+		CachedRightNotificationsUI->AddToViewport(20);
+		UE_LOG(LogPdHUD, Log,
+			TEXT("[Notification] RightNotifications widget added to viewport. widget=%s"),
+			*GetNameSafe(CachedRightNotificationsUI.Get()));
+	}
+
 	if (CachedInfoUI)
 	{
 		CachedInfoUI->OnClickedInfoCenterButton.Clear();
@@ -138,6 +174,8 @@ void APdHUD::CreateAllUi()
 
 void APdHUD::OpenInfoUi()
 {
+	ClearInfoUiCloseTimer();
+
 	APdPlayerController* Controller = GetPdController();
 	if (!Controller)
 	{
@@ -167,8 +205,20 @@ void APdHUD::OpenInfoUi()
 		ApplyStatusViewModelToWidget(RightStatusWidget);
 	}
 
+	if (CachedPlayerHUD)
+	{
+		CachedPlayerHUD->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
 	CachedInfoUI->AddToViewport();
 	ToggleUiMode(true);
+	CachedInfoUI->ShowInfoUi();
+
+	UE_LOG(LogPdHUD, Log,
+		TEXT("[InfoAnimation] OpenInfoUi widget=%s inViewport=%s visibility=%s"),
+		*GetNameSafe(CachedInfoUI.Get()),
+		CachedInfoUI->IsInViewport() ? TEXT("true") : TEXT("false"),
+		*UEnum::GetValueAsString(CachedInfoUI->GetVisibility()));
 
 	if (InfoUiPresenter)
 	{
@@ -180,12 +230,39 @@ void APdHUD::OpenInfoUi()
 
 void APdHUD::CloseInfoUi()
 {
-	if (CachedInfoUI)
+	if (!CachedInfoUI)
 	{
-		CachedInfoUI->RemoveFromParent();
+		if (CachedPlayerHUD)
+		{
+			CachedPlayerHUD->SetVisibility(ESlateVisibility::Visible);
+		}
+		ToggleUiMode(false);
+		return;
 	}
 
-	ToggleUiMode(false);
+	ClearInfoUiCloseTimer();
+	CachedInfoUI->HideInfoUi();
+
+	const float HideAnimationDelay = CachedInfoUI->GetHideAnimationDelay();
+	UE_LOG(LogPdHUD, Log,
+		TEXT("[InfoAnimation] CloseInfoUi widget=%s hideDelay=%.3f inViewport=%s visibility=%s"),
+		*GetNameSafe(CachedInfoUI.Get()),
+		HideAnimationDelay,
+		CachedInfoUI->IsInViewport() ? TEXT("true") : TEXT("false"),
+		*UEnum::GetValueAsString(CachedInfoUI->GetVisibility()));
+
+	if (HideAnimationDelay > 0.0f)
+	{
+		GetWorldTimerManager().SetTimer(
+			InfoUiCloseTimerHandle,
+			this,
+			&ThisClass::FinishCloseInfoUi,
+			HideAnimationDelay,
+			false);
+		return;
+	}
+
+	FinishCloseInfoUi();
 }
 
 void APdHUD::ToggleInfoUi()
@@ -406,6 +483,47 @@ void APdHUD::HideAimCrosshair()
 	}
 }
 
+void APdHUD::ShowRightNotification(const FPdNotificationData& NotificationData)
+{
+	UE_LOG(LogPdHUD, Log,
+		TEXT("[Notification] ShowRightNotification. hud=%s cachedWidget=%s inViewport=%s text=%s icon=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(CachedRightNotificationsUI.Get()),
+		CachedRightNotificationsUI && CachedRightNotificationsUI->IsInViewport() ? TEXT("true") : TEXT("false"),
+		*NotificationData.Text.ToString(),
+		*GetNameSafe(NotificationData.IconResource));
+
+	if (!CachedRightNotificationsUI)
+	{
+		UE_LOG(LogPdHUD, Log,
+			TEXT("[Notification] cached RightNotifications widget missing, calling CreateAllUi. hud=%s"),
+			*GetNameSafe(this));
+		CreateAllUi();
+	}
+
+	if (!CachedRightNotificationsUI)
+	{
+		UE_LOG(LogPdHUD, Warning,
+			TEXT("[Notification] skipped: RightNotificationsWidgetClass is not set. text=%s"),
+			*NotificationData.Text.ToString());
+		return;
+	}
+
+	if (!CachedRightNotificationsUI->IsInViewport())
+	{
+		CachedRightNotificationsUI->AddToViewport(20);
+		UE_LOG(LogPdHUD, Log,
+			TEXT("[Notification] RightNotifications widget re-added to viewport. widget=%s"),
+			*GetNameSafe(CachedRightNotificationsUI.Get()));
+	}
+
+	UE_LOG(LogPdHUD, Log,
+		TEXT("[Notification] enqueue to RightNotifications widget. widget=%s text=%s"),
+		*GetNameSafe(CachedRightNotificationsUI.Get()),
+		*NotificationData.Text.ToString());
+	CachedRightNotificationsUI->EnqueueNotification(NotificationData);
+}
+
 void APdHUD::RefreshUiBindings()
 {
 	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
@@ -559,9 +677,36 @@ void APdHUD::RetryApplyStatusViewModelToPlayerHud()
 	ApplyStatusViewModelToPlayerHud();
 }
 
+void APdHUD::FinishCloseInfoUi()
+{
+	ClearInfoUiCloseTimer();
+
+	if (CachedInfoUI)
+	{
+		UE_LOG(LogPdHUD, Log,
+			TEXT("[InfoAnimation] FinishCloseInfoUi widget=%s inViewportBeforeRemove=%s"),
+			*GetNameSafe(CachedInfoUI.Get()),
+			CachedInfoUI->IsInViewport() ? TEXT("true") : TEXT("false"));
+		CachedInfoUI->RemoveFromParent();
+	}
+
+	if (CachedPlayerHUD)
+	{
+		CachedPlayerHUD->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	ToggleUiMode(false);
+}
+
+void APdHUD::ClearInfoUiCloseTimer()
+{
+	GetWorldTimerManager().ClearTimer(InfoUiCloseTimerHandle);
+}
+
 void APdHUD::RemoveAllUiWidgets()
 {
 	HideAimCrosshair();
+	ClearInfoUiCloseTimer();
 	GetWorldTimerManager().ClearTimer(PlayerHudStatusViewModelRetryTimerHandle);
 
 	if (CachedPlayerHUD)
@@ -586,6 +731,12 @@ void APdHUD::RemoveAllUiWidgets()
 	{
 		CachedPandoraTreeUI->RemoveFromParent();
 		CachedPandoraTreeUI = nullptr;
+	}
+
+	if (CachedRightNotificationsUI)
+	{
+		CachedRightNotificationsUI->RemoveFromParent();
+		CachedRightNotificationsUI = nullptr;
 	}
 
 	if (CachedInfoUiPresenter)

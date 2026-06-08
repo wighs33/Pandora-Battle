@@ -86,9 +86,9 @@ FText USkillDataAsset::GetDescriptionForLevel(const int32 Level) const
 	}
 
 	const int32 DescriptionIndex = Level - 1;
-	return DescriptionPerLevel.IsValidIndex(DescriptionIndex)
+	return DescriptionPerLevel.IsValidIndex(DescriptionIndex) && !DescriptionPerLevel[DescriptionIndex].IsEmpty()
 		? DescriptionPerLevel[DescriptionIndex]
-		: FText::GetEmpty();
+		: Description;
 }
 
 UObject* USkillDataAsset::GetIconResource() const

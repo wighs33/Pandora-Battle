@@ -22,6 +22,8 @@ UControllerUiComponent::UControllerUiComponent(const FObjectInitializer& ObjectI
 
 void UControllerUiComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	ClearInfoUiCloseTimer();
+
 	if (CachedInfoUiPresenter)
 	{
 		CachedInfoUiPresenter->Deinitialize();
@@ -121,6 +123,8 @@ void UControllerUiComponent::OpenInfoUi()
 		return;
 	}
 
+	ClearInfoUiCloseTimer();
+
 	if (!CachedInfoUI)
 	{
 		CreateAllUi();
@@ -151,6 +155,12 @@ void UControllerUiComponent::OpenInfoUi()
 
 	CachedInfoUI->AddToViewport();
 	ToggleUiMode(true);
+	UE_LOG(PdPlayerControllerLog, Log,
+		TEXT("[InfoAnimation] OpenInfoUi widget=%s inViewport=%s visibility=%s"),
+		*GetNameSafe(CachedInfoUI),
+		CachedInfoUI->IsInViewport() ? TEXT("true") : TEXT("false"),
+		*UEnum::GetValueAsString(CachedInfoUI->GetVisibility()));
+	CachedInfoUI->ShowInfoUi();
 
 	if (InfoUiPresenter)
 	{
@@ -170,10 +180,51 @@ void UControllerUiComponent::CloseInfoUi()
 
 	if (CachedInfoUI)
 	{
-		CachedInfoUI->RemoveFromParent();
+		UE_LOG(PdPlayerControllerLog, Log,
+			TEXT("[InfoAnimation] CloseInfoUi widget=%s hideDelay=%.3f visibility=%s"),
+			*GetNameSafe(CachedInfoUI),
+			CachedInfoUI->GetHideAnimationDelay(),
+			*UEnum::GetValueAsString(CachedInfoUI->GetVisibility()));
+		CachedInfoUI->HideInfoUi();
 	}
 
 	ToggleUiMode(false);
+
+	const float HideDelay = CachedInfoUI ? CachedInfoUI->GetHideAnimationDelay() : 0.0f;
+	if (HideDelay > 0.0f)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			ClearInfoUiCloseTimer();
+			World->GetTimerManager().SetTimer(
+				InfoUiCloseTimerHandle,
+				this,
+				&ThisClass::FinishCloseInfoUi,
+				HideDelay,
+				false);
+			return;
+		}
+	}
+
+	FinishCloseInfoUi();
+}
+
+void UControllerUiComponent::FinishCloseInfoUi()
+{
+	ClearInfoUiCloseTimer();
+
+	if (CachedInfoUI)
+	{
+		CachedInfoUI->RemoveFromParent();
+	}
+}
+
+void UControllerUiComponent::ClearInfoUiCloseTimer()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(InfoUiCloseTimerHandle);
+	}
 }
 
 void UControllerUiComponent::ToggleInfoUi()

@@ -5,6 +5,7 @@
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/SelectPandoraWidget.h"
 #include "UI/Widget/PandoraTreeWidget.h"
+#include "UI/Widget/RightNotificationsWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetClassDefinition)
 
@@ -81,4 +82,9 @@ TSubclassOf<UUserWidget> UWidgetClassDefinition::GetAimCrosshairWidgetClass() co
 TSubclassOf<UPandoraTreeWidget> UWidgetClassDefinition::GetPandoraTreeWidgetClass() const
 {
 	return PandoraTreeWidgetSettings.WidgetClass;
+}
+
+TSubclassOf<URightNotificationsWidget> UWidgetClassDefinition::GetRightNotificationsWidgetClass() const
+{
+	return RightNotificationsWidgetSettings.WidgetClass;
 }

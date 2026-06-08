@@ -16,6 +16,7 @@ class UDamageIndicatorComponent;
 class UGameplayEffect;
 class UEquipmentComponent;
 class UHealthBarViewModel;
+class USkinEquipmentComponent;
 class UPdAbilitySystemComponent;
 class UUserWidget;
 class UWidgetComponent;
@@ -79,6 +80,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!Combat")
 	UCombatComponent* GetCombatComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "!Skin")
+	USkinEquipmentComponent* GetSkinEquipmentComponent() const { return SkinEquipmentComponent; }
 
 	UFUNCTION(BlueprintPure, Category = "!DamageIndicator")
 	UDamageIndicatorComponent* GetDamageIndicatorComponent() const;
@@ -235,6 +239,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Combat", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCombatComponent> CombatComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Skin", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USkinEquipmentComponent> SkinEquipmentComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!DamageIndicator", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UDamageIndicatorComponent> DamageIndicatorComponent;

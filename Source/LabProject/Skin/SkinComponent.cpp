@@ -158,6 +158,12 @@ void USkinComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagCo
 	RebuildFilteredSkinMap();
 }
 
+bool USkinComponent::HasSkinDefinition(const USkinDefinition* SkinDefinition) const
+{
+	return IsValid(SkinDefinition)
+		&& (FindSkinInstanceByDefinition(SkinDefinition) || FindReplicatedEntryByDefinition(SkinDefinition));
+}
+
 void USkinComponent::InitializeReplicatedEntriesFromRuntimeSkins()
 {
 	for (USkinInstance* SkinInstance : AllSkinList.Skins)

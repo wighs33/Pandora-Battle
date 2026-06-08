@@ -3,6 +3,8 @@
 #include "Common/ProjectTagConfig.h"
 #include "Components/Button.h"
 #include "Components/TileView.h"
+#include "Item/ItemInstance.h"
+#include "UI/Widget/InventorySlotViewData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RightInventoryWidget)
 
@@ -134,18 +136,36 @@ void URightInventoryWidget::SetTileView(const TArray<UObject*>& InListItems)
 	}
 
 	TileView->ClearListItems();
+	CachedSlotViewData.Reset();
+
+	TArray<UItemInstance*> ItemInstances;
+	ItemInstances.Reserve(InListItems.Num());
 
 	for (UObject* ListItem : InListItems)
 	{
-		if (ListItem)
+		if (UItemInstance* ItemInstance = Cast<UItemInstance>(ListItem))
 		{
-			TileView->AddItem(ListItem);
+			ItemInstances.Add(ItemInstance);
 		}
 	}
 
-	UE_LOG(LogRightInventoryWidget, Log, TEXT("[InventoryFilter] SetTileView applied: widget=%s requestedCount=%d tileCount=%d"),
+	const int32 SlotCountToDisplay = FMath::Max(InventorySlotCount, ItemInstances.Num());
+	CachedSlotViewData.Reserve(SlotCountToDisplay);
+
+	for (int32 SlotIndex = 0; SlotIndex < SlotCountToDisplay; ++SlotIndex)
+	{
+		UInventorySlotViewData* SlotViewData = NewObject<UInventorySlotViewData>(this);
+		SlotViewData->Initialize(SlotIndex, ItemInstances.IsValidIndex(SlotIndex) ? ItemInstances[SlotIndex] : nullptr);
+		CachedSlotViewData.Add(SlotViewData);
+		TileView->AddItem(SlotViewData);
+	}
+
+	UE_LOG(LogRightInventoryWidget, Log, TEXT("[InventoryFilter] SetTileView applied: widget=%s requestedCount=%d itemCount=%d configuredSlots=%d displayedSlots=%d tileCount=%d"),
 		*GetNameSafe(this),
 		InListItems.Num(),
+		ItemInstances.Num(),
+		InventorySlotCount,
+		SlotCountToDisplay,
 		TileView->GetNumItems());
 }
 

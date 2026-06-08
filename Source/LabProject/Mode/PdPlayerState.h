@@ -10,6 +10,7 @@ class UPandoraTreeComponent;
 class UPdAbilitySystemComponent;
 class UBasicAttributeSet;
 class UInventoryComponent;
+class UPlayerNotificationComponent;
 class UPlayerRewardComponent;
 class USkinComponent;
 class UStatUpgradeComponent;
@@ -37,6 +38,7 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Components
 	UPlayerRewardComponent* GetPlayerRewardComponent() const;
+	UPlayerNotificationComponent* GetPlayerNotificationComponent() const;
 	UStatUpgradeComponent* GetStatUpgradeComponent() const;
 	UInventoryComponent* GetInventoryComponent() const;
 	USkinComponent* GetSkinComponent() const;
@@ -50,4 +52,7 @@ private:
 	//--- Ability System
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPdAbilitySystemComponent> AbilitySystemComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Notifications", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPlayerNotificationComponent> NotificationComponent;
 };

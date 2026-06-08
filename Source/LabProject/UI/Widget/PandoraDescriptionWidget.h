@@ -44,8 +44,6 @@ private:
 	void ResolvePandoraTreeComponent();
 	UPandoraDescriptionViewModel* GetOrCreatePandoraDescriptionViewModel();
 	void ApplyPandoraDescriptionViewModelToMvvmView();
-	FText GetDescriptionForLevel(int32 Level) const;
-	FText GetWeaponRequirementText() const;
 
 	UPROPERTY(BlueprintReadOnly, Transient, Category = "!UI|Pandora|ViewModel", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPandoraDescriptionViewModel> PandoraDescriptionViewModel;

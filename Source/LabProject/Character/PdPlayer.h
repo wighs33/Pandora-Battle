@@ -17,6 +17,7 @@ class UPdSaveGame;
 class UPandoraTreeComponent;
 class UPandoraComponent;
 class UPandoraDefinition;
+class UAnimMontage;
 
 /**
  * <?åÎ†à?¥Ïñ¥ Ï∫êÎ¶≠??
@@ -45,6 +46,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Interaction", meta = (DisplayName = "HasCurrentInteractActors?"))
 	bool HasCurrentInteractActors(TArray<TScriptInterface<IInteractableInterface>>& OutCurrentInteractActors) const;
 
+	UFUNCTION(BlueprintPure, Category = "!Interaction")
+	AActor* GetCurrentInteractActor() const;
+
+	UFUNCTION(BlueprintCallable, Category = "!Interaction")
+	bool InteractWithCurrentTarget();
+
 	UFUNCTION(BlueprintCallable, Category = "!Weapon|Aim")
 	void SetWeaponAimActive(bool bEnabled, const FWeaponAimCameraSettings& AimCameraSettings);
 
@@ -60,6 +67,15 @@ public:
 	bool GetWeaponAimViewPoint(FVector& OutLocation, FVector& OutDirection) const;
 
 	bool CanInteractWithActor(AActor* InteractableActor) const;
+
+	UFUNCTION(BlueprintCallable, Category = "!Interaction|Animation")
+	void PlayInteractionMontage(UAnimMontage* Montage, float PlayRate = 1.0f);
+
+	UFUNCTION(BlueprintCallable, Category = "!Interaction|Animation", meta = (ClampMin = "0.0", ForceUnits = "s"))
+	void StopInteractionMontage(float BlendOutTime = 0.15f);
+
+	UFUNCTION(BlueprintPure, Category = "!Interaction|Animation")
+	bool IsInteractionMontagePlaying() const;
 
 protected:
 	// Delegate callbacks
@@ -82,6 +98,17 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetWeaponAimActive(bool bEnabled, FWeaponAimCameraSettings AimCameraSettings);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayInteractionMontage(UAnimMontage* Montage, float PlayRate);
+
+	UFUNCTION(Server, Reliable)
+	void ServerStopInteractionMontage(float BlendOutTime);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStopInteractionMontage(float BlendOutTime);
+
+	bool StopInteractionMontageLocally(float BlendOutTime);
 
 	/** PlayerStateÎ•??ÑÎ°ú?ùÌä∏ ?Ä?ÖÏúºÎ°?Î∞òÌôò?©Îãà?? */
 	APdPlayerState* GetPdPlayerState() const;
@@ -143,6 +170,9 @@ protected:
 
 	FTimerHandle AbilityCameraOverrideTimerHandle;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UAnimMontage> ActiveInteractionMontage;
+
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
 	bool bHasCachedWeaponAimCameraDefaults = false;
 
@@ -164,8 +194,6 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraComponent> BoundPandoraComponent;
 
-	UPROPERTY(Transient)
-	bool bRestoringPandoraSelectionFromSave = false;
 
 	UPROPERTY(Transient)
 	FString CachedPlayerSaveId;

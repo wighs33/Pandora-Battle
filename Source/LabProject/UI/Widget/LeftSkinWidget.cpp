@@ -1,8 +1,13 @@
 #include "UI/Widget/LeftSkinWidget.h"
 
 #include "Common/ProjectTagConfig.h"
+#include "Skin/SkinDefinition.h"
+#include "Skin/SkinEquipmentComponent.h"
+#include "Skin/SkinInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftSkinWidget)
+
+DEFINE_LOG_CATEGORY_STATIC(LogLeftSkinWidget, Log, All);
 
 ULeftSkinWidget::ULeftSkinWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -15,6 +20,7 @@ void ULeftSkinWidget::NativePreConstruct()
 
 	RebuildSkinEquipSlotList();
 	RebuildEquipSlotNameList();
+	ApplyResolvedEquipTypeTags();
 	ApplyEquipSlotNames();
 }
 
@@ -24,6 +30,7 @@ void ULeftSkinWidget::NativeConstruct()
 
 	RebuildSkinEquipSlotList();
 	RebuildEquipSlotNameList();
+	ApplyResolvedEquipTypeTags();
 	ApplyEquipSlotNames();
 	BindSkinEquipSlotCallbacks();
 }
@@ -37,7 +44,15 @@ void ULeftSkinWidget::NativeDestruct()
 
 void ULeftSkinWidget::InitialzeEquipSlots()
 {
-	ToggleActiveSkinEquipSlots(true);
+	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
+	{
+		if (SkinEquipSlot)
+		{
+			SkinEquipSlot->SetIsEnabled(true);
+			SkinEquipSlot->SetSelected(false);
+		}
+	}
+	SelectedSkinEquipSlot = nullptr;
 	bIsSelectedAnySlot = false;
 }
 
@@ -62,22 +77,123 @@ void ULeftSkinWidget::SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipS
 	}
 
 	SelectedSkinEquipSlot = InSelectedSkinEquipSlot;
+	UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot clicked for filter/clear: widget=%s slot=%s tag=%s occupied=%s slotOwnTag=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(SelectedSkinEquipSlot),
+		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
+		SelectedSkinEquipSlot && SelectedSkinEquipSlot->HasEquippedSkin() ? TEXT("true") : TEXT("false"),
+		SelectedSkinEquipSlot->GetEquipTypeTag().IsValid() ? *SelectedSkinEquipSlot->GetEquipTypeTag().ToString() : TEXT("None"));
 
-	BroadcastClickedSkinEquipTypeSlot(EquipTypeTag, SelectedSkinEquipSlot, bIsSelectedAnySlot);
-	ToggleActiveSkinEquipSlots(bIsSelectedAnySlot);
+	BroadcastClickedSkinEquipTypeSlot(EquipTypeTag, SelectedSkinEquipSlot, false);
 
-	SelectedSkinEquipSlot->SetIsEnabled(true);
-	bIsSelectedAnySlot = !bIsSelectedAnySlot;
+	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
+	{
+		if (SkinEquipSlot)
+		{
+			SkinEquipSlot->SetIsEnabled(true);
+			SkinEquipSlot->SetSelected(false);
+		}
+	}
+
+	bIsSelectedAnySlot = false;
+}
+
+void ULeftSkinWidget::RefreshEquippedSkinSlots(const USkinEquipmentComponent* SkinEquipmentComponent)
+{
+	RebuildSkinEquipSlotList();
+	UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] RefreshEquippedSkinSlots: widget=%s component=%s slotCount=%d"),
+		*GetNameSafe(this),
+		*GetNameSafe(SkinEquipmentComponent),
+		SkinEquipSlotList.Num());
+
+	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
+	{
+		if (!SkinEquipSlot)
+		{
+			continue;
+		}
+
+		const FGameplayTag SlotTag = ResolveSkinEquipTypeTagForSlot(SkinEquipSlot);
+		const USkinDefinition* SkinDefinition = SkinEquipmentComponent && SlotTag.IsValid()
+			? SkinEquipmentComponent->GetEquippedSkinDefinition(SlotTag)
+			: nullptr;
+		UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] RefreshEquippedSkinSlots apply: slot=%s slotTag=%s definition=%s idTag=%s"),
+			*GetNameSafe(SkinEquipSlot),
+			SlotTag.IsValid() ? *SlotTag.ToString() : TEXT("None"),
+			*GetNameSafe(SkinDefinition),
+			SkinDefinition && SkinDefinition->IdTag.IsValid() ? *SkinDefinition->IdTag.ToString() : TEXT("None"));
+		SkinEquipSlot->SetSkinDefinition(SkinDefinition);
+	}
+}
+
+USkinEquipSlotWidget* ULeftSkinWidget::FindFirstCompatibleSkinEquipSlot(USkinInstance* SkinInstance) const
+{
+	const USkinDefinition* SkinDefinition = SkinInstance ? SkinInstance->SkinDefinition.Get() : nullptr;
+	if (!SkinDefinition || !SkinDefinition->IdTag.IsValid())
+	{
+		return nullptr;
+	}
+
+	USkinEquipSlotWidget* FirstCompatibleSlot = nullptr;
+	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
+	{
+		if (!SkinEquipSlot)
+		{
+			continue;
+		}
+
+		const FGameplayTag SlotTag = ResolveSkinEquipTypeTagForSlot(SkinEquipSlot);
+		if (!SlotTag.IsValid() || !SkinDefinition->IdTag.MatchesTag(SlotTag))
+		{
+			continue;
+		}
+
+		if (!FirstCompatibleSlot)
+		{
+			FirstCompatibleSlot = SkinEquipSlot;
+		}
+
+		if (!SkinEquipSlot->HasEquippedSkin())
+		{
+			UE_LOG(LogLeftSkinWidget, Log, TEXT("[CharacterPanelDrop] Found empty compatible skin slot: widget=%s slot=%s tag=%s skin=%s idTag=%s"),
+				*GetNameSafe(this),
+				*GetNameSafe(SkinEquipSlot),
+				*SlotTag.ToString(),
+				*GetNameSafe(SkinInstance),
+				*SkinDefinition->IdTag.ToString());
+			return SkinEquipSlot;
+		}
+	}
+
+	if (FirstCompatibleSlot)
+	{
+		UE_LOG(LogLeftSkinWidget, Log, TEXT("[CharacterPanelDrop] No empty compatible skin slot, replacing first compatible slot: widget=%s slot=%s skin=%s idTag=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(FirstCompatibleSlot),
+			*GetNameSafe(SkinInstance),
+			*SkinDefinition->IdTag.ToString());
+	}
+	return FirstCompatibleSlot;
 }
 
 void ULeftSkinWidget::BroadcastClickedSkinEquipTypeSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* InSelectedSkinEquipSlot, bool bInIsSelectedAnySlot)
 {
+	UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] Broadcast SkinEquipTypeSlot: widget=%s slot=%s tag=%s selectedAny=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(InSelectedSkinEquipSlot),
+		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
+		bInIsSelectedAnySlot ? TEXT("true") : TEXT("false"));
 	OnClicked_SkinEquipTypeSlot.Broadcast(EquipTypeTag, InSelectedSkinEquipSlot, bInIsSelectedAnySlot);
 }
 
 void ULeftSkinWidget::HandleSkinEquipSlotClicked(USkinEquipSlotWidget* SkinEquipSlot)
 {
-	SelectSkinEquipSlot(ResolveSkinEquipTypeTagForSlot(SkinEquipSlot), SkinEquipSlot);
+	const FGameplayTag ResolvedTag = ResolveSkinEquipTypeTagForSlot(SkinEquipSlot);
+	UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot clicked: widget=%s slot=%s resolvedTag=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(SkinEquipSlot),
+		ResolvedTag.IsValid() ? *ResolvedTag.ToString() : TEXT("None"));
+	SelectSkinEquipSlot(ResolvedTag, SkinEquipSlot);
 }
 
 void ULeftSkinWidget::RebuildSkinEquipSlotList()
@@ -140,6 +256,7 @@ void ULeftSkinWidget::BindSkinEquipSlotCallbacks()
 		if (SkinEquipSlot)
 		{
 			SkinEquipSlot->OnClicked_SkinEquipSlot.AddUniqueDynamic(this, &ThisClass::HandleSkinEquipSlotClicked);
+			SkinEquipSlot->OnDroppedSkin_SkinEquipSlot.AddUniqueDynamic(this, &ThisClass::HandleSkinEquipSlotSkinDropped);
 		}
 	}
 }
@@ -151,12 +268,45 @@ void ULeftSkinWidget::UnbindSkinEquipSlotCallbacks()
 		if (SkinEquipSlot)
 		{
 			SkinEquipSlot->OnClicked_SkinEquipSlot.RemoveDynamic(this, &ThisClass::HandleSkinEquipSlotClicked);
+			SkinEquipSlot->OnDroppedSkin_SkinEquipSlot.RemoveDynamic(this, &ThisClass::HandleSkinEquipSlotSkinDropped);
+		}
+	}
+}
+
+void ULeftSkinWidget::HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinEquipSlot, USkinInstance* SkinInstance)
+{
+	const FGameplayTag ResolvedTag = ResolveSkinEquipTypeTagForSlot(SkinEquipSlot);
+	UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotDragDrop] Skin dropped on left skin slot: widget=%s slot=%s resolvedTag=%s skin=%s definition=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(SkinEquipSlot),
+		ResolvedTag.IsValid() ? *ResolvedTag.ToString() : TEXT("None"),
+		*GetNameSafe(SkinInstance),
+		*GetNameSafe(SkinInstance ? SkinInstance->SkinDefinition.Get() : nullptr));
+	OnDroppedSkin_SkinEquipTypeSlot.Broadcast(ResolvedTag, SkinEquipSlot, SkinInstance);
+}
+
+void ULeftSkinWidget::ApplyResolvedEquipTypeTags()
+{
+	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
+	{
+		if (SkinEquipSlot)
+		{
+			SkinEquipSlot->SetResolvedEquipTypeTag(ResolveSkinEquipTypeTagForSlot(SkinEquipSlot));
 		}
 	}
 }
 
 FGameplayTag ULeftSkinWidget::ResolveSkinEquipTypeTagForSlot(const USkinEquipSlotWidget* SkinEquipSlot) const
 {
+	if (SkinEquipSlot && SkinEquipSlot->GetEquipTypeTag().IsValid())
+	{
+		UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] ResolveSkinEquipTypeTagForSlot using slot override: widget=%s slot=%s tag=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(SkinEquipSlot),
+			*SkinEquipSlot->GetEquipTypeTag().ToString());
+		return SkinEquipSlot->GetEquipTypeTag();
+	}
+
 	if (SkinEquipSlot == HatSlot)
 	{
 		return UProjectTagConfig::Get(this)->GetSkinHatEquipTypeTag();

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "UI/NotificationData.h"
 #include "PdPlayerController.generated.h"
 
 class UControllerInputComponent;
@@ -22,6 +23,9 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
+
+	UFUNCTION(Client, Reliable, Category = "!UI|Notification")
+	void Client_ShowRightNotification(const FPdNotificationData& NotificationData);
 
 private:
 	//------------------------------------------------------------------------------------------------------------------
