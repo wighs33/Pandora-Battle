@@ -98,6 +98,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	const UItemDefinition* GetCurrentWeaponDefinition() const;
 
+	void RefreshCurrentWeaponAnimationLayer();
+
 	/** 요청 아이템을 저장합니다. */
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
 	bool SetRequestedWeaponInstance(UItemInstance* WeaponInstance);

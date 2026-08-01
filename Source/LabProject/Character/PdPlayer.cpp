@@ -4,7 +4,10 @@
 #include "Animation/AnimInstance.h"
 
 #include "Camera/CameraComponent.h"
+#include "CableComponent.h"
 #include "Common/Enum_Direction.h"
+#include "Component/Player/GrappleComponent.h"
+#include "PlayerComponent/EquipmentComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -68,6 +71,11 @@ APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 	InteractionBox->OnComponentBeginOverlap.AddDynamic(this, &APdPlayer::HandleInteractionBoxBeginOverlap);
 	InteractionBox->OnComponentEndOverlap.AddDynamic(this, &APdPlayer::HandleInteractionBoxEndOverlap);
 
+	GrappleComponent = CreateDefaultSubobject<UGrappleComponent>(TEXT("GrappleComponent"));
+	HookComponent = CreateDefaultSubobject<UCableComponent>(TEXT("Hook"));
+	HookComponent->SetupAttachment(GetMesh(), TEXT("hand_r"));
+	GrappleComponent->SetHookComponent(HookComponent);
+
 	// =================================================================================================================
 	// === ì¹´ë©”??ë¶??¤ì •
 
@@ -87,6 +95,18 @@ APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 void APdPlayer::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (const UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		bDefaultAllowPhysicsRotationDuringAnimRootMotion =
+			MovementComponent->bAllowPhysicsRotationDuringAnimRootMotion;
+	}
+
+	if (GrappleComponent)
+	{
+		GrappleComponent->SetHookComponent(HookComponent);
+		GrappleComponent->ConfigureHookComponent();
+	}
 
 	if (InteractionBox)
 	{
@@ -529,6 +549,11 @@ bool APdPlayer::InteractWithCurrentTarget()
 	return IInteractableInterface::Execute_Interact(InteractableActor, this);
 }
 
+bool APdPlayer::IsGrappling() const
+{
+	return GrappleComponent && GrappleComponent->IsGrappling();
+}
+
 void APdPlayer::SetWeaponAimActive(bool bEnabled, const FWeaponAimCameraSettings& AimCameraSettings)
 {
 	ApplyWeaponAimState(bEnabled, AimCameraSettings);
@@ -637,13 +662,20 @@ void APdPlayer::ApplyWeaponAimState(bool bEnabled, const FWeaponAimCameraSetting
 		MovementComponent->bOrientRotationToMovement = false;
 		MovementComponent->bUseControllerDesiredRotation = true;
 		MovementComponent->RotationRate = FRotator(0.0f, 3000.0f, 0.0f);
+		MovementComponent->bAllowPhysicsRotationDuringAnimRootMotion = true;
 		bIsWeaponAimActive = true;
+		if (UEquipmentComponent* Equipment = GetEquipmentComponent())
+		{
+			Equipment->RefreshCurrentWeaponAnimationLayer();
+		}
 		return;
 	}
 
 	MovementComponent->bOrientRotationToMovement = true;
 	MovementComponent->bUseControllerDesiredRotation = false;
 	MovementComponent->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
+	MovementComponent->bAllowPhysicsRotationDuringAnimRootMotion =
+		bDefaultAllowPhysicsRotationDuringAnimRootMotion;
 	bIsWeaponAimActive = false;
 }
 

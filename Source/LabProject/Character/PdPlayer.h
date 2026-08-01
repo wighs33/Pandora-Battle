@@ -9,6 +9,8 @@
 
 class UBoxComponent;
 class UCameraComponent;
+class UCableComponent;
+class UGrappleComponent;
 class UPrimitiveComponent;
 class USpringArmComponent;
 class APdPlayerState;
@@ -54,6 +56,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!Weapon|Aim")
 	void SetWeaponAimActive(bool bEnabled, const FWeaponAimCameraSettings& AimCameraSettings);
+
+	UFUNCTION(BlueprintPure, Category = "!Grapple")
+	bool IsGrappling() const;
+
+	UGrappleComponent* GetGrappleComponent() const { return GrappleComponent; }
 
 	UFUNCTION(BlueprintCallable, Category = "!Ability|Camera")
 	void SetAbilityCameraOverrideActive(bool bEnabled, const FWeaponAimCameraSettings& CameraSettings);
@@ -149,12 +156,20 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> CameraBoom;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Grapple", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UGrappleComponent> GrappleComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Grapple", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UCableComponent> HookComponent;
+
 	/** 추적 카메?�입?�다. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> FollowCamera;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim")
 	bool bIsWeaponAimActive = false;
+
+	bool bDefaultAllowPhysicsRotationDuringAnimRootMotion = false;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
 	bool bWeaponAimCameraActive = false;

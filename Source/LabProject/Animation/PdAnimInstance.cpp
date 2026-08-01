@@ -15,35 +15,67 @@ void UPdAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
 
-	CachedCharacter = Cast<ACharacter>(GetOwningActor());
-	if (!CachedCharacter)
-	{
-		return;
-	}
+	RefreshGameThreadReferences(true);
+	CaptureGameThreadSnapshot();
+	UpdateGrappleState();
+}
 
-	MovementComponent = CachedCharacter->GetCharacterMovement();
+void UPdAnimInstance::NativeUninitializeAnimation()
+{
+	check(IsInGameThread());
+
+	CachedCharacter = nullptr;
+	MovementComponent = nullptr;
+	++GameThreadSourceRevision;
+	GameThreadSnapshot = FGameThreadSnapshot();
+	GameThreadSnapshot.SourceRevision = GameThreadSourceRevision;
+	ResetThreadSafeAnimationData();
+	bIsGrappling = false;
+
+	Super::NativeUninitializeAnimation();
+}
+
+void UPdAnimInstance::NativeUpdateAnimation(const float DeltaSeconds)
+{
+	Super::NativeUpdateAnimation(DeltaSeconds);
+
+	RefreshGameThreadReferences();
+	CaptureGameThreadSnapshot();
+	UpdateGrappleState();
 }
 
 void UPdAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
 
-	// 주의: 워커 스레드에서 실행되므로 외부 오브젝트의 값을 수정하면 안됩니다
-	// 읽기만 허용되며, AnimInstance 내부 변수에만 값을 저장해야 합니다
+	// NativeUpdateAnimation finishes before this phase. Copy the value-only
+	// snapshot once so the worker path never follows a UObject pointer.
+	const FGameThreadSnapshot Snapshot = GameThreadSnapshot;
 
-	if (!MovementComponent)
+	if (!Snapshot.bIsValid)
 	{
+		ResetThreadSafeAnimationData();
+		LastProcessedSourceRevision = Snapshot.SourceRevision;
 		return;
 	}
 
-	UpdateLocationData(DeltaSeconds);
-	UpdateMovementStates();
+	if (LastProcessedSourceRevision != Snapshot.SourceRevision)
+	{
+		PreviousVelocity = Snapshot.Velocity;
+		bHasPreviousVelocity = false;
+		LastProcessedSourceRevision = Snapshot.SourceRevision;
+	}
+
+	UpdateLocationData(Snapshot);
+	UpdateMovementStates(Snapshot);
 	UpdateAcceleration(DeltaSeconds);
-	UpdateAimingData();
+	UpdateAimingData(Snapshot);
 }
 
 void UPdAnimInstance::AnimNotify_RedrawBow()
 {
+	check(IsInGameThread());
+
 	APdPlayer* PlayerCharacter = Cast<APdPlayer>(CachedCharacter.Get());
 	if (!PlayerCharacter)
 	{
@@ -65,62 +97,139 @@ void UPdAnimInstance::AnimNotify_RedrawBow()
 	WeaponActor->OnWeaponAnimNotifyTiming(WeaponAnimNotifyNames::RedrawBow(), PlayerCharacter);
 }
 
-void UPdAnimInstance::UpdateLocationData(float DeltaSeconds)
+void UPdAnimInstance::RefreshGameThreadReferences(const bool bForceNewRevision)
 {
-	// 속도
-	Velocity = FVector3f(MovementComponent->Velocity);
-	GroundSpeed = Velocity.Size2D();
-	VerticalVelocity = Velocity.Z;
+	check(IsInGameThread());
 
-	// 방향 (-180 ~ 180)
-	Direction = UKismetAnimationLibrary::CalculateDirection(
-		MovementComponent->Velocity,
-		CachedCharacter->GetActorRotation()
-	);
+	ACharacter* NewCharacter = Cast<ACharacter>(GetOwningActor());
+	if (!IsValid(NewCharacter))
+	{
+		NewCharacter = nullptr;
+	}
+
+	UCharacterMovementComponent* NewMovementComponent =
+		NewCharacter ? NewCharacter->GetCharacterMovement() : nullptr;
+	if (!IsValid(NewMovementComponent))
+	{
+		NewMovementComponent = nullptr;
+	}
+
+	if (bForceNewRevision ||
+		CachedCharacter.Get() != NewCharacter ||
+		MovementComponent.Get() != NewMovementComponent)
+	{
+		++GameThreadSourceRevision;
+	}
+
+	CachedCharacter = NewCharacter;
+	MovementComponent = NewMovementComponent;
 }
 
-void UPdAnimInstance::UpdateMovementStates()
+void UPdAnimInstance::CaptureGameThreadSnapshot()
 {
-	// 이동 중 판정
+	check(IsInGameThread());
+
+	FGameThreadSnapshot NewSnapshot;
+	NewSnapshot.SourceRevision = GameThreadSourceRevision;
+
+	ACharacter* Character = CachedCharacter.Get();
+	UCharacterMovementComponent* CharacterMovement = MovementComponent.Get();
+	if (!IsValid(Character) || !IsValid(CharacterMovement))
+	{
+		GameThreadSnapshot = NewSnapshot;
+		return;
+	}
+
+	const FVector CurrentVelocity = CharacterMovement->Velocity;
+	NewSnapshot.Velocity = FVector3f(CurrentVelocity);
+	NewSnapshot.Direction = UKismetAnimationLibrary::CalculateDirection(
+		CurrentVelocity,
+		Character->GetActorRotation());
+	NewSnapshot.bIsFalling = CharacterMovement->IsFalling();
+	NewSnapshot.bIsOnGround = CharacterMovement->IsMovingOnGround();
+	NewSnapshot.bIsCrouching = CharacterMovement->IsCrouching();
+
+	if (const APdCharacterBase* PdCharacter = Cast<APdCharacterBase>(Character))
+	{
+		NewSnapshot.AimYaw = PdCharacter->GetAimYawForAnimation();
+		NewSnapshot.AimPitch = PdCharacter->GetAimPitchForAnimation();
+	}
+	else
+	{
+		const FRotator AimDelta =
+			(Character->GetBaseAimRotation() - Character->GetActorRotation()).GetNormalized();
+		NewSnapshot.AimYaw = AimDelta.Yaw;
+		NewSnapshot.AimPitch = AimDelta.Pitch;
+	}
+
+	NewSnapshot.bIsValid = true;
+	GameThreadSnapshot = NewSnapshot;
+}
+
+void UPdAnimInstance::ResetThreadSafeAnimationData()
+{
+	Velocity = FVector3f::ZeroVector;
+	GroundSpeed = 0.f;
+	Direction = 0.f;
+	VerticalVelocity = 0.f;
+	Acceleration = FVector3f::ZeroVector;
+
+	bIsMoving = false;
+	bIsFalling = false;
+	bIsJumping = false;
+	bIsCrouching = false;
+	bIsOnGround = true;
+
+	AimYaw = 0.f;
+	AimPitch = 0.f;
+
+	PreviousVelocity = FVector3f::ZeroVector;
+	bHasPreviousVelocity = false;
+}
+
+void UPdAnimInstance::UpdateLocationData(const FGameThreadSnapshot& Snapshot)
+{
+	Velocity = Snapshot.Velocity;
+	GroundSpeed = Velocity.Size2D();
+	Direction = Snapshot.Direction;
+	VerticalVelocity = Velocity.Z;
+}
+
+void UPdAnimInstance::UpdateMovementStates(const FGameThreadSnapshot& Snapshot)
+{
 	bIsMoving = GroundSpeed > MovingSpeedThreshold;
-
-	// 낙하/점프 상태
-	bIsFalling = MovementComponent->IsFalling();
+	bIsFalling = Snapshot.bIsFalling;
 	bIsJumping = bIsFalling && Velocity.Z > 0.f;
-	bIsOnGround = MovementComponent->IsMovingOnGround();
-
-	// 웅크리기
-	bIsCrouching = MovementComponent->IsCrouching();
+	bIsOnGround = Snapshot.bIsOnGround;
+	bIsCrouching = Snapshot.bIsCrouching;
 }
 
 void UPdAnimInstance::UpdateAcceleration(float DeltaSeconds)
 {
-	if (DeltaSeconds > UE_SMALL_NUMBER)
+	if (bHasPreviousVelocity && DeltaSeconds > UE_SMALL_NUMBER)
 	{
 		const FVector3f VelocityDelta = Velocity - PreviousVelocity;
 		Acceleration = VelocityDelta / DeltaSeconds;
 	}
-
-	PreviousVelocity = Velocity;
-}
-
-void UPdAnimInstance::UpdateAimingData()
-{
-	// Control Rotation: 카메라/마우스가 바라보는 방향
-	// Actor Rotation: 캐릭터 몸이 향하는 방향
-	if (const APdCharacterBase* PdCharacter = Cast<APdCharacterBase>(CachedCharacter.Get()))
+	else
 	{
-		AimYaw = PdCharacter->GetAimYawForAnimation();
-		AimPitch = PdCharacter->GetAimPitchForAnimation();
-		return;
+		Acceleration = FVector3f::ZeroVector;
 	}
 
-	const FRotator ControlRotation = CachedCharacter->GetBaseAimRotation();
-	const FRotator ActorRotation = CachedCharacter->GetActorRotation();
+	PreviousVelocity = Velocity;
+	bHasPreviousVelocity = true;
+}
 
-	// 차이 계산 후 정규화 (-180 ~ 180)
-	const FRotator Delta = (ControlRotation - ActorRotation).GetNormalized();
+void UPdAnimInstance::UpdateAimingData(const FGameThreadSnapshot& Snapshot)
+{
+	AimYaw = Snapshot.AimYaw;
+	AimPitch = Snapshot.AimPitch;
+}
 
-	AimYaw = Delta.Yaw;
-	AimPitch = Delta.Pitch;
+void UPdAnimInstance::UpdateGrappleState()
+{
+	check(IsInGameThread());
+
+	const APdPlayer* PlayerCharacter = Cast<APdPlayer>(CachedCharacter.Get());
+	bIsGrappling = IsValid(PlayerCharacter) && PlayerCharacter->IsGrappling();
 }

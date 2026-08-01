@@ -9,11 +9,8 @@ class UCharacterMovementComponent;
 DECLARE_LOG_CATEGORY_EXTERN(CommonAnimInstanceLog, Log, All);
 
 /**
- * < Thread Safe 애니메이션 데이터를 제공하는 기본 AnimInstance >
- *
- * - 멀티스레드 환경에서 안전하게 애니메이션 데이터를 업데이트합니다.
- * - NativeThreadSafeUpdateAnimation()에서 모든 데이터를 계산하여
- * Worker Thread에서 AnimGraph 평가 시 사용할 수 있도록 합니다.
+ * UObject 상태는 게임 스레드에서 값 스냅샷으로 수집하고,
+ * 애니메이션 워커 스레드에서는 스냅샷만 소비합니다.
  */
 UCLASS()
 class LABPROJECT_API UPdAnimInstance : public UAnimInstance
@@ -26,6 +23,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	virtual void NativeInitializeAnimation() override;
+	virtual void NativeUninitializeAnimation() override;
+	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
 
 	// Anim notify callbacks
@@ -34,103 +33,109 @@ public:
 
 protected:
 	//-----------------------------------------------------------------------------
-	// Thread Safe 데이터 업데이트
+	// Game-thread snapshot
 	//-----------------------------------------------------------------------------
 
-	/** MovementComponent에서 데이터를 가져와 Thread Safe 변수에 저장합니다 */
-	void UpdateLocationData(float DeltaSeconds);
+	struct FGameThreadSnapshot
+	{
+		FVector3f Velocity = FVector3f::ZeroVector;
+		float Direction = 0.f;
+		float AimYaw = 0.f;
+		float AimPitch = 0.f;
+		uint32 SourceRevision = 0;
+		bool bIsFalling = false;
+		bool bIsOnGround = true;
+		bool bIsCrouching = false;
+		bool bIsValid = false;
+	};
 
-	/** 이동 상태를 업데이트합니다 */
-	void UpdateMovementStates();
+	void UpdateLocationData(const FGameThreadSnapshot& Snapshot);
 
-	/** 가속도를 계산합니다 */
+	void UpdateMovementStates(const FGameThreadSnapshot& Snapshot);
+
 	void UpdateAcceleration(float DeltaSeconds);
 
-	/** 조준 데이터를 업데이트합니다 */
-	void UpdateAimingData();
+	void UpdateAimingData(const FGameThreadSnapshot& Snapshot);
+
+	void UpdateGrappleState();
 
 protected:
 	//-----------------------------------------------------------------------------
-	// 캐시된 레퍼런스
+	// Cached UObject references (game thread only)
 	//-----------------------------------------------------------------------------
 
-	/** 캐시된 Character */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "References")
 	TObjectPtr<ACharacter> CachedCharacter;
 
-	/** 캐시된 CharacterMovementComponent */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "References")
 	TObjectPtr<UCharacterMovementComponent> MovementComponent;
 
 	//-----------------------------------------------------------------------------
-	// Thread Safe 애니메이션 데이터 - Location
+	// Location data
 	//-----------------------------------------------------------------------------
 
-	/** 월드 공간 속도 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
 	FVector3f Velocity = FVector3f::ZeroVector;
 
-	/** 2D 이동 속도 (XY 평면) */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
 	float GroundSpeed = 0.f;
 
-	/** 캐릭터 기준 이동 방향 각도 (-180 ~ 180) */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
 	float Direction = 0.f;
 
-	/** 수직 속도 (Z축, 양수=상승, 음수=하강) */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
 	float VerticalVelocity = 0.f;
 
-	/** 월드 공간 가속도 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
 	FVector3f Acceleration = FVector3f::ZeroVector;
 
 	//-----------------------------------------------------------------------------
-	// Thread Safe 애니메이션 데이터 - States
+	// Movement states
 	//-----------------------------------------------------------------------------
 
-	/** 캐릭터가 이동 중인지 여부 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
 	bool bIsMoving = false;
 
-	/** 캐릭터가 낙하 중인지 여부 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
 	bool bIsFalling = false;
 
-	/** 캐릭터가 점프 중인지 여부 (상승 중) */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
 	bool bIsJumping = false;
 
-	/** 캐릭터가 웅크리고 있는지 여부 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
 	bool bIsCrouching = false;
 
-	/** 캐릭터가 땅에 있는지 여부 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
 	bool bIsOnGround = true;
 
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States", meta = (DisplayName = "Is Grappling"))
+	bool bIsGrappling = false;
+
 	//-----------------------------------------------------------------------------
-	// 애니메이션 데이터 - Aiming
+	// Aiming data
 	//-----------------------------------------------------------------------------
 
-	/** 조준 Yaw 각도 (-180 ~ 180, 좌우) */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Aiming")
 	float AimYaw = 0.f;
 
-	/** 조준 Pitch 각도 (-90 ~ 90, 상하) */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Aiming")
 	float AimPitch = 0.f;
 
 	//-----------------------------------------------------------------------------
-	// 애니메이션 데이터 - Settings
+	// Settings
 	//-----------------------------------------------------------------------------
 
-	/** 이동 중으로 판정하는 최소 속도 임계값 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation Data|Settings")
 	float MovingSpeedThreshold = 3.f;
 
 private:
-	/** 이전 프레임 속도 (가속도 계산용) */
+	void RefreshGameThreadReferences(bool bForceNewRevision = false);
+	void CaptureGameThreadSnapshot();
+	void ResetThreadSafeAnimationData();
+
+	FGameThreadSnapshot GameThreadSnapshot;
 	FVector3f PreviousVelocity = FVector3f::ZeroVector;
+	uint32 GameThreadSourceRevision = 0;
+	uint32 LastProcessedSourceRevision = 0;
+	bool bHasPreviousVelocity = false;
 };

@@ -1,5 +1,7 @@
 #include "PlayerComponent/EquipmentComponent.h"
 
+#include "Animation/AnimInstance.h"
+
 #include "AbilitySystem/PdAbilitySystemComponent.h"
 #include "Character/PdCharacterBase.h"
 #include "Common/Enum_Operation.h"
@@ -19,6 +21,29 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EquipmentComponent)
 
 DEFINE_LOG_CATEGORY(EquipmentComponentLog);
+
+void UEquipmentComponent::RefreshCurrentWeaponAnimationLayer()
+{
+	RefreshCachedReferences();
+	APdCharacterBase* CharacterOwner = CachedOwner.Get();
+	const UItemDefinition* WeaponDefinition = GetCurrentWeaponDefinition();
+	if (!CharacterOwner)
+	{
+		return;
+	}
+
+	TSubclassOf<UAnimInstance> AnimLayer = WeaponDefinition
+		? WeaponDefinition->WeaponData.Equip.AnimLayer.Get()
+		: nullptr;
+	if (AnimLayer)
+	{
+		CharacterOwner->SetCurrentAnimLayer(AnimLayer);
+	}
+	else
+	{
+		CharacterOwner->ResetAnimationToDefault();
+	}
+}
 
 /** 장비 컴포넌트 기본 상태를 초기화합니다. */
 UEquipmentComponent::UEquipmentComponent(const FObjectInitializer& ObjectInitializer)
@@ -83,6 +108,7 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 }
 
 /** 요청된 아이템 정의를 반환합니다. */
+
 const UItemDefinition* UEquipmentComponent::GetRequestedWeaponDefinition() const
 {
 	// =================================================================================================================
