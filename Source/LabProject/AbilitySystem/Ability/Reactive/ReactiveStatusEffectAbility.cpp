@@ -3,15 +3,13 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystem/Data/PdStatusEffectDataAsset.h"
-#include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEffectApplied_Target.h"
 #include "Character/PdCharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "GameplayEffect.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReactiveStatusEffectAbility)
-
-DEFINE_LOG_CATEGORY_STATIC(LogReactiveStatusEffectAbility, Log, All);
 
 UReactiveStatusEffectAbility::UReactiveStatusEffectAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -31,21 +29,10 @@ void UReactiveStatusEffectAbility::ActivateAbility(
 
 	if (!StatusEffectDataAsset)
 	{
-		UE_LOG(LogReactiveStatusEffectAbility, Warning,
-			TEXT("Reactive status ability ended: StatusEffectDataAsset is null. ability=%s"),
-			*GetNameSafe(this));
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
-
-	UE_LOG(LogReactiveStatusEffectAbility, Log,
-		TEXT("Reactive status ability activated: ability=%s owner=%s statusData=%s debuff=%s maxStack=%d statusEffect=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetAvatarActorFromActorInfo()),
-		*GetNameSafe(StatusEffectDataAsset.Get()),
-		*StatusEffectDataAsset->DebuffTag.ToString(),
-		FMath::Max(StatusEffectDataAsset->MaxStackCount, 1),
-		*GetNameSafe(StatusEffectDataAsset->StatusEffectClass.Get()));
 
 	WaitGameplayEffectAppliedTask = UAbilityTask_WaitGameplayEffectApplied_Target::WaitGameplayEffectAppliedToTarget(
 		this,
@@ -130,14 +117,7 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 
 	const int32 StackCount = GetDebuffStackCount(TargetActor, ActiveHandle);
 	const int32 RequiredStackCount = FMath::Max(StatusEffectDataAsset->MaxStackCount, 1);
-	UE_LOG(LogReactiveStatusEffectAbility, Log,
-		TEXT("Reactive status debuff detected: ability=%s target=%s debuff=%s stack=%d required=%d effect=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(TargetActor),
-		*StatusEffectDataAsset->DebuffTag.ToString(),
-		StackCount,
-		RequiredStackCount,
-		*GetNameSafe(AppliedGameplayEffect));
+
 	if (StackCount < RequiredStackCount)
 	{
 		NotifyStackCountChanged(TargetActor, StackCount);
@@ -146,11 +126,7 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 
 	if (!StatusEffectDataAsset->StatusEffectClass)
 	{
-		UE_LOG(LogReactiveStatusEffectAbility, Warning,
-			TEXT("Reactive status skipped: StatusEffectClass is null. ability=%s target=%s statusData=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(TargetActor),
-			*GetNameSafe(StatusEffectDataAsset.Get()));
+
 		return;
 	}
 
@@ -170,13 +146,13 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 
 	ApplyDefaultSetByCallerMagnitudes(StatusEffectSpec);
 	StatusEffectSpec = ModifyEffectSpecBeforeApplication(StatusEffectSpec);
+	if (StatusEffectDataAsset->StatusEffectTag.IsValid() && StatusEffectSpec.Data.IsValid())
+	{
+		StatusEffectSpec.Data->DynamicGrantedTags.AddTag(StatusEffectDataAsset->StatusEffectTag);
+	}
+
 	const FGameplayAbilityTargetDataHandle TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromActor(TargetActor);
-	UE_LOG(LogReactiveStatusEffectAbility, Log,
-		TEXT("Reactive status applying: ability=%s target=%s statusEffect=%s level=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(TargetActor),
-		*GetNameSafe(StatusEffectDataAsset->StatusEffectClass.Get()),
-		GetAbilityLevel());
+
 	K2_ApplyGameplayEffectSpecToTarget(StatusEffectSpec, TargetData);
 }
 
@@ -187,16 +163,17 @@ void UReactiveStatusEffectAbility::ApplyDefaultSetByCallerMagnitudes(FGameplayEf
 		return;
 	}
 
-	FGameplayTag DamageDataTag = LabGameplayTags::Data_Damage;
-	if (const UPdAbilitySystemComponent* PdASC = Cast<UPdAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
+	if (const UStatusEffectDefinition* ElementalDefinition = Cast<UStatusEffectDefinition>(StatusEffectDataAsset))
 	{
-		PdASC->ResolveDamageMagnitudeSetByCallerTag(DamageDataTag);
+		ElementalDefinition->SetDamageMagnitude(
+			SpecHandle,
+			StatusEffectDataAsset->StatusDamageMagnitude);
+		return;
 	}
 
-	if (DamageDataTag.IsValid())
-	{
-		SpecHandle.Data->SetSetByCallerMagnitude(DamageDataTag, StatusEffectDataAsset->StatusDamageMagnitude);
-	}
+	SpecHandle.Data->SetSetByCallerMagnitude(
+		LabGameplayTags::Data_Damage,
+		StatusEffectDataAsset->StatusDamageMagnitude);
 }
 
 int32 UReactiveStatusEffectAbility::GetDebuffStackCount(AActor* TargetActor, FActiveGameplayEffectHandle ActiveHandle) const

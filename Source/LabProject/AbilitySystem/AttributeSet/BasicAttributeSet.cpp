@@ -38,6 +38,53 @@ namespace
 			&& EffectSpec.Def->GetAssetTags().HasTag(AssetTag);
 	}
 
+	bool EffectSpecHasStatusTag(const FGameplayEffectSpec& EffectSpec, const FGameplayTag& StatusTag)
+	{
+		if (!StatusTag.IsValid())
+		{
+			return false;
+		}
+
+		return EffectSpec.DynamicGrantedTags.HasTag(StatusTag)
+			|| EffectSpec.GetDynamicAssetTags().HasTag(StatusTag)
+			|| (EffectSpec.Def && EffectSpec.Def->GetGrantedTags().HasTag(StatusTag))
+			|| (EffectSpec.Def && EffectSpec.Def->GetAssetTags().HasTag(StatusTag));
+	}
+
+	float CalculateStatusResistanceMitigatedDamage(
+		const float IncomingDamageAmount,
+		const float ResistancePercent)
+	{
+		const float ClampedResistance = FMath::Clamp(ResistancePercent, 0.f, 100.f);
+		return FMath::Max(IncomingDamageAmount, 0.f) * (1.f - ClampedResistance * 0.01f);
+	}
+
+	float ResolveStatusResistance(
+		const UBasicAttributeSet* AttributeSet,
+		const FGameplayEffectSpec& EffectSpec,
+		bool& bOutStatusDamage)
+	{
+		bOutStatusDamage = true;
+
+		if (EffectSpecHasStatusTag(EffectSpec, LabGameplayTags::Status_Burning))
+		{
+			return AttributeSet ? AttributeSet->GetBurn() : 0.f;
+		}
+
+		if (EffectSpecHasStatusTag(EffectSpec, LabGameplayTags::Status_Frostbite))
+		{
+			return AttributeSet ? AttributeSet->GetFrostbite() : 0.f;
+		}
+
+		if (EffectSpecHasStatusTag(EffectSpec, LabGameplayTags::Status_ElectricShock))
+		{
+			return AttributeSet ? AttributeSet->GetElectricShock() : 0.f;
+		}
+
+		bOutStatusDamage = false;
+		return 0.f;
+	}
+
 	bool TryActivateAbilityByTag(UAbilitySystemComponent* ASC, const FGameplayTag& AbilityTag)
 	{
 		if (!ASC || !AbilityTag.IsValid())
@@ -161,6 +208,9 @@ void UBasicAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Immunity, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Fortitude, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Sanity, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Burn, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Frostbite, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ElectricShock, Params);
 	
 	// =================================================================================================================
 	// === 판도라 관련 스탯 복제 등록
@@ -223,9 +273,17 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 	{
 		const float AppliedIncomingDamage = GetIncomingDamage();
 		const bool bCriticalHit = bPendingIncomingDamageCriticalHit;
+		bool bStatusDamage = false;
+		const float StatusResistance = ResolveStatusResistance(this, Data.EffectSpec, bStatusDamage);
+		const float StatusMitigatedIncomingDamage = bStatusDamage
+			? CalculateStatusResistanceMitigatedDamage(AppliedIncomingDamage, StatusResistance)
+			: AppliedIncomingDamage;
 		constexpr float ArmorMitigationScale = 0.05f;
 		const float TargetArmor = GetArmor();
-		const float MitigatedIncomingDamage = CalculateArmorMitigatedDamage(AppliedIncomingDamage, TargetArmor, ArmorMitigationScale);
+		const float MitigatedIncomingDamage = CalculateArmorMitigatedDamage(
+			StatusMitigatedIncomingDamage,
+			TargetArmor,
+			ArmorMitigationScale);
 		UE_LOG(LogPdAttributeSet, Log, TEXT("IncomingDamage executed: owner=%s effect=%s incoming=%.3f armor=%.3f scale=%.3f mitigated=%.3f hasHitReactTag=%s healthBefore=%.3f"),
 			*GetNameSafe(GetOwningActor()),
 			*GetNameSafe(Data.EffectSpec.Def),
@@ -239,7 +297,8 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 		SetIncomingDamage(0.f);
 		const float HealthDamage = ApplyIncomingDamage(MitigatedIncomingDamage, bCriticalHit);
 		const bool bShouldHitReact =
-			!FMath::IsNearlyZero(HealthDamage)
+			!bStatusDamage
+			&& !FMath::IsNearlyZero(HealthDamage)
 			&& EffectSpecHasAssetTag(Data.EffectSpec, LabGameplayTags::Effect_HitReaction);
 		UE_LOG(LogPdAttributeSet, Log, TEXT("IncomingDamage applied: owner=%s healthAfter=%.3f shouldHitReact=%s"),
 			*GetNameSafe(GetOwningActor()),
@@ -254,8 +313,11 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 
 	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
 	{
+		bool bStatusDamage = false;
+		ResolveStatusResistance(this, Data.EffectSpec, bStatusDamage);
 		const bool bShouldHitReact =
 			Data.EvaluatedData.Magnitude < 0.f
+			&& !bStatusDamage
 			&& EffectSpecHasAssetTag(Data.EffectSpec, LabGameplayTags::Effect_HitReaction);
 		UE_LOG(LogPdAttributeSet, Log, TEXT("Health effect executed: owner=%s effect=%s magnitude=%.3f hasHitReactTag=%s health=%.3f"),
 			*GetNameSafe(GetOwningActor()),
@@ -308,6 +370,12 @@ void UBasicAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute,
 	else if (Attribute == GetManaAttribute())
 	{
 		NewValue = ClampResourceAttribute(NewValue, GetMaxMana());
+	}
+	else if (Attribute == GetBurnAttribute()
+		|| Attribute == GetFrostbiteAttribute()
+		|| Attribute == GetElectricShockAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.f, 100.f);
 	}
 	else if (Attribute == GetMaxHealthAttribute() || Attribute == GetMaxShieldAttribute()
 		|| Attribute == GetMaxStaminaAttribute() || Attribute == GetMaxManaAttribute())
@@ -497,6 +565,21 @@ void UBasicAttributeSet::OnRep_Fortitude(const FGameplayAttributeData& OldValue)
 void UBasicAttributeSet::OnRep_Sanity(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Sanity, OldValue);
+}
+
+void UBasicAttributeSet::OnRep_Burn(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Burn, OldValue);
+}
+
+void UBasicAttributeSet::OnRep_Frostbite(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Frostbite, OldValue);
+}
+
+void UBasicAttributeSet::OnRep_ElectricShock(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, ElectricShock, OldValue);
 }
 
 void UBasicAttributeSet::OnRep_FirstPandora(const FGameplayAttributeData& OldValue)

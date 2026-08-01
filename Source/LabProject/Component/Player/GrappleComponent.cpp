@@ -194,7 +194,7 @@ bool UGrappleComponent::StartGrappleFromValidatedHit(const FHitResult& HitResult
 		|| !PlayerOwner->HasAuthority()
 		|| bIsGrappling
 		|| (AbilitySystemComponent
-			&& AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Status_Frozen)))
+			&& AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Status_Frostbite)))
 	{
 		return false;
 	}

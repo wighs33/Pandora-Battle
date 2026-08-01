@@ -67,6 +67,15 @@ protected:
 	void OnRep_Sanity(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
+	void OnRep_Burn(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_Frostbite(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_ElectricShock(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
 	void OnRep_FirstPandora(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
@@ -153,6 +162,18 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "!Resistance", ReplicatedUsing = OnRep_Sanity)
 	FGameplayAttributeData Sanity = 0.f;
 	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, Sanity)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Resistance", ReplicatedUsing = OnRep_Burn)
+	FGameplayAttributeData Burn = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, Burn)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Resistance", ReplicatedUsing = OnRep_Frostbite)
+	FGameplayAttributeData Frostbite = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, Frostbite)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Resistance", ReplicatedUsing = OnRep_ElectricShock)
+	FGameplayAttributeData ElectricShock = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, ElectricShock)
 
 	UPROPERTY(BlueprintReadOnly, Category = "!PandoraForce", ReplicatedUsing = OnRep_FirstPandora)
 	FGameplayAttributeData FirstPandora = 0.f;

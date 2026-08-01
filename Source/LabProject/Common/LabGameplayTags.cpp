@@ -44,9 +44,11 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_StaminaRegen, "Status.StaminaRegen", "Stamina regeneration status tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Buff_Shield, "Status.Buff.Shield", "Active shield buff tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Burning, "Status.Burning", "Burning status effect tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Frozen, "Status.Frozen", "Frozen status effect tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Frostbite, "Status.Frostbite", "Frostbite status effect tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_ElectricShock, "Status.ElectricShock", "Electric shock status effect tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Debuff_Fire, "Debuff.Fire", "Stacking fire debuff tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Debuff_Ice, "Debuff.Ice", "Stacking ice debuff tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Debuff_Shock, "Debuff.Shock", "Stacking electric shock debuff tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_HitReaction, "Effect.HitReaction", "Gameplay effect asset tag that allows damage to trigger hit reaction.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "State tag granted while a character is dead.");
 
@@ -67,6 +69,7 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_ShieldDown, "GameplayCue.ShieldDown", "Burst shield break cue tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Burning, "GameplayCue.Burning", "Persistent burning status cue tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Frozen, "GameplayCue.Frozen", "Persistent frozen status cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Shocked, "GameplayCue.Shocked", "Persistent electric shock status cue tag.");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Weapon, "Item.Weapon", "Weapon item filter tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Equipment, "Item.Equipment", "Equipment item filter tag.");
