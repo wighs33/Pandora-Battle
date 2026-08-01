@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Common/Enum_Operation.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "UObject/PrimaryAssetId.h"
@@ -16,14 +15,6 @@ struct FPdStatUpgradeRule
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade", meta = (Categories = "Status"))
 	FGameplayTag RootTag;
-
-	// Compatibility fields consumed by the pre-refactor StatUpgradeComponent.
-	// The data-driven runtime replaces these with AttributeDefaultValues.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Legacy")
-	float Magnitude = 1.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Legacy")
-	EEnum_Operation Operation = EEnum_Operation::Add;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Cost", meta = (Categories = "Status"))
 	FGameplayTag CostPointTag;

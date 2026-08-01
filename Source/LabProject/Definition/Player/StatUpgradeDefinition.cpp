@@ -1,4 +1,4 @@
-#include "PlayerComponent/StatUpgradeDefinition.h"
+#include "Definition/Player/StatUpgradeDefinition.h"
 
 #include "Common/LabGameplayTags.h"
 #include "GameplayEffect.h"
@@ -16,7 +16,7 @@ namespace
 	constexpr float MaxSupportedInvestedLevel = 100.f;
 
 #if WITH_EDITOR
-	void MarkInvalid(FDataValidationContext& Context, EDataValidationResult& Result, const FText& Message)
+	void MarkStatUpgradeInvalid(FDataValidationContext& Context, EDataValidationResult& Result, const FText& Message)
 	{
 		Result = EDataValidationResult::Invalid;
 		Context.AddError(Message);
@@ -27,7 +27,7 @@ namespace
 		return FMath::IsFinite(Value);
 	}
 
-	void ValidateFinite(
+	void ValidateStatUpgradeFinite(
 		FDataValidationContext& Context,
 		EDataValidationResult& Result,
 		const float Value,
@@ -35,13 +35,13 @@ namespace
 	{
 		if (!IsFinite(Value))
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "NonFiniteValue", "{0} must be a finite value."),
 				FieldName));
 		}
 	}
 
-	void ValidateNonNegative(
+	void ValidateStatUpgradeNonNegative(
 		FDataValidationContext& Context,
 		EDataValidationResult& Result,
 		const float Value,
@@ -49,13 +49,13 @@ namespace
 	{
 		if (!IsFinite(Value) || Value < 0.f)
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "InvalidNonNegativeValue", "{0} must be a non-negative finite value."),
 				FieldName));
 		}
 	}
 
-	void ValidatePositive(
+	void ValidateStatUpgradePositive(
 		FDataValidationContext& Context,
 		EDataValidationResult& Result,
 		const float Value,
@@ -63,13 +63,13 @@ namespace
 	{
 		if (!IsFinite(Value) || Value <= 0.f)
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "InvalidPositiveValue", "{0} must be a positive finite value."),
 				FieldName));
 		}
 	}
 
-	void ValidateLessOrEqual(
+	void ValidateStatUpgradeLessOrEqual(
 		FDataValidationContext& Context,
 		EDataValidationResult& Result,
 		const float Value,
@@ -78,7 +78,7 @@ namespace
 	{
 		if (IsFinite(Value) && Value > MaxValue)
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "ValueAboveMaximum", "{0} must be less than or equal to {1}."),
 				FieldName,
 				FText::AsNumber(MaxValue)));
@@ -279,11 +279,11 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 
 	if (!StatUpGameplayEffectClass)
 	{
-		MarkInvalid(Context, Result, NSLOCTEXT("StatUpgradeDefinition", "MissingGameplayEffect", "StatUpGameplayEffectClass is required."));
+		MarkStatUpgradeInvalid(Context, Result, NSLOCTEXT("StatUpgradeDefinition", "MissingGameplayEffect", "StatUpGameplayEffectClass is required."));
 	}
 
-	ValidatePositive(Context, Result, MaxInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
-	ValidateLessOrEqual(Context, Result, MaxInvestedLevel, MaxSupportedInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
+	ValidateStatUpgradePositive(Context, Result, MaxInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
+	ValidateStatUpgradeLessOrEqual(Context, Result, MaxInvestedLevel, MaxSupportedInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
 
 	if (bEnableRecoveryHealthRegen)
 	{
@@ -302,7 +302,7 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 		const FPdStatUpgradeRule& Rule = UpgradeRules[EntryIndex];
 		if (!Rule.IsValid())
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "InvalidUpgradeRule", "UpgradeRules entry {0} requires RootTag."),
 				FText::AsNumber(EntryIndex)));
 			continue;
@@ -310,7 +310,7 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 
 		if (UpgradeRootTags.Contains(Rule.RootTag))
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "DuplicateUpgradeRule", "UpgradeRules entry {0} duplicates RootTag '{1}'."),
 				FText::AsNumber(EntryIndex),
 				FText::FromString(Rule.RootTag.ToString())));
@@ -319,7 +319,7 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 
 		UpgradeRootTags.Add(Rule.RootTag);
 
-		ValidateNonNegative(
+		ValidateStatUpgradeNonNegative(
 			Context,
 			Result,
 			Rule.Cost,
@@ -329,7 +329,7 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 
 		if (Rule.Cost > 0.f && !Rule.CostPointTag.IsValid())
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "MissingCostPointTag", "UpgradeRules entry {0} has Cost but no CostPointTag."),
 				FText::AsNumber(EntryIndex)));
 		}
@@ -366,19 +366,19 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 		const FPdPairedResourceStatTag& Pair = PairedResourceStatTags[EntryIndex];
 		if (!Pair.IsValid())
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "InvalidPairedResource", "PairedResourceStatTags entry {0} requires both MaxStatTag and CurrentStatTag."),
 				FText::AsNumber(EntryIndex)));
 		}
 		else if (Pair.MaxStatTag == Pair.CurrentStatTag)
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "SelfPairedResource", "PairedResourceStatTags entry {0} cannot use the same tag for max and current resource."),
 				FText::AsNumber(EntryIndex)));
 		}
 		else if (PairedMaxStatTags.Contains(Pair.MaxStatTag))
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "DuplicatePairedResource", "PairedResourceStatTags entry {0} duplicates MaxStatTag '{1}'."),
 				FText::AsNumber(EntryIndex),
 				FText::FromString(Pair.MaxStatTag.ToString())));
@@ -395,7 +395,7 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 		const FPdStatAttributeDefaultValue& AttributeDefault = AttributeDefaultValues[EntryIndex];
 		if (!AttributeDefault.IsValid())
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "InvalidAttributeValue", "Attribute Values entry {0} requires StatTag."),
 				FText::AsNumber(EntryIndex)));
 			continue;
@@ -403,7 +403,7 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 
 		if (AttributeDefaultTags.Contains(AttributeDefault.StatTag))
 		{
-			MarkInvalid(Context, Result, FText::Format(
+			MarkStatUpgradeInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "DuplicateAttributeValue", "Attribute Values entry {0} duplicates StatTag '{1}'."),
 				FText::AsNumber(EntryIndex),
 				FText::FromString(AttributeDefault.StatTag.ToString())));
@@ -411,14 +411,14 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 		}
 
 		AttributeDefaultTags.Add(AttributeDefault.StatTag);
-		ValidateFinite(
+		ValidateStatUpgradeFinite(
 			Context,
 			Result,
 			AttributeDefault.DefaultValue,
 			FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "AttributeDefaultValueField", "Attribute Values entry {0} DefaultValue"),
 				FText::AsNumber(EntryIndex)));
-		ValidateFinite(
+		ValidateStatUpgradeFinite(
 			Context,
 			Result,
 			AttributeDefault.ValuePerUpgrade,

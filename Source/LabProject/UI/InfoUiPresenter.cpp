@@ -14,7 +14,7 @@
 #include "Pandora/PandoraComponent.h"
 #include "Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraInstance.h"
-#include "PlayerComponent/StatUpgradeComponent.h"
+#include "Component/Player/StatUpgradeComponent.h"
 #include "Skin/SkinComponent.h"
 #include "Skin/SkinDefinition.h"
 #include "Skin/SkinEquipmentComponent.h"

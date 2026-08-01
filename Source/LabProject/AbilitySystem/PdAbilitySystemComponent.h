@@ -72,6 +72,7 @@ public:
 	int32 AddAttributeConfig(const FPdAttributeConfig& AttributeConfig);
 	void RemoveAttributeConfig(int32 AttributeConfigHandle);
 	bool ApplyAttributeDefaultValues(const FPdAttributeConfig& AttributeConfig);
+	bool ApplyAttributeDefaultValue(const FGameplayAttribute& Attribute, float DefaultValue);
 
 	void AbilityInputTagPressed(const FGameplayTag& InputTag);
 	void AbilityInputTagReleased(const FGameplayTag& InputTag);

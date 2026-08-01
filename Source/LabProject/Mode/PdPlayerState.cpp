@@ -8,7 +8,7 @@
 #include "Pandora/PandoraComponent.h"
 #include "PlayerComponent/PlayerNotificationComponent.h"
 #include "PlayerComponent/PlayerRewardComponent.h"
-#include "PlayerComponent/StatUpgradeComponent.h"
+#include "Component/Player/StatUpgradeComponent.h"
 #include "Skin/SkinComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayerState)

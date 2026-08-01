@@ -40,6 +40,99 @@ public:
 protected:
 	// Replication callbacks
 	UFUNCTION()
+	void OnRep_Level(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_Experience(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxExperience(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_OffensePoint(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_DefensePoint(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_ResistancePoint(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_PandoraForcePoint(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_ResourcePoint(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_AgilityPoint(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_StrengthLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_IntelligenceLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_ArcaneLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_ArmorLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_RecoveryLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_FrostbiteLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_BurnLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_ElectricShockLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_FirstPandoraLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_SecondPandoraLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_ThirdPandoraLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxHealthLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxShieldLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxManaLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxStaminaLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_AttackSpeedLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MovementSpeedLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_CriticalLevel(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxHealthIncreasePercent(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxShieldIncreasePercent(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxManaIncreasePercent(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxStaminaIncreasePercent(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
 	void OnRep_Strength(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
@@ -127,6 +220,130 @@ private:
 	bool bPendingIncomingDamageCriticalHit = false;
 
 public:
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling", ReplicatedUsing = OnRep_Level)
+	FGameplayAttributeData Level = 1.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, Level)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling", ReplicatedUsing = OnRep_Experience)
+	FGameplayAttributeData Experience = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, Experience)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling", ReplicatedUsing = OnRep_MaxExperience)
+	FGameplayAttributeData MaxExperience = 100.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, MaxExperience)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|Point", ReplicatedUsing = OnRep_OffensePoint)
+	FGameplayAttributeData OffensePoint = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, OffensePoint)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|Point", ReplicatedUsing = OnRep_DefensePoint)
+	FGameplayAttributeData DefensePoint = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, DefensePoint)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|Point", ReplicatedUsing = OnRep_ResistancePoint)
+	FGameplayAttributeData ResistancePoint = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, ResistancePoint)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|Point", ReplicatedUsing = OnRep_PandoraForcePoint)
+	FGameplayAttributeData PandoraForcePoint = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, PandoraForcePoint)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|Point", ReplicatedUsing = OnRep_ResourcePoint)
+	FGameplayAttributeData ResourcePoint = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, ResourcePoint)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|Point", ReplicatedUsing = OnRep_AgilityPoint)
+	FGameplayAttributeData AgilityPoint = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, AgilityPoint)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_StrengthLevel)
+	FGameplayAttributeData StrengthLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, StrengthLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_IntelligenceLevel)
+	FGameplayAttributeData IntelligenceLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, IntelligenceLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_ArcaneLevel)
+	FGameplayAttributeData ArcaneLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, ArcaneLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_ArmorLevel)
+	FGameplayAttributeData ArmorLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, ArmorLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_RecoveryLevel)
+	FGameplayAttributeData RecoveryLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, RecoveryLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_FrostbiteLevel)
+	FGameplayAttributeData FrostbiteLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, FrostbiteLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_BurnLevel)
+	FGameplayAttributeData BurnLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, BurnLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_ElectricShockLevel)
+	FGameplayAttributeData ElectricShockLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, ElectricShockLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_FirstPandoraLevel)
+	FGameplayAttributeData FirstPandoraLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, FirstPandoraLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_SecondPandoraLevel)
+	FGameplayAttributeData SecondPandoraLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, SecondPandoraLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_ThirdPandoraLevel)
+	FGameplayAttributeData ThirdPandoraLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, ThirdPandoraLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_MaxHealthLevel)
+	FGameplayAttributeData MaxHealthLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, MaxHealthLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_MaxShieldLevel)
+	FGameplayAttributeData MaxShieldLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, MaxShieldLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_MaxManaLevel)
+	FGameplayAttributeData MaxManaLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, MaxManaLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_MaxStaminaLevel)
+	FGameplayAttributeData MaxStaminaLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, MaxStaminaLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_AttackSpeedLevel)
+	FGameplayAttributeData AttackSpeedLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, AttackSpeedLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_MovementSpeedLevel)
+	FGameplayAttributeData MovementSpeedLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, MovementSpeedLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Leveling|StatLevel", ReplicatedUsing = OnRep_CriticalLevel)
+	FGameplayAttributeData CriticalLevel = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, CriticalLevel)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Resource", ReplicatedUsing = OnRep_MaxHealthIncreasePercent)
+	FGameplayAttributeData MaxHealthIncreasePercent = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, MaxHealthIncreasePercent)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Defense", ReplicatedUsing = OnRep_MaxShieldIncreasePercent)
+	FGameplayAttributeData MaxShieldIncreasePercent = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, MaxShieldIncreasePercent)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Resource", ReplicatedUsing = OnRep_MaxManaIncreasePercent)
+	FGameplayAttributeData MaxManaIncreasePercent = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, MaxManaIncreasePercent)
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Resource", ReplicatedUsing = OnRep_MaxStaminaIncreasePercent)
+	FGameplayAttributeData MaxStaminaIncreasePercent = 0.f;
+	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, MaxStaminaIncreasePercent)
+
 	UPROPERTY(BlueprintReadOnly, Category = "!Offense", ReplicatedUsing = OnRep_Strength)
 	FGameplayAttributeData Strength = 0.f;
 	ATTRIBUTE_ACCESSORS(UBasicAttributeSet, Strength)

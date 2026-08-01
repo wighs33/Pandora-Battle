@@ -54,6 +54,7 @@ namespace LabGameplayTags
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Damage, "Data.Damage", "SetByCaller damage magnitude tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Heal, "Data.Heal", "SetByCaller heal magnitude tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Mana, "Data.Mana", "SetByCaller mana recovery magnitude tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_StatUp, "Data.StatUp", "SetByCaller stat operation tag.");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Damage_Burst, "GameplayCue.Damage.Burst", "Damage burst gameplay cue tag.");

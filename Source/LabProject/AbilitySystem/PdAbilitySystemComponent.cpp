@@ -2,6 +2,7 @@
 
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
 #include "Common/LabGameplayTags.h"
@@ -57,6 +58,91 @@ namespace
 		float NewValue = DefaultValue;
 		Attribute.SetNumericValueChecked(NewValue, AttributeSet);
 		return true;
+	}
+
+	bool TryResolveBasicAttributeFromTag(const FGameplayTag& StatTag, FGameplayAttribute& OutAttribute)
+	{
+		struct FBasicAttributeTagMapping
+		{
+			const TCHAR* TagName;
+			FGameplayAttribute Attribute;
+		};
+
+		static const FBasicAttributeTagMapping Mappings[] = {
+		{ TEXT("Status.Level"), UBasicAttributeSet::GetLevelAttribute() },
+		{ TEXT("Status.Experience"), UBasicAttributeSet::GetExperienceAttribute() },
+		{ TEXT("Status.MaxExperience"), UBasicAttributeSet::GetMaxExperienceAttribute() },
+		{ TEXT("Status.Point.Offense"), UBasicAttributeSet::GetOffensePointAttribute() },
+		{ TEXT("Status.Point.Defense"), UBasicAttributeSet::GetDefensePointAttribute() },
+		{ TEXT("Status.Point.Resistance"), UBasicAttributeSet::GetResistancePointAttribute() },
+		{ TEXT("Status.Point.PandoraForce"), UBasicAttributeSet::GetPandoraForcePointAttribute() },
+		{ TEXT("Status.Point.Resource"), UBasicAttributeSet::GetResourcePointAttribute() },
+		{ TEXT("Status.Point.Agility"), UBasicAttributeSet::GetAgilityPointAttribute() },
+		{ TEXT("Status.Offense.Strength"), UBasicAttributeSet::GetStrengthAttribute() },
+		{ TEXT("Status.Offense.Intelligence"), UBasicAttributeSet::GetIntelligenceAttribute() },
+		{ TEXT("Status.Offense.Arcane"), UBasicAttributeSet::GetArcaneAttribute() },
+		{ TEXT("Status.Agility.Arcane"), UBasicAttributeSet::GetArcaneAttribute() },
+		{ TEXT("Status.Defense.Armor"), UBasicAttributeSet::GetArmorAttribute() },
+		{ TEXT("Status.Defense.Recovery"), UBasicAttributeSet::GetRecoveryAttribute() },
+		{ TEXT("Status.Defense.MagicResistance"), UBasicAttributeSet::GetMagicResistanceAttribute() },
+		{ TEXT("Status.Resistance.Immunity"), UBasicAttributeSet::GetImmunityAttribute() },
+		{ TEXT("Status.Resistance.Fortitude"), UBasicAttributeSet::GetFortitudeAttribute() },
+		{ TEXT("Status.Resistance.Sanity"), UBasicAttributeSet::GetSanityAttribute() },
+		{ TEXT("Status.Resistance.Burn"), UBasicAttributeSet::GetBurnAttribute() },
+		{ TEXT("Status.Resistance.Frostbite"), UBasicAttributeSet::GetFrostbiteAttribute() },
+		{ TEXT("Status.Resistance.ElectricShock"), UBasicAttributeSet::GetElectricShockAttribute() },
+		{ TEXT("Status.PandoraForce.FirstPandora"), UBasicAttributeSet::GetFirstPandoraAttribute() },
+		{ TEXT("Status.PandoraForce.SecondPandora"), UBasicAttributeSet::GetSecondPandoraAttribute() },
+		{ TEXT("Status.PandoraForce.ThirdPandora"), UBasicAttributeSet::GetThirdPandoraAttribute() },
+		{ TEXT("Status.Agility.AttackSpeed"), UBasicAttributeSet::GetAttackSpeedAttribute() },
+		{ TEXT("Status.Agility.MovementSpeed"), UBasicAttributeSet::GetMovementSpeedAttribute() },
+		{ TEXT("Status.Offense.Critical"), UBasicAttributeSet::GetCriticalChanceAttribute() },
+		{ TEXT("Status.Agility.CriticalChance"), UBasicAttributeSet::GetCriticalChanceAttribute() },
+		{ TEXT("Status.Agility.CriticalDamageMultiplier"), UBasicAttributeSet::GetCriticalDamageMultiplierAttribute() },
+		{ TEXT("Status.Resource.Health"), UBasicAttributeSet::GetHealthAttribute() },
+		{ TEXT("Status.Resource.MaxHealth"), UBasicAttributeSet::GetMaxHealthAttribute() },
+		{ TEXT("Status.Resource.MaxHealthIncreasePercent"), UBasicAttributeSet::GetMaxHealthIncreasePercentAttribute() },
+		{ TEXT("Status.Resource.Shield"), UBasicAttributeSet::GetShieldAttribute() },
+		{ TEXT("Status.Resource.MaxShield"), UBasicAttributeSet::GetMaxShieldAttribute() },
+		{ TEXT("Status.Defense.MaxShield"), UBasicAttributeSet::GetMaxShieldAttribute() },
+		{ TEXT("Status.Defense.MaxShieldIncreasePercent"), UBasicAttributeSet::GetMaxShieldIncreasePercentAttribute() },
+		{ TEXT("Status.Resource.Mana"), UBasicAttributeSet::GetManaAttribute() },
+		{ TEXT("Status.Resource.MaxMana"), UBasicAttributeSet::GetMaxManaAttribute() },
+		{ TEXT("Status.Resource.MaxManaIncreasePercent"), UBasicAttributeSet::GetMaxManaIncreasePercentAttribute() },
+		{ TEXT("Status.Resource.Stamina"), UBasicAttributeSet::GetStaminaAttribute() },
+		{ TEXT("Status.Resource.MaxStamina"), UBasicAttributeSet::GetMaxStaminaAttribute() },
+		{ TEXT("Status.Resource.MaxStaminaIncreasePercent"), UBasicAttributeSet::GetMaxStaminaIncreasePercentAttribute() },
+		{ TEXT("Status.Offense.StrengthLevel"), UBasicAttributeSet::GetStrengthLevelAttribute() },
+		{ TEXT("Status.Offense.IntelligenceLevel"), UBasicAttributeSet::GetIntelligenceLevelAttribute() },
+		{ TEXT("Status.Agility.ArcaneLevel"), UBasicAttributeSet::GetArcaneLevelAttribute() },
+		{ TEXT("Status.Defense.ArmorLevel"), UBasicAttributeSet::GetArmorLevelAttribute() },
+		{ TEXT("Status.Defense.RecoveryLevel"), UBasicAttributeSet::GetRecoveryLevelAttribute() },
+		{ TEXT("Status.Resistance.FrostbiteLevel"), UBasicAttributeSet::GetFrostbiteLevelAttribute() },
+		{ TEXT("Status.Resistance.BurnLevel"), UBasicAttributeSet::GetBurnLevelAttribute() },
+		{ TEXT("Status.Resistance.ElectricShockLevel"), UBasicAttributeSet::GetElectricShockLevelAttribute() },
+		{ TEXT("Status.PandoraForce.FirstPandoraLevel"), UBasicAttributeSet::GetFirstPandoraLevelAttribute() },
+		{ TEXT("Status.PandoraForce.SecondPandoraLevel"), UBasicAttributeSet::GetSecondPandoraLevelAttribute() },
+		{ TEXT("Status.PandoraForce.ThirdPandoraLevel"), UBasicAttributeSet::GetThirdPandoraLevelAttribute() },
+		{ TEXT("Status.Resource.MaxHealthLevel"), UBasicAttributeSet::GetMaxHealthLevelAttribute() },
+		{ TEXT("Status.Defense.MaxShieldLevel"), UBasicAttributeSet::GetMaxShieldLevelAttribute() },
+		{ TEXT("Status.Resource.MaxManaLevel"), UBasicAttributeSet::GetMaxManaLevelAttribute() },
+		{ TEXT("Status.Resource.MaxStaminaLevel"), UBasicAttributeSet::GetMaxStaminaLevelAttribute() },
+		{ TEXT("Status.Agility.AttackSpeedLevel"), UBasicAttributeSet::GetAttackSpeedLevelAttribute() },
+		{ TEXT("Status.Agility.MovementSpeedLevel"), UBasicAttributeSet::GetMovementSpeedLevelAttribute() },
+		{ TEXT("Status.Offense.CriticalLevel"), UBasicAttributeSet::GetCriticalLevelAttribute() },
+		};
+
+		for (const FBasicAttributeTagMapping& Mapping : Mappings)
+		{
+			const FGameplayTag MappingTag = FGameplayTag::RequestGameplayTag(FName(Mapping.TagName), false);
+			if (MappingTag.IsValid() && StatTag.MatchesTagExact(MappingTag))
+			{
+				OutAttribute = Mapping.Attribute;
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 }
@@ -201,6 +287,43 @@ bool UPdAbilitySystemComponent::ApplyAttributeDefaultValues(const FPdAttributeCo
 	}
 
 	return bAppliedAny;
+}
+
+bool UPdAbilitySystemComponent::ApplyAttributeDefaultValue(
+	const FGameplayAttribute& Attribute,
+	const float DefaultValue)
+{
+	if (!IsOwnerActorAuthoritative() || !Attribute.IsValid() || !FMath::IsFinite(DefaultValue))
+	{
+		return false;
+	}
+
+	const TSubclassOf<UAttributeSet> AttributeSetClass = const_cast<UClass*>(Attribute.GetAttributeSetClass());
+	if (!AttributeSetClass)
+	{
+		return false;
+	}
+
+	UAttributeSet* AttributeSet = const_cast<UAttributeSet*>(GetAttributeSet(AttributeSetClass));
+	FProperty* Property = Attribute.GetUProperty();
+	if (!AttributeSet || !Property)
+	{
+		return false;
+	}
+
+	SetNumericAttributeBase(Attribute, DefaultValue);
+	if (!SetAttributeDataDefaultValue(AttributeSet, Attribute, DefaultValue))
+	{
+		return false;
+	}
+
+	MARK_PROPERTY_DIRTY(AttributeSet, Property);
+	if (AActor* OwningActor = GetOwner())
+	{
+		OwningActor->ForceNetUpdate();
+	}
+
+	return true;
 }
 
 void UPdAbilitySystemComponent::AbilityInputTagPressed(const FGameplayTag& InputTag)
@@ -477,6 +600,14 @@ bool UPdAbilitySystemComponent::ResolveAttributeFromTag(const FGameplayTag& Stat
 				return true;
 			}
 		}
+	}
+
+	if (TryResolveBasicAttributeFromTag(StatTag, OutAttribute))
+	{
+		UE_LOG(PdAbilitySystemComponentLog, Verbose, TEXT("[StatUpgrade] ResolveAttributeFromTag used native fallback: statTag=%s attribute=%s"),
+			*StatTag.ToString(),
+			*OutAttribute.GetName());
+		return true;
 	}
 
 	UE_LOG(PdAbilitySystemComponentLog, Warning, TEXT("[StatUpgrade] ResolveAttributeFromTag failed: statTag=%s activeConfigCount=%d"),
