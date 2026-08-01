@@ -11,6 +11,11 @@
 			"AdditionalDependencies": [
 				"ModularGameplay"
 			]
+		},
+		{
+			"Name": "LabProjectEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PreDefault"
 		}
 	],
 	"Plugins": [
@@ -38,12 +43,28 @@
 			"Enabled": true
 		},
 		{
-			"Name": "StructUtils",
+			"Name": "AudioWidgets",
 			"Enabled": true
 		},
 		{
-			"Name": "AIAssistant",
+			"Name": "OnlineSubsystem",
 			"Enabled": true
+		},
+		{
+			"Name": "OnlineSubsystemNull",
+			"Enabled": true
+		},
+		{
+			"Name": "OnlineSubsystemSteam",
+			"Enabled": true
+		},
+		{
+			"Name": "SocketSubsystemSteamIP",
+			"Enabled": true
+		},
+		{
+			"Name": "FabLauncher",
+			"Enabled": false
 		},
 		{
 			"Name": "Iris",
@@ -58,7 +79,31 @@
 			"Enabled": true
 		},
 		{
+			"Name": "StateTree",
+			"Enabled": true
+		},
+		{
 			"Name": "GameplayStateTree",
+			"Enabled": true
+		},
+		{
+			"Name": "CableComponent",
+			"Enabled": true
+		},
+		{
+			"Name": "PCG",
+			"Enabled": true
+		},
+		{
+			"Name": "PCGGeometryScriptInterop",
+			"Enabled": true
+		},
+		{
+			"Name": "NNEDenoiser",
+			"Enabled": false
+		},
+		{
+			"Name": "Water",
 			"Enabled": true
 		}
 	]

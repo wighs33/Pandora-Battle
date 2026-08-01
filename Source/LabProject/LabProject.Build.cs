@@ -7,43 +7,66 @@ public class LabProject : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PrivateIncludePaths.Add(ModuleDirectory);
-		
+
 		SetupIrisSupport(Target);
-	
+
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
-			"Core", 
-			"CoreUObject", 
-			"Engine", 
-			"InputCore", 
-			"EnhancedInput", 
-			"NetCore",
+			// Required by types inherited from or included by LabProject headers.
+			"Core",
+			"CoreUObject",
+			"Engine",
+			"InputCore",
+			"EnhancedInput",
 			"IrisCore",
-			"ModularGameplay", 
+			"ModularGameplay",
 			"GameFeatures",
-			"GameplayTags", 
+			"GameplayTags",
 			"GameplayAbilities",
-			"GameplayTasks",
-			"StructUtils",
+			"GameplayStateTreeModule",
 			"ModelViewViewModel",
+			"StateTreeModule",
 			"UMG",
-			"AnimGraphRuntime",
-			"Niagara",
-			"AssetRegistry"
+			"SlateCore",
+			"AIModule",
+			"OnlineSubsystem",
+			"OnlineSubsystemUtils"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
+			// Used only by LabProject implementation files or forward-declared APIs.
+			"NetCore",
+			"GameplayTasks",
+			"AudioWidgets",
+			"AnimGraphRuntime",
+			"Niagara",
+			"AssetRegistry",
+			"CableComponent",
 			"Slate",
-			"SlateCore", "AIModule"
+			"NavigationSystem"
 		});
 
-		// Uncomment if you are using Slate UI
-		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
-		
-		// Uncomment if you are using online features
-		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
 
-		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
+		DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
+
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "Steamworks");
+
+		if (Target.Platform == UnrealTargetPlatform.Win64 &&
+			Target.Configuration == UnrealTargetConfiguration.Shipping)
+		{
+			// Keep local packaged-build testing on the same Steam App ID as the
+			// compile-time Shipping configuration. Steam-distributed builds are
+			// still launched by the Steam client in the normal way.
+			RuntimeDependencies.Add(
+				"$(TargetOutputDir)/steam_appid.txt",
+				"$(ProjectDir)/steam_appid.txt",
+				StagedFileType.NonUFS);
+		}
+
 	}
 }

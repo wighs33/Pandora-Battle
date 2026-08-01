@@ -16,7 +16,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSkinEquipSlotWidget, Log, All);
 
 namespace
 {
-FSlateBrush MakeSolidBrush(const FSlateBrush& SourceBrush, const FLinearColor& TintColor)
+FSlateBrush MakeSkinSolidBrush(const FSlateBrush& SourceBrush, const FLinearColor& TintColor)
 {
 	FSlateBrush Brush = SourceBrush;
 	Brush.SetResourceObject(nullptr);
@@ -25,7 +25,7 @@ FSlateBrush MakeSolidBrush(const FSlateBrush& SourceBrush, const FLinearColor& T
 	return Brush;
 }
 
-FSlateBrush MakeSlotIconBrush(const FSlateBrush& SourceBrush, UTexture2D* IconTexture, const FLinearColor& TintColor)
+FSlateBrush MakeSkinSlotIconBrush(const FSlateBrush& SourceBrush, UTexture2D* IconTexture, const FLinearColor& TintColor)
 {
 	FSlateBrush Brush = SourceBrush;
 	Brush.SetResourceObject(IconTexture);
@@ -388,10 +388,10 @@ void USkinEquipSlotWidget::ApplySlotVisual()
 				*SlotText.ToString());
 			UTexture2D* RestIconTexture = (bUseSelectedEmptyIcon || bIsAcceptedDragHovered) ? HoverIconTexture : NormalIconTexture;
 			FButtonStyle ButtonStyle = ItemButton->GetStyle();
-			ButtonStyle.SetNormal(MakeSlotIconBrush(ButtonStyle.Normal, RestIconTexture, FLinearColor(0.9f, 0.9f, 0.9f, 1.0f)));
-			ButtonStyle.SetHovered(MakeSlotIconBrush(ButtonStyle.Hovered, HoverIconTexture, FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)));
-			ButtonStyle.SetPressed(MakeSlotIconBrush(ButtonStyle.Pressed, HoverIconTexture, FLinearColor(0.75f, 0.75f, 0.75f, 1.0f)));
-			ButtonStyle.SetDisabled(MakeSlotIconBrush(ButtonStyle.Disabled, RestIconTexture, FLinearColor(0.35f, 0.35f, 0.35f, 1.0f)));
+			ButtonStyle.SetNormal(MakeSkinSlotIconBrush(ButtonStyle.Normal, RestIconTexture, FLinearColor(0.9f, 0.9f, 0.9f, 1.0f)));
+			ButtonStyle.SetHovered(MakeSkinSlotIconBrush(ButtonStyle.Hovered, HoverIconTexture, FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)));
+			ButtonStyle.SetPressed(MakeSkinSlotIconBrush(ButtonStyle.Pressed, HoverIconTexture, FLinearColor(0.75f, 0.75f, 0.75f, 1.0f)));
+			ButtonStyle.SetDisabled(MakeSkinSlotIconBrush(ButtonStyle.Disabled, RestIconTexture, FLinearColor(0.35f, 0.35f, 0.35f, 1.0f)));
 			ItemButton->SetStyle(ButtonStyle);
 		}
 		else if (bHasIcon)
@@ -514,10 +514,10 @@ void USkinEquipSlotWidget::ApplyButtonBackgroundStyle()
 
 	const FLinearColor NormalColor = (bIsButtonHovered || bIsAcceptedDragHovered) ? ButtonHoverColor : ButtonNormalColor;
 	FButtonStyle ButtonStyle = bHasDefaultButtonStyle ? DefaultButtonStyle : ItemButton->GetStyle();
-	ButtonStyle.SetNormal(MakeSolidBrush(ButtonStyle.Normal, NormalColor));
-	ButtonStyle.SetHovered(MakeSolidBrush(ButtonStyle.Hovered, ButtonHoverColor));
-	ButtonStyle.SetPressed(MakeSolidBrush(ButtonStyle.Pressed, ButtonPressedColor));
-	ButtonStyle.SetDisabled(MakeSolidBrush(ButtonStyle.Disabled, FLinearColor(ButtonNormalColor.R, ButtonNormalColor.G, ButtonNormalColor.B, 0.35f)));
+	ButtonStyle.SetNormal(MakeSkinSolidBrush(ButtonStyle.Normal, NormalColor));
+	ButtonStyle.SetHovered(MakeSkinSolidBrush(ButtonStyle.Hovered, ButtonHoverColor));
+	ButtonStyle.SetPressed(MakeSkinSolidBrush(ButtonStyle.Pressed, ButtonPressedColor));
+	ButtonStyle.SetDisabled(MakeSkinSolidBrush(ButtonStyle.Disabled, FLinearColor(ButtonNormalColor.R, ButtonNormalColor.G, ButtonNormalColor.B, 0.35f)));
 	ItemButton->SetStyle(ButtonStyle);
 }
 
