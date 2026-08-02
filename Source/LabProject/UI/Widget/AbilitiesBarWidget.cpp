@@ -2,24 +2,28 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/PdAbilitySystemComponent.h"
-#include "AbilitySystem/Skills/SkillTypes.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Definition/AbilitySystem/SkillTypes.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
 #include "Common/LabGameplayTags.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
-#include "Character/PdCharacterBase.h"
+#include "Components/Image.h"
+#include "Character/CharacterBase.h"
 #include "GameFramework/Pawn.h"
-#include "Item/ItemDefinition.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Mode/PdPlayerState.h"
-#include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
-#include "Pandora/PandoraComponent.h"
-#include "Pandora/PandoraDefinition.h"
+#include "Component/AbilitySystem/PandoraTreeComponent.h"
+#include "Component/Pandora/PandoraComponent.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraSkillRuntimeContext.h"
-#include "PlayerComponent/EquipmentComponent.h"
+#include "Component/Player/EquipmentComponent.h"
 #include "TimerManager.h"
 #include "UI/Widget/AbilitySlotWidget.h"
+#include "UI/Widget/InputKeyIconResolver.h"
+#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/WidgetLookup.h"
 #include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitiesBarWidget)
@@ -27,9 +31,8 @@
 namespace
 {
 	const FName AbilitySpecHandlePropertyName(TEXT("AbilitySpecHandle"));
-	const FMargin SlotPadding(5.0f, 5.0f, 5.0f, 5.0f);
 
-	const USkillDataAsset* ResolveSourceSkillDataAsset(const FGameplayAbilitySpec* AbilitySpec)
+	const USkillDefinition* ResolveSourceSkillDataAsset(const FGameplayAbilitySpec* AbilitySpec)
 	{
 		if (!AbilitySpec)
 		{
@@ -41,7 +44,7 @@ namespace
 			return RuntimeContext->GetSkillDataAsset();
 		}
 
-		if (const USkillDataAsset* SkillDataAsset = Cast<USkillDataAsset>(AbilitySpec->SourceObject.Get()))
+		if (const USkillDefinition* SkillDataAsset = Cast<USkillDefinition>(AbilitySpec->SourceObject.Get()))
 		{
 			return SkillDataAsset;
 		}
@@ -62,7 +65,7 @@ void UAbilitiesBarWidget::NativePreConstruct()
 	ContainerHorizontalBox->ClearChildren();
 	for (int32 SlotIndex = 0; SlotIndex < MinimumSlots; ++SlotIndex)
 	{
-		AddEmptySlot(false);
+		AddEmptySlot(true, SlotIndex);
 	}
 }
 
@@ -167,24 +170,32 @@ void UAbilitiesBarWidget::RebuildAbilitiesBar()
 			AbilitySystemComponent = GetOwningAbilitySystemComponent();
 		}
 
-		for (int32 SlotIndex = 0; SlotIndex < PandoraSkillSlots; ++SlotIndex)
+		const int32 NumPandoraSkillSlots = FMath::Clamp(PandoraSkillSlots, 0, UPandoraDefinition::GetFixedMaxLevel());
+		const int32 SelectedPandoraLevel = GetSelectedPandoraLevel(SelectedPandoraDefinition);
+
+
+		for (int32 SlotIndex = 0; SlotIndex < NumPandoraSkillSlots; ++SlotIndex)
 		{
-			if (!SelectedPandoraDefinition->Skill.IsValidIndex(SlotIndex))
+				if (!SelectedPandoraDefinition->Skill.IsValidIndex(SlotIndex))
 			{
-				AddEmptySlot(true);
+
+				AddEmptySlot(true, SlotIndex);
 				continue;
 			}
 
 			const FSkill& Skill = SelectedPandoraDefinition->Skill[SlotIndex];
 			if (!Skill.ShouldShowInAbilitiesBar() || !IsConfiguredPandoraSkill(Skill))
 			{
-				AddEmptySlot(true);
+
+				AddEmptySlot(true, SlotIndex);
 				continue;
 			}
 
 			FAbilityBarSlotData SlotData;
-			SlotData.bEnabled = bSelectedPandoraEnabled;
-			if (bSelectedPandoraEnabled)
+			SlotData.SkillSlotIndex = SlotIndex;
+			const bool bSkillSlotUnlocked = SelectedPandoraDefinition->IsSkillSlotUnlocked(SlotIndex, SelectedPandoraLevel);
+			SlotData.bEnabled = bSelectedPandoraEnabled && bSkillSlotUnlocked;
+			if (SlotData.bEnabled)
 			{
 				SlotData.AbilitySpecHandle = FindAbilitySpecHandleForSkill(
 					AbilitySystemComponent,
@@ -192,36 +203,44 @@ void UAbilitiesBarWidget::RebuildAbilitiesBar()
 					SlotIndex);
 				if (!SlotData.AbilitySpecHandle.IsValid())
 				{
-					AddEmptySlot(true);
-					continue;
+
+					SlotData.bEnabled = false;
 				}
 			}
 
 			SlotData.DisplayNameOverride = Skill.GetDisplayName();
 			SlotData.IconOverride = Skill.GetIconResource();
 			SlotData.bHasDisplayOverride = true;
+
 			AddAbilitySlot(SlotData);
 		}
 
 		return;
 	}
 
+	int32 SkillSlotIndex = 0;
 	for (const FGameplayAbilitySpecHandle& AbilitySpecHandle : GetAbilitiesToShowInBar())
 	{
-		AddAbilitySlot(AbilitySpecHandle);
+		AddAbilitySlot(AbilitySpecHandle, SkillSlotIndex++);
 	}
 
 	const int32 CurrentChildrenCount = ContainerHorizontalBox->GetChildrenCount();
-	for (int32 SlotIndex = CurrentChildrenCount; SlotIndex < MinimumSlots; ++SlotIndex)
+	for (int32 EmptySlotIndex = CurrentChildrenCount; EmptySlotIndex < MinimumSlots; ++EmptySlotIndex)
 	{
-		AddEmptySlot(true);
+		AddEmptySlot(true, EmptySlotIndex);
 	}
 }
 
 void UAbilitiesBarWidget::AddAbilitySlot(const FGameplayAbilitySpecHandle& AbilitySpecHandle)
 {
+	AddAbilitySlot(AbilitySpecHandle, INDEX_NONE);
+}
+
+void UAbilitiesBarWidget::AddAbilitySlot(const FGameplayAbilitySpecHandle& AbilitySpecHandle, const int32 SkillSlotIndex)
+{
 	FAbilityBarSlotData SlotData;
 	SlotData.AbilitySpecHandle = AbilitySpecHandle;
+	SlotData.SkillSlotIndex = SkillSlotIndex;
 	AddAbilitySlot(SlotData);
 }
 
@@ -235,6 +254,7 @@ void UAbilitiesBarWidget::AddAbilitySlot(const FAbilityBarSlotData& SlotData)
 
 	if (UAbilitySlotWidget* AbilitySlotWidget = Cast<UAbilitySlotWidget>(AbilityWidget))
 	{
+		AbilitySlotWidget->SetSkillSlotIndex(SlotData.SkillSlotIndex);
 		if (SlotData.bHasDisplayOverride)
 		{
 			AbilitySlotWidget->SetAbilitySlotDataEnabled(
@@ -254,12 +274,15 @@ void UAbilitiesBarWidget::AddAbilitySlot(const FAbilityBarSlotData& SlotData)
 		SetAbilitySpecHandleOnWidget(AbilityWidget, SlotData.AbilitySpecHandle);
 	}
 
+	ApplySkillSlotKeyIcon(AbilityWidget, SlotData.SkillSlotIndex);
 	AddWidgetToBar(AbilityWidget, true);
 }
 
-void UAbilitiesBarWidget::AddEmptySlot(bool bApplyPadding)
+void UAbilitiesBarWidget::AddEmptySlot(const bool bApplyPadding, const int32 SkillSlotIndex)
 {
-	AddWidgetToBar(CreateBarWidget(EmptyAbilityWidgetClass), bApplyPadding);
+	UUserWidget* EmptySlotWidget = CreateBarWidget(EmptyAbilityWidgetClass);
+	ApplySkillSlotKeyIcon(EmptySlotWidget, SkillSlotIndex);
+	AddWidgetToBar(EmptySlotWidget, bApplyPadding);
 }
 
 UUserWidget* UAbilitiesBarWidget::CreateBarWidget(TSubclassOf<UUserWidget> WidgetClass) const
@@ -315,6 +338,56 @@ void UAbilitiesBarWidget::SetAbilitySpecHandleOnWidget(UUserWidget* Widget, cons
 	StructProperty->CopyCompleteValue(PropertyValue, &AbilitySpecHandle);
 }
 
+void UAbilitiesBarWidget::ApplySkillSlotKeyIcon(UUserWidget* Widget, const int32 SkillSlotIndex) const
+{
+	if (!Widget)
+	{
+		return;
+	}
+
+	if (UAbilitySlotWidget* AbilitySlotWidget = Cast<UAbilitySlotWidget>(Widget))
+	{
+		AbilitySlotWidget->SetSkillSlotIndex(SkillSlotIndex);
+	}
+
+	UImage* KeyIcon = PdWidgetLookup::FindWidgetByNames<UImage>(Widget, {
+		TEXT("KeyIcon")
+	});
+	if (!KeyIcon)
+	{
+		return;
+	}
+
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	if (!WidgetDefinition)
+	{
+		KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	const FAbilitySlotWidgetSettings& Settings = WidgetDefinition->GetAbilitySlotWidgetSettings();
+	if (Settings.InputKeyIconSettings.bHideInputKeyIcon)
+	{
+		KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	UObject* IconObject = PdInputKeyIconResolver::ResolveMappedIconObject(
+		Settings.InputKeyIconSettings,
+		PdInputKeyIconResolver::GetFixedSkillSlotKeyName(SkillSlotIndex));
+	if (!IconObject)
+	{
+		KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	KeyIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	KeyIcon->SetBrush(PdInputKeyIconResolver::MakeImageBrushFromExisting(
+		KeyIcon->GetBrush(),
+		IconObject,
+		Settings.InputKeyIconSettings.IconSize));
+}
+
 bool UAbilitiesBarWidget::ShouldShowAbilityHandle(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle& AbilitySpecHandle) const
 {
 	if (!AbilitySystemComponent)
@@ -323,7 +396,7 @@ bool UAbilitiesBarWidget::ShouldShowAbilityHandle(UAbilitySystemComponent* Abili
 	}
 
 	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle);
-	const USkillDataAsset* SourceSkill = ResolveSourceSkillDataAsset(AbilitySpec);
+	const USkillDefinition* SourceSkill = ResolveSourceSkillDataAsset(AbilitySpec);
 	return SourceSkill && SourceSkill->ShouldShowInAbilitiesBar();
 }
 
@@ -382,8 +455,8 @@ int32 UAbilitiesBarWidget::GetSelectedPandoraLevel(const UPandoraDefinition* Pan
 	const UPandoraTreeComponent* PandoraTreeComponent = GetPandoraTreeComponent();
 	const int32 CurrentLevel = PandoraTreeComponent
 		? PandoraTreeComponent->GetCurrentPandoraLevel(const_cast<UPandoraDefinition*>(PandoraDefinition))
-		: 1;
-	return FMath::Clamp(CurrentLevel > 0 ? CurrentLevel : 1, 1, PandoraDefinition->GetMaxLevel());
+		: 0;
+	return FMath::Clamp(CurrentLevel, 0, PandoraDefinition->GetMaxLevel());
 }
 
 bool UAbilitiesBarWidget::IsSelectedPandoraCompatibleWithCurrentWeapon() const
@@ -394,7 +467,7 @@ bool UAbilitiesBarWidget::IsSelectedPandoraCompatibleWithCurrentWeapon() const
 
 const UItemDefinition* UAbilitiesBarWidget::GetCurrentWeaponDefinition() const
 {
-	const APdCharacterBase* OwningCharacter = Cast<APdCharacterBase>(GetOwningPlayerPawn());
+	const ACharacterBase* OwningCharacter = Cast<ACharacterBase>(GetOwningPlayerPawn());
 	const UEquipmentComponent* EquipmentComponent = OwningCharacter ? OwningCharacter->GetEquipmentComponent() : nullptr;
 	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponDefinition() : nullptr;
 }
@@ -404,7 +477,10 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 	const UPandoraDefinition* PandoraDefinition,
 	int32 SkillIndex) const
 {
-	if (!AbilitySystemComponent || !PandoraDefinition)
+	if (!AbilitySystemComponent
+		|| !PandoraDefinition
+		|| SkillIndex < 0
+		|| SkillIndex >= UPandoraDefinition::GetFixedMaxLevel())
 	{
 		return FGameplayAbilitySpecHandle();
 	}
@@ -421,14 +497,16 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 	case 2:
 		SkillInputTag = LabGameplayTags::Input_Ability_Skill3;
 		break;
-	case 3:
-		SkillInputTag = LabGameplayTags::Input_Ability_Skill4;
-		break;
 	default:
 		break;
 	}
 
-	FGameplayAbilitySpecHandle FallbackHandle;
+	if (!SkillInputTag.IsValid())
+	{
+		return FGameplayAbilitySpecHandle();
+	}
+
+	FGameplayAbilitySpecHandle InputTagMatchedHandle;
 
 	TArray<FGameplayAbilitySpecHandle> AbilityHandles;
 	AbilitySystemComponent->GetAllAbilities(AbilityHandles);
@@ -448,14 +526,14 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 			return AbilityHandle;
 		}
 
-		const bool bMatchesSkillInput = !SkillInputTag.IsValid() || AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(SkillInputTag);
-		if (bMatchesSkillInput && !FallbackHandle.IsValid())
+		const bool bMatchesSkillInput = AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(SkillInputTag);
+		if (bMatchesSkillInput && !InputTagMatchedHandle.IsValid())
 		{
-			FallbackHandle = AbilityHandle;
+			InputTagMatchedHandle = AbilityHandle;
 		}
 	}
 
-	return FallbackHandle;
+	return InputTagMatchedHandle;
 }
 
 bool UAbilitiesBarWidget::IsConfiguredPandoraSkill(const FSkill& Skill) const

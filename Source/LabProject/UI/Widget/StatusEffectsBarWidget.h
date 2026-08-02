@@ -9,7 +9,7 @@
 class AActor;
 class UAbilitySystemComponent;
 class UHorizontalBox;
-class UPdStatusEffectDataAsset;
+class UStatusEffectDefinition;
 class UUserWidget;
 
 UCLASS(Blueprintable, BlueprintType)
@@ -24,10 +24,13 @@ public:
 	void SetOwnerActor(AActor* InOwnerActor);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|StatusEffect")
-	void TryAddStatusEffectWidget(UPdStatusEffectDataAsset* DataAsset);
+	void TryAddStatusEffectWidget(UStatusEffectDefinition* DataAsset);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "!UI|StatusEffect")
 	bool AlreadyDisplayingStatusEffect(FGameplayTag DebuffTag) const;
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|StatusEffect")
+	void RefreshStatusEffectWidgets();
 
 protected:
 	virtual void NativeConstruct() override;
@@ -43,29 +46,51 @@ protected:
 	TSubclassOf<UUserWidget> StatusEffectWidgetClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect")
-	TArray<TObjectPtr<UPdStatusEffectDataAsset>> StatusEffectDataAssets;
+	TArray<TObjectPtr<UStatusEffectDefinition>> StatusEffectDataAssets;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect")
 	FMargin StatusEffectWidgetPadding = FMargin(5.0f, 0.0f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect|Layout")
+	float StatusEffectWidgetVerticalOffset = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect|Layout", meta = (ClampMin = "0.01"))
+	float StatusEffectWidgetScale = 1.0f;
+
 private:
+	void ApplyWidgetDefinitionSettings();
+	void BeginStatusEffectContentPreload();
+	void ReleaseStatusEffectContentPreload();
 	void ScheduleStatusEffectTagBinding();
+	void ScheduleStatusEffectWidgetRefresh();
 	void BindStatusEffectTagDelegates();
 	void UnbindStatusEffectTagDelegates();
 	void HandleObservedTagChanged(FGameplayTag CallbackTag, int32 NewCount);
 	void AddWidgetsForExistingTags();
-	UUserWidget* CreateStatusEffectWidget() const;
+	bool IsStatusEffectActive(const UStatusEffectDefinition* DataAsset) const;
+	UUserWidget* CreateStatusEffectWidget();
+	void ResolveStatusEffectWidgetClass();
 	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
-	UPdStatusEffectDataAsset* FindDataAssetForObservedTag(FGameplayTag Tag) const;
+	void GatherObservedStatusEffectDataAssets(TArray<UStatusEffectDefinition*>& OutDataAssets);
+	void RebuildObservedStatusEffectDataAssetCache();
+	void AddObservedStatusEffectDataAsset(UStatusEffectDefinition* DataAsset);
+	void InvalidateObservedStatusEffectDataAssetCache();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
 
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStatusEffectDefinition>> CachedObservedStatusEffectDataAssets;
+
 	TMap<FGameplayTag, FDelegateHandle> ObservedTagChangedHandles;
 	FTimerHandle BindStatusEffectTagsTimerHandle;
+	FTimerHandle RefreshStatusEffectWidgetsTimerHandle;
 	int32 BindRetryCount = 0;
 	bool bBindStatusEffectTagsScheduled = false;
+	bool bStatusEffectWidgetRefreshScheduled = false;
 	bool bIsConstructed = false;
+	bool bObservedStatusEffectDataAssetCacheValid = false;
+	int32 ContentPreloadGeneration = 0;
 
 	static constexpr int32 MaxBindRetryCount = 20;
 };

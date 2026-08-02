@@ -61,7 +61,7 @@ private:
 	void HideAnimatedProgressBar();
 	UProgressBar* GetProgressBar() const;
 	UProgressBar* GetAnimatedProgressBar() const;
-	UProgressBar* FindProgressBarByNameOrIndex(FName WidgetName, int32 FallbackIndex) const;
+	UProgressBar* FindProgressBarByName(FName WidgetName) const;
 	float GetAttributeValue(const FGameplayAttribute& Attribute, bool* bOutSuccessfullyFoundAttribute = nullptr) const;
 	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
 	float GetHealthPercent(float CurrentValue, float MaxValue) const;

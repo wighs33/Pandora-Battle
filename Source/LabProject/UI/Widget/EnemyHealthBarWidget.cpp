@@ -5,13 +5,10 @@
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/ProgressBar.h"
-#include "Components/Widget.h"
 #include "Engine/World.h"
 #include "GameplayEffectTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnemyHealthBarWidget)
-
-DEFINE_LOG_CATEGORY_STATIC(LogEnemyHealthBarWidget, Log, All);
 
 void UEnemyHealthBarWidget::NativeConstruct()
 {
@@ -56,11 +53,7 @@ void UEnemyHealthBarWidget::UpdateHealthPercent()
 		return;
 	}
 
-	UE_LOG(LogEnemyHealthBarWidget, Warning, TEXT("UpdateHealthPercent failed: progress bar not found widget=%s owner=%s health=%.3f max=%.3f"),
-		*GetNameSafe(this),
-		*GetNameSafe(OwnerActor.Get()),
-		CurrentHealth,
-		MaxHealth);
+
 }
 
 void UEnemyHealthBarWidget::AnimateHealth(const double From, const double To)
@@ -132,10 +125,7 @@ void UEnemyHealthBarWidget::InitializeFromOwner()
 	BoundAbilitySystemComponent = GetOwnerAbilitySystemComponent();
 	if (!BoundAbilitySystemComponent)
 	{
-		UE_LOG(LogEnemyHealthBarWidget, Warning, TEXT("InitializeFromOwner waiting for ASC: widget=%s owner=%s retry=%d"),
-			*GetNameSafe(this),
-			*GetNameSafe(OwnerActor.Get()),
-			InitializeRetryCount);
+
 		QueueInitializeRetry();
 		return;
 	}
@@ -145,17 +135,7 @@ void UEnemyHealthBarWidget::InitializeFromOwner()
 	CurrentHealth = GetAttributeValue(UBasicAttributeSet::GetHealthAttribute(), &bFoundHealth);
 	MaxHealth = GetAttributeValue(UBasicAttributeSet::GetMaxHealthAttribute(), &bFoundMaxHealth);
 
-	UE_LOG(LogEnemyHealthBarWidget, Log, TEXT("InitializeFromOwner: widget=%s owner=%s asc=%s health=%.3f foundHealth=%s maxHealth=%.3f foundMaxHealth=%s progressBar=%s animatedBar=%s percent=%.3f"),
-		*GetNameSafe(this),
-		*GetNameSafe(OwnerActor.Get()),
-		*GetNameSafe(BoundAbilitySystemComponent.Get()),
-		CurrentHealth,
-		bFoundHealth ? TEXT("true") : TEXT("false"),
-		MaxHealth,
-		bFoundMaxHealth ? TEXT("true") : TEXT("false"),
-		*GetNameSafe(GetProgressBar()),
-		*GetNameSafe(GetAnimatedProgressBar()),
-		GetHealthPercent(CurrentHealth, MaxHealth));
+
 
 	if (!bFoundHealth || !bFoundMaxHealth || !GetProgressBar())
 	{
@@ -173,18 +153,20 @@ void UEnemyHealthBarWidget::InitializeFromOwner()
 
 void UEnemyHealthBarWidget::QueueInitializeRetry()
 {
-	if (!GetWorld() || InitializeRetryCount >= MaxInitializeRetryCount)
+	UWorld* World = GetWorld();
+	if (!World)
 	{
 		return;
 	}
 
 	++InitializeRetryCount;
-	GetWorld()->GetTimerManager().ClearTimer(InitializeTimerHandle);
-	GetWorld()->GetTimerManager().SetTimer(
+	const float RetryDelay = InitializeRetryCount >= MaxInitializeRetryCount ? 0.25f : 0.1f;
+	World->GetTimerManager().ClearTimer(InitializeTimerHandle);
+	World->GetTimerManager().SetTimer(
 		InitializeTimerHandle,
 		this,
 		&ThisClass::InitializeFromOwner,
-		0.1f,
+		RetryDelay,
 		false);
 }
 
@@ -268,55 +250,22 @@ void UEnemyHealthBarWidget::HideAnimatedProgressBar()
 
 UProgressBar* UEnemyHealthBarWidget::GetProgressBar() const
 {
-	return FindProgressBarByNameOrIndex(TEXT("ProgressBar"), 0);
+	return FindProgressBarByName(TEXT("ProgressBar"));
 }
 
 UProgressBar* UEnemyHealthBarWidget::GetAnimatedProgressBar() const
 {
-	return FindProgressBarByNameOrIndex(TEXT("AnimatedProgressBar"), 1);
+	return FindProgressBarByName(TEXT("AnimatedProgressBar"));
 }
 
-UProgressBar* UEnemyHealthBarWidget::FindProgressBarByNameOrIndex(const FName WidgetName, const int32 FallbackIndex) const
+UProgressBar* UEnemyHealthBarWidget::FindProgressBarByName(const FName WidgetName) const
 {
 	if (!WidgetTree)
 	{
 		return nullptr;
 	}
 
-	if (UProgressBar* NamedProgressBar = Cast<UProgressBar>(WidgetTree->FindWidget(WidgetName)))
-	{
-		return NamedProgressBar;
-	}
-
-	int32 ProgressBarIndex = 0;
-	UProgressBar* FallbackProgressBar = nullptr;
-	WidgetTree->ForEachWidget([&](UWidget* Widget)
-	{
-		if (FallbackProgressBar)
-		{
-			return;
-		}
-
-		if (UProgressBar* ProgressBar = Cast<UProgressBar>(Widget))
-		{
-			if (ProgressBarIndex == FallbackIndex)
-			{
-				FallbackProgressBar = ProgressBar;
-			}
-			++ProgressBarIndex;
-		}
-	});
-
-	if (FallbackProgressBar)
-	{
-		UE_LOG(LogEnemyHealthBarWidget, Warning, TEXT("FindProgressBarByNameOrIndex used fallback: widget=%s requested=%s fallback=%s index=%d"),
-			*GetNameSafe(this),
-			*WidgetName.ToString(),
-			*GetNameSafe(FallbackProgressBar),
-			FallbackIndex);
-	}
-
-	return FallbackProgressBar;
+	return Cast<UProgressBar>(WidgetTree->FindWidget(WidgetName));
 }
 
 float UEnemyHealthBarWidget::GetAttributeValue(const FGameplayAttribute& Attribute, bool* bOutSuccessfullyFoundAttribute) const
@@ -354,14 +303,7 @@ void UEnemyHealthBarWidget::OnHealthChanged(const FOnAttributeChangeData& Change
 	CurrentHealth = ChangeData.NewValue;
 	const float NewPercent = GetHealthPercent(CurrentHealth, MaxHealth);
 
-	UE_LOG(LogEnemyHealthBarWidget, Log, TEXT("OnHealthChanged: widget=%s owner=%s old=%.3f new=%.3f max=%.3f oldPercent=%.3f newPercent=%.3f"),
-		*GetNameSafe(this),
-		*GetNameSafe(OwnerActor.Get()),
-		ChangeData.OldValue,
-		ChangeData.NewValue,
-		MaxHealth,
-		OldPercent,
-		NewPercent);
+
 
 	UpdateHealthPercent();
 	AnimateHealth(OldPercent, NewPercent);
@@ -370,12 +312,6 @@ void UEnemyHealthBarWidget::OnHealthChanged(const FOnAttributeChangeData& Change
 void UEnemyHealthBarWidget::OnMaxHealthChanged(const FOnAttributeChangeData& ChangeData)
 {
 	MaxHealth = ChangeData.NewValue;
-	UE_LOG(LogEnemyHealthBarWidget, Log, TEXT("OnMaxHealthChanged: widget=%s owner=%s old=%.3f new=%.3f health=%.3f percent=%.3f"),
-		*GetNameSafe(this),
-		*GetNameSafe(OwnerActor.Get()),
-		ChangeData.OldValue,
-		ChangeData.NewValue,
-		CurrentHealth,
-		GetHealthPercent(CurrentHealth, MaxHealth));
+
 	UpdateHealthPercent();
 }

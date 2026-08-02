@@ -5,142 +5,226 @@
 #include "StatusViewModel.generated.h"
 
 class UAbilitySystemComponent;
+class UEquipmentComponent;
 struct FOnAttributeChangeData;
 
-/** 상태창 ViewModel 로그 카테고리입니다. */
 DECLARE_LOG_CATEGORY_EXTERN(StatusViewModelLog, Log, All);
 
-/**
- * <상태창 ViewModel>
- * - 상태창 수치를 보관합니다.
- * - ASC 변경 알림을 구독합니다.
- * - MVVM 바인딩 값을 갱신합니다.
- */
 UCLASS(BlueprintType)
 class LABPROJECT_API UStatusViewModel : public UCommonViewModelBase
 {
 	GENERATED_BODY()
 
 public:
-	/** 상태창 ViewModel 기본 상태를 초기화합니다. */
 	UStatusViewModel();
 
 	// Timing hooks
-	/** SourceObject로부터 ASC를 찾아 초기화합니다. */
 	virtual void InitializeViewModel(UObject* SourceObject) override;
 
-	/** ASC 바인딩을 해제합니다. */
 	virtual void UninitializeViewModel() override;
 
 private:
 	// Attribute delegate callbacks
-	/** 공격 수치 변경을 처리합니다. */
+	void OnLevelingChanged(const FOnAttributeChangeData& Data);
+
 	void OnOffenseChanged(const FOnAttributeChangeData& Data);
 
-	/** 방어 수치 변경을 처리합니다. */
 	void OnDefenseChanged(const FOnAttributeChangeData& Data);
 
-	/** 저항 수치 변경을 처리합니다. */
 	void OnResistanceChanged(const FOnAttributeChangeData& Data);
 
-	/** 판도라 수치 변경을 처리합니다. */
 	void OnPandoraForceChanged(const FOnAttributeChangeData& Data);
 
-	/** 민첩 수치 변경을 처리합니다. */
 	void OnAgilityChanged(const FOnAttributeChangeData& Data);
 
-	/** 체력 변경을 처리합니다. */
+	void OnInvestmentPointChanged(const FOnAttributeChangeData& Data);
+
+	void OnStatLevelChanged(const FOnAttributeChangeData& Data);
+
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 
-	/** 최대 체력 변경을 처리합니다. */
 	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
 
 	void OnShieldChanged(const FOnAttributeChangeData& Data);
 
 	void OnMaxShieldChanged(const FOnAttributeChangeData& Data);
 
-	/** 마나 변경을 처리합니다. */
 	void OnManaChanged(const FOnAttributeChangeData& Data);
 
-	/** 최대 마나 변경을 처리합니다. */
 	void OnMaxManaChanged(const FOnAttributeChangeData& Data);
 
-	/** 스태미나 변경을 처리합니다. */
 	void OnStaminaChanged(const FOnAttributeChangeData& Data);
 
-	/** 최대 스태미나 변경을 처리합니다. */
 	void OnMaxStaminaChanged(const FOnAttributeChangeData& Data);
 
+	void OnResourceIncreasePercentChanged(const FOnAttributeChangeData& Data);
+
+	void OnCurrentWeaponDefinitionChanged();
+
+	void RefreshEquipmentComponentBinding();
+
+	void ClearEquipmentComponentBinding();
+
 public:
-	/** 힘 수치입니다. */
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Leveling")
+	float Level = 1.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Experience")
+	float CurrentExperience = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Experience")
+	float MaxExperience = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Experience")
+	float ExperiencePercent = 0.f;
+
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Offense")
 	float Strength = 10.f;
 
-	/** 지능 수치입니다. */
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Offense")
+	float FinalStrength = 0.f;
+
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Offense")
 	float Intelligence = 10.f;
 
-	/** 신비 수치입니다. */
-	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Offense")
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Agility")
 	float Arcane = 10.f;
 
-	/** 강인함 수치입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Defense")
 	float Armor = 2.f;
 
-	/** 회복 수치입니다. */
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Defense")
+	float FinalArmor = 0.f;
+
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Defense")
 	float Recovery = 2.f;
 
-	/** 마법 저항 수치입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Defense")
-	float MagicResistance = 2.f;
+	float FinalRecovery = 0.f;
 
-	/** 면역 수치입니다. */
-	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Resistance")
-	float Immunity = 0.f;
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Defense")
+	float MaxShield = 100.f;
 
-	/** 인내 수치입니다. */
-	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Resistance")
-	float Fortitude = 0.f;
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Resistance", meta = (DisplayName = "Frostbite"))
+	float Frostbite = 0.f;
 
-	/** 정신 수치입니다. */
-	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Resistance")
-	float Sanity = 0.f;
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Resistance", meta = (DisplayName = "Burn"))
+	float Burn = 0.f;
 
-	/** 첫 번째 판도라 수치입니다. */
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Resistance", meta = (DisplayName = "Electric Shock"))
+	float ElectricShock = 0.f;
+
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|PandoraForce")
 	float FirstPandora = 1.f;
 
-	/** 두 번째 판도라 수치입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|PandoraForce")
 	float SecondPandora = 1.f;
 
-	/** 세 번째 판도라 수치입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|PandoraForce")
 	float ThirdPandora = 1.f;
 
-	/** 공격 속도 수치입니다. */
-	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Agility")
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Agility", meta = (ForceUnits = "%"))
 	float AttackSpeed = 0.f;
 
-	/** 이동 속도 수치입니다. */
-	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Agility")
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Agility", meta = (ForceUnits = "%"))
 	float MovementSpeed = 0.f;
 
-	/** 치명타 확률 수치입니다. */
-	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Agility")
-	float CriticalChance = 0.f;
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Offense")
+	float Critical = 0.f;
 
-	/** 현재 체력입니다. */
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Offense")
+	float FinalCriticalDamage = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Point")
+	float OffensePoint = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Point")
+	float DefensePoint = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Point")
+	float ResistancePoint = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Point")
+	float PandoraForcePoint = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Point")
+	float ResourcePoint = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Point")
+	float AgilityPoint = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float StrengthLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float IntelligenceLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float ArcaneLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float ArmorLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float RecoveryLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float MaxShieldLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level", meta = (DisplayName = "Frostbite Level"))
+	float FrostbiteLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level", meta = (DisplayName = "Burn Level"))
+	float BurnLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level", meta = (DisplayName = "Electric Shock Level"))
+	float ElectricShockLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float FirstPandoraLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float SecondPandoraLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float ThirdPandoraLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float MaxHealthLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float MaxManaLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float MaxStaminaLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Resource", meta = (ForceUnits = "%"))
+	float MaxHealthIncreasePercent = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Defense", meta = (ForceUnits = "%"))
+	float MaxShieldIncreasePercent = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Resource", meta = (ForceUnits = "%"))
+	float MaxManaIncreasePercent = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Resource", meta = (ForceUnits = "%"))
+	float MaxStaminaIncreasePercent = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float AttackSpeedLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float MovementSpeedLevel = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stat Level")
+	float CriticalLevel = 0.f;
+
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Health")
 	float Health = 100.f;
 
-	/** 최대 체력입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Health")
 	float MaxHealth = 100.f;
 
-	/** 체력 비율입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Health")
 	float HealthPercent = 1.f;
 
@@ -148,70 +232,61 @@ public:
 	float Shield = 0.f;
 
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Shield")
-	float MaxShield = 100.f;
-
-	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Shield")
 	float ShieldPercent = 0.f;
 
-	/** 현재 마나입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Mana")
 	float Mana = 100.f;
 
-	/** 최대 마나입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Mana")
 	float MaxMana = 100.f;
 
-	/** 마나 비율입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Mana")
 	float ManaPercent = 1.f;
 
-	/** 현재 스태미나입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stamina")
 	float Stamina = 100.f;
 
-	/** 최대 스태미나입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stamina")
 	float MaxStamina = 100.f;
 
-	/** 스태미나 비율입니다. */
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stamina")
 	float StaminaPercent = 1.f;
 
-	/** 공격 관련 값을 갱신합니다. */
+	void UpdateLevelingData();
+
 	void UpdateOffenseData();
 
-	/** 방어 관련 값을 갱신합니다. */
 	void UpdateDefenseData();
 
-	/** 저항 관련 값을 갱신합니다. */
 	void UpdateResistanceData();
 
-	/** 판도라 관련 값을 갱신합니다. */
 	void UpdatePandoraForceData();
 
-	/** 민첩 관련 값을 갱신합니다. */
 	void UpdateAgilityData();
 
-	/** 체력 관련 값을 갱신합니다. */
+	void UpdateInvestmentPointData();
+
+	void UpdateStatLevelData();
+
+	void UpdateResourceIncreasePercentData();
+
 	void UpdateHealthData();
 
 	void UpdateShieldData();
 
-	/** 마나 관련 값을 갱신합니다. */
 	void UpdateManaData();
 
-	/** 스태미나 관련 값을 갱신합니다. */
 	void UpdateStaminaData();
 
-	/** 모든 값을 갱신합니다. */
 	void UpdateAllData();
 
 public:
-	/** MVVM에서 사용할 ViewModel 이름입니다. */
 	static const FName ViewModelName;
 
 protected:
-	/** 현재 바인딩된 ASC입니다. */
 	UPROPERTY()
 	TWeakObjectPtr<UAbilitySystemComponent> ASC;
+
+	UPROPERTY()
+	TWeakObjectPtr<UEquipmentComponent> EquipmentComponent;
 };

@@ -12,9 +12,11 @@ class UImage;
 class UInputAction;
 class UOverlay;
 class UProgressBar;
+class USkillDefinition;
 class UTextBlock;
 class UTexture2D;
 class UWidget;
+struct FOnAttributeChangeData;
 struct FSkill;
 
 UCLASS(BlueprintType, Blueprintable)
@@ -38,8 +40,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
 	void SetAbilitySlotEnabled(bool bEnabled);
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
+	void SetSkillSlotIndex(int32 InSkillSlotIndex);
+
 	UFUNCTION(BlueprintPure, Category = "!UI|Ability")
 	FGameplayAbilitySpecHandle GetAbilitySpecHandle() const { return AbilitySpecHandle; }
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Ability")
+	int32 GetSkillSlotIndex() const { return SkillSlotIndex; }
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
 	void SetAbilityImage();
@@ -54,6 +62,9 @@ public:
 	void CheckForActivation();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
+	void CheckForManaAvailability();
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
 	void UpdateCooldownProgress();
 
 protected:
@@ -61,20 +72,27 @@ protected:
 	virtual void NativeDestruct() override;
 
 private:
+	void ApplyWidgetDefinitionSettings();
 	void InitializeAbilityObject();
+	void RefreshAbilityBinding();
 	void BindGameplayTagEvents();
 	void UnbindGameplayTagEvents();
 	void ClearCooldownTimer();
 	void HandleCooldownTagChanged(FGameplayTag CallbackTag, int32 NewCount);
 	void HandleGameplayAbilityTagChanged(FGameplayTag CallbackTag, int32 NewCount);
+	void HandleManaChanged(const FOnAttributeChangeData& ChangeData);
 	void SetInputKeyRenderOpacity(float InOpacity) const;
 	void ApplyAbilitySlotEnabledState();
 
 	UObject* ResolveAbilityImage() const;
-	FText ResolveAbilityDisplayName() const;
 	const FSkill* ResolvePandoraSkill() const;
+	const USkillDefinition* ResolveSkillDataAsset() const;
+	FGameplayTag ResolveSkillSlotCooldownTag() const;
+	float ResolveCooldownTimeRemaining() const;
+	double ResolveConfiguredCooldownDuration() const;
 	UInputAction* ResolveInputAction() const;
 	UObject* ResolveInputIconObject() const;
+	UObject* ResolveFixedSkillSlotInputIconObject() const;
 
 	static FSlateBrush MakeImageBrush(UObject* ResourceObject);
 	static FSlateBrush MakeImageBrushFromExisting(const FSlateBrush& ExistingBrush, UObject* ResourceObject, FVector2D ImageSize);
@@ -87,16 +105,13 @@ private:
 	TObjectPtr<UGameplayAbility> AbilityObjectRef;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Ability", meta = (AllowPrivateAccess = "true"))
-	bool bHasAbilityDisplayOverride = false;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Ability", meta = (AllowPrivateAccess = "true"))
-	FText AbilityDisplayNameOverride;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Ability", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UObject> AbilityIconOverride;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Ability", meta = (AllowPrivateAccess = "true"))
 	bool bAbilitySlotEnabled = true;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Ability", meta = (AllowPrivateAccess = "true"))
+	int32 SkillSlotIndex = INDEX_NONE;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability|Disabled", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ClampMax = "1.0"))
 	float DisabledSlotOpacity = 0.35f;
@@ -147,9 +162,6 @@ private:
 	TObjectPtr<UImage> AbilityImage;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> AbilityText;
-
-	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> CooldownProgress;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -162,6 +174,9 @@ private:
 	TObjectPtr<UWidget> AbilityActiveFrame;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> AbilityDisableFrame;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UOverlay> InputKeyOverlay;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -170,11 +185,10 @@ private:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UImage> KeyIcon;
 
-	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UImage> InputKeyIcon;
-
 	TWeakObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
+	FGameplayTag BoundCooldownTag;
 	FDelegateHandle CooldownTagChangedHandle;
 	FDelegateHandle GameplayAbilityTagChangedHandle;
+	FDelegateHandle ManaChangedHandle;
 	FTimerHandle UpdateCooldownTimerHandle;
 };

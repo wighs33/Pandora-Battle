@@ -9,7 +9,7 @@
 class AActor;
 class UAbilitySystemComponent;
 class UImage;
-class UPdStatusEffectDataAsset;
+class UStatusEffectDefinition;
 class UProgressBar;
 struct FGameplayEventData;
 
@@ -23,10 +23,10 @@ public:
 	void SetOwnerActor(AActor* InOwnerActor);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|StatusEffect")
-	void SetEffectDataAsset(UPdStatusEffectDataAsset* InEffectDataAsset);
+	void SetEffectDataAsset(UStatusEffectDefinition* InEffectDataAsset);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "!UI|StatusEffect")
-	UPdStatusEffectDataAsset* GetEffectDataAsset() const;
+	UStatusEffectDefinition* GetEffectDataAsset() const;
 
 protected:
 	virtual void NativePreConstruct() override;
@@ -46,7 +46,7 @@ protected:
 	TObjectPtr<AActor> OwnerActor;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"), Category = "!UI|StatusEffect")
-	TObjectPtr<UPdStatusEffectDataAsset> EffectDataAsset;
+	TObjectPtr<UStatusEffectDefinition> EffectDataAsset;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|StatusEffect")
 	int32 CurrentStackCount = 0;
@@ -57,7 +57,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0"), Category = "!UI|StatusEffect")
 	float InitialIconOpacity = 0.65f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect")
+	FVector2D IconImageSize = FVector2D(32.0f, 32.0f);
+
 private:
+	void ApplyWidgetDefinitionSettings();
 	void InitializeStatusEffect();
 	void ApplyDesignerDefaults();
 	void SetInitialValues();
@@ -95,5 +99,4 @@ private:
 	FTimerHandle DecreaseStackFillTimer;
 	FTimerHandle UpdateTimeRemainingTimer;
 	bool bIsConstructed = false;
-	bool bRemoveWhenStatusEffectTagRemoved = false;
 };

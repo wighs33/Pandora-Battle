@@ -2,10 +2,13 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Components/SceneComponent.h"
+#include "Components/TextBlock.h"
 #include "Components/WidgetComponent.h"
 #include "Curves/CurveFloat.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "Map/TransientActorRegistrySubsystem.h"
 #include "UObject/UnrealType.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageIndicatorActor)
 
@@ -43,6 +46,32 @@ namespace
 			BoolProperty->SetPropertyValue_InContainer(Object, bValue);
 		}
 	}
+
+	bool IsDamageForLocalPlayer(const AActor* DamagedActor)
+	{
+		const APawn* DamagedPawn = Cast<APawn>(DamagedActor);
+		const APlayerController* PlayerController =
+			DamagedPawn ? Cast<APlayerController>(DamagedPawn->GetController()) : nullptr;
+		return PlayerController && PlayerController->IsLocalController();
+	}
+
+	void ApplyLocalPlayerDamageOutline(UUserWidget* UserWidget, const AActor* DamagedActor)
+	{
+		if (!UserWidget || !IsDamageForLocalPlayer(DamagedActor))
+		{
+			return;
+		}
+
+		UTextBlock* DamageText = Cast<UTextBlock>(UserWidget->GetWidgetFromName(TEXT("DamageText")));
+		if (!DamageText)
+		{
+			return;
+		}
+
+		FSlateFontInfo FontInfo = DamageText->GetFont();
+		FontInfo.OutlineSettings.OutlineColor = FLinearColor(0.1f, 0.0f, 0.05f, 1.0f);
+		DamageText->SetFont(FontInfo);
+	}
 }
 
 ADamageIndicatorActor::ADamageIndicatorActor(const FObjectInitializer& ObjectInitializer)
@@ -66,6 +95,15 @@ void ADamageIndicatorActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (UWorld* World = GetWorld())
+	{
+		if (UTransientActorRegistrySubsystem* Registry =
+			World->GetSubsystem<UTransientActorRegistrySubsystem>())
+		{
+			Registry->RegisterTransientActor(this, GetOwner());
+		}
+	}
+
 	if (DamageWidget)
 	{
 		DamageWidget->InitWidget();
@@ -77,6 +115,20 @@ void ADamageIndicatorActor::BeginPlay()
 		ReceiveDamageIndicatorInitialized(Payload);
 		StartMovement();
 	}
+}
+
+void ADamageIndicatorActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (UTransientActorRegistrySubsystem* Registry =
+			World->GetSubsystem<UTransientActorRegistrySubsystem>())
+		{
+			Registry->UnregisterTransientActor(this);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void ADamageIndicatorActor::Tick(float DeltaSeconds)
@@ -137,6 +189,7 @@ void ADamageIndicatorActor::ApplyPayloadToWidget()
 	SetNumericProperty(UserWidget, TEXT("DamageAmount"), Payload.DamageAmount);
 	SetNumericProperty(UserWidget, TEXT("Damage"), Payload.DamageAmount);
 	SetBoolProperty(UserWidget, TEXT("bCriticalHit"), Payload.bCriticalHit);
+	ApplyLocalPlayerDamageOutline(UserWidget, Payload.DamagedActor);
 }
 
 void ADamageIndicatorActor::StartMovement()

@@ -2,22 +2,25 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/Skills/SkillTypes.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Definition/AbilitySystem/SkillTypes.h"
 #include "Abilities/GameplayAbility.h"
 #include "Common/LabGameplayTags.h"
+#include "Component/Pandora/PandoraComponent.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
-#include "EnhancedInputSubsystems.h"
 #include "Engine/Texture2D.h"
-#include "Engine/LocalPlayer.h"
 #include "InputAction.h"
-#include "InputCoreTypes.h"
-#include "Pandora/PandoraDefinition.h"
+#include "Definition/Pandora/PandoraDefinition.h"
+#include "GameFramework/PlayerController.h"
+#include "Mode/PdPlayerState.h"
 #include "Pandora/PandoraSkillRuntimeContext.h"
 #include "TimerManager.h"
+#include "UI/Widget/InputKeyIconResolver.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitySlotWidget)
 
@@ -25,18 +28,13 @@ void UAbilitySlotWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	InitializeAbilityObject();
+	ApplyWidgetDefinitionSettings();
 	SetAbilityImage();
 	SetInputKeyRenderOpacity(ReadyInputKeyOpacity);
 
 	if (InputKeyOverlay)
 	{
 		InputKeyOverlay->SetVisibility(bHideInputKeyIcon ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
-	}
-
-	if (AbilityText)
-	{
-		AbilityText->SetText(ResolveAbilityDisplayName());
 	}
 
 	if (CooldownProgress)
@@ -54,6 +52,11 @@ void UAbilitySlotWidget::NativeConstruct()
 		AbilityActiveFrame->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
+	if (AbilityDisableFrame)
+	{
+		AbilityDisableFrame->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
 	if (TimerText)
 	{
 		TimerText->SetText(FText::GetEmpty());
@@ -61,9 +64,7 @@ void UAbilitySlotWidget::NativeConstruct()
 
 	ApplyAbilitySlotEnabledState();
 
-	CheckForCooldown();
-	CheckForActivation();
-	BindGameplayTagEvents();
+	RefreshAbilityBinding();
 
 	if (UWorld* World = GetWorld())
 	{
@@ -85,6 +86,10 @@ void UAbilitySlotWidget::NativeDestruct()
 void UAbilitySlotWidget::SetAbilitySpecHandle(FGameplayAbilitySpecHandle InAbilitySpecHandle)
 {
 	AbilitySpecHandle = InAbilitySpecHandle;
+	RefreshAbilityBinding();
+	SetAbilityImage();
+
+	SetInputKeyIcon();
 }
 
 void UAbilitySlotWidget::SetAbilitySlotData(
@@ -108,22 +113,23 @@ void UAbilitySlotWidget::SetAbilitySlotDataEnabled(
 
 void UAbilitySlotWidget::SetAbilityDisplayOverride(FText InDisplayNameOverride, UObject* InIconOverride)
 {
-	bHasAbilityDisplayOverride = true;
-	AbilityDisplayNameOverride = MoveTemp(InDisplayNameOverride);
+	static_cast<void>(InDisplayNameOverride);
 	AbilityIconOverride = InIconOverride;
 
 	SetAbilityImage();
-
-	if (AbilityText)
-	{
-		AbilityText->SetText(ResolveAbilityDisplayName());
-	}
 }
 
 void UAbilitySlotWidget::SetAbilitySlotEnabled(bool bEnabled)
 {
 	bAbilitySlotEnabled = bEnabled;
 	ApplyAbilitySlotEnabledState();
+}
+
+void UAbilitySlotWidget::SetSkillSlotIndex(const int32 InSkillSlotIndex)
+{
+	SkillSlotIndex = InSkillSlotIndex;
+	SetInputKeyIcon();
+	CheckForManaAvailability();
 }
 
 void UAbilitySlotWidget::SetAbilityImage()
@@ -136,8 +142,12 @@ void UAbilitySlotWidget::SetAbilityImage()
 
 void UAbilitySlotWidget::SetInputKeyIcon()
 {
-	if (!InputKeyOverlay)
+	if (!InputKeyOverlay || !KeyIcon)
 	{
+		if (InputKeyOverlay)
+		{
+			InputKeyOverlay->SetVisibility(ESlateVisibility::Collapsed);
+		}
 		return;
 	}
 
@@ -155,10 +165,7 @@ void UAbilitySlotWidget::SetInputKeyIcon()
 	}
 
 	InputKeyOverlay->SetVisibility(ESlateVisibility::Visible);
-	if (UImage* IconImage = KeyIcon ? KeyIcon.Get() : InputKeyIcon.Get())
-	{
-		IconImage->SetBrush(MakeImageBrushFromExisting(IconImage->GetBrush(), IconObject, InputKeyIconSize));
-	}
+	KeyIcon->SetBrush(MakeImageBrushFromExisting(KeyIcon->GetBrush(), IconObject, InputKeyIconSize));
 }
 
 void UAbilitySlotWidget::CheckForCooldown()
@@ -173,7 +180,7 @@ void UAbilitySlotWidget::CheckForCooldown()
 		return;
 	}
 
-	if (!AbilityObjectRef)
+	if (!AbilityObjectRef && !AbilitySpecHandle.IsValid())
 	{
 		return;
 	}
@@ -186,11 +193,16 @@ void UAbilitySlotWidget::CheckForCooldown()
 		}
 	}
 
-	TotalCooldownTime = AbilityObjectRef->GetCooldownTimeRemaining();
-	if (TotalCooldownTime <= 0.0)
+	const float TimeRemaining = ResolveCooldownTimeRemaining();
+	if (TimeRemaining <= 0.0f)
 	{
 		return;
 	}
+
+	const double ConfiguredCooldownDuration = ResolveConfiguredCooldownDuration();
+	TotalCooldownTime = ConfiguredCooldownDuration > 0.0
+		? FMath::Max(ConfiguredCooldownDuration, static_cast<double>(TimeRemaining))
+		: static_cast<double>(TimeRemaining);
 
 	ClearCooldownTimer();
 
@@ -210,6 +222,7 @@ void UAbilitySlotWidget::CheckForCooldown()
 	}
 
 	SetInputKeyRenderOpacity(CooldownInputKeyOpacity);
+
 	UpdateCooldownProgress();
 }
 
@@ -232,8 +245,28 @@ void UAbilitySlotWidget::CheckForActivation()
 
 	if (InputKeyBackground)
 	{
-		InputKeyBackground->SetColorAndOpacity(bIsActive ? ActiveInputKeyColor : InactiveInputKeyColor);
+		InputKeyBackground->SetBrushTintColor(FSlateColor(bIsActive ? ActiveInputKeyColor : InactiveInputKeyColor));
 	}
+}
+
+void UAbilitySlotWidget::CheckForManaAvailability()
+{
+	if (!AbilityDisableFrame)
+	{
+		return;
+	}
+
+	const USkillDefinition* SkillDataAsset = ResolveSkillDataAsset();
+	const double ManaCost = SkillDataAsset ? FMath::Max(SkillDataAsset->ManaCost, 0.0) : 0.0;
+	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
+	const bool bHasManaCostData = bAbilitySlotEnabled && AbilitySystemComponent && ManaCost > 0.0;
+	const double CurrentMana = bHasManaCostData
+		? static_cast<double>(AbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetManaAttribute()))
+		: 0.0;
+	const bool bInsufficientMana = bHasManaCostData && CurrentMana + UE_SMALL_NUMBER < ManaCost;
+
+	AbilityDisableFrame->SetVisibility(
+		bInsufficientMana ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 }
 
 void UAbilitySlotWidget::UpdateCooldownProgress()
@@ -244,12 +277,12 @@ void UAbilitySlotWidget::UpdateCooldownProgress()
 		return;
 	}
 
-	if (!AbilityObjectRef)
+	if (!AbilityObjectRef && !AbilitySpecHandle.IsValid())
 	{
 		return;
 	}
 
-	const float TimeRemaining = AbilityObjectRef->GetCooldownTimeRemaining();
+	const float TimeRemaining = ResolveCooldownTimeRemaining();
 	if (TimeRemaining <= 0.0f)
 	{
 		ClearCooldownTimer();
@@ -313,6 +346,56 @@ void UAbilitySlotWidget::InitializeAbilityObject()
 	AbilityObjectRef = const_cast<UGameplayAbility*>(GameplayAbility);
 }
 
+void UAbilitySlotWidget::ApplyWidgetDefinitionSettings()
+{
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	if (!WidgetDefinition)
+	{
+		return;
+	}
+
+	const FAbilitySlotWidgetSettings& Settings = WidgetDefinition->GetAbilitySlotWidgetSettings();
+	DisabledSlotOpacity = Settings.DisabledSlotOpacity;
+	bShowCooldownTimeRemaining = Settings.bShowCooldownTimeRemaining;
+	bHideInputKeyIcon = Settings.InputKeyIconSettings.bHideInputKeyIcon;
+	ReadyInputKeyOpacity = Settings.ReadyInputKeyOpacity;
+	CooldownInputKeyOpacity = Settings.CooldownInputKeyOpacity;
+	ActiveInputKeyColor = Settings.ActiveInputKeyColor;
+	InactiveInputKeyColor = Settings.InactiveInputKeyColor;
+	InputKeyIconSize = Settings.InputKeyIconSettings.IconSize;
+
+	if (!Settings.DefaultAbilityImage.IsNull())
+	{
+		DefaultAbilityImage = Settings.DefaultAbilityImage.Get();
+	}
+	if (!Settings.Skill1InputAction.IsNull())
+	{
+		Skill1InputAction = Settings.Skill1InputAction.Get();
+	}
+	if (!Settings.Skill2InputAction.IsNull())
+	{
+		Skill2InputAction = Settings.Skill2InputAction.Get();
+	}
+	if (!Settings.Skill3InputAction.IsNull())
+	{
+		Skill3InputAction = Settings.Skill3InputAction.Get();
+	}
+	if (!Settings.Skill4InputAction.IsNull())
+	{
+		Skill4InputAction = Settings.Skill4InputAction.Get();
+	}
+}
+
+void UAbilitySlotWidget::RefreshAbilityBinding()
+{
+	UnbindGameplayTagEvents();
+	InitializeAbilityObject();
+	BindGameplayTagEvents();
+	CheckForCooldown();
+	CheckForActivation();
+	CheckForManaAvailability();
+}
+
 void UAbilitySlotWidget::BindGameplayTagEvents()
 {
 	UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
@@ -321,9 +404,14 @@ void UAbilitySlotWidget::BindGameplayTagEvents()
 		return;
 	}
 
-	const FGameplayTag CooldownTag = LabGameplayTags::Cooldown;
+	FGameplayTag CooldownTag = ResolveSkillSlotCooldownTag();
+	if (!CooldownTag.IsValid())
+	{
+		CooldownTag = LabGameplayTags::Cooldown;
+	}
 	if (CooldownTag.IsValid())
 	{
+		BoundCooldownTag = CooldownTag;
 		CooldownTagChangedHandle = AbilitySystemComponent->RegisterGameplayTagEvent(CooldownTag, EGameplayTagEventType::AnyCountChange)
 			.AddUObject(this, &ThisClass::HandleCooldownTagChanged);
 	}
@@ -334,6 +422,10 @@ void UAbilitySlotWidget::BindGameplayTagEvents()
 		GameplayAbilityTagChangedHandle = AbilitySystemComponent->RegisterGameplayTagEvent(GameplayAbilityTag, EGameplayTagEventType::AnyCountChange)
 			.AddUObject(this, &ThisClass::HandleGameplayAbilityTagChanged);
 	}
+
+	ManaChangedHandle = AbilitySystemComponent
+		->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetManaAttribute())
+		.AddUObject(this, &ThisClass::HandleManaChanged);
 }
 
 void UAbilitySlotWidget::UnbindGameplayTagEvents()
@@ -342,16 +434,20 @@ void UAbilitySlotWidget::UnbindGameplayTagEvents()
 	if (!AbilitySystemComponent)
 	{
 		CachedAbilitySystemComponent.Reset();
+		BoundCooldownTag = FGameplayTag();
+		CooldownTagChangedHandle.Reset();
+		GameplayAbilityTagChangedHandle.Reset();
+		ManaChangedHandle.Reset();
 		return;
 	}
 
-	const FGameplayTag CooldownTag = LabGameplayTags::Cooldown;
-	if (CooldownTag.IsValid() && CooldownTagChangedHandle.IsValid())
+	if (BoundCooldownTag.IsValid() && CooldownTagChangedHandle.IsValid())
 	{
-		AbilitySystemComponent->RegisterGameplayTagEvent(CooldownTag, EGameplayTagEventType::AnyCountChange)
+		AbilitySystemComponent->RegisterGameplayTagEvent(BoundCooldownTag, EGameplayTagEventType::AnyCountChange)
 			.Remove(CooldownTagChangedHandle);
 		CooldownTagChangedHandle.Reset();
 	}
+	BoundCooldownTag = FGameplayTag();
 
 	const FGameplayTag GameplayAbilityTag = LabGameplayTags::GameplayAbility;
 	if (GameplayAbilityTag.IsValid() && GameplayAbilityTagChangedHandle.IsValid())
@@ -359,6 +455,14 @@ void UAbilitySlotWidget::UnbindGameplayTagEvents()
 		AbilitySystemComponent->RegisterGameplayTagEvent(GameplayAbilityTag, EGameplayTagEventType::AnyCountChange)
 			.Remove(GameplayAbilityTagChangedHandle);
 		GameplayAbilityTagChangedHandle.Reset();
+	}
+
+	if (ManaChangedHandle.IsValid())
+	{
+		AbilitySystemComponent
+			->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetManaAttribute())
+			.Remove(ManaChangedHandle);
+		ManaChangedHandle.Reset();
 	}
 
 	CachedAbilitySystemComponent.Reset();
@@ -376,8 +480,7 @@ void UAbilitySlotWidget::ClearCooldownTimer()
 
 void UAbilitySlotWidget::HandleCooldownTagChanged(FGameplayTag CallbackTag, int32 NewCount)
 {
-	static_cast<void>(CallbackTag);
-	static_cast<void>(NewCount);
+
 	CheckForCooldown();
 }
 
@@ -386,6 +489,12 @@ void UAbilitySlotWidget::HandleGameplayAbilityTagChanged(FGameplayTag CallbackTa
 	static_cast<void>(CallbackTag);
 	static_cast<void>(NewCount);
 	CheckForActivation();
+}
+
+void UAbilitySlotWidget::HandleManaChanged(const FOnAttributeChangeData& ChangeData)
+{
+	static_cast<void>(ChangeData);
+	CheckForManaAvailability();
 }
 
 void UAbilitySlotWidget::SetInputKeyRenderOpacity(float InOpacity) const
@@ -402,11 +511,6 @@ void UAbilitySlotWidget::ApplyAbilitySlotEnabledState()
 	if (AbilityImage)
 	{
 		AbilityImage->SetRenderOpacity(ContentOpacity);
-	}
-
-	if (AbilityText)
-	{
-		AbilityText->SetRenderOpacity(ContentOpacity);
 	}
 
 	if (InputKeyOverlay)
@@ -427,6 +531,8 @@ void UAbilitySlotWidget::ApplyAbilitySlotEnabledState()
 			AbilityActiveFrame->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
+
+	CheckForManaAvailability();
 }
 
 UObject* UAbilitySlotWidget::ResolveAbilityImage() const
@@ -444,57 +550,15 @@ UObject* UAbilitySlotWidget::ResolveAbilityImage() const
 		}
 	}
 
-	if (const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get())
+	if (const USkillDefinition* SkillDataAsset = ResolveSkillDataAsset())
 	{
-		const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle);
-		const UObject* SourceObject = AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr;
-		const UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(SourceObject);
-		const USkillDataAsset* SkillDataAsset = RuntimeContext ? RuntimeContext->GetSkillDataAsset() : Cast<USkillDataAsset>(SourceObject);
-		if (SkillDataAsset)
+		if (UObject* SkillIcon = SkillDataAsset->GetIconResource())
 		{
-			if (UObject* SkillIcon = SkillDataAsset->GetIconResource())
-			{
-				return SkillIcon;
-			}
+			return SkillIcon;
 		}
 	}
 
 	return DefaultAbilityImage.Get();
-}
-
-FText UAbilitySlotWidget::ResolveAbilityDisplayName() const
-{
-	if (bHasAbilityDisplayOverride && !AbilityDisplayNameOverride.IsEmpty())
-	{
-		return AbilityDisplayNameOverride;
-	}
-
-	if (const FSkill* PandoraSkill = ResolvePandoraSkill())
-	{
-		const FText SkillDisplayName = PandoraSkill->GetDisplayName();
-		if (!SkillDisplayName.IsEmpty())
-		{
-			return SkillDisplayName;
-		}
-	}
-
-	if (const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get())
-	{
-		const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle);
-		const UObject* SourceObject = AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr;
-		const UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(SourceObject);
-		const USkillDataAsset* SkillDataAsset = RuntimeContext ? RuntimeContext->GetSkillDataAsset() : Cast<USkillDataAsset>(SourceObject);
-		if (SkillDataAsset)
-		{
-			const FText SkillDisplayName = SkillDataAsset->GetDisplayName();
-			if (!SkillDisplayName.IsEmpty())
-			{
-				return SkillDisplayName;
-			}
-		}
-	}
-
-	return AbilityObjectRef ? FText::FromString(AbilityObjectRef->GetClass()->GetName()) : FText::GetEmpty();
 }
 
 const FSkill* UAbilitySlotWidget::ResolvePandoraSkill() const
@@ -510,6 +574,123 @@ const FSkill* UAbilitySlotWidget::ResolvePandoraSkill() const
 		? Cast<UPandoraSkillRuntimeContext>(AbilitySpec->SourceObject.Get())
 		: nullptr;
 	return RuntimeContext ? RuntimeContext->GetPandoraSkill() : nullptr;
+}
+
+const USkillDefinition* UAbilitySlotWidget::ResolveSkillDataAsset() const
+{
+	if (const FSkill* PandoraSkill = ResolvePandoraSkill())
+	{
+		if (const USkillDefinition* SkillDataAsset = PandoraSkill->SkillDefinition.Get())
+		{
+			return SkillDataAsset;
+		}
+	}
+
+	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
+	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent ? AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle) : nullptr;
+	const UObject* SourceObject = AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr;
+	const UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(SourceObject);
+	if (RuntimeContext)
+	{
+		return RuntimeContext->GetSkillDataAsset();
+	}
+	if (const USkillDefinition* SourceSkillDataAsset = Cast<USkillDefinition>(SourceObject))
+	{
+		return SourceSkillDataAsset;
+	}
+
+	const APdPlayerState* PlayerState = nullptr;
+	if (const APlayerController* OwningPlayer = GetOwningPlayer())
+	{
+		PlayerState = OwningPlayer->GetPlayerState<APdPlayerState>();
+	}
+	if (!PlayerState)
+	{
+		if (const APawn* OwningPawn = GetOwningPlayerPawn())
+		{
+			PlayerState = OwningPawn->GetPlayerState<APdPlayerState>();
+		}
+	}
+
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	const UPandoraDefinition* PandoraDefinition = PandoraComponent
+		? PandoraComponent->GetCurrentPandoraDefinition()
+		: nullptr;
+	return PandoraDefinition && PandoraDefinition->Skill.IsValidIndex(SkillSlotIndex)
+		? PandoraDefinition->Skill[SkillSlotIndex].SkillDefinition.Get()
+		: nullptr;
+}
+
+FGameplayTag UAbilitySlotWidget::ResolveSkillSlotCooldownTag() const
+{
+	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
+	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent ? AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle) : nullptr;
+	if (!AbilitySpec)
+	{
+		return FGameplayTag();
+	}
+
+	const FGameplayTagContainer& SourceTags = AbilitySpec->GetDynamicSpecSourceTags();
+	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill1))
+	{
+		return LabGameplayTags::Cooldown_Skill1;
+	}
+	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill2))
+	{
+		return LabGameplayTags::Cooldown_Skill2;
+	}
+	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill3))
+	{
+		return LabGameplayTags::Cooldown_Skill3;
+	}
+	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill4))
+	{
+		return LabGameplayTags::Cooldown_Skill4;
+	}
+
+	return FGameplayTag();
+}
+
+float UAbilitySlotWidget::ResolveCooldownTimeRemaining() const
+{
+	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
+	const FGameplayTag SkillSlotCooldownTag = ResolveSkillSlotCooldownTag();
+	if (AbilitySystemComponent && SkillSlotCooldownTag.IsValid())
+	{
+		FGameplayTagContainer CooldownTags;
+		CooldownTags.AddTag(SkillSlotCooldownTag);
+		const FGameplayEffectQuery Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(CooldownTags);
+		TArray<float> Durations = AbilitySystemComponent->GetActiveEffectsTimeRemaining(Query);
+		if (Durations.Num() > 0)
+		{
+			Durations.Sort();
+			return Durations.Last();
+		}
+	}
+
+	return AbilityObjectRef ? AbilityObjectRef->GetCooldownTimeRemaining() : 0.0f;
+}
+
+double UAbilitySlotWidget::ResolveConfiguredCooldownDuration() const
+{
+	const USkillDefinition* SkillDataAsset = ResolveSkillDataAsset();
+	double CooldownDuration = SkillDataAsset ? FMath::Max(SkillDataAsset->Time.CooldownDuration, 0.0) : 0.0;
+	if (CooldownDuration <= 0.0)
+	{
+		return 0.0;
+	}
+
+	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
+	const float ArcaneReductionPercent = AbilitySystemComponent
+		? FMath::Max(AbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetArcaneAttribute()), 0.0f)
+		: 0.0f;
+	if (ArcaneReductionPercent <= 0.0f)
+	{
+		return CooldownDuration;
+	}
+
+	const double ReductionAlpha = FMath::Clamp(static_cast<double>(ArcaneReductionPercent), 0.0, 100.0) / 100.0;
+	return FMath::Max(CooldownDuration * (1.0 - ReductionAlpha), 0.0);
 }
 
 UInputAction* UAbilitySlotWidget::ResolveInputAction() const
@@ -544,57 +725,36 @@ UInputAction* UAbilitySlotWidget::ResolveInputAction() const
 
 UObject* UAbilitySlotWidget::ResolveInputIconObject() const
 {
+	if (UObject* FixedIconObject = ResolveFixedSkillSlotInputIconObject())
+	{
+		return FixedIconObject;
+	}
+
 	const UInputAction* InputAction = ResolveInputAction();
-	APlayerController* PlayerController = GetOwningPlayer();
-	ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
-	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
-	if (!InputAction || !InputSubsystem)
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	if (!InputAction || !WidgetDefinition)
 	{
 		return nullptr;
 	}
 
-	const auto FindIcon = [this](const FString& Candidate) -> UObject*
+	return PdInputKeyIconResolver::ResolveIconObject(
+		GetOwningPlayer(),
+		InputAction,
+		WidgetDefinition->GetAbilitySlotWidgetSettings().InputKeyIconSettings);
+}
+
+UObject* UAbilitySlotWidget::ResolveFixedSkillSlotInputIconObject() const
+{
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	if (!WidgetDefinition)
 	{
-		if (const TObjectPtr<UObject>* IconObject = StringToIconMapping.Find(Candidate))
-		{
-			return IconObject->Get();
-		}
-
-		for (const TPair<FString, TObjectPtr<UObject>>& Pair : StringToIconMapping)
-		{
-			if (Pair.Key.Equals(Candidate, ESearchCase::IgnoreCase))
-			{
-				return Pair.Value.Get();
-			}
-		}
-
 		return nullptr;
-	};
-
-	const TArray<FKey> MappedKeys = InputSubsystem->QueryKeysMappedToAction(InputAction);
-	for (const FKey& MappedKey : MappedKeys)
-	{
-		TArray<FString> Candidates;
-		Candidates.Add(MappedKey.GetDisplayName(false).ToString());
-		Candidates.Add(MappedKey.GetDisplayName(true).ToString());
-		Candidates.Add(MappedKey.GetFName().ToString());
-
-		const int32 InitialCandidateCount = Candidates.Num();
-		for (int32 Index = 0; Index < InitialCandidateCount; ++Index)
-		{
-			Candidates.Add(Candidates[Index].Replace(TEXT(" "), TEXT("")));
-		}
-
-		for (const FString& Candidate : Candidates)
-		{
-			if (UObject* IconObject = FindIcon(Candidate))
-			{
-				return IconObject;
-			}
-		}
 	}
 
-	return nullptr;
+	const FString FixedKeyName = PdInputKeyIconResolver::GetFixedSkillSlotKeyName(SkillSlotIndex);
+	return PdInputKeyIconResolver::ResolveMappedIconObject(
+		WidgetDefinition->GetAbilitySlotWidgetSettings().InputKeyIconSettings,
+		FixedKeyName);
 }
 
 FSlateBrush UAbilitySlotWidget::MakeImageBrush(UObject* ResourceObject)

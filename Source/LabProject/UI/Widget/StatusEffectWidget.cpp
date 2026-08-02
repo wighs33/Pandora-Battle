@@ -1,6 +1,6 @@
 #include "UI/Widget/StatusEffectWidget.h"
 
-#include "AbilitySystem/Data/PdStatusEffectDataAsset.h"
+#include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbilityTypes.h"
@@ -8,6 +8,8 @@
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "GameplayEffectTypes.h"
+#include "Styling/SlateBrush.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatusEffectWidget)
 
@@ -16,10 +18,10 @@ namespace
 	constexpr float MeterEmptyPercent = 0.0f;
 	constexpr float MeterFullPercent = 1.0f;
 
-	void ConfigureIconBrush(FSlateBrush& Brush, UObject* ResourceObject)
+	void ConfigureIconBrush(FSlateBrush& Brush, UObject* ResourceObject, const FVector2D& ImageSize)
 	{
 		Brush.DrawAs = ESlateBrushDrawType::Image;
-		Brush.ImageSize = FVector2D(32.0f, 32.0f);
+		Brush.ImageSize = ImageSize;
 		Brush.SetResourceObject(ResourceObject);
 	}
 }
@@ -28,6 +30,7 @@ void UStatusEffectWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
+	ApplyWidgetDefinitionSettings();
 	ApplyDesignerDefaults();
 }
 
@@ -35,6 +38,7 @@ void UStatusEffectWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	ApplyWidgetDefinitionSettings();
 	bIsConstructed = true;
 	InitializeStatusEffect();
 }
@@ -64,7 +68,7 @@ void UStatusEffectWidget::SetOwnerActor(AActor* InOwnerActor)
 	}
 }
 
-void UStatusEffectWidget::SetEffectDataAsset(UPdStatusEffectDataAsset* InEffectDataAsset)
+void UStatusEffectWidget::SetEffectDataAsset(UStatusEffectDefinition* InEffectDataAsset)
 {
 	if (EffectDataAsset.Get() == InEffectDataAsset)
 	{
@@ -84,9 +88,20 @@ void UStatusEffectWidget::SetEffectDataAsset(UPdStatusEffectDataAsset* InEffectD
 	}
 }
 
-UPdStatusEffectDataAsset* UStatusEffectWidget::GetEffectDataAsset() const
+UStatusEffectDefinition* UStatusEffectWidget::GetEffectDataAsset() const
 {
 	return EffectDataAsset.Get();
+}
+
+void UStatusEffectWidget::ApplyWidgetDefinitionSettings()
+{
+	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+	{
+		const FStatusEffectsBarWidgetSettings& Settings = WidgetDefinition->GetStatusEffectsBarWidgetSettings();
+		MeterUpdateInterval = FMath::Max(Settings.MeterUpdateInterval, 0.001f);
+		InitialIconOpacity = FMath::Clamp(Settings.InitialIconOpacity, 0.0f, 1.0f);
+		IconImageSize = Settings.IconImageSize;
+	}
 }
 
 void UStatusEffectWidget::InitializeStatusEffect()
@@ -118,7 +133,6 @@ void UStatusEffectWidget::ApplyDesignerDefaults()
 void UStatusEffectWidget::SetInitialValues()
 {
 	CurrentStackCount = 0;
-	bRemoveWhenStatusEffectTagRemoved = false;
 
 	if (EffectAppliedTimeLeft)
 	{
@@ -146,13 +160,18 @@ void UStatusEffectWidget::SetIconStyle()
 	if (EffectIcon && EffectDataAsset->Icon)
 	{
 		FSlateBrush Brush;
-		ConfigureIconBrush(Brush, EffectDataAsset->Icon);
+		ConfigureIconBrush(Brush, EffectDataAsset->Icon, IconImageSize);
 		EffectIcon->SetBrush(Brush);
 	}
 
 	if (EffectFillMeter)
 	{
 		EffectFillMeter->SetFillColorAndOpacity(EffectDataAsset->IconBackgroundColor);
+	}
+
+	if (EffectAppliedTimeLeft)
+	{
+		EffectAppliedTimeLeft->SetFillColorAndOpacity(EffectDataAsset->IconBackgroundColor);
 	}
 }
 
@@ -225,7 +244,6 @@ void UStatusEffectWidget::DecreaseStackFill()
 
 void UStatusEffectWidget::HandleStatusEffectApplied()
 {
-	bRemoveWhenStatusEffectTagRemoved = true;
 	ClearDecreaseStackFillTimer();
 
 	if (EffectIcon)
@@ -278,10 +296,16 @@ void UStatusEffectWidget::UpdateTimeRemaining()
 void UStatusEffectWidget::EvaluateRemovalAfterDebuffRemoved()
 {
 	UAbilitySystemComponent* AbilitySystemComponent = GetOwnerAbilitySystemComponent();
-	if (AbilitySystemComponent && EffectDataAsset && EffectDataAsset->StatusEffectTag.IsValid()
-		&& AbilitySystemComponent->HasMatchingGameplayTag(EffectDataAsset->StatusEffectTag))
+	const bool bHasDebuffTag = AbilitySystemComponent
+		&& EffectDataAsset
+		&& EffectDataAsset->DebuffTag.IsValid()
+		&& AbilitySystemComponent->HasMatchingGameplayTag(EffectDataAsset->DebuffTag);
+	const bool bHasStatusEffectTag = AbilitySystemComponent
+		&& EffectDataAsset
+		&& EffectDataAsset->StatusEffectTag.IsValid()
+		&& AbilitySystemComponent->HasMatchingGameplayTag(EffectDataAsset->StatusEffectTag);
+	if (bHasDebuffTag || bHasStatusEffectTag)
 	{
-		bRemoveWhenStatusEffectTagRemoved = true;
 		return;
 	}
 
@@ -428,10 +452,14 @@ void UStatusEffectWidget::OnStatusEffectTagChanged(const FGameplayTag CallbackTa
 		return;
 	}
 
-	if (bRemoveWhenStatusEffectTagRemoved)
+	if (UWorld* World = GetWorld())
 	{
-		RemoveStatusEffectWidget();
+		World->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateUObject(this, &ThisClass::EvaluateRemovalAfterDebuffRemoved));
+		return;
 	}
+
+	EvaluateRemovalAfterDebuffRemoved();
 }
 
 void UStatusEffectWidget::OnStackCountChangedEvent(const FGameplayEventData* Payload)

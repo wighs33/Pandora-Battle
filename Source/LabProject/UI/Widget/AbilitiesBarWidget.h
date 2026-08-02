@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "GameplayTagContainer.h"
+#include "Layout/Margin.h"
 #include "AbilitiesBarWidget.generated.h"
 
 class UAbilitySystemComponent;
@@ -38,6 +39,7 @@ private:
 	struct FAbilityBarSlotData
 	{
 		FGameplayAbilitySpecHandle AbilitySpecHandle;
+		int32 SkillSlotIndex = INDEX_NONE;
 		FText DisplayNameOverride;
 		UObject* IconOverride = nullptr;
 		bool bHasDisplayOverride = false;
@@ -47,11 +49,13 @@ private:
 	void InitializeAbilitySystemBinding();
 	void RebuildAbilitiesBar();
 	void AddAbilitySlot(const FGameplayAbilitySpecHandle& AbilitySpecHandle);
+	void AddAbilitySlot(const FGameplayAbilitySpecHandle& AbilitySpecHandle, int32 SkillSlotIndex);
 	void AddAbilitySlot(const FAbilityBarSlotData& SlotData);
-	void AddEmptySlot(bool bApplyPadding);
+	void AddEmptySlot(bool bApplyPadding, int32 SkillSlotIndex = INDEX_NONE);
 	UUserWidget* CreateBarWidget(TSubclassOf<UUserWidget> WidgetClass) const;
 	void AddWidgetToBar(UUserWidget* Widget, bool bApplyPadding) const;
 	void SetAbilitySpecHandleOnWidget(UUserWidget* Widget, const FGameplayAbilitySpecHandle& AbilitySpecHandle) const;
+	void ApplySkillSlotKeyIcon(UUserWidget* Widget, int32 SkillSlotIndex) const;
 	bool ShouldShowAbilityHandle(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle& AbilitySpecHandle) const;
 	UAbilitySystemComponent* GetOwningAbilitySystemComponent() const;
 	const UPandoraDefinition* GetSelectedPandoraDefinition() const;
@@ -73,10 +77,13 @@ private:
 	static FProperty* FindPropertyByExactNameOrPrefix(UStruct* Struct, FName ExactName, const FString& Prefix);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities", meta = (AllowPrivateAccess = "true", ClampMin = "0"))
-	int32 MinimumSlots = 4;
+	int32 MinimumSlots = 3;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities", meta = (AllowPrivateAccess = "true", ClampMin = "0"))
-	int32 PandoraSkillSlots = 4;
+	int32 PandoraSkillSlots = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities", meta = (AllowPrivateAccess = "true"))
+	FMargin SlotPadding = FMargin(5.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities|Classes", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UUserWidget> AbilityWidgetClass;

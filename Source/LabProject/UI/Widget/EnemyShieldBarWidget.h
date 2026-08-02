@@ -42,13 +42,15 @@ private:
 	void BindAttributeDelegates();
 	void UnbindAttributeDelegates();
 	UProgressBar* GetProgressBar() const;
-	UProgressBar* FindFirstProgressBar() const;
 	float GetAttributeValue(const FGameplayAttribute& Attribute, bool* bOutSuccessfullyFoundAttribute = nullptr) const;
 	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
 	float GetShieldPercent() const;
 
 	void OnShieldChanged(const FOnAttributeChangeData& ChangeData);
 	void OnMaxShieldChanged(const FOnAttributeChangeData& ChangeData);
+
+	UPROPERTY(meta = (BindWidgetOptional, AllowPrivateAccess = "true"))
+	TObjectPtr<UProgressBar> ShieldProgressBar;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
