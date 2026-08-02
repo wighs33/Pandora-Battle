@@ -5,8 +5,8 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerController.h"
-#include "PlayerComponent/ControllerInputComponent.h"
-#include "PlayerComponent/ControllerInputDefinition.h"
+#include "Component/Player/ControllerInputComponent.h"
+#include "Definition/Player/ControllerInputDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ExtensionExecute_BindInput)
 

@@ -3,13 +3,14 @@
 #include "CoreMinimal.h"
 #include "GameFeature/GameFeatureAction_WorldNetworkBase.h"
 #include "GameplayAbilitySpecHandle.h"
+#include "GameplayTagContainer.h"
 #include "GameFeatureAction_AddAbilities.generated.h"
 
 class AActor;
 class UAbilitySystemComponent;
 class UGameplayAbility;
 class UWorld;
-class FPdActorExtensionHandle;
+class FActorExtensionHandle;
 struct FAssetBundleData;
 struct FGameFeatureDeactivatingContext;
 struct FGameFeatureStateChangeContext;
@@ -27,11 +28,14 @@ struct FPdGameFeatureAbilityEntry
 
 	UPROPERTY(EditAnywhere, Category = "Ability", meta = (ClampMin = "1"))
 	int32 Level = 1;
+
+	UPROPERTY(EditAnywhere, Category = "Ability", meta = (Categories = "Input.Ability"))
+	FGameplayTag InputTag;
 };
 
 struct FPdGameFeatureAbilityGrantHandles
 {
-	TArray<TSharedPtr<FPdActorExtensionHandle>> ExtensionRequestHandles;
+	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;
 	TMap<TWeakObjectPtr<AActor>, TArray<FGameplayAbilitySpecHandle>> AbilitySpecHandles;
 };
 

@@ -12,6 +12,7 @@ class AWeaponBase;
 class UAnimInstance;
 class UAnimMontage;
 class UMaterialInterface;
+class UNiagaraSystem;
 
 UENUM(BlueprintType)
 enum class EWeaponSocketName : uint8
@@ -19,7 +20,9 @@ enum class EWeaponSocketName : uint8
 	None UMETA(DisplayName = "None"),
 	Muzzle UMETA(DisplayName = "Muzzle"),
 	Socket_Arrow UMETA(DisplayName = "Socket_Arrow"),
+	Socket_Axe UMETA(DisplayName = "Socket_Axe"),
 	Socket_Bow UMETA(DisplayName = "Socket_Bow"),
+	Socket_Dagger UMETA(DisplayName = "Socket_Dagger"),
 	Socket_hand_r UMETA(DisplayName = "Socket_hand_r"),
 	Socket_Pistol UMETA(DisplayName = "Socket_Pistol"),
 	Socket_Rifle UMETA(DisplayName = "Socket_Rifle")
@@ -35,8 +38,12 @@ namespace PdWeaponSockets
 			return FName(TEXT("Muzzle"));
 		case EWeaponSocketName::Socket_Arrow:
 			return FName(TEXT("Socket_Arrow"));
+		case EWeaponSocketName::Socket_Axe:
+			return FName(TEXT("Socket_Axe"));
 		case EWeaponSocketName::Socket_Bow:
 			return FName(TEXT("Socket_Bow"));
+		case EWeaponSocketName::Socket_Dagger:
+			return FName(TEXT("Socket_Dagger"));
 		case EWeaponSocketName::Socket_hand_r:
 			return FName(TEXT("Socket_hand_r"));
 		case EWeaponSocketName::Socket_Pistol:
@@ -61,9 +68,19 @@ namespace PdWeaponSockets
 			return EWeaponSocketName::Socket_Arrow;
 		}
 
+		if (SocketName == FName(TEXT("Socket_Axe")))
+		{
+			return EWeaponSocketName::Socket_Axe;
+		}
+
 		if (SocketName == FName(TEXT("Socket_Bow")))
 		{
 			return EWeaponSocketName::Socket_Bow;
+		}
+
+		if (SocketName == FName(TEXT("Socket_Dagger")))
+		{
+			return EWeaponSocketName::Socket_Dagger;
 		}
 
 		if (SocketName == FName(TEXT("Socket_hand_r")))
@@ -146,12 +163,17 @@ struct LABPROJECT_API FWeaponAttackDefinitionData
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Attack")
 	TSoftObjectPtr<UAnimMontage> AttackMontage = nullptr;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Attack",
+		meta = (DisplayName = "Combo Window Start Effect"))
+	TObjectPtr<UNiagaraSystem> ComboWindowStartEffect = nullptr;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Attack")
 	bool bAllowMovementDuringAttack = true;
 
 	bool HasAnyData() const
 	{
 		return !AttackMontage.IsNull()
+			|| ComboWindowStartEffect != nullptr
 			|| !bAllowMovementDuringAttack;
 	}
 };
@@ -203,6 +225,8 @@ struct LABPROJECT_API FBowWeaponDefinitionData
 	{
 		ArrowAttachSocketName = GetDefaultArrowAttachSocket();
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
+		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_GameTraceChannel1));
 	}
 
 	static EWeaponSocketName GetDefaultArrowAttachSocket()
@@ -226,6 +250,12 @@ struct LABPROJECT_API FBowWeaponDefinitionData
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Bow|Validation", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	float MaxAcceptedServerLaunchStartDistance = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Bow|Fire", meta = (ClampMin = "0.01", ForceUnits = "s", DisplayName = "Minimum Draw Duration", ToolTip = "Minimum server-authoritative time required before one arrow launch token is issued. Attack speed scales this duration."))
+	float MinimumDrawDuration = 0.2f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Bow|Fire", meta = (ClampMin = "0.01", ForceUnits = "s", DisplayName = "Fire Interval", ToolTip = "Minimum server-authoritative time between successful arrow launches. Attack speed scales this interval."))
+	float FireInterval = 0.2f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Bow|Trace")
 	TArray<TEnumAsByte<EObjectTypeQuery>> TraceObjectTypes;
@@ -258,6 +288,8 @@ struct LABPROJECT_API FGunWeaponDefinitionData
 	FGunWeaponDefinitionData()
 	{
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
+		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_GameTraceChannel1));
 		ImpactDecalObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 	}
 
@@ -321,6 +353,20 @@ struct LABPROJECT_API FGunWeaponDefinitionData
 };
 
 USTRUCT(BlueprintType)
+struct LABPROJECT_API FWeaponAIDefinitionData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|AI|Ranged", meta = (ClampMin = "0.0", ForceUnits = "s", DisplayName = "AI Ranged Target Lock Delay", ToolTip = "Delay between the AI locking the target location and firing at that locked location. Moving players can dodge by leaving the locked position before the shot is released."))
+	float RangedTargetLockDelay = 0.2f;
+
+	bool HasAnyData() const
+	{
+		return !FMath::IsNearlyEqual(RangedTargetLockDelay, 0.2f);
+	}
+};
+
+USTRUCT(BlueprintType)
 struct LABPROJECT_API FWeaponDefinitionData
 {
 	GENERATED_BODY()
@@ -343,6 +389,9 @@ struct LABPROJECT_API FWeaponDefinitionData
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon")
 	FGunWeaponDefinitionData Gun;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon")
+	FWeaponAIDefinitionData AI;
+
 	bool HasAnyData() const
 	{
 		return Equip.HasAnyData()
@@ -350,6 +399,7 @@ struct LABPROJECT_API FWeaponDefinitionData
 			|| HitReact.HasAnyData()
 			|| Aim.HasAnyData()
 			|| Bow.HasAnyData()
-			|| Gun.HasAnyData();
+			|| Gun.HasAnyData()
+			|| AI.HasAnyData();
 	}
 };

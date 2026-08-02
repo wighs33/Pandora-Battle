@@ -6,7 +6,8 @@
 
 class AActor;
 class APdHUD;
-class FPdActorExtensionHandle;
+class FActorExtensionHandle;
+struct FStreamableHandle;
 class UWidgetClassDefinition;
 class UWorld;
 struct FAssetBundleData;
@@ -18,8 +19,10 @@ DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddWidgetsLog, Log, All);
 
 struct FPdGameFeatureWidgetHandles
 {
-	TArray<TSharedPtr<FPdActorExtensionHandle>> ExtensionRequestHandles;
+	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;
 	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<UWidgetClassDefinition>> WidgetDefinitionsByActor;
+	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<UWidgetClassDefinition>> PendingWidgetDefinitionsByActor;
+	TMap<TWeakObjectPtr<AActor>, TSharedPtr<FStreamableHandle>> WidgetPreloadHandlesByActor;
 };
 
 UCLASS(meta = (DisplayName = "Add Widgets"))
@@ -45,6 +48,10 @@ private:
 	void RegisterWidgetExtension(UWorld* World, FGameFeatureStateChangeContext ChangeContext);
 	bool CanActivateWidgetExtension(AActor* Actor) const;
 	void AddWidgetsToActor(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
+	void CompleteAddWidgetsToActor(
+		AActor* Actor,
+		FGameFeatureStateChangeContext ChangeContext,
+		UWidgetClassDefinition* ExpectedWidgetClassDefinition);
 	void RemoveWidgetsFromActor(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
 	void RemoveAllWidgets(FPdGameFeatureWidgetHandles& Handles) const;
 

@@ -1,12 +1,15 @@
 #include "GameFeature/GameFeatureAction_AddWidgets.h"
 
 #include "AssetRegistry/AssetBundleData.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Engine/GameInstance.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
-#include "GameFeature/PdActorExtensionWorldSubsystem.h"
+#include "GameFeature/ActorExtensionWorldSubsystem.h"
 #include "GameFeaturesSubsystemSettings.h"
 #include "Mode/PdHUD.h"
 #include "TimerManager.h"
-#include "UI/WidgetClassDefinition.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -69,6 +72,13 @@ EDataValidationResult UGameFeatureAction_AddWidgets::IsDataValid(FDataValidation
 #if WITH_EDITORONLY_DATA
 void UGameFeatureAction_AddWidgets::AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData)
 {
+	if (!TargetHudClass.IsNull())
+	{
+		AssetBundleData.AddBundleAsset(
+			UGameFeaturesSubsystemSettings::LoadStateClient,
+			TargetHudClass.ToSoftObjectPath().GetAssetPath());
+	}
+
 	if (!WidgetClassDefinition.IsNull())
 	{
 		AssetBundleData.AddBundleAsset(
@@ -100,7 +110,7 @@ void UGameFeatureAction_AddWidgets::RegisterWidgetExtension(
 		return;
 	}
 
-	UPdActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UPdActorExtensionWorldSubsystem>();
+	UActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UActorExtensionWorldSubsystem>();
 	if (!ExtensionSubsystem)
 	{
 		TWeakObjectPtr<UWorld> WeakWorld = World;
@@ -115,10 +125,11 @@ void UGameFeatureAction_AddWidgets::RegisterWidgetExtension(
 		return;
 	}
 
-	TSubclassOf<APdHUD> LoadedTargetClass = TargetHudClass.LoadSynchronous();
+	const TSubclassOf<APdHUD> LoadedTargetClass = TargetHudClass.Get();
 	if (!LoadedTargetClass)
 	{
-		UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error, TEXT("AddWidgets skipped '%s': failed to load target HUD class."),
+		UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error,
+			TEXT("AddWidgets skipped '%s': target HUD class was not resident after the GameFeature bundle loaded."),
 			*TargetHudClass.ToString());
 		return;
 	}
@@ -126,12 +137,11 @@ void UGameFeatureAction_AddWidgets::RegisterWidgetExtension(
 	FPdGameFeatureWidgetHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
 
 	FPdActorExtensionSpec ExtensionSpec;
-	ExtensionSpec.DebugName = GetFName();
 	ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateUObject(this, &ThisClass::CanActivateWidgetExtension);
 	ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateUObject(this, &ThisClass::AddWidgetsToActor, ChangeContext);
 	ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateUObject(this, &ThisClass::RemoveWidgetsFromActor, ChangeContext);
 
-	if (TSharedPtr<FPdActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
+	if (TSharedPtr<FActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
 	{
 		Handles.ExtensionRequestHandles.Add(ExtensionHandle);
 	}
@@ -154,21 +164,114 @@ void UGameFeatureAction_AddWidgets::AddWidgetsToActor(
 	}
 
 	FPdGameFeatureWidgetHandles* Handles = ContextHandles.Find(ChangeContext);
-	if (!Handles || Handles->WidgetDefinitionsByActor.Contains(Actor))
+	if (!Handles
+		|| Handles->WidgetDefinitionsByActor.Contains(Actor)
+		|| Handles->PendingWidgetDefinitionsByActor.Contains(Actor))
 	{
 		return;
 	}
 
-	UWidgetClassDefinition* LoadedWidgetClassDefinition = WidgetClassDefinition.LoadSynchronous();
+	UWidgetClassDefinition* LoadedWidgetClassDefinition = WidgetClassDefinition.Get();
 	if (!LoadedWidgetClassDefinition)
 	{
-		UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error, TEXT("AddWidgets skipped '%s': failed to load WidgetClassDefinition."),
+		UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error,
+			TEXT("AddWidgets skipped '%s': WidgetClassDefinition was not resident after the GameFeature bundle loaded."),
 			*GetNameSafe(Actor));
 		return;
 	}
 
-	HUD->InitializeUi(LoadedWidgetClassDefinition);
-	Handles->WidgetDefinitionsByActor.Add(Actor, LoadedWidgetClassDefinition);
+	TArray<FSoftObjectPath> AssetPaths;
+	LoadedWidgetClassDefinition->GetRuntimePreloadAssetPaths(AssetPaths);
+	Handles->PendingWidgetDefinitionsByActor.Add(Actor, LoadedWidgetClassDefinition);
+	if (AssetPaths.IsEmpty())
+	{
+		CompleteAddWidgetsToActor(Actor, ChangeContext, LoadedWidgetClassDefinition);
+		return;
+	}
+
+	UContentDataSubsystem* ContentSubsystem =
+		HUD->GetGameInstance()
+			? HUD->GetGameInstance()->GetSubsystem<UContentDataSubsystem>()
+			: nullptr;
+	if (!ContentSubsystem)
+	{
+		Handles->PendingWidgetDefinitionsByActor.Remove(Actor);
+		UE_LOG(
+			PdGameFeatureAction_AddWidgetsLog,
+			Error,
+			TEXT("AddWidgets skipped '%s': ContentDataSubsystem was unavailable for the UI preload."),
+			*GetNameSafe(Actor));
+		return;
+	}
+
+	const TWeakObjectPtr<ThisClass> WeakThis(this);
+	const TWeakObjectPtr<AActor> WeakActor(Actor);
+	const TWeakObjectPtr<UWidgetClassDefinition> WeakDefinition(LoadedWidgetClassDefinition);
+	TSharedPtr<FStreamableHandle> PreloadHandle =
+		ContentSubsystem->PreloadSoftObjectPathsAsync(
+			AssetPaths,
+			FSimpleDelegate::CreateLambda(
+				[WeakThis, WeakActor, WeakDefinition, ChangeContext]()
+				{
+					ThisClass* This = WeakThis.Get();
+					if (This)
+					{
+						This->CompleteAddWidgetsToActor(
+							WeakActor.Get(),
+							ChangeContext,
+							WeakDefinition.Get());
+					}
+				}));
+
+	// RequestAsyncLoad can complete immediately when every asset is already resident.
+	// Keep the handle for the initialized UI as well so unused preloaded assets stay
+	// resident until this feature is removed.
+	Handles = ContextHandles.Find(ChangeContext);
+	if (PreloadHandle.IsValid()
+		&& Handles
+		&& (Handles->PendingWidgetDefinitionsByActor.Contains(Actor)
+			|| Handles->WidgetDefinitionsByActor.Contains(Actor)))
+	{
+		Handles->WidgetPreloadHandlesByActor.Add(Actor, MoveTemp(PreloadHandle));
+	}
+}
+
+void UGameFeatureAction_AddWidgets::CompleteAddWidgetsToActor(
+	AActor* Actor,
+	FGameFeatureStateChangeContext ChangeContext,
+	UWidgetClassDefinition* ExpectedWidgetClassDefinition)
+{
+	APdHUD* HUD = Cast<APdHUD>(Actor);
+	FPdGameFeatureWidgetHandles* Handles = ContextHandles.Find(ChangeContext);
+	if (!HUD || !Handles || !IsValid(ExpectedWidgetClassDefinition))
+	{
+		return;
+	}
+
+	TWeakObjectPtr<UWidgetClassDefinition> PendingDefinition;
+	if (!Handles->PendingWidgetDefinitionsByActor.RemoveAndCopyValue(Actor, PendingDefinition)
+		|| PendingDefinition.Get() != ExpectedWidgetClassDefinition)
+	{
+		return;
+	}
+
+	TArray<FSoftObjectPath> AssetPaths;
+	ExpectedWidgetClassDefinition->GetRuntimePreloadAssetPaths(AssetPaths);
+	for (const FSoftObjectPath& AssetPath : AssetPaths)
+	{
+		if (!AssetPath.ResolveObject())
+		{
+			UE_LOG(
+				PdGameFeatureAction_AddWidgetsLog,
+				Error,
+				TEXT("UI preload completed without resolving '%s' for '%s'."),
+				*AssetPath.ToString(),
+				*GetNameSafe(ExpectedWidgetClassDefinition));
+		}
+	}
+
+	HUD->InitializeUi(ExpectedWidgetClassDefinition);
+	Handles->WidgetDefinitionsByActor.Add(Actor, ExpectedWidgetClassDefinition);
 }
 
 void UGameFeatureAction_AddWidgets::RemoveWidgetsFromActor(
@@ -185,6 +288,15 @@ void UGameFeatureAction_AddWidgets::RemoveWidgetsFromActor(
 	if (!Handles)
 	{
 		return;
+	}
+
+	Handles->PendingWidgetDefinitionsByActor.Remove(Actor);
+	if (TSharedPtr<FStreamableHandle> PreloadHandle;
+		Handles->WidgetPreloadHandlesByActor.RemoveAndCopyValue(Actor, PreloadHandle)
+		&& PreloadHandle.IsValid())
+	{
+		PreloadHandle->CancelHandle();
+		PreloadHandle->ReleaseHandle();
 	}
 
 	TWeakObjectPtr<UWidgetClassDefinition> WidgetDefinition;
@@ -210,4 +322,16 @@ void UGameFeatureAction_AddWidgets::RemoveAllWidgets(FPdGameFeatureWidgetHandles
 	}
 
 	Handles.WidgetDefinitionsByActor.Reset();
+	Handles.PendingWidgetDefinitionsByActor.Reset();
+
+	for (TPair<TWeakObjectPtr<AActor>, TSharedPtr<FStreamableHandle>>& HandlePair :
+		Handles.WidgetPreloadHandlesByActor)
+	{
+		if (HandlePair.Value.IsValid())
+		{
+			HandlePair.Value->CancelHandle();
+			HandlePair.Value->ReleaseHandle();
+		}
+	}
+	Handles.WidgetPreloadHandlesByActor.Reset();
 }

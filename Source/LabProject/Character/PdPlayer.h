@@ -1,50 +1,51 @@
 #pragma once
 
-#include "Character/PdCharacterBase.h"
+#include "Character/CharacterBase.h"
 #include "Common/WeaponDefinitionData.h"
 #include "Interface/InteractableInterface.h"
-#include "SavedGameData/PlayerPandoraData.h"
-#include "TimerManager.h"
+#include "Definition/Player/CharacterActionDefinition.h"
 #include "PdPlayer.generated.h"
 
 class UBoxComponent;
 class UCameraComponent;
 class UCableComponent;
 class UGrappleComponent;
-class UPrimitiveComponent;
+class UPaintCanvasComponent;
+class UPlayerActionComponent;
+class UPlayerAimComponent;
+class UPlayerCameraComponent;
+class UPlayerInteractionComponent;
+class UPlayerPawnDefinition;
 class USpringArmComponent;
 class APdPlayerState;
 class AActor;
-class UPdSaveGame;
-class UPandoraTreeComponent;
-class UPandoraComponent;
-class UPandoraDefinition;
 class UAnimMontage;
+class UMaterialInterface;
+class UStaticMeshComponent;
 
-/**
- * <?åÎ†à?¥Ïñ¥ Ï∫êÎ¶≠??
- * - ?ÅÌò∏?ëÏö© ?Ä??Í∞êÏ?Î•??¥Îãπ?©Îãà??
- * - ?åÎ†à?¥Ïñ¥ ?ÑÏö© Ïπ¥Î©î??Íµ¨ÏÑ±??Í∞ÄÏßëÎãà??
- * - ASC ?åÏú†?êÎ? PlayerStateÎ°??¨Ïö©?©Îãà??
- */
+DECLARE_MULTICAST_DELEGATE_OneParam(FPdCharacterActionCooldownChanged, ECharacterActionType);
+
 UCLASS()
-class LABPROJECT_API APdPlayer : public APdCharacterBase
+class LABPROJECT_API APdPlayer : public ACharacterBase
 {
 	GENERATED_BODY()
 
 public:
-	/** ?åÎ†à?¥Ïñ¥ Í∏∞Î≥∏ ?ÅÌÉúÎ•?Ï¥àÍ∏∞?îÌï©?àÎã§. */
 	APdPlayer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// Timing hooks
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void PostInitializeComponents() override;
 	virtual void PossessedBy(AController* NewController) override;
+	virtual void UnPossessed() override;
+	virtual void NotifyControllerChanged() override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	/** PlayerState Í∏∞Ï? ASCÎ•?Î∞òÌôò?©Îãà?? */
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	virtual void HandleDeath_Implementation() override;
+	virtual void ResetDeathStateForRespawn() override;
 
-	/** ?ÑÏû¨ ?ÅÌò∏?ëÏö© ?Ä?ÅÏù¥ ?àÎäîÏßÄ Î∞òÌôò?©Îãà?? */
 	UFUNCTION(BlueprintCallable, Category = "!Interaction", meta = (DisplayName = "HasCurrentInteractActors?"))
 	bool HasCurrentInteractActors(TArray<TScriptInterface<IInteractableInterface>>& OutCurrentInteractActors) const;
 
@@ -57,19 +58,62 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Weapon|Aim")
 	void SetWeaponAimActive(bool bEnabled, const FWeaponAimCameraSettings& AimCameraSettings);
 
-	UFUNCTION(BlueprintPure, Category = "!Grapple")
 	bool IsGrappling() const;
 
 	UGrappleComponent* GetGrappleComponent() const { return GrappleComponent; }
+	UPlayerActionComponent* GetPlayerActionComponent() const { return PlayerActionComponent; }
+	UPlayerAimComponent* GetPlayerAimComponent() const { return PlayerAimComponent; }
+	UPlayerCameraComponent* GetPlayerCameraComponent() const { return PlayerCameraComponent; }
+	UPlayerInteractionComponent* GetPlayerInteractionComponent() const { return PlayerInteractionComponent; }
+
+	bool RequestCancelHitReactForMovement(float BlendOutTime = 0.08f);
+
+	UFUNCTION(BlueprintCallable, Category = "!Character Action|Cooldown", meta = (ClampMin = "0.0", ForceUnits = "s"))
+	bool StartCharacterActionCooldown(ECharacterActionType ActionType, double CooldownDuration);
+
+	UFUNCTION(BlueprintPure, Category = "!Character Action|Cooldown")
+	bool IsCharacterActionOnCooldown(ECharacterActionType ActionType) const;
+
+	UFUNCTION(BlueprintPure, Category = "!Character Action|Cooldown")
+	float GetCharacterActionCooldownRemaining(ECharacterActionType ActionType) const;
+
+	UFUNCTION(BlueprintPure, Category = "!Character Action|Cooldown")
+	float GetCharacterActionCooldownDuration(ECharacterActionType ActionType) const;
+
+	FPdCharacterActionCooldownChanged OnCharacterActionCooldownChanged;
+
+	bool TryPaintAtCursor();
+
+	AActor* ShowPaintCanvasWithCharacterOffset(const FTransform& PaintCanvasTransformOffset);
+
+	void HidePaintCanvas();
+
+	bool HasActivePaintCanvas() const;
+
+	bool ExportActivePaintCanvasAboveCharacterWithTransformOffset(const FTransform& PaintCanvasExportTransformOffset);
+
+	bool ApplyActivePaintCanvasToFaceDecal(
+		UMaterialInterface* FaceDecalMaterial,
+		FName AttachSocketName,
+		const FTransform& FaceDecalTransformOffset,
+		FVector FaceDecalSize,
+		FName TextureParameterName);
+
+	void RestoreCachedLobbyPaintCanvasFaceDecal();
+
+	UPaintCanvasComponent* GetPaintCanvasComponent() const { return PaintCanvasComponent; }
 
 	UFUNCTION(BlueprintCallable, Category = "!Ability|Camera")
 	void SetAbilityCameraOverrideActive(bool bEnabled, const FWeaponAimCameraSettings& CameraSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "!Ability|Camera", meta = (ClampMin = "0.0", ForceUnits = "s"))
-	void SetAbilityCameraOverrideActiveForDuration(bool bEnabled, const FWeaponAimCameraSettings& CameraSettings, float Duration);
+	void SetAbilityCameraOverrideActiveForDuration(
+		bool bEnabled,
+		const FWeaponAimCameraSettings& CameraSettings,
+		float Duration);
 
 	UFUNCTION(BlueprintPure, Category = "!Weapon|Aim")
-	bool IsWeaponAimActive() const { return bIsWeaponAimActive; }
+	bool IsWeaponAimActive() const;
 
 	bool GetWeaponAimViewPoint(FVector& OutLocation, FVector& OutDirection) const;
 
@@ -85,131 +129,63 @@ public:
 	bool IsInteractionMontagePlaying() const;
 
 protected:
-	// Delegate callbacks
-	/** ?ÅÌò∏?ëÏö© Î∞ïÏä§ ÏßÑÏûÖ??Ï≤òÎ¶¨?©Îãà?? */
-	UFUNCTION()
-	void HandleInteractionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
-	/** ?ÅÌò∏?ëÏö© Î∞ïÏä§ ?¥ÌÉà??Ï≤òÎ¶¨?©Îãà?? */
-	UFUNCTION()
-	void HandleInteractionBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex);
-
 	// Ability-system timing hooks
-	/** ASC ?åÏú† ?°ÌÑ∞Î•?Î∞òÌôò?©Îãà?? */
 	virtual AActor* GetAbilitySystemOwnerActor() const override;
-	void ApplyWeaponAimState(bool bEnabled, const FWeaponAimCameraSettings& AimCameraSettings);
-	void UpdateWeaponAimCamera(float DeltaSeconds);
-	void ClearAbilityCameraOverride();
+	virtual void ApplyCurrentRotationPolicy(UCharacterMovementComponent* MovementComponent) override;
+	virtual bool ShouldUseContinuousCharacterTick() const override;
+	void ApplyPlayerPawnDefinition();
+	void UpdateAimOffsetForReplicationComponent();
+	void ApplyReplicatedAimOffsetFromComponent(float AimYaw, float AimPitch);
 
-	UFUNCTION(Server, Reliable)
-	void ServerSetWeaponAimActive(bool bEnabled, FWeaponAimCameraSettings AimCameraSettings);
+	void ResetCharacterActionCooldowns();
 
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastPlayInteractionMontage(UAnimMontage* Montage, float PlayRate);
-
-	UFUNCTION(Server, Reliable)
-	void ServerStopInteractionMontage(float BlendOutTime);
-
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastStopInteractionMontage(float BlendOutTime);
-
-	bool StopInteractionMontageLocally(float BlendOutTime);
-
-	/** PlayerStateÎ•??ÑÎ°ú?ùÌä∏ ?Ä?ÖÏúºÎ°?Î∞òÌôò?©Îãà?? */
 	APdPlayerState* GetPdPlayerState() const;
-	void InitializePandoraTreeFromSave(AController* NewController);
-	FString GetPlayerSaveId(AController* InController) const;
-
-	UFUNCTION(BlueprintCallable, Category = "!Pandora|Save")
-	void SavePlayerPandoraData(const FPlayerPandoraData& InPlayerPandoraData);
-
-	UFUNCTION()
-	void HandlePandoraTreePandorasChanged();
-
-	UFUNCTION()
-	void HandlePandoraTreePointsChanged(int32 NewPointsAvailable);
-
-	UFUNCTION()
-	void HandlePandoraSelectionChanged(UPandoraDefinition* NewPandoraDefinition);
-
-	UFUNCTION()
-	void HandlePandoraLoadoutChanged();
-
-	/** ?°ÌÑ∞Î•??ÅÌò∏?ëÏö© ?îÌä∏Î¶¨Î°ú Î≥Ä?òÌï©?àÎã§. */
-	bool TryMakeInteractableEntry(AActor* OtherActor, TScriptInterface<IInteractableInterface>& OutInteractableActor) const;
 
 protected:
-	/** ?ÑÏû¨ ?ÅÌò∏?ëÏö© Í∞Ä?•Ìïú ?°ÌÑ∞ Î™©Î°ù?ÖÎãà?? */
+	friend class UPlayerAimComponent;
+	friend class UPlayerInteractionComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Definition",
+		meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPlayerPawnDefinition> PlayerPawnDefinition;
+
 	UPROPERTY(BlueprintReadWrite, Transient, Category = "!Interaction")
 	TArray<TScriptInterface<IInteractableInterface>> CurrentInteractActors;
 
-	/** ?ÅÌò∏?ëÏö© Í∞êÏ? Î∞ïÏä§?ÖÎãà?? */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Interaction", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBoxComponent> InteractionBox;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Interaction", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	float InteractionServerValidationDistance = 250.0f;
 
-	/** Ïπ¥Î©î??Î∂êÏûÖ?àÎã§. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Camera", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<USpringArmComponent> CameraBoom;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Player|Component", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPlayerInteractionComponent> PlayerInteractionComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Grapple", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Player|Component", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPlayerCameraComponent> PlayerCameraComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Player|Component", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPlayerAimComponent> PlayerAimComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Player|Component", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPlayerActionComponent> PlayerActionComponent;
+
+	UPROPERTY(VisibleAnywhere, Category = "!Grapple")
 	TObjectPtr<UGrappleComponent> GrappleComponent;
+
+	UPROPERTY(VisibleAnywhere, Category = "!Paint")
+	TObjectPtr<UPaintCanvasComponent> PaintCanvasComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Paint|Export", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UStaticMeshComponent> SpeechBubblePlaneComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Grapple", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCableComponent> HookComponent;
 
-	/** Ï∂îÏ†Å Ïπ¥Î©î?ºÏûÖ?àÎã§. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USpringArmComponent> CameraBoom;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> FollowCamera;
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim")
-	bool bIsWeaponAimActive = false;
-
-	bool bDefaultAllowPhysicsRotationDuringAnimRootMotion = false;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
-	bool bWeaponAimCameraActive = false;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
-	FWeaponAimCameraSettings ActiveWeaponAimCameraSettings;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Ability|Camera")
-	bool bAbilityCameraOverrideActive = false;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Ability|Camera")
-	FWeaponAimCameraSettings ActiveAbilityCameraOverrideSettings;
-
-	FTimerHandle AbilityCameraOverrideTimerHandle;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UAnimMontage> ActiveInteractionMontage;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
-	bool bHasCachedWeaponAimCameraDefaults = false;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
-	float DefaultCameraFOV = 0.0f;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
-	FVector DefaultCameraBoomSocketOffset = FVector::ZeroVector;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Weapon|Aim|Camera")
-	FRotator DefaultFollowCameraRelativeRotation = FRotator::ZeroRotator;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Pandora|Save")
-	TObjectPtr<UPdSaveGame> PlayerSaveGameData;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UPandoraTreeComponent> BoundPandoraTreeComponent;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UPandoraComponent> BoundPandoraComponent;
-
-
-	UPROPERTY(Transient)
-	FString CachedPlayerSaveId;
 };

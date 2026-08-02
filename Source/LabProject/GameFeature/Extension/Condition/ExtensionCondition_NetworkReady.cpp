@@ -1,6 +1,6 @@
 #include "GameFeature/Extension/Condition/ExtensionCondition_NetworkReady.h"
 
-#include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "AttributeSet.h"

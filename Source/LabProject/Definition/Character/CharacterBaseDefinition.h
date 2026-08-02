@@ -9,6 +9,7 @@
 
 class UAnimInstance;
 class UGameplayEffect;
+class UMatchRuleDefinition;
 
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FCharacterAbilityRuntimeSettings
@@ -84,6 +85,8 @@ struct LABPROJECT_API FCharacterPresentationSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Character|Team")
 	bool bApplyTeamOverlayMaterial = true;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Character|Team", meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<UMatchRuleDefinition> MatchRuleDefinition;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Character|Team", meta = (ClampMin = "0.01", ForceUnits = "s"))
 	float TeamOverlayMaterialRetryInterval = 0.2f;

@@ -7,7 +7,7 @@
 #include "AssetRegistry/AssetBundleData.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "GameFeature/PdActorExtensionWorldSubsystem.h"
+#include "GameFeature/ActorExtensionWorldSubsystem.h"
 #include "GameFeaturesSubsystemSettings.h"
 #include "TimerManager.h"
 
@@ -110,6 +110,16 @@ EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(FDataValidati
 				FText::AsNumber(EntryIndex)));
 		}
 
+		const FGameplayTag& InputTag = Abilities[EntryIndex].InputTag;
+		if (InputTag.IsValid()
+			&& !InputTag.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Input.Ability"))))
+		{
+			Result = EDataValidationResult::Invalid;
+			Context.AddError(FText::Format(
+				NSLOCTEXT("PdGameFeatureAction_AddAbilities", "InvalidInputTag", "Ability entry {0} InputTag must be under Input.Ability."),
+				FText::AsNumber(EntryIndex)));
+		}
+
 		const FSoftObjectPath AbilityPath = Abilities[EntryIndex].Ability.ToSoftObjectPath();
 		if (AbilityPaths.Contains(AbilityPath))
 		{
@@ -130,6 +140,23 @@ EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(FDataValidati
 #if WITH_EDITORONLY_DATA
 void UGameFeatureAction_AddAbilities::AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData)
 {
+	if (!TargetClass.IsNull())
+	{
+		if (bClientAction)
+		{
+			AssetBundleData.AddBundleAsset(
+				UGameFeaturesSubsystemSettings::LoadStateClient,
+				TargetClass.ToSoftObjectPath().GetAssetPath());
+		}
+
+		if (bServerAction)
+		{
+			AssetBundleData.AddBundleAsset(
+				UGameFeaturesSubsystemSettings::LoadStateServer,
+				TargetClass.ToSoftObjectPath().GetAssetPath());
+		}
+	}
+
 	for (const FPdGameFeatureAbilityEntry& Entry : Abilities)
 	{
 		if (!Entry.Ability.IsNull())
@@ -165,7 +192,7 @@ void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(
 		return;
 	}
 
-	UPdActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UPdActorExtensionWorldSubsystem>();
+	UActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UActorExtensionWorldSubsystem>();
 	if (!ExtensionSubsystem)
 	{
 		TWeakObjectPtr<UWorld> WeakWorld = World;
@@ -180,7 +207,7 @@ void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(
 		return;
 	}
 
-	TSubclassOf<AActor> LoadedTargetClass = TargetClass.LoadSynchronous();
+	TSubclassOf<AActor> LoadedTargetClass = TargetClass.Get();
 	if (!LoadedTargetClass)
 	{
 		UE_LOG(PdGameFeatureAction_AddAbilitiesLog, Error, TEXT("AddAbilities skipped '%s': failed to load target class."),
@@ -191,7 +218,6 @@ void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(
 	FPdGameFeatureAbilityGrantHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
 
 	FPdActorExtensionSpec ExtensionSpec;
-	ExtensionSpec.DebugName = GetFName();
 	ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateWeakLambda(this, [this](AActor* Actor)
 	{
 		return Actor && Actor->HasAuthority() && GetAbilitySystemComponent(Actor) != nullptr;
@@ -211,7 +237,7 @@ void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(
 		}
 	});
 
-	if (TSharedPtr<FPdActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
+	if (TSharedPtr<FActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
 	{
 		Handles.ExtensionRequestHandles.Add(ExtensionHandle);
 	}
@@ -229,22 +255,36 @@ void UGameFeatureAction_AddAbilities::GrantAbilitiesToActor(AActor* Actor, FPdGa
 	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
 	if (!AbilitySystemComponent)
 	{
-		UE_LOG(PdGameFeatureAction_AddAbilitiesLog, Warning, TEXT("AddAbilities skipped '%s': no AbilitySystemComponent."), *GetNameSafe(Actor));
 		return;
 	}
 
 	TArray<FGameplayAbilitySpecHandle>& ActorHandles = Handles.AbilitySpecHandles.Add(Actor);
 	for (const FPdGameFeatureAbilityEntry& Entry : Abilities)
 	{
-		TSubclassOf<UGameplayAbility> AbilityClass = Entry.Ability.LoadSynchronous();
-		if (!AbilityClass || HasAbilityClass(AbilitySystemComponent, AbilityClass))
+		TSubclassOf<UGameplayAbility> AbilityClass = Entry.Ability.Get();
+		if (!AbilityClass)
 		{
 			continue;
 		}
 
+		if (HasAbilityClass(AbilitySystemComponent, AbilityClass))
+		{
+			continue;
+		}
+
+		const UPdGameplayAbility* AbilityCDO = Cast<UPdGameplayAbility>(AbilityClass->GetDefaultObject());
+		const FGameplayTag EffectiveInputTag = Entry.InputTag.IsValid()
+			? Entry.InputTag
+			: AbilityCDO
+				? AbilityCDO->GetDefaultInputTag()
+				: FGameplayTag();
+
 		const int32 SafeLevel = FMath::Max(1, Entry.Level);
 		FGameplayAbilitySpec AbilitySpec(AbilityClass, SafeLevel, INDEX_NONE, Actor);
-		const UPdGameplayAbility* AbilityCDO = Cast<UPdGameplayAbility>(AbilityClass->GetDefaultObject());
+		if (EffectiveInputTag.IsValid())
+		{
+			AbilitySpec.GetDynamicSpecSourceTags().AddTag(EffectiveInputTag);
+		}
 		const bool bAutoActivateWhenGranted = AbilityCDO && AbilityCDO->ShouldAutoActivateWhenGranted();
 		const FGameplayAbilitySpecHandle GrantedHandle = AbilitySystemComponent->GiveAbility(AbilitySpec);
 		if (GrantedHandle.IsValid())

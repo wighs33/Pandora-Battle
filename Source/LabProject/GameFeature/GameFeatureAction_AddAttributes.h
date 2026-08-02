@@ -1,14 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "GameFeature/GameFeatureAction_WorldNetworkBase.h"
 #include "GameFeatureAction_AddAttributes.generated.h"
 
 class AActor;
 class UAttributeSet;
 class UWorld;
-class FPdActorExtensionHandle;
+class FActorExtensionHandle;
 struct FAssetBundleData;
 struct FGameFeatureDeactivatingContext;
 struct FGameFeatureStateChangeContext;
@@ -18,7 +18,7 @@ DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddAttributesLog, Log, All);
 
 struct FPdGameFeatureAttributeHandles
 {
-	TArray<TSharedPtr<FPdActorExtensionHandle>> ExtensionRequestHandles;
+	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;
 	TMap<TWeakObjectPtr<AActor>, int32> AttributeConfigHandles;
 	TMap<TWeakObjectPtr<AActor>, TArray<TWeakObjectPtr<UAttributeSet>>> AttributeSets;
 };
@@ -43,6 +43,7 @@ public:
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Game Feature Events
+	virtual void PostLoad() override;
 	virtual void OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context) override;
 
 #if WITH_EDITOR
@@ -66,6 +67,7 @@ private:
 	void RemoveAllAttributes(FPdGameFeatureAttributeHandles& Handles) const;
 	void AddAttributeSetsToActor(AActor* Actor, UPdAbilitySystemComponent* AbilitySystemComponent,
 		FPdGameFeatureAttributeHandles& Handles) const;
+	void CollectTargetClasses(TArray<TSubclassOf<AActor>>& OutTargetClasses) const;
 	void CollectAttributeSetClasses(TArray<TSubclassOf<UAttributeSet>>& OutAttributeSetClasses) const;
 	UAttributeSet* FindExistingAttributeSet(AActor* Actor, TSubclassOf<UAttributeSet> AttributeSetClass) const;
 	UPdAbilitySystemComponent* GetAbilitySystemComponent(AActor* Actor) const;
@@ -74,6 +76,9 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Attribute Setup
 	UPROPERTY(EditAnywhere, Category = "Attributes", meta = (AllowAbstract = "false"))
+	TArray<TSoftClassPtr<AActor>> TargetClasses;
+
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use TargetClasses instead."))
 	TSoftClassPtr<AActor> TargetClass;
 
 	UPROPERTY(EditAnywhere, Category = "Attributes", meta = (AssetBundles = "Client,Server"))

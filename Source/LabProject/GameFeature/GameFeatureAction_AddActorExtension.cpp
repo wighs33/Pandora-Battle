@@ -1,8 +1,10 @@
 #include "GameFeature/GameFeatureAction_AddActorExtension.h"
 
+#include "AssetRegistry/AssetBundleData.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "GameFeature/PdActorExtensionWorldSubsystem.h"
+#include "GameFeature/ActorExtensionWorldSubsystem.h"
+#include "GameFeaturesSubsystemSettings.h"
 #include "TimerManager.h"
 
 #if WITH_EDITOR
@@ -64,6 +66,23 @@ EDataValidationResult UGameFeatureAction_AddActorExtension::IsDataValid(FDataVal
 #if WITH_EDITORONLY_DATA
 void UGameFeatureAction_AddActorExtension::AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData)
 {
+	if (!TargetClass.IsNull())
+	{
+		if (bClientAction)
+		{
+			AssetBundleData.AddBundleAsset(
+				UGameFeaturesSubsystemSettings::LoadStateClient,
+				TargetClass.ToSoftObjectPath().GetAssetPath());
+		}
+
+		if (bServerAction)
+		{
+			AssetBundleData.AddBundleAsset(
+				UGameFeaturesSubsystemSettings::LoadStateServer,
+				TargetClass.ToSoftObjectPath().GetAssetPath());
+		}
+	}
+
 	Extension.AddAdditionalAssetBundleData(AssetBundleData);
 }
 #endif
@@ -90,7 +109,7 @@ void UGameFeatureAction_AddActorExtension::RegisterActorExtension(
 		return;
 	}
 
-	UPdActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UPdActorExtensionWorldSubsystem>();
+	UActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UActorExtensionWorldSubsystem>();
 	if (!ExtensionSubsystem)
 	{
 		TWeakObjectPtr<UWorld> WeakWorld = World;
@@ -105,7 +124,7 @@ void UGameFeatureAction_AddActorExtension::RegisterActorExtension(
 		return;
 	}
 
-	TSubclassOf<AActor> LoadedTargetClass = TargetClass.LoadSynchronous();
+	TSubclassOf<AActor> LoadedTargetClass = TargetClass.Get();
 	if (!LoadedTargetClass)
 	{
 		UE_LOG(PdGameFeatureAction_AddActorExtensionLog, Error, TEXT("AddActorExtension skipped '%s': failed to load target class."),
@@ -116,7 +135,6 @@ void UGameFeatureAction_AddActorExtension::RegisterActorExtension(
 	FPdGameFeatureActorExtensionHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
 
 	FPdActorExtensionSpec ExtensionSpec;
-	ExtensionSpec.DebugName = GetFName();
 	ExtensionSpec.bUseClientRoleFilter = bClientAction;
 	ExtensionSpec.bAddToLocallyControlled = bAddToLocallyControlled;
 	ExtensionSpec.bAddToSimulatedProxy = bAddToSimulatedProxy;
@@ -124,7 +142,7 @@ void UGameFeatureAction_AddActorExtension::RegisterActorExtension(
 	ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateUObject(this, &ThisClass::ActivateActorExtension, ChangeContext);
 	ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateUObject(this, &ThisClass::DeactivateActorExtension, ChangeContext);
 
-	if (TSharedPtr<FPdActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
+	if (TSharedPtr<FActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
 	{
 		Handles.ExtensionRequestHandles.Add(ExtensionHandle);
 	}

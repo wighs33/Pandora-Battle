@@ -6,7 +6,7 @@
 #include "GameFeatureAction_AddActorExtension.generated.h"
 
 class AActor;
-class FPdActorExtensionHandle;
+class FActorExtensionHandle;
 class UWorld;
 struct FAssetBundleData;
 struct FGameFeatureDeactivatingContext;
@@ -17,7 +17,7 @@ DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddActorExtensionLog, Log, All);
 
 struct FPdGameFeatureActorExtensionHandles
 {
-	TArray<TSharedPtr<FPdActorExtensionHandle>> ExtensionRequestHandles;
+	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;
 	TMap<TWeakObjectPtr<AActor>, FActorExtension> ActorExtensions;
 };
 

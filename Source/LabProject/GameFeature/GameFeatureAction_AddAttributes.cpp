@@ -4,8 +4,11 @@
 #include "AssetRegistry/AssetBundleData.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "GameFeature/PdActorExtensionWorldSubsystem.h"
+#include "GameFeature/ActorExtensionWorldSubsystem.h"
 #include "GameFeaturesSubsystemSettings.h"
+#include "GameFramework/PlayerState.h"
+#include "Mode/ExperienceGameMode.h"
+#include "Component/Player/StatUpgradeComponent.h"
 #include "TimerManager.h"
 
 #if WITH_EDITOR
@@ -34,6 +37,16 @@ UGameFeatureAction_AddAttributes::UGameFeatureAction_AddAttributes()
 
 //----------------------------------------------------------------------------------------------------------------------
 //--- Game Feature Events
+void UGameFeatureAction_AddAttributes::PostLoad()
+{
+	Super::PostLoad();
+
+	if (TargetClasses.IsEmpty() && !TargetClass.IsNull())
+	{
+		TargetClasses.Add(TargetClass);
+	}
+}
+
 void UGameFeatureAction_AddAttributes::OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context)
 {
 	Super::OnGameFeatureDeactivating(Context);
@@ -55,10 +68,21 @@ EDataValidationResult UGameFeatureAction_AddAttributes::IsDataValid(FDataValidat
 {
 	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
-	if (TargetClass.IsNull())
+	if (TargetClasses.IsEmpty() && TargetClass.IsNull())
 	{
 		Result = EDataValidationResult::Invalid;
-		Context.AddError(NSLOCTEXT("PdGameFeatureAction_AddAttributes", "MissingTargetClass", "TargetClass is required."));
+		Context.AddError(NSLOCTEXT("PdGameFeatureAction_AddAttributes", "MissingTargetClass", "At least one TargetClasses entry is required."));
+	}
+
+	for (int32 EntryIndex = 0; EntryIndex < TargetClasses.Num(); ++EntryIndex)
+	{
+		if (TargetClasses[EntryIndex].IsNull())
+		{
+			Result = EDataValidationResult::Invalid;
+			Context.AddError(FText::Format(
+				NSLOCTEXT("PdGameFeatureAction_AddAttributes", "MissingTargetClassEntry", "TargetClasses entry {0} has no class."),
+				FText::AsNumber(EntryIndex)));
+		}
 	}
 
 	if (!bClientAction && !bServerAction)
@@ -134,6 +158,20 @@ EDataValidationResult UGameFeatureAction_AddAttributes::IsDataValid(FDataValidat
 #if WITH_EDITORONLY_DATA
 void UGameFeatureAction_AddAttributes::AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData)
 {
+	const TArray<TSoftClassPtr<AActor>>* SourceTargetClasses = &TargetClasses;
+	TArray<TSoftClassPtr<AActor>> DeprecatedTargetClasses;
+	if (SourceTargetClasses->IsEmpty() && !TargetClass.IsNull())
+	{
+		DeprecatedTargetClasses.Add(TargetClass);
+		SourceTargetClasses = &DeprecatedTargetClasses;
+	}
+
+	for (const TSoftClassPtr<AActor>& TargetClassPtr : *SourceTargetClasses)
+	{
+		AddBundleClass(AssetBundleData, UGameFeaturesSubsystemSettings::LoadStateClient, TargetClassPtr);
+		AddBundleClass(AssetBundleData, UGameFeaturesSubsystemSettings::LoadStateServer, TargetClassPtr);
+	}
+
 	for (const TSoftClassPtr<UAttributeSet>& AttributeSetClass : AttributeSetClasses)
 	{
 		AddBundleClass(AssetBundleData, UGameFeaturesSubsystemSettings::LoadStateClient, AttributeSetClass);
@@ -165,7 +203,7 @@ void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(
 		return;
 	}
 
-	UPdActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UPdActorExtensionWorldSubsystem>();
+	UActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UActorExtensionWorldSubsystem>();
 	if (!ExtensionSubsystem)
 	{
 		TWeakObjectPtr<UWorld> WeakWorld = World;
@@ -180,42 +218,49 @@ void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(
 		return;
 	}
 
-	TSubclassOf<AActor> LoadedTargetClass = TargetClass.LoadSynchronous();
-	if (!LoadedTargetClass)
+	TArray<TSubclassOf<AActor>> LoadedTargetClasses;
+	CollectTargetClasses(LoadedTargetClasses);
+	if (LoadedTargetClasses.IsEmpty())
 	{
-		UE_LOG(PdGameFeatureAction_AddAttributesLog, Error, TEXT("AddAttributes skipped '%s': failed to load target class."),
-			*TargetClass.ToString());
+		UE_LOG(PdGameFeatureAction_AddAttributesLog, Error, TEXT("AddAttributes skipped: failed to load any target class."));
 		return;
 	}
 
 	FPdGameFeatureAttributeHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
 
-	FPdActorExtensionSpec ExtensionSpec;
-	ExtensionSpec.DebugName = GetFName();
-	ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateWeakLambda(this, [this](AActor* Actor)
+	for (const TSubclassOf<AActor>& LoadedTargetClass : LoadedTargetClasses)
 	{
-		UPdAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
-		return AbilitySystemComponent && AbilitySystemComponent->IsRegistered()
-			&& AbilitySystemComponent->HasAbilityActorInfoAllocated();
-	});
-	ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
-	{
-		if (FPdGameFeatureAttributeHandles* FoundHandles = ContextHandles.Find(ChangeContext))
+		if (!LoadedTargetClass)
 		{
-			AddAttributesToActor(Actor, *FoundHandles);
+			continue;
 		}
-	});
-	ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
-	{
-		if (FPdGameFeatureAttributeHandles* FoundHandles = ContextHandles.Find(ChangeContext))
-		{
-			RemoveAttributesFromActor(Actor, *FoundHandles);
-		}
-	});
 
-	if (TSharedPtr<FPdActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
-	{
-		Handles.ExtensionRequestHandles.Add(ExtensionHandle);
+		FPdActorExtensionSpec ExtensionSpec;
+		ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateWeakLambda(this, [this](AActor* Actor)
+		{
+			UPdAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
+			return AbilitySystemComponent && AbilitySystemComponent->IsRegistered()
+				&& AbilitySystemComponent->HasAbilityActorInfoAllocated();
+		});
+		ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
+		{
+			if (FPdGameFeatureAttributeHandles* FoundHandles = ContextHandles.Find(ChangeContext))
+			{
+				AddAttributesToActor(Actor, *FoundHandles);
+			}
+		});
+		ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
+		{
+			if (FPdGameFeatureAttributeHandles* FoundHandles = ContextHandles.Find(ChangeContext))
+			{
+				RemoveAttributesFromActor(Actor, *FoundHandles);
+			}
+		});
+
+		if (TSharedPtr<FActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
+		{
+			Handles.ExtensionRequestHandles.Add(ExtensionHandle);
+		}
 	}
 }
 
@@ -231,8 +276,6 @@ void UGameFeatureAction_AddAttributes::AddAttributesToActor(AActor* Actor, FPdGa
 	UPdAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
 	if (!AbilitySystemComponent)
 	{
-		UE_LOG(PdGameFeatureAction_AddAttributesLog, Warning, TEXT("AddAttributes skipped '%s': no PdAbilitySystemComponent."),
-			*GetNameSafe(Actor));
 		return;
 	}
 
@@ -248,7 +291,21 @@ void UGameFeatureAction_AddAttributes::AddAttributesToActor(AActor* Actor, FPdGa
 
 		if (Actor->HasAuthority())
 		{
-			AbilitySystemComponent->ApplyAttributeDefaultValues(AttributeConfig);
+			if (APlayerState* PlayerState = Cast<APlayerState>(Actor))
+			{
+				if (UStatUpgradeComponent* StatUpgradeComponent = PlayerState->FindComponentByClass<UStatUpgradeComponent>())
+				{
+					StatUpgradeComponent->ApplyConfiguredAttributeDefaults();
+				}
+
+				if (UWorld* World = Actor->GetWorld())
+				{
+					if (AExperienceGameMode* ExperienceGameMode = World->GetAuthGameMode<AExperienceGameMode>())
+					{
+						ExperienceGameMode->GrantTrainingRoomStatusPointsForPlayerState(PlayerState);
+					}
+				}
+			}
 		}
 	}
 }
@@ -318,7 +375,12 @@ void UGameFeatureAction_AddAttributes::AddAttributeSetsToActor(AActor* Actor, UP
 
 	for (TSubclassOf<UAttributeSet> AttributeSetClass : RequiredAttributeSetClasses)
 	{
-		if (!AttributeSetClass || AbilitySystemComponent->GetAttributeSet(AttributeSetClass))
+		if (!AttributeSetClass)
+		{
+			continue;
+		}
+
+		if (AbilitySystemComponent->GetAttributeSet(AttributeSetClass))
 		{
 			continue;
 		}
@@ -331,8 +393,6 @@ void UGameFeatureAction_AddAttributes::AddAttributeSetsToActor(AActor* Actor, UP
 
 		if (!AttributeSet)
 		{
-			UE_LOG(PdGameFeatureAction_AddAttributesLog, Warning, TEXT("AddAttributes failed to create AttributeSet '%s'."),
-				*GetNameSafe(AttributeSetClass.Get()));
 			continue;
 		}
 
@@ -346,11 +406,32 @@ void UGameFeatureAction_AddAttributes::AddAttributeSetsToActor(AActor* Actor, UP
 	}
 }
 
+void UGameFeatureAction_AddAttributes::CollectTargetClasses(TArray<TSubclassOf<AActor>>& OutTargetClasses) const
+{
+	OutTargetClasses.Reset();
+
+	const TArray<TSoftClassPtr<AActor>>* SourceTargetClasses = &TargetClasses;
+	TArray<TSoftClassPtr<AActor>> DeprecatedTargetClasses;
+	if (SourceTargetClasses->IsEmpty() && !TargetClass.IsNull())
+	{
+		DeprecatedTargetClasses.Add(TargetClass);
+		SourceTargetClasses = &DeprecatedTargetClasses;
+	}
+
+	for (const TSoftClassPtr<AActor>& TargetClassPtr : *SourceTargetClasses)
+	{
+		if (TSubclassOf<AActor> LoadedTargetClass = TargetClassPtr.Get())
+		{
+			OutTargetClasses.AddUnique(LoadedTargetClass);
+		}
+	}
+}
+
 void UGameFeatureAction_AddAttributes::CollectAttributeSetClasses(TArray<TSubclassOf<UAttributeSet>>& OutAttributeSetClasses) const
 {
 	for (const TSoftClassPtr<UAttributeSet>& AttributeSetClassPtr : AttributeSetClasses)
 	{
-		if (TSubclassOf<UAttributeSet> AttributeSetClass = AttributeSetClassPtr.LoadSynchronous())
+		if (TSubclassOf<UAttributeSet> AttributeSetClass = AttributeSetClassPtr.Get())
 		{
 			OutAttributeSetClasses.AddUnique(AttributeSetClass);
 		}

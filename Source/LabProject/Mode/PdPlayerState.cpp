@@ -1,15 +1,18 @@
 #include "Mode/PdPlayerState.h"
 
-#include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
+#include "Component/AbilitySystem/PandoraTreeComponent.h"
+#include "Component/Player/PlayerMatchComponent.h"
 #include "Components/GameFrameworkComponentManager.h"
-#include "Item/InventoryComponent.h"
-#include "Pandora/PandoraComponent.h"
-#include "PlayerComponent/PlayerNotificationComponent.h"
-#include "PlayerComponent/PlayerRewardComponent.h"
+#include "Component/Item/InventoryComponent.h"
+#include "Lobby/Contents/LobbyPlayerState.h"
+#include "Component/Pandora/PandoraComponent.h"
+#include "Component/Player/LevelingComponent.h"
+#include "Component/Player/PlayerNotificationComponent.h"
+#include "Component/Player/PlayerRewardComponent.h"
 #include "Component/Player/StatUpgradeComponent.h"
-#include "Skin/SkinComponent.h"
+#include "Component/Skin/SkinComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayerState)
 
@@ -28,7 +31,10 @@ APdPlayerState::APdPlayerState(const FObjectInitializer& ObjectInitializer)
 	SetNetUpdateFrequency(100.0f);
 
 	AbilitySystemComponent = CreateDefaultSubobject<UPdAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	PlayerMatchComponent = CreateDefaultSubobject<UPlayerMatchComponent>(TEXT("PlayerMatchComponent"));
 	NotificationComponent = CreateDefaultSubobject<UPlayerNotificationComponent>(TEXT("NotificationComponent"));
+	LevelingComponent = CreateDefaultSubobject<ULevelingComponent>(TEXT("LevelingComponent"));
+	SkinComponent = CreateDefaultSubobject<USkinComponent>(TEXT("SkinComponent"));
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -52,16 +58,35 @@ void APdPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void APdPlayerState::CopyProperties(APlayerState* NewPlayerState)
+{
+	Super::CopyProperties(NewPlayerState);
+
+	if (!PlayerMatchComponent)
+	{
+		return;
+	}
+
+	const FPlayerMatchIdentity MatchIdentityToCopy = GetMatchIdentityForCopyProperties();
+	if (ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(NewPlayerState))
+	{
+		LobbyPlayerState->ImportPlayerMatchIdentity(MatchIdentityToCopy);
+	}
+	else if (APdPlayerState* PdPlayerState = Cast<APdPlayerState>(NewPlayerState))
+	{
+		const bool bCopyMatchStats = !IsA<ALobbyPlayerState>();
+		PlayerMatchComponent->CopyMatchStateTo(
+			PdPlayerState->GetPlayerMatchComponent(),
+			MatchIdentityToCopy,
+			bCopyMatchStats);
+	}
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 //--- Ability System
 UAbilitySystemComponent* APdPlayerState::GetAbilitySystemComponent() const
 {
 	return GetPdAbilitySystemComponent();
-}
-
-UPdAbilitySystemComponent* APdPlayerState::GetPdAbilitySystemComponent() const
-{
-	return AbilitySystemComponent.Get();
 }
 
 UBasicAttributeSet* APdPlayerState::GetPdAttributeSet() const
@@ -77,11 +102,6 @@ UPlayerRewardComponent* APdPlayerState::GetPlayerRewardComponent() const
 	return FindPlayerStateComponent<UPlayerRewardComponent>(this);
 }
 
-UPlayerNotificationComponent* APdPlayerState::GetPlayerNotificationComponent() const
-{
-	return NotificationComponent.Get();
-}
-
 UStatUpgradeComponent* APdPlayerState::GetStatUpgradeComponent() const
 {
 	return FindPlayerStateComponent<UStatUpgradeComponent>(this);
@@ -94,6 +114,11 @@ UInventoryComponent* APdPlayerState::GetInventoryComponent() const
 
 USkinComponent* APdPlayerState::GetSkinComponent() const
 {
+	if (SkinComponent)
+	{
+		return SkinComponent.Get();
+	}
+
 	return FindPlayerStateComponent<USkinComponent>(this);
 }
 
@@ -105,4 +130,11 @@ UPandoraComponent* APdPlayerState::GetPandoraComponent() const
 UPandoraTreeComponent* APdPlayerState::GetPandoraTreeComponent() const
 {
 	return FindPlayerStateComponent<UPandoraTreeComponent>(this);
+}
+
+FPlayerMatchIdentity APdPlayerState::GetMatchIdentityForCopyProperties() const
+{
+	return PlayerMatchComponent
+		? PlayerMatchComponent->GetPlayerMatchIdentity()
+		: FPlayerMatchIdentity();
 }

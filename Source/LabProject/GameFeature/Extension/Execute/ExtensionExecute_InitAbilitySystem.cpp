@@ -3,7 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
-#include "Character/PdCharacterBase.h"
+#include "Character/CharacterBase.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
 
@@ -11,7 +11,7 @@
 
 void FExtensionExecute_InitAbilitySystem::OnActivate(AActor* Owner) const
 {
-	if (APdCharacterBase* Character = Cast<APdCharacterBase>(Owner))
+	if (ACharacterBase* Character = Cast<ACharacterBase>(Owner))
 	{
 		Character->InitializeAbilitySystemActorInfo();
 		return;
@@ -45,7 +45,7 @@ void FExtensionExecute_InitAbilitySystem::OnActivate(AActor* Owner) const
 
 void FExtensionExecute_InitAbilitySystem::OnDeactivate(AActor* Owner) const
 {
-	if (APdCharacterBase* Character = Cast<APdCharacterBase>(Owner))
+	if (ACharacterBase* Character = Cast<ACharacterBase>(Owner))
 	{
 		Character->ClearAbilitySystemActorInfo();
 		return;
