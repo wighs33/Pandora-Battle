@@ -8,15 +8,18 @@
 
 class UAnimationAsset;
 class UAnimMontage;
+class UInventoryComponent;
 class UItemDefinition;
 class UMaterialBillboardComponent;
 class UNiagaraComponent;
 class UPrimitiveComponent;
+class URewardDefinition;
 class USkinDefinition;
 class USoundBase;
 class UPandoraDefinition;
 class USkeletalMeshComponent;
 class UWidgetComponent;
+struct FStreamableHandle;
 
 UENUM(BlueprintType)
 enum class ERewardChestState : uint8
@@ -25,6 +28,26 @@ enum class ERewardChestState : uint8
 	Opening,
 	Opened,
 	Hidden
+};
+
+USTRUCT(BlueprintType)
+struct FRewardChestItemCountChance
+{
+	GENERATED_BODY()
+
+	FRewardChestItemCountChance() = default;
+
+	FRewardChestItemCountChance(const int32 InItemCount, const float InChance)
+		: ItemCount(InItemCount)
+		, Chance(InChance)
+	{
+	}
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Reward Chest|Reward", meta = (ClampMin = "1", UIMin = "1"))
+	int32 ItemCount = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Reward Chest|Reward", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float Chance = 1.0f;
 };
 
 UCLASS(Blueprintable, BlueprintType)
@@ -46,15 +69,24 @@ public:
 	virtual void GetRewardSkins_Implementation(TArray<FPrimaryAssetId>& OutSkinDefinitionList) override;
 	virtual void GetRewardPandoras_Implementation(TArray<FPrimaryAssetId>& OutPandoraDefinitionList) override;
 	virtual void OnRewardsClaimed_Implementation(AActor* RewardReceiver) override;
+	void GetRewardItemsForInventory(
+		const UInventoryComponent* InventoryComponent,
+		TArray<FPrimaryAssetId>& OutItemDefinitionList);
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Reward Chest")
 	void MarkOpened(AActor* RewardReceiver);
+
+	/** Keeps an unused placed chest as a hidden spawn-location anchor. */
+	void DeactivateForSpawnPool();
 
 	UFUNCTION(BlueprintPure, Category = "!Reward Chest")
 	bool IsOpened() const { return ChestState != ERewardChestState::Closed; }
 
 	UFUNCTION(BlueprintPure, Category = "!Reward Chest")
 	ERewardChestState GetChestState() const { return ChestState; }
+
+	TSoftObjectPtr<URewardDefinition> GetRewardDefinitionAsset() const { return RewardDefinition; }
+	bool IsRewardContentReady() const { return bRewardContentReady; }
 
 protected:
 	UFUNCTION()
@@ -83,8 +115,33 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Components")
 	TObjectPtr<UMaterialBillboardComponent> InteractionBillboard;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Reward",
+		meta = (ToolTip = "Optional shared numeric reward data. Items, skins, and pandoras stay on the chest."))
+	TSoftObjectPtr<URewardDefinition> RewardDefinition;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Reward")
 	TArray<TSoftObjectPtr<UItemDefinition>> RewardItems;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Reward")
+	bool bUseItemDefinitionDropRates = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Reward",
+		meta = (ClampMin = "1", UIMin = "1", EditCondition = "bUseItemDefinitionDropRates && !bUseRandomRewardItemCountChances",
+			DisplayName = "Random Item Count",
+			ToolTip = "Fallback fixed item count when random item count chances are disabled or invalid."))
+	int32 RandomRewardItemCount = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Reward", meta = (EditCondition = "bUseItemDefinitionDropRates"))
+	bool bUseRandomRewardItemCountChances = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Reward",
+		meta = (EditCondition = "bUseItemDefinitionDropRates && bUseRandomRewardItemCountChances",
+			DisplayName = "Random Item Count Chances",
+			ToolTip = "Weighted chances for how many random item rewards this chest drops. Chances are relative weights, not required to sum to 100."))
+	TArray<FRewardChestItemCountChance> RandomRewardItemCountChances;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Reward", meta = (EditCondition = "bUseItemDefinitionDropRates"))
+	bool bAllowDuplicateRandomItems = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Reward")
 	TArray<TSoftObjectPtr<USkinDefinition>> RewardSkins;
@@ -110,9 +167,28 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Open", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float HideAfterOpenFallbackDelay = 0.1f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Respawn",
+		meta = (ClampMin = "0.0", ForceUnits = "s",
+			ToolTip = "Time measured from a successful open until this chest reappears at a random unoccupied placed chest location."))
+	float RespawnDelayAfterOpen = 60.0f;
+
 private:
 	template <typename DefinitionType>
 	void AppendPrimaryAssetIds(const TArray<TSoftObjectPtr<DefinitionType>>& SourceDefinitions, TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
+
+	void AppendRandomItemPrimaryAssetIds(
+		const TSet<FPrimaryAssetId>& ExcludedUniqueItemIds,
+		TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
+	void AppendConfiguredItemPrimaryAssetIds(
+		const TSet<FPrimaryAssetId>& ExcludedUniqueItemIds,
+		TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
+	int32 ResolveRandomRewardItemCount() const;
+	static int32 SelectWeightedItemIndex(const TArray<float>& Weights, float TotalWeight);
+	bool IsWeaponItemDefinition(const UItemDefinition* ItemDefinition) const;
+	bool IsUniqueEquipmentItemDefinition(const UItemDefinition* ItemDefinition) const;
+	void BeginRewardContentPreload();
+	void HandleRewardContentPreloadComplete();
+	void ReleaseRewardContentPreload();
 
 	void ConfigureChestCollision(bool bEnableInteraction) const;
 	void PlayCharacterInteractionAnimation(AActor* RewardReceiver) const;
@@ -128,10 +204,19 @@ private:
 	void FinishOpening();
 	void ScheduleHideOpenedChest();
 	void HideOpenedChest();
+	void ScheduleRespawnAfterOpen();
+	void RetryRespawnAtAvailableLocation();
+	bool TryRespawnAtRandomAvailableLocation();
+	bool IsOccupyingSpawnLocation(const FTransform& SpawnTransform) const;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ChestState)
 	ERewardChestState ChestState = ERewardChestState::Closed;
 
 	FTimerHandle FinishOpeningTimerHandle;
 	FTimerHandle HideOpenedChestTimerHandle;
+	FTimerHandle RespawnTimerHandle;
+	FTransform OriginalSpawnTransform = FTransform::Identity;
+	bool bOriginalSpawnTransformCaptured = false;
+	TSharedPtr<FStreamableHandle> RewardContentPreloadHandle;
+	bool bRewardContentReady = false;
 };

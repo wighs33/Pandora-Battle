@@ -1,6 +1,6 @@
 #include "Component/Player/StatUpgradeComponent.h"
 
-#include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Common/LabGameplayTags.h"
 #include "GameFramework/Actor.h"

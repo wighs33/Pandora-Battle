@@ -19,7 +19,6 @@ void UItemInstance::EnsureItemId()
 
 	if (!ItemId.IsValid())
 	{
-		// 아이디 생성
 		ItemId = FGuid::NewGuid();
 	}
 }

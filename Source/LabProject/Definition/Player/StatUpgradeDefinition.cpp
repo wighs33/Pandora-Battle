@@ -27,7 +27,7 @@ namespace
 		return FMath::IsFinite(Value);
 	}
 
-	void ValidateStatUpgradeFinite(
+	void ValidateFinite(
 		FDataValidationContext& Context,
 		EDataValidationResult& Result,
 		const float Value,
@@ -41,7 +41,7 @@ namespace
 		}
 	}
 
-	void ValidateStatUpgradeNonNegative(
+	void ValidateNonNegative(
 		FDataValidationContext& Context,
 		EDataValidationResult& Result,
 		const float Value,
@@ -55,7 +55,7 @@ namespace
 		}
 	}
 
-	void ValidateStatUpgradePositive(
+	void ValidatePositive(
 		FDataValidationContext& Context,
 		EDataValidationResult& Result,
 		const float Value,
@@ -69,7 +69,7 @@ namespace
 		}
 	}
 
-	void ValidateStatUpgradeLessOrEqual(
+	void ValidateLessOrEqual(
 		FDataValidationContext& Context,
 		EDataValidationResult& Result,
 		const float Value,
@@ -282,8 +282,8 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 		MarkStatUpgradeInvalid(Context, Result, NSLOCTEXT("StatUpgradeDefinition", "MissingGameplayEffect", "StatUpGameplayEffectClass is required."));
 	}
 
-	ValidateStatUpgradePositive(Context, Result, MaxInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
-	ValidateStatUpgradeLessOrEqual(Context, Result, MaxInvestedLevel, MaxSupportedInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
+	ValidatePositive(Context, Result, MaxInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
+	ValidateLessOrEqual(Context, Result, MaxInvestedLevel, MaxSupportedInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
 
 	if (bEnableRecoveryHealthRegen)
 	{
@@ -319,7 +319,7 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 
 		UpgradeRootTags.Add(Rule.RootTag);
 
-		ValidateStatUpgradeNonNegative(
+		ValidateNonNegative(
 			Context,
 			Result,
 			Rule.Cost,
@@ -411,14 +411,14 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 		}
 
 		AttributeDefaultTags.Add(AttributeDefault.StatTag);
-		ValidateStatUpgradeFinite(
+		ValidateFinite(
 			Context,
 			Result,
 			AttributeDefault.DefaultValue,
 			FText::Format(
 				NSLOCTEXT("StatUpgradeDefinition", "AttributeDefaultValueField", "Attribute Values entry {0} DefaultValue"),
 				FText::AsNumber(EntryIndex)));
-		ValidateStatUpgradeFinite(
+		ValidateFinite(
 			Context,
 			Result,
 			AttributeDefault.ValuePerUpgrade,

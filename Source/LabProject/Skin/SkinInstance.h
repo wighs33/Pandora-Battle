@@ -11,9 +11,8 @@ UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API USkinInstance : public UObject
 {
 	GENERATED_BODY()
-	
+
 public:
-	/** 아이템 정의 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Skin")
 	TObjectPtr<const USkinDefinition> SkinDefinition;
 };
