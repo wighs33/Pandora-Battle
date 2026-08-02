@@ -11,8 +11,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BurningGameplayCue)
 
-DEFINE_LOG_CATEGORY_STATIC(LogBurningGameplayCue, Log, All);
-
 ABurningGameplayCue::ABurningGameplayCue()
 {
 	GameplayCueTag = LabGameplayTags::GameplayCue_Burning;
@@ -84,11 +82,7 @@ bool ABurningGameplayCue::ApplyBurningEffect(AActor* MyTarget, bool bPlaySound)
 		UGameplayStatics::PlaySoundAtLocation(this, BurningStartSound, MyTarget->GetActorLocation());
 	}
 
-	UE_LOG(LogBurningGameplayCue, Log,
-		TEXT("Burning cue applied: target=%s effect=%s playSound=%s"),
-		*GetNameSafe(MyTarget),
-		*GetNameSafe(BurningEffectComponent.Get()),
-		bPlaySound ? TEXT("true") : TEXT("false"));
+
 
 	return BurningEffectComponent != nullptr;
 }

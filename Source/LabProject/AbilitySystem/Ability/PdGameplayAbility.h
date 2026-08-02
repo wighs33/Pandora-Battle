@@ -4,24 +4,34 @@
 #include "ActiveGameplayEffectHandle.h"
 #include "GameplayTagContainer.h"
 #include "Abilities/GameplayAbility.h"
-#include "AbilitySystem/Skills/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillTypes.h"
 #include "PdGameplayAbility.generated.h"
 
-class APdCharacterBase;
-class APdPlayerController;
+class ACharacterBase;
 class APdPlayerState;
+class AGameplayAbilityTargetActor;
+class AWeaponBase;
+class UAbilitySystemComponent;
+class UAbilityTask_PlayMontageAndWait;
+class UAbilityTask_WaitTargetData;
+class UAbilityTask_WaitGameplayEvent;
+class UAnimMontage;
 class UGameplayEffect;
-class USkillDataAsset;
+class UNiagaraSystem;
+class USkillDefinition;
 class UPandoraSkillRuntimeContext;
+class UPdAbilityMovementRuntime;
+class UPdAbilityPresentationRuntime;
+class UPdAbilityResourceRuntime;
+class UPdAbilitySourceRuntime;
 class UPdAbilitySystemComponent;
 
-DECLARE_LOG_CATEGORY_EXTERN(PdGameplayAbilityLog, Log, All);
-
 /**
- * <프로젝트 공용 GameplayAbility 베이스>
- * - 프로젝트에서 공통으로 사용하는 Ability 유틸리티를 제공합니다.
- * - Character, Controller, PlayerState, ASC 접근 함수를 제공합니다.
- * - Ability 부여, Effect 적용, 타깃 탐색 기능을 공통 처리합니다.
+ * Project GameplayAbility facade.
+ *
+ * GAS lifecycle integration and the protected API used by derived abilities
+ * remain here. Focused, per-instance runtime objects own mutable resource,
+ * source, movement, and presentation behavior.
  */
 UCLASS(Abstract, Blueprintable)
 class LABPROJECT_API UPdGameplayAbility : public UGameplayAbility
@@ -31,77 +41,180 @@ class LABPROJECT_API UPdGameplayAbility : public UGameplayAbility
 public:
 	UPdGameplayAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	// 게터
-public:
-	UFUNCTION(BlueprintPure, Category = "!Ability")
-	APdCharacterBase* GetPdCharacterFromActorInfo() const;
-
-	UFUNCTION(BlueprintPure, Category = "!Ability")
-	APdPlayerController* GetPdPlayerControllerFromActorInfo() const;
-
-	UFUNCTION(BlueprintPure, Category = "!Ability")
+	ACharacterBase* GetPdCharacterFromActorInfo() const;
 	APdPlayerState* GetPdPlayerStateFromActorInfo() const;
-
-	UFUNCTION(BlueprintPure, Category = "!Ability")
 	UPdAbilitySystemComponent* GetPdAbilitySystemComponentFromActorInfo() const;
 
-	UFUNCTION(BlueprintPure, Category = "!Ability|Activation")
 	bool ShouldAutoActivateWhenGranted() const { return bAutoActivateWhenGranted; }
+	// Staged abilities can reserve confirmation for a separate input such as primary attack.
+	virtual bool ShouldAutoConfirmOnInputRelease() const { return true; }
+	UPdAbilityResourceRuntime* GetResourceRuntime() const { return ResourceRuntime.Get(); }
+	UPdAbilitySourceRuntime* GetSourceRuntime() const { return SourceRuntime.Get(); }
+	UPdAbilityMovementRuntime* GetMovementRuntime() const { return MovementRuntime.Get(); }
+	UPdAbilityPresentationRuntime* GetPresentationRuntime() const { return PresentationRuntime.Get(); }
 
-	UFUNCTION(BlueprintPure, Category = "!Ability|Skill")
-	USkillDataAsset* GetSourceSkillDataAsset() const;
+	void AppendCooldownRemovalPolicyTags(
+		FGameplayEffectSpecHandle& CooldownSpecHandle,
+		bool bPandoraCooldown) const;
+	virtual FGameplayTag GetDefaultInputTag() const { return FGameplayTag(); }
+	void SuppressPendingCooldownForRuntimeReset() const;
+	void CleanupConfiguredPresentation();
 
-	UFUNCTION(BlueprintPure, Category = "!Ability|Skill")
+	USkillDefinition* GetSourceSkillDataAsset() const;
+
 	UPandoraSkillRuntimeContext* GetSourceSkillRuntimeContext() const;
 
-	TArray<FProjectileImpactEffectAreaSpawnConfig> GetSourceProjectileImpactEffectAreasForLevel(int32 Level) const;
+	TArray<FProjectileImpactEffectAreaSpawnConfig> GetSourceProjectileImpactEffectAreas() const;
 
-	// Activation
-public:
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Activation")
-	bool TryActivateAbilitiesByTags(FGameplayTagContainer InAbilityTags, bool bAllowRemoteActivation = true) const;
-
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Grant")
-	int32 GrantAbilities(const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, int32 AbilityLevel = 1);
-
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Effect")
-	int32 ApplyGameplayEffects(const TArray<TSubclassOf<UGameplayEffect>>& GameplayEffectClasses, float EffectLevel = 1.f, int32 StackCount = 1);
-
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Effect")
-	bool ApplyGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel = 1.f, int32 StackCount = 1);
-
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Effect")
-	int32 RemoveGameplayEffects(const TArray<TSubclassOf<UGameplayEffect>>& GameplayEffectClasses);
-
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Effect")
+	bool TryActivateAbilitiesByTags(
+		FGameplayTagContainer InAbilityTags,
+		bool bAllowRemoteActivation = true) const;
+	int32 GrantAbilities(
+		const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
+		int32 AbilityLevel = 1);
+	bool ApplyGameplayEffect(
+		TSubclassOf<UGameplayEffect> GameplayEffectClass,
+		float EffectLevel = 1.0f,
+		int32 StackCount = 1);
 	bool RemoveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass);
 
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Effect")
 	int32 RemoveGameplayEffectsWithGrantedTags(const FGameplayTagContainer& GrantedTags);
-	
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Targeting")
-	bool GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRight, float SearchRadius = 350.f, float ForwardOffset = 50.f) const;
-
-	UFUNCTION(BlueprintPure, Category = "!Ability|Targeting")
 	bool HasPlayerController() const;
 
-	UFUNCTION(BlueprintPure, Category = "!Ability|Targeting")
 	AActor* GetAttackTargetFromAvatar() const;
-	
+
 protected:
-	FActiveGameplayEffectHandle ApplyGameplayEffectHandle(TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel = 1.f, int32 StackCount = 1);
-	FActiveGameplayEffectHandle ApplyGameplayEffectHandle(TSubclassOf<UGameplayEffect> GameplayEffectClass, const FGameplayTagContainer& DynamicGrantedTags,
-		float EffectLevel = 1.f, int32 StackCount = 1);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Cooldown|Policy",
+		meta = (Categories = "Effect.Policy"))
+	FGameplayTagContainer CooldownRemovalPolicyTags;
+
+	virtual void PreActivate(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate,
+		const FGameplayEventData* TriggerEventData = nullptr) override;
+	virtual const FGameplayTagContainer* GetCooldownTags() const override;
+	virtual bool CheckCost(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+	virtual void ApplyCost(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo) const override;
+	virtual bool CheckCooldown(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+
+	virtual void ApplyCooldown(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo) const override;
+	virtual bool CommitAbility(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) override;
+	virtual void EndAbility(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		bool bReplicateEndAbility,
+		bool bWasCancelled) override;
+	void FinishAbilityFromDuration();
+	bool CanExecuteSkillPayload() const;
+	void CancelAbilityForSkillExecutionFailure();
+
+	FActiveGameplayEffectHandle ApplyGameplayEffectHandle(
+		TSubclassOf<UGameplayEffect> GameplayEffectClass,
+		float EffectLevel = 1.0f,
+		int32 StackCount = 1);
+	FActiveGameplayEffectHandle ApplyGameplayEffectHandle(
+		TSubclassOf<UGameplayEffect> GameplayEffectClass,
+		const FGameplayTagContainer& DynamicGrantedTags,
+		float EffectLevel = 1.0f,
+		int32 StackCount = 1);
 	bool HasActiveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass) const;
-	bool GrantAbilityIfMissing(TSubclassOf<UGameplayAbility> AbilityClass, int32 AbilityLevel);
-	bool HasGrantedAbility(TSubclassOf<UGameplayAbility> AbilityClass) const;
-	const FGameplayAbilitySpec* ResolveCurrentAbilitySpec() const;
 	UObject* GetCurrentAbilitySpecSourceObject() const;
-	UPandoraSkillRuntimeContext* ResolveSourceSkillRuntimeContextFromSelectedPandora() const;
+	AWeaponBase* GetCurrentWeaponActorFromAvatar() const;
+	bool HasCurrentWeaponSkillTrail() const;
+	bool StartCurrentWeaponSkillTrail(UNiagaraSystem* TrailSystem) const;
+	void StopCurrentWeaponSkillTrail() const;
+	void ApplyCooldownImmediately(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo) const;
+	bool TryCommitAdditionalActionStaminaCost() const;
+	float CalculateBaseSkillDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const;
+	float ApplyIntelligenceToSkillDamage(float DamageMagnitude) const;
+	float CalculateSkillDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const;
+	UAbilityTask_PlayMontageAndWait* CreateDefaultMontageAndWaitTask(UAnimMontage* MontageToPlay);
+	UAbilityTask_WaitGameplayEvent* CreateWaitGameplayEventTask(
+		const FGameplayTag& EventTag,
+		bool bOnlyTriggerOnce = false,
+		bool bOnlyMatchExact = true);
+	AGameplayAbilityTargetActor* BeginSpawningTargetDataActor(
+		UAbilityTask_WaitTargetData* TargetDataTask,
+		TSubclassOf<AGameplayAbilityTargetActor> TargetActorClass);
+	void FinishSpawningTargetDataActor(
+		UAbilityTask_WaitTargetData* TargetDataTask,
+		AGameplayAbilityTargetActor* SpawnedActor);
+	FGameplayEffectSpecHandle MakeConfiguredDamageEffectSpec(
+		const FSkillGameplayEffectConfig& DamageConfig,
+		float DamageMagnitude,
+		UObject* SourceObject = nullptr) const;
+	FGameplayEffectSpecHandle MakeConfiguredStatusEffectSpec(
+		const USkillDefinition* SkillDataAsset,
+		TSubclassOf<UGameplayEffect> FallbackStatusEffectClass = nullptr,
+		float FallbackStatusEffectLevel = 1.0f) const;
+	FActiveGameplayEffectHandle ApplyConfiguredStatusEffectToTarget(
+		const USkillDefinition* SkillDataAsset,
+		UAbilitySystemComponent* TargetAbilitySystemComponent,
+		TSubclassOf<UGameplayEffect> FallbackStatusEffectClass = nullptr,
+		float FallbackStatusEffectLevel = 1.0f) const;
+	void StopAvatarMovementForSkillActivation();
+	void LockAvatarMovementForAbility();
+	void RestoreAvatarMovementForAbility();
+	void StartDurationMovementLock();
+	void StopDurationMovementLock();
+	void SpawnConfiguredCharacterDecal();
+	void StartConfiguredDefaultFX();
+	void StopConfiguredDefaultFX();
+	void StartConfiguredCharacterOverlay();
+	void StopConfiguredCharacterOverlay();
+	void StartConfiguredMissilePresentation(const FVector& TargetLocation);
+	void UpdateConfiguredMissilePresentationTarget(const FVector& TargetLocation);
+	void StopConfiguredMissilePresentation();
+	void StartConfiguredSelfBuff(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo);
+	void StopConfiguredSelfBuff();
+	FVector ResolveConfiguredCharacterDecalLocation(const ACharacterBase* Character) const;
+	float ResolveConfiguredCharacterDecalDuration(const USkillDefinition* SkillDataAsset) const;
+	void StartMovementContactDamage();
+	void StopMovementContactDamage();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Activation")
 	bool bAutoActivateWhenGranted = false;
 
-	UPROPERTY(Transient)
-	TObjectPtr<UPandoraSkillRuntimeContext> CachedResolvedSourceSkillRuntimeContext;
+private:
+	friend class UPdAbilityMovementRuntime;
+	friend class UPdAbilityPresentationRuntime;
+	friend class UPdAbilityResourceRuntime;
+	friend class UPdAbilitySourceRuntime;
+
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Ability|Runtime")
+	TObjectPtr<UPdAbilityResourceRuntime> ResourceRuntime;
+
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Ability|Runtime")
+	TObjectPtr<UPdAbilitySourceRuntime> SourceRuntime;
+
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Ability|Runtime")
+	TObjectPtr<UPdAbilityMovementRuntime> MovementRuntime;
+
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Ability|Runtime")
+	TObjectPtr<UPdAbilityPresentationRuntime> PresentationRuntime;
 };

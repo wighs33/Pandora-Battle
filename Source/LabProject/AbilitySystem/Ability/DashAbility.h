@@ -19,7 +19,7 @@ protected:
 	void OnDashRootMotionFinished();
 
 	FVector ResolveDashDirection(const FGameplayEventData* TriggerEventData) const;
-	FVector GetFallbackDashDirection() const;
+	FVector ResolveDefaultDashDirection() const;
 	float GetMaxSpeed() const;
 
 	int32 GetMaxDashCharges() const;

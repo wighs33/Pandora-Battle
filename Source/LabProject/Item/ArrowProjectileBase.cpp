@@ -1,24 +1,59 @@
 #include "Item/ArrowProjectileBase.h"
 
-#include "Character/PdCharacterBase.h"
+#include "Character/CharacterBase.h"
+#include "Character/CharacterHitValidation.h"
 #include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/ProjectileMovementComponent.h"
-#include "PlayerComponent/EquipmentComponent.h"
+#include "Component/Player/EquipmentComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Map/TransientActorRegistrySubsystem.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
 #include "Weapon/WeaponBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ArrowProjectileBase)
 
-DEFINE_LOG_CATEGORY_STATIC(LogArrowProjectileBase, Log, All);
+namespace
+{
+void ConfigureArrowCollision(UPrimitiveComponent* CollisionComponent)
+{
+	if (!CollisionComponent)
+	{
+		return;
+	}
+
+	CollisionComponent->SetCollisionObjectType(ECC_GameTraceChannel2);
+	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	CollisionComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+	CollisionComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+	CollisionComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
+	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	CollisionComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap);
+	CollisionComponent->SetGenerateOverlapEvents(false);
+	CollisionComponent->SetNotifyRigidBodyCollision(true);
+	CollisionComponent->SetCanEverAffectNavigation(false);
+}
+
+TArray<TEnumAsByte<EObjectTypeQuery>> MakeArrowImpactTraceObjectTypes()
+{
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_GameTraceChannel1));
+	return ObjectTypes;
+}
+}
 
 AArrowProjectileBase::AArrowProjectileBase()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 	bReplicates = true;
 	SetReplicateMovement(true);
 	SetNetUpdateFrequency(60.0f);
@@ -27,9 +62,8 @@ AArrowProjectileBase::AArrowProjectileBase()
 	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
 	SetRootComponent(CollisionBox);
 	CollisionBox->SetBoxExtent(FVector(38.0f, 2.0f, 1.0f));
+	ConfigureArrowCollision(CollisionBox);
 	CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	CollisionBox->SetGenerateOverlapEvents(false);
-	CollisionBox->SetCanEverAffectNavigation(false);
 
 	ArrowMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ArrowMesh"));
 	ArrowMesh->SetupAttachment(CollisionBox);
@@ -46,10 +80,23 @@ void AArrowProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (UWorld* World = GetWorld())
+	{
+		if (UTransientActorRegistrySubsystem* Registry =
+			World->GetSubsystem<UTransientActorRegistrySubsystem>())
+		{
+			Registry->RegisterTransientActor(this, GetOwningCharacter());
+		}
+	}
+
 	bHasImpacted = false;
+	bImpactTraceActive = false;
+	PreviousImpactTraceLocation = GetActorLocation();
+	SetActorTickEnabled(false);
 
 	if (CollisionBox)
 	{
+		ConfigureArrowCollision(CollisionBox);
 		CollisionBox->SetGenerateOverlapEvents(false);
 		CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &AArrowProjectileBase::HandleCollisionOverlap);
@@ -68,6 +115,20 @@ void AArrowProjectileBase::BeginPlay()
 		ArrowMesh->SetHiddenInGame(false);
 		ArrowMesh->SetVisibility(true, true);
 	}
+}
+
+void AArrowProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (UTransientActorRegistrySubsystem* Registry =
+			World->GetSubsystem<UTransientActorRegistrySubsystem>())
+		{
+			Registry->UnregisterTransientActor(this);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 bool AArrowProjectileBase::LaunchArrowActor(const FVector& Direction)
@@ -121,10 +182,22 @@ bool AArrowProjectileBase::LaunchArrowActor(const FVector& Direction)
 	ProjectileMovementComponent->UpdateComponentVelocity();
 	if (HasAuthority())
 	{
+		ConfigureArrowCollision(CollisionComponent);
 		CollisionComponent->SetGenerateOverlapEvents(true);
 		CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		PreviousImpactTraceLocation = GetActorLocation();
+		bImpactTraceActive = true;
+		SetActorTickEnabled(true);
 	}
 	return true;
+}
+
+void AArrowProjectileBase::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	static_cast<void>(DeltaSeconds);
+	PerformImpactTrace();
 }
 
 void AArrowProjectileBase::HandleCollisionOverlap(
@@ -177,54 +250,21 @@ UProjectileMovementComponent* AArrowProjectileBase::GetProjectileMovementCompone
 	return FindComponentByClass<UProjectileMovementComponent>();
 }
 
-APdCharacterBase* AArrowProjectileBase::GetOwningCharacter() const
+ACharacterBase* AArrowProjectileBase::GetOwningCharacter() const
 {
-	if (APdCharacterBase* OwnerCharacter = Cast<APdCharacterBase>(GetOwner()))
+	if (ACharacterBase* OwnerCharacter = Cast<ACharacterBase>(GetOwner()))
 	{
 		return OwnerCharacter;
 	}
 
-	return Cast<APdCharacterBase>(GetInstigator());
+	return Cast<ACharacterBase>(GetInstigator());
 }
 
 AWeaponBase* AArrowProjectileBase::GetOwningWeapon() const
 {
-	const APdCharacterBase* OwnerCharacter = GetOwningCharacter();
+	const ACharacterBase* OwnerCharacter = GetOwningCharacter();
 	const UEquipmentComponent* EquipmentComponent = OwnerCharacter ? OwnerCharacter->GetEquipmentComponent() : nullptr;
 	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
-}
-
-AActor* AArrowProjectileBase::ResolveDamageTargetActor(AActor* OtherActor) const
-{
-	if (!IsValid(OtherActor))
-	{
-		return nullptr;
-	}
-
-	if (Cast<APdCharacterBase>(OtherActor))
-	{
-		return OtherActor;
-	}
-
-	AActor* CurrentActor = OtherActor;
-	for (int32 Depth = 0; Depth < 8 && IsValid(CurrentActor); ++Depth)
-	{
-		AActor* OwnerActor = CurrentActor->GetOwner();
-		if (Cast<APdCharacterBase>(OwnerActor))
-		{
-			return OwnerActor;
-		}
-
-		AActor* AttachParentActor = CurrentActor->GetAttachParentActor();
-		if (Cast<APdCharacterBase>(AttachParentActor))
-		{
-			return AttachParentActor;
-		}
-
-		CurrentActor = OwnerActor ? OwnerActor : AttachParentActor;
-	}
-
-	return OtherActor;
 }
 
 bool AArrowProjectileBase::IsIgnoredImpactActor(const AActor* OtherActor) const
@@ -236,7 +276,7 @@ bool AArrowProjectileBase::IsIgnoredImpactActor(const AActor* OtherActor) const
 
 	const AActor* OwningActor = GetOwner();
 	const APawn* InstigatorPawn = GetInstigator();
-	const APdCharacterBase* OwningCharacter = GetOwningCharacter();
+	const ACharacterBase* OwningCharacter = GetOwningCharacter();
 
 	const AActor* CurrentActor = OtherActor;
 	for (int32 Depth = 0; Depth < 8 && IsValid(CurrentActor); ++Depth)
@@ -249,6 +289,18 @@ bool AArrowProjectileBase::IsIgnoredImpactActor(const AActor* OtherActor) const
 		if (InstigatorPawn && CurrentActor->GetInstigator() == InstigatorPawn)
 		{
 			return true;
+		}
+
+		if (OwningCharacter)
+		{
+			if (const ACharacterBase* OtherCharacter = Cast<ACharacterBase>(CurrentActor))
+			{
+				if (!OwningCharacter->CanDamageCharacterByTeam(OtherCharacter))
+				{
+
+					return true;
+				}
+			}
 		}
 
 		const AActor* OwnerActor = CurrentActor->GetOwner();
@@ -265,6 +317,72 @@ bool AArrowProjectileBase::IsIgnoredImpactActor(const AActor* OtherActor) const
 	return false;
 }
 
+float AArrowProjectileBase::GetImpactTraceRadius() const
+{
+	const UPrimitiveComponent* CollisionComponent = GetCollisionComponent();
+	const FVector Extent = CollisionComponent ? CollisionComponent->Bounds.BoxExtent : FVector::ZeroVector;
+	const double Radius = FMath::Max3(Extent.Y, Extent.Z, 4.0);
+	return FMath::Clamp(static_cast<float>(Radius), 4.0f, 24.0f);
+}
+
+void AArrowProjectileBase::PerformImpactTrace()
+{
+	if (!HasAuthority() || !bImpactTraceActive || bHasImpacted)
+	{
+		return;
+	}
+
+	const FVector CurrentLocation = GetActorLocation();
+	if (PreviousImpactTraceLocation.IsNearlyZero())
+	{
+		PreviousImpactTraceLocation = CurrentLocation;
+		return;
+	}
+
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+	if (AActor* OwnerActor = GetOwner())
+	{
+		ActorsToIgnore.Add(OwnerActor);
+	}
+	if (APawn* InstigatorPawn = GetInstigator())
+	{
+		ActorsToIgnore.Add(InstigatorPawn);
+	}
+	if (ACharacterBase* OwningCharacter = GetOwningCharacter())
+	{
+		ActorsToIgnore.Add(OwningCharacter);
+	}
+
+	TArray<FHitResult> HitResults;
+	const bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+		this,
+		PreviousImpactTraceLocation,
+		CurrentLocation,
+		GetImpactTraceRadius(),
+		MakeArrowImpactTraceObjectTypes(),
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::None,
+		HitResults,
+		true);
+
+	PreviousImpactTraceLocation = CurrentLocation;
+
+	if (!bHit)
+	{
+		return;
+	}
+
+	for (const FHitResult& HitResult : HitResults)
+	{
+		if (TryHandleImpact(HitResult.GetActor(), HitResult.GetComponent()))
+		{
+			break;
+		}
+	}
+}
+
 void AArrowProjectileBase::StopProjectileMotion()
 {
 	if (UProjectileMovementComponent* ProjectileMovementComponent = GetProjectileMovementComponent())
@@ -274,6 +392,9 @@ void AArrowProjectileBase::StopProjectileMotion()
 		ProjectileMovementComponent->Deactivate();
 		ProjectileMovementComponent->UpdateComponentVelocity();
 	}
+
+	bImpactTraceActive = false;
+	SetActorTickEnabled(false);
 }
 
 bool AArrowProjectileBase::TryHandleImpact(AActor* OtherActor, UPrimitiveComponent* OtherComp)
@@ -283,28 +404,24 @@ bool AArrowProjectileBase::TryHandleImpact(AActor* OtherActor, UPrimitiveCompone
 		return false;
 	}
 
-	AActor* DamageTargetActor = ResolveDamageTargetActor(OtherActor);
-	if (IsIgnoredImpactActor(DamageTargetActor))
+	if (PdCharacterHitValidation::IsCharacterRelatedNonWeaponDamageHit(OtherActor, OtherComp))
 	{
 		return false;
 	}
 
+	ACharacterBase* DamageTargetCharacter =
+		PdCharacterHitValidation::ResolveWeaponDamageHit(OtherActor, OtherComp);
 	bHasImpacted = true;
 
-	if (AWeaponBase* OwningWeapon = GetOwningWeapon())
+	if (DamageTargetCharacter)
 	{
-		OwningWeapon->RequestServerApplyDamage(DamageTargetActor);
-	}
-	else
-	{
-		UE_LOG(
-			LogArrowProjectileBase,
-			Warning,
-			TEXT("%s impact could not resolve owning weapon. Owner=%s Instigator=%s Target=%s"),
-			*GetName(),
-			*GetNameSafe(GetOwner()),
-			*GetNameSafe(GetInstigator()),
-			*GetNameSafe(DamageTargetActor));
+		if (AWeaponBase* OwningWeapon = GetOwningWeapon())
+		{
+			OwningWeapon->ApplyDamageFromAuthoritativeProjectileImpact(
+				OtherActor,
+				OtherComp,
+				this);
+		}
 	}
 
 	StopProjectileMotion();

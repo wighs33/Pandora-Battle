@@ -21,8 +21,6 @@ struct LABPROJECT_API FPandoraLoadoutSlot
 namespace PandoraLoadout
 {
 	bool IsLoadoutDirection(EEnum_Direction Direction);
-	FName GetDirectionSaveName(EEnum_Direction Direction);
 	FPandoraLoadoutSlot* FindSlot(TArray<FPandoraLoadoutSlot>& Slots, EEnum_Direction Direction);
 	const FPandoraLoadoutSlot* FindSlot(const TArray<FPandoraLoadoutSlot>& Slots, EEnum_Direction Direction);
-	TMap<FName, FName> MakeSaveNames(const TArray<FPandoraLoadoutSlot>& Slots);
 }

@@ -10,11 +10,6 @@ class UGameplayEffect;
 class UItemDefinition;
 class UAnimInstance;
 
-/**
- * < 장착 베이스 어빌리티 >
- *
- * - 아이템 데이터 애셋의 설정값에 맞춰서 커스텀된 장착이 실행됨
- */
 
 UCLASS(Blueprintable)
 class LABPROJECT_API UEquipAbility : public UPdGameplayAbility
@@ -29,6 +24,12 @@ protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	                             const FGameplayAbilityActivationInfo ActivationInfo,
 	                             const FGameplayEventData* TriggerEventData) override;
+	virtual void EndAbility(
+		FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayAbilityActivationInfo ActivationInfo,
+		bool bReplicateEndAbility,
+		bool bWasCancelled) override;
 
 	// Delegate callbacks
 	UFUNCTION()
@@ -46,6 +47,7 @@ protected:
 	// State helpers
 	void ClearActiveEquipEffect();
 	void ClearPendingEquipState();
+	void ResolveEquipTransition();
 	void FinalizeEquipCommit();
 	bool CommitPendingEquipIfPossible();
 
@@ -69,4 +71,10 @@ protected:
 
 	UPROPERTY(Transient)
 	bool bEquipCommitted = false;
+
+	UPROPERTY(Transient)
+	bool bEquipTransitionResolved = false;
+
+	UPROPERTY(Transient)
+	bool bEquipAbilityCommitted = false;
 };

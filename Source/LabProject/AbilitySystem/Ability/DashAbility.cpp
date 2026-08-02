@@ -3,16 +3,14 @@
 #include "Abilities/GameplayAbilityTypes.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
-#include "AbilitySystem/Skills/SkillTypes.h"
-#include "Character/PdCharacterBase.h"
+#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/RootMotionSource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DashAbility)
-
-DEFINE_LOG_CATEGORY_STATIC(LogPandoraDashAbility, Log, All);
 
 UDashAbility::UDashAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -38,42 +36,37 @@ UDashAbility::UDashAbility(const FObjectInitializer& ObjectInitializer)
 void UDashAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
-		UE_LOG(LogPandoraDashAbility, Warning,
-			TEXT("Dash cancelled: missing SkillDataAsset. ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(GetAvatarActorFromActorInfo()));
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
-
-	if (SkillDataAsset->DashStrength <= 0.0 || SkillDataAsset->DashDuration <= 0.0)
+	const FSkillMovementSettings& MovementConfig = SkillDataAsset->Movement;
+	if (SkillDataAsset->SkillDataType != EPdSkillDataType::Dash || !MovementConfig.bUseOneShotDash)
 	{
-		UE_LOG(LogPandoraDashAbility, Warning,
-			TEXT("Dash cancelled: invalid SkillDataAsset values. skill=%s strength=%.2f duration=%.2f"),
-			*GetNameSafe(SkillDataAsset),
-			SkillDataAsset->DashStrength,
-			SkillDataAsset->DashDuration);
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	APdCharacterBase* Character = GetPdCharacterFromActorInfo();
+	const double DashStrength = MovementConfig.DashStrength;
+	const double DashDuration = MovementConfig.DashDuration;
+	const bool bEnableGravityDuringDash = MovementConfig.bEnableGravityDuringDash;
+
+	if (DashStrength <= 0.0 || DashDuration <= 0.0)
+	{
+
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!Character)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
-	}
-
-	if (SkillDataAsset->DashCueTag.IsValid())
-	{
-		FGameplayCueParameters CueParameters;
-		CueParameters.Location = Character->GetActorLocation();
-		CueParameters.Instigator = Character;
-		CueParameters.EffectCauser = Character;
-		K2_AddGameplayCueWithParams(SkillDataAsset->DashCueTag, CueParameters, true);
 	}
 
 	if (!CommitDashCostAndMaybeCooldown(Handle, ActorInfo, ActivationInfo))
@@ -81,24 +74,43 @@ void UDashAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, cons
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+	if (!SkillDataAsset->bCancelOnHit)
+	{
+		// Dash owns a multi-charge commit path instead of CommitAbility, so it
+		// opts into the same post-commit execution guarantee explicitly.
+		SetCanBeCanceled(false);
+	}
 
 	UAbilityTask_ApplyRootMotionConstantForce* DashTask = UAbilityTask_ApplyRootMotionConstantForce::ApplyRootMotionConstantForce(
 		this,
 		TEXT("Dash"),
 		ResolveDashDirection(TriggerEventData),
-		static_cast<float>(SkillDataAsset->DashStrength),
-		static_cast<float>(SkillDataAsset->DashDuration),
+		static_cast<float>(DashStrength),
+		static_cast<float>(DashDuration),
 		false,
 		nullptr,
 		ERootMotionFinishVelocityMode::ClampVelocity,
 		FVector::ZeroVector,
 		GetMaxSpeed(),
-		SkillDataAsset->bEnableGravityDuringDash);
+		bEnableGravityDuringDash);
 
 	if (!DashTask)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
+	}
+
+	SpawnConfiguredCharacterDecal();
+	StartMovementContactDamage();
+
+	if (SkillDataAsset->Niagara.GameplayCueTag.IsValid())
+	{
+		FGameplayCueParameters CueParameters;
+		CueParameters.Location = Character->GetActorLocation();
+		CueParameters.Instigator = Character;
+		CueParameters.EffectCauser = Character;
+		CueParameters.RawMagnitude = MovementConfig.bHideCharacterDuringDash ? 1.0f : -1.0f;
+		K2_AddGameplayCueWithParams(SkillDataAsset->Niagara.GameplayCueTag, CueParameters, true);
 	}
 
 	DashTask->OnFinish.AddDynamic(this, &ThisClass::OnDashRootMotionFinished);
@@ -135,14 +147,14 @@ FVector UDashAbility::ResolveDashDirection(const FGameplayEventData* TriggerEven
 		}
 	}
 
-	return GetFallbackDashDirection();
+	return ResolveDefaultDashDirection();
 }
 
-FVector UDashAbility::GetFallbackDashDirection() const
+FVector UDashAbility::ResolveDefaultDashDirection() const
 {
 	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	const APawn* AvatarPawn = Cast<APawn>(AvatarActor);
-	const APdCharacterBase* Character = Cast<APdCharacterBase>(AvatarActor);
+	const ACharacterBase* Character = Cast<ACharacterBase>(AvatarActor);
 	const UCharacterMovementComponent* MovementComponent = Character ? Character->GetCharacterMovement() : nullptr;
 
 	FVector Direction = MovementComponent ? MovementComponent->GetCurrentAcceleration() : FVector::ZeroVector;
@@ -168,7 +180,7 @@ FVector UDashAbility::GetFallbackDashDirection() const
 
 float UDashAbility::GetMaxSpeed() const
 {
-	const APdCharacterBase* Character = GetPdCharacterFromActorInfo();
+	const ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	const UCharacterMovementComponent* MovementComponent = Character ? Character->GetCharacterMovement() : nullptr;
 	return MovementComponent ? MovementComponent->GetMaxSpeed() : 500.0f;
 }
@@ -196,6 +208,7 @@ bool UDashAbility::CommitDashCostAndMaybeCooldown(
 	++DashChargesUsed;
 	if (DashChargesUsed < GetMaxDashCharges())
 	{
+		StartConfiguredSelfBuff(Handle, ActorInfo, ActivationInfo);
 		return true;
 	}
 
@@ -205,5 +218,6 @@ bool UDashAbility::CommitDashCostAndMaybeCooldown(
 	}
 
 	DashChargesUsed = 0;
+	StartConfiguredSelfBuff(Handle, ActorInfo, ActivationInfo);
 	return true;
 }

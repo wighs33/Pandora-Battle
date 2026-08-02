@@ -1,584 +1,1068 @@
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 
-#include "AbilitySystemComponent.h"
+#include "Abilities/GameplayAbilityTargetActor.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystem/Interfaces/TargetingInterface.h"
-#include "AbilitySystem/PdAbilitySystemComponent.h"
-#include "AbilitySystem/Skills/SkillTypes.h"
-#include "Engine/OverlapResult.h"
-#include "Engine/World.h"
-#include "GameplayEffect.h"
-#include "Character/PdCharacterBase.h"
+#include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
-#include "Mode/PdPlayerController.h"
-#include "Mode/PdPlayerState.h"
-#include "Pandora/PandoraComponent.h"
-#include "Pandora/PandoraDefinition.h"
-#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Component/AbilitySystem/Ability/PdAbilityMovementRuntime.h"
+#include "Component/AbilitySystem/Ability/PdAbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/PdAbilityResourceRuntime.h"
+#include "Component/AbilitySystem/Ability/PdAbilitySourceRuntime.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/Player/EquipmentComponent.h"
+#include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "GameplayEffect.h"
+#include "Mode/PdPlayerState.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdGameplayAbility)
 
-// Î°úÍ∑∏ Ïπ¥ÌÖåÍ≥†Î¶¨ ?ïÏùò?ÖÎãà??
-DEFINE_LOG_CATEGORY(PdGameplayAbilityLog);
-
-/** Í≥µÏö© GameplayAbility Í∏∞Î≥∏ ?§Ï†ï??Ï¥àÍ∏∞?îÌï©?àÎã§. */
 namespace
 {
-	bool IsDeadCharacter(const AActor* Actor)
-	{
-		const APdCharacterBase* Character = Cast<APdCharacterBase>(Actor);
-		const UAbilitySystemComponent* ASC = Character ? Character->GetAbilitySystemComponent() : nullptr;
-		return ASC && ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
-	}
-
-
-	int32 GetPandoraSkillIndexFromAbilitySpec(const FGameplayAbilitySpec* AbilitySpec)
-	{
-		if (!AbilitySpec)
-		{
-			return INDEX_NONE;
-		}
-
-		const FGameplayTagContainer& SourceTags = AbilitySpec->GetDynamicSpecSourceTags();
-		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill1))
-		{
-			return 0;
-		}
-
-		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill2))
-		{
-			return 1;
-		}
-
-		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill3))
-		{
-			return 2;
-		}
-
-		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill4))
-		{
-			return 3;
-		}
-
-		return INDEX_NONE;
-	}
+bool IsDeadCharacter(const AActor* Actor)
+{
+	const ACharacterBase* Character = Cast<ACharacterBase>(Actor);
+	const UAbilitySystemComponent* AbilitySystemComponent =
+		Character ? Character->GetAbilitySystemComponent() : nullptr;
+	return AbilitySystemComponent
+		&& AbilitySystemComponent->HasMatchingGameplayTag(
+			LabGameplayTags::State_Dead);
+}
 }
 
-UPdGameplayAbility::UPdGameplayAbility(const FObjectInitializer& ObjectInitializer)
+UPdGameplayAbility::UPdGameplayAbility(
+	const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// =================================================================================================================
-	// === Ability Í∏∞Î≥∏ ?§Ìñâ ?ïÏ±Ö ?§Ï†ï
-
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
-	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
+	InstancingPolicy =
+		EGameplayAbilityInstancingPolicy::InstancedPerActor;
+	NetExecutionPolicy =
+		EGameplayAbilityNetExecutionPolicy::ServerInitiated;
+	ActivationOwnedTags.AddTag(
+		LabGameplayTags::GameplayAbility_Active);
 	ActivationBlockedTags.AddTag(LabGameplayTags::State_Dead);
+	CooldownRemovalPolicyTags.AddTag(
+		LabGameplayTags::Effect_Policy_RemoveOnDeath);
+
+	ResourceRuntime =
+		ObjectInitializer.CreateDefaultSubobject<
+			UPdAbilityResourceRuntime>(
+			this,
+			TEXT("ResourceRuntime"));
+	SourceRuntime =
+		ObjectInitializer.CreateDefaultSubobject<UPdAbilitySourceRuntime>(
+			this,
+			TEXT("SourceRuntime"));
+	MovementRuntime =
+		ObjectInitializer.CreateDefaultSubobject<
+			UPdAbilityMovementRuntime>(
+			this,
+			TEXT("MovementRuntime"));
+	PresentationRuntime =
+		ObjectInitializer.CreateDefaultSubobject<
+			UPdAbilityPresentationRuntime>(
+			this,
+			TEXT("PresentationRuntime"));
 }
 
-/** ?ÑÏû¨ AvatarActorÎ•??ÑÎ°ú?ùÌä∏ Ï∫êÎ¶≠???Ä?ÖÏúºÎ°?Î∞òÌôò?©Îãà?? */
-APdCharacterBase* UPdGameplayAbility::GetPdCharacterFromActorInfo() const
+ACharacterBase* UPdGameplayAbility::GetPdCharacterFromActorInfo() const
 {
-	return Cast<APdCharacterBase>(GetAvatarActorFromActorInfo());
+	return Cast<ACharacterBase>(GetAvatarActorFromActorInfo());
 }
 
-/** ?ÑÏû¨ ActorInfo??PlayerControllerÎ•??ÑÎ°ú?ùÌä∏ ?Ä?ÖÏúºÎ°?Î∞òÌôò?©Îãà?? */
-APdPlayerController* UPdGameplayAbility::GetPdPlayerControllerFromActorInfo() const
-{
-	return Cast<APdPlayerController>(GetCurrentActorInfo() ? GetCurrentActorInfo()->PlayerController.Get() : nullptr);
-}
-
-/** ?ÑÏû¨ ActorInfo Í∏∞Ï? PlayerStateÎ•??ÑÎ°ú?ùÌä∏ ?Ä?ÖÏúºÎ°?Î∞òÌôò?©Îãà?? */
 APdPlayerState* UPdGameplayAbility::GetPdPlayerStateFromActorInfo() const
 {
-	// =================================================================================================================
-	// === Character Í∏∞Ï? PlayerState ?∞ÏÑ† Ï°∞Ìöå
-
-	if (const APdCharacterBase* Character = GetPdCharacterFromActorInfo())
+	if (const ACharacterBase* Character =
+		GetPdCharacterFromActorInfo())
 	{
 		return Character->GetPlayerState<APdPlayerState>();
 	}
 
-	// OwningActorÍ∞Ä Í≥?PlayerState??Í≤ΩÏö∞Î•?Î≥¥Ï°∞ Ï≤òÎ¶¨?©Îãà??
 	return Cast<APdPlayerState>(GetOwningActorFromActorInfo());
 }
 
-/** ?ÑÏû¨ ActorInfo??ASCÎ•??ÑÎ°ú?ùÌä∏ ?Ä?ÖÏúºÎ°?Î∞òÌôò?©Îãà?? */
-UPdAbilitySystemComponent* UPdGameplayAbility::GetPdAbilitySystemComponentFromActorInfo() const
+UPdAbilitySystemComponent*
+UPdGameplayAbility::GetPdAbilitySystemComponentFromActorInfo() const
 {
-	return Cast<UPdAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
+	return Cast<UPdAbilitySystemComponent>(
+		GetAbilitySystemComponentFromActorInfo());
 }
 
-/** ?ÑÎã¨???úÍ∑∏Î•?Í∞ÄÏß?Ability?§Ïùò ?úÏÑ±?îÎ? ?úÎèÑ?©Îãà?? */
-bool UPdGameplayAbility::TryActivateAbilitiesByTags(FGameplayTagContainer InAbilityTags, bool bAllowRemoteActivation) const
+void UPdGameplayAbility::AppendCooldownRemovalPolicyTags(
+	FGameplayEffectSpecHandle& CooldownSpecHandle,
+	const bool bPandoraCooldown) const
 {
-	// =================================================================================================================
-	// === ASC Î∞??ÖÎ†• ?úÍ∑∏ Í≤Ä??
-	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
-	if (!ASC || InAbilityTags.IsEmpty())
+	if (ResourceRuntime)
 	{
-		return false;
+		ResourceRuntime->AppendCooldownRemovalPolicyTags(
+			CooldownSpecHandle,
+			CooldownRemovalPolicyTags,
+			bPandoraCooldown);
 	}
-
-	return ASC->TryActivateAbilitiesByTag(InAbilityTags, bAllowRemoteActivation);
 }
 
-/** Í∞Ä??Í∞ÄÍπåÏö¥ ?ÅÏùÑ Ï∞æÍ≥† Ï¢åÏö∞ Î∞©Ìñ• ?ïÎ≥¥Î•?Î∞òÌôò?©Îãà?? */
-bool UPdGameplayAbility::GetClosestEnemy(AActor*& ClosestEnemy, bool& bLeftOrRight, float SearchRadius, float ForwardOffset) const
+void UPdGameplayAbility::SuppressPendingCooldownForRuntimeReset() const
 {
-	// =================================================================================================================
-	// === Î∞òÌôòÍ∞?Ï¥àÍ∏∞??
-	ClosestEnemy = nullptr;
-	bLeftOrRight = false;
+	if (ResourceRuntime)
+	{
+		ResourceRuntime->SuppressPendingCooldown();
+	}
+}
 
-	// =================================================================================================================
-	// === ?åÏú†?êÏ? ?êÏÉâ Î∞òÍ≤Ω ?†Ìö®??Í≤Ä??
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!IsValid(AvatarActor) || SearchRadius <= 0.f)
+void UPdGameplayAbility::PreActivate(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate,
+	const FGameplayEventData* TriggerEventData)
+{
+	Super::PreActivate(
+		Handle,
+		ActorInfo,
+		ActivationInfo,
+		OnGameplayAbilityEndedDelegate,
+		TriggerEventData);
+	CleanupConfiguredPresentation();
+
+	UPdAbilitySystemComponent* AbilitySystemComponent = ActorInfo
+		? Cast<UPdAbilitySystemComponent>(
+			ActorInfo->AbilitySystemComponent.Get())
+		: nullptr;
+	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent
+		? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
+		: nullptr;
+	const USkillDefinition* SkillDefinition = SourceRuntime
+		? SourceRuntime->ResolveSkillDataAsset(
+			*this,
+			AbilitySpec,
+			ActorInfo)
+		: nullptr;
+	const bool bInputDrivenSkill = SkillDefinition
+		&& (SkillDefinition->SkillType == EPdSkillType::Instant
+			|| SkillDefinition->SkillType == EPdSkillType::Press
+			|| SkillDefinition->SkillType == EPdSkillType::Duration);
+	if (!AbilitySystemComponent || !bInputDrivenSkill)
+	{
+		return;
+	}
+
+	FGameplayTagContainer EquipmentTransitionTags;
+	EquipmentTransitionTags.AddTag(LabGameplayTags::Action_Equip);
+	EquipmentTransitionTags.AddTag(LabGameplayTags::Action_Unequip);
+	if (AbilitySystemComponent->HasActiveAbilityWithTags(
+		EquipmentTransitionTags))
+	{
+		AbilitySystemComponent->CancelAbilities(
+			&EquipmentTransitionTags,
+			nullptr,
+			this);
+	}
+}
+
+const FGameplayTagContainer* UPdGameplayAbility::GetCooldownTags() const
+{
+	const FGameplayTagContainer* ParentCooldownTags =
+		Super::GetCooldownTags();
+	return ResourceRuntime
+		? ResourceRuntime->BuildCooldownTags(
+			*this,
+			ParentCooldownTags)
+		: ParentCooldownTags;
+}
+
+bool UPdGameplayAbility::CheckCost(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	if (!Super::CheckCost(Handle, ActorInfo, OptionalRelevantTags))
 	{
 		return false;
 	}
 
-	// =================================================================================================================
-	// === ?åÏú†??ÏßÑÏòÅ ?ïÎ≥¥ ?ïÏù∏
+	return !ResourceRuntime
+		|| ResourceRuntime->CheckCost(
+			*this,
+			Handle,
+			ActorInfo,
+			OptionalRelevantTags);
+}
 
-	const APdCharacterBase* OwnerCharacter = Cast<APdCharacterBase>(AvatarActor);
-	if (!OwnerCharacter)
+void UPdGameplayAbility::ApplyCost(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	Super::ApplyCost(Handle, ActorInfo, ActivationInfo);
+	if (ResourceRuntime)
+	{
+		ResourceRuntime->ApplyCost(
+			*this,
+			Handle,
+			ActorInfo,
+			ActivationInfo);
+	}
+}
+
+bool UPdGameplayAbility::CheckCooldown(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	if (ResourceRuntime)
+	{
+		bool bHandled = false;
+		const bool bConfiguredResult =
+			ResourceRuntime->CheckConfiguredCooldown(
+				*this,
+				Handle,
+				ActorInfo,
+				Super::GetCooldownTags(),
+				OptionalRelevantTags,
+				bHandled);
+		if (bHandled)
+		{
+			return bConfiguredResult;
+		}
+	}
+
+	return Super::CheckCooldown(
+		Handle,
+		ActorInfo,
+		OptionalRelevantTags);
+}
+
+void UPdGameplayAbility::ApplyCooldown(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	if (ResourceRuntime
+		&& ResourceRuntime->ShouldDeferCooldown(
+			*this,
+			Handle,
+			ActorInfo))
+	{
+		ResourceRuntime->MarkCooldownForAbilityEnd();
+		return;
+	}
+
+	ApplyCooldownImmediately(Handle, ActorInfo, ActivationInfo);
+}
+
+bool UPdGameplayAbility::CommitAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	FGameplayTagContainer* OptionalRelevantTags)
+{
+	if (!Super::CommitAbility(
+		Handle,
+		ActorInfo,
+		ActivationInfo,
+		OptionalRelevantTags))
 	{
 		return false;
 	}
 
-	// =================================================================================================================
-	// === ?îÎìú Î∞??êÏÉâ Í∏∞Ï? ?ÑÏπò ?§Ï†ï
-
-	UWorld* World = AvatarActor->GetWorld();
-	if (!World)
+	UAbilitySystemComponent* AbilitySystemComponent =
+		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	const FGameplayAbilitySpec* AbilitySpec =
+		AbilitySystemComponent && Handle.IsValid()
+			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
+			: (SourceRuntime
+				? SourceRuntime->ResolveCurrentAbilitySpec(*this)
+				: nullptr);
+	const USkillDefinition* SkillDefinition = SourceRuntime
+		? SourceRuntime->ResolveSkillDataAsset(
+			*this,
+			AbilitySpec,
+			ActorInfo)
+		: nullptr;
+	if (SkillDefinition)
 	{
-		return false;
-	}
+		StopAvatarMovementForSkillActivation();
 
-	const int32 OwnerFaction = OwnerCharacter->GetFactionId();
-	const FVector AvatarLocation = AvatarActor->GetActorLocation();
-	const FVector SearchOrigin = AvatarLocation + (AvatarActor->GetActorForwardVector() * ForwardOffset);
-
-	// =================================================================================================================
-	// === Pawn ?Ä??Íµ¨Ìòï ?§Î≤Ñ???§Ï†ï
-
-	FCollisionObjectQueryParams ObjectQueryParams;
-	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
-
-	FCollisionQueryParams QueryParams(NAME_None, false, AvatarActor);
-	FCollisionShape SphereShape = FCollisionShape::MakeSphere(SearchRadius);
-
-	// =================================================================================================================
-	// === Ï£ºÎ? Pawn ?§Î≤Ñ???êÏÉâ
-
-	TArray<FOverlapResult> OverlapResults;
-	if (!World->OverlapMultiByObjectType(OverlapResults, SearchOrigin, FQuat::Identity, ObjectQueryParams, SphereShape, QueryParams))
-	{
-		return false;
-	}
-
-	// =================================================================================================================
-	// === Í∞Ä??Í∞ÄÍπåÏö¥ ???êÏÉâ
-
-	double BestDistanceSq = TNumericLimits<double>::Max();
-
-	for (const FOverlapResult& OverlapResult : OverlapResults)
-	{
-		AActor* OtherActor = OverlapResult.GetActor();
-		if (!IsValid(OtherActor) || OtherActor == AvatarActor)
+		// Once a protected skill has paid its cost, unrelated abilities and
+		// input-release events must not leave it in a cooldown-only state.
+		// Death/runtime reset explicitly restores cancellability before cleanup,
+		// while bCancelOnHit keeps the authored interruptible-skill behavior.
+		if (!SkillDefinition->bCancelOnHit)
 		{
-			continue;
-		}
-
-		const APdCharacterBase* OtherCharacter = Cast<APdCharacterBase>(OtherActor);
-		if (!OtherCharacter)
-		{
-			continue;
-		}
-
-		if (IsDeadCharacter(OtherActor))
-		{
-			continue;
-		}
-
-		if (OtherCharacter->GetFactionId() == OwnerFaction)
-		{
-			continue;
-		}
-
-		const double DistanceSq = FVector::DistSquared(SearchOrigin, OtherActor->GetActorLocation());
-		if (DistanceSq < BestDistanceSq)
-		{
-			BestDistanceSq = DistanceSq;
-			ClosestEnemy = OtherActor;
+			SetCanBeCanceled(false);
 		}
 	}
 
-	if (!ClosestEnemy)
-	{
-		return false;
-	}
-
-	// =================================================================================================================
-	// === Î™©Ìëú??Ï¢åÏö∞ Î∞©Ìñ• Í≥ÑÏÇ∞
-
-	const FVector ToEnemy = ClosestEnemy->GetActorLocation() - AvatarLocation;
-	bLeftOrRight = FVector::DotProduct(AvatarActor->GetActorRightVector(), ToEnemy) < 0.f;
+	StartConfiguredSelfBuff(Handle, ActorInfo, ActivationInfo);
 	return true;
+}
+
+void UPdGameplayAbility::EndAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	const bool bReplicateEndAbility,
+	const bool bWasCancelled)
+{
+	const bool bEquipmentTransitionAbility =
+		GetAssetTags().HasTagExact(LabGameplayTags::Action_Equip)
+		|| GetAssetTags().HasTagExact(LabGameplayTags::Action_Unequip);
+
+	CleanupConfiguredPresentation();
+	StopConfiguredSelfBuff();
+	StopMovementContactDamage();
+	StopDurationMovementLock();
+	RestoreAvatarMovementForAbility();
+
+	const UPdAbilitySystemComponent* AbilitySystemComponent = ActorInfo
+		? Cast<UPdAbilitySystemComponent>(
+			ActorInfo->AbilitySystemComponent.Get())
+		: nullptr;
+	const bool bCooldownWasPending = ResourceRuntime
+		&& ResourceRuntime->ConsumePendingCooldown(bWasCancelled);
+	const bool bShouldApplySkillCooldown =
+		bCooldownWasPending
+		&& !(AbilitySystemComponent
+			&& AbilitySystemComponent->IsResettingAbilityRuntimeState());
+	if (bShouldApplySkillCooldown)
+	{
+		ApplyCooldownImmediately(Handle, ActorInfo, ActivationInfo);
+	}
+
+	Super::EndAbility(
+		Handle,
+		ActorInfo,
+		ActivationInfo,
+		bReplicateEndAbility,
+		bWasCancelled);
+
+	if (!bEquipmentTransitionAbility)
+	{
+		ACharacterBase* Character = ActorInfo
+			? Cast<ACharacterBase>(ActorInfo->AvatarActor.Get())
+			: nullptr;
+		if (UEquipmentComponent* EquipmentComponent =
+			Character ? Character->GetEquipmentComponent() : nullptr)
+		{
+			const bool bEquipmentTransitionResumed =
+				EquipmentComponent->TryResumePendingWeaponSelection();
+			if (!bEquipmentTransitionResumed)
+			{
+				// A skill or hit reaction may have interrupted an equipment
+				// montage after it changed the linked animation layer. Reassert
+				// the authoritative current weapon layer even when the replicated
+				// weapon pointer itself did not change and no OnRep will run.
+				EquipmentComponent->RefreshCurrentWeaponAnimationLayer();
+			}
+		}
+
+		if (Character)
+		{
+			Character->ReapplyCurrentRotationPolicy();
+		}
+	}
+}
+
+void UPdGameplayAbility::FinishAbilityFromDuration()
+{
+	if (!IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))
+	{
+		return;
+	}
+
+	const bool bReplicateEndAbility =
+		CurrentActorInfo && CurrentActorInfo->IsNetAuthority();
+	EndAbility(
+		CurrentSpecHandle,
+		CurrentActorInfo,
+		CurrentActivationInfo,
+		bReplicateEndAbility,
+		false);
+}
+
+bool UPdGameplayAbility::CanExecuteSkillPayload() const
+{
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor) || IsDeadCharacter(AvatarActor))
+	{
+		return false;
+	}
+
+	const UPdAbilitySystemComponent* AbilitySystemComponent =
+		GetPdAbilitySystemComponentFromActorInfo();
+	const UBasicAttributeSet* BasicAttributeSet = AbilitySystemComponent
+		? AbilitySystemComponent->GetSet<UBasicAttributeSet>()
+		: nullptr;
+	if (BasicAttributeSet && BasicAttributeSet->GetHealth() <= 0.0f)
+	{
+		return false;
+	}
+
+	return !AbilitySystemComponent
+		|| !AbilitySystemComponent->IsResettingAbilityRuntimeState();
+}
+
+void UPdGameplayAbility::CancelAbilityForSkillExecutionFailure()
+{
+	// Committed skills are protected from external cancellation. A genuine
+	// payload failure must still be able to terminate as cancelled so deferred
+	// cooldown is discarded instead of charging for an execution that failed.
+	if (!CanBeCanceled())
+	{
+		SetCanBeCanceled(true);
+	}
+
+	K2_CancelAbility();
+}
+
+void UPdGameplayAbility::ApplyCooldownImmediately(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	const bool bHandled = ResourceRuntime
+		&& ResourceRuntime->ApplyConfiguredCooldownImmediately(
+			*this,
+			Handle,
+			ActorInfo,
+			ActivationInfo,
+			CooldownRemovalPolicyTags);
+	if (!bHandled)
+	{
+		Super::ApplyCooldown(Handle, ActorInfo, ActivationInfo);
+	}
+}
+
+bool UPdGameplayAbility::TryActivateAbilitiesByTags(
+	FGameplayTagContainer InAbilityTags,
+	const bool bAllowRemoteActivation) const
+{
+	UPdAbilitySystemComponent* AbilitySystemComponent =
+		GetPdAbilitySystemComponentFromActorInfo();
+	return AbilitySystemComponent
+		&& !InAbilityTags.IsEmpty()
+		&& AbilitySystemComponent->TryActivateAbilitiesByTag(
+			InAbilityTags,
+			bAllowRemoteActivation);
 }
 
 bool UPdGameplayAbility::HasPlayerController() const
 {
-	const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
-	const AController* Controller = AvatarPawn ? AvatarPawn->GetController() : nullptr;
+	const APawn* AvatarPawn =
+		Cast<APawn>(GetAvatarActorFromActorInfo());
+	const AController* Controller =
+		AvatarPawn ? AvatarPawn->GetController() : nullptr;
 	return Controller && Controller->IsPlayerController();
 }
 
 AActor* UPdGameplayAbility::GetAttackTargetFromAvatar() const
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!IsValid(AvatarActor))
+	if (!IsValid(AvatarActor)
+		|| !AvatarActor->GetClass()->ImplementsInterface(
+			UTargetingInterface::StaticClass()))
 	{
 		return nullptr;
 	}
 
-	if (AvatarActor->GetClass()->ImplementsInterface(UTargetingInterface::StaticClass()))
-	{
-		AActor* AttackTarget = ITargetingInterface::Execute_GetAttackTarget(AvatarActor);
-		return IsDeadCharacter(AttackTarget) ? nullptr : AttackTarget;
-	}
-
-	return nullptr;
+	AActor* AttackTarget =
+		ITargetingInterface::Execute_GetAttackTarget(AvatarActor);
+	return IsDeadCharacter(AttackTarget) ? nullptr : AttackTarget;
 }
 
-USkillDataAsset* UPdGameplayAbility::GetSourceSkillDataAsset() const
+USkillDefinition* UPdGameplayAbility::GetSourceSkillDataAsset() const
 {
-	if (const UPandoraSkillRuntimeContext* RuntimeContext = GetSourceSkillRuntimeContext())
-	{
-		return const_cast<USkillDataAsset*>(RuntimeContext->GetSkillDataAsset());
-	}
-
-	return Cast<USkillDataAsset>(GetCurrentAbilitySpecSourceObject());
+	return SourceRuntime
+		? SourceRuntime->GetSourceSkillDataAsset(*this)
+		: nullptr;
 }
 
-UPandoraSkillRuntimeContext* UPdGameplayAbility::GetSourceSkillRuntimeContext() const
+UPandoraSkillRuntimeContext*
+UPdGameplayAbility::GetSourceSkillRuntimeContext() const
 {
-	if (UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(GetCurrentAbilitySpecSourceObject()))
-	{
-		return RuntimeContext;
-	}
-
-	return ResolveSourceSkillRuntimeContextFromSelectedPandora();
+	return SourceRuntime
+		? SourceRuntime->GetSourceSkillRuntimeContext(*this)
+		: nullptr;
 }
 
-TArray<FProjectileImpactEffectAreaSpawnConfig> UPdGameplayAbility::GetSourceProjectileImpactEffectAreasForLevel(const int32 Level) const
+TArray<FProjectileImpactEffectAreaSpawnConfig>
+UPdGameplayAbility::GetSourceProjectileImpactEffectAreas() const
 {
-	if (const UPandoraSkillRuntimeContext* RuntimeContext = GetSourceSkillRuntimeContext())
-	{
-		return RuntimeContext->GetProjectileImpactEffectAreasForLevel(Level);
-	}
-
-	if (const USkillDataAsset* SourceSkill = Cast<USkillDataAsset>(GetCurrentAbilitySpecSourceObject()))
-	{
-		return SourceSkill->GetLegacyProjectileImpactEffectAreasForLevel(Level);
-	}
-
-	return TArray<FProjectileImpactEffectAreaSpawnConfig>();
-}
-
-const FGameplayAbilitySpec* UPdGameplayAbility::ResolveCurrentAbilitySpec() const
-{
-	if (const FGameplayAbilitySpec* AbilitySpec = GetCurrentAbilitySpec())
-	{
-		return AbilitySpec;
-	}
-
-	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
-	const FGameplayAbilitySpecHandle SpecHandle = GetCurrentAbilitySpecHandle();
-	return ASC && SpecHandle.IsValid() ? ASC->FindAbilitySpecFromHandle(SpecHandle) : nullptr;
+	return SourceRuntime
+		? SourceRuntime->GetSourceProjectileImpactEffectAreas(*this)
+		: TArray<FProjectileImpactEffectAreaSpawnConfig>();
 }
 
 UObject* UPdGameplayAbility::GetCurrentAbilitySpecSourceObject() const
 {
-	const FGameplayAbilitySpec* AbilitySpec = ResolveCurrentAbilitySpec();
-	return AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr;
+	return SourceRuntime
+		? SourceRuntime->GetCurrentAbilitySpecSourceObject(*this)
+		: nullptr;
 }
 
-UPandoraSkillRuntimeContext* UPdGameplayAbility::ResolveSourceSkillRuntimeContextFromSelectedPandora() const
+AWeaponBase* UPdGameplayAbility::GetCurrentWeaponActorFromAvatar() const
 {
-	const FGameplayAbilitySpec* AbilitySpec = ResolveCurrentAbilitySpec();
-	const int32 SkillIndex = GetPandoraSkillIndexFromAbilitySpec(AbilitySpec);
-	if (SkillIndex == INDEX_NONE)
-	{
-		return nullptr;
-	}
-
-	const APdPlayerState* PlayerState = GetPdPlayerStateFromActorInfo();
-	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
-	const UPandoraDefinition* PandoraDefinition = PandoraComponent ? PandoraComponent->GetCurrentPandoraDefinition() : nullptr;
-	if (!PandoraDefinition || !PandoraDefinition->Skill.IsValidIndex(SkillIndex))
-	{
-		return nullptr;
-	}
-
-	const FSkill& Skill = PandoraDefinition->Skill[SkillIndex];
-	const USkillDataAsset* SkillDataAsset = Skill.SkillDefinition.Get();
-	if (!SkillDataAsset)
-	{
-		return nullptr;
-	}
-
-	const int32 RuntimeLevel = AbilitySpec ? FMath::Max(AbilitySpec->Level, 1) : FMath::Max(GetAbilityLevel(), 1);
-	if (CachedResolvedSourceSkillRuntimeContext
-		&& CachedResolvedSourceSkillRuntimeContext->GetPandoraDefinition() == PandoraDefinition
-		&& CachedResolvedSourceSkillRuntimeContext->GetSkillDataAsset() == SkillDataAsset
-		&& CachedResolvedSourceSkillRuntimeContext->GetSkillIndex() == SkillIndex
-		&& CachedResolvedSourceSkillRuntimeContext->GetPandoraLevel() == RuntimeLevel)
-	{
-		return CachedResolvedSourceSkillRuntimeContext.Get();
-	}
-
-	UPdGameplayAbility* MutableThis = const_cast<UPdGameplayAbility*>(this);
-	MutableThis->CachedResolvedSourceSkillRuntimeContext = NewObject<UPandoraSkillRuntimeContext>(MutableThis);
-	MutableThis->CachedResolvedSourceSkillRuntimeContext->Initialize(PandoraDefinition, SkillDataAsset, SkillIndex, RuntimeLevel);
-	return MutableThis->CachedResolvedSourceSkillRuntimeContext.Get();
+	return SourceRuntime
+		? SourceRuntime->GetCurrentWeaponActorFromAvatar(*this)
+		: nullptr;
 }
 
-/** Granted Ability classes are added without duplicates. */
-int32 UPdGameplayAbility::GrantAbilities(const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, int32 AbilityLevel)
+bool UPdGameplayAbility::HasCurrentWeaponSkillTrail() const
 {
-	// =================================================================================================================
-	// === ASC Î∞??ÖÎ†• Î∞∞Ïó¥ Í≤Ä??
-	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
-	if (!ASC || AbilityClasses.IsEmpty())
-	{
-		return 0;
-	}
-
-	// =================================================================================================================
-	// === ?úÎ≤Ñ Í∂åÌïú Í≤Ä??
-	if (!ensure(ASC->IsOwnerActorAuthoritative()))
-	{
-		return 0;
-	}
-
-	return ASC->GrantAbilities(AbilityClasses, AbilityLevel, GetAvatarActorFromActorInfo()).Num();
+	return SourceRuntime
+		&& SourceRuntime->HasCurrentWeaponSkillTrail(*this);
 }
 
-/** ?ÑÎã¨??GameplayEffect ?¥Îûò?§Îì§???úÏÑú?ÄÎ°??ÅÏö©?©Îãà?? */
-int32 UPdGameplayAbility::ApplyGameplayEffects(const TArray<TSubclassOf<UGameplayEffect>>& GameplayEffectClasses, float EffectLevel, int32 StackCount)
+bool UPdGameplayAbility::StartCurrentWeaponSkillTrail(
+	UNiagaraSystem* TrailSystem) const
 {
-	// =================================================================================================================
-	// === Effect Î∞∞Ïó¥ ?úÏ∞® ?ÅÏö©
+	return SourceRuntime
+		&& SourceRuntime->StartCurrentWeaponSkillTrail(
+			*this,
+			TrailSystem);
+}
 
-	int32 AppliedCount = 0;
-	for (TSubclassOf<UGameplayEffect> GameplayEffectClass : GameplayEffectClasses)
+void UPdGameplayAbility::StopCurrentWeaponSkillTrail() const
+{
+	if (SourceRuntime)
 	{
-		if (ApplyGameplayEffectHandle(GameplayEffectClass, EffectLevel, StackCount).WasSuccessfullyApplied())
+		SourceRuntime->StopCurrentWeaponSkillTrail(*this);
+	}
+}
+
+bool UPdGameplayAbility::TryCommitAdditionalActionStaminaCost() const
+{
+	return !ResourceRuntime
+		|| ResourceRuntime->TryCommitAdditionalActionStaminaCost(*this);
+}
+
+float UPdGameplayAbility::CalculateBaseSkillDamageMagnitude(
+	const FSkillGameplayEffectConfig& DamageConfig) const
+{
+	return SourceRuntime
+		? SourceRuntime->CalculateBaseSkillDamageMagnitude(DamageConfig)
+		: 0.0f;
+}
+
+float UPdGameplayAbility::ApplyIntelligenceToSkillDamage(
+	const float DamageMagnitude) const
+{
+	return SourceRuntime
+		? SourceRuntime->ApplyIntelligenceToSkillDamage(
+			*this,
+			DamageMagnitude)
+		: FMath::Max(DamageMagnitude, 0.0f);
+}
+
+float UPdGameplayAbility::CalculateSkillDamageMagnitude(
+	const FSkillGameplayEffectConfig& DamageConfig) const
+{
+	return SourceRuntime
+		? SourceRuntime->CalculateSkillDamageMagnitude(
+			*this,
+			DamageConfig)
+		: 0.0f;
+}
+
+FGameplayEffectSpecHandle
+UPdGameplayAbility::MakeConfiguredDamageEffectSpec(
+	const FSkillGameplayEffectConfig& DamageConfig,
+	const float DamageMagnitude,
+	UObject* SourceObject) const
+{
+	return SourceRuntime
+		? SourceRuntime->MakeConfiguredDamageEffectSpec(
+			*this,
+			DamageConfig,
+			DamageMagnitude,
+			SourceObject)
+		: FGameplayEffectSpecHandle();
+}
+
+FGameplayEffectSpecHandle
+UPdGameplayAbility::MakeConfiguredStatusEffectSpec(
+	const USkillDefinition* SkillDataAsset,
+	const TSubclassOf<UGameplayEffect> FallbackStatusEffectClass,
+	const float FallbackStatusEffectLevel) const
+{
+	UPdAbilitySystemComponent* SourceAbilitySystemComponent =
+		GetPdAbilitySystemComponentFromActorInfo();
+	const UStatusEffectDefinition* StatusEffectDefinition =
+		SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
+	const TSubclassOf<UGameplayEffect> StatusEffectClass =
+		StatusEffectDefinition && StatusEffectDefinition->StatusEffectClass
+			? StatusEffectDefinition->StatusEffectClass
+			: FallbackStatusEffectClass;
+	if (!SourceAbilitySystemComponent || !StatusEffectClass)
+	{
+		return FGameplayEffectSpecHandle();
+	}
+
+	FGameplayEffectContextHandle EffectContext =
+		SourceAbilitySystemComponent->MakeEffectContext();
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	EffectContext.AddInstigator(AvatarActor, AvatarActor);
+	if (const FGameplayAbilitySpec* AbilitySpec = GetCurrentAbilitySpec())
+	{
+		if (UObject* SourceObject = AbilitySpec->SourceObject.Get())
 		{
-			++AppliedCount;
+			EffectContext.AddSourceObject(SourceObject);
 		}
 	}
 
-	return AppliedCount;
+	const float StatusEffectLevel = StatusEffectDefinition && SkillDataAsset
+		? FMath::Max(SkillDataAsset->StatusEffectLevel, 1.0f)
+		: FMath::Max(FallbackStatusEffectLevel, 1.0f);
+	FGameplayEffectSpecHandle StatusEffectSpecHandle =
+		SourceAbilitySystemComponent->MakeOutgoingSpec(
+			StatusEffectClass,
+			StatusEffectLevel,
+			EffectContext);
+	if (!StatusEffectSpecHandle.IsValid()
+		|| !StatusEffectSpecHandle.Data.IsValid())
+	{
+		return FGameplayEffectSpecHandle();
+	}
+
+	if (!StatusEffectDefinition)
+	{
+		return StatusEffectSpecHandle;
+	}
+
+	const float StatusEffectDuration =
+		FMath::Max(StatusEffectDefinition->StatusDuration, 0.0f);
+	if (StatusEffectDuration > 0.0f)
+	{
+		StatusEffectSpecHandle = UAbilitySystemBlueprintLibrary::SetDuration(
+			StatusEffectSpecHandle,
+			StatusEffectDuration);
+	}
+
+	FSkillGameplayEffectConfig StatusDamageConfig;
+	StatusDamageConfig.Magnitude =
+		StatusEffectDefinition->ResolveDamageMagnitude();
+	StatusEffectDefinition->SetDamageMagnitude(
+		StatusEffectSpecHandle,
+		SourceAbilitySystemComponent,
+		CalculateSkillDamageMagnitude(StatusDamageConfig));
+	StatusEffectDefinition->AppendRemovalPolicyTags(StatusEffectSpecHandle);
+
+	if (StatusEffectDefinition->StatusEffectTag.IsValid())
+	{
+		StatusEffectSpecHandle.Data->DynamicGrantedTags.AddTag(
+			StatusEffectDefinition->StatusEffectTag);
+	}
+
+	return StatusEffectSpecHandle;
 }
 
-/** ?®Ïùº GameplayEffectÎ•??ÅÏö©?©Îãà?? */
-bool UPdGameplayAbility::ApplyGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel, int32 StackCount)
+FActiveGameplayEffectHandle
+UPdGameplayAbility::ApplyConfiguredStatusEffectToTarget(
+	const USkillDefinition* SkillDataAsset,
+	UAbilitySystemComponent* TargetAbilitySystemComponent,
+	const TSubclassOf<UGameplayEffect> FallbackStatusEffectClass,
+	const float FallbackStatusEffectLevel) const
 {
-	return ApplyGameplayEffectHandle(GameplayEffectClass, EffectLevel, StackCount).WasSuccessfullyApplied();
+	UPdAbilitySystemComponent* SourceAbilitySystemComponent =
+		GetPdAbilitySystemComponentFromActorInfo();
+	if (!SourceAbilitySystemComponent || !TargetAbilitySystemComponent)
+	{
+		return FActiveGameplayEffectHandle();
+	}
+
+	const FGameplayEffectSpecHandle StatusEffectSpecHandle =
+		MakeConfiguredStatusEffectSpec(
+			SkillDataAsset,
+			FallbackStatusEffectClass,
+			FallbackStatusEffectLevel);
+	if (!StatusEffectSpecHandle.IsValid()
+		|| !StatusEffectSpecHandle.Data.IsValid())
+	{
+		return FActiveGameplayEffectHandle();
+	}
+
+	return SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(
+		*StatusEffectSpecHandle.Data.Get(),
+		TargetAbilitySystemComponent);
 }
 
-/** ?®Ïùº GameplayEffectÎ•??∏Îì§ ?ïÌÉúÎ°??ÅÏö©?©Îãà?? */
-FActiveGameplayEffectHandle UPdGameplayAbility::ApplyGameplayEffectHandle(TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel, int32 StackCount)
+void UPdGameplayAbility::StopAvatarMovementForSkillActivation()
+{
+	if (MovementRuntime)
+	{
+		MovementRuntime->StopAvatarMovementForSkillActivation(*this);
+	}
+}
+
+void UPdGameplayAbility::LockAvatarMovementForAbility()
+{
+	if (MovementRuntime)
+	{
+		MovementRuntime->LockAvatarMovementForAbility(*this);
+	}
+}
+
+void UPdGameplayAbility::RestoreAvatarMovementForAbility()
+{
+	if (MovementRuntime)
+	{
+		MovementRuntime->RestoreAvatarMovementForAbility(*this);
+	}
+}
+
+void UPdGameplayAbility::StartDurationMovementLock()
+{
+	if (MovementRuntime)
+	{
+		MovementRuntime->StartDurationMovementLock(*this);
+	}
+}
+
+void UPdGameplayAbility::StopDurationMovementLock()
+{
+	if (MovementRuntime)
+	{
+		MovementRuntime->StopDurationMovementLock(*this);
+	}
+}
+
+void UPdGameplayAbility::StartMovementContactDamage()
+{
+	if (MovementRuntime)
+	{
+		MovementRuntime->StartMovementContactDamage(*this);
+	}
+}
+
+void UPdGameplayAbility::StopMovementContactDamage()
+{
+	if (MovementRuntime)
+	{
+		MovementRuntime->StopMovementContactDamage(*this);
+	}
+}
+
+void UPdGameplayAbility::StartConfiguredDefaultFX()
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->StartConfiguredDefaultFX(*this);
+	}
+}
+
+void UPdGameplayAbility::StopConfiguredDefaultFX()
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->StopConfiguredDefaultFX(*this);
+	}
+}
+
+void UPdGameplayAbility::StartConfiguredCharacterOverlay()
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->StartConfiguredCharacterOverlay(*this);
+	}
+}
+
+void UPdGameplayAbility::StopConfiguredCharacterOverlay()
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->StopConfiguredCharacterOverlay(*this);
+	}
+}
+
+void UPdGameplayAbility::StartConfiguredMissilePresentation(
+	const FVector& TargetLocation)
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->StartConfiguredMissilePresentation(
+			*this,
+			TargetLocation);
+	}
+}
+
+void UPdGameplayAbility::UpdateConfiguredMissilePresentationTarget(
+	const FVector& TargetLocation)
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime
+			->UpdateConfiguredMissilePresentationTarget(TargetLocation);
+	}
+}
+
+void UPdGameplayAbility::StopConfiguredMissilePresentation()
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->StopConfiguredMissilePresentation(*this);
+	}
+}
+
+void UPdGameplayAbility::CleanupConfiguredPresentation()
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->CleanupConfiguredPresentation();
+	}
+}
+
+void UPdGameplayAbility::StartConfiguredSelfBuff(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo)
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->StartConfiguredSelfBuff(
+			*this,
+			Handle,
+			ActorInfo,
+			ActivationInfo);
+	}
+}
+
+void UPdGameplayAbility::StopConfiguredSelfBuff()
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->StopConfiguredSelfBuff(*this);
+	}
+}
+
+void UPdGameplayAbility::SpawnConfiguredCharacterDecal()
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->SpawnConfiguredCharacterDecal(*this);
+	}
+}
+
+FVector UPdGameplayAbility::ResolveConfiguredCharacterDecalLocation(
+	const ACharacterBase* Character) const
+{
+	return PresentationRuntime
+		? PresentationRuntime->ResolveConfiguredCharacterDecalLocation(
+			Character)
+		: FVector::ZeroVector;
+}
+
+float UPdGameplayAbility::ResolveConfiguredCharacterDecalDuration(
+	const USkillDefinition* SkillDataAsset) const
+{
+	return PresentationRuntime
+		? PresentationRuntime->ResolveConfiguredCharacterDecalDuration(
+			SkillDataAsset)
+		: 2.0f;
+}
+
+UAbilityTask_PlayMontageAndWait*
+UPdGameplayAbility::CreateDefaultMontageAndWaitTask(
+	UAnimMontage* MontageToPlay)
+{
+	if (!MontageToPlay)
+	{
+		return nullptr;
+	}
+
+	return UAbilityTask_PlayMontageAndWait::
+		CreatePlayMontageAndWaitProxy(
+			this,
+			NAME_None,
+			MontageToPlay,
+			1.0f,
+			NAME_None,
+			true,
+			1.0f,
+			0.0f,
+			true);
+}
+
+UAbilityTask_WaitGameplayEvent*
+UPdGameplayAbility::CreateWaitGameplayEventTask(
+	const FGameplayTag& EventTag,
+	const bool bOnlyTriggerOnce,
+	const bool bOnlyMatchExact)
+{
+	if (!EventTag.IsValid())
+	{
+		return nullptr;
+	}
+
+	return UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+		this,
+		EventTag,
+		nullptr,
+		bOnlyTriggerOnce,
+		bOnlyMatchExact);
+}
+
+AGameplayAbilityTargetActor*
+UPdGameplayAbility::BeginSpawningTargetDataActor(
+	UAbilityTask_WaitTargetData* TargetDataTask,
+	const TSubclassOf<AGameplayAbilityTargetActor> TargetActorClass)
+{
+	if (!TargetDataTask || !TargetActorClass)
+	{
+		return nullptr;
+	}
+
+	AGameplayAbilityTargetActor* SpawnedActor = nullptr;
+	return TargetDataTask->BeginSpawningActor(
+		this,
+		TargetActorClass,
+		SpawnedActor)
+		? SpawnedActor
+		: nullptr;
+}
+
+void UPdGameplayAbility::FinishSpawningTargetDataActor(
+	UAbilityTask_WaitTargetData* TargetDataTask,
+	AGameplayAbilityTargetActor* SpawnedActor)
+{
+	if (TargetDataTask && SpawnedActor)
+	{
+		TargetDataTask->FinishSpawningActor(this, SpawnedActor);
+	}
+}
+
+int32 UPdGameplayAbility::GrantAbilities(
+	const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
+	const int32 AbilityLevel)
+{
+	UPdAbilitySystemComponent* AbilitySystemComponent =
+		GetPdAbilitySystemComponentFromActorInfo();
+	if (!AbilitySystemComponent
+		|| AbilityClasses.IsEmpty()
+		|| !AbilitySystemComponent->IsOwnerActorAuthoritative())
+	{
+		return 0;
+	}
+
+	return AbilitySystemComponent->GrantAbilities(
+		AbilityClasses,
+		AbilityLevel,
+		GetAvatarActorFromActorInfo()).Num();
+}
+
+bool UPdGameplayAbility::ApplyGameplayEffect(
+	TSubclassOf<UGameplayEffect> GameplayEffectClass,
+	const float EffectLevel,
+	const int32 StackCount)
+{
+	return ApplyGameplayEffectHandle(
+		GameplayEffectClass,
+		EffectLevel,
+		StackCount).WasSuccessfullyApplied();
+}
+
+FActiveGameplayEffectHandle
+UPdGameplayAbility::ApplyGameplayEffectHandle(
+	TSubclassOf<UGameplayEffect> GameplayEffectClass,
+	const float EffectLevel,
+	const int32 StackCount)
 {
 	const FGameplayTagContainer DynamicGrantedTags;
-	return ApplyGameplayEffectHandle(GameplayEffectClass, DynamicGrantedTags, EffectLevel, StackCount);
+	return ApplyGameplayEffectHandle(
+		GameplayEffectClass,
+		DynamicGrantedTags,
+		EffectLevel,
+		StackCount);
 }
 
-/** ?ôÏ†Å Î∂Ä???úÍ∑∏Î•??¨Ìï®??GameplayEffectÎ•??∏Îì§ ?ïÌÉúÎ°??ÅÏö©?©Îãà?? */
-FActiveGameplayEffectHandle UPdGameplayAbility::ApplyGameplayEffectHandle(TSubclassOf<UGameplayEffect> GameplayEffectClass,
-	const FGameplayTagContainer& DynamicGrantedTags, float EffectLevel, int32 StackCount)
+FActiveGameplayEffectHandle
+UPdGameplayAbility::ApplyGameplayEffectHandle(
+	TSubclassOf<UGameplayEffect> GameplayEffectClass,
+	const FGameplayTagContainer& DynamicGrantedTags,
+	const float EffectLevel,
+	const int32 StackCount)
 {
-	// =================================================================================================================
-	// === ASC Î∞?GameplayEffect ?¥Îûò??Í≤Ä??
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
-	if (!ASC || !GameplayEffectClass)
+	UPdAbilitySystemComponent* AbilitySystemComponent =
+		GetPdAbilitySystemComponentFromActorInfo();
+	if (!AbilitySystemComponent
+		|| !GameplayEffectClass
+		|| !ActorInfo
+		|| !HasAuthorityOrPredictionKey(
+			ActorInfo,
+			&CurrentActivationInfo))
 	{
 		return FActiveGameplayEffectHandle();
 	}
 
-	// =================================================================================================================
-	// === Í∂åÌïú ?êÎäî ?àÏ∏° ??Í≤Ä??
-	if (!ensure(ActorInfo) || !HasAuthorityOrPredictionKey(ActorInfo, &CurrentActivationInfo))
-	{
-		return FActiveGameplayEffectHandle();
-	}
-
-	// =================================================================================================================
-	// === GameplayEffectSpec ?ùÏÑ±
-
-	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(GameplayEffectClass, FMath::Max(EffectLevel, 1.f));
+	FGameplayEffectSpecHandle SpecHandle =
+		MakeOutgoingGameplayEffectSpec(
+			GameplayEffectClass,
+			FMath::Max(EffectLevel, 1.0f));
 	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
 	{
 		return FActiveGameplayEffectHandle();
 	}
 
-	// =================================================================================================================
-	// === ?§ÌÉù ?òÏ? ?ôÏ†Å Î∂Ä???úÍ∑∏ ?§Ï†ï ???êÍ∏∞ ?êÏã†?êÍ≤å ?ÅÏö©
-
 	SpecHandle.Data->SetStackCount(FMath::Max(StackCount, 1));
 	SpecHandle.Data->DynamicGrantedTags.AppendTags(DynamicGrantedTags);
-	return ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	return AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
+		*SpecHandle.Data.Get());
 }
 
-/** ÏßÄ?ïÌïú GameplayEffectÍ∞Ä ?ÑÏû¨ ?úÏÑ± ?ÅÌÉú?∏Ï? ?ïÏù∏?©Îãà?? */
-bool UPdGameplayAbility::HasActiveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass) const
+bool UPdGameplayAbility::HasActiveGameplayEffect(
+	TSubclassOf<UGameplayEffect> GameplayEffectClass) const
 {
-	// =================================================================================================================
-	// === ASC Î∞?GameplayEffect ?¥Îûò??Í≤Ä??
-	const UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
-	if (!ASC || !GameplayEffectClass)
+	const UPdAbilitySystemComponent* AbilitySystemComponent =
+		GetPdAbilitySystemComponentFromActorInfo();
+	if (!AbilitySystemComponent || !GameplayEffectClass)
 	{
 		return false;
 	}
-
-	// =================================================================================================================
-	// === Effect ?ïÏùò Í∏∞Ï? ?úÏÑ± ?¨Î? Ï°∞Ìöå
 
 	FGameplayEffectQuery Query;
 	Query.EffectDefinition = GameplayEffectClass;
-	return ASC->GetActiveEffects(Query).Num() > 0;
+	return !AbilitySystemComponent->GetActiveEffects(Query).IsEmpty();
 }
 
-/** ?ÑÎã¨??GameplayEffect ?¥Îûò?§Îì§???úÏÑú?ÄÎ°??úÍ±∞?©Îãà?? */
-int32 UPdGameplayAbility::RemoveGameplayEffects(const TArray<TSubclassOf<UGameplayEffect>>& GameplayEffectClasses)
+bool UPdGameplayAbility::RemoveGameplayEffect(
+	TSubclassOf<UGameplayEffect> GameplayEffectClass)
 {
-	// =================================================================================================================
-	// === Effect Î∞∞Ïó¥ ?úÏ∞® ?úÍ±∞
-
-	int32 RemovedCount = 0;
-	for (TSubclassOf<UGameplayEffect> GameplayEffectClass : GameplayEffectClasses)
-	{
-		if (RemoveGameplayEffect(GameplayEffectClass))
-		{
-			++RemovedCount;
-		}
-	}
-
-	return RemovedCount;
-}
-
-/** ?®Ïùº GameplayEffectÎ•??úÍ±∞?©Îãà?? */
-bool UPdGameplayAbility::RemoveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass)
-{
-	// =================================================================================================================
-	// === ASC Î∞?GameplayEffect ?¥Îûò??Í≤Ä??
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
-	if (!ASC || !GameplayEffectClass)
+	UPdAbilitySystemComponent* AbilitySystemComponent =
+		GetPdAbilitySystemComponentFromActorInfo();
+	if (!AbilitySystemComponent
+		|| !GameplayEffectClass
+		|| !ActorInfo
+		|| !HasAuthority(&CurrentActivationInfo))
 	{
 		return false;
 	}
-
-	// =================================================================================================================
-	// === ?úÎ≤Ñ Í∂åÌïú Í≤Ä??
-	if (!ensure(ActorInfo) || !HasAuthority(&CurrentActivationInfo))
-	{
-		return false;
-	}
-
-	// =================================================================================================================
-	// === Effect ?ïÏùò Í∏∞Ï? ?úÏÑ± Effect ?úÍ±∞
 
 	FGameplayEffectQuery Query;
 	Query.EffectDefinition = GameplayEffectClass;
-	return ASC->RemoveActiveEffects(Query) > 0;
+	return AbilitySystemComponent->RemoveActiveEffects(Query) > 0;
 }
 
-/** ÏßÄ???úÍ∑∏Î•?Î∂Ä?¨Ìïú ?úÏÑ± GameplayEffect?§ÏùÑ ?úÍ±∞?©Îãà?? */
-int32 UPdGameplayAbility::RemoveGameplayEffectsWithGrantedTags(const FGameplayTagContainer& GrantedTags)
+int32 UPdGameplayAbility::RemoveGameplayEffectsWithGrantedTags(
+	const FGameplayTagContainer& GrantedTags)
 {
-	// =================================================================================================================
-	// === ASC Î∞??ÖÎ†• ?úÍ∑∏ Í≤Ä??
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
-	if (!ASC || GrantedTags.IsEmpty())
+	UPdAbilitySystemComponent* AbilitySystemComponent =
+		GetPdAbilitySystemComponentFromActorInfo();
+	if (!AbilitySystemComponent
+		|| GrantedTags.IsEmpty()
+		|| !ActorInfo
+		|| !HasAuthority(&CurrentActivationInfo))
 	{
 		return 0;
 	}
 
-	// =================================================================================================================
-	// === ?úÎ≤Ñ Í∂åÌïú Í≤Ä??
-	if (!ensure(ActorInfo) || !HasAuthority(&CurrentActivationInfo))
-	{
-		return 0;
-	}
-
-	return ASC->RemoveActiveEffectsWithGrantedTags(GrantedTags);
-}
-
-/** ÏßÄ?ïÌïú AbilityÍ∞Ä ?ÜÏùÑ ?åÎßå ?àÎ°ú Î∂Ä?¨Ìï©?àÎã§. */
-bool UPdGameplayAbility::GrantAbilityIfMissing(TSubclassOf<UGameplayAbility> AbilityClass, int32 AbilityLevel)
-{
-	// =================================================================================================================
-	// === ASC Î∞?Ability ?¥Îûò??Í≤Ä??
-	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
-	if (!ASC || !AbilityClass)
-	{
-		return false;
-	}
-
-	// =================================================================================================================
-	// === ?úÎ≤Ñ Í∂åÌïú Î∞?Ï§ëÎ≥µ Î∂Ä???¨Î? Í≤Ä??
-	if (!ASC->IsOwnerActorAuthoritative())
-	{
-		return false;
-	}
-
-	if (HasGrantedAbility(AbilityClass))
-	{
-		return false;
-	}
-
-	// =================================================================================================================
-	// === AbilitySpec ?ùÏÑ± ??Ability Î∂Ä??
-	FGameplayAbilitySpec AbilitySpec(AbilityClass, FMath::Max(AbilityLevel, 1), INDEX_NONE, GetAvatarActorFromActorInfo());
-	const UPdGameplayAbility* AbilityCDO = Cast<UPdGameplayAbility>(AbilityClass->GetDefaultObject());
-	const bool bShouldAutoActivateWhenGranted = AbilityCDO && AbilityCDO->ShouldAutoActivateWhenGranted();
-
-	const FGameplayAbilitySpecHandle GrantedHandle = ASC->GiveAbility(AbilitySpec);
-	if (bShouldAutoActivateWhenGranted && GrantedHandle.IsValid())
-	{
-		ASC->TryActivateAbility(GrantedHandle);
-	}
-	return true;
-}
-
-/** ÏßÄ?ïÌïú AbilityÍ∞Ä ?¥Î? Î∂Ä?¨Îêò???àÎäîÏßÄ ?ïÏù∏?©Îãà?? */
-bool UPdGameplayAbility::HasGrantedAbility(TSubclassOf<UGameplayAbility> AbilityClass) const
-{
-	// =================================================================================================================
-	// === ASC Î∞?Ability ?¥Îûò??Í≤Ä??
-	const UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
-	const UClass* AbilityClassType = AbilityClass.Get();
-	if (!ASC || !AbilityClassType)
-	{
-		return false;
-	}
-
-	// =================================================================================================================
-	// === ?úÏÑ±??Í∞Ä??Ability Î™©Î°ù?êÏÑú ?ôÏùº ?¥Îûò??Í≤Ä??
-	for (const FGameplayAbilitySpec& AbilitySpec : ASC->GetActivatableAbilities())
-	{
-		if (AbilitySpec.Ability && AbilitySpec.Ability->GetClass() == AbilityClassType)
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return AbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(
+		GrantedTags);
 }

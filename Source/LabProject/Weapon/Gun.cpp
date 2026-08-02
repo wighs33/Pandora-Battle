@@ -1,34 +1,49 @@
 #include "Weapon/Gun.h"
 
-#include "Character/PdCharacterBase.h"
+#include "Character/CharacterBase.h"
+#include "Character/CharacterHitValidation.h"
 #include "Character/PdPlayer.h"
+#include "Component/Player/CombatComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameplayCueManager.h"
 #include "GameplayEffectTypes.h"
-#include "Item/ItemDefinition.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Gun)
 
-DEFINE_LOG_CATEGORY_STATIC(LogGunWeaponBase, Log, All);
-
 namespace
 {
-const TArray<TEnumAsByte<EObjectTypeQuery>>& GetDefaultGunTraceObjectTypes()
+void AddUniqueGunTraceObjectType(TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes, ECollisionChannel CollisionChannel)
 {
-	static const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes =
-	{
-		UEngineTypes::ConvertToObjectType(ECC_WorldStatic)
-	};
+	ObjectTypes.AddUnique(UEngineTypes::ConvertToObjectType(CollisionChannel));
+}
+
+TArray<TEnumAsByte<EObjectTypeQuery>> MakeGunTraceObjectTypes(TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes)
+{
+	ObjectTypes.RemoveAll(
+		[](const TEnumAsByte<EObjectTypeQuery> ObjectType)
+		{
+			return UEngineTypes::ConvertToCollisionChannel(ObjectType) == ECC_Pawn;
+		});
+	AddUniqueGunTraceObjectType(ObjectTypes, ECC_WorldStatic);
+	AddUniqueGunTraceObjectType(ObjectTypes, ECC_GameTraceChannel1);
 	return ObjectTypes;
 }
+
 }
 
 bool AGun::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 {
 	if (!SupportsAimInput() || !PlayerCharacter)
+	{
+		return false;
+	}
+
+	const UCombatComponent* CombatComponent = PlayerCharacter->GetCombatComponent();
+	if (!CombatComponent || !CombatComponent->CanAffordRangedWeaponAttackStamina())
 	{
 		return false;
 	}
@@ -55,12 +70,97 @@ bool AGun::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 	return true;
 }
 
+bool AGun::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor)
+{
+	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || !IsValid(TargetActor))
+	{
+
+		return false;
+	}
+
+	const bool bHandled = HandleAIPrimaryAttackOnServer(AttackingCharacter, TargetActor);
+
+	return bHandled;
+}
+
+bool AGun::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
+{
+	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || TargetLocation.IsNearlyZero())
+	{
+
+		return false;
+	}
+
+	const bool bHandled = HandleAIPrimaryAttackAtLocationOnServer(AttackingCharacter, TargetActor, TargetLocation);
+
+	return bHandled;
+}
+
 bool AGun::HandlePrimaryAttackOnServer(
 	APdPlayer* PlayerCharacter,
 	const FVector& RequestedViewLocation,
 	const FVector& RequestedViewDirection)
 {
 	if (!HasAuthority() || !SupportsAimInput() || !PlayerCharacter)
+	{
+		return false;
+	}
+
+	UCombatComponent* CombatComponent = PlayerCharacter->GetCombatComponent();
+	if (!CombatComponent || !CombatComponent->CanAffordRangedWeaponAttackStamina())
+	{
+		return false;
+	}
+
+	if (!TryConsumePrimaryAttackCooldown())
+	{
+		return false;
+	}
+
+	if (!CombatComponent->TryCommitRangedWeaponAttackStamina())
+	{
+		return false;
+	}
+
+	MulticastExecuteMuzzleFlashCue();
+
+	FHitResult HitResult;
+	if (TraceGunShot(PlayerCharacter, RequestedViewLocation, RequestedViewDirection, HitResult))
+	{
+		const bool bHitFriendlyTarget =
+			IsFriendlyDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent());
+		if (!bHitFriendlyTarget && HasConfiguredImpactDecal() && ShouldSpawnImpactDecalForHit(HitResult))
+		{
+			const FVector ImpactLocation = HitResult.ImpactPoint.IsNearlyZero() ? HitResult.Location : HitResult.ImpactPoint;
+			const FVector ImpactNormal = HitResult.ImpactNormal.GetSafeNormal(UE_SMALL_NUMBER, -RequestedViewDirection.GetSafeNormal());
+			MulticastSpawnImpactDecal(ImpactLocation, ImpactNormal, MakeImpactDecalSize());
+		}
+
+		if (!bHitFriendlyTarget)
+		{
+			if (ResolveDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent()))
+			{
+				ApplyDamageFromAuthoritativeTrace(HitResult);
+			}
+		}
+	}
+
+	return true;
+}
+
+bool AGun::HandleAIPrimaryAttackOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor)
+{
+	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || !IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	return HandleAIPrimaryAttackAtLocationOnServer(AttackingCharacter, TargetActor, GetAITargetAimLocation(TargetActor));
+}
+
+bool AGun::HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
+{
+	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || TargetLocation.IsNearlyZero())
 	{
 		return false;
 	}
@@ -73,18 +173,21 @@ bool AGun::HandlePrimaryAttackOnServer(
 	MulticastExecuteMuzzleFlashCue();
 
 	FHitResult HitResult;
-	if (TraceGunShot(PlayerCharacter, RequestedViewLocation, RequestedViewDirection, HitResult))
+	FVector ShotDirection = FVector::ForwardVector;
+	if (TraceAIGunShotAtLocation(AttackingCharacter, TargetLocation, HitResult, ShotDirection))
 	{
-		if (HasConfiguredImpactDecal() && ShouldSpawnImpactDecalForHit(HitResult))
+		const bool bHitFriendlyTarget =
+			IsFriendlyDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent());
+		if (!bHitFriendlyTarget && HasConfiguredImpactDecal() && ShouldSpawnImpactDecalForHit(HitResult))
 		{
 			const FVector ImpactLocation = HitResult.ImpactPoint.IsNearlyZero() ? HitResult.Location : HitResult.ImpactPoint;
-			const FVector ImpactNormal = HitResult.ImpactNormal.GetSafeNormal(UE_SMALL_NUMBER, -RequestedViewDirection.GetSafeNormal());
+			const FVector ImpactNormal = HitResult.ImpactNormal.GetSafeNormal(UE_SMALL_NUMBER, -ShotDirection.GetSafeNormal());
 			MulticastSpawnImpactDecal(ImpactLocation, ImpactNormal, MakeImpactDecalSize());
 		}
 
-		if (AActor* DamageTargetActor = ResolveDamageTargetActor(HitResult.GetActor()))
+		if (!bHitFriendlyTarget && ResolveDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent()))
 		{
-			RequestServerApplyDamage(DamageTargetActor);
+			ApplyDamageFromAuthoritativeTrace(HitResult);
 		}
 	}
 
@@ -105,7 +208,7 @@ void AGun::MulticastExecuteMuzzleFlashCue_Implementation()
 		return;
 	}
 
-	ExecuteMuzzleFlashCue(Cast<APdPlayer>(GetOwningCharacter()));
+	ExecuteMuzzleFlashCue(GetOwningCharacter());
 }
 
 void AGun::MulticastSpawnImpactDecal_Implementation(
@@ -116,7 +219,7 @@ void AGun::MulticastSpawnImpactDecal_Implementation(
 	SpawnImpactDecal(ImpactLocation, ImpactNormal, DecalSize);
 }
 
-void AGun::ExecuteMuzzleFlashCue(APdPlayer* PlayerCharacter) const
+void AGun::ExecuteMuzzleFlashCue(ACharacterBase* Character) const
 {
 	UWorld* World = GetWorld();
 	if (!World || World->GetNetMode() == NM_DedicatedServer)
@@ -137,7 +240,7 @@ void AGun::ExecuteMuzzleFlashCue(APdPlayer* PlayerCharacter) const
 		return;
 	}
 
-	APdCharacterBase* OwningCharacter = PlayerCharacter ? PlayerCharacter : GetOwningCharacter();
+	ACharacterBase* OwningCharacter = Character ? Character : GetOwningCharacter();
 	if (!OwningCharacter)
 	{
 		return;
@@ -224,7 +327,7 @@ void AGun::SpawnImpactDecal(const FVector& ImpactLocation, const FVector& Impact
 	}
 
 	const FGunWeaponDefinitionData& GunData = ItemDefinition->WeaponData.Gun;
-	UMaterialInterface* DecalMaterial = GunData.ImpactDecalMaterial.LoadSynchronous();
+	UMaterialInterface* DecalMaterial = GunData.ImpactDecalMaterial.Get();
 	if (!DecalMaterial)
 	{
 		return;
@@ -256,11 +359,17 @@ float AGun::GetAutomaticFireInterval() const
 	return GetGunFireInterval();
 }
 
+bool AGun::ShouldTriggerHitReactOnDamage() const
+{
+	return false;
+}
+
 float AGun::GetGunFireInterval() const
 {
 	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
 	{
-		return FMath::Max(0.01f, ItemDefinition->WeaponData.Gun.FireInterval);
+		const float BaseFireInterval = FMath::Max(0.01f, ItemDefinition->WeaponData.Gun.FireInterval);
+		return FMath::Max(0.01f, BaseFireInterval / GetWeaponAttackSpeedPlayRate());
 	}
 
 	return 0.0f;
@@ -295,17 +404,14 @@ bool AGun::TryConsumePrimaryAttackCooldown()
 	return true;
 }
 
-const TArray<TEnumAsByte<EObjectTypeQuery>>& AGun::GetGunTraceObjectTypes() const
+TArray<TEnumAsByte<EObjectTypeQuery>> AGun::GetGunTraceObjectTypes() const
 {
 	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
 	{
-		if (!ItemDefinition->WeaponData.Gun.TraceObjectTypes.IsEmpty())
-		{
-			return ItemDefinition->WeaponData.Gun.TraceObjectTypes;
-		}
+		return MakeGunTraceObjectTypes(ItemDefinition->WeaponData.Gun.TraceObjectTypes);
 	}
 
-	return GetDefaultGunTraceObjectTypes();
+	return MakeGunTraceObjectTypes({});
 }
 
 float AGun::GetGunTraceRange() const
@@ -328,44 +434,133 @@ float AGun::GetGunTraceRadius() const
 	return 0.0f;
 }
 
-bool AGun::TryGetGunAimTargetLocation(
-	const FVector& ViewTraceStart,
-	const FVector& ViewTraceDirection,
-	float TraceRange,
-	const TArray<AActor*>& ActorsToIgnore,
-	FVector& OutTargetLocation) const
+FVector AGun::GetGunTraceStartLocation(const ACharacterBase* Character) const
 {
-	if (TraceRange <= 0.0f)
-	{
-		return false;
-	}
-
-	const FVector SafeViewTraceDirection = ViewTraceDirection.GetSafeNormal();
-	if (SafeViewTraceDirection.IsNearlyZero())
-	{
-		return false;
-	}
-
-	const FVector ViewTraceEnd = ViewTraceStart + (SafeViewTraceDirection * TraceRange);
-
-	FHitResult ViewHitResult;
 	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	const bool bViewHit = UKismetSystemLibrary::LineTraceSingleForObjects(
+	const FName MuzzleSocketName = ItemDefinition ? ItemDefinition->WeaponData.Gun.GetResolvedMuzzleSocketName() : NAME_None;
+	if (WeaponMesh && !MuzzleSocketName.IsNone() && WeaponMesh->DoesSocketExist(MuzzleSocketName))
+	{
+		return WeaponMesh->GetSocketLocation(MuzzleSocketName);
+	}
+
+	if (ItemDefinition)
+	{
+		FVector AttachSocketLocation = FVector::ZeroVector;
+		if (TryGetOwnerMeshSocketLocation(Character, ItemDefinition->WeaponData.Equip.GetResolvedAttachSocketName(), AttachSocketLocation))
+		{
+			return AttachSocketLocation;
+		}
+	}
+
+	return GetActorLocation();
+}
+
+FVector AGun::GetAITargetAimLocation(const AActor* TargetActor) const
+{
+	if (!IsValid(TargetActor))
+	{
+		return FVector::ZeroVector;
+	}
+
+	float TargetRadius = 0.0f;
+	float TargetHalfHeight = 0.0f;
+	TargetActor->GetSimpleCollisionCylinder(TargetRadius, TargetHalfHeight);
+
+	FVector AimLocation = TargetActor->GetActorLocation();
+	AimLocation.Z += FMath::Max(TargetHalfHeight * 0.5f, 0.0f);
+	return AimLocation;
+}
+
+void AGun::AppendEnemyCapsuleTraceHits(
+	const FVector& TraceStart,
+	const FVector& TraceEnd,
+	const float TraceRadius,
+	const TArray<AActor*>& ActorsToIgnore,
+	TArray<FHitResult>& InOutHitResults) const
+{
+	TArray<TEnumAsByte<EObjectTypeQuery>> PawnObjectTypes;
+	PawnObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+
+	TArray<FHitResult> PawnHitResults;
+	UKismetSystemLibrary::SphereTraceMultiForObjects(
 		this,
-		ViewTraceStart,
-		ViewTraceEnd,
+		TraceStart,
+		TraceEnd,
+		TraceRadius,
+		PawnObjectTypes,
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::None,
+		PawnHitResults,
+		true);
+
+	for (const FHitResult& PawnHitResult : PawnHitResults)
+	{
+		if (PdCharacterHitValidation::ResolveEnemyCapsuleHit(
+			PawnHitResult.GetActor(),
+			PawnHitResult.GetComponent()))
+		{
+			InOutHitResults.Add(PawnHitResult);
+		}
+	}
+
+	InOutHitResults.Sort(
+		[](const FHitResult& Left, const FHitResult& Right)
+		{
+			return Left.Time < Right.Time;
+		});
+}
+
+bool AGun::TraceAIGunShotAtLocation(
+	ACharacterBase* AttackingCharacter,
+	const FVector& TargetLocation,
+	FHitResult& OutHitResult,
+	FVector& OutShotDirection) const
+{
+	const float TraceRange = GetGunTraceRange();
+	if (!AttackingCharacter || TargetLocation.IsNearlyZero() || TraceRange <= 0.0f)
+	{
+		return false;
+	}
+
+	const FVector TraceStart = GetGunTraceStartLocation(AttackingCharacter);
+	OutShotDirection = (TargetLocation - TraceStart).GetSafeNormal();
+	if (OutShotDirection.IsNearlyZero())
+	{
+		return false;
+	}
+
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(AttackingCharacter);
+	ActorsToIgnore.Add(const_cast<AGun*>(this));
+
+	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
+	const EDrawDebugTrace::Type ShotTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
+		? ItemDefinition->WeaponData.Gun.ShotTraceDebugDrawType.GetValue()
+		: EDrawDebugTrace::None;
+
+	TArray<FHitResult> HitResults;
+	UKismetSystemLibrary::SphereTraceMultiForObjects(
+		this,
+		TraceStart,
+		TraceStart + (OutShotDirection * TraceRange),
+		GetGunTraceRadius(),
 		GetGunTraceObjectTypes(),
 		false,
 		ActorsToIgnore,
-		ItemDefinition ? ItemDefinition->WeaponData.Gun.AimTraceDebugDrawType.GetValue() : EDrawDebugTrace::None,
-		ViewHitResult,
+		ShotTraceDebugDrawType,
+		HitResults,
 		true,
 		FLinearColor::Red,
 		FLinearColor::Green,
 		5.0f);
-
-	OutTargetLocation = bViewHit ? ViewHitResult.Location : ViewTraceEnd;
-	return true;
+	AppendEnemyCapsuleTraceHits(
+		TraceStart,
+		TraceStart + (OutShotDirection * TraceRange),
+		GetGunTraceRadius(),
+		ActorsToIgnore,
+		HitResults);
+	return SelectFirstValidGunImpact(HitResults, OutHitResult);
 }
 
 bool AGun::TraceGunShot(
@@ -391,64 +586,132 @@ bool AGun::TraceGunShot(
 		return false;
 	}
 
-	FVector AimTargetLocation = FVector::ZeroVector;
-	if (!TryGetGunAimTargetLocation(ViewLocation, ViewDirection, TraceRange, ActorsToIgnore, AimTargetLocation))
+	const FVector SafeViewDirection = ViewDirection.GetSafeNormal();
+	if (SafeViewDirection.IsNearlyZero())
 	{
 		return false;
 	}
 
-	FVector TraceStart = GetActorLocation();
+	const FVector TraceStart = GetGunTraceStartLocation(PlayerCharacter);
 	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	if (ItemDefinition)
+	const TArray<TEnumAsByte<EObjectTypeQuery>> TraceObjectTypes = GetGunTraceObjectTypes();
+	const EDrawDebugTrace::Type AimTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
+		? ItemDefinition->WeaponData.Gun.AimTraceDebugDrawType.GetValue()
+		: EDrawDebugTrace::None;
+	FVector AimTargetLocation = FVector::ZeroVector;
+	if (!ResolveAimTargetBeyondLaunchPoint(
+		ViewLocation,
+		SafeViewDirection,
+		TraceStart,
+		TraceRange,
+		TraceObjectTypes,
+		ActorsToIgnore,
+		AimTraceDebugDrawType,
+		AimTargetLocation))
 	{
-		TryGetOwnerMeshSocketLocation(PlayerCharacter, ItemDefinition->WeaponData.Equip.GetResolvedAttachSocketName(), TraceStart);
+		return false;
 	}
 
-	return UKismetSystemLibrary::SphereTraceSingleForObjects(
+	const FVector ShotDirection = (AimTargetLocation - TraceStart).GetSafeNormal();
+	if (ShotDirection.IsNearlyZero()
+		|| FVector::DotProduct(ShotDirection, SafeViewDirection) <= 0.0f)
+	{
+		return false;
+	}
+	const float TargetDistance = FVector::Distance(TraceStart, AimTargetLocation);
+	const float TraceDistance = FMath::Min(
+		TraceRange,
+		TargetDistance + GetGunTraceRadius() + 1.0f);
+	const FVector TraceEnd = TraceStart + (ShotDirection * TraceDistance);
+
+	const EDrawDebugTrace::Type ShotTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
+		? ItemDefinition->WeaponData.Gun.ShotTraceDebugDrawType.GetValue()
+		: EDrawDebugTrace::None;
+
+	TArray<FHitResult> HitResults;
+	UKismetSystemLibrary::SphereTraceMultiForObjects(
 		this,
 		TraceStart,
-		AimTargetLocation,
+		TraceEnd,
 		GetGunTraceRadius(),
-		GetGunTraceObjectTypes(),
+		TraceObjectTypes,
 		false,
 		ActorsToIgnore,
-		ItemDefinition ? ItemDefinition->WeaponData.Gun.ShotTraceDebugDrawType.GetValue() : EDrawDebugTrace::None,
-		OutHitResult,
+		ShotTraceDebugDrawType,
+		HitResults,
 		true,
 		FLinearColor::Red,
 		FLinearColor::Green,
 		5.0f);
+	AppendEnemyCapsuleTraceHits(
+		TraceStart,
+		TraceEnd,
+		GetGunTraceRadius(),
+		ActorsToIgnore,
+		HitResults);
+	return SelectFirstValidGunImpact(HitResults, OutHitResult);
 }
 
-AActor* AGun::ResolveDamageTargetActor(AActor* HitActor) const
+bool AGun::SelectFirstValidGunImpact(
+	const TArray<FHitResult>& HitResults,
+	FHitResult& OutHitResult) const
+{
+	for (const FHitResult& HitResult : HitResults)
+	{
+		const bool bRelatedToCharacter =
+			PdCharacterHitValidation::ResolveRelatedCharacter(
+				HitResult.GetActor(),
+				HitResult.GetComponent()) != nullptr;
+		if (bRelatedToCharacter
+			&& !PdCharacterHitValidation::ResolveWeaponDamageHit(
+				HitResult.GetActor(),
+				HitResult.GetComponent()))
+		{
+			continue;
+		}
+
+		OutHitResult = HitResult;
+		return true;
+	}
+
+	OutHitResult = FHitResult();
+	return false;
+}
+
+bool AGun::IsFriendlyDamageTargetActor(
+	AActor* HitActor,
+	const UPrimitiveComponent* HitComponent) const
+{
+	const ACharacterBase* SourceCharacter = GetOwningCharacter();
+	if (!SourceCharacter || !IsValid(HitActor))
+	{
+		return false;
+	}
+
+	const ACharacterBase* TargetCharacter =
+		PdCharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
+	if (!TargetCharacter)
+	{
+		return false;
+	}
+
+	return !SourceCharacter->CanDamageCharacterByTeam(TargetCharacter);
+}
+
+AActor* AGun::ResolveDamageTargetActor(
+	AActor* HitActor,
+	const UPrimitiveComponent* HitComponent) const
 {
 	if (!IsValid(HitActor))
 	{
 		return nullptr;
 	}
 
-	if (Cast<APdCharacterBase>(HitActor))
-	{
-		return HitActor;
-	}
-
-	AActor* CurrentActor = HitActor;
-	for (int32 Depth = 0; Depth < 8 && IsValid(CurrentActor); ++Depth)
-	{
-		AActor* OwnerActor = CurrentActor->GetOwner();
-		if (Cast<APdCharacterBase>(OwnerActor))
-		{
-			return OwnerActor;
-		}
-
-		AActor* AttachParentActor = CurrentActor->GetAttachParentActor();
-		if (Cast<APdCharacterBase>(AttachParentActor))
-		{
-			return AttachParentActor;
-		}
-
-		CurrentActor = OwnerActor ? OwnerActor : AttachParentActor;
-	}
-
-	return HitActor;
+	ACharacterBase* TargetCharacter =
+		PdCharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
+	const ACharacterBase* SourceCharacter = GetOwningCharacter();
+	return TargetCharacter
+		&& (!SourceCharacter || SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
+			? TargetCharacter
+			: nullptr;
 }

@@ -4,13 +4,15 @@
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Map/MapLayerTrigger.h"
+#include "Map/OutOfBoundsRespawnVolume.h"
 
 namespace
 {
 	constexpr float SkillGroundMinNormalZ = 0.35f;
 	constexpr float SkillGroundMinimumTraceDepth = 100.0f;
 
-	bool IsActorOwnedBy(const AActor* Actor, const AActor* OwnerCandidate)
+	bool IsGroundProjectionActorOwnedBy(const AActor* Actor, const AActor* OwnerCandidate)
 	{
 		if (!Actor || !OwnerCandidate)
 		{
@@ -32,7 +34,9 @@ namespace
 	{
 		return Actor
 			&& (Actor->IsA<APawn>()
-				|| Actor->IsA<AEffectAreaBase>());
+				|| Actor->IsA<AEffectAreaBase>()
+				|| Actor->IsA<AOutOfBoundsRespawnVolume>()
+				|| Actor->IsA<AMapLayerTrigger>());
 	}
 
 	bool IsRelatedToIgnoredActor(const AActor* Actor, const TArray<AActor*>& ActorsToIgnore)
@@ -50,8 +54,8 @@ namespace
 			}
 
 			if (Actor == IgnoredActor
-				|| IsActorOwnedBy(Actor, IgnoredActor)
-				|| IsActorOwnedBy(IgnoredActor, Actor))
+				|| IsGroundProjectionActorOwnedBy(Actor, IgnoredActor)
+				|| IsGroundProjectionActorOwnedBy(IgnoredActor, Actor))
 			{
 				return true;
 			}

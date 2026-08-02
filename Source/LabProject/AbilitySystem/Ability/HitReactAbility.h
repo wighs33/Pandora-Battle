@@ -8,6 +8,7 @@
 
 class UAnimMontage;
 class UGameplayEffect;
+struct FStreamableHandle;
 
 UCLASS(Blueprintable)
 class LABPROJECT_API UHitReactAbility : public UPdGameplayAbility
@@ -16,11 +17,18 @@ class LABPROJECT_API UHitReactAbility : public UPdGameplayAbility
 
 public:
 	UHitReactAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	virtual void PostLoad() override;
 
 protected:
 	// Timing hooks
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	virtual void EndAbility(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		bool bReplicateEndAbility,
+		bool bWasCancelled) override;
 
 	// Delegate callbacks
 	UFUNCTION()
@@ -34,6 +42,14 @@ protected:
 
 	// State helpers
 	void ClearActiveHitReactEffect();
+	void BeginHitReactMontagePreload();
+	void HandleHitReactMontagePreloadComplete(uint32 RequestGeneration);
+	void ReleaseHitReactMontagePreload();
+	void StartHitReactMontage(
+		UAnimMontage* Montage,
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Animation")
 	TSoftObjectPtr<UAnimMontage> HitReactMontage = nullptr;
@@ -44,6 +60,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> HitReactEffectClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
+	bool bApplyHitReactEffect = false;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Cue", meta = (Categories = "GameplayCue"))
 	FGameplayTag HitReactCueTag;
+
+	TSharedPtr<FStreamableHandle> HitReactMontagePreloadHandle;
+	uint32 HitReactMontageRequestGeneration = 0;
 };

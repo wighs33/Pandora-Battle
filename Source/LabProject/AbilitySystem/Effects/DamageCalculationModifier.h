@@ -21,12 +21,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage")
 	FGameplayTag NativeShieldBuffTag;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage", meta = (ClampMin = "0.0"))
+	UPROPERTY()
 	float NativeStrengthDamageScale = 0.05f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage", meta = (ClampMin = "0.0"))
-	float NativeArmorMitigationScale = 0.05f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Debug")
-	bool bNativePrintDamageResult = false;
 };

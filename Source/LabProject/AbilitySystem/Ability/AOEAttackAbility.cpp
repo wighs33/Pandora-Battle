@@ -7,28 +7,142 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
-#include "AbilitySystem/PdAbilitySystemComponent.h"
-#include "AbilitySystem/Skills/SkillTypes.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "AbilitySystem/TargetValidator.h"
+#include "Definition/AbilitySystem/StatusEffectDefinition.h"
+#include "Definition/AbilitySystem/SkillTypes.h"
 #include "AbilitySystem/TargetingActors/TargetActor_GroundTrace_Decal.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Animation/AnimMontage.h"
+#include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayEffect.h"
-#include "Kismet/KismetSystemLibrary.h"
+#include "Map/MapLayerTrigger.h"
+#include "Map/OutOfBoundsRespawnVolume.h"
 #include "Materials/MaterialInterface.h"
 #include "DrawDebugHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AOEAttackAbility)
 
-DEFINE_LOG_CATEGORY_STATIC(LogPandoraAOEAttackAbility, Log, All);
+namespace
+{
+	constexpr float AOEGroundProjectionStartHeight = 500.0f;
+	constexpr float AOEGroundProjectionMinDepth = 1000.0f;
+	constexpr float AOEGroundMinNormalZ = 0.35f;
+
+	const USkillDefinition* GetAOESkillDataAsset(const USkillDefinition* SkillDataAsset)
+	{
+		return SkillDataAsset && SkillDataAsset->SkillDataType == EPdSkillDataType::Area
+			? SkillDataAsset
+			: nullptr;
+	}
+
+	bool IsIgnoredAOEGroundActor(const AActor* Actor)
+	{
+		return Actor
+			&& (Actor->IsA<AOutOfBoundsRespawnVolume>()
+				|| Actor->IsA<AMapLayerTrigger>());
+	}
+
+	bool IsValidAOEGroundHit(const FHitResult& Hit)
+	{
+		return Hit.bBlockingHit
+			&& Hit.ImpactNormal.Z >= AOEGroundMinNormalZ
+			&& !Cast<APawn>(Hit.GetActor())
+			&& !IsIgnoredAOEGroundActor(Hit.GetActor());
+	}
+
+	FVector ResolveActorFeetLocation(const AActor* Actor)
+	{
+		if (!Actor)
+		{
+			return FVector::ZeroVector;
+		}
+
+		FVector FeetLocation = Actor->GetActorLocation();
+		if (const ACharacterBase* Character = Cast<ACharacterBase>(Actor))
+		{
+			if (const UCapsuleComponent* CapsuleComponent = Character->GetCapsuleComponent())
+			{
+				FeetLocation.Z -= CapsuleComponent->GetScaledCapsuleHalfHeight();
+			}
+		}
+
+		return FeetLocation;
+	}
+
+	bool TryResolveGroundHitLocation(
+		UWorld* World,
+		const FVector& SourceLocation,
+		const TArray<AActor*>& ActorsToIgnore,
+		const TEnumAsByte<ETraceTypeQuery> TraceType,
+		const float TraceDepth,
+		FVector& OutGroundLocation)
+	{
+		if (!World)
+		{
+			return false;
+		}
+
+		const float ResolvedTraceDepth = FMath::Max(TraceDepth, AOEGroundProjectionMinDepth);
+		const FVector TraceStart = SourceLocation + FVector::UpVector * AOEGroundProjectionStartHeight;
+		const FVector TraceEnd = SourceLocation - FVector::UpVector * ResolvedTraceDepth;
+
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(AOEGroundProjection), false);
+		for (AActor* ActorToIgnore : ActorsToIgnore)
+		{
+			if (IsValid(ActorToIgnore))
+			{
+				QueryParams.AddIgnoredActor(ActorToIgnore);
+			}
+		}
+
+		const ECollisionChannel TraceChannel = UEngineTypes::ConvertToCollisionChannel(TraceType);
+		if (TraceChannel != ECC_MAX)
+		{
+			TArray<FHitResult> ChannelHits;
+			if (World->LineTraceMultiByChannel(ChannelHits, TraceStart, TraceEnd, TraceChannel, QueryParams))
+			{
+				for (const FHitResult& Hit : ChannelHits)
+				{
+					if (IsValidAOEGroundHit(Hit))
+					{
+						OutGroundLocation = Hit.ImpactPoint;
+						return true;
+					}
+				}
+			}
+		}
+
+		FCollisionObjectQueryParams ObjectParams;
+		ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic);
+		ObjectParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+
+		TArray<FHitResult> ObjectHits;
+		if (World->LineTraceMultiByObjectType(ObjectHits, TraceStart, TraceEnd, ObjectParams, QueryParams))
+		{
+			for (const FHitResult& Hit : ObjectHits)
+			{
+				if (IsValidAOEGroundHit(Hit))
+				{
+					OutGroundLocation = Hit.ImpactPoint;
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+}
 
 UAOEAttackAbility::UAOEAttackAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -42,6 +156,7 @@ UAOEAttackAbility::UAOEAttackAbility(const FObjectInitializer& ObjectInitializer
 
 	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_AOEAttack_Active);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Attack);
+	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Punch);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_RangedAttack);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::GameplayAbility_ShootProjectile);
 }
@@ -60,62 +175,49 @@ void UAOEAttackAbility::ActivateAbility(
 		return;
 	}
 
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("AOE ability cancelled: missing SkillDataAsset. ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(ActorInfo->AvatarActor.Get()));
+
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+	if (SkillDataAsset->SkillDataType != EPdSkillDataType::Area)
+	{
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	if (!SkillDataAsset->AOETargetActorClass || SkillDataAsset->AOERadius <= 0.0)
+	const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredTargetActorClass = GetConfiguredTargetActorClass();
+	const double ConfiguredAOERadius = CalculateAOERadiusFromSkillData();
+	if (!ConfiguredTargetActorClass || ConfiguredAOERadius <= 0.0)
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("AOE ability cancelled: invalid SkillDataAsset targeting values. skill=%s targetActor=%s radius=%.2f"),
-			*GetNameSafe(SkillDataAsset),
-			*GetNameSafe(SkillDataAsset->AOETargetActorClass.Get()),
-			SkillDataAsset->AOERadius);
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
 	bStrikeTriggered = false;
+	bStrikeConfirmed = false;
 	bWaitingLightningDamage = false;
 	bIsWaitingTargetData = false;
 	ConfirmedAOELocation = FVector::ZeroVector;
-	HitActors.Reset();
+	HitActorKeys.Reset();
+	AOEOverlapResults.Reset();
 	CachedAOERadius = CalculateAOERadiusFromSkillData();
 
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("Activate: ability=%s avatar=%s authority=%s localController=%s radius=%.1f damage=%.1f targetActor=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(ActorInfo->AvatarActor.Get()),
-		ActorInfo->AvatarActor->HasAuthority() ? TEXT("true") : TEXT("false"),
-		HasPlayerController() ? TEXT("true") : TEXT("false"),
-		CachedAOERadius,
-		CalculateDamageMagnitude(),
-		*GetNameSafe(GetConfiguredTargetActorClass().Get()));
+
 
 	if (AActor* AttackTarget = GetAttackTargetFromAvatar(); IsValid(AttackTarget))
 	{
 		if (!GetTargetGroundLocation(AttackTarget, ConfirmedAOELocation))
 		{
-			ConfirmedAOELocation = AttackTarget->GetActorLocation();
-			UE_LOG(LogPandoraAOEAttackAbility, Warning,
-				TEXT("Activate using attack target fallback location: ability=%s target=%s location=%s"),
-				*GetNameSafe(this),
-				*GetNameSafe(AttackTarget),
-				*ConfirmedAOELocation.ToCompactString());
+			ConfirmedAOELocation = ResolveActorFeetLocation(AttackTarget);
+
 		}
 
-		UE_LOG(LogPandoraAOEAttackAbility, Log,
-			TEXT("Activate using attack target: ability=%s target=%s confirmedLocation=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(AttackTarget),
-			*ConfirmedAOELocation.ToCompactString());
+
 		ConfirmStrike();
 		return;
 	}
@@ -131,9 +233,11 @@ void UAOEAttackAbility::EndAbility(
 	bool bReplicateEndAbility,
 	bool bWasCancelled)
 {
+	RestoreAvatarMovementForAbility();
 	bIsWaitingTargetData = false;
 	bWaitingLightningDamage = false;
-	HitActors.Reset();
+	HitActorKeys.Reset();
+	AOEOverlapResults.Reset();
 	RemovePersistentGameplayCues();
 
 	if (WaitCancelInputTask)
@@ -174,15 +278,23 @@ void UAOEAttackAbility::StartTargeting()
 {
 	if (!HasPlayerController())
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("StartTargeting failed: avatar has no player controller. ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(GetAvatarActorFromActorInfo()));
-		K2_EndAbility();
+		if (ResolveFallbackAOELocation(ConfirmedAOELocation))
+		{
+			ConfirmStrike();
+		}
+		else
+		{
+			K2_CancelAbility();
+		}
 		return;
 	}
 
 	bIsWaitingTargetData = true;
+	if (const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+		SkillDataAsset && SkillDataAsset->Movement.bLockMovementDuringDuration)
+	{
+		LockAvatarMovementForAbility();
+	}
 
 	ApplyDirectAOECamera(true);
 
@@ -221,24 +333,25 @@ void UAOEAttackAbility::LoopTargetingAnimation()
 
 void UAOEAttackAbility::ConfirmStrike()
 {
-	bIsWaitingTargetData = false;
-
-	if (ConfirmedAOELocation.IsNearlyZero())
+	if (bStrikeConfirmed)
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("ConfirmStrike failed: confirmed location is zero. ability=%s"),
-			*GetNameSafe(this));
-		K2_EndAbility();
 		return;
 	}
 
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("ConfirmStrike: ability=%s location=%s radius=%.1f triggerMontage=%s montageTriggerTag=%s"),
-		*GetNameSafe(this),
-		*ConfirmedAOELocation.ToCompactString(),
-		CachedAOERadius,
-		*GetNameSafe(GetConfiguredTriggerMontage()),
-		*GetConfiguredMontageTriggerEventTag().ToString());
+	bIsWaitingTargetData = false;
+	RestoreAvatarMovementForAbility();
+
+	if (ConfirmedAOELocation.IsNearlyZero())
+	{
+		if (!ResolveFallbackAOELocation(ConfirmedAOELocation))
+		{
+			K2_CancelAbility();
+			return;
+		}
+	}
+	bStrikeConfirmed = true;
+
+
 
 	DrawDebugDamageRadius(TEXT("ConfirmStrike"), FColor::Cyan, FColor::Blue);
 
@@ -259,26 +372,15 @@ void UAOEAttackAbility::ConfirmStrike()
 	UAnimMontage* ConfiguredTriggerMontage = GetConfiguredTriggerMontage();
 	if (!ConfiguredTriggerMontage)
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("ConfirmStrike without trigger montage: triggering AOE immediately. ability=%s"),
-			*GetNameSafe(this));
+
 		HandleMontageTriggerEvent(FGameplayEventData());
 		return;
 	}
 
-	TriggerMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this,
-		NAME_None,
-		ConfiguredTriggerMontage,
-		1.0f,
-		NAME_None,
-		true,
-		1.0f,
-		0.0f,
-		true);
+	TriggerMontageTask = CreateDefaultMontageAndWaitTask(ConfiguredTriggerMontage);
 	if (!TriggerMontageTask)
 	{
-		K2_EndAbility();
+		HandleMontageTriggerEvent(FGameplayEventData());
 		return;
 	}
 
@@ -298,9 +400,7 @@ void UAOEAttackAbility::AOEDamage()
 	TArray<TEnumAsByte<EObjectTypeQuery>> ConfiguredDamageObjectTypes = GetConfiguredDamageObjectTypes();
 	if (ConfiguredDamageObjectTypes.IsEmpty())
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("AOEDamage skipped: SkillDataAsset has no damage object types. ability=%s"),
-			*GetNameSafe(this));
+
 		return;
 	}
 
@@ -308,10 +408,7 @@ void UAOEAttackAbility::AOEDamage()
 	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
 	if (!World)
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("AOEDamage failed: invalid world. ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(AvatarActor));
+
 		return;
 	}
 
@@ -319,7 +416,7 @@ void UAOEAttackAbility::AOEDamage()
 	for (const TEnumAsByte<EObjectTypeQuery>& ObjectType : ConfiguredDamageObjectTypes)
 	{
 		const ECollisionChannel CollisionChannel = UEngineTypes::ConvertToCollisionChannel(ObjectType);
-		if (CollisionChannel != ECC_OverlapAll_Deprecated)
+		if (CollisionChannel != ECC_MAX)
 		{
 			ObjectQueryParams.AddObjectTypesToQuery(CollisionChannel);
 		}
@@ -327,9 +424,7 @@ void UAOEAttackAbility::AOEDamage()
 
 	if (!ObjectQueryParams.IsValid())
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("AOEDamage skipped: no valid collision channels from SkillDataAsset object types. ability=%s"),
-			*GetNameSafe(this));
+
 		return;
 	}
 
@@ -338,119 +433,48 @@ void UAOEAttackAbility::AOEDamage()
 
 	DrawDebugDamageRadius(TEXT("AOEDamage"), FColor::Yellow, FColor::Red);
 
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("AOEDamage begin: ability=%s avatar=%s location=%s radius=%.1f damage=%.1f damageEffect=%s objectTypes=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(AvatarActor),
-		*ConfirmedAOELocation.ToCompactString(),
-		CachedAOERadius,
-		CalculateDamageMagnitude(),
-		*GetNameSafe(GetConfiguredDamageEffectClass().Get()),
-		ConfiguredDamageObjectTypes.Num());
 
-	TArray<FOverlapResult> OverlapResults;
+
+	AOEOverlapResults.Reset();
 	World->OverlapMultiByObjectType(
-		OverlapResults,
+		AOEOverlapResults,
 		ConfirmedAOELocation,
 		FQuat::Identity,
 		ObjectQueryParams,
 		SphereShape,
 		QueryParams);
 
-	HitActors.Reset();
-	for (const FOverlapResult& OverlapResult : OverlapResults)
+	HitActorKeys.Reset();
+	TArray<TWeakObjectPtr<AActor>> DamageTargets;
+	DamageTargets.Reserve(AOEOverlapResults.Num());
+	for (const FOverlapResult& OverlapResult : AOEOverlapResults)
 	{
 		AActor* HitActor = OverlapResult.GetActor();
-		UPrimitiveComponent* HitComponent = OverlapResult.GetComponent();
-		const FVector HitActorLocation = IsValid(HitActor) ? HitActor->GetActorLocation() : FVector::ZeroVector;
-		const double Distance3D = IsValid(HitActor) ? FVector::Dist(ConfirmedAOELocation, HitActorLocation) : 0.0;
-		const double Distance2D = IsValid(HitActor) ? FVector::Dist2D(ConfirmedAOELocation, HitActorLocation) : 0.0;
-
-		UE_LOG(LogPandoraAOEAttackAbility, Log,
-			TEXT("AOEDamage candidate: actor=%s component=%s actorLocation=%s dist2D=%.1f dist3D=%.1f objectType=%d self=%s duplicate=%s"),
-			*GetNameSafe(HitActor),
-			*GetNameSafe(HitComponent),
-			*HitActorLocation.ToCompactString(),
-			Distance2D,
-			Distance3D,
-			HitComponent ? static_cast<int32>(HitComponent->GetCollisionObjectType()) : INDEX_NONE,
-			HitActor == AvatarActor ? TEXT("true") : TEXT("false"),
-			HitActors.Contains(HitActor) ? TEXT("true") : TEXT("false"));
-
-		if (!IsValid(HitActor) || HitActor == AvatarActor || HitActors.Contains(HitActor))
+		if (!IsValid(HitActor) || HitActor == AvatarActor)
 		{
 			continue;
 		}
 
-		HitActors.Add(HitActor);
+		const FObjectKey HitActorKey(HitActor);
+		if (HitActorKeys.Contains(HitActorKey))
+		{
+			continue;
+		}
+
+		HitActorKeys.Add(HitActorKey);
+		DamageTargets.Add(HitActor);
+	}
+
+	for (const TWeakObjectPtr<AActor>& TargetPtr : DamageTargets)
+	{
+		AActor* HitActor = TargetPtr.Get();
+		if (!IsValid(HitActor))
+		{
+			continue;
+		}
+
 		ApplyEffectToHitActor(HitActor);
 	}
-
-	for (TActorIterator<APawn> PawnIt(World); PawnIt; ++PawnIt)
-	{
-		APawn* Pawn = *PawnIt;
-		if (!IsValid(Pawn) || Pawn == AvatarActor)
-		{
-			continue;
-		}
-
-		bool bReturnedByOverlap = false;
-		FString ReturnedComponents;
-		for (const FOverlapResult& OverlapResult : OverlapResults)
-		{
-			if (OverlapResult.GetActor() != Pawn)
-			{
-				continue;
-			}
-
-			bReturnedByOverlap = true;
-			if (!ReturnedComponents.IsEmpty())
-			{
-				ReturnedComponents += TEXT(",");
-			}
-			ReturnedComponents += GetNameSafe(OverlapResult.GetComponent());
-		}
-
-		UPrimitiveComponent* RootPrimitive = Cast<UPrimitiveComponent>(Pawn->GetRootComponent());
-		const FVector PawnLocation = Pawn->GetActorLocation();
-		const double Distance2D = FVector::Dist2D(ConfirmedAOELocation, PawnLocation);
-		const double Distance3D = FVector::Dist(ConfirmedAOELocation, PawnLocation);
-		const bool bWithinRadius2D = Distance2D <= CachedAOERadius;
-
-		UE_LOG(LogPandoraAOEAttackAbility, Log,
-			TEXT("AOEDamage pawn audit: pawn=%s location=%s dist2D=%.1f dist3D=%.1f radius=%.1f withinRadius2D=%s returnedByOverlap=%s returnedComponents=%s rootComponent=%s rootCollision=%d rootObjectType=%d rootOverlapEvents=%s"),
-			*GetNameSafe(Pawn),
-			*PawnLocation.ToCompactString(),
-			Distance2D,
-			Distance3D,
-			CachedAOERadius,
-			bWithinRadius2D ? TEXT("true") : TEXT("false"),
-			bReturnedByOverlap ? TEXT("true") : TEXT("false"),
-			ReturnedComponents.IsEmpty() ? TEXT("none") : *ReturnedComponents,
-			*GetNameSafe(RootPrimitive),
-			RootPrimitive ? static_cast<int32>(RootPrimitive->GetCollisionEnabled()) : INDEX_NONE,
-			RootPrimitive ? static_cast<int32>(RootPrimitive->GetCollisionObjectType()) : INDEX_NONE,
-			RootPrimitive && RootPrimitive->GetGenerateOverlapEvents() ? TEXT("true") : TEXT("false"));
-
-		if (bWithinRadius2D && !bReturnedByOverlap)
-		{
-			UE_LOG(LogPandoraAOEAttackAbility, Warning,
-				TEXT("AOEDamage pawn inside radius but missing from overlap: pawn=%s location=%s center=%s dist2D=%.1f radius=%.1f"),
-				*GetNameSafe(Pawn),
-				*PawnLocation.ToCompactString(),
-				*ConfirmedAOELocation.ToCompactString(),
-				Distance2D,
-				CachedAOERadius);
-		}
-	}
-
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("AOEDamage end: ability=%s location=%s radius=%.1f overlaps=%d uniqueHits=%d"),
-		*GetNameSafe(this),
-		*ConfirmedAOELocation.ToCompactString(),
-		CachedAOERadius,
-		OverlapResults.Num(),
-		HitActors.Num());
 }
 
 void UAOEAttackAbility::WaitCancelInput()
@@ -470,10 +494,14 @@ void UAOEAttackAbility::StartWaitTargetData()
 	const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredTargetActorClass = GetConfiguredTargetActorClass();
 	if (!ConfiguredTargetActorClass)
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("StartWaitTargetData failed: TargetActorClass is null. ability=%s"),
-			*GetNameSafe(this));
-		K2_EndAbility();
+		if (ResolveFallbackAOELocation(ConfirmedAOELocation))
+		{
+			ConfirmStrike();
+		}
+		else
+		{
+			K2_CancelAbility();
+		}
 		return;
 	}
 
@@ -484,18 +512,25 @@ void UAOEAttackAbility::StartWaitTargetData()
 		ConfiguredTargetActorClass);
 	if (!WaitTargetDataTask)
 	{
-		K2_EndAbility();
+		if (ResolveFallbackAOELocation(ConfirmedAOELocation))
+		{
+			ConfirmStrike();
+		}
+		else
+		{
+			K2_CancelAbility();
+		}
 		return;
 	}
 
 	WaitTargetDataTask->ValidData.AddDynamic(this, &ThisClass::HandleTargetDataValid);
 	WaitTargetDataTask->Cancelled.AddDynamic(this, &ThisClass::HandleTargetDataCancelled);
 
-	AGameplayAbilityTargetActor* SpawnedTargetActor = nullptr;
-	if (WaitTargetDataTask->BeginSpawningActor(this, ConfiguredTargetActorClass, SpawnedTargetActor))
+	if (AGameplayAbilityTargetActor* SpawnedTargetActor =
+		BeginSpawningTargetDataActor(WaitTargetDataTask, ConfiguredTargetActorClass))
 	{
 		ConfigureSpawnedTargetActor(SpawnedTargetActor);
-		WaitTargetDataTask->FinishSpawningActor(this, SpawnedTargetActor);
+		FinishSpawningTargetDataActor(WaitTargetDataTask, SpawnedTargetActor);
 	}
 
 	WaitTargetDataTask->ReadyForActivation();
@@ -506,29 +541,16 @@ void UAOEAttackAbility::StartWaitMontageTrigger()
 	const FGameplayTag ConfiguredMontageTriggerEventTag = GetConfiguredMontageTriggerEventTag();
 	if (!ConfiguredMontageTriggerEventTag.IsValid())
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("StartWaitMontageTrigger skipped: MontageTriggerEventTag is invalid. ability=%s"),
-			*GetNameSafe(this));
+
 		return;
 	}
 
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("StartWaitMontageTrigger: ability=%s tag=%s"),
-		*GetNameSafe(this),
-		*ConfiguredMontageTriggerEventTag.ToString());
 
-	WaitMontageTriggerTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-		this,
-		ConfiguredMontageTriggerEventTag,
-		nullptr,
-		true,
-		true);
+
+	WaitMontageTriggerTask = CreateWaitGameplayEventTask(ConfiguredMontageTriggerEventTag, true);
 	if (!WaitMontageTriggerTask)
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("StartWaitMontageTrigger failed: task is null. ability=%s tag=%s"),
-			*GetNameSafe(this),
-			*ConfiguredMontageTriggerEventTag.ToString());
+
 		return;
 	}
 
@@ -540,12 +562,7 @@ void UAOEAttackAbility::StartLightningDamageDelay()
 {
 	bWaitingLightningDamage = true;
 	const float ConfiguredLightningDamageDelay = GetConfiguredLightningDamageDelay();
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("StartLightningDamageDelay: ability=%s authority=%s delay=%.3f location=%s"),
-		*GetNameSafe(this),
-		K2_HasAuthority() ? TEXT("true") : TEXT("false"),
-		ConfiguredLightningDamageDelay,
-		*ConfirmedAOELocation.ToCompactString());
+
 
 	if (ConfiguredLightningDamageDelay <= 0.0f)
 	{
@@ -556,10 +573,7 @@ void UAOEAttackAbility::StartLightningDamageDelay()
 	LightningDamageDelayTask = UAbilityTask_WaitDelay::WaitDelay(this, ConfiguredLightningDamageDelay);
 	if (!LightningDamageDelayTask)
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("StartLightningDamageDelay failed: task is null. ability=%s authority=%s"),
-			*GetNameSafe(this),
-			K2_HasAuthority() ? TEXT("true") : TEXT("false"));
+
 		HandleLightningDamageDelayFinished();
 		return;
 	}
@@ -594,9 +608,24 @@ void UAOEAttackAbility::ConfigureSpawnedTargetActor(AGameplayAbilityTargetActor*
 
 	if (ATargetActor_GroundTrace_Decal* DecalTargetActor = Cast<ATargetActor_GroundTrace_Decal>(SpawnedActor))
 	{
-		DecalTargetActor->Decal = GetConfiguredTargetingDecal();
-		DecalTargetActor->DecalSize = CachedAOERadius * 2.0;
+		const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+		UMaterialInterface* TargetingDecal = GetConfiguredTargetingDecal();
+		const double TargetingDecalSize = GetConfiguredTargetingDecalSize();
+		const bool bUseCharacterDecal = SkillDataAsset && SkillDataAsset->CharacterDecal.DecalMaterial;
+		const bool bGrowCharacterDecal = bUseCharacterDecal && SkillDataAsset->CharacterDecal.bGrowDecalSize;
+
+		DecalTargetActor->Decal = TargetingDecal;
+		DecalTargetActor->DecalSize = TargetingDecalSize;
+		DecalTargetActor->bOverrideDecalColor = false;
 		DecalTargetActor->DecalColor = GetConfiguredTargetingDecalColor();
+
+		if (bGrowCharacterDecal)
+		{
+			const FSkillDecalSettings& DecalSettings = SkillDataAsset->CharacterDecal;
+			const double StartSize = DecalSettings.DecalSize > 0.0 ? DecalSettings.DecalSize : 512.0;
+			const double FinalSize = DecalSettings.FinalDecalSize > 0.0 ? DecalSettings.FinalDecalSize : StartSize;
+			DecalTargetActor->ConfigureDecalGrowth(StartSize, FinalSize, ResolveConfiguredCharacterDecalDuration(SkillDataAsset));
+		}
 	}
 }
 
@@ -607,35 +636,38 @@ void UAOEAttackAbility::ApplyEffectToHitActor(AActor* HitActor)
 		return;
 	}
 
+	const ACharacterBase* SourceCharacter = Cast<ACharacterBase>(GetAvatarActorFromActorInfo());
+	const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(HitActor);
+	if (SourceCharacter && TargetCharacter && !SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
+	{
+
+		return;
+	}
+
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
 	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetAvatarActorFromActorInfo());
 	if (!SourceASC || !TargetASC)
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("ApplyEffectToHitActor skipped: sourceASC=%s targetASC=%s target=%s"),
-			*GetNameSafe(SourceASC),
-			*GetNameSafe(TargetASC),
-			*GetNameSafe(HitActor));
+
 		return;
 	}
 
+	bool bAppliedDamage = false;
 	FGameplayEffectSpecHandle DamageSpecHandle = MakeDamageEffectSpec();
-	if (!DamageSpecHandle.IsValid() || !DamageSpecHandle.Data.IsValid())
+	if (DamageSpecHandle.IsValid() && DamageSpecHandle.Data.IsValid())
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("ApplyEffectToHitActor skipped: invalid damage spec. target=%s damageEffect=%s"),
-			*GetNameSafe(HitActor),
-			*GetNameSafe(GetConfiguredDamageEffectClass().Get()));
-		return;
+		const FActiveGameplayEffectHandle AppliedHandle =
+			SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), TargetASC);
+		bAppliedDamage = AppliedHandle.WasSuccessfullyApplied();
+
 	}
 
-	const FActiveGameplayEffectHandle AppliedHandle =
-		SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), TargetASC);
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("ApplyEffectToHitActor: ability=%s target=%s applied=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(HitActor),
-		AppliedHandle.WasSuccessfullyApplied() ? TEXT("true") : TEXT("false"));
+	if (bAppliedDamage)
+	{
+		ApplyStatusEffectToHitActor(HitActor, SourceASC, TargetASC);
+	}
+
+
 }
 
 void UAOEAttackAbility::ApplyDirectAOECamera(bool bEnabled) const
@@ -643,27 +675,13 @@ void UAOEAttackAbility::ApplyDirectAOECamera(bool bEnabled) const
 	APdPlayer* Player = Cast<APdPlayer>(GetAvatarActorFromActorInfo());
 	if (!Player || !Player->IsLocallyControlled())
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Verbose,
-			TEXT("Direct targeting camera skipped: ability=%s enabled=%s avatar=%s player=%s local=%s"),
-			*GetNameSafe(this),
-			bEnabled ? TEXT("true") : TEXT("false"),
-			*GetNameSafe(GetAvatarActorFromActorInfo()),
-			*GetNameSafe(Player),
-			Player && Player->IsLocallyControlled() ? TEXT("true") : TEXT("false"));
+
 		return;
 	}
 
 	const FWeaponAimCameraSettings CameraSettings = GetConfiguredAOECameraSettings();
 
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("Direct targeting camera apply: ability=%s enabled=%s player=%s fov=%.1f offset=%s rotation=%s interp=%.1f"),
-		*GetNameSafe(this),
-		bEnabled ? TEXT("true") : TEXT("false"),
-		*GetNameSafe(Player),
-		CameraSettings.TargetFOV,
-		*CameraSettings.TargetBoomSocketOffset.ToCompactString(),
-		*CameraSettings.TargetCameraRotation.ToCompactString(),
-		CameraSettings.InterpSpeed);
+
 
 	Player->SetAbilityCameraOverrideActive(bEnabled, CameraSettings);
 }
@@ -697,16 +715,6 @@ bool UAOEAttackAbility::GetTargetGroundLocation(AActor* AttackTarget, FVector& O
 		return false;
 	}
 
-	UWorld* World = AttackTarget->GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-
-	const FVector TargetLocation = AttackTarget->GetActorLocation();
-	const FVector TraceStart = TargetLocation + FVector(0.0, 0.0, 100.0);
-	const FVector TraceEnd = TargetLocation - FVector(0.0, 0.0, FMath::Max(GetConfiguredTargetGroundTraceDepth(), 100.0f));
-
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(AttackTarget);
 	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
@@ -714,149 +722,224 @@ bool UAOEAttackAbility::GetTargetGroundLocation(AActor* AttackTarget, FVector& O
 		ActorsToIgnore.Add(AvatarActor);
 	}
 
-	FHitResult GroundHit;
-	const bool bHit = UKismetSystemLibrary::LineTraceSingle(
-		this,
-		TraceStart,
-		TraceEnd,
-		GetConfiguredTargetGroundTraceChannel(),
-		false,
+	return TryResolveGroundHitLocation(
+		AttackTarget->GetWorld(),
+		AttackTarget->GetActorLocation(),
 		ActorsToIgnore,
-		GetConfiguredDebugTargeting() ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None,
-		GroundHit,
-		true);
+		GetConfiguredTargetGroundTraceChannel(),
+		GetConfiguredTargetGroundTraceDepth(),
+		OutGroundLocation);
+}
 
-	if (bHit && GroundHit.bBlockingHit)
+bool UAOEAttackAbility::ResolveFallbackAOELocation(
+	FVector& OutGroundLocation) const
+{
+	if (!CanExecuteSkillPayload())
 	{
-		OutGroundLocation = GroundHit.Location;
-		UE_LOG(LogPandoraAOEAttackAbility, Log,
-			TEXT("AI target ground resolved: ability=%s target=%s targetLocation=%s ground=%s groundActor=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(AttackTarget),
-			*TargetLocation.ToCompactString(),
-			*OutGroundLocation.ToCompactString(),
-			*GetNameSafe(GroundHit.GetActor()));
+		return false;
+	}
+
+	if (AActor* AttackTarget = GetAttackTargetFromAvatar();
+		IsValid(AttackTarget))
+	{
+		if (GetTargetGroundLocation(AttackTarget, OutGroundLocation))
+		{
+			return true;
+		}
+
+		OutGroundLocation = ResolveActorFeetLocation(AttackTarget);
 		return true;
 	}
 
-	UE_LOG(LogPandoraAOEAttackAbility, Warning,
-		TEXT("AI target ground trace missed: ability=%s target=%s start=%s end=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(AttackTarget),
-		*TraceStart.ToCompactString(),
-		*TraceEnd.ToCompactString());
-	return false;
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
+	if (!AvatarActor || !World)
+	{
+		return false;
+	}
+
+	const float MaxRange = GetConfiguredTargetingMaxRange();
+	const float ForwardDistance = FMath::Clamp(
+		MaxRange > 0.0f ? MaxRange * 0.65f : 800.0f,
+		300.0f,
+		1200.0f);
+	const FVector CandidateLocation = AvatarActor->GetActorLocation()
+		+ AvatarActor->GetActorForwardVector() * ForwardDistance;
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(AvatarActor);
+	if (TryResolveGroundHitLocation(
+		World,
+		CandidateLocation,
+		ActorsToIgnore,
+		GetConfiguredTargetGroundTraceChannel(),
+		GetConfiguredTargetGroundTraceDepth(),
+		OutGroundLocation))
+	{
+		return true;
+	}
+
+	OutGroundLocation = CandidateLocation;
+	return true;
 }
 
 FVector UAOEAttackAbility::ResolveConfirmedAOELocation(const FHitResult& HitResult, const FVector& TargetDataEndPoint) const
 {
 	FVector ResolvedLocation = HitResult.Location.IsNearlyZero() ? TargetDataEndPoint : HitResult.Location;
 
+	TArray<AActor*> ActorsToIgnore;
+	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
+	{
+		ActorsToIgnore.Add(AvatarActor);
+	}
+
 	AActor* HitActor = HitResult.GetActor();
 	if (!IsValid(HitActor) || !HitActor->IsA<APawn>())
 	{
+		FVector GroundLocation = FVector::ZeroVector;
+		UWorld* World = HitActor ? HitActor->GetWorld() : (GetAvatarActorFromActorInfo() ? GetAvatarActorFromActorInfo()->GetWorld() : nullptr);
+		if (TryResolveGroundHitLocation(
+			World,
+			ResolvedLocation,
+			ActorsToIgnore,
+			GetConfiguredTargetGroundTraceChannel(),
+			GetConfiguredTargetGroundTraceDepth(),
+			GroundLocation))
+		{
+			return GroundLocation;
+		}
+
 		return ResolvedLocation;
 	}
 
-	UWorld* World = HitActor->GetWorld();
-	if (!World)
+	ActorsToIgnore.Add(HitActor);
+
+	FVector GroundLocation = FVector::ZeroVector;
+	if (TryResolveGroundHitLocation(
+		HitActor->GetWorld(),
+		HitActor->GetActorLocation(),
+		ActorsToIgnore,
+		GetConfiguredTargetGroundTraceChannel(),
+		GetConfiguredTargetGroundTraceDepth(),
+		GroundLocation))
 	{
-		return ResolvedLocation;
+		return GroundLocation;
 	}
 
-	const FVector TraceStart = HitActor->GetActorLocation() + FVector(0.0, 0.0, 100.0);
-	const FVector TraceEnd = HitActor->GetActorLocation() - FVector(0.0, 0.0, 10000.0);
 
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(AOETargetPawnGroundProjection), false);
-	QueryParams.AddIgnoredActor(HitActor);
-	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
+
+	return ResolveActorFeetLocation(HitActor);
+}
+
+bool UAOEAttackAbility::TryValidateServerAOELocation(
+	const FHitResult& ClientHitResult,
+	const FVector& TargetDataEndPoint,
+	FVector& OutValidatedLocation)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
+	if (!AvatarActor || !AvatarActor->HasAuthority() || !World)
 	{
-		QueryParams.AddIgnoredActor(AvatarActor);
+		return false;
 	}
 
-	FHitResult GroundHit;
-	if (World->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams) && GroundHit.bBlockingHit)
+	FVector RequestedLocation = FVector::ZeroVector;
+	if (!PdTargetValidator::TryResolveTargetDataLocation(
+		ClientHitResult,
+		TargetDataEndPoint,
+		RequestedLocation))
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Log,
-			TEXT("TargetData pawn hit projected to ground: ability=%s hitActor=%s original=%s projected=%s groundActor=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(HitActor),
-			*ResolvedLocation.ToCompactString(),
-			*GroundHit.Location.ToCompactString(),
-			*GetNameSafe(GroundHit.GetActor()));
-		return GroundHit.Location;
+		return false;
 	}
 
-	UE_LOG(LogPandoraAOEAttackAbility, Warning,
-		TEXT("TargetData pawn hit ground projection failed: ability=%s hitActor=%s original=%s traceStart=%s traceEnd=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(HitActor),
-		*ResolvedLocation.ToCompactString(),
-		*TraceStart.ToCompactString(),
-		*TraceEnd.ToCompactString());
+	const FGameplayAbilityTargetingLocationInfo TargetStartLocation = MakeTargetStartLocation();
+	const FVector AuthoritySourceLocation = TargetStartLocation.GetTargetingTransform().GetLocation();
 
-	return ResolvedLocation;
+	PdTargetValidator::FGroundTargetValidationParams ValidationParams;
+	ValidationParams.MaxRange = GetConfiguredTargetingMaxRange();
+	ValidationParams.GroundTraceDepth = GetConfiguredTargetGroundTraceDepth();
+	ValidationParams.GroundTraceType = GetConfiguredTargetGroundTraceChannel();
+	ValidationParams.LineOfSightProfileName = GetConfiguredTargetingTraceProfileName();
+
+	PdTargetValidator::FValidatedGroundTarget ValidatedTarget;
+	if (!PdTargetValidator::ValidateGroundTarget(
+		World,
+		AvatarActor,
+		AuthoritySourceLocation,
+		RequestedLocation,
+		ValidationParams,
+		ValidatedTarget))
+	{
+		return false;
+	}
+
+	OutValidatedLocation = ValidatedTarget.Location;
+	return true;
 }
 
 FGameplayEffectSpecHandle UAOEAttackAbility::MakeDamageEffectSpec() const
 {
-	UPdAbilitySystemComponent* SourceASC = GetPdAbilitySystemComponentFromActorInfo();
-	const TSubclassOf<UGameplayEffect> ConfiguredDamageEffectClass = GetConfiguredDamageEffectClass();
-	if (!SourceASC || !ConfiguredDamageEffectClass)
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	const FSkillGameplayEffectConfig DamageConfig = SkillDataAsset ? SkillDataAsset->GetResolvedDamageConfig() : FSkillGameplayEffectConfig();
+	if (!DamageConfig.GameplayEffectClass)
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("MakeDamageEffectSpec failed: sourceASC=%s damageEffect=%s ability=%s"),
-			*GetNameSafe(SourceASC),
-			*GetNameSafe(ConfiguredDamageEffectClass.Get()),
-			*GetNameSafe(this));
+
 		return FGameplayEffectSpecHandle();
 	}
 
-	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
-	EffectContext.AddInstigator(GetAvatarActorFromActorInfo(), GetAvatarActorFromActorInfo());
-	if (const FGameplayAbilitySpec* AbilitySpec = GetCurrentAbilitySpec())
+	return MakeConfiguredDamageEffectSpec(DamageConfig, CalculateDamageMagnitude());
+}
+
+const UStatusEffectDefinition* UAOEAttackAbility::GetConfiguredStatusEffectDataAsset() const
+{
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
+}
+
+TSubclassOf<UGameplayEffect> UAOEAttackAbility::GetConfiguredStatusEffectClass() const
+{
+	const UStatusEffectDefinition* StatusEffectDataAsset = GetConfiguredStatusEffectDataAsset();
+	return StatusEffectDataAsset ? StatusEffectDataAsset->StatusEffectClass : nullptr;
+}
+
+float UAOEAttackAbility::GetConfiguredStatusEffectLevel() const
+{
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset && SkillDataAsset->StatusEffectDataAsset
+		? FMath::Max(SkillDataAsset->StatusEffectLevel, 1.0f)
+		: 1.0f;
+}
+
+float UAOEAttackAbility::GetConfiguredStatusEffectDuration() const
+{
+	const UStatusEffectDefinition* StatusEffectDataAsset = GetConfiguredStatusEffectDataAsset();
+	return StatusEffectDataAsset ? FMath::Max(StatusEffectDataAsset->StatusDuration, 0.0f) : 0.0f;
+}
+
+FGameplayEffectSpecHandle UAOEAttackAbility::MakeStatusEffectSpec() const
+{
+	return MakeConfiguredStatusEffectSpec(
+		GetAOESkillDataAsset(GetSourceSkillDataAsset()));
+}
+
+void UAOEAttackAbility::ApplyStatusEffectToHitActor(
+	AActor* HitActor,
+	UAbilitySystemComponent* SourceASC,
+	UAbilitySystemComponent* TargetASC) const
+{
+	if (!IsValid(HitActor) || !SourceASC || !TargetASC)
 	{
-		if (UObject* SourceObject = AbilitySpec->SourceObject.Get())
-		{
-			EffectContext.AddSourceObject(SourceObject);
-		}
+		return;
 	}
 
-	FGameplayEffectSpecHandle DamageSpecHandle =
-		SourceASC->MakeOutgoingSpec(ConfiguredDamageEffectClass, FMath::Max(GetAbilityLevel(), 1), EffectContext);
-	if (!DamageSpecHandle.IsValid() || !DamageSpecHandle.Data.IsValid())
+	FGameplayEffectSpecHandle StatusEffectSpecHandle = MakeStatusEffectSpec();
+	if (!StatusEffectSpecHandle.IsValid() || !StatusEffectSpecHandle.Data.IsValid())
 	{
-		return FGameplayEffectSpecHandle();
+		return;
 	}
 
-	FGameplayTag ResolvedDamageDataTag = GetConfiguredDamageDataTag();
-	if (!ResolvedDamageDataTag.IsValid())
-	{
-		SourceASC->ResolveDamageMagnitudeSetByCallerTag(ResolvedDamageDataTag);
-	}
+	const FActiveGameplayEffectHandle AppliedHandle =
+		SourceASC->ApplyGameplayEffectSpecToTarget(*StatusEffectSpecHandle.Data.Get(), TargetASC);
 
-	if (ResolvedDamageDataTag.IsValid())
-	{
-		DamageSpecHandle.Data->SetSetByCallerMagnitude(ResolvedDamageDataTag, CalculateDamageMagnitude());
-	}
-	else
-	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("MakeDamageEffectSpec warning: invalid damage data tag. ability=%s damageEffect=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(ConfiguredDamageEffectClass.Get()));
-	}
-
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("MakeDamageEffectSpec: ability=%s damageEffect=%s level=%d dataTag=%s magnitude=%.1f valid=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(ConfiguredDamageEffectClass.Get()),
-		FMath::Max(GetAbilityLevel(), 1),
-		*ResolvedDamageDataTag.ToString(),
-		CalculateDamageMagnitude(),
-		DamageSpecHandle.IsValid() ? TEXT("true") : TEXT("false"));
-
-	return DamageSpecHandle;
 }
 
 bool UAOEAttackAbility::HasPlayerController() const
@@ -867,175 +950,198 @@ bool UAOEAttackAbility::HasPlayerController() const
 
 UAnimMontage* UAOEAttackAbility::GetConfiguredTargetingMontage() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->AOETargetingMontage.Get() : nullptr;
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset ? SkillDataAsset->Animation.SecondaryMontage.Get() : nullptr;
 }
 
 UAnimMontage* UAOEAttackAbility::GetConfiguredTriggerMontage() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->AOETriggerMontage.Get() : nullptr;
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset ? SkillDataAsset->Animation.PrimaryMontage.Get() : nullptr;
 }
 
 TSubclassOf<UGameplayEffect> UAOEAttackAbility::GetConfiguredDamageEffectClass() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->AOEDamageEffectClass : nullptr;
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset ? SkillDataAsset->GetResolvedDamageConfig().GameplayEffectClass : nullptr;
 }
 
 TArray<TEnumAsByte<EObjectTypeQuery>> UAOEAttackAbility::GetConfiguredDamageObjectTypes() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->AOEDamageObjectTypes : TArray<TEnumAsByte<EObjectTypeQuery>>();
+	return { UEngineTypes::ConvertToObjectType(ECC_Pawn) };
 }
 
 TSubclassOf<AGameplayAbilityTargetActor> UAOEAttackAbility::GetConfiguredTargetActorClass() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->AOETargetActorClass : nullptr;
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredClass =
+		SkillDataAsset ? SkillDataAsset->AOETargetActorClass : nullptr;
+	if (ConfiguredClass
+		&& ConfiguredClass->IsChildOf(AGameplayAbilityTargetActor_GroundTrace::StaticClass())
+		&& !ConfiguredClass->IsChildOf(ATargetActor_GroundTrace_Decal::StaticClass()))
+	{
+		return ATargetActor_GroundTrace_Decal::StaticClass();
+	}
+
+	return ConfiguredClass;
 }
 
 UMaterialInterface* UAOEAttackAbility::GetConfiguredTargetingDecal() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->AOETargetingDecal.Get() : nullptr;
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	if (!SkillDataAsset)
+	{
+		return nullptr;
+	}
+
+	if (SkillDataAsset->CharacterDecal.DecalMaterial)
+	{
+		return SkillDataAsset->CharacterDecal.DecalMaterial.Get();
+	}
+
+	return SkillDataAsset->AOETargetingDecal.Get();
+}
+
+double UAOEAttackAbility::GetConfiguredTargetingDecalSize() const
+{
+	const double FallbackSize = CachedAOERadius > 0.0 ? CachedAOERadius * 2.0 : 512.0;
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	if (!SkillDataAsset || !SkillDataAsset->CharacterDecal.DecalMaterial)
+	{
+		return FallbackSize;
+	}
+
+	const FSkillDecalSettings& DecalSettings = SkillDataAsset->CharacterDecal;
+	const double StartSize = DecalSettings.DecalSize > 0.0 ? DecalSettings.DecalSize : 512.0;
+	return DecalSettings.bGrowDecalSize && DecalSettings.FinalDecalSize > 0.0
+		? DecalSettings.FinalDecalSize
+		: StartSize;
 }
 
 FLinearColor UAOEAttackAbility::GetConfiguredTargetingDecalColor() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? SkillDataAsset->AOETargetingDecalColor : FLinearColor::White;
 }
 
 FName UAOEAttackAbility::GetConfiguredTargetingTraceProfileName() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? SkillDataAsset->AOETargetingTraceProfileName : NAME_None;
 }
 
 float UAOEAttackAbility::GetConfiguredTargetingMaxRange() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? static_cast<float>(SkillDataAsset->AOETargetingMaxRange) : 0.0f;
 }
 
 float UAOEAttackAbility::GetConfiguredTargetingCollisionRadius() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? static_cast<float>(SkillDataAsset->AOETargetingCollisionRadius) : 0.0f;
 }
 
 float UAOEAttackAbility::GetConfiguredTargetingCollisionHeight() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? static_cast<float>(SkillDataAsset->AOETargetingCollisionHeight) : 0.0f;
 }
 
 bool UAOEAttackAbility::GetConfiguredTargetingTraceAffectsAimPitch() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset && SkillDataAsset->bAOETargetingTraceAffectsAimPitch;
 }
 
 bool UAOEAttackAbility::GetConfiguredDebugTargeting() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset && SkillDataAsset->bAOEDebugTargeting;
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return LabSkillDebug::IsDrawingEnabled()
+		&& SkillDataAsset
+		&& SkillDataAsset->bAOEDebugTargeting;
 }
 
 bool UAOEAttackAbility::GetConfiguredDrawDebugDamageRadius() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset && SkillDataAsset->bAOEDrawDebugDamageRadius;
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return LabSkillDebug::IsDrawingEnabled()
+		&& SkillDataAsset
+		&& SkillDataAsset->bAOEDrawDebugDamageRadius;
 }
 
 float UAOEAttackAbility::GetConfiguredDebugDamageRadiusDrawTime() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? static_cast<float>(FMath::Max(SkillDataAsset->AOEDebugDamageRadiusDrawTime, 0.0)) : 0.0f;
 }
 
 FName UAOEAttackAbility::GetConfiguredTargetingSocketName() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? SkillDataAsset->AOETargetingSocketName : NAME_None;
 }
 
 TEnumAsByte<ETraceTypeQuery> UAOEAttackAbility::GetConfiguredTargetGroundTraceChannel() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	if (SkillDataAsset)
-	{
-		return SkillDataAsset->AOETargetGroundTraceChannel;
-	}
-
-	return TEnumAsByte<ETraceTypeQuery>(TraceTypeQuery1);
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset ? SkillDataAsset->AOETargetGroundTraceChannel : TEnumAsByte<ETraceTypeQuery>(TraceTypeQuery1);
 }
 
 float UAOEAttackAbility::GetConfiguredTargetGroundTraceDepth() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? static_cast<float>(SkillDataAsset->AOETargetGroundTraceDepth) : 0.0f;
 }
 
 FGameplayTag UAOEAttackAbility::GetConfiguredDamageDataTag() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->AOEDamageDataTag : FGameplayTag();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset ? SkillDataAsset->GetResolvedDamageConfig().MagnitudeDataTag : FGameplayTag();
 }
 
 FGameplayTag UAOEAttackAbility::GetConfiguredMontageTriggerEventTag() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->AOEMontageTriggerEventTag : FGameplayTag();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset ? SkillDataAsset->Animation.PrimaryEventTag : FGameplayTag();
 }
 
 FGameplayTag UAOEAttackAbility::GetConfiguredAOEIndicatorCueTag() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? SkillDataAsset->AOEIndicatorCueTag : FGameplayTag();
 }
 
 FGameplayTag UAOEAttackAbility::GetConfiguredLightningBoltCueTag() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? SkillDataAsset->AOELightningBoltCueTag : FGameplayTag();
 }
 
 float UAOEAttackAbility::GetConfiguredLightningDamageDelay() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
 	return SkillDataAsset ? static_cast<float>(FMath::Max(SkillDataAsset->AOELightningDamageDelay, 0.0)) : 0.0f;
 }
 
 FWeaponAimCameraSettings UAOEAttackAbility::GetConfiguredAOECameraSettings() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	if (SkillDataAsset && SkillDataAsset->bUseAOECameraSettings)
-	{
-		return SkillDataAsset->AOECameraSettings;
-	}
-
-	return FWeaponAimCameraSettings();
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset && SkillDataAsset->bUseAOECameraSettings ? SkillDataAsset->AOECameraSettings : FWeaponAimCameraSettings();
 }
 
 double UAOEAttackAbility::CalculateAOERadiusFromSkillData() const
 {
-	const double AbilityLevel = static_cast<double>(FMath::Max(GetAbilityLevel(), 1));
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	const double ConfiguredBaseAOERadius = SkillDataAsset ? SkillDataAsset->AOERadius : 0.0;
-	const double ConfiguredRadiusPercentIncreasePerLevel = SkillDataAsset ? SkillDataAsset->AOERadiusPercentIncreasePerLevel : 0.0;
-	return ConfiguredBaseAOERadius + ((ConfiguredBaseAOERadius * ConfiguredRadiusPercentIncreasePerLevel) * (AbilityLevel - 1.0));
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset ? SkillDataAsset->AOERadius : 0.0;
 }
 
 float UAOEAttackAbility::CalculateDamageMagnitude() const
 {
-	const double AbilityLevel = static_cast<double>(FMath::Max(GetAbilityLevel(), 1));
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	const double ConfiguredDamageMagnitude = SkillDataAsset ? SkillDataAsset->AOEDamageMagnitude : 0.0;
-	const double ConfiguredDamagePercentIncreasePerLevel = SkillDataAsset ? SkillDataAsset->AOEDamagePercentIncreasePerLevel : 0.0;
-	const double ScaledDamage = ConfiguredDamageMagnitude + ((ConfiguredDamageMagnitude * ConfiguredDamagePercentIncreasePerLevel) * (AbilityLevel - 1.0));
-	return static_cast<float>(ScaledDamage);
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	return SkillDataAsset
+		? CalculateSkillDamageMagnitude(SkillDataAsset->GetResolvedDamageConfig())
+		: 0.0f;
 }
 
 bool UAOEAttackAbility::ShouldDrawDebugDamageRadius() const
@@ -1134,40 +1240,62 @@ void UAOEAttackAbility::DrawDebugDamageRadius(const TCHAR* Context, const FColor
 		}
 	}
 
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("AOEDebugRadius drawn: context=%s ability=%s avatar=%s authority=%s localController=%s center=%s radius=%.1f drawTime=%.1f shape=Hemisphere"),
-		Context ? Context : TEXT("None"),
-		*GetNameSafe(this),
-		*GetNameSafe(AvatarActor),
-		AvatarActor && AvatarActor->HasAuthority() ? TEXT("true") : TEXT("false"),
-		HasPlayerController() ? TEXT("true") : TEXT("false"),
-		*ConfirmedAOELocation.ToCompactString(),
-		CachedAOERadius,
-		DrawTime);
+
 }
 
 void UAOEAttackAbility::HandleCancelInputPressed(float TimeWaited)
 {
 	static_cast<void>(TimeWaited);
-	K2_CancelAbility();
+	if (UPdAbilitySystemComponent* AbilitySystemComponent =
+		GetPdAbilitySystemComponentFromActorInfo())
+	{
+		AbilitySystemComponent->LocalInputConfirm();
+	}
+	else if (ResolveFallbackAOELocation(ConfirmedAOELocation))
+	{
+		ConfirmStrike();
+	}
 }
 
 void UAOEAttackAbility::HandleTargetDataValid(const FGameplayAbilityTargetDataHandle& Data)
 {
 	bIsWaitingTargetData = false;
 
-	FHitResult HitResult = UAbilitySystemBlueprintLibrary::GetHitResultFromTargetData(Data, 0);
-	const FVector TargetDataEndPoint = UAbilitySystemBlueprintLibrary::GetTargetDataEndPoint(Data, 0);
-	ConfirmedAOELocation = ResolveConfirmedAOELocation(HitResult, TargetDataEndPoint);
+	const FGameplayAbilityTargetData* TargetData = Data.Get(0);
+	const FHitResult* ClientHitResult = TargetData ? TargetData->GetHitResult() : nullptr;
+	if (!CurrentActorInfo || !ClientHitResult)
+	{
+		if (ResolveFallbackAOELocation(ConfirmedAOELocation))
+		{
+			ConfirmStrike();
+		}
+		else
+		{
+			K2_CancelAbility();
+		}
+		return;
+	}
 
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("TargetData valid: ability=%s hitLocation=%s targetEndPoint=%s confirmedLocation=%s hitActor=%s blockingHit=%s"),
-		*GetNameSafe(this),
-		*HitResult.Location.ToCompactString(),
-		*TargetDataEndPoint.ToCompactString(),
-		*ConfirmedAOELocation.ToCompactString(),
-		*GetNameSafe(HitResult.GetActor()),
-		HitResult.bBlockingHit ? TEXT("true") : TEXT("false"));
+	const FVector TargetDataEndPoint = UAbilitySystemBlueprintLibrary::GetTargetDataEndPoint(Data, 0);
+	if (CurrentActorInfo->IsNetAuthority())
+	{
+		if (!TryValidateServerAOELocation(*ClientHitResult, TargetDataEndPoint, ConfirmedAOELocation))
+		{
+			if (ResolveFallbackAOELocation(ConfirmedAOELocation))
+			{
+				ConfirmStrike();
+			}
+			else
+			{
+				K2_CancelAbility();
+			}
+			return;
+		}
+	}
+	else
+	{
+		ConfirmedAOELocation = ResolveConfirmedAOELocation(*ClientHitResult, TargetDataEndPoint);
+	}
 
 	ConfirmStrike();
 }
@@ -1175,7 +1303,14 @@ void UAOEAttackAbility::HandleTargetDataValid(const FGameplayAbilityTargetDataHa
 void UAOEAttackAbility::HandleTargetDataCancelled(const FGameplayAbilityTargetDataHandle& Data)
 {
 	static_cast<void>(Data);
-	K2_EndAbility();
+	if (ResolveFallbackAOELocation(ConfirmedAOELocation))
+	{
+		ConfirmStrike();
+	}
+	else
+	{
+		K2_CancelAbility();
+	}
 }
 
 void UAOEAttackAbility::HandleTargetingMontageBlendOut()
@@ -1192,46 +1327,40 @@ void UAOEAttackAbility::HandleTargetingMontageInterrupted()
 	TargetingMontageTask = nullptr;
 	if (bIsWaitingTargetData)
 	{
-		K2_EndAbility();
+		if (ResolveFallbackAOELocation(ConfirmedAOELocation))
+		{
+			ConfirmStrike();
+		}
+		else
+		{
+			K2_CancelAbility();
+		}
 	}
 }
 
 void UAOEAttackAbility::HandleTriggerMontageFinished()
 {
 	TriggerMontageTask = nullptr;
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("TriggerMontage finished: ability=%s authority=%s strikeTriggered=%s waitingLightningDamage=%s delayTask=%s"),
-		*GetNameSafe(this),
-		K2_HasAuthority() ? TEXT("true") : TEXT("false"),
-		bStrikeTriggered ? TEXT("true") : TEXT("false"),
-		bWaitingLightningDamage ? TEXT("true") : TEXT("false"),
-		*GetNameSafe(LightningDamageDelayTask));
+
 
 	if (!bStrikeTriggered)
 	{
-		K2_EndAbility();
+		HandleMontageTriggerEvent(FGameplayEventData());
 	}
 }
 
 void UAOEAttackAbility::HandleTriggerMontageInterrupted()
 {
 	TriggerMontageTask = nullptr;
-	UE_LOG(LogPandoraAOEAttackAbility, Warning,
-		TEXT("TriggerMontage interrupted/cancelled: ability=%s strikeTriggered=%s"),
-		*GetNameSafe(this),
-		bStrikeTriggered ? TEXT("true") : TEXT("false"));
-	K2_EndAbility();
+	if (!bStrikeTriggered)
+	{
+		HandleMontageTriggerEvent(FGameplayEventData());
+	}
 }
 
 void UAOEAttackAbility::HandleMontageTriggerEvent(FGameplayEventData Payload)
 {
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("MontageTriggerEvent received: ability=%s payloadTag=%s expectedTag=%s location=%s alreadyTriggered=%s"),
-		*GetNameSafe(this),
-		*Payload.EventTag.ToString(),
-		*GetConfiguredMontageTriggerEventTag().ToString(),
-		*ConfirmedAOELocation.ToCompactString(),
-		bStrikeTriggered ? TEXT("true") : TEXT("false"));
+
 
 	if (bStrikeTriggered)
 	{
@@ -1242,13 +1371,12 @@ void UAOEAttackAbility::HandleMontageTriggerEvent(FGameplayEventData Payload)
 
 	if (!K2_CommitAbility())
 	{
-		UE_LOG(LogPandoraAOEAttackAbility, Warning,
-			TEXT("Montage trigger commit failed: ability=%s"),
-			*GetNameSafe(this));
+
 		K2_EndAbility();
 		return;
 	}
 
+	SpawnConfiguredCharacterDecal();
 	FGameplayCueParameters LightningCueParams;
 	LightningCueParams.Location = ConfirmedAOELocation;
 	LightningCueParams.Instigator = GetAvatarActorFromActorInfo();
@@ -1268,11 +1396,7 @@ void UAOEAttackAbility::HandleLightningDamageDelayFinished()
 	const bool bHasAuthority = K2_HasAuthority();
 	LightningDamageDelayTask = nullptr;
 	bWaitingLightningDamage = false;
-	UE_LOG(LogPandoraAOEAttackAbility, Log,
-		TEXT("LightningDamageDelay finished: ability=%s authority=%s location=%s"),
-		*GetNameSafe(this),
-		bHasAuthority ? TEXT("true") : TEXT("false"),
-		*ConfirmedAOELocation.ToCompactString());
+
 
 	if (!bHasAuthority)
 	{

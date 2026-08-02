@@ -3,7 +3,7 @@
 #include "Animation/AnimSequenceBase.h"
 #include "Character/PdPlayer.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "PlayerComponent/EquipmentComponent.h"
+#include "Component/Player/EquipmentComponent.h"
 #include "Weapon/WeaponBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_WeaponEvent)
 
@@ -43,5 +43,6 @@ bool UAnimNotify_WeaponEvent::DispatchWeaponEvent(USkeletalMeshComponent* MeshCo
 
 	UEquipmentComponent* EquipmentComponent = PlayerCharacter->GetEquipmentComponent();
 	AWeaponBase* WeaponActor = EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
-	return WeaponActor ? WeaponActor->OnWeaponAnimNotifyTiming(EventName, PlayerCharacter) : false;
+	const bool bHandled = WeaponActor ? WeaponActor->OnWeaponAnimNotifyTiming(EventName, PlayerCharacter) : false;
+	return bHandled;
 }

@@ -5,8 +5,10 @@
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "Common/WeaponDefinitionData.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/OverlapResult.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
+#include "UObject/ObjectKey.h"
 #include "AOEAttackAbility.generated.h"
 
 class AGameplayAbilityTargetActor;
@@ -15,9 +17,11 @@ class UAbilityTask_WaitDelay;
 class UAbilityTask_WaitGameplayEvent;
 class UAbilityTask_WaitInputPress;
 class UAbilityTask_WaitTargetData;
+class UAbilitySystemComponent;
 class UAnimMontage;
 class UGameplayEffect;
 class UMaterialInterface;
+class UStatusEffectDefinition;
 
 UCLASS(Blueprintable)
 class LABPROJECT_API UAOEAttackAbility : public UPdGameplayAbility
@@ -60,6 +64,9 @@ protected:
 	bool bStrikeTriggered = false;
 
 	UPROPERTY(Transient)
+	bool bStrikeConfirmed = false;
+
+	UPROPERTY(Transient)
 	bool bWaitingLightningDamage = false;
 
 	UPROPERTY(Transient)
@@ -68,8 +75,9 @@ protected:
 	UPROPERTY(Transient)
 	FVector ConfirmedAOELocation = FVector::ZeroVector;
 
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<AActor>> HitActors;
+	TSet<FObjectKey> HitActorKeys;
+
+	TArray<FOverlapResult> AOEOverlapResults;
 
 private:
 	void WaitCancelInput();
@@ -82,7 +90,12 @@ private:
 	void RemovePersistentGameplayCues();
 	FGameplayAbilityTargetingLocationInfo MakeTargetStartLocation();
 	bool GetTargetGroundLocation(AActor* AttackTarget, FVector& OutGroundLocation) const;
+	bool ResolveFallbackAOELocation(FVector& OutGroundLocation) const;
 	FVector ResolveConfirmedAOELocation(const FHitResult& HitResult, const FVector& TargetDataEndPoint) const;
+	bool TryValidateServerAOELocation(
+		const FHitResult& ClientHitResult,
+		const FVector& TargetDataEndPoint,
+		FVector& OutValidatedLocation);
 	FGameplayEffectSpecHandle MakeDamageEffectSpec() const;
 	UAnimMontage* GetConfiguredTargetingMontage() const;
 	UAnimMontage* GetConfiguredTriggerMontage() const;
@@ -90,6 +103,7 @@ private:
 	TArray<TEnumAsByte<EObjectTypeQuery>> GetConfiguredDamageObjectTypes() const;
 	TSubclassOf<AGameplayAbilityTargetActor> GetConfiguredTargetActorClass() const;
 	UMaterialInterface* GetConfiguredTargetingDecal() const;
+	double GetConfiguredTargetingDecalSize() const;
 	FLinearColor GetConfiguredTargetingDecalColor() const;
 	FName GetConfiguredTargetingTraceProfileName() const;
 	float GetConfiguredTargetingMaxRange() const;
@@ -103,6 +117,12 @@ private:
 	TEnumAsByte<ETraceTypeQuery> GetConfiguredTargetGroundTraceChannel() const;
 	float GetConfiguredTargetGroundTraceDepth() const;
 	FGameplayTag GetConfiguredDamageDataTag() const;
+	const UStatusEffectDefinition* GetConfiguredStatusEffectDataAsset() const;
+	TSubclassOf<UGameplayEffect> GetConfiguredStatusEffectClass() const;
+	float GetConfiguredStatusEffectLevel() const;
+	float GetConfiguredStatusEffectDuration() const;
+	FGameplayEffectSpecHandle MakeStatusEffectSpec() const;
+	void ApplyStatusEffectToHitActor(AActor* HitActor, UAbilitySystemComponent* SourceASC, UAbilitySystemComponent* TargetASC) const;
 	FGameplayTag GetConfiguredMontageTriggerEventTag() const;
 	FGameplayTag GetConfiguredAOEIndicatorCueTag() const;
 	FGameplayTag GetConfiguredLightningBoltCueTag() const;

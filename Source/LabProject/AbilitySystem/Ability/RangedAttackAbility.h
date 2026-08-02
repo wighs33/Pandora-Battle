@@ -7,6 +7,7 @@
 
 class UGameplayEffect;
 class AWeaponBase;
+class ACharacterBase;
 
 UCLASS(Blueprintable)
 class LABPROJECT_API URangedAttackAbility : public UPdGameplayAbility
@@ -15,6 +16,12 @@ class LABPROJECT_API URangedAttackAbility : public UPdGameplayAbility
 
 public:
 	URangedAttackAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	virtual bool CanActivateAbility(
+		FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayTagContainer* SourceTags = nullptr,
+		const FGameplayTagContainer* TargetTags = nullptr,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 
 protected:
 	// Timing hooks
@@ -43,6 +50,18 @@ protected:
 	void CleanupAttackState();
 	AWeaponBase* GetCurrentWeaponActor() const;
 	void SetCurrentWeaponTraceEnabled(bool bEnabled) const;
+	AActor* ResolveAttackTarget(ACharacterBase* Character) const;
+	bool ShouldUseAIWeaponFire(ACharacterBase* Character, AWeaponBase* CurrentWeapon) const;
+	bool TryCacheAIPrimaryAttackTarget(ACharacterBase* Character);
+	bool TryExecuteScheduledAIWeaponFire();
+	FVector ResolveAITargetAimLocation(const AActor* TargetActor) const;
+	void FaceCharacterToTargetLocation(ACharacterBase* Character, const FVector& TargetLocation) const;
+	float GetAIRangedTargetLockDelay() const;
+	void ScheduleAIPrimaryAttack();
+	void ClearAIPrimaryAttackTimer();
+
+	UFUNCTION()
+	void HandleAIPrimaryAttackTimer();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> AttackingEffectClass;
@@ -52,4 +71,18 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Event", meta = (Categories = "GameplayEvent"))
 	FGameplayTag AttackTraceEndEventTag;
+
+	UPROPERTY(Transient)
+	bool bAIPrimaryAttackExecuted = false;
+
+	UPROPERTY(Transient)
+	bool bHasCachedAIPrimaryAttackTargetLocation = false;
+
+	UPROPERTY(Transient)
+	FVector CachedAIPrimaryAttackTargetLocation = FVector::ZeroVector;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<AActor> CachedAIPrimaryAttackTargetActor;
+
+	FTimerHandle AIPrimaryAttackTimerHandle;
 };

@@ -8,8 +8,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReactiveStaminaRegenAbility)
 
-DEFINE_LOG_CATEGORY_STATIC(LogReactiveStaminaRegenAbility, Log, All);
-
 UReactiveStaminaRegenAbility::UReactiveStaminaRegenAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -30,11 +28,7 @@ void UReactiveStaminaRegenAbility::ActivateAbility(
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (!ASC || !StaminaRegenEffectClass)
 	{
-		UE_LOG(LogReactiveStaminaRegenAbility, Warning,
-			TEXT("Reactive stamina regen ended: missing ASC or StaminaRegenEffectClass. ability=%s asc=%s effect=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(ASC),
-			*GetNameSafe(StaminaRegenEffectClass.Get()));
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}

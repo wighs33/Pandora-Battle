@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Common/Enum_Direction.h"
 #include "GameFramework/Actor.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
@@ -21,6 +22,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!EffectArea")
 	USphereComponent* GetAreaCollision() const { return AreaCollision; }
 
+	UFUNCTION(BlueprintCallable, Category = "!EffectArea")
+	void SetSourceActor(AActor* InSourceActor);
+
+	UFUNCTION(BlueprintCallable, Category = "!EffectArea")
+	void SetSourcePandoraLoadoutDirection(EEnum_Direction InLoadoutDirection);
+
+	UFUNCTION(BlueprintCallable, Category = "!EffectArea")
+	void SetIgnoreSourceActor(bool bInIgnoreSourceActor);
+
+	UFUNCTION(BlueprintCallable, Category = "!EffectArea")
+	void SetAffectEnemiesOnly(bool bInAffectEnemiesOnly);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -36,6 +49,9 @@ protected:
 	void ApplyEffectToActor(AActor* TargetActor);
 	void RemoveEffectFromActor(AActor* TargetActor);
 	UAbilitySystemComponent* GetTargetAbilitySystemComponent(AActor* TargetActor) const;
+	UAbilitySystemComponent* GetSourceAbilitySystemComponent() const;
+	AActor* ResolveSourceActor() const;
+	bool ShouldApplyEffectToActor(AActor* TargetActor) const;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!EffectArea", meta = (AllowPrivateAccess = "true"))
@@ -56,6 +72,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!EffectArea|Network", meta = (AllowPrivateAccess = "true"))
 	bool bApplyOnlyOnAuthority = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!EffectArea|Filter", meta = (AllowPrivateAccess = "true"))
+	bool bIgnoreSourceActor = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!EffectArea|Filter", meta = (AllowPrivateAccess = "true"))
+	bool bAffectEnemiesOnly = false;
+
 private:
+	UPROPERTY(Transient)
+	TWeakObjectPtr<AActor> SourceActor;
+
+	UPROPERTY(Transient)
+	EEnum_Direction SourcePandoraLoadoutDirection = EEnum_Direction::Center;
+
 	TMap<TWeakObjectPtr<AActor>, FActiveGameplayEffectHandle> ActiveEffectHandles;
 };

@@ -16,6 +16,7 @@ public:
 	AAOEIndicatorGameplayCue();
 
 	virtual bool HandlesEvent(EGameplayCueEvent::Type EventType) const override;
+	virtual bool OnExecute_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 	virtual bool OnActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 	virtual bool OnRemove_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -25,7 +26,7 @@ protected:
 	TObjectPtr<UMaterialInterface> DecalMaterial = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!GameplayCue|AOE", meta = (ClampMin = "0.0"))
-	float DecalDepth = 50.0f;
+	float DecalDepth = 8.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!GameplayCue|AOE", meta = (ClampMin = "0.0"))
 	float FallbackDecalDiameter = 512.0f;
@@ -43,5 +44,8 @@ protected:
 	TObjectPtr<UDecalComponent> SpawnedDecalComponent = nullptr;
 
 private:
+	UDecalComponent* SpawnDecalFromParameters(AActor* MyTarget, const FGameplayCueParameters& Parameters, bool bTrackAsPersistent);
+	void ApplyDecalGrowth(UDecalComponent* DecalComponent, float StartDiameter, float TargetDiameter, float GrowthDuration);
+	UMaterialInterface* ResolveDecalMaterial(const FGameplayCueParameters& Parameters) const;
 	void DestroySpawnedDecal();
 };

@@ -1,25 +1,38 @@
 #include "Weapon/Bow.h"
 
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
+#include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
+#include "Common/LabGameplayTags.h"
 #include "Common/WeaponAnimNotifyNames.h"
+#include "Component/Player/CombatComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Item/ArrowProjectileBase.h"
-#include "Item/ItemDefinition.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "TimerManager.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Bow)
-
-DEFINE_LOG_CATEGORY_STATIC(LogBowWeaponBase, Log, All);
 
 namespace
 {
-const TArray<TEnumAsByte<EObjectTypeQuery>>& GetDefaultBowTraceObjectTypes()
+void AddUniqueTraceObjectType(TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes, ECollisionChannel CollisionChannel)
 {
-	static const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes =
-	{
-		UEngineTypes::ConvertToObjectType(ECC_WorldStatic)
-	};
+	ObjectTypes.AddUnique(UEngineTypes::ConvertToObjectType(CollisionChannel));
+}
+
+TArray<TEnumAsByte<EObjectTypeQuery>> MakeBowTraceObjectTypes(TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes)
+{
+	ObjectTypes.RemoveAll(
+		[](const TEnumAsByte<EObjectTypeQuery> ObjectType)
+		{
+			return UEngineTypes::ConvertToCollisionChannel(ObjectType) == ECC_Pawn;
+		});
+	AddUniqueTraceObjectType(ObjectTypes, ECC_WorldStatic);
+	AddUniqueTraceObjectType(ObjectTypes, ECC_GameTraceChannel1);
 	return ObjectTypes;
 }
 }
@@ -54,17 +67,235 @@ float ABow::GetArrowTraceRange() const
 	return 0.0f;
 }
 
-const TArray<TEnumAsByte<EObjectTypeQuery>>& ABow::GetBowTraceObjectTypes() const
+float ABow::GetMinimumDrawDuration() const
 {
 	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
 	{
-		if (!ItemDefinition->WeaponData.Bow.TraceObjectTypes.IsEmpty())
+		return ItemDefinition->WeaponData.Bow.MinimumDrawDuration;
+	}
+
+	return FBowWeaponDefinitionData().MinimumDrawDuration;
+}
+
+float ABow::GetBowFireInterval() const
+{
+	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	{
+		return ItemDefinition->WeaponData.Bow.FireInterval;
+	}
+
+	return FBowWeaponDefinitionData().FireInterval;
+}
+
+TArray<TEnumAsByte<EObjectTypeQuery>> ABow::GetBowTraceObjectTypes() const
+{
+	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	{
+		return MakeBowTraceObjectTypes(ItemDefinition->WeaponData.Bow.TraceObjectTypes);
+	}
+
+	return MakeBowTraceObjectTypes({});
+}
+
+float ABow::GetEffectiveMinimumDrawDuration() const
+{
+	return FMath::Max(GetMinimumDrawDuration() / GetWeaponAttackSpeedPlayRate(), UE_SMALL_NUMBER);
+}
+
+float ABow::GetEffectiveBowFireInterval() const
+{
+	return FMath::Max(GetBowFireInterval() / GetWeaponAttackSpeedPlayRate(), UE_SMALL_NUMBER);
+}
+
+bool ABow::CanServerUseBow(const ACharacterBase* AttackingCharacter, bool bRequirePlayerAim) const
+{
+	if (!HasAuthority()
+		|| !SupportsAimInput()
+		|| !AttackingCharacter
+		|| AttackingCharacter != GetOwningCharacter()
+		|| !IsCurrentWeaponForOwner()
+		|| AttackingCharacter->IsStatusFrozen())
+	{
+		return false;
+	}
+
+	const UPdAbilitySystemComponent* AbilitySystemComponent = AttackingCharacter->GetPdAbilitySystemComponent();
+	if (!AbilitySystemComponent
+		|| AbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f
+		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Movement_Airborne)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_ShootProjectile_Active))
+	{
+		return false;
+	}
+
+	const UCharacterMovementComponent* MovementComponent = AttackingCharacter->GetCharacterMovement();
+	if (MovementComponent && MovementComponent->IsFalling())
+	{
+		return false;
+	}
+
+	if (!bRequirePlayerAim)
+	{
+		return true;
+	}
+
+	const APdPlayer* PlayerCharacter = Cast<APdPlayer>(AttackingCharacter);
+	return PlayerCharacter && PlayerCharacter->IsWeaponAimActive();
+}
+
+bool ABow::IsServerFireCadenceReady() const
+{
+	const UWorld* World = GetWorld();
+	return HasAuthority() && World && static_cast<double>(World->GetTimeSeconds()) >= NextServerArrowLaunchTimeSeconds;
+}
+
+bool ABow::BeginServerDraw(APdPlayer* PlayerCharacter)
+{
+	if (!CanServerUseBow(PlayerCharacter, false))
+	{
+		InvalidateServerDrawState(true);
+		return false;
+	}
+
+	BindServerDrawInvalidation(PlayerCharacter->GetPdAbilitySystemComponent());
+
+	if (bServerDrawPending || ServerReadyDrawToken != 0)
+	{
+		return false;
+	}
+
+	if (!PlayerCharacter->IsWeaponAimActive())
+	{
+		PlayerCharacter->SetWeaponAimActive(true, GetAimCameraSettings());
+	}
+
+	if (!CanServerUseBow(PlayerCharacter, true))
+	{
+		InvalidateServerDrawState(true);
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	bServerDrawPending = true;
+	World->GetTimerManager().SetTimer(
+		ServerDrawReadyTimerHandle,
+		this,
+		&ThisClass::HandleServerDrawReady,
+		GetEffectiveMinimumDrawDuration(),
+		false);
+	return true;
+}
+
+void ABow::BindServerDrawInvalidation(UPdAbilitySystemComponent* AbilitySystemComponent)
+{
+	if (!HasAuthority()
+		|| !AbilitySystemComponent
+		|| (ServerDrawBoundAbilitySystemComponent.Get() == AbilitySystemComponent
+			&& OwnerDeadTagChangedDelegateHandle.IsValid()))
+	{
+		return;
+	}
+
+	UnbindServerDrawInvalidation();
+	ServerDrawBoundAbilitySystemComponent = AbilitySystemComponent;
+	OwnerDeadTagChangedDelegateHandle = AbilitySystemComponent
+		->RegisterGameplayTagEvent(LabGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &ThisClass::HandleOwnerDeadTagChanged);
+}
+
+void ABow::UnbindServerDrawInvalidation()
+{
+	if (UPdAbilitySystemComponent* AbilitySystemComponent = ServerDrawBoundAbilitySystemComponent.Get())
+	{
+		if (OwnerDeadTagChangedDelegateHandle.IsValid())
 		{
-			return ItemDefinition->WeaponData.Bow.TraceObjectTypes;
+			AbilitySystemComponent
+				->RegisterGameplayTagEvent(LabGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
+				.Remove(OwnerDeadTagChangedDelegateHandle);
 		}
 	}
 
-	return GetDefaultBowTraceObjectTypes();
+	OwnerDeadTagChangedDelegateHandle.Reset();
+	ServerDrawBoundAbilitySystemComponent.Reset();
+}
+
+void ABow::HandleOwnerDeadTagChanged(const FGameplayTag CallbackTag, int32 NewCount)
+{
+	static_cast<void>(CallbackTag);
+	if (HasAuthority() && NewCount > 0)
+	{
+		InvalidateServerDrawState(true);
+		StopWeaponMontage();
+	}
+}
+
+void ABow::HandleServerDrawReady()
+{
+	ServerDrawReadyTimerHandle.Invalidate();
+	if (!HasAuthority() || !bServerDrawPending)
+	{
+		return;
+	}
+
+	bServerDrawPending = false;
+	const APdPlayer* PlayerCharacter = Cast<APdPlayer>(GetOwningCharacter());
+	if (!CanServerUseBow(PlayerCharacter, true))
+	{
+		InvalidateServerDrawState(true);
+		return;
+	}
+
+	++NextServerDrawToken;
+	if (NextServerDrawToken == 0)
+	{
+		++NextServerDrawToken;
+	}
+	ServerReadyDrawToken = NextServerDrawToken;
+}
+
+void ABow::InvalidateServerDrawState(bool bDestroyServerDrawnArrow)
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ServerDrawReadyTimerHandle);
+	}
+
+	ServerDrawReadyTimerHandle.Invalidate();
+	bServerDrawPending = false;
+	ServerReadyDrawToken = 0;
+	bCanLaunchDrawnArrow = false;
+
+	if (bDestroyServerDrawnArrow)
+	{
+		DestroyDrawnArrow();
+	}
+}
+
+uint32 ABow::ConsumeServerDrawToken()
+{
+	if (!HasAuthority() || ServerReadyDrawToken == 0)
+	{
+		return 0;
+	}
+
+	const uint32 ConsumedToken = ServerReadyDrawToken;
+	ServerReadyDrawToken = 0;
+	return ConsumedToken;
+}
+
+void ABow::RecordServerArrowLaunch()
+{
+	if (const UWorld* World = GetWorld())
+	{
+		NextServerArrowLaunchTimeSeconds = static_cast<double>(World->GetTimeSeconds()) + GetEffectiveBowFireInterval();
+	}
 }
 
 bool ABow::HandleAimStart(APdPlayer* PlayerCharacter)
@@ -79,7 +310,16 @@ bool ABow::HandleAimStart(APdPlayer* PlayerCharacter)
 	{
 		bCanLaunchDrawnArrow = false;
 		SpawnDrawnArrow(PlayerCharacter);
-		PlayWeaponMontage();
+		PlayWeaponAttackMontage();
+
+		if (HasAuthority())
+		{
+			BeginServerDraw(PlayerCharacter);
+		}
+		else
+		{
+			ServerBeginDraw();
+		}
 	}
 
 	return true;
@@ -92,7 +332,11 @@ void ABow::HandleAimEnd(APdPlayer* PlayerCharacter)
 	DestroyDrawnArrow();
 	StopWeaponMontage();
 
-	if (!HasAuthority())
+	if (HasAuthority())
+	{
+		InvalidateServerDrawState(false);
+	}
+	else
 	{
 		ServerHandleAimEnd();
 	}
@@ -101,6 +345,12 @@ void ABow::HandleAimEnd(APdPlayer* PlayerCharacter)
 bool ABow::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 {
 	if (!SupportsAimInput() || !PlayerCharacter)
+	{
+		return false;
+	}
+
+	const UCombatComponent* CombatComponent = PlayerCharacter->GetCombatComponent();
+	if (!CombatComponent || !CombatComponent->CanAffordRangedWeaponAttackStamina())
 	{
 		return false;
 	}
@@ -117,22 +367,16 @@ bool ABow::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 		return false;
 	}
 
-	FVector LaunchStartLocation = FVector::ZeroVector;
-	if (!TryGetArrowLaunchStartLocation(PlayerCharacter, LaunchStartLocation))
-	{
-		return false;
-	}
-
 	if (HasAuthority())
 	{
-		if (!LaunchArrowOnServer(PlayerCharacter, ViewLocation, ViewDirection, LaunchStartLocation))
+		if (!LaunchArrowOnServer(PlayerCharacter, ViewLocation, ViewDirection))
 		{
 			return false;
 		}
 	}
 	else
 	{
-		ServerLaunchArrow(ViewLocation, ViewDirection, LaunchStartLocation);
+		ServerLaunchArrow(ViewLocation, ViewDirection);
 		DestroyDrawnArrow();
 	}
 
@@ -145,6 +389,32 @@ bool ABow::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 	}
 
 	return true;
+}
+
+bool ABow::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor)
+{
+	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || !IsValid(TargetActor))
+	{
+
+		return false;
+	}
+
+	const bool bLaunched = LaunchArrowAtTargetOnServer(AttackingCharacter, TargetActor);
+
+	return bLaunched;
+}
+
+bool ABow::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
+{
+	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || TargetLocation.IsNearlyZero())
+	{
+
+		return false;
+	}
+
+	const bool bLaunched = LaunchArrowAtLocationOnServer(AttackingCharacter, TargetActor, TargetLocation);
+
+	return bLaunched;
 }
 
 bool ABow::OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter)
@@ -179,12 +449,24 @@ bool ABow::OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter
 
 	bCanLaunchDrawnArrow = false;
 	const bool bArrowRefreshed = RefreshDrawnArrow(PlayerCharacter) != nullptr;
-	const bool bMontagePlayed = PlayWeaponMontage();
+	const bool bMontagePlayed = PlayWeaponAttackMontage();
+
+	if (HasAuthority())
+	{
+		BeginServerDraw(PlayerCharacter);
+	}
+	else
+	{
+		ServerBeginDraw();
+	}
+
 	return bArrowRefreshed || bMontagePlayed;
 }
 
 void ABow::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	InvalidateServerDrawState(false);
+	UnbindServerDrawInvalidation();
 	DestroyDrawnArrow();
 	Super::EndPlay(EndPlayReason);
 }
@@ -193,7 +475,7 @@ UAnimMontage* ABow::GetConfiguredWeaponMontage() const
 {
 	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
 	{
-		if (UAnimMontage* Montage = ItemDefinition->WeaponData.Bow.WeaponMontage.LoadSynchronous())
+		if (UAnimMontage* Montage = ItemDefinition->WeaponData.Bow.WeaponMontage.Get())
 		{
 			return Montage;
 		}
@@ -223,13 +505,14 @@ AActor* ABow::SpawnDrawnArrow(APdPlayer* PlayerCharacter)
 	return CurrentDrawnArrow.Get();
 }
 
-AActor* ABow::SpawnArrowActor(APdPlayer* PlayerCharacter, bool bAttachToCharacter)
+AActor* ABow::SpawnArrowActor(ACharacterBase* Character, bool bAttachToCharacter)
 {
 	TSubclassOf<AActor> ArrowClass = GetArrowActorClass();
-	USkeletalMeshComponent* CharacterMesh = PlayerCharacter ? PlayerCharacter->GetMesh() : nullptr;
+	USkeletalMeshComponent* CharacterMesh = Character ? Character->GetMesh() : nullptr;
 	UWorld* World = GetWorld();
-	if (!PlayerCharacter || !CharacterMesh || !ArrowClass || !World)
+	if (!Character || !CharacterMesh || !ArrowClass || !World)
 	{
+
 		return nullptr;
 	}
 
@@ -241,13 +524,14 @@ AActor* ABow::SpawnArrowActor(APdPlayer* PlayerCharacter, bool bAttachToCharacte
 	}
 
 	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = PlayerCharacter;
-	SpawnParams.Instigator = PlayerCharacter;
+	SpawnParams.Owner = Character;
+	SpawnParams.Instigator = Character;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	AActor* SpawnedArrow = World->SpawnActor<AActor>(ArrowClass, SpawnTransform, SpawnParams);
 	if (!SpawnedArrow)
 	{
+
 		return nullptr;
 	}
 
@@ -276,10 +560,10 @@ void ABow::DestroyDrawnArrow()
 	DrawnArrow->Destroy();
 }
 
-bool ABow::TryGetArrowLaunchStartLocation(const APdPlayer* PlayerCharacter, FVector& OutLocation) const
+bool ABow::TryGetArrowLaunchStartLocation(const ACharacterBase* Character, FVector& OutLocation) const
 {
 	const FName AttachSocketName = ResolveArrowAttachSocketName();
-	if (TryGetOwnerMeshSocketLocation(PlayerCharacter, AttachSocketName, OutLocation))
+	if (TryGetOwnerMeshSocketLocation(Character, AttachSocketName, OutLocation))
 	{
 		return true;
 	}
@@ -294,44 +578,104 @@ bool ABow::TryGetArrowLaunchStartLocation(const APdPlayer* PlayerCharacter, FVec
 	return true;
 }
 
-bool ABow::ResolveServerArrowLaunchStartLocation(
-	const APdPlayer* PlayerCharacter,
-	const FVector& RequestedLaunchStartLocation,
-	FVector& OutLocation) const
+FVector ABow::GetAIArrowAimLocation(const AActor* TargetActor) const
 {
-	if (!PlayerCharacter)
+	if (!IsValid(TargetActor))
 	{
+		return FVector::ZeroVector;
+	}
+
+	float TargetRadius = 0.0f;
+	float TargetHalfHeight = 0.0f;
+	TargetActor->GetSimpleCollisionCylinder(TargetRadius, TargetHalfHeight);
+
+	FVector AimLocation = TargetActor->GetActorLocation();
+	AimLocation.Z += FMath::Max(TargetHalfHeight * 0.5f, 0.0f);
+	return AimLocation;
+}
+
+bool ABow::LaunchArrowAtTargetOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor)
+{
+	if (!HasAuthority() || !AttackingCharacter || !IsValid(TargetActor))
+	{
+
 		return false;
 	}
 
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	const float MaxAcceptedLaunchStartDistance = ItemDefinition ? ItemDefinition->WeaponData.Bow.MaxAcceptedServerLaunchStartDistance : 0.0f;
-	if (!RequestedLaunchStartLocation.IsNearlyZero()
-		&& MaxAcceptedLaunchStartDistance > 0.0f
-		&& FVector::DistSquared(RequestedLaunchStartLocation, PlayerCharacter->GetActorLocation())
-			<= FMath::Square(MaxAcceptedLaunchStartDistance))
-	{
-		OutLocation = RequestedLaunchStartLocation;
-		return true;
-	}
-
-	return TryGetArrowLaunchStartLocation(PlayerCharacter, OutLocation);
+	return LaunchArrowAtLocationOnServer(AttackingCharacter, TargetActor, GetAIArrowAimLocation(TargetActor));
 }
 
-bool ABow::LaunchArrowOnServer(
-	APdPlayer* PlayerCharacter,
-	const FVector& RequestedViewLocation,
-	const FVector& RequestedViewDirection,
-	const FVector& RequestedLaunchStartLocation)
+bool ABow::LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
 {
-	if (!HasAuthority() || !PlayerCharacter)
+	if (!CanServerUseBow(AttackingCharacter, false)
+		|| !IsServerFireCadenceReady()
+		|| TargetLocation.IsNearlyZero())
 	{
 		return false;
 	}
 
 	FVector LaunchStartLocation = FVector::ZeroVector;
-	if (!ResolveServerArrowLaunchStartLocation(PlayerCharacter, RequestedLaunchStartLocation, LaunchStartLocation))
+	if (!TryGetArrowLaunchStartLocation(AttackingCharacter, LaunchStartLocation))
 	{
+
+		return false;
+	}
+
+	const FVector LaunchDirection = (TargetLocation - LaunchStartLocation).GetSafeNormal();
+	if (LaunchDirection.IsNearlyZero())
+	{
+
+		return false;
+	}
+
+	AActor* ArrowActor = SpawnArrowActor(AttackingCharacter, false);
+	if (!ArrowActor)
+	{
+
+		return false;
+	}
+
+	ArrowActor->SetActorLocation(LaunchStartLocation);
+	ArrowActor->SetActorRotation(LaunchDirection.Rotation());
+
+	AArrowProjectileBase* ArrowProjectile = Cast<AArrowProjectileBase>(ArrowActor);
+	const bool bLaunched = ArrowProjectile && ArrowProjectile->LaunchArrowActor(LaunchDirection);
+	if (!bLaunched)
+	{
+		ArrowActor->Destroy();
+		return false;
+	}
+
+	RecordServerArrowLaunch();
+	return true;
+}
+
+bool ABow::LaunchArrowOnServer(
+	APdPlayer* PlayerCharacter,
+	const FVector& RequestedViewLocation,
+	const FVector& RequestedViewDirection)
+{
+	UCombatComponent* CombatComponent = PlayerCharacter
+		? PlayerCharacter->GetCombatComponent()
+		: nullptr;
+	if (!CanServerUseBow(PlayerCharacter, true)
+		|| !IsServerFireCadenceReady()
+		|| !CombatComponent
+		|| !CombatComponent->CanAffordRangedWeaponAttackStamina())
+	{
+		InvalidateServerDrawState(true);
+		return false;
+	}
+
+	if (ConsumeServerDrawToken() == 0)
+	{
+		return false;
+	}
+
+	FVector LaunchStartLocation = FVector::ZeroVector;
+	if (!TryGetArrowLaunchStartLocation(PlayerCharacter, LaunchStartLocation))
+	{
+		DestroyDrawnArrow();
 		return false;
 	}
 
@@ -342,6 +686,7 @@ bool ABow::LaunchArrowOnServer(
 		LaunchStartLocation);
 	if (LaunchDirection.IsNearlyZero())
 	{
+		DestroyDrawnArrow();
 		return false;
 	}
 
@@ -365,25 +710,50 @@ bool ABow::LaunchArrowOnServer(
 	AArrowProjectileBase* ArrowProjectile = Cast<AArrowProjectileBase>(ArrowActor);
 	if (!ArrowProjectile)
 	{
+		if (IsValid(ArrowActor))
+		{
+			ArrowActor->Destroy();
+		}
 		return false;
 	}
 
-	return ArrowProjectile->LaunchArrowActor(LaunchDirection);
+	if (!CombatComponent->TryCommitRangedWeaponAttackStamina())
+	{
+		ArrowActor->Destroy();
+		return false;
+	}
+
+	if (!ArrowProjectile->LaunchArrowActor(LaunchDirection))
+	{
+		ArrowActor->Destroy();
+		return false;
+	}
+
+	RecordServerArrowLaunch();
+	return true;
+}
+
+void ABow::ServerBeginDraw_Implementation()
+{
+	BeginServerDraw(Cast<APdPlayer>(GetOwningCharacter()));
 }
 
 void ABow::ServerLaunchArrow_Implementation(
 	FVector_NetQuantize RequestedViewLocation,
-	FVector_NetQuantizeNormal RequestedViewDirection,
-	FVector_NetQuantize RequestedLaunchStartLocation)
+	FVector_NetQuantizeNormal RequestedViewDirection)
 {
-	LaunchArrowOnServer(Cast<APdPlayer>(GetOwningCharacter()), RequestedViewLocation, RequestedViewDirection, RequestedLaunchStartLocation);
+	LaunchArrowOnServer(Cast<APdPlayer>(GetOwningCharacter()), RequestedViewLocation, RequestedViewDirection);
 }
 
 void ABow::ServerHandleAimEnd_Implementation()
 {
-	bCanLaunchDrawnArrow = false;
-	DestroyDrawnArrow();
+	InvalidateServerDrawState(true);
 	StopWeaponMontage();
+
+	if (APdPlayer* PlayerCharacter = Cast<APdPlayer>(GetOwningCharacter()))
+	{
+		PlayerCharacter->SetWeaponAimActive(false, GetAimCameraSettings());
+	}
 }
 
 AActor* ABow::RefreshDrawnArrow(APdPlayer* PlayerCharacter)
@@ -410,7 +780,7 @@ FVector ABow::CalculateArrowLaunchDirection(
 	const APdPlayer* PlayerCharacter,
 	const FVector& RequestedViewLocation,
 	const FVector& RequestedViewDirection,
-	const FVector& RequestedLaunchStartLocation) const
+	const FVector& LaunchStartLocation) const
 {
 	const float TraceRange = GetArrowTraceRange();
 	if (!PlayerCharacter || TraceRange <= 0.0f)
@@ -433,35 +803,56 @@ FVector ABow::CalculateArrowLaunchDirection(
 		return FVector::ZeroVector;
 	}
 
-	const FVector ViewTraceEnd = ViewLocation + (ViewDirection.GetSafeNormal() * TraceRange);
-	FHitResult ViewHitResult;
+	const FVector SafeViewDirection = ViewDirection.GetSafeNormal();
+	if (SafeViewDirection.IsNearlyZero())
+	{
+		return FVector::ZeroVector;
+	}
+
 	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	const bool bViewHit = UKismetSystemLibrary::LineTraceSingleForObjects(
-		this,
+	const EDrawDebugTrace::Type AimTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
+		? ItemDefinition->WeaponData.Bow.AimTraceDebugDrawType.GetValue()
+		: EDrawDebugTrace::None;
+	FVector AimTargetLocation = FVector::ZeroVector;
+	if (!ResolveAimTargetBeyondLaunchPoint(
 		ViewLocation,
-		ViewTraceEnd,
+		SafeViewDirection,
+		LaunchStartLocation,
+		TraceRange,
 		GetBowTraceObjectTypes(),
-		false,
 		ActorsToIgnore,
-		ItemDefinition ? ItemDefinition->WeaponData.Bow.AimTraceDebugDrawType.GetValue() : EDrawDebugTrace::None,
-		ViewHitResult,
-		true);
+		AimTraceDebugDrawType,
+		AimTargetLocation))
+	{
+		return FVector::ZeroVector;
+	}
 
-	const FVector AimTargetLocation = bViewHit ? ViewHitResult.Location : ViewTraceEnd;
-	const FVector TraceStart = RequestedLaunchStartLocation;
+	const FVector LaunchDirection = (AimTargetLocation - LaunchStartLocation).GetSafeNormal();
+	if (LaunchDirection.IsNearlyZero()
+		|| FVector::DotProduct(LaunchDirection, SafeViewDirection) <= 0.0f)
+	{
+		return FVector::ZeroVector;
+	}
 
+	const float LaunchTraceDistance = FMath::Min(
+		TraceRange,
+		FVector::Distance(LaunchStartLocation, AimTargetLocation) + 1.0f);
+	const FVector LaunchTraceEnd = LaunchStartLocation + (LaunchDirection * LaunchTraceDistance);
 	FHitResult HitResult;
+	const EDrawDebugTrace::Type LaunchTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
+		? ItemDefinition->WeaponData.Bow.LaunchTraceDebugDrawType.GetValue()
+		: EDrawDebugTrace::None;
 	const bool bHit = UKismetSystemLibrary::LineTraceSingleForObjects(
 		this,
-		TraceStart,
-		AimTargetLocation,
+		LaunchStartLocation,
+		LaunchTraceEnd,
 		GetBowTraceObjectTypes(),
 		false,
 		ActorsToIgnore,
-		ItemDefinition ? ItemDefinition->WeaponData.Bow.LaunchTraceDebugDrawType.GetValue() : EDrawDebugTrace::None,
+		LaunchTraceDebugDrawType,
 		HitResult,
 		true);
 
-	const FVector TargetLocation = bHit ? HitResult.Location : AimTargetLocation;
-	return (TargetLocation - TraceStart).GetSafeNormal();
+	const FVector TargetLocation = bHit ? HitResult.Location : LaunchTraceEnd;
+	return (TargetLocation - LaunchStartLocation).GetSafeNormal();
 }

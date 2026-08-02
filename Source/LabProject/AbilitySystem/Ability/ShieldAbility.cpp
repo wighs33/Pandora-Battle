@@ -8,8 +8,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShieldAbility)
 
-DEFINE_LOG_CATEGORY_STATIC(LogPandoraShieldAbility, Log, All);
-
 UShieldAbility::UShieldAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -25,7 +23,7 @@ UShieldAbility::UShieldAbility(const FObjectInitializer& ObjectInitializer)
 	SetAssetTags(AbilityAssetTags);
 
 	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_Defensive_Shield_Active);
-	ActivationBlockedTags.AddTag(LabGameplayTags::Status_Buff_Shield);
+	ActivationBlockedTags.AddTag(LabGameplayTags::Status_Defense_Shield);
 }
 
 void UShieldAbility::ActivateAbility(
@@ -43,25 +41,19 @@ void UShieldAbility::ActivateAbility(
 	}
 
 	bShieldApplied = false;
+	const UAnimMontage* ResolvedShieldMontage = GetResolvedShieldMontage();
 	StartWaitMontageTriggerTask();
 
-	UE_LOG(LogPandoraShieldAbility, Log,
-		TEXT("Activate: ability=%s avatar=%s authority=%s montage=%s effect=%s trigger=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(ActorInfo->AvatarActor.Get()),
-		ActorInfo->AvatarActor->HasAuthority() ? TEXT("true") : TEXT("false"),
-		*GetNameSafe(ShieldMontage.Get()),
-		*GetNameSafe(ShieldGameplayEffectClass.Get()),
-		*MontageTriggerEventTag.ToString());
 
-	if (!ShieldMontage)
+
+	if (!ResolvedShieldMontage)
 	{
-		UE_LOG(LogPandoraShieldAbility, Warning,
-			TEXT("Activate without montage: applying shield immediately. ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(ActorInfo->AvatarActor.Get()));
+
 		ApplyShieldFromMontageTrigger();
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		if (IsEndAbilityValid(Handle, ActorInfo))
+		{
+			EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		}
 		return;
 	}
 
@@ -82,28 +74,49 @@ void UShieldAbility::EndAbility(
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
+const FShieldSkillConfig* UShieldAbility::GetShieldSkillConfig() const
+{
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	return SkillDataAsset ? SkillDataAsset->GetDefensiveSkillConfig() : nullptr;
+}
+
+UAnimMontage* UShieldAbility::GetResolvedShieldMontage() const
+{
+	const FShieldSkillConfig* ShieldConfig = GetShieldSkillConfig();
+	return ShieldConfig && ShieldConfig->Animation.PrimaryMontage
+		? ShieldConfig->Animation.PrimaryMontage.Get()
+		: ShieldMontage.Get();
+}
+
+TSubclassOf<UGameplayEffect> UShieldAbility::GetResolvedShieldGameplayEffectClass() const
+{
+	const FShieldSkillConfig* ShieldConfig = GetShieldSkillConfig();
+	return ShieldConfig && ShieldConfig->GameplayEffectClass
+		? ShieldConfig->GameplayEffectClass
+		: ShieldGameplayEffectClass;
+}
+
+FGameplayTag UShieldAbility::GetResolvedMontageTriggerEventTag() const
+{
+	const FShieldSkillConfig* ShieldConfig = GetShieldSkillConfig();
+	return ShieldConfig && ShieldConfig->Animation.PrimaryEventTag.IsValid()
+		? ShieldConfig->Animation.PrimaryEventTag
+		: MontageTriggerEventTag;
+}
+
 void UShieldAbility::StartWaitMontageTriggerTask()
 {
-	if (!MontageTriggerEventTag.IsValid())
+	const FGameplayTag ResolvedMontageTriggerEventTag = GetResolvedMontageTriggerEventTag();
+	if (!ResolvedMontageTriggerEventTag.IsValid())
 	{
-		UE_LOG(LogPandoraShieldAbility, Warning,
-			TEXT("Wait trigger skipped: invalid montage trigger tag. ability=%s"),
-			*GetNameSafe(this));
+
 		return;
 	}
 
-	WaitMontageTriggerTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-		this,
-		MontageTriggerEventTag,
-		nullptr,
-		false,
-		true);
+	WaitMontageTriggerTask = CreateWaitGameplayEventTask(ResolvedMontageTriggerEventTag);
 	if (!WaitMontageTriggerTask)
 	{
-		UE_LOG(LogPandoraShieldAbility, Warning,
-			TEXT("Wait trigger task creation failed. ability=%s tag=%s"),
-			*GetNameSafe(this),
-			*MontageTriggerEventTag.ToString());
+
 		return;
 	}
 
@@ -113,22 +126,11 @@ void UShieldAbility::StartWaitMontageTriggerTask()
 
 bool UShieldAbility::StartShieldMontageTask()
 {
-	ShieldMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this,
-		NAME_None,
-		ShieldMontage,
-		1.0f,
-		NAME_None,
-		true,
-		1.0f,
-		0.0f,
-		true);
+	UAnimMontage* ResolvedShieldMontage = GetResolvedShieldMontage();
+	ShieldMontageTask = CreateDefaultMontageAndWaitTask(ResolvedShieldMontage);
 	if (!ShieldMontageTask)
 	{
-		UE_LOG(LogPandoraShieldAbility, Warning,
-			TEXT("Montage task creation failed. ability=%s montage=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(ShieldMontage.Get()));
+
 		return false;
 	}
 
@@ -141,40 +143,33 @@ bool UShieldAbility::StartShieldMontageTask()
 
 void UShieldAbility::ApplyShieldFromMontageTrigger()
 {
-	if (bShieldApplied)
+	if (bShieldApplied || !CanExecuteSkillPayload())
 	{
+		return;
+	}
+	const TSubclassOf<UGameplayEffect> ResolvedShieldGameplayEffectClass =
+		GetResolvedShieldGameplayEffectClass();
+	if (!ResolvedShieldGameplayEffectClass)
+	{
+		K2_CancelAbility();
 		return;
 	}
 	bShieldApplied = true;
 
 	if (!CommitAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
 	{
-		UE_LOG(LogPandoraShieldAbility, Warning,
-			TEXT("Shield commit failed: ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(GetAvatarActorFromActorInfo()));
+
 		K2_EndAbility();
 		return;
 	}
 
-	if (!ShieldGameplayEffectClass)
-	{
-		UE_LOG(LogPandoraShieldAbility, Warning,
-			TEXT("Shield effect missing: ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(GetAvatarActorFromActorInfo()));
-		return;
-	}
-
+	SpawnConfiguredCharacterDecal();
 	const FActiveGameplayEffectHandle EffectHandle =
-		BP_ApplyGameplayEffectToOwner(ShieldGameplayEffectClass, FMath::Max(GetAbilityLevel(), 1), 1);
-	UE_LOG(LogPandoraShieldAbility, Log,
-		TEXT("Shield applied: ability=%s avatar=%s effect=%s handleValid=%s level=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetAvatarActorFromActorInfo()),
-		*GetNameSafe(ShieldGameplayEffectClass.Get()),
-		EffectHandle.IsValid() ? TEXT("true") : TEXT("false"),
-		FMath::Max(GetAbilityLevel(), 1));
+		BP_ApplyGameplayEffectToOwner(ResolvedShieldGameplayEffectClass, FMath::Max(GetAbilityLevel(), 1), 1);
+	if (K2_HasAuthority() && !EffectHandle.WasSuccessfullyApplied())
+	{
+		CancelAbilityForSkillExecutionFailure();
+	}
 }
 
 void UShieldAbility::CleanupShieldTasks()
@@ -194,16 +189,19 @@ void UShieldAbility::CleanupShieldTasks()
 void UShieldAbility::HandleShieldMontageFinished()
 {
 	ShieldMontageTask = nullptr;
-	K2_EndAbility();
+	if (!bShieldApplied)
+	{
+		ApplyShieldFromMontageTrigger();
+	}
+	if (IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))
+	{
+		K2_EndAbility();
+	}
 }
 
 void UShieldAbility::HandleMontageTriggerEvent(FGameplayEventData Payload)
 {
-	UE_LOG(LogPandoraShieldAbility, Log,
-		TEXT("Montage trigger received: ability=%s event=%s avatar=%s"),
-		*GetNameSafe(this),
-		*Payload.EventTag.ToString(),
-		*GetNameSafe(GetAvatarActorFromActorInfo()));
+
 
 	ApplyShieldFromMontageTrigger();
 }

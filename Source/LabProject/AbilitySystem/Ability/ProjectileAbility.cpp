@@ -1,16 +1,20 @@
 #include "AbilitySystem/Ability/ProjectileAbility.h"
 
 #include "Abilities/GameplayAbilityTargetActor_SingleLineTrace.h"
+#include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitConfirmCancel.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
-#include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "AbilitySystem/Projectiles/ProjectileBase.h"
-#include "AbilitySystem/Skills/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillTypes.h"
+#include "AbilitySystem/TargetValidator.h"
+#include "AbilitySystem/TargetingActors/TargetActor_GroundTrace_Decal.h"
 #include "AbilitySystemBlueprintLibrary.h"
-#include "Character/PdCharacterBase.h"
+#include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -20,12 +24,41 @@
 #include "GameplayEffect.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "Mode/PdHUD.h"
-#include "Mode/PdPlayerController.h"
+#include "Materials/MaterialInterface.h"
+#include "NiagaraSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ProjectileAbility)
 
-DEFINE_LOG_CATEGORY_STATIC(LogPandoraProjectileAbility, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogProjectileAbility, Log, All);
+
+namespace
+{
+
+	const FName ProjectileBarrageTargetSocketName(TEXT("Socket_Target"));
+	constexpr float SocketBarrageMinimumInitialReplicationDelay = 0.1f;
+
+	const FSkillProjectileSettings* GetProjectileSettings(const USkillDefinition* SkillDataAsset)
+	{
+		return SkillDataAsset
+			&& SkillDataAsset->SkillDataType == EPdSkillDataType::Projectile
+			? &SkillDataAsset->ProjectileSettings
+			: nullptr;
+	}
+
+	FName GetFirstConfiguredProjectileSocketName(const FSkillProjectileSettings& ProjectileSettings)
+	{
+		for (const FName& SocketName : ProjectileSettings.ProjectileSocketNames)
+		{
+			if (!SocketName.IsNone())
+			{
+				return SocketName;
+			}
+		}
+
+		return NAME_None;
+	}
+
+}
 
 UProjectileAbility::UProjectileAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -39,6 +72,7 @@ UProjectileAbility::UProjectileAbility(const FObjectInitializer& ObjectInitializ
 
 	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_ShootProjectile_Active);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Attack);
+	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Punch);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_RangedAttack);
 }
 
@@ -53,48 +87,31 @@ void UProjectileAbility::ActivateAbility(
 	bEndAfterProjectileFired = false;
 	bPausedForPlayerAim = false;
 	bPlayerProjectileConfirmed = false;
-	bWaitingForProjectileAimRelease = false;
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ProjectileAimReleaseTimerHandle);
-	}
-	const AActor* AvatarActor = ActorInfo && ActorInfo->AvatarActor.IsValid() ? ActorInfo->AvatarActor.Get() : nullptr;
-	const APawn* AvatarPawn = Cast<APawn>(AvatarActor);
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
+	bProjectileExecutionRequested = false;
+	bProjectileSpawnSucceeded = false;
+	ReadiedProjectile = nullptr;
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("Projectile ability cancelled: missing SkillDataAsset. ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(AvatarActor));
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
-
-	if (!SkillDataAsset->ProjectileClass || SkillDataAsset->ProjectileSpeed <= 0.0)
+	if (SkillDataAsset->SkillDataType != EPdSkillDataType::Projectile)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("Projectile ability cancelled: invalid SkillDataAsset projectile values. skill=%s projectileClass=%s speed=%.2f"),
-			*GetNameSafe(SkillDataAsset),
-			*GetNameSafe(SkillDataAsset->ProjectileClass.Get()),
-			SkillDataAsset->ProjectileSpeed);
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	const FGameplayTag ConfiguredShootEventTag = GetConfiguredShootProjectileEventTag();
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Activate: ability=%s avatar=%s authority=%s local=%s montage=%s projectileClass=%s damageEffect=%s eventTag=%s speed=%.1f"),
-		*GetNameSafe(this),
-		*GetNameSafe(AvatarActor),
-		AvatarActor && AvatarActor->HasAuthority() ? TEXT("true") : TEXT("false"),
-		AvatarPawn && AvatarPawn->IsLocallyControlled() ? TEXT("true") : TEXT("false"),
-		*GetNameSafe(GetConfiguredShootMontage()),
-		*GetNameSafe(GetConfiguredProjectileClass().Get()),
-		*GetNameSafe(GetConfiguredDamageEffectClass().Get()),
-		*ConfiguredShootEventTag.ToString(),
-		GetConfiguredProjectileSpeed());
+	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = GetConfiguredProjectileClass();
+	const float ConfiguredProjectileSpeed = GetConfiguredProjectileSpeed();
+	if (!ConfiguredProjectileClass || ConfiguredProjectileSpeed <= 0.0f)
+	{
 
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
 	BeginConfirmedShot();
 }
 
@@ -106,10 +123,16 @@ void UProjectileAbility::EndAbility(
 	const bool bWasCancelled)
 {
 	CleanupAimingState();
+	ClearSocketBarrageState(true);
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 FVector UProjectileAbility::GetSpawnLocation() const
+{
+	return GetSpawnLocationForSocket(GetConfiguredSpawnSocketName());
+}
+
+FVector UProjectileAbility::GetSpawnLocationForSocket(const FName SocketName) const
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	if (!AvatarActor)
@@ -117,28 +140,18 @@ FVector UProjectileAbility::GetSpawnLocation() const
 		return FVector::ZeroVector;
 	}
 
-	const APdCharacterBase* Character = Cast<APdCharacterBase>(AvatarActor);
+	const ACharacterBase* Character = Cast<ACharacterBase>(AvatarActor);
 	const USkeletalMeshComponent* CharacterMesh = Character ? Character->GetMesh() : nullptr;
-	const FName ConfiguredSpawnSocketName = GetConfiguredSpawnSocketName();
-	if (CharacterMesh && !ConfiguredSpawnSocketName.IsNone() && CharacterMesh->DoesSocketExist(ConfiguredSpawnSocketName))
+	if (CharacterMesh && !SocketName.IsNone() && CharacterMesh->DoesSocketExist(SocketName))
 	{
-		const FVector SocketLocation = CharacterMesh->GetSocketLocation(ConfiguredSpawnSocketName);
-		UE_LOG(LogPandoraProjectileAbility, Log,
-			TEXT("SpawnLocation: using socket. avatar=%s socket=%s location=%s"),
-			*GetNameSafe(AvatarActor),
-			*ConfiguredSpawnSocketName.ToString(),
-			*SocketLocation.ToCompactString());
-		return SocketLocation;
+		const FTransform SocketTransform = CharacterMesh->GetSocketTransform(SocketName, RTS_World);
+		const FVector ConfiguredSpawnLocationOffset = GetConfiguredSpawnLocationOffset();
+		const FVector OffsetLocation =
+			SocketTransform.GetLocation() + SocketTransform.TransformVectorNoScale(ConfiguredSpawnLocationOffset);
+
+		return OffsetLocation;
 	}
 
-	if (!ConfiguredSpawnSocketName.IsNone())
-	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("SpawnLocation fallback: socket not found. avatar=%s socket=%s mesh=%s"),
-			*GetNameSafe(AvatarActor),
-			*ConfiguredSpawnSocketName.ToString(),
-			*GetNameSafe(CharacterMesh));
-	}
 
 	FVector SpawnForward = AvatarActor->GetActorForwardVector();
 	const FVector HorizontalForward = FVector(SpawnForward.X, SpawnForward.Y, 0.0f).GetSafeNormal();
@@ -148,18 +161,13 @@ FVector UProjectileAbility::GetSpawnLocation() const
 	}
 
 	const FVector ConfiguredSpawnLocationOffset = GetConfiguredSpawnLocationOffset();
-	const float ForwardSpawnDistance = FMath::Max(ConfiguredSpawnLocationOffset.X, GetConfiguredMinimumForwardSpawnOffset());
+	const float ForwardSpawnDistance =
+		FMath::Max(GetConfiguredMinimumForwardSpawnOffset() + ConfiguredSpawnLocationOffset.X, 0.0f);
 	const FVector ForwardOffset = SpawnForward * ForwardSpawnDistance;
 	const FVector RightOffset = AvatarActor->GetActorRightVector() * ConfiguredSpawnLocationOffset.Y;
 	const FVector UpOffset = AvatarActor->GetActorUpVector() * ConfiguredSpawnLocationOffset.Z;
 	const FVector OffsetLocation = AvatarActor->GetActorLocation() + ForwardOffset + RightOffset + UpOffset;
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("SpawnLocation: using offset. avatar=%s configuredOffset=%s forward=%s forwardDistance=%.1f location=%s"),
-		*GetNameSafe(AvatarActor),
-		*ConfiguredSpawnLocationOffset.ToCompactString(),
-		*SpawnForward.ToCompactString(),
-		ForwardSpawnDistance,
-		*OffsetLocation.ToCompactString());
+
 	return OffsetLocation;
 }
 
@@ -170,24 +178,19 @@ void UProjectileAbility::ShootProjectile_Implementation(FVector TargetLocation)
 	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = GetConfiguredProjectileClass();
 	if (!AvatarActor || !AvatarActor->HasAuthority() || !World || !ConfiguredProjectileClass)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("ShootProjectile skipped: avatar=%s authority=%s world=%s projectileClass=%s target=%s"),
-			*GetNameSafe(AvatarActor),
-			AvatarActor && AvatarActor->HasAuthority() ? TEXT("true") : TEXT("false"),
-			World ? TEXT("valid") : TEXT("null"),
-			*GetNameSafe(ConfiguredProjectileClass.Get()),
-			*TargetLocation.ToCompactString());
 		return;
 	}
 
 	const FVector SpawnLocation = GetSpawnLocation();
 	if (TargetLocation.IsNearlyZero() || FVector::DistSquared(SpawnLocation, TargetLocation) <= UE_KINDA_SMALL_NUMBER)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("ShootProjectile target invalid or too close. spawn=%s target=%s, using fallback."),
-			*SpawnLocation.ToCompactString(),
-			*TargetLocation.ToCompactString());
-		TargetLocation = ResolveFallbackTargetLocation();
+		TargetLocation = ResolveDefaultTargetLocation();
+	}
+
+	if (TryStartSocketBarrage(TargetLocation))
+	{
+		bProjectileSpawnSucceeded = true;
+		return;
 	}
 
 	const FVector SpawnDirection = (TargetLocation - SpawnLocation).GetSafeNormal();
@@ -196,6 +199,99 @@ void UProjectileAbility::ShootProjectile_Implementation(FVector TargetLocation)
 		: SpawnDirection.Rotation();
 	const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
 
+	AProjectileBase* Projectile = ReadiedProjectile.Get();
+	const bool bUsingReadiedProjectile = IsValid(Projectile);
+	if (!Projectile)
+	{
+		APawn* InstigatorPawn = Cast<APawn>(AvatarActor);
+		Projectile = World->SpawnActorDeferred<AProjectileBase>(
+			ConfiguredProjectileClass,
+			SpawnTransform,
+			AvatarActor,
+			InstigatorPawn,
+			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (!Projectile)
+		{
+			return;
+		}
+		ApplyConfiguredProjectileVisuals(Projectile);
+		ApplyConfiguredProjectileImpactPersistence(Projectile);
+	}
+
+	const float ChargeDamageAlpha = bUsingReadiedProjectile && IsConfiguredReadiedProjectileChargeGrowthEnabled()
+		? Projectile->GetReadiedScaleGrowthAlpha()
+		: 1.0f;
+	const FGameplayEffectSpecHandle DamageSpecHandle = MakeDamageEffectSpec(ChargeDamageAlpha);
+	Projectile->SetImpactAreaDamageRadius(
+		CalculateConfiguredImpactAreaDamageRadius(ChargeDamageAlpha));
+	ApplyConfiguredStatusEffect(Projectile);
+
+
+	if (const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset())
+	{
+		Projectile->SetImpactEffectAreaSpawnConfigs(
+			GetSourceProjectileImpactEffectAreas(),
+			FMath::Max(GetAbilityLevel(), 1));
+	}
+
+	if (bUsingReadiedProjectile)
+	{
+		Projectile->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		Projectile->SetActorTransform(SpawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		ApplyConfiguredProjectileTrajectory(Projectile);
+		Projectile->LaunchProjectile(TargetLocation, GetConfiguredProjectileSpeed(), DamageSpecHandle);
+		ReadiedProjectile = nullptr;
+	}
+	else
+	{
+		ApplyConfiguredProjectileTrajectory(Projectile);
+		Projectile->InitializeProjectile(TargetLocation, GetConfiguredProjectileSpeed(), DamageSpecHandle);
+	}
+
+	if (!bUsingReadiedProjectile)
+	{
+		UGameplayStatics::FinishSpawningActor(Projectile, SpawnTransform);
+		Projectile->ForceNetUpdate();
+	}
+
+	bProjectileSpawnSucceeded = true;
+}
+
+AProjectileBase* UProjectileAbility::SpawnReadiedProjectile()
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UWorld* World = GetWorld();
+	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = GetConfiguredProjectileClass();
+	const APawn* AvatarPawn = Cast<APawn>(AvatarActor);
+	const bool bAvatarHasAuthority = AvatarActor && AvatarActor->HasAuthority();
+	const bool bLocallyControlledAvatar = AvatarPawn && AvatarPawn->IsLocallyControlled();
+	if (!AvatarActor || (!bAvatarHasAuthority && !bLocallyControlledAvatar) || !World || !ConfiguredProjectileClass)
+	{
+		return nullptr;
+	}
+
+	if (IsValid(ReadiedProjectile))
+	{
+		return ReadiedProjectile.Get();
+	}
+
+	FVector SpawnLocation = GetSpawnLocation();
+	FRotator SpawnRotation = AvatarActor->GetActorRotation();
+	USkeletalMeshComponent* AttachMesh = nullptr;
+	FName AttachSocketName = NAME_None;
+	if (const ACharacterBase* Character = Cast<ACharacterBase>(AvatarActor))
+	{
+		USkeletalMeshComponent* CharacterMesh = Character->GetMesh();
+		const FName ConfiguredSpawnSocketName = GetConfiguredSpawnSocketName();
+		if (CharacterMesh && !ConfiguredSpawnSocketName.IsNone() && CharacterMesh->DoesSocketExist(ConfiguredSpawnSocketName))
+		{
+			const FTransform SocketTransform = CharacterMesh->GetSocketTransform(ConfiguredSpawnSocketName, RTS_World);
+			SpawnRotation = SocketTransform.GetRotation().Rotator();
+			AttachMesh = CharacterMesh;
+			AttachSocketName = ConfiguredSpawnSocketName;
+		}
+	}
+	const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
 	APawn* InstigatorPawn = Cast<APawn>(AvatarActor);
 	AProjectileBase* Projectile = World->SpawnActorDeferred<AProjectileBase>(
 		ConfiguredProjectileClass,
@@ -205,75 +301,553 @@ void UProjectileAbility::ShootProjectile_Implementation(FVector TargetLocation)
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	if (!Projectile)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("ShootProjectile failed: SpawnActorDeferred returned null. class=%s spawn=%s target=%s"),
-			*GetNameSafe(ConfiguredProjectileClass.Get()),
-			*SpawnLocation.ToCompactString(),
-			*TargetLocation.ToCompactString());
+		return nullptr;
+	}
+
+	const bool bCosmeticReadiedProjectile = !bAvatarHasAuthority;
+	if (bCosmeticReadiedProjectile)
+	{
+		Projectile->SetReplicates(false);
+		Projectile->SetReplicateMovement(false);
+	}
+
+	ApplyConfiguredProjectileVisuals(Projectile);
+	ApplyConfiguredProjectileImpactPersistence(Projectile);
+
+	if (bCosmeticReadiedProjectile)
+	{
+		Projectile->PrepareCosmeticReadiedProjectile();
+	}
+	else
+	{
+		const FGameplayEffectSpecHandle DamageSpecHandle = MakeDamageEffectSpec();
+		ApplyConfiguredStatusEffect(Projectile);
+		Projectile->PrepareProjectile(DamageSpecHandle);
+		if (const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset())
+		{
+			Projectile->SetImpactEffectAreaSpawnConfigs(
+				GetSourceProjectileImpactEffectAreas(),
+				FMath::Max(GetAbilityLevel(), 1));
+		}
+	}
+	UGameplayStatics::FinishSpawningActor(Projectile, SpawnTransform);
+
+	if (AttachMesh && !AttachSocketName.IsNone())
+	{
+		Projectile->AttachToComponent(AttachMesh, FAttachmentTransformRules::KeepWorldTransform, AttachSocketName);
+
+	}
+
+	ApplyReadiedProjectileScaleGrowth(Projectile);
+
+	ReadiedProjectile = Projectile;
+	if (!bCosmeticReadiedProjectile)
+	{
+		Projectile->ForceNetUpdate();
+	}
+	return Projectile;
+}
+
+void UProjectileAbility::DestroyReadiedProjectile()
+{
+	AProjectileBase* Projectile = ReadiedProjectile.Get();
+	ReadiedProjectile = nullptr;
+	if (!IsValid(Projectile))
+	{
 		return;
 	}
 
-	const FGameplayEffectSpecHandle DamageSpecHandle = MakeDamageEffectSpec();
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("ShootProjectile spawning: projectile=%s class=%s spawn=%s target=%s speed=%.1f damageSpecValid=%s"),
-		*GetNameSafe(Projectile),
-		*GetNameSafe(ConfiguredProjectileClass.Get()),
-		*SpawnLocation.ToCompactString(),
-		*TargetLocation.ToCompactString(),
-		GetConfiguredProjectileSpeed(),
-		DamageSpecHandle.IsValid() ? TEXT("true") : TEXT("false"));
-
-	Projectile->InitializeProjectile(TargetLocation, GetConfiguredProjectileSpeed(), DamageSpecHandle);
-	if (const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset())
+	if (Projectile->HasAuthority() || !Projectile->GetIsReplicated())
 	{
-		Projectile->SetImpactEffectAreaSpawnConfigs(
-			GetSourceProjectileImpactEffectAreasForLevel(FMath::Max(GetAbilityLevel(), 1)),
-			FMath::Max(GetAbilityLevel(), 1));
+		Projectile->Destroy();
 	}
+}
+
+bool UProjectileAbility::TryStartSocketBarrage(const FVector TargetLocation)
+{
+	TArray<FName> SocketNames = GetConfiguredProjectileSocketNames();
+	if (SocketNames.Num() <= 1)
+	{
+		return false;
+	}
+
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!AvatarActor || !AvatarActor->HasAuthority())
+	{
+		return false;
+	}
+
+	DestroyReadiedProjectile();
+	ClearSocketBarrageState(true);
+
+	SocketBarrageSocketNames = MoveTemp(SocketNames);
+	SocketBarrageTargetLocation = TargetLocation;
+	bSocketBarrageUseCharacterTargetSocket = true;
+	NextSocketBarrageProjectileIndex = 0;
+	bSocketBarrageEndAbilityAfterFire = bEndAfterProjectileFired;
+
+	SocketBarrageProjectiles.Reserve(SocketBarrageSocketNames.Num());
+	for (const FName SocketName : SocketBarrageSocketNames)
+	{
+		SocketBarrageProjectiles.Add(SpawnPreparedSocketBarrageProjectile(SocketName));
+	}
+
+	int32 PreparedProjectileCount = 0;
+	for (const TObjectPtr<AProjectileBase>& Projectile : SocketBarrageProjectiles)
+	{
+		if (IsValid(Projectile.Get()))
+		{
+			++PreparedProjectileCount;
+		}
+	}
+	if (PreparedProjectileCount <= 0)
+	{
+		ClearSocketBarrageState(true);
+		return false;
+	}
+
+	AvatarActor->ForceNetUpdate();
+
+	const float ConfiguredFireInterval = GetConfiguredProjectileSocketFireInterval();
+	const float InitialFireDelay = FMath::Max(
+		ConfiguredFireInterval,
+		SocketBarrageMinimumInitialReplicationDelay);
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			SocketBarrageTimerHandle,
+			this,
+			&ThisClass::FireNextSocketBarrageProjectile,
+			InitialFireDelay,
+			false);
+	}
+	else
+	{
+		FireNextSocketBarrageProjectile();
+	}
+	return true;
+}
+
+AProjectileBase* UProjectileAbility::SpawnPreparedSocketBarrageProjectile(const FName SocketName)
+{
+	if (!SocketBarrageSocketNames.Contains(SocketName) && !SocketName.IsNone())
+	{
+		return nullptr;
+	}
+
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UWorld* World = GetWorld();
+	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = GetConfiguredProjectileClass();
+	if (!AvatarActor || !AvatarActor->HasAuthority() || !World || !ConfiguredProjectileClass)
+	{
+		return nullptr;
+	}
+
+	const FVector SpawnLocation = GetSpawnLocationForSocket(SocketName);
+	FRotator SpawnRotation = AvatarActor->GetActorRotation();
+	USkeletalMeshComponent* AttachMesh = nullptr;
+	FName AttachSocketName = NAME_None;
+	if (const ACharacterBase* Character = Cast<ACharacterBase>(AvatarActor))
+	{
+		USkeletalMeshComponent* CharacterMesh = Character->GetMesh();
+		if (CharacterMesh && !SocketName.IsNone() && CharacterMesh->DoesSocketExist(SocketName))
+		{
+			const FTransform SocketTransform = CharacterMesh->GetSocketTransform(SocketName, RTS_World);
+			SpawnRotation = SocketTransform.GetRotation().Rotator();
+			AttachMesh = CharacterMesh;
+			AttachSocketName = SocketName;
+		}
+	}
+
+	const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
+	APawn* InstigatorPawn = Cast<APawn>(AvatarActor);
+	AProjectileBase* Projectile = World->SpawnActorDeferred<AProjectileBase>(
+		ConfiguredProjectileClass,
+		SpawnTransform,
+		AvatarActor,
+		InstigatorPawn,
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	if (!Projectile)
+	{
+
+		return nullptr;
+	}
+
+	Projectile->SetReplicates(true);
+	Projectile->SetReplicateMovement(true);
+	ApplyConfiguredProjectileVisuals(Projectile);
+	ApplyConfiguredProjectileTrajectory(Projectile);
+	ApplyConfiguredProjectileImpactPersistence(Projectile);
+	ApplyConfiguredStatusEffect(Projectile);
+	Projectile->SetImpactEffectAreaSpawnConfigs(
+		GetSourceProjectileImpactEffectAreas(),
+		FMath::Max(GetAbilityLevel(), 1));
+	Projectile->PrepareProjectile(MakeDamageEffectSpec());
 	UGameplayStatics::FinishSpawningActor(Projectile, SpawnTransform);
+
+	if (AttachMesh && !AttachSocketName.IsNone())
+	{
+		Projectile->AttachToComponent(AttachMesh, FAttachmentTransformRules::KeepWorldTransform, AttachSocketName);
+	}
+
+	ApplyReadiedProjectileScaleGrowth(Projectile);
+	Projectile->FlushNetDormancy();
+	Projectile->ForceNetUpdate();
+
+	return Projectile;
+}
+
+void UProjectileAbility::LaunchSocketBarrageProjectile(AProjectileBase* Projectile)
+{
+	if (!IsValid(Projectile))
+	{
+		return;
+	}
+
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!AvatarActor || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
+	Projectile->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	const FVector SpawnLocation = Projectile->GetActorLocation();
+	const FVector LaunchTargetLocation = ResolveSocketBarrageLaunchTargetLocation(SpawnLocation);
+	const FVector SpawnDirection = (LaunchTargetLocation - SpawnLocation).GetSafeNormal();
+	const FRotator SpawnRotation = SpawnDirection.IsNearlyZero()
+		? AvatarActor->GetActorRotation()
+		: SpawnDirection.Rotation();
+	Projectile->SetActorRotation(SpawnRotation, ETeleportType::TeleportPhysics);
+
+	const float ChargeDamageAlpha = IsConfiguredReadiedProjectileChargeGrowthEnabled()
+		? Projectile->GetReadiedScaleGrowthAlpha()
+		: 1.0f;
+	Projectile->SetImpactAreaDamageRadius(
+		CalculateConfiguredImpactAreaDamageRadius(ChargeDamageAlpha));
+	ApplyConfiguredProjectileTrajectory(Projectile);
+	Projectile->LaunchProjectile(
+		LaunchTargetLocation,
+		GetConfiguredProjectileSpeed(),
+		MakeDamageEffectSpec(ChargeDamageAlpha));
+	Projectile->ForceNetUpdate();
+}
+
+void UProjectileAbility::SpawnSocketBarrageProjectileCosmetic(
+	TSubclassOf<AProjectileBase> ProjectileClass,
+	const FVector& SpawnLocation,
+	const FRotator& SpawnRotation,
+	const FVector& TargetLocation,
+	const float ProjectileSpeed,
+	const int32 SocketIndex) const
+{
+	ACharacterBase* Character = Cast<ACharacterBase>(GetAvatarActorFromActorInfo());
+	if (!Character || !Character->HasAuthority() || !ProjectileClass)
+	{
+		return;
+	}
+
+	UNiagaraSystem* MuzzleFX = nullptr;
+	UNiagaraSystem* ProjectileFX = nullptr;
+	UNiagaraSystem* HitFX = nullptr;
+	bool bSpawnHitNiagaraOnGround = false;
+	FGameplayTag SpawnGameplayCueTag;
+	FGameplayTag ImpactGameplayCueTag;
+	GetConfiguredProjectileVisuals(
+		MuzzleFX,
+		ProjectileFX,
+		HitFX,
+		bSpawnHitNiagaraOnGround,
+		SpawnGameplayCueTag,
+		ImpactGameplayCueTag);
+
+	FVector SpawnScale = FVector::OneVector;
+	FName NiagaraVector2DParameterName = NAME_None;
+	FVector2D NiagaraSize = FVector2D::UnitVector;
+	ResolveSocketBarrageProjectileLaunchScale(SocketIndex, SpawnScale, NiagaraVector2DParameterName, NiagaraSize);
+
+	Character->MulticastSpawnProjectileCosmetic(
+		ProjectileClass,
+		FVector_NetQuantize(SpawnLocation),
+		SpawnRotation,
+		FVector_NetQuantize(TargetLocation),
+		ProjectileSpeed,
+		ShouldUseConfiguredProjectileArcTrajectory(),
+		GetConfiguredProjectileArcHeight(),
+		GetConfiguredProjectileArcGravityScale(),
+		MuzzleFX,
+		ProjectileFX,
+		HitFX,
+		bSpawnHitNiagaraOnGround,
+		SpawnGameplayCueTag,
+		ImpactGameplayCueTag,
+		SpawnScale,
+		NiagaraVector2DParameterName,
+		NiagaraSize,
+		ResolveSocketBarrageCosmeticLifeSpan(SpawnLocation, TargetLocation, ProjectileSpeed));
+}
+
+void UProjectileAbility::ApplySocketBarrageProjectileLaunchScale(
+	AProjectileBase* Projectile,
+	const int32 SocketIndex) const
+{
+	if (!IsValid(Projectile))
+	{
+		return;
+	}
+
+	FVector Scale = FVector::OneVector;
+	FName NiagaraVector2DParameterName = NAME_None;
+	FVector2D NiagaraSize = FVector2D::UnitVector;
+	ResolveSocketBarrageProjectileLaunchScale(SocketIndex, Scale, NiagaraVector2DParameterName, NiagaraSize);
+
+	if (Scale.Equals(FVector::OneVector)
+		&& NiagaraVector2DParameterName.IsNone()
+		&& NiagaraSize.Equals(FVector2D::UnitVector))
+	{
+		return;
+	}
+
+	Projectile->StartReadiedScaleGrowth(
+		Scale,
+		Scale,
+		0.0f,
+		NiagaraVector2DParameterName,
+		NiagaraSize,
+		NiagaraSize);
+}
+
+void UProjectileAbility::ResolveSocketBarrageProjectileLaunchScale(
+	const int32 SocketIndex,
+	FVector& OutScale,
+	FName& OutNiagaraVector2DParameterName,
+	FVector2D& OutNiagaraSize) const
+{
+	OutScale = FVector::OneVector;
+	OutNiagaraVector2DParameterName = NAME_None;
+	OutNiagaraSize = FVector2D::UnitVector;
+
+	if (!IsConfiguredReadiedProjectileChargeGrowthEnabled())
+	{
+		return;
+	}
+
+	const float ScaleDuration = GetConfiguredReadiedProjectileScaleDuration();
+	const float ElapsedBeforeFire = FMath::Max(GetConfiguredProjectileSocketFireInterval(), 0.0f)
+		* static_cast<float>(FMath::Max(SocketIndex, 0));
+	const float GrowthAlpha = ScaleDuration > UE_SMALL_NUMBER
+		? FMath::Clamp(ElapsedBeforeFire / ScaleDuration, 0.0f, 1.0f)
+		: 1.0f;
+
+	OutScale = FMath::Lerp(
+		GetConfiguredReadiedProjectileStartScale(),
+		GetConfiguredReadiedProjectileTargetScale(),
+		GrowthAlpha);
+	OutNiagaraSize = FMath::Lerp(
+		GetConfiguredReadiedProjectileNiagaraStartSize(),
+		GetConfiguredReadiedProjectileNiagaraTargetSize(),
+		GrowthAlpha);
+	OutNiagaraVector2DParameterName = GetConfiguredReadiedProjectileNiagaraVector2DParameterName();
+}
+
+float UProjectileAbility::ResolveSocketBarrageCosmeticLifeSpan(
+	const FVector& SpawnLocation,
+	const FVector& TargetLocation,
+	const float ProjectileSpeed) const
+{
+	if (ProjectileSpeed <= UE_SMALL_NUMBER)
+	{
+		return 1.0f;
+	}
+
+	const float TravelTime = FVector::Dist(SpawnLocation, TargetLocation) / ProjectileSpeed;
+	return FMath::Clamp(TravelTime + 0.35f, 0.35f, 3.0f);
+}
+
+FVector UProjectileAbility::ResolveSocketBarrageLaunchTargetLocation(const FVector& ProjectileLocation) const
+{
+	if (bSocketBarrageUseCharacterTargetSocket)
+	{
+		return ResolveCharacterTargetSocketProjectileTargetLocation(ProjectileLocation);
+	}
+
+	FVector LaunchTargetLocation = SocketBarrageTargetLocation;
+	if (LaunchTargetLocation.IsNearlyZero()
+		|| FVector::DistSquared(ProjectileLocation, LaunchTargetLocation) <= UE_KINDA_SMALL_NUMBER)
+	{
+		LaunchTargetLocation = ResolveDefaultTargetLocation();
+	}
+
+	return LaunchTargetLocation;
+}
+
+FVector UProjectileAbility::ResolveCharacterTargetSocketProjectileTargetLocation(const FVector& FromLocation) const
+{
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	const float LaunchRange = FMath::Max(GetConfiguredTargetTraceMaxRange(), 1000.0f);
+	if (!AvatarActor)
+	{
+		return FromLocation + FVector::ForwardVector * LaunchRange;
+	}
+
+	if (const ACharacterBase* Character = Cast<ACharacterBase>(AvatarActor))
+	{
+		if (const USkeletalMeshComponent* CharacterMesh = Character->GetMesh())
+		{
+			if (CharacterMesh->DoesSocketExist(ProjectileBarrageTargetSocketName))
+			{
+				const FVector SocketTargetLocation = CharacterMesh->GetSocketLocation(ProjectileBarrageTargetSocketName);
+				if (FVector::DistSquared(FromLocation, SocketTargetLocation) > UE_KINDA_SMALL_NUMBER)
+				{
+					return SocketTargetLocation;
+				}
+			}
+		}
+	}
+
+	FVector ForwardDirection = AvatarActor->GetActorForwardVector().GetSafeNormal();
+	if (ForwardDirection.IsNearlyZero())
+	{
+		ForwardDirection = FVector::ForwardVector;
+	}
+	return FromLocation + ForwardDirection * LaunchRange;
+}
+
+void UProjectileAbility::FireNextSocketBarrageProjectile()
+{
+	if (!SocketBarrageSocketNames.IsValidIndex(NextSocketBarrageProjectileIndex))
+	{
+		const bool bShouldEndAbility = bSocketBarrageEndAbilityAfterFire;
+		ClearSocketBarrageState(false);
+		if (bShouldEndAbility)
+		{
+			EndProjectileAbilityAfterResolvedShot();
+		}
+		return;
+	}
+
+	AProjectileBase* Projectile = SocketBarrageProjectiles.IsValidIndex(NextSocketBarrageProjectileIndex)
+		? SocketBarrageProjectiles[NextSocketBarrageProjectileIndex].Get()
+		: nullptr;
+	LaunchSocketBarrageProjectile(Projectile);
+	if (SocketBarrageProjectiles.IsValidIndex(NextSocketBarrageProjectileIndex))
+	{
+		SocketBarrageProjectiles[NextSocketBarrageProjectileIndex] = nullptr;
+	}
+
+	++NextSocketBarrageProjectileIndex;
+	if (!SocketBarrageSocketNames.IsValidIndex(NextSocketBarrageProjectileIndex))
+	{
+		const bool bShouldEndAbility = bSocketBarrageEndAbilityAfterFire;
+		ClearSocketBarrageState(false);
+		if (bShouldEndAbility)
+		{
+			EndProjectileAbilityAfterResolvedShot();
+		}
+		return;
+	}
+
+	const float FireInterval = GetConfiguredProjectileSocketFireInterval();
+	if (FireInterval <= KINDA_SMALL_NUMBER)
+	{
+		FireNextSocketBarrageProjectile();
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			SocketBarrageTimerHandle,
+			this,
+			&ThisClass::FireNextSocketBarrageProjectile,
+			FireInterval,
+			false);
+	}
+}
+
+void UProjectileAbility::ClearSocketBarrageState(const bool bDestroyPendingProjectiles)
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(SocketBarrageTimerHandle);
+	}
+	SocketBarrageTimerHandle.Invalidate();
+
+	if (bDestroyPendingProjectiles)
+	{
+		for (AProjectileBase* Projectile : SocketBarrageProjectiles)
+		{
+			if (IsValid(Projectile) && Projectile->HasAuthority())
+			{
+				Projectile->Destroy();
+			}
+		}
+	}
+
+	SocketBarrageSocketNames.Reset();
+	SocketBarrageProjectiles.Reset();
+	SocketBarrageTargetLocation = FVector::ZeroVector;
+	bSocketBarrageUseCharacterTargetSocket = false;
+	NextSocketBarrageProjectileIndex = 0;
+	bSocketBarrageEndAbilityAfterFire = false;
+}
+
+bool UProjectileAbility::IsSocketBarrageActive() const
+{
+	return !SocketBarrageSocketNames.IsEmpty();
+}
+
+bool UProjectileAbility::ShouldWaitForServerSocketBarrageEnd() const
+{
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	return AvatarActor
+		&& !AvatarActor->HasAuthority()
+		&& GetConfiguredProjectileSocketNames().Num() > 1;
 }
 
 void UProjectileAbility::HandleMontageFinished()
 {
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Montage finished: ability=%s"),
-		*GetNameSafe(this));
-	K2_EndAbility();
+	if (!bProjectileExecutionRequested)
+	{
+		if (HasPlayerController() && !bPlayerProjectileConfirmed)
+		{
+			if (!bWaitingForPlayerConfirm)
+			{
+				StartPlayerAiming();
+			}
+			return;
+		}
+		ExecuteFallbackProjectileShot();
+		return;
+	}
+
+	if (IsSocketBarrageActive() || ShouldWaitForServerSocketBarrageEnd())
+	{
+		bSocketBarrageEndAbilityAfterFire = true;
+		return;
+	}
+	EndProjectileAbilityAfterResolvedShot();
 }
 
 void UProjectileAbility::HandleShootProjectileEvent(FGameplayEventData Payload)
 {
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Shoot event received: ability=%s payloadTag=%s avatar=%s authority=%s hasPlayerController=%s"),
-		*GetNameSafe(this),
-		*Payload.EventTag.ToString(),
-		*GetNameSafe(GetAvatarActorFromActorInfo()),
-		HasAuthority(&CurrentActivationInfo) ? TEXT("true") : TEXT("false"),
-		HasPlayerController() ? TEXT("true") : TEXT("false"));
 
 	if (!HasPlayerController())
 	{
 		if (AActor* AttackTarget = GetAttackTargetFromAvatar(); IsValid(AttackTarget))
 		{
 			const FVector TargetLocation = AttackTarget->GetActorLocation();
-			UE_LOG(LogPandoraProjectileAbility, Log,
-				TEXT("Shoot event using attack target: ability=%s target=%s location=%s"),
-				*GetNameSafe(this),
-				*GetNameSafe(AttackTarget),
-				*TargetLocation.ToCompactString());
-			ShootProjectile(TargetLocation);
-			if (bEndAfterProjectileFired)
+			if (ExecuteProjectileShot(TargetLocation)
+				&& bEndAfterProjectileFired
+				&& !IsSocketBarrageActive()
+				&& !ShouldWaitForServerSocketBarrageEnd())
 			{
-				K2_EndAbility();
+				EndProjectileAbilityAfterResolvedShot();
 			}
 			return;
 		}
-
-		UE_LOG(LogPandoraProjectileAbility, Log,
-			TEXT("Shoot event cancelled: AI avatar has no living attack target. ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(GetAvatarActorFromActorInfo()));
-		K2_EndAbility();
+		ExecuteFallbackProjectileShot();
 		return;
 	}
 
@@ -297,28 +871,27 @@ void UProjectileAbility::HandleConfirmPressed()
 	{
 		return;
 	}
-
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Confirm pressed: ability=%s avatar=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetAvatarActorFromActorInfo()));
 	ConfirmPlayerShot();
 }
 
 void UProjectileAbility::HandleCancelPressed()
 {
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Cancel pressed: ability=%s avatar=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetAvatarActorFromActorInfo()));
+	if (!CanBeCanceled())
+	{
+		SetCanBeCanceled(true);
+	}
 	K2_CancelAbility();
 }
 
 void UProjectileAbility::StartPlayerAiming()
 {
 	bWaitingForPlayerConfirm = true;
-	ApplyProjectileAimCamera(true);
-	ShowProjectileCrosshair(true);
+	if (const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+		SkillDataAsset && SkillDataAsset->Movement.bLockMovementDuringDuration)
+	{
+		LockAvatarMovementForAbility();
+	}
+	SpawnReadiedProjectile();
 
 	if (ConfirmCancelTask)
 	{
@@ -326,28 +899,23 @@ void UProjectileAbility::StartPlayerAiming()
 		ConfirmCancelTask = nullptr;
 	}
 
+	if (ShouldUseGroundTargeting())
+	{
+		WaitForPlayerTargetData();
+		return;
+	}
+
 	ConfirmCancelTask = UAbilityTask_WaitConfirmCancel::WaitConfirmCancel(this);
 	if (!ConfirmCancelTask)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("StartPlayerAiming failed: confirm task is null. ability=%s"),
-			*GetNameSafe(this));
-		K2_CancelAbility();
+		CancelAbilityForSkillExecutionFailure();
 		return;
 	}
 
 	ConfirmCancelTask->OnConfirm.AddDynamic(this, &ThisClass::HandleConfirmPressed);
 	ConfirmCancelTask->OnCancel.AddDynamic(this, &ThisClass::HandleCancelPressed);
 	ConfirmCancelTask->ReadyForActivation();
-
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Player aiming started: ability=%s avatar=%s camera=%s crosshair=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetAvatarActorFromActorInfo()),
-		*GetConfiguredProjectileCameraSettings().TargetBoomSocketOffset.ToString(),
-		*GetConfiguredProjectileCrosshairWidgetTag().ToString());
 }
-
 void UProjectileAbility::BeginConfirmedShot()
 {
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
@@ -359,15 +927,27 @@ void UProjectileAbility::BeginConfirmedShot()
 
 	const FGameplayAbilitySpecHandle Handle = GetCurrentAbilitySpecHandle();
 	const FGameplayAbilityActivationInfo ActivationInfo = GetCurrentActivationInfo();
-	const AActor* AvatarActor = ActorInfo->AvatarActor.IsValid() ? ActorInfo->AvatarActor.Get() : nullptr;
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("BeginConfirmedShot failed: CommitAbility returned false. ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(AvatarActor));
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+
+	LockAvatarMovementForAbility();
+	SpawnConfiguredCharacterDecal();
+
+	if (IsConfiguredImmediateFireMode())
+	{
+		bEndAfterProjectileFired = true;
+		const FVector TargetLocation = ResolveDefaultTargetLocation();
+
+		if (ExecuteProjectileShot(TargetLocation)
+			&& !IsSocketBarrageActive()
+			&& !ShouldWaitForServerSocketBarrageEnd())
+		{
+			EndProjectileAbilityAfterResolvedShot();
+		}
 		return;
 	}
 
@@ -376,11 +956,6 @@ void UProjectileAbility::BeginConfirmedShot()
 	UAnimMontage* MontageToPlay = GetConfiguredShootMontage();
 	if (!MontageToPlay)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("BeginConfirmedShot without montage: %s. ability=%s avatar=%s"),
-			HasPlayerController() ? TEXT("waiting for player confirm") : TEXT("firing immediately"),
-			*GetNameSafe(this),
-			*GetNameSafe(AvatarActor));
 		if (HasPlayerController())
 		{
 			StartPlayerAiming();
@@ -393,23 +968,17 @@ void UProjectileAbility::BeginConfirmedShot()
 		return;
 	}
 
-	ShootMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this,
-		NAME_None,
-		MontageToPlay,
-		1.0f,
-		NAME_None,
-		true,
-		1.0f,
-		0.0f,
-		true);
+	ShootMontageTask = CreateDefaultMontageAndWaitTask(MontageToPlay);
 	if (!ShootMontageTask)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("BeginConfirmedShot failed: could not create montage task. ability=%s montage=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(MontageToPlay));
-		EndAbilityFromActivation(Handle, ActorInfo, ActivationInfo);
+		if (HasPlayerController())
+		{
+			StartPlayerAiming();
+		}
+		else
+		{
+			ExecuteFallbackProjectileShot();
+		}
 		return;
 	}
 
@@ -417,37 +986,13 @@ void UProjectileAbility::BeginConfirmedShot()
 	ShootMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::HandleMontageFinished);
 	ShootMontageTask->OnCancelled.AddDynamic(this, &ThisClass::HandleMontageFinished);
 	ShootMontageTask->ReadyForActivation();
-
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Montage started: ability=%s montage=%s waitingEvent=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(MontageToPlay),
-		*GetConfiguredShootProjectileEventTag().ToString());
-
-	if (HasPlayerController())
-	{
-		bPausedForPlayerAim = true;
-		PauseProjectileMontageForAiming();
-		StartPlayerAiming();
-	}
 }
 
 void UProjectileAbility::ConfirmPlayerShot()
 {
-	const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
-	UE_LOG(LogPandoraProjectileAbility, Warning,
-		TEXT("[ProjectileCameraDebug] ConfirmPlayerShot ability=%s avatar=%s authority=%s local=%s pausedForAim=%s endAfterFire=%s profile=%s releaseDelay=%.2f"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetAvatarActorFromActorInfo()),
-		HasAuthority(&CurrentActivationInfo) ? TEXT("true") : TEXT("false"),
-		AvatarPawn && AvatarPawn->IsLocallyControlled() ? TEXT("true") : TEXT("false"),
-		bPausedForPlayerAim ? TEXT("true") : TEXT("false"),
-		bEndAfterProjectileFired ? TEXT("true") : TEXT("false"),
-		*GetConfiguredTargetTraceProfile().Name.ToString(),
-		GetConfiguredProjectileAimReleaseDelay());
-
 	bWaitingForPlayerConfirm = false;
 	bPlayerProjectileConfirmed = true;
+	RestoreAvatarMovementForAbility();
 
 	if (ConfirmCancelTask)
 	{
@@ -460,26 +1005,19 @@ void UProjectileAbility::ConfirmPlayerShot()
 		bEndAfterProjectileFired = true;
 	}
 
-	if (IsLocallyControlledPlayer())
+	if (ShouldUseGroundTargeting())
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("[ProjectileCameraDebug] Confirm starts local camera release timer ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(GetAvatarActorFromActorInfo()));
-		StartProjectileAimReleaseDelay();
+		WaitForPlayerTargetData();
 	}
-	else
+	else if (GetConfiguredTargetTraceProfile().Name == TEXT("NoCollision"))
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("[ProjectileCameraDebug] Confirm did not start release timer because this instance is not local ability=%s avatar=%s hasPlayerController=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(GetAvatarActorFromActorInfo()),
-			HasPlayerController() ? TEXT("true") : TEXT("false"));
-	}
-
-	if (GetConfiguredTargetTraceProfile().Name == TEXT("NoCollision"))
-	{
-		ShootProjectile(ResolveFallbackTargetLocation());
+		if (ExecuteProjectileShot(ResolveDefaultTargetLocation())
+			&& bEndAfterProjectileFired
+			&& !IsSocketBarrageActive()
+			&& !ShouldWaitForServerSocketBarrageEnd())
+		{
+			EndProjectileAbilityAfterResolvedShot();
+		}
 	}
 	else
 	{
@@ -493,59 +1031,244 @@ void UProjectileAbility::ConfirmPlayerShot()
 	}
 }
 
+bool UProjectileAbility::ExecuteProjectileShot(FVector TargetLocation)
+{
+	if (bProjectileExecutionRequested)
+	{
+		return true;
+	}
+
+	bProjectileExecutionRequested = true;
+	ShootProjectile(TargetLocation);
+
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!AvatarActor || !AvatarActor->HasAuthority() || bProjectileSpawnSucceeded)
+	{
+		return true;
+	}
+
+	UE_LOG(
+		LogProjectileAbility,
+		Error,
+		TEXT("Projectile skill %s committed but failed to spawn its authoritative projectile."),
+		*GetNameSafe(GetSourceSkillDataAsset()));
+	CancelAbilityForSkillExecutionFailure();
+	return false;
+}
+
+void UProjectileAbility::ExecuteFallbackProjectileShot()
+{
+	if (!CanExecuteSkillPayload())
+	{
+		return;
+	}
+	if (HasPlayerController() && !bPlayerProjectileConfirmed)
+	{
+		return;
+	}
+
+	bWaitingForPlayerConfirm = false;
+	bPlayerProjectileConfirmed = true;
+	bEndAfterProjectileFired = true;
+	RestoreAvatarMovementForAbility();
+
+	if (!ExecuteProjectileShot(ResolveDefaultTargetLocation()))
+	{
+		return;
+	}
+
+	if (!IsSocketBarrageActive() && !ShouldWaitForServerSocketBarrageEnd())
+	{
+		EndProjectileAbilityAfterResolvedShot();
+	}
+}
+
 void UProjectileAbility::HandleTargetDataValid(const FGameplayAbilityTargetDataHandle& Data)
 {
-	FVector TargetLocation = UAbilitySystemBlueprintLibrary::GetTargetDataEndPoint(Data, 0);
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("TargetData valid: ability=%s numData=%d endpoint=%s"),
-		*GetNameSafe(this),
-		Data.Num(),
-		*TargetLocation.ToCompactString());
-	if (TargetLocation.IsNearlyZero())
+	const bool bUsingGroundTargeting = ShouldUseGroundTargeting();
+	if (bUsingGroundTargeting && bWaitingForPlayerConfirm)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("TargetData endpoint is zero, trying player aim fallback. ability=%s"),
-			*GetNameSafe(this));
+		// Receiving valid UserConfirmed target data is the explicit fire input.
+		// Mark it before validation so a broken trace can use the post-confirm
+		// fallback without ever turning skill activation itself into a shot.
+		bWaitingForPlayerConfirm = false;
+		bPlayerProjectileConfirmed = true;
+		RestoreAvatarMovementForAbility();
+		if (!bPausedForPlayerAim)
+		{
+			bEndAfterProjectileFired = true;
+		}
+	}
+
+	const FGameplayAbilityTargetData* TargetData = Data.Get(0);
+	const FHitResult* ClientHitResult = TargetData ? TargetData->GetHitResult() : nullptr;
+	if (!CurrentActorInfo || !ClientHitResult)
+	{
+		ExecuteFallbackProjectileShot();
+		return;
+	}
+
+	const FVector TargetDataEndPoint = UAbilitySystemBlueprintLibrary::GetTargetDataEndPoint(Data, 0);
+	FVector TargetLocation = FVector::ZeroVector;
+	if (CurrentActorInfo->IsNetAuthority())
+	{
+		if (!TryValidateServerProjectileTargetLocation(
+			*ClientHitResult,
+			TargetDataEndPoint,
+			bUsingGroundTargeting,
+			TargetLocation))
+		{
+			ExecuteFallbackProjectileShot();
+			return;
+		}
+	}
+	else if (!PdTargetValidator::TryResolveTargetDataLocation(
+		*ClientHitResult,
+		TargetDataEndPoint,
+		TargetLocation))
+	{
+		ExecuteFallbackProjectileShot();
+		return;
+	}
+	else if (bUsingGroundTargeting)
+	{
+		TargetLocation.Z += GetConfiguredProjectileRadius();
+	}
+
+	if (!CurrentActorInfo->IsNetAuthority() && TargetLocation.IsNearlyZero())
+	{
 		TryResolveProjectileAimTargetLocation(TargetLocation);
 	}
-	else if (ShouldUseAimFallbackForTarget(TargetLocation))
+	else if (!CurrentActorInfo->IsNetAuthority()
+		&& !bUsingGroundTargeting
+		&& ShouldRetargetUsingAim(TargetLocation))
 	{
 		FVector AimTargetLocation = FVector::ZeroVector;
 		if (TryResolveProjectileAimTargetLocation(AimTargetLocation))
 		{
-			UE_LOG(LogPandoraProjectileAbility, Warning,
-				TEXT("TargetData endpoint rejected for projectile flight. ability=%s endpoint=%s replacement=%s"),
-				*GetNameSafe(this),
-				*TargetLocation.ToCompactString(),
-				*AimTargetLocation.ToCompactString());
 			TargetLocation = AimTargetLocation;
 		}
 	}
-
-	ShootProjectile(TargetLocation);
-	if (bEndAfterProjectileFired)
+	const bool bShotExecuted = ExecuteProjectileShot(TargetLocation);
+	if (bUsingGroundTargeting && bPausedForPlayerAim)
 	{
-		K2_EndAbility();
+		ResumeProjectileMontageAfterAiming();
+		bPausedForPlayerAim = false;
 	}
+
+	if (bShotExecuted
+		&& bEndAfterProjectileFired
+		&& !IsSocketBarrageActive()
+		&& !ShouldWaitForServerSocketBarrageEnd())
+	{
+		EndProjectileAbilityAfterResolvedShot();
+	}
+}
+
+bool UProjectileAbility::TryValidateServerProjectileTargetLocation(
+	const FHitResult& ClientHitResult,
+	const FVector& TargetDataEndPoint,
+	const bool bUsingGroundTargeting,
+	FVector& OutValidatedLocation) const
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
+	if (!AvatarActor || !AvatarActor->HasAuthority() || !World)
+	{
+		return false;
+	}
+
+	FVector RequestedLocation = FVector::ZeroVector;
+	if (!PdTargetValidator::TryResolveTargetDataLocation(
+		ClientHitResult,
+		TargetDataEndPoint,
+		RequestedLocation))
+	{
+		return false;
+	}
+
+	const FVector CharacterLocation = AvatarActor->GetActorLocation();
+	if (bUsingGroundTargeting)
+	{
+		PdTargetValidator::FGroundTargetValidationParams ValidationParams;
+		ValidationParams.MaxRange = GetConfiguredGroundTargetingMaxRange();
+		ValidationParams.GroundTraceStartHeight = GetConfiguredGroundTargetingTraceStartHeight();
+		ValidationParams.GroundTraceDepth = GetConfiguredGroundTargetingTraceDepth();
+		ValidationParams.LineOfSightProfileName = GetConfiguredGroundTargetingTraceProfile().Name;
+
+		PdTargetValidator::FValidatedGroundTarget ValidatedTarget;
+		if (!PdTargetValidator::ValidateGroundTarget(
+			World,
+			AvatarActor,
+			CharacterLocation,
+			RequestedLocation,
+			ValidationParams,
+			ValidatedTarget))
+		{
+			return false;
+		}
+
+		const FVector GroundNormal = ValidatedTarget.Normal.IsNearlyZero()
+			? FVector::UpVector
+			: ValidatedTarget.Normal.GetSafeNormal();
+		OutValidatedLocation = ValidatedTarget.Location
+			+ GroundNormal * GetConfiguredProjectileRadius();
+		return true;
+	}
+
+	PdTargetValidator::FPointTargetValidationParams ValidationParams;
+	ValidationParams.MaxRange = GetConfiguredTargetTraceMaxRange();
+	ValidationParams.LineOfSightProfileName = GetConfiguredTargetTraceProfile().Name;
+
+	PdTargetValidator::FValidatedPointTarget ValidatedTarget;
+	if (!PdTargetValidator::ValidatePointTarget(
+		World,
+		AvatarActor,
+		CharacterLocation,
+		GetSpawnLocation(),
+		RequestedLocation,
+		ValidationParams,
+		ValidatedTarget))
+	{
+		return false;
+	}
+
+	OutValidatedLocation = ValidatedTarget.Location;
+	return true;
 }
 
 void UProjectileAbility::HandleTargetDataCancelled(const FGameplayAbilityTargetDataHandle& Data)
 {
-	UE_LOG(LogPandoraProjectileAbility, Warning,
-		TEXT("TargetData cancelled: ability=%s numData=%d"),
-		*GetNameSafe(this),
-		Data.Num());
+	static_cast<void>(Data);
 
-	if (HasPlayerController() && bPlayerProjectileConfirmed)
+	if (bCleaningUpTargetDataTask)
 	{
-		ReleaseProjectileAimState();
-		K2_CancelAbility();
 		return;
 	}
 
-	if (bEndAfterProjectileFired)
+
+	if (HasPlayerController())
 	{
-		K2_EndAbility();
+		if (!bPlayerProjectileConfirmed)
+		{
+			CancelAbilityForSkillExecutionFailure();
+			return;
+		}
+		if (ShouldWaitForServerSocketBarrageEnd())
+		{
+			return;
+		}
+		ExecuteFallbackProjectileShot();
+		return;
+	}
+
+	if (!bProjectileExecutionRequested)
+	{
+		ExecuteFallbackProjectileShot();
+	}
+	else if (bEndAfterProjectileFired && !ShouldWaitForServerSocketBarrageEnd())
+	{
+		EndProjectileAbilityAfterResolvedShot();
 	}
 }
 
@@ -554,9 +1277,6 @@ void UProjectileAbility::StartShootProjectileEventTask()
 	const FGameplayTag ConfiguredShootEventTag = GetConfiguredShootProjectileEventTag();
 	if (!ConfiguredShootEventTag.IsValid())
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("Shoot event task skipped: ShootProjectileEventTag is invalid. ability=%s"),
-			*GetNameSafe(this));
 		return;
 	}
 
@@ -566,91 +1286,123 @@ void UProjectileAbility::StartShootProjectileEventTask()
 		ShootProjectileEventTask = nullptr;
 	}
 
-	ShootProjectileEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-		this,
-		ConfiguredShootEventTag,
-		nullptr,
-		false,
-		true);
+	ShootProjectileEventTask = CreateWaitGameplayEventTask(ConfiguredShootEventTag);
 	if (!ShootProjectileEventTask)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("Shoot event task creation failed: ability=%s tag=%s"),
-			*GetNameSafe(this),
-			*ConfiguredShootEventTag.ToString());
 		return;
 	}
 
 	ShootProjectileEventTask->EventReceived.AddDynamic(this, &ThisClass::HandleShootProjectileEvent);
 	ShootProjectileEventTask->ReadyForActivation();
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Shoot event task ready: ability=%s tag=%s"),
-		*GetNameSafe(this),
-		*ConfiguredShootEventTag.ToString());
 }
 
 void UProjectileAbility::WaitForPlayerTargetData()
 {
-	const FCollisionProfileName ConfiguredTargetTraceProfile = GetConfiguredTargetTraceProfile();
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("WaitForPlayerTargetData: ability=%s range=%.1f profile=%s debug=%s"),
-		*GetNameSafe(this),
-		GetConfiguredTargetTraceMaxRange(),
-		*ConfiguredTargetTraceProfile.Name.ToString(),
-		GetConfiguredDrawTargetTraceDebug() ? TEXT("true") : TEXT("false"));
-
-	if (TargetDataTask)
+	const bool bUsingGroundTargeting = ShouldUseGroundTargeting();
+	const TSubclassOf<AGameplayAbilityTargetActor> TargetActorClass = bUsingGroundTargeting
+		? GetConfiguredGroundTargetActorClass()
+		: TSubclassOf<AGameplayAbilityTargetActor>(AGameplayAbilityTargetActor_SingleLineTrace::StaticClass());
+	if (!TargetActorClass)
 	{
-		TargetDataTask->EndTask();
-		TargetDataTask = nullptr;
-	}
-
-	TargetDataTask = UAbilityTask_WaitTargetData::WaitTargetData(
-		this,
-		NAME_None,
-		EGameplayTargetingConfirmation::Instant,
-		AGameplayAbilityTargetActor_SingleLineTrace::StaticClass());
-	if (!TargetDataTask)
-	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("WaitForPlayerTargetData failed: target data task is null. ability=%s"),
-			*GetNameSafe(this));
-		ShootProjectile(ResolveFallbackTargetLocation());
+		if (HasPlayerController() && !bPlayerProjectileConfirmed)
+		{
+			CancelAbilityForSkillExecutionFailure();
+		}
+		else
+		{
+			ExecuteFallbackProjectileShot();
+		}
 		return;
 	}
 
-	TargetDataTask->ValidData.AddDynamic(this, &ThisClass::HandleTargetDataValid);
-	TargetDataTask->Cancelled.AddDynamic(this, &ThisClass::HandleTargetDataCancelled);
+	const FCollisionProfileName ConfiguredTargetTraceProfile = bUsingGroundTargeting
+		? GetConfiguredGroundTargetingTraceProfile()
+		: GetConfiguredTargetTraceProfile();
 
-	AGameplayAbilityTargetActor* SpawnedActor = nullptr;
-	if (TargetDataTask->BeginSpawningActor(this, AGameplayAbilityTargetActor_SingleLineTrace::StaticClass(), SpawnedActor))
+
+	if (TargetDataTask)
+	{
+		bCleaningUpTargetDataTask = true;
+		TargetDataTask->EndTask();
+		bCleaningUpTargetDataTask = false;
+		TargetDataTask = nullptr;
+	}
+
+	UAbilityTask_WaitTargetData* const PendingTargetDataTask = UAbilityTask_WaitTargetData::WaitTargetData(
+		this,
+		NAME_None,
+		bUsingGroundTargeting ? EGameplayTargetingConfirmation::UserConfirmed : EGameplayTargetingConfirmation::Instant,
+		TargetActorClass);
+	TargetDataTask = PendingTargetDataTask;
+	if (!PendingTargetDataTask)
+	{
+		if (HasPlayerController() && !bPlayerProjectileConfirmed)
+		{
+			CancelAbilityForSkillExecutionFailure();
+		}
+		else
+		{
+			ExecuteFallbackProjectileShot();
+		}
+		return;
+	}
+
+	PendingTargetDataTask->ValidData.AddDynamic(this, &ThisClass::HandleTargetDataValid);
+	PendingTargetDataTask->Cancelled.AddDynamic(this, &ThisClass::HandleTargetDataCancelled);
+
+	if (AGameplayAbilityTargetActor* SpawnedActor =
+		BeginSpawningTargetDataActor(PendingTargetDataTask, TargetActorClass))
 	{
 		if (AGameplayAbilityTargetActor_Trace* TraceActor = Cast<AGameplayAbilityTargetActor_Trace>(SpawnedActor))
 		{
-			TraceActor->MaxRange = GetConfiguredTargetTraceMaxRange();
+			TraceActor->MaxRange = bUsingGroundTargeting ? GetConfiguredGroundTargetingMaxRange() : GetConfiguredTargetTraceMaxRange();
 			TraceActor->TraceProfile = ConfiguredTargetTraceProfile;
-			TraceActor->bTraceAffectsAimPitch = GetConfiguredTraceAffectsAimPitch();
+			TraceActor->bTraceAffectsAimPitch = bUsingGroundTargeting
+				? GetConfiguredGroundTargetingTraceAffectsAimPitch()
+				: GetConfiguredTraceAffectsAimPitch();
+		}
+
+		if (AGameplayAbilityTargetActor_GroundTrace* GroundTraceActor = Cast<AGameplayAbilityTargetActor_GroundTrace>(SpawnedActor))
+		{
+			GroundTraceActor->CollisionRadius = GetConfiguredGroundTargetingCollisionRadius();
+			GroundTraceActor->CollisionHeight = GetConfiguredGroundTargetingCollisionHeight();
+		}
+
+		if (ATargetActor_GroundTrace_Decal* DecalTargetActor = Cast<ATargetActor_GroundTrace_Decal>(SpawnedActor))
+		{
+			DecalTargetActor->ConfigureGroundProjection(
+				GetConfiguredGroundTargetingTraceStartHeight(),
+				GetConfiguredGroundTargetingTraceDepth());
+			DecalTargetActor->Decal = GetConfiguredGroundTargetingDecal();
+			DecalTargetActor->DecalSize = GetConfiguredGroundTargetingDecalSize();
+			DecalTargetActor->DecalColor = GetConfiguredGroundTargetingDecalColor();
+
+			float DecalStartSize = 0.0f;
+			float DecalTargetSize = 0.0f;
+			float DecalGrowthDuration = 0.0f;
+			if (TryBuildGroundTargetingDecalGrowth(DecalStartSize, DecalTargetSize, DecalGrowthDuration))
+			{
+				DecalTargetActor->ConfigureDecalGrowth(DecalStartSize, DecalTargetSize, DecalGrowthDuration);
+			}
 		}
 
 		SpawnedActor->StartLocation = MakeTargetLocationInfoFromOwnerActor();
-		SpawnedActor->bDebug = GetConfiguredDrawTargetTraceDebug();
-		TargetDataTask->FinishSpawningActor(this, SpawnedActor);
-		UE_LOG(LogPandoraProjectileAbility, Log,
-			TEXT("Target actor spawned: ability=%s actor=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(SpawnedActor));
-	}
-	else
-	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("Target actor BeginSpawningActor returned false. ability=%s"),
-			*GetNameSafe(this));
+		SpawnedActor->bDebug = bUsingGroundTargeting ? GetConfiguredDrawGroundTargetingDebug() : GetConfiguredDrawTargetTraceDebug();
+		FinishSpawningTargetDataActor(PendingTargetDataTask, SpawnedActor);
 	}
 
-	TargetDataTask->ReadyForActivation();
+	// Finishing an instant target actor can synchronously broadcast target data. The callback may end this ability,
+	// which cleans up TargetDataTask before FinishSpawningTargetDataActor returns. Only activate the task if this is
+	// still the current task and it did not already complete during that callback.
+	if (TargetDataTask == PendingTargetDataTask
+		&& IsValid(PendingTargetDataTask)
+		&& PendingTargetDataTask->GetState() == EGameplayTaskState::AwaitingActivation)
+	{
+		PendingTargetDataTask->ReadyForActivation();
+	}
 }
 
-bool UProjectileAbility::ShouldUseAimFallbackForTarget(const FVector& TargetLocation) const
+bool UProjectileAbility::ShouldRetargetUsingAim(const FVector& TargetLocation) const
 {
 	const FVector SpawnLocation = GetSpawnLocation();
 	const float MinimumDistance = FMath::Max(GetConfiguredMinimumTargetDistanceFromSpawn(), 0.0f);
@@ -661,14 +1413,7 @@ bool UProjectileAbility::ShouldUseAimFallbackForTarget(const FVector& TargetLoca
 
 	if (bTooClose || bStronglyDownward)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("TargetData endpoint looks unsuitable. ability=%s spawn=%s target=%s tooClose=%s downward=%s minDistance=%.1f"),
-			*GetNameSafe(this),
-			*SpawnLocation.ToCompactString(),
-			*TargetLocation.ToCompactString(),
-			bTooClose ? TEXT("true") : TEXT("false"),
-			bStronglyDownward ? TEXT("true") : TEXT("false"),
-			MinimumDistance);
+
 		return true;
 	}
 
@@ -681,10 +1426,7 @@ bool UProjectileAbility::TryResolveProjectileAimTargetLocation(FVector& OutTarge
 	const float ConfiguredTargetTraceMaxRange = GetConfiguredTargetTraceMaxRange();
 	if (!AvatarActor || ConfiguredTargetTraceMaxRange <= 0.0f)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("Aim target fallback failed: avatar=%s range=%.1f"),
-			*GetNameSafe(AvatarActor),
-			ConfiguredTargetTraceMaxRange);
+
 		return false;
 	}
 
@@ -704,9 +1446,7 @@ bool UProjectileAbility::TryResolveProjectileAimTargetLocation(FVector& OutTarge
 	AimDirection = AimDirection.GetSafeNormal();
 	if (AimDirection.IsNearlyZero())
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("Aim target fallback failed: view direction is zero. avatar=%s"),
-			*GetNameSafe(AvatarActor));
+
 		return false;
 	}
 
@@ -715,12 +1455,7 @@ bool UProjectileAbility::TryResolveProjectileAimTargetLocation(FVector& OutTarge
 	if (ConfiguredTargetTraceProfile.Name == TEXT("NoCollision"))
 	{
 		OutTargetLocation = ViewTraceEnd;
-		UE_LOG(LogPandoraProjectileAbility, Log,
-			TEXT("Aim target fallback resolved from view without collision trace: start=%s direction=%s end=%s profile=%s"),
-			*ViewTraceStart.ToCompactString(),
-			*AimDirection.ToCompactString(),
-			*OutTargetLocation.ToCompactString(),
-			*ConfiguredTargetTraceProfile.Name.ToString());
+
 		return true;
 	}
 
@@ -741,17 +1476,11 @@ bool UProjectileAbility::TryResolveProjectileAimTargetLocation(FVector& OutTarge
 		true);
 
 	OutTargetLocation = bHit ? ViewHitResult.Location : ViewTraceEnd;
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Aim target fallback resolved: hit=%s start=%s end=%s target=%s hitActor=%s"),
-		bHit ? TEXT("true") : TEXT("false"),
-		*ViewTraceStart.ToCompactString(),
-		*ViewTraceEnd.ToCompactString(),
-		*OutTargetLocation.ToCompactString(),
-		*GetNameSafe(ViewHitResult.GetActor()));
+
 	return true;
 }
 
-FVector UProjectileAbility::ResolveFallbackTargetLocation() const
+FVector UProjectileAbility::ResolveDefaultTargetLocation() const
 {
 	FVector TargetLocation = FVector::ZeroVector;
 	if (TryResolveProjectileAimTargetLocation(TargetLocation))
@@ -768,192 +1497,594 @@ FVector UProjectileAbility::ResolveFallbackTargetLocation() const
 	return GetSpawnLocation() + (AvatarActor->GetActorForwardVector() * FMath::Max(GetConfiguredTargetTraceMaxRange(), 1000.0f));
 }
 
-FGameplayEffectSpecHandle UProjectileAbility::MakeDamageEffectSpec() const
+FGameplayEffectSpecHandle UProjectileAbility::MakeDamageEffectSpec(const float ChargeDamageAlpha) const
 {
-	UPdAbilitySystemComponent* SourceASC = GetPdAbilitySystemComponentFromActorInfo();
-	const TSubclassOf<UGameplayEffect> ConfiguredDamageEffectClass = GetConfiguredDamageEffectClass();
-	if (!SourceASC || !ConfiguredDamageEffectClass)
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	if (!SkillDataAsset)
 	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("MakeDamageEffectSpec failed: sourceASC=%s damageEffect=%s ability=%s"),
-			*GetNameSafe(SourceASC),
-			*GetNameSafe(ConfiguredDamageEffectClass.Get()),
-			*GetNameSafe(this));
+
 		return FGameplayEffectSpecHandle();
 	}
 
-	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
-	EffectContext.AddInstigator(GetAvatarActorFromActorInfo(), GetAvatarActorFromActorInfo());
-	if (const FGameplayAbilitySpec* AbilitySpec = GetCurrentAbilitySpec())
+	const FSkillGameplayEffectConfig DamageConfig = SkillDataAsset->GetResolvedDamageConfig();
+	if (!DamageConfig.GameplayEffectClass)
 	{
-		if (UObject* SourceObject = AbilitySpec->SourceObject.Get())
-		{
-			EffectContext.AddSourceObject(SourceObject);
-		}
-	}
 
-	FGameplayEffectSpecHandle DamageEffectSpecHandle =
-		SourceASC->MakeOutgoingSpec(ConfiguredDamageEffectClass, FMath::Max(GetAbilityLevel(), 1), EffectContext);
-	if (!DamageEffectSpecHandle.IsValid() || !DamageEffectSpecHandle.Data.IsValid())
-	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("MakeDamageEffectSpec failed: MakeOutgoingSpec invalid. effect=%s level=%d ability=%s"),
-			*GetNameSafe(ConfiguredDamageEffectClass.Get()),
-			FMath::Max(GetAbilityLevel(), 1),
-			*GetNameSafe(this));
 		return FGameplayEffectSpecHandle();
 	}
 
-	FGameplayTag ResolvedDamageDataTag = GetConfiguredDamageDataTag();
-	if (!ResolvedDamageDataTag.IsValid())
-	{
-		SourceASC->ResolveDamageMagnitudeSetByCallerTag(ResolvedDamageDataTag);
-	}
+	const float ScaledDamage = CalculateBaseSkillDamageMagnitude(DamageConfig);
+	const float FullDamage = ApplyIntelligenceToSkillDamage(ScaledDamage);
+	const float ClampedChargeDamageAlpha = FMath::Clamp(ChargeDamageAlpha, 0.0f, 1.0f);
+	const float CalculatedDamage = FullDamage * ClampedChargeDamageAlpha;
+	return MakeConfiguredDamageEffectSpec(DamageConfig, CalculatedDamage);
+}
 
-	if (ResolvedDamageDataTag.IsValid())
-	{
-		const double AbilityLevel = static_cast<double>(FMath::Max(GetAbilityLevel(), 1));
-		const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-		if (!SkillDataAsset)
-		{
-			UE_LOG(LogPandoraProjectileAbility, Warning,
-				TEXT("Damage spec failed: missing SkillDataAsset. ability=%s"),
-				*GetNameSafe(this));
-			return FGameplayEffectSpecHandle();
-		}
-
-		const double ConfiguredDamageMagnitude = SkillDataAsset->ProjectileDamageMagnitude;
-		const double ConfiguredDamagePercentIncreasePerLevel = SkillDataAsset->ProjectileDamagePercentIncreasePerLevel;
-		const float CalculatedDamage = static_cast<float>(
-			ConfiguredDamageMagnitude
-			+ ((ConfiguredDamageMagnitude * ConfiguredDamagePercentIncreasePerLevel) * (AbilityLevel - 1.0)));
-		DamageEffectSpecHandle.Data->SetSetByCallerMagnitude(ResolvedDamageDataTag, CalculatedDamage);
-		UE_LOG(LogPandoraProjectileAbility, Log,
-			TEXT("Damage spec ready: effect=%s tag=%s magnitude=%.2f level=%.0f sourceObject=%s"),
-			*GetNameSafe(ConfiguredDamageEffectClass.Get()),
-			*ResolvedDamageDataTag.ToString(),
-			CalculatedDamage,
-			AbilityLevel,
-			DamageEffectSpecHandle.Data->GetContext().GetSourceObject()
-				? *GetNameSafe(DamageEffectSpecHandle.Data->GetContext().GetSourceObject())
-				: TEXT("None"));
-	}
-	else
-	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("Damage spec missing SetByCaller tag: effect=%s ability=%s"),
-			*GetNameSafe(ConfiguredDamageEffectClass.Get()),
-			*GetNameSafe(this));
-	}
-
-	return DamageEffectSpecHandle;
+FGameplayEffectSpecHandle UProjectileAbility::MakeStatusEffectSpec() const
+{
+	return MakeConfiguredStatusEffectSpec(
+		GetSourceSkillDataAsset(),
+		GetConfiguredStatusEffectClass(),
+		GetConfiguredStatusEffectLevel());
 }
 
 UAnimMontage* UProjectileAbility::GetConfiguredShootMontage() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->ProjectileShootMontage.Get() : nullptr;
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	return GetProjectileSettings(SkillDataAsset) && SkillDataAsset->Animation.PrimaryMontage
+		? SkillDataAsset->Animation.PrimaryMontage.Get()
+		: nullptr;
 }
 
 TSubclassOf<AProjectileBase> UProjectileAbility::GetConfiguredProjectileClass() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->ProjectileClass : nullptr;
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? ProjectileSettings->ProjectileActorClass : nullptr;
 }
 
 TSubclassOf<UGameplayEffect> UProjectileAbility::GetConfiguredDamageEffectClass() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->ProjectileDamageEffectClass : nullptr;
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	return SkillDataAsset ? SkillDataAsset->GetResolvedDamageConfig().GameplayEffectClass : nullptr;
+}
+
+const UStatusEffectDefinition* UProjectileAbility::GetConfiguredStatusEffectDataAsset() const
+{
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	return SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
+}
+
+TSubclassOf<UGameplayEffect> UProjectileAbility::GetConfiguredStatusEffectClass() const
+{
+	if (const UStatusEffectDefinition* StatusEffectDataAsset = GetConfiguredStatusEffectDataAsset())
+	{
+		if (StatusEffectDataAsset->StatusEffectClass)
+		{
+			return StatusEffectDataAsset->StatusEffectClass;
+		}
+	}
+
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? ProjectileSettings->StatusEffectClass : nullptr;
+}
+
+float UProjectileAbility::GetConfiguredStatusEffectLevel() const
+{
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	if (SkillDataAsset && SkillDataAsset->StatusEffectDataAsset)
+	{
+		return FMath::Max(SkillDataAsset->StatusEffectLevel, 1.0f);
+	}
+
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? FMath::Max(ProjectileSettings->StatusEffectLevel, 1.0f) : 1.0f;
+}
+
+float UProjectileAbility::GetConfiguredStatusEffectDuration() const
+{
+	const UStatusEffectDefinition* StatusEffectDataAsset = GetConfiguredStatusEffectDataAsset();
+	return StatusEffectDataAsset ? FMath::Max(StatusEffectDataAsset->StatusDuration, 0.0f) : 0.0f;
 }
 
 float UProjectileAbility::GetConfiguredProjectileSpeed() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? static_cast<float>(SkillDataAsset->ProjectileSpeed) : 0.0f;
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->ProjectileSpeed, 0.0))
+		: 0.0f;
+}
+
+float UProjectileAbility::GetConfiguredProjectileRadius() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->ProjectileRadius, 0.0))
+		: 0.0f;
+}
+
+bool UProjectileAbility::ShouldUseConfiguredProjectileArcTrajectory() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings && ProjectileSettings->bUseArcTrajectory;
+}
+
+float UProjectileAbility::GetConfiguredProjectileArcHeight() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->ProjectileArcHeight, 0.0))
+		: 0.0f;
+}
+
+float UProjectileAbility::GetConfiguredProjectileArcGravityScale() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->ProjectileArcGravityScale, 0.0))
+		: 1.0f;
 }
 
 FGameplayTag UProjectileAbility::GetConfiguredDamageDataTag() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->ProjectileDamageDataTag : FGameplayTag();
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	if (!SkillDataAsset)
+	{
+		return FGameplayTag();
+	}
+
+	return SkillDataAsset->GetResolvedDamageConfig().MagnitudeDataTag;
 }
 
 FGameplayTag UProjectileAbility::GetConfiguredShootProjectileEventTag() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->ShootProjectileEventTag : FGameplayTag();
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(SkillDataAsset);
+	if (!ProjectileSettings)
+	{
+		return FGameplayTag();
+	}
+
+	return ProjectileSettings->FireEventTag.IsValid()
+		? ProjectileSettings->FireEventTag
+		: SkillDataAsset->Animation.PrimaryEventTag;
+}
+
+bool UProjectileAbility::IsConfiguredImmediateFireMode() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings && ProjectileSettings->FireMode == EPdSkillProjectileFireMode::Immediate;
+}
+
+TArray<FName> UProjectileAbility::GetConfiguredProjectileSocketNames() const
+{
+	TArray<FName> SocketNames;
+	if (const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset()))
+	{
+		for (const FName& SocketName : ProjectileSettings->ProjectileSocketNames)
+		{
+			if (!SocketName.IsNone())
+			{
+				SocketNames.Add(SocketName);
+			}
+		}
+	}
+
+	return SocketNames;
+}
+
+float UProjectileAbility::GetConfiguredProjectileSocketFireInterval() const
+{
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	if (const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(SkillDataAsset))
+	{
+		return static_cast<float>(FMath::Max(ProjectileSettings->ProjectileSocketFireInterval, 0.0));
+	}
+
+	return 0.0f;
+}
+
+void UProjectileAbility::GetConfiguredProjectileVisuals(
+	UNiagaraSystem*& OutMuzzleFX,
+	UNiagaraSystem*& OutProjectileFX,
+	UNiagaraSystem*& OutHitFX,
+	bool& bOutSpawnHitNiagaraOnGround,
+	FGameplayTag& OutSpawnGameplayCueTag,
+	FGameplayTag& OutImpactGameplayCueTag) const
+{
+	OutMuzzleFX = nullptr;
+	OutProjectileFX = nullptr;
+	OutHitFX = nullptr;
+	bOutSpawnHitNiagaraOnGround = false;
+	OutSpawnGameplayCueTag = FGameplayTag();
+	OutImpactGameplayCueTag = FGameplayTag();
+
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	if (const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(SkillDataAsset))
+	{
+		OutMuzzleFX = ProjectileSettings->MuzzleNiagaraSystem.Get();
+		OutProjectileFX = ProjectileSettings->ProjectileNiagaraSystem.Get();
+		OutHitFX = ProjectileSettings->HitNiagaraSystem.Get();
+		bOutSpawnHitNiagaraOnGround = ProjectileSettings->bSpawnHitNiagaraOnGround;
+	}
+}
+
+void UProjectileAbility::ApplyConfiguredProjectileVisuals(AProjectileBase* Projectile) const
+{
+	if (!IsValid(Projectile))
+	{
+		return;
+	}
+
+	UNiagaraSystem* MuzzleFX = nullptr;
+	UNiagaraSystem* ProjectileFX = nullptr;
+	UNiagaraSystem* HitFX = nullptr;
+	bool bSpawnHitNiagaraOnGround = false;
+	FGameplayTag SpawnGameplayCueTag;
+	FGameplayTag ImpactGameplayCueTag;
+	GetConfiguredProjectileVisuals(
+		MuzzleFX,
+		ProjectileFX,
+		HitFX,
+		bSpawnHitNiagaraOnGround,
+		SpawnGameplayCueTag,
+		ImpactGameplayCueTag);
+
+	Projectile->ConfigureProjectileVisuals(
+		MuzzleFX,
+		ProjectileFX,
+		HitFX,
+		bSpawnHitNiagaraOnGround,
+		SpawnGameplayCueTag,
+		ImpactGameplayCueTag);
+}
+
+void UProjectileAbility::ApplyConfiguredProjectileTrajectory(AProjectileBase* Projectile) const
+{
+	if (!IsValid(Projectile))
+	{
+		return;
+	}
+
+	Projectile->ConfigureArcTrajectory(
+		ShouldUseConfiguredProjectileArcTrajectory(),
+		GetConfiguredProjectileArcHeight(),
+		GetConfiguredProjectileArcGravityScale());
+}
+
+void UProjectileAbility::ApplyConfiguredProjectileImpactPersistence(AProjectileBase* Projectile) const
+{
+	if (!IsValid(Projectile))
+	{
+		return;
+	}
+
+	const FSkillProjectileSettings* ProjectileSettings =
+		GetProjectileSettings(GetSourceSkillDataAsset());
+	Projectile->ConfigureImpactPersistence(
+		ProjectileSettings && ProjectileSettings->bStickOnImpact,
+		ProjectileSettings
+			? static_cast<float>(FMath::Max(ProjectileSettings->PostImpactLifeSpan, 0.0))
+			: 0.0f);
 }
 
 float UProjectileAbility::GetConfiguredTargetTraceMaxRange() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? static_cast<float>(SkillDataAsset->TargetTraceMaxRange) : 0.0f;
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->TargetTraceMaxRange, 0.0))
+		: 0.0f;
 }
 
 FCollisionProfileName UProjectileAbility::GetConfiguredTargetTraceProfile() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->TargetTraceProfile : FCollisionProfileName(TEXT("NoCollision"));
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? ProjectileSettings->TargetTraceProfile
+		: FCollisionProfileName(TEXT("NoCollision"));
 }
 
 float UProjectileAbility::GetConfiguredMinimumTargetDistanceFromSpawn() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? static_cast<float>(SkillDataAsset->MinimumTargetDistanceFromSpawn) : 0.0f;
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->MinimumTargetDistanceFromSpawn, 0.0))
+		: 0.0f;
 }
 
 bool UProjectileAbility::GetConfiguredTraceAffectsAimPitch() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset && SkillDataAsset->bTraceAffectsAimPitch;
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings && ProjectileSettings->bTraceAffectsAimPitch;
 }
 
 bool UProjectileAbility::GetConfiguredDrawTargetTraceDebug() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset && SkillDataAsset->bDrawTargetTraceDebug;
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return LabSkillDebug::IsDrawingEnabled()
+		&& ProjectileSettings
+		&& ProjectileSettings->bDrawTargetTraceDebug;
 }
 
 FName UProjectileAbility::GetConfiguredSpawnSocketName() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->SpawnSocketName : NAME_None;
+	if (const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset()))
+	{
+		return GetFirstConfiguredProjectileSocketName(*ProjectileSettings);
+	}
+
+	return NAME_None;
 }
 
 FVector UProjectileAbility::GetConfiguredSpawnLocationOffset() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->SpawnLocationOffset : FVector::ZeroVector;
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? ProjectileSettings->SpawnLocationOffset : FVector::ZeroVector;
 }
 
 float UProjectileAbility::GetConfiguredMinimumForwardSpawnOffset() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? static_cast<float>(SkillDataAsset->MinimumForwardSpawnOffset) : 0.0f;
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->MinimumForwardSpawnOffset, 0.0))
+		: 0.0f;
 }
 
-FWeaponAimCameraSettings UProjectileAbility::GetConfiguredProjectileCameraSettings() const
+bool UProjectileAbility::IsConfiguredReadiedProjectileChargeGrowthEnabled() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	if (SkillDataAsset && SkillDataAsset->bUseProjectileCameraSettings)
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		&& (ProjectileSettings->bGrowProjectileSize
+			|| ProjectileSettings->FireMode == EPdSkillProjectileFireMode::HoldThenConfirm);
+}
+
+FVector UProjectileAbility::GetConfiguredReadiedProjectileStartScale() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? ProjectileSettings->ProjectileStartScale : FVector::OneVector;
+}
+
+FVector UProjectileAbility::GetConfiguredReadiedProjectileTargetScale() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? ProjectileSettings->ProjectileFinalScale : FVector::OneVector;
+}
+
+float UProjectileAbility::GetConfiguredReadiedProjectileScaleDuration() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->ProjectileScaleDuration, 0.0))
+		: 0.0f;
+}
+
+FName UProjectileAbility::GetConfiguredReadiedProjectileNiagaraVector2DParameterName() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? ProjectileSettings->GrowthUserParameterName : NAME_None;
+}
+
+FVector2D UProjectileAbility::GetConfiguredReadiedProjectileNiagaraStartSize() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? ProjectileSettings->GrowthUserParameterStartValue : FVector2D::UnitVector;
+}
+
+FVector2D UProjectileAbility::GetConfiguredReadiedProjectileNiagaraTargetSize() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? ProjectileSettings->GrowthUserParameterFinalValue : FVector2D::UnitVector;
+}
+
+void UProjectileAbility::ApplyConfiguredStatusEffect(AProjectileBase* Projectile) const
+{
+	if (!IsValid(Projectile))
 	{
-		return SkillDataAsset->ProjectileCameraSettings;
+		return;
 	}
 
-	return FWeaponAimCameraSettings();
+	Projectile->SetDebuffEffectSpecHandle(MakeStatusEffectSpec());
 }
 
-FGameplayTag UProjectileAbility::GetConfiguredProjectileCrosshairWidgetTag() const
+void UProjectileAbility::ApplyReadiedProjectileScaleGrowth(AProjectileBase* Projectile) const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->ProjectileCrosshairWidgetTag : FGameplayTag();
+	if (!IsValid(Projectile))
+	{
+		return;
+	}
+
+	if (!IsConfiguredReadiedProjectileChargeGrowthEnabled())
+	{
+
+		return;
+	}
+
+	const float ScaleDuration = GetConfiguredReadiedProjectileScaleDuration();
+	const FVector StartScale = GetConfiguredReadiedProjectileStartScale();
+	const FVector TargetScale = GetConfiguredReadiedProjectileTargetScale();
+	const FName NiagaraVector2DParameterName = GetConfiguredReadiedProjectileNiagaraVector2DParameterName();
+	const FVector2D NiagaraStartSize = GetConfiguredReadiedProjectileNiagaraStartSize();
+	const FVector2D NiagaraTargetSize = GetConfiguredReadiedProjectileNiagaraTargetSize();
+	const bool bHasActorScaleGrowth = !StartScale.Equals(TargetScale);
+	const bool bHasNiagaraSizeGrowth = !NiagaraVector2DParameterName.IsNone() && !NiagaraStartSize.Equals(NiagaraTargetSize);
+	if (ScaleDuration <= 0.0f || (!bHasActorScaleGrowth && !bHasNiagaraSizeGrowth))
+	{
+		return;
+	}
+
+	Projectile->StartReadiedScaleGrowth(
+		StartScale,
+		TargetScale,
+		ScaleDuration,
+		NiagaraVector2DParameterName,
+		NiagaraStartSize,
+		NiagaraTargetSize);
+
 }
 
-float UProjectileAbility::GetConfiguredProjectileAimReleaseDelay() const
+bool UProjectileAbility::ShouldUseGroundTargeting() const
 {
-	const USkillDataAsset* SkillDataAsset = GetSourceSkillDataAsset();
-	return SkillDataAsset ? static_cast<float>(FMath::Max(SkillDataAsset->ProjectileAimReleaseDelay, 0.0)) : 0.0f;
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings && ProjectileSettings->bUseGroundTargeting;
+}
+
+TSubclassOf<AGameplayAbilityTargetActor> UProjectileAbility::GetConfiguredGroundTargetActorClass() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredClass =
+		ProjectileSettings ? ProjectileSettings->GroundTargetActorClass : nullptr;
+	if (ConfiguredClass
+		&& ConfiguredClass->IsChildOf(AGameplayAbilityTargetActor_GroundTrace::StaticClass())
+		&& !ConfiguredClass->IsChildOf(ATargetActor_GroundTrace_Decal::StaticClass()))
+	{
+		return ATargetActor_GroundTrace_Decal::StaticClass();
+	}
+
+	return ConfiguredClass;
+}
+
+float UProjectileAbility::GetConfiguredGroundTargetingMaxRange() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->GroundTargetingMaxRange, 0.0))
+		: 0.0f;
+}
+
+FCollisionProfileName UProjectileAbility::GetConfiguredGroundTargetingTraceProfile() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? ProjectileSettings->GroundTargetingTraceProfile
+		: FCollisionProfileName(TEXT("BlockAll"));
+}
+
+float UProjectileAbility::GetConfiguredGroundTargetingTraceStartHeight() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->TargetGroundTraceStartHeight, 0.0))
+		: 0.0f;
+}
+
+float UProjectileAbility::GetConfiguredGroundTargetingTraceDepth() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->TargetGroundTraceDepth, 0.0))
+		: 0.0f;
+}
+
+float UProjectileAbility::GetConfiguredGroundTargetingCollisionRadius() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->GroundTargetingCollisionRadius, 0.0))
+		: 0.0f;
+}
+
+float UProjectileAbility::GetConfiguredGroundTargetingCollisionHeight() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->GroundTargetingCollisionHeight, 0.0))
+		: 0.0f;
+}
+
+bool UProjectileAbility::GetConfiguredGroundTargetingTraceAffectsAimPitch() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings && ProjectileSettings->bGroundTargetingTraceAffectsAimPitch;
+}
+
+bool UProjectileAbility::GetConfiguredDrawGroundTargetingDebug() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return LabSkillDebug::IsDrawingEnabled()
+		&& ProjectileSettings
+		&& ProjectileSettings->bDrawGroundTargetingDebug;
+}
+
+UMaterialInterface* UProjectileAbility::GetConfiguredGroundTargetingDecal() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? ProjectileSettings->TargetDecal.Get() : nullptr;
+}
+
+float UProjectileAbility::GetConfiguredGroundTargetingDecalSize() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings
+		? static_cast<float>(FMath::Max(ProjectileSettings->TargetDecalSize, 0.0))
+		: 0.0f;
+}
+
+float UProjectileAbility::GetConfiguredGroundTargetingDecalFinalSize() const
+{
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	if (const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(SkillDataAsset))
+	{
+		return ProjectileSettings->TargetDecalFinalSize > 0.0
+			? static_cast<float>(ProjectileSettings->TargetDecalFinalSize)
+			: GetConfiguredGroundTargetingDecalSize();
+	}
+
+	return GetConfiguredGroundTargetingDecalSize();
+}
+
+bool UProjectileAbility::ShouldGrowConfiguredGroundTargetingDecal() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings && ProjectileSettings->bGrowTargetDecalSize;
+}
+
+FLinearColor UProjectileAbility::GetConfiguredGroundTargetingDecalColor() const
+{
+	const FSkillProjectileSettings* ProjectileSettings = GetProjectileSettings(GetSourceSkillDataAsset());
+	return ProjectileSettings ? ProjectileSettings->TargetDecalColor : FLinearColor::White;
+}
+
+float UProjectileAbility::CalculateConfiguredImpactAreaDamageRadius(
+	const float ChargeDamageAlpha) const
+{
+	if (!ShouldUseGroundTargeting() || !GetConfiguredGroundTargetingDecal())
+	{
+		return 0.0f;
+	}
+
+	const float StartDiameter = FMath::Max(GetConfiguredGroundTargetingDecalSize(), 0.0f);
+	const float FinalDiameter = FMath::Max(GetConfiguredGroundTargetingDecalFinalSize(), 0.0f);
+	const float DamageDiameter = ShouldGrowConfiguredGroundTargetingDecal()
+		? FMath::Lerp(StartDiameter, FinalDiameter, FMath::Clamp(ChargeDamageAlpha, 0.0f, 1.0f))
+		: StartDiameter;
+
+	// Targeting decal sizes are configured as diameters, matching the AOE decal convention.
+	return DamageDiameter * 0.5f;
+}
+
+bool UProjectileAbility::TryBuildGroundTargetingDecalGrowth(
+	float& OutStartSize,
+	float& OutTargetSize,
+	float& OutDuration) const
+{
+	OutStartSize = GetConfiguredGroundTargetingDecalSize();
+	OutTargetSize = GetConfiguredGroundTargetingDecalFinalSize();
+	OutDuration = 0.0f;
+
+	if (!ShouldUseGroundTargeting()
+		|| !ShouldGrowConfiguredGroundTargetingDecal()
+		|| OutStartSize <= 0.0f
+		|| OutTargetSize <= 0.0f)
+	{
+		return false;
+	}
+
+	OutDuration = GetConfiguredReadiedProjectileScaleDuration();
+	if (OutDuration <= UE_SMALL_NUMBER)
+	{
+		return false;
+	}
+
+	return !FMath::IsNearlyEqual(OutStartSize, OutTargetSize);
 }
 
 bool UProjectileAbility::HasPlayerController() const
@@ -961,79 +2092,6 @@ bool UProjectileAbility::HasPlayerController() const
 	const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
 	const AController* Controller = AvatarPawn ? AvatarPawn->GetController() : nullptr;
 	return Controller && Controller->IsPlayerController();
-}
-
-bool UProjectileAbility::IsLocallyControlledPlayer() const
-{
-	const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
-	return AvatarPawn && AvatarPawn->IsLocallyControlled() && HasPlayerController();
-}
-
-void UProjectileAbility::ApplyProjectileAimCamera(const bool bEnabled) const
-{
-	APdPlayer* Player = Cast<APdPlayer>(GetAvatarActorFromActorInfo());
-	if (!Player)
-	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("[ProjectileCameraDebug] ApplyProjectileAimCamera skipped: no APdPlayer ability=%s avatar=%s enabled=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(GetAvatarActorFromActorInfo()),
-			bEnabled ? TEXT("true") : TEXT("false"));
-		return;
-	}
-
-	const FWeaponAimCameraSettings CameraSettings = bEnabled ? GetConfiguredProjectileCameraSettings() : FWeaponAimCameraSettings();
-	UE_LOG(LogPandoraProjectileAbility, Warning,
-		TEXT("[ProjectileCameraDebug] ApplyProjectileAimCamera ability=%s player=%s enabled=%s local=%s fov=%.1f offset=%s rotation=%s interp=%.1f"),
-		*GetNameSafe(this),
-		*GetNameSafe(Player),
-		bEnabled ? TEXT("true") : TEXT("false"),
-		Player->IsLocallyControlled() ? TEXT("true") : TEXT("false"),
-		CameraSettings.TargetFOV,
-		*CameraSettings.TargetBoomSocketOffset.ToCompactString(),
-		*CameraSettings.TargetCameraRotation.ToCompactString(),
-		CameraSettings.InterpSpeed);
-	Player->SetWeaponAimActive(bEnabled, CameraSettings);
-	Player->SetAbilityCameraOverrideActive(bEnabled, CameraSettings);
-}
-
-void UProjectileAbility::ShowProjectileCrosshair(const bool bEnabled) const
-{
-	const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
-	const APdPlayerController* Controller = AvatarPawn ? Cast<APdPlayerController>(AvatarPawn->GetController()) : nullptr;
-	APdHUD* HUD = Controller ? Cast<APdHUD>(Controller->GetHUD()) : nullptr;
-	if (!HUD)
-	{
-		return;
-	}
-
-	if (bEnabled)
-	{
-		HUD->ShowAimCrosshair(GetConfiguredProjectileCrosshairWidgetTag());
-		return;
-	}
-
-	HUD->HideAimCrosshair();
-}
-
-void UProjectileAbility::ReleaseProjectileAimAnimationState() const
-{
-	APdPlayer* Player = Cast<APdPlayer>(GetAvatarActorFromActorInfo());
-	if (!Player)
-	{
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("[ProjectileCameraDebug] ReleaseProjectileAimAnimationState skipped: no APdPlayer ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(GetAvatarActorFromActorInfo()));
-		return;
-	}
-
-	UE_LOG(LogPandoraProjectileAbility, Warning,
-		TEXT("[ProjectileCameraDebug] ReleaseProjectileAimAnimationState ability=%s player=%s local=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(Player),
-		Player->IsLocallyControlled() ? TEXT("true") : TEXT("false"));
-	Player->SetWeaponAimActive(false, FWeaponAimCameraSettings());
 }
 
 void UProjectileAbility::PauseProjectileMontageForAiming()
@@ -1045,10 +2103,7 @@ void UProjectileAbility::PauseProjectileMontageForAiming()
 	}
 
 	AbilitySystemComponent->CurrentMontageSetPlayRate(0.0f);
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Projectile montage paused for aiming: ability=%s montage=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetCurrentMontage()));
+
 }
 
 void UProjectileAbility::ResumeProjectileMontageAfterAiming()
@@ -1060,118 +2115,19 @@ void UProjectileAbility::ResumeProjectileMontageAfterAiming()
 	}
 
 	AbilitySystemComponent->CurrentMontageSetPlayRate(1.0f);
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Projectile montage resumed after aiming: ability=%s montage=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetCurrentMontage()));
-}
 
-void UProjectileAbility::StartProjectileAimReleaseDelay()
-{
-	ReleaseProjectileAimAnimationState();
-
-	if (!IsLocallyControlledPlayer())
-	{
-		const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("[ProjectileCameraDebug] StartProjectileAimReleaseDelay skipped: not local ability=%s avatar=%s pawnLocal=%s hasPlayerController=%s endAfterFire=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(GetAvatarActorFromActorInfo()),
-			AvatarPawn && AvatarPawn->IsLocallyControlled() ? TEXT("true") : TEXT("false"),
-			HasPlayerController() ? TEXT("true") : TEXT("false"),
-			bEndAfterProjectileFired ? TEXT("true") : TEXT("false"));
-		if (bEndAfterProjectileFired)
-		{
-			K2_EndAbility();
-		}
-		return;
-	}
-
-	bWaitingForProjectileAimRelease = true;
-	const float ReleaseDelay = GetConfiguredProjectileAimReleaseDelay();
-	APdPlayer* Player = Cast<APdPlayer>(GetAvatarActorFromActorInfo());
-	UE_LOG(LogPandoraProjectileAbility, Warning,
-		TEXT("[ProjectileCameraDebug] StartProjectileAimReleaseDelay ability=%s avatar=%s player=%s delay=%.2f world=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetAvatarActorFromActorInfo()),
-		*GetNameSafe(Player),
-		ReleaseDelay,
-		GetWorld() ? TEXT("valid") : TEXT("null"));
-
-	if (Player)
-	{
-		Player->SetAbilityCameraOverrideActiveForDuration(true, GetConfiguredProjectileCameraSettings(), ReleaseDelay);
-		ShowProjectileCrosshair(false);
-		UE_LOG(LogPandoraProjectileAbility, Warning,
-			TEXT("[ProjectileCameraDebug] Release timer delegated to player ability=%s player=%s delay=%.2f"),
-			*GetNameSafe(this),
-			*GetNameSafe(Player),
-			ReleaseDelay);
-		return;
-	}
-
-	UE_LOG(LogPandoraProjectileAbility, Warning,
-		TEXT("[ProjectileCameraDebug] Release delay fallback: no player, releasing immediately ability=%s delay=%.2f"),
-		*GetNameSafe(this),
-		ReleaseDelay);
-	ReleaseProjectileAimState();
-}
-
-void UProjectileAbility::ReleaseProjectileAimState()
-{
-	const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
-	UE_LOG(LogPandoraProjectileAbility, Warning,
-		TEXT("[ProjectileCameraDebug] ReleaseProjectileAimState ENTER ability=%s avatar=%s authority=%s local=%s waitingRelease=%s world=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetAvatarActorFromActorInfo()),
-		HasAuthority(&CurrentActivationInfo) ? TEXT("true") : TEXT("false"),
-		AvatarPawn && AvatarPawn->IsLocallyControlled() ? TEXT("true") : TEXT("false"),
-		bWaitingForProjectileAimRelease ? TEXT("true") : TEXT("false"),
-		GetWorld() ? TEXT("valid") : TEXT("null"));
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ProjectileAimReleaseTimerHandle);
-	}
-
-	bWaitingForProjectileAimRelease = false;
-	ApplyProjectileAimCamera(false);
-	ShowProjectileCrosshair(false);
-
-	UE_LOG(LogPandoraProjectileAbility, Warning,
-		TEXT("[ProjectileCameraDebug] ReleaseProjectileAimState EXIT ability=%s"),
-		*GetNameSafe(this));
 }
 
 void UProjectileAbility::CleanupAimingState()
 {
+	RestoreAvatarMovementForAbility();
 	bWaitingForPlayerConfirm = false;
 	bPlayerProjectileConfirmed = false;
-	const bool bKeepAimUntilReleaseTimer = bWaitingForProjectileAimRelease;
-	UE_LOG(LogPandoraProjectileAbility, Warning,
-		TEXT("[ProjectileCameraDebug] CleanupAimingState ability=%s avatar=%s keepTimer=%s timerActive=%s timerRemaining=%.2f pausedForAim=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(GetAvatarActorFromActorInfo()),
-		bKeepAimUntilReleaseTimer ? TEXT("true") : TEXT("false"),
-		GetWorld() && GetWorld()->GetTimerManager().IsTimerActive(ProjectileAimReleaseTimerHandle) ? TEXT("true") : TEXT("false"),
-		GetWorld() ? GetWorld()->GetTimerManager().GetTimerRemaining(ProjectileAimReleaseTimerHandle) : -1.0f,
-		bPausedForPlayerAim ? TEXT("true") : TEXT("false"));
-	ReleaseProjectileAimAnimationState();
 
 	if (bPausedForPlayerAim)
 	{
 		ResumeProjectileMontageAfterAiming();
 		bPausedForPlayerAim = false;
-	}
-
-	if (!bKeepAimUntilReleaseTimer)
-	{
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().ClearTimer(ProjectileAimReleaseTimerHandle);
-		}
-		ApplyProjectileAimCamera(false);
-		ShowProjectileCrosshair(false);
 	}
 
 	if (ConfirmCancelTask)
@@ -1194,20 +2150,23 @@ void UProjectileAbility::CleanupAimingState()
 
 	if (TargetDataTask)
 	{
+		bCleaningUpTargetDataTask = true;
 		TargetDataTask->EndTask();
+		bCleaningUpTargetDataTask = false;
 		TargetDataTask = nullptr;
 	}
 
-	UE_LOG(LogPandoraProjectileAbility, Log,
-		TEXT("Cleanup aiming state: ability=%s keepAimUntilReleaseTimer=%s"),
-		*GetNameSafe(this),
-		bKeepAimUntilReleaseTimer ? TEXT("true") : TEXT("false"));
+	DestroyReadiedProjectile();
 }
 
-void UProjectileAbility::EndAbilityFromActivation(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo)
+void UProjectileAbility::EndProjectileAbilityAfterResolvedShot()
 {
-	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (AvatarActor && !AvatarActor->HasAuthority())
+	{
+		K2_EndAbilityLocally();
+		return;
+	}
+	K2_EndAbility();
 }

@@ -2,10 +2,9 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
-#include "AbilitySystem/Data/PdStatusEffectDataAsset.h"
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEffectApplied_Target.h"
-#include "Character/PdCharacterBase.h"
+#include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "GameplayEffect.h"
 
@@ -33,6 +32,8 @@ void UReactiveStatusEffectAbility::ActivateAbility(
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+
+
 
 	WaitGameplayEffectAppliedTask = UAbilityTask_WaitGameplayEffectApplied_Target::WaitGameplayEffectAppliedToTarget(
 		this,
@@ -83,7 +84,7 @@ void UReactiveStatusEffectAbility::NotifyStackCountChanged_Implementation(AActor
 		return;
 	}
 
-	APdCharacterBase* AvatarCharacter = Cast<APdCharacterBase>(GetAvatarActorFromActorInfo());
+	ACharacterBase* AvatarCharacter = Cast<ACharacterBase>(GetAvatarActorFromActorInfo());
 	if (!AvatarCharacter)
 	{
 		return;
@@ -146,6 +147,7 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 
 	ApplyDefaultSetByCallerMagnitudes(StatusEffectSpec);
 	StatusEffectSpec = ModifyEffectSpecBeforeApplication(StatusEffectSpec);
+	StatusEffectDataAsset->AppendRemovalPolicyTags(StatusEffectSpec);
 	if (StatusEffectDataAsset->StatusEffectTag.IsValid() && StatusEffectSpec.Data.IsValid())
 	{
 		StatusEffectSpec.Data->DynamicGrantedTags.AddTag(StatusEffectDataAsset->StatusEffectTag);
@@ -158,22 +160,18 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 
 void UReactiveStatusEffectAbility::ApplyDefaultSetByCallerMagnitudes(FGameplayEffectSpecHandle& SpecHandle) const
 {
-	if (!SpecHandle.Data.IsValid() || !StatusEffectDataAsset || StatusEffectDataAsset->StatusDamageMagnitude <= 0.0f)
+	if (!SpecHandle.Data.IsValid() || !StatusEffectDataAsset || StatusEffectDataAsset->ResolveDamageMagnitude() <= 0.0)
 	{
 		return;
 	}
 
-	if (const UStatusEffectDefinition* ElementalDefinition = Cast<UStatusEffectDefinition>(StatusEffectDataAsset))
-	{
-		ElementalDefinition->SetDamageMagnitude(
-			SpecHandle,
-			StatusEffectDataAsset->StatusDamageMagnitude);
-		return;
-	}
-
-	SpecHandle.Data->SetSetByCallerMagnitude(
-		LabGameplayTags::Data_Damage,
-		StatusEffectDataAsset->StatusDamageMagnitude);
+	FSkillGameplayEffectConfig DamageConfig;
+	DamageConfig.Magnitude = StatusEffectDataAsset->ResolveDamageMagnitude();
+	const float SkillScaledDamage = CalculateSkillDamageMagnitude(DamageConfig);
+	StatusEffectDataAsset->SetDamageMagnitude(
+		SpecHandle,
+		GetAbilitySystemComponentFromActorInfo(),
+		SkillScaledDamage);
 }
 
 int32 UReactiveStatusEffectAbility::GetDebuffStackCount(AActor* TargetActor, FActiveGameplayEffectHandle ActiveHandle) const

@@ -1,11 +1,8 @@
 #include "Component/Player/GrappleComponent.h"
 
-#include "AbilitySystemComponent.h"
-
 #include "AbilitySystem/TargetValidator.h"
 #include "CableComponent.h"
 #include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -188,13 +185,10 @@ bool UGrappleComponent::ValidateTargetDataAndTrace(
 bool UGrappleComponent::StartGrappleFromValidatedHit(const FHitResult& HitResult)
 {
 	APdPlayer* PlayerOwner = GetPlayerOwner();
-	const UAbilitySystemComponent* AbilitySystemComponent =
-		PlayerOwner ? PlayerOwner->GetAbilitySystemComponent() : nullptr;
 	if (!PlayerOwner
 		|| !PlayerOwner->HasAuthority()
 		|| bIsGrappling
-		|| (AbilitySystemComponent
-			&& AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Status_Frostbite)))
+		|| PlayerOwner->IsStatusFrozen())
 	{
 		return false;
 	}

@@ -8,6 +8,14 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DashGameplayCue)
 
+namespace
+{
+	bool ShouldHideCharacterMeshForDashCue(const FGameplayCueParameters& Parameters)
+	{
+		return Parameters.RawMagnitude >= 0.0f;
+	}
+}
+
 UDashGameplayCue::UDashGameplayCue()
 {
 	GameplayCueTag = LabGameplayTags::GameplayCue_Dash_Active;
@@ -15,8 +23,6 @@ UDashGameplayCue::UDashGameplayCue()
 
 bool UDashGameplayCue::OnActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) const
 {
-	static_cast<void>(Parameters);
-
 	if (!IsValid(MyTarget))
 	{
 		return false;
@@ -43,14 +49,15 @@ bool UDashGameplayCue::OnActive_Implementation(AActor* MyTarget, const FGameplay
 		UGameplayStatics::PlaySoundAtLocation(MyTarget, StartSound, RootComponent->GetComponentLocation());
 	}
 
-	SetCharacterMeshVisibility(MyTarget, false);
+	if (ShouldHideCharacterMeshForDashCue(Parameters))
+	{
+		SetCharacterMeshVisibility(MyTarget, false);
+	}
 	return true;
 }
 
 bool UDashGameplayCue::OnRemove_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) const
 {
-	static_cast<void>(Parameters);
-
 	if (!IsValid(MyTarget))
 	{
 		return false;
@@ -75,7 +82,10 @@ bool UDashGameplayCue::OnRemove_Implementation(AActor* MyTarget, const FGameplay
 		UGameplayStatics::PlaySoundAtLocation(MyTarget, RemovedSound, RemovedLocation + RemovedSoundLocationOffset);
 	}
 
-	SetCharacterMeshVisibility(MyTarget, true);
+	if (ShouldHideCharacterMeshForDashCue(Parameters))
+	{
+		SetCharacterMeshVisibility(MyTarget, true);
+	}
 	return true;
 }
 

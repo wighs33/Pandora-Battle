@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
+#include "Definition/AbilitySystem/SkillTypes.h"
 #include "GameplayTagContainer.h"
 #include "ShieldAbility.generated.h"
 
@@ -42,6 +43,10 @@ protected:
 	FGameplayTag MontageTriggerEventTag;
 
 private:
+	const FShieldSkillConfig* GetShieldSkillConfig() const;
+	UAnimMontage* GetResolvedShieldMontage() const;
+	TSubclassOf<UGameplayEffect> GetResolvedShieldGameplayEffectClass() const;
+	FGameplayTag GetResolvedMontageTriggerEventTag() const;
 	void StartWaitMontageTriggerTask();
 	bool StartShieldMontageTask();
 	void ApplyShieldFromMontageTrigger();

@@ -1,20 +1,17 @@
 #include "Pandora/PandoraSkillBinder.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
-#include "AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Common/LabGameplayTags.h"
 #include "GameplayAbilitySpec.h"
-#include "GameplayEffect.h"
-#include "Pandora/PandoraDefinition.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraSkillRuntimeContext.h"
 #include "TimerManager.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogPandoraSkillBinder, Log, All);
-
 namespace
 {
-	constexpr int32 MaxPandoraSlotsValue = 4;
+	constexpr int32 MaxPandoraSlotsValue = 3;
 
 	void TryActivateAbilityNextTick(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle AbilityHandle)
 	{
@@ -78,11 +75,26 @@ namespace
 		}
 	}
 
-	int32 ResolveEntryLevel(const UPandoraDefinition* PandoraDefinition, const FSkill& Entry, const int32 PandoraLevel)
+	int32 ResolveEntryLevel(const UPandoraDefinition* PandoraDefinition, const int32 PandoraLevel)
 	{
 		const int32 EffectivePandoraLevel = PandoraLevel > 0 ? PandoraLevel : 1;
-		const int32 MaxUnlockLevel = PandoraDefinition ? PandoraDefinition->GetMaxLevel() : Entry.GetMaxLevel();
+		const int32 MaxUnlockLevel = PandoraDefinition ? PandoraDefinition->GetMaxLevel() : UPandoraDefinition::GetFixedMaxLevel();
 		return FMath::Clamp(EffectivePandoraLevel, 1, FMath::Max(MaxUnlockLevel, 1));
+	}
+
+	int32 ResolveEntryLevelForSlot(const UPandoraDefinition* PandoraDefinition, const FSkill& Entry, const int32 SlotIndex)
+	{
+		static_cast<void>(Entry);
+		return ResolveEntryLevel(PandoraDefinition, UPandoraDefinition::GetRequiredLevelForSkillSlot(SlotIndex));
+	}
+
+	bool IsSkillSlotUnlockedForPandoraLevel(
+		const UPandoraDefinition* PandoraDefinition,
+		const int32 SlotIndex,
+		const int32 PandoraLevel)
+	{
+		return PandoraDefinition
+			&& PandoraDefinition->IsSkillSlotUnlocked(SlotIndex, PandoraLevel);
 	}
 
 	UPandoraSkillRuntimeContext* CreateRuntimeContext(
@@ -90,11 +102,12 @@ namespace
 		const UPandoraDefinition* PandoraDefinition,
 		const FSkill& Entry,
 		const int32 SlotIndex,
-		const int32 EntryLevel)
+		const int32 EntryLevel,
+		const EEnum_Direction LoadoutDirection)
 	{
 		UObject* EffectiveOuter = ContextOuter ? ContextOuter : GetTransientPackage();
 		UPandoraSkillRuntimeContext* RuntimeContext = NewObject<UPandoraSkillRuntimeContext>(EffectiveOuter);
-		RuntimeContext->Initialize(PandoraDefinition, Entry.SkillDefinition.Get(), SlotIndex, EntryLevel);
+		RuntimeContext->Initialize(PandoraDefinition, Entry.SkillDefinition.Get(), SlotIndex, EntryLevel, LoadoutDirection);
 		return RuntimeContext;
 	}
 
@@ -133,7 +146,8 @@ FPandoraSkillBindingResult FPandoraSkillBinder::GrantPandoraContent(
 	AActor* AuthorityOwner,
 	UPdAbilitySystemComponent* AbilitySystemComponent,
 	const UPandoraDefinition* PandoraDefinition,
-	const int32 PandoraLevel)
+	const int32 PandoraLevel,
+	const EEnum_Direction LoadoutDirection)
 {
 	FPandoraSkillBindingResult Result;
 	if (!AuthorityOwner || !AuthorityOwner->HasAuthority() || !PandoraDefinition || !AbilitySystemComponent)
@@ -142,13 +156,26 @@ FPandoraSkillBindingResult FPandoraSkillBinder::GrantPandoraContent(
 	}
 
 	const int32 NumEntriesToGrant = FMath::Min(PandoraDefinition->Skill.Num(), MaxPandoraSlotsValue);
+	const int32 EffectivePandoraLevelForUnlock = FMath::Clamp(PandoraLevel, 0, PandoraDefinition->GetMaxLevel());
+
+
 	for (int32 SlotIndex = 0; SlotIndex < NumEntriesToGrant; ++SlotIndex)
 	{
 		const FSkill& Entry = PandoraDefinition->Skill[SlotIndex];
-		const int32 EntryLevel = ResolveEntryLevel(PandoraDefinition, Entry, PandoraLevel);
+		const bool bSlotUnlocked = IsSkillSlotUnlockedForPandoraLevel(
+			PandoraDefinition,
+			SlotIndex,
+			EffectivePandoraLevelForUnlock);
+		if (!bSlotUnlocked)
+		{
 
-		const TArray<TSubclassOf<UGameplayAbility>> AbilityClasses = Entry.GetAbilitiesToGrantForLevel(EntryLevel);
+			continue;
+		}
+
+		const int32 EntryLevel = ResolveEntryLevelForSlot(PandoraDefinition, Entry, SlotIndex);
+		const TArray<TSubclassOf<UGameplayAbility>> AbilityClasses = Entry.GetAbilitiesToGrant();
 		const FGameplayTag InputTag = GetPandoraInputTag(SlotIndex);
+
 		bool bShouldBindInputTag = true;
 		for (const TSubclassOf<UGameplayAbility>& AbilityClass : AbilityClasses)
 		{
@@ -162,13 +189,18 @@ FPandoraSkillBindingResult FPandoraSkillBinder::GrantPandoraContent(
 				PandoraDefinition,
 				Entry,
 				SlotIndex,
-				EntryLevel);
+				EntryLevel,
+				LoadoutDirection);
 			Result.RuntimeContexts.Add(RuntimeContext);
 
 			FGameplayAbilitySpec AbilitySpec(AbilityClass, EntryLevel, INDEX_NONE, RuntimeContext);
 			if (bShouldBindInputTag && InputTag.IsValid())
 			{
 				AbilitySpec.GetDynamicSpecSourceTags().AddTag(InputTag);
+				if (Entry.SkillDefinition && Entry.SkillDefinition->SkillType == EPdSkillType::Press)
+				{
+					AbilitySpec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Skill_Type_Press);
+				}
 			}
 
 			const UPdGameplayAbility* AbilityCDO = Cast<UPdGameplayAbility>(AbilityClass->GetDefaultObject());
@@ -182,62 +214,20 @@ FPandoraSkillBindingResult FPandoraSkillBinder::GrantPandoraContent(
 					TryActivateAbilityNextTick(AbilitySystemComponent, GrantedHandle);
 				}
 
-				UE_LOG(LogPandoraSkillBinder, Log, TEXT("Granted pandora ability: owner=%s pandora=%s slot=%d source=%s level=%d ability=%s input=%s context=%s"),
-					*GetNameSafe(AuthorityOwner),
-					*GetNameSafe(PandoraDefinition),
-					SlotIndex,
-					*GetNameSafe(RuntimeContext ? RuntimeContext->GetSkillDataAsset() : nullptr),
-					EntryLevel,
-					*GetNameSafe(AbilityClass.Get()),
-					bShouldBindInputTag ? *InputTag.ToString() : TEXT("None"),
-					*GetNameSafe(RuntimeContext));
+
 			}
 
 			bShouldBindInputTag = false;
 		}
-
-		const TArray<TSubclassOf<UGameplayEffect>> EffectClasses = Entry.GetEffectsToApplyForLevel(EntryLevel);
-		for (const TSubclassOf<UGameplayEffect>& EffectClass : EffectClasses)
-		{
-			if (!EffectClass)
-			{
-				continue;
-			}
-
-			UPandoraSkillRuntimeContext* RuntimeContext = CreateRuntimeContext(
-				ContextOuter,
-				PandoraDefinition,
-				Entry,
-				SlotIndex,
-				EntryLevel);
-			Result.RuntimeContexts.Add(RuntimeContext);
-
-			FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
-			EffectContext.AddSourceObject(RuntimeContext);
-
-			const UGameplayEffect* EffectCDO = EffectClass->GetDefaultObject<UGameplayEffect>();
-			const FActiveGameplayEffectHandle EffectHandle =
-				AbilitySystemComponent->ApplyGameplayEffectToSelf(EffectCDO, EntryLevel, EffectContext);
-			if (EffectHandle.WasSuccessfullyApplied())
-			{
-				Result.EffectHandles.Add(EffectHandle);
-			}
-		}
 	}
 
-	UE_LOG(LogPandoraSkillBinder, Log, TEXT("Applied pandora content: owner=%s pandora=%s abilities=%d effects=%d contexts=%d"),
-		*GetNameSafe(AuthorityOwner),
-		*GetNameSafe(PandoraDefinition),
-		Result.AbilityHandles.Num(),
-		Result.EffectHandles.Num(),
-		Result.RuntimeContexts.Num());
+
 	return Result;
 }
 
 void FPandoraSkillBinder::RemoveGrantedContent(
 	UPdAbilitySystemComponent* AbilitySystemComponent,
-	const TArray<FGameplayAbilitySpecHandle>& AbilityHandles,
-	const TArray<FActiveGameplayEffectHandle>& EffectHandles)
+	const TArray<FGameplayAbilitySpecHandle>& AbilityHandles)
 {
 	if (!AbilitySystemComponent)
 	{
@@ -247,14 +237,6 @@ void FPandoraSkillBinder::RemoveGrantedContent(
 	if (!AbilityHandles.IsEmpty())
 	{
 		AbilitySystemComponent->RemoveAbilities(AbilityHandles);
-	}
-
-	for (const FActiveGameplayEffectHandle& EffectHandle : EffectHandles)
-	{
-		if (EffectHandle.IsValid())
-		{
-			AbilitySystemComponent->RemoveActiveGameplayEffect(EffectHandle);
-		}
 	}
 }
 
@@ -266,8 +248,11 @@ void FPandoraSkillBinder::RefreshInputBindings(
 {
 	if (!AbilitySystemComponent)
 	{
+
 		return;
 	}
+
+
 
 	TArray<FGameplayAbilitySpecHandle> AbilityHandles;
 	AbilitySystemComponent->GetAllAbilities(AbilityHandles);
@@ -283,6 +268,7 @@ void FPandoraSkillBinder::RefreshInputBindings(
 		RemovePandoraInputTags(*AbilitySpec);
 		if (AbilitySpec->GetDynamicSpecSourceTags().Num() != PreviousTagCount)
 		{
+
 			AbilitySystemComponent->MarkAbilitySpecDirty(*AbilitySpec);
 		}
 	}
@@ -290,13 +276,21 @@ void FPandoraSkillBinder::RefreshInputBindings(
 	if (bShouldBindSelectedPandora && PandoraDefinition)
 	{
 		const int32 NumEntriesToBind = FMath::Min(PandoraDefinition->Skill.Num(), MaxPandoraSlotsValue);
+		const int32 EffectivePandoraLevelForUnlock = FMath::Clamp(PandoraLevel, 0, PandoraDefinition->GetMaxLevel());
 		for (int32 SlotIndex = 0; SlotIndex < NumEntriesToBind; ++SlotIndex)
 		{
 			const FSkill& Entry = PandoraDefinition->Skill[SlotIndex];
-			const int32 EntryLevel = ResolveEntryLevel(PandoraDefinition, Entry, PandoraLevel);
-			const TArray<TSubclassOf<UGameplayAbility>> AbilityClasses = Entry.GetAbilitiesToGrantForLevel(EntryLevel);
+			if (!IsSkillSlotUnlockedForPandoraLevel(PandoraDefinition, SlotIndex, EffectivePandoraLevelForUnlock))
+			{
+
+				continue;
+			}
+
+			const int32 EntryLevel = ResolveEntryLevelForSlot(PandoraDefinition, Entry, SlotIndex);
+			const TArray<TSubclassOf<UGameplayAbility>> AbilityClasses = Entry.GetAbilitiesToGrant();
 			if (AbilityClasses.IsEmpty() || !AbilityClasses[0])
 			{
+
 				continue;
 			}
 
@@ -306,6 +300,7 @@ void FPandoraSkillBinder::RefreshInputBindings(
 				SlotIndex);
 			if (!AbilitySpec)
 			{
+
 				continue;
 			}
 
@@ -316,14 +311,18 @@ void FPandoraSkillBinder::RefreshInputBindings(
 			}
 
 			AbilitySpec->GetDynamicSpecSourceTags().AddTag(InputTag);
+			if (Entry.SkillDefinition && Entry.SkillDefinition->SkillType == EPdSkillType::Press)
+			{
+				AbilitySpec->GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Skill_Type_Press);
+			}
+			else
+			{
+				AbilitySpec->GetDynamicSpecSourceTags().RemoveTag(LabGameplayTags::Skill_Type_Press);
+			}
 			AbilitySystemComponent->MarkAbilitySpecDirty(*AbilitySpec);
+
 		}
 	}
 
 	AbilitySystemComponent->NotifyAbilitiesChanged();
-}
-
-int32 FPandoraSkillBinder::MaxPandoraSlots()
-{
-	return MaxPandoraSlotsValue;
 }

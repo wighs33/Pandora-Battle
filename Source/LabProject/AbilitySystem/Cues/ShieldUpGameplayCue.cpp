@@ -1,5 +1,6 @@
 #include "AbilitySystem/Cues/ShieldUpGameplayCue.h"
 
+#include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -7,8 +8,6 @@
 #include "Sound/SoundBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShieldUpGameplayCue)
-
-DEFINE_LOG_CATEGORY_STATIC(LogShieldUpGameplayCue, Log, All);
 
 AShieldUpGameplayCue::AShieldUpGameplayCue()
 {
@@ -48,22 +47,57 @@ USkeletalMeshComponent* AShieldUpGameplayCue::ResolveSkeletalMesh(AActor* MyTarg
 		return nullptr;
 	}
 
+	if (const ACharacterBase* Character = Cast<ACharacterBase>(MyTarget))
+	{
+		return Character->GetMesh();
+	}
+
 	return Cast<USkeletalMeshComponent>(MyTarget->GetComponentByClass(USkeletalMeshComponent::StaticClass()));
 }
 
-bool AShieldUpGameplayCue::ApplyShieldOverlay(AActor* MyTarget, UMaterialInterface* OverlayMaterial, bool bPlaySound) const
+bool AShieldUpGameplayCue::ApplyShieldOverlay(
+	AActor* MyTarget,
+	UMaterialInterface* OverlayMaterial,
+	const bool bPlaySound)
 {
 	USkeletalMeshComponent* SkeletalMeshComponent = ResolveSkeletalMesh(MyTarget);
 	if (!SkeletalMeshComponent)
 	{
-		UE_LOG(LogShieldUpGameplayCue, Warning,
-			TEXT("ShieldUp cue skipped: skeletal mesh missing. cue=%s target=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(MyTarget));
+
 		return false;
 	}
 
-	SkeletalMeshComponent->SetOverlayMaterial(OverlayMaterial);
+	if (ACharacterBase* Character = Cast<ACharacterBase>(MyTarget))
+	{
+		if (IsValid(OverlayMaterial))
+		{
+			Character->ApplySkillPresentationOverlay(this, OverlayMaterial);
+		}
+		else
+		{
+			Character->ClearSkillPresentationOverlay(this);
+		}
+	}
+	else
+	{
+		if (IsValid(OverlayMaterial))
+		{
+			if (FallbackOverlayMesh.Get() != SkeletalMeshComponent)
+			{
+				FallbackOverlayMesh = SkeletalMeshComponent;
+				FallbackPreviousOverlayMaterial =
+					SkeletalMeshComponent->GetOverlayMaterial();
+			}
+			SkeletalMeshComponent->SetOverlayMaterial(OverlayMaterial);
+		}
+		else if (FallbackOverlayMesh.Get() == SkeletalMeshComponent)
+		{
+			SkeletalMeshComponent->SetOverlayMaterial(
+				FallbackPreviousOverlayMaterial);
+			FallbackOverlayMesh.Reset();
+			FallbackPreviousOverlayMaterial = nullptr;
+		}
+	}
 
 	if (bPlaySound && ShieldUpSound)
 	{
@@ -73,10 +107,6 @@ bool AShieldUpGameplayCue::ApplyShieldOverlay(AActor* MyTarget, UMaterialInterfa
 			SkeletalMeshComponent->GetComponentLocation());
 	}
 
-	UE_LOG(LogShieldUpGameplayCue, Log,
-		TEXT("ShieldUp cue applied: target=%s overlay=%s playSound=%s"),
-		*GetNameSafe(MyTarget),
-		*GetNameSafe(OverlayMaterial),
-		bPlaySound ? TEXT("true") : TEXT("false"));
+
 	return true;
 }

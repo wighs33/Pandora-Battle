@@ -30,5 +30,11 @@ protected:
 
 private:
 	USkeletalMeshComponent* ResolveSkeletalMesh(AActor* MyTarget) const;
-	bool ApplyShieldOverlay(AActor* MyTarget, UMaterialInterface* OverlayMaterial, bool bPlaySound) const;
+	bool ApplyShieldOverlay(AActor* MyTarget, UMaterialInterface* OverlayMaterial, bool bPlaySound);
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<USkeletalMeshComponent> FallbackOverlayMesh;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> FallbackPreviousOverlayMaterial;
 };

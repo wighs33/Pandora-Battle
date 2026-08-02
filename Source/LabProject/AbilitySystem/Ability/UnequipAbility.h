@@ -9,12 +9,6 @@
 class UGameplayEffect;
 class UItemDefinition;
 
-/**
- * <장착 해제 베이스 어빌리티>
- * - 장착 해제 몽타주와 장착 해제 시점을 처리합니다.
- * - 장착 중 효과 제거와 애니메이션 복구를 담당합니다.
- * - 아이템 태그 기준으로 장착 완료 효과를 제거합니다.
- */
 UCLASS(Blueprintable)
 class LABPROJECT_API UUnequipAbility : public UPdGameplayAbility
 {
@@ -27,6 +21,12 @@ protected:
 	// Timing hooks
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	virtual void EndAbility(
+		FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayAbilityActivationInfo ActivationInfo,
+		bool bReplicateEndAbility,
+		bool bWasCancelled) override;
 
 	// Delegate callbacks
 	UFUNCTION()
@@ -46,7 +46,7 @@ protected:
 	void FinalizeUnequipCommit();
 	bool CommitPendingUnequipIfPossible();
 	bool ShouldActivateRequestedEquip() const;
-	void ActivateRequestedEquipIfNeeded(bool bShouldActivate);
+	bool ActivateRequestedEquipIfNeeded(bool bShouldActivate);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> UnequipEffectClass;
@@ -62,4 +62,7 @@ protected:
 
 	UPROPERTY(Transient)
 	bool bUnequipCommitted = false;
+
+	UPROPERTY(Transient)
+	bool bUnequipTransitionResolved = false;
 };

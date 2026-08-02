@@ -1,6 +1,5 @@
 #pragma once
 
-#include "ActiveGameplayEffectHandle.h"
 #include "CoreMinimal.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "Pandora/PandoraSkillBinder.h"
@@ -15,9 +14,6 @@ struct LABPROJECT_API FPandoraSelectedContent
 
 	UPROPERTY(Transient)
 	TArray<FGameplayAbilitySpecHandle> AbilityHandles;
-
-	UPROPERTY(Transient)
-	TArray<FActiveGameplayEffectHandle> EffectHandles;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPandoraSkillRuntimeContext>> RuntimeContexts;

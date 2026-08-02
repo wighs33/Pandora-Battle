@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ActiveGameplayEffectHandle.h"
+#include "Common/Enum_Direction.h"
 #include "CoreMinimal.h"
 #include "GameplayAbilitySpecHandle.h"
 
@@ -11,7 +11,6 @@ class UPdAbilitySystemComponent;
 struct LABPROJECT_API FPandoraSkillBindingResult
 {
 	TArray<FGameplayAbilitySpecHandle> AbilityHandles;
-	TArray<FActiveGameplayEffectHandle> EffectHandles;
 	TArray<TObjectPtr<UPandoraSkillRuntimeContext>> RuntimeContexts;
 };
 
@@ -23,18 +22,16 @@ public:
 		AActor* AuthorityOwner,
 		UPdAbilitySystemComponent* AbilitySystemComponent,
 		const UPandoraDefinition* PandoraDefinition,
-		int32 PandoraLevel);
+		int32 PandoraLevel,
+		EEnum_Direction LoadoutDirection = EEnum_Direction::Center);
 
 	static void RemoveGrantedContent(
 		UPdAbilitySystemComponent* AbilitySystemComponent,
-		const TArray<FGameplayAbilitySpecHandle>& AbilityHandles,
-		const TArray<FActiveGameplayEffectHandle>& EffectHandles);
+		const TArray<FGameplayAbilitySpecHandle>& AbilityHandles);
 
 	static void RefreshInputBindings(
 		UPdAbilitySystemComponent* AbilitySystemComponent,
 		const UPandoraDefinition* PandoraDefinition,
 		int32 PandoraLevel,
 		bool bShouldBindSelectedPandora);
-
-	static int32 MaxPandoraSlots();
 };

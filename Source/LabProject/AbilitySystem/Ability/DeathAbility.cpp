@@ -5,8 +5,6 @@
 #include "UObject/ConstructorHelpers.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DeathAbility)
 
-DEFINE_LOG_CATEGORY_STATIC(LogDeathAbility, Log, All);
-
 UDeathAbility::UDeathAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -18,12 +16,14 @@ UDeathAbility::UDeathAbility(const FObjectInitializer& ObjectInitializer)
 
 	CancelAbilitiesWithTag.AddTag(LabGameplayTags::GameplayAbility);
 	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Attack);
+	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Punch);
 	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_RangedAttack);
 	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_HitReact);
 	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Equip);
 	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Unequip);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::GameplayAbility);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Attack);
+	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Punch);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_RangedAttack);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_HitReact);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Equip);
@@ -49,10 +49,7 @@ void UDeathAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 
 	if (!DeathEffectClass)
 	{
-		UE_LOG(LogDeathAbility, Warning,
-			TEXT("DeathAbility ended without death effect: ability=%s avatar=%s"),
-			*GetNameSafe(this),
-			ActorInfo && ActorInfo->AvatarActor.IsValid() ? *GetNameSafe(ActorInfo->AvatarActor.Get()) : TEXT("None"));
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}

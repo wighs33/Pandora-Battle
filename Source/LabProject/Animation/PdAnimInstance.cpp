@@ -1,11 +1,11 @@
 #include "Animation/PdAnimInstance.h"
-#include "Character/PdCharacterBase.h"
+#include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
 #include "Common/WeaponAnimNotifyNames.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "KismetAnimationLibrary.h"
-#include "PlayerComponent/EquipmentComponent.h"
+#include "Component/Player/EquipmentComponent.h"
 #include "Weapon/WeaponBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdAnimInstance)
 
@@ -149,7 +149,7 @@ void UPdAnimInstance::CaptureGameThreadSnapshot()
 	NewSnapshot.bIsOnGround = CharacterMovement->IsMovingOnGround();
 	NewSnapshot.bIsCrouching = CharacterMovement->IsCrouching();
 
-	if (const APdCharacterBase* PdCharacter = Cast<APdCharacterBase>(Character))
+	if (const ACharacterBase* PdCharacter = Cast<ACharacterBase>(Character))
 	{
 		NewSnapshot.AimYaw = PdCharacter->GetAimYawForAnimation();
 		NewSnapshot.AimPitch = PdCharacter->GetAimPitchForAnimation();

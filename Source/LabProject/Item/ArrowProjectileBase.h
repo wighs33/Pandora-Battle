@@ -5,7 +5,7 @@
 #include "ArrowProjectileBase.generated.h"
 
 class UNiagaraSystem;
-class APdCharacterBase;
+class ACharacterBase;
 class AWeaponBase;
 class UBoxComponent;
 class UPrimitiveComponent;
@@ -28,6 +28,8 @@ public:
 protected:
 	// Timing hooks
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void Tick(float DeltaSeconds) override;
 
 	// Delegate callbacks
 	UFUNCTION()
@@ -50,10 +52,11 @@ protected:
 	// Query helpers
 	UPrimitiveComponent* GetCollisionComponent() const;
 	UProjectileMovementComponent* GetProjectileMovementComponent() const;
-	APdCharacterBase* GetOwningCharacter() const;
+	ACharacterBase* GetOwningCharacter() const;
 	AWeaponBase* GetOwningWeapon() const;
-	AActor* ResolveDamageTargetActor(AActor* OtherActor) const;
 	bool IsIgnoredImpactActor(const AActor* OtherActor) const;
+	float GetImpactTraceRadius() const;
+	void PerformImpactTrace();
 	void StopProjectileMotion();
 	bool TryHandleImpact(AActor* OtherActor, UPrimitiveComponent* OtherComp);
 
@@ -87,4 +90,10 @@ protected:
 
 	UPROPERTY(Transient)
 	bool bHasImpacted = false;
+
+	UPROPERTY(Transient)
+	bool bImpactTraceActive = false;
+
+	UPROPERTY(Transient)
+	FVector PreviousImpactTraceLocation = FVector::ZeroVector;
 };

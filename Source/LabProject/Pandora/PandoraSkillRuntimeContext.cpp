@@ -1,19 +1,21 @@
 #include "Pandora/PandoraSkillRuntimeContext.h"
 
-#include "Pandora/PandoraDefinition.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraSkillRuntimeContext)
 
 void UPandoraSkillRuntimeContext::Initialize(
 	const UPandoraDefinition* InPandoraDefinition,
-	const USkillDataAsset* InSkillDataAsset,
+	const USkillDefinition* InSkillDataAsset,
 	const int32 InSkillIndex,
-	const int32 InPandoraLevel)
+	const int32 InPandoraLevel,
+	const EEnum_Direction InLoadoutDirection)
 {
 	PandoraDefinition = InPandoraDefinition;
 	SkillDataAsset = InSkillDataAsset;
 	SkillIndex = InSkillIndex;
 	PandoraLevel = FMath::Max(InPandoraLevel, 1);
+	LoadoutDirection = InLoadoutDirection;
 }
 
 const FSkill* UPandoraSkillRuntimeContext::GetPandoraSkill() const
@@ -22,12 +24,13 @@ const FSkill* UPandoraSkillRuntimeContext::GetPandoraSkill() const
 	return Definition && Definition->Skill.IsValidIndex(SkillIndex) ? &Definition->Skill[SkillIndex] : nullptr;
 }
 
-TArray<FProjectileImpactEffectAreaSpawnConfig> UPandoraSkillRuntimeContext::GetProjectileImpactEffectAreasForLevel(const int32 Level) const
+TArray<FProjectileImpactEffectAreaSpawnConfig> UPandoraSkillRuntimeContext::GetProjectileImpactEffectAreas() const
 {
-	if (const FSkill* Skill = GetPandoraSkill())
+	const USkillDefinition* SkillData = SkillDataAsset.Get();
+	if (!SkillData || SkillData->SkillDataType != EPdSkillDataType::Projectile)
 	{
-		return Skill->GetProjectileImpactEffectAreasForLevel(Level);
+		return TArray<FProjectileImpactEffectAreaSpawnConfig>();
 	}
 
-	return SkillDataAsset ? SkillDataAsset->GetLegacyProjectileImpactEffectAreasForLevel(Level) : TArray<FProjectileImpactEffectAreaSpawnConfig>();
+	return TArray<FProjectileImpactEffectAreaSpawnConfig>();
 }

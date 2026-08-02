@@ -1,17 +1,126 @@
 #include "AbilitySystem/Ability/HitReactAbility.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
-#include "Character/PdCharacterBase.h"
+#include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
-#include "Item/ItemDefinition.h"
-#include "PlayerComponent/EquipmentComponent.h"
+#include "Definition/Item/ItemDefinition.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
+#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Component/Player/EquipmentComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HitReactAbility)
+
+namespace
+{
+const USkillDefinition* ResolveSkillDataAssetFromSpec(const FGameplayAbilitySpec& AbilitySpec)
+{
+	const UObject* SourceObject = AbilitySpec.SourceObject.Get();
+	if (const UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(SourceObject))
+	{
+		return RuntimeContext->GetSkillDataAsset();
+	}
+
+	if (const USkillDefinition* SkillDataAsset = Cast<USkillDefinition>(SourceObject))
+	{
+		return SkillDataAsset;
+	}
+
+	if (const UPdGameplayAbility* AbilityInstance = Cast<UPdGameplayAbility>(AbilitySpec.GetPrimaryInstance()))
+	{
+		return AbilityInstance->GetSourceSkillDataAsset();
+	}
+
+	return nullptr;
+}
+
+bool HasActiveSkillProtectedFromHitReact(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle HitReactHandle)
+{
+	if (!AbilitySystemComponent)
+	{
+		return false;
+	}
+
+	for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (!AbilitySpec.IsActive() || !AbilitySpec.Ability || AbilitySpec.Handle == HitReactHandle)
+		{
+			continue;
+		}
+
+		const USkillDefinition* SkillDataAsset = ResolveSkillDataAssetFromSpec(AbilitySpec);
+		if (!SkillDataAsset || SkillDataAsset->bCancelOnHit)
+		{
+			continue;
+		}
+
+
+		return true;
+	}
+
+	return false;
+}
+
+void CancelDefaultActionsForHitReact(UAbilitySystemComponent* AbilitySystemComponent)
+{
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	FGameplayTagContainer TagsToCancel;
+	TagsToCancel.AddTag(LabGameplayTags::Action_Attack);
+	TagsToCancel.AddTag(LabGameplayTags::Action_Punch);
+	TagsToCancel.AddTag(LabGameplayTags::Action_RangedAttack);
+	TagsToCancel.AddTag(LabGameplayTags::Action_Equip);
+	TagsToCancel.AddTag(LabGameplayTags::Action_Unequip);
+	TagsToCancel.AddTag(LabGameplayTags::GameplayAbility_Movement_Grapple);
+	AbilitySystemComponent->CancelAbilities(&TagsToCancel);
+}
+
+void CancelSkillsConfiguredToCancelOnHit(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle HitReactHandle)
+{
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	TArray<FGameplayAbilitySpecHandle> HandlesToCancel;
+	for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (!AbilitySpec.IsActive() || !AbilitySpec.Ability || AbilitySpec.Handle == HitReactHandle)
+		{
+			continue;
+		}
+
+		const USkillDefinition* SkillDataAsset = ResolveSkillDataAssetFromSpec(AbilitySpec);
+		if (!SkillDataAsset || !SkillDataAsset->bCancelOnHit)
+		{
+			continue;
+		}
+
+		HandlesToCancel.AddUnique(AbilitySpec.Handle);
+
+	}
+
+	for (const FGameplayAbilitySpecHandle& AbilityHandle : HandlesToCancel)
+	{
+		AbilitySystemComponent->CancelAbilityHandle(AbilityHandle);
+	}
+}
+} // namespace
 
 UHitReactAbility::UHitReactAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// Hit reactions may overlap as independent executions, but the ability
+	// instance itself has no state that clients need to replicate. GAS still
+	// propagates the ServerInitiated activation, montage and gameplay cues.
+	// Replicating an InstancedPerExecution ability is unsupported by GAS.
+	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateNo;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
 	bRetriggerInstancedAbility = true;
 
 	FGameplayTagContainer AbilityAssetTags;
@@ -19,17 +128,27 @@ UHitReactAbility::UHitReactAbility(const FObjectInitializer& ObjectInitializer)
 	AbilityAssetTags.AddTag(LabGameplayTags::Action_HitReact);
 	SetAssetTags(AbilityAssetTags);
 
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::GameplayAbility);
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Attack);
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_RangedAttack);
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Equip);
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Unequip);
+	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_HitReaction);
+	ActivationOwnedTags.AddTag(LabGameplayTags::Action_HitReact);
+}
+
+void UHitReactAbility::PostLoad()
+{
+	Super::PostLoad();
+
+	// Older GA_HitReact assets serialized ReplicateYes. Restore the supported
+	// policy after Blueprint defaults are deserialized so packaged builds and
+	// data validation cannot recreate the per-execution replication conflict.
+	if (InstancingPolicy == EGameplayAbilityInstancingPolicy::InstancedPerExecution)
+	{
+		ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateNo;
+	}
 }
 
 // State helpers
 void UHitReactAbility::ClearActiveHitReactEffect()
 {
-	if (HitReactEffectClass && HasAuthority(&CurrentActivationInfo))
+	if (bApplyHitReactEffect && HitReactEffectClass && HasAuthority(&CurrentActivationInfo))
 	{
 		RemoveGameplayEffect(HitReactEffectClass);
 	}
@@ -58,83 +177,158 @@ void UHitReactAbility::OnHitReactMontageCancelled()
 void UHitReactAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-	APdCharacterBase* Character = GetPdCharacterFromActorInfo();
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!ensure(Character))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("HitReactAbility failed: character is null. ability=%s"), *GetNameSafe(this));
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("HitReactAbility activated: character=%s authority=%s avatar=%s owner=%s"),
-		*GetNameSafe(Character),
-		HasAuthority(&ActivationInfo) ? TEXT("true") : TEXT("false"),
-		ActorInfo ? *GetNameSafe(ActorInfo->AvatarActor.Get()) : TEXT("None"),
-		ActorInfo ? *GetNameSafe(ActorInfo->OwnerActor.Get()) : TEXT("None"));
+	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	if (HasActiveSkillProtectedFromHitReact(AbilitySystemComponent, Handle))
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		return;
+	}
+
+	CancelDefaultActionsForHitReact(AbilitySystemComponent);
+	CancelSkillsConfiguredToCancelOnHit(AbilitySystemComponent, Handle);
 
 	UAnimMontage* Montage = nullptr;
-	FName StartSectionName = HitReactStartSectionName;
 	if (const UEquipmentComponent* EquipmentComponent = Character->FindComponentByClass<UEquipmentComponent>())
 	{
 		FHitReactData HitReactData;
 		if (EquipmentComponent->GetHitReactData(HitReactData))
 		{
 			Montage = HitReactData.HitReactMontage;
-			UE_LOG(LogTemp, Log, TEXT("HitReactAbility montage from equipment: character=%s item=%s montage=%s"),
-				*GetNameSafe(Character),
-				*GetNameSafe(HitReactData.ItemDefinition),
-				*GetNameSafe(Montage));
 		}
-		else
+	}
+
+	if (!Montage)
+	{
+		Montage = HitReactMontage.Get();
+	}
+
+	if (!Montage && !HitReactMontage.IsNull())
+	{
+		BeginHitReactMontagePreload();
+		return;
+	}
+
+	StartHitReactMontage(Montage, Handle, ActorInfo, ActivationInfo);
+	static_cast<void>(TriggerEventData);
+}
+
+void UHitReactAbility::EndAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	const bool bReplicateEndAbility,
+	const bool bWasCancelled)
+{
+	ReleaseHitReactMontagePreload();
+	Super::EndAbility(
+		Handle,
+		ActorInfo,
+		ActivationInfo,
+		bReplicateEndAbility,
+		bWasCancelled);
+}
+
+void UHitReactAbility::BeginHitReactMontagePreload()
+{
+	ReleaseHitReactMontagePreload();
+	if (HitReactMontage.IsNull())
+	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+		return;
+	}
+
+	const uint32 RequestGeneration = HitReactMontageRequestGeneration;
+	TSharedPtr<FStreamableHandle> NewHandle =
+		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
+			HitReactMontage.ToSoftObjectPath(),
+			FStreamableDelegate::CreateUObject(
+				this,
+				&ThisClass::HandleHitReactMontagePreloadComplete,
+				RequestGeneration));
+	if (RequestGeneration != HitReactMontageRequestGeneration)
+	{
+		if (NewHandle.IsValid())
 		{
-			UE_LOG(LogTemp, Log, TEXT("HitReactAbility equipment has no hit react data: character=%s"), *GetNameSafe(Character));
+			NewHandle->CancelHandle();
+			NewHandle->ReleaseHandle();
 		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Log, TEXT("HitReactAbility no equipment component: character=%s"), *GetNameSafe(Character));
+		return;
 	}
 
+	HitReactMontagePreloadHandle = MoveTemp(NewHandle);
+	if (!HitReactMontagePreloadHandle.IsValid())
+	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+	}
+}
+
+void UHitReactAbility::HandleHitReactMontagePreloadComplete(
+	const uint32 RequestGeneration)
+{
+	if (RequestGeneration != HitReactMontageRequestGeneration
+		|| !IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))
+	{
+		return;
+	}
+
+	UAnimMontage* Montage = HitReactMontage.Get();
 	if (!Montage)
 	{
-		Montage = HitReactMontage.LoadSynchronous();
-		UE_LOG(LogTemp, Log, TEXT("HitReactAbility fallback montage: character=%s montage=%s softPath=%s"),
-			*GetNameSafe(Character),
-			*GetNameSafe(Montage),
-			*HitReactMontage.ToSoftObjectPath().ToString());
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+		return;
 	}
 
-	if (!Montage)
-	{
-		Montage = LoadObject<UAnimMontage>(nullptr, TEXT("/Game/Animation/Stickman/Unarmed/React/AM_HitReact.AM_HitReact"));
-		UE_LOG(LogTemp, Log, TEXT("HitReactAbility project default montage: character=%s montage=%s"),
-			*GetNameSafe(Character),
-			*GetNameSafe(Montage));
-	}
+	StartHitReactMontage(
+		Montage,
+		CurrentSpecHandle,
+		CurrentActorInfo,
+		CurrentActivationInfo);
+}
 
-	if (!ensure(Montage))
+void UHitReactAbility::ReleaseHitReactMontagePreload()
+{
+	++HitReactMontageRequestGeneration;
+	if (HitReactMontagePreloadHandle.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("HitReactAbility ended: no montage configured. character=%s ability=%s"),
-			*GetNameSafe(Character),
-			*GetNameSafe(GetClass()));
+		HitReactMontagePreloadHandle->CancelHandle();
+		HitReactMontagePreloadHandle->ReleaseHandle();
+		HitReactMontagePreloadHandle.Reset();
+	}
+}
+
+void UHitReactAbility::StartHitReactMontage(
+	UAnimMontage* Montage,
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo)
+{
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
+	if (!ensure(Character) || !ensure(Montage))
+	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
 
+	FName StartSectionName = HitReactStartSectionName;
+
 	if (!ensure(CommitAbility(Handle, ActorInfo, ActivationInfo)))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("HitReactAbility commit failed: character=%s ability=%s"),
-			*GetNameSafe(Character),
-			*GetNameSafe(GetClass()));
+
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
 	if (!StartSectionName.IsNone() && Montage->GetSectionIndex(StartSectionName) == INDEX_NONE)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("HitReactAbility: start section '%s' was not found in montage '%s'. Falling back to the default start."),
-			*StartSectionName.ToString(),
-			*GetNameSafe(Montage));
+
 		StartSectionName = NAME_None;
 	}
 
@@ -145,7 +339,7 @@ void UHitReactAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, 
 		1.f,
 		StartSectionName,
 		false,
-		1.f,
+		1.0f,
 		0.f,
 		true);
 	if (!ensure(MontageTask))
@@ -157,13 +351,9 @@ void UHitReactAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, 
 	MontageTask->OnCompleted.AddDynamic(this, &UHitReactAbility::OnHitReactMontageCompleted);
 	MontageTask->OnInterrupted.AddDynamic(this, &UHitReactAbility::OnHitReactMontageInterrupted);
 	MontageTask->OnCancelled.AddDynamic(this, &UHitReactAbility::OnHitReactMontageCancelled);
-	UE_LOG(LogTemp, Log, TEXT("HitReactAbility playing montage: character=%s montage=%s section=%s"),
-		*GetNameSafe(Character),
-		*GetNameSafe(Montage),
-		*StartSectionName.ToString());
 	MontageTask->ReadyForActivation();
 
-	if (HitReactEffectClass)
+	if (bApplyHitReactEffect && HitReactEffectClass)
 	{
 		ApplyGameplayEffect(HitReactEffectClass, 1.f, 1);
 	}
@@ -177,5 +367,4 @@ void UHitReactAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, 
 		K2_ExecuteGameplayCueWithParams(HitReactCueTag, CueParameters);
 	}
 
-	static_cast<void>(TriggerEventData);
 }

@@ -7,7 +7,7 @@
 
 class UAbilityTask_WaitGameplayEffectApplied_Target;
 class UAbilitySystemComponent;
-class UPdStatusEffectDataAsset;
+class UStatusEffectDefinition;
 
 UCLASS(Abstract, Blueprintable)
 class LABPROJECT_API UReactiveStatusEffectAbility : public UPdGameplayAbility
@@ -38,7 +38,7 @@ protected:
 	void NotifyStackCountChanged(AActor* TargetActor, int32 NewStackCount);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect")
-	TObjectPtr<UPdStatusEffectDataAsset> StatusEffectDataAsset;
+	TObjectPtr<UStatusEffectDefinition> StatusEffectDataAsset;
 
 private:
 	UFUNCTION()
