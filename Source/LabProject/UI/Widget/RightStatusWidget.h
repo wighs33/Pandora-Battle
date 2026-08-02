@@ -8,6 +8,7 @@
 class UButton;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedStatUpButton, FGameplayTag, StatTag);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedStatDownButton, FGameplayTag, StatTag);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API URightStatusWidget : public UUserWidget
@@ -20,8 +21,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Status", meta = (Categories = "Status"))
 	void BroadcastClickedStatUpButton(FGameplayTag InStatTag);
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Status", meta = (Categories = "Status"))
+	void BroadcastClickedStatDownButton(FGameplayTag InStatTag);
+
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Status")
 	FPdOnClickedStatUpButton OnClicked_StatUpButton;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Status")
+	FPdOnClickedStatDownButton OnClicked_StatDownButton;
 
 protected:
 	virtual void NativeConstruct() override;
@@ -37,22 +44,22 @@ protected:
 	TObjectPtr<UButton> Button_Up_Arcane;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
-	TObjectPtr<UButton> Button_Up_Toughness;
+	TObjectPtr<UButton> Button_Up_Armor;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
 	TObjectPtr<UButton> Button_Up_Recovery;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
-	TObjectPtr<UButton> Button_Up_MagicResistance;
+	TObjectPtr<UButton> Button_Up_Shield;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
-	TObjectPtr<UButton> Button_Up_Immunity;
+	TObjectPtr<UButton> Button_Up_Burn;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
-	TObjectPtr<UButton> Button_Up_Fortitude;
+	TObjectPtr<UButton> Button_Up_Freeze;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
-	TObjectPtr<UButton> Button_Up_Sanity;
+	TObjectPtr<UButton> Button_Up_Shock;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
 	TObjectPtr<UButton> Button_Up_FirstPandora;
@@ -78,8 +85,62 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
 	TObjectPtr<UButton> Button_Up_MovementSpeed;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Up_Critical;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
-	TObjectPtr<UButton> Button_Up_CriticalChance;
+	TObjectPtr<UButton> Button_Down_Strength;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_Intelligence;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_Arcane;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_Armor;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_Recovery;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_Shield;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_Burn;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_Freeze;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_Shock;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_FirstPandora;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_SecondPandora;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_ThirdPandora;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_MaxHealth;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_MaxMana;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_MaxStamina;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_AttackSpeed;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_MovementSpeed;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Status|Bind")
+	TObjectPtr<UButton> Button_Down_Critical;
 
 private:
 	UFUNCTION()
@@ -98,16 +159,16 @@ private:
 	void HandleRecoveryClicked();
 
 	UFUNCTION()
-	void HandleMagicResistanceClicked();
+	void HandleMaxShieldClicked();
 
 	UFUNCTION()
-	void HandleImmunityClicked();
+	void HandleFrostbiteClicked();
 
 	UFUNCTION()
-	void HandleFortitudeClicked();
+	void HandleBurnClicked();
 
 	UFUNCTION()
-	void HandleSanityClicked();
+	void HandleElectricShockClicked();
 
 	UFUNCTION()
 	void HandleFirstPandoraClicked();
@@ -134,9 +195,64 @@ private:
 	void HandleMovementSpeedClicked();
 
 	UFUNCTION()
-	void HandleCriticalChanceClicked();
+	void HandleCriticalClicked();
+
+	UFUNCTION()
+	void HandleStrengthDownClicked();
+
+	UFUNCTION()
+	void HandleIntelligenceDownClicked();
+
+	UFUNCTION()
+	void HandleArcaneDownClicked();
+
+	UFUNCTION()
+	void HandleArmorDownClicked();
+
+	UFUNCTION()
+	void HandleRecoveryDownClicked();
+
+	UFUNCTION()
+	void HandleMaxShieldDownClicked();
+
+	UFUNCTION()
+	void HandleFrostbiteDownClicked();
+
+	UFUNCTION()
+	void HandleBurnDownClicked();
+
+	UFUNCTION()
+	void HandleElectricShockDownClicked();
+
+	UFUNCTION()
+	void HandleFirstPandoraDownClicked();
+
+	UFUNCTION()
+	void HandleSecondPandoraDownClicked();
+
+	UFUNCTION()
+	void HandleThirdPandoraDownClicked();
+
+	UFUNCTION()
+	void HandleMaxHealthDownClicked();
+
+	UFUNCTION()
+	void HandleMaxManaDownClicked();
+
+	UFUNCTION()
+	void HandleMaxStaminaDownClicked();
+
+	UFUNCTION()
+	void HandleAttackSpeedDownClicked();
+
+	UFUNCTION()
+	void HandleMovementSpeedDownClicked();
+
+	UFUNCTION()
+	void HandleCriticalDownClicked();
 
 	void HandleStatUpButtonClicked(FGameplayTag InStatTag, const TCHAR* StatTagPropertyName, const UButton* SourceButton);
+	void HandleStatDownButtonClicked(FGameplayTag InStatTag, const TCHAR* StatTagPropertyName, const UButton* SourceButton);
 	void ValidateConfiguredStatTags() const;
 	void BindButtonCallbacks();
 	void UnbindButtonCallbacks();
@@ -145,10 +261,10 @@ private:
 	FGameplayTag GetArcaneStatTag() const;
 	FGameplayTag GetArmorStatTag() const;
 	FGameplayTag GetRecoveryStatTag() const;
-	FGameplayTag GetMagicResistanceStatTag() const;
-	FGameplayTag GetImmunityStatTag() const;
-	FGameplayTag GetFortitudeStatTag() const;
-	FGameplayTag GetSanityStatTag() const;
+	FGameplayTag GetMaxShieldStatTag() const;
+	FGameplayTag GetFrostbiteStatTag() const;
+	FGameplayTag GetBurnStatTag() const;
+	FGameplayTag GetElectricShockStatTag() const;
 	FGameplayTag GetFirstPandoraStatTag() const;
 	FGameplayTag GetSecondPandoraStatTag() const;
 	FGameplayTag GetThirdPandoraStatTag() const;
@@ -157,5 +273,7 @@ private:
 	FGameplayTag GetMaxStaminaStatTag() const;
 	FGameplayTag GetAttackSpeedStatTag() const;
 	FGameplayTag GetMovementSpeedStatTag() const;
-	FGameplayTag GetCriticalChanceStatTag() const;
+	FGameplayTag GetCriticalStatTag() const;
+	UButton* GetCriticalUpButton() const;
+	UButton* GetCriticalDownButton() const;
 };

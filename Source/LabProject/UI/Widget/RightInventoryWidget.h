@@ -1,15 +1,20 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "UI/Widget/FilterButtonHighlight.h"
 #include "RightInventoryWidget.generated.h"
 
 class UButton;
+class UEditableTextBox;
 class UInventorySlotViewData;
+class UItemInstance;
 class UTileView;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedInventoryFilterAllButton);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedInventoryFilterTypeButton, FGameplayTag, TypeTag);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FPdOnDroppedInventorySlot, int32, SourceSlotIndex, int32, TargetSlotIndex, UItemInstance*, SourceItem);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API URightInventoryWidget : public UUserWidget
@@ -30,6 +35,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
 	void ToggleActiveFiliterButtons(bool bActive);
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
+	void ResetFilterHighlightToAll();
+
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Tile View
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
@@ -44,11 +52,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
 	int32 GetInventorySlotCount() const { return InventorySlotCount; }
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
+	void SetInventorySlotCount(int32 InInventorySlotCount);
+
+	void BroadcastDroppedInventorySlot(int32 SourceSlotIndex, int32 TargetSlotIndex, UItemInstance* SourceItem);
+
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Inventory")
 	FPdOnClickedInventoryFilterAllButton OnClicked_FilterAllButton;
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Inventory")
 	FPdOnClickedInventoryFilterTypeButton OnClicked_FilterTypeButton;
+
+	UPROPERTY(BlueprintAssignable, Category = "!UI|Inventory")
+	FPdOnDroppedInventorySlot OnDropped_InventorySlot;
 
 protected:
 	//------------------------------------------------------------------------------------------------------------------
@@ -76,16 +92,31 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Inventory")
 	TArray<TObjectPtr<UButton>> FilterButtonList;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Inventory|Filter")
+	FLinearColor SelectedFilterAccentColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
+
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Tile View
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory", meta = (BindWidget))
 	TObjectPtr<UTileView> TileView;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory|Search", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_Search;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory|Search", meta = (BindWidgetOptional))
+	TObjectPtr<UEditableTextBox> SearchBox;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Inventory|Slots", meta = (ClampMin = "0"))
 	int32 InventorySlotCount = 40;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Inventory|Slots")
 	TArray<TObjectPtr<UInventorySlotViewData>> CachedSlotViewData;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UObject>> CachedSourceListItems;
+
+	UPROPERTY(Transient)
+	FString ActiveSearchText;
 
 private:
 	//------------------------------------------------------------------------------------------------------------------
@@ -105,9 +136,23 @@ private:
 	UFUNCTION()
 	void OnConsumableButtonClicked();
 
+	UFUNCTION()
+	void OnSearchButtonClicked();
+
 	void RebuildFilterButtonList();
+	void RebuildTileViewFromCachedSourceItems();
+	bool DoesItemMatchSearch(const UItemInstance* ItemInstance, const FString& SearchText) const;
+	void ApplyWidgetDefinitionSettings();
+	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
 	FGameplayTag GetWeaponTypeTag() const;
 	FGameplayTag GetEquipmentTypeTag() const;
 	FGameplayTag GetValuableTypeTag() const;
 	FGameplayTag GetConsumableTypeTag() const;
+
+	FGameplayTag WeaponTypeTagOverride;
+	FGameplayTag EquipmentTypeTagOverride;
+	FGameplayTag ValuableTypeTagOverride;
+	FGameplayTag ConsumableTypeTagOverride;
+
+	FFilterButtonHighlightState FilterButtonHighlightState;
 };

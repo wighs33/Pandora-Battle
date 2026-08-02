@@ -10,6 +10,8 @@ class UImage;
 class UInventorySlotViewData;
 class UDragItemVisualWidget;
 class UTextBlock;
+class UInventoryComponent;
+class UDragDropOperation;
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UItemSlotWidget : public UUserWidget, public IUserObjectListEntry
@@ -55,9 +57,13 @@ protected:
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
 	TObjectPtr<UTextBlock> TextBlock;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
+	TObjectPtr<UTextBlock> QuantityTextBlock;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
 	TObjectPtr<UImage> IconImage;
@@ -75,6 +81,11 @@ private:
 	void ApplyItemVisual(const FPdItemViewData& ViewData);
 	void CacheOptionalWidgets();
 	void ApplySelectionVisual();
+	bool IsItemConsumable(const UItemInstance* ItemInstance) const;
+	bool IsCachedItemConsumable() const;
+	UInventoryComponent* ResolveOwningInventoryComponent() const;
+	bool RequestSplitCachedStack() const;
+	bool RequestMergeDraggedStack(UDragDropOperation* InOperation) const;
 
 	UPROPERTY(Transient)
 	FPdItemViewData CachedViewData;

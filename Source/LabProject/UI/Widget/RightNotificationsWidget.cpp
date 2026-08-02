@@ -3,27 +3,18 @@
 #include "Components/PanelWidget.h"
 #include "TimerManager.h"
 #include "UI/Widget/NotificationEntryWidget.h"
+#include "UI/WidgetLookup.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RightNotificationsWidget)
-
-DEFINE_LOG_CATEGORY_STATIC(LogRightNotificationsWidget, Log, All);
 
 void URightNotificationsWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	ApplyWidgetDefinitionSettings();
 	CacheOptionalWidgets();
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] Construct. widget=%s list=%s entryClass=%s maxVisible=%d lifetime=%.2f dequeueInterval=%.2f queued=%d available=%d active=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(NotificationList),
-		*GetNameSafe(NotificationEntryWidgetClass.Get()),
-		MaxVisibleNotifications,
-		NotificationLifetime,
-		NotificationDequeueInterval,
-		NotificationQueue.Num(),
-		AvailableNotifications.Num(),
-		ActiveNotifications.Num());
+
 	TryShowQueuedNotifications();
 }
 
@@ -34,38 +25,38 @@ void URightNotificationsWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+void URightNotificationsWidget::ApplyWidgetDefinitionSettings()
+{
+	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+	{
+		const FRightNotificationsWidgetSettings& Settings = WidgetDefinition->GetRightNotificationsWidgetSettings();
+		if (const TSubclassOf<UNotificationEntryWidget> ResolvedEntryWidgetClass =
+			WidgetDefinition->GetNotificationEntryWidgetClass())
+		{
+			NotificationEntryWidgetClass = ResolvedEntryWidgetClass;
+		}
+		MaxVisibleNotifications = FMath::Max(Settings.MaxVisibleNotifications, 1);
+		NotificationLifetime = FMath::Max(Settings.NotificationLifetime, 0.0f);
+		NotificationDequeueInterval = FMath::Max(Settings.NotificationDequeueInterval, 0.0f);
+	}
+}
+
 void URightNotificationsWidget::EnqueueNotification(const FPdNotificationData& NotificationData)
 {
 	if (NotificationData.Text.IsEmpty() && !NotificationData.IconResource)
 	{
-		UE_LOG(LogRightNotificationsWidget, Warning,
-			TEXT("[RightNotifications] enqueue skipped: empty text and no icon. widget=%s"),
-			*GetNameSafe(this));
+
 		return;
 	}
 
 	NotificationQueue.Add(NotificationData);
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] enqueued. widget=%s text=%s icon=%s queued=%d available=%d active=%d"),
-		*GetNameSafe(this),
-		*NotificationData.Text.ToString(),
-		*GetNameSafe(NotificationData.IconResource),
-		NotificationQueue.Num(),
-		AvailableNotifications.Num(),
-		ActiveNotifications.Num());
+
 	TryShowQueuedNotifications();
 }
 
 void URightNotificationsWidget::ClearNotifications()
 {
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] ClearNotifications. widget=%s queued=%d available=%d active=%d lifetimeTimers=%d removeTimers=%d"),
-		*GetNameSafe(this),
-		NotificationQueue.Num(),
-		AvailableNotifications.Num(),
-		ActiveNotifications.Num(),
-		LifetimeTimerHandles.Num(),
-		RemoveTimerHandles.Num());
+
 
 	if (UWorld* World = GetWorld())
 	{
@@ -95,26 +86,12 @@ void URightNotificationsWidget::CacheOptionalWidgets()
 {
 	if (!NotificationList)
 	{
-		NotificationList = Cast<UPanelWidget>(GetWidgetFromName(TEXT("NotificationList")));
-	}
-	if (!NotificationList)
-	{
-		NotificationList = Cast<UPanelWidget>(GetWidgetFromName(TEXT("NotificationsList")));
-	}
-	if (!NotificationList)
-	{
-		NotificationList = Cast<UPanelWidget>(GetWidgetFromName(TEXT("NotificationsBox")));
-	}
-	if (!NotificationList)
-	{
-		NotificationList = Cast<UPanelWidget>(GetWidgetFromName(TEXT("VerticalBox_Notifications")));
-	}
-
-	if (!NotificationList)
-	{
-		UE_LOG(LogRightNotificationsWidget, Warning,
-			TEXT("[RightNotifications] NotificationList not found. widget=%s expected one of: NotificationList, NotificationsList, NotificationsBox, VerticalBox_Notifications"),
-			*GetNameSafe(this));
+		NotificationList = PdWidgetLookup::FindWidgetByNames<UPanelWidget>(this, {
+			TEXT("NotificationList"),
+			TEXT("NotificationsList"),
+			TEXT("NotificationsBox"),
+			TEXT("VerticalBox_Notifications")
+		});
 	}
 }
 
@@ -140,11 +117,7 @@ void URightNotificationsWidget::PrimeNotificationPool()
 		AvailableNotifications.AddUnique(EntryWidget);
 	}
 
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] pool primed. widget=%s list=%s available=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(NotificationList),
-		AvailableNotifications.Num());
+
 }
 
 void URightNotificationsWidget::TryShowQueuedNotifications()
@@ -154,14 +127,7 @@ void URightNotificationsWidget::TryShowQueuedNotifications()
 
 	if (!NotificationList || (!NotificationEntryWidgetClass && AvailableNotifications.IsEmpty()))
 	{
-		UE_LOG(LogRightNotificationsWidget, Warning,
-			TEXT("[RightNotifications] cannot start notification queue. widget=%s list=%s entryClass=%s queued=%d available=%d active=%d"),
-			*GetNameSafe(this),
-			*GetNameSafe(NotificationList),
-			*GetNameSafe(NotificationEntryWidgetClass.Get()),
-			NotificationQueue.Num(),
-			AvailableNotifications.Num(),
-			ActiveNotifications.Num());
+
 		return;
 	}
 
@@ -181,24 +147,11 @@ bool URightNotificationsWidget::TryShowNextQueuedNotification()
 
 	if (!NotificationList || (!NotificationEntryWidgetClass && AvailableNotifications.IsEmpty()))
 	{
-		UE_LOG(LogRightNotificationsWidget, Warning,
-			TEXT("[RightNotifications] cannot show next notification. widget=%s list=%s entryClass=%s queued=%d available=%d active=%d"),
-			*GetNameSafe(this),
-			*GetNameSafe(NotificationList),
-			*GetNameSafe(NotificationEntryWidgetClass.Get()),
-			NotificationQueue.Num(),
-			AvailableNotifications.Num(),
-			ActiveNotifications.Num());
+
 		return false;
 	}
 
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] TryShowNextQueuedNotification. widget=%s queued=%d available=%d active=%d max=%d"),
-		*GetNameSafe(this),
-		NotificationQueue.Num(),
-		AvailableNotifications.Num(),
-		ActiveNotifications.Num(),
-		MaxVisibleNotifications);
+
 
 	if (NotificationQueue.IsEmpty())
 	{
@@ -208,28 +161,14 @@ bool URightNotificationsWidget::TryShowNextQueuedNotification()
 	UNotificationEntryWidget* EntryWidget = AcquireNotificationWidget();
 	if (!EntryWidget)
 	{
-		UE_LOG(LogRightNotificationsWidget, Verbose,
-			TEXT("[RightNotifications] wait for available widget. widget=%s queued=%d available=%d active=%d max=%d"),
-			*GetNameSafe(this),
-			NotificationQueue.Num(),
-			AvailableNotifications.Num(),
-			ActiveNotifications.Num(),
-			MaxVisibleNotifications);
+
 		return false;
 	}
 
 	const FPdNotificationData NotificationData = NotificationQueue[0];
 	NotificationQueue.RemoveAt(0);
 
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] showing notification. container=%s entry=%s text=%s icon=%s queuedAfter=%d available=%d activeBefore=%d"),
-		*GetNameSafe(NotificationList),
-		*GetNameSafe(EntryWidget),
-		*NotificationData.Text.ToString(),
-		*GetNameSafe(NotificationData.IconResource),
-		NotificationQueue.Num(),
-		AvailableNotifications.Num(),
-		ActiveNotifications.Num());
+
 
 	EntryWidget->SetNotificationData(NotificationData);
 	EntryWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
@@ -257,13 +196,7 @@ void URightNotificationsWidget::ScheduleNextDequeue(float Delay)
 		return;
 	}
 
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] schedule dequeue. widget=%s delay=%.2f queued=%d available=%d active=%d"),
-		*GetNameSafe(this),
-		Delay,
-		NotificationQueue.Num(),
-		AvailableNotifications.Num(),
-		ActiveNotifications.Num());
+
 
 	if (Delay <= 0.0f)
 	{
@@ -283,13 +216,7 @@ void URightNotificationsWidget::HandleDequeueTimer()
 	}
 
 	const bool bShown = TryShowNextQueuedNotification();
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] dequeue tick. widget=%s shown=%s queued=%d available=%d active=%d"),
-		*GetNameSafe(this),
-		bShown ? TEXT("true") : TEXT("false"),
-		NotificationQueue.Num(),
-		AvailableNotifications.Num(),
-		ActiveNotifications.Num());
+
 
 	if (!NotificationQueue.IsEmpty())
 	{
@@ -304,12 +231,7 @@ void URightNotificationsWidget::HandleDequeueTimer()
 	}
 
 	bDequeueSequenceActive = false;
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] dequeue sequence reset. widget=%s queued=%d available=%d active=%d"),
-		*GetNameSafe(this),
-		NotificationQueue.Num(),
-		AvailableNotifications.Num(),
-		ActiveNotifications.Num());
+
 }
 
 UNotificationEntryWidget* URightNotificationsWidget::AcquireNotificationWidget()
@@ -332,21 +254,14 @@ UNotificationEntryWidget* URightNotificationsWidget::AcquireNotificationWidget()
 	APlayerController* OwningPlayer = GetOwningPlayer();
 	if (!NotificationEntryWidgetClass)
 	{
-		UE_LOG(LogRightNotificationsWidget, Warning,
-			TEXT("[RightNotifications] no available entry and NotificationEntryWidgetClass is not set. widget=%s owningPlayer=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(OwningPlayer));
+
 		return nullptr;
 	}
 
 	UNotificationEntryWidget* EntryWidget = CreateWidget<UNotificationEntryWidget>(OwningPlayer, NotificationEntryWidgetClass);
 	if (!EntryWidget)
 	{
-		UE_LOG(LogRightNotificationsWidget, Warning,
-			TEXT("[RightNotifications] failed to create entry widget. widget=%s class=%s owningPlayer=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(NotificationEntryWidgetClass.Get()),
-			*GetNameSafe(OwningPlayer));
+
 		return nullptr;
 	}
 
@@ -403,13 +318,7 @@ void URightNotificationsWidget::BeginRemoveNotification(UNotificationEntryWidget
 	}
 
 	const float OutDuration = EntryWidget->PlayNotificationOut();
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] begin remove notification. widget=%s entry=%s outDuration=%.2f active=%d queued=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(EntryWidget),
-		OutDuration,
-		ActiveNotifications.Num(),
-		NotificationQueue.Num());
+
 
 	if (OutDuration <= 0.0f)
 	{
@@ -445,12 +354,7 @@ void URightNotificationsWidget::FinishRemoveNotification(UNotificationEntryWidge
 		}
 	}
 
-	UE_LOG(LogRightNotificationsWidget, Verbose,
-		TEXT("[RightNotifications] finish remove notification. widget=%s entry=%s activeBefore=%d queued=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(EntryWidget),
-		ActiveNotifications.Num(),
-		NotificationQueue.Num());
+
 
 	ActiveNotifications.Remove(EntryWidget);
 	ReleaseNotificationWidget(EntryWidget);

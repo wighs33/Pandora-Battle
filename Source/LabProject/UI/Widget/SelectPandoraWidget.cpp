@@ -5,9 +5,20 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SelectPandoraWidget)
 
+void USelectPandoraWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	CacheDefaultImageBrushes();
+}
+
 void USelectPandoraWidget::SetPandoraImage(int32 Nth, UTexture2D* PandoraImage)
 {
-	SetImageByIndex({ FirstPandoraImage.Get(), SecondPandoraImage.Get(), ThirdPandoraImage.Get() }, Nth, PandoraImage);
+	SetImageByIndex(
+		{ FirstPandoraImage.Get(), SecondPandoraImage.Get(), ThirdPandoraImage.Get() },
+		DefaultPandoraImageBrushes,
+		Nth,
+		PandoraImage);
 }
 
 void USelectPandoraWidget::SetPandoraEnabled(int32 Nth, bool bEnabled)
@@ -20,7 +31,11 @@ void USelectPandoraWidget::SetPandoraEnabled(int32 Nth, bool bEnabled)
 
 void USelectPandoraWidget::SetWeaponImage(int32 Nth, UTexture2D* WeaponImage)
 {
-	SetImageByIndex({ FirstWeaponImage.Get(), SecondWeaponImage.Get(), ThirdWeaponImage.Get() }, Nth, WeaponImage);
+	SetImageByIndex(
+		{ FirstWeaponImage.Get(), SecondWeaponImage.Get(), ThirdWeaponImage.Get() },
+		DefaultWeaponImageBrushes,
+		Nth,
+		WeaponImage);
 }
 
 void USelectPandoraWidget::SetDirection(int32 Index)
@@ -47,11 +62,45 @@ void USelectPandoraWidget::SetDirection(int32 Index)
 	}
 }
 
-void USelectPandoraWidget::SetImageByIndex(const TArray<UImage*>& Images, int32 Nth, UTexture2D* Texture) const
+void USelectPandoraWidget::CacheDefaultImageBrushes()
 {
+	if (bDefaultImageBrushesCached)
+	{
+		return;
+	}
+
+	DefaultPandoraImageBrushes.Reset();
+	DefaultWeaponImageBrushes.Reset();
+
+	for (const UImage* Image : { FirstPandoraImage.Get(), SecondPandoraImage.Get(), ThirdPandoraImage.Get() })
+	{
+		DefaultPandoraImageBrushes.Add(Image ? Image->GetBrush() : FSlateBrush());
+	}
+
+	for (const UImage* Image : { FirstWeaponImage.Get(), SecondWeaponImage.Get(), ThirdWeaponImage.Get() })
+	{
+		DefaultWeaponImageBrushes.Add(Image ? Image->GetBrush() : FSlateBrush());
+	}
+
+	bDefaultImageBrushesCached = true;
+}
+
+void USelectPandoraWidget::SetImageByIndex(const TArray<UImage*>& Images, const TArray<FSlateBrush>& DefaultBrushes, int32 Nth, UTexture2D* Texture)
+{
+	CacheDefaultImageBrushes();
+
 	const int32 ImageIndex = Nth - 1;
 	if (!Images.IsValidIndex(ImageIndex) || !Images[ImageIndex])
 	{
+		return;
+	}
+
+	if (!Texture)
+	{
+		if (DefaultBrushes.IsValidIndex(ImageIndex))
+		{
+			Images[ImageIndex]->SetBrush(DefaultBrushes[ImageIndex]);
+		}
 		return;
 	}
 

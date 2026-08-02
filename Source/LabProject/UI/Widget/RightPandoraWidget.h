@@ -1,10 +1,14 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "UI/Widget/FilterButtonHighlight.h"
 #include "RightPandoraWidget.generated.h"
 
 class UButton;
+class UEditableTextBox;
+class UPandoraInstance;
 class UTileView;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedPandoraFilterAllButton);
@@ -26,6 +30,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void ToggleActiveFiliterButtons(bool bActive);
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
+	void ResetFilterHighlightToAll();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetTileViewAndShowLockState(const TArray<UObject*>& InListItems);
@@ -64,8 +71,23 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Pandora")
 	TArray<TObjectPtr<UButton>> FilterButtonList;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora|Filter")
+	FLinearColor SelectedFilterAccentColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
+
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora", meta = (BindWidget))
 	TObjectPtr<UTileView> TileView;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora|Search", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_Search;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora|Search", meta = (BindWidgetOptional))
+	TObjectPtr<UEditableTextBox> SearchBox;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UObject>> CachedSourceListItems;
+
+	UPROPERTY(Transient)
+	FString ActiveSearchText;
 
 private:
 	UFUNCTION()
@@ -83,9 +105,23 @@ private:
 	UFUNCTION()
 	void OnSpecialButtonClicked();
 
+	UFUNCTION()
+	void OnSearchButtonClicked();
+
 	void RebuildFilterButtonList();
+	void RebuildTileViewFromCachedSourceItems();
+	bool DoesPandoraMatchSearch(const UPandoraInstance* PandoraInstance, const FString& SearchText) const;
+	void ApplyWidgetDefinitionSettings();
+	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
 	FGameplayTag GetOffensiveTypeTag() const;
 	FGameplayTag GetDefensiveTypeTag() const;
 	FGameplayTag GetSupportTypeTag() const;
 	FGameplayTag GetSpecialTypeTag() const;
+
+	FGameplayTag OffensiveTypeTagOverride;
+	FGameplayTag DefensiveTypeTagOverride;
+	FGameplayTag SupportTypeTagOverride;
+	FGameplayTag SpecialTypeTagOverride;
+
+	FFilterButtonHighlightState FilterButtonHighlightState;
 };

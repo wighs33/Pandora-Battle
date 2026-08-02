@@ -1,11 +1,9 @@
 #include "UI/Widget/RightStatusWidget.h"
 
-#include "Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagConfig.h"
 #include "Components/Button.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RightStatusWidget)
-
-DEFINE_LOG_CATEGORY_STATIC(LogRightStatusWidget, Log, All);
 
 URightStatusWidget::URightStatusWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -21,10 +19,10 @@ void URightStatusWidget::NativeConstruct()
 	const FGameplayTag ArcaneStatTag = GetArcaneStatTag();
 	const FGameplayTag ArmorStatTag = GetArmorStatTag();
 	const FGameplayTag RecoveryStatTag = GetRecoveryStatTag();
-	const FGameplayTag MagicResistanceStatTag = GetMagicResistanceStatTag();
-	const FGameplayTag ImmunityStatTag = GetImmunityStatTag();
-	const FGameplayTag FortitudeStatTag = GetFortitudeStatTag();
-	const FGameplayTag SanityStatTag = GetSanityStatTag();
+	const FGameplayTag MaxShieldStatTag = GetMaxShieldStatTag();
+	const FGameplayTag FrostbiteStatTag = GetFrostbiteStatTag();
+	const FGameplayTag BurnStatTag = GetBurnStatTag();
+	const FGameplayTag ElectricShockStatTag = GetElectricShockStatTag();
 	const FGameplayTag FirstPandoraStatTag = GetFirstPandoraStatTag();
 	const FGameplayTag SecondPandoraStatTag = GetSecondPandoraStatTag();
 	const FGameplayTag ThirdPandoraStatTag = GetThirdPandoraStatTag();
@@ -33,28 +31,9 @@ void URightStatusWidget::NativeConstruct()
 	const FGameplayTag MaxStaminaStatTag = GetMaxStaminaStatTag();
 	const FGameplayTag AttackSpeedStatTag = GetAttackSpeedStatTag();
 	const FGameplayTag MovementSpeedStatTag = GetMovementSpeedStatTag();
-	const FGameplayTag CriticalChanceStatTag = GetCriticalChanceStatTag();
+	const FGameplayTag CriticalStatTag = GetCriticalStatTag();
 
-	UE_LOG(LogRightStatusWidget, Log, TEXT("[StatUpgrade] RightStatus NativeConstruct: widget=%s tags=(str:%s int:%s arc:%s armor:%s rec:%s mr:%s imm:%s fort:%s san:%s p1:%s p2:%s p3:%s maxHp:%s maxMana:%s maxSta:%s atkSpd:%s moveSpd:%s crit:%s)"),
-		*GetNameSafe(this),
-		*StrengthStatTag.ToString(),
-		*IntelligenceStatTag.ToString(),
-		*ArcaneStatTag.ToString(),
-		*ArmorStatTag.ToString(),
-		*RecoveryStatTag.ToString(),
-		*MagicResistanceStatTag.ToString(),
-		*ImmunityStatTag.ToString(),
-		*FortitudeStatTag.ToString(),
-		*SanityStatTag.ToString(),
-		*FirstPandoraStatTag.ToString(),
-		*SecondPandoraStatTag.ToString(),
-		*ThirdPandoraStatTag.ToString(),
-		*MaxHealthStatTag.ToString(),
-		*MaxManaStatTag.ToString(),
-		*MaxStaminaStatTag.ToString(),
-		*AttackSpeedStatTag.ToString(),
-		*MovementSpeedStatTag.ToString(),
-		*CriticalChanceStatTag.ToString());
+
 
 	ValidateConfiguredStatTags();
 	BindButtonCallbacks();
@@ -69,18 +48,26 @@ void URightStatusWidget::NativeDestruct()
 
 void URightStatusWidget::BroadcastClickedStatUpButton(FGameplayTag InStatTag)
 {
-	UE_LOG(LogRightStatusWidget, Log, TEXT("[StatUpgrade] Broadcast stat up: widget=%s tag=%s valid=%s"),
-		*GetNameSafe(this),
-		*InStatTag.ToString(),
-		InStatTag.IsValid() ? TEXT("true") : TEXT("false"));
+
 	if (!InStatTag.IsValid())
 	{
-		UE_LOG(LogRightStatusWidget, Warning, TEXT("[StatUpgrade] Broadcast skipped: stat tag is None. Configure the stat tag on %s."),
-			*GetNameSafe(this));
+
 		return;
 	}
 
 	OnClicked_StatUpButton.Broadcast(InStatTag);
+}
+
+void URightStatusWidget::BroadcastClickedStatDownButton(FGameplayTag InStatTag)
+{
+
+	if (!InStatTag.IsValid())
+	{
+
+		return;
+	}
+
+	OnClicked_StatDownButton.Broadcast(InStatTag);
 }
 
 void URightStatusWidget::HandleStrengthClicked()
@@ -100,7 +87,7 @@ void URightStatusWidget::HandleArcaneClicked()
 
 void URightStatusWidget::HandleArmorClicked()
 {
-	HandleStatUpButtonClicked(GetArmorStatTag(), TEXT("ArmorStatTag"), Button_Up_Toughness);
+	HandleStatUpButtonClicked(GetArmorStatTag(), TEXT("ArmorStatTag"), Button_Up_Armor);
 }
 
 void URightStatusWidget::HandleRecoveryClicked()
@@ -108,24 +95,24 @@ void URightStatusWidget::HandleRecoveryClicked()
 	HandleStatUpButtonClicked(GetRecoveryStatTag(), TEXT("RecoveryStatTag"), Button_Up_Recovery);
 }
 
-void URightStatusWidget::HandleMagicResistanceClicked()
+void URightStatusWidget::HandleMaxShieldClicked()
 {
-	HandleStatUpButtonClicked(GetMagicResistanceStatTag(), TEXT("MagicResistanceStatTag"), Button_Up_MagicResistance);
+	HandleStatUpButtonClicked(GetMaxShieldStatTag(), TEXT("MaxShieldStatTag"), Button_Up_Shield);
 }
 
-void URightStatusWidget::HandleImmunityClicked()
+void URightStatusWidget::HandleFrostbiteClicked()
 {
-	HandleStatUpButtonClicked(GetImmunityStatTag(), TEXT("ImmunityStatTag"), Button_Up_Immunity);
+	HandleStatUpButtonClicked(GetFrostbiteStatTag(), TEXT("FrostbiteStatTag"), Button_Up_Freeze);
 }
 
-void URightStatusWidget::HandleFortitudeClicked()
+void URightStatusWidget::HandleBurnClicked()
 {
-	HandleStatUpButtonClicked(GetFortitudeStatTag(), TEXT("FortitudeStatTag"), Button_Up_Fortitude);
+	HandleStatUpButtonClicked(GetBurnStatTag(), TEXT("BurnStatTag"), Button_Up_Burn);
 }
 
-void URightStatusWidget::HandleSanityClicked()
+void URightStatusWidget::HandleElectricShockClicked()
 {
-	HandleStatUpButtonClicked(GetSanityStatTag(), TEXT("SanityStatTag"), Button_Up_Sanity);
+	HandleStatUpButtonClicked(GetElectricShockStatTag(), TEXT("ElectricShockStatTag"), Button_Up_Shock);
 }
 
 void URightStatusWidget::HandleFirstPandoraClicked()
@@ -168,30 +155,125 @@ void URightStatusWidget::HandleMovementSpeedClicked()
 	HandleStatUpButtonClicked(GetMovementSpeedStatTag(), TEXT("MovementSpeedStatTag"), Button_Up_MovementSpeed);
 }
 
-void URightStatusWidget::HandleCriticalChanceClicked()
+void URightStatusWidget::HandleCriticalClicked()
 {
-	HandleStatUpButtonClicked(GetCriticalChanceStatTag(), TEXT("CriticalChanceStatTag"), Button_Up_CriticalChance);
+	HandleStatUpButtonClicked(GetCriticalStatTag(), TEXT("CriticalStatTag"), GetCriticalUpButton());
+}
+
+void URightStatusWidget::HandleStrengthDownClicked()
+{
+	HandleStatDownButtonClicked(GetStrengthStatTag(), TEXT("StrengthStatTag"), Button_Down_Strength);
+}
+
+void URightStatusWidget::HandleIntelligenceDownClicked()
+{
+	HandleStatDownButtonClicked(GetIntelligenceStatTag(), TEXT("IntelligenceStatTag"), Button_Down_Intelligence);
+}
+
+void URightStatusWidget::HandleArcaneDownClicked()
+{
+	HandleStatDownButtonClicked(GetArcaneStatTag(), TEXT("ArcaneStatTag"), Button_Down_Arcane);
+}
+
+void URightStatusWidget::HandleArmorDownClicked()
+{
+	HandleStatDownButtonClicked(GetArmorStatTag(), TEXT("ArmorStatTag"), Button_Down_Armor);
+}
+
+void URightStatusWidget::HandleRecoveryDownClicked()
+{
+	HandleStatDownButtonClicked(GetRecoveryStatTag(), TEXT("RecoveryStatTag"), Button_Down_Recovery);
+}
+
+void URightStatusWidget::HandleMaxShieldDownClicked()
+{
+	HandleStatDownButtonClicked(GetMaxShieldStatTag(), TEXT("MaxShieldStatTag"), Button_Down_Shield);
+}
+
+void URightStatusWidget::HandleFrostbiteDownClicked()
+{
+	HandleStatDownButtonClicked(GetFrostbiteStatTag(), TEXT("FrostbiteStatTag"), Button_Down_Freeze);
+}
+
+void URightStatusWidget::HandleBurnDownClicked()
+{
+	HandleStatDownButtonClicked(GetBurnStatTag(), TEXT("BurnStatTag"), Button_Down_Burn);
+}
+
+void URightStatusWidget::HandleElectricShockDownClicked()
+{
+	HandleStatDownButtonClicked(GetElectricShockStatTag(), TEXT("ElectricShockStatTag"), Button_Down_Shock);
+}
+
+void URightStatusWidget::HandleFirstPandoraDownClicked()
+{
+	HandleStatDownButtonClicked(GetFirstPandoraStatTag(), TEXT("FirstPandoraStatTag"), Button_Down_FirstPandora);
+}
+
+void URightStatusWidget::HandleSecondPandoraDownClicked()
+{
+	HandleStatDownButtonClicked(GetSecondPandoraStatTag(), TEXT("SecondPandoraStatTag"), Button_Down_SecondPandora);
+}
+
+void URightStatusWidget::HandleThirdPandoraDownClicked()
+{
+	HandleStatDownButtonClicked(GetThirdPandoraStatTag(), TEXT("ThirdPandoraStatTag"), Button_Down_ThirdPandora);
+}
+
+void URightStatusWidget::HandleMaxHealthDownClicked()
+{
+	HandleStatDownButtonClicked(GetMaxHealthStatTag(), TEXT("MaxHealthStatTag"), Button_Down_MaxHealth);
+}
+
+void URightStatusWidget::HandleMaxManaDownClicked()
+{
+	HandleStatDownButtonClicked(GetMaxManaStatTag(), TEXT("MaxManaStatTag"), Button_Down_MaxMana);
+}
+
+void URightStatusWidget::HandleMaxStaminaDownClicked()
+{
+	HandleStatDownButtonClicked(GetMaxStaminaStatTag(), TEXT("MaxStaminaStatTag"), Button_Down_MaxStamina);
+}
+
+void URightStatusWidget::HandleAttackSpeedDownClicked()
+{
+	HandleStatDownButtonClicked(GetAttackSpeedStatTag(), TEXT("AttackSpeedStatTag"), Button_Down_AttackSpeed);
+}
+
+void URightStatusWidget::HandleMovementSpeedDownClicked()
+{
+	HandleStatDownButtonClicked(GetMovementSpeedStatTag(), TEXT("MovementSpeedStatTag"), Button_Down_MovementSpeed);
+}
+
+void URightStatusWidget::HandleCriticalDownClicked()
+{
+	HandleStatDownButtonClicked(GetCriticalStatTag(), TEXT("CriticalStatTag"), GetCriticalDownButton());
 }
 
 void URightStatusWidget::HandleStatUpButtonClicked(FGameplayTag InStatTag, const TCHAR* StatTagPropertyName, const UButton* SourceButton)
 {
-	UE_LOG(LogRightStatusWidget, Log, TEXT("[StatUpgrade] Stat up button clicked: widget=%s property=%s button=%s tag=%s valid=%s"),
-		*GetNameSafe(this),
-		StatTagPropertyName,
-		*GetNameSafe(SourceButton),
-		*InStatTag.ToString(),
-		InStatTag.IsValid() ? TEXT("true") : TEXT("false"));
+
 
 	if (!InStatTag.IsValid())
 	{
-		UE_LOG(LogRightStatusWidget, Warning, TEXT("[StatUpgrade] Stat up button ignored: %s.%s is None. button=%s"),
-			*GetNameSafe(this),
-			StatTagPropertyName,
-			*GetNameSafe(SourceButton));
+
 		return;
 	}
 
 	BroadcastClickedStatUpButton(InStatTag);
+}
+
+void URightStatusWidget::HandleStatDownButtonClicked(FGameplayTag InStatTag, const TCHAR* StatTagPropertyName, const UButton* SourceButton)
+{
+
+
+	if (!InStatTag.IsValid())
+	{
+
+		return;
+	}
+
+	BroadcastClickedStatDownButton(InStatTag);
 }
 
 void URightStatusWidget::ValidateConfiguredStatTags() const
@@ -203,21 +285,18 @@ void URightStatusWidget::ValidateConfiguredStatTags() const
 			return;
 		}
 
-		UE_LOG(LogRightStatusWidget, Warning, TEXT("[StatUpgrade] Missing RightStatus stat tag: widget=%s property=%s button=%s"),
-			*GetNameSafe(this),
-			StatTagPropertyName,
-			*GetNameSafe(SourceButton));
+
 	};
 
 	ValidateTag(TEXT("StrengthStatTag"), GetStrengthStatTag(), Button_Up_Strength);
 	ValidateTag(TEXT("IntelligenceStatTag"), GetIntelligenceStatTag(), Button_Up_Intelligence);
 	ValidateTag(TEXT("ArcaneStatTag"), GetArcaneStatTag(), Button_Up_Arcane);
-	ValidateTag(TEXT("ArmorStatTag"), GetArmorStatTag(), Button_Up_Toughness);
+	ValidateTag(TEXT("ArmorStatTag"), GetArmorStatTag(), Button_Up_Armor);
 	ValidateTag(TEXT("RecoveryStatTag"), GetRecoveryStatTag(), Button_Up_Recovery);
-	ValidateTag(TEXT("MagicResistanceStatTag"), GetMagicResistanceStatTag(), Button_Up_MagicResistance);
-	ValidateTag(TEXT("ImmunityStatTag"), GetImmunityStatTag(), Button_Up_Immunity);
-	ValidateTag(TEXT("FortitudeStatTag"), GetFortitudeStatTag(), Button_Up_Fortitude);
-	ValidateTag(TEXT("SanityStatTag"), GetSanityStatTag(), Button_Up_Sanity);
+	ValidateTag(TEXT("MaxShieldStatTag"), GetMaxShieldStatTag(), Button_Up_Shield);
+	ValidateTag(TEXT("BurnStatTag"), GetBurnStatTag(), Button_Up_Burn);
+	ValidateTag(TEXT("FrostbiteStatTag"), GetFrostbiteStatTag(), Button_Up_Freeze);
+	ValidateTag(TEXT("ElectricShockStatTag"), GetElectricShockStatTag(), Button_Up_Shock);
 	ValidateTag(TEXT("FirstPandoraStatTag"), GetFirstPandoraStatTag(), Button_Up_FirstPandora);
 	ValidateTag(TEXT("SecondPandoraStatTag"), GetSecondPandoraStatTag(), Button_Up_SecondPandora);
 	ValidateTag(TEXT("ThirdPandoraStatTag"), GetThirdPandoraStatTag(), Button_Up_ThirdPandora);
@@ -226,7 +305,26 @@ void URightStatusWidget::ValidateConfiguredStatTags() const
 	ValidateTag(TEXT("MaxStaminaStatTag"), GetMaxStaminaStatTag(), Button_Up_MaxStamina);
 	ValidateTag(TEXT("AttackSpeedStatTag"), GetAttackSpeedStatTag(), Button_Up_AttackSpeed);
 	ValidateTag(TEXT("MovementSpeedStatTag"), GetMovementSpeedStatTag(), Button_Up_MovementSpeed);
-	ValidateTag(TEXT("CriticalChanceStatTag"), GetCriticalChanceStatTag(), Button_Up_CriticalChance);
+	ValidateTag(TEXT("CriticalStatTag"), GetCriticalStatTag(), GetCriticalUpButton());
+
+	ValidateTag(TEXT("StrengthStatTag"), GetStrengthStatTag(), Button_Down_Strength);
+	ValidateTag(TEXT("IntelligenceStatTag"), GetIntelligenceStatTag(), Button_Down_Intelligence);
+	ValidateTag(TEXT("ArcaneStatTag"), GetArcaneStatTag(), Button_Down_Arcane);
+	ValidateTag(TEXT("ArmorStatTag"), GetArmorStatTag(), Button_Down_Armor);
+	ValidateTag(TEXT("RecoveryStatTag"), GetRecoveryStatTag(), Button_Down_Recovery);
+	ValidateTag(TEXT("MaxShieldStatTag"), GetMaxShieldStatTag(), Button_Down_Shield);
+	ValidateTag(TEXT("BurnStatTag"), GetBurnStatTag(), Button_Down_Burn);
+	ValidateTag(TEXT("FrostbiteStatTag"), GetFrostbiteStatTag(), Button_Down_Freeze);
+	ValidateTag(TEXT("ElectricShockStatTag"), GetElectricShockStatTag(), Button_Down_Shock);
+	ValidateTag(TEXT("FirstPandoraStatTag"), GetFirstPandoraStatTag(), Button_Down_FirstPandora);
+	ValidateTag(TEXT("SecondPandoraStatTag"), GetSecondPandoraStatTag(), Button_Down_SecondPandora);
+	ValidateTag(TEXT("ThirdPandoraStatTag"), GetThirdPandoraStatTag(), Button_Down_ThirdPandora);
+	ValidateTag(TEXT("MaxHealthStatTag"), GetMaxHealthStatTag(), Button_Down_MaxHealth);
+	ValidateTag(TEXT("MaxManaStatTag"), GetMaxManaStatTag(), Button_Down_MaxMana);
+	ValidateTag(TEXT("MaxStaminaStatTag"), GetMaxStaminaStatTag(), Button_Down_MaxStamina);
+	ValidateTag(TEXT("AttackSpeedStatTag"), GetAttackSpeedStatTag(), Button_Down_AttackSpeed);
+	ValidateTag(TEXT("MovementSpeedStatTag"), GetMovementSpeedStatTag(), Button_Down_MovementSpeed);
+	ValidateTag(TEXT("CriticalStatTag"), GetCriticalStatTag(), GetCriticalDownButton());
 }
 
 void URightStatusWidget::BindButtonCallbacks()
@@ -234,12 +332,12 @@ void URightStatusWidget::BindButtonCallbacks()
 	Button_Up_Strength->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleStrengthClicked);
 	Button_Up_Intelligence->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleIntelligenceClicked);
 	Button_Up_Arcane->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleArcaneClicked);
-	Button_Up_Toughness->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleArmorClicked);
+	Button_Up_Armor->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleArmorClicked);
 	Button_Up_Recovery->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleRecoveryClicked);
-	Button_Up_MagicResistance->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMagicResistanceClicked);
-	Button_Up_Immunity->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleImmunityClicked);
-	Button_Up_Fortitude->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleFortitudeClicked);
-	Button_Up_Sanity->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleSanityClicked);
+	Button_Up_Shield->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMaxShieldClicked);
+	Button_Up_Burn->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleBurnClicked);
+	Button_Up_Freeze->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleFrostbiteClicked);
+	Button_Up_Shock->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleElectricShockClicked);
 	Button_Up_FirstPandora->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleFirstPandoraClicked);
 	Button_Up_SecondPandora->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleSecondPandoraClicked);
 	Button_Up_ThirdPandora->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleThirdPandoraClicked);
@@ -248,7 +346,32 @@ void URightStatusWidget::BindButtonCallbacks()
 	Button_Up_MaxStamina->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMaxStaminaClicked);
 	Button_Up_AttackSpeed->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleAttackSpeedClicked);
 	Button_Up_MovementSpeed->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMovementSpeedClicked);
-	Button_Up_CriticalChance->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCriticalChanceClicked);
+	if (Button_Up_Critical)
+	{
+		Button_Up_Critical->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCriticalClicked);
+	}
+
+	Button_Down_Strength->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleStrengthDownClicked);
+	Button_Down_Intelligence->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleIntelligenceDownClicked);
+	Button_Down_Arcane->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleArcaneDownClicked);
+	Button_Down_Armor->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleArmorDownClicked);
+	Button_Down_Recovery->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleRecoveryDownClicked);
+	Button_Down_Shield->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMaxShieldDownClicked);
+	Button_Down_Burn->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleBurnDownClicked);
+	Button_Down_Freeze->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleFrostbiteDownClicked);
+	Button_Down_Shock->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleElectricShockDownClicked);
+	Button_Down_FirstPandora->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleFirstPandoraDownClicked);
+	Button_Down_SecondPandora->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleSecondPandoraDownClicked);
+	Button_Down_ThirdPandora->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleThirdPandoraDownClicked);
+	Button_Down_MaxHealth->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMaxHealthDownClicked);
+	Button_Down_MaxMana->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMaxManaDownClicked);
+	Button_Down_MaxStamina->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMaxStaminaDownClicked);
+	Button_Down_AttackSpeed->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleAttackSpeedDownClicked);
+	Button_Down_MovementSpeed->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMovementSpeedDownClicked);
+	if (Button_Down_Critical)
+	{
+		Button_Down_Critical->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCriticalDownClicked);
+	}
 }
 
 void URightStatusWidget::UnbindButtonCallbacks()
@@ -256,12 +379,12 @@ void URightStatusWidget::UnbindButtonCallbacks()
 	Button_Up_Strength->OnClicked.RemoveDynamic(this, &ThisClass::HandleStrengthClicked);
 	Button_Up_Intelligence->OnClicked.RemoveDynamic(this, &ThisClass::HandleIntelligenceClicked);
 	Button_Up_Arcane->OnClicked.RemoveDynamic(this, &ThisClass::HandleArcaneClicked);
-	Button_Up_Toughness->OnClicked.RemoveDynamic(this, &ThisClass::HandleArmorClicked);
+	Button_Up_Armor->OnClicked.RemoveDynamic(this, &ThisClass::HandleArmorClicked);
 	Button_Up_Recovery->OnClicked.RemoveDynamic(this, &ThisClass::HandleRecoveryClicked);
-	Button_Up_MagicResistance->OnClicked.RemoveDynamic(this, &ThisClass::HandleMagicResistanceClicked);
-	Button_Up_Immunity->OnClicked.RemoveDynamic(this, &ThisClass::HandleImmunityClicked);
-	Button_Up_Fortitude->OnClicked.RemoveDynamic(this, &ThisClass::HandleFortitudeClicked);
-	Button_Up_Sanity->OnClicked.RemoveDynamic(this, &ThisClass::HandleSanityClicked);
+	Button_Up_Shield->OnClicked.RemoveDynamic(this, &ThisClass::HandleMaxShieldClicked);
+	Button_Up_Burn->OnClicked.RemoveDynamic(this, &ThisClass::HandleBurnClicked);
+	Button_Up_Freeze->OnClicked.RemoveDynamic(this, &ThisClass::HandleFrostbiteClicked);
+	Button_Up_Shock->OnClicked.RemoveDynamic(this, &ThisClass::HandleElectricShockClicked);
 	Button_Up_FirstPandora->OnClicked.RemoveDynamic(this, &ThisClass::HandleFirstPandoraClicked);
 	Button_Up_SecondPandora->OnClicked.RemoveDynamic(this, &ThisClass::HandleSecondPandoraClicked);
 	Button_Up_ThirdPandora->OnClicked.RemoveDynamic(this, &ThisClass::HandleThirdPandoraClicked);
@@ -270,7 +393,32 @@ void URightStatusWidget::UnbindButtonCallbacks()
 	Button_Up_MaxStamina->OnClicked.RemoveDynamic(this, &ThisClass::HandleMaxStaminaClicked);
 	Button_Up_AttackSpeed->OnClicked.RemoveDynamic(this, &ThisClass::HandleAttackSpeedClicked);
 	Button_Up_MovementSpeed->OnClicked.RemoveDynamic(this, &ThisClass::HandleMovementSpeedClicked);
-	Button_Up_CriticalChance->OnClicked.RemoveDynamic(this, &ThisClass::HandleCriticalChanceClicked);
+	if (Button_Up_Critical)
+	{
+		Button_Up_Critical->OnClicked.RemoveDynamic(this, &ThisClass::HandleCriticalClicked);
+	}
+
+	Button_Down_Strength->OnClicked.RemoveDynamic(this, &ThisClass::HandleStrengthDownClicked);
+	Button_Down_Intelligence->OnClicked.RemoveDynamic(this, &ThisClass::HandleIntelligenceDownClicked);
+	Button_Down_Arcane->OnClicked.RemoveDynamic(this, &ThisClass::HandleArcaneDownClicked);
+	Button_Down_Armor->OnClicked.RemoveDynamic(this, &ThisClass::HandleArmorDownClicked);
+	Button_Down_Recovery->OnClicked.RemoveDynamic(this, &ThisClass::HandleRecoveryDownClicked);
+	Button_Down_Shield->OnClicked.RemoveDynamic(this, &ThisClass::HandleMaxShieldDownClicked);
+	Button_Down_Burn->OnClicked.RemoveDynamic(this, &ThisClass::HandleBurnDownClicked);
+	Button_Down_Freeze->OnClicked.RemoveDynamic(this, &ThisClass::HandleFrostbiteDownClicked);
+	Button_Down_Shock->OnClicked.RemoveDynamic(this, &ThisClass::HandleElectricShockDownClicked);
+	Button_Down_FirstPandora->OnClicked.RemoveDynamic(this, &ThisClass::HandleFirstPandoraDownClicked);
+	Button_Down_SecondPandora->OnClicked.RemoveDynamic(this, &ThisClass::HandleSecondPandoraDownClicked);
+	Button_Down_ThirdPandora->OnClicked.RemoveDynamic(this, &ThisClass::HandleThirdPandoraDownClicked);
+	Button_Down_MaxHealth->OnClicked.RemoveDynamic(this, &ThisClass::HandleMaxHealthDownClicked);
+	Button_Down_MaxMana->OnClicked.RemoveDynamic(this, &ThisClass::HandleMaxManaDownClicked);
+	Button_Down_MaxStamina->OnClicked.RemoveDynamic(this, &ThisClass::HandleMaxStaminaDownClicked);
+	Button_Down_AttackSpeed->OnClicked.RemoveDynamic(this, &ThisClass::HandleAttackSpeedDownClicked);
+	Button_Down_MovementSpeed->OnClicked.RemoveDynamic(this, &ThisClass::HandleMovementSpeedDownClicked);
+	if (Button_Down_Critical)
+	{
+		Button_Down_Critical->OnClicked.RemoveDynamic(this, &ThisClass::HandleCriticalDownClicked);
+	}
 }
 
 FGameplayTag URightStatusWidget::GetStrengthStatTag() const
@@ -298,24 +446,24 @@ FGameplayTag URightStatusWidget::GetRecoveryStatTag() const
 	return UProjectTagConfig::Get(this)->GetStatusRecoveryTag();
 }
 
-FGameplayTag URightStatusWidget::GetMagicResistanceStatTag() const
+FGameplayTag URightStatusWidget::GetMaxShieldStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusMagicResistanceTag();
+	return UProjectTagConfig::Get(this)->GetStatusMaxShieldTag();
 }
 
-FGameplayTag URightStatusWidget::GetImmunityStatTag() const
+FGameplayTag URightStatusWidget::GetFrostbiteStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusImmunityTag();
+	return UProjectTagConfig::Get(this)->GetStatusFrostbiteTag();
 }
 
-FGameplayTag URightStatusWidget::GetFortitudeStatTag() const
+FGameplayTag URightStatusWidget::GetBurnStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusFortitudeTag();
+	return UProjectTagConfig::Get(this)->GetStatusBurnTag();
 }
 
-FGameplayTag URightStatusWidget::GetSanityStatTag() const
+FGameplayTag URightStatusWidget::GetElectricShockStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusSanityTag();
+	return UProjectTagConfig::Get(this)->GetStatusElectricShockTag();
 }
 
 FGameplayTag URightStatusWidget::GetFirstPandoraStatTag() const
@@ -358,7 +506,17 @@ FGameplayTag URightStatusWidget::GetMovementSpeedStatTag() const
 	return UProjectTagConfig::Get(this)->GetStatusMovementSpeedTag();
 }
 
-FGameplayTag URightStatusWidget::GetCriticalChanceStatTag() const
+FGameplayTag URightStatusWidget::GetCriticalStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusCriticalChanceTag();
+	return UProjectTagConfig::Get(this)->GetStatusCriticalTag();
+}
+
+UButton* URightStatusWidget::GetCriticalUpButton() const
+{
+	return Button_Up_Critical.Get();
+}
+
+UButton* URightStatusWidget::GetCriticalDownButton() const
+{
+	return Button_Down_Critical.Get();
 }

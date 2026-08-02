@@ -1,26 +1,12 @@
 #include "UI/Widget/PandoraWidgetViewData.h"
 
-#include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
-#include "Pandora/PandoraDefinition.h"
+#include "Component/AbilitySystem/PandoraTreeComponent.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraInstance.h"
 
 namespace
 {
 	const FText MaxLevelText = NSLOCTEXT("PandoraWidget", "MaxLevel", "MAX");
-
-	FText FormatCurrentLevelText(int32 CurrentLevel)
-	{
-		return FText::Format(
-			NSLOCTEXT("PandoraDescriptionWidget", "CurrentLevelFormat", "Level {0}"),
-			FText::AsNumber(CurrentLevel));
-	}
-
-	FText FormatNextLevelText(int32 NextLevel)
-	{
-		return FText::Format(
-			NSLOCTEXT("PandoraDescriptionWidget", "NextLevelFormat", "Next Level ({0})"),
-			FText::AsNumber(NextLevel));
-	}
 
 	FText FormatPointsRequiredText(int32 Points)
 	{
@@ -82,7 +68,10 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 		? PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition)
 		: 0;
 	const bool bHasPandora = ViewData.CurrentLevel > 0;
-	ViewData.bOwned = bHasPandora;
+	const bool bUnlockedForTree = PandoraTreeComponent
+		&& PandoraDefinition
+		&& PandoraTreeComponent->IsPandoraUnlockedForTree(PandoraDefinition);
+	ViewData.bOwned = bHasPandora || bUnlockedForTree;
 
 	ViewData.bCanSpend = PandoraTreeComponent
 		&& PandoraDefinition
@@ -94,6 +83,7 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 	ViewData.bUnlockRulesMet = !PandoraTreeComponent
 		|| !PandoraDefinition
 		|| ViewData.CurrentLevel > 0
+		|| bUnlockedForTree
 		|| PandoraTreeComponent->ArePandoraUnlockRulesMet(PandoraDefinition);
 
 	ViewData.bAtMaxLevel = PandoraDefinition && ViewData.MaxLevel > 0 && ViewData.CurrentLevel >= ViewData.MaxLevel;
@@ -117,9 +107,7 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 	ViewData.StateIconVisibility = ViewData.bLocked ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
 	ViewData.StateIconColor = FLinearColor::White;
 	ViewData.LevelText = MakeLevelText(ViewData.CurrentLevel, ViewData.MaxLevel, Style.bShowMaxText);
-	ViewData.IconResource = PandoraDefinition
-		? (bHasPandora ? PandoraDefinition->GetActiveIconResource() : PandoraDefinition->GetIconResource())
-		: nullptr;
+	ViewData.IconResource = PandoraDefinition ? PandoraDefinition->GetIconResource() : nullptr;
 
 	return ViewData;
 }
@@ -168,7 +156,7 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 	const UPandoraTreeComponent* PandoraTreeComponent)
 {
 	FPandoraDescriptionViewData ViewData;
-	ViewData.SkillSlots.SetNum(4);
+	ViewData.SkillSlots.SetNum(UPandoraDefinition::GetFixedMaxLevel());
 	ViewData.bHasPandoraDefinition = PandoraDefinition != nullptr;
 
 	if (!PandoraDefinition)
@@ -190,7 +178,6 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 
 	ViewData.NextLevel = ViewData.CurrentLevel + 1 > ViewData.MaxLevel ? -1 : ViewData.CurrentLevel + 1;
 
-	const int32 EffectiveSkillLevel = FMath::Max(ViewData.CurrentLevel, 1);
 	for (int32 SkillIndex = 0; SkillIndex < ViewData.SkillSlots.Num(); ++SkillIndex)
 	{
 		if (!PandoraDefinition->Skill.IsValidIndex(SkillIndex))
@@ -202,7 +189,7 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 		FPandoraSkillSlotViewData& SkillViewData = ViewData.SkillSlots[SkillIndex];
 		SkillViewData.IconResource = Skill.GetIconResource();
 		SkillViewData.DisplayName = Skill.GetDisplayName();
-		SkillViewData.Description = Skill.GetDescriptionForLevel(EffectiveSkillLevel);
+		SkillViewData.Description = Skill.GetDescription();
 	}
 
 	ViewData.bLockedByPandoraRequirement = PandoraTreeComponent
@@ -225,23 +212,11 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 		return ViewData;
 	}
 
-	const FText CurrentDescription = PandoraDefinition->GetDescriptionForLevel(ViewData.CurrentLevel);
-	if (!CurrentDescription.IsEmpty())
+	if (ViewData.NextLevel > 0 && ViewData.CurrentLevel < ViewData.MaxLevel)
 	{
-		ViewData.CurrentLevelVisibility = ESlateVisibility::Visible;
-		ViewData.CurrentLevelTitleText = FormatCurrentLevelText(ViewData.CurrentLevel);
-		ViewData.CurrentLevelDescriptionText = CurrentDescription;
-	}
-
-	const FText NextDescription = PandoraDefinition->GetDescriptionForLevel(ViewData.NextLevel);
-	if (!NextDescription.IsEmpty())
-	{
-		ViewData.NextLevelVisibility = ESlateVisibility::Visible;
-		ViewData.NextLevelTitleText = FormatNextLevelText(ViewData.NextLevel);
-		ViewData.NextLevelDescriptionText = NextDescription;
 		ViewData.PointsRequiredVisibility = ESlateVisibility::Visible;
 	}
-	else if (ViewData.CurrentLevel >= ViewData.MaxLevel)
+	else
 	{
 		ViewData.PointsRequiredVisibility = ESlateVisibility::Collapsed;
 	}

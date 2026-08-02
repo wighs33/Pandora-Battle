@@ -1,9 +1,14 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
 #include "UI/Widget/EquipSlotWidget.h"
 #include "LeftEquipmentWidget.generated.h"
+
+class UPandoraDefinition;
+class UTexture2D;
+struct FStreamableHandle;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FPdOnClickedEquipTypeSlot,
@@ -37,11 +42,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
 	void SetWeaponSlotData(int32 WeaponSlotNumber, UItemInstance* ItemInstance);
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment|Pandora")
+	void SetWeaponSlotPandoraRequirement(
+		int32 WeaponSlotNumber,
+		const UPandoraDefinition* PandoraDefinition);
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
+	void SetConsumableQuickSlotData(int32 QuickSlotNumber, UItemInstance* ItemInstance);
+
 	UFUNCTION(BlueprintPure, Category = "!UI|Equipment")
 	UEquipSlotWidget* FindFirstCompatibleEquipSlot(UItemInstance* ItemInstance) const;
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Equipment")
 	UEquipSlotWidget* FindFirstEquippedCompatibleEquipSlot(UItemInstance* ItemInstance) const;
+
+	void GetEquippedItemIds(TSet<FGuid>& OutItemIds, FGameplayTag ExcludedEquipTypeRootTag = FGameplayTag()) const;
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment", meta = (Categories = "Item"))
 	void BroadcastClickedEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* InSelectedEquipSlot, bool bInIsSelectedAnyButton);
@@ -126,6 +141,27 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Equipment", meta = (DisplayName = "IsSelectedAnyButton?"))
 	bool bIsSelectedAnyButton = false;
 
+	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<UTexture2D> PandoraAxeIcon;
+
+	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<UTexture2D> PandoraBowIcon;
+
+	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<UTexture2D> PandoraDaggerIcon;
+
+	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<UTexture2D> PandoraGreatswordIcon;
+
+	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<UTexture2D> PandoraSwordIcon;
+
+	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<UTexture2D> PandoraGunIcon;
+
+	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float PandoraWeaponRequirementOpacity = 0.3f;
+
 private:
 	UFUNCTION()
 	void HandleEquipSlotClicked(UEquipSlotWidget* ItemSlot);
@@ -139,5 +175,16 @@ private:
 	void ApplyResolvedEquipTypeTags();
 	void BindEquipSlotCallbacks();
 	void UnbindEquipSlotCallbacks();
+	void BeginPandoraWeaponIconPreload();
+	void ReleasePandoraWeaponIconPreload();
+	void RefreshCachedPandoraWeaponRequirements();
+	UEquipSlotWidget* GetWeaponSlot(int32 WeaponSlotNumber) const;
+	UTexture2D* ResolvePandoraWeaponRequirementIcon(const UPandoraDefinition* PandoraDefinition) const;
 	FGameplayTag ResolveEquipTypeTagForSlot(const UEquipSlotWidget* ItemSlot) const;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPandoraDefinition>> CachedWeaponSlotPandoraRequirements;
+
+	int32 PandoraWeaponIconPreloadGeneration = 0;
+	TSharedPtr<FStreamableHandle> PandoraWeaponIconPreloadHandle;
 };

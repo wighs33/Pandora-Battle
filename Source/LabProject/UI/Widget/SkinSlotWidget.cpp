@@ -2,15 +2,17 @@
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Components/Image.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "InputCoreTypes.h"
 #include "Mode/PdHUD.h"
-#include "Skin/SkinDefinition.h"
+#include "Definition/Skin/SkinDefinition.h"
 #include "Skin/SkinInstance.h"
 #include "UI/Widget/DragItemVisualWidget.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/SkinSlotDragDropOperation.h"
 #include "UI/Widget/SkinSlotViewData.h"
+#include "UI/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinSlotWidget)
 
@@ -112,9 +114,17 @@ void USkinSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FP
 	UTexture2D* IconTexture = SkinDefinition ? SkinDefinition->IconTexture.Get() : nullptr;
 	if (IconTexture)
 	{
-		const FVector2D EffectiveDragIconSize(
-			FMath::Min(DragIconSize.X, 56.0f),
-			FMath::Min(DragIconSize.Y, 56.0f));
+		CacheOptionalWidgets();
+
+		FVector2D EffectiveDragIconSize = IconImage ? IconImage->GetCachedGeometry().GetLocalSize() : FVector2D::ZeroVector;
+		if (EffectiveDragIconSize.X <= 1.0f || EffectiveDragIconSize.Y <= 1.0f)
+		{
+			EffectiveDragIconSize = InGeometry.GetLocalSize();
+		}
+		if (EffectiveDragIconSize.X <= 0.0f || EffectiveDragIconSize.Y <= 0.0f)
+		{
+			EffectiveDragIconSize = DragIconSize;
+		}
 
 		if (DragVisualWidgetClass)
 		{
@@ -129,10 +139,21 @@ void USkinSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FP
 
 		if (!DragOperation->DefaultDragVisual)
 		{
-			UImage* DragVisual = NewObject<UImage>(DragOperation);
-			DragVisual->SetBrushFromTexture(IconTexture, true);
-			DragVisual->SetDesiredSizeOverride(EffectiveDragIconSize);
-			DragOperation->DefaultDragVisual = DragVisual;
+			if (USizeBox* DragSizeBox = NewObject<USizeBox>(DragOperation))
+			{
+				DragSizeBox->SetWidthOverride(EffectiveDragIconSize.X);
+				DragSizeBox->SetHeightOverride(EffectiveDragIconSize.Y);
+
+				UImage* DragVisual = NewObject<UImage>(DragSizeBox);
+				if (DragVisual)
+				{
+					DragVisual->SetBrushFromTexture(IconTexture, false);
+					DragVisual->SetDesiredSizeOverride(EffectiveDragIconSize);
+					DragSizeBox->AddChild(DragVisual);
+				}
+
+				DragOperation->DefaultDragVisual = DragSizeBox;
+			}
 		}
 	}
 
@@ -193,44 +214,24 @@ void USkinSlotWidget::CacheOptionalWidgets()
 {
 	if (!IconImage)
 	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("IconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("SkinIconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("SlotIconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("SkinIcon")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("SlotIcon")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("Icon")));
+		IconImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("IconImage"),
+			TEXT("SkinIconImage"),
+			TEXT("SlotIconImage"),
+			TEXT("SkinIcon"),
+			TEXT("SlotIcon"),
+			TEXT("Icon")
+		});
 	}
 
 	if (!SelectionBorderImage)
 	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("SelectionBorderImage")));
-	}
-	if (!SelectionBorderImage)
-	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("SelectedBorderImage")));
-	}
-	if (!SelectionBorderImage)
-	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("HighlightBorderImage")));
-	}
-	if (!SelectionBorderImage)
-	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("SelectionHighlightImage")));
+		SelectionBorderImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("SelectionBorderImage"),
+			TEXT("SelectedBorderImage"),
+			TEXT("HighlightBorderImage"),
+			TEXT("SelectionHighlightImage")
+		});
 	}
 }
 

@@ -1,18 +1,21 @@
 #include "UI/Widget/PandoraDescriptionWidget.h"
 
-#include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
+#include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Animation/WidgetAnimation.h"
+#include "Components/Image.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerState.h"
-#include "Pandora/PandoraDefinition.h"
+#include "Definition/Pandora/PandoraDefinition.h"
+#include "UI/Widget/SkillEffectIconResolver.h"
 #include "UI/Widget/PandoraWidgetViewData.h"
 #include "View/MVVMView.h"
 #include "View/MVVMViewClass.h"
 #include "ViewModel/PandoraDescriptionViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraDescriptionWidget)
-
-DEFINE_LOG_CATEGORY_STATIC(LogPandoraDescriptionWidget, Log, All);
 
 namespace
 {
@@ -50,18 +53,6 @@ void UPandoraDescriptionWidget::NativeConstruct()
 	ApplyPandoraDescriptionViewModelToMvvmView();
 	ResolvePandoraTreeComponent();
 	SetDetails();
-
-	UE_LOG(LogPandoraDescriptionWidget, Verbose,
-		TEXT("[Construct] widget=%s tree=%s pandora=%s viewModel=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		*GetNameSafe(PandoraDefinition.Get()),
-		*GetNameSafe(PandoraDescriptionViewModel.Get()));
-
-	if (ScaleUp)
-	{
-		PlayAnimation(ScaleUp, 0.1f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
-	}
 }
 
 void UPandoraDescriptionWidget::NativeDestruct()
@@ -77,10 +68,7 @@ void UPandoraDescriptionWidget::NativeDestruct()
 void UPandoraDescriptionWidget::SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition)
 {
 	PandoraDefinition = InPandoraDefinition;
-	UE_LOG(LogPandoraDescriptionWidget, Verbose,
-		TEXT("[SetPandoraDefinition] widget=%s pandora=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraDefinition.Get()));
+
 	SetDetails();
 }
 
@@ -91,17 +79,14 @@ void UPandoraDescriptionWidget::SetPandoraTreeComponent(UPandoraTreeComponent* I
 	{
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
-	UE_LOG(LogPandoraDescriptionWidget, Verbose,
-		TEXT("[SetTreeComponent] widget=%s tree=%s pandora=%s points=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		*GetNameSafe(PandoraDefinition.Get()),
-		PandoraTreeComponent ? PandoraTreeComponent->GetPointsAvailable() : INDEX_NONE);
+
 	SetDetails();
 }
 
 void UPandoraDescriptionWidget::SetDetails()
 {
+	ApplyEffectIconResources();
+
 	UPandoraDescriptionViewModel* ViewModel = GetOrCreatePandoraDescriptionViewModel();
 	if (!ViewModel)
 	{
@@ -110,9 +95,19 @@ void UPandoraDescriptionWidget::SetDetails()
 
 	ViewModel->SetWeaponRequirementTextColor(WeaponRequirementTextColor);
 
-	const FPandoraDescriptionViewData ViewData = FPandoraDescriptionViewDataBuilder::Build(
+	FPandoraDescriptionViewData ViewData = FPandoraDescriptionViewDataBuilder::Build(
 		PandoraDefinition.Get(),
 		PandoraTreeComponent.Get());
+	const bool bUnlockedInSave = IsPandoraUnlockedInSave();
+	if (PandoraDefinition && !bUnlockedInSave)
+	{
+		ViewData.DescriptionText = NSLOCTEXT("PandoraDescriptionWidget", "UnownedPandoraDescription", "You do not own this Pandora.");
+		ViewData.WeaponRequirementVisibility = ESlateVisibility::Collapsed;
+		ViewData.CurrentLevelVisibility = ESlateVisibility::Collapsed;
+		ViewData.NextLevelVisibility = ESlateVisibility::Collapsed;
+		ViewData.PointsRequiredVisibility = ESlateVisibility::Collapsed;
+		ViewData.SkillSectionVisibility = ESlateVisibility::Collapsed;
+	}
 
 	ViewModel->SetTitleText(ViewData.TitleText);
 	ViewModel->SetDescriptionText(ViewData.DescriptionText);
@@ -143,36 +138,50 @@ void UPandoraDescriptionWidget::SetDetails()
 
 	if (!ViewData.bHasPandoraDefinition)
 	{
-		UE_LOG(LogPandoraDescriptionWidget, Warning,
-			TEXT("[SetDetails] no pandora definition. widget=%s tree=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraTreeComponent.Get()));
+
 		return;
 	}
 
 	if (ViewData.bLockedByPandoraRequirement)
 	{
-		UE_LOG(LogPandoraDescriptionWidget, Verbose,
-			TEXT("[SetDetails] locked requirements only. widget=%s pandora=%s tree=%s current=%d max=%d requirements=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraDefinition.Get()),
-			*GetNameSafe(PandoraTreeComponent.Get()),
-			ViewData.CurrentLevel,
-			ViewData.MaxLevel,
-			*ViewData.DescriptionText.ToString());
+
 		return;
 	}
 
-	UE_LOG(LogPandoraDescriptionWidget, Verbose,
-		TEXT("[SetDetails] widget=%s pandora=%s tree=%s current=%d next=%d max=%d currentDesc=%s nextDesc=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraDefinition.Get()),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		ViewData.CurrentLevel,
-		ViewData.NextLevel,
-		ViewData.MaxLevel,
-		ViewData.CurrentLevelVisibility == ESlateVisibility::Visible ? TEXT("true") : TEXT("false"),
-		ViewData.NextLevelVisibility == ESlateVisibility::Visible ? TEXT("true") : TEXT("false"));
+	if (PandoraDefinition && !bUnlockedInSave)
+	{
+
+		return;
+	}
+
+
+}
+
+void UPandoraDescriptionWidget::PlayShowAnimation()
+{
+	const APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!OwningPlayer || !OwningPlayer->IsLocalController() || !ScaleUp)
+	{
+		return;
+	}
+
+	StopAnimation(ScaleUp);
+	PlayAnimation(ScaleUp, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
+}
+
+void UPandoraDescriptionWidget::ShowWithoutAnimation()
+{
+	const APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!OwningPlayer || !OwningPlayer->IsLocalController() || !ScaleUp)
+	{
+		return;
+	}
+
+	// Apply the animation's completed state immediately and stop any transition already in progress.
+	StopAnimation(ScaleUp);
+	PlayAnimation(ScaleUp, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
+	SetAnimationCurrentTime(ScaleUp, ScaleUp->GetEndTime());
+	PauseAnimation(ScaleUp);
 }
 
 void UPandoraDescriptionWidget::ResolvePandoraTreeComponent()
@@ -187,13 +196,29 @@ void UPandoraDescriptionWidget::ResolvePandoraTreeComponent()
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
 
-	UE_LOG(LogPandoraDescriptionWidget, Verbose,
-		TEXT("[ResolveTreeComponent] widget=%s tree=%s pandora=%s owningPlayer=%s owningPawn=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		*GetNameSafe(PandoraDefinition.Get()),
-		*GetNameSafe(GetOwningPlayer()),
-		*GetNameSafe(GetOwningPlayerPawn()));
+
+}
+
+void UPandoraDescriptionWidget::ApplyEffectIconResources()
+{
+	const TArray<UImage*> EffectIconResources =
+	{
+		EffectIconResource1.Get(),
+		EffectIconResource2.Get(),
+		EffectIconResource3.Get()
+	};
+
+	for (int32 SkillIndex = 0; SkillIndex < EffectIconResources.Num(); ++SkillIndex)
+	{
+		const FSkill* Skill = PandoraDefinition && PandoraDefinition->Skill.IsValidIndex(SkillIndex)
+			? &PandoraDefinition->Skill[SkillIndex]
+			: nullptr;
+		PdSkillEffectIconResolver::ApplySkillEffectIcon(
+			this,
+			Skill,
+			EffectIconResources[SkillIndex],
+			ESkillEffectIconSet::PandoraDescription);
+	}
 }
 
 UPandoraDescriptionViewModel* UPandoraDescriptionWidget::GetOrCreatePandoraDescriptionViewModel()
@@ -248,20 +273,41 @@ void UPandoraDescriptionWidget::ApplyPandoraDescriptionViewModelToMvvmView()
 
 	if (RuntimeViewModelName.IsNone())
 	{
-		UE_LOG(LogPandoraDescriptionWidget, Warning,
-			TEXT("[ApplyViewModel] skipped: widget has MVVM extension, but no settable PandoraDescriptionViewModel source. widget=%s viewModel=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraDescriptionViewModel.Get()));
 		return;
 	}
 
-	const bool bSuccess = ViewExtension->SetViewModel(RuntimeViewModelName, PandoraDescriptionViewModel);
-	if (!bSuccess)
+	ViewExtension->SetViewModel(RuntimeViewModelName, PandoraDescriptionViewModel);
+}
+
+bool UPandoraDescriptionWidget::IsPandoraUnlockedInSave() const
+{
+	if (!PandoraDefinition)
 	{
-		UE_LOG(LogPandoraDescriptionWidget, Warning,
-			TEXT("[ApplyViewModel] failed. widget=%s viewModelName=%s viewModel=%s"),
-			*GetNameSafe(this),
-			*RuntimeViewModelName.ToString(),
-			*GetNameSafe(PandoraDescriptionViewModel.Get()));
+		return false;
 	}
+
+	const bool bUnlockedInTree = PandoraTreeComponent
+		&& PandoraTreeComponent->IsPandoraUnlockedForTree(PandoraDefinition.Get());
+	if (bUnlockedInTree)
+	{
+
+		return true;
+	}
+
+	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	if (!PdGameInstance)
+	{
+		return false;
+	}
+
+	const APlayerController* PlayerController = GetOwningPlayer();
+	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
+	FString PlayerId = PdGameInstance->ResolveSavePlayerId(PlayerController, PlayerState);
+	if (PlayerId.IsEmpty())
+	{
+		PlayerId = PdGameInstance->GetPreferredSavePlayerId();
+	}
+
+	// Default-unlocked definitions are resolved before IsPandoraGranted requires a player id.
+	return PdGameInstance->IsPandoraGranted(PlayerId, PandoraDefinition.Get());
 }

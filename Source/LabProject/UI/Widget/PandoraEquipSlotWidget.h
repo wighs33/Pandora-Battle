@@ -28,6 +28,9 @@ public:
 	void SetData(UPandoraInstance* Target);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
+	void SetPandoraImageDarkened(bool bDarkened);
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void ToggleText_Apply(bool bOn);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Pandora")
@@ -45,8 +48,6 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")
 	TObjectPtr<UButton> ItemButton;
@@ -67,8 +68,13 @@ private:
 	UFUNCTION()
 	void HandleButtonHovered();
 
+	UFUNCTION()
+	void HandleButtonUnhovered();
+
 	void ApplyButtonStyle();
 
 	FButtonStyle DefaultButtonStyle;
 	bool bHasDefaultButtonStyle = false;
+	bool bPandoraImageDarkened = false;
+	bool bIsButtonHoverActive = false;
 };

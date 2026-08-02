@@ -63,7 +63,7 @@ protected:
 	TSubclassOf<UDragItemVisualWidget> DragVisualWidgetClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|DragDrop")
-	FVector2D DragIconSize = FVector2D(56.0f, 56.0f);
+	FVector2D DragIconSize = FVector2D(96.0f, 96.0f);
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin")
 	TObjectPtr<USkinInstance> CachedData;

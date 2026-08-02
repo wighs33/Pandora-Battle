@@ -5,23 +5,238 @@
 #include "Components/ContentWidget.h"
 #include "Components/Image.h"
 #include "Components/PanelWidget.h"
+#include "Components/TextBlock.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Engine/GameInstance.h"
+#include "Engine/StreamableManager.h"
+#include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 #include "Mode/PdHUD.h"
+#include "Mode/PdGameInstance.h"
+#include "Mode/PdPlayerState.h"
+#include "Definition/Online/AchievementDefinition.h"
+#include "Online/AchievementSubsystem.h"
+#include "SavedGameData/PdSaveGame.h"
+#include "TimerManager.h"
+#include "Definition/UI/RecordDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftProfileWidget)
 
-DEFINE_LOG_CATEGORY_STATIC(LogLeftProfileWidget, Log, All);
+ULeftProfileWidget::ULeftProfileWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	RecordData = TSoftObjectPtr<URecordDefinition>(
+		FSoftObjectPath(TEXT("/Game/Data/DA_Record.DA_Record")));
+	AchievementData = TSoftObjectPtr<UAchievementDefinition>(
+		FSoftObjectPath(TEXT("/Game/Data/DA_Achievement.DA_Achievement")));
+}
 
 void ULeftProfileWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	BindAchievementButtons();
+	BeginContentPreload();
+	RefreshTierImage();
+	RefreshAchievementButtons();
+
+	PlayerNameRefreshRetryCount = 0;
+	BindMatchDisplayNameChanged();
+	if (!RefreshPlayerName())
+	{
+		SchedulePlayerNameRefreshRetry();
+	}
 }
 
 void ULeftProfileWidget::NativeDestruct()
 {
+	ReleaseContentPreloads();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PlayerNameRefreshRetryTimerHandle);
+	}
+
+	UnbindMatchDisplayNameChanged();
 	UnbindAchievementButtons();
 	Super::NativeDestruct();
+}
+
+void ULeftProfileWidget::BeginContentPreload()
+{
+	ReleaseContentPreloads();
+	const int32 PreloadGeneration = ++ContentPreloadGeneration;
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		return;
+	}
+
+	DefinitionPreloadHandle =
+		ContentSubsystem->PreloadSoftObjectPathsAsync(
+			{RecordData.ToSoftObjectPath(), AchievementData.ToSoftObjectPath()},
+			FSimpleDelegate::CreateWeakLambda(
+				this,
+				[this, PreloadGeneration]()
+				{
+					BeginPresentationPreload(PreloadGeneration);
+				}));
+}
+
+void ULeftProfileWidget::BeginPresentationPreload(const int32 PreloadGeneration)
+{
+	if (PreloadGeneration != ContentPreloadGeneration)
+	{
+		return;
+	}
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		return;
+	}
+
+	TArray<FSoftObjectPath> PresentationPaths;
+	if (const URecordDefinition* LoadedRecordData = RecordData.Get())
+	{
+		for (const FRecordTierEntry& TierEntry : LoadedRecordData->TierEntries)
+		{
+			PresentationPaths.Add(TierEntry.TierImage.ToSoftObjectPath());
+		}
+	}
+
+	if (const UAchievementDefinition* LoadedAchievementData = AchievementData.Get())
+	{
+		for (const FPdAchievementEntry& Achievement : LoadedAchievementData->Achievements)
+		{
+			PresentationPaths.Add(Achievement.LockedIcon.ToSoftObjectPath());
+			PresentationPaths.Add(Achievement.UnlockedIcon.ToSoftObjectPath());
+		}
+	}
+
+	PresentationPreloadHandle =
+		ContentSubsystem->PreloadSoftObjectPathsAsync(
+			PresentationPaths,
+			FSimpleDelegate::CreateWeakLambda(
+				this,
+				[this, PreloadGeneration]()
+				{
+					if (PreloadGeneration == ContentPreloadGeneration)
+					{
+						RefreshTierImage();
+					}
+				}));
+}
+
+void ULeftProfileWidget::ReleaseContentPreloads()
+{
+	++ContentPreloadGeneration;
+
+	auto ReleaseHandle = [](TSharedPtr<FStreamableHandle>& Handle)
+	{
+		if (Handle.IsValid())
+		{
+			Handle->CancelHandle();
+			Handle->ReleaseHandle();
+			Handle.Reset();
+		}
+	};
+
+	ReleaseHandle(PresentationPreloadHandle);
+	ReleaseHandle(DefinitionPreloadHandle);
+}
+
+void ULeftProfileWidget::RefreshTierImage()
+{
+	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	if (!PdGameInstance)
+	{
+		if (Img_Tier)
+		{
+			Img_Tier->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		return;
+	}
+
+	const FString PlayerId = ResolveProfileSavePlayerId();
+	if (PlayerId.IsEmpty())
+	{
+		if (Img_Tier)
+		{
+			Img_Tier->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		return;
+	}
+
+	const int32 WinCount = PdGameInstance->GetWinCount(PlayerId);
+	if (Txt_WinCount)
+	{
+		Txt_WinCount->SetText(FText::AsNumber(WinCount));
+	}
+	RefreshAchievementButtons();
+
+	if (!Img_Tier)
+	{
+		return;
+	}
+
+	const URecordDefinition* LoadedRecordData = ResolveRecordDefinition();
+	if (!LoadedRecordData)
+	{
+		Img_Tier->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	const FRecordTierEntry TierEntry = LoadedRecordData->ResolveTierForWinCount(WinCount);
+	UTexture2D* TierTexture = TierEntry.TierImage.Get();
+	if (!TierTexture)
+	{
+		Img_Tier->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	Img_Tier->SetBrushFromTexture(TierTexture, true);
+	Img_Tier->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+}
+
+void ULeftProfileWidget::RefreshAchievementButtons()
+{
+	const UAchievementDefinition* LoadedAchievementData = ResolveAchievementDefinition();
+	for (int32 AchievementIndex = 0; AchievementIndex < 7; ++AchievementIndex)
+	{
+		const bool bHasAchievementEntry = LoadedAchievementData
+			&& LoadedAchievementData->Achievements.IsValidIndex(AchievementIndex)
+			&& LoadedAchievementData->Achievements[AchievementIndex].bEnabled;
+		const bool bUnlocked = bHasAchievementEntry && IsAchievementUnlocked(AchievementIndex);
+
+		if (UButton* Button = GetAchievementButton(AchievementIndex))
+		{
+			Button->SetIsEnabled(bUnlocked);
+		}
+
+		if (!bHasAchievementEntry)
+		{
+			continue;
+		}
+
+		UImage* Image = GetAchievementImage(AchievementIndex);
+		if (!Image)
+		{
+			continue;
+		}
+
+		const FPdAchievementEntry& Achievement = LoadedAchievementData->Achievements[AchievementIndex];
+		const TSoftObjectPtr<UTexture2D>& Icon = bUnlocked ? Achievement.UnlockedIcon : Achievement.LockedIcon;
+		if (UTexture2D* IconTexture = Icon.Get())
+		{
+			Image->SetBrushFromTexture(IconTexture, true);
+			Image->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+	}
 }
 
 void ULeftProfileWidget::BindAchievementButtons()
@@ -50,6 +265,10 @@ void ULeftProfileWidget::BindAchievementButtons()
 	{
 		AchievementButton_5->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleAchievementButtonClicked_5);
 	}
+	if (AchievementButton_6)
+	{
+		AchievementButton_6->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleAchievementButtonClicked_6);
+	}
 }
 
 void ULeftProfileWidget::UnbindAchievementButtons()
@@ -77,6 +296,117 @@ void ULeftProfileWidget::UnbindAchievementButtons()
 	if (AchievementButton_5)
 	{
 		AchievementButton_5->OnClicked.RemoveDynamic(this, &ThisClass::HandleAchievementButtonClicked_5);
+	}
+	if (AchievementButton_6)
+	{
+		AchievementButton_6->OnClicked.RemoveDynamic(this, &ThisClass::HandleAchievementButtonClicked_6);
+	}
+}
+
+void ULeftProfileWidget::BindMatchDisplayNameChanged()
+{
+	const APlayerController* PlayerController = GetOwningPlayer();
+	APdPlayerState* PlayerState = PlayerController ? Cast<APdPlayerState>(PlayerController->PlayerState) : nullptr;
+	if (!PlayerState)
+	{
+		return;
+	}
+
+	if (BoundPlayerState.Get() == PlayerState && MatchDisplayNameChangedHandle.IsValid())
+	{
+		return;
+	}
+
+	UnbindMatchDisplayNameChanged();
+	BoundPlayerState = PlayerState;
+	MatchDisplayNameChangedHandle = PlayerState->GetPlayerMatchComponent()->OnMatchDisplayNameChanged.AddUObject(
+		this,
+		&ThisClass::HandleMatchDisplayNameChanged);
+}
+
+void ULeftProfileWidget::UnbindMatchDisplayNameChanged()
+{
+	if (APdPlayerState* PlayerState = BoundPlayerState.Get())
+	{
+		if (MatchDisplayNameChangedHandle.IsValid())
+		{
+			PlayerState->GetPlayerMatchComponent()->OnMatchDisplayNameChanged.Remove(
+				MatchDisplayNameChangedHandle);
+		}
+	}
+
+	MatchDisplayNameChangedHandle.Reset();
+	BoundPlayerState.Reset();
+}
+
+bool ULeftProfileWidget::RefreshPlayerName()
+{
+	if (!Txt_PlayerName)
+	{
+		return false;
+	}
+
+	bool bHasMatchDisplayName = false;
+	FText PlayerName = NSLOCTEXT("LeftProfile", "DefaultPlayerName", "Player");
+
+	const APlayerController* PlayerController = GetOwningPlayer();
+	if (const APdPlayerState* PlayerState = PlayerController ? Cast<APdPlayerState>(PlayerController->PlayerState) : nullptr)
+	{
+		const FText MatchDisplayName = PlayerState->GetPlayerMatchComponent()->GetMatchDisplayName();
+		if (!MatchDisplayName.IsEmpty())
+		{
+			PlayerName = MatchDisplayName;
+			bHasMatchDisplayName = true;
+		}
+		else if (!PlayerState->GetPlayerName().IsEmpty())
+		{
+			PlayerName = FText::FromString(PlayerState->GetPlayerName());
+		}
+	}
+
+	Txt_PlayerName->SetText(PlayerName);
+	return bHasMatchDisplayName;
+}
+
+void ULeftProfileWidget::SchedulePlayerNameRefreshRetry()
+{
+	UWorld* World = GetWorld();
+	if (!World || World->GetTimerManager().IsTimerActive(PlayerNameRefreshRetryTimerHandle))
+	{
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		PlayerNameRefreshRetryTimerHandle,
+		this,
+		&ThisClass::HandlePlayerNameRefreshRetry,
+		0.1f,
+		true);
+}
+
+void ULeftProfileWidget::HandlePlayerNameRefreshRetry()
+{
+	BindMatchDisplayNameChanged();
+
+	const bool bHasMatchDisplayName = RefreshPlayerName();
+	++PlayerNameRefreshRetryCount;
+
+	if (bHasMatchDisplayName || PlayerNameRefreshRetryCount >= 30)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().ClearTimer(PlayerNameRefreshRetryTimerHandle);
+		}
+	}
+}
+
+void ULeftProfileWidget::HandleMatchDisplayNameChanged(const FText& NewDisplayName)
+{
+	if (Txt_PlayerName)
+	{
+		Txt_PlayerName->SetText(NewDisplayName.IsEmpty()
+			? NSLOCTEXT("LeftProfile", "DefaultPlayerName", "Player")
+			: NewDisplayName);
 	}
 }
 
@@ -110,14 +440,22 @@ void ULeftProfileWidget::HandleAchievementButtonClicked_5()
 	ApplyAchievementIcon(5);
 }
 
+void ULeftProfileWidget::HandleAchievementButtonClicked_6()
+{
+	ApplyAchievementIcon(6);
+}
+
 void ULeftProfileWidget::ApplyAchievementIcon(const int32 AchievementIndex)
 {
+	if (!IsAchievementUnlocked(AchievementIndex))
+	{
+		return;
+	}
+
 	UImage* SourceImage = GetAchievementImage(AchievementIndex);
 	if (!SourceImage)
 	{
-		UE_LOG(LogLeftProfileWidget, Warning, TEXT("[AchievementIcon] Missing source image. widget=%s index=%d"),
-			*GetNameSafe(this),
-			AchievementIndex);
+
 		return;
 	}
 
@@ -127,28 +465,90 @@ void ULeftProfileWidget::ApplyAchievementIcon(const int32 AchievementIndex)
 		PlayerAchieveIcon->SetBrush(AchievementBrush);
 		PlayerAchieveIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
-	else
-	{
-		UE_LOG(LogLeftProfileWidget, Warning, TEXT("[AchievementIcon] PlayerAchieveIcon is not bound. widget=%s index=%d"),
-			*GetNameSafe(this),
-			AchievementIndex);
-	}
 
 	if (UImage* PlayerAvatarImage = FindHudPlayerAvatarImage())
 	{
 		PlayerAvatarImage->SetBrush(AchievementBrush);
 		PlayerAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		UE_LOG(LogLeftProfileWidget, Log, TEXT("[AchievementIcon] Applied achievement icon to profile and HUD. widget=%s index=%d source=%s hudAvatar=%s"),
-			*GetNameSafe(this),
-			AchievementIndex,
-			*GetNameSafe(SourceImage),
-			*GetNameSafe(PlayerAvatarImage));
+
 	}
-	else
+}
+
+bool ULeftProfileWidget::IsAchievementUnlocked(const int32 AchievementIndex)
+{
+	const UAchievementDefinition* LoadedAchievementData = ResolveAchievementDefinition();
+	if (!LoadedAchievementData || !LoadedAchievementData->Achievements.IsValidIndex(AchievementIndex))
 	{
-		UE_LOG(LogLeftProfileWidget, Warning, TEXT("[AchievementIcon] HUD PlayerAvatar image was not found. widget=%s index=%d"),
-			*GetNameSafe(this),
-			AchievementIndex);
+		return false;
+	}
+
+	const FPdAchievementEntry& Achievement = LoadedAchievementData->Achievements[AchievementIndex];
+	if (!Achievement.bEnabled)
+	{
+		return false;
+	}
+
+	if (Achievement.Trigger == EPdAchievementTrigger::Manual)
+	{
+		return true;
+	}
+
+	return GetAchievementProgressValue(AchievementIndex) >= FMath::Max(Achievement.RequiredValue, 1);
+}
+
+int32 ULeftProfileWidget::GetAchievementProgressValue(const int32 AchievementIndex)
+{
+	const UAchievementDefinition* LoadedAchievementData = ResolveAchievementDefinition();
+	if (!LoadedAchievementData || !LoadedAchievementData->Achievements.IsValidIndex(AchievementIndex))
+	{
+		return 0;
+	}
+
+	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	if (!PdGameInstance)
+	{
+		return 0;
+	}
+
+	const FString PlayerId = ResolveProfileSavePlayerId();
+	if (PlayerId.IsEmpty())
+	{
+		return 0;
+	}
+
+	const FPdAchievementEntry& Achievement = LoadedAchievementData->Achievements[AchievementIndex];
+	if (const UAchievementSubsystem* AchievementSubsystem = GetGameInstance()->GetSubsystem<UAchievementSubsystem>())
+	{
+		return AchievementSubsystem->CalculateAchievementProgressValue(PlayerId, Achievement);
+	}
+
+	switch (Achievement.Trigger)
+	{
+	case EPdAchievementTrigger::Manual:
+		return Achievement.RequiredValue;
+	case EPdAchievementTrigger::MatchPlayed:
+		return PdGameInstance->GetMatchRecords(PlayerId).Num();
+	case EPdAchievementTrigger::WinCount:
+		return PdGameInstance->GetWinCount(PlayerId);
+	case EPdAchievementTrigger::KillCount:
+	case EPdAchievementTrigger::DeathCount:
+	case EPdAchievementTrigger::RewardGold:
+	case EPdAchievementTrigger::ItemCollected:
+		return 0;
+	case EPdAchievementTrigger::PandoraUnlocked:
+		if (const UPdSaveGame* SaveGame = PdGameInstance->GetOrCreateSaveGame(PlayerId))
+		{
+			return SaveGame->PlayerPandoraData.GrantedPandorasById.Num();
+		}
+		return 0;
+	case EPdAchievementTrigger::SkinUnlocked:
+		if (const UPdSaveGame* SaveGame = PdGameInstance->GetOrCreateSaveGame(PlayerId))
+		{
+			return SaveGame->PlayerSkinData.GrantedSkinsById.Num();
+		}
+		return 0;
+	default:
+		return 0;
 	}
 }
 
@@ -168,6 +568,8 @@ UButton* ULeftProfileWidget::GetAchievementButton(const int32 AchievementIndex) 
 		return AchievementButton_4;
 	case 5:
 		return AchievementButton_5;
+	case 6:
+		return AchievementButton_6;
 	default:
 		return nullptr;
 	}
@@ -189,6 +591,8 @@ UImage* ULeftProfileWidget::GetAchievementImage(const int32 AchievementIndex) co
 		return AchievementImage_4;
 	case 5:
 		return AchievementImage_5;
+	case 6:
+		return AchievementImage_6;
 	default:
 		return nullptr;
 	}
@@ -261,4 +665,55 @@ UImage* ULeftProfileWidget::FindImageInWidget(UWidget* RootWidget, const FName I
 	}
 
 	return nullptr;
+}
+
+FString ULeftProfileWidget::ResolveProfileSavePlayerId() const
+{
+	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	if (!PdGameInstance)
+	{
+		return FString();
+	}
+
+	FString PlayerId = PdGameInstance->GetPreferredSavePlayerId();
+	PlayerId.TrimStartAndEndInline();
+	if (!PlayerId.IsEmpty())
+	{
+		return PlayerId;
+	}
+
+	const APlayerController* PlayerController = GetOwningPlayer();
+	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
+	PlayerId = PdGameInstance->ResolveSavePlayerId(
+		PlayerController,
+		PlayerState);
+	PlayerId.TrimStartAndEndInline();
+	if (!PlayerId.IsEmpty())
+	{
+		return PlayerId;
+	}
+
+	PlayerId = PdGameInstance->GetLocalClientSavePlayerId();
+	PlayerId.TrimStartAndEndInline();
+	return PlayerId;
+}
+
+const URecordDefinition* ULeftProfileWidget::ResolveRecordDefinition()
+{
+	if (RecordData.IsNull())
+	{
+		return nullptr;
+	}
+
+	return RecordData.Get();
+}
+
+const UAchievementDefinition* ULeftProfileWidget::ResolveAchievementDefinition() const
+{
+	if (AchievementData.IsNull())
+	{
+		return nullptr;
+	}
+
+	return AchievementData.Get();
 }

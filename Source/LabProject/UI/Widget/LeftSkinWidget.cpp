@@ -1,13 +1,17 @@
 #include "UI/Widget/LeftSkinWidget.h"
 
-#include "Common/ProjectTagConfig.h"
-#include "Skin/SkinDefinition.h"
-#include "Skin/SkinEquipmentComponent.h"
+#include "Character/PdPlayer.h"
+#include "Common/LabGameplayTags.h"
+#include "Definition/Common/ProjectTagConfig.h"
+#include "Components/Button.h"
+#include "GameFramework/PlayerController.h"
+#include "Mode/PdHUD.h"
+#include "Definition/Skin/SkinDefinition.h"
+#include "Component/Skin/SkinEquipmentComponent.h"
 #include "Skin/SkinInstance.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftSkinWidget)
-
-DEFINE_LOG_CATEGORY_STATIC(LogLeftSkinWidget, Log, All);
 
 ULeftSkinWidget::ULeftSkinWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -33,10 +37,20 @@ void ULeftSkinWidget::NativeConstruct()
 	ApplyResolvedEquipTypeTags();
 	ApplyEquipSlotNames();
 	BindSkinEquipSlotCallbacks();
+
+	if (DrawButton)
+	{
+		DrawButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleDrawButtonClicked);
+	}
 }
 
 void ULeftSkinWidget::NativeDestruct()
 {
+	if (DrawButton)
+	{
+		DrawButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleDrawButtonClicked);
+	}
+
 	UnbindSkinEquipSlotCallbacks();
 
 	Super::NativeDestruct();
@@ -56,19 +70,6 @@ void ULeftSkinWidget::InitialzeEquipSlots()
 	bIsSelectedAnySlot = false;
 }
 
-void ULeftSkinWidget::ToggleActiveSkinEquipSlots(bool bActive)
-{
-	RebuildSkinEquipSlotList();
-
-	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
-	{
-		if (SkinEquipSlot)
-		{
-			SkinEquipSlot->SetIsEnabled(bActive);
-		}
-	}
-}
-
 void ULeftSkinWidget::SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* InSelectedSkinEquipSlot)
 {
 	if (!InSelectedSkinEquipSlot)
@@ -77,12 +78,7 @@ void ULeftSkinWidget::SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipS
 	}
 
 	SelectedSkinEquipSlot = InSelectedSkinEquipSlot;
-	UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot clicked for filter/clear: widget=%s slot=%s tag=%s occupied=%s slotOwnTag=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(SelectedSkinEquipSlot),
-		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
-		SelectedSkinEquipSlot && SelectedSkinEquipSlot->HasEquippedSkin() ? TEXT("true") : TEXT("false"),
-		SelectedSkinEquipSlot->GetEquipTypeTag().IsValid() ? *SelectedSkinEquipSlot->GetEquipTypeTag().ToString() : TEXT("None"));
+
 
 	BroadcastClickedSkinEquipTypeSlot(EquipTypeTag, SelectedSkinEquipSlot, false);
 
@@ -101,10 +97,7 @@ void ULeftSkinWidget::SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipS
 void ULeftSkinWidget::RefreshEquippedSkinSlots(const USkinEquipmentComponent* SkinEquipmentComponent)
 {
 	RebuildSkinEquipSlotList();
-	UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] RefreshEquippedSkinSlots: widget=%s component=%s slotCount=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(SkinEquipmentComponent),
-		SkinEquipSlotList.Num());
+
 
 	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
 	{
@@ -117,11 +110,7 @@ void ULeftSkinWidget::RefreshEquippedSkinSlots(const USkinEquipmentComponent* Sk
 		const USkinDefinition* SkinDefinition = SkinEquipmentComponent && SlotTag.IsValid()
 			? SkinEquipmentComponent->GetEquippedSkinDefinition(SlotTag)
 			: nullptr;
-		UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] RefreshEquippedSkinSlots apply: slot=%s slotTag=%s definition=%s idTag=%s"),
-			*GetNameSafe(SkinEquipSlot),
-			SlotTag.IsValid() ? *SlotTag.ToString() : TEXT("None"),
-			*GetNameSafe(SkinDefinition),
-			SkinDefinition && SkinDefinition->IdTag.IsValid() ? *SkinDefinition->IdTag.ToString() : TEXT("None"));
+
 		SkinEquipSlot->SetSkinDefinition(SkinDefinition);
 	}
 }
@@ -143,7 +132,10 @@ USkinEquipSlotWidget* ULeftSkinWidget::FindFirstCompatibleSkinEquipSlot(USkinIns
 		}
 
 		const FGameplayTag SlotTag = ResolveSkinEquipTypeTagForSlot(SkinEquipSlot);
-		if (!SlotTag.IsValid() || !SkinDefinition->IdTag.MatchesTag(SlotTag))
+		const FGameplayTag RequiredSkinTag = SlotTag.MatchesTag(LabGameplayTags::Skin_Gesture)
+			? LabGameplayTags::Skin_Gesture
+			: SlotTag;
+		if (!RequiredSkinTag.IsValid() || !SkinDefinition->IdTag.MatchesTag(RequiredSkinTag))
 		{
 			continue;
 		}
@@ -155,51 +147,40 @@ USkinEquipSlotWidget* ULeftSkinWidget::FindFirstCompatibleSkinEquipSlot(USkinIns
 
 		if (!SkinEquipSlot->HasEquippedSkin())
 		{
-			UE_LOG(LogLeftSkinWidget, Log, TEXT("[CharacterPanelDrop] Found empty compatible skin slot: widget=%s slot=%s tag=%s skin=%s idTag=%s"),
-				*GetNameSafe(this),
-				*GetNameSafe(SkinEquipSlot),
-				*SlotTag.ToString(),
-				*GetNameSafe(SkinInstance),
-				*SkinDefinition->IdTag.ToString());
+
 			return SkinEquipSlot;
 		}
-	}
-
-	if (FirstCompatibleSlot)
-	{
-		UE_LOG(LogLeftSkinWidget, Log, TEXT("[CharacterPanelDrop] No empty compatible skin slot, replacing first compatible slot: widget=%s slot=%s skin=%s idTag=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(FirstCompatibleSlot),
-			*GetNameSafe(SkinInstance),
-			*SkinDefinition->IdTag.ToString());
 	}
 	return FirstCompatibleSlot;
 }
 
 void ULeftSkinWidget::BroadcastClickedSkinEquipTypeSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* InSelectedSkinEquipSlot, bool bInIsSelectedAnySlot)
 {
-	UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] Broadcast SkinEquipTypeSlot: widget=%s slot=%s tag=%s selectedAny=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(InSelectedSkinEquipSlot),
-		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
-		bInIsSelectedAnySlot ? TEXT("true") : TEXT("false"));
+
 	OnClicked_SkinEquipTypeSlot.Broadcast(EquipTypeTag, InSelectedSkinEquipSlot, bInIsSelectedAnySlot);
+}
+
+void ULeftSkinWidget::HidePaintCanvasGroup()
+{
+	if (APdPlayer* PlayerCharacter = GetOwningPdPlayer())
+	{
+		PlayerCharacter->HidePaintCanvas();
+	}
+
+	BroadcastPaintCanvasGroupVisibilityChanged(false);
 }
 
 void ULeftSkinWidget::HandleSkinEquipSlotClicked(USkinEquipSlotWidget* SkinEquipSlot)
 {
 	const FGameplayTag ResolvedTag = ResolveSkinEquipTypeTagForSlot(SkinEquipSlot);
-	UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot clicked: widget=%s slot=%s resolvedTag=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(SkinEquipSlot),
-		ResolvedTag.IsValid() ? *ResolvedTag.ToString() : TEXT("None"));
+
 	SelectSkinEquipSlot(ResolvedTag, SkinEquipSlot);
 }
 
 void ULeftSkinWidget::RebuildSkinEquipSlotList()
 {
 	SkinEquipSlotList.Reset();
-	SkinEquipSlotList.Reserve(13);
+	SkinEquipSlotList.Reserve(14);
 
 	SkinEquipSlotList.Add(HatSlot);
 	SkinEquipSlotList.Add(TopSlot);
@@ -214,6 +195,7 @@ void ULeftSkinWidget::RebuildSkinEquipSlotList()
 	SkinEquipSlotList.Add(GestureSlot3);
 	SkinEquipSlotList.Add(GestureSlot4);
 	SkinEquipSlotList.Add(RidingSlot);
+	SkinEquipSlotList.Add(PetSlot);
 }
 
 void ULeftSkinWidget::RebuildEquipSlotNameList()
@@ -233,6 +215,7 @@ void ULeftSkinWidget::RebuildEquipSlotNameList()
 			FText::FromString(TEXT("3")),
 			FText::FromString(TEXT("4")),
 			FText::FromString(TEXT("Riding")),
+			FText::FromString(TEXT("Pet")),
 		};
 }
 
@@ -276,13 +259,37 @@ void ULeftSkinWidget::UnbindSkinEquipSlotCallbacks()
 void ULeftSkinWidget::HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinEquipSlot, USkinInstance* SkinInstance)
 {
 	const FGameplayTag ResolvedTag = ResolveSkinEquipTypeTagForSlot(SkinEquipSlot);
-	UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotDragDrop] Skin dropped on left skin slot: widget=%s slot=%s resolvedTag=%s skin=%s definition=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(SkinEquipSlot),
-		ResolvedTag.IsValid() ? *ResolvedTag.ToString() : TEXT("None"),
-		*GetNameSafe(SkinInstance),
-		*GetNameSafe(SkinInstance ? SkinInstance->SkinDefinition.Get() : nullptr));
+
 	OnDroppedSkin_SkinEquipTypeSlot.Broadcast(ResolvedTag, SkinEquipSlot, SkinInstance);
+}
+
+void ULeftSkinWidget::HandleDrawButtonClicked()
+{
+	APlayerController* PlayerController = GetOwningPlayer();
+	APdPlayer* PlayerCharacter = GetOwningPdPlayer();
+	if (!PlayerCharacter)
+	{
+		BroadcastPaintCanvasGroupVisibilityChanged(false);
+
+		return;
+	}
+
+	if (PlayerCharacter->HasActivePaintCanvas())
+	{
+		HidePaintCanvasGroup();
+		return;
+	}
+
+	FTransform PaintCanvasTransformOffset = FSkinWidgetSettings().PaintCanvasTransformOffset;
+	const APdHUD* PdHUD = PlayerController ? Cast<APdHUD>(PlayerController->GetHUD()) : nullptr;
+	if (const UWidgetClassDefinition* WidgetDefinition = PdHUD ? PdHUD->GetWidgetClassDefinition() : nullptr)
+	{
+		PaintCanvasTransformOffset = WidgetDefinition->GetSkinWidgetSettings().PaintCanvasTransformOffset;
+	}
+
+	AActor* PaintCanvasActor = PlayerCharacter->ShowPaintCanvasWithCharacterOffset(PaintCanvasTransformOffset);
+	BroadcastPaintCanvasGroupVisibilityChanged(PaintCanvasActor != nullptr && PlayerCharacter->HasActivePaintCanvas());
+
 }
 
 void ULeftSkinWidget::ApplyResolvedEquipTypeTags()
@@ -298,12 +305,29 @@ void ULeftSkinWidget::ApplyResolvedEquipTypeTags()
 
 FGameplayTag ULeftSkinWidget::ResolveSkinEquipTypeTagForSlot(const USkinEquipSlotWidget* SkinEquipSlot) const
 {
+	if (SkinEquipSlot == GestureSlot1)
+	{
+		return LabGameplayTags::Skin_Gesture_Slot1;
+	}
+
+	if (SkinEquipSlot == GestureSlot2)
+	{
+		return LabGameplayTags::Skin_Gesture_Slot2;
+	}
+
+	if (SkinEquipSlot == GestureSlot3)
+	{
+		return LabGameplayTags::Skin_Gesture_Slot3;
+	}
+
+	if (SkinEquipSlot == GestureSlot4)
+	{
+		return LabGameplayTags::Skin_Gesture_Slot4;
+	}
+
 	if (SkinEquipSlot && SkinEquipSlot->GetEquipTypeTag().IsValid())
 	{
-		UE_LOG(LogLeftSkinWidget, Log, TEXT("[SkinSlotFlow] ResolveSkinEquipTypeTagForSlot using slot override: widget=%s slot=%s tag=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(SkinEquipSlot),
-			*SkinEquipSlot->GetEquipTypeTag().ToString());
+
 		return SkinEquipSlot->GetEquipTypeTag();
 	}
 
@@ -347,15 +371,26 @@ FGameplayTag ULeftSkinWidget::ResolveSkinEquipTypeTagForSlot(const USkinEquipSlo
 		return UProjectTagConfig::Get(this)->GetSkinAuraEquipTypeTag();
 	}
 
-	if (SkinEquipSlot == GestureSlot1 || SkinEquipSlot == GestureSlot2 || SkinEquipSlot == GestureSlot3 || SkinEquipSlot == GestureSlot4)
-	{
-		return UProjectTagConfig::Get(this)->GetSkinGestureTypeTag();
-	}
-
 	if (SkinEquipSlot == RidingSlot)
 	{
 		return UProjectTagConfig::Get(this)->GetSkinRidingTypeTag();
 	}
 
+	if (SkinEquipSlot == PetSlot)
+	{
+		return UProjectTagConfig::Get(this)->GetSkinPetTypeTag();
+	}
+
 	return FGameplayTag();
+}
+
+void ULeftSkinWidget::BroadcastPaintCanvasGroupVisibilityChanged(const bool bVisible)
+{
+	OnPaintCanvasGroupVisibilityChanged.Broadcast(bVisible);
+}
+
+APdPlayer* ULeftSkinWidget::GetOwningPdPlayer() const
+{
+	const APlayerController* PlayerController = GetOwningPlayer();
+	return PlayerController ? Cast<APdPlayer>(PlayerController->GetPawn()) : nullptr;
 }

@@ -1,18 +1,18 @@
 #include "UI/Widget/SkinEquipSlotWidget.h"
 
+#include "Common/LabGameplayTags.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdHUD.h"
-#include "Skin/SkinDefinition.h"
+#include "Definition/Skin/SkinDefinition.h"
 #include "Skin/SkinInstance.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/SkinSlotDragDropOperation.h"
+#include "UI/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinEquipSlotWidget)
-
-DEFINE_LOG_CATEGORY_STATIC(LogSkinEquipSlotWidget, Log, All);
 
 namespace
 {
@@ -120,22 +120,14 @@ bool USkinEquipSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDrag
 		USkinInstance* DroppedSkin = SkinDragOperation->GetSkinInstance();
 		if (CanAcceptDroppedSkin(DroppedSkin))
 		{
-			UE_LOG(LogSkinEquipSlotWidget, Log, TEXT("[SkinSlotDragDrop] Skin dropped on skin equip slot: slot=%s skin=%s sourceSlot=%d"),
-				*GetNameSafe(this),
-				*GetNameSafe(DroppedSkin),
-				SkinDragOperation->GetSourceSlotIndex());
+
 			OnDroppedSkin_SkinEquipSlot.Broadcast(this, DroppedSkin);
 			ApplySlotVisual();
 			return true;
 		}
 
 		const USkinDefinition* DroppedDefinition = DroppedSkin ? DroppedSkin->SkinDefinition.Get() : nullptr;
-		UE_LOG(LogSkinEquipSlotWidget, Warning, TEXT("[SkinSlotDragDrop] Skin drop rejected by skin equip slot type: slot=%s acceptedTag=%s skin=%s definition=%s idTag=%s"),
-			*GetNameSafe(this),
-			GetAcceptedEquipTypeTag().IsValid() ? *GetAcceptedEquipTypeTag().ToString() : TEXT("None"),
-			*GetNameSafe(DroppedSkin),
-			*GetNameSafe(DroppedDefinition),
-			DroppedDefinition && DroppedDefinition->IdTag.IsValid() ? *DroppedDefinition->IdTag.ToString() : TEXT("None"));
+
 	}
 
 	ApplySlotVisual();
@@ -203,16 +195,7 @@ void USkinEquipSlotWidget::SetData(USkinInstance* Target)
 {
 	SkinInstance = Target;
 	SkinDefinition = IsValid(SkinInstance) ? SkinInstance->SkinDefinition.Get() : nullptr;
-	UE_LOG(LogSkinEquipSlotWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot SetData start: widget=%s equipType=%s skin=%s definition=%s idTag=%s slotIcon=%s slotHoverIcon=%s iconImage=%s itemButton=%s"),
-		*GetNameSafe(this),
-		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
-		*GetNameSafe(SkinInstance),
-		*GetNameSafe(SkinDefinition),
-		SkinDefinition && SkinDefinition->IdTag.IsValid() ? *SkinDefinition->IdTag.ToString() : TEXT("None"),
-		*GetNameSafe(SlotIconTexture),
-		*GetNameSafe(SlotHoverIconTexture),
-		*GetNameSafe(IconImage),
-		*GetNameSafe(ItemButton));
+
 
 	if (!SkinDefinition)
 	{
@@ -221,10 +204,7 @@ void USkinEquipSlotWidget::SetData(USkinInstance* Target)
 		CurrentIconTexture = SlotIconTexture;
 		CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
 		CurrentSkinIconTexture = nullptr;
-		UE_LOG(LogSkinEquipSlotWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot SetData empty/default: widget=%s currentIcon=%s currentHover=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(CurrentIconTexture),
-			*GetNameSafe(CurrentHoverIconTexture));
+
 		ApplySlotVisual();
 		return;
 	}
@@ -234,21 +214,6 @@ void USkinEquipSlotWidget::SetData(USkinInstance* Target)
 	CurrentIconTexture = SlotIconTexture;
 	CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
 	CurrentSkinIconTexture = SkinDefinition->IconTexture;
-	if (!CurrentSkinIconTexture)
-	{
-		UE_LOG(LogSkinEquipSlotWidget, Warning, TEXT("[SkinSlotFlow] SkinEquipSlot skin icon missing, using slot default: widget=%s definition=%s fallbackIcon=%s fallbackHover=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(SkinDefinition),
-			*GetNameSafe(CurrentIconTexture),
-			*GetNameSafe(CurrentHoverIconTexture));
-	}
-	else
-	{
-		UE_LOG(LogSkinEquipSlotWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot skin icon loaded: widget=%s definition=%s icon=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(SkinDefinition),
-			*GetNameSafe(CurrentSkinIconTexture));
-	}
 	ApplySlotVisual();
 }
 
@@ -256,13 +221,7 @@ void USkinEquipSlotWidget::SetSkinDefinition(const USkinDefinition* Target)
 {
 	SkinInstance = nullptr;
 	SkinDefinition = Target;
-	UE_LOG(LogSkinEquipSlotWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot SetSkinDefinition start: widget=%s equipType=%s definition=%s idTag=%s slotIcon=%s slotHoverIcon=%s"),
-		*GetNameSafe(this),
-		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
-		*GetNameSafe(SkinDefinition),
-		SkinDefinition && SkinDefinition->IdTag.IsValid() ? *SkinDefinition->IdTag.ToString() : TEXT("None"),
-		*GetNameSafe(SlotIconTexture),
-		*GetNameSafe(SlotHoverIconTexture));
+
 
 	if (!SkinDefinition)
 	{
@@ -271,10 +230,7 @@ void USkinEquipSlotWidget::SetSkinDefinition(const USkinDefinition* Target)
 		CurrentIconTexture = SlotIconTexture;
 		CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
 		CurrentSkinIconTexture = nullptr;
-		UE_LOG(LogSkinEquipSlotWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot SetSkinDefinition empty/default: widget=%s currentIcon=%s currentHover=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(CurrentIconTexture),
-			*GetNameSafe(CurrentHoverIconTexture));
+
 		ApplySlotVisual();
 		return;
 	}
@@ -305,6 +261,11 @@ void USkinEquipSlotWidget::SetResolvedEquipTypeTag(const FGameplayTag InResolved
 
 FGameplayTag USkinEquipSlotWidget::GetAcceptedEquipTypeTag() const
 {
+	if (ResolvedEquipTypeTag.MatchesTag(LabGameplayTags::Skin_Gesture))
+	{
+		return ResolvedEquipTypeTag;
+	}
+
 	return EquipTypeTag.IsValid() ? EquipTypeTag : ResolvedEquipTypeTag;
 }
 
@@ -350,12 +311,6 @@ void USkinEquipSlotWidget::ApplySlotVisual()
 				IconImage->SetVisibility(ESlateVisibility::Collapsed);
 			}
 		}
-		else if (bHasSkinIcon)
-		{
-			UE_LOG(LogSkinEquipSlotWidget, Warning, TEXT("[SkinSlotFlow] Equipped skin icon is set but no SkinImage/IconImage widget is bound: widget=%s icon=%s"),
-				*GetNameSafe(this),
-				*GetNameSafe(CurrentSkinIconTexture));
-		}
 	}
 	else
 	{
@@ -367,25 +322,13 @@ void USkinEquipSlotWidget::ApplySlotVisual()
 
 		if (IconImage)
 		{
-			UE_LOG(LogSkinEquipSlotWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot visual applied via IconImage: widget=%s displayIcon=%s normalIcon=%s hoverIcon=%s hasIcon=%s text=%s"),
-				*GetNameSafe(this),
-				*GetNameSafe(DisplayIconTexture),
-				*GetNameSafe(NormalIconTexture),
-				*GetNameSafe(HoverIconTexture),
-				bHasIcon ? TEXT("true") : TEXT("false"),
-				*SlotText.ToString());
+
 			IconImage->SetBrushFromTexture(DisplayIconTexture, false);
 			IconImage->SetVisibility(bHasIcon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 		}
 		else if (bHasIcon && ItemButton)
 		{
-			UE_LOG(LogSkinEquipSlotWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot visual applied via ButtonStyle: widget=%s restIcon=%s displayIcon=%s normalIcon=%s hoverIcon=%s text=%s"),
-				*GetNameSafe(this),
-				*GetNameSafe(bUseSelectedEmptyIcon ? HoverIconTexture : NormalIconTexture),
-				*GetNameSafe(DisplayIconTexture),
-				*GetNameSafe(NormalIconTexture),
-				*GetNameSafe(HoverIconTexture),
-				*SlotText.ToString());
+
 			UTexture2D* RestIconTexture = (bUseSelectedEmptyIcon || bIsAcceptedDragHovered) ? HoverIconTexture : NormalIconTexture;
 			FButtonStyle ButtonStyle = ItemButton->GetStyle();
 			ButtonStyle.SetNormal(MakeSkinSlotIconBrush(ButtonStyle.Normal, RestIconTexture, FLinearColor(0.9f, 0.9f, 0.9f, 1.0f)));
@@ -394,17 +337,9 @@ void USkinEquipSlotWidget::ApplySlotVisual()
 			ButtonStyle.SetDisabled(MakeSkinSlotIconBrush(ButtonStyle.Disabled, RestIconTexture, FLinearColor(0.35f, 0.35f, 0.35f, 1.0f)));
 			ItemButton->SetStyle(ButtonStyle);
 		}
-		else if (bHasIcon)
-		{
-			UE_LOG(LogSkinEquipSlotWidget, Warning, TEXT("[SkinEquipSlotIcon] Icon texture is set but IconImage widget is not bound: widget=%s icon=%s"),
-				*GetNameSafe(this),
-				*GetNameSafe(DisplayIconTexture));
-		}
 		else if (ItemButton && bHasDefaultButtonStyle)
 		{
-			UE_LOG(LogSkinEquipSlotWidget, Log, TEXT("[SkinSlotFlow] SkinEquipSlot visual restored default button style: widget=%s text=%s"),
-				*GetNameSafe(this),
-				*SlotText.ToString());
+
 			ItemButton->SetStyle(DefaultButtonStyle);
 		}
 	}
@@ -431,68 +366,35 @@ void USkinEquipSlotWidget::CacheOptionalWidgets()
 {
 	if (!SkinImage)
 	{
-		SkinImage = Cast<UImage>(GetWidgetFromName(TEXT("SkinImage")));
-	}
-	if (!SkinImage)
-	{
-		SkinImage = Cast<UImage>(GetWidgetFromName(TEXT("EquippedSkinImage")));
-	}
-	if (!SkinImage)
-	{
-		SkinImage = Cast<UImage>(GetWidgetFromName(TEXT("ItemImage")));
-	}
-	if (!SkinImage)
-	{
-		SkinImage = Cast<UImage>(GetWidgetFromName(TEXT("EquippedItemImage")));
+		SkinImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("SkinImage"),
+			TEXT("EquippedSkinImage"),
+			TEXT("ItemImage"),
+			TEXT("EquippedItemImage")
+		});
 	}
 
 	if (!IconImage)
 	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("IconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("SlotIconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("SkinIconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("EquipIconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("SlotIcon")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("SkinIcon")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("EquipIcon")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("Icon")));
+		IconImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("IconImage"),
+			TEXT("SlotIconImage"),
+			TEXT("SkinIconImage"),
+			TEXT("EquipIconImage"),
+			TEXT("SlotIcon"),
+			TEXT("SkinIcon"),
+			TEXT("EquipIcon"),
+			TEXT("Icon")
+		});
 	}
 	if (!SelectionBorderImage)
 	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("SelectionBorderImage")));
-	}
-	if (!SelectionBorderImage)
-	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("SelectedBorderImage")));
-	}
-	if (!SelectionBorderImage)
-	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("HighlightBorderImage")));
-	}
-	if (!SelectionBorderImage)
-	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("SelectionHighlightImage")));
+		SelectionBorderImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("SelectionBorderImage"),
+			TEXT("SelectedBorderImage"),
+			TEXT("HighlightBorderImage"),
+			TEXT("SelectionHighlightImage")
+		});
 	}
 }
 
@@ -525,7 +427,10 @@ bool USkinEquipSlotWidget::CanAcceptDroppedSkin(USkinInstance* DroppedSkin) cons
 {
 	const USkinDefinition* DroppedDefinition = DroppedSkin ? DroppedSkin->SkinDefinition.Get() : nullptr;
 	const FGameplayTag AcceptedTag = GetAcceptedEquipTypeTag();
-	return DroppedDefinition && DroppedDefinition->IdTag.IsValid() && AcceptedTag.IsValid() && DroppedDefinition->IdTag.MatchesTag(AcceptedTag);
+	const FGameplayTag RequiredSkinTag = AcceptedTag.MatchesTag(LabGameplayTags::Skin_Gesture)
+		? LabGameplayTags::Skin_Gesture
+		: AcceptedTag;
+	return DroppedDefinition && DroppedDefinition->IdTag.IsValid() && RequiredSkinTag.IsValid() && DroppedDefinition->IdTag.MatchesTag(RequiredSkinTag);
 }
 
 UTexture2D* USkinEquipSlotWidget::GetCurrentIconTexture(const bool bForHover) const

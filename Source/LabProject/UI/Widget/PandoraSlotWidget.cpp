@@ -2,6 +2,7 @@
 
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
+#include "GameFramework/PlayerController.h"
 #include "Mode/PdHUD.h"
 #include "Pandora/PandoraInstance.h"
 #include "UI/Widget/InfoWidget.h"
@@ -46,7 +47,22 @@ void UPandoraSlotWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	bIsHoverActive = false;
 	ApplyViewData(FPandoraSlotViewDataBuilder::Build(CachedData));
+}
+
+void UPandoraSlotWidget::NativeDestruct()
+{
+	if (bIsHoverActive)
+	{
+		if (UInfoWidget* InfoWidget = ResolveInfoWidgetFromPandoraSlot(this))
+		{
+			InfoWidget->HidePandoraDescriptionDetailAtWidget(this);
+		}
+		bIsHoverActive = false;
+	}
+
+	Super::NativeDestruct();
 }
 
 void UPandoraSlotWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
@@ -63,11 +79,24 @@ void UPandoraSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const F
 {
 	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
 
-	if (UInfoWidget* InfoWidget = ResolveInfoWidgetFromPandoraSlot(this))
+	if (bIsHoverActive)
+	{
+		return;
+	}
+
+	const APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!OwningPlayer || !OwningPlayer->IsLocalController())
+	{
+		return;
+	}
+
+	bIsHoverActive = true;
+	UInfoWidget* InfoWidget = ResolveInfoWidgetFromPandoraSlot(this);
+	if (InfoWidget)
 	{
 		if (CachedData)
 		{
-			InfoWidget->ShowPandoraDescriptionDetailAtWidget(CachedData, this, true);
+			InfoWidget->ShowPandoraDescriptionDetailImmediatelyAtWidget(CachedData, this, true);
 		}
 		else
 		{
@@ -78,9 +107,17 @@ void UPandoraSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const F
 
 void UPandoraSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 {
-	if (UInfoWidget* InfoWidget = ResolveInfoWidgetFromPandoraSlot(this))
+	if (!bIsHoverActive)
 	{
-		InfoWidget->HideDetailWidgets();
+		Super::NativeOnMouseLeave(InMouseEvent);
+		return;
+	}
+
+	bIsHoverActive = false;
+	UInfoWidget* InfoWidget = ResolveInfoWidgetFromPandoraSlot(this);
+	if (InfoWidget)
+	{
+		InfoWidget->HidePandoraDescriptionDetailAtWidget(this);
 	}
 
 	Super::NativeOnMouseLeave(InMouseEvent);
@@ -107,7 +144,8 @@ void UPandoraSlotWidget::ApplyViewData(const FPandoraSlotViewData& ViewData)
 	}
 
 	RefreshWeaponRequirementImages(ViewData.RequiredWeaponTags);
-	SetIsEnabled(ViewData.bEnabled);
+	SetIsEnabled(true);
+	SetRenderOpacity(ViewData.bEnabled ? 1.0f : 0.45f);
 }
 
 void UPandoraSlotWidget::RefreshWeaponRequirementImages(const FGameplayTagContainer& RequiredWeaponTags) const

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Common/Enum_Direction.h"
 #include "SelectPandoraWidget.generated.h"
@@ -15,6 +16,8 @@ class LABPROJECT_API USelectPandoraWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	virtual void NativeConstruct() override;
+
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetPandoraImage(int32 Nth, UTexture2D* PandoraImage);
 
@@ -59,7 +62,17 @@ protected:
 	FLinearColor DisabledPandoraTint = FLinearColor(0.15f, 0.15f, 0.15f, 0.55f);
 
 private:
-	void SetImageByIndex(const TArray<UImage*>& Images, int32 Nth, UTexture2D* Texture) const;
+	void CacheDefaultImageBrushes();
+	void SetImageByIndex(const TArray<UImage*>& Images, const TArray<FSlateBrush>& DefaultBrushes, int32 Nth, UTexture2D* Texture);
 	void SetImageTintByIndex(const TArray<UImage*>& Images, int32 Nth, const FLinearColor& TintColor) const;
 	void SelectDirection(EEnum_Direction InDirection, bool bBroadcast);
+
+	UPROPERTY(Transient)
+	TArray<FSlateBrush> DefaultPandoraImageBrushes;
+
+	UPROPERTY(Transient)
+	TArray<FSlateBrush> DefaultWeaponImageBrushes;
+
+	UPROPERTY(Transient)
+	bool bDefaultImageBrushesCached = false;
 };

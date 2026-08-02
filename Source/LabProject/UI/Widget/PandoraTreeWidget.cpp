@@ -1,26 +1,34 @@
 #include "UI/Widget/PandoraTreeWidget.h"
 
-#include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
+#include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Animation/WidgetAnimation.h"
+#include "Blueprint/SlateBlueprintLibrary.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Camera/CameraComponent.h"
 #include "Components/Button.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Engine/LocalPlayer.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
+#include "InputCoreTypes.h"
+#include "Mode/PdHUD.h"
 #include "Mode/PdPlayerState.h"
-#include "Pandora/PandoraDefinition.h"
+#include "Definition/Pandora/PandoraDefinition.h"
+#include "Settings/LocalPlayerSettingsSubsystem.h"
+#include "UI/UiSubsystem.h"
+#include "UI/WidgetLookup.h"
+#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Widget/PandoraDescriptionWidget.h"
 #include "UI/Widget/PandoraWidget.h"
 #include "View/MVVMView.h"
 #include "View/MVVMViewClass.h"
 #include "ViewModel/PandoraTreeViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraTreeWidget)
-
-DEFINE_LOG_CATEGORY_STATIC(LogPandoraTreeWidget, Log, All);
 
 namespace
 {
@@ -72,7 +80,6 @@ namespace
 
 		TArray<UCameraComponent*> CameraComponents;
 		ViewTarget->GetComponents<UCameraComponent>(CameraComponents);
-
 		for (UCameraComponent* CameraComponent : CameraComponents)
 		{
 			if (!IsValid(CameraComponent))
@@ -84,13 +91,6 @@ namespace
 			CameraComponent->bOverrideAspectRatioAxisConstraint = false;
 		}
 
-		if (!CameraComponents.IsEmpty())
-		{
-			UE_LOG(LogPandoraTreeWidget, Log,
-				TEXT("[PandoraPreview] Disabled preview camera aspect constraint. viewTarget=%s cameraCount=%d"),
-				*GetNameSafe(ViewTarget),
-				CameraComponents.Num());
-		}
 	}
 }
 
@@ -104,6 +104,7 @@ void UPandoraTreeWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
+	ApplyWidgetDefinitionSettings();
 	ResolveControlWidgets();
 	GetOrCreatePandoraTreeViewModel();
 	ApplyPandoraTreeViewModelToMvvmView();
@@ -114,6 +115,8 @@ void UPandoraTreeWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	SetIsFocusable(true);
+	ApplyWidgetDefinitionSettings();
 	ResolvePandoraTreeComponent();
 	ResolveControlWidgets();
 	GetOrCreatePandoraTreeViewModel();
@@ -123,39 +126,80 @@ void UPandoraTreeWidget::NativeConstruct()
 	BindButtonEvents();
 	SetPandoraPointsText();
 	RefreshPandoraWidgets();
-
-	UE_LOG(LogPandoraTreeWidget, Log,
-		TEXT("[Construct] widget=%s treeComponent=%s pandora=%s viewModel=%s resetButton=%s popupPanel=%s owningPlayer=%s owningPawn=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		*GetNameSafe(PandoraDefinition.Get()),
-		*GetNameSafe(PandoraTreeViewModel.Get()),
-		*GetNameSafe(ResetPandoraButton.Get()),
-		*GetNameSafe(GetPandoraDescriptionPopupPanel()),
-		*GetNameSafe(GetOwningPlayer()),
-		*GetNameSafe(GetOwningPlayerPawn()));
 }
 
 void UPandoraTreeWidget::NativeDestruct()
 {
 	ClearHideTimer();
+	UnbindPandoraWidgetEvents();
+	PandoraDescriptionRequestStack.Reset();
+	HidePandoraDescription();
+	if (PandoraDescriptionWidget)
+	{
+		PandoraDescriptionWidget->RemoveFromParent();
+		PandoraDescriptionWidget = nullptr;
+	}
 	UnbindButtonEvents();
 	UnbindPandoraTreeEvents();
-	ReturnCameraToPawn(PreviewCameraHideBlendTime);
+	if (bReturnCameraOnHide)
+	{
+		ReturnCameraToPawn(PreviewCameraHideBlendTime);
+	}
 	DestroyCharacterPreview();
 	if (PandoraTreeViewModel && PandoraTreeViewModel->IsViewModelInitialized())
 	{
 		PandoraTreeViewModel->UninitializeViewModel();
 	}
 
+	ReleaseRoutedPandoraInput();
 	Super::NativeDestruct();
+}
+
+void UPandoraTreeWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (PandoraDescriptionWidget
+		&& PandoraDescriptionWidget->GetVisibility() != ESlateVisibility::Collapsed
+		&& !ActivePandoraDescriptionAnchor.IsValid())
+	{
+		ShowTopRequestedPandoraDescription();
+	}
+
+	if (ActivePandoraDescriptionAnchor.IsValid()
+		&& PandoraDescriptionWidget
+		&& PandoraDescriptionWidget->GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		PositionPandoraDescriptionWidget(ActivePandoraDescriptionAnchor.Get());
+	}
 }
 
 FReply UPandoraTreeWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
+	if (InKeyEvent.GetKey() == EKeys::Escape)
+	{
+		if (APlayerController* PlayerController = GetOwningPlayer())
+		{
+			if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
+			{
+				Hud->HandleEscapeInput();
+				return FReply::Handled();
+			}
+		}
+	}
+
 	if (!bCloseOnToggleKey || !InKeyEvent.GetKey().IsValid() || !IsTogglePandoraTreeKey(InKeyEvent.GetKey()))
 	{
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+	}
+
+	if (APlayerController* PlayerController = GetOwningPlayer())
+	{
+		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
+		{
+			Hud->ClosePandoraTreeUi();
+			return FReply::Handled();
+		}
 	}
 
 	HidePandoraTree();
@@ -184,10 +228,7 @@ void UPandoraTreeWidget::SetPandoraPointsText()
 
 	if (!PandoraTreeComponent)
 	{
-		UE_LOG(LogPandoraTreeWidget, Warning,
-			TEXT("[SetPointsText] skipped. widget=%s treeComponent=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraTreeComponent.Get()));
+
 		ViewModel->SetPointsAvailable(0);
 		ViewModel->SetPandoraPointsText(FText::GetEmpty());
 		return;
@@ -217,12 +258,7 @@ void UPandoraTreeWidget::ShowPandoraTree()
 	ClearHideTimer();
 	SetVisibility(ESlateVisibility::Visible);
 	SetFocus();
-	UE_LOG(LogPandoraTreeWidget, Log,
-		TEXT("[Show] widget=%s treeComponent=%s pandora=%s points=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		*GetNameSafe(PandoraDefinition.Get()),
-		PandoraTreeComponent ? PandoraTreeComponent->GetPointsAvailable() : INDEX_NONE);
+
 
 	if (SlideInLeft)
 	{
@@ -231,35 +267,54 @@ void UPandoraTreeWidget::ShowPandoraTree()
 
 	SpawnCharacterPreview();
 
-	if (!bSetInputModeOnShowHide)
+	if (!ShouldManageInputModeInternally())
+	{
+		return;
+	}
+
+	if (ApplyRoutedPandoraInput())
 	{
 		return;
 	}
 
 	if (APlayerController* PlayerController = GetOwningPlayer())
 	{
-		FInputModeUIOnly InputMode;
+		FInputModeGameAndUI InputMode;
 		InputMode.SetWidgetToFocus(TakeWidget());
 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		InputMode.SetHideCursorDuringCapture(false);
 		PlayerController->SetInputMode(InputMode);
 		PlayerController->bShowMouseCursor = true;
+		PlayerController->bEnableClickEvents = true;
+		PlayerController->bEnableMouseOverEvents = true;
+		SetUserFocus(PlayerController);
+		SetFocus();
+	}
+}
+
+void UPandoraTreeWidget::SetInputModeManagedExternally(const bool bManagedExternally)
+{
+	if (bInputModeManagedExternally == bManagedExternally)
+	{
+		return;
+	}
+
+	bInputModeManagedExternally = bManagedExternally;
+	if (bInputModeManagedExternally)
+	{
+		ReleaseRoutedPandoraInput();
+	}
+	else if (ShouldManageInputModeInternally()
+		&& IsInViewport()
+		&& GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		ApplyRoutedPandoraInput();
 	}
 }
 
 void UPandoraTreeWidget::HidePandoraTree()
 {
-	ClearHideTimer();
-	ReturnCameraToPawn(PreviewCameraHideBlendTime);
-
-	if (bSetInputModeOnShowHide)
-	{
-		if (APlayerController* PlayerController = GetOwningPlayer())
-		{
-			FInputModeGameOnly InputMode;
-			PlayerController->SetInputMode(InputMode);
-			PlayerController->bShowMouseCursor = false;
-		}
-	}
+	PrepareToHidePandoraTree();
 
 	if (SlideInLeft)
 	{
@@ -279,6 +334,42 @@ void UPandoraTreeWidget::HidePandoraTree()
 	FinishHidePandoraTree();
 }
 
+void UPandoraTreeWidget::HidePandoraTreeImmediately()
+{
+	PrepareToHidePandoraTree();
+	StopAllAnimations();
+	FinishHidePandoraTree();
+}
+
+void UPandoraTreeWidget::PrepareToHidePandoraTree()
+{
+	ClearHideTimer();
+	PandoraDescriptionRequestStack.Reset();
+	HidePandoraDescription();
+	if (bReturnCameraOnHide)
+	{
+		ReturnCameraToPawn(PreviewCameraHideBlendTime);
+	}
+
+	if (ShouldManageInputModeInternally() && !ReleaseRoutedPandoraInput())
+	{
+		const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+		UUiSubsystem* UiSubsystem = LocalPlayer
+			? LocalPlayer->GetSubsystem<UUiSubsystem>()
+			: nullptr;
+		if ((!UiSubsystem || !UiSubsystem->HasActiveModalInput())
+			&& GetOwningPlayer())
+		{
+			APlayerController* PlayerController = GetOwningPlayer();
+			FInputModeGameOnly InputMode;
+			PlayerController->SetInputMode(InputMode);
+			PlayerController->bShowMouseCursor = false;
+			PlayerController->bEnableClickEvents = false;
+			PlayerController->bEnableMouseOverEvents = false;
+		}
+	}
+}
+
 void UPandoraTreeWidget::ResetPandora()
 {
 	ResolvePandoraTreeComponent();
@@ -288,30 +379,112 @@ void UPandoraTreeWidget::ResetPandora()
 	}
 }
 
-UPanelWidget* UPandoraTreeWidget::GetPandoraDescriptionPopupPanel() const
+void UPandoraTreeWidget::ShowPandoraDescriptionAtWidget(
+	UPandoraDefinition* InPandoraDefinition,
+	UPandoraTreeComponent* InPandoraTreeComponent,
+	const UWidget* AnchorWidget)
 {
-	if (PandoraDescriptionPopup)
+	const APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!OwningPlayer || !OwningPlayer->IsLocalController())
 	{
-		return PandoraDescriptionPopup.Get();
+		return;
 	}
 
-	UPandoraTreeWidget* MutableThis = const_cast<UPandoraTreeWidget*>(this);
-	if (UPanelWidget* Panel = Cast<UPanelWidget>(MutableThis->GetWidgetFromName(TEXT("PandoraDescriptionPopup"))))
+	if (!InPandoraDefinition || !AnchorWidget)
 	{
-		return Panel;
+		HidePandoraDescription(AnchorWidget);
+		return;
 	}
 
-	if (UPanelWidget* Panel = Cast<UPanelWidget>(MutableThis->GetWidgetFromName(TEXT("PandoraDescriptionPopupPanel"))))
+	UPandoraDescriptionWidget* DescriptionWidget = GetOrCreatePandoraDescriptionWidget();
+	if (!DescriptionWidget)
 	{
-		return Panel;
+		return;
 	}
 
-	return nullptr;
+	if (ActivePandoraDescriptionAnchor.Get() == AnchorWidget
+		&& ActivePandoraDescriptionDefinition.Get() == InPandoraDefinition
+		&& DescriptionWidget->GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		return;
+	}
+
+	ActivePandoraDescriptionAnchor = const_cast<UWidget*>(AnchorWidget);
+	ActivePandoraDescriptionDefinition = InPandoraDefinition;
+	DescriptionWidget->SetPandoraDefinition(InPandoraDefinition);
+	DescriptionWidget->SetPandoraTreeComponent(InPandoraTreeComponent);
+	DescriptionWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	PositionPandoraDescriptionWidget(AnchorWidget);
+	DescriptionWidget->PlayShowAnimation();
+}
+
+void UPandoraTreeWidget::HidePandoraDescription(const UWidget* RequestingAnchorWidget)
+{
+	if (RequestingAnchorWidget && ActivePandoraDescriptionAnchor.Get() != RequestingAnchorWidget)
+	{
+		return;
+	}
+
+	if (PandoraDescriptionWidget)
+	{
+		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	ActivePandoraDescriptionAnchor.Reset();
+	ActivePandoraDescriptionDefinition.Reset();
+}
+
+void UPandoraTreeWidget::RefreshActivePandoraDescription()
+{
+	if (!PandoraDescriptionWidget
+		|| PandoraDescriptionWidget->GetVisibility() == ESlateVisibility::Collapsed
+		|| !ActivePandoraDescriptionDefinition.IsValid()
+		|| !ActivePandoraDescriptionAnchor.IsValid())
+	{
+		return;
+	}
+
+	PandoraDescriptionWidget->SetPandoraDefinition(ActivePandoraDescriptionDefinition.Get());
+	PandoraDescriptionWidget->SetPandoraTreeComponent(PandoraTreeComponent.Get());
+	PositionPandoraDescriptionWidget(ActivePandoraDescriptionAnchor.Get());
+}
+
+void UPandoraTreeWidget::PrunePandoraDescriptionRequests()
+{
+	PandoraDescriptionRequestStack.RemoveAll(
+		[](const TWeakObjectPtr<UPandoraWidget>& RequestedWidget)
+		{
+			const UPandoraWidget* PandoraWidget = RequestedWidget.Get();
+			return !IsValid(PandoraWidget) || !PandoraWidget->IsPandoraDescriptionRequested();
+		});
+}
+
+void UPandoraTreeWidget::ShowTopRequestedPandoraDescription()
+{
+	PrunePandoraDescriptionRequests();
+	if (PandoraDescriptionRequestStack.IsEmpty())
+	{
+		HidePandoraDescription();
+		return;
+	}
+
+	UPandoraWidget* PandoraWidget = PandoraDescriptionRequestStack.Last().Get();
+	if (!IsValid(PandoraWidget))
+	{
+		HidePandoraDescription();
+		return;
+	}
+
+	ShowPandoraDescriptionAtWidget(
+		PandoraWidget->GetPandoraDefinition(),
+		PandoraTreeComponent.Get(),
+		PandoraWidget->GetPandoraDescriptionAnchorWidget());
 }
 
 void UPandoraTreeWidget::HandlePandoraStateChanged()
 {
 	RefreshPandoraWidgets();
+	RefreshActivePandoraDescription();
 }
 
 void UPandoraTreeWidget::HandlePandoraPointsChanged(int32 NewPointsAvailable)
@@ -319,11 +492,63 @@ void UPandoraTreeWidget::HandlePandoraPointsChanged(int32 NewPointsAvailable)
 	(void)NewPointsAvailable;
 	SetPandoraPointsText();
 	RefreshPandoraWidgets();
+	RefreshActivePandoraDescription();
 }
 
 void UPandoraTreeWidget::HandleResetPandoraClicked()
 {
 	ResetPandora();
+}
+
+void UPandoraTreeWidget::HandleLoadoutClicked()
+{
+	if (APlayerController* PlayerController = GetOwningPlayer())
+	{
+		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
+		{
+			Hud->OpenInfoUiFocused(EPdInfoUiSection::Pandora);
+		}
+	}
+}
+
+void UPandoraTreeWidget::HandlePandoraDescriptionRequested(UPandoraWidget* PandoraWidget)
+{
+	if (!IsValid(PandoraWidget))
+	{
+		return;
+	}
+
+	PandoraDescriptionRequestStack.RemoveAll(
+		[PandoraWidget](const TWeakObjectPtr<UPandoraWidget>& RequestedWidget)
+		{
+			return RequestedWidget.Get() == PandoraWidget;
+		});
+	PandoraDescriptionRequestStack.Add(PandoraWidget);
+	ShowTopRequestedPandoraDescription();
+}
+
+void UPandoraTreeWidget::HandlePandoraDescriptionDismissed(UPandoraWidget* PandoraWidget)
+{
+	const UWidget* DismissedAnchor =
+		IsValid(PandoraWidget) ? PandoraWidget->GetPandoraDescriptionAnchorWidget() : nullptr;
+	PandoraDescriptionRequestStack.RemoveAll(
+		[PandoraWidget](const TWeakObjectPtr<UPandoraWidget>& RequestedWidget)
+		{
+			return RequestedWidget.Get() == PandoraWidget;
+		});
+
+	if (!DismissedAnchor || ActivePandoraDescriptionAnchor.Get() == DismissedAnchor)
+	{
+		ShowTopRequestedPandoraDescription();
+	}
+}
+
+void UPandoraTreeWidget::HandlePandoraTreeFocusRequested(UPandoraWidget* PandoraWidget)
+{
+	if (IsValid(PandoraWidget))
+	{
+		SetFocus();
+	}
 }
 
 void UPandoraTreeWidget::ResolvePandoraTreeComponent()
@@ -338,40 +563,50 @@ void UPandoraTreeWidget::ResolvePandoraTreeComponent()
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
 
-	UE_LOG(LogPandoraTreeWidget, Log,
-		TEXT("[ResolveTreeComponent] widget=%s treeComponent=%s pandora=%s owningPlayer=%s owningPawn=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		*GetNameSafe(PandoraDefinition.Get()),
-		*GetNameSafe(GetOwningPlayer()),
-		*GetNameSafe(GetOwningPlayerPawn()));
+
+}
+
+void UPandoraTreeWidget::ApplyWidgetDefinitionSettings()
+{
+	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+	{
+		const FPandoraTreeWidgetSettings& Settings = WidgetDefinition->GetPandoraTreeWidgetSettings();
+		PandoraPointsFormat = Settings.PandoraPointsFormat;
+		bCloseOnToggleKey = Settings.bCloseOnToggleKey;
+		bSetInputModeOnShowHide = Settings.bSetInputModeOnShowHide;
+		HideAnimationDelay = Settings.HideAnimationDelay;
+		bUseCharacterPreviewCamera = Settings.bUseCharacterPreviewCamera;
+		PreviewCameraShowBlendTime = Settings.PreviewCameraShowBlendTime;
+		PreviewCameraHideBlendTime = Settings.PreviewCameraHideBlendTime;
+		bReturnCameraOnHide = Settings.bReturnCameraOnHide;
+
+		// Preserve the PandoraTree widget's own preview class (for example,
+		// BP_CharacterPreviewRight). The shared definition is only a fallback.
+		if (!CharacterPreviewClass)
+		{
+			CharacterPreviewClass = WidgetDefinition->GetCharacterPreviewClass();
+		}
+	}
 }
 
 void UPandoraTreeWidget::ResolveControlWidgets()
 {
 	if (!ResetPandoraButton)
 	{
-		ResetPandoraButton = Cast<UButton>(GetWidgetFromName(TEXT("ResetPandoraButton")));
-	}
-	if (!ResetPandoraButton)
-	{
-		ResetPandoraButton = Cast<UButton>(GetWidgetFromName(TEXT("PandoraResetButton")));
-	}
-
-	if (!PandoraDescriptionPopup)
-	{
-		PandoraDescriptionPopup = Cast<UPanelWidget>(GetWidgetFromName(TEXT("PandoraDescriptionPopup")));
-	}
-	if (!PandoraDescriptionPopup)
-	{
-		PandoraDescriptionPopup = Cast<UPanelWidget>(GetWidgetFromName(TEXT("PandoraDescriptionPopupPanel")));
+		ResetPandoraButton = PdWidgetLookup::FindWidgetByNames<UButton>(this, {
+			TEXT("ResetPandoraButton"),
+			TEXT("PandoraResetButton")
+		});
 	}
 
-	UE_LOG(LogPandoraTreeWidget, Log,
-		TEXT("[ResolveControls] widget=%s resetButton=%s popupPanel=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(ResetPandoraButton.Get()),
-		*GetNameSafe(PandoraDescriptionPopup.Get()));
+	if (!Btn_Loadout)
+	{
+		Btn_Loadout = PdWidgetLookup::FindWidgetByNames<UButton>(this, {
+			TEXT("Btn_Loadout"),
+			TEXT("LoadoutButton")
+		});
+	}
+
 }
 
 UPandoraTreeViewModel* UPandoraTreeWidget::GetOrCreatePandoraTreeViewModel()
@@ -426,22 +661,11 @@ void UPandoraTreeWidget::ApplyPandoraTreeViewModelToMvvmView()
 
 	if (RuntimeViewModelName.IsNone())
 	{
-		UE_LOG(LogPandoraTreeWidget, Warning,
-			TEXT("[ApplyViewModel] skipped: widget has MVVM extension, but no settable PandoraTreeViewModel source. widget=%s viewModel=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraTreeViewModel.Get()));
+
 		return;
 	}
 
-	const bool bSuccess = ViewExtension->SetViewModel(RuntimeViewModelName, PandoraTreeViewModel);
-	if (!bSuccess)
-	{
-		UE_LOG(LogPandoraTreeWidget, Warning,
-			TEXT("[ApplyViewModel] failed. widget=%s viewModelName=%s viewModel=%s"),
-			*GetNameSafe(this),
-			*RuntimeViewModelName.ToString(),
-			*GetNameSafe(PandoraTreeViewModel.Get()));
-	}
+	ViewExtension->SetViewModel(RuntimeViewModelName, PandoraTreeViewModel);
 }
 
 void UPandoraTreeWidget::BindPandoraTreeEvents()
@@ -461,23 +685,30 @@ void UPandoraTreeWidget::BindButtonEvents()
 {
 	ResolveControlWidgets();
 
-	if (!ResetPandoraButton)
+	if (ResetPandoraButton)
 	{
-		return;
+		ResetPandoraButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleResetPandoraClicked);
+		ResetPandoraButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleResetPandoraClicked);
 	}
 
-	ResetPandoraButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleResetPandoraClicked);
-	ResetPandoraButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleResetPandoraClicked);
+	if (Btn_Loadout)
+	{
+		Btn_Loadout->OnClicked.RemoveDynamic(this, &ThisClass::HandleLoadoutClicked);
+		Btn_Loadout->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleLoadoutClicked);
+	}
 }
 
 void UPandoraTreeWidget::UnbindButtonEvents()
 {
-	if (!ResetPandoraButton)
+	if (ResetPandoraButton)
 	{
-		return;
+		ResetPandoraButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleResetPandoraClicked);
 	}
 
-	ResetPandoraButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleResetPandoraClicked);
+	if (Btn_Loadout)
+	{
+		Btn_Loadout->OnClicked.RemoveDynamic(this, &ThisClass::HandleLoadoutClicked);
+	}
 }
 
 void UPandoraTreeWidget::UnbindPandoraTreeEvents()
@@ -495,28 +726,15 @@ void UPandoraTreeWidget::ApplyPandoraDefinitionToComponent()
 {
 	if (PandoraTreeComponent && PandoraDefinition)
 	{
-		UE_LOG(LogPandoraTreeWidget, Log,
-			TEXT("[ApplyPandoraDefinition] widget=%s treeComponent=%s pandora=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraTreeComponent.Get()),
-			*GetNameSafe(PandoraDefinition.Get()));
 		PandoraTreeComponent->SetPandoraDefinition(PandoraDefinition.Get());
-	}
-	else
-	{
-		UE_LOG(LogPandoraTreeWidget, Log,
-			TEXT("[ApplyPandoraDefinition] skipped. widget=%s treeComponent=%s pandora=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraTreeComponent.Get()),
-			*GetNameSafe(PandoraDefinition.Get()));
 	}
 }
 
-void UPandoraTreeWidget::RefreshPandoraWidget(UWidget* Widget) const
+void UPandoraTreeWidget::RefreshPandoraWidget(UWidget* Widget)
 {
 	if (UPandoraWidget* PandoraWidget = Cast<UPandoraWidget>(Widget))
 	{
-		const UPandoraDefinition* BeforePandora = PandoraWidget->GetPandoraDefinition();
+		BindPandoraWidgetEvents(PandoraWidget);
 		PandoraWidget->SetPandoraTreeComponent(PandoraTreeComponent.Get());
 		if (!PandoraWidget->GetPandoraDefinition() && PandoraDefinition)
 		{
@@ -524,17 +742,67 @@ void UPandoraTreeWidget::RefreshPandoraWidget(UWidget* Widget) const
 		}
 
 		PandoraWidget->SetPandoraInfo();
-		UE_LOG(LogPandoraTreeWidget, Log,
-			TEXT("[RefreshPandoraWidget] child=%s beforePandora=%s afterPandora=%s treeComponent=%s treePandora=%s"),
-			*GetNameSafe(PandoraWidget),
-			*GetNameSafe(BeforePandora),
-			*GetNameSafe(PandoraWidget->GetPandoraDefinition()),
-			*GetNameSafe(PandoraTreeComponent.Get()),
-			*GetNameSafe(PandoraDefinition.Get()));
+
 		return;
 	}
 
 	CallNoParamFunction(Widget, TEXT("SetPandoraInfo"));
+}
+
+void UPandoraTreeWidget::BindPandoraWidgetEvents(UPandoraWidget* PandoraWidget)
+{
+	if (!IsValid(PandoraWidget))
+	{
+		return;
+	}
+
+	PandoraWidget->OnPandoraDescriptionRequested.RemoveDynamic(
+		this,
+		&ThisClass::HandlePandoraDescriptionRequested);
+	PandoraWidget->OnPandoraDescriptionDismissed.RemoveDynamic(
+		this,
+		&ThisClass::HandlePandoraDescriptionDismissed);
+	PandoraWidget->OnPandoraTreeFocusRequested.RemoveDynamic(
+		this,
+		&ThisClass::HandlePandoraTreeFocusRequested);
+
+	PandoraWidget->OnPandoraDescriptionRequested.AddUniqueDynamic(
+		this,
+		&ThisClass::HandlePandoraDescriptionRequested);
+	PandoraWidget->OnPandoraDescriptionDismissed.AddUniqueDynamic(
+		this,
+		&ThisClass::HandlePandoraDescriptionDismissed);
+	PandoraWidget->OnPandoraTreeFocusRequested.AddUniqueDynamic(
+		this,
+		&ThisClass::HandlePandoraTreeFocusRequested);
+}
+
+void UPandoraTreeWidget::UnbindPandoraWidgetEvents()
+{
+	if (!WidgetTree)
+	{
+		return;
+	}
+
+	WidgetTree->ForEachWidget(
+		[this](UWidget* Widget)
+		{
+			UPandoraWidget* PandoraWidget = Cast<UPandoraWidget>(Widget);
+			if (!IsValid(PandoraWidget))
+			{
+				return;
+			}
+
+			PandoraWidget->OnPandoraDescriptionRequested.RemoveDynamic(
+				this,
+				&ThisClass::HandlePandoraDescriptionRequested);
+			PandoraWidget->OnPandoraDescriptionDismissed.RemoveDynamic(
+				this,
+				&ThisClass::HandlePandoraDescriptionDismissed);
+			PandoraWidget->OnPandoraTreeFocusRequested.RemoveDynamic(
+				this,
+				&ThisClass::HandlePandoraTreeFocusRequested);
+		});
 }
 
 void UPandoraTreeWidget::ResolveTogglePandoraTreeAction()
@@ -544,9 +812,12 @@ void UPandoraTreeWidget::ResolveTogglePandoraTreeAction()
 		return;
 	}
 
-	TogglePandoraTreeAction = LoadObject<UInputAction>(
-		nullptr,
-		TEXT("/Game/Input/Action/IA_PandoraTree.IA_PandoraTree"));
+	if (const UWidgetClassDefinition* WidgetDefinition =
+		UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+	{
+		TogglePandoraTreeAction =
+			WidgetDefinition->GetTogglePandoraTreeInputAction().Get();
+	}
 }
 
 bool UPandoraTreeWidget::IsTogglePandoraTreeKey(const FKey& Key) const
@@ -557,16 +828,13 @@ bool UPandoraTreeWidget::IsTogglePandoraTreeKey(const FKey& Key) const
 		return false;
 	}
 
-	ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer
-		? LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>()
-		: nullptr;
-	if (!InputSubsystem)
+	const ULocalPlayerSettingsSubsystem* LocalPlayerSettings = ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer());
+	if (!LocalPlayerSettings)
 	{
 		return false;
 	}
 
-	const TArray<FKey> MappedKeys = InputSubsystem->QueryKeysMappedToAction(TogglePandoraTreeAction);
+	const TArray<FKey> MappedKeys = LocalPlayerSettings->QueryKeysMappedToAction(TogglePandoraTreeAction);
 	return MappedKeys.Contains(Key);
 }
 
@@ -577,9 +845,10 @@ void UPandoraTreeWidget::ResolveCharacterPreviewClass()
 		return;
 	}
 
-	CharacterPreviewClass = LoadClass<AActor>(
-		nullptr,
-		TEXT("/Game/CharacterPreview/BP_CharacterPreview.BP_CharacterPreview_C"));
+	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+	{
+		CharacterPreviewClass = WidgetDefinition->GetCharacterPreviewClass();
+	}
 }
 
 void UPandoraTreeWidget::SpawnCharacterPreview()
@@ -660,11 +929,129 @@ void UPandoraTreeWidget::DestroyCharacterPreview()
 	SpawnedCharacterPreview = nullptr;
 }
 
+UPandoraDescriptionWidget* UPandoraTreeWidget::GetOrCreatePandoraDescriptionWidget()
+{
+	if (PandoraDescriptionWidget)
+	{
+		return PandoraDescriptionWidget.Get();
+	}
+
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	const TSubclassOf<UPandoraDescriptionWidget> DescriptionWidgetClass =
+		WidgetDefinition ? WidgetDefinition->GetPandoraDescriptionWidgetClass() : nullptr;
+	if (!DescriptionWidgetClass)
+	{
+		return nullptr;
+	}
+
+	PandoraDescriptionWidget = CreateWidget<UPandoraDescriptionWidget>(GetOwningPlayer(), DescriptionWidgetClass);
+	if (PandoraDescriptionWidget)
+	{
+		PandoraDescriptionWidget->AddToViewport(100);
+		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	return PandoraDescriptionWidget.Get();
+}
+
+void UPandoraTreeWidget::PositionPandoraDescriptionWidget(const UWidget* AnchorWidget) const
+{
+	if (!PandoraDescriptionWidget || !AnchorWidget)
+	{
+		return;
+	}
+
+	const FGeometry& AnchorGeometry = AnchorWidget->GetCachedGeometry();
+	FVector2D PixelPosition;
+	FVector2D ViewportPosition;
+	USlateBlueprintLibrary::LocalToViewport(
+		this,
+		AnchorGeometry,
+		FVector2D(AnchorGeometry.GetLocalSize().X, 0.0f),
+		PixelPosition,
+		ViewportPosition);
+
+	PandoraDescriptionWidget->ForceLayoutPrepass();
+	const FVector2D DesiredSize = PandoraDescriptionWidget->GetDesiredSize();
+	const FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(this);
+	FVector2D PopupPosition = ViewportPosition + FVector2D(16.0f, 0.0f);
+
+	if (ViewportSize.X > 0.0f && DesiredSize.X > 0.0f)
+	{
+		PopupPosition.X = FMath::Clamp(PopupPosition.X, 0.0f, FMath::Max(ViewportSize.X - DesiredSize.X, 0.0f));
+	}
+	if (ViewportSize.Y > 0.0f && DesiredSize.Y > 0.0f)
+	{
+		PopupPosition.Y = FMath::Clamp(PopupPosition.Y, 0.0f, FMath::Max(ViewportSize.Y - DesiredSize.Y, 0.0f));
+	}
+
+	PandoraDescriptionWidget->SetPositionInViewport(PopupPosition, false);
+}
+
+bool UPandoraTreeWidget::ShouldManageInputModeInternally() const
+{
+	return bSetInputModeOnShowHide && !bInputModeManagedExternally;
+}
+
+bool UPandoraTreeWidget::ApplyRoutedPandoraInput()
+{
+	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	UUiSubsystem* UiSubsystem = LocalPlayer
+		? LocalPlayer->GetSubsystem<UUiSubsystem>()
+		: nullptr;
+	if (!UiSubsystem)
+	{
+		return false;
+	}
+
+	FPdUiModalInputConfig InputConfig;
+	InputConfig.InputMode = EPdUiInputMode::GameAndUI;
+	InputConfig.bHideCursorDuringCapture = false;
+	InputConfig.bShowMouseCursor = true;
+	InputConfig.bEnableClickEvents = true;
+	InputConfig.bEnableMouseOverEvents = true;
+	InputConfig.RestorePolicy = EPdUiInputRestorePolicy::Gameplay;
+
+	if (UiSubsystem->UpdateModalInput(
+		this,
+		PandoraModalInputToken,
+		this,
+		InputConfig))
+	{
+		return true;
+	}
+
+	PandoraModalInputToken.Invalidate();
+	PandoraModalInputToken = UiSubsystem->AcquireModalInput(this, this, InputConfig);
+	return PandoraModalInputToken.IsValid();
+}
+
+bool UPandoraTreeWidget::ReleaseRoutedPandoraInput()
+{
+	if (!PandoraModalInputToken.IsValid())
+	{
+		return false;
+	}
+
+	bool bReleased = false;
+	if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+	{
+		if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>())
+		{
+			bReleased = UiSubsystem->ReleaseModalInput(this, PandoraModalInputToken);
+		}
+	}
+
+	PandoraModalInputToken.Invalidate();
+	return bReleased;
+}
+
 void UPandoraTreeWidget::FinishHidePandoraTree()
 {
 	HideTimerHandle.Invalidate();
 	DestroyCharacterPreview();
 	RemoveFromParent();
+	OnPandoraTreeClosed.Broadcast(this);
 }
 
 void UPandoraTreeWidget::ClearHideTimer()

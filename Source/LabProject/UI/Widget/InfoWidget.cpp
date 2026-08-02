@@ -2,34 +2,66 @@
 
 #include "Animation/WidgetAnimation.h"
 #include "Blueprint/SlateBlueprintLibrary.h"
+#include "Blueprint/WidgetTree.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Camera/CameraComponent.h"
-#include "Common/ProjectTagConfig.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Character/PdPlayer.h"
+#include "Definition/Common/ProjectTagConfig.h"
 #include "Components/Button.h"
+#include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "Components/PanelWidget.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SizeBox.h"
 #include "Components/WidgetSwitcher.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Engine/GameInstance.h"
+#include "Engine/StreamableManager.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Item/ItemInstance.h"
-#include "Pandora/PandoraDefinition.h"
+#include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInterface.h"
+#include "Misc/PackageName.h"
+#include "Definition/Match/MatchRuleDefinition.h"
+#include "Mode/PdHUD.h"
+#include "Mode/PdGameInstance.h"
+#include "Mode/PdPlayerController.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraInstance.h"
 #include "Skin/SkinInstance.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Widget/EquipSlotWidget.h"
 #include "UI/Widget/ItemDetailWidget.h"
 #include "UI/Widget/ItemSlotDragDropOperation.h"
+#include "UI/Widget/MapWidget.h"
 #include "UI/Widget/PandoraDescriptionWidget.h"
 #include "UI/Widget/SkinSlotDragDropOperation.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InfoWidget)
 
-DEFINE_LOG_CATEGORY_STATIC(LogInfoWidget, Log, All);
-
 namespace
 {
-	void DisablePreviewCameraLetterboxing(AActor* ViewTarget, const TCHAR* LogContext)
+	void CutToViewTarget(APlayerController* PlayerController, AActor* ViewTarget)
+	{
+		if (!PlayerController || !IsValid(ViewTarget))
+		{
+			return;
+		}
+
+		PlayerController->SetViewTarget(ViewTarget);
+		if (PlayerController->PlayerCameraManager)
+		{
+			PlayerController->PlayerCameraManager->UpdateCamera(0.0f);
+			PlayerController->PlayerCameraManager->SetGameCameraCutThisFrame();
+		}
+	}
+
+	void DisablePreviewCameraLetterboxing(AActor* ViewTarget)
 	{
 		if (!IsValid(ViewTarget))
 		{
@@ -38,7 +70,6 @@ namespace
 
 		TArray<UCameraComponent*> CameraComponents;
 		ViewTarget->GetComponents<UCameraComponent>(CameraComponents);
-
 		for (UCameraComponent* CameraComponent : CameraComponents)
 		{
 			if (!IsValid(CameraComponent))
@@ -49,15 +80,127 @@ namespace
 			CameraComponent->SetConstraintAspectRatio(false);
 			CameraComponent->bOverrideAspectRatioAxisConstraint = false;
 		}
+	}
 
-		if (!CameraComponents.IsEmpty())
+	float GetAnimationDuration(const UWidgetAnimation* Animation, const float FallbackDuration)
+	{
+		if (!Animation)
 		{
-			UE_LOG(LogInfoWidget, Log,
-				TEXT("[%s] Disabled preview camera aspect constraint. viewTarget=%s cameraCount=%d"),
-				LogContext ? LogContext : TEXT("PreviewCamera"),
-				*GetNameSafe(ViewTarget),
-				CameraComponents.Num());
+			return FallbackDuration;
 		}
+
+		return FMath::Max(Animation->GetEndTime() - Animation->GetStartTime(), FallbackDuration);
+	}
+
+	const TSoftObjectPtr<UMatchRuleDefinition>& GetDefaultMapUiMatchRuleDefinition()
+	{
+		static const TSoftObjectPtr<UMatchRuleDefinition> DefaultMatchRules(
+			FSoftObjectPath(TEXT("/Game/Data/DA_MatchRule.DA_MatchRule")));
+		return DefaultMatchRules;
+	}
+
+	const UMatchRuleDefinition* ResolveLoadedMapUiMatchRuleDefinition()
+	{
+		if (const UMatchRuleDefinition* LoadedMatchRules =
+			GetDefaultMapUiMatchRuleDefinition().Get())
+		{
+			return LoadedMatchRules;
+		}
+
+		return GetDefault<UMatchRuleDefinition>();
+	}
+
+	FString StripTravelOptions(const FString& TravelMapName)
+	{
+		FString CleanMapName = TravelMapName;
+		int32 OptionsIndex = INDEX_NONE;
+		if (CleanMapName.FindChar(TEXT('?'), OptionsIndex))
+		{
+			CleanMapName.LeftInline(OptionsIndex, EAllowShrinking::No);
+		}
+		return CleanMapName;
+	}
+
+	bool DoesMapOptionMatchCurrentLevel(
+		const FLobbyMatchMapOption& MapOption,
+		const FString& CurrentPackageName,
+		const FString& CurrentLevelName)
+	{
+		const FString MapPackageName = MapOption.Map.ToSoftObjectPath().GetLongPackageName();
+		if (!MapPackageName.IsEmpty())
+		{
+			if (MapPackageName.Equals(CurrentPackageName, ESearchCase::IgnoreCase)
+				|| FPackageName::GetShortName(MapPackageName).Equals(CurrentLevelName, ESearchCase::IgnoreCase))
+			{
+				return true;
+			}
+		}
+
+		const FString TravelMapName = StripTravelOptions(MapOption.TravelMapName);
+		if (!TravelMapName.IsEmpty())
+		{
+			if (TravelMapName.Equals(CurrentPackageName, ESearchCase::IgnoreCase)
+				|| FPackageName::GetShortName(TravelMapName).Equals(CurrentLevelName, ESearchCase::IgnoreCase)
+				|| TravelMapName.Equals(CurrentLevelName, ESearchCase::IgnoreCase))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool FindMapOptionForCurrentMapUi(const UInfoWidget* Widget, FLobbyMatchMapOption& OutMapOption)
+	{
+		if (!Widget)
+		{
+			return false;
+		}
+
+		const UMatchRuleDefinition* MatchRules = ResolveLoadedMapUiMatchRuleDefinition();
+		if (!MatchRules || MatchRules->LobbyMapOptions.IsEmpty())
+		{
+			return false;
+		}
+
+		const UWorld* CurrentWorld = Widget->GetWorld();
+		const FString CurrentPackageName = CurrentWorld && CurrentWorld->GetOutermost()
+			? CurrentWorld->GetOutermost()->GetName()
+			: FString();
+		const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(Widget, true);
+		const bool bHasCurrentLevelContext = !CurrentPackageName.IsEmpty() || !CurrentLevelName.IsEmpty();
+
+		if (const UWorld* World = Widget->GetWorld())
+		{
+			if (const UPdGameInstance* PdGameInstance = World->GetGameInstance<UPdGameInstance>())
+			{
+				const FName SelectedMapKey = PdGameInstance->GetLobbySelectedMapKey();
+				if (!SelectedMapKey.IsNone()
+					&& MatchRules->FindLobbyMapOption(SelectedMapKey, OutMapOption)
+					&& !OutMapOption.GameplayMapWidgetClass.IsNull()
+					&& (!bHasCurrentLevelContext
+						|| DoesMapOptionMatchCurrentLevel(OutMapOption, CurrentPackageName, CurrentLevelName)))
+				{
+					return true;
+				}
+			}
+		}
+
+		for (const FLobbyMatchMapOption& MapOption : MatchRules->LobbyMapOptions)
+		{
+			if (MapOption.GameplayMapWidgetClass.IsNull())
+			{
+				continue;
+			}
+
+			if (DoesMapOptionMatchCurrentLevel(MapOption, CurrentPackageName, CurrentLevelName))
+			{
+				OutMapOption = MapOption;
+				return true;
+			}
+		}
+
+		return false;
 	}
 }
 
@@ -71,6 +214,8 @@ void UInfoWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
+	ApplyWidgetDefinitionSettings();
+
 	if (bAutoApplyInfoLayout)
 	{
 		ApplyInfoLayout();
@@ -81,6 +226,7 @@ void UInfoWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	ApplyWidgetDefinitionSettings();
 	SetIsFocusable(true);
 
 	if (bAutoApplyInfoLayout)
@@ -113,12 +259,52 @@ void UInfoWidget::NativeConstruct()
 		MapButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnMapButtonClicked);
 	}
 
-	UE_LOG(LogInfoWidget, Log,
-		TEXT("[InfoAnimation] Construct widget=%s SlideInLeft=%s SlideInRight=%s SlideInBottom=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(SlideInLeft),
-		*GetNameSafe(SlideInRight),
-		*GetNameSafe(SlideInBottom));
+	if (Btn_Setting)
+	{
+		Btn_Setting->OnClicked.AddUniqueDynamic(this, &ThisClass::OnSettingButtonClicked);
+	}
+
+	if (Btn_Close)
+	{
+		Btn_Close->OnClicked.AddUniqueDynamic(this, &ThisClass::OnCloseButtonClicked);
+	}
+
+	if (Btn_PandoraUpgrade)
+	{
+		Btn_PandoraUpgrade->OnClicked.AddUniqueDynamic(
+			this,
+			&ThisClass::OnPandoraUpgradeButtonClicked);
+	}
+
+	if (Btn_CanvasExport)
+	{
+		Btn_CanvasExport->OnClicked.AddUniqueDynamic(this, &ThisClass::OnCanvasExportButtonClicked);
+	}
+
+	if (Btn_FaceDecal)
+	{
+		Btn_FaceDecal->OnClicked.AddUniqueDynamic(this, &ThisClass::OnFaceDecalButtonClicked);
+	}
+
+	if (Btn_Debug)
+	{
+#if UE_BUILD_SHIPPING
+		Btn_Debug->SetVisibility(ESlateVisibility::Collapsed);
+#else
+		Btn_Debug->OnClicked.AddUniqueDynamic(this, &ThisClass::OnDebugButtonClicked);
+#endif
+	}
+
+	BindLeftSkinPaintCanvasEvents();
+	SetCanvasExportButtonVisible(false);
+	SetPandoraUpgradeButtonVisible(
+		FocusedSection == EPdInfoUiSection::Pandora);
+	BeginMapUiContentPreload();
+	RefreshMapButtonEnabledState();
+	EnsureTotalMapWidget();
+	HideMapOverlayImmediately();
+
+
 }
 
 void UInfoWidget::ApplyInfoLayout()
@@ -177,7 +363,12 @@ void UInfoWidget::ApplyInfoLayout()
 
 void UInfoWidget::NativeDestruct()
 {
-	ReturnCameraToPawn(PreviewCameraHideBlendTime);
+	ReleaseMapUiContentPreloads();
+
+	if (bReturnCameraOnHide)
+	{
+		ReturnCameraToPawn();
+	}
 	DestroyCharacterPreview();
 	HideDetailWidgets();
 	if (ItemDetailWidget)
@@ -216,7 +407,150 @@ void UInfoWidget::NativeDestruct()
 		MapButton->OnClicked.RemoveDynamic(this, &ThisClass::OnMapButtonClicked);
 	}
 
+	if (Btn_Setting)
+	{
+		Btn_Setting->OnClicked.RemoveDynamic(this, &ThisClass::OnSettingButtonClicked);
+	}
+
+	if (Btn_Close)
+	{
+		Btn_Close->OnClicked.RemoveDynamic(this, &ThisClass::OnCloseButtonClicked);
+	}
+
+	if (Btn_PandoraUpgrade)
+	{
+		Btn_PandoraUpgrade->OnClicked.RemoveDynamic(
+			this,
+			&ThisClass::OnPandoraUpgradeButtonClicked);
+	}
+
+	if (Btn_CanvasExport)
+	{
+		Btn_CanvasExport->OnClicked.RemoveDynamic(this, &ThisClass::OnCanvasExportButtonClicked);
+	}
+
+	if (Btn_FaceDecal)
+	{
+		Btn_FaceDecal->OnClicked.RemoveDynamic(this, &ThisClass::OnFaceDecalButtonClicked);
+	}
+
+	if (Btn_Debug)
+	{
+#if !UE_BUILD_SHIPPING
+		Btn_Debug->OnClicked.RemoveDynamic(this, &ThisClass::OnDebugButtonClicked);
+#endif
+	}
+
+	UnbindLeftSkinPaintCanvasEvents();
+	SetCanvasExportButtonVisible(false);
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(MapSlideTimerHandle);
+	}
+
 	Super::NativeDestruct();
+}
+
+void UInfoWidget::BeginMapUiContentPreload()
+{
+	ReleaseMapUiContentPreloads();
+	const int32 PreloadGeneration = ++MapUiContentPreloadGeneration;
+	bMapUiContentReady = false;
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		bMapUiContentReady = true;
+		return;
+	}
+
+	const TSoftObjectPtr<UMatchRuleDefinition>& DefaultMatchRules =
+		GetDefaultMapUiMatchRuleDefinition();
+	if (DefaultMatchRules.IsNull() || DefaultMatchRules.Get())
+	{
+		BeginMapWidgetClassPreload(PreloadGeneration);
+		return;
+	}
+
+	MapRulePreloadHandle =
+		ContentSubsystem->PreloadSoftObjectPathsAsync(
+			{DefaultMatchRules.ToSoftObjectPath()},
+			FSimpleDelegate::CreateWeakLambda(
+				this,
+				[this, PreloadGeneration]()
+				{
+					BeginMapWidgetClassPreload(PreloadGeneration);
+				}));
+}
+
+void UInfoWidget::BeginMapWidgetClassPreload(const int32 PreloadGeneration)
+{
+	if (PreloadGeneration != MapUiContentPreloadGeneration)
+	{
+		return;
+	}
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		bMapUiContentReady = true;
+		RefreshMapButtonEnabledState();
+		EnsureTotalMapWidget();
+		return;
+	}
+
+	TArray<FSoftObjectPath> WidgetClassPaths;
+	if (const UMatchRuleDefinition* MatchRules = ResolveLoadedMapUiMatchRuleDefinition())
+	{
+		for (const FLobbyMatchMapOption& MapOption : MatchRules->LobbyMapOptions)
+		{
+			if (!MapOption.GameplayMapWidgetClass.IsNull())
+			{
+				WidgetClassPaths.Add(MapOption.GameplayMapWidgetClass.ToSoftObjectPath());
+			}
+		}
+	}
+
+	MapWidgetClassPreloadHandle =
+		ContentSubsystem->PreloadSoftObjectPathsAsync(
+			WidgetClassPaths,
+			FSimpleDelegate::CreateWeakLambda(
+				this,
+				[this, PreloadGeneration]()
+				{
+					if (PreloadGeneration != MapUiContentPreloadGeneration)
+					{
+						return;
+					}
+
+					bMapUiContentReady = true;
+					RefreshMapButtonEnabledState();
+					EnsureTotalMapWidget();
+				}));
+}
+
+void UInfoWidget::ReleaseMapUiContentPreloads()
+{
+	++MapUiContentPreloadGeneration;
+
+	auto ReleaseHandle = [](TSharedPtr<FStreamableHandle>& Handle)
+	{
+		if (Handle.IsValid())
+		{
+			Handle->CancelHandle();
+			Handle->ReleaseHandle();
+			Handle.Reset();
+		}
+	};
+
+	ReleaseHandle(MapWidgetClassPreloadHandle);
+	ReleaseHandle(MapRulePreloadHandle);
+	bMapUiContentReady = false;
 }
 
 bool UInfoWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
@@ -231,10 +565,7 @@ bool UInfoWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 		UItemInstance* DroppedItem = ItemDragOperation->GetItemInstance();
 		if (DroppedItem)
 		{
-			UE_LOG(LogInfoWidget, Log, TEXT("[CharacterPanelDrop] Item dropped on character panel: widget=%s item=%s sourceSlot=%d"),
-				*GetNameSafe(this),
-				*GetNameSafe(DroppedItem),
-				ItemDragOperation->GetSourceSlotIndex());
+
 			OnDroppedItemToCharacterPanel.Broadcast(DroppedItem);
 			return true;
 		}
@@ -245,21 +576,13 @@ bool UInfoWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 		USkinInstance* DroppedSkin = SkinDragOperation->GetSkinInstance();
 		if (DroppedSkin)
 		{
-			UE_LOG(LogInfoWidget, Log, TEXT("[CharacterPanelDrop] Skin dropped on character panel: widget=%s skin=%s sourceSlot=%d"),
-				*GetNameSafe(this),
-				*GetNameSafe(DroppedSkin),
-				SkinDragOperation->GetSourceSlotIndex());
+
 			OnDroppedSkinToCharacterPanel.Broadcast(DroppedSkin);
 			return true;
 		}
 	}
 
 	return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
-}
-
-void UInfoWidget::ShowItemDetail(UItemInstance* ItemInstance, UWidget* AnchorWidget)
-{
-	ShowItemDetailAtWidget(ItemInstance, AnchorWidget, false);
 }
 
 void UInfoWidget::ShowItemDetailAtWidget(UItemInstance* ItemInstance, UWidget* AnchorWidget, const bool bPlaceLeftOfWidget)
@@ -280,39 +603,12 @@ void UInfoWidget::ShowItemDetailAtWidget(UItemInstance* ItemInstance, UWidget* A
 	{
 		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	ActivePandoraDescriptionAnchor.Reset();
+	ActivePandoraDescriptionInstance.Reset();
 
 	DetailWidget->SetItem(ItemInstance, ResolveEquippedItemForComparison(ItemInstance));
 	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	PositionDetailWidgetAdjacentToWidget(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
-}
-
-void UInfoWidget::ShowItemDetailAtCursor(UItemInstance* ItemInstance, const FVector2D ScreenSpacePosition, const bool bPlaceLeftOfCursor)
-{
-	if (!ItemInstance)
-	{
-		HideDetailWidgets();
-		return;
-	}
-
-	UItemDetailWidget* DetailWidget = GetOrCreateItemDetailWidget();
-	if (!DetailWidget)
-	{
-		return;
-	}
-
-	if (PandoraDescriptionWidget)
-	{
-		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	DetailWidget->SetItem(ItemInstance, ResolveEquippedItemForComparison(ItemInstance));
-	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	PositionDetailWidgetAtCursor(DetailWidget, ScreenSpacePosition, bPlaceLeftOfCursor);
-}
-
-void UInfoWidget::ShowSkinDetail(USkinInstance* SkinInstance, UWidget* AnchorWidget)
-{
-	ShowSkinDetailAtWidget(SkinInstance, AnchorWidget, false);
 }
 
 void UInfoWidget::ShowSkinDetailAtWidget(USkinInstance* SkinInstance, UWidget* AnchorWidget, const bool bPlaceLeftOfWidget)
@@ -333,34 +629,12 @@ void UInfoWidget::ShowSkinDetailAtWidget(USkinInstance* SkinInstance, UWidget* A
 	{
 		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	ActivePandoraDescriptionAnchor.Reset();
+	ActivePandoraDescriptionInstance.Reset();
 
 	DetailWidget->SetSkin(SkinInstance);
 	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	PositionDetailWidgetAdjacentToWidget(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
-}
-
-void UInfoWidget::ShowSkinDetailAtCursor(USkinInstance* SkinInstance, const FVector2D ScreenSpacePosition, const bool bPlaceLeftOfCursor)
-{
-	if (!SkinInstance)
-	{
-		HideDetailWidgets();
-		return;
-	}
-
-	UItemDetailWidget* DetailWidget = GetOrCreateItemDetailWidget();
-	if (!DetailWidget)
-	{
-		return;
-	}
-
-	if (PandoraDescriptionWidget)
-	{
-		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	DetailWidget->SetSkin(SkinInstance);
-	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	PositionDetailWidgetAtCursor(DetailWidget, ScreenSpacePosition, bPlaceLeftOfCursor);
 }
 
 void UInfoWidget::ShowSkinDefinitionDetailAtWidget(const USkinDefinition* SkinDefinition, UWidget* AnchorWidget, const bool bPlaceLeftOfWidget)
@@ -381,43 +655,39 @@ void UInfoWidget::ShowSkinDefinitionDetailAtWidget(const USkinDefinition* SkinDe
 	{
 		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	ActivePandoraDescriptionAnchor.Reset();
+	ActivePandoraDescriptionInstance.Reset();
 
 	DetailWidget->SetSkinDefinition(SkinDefinition);
 	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	PositionDetailWidgetAdjacentToWidget(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
 }
 
-void UInfoWidget::ShowSkinDefinitionDetailAtCursor(const USkinDefinition* SkinDefinition, const FVector2D ScreenSpacePosition, const bool bPlaceLeftOfCursor)
-{
-	if (!SkinDefinition)
-	{
-		HideDetailWidgets();
-		return;
-	}
-
-	UItemDetailWidget* DetailWidget = GetOrCreateItemDetailWidget();
-	if (!DetailWidget)
-	{
-		return;
-	}
-
-	if (PandoraDescriptionWidget)
-	{
-		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	DetailWidget->SetSkinDefinition(SkinDefinition);
-	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	PositionDetailWidgetAtCursor(DetailWidget, ScreenSpacePosition, bPlaceLeftOfCursor);
-}
-
-void UInfoWidget::ShowPandoraDescriptionDetail(UPandoraInstance* PandoraInstance, UWidget* AnchorWidget)
-{
-	ShowPandoraDescriptionDetailAtWidget(PandoraInstance, AnchorWidget, false);
-}
-
 void UInfoWidget::ShowPandoraDescriptionDetailAtWidget(UPandoraInstance* PandoraInstance, UWidget* AnchorWidget, const bool bPlaceLeftOfWidget)
 {
+	ShowPandoraDescriptionDetailAtWidgetInternal(PandoraInstance, AnchorWidget, bPlaceLeftOfWidget, true);
+}
+
+void UInfoWidget::ShowPandoraDescriptionDetailImmediatelyAtWidget(
+	UPandoraInstance* PandoraInstance,
+	UWidget* AnchorWidget,
+	const bool bPlaceLeftOfWidget)
+{
+	ShowPandoraDescriptionDetailAtWidgetInternal(PandoraInstance, AnchorWidget, bPlaceLeftOfWidget, false);
+}
+
+void UInfoWidget::ShowPandoraDescriptionDetailAtWidgetInternal(
+	UPandoraInstance* PandoraInstance,
+	UWidget* AnchorWidget,
+	const bool bPlaceLeftOfWidget,
+	const bool bPlayShowAnimation)
+{
+	const APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!OwningPlayer || !OwningPlayer->IsLocalController())
+	{
+		return;
+	}
+
 	if (!PandoraInstance || !AnchorWidget)
 	{
 		HideDetailWidgets();
@@ -430,40 +700,32 @@ void UInfoWidget::ShowPandoraDescriptionDetailAtWidget(UPandoraInstance* Pandora
 		return;
 	}
 
+	if (ActivePandoraDescriptionAnchor.Get() == AnchorWidget
+		&& ActivePandoraDescriptionInstance.Get() == PandoraInstance
+		&& DetailWidget->GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		return;
+	}
+
 	if (ItemDetailWidget)
 	{
 		ItemDetailWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
+	ActivePandoraDescriptionAnchor = AnchorWidget;
+	ActivePandoraDescriptionInstance = PandoraInstance;
 	UPandoraDefinition* PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraInstance->PandoraDefinition.Get());
 	DetailWidget->SetPandoraDefinition(PandoraDefinition);
-	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	DetailWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 	PositionDetailWidgetAdjacentToWidget(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
-}
-
-void UInfoWidget::ShowPandoraDescriptionDetailAtCursor(UPandoraInstance* PandoraInstance, const FVector2D ScreenSpacePosition, const bool bPlaceLeftOfCursor)
-{
-	if (!PandoraInstance)
+	if (bPlayShowAnimation)
 	{
-		HideDetailWidgets();
-		return;
+		DetailWidget->PlayShowAnimation();
 	}
-
-	UPandoraDescriptionWidget* DetailWidget = GetOrCreatePandoraDescriptionWidget();
-	if (!DetailWidget)
+	else
 	{
-		return;
+		DetailWidget->ShowWithoutAnimation();
 	}
-
-	if (ItemDetailWidget)
-	{
-		ItemDetailWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	UPandoraDefinition* PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraInstance->PandoraDefinition.Get());
-	DetailWidget->SetPandoraDefinition(PandoraDefinition);
-	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	PositionDetailWidgetAtCursor(DetailWidget, ScreenSpacePosition, bPlaceLeftOfCursor);
 }
 
 void UInfoWidget::HideDetailWidgets()
@@ -477,10 +739,37 @@ void UInfoWidget::HideDetailWidgets()
 	{
 		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
+
+	ActivePandoraDescriptionAnchor.Reset();
+	ActivePandoraDescriptionInstance.Reset();
+}
+
+void UInfoWidget::HidePandoraDescriptionDetailAtWidget(const UWidget* AnchorWidget)
+{
+	if (AnchorWidget && ActivePandoraDescriptionAnchor.Get() != AnchorWidget)
+	{
+		return;
+	}
+
+	if (PandoraDescriptionWidget)
+	{
+		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	ActivePandoraDescriptionAnchor.Reset();
+	ActivePandoraDescriptionInstance.Reset();
 }
 
 void UInfoWidget::SelectProfileTab()
 {
+	FocusedSection = EPdInfoUiSection::Profile;
+	SetPandoraUpgradeButtonVisible(false);
+	PlayMapSlideOutAnimation();
+	if (WB_LeftProfile)
+	{
+		WB_LeftProfile->RefreshTierImage();
+	}
+
 	SelectInfoCenterPage(
 		WB_LeftProfile,
 		WB_RightStatus,
@@ -490,6 +779,13 @@ void UInfoWidget::SelectProfileTab()
 
 void UInfoWidget::SelectItemTab()
 {
+	FocusedSection = EPdInfoUiSection::Item;
+	SetPandoraUpgradeButtonVisible(false);
+	PlayMapSlideOutAnimation();
+	if (WB_RightInventory)
+	{
+		WB_RightInventory->ResetFilterHighlightToAll();
+	}
 	SelectInfoCenterPage(
 		WB_LeftEquipment,
 		WB_RightInventory,
@@ -499,6 +795,13 @@ void UInfoWidget::SelectItemTab()
 
 void UInfoWidget::SelectSkinTab()
 {
+	FocusedSection = EPdInfoUiSection::Skin;
+	SetPandoraUpgradeButtonVisible(false);
+	PlayMapSlideOutAnimation();
+	if (WB_RightSkin)
+	{
+		WB_RightSkin->ResetFilterHighlightToAll();
+	}
 	SelectInfoCenterPage(
 		WB_LeftSkin,
 		WB_RightSkin,
@@ -508,6 +811,13 @@ void UInfoWidget::SelectSkinTab()
 
 void UInfoWidget::SelectPandoraTab()
 {
+	FocusedSection = EPdInfoUiSection::Pandora;
+	SetPandoraUpgradeButtonVisible(true);
+	PlayMapSlideOutAnimation();
+	if (WB_RightPandora)
+	{
+		WB_RightPandora->ResetFilterHighlightToAll();
+	}
 	SelectInfoCenterPage(
 		WB_LeftPandora,
 		WB_RightPandora,
@@ -515,35 +825,67 @@ void UInfoWidget::SelectPandoraTab()
 		GetPandoraRightUiTag());
 }
 
-void UInfoWidget::SelectTabByLeftTag(FGameplayTag LeftUiTag)
+void UInfoWidget::SelectMapTab()
 {
-	if (LeftUiTag == GetItemLeftUiTag())
+	if (IsMapButtonDisabledForCurrentMap())
 	{
+		HideMapOverlayImmediately();
+		RefreshMapButtonEnabledState();
+		return;
+	}
+
+	FocusedSection = EPdInfoUiSection::Map;
+	SetPandoraUpgradeButtonVisible(false);
+	HideDetailWidgets();
+	HideSkinPaintCanvasGroup();
+	PlaySidePanelsSlideOutAnimation();
+	PlayMapSlideInAnimation();
+	OnClickedMapButton.Broadcast();
+}
+
+void UInfoWidget::FocusSection(
+	const EPdInfoUiSection Section,
+	const bool bAnimateTransition)
+{
+	switch (Section)
+	{
+	case EPdInfoUiSection::Profile:
+		SelectProfileTab();
+		break;
+	case EPdInfoUiSection::Item:
 		SelectItemTab();
-		return;
-	}
-
-	if (LeftUiTag == GetSkinLeftUiTag())
-	{
+		break;
+	case EPdInfoUiSection::Skin:
 		SelectSkinTab();
-		return;
-	}
-
-	if (LeftUiTag == GetPandoraLeftUiTag())
-	{
+		break;
+	case EPdInfoUiSection::Pandora:
 		SelectPandoraTab();
+		break;
+	case EPdInfoUiSection::Map:
+		SelectMapTab();
 		return;
 	}
 
-	SelectProfileTab();
+	if (bAnimateTransition)
+	{
+		PlaySidePanelsSlideInAnimation();
+	}
 }
 
 void UInfoWidget::ShowInfoUi()
 {
 	StopAllAnimations();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(MapSlideTimerHandle);
+	}
+
 	SetIsFocusable(true);
 	SetVisibility(ESlateVisibility::Visible);
 	SetFocus();
+	RefreshMapButtonEnabledState();
+	EnsureTotalMapWidget();
+	HideMapOverlayImmediately();
 
 	int32 PlayedAnimationCount = 0;
 	if (SlideInLeft)
@@ -564,13 +906,7 @@ void UInfoWidget::ShowInfoUi()
 		++PlayedAnimationCount;
 	}
 
-	UE_LOG(LogInfoWidget, Log,
-		TEXT("[InfoAnimation] Show widget=%s played=%d left=%s right=%s bottom=%s"),
-		*GetNameSafe(this),
-		PlayedAnimationCount,
-		*GetNameSafe(SlideInLeft),
-		*GetNameSafe(SlideInRight),
-		*GetNameSafe(SlideInBottom));
+
 
 	SpawnCharacterPreview();
 }
@@ -578,39 +914,52 @@ void UInfoWidget::ShowInfoUi()
 void UInfoWidget::HideInfoUi()
 {
 	StopAllAnimations();
-	ReturnCameraToPawn(PreviewCameraHideBlendTime);
+	HideSkinPaintCanvasGroup();
+	if (bReturnCameraOnHide)
+	{
+		ReturnCameraToPawn();
+	}
 
 	int32 PlayedAnimationCount = 0;
 	if (SlideInLeft)
 	{
-		PlayAnimation(SlideInLeft, 0.0f, 1, EUMGSequencePlayMode::Reverse, 1.0f, false);
+		PlayAnimationReverse(SlideInLeft, 1.0f, false);
 		++PlayedAnimationCount;
 	}
 
 	if (SlideInRight)
 	{
-		PlayAnimation(SlideInRight, 0.0f, 1, EUMGSequencePlayMode::Reverse, 1.0f, false);
+		PlayAnimationReverse(SlideInRight, 1.0f, false);
 		++PlayedAnimationCount;
 	}
 
 	if (SlideInBottom)
 	{
-		PlayAnimation(SlideInBottom, 0.0f, 1, EUMGSequencePlayMode::Reverse, 1.0f, false);
+		PlayAnimationReverse(SlideInBottom, 1.0f, false);
 		++PlayedAnimationCount;
 	}
 
-	UE_LOG(LogInfoWidget, Log,
-		TEXT("[InfoAnimation] Hide widget=%s played=%d left=%s right=%s bottom=%s"),
-		*GetNameSafe(this),
-		PlayedAnimationCount,
-		*GetNameSafe(SlideInLeft),
-		*GetNameSafe(SlideInRight),
-		*GetNameSafe(SlideInBottom));
+	const bool bShouldCloseMap = bMapOverlayOpen || (MapOverlay && MapOverlay->GetVisibility() != ESlateVisibility::Collapsed);
+	if (bShouldCloseMap)
+	{
+		PlayMapSlideOutAnimation();
+		++PlayedAnimationCount;
+	}
+
+
 }
 
 float UInfoWidget::GetHideAnimationDelay() const
 {
-	return (SlideInLeft || SlideInRight || SlideInBottom) ? HideAnimationDelay : 0.0f;
+	const bool bShouldWaitMap = bMapOverlayOpen || (MapOverlay && MapOverlay->GetVisibility() != ESlateVisibility::Collapsed);
+	const bool bHasAnyHideAnimation = SlideInLeft || SlideInRight || SlideInBottom || bShouldWaitMap;
+	if (!bHasAnyHideAnimation)
+	{
+		return 0.0f;
+	}
+
+	const float MapDelay = bShouldWaitMap ? GetAnimationDuration(SlideMap, MapSlideDuration) : 0.0f;
+	return FMath::Max(HideAnimationDelay, MapDelay);
 }
 
 URightInventoryWidget* UInfoWidget::GetRightInventoryWidget() const
@@ -674,7 +1023,517 @@ void UInfoWidget::OnPandoraButtonClicked()
 
 void UInfoWidget::OnMapButtonClicked()
 {
-	OnClickedMapButton.Broadcast();
+	SelectMapTab();
+}
+
+void UInfoWidget::OnSettingButtonClicked()
+{
+	PlayMapSlideOutAnimation();
+	HideSkinPaintCanvasGroup();
+	OnClickedSettingButton.Broadcast();
+}
+
+void UInfoWidget::OnCloseButtonClicked()
+{
+	if (APlayerController* PlayerController = GetOwningPlayer())
+	{
+		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
+		{
+			Hud->CloseInfoUi();
+		}
+	}
+}
+
+void UInfoWidget::OnPandoraUpgradeButtonClicked()
+{
+	if (APlayerController* PlayerController = GetOwningPlayer())
+	{
+		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
+		{
+			Hud->OpenPandoraTreeUi();
+		}
+	}
+}
+
+void UInfoWidget::OnCanvasExportButtonClicked()
+{
+	APdPlayer* PlayerCharacter = Cast<APdPlayer>(GetOwningPlayerPawn());
+	if (!PlayerCharacter)
+	{
+		SetCanvasExportButtonVisible(false);
+
+		return;
+	}
+
+	FTransform PaintCanvasExportTransformOffset = FSkinWidgetSettings().PaintCanvasExportTransformOffset;
+	if (APlayerController* PlayerController = GetOwningPlayer())
+	{
+		const APdHUD* PdHUD = Cast<APdHUD>(PlayerController->GetHUD());
+		if (const UWidgetClassDefinition* WidgetDefinition = PdHUD ? PdHUD->GetWidgetClassDefinition() : nullptr)
+		{
+			PaintCanvasExportTransformOffset = WidgetDefinition->GetSkinWidgetSettings().PaintCanvasExportTransformOffset;
+		}
+	}
+
+	const bool bExported = PlayerCharacter->ExportActivePaintCanvasAboveCharacterWithTransformOffset(PaintCanvasExportTransformOffset);
+	SetCanvasExportButtonVisible(!bExported && PlayerCharacter->HasActivePaintCanvas());
+
+}
+
+void UInfoWidget::OnFaceDecalButtonClicked()
+{
+	APdPlayer* PlayerCharacter = Cast<APdPlayer>(GetOwningPlayerPawn());
+	if (!PlayerCharacter)
+	{
+		SetCanvasExportButtonVisible(false);
+
+		return;
+	}
+
+	FSkinWidgetSettings SkinSettings;
+	if (APlayerController* PlayerController = GetOwningPlayer())
+	{
+		const APdHUD* PdHUD = Cast<APdHUD>(PlayerController->GetHUD());
+		if (const UWidgetClassDefinition* WidgetDefinition = PdHUD ? PdHUD->GetWidgetClassDefinition() : nullptr)
+		{
+			SkinSettings = WidgetDefinition->GetSkinWidgetSettings();
+		}
+	}
+
+	UMaterialInterface* FaceDecalMaterial = SkinSettings.PaintCanvasFaceDecalMaterial.Get();
+	if (!FaceDecalMaterial)
+	{
+
+		return;
+	}
+
+	const bool bApplied = PlayerCharacter->ApplyActivePaintCanvasToFaceDecal(
+		FaceDecalMaterial,
+		SkinSettings.PaintCanvasFaceDecalSocketName,
+		SkinSettings.PaintCanvasFaceDecalTransformOffset,
+		SkinSettings.PaintCanvasFaceDecalSize,
+		SkinSettings.PaintCanvasFaceDecalTextureParameterName);
+
+	SetCanvasExportButtonVisible(PlayerCharacter->HasActivePaintCanvas());
+
+}
+
+void UInfoWidget::OnDebugButtonClicked()
+{
+	if (Btn_Debug)
+	{
+		Btn_Debug->SetIsEnabled(false);
+	}
+
+	if (APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
+	{
+		PlayerController->RequestDebugGrantTestResources();
+	}
+
+	if (Btn_Debug)
+	{
+		Btn_Debug->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+bool UInfoWidget::IsMapButtonDisabledForCurrentMap() const
+{
+	if (MapButtonDisabledMapNames.IsEmpty())
+	{
+		return false;
+	}
+
+	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
+	if (CurrentLevelName.IsEmpty())
+	{
+		return false;
+	}
+
+	for (const FName DisabledMapName : MapButtonDisabledMapNames)
+	{
+		if (DisabledMapName.IsNone())
+		{
+			continue;
+		}
+
+		if (CurrentLevelName.Equals(DisabledMapName.ToString(), ESearchCase::IgnoreCase))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UInfoWidget::ApplyWidgetDefinitionSettings()
+{
+	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+	{
+		const FInfoWidgetSettings& Settings = WidgetDefinition->GetInfoWidgetSettings();
+		bAutoApplyInfoLayout = Settings.bAutoApplyInfoLayout;
+		DesignResolution = Settings.DesignResolution;
+		LeftPanelWidth = Settings.LeftPanelWidth;
+		RightPanelWidth = Settings.RightPanelWidth;
+		MinCenterPreviewWidth = Settings.MinCenterPreviewWidth;
+		BottomNavigationReservedHeight = Settings.BottomNavigationReservedHeight;
+		BottomTabBarWidth = Settings.BottomTabBarWidth;
+		BottomTabBarHeight = Settings.BottomTabBarHeight;
+		BottomTabBarBottomPadding = Settings.BottomTabBarBottomPadding;
+		HideAnimationDelay = Settings.HideAnimationDelay;
+		MapSlideStartOffset = Settings.MapSlideStartOffset;
+		MapSlideDuration = Settings.MapSlideDuration;
+		bUseCharacterPreviewCamera = Settings.bUseCharacterPreviewCamera;
+		bReturnCameraOnHide = Settings.bReturnCameraOnHide;
+		DetailPopupOffset = Settings.DetailPopupOffset;
+		MapButtonDisabledMapNames = Settings.MapButtonDisabledMapNames;
+
+		if (const TSubclassOf<UMapWidget> ResolvedTotalMapWidgetClass =
+			WidgetDefinition->GetTotalMapWidgetClass())
+		{
+			TotalMapWidgetClass = ResolvedTotalMapWidgetClass;
+		}
+		if (const TSubclassOf<AActor> ResolvedCharacterPreviewClass =
+			WidgetDefinition->GetCharacterPreviewClass())
+		{
+			CharacterPreviewClass = ResolvedCharacterPreviewClass;
+		}
+		if (const TSubclassOf<UPandoraDescriptionWidget> ResolvedPandoraDescriptionWidgetClass =
+			WidgetDefinition->GetPandoraDescriptionWidgetClass())
+		{
+			PandoraDescriptionWidgetClass = ResolvedPandoraDescriptionWidgetClass;
+		}
+	}
+}
+
+void UInfoWidget::RefreshMapButtonEnabledState()
+{
+	if (!MapButton)
+	{
+		return;
+	}
+
+	const bool bDisableMapButton = !bMapUiContentReady || IsMapButtonDisabledForCurrentMap();
+	MapButton->SetIsEnabled(!bDisableMapButton);
+
+	if (bDisableMapButton)
+	{
+		HideMapOverlayImmediately();
+	}
+}
+
+bool UInfoWidget::EnsureMapOverlay()
+{
+	if (MapOverlay)
+	{
+		return true;
+	}
+
+	if (!WidgetTree)
+	{
+
+		return false;
+	}
+
+	UOverlay* NewMapOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("MapOverlay"));
+	if (!NewMapOverlay)
+	{
+
+		return false;
+	}
+
+	UWidget* RootWidget = WidgetTree->RootWidget;
+	if (UCanvasPanel* RootCanvas = Cast<UCanvasPanel>(RootWidget))
+	{
+		UCanvasPanelSlot* OverlaySlot = RootCanvas->AddChildToCanvas(NewMapOverlay);
+		if (OverlaySlot)
+		{
+			OverlaySlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+			OverlaySlot->SetOffsets(FMargin(0.0f));
+			OverlaySlot->SetAlignment(FVector2D::ZeroVector);
+			OverlaySlot->SetZOrder(10);
+		}
+	}
+	else if (UPanelWidget* RootPanel = Cast<UPanelWidget>(RootWidget))
+	{
+		RootPanel->AddChild(NewMapOverlay);
+	}
+	else
+	{
+
+		return false;
+	}
+
+	NewMapOverlay->SetVisibility(ESlateVisibility::Collapsed);
+	MapOverlay = NewMapOverlay;
+
+
+	return true;
+}
+
+TSubclassOf<UMapWidget> UInfoWidget::ResolveTotalMapWidgetClassForCurrentMap() const
+{
+	FLobbyMatchMapOption MapOption;
+	if (FindMapOptionForCurrentMapUi(this, MapOption))
+	{
+		UClass* LoadedWidgetClass = MapOption.GameplayMapWidgetClass.Get();
+		if (LoadedWidgetClass && LoadedWidgetClass->IsChildOf(UMapWidget::StaticClass()))
+		{
+
+			return LoadedWidgetClass;
+		}
+
+		if (!MapOption.GameplayMapWidgetClass.IsNull())
+		{
+			return nullptr;
+		}
+	}
+
+	if (TotalMapWidgetClass)
+	{
+		return TotalMapWidgetClass;
+	}
+
+	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+	{
+		return WidgetDefinition->GetTotalMapWidgetClass();
+	}
+
+	return nullptr;
+}
+
+void UInfoWidget::EnsureTotalMapWidget()
+{
+	if (TotalMap)
+	{
+		return;
+	}
+
+	if (!bMapUiContentReady)
+	{
+		return;
+	}
+
+	if (!EnsureMapOverlay())
+	{
+		return;
+	}
+
+	TSubclassOf<UMapWidget> ResolvedMapWidgetClass = ResolveTotalMapWidgetClassForCurrentMap();
+	if (!ResolvedMapWidgetClass)
+	{
+
+		return;
+	}
+
+	TotalMap = CreateWidget<UMapWidget>(GetOwningPlayer(), ResolvedMapWidgetClass);
+	if (!TotalMap)
+	{
+
+		return;
+	}
+
+	TotalMap->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	if (UOverlaySlot* MapSlot = MapOverlay->AddChildToOverlay(TotalMap))
+	{
+		MapSlot->SetHorizontalAlignment(HAlign_Fill);
+		MapSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+
+
+}
+
+void UInfoWidget::HideMapOverlayImmediately()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(MapSlideTimerHandle);
+	}
+
+	bMapOverlayOpen = false;
+	bMapSlideReverse = false;
+
+	if (MapOverlay)
+	{
+		MapOverlay->SetVisibility(ESlateVisibility::Collapsed);
+		MapOverlay->SetRenderTranslation(MapSlideStartOffset);
+		MapOverlay->SetRenderOpacity(0.0f);
+	}
+}
+
+void UInfoWidget::PlayMapSlideInAnimation()
+{
+	EnsureTotalMapWidget();
+
+	if (!MapOverlay)
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(MapSlideTimerHandle);
+	}
+
+	bMapOverlayOpen = true;
+	bMapSlideReverse = false;
+	MapOverlay->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	if (SlideMap)
+	{
+		StopAnimation(SlideMap);
+		MapOverlay->SetRenderTranslation(FVector2D::ZeroVector);
+		MapOverlay->SetRenderOpacity(1.0f);
+		UnbindAllFromAnimationFinished(SlideMap);
+		PlayAnimation(SlideMap, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		MapSlideStartTime = World->GetTimeSeconds();
+		MapOverlay->SetRenderTranslation(MapSlideStartOffset);
+		MapOverlay->SetRenderOpacity(0.0f);
+		World->GetTimerManager().SetTimer(
+			MapSlideTimerHandle,
+			this,
+			&ThisClass::TickMapSlideAnimation,
+			1.0f / 60.0f,
+			true);
+	}
+}
+
+void UInfoWidget::PlayMapSlideOutAnimation()
+{
+	if (!MapOverlay || (!bMapOverlayOpen && MapOverlay->GetVisibility() == ESlateVisibility::Collapsed))
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(MapSlideTimerHandle);
+	}
+
+	bMapOverlayOpen = false;
+	bMapSlideReverse = true;
+	MapOverlay->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	if (SlideMap)
+	{
+		StopAnimation(SlideMap);
+		UnbindAllFromAnimationFinished(SlideMap);
+		FWidgetAnimationDynamicEvent FinishedEvent;
+		FinishedEvent.BindDynamic(this, &ThisClass::HandleMapSlideAnimationFinished);
+		BindToAnimationFinished(SlideMap, FinishedEvent);
+		PlayAnimationReverse(SlideMap, 1.0f, false);
+
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(
+				MapSlideTimerHandle,
+				this,
+				&ThisClass::FinishMapSlideOutAnimation,
+				GetAnimationDuration(SlideMap, MapSlideDuration),
+				false);
+		}
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		MapSlideStartTime = World->GetTimeSeconds();
+		MapOverlay->SetRenderTranslation(FVector2D::ZeroVector);
+		MapOverlay->SetRenderOpacity(1.0f);
+		World->GetTimerManager().SetTimer(
+			MapSlideTimerHandle,
+			this,
+			&ThisClass::TickMapSlideAnimation,
+			1.0f / 60.0f,
+			true);
+	}
+}
+
+void UInfoWidget::TickMapSlideAnimation()
+{
+	UWorld* World = GetWorld();
+	if (!World || !MapOverlay)
+	{
+		return;
+	}
+
+	const float Alpha = MapSlideDuration > 0.0f
+		? FMath::Clamp(static_cast<float>((World->GetTimeSeconds() - MapSlideStartTime) / MapSlideDuration), 0.0f, 1.0f)
+		: 1.0f;
+	const float EaseAlpha = FMath::InterpEaseOut(0.0f, 1.0f, Alpha, 3.0f);
+
+	if (bMapSlideReverse)
+	{
+		MapOverlay->SetRenderTranslation(FMath::Lerp(FVector2D::ZeroVector, MapSlideStartOffset, EaseAlpha));
+		MapOverlay->SetRenderOpacity(1.0f - EaseAlpha);
+	}
+	else
+	{
+		MapOverlay->SetRenderTranslation(FMath::Lerp(MapSlideStartOffset, FVector2D::ZeroVector, EaseAlpha));
+		MapOverlay->SetRenderOpacity(EaseAlpha);
+	}
+
+	if (Alpha >= 1.0f)
+	{
+		World->GetTimerManager().ClearTimer(MapSlideTimerHandle);
+
+		if (bMapSlideReverse)
+		{
+			FinishMapSlideOutAnimation();
+		}
+		else
+		{
+			MapOverlay->SetRenderTranslation(FVector2D::ZeroVector);
+			MapOverlay->SetRenderOpacity(1.0f);
+		}
+	}
+}
+
+void UInfoWidget::FinishMapSlideOutAnimation()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(MapSlideTimerHandle);
+	}
+
+	if (SlideMap)
+	{
+		UnbindAllFromAnimationFinished(SlideMap);
+	}
+
+	if (MapOverlay)
+	{
+		MapOverlay->SetVisibility(ESlateVisibility::Collapsed);
+		MapOverlay->SetRenderTranslation(MapSlideStartOffset);
+		MapOverlay->SetRenderOpacity(0.0f);
+	}
+
+	bMapOverlayOpen = false;
+	bMapSlideReverse = false;
+}
+
+void UInfoWidget::HandleMapSlideAnimationFinished()
+{
+	if (bMapSlideReverse)
+	{
+		FinishMapSlideOutAnimation();
+		return;
+	}
+
+	if (MapOverlay)
+	{
+		MapOverlay->SetRenderTranslation(FVector2D::ZeroVector);
+		MapOverlay->SetRenderOpacity(1.0f);
+	}
+}
+
+void UInfoWidget::HandlePaintCanvasGroupVisibilityChanged(const bool bVisible)
+{
+	SetCanvasExportButtonVisible(bVisible);
 }
 
 void UInfoWidget::PlaySidePanelsSlideInAnimation()
@@ -694,12 +1553,27 @@ void UInfoWidget::PlaySidePanelsSlideInAnimation()
 		++PlayedAnimationCount;
 	}
 
-	UE_LOG(LogInfoWidget, Log,
-		TEXT("[InfoAnimation] TabSlide widget=%s played=%d left=%s right=%s"),
-		*GetNameSafe(this),
-		PlayedAnimationCount,
-		*GetNameSafe(SlideInLeft),
-		*GetNameSafe(SlideInRight));
+
+}
+
+void UInfoWidget::PlaySidePanelsSlideOutAnimation()
+{
+	int32 PlayedAnimationCount = 0;
+	if (SlideInLeft)
+	{
+		StopAnimation(SlideInLeft);
+		PlayAnimationReverse(SlideInLeft, 1.0f, false);
+		++PlayedAnimationCount;
+	}
+
+	if (SlideInRight)
+	{
+		StopAnimation(SlideInRight);
+		PlayAnimationReverse(SlideInRight, 1.0f, false);
+		++PlayedAnimationCount;
+	}
+
+
 }
 
 void UInfoWidget::ResolveCharacterPreviewClass()
@@ -709,9 +1583,10 @@ void UInfoWidget::ResolveCharacterPreviewClass()
 		return;
 	}
 
-	CharacterPreviewClass = LoadClass<AActor>(
-		nullptr,
-		TEXT("/Game/CharacterPreview/BP_CharacterPreview.BP_CharacterPreview_C"));
+	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+	{
+		CharacterPreviewClass = WidgetDefinition->GetCharacterPreviewClass();
+	}
 }
 
 void UInfoWidget::SpawnCharacterPreview()
@@ -721,46 +1596,41 @@ void UInfoWidget::SpawnCharacterPreview()
 		return;
 	}
 
+	APawn* OwningPawn = GetOwningPlayerPawn();
+	USkeletalMeshComponent* MeshComponent = OwningPawn
+		? OwningPawn->FindComponentByClass<USkeletalMeshComponent>()
+		: nullptr;
+
 	if (IsValid(SpawnedCharacterPreview))
 	{
-		DisablePreviewCameraLetterboxing(SpawnedCharacterPreview.Get(), TEXT("InfoPreview"));
+		if (!MeshComponent)
+		{
+
+			return;
+		}
+
+		DisablePreviewCameraLetterboxing(SpawnedCharacterPreview.Get());
 
 		if (APlayerController* PlayerController = GetOwningPlayer())
 		{
-			PlayerController->SetViewTargetWithBlend(
-				SpawnedCharacterPreview.Get(),
-				PreviewCameraShowBlendTime,
-				VTBlend_Cubic);
+			CutToViewTarget(PlayerController, SpawnedCharacterPreview.Get());
 		}
 		return;
 	}
 
 	ResolveCharacterPreviewClass();
 
-	APawn* OwningPawn = GetOwningPlayerPawn();
-	USkeletalMeshComponent* MeshComponent = OwningPawn
-		? OwningPawn->FindComponentByClass<USkeletalMeshComponent>()
-		: nullptr;
 	UWorld* World = GetWorld();
 	if (!World || !CharacterPreviewClass || !MeshComponent)
 	{
-		UE_LOG(LogInfoWidget, Warning,
-			TEXT("[InfoPreview] Spawn skipped. widget=%s world=%s previewClass=%s pawn=%s mesh=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(World),
-			*GetNameSafe(CharacterPreviewClass.Get()),
-			*GetNameSafe(OwningPawn),
-			*GetNameSafe(MeshComponent));
+
 		return;
 	}
 
 	SpawnedCharacterPreview = World->SpawnActor<AActor>(CharacterPreviewClass, FTransform::Identity);
 	if (!SpawnedCharacterPreview)
 	{
-		UE_LOG(LogInfoWidget, Warning,
-			TEXT("[InfoPreview] Spawn failed. widget=%s previewClass=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(CharacterPreviewClass.Get()));
+
 		return;
 	}
 
@@ -772,33 +1642,21 @@ void UInfoWidget::SpawnCharacterPreview()
 			EAttachmentRule::KeepRelative,
 			true));
 
-	DisablePreviewCameraLetterboxing(SpawnedCharacterPreview.Get(), TEXT("InfoPreview"));
+	DisablePreviewCameraLetterboxing(SpawnedCharacterPreview.Get());
 
 	if (APlayerController* PlayerController = GetOwningPlayer())
 	{
-		PlayerController->SetViewTargetWithBlend(
-			SpawnedCharacterPreview.Get(),
-			PreviewCameraShowBlendTime,
-			VTBlend_Cubic);
+		CutToViewTarget(PlayerController, SpawnedCharacterPreview.Get());
 	}
-
-	UE_LOG(LogInfoWidget, Log,
-		TEXT("[InfoPreview] Spawned widget=%s preview=%s pawn=%s mesh=%s worldLocation=%s worldRotation=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(SpawnedCharacterPreview.Get()),
-		*GetNameSafe(OwningPawn),
-		*GetNameSafe(MeshComponent),
-		*SpawnedCharacterPreview->GetActorLocation().ToCompactString(),
-		*SpawnedCharacterPreview->GetActorRotation().ToCompactString());
 }
 
-void UInfoWidget::ReturnCameraToPawn(float BlendTime) const
+void UInfoWidget::ReturnCameraToPawn() const
 {
 	APlayerController* PlayerController = GetOwningPlayer();
 	APawn* OwningPawn = GetOwningPlayerPawn();
 	if (PlayerController && OwningPawn)
 	{
-		PlayerController->SetViewTargetWithBlend(OwningPawn, BlendTime, VTBlend_Cubic);
+		CutToViewTarget(PlayerController, OwningPawn);
 	}
 }
 
@@ -821,7 +1679,7 @@ UItemDetailWidget* UInfoWidget::GetOrCreateItemDetailWidget()
 
 	if (!ItemDetailWidgetClass)
 	{
-		UE_LOG(LogInfoWidget, Warning, TEXT("[InfoDetail] ItemDetailWidgetClass is not set on %s"), *GetNameSafe(this));
+
 		return nullptr;
 	}
 
@@ -844,14 +1702,14 @@ UPandoraDescriptionWidget* UInfoWidget::GetOrCreatePandoraDescriptionWidget()
 
 	if (!PandoraDescriptionWidgetClass)
 	{
-		PandoraDescriptionWidgetClass = LoadClass<UPandoraDescriptionWidget>(
-			nullptr,
-			TEXT("/Game/UI/Widget/WBP_PandoraDescription.WBP_PandoraDescription_C"));
+		if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+		{
+			PandoraDescriptionWidgetClass = WidgetDefinition->GetPandoraDescriptionWidgetClass();
+		}
 	}
 
 	if (!PandoraDescriptionWidgetClass)
 	{
-		UE_LOG(LogInfoWidget, Warning, TEXT("[InfoDetail] PandoraDescriptionWidgetClass is not set on %s"), *GetNameSafe(this));
 		return nullptr;
 	}
 
@@ -863,11 +1721,6 @@ UPandoraDescriptionWidget* UInfoWidget::GetOrCreatePandoraDescriptionWidget()
 	}
 
 	return PandoraDescriptionWidget.Get();
-}
-
-void UInfoWidget::PositionDetailWidget(UUserWidget* DetailWidget, const UWidget* AnchorWidget) const
-{
-	PositionDetailWidgetAdjacentToWidget(DetailWidget, AnchorWidget, false);
 }
 
 void UInfoWidget::PositionDetailWidgetAdjacentToWidget(UUserWidget* DetailWidget, const UWidget* AnchorWidget, const bool bPlaceLeftOfWidget) const
@@ -908,38 +1761,6 @@ void UInfoWidget::PositionDetailWidgetAdjacentToWidget(UUserWidget* DetailWidget
 	DetailWidget->SetPositionInViewport(PopupPosition, false);
 }
 
-void UInfoWidget::PositionDetailWidgetAtCursor(UUserWidget* DetailWidget, const FVector2D ScreenSpacePosition, const bool bPlaceLeftOfCursor) const
-{
-	if (!DetailWidget)
-	{
-		return;
-	}
-
-	FVector2D PixelPosition;
-	FVector2D ViewportPosition;
-	USlateBlueprintLibrary::AbsoluteToViewport(this, ScreenSpacePosition, PixelPosition, ViewportPosition);
-
-	DetailWidget->ForceLayoutPrepass();
-	const FVector2D DesiredSize = DetailWidget->GetDesiredSize();
-	const FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(this);
-
-	FVector2D PopupPosition = bPlaceLeftOfCursor
-		? FVector2D(ViewportPosition.X - DesiredSize.X - DetailPopupOffset.X, ViewportPosition.Y + DetailPopupOffset.Y)
-		: FVector2D(ViewportPosition.X + DetailPopupOffset.X, ViewportPosition.Y + DetailPopupOffset.Y);
-
-	if (ViewportSize.X > 0.0f && DesiredSize.X > 0.0f)
-	{
-		PopupPosition.X = FMath::Clamp(PopupPosition.X, 0.0f, FMath::Max(ViewportSize.X - DesiredSize.X, 0.0f));
-	}
-
-	if (ViewportSize.Y > 0.0f && DesiredSize.Y > 0.0f)
-	{
-		PopupPosition.Y = FMath::Clamp(PopupPosition.Y, 0.0f, FMath::Max(ViewportSize.Y - DesiredSize.Y, 0.0f));
-	}
-
-	DetailWidget->SetPositionInViewport(PopupPosition, false);
-}
-
 UItemInstance* UInfoWidget::ResolveEquippedItemForComparison(UItemInstance* HoveredItem) const
 {
 	if (!HoveredItem || !WB_LeftEquipment)
@@ -955,6 +1776,10 @@ UItemInstance* UInfoWidget::ResolveEquippedItemForComparison(UItemInstance* Hove
 void UInfoWidget::SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag)
 {
 	HideDetailWidgets();
+	if (LeftUiTag != GetSkinLeftUiTag() && RightUiTag != GetSkinRightUiTag())
+	{
+		HideSkinPaintCanvasGroup();
+	}
 
 	if (LeftWidgetSwitcher && LeftWidget)
 	{
@@ -967,6 +1792,60 @@ void UInfoWidget::SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget
 	}
 
 	OnClickedInfoCenterButton.Broadcast(LeftUiTag, RightUiTag);
+}
+
+void UInfoWidget::HideSkinPaintCanvasGroup()
+{
+	if (WB_LeftSkin)
+	{
+		WB_LeftSkin->HidePaintCanvasGroup();
+	}
+
+	SetCanvasExportButtonVisible(false);
+}
+
+void UInfoWidget::SetCanvasExportButtonVisible(const bool bVisible) const
+{
+	if (Btn_CanvasExport)
+	{
+		Btn_CanvasExport->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+
+	if (Btn_FaceDecal)
+	{
+		Btn_FaceDecal->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+}
+
+void UInfoWidget::SetPandoraUpgradeButtonVisible(const bool bVisible) const
+{
+	if (Btn_PandoraUpgrade)
+	{
+		Btn_PandoraUpgrade->SetVisibility(
+			bVisible
+				? ESlateVisibility::Visible
+				: ESlateVisibility::Collapsed);
+	}
+}
+
+void UInfoWidget::BindLeftSkinPaintCanvasEvents()
+{
+	if (WB_LeftSkin)
+	{
+		WB_LeftSkin->OnPaintCanvasGroupVisibilityChanged.AddUniqueDynamic(
+			this,
+			&ThisClass::HandlePaintCanvasGroupVisibilityChanged);
+	}
+}
+
+void UInfoWidget::UnbindLeftSkinPaintCanvasEvents()
+{
+	if (WB_LeftSkin)
+	{
+		WB_LeftSkin->OnPaintCanvasGroupVisibilityChanged.RemoveDynamic(
+			this,
+			&ThisClass::HandlePaintCanvasGroupVisibilityChanged);
+	}
 }
 
 bool UInfoWidget::IsScreenPositionInsideCharacterDropPanel(const FVector2D& ScreenSpacePosition) const
@@ -986,13 +1865,7 @@ bool UInfoWidget::IsScreenPositionInsideCharacterDropPanel(const FVector2D& Scre
 		LocalPosition.X <= LocalSize.X &&
 		LocalPosition.Y <= LocalSize.Y;
 
-	UE_LOG(LogInfoWidget, Verbose, TEXT("[CharacterPanelDrop] Hit test: widget=%s panel=%s screen=%s local=%s size=%s inside=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(DropPanel),
-		*ScreenSpacePosition.ToString(),
-		*LocalPosition.ToString(),
-		*LocalSize.ToString(),
-		bInside ? TEXT("true") : TEXT("false"));
+
 
 	return bInside;
 }

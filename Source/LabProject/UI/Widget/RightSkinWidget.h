@@ -1,11 +1,15 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "UI/Widget/FilterButtonHighlight.h"
 
 #include "RightSkinWidget.generated.h"
 
 class UButton;
+class UEditableTextBox;
+class USkinInstance;
 class USkinSlotViewData;
 class UTileView;
 
@@ -30,6 +34,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
 	void ToggleActiveFiliterButtons(bool bActive);
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
+	void ResetFilterHighlightToAll();
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Tile View
@@ -74,19 +81,37 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
 	TObjectPtr<UButton> RidingButton;
 
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> PetButton;
+
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin")
 	TArray<TObjectPtr<UButton>> FilterButtonList;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|Filter")
+	FLinearColor SelectedFilterAccentColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Tile View
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
 	TObjectPtr<UTileView> TileView;
 
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin|Search", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_Search;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin|Search", meta = (BindWidgetOptional))
+	TObjectPtr<UEditableTextBox> SearchBox;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|Slots", meta = (ClampMin = "0"))
 	int32 SkinSlotCount = 40;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin|Slots")
 	TArray<TObjectPtr<USkinSlotViewData>> CachedSlotViewData;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UObject>> CachedSourceListItems;
+
+	UPROPERTY(Transient)
+	FString ActiveSearchText;
 
 private:
 	//------------------------------------------------------------------------------------------------------------------
@@ -106,9 +131,28 @@ private:
 	UFUNCTION()
 	void OnRidingButtonClicked();
 
+	UFUNCTION()
+	void OnPetButtonClicked();
+
+	UFUNCTION()
+	void OnSearchButtonClicked();
+
 	void RebuildFilterButtonList();
+	void RebuildTileViewFromCachedSourceItems();
+	bool DoesSkinMatchSearch(const USkinInstance* SkinInstance, const FString& SearchText) const;
+	void ApplyWidgetDefinitionSettings();
+	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
 	FGameplayTag GetPandoraTypeTag() const;
 	FGameplayTag GetCosmeticsTypeTag() const;
 	FGameplayTag GetGestureTypeTag() const;
 	FGameplayTag GetRidingTypeTag() const;
+	FGameplayTag GetPetTypeTag() const;
+
+	FGameplayTag PandoraTypeTagOverride;
+	FGameplayTag CosmeticsTypeTagOverride;
+	FGameplayTag GestureTypeTagOverride;
+	FGameplayTag RidingTypeTagOverride;
+	FGameplayTag PetTypeTagOverride;
+
+	FFilterButtonHighlightState FilterButtonHighlightState;
 };

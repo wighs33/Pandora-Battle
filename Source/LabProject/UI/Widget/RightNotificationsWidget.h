@@ -39,6 +39,7 @@ protected:
 	TObjectPtr<UPanelWidget> NotificationList;
 
 private:
+	void ApplyWidgetDefinitionSettings();
 	void CacheOptionalWidgets();
 	void PrimeNotificationPool();
 	void TryShowQueuedNotifications();

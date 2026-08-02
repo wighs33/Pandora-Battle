@@ -1,27 +1,28 @@
 #include "UI/Widget/PandoraWidget.h"
 
-#include "AbilitySystem/PandoraTree/PandoraTreeComponent.h"
-#include "Blueprint/SlateBlueprintLibrary.h"
-#include "Blueprint/WidgetBlueprintLibrary.h"
-#include "Blueprint/WidgetLayoutLibrary.h"
+#include "Component/AbilitySystem/PandoraTreeComponent.h"
+#include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
-#include "Components/CanvasPanelSlot.h"
-#include "Components/PanelWidget.h"
+#include "Components/Image.h"
 #include "Components/ProgressBar.h"
+#include "Components/TextBlock.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "HAL/PlatformTime.h"
+#include "InputCoreTypes.h"
+#include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerState.h"
-#include "Pandora/PandoraDefinition.h"
-#include "UI/Widget/PandoraDescriptionWidget.h"
-#include "UI/Widget/PandoraTreeWidget.h"
+#include "Component/Pandora/PandoraComponent.h"
+#include "Definition/Pandora/PandoraDefinition.h"
+#include "UI/WidgetLookup.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Widget/PandoraWidgetViewData.h"
 #include "View/MVVMView.h"
 #include "View/MVVMViewClass.h"
 #include "ViewModel/PandoraWidgetViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraWidget)
-
-DEFINE_LOG_CATEGORY_STATIC(LogPandoraWidget, Log, All);
 
 namespace
 {
@@ -53,17 +54,45 @@ namespace
 		return nullptr;
 	}
 
+	UPandoraComponent* ResolvePandoraComponentFromPandoraWidget(const UUserWidget* Widget)
+	{
+		if (!Widget)
+		{
+			return nullptr;
+		}
+
+		if (APlayerController* PlayerController = Widget->GetOwningPlayer())
+		{
+			if (APdPlayerState* PlayerState = PlayerController->GetPlayerState<APdPlayerState>())
+			{
+				return PlayerState->GetPandoraComponent();
+			}
+		}
+
+		if (APawn* OwningPawn = Widget->GetOwningPlayerPawn())
+		{
+			if (APdPlayerState* PlayerState = OwningPawn->GetPlayerState<APdPlayerState>())
+			{
+				return PlayerState->GetPandoraComponent();
+			}
+		}
+
+		return nullptr;
+	}
+
 }
 
 void UPandoraWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
+	ApplyWidgetDefinitionSettings();
 	ResolveControlWidgets();
+	ResolveEquipHintWidgets();
 	GetOrCreatePandoraWidgetViewModel();
 	ApplyPandoraWidgetViewModelToMvvmView();
 	ApplyDesignerDefaults();
-	ResolvePandoraTreeWidget();
+	ApplyEquipHintDefaults();
 	SetPandoraInfo();
 }
 
@@ -71,42 +100,112 @@ void UPandoraWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	bIsButtonHoverActive = false;
+	bIsFocusWithinWidget = false;
+	bIsPandoraDescriptionRequested = false;
+	ApplyWidgetDefinitionSettings();
 	ResolveControlWidgets();
+	ResolveEquipHintWidgets();
 	GetOrCreatePandoraWidgetViewModel();
 	ApplyPandoraWidgetViewModelToMvvmView();
 	ResolvePandoraTreeComponent();
+	ResolvePandoraComponent();
 	BindPandoraTreeEvents();
+	BindPandoraComponentEvents();
 	BindButtonEvents();
 	ApplyDesignerDefaults();
+	ApplyEquipHintDefaults();
+	RefreshEquipHintState(false);
 	SetPandoraInfo();
-	ResolvePandoraTreeWidget();
-	SetupPandoraDescriptionPopupWidget();
-
-	UE_LOG(LogPandoraWidget, Verbose,
-		TEXT("[Construct] widget=%s treeComponent=%s treeWidget=%s pandora=%s button=%s progress=%s descClass=%s popup=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		*GetNameSafe(ResolvedPandoraTreeWidget.Get()),
-		*GetNameSafe(PandoraDefinition.Get()),
-		*GetNameSafe(Button.Get()),
-		*GetNameSafe(ButtonProgressBar.Get()),
-		*GetNameSafe(PandoraDescriptionPopupWidgetClass.Get()),
-		*GetNameSafe(CreatedPandoraDescriptionPopup.Get()));
 }
 
 void UPandoraWidget::NativeDestruct()
 {
-	RemovePandoraDescriptionPopup();
-	ClearFocusCheckTimer();
+	bIsButtonHoverActive = false;
+	bIsFocusWithinWidget = false;
+	if (bIsPandoraDescriptionRequested)
+	{
+		bIsPandoraDescriptionRequested = false;
+		OnPandoraDescriptionDismissed.Broadcast(this);
+	}
+
+	SetEquipHintWidgetsVisible(false, false);
 	ClearButtonPressTimer();
 	UnbindButtonEvents();
 	UnbindPandoraTreeEvents();
+	UnbindPandoraComponentEvents();
 	if (PandoraWidgetViewModel && PandoraWidgetViewModel->IsViewModelInitialized())
 	{
 		PandoraWidgetViewModel->UninitializeViewModel();
 	}
 
 	Super::NativeDestruct();
+}
+
+void UPandoraWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	// Pandora Tree pauses standalone training gameplay. UMG continues ticking
+	// while paused, whereas UWorld timers do not, so hold progress belongs here.
+	if (bIsButtonHoldActive)
+	{
+		IncrementButtonTimer();
+	}
+}
+
+void UPandoraWidget::NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnAddedToFocusPath(InFocusEvent);
+
+	bIsFocusWithinWidget = true;
+	RefreshPandoraDescriptionRequest();
+}
+
+void UPandoraWidget::NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnRemovedFromFocusPath(InFocusEvent);
+
+	bIsFocusWithinWidget = false;
+	RefreshPandoraDescriptionRequest();
+}
+
+void UPandoraWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
+
+	RefreshEquipHintState(true);
+}
+
+void UPandoraWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+{
+	Super::NativeOnMouseLeave(InMouseEvent);
+
+	RefreshEquipHintState(false);
+}
+
+FReply UPandoraWidget::NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	const bool bHandled = HandlePandoraWidgetMouseButtonDown(InMouseEvent);
+
+	if (bHandled)
+	{
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnPreviewMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+FReply UPandoraWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	const bool bHandled = HandlePandoraWidgetMouseButtonDown(InMouseEvent);
+
+	if (bHandled)
+	{
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
 void UPandoraWidget::SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition)
@@ -117,16 +216,10 @@ void UPandoraWidget::SetPandoraDefinition(UPandoraDefinition* InPandoraDefinitio
 	}
 
 	PandoraDefinition = InPandoraDefinition;
-	UE_LOG(LogPandoraWidget, Verbose,
-		TEXT("[SetPandoraDefinition] widget=%s pandora=%s icon=%s activeIcon=%s max=%d skills=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraDefinition.Get()),
-		PandoraDefinition ? *GetNameSafe(PandoraDefinition->GetIconResource()) : TEXT("None"),
-		PandoraDefinition ? *GetNameSafe(PandoraDefinition->GetActiveIconResource()) : TEXT("None"),
-		PandoraDefinition ? PandoraDefinition->GetMaxLevel() : 0,
-		PandoraDefinition ? PandoraDefinition->Skill.Num() : 0);
+
 	SetPandoraInfo();
-	UpdatePandoraDescriptionDetails();
+	RefreshEquipHintState(IsHovered());
+	RefreshPandoraDescriptionRequest(true);
 }
 
 void UPandoraWidget::SetPandoraTreeComponent(UPandoraTreeComponent* InPandoraTreeComponent)
@@ -142,15 +235,16 @@ void UPandoraWidget::SetPandoraTreeComponent(UPandoraTreeComponent* InPandoraTre
 	{
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
-	UE_LOG(LogPandoraWidget, Verbose,
-		TEXT("[SetTreeComponent] widget=%s treeComponent=%s resolvedPandora=%s points=%d"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		*GetNameSafe(PandoraDefinition.Get()),
-		PandoraTreeComponent ? PandoraTreeComponent->GetPointsAvailable() : INDEX_NONE);
+
 	BindPandoraTreeEvents();
 	SetPandoraInfo();
-	UpdatePandoraDescriptionDetails();
+	RefreshEquipHintState(IsHovered());
+	RefreshPandoraDescriptionRequest(true);
+}
+
+const UWidget* UPandoraWidget::GetPandoraDescriptionAnchorWidget() const
+{
+	return Button ? static_cast<const UWidget*>(Button.Get()) : static_cast<const UWidget*>(this);
 }
 
 void UPandoraWidget::SetPandoraInfo()
@@ -172,10 +266,25 @@ void UPandoraWidget::SetPandoraInfo()
 	Style.UnavailableContentOpacity = UnavailableContentOpacity;
 	Style.bShowMaxText = bShowMaxText;
 
-	const FPandoraWidgetViewData ViewData = FPandoraWidgetViewDataBuilder::Build(
+	FPandoraWidgetViewData ViewData = FPandoraWidgetViewDataBuilder::Build(
 		PandoraDefinition.Get(),
 		PandoraTreeComponent.Get(),
 		Style);
+	const bool bUnlockedInSave = IsPandoraUnlockedInSave();
+	if (!bUnlockedInSave && PandoraDefinition)
+	{
+		ViewData.bCanSpend = false;
+		ViewData.bActive = false;
+		ViewData.bLocked = true;
+		ViewData.bDimmedStyle = true;
+		ViewData.OverlayColor = LockedOverlayColor;
+		ViewData.ContentOpacity = UnavailableContentOpacity;
+		ViewData.StateIconVisibility = ESlateVisibility::HitTestInvisible;
+	}
+	else if (bUnlockedInSave && PandoraDefinition)
+	{
+		ViewData.StateIconVisibility = ESlateVisibility::Collapsed;
+	}
 
 	if (ViewModel)
 	{
@@ -192,74 +301,31 @@ void UPandoraWidget::SetPandoraInfo()
 		ViewModel->SetAtMaxLevel(ViewData.bAtMaxLevel);
 	}
 
-	UE_LOG(LogPandoraWidget, Verbose,
-		TEXT("[SetInfo] widget=%s pandora=%s tree=%s current=%d max=%d points=%d required=%d canSpend=%s unlockRulesMet=%s locked=%s notEnoughPoints=%s atMax=%s inactiveStyle=%s dimmedStyle=%s button=%s progress=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraDefinition.Get()),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		ViewData.CurrentLevel,
-		ViewData.MaxLevel,
-		ViewData.PointsAvailable,
-		ViewData.RequiredPoints,
-		ViewData.bCanSpend ? TEXT("true") : TEXT("false"),
-		ViewData.bUnlockRulesMet ? TEXT("true") : TEXT("false"),
-		ViewData.bLocked ? TEXT("true") : TEXT("false"),
-		ViewData.bNotEnoughPoints ? TEXT("true") : TEXT("false"),
-		ViewData.bAtMaxLevel ? TEXT("true") : TEXT("false"),
-		ViewData.bInactiveStyle ? TEXT("true") : TEXT("false"),
-		ViewData.bDimmedStyle ? TEXT("true") : TEXT("false"),
-		*GetNameSafe(Button.Get()),
-		*GetNameSafe(ButtonProgressBar.Get()));
+
+
+	RefreshEquipHintState(IsHovered());
 }
 
 void UPandoraWidget::ConfirmSpendPointOnPandora()
 {
-	if (!PandoraTreeComponent)
+	if (!IsPandoraUnlockedInSave() || !PandoraTreeComponent || !PandoraDefinition)
 	{
-		UE_LOG(LogPandoraWidget, Warning,
-			TEXT("[ConfirmSpend] blocked: no tree component. widget=%s pandora=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraDefinition.Get()));
 		return;
 	}
 
-	if (PandoraDefinition)
+	if (PandoraTreeComponent->CanSpendPointOnPandora(PandoraDefinition.Get()))
 	{
-		if (PandoraTreeComponent->CanSpendPointOnPandora(PandoraDefinition.Get()))
-		{
-			UE_LOG(LogPandoraWidget, Verbose,
-				TEXT("[ConfirmSpend] spending pandora. widget=%s component=%s pandora=%s points=%d current=%d max=%d required=%d"),
-				*GetNameSafe(this),
-				*GetNameSafe(PandoraTreeComponent.Get()),
-				*GetNameSafe(PandoraDefinition.Get()),
-				PandoraTreeComponent->GetPointsAvailable(),
-				PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition.Get()),
-				PandoraTreeComponent->GetMaxPandoraLevel(PandoraDefinition.Get()),
-				PandoraTreeComponent->GetRequiredPointsForPandora(PandoraDefinition.Get(), PandoraTreeComponent->HasGrantedPandora(PandoraDefinition.Get())));
-			PandoraTreeComponent->SpendPointOnPandora(PandoraDefinition.Get());
-		}
-		else
-		{
-			UE_LOG(LogPandoraWidget, Warning,
-				TEXT("[ConfirmSpend] blocked by CanSpendPointOnPandora=false. widget=%s component=%s pandora=%s points=%d current=%d max=%d required=%d"),
-				*GetNameSafe(this),
-				*GetNameSafe(PandoraTreeComponent.Get()),
-				*GetNameSafe(PandoraDefinition.Get()),
-				PandoraTreeComponent->GetPointsAvailable(),
-				PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition.Get()),
-				PandoraTreeComponent->GetMaxPandoraLevel(PandoraDefinition.Get()),
-				PandoraTreeComponent->GetRequiredPointsForPandora(PandoraDefinition.Get(), PandoraTreeComponent->HasGrantedPandora(PandoraDefinition.Get())));
-		}
-		return;
+		PandoraTreeComponent->SpendPointOnPandora(PandoraDefinition.Get());
 	}
-
-	UE_LOG(LogPandoraWidget, Warning,
-		TEXT("[ConfirmSpend] blocked: PandoraDefinition is not set. widget=%s"),
-		*GetNameSafe(this));
 }
 
 void UPandoraWidget::IncrementButtonTimer()
 {
+	if (!bIsButtonHoldActive)
+	{
+		return;
+	}
+
 	if (ButtonHoldDuration <= 0.0)
 	{
 		ConfirmSpendPointOnPandora();
@@ -267,7 +333,7 @@ void UPandoraWidget::IncrementButtonTimer()
 		return;
 	}
 
-	ButtonHoldElapsedTime += ButtonHoldUpdateInterval;
+	ButtonHoldElapsedTime = FMath::Max(0.0, FPlatformTime::Seconds() - ButtonHoldStartRealTime);
 
 	const float PressPercent = FMath::Clamp(
 		static_cast<float>(ButtonHoldElapsedTime / ButtonHoldDuration),
@@ -287,6 +353,8 @@ void UPandoraWidget::IncrementButtonTimer()
 
 void UPandoraWidget::ResetButtonPress()
 {
+	bIsButtonHoldActive = false;
+	ButtonHoldStartRealTime = 0.0;
 	ButtonHoldElapsedTime = 0.0;
 	ClearButtonPressTimer();
 
@@ -295,43 +363,25 @@ void UPandoraWidget::ResetButtonPress()
 		ButtonProgressBar->SetPercent(0.0f);
 	}
 
-	if (UPandoraTreeWidget* PandoraTreeWidget = GetTypedOuter<UPandoraTreeWidget>())
-	{
-		PandoraTreeWidget->SetFocus();
-	}
+	OnPandoraTreeFocusRequested.Broadcast(this);
 }
 
 void UPandoraWidget::HandleButtonPressed()
 {
+	if (!IsPandoraUnlockedInSave())
+	{
+		return;
+	}
+
 	const bool bCanSpend = PandoraTreeComponent
 		&& PandoraDefinition
 		&& PandoraTreeComponent->CanSpendPointOnPandora(PandoraDefinition.Get());
 	if (!bCanSpend)
 	{
-		UE_LOG(LogPandoraWidget, Warning,
-			TEXT("[ButtonPressed] blocked. widget=%s tree=%s pandora=%s points=%d current=%d max=%d required=%d hasPandora=%s canSpend=%s button=%s progress=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraTreeComponent.Get()),
-			*GetNameSafe(PandoraDefinition.Get()),
-			PandoraTreeComponent ? PandoraTreeComponent->GetPointsAvailable() : INDEX_NONE,
-			PandoraTreeComponent && PandoraDefinition ? PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition.Get()) : INDEX_NONE,
-			PandoraTreeComponent && PandoraDefinition ? PandoraTreeComponent->GetMaxPandoraLevel(PandoraDefinition.Get()) : INDEX_NONE,
-			PandoraTreeComponent && PandoraDefinition ? PandoraTreeComponent->GetRequiredPointsForPandora(PandoraDefinition.Get(), PandoraTreeComponent->HasGrantedPandora(PandoraDefinition.Get())) : INDEX_NONE,
-			PandoraTreeComponent && PandoraDefinition && PandoraTreeComponent->HasGrantedPandora(PandoraDefinition.Get()) ? TEXT("true") : TEXT("false"),
-			bCanSpend ? TEXT("true") : TEXT("false"),
-			*GetNameSafe(Button.Get()),
-			*GetNameSafe(ButtonProgressBar.Get()));
 		return;
 	}
 
-	UE_LOG(LogPandoraWidget, Verbose,
-		TEXT("[ButtonPressed] accepted. widget=%s pandora=%s holdDuration=%.3f updateInterval=%.3f"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraDefinition.Get()),
-		ButtonHoldDuration,
-		ButtonHoldUpdateInterval);
-
-	if (ButtonHoldUpdateInterval <= 0.0f)
+	if (ButtonHoldDuration <= 0.0)
 	{
 		ConfirmSpendPointOnPandora();
 		ResetButtonPress();
@@ -339,25 +389,12 @@ void UPandoraWidget::HandleButtonPressed()
 	}
 
 	ClearButtonPressTimer();
+	bIsButtonHoldActive = true;
+	ButtonHoldStartRealTime = FPlatformTime::Seconds();
 	ButtonHoldElapsedTime = 0.0;
 	if (ButtonProgressBar)
 	{
 		ButtonProgressBar->SetPercent(0.0f);
-	}
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			ButtonHoldTimerHandle,
-			this,
-			&ThisClass::IncrementButtonTimer,
-			ButtonHoldUpdateInterval,
-			true);
-		UE_LOG(LogPandoraWidget, Verbose,
-			TEXT("[ButtonPressed] hold timer started. widget=%s pandora=%s progressWidget=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraDefinition.Get()),
-			*GetNameSafe(ButtonProgressBar.Get()));
 	}
 }
 
@@ -366,17 +403,50 @@ void UPandoraWidget::HandleButtonReleased()
 	ResetButtonPress();
 }
 
+void UPandoraWidget::HandleButtonHovered()
+{
+	if (bIsButtonHoverActive)
+	{
+		return;
+	}
+
+	const APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!OwningPlayer || !OwningPlayer->IsLocalController())
+	{
+		return;
+	}
+
+	bIsButtonHoverActive = true;
+	RefreshEquipHintState(true);
+	RefreshPandoraDescriptionRequest();
+}
+
+void UPandoraWidget::HandleButtonUnhovered()
+{
+	if (!bIsButtonHoverActive)
+	{
+		return;
+	}
+
+	bIsButtonHoverActive = false;
+	RefreshEquipHintState(false);
+	RefreshPandoraDescriptionRequest();
+}
+
 void UPandoraWidget::HandlePandoraStateChanged()
 {
 	SetPandoraInfo();
-	UpdatePandoraDescriptionDetails();
 }
 
 void UPandoraWidget::HandlePandoraPointsChanged(int32 NewPointsAvailable)
 {
 	(void)NewPointsAvailable;
 	SetPandoraInfo();
-	UpdatePandoraDescriptionDetails();
+}
+
+void UPandoraWidget::HandlePandoraLoadoutChanged()
+{
+	RefreshEquipHintState(IsHovered());
 }
 
 void UPandoraWidget::ResolvePandoraTreeComponent()
@@ -391,13 +461,28 @@ void UPandoraWidget::ResolvePandoraTreeComponent()
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
 
-	UE_LOG(LogPandoraWidget, Verbose,
-		TEXT("[ResolveTreeComponent] widget=%s tree=%s pandora=%s owningPlayer=%s owningPawn=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraTreeComponent.Get()),
-		*GetNameSafe(PandoraDefinition.Get()),
-		*GetNameSafe(GetOwningPlayer()),
-		*GetNameSafe(GetOwningPlayerPawn()));
+
+}
+
+void UPandoraWidget::ResolvePandoraComponent()
+{
+	if (!PandoraComponent)
+	{
+		PandoraComponent = ResolvePandoraComponentFromPandoraWidget(this);
+	}
+
+
+}
+
+void UPandoraWidget::ApplyWidgetDefinitionSettings()
+{
+	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+	{
+		const FPandoraWidgetSettings& Settings = WidgetDefinition->GetPandoraWidgetSettings();
+		bShowMaxText = Settings.bShowMaxText;
+		ButtonHoldDuration = Settings.ButtonHoldDuration;
+		ButtonHoldUpdateInterval = Settings.ButtonHoldUpdateInterval;
+	}
 }
 
 void UPandoraWidget::BindPandoraTreeEvents()
@@ -424,6 +509,28 @@ void UPandoraWidget::UnbindPandoraTreeEvents()
 	PandoraTreeComponent->OnPointsChanged.RemoveDynamic(this, &ThisClass::HandlePandoraPointsChanged);
 }
 
+void UPandoraWidget::BindPandoraComponentEvents()
+{
+	ResolvePandoraComponent();
+	if (!PandoraComponent)
+	{
+		return;
+	}
+
+	PandoraComponent->OnPandoraLoadoutChanged.RemoveDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
+	PandoraComponent->OnPandoraLoadoutChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
+}
+
+void UPandoraWidget::UnbindPandoraComponentEvents()
+{
+	if (!PandoraComponent)
+	{
+		return;
+	}
+
+	PandoraComponent->OnPandoraLoadoutChanged.RemoveDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
+}
+
 void UPandoraWidget::BindButtonEvents()
 {
 	ResolveControlWidgets();
@@ -434,8 +541,12 @@ void UPandoraWidget::BindButtonEvents()
 
 	Button->OnPressed.RemoveDynamic(this, &ThisClass::HandleButtonPressed);
 	Button->OnReleased.RemoveDynamic(this, &ThisClass::HandleButtonReleased);
+	Button->OnHovered.RemoveDynamic(this, &ThisClass::HandleButtonHovered);
+	Button->OnUnhovered.RemoveDynamic(this, &ThisClass::HandleButtonUnhovered);
 	Button->OnPressed.AddUniqueDynamic(this, &ThisClass::HandleButtonPressed);
 	Button->OnReleased.AddUniqueDynamic(this, &ThisClass::HandleButtonReleased);
+	Button->OnHovered.AddUniqueDynamic(this, &ThisClass::HandleButtonHovered);
+	Button->OnUnhovered.AddUniqueDynamic(this, &ThisClass::HandleButtonUnhovered);
 }
 
 void UPandoraWidget::UnbindButtonEvents()
@@ -448,30 +559,36 @@ void UPandoraWidget::UnbindButtonEvents()
 
 	Button->OnPressed.RemoveDynamic(this, &ThisClass::HandleButtonPressed);
 	Button->OnReleased.RemoveDynamic(this, &ThisClass::HandleButtonReleased);
+	Button->OnHovered.RemoveDynamic(this, &ThisClass::HandleButtonHovered);
+	Button->OnUnhovered.RemoveDynamic(this, &ThisClass::HandleButtonUnhovered);
 }
 
 void UPandoraWidget::ResolveControlWidgets()
 {
 	if (!Button)
 	{
-		Button = Cast<UButton>(GetWidgetFromName(TEXT("PandoraButton")));
+		Button = PdWidgetLookup::FindWidgetByNames<UButton>(this, {
+			TEXT("PandoraButton")
+		});
+	}
+	if (!Button && WidgetTree)
+	{
+		Button = PdWidgetLookup::FindFirstWidgetOfType<UButton>(WidgetTree);
 	}
 
 	if (!ButtonProgressBar)
 	{
-		ButtonProgressBar = Cast<UProgressBar>(GetWidgetFromName(TEXT("PandoraButtonProgressBar")));
+		ButtonProgressBar = PdWidgetLookup::FindWidgetByNames<UProgressBar>(this, {
+			TEXT("PandoraButtonProgressBar"),
+			TEXT("PandoraProgressBar")
+		});
 	}
-
-	if (!ButtonProgressBar)
+	if (!ButtonProgressBar && WidgetTree)
 	{
-		ButtonProgressBar = Cast<UProgressBar>(GetWidgetFromName(TEXT("PandoraProgressBar")));
+		ButtonProgressBar = PdWidgetLookup::FindFirstWidgetOfType<UProgressBar>(WidgetTree);
 	}
 
-	UE_LOG(LogPandoraWidget, Verbose,
-		TEXT("[ResolveControls] widget=%s button=%s progress=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(Button.Get()),
-		*GetNameSafe(ButtonProgressBar.Get()));
+
 }
 
 UPandoraWidgetViewModel* UPandoraWidget::GetOrCreatePandoraWidgetViewModel()
@@ -526,31 +643,312 @@ void UPandoraWidget::ApplyPandoraWidgetViewModelToMvvmView()
 
 	if (RuntimeViewModelName.IsNone())
 	{
-		UE_LOG(LogPandoraWidget, Warning,
-			TEXT("[ApplyViewModel] skipped: widget has MVVM extension, but no settable PandoraWidgetViewModel source. widget=%s viewModel=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraWidgetViewModel.Get()));
+
 		return;
 	}
 
-	const bool bSuccess = ViewExtension->SetViewModel(RuntimeViewModelName, PandoraWidgetViewModel);
-	if (!bSuccess)
-	{
-		UE_LOG(LogPandoraWidget, Warning,
-			TEXT("[ApplyViewModel] failed. widget=%s viewModelName=%s viewModel=%s"),
-			*GetNameSafe(this),
-			*RuntimeViewModelName.ToString(),
-			*GetNameSafe(PandoraWidgetViewModel.Get()));
-	}
+	ViewExtension->SetViewModel(RuntimeViewModelName, PandoraWidgetViewModel);
 }
 
 void UPandoraWidget::ApplyDesignerDefaults()
 {
 	ResolveControlWidgets();
+	ResolveEquipHintWidgets();
 
 	if (Button)
 	{
 		Button->SetBackgroundColor(PandoraButtonTransparentColor);
+	}
+}
+
+void UPandoraWidget::ResolveEquipHintWidgets()
+{
+	if (!InputKeyOverlay)
+	{
+		InputKeyOverlay = PdWidgetLookup::FindWidgetByNames<UWidget>(this, {
+			TEXT("InputKeyOverlay")
+		});
+	}
+
+	if (!InputKeyBackground)
+	{
+		InputKeyBackground = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("InputKeyBackground")
+		});
+	}
+
+	if (!KeyIcon)
+	{
+		KeyIcon = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("KeyIcon")
+		});
+	}
+
+	if (!Txt_Equip)
+	{
+		Txt_Equip = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
+			TEXT("Txt_Equip")
+		});
+	}
+}
+
+void UPandoraWidget::ApplyEquipHintDefaults()
+{
+	ResolveEquipHintWidgets();
+
+	if (Txt_Equip && !bHasCachedDefaultEquipText)
+	{
+		DefaultEquipText = Txt_Equip->GetText();
+		bHasCachedDefaultEquipText = true;
+	}
+
+	if (IsDesignTime())
+	{
+		SetEquipHintWidgetsVisible(true, true);
+	}
+	else
+	{
+		RefreshEquipHintState(false);
+	}
+}
+
+void UPandoraWidget::SetEquipHintWidgetsVisible(const bool bShowText, const bool bShowInputKey)
+{
+	ResolveEquipHintWidgets();
+
+	const ESlateVisibility TextVisibility = bShowText
+		? ESlateVisibility::SelfHitTestInvisible
+		: ESlateVisibility::Collapsed;
+	const ESlateVisibility InputKeyVisibility = bShowInputKey
+		? ESlateVisibility::SelfHitTestInvisible
+		: ESlateVisibility::Collapsed;
+
+	if (InputKeyOverlay)
+	{
+		InputKeyOverlay->SetVisibility(InputKeyVisibility);
+	}
+
+	if (InputKeyBackground)
+	{
+		InputKeyBackground->SetVisibility(InputKeyVisibility);
+	}
+
+	if (KeyIcon)
+	{
+		KeyIcon->SetVisibility(InputKeyVisibility);
+	}
+
+	if (Txt_Equip)
+	{
+		Txt_Equip->SetVisibility(TextVisibility);
+	}
+}
+
+void UPandoraWidget::RefreshEquipHintState(const bool bHovered)
+{
+	ResolveEquipHintWidgets();
+	ResolvePandoraComponent();
+
+	if (Txt_Equip && !bHasCachedDefaultEquipText)
+	{
+		DefaultEquipText = Txt_Equip->GetText();
+		bHasCachedDefaultEquipText = true;
+	}
+
+	if (IsDesignTime())
+	{
+		SetEquipHintWidgetsVisible(true, true);
+		return;
+	}
+
+	const bool bEquipped = IsPandoraEquipped();
+	if (bEquipped)
+	{
+		if (Txt_Equip)
+		{
+			Txt_Equip->SetText(bHovered
+				? NSLOCTEXT("PandoraWidget", "UnequipText", "Unequip")
+				: NSLOCTEXT("PandoraWidget", "EquippedText", "Equipped"));
+		}
+		SetEquipHintWidgetsVisible(true, bHovered);
+		return;
+	}
+
+	if (Txt_Equip && bHasCachedDefaultEquipText)
+	{
+		Txt_Equip->SetText(DefaultEquipText);
+	}
+
+	SetEquipHintWidgetsVisible(bHovered && CanShowEquipHint(), bHovered && CanShowEquipHint());
+}
+
+bool UPandoraWidget::CanShowEquipHint() const
+{
+	if (!PandoraDefinition)
+	{
+		return false;
+	}
+
+	if (!IsPandoraUnlockedInSave())
+	{
+		return false;
+	}
+
+	if (!PandoraTreeComponent)
+	{
+		return false;
+	}
+
+	return PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition.Get()) >= 1;
+}
+
+bool UPandoraWidget::CanAutoEquipPandora() const
+{
+	return CanShowEquipHint();
+}
+
+bool UPandoraWidget::IsPandoraEquipped() const
+{
+	EEnum_Direction EquippedDirection = EEnum_Direction::Center;
+	return TryGetEquippedPandoraDirection(EquippedDirection);
+}
+
+bool UPandoraWidget::TryGetEquippedPandoraDirection(EEnum_Direction& OutDirection) const
+{
+	if (!PandoraComponent || !PandoraDefinition)
+	{
+		OutDirection = EEnum_Direction::Center;
+		return false;
+	}
+
+	for (const EEnum_Direction Direction : { EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
+	{
+		if (PandoraComponent->GetPandoraLoadoutDefinition(Direction) == PandoraDefinition.Get())
+		{
+			OutDirection = Direction;
+			return true;
+		}
+	}
+
+	OutDirection = EEnum_Direction::Center;
+	return false;
+}
+
+bool UPandoraWidget::HandlePandoraWidgetMouseButtonDown(const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() != EKeys::RightMouseButton)
+	{
+		return false;
+	}
+
+	ResolvePandoraComponent();
+	if (IsPandoraEquipped())
+	{
+		RequestUnequipPandora();
+	}
+	else
+	{
+		RequestAutoEquipPandora();
+	}
+	return true;
+}
+
+bool UPandoraWidget::RequestAutoEquipPandora()
+{
+	if (!PandoraDefinition)
+	{
+
+		return false;
+	}
+
+	if (!CanAutoEquipPandora())
+	{
+		const int32 CurrentLevel = PandoraTreeComponent && PandoraDefinition
+			? PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition.Get())
+			: INDEX_NONE;
+
+		return false;
+	}
+
+	APdPlayerState* PlayerState = nullptr;
+	if (APlayerController* PlayerController = GetOwningPlayer())
+	{
+		PlayerState = PlayerController->GetPlayerState<APdPlayerState>();
+	}
+
+	if (!PlayerState)
+	{
+		if (APawn* OwningPawn = GetOwningPlayerPawn())
+		{
+			PlayerState = OwningPawn->GetPlayerState<APdPlayerState>();
+		}
+	}
+
+	UPandoraComponent* ResolvedPandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	if (!ResolvedPandoraComponent)
+	{
+
+		return false;
+	}
+
+	const bool bRequested = ResolvedPandoraComponent->RequestAutoSetPandoraLoadoutSlot(PandoraDefinition.Get());
+
+	return bRequested;
+}
+
+bool UPandoraWidget::RequestUnequipPandora()
+{
+	if (!PandoraDefinition)
+	{
+
+		return false;
+	}
+
+	ResolvePandoraComponent();
+	if (!PandoraComponent)
+	{
+
+		return false;
+	}
+
+	EEnum_Direction EquippedDirection = EEnum_Direction::Center;
+	if (!TryGetEquippedPandoraDirection(EquippedDirection))
+	{
+
+		return false;
+	}
+
+	const bool bRequested = PandoraComponent->RequestSetPandoraLoadoutSlot(EquippedDirection, nullptr);
+
+	return bRequested;
+}
+
+void UPandoraWidget::RefreshPandoraDescriptionRequest(const bool bForceRefresh)
+{
+	const APlayerController* OwningPlayer = GetOwningPlayer();
+	const bool bShouldRequestDescription =
+		(bIsButtonHoverActive || bIsFocusWithinWidget)
+		&& IsValid(PandoraDefinition)
+		&& OwningPlayer
+		&& OwningPlayer->IsLocalController();
+
+	if (bShouldRequestDescription == bIsPandoraDescriptionRequested)
+	{
+		if (bForceRefresh && bShouldRequestDescription)
+		{
+			OnPandoraDescriptionRequested.Broadcast(this);
+		}
+		return;
+	}
+
+	bIsPandoraDescriptionRequested = bShouldRequestDescription;
+	if (bIsPandoraDescriptionRequested)
+	{
+		OnPandoraDescriptionRequested.Broadcast(this);
+	}
+	else
+	{
+		OnPandoraDescriptionDismissed.Broadcast(this);
 	}
 }
 
@@ -564,202 +962,35 @@ void UPandoraWidget::ClearButtonPressTimer()
 	ButtonHoldTimerHandle.Invalidate();
 }
 
-void UPandoraWidget::SetupPandoraDescriptionPopupWidget()
+bool UPandoraWidget::IsPandoraUnlockedInSave() const
 {
-	ResolvePandoraDescriptionPopupWidgetClass();
-	if (!CreatedPandoraDescriptionPopup && PandoraDescriptionPopupWidgetClass)
+	if (!PandoraDefinition)
 	{
-		if (APlayerController* OwningPlayer = GetOwningPlayer())
-		{
-			CreatedPandoraDescriptionPopup = CreateWidget<UUserWidget>(OwningPlayer, PandoraDescriptionPopupWidgetClass);
-		}
-		else if (UWorld* World = GetWorld())
-		{
-			CreatedPandoraDescriptionPopup = CreateWidget<UUserWidget>(World, PandoraDescriptionPopupWidgetClass);
-		}
+		return false;
 	}
 
-	UE_LOG(LogPandoraWidget, Verbose,
-		TEXT("[SetupDescription] widget=%s descClass=%s popup=%s treeWidget=%s popupPanel=%s pandora=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(PandoraDescriptionPopupWidgetClass.Get()),
-		*GetNameSafe(CreatedPandoraDescriptionPopup.Get()),
-		*GetNameSafe(ResolvedPandoraTreeWidget.Get()),
-		*GetNameSafe(GetPandoraDescriptionPopupPanel()),
-		*GetNameSafe(PandoraDefinition.Get()));
-
-	UpdatePandoraDescriptionDetails();
-	StartFocusCheckTimer();
-}
-
-void UPandoraWidget::ResolvePandoraTreeWidget()
-{
-	if (ResolvedPandoraTreeWidget)
+	const bool bUnlockedInTree = PandoraTreeComponent
+		&& PandoraTreeComponent->IsPandoraUnlockedForTree(PandoraDefinition.Get());
+	if (bUnlockedInTree)
 	{
-		return;
+
+		return true;
 	}
 
-	if (UPandoraTreeWidget* PandoraTreeWidget = GetTypedOuter<UPandoraTreeWidget>())
+	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	if (!PdGameInstance)
 	{
-		ResolvedPandoraTreeWidget = PandoraTreeWidget;
-		return;
+		return false;
 	}
 
-	TArray<UUserWidget*> PandoraTreeWidgets;
-	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, PandoraTreeWidgets, UPandoraTreeWidget::StaticClass(), false);
-	for (UUserWidget* Widget : PandoraTreeWidgets)
+	const APlayerController* PlayerController = GetOwningPlayer();
+	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
+	FString PlayerId = PdGameInstance->ResolveSavePlayerId(PlayerController, PlayerState);
+	if (PlayerId.IsEmpty())
 	{
-		if (UPandoraTreeWidget* PandoraTreeWidget = Cast<UPandoraTreeWidget>(Widget))
-		{
-			ResolvedPandoraTreeWidget = PandoraTreeWidget;
-			return;
-		}
-	}
-}
-
-void UPandoraWidget::ResolvePandoraDescriptionPopupWidgetClass()
-{
-	if (PandoraDescriptionPopupWidgetClass)
-	{
-		return;
+		PlayerId = PdGameInstance->GetPreferredSavePlayerId();
 	}
 
-	PandoraDescriptionPopupWidgetClass = LoadClass<UUserWidget>(
-		nullptr,
-		TEXT("/Game/UI/Widget/WBP_PandoraDescription.WBP_PandoraDescription_C"));
-}
-
-void UPandoraWidget::StartFocusCheckTimer()
-{
-	ClearFocusCheckTimer();
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			FocusCheckTimerHandle,
-			this,
-			&ThisClass::CheckFocusState,
-			FocusCheckInterval,
-			true);
-	}
-}
-
-void UPandoraWidget::ClearFocusCheckTimer()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(FocusCheckTimerHandle);
-	}
-
-	FocusCheckTimerHandle.Invalidate();
-}
-
-void UPandoraWidget::UpdatePandoraDescriptionDetails()
-{
-	if (!CreatedPandoraDescriptionPopup)
-	{
-		UE_LOG(LogPandoraWidget, Warning,
-			TEXT("[UpdateDescription] skipped: no popup. widget=%s pandora=%s descClass=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraDefinition.Get()),
-			*GetNameSafe(PandoraDescriptionPopupWidgetClass.Get()));
-		return;
-	}
-
-	if (UPandoraDescriptionWidget* PandoraDescriptionWidget = Cast<UPandoraDescriptionWidget>(CreatedPandoraDescriptionPopup))
-	{
-		PandoraDescriptionWidget->SetPandoraDefinition(PandoraDefinition.Get());
-		PandoraDescriptionWidget->SetPandoraTreeComponent(PandoraTreeComponent.Get());
-		PandoraDescriptionWidget->SetDetails();
-		return;
-	}
-
-	if (UFunction* SetDetailsFunction = CreatedPandoraDescriptionPopup->FindFunction(TEXT("SetDetails")))
-	{
-		CreatedPandoraDescriptionPopup->ProcessEvent(SetDetailsFunction, nullptr);
-	}
-}
-
-UPanelWidget* UPandoraWidget::GetPandoraDescriptionPopupPanel() const
-{
-	return ResolvedPandoraTreeWidget ? ResolvedPandoraTreeWidget->GetPandoraDescriptionPopupPanel() : nullptr;
-}
-
-void UPandoraWidget::CheckFocusState()
-{
-	const bool bShouldShowPopup = Button && (Button->IsHovered() || Button->HasKeyboardFocus());
-	if (bShouldShowPopup)
-	{
-		ShowPandoraDescriptionPopup();
-	}
-	else
-	{
-		RemovePandoraDescriptionPopup();
-	}
-}
-
-void UPandoraWidget::ShowPandoraDescriptionPopup()
-{
-	if (!CreatedPandoraDescriptionPopup)
-	{
-		SetupPandoraDescriptionPopupWidget();
-	}
-
-	if (!CreatedPandoraDescriptionPopup)
-	{
-		UE_LOG(LogPandoraWidget, Warning,
-			TEXT("[ShowDescription] failed: no popup. widget=%s pandora=%s descClass=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(PandoraDefinition.Get()),
-			*GetNameSafe(PandoraDescriptionPopupWidgetClass.Get()));
-		return;
-	}
-
-	ResolvePandoraTreeWidget();
-	UPanelWidget* PopupPanel = GetPandoraDescriptionPopupPanel();
-	if (!PopupPanel)
-	{
-		UE_LOG(LogPandoraWidget, Warning,
-			TEXT("[ShowDescription] failed: no popup panel. widget=%s treeWidget=%s pandora=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(ResolvedPandoraTreeWidget.Get()),
-			*GetNameSafe(PandoraDefinition.Get()));
-		return;
-	}
-
-	UpdatePandoraDescriptionDetails();
-
-	if (CreatedPandoraDescriptionPopup->GetParent() != PopupPanel)
-	{
-		CreatedPandoraDescriptionPopup->RemoveFromParent();
-		PopupPanel->AddChild(CreatedPandoraDescriptionPopup);
-		UE_LOG(LogPandoraWidget, Verbose,
-			TEXT("[ShowDescription] added popup. widget=%s popup=%s panel=%s pandora=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(CreatedPandoraDescriptionPopup.Get()),
-			*GetNameSafe(PopupPanel),
-			*GetNameSafe(PandoraDefinition.Get()));
-	}
-
-	if (UCanvasPanelSlot* CanvasSlot = UWidgetLayoutLibrary::SlotAsCanvasSlot(PopupPanel))
-	{
-		FVector2D PixelPosition;
-		FVector2D ViewportPosition;
-		USlateBlueprintLibrary::LocalToViewport(
-			this,
-			GetCachedGeometry(),
-			DescriptionPopupLocalOffset,
-			PixelPosition,
-			ViewportPosition);
-
-		CanvasSlot->SetPosition(ViewportPosition);
-	}
-}
-
-void UPandoraWidget::RemovePandoraDescriptionPopup()
-{
-	if (CreatedPandoraDescriptionPopup)
-	{
-		CreatedPandoraDescriptionPopup->RemoveFromParent();
-	}
+	// Default-unlocked definitions are resolved before IsPandoraGranted requires a player id.
+	return PdGameInstance->IsPandoraGranted(PlayerId, PandoraDefinition.Get());
 }

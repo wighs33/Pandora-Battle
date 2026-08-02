@@ -2,6 +2,8 @@
 
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "TimerManager.h"
+#include "UI/InfoUiTypes.h"
 #include "UI/Widget/LeftEquipmentWidget.h"
 #include "UI/Widget/LeftPandoraWidget.h"
 #include "UI/Widget/LeftProfileWidget.h"
@@ -16,6 +18,8 @@ class UButton;
 class UDragDropOperation;
 class UItemDetailWidget;
 class UItemInstance;
+class UMapWidget;
+class UOverlay;
 class UPandoraDescriptionWidget;
 class UPandoraInstance;
 class USizeBox;
@@ -25,9 +29,11 @@ class UWidget;
 class UWidgetAnimation;
 class UWidgetSwitcher;
 class AActor;
+struct FStreamableHandle;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnClickedInfoCenterButton, FGameplayTag, LeftUiTag, FGameplayTag, RightUiTag);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedMapButton);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedSettingButton);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedItemToCharacterPanel, UItemInstance*, ItemInstance);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedSkinToCharacterPanel, USkinInstance*, SkinInstance);
 
@@ -54,7 +60,10 @@ public:
 	void SelectPandoraTab();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
-	void SelectTabByLeftTag(FGameplayTag LeftUiTag);
+	void SelectMapTab();
+
+	void FocusSection(EPdInfoUiSection Section, bool bAnimateTransition);
+	EPdInfoUiSection GetFocusedSection() const { return FocusedSection; }
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Animation")
 	void ShowInfoUi();
@@ -62,8 +71,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Animation")
 	void HideInfoUi();
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Character Preview")
+	void SetReturnCameraOnHide(bool bInReturnCameraOnHide) { bReturnCameraOnHide = bInReturnCameraOnHide; }
+
 	UFUNCTION(BlueprintPure, Category = "!UI|Info|Animation")
 	float GetHideAnimationDelay() const;
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Info|Character Preview")
+	float GetPreviewCameraShowBlendTime() const { return 0.0f; }
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Info|Character Preview")
+	float GetPreviewCameraHideBlendTime() const { return 0.0f; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Info")
 	URightInventoryWidget* GetRightInventoryWidget() const;
@@ -87,43 +105,34 @@ public:
 	URightPandoraWidget* GetRightPandoraWidget() const;
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
-	void ShowItemDetail(UItemInstance* ItemInstance, UWidget* AnchorWidget);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
 	void ShowItemDetailAtWidget(UItemInstance* ItemInstance, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
-	void ShowItemDetailAtCursor(UItemInstance* ItemInstance, FVector2D ScreenSpacePosition, bool bPlaceLeftOfCursor);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
-	void ShowSkinDetail(USkinInstance* SkinInstance, UWidget* AnchorWidget);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
 	void ShowSkinDetailAtWidget(USkinInstance* SkinInstance, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
-	void ShowSkinDetailAtCursor(USkinInstance* SkinInstance, FVector2D ScreenSpacePosition, bool bPlaceLeftOfCursor);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
-	void ShowPandoraDescriptionDetail(UPandoraInstance* PandoraInstance, UWidget* AnchorWidget);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
 	void ShowPandoraDescriptionDetailAtWidget(UPandoraInstance* PandoraInstance, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
 
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
-	void ShowPandoraDescriptionDetailAtCursor(UPandoraInstance* PandoraInstance, FVector2D ScreenSpacePosition, bool bPlaceLeftOfCursor);
+	void ShowPandoraDescriptionDetailImmediatelyAtWidget(
+		UPandoraInstance* PandoraInstance,
+		UWidget* AnchorWidget,
+		bool bPlaceLeftOfWidget);
 
 	void ShowSkinDefinitionDetailAtWidget(const USkinDefinition* SkinDefinition, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
-	void ShowSkinDefinitionDetailAtCursor(const USkinDefinition* SkinDefinition, FVector2D ScreenSpacePosition, bool bPlaceLeftOfCursor);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
 	void HideDetailWidgets();
+
+	void HidePandoraDescriptionDetailAtWidget(const UWidget* AnchorWidget);
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
 	FPdOnClickedInfoCenterButton OnClickedInfoCenterButton;
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
 	FPdOnClickedMapButton OnClickedMapButton;
+
+	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
+	FPdOnClickedSettingButton OnClickedSettingButton;
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
 	FPdOnDroppedItemToCharacterPanel OnDroppedItemToCharacterPanel;
@@ -201,20 +210,26 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Info|Animation", meta = (BindWidgetAnimOptional))
 	TObjectPtr<UWidgetAnimation> SlideInBottom;
 
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Info|Animation", meta = (BindWidgetAnimOptional))
+	TObjectPtr<UWidgetAnimation> SlideMap;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Animation", meta = (ClampMin = "0.0"))
 	float HideAnimationDelay = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Animation")
+	FVector2D MapSlideStartOffset = FVector2D(0.0f, -96.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Animation", meta = (ClampMin = "0.01"))
+	float MapSlideDuration = 0.25f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Character Preview")
 	bool bUseCharacterPreviewCamera = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Character Preview")
+	bool bReturnCameraOnHide = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Character Preview")
 	TSubclassOf<AActor> CharacterPreviewClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Character Preview", meta = (ClampMin = "0.0"))
-	float PreviewCameraShowBlendTime = 0.35f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Character Preview", meta = (ClampMin = "0.0"))
-	float PreviewCameraHideBlendTime = 0.2f;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Info|Character Preview")
 	TObjectPtr<AActor> SpawnedCharacterPreview;
@@ -258,6 +273,38 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidget))
 	TObjectPtr<UButton> MapButton;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_Setting;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_Close;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_PandoraUpgrade;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_CanvasExport;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_FaceDecal;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_Debug;
+
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Map
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Map", meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> MapOverlay;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Map", meta = (BindWidgetOptional))
+	TObjectPtr<UMapWidget> TotalMap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Map")
+	TSubclassOf<UMapWidget> TotalMapWidgetClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Map")
+	TArray<FName> MapButtonDisabledMapNames = { TEXT("LV_TrainingRoom") };
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Left Pages
@@ -305,18 +352,65 @@ private:
 	UFUNCTION()
 	void OnMapButtonClicked();
 
+	UFUNCTION()
+	void OnSettingButtonClicked();
+
+	UFUNCTION()
+	void OnCloseButtonClicked();
+
+	UFUNCTION()
+	void OnPandoraUpgradeButtonClicked();
+
+	UFUNCTION()
+	void OnCanvasExportButtonClicked();
+
+	UFUNCTION()
+	void OnFaceDecalButtonClicked();
+
+	UFUNCTION()
+	void OnDebugButtonClicked();
+
+	UFUNCTION()
+	void HandleMapSlideAnimationFinished();
+
+	UFUNCTION()
+	void HandlePaintCanvasGroupVisibilityChanged(bool bVisible);
+
+	bool IsMapButtonDisabledForCurrentMap() const;
+	void BeginMapUiContentPreload();
+	void BeginMapWidgetClassPreload(int32 PreloadGeneration);
+	void ReleaseMapUiContentPreloads();
+	void ApplyWidgetDefinitionSettings();
+	void RefreshMapButtonEnabledState();
+	bool EnsureMapOverlay();
+	TSubclassOf<UMapWidget> ResolveTotalMapWidgetClassForCurrentMap() const;
+	void EnsureTotalMapWidget();
+	void HideMapOverlayImmediately();
+	void PlayMapSlideInAnimation();
+	void PlayMapSlideOutAnimation();
+	void TickMapSlideAnimation();
+	void FinishMapSlideOutAnimation();
 	void PlaySidePanelsSlideInAnimation();
+	void PlaySidePanelsSlideOutAnimation();
 	void SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag);
+	void HideSkinPaintCanvasGroup();
+	void SetCanvasExportButtonVisible(bool bVisible) const;
+	void SetPandoraUpgradeButtonVisible(bool bVisible) const;
+	void BindLeftSkinPaintCanvasEvents();
+	void UnbindLeftSkinPaintCanvasEvents();
 	bool IsScreenPositionInsideCharacterDropPanel(const FVector2D& ScreenSpacePosition) const;
 	void ResolveCharacterPreviewClass();
 	void SpawnCharacterPreview();
-	void ReturnCameraToPawn(float BlendTime) const;
+	void ReturnCameraToPawn() const;
 	void DestroyCharacterPreview();
 	UItemDetailWidget* GetOrCreateItemDetailWidget();
 	UPandoraDescriptionWidget* GetOrCreatePandoraDescriptionWidget();
-	void PositionDetailWidget(UUserWidget* DetailWidget, const UWidget* AnchorWidget) const;
+	void ShowPandoraDescriptionDetailAtWidgetInternal(
+		UPandoraInstance* PandoraInstance,
+		UWidget* AnchorWidget,
+		bool bPlaceLeftOfWidget,
+		bool bPlayShowAnimation);
 	void PositionDetailWidgetAdjacentToWidget(UUserWidget* DetailWidget, const UWidget* AnchorWidget, bool bPlaceLeftOfWidget) const;
-	void PositionDetailWidgetAtCursor(UUserWidget* DetailWidget, FVector2D ScreenSpacePosition, bool bPlaceLeftOfCursor) const;
 	UItemInstance* ResolveEquippedItemForComparison(UItemInstance* HoveredItem) const;
 	FGameplayTag GetProfileLeftUiTag() const;
 	FGameplayTag GetProfileRightUiTag() const;
@@ -326,4 +420,17 @@ private:
 	FGameplayTag GetSkinRightUiTag() const;
 	FGameplayTag GetPandoraLeftUiTag() const;
 	FGameplayTag GetPandoraRightUiTag() const;
+
+	FTimerHandle MapSlideTimerHandle;
+	double MapSlideStartTime = 0.0;
+	bool bMapOverlayOpen = false;
+	bool bMapSlideReverse = false;
+	bool bMapUiContentReady = false;
+	int32 MapUiContentPreloadGeneration = 0;
+	TSharedPtr<FStreamableHandle> MapRulePreloadHandle;
+	TSharedPtr<FStreamableHandle> MapWidgetClassPreloadHandle;
+	EPdInfoUiSection FocusedSection = EPdInfoUiSection::Profile;
+
+	TWeakObjectPtr<UWidget> ActivePandoraDescriptionAnchor;
+	TWeakObjectPtr<UPandoraInstance> ActivePandoraDescriptionInstance;
 };

@@ -6,6 +6,7 @@
 #include "Item/ItemInstance.h"
 #include "Skin/SkinInstance.h"
 #include "UI/Widget/ItemViewData.h"
+#include "UI/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ItemDetailWidget)
 
@@ -21,7 +22,7 @@ void UItemDetailWidget::SetItem(UItemInstance* InItemInstance, UItemInstance* In
 	CacheOptionalWidgets();
 	(void)InCompareItemInstance;
 
-	const FPdItemViewData ViewData = FPdItemViewDataBuilder::FromItemInstance(InItemInstance);
+	const FPdItemViewData ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance);
 	SetItemViewData(ViewData);
 }
 
@@ -43,7 +44,7 @@ void UItemDetailWidget::SetSkin(USkinInstance* InSkinInstance)
 {
 	CacheOptionalWidgets();
 
-	const FPdItemViewData ViewData = FPdItemViewDataBuilder::FromSkinInstance(InSkinInstance);
+	const FPdItemViewData ViewData = FItemViewDataBuilder::FromSkinInstance(InSkinInstance);
 	SetItemViewData(ViewData);
 }
 
@@ -51,7 +52,7 @@ void UItemDetailWidget::SetSkinDefinition(const USkinDefinition* SkinDefinition)
 {
 	CacheOptionalWidgets();
 
-	const FPdItemViewData ViewData = FPdItemViewDataBuilder::FromSkinDefinition(SkinDefinition);
+	const FPdItemViewData ViewData = FItemViewDataBuilder::FromSkinDefinition(SkinDefinition);
 	SetItemViewData(ViewData);
 }
 
@@ -71,54 +72,38 @@ void UItemDetailWidget::CacheOptionalWidgets()
 {
 	if (!IconImage)
 	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("IconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("ItemIconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("DetailIconImage")));
+		IconImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("IconImage"),
+			TEXT("ItemIconImage"),
+			TEXT("DetailIconImage")
+		});
 	}
 
 	if (!NameText)
 	{
-		NameText = Cast<UTextBlock>(GetWidgetFromName(TEXT("NameText")));
-	}
-	if (!NameText)
-	{
-		NameText = Cast<UTextBlock>(GetWidgetFromName(TEXT("ItemNameText")));
-	}
-	if (!NameText)
-	{
-		NameText = Cast<UTextBlock>(GetWidgetFromName(TEXT("DetailNameText")));
+		NameText = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
+			TEXT("NameText"),
+			TEXT("ItemNameText"),
+			TEXT("DetailNameText")
+		});
 	}
 
 	if (!DescriptionText)
 	{
-		DescriptionText = Cast<UTextBlock>(GetWidgetFromName(TEXT("DescriptionText")));
-	}
-	if (!DescriptionText)
-	{
-		DescriptionText = Cast<UTextBlock>(GetWidgetFromName(TEXT("ItemDescriptionText")));
-	}
-	if (!DescriptionText)
-	{
-		DescriptionText = Cast<UTextBlock>(GetWidgetFromName(TEXT("DetailDescriptionText")));
+		DescriptionText = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
+			TEXT("DescriptionText"),
+			TEXT("ItemDescriptionText"),
+			TEXT("DetailDescriptionText")
+		});
 	}
 
 	if (!StatsList)
 	{
-		StatsList = Cast<UPanelWidget>(GetWidgetFromName(TEXT("StatsList")));
-	}
-	if (!StatsList)
-	{
-		StatsList = Cast<UPanelWidget>(GetWidgetFromName(TEXT("StatList")));
-	}
-	if (!StatsList)
-	{
-		StatsList = Cast<UPanelWidget>(GetWidgetFromName(TEXT("VB_Stats")));
+		StatsList = PdWidgetLookup::FindWidgetByNames<UPanelWidget>(this, {
+			TEXT("StatsList"),
+			TEXT("StatList"),
+			TEXT("VB_Stats")
+		});
 	}
 }
 

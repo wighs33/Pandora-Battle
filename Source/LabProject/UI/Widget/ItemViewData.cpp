@@ -1,13 +1,13 @@
 #include "UI/Widget/ItemViewData.h"
 
-#include "Item/ItemDefinition.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
-#include "Skin/SkinDefinition.h"
+#include "Definition/Skin/SkinDefinition.h"
 #include "Skin/SkinInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ItemViewData)
 
-FPdItemViewData FPdItemViewDataBuilder::FromItemInstance(
+FPdItemViewData FItemViewDataBuilder::FromItemInstance(
 	const UItemInstance* ItemInstance,
 	const bool bOwned,
 	const bool bActive)
@@ -25,12 +25,13 @@ FPdItemViewData FPdItemViewDataBuilder::FromItemInstance(
 
 	ViewData.DisplayName = ItemDefinition->DisplayName;
 	ViewData.Description = ItemDefinition->Description;
-	ViewData.IconResource = ItemDefinition->IconTexture.LoadSynchronous();
+	ViewData.IconResource = ItemDefinition->IconTexture.Get();
 	ViewData.Stats = BuildItemStatMap(ItemInstance);
+	ViewData.Quantity = ItemInstance->Quantity;
 	return ViewData;
 }
 
-FPdItemViewData FPdItemViewDataBuilder::FromSkinInstance(
+FPdItemViewData FItemViewDataBuilder::FromSkinInstance(
 	const USkinInstance* SkinInstance,
 	const bool bOwned,
 	const bool bActive)
@@ -39,7 +40,7 @@ FPdItemViewData FPdItemViewDataBuilder::FromSkinInstance(
 	return FromSkinDefinition(SkinDefinition, bOwned && SkinInstance != nullptr, bActive && SkinInstance != nullptr);
 }
 
-FPdItemViewData FPdItemViewDataBuilder::FromSkinDefinition(
+FPdItemViewData FItemViewDataBuilder::FromSkinDefinition(
 	const USkinDefinition* SkinDefinition,
 	const bool bOwned,
 	const bool bActive)
@@ -60,7 +61,7 @@ FPdItemViewData FPdItemViewDataBuilder::FromSkinDefinition(
 	return ViewData;
 }
 
-TMap<FGameplayTag, float> FPdItemViewDataBuilder::BuildItemStatMap(const UItemInstance* ItemInstance)
+TMap<FGameplayTag, float> FItemViewDataBuilder::BuildItemStatMap(const UItemInstance* ItemInstance)
 {
 	TMap<FGameplayTag, float> Result;
 

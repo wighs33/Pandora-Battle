@@ -1,16 +1,31 @@
 #include "UI/Widget/LeftEquipmentWidget.h"
 
-#include "Common/ProjectTagConfig.h"
-#include "Item/ItemDefinition.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Definition/Common/ProjectTagConfig.h"
+#include "Engine/GameInstance.h"
+#include "Engine/StreamableManager.h"
+#include "Engine/Texture2D.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftEquipmentWidget)
-
-DEFINE_LOG_CATEGORY_STATIC(LogLeftEquipmentWidget, Log, All);
 
 ULeftEquipmentWidget::ULeftEquipmentWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	PandoraAxeIcon = TSoftObjectPtr<UTexture2D>(
+		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapon-axe.weapon-axe")));
+	PandoraBowIcon = TSoftObjectPtr<UTexture2D>(
+		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapon-bow.weapon-bow")));
+	PandoraDaggerIcon = TSoftObjectPtr<UTexture2D>(
+		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapon-dagger.weapon-dagger")));
+	PandoraGreatswordIcon = TSoftObjectPtr<UTexture2D>(
+		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapon-greatsword.weapon-greatsword")));
+	PandoraSwordIcon = TSoftObjectPtr<UTexture2D>(
+		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapon-sword.weapon-sword")));
+	PandoraGunIcon = TSoftObjectPtr<UTexture2D>(
+		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapoon-gun.weapoon-gun")));
 }
 
 void ULeftEquipmentWidget::NativePreConstruct()
@@ -32,21 +47,19 @@ void ULeftEquipmentWidget::NativeConstruct()
 	ApplyResolvedEquipTypeTags();
 	ApplyEquipSlotNames();
 	BindEquipSlotCallbacks();
+	BeginPandoraWeaponIconPreload();
 
 	const FGameplayTag WeaponEquipTypeTag = ResolveEquipTypeTagForSlot(Weapon1);
 	const FGameplayTag ConsumableEquipTypeTag = ResolveEquipTypeTagForSlot(QuickSlot1);
 	const FGameplayTag ValuableEquipTypeTag = ResolveEquipTypeTagForSlot(ToolSlot1);
 
-	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] LeftEquipment NativeConstruct: widget=%s slotCount=%d weaponTag=%s consumableTag=%s valuableTag=%s"),
-		*GetNameSafe(this),
-		EquipSlotList.Num(),
-		*WeaponEquipTypeTag.ToString(),
-		*ConsumableEquipTypeTag.ToString(),
-		*ValuableEquipTypeTag.ToString());
+
 }
 
 void ULeftEquipmentWidget::NativeDestruct()
 {
+	ReleasePandoraWeaponIconPreload();
+	CachedWeaponSlotPandoraRequirements.Reset();
 	UnbindEquipSlotCallbacks();
 
 	Super::NativeDestruct();
@@ -64,17 +77,13 @@ void ULeftEquipmentWidget::InitialzeEquipSlots()
 	}
 	SelectedEquipSlot = nullptr;
 	bIsSelectedAnyButton = false;
-	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] Equipment slots initialized: widget=%s slotCount=%d"),
-		*GetNameSafe(this),
-		EquipSlotList.Num());
+
 }
 
 void ULeftEquipmentWidget::ToggleActiveEquipSlots(bool bActive)
 {
 	RebuildEquipSlotList();
-	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] Equipment slots active=%s count=%d"),
-		bActive ? TEXT("true") : TEXT("false"),
-		EquipSlotList.Num());
+
 
 	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
 	{
@@ -94,12 +103,7 @@ void ULeftEquipmentWidget::SelectEquipSlot(FGameplayTag EquipTypeTag, UEquipSlot
 
 	SelectedEquipSlot = InSelectedEquipSlot;
 
-	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] EquipSlot clicked for filter/clear: widget=%s slot=%s nth=%d tag=%s occupied=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(SelectedEquipSlot),
-		SelectedEquipSlot ? SelectedEquipSlot->GetNth() : INDEX_NONE,
-		*EquipTypeTag.ToString(),
-		SelectedEquipSlot && SelectedEquipSlot->HasEquippedItem() ? TEXT("true") : TEXT("false"));
+
 
 	BroadcastClickedEquipTypeSlot(EquipTypeTag, SelectedEquipSlot, false);
 
@@ -117,17 +121,119 @@ void ULeftEquipmentWidget::SelectEquipSlot(FGameplayTag EquipTypeTag, UEquipSlot
 
 void ULeftEquipmentWidget::SetWeaponSlotData(const int32 WeaponSlotNumber, UItemInstance* ItemInstance)
 {
+	UEquipSlotWidget* TargetSlot = GetWeaponSlot(WeaponSlotNumber);
+
+	if (TargetSlot)
+	{
+
+		TargetSlot->SetData(ItemInstance);
+	}
+}
+
+void ULeftEquipmentWidget::SetWeaponSlotPandoraRequirement(
+	const int32 WeaponSlotNumber,
+	const UPandoraDefinition* PandoraDefinition)
+{
+	if (WeaponSlotNumber >= 1 && WeaponSlotNumber <= 3)
+	{
+		CachedWeaponSlotPandoraRequirements.SetNum(3);
+		CachedWeaponSlotPandoraRequirements[WeaponSlotNumber - 1] =
+			const_cast<UPandoraDefinition*>(PandoraDefinition);
+	}
+
+	if (UEquipSlotWidget* TargetSlot = GetWeaponSlot(WeaponSlotNumber))
+	{
+		TargetSlot->SetPandoraWeaponRequirementIcon(
+			ResolvePandoraWeaponRequirementIcon(PandoraDefinition),
+			PandoraWeaponRequirementOpacity);
+	}
+}
+
+void ULeftEquipmentWidget::BeginPandoraWeaponIconPreload()
+{
+	ReleasePandoraWeaponIconPreload();
+	const int32 PreloadGeneration = ++PandoraWeaponIconPreloadGeneration;
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		return;
+	}
+
+	TArray<FSoftObjectPath> IconPaths;
+	const TSoftObjectPtr<UTexture2D> Icons[] = {
+		PandoraAxeIcon,
+		PandoraBowIcon,
+		PandoraDaggerIcon,
+		PandoraGreatswordIcon,
+		PandoraSwordIcon,
+		PandoraGunIcon
+	};
+	for (const TSoftObjectPtr<UTexture2D>& Icon : Icons)
+	{
+		if (!Icon.IsNull())
+		{
+			IconPaths.Add(Icon.ToSoftObjectPath());
+		}
+	}
+
+	PandoraWeaponIconPreloadHandle =
+		ContentSubsystem->PreloadSoftObjectPathsAsync(
+			IconPaths,
+			FSimpleDelegate::CreateWeakLambda(
+				this,
+				[this, PreloadGeneration]()
+				{
+					if (PreloadGeneration == PandoraWeaponIconPreloadGeneration)
+					{
+						RefreshCachedPandoraWeaponRequirements();
+					}
+				}));
+}
+
+void ULeftEquipmentWidget::ReleasePandoraWeaponIconPreload()
+{
+	++PandoraWeaponIconPreloadGeneration;
+	if (PandoraWeaponIconPreloadHandle.IsValid())
+	{
+		PandoraWeaponIconPreloadHandle->CancelHandle();
+		PandoraWeaponIconPreloadHandle->ReleaseHandle();
+		PandoraWeaponIconPreloadHandle.Reset();
+	}
+}
+
+void ULeftEquipmentWidget::RefreshCachedPandoraWeaponRequirements()
+{
+	for (int32 SlotIndex = 0; SlotIndex < CachedWeaponSlotPandoraRequirements.Num(); ++SlotIndex)
+	{
+		if (UEquipSlotWidget* TargetSlot = GetWeaponSlot(SlotIndex + 1))
+		{
+			TargetSlot->SetPandoraWeaponRequirementIcon(
+				ResolvePandoraWeaponRequirementIcon(
+					CachedWeaponSlotPandoraRequirements[SlotIndex]),
+				PandoraWeaponRequirementOpacity);
+		}
+	}
+}
+
+void ULeftEquipmentWidget::SetConsumableQuickSlotData(const int32 QuickSlotNumber, UItemInstance* ItemInstance)
+{
 	UEquipSlotWidget* TargetSlot = nullptr;
-	switch (WeaponSlotNumber)
+	switch (QuickSlotNumber)
 	{
 	case 1:
-		TargetSlot = Weapon1;
+		TargetSlot = QuickSlot1;
 		break;
 	case 2:
-		TargetSlot = Weapon2;
+		TargetSlot = QuickSlot2;
 		break;
 	case 3:
-		TargetSlot = Weapon3;
+		TargetSlot = QuickSlot3;
+		break;
+	case 4:
+		TargetSlot = QuickSlot4;
 		break;
 	default:
 		break;
@@ -135,21 +241,8 @@ void ULeftEquipmentWidget::SetWeaponSlotData(const int32 WeaponSlotNumber, UItem
 
 	if (TargetSlot)
 	{
-		UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[EquipSlotFlow] SetWeaponSlotData: widget=%s weaponSlot=%d targetSlot=%s targetNth=%d item=%s definition=%s"),
-			*GetNameSafe(this),
-			WeaponSlotNumber,
-			*GetNameSafe(TargetSlot),
-			TargetSlot->GetNth(),
-			*GetNameSafe(ItemInstance),
-			*GetNameSafe(ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr));
+
 		TargetSlot->SetData(ItemInstance);
-	}
-	else
-	{
-		UE_LOG(LogLeftEquipmentWidget, Warning, TEXT("[EquipSlotFlow] SetWeaponSlotData skipped: widget=%s weaponSlot=%d targetSlot=null item=%s"),
-			*GetNameSafe(this),
-			WeaponSlotNumber,
-			*GetNameSafe(ItemInstance));
 	}
 }
 
@@ -182,23 +275,9 @@ UEquipSlotWidget* ULeftEquipmentWidget::FindFirstCompatibleEquipSlot(UItemInstan
 
 		if (!EquipSlot->HasEquippedItem())
 		{
-			UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[CharacterPanelDrop] Found empty compatible equipment slot: widget=%s slot=%s tag=%s item=%s idTag=%s"),
-				*GetNameSafe(this),
-				*GetNameSafe(EquipSlot),
-				*SlotTag.ToString(),
-				*GetNameSafe(ItemInstance),
-				*ItemDefinition->IdTag.ToString());
+
 			return EquipSlot;
 		}
-	}
-
-	if (FirstCompatibleSlot)
-	{
-		UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[CharacterPanelDrop] No empty compatible equipment slot, replacing first compatible slot: widget=%s slot=%s item=%s idTag=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(FirstCompatibleSlot),
-			*GetNameSafe(ItemInstance),
-			*ItemDefinition->IdTag.ToString());
 	}
 	return FirstCompatibleSlot;
 }
@@ -228,25 +307,46 @@ UEquipSlotWidget* ULeftEquipmentWidget::FindFirstEquippedCompatibleEquipSlot(UIt
 	return nullptr;
 }
 
+void ULeftEquipmentWidget::GetEquippedItemIds(TSet<FGuid>& OutItemIds, const FGameplayTag ExcludedEquipTypeRootTag) const
+{
+	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
+	{
+		if (!EquipSlot)
+		{
+			continue;
+		}
+
+		const FGameplayTag SlotTag = ResolveEquipTypeTagForSlot(EquipSlot);
+		if (ExcludedEquipTypeRootTag.IsValid() && SlotTag.IsValid() && SlotTag.MatchesTag(ExcludedEquipTypeRootTag))
+		{
+			continue;
+		}
+
+		UItemInstance* ItemInstance = EquipSlot->GetItemInstance();
+		if (!IsValid(ItemInstance))
+		{
+			continue;
+		}
+
+		const FGuid ItemId = ItemInstance->GetOrCreateItemId();
+		if (ItemId.IsValid())
+		{
+			OutItemIds.Add(ItemId);
+
+		}
+	}
+}
+
 void ULeftEquipmentWidget::BroadcastClickedEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* InSelectedEquipSlot, bool bInIsSelectedAnyButton)
 {
-	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] Broadcast EquipTypeSlot: widget=%s slot=%s nth=%d tag=%s selectedAny=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(InSelectedEquipSlot),
-		InSelectedEquipSlot ? InSelectedEquipSlot->GetNth() : INDEX_NONE,
-		*EquipTypeTag.ToString(),
-		bInIsSelectedAnyButton ? TEXT("true") : TEXT("false"));
+
 	OnClicked_EquipTypeSlot.Broadcast(EquipTypeTag, InSelectedEquipSlot, bInIsSelectedAnyButton);
 }
 
 void ULeftEquipmentWidget::HandleEquipSlotClicked(UEquipSlotWidget* ItemSlot)
 {
 	const FGameplayTag ResolvedTag = ResolveEquipTypeTagForSlot(ItemSlot);
-	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] EquipSlot clicked: widget=%s slot=%s nth=%d resolvedTag=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(ItemSlot),
-		ItemSlot ? ItemSlot->GetNth() : INDEX_NONE,
-		*ResolvedTag.ToString());
+
 	SelectEquipSlot(ResolvedTag, ItemSlot);
 }
 
@@ -275,11 +375,7 @@ void ULeftEquipmentWidget::RebuildEquipSlotList()
 	EquipSlotList.Add(Weapon2);
 	EquipSlotList.Add(Weapon3);
 
-	UE_LOG(LogLeftEquipmentWidget, Verbose, TEXT("[InventoryFilter] RebuildEquipSlotList: count=%d weapon1=%s weapon2=%s weapon3=%s"),
-		EquipSlotList.Num(),
-		*GetNameSafe(Weapon1),
-		*GetNameSafe(Weapon2),
-		*GetNameSafe(Weapon3));
+
 }
 
 void ULeftEquipmentWidget::RebuildEquipSlotNameList()
@@ -342,8 +438,7 @@ void ULeftEquipmentWidget::BindEquipSlotCallbacks()
 			EquipSlot->OnDroppedItem_EquipSlot.AddUniqueDynamic(this, &ThisClass::HandleEquipSlotItemDropped);
 		}
 	}
-	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[InventoryFilter] Equip slot callbacks bound: count=%d"),
-		EquipSlotList.Num());
+
 }
 
 void ULeftEquipmentWidget::UnbindEquipSlotCallbacks()
@@ -361,25 +456,87 @@ void ULeftEquipmentWidget::UnbindEquipSlotCallbacks()
 void ULeftEquipmentWidget::HandleEquipSlotItemDropped(UEquipSlotWidget* ItemSlot, UItemInstance* ItemInstance)
 {
 	const FGameplayTag ResolvedTag = ResolveEquipTypeTagForSlot(ItemSlot);
-	UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[EquipSlotDragDrop] Item dropped on left equipment slot: widget=%s slot=%s nth=%d resolvedTag=%s item=%s definition=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(ItemSlot),
-		ItemSlot ? ItemSlot->GetNth() : INDEX_NONE,
-		ResolvedTag.IsValid() ? *ResolvedTag.ToString() : TEXT("None"),
-		*GetNameSafe(ItemInstance),
-		*GetNameSafe(ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr));
+
 	OnDroppedItem_EquipTypeSlot.Broadcast(ResolvedTag, ItemSlot, ItemInstance);
+}
+
+UEquipSlotWidget* ULeftEquipmentWidget::GetWeaponSlot(const int32 WeaponSlotNumber) const
+{
+	switch (WeaponSlotNumber)
+	{
+	case 1:
+		return Weapon1;
+	case 2:
+		return Weapon2;
+	case 3:
+		return Weapon3;
+	default:
+		return nullptr;
+	}
+}
+
+UTexture2D* ULeftEquipmentWidget::ResolvePandoraWeaponRequirementIcon(
+	const UPandoraDefinition* PandoraDefinition) const
+{
+	if (!PandoraDefinition)
+	{
+		return nullptr;
+	}
+
+	const FGameplayTagContainer& RequiredWeaponTags = PandoraDefinition->ActivatableWeaponTags;
+	const auto HasWeaponTag = [&RequiredWeaponTags](const TCHAR* WeaponTagName)
+	{
+		const FGameplayTag WeaponTag =
+			FGameplayTag::RequestGameplayTag(FName(WeaponTagName), false);
+		if (!WeaponTag.IsValid())
+		{
+			return false;
+		}
+
+		for (const FGameplayTag& RequiredWeaponTag : RequiredWeaponTags)
+		{
+			if (RequiredWeaponTag == WeaponTag || RequiredWeaponTag.MatchesTag(WeaponTag))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	};
+
+	if (HasWeaponTag(TEXT("Item.Weapon.Axe")))
+	{
+		return PandoraAxeIcon.Get();
+	}
+	if (HasWeaponTag(TEXT("Item.Weapon.Bow")))
+	{
+		return PandoraBowIcon.Get();
+	}
+	if (HasWeaponTag(TEXT("Item.Weapon.Dagger")))
+	{
+		return PandoraDaggerIcon.Get();
+	}
+	if (HasWeaponTag(TEXT("Item.Weapon.GreatSword")))
+	{
+		return PandoraGreatswordIcon.Get();
+	}
+	if (HasWeaponTag(TEXT("Item.Weapon.Sword")))
+	{
+		return PandoraSwordIcon.Get();
+	}
+	if (HasWeaponTag(TEXT("Item.Weapon.Gun")))
+	{
+		return PandoraGunIcon.Get();
+	}
+
+	return nullptr;
 }
 
 FGameplayTag ULeftEquipmentWidget::ResolveEquipTypeTagForSlot(const UEquipSlotWidget* ItemSlot) const
 {
 	if (ItemSlot && ItemSlot->GetEquipTypeTag().IsValid())
 	{
-		UE_LOG(LogLeftEquipmentWidget, Log, TEXT("[EquipSlotFlow] ResolveEquipTypeTagForSlot using slot override: widget=%s slot=%s nth=%d tag=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(ItemSlot),
-			ItemSlot->GetNth(),
-			*ItemSlot->GetEquipTypeTag().ToString());
+
 		return ItemSlot->GetEquipTypeTag();
 	}
 

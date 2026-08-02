@@ -9,5 +9,5 @@ void UInventorySlotViewData::Initialize(const int32 InSlotIndex, UItemInstance* 
 {
 	SlotIndex = InSlotIndex;
 	ItemInstance = InItemInstance;
-	ViewData = FPdItemViewDataBuilder::FromItemInstance(InItemInstance);
+	ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance);
 }

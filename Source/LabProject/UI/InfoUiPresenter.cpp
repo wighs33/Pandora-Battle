@@ -1,23 +1,29 @@
 #include "UI/InfoUiPresenter.h"
 
 #include "Character/PdPlayer.h"
-#include "Common/ProjectTagConfig.h"
+#include "Component/AbilitySystem/PandoraTreeComponent.h"
+#include "Common/LabGameplayTags.h"
+#include "Definition/Common/ProjectTagConfig.h"
 #include "Components/TileView.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Engine/GameInstance.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/Texture2D.h"
-#include "Item/InventoryComponent.h"
-#include "Item/ItemDefinition.h"
+#include "Component/Item/InventoryComponent.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Mode/PdHUD.h"
-#include "PlayerComponent/EquipmentComponent.h"
-#include "Pandora/PandoraComponent.h"
-#include "Pandora/PandoraDefinition.h"
+#include "Component/Player/EquipmentComponent.h"
+#include "Component/Pandora/PandoraComponent.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraInstance.h"
+#include "Pandora/PandoraLoadoutTypes.h"
 #include "Component/Player/StatUpgradeComponent.h"
-#include "Skin/SkinComponent.h"
-#include "Skin/SkinDefinition.h"
-#include "Skin/SkinEquipmentComponent.h"
+#include "Component/Skin/SkinComponent.h"
+#include "Definition/Skin/SkinDefinition.h"
+#include "Component/Skin/SkinEquipmentComponent.h"
 #include "Skin/SkinInstance.h"
 #include "UI/Widget/EquipSlotWidget.h"
 #include "UI/Widget/InfoWidget.h"
@@ -36,8 +42,6 @@
 #include "UI/Widget/SkinSlotViewData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InfoUiPresenter)
-
-DEFINE_LOG_CATEGORY_STATIC(LogInfoUiPresenter, Log, All);
 
 namespace
 {
@@ -65,16 +69,11 @@ void AppendSkinListAsObjects(const FSkinList& SkinList, TArray<UObject*>& OutLis
 	}
 }
 
-void AppendPandoraListAsObjects(const FPandoraList& PandoraList, TArray<UObject*>& OutListItems)
+FGameplayTag ResolveSkinDefinitionMatchTag(const FGameplayTag SlotOrFilterTag)
 {
-	OutListItems.Reserve(OutListItems.Num() + PandoraList.Pandoras.Num());
-	for (const TObjectPtr<UPandoraInstance>& Pandora : PandoraList.Pandoras)
-	{
-		if (UPandoraInstance* PandoraInstance = Pandora.Get())
-		{
-			OutListItems.Add(PandoraInstance);
-		}
-	}
+	return SlotOrFilterTag.MatchesTag(LabGameplayTags::Skin_Gesture)
+		? LabGameplayTags::Skin_Gesture
+		: SlotOrFilterTag;
 }
 
 FString GetItemDisplayNameForLog(const UItemInstance* ItemInstance)
@@ -86,6 +85,38 @@ FString GetItemDisplayNameForLog(const UItemInstance* ItemInstance)
 	}
 
 	return IsValid(ItemDefinition) ? GetNameSafe(ItemDefinition) : GetNameSafe(ItemInstance);
+}
+
+FString GetItemDisplayNameForSort(const UItemInstance* ItemInstance)
+{
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
+	if (IsValid(ItemDefinition) && !ItemDefinition->DisplayName.IsEmpty())
+	{
+		return ItemDefinition->DisplayName.ToString();
+	}
+
+	return IsValid(ItemDefinition) ? ItemDefinition->GetName() : GetNameSafe(ItemInstance);
+}
+
+void SortItemObjectsByDisplayName(TArray<UObject*>& InOutItems)
+{
+	InOutItems.StableSort([](const UObject& LeftObject, const UObject& RightObject)
+	{
+		const UItemInstance* LeftItem = Cast<UItemInstance>(&LeftObject);
+		const UItemInstance* RightItem = Cast<UItemInstance>(&RightObject);
+		const FString LeftName = GetItemDisplayNameForSort(LeftItem);
+		const FString RightName = GetItemDisplayNameForSort(RightItem);
+
+		const int32 NameCompare = LeftName.Compare(RightName, ESearchCase::IgnoreCase);
+		if (NameCompare != 0)
+		{
+			return NameCompare < 0;
+		}
+
+		const UObject* LeftTieObject = LeftItem && LeftItem->ItemDefinition ? LeftItem->ItemDefinition.Get() : &LeftObject;
+		const UObject* RightTieObject = RightItem && RightItem->ItemDefinition ? RightItem->ItemDefinition.Get() : &RightObject;
+		return GetNameSafe(LeftTieObject) < GetNameSafe(RightTieObject);
+	});
 }
 
 FString GetPandoraDisplayNameForLog(const UPandoraInstance* PandoraInstance)
@@ -130,7 +161,9 @@ void UInfoUiPresenter::Initialize(APdPlayerController* InController)
 
 void UInfoUiPresenter::Deinitialize()
 {
+	UnbindInfoUiEvents();
 	UnbindInventoryChangeNotification();
+	ReleaseItemPresentationPreload();
 	UnbindPandoraLoadoutChangeNotification();
 	OwningController = nullptr;
 	InfoWidget = nullptr;
@@ -139,9 +172,12 @@ void UInfoUiPresenter::Deinitialize()
 	CachedSelectedSkinEquipSlot = nullptr;
 	CachedSelectedSkinEquipTypeTag = FGameplayTag();
 	CachedSelectedPandoraEquipSlot = nullptr;
-	CachedFirstWeapon = nullptr;
-	CachedSecondWeapon = nullptr;
-	CachedThirdWeapon = nullptr;
+	CurrentPandoraFilterTag = FGameplayTag();
+	bUsePandoraTypeFilter = false;
+	bShowOnlyOwnedPandorasForEquipSlot = false;
+	PendingClearedWeaponId.Invalidate();
+	PendingClearedWeaponDirection = EEnum_Direction::Center;
+	ResetInventoryDisplaySlots();
 	CurrentLeftUiTag = FGameplayTag();
 	CurrentItemFilterTag = FGameplayTag();
 	bUseItemTypeFilter = false;
@@ -149,34 +185,34 @@ void UInfoUiPresenter::Deinitialize()
 
 void UInfoUiPresenter::BindInfoUi(UInfoWidget* InInfoWidget)
 {
+	if (InfoWidget != InInfoWidget)
+	{
+		UnbindInfoUiEvents();
+	}
+
 	InfoWidget = InInfoWidget;
 	if (InfoWidget)
 	{
-		InfoWidget->OnDroppedItemToCharacterPanel.Clear();
+		InfoWidget->OnDroppedItemToCharacterPanel.RemoveDynamic(
+			this,
+			&ThisClass::HandleDroppedItemToCharacterPanel);
 		InfoWidget->OnDroppedItemToCharacterPanel.AddUniqueDynamic(this, &ThisClass::HandleDroppedItemToCharacterPanel);
-		InfoWidget->OnDroppedSkinToCharacterPanel.Clear();
+		InfoWidget->OnDroppedSkinToCharacterPanel.RemoveDynamic(
+			this,
+			&ThisClass::HandleDroppedSkinToCharacterPanel);
 		InfoWidget->OnDroppedSkinToCharacterPanel.AddUniqueDynamic(this, &ThisClass::HandleDroppedSkinToCharacterPanel);
 	}
 	BindInventoryChangeNotification();
 	BindPandoraLoadoutChangeNotification();
 	BindStatusWidgetEvents();
+	BeginItemPresentationPreload();
 }
 
 UItemInstance* UInfoUiPresenter::GetSelectedWeapon(EEnum_Direction Direction) const
 {
-	switch (Direction)
-	{
-	case EEnum_Direction::Up:
-		return CachedSecondWeapon;
-	case EEnum_Direction::Right:
-		return CachedThirdWeapon;
-	case EEnum_Direction::Left:
-		return CachedFirstWeapon;
-	case EEnum_Direction::Center:
-	case EEnum_Direction::Down:
-	default:
-		return nullptr;
-	}
+	const APdPlayerState* PlayerState = GetCachedPlayerState();
+	const UInventoryComponent* InventoryComponent = PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	return InventoryComponent ? InventoryComponent->GetPandoraWeaponLoadoutItem(Direction) : nullptr;
 }
 
 UPandoraInstance* UInfoUiPresenter::GetSelectedPandora(EEnum_Direction Direction) const
@@ -184,6 +220,56 @@ UPandoraInstance* UInfoUiPresenter::GetSelectedPandora(EEnum_Direction Direction
 	const APdPlayerState* PlayerState = GetCachedPlayerState();
 	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
 	return PandoraComponent ? PandoraComponent->GetPandoraLoadoutInstance(Direction) : nullptr;
+}
+
+bool UInfoUiPresenter::WouldSelectedPandoraDirectionChangeLoadout(const EEnum_Direction Direction) const
+{
+	APdPlayerController* Controller = GetController();
+	APdPlayer* PlayerCharacter = Controller ? Cast<APdPlayer>(Controller->GetPawn()) : nullptr;
+	const UEquipmentComponent* EquipmentComponent = PlayerCharacter ? PlayerCharacter->GetEquipmentComponent() : nullptr;
+	const APdPlayerState* PlayerState = GetCachedPlayerState();
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+
+	if (Direction == EEnum_Direction::Down)
+	{
+		const bool bWouldUnequipWeapon = EquipmentComponent
+			&& (EquipmentComponent->GetCurrentWeaponId().IsValid() || EquipmentComponent->GetCurrentWeaponDefinition());
+		const bool bWouldClearPandora = PandoraComponent && PandoraComponent->GetCurrentPandoraDefinition();
+		return bWouldUnequipWeapon || bWouldClearPandora;
+	}
+
+	if (!PandoraLoadout::IsLoadoutDirection(Direction))
+	{
+		return false;
+	}
+
+	const UPandoraInstance* SlotPandora = GetSelectedPandora(Direction);
+	const UPandoraDefinition* SlotPandoraDefinition = SlotPandora ? SlotPandora->PandoraDefinition.Get() : nullptr;
+	if (!SlotPandoraDefinition && PandoraComponent)
+	{
+		SlotPandoraDefinition = PandoraComponent->GetPandoraLoadoutDefinition(Direction);
+	}
+
+	bool bPandoraWouldChange = false;
+	if (PandoraComponent && SlotPandoraDefinition)
+	{
+		bPandoraWouldChange = PandoraComponent->GetCurrentPandoraDefinition() != SlotPandoraDefinition
+			|| PandoraComponent->GetCurrentPandoraLoadoutDirection() != Direction;
+	}
+
+	UItemInstance* SlotWeapon = GetSelectedWeapon(Direction);
+	bool bWeaponWouldChange = false;
+	if (EquipmentComponent && IsValid(SlotWeapon))
+	{
+		const FGuid SlotWeaponId = SlotWeapon->GetOrCreateItemId();
+		const FGuid CurrentWeaponId = EquipmentComponent->GetCurrentWeaponId();
+		const bool bSameWeapon = SlotWeaponId.IsValid() && CurrentWeaponId.IsValid()
+			? SlotWeaponId == CurrentWeaponId
+			: EquipmentComponent->GetCurrentWeaponDefinition() == SlotWeapon->ItemDefinition.Get();
+		bWeaponWouldChange = !bSameWeapon || EquipmentComponent->GetCurrentWeaponLoadoutDirection() != Direction;
+	}
+
+	return bPandoraWouldChange || bWeaponWouldChange;
 }
 
 void UInfoUiPresenter::HandleSelectedPandoraDirection(EEnum_Direction Direction)
@@ -196,15 +282,12 @@ void UInfoUiPresenter::HandleSelectedPandoraDirection(EEnum_Direction Direction)
 
 	if (Direction == EEnum_Direction::Down)
 	{
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("Select UI confirmed: direction=%d pandora=None weapon=None"),
-			static_cast<int32>(Direction));
+
 
 		if (EquipmentComponent)
 		{
 			const bool bRequested = EquipmentComponent->RequestWeaponUnequip();
-			UE_LOG(LogInfoUiPresenter, Log, TEXT("Weapon unequip requested from select UI: direction=%d result=%s"),
-				static_cast<int32>(Direction),
-				bRequested ? TEXT("true") : TEXT("false"));
+
 		}
 
 		if (PandoraComponent)
@@ -223,56 +306,28 @@ void UInfoUiPresenter::HandleSelectedPandoraDirection(EEnum_Direction Direction)
 	UItemInstance* CurrentWeapon = GetSelectedWeapon(Direction);
 	const UItemDefinition* ItemDefinition = CurrentWeapon ? CurrentWeapon->ItemDefinition.Get() : nullptr;
 
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("Select UI confirmed: direction=%d pandora=%s pandoraAsset=%s pandoraTag=%s weapon=%s weaponAsset=%s weaponTag=%s"),
-		static_cast<int32>(Direction),
-		*GetPandoraDisplayNameForLog(CurrentPandora),
-		*GetNameSafe(PandoraDefinition),
-		PandoraDefinition && PandoraDefinition->IdTag.IsValid() ? *PandoraDefinition->IdTag.ToString() : TEXT("None"),
-		*GetItemDisplayNameForLog(CurrentWeapon),
-		*GetNameSafe(ItemDefinition),
-		ItemDefinition && ItemDefinition->IdTag.IsValid() ? *ItemDefinition->IdTag.ToString() : TEXT("None"));
+
 
 	if (PandoraComponent && PandoraDefinition)
 	{
-		const bool bPandoraRequested = PandoraComponent->RequestPandoraSelection(PandoraDefinition);
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("Pandora selection requested from select UI: direction=%d pandora=%s tag=%s result=%s"),
-			static_cast<int32>(Direction),
-			*GetNameSafe(PandoraDefinition),
-			PandoraDefinition->IdTag.IsValid() ? *PandoraDefinition->IdTag.ToString() : TEXT("None"),
-			bPandoraRequested ? TEXT("true") : TEXT("false"));
-	}
-	else
-	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Pandora selection skipped: direction=%d component=%s pandora=%s"),
-			static_cast<int32>(Direction),
-			*GetNameSafe(PandoraComponent),
-			*GetNameSafe(PandoraDefinition));
+		const bool bPandoraRequested = PandoraComponent->RequestPandoraSelectionForDirection(Direction, PandoraDefinition);
+
 	}
 
 	if (!EquipmentComponent)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Weapon selection skipped: direction=%d controller=%s pawn=%s equipment=null"),
-			static_cast<int32>(Direction),
-			*GetNameSafe(Controller),
-			*GetNameSafe(PlayerCharacter));
+
 		return;
 	}
 
 	if (!IsValid(CurrentWeapon))
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Weapon selection skipped: direction=%d selected weapon is invalid"),
-			static_cast<int32>(Direction));
+
 		return;
 	}
 
-	const bool bRequested = EquipmentComponent->RequestWeaponSelection(CurrentWeapon);
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("Weapon selection requested from select UI: direction=%d item=%s definition=%s tag=%s result=%s"),
-		static_cast<int32>(Direction),
-		*GetNameSafe(CurrentWeapon),
-		*GetNameSafe(ItemDefinition),
-		ItemDefinition ? *ItemDefinition->IdTag.ToString() : TEXT("None"),
-		bRequested ? TEXT("true") : TEXT("false"));
+	const bool bRequested = EquipmentComponent->RequestWeaponSelectionForDirection(Direction, CurrentWeapon);
+
 }
 
 void UInfoUiPresenter::HandleOpenedInfoUi()
@@ -300,11 +355,13 @@ void UInfoUiPresenter::HandleOpenedInfoUi()
 	RefreshLeftEquipmentSlots();
 	RefreshLeftSkinSlots();
 	RefreshLeftPandoraSlots();
+	ReconcileCurrentWeaponLoadoutDirection();
 
 	if (URightInventoryWidget* RightInventoryWidget = CurrentInfoWidget->GetRightInventoryWidget())
 	{
 		RightInventoryWidget->ToggleActiveFiliterButtons(true);
-		RightInventoryWidget->ClearTileViewItemClicked();
+		ClearInventoryClickEquipBinding();
+		BindRightInventoryWidgetEvents(RightInventoryWidget);
 	}
 }
 
@@ -312,24 +369,25 @@ void UInfoUiPresenter::HandleClickedStatUpButton(FGameplayTag StatTag)
 {
 	APdPlayerState* PdPlayerState = GetCachedPlayerState();
 	UStatUpgradeComponent* StatUpgradeComponent = PdPlayerState ? PdPlayerState->GetStatUpgradeComponent() : nullptr;
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[StatUpgrade] Presenter received stat up: controller=%s playerState=%s component=%s tag=%s valid=%s"),
-		*GetNameSafe(GetController()),
-		*GetNameSafe(PdPlayerState),
-		*GetNameSafe(StatUpgradeComponent),
-		*StatTag.ToString(),
-		StatTag.IsValid() ? TEXT("true") : TEXT("false"));
+
 
 	if (StatUpgradeComponent)
 	{
 		const bool bRequested = StatUpgradeComponent->RequestStatUp(StatTag);
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("[StatUpgrade] Presenter request result: component=%s tag=%s result=%s"),
-			*GetNameSafe(StatUpgradeComponent),
-			*StatTag.ToString(),
-			bRequested ? TEXT("true") : TEXT("false"));
+
 	}
-	else
+}
+
+void UInfoUiPresenter::HandleClickedStatDownButton(FGameplayTag StatTag)
+{
+	APdPlayerState* PdPlayerState = GetCachedPlayerState();
+	UStatUpgradeComponent* StatUpgradeComponent = PdPlayerState ? PdPlayerState->GetStatUpgradeComponent() : nullptr;
+
+
+	if (StatUpgradeComponent)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[StatUpgrade] Presenter request skipped: StatUpgradeComponent is null."));
+		const bool bRequested = StatUpgradeComponent->RequestStatDown(StatTag);
+
 	}
 }
 
@@ -371,19 +429,19 @@ void UInfoUiPresenter::HandleClickedInfoCenterButton(FGameplayTag LeftUiTag, FGa
 		{
 			RefreshInventoryTileView();
 
-			RightInventoryWidget->OnClicked_FilterAllButton.Clear();
-			RightInventoryWidget->OnClicked_FilterAllButton.AddUniqueDynamic(this, &ThisClass::HandleClickedItemFilterAllButton);
-
-			RightInventoryWidget->OnClicked_FilterTypeButton.Clear();
-			RightInventoryWidget->OnClicked_FilterTypeButton.AddUniqueDynamic(this, &ThisClass::HandleClickedItemFilterTypeButton);
+			BindRightInventoryWidgetEvents(RightInventoryWidget);
 		}
 
 		if (ULeftEquipmentWidget* LeftEquipmentWidget = CurrentInfoWidget->GetLeftEquipmentWidget())
 		{
 			LeftEquipmentWidget->InitialzeEquipSlots();
-			LeftEquipmentWidget->OnClicked_EquipTypeSlot.Clear();
+			LeftEquipmentWidget->OnClicked_EquipTypeSlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedItemEquipTypeSlot);
 			LeftEquipmentWidget->OnClicked_EquipTypeSlot.AddUniqueDynamic(this, &ThisClass::HandleClickedItemEquipTypeSlot);
-			LeftEquipmentWidget->OnDroppedItem_EquipTypeSlot.Clear();
+			LeftEquipmentWidget->OnDroppedItem_EquipTypeSlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleDroppedItemEquipTypeSlot);
 			LeftEquipmentWidget->OnDroppedItem_EquipTypeSlot.AddUniqueDynamic(this, &ThisClass::HandleDroppedItemEquipTypeSlot);
 		}
 		RefreshLeftEquipmentSlots();
@@ -406,19 +464,27 @@ void UInfoUiPresenter::HandleClickedInfoCenterButton(FGameplayTag LeftUiTag, FGa
 			RightSkinWidget->ToggleActiveFiliterButtons(true);
 			RightSkinWidget->SetTileView(CurrentSkinList);
 
-			RightSkinWidget->OnClicked_SkinFilterAllButton.Clear();
+			RightSkinWidget->OnClicked_SkinFilterAllButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedSkinFilterAllButton);
 			RightSkinWidget->OnClicked_SkinFilterAllButton.AddUniqueDynamic(this, &ThisClass::HandleClickedSkinFilterAllButton);
 
-			RightSkinWidget->OnClicked_SkinFilterTypeButton.Clear();
+			RightSkinWidget->OnClicked_SkinFilterTypeButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedSkinFilterTypeButton);
 			RightSkinWidget->OnClicked_SkinFilterTypeButton.AddUniqueDynamic(this, &ThisClass::HandleClickedSkinFilterTypeButton);
 		}
 
 		if (ULeftSkinWidget* LeftSkinWidget = CurrentInfoWidget->GetLeftSkinWidget())
 		{
 			LeftSkinWidget->InitialzeEquipSlots();
-			LeftSkinWidget->OnClicked_SkinEquipTypeSlot.Clear();
+			LeftSkinWidget->OnClicked_SkinEquipTypeSlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedSkinEquipTypeSlot);
 			LeftSkinWidget->OnClicked_SkinEquipTypeSlot.AddUniqueDynamic(this, &ThisClass::HandleClickedSkinEquipTypeSlot);
-			LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.Clear();
+			LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleDroppedSkinEquipTypeSlot);
 			LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.AddUniqueDynamic(this, &ThisClass::HandleDroppedSkinEquipTypeSlot);
 		}
 		RefreshLeftSkinSlots();
@@ -427,29 +493,35 @@ void UInfoUiPresenter::HandleClickedInfoCenterButton(FGameplayTag LeftUiTag, FGa
 
 	if (LeftUiTag == GetPandoraEquipmentLeftUiTag())
 	{
-		TArray<UObject*> CurrentPandoraList;
+		CachedSelectedPandoraEquipSlot = nullptr;
+		bShowOnlyOwnedPandorasForEquipSlot = false;
+		bUsePandoraTypeFilter = false;
+		CurrentPandoraFilterTag = FGameplayTag();
 
-		const APdPlayerState* PdPlayerState = GetCachedPlayerState();
-		const UPandoraComponent* PandoraComponent = PdPlayerState ? PdPlayerState->GetPandoraComponent() : nullptr;
-		if (PandoraComponent)
-		{
-			AppendPandoraListAsObjects(PandoraComponent->AllPandoraList, CurrentPandoraList);
-		}
+		TArray<UObject*> CurrentPandoraList;
+		BuildPandoraTileViewItems(CurrentPandoraList, FGameplayTag(), false);
 
 		if (URightPandoraWidget* RightPandoraWidget = CurrentInfoWidget->GetRightPandoraWidget())
 		{
 			RightPandoraWidget->SetTileViewAndShowLockState(CurrentPandoraList);
+			BindPandoraTileItemClicked();
 
-			RightPandoraWidget->OnClicked_PandoraFilterAllButton.Clear();
+			RightPandoraWidget->OnClicked_PandoraFilterAllButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedPandoraFilterAllButton);
 			RightPandoraWidget->OnClicked_PandoraFilterAllButton.AddUniqueDynamic(this, &ThisClass::HandleClickedPandoraFilterAllButton);
 
-			RightPandoraWidget->OnClicked_PandoraFilterTypeButton.Clear();
+			RightPandoraWidget->OnClicked_PandoraFilterTypeButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedPandoraFilterTypeButton);
 			RightPandoraWidget->OnClicked_PandoraFilterTypeButton.AddUniqueDynamic(this, &ThisClass::HandleClickedPandoraFilterTypeButton);
 		}
 
 		if (ULeftPandoraWidget* LeftPandoraWidget = CurrentInfoWidget->GetLeftPandoraWidget())
 		{
-			LeftPandoraWidget->OnClicked_PandoraEquipSlot.Clear();
+			LeftPandoraWidget->OnClicked_PandoraEquipSlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedPandoraEquipSlot);
 			LeftPandoraWidget->OnClicked_PandoraEquipSlot.AddUniqueDynamic(this, &ThisClass::HandleClickedPandoraEquipSlot);
 		}
 		RefreshLeftPandoraSlots();
@@ -465,152 +537,79 @@ void UInfoUiPresenter::HandleClickedItemSlot(UObject* Item)
 	{
 		ItemInstance = SlotViewData->GetItemInstance();
 	}
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("[EquipSlotFlow] Inventory item clicked: controller=%s rawItem=%s slotIndex=%d itemInstance=%s cachedSlot=%s cachedSlotNth=%d cachedSlotType=%s currentFilter=%s filterEnabled=%s"),
-		*GetNameSafe(Controller),
-		*GetNameSafe(Item),
-		SlotViewData ? SlotViewData->GetSlotIndex() : INDEX_NONE,
-		*GetNameSafe(ItemInstance),
-		*GetNameSafe(CachedSelectedEquipSlot),
-		CachedSelectedEquipSlot ? CachedSelectedEquipSlot->GetNth() : INDEX_NONE,
-		CachedSelectedEquipTypeTag.IsValid() ? *CachedSelectedEquipTypeTag.ToString() : TEXT("None"),
-		CurrentItemFilterTag.IsValid() ? *CurrentItemFilterTag.ToString() : TEXT("None"),
-		bUseItemTypeFilter ? TEXT("true") : TEXT("false"));
+
 	if (!Controller || !ItemInstance)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Item slot click skipped: controller=%s item=%s itemInstance=%s"),
-			*GetNameSafe(Controller),
-			*GetNameSafe(Item),
-			*GetNameSafe(ItemInstance));
+
 		return;
 	}
 
 	const UItemDefinition* ItemDefinition = ItemInstance->ItemDefinition;
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("[EquipSlotFlow] Item definition resolved: item=%s definition=%s idTag=%s displayName=%s iconPath=%s"),
-		*GetNameSafe(ItemInstance),
-		*GetNameSafe(ItemDefinition),
-		ItemDefinition && ItemDefinition->IdTag.IsValid() ? *ItemDefinition->IdTag.ToString() : TEXT("None"),
-		ItemDefinition ? *ItemDefinition->DisplayName.ToString() : TEXT("None"),
-		ItemDefinition ? *ItemDefinition->IconTexture.ToSoftObjectPath().ToString() : TEXT("None"));
+
 	if (!ItemDefinition || !ItemDefinition->IdTag.IsValid())
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Item slot click skipped: item=%s definition=%s idTag=%s"),
-			*GetNameSafe(ItemInstance),
-			*GetNameSafe(ItemDefinition),
-			ItemDefinition ? *ItemDefinition->IdTag.ToString() : TEXT("None"));
+
 		return;
 	}
 
 	if (!CachedSelectedEquipSlot || !CachedSelectedEquipTypeTag.IsValid())
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Item slot click skipped: no selected equipment slot. item=%s definition=%s idTag=%s selectedSlot=%s selectedType=%s"),
-			*GetNameSafe(ItemInstance),
-			*GetNameSafe(ItemDefinition),
-			*ItemDefinition->IdTag.ToString(),
-			*GetNameSafe(CachedSelectedEquipSlot),
-			CachedSelectedEquipTypeTag.IsValid() ? *CachedSelectedEquipTypeTag.ToString() : TEXT("None"));
+
 		return;
 	}
 
 	const bool bMatchesSelectedSlotType = ItemDefinition->IdTag.MatchesTag(CachedSelectedEquipTypeTag);
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("[EquipSlotFlow] Type check: itemTag=%s selectedSlotType=%s matches=%s slot=%s nth=%d"),
-		*ItemDefinition->IdTag.ToString(),
-		*CachedSelectedEquipTypeTag.ToString(),
-		bMatchesSelectedSlotType ? TEXT("true") : TEXT("false"),
-		*GetNameSafe(CachedSelectedEquipSlot),
-		CachedSelectedEquipSlot->GetNth());
+
 	if (!bMatchesSelectedSlotType)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Item slot click ignored by selected slot type: item=%s definition=%s idTag=%s selectedType=%s slot=%s nth=%d"),
-			*GetNameSafe(ItemInstance),
-			*GetNameSafe(ItemDefinition),
-			*ItemDefinition->IdTag.ToString(),
-			*CachedSelectedEquipTypeTag.ToString(),
-			*GetNameSafe(CachedSelectedEquipSlot),
-			CachedSelectedEquipSlot->GetNth());
+
 		return;
 	}
 
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("[EquipSlotFlow] Applying item to selected UI slot: slot=%s nth=%d item=%s definition=%s"),
-		*GetNameSafe(CachedSelectedEquipSlot),
-		CachedSelectedEquipSlot->GetNth(),
-		*GetNameSafe(ItemInstance),
-		*GetNameSafe(ItemDefinition));
-	CachedSelectedEquipSlot->SetData(ItemInstance);
-
-	if (UInfoWidget* CurrentInfoWidget = GetInfoWidget())
+	APdPlayerState* PlayerState = GetCachedPlayerState();
+	UInventoryComponent* InventoryComponent = PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	const FGameplayTag ConsumableItemTypeTag = GetConsumableItemTypeTag();
+	const bool bSelectedConsumableSlot = ConsumableItemTypeTag.IsValid()
+		&& CachedSelectedEquipTypeTag.MatchesTag(ConsumableItemTypeTag);
+	if (bSelectedConsumableSlot)
 	{
-		if (URightInventoryWidget* RightInventoryWidget = CurrentInfoWidget->GetRightInventoryWidget())
+		if (!InventoryComponent
+			|| !InventoryComponent->SetConsumableQuickSlot(
+				CachedSelectedEquipSlot->GetNth() - 1,
+				ItemInstance))
 		{
-			RightInventoryWidget->ClearTileViewItemClicked();
+			return;
 		}
-	}
 
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("Item equipped to UI slot: slot=%s nth=%d selectedType=%s item=%s definition=%s idTag=%s"),
-		*GetNameSafe(CachedSelectedEquipSlot),
-		CachedSelectedEquipSlot->GetNth(),
-		*CachedSelectedEquipTypeTag.ToString(),
-		*GetNameSafe(ItemInstance),
-		*GetNameSafe(ItemDefinition),
-		*ItemDefinition->IdTag.ToString());
+		ClearInventoryClickEquipBinding();
+		return;
+	}
 
 	const FGameplayTag WeaponItemTypeTag = GetWeaponItemTypeTag();
-	const bool bSelectedWeaponSlot = WeaponItemTypeTag.IsValid() && CachedSelectedEquipTypeTag.MatchesTag(WeaponItemTypeTag);
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("[EquipSlotFlow] Weapon branch check: selectedType=%s weaponRoot=%s isWeaponSlot=%s"),
-		*CachedSelectedEquipTypeTag.ToString(),
-		WeaponItemTypeTag.IsValid() ? *WeaponItemTypeTag.ToString() : TEXT("None"),
-		bSelectedWeaponSlot ? TEXT("true") : TEXT("false"));
-	if (!bSelectedWeaponSlot)
+	const bool bSelectedWeaponSlot = WeaponItemTypeTag.IsValid()
+		&& CachedSelectedEquipTypeTag.MatchesTag(WeaponItemTypeTag);
+	if (bSelectedWeaponSlot)
 	{
+		const EEnum_Direction Direction =
+			FPandoraLoadoutUiModel::GetDirectionFromSelectSlotNumber(CachedSelectedEquipSlot->GetNth());
+		if (!InventoryComponent
+			|| !InventoryComponent->SetPandoraWeaponLoadoutSlot(Direction, ItemInstance))
+		{
+			RefreshLeftEquipmentSlots();
+			RefreshSelectPandoraLoadoutImages();
+			RefreshSelectPandoraCompatibilityState();
+			return;
+		}
+
+		PendingClearedWeaponId.Invalidate();
+		PendingClearedWeaponDirection = EEnum_Direction::Center;
+		ClearInventoryClickEquipBinding();
 		return;
 	}
 
-	UTexture2D* WeaponTexture = ItemDefinition->IconTexture.LoadSynchronous();
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("[EquipSlotFlow] Weapon icon loaded for SelectPandora: definition=%s icon=%s path=%s"),
-		*GetNameSafe(ItemDefinition),
-		*GetNameSafe(WeaponTexture),
-		*ItemDefinition->IconTexture.ToSoftObjectPath().ToString());
-	if (!WeaponTexture)
-	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("Weapon slot selection skipped: missing icon texture item=%s definition=%s"),
-			*GetNameSafe(ItemInstance),
-			*GetNameSafe(ItemDefinition));
-		return;
-	}
-
-	const int32 Nth = CachedSelectedEquipSlot->GetNth();
-	if (USelectPandoraWidget* SelectPandoraWidget = GetSelectPandoraWidget())
-	{
-		SelectPandoraWidget->SetWeaponImage(Nth, WeaponTexture);
-	}
-
-	switch (Nth)
-	{
-	case 1:
-		CachedFirstWeapon = ItemInstance;
-		break;
-	case 2:
-		CachedSecondWeapon = ItemInstance;
-		break;
-	case 3:
-		CachedThirdWeapon = ItemInstance;
-		break;
-	default:
-		break;
-	}
-
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("Weapon cached in select slot: slot=%d item=%s definition=%s idTag=%s"),
-		Nth,
-		*GetNameSafe(ItemInstance),
-		*GetNameSafe(ItemDefinition),
-		*ItemDefinition->IdTag.ToString());
-	RefreshLeftEquipmentSlots();
-	RefreshSelectPandoraCompatibilityState();
+	CachedSelectedEquipSlot->SetData(ItemInstance);
+	ClearInventoryClickEquipBinding();
+	RefreshInventoryTileView();
 }
 
 void UInfoUiPresenter::HandleClickedItemEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* SelectedEquipSlot, bool bIsSelectedAnyButton)
@@ -620,10 +619,7 @@ void UInfoUiPresenter::HandleClickedItemEquipTypeSlot(FGameplayTag EquipTypeTag,
 	APdPlayerController* Controller = GetController();
 	if (!Controller)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[InventoryFilter] EquipSlot click skipped: controller is null. tag=%s slot=%s selectedAny=%s"),
-			*EquipTypeTag.ToString(),
-			*GetNameSafe(SelectedEquipSlot),
-			bIsSelectedAnyButton ? TEXT("true") : TEXT("false"));
+
 		return;
 	}
 
@@ -631,19 +627,11 @@ void UInfoUiPresenter::HandleClickedItemEquipTypeSlot(FGameplayTag EquipTypeTag,
 	CachedSelectedEquipSlot = nullptr;
 	CachedSelectedEquipTypeTag = FGameplayTag();
 
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[EquipSlotFlow] EquipSlot clicked: controller=%s tag=%s slot=%s slotNth=%d occupied=%s slotOwnTag=%s"),
-		*GetNameSafe(Controller),
-		*EquipTypeTag.ToString(),
-		*GetNameSafe(SelectedEquipSlot),
-		SelectedEquipSlot ? SelectedEquipSlot->GetNth() : INDEX_NONE,
-		SelectedEquipSlot && SelectedEquipSlot->HasEquippedItem() ? TEXT("true") : TEXT("false"),
-		SelectedEquipSlot && SelectedEquipSlot->GetEquipTypeTag().IsValid() ? *SelectedEquipSlot->GetEquipTypeTag().ToString() : TEXT("None"));
+
 
 	if (!SelectedEquipSlot || !EquipTypeTag.IsValid())
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[InventoryFilter] EquipSlot click skipped: invalid slot or tag. slot=%s tag=%s"),
-			*GetNameSafe(SelectedEquipSlot),
-			EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"));
+
 		return;
 	}
 
@@ -654,19 +642,12 @@ void UInfoUiPresenter::HandleClickedItemEquipTypeSlot(FGameplayTag EquipTypeTag,
 	}
 
 	HandleClickedItemFilterTypeButton(EquipTypeTag);
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] Empty EquipSlot click applied filter only: slot=%s nth=%d tag=%s"),
-		*GetNameSafe(SelectedEquipSlot),
-		SelectedEquipSlot->GetNth(),
-		*EquipTypeTag.ToString());
+
 }
 
 void UInfoUiPresenter::HandleDroppedItemEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* TargetEquipSlot, UItemInstance* ItemInstance)
 {
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[EquipSlotDragDrop] Presenter received item drop: tag=%s targetSlot=%s nth=%d item=%s"),
-		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
-		*GetNameSafe(TargetEquipSlot),
-		TargetEquipSlot ? TargetEquipSlot->GetNth() : INDEX_NONE,
-		*GetNameSafe(ItemInstance));
+
 
 	CachedSelectedEquipSlot = TargetEquipSlot;
 	CachedSelectedEquipTypeTag = EquipTypeTag;
@@ -680,24 +661,84 @@ void UInfoUiPresenter::HandleDroppedItemToCharacterPanel(UItemInstance* ItemInst
 	UEquipSlotWidget* TargetEquipSlot = LeftEquipmentWidget ? LeftEquipmentWidget->FindFirstCompatibleEquipSlot(ItemInstance) : nullptr;
 	if (!TargetEquipSlot)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[CharacterPanelDrop] Item drop skipped: no compatible equipment slot. info=%s leftEquipment=%s item=%s definition=%s"),
-			*GetNameSafe(CurrentInfoWidget),
-			*GetNameSafe(LeftEquipmentWidget),
-			*GetNameSafe(ItemInstance),
-			*GetNameSafe(ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr));
+
 		return;
 	}
 
 	const FGameplayTag TargetTag = TargetEquipSlot->GetAcceptedEquipTypeTag();
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[CharacterPanelDrop] Item auto-routed to equipment slot: item=%s slot=%s nth=%d tag=%s"),
-		*GetNameSafe(ItemInstance),
-		*GetNameSafe(TargetEquipSlot),
-		TargetEquipSlot->GetNth(),
-		TargetTag.IsValid() ? *TargetTag.ToString() : TEXT("None"));
+
 
 	CachedSelectedEquipSlot = TargetEquipSlot;
 	CachedSelectedEquipTypeTag = TargetTag;
 	HandleClickedItemSlot(ItemInstance);
+}
+
+void UInfoUiPresenter::HandleDroppedInventorySlot(const int32 SourceSlotIndex, const int32 TargetSlotIndex, UItemInstance* SourceItem)
+{
+	if (!IsValid(SourceItem))
+	{
+
+		return;
+	}
+
+	if (SourceSlotIndex == TargetSlotIndex)
+	{
+
+		return;
+	}
+
+	SourceItem->EnsureItemId();
+	const FGuid SourceItemId = SourceItem->GetItemId();
+	if (!SourceItemId.IsValid())
+	{
+
+		return;
+	}
+
+	const int32 SourceDisplayIndex = FindInventoryDisplaySlotIndexByItemId(SourceItemId);
+	if (SourceDisplayIndex == INDEX_NONE)
+	{
+
+		return;
+	}
+
+	int32 TargetDisplayIndex = INDEX_NONE;
+	UItemInstance* TargetItem = CachedInventoryViewSlots.IsValidIndex(TargetSlotIndex) ? CachedInventoryViewSlots[TargetSlotIndex].Get() : nullptr;
+	if (bUseItemTypeFilter)
+	{
+		if (!IsValid(TargetItem))
+		{
+
+			return;
+		}
+
+		TargetItem->EnsureItemId();
+		TargetDisplayIndex = FindInventoryDisplaySlotIndexByItemId(TargetItem->GetItemId());
+	}
+	else
+	{
+		TargetDisplayIndex = TargetSlotIndex;
+	}
+
+	if (TargetDisplayIndex == INDEX_NONE)
+	{
+
+		return;
+	}
+
+	const int32 RequiredSlotCount = FMath::Max(SourceDisplayIndex, TargetDisplayIndex) + 1;
+	if (InventoryDisplaySlots.Num() < RequiredSlotCount)
+	{
+		InventoryDisplaySlots.SetNum(RequiredSlotCount);
+	}
+
+	UItemInstance* PreviousTargetItem = InventoryDisplaySlots[TargetDisplayIndex].Get();
+	InventoryDisplaySlots[TargetDisplayIndex] = SourceItem;
+	InventoryDisplaySlots[SourceDisplayIndex] = PreviousTargetItem;
+
+
+
+	RefreshInventoryTileView();
 }
 
 void UInfoUiPresenter::HandleClickedItemFilterTypeButton(FGameplayTag TypeTag)
@@ -706,21 +747,19 @@ void UInfoUiPresenter::HandleClickedItemFilterTypeButton(FGameplayTag TypeTag)
 	{
 		bUseItemTypeFilter = false;
 		CurrentItemFilterTag = FGameplayTag();
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[InventoryFilter] Type filter clicked with invalid tag. Falling back to all items."));
+
 		RefreshInventoryTileView();
 		return;
 	}
 
 	bUseItemTypeFilter = true;
 	CurrentItemFilterTag = TypeTag;
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] Type filter selected: tag=%s"),
-		*CurrentItemFilterTag.ToString());
+
 
 	APdPlayerController* Controller = GetController();
 	if (!Controller)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[InventoryFilter] Type filter refresh skipped: controller is null. tag=%s"),
-			*CurrentItemFilterTag.ToString());
+
 		return;
 	}
 
@@ -731,12 +770,12 @@ void UInfoUiPresenter::HandleClickedItemFilterAllButton()
 {
 	bUseItemTypeFilter = false;
 	CurrentItemFilterTag = FGameplayTag();
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] All filter selected."));
+
 
 	APdPlayerController* Controller = GetController();
 	if (!Controller)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[InventoryFilter] All filter refresh skipped: controller is null."));
+
 		return;
 	}
 
@@ -752,111 +791,57 @@ void UInfoUiPresenter::HandleClickedSkinSlot(UObject* Item)
 	{
 		SkinInstance = SlotViewData->GetSkinInstance();
 	}
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("[SkinSlotFlow] Skin inventory item clicked: controller=%s rawItem=%s slotIndex=%d skinInstance=%s cachedSlot=%s cachedSlotType=%s"),
-		*GetNameSafe(Controller),
-		*GetNameSafe(Item),
-		SlotViewData ? SlotViewData->GetSlotIndex() : INDEX_NONE,
-		*GetNameSafe(SkinInstance),
-		*GetNameSafe(CachedSelectedSkinEquipSlot),
-		CachedSelectedSkinEquipTypeTag.IsValid() ? *CachedSelectedSkinEquipTypeTag.ToString() : TEXT("None"));
+
 	if (!Controller || !SkinInstance)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[SkinSlotFlow] Skin slot click skipped: controller=%s item=%s skinInstance=%s"),
-			*GetNameSafe(Controller),
-			*GetNameSafe(Item),
-			*GetNameSafe(SkinInstance));
+
 		return;
 	}
 
 	const USkinDefinition* SkinDefinition = SkinInstance->SkinDefinition.Get();
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("[SkinSlotFlow] Skin definition resolved: skin=%s definition=%s idTag=%s displayName=%s icon=%s"),
-		*GetNameSafe(SkinInstance),
-		*GetNameSafe(SkinDefinition),
-		SkinDefinition && SkinDefinition->IdTag.IsValid() ? *SkinDefinition->IdTag.ToString() : TEXT("None"),
-		SkinDefinition ? *SkinDefinition->DisplayName.ToString() : TEXT("None"),
-		SkinDefinition ? *GetNameSafe(SkinDefinition->IconTexture) : TEXT("None"));
+
 	if (!SkinDefinition || !SkinDefinition->IdTag.IsValid())
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[SkinSlotFlow] Skin slot click skipped: invalid definition. skin=%s definition=%s idTag=%s"),
-			*GetNameSafe(SkinInstance),
-			*GetNameSafe(SkinDefinition),
-			SkinDefinition ? *SkinDefinition->IdTag.ToString() : TEXT("None"));
+
 		return;
 	}
 
 	if (!CachedSelectedSkinEquipSlot || !CachedSelectedSkinEquipTypeTag.IsValid())
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[SkinSlotFlow] Skin slot click skipped: no selected skin equipment slot. skin=%s definition=%s selectedSlot=%s selectedType=%s"),
-			*GetNameSafe(SkinInstance),
-			*GetNameSafe(SkinDefinition),
-			*GetNameSafe(CachedSelectedSkinEquipSlot),
-			CachedSelectedSkinEquipTypeTag.IsValid() ? *CachedSelectedSkinEquipTypeTag.ToString() : TEXT("None"));
+
 		return;
 	}
 
-	const bool bMatchesSelectedSlotType = SkinDefinition->IdTag.MatchesTag(CachedSelectedSkinEquipTypeTag);
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("[SkinSlotFlow] Type check: skinTag=%s selectedSlotType=%s matches=%s slot=%s"),
-		*SkinDefinition->IdTag.ToString(),
-		*CachedSelectedSkinEquipTypeTag.ToString(),
-		bMatchesSelectedSlotType ? TEXT("true") : TEXT("false"),
-		*GetNameSafe(CachedSelectedSkinEquipSlot));
+	const FGameplayTag RequiredSkinTag = ResolveSkinDefinitionMatchTag(CachedSelectedSkinEquipTypeTag);
+	const bool bMatchesSelectedSlotType = SkinDefinition->IdTag.MatchesTag(RequiredSkinTag);
+
 	if (!bMatchesSelectedSlotType)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[SkinSlotFlow] Skin slot click ignored by selected slot type: skin=%s definition=%s idTag=%s selectedType=%s slot=%s"),
-			*GetNameSafe(SkinInstance),
-			*GetNameSafe(SkinDefinition),
-			*SkinDefinition->IdTag.ToString(),
-			*CachedSelectedSkinEquipTypeTag.ToString(),
-			*GetNameSafe(CachedSelectedSkinEquipSlot));
+
 		return;
 	}
 
 	APdPlayer* PlayerCharacter = Cast<APdPlayer>(Controller->GetPawn());
 	USkinEquipmentComponent* SkinEquipmentComponent = PlayerCharacter ? PlayerCharacter->GetSkinEquipmentComponent() : nullptr;
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[SkinSlotFlow] Applying skin to selected UI slot before equip request: slot=%s slotType=%s skin=%s definition=%s component=%s ownerHasAuthority=%s"),
-		*GetNameSafe(CachedSelectedSkinEquipSlot),
-		*CachedSelectedSkinEquipTypeTag.ToString(),
-		*GetNameSafe(SkinInstance),
-		*GetNameSafe(SkinDefinition),
-		*GetNameSafe(SkinEquipmentComponent),
-		SkinEquipmentComponent && SkinEquipmentComponent->GetOwner() && SkinEquipmentComponent->GetOwner()->HasAuthority() ? TEXT("true") : TEXT("false"));
+
 	CachedSelectedSkinEquipSlot->SetData(SkinInstance);
 
 	UInfoWidget* CurrentInfoWidget = GetInfoWidget();
 	if (URightSkinWidget* RightSkinWidget = CurrentInfoWidget ? CurrentInfoWidget->GetRightSkinWidget() : nullptr)
 	{
-		RightSkinWidget->ClearTileViewItemClicked();
+		ClearSkinClickEquipBinding();
 	}
 
 	if (SkinEquipmentComponent)
 	{
 		const bool bRequested = SkinEquipmentComponent->RequestEquipSkin(SkinInstance, CachedSelectedSkinEquipTypeTag);
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("[SkinSlotFlow] Skin equip requested: slot=%s skin=%s definition=%s result=%s ownerHasAuthority=%s"),
-			*CachedSelectedSkinEquipTypeTag.ToString(),
-			*GetNameSafe(SkinInstance),
-			*GetNameSafe(SkinDefinition),
-			bRequested ? TEXT("true") : TEXT("false"),
-			SkinEquipmentComponent->GetOwner() && SkinEquipmentComponent->GetOwner()->HasAuthority() ? TEXT("true") : TEXT("false"));
+
 
 		if (!bRequested || (SkinEquipmentComponent->GetOwner() && SkinEquipmentComponent->GetOwner()->HasAuthority()))
 		{
-			UE_LOG(LogInfoUiPresenter, Log, TEXT("[SkinSlotFlow] Refreshing left skin slots after request: requested=%s authority=%s"),
-				bRequested ? TEXT("true") : TEXT("false"),
-				SkinEquipmentComponent->GetOwner() && SkinEquipmentComponent->GetOwner()->HasAuthority() ? TEXT("true") : TEXT("false"));
+
 			RefreshLeftSkinSlots();
 		}
-		else
-		{
-			UE_LOG(LogInfoUiPresenter, Log, TEXT("[SkinSlotFlow] Keeping immediate client skin slot icon until server replication updates equipped skins."));
-		}
-	}
-	else
-	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[SkinSlotFlow] Skin equip request skipped: SkinEquipmentComponent is null. pawn=%s"),
-			*GetNameSafe(PlayerCharacter));
 	}
 }
 
@@ -874,18 +859,11 @@ void UInfoUiPresenter::HandleClickedSkinEquipTypeSlot(FGameplayTag EquipTypeTag,
 	CachedSelectedSkinEquipSlot = nullptr;
 	CachedSelectedSkinEquipTypeTag = FGameplayTag();
 
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[SkinSlotFlow] SkinEquipSlot clicked: controller=%s tag=%s slot=%s occupied=%s slotOwnTag=%s"),
-		*GetNameSafe(Controller),
-		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
-		*GetNameSafe(SelectedEquipSlot),
-		SelectedEquipSlot && SelectedEquipSlot->HasEquippedSkin() ? TEXT("true") : TEXT("false"),
-		SelectedEquipSlot && SelectedEquipSlot->GetEquipTypeTag().IsValid() ? *SelectedEquipSlot->GetEquipTypeTag().ToString() : TEXT("None"));
+
 
 	if (!SelectedEquipSlot || !EquipTypeTag.IsValid())
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[SkinSlotFlow] SkinEquipSlot click skipped: invalid slot or tag. slot=%s tag=%s"),
-			*GetNameSafe(SelectedEquipSlot),
-			EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"));
+
 		return;
 	}
 
@@ -895,19 +873,15 @@ void UInfoUiPresenter::HandleClickedSkinEquipTypeSlot(FGameplayTag EquipTypeTag,
 		return;
 	}
 
-	HandleClickedSkinFilterTypeButton(EquipTypeTag);
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[SkinSlotFlow] Empty SkinEquipSlot click applied filter only: slot=%s tag=%s"),
-		*GetNameSafe(SelectedEquipSlot),
-		*EquipTypeTag.ToString());
+	CachedSelectedSkinEquipSlot = SelectedEquipSlot;
+	CachedSelectedSkinEquipTypeTag = EquipTypeTag;
+	HandleClickedSkinFilterTypeButton(ResolveSkinDefinitionMatchTag(EquipTypeTag));
+
 }
 
 void UInfoUiPresenter::HandleDroppedSkinEquipTypeSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* TargetSkinEquipSlot, USkinInstance* SkinInstance)
 {
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[SkinSlotDragDrop] Presenter received skin drop: tag=%s targetSlot=%s skin=%s definition=%s"),
-		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
-		*GetNameSafe(TargetSkinEquipSlot),
-		*GetNameSafe(SkinInstance),
-		*GetNameSafe(SkinInstance ? SkinInstance->SkinDefinition.Get() : nullptr));
+
 
 	CachedSelectedSkinEquipSlot = TargetSkinEquipSlot;
 	CachedSelectedSkinEquipTypeTag = EquipTypeTag;
@@ -921,19 +895,12 @@ void UInfoUiPresenter::HandleDroppedSkinToCharacterPanel(USkinInstance* SkinInst
 	USkinEquipSlotWidget* TargetSkinEquipSlot = LeftSkinWidget ? LeftSkinWidget->FindFirstCompatibleSkinEquipSlot(SkinInstance) : nullptr;
 	if (!TargetSkinEquipSlot)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[CharacterPanelDrop] Skin drop skipped: no compatible skin slot. info=%s leftSkin=%s skin=%s definition=%s"),
-			*GetNameSafe(CurrentInfoWidget),
-			*GetNameSafe(LeftSkinWidget),
-			*GetNameSafe(SkinInstance),
-			*GetNameSafe(SkinInstance ? SkinInstance->SkinDefinition.Get() : nullptr));
+
 		return;
 	}
 
 	const FGameplayTag TargetTag = TargetSkinEquipSlot->GetAcceptedEquipTypeTag();
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[CharacterPanelDrop] Skin auto-routed to skin slot: skin=%s slot=%s tag=%s"),
-		*GetNameSafe(SkinInstance),
-		*GetNameSafe(TargetSkinEquipSlot),
-		TargetTag.IsValid() ? *TargetTag.ToString() : TEXT("None"));
+
 
 	CachedSelectedSkinEquipSlot = TargetSkinEquipSlot;
 	CachedSelectedSkinEquipTypeTag = TargetTag;
@@ -942,6 +909,8 @@ void UInfoUiPresenter::HandleDroppedSkinToCharacterPanel(USkinInstance* SkinInst
 
 void UInfoUiPresenter::HandleClickedSkinFilterTypeButton(FGameplayTag TypeTag)
 {
+	TypeTag = ResolveSkinDefinitionMatchTag(TypeTag);
+
 	APdPlayerController* Controller = GetController();
 	if (!Controller)
 	{
@@ -1006,71 +975,49 @@ void UInfoUiPresenter::HandleClickedPandoraSlot(UObject* Item)
 {
 	APdPlayerController* Controller = GetController();
 	UPandoraInstance* PandoraInstance = Cast<UPandoraInstance>(Item);
-	UE_LOG(LogInfoUiPresenter, Log,
-		TEXT("[PandoraLoadoutFlow] Pandora inventory item clicked: controller=%s rawItem=%s pandoraInstance=%s owned=%s cachedSlot=%s cachedSlotNth=%d"),
-		*GetNameSafe(Controller),
-		*GetNameSafe(Item),
-		*GetNameSafe(PandoraInstance),
-		PandoraInstance && PandoraInstance->IsOwned ? TEXT("true") : TEXT("false"),
-		*GetNameSafe(CachedSelectedPandoraEquipSlot),
-		CachedSelectedPandoraEquipSlot ? CachedSelectedPandoraEquipSlot->GetNth() : INDEX_NONE);
+
 	if (!Controller || !PandoraInstance)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[PandoraLoadoutFlow] Pandora slot click skipped: controller=%s item=%s pandoraInstance=%s"),
-			*GetNameSafe(Controller),
-			*GetNameSafe(Item),
-			*GetNameSafe(PandoraInstance));
+
 		return;
 	}
 
-	if (!CachedSelectedPandoraEquipSlot)
+	if (!IsPandoraOwnedForEquipInventory(PandoraInstance))
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[PandoraLoadoutFlow] Pandora slot click skipped: no selected pandora equip slot. pandora=%s"),
-			*GetNameSafe(PandoraInstance));
-		return;
-	}
 
-	if (!PandoraInstance->IsOwned)
-	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[PandoraLoadoutFlow] Pandora slot click skipped: pandora is not owned. pandora=%s definition=%s"),
-			*GetNameSafe(PandoraInstance),
-			*GetNameSafe(PandoraInstance->PandoraDefinition.Get()));
 		return;
 	}
 
 	const UPandoraDefinition* PandoraDefinition = PandoraInstance->PandoraDefinition;
 	if (!PandoraDefinition)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[PandoraLoadoutFlow] Pandora slot click skipped: missing definition. pandora=%s"),
-			*GetNameSafe(PandoraInstance));
+
 		return;
 	}
 
-	UInfoWidget* CurrentInfoWidget = GetInfoWidget();
-	if (URightPandoraWidget* RightPandoraWidget = CurrentInfoWidget ? CurrentInfoWidget->GetRightPandoraWidget() : nullptr)
-	{
-		RightPandoraWidget->ClearTileViewItemClicked();
-	}
-
-	const int32 Nth = CachedSelectedPandoraEquipSlot->GetNth();
-	const EEnum_Direction Direction = FPandoraLoadoutUiModel::GetDirectionFromSelectSlotNumber(Nth);
-
 	APdPlayerState* PlayerState = GetCachedPlayerState();
 	UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[PandoraLoadoutFlow] Requesting pandora loadout slot: slot=%d direction=%d pandora=%s component=%s authority=%s"),
-		Nth,
-		static_cast<int32>(Direction),
-		*GetNameSafe(PandoraDefinition),
-		*GetNameSafe(PandoraComponent),
-		PandoraComponent && PandoraComponent->GetOwner() && PandoraComponent->GetOwner()->HasAuthority() ? TEXT("true") : TEXT("false"));
+	EEnum_Direction Direction = EEnum_Direction::Center;
+	int32 Nth = 0;
+	if (!ResolvePandoraLoadoutSlotForClick(PandoraComponent, PandoraDefinition, Direction, Nth))
+	{
+
+		return;
+	}
+
+
 	if (PandoraComponent)
 	{
 		const bool bRequested = PandoraComponent->RequestSetPandoraLoadoutSlot(Direction, PandoraDefinition);
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("[PandoraLoadoutFlow] Pandora loadout request result: slot=%d direction=%d pandora=%s requested=%s"),
-			Nth,
-			static_cast<int32>(Direction),
-			*GetNameSafe(PandoraDefinition),
-			bRequested ? TEXT("true") : TEXT("false"));
+
+
+		if (bRequested)
+		{
+			ResetPandoraEquipSlotClickState();
+			RefreshLeftPandoraSlots();
+			RefreshSelectPandoraLoadoutImages();
+			RefreshSelectPandoraCompatibilityState();
+		}
 
 		if (!bRequested)
 		{
@@ -1079,10 +1026,6 @@ void UInfoUiPresenter::HandleClickedPandoraSlot(UObject* Item)
 			RefreshSelectPandoraCompatibilityState();
 		}
 	}
-	else
-	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[PandoraLoadoutFlow] Pandora loadout request skipped: PandoraComponent is null."));
-	}
 }
 
 void UInfoUiPresenter::HandleClickedPandoraEquipSlot(UPandoraEquipSlotWidget* SelectedPandoraEquipSlot, bool bIsSelectedAnyButton)
@@ -1090,6 +1033,12 @@ void UInfoUiPresenter::HandleClickedPandoraEquipSlot(UPandoraEquipSlotWidget* Se
 	APdPlayerController* Controller = GetController();
 	if (!Controller)
 	{
+		return;
+	}
+
+	if (SelectedPandoraEquipSlot && SelectedPandoraEquipSlot->GetCachedData())
+	{
+		ClearPandoraEquipSlot(SelectedPandoraEquipSlot);
 		return;
 	}
 
@@ -1109,25 +1058,21 @@ void UInfoUiPresenter::HandleClickedPandoraEquipSlot(UPandoraEquipSlotWidget* Se
 
 	if (bIsSelectedAnyButton)
 	{
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("[PandoraLoadoutFlow] Pandora equip slot deselect: clearing cached slot and tile binding. previousSlot=%s"),
-			*GetNameSafe(CachedSelectedPandoraEquipSlot));
-		CachedSelectedPandoraEquipSlot = nullptr;
 
-		if (UTileView* TileView = RightPandoraWidget->GetTileView())
-		{
-			TileView->OnItemClicked().RemoveAll(this);
-		}
+		CachedSelectedPandoraEquipSlot = nullptr;
+		bShowOnlyOwnedPandorasForEquipSlot = false;
+
+		RefreshPandoraTileView();
 		return;
 	}
 
+	bShowOnlyOwnedPandorasForEquipSlot = true;
+	RefreshPandoraTileView();
+
 	if (UTileView* TileView = RightPandoraWidget->GetTileView())
 	{
-		TileView->OnItemClicked().RemoveAll(this);
-		TileView->OnItemClicked().AddUObject(this, &ThisClass::HandleClickedPandoraSlot);
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("[PandoraLoadoutFlow] Tile item click rebound for pandora loadout selection: tileView=%s selectedSlot=%s selectedNth=%d"),
-			*GetNameSafe(TileView),
-			*GetNameSafe(CachedSelectedPandoraEquipSlot),
-			CachedSelectedPandoraEquipSlot ? CachedSelectedPandoraEquipSlot->GetNth() : INDEX_NONE);
+		BindPandoraTileItemClicked();
+
 	}
 }
 
@@ -1139,23 +1084,19 @@ void UInfoUiPresenter::HandleClickedPandoraFilterTypeButton(FGameplayTag TypeTag
 		return;
 	}
 
-	TArray<UObject*> CurrentPandoraList;
-
-	const APdPlayerState* PdPlayerState = GetCachedPlayerState();
-	const UPandoraComponent* PandoraComponent = PdPlayerState ? PdPlayerState->GetPandoraComponent() : nullptr;
-	if (PandoraComponent)
+	if (!TypeTag.IsValid())
 	{
-		if (const FPandoraList* FoundPandoraList = PandoraComponent->Map_Type_PandoraList.Find(TypeTag))
-		{
-			AppendPandoraListAsObjects(*FoundPandoraList, CurrentPandoraList);
-		}
+		bUsePandoraTypeFilter = false;
+		CurrentPandoraFilterTag = FGameplayTag();
+
+		RefreshPandoraTileView();
+		return;
 	}
 
-	UInfoWidget* CurrentInfoWidget = GetInfoWidget();
-	if (URightPandoraWidget* RightPandoraWidget = CurrentInfoWidget ? CurrentInfoWidget->GetRightPandoraWidget() : nullptr)
-	{
-		RightPandoraWidget->SetTileViewAndShowLockState(CurrentPandoraList);
-	}
+	bUsePandoraTypeFilter = true;
+	CurrentPandoraFilterTag = TypeTag;
+
+	RefreshPandoraTileView();
 }
 
 void UInfoUiPresenter::HandleClickedPandoraFilterAllButton()
@@ -1166,20 +1107,10 @@ void UInfoUiPresenter::HandleClickedPandoraFilterAllButton()
 		return;
 	}
 
-	TArray<UObject*> CurrentPandoraList;
+	bUsePandoraTypeFilter = false;
+	CurrentPandoraFilterTag = FGameplayTag();
 
-	const APdPlayerState* PdPlayerState = GetCachedPlayerState();
-	const UPandoraComponent* PandoraComponent = PdPlayerState ? PdPlayerState->GetPandoraComponent() : nullptr;
-	if (PandoraComponent)
-	{
-		AppendPandoraListAsObjects(PandoraComponent->AllPandoraList, CurrentPandoraList);
-	}
-
-	UInfoWidget* CurrentInfoWidget = GetInfoWidget();
-	if (URightPandoraWidget* RightPandoraWidget = CurrentInfoWidget ? CurrentInfoWidget->GetRightPandoraWidget() : nullptr)
-	{
-		RightPandoraWidget->SetTileViewAndShowLockState(CurrentPandoraList);
-	}
+	RefreshPandoraTileView();
 }
 
 UInfoWidget* UInfoUiPresenter::GetInfoWidget() const
@@ -1230,6 +1161,11 @@ FGameplayTag UInfoUiPresenter::GetWeaponItemTypeTag() const
 	return UProjectTagConfig::Get(this)->GetItemWeaponTypeTag();
 }
 
+FGameplayTag UInfoUiPresenter::GetConsumableItemTypeTag() const
+{
+	return UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
+}
+
 void UInfoUiPresenter::ClearInventoryClickEquipBinding() const
 {
 	UInfoWidget* CurrentInfoWidget = GetInfoWidget();
@@ -1262,11 +1198,49 @@ void UInfoUiPresenter::ClearEquipmentSlot(UEquipSlotWidget* TargetEquipSlot, FGa
 		EquipTypeTag = TargetEquipSlot->GetAcceptedEquipTypeTag();
 	}
 
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[EquipSlotFlow] Clearing equipment slot: slot=%s nth=%d tag=%s item=%s"),
-		*GetNameSafe(TargetEquipSlot),
-		TargetEquipSlot->GetNth(),
-		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
-		*GetNameSafe(TargetEquipSlot->GetItemInstance()));
+	UItemInstance* ClearedItemInstance = TargetEquipSlot->GetItemInstance();
+	const FGameplayTag WeaponItemTypeTag = GetWeaponItemTypeTag();
+	const FGameplayTag ConsumableItemTypeTag = GetConsumableItemTypeTag();
+	APdPlayerState* PlayerState = GetCachedPlayerState();
+	UInventoryComponent* InventoryComponent = PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	if (ConsumableItemTypeTag.IsValid() && EquipTypeTag.MatchesTag(ConsumableItemTypeTag))
+	{
+		if (!InventoryComponent
+			|| !InventoryComponent->ClearConsumableQuickSlot(TargetEquipSlot->GetNth() - 1))
+		{
+			RefreshLeftEquipmentSlots();
+			return;
+		}
+
+		CachedSelectedEquipSlot = nullptr;
+		CachedSelectedEquipTypeTag = FGameplayTag();
+		return;
+	}
+
+	if (WeaponItemTypeTag.IsValid() && EquipTypeTag.MatchesTag(WeaponItemTypeTag))
+	{
+		const EEnum_Direction Direction =
+			FPandoraLoadoutUiModel::GetDirectionFromSelectSlotNumber(TargetEquipSlot->GetNth());
+		const FGuid ClearedWeaponId = IsValid(ClearedItemInstance)
+			? ClearedItemInstance->GetItemId()
+			: FGuid();
+		PendingClearedWeaponId = ClearedWeaponId;
+		PendingClearedWeaponDirection = Direction;
+		if (!InventoryComponent
+			|| !InventoryComponent->ClearPandoraWeaponLoadoutSlot(Direction))
+		{
+			PendingClearedWeaponId.Invalidate();
+			PendingClearedWeaponDirection = EEnum_Direction::Center;
+			RefreshLeftEquipmentSlots();
+			RefreshSelectPandoraLoadoutImages();
+			RefreshSelectPandoraCompatibilityState();
+			return;
+		}
+
+		CachedSelectedEquipSlot = nullptr;
+		CachedSelectedEquipTypeTag = FGameplayTag();
+		return;
+	}
 
 	TargetEquipSlot->SetData(nullptr);
 	if (CachedSelectedEquipSlot == TargetEquipSlot)
@@ -1274,35 +1248,58 @@ void UInfoUiPresenter::ClearEquipmentSlot(UEquipSlotWidget* TargetEquipSlot, FGa
 		CachedSelectedEquipSlot = nullptr;
 		CachedSelectedEquipTypeTag = FGameplayTag();
 	}
+	RefreshInventoryTileView();
+}
 
-	const FGameplayTag WeaponItemTypeTag = GetWeaponItemTypeTag();
-	if (!WeaponItemTypeTag.IsValid() || !EquipTypeTag.MatchesTag(WeaponItemTypeTag))
+void UInfoUiPresenter::ClearPandoraEquipSlot(UPandoraEquipSlotWidget* TargetPandoraEquipSlot)
+{
+	if (!TargetPandoraEquipSlot)
 	{
 		return;
 	}
 
-	const int32 Nth = TargetEquipSlot->GetNth();
-	switch (Nth)
+	const int32 Nth = TargetPandoraEquipSlot->GetNth();
+	const EEnum_Direction Direction = FPandoraLoadoutUiModel::GetDirectionFromSelectSlotNumber(Nth);
+	if (!PandoraLoadout::IsLoadoutDirection(Direction))
 	{
-	case 1:
-		CachedFirstWeapon = nullptr;
-		break;
-	case 2:
-		CachedSecondWeapon = nullptr;
-		break;
-	case 3:
-		CachedThirdWeapon = nullptr;
-		break;
-	default:
-		break;
+
+		return;
 	}
 
-	if (USelectPandoraWidget* SelectPandoraWidget = GetSelectPandoraWidget())
+	APdPlayerState* PlayerState = GetCachedPlayerState();
+	UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	if (!PandoraComponent)
 	{
-		SelectPandoraWidget->SetWeaponImage(Nth, nullptr);
+
+		return;
 	}
 
-	RefreshSelectPandoraCompatibilityState();
+	const bool bRequested = PandoraComponent->RequestSetPandoraLoadoutSlot(Direction, nullptr);
+	if (!bRequested)
+	{
+		RefreshLeftPandoraSlots();
+		RefreshSelectPandoraLoadoutImages();
+		RefreshSelectPandoraCompatibilityState();
+		return;
+	}
+
+	if (CachedSelectedPandoraEquipSlot == TargetPandoraEquipSlot)
+	{
+		CachedSelectedPandoraEquipSlot = nullptr;
+	}
+	bShowOnlyOwnedPandorasForEquipSlot = false;
+
+	TargetPandoraEquipSlot->ToggleText_Apply(false);
+
+	if (UInfoWidget* CurrentInfoWidget = GetInfoWidget())
+	{
+		if (ULeftPandoraWidget* LeftPandoraWidget = CurrentInfoWidget->GetLeftPandoraWidget())
+		{
+			LeftPandoraWidget->ClearPandoraEquipSlotSelection();
+		}
+	}
+
+	RefreshPandoraTileView();
 }
 
 void UInfoUiPresenter::ClearSkinEquipSlot(USkinEquipSlotWidget* TargetSkinEquipSlot, FGameplayTag EquipTypeTag)
@@ -1317,11 +1314,7 @@ void UInfoUiPresenter::ClearSkinEquipSlot(USkinEquipSlotWidget* TargetSkinEquipS
 		EquipTypeTag = TargetSkinEquipSlot->GetAcceptedEquipTypeTag();
 	}
 
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[SkinSlotFlow] Clearing skin equipment slot: slot=%s tag=%s definition=%s skin=%s"),
-		*GetNameSafe(TargetSkinEquipSlot),
-		EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"),
-		*GetNameSafe(TargetSkinEquipSlot->GetSkinDefinition()),
-		*GetNameSafe(TargetSkinEquipSlot->GetSkinInstance()));
+
 
 	TargetSkinEquipSlot->SetSkinDefinition(nullptr);
 	if (CachedSelectedSkinEquipSlot == TargetSkinEquipSlot)
@@ -1335,18 +1328,13 @@ void UInfoUiPresenter::ClearSkinEquipSlot(USkinEquipSlotWidget* TargetSkinEquipS
 	USkinEquipmentComponent* SkinEquipmentComponent = PlayerCharacter ? PlayerCharacter->GetSkinEquipmentComponent() : nullptr;
 	if (!SkinEquipmentComponent || !EquipTypeTag.IsValid())
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[SkinSlotFlow] Skin unequip request skipped: component=%s tag=%s"),
-			*GetNameSafe(SkinEquipmentComponent),
-			EquipTypeTag.IsValid() ? *EquipTypeTag.ToString() : TEXT("None"));
+
 		return;
 	}
 
 	const bool bRequested = SkinEquipmentComponent->RequestUnequipSkinSlot(EquipTypeTag);
 	const bool bAuthority = SkinEquipmentComponent->GetOwner() && SkinEquipmentComponent->GetOwner()->HasAuthority();
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[SkinSlotFlow] Skin unequip requested: slot=%s requested=%s authority=%s"),
-		*EquipTypeTag.ToString(),
-		bRequested ? TEXT("true") : TEXT("false"),
-		bAuthority ? TEXT("true") : TEXT("false"));
+
 
 	if (!bRequested || bAuthority)
 	{
@@ -1364,11 +1352,14 @@ void UInfoUiPresenter::RefreshSelectPandoraCompatibilityState() const
 
 	const APdPlayerState* PlayerState = GetCachedPlayerState();
 	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	const UItemInstance* LeftWeapon = GetSelectedWeapon(EEnum_Direction::Left);
+	const UItemInstance* UpWeapon = GetSelectedWeapon(EEnum_Direction::Up);
+	const UItemInstance* RightWeapon = GetSelectedWeapon(EEnum_Direction::Right);
 	const TArray<FPandoraSelectSlotUiData> Slots = FPandoraLoadoutUiModel::BuildSelectSlots(
 		PandoraComponent,
-		CachedFirstWeapon,
-		CachedSecondWeapon,
-		CachedThirdWeapon);
+		LeftWeapon,
+		UpWeapon,
+		RightWeapon);
 
 	for (const FPandoraSelectSlotUiData& Slot : Slots)
 	{
@@ -1386,16 +1377,128 @@ void UInfoUiPresenter::RefreshSelectPandoraLoadoutImages() const
 
 	const APdPlayerState* PlayerState = GetCachedPlayerState();
 	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	const UItemInstance* LeftWeapon = GetSelectedWeapon(EEnum_Direction::Left);
+	const UItemInstance* UpWeapon = GetSelectedWeapon(EEnum_Direction::Up);
+	const UItemInstance* RightWeapon = GetSelectedWeapon(EEnum_Direction::Right);
 	const TArray<FPandoraSelectSlotUiData> Slots = FPandoraLoadoutUiModel::BuildSelectSlots(
 		PandoraComponent,
-		CachedFirstWeapon,
-		CachedSecondWeapon,
-		CachedThirdWeapon);
+		LeftWeapon,
+		UpWeapon,
+		RightWeapon);
 
 	for (const FPandoraSelectSlotUiData& Slot : Slots)
 	{
 		SelectPandoraWidget->SetPandoraImage(Slot.SlotNumber, Slot.IconTexture);
 	}
+
+	const auto ResolveWeaponIcon = [](const UItemInstance* WeaponInstance) -> UTexture2D*
+	{
+		const UItemDefinition* WeaponDefinition =
+			IsValid(WeaponInstance) ? WeaponInstance->ItemDefinition.Get() : nullptr;
+		return WeaponDefinition ? WeaponDefinition->IconTexture.Get() : nullptr;
+	};
+	SelectPandoraWidget->SetWeaponImage(1, ResolveWeaponIcon(LeftWeapon));
+	SelectPandoraWidget->SetWeaponImage(2, ResolveWeaponIcon(UpWeapon));
+	SelectPandoraWidget->SetWeaponImage(3, ResolveWeaponIcon(RightWeapon));
+}
+
+void UInfoUiPresenter::ReconcileCurrentWeaponLoadoutDirection()
+{
+	APdPlayerController* Controller = GetController();
+	APdPlayer* PlayerCharacter = Controller ? Cast<APdPlayer>(Controller->GetPawn()) : nullptr;
+	UEquipmentComponent* EquipmentComponent = PlayerCharacter ? PlayerCharacter->GetEquipmentComponent() : nullptr;
+	const APdPlayerState* PlayerState = GetCachedPlayerState();
+	const UInventoryComponent* InventoryComponent = PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	if (!EquipmentComponent || !InventoryComponent)
+	{
+		return;
+	}
+
+	const FGuid CurrentWeaponId = EquipmentComponent->GetCurrentWeaponId();
+	if (!CurrentWeaponId.IsValid())
+	{
+		PendingClearedWeaponId.Invalidate();
+		PendingClearedWeaponDirection = EEnum_Direction::Center;
+		return;
+	}
+
+	for (const EEnum_Direction Direction :
+		{ EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
+	{
+		if (InventoryComponent->GetPandoraWeaponLoadoutItemId(Direction) != CurrentWeaponId)
+		{
+			continue;
+		}
+
+		if (EquipmentComponent->GetCurrentWeaponLoadoutDirection() != Direction)
+		{
+			if (UItemInstance* CurrentWeapon = InventoryComponent->FindItemInstanceById(CurrentWeaponId))
+			{
+				EquipmentComponent->RequestCurrentWeaponLoadoutDirection(Direction, CurrentWeapon);
+			}
+		}
+		PendingClearedWeaponId.Invalidate();
+		PendingClearedWeaponDirection = EEnum_Direction::Center;
+		return;
+	}
+
+	const bool bConfirmedPendingClear = PendingClearedWeaponId == CurrentWeaponId
+		&& PandoraLoadout::IsLoadoutDirection(PendingClearedWeaponDirection)
+		&& InventoryComponent->GetPandoraWeaponLoadoutItemId(PendingClearedWeaponDirection)
+			!= PendingClearedWeaponId;
+	if (bConfirmedPendingClear)
+	{
+		EquipmentComponent->RequestWeaponUnequip();
+		PendingClearedWeaponId.Invalidate();
+		PendingClearedWeaponDirection = EEnum_Direction::Center;
+	}
+}
+
+int32 UInfoUiPresenter::ResolveCurrentEquippedWeaponSlotNumber() const
+{
+	APdPlayerController* Controller = GetController();
+	APdPlayer* PlayerCharacter = Controller ? Cast<APdPlayer>(Controller->GetPawn()) : nullptr;
+	const UEquipmentComponent* EquipmentComponent = PlayerCharacter ? PlayerCharacter->GetEquipmentComponent() : nullptr;
+	if (!EquipmentComponent)
+	{
+		return 0;
+	}
+
+	const FGuid CurrentWeaponId = EquipmentComponent->GetCurrentWeaponId();
+	const UItemDefinition* CurrentWeaponDefinition = EquipmentComponent->GetCurrentWeaponDefinition();
+	const auto MatchesCurrentWeapon = [CurrentWeaponId, CurrentWeaponDefinition](const UItemInstance* WeaponInstance)
+	{
+		if (!IsValid(WeaponInstance))
+		{
+			return false;
+		}
+
+		const FGuid WeaponId = WeaponInstance->GetItemId();
+		if (CurrentWeaponId.IsValid())
+		{
+			return WeaponId.IsValid() && CurrentWeaponId == WeaponId;
+		}
+
+		return CurrentWeaponDefinition && WeaponInstance->ItemDefinition == CurrentWeaponDefinition;
+	};
+
+	if (MatchesCurrentWeapon(GetSelectedWeapon(EEnum_Direction::Left)))
+	{
+		return 1;
+	}
+
+	if (MatchesCurrentWeapon(GetSelectedWeapon(EEnum_Direction::Up)))
+	{
+		return 2;
+	}
+
+	if (MatchesCurrentWeapon(GetSelectedWeapon(EEnum_Direction::Right)))
+	{
+		return 3;
+	}
+
+
+	return 0;
 }
 
 void UInfoUiPresenter::RefreshLeftEquipmentSlots() const
@@ -1407,9 +1510,27 @@ void UInfoUiPresenter::RefreshLeftEquipmentSlots() const
 		return;
 	}
 
-	LeftEquipmentWidget->SetWeaponSlotData(1, CachedFirstWeapon);
-	LeftEquipmentWidget->SetWeaponSlotData(2, CachedSecondWeapon);
-	LeftEquipmentWidget->SetWeaponSlotData(3, CachedThirdWeapon);
+	LeftEquipmentWidget->SetWeaponSlotData(1, GetSelectedWeapon(EEnum_Direction::Left));
+	LeftEquipmentWidget->SetWeaponSlotData(2, GetSelectedWeapon(EEnum_Direction::Up));
+	LeftEquipmentWidget->SetWeaponSlotData(3, GetSelectedWeapon(EEnum_Direction::Right));
+
+	const APdPlayerState* PlayerState = GetCachedPlayerState();
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	LeftEquipmentWidget->SetWeaponSlotPandoraRequirement(
+		1,
+		PandoraComponent ? PandoraComponent->GetPandoraLoadoutDefinition(EEnum_Direction::Left) : nullptr);
+	LeftEquipmentWidget->SetWeaponSlotPandoraRequirement(
+		2,
+		PandoraComponent ? PandoraComponent->GetPandoraLoadoutDefinition(EEnum_Direction::Up) : nullptr);
+	LeftEquipmentWidget->SetWeaponSlotPandoraRequirement(
+		3,
+		PandoraComponent ? PandoraComponent->GetPandoraLoadoutDefinition(EEnum_Direction::Right) : nullptr);
+
+	const UInventoryComponent* InventoryComponent = PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	for (int32 SlotIndex = 0; SlotIndex < UInventoryComponent::ConsumableQuickSlotCount; ++SlotIndex)
+	{
+		LeftEquipmentWidget->SetConsumableQuickSlotData(SlotIndex + 1, InventoryComponent ? InventoryComponent->GetConsumableQuickSlotItem(SlotIndex) : nullptr);
+	}
 }
 
 void UInfoUiPresenter::RefreshLeftSkinSlots() const
@@ -1439,23 +1560,315 @@ void UInfoUiPresenter::RefreshLeftPandoraSlots() const
 	const APdPlayerState* PlayerState = GetCachedPlayerState();
 	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
 	LeftPandoraWidget->RefreshPandoraLoadoutSlots(PandoraComponent);
+
+	const auto ResolveWeaponIcon = [](const UItemInstance* WeaponInstance) -> UTexture2D*
+	{
+		const UItemDefinition* WeaponDefinition =
+			IsValid(WeaponInstance) ? WeaponInstance->ItemDefinition.Get() : nullptr;
+		return WeaponDefinition ? WeaponDefinition->IconTexture.Get() : nullptr;
+	};
+	LeftPandoraWidget->SetWeaponImage(
+		1,
+		ResolveWeaponIcon(GetSelectedWeapon(EEnum_Direction::Left)));
+	LeftPandoraWidget->SetWeaponImage(
+		2,
+		ResolveWeaponIcon(GetSelectedWeapon(EEnum_Direction::Up)));
+	LeftPandoraWidget->SetWeaponImage(
+		3,
+		ResolveWeaponIcon(GetSelectedWeapon(EEnum_Direction::Right)));
+}
+
+bool UInfoUiPresenter::IsPandoraOwnedForEquipInventory(const UPandoraInstance* PandoraInstance) const
+{
+	if (!IsValid(PandoraInstance))
+	{
+		return false;
+	}
+
+	UPandoraDefinition* PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraInstance->PandoraDefinition.Get());
+	if (!IsValid(PandoraDefinition))
+	{
+		return false;
+	}
+
+	const APdPlayerState* PlayerState = GetCachedPlayerState();
+	const UPandoraTreeComponent* PandoraTreeComponent = PlayerState ? PlayerState->GetPandoraTreeComponent() : nullptr;
+	if (PandoraTreeComponent)
+	{
+		return PandoraTreeComponent->IsPandoraUnlockedForTree(PandoraDefinition);
+	}
+
+	return PandoraInstance->IsOwned;
+}
+
+void UInfoUiPresenter::BuildPandoraTileViewItems(TArray<UObject*>& OutListItems, const FGameplayTag TypeTag, const bool bOwnedOnly) const
+{
+	OutListItems.Reset();
+
+	const APdPlayerState* PlayerState = GetCachedPlayerState();
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	if (!PandoraComponent)
+	{
+
+		return;
+	}
+
+	const FPandoraList* SourcePandoraList = &PandoraComponent->AllPandoraList;
+	if (TypeTag.IsValid())
+	{
+		SourcePandoraList = PandoraComponent->Map_Type_PandoraList.Find(TypeTag);
+	}
+
+	if (!SourcePandoraList)
+	{
+
+		return;
+	}
+
+	OutListItems.Reserve(SourcePandoraList->Pandoras.Num());
+	for (const TObjectPtr<UPandoraInstance>& Pandora : SourcePandoraList->Pandoras)
+	{
+		UPandoraInstance* PandoraInstance = Pandora.Get();
+		if (!IsValid(PandoraInstance))
+		{
+			continue;
+		}
+
+		if (bOwnedOnly && !IsPandoraOwnedForEquipInventory(PandoraInstance))
+		{
+			continue;
+		}
+
+		OutListItems.Add(PandoraInstance);
+	}
+}
+
+void UInfoUiPresenter::RefreshPandoraTileView() const
+{
+	TArray<UObject*> CurrentPandoraList;
+	BuildPandoraTileViewItems(
+		CurrentPandoraList,
+		bUsePandoraTypeFilter ? CurrentPandoraFilterTag : FGameplayTag(),
+		bShowOnlyOwnedPandorasForEquipSlot);
+
+	UInfoWidget* CurrentInfoWidget = GetInfoWidget();
+	if (URightPandoraWidget* RightPandoraWidget = CurrentInfoWidget ? CurrentInfoWidget->GetRightPandoraWidget() : nullptr)
+	{
+		RightPandoraWidget->SetTileViewAndShowLockState(CurrentPandoraList);
+
+	}
+}
+
+void UInfoUiPresenter::BindPandoraTileItemClicked()
+{
+	UInfoWidget* CurrentInfoWidget = GetInfoWidget();
+	URightPandoraWidget* RightPandoraWidget = CurrentInfoWidget ? CurrentInfoWidget->GetRightPandoraWidget() : nullptr;
+	UTileView* TileView = RightPandoraWidget ? RightPandoraWidget->GetTileView() : nullptr;
+	if (!TileView)
+	{
+		return;
+	}
+
+	if (BoundPandoraTileView.Get() == TileView && PandoraTileItemClickedDelegateHandle.IsValid())
+	{
+		return;
+	}
+
+	if (UTileView* PreviousTileView = BoundPandoraTileView.Get())
+	{
+		if (PandoraTileItemClickedDelegateHandle.IsValid())
+		{
+			PreviousTileView->OnItemClicked().Remove(PandoraTileItemClickedDelegateHandle);
+		}
+	}
+
+	BoundPandoraTileView = TileView;
+	PandoraTileItemClickedDelegateHandle =
+		TileView->OnItemClicked().AddUObject(this, &ThisClass::HandleClickedPandoraSlot);
+}
+
+bool UInfoUiPresenter::ResolvePandoraLoadoutSlotForClick(
+	const UPandoraComponent* PandoraComponent,
+	const UPandoraDefinition* PandoraDefinition,
+	EEnum_Direction& OutDirection,
+	int32& OutSlotNumber) const
+{
+	OutDirection = EEnum_Direction::Center;
+	OutSlotNumber = 0;
+
+	if (!PandoraComponent || !PandoraDefinition)
+	{
+		return false;
+	}
+
+	if (CachedSelectedPandoraEquipSlot)
+	{
+		const int32 SelectedNth = CachedSelectedPandoraEquipSlot->GetNth();
+		const EEnum_Direction SelectedDirection = FPandoraLoadoutUiModel::GetDirectionFromSelectSlotNumber(SelectedNth);
+		if (PandoraLoadout::IsLoadoutDirection(SelectedDirection))
+		{
+			OutDirection = SelectedDirection;
+			OutSlotNumber = SelectedNth;
+			return true;
+		}
+	}
+
+	for (const EEnum_Direction Direction : { EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
+	{
+		if (PandoraComponent->GetPandoraLoadoutDefinition(Direction) == PandoraDefinition)
+		{
+			OutDirection = Direction;
+			OutSlotNumber = FPandoraLoadoutUiModel::GetSelectSlotNumberFromDirection(Direction);
+			return true;
+		}
+	}
+
+	for (const EEnum_Direction Direction : { EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
+	{
+		if (!PandoraComponent->GetPandoraLoadoutDefinition(Direction))
+		{
+			OutDirection = Direction;
+			OutSlotNumber = FPandoraLoadoutUiModel::GetSelectSlotNumberFromDirection(Direction);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UInfoUiPresenter::ResetPandoraEquipSlotClickState()
+{
+	if (CachedSelectedPandoraEquipSlot)
+	{
+		CachedSelectedPandoraEquipSlot->ToggleText_Apply(false);
+	}
+
+	CachedSelectedPandoraEquipSlot = nullptr;
+	bShowOnlyOwnedPandorasForEquipSlot = false;
+
+	if (UInfoWidget* CurrentInfoWidget = GetInfoWidget())
+	{
+		if (ULeftPandoraWidget* LeftPandoraWidget = CurrentInfoWidget->GetLeftPandoraWidget())
+		{
+			LeftPandoraWidget->ClearPandoraEquipSlotSelection();
+		}
+	}
+
+	RefreshPandoraTileView();
+}
+
+void UInfoUiPresenter::UnbindInfoUiEvents()
+{
+	if (InfoWidget)
+	{
+		InfoWidget->OnDroppedItemToCharacterPanel.RemoveDynamic(
+			this,
+			&ThisClass::HandleDroppedItemToCharacterPanel);
+		InfoWidget->OnDroppedSkinToCharacterPanel.RemoveDynamic(
+			this,
+			&ThisClass::HandleDroppedSkinToCharacterPanel);
+
+		if (ULeftEquipmentWidget* LeftEquipmentWidget = InfoWidget->GetLeftEquipmentWidget())
+		{
+			LeftEquipmentWidget->OnClicked_EquipTypeSlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedItemEquipTypeSlot);
+			LeftEquipmentWidget->OnDroppedItem_EquipTypeSlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleDroppedItemEquipTypeSlot);
+		}
+		if (URightInventoryWidget* RightInventoryWidget = InfoWidget->GetRightInventoryWidget())
+		{
+			RightInventoryWidget->OnClicked_FilterAllButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedItemFilterAllButton);
+			RightInventoryWidget->OnClicked_FilterTypeButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedItemFilterTypeButton);
+			RightInventoryWidget->OnDropped_InventorySlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleDroppedInventorySlot);
+		}
+		if (ULeftSkinWidget* LeftSkinWidget = InfoWidget->GetLeftSkinWidget())
+		{
+			LeftSkinWidget->OnClicked_SkinEquipTypeSlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedSkinEquipTypeSlot);
+			LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleDroppedSkinEquipTypeSlot);
+		}
+		if (URightSkinWidget* RightSkinWidget = InfoWidget->GetRightSkinWidget())
+		{
+			RightSkinWidget->OnClicked_SkinFilterAllButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedSkinFilterAllButton);
+			RightSkinWidget->OnClicked_SkinFilterTypeButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedSkinFilterTypeButton);
+		}
+		if (ULeftPandoraWidget* LeftPandoraWidget = InfoWidget->GetLeftPandoraWidget())
+		{
+			LeftPandoraWidget->OnClicked_PandoraEquipSlot.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedPandoraEquipSlot);
+		}
+		if (URightPandoraWidget* RightPandoraWidget = InfoWidget->GetRightPandoraWidget())
+		{
+			RightPandoraWidget->OnClicked_PandoraFilterAllButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedPandoraFilterAllButton);
+			RightPandoraWidget->OnClicked_PandoraFilterTypeButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedPandoraFilterTypeButton);
+		}
+		if (URightStatusWidget* RightStatusWidget = InfoWidget->GetRightStatusWidget())
+		{
+			RightStatusWidget->OnClicked_StatUpButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedStatUpButton);
+			RightStatusWidget->OnClicked_StatDownButton.RemoveDynamic(
+				this,
+				&ThisClass::HandleClickedStatDownButton);
+		}
+	}
+
+	if (UTileView* TileView = BoundPandoraTileView.Get())
+	{
+		if (PandoraTileItemClickedDelegateHandle.IsValid())
+		{
+			TileView->OnItemClicked().Remove(PandoraTileItemClickedDelegateHandle);
+		}
+	}
+	BoundPandoraTileView.Reset();
+	PandoraTileItemClickedDelegateHandle.Reset();
 }
 
 void UInfoUiPresenter::BindInventoryChangeNotification()
 {
 	APdPlayerState* PdPlayerState = GetCachedPlayerState();
 	UInventoryComponent* InventoryComponent = PdPlayerState ? PdPlayerState->GetInventoryComponent() : nullptr;
-	if (BoundInventoryComponent == InventoryComponent)
+	if (BoundInventoryComponent == InventoryComponent
+		&& (!InventoryComponent
+			|| (InventoryChangedDelegateHandle.IsValid()
+				&& PandoraWeaponLoadoutChangedDelegateHandle.IsValid())))
 	{
 		return;
 	}
 
 	UnbindInventoryChangeNotification();
 
+	ResetInventoryDisplaySlots();
 	BoundInventoryComponent = InventoryComponent;
 	if (BoundInventoryComponent)
 	{
-		BoundInventoryComponent->OnInventoryChanged.AddUObject(this, &ThisClass::HandleInventoryChanged);
+		InventoryChangedDelegateHandle = BoundInventoryComponent->OnInventoryChanged.AddUObject(
+			this,
+			&ThisClass::HandleInventoryChanged);
+		PandoraWeaponLoadoutChangedDelegateHandle =
+			BoundInventoryComponent->OnPandoraWeaponLoadoutChanged.AddUObject(
+				this,
+				&ThisClass::HandlePandoraWeaponLoadoutChanged);
 	}
 }
 
@@ -1463,8 +1876,74 @@ void UInfoUiPresenter::UnbindInventoryChangeNotification()
 {
 	if (BoundInventoryComponent)
 	{
-		BoundInventoryComponent->OnInventoryChanged.RemoveAll(this);
+		if (InventoryChangedDelegateHandle.IsValid())
+		{
+			BoundInventoryComponent->OnInventoryChanged.Remove(InventoryChangedDelegateHandle);
+		}
+		if (PandoraWeaponLoadoutChangedDelegateHandle.IsValid())
+		{
+			BoundInventoryComponent->OnPandoraWeaponLoadoutChanged.Remove(
+				PandoraWeaponLoadoutChangedDelegateHandle);
+		}
 		BoundInventoryComponent = nullptr;
+	}
+	InventoryChangedDelegateHandle.Reset();
+	PandoraWeaponLoadoutChangedDelegateHandle.Reset();
+}
+
+void UInfoUiPresenter::BeginItemPresentationPreload()
+{
+	ReleaseItemPresentationPreload();
+	const int32 PreloadGeneration = ++ItemPresentationPreloadGeneration;
+
+	const UGameInstance* GameInstance =
+		GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem || !BoundInventoryComponent)
+	{
+		return;
+	}
+
+	TArray<FSoftObjectPath> IconPaths;
+	for (const TObjectPtr<UItemInstance>& ItemInstance :
+		BoundInventoryComponent->GetAllItems().Items)
+	{
+		const UItemDefinition* ItemDefinition =
+			IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
+		if (ItemDefinition)
+		{
+			IconPaths.Add(ItemDefinition->IconTexture.ToSoftObjectPath());
+		}
+	}
+
+	ItemPresentationPreloadHandle =
+		ContentSubsystem->PreloadSoftObjectPathsAsync(
+			IconPaths,
+			FSimpleDelegate::CreateWeakLambda(
+				this,
+				[this, PreloadGeneration]()
+				{
+					if (PreloadGeneration != ItemPresentationPreloadGeneration)
+					{
+						return;
+					}
+
+					RefreshLeftEquipmentSlots();
+					RefreshInventoryTileView();
+					RefreshLeftPandoraSlots();
+					RefreshSelectPandoraLoadoutImages();
+				}));
+}
+
+void UInfoUiPresenter::ReleaseItemPresentationPreload()
+{
+	++ItemPresentationPreloadGeneration;
+	if (ItemPresentationPreloadHandle.IsValid())
+	{
+		ItemPresentationPreloadHandle->CancelHandle();
+		ItemPresentationPreloadHandle->ReleaseHandle();
+		ItemPresentationPreloadHandle.Reset();
 	}
 }
 
@@ -1483,8 +1962,7 @@ void UInfoUiPresenter::BindPandoraLoadoutChangeNotification()
 	if (BoundPandoraComponent)
 	{
 		BoundPandoraComponent->OnPandoraLoadoutChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("[PandoraLoadoutFlow] Bound pandora loadout change notification: component=%s"),
-			*GetNameSafe(BoundPandoraComponent));
+
 	}
 }
 
@@ -1493,10 +1971,241 @@ void UInfoUiPresenter::UnbindPandoraLoadoutChangeNotification()
 	if (BoundPandoraComponent)
 	{
 		BoundPandoraComponent->OnPandoraLoadoutChanged.RemoveDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("[PandoraLoadoutFlow] Unbound pandora loadout change notification: component=%s"),
-			*GetNameSafe(BoundPandoraComponent));
+
 		BoundPandoraComponent = nullptr;
 	}
+}
+
+void UInfoUiPresenter::ResetInventoryDisplaySlots()
+{
+	InventoryDisplaySlots.Reset();
+	CachedInventoryViewSlots.Reset();
+	bInventoryDisplaySlotsInitialized = false;
+}
+
+void UInfoUiPresenter::ReconcileInventoryDisplaySlots(const TArray<UObject*>& InventoryItems)
+{
+	TMap<FGuid, UItemInstance*> CurrentItemsById;
+	CurrentItemsById.Reserve(InventoryItems.Num());
+
+	for (UObject* ItemObject : InventoryItems)
+	{
+		UItemInstance* ItemInstance = Cast<UItemInstance>(ItemObject);
+		if (!IsValid(ItemInstance))
+		{
+			continue;
+		}
+
+		ItemInstance->EnsureItemId();
+		const FGuid ItemId = ItemInstance->GetItemId();
+		if (ItemId.IsValid())
+		{
+			CurrentItemsById.Add(ItemId, ItemInstance);
+		}
+	}
+
+	if (!bInventoryDisplaySlotsInitialized)
+	{
+		TArray<UObject*> SortedItems = InventoryItems;
+		SortItemObjectsByDisplayName(SortedItems);
+
+		InventoryDisplaySlots.Reset(SortedItems.Num());
+		for (UObject* SortedObject : SortedItems)
+		{
+			if (UItemInstance* ItemInstance = Cast<UItemInstance>(SortedObject))
+			{
+				InventoryDisplaySlots.Add(ItemInstance);
+			}
+		}
+
+		bInventoryDisplaySlotsInitialized = true;
+
+		return;
+	}
+
+	TSet<FGuid> ExistingSlotIds;
+	for (TObjectPtr<UItemInstance>& SlotItem : InventoryDisplaySlots)
+	{
+		UItemInstance* ItemInstance = SlotItem.Get();
+		if (!IsValid(ItemInstance))
+		{
+			SlotItem = nullptr;
+			continue;
+		}
+
+		ItemInstance->EnsureItemId();
+		const FGuid ItemId = ItemInstance->GetItemId();
+		if (!ItemId.IsValid() || !CurrentItemsById.Contains(ItemId))
+		{
+			SlotItem = nullptr;
+			continue;
+		}
+
+		ExistingSlotIds.Add(ItemId);
+	}
+
+	TArray<UObject*> NewItems;
+	for (UObject* ItemObject : InventoryItems)
+	{
+		UItemInstance* ItemInstance = Cast<UItemInstance>(ItemObject);
+		if (!IsValid(ItemInstance))
+		{
+			continue;
+		}
+
+		ItemInstance->EnsureItemId();
+		const FGuid ItemId = ItemInstance->GetItemId();
+		if (ItemId.IsValid() && !ExistingSlotIds.Contains(ItemId))
+		{
+			NewItems.Add(ItemInstance);
+		}
+	}
+
+	SortItemObjectsByDisplayName(NewItems);
+
+	for (UObject* NewItemObject : NewItems)
+	{
+		UItemInstance* NewItem = Cast<UItemInstance>(NewItemObject);
+		if (!IsValid(NewItem))
+		{
+			continue;
+		}
+
+		int32 EmptySlotIndex = INDEX_NONE;
+		for (int32 SlotIndex = 0; SlotIndex < InventoryDisplaySlots.Num(); ++SlotIndex)
+		{
+			if (!InventoryDisplaySlots[SlotIndex].Get())
+			{
+				EmptySlotIndex = SlotIndex;
+				break;
+			}
+		}
+
+		if (EmptySlotIndex == INDEX_NONE)
+		{
+			InventoryDisplaySlots.Add(NewItem);
+		}
+		else
+		{
+			InventoryDisplaySlots[EmptySlotIndex] = NewItem;
+		}
+	}
+
+}
+
+void UInfoUiPresenter::BuildInventoryViewSlots(const TArray<UObject*>& SourceItems, TArray<UObject*>& OutViewItems)
+{
+	OutViewItems.Reset();
+	CachedInventoryViewSlots.Reset();
+
+	TSet<FGuid> SourceItemIds;
+	SourceItemIds.Reserve(SourceItems.Num());
+	for (UObject* SourceObject : SourceItems)
+	{
+		UItemInstance* ItemInstance = Cast<UItemInstance>(SourceObject);
+		if (!IsValid(ItemInstance))
+		{
+			continue;
+		}
+
+		ItemInstance->EnsureItemId();
+		const FGuid ItemId = ItemInstance->GetItemId();
+		if (ItemId.IsValid())
+		{
+			SourceItemIds.Add(ItemId);
+		}
+	}
+
+	TSet<FGuid> AddedItemIds;
+	for (const TObjectPtr<UItemInstance>& SlotItemPtr : InventoryDisplaySlots)
+	{
+		UItemInstance* SlotItem = SlotItemPtr.Get();
+		UItemInstance* VisibleItem = nullptr;
+		if (IsValid(SlotItem))
+		{
+			SlotItem->EnsureItemId();
+			const FGuid SlotItemId = SlotItem->GetItemId();
+			if (SlotItemId.IsValid() && SourceItemIds.Contains(SlotItemId))
+			{
+				VisibleItem = SlotItem;
+				AddedItemIds.Add(SlotItemId);
+			}
+		}
+
+		if (bUseItemTypeFilter)
+		{
+			if (VisibleItem)
+			{
+				OutViewItems.Add(VisibleItem);
+				CachedInventoryViewSlots.Add(VisibleItem);
+			}
+		}
+		else
+		{
+			OutViewItems.Add(VisibleItem);
+			CachedInventoryViewSlots.Add(VisibleItem);
+		}
+	}
+
+	for (UObject* SourceObject : SourceItems)
+	{
+		UItemInstance* ItemInstance = Cast<UItemInstance>(SourceObject);
+		if (!IsValid(ItemInstance))
+		{
+			continue;
+		}
+
+		ItemInstance->EnsureItemId();
+		const FGuid ItemId = ItemInstance->GetItemId();
+		if (ItemId.IsValid() && !AddedItemIds.Contains(ItemId))
+		{
+			OutViewItems.Add(ItemInstance);
+			CachedInventoryViewSlots.Add(ItemInstance);
+			AddedItemIds.Add(ItemId);
+		}
+	}
+}
+
+int32 UInfoUiPresenter::FindInventoryDisplaySlotIndexByItemId(const FGuid ItemId) const
+{
+	if (!ItemId.IsValid())
+	{
+		return INDEX_NONE;
+	}
+
+	for (int32 SlotIndex = 0; SlotIndex < InventoryDisplaySlots.Num(); ++SlotIndex)
+	{
+		const UItemInstance* ItemInstance = InventoryDisplaySlots[SlotIndex].Get();
+		if (IsValid(ItemInstance) && ItemInstance->GetItemId() == ItemId)
+		{
+			return SlotIndex;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+void UInfoUiPresenter::BindRightInventoryWidgetEvents(URightInventoryWidget* RightInventoryWidget)
+{
+	if (!RightInventoryWidget)
+	{
+		return;
+	}
+
+	RightInventoryWidget->OnClicked_FilterAllButton.RemoveDynamic(
+		this,
+		&ThisClass::HandleClickedItemFilterAllButton);
+	RightInventoryWidget->OnClicked_FilterAllButton.AddUniqueDynamic(this, &ThisClass::HandleClickedItemFilterAllButton);
+
+	RightInventoryWidget->OnClicked_FilterTypeButton.RemoveDynamic(
+		this,
+		&ThisClass::HandleClickedItemFilterTypeButton);
+	RightInventoryWidget->OnClicked_FilterTypeButton.AddUniqueDynamic(this, &ThisClass::HandleClickedItemFilterTypeButton);
+
+	RightInventoryWidget->OnDropped_InventorySlot.RemoveDynamic(
+		this,
+		&ThisClass::HandleDroppedInventorySlot);
+	RightInventoryWidget->OnDropped_InventorySlot.AddUniqueDynamic(this, &ThisClass::HandleDroppedInventorySlot);
 }
 
 void UInfoUiPresenter::BindStatusWidgetEvents()
@@ -1505,33 +2214,43 @@ void UInfoUiPresenter::BindStatusWidgetEvents()
 	URightStatusWidget* RightStatusWidget = CurrentInfoWidget ? CurrentInfoWidget->GetRightStatusWidget() : nullptr;
 	if (!RightStatusWidget)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[StatUpgrade] Failed to bind stat up delegate: info=%s rightStatus=%s"),
-			*GetNameSafe(CurrentInfoWidget),
-			*GetNameSafe(RightStatusWidget));
+
 		return;
 	}
 
 	RightStatusWidget->OnClicked_StatUpButton.RemoveDynamic(this, &ThisClass::HandleClickedStatUpButton);
 	RightStatusWidget->OnClicked_StatUpButton.AddUniqueDynamic(this, &ThisClass::HandleClickedStatUpButton);
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[StatUpgrade] Bound stat up delegate: info=%s rightStatus=%s"),
-		*GetNameSafe(CurrentInfoWidget),
-		*GetNameSafe(RightStatusWidget));
+	RightStatusWidget->OnClicked_StatDownButton.RemoveDynamic(this, &ThisClass::HandleClickedStatDownButton);
+	RightStatusWidget->OnClicked_StatDownButton.AddUniqueDynamic(this, &ThisClass::HandleClickedStatDownButton);
+
 }
 
 void UInfoUiPresenter::HandleInventoryChanged()
 {
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] Inventory changed: refreshing tile view. left=%s filterEnabled=%s filterTag=%s"),
-		*CurrentLeftUiTag.ToString(),
-		bUseItemTypeFilter ? TEXT("true") : TEXT("false"),
-		*CurrentItemFilterTag.ToString());
+	BeginItemPresentationPreload();
+	RefreshLeftEquipmentSlots();
 	RefreshInventoryTileView();
+	RefreshLeftPandoraSlots();
+	RefreshSelectPandoraLoadoutImages();
+	RefreshSelectPandoraCompatibilityState();
+}
+
+void UInfoUiPresenter::HandlePandoraWeaponLoadoutChanged()
+{
+	BeginItemPresentationPreload();
+	RefreshLeftEquipmentSlots();
+	RefreshLeftPandoraSlots();
+	RefreshInventoryTileView();
+	RefreshSelectPandoraLoadoutImages();
+	RefreshSelectPandoraCompatibilityState();
+	ReconcileCurrentWeaponLoadoutDirection();
 }
 
 void UInfoUiPresenter::HandlePandoraLoadoutChanged()
 {
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[PandoraLoadoutFlow] Pandora loadout changed: refreshing left pandora slots and select UI images. component=%s"),
-		*GetNameSafe(BoundPandoraComponent));
+
 	RefreshLeftPandoraSlots();
+	RefreshLeftEquipmentSlots();
 	RefreshSelectPandoraLoadoutImages();
 	RefreshSelectPandoraCompatibilityState();
 }
@@ -1541,96 +2260,154 @@ void UInfoUiPresenter::RefreshInventoryTileView()
 	const FGameplayTag EquipmentLeftUiTag = GetEquipmentLeftUiTag();
 	if (CurrentLeftUiTag != EquipmentLeftUiTag)
 	{
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] Refresh skipped: currentLeft=%s equipmentLeft=%s"),
-			*CurrentLeftUiTag.ToString(),
-			*EquipmentLeftUiTag.ToString());
 		return;
 	}
 
 	UInfoWidget* CurrentInfoWidget = GetInfoWidget();
 	if (!CurrentInfoWidget)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[InventoryFilter] Refresh skipped: InfoWidget is null."));
 		return;
 	}
 
 	URightInventoryWidget* RightInventoryWidget = CurrentInfoWidget->GetRightInventoryWidget();
 	if (!RightInventoryWidget)
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[InventoryFilter] Refresh skipped: RightInventoryWidget is null. info=%s"),
-			*GetNameSafe(CurrentInfoWidget));
 		return;
 	}
 
 	if (!CurrentInfoWidget->IsInViewport())
 	{
-		UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] Refresh skipped: InfoWidget is not in viewport. info=%s"),
-			*GetNameSafe(CurrentInfoWidget));
 		return;
 	}
 
+	TArray<UObject*> AllInventoryItems;
 	TArray<UObject*> CurrentItemList;
 
 	const APdPlayerState* PdPlayerState = GetCachedPlayerState();
 	const UInventoryComponent* InventoryComponent = PdPlayerState ? PdPlayerState->GetInventoryComponent() : nullptr;
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] Refresh started: playerState=%s inventory=%s allCount=%d mapTypes=%d filterEnabled=%s filterTag=%s"),
-		*GetNameSafe(PdPlayerState),
-		*GetNameSafe(InventoryComponent),
-		InventoryComponent ? InventoryComponent->AllItemList.Items.Num() : 0,
-		InventoryComponent ? InventoryComponent->Map_Type_ItemList.Num() : 0,
-		bUseItemTypeFilter ? TEXT("true") : TEXT("false"),
-		*CurrentItemFilterTag.ToString());
+
 	if (InventoryComponent)
 	{
 		const bool bCanUseTypeFilter = bUseItemTypeFilter
 			&& CurrentItemFilterTag.IsValid()
-			&& !InventoryComponent->Map_Type_ItemList.IsEmpty();
+			&& !InventoryComponent->GetFilteredItemMap().IsEmpty();
 
 		if (bCanUseTypeFilter)
 		{
-			if (const FItemList* FoundItemList = InventoryComponent->Map_Type_ItemList.Find(CurrentItemFilterTag))
+			AppendItemListAsObjects(InventoryComponent->GetAllItems(), AllInventoryItems);
+			for (UObject* ItemObject : AllInventoryItems)
 			{
-				AppendItemListAsObjects(*FoundItemList, CurrentItemList);
-				UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] Type filter matched: tag=%s sourceCount=%d objectCount=%d"),
-					*CurrentItemFilterTag.ToString(),
-					FoundItemList->Items.Num(),
-					CurrentItemList.Num());
-			}
-			else
-			{
-				UE_LOG(LogInfoUiPresenter, Warning, TEXT("[InventoryFilter] Type filter found no list: tag=%s mapTypes=%d"),
-					*CurrentItemFilterTag.ToString(),
-					InventoryComponent->Map_Type_ItemList.Num());
-
-				for (UItemInstance* ItemInstance : InventoryComponent->AllItemList.Items)
+				UItemInstance* ItemInstance = Cast<UItemInstance>(ItemObject);
+				const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
+				if (ItemDefinition && ItemDefinition->IdTag.MatchesTag(CurrentItemFilterTag))
 				{
-					const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
-					if (ItemDefinition && ItemDefinition->IdTag.MatchesTag(CurrentItemFilterTag))
-					{
-						CurrentItemList.Add(ItemInstance);
-					}
+					CurrentItemList.Add(ItemInstance);
 				}
-
-				UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] Type filter fallback matched: tag=%s objectCount=%d"),
-					*CurrentItemFilterTag.ToString(),
-					CurrentItemList.Num());
 			}
+
+
 		}
 		else
 		{
-			AppendItemListAsObjects(InventoryComponent->AllItemList, CurrentItemList);
-			UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] Using all items: canUseTypeFilter=%s allSourceCount=%d objectCount=%d"),
-				bCanUseTypeFilter ? TEXT("true") : TEXT("false"),
-				InventoryComponent->AllItemList.Items.Num(),
-				CurrentItemList.Num());
+			AppendItemListAsObjects(InventoryComponent->GetAllItems(), AllInventoryItems);
+			CurrentItemList = AllInventoryItems;
+
 		}
+	}
+
+	const int32 HiddenEquippedItemCount = RemoveEquippedItemsFromInventoryList(AllInventoryItems);
+	if (bUseItemTypeFilter)
+	{
+		RemoveEquippedItemsFromInventoryList(CurrentItemList);
 	}
 	else
 	{
-		UE_LOG(LogInfoUiPresenter, Warning, TEXT("[InventoryFilter] Refresh has no inventory component."));
+		CurrentItemList = AllInventoryItems;
 	}
 
-	RightInventoryWidget->SetTileView(CurrentItemList);
-	UE_LOG(LogInfoUiPresenter, Log, TEXT("[InventoryFilter] Tile view updated: itemCount=%d"),
-		CurrentItemList.Num());
+	ReconcileInventoryDisplaySlots(AllInventoryItems);
+
+	TArray<UObject*> ViewSlotItems;
+	BuildInventoryViewSlots(CurrentItemList, ViewSlotItems);
+	RightInventoryWidget->SetTileView(ViewSlotItems);
+}
+
+int32 UInfoUiPresenter::RemoveEquippedItemsFromInventoryList(TArray<UObject*>& InOutItemList) const
+{
+	TSet<FGuid> EquippedItemIds;
+
+	const APdPlayerState* PlayerState = GetCachedPlayerState();
+	const UInventoryComponent* InventoryComponent =
+		PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	const FGameplayTag WeaponItemTypeTag = GetWeaponItemTypeTag();
+	const FGameplayTag ConsumableItemTypeTag = GetConsumableItemTypeTag();
+
+	// Non-loadout equipment is still represented by the equipment UI. Weapon and
+	// consumable slots must use the replicated InventoryComponent as their source
+	// of truth because the UI can be one refresh behind the server-confirmed state.
+	const UInfoWidget* CurrentInfoWidget = GetInfoWidget();
+	const ULeftEquipmentWidget* LeftEquipmentWidget = CurrentInfoWidget ? CurrentInfoWidget->GetLeftEquipmentWidget() : nullptr;
+	if (LeftEquipmentWidget)
+	{
+		TSet<FGuid> UiEquippedItemIds;
+		LeftEquipmentWidget->GetEquippedItemIds(UiEquippedItemIds);
+		for (const FGuid ItemId : UiEquippedItemIds)
+		{
+			const UItemInstance* ItemInstance =
+				InventoryComponent ? InventoryComponent->FindItemInstanceById(ItemId) : nullptr;
+			const UItemDefinition* ItemDefinition =
+				IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
+			const bool bIsReplicatedLoadoutItem = ItemDefinition
+				&& ItemDefinition->IdTag.IsValid()
+				&& ((WeaponItemTypeTag.IsValid()
+						&& ItemDefinition->IdTag.MatchesTag(WeaponItemTypeTag))
+					|| (ConsumableItemTypeTag.IsValid()
+						&& ItemDefinition->IdTag.MatchesTag(ConsumableItemTypeTag)));
+			if (!bIsReplicatedLoadoutItem)
+			{
+				EquippedItemIds.Add(ItemId);
+			}
+		}
+	}
+
+	if (InventoryComponent)
+	{
+		for (int32 SlotIndex = 0;
+			SlotIndex < UInventoryComponent::ConsumableQuickSlotCount;
+			++SlotIndex)
+		{
+			const UItemInstance* QuickSlotItem =
+				InventoryComponent->GetConsumableQuickSlotItem(SlotIndex);
+			if (IsValid(QuickSlotItem) && QuickSlotItem->GetItemId().IsValid())
+			{
+				EquippedItemIds.Add(QuickSlotItem->GetItemId());
+			}
+		}
+
+		for (const EEnum_Direction Direction :
+			{ EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
+		{
+			const FGuid WeaponItemId =
+				InventoryComponent->GetPandoraWeaponLoadoutItemId(Direction);
+			if (WeaponItemId.IsValid())
+			{
+				EquippedItemIds.Add(WeaponItemId);
+			}
+		}
+	}
+
+	if (EquippedItemIds.IsEmpty() || InOutItemList.IsEmpty())
+	{
+		return 0;
+	}
+
+	const int32 BeforeCount = InOutItemList.Num();
+	InOutItemList.RemoveAll([&EquippedItemIds](UObject* ItemObject)
+	{
+		const UItemInstance* ItemInstance = Cast<UItemInstance>(ItemObject);
+		return IsValid(ItemInstance) && EquippedItemIds.Contains(ItemInstance->GetItemId());
+	});
+
+	const int32 HiddenCount = BeforeCount - InOutItemList.Num();
+	return HiddenCount;
 }

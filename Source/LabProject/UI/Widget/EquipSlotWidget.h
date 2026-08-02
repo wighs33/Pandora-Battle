@@ -33,6 +33,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
 	void SetHoverIcon(UTexture2D* InIconTexture);
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment|Pandora")
+	void SetPandoraWeaponRequirementIcon(
+		UTexture2D* InIconTexture,
+		float InOpacity = 0.3f);
+
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
 	void SetData(UItemInstance* Target);
 
@@ -96,6 +101,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Equipment|Style")
 	FLinearColor ButtonPressedColor = FLinearColor(0.72f, 0.66f, 0.08f, 1.0f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Equipment|Style", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float ButtonBackgroundOpacity = 1.0f;
+
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Equipment")
 	FPdOnClickedEquipSlot OnClicked_EquipSlot;
 
@@ -117,6 +125,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Equipment|Bind")
 	TObjectPtr<UTextBlock> ApplyText;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Equipment|Bind")
+	TObjectPtr<UTextBlock> QuantityTextBlock;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Equipment|Bind")
 	TObjectPtr<UImage> IconImage;
@@ -141,6 +152,7 @@ private:
 	void CacheOptionalWidgets();
 	void ApplyButtonBackgroundStyle();
 	bool CanAcceptDroppedItem(UItemInstance* DroppedItem) const;
+	bool IsCurrentItemConsumable() const;
 	UTexture2D* GetCurrentIconTexture(bool bForHover) const;
 	void CacheDefaultButtonStyle();
 
@@ -157,11 +169,15 @@ private:
 	TObjectPtr<UTexture2D> CurrentItemIconTexture;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> PandoraWeaponRequirementIconTexture;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UItemInstance> ItemInstance;
 
 	UPROPERTY(Transient)
 	FGameplayTag ResolvedEquipTypeTag;
 
+	float PandoraWeaponRequirementIconOpacity = 0.3f;
 	FButtonStyle DefaultButtonStyle;
 	bool bHasDefaultButtonStyle = false;
 	bool bIsButtonHovered = false;

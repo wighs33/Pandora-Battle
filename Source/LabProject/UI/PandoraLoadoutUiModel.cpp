@@ -1,9 +1,9 @@
 #include "UI/PandoraLoadoutUiModel.h"
 
-#include "Item/ItemDefinition.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
-#include "Pandora/PandoraComponent.h"
-#include "Pandora/PandoraDefinition.h"
+#include "Component/Pandora/PandoraComponent.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 
 EEnum_Direction FPandoraLoadoutUiModel::GetDirectionFromSelectSlotNumber(const int32 SlotNumber)
 {

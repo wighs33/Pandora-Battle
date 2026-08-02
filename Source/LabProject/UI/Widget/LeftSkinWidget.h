@@ -7,6 +7,8 @@
 
 class USkinEquipmentComponent;
 class USkinInstance;
+class UButton;
+class APdPlayer;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FPdOnClickedSkinEquipTypeSlot,
@@ -20,6 +22,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	USkinEquipSlotWidget*, TargetSkinEquipSlot,
 	USkinInstance*, SkinInstance);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnPaintCanvasGroupVisibilityChanged, bool, bVisible);
+
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API ULeftSkinWidget : public UUserWidget
 {
@@ -30,9 +34,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
 	void InitialzeEquipSlots();
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
-	void ToggleActiveSkinEquipSlots(bool bActive);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin", meta = (Categories = "Skin"))
 	void SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* InSelectedSkinEquipSlot);
@@ -46,11 +47,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin", meta = (Categories = "Skin"))
 	void BroadcastClickedSkinEquipTypeSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* InSelectedSkinEquipSlot, bool bInIsSelectedAnySlot);
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Skin|Paint")
+	void HidePaintCanvasGroup();
+
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
 	FPdOnClickedSkinEquipTypeSlot OnClicked_SkinEquipTypeSlot;
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
 	FPdOnDroppedSkinEquipTypeSlot OnDroppedSkin_SkinEquipTypeSlot;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin|Paint")
+	FPdOnPaintCanvasGroupVisibilityChanged OnPaintCanvasGroupVisibilityChanged;
 
 protected:
 	virtual void NativePreConstruct() override;
@@ -96,6 +103,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Skin|Bind")
 	TObjectPtr<USkinEquipSlotWidget> RidingSlot;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
+	TObjectPtr<USkinEquipSlotWidget> PetSlot;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
+	TObjectPtr<UButton> DrawButton;
+
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin")
 	TArray<TObjectPtr<USkinEquipSlotWidget>> SkinEquipSlotList;
 
@@ -115,12 +128,17 @@ private:
 	UFUNCTION()
 	void HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinEquipSlot, USkinInstance* SkinInstance);
 
+	UFUNCTION()
+	void HandleDrawButtonClicked();
+
 	void RebuildSkinEquipSlotList();
 	void RebuildEquipSlotNameList();
 	void ApplyEquipSlotNames();
 	void ApplyResolvedEquipTypeTags();
 	void BindSkinEquipSlotCallbacks();
 	void UnbindSkinEquipSlotCallbacks();
+	void BroadcastPaintCanvasGroupVisibilityChanged(bool bVisible);
+	APdPlayer* GetOwningPdPlayer() const;
 
 	FGameplayTag ResolveSkinEquipTypeTagForSlot(const USkinEquipSlotWidget* SkinEquipSlot) const;
 };

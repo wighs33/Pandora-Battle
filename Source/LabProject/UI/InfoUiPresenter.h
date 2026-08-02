@@ -7,6 +7,7 @@
 #include "InfoUiPresenter.generated.h"
 
 class APdPlayerController;
+struct FStreamableHandle;
 class UInventoryComponent;
 class UEquipSlotWidget;
 class UInfoWidget;
@@ -16,8 +17,11 @@ class UPandoraDefinition;
 class UPandoraInstance;
 class UPandoraEquipSlotWidget;
 class UPandoraComponent;
+class UPandoraTreeComponent;
+class URightInventoryWidget;
 class USkinEquipSlotWidget;
 class USkinInstance;
+class UTileView;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UInfoUiPresenter : public UObject
@@ -34,6 +38,7 @@ public:
 	void BindInfoUi(UInfoWidget* InInfoWidget);
 	UItemInstance* GetSelectedWeapon(EEnum_Direction Direction) const;
 	UPandoraInstance* GetSelectedPandora(EEnum_Direction Direction) const;
+	bool WouldSelectedPandoraDirectionChangeLoadout(EEnum_Direction Direction) const;
 
 	UFUNCTION()
 	void HandleSelectedPandoraDirection(EEnum_Direction Direction);
@@ -43,6 +48,9 @@ public:
 
 	UFUNCTION()
 	void HandleClickedStatUpButton(FGameplayTag StatTag);
+
+	UFUNCTION()
+	void HandleClickedStatDownButton(FGameplayTag StatTag);
 
 	UFUNCTION()
 	void HandleClickedInfoCenterButton(FGameplayTag LeftUiTag, FGameplayTag RightUiTag);
@@ -58,6 +66,9 @@ public:
 
 	UFUNCTION()
 	void HandleDroppedItemToCharacterPanel(UItemInstance* ItemInstance);
+
+	UFUNCTION()
+	void HandleDroppedInventorySlot(int32 SourceSlotIndex, int32 TargetSlotIndex, UItemInstance* SourceItem);
 
 	UFUNCTION()
 	void HandleClickedItemFilterTypeButton(FGameplayTag TypeTag);
@@ -102,27 +113,51 @@ private:
 	class APdPlayerState* GetCachedPlayerState() const;
 	void BindInventoryChangeNotification();
 	void UnbindInventoryChangeNotification();
+	void BeginItemPresentationPreload();
+	void ReleaseItemPresentationPreload();
 	void BindPandoraLoadoutChangeNotification();
 	void UnbindPandoraLoadoutChangeNotification();
+	void UnbindInfoUiEvents();
 	void BindStatusWidgetEvents();
 	void HandleInventoryChanged();
+	void HandlePandoraWeaponLoadoutChanged();
 	UFUNCTION()
 	void HandlePandoraLoadoutChanged();
 	void RefreshInventoryTileView();
+	int32 RemoveEquippedItemsFromInventoryList(TArray<UObject*>& InOutItemList) const;
+	void ResetInventoryDisplaySlots();
+	void ReconcileInventoryDisplaySlots(const TArray<UObject*>& InventoryItems);
+	void BuildInventoryViewSlots(const TArray<UObject*>& SourceItems, TArray<UObject*>& OutViewItems);
+	int32 FindInventoryDisplaySlotIndexByItemId(FGuid ItemId) const;
+	void BindRightInventoryWidgetEvents(URightInventoryWidget* RightInventoryWidget);
 	FGameplayTag GetProfileLeftUiTag() const;
 	FGameplayTag GetEquipmentLeftUiTag() const;
 	FGameplayTag GetSkinEquipmentLeftUiTag() const;
 	FGameplayTag GetPandoraEquipmentLeftUiTag() const;
 	FGameplayTag GetWeaponItemTypeTag() const;
+	FGameplayTag GetConsumableItemTypeTag() const;
 	void RefreshSelectPandoraCompatibilityState() const;
 	void RefreshSelectPandoraLoadoutImages() const;
+	void ReconcileCurrentWeaponLoadoutDirection();
+	int32 ResolveCurrentEquippedWeaponSlotNumber() const;
 	void RefreshLeftEquipmentSlots() const;
 	void RefreshLeftSkinSlots() const;
 	void RefreshLeftPandoraSlots() const;
+	bool IsPandoraOwnedForEquipInventory(const UPandoraInstance* PandoraInstance) const;
+	void BuildPandoraTileViewItems(TArray<UObject*>& OutListItems, FGameplayTag TypeTag, bool bOwnedOnly) const;
+	void RefreshPandoraTileView() const;
+	void BindPandoraTileItemClicked();
+	bool ResolvePandoraLoadoutSlotForClick(
+		const UPandoraComponent* PandoraComponent,
+		const UPandoraDefinition* PandoraDefinition,
+		EEnum_Direction& OutDirection,
+		int32& OutSlotNumber) const;
+	void ResetPandoraEquipSlotClickState();
 	void ClearInventoryClickEquipBinding() const;
 	void ClearSkinClickEquipBinding() const;
 	void ClearEquipmentSlot(UEquipSlotWidget* TargetEquipSlot, FGameplayTag EquipTypeTag);
 	void ClearSkinEquipSlot(USkinEquipSlotWidget* TargetSkinEquipSlot, FGameplayTag EquipTypeTag);
+	void ClearPandoraEquipSlot(UPandoraEquipSlotWidget* TargetPandoraEquipSlot);
 
 	UPROPERTY(Transient)
 	TObjectPtr<APdPlayerController> OwningController = nullptr;
@@ -152,13 +187,19 @@ private:
 	TObjectPtr<UPandoraEquipSlotWidget> CachedSelectedPandoraEquipSlot = nullptr;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UItemInstance> CachedFirstWeapon = nullptr;
+	FGameplayTag CurrentPandoraFilterTag;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UItemInstance> CachedSecondWeapon = nullptr;
+	bool bUsePandoraTypeFilter = false;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UItemInstance> CachedThirdWeapon = nullptr;
+	bool bShowOnlyOwnedPandorasForEquipSlot = false;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UItemInstance>> InventoryDisplaySlots;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UItemInstance>> CachedInventoryViewSlots;
 
 	UPROPERTY(Transient)
 	FGameplayTag CurrentLeftUiTag;
@@ -168,4 +209,17 @@ private:
 
 	UPROPERTY(Transient)
 	bool bUseItemTypeFilter = false;
+
+	UPROPERTY(Transient)
+	bool bInventoryDisplaySlotsInitialized = false;
+
+	TWeakObjectPtr<UTileView> BoundPandoraTileView;
+	FDelegateHandle InventoryChangedDelegateHandle;
+	FDelegateHandle PandoraWeaponLoadoutChangedDelegateHandle;
+	FDelegateHandle PandoraTileItemClickedDelegateHandle;
+	int32 ItemPresentationPreloadGeneration = 0;
+	TSharedPtr<FStreamableHandle> ItemPresentationPreloadHandle;
+
+	FGuid PendingClearedWeaponId;
+	EEnum_Direction PendingClearedWeaponDirection = EEnum_Direction::Center;
 };

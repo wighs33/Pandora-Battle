@@ -26,6 +26,9 @@ struct LABPROJECT_API FPdItemViewData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
 	TMap<FGameplayTag, float> Stats;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
+	int32 Quantity = 0;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData", meta = (Categories = "Item.Weapon"))
 	FGameplayTagContainer RequiredWeaponTags;
 
@@ -40,11 +43,11 @@ struct LABPROJECT_API FPdItemViewData
 
 	bool HasContent() const
 	{
-		return !DisplayName.IsEmpty() || !Description.IsEmpty() || IconResource != nullptr || !Stats.IsEmpty();
+		return !DisplayName.IsEmpty() || !Description.IsEmpty() || IconResource != nullptr || !Stats.IsEmpty() || Quantity > 0;
 	}
 };
 
-class LABPROJECT_API FPdItemViewDataBuilder
+class LABPROJECT_API FItemViewDataBuilder
 {
 public:
 	static FPdItemViewData FromItemInstance(const UItemInstance* ItemInstance, bool bOwned = true, bool bActive = true);

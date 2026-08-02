@@ -2,7 +2,9 @@
 
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
+#include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
+#include "UI/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DragItemVisualWidget)
 
@@ -25,36 +27,42 @@ void UDragItemVisualWidget::SetIconSize(const FVector2D InIconSize)
 	ApplyVisual();
 }
 
+void UDragItemVisualWidget::SetQuantity(const int32 InQuantity)
+{
+	Quantity = FMath::Max(0, InQuantity);
+	ApplyVisual();
+}
+
 void UDragItemVisualWidget::CacheOptionalWidgets()
 {
 	if (!RootSizeBox)
 	{
-		RootSizeBox = Cast<USizeBox>(GetWidgetFromName(TEXT("RootSizeBox")));
-	}
-	if (!RootSizeBox)
-	{
-		RootSizeBox = Cast<USizeBox>(GetWidgetFromName(TEXT("DragSizeBox")));
-	}
-	if (!RootSizeBox)
-	{
-		RootSizeBox = Cast<USizeBox>(GetWidgetFromName(TEXT("SizeBox")));
+		RootSizeBox = PdWidgetLookup::FindWidgetByNames<USizeBox>(this, {
+			TEXT("RootSizeBox"),
+			TEXT("DragSizeBox"),
+			TEXT("SizeBox")
+		});
 	}
 
 	if (!IconImage)
 	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("IconImage")));
+		IconImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("IconImage"),
+			TEXT("DragIconImage"),
+			TEXT("ItemIconImage"),
+			TEXT("Icon")
+		});
 	}
-	if (!IconImage)
+
+	if (!QuantityTextBlock)
 	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("DragIconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("ItemIconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("Icon")));
+		QuantityTextBlock = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
+			TEXT("QuantityTextBlock"),
+			TEXT("Txt_Quantity"),
+			TEXT("Text_Quantity"),
+			TEXT("QuantityText"),
+			TEXT("ItemCountText")
+		});
 	}
 }
 
@@ -76,5 +84,12 @@ void UDragItemVisualWidget::ApplyVisual()
 			IconImage->SetDesiredSizeOverride(IconSize);
 		}
 		IconImage->SetVisibility(IconTexture ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	if (QuantityTextBlock)
+	{
+		const bool bShowQuantity = Quantity > 0 && IconTexture != nullptr;
+		QuantityTextBlock->SetText(FText::AsNumber(Quantity));
+		QuantityTextBlock->SetVisibility(bShowQuantity ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 }

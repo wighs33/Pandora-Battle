@@ -1,21 +1,29 @@
 #include "UI/Widget/ItemSlotWidget.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Definition/Common/ProjectTagConfig.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
+#include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
+#include "Component/Item/InventoryComponent.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Mode/PdHUD.h"
+#include "Mode/PdPlayerState.h"
 #include "UI/Widget/InventorySlotViewData.h"
 #include "UI/Widget/DragItemVisualWidget.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/ItemSlotDragDropOperation.h"
+#include "UI/Widget/RightInventoryWidget.h"
+#include "UI/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ItemSlotWidget)
 
 namespace
 {
+
 UInfoWidget* ResolveInfoWidgetFromSlot(const UUserWidget* Widget)
 {
 	const APlayerController* PlayerController = Widget ? Widget->GetOwningPlayer() : nullptr;
@@ -81,6 +89,12 @@ void UItemSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 
 FReply UItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
+	if (CachedData && InMouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
+	{
+		RequestSplitCachedStack();
+		return FReply::Handled();
+	}
+
 	if (CachedData && InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
 	{
 		return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
@@ -118,6 +132,7 @@ void UItemSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FP
 			{
 				DragVisualWidget->SetIconSize(DragIconSize);
 				DragVisualWidget->SetIconTexture(IconTexture);
+				DragVisualWidget->SetQuantity(IsCachedItemConsumable() ? CachedViewData.Quantity : 0);
 				DragOperation->DefaultDragVisual = DragVisualWidget;
 			}
 		}
@@ -134,11 +149,38 @@ void UItemSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FP
 	OutOperation = DragOperation;
 }
 
+bool UItemSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	if (RequestMergeDraggedStack(InOperation))
+	{
+		return true;
+	}
+
+	if (const UItemSlotDragDropOperation* ItemDragOperation = Cast<UItemSlotDragDropOperation>(InOperation))
+	{
+		const int32 SourceSlotIndex = ItemDragOperation->GetSourceSlotIndex();
+		const int32 TargetSlotIndex = CachedSlotData ? CachedSlotData->GetSlotIndex() : INDEX_NONE;
+		if (SourceSlotIndex != INDEX_NONE && TargetSlotIndex != INDEX_NONE)
+		{
+			if (UInfoWidget* InfoWidget = ResolveInfoWidgetFromSlot(this))
+			{
+				if (URightInventoryWidget* RightInventoryWidget = InfoWidget->GetRightInventoryWidget())
+				{
+					RightInventoryWidget->BroadcastDroppedInventorySlot(SourceSlotIndex, TargetSlotIndex, ItemDragOperation->GetItemInstance());
+					return true;
+				}
+			}
+		}
+	}
+
+	return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+}
+
 void UItemSlotWidget::SetData(UItemInstance* Target)
 {
 	CachedData = Target;
 	CachedSlotData = nullptr;
-	CachedViewData = FPdItemViewDataBuilder::FromItemInstance(Target);
+	CachedViewData = FItemViewDataBuilder::FromItemInstance(Target);
 
 	ApplyItemVisual(CachedViewData);
 }
@@ -168,6 +210,13 @@ void UItemSlotWidget::ApplyItemVisual(const FPdItemViewData& ViewData)
 		TextBlock->SetVisibility(ViewData.IconResource ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}
 
+	if (QuantityTextBlock)
+	{
+		const bool bShowQuantity = IsCachedItemConsumable() && ViewData.Quantity > 0 && ViewData.HasContent();
+		QuantityTextBlock->SetText(FText::AsNumber(FMath::Max(0, ViewData.Quantity)));
+		QuantityTextBlock->SetVisibility(bShowQuantity ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
 	ApplySelectionVisual();
 }
 
@@ -186,44 +235,35 @@ void UItemSlotWidget::CacheOptionalWidgets()
 {
 	if (!IconImage)
 	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("IconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("ItemIconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("SlotIconImage")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("ItemIcon")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("SlotIcon")));
-	}
-	if (!IconImage)
-	{
-		IconImage = Cast<UImage>(GetWidgetFromName(TEXT("Icon")));
+		IconImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("IconImage"),
+			TEXT("ItemIconImage"),
+			TEXT("SlotIconImage"),
+			TEXT("ItemIcon"),
+			TEXT("SlotIcon"),
+			TEXT("Icon")
+		});
 	}
 
 	if (!SelectionBorderImage)
 	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("SelectionBorderImage")));
+		SelectionBorderImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("SelectionBorderImage"),
+			TEXT("SelectedBorderImage"),
+			TEXT("HighlightBorderImage"),
+			TEXT("SelectionHighlightImage")
+		});
 	}
-	if (!SelectionBorderImage)
+
+	if (!QuantityTextBlock)
 	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("SelectedBorderImage")));
-	}
-	if (!SelectionBorderImage)
-	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("HighlightBorderImage")));
-	}
-	if (!SelectionBorderImage)
-	{
-		SelectionBorderImage = Cast<UImage>(GetWidgetFromName(TEXT("SelectionHighlightImage")));
+		QuantityTextBlock = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
+			TEXT("QuantityTextBlock"),
+			TEXT("Txt_Quantity"),
+			TEXT("Text_Quantity"),
+			TEXT("QuantityText"),
+			TEXT("ItemCountText")
+		});
 	}
 }
 
@@ -238,4 +278,80 @@ void UItemSlotWidget::ApplySelectionVisual()
 
 	SelectionBorderImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	SelectionBorderImage->SetColorAndOpacity(bIsSelected ? SelectionBorderSelectedColor : SelectionBorderDefaultColor);
+}
+
+bool UItemSlotWidget::IsItemConsumable(const UItemInstance* ItemInstance) const
+{
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
+	const FGameplayTag ConsumableTypeTag = UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
+	return ItemDefinition
+		&& ItemDefinition->IsConsumableDefinition(ConsumableTypeTag);
+}
+
+bool UItemSlotWidget::IsCachedItemConsumable() const
+{
+	return IsItemConsumable(CachedData);
+}
+
+UInventoryComponent* UItemSlotWidget::ResolveOwningInventoryComponent() const
+{
+	const APlayerController* PlayerController = GetOwningPlayer();
+	const APdPlayerState* PlayerState = PlayerController ? PlayerController->GetPlayerState<APdPlayerState>() : nullptr;
+	return PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+}
+
+bool UItemSlotWidget::RequestSplitCachedStack() const
+{
+	if (!CachedData)
+	{
+		return false;
+	}
+
+	if (!IsCachedItemConsumable() || CachedData->Quantity < 2)
+	{
+
+		return false;
+	}
+
+	UInventoryComponent* InventoryComponent = ResolveOwningInventoryComponent();
+	if (!InventoryComponent)
+	{
+
+		return false;
+	}
+
+	const FGuid ItemId = CachedData->GetItemId();
+	const bool bRequested = InventoryComponent->SplitConsumableStack(ItemId);
+
+	return bRequested;
+}
+
+bool UItemSlotWidget::RequestMergeDraggedStack(UDragDropOperation* InOperation) const
+{
+	const UItemSlotDragDropOperation* ItemDragOperation = Cast<UItemSlotDragDropOperation>(InOperation);
+	UItemInstance* SourceItem = ItemDragOperation ? ItemDragOperation->GetItemInstance() : nullptr;
+	if (!SourceItem || !CachedData || SourceItem == CachedData)
+	{
+		return false;
+	}
+
+	const UItemDefinition* SourceDefinition = SourceItem->ItemDefinition.Get();
+	const UItemDefinition* TargetDefinition = CachedData->ItemDefinition.Get();
+	if (!SourceDefinition || SourceDefinition != TargetDefinition || !IsItemConsumable(SourceItem) || !IsCachedItemConsumable())
+	{
+		return false;
+	}
+
+	UInventoryComponent* InventoryComponent = ResolveOwningInventoryComponent();
+	if (!InventoryComponent)
+	{
+
+		return false;
+	}
+
+	const FGuid SourceItemId = SourceItem->GetItemId();
+	const FGuid TargetItemId = CachedData->GetItemId();
+	const bool bRequested = InventoryComponent->MergeConsumableStacks(SourceItemId, TargetItemId);
+
+	return bRequested;
 }

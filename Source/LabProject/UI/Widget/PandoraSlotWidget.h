@@ -24,6 +24,7 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
@@ -60,4 +61,6 @@ private:
 	void RefreshWeaponRequirementImages(const FGameplayTagContainer& RequiredWeaponTags) const;
 	void HideAllWeaponRequirementImages() const;
 	void SetWeaponRequirementImageVisible(UImage* Image, bool bVisible) const;
+
+	bool bIsHoverActive = false;
 };
