@@ -18,10 +18,12 @@ enum class EPdExperienceLoadState : uint8
 	Loading,
 	LoadingGameFeatures,
 	Loaded,
+	Failed,
 	Deactivating
 };
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPdExperienceLoaded, const UExperienceDefinition*);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPdExperienceLoadFailed, FPrimaryAssetId, const FString&);
 
 UCLASS()
 class LABPROJECT_API UExperienceManagerComponent : public UGameStateComponent
@@ -40,9 +42,12 @@ public:
 	//--- Experience API
 	void SetCurrentExperienceAuth(FPrimaryAssetId ExperienceId);
 	bool IsExperienceLoaded() const { return LoadState == EPdExperienceLoadState::Loaded; }
+	bool HasExperienceLoadFailed() const { return LoadState == EPdExperienceLoadState::Failed; }
 	EPdExperienceLoadState GetLoadState() const { return LoadState; }
 	const UExperienceDefinition* GetCurrentExperienceChecked() const;
 	FDelegateHandle CallOrRegister_OnExperienceLoaded(FOnPdExperienceLoaded::FDelegate Delegate);
+	FDelegateHandle CallOrRegister_OnExperienceLoadFailed(FOnPdExperienceLoadFailed::FDelegate Delegate);
+	void RemoveOnExperienceLoaded(FDelegateHandle DelegateHandle);
 
 private:
 	//------------------------------------------------------------------------------------------------------------------
@@ -57,7 +62,9 @@ private:
 	void StartGameFeatureLoads();
 	void HandleGameFeatureLoaded(const UE::GameFeatures::FResult& Result, FString PluginURL);
 	void FinishExperienceLoad();
+	void FailExperienceLoad(FPrimaryAssetId FailedExperienceId, FString FailureMessage);
 	void DeactivateExperience();
+	void ReleaseGameFeaturePluginReferences();
 
 private:
 	//------------------------------------------------------------------------------------------------------------------
@@ -74,5 +81,8 @@ private:
 	TSharedPtr<FStreamableHandle> ExperienceLoadHandle;
 	TArray<FString> GameFeaturePluginURLs;
 	int32 PendingGameFeatureLoadCount = 0;
+	FPrimaryAssetId LastFailedExperienceId;
+	FString LastLoadFailureMessage;
 	FOnPdExperienceLoaded OnExperienceLoaded;
+	FOnPdExperienceLoadFailed OnExperienceLoadFailed;
 };

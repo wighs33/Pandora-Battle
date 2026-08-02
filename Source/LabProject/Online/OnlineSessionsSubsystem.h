@@ -162,6 +162,9 @@ private:
 	void OnEndSessionCompleted(FName SessionName, bool bWasSuccessful);
 	void OnDestroySessionCompleted(FName SessionName, bool bWasSuccessful, uint64 CallbackRequestId);
 	void OnUpdateSessionCompleted(FName SessionName, bool bWasSuccessful);
+	void HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
+	void HandleTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& ErrorString);
+	bool IsExpectedConnectionClose(ENetworkFailure::Type FailureType, const FString& ErrorString) const;
 	IOnlineSubsystem* GetOnlineSubsystemForWorld() const;
 	IOnlineSessionPtr GetSessionManagerForWorld() const;
 	bool RefreshSessionManager();
@@ -188,6 +191,8 @@ private:
 	FDelegateHandle EndSessionCompleteDelegateHandle;
 	FDelegateHandle DestroySessionCompleteDelegateHandle;
 	FDelegateHandle UpdateSessionCompleteDelegateHandle;
+	FDelegateHandle NetworkFailureHandle;
+	FDelegateHandle TravelFailureHandle;
 
 	FString PendingRoomName;
 	FString PendingMapName;

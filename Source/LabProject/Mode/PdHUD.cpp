@@ -1,25 +1,68 @@
 #include "Mode/PdHUD.h"
 
 #include "Blueprint/UserWidget.h"
-#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Components/Widget.h"
 #include "Engine/LocalPlayer.h"
+#include "Kismet/GameplayStatics.h"
 #include "Mode/PdPlayerController.h"
 #include "TimerManager.h"
 #include "UI/InfoUiPresenter.h"
+#include "UI/PdHudUiRouter.h"
 #include "UI/UiSubsystem.h"
+#include "UI/Widget/DamageScreenEffectWidget.h"
+#include "UI/Widget/GoldenKillAnnouncementWidget.h"
+#include "UI/Widget/HudTimerWidget.h"
 #include "UI/Widget/InfoWidget.h"
+#include "UI/Widget/KillLogWidget.h"
+#include "UI/Widget/MenuPopupWidget.h"
 #include "UI/Widget/PlayerVitalsWidget.h"
 #include "UI/Widget/SelectPandoraWidget.h"
 #include "UI/Widget/PandoraTreeWidget.h"
 #include "UI/Widget/RightNotificationsWidget.h"
-#include "UI/WidgetClassDefinition.h"
+#include "UI/Widget/RespawnDelayWidget.h"
+#include "Definition/UI/WidgetClassDefinition.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Editor/TransBuffer.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdHUD)
 
-DEFINE_LOG_CATEGORY_STATIC(LogPdHUD, Log, All);
+namespace
+{
+	EEnum_Direction ResolveSelectPandoraDirectionFromIndex(const int32 Index)
+	{
+		switch (Index)
+		{
+		case 0:
+			return EEnum_Direction::Up;
+		case 1:
+			return EEnum_Direction::Right;
+		case 2:
+			return EEnum_Direction::Down;
+		case 3:
+			return EEnum_Direction::Left;
+		default:
+			return EEnum_Direction::Center;
+		}
+	}
+
+	void ResetEditorTransactionBufferIfContainsPieObjects()
+	{
+#if WITH_EDITOR
+		if (GEditor && GEditor->Trans && GEditor->Trans->ContainsPieObjects())
+		{
+			GEditor->ResetTransaction(NSLOCTEXT(
+				"PdHUD",
+				"TransactionContainedHudPieObject",
+				"A HUD PIE object was in the transaction buffer and had to be destroyed"));
+		}
+#endif
+	}
+}
 
 APdHUD::APdHUD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -37,323 +80,205 @@ void APdHUD::PreInitializeComponents()
 void APdHUD::BeginPlay()
 {
 	Super::BeginPlay();
+	EnsureUiRouter();
 	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(this, UGameFrameworkComponentManager::NAME_GameActorReady);
 }
 
 void APdHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UGameFrameworkComponentManager::RemoveGameFrameworkComponentReceiver(this);
-	ClearInfoUiCloseTimer();
 	RemoveAllUiWidgets();
+	if (UiRouter)
+	{
+		UiRouter->Shutdown();
+		UiRouter = nullptr;
+	}
 	Super::EndPlay(EndPlayReason);
 }
 
 void APdHUD::InitializeUi(UWidgetClassDefinition* InWidgetClassDefinition)
 {
-	if (!InWidgetClassDefinition)
+	UPdHudUiRouter* Router = EnsureUiRouter();
+	if (!Router || !InWidgetClassDefinition)
 	{
 		return;
 	}
 
-	WidgetClassDefinition = InWidgetClassDefinition;
+	const bool bActiveDefinitionChanged =
+		Router->GetActiveDefinition() != InWidgetClassDefinition;
+	if (bActiveDefinitionChanged && Router->GetActiveDefinition())
+	{
+		RemoveAllUiWidgets();
+	}
+
+	Router->AddDefinitionRequest(InWidgetClassDefinition);
 	CreateAllUi();
 }
 
 void APdHUD::DeinitializeUi(const UWidgetClassDefinition* InWidgetClassDefinition)
 {
-	if (!InWidgetClassDefinition || WidgetClassDefinition == InWidgetClassDefinition)
+	if (!UiRouter || !InWidgetClassDefinition)
+	{
+		return;
+	}
+
+	const bool bWasActiveDefinition =
+		UiRouter->GetActiveDefinition() == InWidgetClassDefinition;
+	const bool bActiveDefinitionChanged =
+		UiRouter->RemoveDefinitionRequest(InWidgetClassDefinition);
+	if (bWasActiveDefinition && bActiveDefinitionChanged)
 	{
 		RemoveAllUiWidgets();
-		WidgetClassDefinition = nullptr;
+		if (UiRouter->GetActiveDefinition())
+		{
+			CreateAllUi();
+		}
 	}
+}
+
+void APdHUD::RefreshHudTimerVisibility()
+{
+	ApplyHudTimerVisibility();
 }
 
 void APdHUD::CreateAllUi()
 {
-	APdPlayerController* Controller = GetPdController();
-	if (!Controller || !Controller->IsLocalController() || !WidgetClassDefinition)
+	if (UPdHudUiRouter* Router = EnsureUiRouter())
 	{
-		return;
-	}
-
-	RefreshUiBindings();
-
-	const TSubclassOf<UUserWidget> PlayerHudWidgetClass = WidgetClassDefinition->GetPlayerHudWidgetClass();
-	const TSubclassOf<UInfoWidget> InfoWidgetClass = WidgetClassDefinition->GetInfoWidgetClass();
-	const TSubclassOf<USelectPandoraWidget> SelectPandoraWidgetClass = WidgetClassDefinition->GetSelectPandoraWidgetClass();
-	const TSubclassOf<UUserWidget> AimCrosshairWidgetClass = WidgetClassDefinition->GetAimCrosshairWidgetClass();
-	const TSubclassOf<UPandoraTreeWidget> PandoraTreeWidgetClass = WidgetClassDefinition->GetPandoraTreeWidgetClass();
-	const TSubclassOf<URightNotificationsWidget> RightNotificationsWidgetClass = WidgetClassDefinition->GetRightNotificationsWidgetClass();
-
-	UE_LOG(LogPdHUD, Log,
-		TEXT("[Notification] CreateAllUi. hud=%s controller=%s widgetDefinition=%s rightNotificationClass=%s cachedRightNotification=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(Controller),
-		*GetNameSafe(WidgetClassDefinition),
-		*GetNameSafe(RightNotificationsWidgetClass.Get()),
-		*GetNameSafe(CachedRightNotificationsUI.Get()));
-
-	if (!CachedPlayerHUD && PlayerHudWidgetClass)
-	{
-		CachedPlayerHUD = CreateWidget<UUserWidget>(Controller, PlayerHudWidgetClass);
-	}
-
-	if (CachedPlayerHUD && !CachedPlayerHUD->IsInViewport())
-	{
-		CachedPlayerHUD->AddToViewport();
-	}
-	ApplyStatusViewModelToPlayerHud();
-
-	if (!CachedInfoUI && InfoWidgetClass)
-	{
-		CachedInfoUI = CreateWidget<UInfoWidget>(Controller, InfoWidgetClass);
-	}
-
-	if (!CachedSelectPandoraUI && SelectPandoraWidgetClass)
-	{
-		CachedSelectPandoraUI = CreateWidget<USelectPandoraWidget>(Controller, SelectPandoraWidgetClass);
-	}
-
-	if (!AimCrosshairWidget && AimCrosshairWidgetClass)
-	{
-		AimCrosshairWidget = CreateWidget<UUserWidget>(Controller, AimCrosshairWidgetClass);
-	}
-
-	if (!CachedPandoraTreeUI && PandoraTreeWidgetClass)
-	{
-		CachedPandoraTreeUI = CreateWidget<UPandoraTreeWidget>(Controller, PandoraTreeWidgetClass);
-	}
-
-	if (!CachedRightNotificationsUI && RightNotificationsWidgetClass)
-	{
-		CachedRightNotificationsUI = CreateWidget<URightNotificationsWidget>(Controller, RightNotificationsWidgetClass);
-		UE_LOG(LogPdHUD, Log,
-			TEXT("[Notification] created RightNotifications widget. class=%s widget=%s"),
-			*GetNameSafe(RightNotificationsWidgetClass.Get()),
-			*GetNameSafe(CachedRightNotificationsUI.Get()));
-	}
-	else if (!RightNotificationsWidgetClass)
-	{
-		UE_LOG(LogPdHUD, Warning,
-			TEXT("[Notification] RightNotificationsWidgetClass is not set. widgetDefinition=%s"),
-			*GetNameSafe(WidgetClassDefinition));
-	}
-
-	if (CachedRightNotificationsUI && !CachedRightNotificationsUI->IsInViewport())
-	{
-		CachedRightNotificationsUI->AddToViewport(20);
-		UE_LOG(LogPdHUD, Log,
-			TEXT("[Notification] RightNotifications widget added to viewport. widget=%s"),
-			*GetNameSafe(CachedRightNotificationsUI.Get()));
-	}
-
-	if (CachedInfoUI)
-	{
-		CachedInfoUI->OnClickedInfoCenterButton.Clear();
-		if (UInfoUiPresenter* InfoUiPresenter = GetInfoUiPresenter())
-		{
-			InfoUiPresenter->BindInfoUi(CachedInfoUI);
-			CachedInfoUI->OnClickedInfoCenterButton.AddUniqueDynamic(InfoUiPresenter, &UInfoUiPresenter::HandleClickedInfoCenterButton);
-		}
-
-		if (URightStatusWidget* RightStatusWidget = CachedInfoUI->GetRightStatusWidget())
-		{
-			ApplyStatusViewModelToWidget(RightStatusWidget);
-		}
-	}
-
-	if (CachedSelectPandoraUI)
-	{
-		CachedSelectPandoraUI->OnSelected.Clear();
-		if (UInfoUiPresenter* InfoUiPresenter = GetInfoUiPresenter())
-		{
-			CachedSelectPandoraUI->OnSelected.AddUniqueDynamic(InfoUiPresenter, &UInfoUiPresenter::HandleSelectedPandoraDirection);
-		}
+		Router->EnsureCoreLayers();
 	}
 }
 
-void APdHUD::OpenInfoUi()
+void APdHUD::OpenInfoUiFocused(const EPdInfoUiSection Section)
 {
-	ClearInfoUiCloseTimer();
-
-	APdPlayerController* Controller = GetPdController();
-	if (!Controller)
+	UPdHudUiRouter* Router = EnsureUiRouter();
+	if (!Router)
 	{
 		return;
 	}
 
-	if (!CachedInfoUI)
+	const bool bWasInfoReadyForSectionChange =
+		CachedInfoUI
+		&& CachedInfoUI->IsInViewport()
+		&& !Router->IsInfoClosing()
+		&& !Router->IsSettingsMenuOpen();
+	if (bWasInfoReadyForSectionChange
+		&& CachedInfoUI->GetFocusedSection() == Section)
 	{
-		CreateAllUi();
-	}
-
-	if (!CachedInfoUI)
-	{
+		Router->CloseInfo();
 		return;
 	}
 
-	CachedInfoUI->OnClickedInfoCenterButton.Clear();
-	UInfoUiPresenter* InfoUiPresenter = GetInfoUiPresenter();
-	if (InfoUiPresenter)
+	if (!bWasInfoReadyForSectionChange)
 	{
-		InfoUiPresenter->BindInfoUi(CachedInfoUI);
-		CachedInfoUI->OnClickedInfoCenterButton.AddUniqueDynamic(InfoUiPresenter, &UInfoUiPresenter::HandleClickedInfoCenterButton);
+		Router->OpenInfo();
 	}
 
-	if (URightStatusWidget* RightStatusWidget = CachedInfoUI->GetRightStatusWidget())
+	if (CachedInfoUI && CachedInfoUI->IsInViewport())
 	{
-		ApplyStatusViewModelToWidget(RightStatusWidget);
+		CachedInfoUI->FocusSection(Section, bWasInfoReadyForSectionChange);
 	}
-
-	if (CachedPlayerHUD)
-	{
-		CachedPlayerHUD->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	CachedInfoUI->AddToViewport();
-	ToggleUiMode(true);
-	CachedInfoUI->ShowInfoUi();
-
-	UE_LOG(LogPdHUD, Log,
-		TEXT("[InfoAnimation] OpenInfoUi widget=%s inViewport=%s visibility=%s"),
-		*GetNameSafe(CachedInfoUI.Get()),
-		CachedInfoUI->IsInViewport() ? TEXT("true") : TEXT("false"),
-		*UEnum::GetValueAsString(CachedInfoUI->GetVisibility()));
-
-	if (InfoUiPresenter)
-	{
-		InfoUiPresenter->HandleOpenedInfoUi();
-	}
-
-	CachedInfoUI->SelectProfileTab();
 }
 
 void APdHUD::CloseInfoUi()
 {
-	if (!CachedInfoUI)
+	if (UiRouter)
 	{
-		if (CachedPlayerHUD)
-		{
-			CachedPlayerHUD->SetVisibility(ESlateVisibility::Visible);
-		}
-		ToggleUiMode(false);
-		return;
+		UiRouter->CloseInfo();
 	}
+}
 
-	ClearInfoUiCloseTimer();
-	CachedInfoUI->HideInfoUi();
-
-	const float HideAnimationDelay = CachedInfoUI->GetHideAnimationDelay();
-	UE_LOG(LogPdHUD, Log,
-		TEXT("[InfoAnimation] CloseInfoUi widget=%s hideDelay=%.3f inViewport=%s visibility=%s"),
-		*GetNameSafe(CachedInfoUI.Get()),
-		HideAnimationDelay,
-		CachedInfoUI->IsInViewport() ? TEXT("true") : TEXT("false"),
-		*UEnum::GetValueAsString(CachedInfoUI->GetVisibility()));
-
-	if (HideAnimationDelay > 0.0f)
+void APdHUD::CloseInfoUiInternal(const bool bSuppressCameraReturn, const bool bImmediate)
+{
+	if (UiRouter)
 	{
-		GetWorldTimerManager().SetTimer(
-			InfoUiCloseTimerHandle,
-			this,
-			&ThisClass::FinishCloseInfoUi,
-			HideAnimationDelay,
-			false);
-		return;
+		UiRouter->CloseInfo(bSuppressCameraReturn, bImmediate);
 	}
-
-	FinishCloseInfoUi();
 }
 
 void APdHUD::ToggleInfoUi()
 {
-	if (CachedInfoUI && CachedInfoUI->IsInViewport())
+	if (UPdHudUiRouter* Router = EnsureUiRouter())
 	{
-		CloseInfoUi();
-		return;
+		Router->ToggleInfo();
 	}
-
-	OpenInfoUi();
 }
 
 void APdHUD::OpenPandoraTreeUi()
 {
-	APdPlayerController* Controller = GetPdController();
-	if (!Controller)
+	if (UPdHudUiRouter* Router = EnsureUiRouter())
 	{
-		return;
+		Router->OpenPandoraTree();
 	}
-
-	if (!CachedPandoraTreeUI)
-	{
-		CreateAllUi();
-	}
-
-	if (!CachedPandoraTreeUI)
-	{
-		return;
-	}
-
-	if (!CachedPandoraTreeUI->IsInViewport())
-	{
-		CachedPandoraTreeUI->AddToViewport();
-	}
-
-	CachedPandoraTreeUI->ShowPandoraTree();
 }
 
 void APdHUD::ClosePandoraTreeUi()
 {
-	if (CachedPandoraTreeUI)
+	if (UiRouter)
 	{
-		CachedPandoraTreeUI->HidePandoraTree();
+		UiRouter->ClosePandoraTree();
+	}
+}
+
+void APdHUD::ClosePandoraTreeUiInternal(const bool bSuppressCameraReturn, const bool bImmediate)
+{
+	if (UiRouter)
+	{
+		UiRouter->ClosePandoraTree(bSuppressCameraReturn, bImmediate);
 	}
 }
 
 void APdHUD::TogglePandoraTreeUi()
 {
-	if (CachedPandoraTreeUI && CachedPandoraTreeUI->IsInViewport())
+	if (UPdHudUiRouter* Router = EnsureUiRouter())
 	{
-		ClosePandoraTreeUi();
-		return;
+		Router->TogglePandoraTree();
 	}
-
-	OpenPandoraTreeUi();
 }
 
 void APdHUD::ToggleUiMode(bool bOn)
 {
-	APdPlayerController* Controller = GetPdController();
-	if (!Controller)
+	UPdHudUiRouter* Router = EnsureUiRouter();
+	if (!Router)
 	{
 		return;
 	}
 
+	RefreshPlayerHudVisibility();
+
 	if (bOn)
 	{
 		UWidget* WidgetToFocus = nullptr;
-		if (CachedSelectPandoraUI && CachedSelectPandoraUI->IsInViewport())
+		bool bPreserveGameplayInputMode = false;
+		if (UMenuPopupWidget* SettingsMenuWidget = GetActiveSettingsMenuWidget())
+		{
+			if (UWidget* GuideWidget = SettingsMenuWidget->GetActiveGuideWidget())
+			{
+				WidgetToFocus = GuideWidget;
+			}
+			else if (SettingsMenuWidget->IsInViewport())
+			{
+				WidgetToFocus = SettingsMenuWidget;
+			}
+		}
+		else if (CachedSelectPandoraUI && CachedSelectPandoraUI->IsInViewport())
 		{
 			WidgetToFocus = CachedSelectPandoraUI;
+			bPreserveGameplayInputMode = true;
 		}
-		else if (CachedInfoUI && CachedInfoUI->IsInViewport())
+		else if (CachedInfoUI && !Router->IsInfoClosing() && CachedInfoUI->IsInViewport())
 		{
 			WidgetToFocus = CachedInfoUI;
 		}
-		else if (CachedPandoraTreeUI && CachedPandoraTreeUI->IsInViewport())
+		else if (CachedPandoraTreeUI && !Router->IsPandoraTreeClosing() && CachedPandoraTreeUI->IsInViewport())
 		{
 			WidgetToFocus = CachedPandoraTreeUI;
 		}
 
-		UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(Controller, WidgetToFocus, EMouseLockMode::DoNotLock, false, false);
-		Controller->bShowMouseCursor = true;
-		Controller->bEnableClickEvents = true;
-		Controller->bEnableMouseOverEvents = true;
-
-		int32 ViewportSizeX = 0;
-		int32 ViewportSizeY = 0;
-		Controller->GetViewportSize(ViewportSizeX, ViewportSizeY);
-		Controller->SetMouseLocation(ViewportSizeX / 2, ViewportSizeY / 2);
+		Router->RouteInput(
+			WidgetToFocus,
+			bPreserveGameplayInputMode,
+			WidgetToFocus != CachedInfoUI.Get());
 		return;
 	}
 
@@ -363,17 +288,25 @@ void APdHUD::ToggleUiMode(bool bOn)
 		return;
 	}
 
-	UWidgetBlueprintLibrary::SetInputMode_GameOnly(Controller, false);
-	Controller->bShowMouseCursor = false;
-	Controller->bEnableClickEvents = false;
-	Controller->bEnableMouseOverEvents = false;
+	Router->ReleaseInput();
 }
 
 bool APdHUD::IsGameplayInputBlockedByUi() const
 {
-	return (CachedInfoUI && CachedInfoUI->IsInViewport())
+	return IsPlayerHudSuppressedByUi();
+}
+
+bool APdHUD::IsPlayerHudSuppressedByUi() const
+{
+	return (UiRouter && UiRouter->IsScreenLayerBlockingGameplayInput())
 		|| (CachedSelectPandoraUI && CachedSelectPandoraUI->IsInViewport())
-		|| (CachedPandoraTreeUI && CachedPandoraTreeUI->IsInViewport());
+		|| (UiRouter && UiRouter->IsSettingsMenuOpen())
+		|| (UiRouter && UiRouter->IsScoreboardOpen());
+}
+
+bool APdHUD::IsSelectPandoraUiOpen() const
+{
+	return CachedSelectPandoraUI && CachedSelectPandoraUI->IsInViewport();
 }
 
 void APdHUD::OpenSelectPandoraUi()
@@ -390,19 +323,37 @@ void APdHUD::OpenSelectPandoraUi()
 
 	CachedSelectPandoraUI->AddToViewport();
 	SetActorTickEnabled(true);
+	// The router changes cursor state without changing Enhanced Input mode, so
+	// the held selection action does not complete on the following frame.
 	ToggleUiMode(true);
 }
 
-void APdHUD::CloseSelectPandoraUi()
+bool APdHUD::CloseSelectPandoraUi()
 {
+	return CloseSelectPandoraUiInternal(true);
+}
+
+bool APdHUD::CloseSelectPandoraUiInternal(const bool bCommitSelection)
+{
+	bool bSelectionWouldChangeLoadout = false;
 	if (CachedSelectPandoraUI)
 	{
-		CachedSelectPandoraUI->SetDirection(CachedDirIndex);
+		if (bCommitSelection)
+		{
+			const EEnum_Direction SelectedDirection = ResolveSelectPandoraDirectionFromIndex(CachedDirIndex);
+			if (UInfoUiPresenter* InfoUiPresenter = GetInfoUiPresenter())
+			{
+				bSelectionWouldChangeLoadout = InfoUiPresenter->WouldSelectedPandoraDirectionChangeLoadout(SelectedDirection);
+			}
+
+			CachedSelectPandoraUI->SetDirection(CachedDirIndex);
+		}
 		CachedSelectPandoraUI->RemoveFromParent();
 	}
 
 	SetActorTickEnabled(false);
 	ToggleUiMode(false);
+	return bSelectionWouldChangeLoadout;
 }
 
 void APdHUD::UpdateSelectPandoraDirectionFromMouse()
@@ -446,82 +397,222 @@ void APdHUD::UpdateSelectPandoraDirectionFromMouse()
 
 void APdHUD::ShowAimCrosshair(FGameplayTag DesiredCrosshairWidgetTag)
 {
-	APdPlayerController* Controller = GetPdController();
-	if (!Controller || !WidgetClassDefinition)
+	if (UPdHudUiRouter* Router = EnsureUiRouter())
 	{
-		return;
-	}
-
-	TSubclassOf<UUserWidget> DesiredCrosshairWidgetClass = WidgetClassDefinition->FindWidgetClassByTag(DesiredCrosshairWidgetTag);
-	if (!DesiredCrosshairWidgetClass)
-	{
-		DesiredCrosshairWidgetClass = WidgetClassDefinition->GetAimCrosshairWidgetClass();
-	}
-
-	if (!DesiredCrosshairWidgetClass)
-	{
-		return;
-	}
-
-	if (!AimCrosshairWidget || AimCrosshairWidget->GetClass() != DesiredCrosshairWidgetClass)
-	{
-		HideAimCrosshair();
-		AimCrosshairWidget = CreateWidget<UUserWidget>(Controller, DesiredCrosshairWidgetClass);
-	}
-
-	if (AimCrosshairWidget && !AimCrosshairWidget->IsInViewport())
-	{
-		AimCrosshairWidget->AddToViewport();
+		Router->ShowAimCrosshair(DesiredCrosshairWidgetTag);
 	}
 }
 
 void APdHUD::HideAimCrosshair()
 {
-	if (AimCrosshairWidget)
+	if (UiRouter)
 	{
-		AimCrosshairWidget->RemoveFromParent();
+		UiRouter->HideAimCrosshair();
 	}
 }
 
 void APdHUD::ShowRightNotification(const FPdNotificationData& NotificationData)
 {
-	UE_LOG(LogPdHUD, Log,
-		TEXT("[Notification] ShowRightNotification. hud=%s cachedWidget=%s inViewport=%s text=%s icon=%s"),
-		*GetNameSafe(this),
-		*GetNameSafe(CachedRightNotificationsUI.Get()),
-		CachedRightNotificationsUI && CachedRightNotificationsUI->IsInViewport() ? TEXT("true") : TEXT("false"),
-		*NotificationData.Text.ToString(),
-		*GetNameSafe(NotificationData.IconResource));
+
 
 	if (!CachedRightNotificationsUI)
 	{
-		UE_LOG(LogPdHUD, Log,
-			TEXT("[Notification] cached RightNotifications widget missing, calling CreateAllUi. hud=%s"),
-			*GetNameSafe(this));
+
 		CreateAllUi();
 	}
 
 	if (!CachedRightNotificationsUI)
 	{
-		UE_LOG(LogPdHUD, Warning,
-			TEXT("[Notification] skipped: RightNotificationsWidgetClass is not set. text=%s"),
-			*NotificationData.Text.ToString());
+
 		return;
 	}
 
 	if (!CachedRightNotificationsUI->IsInViewport())
 	{
 		CachedRightNotificationsUI->AddToViewport(20);
-		UE_LOG(LogPdHUD, Log,
-			TEXT("[Notification] RightNotifications widget re-added to viewport. widget=%s"),
-			*GetNameSafe(CachedRightNotificationsUI.Get()));
+
 	}
 
-	UE_LOG(LogPdHUD, Log,
-		TEXT("[Notification] enqueue to RightNotifications widget. widget=%s text=%s"),
-		*GetNameSafe(CachedRightNotificationsUI.Get()),
-		*NotificationData.Text.ToString());
+
 	CachedRightNotificationsUI->EnqueueNotification(NotificationData);
+}
+
+void APdHUD::ShowDamageScreenEffect(float DamageAmount)
+{
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	if (!CachedPlayerHUD)
+	{
+		CreateAllUi();
+	}
+
+	UDamageScreenEffectWidget* DamageScreenEffectWidget = FindDamageScreenEffectWidget();
+	if (!DamageScreenEffectWidget)
+	{
+
+		return;
+	}
+
+	DamageScreenEffectWidget->PlayDamageScreenEffect(DamageAmount);
+}
+
+void APdHUD::ShowGoldenKillAnnouncement(const FText& AnnouncementText)
+{
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	if (!CachedPlayerHUD)
+	{
+		CreateAllUi();
+	}
+
+	UGoldenKillAnnouncementWidget* GoldenKillWidget = FindGoldenKillAnnouncementWidget();
+	if (!GoldenKillWidget)
+	{
+
+		return;
+	}
+
+	GoldenKillWidget->PlayGoldenKillAnnouncement(AnnouncementText);
+}
+
+void APdHUD::AddKillLogEntry(const FKillLogEntry& KillLogEntry)
+{
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	if (!CachedPlayerHUD)
+	{
+		CreateAllUi();
+	}
+
+	UKillLogWidget* KillLogWidget = FindKillLogWidget();
+	if (!KillLogWidget)
+	{
+
+		return;
+	}
+
+	KillLogWidget->AddKillLogEntry(KillLogEntry);
+}
+
+void APdHUD::ShowRespawnDelay(const float DelaySeconds)
+{
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	if (!CachedPlayerHUD)
+	{
+		CreateAllUi();
+	}
+
+	URespawnDelayWidget* RespawnDelayWidget = FindRespawnDelayWidget();
+	if (!RespawnDelayWidget)
+	{
+
+		return;
+	}
+
+	RespawnDelayWidget->StartRespawnDelay(DelaySeconds);
+}
+
+void APdHUD::HideRespawnDelay()
+{
+	if (URespawnDelayWidget* RespawnDelayWidget = FindRespawnDelayWidget())
+	{
+		RespawnDelayWidget->HideRespawnDelay();
+	}
+}
+
+void APdHUD::ShowInGameScoreboard()
+{
+	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	{
+		Router->ShowScoreboard();
+	}
+}
+
+void APdHUD::HideInGameScoreboard()
+{
+	if (UiRouter)
+	{
+		UiRouter->HideScoreboard();
+	}
+}
+
+void APdHUD::RefreshInGameScoreboard()
+{
+	if (UiRouter)
+	{
+		UiRouter->RefreshScoreboard();
+	}
+}
+
+void APdHUD::OpenSettingsMenu()
+{
+	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	{
+		Router->OpenSettingsMenu();
+	}
+}
+
+void APdHUD::ToggleSettingsMenu()
+{
+	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	{
+		Router->ToggleSettingsMenu();
+	}
+}
+
+bool APdHUD::HandleEscapeInput()
+{
+	if (UiRouter && UiRouter->IsSettingsMenuOpen())
+	{
+		if (UMenuPopupWidget* SettingsMenuWidget = GetActiveSettingsMenuWidget();
+			SettingsMenuWidget && SettingsMenuWidget->CloseGuide())
+		{
+			return true;
+		}
+
+		CloseActiveSettingsMenuPopup();
+		return true;
+	}
+
+	if (CachedSelectPandoraUI && CachedSelectPandoraUI->IsInViewport())
+	{
+		CloseSelectPandoraUiInternal(false);
+		return true;
+	}
+
+	if (CachedInfoUI && CachedInfoUI->IsInViewport())
+	{
+		if (!UiRouter || !UiRouter->IsInfoClosing())
+		{
+			CloseInfoUi();
+		}
+		return true;
+	}
+
+	if (CachedPandoraTreeUI && CachedPandoraTreeUI->IsInViewport())
+	{
+		if (!UiRouter || !UiRouter->IsPandoraTreeClosing())
+		{
+			ClosePandoraTreeUi();
+		}
+		return true;
+	}
+
+	OpenSettingsMenu();
+	return UiRouter && UiRouter->IsSettingsMenuOpen();
 }
 
 void APdHUD::RefreshUiBindings()
@@ -532,10 +623,10 @@ void APdHUD::RefreshUiBindings()
 	}
 }
 
-void APdHUD::OnOpenInfoUiInputStarted(const FInputActionValue& InputValue)
+void APdHUD::OnOpenSettingsMenuInputStarted(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
-	ToggleInfoUi();
+	ToggleSettingsMenu();
 }
 
 void APdHUD::OnSelectPandoraInputStarted(const FInputActionValue& InputValue)
@@ -544,10 +635,10 @@ void APdHUD::OnSelectPandoraInputStarted(const FInputActionValue& InputValue)
 	OpenSelectPandoraUi();
 }
 
-void APdHUD::OnSelectPandoraInputEnded(const FInputActionValue& InputValue)
+bool APdHUD::OnSelectPandoraInputEnded(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
-	CloseSelectPandoraUi();
+	return CloseSelectPandoraUi();
 }
 
 void APdHUD::OnPandoraTreeInputStarted(const FInputActionValue& InputValue)
@@ -567,6 +658,19 @@ APdPlayerController* APdHUD::GetPdController() const
 	return Cast<APdPlayerController>(GetOwningPlayerController());
 }
 
+UPdHudUiRouter* APdHUD::EnsureUiRouter()
+{
+	if (!UiRouter)
+	{
+		UiRouter = NewObject<UPdHudUiRouter>(this);
+		if (UiRouter)
+		{
+			UiRouter->Initialize(this);
+		}
+	}
+	return UiRouter;
+}
+
 UInfoUiPresenter* APdHUD::GetInfoUiPresenter()
 {
 	if (CachedInfoUiPresenter)
@@ -574,7 +678,8 @@ UInfoUiPresenter* APdHUD::GetInfoUiPresenter()
 		return CachedInfoUiPresenter;
 	}
 
-	const TSubclassOf<UInfoUiPresenter> PresenterClass = WidgetClassDefinition ? WidgetClassDefinition->GetInfoWidgetSettings().PresenterClass : nullptr;
+	const TSubclassOf<UInfoUiPresenter> PresenterClass =
+		WidgetClassDefinition ? WidgetClassDefinition->GetInfoPresenterClass() : nullptr;
 	APdPlayerController* Controller = GetPdController();
 	if (!Controller || !PresenterClass)
 	{
@@ -602,6 +707,16 @@ bool APdHUD::ApplyStatusViewModelToWidget(UUserWidget* InWidget)
 	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
 	{
 		return UiSubsystem->ApplyStatusViewModelToWidget(InWidget);
+	}
+
+	return false;
+}
+
+bool APdHUD::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
+{
+	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
+	{
+		return UiSubsystem->ApplyStatusViewModelToWidgetTree(RootWidget);
 	}
 
 	return false;
@@ -672,71 +787,371 @@ void APdHUD::ApplyStatusViewModelToPlayerHudRecursive(UUserWidget* RootWidget, b
 	});
 }
 
+UDamageScreenEffectWidget* APdHUD::FindDamageScreenEffectWidget()
+{
+	if (CachedDamageScreenEffectWidget)
+	{
+		return CachedDamageScreenEffectWidget;
+	}
+
+	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	if (UDamageScreenEffectWidget* NamedWidget = Cast<UDamageScreenEffectWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("WBP_DamageScreenEffect"))))
+	{
+		CachedDamageScreenEffectWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	if (UDamageScreenEffectWidget* NamedWidget = Cast<UDamageScreenEffectWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("DamageScreenEffect"))))
+	{
+		CachedDamageScreenEffectWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	UDamageScreenEffectWidget* FoundWidget = nullptr;
+	CachedPlayerHUD->WidgetTree->ForEachWidget([&FoundWidget](UWidget* Widget)
+	{
+		if (!FoundWidget)
+		{
+			FoundWidget = Cast<UDamageScreenEffectWidget>(Widget);
+		}
+	});
+
+	CachedDamageScreenEffectWidget = FoundWidget;
+	return FoundWidget;
+}
+
+UGoldenKillAnnouncementWidget* APdHUD::FindGoldenKillAnnouncementWidget()
+{
+	if (CachedGoldenKillAnnouncementWidget)
+	{
+		return CachedGoldenKillAnnouncementWidget;
+	}
+
+	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	if (UGoldenKillAnnouncementWidget* NamedWidget = Cast<UGoldenKillAnnouncementWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("WBP_GoldenKillAnnouncement"))))
+	{
+		CachedGoldenKillAnnouncementWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	if (UGoldenKillAnnouncementWidget* NamedWidget = Cast<UGoldenKillAnnouncementWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("GoldenKillAnnouncement"))))
+	{
+		CachedGoldenKillAnnouncementWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	if (UGoldenKillAnnouncementWidget* NamedWidget = Cast<UGoldenKillAnnouncementWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("GoldenKillText"))))
+	{
+		CachedGoldenKillAnnouncementWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	UGoldenKillAnnouncementWidget* FoundWidget = nullptr;
+	CachedPlayerHUD->WidgetTree->ForEachWidget([&FoundWidget](UWidget* Widget)
+	{
+		if (!FoundWidget)
+		{
+			FoundWidget = Cast<UGoldenKillAnnouncementWidget>(Widget);
+		}
+	});
+
+	CachedGoldenKillAnnouncementWidget = FoundWidget;
+	return FoundWidget;
+}
+
+UKillLogWidget* APdHUD::FindKillLogWidget()
+{
+	if (CachedKillLogWidget)
+	{
+		return CachedKillLogWidget;
+	}
+
+	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	if (UKillLogWidget* NamedWidget = Cast<UKillLogWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("WBP_KillLog"))))
+	{
+		CachedKillLogWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	if (UKillLogWidget* NamedWidget = Cast<UKillLogWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("KillLog"))))
+	{
+		CachedKillLogWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	UKillLogWidget* FoundWidget = nullptr;
+	CachedPlayerHUD->WidgetTree->ForEachWidget([&FoundWidget](UWidget* Widget)
+	{
+		if (!FoundWidget)
+		{
+			FoundWidget = Cast<UKillLogWidget>(Widget);
+		}
+	});
+
+	CachedKillLogWidget = FoundWidget;
+	return FoundWidget;
+}
+
+UHudTimerWidget* APdHUD::FindHudTimerWidget()
+{
+	if (CachedHudTimerWidget)
+	{
+		return CachedHudTimerWidget;
+	}
+
+	if (!CachedPlayerHUD)
+	{
+		CreateAllUi();
+	}
+
+	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	if (UHudTimerWidget* NamedWidget = Cast<UHudTimerWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("WBP_HudTimer"))))
+	{
+		CachedHudTimerWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	if (UHudTimerWidget* NamedWidget = Cast<UHudTimerWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("HudTimer"))))
+	{
+		CachedHudTimerWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	if (UHudTimerWidget* NamedWidget = Cast<UHudTimerWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("TimerWidget"))))
+	{
+		CachedHudTimerWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	UHudTimerWidget* FoundWidget = nullptr;
+	CachedPlayerHUD->WidgetTree->ForEachWidget([&FoundWidget](UWidget* Widget)
+	{
+		if (!FoundWidget)
+		{
+			FoundWidget = Cast<UHudTimerWidget>(Widget);
+		}
+	});
+
+	CachedHudTimerWidget = FoundWidget;
+	return FoundWidget;
+}
+
+URespawnDelayWidget* APdHUD::FindRespawnDelayWidget()
+{
+	if (CachedRespawnDelayWidget)
+	{
+		return CachedRespawnDelayWidget;
+	}
+
+	if (!CachedPlayerHUD)
+	{
+		CreateAllUi();
+	}
+
+	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	if (URespawnDelayWidget* NamedWidget = Cast<URespawnDelayWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("WBP_RespawnDelay"))))
+	{
+		CachedRespawnDelayWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	if (URespawnDelayWidget* NamedWidget = Cast<URespawnDelayWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("RespawnDelay"))))
+	{
+		CachedRespawnDelayWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	if (URespawnDelayWidget* NamedWidget = Cast<URespawnDelayWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("RespawnDelayWidget"))))
+	{
+		CachedRespawnDelayWidget = NamedWidget;
+		return NamedWidget;
+	}
+
+	URespawnDelayWidget* FoundWidget = nullptr;
+	CachedPlayerHUD->WidgetTree->ForEachWidget([&FoundWidget](UWidget* Widget)
+	{
+		if (!FoundWidget)
+		{
+			FoundWidget = Cast<URespawnDelayWidget>(Widget);
+		}
+	});
+
+	CachedRespawnDelayWidget = FoundWidget;
+	return FoundWidget;
+}
+
+bool APdHUD::IsTrainingRoomMap() const
+{
+	if (!WidgetClassDefinition)
+	{
+		return false;
+	}
+
+	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
+	for (const FName TrainingMapName : WidgetClassDefinition->GetTrainingRoomMapNames())
+	{
+		if (TrainingMapName.IsNone())
+		{
+			continue;
+		}
+
+		if (CurrentLevelName.Equals(TrainingMapName.ToString(), ESearchCase::IgnoreCase))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void APdHUD::RefreshTrainingRoomUiPause(const UUserWidget* IgnoredWidget)
+{
+	if (UiRouter)
+	{
+		UiRouter->RefreshTrainingRoomPause(IgnoredWidget);
+	}
+}
+
+bool APdHUD::ShouldSuppressHudTimer()
+{
+	const UHudTimerWidget* HudTimerWidget = FindHudTimerWidget();
+	return HudTimerWidget && HudTimerWidget->ShouldSuppressTimer();
+}
+
+void APdHUD::ApplyHudTimerVisibility()
+{
+	UHudTimerWidget* HudTimerWidget = FindHudTimerWidget();
+	if (!HudTimerWidget)
+	{
+		return;
+	}
+
+	if (ShouldSuppressHudTimer())
+	{
+		HudTimerWidget->StopTimer(true);
+		HudTimerWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+		return;
+	}
+
+	if (HudTimerWidget->GetVisibility() == ESlateVisibility::Collapsed)
+	{
+		HudTimerWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	HudTimerWidget->StartTimer();
+}
+
 void APdHUD::RetryApplyStatusViewModelToPlayerHud()
 {
 	ApplyStatusViewModelToPlayerHud();
 }
 
-void APdHUD::FinishCloseInfoUi()
+void APdHUD::HandleSettingsMenuLayerClosed()
 {
-	ClearInfoUiCloseTimer();
+	RefreshTrainingRoomUiPause();
+	RefreshPlayerHudVisibility();
 
-	if (CachedInfoUI)
+	if (CachedInfoUI && (!UiRouter || !UiRouter->IsInfoClosing()) && CachedInfoUI->IsInViewport())
 	{
-		UE_LOG(LogPdHUD, Log,
-			TEXT("[InfoAnimation] FinishCloseInfoUi widget=%s inViewportBeforeRemove=%s"),
-			*GetNameSafe(CachedInfoUI.Get()),
-			CachedInfoUI->IsInViewport() ? TEXT("true") : TEXT("false"));
-		CachedInfoUI->RemoveFromParent();
-	}
-
-	if (CachedPlayerHUD)
-	{
-		CachedPlayerHUD->SetVisibility(ESlateVisibility::Visible);
+		RestoreInfoUiInputMode();
+		GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::RestoreInfoUiInputMode);
+		return;
 	}
 
 	ToggleUiMode(false);
 }
 
-void APdHUD::ClearInfoUiCloseTimer()
+void APdHUD::CloseActiveSettingsMenuPopup()
 {
-	GetWorldTimerManager().ClearTimer(InfoUiCloseTimerHandle);
+	if (UiRouter)
+	{
+		UiRouter->CloseSettingsMenu();
+	}
+}
+
+UMenuPopupWidget* APdHUD::GetActiveSettingsMenuWidget() const
+{
+	return UiRouter ? UiRouter->GetSettingsMenuWidget() : nullptr;
+}
+
+void APdHUD::RestoreInfoUiInputMode()
+{
+	if (!CachedInfoUI || (UiRouter && UiRouter->IsInfoClosing()) || !CachedInfoUI->IsInViewport())
+	{
+		return;
+	}
+
+	ToggleUiMode(true);
+}
+
+void APdHUD::ApplyInventoryWidgetSettings()
+{
+	if (!CachedInfoUI || !WidgetClassDefinition)
+	{
+		return;
+	}
+
+	URightInventoryWidget* RightInventoryWidget = CachedInfoUI->GetRightInventoryWidget();
+	if (!RightInventoryWidget)
+	{
+		return;
+	}
+
+	const bool bTrainingRoom = IsTrainingRoomMap();
+	const int32 InventoryItemCountLimit = WidgetClassDefinition->GetInventoryItemCountLimit(bTrainingRoom);
+	RightInventoryWidget->SetInventorySlotCount(InventoryItemCountLimit);
+
+
+}
+
+void APdHUD::RefreshPlayerHudVisibility()
+{
+	if (!CachedPlayerHUD)
+	{
+		return;
+	}
+
+	CachedPlayerHUD->SetVisibility(
+		IsPlayerHudSuppressedByUi()
+			? ESlateVisibility::Collapsed
+			: ESlateVisibility::Visible);
 }
 
 void APdHUD::RemoveAllUiWidgets()
 {
+	ResetEditorTransactionBufferIfContainsPieObjects();
+
 	HideAimCrosshair();
-	ClearInfoUiCloseTimer();
 	GetWorldTimerManager().ClearTimer(PlayerHudStatusViewModelRetryTimerHandle);
+	CachedDamageScreenEffectWidget = nullptr;
+	CachedGoldenKillAnnouncementWidget = nullptr;
+	CachedKillLogWidget = nullptr;
+	CachedHudTimerWidget = nullptr;
+	CachedRespawnDelayWidget = nullptr;
 
-	if (CachedPlayerHUD)
+	if (UiRouter)
 	{
-		CachedPlayerHUD->RemoveFromParent();
-		CachedPlayerHUD = nullptr;
-	}
-
-	if (CachedInfoUI)
-	{
-		CachedInfoUI->RemoveFromParent();
-		CachedInfoUI = nullptr;
-	}
-
-	if (CachedSelectPandoraUI)
-	{
-		CachedSelectPandoraUI->RemoveFromParent();
-		CachedSelectPandoraUI = nullptr;
-	}
-
-	if (CachedPandoraTreeUI)
-	{
-		CachedPandoraTreeUI->RemoveFromParent();
-		CachedPandoraTreeUI = nullptr;
-	}
-
-	if (CachedRightNotificationsUI)
-	{
-		CachedRightNotificationsUI->RemoveFromParent();
-		CachedRightNotificationsUI = nullptr;
+		UiRouter->ResetLayers();
 	}
 
 	if (CachedInfoUiPresenter)
@@ -744,4 +1159,6 @@ void APdHUD::RemoveAllUiWidgets()
 		CachedInfoUiPresenter->Deinitialize();
 		CachedInfoUiPresenter = nullptr;
 	}
+
+	ResetEditorTransactionBufferIfContainsPieObjects();
 }

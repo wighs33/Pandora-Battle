@@ -1,12 +1,21 @@
 #include "Online/OnlineSessionsSubsystem.h"
 
+#include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/NetDriver.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "Kismet/GameplayStatics.h"
+#include "Mode/ExperienceGameState.h"
+#include "Mode/PdGameInstance.h"
+#include "Mode/PdPlayerState.h"
 #include "Online/OnlineSessionNames.h"
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "TimerManager.h"
+#include "UI/GameResultTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineSessionsSubsystem)
 
@@ -14,6 +23,111 @@ namespace LabOnlineSession
 {
 	const FName RoomNameSettingKey(TEXT("ROOM_NAME"));
 	const FName MapNameSettingKey(TEXT("MAP_NAME"));
+	const TCHAR* TitleTravelMapName = TEXT("/Game/Map/LV_Title");
+}
+
+namespace
+{
+	FText ResolveResultPlayerName(const APlayerState* PlayerState)
+	{
+		if (!PlayerState)
+		{
+			return NSLOCTEXT("GameResult", "UnknownPlayerName", "Unknown");
+		}
+
+		if (const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState))
+		{
+			if (!PdPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName().IsEmpty())
+			{
+				return PdPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName();
+			}
+		}
+
+		const FString PlayerName = PlayerState->GetPlayerName();
+		return FText::FromString(PlayerName.IsEmpty() ? GetNameSafe(PlayerState) : PlayerName);
+	}
+
+	FText ResolveResultTeamName(const int32 TeamColorIndex)
+	{
+		switch (TeamColorIndex)
+		{
+		case 0:
+			return NSLOCTEXT("GameResult", "TeamNameRed", "Red");
+		case 1:
+			return NSLOCTEXT("GameResult", "TeamNameBlue", "Blue");
+		case 2:
+			return NSLOCTEXT("GameResult", "TeamNameYellow", "Yellow");
+		case 3:
+			return NSLOCTEXT("GameResult", "TeamNamePurple", "Purple");
+		case 4:
+			return NSLOCTEXT("GameResult", "TeamNameGreen", "Green");
+		case 5:
+			return NSLOCTEXT("GameResult", "TeamNameOrange", "Orange");
+		default:
+			return NSLOCTEXT("GameResult", "TeamNameNone", "No Team");
+		}
+	}
+
+	bool BuildNetworkFailureGameResult(UWorld* World, FGameResultPresentationData& OutGameResultData)
+	{
+		const AExperienceGameState* ExperienceGameState = World ? World->GetGameState<AExperienceGameState>() : nullptr;
+		if (!ExperienceGameState)
+		{
+			return false;
+		}
+
+		OutGameResultData = FGameResultPresentationData();
+		OutGameResultData.WinnerTitle = NSLOCTEXT("GameResult", "MatchEndedByConnectionLost", "Match Ended Due to Player Leaving");
+		OutGameResultData.WinnerTeamColorIndex = INDEX_NONE;
+		OutGameResultData.bAllowLobbyTravelOnExit = false;
+		OutGameResultData.bShowRewards = false;
+
+		for (APlayerState* PlayerState : ExperienceGameState->PlayerArray)
+		{
+			const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState);
+			if (!PdPlayerState)
+			{
+				continue;
+			}
+
+			FGameResultPlayerStat PlayerStat;
+			PlayerStat.PlayerName = ResolveResultPlayerName(PdPlayerState);
+			PlayerStat.TeamColorIndex = PdPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex();
+			PlayerStat.PlayerStateId = PdPlayerState->GetPlayerId();
+			PlayerStat.TeamName = ResolveResultTeamName(PlayerStat.TeamColorIndex);
+			PlayerStat.KillCount = PdPlayerState->GetPlayerMatchComponent()->GetKillCount();
+			PlayerStat.DeathCount = PdPlayerState->GetPlayerMatchComponent()->GetDeathCount();
+			OutGameResultData.PlayerStats.Add(PlayerStat);
+		}
+
+		OutGameResultData.PlayerStats.Sort([](const FGameResultPlayerStat& Left, const FGameResultPlayerStat& Right)
+		{
+			if (Left.KillCount != Right.KillCount)
+			{
+				return Left.KillCount > Right.KillCount;
+			}
+
+			if (Left.DeathCount != Right.DeathCount)
+			{
+				return Left.DeathCount < Right.DeathCount;
+			}
+
+			return Left.PlayerName.ToString() < Right.PlayerName.ToString();
+		});
+
+		if (!OutGameResultData.PlayerStats.IsEmpty())
+		{
+			OutGameResultData.MaxKillerName = OutGameResultData.PlayerStats[0].PlayerName;
+			OutGameResultData.MaxKillCount = OutGameResultData.PlayerStats[0].KillCount;
+		}
+		else if (OutGameResultData.MaxKillerName.IsEmpty())
+		{
+			OutGameResultData.MaxKillerName = NSLOCTEXT("GameResult", "UnknownPlayerName", "Unknown");
+			OutGameResultData.MaxKillCount = 0;
+		}
+
+		return true;
+	}
 }
 
 UOnlineSessionsSubsystem::UOnlineSessionsSubsystem()
@@ -36,10 +150,31 @@ void UOnlineSessionsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	SessionManager = GetSessionManagerForWorld();
 
+
+	if (GEngine)
+	{
+		NetworkFailureHandle = GEngine->OnNetworkFailure().AddUObject(this, &ThisClass::HandleNetworkFailure);
+		TravelFailureHandle = GEngine->OnTravelFailure().AddUObject(this, &ThisClass::HandleTravelFailure);
+	}
 }
 
 void UOnlineSessionsSubsystem::Deinitialize()
 {
+	if (GEngine)
+	{
+		if (NetworkFailureHandle.IsValid())
+		{
+			GEngine->OnNetworkFailure().Remove(NetworkFailureHandle);
+			NetworkFailureHandle.Reset();
+		}
+
+		if (TravelFailureHandle.IsValid())
+		{
+			GEngine->OnTravelFailure().Remove(TravelFailureHandle);
+			TravelFailureHandle.Reset();
+		}
+	}
+
 	ClearSessionDelegates();
 	if (UWorld* World = GetWorld())
 	{
@@ -1267,4 +1402,80 @@ void UOnlineSessionsSubsystem::OnUpdateSessionCompleted(FName SessionName, const
 
 
 	OnUpdateSessionComplete.Broadcast(bWasSuccessful);
+}
+
+void UOnlineSessionsSubsystem::HandleNetworkFailure(
+	UWorld* World,
+	UNetDriver* NetDriver,
+	const ENetworkFailure::Type FailureType,
+	const FString& ErrorString)
+{
+	static_cast<void>(NetDriver);
+
+	if (World && GetWorld() && World != GetWorld())
+	{
+		return;
+	}
+
+	if (IsExpectedConnectionClose(FailureType, ErrorString))
+	{
+		FGameResultPresentationData GameResultData;
+		if (BuildNetworkFailureGameResult(World, GameResultData))
+		{
+			if (UPdGameInstance* PdGameInstance = Cast<UPdGameInstance>(GetGameInstance()))
+			{
+				if (!PdGameInstance->HasPendingTitleGameResult())
+				{
+					PdGameInstance->SetPendingTitleGameResult(GameResultData);
+				}
+			}
+
+			if (World)
+			{
+				World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(World, [World]()
+				{
+					if (IsValid(World))
+					{
+						UGameplayStatics::OpenLevel(World, FName(LabOnlineSession::TitleTravelMapName));
+					}
+				}));
+			}
+			return;
+		}
+	}
+
+	// Do not auto-destroy sessions here. In multi-PIE/listen-server tests the NULL
+	// subsystem can be shared by local windows, so destroying on a client-side close
+	// can tear down the host's advertised room.
+}
+
+void UOnlineSessionsSubsystem::HandleTravelFailure(
+	UWorld* World,
+	const ETravelFailure::Type FailureType,
+	const FString& ErrorString)
+{
+	static_cast<void>(FailureType);
+	static_cast<void>(ErrorString);
+
+	if (World && GetWorld() && World != GetWorld())
+	{
+		return;
+	}
+
+	// See HandleNetworkFailure: session cleanup must be driven by explicit UI/game
+	// flow, not by global travel-failure callbacks in editor multiplayer tests.
+}
+
+bool UOnlineSessionsSubsystem::IsExpectedConnectionClose(
+	const ENetworkFailure::Type FailureType,
+	const FString& ErrorString) const
+{
+	if (FailureType != ENetworkFailure::FailureReceived &&
+		FailureType != ENetworkFailure::ConnectionLost)
+	{
+		return false;
+	}
+
+	return ErrorString.Contains(TEXT("Host closed the connection"), ESearchCase::IgnoreCase) ||
+		ErrorString.Contains(TEXT("connection to the host has been lost"), ESearchCase::IgnoreCase);
 }

@@ -4,12 +4,24 @@
 #include "GameFramework/HUD.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
+#include "UI/InfoUiTypes.h"
+#include "UI/KillLogTypes.h"
 #include "UI/NotificationData.h"
 #include "PdHUD.generated.h"
 
 class APdPlayerController;
 class UInfoUiPresenter;
+class UDamageScreenEffectWidget;
+class UGoldenKillAnnouncementWidget;
+class UHudTimerWidget;
 class UInfoWidget;
+class UKillLogWidget;
+class UMenuPopupWidget;
+class UPdHudMenuLayer;
+class UPdHudScreenLayer;
+class UPdHudScoreboardLayer;
+class UPdHudUiRouter;
+class URespawnDelayWidget;
 class URightNotificationsWidget;
 class USelectPandoraWidget;
 class UPandoraTreeWidget;
@@ -36,8 +48,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI")
 	void CreateAllUi();
 
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
-	void OpenInfoUi();
+	void RefreshHudTimerVisibility();
+
+	void OpenInfoUiFocused(EPdInfoUiSection Section);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
 	void CloseInfoUi();
@@ -57,44 +70,99 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI")
 	void ToggleUiMode(bool bOn);
 
-	UFUNCTION(BlueprintPure, Category = "!UI")
-	bool IsGameplayInputBlockedByUi() const;
+	UFUNCTION()
+	virtual bool IsGameplayInputBlockedByUi() const;
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void OpenSelectPandoraUi();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
-	void CloseSelectPandoraUi();
+	bool CloseSelectPandoraUi();
 
 	void UpdateSelectPandoraDirectionFromMouse();
 	void ShowAimCrosshair(FGameplayTag DesiredCrosshairWidgetTag);
 	void HideAimCrosshair();
 	void ShowRightNotification(const FPdNotificationData& NotificationData);
+	void ShowDamageScreenEffect(float DamageAmount);
+	void ShowGoldenKillAnnouncement(const FText& AnnouncementText = FText::GetEmpty());
+	void AddKillLogEntry(const FKillLogEntry& KillLogEntry);
+	void ShowRespawnDelay(float DelaySeconds);
+	void HideRespawnDelay();
+	void ShowInGameScoreboard();
+	void HideInGameScoreboard();
+	void RefreshInGameScoreboard();
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
+	void OpenSettingsMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
+	void ToggleSettingsMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
+	virtual bool HandleEscapeInput();
+
 	void RefreshUiBindings();
 
 	UInfoWidget* GetInfoWidget() const { return CachedInfoUI; }
 	USelectPandoraWidget* GetSelectPandoraWidget() const { return CachedSelectPandoraUI; }
+	bool IsSelectPandoraUiOpen() const;
 	UUserWidget* GetPlayerHudWidget() const { return CachedPlayerHUD; }
+	const UWidgetClassDefinition* GetWidgetClassDefinition() const { return WidgetClassDefinition; }
 
-	void OnOpenInfoUiInputStarted(const FInputActionValue& InputValue);
+	void OnOpenSettingsMenuInputStarted(const FInputActionValue& InputValue);
 	void OnSelectPandoraInputStarted(const FInputActionValue& InputValue);
-	void OnSelectPandoraInputEnded(const FInputActionValue& InputValue);
+	bool OnSelectPandoraInputEnded(const FInputActionValue& InputValue);
 	void OnPandoraTreeInputStarted(const FInputActionValue& InputValue);
 
+protected:
+	/**
+	 * Returns whether a full-screen or modal UI currently owns the screen and
+	 * should suppress the normal gameplay HUD. Derived HUDs can add their own UI.
+	 */
+	virtual bool IsPlayerHudSuppressedByUi() const;
+
+	/** Re-evaluates the gameplay HUD from the shared suppression policy. */
+	void RefreshPlayerHudVisibility();
+
 private:
+	friend class UPdHudMenuLayer;
+	friend class UPdHudScreenLayer;
+	friend class UPdHudScoreboardLayer;
+	friend class UPdHudUiRouter;
+
 	APdPlayerController* GetPdController() const;
+	UPdHudUiRouter* EnsureUiRouter();
 	UInfoUiPresenter* GetInfoUiPresenter();
 	UUiSubsystem* GetUiSubsystem() const;
 	bool ApplyStatusViewModelToWidget(UUserWidget* InWidget);
+	bool ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget);
 	bool ApplyStatusViewModelToPlayerHud();
 	void ApplyStatusViewModelToPlayerHudRecursive(UUserWidget* RootWidget, bool& bFoundPlayerVitals, bool& bAppliedViewModel);
+	UDamageScreenEffectWidget* FindDamageScreenEffectWidget();
+	UGoldenKillAnnouncementWidget* FindGoldenKillAnnouncementWidget();
+	UKillLogWidget* FindKillLogWidget();
+	UHudTimerWidget* FindHudTimerWidget();
+	URespawnDelayWidget* FindRespawnDelayWidget();
+	bool IsTrainingRoomMap() const;
+	void RefreshTrainingRoomUiPause(const UUserWidget* IgnoredWidget = nullptr);
+	bool ShouldSuppressHudTimer();
+	void ApplyHudTimerVisibility();
 	void RetryApplyStatusViewModelToPlayerHud();
-	void FinishCloseInfoUi();
-	void ClearInfoUiCloseTimer();
+	void HandleSettingsMenuLayerClosed();
+	void CloseActiveSettingsMenuPopup();
+	UMenuPopupWidget* GetActiveSettingsMenuWidget() const;
+	bool CloseSelectPandoraUiInternal(bool bCommitSelection);
+	void RestoreInfoUiInputMode();
+	void ClosePandoraTreeUiInternal(bool bSuppressCameraReturn, bool bImmediate = false);
+	void CloseInfoUiInternal(bool bSuppressCameraReturn, bool bImmediate = false);
+	void ApplyInventoryWidgetSettings();
 	void RemoveAllUiWidgets();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UWidgetClassDefinition> WidgetClassDefinition = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPdHudUiRouter> UiRouter = nullptr;
 
 	UPROPERTY(Transient)
 	int32 CachedDirIndex = -1;
@@ -106,11 +174,24 @@ private:
 	TObjectPtr<UUserWidget> CachedPlayerHUD = nullptr;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UDamageScreenEffectWidget> CachedDamageScreenEffectWidget = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UGoldenKillAnnouncementWidget> CachedGoldenKillAnnouncementWidget = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UKillLogWidget> CachedKillLogWidget = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UHudTimerWidget> CachedHudTimerWidget = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<URespawnDelayWidget> CachedRespawnDelayWidget = nullptr;
+
+	UPROPERTY(Transient)
 	TObjectPtr<URightNotificationsWidget> CachedRightNotificationsUI = nullptr;
 
 	FTimerHandle PlayerHudStatusViewModelRetryTimerHandle;
-	FTimerHandle InfoUiCloseTimerHandle;
-
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoUiPresenter> CachedInfoUiPresenter = nullptr;
 
@@ -122,4 +203,5 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraTreeWidget> CachedPandoraTreeUI = nullptr;
+
 };
