@@ -50,7 +50,6 @@ protected:
 	TArray<TEnumAsByte<EObjectTypeQuery>> GetBowTraceObjectTypes() const;
 	float GetEffectiveMinimumDrawDuration() const;
 	float GetEffectiveBowFireInterval() const;
-	bool CanServerUseBow(const ACharacterBase* AttackingCharacter, bool bRequirePlayerAim) const;
 	bool IsServerFireCadenceReady() const;
 
 	// Action helpers

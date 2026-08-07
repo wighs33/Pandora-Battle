@@ -3,6 +3,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/PdPlayer.h"
+#include "Common/CollisionChannels.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/Player/PlayerPawnDefinition.h"
 
@@ -16,11 +17,11 @@ namespace
 		// Interaction sensors have their own object channel. Treating this volume as
 		// WorldDynamic makes projectile and skill traces stop in front of the
 		// character before they can reach the damage mesh.
-		InteractionSensor.SetCollisionObjectType(ECC_GameTraceChannel3); // OverlapBox
+		InteractionSensor.SetCollisionObjectType(LabCollisionChannels::OverlapBox());
 		InteractionSensor.SetCollisionResponseToAllChannels(ECR_Overlap);
 		InteractionSensor.SetCollisionResponseToChannel(
-			ECC_GameTraceChannel2,
-			ECR_Ignore); // ArrowProjectile / native skill projectiles
+			LabCollisionChannels::Projectile(),
+			ECR_Ignore);
 		InteractionSensor.SetGenerateOverlapEvents(true);
 		InteractionSensor.SetCanEverAffectNavigation(false);
 	}
@@ -51,13 +52,6 @@ void UPlayerInteractionComponent::BeginPlay()
 
 void UPlayerInteractionComponent::ApplySettings(const FPlayerInteractionSettings& Settings)
 {
-	const FVector SafeExtent(
-		FMath::Max(FMath::Abs(Settings.BoxExtent.X), 1.0f),
-		FMath::Max(FMath::Abs(Settings.BoxExtent.Y), 1.0f),
-		FMath::Max(FMath::Abs(Settings.BoxExtent.Z), 1.0f));
-	SetBoxExtent(SafeExtent, true);
-	SetRelativeLocation(Settings.RelativeLocation);
-	SetRelativeRotation(Settings.RelativeRotation);
 	ServerValidationDistance = FMath::Max(0.0f, Settings.ServerValidationDistance);
 }
 

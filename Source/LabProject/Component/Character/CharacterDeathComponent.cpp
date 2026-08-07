@@ -3,6 +3,7 @@
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
+#include "Common/CollisionChannels.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/CharacterAbilityRuntimeComponent.h"
@@ -592,8 +593,8 @@ void UCharacterDeathComponent::ConfigureWeaponDamageMesh(
 		return;
 	}
 
-	CharacterMesh->SetCollisionObjectType(ECC_GameTraceChannel1);
-	CharacterMesh->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Block);
+	CharacterMesh->SetCollisionObjectType(LabCollisionChannels::HitableBody());
+	CharacterMesh->SetCollisionResponseToChannel(LabCollisionChannels::Projectile(), ECR_Block);
 	if (CharacterMesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
 	{
 		CharacterMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);

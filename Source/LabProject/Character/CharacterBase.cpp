@@ -1,9 +1,10 @@
 #include "Character/CharacterBase.h"
 
-#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Common/CollisionChannels.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Component/Character/CharacterAbilityRuntimeComponent.h"
 #include "Component/Character/CharacterDeathComponent.h"
 #include "Component/Character/CharacterHealthBarComponent.h"
@@ -98,13 +99,14 @@ ACharacterBase::ACharacterBase(const FObjectInitializer& ObjectInitializer)
 	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
 	{
 		CharacterMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickMontagesAndRefreshBonesWhenPlayingMontages;
-		CharacterMesh->SetCollisionObjectType(ECC_GameTraceChannel1);
+		CharacterMesh->SetCollisionObjectType(LabCollisionChannels::HitableBody());
 	}
 	ApplySkillDamageCollisionToCharacterComponents();
 
 	CharacterAbilityRuntimeComponent = CreateDefaultSubobject<UCharacterAbilityRuntimeComponent>(TEXT("CharacterAbilityRuntimeComponent"));
 	CharacterDeathComponent = CreateDefaultSubobject<UCharacterDeathComponent>(TEXT("CharacterDeathComponent"));
 	CharacterPresentationComponent = CreateDefaultSubobject<UCharacterPresentationComponent>(TEXT("CharacterPresentationComponent"));
+	StatusEffectReplicationComponent = CreateDefaultSubobject<UStatusEffectReplicationComponent>(TEXT("StatusEffectReplicationComponent"));
 
 	BodyAuraNiagaraComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("AuraNiagara"));
 	BodyAuraNiagaraComponent->SetupAttachment(GetMesh());
@@ -261,22 +263,10 @@ void ACharacterBase::ApplyCharacterDefinition()
 	{
 		ResolvedDefinition = GetDefault<UCharacterBaseDefinition>();
 	}
-	const FCharacterAbilityRuntimeSettings AbilitySettings =
-		ResolvedDefinition ? ResolvedDefinition->GetAbilityRuntimeSettings() : FCharacterAbilityRuntimeSettings();
-	const FCharacterHealthBarSettings HealthBarSettings =
-		ResolvedDefinition ? ResolvedDefinition->GetHealthBarSettings() : FCharacterHealthBarSettings();
 	const FCharacterPresentationSettings PresentationSettings =
 		ResolvedDefinition ? ResolvedDefinition->GetPresentationSettings() : FCharacterPresentationSettings();
 	const FCharacterDeathSettings DeathSettings = ResolvedDefinition ? ResolvedDefinition->GetDeathSettings() : FCharacterDeathSettings();
 
-	if (CharacterAbilityRuntimeComponent)
-	{
-		CharacterAbilityRuntimeComponent->ApplySettings(AbilitySettings);
-	}
-	if (UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent())
-	{
-		CharacterHealthBar->ApplySettings(HealthBarSettings);
-	}
 	if (CharacterPresentationComponent)
 	{
 		CharacterPresentationComponent->ApplySettings(PresentationSettings);
@@ -424,13 +414,6 @@ void ACharacterBase::HandleCharacterRuntimeInitialized()
 {
 }
 
-UCharacterBaseDefinition* ACharacterBase::GetCharacterDefinition() const
-{
-	return LoadedCharacterDefinition
-		? LoadedCharacterDefinition.Get()
-		: CharacterDefinition.Get();
-}
-
 UAbilitySystemComponent* ACharacterBase::GetAbilitySystemComponent() const
 {
 	return nullptr;
@@ -465,30 +448,6 @@ AActor* ACharacterBase::GetAbilitySystemOwnerActor() const
 AActor* ACharacterBase::GetAbilitySystemAvatarActor() const
 {
 	return const_cast<ACharacterBase*>(this);
-}
-
-void ACharacterBase::ServerSendGameplayEventToSelf(FGameplayEventData EventData)
-{
-	if (!HasAuthority() || !EventData.EventTag.IsValid())
-	{
-		return;
-	}
-
-	FGameplayEventData ServerPayload;
-	ServerPayload.EventTag = EventData.EventTag;
-	ServerPayload.Instigator = this;
-	ServerPayload.Target = this;
-	ServerPayload.EventMagnitude = EventData.EventMagnitude;
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, ServerPayload.EventTag, ServerPayload);
-}
-
-void ACharacterBase::MulticastSendGameplayEventToActor_Implementation(AActor* TargetActor, FGameplayEventData EventData)
-{
-	if (!IsValid(TargetActor) || !EventData.EventTag.IsValid())
-	{
-		return;
-	}
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetActor, EventData.EventTag, EventData);
 }
 
 UCharacterHealthBarComponent* ACharacterBase::GetCharacterHealthBarComponent() const
@@ -603,14 +562,6 @@ void ACharacterBase::ApplyTeamOverlayMaterial()
 	}
 }
 
-void ACharacterBase::ApplySkillOverlayMaterial(UMaterialInterface* OverlayMaterial)
-{
-	if (CharacterPresentationComponent)
-	{
-		CharacterPresentationComponent->ApplySkillOverlayMaterial(OverlayMaterial);
-	}
-}
-
 void ACharacterBase::ApplySkillPresentationOverlay(UObject* PresentationSource, UMaterialInterface* OverlayMaterial)
 {
 	if (CharacterPresentationComponent)
@@ -627,36 +578,10 @@ void ACharacterBase::ClearSkillPresentationOverlay(UObject* PresentationSource)
 	}
 }
 
-void ACharacterBase::MulticastApplySkillOverlayMaterial_Implementation(UMaterialInterface* OverlayMaterial)
-{
-	ApplySkillOverlayMaterial(OverlayMaterial);
-}
-
 UNiagaraComponent* ACharacterBase::FindBodyAuraNiagaraComponent(const FName ComponentName) const
 {
 	return CharacterPresentationComponent ? CharacterPresentationComponent->FindBodyAuraNiagaraComponent(ComponentName)
 										  : BodyAuraNiagaraComponent.Get();
-}
-
-void ACharacterBase::ApplyBodyAuraNiagara(
-	const FName ComponentName,
-	UNiagaraSystem* NiagaraSystem,
-	const bool bActivate,
-	const bool bResetSystem)
-{
-	if (CharacterPresentationComponent)
-	{
-		CharacterPresentationComponent->ApplyBodyAuraNiagara(ComponentName, NiagaraSystem, bActivate, bResetSystem);
-	}
-}
-
-void ACharacterBase::MulticastApplyBodyAuraNiagara_Implementation(
-	const FName ComponentName,
-	UNiagaraSystem* NiagaraSystem,
-	const bool bActivate,
-	const bool bResetSystem)
-{
-	ApplyBodyAuraNiagara(ComponentName, NiagaraSystem, bActivate, bResetSystem);
 }
 
 void ACharacterBase::ApplyBodyAuraNiagaraWithOffset(
@@ -674,50 +599,11 @@ void ACharacterBase::ApplyBodyAuraNiagaraWithOffset(
 	}
 }
 
-void ACharacterBase::MulticastApplyBodyAuraNiagaraWithOffset_Implementation(
-	const FName ComponentName,
-	UNiagaraSystem* NiagaraSystem,
-	const bool bActivate,
-	const bool bResetSystem,
-	const FVector RelativeLocationOffset,
-	const FVector RelativeScale)
-{
-	ApplyBodyAuraNiagaraWithOffset(ComponentName, NiagaraSystem, bActivate, bResetSystem, RelativeLocationOffset, RelativeScale);
-}
-
 void ACharacterBase::ClearBodyAuraNiagaraIfMatching(const FName ComponentName, const UNiagaraSystem* ExpectedNiagaraSystem)
 {
 	if (CharacterPresentationComponent)
 	{
 		CharacterPresentationComponent->ClearBodyAuraNiagaraIfMatching(ComponentName, ExpectedNiagaraSystem);
-	}
-}
-
-void ACharacterBase::MulticastSpawnProjectileCosmetic_Implementation(
-	TSubclassOf<AProjectileBase> ProjectileClass,
-	const FVector_NetQuantize SpawnLocation,
-	const FRotator SpawnRotation,
-	const FVector_NetQuantize TargetLocation,
-	const float Speed,
-	const bool bUseArcTrajectory,
-	const float ArcHeight,
-	const float ArcGravityScale,
-	UNiagaraSystem* MuzzleFX,
-	UNiagaraSystem* ProjectileFX,
-	UNiagaraSystem* HitFX,
-	const bool bSpawnHitNiagaraOnGround,
-	const FGameplayTag SpawnGameplayCueTag,
-	const FGameplayTag ImpactGameplayCueTag,
-	const FVector SpawnScale,
-	const FName NiagaraVector2DParameterName,
-	const FVector2D NiagaraSize,
-	const float LifeSpan)
-{
-	if (CharacterPresentationComponent)
-	{
-		CharacterPresentationComponent->SpawnProjectileCosmetic(ProjectileClass, SpawnLocation, SpawnRotation, TargetLocation, Speed,
-			bUseArcTrajectory, ArcHeight, ArcGravityScale, MuzzleFX, ProjectileFX, HitFX, bSpawnHitNiagaraOnGround, SpawnGameplayCueTag,
-			ImpactGameplayCueTag, SpawnScale, NiagaraVector2DParameterName, NiagaraSize, LifeSpan);
 	}
 }
 
@@ -846,13 +732,14 @@ void ACharacterBase::ApplySkillDamageCollisionToCharacterComponents() const
 	// pass through them and stop only on the primary skeletal mesh.
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
-		Capsule->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Ignore);
+		Capsule->SetCollisionResponseToChannel(LabCollisionChannels::Projectile(), ECR_Ignore);
 	}
 
 	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
 	{
-		CharacterMesh->SetCollisionObjectType(ECC_GameTraceChannel1); // HitableBody
-		CharacterMesh->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Block);
+		CharacterMesh->SetCollisionObjectType(LabCollisionChannels::HitableBody());
+		CharacterMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+		CharacterMesh->SetCollisionResponseToChannel(LabCollisionChannels::Projectile(), ECR_Block);
 		if (CharacterMesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
 		{
 			CharacterMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);

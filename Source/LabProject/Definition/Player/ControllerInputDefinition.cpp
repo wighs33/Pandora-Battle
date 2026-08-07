@@ -1,6 +1,7 @@
 #include "Definition/Player/ControllerInputDefinition.h"
 
 #include "InputAction.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Player/CharacterActionDefinition.h"
 
 #if WITH_EDITOR
@@ -11,22 +12,7 @@
 
 namespace
 {
-	constexpr const TCHAR* DefaultInputDefinitionPathName = TEXT("/Game/Input/DA_Input.DA_Input");
-
-	TSoftObjectPtr<UInputAction> MakeControllerInputActionReference(const TCHAR* Path)
-	{
-		return TSoftObjectPtr<UInputAction>(FSoftObjectPath(Path));
-	}
-
-	void AddInputActionIcon(
-		TArray<FPdInputActionIconMapping>& Mappings,
-		const TCHAR* InputActionPath)
-	{
-		FPdInputActionIconMapping& Mapping = Mappings.AddDefaulted_GetRef();
-		Mapping.InputAction = MakeControllerInputActionReference(InputActionPath);
-	}
-
-	bool DoesMappingMatchInputAction(const FPdInputActionIconMapping& Mapping, const UInputAction* InputAction)
+	bool DoesMappingMatchInputAction(const FInputActionIconMapping& Mapping, const UInputAction* InputAction)
 	{
 		if (!InputAction || Mapping.InputAction.IsNull())
 		{
@@ -69,46 +55,6 @@ namespace
 #endif
 }
 
-UControllerInputDefinition::UControllerInputDefinition()
-{
-	PaintInputAction = TSoftObjectPtr<UInputAction>(FSoftObjectPath(TEXT("/Game/Input/Action/IA_Paint.IA_Paint")));
-	Skill4InputAction = TSoftObjectPtr<UInputAction>(FSoftObjectPath(TEXT("/Game/Input/Action/IA_Skill4.IA_Skill4")));
-	OpenSettingUiInputAction = TSoftObjectPtr<UInputAction>(FSoftObjectPath(TEXT("/Game/Input/Action/IA_OpenSettingUI.IA_OpenSettingUI")));
-	EscapeInputAction = TSoftObjectPtr<UInputAction>(FSoftObjectPath(TEXT("/Game/Input/Action/IA_Escape.IA_Escape")));
-	OpenLobbyInputAction = TSoftObjectPtr<UInputAction>(FSoftObjectPath(TEXT("/Game/Input/Action/IA_OpenLobby.IA_OpenLobby")));
-	CharacterActionDefinition = TSoftObjectPtr<UCharacterActionDefinition>(
-		FSoftObjectPath(TEXT("/Game/Data/DA_CharacterAction.DA_CharacterAction")));
-
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Move.IA_Move"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Look.IA_Look"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Jump.IA_Jump"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Crouch.IA_Crouch"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Interact.IA_Interact"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Attack.IA_Attack"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Aim.IA_Aim"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Paint.IA_Paint"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Grapple.IA_Grapple"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Skill1.IA_Skill1"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Skill2.IA_Skill2"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Skill3.IA_Skill3"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Skill4.IA_Skill4"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_QuickSlot1.IA_QuickSlot1"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_QuickSlot2.IA_QuickSlot2"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_QuickSlot3.IA_QuickSlot3"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_QuickSlot4.IA_QuickSlot4"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_GestureSlot1.IA_GestureSlot1"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_GestureSlot2.IA_GestureSlot2"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_GestureSlot3.IA_GestureSlot3"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_GestureSlot4.IA_GestureSlot4"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_TargetConfirm.IA_TargetConfirm"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_OpenInfoUI_Item.IA_OpenInfoUI_Item"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_OpenSettingUI.IA_OpenSettingUI"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_Escape.IA_Escape"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_OpenLobby.IA_OpenLobby"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_SelectPandora.IA_SelectPandora"));
-	AddInputActionIcon(InputActionIconMappings, TEXT("/Game/Input/Action/IA_OpenPandoraTree.IA_OpenPandoraTree"));
-}
-
 FPrimaryAssetId UControllerInputDefinition::GetPrimaryAssetId() const
 {
 	return FPrimaryAssetId(TEXT("ControllerInputDefinition"), GetFName());
@@ -116,12 +62,69 @@ FPrimaryAssetId UControllerInputDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UControllerInputDefinition::GetDefaultInputDefinitionPath()
 {
-	return FSoftObjectPath(DefaultInputDefinitionPathName);
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.ControllerInput.ToSoftObjectPath();
+}
+
+TSoftObjectPtr<UCharacterActionDefinition>
+UControllerInputDefinition::GetEffectiveCharacterActionDefinition() const
+{
+	if (!CharacterActionDefinition.IsNull())
+	{
+		return CharacterActionDefinition;
+	}
+
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.CharacterAction;
+}
+
+UInputAction* UControllerInputDefinition::GetLoadedSkillInputAction(
+	const int32 SkillSlotIndex) const
+{
+	switch (SkillSlotIndex)
+	{
+	case 0:
+		return Skill1InputAction.Get();
+	case 1:
+		return Skill2InputAction.Get();
+	case 2:
+		return Skill3InputAction.Get();
+	case 3:
+		return Skill4InputAction.Get();
+	default:
+		return nullptr;
+	}
+}
+
+UInputAction* UControllerInputDefinition::GetLoadedQuickSlotInputAction(
+	const int32 QuickSlotIndex) const
+{
+	switch (QuickSlotIndex)
+	{
+	case 0:
+		return QuickSlot1InputAction.Get();
+	case 1:
+		return QuickSlot2InputAction.Get();
+	case 2:
+		return QuickSlot3InputAction.Get();
+	case 3:
+		return QuickSlot4InputAction.Get();
+	case 4:
+		return Gesture1InputAction.Get();
+	case 5:
+		return Gesture2InputAction.Get();
+	case 6:
+		return Gesture3InputAction.Get();
+	case 7:
+		return Gesture4InputAction.Get();
+	default:
+		return nullptr;
+	}
 }
 
 UObject* UControllerInputDefinition::ResolveInputActionIconObject(const UInputAction* InputAction) const
 {
-	for (const FPdInputActionIconMapping& Mapping : InputActionIconMappings)
+	for (const FInputActionIconMapping& Mapping : InputActionIconMappings)
 	{
 		if (!DoesMappingMatchInputAction(Mapping, InputAction))
 		{
@@ -153,7 +156,6 @@ void UControllerInputDefinition::GetRuntimePreloadAssetPaths(
 	AddSoftPath(InteractInputAction);
 	AddSoftPath(AttackInputAction);
 	AddSoftPath(AimInputAction);
-	AddSoftPath(PaintInputAction);
 	AddSoftPath(GrappleInputAction);
 	AddSoftPath(Skill1InputAction);
 	AddSoftPath(Skill2InputAction);
@@ -178,36 +180,16 @@ void UControllerInputDefinition::GetRuntimePreloadAssetPaths(
 	AddSoftPath(OpenLobbyInputAction);
 	AddSoftPath(SelectPandoraInputAction);
 	AddSoftPath(PandoraTreeInputAction);
-	AddSoftPath(CharacterActionDefinition);
+	AddSoftPath(ScoreboardInputAction);
+	AddSoftPath(ChatInputAction);
+	AddSoftPath(ChatScrollInputAction);
+	AddSoftPath(GetEffectiveCharacterActionDefinition());
 
-	for (const FPdInputActionIconMapping& Mapping : InputActionIconMappings)
+	for (const FInputActionIconMapping& Mapping : InputActionIconMappings)
 	{
 		AddSoftPath(Mapping.InputAction);
 		AddSoftPath(Mapping.Icon);
 	}
-}
-
-bool UControllerInputDefinition::IsOpenLobbyInputAllowedForMap(const FString& LevelName) const
-{
-	if (LevelName.TrimStartAndEnd().IsEmpty())
-	{
-		return false;
-	}
-
-	for (const FName AllowedMapName : OpenLobbyAllowedMapNames)
-	{
-		if (AllowedMapName.IsNone())
-		{
-			continue;
-		}
-
-		if (LevelName.Equals(AllowedMapName.ToString(), ESearchCase::IgnoreCase))
-		{
-			return true;
-		}
-	}
-
-	return false;
 }
 
 #if WITH_EDITOR
@@ -241,7 +223,6 @@ EDataValidationResult UControllerInputDefinition::IsDataValid(FDataValidationCon
 		|| !InteractInputAction.IsNull()
 		|| !AttackInputAction.IsNull()
 		|| !AimInputAction.IsNull()
-		|| !PaintInputAction.IsNull()
 		|| !GrappleInputAction.IsNull()
 		|| !Skill1InputAction.IsNull()
 		|| !Skill2InputAction.IsNull()
@@ -265,25 +246,20 @@ EDataValidationResult UControllerInputDefinition::IsDataValid(FDataValidationCon
 		|| !EscapeInputAction.IsNull()
 		|| !OpenLobbyInputAction.IsNull()
 		|| !SelectPandoraInputAction.IsNull()
-		|| !PandoraTreeInputAction.IsNull();
+		|| !PandoraTreeInputAction.IsNull()
+		|| !ScoreboardInputAction.IsNull()
+		|| !ChatInputAction.IsNull()
+		|| !ChatScrollInputAction.IsNull();
 
 	if (!bHasNativeInputAction)
 	{
 		Context.AddWarning(NSLOCTEXT("ControllerInputDefinition", "NoInputActions", "ControllerInputDefinition has no input actions."));
 	}
 
-	if (!OpenLobbyInputAction.IsNull() && OpenLobbyAllowedMapNames.IsEmpty())
-	{
-		Context.AddWarning(NSLOCTEXT(
-			"ControllerInputDefinition",
-			"OpenLobbyNoAllowedMaps",
-			"OpenLobbyInputAction is set, but OpenLobbyAllowedMapNames is empty."));
-	}
-
 	TSet<FSoftObjectPath> IconMappedActions;
 	for (int32 Index = 0; Index < InputActionIconMappings.Num(); ++Index)
 	{
-		const FPdInputActionIconMapping& Mapping = InputActionIconMappings[Index];
+		const FInputActionIconMapping& Mapping = InputActionIconMappings[Index];
 		if (Mapping.InputAction.IsNull())
 		{
 			MarkControllerInputInvalid(Context, Result, FText::Format(

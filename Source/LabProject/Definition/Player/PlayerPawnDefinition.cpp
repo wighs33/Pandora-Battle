@@ -1,14 +1,13 @@
 #include "Definition/Player/PlayerPawnDefinition.h"
 
 #include "Common/LabGameplayTags.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "GameplayEffect.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerPawnDefinition)
 
 namespace
 {
-	constexpr const TCHAR* DefaultPlayerPawnDefinitionPath =
-		TEXT("/Game/Data/DA_PlayerPawn.DA_PlayerPawn");
-
 	bool RepairLegacyPitchEncodedYaw(FRotator& RotationRate, const float ExpectedYaw)
 	{
 		if (!FMath::IsNearlyEqual(RotationRate.Pitch, ExpectedYaw)
@@ -57,12 +56,20 @@ void UPlayerPawnDefinition::PostLoad()
 
 FPrimaryAssetId UPlayerPawnDefinition::GetPrimaryAssetId() const
 {
-	return FPrimaryAssetId(TEXT("PlayerPawnDefinition"), GetFName());
+	return FPrimaryAssetId(GetDefaultPrimaryAssetId().PrimaryAssetType, GetFName());
+}
+
+FPrimaryAssetId UPlayerPawnDefinition::GetDefaultPrimaryAssetId()
+{
+	return FPrimaryAssetId(
+		TEXT("PlayerPawnDefinition"),
+		GetDefaultDefinitionPath().GetAssetFName());
 }
 
 FSoftObjectPath UPlayerPawnDefinition::GetDefaultDefinitionPath()
 {
-	return FSoftObjectPath(DefaultPlayerPawnDefinitionPath);
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.PlayerPawn.ToSoftObjectPath();
 }
 
 #if WITH_EDITOR
@@ -80,17 +87,6 @@ EDataValidationResult UPlayerPawnDefinition::IsDataValid(FDataValidationContext&
 		Context.AddError(Message);
 	};
 
-	if (Interaction.BoxExtent.ContainsNaN()
-		|| Interaction.BoxExtent.X <= 0.0f
-		|| Interaction.BoxExtent.Y <= 0.0f
-		|| Interaction.BoxExtent.Z <= 0.0f)
-	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerPawnDefinition",
-			"InvalidInteractionExtent",
-			"Interaction BoxExtent must contain finite positive values."));
-	}
-
 	if (!FMath::IsFinite(Interaction.ServerValidationDistance)
 		|| Interaction.ServerValidationDistance < 0.0f)
 	{
@@ -98,14 +94,6 @@ EDataValidationResult UPlayerPawnDefinition::IsDataValid(FDataValidationContext&
 			"PlayerPawnDefinition",
 			"InvalidInteractionValidationDistance",
 			"Interaction ServerValidationDistance must be finite and non-negative."));
-	}
-
-	if (!FMath::IsFinite(Camera.TargetArmLength) || Camera.TargetArmLength < 0.0f)
-	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerPawnDefinition",
-			"InvalidCameraArmLength",
-			"Camera TargetArmLength must be finite and non-negative."));
 	}
 
 	if (!FMath::IsFinite(Aim.ReplicationInterval) || Aim.ReplicationInterval < 0.05f)
@@ -157,6 +145,69 @@ EDataValidationResult UPlayerPawnDefinition::IsDataValid(FDataValidationContext&
 			"MovementHitReactCancelTags is empty; the runtime native fallback tags will be used."));
 	}
 
+	if (!UnarmedCombatSettings.OutgoingDamageEffectClass
+		|| !UnarmedCombatSettings.IncomingDamageEffectClass)
+	{
+		MarkInvalid(NSLOCTEXT(
+			"PlayerPawnDefinition",
+			"MissingUnarmedDamageEffects",
+			"Unarmed combat requires both outgoing and incoming damage Gameplay Effects."));
+	}
+	if (UnarmedCombatSettings.AttackMontage.IsNull())
+	{
+		MarkInvalid(NSLOCTEXT(
+			"PlayerPawnDefinition",
+			"MissingUnarmedAttackMontage",
+			"Unarmed combat requires an attack montage."));
+	}
+	if (!UnarmedCombatSettings.ComboWindowStartEffect)
+	{
+		MarkInvalid(NSLOCTEXT(
+			"PlayerPawnDefinition",
+			"MissingUnarmedComboEffect",
+			"Unarmed combat requires a combo-window Niagara effect."));
+	}
+	if (!FMath::IsFinite(UnarmedCombatSettings.DamageMagnitude)
+		|| UnarmedCombatSettings.DamageMagnitude <= 0.0f)
+	{
+		MarkInvalid(NSLOCTEXT(
+			"PlayerPawnDefinition",
+			"InvalidUnarmedDamage",
+			"Unarmed combat DamageMagnitude must be finite and positive."));
+	}
+	if (!FMath::IsFinite(UnarmedCombatSettings.TraceInterval)
+		|| UnarmedCombatSettings.TraceInterval <= 0.0f
+		|| !FMath::IsFinite(UnarmedCombatSettings.TraceInterpolationDistance)
+		|| UnarmedCombatSettings.TraceInterpolationDistance <= 0.0f)
+	{
+		MarkInvalid(NSLOCTEXT(
+			"PlayerPawnDefinition",
+			"InvalidUnarmedTraceTiming",
+			"Unarmed trace interval and interpolation distance must be finite and positive."));
+	}
+	if (UnarmedCombatSettings.AttackTraces.IsEmpty()
+		|| UnarmedCombatSettings.TraceObjectTypes.IsEmpty())
+	{
+		MarkInvalid(NSLOCTEXT(
+			"PlayerPawnDefinition",
+			"MissingUnarmedTraceSettings",
+			"Unarmed combat requires at least one attack trace and one trace object type."));
+	}
+	for (const FUnarmedAttackTraceDefinition& Trace : UnarmedCombatSettings.AttackTraces)
+	{
+		if (Trace.StartSocketName.IsNone()
+			|| Trace.HalfSize.ContainsNaN()
+			|| Trace.HalfSize.X <= 0.0f
+			|| Trace.HalfSize.Y <= 0.0f
+			|| Trace.HalfSize.Z <= 0.0f)
+		{
+			MarkInvalid(NSLOCTEXT(
+				"PlayerPawnDefinition",
+				"InvalidUnarmedAttackTrace",
+				"Every unarmed attack trace requires a start socket and finite positive half extents."));
+			break;
+		}
+	}
 	return Result;
 }
 #endif

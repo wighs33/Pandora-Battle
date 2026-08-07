@@ -97,7 +97,7 @@ private:
 	double TraceRadius = 25.0;
 
 	UPROPERTY(EditAnywhere, Category = "!Grapple")
-	TEnumAsByte<ETraceTypeQuery> TraceChannel = TraceTypeQuery1;
+	TEnumAsByte<ETraceTypeQuery> TraceChannel;
 
 	UPROPERTY(EditAnywhere, Category = "!Grapple", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	double MoveDuration = 0.5;

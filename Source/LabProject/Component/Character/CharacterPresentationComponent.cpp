@@ -1,10 +1,10 @@
 #include "Component/Character/CharacterPresentationComponent.h"
 
-#include "AbilitySystem/Projectiles/ProjectileBase.h"
 #include "Character/CharacterBase.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/Match/MatchRuleDefinition.h"
-#include "Kismet/GameplayStatics.h"
+#include "Engine/GameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/ExperienceGameState.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -14,6 +14,14 @@
 #include "Component/Player/PlayerMatchComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterPresentationComponent)
+
+namespace
+{
+	constexpr float TeamOverlayMaterialRetryInterval = 0.2f;
+	constexpr int32 TeamOverlayMaterialRetryAttempts = 20;
+	constexpr float MaxBodyAuraRelativeOffsetDistance = 600.0f;
+	constexpr float MaxBodyAuraRelativeScale = 10.0f;
+}
 
 UCharacterPresentationComponent::UCharacterPresentationComponent()
 {
@@ -59,7 +67,6 @@ void UCharacterPresentationComponent::ShutdownPresentation()
 	DefaultBodyAuraComponent = nullptr;
 	SkillPresentationOverlaySources.Reset();
 	SkillPresentationOverlayMaterials.Reset();
-	ActiveSkillOverlayMaterial = nullptr;
 }
 
 void UCharacterPresentationComponent::ResetAnimationToDefault()
@@ -178,23 +185,30 @@ void UCharacterPresentationComponent::HandleMatchTeamColorChanged(
 const UMatchRuleDefinition*
 UCharacterPresentationComponent::GetTeamOverlayMatchRuleDefinition() const
 {
-	if (!Settings.MatchRuleDefinition.IsNull())
-	{
-		if (const UMatchRuleDefinition* LoadedDefinition =
-			Settings.MatchRuleDefinition.Get())
-		{
-			return LoadedDefinition;
-		}
-	}
-
 	const ACharacterBase* Character = GetCharacterOwnerConst();
 	const AExperienceGameState* ExperienceGameState =
 		Character && Character->GetWorld()
 			? Character->GetWorld()->GetGameState<AExperienceGameState>()
 			: nullptr;
-	return ExperienceGameState
-		? ExperienceGameState->GetMatchRuleDefinition()
+	if (ExperienceGameState && ExperienceGameState->GetMatchRuleDefinition())
+	{
+		return ExperienceGameState->GetMatchRuleDefinition();
+	}
+
+	const UGameInstance* GameInstance = Character
+		? Character->GetGameInstance()
 		: nullptr;
+	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem = GameInstance
+		? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>()
+		: nullptr;
+	if (const UMatchRuleDefinition* LobbyMatchRules = LobbyRuntimeSubsystem
+		? LobbyRuntimeSubsystem->GetLoadedLobbyMatchRuleDefinition()
+		: nullptr)
+	{
+		return LobbyMatchRules;
+	}
+
+	return UMatchRuleDefinition::ResolveDefaultDefinition();
 }
 
 void UCharacterPresentationComponent::ApplyTeamOverlayMaterial()
@@ -216,12 +230,6 @@ void UCharacterPresentationComponent::RefreshCharacterOverlayMaterial()
 		GetPreferredSkillOverlayMaterial())
 	{
 		CharacterMesh->SetOverlayMaterial(SkillOverlayMaterial);
-		return;
-	}
-
-	if (!Settings.bApplyTeamOverlayMaterial)
-	{
-		CharacterMesh->SetOverlayMaterial(nullptr);
 		return;
 	}
 
@@ -274,14 +282,7 @@ UCharacterPresentationComponent::GetPreferredSkillOverlayMaterial()
 		SkillPresentationOverlaySources.RemoveAt(Index);
 		SkillPresentationOverlayMaterials.RemoveAt(Index);
 	}
-	return ActiveSkillOverlayMaterial;
-}
-
-void UCharacterPresentationComponent::ApplySkillOverlayMaterial(
-	UMaterialInterface* OverlayMaterial)
-{
-	ActiveSkillOverlayMaterial = OverlayMaterial;
-	RefreshCharacterOverlayMaterial();
+	return nullptr;
 }
 
 void UCharacterPresentationComponent::ApplySkillPresentationOverlay(
@@ -344,7 +345,6 @@ void UCharacterPresentationComponent::ClearSkillPresentationOverlay(
 
 void UCharacterPresentationComponent::ClearCharacterOverlayMaterialLocal()
 {
-	ActiveSkillOverlayMaterial = nullptr;
 	SkillPresentationOverlaySources.Reset();
 	SkillPresentationOverlayMaterials.Reset();
 	if (ACharacterBase* Character = GetCharacterOwner())
@@ -362,9 +362,8 @@ void UCharacterPresentationComponent::QueueTeamOverlayMaterialRetry()
 	if (!World
 		|| World->GetTimerManager().IsTimerActive(
 			TeamOverlayMaterialRetryTimerHandle)
-		|| (Settings.TeamOverlayMaterialRetryAttempts > 0
-			&& TeamOverlayMaterialRetryCount
-				>= Settings.TeamOverlayMaterialRetryAttempts))
+		|| TeamOverlayMaterialRetryCount
+			>= TeamOverlayMaterialRetryAttempts)
 	{
 		return;
 	}
@@ -378,7 +377,7 @@ void UCharacterPresentationComponent::QueueTeamOverlayMaterialRetry()
 			BindMatchTeamColorChanged();
 			ApplyTeamOverlayMaterial();
 		}),
-		FMath::Max(Settings.TeamOverlayMaterialRetryInterval, 0.01f),
+		TeamOverlayMaterialRetryInterval,
 		false);
 }
 
@@ -422,7 +421,7 @@ FVector UCharacterPresentationComponent::GetClampedBodyAuraRelativeLocationOffse
 	}
 
 	const float MaxOffsetDistance =
-		FMath::Max(Settings.MaxBodyAuraRelativeOffsetDistance, 0.0f);
+		MaxBodyAuraRelativeOffsetDistance;
 	return MaxOffsetDistance > 0.0f
 		? RelativeLocationOffset.GetClampedToMaxSize(MaxOffsetDistance)
 		: FVector::ZeroVector;
@@ -437,7 +436,7 @@ FVector UCharacterPresentationComponent::GetClampedBodyAuraRelativeScale(
 	}
 
 	const float MaxScale =
-		FMath::Max(Settings.MaxBodyAuraRelativeScale, 0.01f);
+		MaxBodyAuraRelativeScale;
 	return FVector(
 		FMath::Clamp(RelativeScale.X, 0.0f, MaxScale),
 		FMath::Clamp(RelativeScale.Y, 0.0f, MaxScale),
@@ -469,34 +468,6 @@ UCharacterPresentationComponent::FindBodyAuraNiagaraComponent(
 		}
 	}
 	return DefaultBodyAuraComponent.Get();
-}
-
-void UCharacterPresentationComponent::ApplyBodyAuraNiagara(
-	const FName ComponentName,
-	UNiagaraSystem* NiagaraSystem,
-	const bool bActivate,
-	const bool bResetSystem)
-{
-	UNiagaraComponent* AuraComponent =
-		FindBodyAuraNiagaraComponent(ComponentName);
-	if (!AuraComponent)
-	{
-		return;
-	}
-
-	AuraComponent->SetAsset(NiagaraSystem);
-	if (NiagaraSystem && bActivate)
-	{
-		if (bResetSystem)
-		{
-			AuraComponent->ResetSystem();
-		}
-		AuraComponent->Activate(true);
-	}
-	else
-	{
-		AuraComponent->Deactivate();
-	}
 }
 
 void UCharacterPresentationComponent::ApplyBodyAuraNiagaraWithOffset(
@@ -548,81 +519,6 @@ void UCharacterPresentationComponent::ClearBodyAuraNiagaraIfMatching(
 
 	AuraComponent->Deactivate();
 	AuraComponent->SetAsset(nullptr);
-}
-
-void UCharacterPresentationComponent::SpawnProjectileCosmetic(
-	TSubclassOf<AProjectileBase> ProjectileClass,
-	const FVector SpawnLocation,
-	const FRotator SpawnRotation,
-	const FVector TargetLocation,
-	const float Speed,
-	const bool bUseArcTrajectory,
-	const float ArcHeight,
-	const float ArcGravityScale,
-	UNiagaraSystem* MuzzleFX,
-	UNiagaraSystem* ProjectileFX,
-	UNiagaraSystem* HitFX,
-	const bool bSpawnHitNiagaraOnGround,
-	const FGameplayTag SpawnGameplayCueTag,
-	const FGameplayTag ImpactGameplayCueTag,
-	const FVector SpawnScale,
-	const FName NiagaraVector2DParameterName,
-	const FVector2D NiagaraSize,
-	const float LifeSpan)
-{
-	ACharacterBase* Character = GetCharacterOwner();
-	if (!Character
-		|| Character->HasAuthority()
-		|| Character->GetNetMode() == NM_DedicatedServer
-		|| !ProjectileClass)
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
-	AProjectileBase* Projectile =
-		World->SpawnActorDeferred<AProjectileBase>(
-			ProjectileClass,
-			SpawnTransform,
-			Character,
-			Character,
-			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-	if (!Projectile)
-	{
-		return;
-	}
-
-	Projectile->SetReplicates(false);
-	Projectile->SetReplicateMovement(false);
-	Projectile->ConfigureProjectileVisuals(
-		MuzzleFX,
-		ProjectileFX,
-		HitFX,
-		bSpawnHitNiagaraOnGround,
-		SpawnGameplayCueTag,
-		ImpactGameplayCueTag);
-	Projectile->ConfigureArcTrajectory(
-		bUseArcTrajectory,
-		ArcHeight,
-		ArcGravityScale);
-	Projectile->InitializeCosmeticProjectile(
-		TargetLocation,
-		Speed,
-		LifeSpan);
-	Projectile->StartReadiedScaleGrowth(
-		SpawnScale,
-		SpawnScale,
-		0.0f,
-		NiagaraVector2DParameterName,
-		NiagaraSize,
-		NiagaraSize);
-	UGameplayStatics::FinishSpawningActor(Projectile, SpawnTransform);
 }
 
 ACharacterBase* UCharacterPresentationComponent::GetCharacterOwner() const

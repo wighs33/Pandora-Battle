@@ -1,5 +1,6 @@
 #include "Definition/Player/CharacterActionDefinition.h"
 
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "InputAction.h"
 
 #if WITH_EDITOR
@@ -12,9 +13,6 @@
 
 namespace
 {
-	constexpr const TCHAR* DefaultCharacterActionDefinitionPathName =
-		TEXT("/Game/Data/DA_CharacterAction.DA_CharacterAction");
-
 	TSoftObjectPtr<UInputAction> MakeCharacterActionInputActionReference(const TCHAR* Path)
 	{
 		return TSoftObjectPtr<UInputAction>(FSoftObjectPath(Path));
@@ -184,7 +182,8 @@ FPrimaryAssetId UCharacterActionDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UCharacterActionDefinition::GetDefaultDefinitionPath()
 {
-	return FSoftObjectPath(DefaultCharacterActionDefinitionPathName);
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.CharacterAction.ToSoftObjectPath();
 }
 
 const FCharacterActionConfig& UCharacterActionDefinition::FindActionConfig(const ECharacterActionType ActionType) const

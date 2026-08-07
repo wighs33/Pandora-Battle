@@ -3,6 +3,7 @@
 #include "AbilitySystem/TargetValidator.h"
 #include "CableComponent.h"
 #include "Character/PdPlayer.h"
+#include "Common/CollisionChannels.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -26,6 +27,7 @@ UGrappleComponent::UGrappleComponent(const FObjectInitializer& ObjectInitializer
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 	SetIsReplicatedByDefault(true);
+	TraceChannel = LabCollisionChannels::VisibilityTrace();
 }
 
 void UGrappleComponent::BeginPlay()

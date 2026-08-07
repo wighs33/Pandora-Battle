@@ -8,6 +8,7 @@ class UPdAbilitySystemComponent;
 class UEnemyBaseDefinition;
 class UEnemyCombatComponent;
 class UEnemyTrainingBotComponent;
+class UCombatComponent;
 class UItemDefinition;
 class UUserWidget;
 class UAnimMontage;
@@ -54,9 +55,6 @@ public:
 	{
 		return AbilitySystemComponent.Get();
 	}
-
-	UFUNCTION(BlueprintPure, Category = "!AI|Definition")
-	UEnemyBaseDefinition* GetEnemyDefinition() const;
 
 	UFUNCTION(BlueprintPure, Category = "!AI|Combat")
 	UEnemyCombatComponent* GetEnemyCombatComponent() const
@@ -115,9 +113,6 @@ public:
 	virtual bool GetFallbackAttackData(FAttackData& OutAttackData) const;
 
 	UFUNCTION(BlueprintPure, Category = "!AI|Combat")
-	float GetAttackRange() const { return GetAttackStartDistance(); }
-
-	UFUNCTION(BlueprintPure, Category = "!AI|Combat")
 	float GetAttackStartDistance() const;
 
 	UFUNCTION(BlueprintPure, Category = "!AI|Combat")
@@ -149,12 +144,14 @@ protected:
 	virtual void ModifyResolvedEnemySettings(
 		FEnemyCombatSettings& CombatSettings,
 		FEnemyTrainingBotSettings& TrainingBotSettings) const;
+	virtual void ApplyResolvedEnemyDefinition(
+		const UEnemyBaseDefinition* ResolvedDefinition);
 
 	bool IsTrainingHitStunned() const;
 	bool MoveToAttackTarget(AActor* CurrentAttackTarget);
 	bool IsDefaultAttributeSetupComplete() const;
 
-	UFUNCTION(NetMulticast, Reliable)
+	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPlayTrainingHitReactMontage();
 
 	UFUNCTION(NetMulticast, Reliable)
@@ -194,6 +191,13 @@ protected:
 		Category = "!AI|Combat",
 		meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UEnemyCombatComponent> EnemyCombatComponent;
+
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "!AI|Combat",
+		meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UCombatComponent> CombatComponent;
 
 	UPROPERTY(
 		VisibleAnywhere,

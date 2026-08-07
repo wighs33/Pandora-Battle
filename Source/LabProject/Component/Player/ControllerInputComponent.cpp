@@ -12,7 +12,6 @@
 #include "GameFramework/Pawn.h"
 #include "GameplayTagContainer.h"
 #include "InputAction.h"
-#include "InputCoreTypes.h"
 #include "InputMappingContext.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -21,9 +20,11 @@
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerState.h"
 #include "Component/Player/CombatComponent.h"
+#include "Component/Player/ControllerPresentationComponent.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/PlayerRewardComponent.h"
+#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
 #include "UI/InfoUiTypes.h"
@@ -338,21 +339,36 @@ const UCharacterActionDefinition* UControllerInputComponent::LoadCharacterAction
 		return nullptr;
 	}
 
-	const TSoftObjectPtr<UCharacterActionDefinition>& ActionDefinition = Definition->GetCharacterActionDefinition();
+	const TSoftObjectPtr<UCharacterActionDefinition> ActionDefinition =
+		Definition->GetEffectiveCharacterActionDefinition();
 	LoadedCharacterActionDefinition = ActionDefinition.IsNull() ? nullptr : ActionDefinition.Get();
 	return LoadedCharacterActionDefinition;
 }
 
 bool UControllerInputComponent::IsCharacterActionAvailable(APdPlayer* PlayerCharacter, const ECharacterActionType ActionType) const
 {
-	if (PlayerCharacter && ActionType == ECharacterActionType::PandoraWeaponSwap)
+	if (!PlayerCharacter)
 	{
-		const UAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter->GetAbilitySystemComponent();
-		return !AbilitySystemComponent
-			|| !AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon);
+		return true;
 	}
 
-	return !PlayerCharacter || !PlayerCharacter->IsCharacterActionOnCooldown(ActionType);
+	FGameplayTag CooldownTag;
+	switch (ActionType)
+	{
+	case ECharacterActionType::PandoraWeaponSwap:
+		CooldownTag = LabGameplayTags::Cooldown_EquipWeapon;
+		break;
+	case ECharacterActionType::GrappleHook:
+		CooldownTag = LabGameplayTags::Cooldown_Grapple;
+		break;
+	default:
+		return true;
+	}
+
+	const UAbilitySystemComponent* AbilitySystemComponent =
+		PlayerCharacter->GetAbilitySystemComponent();
+	return !AbilitySystemComponent
+		|| !AbilitySystemComponent->HasMatchingGameplayTag(CooldownTag);
 }
 
 void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& EnhancedInputComponent,
@@ -415,7 +431,6 @@ void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& 
 	BindLoadedAction(Definition.GetInteractInputAction(), ETriggerEvent::Started, &ThisClass::HandleInteractInput, false);
 	BindLoadedStartedCompletedCanceledAction(Definition.GetAttackInputAction(), &ThisClass::HandleAttackInputStarted, &ThisClass::HandleAttackInputEnded);
 	BindLoadedStartedCompletedCanceledAction(Definition.GetAimInputAction(), &ThisClass::HandleAimInputStarted, &ThisClass::HandleAimInputEnded);
-	BindLoadedAction(Definition.GetPaintInputAction(), ETriggerEvent::Triggered, &ThisClass::HandlePaintInputTriggered, true);
 	BindLoadedStartedCompletedCanceledAction(Definition.GetGrappleInputAction(), &ThisClass::HandleGrappleInputStarted, &ThisClass::HandleGrappleInputEnded);
 	BindLoadedAction(Definition.GetOpenInfoProfileInputAction(), ETriggerEvent::Started, &ThisClass::HandleOpenInfoProfileInputStarted, true);
 	BindLoadedAction(Definition.GetOpenInfoItemInputAction(), ETriggerEvent::Started, &ThisClass::HandleOpenInfoItemInputStarted, true);
@@ -430,6 +445,12 @@ void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& 
 		&ThisClass::HandleSelectPandoraInputStarted,
 		&ThisClass::HandleSelectPandoraInputEnded);
 	BindLoadedAction(Definition.GetPandoraTreeInputAction(), ETriggerEvent::Started, &ThisClass::HandlePandoraTreeInputStarted, true);
+	BindLoadedStartedCompletedCanceledAction(
+		Definition.GetScoreboardInputAction(),
+		&ThisClass::HandleScoreboardInputStarted,
+		&ThisClass::HandleScoreboardInputEnded);
+	BindLoadedAction(Definition.GetChatInputAction(), ETriggerEvent::Started, &ThisClass::HandleChatInputStarted, false);
+	BindLoadedAction(Definition.GetChatScrollInputAction(), ETriggerEvent::Triggered, &ThisClass::HandleChatScrollInputTriggered, false);
 	BindLoadedStartedCompletedCanceledAction(Definition.GetSkill1InputAction(), &ThisClass::HandleSkill1InputStarted, &ThisClass::HandleSkill1InputEnded);
 	BindLoadedStartedCompletedCanceledAction(Definition.GetSkill2InputAction(), &ThisClass::HandleSkill2InputStarted, &ThisClass::HandleSkill2InputEnded);
 	BindLoadedStartedCompletedCanceledAction(Definition.GetSkill3InputAction(), &ThisClass::HandleSkill3InputStarted, &ThisClass::HandleSkill3InputEnded);
@@ -444,7 +465,6 @@ void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& 
 	BindLoadedAction(Definition.GetGesture4InputAction(), ETriggerEvent::Started, &ThisClass::HandleGesture4InputStarted, false);
 	BindLoadedAction(Definition.GetTargetConfirmInputAction(), ETriggerEvent::Started, &ThisClass::HandleTargetConfirmInputStarted, false);
 }
-
 
 bool UControllerInputComponent::CancelHitReactForMoveInput(APdPlayer* PlayerCharacter) const
 {
@@ -626,7 +646,7 @@ void UControllerInputComponent::HandleOpenInfoProfileInputStarted(const FInputAc
 	static_cast<void>(InputValue);
 	if (APdHUD* HUD = GetPdHUD())
 	{
-		HUD->OpenInfoUiFocused(EPdInfoUiSection::Profile);
+		HUD->OpenInfoUiFocused(EInfoUiSection::Profile);
 	}
 }
 
@@ -635,7 +655,7 @@ void UControllerInputComponent::HandleOpenInfoItemInputStarted(const FInputActio
 	static_cast<void>(InputValue);
 	if (APdHUD* HUD = GetPdHUD())
 	{
-		HUD->OpenInfoUiFocused(EPdInfoUiSection::Item);
+		HUD->OpenInfoUiFocused(EInfoUiSection::Item);
 	}
 }
 
@@ -644,7 +664,7 @@ void UControllerInputComponent::HandleOpenInfoSkinInputStarted(const FInputActio
 	static_cast<void>(InputValue);
 	if (APdHUD* HUD = GetPdHUD())
 	{
-		HUD->OpenInfoUiFocused(EPdInfoUiSection::Skin);
+		HUD->OpenInfoUiFocused(EInfoUiSection::Skin);
 	}
 }
 
@@ -653,7 +673,7 @@ void UControllerInputComponent::HandleOpenInfoPandoraInputStarted(const FInputAc
 	static_cast<void>(InputValue);
 	if (APdHUD* HUD = GetPdHUD())
 	{
-		HUD->OpenInfoUiFocused(EPdInfoUiSection::Pandora);
+		HUD->OpenInfoUiFocused(EInfoUiSection::Pandora);
 	}
 }
 
@@ -662,7 +682,7 @@ void UControllerInputComponent::HandleOpenInfoMapInputStarted(const FInputAction
 	static_cast<void>(InputValue);
 	if (APdHUD* HUD = GetPdHUD())
 	{
-		HUD->OpenInfoUiFocused(EPdInfoUiSection::Map);
+		HUD->OpenInfoUiFocused(EInfoUiSection::Map);
 	}
 }
 
@@ -768,6 +788,66 @@ void UControllerInputComponent::HandlePandoraTreeInputStarted(const FInputAction
 	}
 }
 
+void UControllerInputComponent::HandleScoreboardInputStarted(const FInputActionValue& InputValue)
+{
+	static_cast<void>(InputValue);
+
+	if (APdPlayerController* Controller = GetPdController())
+	{
+		if (UControllerPresentationComponent* Presentation =
+			Controller->GetControllerPresentationComponent())
+		{
+			Presentation->ShowInGameScoreboard();
+		}
+	}
+}
+
+void UControllerInputComponent::HandleScoreboardInputEnded(const FInputActionValue& InputValue)
+{
+	static_cast<void>(InputValue);
+
+	if (APdPlayerController* Controller = GetPdController())
+	{
+		if (UControllerPresentationComponent* Presentation =
+			Controller->GetControllerPresentationComponent())
+		{
+			Presentation->HideInGameScoreboard();
+		}
+	}
+}
+
+void UControllerInputComponent::HandleChatInputStarted(const FInputActionValue& InputValue)
+{
+	static_cast<void>(InputValue);
+
+	if (APdPlayerController* Controller = GetPdController())
+	{
+		if (UChatControllerComponent* ChatController =
+			Controller->FindComponentByClass<UChatControllerComponent>())
+		{
+			ChatController->HandleChatInputAction();
+		}
+	}
+}
+
+void UControllerInputComponent::HandleChatScrollInputTriggered(const FInputActionValue& InputValue)
+{
+	const float ScrollValue = InputValue.Get<float>();
+	if (FMath::IsNearlyZero(ScrollValue))
+	{
+		return;
+	}
+
+	if (APdPlayerController* Controller = GetPdController())
+	{
+		if (UChatControllerComponent* ChatController =
+			Controller->FindComponentByClass<UChatControllerComponent>())
+		{
+			ChatController->ScrollChat(ScrollValue > 0.0f);
+		}
+	}
+}
+
 void UControllerInputComponent::HandleAttackInputStarted(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
@@ -817,19 +897,6 @@ void UControllerInputComponent::HandleAimInputEnded(const FInputActionValue& Inp
 	{
 		CombatComponent->StopAim();
 	}
-}
-
-void UControllerInputComponent::HandlePaintInputTriggered(const FInputActionValue& InputValue)
-{
-	APdPlayer* PlayerCharacter = GetPlayerCharacter();
-	if (!PlayerCharacter
-		|| !PlayerCharacter->HasActivePaintCanvas()
-		|| InputValue.GetMagnitude() <= UE_KINDA_SMALL_NUMBER)
-	{
-		return;
-	}
-
-	PlayerCharacter->TryPaintAtCursor();
 }
 
 void UControllerInputComponent::HandleGrappleInputStarted(const FInputActionValue& InputValue)
@@ -1071,16 +1138,9 @@ bool UControllerInputComponent::IsOpenLobbyInputAllowed() const
 		return false;
 	}
 
-	const UControllerInputDefinition* Definition = LoadedInputDefinition.Get();
-	if (!Definition)
-	{
-		Definition = const_cast<UControllerInputComponent*>(this)->LoadInputDefinition();
-	}
-	if (!Definition)
-	{
-		return false;
-	}
-
+	const ULobbyModeDefinition* LobbyDefinition =
+		ULobbyModeDefinition::ResolveDefaultDefinition();
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
-	return Definition->IsOpenLobbyInputAllowedForMap(CurrentLevelName);
+	return LobbyDefinition
+		&& LobbyDefinition->IsLobbyMapName(CurrentLevelName);
 }

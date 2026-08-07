@@ -7,7 +7,6 @@
 #include "CharacterPresentationComponent.generated.h"
 
 class ACharacterBase;
-class AProjectileBase;
 class UAnimInstance;
 class UMaterialInterface;
 class UMatchRuleDefinition;
@@ -16,7 +15,7 @@ class UNiagaraSystem;
 
 /**
  * Shared visual state for characters: animation layers, aim-offset data,
- * team/skill overlays, body auras, dash cues, and cosmetic projectiles.
+ * team/skill overlays, body auras, and dash cues.
  */
 UCLASS(ClassGroup = (Character), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UCharacterPresentationComponent : public UActorComponent
@@ -44,7 +43,6 @@ public:
 	void BindMatchTeamColorChanged();
 	void UnbindMatchTeamColorChanged();
 	void ApplyTeamOverlayMaterial();
-	void ApplySkillOverlayMaterial(UMaterialInterface* OverlayMaterial);
 	void ApplySkillPresentationOverlay(
 		UObject* PresentationSource,
 		UMaterialInterface* OverlayMaterial);
@@ -56,11 +54,6 @@ public:
 		const FGameplayCueParameters& Parameters);
 
 	UNiagaraComponent* FindBodyAuraNiagaraComponent(FName ComponentName) const;
-	void ApplyBodyAuraNiagara(
-		FName ComponentName,
-		UNiagaraSystem* NiagaraSystem,
-		bool bActivate,
-		bool bResetSystem);
 	void ApplyBodyAuraNiagaraWithOffset(
 		FName ComponentName,
 		UNiagaraSystem* NiagaraSystem,
@@ -71,26 +64,6 @@ public:
 	void ClearBodyAuraNiagaraIfMatching(
 		FName ComponentName,
 		const UNiagaraSystem* ExpectedNiagaraSystem);
-
-	void SpawnProjectileCosmetic(
-		TSubclassOf<AProjectileBase> ProjectileClass,
-		FVector SpawnLocation,
-		FRotator SpawnRotation,
-		FVector TargetLocation,
-		float Speed,
-		bool bUseArcTrajectory,
-		float ArcHeight,
-		float ArcGravityScale,
-		UNiagaraSystem* MuzzleFX,
-		UNiagaraSystem* ProjectileFX,
-		UNiagaraSystem* HitFX,
-		bool bSpawnHitNiagaraOnGround,
-		FGameplayTag SpawnGameplayCueTag,
-		FGameplayTag ImpactGameplayCueTag,
-		FVector SpawnScale,
-		FName NiagaraVector2DParameterName,
-		FVector2D NiagaraSize,
-		float LifeSpan);
 
 private:
 	UFUNCTION()
@@ -121,9 +94,6 @@ private:
 
 	UPROPERTY(Transient)
 	float AimPitch = 0.0f;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UMaterialInterface> ActiveSkillOverlayMaterial;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UObject>> SkillPresentationOverlaySources;

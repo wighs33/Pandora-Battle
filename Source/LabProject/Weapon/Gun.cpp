@@ -4,6 +4,7 @@
 #include "Character/CharacterHitValidation.h"
 #include "Character/PdPlayer.h"
 #include "Component/Player/CombatComponent.h"
+#include "Common/CollisionChannels.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameplayCueManager.h"
@@ -29,15 +30,14 @@ TArray<TEnumAsByte<EObjectTypeQuery>> MakeGunTraceObjectTypes(TArray<TEnumAsByte
 			return UEngineTypes::ConvertToCollisionChannel(ObjectType) == ECC_Pawn;
 		});
 	AddUniqueGunTraceObjectType(ObjectTypes, ECC_WorldStatic);
-	AddUniqueGunTraceObjectType(ObjectTypes, ECC_GameTraceChannel1);
+	AddUniqueGunTraceObjectType(ObjectTypes, LabCollisionChannels::HitableBody());
 	return ObjectTypes;
 }
-
 }
 
 bool AGun::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 {
-	if (!SupportsAimInput() || !PlayerCharacter)
+	if (!CanUseRangedWeapon(PlayerCharacter, true))
 	{
 		return false;
 	}
@@ -72,28 +72,26 @@ bool AGun::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 
 bool AGun::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor)
 {
-	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || !IsValid(TargetActor))
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
+		|| !IsValid(TargetActor))
 	{
 
 		return false;
 	}
 
-	const bool bHandled = HandleAIPrimaryAttackOnServer(AttackingCharacter, TargetActor);
-
-	return bHandled;
+	return HandleAIPrimaryAttackOnServer(AttackingCharacter, TargetActor);
 }
 
 bool AGun::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
 {
-	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || TargetLocation.IsNearlyZero())
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
+		|| TargetLocation.IsNearlyZero())
 	{
 
 		return false;
 	}
 
-	const bool bHandled = HandleAIPrimaryAttackAtLocationOnServer(AttackingCharacter, TargetActor, TargetLocation);
-
-	return bHandled;
+	return HandleAIPrimaryAttackAtLocationOnServer(AttackingCharacter, TargetActor, TargetLocation);
 }
 
 bool AGun::HandlePrimaryAttackOnServer(
@@ -101,7 +99,7 @@ bool AGun::HandlePrimaryAttackOnServer(
 	const FVector& RequestedViewLocation,
 	const FVector& RequestedViewDirection)
 {
-	if (!HasAuthority() || !SupportsAimInput() || !PlayerCharacter)
+	if (!CanServerUseRangedWeapon(PlayerCharacter, true))
 	{
 		return false;
 	}
@@ -140,7 +138,7 @@ bool AGun::HandlePrimaryAttackOnServer(
 		{
 			if (ResolveDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent()))
 			{
-				ApplyDamageFromAuthoritativeTrace(HitResult);
+				ApplyDamageFromAuthoritativeRangedTrace(HitResult);
 			}
 		}
 	}
@@ -150,7 +148,8 @@ bool AGun::HandlePrimaryAttackOnServer(
 
 bool AGun::HandleAIPrimaryAttackOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor)
 {
-	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || !IsValid(TargetActor))
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
+		|| !IsValid(TargetActor))
 	{
 		return false;
 	}
@@ -160,7 +159,8 @@ bool AGun::HandleAIPrimaryAttackOnServer(ACharacterBase* AttackingCharacter, AAc
 
 bool AGun::HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
 {
-	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || TargetLocation.IsNearlyZero())
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
+		|| TargetLocation.IsNearlyZero())
 	{
 		return false;
 	}
@@ -187,7 +187,7 @@ bool AGun::HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingChar
 
 		if (!bHitFriendlyTarget && ResolveDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent()))
 		{
-			ApplyDamageFromAuthoritativeTrace(HitResult);
+			ApplyDamageFromAuthoritativeRangedTrace(HitResult);
 		}
 	}
 
@@ -471,46 +471,6 @@ FVector AGun::GetAITargetAimLocation(const AActor* TargetActor) const
 	return AimLocation;
 }
 
-void AGun::AppendEnemyCapsuleTraceHits(
-	const FVector& TraceStart,
-	const FVector& TraceEnd,
-	const float TraceRadius,
-	const TArray<AActor*>& ActorsToIgnore,
-	TArray<FHitResult>& InOutHitResults) const
-{
-	TArray<TEnumAsByte<EObjectTypeQuery>> PawnObjectTypes;
-	PawnObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-
-	TArray<FHitResult> PawnHitResults;
-	UKismetSystemLibrary::SphereTraceMultiForObjects(
-		this,
-		TraceStart,
-		TraceEnd,
-		TraceRadius,
-		PawnObjectTypes,
-		false,
-		ActorsToIgnore,
-		EDrawDebugTrace::None,
-		PawnHitResults,
-		true);
-
-	for (const FHitResult& PawnHitResult : PawnHitResults)
-	{
-		if (PdCharacterHitValidation::ResolveEnemyCapsuleHit(
-			PawnHitResult.GetActor(),
-			PawnHitResult.GetComponent()))
-		{
-			InOutHitResults.Add(PawnHitResult);
-		}
-	}
-
-	InOutHitResults.Sort(
-		[](const FHitResult& Left, const FHitResult& Right)
-		{
-			return Left.Time < Right.Time;
-		});
-}
-
 bool AGun::TraceAIGunShotAtLocation(
 	ACharacterBase* AttackingCharacter,
 	const FVector& TargetLocation,
@@ -539,13 +499,17 @@ bool AGun::TraceAIGunShotAtLocation(
 		? ItemDefinition->WeaponData.Gun.ShotTraceDebugDrawType.GetValue()
 		: EDrawDebugTrace::None;
 
+	const FVector TraceEnd = TraceStart + (OutShotDirection * TraceRange);
+	const float TraceRadius = GetGunTraceRadius();
+	const TArray<TEnumAsByte<EObjectTypeQuery>> TraceObjectTypes =
+		GetGunTraceObjectTypes();
 	TArray<FHitResult> HitResults;
 	UKismetSystemLibrary::SphereTraceMultiForObjects(
 		this,
 		TraceStart,
-		TraceStart + (OutShotDirection * TraceRange),
-		GetGunTraceRadius(),
-		GetGunTraceObjectTypes(),
+		TraceEnd,
+		TraceRadius,
+		TraceObjectTypes,
 		false,
 		ActorsToIgnore,
 		ShotTraceDebugDrawType,
@@ -554,12 +518,6 @@ bool AGun::TraceAIGunShotAtLocation(
 		FLinearColor::Red,
 		FLinearColor::Green,
 		5.0f);
-	AppendEnemyCapsuleTraceHits(
-		TraceStart,
-		TraceStart + (OutShotDirection * TraceRange),
-		GetGunTraceRadius(),
-		ActorsToIgnore,
-		HitResults);
 	return SelectFirstValidGunImpact(HitResults, OutHitResult);
 }
 
@@ -599,6 +557,7 @@ bool AGun::TraceGunShot(
 		? ItemDefinition->WeaponData.Gun.AimTraceDebugDrawType.GetValue()
 		: EDrawDebugTrace::None;
 	FVector AimTargetLocation = FVector::ZeroVector;
+	FHitResult AimHitResult;
 	if (!ResolveAimTargetBeyondLaunchPoint(
 		ViewLocation,
 		SafeViewDirection,
@@ -607,7 +566,8 @@ bool AGun::TraceGunShot(
 		TraceObjectTypes,
 		ActorsToIgnore,
 		AimTraceDebugDrawType,
-		AimTargetLocation))
+		AimTargetLocation,
+		&AimHitResult))
 	{
 		return false;
 	}
@@ -628,12 +588,13 @@ bool AGun::TraceGunShot(
 		? ItemDefinition->WeaponData.Gun.ShotTraceDebugDrawType.GetValue()
 		: EDrawDebugTrace::None;
 
+	const float TraceRadius = GetGunTraceRadius();
 	TArray<FHitResult> HitResults;
 	UKismetSystemLibrary::SphereTraceMultiForObjects(
 		this,
 		TraceStart,
 		TraceEnd,
-		GetGunTraceRadius(),
+		TraceRadius,
 		TraceObjectTypes,
 		false,
 		ActorsToIgnore,
@@ -643,13 +604,38 @@ bool AGun::TraceGunShot(
 		FLinearColor::Red,
 		FLinearColor::Green,
 		5.0f);
-	AppendEnemyCapsuleTraceHits(
-		TraceStart,
-		TraceEnd,
-		GetGunTraceRadius(),
-		ActorsToIgnore,
-		HitResults);
-	return SelectFirstValidGunImpact(HitResults, OutHitResult);
+	if (SelectFirstValidGunImpact(HitResults, OutHitResult))
+	{
+		return true;
+	}
+
+	// In third-person aiming, the camera ray can hit the character mesh while the
+	// short muzzle-to-crosshair convergence ray narrowly misses its physics bodies.
+	// Reuse only that exact primary-mesh aim hit after the muzzle trace confirms that
+	// no valid world or character impact blocked the path. Capsules and interaction
+	// components remain ineligible for damage.
+	const ACharacterBase* AimDamageCharacter =
+		PdCharacterHitValidation::ResolveWeaponDamageHit(
+			AimHitResult.GetActor(),
+			AimHitResult.GetComponent());
+	if (!AimDamageCharacter)
+	{
+		return false;
+	}
+
+	const FVector AimImpactLocation = AimHitResult.ImpactPoint.IsNearlyZero()
+		? AimHitResult.Location
+		: AimHitResult.ImpactPoint;
+	const float AimImpactForwardDistance =
+		FVector::DotProduct(AimImpactLocation - TraceStart, ShotDirection);
+	if (AimImpactForwardDistance <= 0.0f
+		|| AimImpactForwardDistance > TraceDistance + TraceRadius + 1.0f)
+	{
+		return false;
+	}
+
+	OutHitResult = AimHitResult;
+	return true;
 }
 
 bool AGun::SelectFirstValidGunImpact(

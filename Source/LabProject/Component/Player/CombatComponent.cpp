@@ -27,56 +27,22 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Settings/GameSettingsSubsystem.h"
-#include "UObject/ConstructorHelpers.h"
 #include "Weapon/WeaponBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CombatComponent)
+
+namespace
+{
+	constexpr float UnarmedTraceDebugDrawTime = 1.0f;
+	const FColor UnarmedTraceDebugColor = FColor::Red;
+	const FColor UnarmedTraceDebugHitColor = FColor::Green;
+}
 
 UCombatComponent::UCombatComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
-
-	UnarmedAttackTraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-
-	static ConstructorHelpers::FClassFinder<UGameplayEffect> OutgoingDamageEffectFinder(
-		TEXT("/Game/GAS/Effect/GE_OutgoingDamage"));
-	if (OutgoingDamageEffectFinder.Succeeded())
-	{
-		OutgoingDamageEffectClass = OutgoingDamageEffectFinder.Class;
-	}
-
-	static ConstructorHelpers::FClassFinder<UGameplayEffect> IncomingDamageEffectFinder(
-		TEXT("/Game/GAS/Effect/GE_IncomingDamage"));
-	if (IncomingDamageEffectFinder.Succeeded())
-	{
-		IncomingDamageEffectClass = IncomingDamageEffectFinder.Class;
-	}
-
-	FUnarmedAttackTraceDefinition RightHandTrace;
-	RightHandTrace.StartSocketName = TEXT("hand_r");
-	RightHandTrace.EndSocketName = TEXT("hand_r");
-	UnarmedAttackTraces.Add(RightHandTrace);
-
-	FUnarmedAttackTraceDefinition LeftHandTrace;
-	LeftHandTrace.StartSocketName = TEXT("hand_l");
-	LeftHandTrace.EndSocketName = TEXT("hand_l");
-	UnarmedAttackTraces.Add(LeftHandTrace);
-
-	static ConstructorHelpers::FObjectFinder<UAnimMontage> UnarmedAttackMontageFinder(
-		TEXT("/Game/Animation/Stickman/Unarmed/Attack/AM_ComboAttack_UnArmed"));
-	if (UnarmedAttackMontageFinder.Succeeded())
-	{
-		UnarmedAttackMontage = UnarmedAttackMontageFinder.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> UnarmedComboWindowEffectFinder(
-		TEXT("/Game/VFX/Particles/Blockable/NS_Combo"));
-	if (UnarmedComboWindowEffectFinder.Succeeded())
-	{
-		UnarmedComboWindowStartEffect = UnarmedComboWindowEffectFinder.Object;
-	}
 }
 
 void UCombatComponent::BeginPlay()
@@ -84,7 +50,6 @@ void UCombatComponent::BeginPlay()
 	Super::BeginPlay();
 
 	RefreshCachedReferences();
-	BeginUnarmedAttackMontagePreload();
 }
 
 void UCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -102,10 +67,27 @@ void UCombatComponent::RefreshCachedReferences()
 	CachedASC = CachedOwner ? CachedOwner->GetPdAbilitySystemComponent() : nullptr;
 }
 
+void UCombatComponent::ApplyDefinition(const UPlayerPawnDefinition* Definition)
+{
+	StopUnarmedAttackTrace();
+	UnarmedCombatSettings = Definition
+		? Definition->GetUnarmedCombatSettings()
+		: FUnarmedCombatSettings();
+
+	CachedUnarmedAttackObjectTypes = UnarmedCombatSettings.TraceObjectTypes;
+	HitActorsInCurrentUnarmedAttack.Reset();
+	TrackedUnarmedAttackSectionName = NAME_None;
+
+	if (HasBegunPlay())
+	{
+		BeginUnarmedAttackMontagePreload();
+	}
+}
+
 void UCombatComponent::PlayUnarmedComboWindowStartEffect() const
 {
 	ACharacterBase* Character = CachedOwner ? CachedOwner.Get() : Cast<ACharacterBase>(GetOwner());
-	if (!UnarmedComboWindowStartEffect
+	if (!UnarmedCombatSettings.ComboWindowStartEffect
 		|| !Character
 		|| Character->GetNetMode() == NM_DedicatedServer
 		|| !Character->IsPlayerControlled()
@@ -121,7 +103,7 @@ void UCombatComponent::PlayUnarmedComboWindowStartEffect() const
 	}
 
 	UNiagaraFunctionLibrary::SpawnSystemAttached(
-		UnarmedComboWindowStartEffect,
+		UnarmedCombatSettings.ComboWindowStartEffect,
 		EffectAttachComponent,
 		NAME_None,
 		FVector::ZeroVector,
@@ -159,6 +141,11 @@ void UCombatComponent::StartAim()
 	APdPlayer* PlayerCharacter = GetPlayerOwner();
 	if (!PlayerCharacter)
 	{
+		return;
+	}
+	if (PlayerCharacter->IsStatusFrozen())
+	{
+		StopAim();
 		return;
 	}
 
@@ -382,6 +369,14 @@ void UCombatComponent::ProcessAttackInput()
 
 bool UCombatComponent::IsPrimaryAttackBlockedByAbilityTags() const
 {
+	const ACharacterBase* CharacterOwner = IsValid(CachedOwner.Get())
+		? CachedOwner.Get()
+		: Cast<ACharacterBase>(GetOwner());
+	if (CharacterOwner && CharacterOwner->IsStatusFrozen())
+	{
+		return true;
+	}
+
 	const UAbilitySystemComponent* AbilitySystemComponent = GetPlayerAbilitySystemComponent();
 	return AbilitySystemComponent
 		&& (AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
@@ -396,9 +391,7 @@ bool UCombatComponent::TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter,
 		return true;
 	}
 
-	const bool bHandled = PlayerCharacter && WeaponActor->HandlePrimaryAttack(PlayerCharacter);
-
-	return bHandled;
+	return PlayerCharacter && WeaponActor->HandlePrimaryAttack(PlayerCharacter);
 }
 
 bool UCombatComponent::ShouldUseRangedAttackAbility(const AWeaponBase* WeaponActor) const
@@ -515,6 +508,22 @@ void UCombatComponent::HandleAutomaticFireTick()
 
 float UCombatComponent::GetActionStaminaCost() const
 {
+	const ACharacterBase* CharacterOwner = CachedOwner.Get();
+	if (!CharacterOwner)
+	{
+		CharacterOwner = Cast<ACharacterBase>(GetOwner());
+	}
+
+	const UEquipmentComponent* EquipmentComponent = CharacterOwner
+		? CharacterOwner->GetEquipmentComponent()
+		: nullptr;
+	if (const UItemDefinition* WeaponDefinition = EquipmentComponent
+		? EquipmentComponent->GetCurrentWeaponDefinition()
+		: nullptr)
+	{
+		return WeaponDefinition->GetSafeAttackStaminaCost();
+	}
+
 	const UGameSettingDefinition* SettingDefinition =
 		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	if (!SettingDefinition)
@@ -597,11 +606,37 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 		return false;
 	}
 
-	AbilitySystemComponent->ApplyModToAttribute(
-		UBasicAttributeSet::GetStaminaAttribute(),
-		EGameplayModOp::Additive,
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const TSubclassOf<UGameplayEffect> CostEffectClass = SettingDefinition
+		? SettingDefinition->AbilityCostGameplayEffectClass
+		: nullptr;
+	if (!CostEffectClass)
+	{
+		return false;
+	}
+
+	FGameplayEffectContextHandle EffectContext =
+		AbilitySystemComponent->MakeEffectContext();
+	EffectContext.AddSourceObject(this);
+	FGameplayEffectSpecHandle CostSpecHandle =
+		AbilitySystemComponent->MakeOutgoingSpec(
+			CostEffectClass,
+			1.0f,
+			EffectContext);
+	if (!CostSpecHandle.IsValid() || !CostSpecHandle.Data.IsValid())
+	{
+		return false;
+	}
+
+	CostSpecHandle.Data->SetSetByCallerMagnitude(
+		LabGameplayTags::Data_ManaCost,
+		0.0f);
+	CostSpecHandle.Data->SetSetByCallerMagnitude(
+		LabGameplayTags::Data_StaminaCost,
 		-StaminaCost);
-	return true;
+	return AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
+		*CostSpecHandle.Data.Get()).WasSuccessfullyApplied();
 }
 
 float UCombatComponent::GetWeaponDamageSourceMagnitude()
@@ -613,17 +648,13 @@ float UCombatComponent::GetWeaponDamageSourceMagnitude()
 	}
 
 	const UEquipmentComponent* EquipmentComponent = CharacterOwner ? CharacterOwner->GetEquipmentComponent() : nullptr;
-	const UItemDefinition* WeaponDefinition = EquipmentComponent ? EquipmentComponent->GetCurrentWeaponDefinition() : nullptr;
 	const FGameplayTag WeaponDamageSourceTag = GetWeaponDamageSourceTag();
-	const float* DefinitionDamageMagnitude = WeaponDefinition && WeaponDamageSourceTag.IsValid()
-		? WeaponDefinition->Map_Stat_Magnitude.Find(WeaponDamageSourceTag)
-		: nullptr;
-	if (DefinitionDamageMagnitude)
-	{
-		return FMath::Max(0.0f, *DefinitionDamageMagnitude);
-	}
-
-	return 0.0f;
+	return EquipmentComponent && WeaponDamageSourceTag.IsValid()
+		? FMath::Max(
+			0.0f,
+			EquipmentComponent->GetCurrentWeaponStatMagnitude(
+				WeaponDamageSourceTag))
+		: 0.0f;
 }
 
 float UCombatComponent::CalculateStrengthAdjustedWeaponDamage(const float WeaponDamage, const float SourceStrength) const
@@ -768,7 +799,12 @@ bool UCombatComponent::ApplyWeaponDamageToTarget(AActor* TargetActor)
 
 	SourceAttributeSet->ConsumeOutgoingDamage();
 
-	if (!ApplyDamageEffect(SourceASC, SourceASC, OutgoingDamageEffectClass, BaseDamageAmount, TargetCharacter))
+	if (!ApplyDamageEffect(
+		SourceASC,
+		SourceASC,
+		UnarmedCombatSettings.OutgoingDamageEffectClass,
+		BaseDamageAmount,
+		TargetCharacter))
 	{
 		return false;
 	}
@@ -791,7 +827,14 @@ bool UCombatComponent::ApplyWeaponDamageToTarget(AActor* TargetActor)
 
 	TargetAttributeSet->SetPendingIncomingDamageCriticalHit(bCriticalHit);
 	TargetAttributeSet->SetPendingIncomingDamageAllowHitReact(bShouldTriggerHitReactOnDamage);
-	if (!ApplyDamageEffect(SourceASC, TargetASC, IncomingDamageEffectClass, FinalOutgoingDamage, DamageSourceObject, SourceCharacter, DamageCauser))
+	if (!ApplyDamageEffect(
+		SourceASC,
+		TargetASC,
+		UnarmedCombatSettings.IncomingDamageEffectClass,
+		FinalOutgoingDamage,
+		DamageSourceObject,
+		SourceCharacter,
+		DamageCauser))
 	{
 		TargetAttributeSet->SetPendingIncomingDamageCriticalHit(false);
 		TargetAttributeSet->SetPendingIncomingDamageAllowHitReact(true);
@@ -805,21 +848,21 @@ UAnimMontage* UCombatComponent::GetCachedUnarmedAttackMontage() const
 {
 	return CachedUnarmedAttackMontage
 		? CachedUnarmedAttackMontage.Get()
-		: UnarmedAttackMontage.Get();
+		: UnarmedCombatSettings.AttackMontage.Get();
 }
 
 void UCombatComponent::BeginUnarmedAttackMontagePreload()
 {
 	ReleaseUnarmedAttackMontagePreload();
-	CachedUnarmedAttackMontage = UnarmedAttackMontage.Get();
-	if (CachedUnarmedAttackMontage || UnarmedAttackMontage.IsNull())
+	CachedUnarmedAttackMontage = UnarmedCombatSettings.AttackMontage.Get();
+	if (CachedUnarmedAttackMontage || UnarmedCombatSettings.AttackMontage.IsNull())
 	{
 		return;
 	}
 
 	UnarmedAttackMontagePreloadHandle =
 		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			UnarmedAttackMontage.ToSoftObjectPath(),
+			UnarmedCombatSettings.AttackMontage.ToSoftObjectPath(),
 			FStreamableDelegate::CreateUObject(
 				this,
 				&ThisClass::HandleUnarmedAttackMontagePreloadComplete));
@@ -827,7 +870,7 @@ void UCombatComponent::BeginUnarmedAttackMontagePreload()
 
 void UCombatComponent::HandleUnarmedAttackMontagePreloadComplete()
 {
-	CachedUnarmedAttackMontage = UnarmedAttackMontage.Get();
+	CachedUnarmedAttackMontage = UnarmedCombatSettings.AttackMontage.Get();
 }
 
 void UCombatComponent::ReleaseUnarmedAttackMontagePreload()
@@ -857,19 +900,6 @@ bool UCombatComponent::GetUnarmedAttackData(FAttackData& OutAttackData) const
 	return true;
 }
 
-void UCombatComponent::SetUnarmedAttackTraceEnabled(bool bEnabled)
-{
-	if (bEnabled)
-	{
-		TrackedUnarmedAttackSectionName = NAME_None;
-		StartUnarmedAttackTrace(true);
-	}
-	else
-	{
-		StopUnarmedAttackTrace();
-	}
-}
-
 void UCombatComponent::SetUnarmedAttackTraceEnabledForSection(
 	const bool bEnabled,
 	const FName AttackSectionName)
@@ -890,7 +920,7 @@ void UCombatComponent::SetUnarmedAttackTraceEnabledForSection(
 	{
 		TrackedUnarmedAttackSectionName = AttackSectionName;
 		HitActorsInCurrentUnarmedAttack.Reset();
-		PreviousUnarmedAttackTraceValid.Init(0, UnarmedAttackTraces.Num());
+		PreviousUnarmedAttackTraceValid.Init(0, UnarmedCombatSettings.AttackTraces.Num());
 	}
 
 	StartUnarmedAttackTrace(false);
@@ -916,15 +946,23 @@ void UCombatComponent::StartUnarmedAttackTrace(const bool bResetHitActors)
 		return;
 	}
 
-
-
 	if (bResetHitActors)
 	{
 		HitActorsInCurrentUnarmedAttack.Reset();
 	}
-	PreviousUnarmedAttackTraceStartLocations.SetNumZeroed(UnarmedAttackTraces.Num());
-	PreviousUnarmedAttackTraceEndLocations.SetNumZeroed(UnarmedAttackTraces.Num());
-	PreviousUnarmedAttackTraceValid.Init(0, UnarmedAttackTraces.Num());
+	if (UnarmedCombatSettings.AttackTraces.IsEmpty()
+		|| UnarmedCombatSettings.TraceObjectTypes.IsEmpty()
+		|| !FMath::IsFinite(UnarmedCombatSettings.TraceInterval)
+		|| UnarmedCombatSettings.TraceInterval <= 0.0f
+		|| !FMath::IsFinite(UnarmedCombatSettings.TraceInterpolationDistance)
+		|| UnarmedCombatSettings.TraceInterpolationDistance <= 0.0f)
+	{
+		return;
+	}
+
+	PreviousUnarmedAttackTraceStartLocations.SetNumZeroed(UnarmedCombatSettings.AttackTraces.Num());
+	PreviousUnarmedAttackTraceEndLocations.SetNumZeroed(UnarmedCombatSettings.AttackTraces.Num());
+	PreviousUnarmedAttackTraceValid.Init(0, UnarmedCombatSettings.AttackTraces.Num());
 	PerformUnarmedAttackTrace();
 
 	if (UWorld* World = GetWorld())
@@ -933,14 +971,13 @@ void UCombatComponent::StartUnarmedAttackTrace(const bool bResetHitActors)
 			UnarmedAttackTraceTimerHandle,
 			this,
 			&ThisClass::PerformUnarmedAttackTrace,
-			FMath::Max(UnarmedAttackTraceInterval, UE_SMALL_NUMBER),
+			UnarmedCombatSettings.TraceInterval,
 			true);
 	}
 }
 
 void UCombatComponent::StopUnarmedAttackTrace()
 {
-	const bool bWasActive = UnarmedAttackTraceTimerHandle.IsValid();
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(UnarmedAttackTraceTimerHandle);
@@ -963,35 +1000,33 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 		return;
 	}
 
-	if (UnarmedAttackTraces.IsEmpty())
+	if (UnarmedCombatSettings.AttackTraces.IsEmpty()
+		|| UnarmedCombatSettings.TraceObjectTypes.IsEmpty())
 	{
 
 		return;
 	}
 
-	CachedUnarmedAttackObjectTypes.Reset(UnarmedAttackTraceObjectTypes.Num());
-	CachedUnarmedAttackObjectTypes.Append(UnarmedAttackTraceObjectTypes);
-	if (CachedUnarmedAttackObjectTypes.IsEmpty())
-	{
-		CachedUnarmedAttackObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-	}
-
 	UnarmedAttackActorsToIgnore.Reset(2);
 	UnarmedAttackActorsToIgnore.Add(SourceCharacter);
 	UnarmedAttackActorsToIgnore.Add(OwnerActor);
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const bool bDrawAttackDebug = SettingDefinition
+		&& SettingDefinition->bDrawAttackDebugVisualization;
 
-	if (PreviousUnarmedAttackTraceStartLocations.Num() != UnarmedAttackTraces.Num()
-		|| PreviousUnarmedAttackTraceEndLocations.Num() != UnarmedAttackTraces.Num()
-		|| PreviousUnarmedAttackTraceValid.Num() != UnarmedAttackTraces.Num())
+	if (PreviousUnarmedAttackTraceStartLocations.Num() != UnarmedCombatSettings.AttackTraces.Num()
+		|| PreviousUnarmedAttackTraceEndLocations.Num() != UnarmedCombatSettings.AttackTraces.Num()
+		|| PreviousUnarmedAttackTraceValid.Num() != UnarmedCombatSettings.AttackTraces.Num())
 	{
-		PreviousUnarmedAttackTraceStartLocations.SetNumZeroed(UnarmedAttackTraces.Num());
-		PreviousUnarmedAttackTraceEndLocations.SetNumZeroed(UnarmedAttackTraces.Num());
-		PreviousUnarmedAttackTraceValid.Init(0, UnarmedAttackTraces.Num());
+		PreviousUnarmedAttackTraceStartLocations.SetNumZeroed(UnarmedCombatSettings.AttackTraces.Num());
+		PreviousUnarmedAttackTraceEndLocations.SetNumZeroed(UnarmedCombatSettings.AttackTraces.Num());
+		PreviousUnarmedAttackTraceValid.Init(0, UnarmedCombatSettings.AttackTraces.Num());
 	}
 
-	for (int32 TraceIndex = 0; TraceIndex < UnarmedAttackTraces.Num(); ++TraceIndex)
+	for (int32 TraceIndex = 0; TraceIndex < UnarmedCombatSettings.AttackTraces.Num(); ++TraceIndex)
 	{
-		const FUnarmedAttackTraceDefinition& TraceDefinition = UnarmedAttackTraces[TraceIndex];
+		const FUnarmedAttackTraceDefinition& TraceDefinition = UnarmedCombatSettings.AttackTraces[TraceIndex];
 		if (TraceDefinition.StartSocketName.IsNone() || !SourceMesh->DoesSocketExist(TraceDefinition.StartSocketName))
 		{
 
@@ -1015,7 +1050,14 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 		}
 
 		UnarmedAttackHitResults.Reset();
-		const FVector TraceHalfSize = TraceDefinition.HalfSize.IsNearlyZero() ? FVector(22.0f) : TraceDefinition.HalfSize;
+		const FVector TraceHalfSize = TraceDefinition.HalfSize;
+		if (TraceHalfSize.ContainsNaN()
+			|| TraceHalfSize.X <= 0.0f
+			|| TraceHalfSize.Y <= 0.0f
+			|| TraceHalfSize.Z <= 0.0f)
+		{
+			continue;
+		}
 		const FRotator TraceRotation = SourceCharacter->GetActorRotation();
 		const bool bHasPreviousTrace = PreviousUnarmedAttackTraceValid[TraceIndex] != 0;
 		const FVector PreviousTraceStart = bHasPreviousTrace
@@ -1027,7 +1069,7 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 		const float MaxTravelDistance = FMath::Max(
 			FVector::Distance(PreviousTraceStart, TraceStart),
 			FVector::Distance(PreviousTraceEnd, TraceEnd));
-		const float InterpolationDistance = FMath::Max(UnarmedAttackTraceInterpolationDistance, 1.0f);
+		const float InterpolationDistance = UnarmedCombatSettings.TraceInterpolationDistance;
 		const int32 InterpolationCount = FMath::Max(
 			1,
 			FMath::CeilToInt(MaxTravelDistance / InterpolationDistance));
@@ -1053,7 +1095,7 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 				true,
 				FLinearColor::Red,
 				FLinearColor::Green,
-				0.1f);
+				UnarmedTraceDebugDrawTime);
 			UnarmedAttackHitResults.Append(InterpolatedHitResults);
 		}
 
@@ -1061,16 +1103,18 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 		PreviousUnarmedAttackTraceEndLocations[TraceIndex] = TraceEnd;
 		PreviousUnarmedAttackTraceValid[TraceIndex] = 1;
 
-		if (bDrawUnarmedAttackTraceDebug)
+		if (bDrawAttackDebug)
 		{
 			const bool bAnyHit = UnarmedAttackHitResults.ContainsByPredicate(
 				[this](const FHitResult& Hit)
 				{
 					return Hit.GetActor() && !HitActorsInCurrentUnarmedAttack.Contains(Hit.GetActor());
 				});
-			const FColor DrawColor = (bAnyHit ? UnarmedAttackTraceDebugHitColor : UnarmedAttackTraceDebugTraceColor).ToFColor(true);
-			DrawDebugBox(World, TraceStart, TraceHalfSize, TraceRotation.Quaternion(), DrawColor, false, UnarmedAttackTraceDebugDrawTime, 0, 1.5f);
-			DrawDebugLine(World, TraceStart, TraceEnd, DrawColor, false, UnarmedAttackTraceDebugDrawTime, 0, 2.0f);
+			const FColor DrawColor = bAnyHit
+				? UnarmedTraceDebugHitColor
+				: UnarmedTraceDebugColor;
+			DrawDebugBox(World, TraceStart, TraceHalfSize, TraceRotation.Quaternion(), DrawColor, false, UnarmedTraceDebugDrawTime, 0, 1.5f);
+			DrawDebugLine(World, TraceStart, TraceEnd, DrawColor, false, UnarmedTraceDebugDrawTime, 0, 2.0f);
 		}
 
 		for (const FHitResult& HitResult : UnarmedAttackHitResults)
@@ -1149,7 +1193,12 @@ bool UCombatComponent::ApplyUnarmedDamageToTarget(AActor* TargetActor)
 	}
 
 	SourceAttributeSet->ConsumeOutgoingDamage();
-	if (!ApplyDamageEffect(SourceASC, SourceASC, OutgoingDamageEffectClass, BaseDamageAmount, TargetCharacter))
+	if (!ApplyDamageEffect(
+		SourceASC,
+		SourceASC,
+		UnarmedCombatSettings.OutgoingDamageEffectClass,
+		BaseDamageAmount,
+		TargetCharacter))
 	{
 
 		return false;
@@ -1173,7 +1222,14 @@ bool UCombatComponent::ApplyUnarmedDamageToTarget(AActor* TargetActor)
 
 	TargetAttributeSet->SetPendingIncomingDamageCriticalHit(bCriticalHit);
 	TargetAttributeSet->SetPendingIncomingDamageAllowHitReact(true);
-	if (!ApplyDamageEffect(SourceASC, TargetASC, IncomingDamageEffectClass, FinalOutgoingDamage, SourceCharacter, SourceCharacter, SourceCharacter))
+	if (!ApplyDamageEffect(
+		SourceASC,
+		TargetASC,
+		UnarmedCombatSettings.IncomingDamageEffectClass,
+		FinalOutgoingDamage,
+		SourceCharacter,
+		SourceCharacter,
+		SourceCharacter))
 	{
 		TargetAttributeSet->SetPendingIncomingDamageCriticalHit(false);
 		TargetAttributeSet->SetPendingIncomingDamageAllowHitReact(true);
@@ -1181,15 +1237,14 @@ bool UCombatComponent::ApplyUnarmedDamageToTarget(AActor* TargetActor)
 		return false;
 	}
 
-
 	return true;
 }
 
 float UCombatComponent::GetUnarmedDamageSourceMagnitude() const
 {
-	if (UnarmedDamageMagnitude > 0.0f)
+	if (UnarmedCombatSettings.DamageMagnitude > 0.0f)
 	{
-		return UnarmedDamageMagnitude;
+		return UnarmedCombatSettings.DamageMagnitude;
 	}
 
 	return GetCurrentWeaponActor()

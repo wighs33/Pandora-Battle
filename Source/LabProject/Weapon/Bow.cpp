@@ -1,16 +1,15 @@
 #include "Weapon/Bow.h"
 
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
+#include "Common/CollisionChannels.h"
 #include "Common/LabGameplayTags.h"
 #include "Common/WeaponAnimNotifyNames.h"
 #include "Component/Player/CombatComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "Item/ArrowProjectileBase.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -32,7 +31,7 @@ TArray<TEnumAsByte<EObjectTypeQuery>> MakeBowTraceObjectTypes(TArray<TEnumAsByte
 			return UEngineTypes::ConvertToCollisionChannel(ObjectType) == ECC_Pawn;
 		});
 	AddUniqueTraceObjectType(ObjectTypes, ECC_WorldStatic);
-	AddUniqueTraceObjectType(ObjectTypes, ECC_GameTraceChannel1);
+	AddUniqueTraceObjectType(ObjectTypes, LabCollisionChannels::HitableBody());
 	return ObjectTypes;
 }
 }
@@ -107,44 +106,6 @@ float ABow::GetEffectiveBowFireInterval() const
 	return FMath::Max(GetBowFireInterval() / GetWeaponAttackSpeedPlayRate(), UE_SMALL_NUMBER);
 }
 
-bool ABow::CanServerUseBow(const ACharacterBase* AttackingCharacter, bool bRequirePlayerAim) const
-{
-	if (!HasAuthority()
-		|| !SupportsAimInput()
-		|| !AttackingCharacter
-		|| AttackingCharacter != GetOwningCharacter()
-		|| !IsCurrentWeaponForOwner()
-		|| AttackingCharacter->IsStatusFrozen())
-	{
-		return false;
-	}
-
-	const UPdAbilitySystemComponent* AbilitySystemComponent = AttackingCharacter->GetPdAbilitySystemComponent();
-	if (!AbilitySystemComponent
-		|| AbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Movement_Airborne)
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_ShootProjectile_Active))
-	{
-		return false;
-	}
-
-	const UCharacterMovementComponent* MovementComponent = AttackingCharacter->GetCharacterMovement();
-	if (MovementComponent && MovementComponent->IsFalling())
-	{
-		return false;
-	}
-
-	if (!bRequirePlayerAim)
-	{
-		return true;
-	}
-
-	const APdPlayer* PlayerCharacter = Cast<APdPlayer>(AttackingCharacter);
-	return PlayerCharacter && PlayerCharacter->IsWeaponAimActive();
-}
-
 bool ABow::IsServerFireCadenceReady() const
 {
 	const UWorld* World = GetWorld();
@@ -153,7 +114,7 @@ bool ABow::IsServerFireCadenceReady() const
 
 bool ABow::BeginServerDraw(APdPlayer* PlayerCharacter)
 {
-	if (!CanServerUseBow(PlayerCharacter, false))
+	if (!CanServerUseRangedWeapon(PlayerCharacter, false))
 	{
 		InvalidateServerDrawState(true);
 		return false;
@@ -171,7 +132,7 @@ bool ABow::BeginServerDraw(APdPlayer* PlayerCharacter)
 		PlayerCharacter->SetWeaponAimActive(true, GetAimCameraSettings());
 	}
 
-	if (!CanServerUseBow(PlayerCharacter, true))
+	if (!CanServerUseRangedWeapon(PlayerCharacter, true))
 	{
 		InvalidateServerDrawState(true);
 		return false;
@@ -246,7 +207,7 @@ void ABow::HandleServerDrawReady()
 
 	bServerDrawPending = false;
 	const APdPlayer* PlayerCharacter = Cast<APdPlayer>(GetOwningCharacter());
-	if (!CanServerUseBow(PlayerCharacter, true))
+	if (!CanServerUseRangedWeapon(PlayerCharacter, true))
 	{
 		InvalidateServerDrawState(true);
 		return;
@@ -344,7 +305,7 @@ void ABow::HandleAimEnd(APdPlayer* PlayerCharacter)
 
 bool ABow::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 {
-	if (!SupportsAimInput() || !PlayerCharacter)
+	if (!CanUseRangedWeapon(PlayerCharacter, true))
 	{
 		return false;
 	}
@@ -393,28 +354,26 @@ bool ABow::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 
 bool ABow::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor)
 {
-	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || !IsValid(TargetActor))
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
+		|| !IsValid(TargetActor))
 	{
 
 		return false;
 	}
 
-	const bool bLaunched = LaunchArrowAtTargetOnServer(AttackingCharacter, TargetActor);
-
-	return bLaunched;
+	return LaunchArrowAtTargetOnServer(AttackingCharacter, TargetActor);
 }
 
 bool ABow::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
 {
-	if (!HasAuthority() || !SupportsAimInput() || !AttackingCharacter || TargetLocation.IsNearlyZero())
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
+		|| TargetLocation.IsNearlyZero())
 	{
 
 		return false;
 	}
 
-	const bool bLaunched = LaunchArrowAtLocationOnServer(AttackingCharacter, TargetActor, TargetLocation);
-
-	return bLaunched;
+	return LaunchArrowAtLocationOnServer(AttackingCharacter, TargetActor, TargetLocation);
 }
 
 bool ABow::OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter)
@@ -607,7 +566,7 @@ bool ABow::LaunchArrowAtTargetOnServer(ACharacterBase* AttackingCharacter, AActo
 
 bool ABow::LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
 {
-	if (!CanServerUseBow(AttackingCharacter, false)
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
 		|| !IsServerFireCadenceReady()
 		|| TargetLocation.IsNearlyZero())
 	{
@@ -658,7 +617,7 @@ bool ABow::LaunchArrowOnServer(
 	UCombatComponent* CombatComponent = PlayerCharacter
 		? PlayerCharacter->GetCombatComponent()
 		: nullptr;
-	if (!CanServerUseBow(PlayerCharacter, true)
+	if (!CanServerUseRangedWeapon(PlayerCharacter, true)
 		|| !IsServerFireCadenceReady()
 		|| !CombatComponent
 		|| !CombatComponent->CanAffordRangedWeaponAttackStamina())
@@ -839,9 +798,6 @@ FVector ABow::CalculateArrowLaunchDirection(
 		FVector::Distance(LaunchStartLocation, AimTargetLocation) + 1.0f);
 	const FVector LaunchTraceEnd = LaunchStartLocation + (LaunchDirection * LaunchTraceDistance);
 	FHitResult HitResult;
-	const EDrawDebugTrace::Type LaunchTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
-		? ItemDefinition->WeaponData.Bow.LaunchTraceDebugDrawType.GetValue()
-		: EDrawDebugTrace::None;
 	const bool bHit = UKismetSystemLibrary::LineTraceSingleForObjects(
 		this,
 		LaunchStartLocation,
@@ -849,7 +805,7 @@ FVector ABow::CalculateArrowLaunchDirection(
 		GetBowTraceObjectTypes(),
 		false,
 		ActorsToIgnore,
-		LaunchTraceDebugDrawType,
+		EDrawDebugTrace::None,
 		HitResult,
 		true);
 

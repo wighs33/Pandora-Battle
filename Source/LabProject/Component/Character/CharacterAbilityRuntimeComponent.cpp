@@ -11,6 +11,7 @@
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayEffect.h"
@@ -18,15 +19,19 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterAbilityRuntimeComponent)
 
+namespace
+{
+	constexpr int32 ActorInfoMaxRetryAttempts = 10;
+	constexpr float ActorInfoRetryInterval = 0.05f;
+	constexpr float MinimumMaxWalkSpeed = 150.0f;
+	constexpr int32 MovementSpeedAttributeMaxRetryAttempts = 50;
+	constexpr float StaminaRegenDelay = 1.0f;
+	constexpr float StaminaRegenEffectLevel = 1.0f;
+}
+
 UCharacterAbilityRuntimeComponent::UCharacterAbilityRuntimeComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
-}
-
-void UCharacterAbilityRuntimeComponent::ApplySettings(
-	const FCharacterAbilityRuntimeSettings& InSettings)
-{
-	Settings = InSettings;
 }
 
 void UCharacterAbilityRuntimeComponent::CaptureBaseMovementSpeed()
@@ -121,7 +126,7 @@ QueueAbilitySystemActorInfoInitializationRetry()
 	}
 
 	if (ActorInfoInitializationRetryCount
-		>= Settings.ActorInfoMaxRetryAttempts)
+		>= ActorInfoMaxRetryAttempts)
 	{
 		return;
 	}
@@ -136,7 +141,7 @@ QueueAbilitySystemActorInfoInitializationRetry()
 			ActorInfoInitializationRetryTimerHandle.Invalidate();
 			TryInitializeAbilitySystemActorInfo();
 		}),
-		FMath::Max(Settings.ActorInfoRetryInterval, 0.01f),
+		ActorInfoRetryInterval,
 		false);
 }
 
@@ -455,9 +460,18 @@ void UCharacterAbilityRuntimeComponent::ApplyMovementSpeedFromAttribute()
 	const float MovementSpeedAttribute = ASC->GetNumericAttribute(
 		UBasicAttributeSet::GetMovementSpeedAttribute());
 	const float NormalMaxWalkSpeed = FMath::Max(
-		Settings.MinimumMaxWalkSpeed,
+		MinimumMaxWalkSpeed,
 		BaseMaxWalkSpeed
 			* (1.0f + FMath::Max(MovementSpeedAttribute, 0.0f) * 0.01f));
+	const UEquipmentComponent* EquipmentComponent =
+		Character->GetEquipmentComponent();
+	const UItemDefinition* EquippedWeaponDefinition = EquipmentComponent
+		? EquipmentComponent->GetCurrentWeaponDefinition()
+		: nullptr;
+	const float EquippedWeaponMovementSpeedMultiplier =
+		EquippedWeaponDefinition
+			? EquippedWeaponDefinition->GetEquippedMovementSpeedMultiplier()
+			: 1.0f;
 
 	float StaminaSpeedMultiplier = 1.0f;
 	if (StaminaPercent <= FMath::Clamp(
@@ -484,7 +498,9 @@ void UCharacterAbilityRuntimeComponent::ApplyMovementSpeedFromAttribute()
 	}
 
 	const float NewMaxWalkSpeed =
-		NormalMaxWalkSpeed * StaminaSpeedMultiplier;
+		NormalMaxWalkSpeed
+			* EquippedWeaponMovementSpeedMultiplier
+			* StaminaSpeedMultiplier;
 	if (!FMath::IsNearlyEqual(
 		MovementComponent->MaxWalkSpeed,
 		NewMaxWalkSpeed))
@@ -515,9 +531,8 @@ QueueMovementSpeedAttributeApplyRetry()
 void UCharacterAbilityRuntimeComponent::RetryApplyMovementSpeedFromAttribute()
 {
 	++MovementSpeedAttributeRetryAttempts;
-	if (Settings.MovementSpeedAttributeMaxRetryAttempts > 0
-		&& MovementSpeedAttributeRetryAttempts
-			> Settings.MovementSpeedAttributeMaxRetryAttempts)
+	if (MovementSpeedAttributeRetryAttempts
+		> MovementSpeedAttributeMaxRetryAttempts)
 	{
 		if (UWorld* World = GetWorld())
 		{
@@ -713,6 +728,13 @@ void UCharacterAbilityRuntimeComponent::OnFrozenTagChanged(
 		if (bIsDead)
 		{
 			return;
+		}
+
+		if (UCombatComponent* CombatComponent =
+			Character->GetCombatComponent())
+		{
+			CombatComponent->StopPrimaryAttack();
+			CombatComponent->StopAim();
 		}
 
 		if (ASC)
@@ -914,13 +936,17 @@ void UCharacterAbilityRuntimeComponent::HandleStaminaChanged(
 	if (Data.NewValue < Data.OldValue)
 	{
 		RemoveStaminaRegenEffects();
-		if (GetWorld() && Settings.StaminaRegenEffectClass)
+		const UGameSettingDefinition* SettingDefinition =
+			UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+		if (GetWorld()
+			&& SettingDefinition
+			&& SettingDefinition->StaminaRegenGameplayEffectClass)
 		{
 			GetWorld()->GetTimerManager().SetTimer(
 				StaminaRegenDelayTimerHandle,
 				this,
 				&ThisClass::ApplyStaminaRegenEffect,
-				Settings.StaminaRegenDelay,
+				StaminaRegenDelay,
 				false);
 		}
 		return;
@@ -942,9 +968,12 @@ void UCharacterAbilityRuntimeComponent::HandleStaminaChanged(
 void UCharacterAbilityRuntimeComponent::ApplyStaminaRegenEffect()
 {
 	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	if (!Character
 		|| !Character->HasAuthority()
-		|| !Settings.StaminaRegenEffectClass)
+		|| !SettingDefinition
+		|| !SettingDefinition->StaminaRegenGameplayEffectClass)
 	{
 		return;
 	}
@@ -970,8 +999,8 @@ void UCharacterAbilityRuntimeComponent::ApplyStaminaRegenEffect()
 	EffectContext.AddSourceObject(
 		const_cast<ACharacterBase*>(Character));
 	FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
-		Settings.StaminaRegenEffectClass,
-		FMath::Max(Settings.StaminaRegenEffectLevel, 1.0f),
+		SettingDefinition->StaminaRegenGameplayEffectClass,
+		StaminaRegenEffectLevel,
 		EffectContext);
 	if (SpecHandle.IsValid() && SpecHandle.Data.IsValid())
 	{

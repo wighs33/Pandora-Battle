@@ -13,19 +13,65 @@
 
 #include "PlayerPawnDefinition.generated.h"
 
+class UAnimMontage;
+class UGameplayEffect;
+class UNiagaraSystem;
+
+USTRUCT(BlueprintType)
+struct LABPROJECT_API FUnarmedAttackTraceDefinition
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Trace")
+	FName StartSocketName = NAME_None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Trace")
+	FName EndSocketName = NAME_None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Trace")
+	FVector HalfSize = FVector(22.0f);
+};
+
+USTRUCT(BlueprintType)
+struct LABPROJECT_API FUnarmedCombatSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Damage")
+	TSubclassOf<UGameplayEffect> OutgoingDamageEffectClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Damage")
+	TSubclassOf<UGameplayEffect> IncomingDamageEffectClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Animation")
+	TSoftObjectPtr<UAnimMontage> AttackMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|VFX")
+	TObjectPtr<UNiagaraSystem> ComboWindowStartEffect;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Damage",
+		meta = (ClampMin = "0.0"))
+	float DamageMagnitude = 5.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Trace")
+	TArray<FUnarmedAttackTraceDefinition> AttackTraces;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Trace",
+		meta = (ClampMin = "0.001", ForceUnits = "s"))
+	float TraceInterval = 0.033333f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Trace",
+		meta = (ClampMin = "1.0", ForceUnits = "cm"))
+	float TraceInterpolationDistance = 5.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed|Trace")
+	TArray<TEnumAsByte<EObjectTypeQuery>> TraceObjectTypes;
+};
+
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FPlayerInteractionSettings
 {
 	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Interaction")
-	FVector BoxExtent = FVector(50.0f, 50.0f, 100.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Interaction")
-	FVector RelativeLocation = FVector(80.0f, 0.0f, 0.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Interaction")
-	FRotator RelativeRotation = FRotator::ZeroRotator;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Interaction",
 		meta = (ClampMin = "0.0", ForceUnits = "cm"))
@@ -36,16 +82,6 @@ USTRUCT(BlueprintType)
 struct LABPROJECT_API FPlayerCameraPresentationSettings
 {
 	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Camera",
-		meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	float TargetArmLength = 350.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Camera")
-	bool bUsePawnControlRotation = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Camera")
-	bool bDoCollisionTest = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Camera|Occlusion")
 	FName OcclusionEnabledParameterName = TEXT("OcclusionEnabled");
@@ -105,6 +141,7 @@ public:
 	virtual void PostLoad() override;
 
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+	static FPrimaryAssetId GetDefaultPrimaryAssetId();
 	static FSoftObjectPath GetDefaultDefinitionPath();
 
 #if WITH_EDITOR
@@ -115,6 +152,7 @@ public:
 	const FPlayerCameraPresentationSettings& GetCameraSettings() const { return Camera; }
 	const FPlayerAimSettings& GetAimSettings() const { return Aim; }
 	const FPlayerActionPolicySettings& GetActionPolicySettings() const { return ActionPolicy; }
+	const FUnarmedCombatSettings& GetUnarmedCombatSettings() const { return UnarmedCombatSettings; }
 
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Interaction",
@@ -132,4 +170,8 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Action",
 		meta = (AllowPrivateAccess = "true"))
 	FPlayerActionPolicySettings ActionPolicy;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Combat|Unarmed",
+		meta = (AllowPrivateAccess = "true"))
+	FUnarmedCombatSettings UnarmedCombatSettings;
 };

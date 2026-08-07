@@ -9,6 +9,7 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "Weapon/WeaponBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerAimComponent)
 
@@ -141,6 +142,23 @@ void UPlayerAimComponent::ServerSetWeaponAimActive_Implementation(
 	const bool bEnabled,
 	FWeaponAimCameraSettings CameraSettings)
 {
+	APdPlayer* Player = GetPlayerOwner();
+	const UEquipmentComponent* EquipmentComponent = Player
+		? Player->GetEquipmentComponent()
+		: nullptr;
+	const AWeaponBase* CurrentWeapon = EquipmentComponent
+		? EquipmentComponent->GetCurrentWeaponActor()
+		: nullptr;
+	if (bEnabled
+		&& (!CurrentWeapon
+			|| !CurrentWeapon->CanUseRangedWeapon(Player, false)))
+	{
+		ApplyWeaponAimState(
+			false,
+			FWeaponAimCameraSettings());
+		return;
+	}
+
 	ApplyWeaponAimState(
 		bEnabled,
 		UPlayerCameraComponent::SanitizeAimCameraSettings(CameraSettings));

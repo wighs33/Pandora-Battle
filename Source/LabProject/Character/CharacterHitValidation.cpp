@@ -1,7 +1,6 @@
 #include "Character/CharacterHitValidation.h"
 
 #include "Character/CharacterBase.h"
-#include "Character/EnemyBase.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -52,15 +51,15 @@ namespace PdCharacterHitValidation
 			: nullptr;
 	}
 
-	ACharacterBase* ResolveEnemyCapsuleHit(
+	ACharacterBase* ResolveMeleeWeaponDamageHit(
 		AActor* HitActor,
 		const UPrimitiveComponent* HitComponent)
 	{
 		ACharacterBase* Character = ResolveRelatedCharacter(HitActor, HitComponent);
-		const AEnemyBase* EnemyCharacter = Cast<AEnemyBase>(Character);
-		return EnemyCharacter
+		return Character
 			&& HitComponent
-			&& HitComponent == EnemyCharacter->GetCapsuleComponent()
+			&& (HitComponent == Character->GetMesh()
+				|| HitComponent == Character->GetCapsuleComponent())
 				? Character
 				: nullptr;
 	}
@@ -69,18 +68,7 @@ namespace PdCharacterHitValidation
 		AActor* HitActor,
 		const UPrimitiveComponent* HitComponent)
 	{
-		ACharacterBase* Character = ResolveRelatedCharacter(HitActor, HitComponent);
-		if (!Character || !HitComponent)
-		{
-			return nullptr;
-		}
-
-		if (HitComponent == Character->GetMesh())
-		{
-			return Character;
-		}
-
-		return ResolveEnemyCapsuleHit(HitActor, HitComponent);
+		return ResolveDirectMeshHit(HitActor, HitComponent);
 	}
 
 	bool IsCharacterRelatedNonMeshHit(

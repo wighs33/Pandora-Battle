@@ -10,7 +10,6 @@
 #include "CharacterBase.generated.h"
 
 class APlayerController;
-class AProjectileBase;
 class UAbilitySystemComponent;
 class UAnimInstance;
 class UCharacterAbilityRuntimeComponent;
@@ -28,6 +27,7 @@ class UNiagaraComponent;
 class UNiagaraSystem;
 class UPdAbilitySystemComponent;
 class USkinEquipmentComponent;
+class UStatusEffectReplicationComponent;
 class UUserWidget;
 class UWidgetClassDefinition;
 class UWidgetComponent;
@@ -72,20 +72,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!AbilitySystem")
 	UPdAbilitySystemComponent* GetPdAbilitySystemComponent() const;
 
-	UFUNCTION(BlueprintCallable,
-		Category = "!AbilitySystem",
-		meta = (DeprecatedFunction,
-			DeprecationMessage = "Client-forwarded montage gameplay events are disabled. Use an authoritative server montage notify."))
-	void ServerSendGameplayEventToSelf(FGameplayEventData EventData);
-
-	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "!AbilitySystem")
-	void MulticastSendGameplayEventToActor(AActor* TargetActor, FGameplayEventData EventData);
-
 	void InitializeAbilitySystemActorInfo();
 	void ClearAbilitySystemActorInfo();
-
-	UFUNCTION(BlueprintPure, Category = "!Character|Definition")
-	UCharacterBaseDefinition* GetCharacterDefinition() const;
 
 	UFUNCTION(BlueprintPure, Category = "!Character|Runtime")
 	UCharacterAbilityRuntimeComponent* GetCharacterAbilityRuntimeComponent() const { return CharacterAbilityRuntimeComponent; }
@@ -95,6 +83,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!Character|Presentation")
 	UCharacterPresentationComponent* GetCharacterPresentationComponent() const { return CharacterPresentationComponent; }
+
+	UFUNCTION(BlueprintPure, Category = "!AbilitySystem|StatusEffect")
+	UStatusEffectReplicationComponent* GetStatusEffectReplicationComponent() const { return StatusEffectReplicationComponent; }
 
 	UFUNCTION(BlueprintPure, Category = "!Character|Health Bar")
 	UCharacterHealthBarComponent* GetCharacterHealthBarComponent() const;
@@ -115,22 +106,7 @@ public:
 	UNiagaraComponent* FindBodyAuraNiagaraComponent(FName ComponentName) const;
 
 	UFUNCTION(BlueprintCallable, Category = "!Ability|Aura")
-	void ApplyBodyAuraNiagara(FName ComponentName, UNiagaraSystem* NiagaraSystem, bool bActivate = true, bool bResetSystem = true);
-
-	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "!Ability|Aura")
-	void MulticastApplyBodyAuraNiagara(FName ComponentName, UNiagaraSystem* NiagaraSystem, bool bActivate = true, bool bResetSystem = true);
-
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Aura")
 	void ApplyBodyAuraNiagaraWithOffset(
-		FName ComponentName,
-		UNiagaraSystem* NiagaraSystem,
-		bool bActivate,
-		bool bResetSystem,
-		FVector RelativeLocationOffset,
-		FVector RelativeScale);
-
-	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "!Ability|Aura")
-	void MulticastApplyBodyAuraNiagaraWithOffset(
 		FName ComponentName,
 		UNiagaraSystem* NiagaraSystem,
 		bool bActivate,
@@ -170,35 +146,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Team")
 	void ApplyTeamOverlayMaterial();
 
-	UFUNCTION(BlueprintCallable, Category = "!AbilitySystem|Presentation")
-	void ApplySkillOverlayMaterial(UMaterialInterface* OverlayMaterial);
-
 	void ApplySkillPresentationOverlay(UObject* PresentationSource, UMaterialInterface* OverlayMaterial);
 	void ClearSkillPresentationOverlay(UObject* PresentationSource);
-
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastApplySkillOverlayMaterial(UMaterialInterface* OverlayMaterial);
-
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastSpawnProjectileCosmetic(
-		TSubclassOf<AProjectileBase> ProjectileClass,
-		FVector_NetQuantize SpawnLocation,
-		FRotator SpawnRotation,
-		FVector_NetQuantize TargetLocation,
-		float Speed,
-		bool bUseArcTrajectory,
-		float ArcHeight,
-		float ArcGravityScale,
-		UNiagaraSystem* MuzzleFX,
-		UNiagaraSystem* ProjectileFX,
-		UNiagaraSystem* HitFX,
-		bool bSpawnHitNiagaraOnGround,
-		FGameplayTag SpawnGameplayCueTag,
-		FGameplayTag ImpactGameplayCueTag,
-		FVector SpawnScale,
-		FName NiagaraVector2DParameterName,
-		FVector2D NiagaraSize,
-		float LifeSpan);
 
 	UFUNCTION()
 	int32 GetMatchTeamColorIndex() const;
@@ -305,6 +254,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Character|Presentation", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCharacterPresentationComponent> CharacterPresentationComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!AbilitySystem|StatusEffect", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UStatusEffectReplicationComponent> StatusEffectReplicationComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Equipment", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UEquipmentComponent> EquipmentComponent;

@@ -73,8 +73,7 @@ public:
 
 	bool GetHitReactData(FHitReactData& OutHitReactData) const;
 
-
-	UFUNCTION(BlueprintPure, Category = "!Equipment")
+UFUNCTION(BlueprintPure, Category = "!Equipment")
 	AWeaponBase* GetCurrentWeaponActor() const { return CurrentWeaponActor; }
 
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
@@ -82,6 +81,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	const UItemDefinition* GetCurrentWeaponDefinition() const;
+
+	float GetCurrentWeaponStatMagnitude(FGameplayTag StatTag) const;
 
 	void RefreshCurrentWeaponAnimationLayer();
 
@@ -162,7 +163,7 @@ protected:
 	bool ApplyEquipAbilityCooldown();
 	void RemoveCurrentWeaponTagEffect(const UItemDefinition* ItemDefinition);
 
-	void RemoveCurrentWeaponStats();
+	bool RemoveCurrentWeaponStats();
 
 	void CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor, const UItemDefinition* NewWeaponDefinition, EEnum_Direction NewWeaponLoadoutDirection);
 
@@ -209,8 +210,8 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UInventoryComponent> CachedInventory;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Equipment|Stat", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<UGameplayEffect> StatUpGameplayEffectClass;
+	UPROPERTY(Transient)
+	TSubclassOf<UGameplayEffect> EquipmentStatGameplayEffectClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Equipment|Effect", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UGameplayEffect> EquippedItemEffectClass;
@@ -221,8 +222,7 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeaponDefinition, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	TObjectPtr<const UItemDefinition> CurrentWeaponDefinition;
 
-
-	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
+UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	FGuid RequestedWeaponId;
 
 	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")

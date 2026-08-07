@@ -2,12 +2,15 @@
 
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "ActiveGameplayEffectHandle.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/PdPlayer.h"
 #include "Character/CharacterBase.h"
 #include "Character/CharacterHitValidation.h"
+#include "Common/CollisionChannels.h"
+#include "Common/LabGameplayTags.h"
 #include "Common/WeaponAnimNotifyNames.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -15,7 +18,9 @@
 #include "Engine/World.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Definition/Item/ItemDefinition.h"
+#include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "Item/ArrowProjectileBase.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -353,6 +358,8 @@ void AWeaponBase::ConfigureSkillSlash(
 	float AdditionalDamageMagnitude,
 	int32 AdditionalDamageLevel,
 	UObject* AdditionalDamageSourceObject,
+	const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
+	UStatusEffectDefinition* StatusEffectDefinition,
 	float AdditionalDamageDelay)
 {
 	ActiveSkillSlashSystem = SlashSystem;
@@ -363,6 +370,8 @@ void AWeaponBase::ConfigureSkillSlash(
 	ActiveSkillAttackTraceEndMultiplier = FMath::Max(AttackTraceEndMultiplier, 1.0f);
 	bSkillSlashHitTraceEnabled = bEnableHitTrace;
 	ClearActiveSkillAdditionalDamage();
+	ActiveSkillDebuffEffectSpecHandle = DebuffEffectSpecHandle;
+	ActiveSkillStatusEffectDefinition = StatusEffectDefinition;
 	if (AdditionalDamageEffectClass && AdditionalDamageMagnitude > 0.0f)
 	{
 		ActiveSkillAdditionalDamageEffectClass = AdditionalDamageEffectClass;
@@ -415,6 +424,8 @@ void AWeaponBase::ClearSkillSlash()
 	ActiveSkillAttackTraceEndMultiplier = 1.0f;
 	bSkillSlashHitTraceEnabled = false;
 	ClearActiveSkillAdditionalDamage();
+	ActiveSkillDebuffEffectSpecHandle = FGameplayEffectSpecHandle();
+	ActiveSkillStatusEffectDefinition = nullptr;
 }
 
 void AWeaponBase::SetTemporaryAttackTraceEndZMultiplier(UObject* SourceObject, const float Multiplier)
@@ -433,7 +444,6 @@ void AWeaponBase::SetTemporaryAttackTraceEndZMultiplier(UObject* SourceObject, c
 	}
 
 	TemporaryAttackTraceEndZMultipliers.Add(SourceKey, ClampedMultiplier);
-
 
 }
 
@@ -476,6 +486,65 @@ bool AWeaponBase::SupportsAimInput() const
 	return false;
 }
 
+bool AWeaponBase::CanUseRangedWeapon(
+	const ACharacterBase* AttackingCharacter,
+	const bool bRequirePlayerAim) const
+{
+	if (!SupportsAimInput()
+		|| !AttackingCharacter
+		|| AttackingCharacter != GetOwningCharacter()
+		|| !IsCurrentWeaponForOwner()
+		|| AttackingCharacter->IsStatusFrozen())
+	{
+		return false;
+	}
+
+	const UPdAbilitySystemComponent* AbilitySystemComponent =
+		AttackingCharacter->GetPdAbilitySystemComponent();
+	if (!AbilitySystemComponent
+		|| AbilitySystemComponent->GetNumericAttribute(
+			UBasicAttributeSet::GetHealthAttribute()) <= 0.0f
+		|| AbilitySystemComponent->HasMatchingGameplayTag(
+			LabGameplayTags::State_Dead)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(
+			LabGameplayTags::Status_Frostbite)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(
+			LabGameplayTags::State_Movement_Airborne)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(
+			LabGameplayTags::GameplayAbility_AOEAttack_Active)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(
+			LabGameplayTags::GameplayAbility_ShootProjectile_Active))
+	{
+		return false;
+	}
+
+	const UCharacterMovementComponent* MovementComponent =
+		AttackingCharacter->GetCharacterMovement();
+	if (MovementComponent && MovementComponent->IsFalling())
+	{
+		return false;
+	}
+
+	if (!bRequirePlayerAim)
+	{
+		return true;
+	}
+
+	const APdPlayer* PlayerCharacter =
+		Cast<APdPlayer>(AttackingCharacter);
+	return PlayerCharacter && PlayerCharacter->IsWeaponAimActive();
+}
+
+bool AWeaponBase::CanServerUseRangedWeapon(
+	const ACharacterBase* AttackingCharacter,
+	const bool bRequirePlayerAim) const
+{
+	return HasAuthority()
+		&& CanUseRangedWeapon(
+			AttackingCharacter,
+			bRequirePlayerAim);
+}
+
 FGameplayTag AWeaponBase::GetAimCrosshairWidgetTag() const
 {
 	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
@@ -504,7 +573,7 @@ bool AWeaponBase::ShouldTriggerHitReactOnDamage() const
 
 bool AWeaponBase::HandleAimStart(APdPlayer* PlayerCharacter)
 {
-	if (!SupportsAimInput() || !PlayerCharacter)
+	if (!CanUseRangedWeapon(PlayerCharacter, false))
 	{
 		return false;
 	}
@@ -641,8 +710,14 @@ bool AWeaponBase::ResolveAimTargetBeyondLaunchPoint(
 	const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
 	const TArray<AActor*>& ActorsToIgnore,
 	EDrawDebugTrace::Type DebugDrawType,
-	FVector& OutTargetLocation) const
+	FVector& OutTargetLocation,
+	FHitResult* OutAimHitResult) const
 {
+	if (OutAimHitResult)
+	{
+		*OutAimHitResult = FHitResult();
+	}
+
 	const FVector SafeViewDirection = ViewDirection.GetSafeNormal();
 	if (SafeViewDirection.IsNearlyZero() || TraceRange <= 0.0f)
 	{
@@ -695,6 +770,10 @@ bool AWeaponBase::ResolveAimTargetBeyondLaunchPoint(
 		if (!bHitIsBehindLaunchPlane && !bCharacterNonMeshHit)
 		{
 			OutTargetLocation = HitLocation;
+			if (OutAimHitResult)
+			{
+				*OutAimHitResult = HitResult;
+			}
 			return true;
 		}
 
@@ -792,9 +871,9 @@ bool AWeaponBase::IsCurrentWeaponForOwner() const
 	return EquipmentComponent && EquipmentComponent->GetCurrentWeaponActor() == this;
 }
 
-bool AWeaponBase::CanDamageTracedHit(const FHitResult& HitResult) const
+bool AWeaponBase::CanDamageMeleeTracedHit(const FHitResult& HitResult) const
 {
-	const ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(
+	const ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(
 		HitResult.GetActor(),
 		HitResult.GetComponent());
 	const ACharacterBase* SourceCharacter = GetOwningCharacter();
@@ -874,9 +953,9 @@ void AWeaponBase::PerformAttackTrace()
 	}
 
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_GameTraceChannel1));
-	TArray<TEnumAsByte<EObjectTypeQuery>> EnemyCapsuleObjectTypes;
-	EnemyCapsuleObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody()));
+	TArray<TEnumAsByte<EObjectTypeQuery>> CapsuleObjectTypes;
+	CapsuleObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
 
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(this);
@@ -897,7 +976,7 @@ void AWeaponBase::PerformAttackTrace()
 	TArray<FVector> DebugEndLocations;
 	TArray<FHitResult> DebugHitResults;
 
-	auto TraceAttackLine = [this, &ObjectTypes, &EnemyCapsuleObjectTypes, &ActorsToIgnore, &DebugStartLocations, &DebugEndLocations, &DebugHitResults](
+	auto TraceAttackLine = [this, &ObjectTypes, &CapsuleObjectTypes, &ActorsToIgnore, &DebugStartLocations, &DebugEndLocations, &DebugHitResults](
 		const FVector& LineStart,
 		const FVector& LineEnd)
 	{
@@ -946,7 +1025,7 @@ void AWeaponBase::PerformAttackTrace()
 				LineStart,
 				LineEnd,
 				TraceRadius,
-				EnemyCapsuleObjectTypes,
+				CapsuleObjectTypes,
 				false,
 				ActorsToIgnore,
 				EDrawDebugTrace::None,
@@ -962,7 +1041,7 @@ void AWeaponBase::PerformAttackTrace()
 				this,
 				LineStart,
 				LineEnd,
-				EnemyCapsuleObjectTypes,
+				CapsuleObjectTypes,
 				false,
 				ActorsToIgnore,
 				EDrawDebugTrace::None,
@@ -980,17 +1059,16 @@ void AWeaponBase::PerformAttackTrace()
 
 		for (const FHitResult& HitResult : HitResults)
 		{
-			ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(
+			ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(
 				HitResult.GetActor(),
 				HitResult.GetComponent());
-			if (!TargetCharacter || !CanDamageTracedHit(HitResult))
+			if (!TargetCharacter || !CanDamageMeleeTracedHit(HitResult))
 			{
 				continue;
 			}
 
 			HitActorsInCurrentAttack.Add(TargetCharacter);
-			DebugSuccessfulHit(HitResult);
-			ApplyDamageFromAuthoritativeTrace(HitResult);
+			ApplyDamageFromAuthoritativeMeleeTrace(HitResult);
 		}
 	};
 
@@ -1032,11 +1110,6 @@ void AWeaponBase::PerformAttackTrace()
 	bHasPreviousAttackTraceSegment = true;
 }
 
-void AWeaponBase::DebugSuccessfulHit(const FHitResult& HitResult) const
-{
-	static_cast<void>(HitResult);
-}
-
 bool AWeaponBase::HasActiveSkillAdditionalDamage() const
 {
 	return ActiveSkillAdditionalDamageEffectClass && ActiveSkillAdditionalDamageMagnitude > 0.0f;
@@ -1055,6 +1128,10 @@ void AWeaponBase::ApplyActiveSkillAdditionalDamageToTarget(ACharacterBase* Targe
 	const float DamageMagnitude = ActiveSkillAdditionalDamageMagnitude;
 	const int32 DamageLevel = ActiveSkillAdditionalDamageLevel;
 	const TWeakObjectPtr<UObject> DamageSourceObjectWeak(ActiveSkillAdditionalDamageSourceObject.Get());
+	const FGameplayEffectSpecHandle DebuffEffectSpecHandle =
+		ActiveSkillDebuffEffectSpecHandle;
+	const TWeakObjectPtr<UStatusEffectDefinition> StatusEffectDefinitionWeak(
+		ActiveSkillStatusEffectDefinition.Get());
 	const float DamageDelay = FMath::Max(ActiveSkillAdditionalDamageDelay, 0.0f);
 	if (DamageDelay > 0.0f)
 	{
@@ -1064,7 +1141,7 @@ void AWeaponBase::ApplyActiveSkillAdditionalDamageToTarget(ACharacterBase* Targe
 			World->GetTimerManager().SetTimer(
 				DelayHandle,
 				FTimerDelegate::CreateWeakLambda(this,
-					[this, TargetWeak, DamageEffectClass, DamageDataTag, DamageMagnitude, DamageLevel, DamageSourceObjectWeak]()
+					[this, TargetWeak, DamageEffectClass, DamageDataTag, DamageMagnitude, DamageLevel, DamageSourceObjectWeak, DebuffEffectSpecHandle, StatusEffectDefinitionWeak]()
 					{
 						ApplySkillAdditionalDamageToTarget(
 							TargetWeak.Get(),
@@ -1072,7 +1149,9 @@ void AWeaponBase::ApplyActiveSkillAdditionalDamageToTarget(ACharacterBase* Targe
 							DamageDataTag,
 							DamageMagnitude,
 							DamageLevel,
-							DamageSourceObjectWeak.Get());
+							DamageSourceObjectWeak.Get(),
+							DebuffEffectSpecHandle,
+							StatusEffectDefinitionWeak.Get());
 					}),
 				DamageDelay,
 				false);
@@ -1087,7 +1166,9 @@ void AWeaponBase::ApplyActiveSkillAdditionalDamageToTarget(ACharacterBase* Targe
 		DamageDataTag,
 		DamageMagnitude,
 		DamageLevel,
-		DamageSourceObjectWeak.Get());
+		DamageSourceObjectWeak.Get(),
+		DebuffEffectSpecHandle,
+		StatusEffectDefinitionWeak.Get());
 }
 
 void AWeaponBase::ApplySkillAdditionalDamageToTarget(
@@ -1096,7 +1177,9 @@ void AWeaponBase::ApplySkillAdditionalDamageToTarget(
 	FGameplayTag DamageDataTag,
 	float DamageMagnitude,
 	int32 DamageLevel,
-	UObject* DamageSourceObject)
+	UObject* DamageSourceObject,
+	const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
+	UStatusEffectDefinition* StatusEffectDefinition)
 {
 	if (!HasAuthority() || !DamageEffectClass || DamageMagnitude <= 0.0f)
 	{
@@ -1145,7 +1228,13 @@ void AWeaponBase::ApplySkillAdditionalDamageToTarget(
 	DamageSpecHandle.Data->SetSetByCallerMagnitude(DamageDataTag, DamageMagnitude);
 	const FActiveGameplayEffectHandle AppliedHandle =
 		SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), TargetASC);
-
+	if (AppliedHandle.WasSuccessfullyApplied())
+	{
+		ApplySkillDebuffToTarget(
+			TargetCharacter,
+			DebuffEffectSpecHandle,
+			StatusEffectDefinition);
+	}
 
 }
 
@@ -1254,8 +1343,6 @@ void AWeaponBase::SpawnSkillSlashNiagara()
 		SlashBaseLocation = RawTraceEndLocation;
 		SlashLocation = SlashBaseLocation + SlashRotation.RotateVector(ActiveSkillSlashSpawnLocationOffset);
 	}
-
-
 
 	if (HasAuthority())
 	{
@@ -1434,7 +1521,65 @@ void AWeaponBase::DrawInterpolatedAttackTraceDebug(
 	}
 }
 
-bool AWeaponBase::ApplyDamageFromAuthoritativeTrace(const FHitResult& HitResult)
+bool AWeaponBase::ApplyDamageFromAuthoritativeMeleeTrace(const FHitResult& HitResult)
+{
+	if (!HasAuthority() || !IsCurrentWeaponForOwner())
+	{
+		return false;
+	}
+
+	ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(
+		HitResult.GetActor(),
+		HitResult.GetComponent());
+	return TargetCharacter && ApplyDamageToTarget(TargetCharacter);
+}
+
+void AWeaponBase::ApplySkillDebuffToTarget(
+	ACharacterBase* TargetCharacter,
+	const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
+	UStatusEffectDefinition* StatusEffectDefinition)
+{
+	if (!HasAuthority()
+		|| !TargetCharacter
+		|| !DebuffEffectSpecHandle.IsValid()
+		|| !DebuffEffectSpecHandle.Data.IsValid())
+	{
+		return;
+	}
+
+	ACharacterBase* SourceCharacter = GetOwningCharacter();
+	UPdAbilitySystemComponent* SourceASC = SourceCharacter
+		? SourceCharacter->GetPdAbilitySystemComponent()
+		: nullptr;
+	UPdAbilitySystemComponent* TargetASC =
+		TargetCharacter->GetPdAbilitySystemComponent();
+	if (!SourceASC || !TargetASC)
+	{
+		return;
+	}
+	if (!StatusEffectDefinition
+		|| !StatusEffectDefinition->CanAccumulateDebuffOn(TargetASC))
+	{
+		return;
+	}
+
+	const FActiveGameplayEffectHandle AppliedHandle =
+		SourceASC->ApplyGameplayEffectSpecToTarget(
+		*DebuffEffectSpecHandle.Data.Get(),
+		TargetASC);
+	if (AppliedHandle.WasSuccessfullyApplied())
+	{
+		if (UStatusEffectReplicationComponent* ReplicationComponent =
+			TargetCharacter->GetStatusEffectReplicationComponent())
+		{
+			ReplicationComponent->TrackAppliedStatusEffect(
+				StatusEffectDefinition,
+				AppliedHandle);
+		}
+	}
+}
+
+bool AWeaponBase::ApplyDamageFromAuthoritativeRangedTrace(const FHitResult& HitResult)
 {
 	if (!HasAuthority() || !IsCurrentWeaponForOwner())
 	{

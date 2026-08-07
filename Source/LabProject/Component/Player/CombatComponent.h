@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
+#include "Definition/Player/PlayerPawnDefinition.h"
 #include "GameplayTagContainer.h"
 #include "Components/ActorComponent.h"
 #include "TimerManager.h"
@@ -20,24 +20,10 @@ class UBasicAttributeSet;
 class UGameplayEffect;
 class UNiagaraSystem;
 class UPdAbilitySystemComponent;
+class UPlayerPawnDefinition;
 struct FGameplayAbilitySpec;
 struct FAttackData;
 struct FStreamableHandle;
-
-USTRUCT(BlueprintType)
-struct FUnarmedAttackTraceDefinition
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed")
-	FName StartSocketName = NAME_None;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed")
-	FName EndSocketName = NAME_None;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed")
-	FVector HalfSize = FVector(22.0f);
-};
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UCombatComponent : public UActorComponent
@@ -75,10 +61,10 @@ public:
 
 	bool GetUnarmedAttackData(FAttackData& OutAttackData) const;
 	void PlayUnarmedComboWindowStartEffect() const;
-	void SetUnarmedAttackTraceEnabled(bool bEnabled);
 	void SetUnarmedAttackTraceEnabledForSection(bool bEnabled, FName AttackSectionName);
 	void ResetUnarmedAttackHitTracking();
 
+	void ApplyDefinition(const UPlayerPawnDefinition* Definition);
 	void RefreshCachedReferences();
 
 protected:
@@ -137,45 +123,8 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UPdAbilitySystemComponent> CachedASC;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<UGameplayEffect> OutgoingDamageEffectClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<UGameplayEffect> IncomingDamageEffectClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed", meta = (AllowPrivateAccess = "true"))
-	TSoftObjectPtr<UAnimMontage> UnarmedAttackMontage = nullptr;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed|VFX", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UNiagaraSystem> UnarmedComboWindowStartEffect;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed", meta = (ClampMin = "0.0", AllowPrivateAccess = "true"))
-	float UnarmedDamageMagnitude = 5.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed", meta = (AllowPrivateAccess = "true"))
-	TArray<FUnarmedAttackTraceDefinition> UnarmedAttackTraces;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed|Trace", meta = (ClampMin = "0.001", AllowPrivateAccess = "true"))
-	float UnarmedAttackTraceInterval = 0.033333f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed|Trace",
-		meta = (ClampMin = "1.0", ForceUnits = "cm", AllowPrivateAccess = "true"))
-	float UnarmedAttackTraceInterpolationDistance = 5.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed|Trace", meta = (AllowPrivateAccess = "true"))
-	TArray<TEnumAsByte<EObjectTypeQuery>> UnarmedAttackTraceObjectTypes;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed|Trace|Debug", meta = (AllowPrivateAccess = "true"))
-	bool bDrawUnarmedAttackTraceDebug = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed|Trace|Debug", meta = (ClampMin = "0.0", AllowPrivateAccess = "true"))
-	float UnarmedAttackTraceDebugDrawTime = 1.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed|Trace|Debug", meta = (AllowPrivateAccess = "true"))
-	FLinearColor UnarmedAttackTraceDebugTraceColor = FLinearColor::Red;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Unarmed|Trace|Debug", meta = (AllowPrivateAccess = "true"))
-	FLinearColor UnarmedAttackTraceDebugHitColor = FLinearColor::Green;
+	UPROPERTY(Transient)
+	FUnarmedCombatSettings UnarmedCombatSettings;
 
 	TSet<TObjectPtr<AActor>> HitActorsInCurrentUnarmedAttack;
 

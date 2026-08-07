@@ -5,6 +5,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
@@ -20,9 +21,7 @@
 #include "Component/Player/PlayerAimComponent.h"
 #include "Component/Player/PlayerCameraComponent.h"
 #include "Component/Player/PlayerInteractionComponent.h"
-#include "Definition/Character/CharacterBaseDefinition.h"
 #include "Definition/Player/PlayerPawnDefinition.h"
-#include "UObject/ConstructorHelpers.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayer)
 
 namespace
@@ -34,11 +33,6 @@ namespace
 APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	CharacterDefinition =
-		TSoftObjectPtr<UCharacterBaseDefinition>(
-			UCharacterBaseDefinition::
-				GetHumanoidDefinitionPath());
-
 	// =================================================================================================================
 
 	PlayerInteractionComponent =
@@ -89,33 +83,18 @@ APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 	SpeechBubblePlaneComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	SpeechBubblePlaneComponent->SetGenerateOverlapEvents(false);
 	SpeechBubblePlaneComponent->SetCanEverAffectNavigation(false);
-	SpeechBubblePlaneComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 260.0f));
-	SpeechBubblePlaneComponent->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
-	SpeechBubblePlaneComponent->SetRelativeScale3D(FVector(2.0f, 2.0f, 1.0f));
 	SpeechBubblePlaneComponent->SetHiddenInGame(true);
 	SpeechBubblePlaneComponent->SetVisibility(true, true);
-
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> SpeechBubblePlaneMesh(TEXT("/Engine/BasicShapes/Plane.Plane"));
-	if (SpeechBubblePlaneMesh.Succeeded())
-	{
-		SpeechBubblePlaneComponent->SetStaticMesh(SpeechBubblePlaneMesh.Object);
-	}
 	if (PaintCanvasComponent)
 	{
 		PaintCanvasComponent->SetSpeechBubbleComponent(SpeechBubblePlaneComponent);
-	}
-
-	static ConstructorHelpers::FObjectFinder<UPlayerPawnDefinition> DefaultPlayerPawnDefinition(
-		TEXT("/Game/Data/DA_PlayerPawn.DA_PlayerPawn"));
-	if (DefaultPlayerPawnDefinition.Succeeded())
-	{
-		PlayerPawnDefinition = DefaultPlayerPawnDefinition.Object;
 	}
 }
 
 void APdPlayer::BeginPlay()
 {
 	Super::BeginPlay();
+	ResolvePlayerPawnDefinition();
 	ApplyPlayerPawnDefinition();
 	if (PlayerAimComponent)
 	{
@@ -217,24 +196,41 @@ void APdPlayer::Tick(float DeltaSeconds)
 	}
 }
 
+void APdPlayer::ResolvePlayerPawnDefinition()
+{
+	if (PlayerPawnDefinition)
+	{
+		return;
+	}
+
+	UAssetManager& AssetManager = UAssetManager::Get();
+	const FPrimaryAssetId DefinitionId =
+		UPlayerPawnDefinition::GetDefaultPrimaryAssetId();
+	PlayerPawnDefinition =
+		AssetManager.GetPrimaryAssetObject<UPlayerPawnDefinition>(DefinitionId);
+	if (!PlayerPawnDefinition)
+	{
+		const FSoftObjectPath DefinitionPath =
+			AssetManager.GetPrimaryAssetPath(DefinitionId);
+		PlayerPawnDefinition = Cast<UPlayerPawnDefinition>(DefinitionPath.TryLoad());
+	}
+
+	if (!PlayerPawnDefinition)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("Player pawn definition '%s' was not registered or preloaded."),
+			*DefinitionId.ToString());
+	}
+}
+
 void APdPlayer::ApplyPlayerPawnDefinition()
 {
 	FPlayerInteractionSettings InteractionSettings;
-	InteractionSettings.BoxExtent = PlayerInteractionComponent
-		? PlayerInteractionComponent->GetUnscaledBoxExtent()
-		: FVector(50.0f, 50.0f, 100.0f);
-	InteractionSettings.RelativeLocation = InteractionBox
-		? InteractionBox->GetRelativeLocation()
-		: FVector(80.0f, 0.0f, 0.0f);
-	InteractionSettings.RelativeRotation = InteractionBox
-		? InteractionBox->GetRelativeRotation()
-		: FRotator::ZeroRotator;
 	InteractionSettings.ServerValidationDistance = InteractionServerValidationDistance;
 
 	FPlayerCameraPresentationSettings CameraSettings;
-	CameraSettings.TargetArmLength = CameraBoom ? CameraBoom->TargetArmLength : 350.0f;
-	CameraSettings.bUsePawnControlRotation = CameraBoom && CameraBoom->bUsePawnControlRotation;
-	CameraSettings.bDoCollisionTest = CameraBoom && CameraBoom->bDoCollisionTest;
 	FPlayerAimSettings AimSettings;
 
 	if (PlayerPawnDefinition)
@@ -261,6 +257,10 @@ void APdPlayer::ApplyPlayerPawnDefinition()
 	if (PlayerActionComponent)
 	{
 		PlayerActionComponent->ApplyDefinition(PlayerPawnDefinition);
+	}
+	if (UCombatComponent* CombatComponent = GetCombatComponent())
+	{
+		CombatComponent->ApplyDefinition(PlayerPawnDefinition);
 	}
 
 	ReapplyCurrentRotationPolicy();
@@ -312,7 +312,6 @@ void APdPlayer::HandleDeath_Implementation()
 		GrappleComponent->StopGrapple();
 	}
 
-	ResetCharacterActionCooldowns();
 	Super::HandleDeath_Implementation();
 }
 
@@ -354,58 +353,6 @@ bool APdPlayer::RequestCancelHitReactForMovement(const float BlendOutTime)
 		&& PlayerActionComponent->RequestCancelHitReactForMovement(BlendOutTime);
 }
 
-bool APdPlayer::StartCharacterActionCooldown(const ECharacterActionType ActionType, const double CooldownDuration)
-{
-	const bool bStarted = PlayerActionComponent
-		&& PlayerActionComponent->StartCooldown(ActionType, CooldownDuration);
-	if (bStarted)
-	{
-		OnCharacterActionCooldownChanged.Broadcast(ActionType);
-	}
-	return bStarted;
-}
-
-bool APdPlayer::IsCharacterActionOnCooldown(const ECharacterActionType ActionType) const
-{
-	return PlayerActionComponent && PlayerActionComponent->IsOnCooldown(ActionType);
-}
-
-float APdPlayer::GetCharacterActionCooldownRemaining(const ECharacterActionType ActionType) const
-{
-	return PlayerActionComponent
-		? PlayerActionComponent->GetCooldownRemaining(ActionType)
-		: 0.0f;
-}
-
-float APdPlayer::GetCharacterActionCooldownDuration(const ECharacterActionType ActionType) const
-{
-	return PlayerActionComponent
-		? PlayerActionComponent->GetCooldownDuration(ActionType)
-		: 0.0f;
-}
-
-void APdPlayer::ResetCharacterActionCooldowns()
-{
-	if (PlayerActionComponent)
-	{
-		PlayerActionComponent->ResetCooldowns();
-	}
-	OnCharacterActionCooldownChanged.Broadcast(ECharacterActionType::PandoraWeaponSwap);
-	OnCharacterActionCooldownChanged.Broadcast(ECharacterActionType::GrappleHook);
-}
-
-bool APdPlayer::TryPaintAtCursor()
-{
-	return PaintCanvasComponent ? PaintCanvasComponent->TryPaintAtCursor() : false;
-}
-
-AActor* APdPlayer::ShowPaintCanvasWithCharacterOffset(const FTransform& PaintCanvasTransformOffset)
-{
-	return PaintCanvasComponent
-		? PaintCanvasComponent->ShowPaintCanvasWithCharacterOffset(PaintCanvasTransformOffset)
-		: nullptr;
-}
-
 void APdPlayer::HidePaintCanvas()
 {
 	if (PaintCanvasComponent)
@@ -419,10 +366,10 @@ bool APdPlayer::HasActivePaintCanvas() const
 	return PaintCanvasComponent ? PaintCanvasComponent->HasActivePaintCanvas() : false;
 }
 
-bool APdPlayer::ExportActivePaintCanvasAboveCharacterWithTransformOffset(const FTransform& PaintCanvasExportTransformOffset)
+bool APdPlayer::ExportActivePaintCanvasToSpeechBubble()
 {
 	return PaintCanvasComponent
-		&& PaintCanvasComponent->ExportActivePaintCanvasAboveCharacterWithTransformOffset(PaintCanvasExportTransformOffset);
+		&& PaintCanvasComponent->ExportActivePaintCanvasToSpeechBubble();
 }
 
 bool APdPlayer::ApplyActivePaintCanvasToFaceDecal(

@@ -6,13 +6,12 @@
 #include "EnemyCombatComponent.generated.h"
 
 class AEnemyBase;
-class UGameplayAbility;
 class UItemDefinition;
 struct FStreamableHandle;
 struct FAttackData;
 
 /**
- * Owns enemy targeting, ability/stat bootstrapping, equipment defaults, and
+ * Owns enemy targeting, stat bootstrapping, equipment defaults, and
  * attack scheduling. AEnemyBase remains the stable Blueprint/StateTree facade.
  */
 UCLASS(ClassGroup = (Character), meta = (BlueprintSpawnableComponent))
@@ -29,6 +28,7 @@ public:
 	void HandlePossessed();
 	void ShutdownRuntime();
 	void InitializeBehaviorTreeCombat();
+	bool IsRuntimeContentReady() const { return bRuntimeContentReady; }
 
 	void SetAttackTarget(AActor* InAttackTarget);
 	AActor* GetCachedAttackTarget() const;
@@ -64,7 +64,6 @@ public:
 	bool EquipEnemyWeaponDefinition(const UItemDefinition* WeaponDefinition);
 	const UItemDefinition* GetCurrentOrStartingEnemyWeaponDefinition() const;
 	void ClearStartingWeaponDefinition();
-	void GrantDefaultCombatAbilities();
 	void ResetAttributesForRespawn();
 
 private:
@@ -75,7 +74,6 @@ private:
 	void BeginRuntimeContentPreload();
 	void HandleRuntimeContentPreloaded(uint32 RequestGeneration);
 	void ReleaseRuntimeContentPreload();
-	void EnsureDefaultCombatAbilityClasses();
 	bool ValidateAttackRequest();
 	void StopAttackMovement() const;
 	void FaceAttackTarget(const AActor* CurrentAttackTarget);
@@ -100,9 +98,6 @@ private:
 	uint32 RuntimeContentLoadGeneration = 0;
 	bool bRuntimeContentReady = true;
 	bool bHandlePossessedWhenContentReady = false;
-
-	UPROPERTY(Transient)
-	TArray<FGameplayAbilitySpecHandle> DefaultCombatAbilityHandles;
 
 	int32 DefaultAttributeConfigHandle = INDEX_NONE;
 	bool bDefaultStatDefinitionApplied = false;

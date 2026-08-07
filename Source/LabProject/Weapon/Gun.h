@@ -66,12 +66,6 @@ protected:
 	float GetGunTraceRadius() const;
 	FVector GetGunTraceStartLocation(const ACharacterBase* Character) const;
 	FVector GetAITargetAimLocation(const AActor* TargetActor) const;
-	void AppendEnemyCapsuleTraceHits(
-		const FVector& TraceStart,
-		const FVector& TraceEnd,
-		float TraceRadius,
-		const TArray<AActor*>& ActorsToIgnore,
-		TArray<FHitResult>& InOutHitResults) const;
 	bool SelectFirstValidGunImpact(const TArray<FHitResult>& HitResults, FHitResult& OutHitResult) const;
 	bool IsFriendlyDamageTargetActor(AActor* HitActor, const UPrimitiveComponent* HitComponent) const;
 	AActor* ResolveDamageTargetActor(AActor* HitActor, const UPrimitiveComponent* HitComponent) const;

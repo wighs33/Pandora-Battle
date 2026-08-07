@@ -3,7 +3,6 @@
 #include "Character/CharacterBase.h"
 #include "Common/WeaponDefinitionData.h"
 #include "Interface/InteractableInterface.h"
-#include "Definition/Player/CharacterActionDefinition.h"
 #include "PdPlayer.generated.h"
 
 class UBoxComponent;
@@ -22,8 +21,6 @@ class AActor;
 class UAnimMontage;
 class UMaterialInterface;
 class UStaticMeshComponent;
-
-DECLARE_MULTICAST_DELEGATE_OneParam(FPdCharacterActionCooldownChanged, ECharacterActionType);
 
 UCLASS()
 class LABPROJECT_API APdPlayer : public ACharacterBase
@@ -68,29 +65,11 @@ public:
 
 	bool RequestCancelHitReactForMovement(float BlendOutTime = 0.08f);
 
-	UFUNCTION(BlueprintCallable, Category = "!Character Action|Cooldown", meta = (ClampMin = "0.0", ForceUnits = "s"))
-	bool StartCharacterActionCooldown(ECharacterActionType ActionType, double CooldownDuration);
-
-	UFUNCTION(BlueprintPure, Category = "!Character Action|Cooldown")
-	bool IsCharacterActionOnCooldown(ECharacterActionType ActionType) const;
-
-	UFUNCTION(BlueprintPure, Category = "!Character Action|Cooldown")
-	float GetCharacterActionCooldownRemaining(ECharacterActionType ActionType) const;
-
-	UFUNCTION(BlueprintPure, Category = "!Character Action|Cooldown")
-	float GetCharacterActionCooldownDuration(ECharacterActionType ActionType) const;
-
-	FPdCharacterActionCooldownChanged OnCharacterActionCooldownChanged;
-
-	bool TryPaintAtCursor();
-
-	AActor* ShowPaintCanvasWithCharacterOffset(const FTransform& PaintCanvasTransformOffset);
-
 	void HidePaintCanvas();
 
 	bool HasActivePaintCanvas() const;
 
-	bool ExportActivePaintCanvasAboveCharacterWithTransformOffset(const FTransform& PaintCanvasExportTransformOffset);
+	bool ExportActivePaintCanvasToSpeechBubble();
 
 	bool ApplyActivePaintCanvasToFaceDecal(
 		UMaterialInterface* FaceDecalMaterial,
@@ -133,11 +112,10 @@ protected:
 	virtual AActor* GetAbilitySystemOwnerActor() const override;
 	virtual void ApplyCurrentRotationPolicy(UCharacterMovementComponent* MovementComponent) override;
 	virtual bool ShouldUseContinuousCharacterTick() const override;
+	void ResolvePlayerPawnDefinition();
 	void ApplyPlayerPawnDefinition();
 	void UpdateAimOffsetForReplicationComponent();
 	void ApplyReplicatedAimOffsetFromComponent(float AimYaw, float AimPitch);
-
-	void ResetCharacterActionCooldowns();
 
 	APdPlayerState* GetPdPlayerState() const;
 

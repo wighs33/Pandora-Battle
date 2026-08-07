@@ -43,6 +43,5 @@ bool UAnimNotify_WeaponEvent::DispatchWeaponEvent(USkeletalMeshComponent* MeshCo
 
 	UEquipmentComponent* EquipmentComponent = PlayerCharacter->GetEquipmentComponent();
 	AWeaponBase* WeaponActor = EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
-	const bool bHandled = WeaponActor ? WeaponActor->OnWeaponAnimNotifyTiming(EventName, PlayerCharacter) : false;
-	return bHandled;
+	return WeaponActor ? WeaponActor->OnWeaponAnimNotifyTiming(EventName, PlayerCharacter) : false;
 }

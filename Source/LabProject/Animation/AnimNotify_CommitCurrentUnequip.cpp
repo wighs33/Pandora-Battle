@@ -33,7 +33,6 @@ void UAnimNotify_CommitCurrentUnequip::Notify(USkeletalMeshComponent* MeshComp, 
 	{
 		const bool bUnequipped = EquipmentComponent->UnequipCurrentWeapon();
 
-
 		if (bUnequipped && EventTag.IsValid())
 		{
 			// =================================================================================================================

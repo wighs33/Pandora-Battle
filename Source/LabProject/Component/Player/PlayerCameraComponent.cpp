@@ -39,13 +39,6 @@ void UPlayerCameraComponent::InitializeCamera(
 		};
 	}
 
-	if (CameraBoom)
-	{
-		CameraBoom->TargetArmLength = FMath::Max(0.0f, PresentationSettings.TargetArmLength);
-		CameraBoom->bUsePawnControlRotation = PresentationSettings.bUsePawnControlRotation;
-		CameraBoom->bDoCollisionTest = PresentationSettings.bDoCollisionTest;
-	}
-
 	CacheCameraDefaults();
 }
 

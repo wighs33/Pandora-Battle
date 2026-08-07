@@ -1,7 +1,8 @@
 #include "Definition/Character/EnemyBaseDefinition.h"
 
-#include "Abilities/GameplayAbility.h"
-#include "UObject/ConstructorHelpers.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Player/StatUpgradeDefinition.h"
+#include "GameplayEffect.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -9,50 +10,34 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnemyBaseDefinition)
 
-UEnemyBaseDefinition::UEnemyBaseDefinition()
-{
-	Combat.DefaultStatDefinition = TSoftObjectPtr<UStatUpgradeDefinition>(
-		FSoftObjectPath(TEXT("/Game/GAS/Attribute/DA_Stat.DA_Stat")));
-
-	static ConstructorHelpers::FClassFinder<UGameplayAbility> AttackAbilityFinder(
-		TEXT("/Game/GAS/Ability/GA_Attack"));
-	if (AttackAbilityFinder.Succeeded())
-	{
-		Combat.DefaultCombatAbilities.AddUnique(AttackAbilityFinder.Class);
-	}
-
-	static ConstructorHelpers::FClassFinder<UGameplayAbility> PunchAbilityFinder(
-		TEXT("/Game/GAS/Ability/GA_Punch"));
-	if (PunchAbilityFinder.Succeeded())
-	{
-		Combat.DefaultPunchAbilityClass = PunchAbilityFinder.Class;
-		Combat.DefaultCombatAbilities.AddUnique(PunchAbilityFinder.Class);
-	}
-
-	static ConstructorHelpers::FClassFinder<UGameplayAbility> RangedAttackAbilityFinder(
-		TEXT("/Game/GAS/Ability/GA_RangedAttack"));
-	if (RangedAttackAbilityFinder.Succeeded())
-	{
-		Combat.DefaultCombatAbilities.AddUnique(RangedAttackAbilityFinder.Class);
-	}
-
-	static ConstructorHelpers::FClassFinder<UGameplayAbility> DeathAbilityFinder(
-		TEXT("/Game/GAS/Ability/GA_Death"));
-	if (DeathAbilityFinder.Succeeded())
-	{
-		Combat.DefaultCombatAbilities.AddUnique(DeathAbilityFinder.Class);
-	}
-}
-
 FPrimaryAssetId UEnemyBaseDefinition::GetPrimaryAssetId() const
 {
-	return FPrimaryAssetId(TEXT("EnemyBaseDefinition"), GetFName());
+	return FPrimaryAssetId(GetDefaultPrimaryAssetId().PrimaryAssetType, GetFName());
+}
+
+FPrimaryAssetId UEnemyBaseDefinition::GetDefaultPrimaryAssetId()
+{
+	return FPrimaryAssetId(
+		TEXT("EnemyBaseDefinition"),
+		GetDefaultDefinitionPath().GetAssetFName());
 }
 
 FSoftObjectPath UEnemyBaseDefinition::GetDefaultDefinitionPath()
 {
-	return FSoftObjectPath(
-		TEXT("/Game/Data/DA_EnemyBase.DA_EnemyBase"));
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.EnemyBase.ToSoftObjectPath();
+}
+
+TSoftObjectPtr<UStatUpgradeDefinition>
+UEnemyBaseDefinition::GetEffectiveDefaultStatDefinition() const
+{
+	if (!Combat.DefaultStatDefinition.IsNull())
+	{
+		return Combat.DefaultStatDefinition;
+	}
+
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.StatUpgrade;
 }
 
 #if WITH_EDITOR
@@ -82,23 +67,39 @@ EDataValidationResult UEnemyBaseDefinition::IsDataValid(FDataValidationContext& 
 	RequireFiniteNonNegative(Combat.RangedAttackStartDistance, TEXT("Combat.RangedAttackStartDistance"));
 	RequireFiniteNonNegative(TrainingBot.HitStunDuration, TEXT("TrainingBot.HitStunDuration"));
 	RequireFiniteNonNegative(TrainingBot.RespawnDelay, TEXT("TrainingBot.RespawnDelay"));
-
-	if (Combat.DefaultCombatAbilityLevel < 1)
+	if (!FMath::IsFinite(MonsterMaxHealth) || MonsterMaxHealth <= 0.0f)
 	{
 		Context.AddError(FText::FromString(
-			TEXT("Combat.DefaultCombatAbilityLevel must be at least 1.")));
+			TEXT("MonsterMaxHealth must be finite and positive.")));
 		Result = EDataValidationResult::Invalid;
 	}
 
-	for (const TSubclassOf<UGameplayAbility>& AbilityClass : Combat.DefaultCombatAbilities)
+	if (Combat.DefaultMonsterClass.IsNull())
 	{
-		if (!AbilityClass)
-		{
-			Context.AddError(FText::FromString(
-				TEXT("Combat.DefaultCombatAbilities cannot contain null entries.")));
-			Result = EDataValidationResult::Invalid;
-			break;
-		}
+		Context.AddError(FText::FromString(
+			TEXT("Combat.DefaultMonsterClass is required.")));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	const bool bHasAnyMonsterPresentationSetting =
+		MonsterPresentation.ContactDamageEffectClass
+		|| MonsterPresentation.HitReactMontage
+		|| MonsterPresentation.DeathMontage;
+	if (bHasAnyMonsterPresentationSetting
+		&& (!MonsterPresentation.ContactDamageEffectClass
+			|| !MonsterPresentation.HitReactMontage
+			|| !MonsterPresentation.DeathMontage))
+	{
+		Context.AddError(FText::FromString(
+			TEXT("MonsterPresentation must configure the contact damage effect, hit-react montage, and death montage together.")));
+		Result = EDataValidationResult::Invalid;
+	}
+	if (!FMath::IsFinite(MonsterPresentation.HitReactPlayRate)
+		|| MonsterPresentation.HitReactPlayRate <= 0.0f)
+	{
+		Context.AddError(FText::FromString(
+			TEXT("MonsterPresentation.HitReactPlayRate must be finite and positive.")));
+		Result = EDataValidationResult::Invalid;
 	}
 
 	return Result;

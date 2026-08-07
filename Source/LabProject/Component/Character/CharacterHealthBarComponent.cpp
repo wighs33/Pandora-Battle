@@ -16,6 +16,18 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterHealthBarComponent)
 
+namespace
+{
+	constexpr float HealthBarWorldScale = 2.0f;
+	constexpr bool bHideWhenCharacterNotVisible = true;
+	constexpr bool bUseLineOfSightCheck = true;
+	constexpr bool bShowLocalPlayerHealthBar = false;
+	constexpr float VisibilityTargetZOffset = 90.0f;
+	constexpr float HideGraceTime = 0.35f;
+	constexpr int32 ViewModelMaxRetryAttempts = 10;
+	constexpr float ViewModelRetryInterval = 0.1f;
+}
+
 UCharacterHealthBarComponent::UCharacterHealthBarComponent()
 {
 	SetUsingAbsoluteRotation(true);
@@ -23,14 +35,8 @@ UCharacterHealthBarComponent::UCharacterHealthBarComponent()
 	SetWidgetSpace(EWidgetSpace::Screen);
 	SetDrawAtDesiredSize(true);
 	SetRelativeLocation(FVector(0.0f, 0.0f, 180.0f));
-	SetRelativeScale3D(FVector(Settings.WorldScale));
+	SetRelativeScale3D(FVector(HealthBarWorldScale));
 	SetVisibility(false, true);
-}
-
-void UCharacterHealthBarComponent::ApplySettings(const FCharacterHealthBarSettings& InSettings)
-{
-	Settings = InSettings;
-	SetRelativeScale3D(FVector(FMath::Max(Settings.WorldScale, 0.01f)));
 }
 
 void UCharacterHealthBarComponent::InitializeHealthBar()
@@ -101,7 +107,7 @@ void UCharacterHealthBarComponent::ConfigureWidget()
 
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	SetWidgetSpace(EWidgetSpace::Screen);
-	SetRelativeScale3D(FVector(FMath::Max(Settings.WorldScale, 0.01f)));
+	SetRelativeScale3D(FVector(HealthBarWorldScale));
 	SetVisibility(false, true);
 
 	const UWidgetClassDefinition* WidgetDefinition =
@@ -224,7 +230,7 @@ void UCharacterHealthBarComponent::QueueViewModelRefreshRetry()
 	}
 
 	if (World->GetTimerManager().IsTimerActive(ViewModelRetryTimerHandle)
-		|| ViewModelRetryCount >= Settings.ViewModelMaxRetryAttempts)
+		|| ViewModelRetryCount >= ViewModelMaxRetryAttempts)
 	{
 		return;
 	}
@@ -234,7 +240,7 @@ void UCharacterHealthBarComponent::QueueViewModelRefreshRetry()
 		ViewModelRetryTimerHandle,
 		this,
 		&ThisClass::RetryRefreshViewModel,
-		FMath::Max(Settings.ViewModelRetryInterval, 0.01f),
+		ViewModelRetryInterval,
 		false);
 }
 
@@ -281,7 +287,7 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(
 
 	const bool bIsLocalPlayerPawn =
 		Character->IsPlayerControlled() && Character->IsLocallyControlled();
-	if (bIsLocalPlayerPawn && !Settings.bShowLocalPlayerHealthBar)
+	if (bIsLocalPlayerPawn && !bShowLocalPlayerHealthBar)
 	{
 		SetVisibleForLocalViewer(false);
 		return;
@@ -302,22 +308,32 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(
 		return;
 	}
 
+	const FVector ViewerLocation = GetLineOfSightStartLocation(
+		LocalPlayerController,
+		CameraLocation);
+	if (MaxDistanceSquared > 0.0f
+		&& FVector::DistSquared(ViewerLocation, GetVisibilityTargetLocation())
+			> MaxDistanceSquared)
+	{
+		SetVisibleForLocalViewer(false);
+		return;
+	}
+
 	UWorld* World = GetWorld();
 	const double NowSeconds = World ? World->GetTimeSeconds() : 0.0;
 	const bool bVisibilityTestPassed = ShouldShowForLocalViewer(
 		LocalPlayerController,
 		CameraLocation,
-		CameraRotation,
-		MaxDistanceSquared);
+		CameraRotation);
 	if (bVisibilityTestPassed)
 	{
 		LastVisibleTimeSeconds = NowSeconds;
 	}
 
 	const bool bWithinHideGraceTime = IsVisible()
-		&& Settings.HideGraceTime > 0.0f
+		&& HideGraceTime > 0.0f
 		&& NowSeconds - LastVisibleTimeSeconds
-			<= static_cast<double>(Settings.HideGraceTime);
+			<= static_cast<double>(HideGraceTime);
 	const bool bShouldShow = bVisibilityTestPassed || bWithinHideGraceTime;
 	SetVisibleForLocalViewer(bShouldShow);
 	if (bShouldShow)
@@ -354,8 +370,7 @@ void UCharacterHealthBarComponent::UpdateFacing()
 bool UCharacterHealthBarComponent::ShouldShowForLocalViewer(
 	APlayerController* LocalPlayerController,
 	const FVector& CameraLocation,
-	const FRotator& CameraRotation,
-	const float MaxDistanceSquared) const
+	const FRotator& CameraRotation) const
 {
 	const ACharacterBase* Character = GetCharacterOwnerConst();
 	if (!Character
@@ -375,14 +390,8 @@ bool UCharacterHealthBarComponent::ShouldShowForLocalViewer(
 	const FVector ViewerCharacterLocation = GetLineOfSightStartLocation(
 		LocalPlayerController,
 		CameraLocation);
-	if (MaxDistanceSquared > 0.0f
-		&& FVector::DistSquared(ViewerCharacterLocation, TargetLocation)
-			> MaxDistanceSquared)
-	{
-		return false;
-	}
 
-	if (!Settings.bHideWhenCharacterNotVisible)
+	if (!bHideWhenCharacterNotVisible)
 	{
 		return true;
 	}
@@ -415,7 +424,7 @@ bool UCharacterHealthBarComponent::ShouldShowForLocalViewer(
 		return false;
 	}
 
-	return !Settings.bUseLineOfSightCheck
+	return !bUseLineOfSightCheck
 		|| HasLineOfSight(ViewerCharacterLocation);
 }
 
@@ -461,7 +470,7 @@ FVector UCharacterHealthBarComponent::GetVisibilityTargetLocation() const
 	const FVector VisibilityOffset(
 		0.0f,
 		0.0f,
-		Settings.VisibilityTargetZOffset);
+		VisibilityTargetZOffset);
 	if (const USkeletalMeshComponent* CharacterMesh = Character->GetMesh())
 	{
 		return CharacterMesh->Bounds.Origin + VisibilityOffset;

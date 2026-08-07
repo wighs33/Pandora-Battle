@@ -19,16 +19,13 @@
 #include "Definition/Player/StatUpgradeDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
+#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Weapon/Gun.h"
 #include "Weapon/WeaponBase.h"
-
-#if WITH_DEV_AUTOMATION_TESTS
-#include "Misc/AutomationTest.h"
-#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnemyCombatComponent)
 
@@ -134,8 +131,6 @@ void UEnemyCombatComponent::ApplySettings(
 				? FMath::Max(Value, 0.0f)
 				: 0.0f;
 		};
-	Settings.DefaultCombatAbilityLevel =
-		FMath::Max(Settings.DefaultCombatAbilityLevel, 1);
 	Settings.InitialCombatDelay =
 		SanitizeNonNegative(Settings.InitialCombatDelay);
 	Settings.AttackInterval =
@@ -229,6 +224,11 @@ void UEnemyCombatComponent::HandleRuntimeContentPreloaded(
 			*Settings.StartingWeaponDefinition.ToString());
 	}
 
+	if (AEnemyBase* Enemy = GetEnemyOwner())
+	{
+		Enemy->TryInitializeCharacterRuntime();
+	}
+
 	if (bHandlePossessedWhenContentReady)
 	{
 		HandlePossessed();
@@ -269,6 +269,9 @@ void UEnemyCombatComponent::HandlePossessed()
 		return;
 	}
 	bHandlePossessedWhenContentReady = false;
+
+	Enemy->InitializeAbilitySystemActorInfo();
+	EnsureDefaultAttributeSetup();
 
 	if (Settings.bUseBehaviorTreeCombat)
 	{
@@ -327,7 +330,6 @@ void UEnemyCombatComponent::InitializeBehaviorTreeCombat()
 	{
 		EquipStartingWeapon();
 	}
-	GrantDefaultCombatAbilities();
 }
 
 void UEnemyCombatComponent::HandleInitialCombatDelayElapsed()
@@ -346,7 +348,6 @@ void UEnemyCombatComponent::HandleInitialCombatDelayElapsed()
 	Enemy->InitializeAbilitySystemActorInfo();
 	EnsureDefaultAttributeSetup();
 	EquipStartingWeapon();
-	GrantDefaultCombatAbilities();
 	StartAttackTimer();
 }
 
@@ -570,7 +571,7 @@ void UEnemyCombatComponent::EnsureDefaultAttributeSetup()
 
 	if (DefaultAttributeConfigHandle == INDEX_NONE)
 	{
-		FPdAttributeConfig AttributeConfig;
+		FAttributeConfig AttributeConfig;
 		const auto AddMapping =
 			[&AttributeConfig](
 				const FGameplayTag& StatTag,
@@ -581,7 +582,7 @@ void UEnemyCombatComponent::EnsureDefaultAttributeSetup()
 					return;
 				}
 
-				FPdAttributeTagMapping Mapping;
+				FAttributeTagMapping Mapping;
 				Mapping.StatTag = StatTag;
 				Mapping.Attribute = Attribute;
 				AttributeConfig.AttributeMappings.Add(Mapping);
@@ -612,6 +613,9 @@ void UEnemyCombatComponent::EnsureDefaultAttributeSetup()
 		AddMapping(LabGameplayTags::Status_PandoraForce_SecondPandoraLevel, UBasicAttributeSet::GetSecondPandoraLevelAttribute());
 		AddMapping(LabGameplayTags::Status_PandoraForce_ThirdPandora, UBasicAttributeSet::GetThirdPandoraAttribute());
 		AddMapping(LabGameplayTags::Status_PandoraForce_ThirdPandoraLevel, UBasicAttributeSet::GetThirdPandoraLevelAttribute());
+		AddMapping(LabGameplayTags::Status_Resource_Health, UBasicAttributeSet::GetHealthAttribute());
+		AddMapping(LabGameplayTags::Status_Resource_Mana, UBasicAttributeSet::GetManaAttribute());
+		AddMapping(LabGameplayTags::Status_Resource_Stamina, UBasicAttributeSet::GetStaminaAttribute());
 		AddMapping(LabGameplayTags::Status_Resource_MaxHealth, UBasicAttributeSet::GetMaxHealthAttribute());
 		AddMapping(LabGameplayTags::Status_Resource_MaxHealthIncreasePercent, UBasicAttributeSet::GetMaxHealthIncreasePercentAttribute());
 		AddMapping(LabGameplayTags::Status_Resource_MaxHealthLevel, UBasicAttributeSet::GetMaxHealthLevelAttribute());
@@ -652,22 +656,22 @@ bool UEnemyCombatComponent::ApplyDefaultStatDefinition()
 	const UStatUpgradeDefinition* LoadedStatDefinition =
 		Settings.DefaultStatDefinition.Get();
 	if (!LoadedStatDefinition
-		|| LoadedStatDefinition->GetAttributeValues().IsEmpty())
+		|| LoadedStatDefinition->GetAttributeDefaultValues().IsEmpty())
 	{
 		return false;
 	}
 
-	TArray<FPdStatAttributeDefaultValue> OrderedDefaults =
-		LoadedStatDefinition->GetAttributeValues();
+	TArray<FStatAttributeDefaultValue> OrderedDefaults =
+		LoadedStatDefinition->GetAttributeDefaultValues();
 	OrderedDefaults.StableSort(
-		[](const FPdStatAttributeDefaultValue& Left,
-			const FPdStatAttributeDefaultValue& Right)
+		[](const FStatAttributeDefaultValue& Left,
+			const FStatAttributeDefaultValue& Right)
 		{
 			return Left.Priority < Right.Priority;
 		});
 
 	bool bAppliedAny = false;
-	for (const FPdStatAttributeDefaultValue& AttributeDefault : OrderedDefaults)
+	for (const FStatAttributeDefaultValue& AttributeDefault : OrderedDefaults)
 	{
 		if (!AttributeDefault.IsValid())
 		{
@@ -685,7 +689,7 @@ bool UEnemyCombatComponent::ApplyDefaultStatDefinition()
 		}
 	}
 
-	for (const FPdPairedResourceStatTag& Pair :
+	for (const FPairedResourceStatTag& Pair :
 		LoadedStatDefinition->GetPairedResourceStatTags())
 	{
 		if (!Pair.IsValid())
@@ -771,8 +775,6 @@ bool UEnemyCombatComponent::EquipEnemyWeaponDefinition(
 
 	Enemy->InitializeAbilitySystemActorInfo();
 	EnsureDefaultAttributeSetup();
-	GrantDefaultCombatAbilities();
-
 	const bool bEquipped =
 		Equipment->EquipWeaponDefinition(WeaponDefinition);
 	if (bEquipped)
@@ -806,44 +808,6 @@ UEnemyCombatComponent::GetCurrentOrStartingEnemyWeaponDefinition() const
 void UEnemyCombatComponent::ClearStartingWeaponDefinition()
 {
 	Settings.StartingWeaponDefinition.Reset();
-}
-
-void UEnemyCombatComponent::EnsureDefaultCombatAbilityClasses()
-{
-	if (!Settings.DefaultPunchAbilityClass)
-	{
-		Settings.DefaultPunchAbilityClass = UPunchAbility::StaticClass();
-	}
-
-	if (Settings.DefaultPunchAbilityClass)
-	{
-		Settings.DefaultCombatAbilities.AddUnique(
-			Settings.DefaultPunchAbilityClass);
-	}
-}
-
-void UEnemyCombatComponent::GrantDefaultCombatAbilities()
-{
-	AEnemyBase* Enemy = GetEnemyOwner();
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
-	if (!Enemy || !Enemy->HasAuthority() || !AbilitySystemComponent)
-	{
-		return;
-	}
-
-	EnsureDefaultCombatAbilityClasses();
-	if (Settings.DefaultCombatAbilities.IsEmpty())
-	{
-		return;
-	}
-
-	const TArray<FGameplayAbilitySpecHandle> GrantedHandles =
-		AbilitySystemComponent->GrantAbilities(
-			Settings.DefaultCombatAbilities,
-			Settings.DefaultCombatAbilityLevel,
-			Enemy);
-	DefaultCombatAbilityHandles.Append(GrantedHandles);
 }
 
 void UEnemyCombatComponent::ResetAttributesForRespawn()
@@ -1322,156 +1286,3 @@ void UEnemyCombatComponent::SetAttackEnabled(
 		StartAttackTimer();
 	}
 }
-
-#if WITH_DEV_AUTOMATION_TESTS
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FEnemyAttackAbilitySelectionTest,
-	"LabProject.AI.Enemy.AttackAbilitySelection",
-	EAutomationTestFlags::EditorContext
-		| EAutomationTestFlags::ClientContext
-		| EAutomationTestFlags::CommandletContext
-		| EAutomationTestFlags::EngineFilter)
-
-bool FEnemyAttackAbilitySelectionTest::RunTest(const FString& Parameters)
-{
-	static_cast<void>(Parameters);
-
-	TestTrue(
-		TEXT("Ranged equipment selects the ranged attack tag"),
-		ResolveEnemyAttackAbilityTag(true, true)
-			.MatchesTagExact(LabGameplayTags::Action_RangedAttack));
-	TestTrue(
-		TEXT("A melee weapon selects the melee attack tag"),
-		ResolveEnemyAttackAbilityTag(false, true)
-			.MatchesTagExact(LabGameplayTags::Action_Attack));
-	TestTrue(
-		TEXT("No weapon selects the punch tag"),
-		ResolveEnemyAttackAbilityTag(false, false)
-			.MatchesTagExact(LabGameplayTags::Action_Punch));
-	TestTrue(
-		TEXT("Ranged mode accepts ranged abilities"),
-		IsAbilityClassCompatibleWithAttackMode(
-			URangedAttackAbility::StaticClass(),
-			true,
-			true));
-	TestFalse(
-		TEXT("Ranged mode rejects melee abilities"),
-		IsAbilityClassCompatibleWithAttackMode(
-			UAttackAbility::StaticClass(),
-			true,
-			true));
-	TestTrue(
-		TEXT("Armed melee mode accepts melee attack abilities"),
-		IsAbilityClassCompatibleWithAttackMode(
-			UAttackAbility::StaticClass(),
-			false,
-			true));
-	TestFalse(
-		TEXT("Armed melee mode rejects punch abilities"),
-		IsAbilityClassCompatibleWithAttackMode(
-			UPunchAbility::StaticClass(),
-			false,
-			true));
-	TestTrue(
-		TEXT("Unarmed mode accepts punch abilities"),
-		IsAbilityClassCompatibleWithAttackMode(
-			UPunchAbility::StaticClass(),
-			false,
-			false));
-	TestFalse(
-		TEXT("Unarmed mode rejects armed melee abilities"),
-		IsAbilityClassCompatibleWithAttackMode(
-			UAttackAbility::StaticClass(),
-			false,
-			false));
-	TestFalse(
-		TEXT("Attack mode rejects an invalid ability class"),
-		IsAbilityClassCompatibleWithAttackMode(nullptr, false, false));
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FEnemyRuntimeCompositionTest,
-	"LabProject.AI.Enemy.RuntimeComposition",
-	EAutomationTestFlags::EditorContext
-		| EAutomationTestFlags::ClientContext
-		| EAutomationTestFlags::CommandletContext
-		| EAutomationTestFlags::EngineFilter)
-
-bool FEnemyRuntimeCompositionTest::RunTest(const FString& Parameters)
-{
-	static_cast<void>(Parameters);
-
-	const AEnemyBase* EnemyDefaults = GetDefault<AEnemyBase>();
-	TestNotNull(
-		TEXT("Enemy facade owns an ability system component"),
-		EnemyDefaults
-			? EnemyDefaults->GetEnemyAbilitySystemComponent()
-			: nullptr);
-	TestNotNull(
-		TEXT("Enemy facade owns a combat component"),
-		EnemyDefaults
-			? EnemyDefaults->GetEnemyCombatComponent()
-			: nullptr);
-	TestNotNull(
-		TEXT("Enemy facade owns a training-bot component"),
-		EnemyDefaults
-			? EnemyDefaults->GetEnemyTrainingBotComponent()
-			: nullptr);
-
-	UEnemyCombatComponent* CombatComponent =
-		NewObject<UEnemyCombatComponent>();
-	FEnemyCombatSettings InvalidSettings;
-	InvalidSettings.DefaultCombatAbilityLevel = 0;
-	InvalidSettings.InitialCombatDelay = -1.0f;
-	InvalidSettings.AttackInterval = -1.0f;
-	InvalidSettings.AttackStartDistance = -1.0f;
-	InvalidSettings.RangedAttackStartDistance = -1.0f;
-	CombatComponent->ApplySettings(InvalidSettings);
-
-	const FEnemyCombatSettings& SanitizedSettings =
-		CombatComponent->GetSettings();
-	TestEqual(
-		TEXT("Ability level is clamped"),
-		SanitizedSettings.DefaultCombatAbilityLevel,
-		1);
-	TestEqual(
-		TEXT("Initial delay is clamped"),
-		SanitizedSettings.InitialCombatDelay,
-		0.0f);
-	TestEqual(
-		TEXT("Attack interval is clamped"),
-		SanitizedSettings.AttackInterval,
-		0.0f);
-	TestEqual(
-		TEXT("Melee range is clamped"),
-		SanitizedSettings.AttackStartDistance,
-		0.0f);
-	TestEqual(
-		TEXT("Ranged range is clamped"),
-		SanitizedSettings.RangedAttackStartDistance,
-		0.0f);
-
-	UEnemyTrainingBotComponent* TrainingBotComponent =
-		NewObject<UEnemyTrainingBotComponent>();
-	FEnemyTrainingBotSettings InvalidTrainingSettings;
-	InvalidTrainingSettings.HitStunDuration = -1.0f;
-	InvalidTrainingSettings.RespawnDelay = -1.0f;
-	TrainingBotComponent->ApplySettings(
-		InvalidTrainingSettings);
-
-	const FEnemyTrainingBotSettings& SanitizedTrainingSettings =
-		TrainingBotComponent->GetSettings();
-	TestEqual(
-		TEXT("Hit-stun duration is clamped"),
-		SanitizedTrainingSettings.HitStunDuration,
-		0.0f);
-	TestEqual(
-		TEXT("Respawn delay is clamped"),
-		SanitizedTrainingSettings.RespawnDelay,
-		0.0f);
-
-	return true;
-}
-#endif

@@ -60,11 +60,14 @@ private:
 	void HandleSelectPandoraInputStarted(const FInputActionValue& InputValue);
 	void HandleSelectPandoraInputEnded(const FInputActionValue& InputValue);
 	void HandlePandoraTreeInputStarted(const FInputActionValue& InputValue);
+	void HandleScoreboardInputStarted(const FInputActionValue& InputValue);
+	void HandleScoreboardInputEnded(const FInputActionValue& InputValue);
+	void HandleChatInputStarted(const FInputActionValue& InputValue);
+	void HandleChatScrollInputTriggered(const FInputActionValue& InputValue);
 	void HandleAttackInputStarted(const FInputActionValue& InputValue);
 	void HandleAttackInputEnded(const FInputActionValue& InputValue);
 	void HandleAimInputStarted(const FInputActionValue& InputValue);
 	void HandleAimInputEnded(const FInputActionValue& InputValue);
-	void HandlePaintInputTriggered(const FInputActionValue& InputValue);
 	void HandleGrappleInputStarted(const FInputActionValue& InputValue);
 	void HandleGrappleInputEnded(const FInputActionValue& InputValue);
 	void HandleSkill1InputStarted(const FInputActionValue& InputValue);

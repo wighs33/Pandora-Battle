@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Common/CollisionChannels.h"
 #include "Engine/EngineTypes.h"
 #include "GameplayTagContainer.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -170,11 +171,36 @@ struct LABPROJECT_API FWeaponAttackDefinitionData
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Attack")
 	bool bAllowMovementDuringAttack = true;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Attack",
+		meta = (ClampMin = "0.0", UIMin = "0.0", DisplayName = "Stamina Cost",
+			ToolTip = "Stamina consumed by each committed attack. Combo steps consume this amount again."))
+	float StaminaCost = 10.0f;
+
 	bool HasAnyData() const
 	{
 		return !AttackMontage.IsNull()
 			|| ComboWindowStartEffect != nullptr
-			|| !bAllowMovementDuringAttack;
+			|| !bAllowMovementDuringAttack
+			|| !FMath::IsNearlyEqual(StaminaCost, 10.0f);
+	}
+};
+
+USTRUCT(BlueprintType)
+struct LABPROJECT_API FWeaponMovementDefinitionData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Movement",
+		meta = (ClampMin = "0.01", UIMin = "0.01",
+			DisplayName = "Melee Equipped Movement Speed Multiplier",
+			ToolTip = "Movement speed multiplier applied while this non-aiming melee weapon is equipped. A value of 1.05 is five percent faster."))
+	float MeleeEquippedMovementSpeedMultiplier = 1.05f;
+
+	bool HasAnyData() const
+	{
+		return !FMath::IsNearlyEqual(
+			MeleeEquippedMovementSpeedMultiplier,
+			1.05f);
 	}
 };
 
@@ -226,7 +252,7 @@ struct LABPROJECT_API FBowWeaponDefinitionData
 		ArrowAttachSocketName = GetDefaultArrowAttachSocket();
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_GameTraceChannel1));
+		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody()));
 	}
 
 	static EWeaponSocketName GetDefaultArrowAttachSocket()
@@ -263,9 +289,6 @@ struct LABPROJECT_API FBowWeaponDefinitionData
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Bow|Trace", meta = (DisplayName = "Aim Trace Debug Draw"))
 	TEnumAsByte<EDrawDebugTrace::Type> AimTraceDebugDrawType = EDrawDebugTrace::None;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Bow|Trace", meta = (DisplayName = "Launch Trace Debug Draw"))
-	TEnumAsByte<EDrawDebugTrace::Type> LaunchTraceDebugDrawType = EDrawDebugTrace::ForDuration;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Bow|Animation")
 	TSoftObjectPtr<UAnimMontage> WeaponMontage = nullptr;
 
@@ -289,7 +312,7 @@ struct LABPROJECT_API FGunWeaponDefinitionData
 	{
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_GameTraceChannel1));
+		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody()));
 		ImpactDecalObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 	}
 
@@ -378,6 +401,9 @@ struct LABPROJECT_API FWeaponDefinitionData
 	FWeaponAttackDefinitionData Attack;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon")
+	FWeaponMovementDefinitionData Movement;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon")
 	FWeaponHitReactDefinitionData HitReact;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon")
@@ -396,6 +422,7 @@ struct LABPROJECT_API FWeaponDefinitionData
 	{
 		return Equip.HasAnyData()
 			|| Attack.HasAnyData()
+			|| Movement.HasAnyData()
 			|| HitReact.HasAnyData()
 			|| Aim.HasAnyData()
 			|| Bow.HasAnyData()

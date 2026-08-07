@@ -7,9 +7,30 @@
 #endif
 #include "EnemyBaseDefinition.generated.h"
 
-class UGameplayAbility;
+class UAnimMontage;
+class UGameplayEffect;
 class UItemDefinition;
 class UStatUpgradeDefinition;
+class AMonsterCharacter;
+
+USTRUCT(BlueprintType)
+struct LABPROJECT_API FMonsterPresentationSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster|Damage")
+	TSubclassOf<UGameplayEffect> ContactDamageEffectClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster|Animation")
+	TObjectPtr<UAnimMontage> HitReactMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster|Animation",
+		meta = (ClampMin = "0.01"))
+	float HitReactPlayRate = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster|Animation")
+	TObjectPtr<UAnimMontage> DeathMontage;
+};
 
 /**
  * Data shared by enemy combat archetypes.
@@ -26,20 +47,15 @@ struct LABPROJECT_API FEnemyCombatSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Targeting")
 	bool bUseNearestPlayerWhenTargetUnset = true;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Spawning",
+		meta = (AssetBundles = "Server"))
+	TSoftClassPtr<AMonsterCharacter> DefaultMonsterClass;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Equipment", meta = (AssetBundles = "Server"))
 	TSoftObjectPtr<UItemDefinition> StartingWeaponDefinition;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Stats", meta = (AssetBundles = "Server"))
 	TSoftObjectPtr<UStatUpgradeDefinition> DefaultStatDefinition;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Abilities", meta = (AllowAbstract = "false", AssetBundles = "Server"))
-	TArray<TSubclassOf<UGameplayAbility>> DefaultCombatAbilities;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Abilities", meta = (AllowAbstract = "false", AssetBundles = "Server"))
-	TSubclassOf<UGameplayAbility> DefaultPunchAbilityClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Abilities", meta = (ClampMin = "1"))
-	int32 DefaultCombatAbilityLevel = 1;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Combat")
 	bool bRequestComboWhenAttackIsActive = true;
@@ -99,9 +115,8 @@ class LABPROJECT_API UEnemyBaseDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UEnemyBaseDefinition();
-
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+	static FPrimaryAssetId GetDefaultPrimaryAssetId();
 	static FSoftObjectPath GetDefaultDefinitionPath();
 
 #if WITH_EDITOR
@@ -109,7 +124,10 @@ public:
 #endif
 
 	const FEnemyCombatSettings& GetCombatSettings() const { return Combat; }
+	TSoftObjectPtr<UStatUpgradeDefinition> GetEffectiveDefaultStatDefinition() const;
 	const FEnemyTrainingBotSettings& GetTrainingBotSettings() const { return TrainingBot; }
+	const FMonsterPresentationSettings& GetMonsterPresentationSettings() const { return MonsterPresentation; }
+	float GetMonsterMaxHealth() const { return MonsterMaxHealth; }
 
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy", meta = (AllowPrivateAccess = "true"))
@@ -117,4 +135,12 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy", meta = (AllowPrivateAccess = "true"))
 	FEnemyTrainingBotSettings TrainingBot;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster",
+		meta = (AllowPrivateAccess = "true"))
+	FMonsterPresentationSettings MonsterPresentation;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster|Stats",
+		meta = (AllowPrivateAccess = "true", ClampMin = "1.0"))
+	float MonsterMaxHealth = 50.0f;
 };

@@ -4,10 +4,11 @@
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/EnemyCombatComponent.h"
 #include "Component/Character/EnemyTrainingBotComponent.h"
+#include "Component/Player/CombatComponent.h"
 #include "Common/EquipmentAbilityData.h"
-#include "Definition/Character/CharacterBaseDefinition.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
+#include "Definition/Player/PlayerPawnDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 
@@ -18,9 +19,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogEnemyBaseRuntime, Log, All);
 AEnemyBase::AEnemyBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	CharacterDefinition =
-		TSoftObjectPtr<UCharacterBaseDefinition>(
-			UCharacterBaseDefinition::GetHumanoidDefinitionPath());
 	EnemyDefinition =
 		TSoftObjectPtr<UEnemyBaseDefinition>(
 			UEnemyBaseDefinition::GetDefaultDefinitionPath());
@@ -35,6 +33,9 @@ AEnemyBase::AEnemyBase(const FObjectInitializer& ObjectInitializer)
 	EnemyCombatComponent =
 		CreateDefaultSubobject<UEnemyCombatComponent>(
 			TEXT("EnemyCombatComponent"));
+	CombatComponent =
+		CreateDefaultSubobject<UCombatComponent>(
+			TEXT("CombatComponent"));
 	EnemyTrainingBotComponent =
 		CreateDefaultSubobject<UEnemyTrainingBotComponent>(
 			TEXT("EnemyTrainingBotComponent"));
@@ -87,13 +88,6 @@ UAbilitySystemComponent* AEnemyBase::GetAbilitySystemComponent() const
 	return AbilitySystemComponent.Get();
 }
 
-UEnemyBaseDefinition* AEnemyBase::GetEnemyDefinition() const
-{
-	return LoadedEnemyDefinition
-		? LoadedEnemyDefinition.Get()
-		: EnemyDefinition.Get();
-}
-
 void AEnemyBase::ApplyEnemyDefinition()
 {
 	LoadedEnemyDefinition = EnemyDefinition.Get();
@@ -102,11 +96,17 @@ void AEnemyBase::ApplyEnemyDefinition()
 	{
 		ResolvedDefinition = GetDefault<UEnemyBaseDefinition>();
 	}
+	ApplyResolvedEnemyDefinition(ResolvedDefinition);
 
 	FEnemyCombatSettings CombatSettings =
 		ResolvedDefinition
 			? ResolvedDefinition->GetCombatSettings()
 			: FEnemyCombatSettings();
+	if (ResolvedDefinition && CombatSettings.DefaultStatDefinition.IsNull())
+	{
+		CombatSettings.DefaultStatDefinition =
+			ResolvedDefinition->GetEffectiveDefaultStatDefinition();
+	}
 	FEnemyTrainingBotSettings TrainingBotSettings =
 		ResolvedDefinition
 			? ResolvedDefinition->GetTrainingBotSettings()
@@ -260,7 +260,9 @@ void AEnemyBase::ReleaseEnemyDefinitionPreload()
 
 bool AEnemyBase::IsAdditionalCharacterRuntimeContentReady() const
 {
-	return bEnemyDefinitionReady;
+	return bEnemyDefinitionReady
+		&& EnemyCombatComponent
+		&& EnemyCombatComponent->IsRuntimeContentReady();
 }
 
 void AEnemyBase::HandleCharacterRuntimeInitialized()
@@ -273,6 +275,12 @@ void AEnemyBase::InitializeEnemyRuntime()
 	if (!bEnemyRuntimeInitialized)
 	{
 		bEnemyRuntimeInitialized = true;
+		if (CombatComponent)
+		{
+			CombatComponent->ApplyDefinition(
+				Cast<UPlayerPawnDefinition>(
+					UPlayerPawnDefinition::GetDefaultDefinitionPath().TryLoad()));
+		}
 		if (EnemyTrainingBotComponent)
 		{
 			EnemyTrainingBotComponent->InitializeRuntime();
@@ -292,6 +300,12 @@ void AEnemyBase::ModifyResolvedEnemySettings(
 {
 	static_cast<void>(CombatSettings);
 	static_cast<void>(TrainingBotSettings);
+}
+
+void AEnemyBase::ApplyResolvedEnemyDefinition(
+	const UEnemyBaseDefinition* ResolvedDefinition)
+{
+	static_cast<void>(ResolvedDefinition);
 }
 
 void AEnemyBase::InitializeBehaviorTreeCombat()

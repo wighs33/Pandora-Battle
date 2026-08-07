@@ -18,14 +18,14 @@ namespace PdCharacterHitValidation
 		AActor* HitActor,
 		const UPrimitiveComponent* HitComponent);
 
-	/** Returns an enemy only when the hit component is that enemy's primary capsule. */
-	LABPROJECT_API ACharacterBase* ResolveEnemyCapsuleHit(
+	/** Returns a character when a melee weapon touches its primary mesh or movement capsule. */
+	LABPROJECT_API ACharacterBase* ResolveMeleeWeaponDamageHit(
 		AActor* HitActor,
 		const UPrimitiveComponent* HitComponent);
 
 	/**
-	 * Resolves a valid weapon damage hit.
-	 * Every character accepts its primary skeletal mesh; enemies additionally accept their primary capsule.
+	 * Resolves a valid ranged weapon or projectile damage hit.
+	 * A character is accepted only when the hit component is its primary skeletal mesh.
 	 */
 	LABPROJECT_API ACharacterBase* ResolveWeaponDamageHit(
 		AActor* HitActor,

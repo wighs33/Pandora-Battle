@@ -33,7 +33,6 @@ void UAnimNotify_CommitRequestedEquip::Notify(USkeletalMeshComponent* MeshComp, 
 	{
 		const bool bEquipped = EquipmentComponent->EquipWeapon();
 
-
 		if (bEquipped && EventTag.IsValid())
 		{
 			// =================================================================================================================

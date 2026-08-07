@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
-#include "Definition/Character/CharacterBaseDefinition.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
 #include "CharacterAbilityRuntimeComponent.generated.h"
@@ -26,7 +25,6 @@ class LABPROJECT_API UCharacterAbilityRuntimeComponent : public UActorComponent
 public:
 	UCharacterAbilityRuntimeComponent();
 
-	void ApplySettings(const FCharacterAbilityRuntimeSettings& InSettings);
 	void CaptureBaseMovementSpeed();
 	void InitializeAbilitySystemActorInfo();
 	void ClearAbilitySystemActorInfo();
@@ -73,9 +71,6 @@ private:
 	void ApplyStaminaRegenEffect();
 	void RemoveStaminaRegenEffects();
 	float GetCurrentMaxStamina() const;
-
-	UPROPERTY(Transient)
-	FCharacterAbilityRuntimeSettings Settings;
 
 	UPROPERTY(Transient)
 	bool bActorInfoInitializationQueued = false;

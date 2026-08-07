@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Common/WeaponDefinitionData.h"
 #include "GameFramework/Actor.h"
+#include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
 #include "UObject/ObjectKey.h"
 #include "WeaponBase.generated.h"
@@ -18,6 +19,7 @@ class UNiagaraComponent;
 class UNiagaraSystem;
 class UGameplayEffect;
 class UPrimitiveComponent;
+class UStatusEffectDefinition;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API AWeaponBase : public AActor
@@ -78,6 +80,8 @@ public:
 		float AdditionalDamageMagnitude = 0.0f,
 		int32 AdditionalDamageLevel = 1,
 		UObject* AdditionalDamageSourceObject = nullptr,
+		const FGameplayEffectSpecHandle& DebuffEffectSpecHandle = FGameplayEffectSpecHandle(),
+		UStatusEffectDefinition* StatusEffectDefinition = nullptr,
 		float AdditionalDamageDelay = 0.12f);
 	void PlaySkillSlashVisual();
 	void ClearSkillSlash();
@@ -95,6 +99,9 @@ public:
 
 	// Query helpers
 	bool SupportsAimInput() const;
+	bool CanUseRangedWeapon(
+		const ACharacterBase* AttackingCharacter,
+		bool bRequirePlayerAim) const;
 	FGameplayTag GetAimCrosshairWidgetTag() const;
 	const FWeaponAimCameraSettings& GetAimCameraSettings() const;
 	virtual bool ShouldTriggerHitReactOnDamage() const;
@@ -140,6 +147,9 @@ protected:
 
 	// Query helpers
 	const UItemDefinition* GetSourceItemDefinition() const;
+	bool CanServerUseRangedWeapon(
+		const ACharacterBase* AttackingCharacter,
+		bool bRequirePlayerAim) const;
 	bool TryGetOwnerMeshSocketLocation(const ACharacterBase* Character, FName SocketName, FVector& OutLocation) const;
 	bool ResolveServerAimViewPoint(
 		const APdPlayer* PlayerCharacter,
@@ -155,7 +165,8 @@ protected:
 		const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
 		const TArray<AActor*>& ActorsToIgnore,
 		EDrawDebugTrace::Type DebugDrawType,
-		FVector& OutTargetLocation) const;
+		FVector& OutTargetLocation,
+		FHitResult* OutAimHitResult = nullptr) const;
 	float GetWeaponAttackSpeedPlayRate() const;
 	virtual UAnimMontage* GetConfiguredWeaponMontage() const;
 	virtual FName GetConfiguredPrimaryAttackResumeWeaponMontageSectionName() const;
@@ -163,24 +174,30 @@ protected:
 	// Action helpers
 	ACharacterBase* GetOwningCharacter() const;
 	bool IsCurrentWeaponForOwner() const;
-	bool CanDamageTracedHit(const FHitResult& HitResult) const;
+	bool CanDamageMeleeTracedHit(const FHitResult& HitResult) const;
 	FVector GetAttackTraceEndLocation(const FVector& TraceStartLocation) const;
 	bool IsAttackDebugVisualizationEnabled() const;
 	bool PlayConfiguredWeaponMontage(FName StartingSection, float PlayRate);
 	void StartAttackTraceInternal(bool bResetHitActors);
 	void PerformAttackTrace();
-	void DebugSuccessfulHit(const FHitResult& HitResult) const;
-	bool ApplyDamageFromAuthoritativeTrace(const FHitResult& HitResult);
+	bool ApplyDamageFromAuthoritativeMeleeTrace(const FHitResult& HitResult);
+	bool ApplyDamageFromAuthoritativeRangedTrace(const FHitResult& HitResult);
 	bool ApplyDamageToTarget(AActor* TargetActor);
 	bool HasActiveSkillAdditionalDamage() const;
 	void ApplyActiveSkillAdditionalDamageToTarget(ACharacterBase* TargetCharacter);
+	void ApplySkillDebuffToTarget(
+		ACharacterBase* TargetCharacter,
+		const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
+		UStatusEffectDefinition* StatusEffectDefinition);
 	void ApplySkillAdditionalDamageToTarget(
 		ACharacterBase* TargetCharacter,
 		TSubclassOf<UGameplayEffect> DamageEffectClass,
 		FGameplayTag DamageDataTag,
 		float DamageMagnitude,
 		int32 DamageLevel,
-		UObject* DamageSourceObject);
+		UObject* DamageSourceObject,
+		const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
+		UStatusEffectDefinition* StatusEffectDefinition);
 	void ClearActiveSkillAdditionalDamage();
 	bool ApplySkillWeaponTrailVisual(bool bActivate);
 	void SpawnSkillSlashNiagara();
@@ -273,6 +290,11 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UObject> ActiveSkillAdditionalDamageSourceObject;
+
+	FGameplayEffectSpecHandle ActiveSkillDebuffEffectSpecHandle;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStatusEffectDefinition> ActiveSkillStatusEffectDefinition;
 
 	TWeakObjectPtr<UNiagaraSystem> PredictedSkillSlashSystem;
 	FVector PredictedSkillSlashLocation = FVector::ZeroVector;

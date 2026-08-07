@@ -16,7 +16,7 @@ class UInputMappingContext;
 class UCharacterActionDefinition;
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdInputActionIconMapping
+struct LABPROJECT_API FInputActionIconMapping
 {
 	GENERATED_BODY()
 
@@ -34,8 +34,6 @@ class LABPROJECT_API UControllerInputDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UControllerInputDefinition();
-
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 	static FSoftObjectPath GetDefaultInputDefinitionPath();
 
@@ -52,7 +50,6 @@ public:
 	const TSoftObjectPtr<UInputAction>& GetInteractInputAction() const { return InteractInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetAttackInputAction() const { return AttackInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetAimInputAction() const { return AimInputAction; }
-	const TSoftObjectPtr<UInputAction>& GetPaintInputAction() const { return PaintInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetGrappleInputAction() const { return GrappleInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetSkill1InputAction() const { return Skill1InputAction; }
 	const TSoftObjectPtr<UInputAction>& GetSkill2InputAction() const { return Skill2InputAction; }
@@ -77,10 +74,14 @@ public:
 	const TSoftObjectPtr<UInputAction>& GetOpenLobbyInputAction() const { return OpenLobbyInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetSelectPandoraInputAction() const { return SelectPandoraInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetPandoraTreeInputAction() const { return PandoraTreeInputAction; }
+	const TSoftObjectPtr<UInputAction>& GetScoreboardInputAction() const { return ScoreboardInputAction; }
+	const TSoftObjectPtr<UInputAction>& GetChatInputAction() const { return ChatInputAction; }
+	const TSoftObjectPtr<UInputAction>& GetChatScrollInputAction() const { return ChatScrollInputAction; }
+	UInputAction* GetLoadedSkillInputAction(int32 SkillSlotIndex) const;
+	UInputAction* GetLoadedQuickSlotInputAction(int32 QuickSlotIndex) const;
 	const TSoftObjectPtr<UCharacterActionDefinition>& GetCharacterActionDefinition() const { return CharacterActionDefinition; }
-	const TArray<FPdInputActionIconMapping>& GetInputActionIconMappings() const { return InputActionIconMappings; }
-	const TArray<FName>& GetOpenLobbyAllowedMapNames() const { return OpenLobbyAllowedMapNames; }
-	bool IsOpenLobbyInputAllowedForMap(const FString& LevelName) const;
+	TSoftObjectPtr<UCharacterActionDefinition> GetEffectiveCharacterActionDefinition() const;
+	const TArray<FInputActionIconMapping>& GetInputActionIconMappings() const { return InputActionIconMappings; }
 	UObject* ResolveInputActionIconObject(const UInputAction* InputAction) const;
 	void GetRuntimePreloadAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const;
 	const FGameplayTag& GetMovementBlockStateTag() const { return MovementBlockStateTag; }
@@ -116,9 +117,6 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> AimInputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Paint", meta = (AssetBundles = "Client", AllowPrivateAccess = "true", DisplayName = "IA Paint"))
-	TSoftObjectPtr<UInputAction> PaintInputAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> GrappleInputAction;
@@ -187,14 +185,20 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> OpenLobbyInputAction;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AllowPrivateAccess = "true"))
-	TArray<FName> OpenLobbyAllowedMapNames = { TEXT("LV_Lobby") };
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> SelectPandoraInputAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> PandoraTreeInputAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|UI Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
+	TSoftObjectPtr<UInputAction> ScoreboardInputAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|UI Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
+	TSoftObjectPtr<UInputAction> ChatInputAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|UI Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
+	TSoftObjectPtr<UInputAction> ChatScrollInputAction;
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Character Actions
@@ -204,7 +208,7 @@ private:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Input Icons
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Icons", meta = (TitleProperty = "InputAction", AllowPrivateAccess = "true"))
-	TArray<FPdInputActionIconMapping> InputActionIconMappings;
+	TArray<FInputActionIconMapping> InputActionIconMappings;
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Block State

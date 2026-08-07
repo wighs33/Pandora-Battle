@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Components/WidgetComponent.h"
-#include "Definition/Character/CharacterBaseDefinition.h"
 #include "CharacterHealthBarComponent.generated.h"
 
 class ACharacterBase;
@@ -22,7 +21,6 @@ class LABPROJECT_API UCharacterHealthBarComponent : public UWidgetComponent
 public:
 	UCharacterHealthBarComponent();
 
-	void ApplySettings(const FCharacterHealthBarSettings& InSettings);
 	void InitializeHealthBar();
 	void ShutdownHealthBar();
 	void RefreshViewModel();
@@ -51,16 +49,12 @@ private:
 	bool ShouldShowForLocalViewer(
 		APlayerController* LocalPlayerController,
 		const FVector& CameraLocation,
-		const FRotator& CameraRotation,
-		float MaxDistanceSquared) const;
+		const FRotator& CameraRotation) const;
 	bool HasLineOfSight(const FVector& TraceStartLocation) const;
 	FVector GetLineOfSightStartLocation(
 		const APlayerController* LocalPlayerController,
 		const FVector& FallbackCameraLocation) const;
 	FVector GetVisibilityTargetLocation() const;
-
-	UPROPERTY(Transient)
-	FCharacterHealthBarSettings Settings;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UHealthBarViewModel> HealthBarViewModel;
