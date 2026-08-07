@@ -1,6 +1,7 @@
 #include "Map/MapLayerTrigger.h"
 
 #include "Components/BoxComponent.h"
+#include "Common/CollisionChannels.h"
 #include "GameFramework/Pawn.h"
 #include "Mode/PdPlayerState.h"
 
@@ -65,9 +66,9 @@ void AMapLayerTrigger::ConfigureTriggerCollision() const
 
 	TriggerBox->SetCollisionProfileName(TEXT("Custom"));
 	TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	TriggerBox->SetCollisionObjectType(ECC_GameTraceChannel3); // OverlapBox
+	TriggerBox->SetCollisionObjectType(LabCollisionChannels::OverlapBox());
 	TriggerBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	TriggerBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	TriggerBox->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap); // HitableBody
+	TriggerBox->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
 	TriggerBox->SetGenerateOverlapEvents(true);
 }

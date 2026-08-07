@@ -3,6 +3,11 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "UObject/ObjectKey.h"
+
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include "PortalActor.generated.h"
 
 class UArrowComponent;
@@ -13,6 +18,7 @@ class UMaterialInterface;
 class UMovementComponent;
 class UNiagaraComponent;
 class UPrimitiveComponent;
+class UPortalDefinition;
 class USceneComponent;
 class USceneCaptureComponent2D;
 class UStaticMeshComponent;
@@ -26,9 +32,14 @@ class LABPROJECT_API APortalActor : public AActor
 public:
 	APortalActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
+
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
 
 	UFUNCTION(BlueprintCallable, Category = "Portal")
 	void NativeTryInitPortalMaterial();
@@ -100,14 +111,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Scene Capture")
 	float ClipPlaneOffset = 3.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Scene Capture", meta = (ClampMin = "16"))
-	FIntPoint FallbackRenderTargetSize = FIntPoint(1280, 720);
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Scene Capture", meta = (ClampMin = "0.01"))
 	float InitRetryInterval = 0.1f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Material")
-	TObjectPtr<UMaterialInterface> PortalMaterialParent;
+	/** Soft definition referenced by BP_Portal; its asset bundle is validated before cook. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Portal|Definition",
+		meta = (AssetBundles = "Portal"))
+	TSoftObjectPtr<UPortalDefinition> PortalDefinition;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Material")
 	FName TextureParameterName = TEXT("Texture");
@@ -150,17 +160,25 @@ private:
 
 	bool EnsureRenderTargetSize();
 	FIntPoint GetDesiredRenderTargetSize() const;
+	bool ApplyPortalDefinition();
+	bool IsCaptureRateLimitElapsed();
 	void ConfigureLinkedCaptureComponent() const;
 	void UpdatePortalVisualParameters() const;
 	void SetTickEnabledFromOverlaps();
 	void ResolvePortalComponents() const;
 	void SeedTeleportOverlapCache(UPrimitiveComponent* OverlapComponent, TArray<TWeakObjectPtr<AActor>>& OutActors);
 	bool TrackTeleportOverlap(TArray<TWeakObjectPtr<AActor>>& OverlappingActors, AActor* Actor) const;
-	void UntrackTeleportOverlap(TArray<TWeakObjectPtr<AActor>>& OverlappingActors, AActor* Actor) const;
-	bool HasTrackedTeleportOverlap(TArray<TWeakObjectPtr<AActor>>& OverlappingActors) const;
+	void UntrackTeleportOverlap(
+		TArray<TWeakObjectPtr<AActor>>& OverlappingActors,
+		AActor* Actor,
+		const UPrimitiveComponent* OverlapComponent) const;
+	bool HasTrackedTeleportOverlap(
+		TArray<TWeakObjectPtr<AActor>>& OverlappingActors,
+		const UPrimitiveComponent* OverlapComponent) const;
+	void RemoveTraversalStateIfNoLongerOverlapping(AActor* Actor);
 
 	bool IsTeleportCandidate(const AActor* Actor) const;
-	AActor* ResolveOverlappingTeleportActor();
+	void ResolveOverlappingTeleportActors(TArray<TWeakObjectPtr<AActor>>& OutActors);
 	APortalActor* GetLinkedPortalActor() const;
 	APlayerCameraManager* GetCachedPlayerCameraManager() const;
 	float GetBlueprintOffsetAmount() const;
@@ -181,6 +199,13 @@ private:
 	FTransform GetPortalReferenceTransform() const;
 
 	FTimerHandle InitMaterialTimerHandle;
+	UPROPERTY(Transient)
+	TObjectPtr<UPortalDefinition> LoadedPortalDefinition;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> PortalMaterialParent;
+
+	double LastSceneCaptureTime = -BIG_NUMBER;
 	TMap<TObjectKey<AActor>, FPortalTraversalState> TraversalStates;
 	TArray<TWeakObjectPtr<AActor>> PortalOverlappingTeleportActors;
 	TArray<TWeakObjectPtr<AActor>> DetectedTeleportActors;

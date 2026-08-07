@@ -23,7 +23,7 @@ protected:
 	TObjectPtr<UBoxComponent> TriggerBox;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Map")
-	EPdPlayerMapRegion TargetMapRegion = EPdPlayerMapRegion::Dome;
+	EPlayerMapRegion TargetMapRegion = EPlayerMapRegion::Dome;
 
 	UFUNCTION()
 	void HandleTriggerBeginOverlap(

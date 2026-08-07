@@ -3,6 +3,7 @@
 #include "AbilitySystem/EffectActors/EffectAreaBase.h"
 #include "AbilitySystem/Projectiles/ProjectileBase.h"
 #include "Character/CharacterBase.h"
+#include "Common/CollisionChannels.h"
 #include "Components/SphereComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
@@ -76,8 +77,7 @@ void AOutOfBoundsRespawnVolume::HandleBoundaryEndOverlap(
 		return;
 	}
 
-
-	ACharacterBase* PlayerCharacter = Cast<ACharacterBase>(OtherActor);
+ACharacterBase* PlayerCharacter = Cast<ACharacterBase>(OtherActor);
 	if (PlayerCharacter)
 	{
 		if (bRespawnPlayersOnEndOverlap && TryRespawnPlayer(PlayerCharacter))
@@ -124,7 +124,6 @@ bool AOutOfBoundsRespawnVolume::TryRespawnPlayer(ACharacterBase* PlayerCharacter
 		return true;
 	}
 
-
 	return false;
 }
 
@@ -135,8 +134,7 @@ bool AOutOfBoundsRespawnVolume::TryDestroyNonPlayerActor(AActor* Actor) const
 		return false;
 	}
 
-
-	Actor->Destroy();
+Actor->Destroy();
 	return true;
 }
 
@@ -161,7 +159,6 @@ int32 AOutOfBoundsRespawnVolume::CleanupTransientActors(ACharacterBase* Triggeri
 		{
 			continue;
 		}
-
 
 		if (Actor->Destroy())
 		{
@@ -188,12 +185,7 @@ bool AOutOfBoundsRespawnVolume::CanCleanupActor(const AActor* Actor, const AChar
 		return false;
 	}
 
-	if (!bAllowCleanupOfNetStartupActors && Actor->IsNetStartupActor())
-	{
-		return false;
-	}
-
-	return true;
+	return bAllowCleanupOfNetStartupActors || !Actor->IsNetStartupActor();
 }
 
 bool AOutOfBoundsRespawnVolume::IsConfiguredCleanupClass(const AActor* Actor) const
@@ -222,12 +214,9 @@ bool AOutOfBoundsRespawnVolume::ShouldIgnoreEndOverlap(const AActor* OtherActor)
 		return true;
 	}
 
-	if (!IsValid(OtherActor) || OtherActor->IsActorBeingDestroyed() || !OtherActor->HasActorBegunPlay())
-	{
-		return true;
-	}
-
-	return false;
+	return !IsValid(OtherActor)
+		|| OtherActor->IsActorBeingDestroyed()
+		|| !OtherActor->HasActorBegunPlay();
 }
 
 void AOutOfBoundsRespawnVolume::ConfigureBoundaryCollision() const
@@ -239,9 +228,9 @@ void AOutOfBoundsRespawnVolume::ConfigureBoundaryCollision() const
 
 	BoundarySphere->SetCollisionProfileName(TEXT("Custom"));
 	BoundarySphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	BoundarySphere->SetCollisionObjectType(ECC_GameTraceChannel3); // OverlapBox
+	BoundarySphere->SetCollisionObjectType(LabCollisionChannels::OverlapBox());
 	BoundarySphere->SetCollisionResponseToAllChannels(ECR_Ignore);
 	BoundarySphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	BoundarySphere->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap);
+	BoundarySphere->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
 	BoundarySphere->SetGenerateOverlapEvents(true);
 }

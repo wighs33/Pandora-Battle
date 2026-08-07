@@ -1,25 +1,20 @@
 #include "Component/Player/PaintCanvasComponent.h"
 
-#include "Camera/PlayerCameraManager.h"
 #include "Character/PdPlayer.h"
 #include "Components/DecalComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Components/StaticMeshComponent.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/Canvas.h"
-#include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Env/PaintCanvas.h"
-#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetRenderingLibrary.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Mode/PdGameInstance.h"
-#include "UObject/ConstructorHelpers.h"
-#include "UObject/UnrealType.h"
+#include "Net/Core/PushModel/PushModel.h"
+#include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaintCanvasComponent)
 
@@ -27,37 +22,42 @@ DEFINE_LOG_CATEGORY_STATIC(PdPaintCanvasComponentLog, Log, All);
 
 namespace
 {
-	double GetVectorAxisValue(const FVector& Vector, const int32 AxisIndex)
+	const FLinearColor OpaqueBlackBrushColor(0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+void FReplicatedPaintCanvasStrokeArray::PostReplicatedAdd(
+	const TArrayView<int32>& AddedIndices,
+	const int32 FinalSize)
+{
+	static_cast<void>(AddedIndices);
+	static_cast<void>(FinalSize);
+	if (Owner)
 	{
-		switch (AxisIndex)
-		{
-		case 0:
-			return Vector.X;
-		case 1:
-			return Vector.Y;
-		default:
-			return Vector.Z;
-		}
+		Owner->HandleReplicatedPaintStateChanged();
 	}
+}
 
-	void FindSurfaceAxes(const FVector& BoundsSize, int32& OutUAxis, int32& OutVAxis)
+void FReplicatedPaintCanvasStrokeArray::PostReplicatedChange(
+	const TArrayView<int32>& ChangedIndices,
+	const int32 FinalSize)
+{
+	static_cast<void>(ChangedIndices);
+	static_cast<void>(FinalSize);
+	if (Owner)
 	{
-		int32 ThinAxis = 0;
-		double ThinSize = BoundsSize.X;
+		Owner->HandleReplicatedPaintStateChanged();
+	}
+}
 
-		if (BoundsSize.Y < ThinSize)
-		{
-			ThinAxis = 1;
-			ThinSize = BoundsSize.Y;
-		}
-
-		if (BoundsSize.Z < ThinSize)
-		{
-			ThinAxis = 2;
-		}
-
-		OutUAxis = ThinAxis == 0 ? 1 : 0;
-		OutVAxis = ThinAxis == 2 ? 1 : 2;
+void FReplicatedPaintCanvasStrokeArray::PreReplicatedRemove(
+	const TArrayView<int32>& RemovedIndices,
+	const int32 FinalSize)
+{
+	static_cast<void>(RemovedIndices);
+	static_cast<void>(FinalSize);
+	if (Owner)
+	{
+		Owner->HandleReplicatedPaintStateChanged();
 	}
 }
 
@@ -67,28 +67,44 @@ UPaintCanvasComponent::UPaintCanvasComponent(const FObjectInitializer& ObjectIni
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
 
-	static ConstructorHelpers::FClassFinder<AActor> PaintCanvasBlueprintClass(TEXT("/Game/Env/BP_Canvas"));
-	if (PaintCanvasBlueprintClass.Succeeded())
-	{
-		PaintCanvasActorClass = PaintCanvasBlueprintClass.Class;
-	}
-	else
-	{
-		PaintCanvasActorClass = APaintCanvas::StaticClass();
-	}
+	ReplicatedPaintStrokes.SetOwner(this);
 }
 
 void UPaintCanvasComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	ReplicatedPaintStrokes.SetOwner(this);
 	HidePaintSpeechBubble();
+	SchedulePaintStateReconciliation();
 }
 
 void UPaintCanvasComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CancelPaintCanvasExport();
 	ClearPaintCanvasFaceDecal();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PaintStrokeBatchTimerHandle);
+		World->GetTimerManager().ClearTimer(PaintStateReconcileTimerHandle);
+	}
 	Super::EndPlay(EndPlayReason);
+}
+
+void UPaintCanvasComponent::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	DOREPLIFETIME_WITH_PARAMS_FAST(
+		UPaintCanvasComponent,
+		ReplicatedPaintStrokes,
+		Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(
+		UPaintCanvasComponent,
+		ReplicatedPaintStateHeader,
+		Params);
 }
 
 void UPaintCanvasComponent::SetSpeechBubbleComponent(UPrimitiveComponent* InSpeechBubbleComponent)
@@ -96,96 +112,137 @@ void UPaintCanvasComponent::SetSpeechBubbleComponent(UPrimitiveComponent* InSpee
 	SpeechBubbleComponent = InSpeechBubbleComponent;
 }
 
-bool UPaintCanvasComponent::TryPaintAtCursor()
+bool UPaintCanvasComponent::EnsurePaintCanvasRenderResources(
+	const bool bResetCanvas)
 {
-	APdPlayer* PlayerOwner = GetPlayerOwner();
-	if (!PlayerOwner)
+	if (!PaintCanvasRenderTarget)
 	{
-		return false;
+		PaintCanvasRenderTarget = UKismetRenderingLibrary::CreateRenderTarget2D(
+			this,
+			FMath::Max(RenderTargetWidth, 1),
+			FMath::Max(RenderTargetHeight, 1),
+			RTF_RGBA16f,
+			ClearColor,
+			false,
+			false);
 	}
 
-	APlayerController* PlayerController = Cast<APlayerController>(PlayerOwner->GetController());
-	if (!PlayerController)
+	if (!PaintBrushMaterial)
 	{
-		PlayerController = UGameplayStatics::GetPlayerController(PlayerOwner, 0);
+		const UWidgetClassDefinition* WidgetDefinition =
+			UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+		UMaterialInterface* BrushMaterialParent = WidgetDefinition
+			? WidgetDefinition->GetSkinWidgetSettings().PaintBrushMaterial.LoadSynchronous()
+			: nullptr;
+		if (BrushMaterialParent)
+		{
+			PaintBrushMaterial =
+				UMaterialInstanceDynamic::Create(BrushMaterialParent, this);
+		}
 	}
 
-	if (!PlayerController)
+	ApplyBrushMaterialParameters();
+	if (bResetCanvas)
 	{
-		return false;
+		ResetPaintCanvasRenderTarget();
 	}
 
-	float MouseX = 0.0f;
-	float MouseY = 0.0f;
-	if (!PlayerController->GetMousePosition(MouseX, MouseY))
-	{
-		return false;
-	}
-
-	FVector TraceStart = FVector::ZeroVector;
-	FVector TraceDirection = FVector::ZeroVector;
-	if (!PlayerController->DeprojectScreenPositionToWorld(MouseX, MouseY, TraceStart, TraceDirection)
-		|| TraceDirection.IsNearlyZero())
-	{
-		return false;
-	}
-
-	const FVector TraceEnd = TraceStart + TraceDirection * PaintTraceDistance;
-
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(PlayerOwner);
-
-	FHitResult HitResult;
-	const bool bHit = UKismetSystemLibrary::LineTraceSingle(
-		PlayerOwner,
-		TraceStart,
-		TraceEnd,
-		PaintTraceChannel.GetValue(),
-		true,
-		ActorsToIgnore,
-		EDrawDebugTrace::None,
-		HitResult,
-		true);
-
-	return bHit && PaintAtHitResult(HitResult);
+	return PaintCanvasRenderTarget && PaintBrushMaterial;
 }
 
-AActor* UPaintCanvasComponent::ShowPaintCanvasWithCharacterOffset(const FTransform& PaintCanvasTransformOffset)
+void UPaintCanvasComponent::ResetPaintCanvasRenderTarget()
+{
+	if (PaintCanvasRenderTarget)
+	{
+		UKismetRenderingLibrary::ClearRenderTarget2D(
+			this,
+			PaintCanvasRenderTarget,
+			ClearColor);
+	}
+}
+
+bool UPaintCanvasComponent::DrawBrushToRenderTarget(
+	UTexture2D* InBrushTexture,
+	const double InBrushSize,
+	const FVector2D& DrawLocation)
+{
+	const double SafeBrushSize =
+		GetClampedReplicatedPaintBrushSize(InBrushSize);
+	if (!PaintCanvasRenderTarget
+		|| !PaintBrushMaterial
+		|| SafeBrushSize <= 0.0
+		|| !IsValidReplicatedDrawLocation(DrawLocation))
+	{
+		return false;
+	}
+
+	if (InBrushTexture)
+	{
+		PaintBrushMaterial->SetTextureParameterValue(
+			BrushTextureParameterName,
+			InBrushTexture);
+	}
+	ApplyBrushMaterialParameters();
+
+	UCanvas* DrawCanvas = nullptr;
+	FVector2D RenderTargetSize = FVector2D::ZeroVector;
+	FDrawToRenderTargetContext Context;
+	UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(
+		this,
+		PaintCanvasRenderTarget,
+		DrawCanvas,
+		RenderTargetSize,
+		Context);
+
+	if (DrawCanvas)
+	{
+		const FVector2D BrushScreenSize(SafeBrushSize, SafeBrushSize);
+		const FVector2D BrushScreenPosition =
+			RenderTargetSize * DrawLocation - BrushScreenSize * 0.5;
+		DrawCanvas->K2_DrawMaterial(
+			PaintBrushMaterial,
+			BrushScreenPosition,
+			BrushScreenSize,
+			FVector2D::ZeroVector,
+			FVector2D(1.0, 1.0),
+			0.0f,
+			FVector2D(0.5, 0.5));
+	}
+
+	UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(this, Context);
+	return DrawCanvas != nullptr;
+}
+
+void UPaintCanvasComponent::ApplyBrushMaterialParameters() const
+{
+	if (!PaintBrushMaterial)
+	{
+		return;
+	}
+
+	PaintBrushMaterial->SetVectorParameterValue(
+		BrushColorParameterName,
+		OpaqueBlackBrushColor);
+	PaintBrushMaterial->SetVectorParameterValue(
+		TEXT("BaseColor"),
+		OpaqueBlackBrushColor);
+}
+
+bool UPaintCanvasComponent::BeginPaintCanvasUiSession()
 {
 	CancelPaintCanvasExport();
+	bPaintCanvasUiSessionActive = false;
 
 	APdPlayer* PlayerOwner = GetPlayerOwner();
-	UWorld* World = GetWorld();
-	if (!PlayerOwner || !World || !PaintCanvasActorClass)
+	if (!PlayerOwner || !EnsurePaintCanvasRenderResources(true))
 	{
-		return nullptr;
+		return false;
 	}
 
-	FTransform CanvasTransform = PaintCanvasTransformOffset * PlayerOwner->GetActorTransform();
-	CanvasTransform.NormalizeRotation();
-
-	if (!IsValid(ActivePaintCanvasActor))
-	{
-		FActorSpawnParameters SpawnParameters;
-		SpawnParameters.Owner = PlayerOwner;
-		SpawnParameters.Instigator = PlayerOwner;
-		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		ActivePaintCanvasActor = World->SpawnActor<AActor>(PaintCanvasActorClass, CanvasTransform, SpawnParameters);
-	}
-	else
-	{
-		ActivePaintCanvasActor->SetActorTransform(CanvasTransform, false, nullptr, ETeleportType::TeleportPhysics);
-		ActivePaintCanvasActor->SetActorHiddenInGame(false);
-		ActivePaintCanvasActor->SetActorEnableCollision(true);
-	}
-
-	ConfigurePaintCanvasCollision(ActivePaintCanvasActor.Get());
-
-	if (APaintCanvas* PaintCanvas = Cast<APaintCanvas>(ActivePaintCanvasActor))
-	{
-		PaintCanvas->NativeInitializeCanvas();
-	}
-
+	bPaintCanvasUiSessionActive = true;
+	LocalPredictedPaintStrokeCount = 0;
+	LocalPredictedPaintChecksum = 0;
+	PendingPaintStrokeRequests.Reset();
 	if (PlayerOwner->IsLocallyControlled())
 	{
 		if (UPdGameInstance* PdGameInstance = PlayerOwner->GetGameInstance<UPdGameInstance>())
@@ -193,123 +250,75 @@ AActor* UPaintCanvasComponent::ShowPaintCanvasWithCharacterOffset(const FTransfo
 			PdGameInstance->ResetLocalLobbyPaintCanvasCache();
 		}
 	}
+
 	SubmitPaintCanvasResetForNetwork();
-	CenterPaintCanvasVisualOnView(ActivePaintCanvasActor.Get(), CanvasTransform.GetLocation());
-
-	return ActivePaintCanvasActor.Get();
+	return true;
 }
 
-void UPaintCanvasComponent::ConfigurePaintCanvasCollision(AActor* PaintCanvasActor) const
+bool UPaintCanvasComponent::PaintAtNormalizedLocation(const FVector2D& DrawLocation)
 {
-	if (!IsValid(PaintCanvasActor))
-	{
-		return;
-	}
-
-	if (APaintCanvas* PaintCanvas = Cast<APaintCanvas>(PaintCanvasActor))
-	{
-		PaintCanvas->ConfigureCollisionForPaintTrace(PaintTraceChannel);
-		return;
-	}
-
-	const ECollisionChannel PaintCollisionChannel = UEngineTypes::ConvertToCollisionChannel(PaintTraceChannel.GetValue());
-
-	TArray<UPrimitiveComponent*> PrimitiveComponents;
-	PaintCanvasActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-
-	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		if (!PrimitiveComponent)
-		{
-			continue;
-		}
-
-		PrimitiveComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		PrimitiveComponent->SetCollisionObjectType(ECC_WorldDynamic);
-		PrimitiveComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-		PrimitiveComponent->SetCollisionResponseToChannel(PaintCollisionChannel, ECR_Block);
-		PrimitiveComponent->SetGenerateOverlapEvents(false);
-	}
-}
-
-void UPaintCanvasComponent::HidePaintCanvas()
-{
-	if (bPaintCanvasExportActive)
-	{
-		return;
-	}
-
-	if (!IsValid(ActivePaintCanvasActor))
-	{
-		return;
-	}
-
-	ActivePaintCanvasActor->SetActorHiddenInGame(true);
-	ActivePaintCanvasActor->SetActorEnableCollision(false);
-}
-
-bool UPaintCanvasComponent::HasActivePaintCanvas() const
-{
-	return IsValid(ActivePaintCanvasActor) && !ActivePaintCanvasActor->IsHidden();
-}
-
-bool UPaintCanvasComponent::ExportActivePaintCanvasAboveCharacterWithTransformOffset(const FTransform& PaintCanvasExportTransformOffset)
-{
-	if (!StartLocalPaintCanvasExportAboveCharacter(PaintCanvasExportTransformOffset))
+	if (!bPaintCanvasUiSessionActive
+		|| LocalPredictedPaintStrokeCount
+			>= FMath::Max(MaxReplicatedPaintStrokeHistory, 1)
+		|| !IsValidReplicatedDrawLocation(DrawLocation))
 	{
 		return false;
 	}
 
-	SubmitPaintCanvasExportForNetwork(PaintCanvasExportTransformOffset);
-	return true;
+	UTexture2D* PaintBrushTexture = BrushTexture.Get();
+	const float PaintBrushSize = static_cast<float>(
+		GetClampedReplicatedPaintBrushSize(BrushSize));
+	const FVector2f QuantizedDrawLocation(DrawLocation);
+	const FVector2D SharedDrawLocation(QuantizedDrawLocation);
+	const bool bPainted = DrawBrushToRenderTarget(
+		PaintBrushTexture,
+		PaintBrushSize,
+		SharedDrawLocation);
+	if (bPainted)
+	{
+		++LocalPredictedPaintStrokeCount;
+		FReplicatedPaintCanvasStroke PredictedStroke;
+		PredictedStroke.Sequence = static_cast<uint32>(
+			LocalPredictedPaintStrokeCount);
+		PredictedStroke.BrushSize = static_cast<float>(PaintBrushSize);
+		PredictedStroke.DrawLocation = QuantizedDrawLocation;
+		LocalPredictedPaintChecksum = AccumulatePaintStrokeChecksum(
+			LocalPredictedPaintChecksum,
+			PredictedStroke);
+		CacheLocalPaintCanvasStrokeForTravel(
+			PaintBrushTexture,
+			PaintBrushSize,
+			SharedDrawLocation);
+		SubmitPaintCanvasStrokeForNetwork(
+			PaintBrushTexture,
+			PaintBrushSize,
+			SharedDrawLocation);
+	}
+
+	return bPainted;
 }
 
-void UPaintCanvasComponent::CenterPaintCanvasVisualOnView(AActor* PaintCanvasActor, const FVector& DesiredVisualCenter) const
+void UPaintCanvasComponent::HidePaintCanvas()
 {
-	if (!IsValid(PaintCanvasActor))
+	bPaintCanvasUiSessionActive = false;
+
+}
+
+bool UPaintCanvasComponent::HasActivePaintCanvas() const
+{
+	return bPaintCanvasUiSessionActive || bPaintCanvasExportActive;
+}
+
+bool UPaintCanvasComponent::ExportActivePaintCanvasToSpeechBubble()
+{
+	if (!StartLocalPaintCanvasExport())
 	{
-		return;
+		return false;
 	}
 
-	UPrimitiveComponent* PreferredCanvasComponent = nullptr;
-	UPrimitiveComponent* FirstVisiblePrimitive = nullptr;
-	TArray<UPrimitiveComponent*> PrimitiveComponents;
-	PaintCanvasActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-
-	static const FName CanvasComponentName(TEXT("Canvas"));
-	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		if (!PrimitiveComponent || !PrimitiveComponent->IsVisible())
-		{
-			continue;
-		}
-
-		if (!FirstVisiblePrimitive && PrimitiveComponent->Bounds.SphereRadius > 0.0f)
-		{
-			FirstVisiblePrimitive = PrimitiveComponent;
-		}
-
-		const FString ComponentName = PrimitiveComponent->GetName();
-		if ((PrimitiveComponent->GetFName() == CanvasComponentName || ComponentName.StartsWith(TEXT("Canvas")))
-			&& PrimitiveComponent->Bounds.SphereRadius > 0.0f)
-		{
-			PreferredCanvasComponent = PrimitiveComponent;
-			break;
-		}
-	}
-
-	UPrimitiveComponent* CanvasComponentForBounds = PreferredCanvasComponent ? PreferredCanvasComponent : FirstVisiblePrimitive;
-	if (!CanvasComponentForBounds)
-	{
-		return;
-	}
-
-	const FVector VisualCenter = CanvasComponentForBounds->Bounds.Origin;
-	const FVector CenterCorrection = DesiredVisualCenter - VisualCenter;
-	if (!CenterCorrection.IsNearlyZero())
-	{
-		PaintCanvasActor->AddActorWorldOffset(CenterCorrection, false, nullptr, ETeleportType::TeleportPhysics);
-	}
+	bPaintCanvasUiSessionActive = false;
+	SubmitPaintCanvasExportForNetwork();
+	return true;
 }
 
 void UPaintCanvasComponent::CancelPaintCanvasExport()
@@ -326,23 +335,14 @@ void UPaintCanvasComponent::CancelPaintCanvasExport()
 void UPaintCanvasComponent::FinishPaintCanvasExport()
 {
 	CancelPaintCanvasExport();
-
-	if (!IsValid(ActivePaintCanvasActor))
-	{
-		return;
-	}
-
-	ActivePaintCanvasActor->SetActorHiddenInGame(true);
-	ActivePaintCanvasActor->SetActorEnableCollision(false);
 }
 
-bool UPaintCanvasComponent::StartLocalPaintCanvasExportAboveCharacter(const FTransform& PaintCanvasExportTransformOffset)
+bool UPaintCanvasComponent::StartLocalPaintCanvasExport()
 {
-	if (!IsValid(ActivePaintCanvasActor))
+	if (!EnsurePaintCanvasRenderResources())
 	{
 		return false;
 	}
-
 	CancelPaintCanvasExport();
 
 	if (!ApplyPaintCanvasToSpeechBubble())
@@ -351,9 +351,6 @@ bool UPaintCanvasComponent::StartLocalPaintCanvasExportAboveCharacter(const FTra
 	}
 
 	bPaintCanvasExportActive = true;
-
-	ActivePaintCanvasActor->SetActorHiddenInGame(true);
-	ActivePaintCanvasActor->SetActorEnableCollision(false);
 
 	if (UWorld* World = GetWorld())
 	{
@@ -622,131 +619,9 @@ void UPaintCanvasComponent::HidePaintSpeechBubble()
 	ActivePaintSpeechBubbleRenderTarget = nullptr;
 }
 
-bool UPaintCanvasComponent::PaintAtHitResult(const FHitResult& HitResult)
-{
-	if (!HitResult.GetActor())
-	{
-		return false;
-	}
-
-	FVector2D CollisionUv = FVector2D::ZeroVector;
-	if (const APaintCanvas* PaintCanvas = Cast<APaintCanvas>(HitResult.GetActor()))
-	{
-		if (!PaintCanvas->TryGetDrawLocationFromHitResult(HitResult, CollisionUv))
-		{
-			return false;
-		}
-	}
-	else if (!TryGetDrawLocationFromHitResult(HitResult, CollisionUv))
-	{
-		return false;
-	}
-
-	UTexture2D* PaintBrushTexture = BrushTexture.Get();
-	const double PaintBrushSize = GetClampedReplicatedPaintBrushSize(BrushSize);
-	const bool bPainted = DispatchDrawBrush(HitResult.GetActor(), PaintBrushTexture, PaintBrushSize, CollisionUv);
-	if (bPainted && HitResult.GetActor() == ActivePaintCanvasActor)
-	{
-		CacheLocalPaintCanvasStrokeForTravel(PaintBrushTexture, PaintBrushSize, CollisionUv);
-		SubmitPaintCanvasStrokeForNetwork(PaintBrushTexture, PaintBrushSize, CollisionUv);
-	}
-
-	return bPainted;
-}
-
-bool UPaintCanvasComponent::TryGetDrawLocationFromHitResult(const FHitResult& HitResult, FVector2D& OutDrawLocation) const
-{
-	const UStaticMeshComponent* HitStaticMeshComponent = Cast<UStaticMeshComponent>(HitResult.GetComponent());
-	if (!HitStaticMeshComponent || !HitStaticMeshComponent->GetStaticMesh())
-	{
-		return false;
-	}
-
-	const FBox LocalBounds = HitStaticMeshComponent->GetStaticMesh()->GetBoundingBox();
-	if (!LocalBounds.IsValid)
-	{
-		return false;
-	}
-
-	const FVector BoundsSize = LocalBounds.GetSize();
-	int32 UAxis = 0;
-	int32 VAxis = 1;
-	FindSurfaceAxes(BoundsSize, UAxis, VAxis);
-
-	const double USize = GetVectorAxisValue(BoundsSize, UAxis);
-	const double VSize = GetVectorAxisValue(BoundsSize, VAxis);
-	if (FMath::IsNearlyZero(USize) || FMath::IsNearlyZero(VSize))
-	{
-		return false;
-	}
-
-	const FVector WorldHitPoint = HitResult.ImpactPoint.IsNearlyZero() ? HitResult.Location : HitResult.ImpactPoint;
-	const FVector LocalHitPoint = HitStaticMeshComponent->GetComponentTransform().InverseTransformPosition(WorldHitPoint);
-	const double LocalMinU = GetVectorAxisValue(LocalBounds.Min, UAxis);
-	const double LocalMinV = GetVectorAxisValue(LocalBounds.Min, VAxis);
-
-	const double U = (GetVectorAxisValue(LocalHitPoint, UAxis) - LocalMinU) / USize;
-	const double V = (GetVectorAxisValue(LocalHitPoint, VAxis) - LocalMinV) / VSize;
-
-	OutDrawLocation = FVector2D(
-		FMath::Clamp(U, 0.0, 1.0),
-		FMath::Clamp(V, 0.0, 1.0));
-	return true;
-}
-
-bool UPaintCanvasComponent::DispatchDrawBrush(AActor* HitActor, UTexture2D* InBrushTexture, const double InBrushSize, const FVector2D& DrawLocation) const
-{
-	const double SafeBrushSize = GetClampedReplicatedPaintBrushSize(InBrushSize);
-	if (!IsValid(HitActor) || SafeBrushSize <= 0.0 || !IsValidReplicatedDrawLocation(DrawLocation))
-	{
-		return false;
-	}
-
-	if (APaintCanvas* PaintCanvas = Cast<APaintCanvas>(HitActor))
-	{
-		PaintCanvas->DrawBrush(InBrushTexture, SafeBrushSize, DrawLocation);
-		return true;
-	}
-
-	UFunction* DrawBrushFunction = HitActor->FindFunction(TEXT("DrawBrush"));
-	if (!DrawBrushFunction)
-	{
-		return false;
-	}
-
-	struct FDrawBrushParams
-	{
-		UTexture2D* BrushTexture = nullptr;
-		double BrushSize = 0.0;
-		FVector2D DrawLocation = FVector2D::ZeroVector;
-	};
-
-	FDrawBrushParams Params;
-	Params.BrushTexture = InBrushTexture;
-	Params.BrushSize = SafeBrushSize;
-	Params.DrawLocation = DrawLocation;
-	HitActor->ProcessEvent(DrawBrushFunction, &Params);
-	return true;
-}
-
 UTextureRenderTarget2D* UPaintCanvasComponent::GetActivePaintCanvasRenderTarget() const
 {
-	if (!IsValid(ActivePaintCanvasActor))
-	{
-		return nullptr;
-	}
-
-	if (const APaintCanvas* PaintCanvas = Cast<APaintCanvas>(ActivePaintCanvasActor))
-	{
-		return PaintCanvas->GetRenderTarget();
-	}
-
-	if (const FObjectPropertyBase* RenderTargetProperty = FindFProperty<FObjectPropertyBase>(ActivePaintCanvasActor->GetClass(), TEXT("RenderTarget")))
-	{
-		return Cast<UTextureRenderTarget2D>(RenderTargetProperty->GetObjectPropertyValue_InContainer(ActivePaintCanvasActor.Get()));
-	}
-
-	return nullptr;
+	return PaintCanvasRenderTarget.Get();
 }
 
 UTextureRenderTarget2D* UPaintCanvasComponent::CreatePaintCanvasFaceDecalSnapshot(UTextureRenderTarget2D* SourceRenderTarget)
@@ -792,52 +667,23 @@ UTextureRenderTarget2D* UPaintCanvasComponent::CreatePaintCanvasFaceDecalSnapsho
 	return SnapshotRenderTarget;
 }
 
-bool UPaintCanvasComponent::EnsurePaintCanvasActorForSharedDisplay()
-{
-	if (IsValid(ActivePaintCanvasActor))
-	{
-		return true;
-	}
-
-	APdPlayer* PlayerOwner = GetPlayerOwner();
-	UWorld* World = GetWorld();
-	if (!PlayerOwner || !World || !PaintCanvasActorClass)
-	{
-		return false;
-	}
-
-	const FTransform CanvasTransform(PlayerOwner->GetActorRotation(), PlayerOwner->GetActorLocation() + PaintCanvasExportOffset);
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Owner = PlayerOwner;
-	SpawnParameters.Instigator = PlayerOwner;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	ActivePaintCanvasActor = World->SpawnActor<AActor>(PaintCanvasActorClass, CanvasTransform, SpawnParameters);
-	if (!IsValid(ActivePaintCanvasActor))
-	{
-		return false;
-	}
-
-	ConfigurePaintCanvasCollision(ActivePaintCanvasActor.Get());
-	ActivePaintCanvasActor->SetActorHiddenInGame(true);
-	ActivePaintCanvasActor->SetActorEnableCollision(false);
-	return true;
-}
-
 void UPaintCanvasComponent::ResetLocalSharedPaintCanvas()
 {
 	CancelPaintCanvasExport();
-	if (!EnsurePaintCanvasActorForSharedDisplay())
+	if (UWorld* World = GetWorld())
 	{
-		return;
+		World->GetTimerManager().ClearTimer(PaintStrokeBatchTimerHandle);
 	}
-
-	if (APaintCanvas* PaintCanvas = Cast<APaintCanvas>(ActivePaintCanvasActor))
-	{
-		PaintCanvas->NativeInitializeCanvas();
-	}
-
-	ActivePaintCanvasActor->SetActorHiddenInGame(true);
-	ActivePaintCanvasActor->SetActorEnableCollision(false);
+	PendingPaintStrokeRequests.Reset();
+	bHasPendingPaintExport = false;
+	bHasPendingFaceDecal = false;
+	PendingFaceDecalMaterial = nullptr;
+	EnsurePaintCanvasRenderResources(true);
+	LocalAppliedPaintRevision = 0;
+	LocalAppliedPaintLastSequence = 0;
+	LocalAppliedPaintChecksum = 0;
+	LocalPredictedPaintStrokeCount = 0;
+	LocalPredictedPaintChecksum = 0;
 }
 
 void UPaintCanvasComponent::SubmitPaintCanvasResetForNetwork()
@@ -850,12 +696,7 @@ void UPaintCanvasComponent::SubmitPaintCanvasResetForNetwork()
 
 	if (PlayerOwner->HasAuthority())
 	{
-		if (!TryConsumePaintNetworkEvent(LastPaintResetServerTime, PaintControlNetworkMinInterval))
-		{
-			return;
-		}
-
-		MulticastResetSharedPaintCanvas();
+		ResetAuthoritativePaintCanvas();
 		return;
 	}
 
@@ -864,6 +705,7 @@ void UPaintCanvasComponent::SubmitPaintCanvasResetForNetwork()
 
 void UPaintCanvasComponent::SubmitPaintCanvasStrokeForNetwork(UTexture2D* InBrushTexture, double InBrushSize, const FVector2D& DrawLocation)
 {
+	static_cast<void>(InBrushTexture);
 	APdPlayer* PlayerOwner = GetPlayerOwner();
 	const double SafeBrushSize = GetClampedReplicatedPaintBrushSize(InBrushSize);
 	if (!PlayerOwner
@@ -874,32 +716,461 @@ void UPaintCanvasComponent::SubmitPaintCanvasStrokeForNetwork(UTexture2D* InBrus
 		return;
 	}
 
-	if (PlayerOwner->HasAuthority())
+	FPaintCanvasStrokeRequest& Request =
+		PendingPaintStrokeRequests.AddDefaulted_GetRef();
+	Request.BrushSize = static_cast<float>(SafeBrushSize);
+	Request.DrawLocation = FVector2f(DrawLocation);
+
+	if (PendingPaintStrokeRequests.Num()
+		>= FMath::Clamp(MaxPaintStrokesPerBatch, 1, 64))
 	{
-		if (!TryConsumePaintNetworkEvent(LastPaintStrokeServerTime, PaintStrokeNetworkMinInterval))
+		FlushPendingPaintStrokeBatches(false);
+	}
+	else
+	{
+		SchedulePendingPaintStrokeFlush();
+	}
+}
+
+void UPaintCanvasComponent::SchedulePendingPaintStrokeFlush()
+{
+	UWorld* World = GetWorld();
+	if (!World
+		|| PendingPaintStrokeRequests.IsEmpty()
+		|| World->GetTimerManager().IsTimerActive(
+			PaintStrokeBatchTimerHandle))
+	{
+		return;
+	}
+
+	FTimerDelegate FlushDelegate;
+	FlushDelegate.BindUObject(
+		this,
+		&ThisClass::FlushPendingPaintStrokeBatches,
+		false);
+	World->GetTimerManager().SetTimer(
+		PaintStrokeBatchTimerHandle,
+		FlushDelegate,
+		static_cast<float>(FMath::Max(PaintStrokeBatchInterval, 0.005)),
+		false);
+}
+
+void UPaintCanvasComponent::FlushPendingPaintStrokeBatches(
+	const bool bFlushAll)
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PaintStrokeBatchTimerHandle);
+	}
+
+	APdPlayer* PlayerOwner = GetPlayerOwner();
+	if (!PlayerOwner || PlayerOwner->GetNetMode() == NM_Standalone)
+	{
+		PendingPaintStrokeRequests.Reset();
+		return;
+	}
+
+	const int32 SafeBatchSize =
+		FMath::Clamp(MaxPaintStrokesPerBatch, 1, 64);
+	do
+	{
+		const int32 StrokeCount = FMath::Min(
+			SafeBatchSize,
+			PendingPaintStrokeRequests.Num());
+		if (StrokeCount <= 0)
+		{
+			break;
+		}
+
+		TArray<FPaintCanvasStrokeRequest> StrokeBatch;
+		StrokeBatch.Append(
+			PendingPaintStrokeRequests.GetData(),
+			StrokeCount);
+		PendingPaintStrokeRequests.RemoveAt(
+			0,
+			StrokeCount,
+			EAllowShrinking::No);
+
+		if (PlayerOwner->HasAuthority())
+		{
+			CommitAuthoritativePaintStrokeBatch(StrokeBatch);
+		}
+		else
+		{
+			ServerSubmitPaintCanvasStrokeBatch(StrokeBatch);
+		}
+	}
+	while (bFlushAll && !PendingPaintStrokeRequests.IsEmpty());
+
+	if (!PendingPaintStrokeRequests.IsEmpty())
+	{
+		SchedulePendingPaintStrokeFlush();
+	}
+}
+
+void UPaintCanvasComponent::CommitAuthoritativePaintStrokeBatch(
+	const TArray<FPaintCanvasStrokeRequest>& StrokeBatch)
+{
+	APdPlayer* PlayerOwner = GetPlayerOwner();
+	const int32 SafeMaxHistory =
+		FMath::Clamp(MaxReplicatedPaintStrokeHistory, 1, 8192);
+	const int32 SafeBatchSize =
+		FMath::Clamp(MaxPaintStrokesPerBatch, 1, 64);
+	if (!PlayerOwner
+		|| !PlayerOwner->HasAuthority()
+		|| StrokeBatch.IsEmpty()
+		|| StrokeBatch.Num() > SafeBatchSize
+		|| ReplicatedPaintStrokes.Items.Num() + StrokeBatch.Num()
+			> SafeMaxHistory)
+	{
+		return;
+	}
+
+	for (const FPaintCanvasStrokeRequest& Request : StrokeBatch)
+	{
+		const FVector2D DrawLocation(Request.DrawLocation);
+		if (GetClampedReplicatedPaintBrushSize(Request.BrushSize) <= 0.0
+			|| !IsValidReplicatedDrawLocation(DrawLocation))
 		{
 			return;
 		}
-
-		MulticastSubmitPaintCanvasStroke(InBrushTexture, SafeBrushSize, DrawLocation);
-		return;
 	}
 
-	ServerSubmitPaintCanvasStroke(InBrushTexture, SafeBrushSize, DrawLocation);
+	for (const FPaintCanvasStrokeRequest& Request : StrokeBatch)
+	{
+		FReplicatedPaintCanvasStroke& Stroke =
+			ReplicatedPaintStrokes.Items.AddDefaulted_GetRef();
+		Stroke.Sequence = ++ReplicatedPaintStateHeader.LastSequence;
+		Stroke.BrushSize = static_cast<float>(
+			GetClampedReplicatedPaintBrushSize(Request.BrushSize));
+		Stroke.DrawLocation = Request.DrawLocation;
+		ReplicatedPaintStateHeader.Checksum =
+			AccumulatePaintStrokeChecksum(
+				ReplicatedPaintStateHeader.Checksum,
+				Stroke);
+		ReplicatedPaintStrokes.MarkItemDirty(Stroke);
+	}
+
+	MARK_PROPERTY_DIRTY_FROM_NAME(
+		UPaintCanvasComponent,
+		ReplicatedPaintStrokes,
+		this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(
+		UPaintCanvasComponent,
+		ReplicatedPaintStateHeader,
+		this);
+	PlayerOwner->ForceNetUpdate();
+
+	if (PlayerOwner->GetNetMode() != NM_DedicatedServer)
+	{
+		HandleReplicatedPaintStateChanged();
+	}
 }
 
-void UPaintCanvasComponent::SubmitPaintCanvasExportForNetwork(const FTransform& PaintCanvasExportTransformOffset)
+void UPaintCanvasComponent::ResetAuthoritativePaintCanvas()
 {
 	APdPlayer* PlayerOwner = GetPlayerOwner();
-	if (!PlayerOwner
-		|| PlayerOwner->GetNetMode() == NM_Standalone
-		|| !IsValidReplicatedPaintTransform(
-			PaintCanvasExportTransformOffset,
-			MaxReplicatedPaintExportOffsetDistance,
-			MaxReplicatedPaintTransformScale))
+	if (!PlayerOwner || !PlayerOwner->HasAuthority())
 	{
 		return;
 	}
+
+	ReplicatedPaintStrokes.Items.Reset();
+	ReplicatedPaintStrokes.MarkArrayDirty();
+	ReplicatedPaintStateHeader.Revision =
+		ReplicatedPaintStateHeader.Revision == MAX_uint32
+			? 1
+			: ReplicatedPaintStateHeader.Revision + 1;
+	ReplicatedPaintStateHeader.LastSequence = 0;
+	ReplicatedPaintStateHeader.Checksum = 0;
+	MARK_PROPERTY_DIRTY_FROM_NAME(
+		UPaintCanvasComponent,
+		ReplicatedPaintStrokes,
+		this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(
+		UPaintCanvasComponent,
+		ReplicatedPaintStateHeader,
+		this);
+	PlayerOwner->ForceNetUpdate();
+
+	LocalAppliedPaintRevision = ReplicatedPaintStateHeader.Revision;
+	LocalAppliedPaintLastSequence = 0;
+	LocalAppliedPaintChecksum = 0;
+	LocalPredictedPaintStrokeCount = 0;
+	LocalPredictedPaintChecksum = 0;
+	if (PlayerOwner->GetNetMode() != NM_DedicatedServer)
+	{
+		EnsurePaintCanvasRenderResources(true);
+	}
+}
+
+void UPaintCanvasComponent::HandleReplicatedPaintStateChanged()
+{
+	SchedulePaintStateReconciliation();
+}
+
+void UPaintCanvasComponent::OnRep_PaintCanvasStateHeader()
+{
+	SchedulePaintStateReconciliation();
+}
+
+void UPaintCanvasComponent::SchedulePaintStateReconciliation()
+{
+	UWorld* World = GetWorld();
+	if (!World
+		|| World->GetTimerManager().IsTimerActive(
+			PaintStateReconcileTimerHandle))
+	{
+		return;
+	}
+
+	PaintStateReconcileTimerHandle =
+		World->GetTimerManager().SetTimerForNextTick(
+			this,
+			&ThisClass::ReconcileReplicatedPaintState);
+}
+
+uint32 UPaintCanvasComponent::AccumulatePaintStrokeChecksum(
+	uint32 CurrentChecksum,
+	const FReplicatedPaintCanvasStroke& Stroke)
+{
+	CurrentChecksum = HashCombineFast(
+		CurrentChecksum,
+		GetTypeHash(Stroke.Sequence));
+	CurrentChecksum = HashCombineFast(
+		CurrentChecksum,
+		GetTypeHash(Stroke.BrushSize));
+	CurrentChecksum = HashCombineFast(
+		CurrentChecksum,
+		GetTypeHash(Stroke.DrawLocation.X));
+	return HashCombineFast(
+		CurrentChecksum,
+		GetTypeHash(Stroke.DrawLocation.Y));
+}
+
+bool UPaintCanvasComponent::TryBuildValidatedAuthoritativeHistory(
+	TArray<const FReplicatedPaintCanvasStroke*>& OutSortedStrokes,
+	uint32& OutChecksum) const
+{
+	OutSortedStrokes.Reset();
+	OutChecksum = 0;
+
+	if (ReplicatedPaintStateHeader.Revision == 0
+		|| ReplicatedPaintStateHeader.LastSequence
+			> static_cast<uint32>(FMath::Max(
+				MaxReplicatedPaintStrokeHistory,
+				1))
+		|| ReplicatedPaintStrokes.Items.Num()
+			!= static_cast<int32>(
+				ReplicatedPaintStateHeader.LastSequence))
+	{
+		return false;
+	}
+
+	OutSortedStrokes.Reserve(ReplicatedPaintStrokes.Items.Num());
+	for (const FReplicatedPaintCanvasStroke& Stroke
+		: ReplicatedPaintStrokes.Items)
+	{
+		OutSortedStrokes.Add(&Stroke);
+	}
+
+	OutSortedStrokes.Sort(
+		[](const FReplicatedPaintCanvasStroke& Left,
+			const FReplicatedPaintCanvasStroke& Right)
+		{
+			return Left.Sequence < Right.Sequence;
+		});
+
+	uint32 ExpectedSequence = 1;
+	for (const FReplicatedPaintCanvasStroke* Stroke
+		: OutSortedStrokes)
+	{
+		if (!Stroke
+			|| Stroke->Sequence != ExpectedSequence
+			|| Stroke->BrushSize <= 0.0f
+			|| !IsValidReplicatedDrawLocation(
+				FVector2D(Stroke->DrawLocation)))
+		{
+			OutSortedStrokes.Reset();
+			OutChecksum = 0;
+			return false;
+		}
+
+		OutChecksum = AccumulatePaintStrokeChecksum(
+			OutChecksum,
+			*Stroke);
+		++ExpectedSequence;
+	}
+
+	if (OutChecksum != ReplicatedPaintStateHeader.Checksum)
+	{
+		OutSortedStrokes.Reset();
+		OutChecksum = 0;
+		return false;
+	}
+
+	return true;
+}
+
+void UPaintCanvasComponent::RebuildCanvasFromAuthoritativeHistory(
+	const TArray<const FReplicatedPaintCanvasStroke*>& SortedStrokes)
+{
+	if (!EnsurePaintCanvasRenderResources(true))
+	{
+		return;
+	}
+
+	for (const FReplicatedPaintCanvasStroke* Stroke : SortedStrokes)
+	{
+		if (Stroke)
+		{
+			DrawBrushToRenderTarget(
+				BrushTexture.Get(),
+				Stroke->BrushSize,
+				FVector2D(Stroke->DrawLocation));
+		}
+	}
+}
+
+bool UPaintCanvasComponent::IsLocalPaintStateSynchronized(
+	const uint32 Revision,
+	const uint32 LastSequence,
+	const uint32 Checksum) const
+{
+	return LocalAppliedPaintRevision == Revision
+		&& LocalAppliedPaintLastSequence == LastSequence
+		&& LocalAppliedPaintChecksum == Checksum;
+}
+
+void UPaintCanvasComponent::ReconcileReplicatedPaintState()
+{
+	PaintStateReconcileTimerHandle.Invalidate();
+
+	const APdPlayer* PlayerOwner = GetPlayerOwner();
+	if (!PlayerOwner
+		|| PlayerOwner->GetNetMode() == NM_DedicatedServer
+		|| PlayerOwner->GetNetMode() == NM_Standalone)
+	{
+		return;
+	}
+
+	TArray<const FReplicatedPaintCanvasStroke*> SortedStrokes;
+	uint32 ValidatedChecksum = 0;
+	if (!TryBuildValidatedAuthoritativeHistory(
+		SortedStrokes,
+		ValidatedChecksum))
+	{
+		return;
+	}
+
+	if (IsLocalPaintStateSynchronized(
+		ReplicatedPaintStateHeader.Revision,
+		ReplicatedPaintStateHeader.LastSequence,
+		ValidatedChecksum))
+	{
+		ProcessPendingPaintPresentation();
+		return;
+	}
+
+	const bool bCanAcceptLocalPrediction =
+		PlayerOwner->IsLocallyControlled()
+		&& PaintCanvasRenderTarget
+		&& LocalPredictedPaintStrokeCount
+			== static_cast<int32>(
+				ReplicatedPaintStateHeader.LastSequence)
+		&& LocalPredictedPaintChecksum == ValidatedChecksum;
+	if (!bCanAcceptLocalPrediction)
+	{
+		bool bAppliedIncrementally = false;
+		if (LocalAppliedPaintRevision
+				== ReplicatedPaintStateHeader.Revision
+			&& LocalAppliedPaintLastSequence
+				<= ReplicatedPaintStateHeader.LastSequence
+			&& EnsurePaintCanvasRenderResources())
+		{
+			uint32 RunningChecksum = LocalAppliedPaintChecksum;
+			for (const FReplicatedPaintCanvasStroke* Stroke
+				: SortedStrokes)
+			{
+				if (Stroke
+					&& Stroke->Sequence
+						> LocalAppliedPaintLastSequence)
+				{
+					DrawBrushToRenderTarget(
+						BrushTexture.Get(),
+						Stroke->BrushSize,
+						FVector2D(Stroke->DrawLocation));
+					RunningChecksum = AccumulatePaintStrokeChecksum(
+						RunningChecksum,
+						*Stroke);
+				}
+			}
+
+			bAppliedIncrementally =
+				RunningChecksum == ValidatedChecksum;
+		}
+
+		if (!bAppliedIncrementally)
+		{
+			RebuildCanvasFromAuthoritativeHistory(SortedStrokes);
+		}
+	}
+
+	LocalAppliedPaintRevision = ReplicatedPaintStateHeader.Revision;
+	LocalAppliedPaintLastSequence =
+		ReplicatedPaintStateHeader.LastSequence;
+	LocalAppliedPaintChecksum = ValidatedChecksum;
+	LocalPredictedPaintStrokeCount = static_cast<int32>(
+		ReplicatedPaintStateHeader.LastSequence);
+	LocalPredictedPaintChecksum = ValidatedChecksum;
+	ProcessPendingPaintPresentation();
+}
+
+void UPaintCanvasComponent::ProcessPendingPaintPresentation()
+{
+	if (bHasPendingPaintExport
+		&& IsLocalPaintStateSynchronized(
+			PendingPaintExportRevision,
+			PendingPaintExportLastSequence,
+			PendingPaintExportChecksum))
+	{
+		bHasPendingPaintExport = false;
+		StartLocalPaintCanvasExport();
+	}
+
+	if (bHasPendingFaceDecal
+		&& IsLocalPaintStateSynchronized(
+			PendingFaceDecalRevision,
+			PendingFaceDecalLastSequence,
+			PendingFaceDecalChecksum))
+	{
+		UMaterialInterface* FaceDecalMaterial = PendingFaceDecalMaterial.Get();
+		const FName AttachSocketName = PendingFaceDecalAttachSocketName;
+		const FTransform TransformOffset = PendingFaceDecalTransformOffset;
+		const FVector FaceDecalSize = PendingFaceDecalSize;
+		const FName TextureParameterName =
+			PendingFaceDecalTextureParameterName;
+		bHasPendingFaceDecal = false;
+		PendingFaceDecalMaterial = nullptr;
+		ApplyLocalPaintCanvasToFaceDecal(
+			FaceDecalMaterial,
+			AttachSocketName,
+			TransformOffset,
+			FaceDecalSize,
+			TextureParameterName);
+	}
+}
+
+void UPaintCanvasComponent::SubmitPaintCanvasExportForNetwork()
+{
+	APdPlayer* PlayerOwner = GetPlayerOwner();
+	if (!PlayerOwner
+		|| PlayerOwner->GetNetMode() == NM_Standalone)
+	{
+		return;
+	}
+
+	FlushPendingPaintStrokeBatches(true);
 
 	if (PlayerOwner->HasAuthority())
 	{
@@ -908,11 +1179,14 @@ void UPaintCanvasComponent::SubmitPaintCanvasExportForNetwork(const FTransform& 
 			return;
 		}
 
-		MulticastExportPaintCanvas(PaintCanvasExportTransformOffset);
+		MulticastExportPaintCanvas(
+			ReplicatedPaintStateHeader.Revision,
+			ReplicatedPaintStateHeader.LastSequence,
+			ReplicatedPaintStateHeader.Checksum);
 		return;
 	}
 
-	ServerExportPaintCanvas(PaintCanvasExportTransformOffset);
+	ServerExportPaintCanvas();
 }
 
 void UPaintCanvasComponent::ClearPaintCanvasFaceDecal()
@@ -1093,6 +1367,8 @@ void UPaintCanvasComponent::SubmitPaintCanvasFaceDecalForNetwork(
 		return;
 	}
 
+	FlushPendingPaintStrokeBatches(true);
+
 	if (PlayerOwner->HasAuthority())
 	{
 		if (!TryConsumePaintNetworkEvent(LastPaintFaceDecalServerTime, PaintControlNetworkMinInterval))
@@ -1105,7 +1381,10 @@ void UPaintCanvasComponent::SubmitPaintCanvasFaceDecalForNetwork(
 			AttachSocketName,
 			FaceDecalTransformOffset,
 			FaceDecalSize,
-			TextureParameterName);
+			TextureParameterName,
+			ReplicatedPaintStateHeader.Revision,
+			ReplicatedPaintStateHeader.LastSequence,
+			ReplicatedPaintStateHeader.Checksum);
 		return;
 	}
 
@@ -1119,93 +1398,57 @@ void UPaintCanvasComponent::SubmitPaintCanvasFaceDecalForNetwork(
 
 void UPaintCanvasComponent::ServerResetSharedPaintCanvas_Implementation()
 {
-	if (!TryConsumePaintNetworkEvent(LastPaintResetServerTime, PaintControlNetworkMinInterval))
-	{
-		return;
-	}
-
-	MulticastResetSharedPaintCanvas();
+	ResetAuthoritativePaintCanvas();
 }
 
-void UPaintCanvasComponent::MulticastResetSharedPaintCanvas_Implementation()
+void UPaintCanvasComponent::ServerSubmitPaintCanvasStrokeBatch_Implementation(
+	const TArray<FPaintCanvasStrokeRequest>& StrokeBatch)
 {
-	const APdPlayer* PlayerOwner = GetPlayerOwner();
-	if (!PlayerOwner || PlayerOwner->GetNetMode() == NM_DedicatedServer || PlayerOwner->IsLocallyControlled())
-	{
-		return;
-	}
-
-	ResetLocalSharedPaintCanvas();
+	CommitAuthoritativePaintStrokeBatch(StrokeBatch);
 }
 
-void UPaintCanvasComponent::ServerSubmitPaintCanvasStroke_Implementation(UTexture2D* InBrushTexture, double InBrushSize, FVector2D DrawLocation)
+void UPaintCanvasComponent::ServerExportPaintCanvas_Implementation()
 {
-	const double SafeBrushSize = GetClampedReplicatedPaintBrushSize(InBrushSize);
-	if (SafeBrushSize <= 0.0
-		|| !IsValidReplicatedDrawLocation(DrawLocation)
-		|| !TryConsumePaintNetworkEvent(LastPaintStrokeServerTime, PaintStrokeNetworkMinInterval))
+	if (!TryConsumePaintNetworkEvent(
+		LastPaintExportServerTime,
+		PaintControlNetworkMinInterval))
 	{
 		return;
 	}
 
-	MulticastSubmitPaintCanvasStroke(InBrushTexture, SafeBrushSize, DrawLocation);
+	MulticastExportPaintCanvas(
+		ReplicatedPaintStateHeader.Revision,
+		ReplicatedPaintStateHeader.LastSequence,
+		ReplicatedPaintStateHeader.Checksum);
 }
 
-void UPaintCanvasComponent::MulticastSubmitPaintCanvasStroke_Implementation(UTexture2D* InBrushTexture, double InBrushSize, FVector2D DrawLocation)
-{
-	const APdPlayer* PlayerOwner = GetPlayerOwner();
-	const double SafeBrushSize = GetClampedReplicatedPaintBrushSize(InBrushSize);
-	if (!PlayerOwner
-		|| PlayerOwner->GetNetMode() == NM_DedicatedServer
-		|| PlayerOwner->IsLocallyControlled()
-		|| SafeBrushSize <= 0.0
-		|| !IsValidReplicatedDrawLocation(DrawLocation))
-	{
-		return;
-	}
-
-	if (!EnsurePaintCanvasActorForSharedDisplay())
-	{
-		return;
-	}
-
-	DispatchDrawBrush(ActivePaintCanvasActor.Get(), InBrushTexture, SafeBrushSize, DrawLocation);
-}
-
-void UPaintCanvasComponent::ServerExportPaintCanvas_Implementation(FTransform PaintCanvasExportTransformOffset)
-{
-	if (!IsValidReplicatedPaintTransform(
-			PaintCanvasExportTransformOffset,
-			MaxReplicatedPaintExportOffsetDistance,
-			MaxReplicatedPaintTransformScale)
-		|| !TryConsumePaintNetworkEvent(LastPaintExportServerTime, PaintControlNetworkMinInterval))
-	{
-		return;
-	}
-
-	MulticastExportPaintCanvas(PaintCanvasExportTransformOffset);
-}
-
-void UPaintCanvasComponent::MulticastExportPaintCanvas_Implementation(FTransform PaintCanvasExportTransformOffset)
+void UPaintCanvasComponent::MulticastExportPaintCanvas_Implementation(
+	const uint32 RequiredRevision,
+	const uint32 RequiredLastSequence,
+	const uint32 RequiredChecksum)
 {
 	const APdPlayer* PlayerOwner = GetPlayerOwner();
 	if (!PlayerOwner
 		|| PlayerOwner->GetNetMode() == NM_DedicatedServer
-		|| PlayerOwner->IsLocallyControlled()
-		|| !IsValidReplicatedPaintTransform(
-			PaintCanvasExportTransformOffset,
-			MaxReplicatedPaintExportOffsetDistance,
-			MaxReplicatedPaintTransformScale))
+		|| PlayerOwner->IsLocallyControlled())
 	{
 		return;
 	}
 
-	if (!EnsurePaintCanvasActorForSharedDisplay())
+	if (IsLocalPaintStateSynchronized(
+		RequiredRevision,
+		RequiredLastSequence,
+		RequiredChecksum))
 	{
+		StartLocalPaintCanvasExport();
 		return;
 	}
 
-	StartLocalPaintCanvasExportAboveCharacter(PaintCanvasExportTransformOffset);
+	bHasPendingPaintExport = true;
+	PendingPaintExportRevision = RequiredRevision;
+	PendingPaintExportLastSequence = RequiredLastSequence;
+	PendingPaintExportChecksum = RequiredChecksum;
+	SchedulePaintStateReconciliation();
 }
 
 void UPaintCanvasComponent::ServerApplyPaintCanvasFaceDecal_Implementation(
@@ -1226,7 +1469,10 @@ void UPaintCanvasComponent::ServerApplyPaintCanvasFaceDecal_Implementation(
 		AttachSocketName,
 		FaceDecalTransformOffset,
 		FaceDecalSize,
-		TextureParameterName);
+		TextureParameterName,
+		ReplicatedPaintStateHeader.Revision,
+		ReplicatedPaintStateHeader.LastSequence,
+		ReplicatedPaintStateHeader.Checksum);
 }
 
 void UPaintCanvasComponent::MulticastApplyPaintCanvasFaceDecal_Implementation(
@@ -1234,7 +1480,10 @@ void UPaintCanvasComponent::MulticastApplyPaintCanvasFaceDecal_Implementation(
 	FName AttachSocketName,
 	FTransform FaceDecalTransformOffset,
 	FVector FaceDecalSize,
-	FName TextureParameterName)
+	FName TextureParameterName,
+	const uint32 RequiredRevision,
+	const uint32 RequiredLastSequence,
+	const uint32 RequiredChecksum)
 {
 	const APdPlayer* PlayerOwner = GetPlayerOwner();
 	if (!PlayerOwner
@@ -1245,17 +1494,30 @@ void UPaintCanvasComponent::MulticastApplyPaintCanvasFaceDecal_Implementation(
 		return;
 	}
 
-	if (!EnsurePaintCanvasActorForSharedDisplay())
+	if (IsLocalPaintStateSynchronized(
+		RequiredRevision,
+		RequiredLastSequence,
+		RequiredChecksum))
 	{
+		ApplyLocalPaintCanvasToFaceDecal(
+			FaceDecalMaterial,
+			AttachSocketName,
+			FaceDecalTransformOffset,
+			FaceDecalSize,
+			TextureParameterName);
 		return;
 	}
 
-	ApplyLocalPaintCanvasToFaceDecal(
-		FaceDecalMaterial,
-		AttachSocketName,
-		FaceDecalTransformOffset,
-		FaceDecalSize,
-		TextureParameterName);
+	bHasPendingFaceDecal = true;
+	PendingFaceDecalMaterial = FaceDecalMaterial;
+	PendingFaceDecalAttachSocketName = AttachSocketName;
+	PendingFaceDecalTransformOffset = FaceDecalTransformOffset;
+	PendingFaceDecalSize = FaceDecalSize;
+	PendingFaceDecalTextureParameterName = TextureParameterName;
+	PendingFaceDecalRevision = RequiredRevision;
+	PendingFaceDecalLastSequence = RequiredLastSequence;
+	PendingFaceDecalChecksum = RequiredChecksum;
+	SchedulePaintStateReconciliation();
 }
 
 void UPaintCanvasComponent::RestoreCachedLobbyPaintCanvasFaceDecal()
@@ -1280,21 +1542,56 @@ void UPaintCanvasComponent::RestoreCachedLobbyPaintCanvasFaceDecal()
 
 	ResetLocalSharedPaintCanvas();
 	SubmitPaintCanvasResetForNetwork();
-	if (!EnsurePaintCanvasActorForSharedDisplay())
+	if (!EnsurePaintCanvasRenderResources())
 	{
 		return;
 	}
 
-	for (const FLobbyPaintCanvasStrokeCache& Stroke : FaceDecalCache.Strokes)
+	const int32 SafeMaxHistory = FMath::Clamp(
+		MaxReplicatedPaintStrokeHistory,
+		1,
+		8192);
+	for (int32 StrokeIndex = 0;
+		StrokeIndex < FaceDecalCache.Strokes.Num()
+			&& LocalPredictedPaintStrokeCount < SafeMaxHistory;
+		++StrokeIndex)
 	{
+		const FLobbyPaintCanvasStrokeCache& Stroke =
+			FaceDecalCache.Strokes[StrokeIndex];
 		if (Stroke.BrushSize <= 0.0)
 		{
 			continue;
 		}
 
-		DispatchDrawBrush(ActivePaintCanvasActor.Get(), Stroke.BrushTexture, Stroke.BrushSize, Stroke.DrawLocation);
-		SubmitPaintCanvasStrokeForNetwork(Stroke.BrushTexture, Stroke.BrushSize, Stroke.DrawLocation);
+		const float SafeBrushSize = static_cast<float>(
+			GetClampedReplicatedPaintBrushSize(Stroke.BrushSize));
+		const FVector2f QuantizedDrawLocation(Stroke.DrawLocation);
+		const FVector2D SharedDrawLocation(QuantizedDrawLocation);
+		if (SafeBrushSize <= 0.0
+			|| !IsValidReplicatedDrawLocation(SharedDrawLocation)
+			|| !DrawBrushToRenderTarget(
+				BrushTexture.Get(),
+				SafeBrushSize,
+				SharedDrawLocation))
+		{
+			continue;
+		}
+
+		++LocalPredictedPaintStrokeCount;
+		FReplicatedPaintCanvasStroke PredictedStroke;
+		PredictedStroke.Sequence = static_cast<uint32>(
+			LocalPredictedPaintStrokeCount);
+		PredictedStroke.BrushSize = static_cast<float>(SafeBrushSize);
+		PredictedStroke.DrawLocation = QuantizedDrawLocation;
+		LocalPredictedPaintChecksum = AccumulatePaintStrokeChecksum(
+			LocalPredictedPaintChecksum,
+			PredictedStroke);
+		SubmitPaintCanvasStrokeForNetwork(
+			BrushTexture.Get(),
+			SafeBrushSize,
+			SharedDrawLocation);
 	}
+	FlushPendingPaintStrokeBatches(true);
 
 	if (!ApplyLocalPaintCanvasToFaceDecal(
 		FaceDecalCache.FaceDecalMaterial,
