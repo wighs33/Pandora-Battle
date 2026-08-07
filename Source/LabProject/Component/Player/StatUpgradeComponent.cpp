@@ -8,8 +8,10 @@
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Definition/Player/StatUpgradeDefinition.h"
+#include "Definition/Settings/GameSettingDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
+#include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatUpgradeComponent)
 
@@ -160,6 +162,8 @@ UStatUpgradeComponent::UStatUpgradeComponent(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 {
 	SetIsReplicatedByDefault(true);
+	StatUpgradeDefinition = TSoftObjectPtr<UStatUpgradeDefinition>(
+		UStatUpgradeDefinition::GetDefaultDefinitionPath());
 }
 
 void UStatUpgradeComponent::BeginPlay()
@@ -217,13 +221,13 @@ bool UStatUpgradeComponent::RequestStatDown(FGameplayTag StatTag)
 	return ApplyStatDownInternal(StatTag);
 }
 
-bool UStatUpgradeComponent::GrantPointsToAllCategories(const float Amount)
+bool UStatUpgradeComponent::SetPointsForAllCategories(const float Value)
 {
 	AActor* OwnerActor = GetOwner();
 	if (!OwnerActor
 		|| !OwnerActor->HasAuthority()
-		|| !FMath::IsFinite(Amount)
-		|| Amount <= 0.f)
+		|| !FMath::IsFinite(Value)
+		|| Value < 0.0f)
 	{
 		return false;
 	}
@@ -247,9 +251,7 @@ bool UStatUpgradeComponent::GrantPointsToAllCategories(const float Amount)
 
 	for (const FGameplayAttribute& PointAttribute : PointAttributes)
 	{
-		const float CurrentValue = ASC->GetNumericAttribute(PointAttribute);
-		const float NewValue = FMath::Max(CurrentValue, 0.f) + Amount;
-		ASC->SetNumericAttributeBase(PointAttribute, NewValue);
+		ASC->SetNumericAttributeBase(PointAttribute, Value);
 		if (FProperty* Property = PointAttribute.GetUProperty())
 		{
 			MARK_PROPERTY_DIRTY(AttributeSet, Property);
@@ -282,8 +284,9 @@ bool UStatUpgradeComponent::ApplyStatUpInternal(FGameplayTag StatTag)
 
 	UStatUpgradeDefinition* LoadedDefinition = LoadStatUpgradeDefinition();
 
-	TSubclassOf<UGameplayEffect> StatUpGameplayEffectClass = LoadedDefinition ? LoadedDefinition->GetStatUpGameplayEffectClass() : nullptr;
-	if (!StatUpGameplayEffectClass)
+	const TSubclassOf<UGameplayEffect> EquipmentStatGameplayEffectClass =
+		GetEquipmentStatGameplayEffectClass();
+	if (!LoadedDefinition || !EquipmentStatGameplayEffectClass)
 	{
 		return false;
 	}
@@ -388,7 +391,7 @@ bool UStatUpgradeComponent::ApplyStatUpInternal(FGameplayTag StatTag)
 	AddStatMagnitude(StatMagnitudes, CostPointTag, -Cost);
 	AddStatMagnitude(StatMagnitudes, StatLevelTag, 1.f);
 
-	if (!ApplyStatUpgradeEffects(StatUpGameplayEffectClass, StatMagnitudes, EEnum_Operation::Add))
+	if (!ApplyStatUpgradeEffects(EquipmentStatGameplayEffectClass, StatMagnitudes, EEnum_Operation::Add))
 	{
 		UE_LOG(StatUpgradeComponentLog, Error, TEXT("[StatUpgrade] Failed to apply stat up effects. stat=%s"),
 			*StatTag.ToString());
@@ -418,8 +421,9 @@ bool UStatUpgradeComponent::ApplyStatDownInternal(FGameplayTag StatTag)
 
 	UStatUpgradeDefinition* LoadedDefinition = LoadStatUpgradeDefinition();
 
-	TSubclassOf<UGameplayEffect> StatUpGameplayEffectClass = LoadedDefinition ? LoadedDefinition->GetStatUpGameplayEffectClass() : nullptr;
-	if (!StatUpGameplayEffectClass)
+	const TSubclassOf<UGameplayEffect> EquipmentStatGameplayEffectClass =
+		GetEquipmentStatGameplayEffectClass();
+	if (!LoadedDefinition || !EquipmentStatGameplayEffectClass)
 	{
 		return false;
 	}
@@ -513,7 +517,7 @@ bool UStatUpgradeComponent::ApplyStatDownInternal(FGameplayTag StatTag)
 	AddStatMagnitude(StatMagnitudes, CostPointTag, Cost);
 	AddStatMagnitude(StatMagnitudes, StatLevelTag, -1.f);
 
-	if (!ApplyStatUpgradeEffects(StatUpGameplayEffectClass, StatMagnitudes, EEnum_Operation::Add))
+	if (!ApplyStatUpgradeEffects(EquipmentStatGameplayEffectClass, StatMagnitudes, EEnum_Operation::Add))
 	{
 		UE_LOG(StatUpgradeComponentLog, Error, TEXT("[StatUpgrade] Failed to apply stat down effects. stat=%s"),
 			*StatTag.ToString());
@@ -643,7 +647,7 @@ bool UStatUpgradeComponent::ApplyConfiguredAttributeDefaults()
 		return false;
 	}
 	bApplyDefaultsWhenDefinitionReady = false;
-	if (LoadedDefinition->GetAttributeValues().IsEmpty())
+	if (LoadedDefinition->GetAttributeDefaultValues().IsEmpty())
 	{
 		return false;
 	}
@@ -654,14 +658,14 @@ bool UStatUpgradeComponent::ApplyConfiguredAttributeDefaults()
 		return false;
 	}
 
-	TArray<FPdStatAttributeDefaultValue> OrderedDefaults = LoadedDefinition->GetAttributeValues();
-	OrderedDefaults.StableSort([](const FPdStatAttributeDefaultValue& Left, const FPdStatAttributeDefaultValue& Right)
+	TArray<FStatAttributeDefaultValue> OrderedDefaults = LoadedDefinition->GetAttributeDefaultValues();
+	OrderedDefaults.StableSort([](const FStatAttributeDefaultValue& Left, const FStatAttributeDefaultValue& Right)
 	{
 		return Left.Priority < Right.Priority;
 	});
 
 	bool bAppliedAny = false;
-	for (const FPdStatAttributeDefaultValue& AttributeDefault : OrderedDefaults)
+	for (const FStatAttributeDefaultValue& AttributeDefault : OrderedDefaults)
 	{
 		if (!AttributeDefault.IsValid())
 		{
@@ -682,6 +686,30 @@ bool UStatUpgradeComponent::ApplyConfiguredAttributeDefaults()
 
 	bAppliedAny |= RecalculateConfiguredMaxResources();
 	bAppliedAny |= RecalculateCompoundedPercentStats();
+
+	for (const FPairedResourceStatTag& Pair : LoadedDefinition->GetPairedResourceStatTags())
+	{
+		float ExplicitCurrentValue = 0.f;
+		if (!Pair.IsValid()
+			|| LoadedDefinition->TryGetExactAttributeDefaultValue(Pair.CurrentStatTag, ExplicitCurrentValue))
+		{
+			continue;
+		}
+
+		FGameplayAttribute MaxAttribute;
+		FGameplayAttribute CurrentAttribute;
+		if (!ASC->ResolveAttributeFromTag(Pair.MaxStatTag, MaxAttribute)
+			|| !ASC->ResolveAttributeFromTag(Pair.CurrentStatTag, CurrentAttribute))
+		{
+			continue;
+		}
+
+		const float MaxValue = ASC->GetNumericAttribute(MaxAttribute);
+		if (!FMath::IsNearlyEqual(ASC->GetNumericAttribute(CurrentAttribute), MaxValue))
+		{
+			bAppliedAny |= ASC->ApplyAttributeDefaultValue(CurrentAttribute, MaxValue);
+		}
+	}
 
 	return bAppliedAny;
 }
@@ -705,7 +733,7 @@ bool UStatUpgradeComponent::ResolveStatUpButtonSettings(const FGameplayTag& Stat
 		return false;
 	}
 
-	const FPdStatUpgradeRule* Setting = LoadedDefinition->FindUpgradeRuleForStat(StatTag);
+	const FStatUpgradeRule* Setting = LoadedDefinition->FindUpgradeRuleForStat(StatTag);
 	if (!Setting)
 	{
 		return false;
@@ -738,7 +766,7 @@ bool UStatUpgradeComponent::ResolvePairedCurrentResourceStatTag(const FGameplayT
 		return false;
 	}
 
-	for (const FPdPairedResourceStatTag& Pair : LoadedDefinition->GetPairedResourceStatTags())
+	for (const FPairedResourceStatTag& Pair : LoadedDefinition->GetPairedResourceStatTags())
 	{
 		if (Pair.MaxStatTag.IsValid() && Pair.CurrentStatTag.IsValid() && StatTag == Pair.MaxStatTag)
 		{
@@ -892,9 +920,7 @@ bool UStatUpgradeComponent::RecalculateCompoundedPercentStat(const FGameplayTag&
 		return false;
 	}
 
-	const bool bApplied = ASC->ApplyAttributeDefaultValue(CompoundedStat.ValueAttribute, CompoundedPercent);
-
-	return bApplied;
+	return ASC->ApplyAttributeDefaultValue(CompoundedStat.ValueAttribute, CompoundedPercent);
 }
 
 bool UStatUpgradeComponent::ApplyStatUpgradeEffects(TSubclassOf<UGameplayEffect> GameplayEffectClass, const TMap<FGameplayTag, float>& StatMagnitudes,
@@ -920,6 +946,13 @@ UPdAbilitySystemComponent* UStatUpgradeComponent::GetOwnerPdAbilitySystemCompone
 	return PlayerState ? PlayerState->GetPdAbilitySystemComponent() : nullptr;
 }
 
+TSubclassOf<UGameplayEffect> UStatUpgradeComponent::GetEquipmentStatGameplayEffectClass() const
+{
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	return SettingDefinition ? SettingDefinition->EquipmentStatGameplayEffectClass : nullptr;
+}
+
 void UStatUpgradeComponent::BindRecoveryAttributeChanged()
 {
 	UPdAbilitySystemComponent* ASC = GetOwnerPdAbilitySystemComponent();
@@ -937,13 +970,13 @@ void UStatUpgradeComponent::BindRecoveryAttributeChanged()
 	if (!RecoveryMaxHealthAttributeChangedDelegateHandle.IsValid())
 	{
 		RecoveryMaxHealthAttributeChangedDelegateHandle = ASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxHealthAttribute())
-			.AddUObject(this, &ThisClass::HandleRecoveryMaxHealthAttributeChanged);
+			.AddUObject(this, &ThisClass::HandleRecoveryAttributeChanged);
 	}
 
 	if (!RecoveryMaxManaAttributeChangedDelegateHandle.IsValid())
 	{
 		RecoveryMaxManaAttributeChangedDelegateHandle = ASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxManaAttribute())
-			.AddUObject(this, &ThisClass::HandleRecoveryMaxManaAttributeChanged);
+			.AddUObject(this, &ThisClass::HandleRecoveryAttributeChanged);
 	}
 }
 
@@ -996,34 +1029,6 @@ void UStatUpgradeComponent::HandleRecoveryAttributeChanged(const FOnAttributeCha
 	StartRecoveryHealthRegen();
 }
 
-void UStatUpgradeComponent::HandleRecoveryMaxHealthAttributeChanged(const FOnAttributeChangeData& Data)
-{
-	(void)Data;
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		return;
-	}
-
-	StopRecoveryHealthRegen();
-	StartRecoveryHealthRegen();
-}
-
-void UStatUpgradeComponent::HandleRecoveryMaxManaAttributeChanged(const FOnAttributeChangeData& Data)
-{
-	(void)Data;
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		return;
-	}
-
-	StopRecoveryHealthRegen();
-	StartRecoveryHealthRegen();
-}
-
 void UStatUpgradeComponent::StartRecoveryHealthRegen()
 {
 	AActor* OwnerActor = GetOwner();
@@ -1034,18 +1039,6 @@ void UStatUpgradeComponent::StartRecoveryHealthRegen()
 
 	BindRecoveryAttributeChanged();
 	StopRecoveryHealthRegen();
-
-	const UStatUpgradeDefinition* LoadedDefinition = LoadStatUpgradeDefinition();
-	if (!LoadedDefinition || !LoadedDefinition->ShouldEnableRecoveryHealthRegen())
-	{
-		return;
-	}
-
-	if (!LoadedDefinition->GetRecoveryHealGameplayEffectClass())
-	{
-		return;
-	}
-
 	ApplyRecoveryHealthRegenEffect();
 }
 
@@ -1066,14 +1059,12 @@ void UStatUpgradeComponent::StopRecoveryHealthRegen()
 
 void UStatUpgradeComponent::ApplyRecoveryHealthRegenEffect()
 {
-	const UStatUpgradeDefinition* LoadedDefinition = LoadedStatUpgradeDefinition ? LoadedStatUpgradeDefinition.Get() : LoadStatUpgradeDefinition();
-	if (!LoadedDefinition || !LoadedDefinition->ShouldEnableRecoveryHealthRegen())
-	{
-		StopRecoveryHealthRegen();
-		return;
-	}
-
-	TSubclassOf<UGameplayEffect> RecoveryHealEffectClass = LoadedDefinition->GetRecoveryHealGameplayEffectClass();
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const TSubclassOf<UGameplayEffect> RecoveryHealEffectClass =
+		SettingDefinition
+			? SettingDefinition->RecoveryHealGameplayEffectClass
+			: nullptr;
 	if (!RecoveryHealEffectClass)
 	{
 		StopRecoveryHealthRegen();
@@ -1091,6 +1082,14 @@ void UStatUpgradeComponent::ApplyRecoveryHealthRegenEffect()
 		return;
 	}
 
+	const float RecoveryPercent = FMath::Max(
+		ASC->GetNumericAttribute(UBasicAttributeSet::GetRecoveryAttribute()),
+		0.0f);
+	if (RecoveryPercent <= UE_KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
 	FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
 	EffectContext.AddSourceObject(this);
 
@@ -1100,7 +1099,6 @@ void UStatUpgradeComponent::ApplyRecoveryHealthRegenEffect()
 		return;
 	}
 
-	const float RecoveryPercent = FMath::Max(ASC->GetNumericAttribute(UBasicAttributeSet::GetRecoveryAttribute()), 0.0f);
 	const float MaxHealth = FMath::Max(ASC->GetNumericAttribute(UBasicAttributeSet::GetMaxHealthAttribute()), 0.0f);
 	const float MaxMana = FMath::Max(ASC->GetNumericAttribute(UBasicAttributeSet::GetMaxManaAttribute()), 0.0f);
 	const float RecoveryHealValue = MaxHealth * RecoveryPercent * 0.01f;

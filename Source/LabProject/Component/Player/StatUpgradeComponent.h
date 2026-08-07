@@ -34,7 +34,7 @@ public:
 	bool RequestStatDown(FGameplayTag StatTag);
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!AbilitySystem|Stat|Points")
-	bool GrantPointsToAllCategories(float Amount);
+	bool SetPointsForAllCategories(float Value);
 
 	bool ApplyConfiguredAttributeDefaults();
 
@@ -62,12 +62,11 @@ private:
 	bool RecalculateCompoundedPercentStat(const FGameplayTag& StatTag, TOptional<float> PerUpgradePercent = TOptional<float>());
 	bool ApplyStatUpgradeEffects(TSubclassOf<UGameplayEffect> GameplayEffectClass, const TMap<FGameplayTag, float>& StatMagnitudes,
 		EEnum_Operation Operation, float Level = 1.f);
+	TSubclassOf<UGameplayEffect> GetEquipmentStatGameplayEffectClass() const;
 	UPdAbilitySystemComponent* GetOwnerPdAbilitySystemComponent() const;
 	void BindRecoveryAttributeChanged();
 	void UnbindRecoveryAttributeChanged();
 	void HandleRecoveryAttributeChanged(const FOnAttributeChangeData& Data);
-	void HandleRecoveryMaxHealthAttributeChanged(const FOnAttributeChangeData& Data);
-	void HandleRecoveryMaxManaAttributeChanged(const FOnAttributeChangeData& Data);
 	void StartRecoveryHealthRegen();
 	void StopRecoveryHealthRegen();
 	void ApplyRecoveryHealthRegenEffect();

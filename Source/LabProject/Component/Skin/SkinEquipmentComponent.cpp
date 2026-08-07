@@ -291,7 +291,6 @@ bool USkinEquipmentComponent::EquipSkinDefinition(const USkinDefinition* SkinDef
 	RebuildEquippedSkinActors();
 	OnEquippedSkinsChanged.Broadcast();
 
-
 	return true;
 }
 
@@ -626,7 +625,6 @@ AActor* USkinEquipmentComponent::SpawnPetSkinActor(const USkinDefinition* SkinDe
 			DeferredPetCharacter->SetReplicates(true);
 			DeferredPetCharacter->SetReplicateMovement(true);
 			DeferredPetCharacter->SetFollowTargetActor(CharacterOwner);
-			DeferredPetCharacter->ApplySkinDefinition(SkinDefinition);
 			DeferredPetCharacter->FinishSpawning(SpawnTransform);
 			SpawnedActor = DeferredPetCharacter;
 		}
@@ -652,7 +650,6 @@ AActor* USkinEquipmentComponent::SpawnPetSkinActor(const USkinDefinition* SkinDe
 		if (PetCharacter != DeferredPetCharacter)
 		{
 			PetCharacter->SetFollowTargetActor(CharacterOwner);
-			PetCharacter->ApplySkinDefinition(SkinDefinition);
 		}
 	}
 	else

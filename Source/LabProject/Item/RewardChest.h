@@ -69,6 +69,7 @@ public:
 	virtual void GetRewardSkins_Implementation(TArray<FPrimaryAssetId>& OutSkinDefinitionList) override;
 	virtual void GetRewardPandoras_Implementation(TArray<FPrimaryAssetId>& OutPandoraDefinitionList) override;
 	virtual void OnRewardsClaimed_Implementation(AActor* RewardReceiver) override;
+	/** Inventory ownership does not exclude weapon or equipment candidates; duplicate instances are allowed. */
 	void GetRewardItemsForInventory(
 		const UInventoryComponent* InventoryComponent,
 		TArray<FPrimaryAssetId>& OutItemDefinitionList);
@@ -177,15 +178,12 @@ private:
 	void AppendPrimaryAssetIds(const TArray<TSoftObjectPtr<DefinitionType>>& SourceDefinitions, TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
 
 	void AppendRandomItemPrimaryAssetIds(
-		const TSet<FPrimaryAssetId>& ExcludedUniqueItemIds,
 		TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
 	void AppendConfiguredItemPrimaryAssetIds(
-		const TSet<FPrimaryAssetId>& ExcludedUniqueItemIds,
 		TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
 	int32 ResolveRandomRewardItemCount() const;
 	static int32 SelectWeightedItemIndex(const TArray<float>& Weights, float TotalWeight);
 	bool IsWeaponItemDefinition(const UItemDefinition* ItemDefinition) const;
-	bool IsUniqueEquipmentItemDefinition(const UItemDefinition* ItemDefinition) const;
 	void BeginRewardContentPreload();
 	void HandleRewardContentPreloadComplete();
 	void ReleaseRewardContentPreload();

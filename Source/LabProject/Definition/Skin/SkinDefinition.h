@@ -4,6 +4,7 @@
 #include "GameplayTagContainer.h"
 #include "Engine/DataAsset.h"
 #include "UI/Shop/ShopTypes.h"
+
 #include "SkinDefinition.generated.h"
 
 class UTexture2D;
@@ -19,6 +20,7 @@ class LABPROJECT_API USkinDefinition : public UPrimaryDataAsset
 
 public:
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+	bool IsGrantedByDefault() const { return bGrantedByDefault; }
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin")
@@ -45,9 +47,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin|Pet")
 	TSoftClassPtr<AActor> PetActorClass;
 
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin")
+UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin")
 	FGameplayTag IdTag;
+
+	/** Makes this cosmetic or gesture permanently available in lobby and gameplay profiles. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin|Default Grant",
+		meta = (DisplayName = "Granted By Default"))
+	bool bGrantedByDefault = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Shop")
 	FShopProductDefinitionData ShopData;

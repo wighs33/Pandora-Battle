@@ -1,4 +1,5 @@
 #include "Definition/Skin/SkinDefinition.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinDefinition)
 
 DEFINE_LOG_CATEGORY(SkinDefinitionLog);

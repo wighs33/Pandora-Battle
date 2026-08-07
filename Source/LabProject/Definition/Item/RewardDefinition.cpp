@@ -1,11 +1,9 @@
 #include "Definition/Item/RewardDefinition.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(RewardDefinition)
+#include "Definition/Item/ItemDefinition.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 
-namespace
-{
-	constexpr const TCHAR* DefaultRewardDefinitionPathName = TEXT("/Game/Data/DA_Reward.DA_Reward");
-}
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RewardDefinition)
 
 int32 FRewardExperienceRange::RollReward(const UObject* LogContext, const TCHAR* CategoryName) const
 {
@@ -56,6 +54,44 @@ int32 FRewardGoldRange::RollReward(const UObject* LogContext, const TCHAR* Categ
 	return Reward;
 }
 
+FPrimaryAssetId FRewardRandomPotionDrop::RollReward() const
+{
+	if (!bGrantRandomPotion)
+	{
+		return FPrimaryAssetId();
+	}
+
+	const FPrimaryAssetType ItemDefinitionType(TEXT("ItemDefinition"));
+	TArray<FPrimaryAssetId, TInlineAllocator<3>> ValidPotionDefinitionIds;
+	for (const TSoftObjectPtr<UItemDefinition>& PotionDefinition : PotionDefinitions)
+	{
+		const FSoftObjectPath PotionDefinitionPath = PotionDefinition.ToSoftObjectPath();
+		if (!PotionDefinitionPath.IsValid())
+		{
+			continue;
+		}
+
+		const FPrimaryAssetId PotionDefinitionId(
+			ItemDefinitionType,
+			PotionDefinitionPath.GetAssetFName());
+		ValidPotionDefinitionIds.AddUnique(PotionDefinitionId);
+	}
+
+	if (ValidPotionDefinitionIds.IsEmpty())
+	{
+		return FPrimaryAssetId();
+	}
+
+	const float ClampedChance = FMath::Clamp(PotionDropChance, 0.0f, 100.0f);
+	if (ClampedChance <= 0.0f
+		|| (ClampedChance < 100.0f && FMath::FRandRange(0.0f, 100.0f) >= ClampedChance))
+	{
+		return FPrimaryAssetId();
+	}
+
+	return ValidPotionDefinitionIds[FMath::RandHelper(ValidPotionDefinitionIds.Num())];
+}
+
 FPlayerKillRewardCategory::FPlayerKillRewardCategory()
 {
 	Experience.bGrantRandomExperience = true;
@@ -73,6 +109,18 @@ FMonsterDefeatRewardCategory::FMonsterDefeatRewardCategory()
 	SoulDust.SoulDustDropChance = 100.0f;
 	SoulDust.MinSoulDustReward = 1;
 	SoulDust.MaxSoulDustReward = 1;
+
+	PotionDrop.bGrantRandomPotion = true;
+	PotionDrop.PotionDropChance = 20.0f;
+	PotionDrop.PotionDefinitions =
+	{
+		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(
+			TEXT("/Game/Item/Consumable/DA_HealPotion.DA_HealPotion"))),
+		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(
+			TEXT("/Game/Item/Consumable/DA_ManaPotion.DA_ManaPotion"))),
+		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(
+			TEXT("/Game/Item/Consumable/DA_StaminaPotion.DA_StaminaPotion")))
+	};
 }
 
 int32 FRewardChestSpawnCategory::ResolveActiveChestCount(const int32 TotalChestCount) const
@@ -101,7 +149,8 @@ FPrimaryAssetId URewardDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath URewardDefinition::GetDefaultRewardDefinitionPath()
 {
-	return FSoftObjectPath(DefaultRewardDefinitionPathName);
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.Reward.ToSoftObjectPath();
 }
 
 int32 URewardDefinition::RollMonsterDefeatExperienceReward() const
@@ -112,6 +161,11 @@ int32 URewardDefinition::RollMonsterDefeatExperienceReward() const
 int32 URewardDefinition::RollMonsterDefeatSoulDustReward() const
 {
 	return MonsterDefeatReward.SoulDust.RollReward(this, TEXT("MonsterDefeat"));
+}
+
+FPrimaryAssetId URewardDefinition::RollMonsterDefeatPotionReward() const
+{
+	return MonsterDefeatReward.PotionDrop.RollReward();
 }
 
 int32 URewardDefinition::RollPlayerKillExperienceReward() const

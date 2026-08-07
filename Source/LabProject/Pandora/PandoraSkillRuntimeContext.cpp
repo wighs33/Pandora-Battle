@@ -27,7 +27,7 @@ const FSkill* UPandoraSkillRuntimeContext::GetPandoraSkill() const
 TArray<FProjectileImpactEffectAreaSpawnConfig> UPandoraSkillRuntimeContext::GetProjectileImpactEffectAreas() const
 {
 	const USkillDefinition* SkillData = SkillDataAsset.Get();
-	if (!SkillData || SkillData->SkillDataType != EPdSkillDataType::Projectile)
+	if (!SkillData || SkillData->SkillDataType != ESkillDataType::Projectile)
 	{
 		return TArray<FProjectileImpactEffectAreaSpawnConfig>();
 	}

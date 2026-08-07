@@ -158,7 +158,6 @@ FPandoraSkillBindingResult FPandoraSkillBinder::GrantPandoraContent(
 	const int32 NumEntriesToGrant = FMath::Min(PandoraDefinition->Skill.Num(), MaxPandoraSlotsValue);
 	const int32 EffectivePandoraLevelForUnlock = FMath::Clamp(PandoraLevel, 0, PandoraDefinition->GetMaxLevel());
 
-
 	for (int32 SlotIndex = 0; SlotIndex < NumEntriesToGrant; ++SlotIndex)
 	{
 		const FSkill& Entry = PandoraDefinition->Skill[SlotIndex];
@@ -197,7 +196,7 @@ FPandoraSkillBindingResult FPandoraSkillBinder::GrantPandoraContent(
 			if (bShouldBindInputTag && InputTag.IsValid())
 			{
 				AbilitySpec.GetDynamicSpecSourceTags().AddTag(InputTag);
-				if (Entry.SkillDefinition && Entry.SkillDefinition->SkillType == EPdSkillType::Press)
+				if (Entry.SkillDefinition && Entry.SkillDefinition->SkillType == ESkillType::Press)
 				{
 					AbilitySpec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Skill_Type_Press);
 				}
@@ -214,13 +213,11 @@ FPandoraSkillBindingResult FPandoraSkillBinder::GrantPandoraContent(
 					TryActivateAbilityNextTick(AbilitySystemComponent, GrantedHandle);
 				}
 
-
-			}
+}
 
 			bShouldBindInputTag = false;
 		}
 	}
-
 
 	return Result;
 }
@@ -252,9 +249,7 @@ void FPandoraSkillBinder::RefreshInputBindings(
 		return;
 	}
 
-
-
-	TArray<FGameplayAbilitySpecHandle> AbilityHandles;
+TArray<FGameplayAbilitySpecHandle> AbilityHandles;
 	AbilitySystemComponent->GetAllAbilities(AbilityHandles);
 	for (const FGameplayAbilitySpecHandle& AbilityHandle : AbilityHandles)
 	{
@@ -311,7 +306,7 @@ void FPandoraSkillBinder::RefreshInputBindings(
 			}
 
 			AbilitySpec->GetDynamicSpecSourceTags().AddTag(InputTag);
-			if (Entry.SkillDefinition && Entry.SkillDefinition->SkillType == EPdSkillType::Press)
+			if (Entry.SkillDefinition && Entry.SkillDefinition->SkillType == ESkillType::Press)
 			{
 				AbilitySpec->GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Skill_Type_Press);
 			}

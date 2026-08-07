@@ -3,7 +3,7 @@
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimMontage.h"
 #include "Character/PdPlayer.h"
-#include "Component/Item/InventoryComponent.h"
+#include "Common/CollisionChannels.h"
 #include "Components/MaterialBillboardComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/AssetManager.h"
@@ -50,7 +50,7 @@ ARewardChest::ARewardChest(const FObjectInitializer& ObjectInitializer)
 		ChestMesh->SetCollisionResponseToAllChannels(ECR_Block);
 		ChestMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 		ChestMesh->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
-		ChestMesh->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Overlap); // OverlapBox
+		ChestMesh->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(), ECR_Overlap);
 		ChestMesh->SetGenerateOverlapEvents(true);
 		ChestMesh->SetCanEverAffectNavigation(false);
 		ChestMesh->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::HandleChestBeginOverlap);
@@ -131,9 +131,7 @@ bool ARewardChest::CanInteract_Implementation(AActor* InteractingActor)
 bool ARewardChest::Interact_Implementation(AActor* InteractingActor)
 {
 
-
-
-	// Reward application is owned by PlayerRewardComponent.
+// Reward application is owned by PlayerRewardComponent.
 	return false;
 }
 
@@ -151,7 +149,7 @@ void ARewardChest::GetRewardItems_Implementation(TArray<FPrimaryAssetId>& OutIte
 }
 
 void ARewardChest::GetRewardItemsForInventory(
-	const UInventoryComponent* InventoryComponent,
+	const UInventoryComponent*,
 	TArray<FPrimaryAssetId>& OutItemDefinitionList)
 {
 	OutItemDefinitionList.Reset();
@@ -162,26 +160,14 @@ void ARewardChest::GetRewardItemsForInventory(
 		return;
 	}
 
-	TSet<FPrimaryAssetId> ExcludedUniqueItemIds;
-	if (InventoryComponent)
-	{
-		InventoryComponent->GetOwnedOrPendingItemDefinitionIds(
-			ExcludedUniqueItemIds);
-	}
-
 	if (bUseItemDefinitionDropRates)
 	{
-		AppendRandomItemPrimaryAssetIds(
-			ExcludedUniqueItemIds,
-			OutItemDefinitionList);
+		AppendRandomItemPrimaryAssetIds(OutItemDefinitionList);
 	}
 	else
 	{
-		AppendConfiguredItemPrimaryAssetIds(
-			ExcludedUniqueItemIds,
-			OutItemDefinitionList);
+		AppendConfiguredItemPrimaryAssetIds(OutItemDefinitionList);
 	}
-
 
 }
 
@@ -216,8 +202,7 @@ void ARewardChest::GetRewardPandoras_Implementation(TArray<FPrimaryAssetId>& Out
 void ARewardChest::OnRewardsClaimed_Implementation(AActor* RewardReceiver)
 {
 
-
-	MarkOpened(RewardReceiver);
+MarkOpened(RewardReceiver);
 }
 
 void ARewardChest::MarkOpened(AActor* RewardReceiver)
@@ -228,9 +213,7 @@ void ARewardChest::MarkOpened(AActor* RewardReceiver)
 		return;
 	}
 
-
-
-	PlayCharacterInteractionAnimation(RewardReceiver);
+PlayCharacterInteractionAnimation(RewardReceiver);
 	SetChestState(ERewardChestState::Opening, RewardReceiver);
 	ScheduleRespawnAfterOpen();
 }
@@ -248,8 +231,7 @@ void ARewardChest::DeactivateForSpawnPool()
 void ARewardChest::OnRep_ChestState()
 {
 
-
-	ApplyChestState(nullptr);
+ApplyChestState(nullptr);
 }
 
 void ARewardChest::HandleChestBeginOverlap(
@@ -267,7 +249,6 @@ void ARewardChest::HandleChestBeginOverlap(
 	APdPlayer* Player = Cast<APdPlayer>(OtherActor);
 	const bool bShouldShowTip = ChestState == ERewardChestState::Closed && Player && Player->IsLocallyControlled();
 
-
 	if (bShouldShowTip)
 	{
 		SetInteractionTipVisible(true);
@@ -284,7 +265,6 @@ void ARewardChest::HandleChestEndOverlap(
 
 	APdPlayer* Player = Cast<APdPlayer>(OtherActor);
 	const bool bShouldHideTip = ChestState == ERewardChestState::Closed && Player && Player->IsLocallyControlled();
-
 
 	if (bShouldHideTip)
 	{
@@ -320,7 +300,6 @@ void ARewardChest::AppendPrimaryAssetIds(
 }
 
 void ARewardChest::AppendRandomItemPrimaryAssetIds(
-	const TSet<FPrimaryAssetId>& ExcludedUniqueItemIds,
 	TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const
 {
 	UAssetManager& AssetManager = UAssetManager::Get();
@@ -333,7 +312,6 @@ void ARewardChest::AppendRandomItemPrimaryAssetIds(
 	float TotalWeaponWeight = 0.0f;
 	TArray<FPrimaryAssetId> NonWeaponCandidateIds;
 	TArray<float> NonWeaponCandidateWeights;
-	TArray<bool> NonWeaponCandidateUniqueEquipmentFlags;
 	float TotalNonWeaponWeight = 0.0f;
 
 	for (const FPrimaryAssetId& ItemDefinitionId : AllItemDefinitionIds)
@@ -352,14 +330,6 @@ void ARewardChest::AppendRandomItemPrimaryAssetIds(
 			continue;
 		}
 
-		const bool bUniqueEquipment =
-			IsUniqueEquipmentItemDefinition(ItemDefinition);
-		if (bUniqueEquipment
-			&& ExcludedUniqueItemIds.Contains(ItemDefinitionId))
-		{
-			continue;
-		}
-
 		if (IsWeaponItemDefinition(ItemDefinition))
 		{
 			WeaponCandidateIds.Add(ItemDefinitionId);
@@ -370,7 +340,6 @@ void ARewardChest::AppendRandomItemPrimaryAssetIds(
 		{
 			NonWeaponCandidateIds.Add(ItemDefinitionId);
 			NonWeaponCandidateWeights.Add(DropRate);
-			NonWeaponCandidateUniqueEquipmentFlags.Add(bUniqueEquipment);
 			TotalNonWeaponWeight += DropRate;
 		}
 	}
@@ -400,21 +369,16 @@ void ARewardChest::AppendRandomItemPrimaryAssetIds(
 
 		OutPrimaryAssetIds.Add(NonWeaponCandidateIds[SelectedIndex]);
 
-		const bool bSelectedUniqueEquipment =
-			NonWeaponCandidateUniqueEquipmentFlags.IsValidIndex(SelectedIndex)
-			&& NonWeaponCandidateUniqueEquipmentFlags[SelectedIndex];
-		if (!bAllowDuplicateRandomItems || bSelectedUniqueEquipment)
+		if (!bAllowDuplicateRandomItems)
 		{
 			TotalNonWeaponWeight -= NonWeaponCandidateWeights[SelectedIndex];
 			NonWeaponCandidateIds.RemoveAt(SelectedIndex);
 			NonWeaponCandidateWeights.RemoveAt(SelectedIndex);
-			NonWeaponCandidateUniqueEquipmentFlags.RemoveAt(SelectedIndex);
 		}
 	}
 }
 
 void ARewardChest::AppendConfiguredItemPrimaryAssetIds(
-	const TSet<FPrimaryAssetId>& ExcludedUniqueItemIds,
 	TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const
 {
 	TArray<FPrimaryAssetId> WeaponIds;
@@ -441,14 +405,6 @@ void ARewardChest::AppendConfiguredItemPrimaryAssetIds(
 			continue;
 		}
 
-		const bool bUniqueEquipment =
-			IsUniqueEquipmentItemDefinition(ItemDefinition);
-		if (bUniqueEquipment
-			&& ExcludedUniqueItemIds.Contains(PrimaryAssetId))
-		{
-			continue;
-		}
-
 		if (IsWeaponItemDefinition(ItemDefinition))
 		{
 			if (!ItemDefinition->CanDropFromRewardChest())
@@ -467,14 +423,7 @@ void ARewardChest::AppendConfiguredItemPrimaryAssetIds(
 		}
 		else
 		{
-			if (bUniqueEquipment)
-			{
-				NonWeaponIds.AddUnique(PrimaryAssetId);
-			}
-			else
-			{
-				NonWeaponIds.Add(PrimaryAssetId);
-			}
+			NonWeaponIds.Add(PrimaryAssetId);
 		}
 	}
 
@@ -550,16 +499,6 @@ bool ARewardChest::IsWeaponItemDefinition(
 		&& (ItemDefinition->HasWeaponData()
 			|| ItemDefinition->MatchesItemType(
 				TagConfig->GetItemWeaponTypeTag()));
-}
-
-bool ARewardChest::IsUniqueEquipmentItemDefinition(
-	const UItemDefinition* ItemDefinition) const
-{
-	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
-	return ItemDefinition
-		&& (IsWeaponItemDefinition(ItemDefinition)
-			|| ItemDefinition->MatchesItemType(
-				TagConfig->GetItemEquipmentTypeTag()));
 }
 
 void ARewardChest::BeginRewardContentPreload()
@@ -661,12 +600,11 @@ void ARewardChest::ConfigureChestCollision(const bool bEnableInteraction) const
 	ChestMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 	ChestMesh->SetCollisionResponseToChannel(ECC_WorldDynamic, bEnableInteraction ? ECR_Overlap : ECR_Ignore);
 	ChestMesh->SetCollisionResponseToChannel(
-		ECC_GameTraceChannel3,
-		bEnableInteraction ? ECR_Overlap : ECR_Ignore); // OverlapBox
+		LabCollisionChannels::OverlapBox(),
+		bEnableInteraction ? ECR_Overlap : ECR_Ignore);
 	ChestMesh->SetGenerateOverlapEvents(bEnableInteraction);
 	ChestMesh->SetCanEverAffectNavigation(false);
 	ChestMesh->UpdateOverlaps();
-
 
 }
 
@@ -685,8 +623,7 @@ void ARewardChest::PlayCharacterInteractionAnimation(AActor* RewardReceiver) con
 		return;
 	}
 
-
-	Player->PlayInteractionMontage(CharacterInteractionMontage, CharacterInteractionMontagePlayRate);
+Player->PlayInteractionMontage(CharacterInteractionMontage, CharacterInteractionMontagePlayRate);
 }
 
 void ARewardChest::SetChestState(const ERewardChestState NewState, AActor* RewardReceiver)
@@ -697,16 +634,13 @@ void ARewardChest::SetChestState(const ERewardChestState NewState, AActor* Rewar
 		return;
 	}
 
-
-
-	ChestState = NewState;
+ChestState = NewState;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ARewardChest, ChestState, this);
 	ApplyChestState(RewardReceiver);
 }
 
 void ARewardChest::ApplyChestState(AActor* RewardReceiver)
 {
-
 
 	switch (ChestState)
 	{
@@ -829,7 +763,6 @@ void ARewardChest::ApplyHiddenState()
 		OpenEffect->Deactivate();
 	}
 
-
 }
 
 void ARewardChest::ScheduleFinishOpening()
@@ -850,7 +783,6 @@ void ARewardChest::ScheduleFinishOpening()
 
 	const float AnimationLength = OpenAnimation ? OpenAnimation->GetPlayLength() : 0.0f;
 	const float FinishDelay = AnimationLength > 0.0f ? AnimationLength : HideAfterOpenFallbackDelay;
-
 
 	if (FinishDelay <= 0.0f)
 	{
@@ -892,7 +824,6 @@ void ARewardChest::ScheduleHideOpenedChest()
 	}
 
 	World->GetTimerManager().ClearTimer(HideOpenedChestTimerHandle);
-
 
 	if (HideAfterOpenFallbackDelay <= 0.0f)
 	{
@@ -1057,7 +988,6 @@ bool ARewardChest::IsOccupyingSpawnLocation(
 void ARewardChest::SetInteractionAnchorVisible(const bool bVisible) const
 {
 
-
 	if (InteractionBillboard)
 	{
 		InteractionBillboard->SetHiddenInGame(!bVisible);
@@ -1075,8 +1005,6 @@ void ARewardChest::SetInteractionTipVisible(const bool bVisible) const
 	{
 		SetInteractionAnchorVisible(true);
 	}
-
-
 
 	if (InteractionTipWidget)
 	{

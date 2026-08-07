@@ -1,7 +1,7 @@
 #include "Definition/Player/StatUpgradeDefinition.h"
 
 #include "Common/LabGameplayTags.h"
-#include "GameplayEffect.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -92,11 +92,11 @@ namespace
 		FGameplayTag LevelTag;
 	};
 
-	const FPdStatAttributeDefaultValue* FindExactAttributeValue(
-		const TArray<FPdStatAttributeDefaultValue>& AttributeValues,
+	const FStatAttributeDefaultValue* FindExactAttributeValue(
+		const TArray<FStatAttributeDefaultValue>& AttributeValues,
 		const FGameplayTag& StatTag)
 	{
-		for (const FPdStatAttributeDefaultValue& AttributeValue : AttributeValues)
+		for (const FStatAttributeDefaultValue& AttributeValue : AttributeValues)
 		{
 			if (AttributeValue.StatTag.MatchesTagExact(StatTag))
 			{
@@ -107,16 +107,16 @@ namespace
 		return nullptr;
 	}
 
-	const FPdStatAttributeDefaultValue* FindMatchingAttributeValue(
-		const TArray<FPdStatAttributeDefaultValue>& AttributeValues,
+	const FStatAttributeDefaultValue* FindMatchingAttributeValue(
+		const TArray<FStatAttributeDefaultValue>& AttributeValues,
 		const FGameplayTag& StatTag)
 	{
-		if (const FPdStatAttributeDefaultValue* ExactValue = FindExactAttributeValue(AttributeValues, StatTag))
+		if (const FStatAttributeDefaultValue* ExactValue = FindExactAttributeValue(AttributeValues, StatTag))
 		{
 			return ExactValue;
 		}
 
-		for (const FPdStatAttributeDefaultValue& AttributeValue : AttributeValues)
+		for (const FStatAttributeDefaultValue& AttributeValue : AttributeValues)
 		{
 			if (AttributeValue.StatTag.IsValid() && StatTag.MatchesTag(AttributeValue.StatTag))
 			{
@@ -127,11 +127,11 @@ namespace
 		return nullptr;
 	}
 
-	const FPdStatUpgradeRule* FindMatchingUpgradeRule(
-		const TArray<FPdStatUpgradeRule>& UpgradeRules,
+	const FStatUpgradeRule* FindMatchingUpgradeRule(
+		const TArray<FStatUpgradeRule>& UpgradeRules,
 		const FGameplayTag& StatTag)
 	{
-		for (const FPdStatUpgradeRule& Rule : UpgradeRules)
+		for (const FStatUpgradeRule& Rule : UpgradeRules)
 		{
 			if (Rule.RootTag.IsValid() && StatTag.MatchesTag(Rule.RootTag))
 			{
@@ -152,7 +152,13 @@ FPrimaryAssetId UStatUpgradeDefinition::GetPrimaryAssetId() const
 	return FPrimaryAssetId(TEXT("StatUpgradeDefinition"), GetFName());
 }
 
-const FPdStatUpgradeRule* UStatUpgradeDefinition::FindUpgradeRuleForStat(const FGameplayTag& StatTag) const
+FSoftObjectPath UStatUpgradeDefinition::GetDefaultDefinitionPath()
+{
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.StatUpgrade.ToSoftObjectPath();
+}
+
+const FStatUpgradeRule* UStatUpgradeDefinition::FindUpgradeRuleForStat(const FGameplayTag& StatTag) const
 {
 	return StatTag.IsValid() ? FindMatchingUpgradeRule(UpgradeRules, StatTag) : nullptr;
 }
@@ -215,7 +221,7 @@ bool UStatUpgradeDefinition::TryGetAttributeValuePerUpgrade(const FGameplayTag& 
 		return false;
 	}
 
-	for (const FPdStatAttributeDefaultValue& AttributeValue : AttributeDefaultValues)
+	for (const FStatAttributeDefaultValue& AttributeValue : AttributeDefaultValues)
 	{
 		if (AttributeValue.StatTag.MatchesTagExact(StatTag))
 		{
@@ -224,7 +230,7 @@ bool UStatUpgradeDefinition::TryGetAttributeValuePerUpgrade(const FGameplayTag& 
 		}
 	}
 
-	for (const FPdStatAttributeDefaultValue& AttributeValue : AttributeDefaultValues)
+	for (const FStatAttributeDefaultValue& AttributeValue : AttributeDefaultValues)
 	{
 		if (AttributeValue.StatTag.IsValid() && StatTag.MatchesTag(AttributeValue.StatTag))
 		{
@@ -256,7 +262,7 @@ float UStatUpgradeDefinition::GetAttributeValuePerUpgrade(const FGameplayTag& St
 
 bool UStatUpgradeDefinition::TryGetExactAttributeDefaultValue(const FGameplayTag& StatTag, float& OutValue) const
 {
-	const FPdStatAttributeDefaultValue* AttributeValue = StatTag.IsValid()
+	const FStatAttributeDefaultValue* AttributeValue = StatTag.IsValid()
 		? FindExactAttributeValue(AttributeDefaultValues, StatTag)
 		: nullptr;
 	if (!AttributeValue)
@@ -277,29 +283,13 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 		Result = EDataValidationResult::Valid;
 	}
 
-	if (!StatUpGameplayEffectClass)
-	{
-		MarkStatUpgradeInvalid(Context, Result, NSLOCTEXT("StatUpgradeDefinition", "MissingGameplayEffect", "StatUpGameplayEffectClass is required."));
-	}
-
 	ValidatePositive(Context, Result, MaxInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
 	ValidateLessOrEqual(Context, Result, MaxInvestedLevel, MaxSupportedInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
-
-	if (bEnableRecoveryHealthRegen)
-	{
-		if (!RecoveryHealGameplayEffectClass)
-		{
-			Context.AddWarning(NSLOCTEXT(
-				"StatUpgradeDefinition",
-				"MissingRecoveryHealGameplayEffect",
-				"Recovery health regeneration is enabled, but RecoveryHealGameplayEffectClass is not set."));
-		}
-	}
 
 	TSet<FGameplayTag> UpgradeRootTags;
 	for (int32 EntryIndex = 0; EntryIndex < UpgradeRules.Num(); ++EntryIndex)
 	{
-		const FPdStatUpgradeRule& Rule = UpgradeRules[EntryIndex];
+		const FStatUpgradeRule& Rule = UpgradeRules[EntryIndex];
 		if (!Rule.IsValid())
 		{
 			MarkStatUpgradeInvalid(Context, Result, FText::Format(
@@ -340,17 +330,16 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 				FText::AsNumber(EntryIndex)));
 		}
 
-		float ValuePerUpgrade = 0.f;
-		if (!TryGetAttributeValuePerUpgrade(Rule.RootTag, ValuePerUpgrade))
+		const bool bHasAttributeValueInCategory = AttributeDefaultValues.ContainsByPredicate(
+			[&Rule](const FStatAttributeDefaultValue& AttributeValue)
+			{
+				return AttributeValue.StatTag.IsValid()
+					&& AttributeValue.StatTag.MatchesTag(Rule.RootTag);
+			});
+		if (!bHasAttributeValueInCategory)
 		{
 			Context.AddWarning(FText::Format(
-				NSLOCTEXT("StatUpgradeDefinition", "MissingValuePerUpgrade", "UpgradeRules entry {0} has no matching Attribute Values entry. Runtime will fall back to 1."),
-				FText::AsNumber(EntryIndex)));
-		}
-		else if (FMath::IsNearlyZero(ValuePerUpgrade))
-		{
-			Context.AddWarning(FText::Format(
-				NSLOCTEXT("StatUpgradeDefinition", "ZeroValuePerUpgrade", "UpgradeRules entry {0} resolves to zero ValuePerUpgrade. Upgrading this stat will have no stat magnitude."),
+				NSLOCTEXT("StatUpgradeDefinition", "MissingAttributeValueCategory", "UpgradeRules entry {0} has no child Attribute Values entries."),
 				FText::AsNumber(EntryIndex)));
 		}
 	}
@@ -363,7 +352,7 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 	TSet<FGameplayTag> PairedMaxStatTags;
 	for (int32 EntryIndex = 0; EntryIndex < PairedResourceStatTags.Num(); ++EntryIndex)
 	{
-		const FPdPairedResourceStatTag& Pair = PairedResourceStatTags[EntryIndex];
+		const FPairedResourceStatTag& Pair = PairedResourceStatTags[EntryIndex];
 		if (!Pair.IsValid())
 		{
 			MarkStatUpgradeInvalid(Context, Result, FText::Format(
@@ -392,7 +381,7 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
 	TSet<FGameplayTag> AttributeDefaultTags;
 	for (int32 EntryIndex = 0; EntryIndex < AttributeDefaultValues.Num(); ++EntryIndex)
 	{
-		const FPdStatAttributeDefaultValue& AttributeDefault = AttributeDefaultValues[EntryIndex];
+		const FStatAttributeDefaultValue& AttributeDefault = AttributeDefaultValues[EntryIndex];
 		if (!AttributeDefault.IsValid())
 		{
 			MarkStatUpgradeInvalid(Context, Result, FText::Format(

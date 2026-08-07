@@ -27,31 +27,31 @@ namespace
 {
 	constexpr int32 FixedPandoraMaxLevel = 3;
 
-	TSubclassOf<UGameplayAbility> GetDefaultAbilityClassForSkillDataType(const EPdSkillDataType SkillDataType)
+	TSubclassOf<UGameplayAbility> GetDefaultAbilityClassForSkillDataType(const ESkillDataType SkillDataType)
 	{
 		switch (SkillDataType)
 		{
-		case EPdSkillDataType::Projectile:
+		case ESkillDataType::Projectile:
 			return UProjectileAbility::StaticClass();
-		case EPdSkillDataType::Area:
+		case ESkillDataType::Area:
 			return UAOEAttackAbility::StaticClass();
-		case EPdSkillDataType::Dash:
+		case ESkillDataType::Dash:
 			return UDashAbility::StaticClass();
-		case EPdSkillDataType::Aura:
+		case ESkillDataType::Aura:
 			return UAuraAbility::StaticClass();
-		case EPdSkillDataType::Trail:
+		case ESkillDataType::Trail:
 			return UTrailAbility::StaticClass();
-		case EPdSkillDataType::Missile:
+		case ESkillDataType::Missile:
 			return UMissileAbility::StaticClass();
-		case EPdSkillDataType::Summon:
+		case ESkillDataType::Summon:
 			return USummonAbility::StaticClass();
-		case EPdSkillDataType::Static:
+		case ESkillDataType::Static:
 			return UStaticAbility::StaticClass();
-		case EPdSkillDataType::ShieldBubble:
+		case ESkillDataType::ShieldBubble:
 			return UShieldAbility::StaticClass();
-		case EPdSkillDataType::FillShield:
+		case ESkillDataType::FillShield:
 			return UFillShieldAbility::StaticClass();
-		case EPdSkillDataType::Default:
+		case ESkillDataType::Default:
 		default:
 			return nullptr;
 		}
@@ -77,11 +77,11 @@ namespace
 			&& (!ExpectedAbilityClass || AbilityClass->IsChildOf(ExpectedAbilityClass));
 	}
 
-	bool IsInputDrivenSkillType(const EPdSkillType SkillType)
+	bool IsInputDrivenSkillType(const ESkillType SkillType)
 	{
-		return SkillType == EPdSkillType::Instant
-			|| SkillType == EPdSkillType::Press
-			|| SkillType == EPdSkillType::Duration;
+		return SkillType == ESkillType::Instant
+			|| SkillType == ESkillType::Press
+			|| SkillType == ESkillType::Duration;
 	}
 
 	void FilterActiveAbilityClassesBySkillDataType(

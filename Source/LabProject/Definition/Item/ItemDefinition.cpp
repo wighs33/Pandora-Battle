@@ -264,6 +264,18 @@ namespace
 		ValidateSoftObjectReference(Context, Result, ItemDefinition.WeaponData.Attack.AttackMontage, TEXT("WeaponData.Attack.AttackMontage"));
 		ValidateSoftObjectReference(Context, Result, ItemDefinition.WeaponData.HitReact.HitReactMontage, TEXT("WeaponData.HitReact.HitReactMontage"));
 
+		if (!FMath::IsFinite(ItemDefinition.WeaponData.Attack.StaminaCost)
+			|| ItemDefinition.WeaponData.Attack.StaminaCost < 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidWeaponAttackStaminaCost", "WeaponData.Attack.StaminaCost must be a non-negative finite value."));
+		}
+
+		if (!FMath::IsFinite(ItemDefinition.WeaponData.Movement.MeleeEquippedMovementSpeedMultiplier)
+			|| ItemDefinition.WeaponData.Movement.MeleeEquippedMovementSpeedMultiplier <= 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidMeleeMovementSpeedMultiplier", "WeaponData.Movement.MeleeEquippedMovementSpeedMultiplier must be a positive finite value."));
+		}
+
 		if (ItemDefinition.WeaponData.Equip.ActorClass.IsNull())
 		{
 			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "WeaponMissingActorClass", "Weapon items require WeaponData.Equip.ActorClass."));
@@ -464,6 +476,27 @@ bool UItemDefinition::HasWeaponData() const
 bool UItemDefinition::IsWeaponDefinition(const FGameplayTag WeaponTypeTag) const
 {
 	return MatchesItemType(WeaponTypeTag) || HasWeaponData();
+}
+
+float UItemDefinition::GetSafeAttackStaminaCost() const
+{
+	return FMath::IsFinite(WeaponData.Attack.StaminaCost)
+		? FMath::Max(WeaponData.Attack.StaminaCost, 0.0f)
+		: 0.0f;
+}
+
+float UItemDefinition::GetEquippedMovementSpeedMultiplier() const
+{
+	if (WeaponData.Aim.bSupportsInput)
+	{
+		return 1.0f;
+	}
+
+	const float ConfiguredMultiplier =
+		WeaponData.Movement.MeleeEquippedMovementSpeedMultiplier;
+	return FMath::IsFinite(ConfiguredMultiplier)
+		? FMath::Max(ConfiguredMultiplier, 0.01f)
+		: 1.0f;
 }
 
 bool UItemDefinition::IsConsumableDefinition(const FGameplayTag ConsumableTypeTag) const

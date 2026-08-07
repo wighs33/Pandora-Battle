@@ -1,26 +1,16 @@
 #include "Pandora/PandoraDefaultUnlockPolicy.h"
 
 #include "Definition/Pandora/PandoraDefinition.h"
-
-namespace
-{
-	const TArray<FName>& DefaultUnlockedPandoraKeys()
-	{
-		static const TArray<FName> Keys = {
-			TEXT("Fire"),
-			TEXT("Freeze"),
-			TEXT("Darkness"),
-			TEXT("Light"),
-			TEXT("Machine"),
-			TEXT("Lightning")
-		};
-		return Keys;
-	}
-}
+#include "Definition/Provision/DefaultProvisionDefinition.h"
 
 const TArray<FName>& PandoraDefaultUnlockPolicy::GetDefaultUnlockedPandoraKeys()
 {
-	return DefaultUnlockedPandoraKeys();
+	static TArray<FName> DefaultUnlockedPandoraKeys;
+	UDefaultProvisionDefinition::ResolveDefaultDefinition()
+		->GetPandoraKeys(
+			EDefaultProvisionMode::Gameplay,
+			DefaultUnlockedPandoraKeys);
+	return DefaultUnlockedPandoraKeys;
 }
 
 FString PandoraDefaultUnlockPolicy::NormalizePandoraKey(const FName PandoraName)
@@ -38,16 +28,10 @@ bool PandoraDefaultUnlockPolicy::IsDefaultUnlockedPandoraName(const FName Pandor
 		return false;
 	}
 
-	const FString NormalizedPandoraKey = NormalizePandoraKey(PandoraName);
-	for (const FName DefaultPandoraKey : GetDefaultUnlockedPandoraKeys())
-	{
-		if (NormalizedPandoraKey.Equals(NormalizePandoraKey(DefaultPandoraKey), ESearchCase::IgnoreCase))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return UDefaultProvisionDefinition::ResolveDefaultDefinition()
+		->IsPandoraKeyGranted(
+			PandoraName,
+			EDefaultProvisionMode::Gameplay);
 }
 
 bool PandoraDefaultUnlockPolicy::IsDefaultUnlockedPandoraDefinition(const UPandoraDefinition* PandoraDefinition)

@@ -2,6 +2,7 @@
 
 #include "Character/CharacterBase.h"
 #include "Character/CharacterHitValidation.h"
+#include "Common/CollisionChannels.h"
 #include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -26,16 +27,21 @@ void ConfigureArrowCollision(UPrimitiveComponent* CollisionComponent)
 		return;
 	}
 
-	CollisionComponent->SetCollisionObjectType(ECC_GameTraceChannel2);
+	CollisionComponent->SetCollisionObjectType(LabCollisionChannels::Projectile());
 	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
-	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	CollisionComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap);
+	CollisionComponent->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
 	CollisionComponent->SetGenerateOverlapEvents(false);
 	CollisionComponent->SetNotifyRigidBodyCollision(true);
 	CollisionComponent->SetCanEverAffectNavigation(false);
+	CollisionComponent->SetHiddenInGame(true, false);
+	CollisionComponent->SetVisibility(false, false);
+	if (UBoxComponent* BoxComponent = Cast<UBoxComponent>(CollisionComponent))
+	{
+		BoxComponent->bDrawOnlyIfSelected = true;
+	}
 }
 
 TArray<TEnumAsByte<EObjectTypeQuery>> MakeArrowImpactTraceObjectTypes()
@@ -44,8 +50,7 @@ TArray<TEnumAsByte<EObjectTypeQuery>> MakeArrowImpactTraceObjectTypes()
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_GameTraceChannel1));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody()));
 	return ObjectTypes;
 }
 }
@@ -317,14 +322,6 @@ bool AArrowProjectileBase::IsIgnoredImpactActor(const AActor* OtherActor) const
 	return false;
 }
 
-float AArrowProjectileBase::GetImpactTraceRadius() const
-{
-	const UPrimitiveComponent* CollisionComponent = GetCollisionComponent();
-	const FVector Extent = CollisionComponent ? CollisionComponent->Bounds.BoxExtent : FVector::ZeroVector;
-	const double Radius = FMath::Max3(Extent.Y, Extent.Z, 4.0);
-	return FMath::Clamp(static_cast<float>(Radius), 4.0f, 24.0f);
-}
-
 void AArrowProjectileBase::PerformImpactTrace()
 {
 	if (!HasAuthority() || !bImpactTraceActive || bHasImpacted)
@@ -354,12 +351,20 @@ void AArrowProjectileBase::PerformImpactTrace()
 		ActorsToIgnore.Add(OwningCharacter);
 	}
 
+	const UBoxComponent* TraceBox = Cast<UBoxComponent>(GetCollisionComponent());
+	if (!TraceBox)
+	{
+		return;
+	}
+
+	// Match the authored collision box exactly; a rotated world AABB is too broad for impact correction.
 	TArray<FHitResult> HitResults;
-	const bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+	const bool bHit = UKismetSystemLibrary::BoxTraceMultiForObjects(
 		this,
 		PreviousImpactTraceLocation,
 		CurrentLocation,
-		GetImpactTraceRadius(),
+		TraceBox->GetScaledBoxExtent(),
+		TraceBox->GetComponentRotation(),
 		MakeArrowImpactTraceObjectTypes(),
 		false,
 		ActorsToIgnore,
@@ -435,6 +440,11 @@ bool AArrowProjectileBase::TryHandleImpact(AActor* OtherActor, UPrimitiveCompone
 	AttachToComponent(
 		OtherComp,
 		FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true));
+	if (UPrimitiveComponent* CollisionComponent = GetCollisionComponent())
+	{
+		CollisionComponent->SetHiddenInGame(true, false);
+		CollisionComponent->SetVisibility(false, false);
+	}
 
 	if (ImpactSound)
 	{

@@ -141,7 +141,6 @@ void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId
 	CleanupCompletedItemLoadHandles();
 
 	const uint64 RequestGeneration = ItemLoadGeneration;
-	TrackPendingItemDefinitionRequests(ItemDefinitions);
 	++PendingItemLoadRequestCount;
 	UAssetManager& AssetManager = UAssetManager::Get();
 	TSharedPtr<FStreamableHandle> LoadHandle = AssetManager.LoadPrimaryAssets(
@@ -158,7 +157,6 @@ void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId
 
 			if (!HasInventoryAuthority())
 			{
-				ReleasePendingItemDefinitionRequests(ItemDefinitions);
 				CompletePendingItemLoadRequest(RequestGeneration);
 				CleanupCompletedItemLoadHandles();
 				return;
@@ -198,7 +196,6 @@ void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId
 				AddReplicatedItem(NewItemInstance);
 			}
 
-			ReleasePendingItemDefinitionRequests(ItemDefinitions);
 			CompletePendingItemLoadRequest(RequestGeneration);
 			CleanupCompletedItemLoadHandles();
 		}));
@@ -243,7 +240,6 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(
 
 	const TArray<FPrimaryAssetId> ItemDefinitionIds = { ItemDefinitionId };
 	const uint64 RequestGeneration = ItemLoadGeneration;
-	TrackPendingItemDefinitionRequests(ItemDefinitionIds);
 	++PendingItemLoadRequestCount;
 	UAssetManager& AssetManager = UAssetManager::Get();
 	TSharedPtr<FStreamableHandle> LoadHandle = AssetManager.LoadPrimaryAssets(
@@ -260,7 +256,6 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(
 
 			if (!HasInventoryAuthority())
 			{
-				ReleasePendingItemDefinitionRequests({ ItemDefinitionId });
 				CompletePendingItemLoadRequest(RequestGeneration);
 				CleanupCompletedItemLoadHandles();
 				return;
@@ -275,7 +270,6 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(
 					Error,
 					TEXT("Failed to resolve asynchronously loaded item definition '%s'."),
 					*ItemDefinitionId.ToString());
-				ReleasePendingItemDefinitionRequests({ ItemDefinitionId });
 				CompletePendingItemLoadRequest(RequestGeneration);
 				CleanupCompletedItemLoadHandles();
 				return;
@@ -292,7 +286,6 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(
 				{
 					SetConsumableQuickSlotItemId(ConsumableQuickSlotIndex, FGuid());
 				}
-				ReleasePendingItemDefinitionRequests({ ItemDefinitionId });
 				CompletePendingItemLoadRequest(RequestGeneration);
 				CleanupCompletedItemLoadHandles();
 				return;
@@ -320,7 +313,6 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(
 					ItemToAssign->GetOrCreateItemId());
 			}
 
-			ReleasePendingItemDefinitionRequests({ ItemDefinitionId });
 			CompletePendingItemLoadRequest(RequestGeneration);
 			CleanupCompletedItemLoadHandles();
 		}));
@@ -460,49 +452,6 @@ UItemInstance* UInventoryComponent::FindItemInstanceById(FGuid ItemId) const
 	return nullptr;
 }
 
-void UInventoryComponent::GetOwnedOrPendingItemDefinitionIds(
-	TSet<FPrimaryAssetId>& OutItemDefinitionIds) const
-{
-	OutItemDefinitionIds.Reset();
-	for (const UItemInstance* ItemInstance : AllItemList.Items)
-	{
-		const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
-			? ItemInstance->ItemDefinition.Get()
-			: nullptr;
-		if (IsValid(ItemDefinition))
-		{
-			const FPrimaryAssetId ItemDefinitionId =
-				ItemDefinition->GetPrimaryAssetId();
-			if (ItemDefinitionId.IsValid())
-			{
-				OutItemDefinitionIds.Add(ItemDefinitionId);
-			}
-		}
-	}
-
-	for (const FReplicatedInventoryEntry& Entry : ReplicatedEntries.Entries)
-	{
-		if (IsValid(Entry.ItemDefinition))
-		{
-			const FPrimaryAssetId ItemDefinitionId =
-				Entry.ItemDefinition->GetPrimaryAssetId();
-			if (ItemDefinitionId.IsValid())
-			{
-				OutItemDefinitionIds.Add(ItemDefinitionId);
-			}
-		}
-	}
-
-	for (const TPair<FPrimaryAssetId, int32>& PendingRequest :
-		PendingItemDefinitionRequestCounts)
-	{
-		if (PendingRequest.Key.IsValid() && PendingRequest.Value > 0)
-		{
-			OutItemDefinitionIds.Add(PendingRequest.Key);
-		}
-	}
-}
-
 bool UInventoryComponent::SetConsumableQuickSlot(const int32 SlotIndex, UItemInstance* ItemInstance)
 {
 	if (!IsValidConsumableQuickSlotIndex(SlotIndex) || !IsValid(ItemInstance))
@@ -590,9 +539,7 @@ bool UInventoryComponent::UseConsumableQuickSlot(const int32 SlotIndex)
 	}
 
 	const int32 NewQuantity = ItemInstance->Quantity - QuantityToConsume;
-	const bool bQuantityUpdated = SetReplicatedItemQuantityById(ItemId, NewQuantity);
-
-	return bQuantityUpdated;
+	return SetReplicatedItemQuantityById(ItemId, NewQuantity);
 }
 
 UItemInstance* UInventoryComponent::GetConsumableQuickSlotItem(const int32 SlotIndex) const
@@ -706,7 +653,6 @@ bool UInventoryComponent::SplitConsumableStack(const FGuid ItemId)
 	NewItem->Quantity = NewStackQuantity;
 	AddReplicatedItem(NewItem);
 
-
 	return true;
 }
 
@@ -755,9 +701,86 @@ bool UInventoryComponent::MergeConsumableStacks(const FGuid SourceItemId, const 
 		return false;
 	}
 
-	const bool bRemovedSource = RemoveReplicatedItemById(SourceItemId);
+	return RemoveReplicatedItemById(SourceItemId);
+}
 
-	return bRemovedSource;
+bool UInventoryComponent::MergeUpgradeableItems(
+	const FGuid SourceItemId,
+	const FGuid TargetItemId)
+{
+	if (!SourceItemId.IsValid()
+		|| !TargetItemId.IsValid()
+		|| SourceItemId == TargetItemId)
+	{
+		return false;
+	}
+
+	if (!HasInventoryAuthority())
+	{
+		ServerMergeUpgradeableItems(SourceItemId, TargetItemId);
+		return true;
+	}
+
+	UItemInstance* SourceItem = FindItemInstanceById(SourceItemId);
+	UItemInstance* TargetItem = FindItemInstanceById(TargetItemId);
+	const UItemDefinition* SourceDefinition = IsValid(SourceItem)
+		? SourceItem->ItemDefinition.Get()
+		: nullptr;
+	const UItemDefinition* TargetDefinition = IsValid(TargetItem)
+		? TargetItem->ItemDefinition.Get()
+		: nullptr;
+	if (!SourceDefinition
+		|| SourceDefinition != TargetDefinition
+		|| !IsUpgradeableItem(SourceItem)
+		|| !IsUpgradeableItem(TargetItem))
+	{
+		return false;
+	}
+
+	// Loadout weapons are removed from the inventory view. Reject direct RPCs
+	// against them as well so an equipped item cannot disappear mid-combat.
+	if (PandoraWeaponLoadoutItemIds.Contains(SourceItemId)
+		|| PandoraWeaponLoadoutItemIds.Contains(TargetItemId))
+	{
+		return false;
+	}
+
+	const int32 SourceEntryIndex = FindReplicatedEntryIndexById(SourceItemId);
+	FReplicatedInventoryEntry* TargetEntry = FindReplicatedEntryById(TargetItemId);
+	if (SourceEntryIndex == INDEX_NONE || !TargetEntry)
+	{
+		return false;
+	}
+
+	const int64 MergedUpgradeLevel =
+		static_cast<int64>(SourceItem->GetUpgradeLevel())
+		+ static_cast<int64>(TargetItem->GetUpgradeLevel())
+		+ 1;
+	const int32 NewUpgradeLevel = static_cast<int32>(FMath::Min<int64>(
+		MergedUpgradeLevel,
+		static_cast<int64>(MAX_int32)));
+	TargetItem->SetUpgradeLevel(NewUpgradeLevel);
+	TargetEntry->UpgradeLevel = NewUpgradeLevel;
+	ReplicatedEntries.MarkEntryDirty(*TargetEntry);
+
+	for (int32 ItemIndex = AllItemList.Items.Num() - 1; ItemIndex >= 0; --ItemIndex)
+	{
+		const UItemInstance* ItemInstance = AllItemList.Items[ItemIndex];
+		if (IsValid(ItemInstance) && ItemInstance->GetItemId() == SourceItemId)
+		{
+			AllItemList.Items.RemoveAt(ItemIndex);
+			break;
+		}
+	}
+
+	ReplicatedEntries.Entries.RemoveAt(SourceEntryIndex);
+	ReplicatedEntries.MarkArrayDirty();
+	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
+	ClearConsumableQuickSlotReferencesToItem(SourceItemId);
+	ClearPandoraWeaponLoadoutReferencesToItem(SourceItemId);
+	RebuildFilteredItemMap();
+	OnInventoryChanged.Broadcast();
+	return true;
 }
 
 void UInventoryComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig)
@@ -773,715 +796,6 @@ bool UInventoryComponent::HasInventoryAuthority() const
 {
 	const AActor* OwnerActor = GetOwner();
 	return OwnerActor && OwnerActor->HasAuthority();
-}
-
-bool UInventoryComponent::HasPendingItemLoads()
-{
-	CleanupCompletedItemLoadHandles();
-	return PendingItemLoadRequestCount > 0
-		|| !PendingItemLoadHandles.IsEmpty();
-}
-
-void UInventoryComponent::CleanupCompletedItemLoadHandles()
-{
-	PendingItemLoadHandles.RemoveAll(
-		[](const TSharedPtr<FStreamableHandle>& PendingHandle)
-		{
-			return !PendingHandle.IsValid() || PendingHandle->HasLoadCompleted();
-		});
-}
-
-void UInventoryComponent::CompletePendingItemLoadRequest(
-	const uint64 RequestGeneration)
-{
-	if (RequestGeneration != ItemLoadGeneration)
-	{
-		return;
-	}
-
-	if (ensure(PendingItemLoadRequestCount > 0))
-	{
-		--PendingItemLoadRequestCount;
-	}
-}
-
-void UInventoryComponent::CancelPendingItemLoads()
-{
-	// CancelHandle cannot retract a completion delegate that is already queued.
-	// Advancing the generation makes every callback from the old batch a no-op.
-	++ItemLoadGeneration;
-	PendingItemLoadRequestCount = 0;
-	PendingItemDefinitionRequestCounts.Reset();
-
-	for (const TSharedPtr<FStreamableHandle>& PendingHandle : PendingItemLoadHandles)
-	{
-		if (PendingHandle.IsValid() && !PendingHandle->HasLoadCompleted())
-		{
-			PendingHandle->CancelHandle();
-		}
-	}
-
-	PendingItemLoadHandles.Reset();
-}
-
-void UInventoryComponent::TrackPendingItemDefinitionRequests(
-	const TArray<FPrimaryAssetId>& ItemDefinitionIds)
-{
-	for (const FPrimaryAssetId& ItemDefinitionId : ItemDefinitionIds)
-	{
-		if (ItemDefinitionId.IsValid())
-		{
-			++PendingItemDefinitionRequestCounts.FindOrAdd(ItemDefinitionId);
-		}
-	}
-}
-
-void UInventoryComponent::ReleasePendingItemDefinitionRequests(
-	const TArray<FPrimaryAssetId>& ItemDefinitionIds)
-{
-	for (const FPrimaryAssetId& ItemDefinitionId : ItemDefinitionIds)
-	{
-		int32* RequestCount =
-			PendingItemDefinitionRequestCounts.Find(ItemDefinitionId);
-		if (!RequestCount)
-		{
-			continue;
-		}
-
-		if (*RequestCount <= 1)
-		{
-			PendingItemDefinitionRequestCounts.Remove(ItemDefinitionId);
-		}
-		else
-		{
-			--(*RequestCount);
-		}
-	}
-}
-
-void UInventoryComponent::RefreshPandoraWeaponLoadoutPresentationAssets()
-{
-	EnsurePandoraWeaponLoadoutArray();
-
-	TMap<FPrimaryAssetId, const UItemDefinition*> DesiredItemDefinitions;
-	for (const FGuid& WeaponItemId : PandoraWeaponLoadoutItemIds)
-	{
-		const UItemInstance* WeaponInstance = FindItemInstanceById(WeaponItemId);
-		const UItemDefinition* ItemDefinition =
-			IsValid(WeaponInstance) ? WeaponInstance->ItemDefinition.Get() : nullptr;
-		if (!IsValid(ItemDefinition))
-		{
-			continue;
-		}
-
-		const FPrimaryAssetId AssetId = ItemDefinition->GetPrimaryAssetId();
-		if (AssetId.IsValid())
-		{
-			DesiredItemDefinitions.Add(AssetId, ItemDefinition);
-		}
-	}
-
-	for (auto HandleIt = PandoraWeaponPresentationLoadHandles.CreateIterator(); HandleIt; ++HandleIt)
-	{
-		if (DesiredItemDefinitions.Contains(HandleIt.Key()))
-		{
-			continue;
-		}
-
-		for (const TSharedPtr<FStreamableHandle>& LoadHandle : HandleIt.Value())
-		{
-			if (LoadHandle.IsValid())
-			{
-				LoadHandle->ReleaseHandle();
-			}
-		}
-		HandleIt.RemoveCurrent();
-	}
-
-	UAssetManager& AssetManager = UAssetManager::Get();
-	const FName PresentationBundleName = UItemDefinition::GetWeaponPresentationBundleName();
-	for (const TPair<FPrimaryAssetId, const UItemDefinition*>& DesiredPair
-		: DesiredItemDefinitions)
-	{
-		const FPrimaryAssetId& AssetId = DesiredPair.Key;
-		if (PandoraWeaponPresentationLoadHandles.Contains(AssetId))
-		{
-			continue;
-		}
-
-		// Resolve the serialized bundle to concrete soft paths, then own a
-		// streamable handle per inventory. UAssetManager bundle state is global
-		// and LoadPrimaryAsset legitimately returns no handle when that state is
-		// already active; treating that no-op as a failure produced the
-		// DA_Greatsword error and also made per-player release semantics unclear.
-		TArray<FSoftObjectPath> PresentationAssetPaths;
-		const FAssetBundleEntry BundleEntry =
-			AssetManager.GetAssetBundleEntry(
-				AssetId,
-				PresentationBundleName);
-		if (BundleEntry.IsValid())
-		{
-			for (const FTopLevelAssetPath& AssetPath : BundleEntry.AssetPaths)
-			{
-				PresentationAssetPaths.AddUnique(FSoftObjectPath(AssetPath));
-			}
-		}
-
-		// Merge paths from the loaded definition as an editor-safe fallback for
-		// assets that predate the serialized bundle metadata. The metadata still
-		// remains responsible for including these references in cooked builds.
-		if (IsValid(DesiredPair.Value))
-		{
-			TArray<FSoftObjectPath> DefinitionPaths;
-			DesiredPair.Value->GetWeaponPresentationAssetPaths(DefinitionPaths);
-			for (const FSoftObjectPath& AssetPath : DefinitionPaths)
-			{
-				if (!AssetPath.IsNull())
-				{
-					PresentationAssetPaths.AddUnique(AssetPath);
-				}
-			}
-		}
-
-		PresentationAssetPaths.RemoveAll(
-			[](const FSoftObjectPath& AssetPath)
-			{
-				return AssetPath.IsNull();
-			});
-
-		// A weapon definition with no presentation references has nothing to
-		// preload. Record an empty sentinel so subsequent refreshes stay cheap.
-		if (PresentationAssetPaths.IsEmpty())
-		{
-			PandoraWeaponPresentationLoadHandles.Add(AssetId, {});
-			continue;
-		}
-
-		TSharedPtr<FStreamableHandle> LoadHandle =
-			AssetManager.GetStreamableManager().RequestAsyncLoad(
-				PresentationAssetPaths);
-		if (!LoadHandle.IsValid())
-		{
-			UE_LOG(
-				InventoryComponentLog,
-				Error,
-				TEXT("Failed to start weapon presentation preload for loadout item '%s'."),
-				*AssetId.ToString());
-			continue;
-		}
-
-		const TWeakPtr<FStreamableHandle> WeakLoadHandle = LoadHandle;
-		LoadHandle->BindCompleteDelegate(
-			FStreamableDelegate::CreateWeakLambda(
-				this,
-				[AssetId, WeakLoadHandle]()
-				{
-					const TSharedPtr<FStreamableHandle> CompletedHandle =
-						WeakLoadHandle.Pin();
-					if (CompletedHandle.IsValid() && CompletedHandle->HasError())
-					{
-						UE_LOG(
-							InventoryComponentLog,
-							Error,
-							TEXT("Weapon presentation assets failed to load for item '%s'."),
-							*AssetId.ToString());
-					}
-				}));
-
-		TArray<TSharedPtr<FStreamableHandle>> LoadHandles;
-		LoadHandles.Add(MoveTemp(LoadHandle));
-		PandoraWeaponPresentationLoadHandles.Add(
-			AssetId,
-			MoveTemp(LoadHandles));
-	}
-}
-
-void UInventoryComponent::ReleasePandoraWeaponLoadoutPresentationAssets()
-{
-	for (TPair<FPrimaryAssetId, TArray<TSharedPtr<FStreamableHandle>>>& HandlePair :
-		PandoraWeaponPresentationLoadHandles)
-	{
-		for (const TSharedPtr<FStreamableHandle>& LoadHandle : HandlePair.Value)
-		{
-			if (LoadHandle.IsValid())
-			{
-				LoadHandle->ReleaseHandle();
-			}
-		}
-	}
-	PandoraWeaponPresentationLoadHandles.Reset();
-}
-
-void UInventoryComponent::InitializeReplicatedEntriesFromRuntimeItems()
-{
-	for (UItemInstance* ItemInstance : AllItemList.Items)
-	{
-		AddReplicatedItem(ItemInstance);
-	}
-}
-
-void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
-{
-	// =================================================================================================================
-	AllItemList.Items.Reset();
-
-	// =================================================================================================================
-	for (const FReplicatedInventoryEntry& Entry : ReplicatedEntries.Entries)
-	{
-		if (!Entry.ItemId.IsValid() || !IsValid(Entry.ItemDefinition))
-		{
-			continue;
-		}
-
-		UItemInstance* ItemInstance = NewObject<UItemInstance>(this);
-		ItemInstance->ItemId = Entry.ItemId;
-		ItemInstance->ItemDefinition = Entry.ItemDefinition;
-		ItemInstance->Quantity = Entry.Quantity;
-		AllItemList.Items.Add(ItemInstance);
-	}
-
-	RebuildFilteredItemMap();
-}
-
-void UInventoryComponent::RebuildFilteredItemMap()
-{
-
-
-	Map_Type_ItemList.Reset();
-
-	if (FilterTypeTags.IsEmpty())
-	{
-
-		return;
-	}
-
-	for (UItemInstance* ItemInstance : AllItemList.Items)
-	{
-		FilterItem(ItemInstance);
-	}
-
-
-}
-
-void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry)
-{
-	// =================================================================================================================
-	if (!Entry.ItemId.IsValid() || !IsValid(Entry.ItemDefinition))
-	{
-
-		return;
-	}
-
-	// =================================================================================================================
-
-	UItemInstance* ItemInstance = FindItemInstanceById(Entry.ItemId);
-	const bool bWasNewItemInstance = !IsValid(ItemInstance);
-	const UItemDefinition* PreviousItemDefinition = bWasNewItemInstance ? nullptr : ItemInstance->ItemDefinition.Get();
-	if (!IsValid(ItemInstance))
-	{
-		ItemInstance = NewObject<UItemInstance>(this);
-		AllItemList.Items.Add(ItemInstance);
-	}
-
-	// =================================================================================================================
-	ItemInstance->ItemId = Entry.ItemId;
-	ItemInstance->ItemDefinition = Entry.ItemDefinition;
-	ItemInstance->Quantity = Entry.Quantity;
-
-	if (bWasNewItemInstance)
-	{
-		FilterItem(ItemInstance);
-	}
-	else if (PreviousItemDefinition != Entry.ItemDefinition)
-	{
-		RebuildFilteredItemMap();
-	}
-
-	OnInventoryChanged.Broadcast();
-	RefreshPandoraWeaponLoadoutPresentationAssets();
-}
-
-void UInventoryComponent::HandleReplicatedEntryRemoved(FGuid ItemId)
-{
-	if (!ItemId.IsValid())
-	{
-		return;
-	}
-
-	// =================================================================================================================
-
-	for (int32 Index = AllItemList.Items.Num() - 1; Index >= 0; --Index)
-	{
-		UItemInstance* ItemInstance = AllItemList.Items[Index];
-		if (IsValid(ItemInstance) && ItemInstance->GetItemId() == ItemId)
-		{
-			AllItemList.Items.RemoveAt(Index);
-			break;
-		}
-	}
-
-	RebuildFilteredItemMap();
-	ClearConsumableQuickSlotReferencesToItem(ItemId);
-	RefreshPandoraWeaponLoadoutPresentationAssets();
-	OnInventoryChanged.Broadcast();
-}
-
-void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
-{
-	// =================================================================================================================
-	if (!HasInventoryAuthority())
-	{
-
-		return;
-	}
-
-	if (!IsValid(ItemInstance) || !IsValid(ItemInstance->ItemDefinition))
-	{
-
-		return;
-	}
-
-	// =================================================================================================================
-
-	ItemInstance->EnsureItemId();
-	AllItemList.Items.AddUnique(ItemInstance);
-
-	// =================================================================================================================
-
-	if (FReplicatedInventoryEntry* ExistingEntry = FindReplicatedEntryById(ItemInstance->GetItemId()))
-	{
-		ExistingEntry->ItemDefinition = ItemInstance->ItemDefinition;
-		ExistingEntry->Quantity = ItemInstance->Quantity;
-		ReplicatedEntries.MarkEntryDirty(*ExistingEntry);
-		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
-	}
-	else
-	{
-		FReplicatedInventoryEntry& NewEntry = ReplicatedEntries.Entries.AddDefaulted_GetRef();
-		NewEntry.ItemId = ItemInstance->GetItemId();
-		NewEntry.ItemDefinition = ItemInstance->ItemDefinition;
-		NewEntry.Quantity = ItemInstance->Quantity;
-		ReplicatedEntries.MarkEntryDirty(NewEntry);
-		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
-	}
-
-	RebuildFilteredItemMap();
-	OnInventoryChanged.Broadcast();
-}
-
-bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
-{
-	if (!ItemId.IsValid())
-	{
-		return false;
-	}
-
-	// =================================================================================================================
-
-	const int32 EntryIndex = FindReplicatedEntryIndexById(ItemId);
-	if (EntryIndex == INDEX_NONE)
-	{
-		return false;
-	}
-
-	// =================================================================================================================
-
-	for (int32 Index = AllItemList.Items.Num() - 1; Index >= 0; --Index)
-	{
-		UItemInstance* ItemInstance = AllItemList.Items[Index];
-		if (IsValid(ItemInstance) && ItemInstance->GetItemId() == ItemId)
-		{
-			AllItemList.Items.RemoveAt(Index);
-			break;
-		}
-	}
-
-	// =================================================================================================================
-
-	ReplicatedEntries.Entries.RemoveAt(EntryIndex);
-	ReplicatedEntries.MarkArrayDirty();
-	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
-	ClearConsumableQuickSlotReferencesToItem(ItemId);
-	ClearPandoraWeaponLoadoutReferencesToItem(ItemId);
-	RebuildFilteredItemMap();
-	OnInventoryChanged.Broadcast();
-	return true;
-}
-
-bool UInventoryComponent::SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQuantity)
-{
-	if (!ItemId.IsValid())
-	{
-		return false;
-	}
-
-	// =================================================================================================================
-
-	if (NewQuantity <= 0)
-	{
-		return RemoveReplicatedItemById(ItemId);
-	}
-
-	// =================================================================================================================
-
-	FReplicatedInventoryEntry* Entry = FindReplicatedEntryById(ItemId);
-	UItemInstance* ItemInstance = FindItemInstanceById(ItemId);
-	if (!Entry || !IsValid(ItemInstance))
-	{
-		return false;
-	}
-
-	// =================================================================================================================
-	ItemInstance->Quantity = NewQuantity;
-	Entry->Quantity = NewQuantity;
-	ReplicatedEntries.MarkEntryDirty(*Entry);
-	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
-	RebuildFilteredItemMap();
-	OnInventoryChanged.Broadcast();
-	return true;
-}
-
-int32 UInventoryComponent::FindReplicatedEntryIndexById(FGuid ItemId) const
-{
-	if (!ItemId.IsValid())
-	{
-		return INDEX_NONE;
-	}
-
-	for (int32 Index = 0; Index < ReplicatedEntries.Entries.Num(); ++Index)
-	{
-		if (ReplicatedEntries.Entries[Index].ItemId == ItemId)
-		{
-			return Index;
-		}
-	}
-
-	return INDEX_NONE;
-}
-
-FReplicatedInventoryEntry* UInventoryComponent::FindReplicatedEntryById(FGuid ItemId)
-{
-	const int32 EntryIndex = FindReplicatedEntryIndexById(ItemId);
-	return EntryIndex != INDEX_NONE ? &ReplicatedEntries.Entries[EntryIndex] : nullptr;
-}
-
-const FReplicatedInventoryEntry* UInventoryComponent::FindReplicatedEntryById(FGuid ItemId) const
-{
-	const int32 EntryIndex = FindReplicatedEntryIndexById(ItemId);
-	return EntryIndex != INDEX_NONE ? &ReplicatedEntries.Entries[EntryIndex] : nullptr;
-}
-
-void UInventoryComponent::OnRep_ConsumableQuickSlotItemIds()
-{
-	EnsureConsumableQuickSlotArray();
-	OnInventoryChanged.Broadcast();
-}
-
-void UInventoryComponent::OnRep_PandoraWeaponLoadoutItemIds()
-{
-	EnsurePandoraWeaponLoadoutArray();
-	RefreshPandoraWeaponLoadoutPresentationAssets();
-	OnPandoraWeaponLoadoutChanged.Broadcast();
-}
-
-void UInventoryComponent::ServerSetConsumableQuickSlot_Implementation(const int32 SlotIndex, const FGuid ItemId)
-{
-	SetConsumableQuickSlotItemId(SlotIndex, ItemId);
-}
-
-void UInventoryComponent::ServerClearConsumableQuickSlot_Implementation(const int32 SlotIndex)
-{
-	SetConsumableQuickSlotItemId(SlotIndex, FGuid());
-}
-
-void UInventoryComponent::ServerUseConsumableQuickSlot_Implementation(const int32 SlotIndex)
-{
-	UseConsumableQuickSlot(SlotIndex);
-}
-
-void UInventoryComponent::ServerSetPandoraWeaponLoadoutSlot_Implementation(
-	const EEnum_Direction Direction,
-	const FGuid ItemId)
-{
-	SetPandoraWeaponLoadoutItemId(Direction, ItemId);
-}
-
-void UInventoryComponent::ServerSplitConsumableStack_Implementation(const FGuid ItemId)
-{
-	SplitConsumableStack(ItemId);
-}
-
-void UInventoryComponent::ServerMergeConsumableStacks_Implementation(const FGuid SourceItemId, const FGuid TargetItemId)
-{
-	MergeConsumableStacks(SourceItemId, TargetItemId);
-}
-
-void UInventoryComponent::EnsureConsumableQuickSlotArray()
-{
-	if (ConsumableQuickSlotItemIds.Num() != ConsumableQuickSlotCount)
-	{
-		ConsumableQuickSlotItemIds.SetNum(ConsumableQuickSlotCount);
-	}
-}
-
-void UInventoryComponent::EnsurePandoraWeaponLoadoutArray()
-{
-	if (PandoraWeaponLoadoutItemIds.Num() != PandoraWeaponLoadoutSlotCount)
-	{
-		PandoraWeaponLoadoutItemIds.SetNum(PandoraWeaponLoadoutSlotCount);
-	}
-}
-
-bool UInventoryComponent::IsValidConsumableQuickSlotIndex(const int32 SlotIndex) const
-{
-	return SlotIndex >= 0 && SlotIndex < ConsumableQuickSlotCount;
-}
-
-bool UInventoryComponent::SetConsumableQuickSlotItemId(const int32 SlotIndex, const FGuid ItemId)
-{
-	if (!IsValidConsumableQuickSlotIndex(SlotIndex))
-	{
-		return false;
-	}
-
-	EnsureConsumableQuickSlotArray();
-	if (ItemId.IsValid())
-	{
-		UItemInstance* ItemInstance = FindItemInstanceById(ItemId);
-		if (!IsConsumableItem(ItemInstance))
-		{
-
-			return false;
-		}
-	}
-
-	if (ConsumableQuickSlotItemIds[SlotIndex] == ItemId)
-	{
-		return true;
-	}
-
-	ConsumableQuickSlotItemIds[SlotIndex] = ItemId;
-	if (HasInventoryAuthority())
-	{
-		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ConsumableQuickSlotItemIds, this);
-	}
-
-	OnInventoryChanged.Broadcast();
-	return true;
-}
-
-bool UInventoryComponent::ClearConsumableQuickSlotReferencesToItem(const FGuid ItemId)
-{
-	if (!ItemId.IsValid())
-	{
-		return false;
-	}
-
-	EnsureConsumableQuickSlotArray();
-	bool bChanged = false;
-	for (FGuid& QuickSlotItemId : ConsumableQuickSlotItemIds)
-	{
-		if (QuickSlotItemId == ItemId)
-		{
-			QuickSlotItemId = FGuid();
-			bChanged = true;
-		}
-	}
-
-	if (bChanged && HasInventoryAuthority())
-	{
-		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ConsumableQuickSlotItemIds, this);
-	}
-	return bChanged;
-}
-
-bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
-	const EEnum_Direction Direction,
-	const FGuid ItemId)
-{
-	if (!HasInventoryAuthority())
-	{
-		return false;
-	}
-
-	const int32 SlotIndex = GetPandoraWeaponLoadoutIndex(Direction);
-	if (SlotIndex == INDEX_NONE)
-	{
-		return false;
-	}
-
-	EnsurePandoraWeaponLoadoutArray();
-	if (ItemId.IsValid())
-	{
-		UItemInstance* WeaponInstance = FindItemInstanceById(ItemId);
-		if (!IsWeaponItem(WeaponInstance))
-		{
-			return false;
-		}
-	}
-
-	bool bChanged = false;
-	if (ItemId.IsValid())
-	{
-		for (int32 ExistingIndex = 0; ExistingIndex < PandoraWeaponLoadoutItemIds.Num(); ++ExistingIndex)
-		{
-			if (ExistingIndex != SlotIndex && PandoraWeaponLoadoutItemIds[ExistingIndex] == ItemId)
-			{
-				PandoraWeaponLoadoutItemIds[ExistingIndex].Invalidate();
-				bChanged = true;
-			}
-		}
-	}
-
-	if (PandoraWeaponLoadoutItemIds[SlotIndex] != ItemId)
-	{
-		PandoraWeaponLoadoutItemIds[SlotIndex] = ItemId;
-		bChanged = true;
-	}
-
-	if (!bChanged)
-	{
-		RefreshPandoraWeaponLoadoutPresentationAssets();
-		return true;
-	}
-
-	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, PandoraWeaponLoadoutItemIds, this);
-	if (AActor* OwnerActor = GetOwner())
-	{
-		OwnerActor->ForceNetUpdate();
-	}
-	RefreshPandoraWeaponLoadoutPresentationAssets();
-	OnPandoraWeaponLoadoutChanged.Broadcast();
-	return true;
-}
-
-bool UInventoryComponent::ClearPandoraWeaponLoadoutReferencesToItem(const FGuid ItemId)
-{
-	if (!HasInventoryAuthority() || !ItemId.IsValid())
-	{
-		return false;
-	}
-
-	EnsurePandoraWeaponLoadoutArray();
-	bool bChanged = false;
-	for (FGuid& WeaponItemId : PandoraWeaponLoadoutItemIds)
-	{
-		if (WeaponItemId == ItemId)
-		{
-			WeaponItemId.Invalidate();
-			bChanged = true;
-		}
-	}
-
-	if (!bChanged)
-	{
-		return false;
-	}
-
-	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, PandoraWeaponLoadoutItemIds, this);
-	RefreshPandoraWeaponLoadoutPresentationAssets();
-	OnPandoraWeaponLoadoutChanged.Broadcast();
-	return true;
 }
 
 bool UInventoryComponent::IsConsumableItem(const UItemInstance* ItemInstance) const
@@ -1500,6 +814,23 @@ bool UInventoryComponent::IsWeaponItem(const UItemInstance* ItemInstance) const
 		&& WeaponTypeTag.IsValid()
 		&& ItemDefinition->IdTag.IsValid()
 		&& ItemDefinition->IdTag.MatchesTag(WeaponTypeTag);
+}
+
+bool UInventoryComponent::IsUpgradeableItem(const UItemInstance* ItemInstance) const
+{
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
+		? ItemInstance->ItemDefinition.Get()
+		: nullptr;
+	if (!ItemDefinition)
+	{
+		return false;
+	}
+
+	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	const FGameplayTag WeaponTypeTag = TagConfig->GetItemWeaponTypeTag();
+	const FGameplayTag EquipmentTypeTag = TagConfig->GetItemEquipmentTypeTag();
+	return ItemDefinition->IsWeaponDefinition(WeaponTypeTag)
+		|| ItemDefinition->MatchesItemType(EquipmentTypeTag);
 }
 
 bool UInventoryComponent::ApplyConsumableItemEffect(const UItemInstance* ItemInstance) const
@@ -1545,9 +876,7 @@ bool UInventoryComponent::ApplyConsumableItemEffect(const UItemInstance* ItemIns
 	}
 
 	const FActiveGameplayEffectHandle AppliedHandle = AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-	const bool bApplied = AppliedHandle.WasSuccessfullyApplied();
-
-	return bApplied;
+	return AppliedHandle.WasSuccessfullyApplied();
 }
 
 UItemInstance* UInventoryComponent::FindFirstItemInstanceByDefinition(const UItemDefinition* ItemDefinition) const

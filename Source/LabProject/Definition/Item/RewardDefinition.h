@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "UObject/PrimaryAssetId.h"
 #include "RewardDefinition.generated.h"
 
 class UTexture2D;
+class UItemDefinition;
 
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FRewardExperienceRange
@@ -71,6 +73,27 @@ public:
 };
 
 USTRUCT(BlueprintType)
+struct LABPROJECT_API FRewardRandomPotionDrop
+{
+	GENERATED_BODY()
+
+public:
+	FPrimaryAssetId RollReward() const;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Potion Drop")
+	bool bGrantRandomPotion = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Potion Drop",
+		meta = (ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "100.0",
+			EditCondition = "bGrantRandomPotion"))
+	float PotionDropChance = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Potion Drop",
+		meta = (EditCondition = "bGrantRandomPotion"))
+	TArray<TSoftObjectPtr<UItemDefinition>> PotionDefinitions;
+};
+
+USTRUCT(BlueprintType)
 struct LABPROJECT_API FRewardChestSpawnCategory
 {
 	GENERATED_BODY()
@@ -97,6 +120,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Monster Defeat")
 	FRewardSoulDustRange SoulDust;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Monster Defeat")
+	FRewardRandomPotionDrop PotionDrop;
 };
 
 USTRUCT(BlueprintType)
@@ -150,6 +176,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!Reward|Monster Defeat")
 	int32 RollMonsterDefeatSoulDustReward() const;
+
+	UFUNCTION(BlueprintCallable, Category = "!Reward|Monster Defeat")
+	FPrimaryAssetId RollMonsterDefeatPotionReward() const;
 
 	UFUNCTION(BlueprintCallable, Category = "!Reward|Player Kill")
 	int32 RollPlayerKillExperienceReward() const;

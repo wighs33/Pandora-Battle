@@ -48,6 +48,9 @@ public:
 
 	UPROPERTY()
 	int32 Quantity = 0;
+
+	UPROPERTY()
+	int32 UpgradeLevel = 0;
 };
 
 USTRUCT()
@@ -131,8 +134,6 @@ public:
 	UItemInstance* FindItemInstanceById(FGuid ItemId) const;
 
 	const FItemList& GetAllItems() const { return AllItemList; }
-	void GetOwnedOrPendingItemDefinitionIds(
-		TSet<FPrimaryAssetId>& OutItemDefinitionIds) const;
 	const TMap<FGameplayTag, FItemList>& GetFilteredItemMap() const { return Map_Type_ItemList; }
 	UFUNCTION(BlueprintCallable, Category = "!Inventory|Quick Slots")
 	bool SetConsumableQuickSlot(int32 SlotIndex, UItemInstance* ItemInstance);
@@ -164,6 +165,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Inventory|Stack")
 	bool MergeConsumableStacks(FGuid SourceItemId, FGuid TargetItemId);
 
+	UFUNCTION(BlueprintCallable, Category = "!Inventory|Upgrade")
+	bool MergeUpgradeableItems(FGuid SourceItemId, FGuid TargetItemId);
+
 	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
 
 	FPdInventoryChanged OnInventoryChanged;
@@ -188,8 +192,7 @@ protected:
 
 	bool SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQuantity);
 
-
-	int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
+int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
 
 	FReplicatedInventoryEntry* FindReplicatedEntryById(FGuid ItemId);
 
@@ -216,6 +219,9 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerMergeConsumableStacks(FGuid SourceItemId, FGuid TargetItemId);
 
+	UFUNCTION(Server, Reliable)
+	void ServerMergeUpgradeableItems(FGuid SourceItemId, FGuid TargetItemId);
+
 	bool HasInventoryAuthority() const;
 	void SetItemQuantityByPrimaryAssetIdInternal(
 		FPrimaryAssetId ItemDefinitionId,
@@ -224,10 +230,6 @@ protected:
 	void CleanupCompletedItemLoadHandles();
 	void CompletePendingItemLoadRequest(uint64 RequestGeneration);
 	void CancelPendingItemLoads();
-	void TrackPendingItemDefinitionRequests(
-		const TArray<FPrimaryAssetId>& ItemDefinitionIds);
-	void ReleasePendingItemDefinitionRequests(
-		const TArray<FPrimaryAssetId>& ItemDefinitionIds);
 	void RefreshPandoraWeaponLoadoutPresentationAssets();
 	void ReleasePandoraWeaponLoadoutPresentationAssets();
 	void EnsureConsumableQuickSlotArray();
@@ -239,6 +241,7 @@ protected:
 	bool ClearPandoraWeaponLoadoutReferencesToItem(FGuid ItemId);
 	bool IsConsumableItem(const UItemInstance* ItemInstance) const;
 	bool IsWeaponItem(const UItemInstance* ItemInstance) const;
+	bool IsUpgradeableItem(const UItemInstance* ItemInstance) const;
 	bool ApplyConsumableItemEffect(const UItemInstance* ItemInstance) const;
 	UItemInstance* FindFirstItemInstanceByDefinition(const UItemDefinition* ItemDefinition) const;
 
@@ -268,6 +271,5 @@ protected:
 	uint64 ItemLoadGeneration = 0;
 	int32 PendingItemLoadRequestCount = 0;
 	TArray<TSharedPtr<FStreamableHandle>> PendingItemLoadHandles;
-	TMap<FPrimaryAssetId, int32> PendingItemDefinitionRequestCounts;
 	TMap<FPrimaryAssetId, TArray<TSharedPtr<FStreamableHandle>>> PandoraWeaponPresentationLoadHandles;
 };

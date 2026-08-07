@@ -6,10 +6,8 @@
 #include "UObject/PrimaryAssetId.h"
 #include "StatUpgradeDefinition.generated.h"
 
-class UGameplayEffect;
-
 USTRUCT(BlueprintType)
-struct FPdStatUpgradeRule
+struct FStatUpgradeRule
 {
 	GENERATED_BODY()
 
@@ -29,7 +27,7 @@ struct FPdStatUpgradeRule
 };
 
 USTRUCT(BlueprintType)
-struct FPdStatAttributeDefaultValue
+struct FStatAttributeDefaultValue
 {
 	GENERATED_BODY()
 
@@ -52,7 +50,7 @@ struct FPdStatAttributeDefaultValue
 };
 
 USTRUCT(BlueprintType)
-struct FPdPairedResourceStatTag
+struct FPairedResourceStatTag
 {
 	GENERATED_BODY()
 
@@ -77,48 +75,34 @@ public:
 	UStatUpgradeDefinition();
 
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+	static FSoftObjectPath GetDefaultDefinitionPath();
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
-	TSubclassOf<UGameplayEffect> GetStatUpGameplayEffectClass() const { return StatUpGameplayEffectClass; }
-	bool ShouldEnableRecoveryHealthRegen() const { return bEnableRecoveryHealthRegen; }
-	TSubclassOf<UGameplayEffect> GetRecoveryHealGameplayEffectClass() const { return RecoveryHealGameplayEffectClass; }
-	const TArray<FPdStatUpgradeRule>& GetUpgradeRules() const { return UpgradeRules; }
-	const TArray<FPdPairedResourceStatTag>& GetPairedResourceStatTags() const { return PairedResourceStatTags; }
-	const TArray<FPdStatAttributeDefaultValue>& GetAttributeValues() const { return AttributeDefaultValues; }
-	const TArray<FPdStatAttributeDefaultValue>& GetAttributeDefaultValues() const { return AttributeDefaultValues; }
+	const TArray<FStatUpgradeRule>& GetUpgradeRules() const { return UpgradeRules; }
+	const TArray<FPairedResourceStatTag>& GetPairedResourceStatTags() const { return PairedResourceStatTags; }
+	const TArray<FStatAttributeDefaultValue>& GetAttributeDefaultValues() const { return AttributeDefaultValues; }
 	float GetMaxInvestedLevel() const;
-	const FPdStatUpgradeRule* FindUpgradeRuleForStat(const FGameplayTag& StatTag) const;
+	const FStatUpgradeRule* FindUpgradeRuleForStat(const FGameplayTag& StatTag) const;
 	bool TryGetAttributeValuePerUpgrade(const FGameplayTag& StatTag, float& OutValue) const;
 	float GetAttributeValuePerUpgrade(const FGameplayTag& StatTag) const;
 	bool TryGetExactAttributeDefaultValue(const FGameplayTag& StatTag, float& OutValue) const;
 	static bool TryResolveDefaultStatLevelTag(const FGameplayTag& StatTag, FGameplayTag& OutLevelTag);
 
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Gameplay Effect
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Effect", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<UGameplayEffect> StatUpGameplayEffectClass;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Rules", meta = (AllowPrivateAccess = "true", ClampMin = "1.0", ClampMax = "100.0", UIMin = "1.0", UIMax = "100.0"))
 	float MaxInvestedLevel = 100.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Recovery", meta = (AllowPrivateAccess = "true"))
-	bool bEnableRecoveryHealthRegen = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Recovery", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<UGameplayEffect> RecoveryHealGameplayEffectClass;
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Upgrade Rules
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Rules", meta = (TitleProperty = "RootTag", AllowPrivateAccess = "true"))
-	TArray<FPdStatUpgradeRule> UpgradeRules;
+	TArray<FStatUpgradeRule> UpgradeRules;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Rules", meta = (TitleProperty = "MaxStatTag", AllowPrivateAccess = "true"))
-	TArray<FPdPairedResourceStatTag> PairedResourceStatTags;
+	TArray<FPairedResourceStatTag> PairedResourceStatTags;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat|Attribute Values", meta = (TitleProperty = "StatTag", AllowPrivateAccess = "true", DisplayName = "Attribute Values"))
-	TArray<FPdStatAttributeDefaultValue> AttributeDefaultValues;
+	TArray<FStatAttributeDefaultValue> AttributeDefaultValues;
 };

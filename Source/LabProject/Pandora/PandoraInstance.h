@@ -16,7 +16,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Pandora")
 	TObjectPtr<const UPandoraDefinition> PandoraDefinition;
 
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Item")
+UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Item")
 	bool IsOwned = false;
 };

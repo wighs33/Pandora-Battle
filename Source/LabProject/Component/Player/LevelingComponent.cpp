@@ -125,8 +125,7 @@ bool ULevelingComponent::GrantExperienceInternal(const float ExperienceAmount)
 
 	const bool bApplied = ASC->ApplyStatUpEffectByTag(LevelingGameplayEffectClass, ExperienceStatTag, ExperienceAmount, EEnum_Operation::Add);
 
-
-	const float RequiredExperience = GetRequiredExperienceForNextLevel();
+const float RequiredExperience = GetRequiredExperienceForNextLevel();
 	if (!bApplied || !bAutoLevelUpWhenExperienceReached || RequiredExperience <= 0.f)
 	{
 		return bApplied;
@@ -192,9 +191,7 @@ bool ULevelingComponent::ApplyLevelUpInternal()
 		}
 	}
 
-	const bool bApplied = ASC->ApplyStatUpEffectByTags(LevelingGameplayEffectClass, LevelUpMagnitudes, EEnum_Operation::Add);
-
-	return bApplied;
+	return ASC->ApplyStatUpEffectByTags(LevelingGameplayEffectClass, LevelUpMagnitudes, EEnum_Operation::Add);
 }
 
 bool ULevelingComponent::ProcessAutoLevelUps()
@@ -220,8 +217,6 @@ bool ULevelingComponent::ProcessAutoLevelUps()
 		{
 			break;
 		}
-
-
 
 		if (!ApplyLevelUpInternal())
 		{

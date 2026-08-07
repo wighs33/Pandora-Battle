@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Iris/ReplicationState/IrisFastArraySerializer.h"
-#include "Logging/PdLogRateLimiter.h"
+#include "Logging/LogRateLimiter.h"
 #include "UObject/PrimaryAssetId.h"
 #include "Components/PlayerStateComponent.h"
 #include "Pandora/PandoraLoadoutTypes.h"
@@ -241,5 +241,5 @@ protected:
 
 	mutable TWeakObjectPtr<ACharacterBase> CachedCharacterOwner;
 	TMap<FPrimaryAssetId, TSharedPtr<FStreamableHandle>> PlacedPandoraSkillPreloadHandles;
-	FPdLogRateLimiter ServerValidationLogLimiter;
+	FLogRateLimiter ServerValidationLogLimiter;
 };

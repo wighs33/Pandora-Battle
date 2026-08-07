@@ -380,8 +380,6 @@ bool UPandoraComponent::RequestPandoraSelectionForDirection(
 		return false;
 	}
 
-
-
 	if (!HasPandoraAuthority())
 	{
 		ServerRequestPandoraSelection(PandoraDefinitionId, Direction);
@@ -1198,12 +1196,9 @@ bool UPandoraComponent::ResolvePreferredAutoPandoraLoadoutDirection(
 			return true;
 		}
 
+}
 
-	}
-
-	const bool bResolved = ResolveAutoPandoraLoadoutDirection(PandoraDefinition, OutDirection);
-
-	return bResolved;
+	return ResolveAutoPandoraLoadoutDirection(PandoraDefinition, OutDirection);
 }
 
 bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
@@ -1216,8 +1211,6 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 
 		return false;
 	}
-
-
 
 	if (PandoraDefinition && bRequireOwnedPandora)
 	{
@@ -1252,7 +1245,6 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 			}
 		}
 
-
 		return true;
 	}
 
@@ -1265,8 +1257,7 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 			return true;
 		}
 
-
-		ExistingSlot->PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
+ExistingSlot->PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
 	}
 	else
 	{

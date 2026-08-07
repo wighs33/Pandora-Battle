@@ -77,8 +77,6 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 	IInteractableInterface::Execute_GetRewardSkins(InteractableActor, RewardSkinDefinitions);
 	IInteractableInterface::Execute_GetRewardPandoras(InteractableActor, RewardPandoraDefinitions);
 
-
-
 	if (InventoryComponent)
 	{
 
@@ -127,7 +125,6 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 		NotificationComponent->SendRewardNotifications(RewardItemDefinitions, RewardSkinDefinitions, RewardPandoraDefinitions);
 	}
 	IInteractableInterface::Execute_OnRewardsClaimed(InteractableActor, PlayerState->GetPawn());
-
 
 	return true;
 }

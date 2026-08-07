@@ -55,7 +55,6 @@ protected:
 	ACharacterBase* GetOwningCharacter() const;
 	AWeaponBase* GetOwningWeapon() const;
 	bool IsIgnoredImpactActor(const AActor* OtherActor) const;
-	float GetImpactTraceRadius() const;
 	void PerformImpactTrace();
 	void StopProjectileMotion();
 	bool TryHandleImpact(AActor* OtherActor, UPrimitiveComponent* OtherComp);
