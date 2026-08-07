@@ -10,9 +10,9 @@
 
 class UGameplayAbility;
 class UGameplayEffect;
-class UPdAbilityAttributeRuntime;
-class UPdAbilityCollectionRuntime;
-class UPdAbilityResetRuntime;
+class UAbilityAttributeRuntime;
+class UAbilityCollectionRuntime;
+class UAbilityResetRuntime;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdAbilitiesChangedDynamicDelegate);
 DECLARE_MULTICAST_DELEGATE(FPdAbilitiesChangedNativeDelegate);
@@ -41,11 +41,11 @@ public:
 
 	bool HasAbilityActorInfoAllocated() const { return AbilityActorInfo.IsValid(); }
 
-	UPdAbilityAttributeRuntime* GetAttributeRuntime() const { return AttributeRuntime.Get(); }
-	UPdAbilityCollectionRuntime* GetCollectionRuntime() const { return CollectionRuntime.Get(); }
-	UPdAbilityResetRuntime* GetResetRuntime() const { return ResetRuntime.Get(); }
+	UAbilityAttributeRuntime* GetAttributeRuntime() const { return AttributeRuntime.Get(); }
+	UAbilityCollectionRuntime* GetCollectionRuntime() const { return CollectionRuntime.Get(); }
+	UAbilityResetRuntime* GetResetRuntime() const { return ResetRuntime.Get(); }
 
-	int32 AddAttributeConfig(const FPdAttributeConfig& AttributeConfig);
+	int32 AddAttributeConfig(const FAttributeConfig& AttributeConfig);
 	void RemoveAttributeConfig(int32 AttributeConfigHandle);
 	bool ApplyAttributeDefaultValue(const FGameplayAttribute& Attribute, float DefaultValue);
 
@@ -104,11 +104,11 @@ private:
 		FGameplayAbilitySpecHandle AbilityHandle);
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Runtime")
-	TObjectPtr<UPdAbilityAttributeRuntime> AttributeRuntime;
+	TObjectPtr<UAbilityAttributeRuntime> AttributeRuntime;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Runtime")
-	TObjectPtr<UPdAbilityCollectionRuntime> CollectionRuntime;
+	TObjectPtr<UAbilityCollectionRuntime> CollectionRuntime;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Runtime")
-	TObjectPtr<UPdAbilityResetRuntime> ResetRuntime;
+	TObjectPtr<UAbilityResetRuntime> ResetRuntime;
 };

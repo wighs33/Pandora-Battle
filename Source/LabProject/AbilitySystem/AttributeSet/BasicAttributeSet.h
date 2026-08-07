@@ -30,6 +30,9 @@ public:
 	bool ConsumeOutgoingDamageCriticalHit();
 	void SetPendingIncomingDamageCriticalHit(bool bCriticalHit);
 	void SetPendingIncomingDamageAllowHitReact(bool bAllowHitReact);
+	static bool ResolveAttributeFromStatTag(
+		const FGameplayTag& StatTag,
+		FGameplayAttribute& OutAttribute);
 
 protected:
 	// Replication callbacks

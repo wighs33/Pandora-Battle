@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ActiveGameplayEffectHandle.h"
 #include "CoreMinimal.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "TimerManager.h"
@@ -128,6 +129,5 @@ private:
 	int32 NextStaticSocketIndex = 0;
 	bool bStaticStarted = false;
 
-	UPROPERTY(Transient)
-	float AppliedStaticMovementSpeedIncrease = 0.0f;
+	FActiveGameplayEffectHandle MovementSpeedEffectHandle;
 };

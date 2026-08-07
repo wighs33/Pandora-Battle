@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
 #include "UObject/Object.h"
-#include "PdAbilitySourceRuntime.generated.h"
+#include "AbilitySourceRuntime.generated.h"
 
 class AWeaponBase;
 class UGameplayEffect;
@@ -23,7 +23,7 @@ struct FGameplayEffectSpecHandle;
  * collection runtime still owns shared granted-spec bookkeeping.
  */
 UCLASS()
-class LABPROJECT_API UPdAbilitySourceRuntime : public UObject
+class LABPROJECT_API UAbilitySourceRuntime : public UObject
 {
 	GENERATED_BODY()
 

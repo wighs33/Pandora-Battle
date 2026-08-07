@@ -415,7 +415,6 @@ void AOmenOrbGlitchActor::ApplyFinishAreaDamage()
 		AppliedCount += AppliedHandle.WasSuccessfullyApplied() || AppliedHandle.IsValid() ? 1 : 0;
 	}
 
-
 }
 
 float AOmenOrbGlitchActor::CalculateFinishAreaDamageMagnitude(const UAbilitySystemComponent* SourceASC) const

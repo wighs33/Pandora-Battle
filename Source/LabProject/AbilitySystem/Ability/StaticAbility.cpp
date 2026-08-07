@@ -2,18 +2,18 @@
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
-#include "ActiveGameplayEffectHandle.h"
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystem/EffectActors/EffectAreaBase.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystem/SkillGroundProjection.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/Settings/GameSettingDefinition.h"
 #include "AbilitySystem/StaticActors/AnimeAuraActor.h"
 #include "AbilitySystem/StaticActors/OmenOrbGlitchActor.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
+#include "Common/CollisionChannels.h"
 #include "Common/LabGameplayTags.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
@@ -23,6 +23,7 @@
 #include "GameplayEffectTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticAbility)
 
@@ -48,12 +49,6 @@ namespace
 		}
 
 		return StaticSettings && StaticSettings->bRepeatTriggerDamageWhileOverlapping;
-	}
-
-	bool HasMovementSpeedAttributeSet(const UPdAbilitySystemComponent* AbilitySystemComponent)
-	{
-		return AbilitySystemComponent
-			&& AbilitySystemComponent->GetAttributeSet(UBasicAttributeSet::StaticClass()) != nullptr;
 	}
 
 	double GetStaticTriggerDamageInterval(const USkillDefinition* SkillDataAsset, const FSkillStaticSettings* StaticSettings)
@@ -126,7 +121,7 @@ void UStaticAbility::ActivateAbility(
 	StaticOverlappingActorsBySource.Reset();
 	NextStaticSocketIndex = 0;
 	bStaticStarted = false;
-	AppliedStaticMovementSpeedIncrease = 0.0f;
+	MovementSpeedEffectHandle.Invalidate();
 
 	if (UWorld* World = GetWorld())
 	{
@@ -336,7 +331,7 @@ void UStaticAbility::TryCommitAndStartStatic()
 
 void UStaticAbility::ApplyStaticMovementSpeedIncrease()
 {
-	if (AppliedStaticMovementSpeedIncrease > 0.0f)
+	if (MovementSpeedEffectHandle.IsValid())
 	{
 		return;
 	}
@@ -344,11 +339,18 @@ void UStaticAbility::ApplyStaticMovementSpeedIncrease()
 	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const TSubclassOf<UGameplayEffect> MovementSpeedEffectClass =
+		SettingDefinition
+			? SettingDefinition->MovementSpeedGameplayEffectClass
+			: nullptr;
 	if (!SkillDataAsset
 		|| !SkillDataAsset->Movement.bOverrideMovementSpeedWhileActive
 		|| !Character
 		|| !Character->HasAuthority()
-		|| !HasMovementSpeedAttributeSet(AbilitySystemComponent))
+		|| !AbilitySystemComponent
+		|| !MovementSpeedEffectClass)
 	{
 		return;
 	}
@@ -361,31 +363,45 @@ void UStaticAbility::ApplyStaticMovementSpeedIncrease()
 		return;
 	}
 
-	AppliedStaticMovementSpeedIncrease = static_cast<float>(ConfiguredMovementSpeedIncrease);
-	AbilitySystemComponent->ApplyModToAttribute(
-		UBasicAttributeSet::GetMovementSpeedAttribute(),
-		EGameplayModOp::Additive,
-		AppliedStaticMovementSpeedIncrease);
+	FGameplayEffectSpecHandle MovementSpeedSpec =
+		MakeOutgoingGameplayEffectSpec(
+			CurrentSpecHandle,
+			CurrentActorInfo,
+			CurrentActivationInfo,
+			MovementSpeedEffectClass,
+			GetAbilityLevel());
+	if (!MovementSpeedSpec.IsValid() || !MovementSpeedSpec.Data.IsValid())
+	{
+		return;
+	}
+
+	MovementSpeedSpec.Data->SetSetByCallerMagnitude(
+		LabGameplayTags::Data_MovementSpeed,
+		static_cast<float>(ConfiguredMovementSpeedIncrease));
+	MovementSpeedEffectHandle = ApplyGameplayEffectSpecToOwner(
+		CurrentSpecHandle,
+		CurrentActorInfo,
+		CurrentActivationInfo,
+		MovementSpeedSpec);
 }
 
 void UStaticAbility::RemoveStaticMovementSpeedIncrease()
 {
-	if (AppliedStaticMovementSpeedIncrease <= 0.0f)
+	if (!MovementSpeedEffectHandle.IsValid())
 	{
 		return;
 	}
 
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
-	if (Character && Character->HasAuthority() && HasMovementSpeedAttributeSet(AbilitySystemComponent))
+	if (Character && Character->HasAuthority() && AbilitySystemComponent)
 	{
-		AbilitySystemComponent->ApplyModToAttribute(
-			UBasicAttributeSet::GetMovementSpeedAttribute(),
-			EGameplayModOp::Additive,
-			-AppliedStaticMovementSpeedIncrease);
+		AbilitySystemComponent->RemoveActiveGameplayEffect(
+			MovementSpeedEffectHandle,
+			1);
 	}
 
-	AppliedStaticMovementSpeedIncrease = 0.0f;
+	MovementSpeedEffectHandle.Invalidate();
 }
 
 bool UStaticAbility::StartStaticDurationTimerFromSkillStart()
@@ -397,7 +413,7 @@ bool UStaticAbility::StartStaticDurationTimerFromSkillStart()
 
 	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	if (!SkillDataAsset
-		|| SkillDataAsset->SkillType != EPdSkillType::Duration
+		|| SkillDataAsset->SkillType != ESkillType::Duration
 		|| SkillDataAsset->Time.Duration <= 0.0)
 	{
 		return false;
@@ -477,9 +493,7 @@ void UStaticAbility::StartStaticSpawnSequence()
 		return;
 	}
 
-
-
-	SpawnNextStaticActor();
+SpawnNextStaticActor();
 }
 
 void UStaticAbility::StartStaticRepeatAndEndTimers()
@@ -514,7 +528,6 @@ void UStaticAbility::StartStaticRepeatAndEndTimers()
 			static_cast<float>(SkillDataAsset->Time.Duration),
 			false);
 	}
-
 
 }
 
@@ -634,6 +647,12 @@ AActor* UStaticAbility::SpawnStaticActorForSocket(const FName SocketName, const 
 			RuntimeContext ? RuntimeContext->GetLoadoutDirection() : EEnum_Direction::Center);
 	}
 
+	if (AAnimeAuraActor* AnimeAuraActor = Cast<AAnimeAuraActor>(SpawnedActor))
+	{
+		AnimeAuraActor->ConfigurePresentationSettings(
+			StaticSettings->AnimeAuraPresentation);
+	}
+
 	if (AEffectAreaBase* EffectArea = Cast<AEffectAreaBase>(SpawnedActor))
 	{
 		EffectArea->SetSourceActor(AvatarActor);
@@ -683,8 +702,6 @@ AActor* UStaticAbility::SpawnStaticActorForSocket(const FName SocketName, const 
 
 	SpawnedStaticActors.Add(SpawnedActor);
 	BindStaticTriggerDamage(SpawnedActor);
-
-
 
 	return SpawnedActor;
 }
@@ -820,7 +837,7 @@ bool UStaticAbility::ShouldRepeatStaticSpawnSequence() const
 	return SkillDataAsset
 		&& StaticSettings
 		&& StaticSettings->bRepeatSpawnSequence
-		&& SkillDataAsset->SkillType == EPdSkillType::Duration
+		&& SkillDataAsset->SkillType == ESkillType::Duration
 		&& SkillDataAsset->Time.Duration > 0.0
 		&& StaticSettings->RepeatSpawnInterval > 0.0;
 }
@@ -880,7 +897,6 @@ UPrimitiveComponent* UStaticAbility::FindStaticTriggerComponent(AActor* SpawnedA
 		}
 	}
 
-
 	return PrimitiveComponents[0];
 }
 
@@ -916,10 +932,10 @@ void UStaticAbility::BindStaticTriggerDamage(AActor* SpawnedActor)
 	// owning character as the damage target.
 	TriggerComponent->SetCollisionProfileName(TEXT("Custom"));
 	TriggerComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	TriggerComponent->SetCollisionObjectType(ECC_GameTraceChannel3); // OverlapBox
+	TriggerComponent->SetCollisionObjectType(LabCollisionChannels::OverlapBox());
 	TriggerComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	TriggerComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	TriggerComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap); // HitableBody
+	TriggerComponent->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
 	// Hide only the gameplay collision primitive. Propagating this state from a
 	// root trigger also hides attached particle/Niagara components.
 	TriggerComponent->SetHiddenInGame(true, false);
@@ -938,7 +954,6 @@ void UStaticAbility::BindStaticTriggerDamage(AActor* SpawnedActor)
 	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	const bool bRepeatDamage = ShouldRepeatStaticTriggerDamage(SkillDataAsset, StaticSettings);
 	const double TriggerDamageInterval = GetStaticTriggerDamageInterval(SkillDataAsset, StaticSettings);
-
 
 }
 
@@ -990,7 +1005,6 @@ void UStaticAbility::StartStaticTriggerDamageTickIfNeeded()
 		&ThisClass::HandleStaticTriggerDamageTick,
 		DamageInterval,
 		true);
-
 
 }
 
@@ -1204,7 +1218,6 @@ void UStaticAbility::ApplyStaticTriggerDamage(AActor* DamageSourceActor, AActor*
 		DamagedActorsForSource.Add(HitActorKey);
 	}
 
-
 }
 
 FGameplayEffectSpecHandle UStaticAbility::MakeStaticTriggerDamageSpec(AActor* DamageSourceActor, const float DamageMagnitude) const
@@ -1248,7 +1261,7 @@ void UStaticAbility::ScheduleStaticAbilityEnd()
 		? static_cast<float>(FMath::Max(StaticSettings->TriggerActiveDurationAfterLastSpawn, 0.0))
 		: 0.0f;
 
-	if (SkillDataAsset && SkillDataAsset->SkillType == EPdSkillType::Duration && SkillDataAsset->Time.Duration > 0.0)
+	if (SkillDataAsset && SkillDataAsset->SkillType == ESkillType::Duration && SkillDataAsset->Time.Duration > 0.0)
 	{
 		if (StaticEndTimerHandle.IsValid())
 		{
@@ -1258,8 +1271,6 @@ void UStaticAbility::ScheduleStaticAbilityEnd()
 
 		EndDelay = static_cast<float>(SkillDataAsset->Time.Duration);
 	}
-
-
 
 	if (EndDelay <= KINDA_SMALL_NUMBER)
 	{
@@ -1291,8 +1302,7 @@ void UStaticAbility::HandleRepeatedStaticSpawnSequence()
 		return;
 	}
 
-
-	StartStaticSpawnSequence();
+StartStaticSpawnSequence();
 }
 
 void UStaticAbility::CleanupStaticTasks()

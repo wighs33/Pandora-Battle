@@ -1,4 +1,4 @@
-#include "Component/AbilitySystem/Ability/PdAbilitySourceRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilitySourceRuntime.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
@@ -16,7 +16,7 @@
 #include "Pandora/PandoraSkillRuntimeContext.h"
 #include "Weapon/WeaponBase.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PdAbilitySourceRuntime)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitySourceRuntime)
 
 namespace
 {
@@ -74,7 +74,7 @@ float GetPandoraLoadoutDamageBonusPercent(
 }
 }
 
-const FGameplayAbilitySpec* UPdAbilitySourceRuntime::ResolveCurrentAbilitySpec(
+const FGameplayAbilitySpec* UAbilitySourceRuntime::ResolveCurrentAbilitySpec(
 	const UPdGameplayAbility& Ability) const
 {
 	if (const FGameplayAbilitySpec* AbilitySpec = Ability.GetCurrentAbilitySpec())
@@ -91,14 +91,14 @@ const FGameplayAbilitySpec* UPdAbilitySourceRuntime::ResolveCurrentAbilitySpec(
 		: nullptr;
 }
 
-UObject* UPdAbilitySourceRuntime::GetCurrentAbilitySpecSourceObject(
+UObject* UAbilitySourceRuntime::GetCurrentAbilitySpecSourceObject(
 	const UPdGameplayAbility& Ability) const
 {
 	const FGameplayAbilitySpec* AbilitySpec = ResolveCurrentAbilitySpec(Ability);
 	return AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr;
 }
 
-const USkillDefinition* UPdAbilitySourceRuntime::ResolveSkillDataAsset(
+const USkillDefinition* UAbilitySourceRuntime::ResolveSkillDataAsset(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpec* AbilitySpec,
 	const FGameplayAbilityActorInfo* ActorInfo) const
@@ -142,7 +142,7 @@ const USkillDefinition* UPdAbilitySourceRuntime::ResolveSkillDataAsset(
 	return PandoraDefinition->Skill[SkillIndex].SkillDefinition.Get();
 }
 
-USkillDefinition* UPdAbilitySourceRuntime::GetSourceSkillDataAsset(
+USkillDefinition* UAbilitySourceRuntime::GetSourceSkillDataAsset(
 	const UPdGameplayAbility& Ability) const
 {
 	if (const UPandoraSkillRuntimeContext* RuntimeContext =
@@ -168,7 +168,7 @@ USkillDefinition* UPdAbilitySourceRuntime::GetSourceSkillDataAsset(
 }
 
 UPandoraSkillRuntimeContext*
-UPdAbilitySourceRuntime::GetSourceSkillRuntimeContext(
+UAbilitySourceRuntime::GetSourceSkillRuntimeContext(
 	const UPdGameplayAbility& Ability) const
 {
 	if (UPandoraSkillRuntimeContext* RuntimeContext =
@@ -182,7 +182,7 @@ UPdAbilitySourceRuntime::GetSourceSkillRuntimeContext(
 }
 
 UPandoraSkillRuntimeContext*
-UPdAbilitySourceRuntime::ResolveSourceSkillRuntimeContextFromSelectedPandora(
+UAbilitySourceRuntime::ResolveSourceSkillRuntimeContextFromSelectedPandora(
 	const UPdGameplayAbility& Ability) const
 {
 	const FGameplayAbilitySpec* AbilitySpec =
@@ -234,8 +234,8 @@ UPdAbilitySourceRuntime::ResolveSourceSkillRuntimeContextFromSelectedPandora(
 		return CachedResolvedSourceSkillRuntimeContext.Get();
 	}
 
-	UPdAbilitySourceRuntime* MutableThis =
-		const_cast<UPdAbilitySourceRuntime*>(this);
+	UAbilitySourceRuntime* MutableThis =
+		const_cast<UAbilitySourceRuntime*>(this);
 	UPdGameplayAbility* MutableAbility =
 		const_cast<UPdGameplayAbility*>(&Ability);
 	MutableThis->CachedResolvedSourceSkillRuntimeContext =
@@ -250,7 +250,7 @@ UPdAbilitySourceRuntime::ResolveSourceSkillRuntimeContextFromSelectedPandora(
 }
 
 TArray<FProjectileImpactEffectAreaSpawnConfig>
-UPdAbilitySourceRuntime::GetSourceProjectileImpactEffectAreas(
+UAbilitySourceRuntime::GetSourceProjectileImpactEffectAreas(
 	const UPdGameplayAbility& Ability) const
 {
 	if (const UPandoraSkillRuntimeContext* RuntimeContext =
@@ -262,7 +262,7 @@ UPdAbilitySourceRuntime::GetSourceProjectileImpactEffectAreas(
 	return TArray<FProjectileImpactEffectAreaSpawnConfig>();
 }
 
-int32 UPdAbilitySourceRuntime::GetPandoraSkillIndex(
+int32 UAbilitySourceRuntime::GetPandoraSkillIndex(
 	const FGameplayAbilitySpec* AbilitySpec) const
 {
 	if (!AbilitySpec)
@@ -292,7 +292,7 @@ int32 UPdAbilitySourceRuntime::GetPandoraSkillIndex(
 	return INDEX_NONE;
 }
 
-bool UPdAbilitySourceRuntime::IsPandoraSkillSpec(
+bool UAbilitySourceRuntime::IsPandoraSkillSpec(
 	const FGameplayAbilitySpec* AbilitySpec) const
 {
 	return AbilitySpec
@@ -301,7 +301,7 @@ bool UPdAbilitySourceRuntime::IsPandoraSkillSpec(
 			|| GetPandoraSkillIndex(AbilitySpec) != INDEX_NONE);
 }
 
-AWeaponBase* UPdAbilitySourceRuntime::GetCurrentWeaponActorFromAvatar(
+AWeaponBase* UAbilitySourceRuntime::GetCurrentWeaponActorFromAvatar(
 	const UPdGameplayAbility& Ability) const
 {
 	const ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
@@ -312,7 +312,7 @@ AWeaponBase* UPdAbilitySourceRuntime::GetCurrentWeaponActorFromAvatar(
 		: nullptr;
 }
 
-bool UPdAbilitySourceRuntime::HasCurrentWeaponSkillTrail(
+bool UAbilitySourceRuntime::HasCurrentWeaponSkillTrail(
 	const UPdGameplayAbility& Ability) const
 {
 	const AWeaponBase* CurrentWeapon =
@@ -320,7 +320,7 @@ bool UPdAbilitySourceRuntime::HasCurrentWeaponSkillTrail(
 	return CurrentWeapon && CurrentWeapon->HasSkillWeaponTrailComponent();
 }
 
-bool UPdAbilitySourceRuntime::StartCurrentWeaponSkillTrail(
+bool UAbilitySourceRuntime::StartCurrentWeaponSkillTrail(
 	const UPdGameplayAbility& Ability,
 	UNiagaraSystem* TrailSystem) const
 {
@@ -330,7 +330,7 @@ bool UPdAbilitySourceRuntime::StartCurrentWeaponSkillTrail(
 		: false;
 }
 
-void UPdAbilitySourceRuntime::StopCurrentWeaponSkillTrail(
+void UAbilitySourceRuntime::StopCurrentWeaponSkillTrail(
 	const UPdGameplayAbility& Ability) const
 {
 	if (AWeaponBase* CurrentWeapon =
@@ -340,7 +340,7 @@ void UPdAbilitySourceRuntime::StopCurrentWeaponSkillTrail(
 	}
 }
 
-float UPdAbilitySourceRuntime::GetPandoraAttackDamageBonus(
+float UAbilitySourceRuntime::GetPandoraAttackDamageBonus(
 	const UPdGameplayAbility& Ability) const
 {
 	const UPdAbilitySystemComponent* AbilitySystemComponent =
@@ -356,7 +356,7 @@ float UPdAbilitySourceRuntime::GetPandoraAttackDamageBonus(
 		+ GetPandoraLoadoutAttackDamageBonus(Ability);
 }
 
-float UPdAbilitySourceRuntime::GetPandoraLoadoutAttackDamageBonus(
+float UAbilitySourceRuntime::GetPandoraLoadoutAttackDamageBonus(
 	const UPdGameplayAbility& Ability) const
 {
 	const UPdAbilitySystemComponent* AbilitySystemComponent =
@@ -375,14 +375,14 @@ float UPdAbilitySourceRuntime::GetPandoraLoadoutAttackDamageBonus(
 		LoadoutDirection);
 }
 
-float UPdAbilitySourceRuntime::CalculateBaseSkillDamageMagnitude(
+float UAbilitySourceRuntime::CalculateBaseSkillDamageMagnitude(
 	const FSkillGameplayEffectConfig& DamageConfig) const
 {
 	const double BaseMagnitude = FMath::Max(DamageConfig.Magnitude, 0.0);
 	return static_cast<float>(FMath::Max(BaseMagnitude, 0.0));
 }
 
-float UPdAbilitySourceRuntime::ApplyIntelligenceToSkillDamage(
+float UAbilitySourceRuntime::ApplyIntelligenceToSkillDamage(
 	const UPdGameplayAbility& Ability,
 	const float DamageMagnitude) const
 {
@@ -400,7 +400,7 @@ float UPdAbilitySourceRuntime::ApplyIntelligenceToSkillDamage(
 		0.0f);
 }
 
-float UPdAbilitySourceRuntime::CalculateSkillDamageMagnitude(
+float UAbilitySourceRuntime::CalculateSkillDamageMagnitude(
 	const UPdGameplayAbility& Ability,
 	const FSkillGameplayEffectConfig& DamageConfig) const
 {
@@ -410,7 +410,7 @@ float UPdAbilitySourceRuntime::CalculateSkillDamageMagnitude(
 }
 
 FGameplayEffectSpecHandle
-UPdAbilitySourceRuntime::MakeConfiguredDamageEffectSpec(
+UAbilitySourceRuntime::MakeConfiguredDamageEffectSpec(
 	const UPdGameplayAbility& Ability,
 	const FSkillGameplayEffectConfig& DamageConfig,
 	const float DamageMagnitude,
@@ -463,16 +463,6 @@ UPdAbilitySourceRuntime::MakeConfiguredDamageEffectSpec(
 		DamageSpecHandle.Data->SetSetByCallerMagnitude(
 			DamageDataTag,
 			DamageMagnitude);
-	}
-
-	if (const USkillDefinition* SkillDefinition =
-		GetSourceSkillDataAsset(Ability))
-	{
-		if (const UStatusEffectDefinition* StatusEffectDefinition =
-			SkillDefinition->StatusEffectDataAsset.Get())
-		{
-			StatusEffectDefinition->AppendRemovalPolicyTags(DamageSpecHandle);
-		}
 	}
 
 	return DamageSpecHandle;

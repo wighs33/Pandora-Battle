@@ -6,9 +6,12 @@
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Character/CharacterHitValidation.h"
+#include "Common/CollisionChannels.h"
+#include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SphereComponent.h"
 #include "Engine/OverlapResult.h"
+#include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameplayCueFunctionLibrary.h"
@@ -44,14 +47,14 @@ AProjectileBase::AProjectileBase()
 	SetRootComponent(SphereCollision);
 	SphereCollision->InitSphereRadius(12.0f);
 	SphereCollision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	SphereCollision->SetCollisionObjectType(ECC_GameTraceChannel2);
+	SphereCollision->SetCollisionObjectType(LabCollisionChannels::Projectile());
 	SphereCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
 	SphereCollision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 	SphereCollision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
 	SphereCollision->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
 	SphereCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	SphereCollision->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Block);
-	SphereCollision->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Ignore);
+	SphereCollision->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Block);
+	SphereCollision->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(), ECR_Ignore);
 	SphereCollision->SetGenerateOverlapEvents(true);
 	SphereCollision->SetNotifyRigidBodyCollision(true);
 	SphereCollision->SetCanEverAffectNavigation(false);
@@ -116,36 +119,6 @@ void AProjectileBase::InitializeProjectile(
 	LaunchProjectile(InTargetLocation, InSpeed, InDamageEffectSpecHandle);
 }
 
-void AProjectileBase::InitializeCosmeticProjectile(
-	const FVector& InTargetLocation,
-	float InSpeed,
-	const float InLifeSpan)
-{
-	bCosmeticOnly = true;
-	StopReadiedScaleGrowth();
-	TargetLocation = InTargetLocation;
-	Speed = FMath::Max(InSpeed, 0.0f);
-	DamageEffectSpecHandle = FGameplayEffectSpecHandle();
-	DebuffEffectSpecHandle = FGameplayEffectSpecHandle();
-	bHasImpacted = false;
-	bKeepProjectileVisualAfterImpact = false;
-	bImpactCueExecuted = false;
-	bImpactNiagaraExecuted = false;
-
-	DisableProjectileCollision();
-	ApplyProjectileLoopVisual();
-
-	if (HasActorBegunPlay() && Speed > 0.0f)
-	{
-		StartProjectileMovement();
-	}
-
-	if (InLifeSpan > 0.0f)
-	{
-		SetLifeSpan(InLifeSpan);
-	}
-}
-
 void AProjectileBase::PrepareProjectile(const FGameplayEffectSpecHandle& InDamageEffectSpecHandle)
 {
 	bCosmeticOnly = false;
@@ -167,7 +140,6 @@ void AProjectileBase::PrepareProjectile(const FGameplayEffectSpecHandle& InDamag
 	DisableProjectileCollision();
 	ApplyProjectileLoopVisual();
 
-
 }
 
 void AProjectileBase::PrepareCosmeticReadiedProjectile(const float InLifeSpan)
@@ -179,6 +151,7 @@ void AProjectileBase::PrepareCosmeticReadiedProjectile(const float InLifeSpan)
 
 	DamageEffectSpecHandle = FGameplayEffectSpecHandle();
 	DebuffEffectSpecHandle = FGameplayEffectSpecHandle();
+	StatusEffectDefinition = nullptr;
 	bHasImpacted = false;
 	bKeepProjectileVisualAfterImpact = false;
 	bImpactCueExecuted = false;
@@ -248,7 +221,6 @@ void AProjectileBase::StartReadiedScaleGrowth(
 		ForceNetUpdate();
 	}
 
-
 }
 
 float AProjectileBase::GetReadiedScaleGrowthAlpha() const
@@ -303,10 +275,12 @@ void AProjectileBase::ConfigureArcTrajectory(
 
 }
 
-void AProjectileBase::SetDebuffEffectSpecHandle(const FGameplayEffectSpecHandle& InDebuffEffectSpecHandle)
+void AProjectileBase::SetDebuffEffectSpecHandle(
+	const FGameplayEffectSpecHandle& InDebuffEffectSpecHandle,
+	UStatusEffectDefinition* InStatusEffectDefinition)
 {
 	DebuffEffectSpecHandle = InDebuffEffectSpecHandle;
-
+	StatusEffectDefinition = InStatusEffectDefinition;
 
 }
 
@@ -316,7 +290,6 @@ void AProjectileBase::SetImpactEffectAreaSpawnConfigs(
 {
 	ImpactEffectAreaSpawnConfigs = InImpactEffectAreaSpawnConfigs;
 	SourceSkillLevel = FMath::Max(InSourceSkillLevel, 1);
-
 
 }
 
@@ -354,7 +327,6 @@ void AProjectileBase::ConfigureProjectileVisuals(
 		ForceNetUpdate();
 	}
 
-
 }
 
 void AProjectileBase::BeginPlay()
@@ -388,8 +360,6 @@ void AProjectileBase::BeginPlay()
 		SphereCollision->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleSphereBeginOverlap);
 		SphereCollision->OnComponentHit.AddUniqueDynamic(this, &ThisClass::HandleSphereHit);
 	}
-
-
 
 	if (bHasImpacted)
 	{
@@ -431,9 +401,7 @@ void AProjectileBase::Destroyed()
 		ExecuteImpactNiagaraAtLocation(GetActorLocation());
 	}
 
-
-
-	Super::Destroyed();
+Super::Destroyed();
 }
 
 void AProjectileBase::OnRep_ProjectileFlightData()
@@ -601,7 +569,6 @@ FVector AProjectileBase::CalculateArcLaunchVelocity() const
 	const float VerticalVelocity = (Delta.Z - (0.5f * GravityZ * FMath::Square(TravelTime))) / TravelTime;
 	const FVector LaunchVelocity = HorizontalVelocity + FVector::UpVector * VerticalVelocity;
 
-
 	return LaunchVelocity;
 }
 
@@ -613,14 +580,14 @@ void AProjectileBase::ConfigureCollision() const
 	}
 
 	SphereCollision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	SphereCollision->SetCollisionObjectType(ECC_GameTraceChannel2);
+	SphereCollision->SetCollisionObjectType(LabCollisionChannels::Projectile());
 	SphereCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
 	SphereCollision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 	SphereCollision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
 	SphereCollision->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
 	SphereCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	SphereCollision->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Block);
-	SphereCollision->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Ignore);
+	SphereCollision->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Block);
+	SphereCollision->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(), ECR_Ignore);
 	SphereCollision->SetGenerateOverlapEvents(true);
 	SphereCollision->SetNotifyRigidBodyCollision(true);
 
@@ -715,8 +682,6 @@ void AProjectileBase::HandleImpact(
 
 		return;
 	}
-
-
 
 	if (HasAuthority())
 	{
@@ -902,7 +867,6 @@ bool AProjectileBase::TryApplyDamageToTarget(AActor* TargetActor)
 		TryApplyDebuffToTarget(TargetActor, SourceASC, TargetASC);
 	}
 
-
 	return AppliedHandle.WasSuccessfullyApplied();
 }
 
@@ -920,7 +884,7 @@ bool AProjectileBase::TryApplyDamageInImpactArea(const FVector& ImpactLocation)
 
 	FCollisionObjectQueryParams ObjectQueryParams;
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
-	ObjectQueryParams.AddObjectTypesToQuery(ECC_GameTraceChannel1);
+	ObjectQueryParams.AddObjectTypesToQuery(LabCollisionChannels::HitableBody());
 
 	FCollisionQueryParams QueryParams(
 		SCENE_QUERY_STAT(ProjectileImpactAreaDamage),
@@ -1031,8 +995,7 @@ void AProjectileBase::TrySpawnImpactEffectAreas(AActor* TargetActor, const bool 
 			SpawnedArea->SetLifeSpan(static_cast<float>(SpawnConfig.LifeSpan));
 		}
 
-
-	}
+}
 }
 
 bool AProjectileBase::ResolveImpactEffectAreaSpawnTransform(
@@ -1097,14 +1060,25 @@ bool AProjectileBase::TryApplyDebuffToTarget(AActor* TargetActor, UAbilitySystem
 		|| !DebuffEffectSpecHandle.Data.IsValid()
 		|| !IsValid(TargetActor)
 		|| !SourceASC
-		|| !TargetASC)
+		|| !TargetASC
+		|| !StatusEffectDefinition
+		|| !StatusEffectDefinition->CanAccumulateDebuffOn(TargetASC))
 	{
 		return false;
 	}
 
 	const FActiveGameplayEffectHandle AppliedHandle =
 		SourceASC->ApplyGameplayEffectSpecToTarget(*DebuffEffectSpecHandle.Data.Get(), TargetASC);
-
+	if (AppliedHandle.WasSuccessfullyApplied())
+	{
+		if (UStatusEffectReplicationComponent* ReplicationComponent =
+			TargetActor->FindComponentByClass<UStatusEffectReplicationComponent>())
+		{
+			ReplicationComponent->TrackAppliedStatusEffect(
+				StatusEffectDefinition,
+				AppliedHandle);
+		}
+	}
 
 	return AppliedHandle.WasSuccessfullyApplied();
 }
@@ -1324,7 +1298,6 @@ FTransform AProjectileBase::ResolveImpactNiagaraSpawnTransform(const FVector& Cu
 
 		return FTransform(GroundRotation, GroundHit.Location);
 	}
-
 
 	return FTransform(GetActorRotation(), CueLocation);
 }

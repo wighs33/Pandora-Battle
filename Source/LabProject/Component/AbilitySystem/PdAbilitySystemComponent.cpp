@@ -1,11 +1,12 @@
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemGlobals.h"
 #include "Common/LabGameplayTags.h"
-#include "Component/AbilitySystem/PdAbilityAttributeRuntime.h"
-#include "Component/AbilitySystem/PdAbilityCollectionRuntime.h"
-#include "Component/AbilitySystem/PdAbilityResetRuntime.h"
+#include "Component/AbilitySystem/AbilityAttributeRuntime.h"
+#include "Component/AbilitySystem/AbilityCollectionRuntime.h"
+#include "Component/AbilitySystem/AbilityResetRuntime.h"
 #include "Engine/World.h"
 #include "Pandora/PandoraSkillRuntimeContext.h"
 #include "TimerManager.h"
@@ -19,15 +20,15 @@ UPdAbilitySystemComponent::UPdAbilitySystemComponent(const FObjectInitializer& O
 	SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
 	AttributeRuntime =
-		ObjectInitializer.CreateDefaultSubobject<UPdAbilityAttributeRuntime>(
+		ObjectInitializer.CreateDefaultSubobject<UAbilityAttributeRuntime>(
 			this,
 			TEXT("AttributeRuntime"));
 	CollectionRuntime =
-		ObjectInitializer.CreateDefaultSubobject<UPdAbilityCollectionRuntime>(
+		ObjectInitializer.CreateDefaultSubobject<UAbilityCollectionRuntime>(
 			this,
 			TEXT("CollectionRuntime"));
 	ResetRuntime =
-		ObjectInitializer.CreateDefaultSubobject<UPdAbilityResetRuntime>(
+		ObjectInitializer.CreateDefaultSubobject<UAbilityResetRuntime>(
 			this,
 			TEXT("ResetRuntime"));
 }
@@ -147,7 +148,7 @@ void UPdAbilitySystemComponent::OnRep_ActivateAbilities()
 	NotifyAbilitiesChanged();
 }
 
-int32 UPdAbilitySystemComponent::AddAttributeConfig(const FPdAttributeConfig& AttributeConfig)
+int32 UPdAbilitySystemComponent::AddAttributeConfig(const FAttributeConfig& AttributeConfig)
 {
 	return AttributeRuntime
 		? AttributeRuntime->AddAttributeConfig(AttributeConfig)
@@ -320,13 +321,15 @@ bool UPdAbilitySystemComponent::ResolveAttributeFromTag(
 	const FGameplayTag& StatTag,
 	FGameplayAttribute& OutAttribute) const
 {
-	if (!AttributeRuntime)
+	if (AttributeRuntime
+		&& AttributeRuntime->ResolveAttributeFromTag(StatTag, OutAttribute))
 	{
-		OutAttribute = FGameplayAttribute();
-		return false;
+		return true;
 	}
 
-	return AttributeRuntime->ResolveAttributeFromTag(*this, StatTag, OutAttribute);
+	return UBasicAttributeSet::ResolveAttributeFromStatTag(
+		StatTag,
+		OutAttribute);
 }
 
 bool UPdAbilitySystemComponent::ResolveDamageMagnitudeSetByCallerTag(

@@ -4,6 +4,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "Animation/AnimMontage.h"
 #include "Common/LabGameplayTags.h"
 #include "GameFramework/Actor.h"
@@ -17,7 +18,7 @@ namespace
 {
 	const FTrailSkillConfig* GetTrailConfig(const USkillDefinition* SkillDataAsset)
 	{
-		return SkillDataAsset && SkillDataAsset->SkillDataType == EPdSkillDataType::Trail
+		return SkillDataAsset && SkillDataAsset->SkillDataType == ESkillDataType::Trail
 			? &SkillDataAsset->Trail
 			: nullptr;
 	}
@@ -58,7 +59,7 @@ void UTrailAbility::ActivateAbility(
 		return;
 	}
 
-	if (SkillDataAsset->SkillDataType != EPdSkillDataType::Trail)
+	if (SkillDataAsset->SkillDataType != ESkillDataType::Trail)
 	{
 
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -108,6 +109,8 @@ void UTrailAbility::ActivateAbility(
 	const float AdditionalDamageMagnitude = AdditionalDamageConfig.GameplayEffectClass
 		? CalculateSkillDamageMagnitude(AdditionalDamageConfig)
 		: 0.0f;
+	const FGameplayEffectSpecHandle DebuffEffectSpecHandle =
+		MakeConfiguredStatusEffectSpec(SkillDataAsset);
 
 	CurrentWeapon->ConfigureSkillSlash(
 		TrailConfig->SlashSystem,
@@ -121,8 +124,9 @@ void UTrailAbility::ActivateAbility(
 		AdditionalDamageConfig.MagnitudeDataTag,
 		AdditionalDamageMagnitude,
 		FMath::Max(GetAbilityLevel(), 1),
-		GetCurrentAbilitySpecSourceObject());
-
+		GetCurrentAbilitySpecSourceObject(),
+		DebuffEffectSpecHandle,
+		SkillDataAsset->StatusEffectDataAsset.Get());
 
 	if (bHasTrailSystem && !StartCurrentWeaponSkillTrail(TrailConfig->TrailSystem))
 	{
@@ -173,12 +177,11 @@ void UTrailAbility::ActivateAbility(
 		TrailDurationTask->OnFinish.AddDynamic(this, &ThisClass::HandleTrailDurationFinished);
 		TrailDurationTask->ReadyForActivation();
 
-
 		return true;
 	};
 
 	const bool bUseConfiguredSkillDuration =
-		SkillDataAsset->SkillType == EPdSkillType::Duration
+		SkillDataAsset->SkillType == ESkillType::Duration
 		&& SkillDataAsset->Time.Duration > 0.0;
 	if (bUseConfiguredSkillDuration)
 	{
@@ -200,7 +203,6 @@ void UTrailAbility::ActivateAbility(
 			return;
 		}
 	}
-
 
 	if (!bTrailDurationTimerStarted)
 	{

@@ -6,7 +6,7 @@
 #include "AbilityAttributeConfig.generated.h"
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdAttributeTagMapping
+struct LABPROJECT_API FAttributeTagMapping
 {
 	GENERATED_BODY()
 
@@ -20,12 +20,12 @@ struct LABPROJECT_API FPdAttributeTagMapping
 };
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdAttributeConfig
+struct LABPROJECT_API FAttributeConfig
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!AbilitySystem|Attribute", meta = (TitleProperty = "StatTag"))
-	TArray<FPdAttributeTagMapping> AttributeMappings;
+	TArray<FAttributeTagMapping> AttributeMappings;
 
 	bool HasAnyData() const { return !AttributeMappings.IsEmpty(); }
 };

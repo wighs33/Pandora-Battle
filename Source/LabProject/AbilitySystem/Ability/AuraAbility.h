@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ActiveGameplayEffectHandle.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "TimerManager.h"
 #include "AuraAbility.generated.h"
@@ -78,8 +79,7 @@ private:
 	UPROPERTY(Transient)
 	TArray<TWeakObjectPtr<AEffectAreaBase>> ActiveAuraEffectAreas;
 
-	UPROPERTY(Transient)
-	float AppliedMovementSpeedIncrease = 0.0f;
+	FActiveGameplayEffectHandle MovementSpeedEffectHandle;
 
 	double AuraActivationWorldTime = 0.0;
 

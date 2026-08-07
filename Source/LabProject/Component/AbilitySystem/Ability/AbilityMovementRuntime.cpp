@@ -1,4 +1,4 @@
-#include "Component/AbilitySystem/Ability/PdAbilityMovementRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityMovementRuntime.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystemComponent.h"
@@ -11,7 +11,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PdAbilityMovementRuntime)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityMovementRuntime)
 
 namespace
 {
@@ -19,12 +19,12 @@ constexpr float MovementContactDamageTickInterval = 1.0f / 30.0f;
 constexpr float MovementContactDamageCapsuleInflation = 15.0f;
 }
 
-UPdGameplayAbility* UPdAbilityMovementRuntime::GetOwningAbility() const
+UPdGameplayAbility* UAbilityMovementRuntime::GetOwningAbility() const
 {
 	return GetTypedOuter<UPdGameplayAbility>();
 }
 
-void UPdAbilityMovementRuntime::StopAvatarMovementForSkillActivation(
+void UAbilityMovementRuntime::StopAvatarMovementForSkillActivation(
 	UPdGameplayAbility& Ability)
 {
 	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
@@ -44,7 +44,7 @@ void UPdAbilityMovementRuntime::StopAvatarMovementForSkillActivation(
 	MovementComponent->StopMovementImmediately();
 }
 
-void UPdAbilityMovementRuntime::LockAvatarMovementForAbility(
+void UAbilityMovementRuntime::LockAvatarMovementForAbility(
 	UPdGameplayAbility& Ability)
 {
 	if (bAbilityMovementLocked)
@@ -97,7 +97,7 @@ void UPdAbilityMovementRuntime::LockAvatarMovementForAbility(
 	Character->bUseControllerRotationYaw = false;
 }
 
-void UPdAbilityMovementRuntime::RestoreAvatarMovementForAbility(
+void UAbilityMovementRuntime::RestoreAvatarMovementForAbility(
 	UPdGameplayAbility& Ability)
 {
 	if (!bAbilityMovementLocked)
@@ -167,7 +167,7 @@ void UPdAbilityMovementRuntime::RestoreAvatarMovementForAbility(
 	Character->ReapplyCurrentRotationPolicy();
 }
 
-void UPdAbilityMovementRuntime::StartDurationMovementLock(
+void UAbilityMovementRuntime::StartDurationMovementLock(
 	UPdGameplayAbility& Ability)
 {
 	if (bDurationMovementLockActive)
@@ -179,7 +179,7 @@ void UPdAbilityMovementRuntime::StartDurationMovementLock(
 		Ability.GetSourceSkillDataAsset();
 	if (!SkillDataAsset
 		|| !SkillDataAsset->Movement.bLockMovementDuringDuration
-		|| SkillDataAsset->SkillType != EPdSkillType::Duration
+		|| SkillDataAsset->SkillType != ESkillType::Duration
 		|| SkillDataAsset->Time.Duration <= 0.0)
 	{
 		return;
@@ -191,7 +191,7 @@ void UPdAbilityMovementRuntime::StartDurationMovementLock(
 		!bWasAlreadyLocked && bAbilityMovementLocked;
 }
 
-void UPdAbilityMovementRuntime::StopDurationMovementLock(
+void UAbilityMovementRuntime::StopDurationMovementLock(
 	UPdGameplayAbility& Ability)
 {
 	if (!bDurationMovementLockActive)
@@ -203,7 +203,7 @@ void UPdAbilityMovementRuntime::StopDurationMovementLock(
 	RestoreAvatarMovementForAbility(Ability);
 }
 
-void UPdAbilityMovementRuntime::StartMovementContactDamage(
+void UAbilityMovementRuntime::StartMovementContactDamage(
 	UPdGameplayAbility& Ability)
 {
 	StopMovementContactDamage(Ability);
@@ -251,7 +251,7 @@ void UPdAbilityMovementRuntime::StartMovementContactDamage(
 	}
 }
 
-void UPdAbilityMovementRuntime::StopMovementContactDamage(
+void UAbilityMovementRuntime::StopMovementContactDamage(
 	UPdGameplayAbility& Ability)
 {
 	if (UWorld* World = Ability.GetWorld())
@@ -270,7 +270,7 @@ void UPdAbilityMovementRuntime::StopMovementContactDamage(
 	MovementContactOverlapResults.Reset();
 }
 
-void UPdAbilityMovementRuntime::HandleMovementContactDamageTick()
+void UAbilityMovementRuntime::HandleMovementContactDamageTick()
 {
 	if (!bMovementContactDamageActive)
 	{
@@ -395,7 +395,7 @@ void UPdAbilityMovementRuntime::HandleMovementContactDamageTick()
 	}
 }
 
-void UPdAbilityMovementRuntime::ApplyMovementContactDamageToActor(
+void UAbilityMovementRuntime::ApplyMovementContactDamageToActor(
 	UPdGameplayAbility& Ability,
 	AActor* HitActor)
 {
@@ -442,13 +442,20 @@ void UPdAbilityMovementRuntime::ApplyMovementContactDamageToActor(
 		return;
 	}
 
-	SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(
+	const FActiveGameplayEffectHandle AppliedHandle =
+		SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(
 		*DamageSpecHandle.Data.Get(),
 		TargetAbilitySystemComponent);
+	if (AppliedHandle.WasSuccessfullyApplied())
+	{
+		Ability.ApplyConfiguredStatusEffectToTarget(
+			Ability.GetSourceSkillDataAsset(),
+			TargetAbilitySystemComponent);
+	}
 }
 
 FGameplayEffectSpecHandle
-UPdAbilityMovementRuntime::MakeMovementContactDamageSpec(
+UAbilityMovementRuntime::MakeMovementContactDamageSpec(
 	const UPdGameplayAbility& Ability,
 	const float DamageMagnitude) const
 {
@@ -469,7 +476,7 @@ UPdAbilityMovementRuntime::MakeMovementContactDamageSpec(
 		DamageMagnitude);
 }
 
-float UPdAbilityMovementRuntime::CalculateMovementContactDamageMagnitude(
+float UAbilityMovementRuntime::CalculateMovementContactDamageMagnitude(
 	const UPdGameplayAbility& Ability) const
 {
 	const USkillDefinition* SkillDataAsset =

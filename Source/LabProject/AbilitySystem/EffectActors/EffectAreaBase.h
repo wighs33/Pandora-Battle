@@ -19,9 +19,6 @@ class LABPROJECT_API AEffectAreaBase : public AActor
 public:
 	AEffectAreaBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UFUNCTION(BlueprintPure, Category = "!EffectArea")
-	USphereComponent* GetAreaCollision() const { return AreaCollision; }
-
 	UFUNCTION(BlueprintCallable, Category = "!EffectArea")
 	void SetSourceActor(AActor* InSourceActor);
 

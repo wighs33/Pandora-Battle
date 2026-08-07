@@ -5,7 +5,7 @@
 #include "TimerManager.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectKey.h"
-#include "PdAbilityMovementRuntime.generated.h"
+#include "AbilityMovementRuntime.generated.h"
 
 class UPdGameplayAbility;
 struct FGameplayEffectSpecHandle;
@@ -14,7 +14,7 @@ struct FGameplayEffectSpecHandle;
  * Owns movement locking and movement-contact damage for one ability instance.
  */
 UCLASS()
-class LABPROJECT_API UPdAbilityMovementRuntime : public UObject
+class LABPROJECT_API UAbilityMovementRuntime : public UObject
 {
 	GENERATED_BODY()
 

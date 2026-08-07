@@ -10,7 +10,6 @@ class UGameplayEffect;
 class UItemDefinition;
 class UAnimInstance;
 
-
 UCLASS(Blueprintable)
 class LABPROJECT_API UEquipAbility : public UPdGameplayAbility
 {
@@ -30,6 +29,11 @@ protected:
 		FGameplayAbilityActivationInfo ActivationInfo,
 		bool bReplicateEndAbility,
 		bool bWasCancelled) override;
+	virtual const FGameplayTagContainer* GetCooldownTags() const override;
+	virtual void ApplyCooldown(
+		FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayAbilityActivationInfo ActivationInfo) const override;
 
 	// Delegate callbacks
 	UFUNCTION()
@@ -50,9 +54,6 @@ protected:
 	void ResolveEquipTransition();
 	void FinalizeEquipCommit();
 	bool CommitPendingEquipIfPossible();
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
-	TSubclassOf<UGameplayEffect> EquippedItemEffectClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> EquipEffectClass;
@@ -77,4 +78,6 @@ protected:
 
 	UPROPERTY(Transient)
 	bool bEquipAbilityCommitted = false;
+
+	mutable FGameplayTagContainer EquipCooldownTags;
 };

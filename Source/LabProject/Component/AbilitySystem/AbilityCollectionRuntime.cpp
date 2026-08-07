@@ -1,4 +1,4 @@
-#include "Component/AbilitySystem/PdAbilityCollectionRuntime.h"
+#include "Component/AbilitySystem/AbilityCollectionRuntime.h"
 
 #include "Abilities/GameplayAbility.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
@@ -7,7 +7,7 @@
 #include "Pandora/PandoraSkillRuntimeContext.h"
 #include "TimerManager.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PdAbilityCollectionRuntime)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityCollectionRuntime)
 
 namespace
 {
@@ -60,7 +60,7 @@ void TryActivateGrantedAbilityNextTick(
 }
 }
 
-void UPdAbilityCollectionRuntime::AbilityInputTagPressed(
+void UAbilityCollectionRuntime::AbilityInputTagPressed(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	const FGameplayTag& InputTag) const
 {
@@ -104,7 +104,7 @@ void UPdAbilityCollectionRuntime::AbilityInputTagPressed(
 	}
 }
 
-void UPdAbilityCollectionRuntime::AbilityInputTagReleased(
+void UAbilityCollectionRuntime::AbilityInputTagReleased(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	const FGameplayTag& InputTag) const
 {
@@ -150,7 +150,7 @@ void UPdAbilityCollectionRuntime::AbilityInputTagReleased(
 	}
 }
 
-void UPdAbilityCollectionRuntime::ReplayReleasedPressInputAfterActivation(
+void UAbilityCollectionRuntime::ReplayReleasedPressInputAfterActivation(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	const FGameplayAbilitySpecHandle AbilityHandle) const
 {
@@ -185,7 +185,7 @@ void UPdAbilityCollectionRuntime::ReplayReleasedPressInputAfterActivation(
 		ResolveAbilityInputPredictionKey(*AbilitySpec));
 }
 
-const FGameplayAbilitySpec* UPdAbilityCollectionRuntime::FindActiveAbilitySpecByTags(
+const FGameplayAbilitySpec* UAbilityCollectionRuntime::FindActiveAbilitySpecByTags(
 	const UPdAbilitySystemComponent& AbilitySystemComponent,
 	const FGameplayTagContainer& AbilityTags) const
 {
@@ -207,7 +207,7 @@ const FGameplayAbilitySpec* UPdAbilityCollectionRuntime::FindActiveAbilitySpecBy
 	return nullptr;
 }
 
-bool UPdAbilityCollectionRuntime::HasActiveAbilityOfClass(
+bool UAbilityCollectionRuntime::HasActiveAbilityOfClass(
 	const UPdAbilitySystemComponent& AbilitySystemComponent,
 	const TSubclassOf<UGameplayAbility> AbilityClass,
 	const bool bIncludeChildClasses) const
@@ -236,7 +236,7 @@ bool UPdAbilityCollectionRuntime::HasActiveAbilityOfClass(
 	return false;
 }
 
-bool UPdAbilityCollectionRuntime::HasActiveAbilityOfAnyClass(
+bool UAbilityCollectionRuntime::HasActiveAbilityOfAnyClass(
 	const UPdAbilitySystemComponent& AbilitySystemComponent,
 	const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
 	const bool bIncludeChildClasses) const
@@ -255,7 +255,7 @@ bool UPdAbilityCollectionRuntime::HasActiveAbilityOfAnyClass(
 	return false;
 }
 
-TArray<FGameplayAbilitySpecHandle> UPdAbilityCollectionRuntime::GrantAbilities(
+TArray<FGameplayAbilitySpecHandle> UAbilityCollectionRuntime::GrantAbilities(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
 	const int32 AbilityLevel,
@@ -305,7 +305,7 @@ TArray<FGameplayAbilitySpecHandle> UPdAbilityCollectionRuntime::GrantAbilities(
 	return GrantedHandles;
 }
 
-void UPdAbilityCollectionRuntime::RemoveAbilities(
+void UAbilityCollectionRuntime::RemoveAbilities(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	const TArray<FGameplayAbilitySpecHandle>& AbilityHandles) const
 {
@@ -323,7 +323,7 @@ void UPdAbilityCollectionRuntime::RemoveAbilities(
 	}
 }
 
-void UPdAbilityCollectionRuntime::ReactivateAutoActivatedAbilities(
+void UAbilityCollectionRuntime::ReactivateAutoActivatedAbilities(
 	UPdAbilitySystemComponent& AbilitySystemComponent) const
 {
 	if (!AbilitySystemComponent.IsOwnerActorAuthoritative()
@@ -354,7 +354,7 @@ void UPdAbilityCollectionRuntime::ReactivateAutoActivatedAbilities(
 	}
 }
 
-void UPdAbilityCollectionRuntime::CachePandoraSkillRuntimeContext(UObject* SourceObject)
+void UAbilityCollectionRuntime::CachePandoraSkillRuntimeContext(UObject* SourceObject)
 {
 	if (UPandoraSkillRuntimeContext* RuntimeContext =
 		Cast<UPandoraSkillRuntimeContext>(SourceObject))
@@ -363,7 +363,7 @@ void UPdAbilityCollectionRuntime::CachePandoraSkillRuntimeContext(UObject* Sourc
 	}
 }
 
-void UPdAbilityCollectionRuntime::ReleasePandoraSkillRuntimeContextIfUnused(
+void UAbilityCollectionRuntime::ReleasePandoraSkillRuntimeContextIfUnused(
 	const UPdAbilitySystemComponent& AbilitySystemComponent,
 	UPandoraSkillRuntimeContext* RuntimeContext,
 	const FGameplayAbilitySpecHandle RemovedHandle)
@@ -385,7 +385,7 @@ void UPdAbilityCollectionRuntime::ReleasePandoraSkillRuntimeContextIfUnused(
 	GrantedPandoraSkillRuntimeContexts.Remove(RuntimeContext);
 }
 
-bool UPdAbilityCollectionRuntime::IsPandoraAbilitySpec(
+bool UAbilityCollectionRuntime::IsPandoraAbilitySpec(
 	const FGameplayAbilitySpec& AbilitySpec) const
 {
 	if (Cast<UPandoraSkillRuntimeContext>(AbilitySpec.SourceObject.Get()))
@@ -400,7 +400,7 @@ bool UPdAbilityCollectionRuntime::IsPandoraAbilitySpec(
 		|| SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill4);
 }
 
-bool UPdAbilityCollectionRuntime::HasReplicatedAbilityListChanged(
+bool UAbilityCollectionRuntime::HasReplicatedAbilityListChanged(
 	const UPdAbilitySystemComponent& AbilitySystemComponent) const
 {
 	const TArray<FGameplayAbilitySpec>& CurrentAbilities =
@@ -427,7 +427,7 @@ bool UPdAbilityCollectionRuntime::HasReplicatedAbilityListChanged(
 	return false;
 }
 
-void UPdAbilityCollectionRuntime::CacheReplicatedAbilityList(
+void UAbilityCollectionRuntime::CacheReplicatedAbilityList(
 	const UPdAbilitySystemComponent& AbilitySystemComponent)
 {
 	LastReplicatedAbilityHandles.Reset();
@@ -441,7 +441,7 @@ void UPdAbilityCollectionRuntime::CacheReplicatedAbilityList(
 	}
 }
 
-bool UPdAbilityCollectionRuntime::HasGrantedAbilityClass(
+bool UAbilityCollectionRuntime::HasGrantedAbilityClass(
 	const UPdAbilitySystemComponent& AbilitySystemComponent,
 	const TSubclassOf<UGameplayAbility> AbilityClass) const
 {

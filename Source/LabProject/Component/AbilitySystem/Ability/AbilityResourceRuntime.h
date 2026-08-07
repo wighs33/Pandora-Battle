@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "UObject/Object.h"
-#include "PdAbilityResourceRuntime.generated.h"
+#include "AbilityResourceRuntime.generated.h"
 
 class UPdGameplayAbility;
 struct FGameplayAbilityActivationInfo;
@@ -18,7 +18,7 @@ struct FGameplayEffectSpecHandle;
  * mana, stamina, slot cooldown, and deferred cooldown behavior lives here.
  */
 UCLASS()
-class LABPROJECT_API UPdAbilityResourceRuntime : public UObject
+class LABPROJECT_API UAbilityResourceRuntime : public UObject
 {
 	GENERATED_BODY()
 
@@ -56,8 +56,7 @@ public:
 		const UPdGameplayAbility& Ability,
 		const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo& ActivationInfo,
-		const FGameplayTagContainer& RemovalPolicyTags) const;
+		const FGameplayAbilityActivationInfo& ActivationInfo) const;
 
 	void AppendCooldownRemovalPolicyTags(
 		FGameplayEffectSpecHandle& CooldownSpecHandle,

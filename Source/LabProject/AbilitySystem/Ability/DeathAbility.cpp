@@ -2,7 +2,9 @@
 
 #include "Common/LabGameplayTags.h"
 #include "GameplayEffect.h"
-#include "UObject/ConstructorHelpers.h"
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DeathAbility)
 
 UDeathAbility::UDeathAbility(const FObjectInitializer& ObjectInitializer)
@@ -29,12 +31,23 @@ UDeathAbility::UDeathAbility(const FObjectInitializer& ObjectInitializer)
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Equip);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Unequip);
 
-	static ConstructorHelpers::FClassFinder<UGameplayEffect> DeathEffectFinder(TEXT("/Game/GAS/Effect/GE_Death"));
-	if (DeathEffectFinder.Succeeded())
-	{
-		DeathEffectClass = DeathEffectFinder.Class;
-	}
 }
+
+#if WITH_EDITOR
+EDataValidationResult UDeathAbility::IsDataValid(FDataValidationContext& Context) const
+{
+	EDataValidationResult Result = Super::IsDataValid(Context);
+	if (!DeathEffectClass)
+	{
+		Context.AddError(NSLOCTEXT(
+			"DeathAbility",
+			"MissingDeathEffect",
+			"DeathEffectClass must be configured on the Death Gameplay Ability asset."));
+		Result = EDataValidationResult::Invalid;
+	}
+	return Result;
+}
+#endif
 
 void UDeathAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -49,7 +62,6 @@ void UDeathAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 
 	if (!DeathEffectClass)
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}

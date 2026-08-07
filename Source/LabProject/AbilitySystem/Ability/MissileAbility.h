@@ -71,9 +71,16 @@ private:
 	bool TryGetAutoTargetGroundLocation(FVector& OutGroundLocation, AActor*& OutTargetActor) const;
 	bool TryGetAttackTargetGroundLocation(FVector& OutGroundLocation, AActor*& OutTargetActor) const;
 	bool ResolveTargetAimLocation(AActor* TargetActor, FVector& OutAimLocation) const;
+	bool IsEligibleMissileTargetActor(const AActor* TargetActor) const;
+	bool TryValidateServerMissileActorTarget(AActor* TargetActor, FVector& OutTargetLocation) const;
+	bool TryValidateServerMissileTargetData(
+		const FGameplayAbilityTargetDataHandle& Data,
+		FVector& OutTargetLocation,
+		AActor*& OutTargetActor) const;
 	bool IsMissileTargetLocationWithinRange(const FVector& TargetLocation) const;
 	FVector ClampMissileTargetLocationToRange(const FVector& TargetLocation) const;
 	FVector GetMissileTargetingOrigin() const;
+	FVector GetMissileTraceStartLocation() const;
 	AActor* ResolveTargetDataActor(const FGameplayAbilityTargetDataHandle& Data) const;
 	FVector ResolveTargetDataLocation(const FGameplayAbilityTargetDataHandle& Data) const;
 	FGameplayEffectSpecHandle MakeDamageEffectSpec(float DamageMagnitude) const;

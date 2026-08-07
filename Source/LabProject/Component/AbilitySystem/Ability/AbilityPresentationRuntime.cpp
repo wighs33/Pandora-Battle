@@ -1,4 +1,4 @@
-#include "Component/AbilitySystem/Ability/PdAbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/Presentation/SkillPresentationActor.h"
@@ -12,9 +12,9 @@
 #include "GameplayEffect.h"
 #include "Weapon/WeaponBase.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PdAbilityPresentationRuntime)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityPresentationRuntime)
 
-void UPdAbilityPresentationRuntime::StartConfiguredDefaultFX(
+void UAbilityPresentationRuntime::StartConfiguredDefaultFX(
 	UPdGameplayAbility& Ability)
 {
 	const USkillDefinition* SkillDataAsset =
@@ -36,7 +36,7 @@ void UPdAbilityPresentationRuntime::StartConfiguredDefaultFX(
 		true);
 }
 
-void UPdAbilityPresentationRuntime::StopConfiguredDefaultFX(
+void UAbilityPresentationRuntime::StopConfiguredDefaultFX(
 	UPdGameplayAbility& Ability)
 {
 	SetConfiguredPresentationEnabled(
@@ -45,7 +45,7 @@ void UPdAbilityPresentationRuntime::StopConfiguredDefaultFX(
 		false);
 }
 
-void UPdAbilityPresentationRuntime::StartConfiguredCharacterOverlay(
+void UAbilityPresentationRuntime::StartConfiguredCharacterOverlay(
 	UPdGameplayAbility& Ability)
 {
 	const USkillDefinition* SkillDataAsset =
@@ -67,7 +67,7 @@ void UPdAbilityPresentationRuntime::StartConfiguredCharacterOverlay(
 		true);
 }
 
-void UPdAbilityPresentationRuntime::StopConfiguredCharacterOverlay(
+void UAbilityPresentationRuntime::StopConfiguredCharacterOverlay(
 	UPdGameplayAbility& Ability)
 {
 	SetConfiguredPresentationEnabled(
@@ -76,7 +76,7 @@ void UPdAbilityPresentationRuntime::StopConfiguredCharacterOverlay(
 		false);
 }
 
-void UPdAbilityPresentationRuntime::StartConfiguredMissilePresentation(
+void UAbilityPresentationRuntime::StartConfiguredMissilePresentation(
 	UPdGameplayAbility& Ability,
 	const FVector& TargetLocation)
 {
@@ -105,7 +105,7 @@ void UPdAbilityPresentationRuntime::StartConfiguredMissilePresentation(
 		true);
 }
 
-void UPdAbilityPresentationRuntime::
+void UAbilityPresentationRuntime::
 UpdateConfiguredMissilePresentationTarget(const FVector& TargetLocation)
 {
 	if (ASkillPresentationActor* PresentationActor =
@@ -115,7 +115,7 @@ UpdateConfiguredMissilePresentationTarget(const FVector& TargetLocation)
 	}
 }
 
-void UPdAbilityPresentationRuntime::StopConfiguredMissilePresentation(
+void UAbilityPresentationRuntime::StopConfiguredMissilePresentation(
 	UPdGameplayAbility& Ability)
 {
 	SetConfiguredPresentationEnabled(
@@ -124,7 +124,7 @@ void UPdAbilityPresentationRuntime::StopConfiguredMissilePresentation(
 		false);
 }
 
-void UPdAbilityPresentationRuntime::CleanupConfiguredPresentation()
+void UAbilityPresentationRuntime::CleanupConfiguredPresentation()
 {
 	if (ASkillPresentationActor* PresentationActor =
 		ActiveSkillPresentationActor.Get())
@@ -138,7 +138,7 @@ void UPdAbilityPresentationRuntime::CleanupConfiguredPresentation()
 	ActiveSkillPresentationActor = nullptr;
 }
 
-void UPdAbilityPresentationRuntime::StartConfiguredSelfBuff(
+void UAbilityPresentationRuntime::StartConfiguredSelfBuff(
 	UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -235,7 +235,7 @@ void UPdAbilityPresentationRuntime::StartConfiguredSelfBuff(
 	}
 }
 
-void UPdAbilityPresentationRuntime::StopConfiguredSelfBuff(
+void UAbilityPresentationRuntime::StopConfiguredSelfBuff(
 	UPdGameplayAbility& Ability)
 {
 	RestoreSelfBuffWeaponTraceEndZ(Ability);
@@ -283,19 +283,19 @@ void UPdAbilityPresentationRuntime::StopConfiguredSelfBuff(
 	ActiveSelfBuffEffectHandles.Reset();
 }
 
-float UPdAbilityPresentationRuntime::CalculateSelfBuffMagnitude(
+float UAbilityPresentationRuntime::CalculateSelfBuffMagnitude(
 	const FSkillSelfBuffSettings& SelfBuffSettings) const
 {
 	return static_cast<float>(SelfBuffSettings.Magnitude);
 }
 
-float UPdAbilityPresentationRuntime::CalculateSelfBuffWeaponDamageBonus(
+float UAbilityPresentationRuntime::CalculateSelfBuffWeaponDamageBonus(
 	const FSkillSelfBuffSettings& SelfBuffSettings) const
 {
 	return static_cast<float>(SelfBuffSettings.WeaponDamageBonus);
 }
 
-void UPdAbilityPresentationRuntime::ApplySelfBuffCharacterScale(
+void UAbilityPresentationRuntime::ApplySelfBuffCharacterScale(
 	UPdGameplayAbility& Ability,
 	const FSkillSelfBuffSettings& SelfBuffSettings)
 {
@@ -321,7 +321,7 @@ void UPdAbilityPresentationRuntime::ApplySelfBuffCharacterScale(
 	bSelfBuffCharacterScaleApplied = true;
 }
 
-void UPdAbilityPresentationRuntime::RestoreSelfBuffCharacterScale()
+void UAbilityPresentationRuntime::RestoreSelfBuffCharacterScale()
 {
 	if (!bSelfBuffCharacterScaleApplied)
 	{
@@ -340,7 +340,7 @@ void UPdAbilityPresentationRuntime::RestoreSelfBuffCharacterScale()
 	bSelfBuffCharacterScaleApplied = false;
 }
 
-void UPdAbilityPresentationRuntime::ApplySelfBuffWeaponTraceEndZ(
+void UAbilityPresentationRuntime::ApplySelfBuffWeaponTraceEndZ(
 	UPdGameplayAbility& Ability,
 	const FSkillSelfBuffSettings& SelfBuffSettings)
 {
@@ -365,7 +365,7 @@ void UPdAbilityPresentationRuntime::ApplySelfBuffWeaponTraceEndZ(
 	bSelfBuffTraceEndZApplied = true;
 }
 
-void UPdAbilityPresentationRuntime::RestoreSelfBuffWeaponTraceEndZ(
+void UAbilityPresentationRuntime::RestoreSelfBuffWeaponTraceEndZ(
 	UPdGameplayAbility& Ability)
 {
 	if (!bSelfBuffTraceEndZApplied)
@@ -384,7 +384,7 @@ void UPdAbilityPresentationRuntime::RestoreSelfBuffWeaponTraceEndZ(
 	bSelfBuffTraceEndZApplied = false;
 }
 
-void UPdAbilityPresentationRuntime::SpawnConfiguredCharacterDecal(
+void UAbilityPresentationRuntime::SpawnConfiguredCharacterDecal(
 	UPdGameplayAbility& Ability)
 {
 	const USkillDefinition* SkillDataAsset =
@@ -437,7 +437,7 @@ void UPdAbilityPresentationRuntime::SpawnConfiguredCharacterDecal(
 }
 
 FVector
-UPdAbilityPresentationRuntime::ResolveConfiguredCharacterDecalLocation(
+UAbilityPresentationRuntime::ResolveConfiguredCharacterDecalLocation(
 	const ACharacterBase* Character) const
 {
 	if (!Character)
@@ -490,11 +490,11 @@ UPdAbilityPresentationRuntime::ResolveConfiguredCharacterDecalLocation(
 }
 
 float
-UPdAbilityPresentationRuntime::ResolveConfiguredCharacterDecalDuration(
+UAbilityPresentationRuntime::ResolveConfiguredCharacterDecalDuration(
 	const USkillDefinition* SkillDataAsset) const
 {
 	if (SkillDataAsset
-		&& SkillDataAsset->SkillType == EPdSkillType::Duration
+		&& SkillDataAsset->SkillType == ESkillType::Duration
 		&& SkillDataAsset->Time.Duration > 0.0)
 	{
 		return static_cast<float>(SkillDataAsset->Time.Duration);
@@ -504,7 +504,7 @@ UPdAbilityPresentationRuntime::ResolveConfiguredCharacterDecalDuration(
 }
 
 ASkillPresentationActor*
-UPdAbilityPresentationRuntime::EnsureConfiguredPresentationActor(
+UAbilityPresentationRuntime::EnsureConfiguredPresentationActor(
 	UPdGameplayAbility& Ability)
 {
 	if (IsValid(ActiveSkillPresentationActor))
@@ -549,7 +549,7 @@ UPdAbilityPresentationRuntime::EnsureConfiguredPresentationActor(
 	return PresentationActor;
 }
 
-void UPdAbilityPresentationRuntime::SetConfiguredPresentationEnabled(
+void UAbilityPresentationRuntime::SetConfiguredPresentationEnabled(
 	UPdGameplayAbility& Ability,
 	const uint8 PresentationFlag,
 	const bool bEnabled)

@@ -22,14 +22,13 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SummonAbility)
 
-
 namespace
 {
 	const FName SummonTriggerComponentName(TEXT("Box"));
 
 	const FSummonSkillConfig* GetSummonConfigFromSkill(const USkillDefinition* SkillDataAsset)
 	{
-		return SkillDataAsset && SkillDataAsset->SkillDataType == EPdSkillDataType::Summon
+		return SkillDataAsset && SkillDataAsset->SkillDataType == ESkillDataType::Summon
 			? &SkillDataAsset->Summon
 			: nullptr;
 	}
@@ -102,8 +101,7 @@ void USummonAbility::ActivateAbility(
 		return;
 	}
 
-
-	StartDurationMovementLock();
+StartDurationMovementLock();
 
 	StartWaitSummonMontageTriggerTask();
 
@@ -320,7 +318,6 @@ bool USummonAbility::SpawnSummonedActor()
 		DeactivateSummonNiagara(SummonedActor);
 	}
 
-
 	return true;
 }
 
@@ -464,7 +461,6 @@ void USummonAbility::ActivateSummonNiagara(AActor* SummonedActor) const
 			NiagaraComponent->Activate(SummonConfig->bResetLaserNiagaraOnActivate);
 		}
 	}
-
 
 }
 
@@ -621,9 +617,7 @@ void USummonAbility::FinishSummonRiseAndActivateLaser()
 		}
 	}
 
-
-
-	StartSummonLifetimeTimerOrEnd();
+StartSummonLifetimeTimerOrEnd();
 }
 
 void USummonAbility::StartSummonLifetimeTimerOrEnd()
@@ -655,7 +649,7 @@ void USummonAbility::StartSummonLifetimeTimerOrEnd()
 float USummonAbility::ResolveSummonActiveDuration() const
 {
 	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
-	if (SkillDataAsset && SkillDataAsset->SkillType == EPdSkillType::Duration && SkillDataAsset->Time.Duration > 0.0)
+	if (SkillDataAsset && SkillDataAsset->SkillType == ESkillType::Duration && SkillDataAsset->Time.Duration > 0.0)
 	{
 		return static_cast<float>(SkillDataAsset->Time.Duration);
 	}
@@ -702,7 +696,6 @@ void USummonAbility::BindSummonTriggerDamage(AActor* SummonedActor)
 	TriggerComponent->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleSummonTriggerBeginOverlap);
 	TriggerComponent->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandleSummonTriggerEndOverlap);
 	TriggerComponent->UpdateOverlaps();
-
 
 }
 
@@ -774,7 +767,6 @@ void USummonAbility::EnableSummonTriggerDamage()
 	ApplySummonTriggerDamageToExistingOverlaps();
 	StartSummonTriggerDamageTickIfNeeded();
 
-
 }
 
 void USummonAbility::DisableSummonTriggerDamage()
@@ -818,7 +810,6 @@ void USummonAbility::StartSummonTriggerDamageTickIfNeeded()
 		&ThisClass::HandleSummonTriggerDamageTick,
 		DamageInterval,
 		true);
-
 
 }
 
@@ -965,11 +956,16 @@ void USummonAbility::ApplySummonTriggerDamage(AActor* HitActor, const bool bAllo
 	}
 
 	const FActiveGameplayEffectHandle AppliedHandle = SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), TargetASC);
+	if (AppliedHandle.WasSuccessfullyApplied())
+	{
+		ApplyConfiguredStatusEffectToTarget(
+			GetSourceSkillDataAsset(),
+			TargetASC);
+	}
 	if (!bAllowRepeatedDamage)
 	{
 		DamagedSummonTriggerActors.Add(HitActorKey);
 	}
-
 
 }
 

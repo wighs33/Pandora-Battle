@@ -5,6 +5,7 @@
 #include "Animation/AnimInstance.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Definition/Item/ItemDefinition.h"
+#include "Definition/Player/CharacterActionDefinition.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EquipAbility)
@@ -13,6 +14,39 @@ UEquipAbility::UEquipAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	ActivationBlockedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
+}
+
+const FGameplayTagContainer* UEquipAbility::GetCooldownTags() const
+{
+	EquipCooldownTags.Reset();
+	EquipCooldownTags.AddTag(LabGameplayTags::Cooldown_EquipWeapon);
+	return &EquipCooldownTags;
+}
+
+void UEquipAbility::ApplyCooldown(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	TSoftObjectPtr<UCharacterActionDefinition> ActionDefinition(
+		UCharacterActionDefinition::GetDefaultDefinitionPath());
+	const UCharacterActionDefinition* LoadedDefinition =
+		ActionDefinition.LoadSynchronous();
+	const float CooldownDuration = LoadedDefinition
+		? static_cast<float>(FMath::Max(
+			LoadedDefinition->GetCooldownDuration(
+				ECharacterActionType::PandoraWeaponSwap),
+			0.0))
+		: 0.0f;
+
+	FGameplayTagContainer CooldownTags;
+	CooldownTags.AddTag(LabGameplayTags::Cooldown_EquipWeapon);
+	ApplySharedCooldownEffect(
+		Handle,
+		ActorInfo,
+		ActivationInfo,
+		CooldownDuration,
+		CooldownTags);
 }
 
 // State helpers
@@ -52,7 +86,7 @@ void UEquipAbility::ResolveEquipTransition()
 		}
 		else
 		{
-			// CommitAbility can fail because GE_EquipWeapon_Cooldown is active.
+			// CommitAbility can fail while the shared equipment cooldown is active.
 			// Never let the cancellation fallback bypass that cooldown.
 			EquipmentComponent->ClearRequestedWeaponInstance();
 		}
@@ -77,20 +111,6 @@ void UEquipAbility::FinalizeEquipCommit()
 	}
 
 	bEquipCommitted = true;
-
-
-
-	FGameplayTagContainer DynamicGrantedTags;
-	if (ActiveEquipWeaponDefinition->IdTag.IsValid())
-	{
-		DynamicGrantedTags.AddTag(ActiveEquipWeaponDefinition->IdTag);
-	}
-
-	if (EquippedItemEffectClass && !DynamicGrantedTags.IsEmpty())
-	{
-		ApplyGameplayEffectHandle(EquippedItemEffectClass, DynamicGrantedTags, 1.f, 1);
-
-	}
 
 	if (Character && PendingEquipAnimLayer)
 	{
@@ -141,42 +161,6 @@ void UEquipAbility::OnEquipCommitTiming(FGameplayEventData Payload)
 {
 	static_cast<void>(Payload);
 	FinalizeEquipCommit();
-
-	ACharacterBase* Character = GetPdCharacterFromActorInfo();
-	if (bEquipCommitted)
-	{
-		return;
-	}
-
-	// =================================================================================================================
-	if (!HasAuthority(&CurrentActivationInfo) || !ActiveEquipWeaponDefinition)
-	{
-
-		return;
-	}
-
-
-	// =================================================================================================================
-
-	FGameplayTagContainer DynamicGrantedTags;
-	if (ActiveEquipWeaponDefinition->IdTag.IsValid())
-	{
-		DynamicGrantedTags.AddTag(ActiveEquipWeaponDefinition->IdTag);
-	}
-
-	// =================================================================================================================
-
-	if (EquippedItemEffectClass && !DynamicGrantedTags.IsEmpty())
-	{
-		ApplyGameplayEffectHandle(EquippedItemEffectClass, DynamicGrantedTags, 1.f, 1);
-
-	}
-
-	if (Character && PendingEquipAnimLayer)
-	{
-		Character->SetCurrentAnimLayer(PendingEquipAnimLayer);
-
-	}
 }
 
 // Ability flow
@@ -186,8 +170,7 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	bEquipTransitionResolved = false;
 	bEquipAbilityCommitted = false;
 
-
-	// =================================================================================================================
+// =================================================================================================================
 
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!ensure(Character))
@@ -226,8 +209,7 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	ActiveEquipWeaponDefinition = EquipData.ItemDefinition;
 	PendingEquipAnimLayer = EquipData.EquipAnimLayer;
 
-
-	// =================================================================================================================
+// =================================================================================================================
 
 	if (!ensure(CommitAbility(Handle, ActorInfo, ActivationInfo)))
 	{
@@ -261,8 +243,7 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 		return;
 	}
 
-
-	// =================================================================================================================
+// =================================================================================================================
 
 	if (ensure(CommitEquipEventTag.IsValid()))
 	{
@@ -301,11 +282,9 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	MontageTask->OnCancelled.AddDynamic(this, &UEquipAbility::OnEquipMontageCancelled);
 	MontageTask->ReadyForActivation();
 
+// =================================================================================================================
 
-	// =================================================================================================================
-
-
-	// =================================================================================================================
+// =================================================================================================================
 
 	if (EquipEffectClass)
 	{

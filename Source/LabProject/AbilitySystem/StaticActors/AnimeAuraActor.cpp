@@ -10,8 +10,8 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Component/Player/EquipmentComponent.h"
+#include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
-#include "UObject/ConstructorHelpers.h"
 #include "Weapon/WeaponBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimeAuraActor)
@@ -23,34 +23,24 @@ AAnimeAuraActor::AAnimeAuraActor()
 	bReplicates = true;
 	SetReplicateMovement(true);
 	bNetUseOwnerRelevancy = true;
+}
 
-	static ConstructorHelpers::FObjectFinder<UAnimMontage> DefaultPowerUpMontage(
-		TEXT("/Game/Anime_Aura/Animations/AM_PowerUp.AM_PowerUp"));
-	if (DefaultPowerUpMontage.Succeeded())
+void AAnimeAuraActor::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ThisClass, PresentationSettings);
+}
+
+void AAnimeAuraActor::ConfigurePresentationSettings(
+	const FAnimeAuraPresentationSettings& InSettings)
+{
+	if (!HasAuthority())
 	{
-		PowerUpMontage = DefaultPowerUpMontage.Object;
+		return;
 	}
 
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> DefaultOverlayMaterial(
-		TEXT("/Game/Anime_Aura/Materials/M_Black_Body.M_Black_Body"));
-	if (DefaultOverlayMaterial.Succeeded())
-	{
-		OverlayMaterial = DefaultOverlayMaterial.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> DefaultAttachedNiagaraSystem(
-		TEXT("/Game/Anime_Aura/Niagara/NS_Anime_Aura.NS_Anime_Aura"));
-	if (DefaultAttachedNiagaraSystem.Succeeded())
-	{
-		AttachedNiagaraSystem = DefaultAttachedNiagaraSystem.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UMaterialParameterCollection> DefaultMaterialParameterCollection(
-		TEXT("/Game/Anime_Aura/Materials/MPC_Ice_Body.MPC_Ice_Body"));
-	if (DefaultMaterialParameterCollection.Succeeded())
-	{
-		MaterialParameterCollection = DefaultMaterialParameterCollection.Object;
-	}
+	PresentationSettings = InSettings;
 }
 
 void AAnimeAuraActor::BeginPlay()
@@ -114,7 +104,7 @@ void AAnimeAuraActor::OnRep_Instigator()
 
 void AAnimeAuraActor::StartSourcePlayerEffect()
 {
-	if (bSourceEffectActive)
+	if (bSourceEffectActive || !PresentationSettings.IsComplete())
 	{
 		return;
 	}
@@ -135,9 +125,9 @@ void AAnimeAuraActor::StartSourcePlayerEffect()
 	CachedSourceMeshScale = SourceMesh->GetComponentScale();
 	StarterNiagaraComponent = FindNiagaraComponentByName(StarterNiagaraComponentName);
 
-	UAnimMontage* MontageToPlay = ResolvePowerUpMontage();
-	UMaterialInterface* OverlayToApply = ResolveOverlayMaterial();
-	UNiagaraSystem* AttachedSystemToSpawn = ResolveAttachedNiagaraSystem();
+	UAnimMontage* MontageToPlay = PresentationSettings.PowerUpMontage;
+	UMaterialInterface* OverlayToApply = PresentationSettings.OverlayMaterial;
+	UNiagaraSystem* AttachedSystemToSpawn = PresentationSettings.AttachedNiagaraSystem;
 
 	if (MontageToPlay)
 	{
@@ -213,9 +203,7 @@ void AAnimeAuraActor::StopSourcePlayerEffect()
 
 	RestoreSourcePlayerState();
 
-
-
-	ActiveSourceCharacter = nullptr;
+ActiveSourceCharacter = nullptr;
 	ActiveSourceMesh = nullptr;
 	StarterNiagaraComponent = nullptr;
 	bSourceEffectActive = false;
@@ -292,26 +280,6 @@ AWeaponBase* AAnimeAuraActor::ResolveCurrentWeapon(const ACharacterBase* Charact
 	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
 }
 
-UAnimMontage* AAnimeAuraActor::ResolvePowerUpMontage() const
-{
-	return PowerUpMontage;
-}
-
-UMaterialInterface* AAnimeAuraActor::ResolveOverlayMaterial() const
-{
-	return OverlayMaterial;
-}
-
-UNiagaraSystem* AAnimeAuraActor::ResolveAttachedNiagaraSystem() const
-{
-	return AttachedNiagaraSystem;
-}
-
-UMaterialParameterCollection* AAnimeAuraActor::ResolveMaterialParameterCollection() const
-{
-	return MaterialParameterCollection;
-}
-
 void AAnimeAuraActor::ApplyEffectAlpha(const float Alpha)
 {
 	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
@@ -330,7 +298,7 @@ void AAnimeAuraActor::ApplyEffectAlpha(const float Alpha)
 		}
 	}
 
-	if (UMaterialParameterCollection* ParameterCollection = ResolveMaterialParameterCollection();
+	if (UMaterialParameterCollection* ParameterCollection = PresentationSettings.MaterialParameterCollection;
 		ParameterCollection && !MaterialScalarParameterName.IsNone())
 	{
 		UKismetMaterialLibrary::SetScalarParameterValue(
@@ -373,4 +341,14 @@ void AAnimeAuraActor::RestoreSourcePlayerState()
 	}
 
 	CachedSourceMeshScale = FVector::OneVector;
+}
+
+void AAnimeAuraActor::OnRep_PresentationSettings()
+{
+	if (!HasActorBegunPlay())
+	{
+		return;
+	}
+
+	StartSourcePlayerEffect();
 }

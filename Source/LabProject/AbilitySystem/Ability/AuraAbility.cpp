@@ -1,10 +1,10 @@
 #include "AbilitySystem/Ability/AuraAbility.h"
 
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystem/EffectActors/EffectAreaBase.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/Settings/GameSettingDefinition.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
@@ -16,6 +16,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameplayEffectTypes.h"
 #include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AuraAbility)
 
@@ -25,7 +26,7 @@ namespace
 
 	const FAuraSkillConfig* GetAuraConfig(const USkillDefinition* SkillDataAsset)
 	{
-		return SkillDataAsset && SkillDataAsset->SkillDataType == EPdSkillDataType::Aura
+		return SkillDataAsset && SkillDataAsset->SkillDataType == ESkillDataType::Aura
 			? &SkillDataAsset->Aura
 			: nullptr;
 	}
@@ -79,15 +80,9 @@ namespace
 		return FTransform(SpawnRotation, SpawnLocation);
 	}
 
-	bool HasMovementSpeedAttributeSet(const UPdAbilitySystemComponent* AbilitySystemComponent)
-	{
-		return AbilitySystemComponent
-			&& AbilitySystemComponent->GetAttributeSet(UBasicAttributeSet::StaticClass()) != nullptr;
-	}
-
 	float ResolveAuraDuration(const USkillDefinition* SkillDataAsset, const FAuraSkillConfig* AuraConfig)
 	{
-		if (!SkillDataAsset || SkillDataAsset->SkillType != EPdSkillType::Duration || !AuraConfig)
+		if (!SkillDataAsset || SkillDataAsset->SkillType != ESkillType::Duration || !AuraConfig)
 		{
 			return 0.0f;
 		}
@@ -136,7 +131,7 @@ void UAuraAbility::ActivateAbility(
 	AuraDurationTask = nullptr;
 	ActiveAuraSkillDataAsset = nullptr;
 	ActiveAuraSourceCharacter.Reset();
-	AppliedMovementSpeedIncrease = 0.0f;
+	MovementSpeedEffectHandle.Invalidate();
 	ActiveAuraEffectAreas.Reset();
 	ActiveHealFieldOrigin = FVector::ZeroVector;
 	ActiveHealFieldRadius = 0.0f;
@@ -150,7 +145,7 @@ void UAuraAbility::ActivateAbility(
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
-	if (SkillDataAsset->SkillDataType != EPdSkillDataType::Aura)
+	if (SkillDataAsset->SkillDataType != ESkillDataType::Aura)
 	{
 
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -165,7 +160,7 @@ void UAuraAbility::ActivateAbility(
 	}
 
 	const FAuraSkillConfig* AuraConfig = GetAuraConfig(SkillDataAsset);
-	const bool bPressSkill = SkillDataAsset->SkillType == EPdSkillType::Press;
+	const bool bPressSkill = SkillDataAsset->SkillType == ESkillType::Press;
 	ActiveAuraSkillDataAsset = SkillDataAsset;
 	ActiveAuraSourceCharacter = GetPdCharacterFromActorInfo();
 	StartDurationMovementLock();
@@ -178,8 +173,6 @@ void UAuraAbility::ActivateAbility(
 	StartHealFieldTeamHealing(SkillDataAsset);
 
 	const float Duration = ResolveAuraDuration(SkillDataAsset, AuraConfig);
-
-
 
 	if (Duration <= 0.0f)
 	{
@@ -237,7 +230,7 @@ void UAuraAbility::InputReleased(
 
 	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	if (SkillDataAsset
-		&& SkillDataAsset->SkillType == EPdSkillType::Press
+		&& SkillDataAsset->SkillType == ESkillType::Press
 		&& IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))
 	{
 		UWorld* World = GetWorld();
@@ -306,7 +299,6 @@ void UAuraAbility::StartAuraEffectAreaSpawning(USkillDefinition* SkillDataAsset)
 		Interval,
 		true);
 
-
 }
 
 void UAuraAbility::StopAuraEffectAreaSpawning()
@@ -331,8 +323,7 @@ void UAuraAbility::HandleRepeatedAuraEffectAreaSpawn()
 {
 	const ACharacterBase* Character = ActiveAuraSourceCharacter.Get();
 
-
-	SpawnAuraEffectArea(ActiveAuraSkillDataAsset.Get(), TEXT("repeat"));
+SpawnAuraEffectArea(ActiveAuraSkillDataAsset.Get(), TEXT("repeat"));
 }
 
 ACharacterBase* UAuraAbility::ResolveAuraSourceCharacter() const
@@ -396,7 +387,6 @@ void UAuraAbility::SpawnAuraEffectArea(const USkillDefinition* SkillDataAsset, c
 		ActiveAuraEffectAreas.Add(SpawnedArea);
 	}
 
-
 }
 
 void UAuraAbility::ApplyMovementSpeedIncrease(const USkillDefinition* SkillDataAsset)
@@ -404,7 +394,18 @@ void UAuraAbility::ApplyMovementSpeedIncrease(const USkillDefinition* SkillDataA
 	const FAuraSkillConfig* AuraConfig = GetAuraConfig(SkillDataAsset);
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
-	if (!AuraConfig || !Character || !Character->HasAuthority() || !AbilitySystemComponent)
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const TSubclassOf<UGameplayEffect> MovementSpeedEffectClass =
+		SettingDefinition
+			? SettingDefinition->MovementSpeedGameplayEffectClass
+			: nullptr;
+	if (MovementSpeedEffectHandle.IsValid()
+		|| !AuraConfig
+		|| !Character
+		|| !Character->HasAuthority()
+		|| !AbilitySystemComponent
+		|| !MovementSpeedEffectClass)
 	{
 		return;
 	}
@@ -414,24 +415,31 @@ void UAuraAbility::ApplyMovementSpeedIncrease(const USkillDefinition* SkillDataA
 		return;
 	}
 
-	if (!HasMovementSpeedAttributeSet(AbilitySystemComponent))
+	FGameplayEffectSpecHandle MovementSpeedSpec =
+		MakeOutgoingGameplayEffectSpec(
+			CurrentSpecHandle,
+			CurrentActorInfo,
+			CurrentActivationInfo,
+			MovementSpeedEffectClass,
+			GetAbilityLevel());
+	if (!MovementSpeedSpec.IsValid() || !MovementSpeedSpec.Data.IsValid())
 	{
-
 		return;
 	}
 
-	AppliedMovementSpeedIncrease = static_cast<float>(AuraConfig->MovementSpeedIncrease);
-	AbilitySystemComponent->ApplyModToAttribute(
-		UBasicAttributeSet::GetMovementSpeedAttribute(),
-		EGameplayModOp::Additive,
-		AppliedMovementSpeedIncrease);
-
-
+	MovementSpeedSpec.Data->SetSetByCallerMagnitude(
+		LabGameplayTags::Data_MovementSpeed,
+		static_cast<float>(AuraConfig->MovementSpeedIncrease));
+	MovementSpeedEffectHandle = ApplyGameplayEffectSpecToOwner(
+		CurrentSpecHandle,
+		CurrentActorInfo,
+		CurrentActivationInfo,
+		MovementSpeedSpec);
 }
 
 void UAuraAbility::RemoveMovementSpeedIncrease()
 {
-	if (AppliedMovementSpeedIncrease <= 0.0f)
+	if (!MovementSpeedEffectHandle.IsValid())
 	{
 		return;
 	}
@@ -440,22 +448,12 @@ void UAuraAbility::RemoveMovementSpeedIncrease()
 	UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
 	if (Character && Character->HasAuthority() && AbilitySystemComponent)
 	{
-		if (!HasMovementSpeedAttributeSet(AbilitySystemComponent))
-		{
-
-			AppliedMovementSpeedIncrease = 0.0f;
-			return;
-		}
-
-		AbilitySystemComponent->ApplyModToAttribute(
-			UBasicAttributeSet::GetMovementSpeedAttribute(),
-			EGameplayModOp::Additive,
-			-AppliedMovementSpeedIncrease);
-
-
+		AbilitySystemComponent->RemoveActiveGameplayEffect(
+			MovementSpeedEffectHandle,
+			1);
 	}
 
-	AppliedMovementSpeedIncrease = 0.0f;
+	MovementSpeedEffectHandle.Invalidate();
 }
 
 void UAuraAbility::StartHealFieldTeamHealing(USkillDefinition* SkillDataAsset)
@@ -504,7 +502,6 @@ void UAuraAbility::StartHealFieldTeamHealing(USkillDefinition* SkillDataAsset)
 		&ThisClass::HandleHealFieldTeamHealTick,
 		Interval,
 		true);
-
 
 }
 
@@ -620,7 +617,6 @@ void UAuraAbility::ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataAsset
 			}
 		}
 	}
-
 
 }
 

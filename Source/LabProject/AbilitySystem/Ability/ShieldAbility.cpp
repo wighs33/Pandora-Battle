@@ -44,8 +44,6 @@ void UShieldAbility::ActivateAbility(
 	const UAnimMontage* ResolvedShieldMontage = GetResolvedShieldMontage();
 	StartWaitMontageTriggerTask();
 
-
-
 	if (!ResolvedShieldMontage)
 	{
 
@@ -202,6 +200,5 @@ void UShieldAbility::HandleShieldMontageFinished()
 void UShieldAbility::HandleMontageTriggerEvent(FGameplayEventData Payload)
 {
 
-
-	ApplyShieldFromMontageTrigger();
+ApplyShieldFromMontageTrigger();
 }

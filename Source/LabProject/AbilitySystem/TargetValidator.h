@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Common/CollisionChannels.h"
 #include "Engine/EngineTypes.h"
 
 class AActor;
@@ -31,7 +32,7 @@ namespace PdTargetValidator
 		double LineOfSightSurfaceOffset = 10.0;
 		double LineOfSightSurfaceTolerance = 30.0;
 		int32 MaxIgnoredPawnCount = 8;
-		TEnumAsByte<ETraceTypeQuery> GroundTraceType = TraceTypeQuery1;
+		TEnumAsByte<ETraceTypeQuery> GroundTraceType = LabCollisionChannels::VisibilityTrace();
 		FName LineOfSightProfileName = NAME_None;
 	};
 

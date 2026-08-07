@@ -2,12 +2,10 @@
 
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
-#include "AbilitySystem/SkillCooldownGameplayEffect.h"
 #include "AbilitySystem/TargetingActors/TargetActor_GrappleTrace.h"
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
 #include "GameFramework/PlayerController.h"
-#include "GameplayEffect.h"
 #include "Mode/PdHUD.h"
 #include "Definition/Player/CharacterActionDefinition.h"
 #include "Component/Player/GrappleComponent.h"
@@ -156,10 +154,6 @@ void UGrappleAbility::EndAbility(
 const FGameplayTagContainer* UGrappleAbility::GetCooldownTags() const
 {
 	GrappleCooldownTags.Reset();
-	if (const FGameplayTagContainer* ParentTags = Super::GetCooldownTags())
-	{
-		GrappleCooldownTags.AppendTags(*ParentTags);
-	}
 	GrappleCooldownTags.AddTag(LabGameplayTags::Cooldown_Grapple);
 	return &GrappleCooldownTags;
 }
@@ -169,46 +163,14 @@ void UGrappleAbility::ApplyCooldown(
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	UGameplayEffect* ConfiguredCooldownEffect = GetCooldownGameplayEffect();
-	const TSubclassOf<UGameplayEffect> CooldownEffectClass = ConfiguredCooldownEffect
-		? ConfiguredCooldownEffect->GetClass()
-		: USkillCooldownGameplayEffect::StaticClass();
-	if (!CooldownEffectClass)
-	{
-		return;
-	}
-
-	FGameplayEffectSpecHandle CooldownSpec = MakeOutgoingGameplayEffectSpec(
+	FGameplayTagContainer CooldownTags;
+	CooldownTags.AddTag(LabGameplayTags::Cooldown_Grapple);
+	ApplySharedCooldownEffect(
 		Handle,
 		ActorInfo,
 		ActivationInfo,
-		CooldownEffectClass,
-		GetAbilityLevel(Handle, ActorInfo));
-	if (!CooldownSpec.IsValid() || !CooldownSpec.Data.IsValid())
-	{
-		return;
-	}
-
-	const float EffectDuration = CooldownSpec.Data->GetDuration();
-	const float FallbackDuration = static_cast<float>(FMath::Max(GetConfiguredCooldownDuration(), 0.0));
-	const float CooldownDuration = ConfiguredCooldownEffect && EffectDuration > 0.0f
-		? EffectDuration
-		: FallbackDuration;
-	if (CooldownDuration <= 0.0f)
-	{
-		return;
-	}
-
-	if (!ConfiguredCooldownEffect || EffectDuration <= 0.0f)
-	{
-		CooldownSpec.Data->SetDuration(CooldownDuration, true);
-	}
-
-	CooldownSpec.Data->DynamicGrantedTags.AddTag(LabGameplayTags::Cooldown_Grapple);
-	CooldownSpec.Data->AppendDynamicAssetTags(
-		FGameplayTagContainer(LabGameplayTags::Cooldown_Grapple));
-	AppendCooldownRemovalPolicyTags(CooldownSpec, false);
-	ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, CooldownSpec);
+		static_cast<float>(FMath::Max(GetConfiguredCooldownDuration(), 0.0)),
+		CooldownTags);
 }
 
 void UGrappleAbility::StartTargetDataTask()
@@ -288,9 +250,9 @@ UCharacterActionDefinition* UGrappleAbility::LoadCharacterActionDefinition() con
 		return LoadedCharacterActionDefinition;
 	}
 
-	const TSoftObjectPtr<UCharacterActionDefinition> Definition(
+	TSoftObjectPtr<UCharacterActionDefinition> Definition(
 		UCharacterActionDefinition::GetDefaultDefinitionPath());
-	return Definition.Get();
+	return Definition.LoadSynchronous();
 }
 
 void UGrappleAbility::HandleCharacterActionDefinitionPreloadComplete()

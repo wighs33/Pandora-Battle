@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Common/CollisionChannels.h"
 #include "GameplayTagContainer.h"
 #include "Common/WeaponDefinitionData.h"
 #include "Engine/DataAsset.h"
@@ -22,6 +23,7 @@ class AActor;
 class AProjectileBase;
 class AEffectAreaBase;
 class UMaterialInterface;
+class UMaterialParameterCollection;
 class UNiagaraSystem;
 class UStatusEffectDefinition;
 
@@ -36,6 +38,11 @@ struct LABPROJECT_API FProjectileImpactEffectAreaSpawnConfig
 {
 	GENERATED_BODY()
 
+	FProjectileImpactEffectAreaSpawnConfig()
+		: GroundTraceChannel(LabCollisionChannels::VisibilityTrace())
+	{
+	}
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Projectile|Impact Effect Area")
 	TSubclassOf<AEffectAreaBase> EffectAreaClass;
 
@@ -49,7 +56,7 @@ struct LABPROJECT_API FProjectileImpactEffectAreaSpawnConfig
 	bool bSpawnAtTargetFeet = true;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Projectile|Impact Effect Area")
-	TEnumAsByte<ETraceTypeQuery> GroundTraceChannel = TraceTypeQuery1;
+	TEnumAsByte<ETraceTypeQuery> GroundTraceChannel;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Projectile|Impact Effect Area", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	double GroundTraceStartHeight = 100.0;
@@ -65,7 +72,7 @@ struct LABPROJECT_API FProjectileImpactEffectAreaSpawnConfig
 };
 
 UENUM(BlueprintType)
-enum class EPdSkillType : uint8
+enum class ESkillType : uint8
 {
 	Active = 0 UMETA(Hidden),
 	Passive = 1 UMETA(Hidden),
@@ -76,7 +83,7 @@ enum class EPdSkillType : uint8
 };
 
 UENUM(BlueprintType)
-enum class EPdSkillDataType : uint8
+enum class ESkillDataType : uint8
 {
 	Projectile UMETA(DisplayName = "Projectile"),
 	Area UMETA(DisplayName = "Area"),
@@ -100,7 +107,7 @@ enum class ETrailSlashSpawnTiming : uint8
 };
 
 UENUM(BlueprintType)
-enum class EPdSkillProjectileFireMode : uint8
+enum class ESkillProjectileFireMode : uint8
 {
 	Immediate UMETA(DisplayName = "Immediate"),
 	HoldThenConfirm UMETA(DisplayName = "Hold Then Confirm")
@@ -536,6 +543,11 @@ struct LABPROJECT_API FSummonSkillConfig
 {
 	GENERATED_BODY()
 
+	FSummonSkillConfig()
+		: GroundTraceChannel(LabCollisionChannels::VisibilityTrace())
+	{
+	}
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Summon|Animation")
 	FSkillAnimationConfig Animation;
 
@@ -576,7 +588,7 @@ struct LABPROJECT_API FSummonSkillConfig
 	bool bProjectSpawnToGround = true;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Summon|Ground", meta = (EditCondition = "bProjectSpawnToGround"))
-	TEnumAsByte<ETraceTypeQuery> GroundTraceChannel = TraceTypeQuery1;
+	TEnumAsByte<ETraceTypeQuery> GroundTraceChannel;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Summon|Ground", meta = (EditCondition = "bProjectSpawnToGround", ClampMin = "0.0", ForceUnits = "cm"))
 	double GroundTraceStartHeight = 500.0;
@@ -801,6 +813,9 @@ struct LABPROJECT_API FSkillNiagaraSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Socket", meta = (DisplayName = "Spawn At Character Location"))
 	bool bSpawnSocketNiagaraAtCharacterLocation = false;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Socket", meta = (EditCondition = "bSpawnSocketNiagaraAtCharacterLocation", DisplayName = "Spawn At Character Location Offset"))
+	FVector SpawnAtCharacterLocationOffset = FVector::ZeroVector;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Socket")
 	FName SocketName = NAME_None;
 
@@ -920,7 +935,7 @@ struct LABPROJECT_API FSkillProjectileSettings
 	double ProjectileSocketFireInterval = 0.0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Projectile", meta = (EditCondition = "bEnabled"))
-	EPdSkillProjectileFireMode FireMode = EPdSkillProjectileFireMode::Immediate;
+	ESkillProjectileFireMode FireMode = ESkillProjectileFireMode::Immediate;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Projectile", meta = (EditCondition = "bEnabled", Categories = "Event"))
 	FGameplayTag FireEventTag;
@@ -1059,11 +1074,38 @@ struct LABPROJECT_API FSkillProjectileSettings
 };
 
 USTRUCT(BlueprintType)
+struct LABPROJECT_API FAnimeAuraPresentationSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static|Anime Aura Presentation")
+	TObjectPtr<UAnimMontage> PowerUpMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static|Anime Aura Presentation")
+	TObjectPtr<UMaterialInterface> OverlayMaterial;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static|Anime Aura Presentation")
+	TObjectPtr<UNiagaraSystem> AttachedNiagaraSystem;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static|Anime Aura Presentation")
+	TObjectPtr<UMaterialParameterCollection> MaterialParameterCollection;
+
+	bool IsComplete() const
+	{
+		return PowerUpMontage
+			&& OverlayMaterial
+			&& AttachedNiagaraSystem
+			&& MaterialParameterCollection;
+	}
+};
+
+USTRUCT(BlueprintType)
 struct LABPROJECT_API FSkillStaticSettings
 {
 	GENERATED_BODY()
 
 	FSkillStaticSettings()
+		: GroundTraceChannel(LabCollisionChannels::VisibilityTrace())
 	{
 		SpawnSocketNames.SetNum(6);
 	}
@@ -1092,6 +1134,9 @@ struct LABPROJECT_API FSkillStaticSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static", meta = (EditCondition = "bEnabled"))
 	TSubclassOf<AActor> StaticActorClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static", meta = (EditCondition = "bEnabled", ShowOnlyInnerProperties))
+	FAnimeAuraPresentationSettings AnimeAuraPresentation;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static|Spawn", meta = (EditCondition = "bEnabled"))
 	FVector SpawnLocationOffset = FVector::ZeroVector;
 
@@ -1102,7 +1147,7 @@ struct LABPROJECT_API FSkillStaticSettings
 	bool bProjectSpawnToGround = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static|Spawn", meta = (EditCondition = "bEnabled && bProjectSpawnToGround"))
-	TEnumAsByte<ETraceTypeQuery> GroundTraceChannel = TraceTypeQuery1;
+	TEnumAsByte<ETraceTypeQuery> GroundTraceChannel;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static|Spawn", meta = (EditCondition = "bEnabled && bProjectSpawnToGround", ClampMin = "0.0", ForceUnits = "cm"))
 	double GroundTraceStartHeight = 100.0;
@@ -1240,13 +1285,13 @@ public:
 #endif
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Properties")
-	EPdSkillType SkillType = EPdSkillType::Instant;
+	ESkillType SkillType = ESkillType::Instant;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Properties", meta = (DisplayName = "Cancel On Hit"))
 	bool bCancelOnHit = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Properties", meta = (DisplayName = "Skill Data Type"))
-	EPdSkillDataType SkillDataType = EPdSkillDataType::Projectile;
+	ESkillDataType SkillDataType = ESkillDataType::Projectile;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|UI", AssetRegistrySearchable)
 	FName Name;
@@ -1307,6 +1352,11 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Gameplay Effect|Status", meta = (ClampMin = "1.0"))
 	float StatusEffectLevel = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Gameplay Effect|Status",
+		meta = (ClampMin = "1", UIMin = "1",
+			ToolTip = "Number of status-effect stacks applied by one successful skill hit."))
+	int32 StackCount = 1;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Summon", meta = (ShowOnlyInnerProperties))
 	FSkillSummonSettings SummonSettings;
@@ -1381,7 +1431,7 @@ public:
 	FWeaponAimCameraSettings AOECameraSettings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Area|AI Targeting", meta = (DisplayName = "Target Ground Trace Channel"))
-	TEnumAsByte<ETraceTypeQuery> AOETargetGroundTraceChannel = TraceTypeQuery1;
+	TEnumAsByte<ETraceTypeQuery> AOETargetGroundTraceChannel;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Area|AI Targeting", meta = (ClampMin = "0.0", ForceUnits = "cm", DisplayName = "Target Ground Trace Depth"))
 	double AOETargetGroundTraceDepth = 10000.0;
@@ -1407,7 +1457,7 @@ public:
 	FText GetDisplayName() const;
 	UObject* GetIconResource() const;
 	bool ShouldShowInAbilitiesBar() const;
-	EPdSkillDataType GetResolvedSkillDataType() const;
+	ESkillDataType GetResolvedSkillDataType() const;
 	FSkillGameplayEffectConfig GetResolvedDamageConfig() const;
 	FSkillGameplayEffectConfig GetResolvedStaticFinishDamageConfig() const;
 	const FShieldSkillConfig* GetDefensiveSkillConfig() const;

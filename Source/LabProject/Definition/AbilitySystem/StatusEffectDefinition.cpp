@@ -3,14 +3,10 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Common/LabGameplayTags.h"
+#include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatusEffectDefinition)
-
-UStatusEffectDefinition::UStatusEffectDefinition()
-{
-	RemovalPolicyTags.AddTag(LabGameplayTags::Effect_Policy_RemoveOnRespawn);
-}
 
 FPrimaryAssetId UStatusEffectDefinition::GetPrimaryAssetId() const
 {
@@ -88,10 +84,36 @@ bool UStatusEffectDefinition::SetDamageMagnitude(
 	return true;
 }
 
-void UStatusEffectDefinition::AppendRemovalPolicyTags(FGameplayEffectSpecHandle& SpecHandle) const
+void UStatusEffectDefinition::SynchronizeDebuffGameplayEffectStackLimit() const
 {
-	if (SpecHandle.IsValid() && SpecHandle.Data.IsValid() && !RemovalPolicyTags.IsEmpty())
+	UGameplayEffect* DebuffGameplayEffect = DebuffGameplayEffectClass
+		? DebuffGameplayEffectClass->GetDefaultObject<UGameplayEffect>()
+		: nullptr;
+	if (DebuffGameplayEffect)
 	{
-		SpecHandle.Data->AppendDynamicAssetTags(RemovalPolicyTags);
+		DebuffGameplayEffect->StackLimitCount = FMath::Max(MaxStackCount, 1);
 	}
+}
+
+bool UStatusEffectDefinition::CanAccumulateDebuffOn(
+	const UAbilitySystemComponent* TargetAbilitySystemComponent) const
+{
+	return TargetAbilitySystemComponent
+		&& (!StatusEffectTag.IsValid()
+			|| !TargetAbilitySystemComponent->HasMatchingGameplayTag(
+				StatusEffectTag));
+}
+
+void UStatusEffectDefinition::ClearAccumulatedDebuff(
+	UAbilitySystemComponent* TargetAbilitySystemComponent) const
+{
+	if (!TargetAbilitySystemComponent || !DebuffTag.IsValid())
+	{
+		return;
+	}
+
+	FGameplayTagContainer DebuffTags;
+	DebuffTags.AddTag(DebuffTag);
+	TargetAbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(
+		DebuffTags);
 }

@@ -33,20 +33,11 @@ protected:
 		bool bReplicateEndAbility,
 		bool bWasCancelled) override;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Ability|FillShield|Animation")
-	TObjectPtr<UAnimMontage> FillShieldMontage;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Ability|FillShield|Effect")
-	TSubclassOf<UGameplayEffect> FillShieldGameplayEffectClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|FillShield|Event", meta = (Categories = "Event"))
-	FGameplayTag MontageTriggerEventTag;
-
 private:
 	const FShieldSkillConfig* GetFillShieldSkillConfig() const;
-	UAnimMontage* GetResolvedFillShieldMontage() const;
-	TSubclassOf<UGameplayEffect> GetResolvedFillShieldGameplayEffectClass() const;
-	FGameplayTag GetResolvedMontageTriggerEventTag() const;
+	UAnimMontage* GetConfiguredFillShieldMontage() const;
+	TSubclassOf<UGameplayEffect> GetConfiguredFillShieldGameplayEffectClass() const;
+	FGameplayTag GetConfiguredMontageTriggerEventTag() const;
 	void StartWaitMontageTriggerTask();
 	bool StartFillShieldMontageTask();
 	void ApplyFillShieldFromMontageTrigger();

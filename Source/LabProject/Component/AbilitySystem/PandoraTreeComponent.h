@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/PlayerStateComponent.h"
-#include "Logging/PdLogRateLimiter.h"
+#include "Logging/LogRateLimiter.h"
 #include "PandoraTreeComponent.generated.h"
 
 class APdPlayerState;
@@ -126,9 +126,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
 	int32 GetMaxPandoraLevel(UPandoraDefinition* Pandora) const;
 
-	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	TArray<FGrantedPandora> GetGrantedPandoras() const { return GrantedPandoras; }
-
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
 	void ResetPandora();
 
@@ -175,6 +172,7 @@ protected:
 	int32 ClampPandoraLevel(const UPandoraDefinition* Pandora, int32 Level) const;
 	int32 CalculatePointCostForPandoraLevels(const UPandoraDefinition* Pandora, int32 FirstLevel, int32 LastLevel) const;
 	bool IncrementGrantedPandoraLevel(UPandoraDefinition* Pandora, int32& OutNewLevel);
+	void RefreshSelectedPandoraAfterLevelChange(const UPandoraDefinition* Pandora) const;
 	void BroadcastPandoraTreeChanged();
 	void RefreshSelectedPandoraAbilityBindings() const;
 	const UPandoraDefinition* GetCurrentPandoraDefinition() const;
@@ -215,5 +213,5 @@ protected:
 	UPROPERTY(Transient)
 	bool bCurrentSessionInitialized = false;
 
-	FPdLogRateLimiter ServerValidationLogLimiter;
+	FLogRateLimiter ServerValidationLogLimiter;
 };

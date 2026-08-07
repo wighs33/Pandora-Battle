@@ -46,6 +46,7 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_FillShield, "GameplayAbility.Defensive.FillShield", "Fill shield defensive ability tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_FillShield_Active, "GameplayAbility.Defensive.FillShield.Active", "Fill shield defensive ability active tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Dash_Active, "GameplayCue.Dash.Active", "Active dash gameplay cue tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability, "Input.Ability", "Root tag for input-bound gameplay abilities.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Movement_Dash, "Input.Ability.Movement.Dash", "Dash ability input tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Movement_Grapple, "Input.Ability.Movement.Grapple", "Grapple ability input tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Skill1, "Input.Ability.Skill1", "Pandora skill slot 1 input tag.");
@@ -81,6 +82,10 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Damage, "Data.Damage", "SetByCaller damage magnitude tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Heal, "Data.Heal", "SetByCaller heal magnitude tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Mana, "Data.Mana", "SetByCaller mana recovery magnitude tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_ManaCost, "Data.ManaCost", "SetByCaller mana cost magnitude tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_StaminaCost, "Data.StaminaCost", "SetByCaller stamina cost magnitude tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Cooldown, "Data.Cooldown", "SetByCaller cooldown duration in seconds.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_MovementSpeed, "Data.MovementSpeed", "SetByCaller movement speed magnitude tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_StatUp, "Data.StatUp", "SetByCaller stat operation tag.");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Damage_Burst, "GameplayCue.Damage.Burst", "Damage burst gameplay cue tag.");
@@ -99,6 +104,12 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Shocked, "GameplayCue.Shocked", "Persistent electric shock status cue tag.");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Weapon, "Item.Weapon", "Weapon item filter tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Weapon_Axe, "Item.Weapon.Axe", "Axe weapon type tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Weapon_Bow, "Item.Weapon.Bow", "Bow weapon type tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Weapon_Dagger, "Item.Weapon.Dagger", "Dagger weapon type tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Weapon_GreatSword, "Item.Weapon.GreatSword", "Great sword weapon type tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Weapon_Sword, "Item.Weapon.Sword", "Sword weapon type tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Weapon_Gun, "Item.Weapon.Gun", "Gun weapon type tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Equipment, "Item.Equipment", "Equipment item filter tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Consumable, "Item.Consumable", "Consumable item filter tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Valuable, "Item.Valuable", "Valuable item filter tag.");
@@ -148,6 +159,15 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Widget_PlayerHUD, "UI.Widget.PlayerHUD", "Default player HUD widget class tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Widget_PandoraTree, "UI.Widget.PandoraTree", "Default pandora tree widget class tag.");
 
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Level, "Status.Level", "Player level tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Experience, "Status.Experience", "Current experience tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_MaxExperience, "Status.MaxExperience", "Maximum experience tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Point_Offense, "Status.Point.Offense", "Offense point tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Point_Defense, "Status.Point.Defense", "Defense point tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Point_Resistance, "Status.Point.Resistance", "Resistance point tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Point_PandoraForce, "Status.Point.PandoraForce", "Pandora force point tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Point_Resource, "Status.Point.Resource", "Resource point tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Point_Agility, "Status.Point.Agility", "Agility point tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Offense_Strength, "Status.Offense.Strength", "Strength stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Offense_Intelligence, "Status.Offense.Intelligence", "Intelligence stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Offense_Critical, "Status.Offense.Critical", "Critical stat tag.");
@@ -174,6 +194,9 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_PandoraForce_FirstPandoraLevel, "Status.PandoraForce.FirstPandoraLevel", "First pandora force investment level tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_PandoraForce_SecondPandoraLevel, "Status.PandoraForce.SecondPandoraLevel", "Second pandora force investment level tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_PandoraForce_ThirdPandoraLevel, "Status.PandoraForce.ThirdPandoraLevel", "Third pandora force investment level tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resource_Health, "Status.Resource.Health", "Current health stat tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resource_Mana, "Status.Resource.Mana", "Current mana stat tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resource_Stamina, "Status.Resource.Stamina", "Current stamina stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resource_MaxHealth, "Status.Resource.MaxHealth", "Maximum health stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resource_MaxMana, "Status.Resource.MaxMana", "Maximum mana stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resource_MaxStamina, "Status.Resource.MaxStamina", "Maximum stamina stat tag.");
@@ -186,6 +209,7 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_AttackSpeed, "Status.Agility.AttackSpeed", "Attack speed stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_MovementSpeed, "Status.Agility.MovementSpeed", "Movement speed stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_Arcane, "Status.Agility.Arcane", "Arcane stat tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_CriticalDamageMultiplier, "Status.Agility.CriticalDamageMultiplier", "Critical damage multiplier stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_AttackSpeedLevel, "Status.Agility.AttackSpeedLevel", "Attack speed investment level tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_MovementSpeedLevel, "Status.Agility.MovementSpeedLevel", "Movement speed investment level tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_ArcaneLevel, "Status.Agility.ArcaneLevel", "Arcane investment level tag.");

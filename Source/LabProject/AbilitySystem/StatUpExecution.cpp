@@ -40,8 +40,7 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		return;
 	}
 
-
-	// =================================================================================================================
+// =================================================================================================================
 
 	FGameplayTag OperationSetByCallerTag;
 	if (!TargetASC->ResolveStatUpOperationSetByCallerTag(OperationSetByCallerTag))
@@ -55,8 +54,7 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
 	const EGameplayModOp::Type ModifierOp = ResolveOperation(Spec, OperationSetByCallerTag);
 
-
-	// =================================================================================================================
+// =================================================================================================================
 
 	for (const TPair<FGameplayTag, float>& SetByCallerPair : Spec.SetByCallerTagMagnitudes)
 	{

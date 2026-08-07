@@ -131,8 +131,6 @@ UDecalComponent* AAOEIndicatorGameplayCue::SpawnDecalFromParameters(
 
 	ApplyDecalGrowth(NewDecalComponent, StartDiameter, TargetDiameter, GrowthDuration);
 
-
-
 	return NewDecalComponent;
 }
 

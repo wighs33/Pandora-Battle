@@ -3,6 +3,8 @@
 #include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "AbilitySystem/TargetValidator.h"
 #include "AbilitySystemComponent.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
@@ -31,9 +33,42 @@ namespace
 
 	const FMissileSkillConfig* GetMissileConfigFromSkill(const USkillDefinition* SkillDataAsset)
 	{
-		return SkillDataAsset && SkillDataAsset->SkillDataType == EPdSkillDataType::Missile
+		return SkillDataAsset && SkillDataAsset->SkillDataType == ESkillDataType::Missile
 			? &SkillDataAsset->Missile
 			: nullptr;
+	}
+
+	bool IsFiniteMissileLocation(const FVector& Location)
+	{
+		return FMath::IsFinite(Location.X)
+			&& FMath::IsFinite(Location.Y)
+			&& FMath::IsFinite(Location.Z);
+	}
+
+	ACharacterBase* ResolveMissileTraceCharacter(AActor* HitActor)
+	{
+		TSet<TObjectPtr<AActor>> VisitedActors;
+		AActor* CurrentActor = HitActor;
+		for (int32 Depth = 0; IsValid(CurrentActor) && Depth < 8; ++Depth)
+		{
+			if (ACharacterBase* Character = Cast<ACharacterBase>(CurrentActor))
+			{
+				return Character;
+			}
+
+			if (VisitedActors.Contains(CurrentActor))
+			{
+				break;
+			}
+			VisitedActors.Add(CurrentActor);
+
+			AActor* ParentActor = CurrentActor->GetAttachParentActor();
+			CurrentActor = IsValid(ParentActor)
+				? ParentActor
+				: CurrentActor->GetOwner();
+		}
+
+		return nullptr;
 	}
 
 }
@@ -87,8 +122,8 @@ void UMissileAbility::ActivateAbility(
 		return;
 	}
 
-	const EPdSkillDataType ResolvedSkillDataType = SkillDataAsset->GetResolvedSkillDataType();
-	if (ResolvedSkillDataType != EPdSkillDataType::Missile)
+	const ESkillDataType ResolvedSkillDataType = SkillDataAsset->GetResolvedSkillDataType();
+	if (ResolvedSkillDataType != ESkillDataType::Missile)
 	{
 
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -100,9 +135,7 @@ void UMissileAbility::ActivateAbility(
 
 	const FSkillGameplayEffectConfig DamageConfig = SkillDataAsset->GetResolvedDamageConfig();
 
-
-
-	StartWaitMissileMontageTriggerTask();
+StartWaitMissileMontageTriggerTask();
 
 	if (!GetResolvedMissileMontage())
 	{
@@ -198,8 +231,6 @@ bool UMissileAbility::StartMissileMontageTask()
 	MissileMontageTask->OnCancelled.AddDynamic(this, &ThisClass::HandleMissileMontageInterrupted);
 	MissileMontageTask->ReadyForActivation();
 
-
-
 	return true;
 }
 
@@ -278,8 +309,6 @@ bool UMissileAbility::ResolveForwardGroundTargetLocation(FVector& OutGroundLocat
 	const bool bHitGround = World->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams) && GroundHit.bBlockingHit;
 	OutGroundLocation = bHitGround ? GroundHit.Location : CandidateLocation;
 
-
-
 	return true;
 }
 
@@ -338,9 +367,7 @@ void UMissileAbility::ConfirmMissileAtLocation(const FVector& TargetLocation, AA
 		return;
 	}
 
-
-
-	LaunchMissile();
+LaunchMissile();
 }
 
 void UMissileAbility::LaunchMissile()
@@ -402,7 +429,6 @@ void UMissileAbility::StartMissileDurationTimer()
 		MissileDuration,
 		false);
 
-
 }
 
 void UMissileAbility::HandleMissileDurationFinished()
@@ -450,7 +476,6 @@ void UMissileAbility::StartMissileTargetTracking()
 		MissileTargetTrackingInterval,
 		true);
 
-
 }
 
 void UMissileAbility::StopMissileTargetTracking()
@@ -478,14 +503,7 @@ void UMissileAbility::HandleMissileTargetTrackingTick()
 bool UMissileAbility::RefreshTrackedMissileTargetLocation()
 {
 	AActor* TargetActor = TrackedMissileTargetActor.Get();
-	if (!IsValid(TargetActor) || TargetActor == GetAvatarActorFromActorInfo())
-	{
-		TrackedMissileTargetActor.Reset();
-		return false;
-	}
-
-	if (const UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
-		TargetASC && TargetASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	if (!IsEligibleMissileTargetActor(TargetActor))
 	{
 		TrackedMissileTargetActor.Reset();
 		return false;
@@ -529,8 +547,7 @@ void UMissileAbility::StartDamageSequence()
 		? SkillDataAsset->GetResolvedDamageConfig()
 		: FSkillGameplayEffectConfig();
 
-
-	UWorld* World = GetWorld();
+UWorld* World = GetWorld();
 	if (!World)
 	{
 
@@ -551,7 +568,6 @@ void UMissileAbility::StartDamageSequence()
 		DamageStartDelay,
 		false);
 
-
 }
 
 void UMissileAbility::HandleDamageDelayFinished()
@@ -563,8 +579,7 @@ void UMissileAbility::HandleDamageDelayFinished()
 
 	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
 
-
-	HandleDamageTick();
+HandleDamageTick();
 }
 
 void UMissileAbility::HandleDamageTick()
@@ -579,7 +594,6 @@ void UMissileAbility::HandleDamageTick()
 	++DamageTicksApplied;
 	const float TickDamageMagnitude = CalculateDamageMagnitudePerTick();
 	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
-
 
 	if (K2_HasAuthority())
 	{
@@ -675,7 +689,6 @@ void UMissileAbility::ApplyMissileDamageTick(const float TickDamageMagnitude)
 
 	DrawDebugDamageRadius(TEXT("DamageTick"));
 
-
 }
 
 void UMissileAbility::ApplyEffectToHitActor(AActor* HitActor, const float TickDamageMagnitude)
@@ -709,6 +722,12 @@ void UMissileAbility::ApplyEffectToHitActor(AActor* HitActor, const float TickDa
 	}
 
 	const FActiveGameplayEffectHandle AppliedHandle = SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), TargetASC);
+	if (AppliedHandle.WasSuccessfullyApplied())
+	{
+		ApplyConfiguredStatusEffectToTarget(
+			GetSourceSkillDataAsset(),
+			TargetASC);
+	}
 
 }
 
@@ -754,9 +773,23 @@ bool UMissileAbility::TryGetAttackTargetGroundLocation(FVector& OutGroundLocatio
 {
 	OutTargetActor = nullptr;
 	AActor* AttackTarget = GetAttackTargetFromAvatar();
-	if (!IsValid(AttackTarget))
+	if (!IsEligibleMissileTargetActor(AttackTarget))
 	{
 		return false;
+	}
+
+	if (const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+		AvatarActor && AvatarActor->HasAuthority())
+	{
+		if (!TryValidateServerMissileActorTarget(
+			AttackTarget,
+			OutGroundLocation))
+		{
+			return false;
+		}
+
+		OutTargetActor = AttackTarget;
+		return true;
 	}
 
 	if (!ResolveTargetAimLocation(AttackTarget, OutGroundLocation))
@@ -829,9 +862,22 @@ AActor* UMissileAbility::FindAutoTargetActor() const
 			continue;
 		}
 
+		if (!IsEligibleMissileTargetActor(CandidateActor))
+		{
+			continue;
+		}
+
 		FVector CandidateAimLocation = FVector::ZeroVector;
 		if (!ResolveTargetAimLocation(CandidateActor, CandidateAimLocation)
 			|| !IsMissileTargetLocationWithinRange(CandidateAimLocation))
+		{
+			continue;
+		}
+
+		if (AvatarActor->HasAuthority()
+			&& !TryValidateServerMissileActorTarget(
+				CandidateActor,
+				CandidateAimLocation))
 		{
 			continue;
 		}
@@ -843,8 +889,6 @@ AActor* UMissileAbility::FindAutoTargetActor() const
 			BestTarget = CandidateActor;
 		}
 	}
-
-
 
 	return BestTarget;
 }
@@ -872,7 +916,6 @@ bool UMissileAbility::TryGetAutoTargetGroundLocation(FVector& OutGroundLocation,
 
 	const bool bProjected = ResolveTargetAimLocation(ClosestEnemy, OutGroundLocation);
 	OutTargetActor = bProjected ? ClosestEnemy : nullptr;
-
 
 	return bProjected;
 }
@@ -902,11 +945,192 @@ bool UMissileAbility::ResolveTargetAimLocation(AActor* TargetActor, FVector& Out
 			return true;
 		}
 
-
-	}
+}
 
 	OutAimLocation = TargetActor->GetActorLocation();
 	return true;
+}
+
+bool UMissileAbility::IsEligibleMissileTargetActor(const AActor* TargetActor) const
+{
+	const ACharacterBase* SourceCharacter =
+		Cast<ACharacterBase>(GetAvatarActorFromActorInfo());
+	const ACharacterBase* TargetCharacter =
+		Cast<ACharacterBase>(TargetActor);
+	if (!IsValid(SourceCharacter)
+		|| !IsValid(TargetCharacter)
+		|| !SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
+	{
+		return false;
+	}
+
+	const UAbilitySystemComponent* TargetASC =
+		TargetCharacter->GetAbilitySystemComponent();
+	return TargetASC
+		&& !TargetASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
+		&& TargetASC->GetNumericAttribute(
+			UBasicAttributeSet::GetHealthAttribute()) > 0.0f;
+}
+
+bool UMissileAbility::TryValidateServerMissileActorTarget(
+	AActor* TargetActor,
+	FVector& OutTargetLocation) const
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
+	const FMissileSkillConfig* MissileConfig = GetMissileConfig();
+	if (!AvatarActor
+		|| !AvatarActor->HasAuthority()
+		|| !World
+		|| !MissileConfig
+		|| !IsEligibleMissileTargetActor(TargetActor))
+	{
+		return false;
+	}
+
+	FVector AuthorityTargetLocation = FVector::ZeroVector;
+	if (!ResolveTargetAimLocation(TargetActor, AuthorityTargetLocation)
+		|| !IsFiniteMissileLocation(AuthorityTargetLocation))
+	{
+		return false;
+	}
+
+	PdTargetValidator::FPointTargetValidationParams ValidationParams;
+	ValidationParams.MaxRange = MissileConfig->TargetingMaxRange;
+	ValidationParams.LineOfSightProfileName =
+		MissileConfig->TargetingTraceProfileName;
+
+	PdTargetValidator::FValidatedPointTarget ValidatedTarget;
+	if (!PdTargetValidator::ValidatePointTarget(
+		World,
+		AvatarActor,
+		GetMissileTargetingOrigin(),
+		GetMissileTraceStartLocation(),
+		AuthorityTargetLocation,
+		ValidationParams,
+		ValidatedTarget))
+	{
+		return false;
+	}
+
+	ACharacterBase* TraceCharacter =
+		ResolveMissileTraceCharacter(ValidatedTarget.BlockingActor.Get());
+	if (TraceCharacter != TargetActor)
+	{
+		return false;
+	}
+
+	OutTargetLocation = AuthorityTargetLocation;
+	return true;
+}
+
+bool UMissileAbility::TryValidateServerMissileTargetData(
+	const FGameplayAbilityTargetDataHandle& Data,
+	FVector& OutTargetLocation,
+	AActor*& OutTargetActor) const
+{
+	OutTargetLocation = FVector::ZeroVector;
+	OutTargetActor = nullptr;
+
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
+	const FMissileSkillConfig* MissileConfig = GetMissileConfig();
+	const FGameplayAbilityTargetData* TargetData = Data.Get(0);
+	const FHitResult* ClientHitResult =
+		TargetData ? TargetData->GetHitResult() : nullptr;
+	if (!AvatarActor
+		|| !AvatarActor->HasAuthority()
+		|| !World
+		|| !MissileConfig
+		|| !TargetData)
+	{
+		return false;
+	}
+
+	if (AActor* ClientActorHint = ResolveTargetDataActor(Data))
+	{
+		if (!TryValidateServerMissileActorTarget(
+			ClientActorHint,
+			OutTargetLocation))
+		{
+			return false;
+		}
+
+		OutTargetActor = ClientActorHint;
+		return true;
+	}
+
+	FVector RequestedLocation = FVector::ZeroVector;
+	const FVector TargetDataEndPoint =
+		UAbilitySystemBlueprintLibrary::GetTargetDataEndPoint(Data, 0);
+	if (ClientHitResult)
+	{
+		if (!PdTargetValidator::TryResolveTargetDataLocation(
+			*ClientHitResult,
+			TargetDataEndPoint,
+			RequestedLocation))
+		{
+			return false;
+		}
+	}
+	else if (!IsFiniteMissileLocation(TargetDataEndPoint))
+	{
+		return false;
+	}
+	else
+	{
+		RequestedLocation = TargetDataEndPoint;
+	}
+
+	PdTargetValidator::FPointTargetValidationParams ValidationParams;
+	ValidationParams.MaxRange = MissileConfig->TargetingMaxRange;
+	ValidationParams.LineOfSightProfileName =
+		MissileConfig->TargetingTraceProfileName;
+
+	PdTargetValidator::FValidatedPointTarget ValidatedTarget;
+	if (!PdTargetValidator::ValidatePointTarget(
+		World,
+		AvatarActor,
+		GetMissileTargetingOrigin(),
+		GetMissileTraceStartLocation(),
+		RequestedLocation,
+		ValidationParams,
+		ValidatedTarget))
+	{
+		return false;
+	}
+
+	AActor* BlockingActor = ValidatedTarget.BlockingActor.Get();
+	if (ACharacterBase* TraceCharacter =
+		ResolveMissileTraceCharacter(BlockingActor))
+	{
+		if (!IsEligibleMissileTargetActor(TraceCharacter))
+		{
+			return false;
+		}
+
+		FVector AuthorityTargetLocation = FVector::ZeroVector;
+		if (!ResolveTargetAimLocation(
+			TraceCharacter,
+			AuthorityTargetLocation)
+			|| !IsMissileTargetLocationWithinRange(
+				AuthorityTargetLocation))
+		{
+			return false;
+		}
+
+		OutTargetLocation = AuthorityTargetLocation;
+		OutTargetActor = TraceCharacter;
+		return true;
+	}
+
+	if (IsValid(BlockingActor) && BlockingActor->IsA<APawn>())
+	{
+		return false;
+	}
+
+	OutTargetLocation = ValidatedTarget.Location;
+	return IsFiniteMissileLocation(OutTargetLocation);
 }
 
 bool UMissileAbility::IsMissileTargetLocationWithinRange(const FVector& TargetLocation) const
@@ -951,33 +1175,108 @@ FVector UMissileAbility::GetMissileTargetingOrigin() const
 	return AvatarActor ? AvatarActor->GetActorLocation() : FVector::ZeroVector;
 }
 
+FVector UMissileAbility::GetMissileTraceStartLocation() const
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	const FMissileSkillConfig* MissileConfig = GetMissileConfig();
+	if (!AvatarActor)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const FName SourceSocketName = MissileConfig
+		? MissileConfig->NiagaraSpawnSocketName
+		: NAME_None;
+	if (!SourceSocketName.IsNone())
+	{
+		if (const ACharacterBase* SourceCharacter =
+			Cast<ACharacterBase>(AvatarActor);
+			SourceCharacter
+			&& SourceCharacter->GetMesh()
+			&& SourceCharacter->GetMesh()->DoesSocketExist(
+				SourceSocketName))
+		{
+			return SourceCharacter->GetMesh()->GetSocketLocation(
+				SourceSocketName);
+		}
+
+		if (const USkeletalMeshComponent* SourceMesh =
+			Cast<USkeletalMeshComponent>(
+				AvatarActor->GetComponentByClass(
+					USkeletalMeshComponent::StaticClass()));
+			SourceMesh
+			&& SourceMesh->DoesSocketExist(SourceSocketName))
+		{
+			return SourceMesh->GetSocketLocation(SourceSocketName);
+		}
+	}
+
+	return AvatarActor->GetActorLocation();
+}
+
 AActor* UMissileAbility::ResolveTargetDataActor(const FGameplayAbilityTargetDataHandle& Data) const
 {
-	FHitResult HitResult = UAbilitySystemBlueprintLibrary::GetHitResultFromTargetData(Data, 0);
-	AActor* HitActor = HitResult.GetActor();
-	return IsValid(HitActor) && HitActor->IsA<APawn>() ? HitActor : nullptr;
+	const FGameplayAbilityTargetData* TargetData = Data.Get(0);
+	if (!TargetData)
+	{
+		return nullptr;
+	}
+
+	if (const FHitResult* HitResult = TargetData->GetHitResult())
+	{
+		AActor* HitActor = HitResult->GetActor();
+		if (IsValid(HitActor) && HitActor->IsA<APawn>())
+		{
+			return HitActor;
+		}
+	}
+
+	for (const TWeakObjectPtr<AActor>& TargetActor : TargetData->GetActors())
+	{
+		AActor* Actor = TargetActor.Get();
+		if (IsValid(Actor) && Actor->IsA<APawn>())
+		{
+			return Actor;
+		}
+	}
+
+	return nullptr;
 }
 
 FVector UMissileAbility::ResolveTargetDataLocation(const FGameplayAbilityTargetDataHandle& Data) const
 {
-	FHitResult HitResult = UAbilitySystemBlueprintLibrary::GetHitResultFromTargetData(Data, 0);
-	FVector ResolvedLocation = HitResult.Location.IsNearlyZero()
-		? UAbilitySystemBlueprintLibrary::GetTargetDataEndPoint(Data, 0)
-		: HitResult.Location;
-
-	AActor* HitActor = HitResult.GetActor();
-	if (!IsValid(HitActor) || !HitActor->IsA<APawn>())
+	AActor* TargetActor = ResolveTargetDataActor(Data);
+	if (IsValid(TargetActor))
 	{
-		return ResolvedLocation;
+		FVector TargetAimLocation = FVector::ZeroVector;
+		if (ResolveTargetAimLocation(TargetActor, TargetAimLocation))
+		{
+			return TargetAimLocation;
+		}
 	}
 
-	FVector TargetAimLocation = FVector::ZeroVector;
-	if (ResolveTargetAimLocation(HitActor, TargetAimLocation))
+	const FGameplayAbilityTargetData* TargetData = Data.Get(0);
+	const FHitResult* HitResult =
+		TargetData ? TargetData->GetHitResult() : nullptr;
+	if (HitResult)
 	{
-		return TargetAimLocation;
+		FVector ResolvedLocation = FVector::ZeroVector;
+		if (PdTargetValidator::TryResolveTargetDataLocation(
+			*HitResult,
+			UAbilitySystemBlueprintLibrary::GetTargetDataEndPoint(
+				Data,
+				0),
+			ResolvedLocation))
+		{
+			return ResolvedLocation;
+		}
 	}
 
-	return ResolvedLocation;
+	const FVector TargetDataEndPoint =
+		UAbilitySystemBlueprintLibrary::GetTargetDataEndPoint(Data, 0);
+	return IsFiniteMissileLocation(TargetDataEndPoint)
+		? TargetDataEndPoint
+		: FVector::ZeroVector;
 }
 
 FGameplayEffectSpecHandle UMissileAbility::MakeDamageEffectSpec(const float DamageMagnitude) const
@@ -1088,7 +1387,6 @@ void UMissileAbility::DrawDebugDamageRadius(const TCHAR* Context) const
 		false,
 		static_cast<float>(FMath::Max(MissileConfig->DebugDamageRadiusDrawTime, 0.0)));
 
-
 }
 
 void UMissileAbility::MarkDamageSequenceFinished()
@@ -1100,9 +1398,7 @@ void UMissileAbility::MarkDamageSequenceFinished()
 		World->GetTimerManager().ClearTimer(DamageTickTimerHandle);
 	}
 
-
-
-	TryFinishMissileAbilityAfterWork();
+TryFinishMissileAbilityAfterWork();
 }
 
 void UMissileAbility::TryFinishMissileAbilityAfterWork()
@@ -1134,7 +1430,45 @@ void UMissileAbility::HandleTargetDataValid(const FGameplayAbilityTargetDataHand
 		WaitTargetDataTask = nullptr;
 	}
 
-	ConfirmMissileAtLocation(ResolveTargetDataLocation(Data), ResolveTargetDataActor(Data));
+	if (bMissileLaunched)
+	{
+		return;
+	}
+
+	if (!CanExecuteSkillPayload())
+	{
+		FinishMissileAbility(true);
+		return;
+	}
+
+	FVector TargetLocation = FVector::ZeroVector;
+	AActor* TargetActor = nullptr;
+	bool bResolvedTargetData = false;
+	if (CurrentActorInfo && CurrentActorInfo->IsNetAuthority())
+	{
+		bResolvedTargetData = TryValidateServerMissileTargetData(
+			Data,
+			TargetLocation,
+			TargetActor);
+	}
+	else
+	{
+		TargetActor = ResolveTargetDataActor(Data);
+		TargetLocation = ResolveTargetDataLocation(Data);
+		bResolvedTargetData = IsFiniteMissileLocation(TargetLocation)
+			&& !TargetLocation.IsNearlyZero()
+			&& (!TargetActor
+				|| IsEligibleMissileTargetActor(TargetActor));
+	}
+
+	if (!bResolvedTargetData)
+	{
+		LaunchMissileFromResolvedTarget();
+		return;
+	}
+
+	bMissileLaunched = true;
+	ConfirmMissileAtLocation(TargetLocation, TargetActor);
 }
 
 void UMissileAbility::HandleTargetDataCancelled(const FGameplayAbilityTargetDataHandle& Data)

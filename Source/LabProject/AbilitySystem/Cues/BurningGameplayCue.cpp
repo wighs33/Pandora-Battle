@@ -82,8 +82,6 @@ bool ABurningGameplayCue::ApplyBurningEffect(AActor* MyTarget, bool bPlaySound)
 		UGameplayStatics::PlaySoundAtLocation(this, BurningStartSound, MyTarget->GetActorLocation());
 	}
 
-
-
 	return BurningEffectComponent != nullptr;
 }
 

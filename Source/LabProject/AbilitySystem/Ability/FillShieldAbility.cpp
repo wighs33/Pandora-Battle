@@ -5,7 +5,6 @@
 #include "Animation/AnimMontage.h"
 #include "Common/LabGameplayTags.h"
 #include "GameplayEffect.h"
-#include "UObject/ConstructorHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FillShieldAbility)
 
@@ -14,22 +13,6 @@ UFillShieldAbility::UFillShieldAbility(const FObjectInitializer& ObjectInitializ
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-
-	MontageTriggerEventTag = LabGameplayTags::Event_Montage_Trigger;
-
-	static ConstructorHelpers::FObjectFinder<UAnimMontage> DefaultFillShieldMontage(
-		TEXT("/Game/Animation/Stickman/Axe/Montage_AxeCastShield.Montage_AxeCastShield"));
-	if (DefaultFillShieldMontage.Succeeded())
-	{
-		FillShieldMontage = DefaultFillShieldMontage.Object;
-	}
-
-	static ConstructorHelpers::FClassFinder<UGameplayEffect> DefaultFillShieldEffect(
-		TEXT("/Game/GAS/Effect/GE_FillShield"));
-	if (DefaultFillShieldEffect.Succeeded())
-	{
-		FillShieldGameplayEffectClass = DefaultFillShieldEffect.Class;
-	}
 
 	FGameplayTagContainer AbilityAssetTags;
 	AbilityAssetTags.AddTag(LabGameplayTags::GameplayAbility_Defensive);
@@ -54,21 +37,15 @@ void UFillShieldAbility::ActivateAbility(
 	}
 
 	bFillShieldApplied = false;
-	const UAnimMontage* ResolvedFillShieldMontage = GetResolvedFillShieldMontage();
-	StartWaitMontageTriggerTask();
-
-
-
-	if (!ResolvedFillShieldMontage)
+	if (!GetConfiguredFillShieldMontage()
+		|| !GetConfiguredFillShieldGameplayEffectClass()
+		|| !GetConfiguredMontageTriggerEventTag().IsValid())
 	{
-
-		ApplyFillShieldFromMontageTrigger();
-		if (IsEndAbilityValid(Handle, ActorInfo))
-		{
-			EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
-		}
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+
+	StartWaitMontageTriggerTask();
 
 	if (!StartFillShieldMontageTask())
 	{
@@ -93,43 +70,41 @@ const FShieldSkillConfig* UFillShieldAbility::GetFillShieldSkillConfig() const
 	return SkillDataAsset ? SkillDataAsset->GetDefensiveSkillConfig() : nullptr;
 }
 
-UAnimMontage* UFillShieldAbility::GetResolvedFillShieldMontage() const
+UAnimMontage* UFillShieldAbility::GetConfiguredFillShieldMontage() const
 {
 	const FShieldSkillConfig* FillShieldConfig = GetFillShieldSkillConfig();
-	return FillShieldConfig && FillShieldConfig->Animation.PrimaryMontage
+	return FillShieldConfig
 		? FillShieldConfig->Animation.PrimaryMontage.Get()
-		: FillShieldMontage.Get();
+		: nullptr;
 }
 
-TSubclassOf<UGameplayEffect> UFillShieldAbility::GetResolvedFillShieldGameplayEffectClass() const
+TSubclassOf<UGameplayEffect> UFillShieldAbility::GetConfiguredFillShieldGameplayEffectClass() const
 {
 	const FShieldSkillConfig* FillShieldConfig = GetFillShieldSkillConfig();
-	return FillShieldConfig && FillShieldConfig->GameplayEffectClass
+	return FillShieldConfig
 		? FillShieldConfig->GameplayEffectClass
-		: FillShieldGameplayEffectClass;
+		: nullptr;
 }
 
-FGameplayTag UFillShieldAbility::GetResolvedMontageTriggerEventTag() const
+FGameplayTag UFillShieldAbility::GetConfiguredMontageTriggerEventTag() const
 {
 	const FShieldSkillConfig* FillShieldConfig = GetFillShieldSkillConfig();
-	return FillShieldConfig && FillShieldConfig->Animation.PrimaryEventTag.IsValid()
+	return FillShieldConfig
 		? FillShieldConfig->Animation.PrimaryEventTag
-		: MontageTriggerEventTag;
+		: FGameplayTag();
 }
 
 void UFillShieldAbility::StartWaitMontageTriggerTask()
 {
-	const FGameplayTag ResolvedMontageTriggerEventTag = GetResolvedMontageTriggerEventTag();
-	if (!ResolvedMontageTriggerEventTag.IsValid())
+	const FGameplayTag MontageTriggerEventTag = GetConfiguredMontageTriggerEventTag();
+	if (!MontageTriggerEventTag.IsValid())
 	{
-
 		return;
 	}
 
-	WaitMontageTriggerTask = CreateWaitGameplayEventTask(ResolvedMontageTriggerEventTag);
+	WaitMontageTriggerTask = CreateWaitGameplayEventTask(MontageTriggerEventTag);
 	if (!WaitMontageTriggerTask)
 	{
-
 		return;
 	}
 
@@ -139,11 +114,10 @@ void UFillShieldAbility::StartWaitMontageTriggerTask()
 
 bool UFillShieldAbility::StartFillShieldMontageTask()
 {
-	UAnimMontage* ResolvedFillShieldMontage = GetResolvedFillShieldMontage();
-	FillShieldMontageTask = CreateDefaultMontageAndWaitTask(ResolvedFillShieldMontage);
+	FillShieldMontageTask = CreateDefaultMontageAndWaitTask(
+		GetConfiguredFillShieldMontage());
 	if (!FillShieldMontageTask)
 	{
-
 		return false;
 	}
 
@@ -160,9 +134,9 @@ void UFillShieldAbility::ApplyFillShieldFromMontageTrigger()
 	{
 		return;
 	}
-	const TSubclassOf<UGameplayEffect> ResolvedFillShieldGameplayEffectClass =
-		GetResolvedFillShieldGameplayEffectClass();
-	if (!ResolvedFillShieldGameplayEffectClass)
+	const TSubclassOf<UGameplayEffect> FillShieldGameplayEffectClass =
+		GetConfiguredFillShieldGameplayEffectClass();
+	if (!FillShieldGameplayEffectClass)
 	{
 		K2_CancelAbility();
 		return;
@@ -178,7 +152,7 @@ void UFillShieldAbility::ApplyFillShieldFromMontageTrigger()
 
 	SpawnConfiguredCharacterDecal();
 	const FActiveGameplayEffectHandle EffectHandle =
-		BP_ApplyGameplayEffectToOwner(ResolvedFillShieldGameplayEffectClass, FMath::Max(GetAbilityLevel(), 1), 1);
+		BP_ApplyGameplayEffectToOwner(FillShieldGameplayEffectClass, FMath::Max(GetAbilityLevel(), 1), 1);
 	if (K2_HasAuthority() && !EffectHandle.WasSuccessfullyApplied())
 	{
 		CancelAbilityForSkillExecutionFailure();
@@ -215,6 +189,5 @@ void UFillShieldAbility::HandleFillShieldMontageFinished()
 void UFillShieldAbility::HandleMontageTriggerEvent(FGameplayEventData Payload)
 {
 
-
-	ApplyFillShieldFromMontageTrigger();
+ApplyFillShieldFromMontageTrigger();
 }

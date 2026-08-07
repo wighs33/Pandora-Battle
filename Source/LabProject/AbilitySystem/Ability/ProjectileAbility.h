@@ -84,20 +84,6 @@ private:
 	bool TryStartSocketBarrage(FVector TargetLocation);
 	AProjectileBase* SpawnPreparedSocketBarrageProjectile(FName SocketName);
 	void LaunchSocketBarrageProjectile(AProjectileBase* Projectile);
-	void SpawnSocketBarrageProjectileCosmetic(
-		TSubclassOf<AProjectileBase> ProjectileClass,
-		const FVector& SpawnLocation,
-		const FRotator& SpawnRotation,
-		const FVector& TargetLocation,
-		float ProjectileSpeed,
-		int32 SocketIndex) const;
-	void ApplySocketBarrageProjectileLaunchScale(AProjectileBase* Projectile, int32 SocketIndex) const;
-	void ResolveSocketBarrageProjectileLaunchScale(
-		int32 SocketIndex,
-		FVector& OutScale,
-		FName& OutNiagaraVector2DParameterName,
-		FVector2D& OutNiagaraSize) const;
-	float ResolveSocketBarrageCosmeticLifeSpan(const FVector& SpawnLocation, const FVector& TargetLocation, float ProjectileSpeed) const;
 	FVector ResolveSocketBarrageLaunchTargetLocation(const FVector& ProjectileLocation) const;
 	FVector ResolveCharacterTargetSocketProjectileTargetLocation(const FVector& FromLocation) const;
 	void FireNextSocketBarrageProjectile();
@@ -114,7 +100,7 @@ private:
 	UAnimMontage* GetConfiguredShootMontage() const;
 	TSubclassOf<AProjectileBase> GetConfiguredProjectileClass() const;
 	TSubclassOf<UGameplayEffect> GetConfiguredDamageEffectClass() const;
-	const UStatusEffectDefinition* GetConfiguredStatusEffectDataAsset() const;
+	UStatusEffectDefinition* GetConfiguredStatusEffectDataAsset() const;
 	TSubclassOf<UGameplayEffect> GetConfiguredStatusEffectClass() const;
 	float GetConfiguredStatusEffectLevel() const;
 	float GetConfiguredStatusEffectDuration() const;

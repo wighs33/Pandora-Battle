@@ -1,14 +1,12 @@
-#include "Component/AbilitySystem/PdAbilityAttributeRuntime.h"
+#include "Component/AbilitySystem/AbilityAttributeRuntime.h"
 
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/Common/ProjectTagConfig.h"
-#include "Definition/Settings/GameSettingDefinition.h"
 #include "GameFramework/Actor.h"
 #include "GameplayEffect.h"
 #include "Net/Core/PushModel/PushModel.h"
-#include "Settings/GameSettingsSubsystem.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PdAbilityAttributeRuntime)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityAttributeRuntime)
 
 namespace
 {
@@ -35,7 +33,7 @@ bool SetAttributeDataDefaultValue(
 }
 }
 
-int32 UPdAbilityAttributeRuntime::AddAttributeConfig(const FPdAttributeConfig& AttributeConfig)
+int32 UAbilityAttributeRuntime::AddAttributeConfig(const FAttributeConfig& AttributeConfig)
 {
 	if (!AttributeConfig.HasAnyData())
 	{
@@ -48,7 +46,7 @@ int32 UPdAbilityAttributeRuntime::AddAttributeConfig(const FPdAttributeConfig& A
 	return AttributeConfigHandle;
 }
 
-void UPdAbilityAttributeRuntime::RemoveAttributeConfig(const int32 AttributeConfigHandle)
+void UAbilityAttributeRuntime::RemoveAttributeConfig(const int32 AttributeConfigHandle)
 {
 	if (AttributeConfigHandle == INDEX_NONE)
 	{
@@ -59,7 +57,7 @@ void UPdAbilityAttributeRuntime::RemoveAttributeConfig(const int32 AttributeConf
 	AttributeConfigOrder.Remove(AttributeConfigHandle);
 }
 
-bool UPdAbilityAttributeRuntime::ApplyAttributeDefaultValue(
+bool UAbilityAttributeRuntime::ApplyAttributeDefaultValue(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	const FGameplayAttribute& Attribute,
 	const float DefaultValue) const
@@ -98,7 +96,7 @@ bool UPdAbilityAttributeRuntime::ApplyAttributeDefaultValue(
 	return true;
 }
 
-bool UPdAbilityAttributeRuntime::ApplyStatUpEffectByTag(
+bool UAbilityAttributeRuntime::ApplyStatUpEffectByTag(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	TSubclassOf<UGameplayEffect> GameplayEffectClass,
 	const FGameplayTag StatTag,
@@ -121,7 +119,7 @@ bool UPdAbilityAttributeRuntime::ApplyStatUpEffectByTag(
 		Level);
 }
 
-bool UPdAbilityAttributeRuntime::ApplyStatUpEffectByTags(
+bool UAbilityAttributeRuntime::ApplyStatUpEffectByTags(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	TSubclassOf<UGameplayEffect> GameplayEffectClass,
 	const TMap<FGameplayTag, float>& StatMagnitudes,
@@ -175,8 +173,7 @@ bool UPdAbilityAttributeRuntime::ApplyStatUpEffectByTags(
 	return AppliedHandle.WasSuccessfullyApplied();
 }
 
-bool UPdAbilityAttributeRuntime::ResolveAttributeFromTag(
-	const UPdAbilitySystemComponent& AbilitySystemComponent,
+bool UAbilityAttributeRuntime::ResolveAttributeFromTag(
 	const FGameplayTag& StatTag,
 	FGameplayAttribute& OutAttribute) const
 {
@@ -188,14 +185,14 @@ bool UPdAbilityAttributeRuntime::ResolveAttributeFromTag(
 
 	for (int32 Index = AttributeConfigOrder.Num() - 1; Index >= 0; --Index)
 	{
-		const FPdAttributeConfig* AttributeConfig =
+		const FAttributeConfig* AttributeConfig =
 			ActiveAttributeConfigs.Find(AttributeConfigOrder[Index]);
 		if (!AttributeConfig)
 		{
 			continue;
 		}
 
-		for (const FPdAttributeTagMapping& Entry : AttributeConfig->AttributeMappings)
+		for (const FAttributeTagMapping& Entry : AttributeConfig->AttributeMappings)
 		{
 			if (Entry.StatTag.MatchesTagExact(StatTag) && Entry.Attribute.IsValid())
 			{
@@ -205,26 +202,10 @@ bool UPdAbilityAttributeRuntime::ResolveAttributeFromTag(
 		}
 	}
 
-	const FPdAttributeConfig* CoreAttributeConfig =
-		ResolveCoreAttributeConfig(AbilitySystemComponent);
-	if (!CoreAttributeConfig)
-	{
-		return false;
-	}
-
-	for (const FPdAttributeTagMapping& Entry : CoreAttributeConfig->AttributeMappings)
-	{
-		if (Entry.StatTag.MatchesTagExact(StatTag) && Entry.Attribute.IsValid())
-		{
-			OutAttribute = Entry.Attribute;
-			return true;
-		}
-	}
-
 	return false;
 }
 
-bool UPdAbilityAttributeRuntime::ResolveDamageMagnitudeSetByCallerTag(
+bool UAbilityAttributeRuntime::ResolveDamageMagnitudeSetByCallerTag(
 	const UPdAbilitySystemComponent& AbilitySystemComponent,
 	FGameplayTag& OutTag) const
 {
@@ -239,7 +220,7 @@ bool UPdAbilityAttributeRuntime::ResolveDamageMagnitudeSetByCallerTag(
 	return OutTag.IsValid();
 }
 
-bool UPdAbilityAttributeRuntime::ResolveStatUpOperationSetByCallerTag(
+bool UAbilityAttributeRuntime::ResolveStatUpOperationSetByCallerTag(
 	const UPdAbilitySystemComponent& AbilitySystemComponent,
 	FGameplayTag& OutTag) const
 {
@@ -252,17 +233,4 @@ bool UPdAbilityAttributeRuntime::ResolveStatUpOperationSetByCallerTag(
 
 	OutTag = TagConfig->GetSetByCallerStatUpOperationTag();
 	return OutTag.IsValid();
-}
-
-const FPdAttributeConfig* UPdAbilityAttributeRuntime::ResolveCoreAttributeConfig(
-	const UPdAbilitySystemComponent& AbilitySystemComponent) const
-{
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(&AbilitySystemComponent);
-	if (!SettingDefinition)
-	{
-		SettingDefinition = GetDefault<UGameSettingDefinition>();
-	}
-
-	return SettingDefinition ? &SettingDefinition->CoreAttributeConfig : nullptr;
 }

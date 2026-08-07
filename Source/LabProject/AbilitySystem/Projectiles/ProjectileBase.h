@@ -17,6 +17,7 @@ class AEffectAreaBase;
 class ACharacterBase;
 class UNiagaraComponent;
 class UNiagaraSystem;
+class UStatusEffectDefinition;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API AProjectileBase : public AActor
@@ -31,8 +32,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!Projectile")
 	void InitializeProjectile(const FVector& InTargetLocation, float InSpeed, const FGameplayEffectSpecHandle& InDamageEffectSpecHandle);
-
-	void InitializeCosmeticProjectile(const FVector& InTargetLocation, float InSpeed, float InLifeSpan);
 
 	UFUNCTION(BlueprintCallable, Category = "!Projectile")
 	void PrepareProjectile(const FGameplayEffectSpecHandle& InDamageEffectSpecHandle);
@@ -58,7 +57,9 @@ public:
 	void ConfigureArcTrajectory(bool bInUseArcTrajectory, float InArcHeight, float InArcGravityScale);
 
 	UFUNCTION(BlueprintCallable, Category = "!Projectile|Debuff")
-	void SetDebuffEffectSpecHandle(const FGameplayEffectSpecHandle& InDebuffEffectSpecHandle);
+	void SetDebuffEffectSpecHandle(
+		const FGameplayEffectSpecHandle& InDebuffEffectSpecHandle,
+		UStatusEffectDefinition* InStatusEffectDefinition);
 
 	UFUNCTION(BlueprintCallable, Category = "!Projectile|Impact")
 	void SetImpactEffectAreaSpawnConfigs(
@@ -195,6 +196,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Projectile|Debuff")
 	FGameplayEffectSpecHandle DebuffEffectSpecHandle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Projectile|Debuff")
+	TObjectPtr<UStatusEffectDefinition> StatusEffectDefinition;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Projectile|Impact")
 	TArray<FProjectileImpactEffectAreaSpawnConfig> ImpactEffectAreaSpawnConfigs;

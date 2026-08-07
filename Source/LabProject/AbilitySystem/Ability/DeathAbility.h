@@ -5,6 +5,7 @@
 #include "DeathAbility.generated.h"
 
 class UGameplayEffect;
+class FDataValidationContext;
 
 UCLASS(Blueprintable)
 class LABPROJECT_API UDeathAbility : public UPdGameplayAbility
@@ -13,6 +14,10 @@ class LABPROJECT_API UDeathAbility : public UPdGameplayAbility
 
 public:
 	UDeathAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
 
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,

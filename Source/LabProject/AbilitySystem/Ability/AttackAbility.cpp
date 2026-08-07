@@ -666,7 +666,6 @@ bool UAttackAbility::FaceCurrentAttackTarget(const TCHAR* Context) const
 	}
 	Character->SetActorRotation(LookAtRotation);
 
-
 	return true;
 }
 

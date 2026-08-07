@@ -10,14 +10,21 @@ class UTexture2D;
 class UAbilitySystemComponent;
 struct FGameplayEffectSpecHandle;
 
+namespace StatusEffectTiming
+{
+	inline constexpr float StackHoldSeconds = 1.0f;
+	inline constexpr float FullStackLifetimeSeconds = 20.0f;
+	inline constexpr float StackDecaySeconds =
+		FullStackLifetimeSeconds - StackHoldSeconds;
+	inline constexpr float StackPresentationUpdateIntervalSeconds = 1.0f / 30.0f;
+}
+
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UStatusEffectDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
 public:
-	UStatusEffectDefinition();
-
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 	double ResolveDamageMagnitude() const;
@@ -31,26 +38,27 @@ public:
 		const UAbilitySystemComponent* SourceAbilitySystemComponent,
 		float SkillScaledDamageMagnitude,
 		float DamageScale = 1.0f) const;
-	void AppendRemovalPolicyTags(FGameplayEffectSpecHandle& SpecHandle) const;
+	void SynchronizeDebuffGameplayEffectStackLimit() const;
+	bool CanAccumulateDebuffOn(
+		const UAbilitySystemComponent* TargetAbilitySystemComponent) const;
+	void ClearAccumulatedDebuff(
+		UAbilitySystemComponent* TargetAbilitySystemComponent) const;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect|Debuff", meta = (Categories = "Debuff"))
 	FGameplayTag DebuffTag;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect|Debuff",
+		meta = (DisplayName = "Debuff Gameplay Effect Class"))
+	TSubclassOf<UGameplayEffect> DebuffGameplayEffectClass;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect|Debuff", meta = (ClampMin = "1"))
 	int32 MaxStackCount = 1;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect|Debuff", meta = (ClampMin = "0.0", ForceUnits = "s"))
-	float DebuffStackDuration = 5.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect", meta = (Categories = "Status"))
 	FGameplayTag StatusEffectTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect")
 	TSubclassOf<UGameplayEffect> StatusEffectClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect|Policy",
-		meta = (Categories = "Effect.Policy"))
-	FGameplayTagContainer RemovalPolicyTags;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float StatusDuration = 10.0f;

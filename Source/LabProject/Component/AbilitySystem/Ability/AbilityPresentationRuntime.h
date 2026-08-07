@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
 #include "UObject/Object.h"
-#include "PdAbilityPresentationRuntime.generated.h"
+#include "AbilityPresentationRuntime.generated.h"
 
 class ACharacterBase;
 class ASkillPresentationActor;
@@ -21,7 +21,7 @@ struct FGameplayAbilitySpecHandle;
  * for one ability instance.
  */
 UCLASS()
-class LABPROJECT_API UPdAbilityPresentationRuntime : public UObject
+class LABPROJECT_API UAbilityPresentationRuntime : public UObject
 {
 	GENERATED_BODY()
 

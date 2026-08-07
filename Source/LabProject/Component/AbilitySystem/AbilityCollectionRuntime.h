@@ -4,7 +4,7 @@
 #include "GameplayAbilitySpec.h"
 #include "GameplayTagContainer.h"
 #include "UObject/Object.h"
-#include "PdAbilityCollectionRuntime.generated.h"
+#include "AbilityCollectionRuntime.generated.h"
 
 class UGameplayAbility;
 class UPandoraSkillRuntimeContext;
@@ -15,7 +15,7 @@ class UPdAbilitySystemComponent;
  * object lifetime, and replicated-list snapshots.
  */
 UCLASS()
-class LABPROJECT_API UPdAbilityCollectionRuntime : public UObject
+class LABPROJECT_API UAbilityCollectionRuntime : public UObject
 {
 	GENERATED_BODY()
 

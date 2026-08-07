@@ -5,21 +5,23 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystem/Interfaces/TargetingInterface.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
-#include "Component/AbilitySystem/Ability/PdAbilityMovementRuntime.h"
-#include "Component/AbilitySystem/Ability/PdAbilityPresentationRuntime.h"
-#include "Component/AbilitySystem/Ability/PdAbilityResourceRuntime.h"
-#include "Component/AbilitySystem/Ability/PdAbilitySourceRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityMovementRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityResourceRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilitySourceRuntime.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
+#include "Definition/Settings/GameSettingDefinition.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
 #include "Mode/PdPlayerState.h"
+#include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdGameplayAbility)
 
@@ -52,21 +54,21 @@ UPdGameplayAbility::UPdGameplayAbility(
 
 	ResourceRuntime =
 		ObjectInitializer.CreateDefaultSubobject<
-			UPdAbilityResourceRuntime>(
+			UAbilityResourceRuntime>(
 			this,
 			TEXT("ResourceRuntime"));
 	SourceRuntime =
-		ObjectInitializer.CreateDefaultSubobject<UPdAbilitySourceRuntime>(
+		ObjectInitializer.CreateDefaultSubobject<UAbilitySourceRuntime>(
 			this,
 			TEXT("SourceRuntime"));
 	MovementRuntime =
 		ObjectInitializer.CreateDefaultSubobject<
-			UPdAbilityMovementRuntime>(
+			UAbilityMovementRuntime>(
 			this,
 			TEXT("MovementRuntime"));
 	PresentationRuntime =
 		ObjectInitializer.CreateDefaultSubobject<
-			UPdAbilityPresentationRuntime>(
+			UAbilityPresentationRuntime>(
 			this,
 			TEXT("PresentationRuntime"));
 }
@@ -144,9 +146,9 @@ void UPdGameplayAbility::PreActivate(
 			ActorInfo)
 		: nullptr;
 	const bool bInputDrivenSkill = SkillDefinition
-		&& (SkillDefinition->SkillType == EPdSkillType::Instant
-			|| SkillDefinition->SkillType == EPdSkillType::Press
-			|| SkillDefinition->SkillType == EPdSkillType::Duration);
+		&& (SkillDefinition->SkillType == ESkillType::Instant
+			|| SkillDefinition->SkillType == ESkillType::Press
+			|| SkillDefinition->SkillType == ESkillType::Duration);
 	if (!AbilitySystemComponent || !bInputDrivenSkill)
 	{
 		return;
@@ -431,12 +433,60 @@ void UPdGameplayAbility::ApplyCooldownImmediately(
 			*this,
 			Handle,
 			ActorInfo,
-			ActivationInfo,
-			CooldownRemovalPolicyTags);
+			ActivationInfo);
 	if (!bHandled)
 	{
 		Super::ApplyCooldown(Handle, ActorInfo, ActivationInfo);
 	}
+}
+
+bool UPdGameplayAbility::ApplySharedCooldownEffect(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	const float CooldownDuration,
+	const FGameplayTagContainer& CooldownTags,
+	const bool bPandoraCooldown) const
+{
+	if (CooldownDuration <= 0.0f || CooldownTags.IsEmpty())
+	{
+		return true;
+	}
+
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const TSubclassOf<UGameplayEffect> CooldownEffectClass =
+		SettingDefinition
+			? SettingDefinition->AbilityCooldownGameplayEffectClass
+			: nullptr;
+	if (!CooldownEffectClass)
+	{
+		return false;
+	}
+
+	FGameplayEffectSpecHandle CooldownSpec = MakeOutgoingGameplayEffectSpec(
+		Handle,
+		ActorInfo,
+		ActivationInfo,
+		CooldownEffectClass,
+		GetAbilityLevel(Handle, ActorInfo));
+	if (!CooldownSpec.IsValid() || !CooldownSpec.Data.IsValid())
+	{
+		return false;
+	}
+
+	CooldownSpec.Data->SetSetByCallerMagnitude(
+		LabGameplayTags::Data_Cooldown,
+		CooldownDuration);
+	CooldownSpec.Data->DynamicGrantedTags.AppendTags(CooldownTags);
+	CooldownSpec.Data->AppendDynamicAssetTags(CooldownTags);
+
+	AppendCooldownRemovalPolicyTags(CooldownSpec, bPandoraCooldown);
+	return ApplyGameplayEffectSpecToOwner(
+		Handle,
+		ActorInfo,
+		ActivationInfo,
+		CooldownSpec).WasSuccessfullyApplied();
 }
 
 bool UPdGameplayAbility::TryActivateAbilitiesByTags(
@@ -595,11 +645,15 @@ UPdGameplayAbility::MakeConfiguredStatusEffectSpec(
 		GetPdAbilitySystemComponentFromActorInfo();
 	const UStatusEffectDefinition* StatusEffectDefinition =
 		SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
-	const TSubclassOf<UGameplayEffect> StatusEffectClass =
-		StatusEffectDefinition && StatusEffectDefinition->StatusEffectClass
-			? StatusEffectDefinition->StatusEffectClass
+	if (StatusEffectDefinition)
+	{
+		StatusEffectDefinition->SynchronizeDebuffGameplayEffectStackLimit();
+	}
+	const TSubclassOf<UGameplayEffect> DebuffGameplayEffectClass =
+		StatusEffectDefinition
+			? StatusEffectDefinition->DebuffGameplayEffectClass
 			: FallbackStatusEffectClass;
-	if (!SourceAbilitySystemComponent || !StatusEffectClass)
+	if (!SourceAbilitySystemComponent || !DebuffGameplayEffectClass)
 	{
 		return FGameplayEffectSpecHandle();
 	}
@@ -621,7 +675,7 @@ UPdGameplayAbility::MakeConfiguredStatusEffectSpec(
 		: FMath::Max(FallbackStatusEffectLevel, 1.0f);
 	FGameplayEffectSpecHandle StatusEffectSpecHandle =
 		SourceAbilitySystemComponent->MakeOutgoingSpec(
-			StatusEffectClass,
+			DebuffGameplayEffectClass,
 			StatusEffectLevel,
 			EffectContext);
 	if (!StatusEffectSpecHandle.IsValid()
@@ -629,35 +683,19 @@ UPdGameplayAbility::MakeConfiguredStatusEffectSpec(
 	{
 		return FGameplayEffectSpecHandle();
 	}
+	if (SkillDataAsset)
+	{
+		StatusEffectSpecHandle.Data->SetStackCount(
+			FMath::Max(SkillDataAsset->StackCount, 1));
+	}
 
 	if (!StatusEffectDefinition)
 	{
 		return StatusEffectSpecHandle;
 	}
-
-	const float StatusEffectDuration =
-		FMath::Max(StatusEffectDefinition->StatusDuration, 0.0f);
-	if (StatusEffectDuration > 0.0f)
-	{
-		StatusEffectSpecHandle = UAbilitySystemBlueprintLibrary::SetDuration(
-			StatusEffectSpecHandle,
-			StatusEffectDuration);
-	}
-
-	FSkillGameplayEffectConfig StatusDamageConfig;
-	StatusDamageConfig.Magnitude =
-		StatusEffectDefinition->ResolveDamageMagnitude();
-	StatusEffectDefinition->SetDamageMagnitude(
-		StatusEffectSpecHandle,
-		SourceAbilitySystemComponent,
-		CalculateSkillDamageMagnitude(StatusDamageConfig));
-	StatusEffectDefinition->AppendRemovalPolicyTags(StatusEffectSpecHandle);
-
-	if (StatusEffectDefinition->StatusEffectTag.IsValid())
-	{
-		StatusEffectSpecHandle.Data->DynamicGrantedTags.AddTag(
-			StatusEffectDefinition->StatusEffectTag);
-	}
+	StatusEffectSpecHandle.Data->SetDuration(
+		StatusEffectTiming::FullStackLifetimeSeconds,
+		true);
 
 	return StatusEffectSpecHandle;
 }
@@ -675,6 +713,14 @@ UPdGameplayAbility::ApplyConfiguredStatusEffectToTarget(
 	{
 		return FActiveGameplayEffectHandle();
 	}
+	const UStatusEffectDefinition* StatusEffectDefinition =
+		SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
+	if (StatusEffectDefinition
+		&& !StatusEffectDefinition->CanAccumulateDebuffOn(
+			TargetAbilitySystemComponent))
+	{
+		return FActiveGameplayEffectHandle();
+	}
 
 	const FGameplayEffectSpecHandle StatusEffectSpecHandle =
 		MakeConfiguredStatusEffectSpec(
@@ -687,9 +733,25 @@ UPdGameplayAbility::ApplyConfiguredStatusEffectToTarget(
 		return FActiveGameplayEffectHandle();
 	}
 
-	return SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(
+	const FActiveGameplayEffectHandle AppliedHandle =
+		SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(
 		*StatusEffectSpecHandle.Data.Get(),
 		TargetAbilitySystemComponent);
+	AActor* TargetActor = TargetAbilitySystemComponent->GetAvatarActor();
+	if (AppliedHandle.WasSuccessfullyApplied()
+		&& StatusEffectDefinition
+		&& TargetActor)
+	{
+		if (UStatusEffectReplicationComponent* ReplicationComponent =
+			TargetActor->FindComponentByClass<UStatusEffectReplicationComponent>())
+		{
+			ReplicationComponent->TrackAppliedStatusEffect(
+				StatusEffectDefinition,
+				AppliedHandle);
+		}
+	}
+
+	return AppliedHandle;
 }
 
 void UPdGameplayAbility::StopAvatarMovementForSkillActivation()

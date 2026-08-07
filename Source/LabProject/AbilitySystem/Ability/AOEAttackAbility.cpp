@@ -16,6 +16,7 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
+#include "Common/CollisionChannels.h"
 #include "Common/LabGameplayTags.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
@@ -41,7 +42,7 @@ namespace
 
 	const USkillDefinition* GetAOESkillDataAsset(const USkillDefinition* SkillDataAsset)
 	{
-		return SkillDataAsset && SkillDataAsset->SkillDataType == EPdSkillDataType::Area
+		return SkillDataAsset && SkillDataAsset->SkillDataType == ESkillDataType::Area
 			? SkillDataAsset
 			: nullptr;
 	}
@@ -182,7 +183,7 @@ void UAOEAttackAbility::ActivateAbility(
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
-	if (SkillDataAsset->SkillDataType != EPdSkillDataType::Area)
+	if (SkillDataAsset->SkillDataType != ESkillDataType::Area)
 	{
 
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -207,8 +208,6 @@ void UAOEAttackAbility::ActivateAbility(
 	AOEOverlapResults.Reset();
 	CachedAOERadius = CalculateAOERadiusFromSkillData();
 
-
-
 	if (AActor* AttackTarget = GetAttackTargetFromAvatar(); IsValid(AttackTarget))
 	{
 		if (!GetTargetGroundLocation(AttackTarget, ConfirmedAOELocation))
@@ -217,8 +216,7 @@ void UAOEAttackAbility::ActivateAbility(
 
 		}
 
-
-		ConfirmStrike();
+ConfirmStrike();
 		return;
 	}
 
@@ -351,9 +349,7 @@ void UAOEAttackAbility::ConfirmStrike()
 	}
 	bStrikeConfirmed = true;
 
-
-
-	DrawDebugDamageRadius(TEXT("ConfirmStrike"), FColor::Cyan, FColor::Blue);
+DrawDebugDamageRadius(TEXT("ConfirmStrike"), FColor::Cyan, FColor::Blue);
 
 	FGameplayCueParameters IndicatorParams;
 	IndicatorParams.RawMagnitude = static_cast<float>(CachedAOERadius * 2.0);
@@ -433,9 +429,7 @@ void UAOEAttackAbility::AOEDamage()
 
 	DrawDebugDamageRadius(TEXT("AOEDamage"), FColor::Yellow, FColor::Red);
 
-
-
-	AOEOverlapResults.Reset();
+AOEOverlapResults.Reset();
 	World->OverlapMultiByObjectType(
 		AOEOverlapResults,
 		ConfirmedAOELocation,
@@ -545,9 +539,7 @@ void UAOEAttackAbility::StartWaitMontageTrigger()
 		return;
 	}
 
-
-
-	WaitMontageTriggerTask = CreateWaitGameplayEventTask(ConfiguredMontageTriggerEventTag, true);
+WaitMontageTriggerTask = CreateWaitGameplayEventTask(ConfiguredMontageTriggerEventTag, true);
 	if (!WaitMontageTriggerTask)
 	{
 
@@ -562,7 +554,6 @@ void UAOEAttackAbility::StartLightningDamageDelay()
 {
 	bWaitingLightningDamage = true;
 	const float ConfiguredLightningDamageDelay = GetConfiguredLightningDamageDelay();
-
 
 	if (ConfiguredLightningDamageDelay <= 0.0f)
 	{
@@ -667,7 +658,6 @@ void UAOEAttackAbility::ApplyEffectToHitActor(AActor* HitActor)
 		ApplyStatusEffectToHitActor(HitActor, SourceASC, TargetASC);
 	}
 
-
 }
 
 void UAOEAttackAbility::ApplyDirectAOECamera(bool bEnabled) const
@@ -681,9 +671,7 @@ void UAOEAttackAbility::ApplyDirectAOECamera(bool bEnabled) const
 
 	const FWeaponAimCameraSettings CameraSettings = GetConfiguredAOECameraSettings();
 
-
-
-	Player->SetAbilityCameraOverrideActive(bEnabled, CameraSettings);
+Player->SetAbilityCameraOverrideActive(bEnabled, CameraSettings);
 }
 
 void UAOEAttackAbility::RemovePersistentGameplayCues()
@@ -825,8 +813,6 @@ FVector UAOEAttackAbility::ResolveConfirmedAOELocation(const FHitResult& HitResu
 		return GroundLocation;
 	}
 
-
-
 	return ResolveActorFeetLocation(HitActor);
 }
 
@@ -898,7 +884,9 @@ const UStatusEffectDefinition* UAOEAttackAbility::GetConfiguredStatusEffectDataA
 TSubclassOf<UGameplayEffect> UAOEAttackAbility::GetConfiguredStatusEffectClass() const
 {
 	const UStatusEffectDefinition* StatusEffectDataAsset = GetConfiguredStatusEffectDataAsset();
-	return StatusEffectDataAsset ? StatusEffectDataAsset->StatusEffectClass : nullptr;
+	return StatusEffectDataAsset
+		? StatusEffectDataAsset->DebuffGameplayEffectClass
+		: nullptr;
 }
 
 float UAOEAttackAbility::GetConfiguredStatusEffectLevel() const
@@ -931,15 +919,9 @@ void UAOEAttackAbility::ApplyStatusEffectToHitActor(
 		return;
 	}
 
-	FGameplayEffectSpecHandle StatusEffectSpecHandle = MakeStatusEffectSpec();
-	if (!StatusEffectSpecHandle.IsValid() || !StatusEffectSpecHandle.Data.IsValid())
-	{
-		return;
-	}
-
-	const FActiveGameplayEffectHandle AppliedHandle =
-		SourceASC->ApplyGameplayEffectSpecToTarget(*StatusEffectSpecHandle.Data.Get(), TargetASC);
-
+	ApplyConfiguredStatusEffectToTarget(
+		GetAOESkillDataAsset(GetSourceSkillDataAsset()),
+		TargetASC);
 }
 
 bool UAOEAttackAbility::HasPlayerController() const
@@ -1085,7 +1067,9 @@ FName UAOEAttackAbility::GetConfiguredTargetingSocketName() const
 TEnumAsByte<ETraceTypeQuery> UAOEAttackAbility::GetConfiguredTargetGroundTraceChannel() const
 {
 	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
-	return SkillDataAsset ? SkillDataAsset->AOETargetGroundTraceChannel : TEnumAsByte<ETraceTypeQuery>(TraceTypeQuery1);
+	return SkillDataAsset
+		? SkillDataAsset->AOETargetGroundTraceChannel
+		: TEnumAsByte<ETraceTypeQuery>(LabCollisionChannels::VisibilityTrace());
 }
 
 float UAOEAttackAbility::GetConfiguredTargetGroundTraceDepth() const
@@ -1240,7 +1224,6 @@ void UAOEAttackAbility::DrawDebugDamageRadius(const TCHAR* Context, const FColor
 		}
 	}
 
-
 }
 
 void UAOEAttackAbility::HandleCancelInputPressed(float TimeWaited)
@@ -1342,7 +1325,6 @@ void UAOEAttackAbility::HandleTriggerMontageFinished()
 {
 	TriggerMontageTask = nullptr;
 
-
 	if (!bStrikeTriggered)
 	{
 		HandleMontageTriggerEvent(FGameplayEventData());
@@ -1360,7 +1342,6 @@ void UAOEAttackAbility::HandleTriggerMontageInterrupted()
 
 void UAOEAttackAbility::HandleMontageTriggerEvent(FGameplayEventData Payload)
 {
-
 
 	if (bStrikeTriggered)
 	{
@@ -1396,7 +1377,6 @@ void UAOEAttackAbility::HandleLightningDamageDelayFinished()
 	const bool bHasAuthority = K2_HasAuthority();
 	LightningDamageDelayTask = nullptr;
 	bWaitingLightningDamage = false;
-
 
 	if (!bHasAuthority)
 	{

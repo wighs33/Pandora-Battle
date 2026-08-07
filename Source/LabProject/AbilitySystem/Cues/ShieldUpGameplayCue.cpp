@@ -107,6 +107,5 @@ bool AShieldUpGameplayCue::ApplyShieldOverlay(
 			SkeletalMeshComponent->GetComponentLocation());
 	}
 
-
 	return true;
 }

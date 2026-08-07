@@ -1,16 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Definition/AbilitySystem/SkillTypes.h"
 #include "GameFramework/Actor.h"
 #include "AnimeAuraActor.generated.h"
 
 class ACharacterBase;
 class AWeaponBase;
-class UAnimMontage;
-class UMaterialInterface;
-class UMaterialParameterCollection;
 class UNiagaraComponent;
-class UNiagaraSystem;
 class USkeletalMeshComponent;
 
 UCLASS(Blueprintable)
@@ -26,6 +23,9 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnRep_Owner() override;
 	virtual void OnRep_Instigator() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	void ConfigurePresentationSettings(const FAnimeAuraPresentationSettings& InSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "!Skill|Anime Aura")
 	void StartSourcePlayerEffect();
@@ -37,10 +37,6 @@ private:
 	ACharacterBase* ResolveSourceCharacter() const;
 	UNiagaraComponent* FindNiagaraComponentByName(FName ComponentName) const;
 	AWeaponBase* ResolveCurrentWeapon(const ACharacterBase* Character) const;
-	UAnimMontage* ResolvePowerUpMontage() const;
-	UMaterialInterface* ResolveOverlayMaterial() const;
-	UNiagaraSystem* ResolveAttachedNiagaraSystem() const;
-	UMaterialParameterCollection* ResolveMaterialParameterCollection() const;
 	void ApplyEffectAlpha(float Alpha);
 	void RestoreSourcePlayerState();
 	void ScheduleSourcePlayerEffectRetry();
@@ -49,11 +45,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Components")
 	FName StarterNiagaraComponentName = TEXT("NS_Anime_Aura_Starter");
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Animation")
-	TObjectPtr<UAnimMontage> PowerUpMontage;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Overlay")
-	TObjectPtr<UMaterialInterface> OverlayMaterial;
+	UPROPERTY(ReplicatedUsing = OnRep_PresentationSettings)
+	FAnimeAuraPresentationSettings PresentationSettings;
 
 	UPROPERTY(
 		EditAnywhere,
@@ -64,9 +57,6 @@ private:
 	bool bRestoreTeamOverlayOnEnd = true;
 
 	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Niagara")
-	TObjectPtr<UNiagaraSystem> AttachedNiagaraSystem;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Niagara")
 	FName NiagaraActivateParameterName = TEXT("FX_Activate");
 
 	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Niagara")
@@ -74,9 +64,6 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Niagara")
 	float NiagaraActivateEndValue = 1.0f;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Material")
-	TObjectPtr<UMaterialParameterCollection> MaterialParameterCollection;
 
 	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Material")
 	FName MaterialScalarParameterName = TEXT("Erode");
@@ -137,4 +124,7 @@ private:
 
 	UPROPERTY(Transient)
 	bool bTraceEndZApplied = false;
+
+	UFUNCTION()
+	void OnRep_PresentationSettings();
 };

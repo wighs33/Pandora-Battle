@@ -55,7 +55,6 @@ bool HasActiveSkillProtectedFromHitReact(UAbilitySystemComponent* AbilitySystemC
 			continue;
 		}
 
-
 		return true;
 	}
 

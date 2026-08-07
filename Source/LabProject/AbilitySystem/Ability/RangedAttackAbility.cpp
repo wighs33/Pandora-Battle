@@ -42,8 +42,8 @@ URangedAttackAbility::URangedAttackAbility(const FObjectInitializer& ObjectIniti
 	SetAssetTags(AbilityAssetTags);
 	ActivationBlockedTags.AddTag(LabGameplayTags::State_Movement_Airborne);
 
-	AttackTraceStartEventTag = FGameplayTag::RequestGameplayTag(TEXT("Notifier.Attack.ComboInputOpen"), false);
-	AttackTraceEndEventTag = FGameplayTag::RequestGameplayTag(TEXT("Notifier.Attack.ComboInputClose"), false);
+	AttackTraceStartEventTag = LabGameplayTags::Notifier_Attack_ComboInputOpen;
+	AttackTraceEndEventTag = LabGameplayTags::Notifier_Attack_ComboInputClose;
 }
 
 bool URangedAttackAbility::CanActivateAbility(
@@ -116,9 +116,7 @@ void URangedAttackAbility::OnAttackTraceStart(FGameplayEventData Payload)
 		return;
 	}
 
-
-
-	SetCurrentWeaponTraceEnabled(true);
+SetCurrentWeaponTraceEnabled(true);
 }
 
 void URangedAttackAbility::OnAttackTraceEnd(FGameplayEventData Payload)
@@ -266,7 +264,6 @@ bool URangedAttackAbility::TryCacheAIPrimaryAttackTarget(ACharacterBase* Charact
 	bHasCachedAIPrimaryAttackTargetLocation = true;
 	FaceCharacterToTargetLocation(Character, CachedAIPrimaryAttackTargetLocation);
 
-
 	return true;
 }
 
@@ -295,9 +292,6 @@ bool URangedAttackAbility::TryExecuteScheduledAIWeaponFire()
 
 	const bool bFired = CurrentWeapon->HandleAIPrimaryAttackAtLocation(Character, AttackTarget, CachedAIPrimaryAttackTargetLocation);
 	bAIPrimaryAttackExecuted = bFired;
-	const float TargetLockDelay = GetAIRangedTargetLockDelay();
-
-
 
 	return bFired;
 }
@@ -394,7 +388,6 @@ void URangedAttackAbility::ScheduleAIPrimaryAttack()
 			SafeDelay,
 			false);
 	}
-
 
 }
 

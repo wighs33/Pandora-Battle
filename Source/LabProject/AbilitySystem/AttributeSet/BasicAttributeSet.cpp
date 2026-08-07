@@ -262,9 +262,7 @@ namespace
 
 		FGameplayTagContainer AbilityTags;
 		AbilityTags.AddTag(AbilityTag);
-		const bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags, true);
-
-		return bActivated;
+		return ASC->TryActivateAbilitiesByTag(AbilityTags, true);
 	}
 
 	void TryActivateHitReactionAbility(UAbilitySystemComponent* ASC)
@@ -277,21 +275,23 @@ namespace
 		TryActivateAbilityByTag(ASC, LabGameplayTags::Action_HitReact);
 	}
 
-	void TryActivateDeathAbility(UAbilitySystemComponent* ASC, const TCHAR* Reason, const float OldHealth, const float NewHealth)
+	void TryActivateDeathAbility(UAbilitySystemComponent* ASC)
 	{
 		if (!ASC)
 		{
-
 			return;
 		}
 
-		if (ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+		const int32 DeadTagCount =
+			ASC->GetTagCount(LabGameplayTags::State_Dead);
+		if (DeadTagCount > 0)
 		{
-
 			return;
 		}
 
-		const bool bActivated = TryActivateAbilityByTag(ASC, LabGameplayTags::GameplayAbility_Death);
+		TryActivateAbilityByTag(
+			ASC,
+			LabGameplayTags::GameplayAbility_Death);
 	}
 
 	APlayerState* ResolvePlayerStateFromActor(AActor* Actor)
@@ -358,8 +358,6 @@ namespace
 			return;
 		}
 
-
-
 		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
 		{
 			if (APdPlayerController* PlayerController = Cast<APdPlayerController>(Iterator->Get()))
@@ -414,7 +412,6 @@ namespace
 				? LevelingComponent->GrantKillExperience(VictimPlayerState)
 				: false;
 
-
 			if (UWorld* World = VictimActor->GetWorld())
 			{
 				if (AExperienceGameMode* ExperienceGameMode = World->GetAuthGameMode<AExperienceGameMode>())
@@ -465,6 +462,73 @@ UBasicAttributeSet::UBasicAttributeSet()
 	MaxShieldIncreasePercent = 0.0f;
 	MaxManaIncreasePercent = 0.0f;
 	MaxStaminaIncreasePercent = 0.0f;
+}
+
+bool UBasicAttributeSet::ResolveAttributeFromStatTag(
+	const FGameplayTag& StatTag,
+	FGameplayAttribute& OutAttribute)
+{
+	static const TMap<FGameplayTag, FGameplayAttribute> AttributeMappings =
+	{
+		{ LabGameplayTags::Status_Level, GetLevelAttribute() },
+		{ LabGameplayTags::Status_Experience, GetExperienceAttribute() },
+		{ LabGameplayTags::Status_MaxExperience, GetMaxExperienceAttribute() },
+		{ LabGameplayTags::Status_Point_Offense, GetOffensePointAttribute() },
+		{ LabGameplayTags::Status_Point_Defense, GetDefensePointAttribute() },
+		{ LabGameplayTags::Status_Point_Resistance, GetResistancePointAttribute() },
+		{ LabGameplayTags::Status_Point_PandoraForce, GetPandoraForcePointAttribute() },
+		{ LabGameplayTags::Status_Point_Resource, GetResourcePointAttribute() },
+		{ LabGameplayTags::Status_Point_Agility, GetAgilityPointAttribute() },
+		{ LabGameplayTags::Status_Offense_Strength, GetStrengthAttribute() },
+		{ LabGameplayTags::Status_Offense_Intelligence, GetIntelligenceAttribute() },
+		{ LabGameplayTags::Status_Offense_Critical, GetCriticalAttribute() },
+		{ LabGameplayTags::Status_Offense_StrengthLevel, GetStrengthLevelAttribute() },
+		{ LabGameplayTags::Status_Offense_IntelligenceLevel, GetIntelligenceLevelAttribute() },
+		{ LabGameplayTags::Status_Offense_CriticalLevel, GetCriticalLevelAttribute() },
+		{ LabGameplayTags::Status_Defense_Armor, GetArmorAttribute() },
+		{ LabGameplayTags::Status_Defense_Recovery, GetRecoveryAttribute() },
+		{ LabGameplayTags::Status_Defense_Shield, GetShieldAttribute() },
+		{ LabGameplayTags::Status_Defense_MaxShield, GetMaxShieldAttribute() },
+		{ LabGameplayTags::Status_Defense_MaxShieldIncreasePercent, GetMaxShieldIncreasePercentAttribute() },
+		{ LabGameplayTags::Status_Defense_ArmorLevel, GetArmorLevelAttribute() },
+		{ LabGameplayTags::Status_Defense_RecoveryLevel, GetRecoveryLevelAttribute() },
+		{ LabGameplayTags::Status_Defense_MaxShieldLevel, GetMaxShieldLevelAttribute() },
+		{ LabGameplayTags::Status_Resistance_Frostbite, GetFrostbiteAttribute() },
+		{ LabGameplayTags::Status_Resistance_Burn, GetBurnAttribute() },
+		{ LabGameplayTags::Status_Resistance_ElectricShock, GetElectricShockAttribute() },
+		{ LabGameplayTags::Status_Resistance_FrostbiteLevel, GetFrostbiteLevelAttribute() },
+		{ LabGameplayTags::Status_Resistance_BurnLevel, GetBurnLevelAttribute() },
+		{ LabGameplayTags::Status_Resistance_ElectricShockLevel, GetElectricShockLevelAttribute() },
+		{ LabGameplayTags::Status_PandoraForce_FirstPandora, GetFirstPandoraAttribute() },
+		{ LabGameplayTags::Status_PandoraForce_SecondPandora, GetSecondPandoraAttribute() },
+		{ LabGameplayTags::Status_PandoraForce_ThirdPandora, GetThirdPandoraAttribute() },
+		{ LabGameplayTags::Status_PandoraForce_FirstPandoraLevel, GetFirstPandoraLevelAttribute() },
+		{ LabGameplayTags::Status_PandoraForce_SecondPandoraLevel, GetSecondPandoraLevelAttribute() },
+		{ LabGameplayTags::Status_PandoraForce_ThirdPandoraLevel, GetThirdPandoraLevelAttribute() },
+		{ LabGameplayTags::Status_Resource_Health, GetHealthAttribute() },
+		{ LabGameplayTags::Status_Resource_Mana, GetManaAttribute() },
+		{ LabGameplayTags::Status_Resource_Stamina, GetStaminaAttribute() },
+		{ LabGameplayTags::Status_Resource_MaxHealth, GetMaxHealthAttribute() },
+		{ LabGameplayTags::Status_Resource_MaxMana, GetMaxManaAttribute() },
+		{ LabGameplayTags::Status_Resource_MaxStamina, GetMaxStaminaAttribute() },
+		{ LabGameplayTags::Status_Resource_MaxHealthIncreasePercent, GetMaxHealthIncreasePercentAttribute() },
+		{ LabGameplayTags::Status_Resource_MaxManaIncreasePercent, GetMaxManaIncreasePercentAttribute() },
+		{ LabGameplayTags::Status_Resource_MaxStaminaIncreasePercent, GetMaxStaminaIncreasePercentAttribute() },
+		{ LabGameplayTags::Status_Resource_MaxHealthLevel, GetMaxHealthLevelAttribute() },
+		{ LabGameplayTags::Status_Resource_MaxManaLevel, GetMaxManaLevelAttribute() },
+		{ LabGameplayTags::Status_Resource_MaxStaminaLevel, GetMaxStaminaLevelAttribute() },
+		{ LabGameplayTags::Status_Agility_AttackSpeed, GetAttackSpeedAttribute() },
+		{ LabGameplayTags::Status_Agility_MovementSpeed, GetMovementSpeedAttribute() },
+		{ LabGameplayTags::Status_Agility_Arcane, GetArcaneAttribute() },
+		{ LabGameplayTags::Status_Agility_CriticalDamageMultiplier, GetCriticalDamageMultiplierAttribute() },
+		{ LabGameplayTags::Status_Agility_AttackSpeedLevel, GetAttackSpeedLevelAttribute() },
+		{ LabGameplayTags::Status_Agility_MovementSpeedLevel, GetMovementSpeedLevelAttribute() },
+		{ LabGameplayTags::Status_Agility_ArcaneLevel, GetArcaneLevelAttribute() }
+	};
+
+	const FGameplayAttribute* Attribute = AttributeMappings.Find(StatTag);
+	OutAttribute = Attribute ? *Attribute : FGameplayAttribute();
+	return OutAttribute.IsValid();
 }
 
 void UBasicAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -787,7 +851,6 @@ void UBasicAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute
 	if (OldValue != NewValue)
 	{
 
-
 		if (FProperty* Property = Attribute.GetUProperty())
 		{
 			MARK_PROPERTY_DIRTY(this, Property);
@@ -815,7 +878,7 @@ void UBasicAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute
 
 	if (Attribute == GetHealthAttribute() && OldValue > 0.f && NewValue <= 0.f)
 	{
-		TryActivateDeathAbility(GetOwningAbilitySystemComponent(), TEXT("PostAttributeChange.Health"), OldValue, NewValue);
+		TryActivateDeathAbility(GetOwningAbilitySystemComponent());
 	}
 
 	if (Attribute == GetShieldAttribute())
@@ -866,8 +929,6 @@ float UBasicAttributeSet::ApplyIncomingDamage(float IncomingDamageAmount, bool b
 {
 	const float FinalDamage = FMath::Max(IncomingDamageAmount, 0.f);
 
-
-
 	if (FinalDamage <= 0.f)
 	{
 		return 0.f;
@@ -908,7 +969,7 @@ float UBasicAttributeSet::ApplyIncomingDamage(float IncomingDamageAmount, bool b
 
 	if (OldHealth > 0.f && NewHealth <= 0.f)
 	{
-		TryActivateDeathAbility(GetOwningAbilitySystemComponent(), TEXT("ApplyIncomingDamage"), OldHealth, NewHealth);
+		TryActivateDeathAbility(GetOwningAbilitySystemComponent());
 	}
 
 	return RemainingHealthDamage;

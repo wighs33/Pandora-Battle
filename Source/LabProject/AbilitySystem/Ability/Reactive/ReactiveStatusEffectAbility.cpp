@@ -4,8 +4,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEffectApplied_Target.h"
-#include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "GameplayEffect.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReactiveStatusEffectAbility)
@@ -33,9 +32,7 @@ void UReactiveStatusEffectAbility::ActivateAbility(
 		return;
 	}
 
-
-
-	WaitGameplayEffectAppliedTask = UAbilityTask_WaitGameplayEffectApplied_Target::WaitGameplayEffectAppliedToTarget(
+WaitGameplayEffectAppliedTask = UAbilityTask_WaitGameplayEffectApplied_Target::WaitGameplayEffectAppliedToTarget(
 		this,
 		FGameplayTargetDataFilterHandle(),
 		FGameplayTagRequirements(),
@@ -77,29 +74,6 @@ FGameplayEffectSpecHandle UReactiveStatusEffectAbility::ModifyEffectSpecBeforeAp
 	return SpecHandle;
 }
 
-void UReactiveStatusEffectAbility::NotifyStackCountChanged_Implementation(AActor* TargetActor, int32 NewStackCount)
-{
-	if (!IsValid(TargetActor) || !StatusEffectDataAsset)
-	{
-		return;
-	}
-
-	ACharacterBase* AvatarCharacter = Cast<ACharacterBase>(GetAvatarActorFromActorInfo());
-	if (!AvatarCharacter)
-	{
-		return;
-	}
-
-	FGameplayEventData EventData;
-	EventData.EventTag = LabGameplayTags::Event_Effect_StackCountChanged;
-	EventData.Instigator = AvatarCharacter;
-	EventData.Target = TargetActor;
-	EventData.TargetTags.AddTag(StatusEffectDataAsset->DebuffTag);
-	EventData.EventMagnitude = static_cast<float>(NewStackCount);
-
-	AvatarCharacter->MulticastSendGameplayEventToActor(TargetActor, EventData);
-}
-
 void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 	AActor* TargetActor,
 	FGameplayEffectSpecHandle SpecHandle,
@@ -115,13 +89,32 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 	{
 		return;
 	}
+	UAbilitySystemComponent* TargetAbilitySystemComponent =
+		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+	if (!TargetAbilitySystemComponent)
+	{
+		return;
+	}
+	if (!StatusEffectDataAsset->CanAccumulateDebuffOn(
+		TargetAbilitySystemComponent))
+	{
+		StatusEffectDataAsset->ClearAccumulatedDebuff(
+			TargetAbilitySystemComponent);
+		return;
+	}
 
 	const int32 StackCount = GetDebuffStackCount(TargetActor, ActiveHandle);
 	const int32 RequiredStackCount = FMath::Max(StatusEffectDataAsset->MaxStackCount, 1);
+	if (UStatusEffectReplicationComponent* StatusReplicationComponent =
+		TargetActor->FindComponentByClass<UStatusEffectReplicationComponent>())
+	{
+		StatusReplicationComponent->TrackAppliedStatusEffect(
+			StatusEffectDataAsset,
+			ActiveHandle);
+	}
 
 	if (StackCount < RequiredStackCount)
 	{
-		NotifyStackCountChanged(TargetActor, StackCount);
 		return;
 	}
 
@@ -147,15 +140,29 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 
 	ApplyDefaultSetByCallerMagnitudes(StatusEffectSpec);
 	StatusEffectSpec = ModifyEffectSpecBeforeApplication(StatusEffectSpec);
-	StatusEffectDataAsset->AppendRemovalPolicyTags(StatusEffectSpec);
 	if (StatusEffectDataAsset->StatusEffectTag.IsValid() && StatusEffectSpec.Data.IsValid())
 	{
 		StatusEffectSpec.Data->DynamicGrantedTags.AddTag(StatusEffectDataAsset->StatusEffectTag);
 	}
 
-	const FGameplayAbilityTargetDataHandle TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromActor(TargetActor);
+	UAbilitySystemComponent* SourceAbilitySystemComponent =
+		GetAbilitySystemComponentFromActorInfo();
+	if (!SourceAbilitySystemComponent
+		|| !StatusEffectSpec.IsValid()
+		|| !StatusEffectSpec.Data.IsValid())
+	{
+		return;
+	}
 
-	K2_ApplyGameplayEffectSpecToTarget(StatusEffectSpec, TargetData);
+	const FActiveGameplayEffectHandle AppliedStatusEffectHandle =
+		SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(
+			*StatusEffectSpec.Data.Get(),
+			TargetAbilitySystemComponent);
+	if (AppliedStatusEffectHandle.WasSuccessfullyApplied())
+	{
+		StatusEffectDataAsset->ClearAccumulatedDebuff(
+			TargetAbilitySystemComponent);
+	}
 }
 
 void UReactiveStatusEffectAbility::ApplyDefaultSetByCallerMagnitudes(FGameplayEffectSpecHandle& SpecHandle) const

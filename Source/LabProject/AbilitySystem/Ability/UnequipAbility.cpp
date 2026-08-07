@@ -164,8 +164,21 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		return;
 	}
 
+	const bool bWeaponReplacementRequested =
+		EquipmentComponent->GetRequestedWeaponDefinition() != nullptr;
 	FUnequipData UnequipVisualData;
-	if (!EquipmentComponent->GetUnequipData(UnequipVisualData))
+	if (bWeaponReplacementRequested)
+	{
+		UnequipVisualData.ItemDefinition =
+			EquipmentComponent->GetCurrentWeaponDefinition();
+	}
+	else if (!EquipmentComponent->GetUnequipData(UnequipVisualData))
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		return;
+	}
+
+	if (!UnequipVisualData.ItemDefinition)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
@@ -180,7 +193,7 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		return;
 	}
 
-	if (EquipmentComponent->ShouldEquipWeaponsWithoutAnimation())
+	if (bWeaponReplacementRequested)
 	{
 		CommitPendingUnequipIfPossible();
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);

@@ -1,6 +1,8 @@
 #include "AbilitySystem/Presentation/SkillPresentationActor.h"
 
+#include "AbilitySystem/SkillGroundProjection.h"
 #include "Character/CharacterBase.h"
+#include "Common/CollisionChannels.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
@@ -15,6 +17,9 @@
 
 namespace
 {
+	constexpr double DefaultFXGroundTraceStartHeight = 150.0;
+	constexpr double DefaultFXGroundTraceDepth = 5000.0;
+
 	bool HasPresentationFlag(const uint8 Flags, const ESkillPresentationFlags Flag)
 	{
 		return (Flags & static_cast<uint8>(Flag)) != 0;
@@ -286,7 +291,7 @@ void ASkillPresentationActor::StartDefaultFX()
 		const FTransform CharacterTransform = Character->GetActorTransform();
 		const FVector SpawnLocation =
 			ResolveCharacterFloorLocation(Character)
-			+ CharacterTransform.TransformVector(NiagaraSettings.SocketLocationOffset);
+			+ CharacterTransform.TransformVector(NiagaraSettings.SpawnAtCharacterLocationOffset);
 		const FRotator SpawnRotation =
 			(Character->GetActorRotation() + NiagaraSettings.SocketRotationOffset).GetNormalized();
 
@@ -495,6 +500,23 @@ FVector ASkillPresentationActor::ResolveCharacterFloorLocation(
 	if (!Character)
 	{
 		return FVector::ZeroVector;
+	}
+
+	TArray<AActor*> ActorsToIgnore;
+	PdSkillGroundProjection::AddIgnoredActorAndAttachments(
+		ActorsToIgnore,
+		const_cast<ACharacterBase*>(Character));
+	PdSkillGroundProjection::FGroundProjectionResult GroundProjection;
+	if (PdSkillGroundProjection::TryProjectToGround(
+		Character->GetWorld(),
+		Character->GetActorLocation(),
+		LabCollisionChannels::VisibilityTrace(),
+		DefaultFXGroundTraceStartHeight,
+		DefaultFXGroundTraceDepth,
+		ActorsToIgnore,
+		GroundProjection))
+	{
+		return GroundProjection.Location;
 	}
 
 	FVector FloorLocation = Character->GetActorLocation();

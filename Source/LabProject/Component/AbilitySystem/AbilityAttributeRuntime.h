@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Definition/AbilitySystem/AbilityAttributeConfig.h"
 #include "UObject/Object.h"
-#include "PdAbilityAttributeRuntime.generated.h"
+#include "AbilityAttributeRuntime.generated.h"
 
 class UGameplayEffect;
 class UPdAbilitySystemComponent;
@@ -16,12 +16,12 @@ class UPdAbilitySystemComponent;
  * order and runtime overrides follow the owning ASC instead of an actor type.
  */
 UCLASS()
-class LABPROJECT_API UPdAbilityAttributeRuntime : public UObject
+class LABPROJECT_API UAbilityAttributeRuntime : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	int32 AddAttributeConfig(const FPdAttributeConfig& AttributeConfig);
+	int32 AddAttributeConfig(const FAttributeConfig& AttributeConfig);
 	void RemoveAttributeConfig(int32 AttributeConfigHandle);
 
 	bool ApplyAttributeDefaultValue(
@@ -45,7 +45,6 @@ public:
 		float Level) const;
 
 	bool ResolveAttributeFromTag(
-		const UPdAbilitySystemComponent& AbilitySystemComponent,
 		const FGameplayTag& StatTag,
 		FGameplayAttribute& OutAttribute) const;
 
@@ -58,9 +57,7 @@ public:
 		FGameplayTag& OutTag) const;
 
 private:
-	const FPdAttributeConfig* ResolveCoreAttributeConfig(const UPdAbilitySystemComponent& AbilitySystemComponent) const;
-
-	TMap<int32, FPdAttributeConfig> ActiveAttributeConfigs;
+	TMap<int32, FAttributeConfig> ActiveAttributeConfigs;
 	TArray<int32> AttributeConfigOrder;
 	int32 NextAttributeConfigHandle = 1;
 };

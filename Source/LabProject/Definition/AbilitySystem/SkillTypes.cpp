@@ -11,9 +11,11 @@
 #include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITOR
+#include "AbilitySystem/StaticActors/AnimeAuraActor.h"
+#include "AbilitySystem/Ability/FillShieldAbility.h"
 #include "AssetRegistry/AssetData.h"
 #include "Engine/AssetManager.h"
-#include "Logging/PdLogRateLimiter.h"
+#include "Logging/LogRateLimiter.h"
 #include "Misc/DataValidation.h"
 #endif
 
@@ -40,31 +42,31 @@ namespace
 			return;
 		}
 
-		if (SkillDataAsset->SkillType == EPdSkillType::Active
-			|| SkillDataAsset->SkillType == EPdSkillType::Passive)
+		if (SkillDataAsset->SkillType == ESkillType::Active
+			|| SkillDataAsset->SkillType == ESkillType::Passive)
 		{
-			SkillDataAsset->SkillType = EPdSkillType::Instant;
+			SkillDataAsset->SkillType = ESkillType::Instant;
 		}
-		else if (SkillDataAsset->SkillType == EPdSkillType::Triggered)
+		else if (SkillDataAsset->SkillType == ESkillType::Triggered)
 		{
-			SkillDataAsset->SkillType = EPdSkillType::Duration;
+			SkillDataAsset->SkillType = ESkillType::Duration;
 		}
 
-		if ((SkillDataAsset->SkillDataType == EPdSkillDataType::Missile
-				|| SkillDataAsset->SkillDataType == EPdSkillDataType::Summon)
-			&& SkillDataAsset->SkillType != EPdSkillType::Press
-			&& SkillDataAsset->SkillType != EPdSkillType::Duration)
+		if ((SkillDataAsset->SkillDataType == ESkillDataType::Missile
+				|| SkillDataAsset->SkillDataType == ESkillDataType::Summon)
+			&& SkillDataAsset->SkillType != ESkillType::Press
+			&& SkillDataAsset->SkillType != ESkillType::Duration)
 		{
-			SkillDataAsset->SkillType = EPdSkillType::Instant;
+			SkillDataAsset->SkillType = ESkillType::Instant;
 		}
 
 		SkillDataAsset->ProjectileSettings.bEnabled =
-			SkillDataAsset->SkillDataType == EPdSkillDataType::Projectile;
+			SkillDataAsset->SkillDataType == ESkillDataType::Projectile;
 	}
 
 	void EnsureAreaAnimationDefaults(USkillDefinition* SkillDataAsset)
 	{
-		if (!SkillDataAsset || SkillDataAsset->SkillDataType != EPdSkillDataType::Area)
+		if (!SkillDataAsset || SkillDataAsset->SkillDataType != ESkillDataType::Area)
 		{
 			return;
 		}
@@ -77,7 +79,7 @@ namespace
 
 #if WITH_EDITOR
 	constexpr double CookValidationLogIntervalSeconds = 30.0;
-	TMap<FName, FPdLogRateLimiter> CookValidationLogLimiters;
+	TMap<FName, FLogRateLimiter> CookValidationLogLimiters;
 
 	void MarkSkillTypeInvalid(FDataValidationContext& Context, EDataValidationResult& Result, const FText& Message)
 	{
@@ -383,6 +385,7 @@ namespace
 
 		ValidateVector(Context, Result, SkillDataAsset.Niagara.AuraLocationOffset, TEXT("Niagara.AuraLocationOffset"));
 		ValidateVector(Context, Result, SkillDataAsset.Niagara.AuraScale, TEXT("Niagara.AuraScale"));
+		ValidateVector(Context, Result, SkillDataAsset.Niagara.SpawnAtCharacterLocationOffset, TEXT("Niagara.SpawnAtCharacterLocationOffset"));
 		ValidateVector(Context, Result, SkillDataAsset.Niagara.SocketLocationOffset, TEXT("Niagara.SocketLocationOffset"));
 		ValidateRotator(Context, Result, SkillDataAsset.Niagara.SocketRotationOffset, TEXT("Niagara.SocketRotationOffset"));
 		ValidateVector(Context, Result, SkillDataAsset.Niagara.SocketScale, TEXT("Niagara.SocketScale"));
@@ -396,9 +399,9 @@ namespace
 		}
 		ValidateGameplayEffectConfig(Context, Result, SkillDataAsset.Niagara.GameplayEffect, TEXT("Niagara.GameplayEffect"));
 
-		if (SkillDataAsset.SkillType == EPdSkillType::Active
-			|| SkillDataAsset.SkillType == EPdSkillType::Passive
-			|| SkillDataAsset.SkillType == EPdSkillType::Triggered)
+		if (SkillDataAsset.SkillType == ESkillType::Active
+			|| SkillDataAsset.SkillType == ESkillType::Passive
+			|| SkillDataAsset.SkillType == ESkillType::Triggered)
 		{
 			Context.AddWarning(NSLOCTEXT(
 				"SkillDataAsset",
@@ -413,7 +416,7 @@ namespace
 		const USkillDefinition& SkillDataAsset)
 	{
 		const FSkillProjectileSettings& Settings = SkillDataAsset.ProjectileSettings;
-		const bool bResolvedProjectile = SkillDataAsset.GetResolvedSkillDataType() == EPdSkillDataType::Projectile;
+		const bool bResolvedProjectile = SkillDataAsset.GetResolvedSkillDataType() == ESkillDataType::Projectile;
 		if (!bResolvedProjectile)
 		{
 			return;
@@ -435,7 +438,7 @@ namespace
 		ValidatePositive(Context, Result, Settings.TargetGroundTraceDepth, TEXT("ProjectileSettings.TargetGroundTraceDepth"));
 		ValidateGameplayEffectConfig(Context, Result, Settings.Damage, TEXT("ProjectileSettings.Damage"));
 
-		if (Settings.FireMode == EPdSkillProjectileFireMode::HoldThenConfirm
+		if (Settings.FireMode == ESkillProjectileFireMode::HoldThenConfirm
 			&& SkillDataAsset.Animation.PrimaryMontage
 			&& !Settings.FireEventTag.IsValid()
 			&& !SkillDataAsset.Animation.PrimaryEventTag.IsValid())
@@ -510,7 +513,7 @@ namespace
 		EDataValidationResult& Result,
 		const USkillDefinition& SkillDataAsset)
 	{
-		if (SkillDataAsset.GetResolvedSkillDataType() != EPdSkillDataType::Area)
+		if (SkillDataAsset.GetResolvedSkillDataType() != ESkillDataType::Area)
 		{
 			return;
 		}
@@ -553,7 +556,7 @@ namespace
 		EDataValidationResult& Result,
 		const USkillDefinition& SkillDataAsset)
 	{
-		if (SkillDataAsset.GetResolvedSkillDataType() != EPdSkillDataType::Dash && !SkillDataAsset.Movement.bUseOneShotDash)
+		if (SkillDataAsset.GetResolvedSkillDataType() != ESkillDataType::Dash && !SkillDataAsset.Movement.bUseOneShotDash)
 		{
 			return;
 		}
@@ -572,7 +575,7 @@ namespace
 		EDataValidationResult& Result,
 		const USkillDefinition& SkillDataAsset)
 	{
-		if (SkillDataAsset.GetResolvedSkillDataType() != EPdSkillDataType::Aura)
+		if (SkillDataAsset.GetResolvedSkillDataType() != ESkillDataType::Aura)
 		{
 			return;
 		}
@@ -606,7 +609,7 @@ namespace
 		EDataValidationResult& Result,
 		const USkillDefinition& SkillDataAsset)
 	{
-		if (SkillDataAsset.GetResolvedSkillDataType() != EPdSkillDataType::Trail && !SkillDataAsset.SwordTrail.bEnabled)
+		if (SkillDataAsset.GetResolvedSkillDataType() != ESkillDataType::Trail && !SkillDataAsset.SwordTrail.bEnabled)
 		{
 			return;
 		}
@@ -620,7 +623,7 @@ namespace
 		EDataValidationResult& Result,
 		const USkillDefinition& SkillDataAsset)
 	{
-		if (SkillDataAsset.GetResolvedSkillDataType() != EPdSkillDataType::Missile)
+		if (SkillDataAsset.GetResolvedSkillDataType() != ESkillDataType::Missile)
 		{
 			return;
 		}
@@ -654,7 +657,7 @@ namespace
 		EDataValidationResult& Result,
 		const USkillDefinition& SkillDataAsset)
 	{
-		if (SkillDataAsset.GetResolvedSkillDataType() != EPdSkillDataType::Summon && !SkillDataAsset.SummonSettings.bEnabled)
+		if (SkillDataAsset.GetResolvedSkillDataType() != ESkillDataType::Summon && !SkillDataAsset.SummonSettings.bEnabled)
 		{
 			return;
 		}
@@ -693,7 +696,7 @@ namespace
 		EDataValidationResult& Result,
 		const USkillDefinition& SkillDataAsset)
 	{
-		if (SkillDataAsset.GetResolvedSkillDataType() != EPdSkillDataType::Static && !SkillDataAsset.StaticSettings.bEnabled)
+		if (SkillDataAsset.GetResolvedSkillDataType() != ESkillDataType::Static && !SkillDataAsset.StaticSettings.bEnabled)
 		{
 			return;
 		}
@@ -701,6 +704,15 @@ namespace
 		if (!SkillDataAsset.StaticSettings.StaticActorClass)
 		{
 			MarkSkillTypeInvalid(Context, Result, NSLOCTEXT("SkillDataAsset", "StaticMissingActorClass", "StaticSettings.StaticActorClass is required for static skills."));
+		}
+		else if (SkillDataAsset.StaticSettings.StaticActorClass->IsChildOf(
+			AAnimeAuraActor::StaticClass())
+			&& !SkillDataAsset.StaticSettings.AnimeAuraPresentation.IsComplete())
+		{
+			MarkSkillTypeInvalid(Context, Result, NSLOCTEXT(
+				"SkillDataAsset",
+				"IncompleteAnimeAuraPresentation",
+				"Anime Aura static skills must configure the Power Up Montage, Overlay Material, Attached Niagara System, and Material Parameter Collection."));
 		}
 
 		if (SkillDataAsset.StaticSettings.bUseSpawnSockets && SkillDataAsset.StaticSettings.SpawnSocketNames.Num() != 6)
@@ -742,12 +754,46 @@ namespace
 		}
 	}
 
+	void ValidateFillShieldSkillData(
+		FDataValidationContext& Context,
+		EDataValidationResult& Result,
+		const USkillDefinition& SkillDataAsset)
+	{
+		bool bUsesFillShieldAbility =
+			SkillDataAsset.GetResolvedSkillDataType() == ESkillDataType::FillShield;
+		for (const TSubclassOf<UGameplayAbility>& AbilityClass
+			: SkillDataAsset.GetExplicitAbilitiesToGrant())
+		{
+			bUsesFillShieldAbility |= AbilityClass
+				&& AbilityClass->IsChildOf(UFillShieldAbility::StaticClass());
+		}
+
+		if (!bUsesFillShieldAbility)
+		{
+			return;
+		}
+
+		const FShieldSkillConfig* FillShieldConfig =
+			SkillDataAsset.GetDefensiveSkillConfig();
+		if (!FillShieldConfig
+			|| !FillShieldConfig->Animation.PrimaryMontage
+			|| !FillShieldConfig->Animation.PrimaryEventTag.IsValid()
+			|| !FillShieldConfig->GameplayEffectClass)
+		{
+			MarkSkillTypeInvalid(Context, Result, NSLOCTEXT(
+				"SkillDataAsset",
+				"IncompleteFillShieldConfiguration",
+				"Fill Shield skills must configure Animation.PrimaryMontage, Animation.PrimaryEventTag, and GameplayEffect.GameplayEffectClass."));
+		}
+	}
+
 #endif
 }
 
 USkillDefinition::USkillDefinition()
 {
 	NormalizeSkillTypeForDataType(this);
+	AOETargetGroundTraceChannel = LabCollisionChannels::VisibilityTrace();
 
 	AOEIndicatorCueTag = LabGameplayTags::GameplayCue_AOEIndicator;
 	AOELightningBoltCueTag = LabGameplayTags::GameplayCue_LightningBolt;
@@ -810,7 +856,7 @@ void USkillDefinition::PreSave(FObjectPreSaveContext SaveContext)
 	if (SaveContext.IsCooking() && HasEnabledDebugDrawingFlags())
 	{
 		uint32 SuppressedCount = 0;
-		FPdLogRateLimiter& LogLimiter =
+		FLogRateLimiter& LogLimiter =
 			CookValidationLogLimiters.FindOrAdd(FName(*GetPathName()));
 		if (LogLimiter.TryAcquire(CookValidationLogIntervalSeconds, SuppressedCount))
 		{
@@ -857,6 +903,7 @@ EDataValidationResult USkillDefinition::IsDataValid(FDataValidationContext& Cont
 	ValidateMissileSkillData(Context, Result, *this);
 	ValidateSummonSkillData(Context, Result, *this);
 	ValidateStaticSkillData(Context, Result, *this);
+	ValidateFillShieldSkillData(Context, Result, *this);
 	ValidateUniqueSkillContentNames(Context, Result, *this);
 	if (HasEnabledDebugDrawingFlags())
 	{
@@ -885,11 +932,11 @@ UObject* USkillDefinition::GetIconResource() const
 	return Icon.Get();
 }
 
-EPdSkillDataType USkillDefinition::GetResolvedSkillDataType() const
+ESkillDataType USkillDefinition::GetResolvedSkillDataType() const
 {
 	if (StaticSettings.bEnabled)
 	{
-		return EPdSkillDataType::Static;
+		return ESkillDataType::Static;
 	}
 
 	return SkillDataType;
@@ -917,7 +964,7 @@ FSkillGameplayEffectConfig USkillDefinition::GetResolvedStaticFinishDamageConfig
 
 const FShieldSkillConfig* USkillDefinition::GetDefensiveSkillConfig() const
 {
-	return GetResolvedSkillDataType() == EPdSkillDataType::Default ? &Default : nullptr;
+	return GetResolvedSkillDataType() == ESkillDataType::Default ? &Default : nullptr;
 }
 
 bool USkillDefinition::HasEnabledDebugDrawingFlags() const
@@ -937,7 +984,7 @@ void USkillDefinition::MigrateLegacyProjectileSettings()
 		return;
 	}
 
-	if (GetResolvedSkillDataType() != EPdSkillDataType::Projectile)
+	if (GetResolvedSkillDataType() != ESkillDataType::Projectile)
 	{
 		ProjectileSettingsVersion = CurrentProjectileSettingsVersion;
 		Projectile_DEPRECATED = FProjectileSkillConfig();
@@ -1028,16 +1075,6 @@ void USkillDefinition::MigrateLegacyProjectileSettings()
 		Projectile_DEPRECATED = FProjectileSkillConfig();
 	}
 
-	// Version 2 introduced opt-in post-impact persistence. Preserve the intended
-	// behavior of the existing Icicle asset without requiring an asset resave before play.
-	static const FName IcicleSkillPackageName(TEXT("/Game/Pandora/Skill/Ice/DA_Skill_Icicle"));
-	if (ProjectileSettingsVersion < CurrentProjectileSettingsVersion
-		&& GetOutermost()->GetFName() == IcicleSkillPackageName)
-	{
-		ProjectileSettings.bStickOnImpact = true;
-		ProjectileSettings.PostImpactLifeSpan = 1.0;
-	}
-
 	ProjectileSettingsVersion = CurrentProjectileSettingsVersion;
 
 #if WITH_EDITOR
@@ -1050,20 +1087,20 @@ void USkillDefinition::MigrateLegacyProjectileSettings()
 
 void USkillDefinition::ApplyCurrentSettingsToRuntimeConfig()
 {
-	const EPdSkillDataType ResolvedType = GetResolvedSkillDataType();
+	const ESkillDataType ResolvedType = GetResolvedSkillDataType();
 	ProjectileSettings.ProjectileSocketNames.SetNum(6);
 	StaticSettings.SpawnSocketNames.SetNum(6);
 
 	// These fields are derived compatibility copies. Clear inactive copies before
 	// rebuilding the active configuration so stale GameplayEffect references do not
 	// survive a skill data type change.
-	if (ResolvedType != EPdSkillDataType::Default)
+	if (ResolvedType != ESkillDataType::Default)
 	{
 		Default.GameplayEffectClass = nullptr;
 	}
 
-	if (ResolvedType != EPdSkillDataType::Default
-		&& ResolvedType != EPdSkillDataType::Missile)
+	if (ResolvedType != ESkillDataType::Default
+		&& ResolvedType != ESkillDataType::Missile)
 	{
 		Niagara.GameplayEffect = FSkillGameplayEffectConfig();
 		Niagara.GameplayEffect.MagnitudeDataTag = LabGameplayTags::Data_Damage;
@@ -1071,10 +1108,10 @@ void USkillDefinition::ApplyCurrentSettingsToRuntimeConfig()
 
 	switch (ResolvedType)
 	{
-	case EPdSkillDataType::Projectile:
+	case ESkillDataType::Projectile:
 		break;
 
-	case EPdSkillDataType::Dash:
+	case ESkillDataType::Dash:
 		Dash.Animation = Animation;
 		Dash.Strength = Movement.DashStrength;
 		Dash.Duration = Movement.DashDuration;
@@ -1082,14 +1119,16 @@ void USkillDefinition::ApplyCurrentSettingsToRuntimeConfig()
 		Movement.DashGameplayCueTag = Niagara.GameplayCueTag;
 		break;
 
-	case EPdSkillDataType::Aura:
+	case ESkillDataType::Aura:
 		Aura.Duration = Time.Duration;
 		Aura.BodyAuraSystem = Niagara.AuraNiagaraSystem;
 		Aura.BodyAuraComponentName = Niagara.AuraNiagaraComponentName;
 		Aura.AttachedNiagaraSystem = Niagara.SocketNiagaraSystem;
 		Aura.bSpawnAttachedNiagaraAtCharacterLocation = Niagara.bSpawnSocketNiagaraAtCharacterLocation;
 		Aura.AttachedNiagaraSocketName = Niagara.SocketName;
-		Aura.AttachedNiagaraLocationOffset = Niagara.SocketLocationOffset;
+		Aura.AttachedNiagaraLocationOffset = Niagara.bSpawnSocketNiagaraAtCharacterLocation
+			? Niagara.SpawnAtCharacterLocationOffset
+			: Niagara.SocketLocationOffset;
 		Aura.AttachedNiagaraRotationOffset = Niagara.SocketRotationOffset;
 		Aura.AttachedNiagaraScale = Niagara.SocketScale;
 		Aura.bSpawnAttachedNiagaraWhileActive = Niagara.SocketNiagaraSystem != nullptr;
@@ -1108,7 +1147,7 @@ void USkillDefinition::ApplyCurrentSettingsToRuntimeConfig()
 		Aura.bHealSelfInInteractionBox = Heal.bHealSelf;
 		break;
 
-	case EPdSkillDataType::Trail:
+	case ESkillDataType::Trail:
 		Trail.Animation = Animation;
 		Trail.Duration = Time.Duration;
 		Trail.TrailSystem = SwordTrail.TrailNiagaraSystem;
@@ -1121,13 +1160,13 @@ void USkillDefinition::ApplyCurrentSettingsToRuntimeConfig()
 		Trail.SlashScale = SwordTrail.SlashTransformOffset.GetScale3D();
 		break;
 
-	case EPdSkillDataType::Default:
+	case ESkillDataType::Default:
 		Default.Animation = Animation;
 		Default.GameplayEffectClass = GameplayEffect.GameplayEffectClass;
 		Niagara.GameplayEffect = GameplayEffect;
 		break;
 
-	case EPdSkillDataType::Missile:
+	case ESkillDataType::Missile:
 	{
 		Missile.Animation = Animation;
 		Missile.MissileDuration = Time.Duration;
@@ -1152,7 +1191,7 @@ void USkillDefinition::ApplyCurrentSettingsToRuntimeConfig()
 		break;
 	}
 
-	case EPdSkillDataType::Summon:
+	case ESkillDataType::Summon:
 		Summon.Animation = Animation;
 		SummonSettings.TriggerDamage = GetResolvedDamageConfig();
 		Summon.SummonedActorClass = SummonSettings.SummonedActorClass;
@@ -1171,13 +1210,13 @@ void USkillDefinition::ApplyCurrentSettingsToRuntimeConfig()
 		Summon.LaserNiagaraComponentName = SummonSettings.LaserNiagaraComponentName;
 		break;
 
-	case EPdSkillDataType::Static:
+	case ESkillDataType::Static:
 		StaticSettings.TriggerDamage = GetResolvedDamageConfig();
 		break;
 
-	case EPdSkillDataType::Area:
-	case EPdSkillDataType::ShieldBubble:
-	case EPdSkillDataType::FillShield:
+	case ESkillDataType::Area:
+	case ESkillDataType::ShieldBubble:
+	case ESkillDataType::FillShield:
 		break;
 	}
 }
@@ -1212,7 +1251,7 @@ void USkillDefinition::SyncTopLevelDamageToRuntimeConfig()
 bool USkillDefinition::ShouldShowInAbilitiesBar() const
 {
 	return bShowInAbilitiesBar
-		&& (SkillType == EPdSkillType::Instant
-			|| SkillType == EPdSkillType::Press
-			|| SkillType == EPdSkillType::Duration);
+		&& (SkillType == ESkillType::Instant
+			|| SkillType == ESkillType::Press
+			|| SkillType == ESkillType::Duration);
 }

@@ -44,7 +44,7 @@ void UDashAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, cons
 		return;
 	}
 	const FSkillMovementSettings& MovementConfig = SkillDataAsset->Movement;
-	if (SkillDataAsset->SkillDataType != EPdSkillDataType::Dash || !MovementConfig.bUseOneShotDash)
+	if (SkillDataAsset->SkillDataType != ESkillDataType::Dash || !MovementConfig.bUseOneShotDash)
 	{
 
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);

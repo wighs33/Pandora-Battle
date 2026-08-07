@@ -34,9 +34,6 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "!StatusEffect")
 	FGameplayEffectSpecHandle ModifyEffectSpecBeforeApplication(FGameplayEffectSpecHandle SpecHandle);
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "!StatusEffect")
-	void NotifyStackCountChanged(AActor* TargetActor, int32 NewStackCount);
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect")
 	TObjectPtr<UStatusEffectDefinition> StatusEffectDataAsset;
 

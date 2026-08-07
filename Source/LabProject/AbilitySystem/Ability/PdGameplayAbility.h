@@ -20,10 +20,10 @@ class UGameplayEffect;
 class UNiagaraSystem;
 class USkillDefinition;
 class UPandoraSkillRuntimeContext;
-class UPdAbilityMovementRuntime;
-class UPdAbilityPresentationRuntime;
-class UPdAbilityResourceRuntime;
-class UPdAbilitySourceRuntime;
+class UAbilityMovementRuntime;
+class UAbilityPresentationRuntime;
+class UAbilityResourceRuntime;
+class UAbilitySourceRuntime;
 class UPdAbilitySystemComponent;
 
 /**
@@ -48,10 +48,10 @@ public:
 	bool ShouldAutoActivateWhenGranted() const { return bAutoActivateWhenGranted; }
 	// Staged abilities can reserve confirmation for a separate input such as primary attack.
 	virtual bool ShouldAutoConfirmOnInputRelease() const { return true; }
-	UPdAbilityResourceRuntime* GetResourceRuntime() const { return ResourceRuntime.Get(); }
-	UPdAbilitySourceRuntime* GetSourceRuntime() const { return SourceRuntime.Get(); }
-	UPdAbilityMovementRuntime* GetMovementRuntime() const { return MovementRuntime.Get(); }
-	UPdAbilityPresentationRuntime* GetPresentationRuntime() const { return PresentationRuntime.Get(); }
+	UAbilityResourceRuntime* GetResourceRuntime() const { return ResourceRuntime.Get(); }
+	UAbilitySourceRuntime* GetSourceRuntime() const { return SourceRuntime.Get(); }
+	UAbilityMovementRuntime* GetMovementRuntime() const { return MovementRuntime.Get(); }
+	UAbilityPresentationRuntime* GetPresentationRuntime() const { return PresentationRuntime.Get(); }
 
 	void AppendCooldownRemovalPolicyTags(
 		FGameplayEffectSpecHandle& CooldownSpecHandle,
@@ -146,6 +146,13 @@ protected:
 		const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo) const;
+	bool ApplySharedCooldownEffect(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		float CooldownDuration,
+		const FGameplayTagContainer& CooldownTags,
+		bool bPandoraCooldown = false) const;
 	bool TryCommitAdditionalActionStaminaCost() const;
 	float CalculateBaseSkillDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const;
 	float ApplyIntelligenceToSkillDamage(float DamageMagnitude) const;
@@ -201,20 +208,20 @@ protected:
 	bool bAutoActivateWhenGranted = false;
 
 private:
-	friend class UPdAbilityMovementRuntime;
-	friend class UPdAbilityPresentationRuntime;
-	friend class UPdAbilityResourceRuntime;
-	friend class UPdAbilitySourceRuntime;
+	friend class UAbilityMovementRuntime;
+	friend class UAbilityPresentationRuntime;
+	friend class UAbilityResourceRuntime;
+	friend class UAbilitySourceRuntime;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Ability|Runtime")
-	TObjectPtr<UPdAbilityResourceRuntime> ResourceRuntime;
+	TObjectPtr<UAbilityResourceRuntime> ResourceRuntime;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Ability|Runtime")
-	TObjectPtr<UPdAbilitySourceRuntime> SourceRuntime;
+	TObjectPtr<UAbilitySourceRuntime> SourceRuntime;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Ability|Runtime")
-	TObjectPtr<UPdAbilityMovementRuntime> MovementRuntime;
+	TObjectPtr<UAbilityMovementRuntime> MovementRuntime;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Ability|Runtime")
-	TObjectPtr<UPdAbilityPresentationRuntime> PresentationRuntime;
+	TObjectPtr<UAbilityPresentationRuntime> PresentationRuntime;
 };

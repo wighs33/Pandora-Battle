@@ -1,21 +1,53 @@
-#include "Component/AbilitySystem/Ability/PdAbilityResourceRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityResourceRuntime.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "AbilitySystem/SkillCooldownGameplayEffect.h"
 #include "AbilitySystemGlobals.h"
+#include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
-#include "Component/AbilitySystem/Ability/PdAbilitySourceRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilitySourceRuntime.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/Player/EquipmentComponent.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
 #include "Settings/GameSettingsSubsystem.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PdAbilityResourceRuntime)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityResourceRuntime)
 
 namespace
 {
+TSubclassOf<UGameplayEffect> ResolveAbilityCostEffect(
+	const UObject* WorldContextObject)
+{
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(
+			WorldContextObject);
+	return SettingDefinition
+		? SettingDefinition->AbilityCostGameplayEffectClass
+		: nullptr;
+}
+
+bool SetAbilityCostMagnitudes(
+	FGameplayEffectSpecHandle& SpecHandle,
+	const float ManaCost,
+	const float StaminaCost)
+{
+	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
+	{
+		return false;
+	}
+
+	SpecHandle.Data->SetSetByCallerMagnitude(
+		LabGameplayTags::Data_ManaCost,
+		-FMath::Max(ManaCost, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(
+		LabGameplayTags::Data_StaminaCost,
+		-FMath::Max(StaminaCost, 0.0f));
+	return true;
+}
+
 float ResolveActionStaminaCost(const UObject* WorldContextObject)
 {
 	const UGameSettingDefinition* SettingDefinition =
@@ -48,15 +80,24 @@ bool AbilitySpecHasExactAssetTag(
 		&& AbilitySpec->Ability->GetAssetTags().HasTagExact(AbilityTag);
 }
 
-bool IsGasCostedPrimaryAttackAbilitySpec(
-	const FGameplayAbilitySpec* AbilitySpec)
+float ResolveEquippedWeaponAttackStaminaCost(
+	const FGameplayAbilityActorInfo* ActorInfo)
 {
-	return AbilitySpecHasExactAssetTag(
-			AbilitySpec,
-			LabGameplayTags::Action_Attack)
-		|| AbilitySpecHasExactAssetTag(
-			AbilitySpec,
-			LabGameplayTags::Action_Punch);
+	const ACharacterBase* Character = ActorInfo
+		? Cast<ACharacterBase>(ActorInfo->AvatarActor.Get())
+		: nullptr;
+	const UEquipmentComponent* EquipmentComponent = Character
+		? Character->GetEquipmentComponent()
+		: nullptr;
+	if (const UItemDefinition* WeaponDefinition = EquipmentComponent
+		? EquipmentComponent->GetCurrentWeaponDefinition()
+		: nullptr)
+	{
+		return WeaponDefinition->GetSafeAttackStaminaCost();
+	}
+
+	return ResolveActionStaminaCost(
+		ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr);
 }
 
 float GetActionStaminaCost(
@@ -69,13 +110,19 @@ float GetActionStaminaCost(
 		return 0.0f;
 	}
 
-	const UObject* WorldContextObject =
-		ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
-	const bool bUsesActionStamina =
-		SkillDataAsset
-		|| IsGasCostedPrimaryAttackAbilitySpec(AbilitySpec);
-	return bUsesActionStamina
-		? ResolveActionStaminaCost(WorldContextObject)
+	if (SkillDataAsset
+		|| AbilitySpecHasExactAssetTag(
+			AbilitySpec,
+			LabGameplayTags::Action_Punch))
+	{
+		return ResolveActionStaminaCost(
+			ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr);
+	}
+
+	return AbilitySpecHasExactAssetTag(
+		AbilitySpec,
+		LabGameplayTags::Action_Attack)
+		? ResolveEquippedWeaponAttackStaminaCost(ActorInfo)
 		: 0.0f;
 }
 
@@ -126,7 +173,7 @@ FGameplayTag GetPandoraSkillCooldownTagFromSourceTags(
 }
 }
 
-const FGameplayTagContainer* UPdAbilityResourceRuntime::BuildCooldownTags(
+const FGameplayTagContainer* UAbilityResourceRuntime::BuildCooldownTags(
 	const UPdGameplayAbility& Ability,
 	const FGameplayTagContainer* ParentCooldownTags) const
 {
@@ -145,10 +192,16 @@ const FGameplayTagContainer* UPdAbilityResourceRuntime::BuildCooldownTags(
 
 	const USkillDefinition* SkillDataAsset =
 		Ability.GetSourceSkillDataAsset();
-	if (SkillDataAsset
-		&& (SkillDataAsset->Time.CooldownDuration > 0.0
-			|| Ability.GetCooldownGameplayEffect()))
+	if (SkillDataAsset)
 	{
+		// SkillDefinition is the only cooldown configuration source for skills.
+		// Ignore legacy CooldownGameplayEffectClass tags authored on the GA.
+		RuntimeCooldownTags.Reset();
+		if (SkillDataAsset->Time.CooldownDuration <= 0.0)
+		{
+			return nullptr;
+		}
+
 		const FGameplayTag DefaultCooldownTag = LabGameplayTags::Cooldown;
 		const FGameplayTag SkillSlotCooldownTag =
 			GetSkillSlotCooldownTag(Ability);
@@ -166,7 +219,7 @@ const FGameplayTagContainer* UPdAbilityResourceRuntime::BuildCooldownTags(
 	return RuntimeCooldownTags.IsEmpty() ? nullptr : &RuntimeCooldownTags;
 }
 
-bool UPdAbilityResourceRuntime::CheckCost(
+bool UAbilityResourceRuntime::CheckCost(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -174,7 +227,7 @@ bool UPdAbilityResourceRuntime::CheckCost(
 {
 	UAbilitySystemComponent* AbilitySystemComponent =
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const UPdAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
+	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec =
 		AbilitySystemComponent && Handle.IsValid()
 			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
@@ -198,7 +251,10 @@ bool UPdAbilityResourceRuntime::CheckCost(
 	const UBasicAttributeSet* BasicAttributeSet = AbilitySystemComponent
 		? AbilitySystemComponent->GetSet<UBasicAttributeSet>()
 		: nullptr;
-	if (!AbilitySystemComponent || !BasicAttributeSet)
+	if (!AbilitySystemComponent
+		|| !BasicAttributeSet
+		|| !ResolveAbilityCostEffect(
+			ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
 	{
 		AddCostFailureTag(OptionalRelevantTags);
 		return false;
@@ -217,7 +273,7 @@ bool UPdAbilityResourceRuntime::CheckCost(
 	return false;
 }
 
-void UPdAbilityResourceRuntime::ApplyCost(
+void UAbilityResourceRuntime::ApplyCost(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -231,7 +287,7 @@ void UPdAbilityResourceRuntime::ApplyCost(
 		return;
 	}
 
-	const UPdAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
+	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec =
 		AbilitySystemComponent && Handle.IsValid()
 			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
@@ -247,47 +303,51 @@ void UPdAbilityResourceRuntime::ApplyCost(
 	const float ManaCost = GetManaCostFromSkillDataAsset(SkillDataAsset);
 	const float StaminaCost =
 		GetActionStaminaCost(ActorInfo, AbilitySpec, SkillDataAsset);
+	const UBasicAttributeSet* BasicAttributeSet =
+		AbilitySystemComponent->GetSet<UBasicAttributeSet>();
 	if ((ManaCost <= 0.0f && StaminaCost <= 0.0f)
-		|| !AbilitySystemComponent->GetSet<UBasicAttributeSet>())
+		|| !BasicAttributeSet)
 	{
 		return;
 	}
 
-	if (ManaCost > 0.0f)
-	{
-		const float CurrentMana =
-			AbilitySystemComponent->GetNumericAttribute(
-				UBasicAttributeSet::GetManaAttribute());
-		const float AppliedManaCost = FMath::Min(CurrentMana, ManaCost);
-		if (AppliedManaCost > 0.0f)
-		{
-			AbilitySystemComponent->ApplyModToAttribute(
-				UBasicAttributeSet::GetManaAttribute(),
-				EGameplayModOp::Additive,
-				-AppliedManaCost);
-		}
-	}
-
-	if (StaminaCost <= 0.0f)
+	const float AppliedManaCost = FMath::Min(
+		FMath::Max(BasicAttributeSet->GetMana(), 0.0f),
+		ManaCost);
+	const float AppliedStaminaCost = FMath::Min(
+		FMath::Max(BasicAttributeSet->GetStamina(), 0.0f),
+		StaminaCost);
+	const TSubclassOf<UGameplayEffect> CostEffectClass =
+		ResolveAbilityCostEffect(
+			ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr);
+	if (!CostEffectClass)
 	{
 		return;
 	}
 
-	const float CurrentStamina =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetStaminaAttribute());
-	const float AppliedStaminaCost =
-		FMath::Min(CurrentStamina, StaminaCost);
-	if (AppliedStaminaCost > 0.0f)
+	FGameplayEffectSpecHandle CostSpecHandle =
+		Ability.MakeOutgoingGameplayEffectSpec(
+			Handle,
+			ActorInfo,
+			ActivationInfo,
+			CostEffectClass,
+			1.0f);
+	if (!SetAbilityCostMagnitudes(
+		CostSpecHandle,
+		AppliedManaCost,
+		AppliedStaminaCost))
 	{
-		AbilitySystemComponent->ApplyModToAttribute(
-			UBasicAttributeSet::GetStaminaAttribute(),
-			EGameplayModOp::Additive,
-			-AppliedStaminaCost);
+		return;
 	}
+
+	Ability.ApplyGameplayEffectSpecToOwner(
+		Handle,
+		ActorInfo,
+		ActivationInfo,
+		CostSpecHandle);
 }
 
-bool UPdAbilityResourceRuntime::CheckConfiguredCooldown(
+bool UAbilityResourceRuntime::CheckConfiguredCooldown(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -299,7 +359,7 @@ bool UPdAbilityResourceRuntime::CheckConfiguredCooldown(
 
 	UAbilitySystemComponent* AbilitySystemComponent =
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const UPdAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
+	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec =
 		AbilitySystemComponent && Handle.IsValid()
 			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
@@ -360,14 +420,14 @@ bool UPdAbilityResourceRuntime::CheckConfiguredCooldown(
 	return false;
 }
 
-bool UPdAbilityResourceRuntime::ShouldDeferCooldown(
+bool UAbilityResourceRuntime::ShouldDeferCooldown(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo) const
 {
 	const UAbilitySystemComponent* AbilitySystemComponent =
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const UPdAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
+	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec =
 		AbilitySystemComponent && Handle.IsValid()
 			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
@@ -384,16 +444,15 @@ bool UPdAbilityResourceRuntime::ShouldDeferCooldown(
 		&& SkillDataAsset->Time.CooldownDuration > 0.0;
 }
 
-bool UPdAbilityResourceRuntime::ApplyConfiguredCooldownImmediately(
+bool UAbilityResourceRuntime::ApplyConfiguredCooldownImmediately(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo& ActivationInfo,
-	const FGameplayTagContainer& RemovalPolicyTags) const
+	const FGameplayAbilityActivationInfo& ActivationInfo) const
 {
 	const UAbilitySystemComponent* AbilitySystemComponent =
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const UPdAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
+	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec =
 		AbilitySystemComponent && Handle.IsValid()
 			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
@@ -411,43 +470,15 @@ bool UPdAbilityResourceRuntime::ApplyConfiguredCooldownImmediately(
 		return false;
 	}
 
-	UGameplayEffect* CooldownGameplayEffect =
-		Ability.GetCooldownGameplayEffect();
 	const float ConfiguredDuration = static_cast<float>(
 		FMath::Max(SkillDataAsset->Time.CooldownDuration, 0.0));
-	const bool bUsingGeneratedCooldownEffect = ConfiguredDuration > 0.0f;
-	const TSubclassOf<UGameplayEffect> CooldownEffectClass =
-		bUsingGeneratedCooldownEffect
-			? USkillCooldownGameplayEffect::StaticClass()
-			: (CooldownGameplayEffect
-				? CooldownGameplayEffect->GetClass()
-				: nullptr);
-	if (!CooldownEffectClass)
+	if (ConfiguredDuration <= 0.0f)
 	{
 		return true;
 	}
-
-	FGameplayEffectSpecHandle CooldownSpecHandle =
-		Ability.MakeOutgoingGameplayEffectSpec(
-			Handle,
-			ActorInfo,
-			ActivationInfo,
-			CooldownEffectClass,
-			Ability.GetAbilityLevel(Handle, ActorInfo));
-	if (!CooldownSpecHandle.IsValid()
-		|| !CooldownSpecHandle.Data.IsValid())
-	{
-		return true;
-	}
-
-	const float OriginalDuration = CooldownSpecHandle.Data->GetDuration();
-	float EffectiveDuration = ConfiguredDuration > 0.0f
-		? ConfiguredDuration
-		: OriginalDuration;
+	float EffectiveDuration = ConfiguredDuration;
 	const float ArcaneReductionPercent =
 		GetSkillCooldownReductionPercent(Ability);
-	const bool bHasConfiguredCooldownDuration =
-		ConfiguredDuration > 0.0f;
 	const bool bHasArcaneCooldownReduction =
 		ArcaneReductionPercent > 0.0f;
 	if (EffectiveDuration > 0.0f && bHasArcaneCooldownReduction)
@@ -463,32 +494,19 @@ bool UPdAbilityResourceRuntime::ApplyConfiguredCooldownImmediately(
 		return true;
 	}
 
-	if (bUsingGeneratedCooldownEffect
-		|| bHasConfiguredCooldownDuration
-		|| bHasArcaneCooldownReduction)
-	{
-		CooldownSpecHandle.Data->SetDuration(EffectiveDuration, true);
-	}
-
 	FGameplayTagContainer DynamicCooldownTags;
 	BuildDynamicCooldownGrantedTags(Ability, DynamicCooldownTags);
-	CooldownSpecHandle.Data->DynamicGrantedTags.AppendTags(
-		DynamicCooldownTags);
-	CooldownSpecHandle.Data->AppendDynamicAssetTags(DynamicCooldownTags);
-	AppendCooldownRemovalPolicyTags(
-		CooldownSpecHandle,
-		RemovalPolicyTags,
-		SourceRuntime && SourceRuntime->IsPandoraSkillSpec(AbilitySpec));
-
-	Ability.ApplyGameplayEffectSpecToOwner(
+	Ability.ApplySharedCooldownEffect(
 		Handle,
 		ActorInfo,
 		ActivationInfo,
-		CooldownSpecHandle);
+		EffectiveDuration,
+		DynamicCooldownTags,
+		SourceRuntime && SourceRuntime->IsPandoraSkillSpec(AbilitySpec));
 	return true;
 }
 
-void UPdAbilityResourceRuntime::AppendCooldownRemovalPolicyTags(
+void UAbilityResourceRuntime::AppendCooldownRemovalPolicyTags(
 	FGameplayEffectSpecHandle& CooldownSpecHandle,
 	const FGameplayTagContainer& RemovalPolicyTags,
 	const bool bPandoraCooldown) const
@@ -512,7 +530,7 @@ void UPdAbilityResourceRuntime::AppendCooldownRemovalPolicyTags(
 	}
 }
 
-bool UPdAbilityResourceRuntime::TryCommitAdditionalActionStaminaCost(
+bool UAbilityResourceRuntime::TryCommitAdditionalActionStaminaCost(
 	const UPdGameplayAbility& Ability) const
 {
 	const FGameplayAbilityActorInfo* ActorInfo =
@@ -533,7 +551,7 @@ bool UPdAbilityResourceRuntime::TryCommitAdditionalActionStaminaCost(
 	}
 
 	const float ActionStaminaCost =
-		ResolveActionStaminaCost(ActorInfo->AvatarActor.Get());
+		ResolveEquippedWeaponAttackStaminaCost(ActorInfo);
 	if (ActionStaminaCost <= 0.0f)
 	{
 		return true;
@@ -551,17 +569,40 @@ bool UPdAbilityResourceRuntime::TryCommitAdditionalActionStaminaCost(
 		return true;
 	}
 
-	AbilitySystemComponent->ApplyModToAttribute(
-		UBasicAttributeSet::GetStaminaAttribute(),
-		EGameplayModOp::Additive,
-		-ActionStaminaCost);
-	return true;
+	const TSubclassOf<UGameplayEffect> CostEffectClass =
+		ResolveAbilityCostEffect(
+			ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr);
+	if (!CostEffectClass)
+	{
+		return false;
+	}
+
+	FGameplayEffectSpecHandle CostSpecHandle =
+		Ability.MakeOutgoingGameplayEffectSpec(
+			Ability.GetCurrentAbilitySpecHandle(),
+			ActorInfo,
+			Ability.GetCurrentActivationInfo(),
+			CostEffectClass,
+			1.0f);
+	if (!SetAbilityCostMagnitudes(
+		CostSpecHandle,
+		0.0f,
+		ActionStaminaCost))
+	{
+		return false;
+	}
+
+	return Ability.ApplyGameplayEffectSpecToOwner(
+		Ability.GetCurrentAbilitySpecHandle(),
+		ActorInfo,
+		Ability.GetCurrentActivationInfo(),
+		CostSpecHandle).WasSuccessfullyApplied();
 }
 
-FGameplayTag UPdAbilityResourceRuntime::GetSkillSlotCooldownTag(
+FGameplayTag UAbilityResourceRuntime::GetSkillSlotCooldownTag(
 	const UPdGameplayAbility& Ability) const
 {
-	const UPdAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
+	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec = SourceRuntime
 		? SourceRuntime->ResolveCurrentAbilitySpec(Ability)
 		: nullptr;
@@ -571,7 +612,7 @@ FGameplayTag UPdAbilityResourceRuntime::GetSkillSlotCooldownTag(
 		: FGameplayTag();
 }
 
-void UPdAbilityResourceRuntime::BuildDynamicCooldownGrantedTags(
+void UAbilityResourceRuntime::BuildDynamicCooldownGrantedTags(
 	const UPdGameplayAbility& Ability,
 	FGameplayTagContainer& OutCooldownTags) const
 {
@@ -592,7 +633,7 @@ void UPdAbilityResourceRuntime::BuildDynamicCooldownGrantedTags(
 	}
 }
 
-float UPdAbilityResourceRuntime::GetSkillCooldownReductionPercent(
+float UAbilityResourceRuntime::GetSkillCooldownReductionPercent(
 	const UPdGameplayAbility& Ability) const
 {
 	const UPdAbilitySystemComponent* AbilitySystemComponent =
@@ -605,7 +646,7 @@ float UPdAbilityResourceRuntime::GetSkillCooldownReductionPercent(
 		: 0.0f;
 }
 
-bool UPdAbilityResourceRuntime::ConsumePendingCooldown(
+bool UAbilityResourceRuntime::ConsumePendingCooldown(
 	const bool bAbilityWasCancelled)
 {
 	const bool bWasPending = bApplySkillCooldownWhenAbilityEnds;

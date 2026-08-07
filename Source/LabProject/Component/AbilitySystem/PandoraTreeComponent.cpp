@@ -32,8 +32,7 @@ void UPandoraTreeComponent::BeginPlay()
 
 	InitializeVariables();
 
-
-	const bool bDeferPlayerStateInitializationToPossessedPawn = OwnerPlayerState != nullptr;
+const bool bDeferPlayerStateInitializationToPossessedPawn = OwnerPlayerState != nullptr;
 	if (HasPandoraTreeAuthority()
 		&& bInitializeDefaultPandorasOnBeginPlay
 		&& !bDeferPlayerStateInitializationToPossessedPawn
@@ -118,8 +117,7 @@ void UPandoraTreeComponent::InitializePandoraTree(
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraTreeComponent, GrantedPandoras, this);
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraTreeComponent, PointsAvailable, this);
 
-
-	TArray<FGrantedPandora> ValidDefaultPandoras;
+TArray<FGrantedPandora> ValidDefaultPandoras;
 	if (bIncludeConfiguredDefaultPandoras)
 	{
 		CollectValidGrantedPandoras(DefaultPandoras, ValidDefaultPandoras);
@@ -244,11 +242,11 @@ bool UPandoraTreeComponent::GrantPandora(UPandoraDefinition* Pandora, int32 Star
 	GrantedPandoras.Add(FGrantedPandora(Pandora, ClampedLevel));
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraTreeComponent, GrantedPandoras, this);
 
-
 	if (UPandoraComponent* PandoraComponent = OwnerPlayerState ? OwnerPlayerState->GetPandoraComponent() : nullptr)
 	{
 		PandoraComponent->ActivatePandoras({ Pandora->GetPrimaryAssetId() });
 	}
+	RefreshSelectedPandoraAfterLevelChange(Pandora);
 
 	BroadcastPandoraTreeChanged();
 	return true;
@@ -280,13 +278,7 @@ bool UPandoraTreeComponent::LevelUpGrantedPandora(UPandoraDefinition* Pandora)
 		return false;
 	}
 
-	if (UPandoraComponent* PandoraComponent = OwnerPlayerState ? OwnerPlayerState->GetPandoraComponent() : nullptr)
-	{
-		if (PandoraComponent->GetCurrentPandoraDefinition() == Pandora)
-		{
-			PandoraComponent->RequestPandoraSelection(Pandora);
-		}
-	}
+	RefreshSelectedPandoraAfterLevelChange(Pandora);
 	BroadcastPandoraTreeChanged();
 
 	return true;
@@ -755,6 +747,18 @@ bool UPandoraTreeComponent::IncrementGrantedPandoraLevel(UPandoraDefinition* Pan
 	}
 
 	return false;
+}
+
+void UPandoraTreeComponent::RefreshSelectedPandoraAfterLevelChange(
+	const UPandoraDefinition* Pandora) const
+{
+	UPandoraComponent* PandoraComponent =
+		OwnerPlayerState ? OwnerPlayerState->GetPandoraComponent() : nullptr;
+	if (PandoraComponent
+		&& PandoraComponent->GetCurrentPandoraDefinition() == Pandora)
+	{
+		PandoraComponent->RefreshCurrentPandoraForWeaponChange();
+	}
 }
 
 void UPandoraTreeComponent::RefreshSelectedPandoraAbilityBindings() const
