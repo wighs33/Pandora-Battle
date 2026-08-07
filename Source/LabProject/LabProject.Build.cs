@@ -15,6 +15,7 @@ public class LabProject : ModuleRules
 			// Required by types inherited from or included by LabProject headers.
 			"Core",
 			"CoreUObject",
+			"DeveloperSettings",
 			"Engine",
 			"InputCore",
 			"EnhancedInput",

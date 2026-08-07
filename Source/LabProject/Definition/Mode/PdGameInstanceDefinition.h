@@ -4,16 +4,27 @@
 #include "Engine/DataAsset.h"
 #include "UObject/PrimaryAssetId.h"
 
-#if WITH_EDITOR
-#include "Misc/DataValidation.h"
-#endif
-
 #include "PdGameInstanceDefinition.generated.h"
 
-class UPdSaveGame;
+class UCharacterActionDefinition;
+class UCharacterBaseDefinition;
+class UControllerInputDefinition;
+class UEnemyBaseDefinition;
+class UAchievementDefinition;
+class UGameSettingDefinition;
+class UGuideDefinition;
+class ULobbyModeDefinition;
+class UDefaultProvisionDefinition;
+class UMatchRuleDefinition;
+class UPlayerControllerDefinition;
+class UPlayerPawnDefinition;
+class URecordDefinition;
+class URewardDefinition;
+class UStatUpgradeDefinition;
+class UStatusEffectDefinition;
 
 UENUM(BlueprintType)
-enum class EPdStartupWindowMode : uint8
+enum class EStartupWindowMode : uint8
 {
 	Windowed,
 	WindowedFullscreen,
@@ -21,52 +32,83 @@ enum class EPdStartupWindowMode : uint8
 };
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdGameInstanceLifecycleSettings
+struct LABPROJECT_API FGameInstanceLifecycleSettings
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Lifecycle|Window")
-	bool bApplyWindowModeOnStart = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Lifecycle|Window")
-	EPdStartupWindowMode StartupWindowMode = EPdStartupWindowMode::WindowedFullscreen;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Lifecycle|Window")
-	bool bSaveAppliedWindowMode = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Lifecycle|Presentation")
-	bool bDisableCollisionVisualizationOutsideEditor = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Lifecycle|Audio")
-	bool bRestoreWorldBgmOnStart = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Lifecycle|Audio")
-	bool bStopBgmOnShutdown = true;
+	EStartupWindowMode StartupWindowMode = EStartupWindowMode::WindowedFullscreen;
 };
 
+/** Default project content selected once by the GameInstance bootstrap asset. */
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdPlayerProfilePersistenceSettings
+struct LABPROJECT_API FProjectDefinitionReferences
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Profile")
-	TSubclassOf<UPdSaveGame> SaveGameClass;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions",
+		meta = (AssetBundles = "Client,Server"))
+	TSoftObjectPtr<UGameSettingDefinition> GameSetting;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Profile|Saving",
-		meta = (ClampMin = "0.05", ForceUnits = "s"))
-	float SaveDebounceSeconds = 0.75f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Online",
+		meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<UAchievementDefinition> Achievement;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Profile|Saving",
-		meta = (ClampMin = "0.05", ForceUnits = "s"))
-	float SaveTickerIntervalSeconds = 0.10f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|UI",
+		meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<UGuideDefinition> Guide;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Profile|Saving",
-		meta = (ClampMin = "0.1", ForceUnits = "s"))
-	float SaveRetryDelaySeconds = 2.0f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|UI",
+		meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<URecordDefinition> Record;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Profile|Saving",
-		meta = (ClampMin = "0"))
-	int32 MaxSaveRetryAttempts = 3;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Ability System",
+		meta = (AssetBundles = "Client,Server"))
+	TArray<TSoftObjectPtr<UStatusEffectDefinition>> StatusEffects;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Match",
+		meta = (AssetBundles = "Client,Server"))
+	TSoftObjectPtr<UMatchRuleDefinition> MatchRule;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Lobby",
+		meta = (AssetBundles = "Client,Server"))
+	TSoftObjectPtr<ULobbyModeDefinition> LobbyMode;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Player",
+		meta = (AssetBundles = "Client,Server", FormerlySerializedAs = "LobbyPreview"))
+	TSoftObjectPtr<UDefaultProvisionDefinition> DefaultProvision;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Character",
+		meta = (AssetBundles = "Client,Server", FormerlySerializedAs = "CharacterHumanoid"))
+	TSoftObjectPtr<UCharacterBaseDefinition> Character;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Character",
+		meta = (AssetBundles = "Client,Server"))
+	TSoftObjectPtr<UEnemyBaseDefinition> EnemyBase;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Player",
+		meta = (AssetBundles = "Client,Server"))
+	TSoftObjectPtr<UPlayerPawnDefinition> PlayerPawn;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Player",
+		meta = (AssetBundles = "Client,Server"))
+	TSoftObjectPtr<UPlayerControllerDefinition> PlayerController;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Player",
+		meta = (AssetBundles = "Client,Server"))
+	TSoftObjectPtr<UControllerInputDefinition> ControllerInput;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Player",
+		meta = (AssetBundles = "Client,Server"))
+	TSoftObjectPtr<UCharacterActionDefinition> CharacterAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Player",
+		meta = (AssetBundles = "Client,Server"))
+	TSoftObjectPtr<UStatUpgradeDefinition> StatUpgrade;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Reward",
+		meta = (AssetBundles = "Client,Server"))
+	TSoftObjectPtr<URewardDefinition> Reward;
 };
 
 /**
@@ -78,24 +120,22 @@ class LABPROJECT_API UPdGameInstanceDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UPdGameInstanceDefinition();
-
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 	static FSoftObjectPath GetDefaultDefinitionPath();
+	static const FProjectDefinitionReferences& GetConfiguredDefinitionReferences();
 
-#if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
-#endif
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Memo",
+		meta = (DisplayName = "Memo", MultiLine = "true"))
+	TArray<FText> Memo;
 
-	const FPdGameInstanceLifecycleSettings& GetLifecycleSettings() const { return Lifecycle; }
-	const FPdPlayerProfilePersistenceSettings& GetProfilePersistenceSettings() const { return ProfilePersistence; }
+	const FGameInstanceLifecycleSettings& GetLifecycleSettings() const { return Lifecycle; }
 
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Lifecycle",
 		meta = (AllowPrivateAccess = "true"))
-	FPdGameInstanceLifecycleSettings Lifecycle;
+	FGameInstanceLifecycleSettings Lifecycle;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Profile",
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions",
 		meta = (AllowPrivateAccess = "true"))
-	FPdPlayerProfilePersistenceSettings ProfilePersistence;
+	FProjectDefinitionReferences Definitions;
 };

@@ -48,11 +48,23 @@ namespace
 void UContentDataSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	bSkillDataAssetsPreloadPending = false;
+	bSkillDataAssetsReady = false;
 	BuildPrimaryAssetIndexes();
+	EnsureSkillDataAssetsPreload();
 }
 
 void UContentDataSubsystem::Deinitialize()
 {
+	bSkillDataAssetsPreloadPending = false;
+	bSkillDataAssetsReady = false;
+	if (SkillDataAssetsPreloadHandle.IsValid())
+	{
+		SkillDataAssetsPreloadHandle->CancelHandle();
+		SkillDataAssetsPreloadHandle->ReleaseHandle();
+		SkillDataAssetsPreloadHandle.Reset();
+	}
+
 	for (TPair<FPrimaryAssetId, TSharedPtr<FStreamableHandle>>& LoadPair
 		: PendingOnDemandLoadHandles)
 	{
@@ -113,11 +125,95 @@ TSharedPtr<FStreamableHandle> UContentDataSubsystem::LoadSkinDataAssetsAsync(FSi
 	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), false);
 }
 
+TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSkillDataAssetsAsync(FSimpleDelegate OnComplete)
+{
+	TArray<FPrimaryAssetId> AssetIds;
+	UAssetManager::Get().GetPrimaryAssetIdList(SkillAssetType, AssetIds);
+	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), true);
+}
+
 TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadPandoraDataAssetsAsync(FSimpleDelegate OnComplete)
 {
 	TArray<FPrimaryAssetId> AssetIds;
 	GetPandoraDefinitionIds(AssetIds);
 	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), true);
+}
+
+void UContentDataSubsystem::EnsureSkillDataAssetsPreload()
+{
+	if (bSkillDataAssetsReady)
+	{
+		return;
+	}
+	if (bSkillDataAssetsPreloadPending
+		&& SkillDataAssetsPreloadHandle.IsValid())
+	{
+		return;
+	}
+
+	bSkillDataAssetsPreloadPending = false;
+	if (SkillDataAssetsPreloadHandle.IsValid())
+	{
+		SkillDataAssetsPreloadHandle->ReleaseHandle();
+		SkillDataAssetsPreloadHandle.Reset();
+	}
+
+	bSkillDataAssetsPreloadPending = true;
+	TSharedPtr<FStreamableHandle> NewPreloadHandle =
+		PreloadSkillDataAssetsAsync(
+			FSimpleDelegate::CreateUObject(
+				this,
+				&ThisClass::HandleSkillDataAssetsPreloaded));
+	if (NewPreloadHandle.IsValid())
+	{
+		SkillDataAssetsPreloadHandle = MoveTemp(NewPreloadHandle);
+	}
+	else if (bSkillDataAssetsPreloadPending)
+	{
+		HandleSkillDataAssetsPreloaded();
+	}
+}
+
+void UContentDataSubsystem::HandleSkillDataAssetsPreloaded()
+{
+	bSkillDataAssetsPreloadPending = false;
+	bSkillDataAssetsReady = AreSkillDataAssetsLoaded();
+	UE_CLOG(
+		!bSkillDataAssetsReady,
+		ContentDataSubsystemLog,
+		Error,
+		TEXT("Skill data asset preload completed with unresolved assets."));
+}
+
+bool UContentDataSubsystem::AreSkillDataAssetsLoaded() const
+{
+	const UAssetManager& AssetManager = UAssetManager::Get();
+	TArray<FPrimaryAssetId> AssetIds;
+	AssetManager.GetPrimaryAssetIdList(SkillAssetType, AssetIds);
+	if (AssetIds.IsEmpty())
+	{
+		UE_LOG(
+			ContentDataSubsystemLog,
+			Error,
+			TEXT("No registered Skill primary assets were found."));
+		return false;
+	}
+	for (const FPrimaryAssetId& AssetId : AssetIds)
+	{
+		const FSoftObjectPath AssetPath = AssetManager.GetPrimaryAssetPath(AssetId);
+		if (!AssetPath.IsValid()
+			|| (!AssetManager.GetPrimaryAssetObject(AssetId)
+				&& !AssetPath.ResolveObject()))
+		{
+			UE_LOG(
+				ContentDataSubsystemLog,
+				Error,
+				TEXT("Required skill data asset '%s' was not resolved."),
+				*AssetId.ToString());
+			return false;
+		}
+	}
+	return true;
 }
 
 TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSkinDataAssetsAsync(FSimpleDelegate OnComplete)

@@ -43,8 +43,13 @@ public:
 	TSharedPtr<FStreamableHandle> LoadPandoraDataAssetsAsync(FSimpleDelegate OnComplete = FSimpleDelegate());
 	TSharedPtr<FStreamableHandle> LoadSkinDataAssetsAsync(FSimpleDelegate OnComplete = FSimpleDelegate());
 
+	TSharedPtr<FStreamableHandle> PreloadSkillDataAssetsAsync(FSimpleDelegate OnComplete = FSimpleDelegate());
 	TSharedPtr<FStreamableHandle> PreloadPandoraDataAssetsAsync(FSimpleDelegate OnComplete = FSimpleDelegate());
 	TSharedPtr<FStreamableHandle> PreloadSkinDataAssetsAsync(FSimpleDelegate OnComplete = FSimpleDelegate());
+
+	/** Starts and retains the process-wide skill preload. Safe to call repeatedly. */
+	void EnsureSkillDataAssetsPreload();
+	bool IsSkillDataAssetsReady() const { return bSkillDataAssetsReady; }
 
 	/**
 	 * Preloads arbitrary soft references without blocking the game thread.
@@ -120,6 +125,8 @@ private:
 		const TArray<FPrimaryAssetId>& AssetIds,
 		FSimpleDelegate OnComplete,
 		bool bPreload);
+	void HandleSkillDataAssetsPreloaded();
+	bool AreSkillDataAssetsLoaded() const;
 	UObject* LoadPrimaryAssetOnDemand(const FPrimaryAssetId& AssetId) const;
 
 	template <typename AssetType>
@@ -138,6 +145,10 @@ private:
 	TSet<FName> InvalidSkillNames;
 	TSet<FName> InvalidPandoraNames;
 	TSet<FName> InvalidSkinNames;
+
+	TSharedPtr<FStreamableHandle> SkillDataAssetsPreloadHandle;
+	bool bSkillDataAssetsPreloadPending = false;
+	bool bSkillDataAssetsReady = false;
 
 	mutable TMap<FPrimaryAssetId, TSharedPtr<FStreamableHandle>>
 		PendingOnDemandLoadHandles;
