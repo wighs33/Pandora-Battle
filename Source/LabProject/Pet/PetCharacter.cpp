@@ -1,7 +1,6 @@
 #include "Pet/PetCharacter.h"
 
 #include "AI/PetAIController.h"
-#include "Animation/AnimMontage.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -57,9 +56,4 @@ void APetCharacter::SetFollowTargetActor(AActor* InFollowTargetActor)
 	{
 		PetController->RefreshFollowTarget();
 	}
-}
-
-void APetCharacter::ApplySkinDefinition(const USkinDefinition* SkinDefinition)
-{
-	static_cast<void>(SkinDefinition);
 }

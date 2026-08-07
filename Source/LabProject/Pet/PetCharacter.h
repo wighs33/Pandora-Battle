@@ -4,9 +4,6 @@
 #include "GameFramework/Character.h"
 #include "PetCharacter.generated.h"
 
-class USkinDefinition;
-class UAnimMontage;
-
 UCLASS(Blueprintable)
 class LABPROJECT_API APetCharacter : public ACharacter
 {
@@ -22,9 +19,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!Pet")
 	AActor* GetFollowTargetActor() const { return FollowTargetActor.Get(); }
-
-	UFUNCTION(BlueprintCallable, Category = "!Pet|Skin")
-	void ApplySkinDefinition(const USkinDefinition* SkinDefinition);
 
 protected:
 	UPROPERTY(Replicated, Transient, BlueprintReadOnly, Category = "!Pet")

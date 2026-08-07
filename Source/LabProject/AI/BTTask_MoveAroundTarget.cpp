@@ -12,21 +12,21 @@
 
 namespace
 {
-	enum class EPdMoveAroundTargetPhase : uint8
+	enum class EMoveAroundTargetPhase : uint8
 	{
 		MoveAround,
 		AttackApproach,
 		AttackWindow
 	};
 
-	struct FPdMoveAroundTargetMemory
+	struct FMoveAroundTargetMemory
 	{
 		FVector Destination = FVector::ZeroVector;
 		float ElapsedTime = 0.0f;
 		int32 CompletedMoveCount = 0;
 		int32 MovesBeforeAttack = 1;
 		float NextComboAttackRequestTime = 0.0f;
-		EPdMoveAroundTargetPhase Phase = EPdMoveAroundTargetPhase::MoveAround;
+		EMoveAroundTargetPhase Phase = EMoveAroundTargetPhase::MoveAround;
 		uint8 bAttackAbilityObservedActive : 1;
 		uint8 bChangedFacingMode : 1;
 		uint8 bPreviousOrientRotationToMovement : 1;
@@ -45,7 +45,7 @@ UBTTask_MoveAroundTarget::UBTTask_MoveAroundTarget()
 
 uint16 UBTTask_MoveAroundTarget::GetInstanceMemorySize() const
 {
-	return sizeof(FPdMoveAroundTargetMemory);
+	return sizeof(FMoveAroundTargetMemory);
 }
 
 FString UBTTask_MoveAroundTarget::GetStaticDescription() const
@@ -70,8 +70,8 @@ FString UBTTask_MoveAroundTarget::GetStaticDescription() const
 
 EBTNodeResult::Type UBTTask_MoveAroundTarget::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	FPdMoveAroundTargetMemory* Memory = reinterpret_cast<FPdMoveAroundTargetMemory*>(NodeMemory);
-	*Memory = FPdMoveAroundTargetMemory();
+	FMoveAroundTargetMemory* Memory = reinterpret_cast<FMoveAroundTargetMemory*>(NodeMemory);
+	*Memory = FMoveAroundTargetMemory();
 
 	AAIController* AIController = OwnerComp.GetAIOwner();
 	APawn* Pawn = AIController ? AIController->GetPawn() : nullptr;
@@ -98,7 +98,7 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::ExecuteTask(UBehaviorTreeComponent
 
 void UBTTask_MoveAroundTarget::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	FPdMoveAroundTargetMemory* Memory = reinterpret_cast<FPdMoveAroundTargetMemory*>(NodeMemory);
+	FMoveAroundTargetMemory* Memory = reinterpret_cast<FMoveAroundTargetMemory*>(NodeMemory);
 
 	AAIController* AIController = OwnerComp.GetAIOwner();
 	APawn* Pawn = AIController ? AIController->GetPawn() : nullptr;
@@ -113,7 +113,7 @@ void UBTTask_MoveAroundTarget::TickTask(UBehaviorTreeComponent& OwnerComp, uint8
 	UpdateFacing(AIController, Pawn, TargetActor, DeltaSeconds);
 
 	Memory->ElapsedTime += DeltaSeconds;
-	if (Memory->Phase == EPdMoveAroundTargetPhase::AttackWindow)
+	if (Memory->Phase == EMoveAroundTargetPhase::AttackWindow)
 	{
 		const EBTNodeResult::Type AttackWindowResult = TickAttackWindow(OwnerComp, NodeMemory, Pawn, TargetActor);
 		if (AttackWindowResult != EBTNodeResult::InProgress)
@@ -123,7 +123,7 @@ void UBTTask_MoveAroundTarget::TickTask(UBehaviorTreeComponent& OwnerComp, uint8
 		return;
 	}
 
-	if (Memory->Phase == EPdMoveAroundTargetPhase::AttackApproach)
+	if (Memory->Phase == EMoveAroundTargetPhase::AttackApproach)
 	{
 		const EBTNodeResult::Type ApproachResult = TryFinishAttackApproach(OwnerComp, NodeMemory, Pawn, TargetActor);
 		if (ApproachResult != EBTNodeResult::InProgress)
@@ -207,9 +207,9 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::RequestNextMove(UBehaviorTreeCompo
 		return EBTNodeResult::Failed;
 	}
 
-	FPdMoveAroundTargetMemory* Memory = reinterpret_cast<FPdMoveAroundTargetMemory*>(NodeMemory);
+	FMoveAroundTargetMemory* Memory = reinterpret_cast<FMoveAroundTargetMemory*>(NodeMemory);
 	Memory->ElapsedTime = 0.0f;
-	Memory->Phase = EPdMoveAroundTargetPhase::MoveAround;
+	Memory->Phase = EMoveAroundTargetPhase::MoveAround;
 
 	FVector Destination = FVector::ZeroVector;
 	if (!BuildMoveDestination(Pawn, TargetActor, Destination))
@@ -257,7 +257,7 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::RequestNextMove(UBehaviorTreeCompo
 
 EBTNodeResult::Type UBTTask_MoveAroundTarget::CompleteOneMoveAndMaybeContinue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, APawn* Pawn, AActor* TargetActor)
 {
-	FPdMoveAroundTargetMemory* Memory = reinterpret_cast<FPdMoveAroundTargetMemory*>(NodeMemory);
+	FMoveAroundTargetMemory* Memory = reinterpret_cast<FMoveAroundTargetMemory*>(NodeMemory);
 	++Memory->CompletedMoveCount;
 
 	if (Memory->CompletedMoveCount >= Memory->MovesBeforeAttack)
@@ -292,8 +292,8 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::RequestAttackApproach(UBehaviorTre
 		return StartAttackWindow(OwnerComp, NodeMemory, Pawn, TargetActor);
 	}
 
-	FPdMoveAroundTargetMemory* Memory = reinterpret_cast<FPdMoveAroundTargetMemory*>(NodeMemory);
-	Memory->Phase = EPdMoveAroundTargetPhase::AttackApproach;
+	FMoveAroundTargetMemory* Memory = reinterpret_cast<FMoveAroundTargetMemory*>(NodeMemory);
+	Memory->Phase = EMoveAroundTargetPhase::AttackApproach;
 	Memory->ElapsedTime = 0.0f;
 	if (!Enemy->IsStatusFrozen())
 	{
@@ -353,8 +353,8 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::StartAttackWindow(UBehaviorTreeCom
 		return EBTNodeResult::Failed;
 	}
 
-	FPdMoveAroundTargetMemory* Memory = reinterpret_cast<FPdMoveAroundTargetMemory*>(NodeMemory);
-	Memory->Phase = EPdMoveAroundTargetPhase::AttackWindow;
+	FMoveAroundTargetMemory* Memory = reinterpret_cast<FMoveAroundTargetMemory*>(NodeMemory);
+	Memory->Phase = EMoveAroundTargetPhase::AttackWindow;
 	Memory->ElapsedTime = 0.0f;
 	Memory->bAttackAbilityObservedActive = false;
 	Memory->NextComboAttackRequestTime = FMath::Max(ComboAttackRequestInterval, 0.05f);
@@ -373,7 +373,7 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::TickAttackWindow(UBehaviorTreeComp
 		return EBTNodeResult::Failed;
 	}
 
-	FPdMoveAroundTargetMemory* Memory = reinterpret_cast<FPdMoveAroundTargetMemory*>(NodeMemory);
+	FMoveAroundTargetMemory* Memory = reinterpret_cast<FMoveAroundTargetMemory*>(NodeMemory);
 	UpdateFacing(AIController, Enemy, TargetActor, OwnerComp.GetWorld() ? OwnerComp.GetWorld()->GetDeltaSeconds() : 0.0f);
 
 	const bool bAttackAbilityActive = Enemy->IsAttackAbilityActive();
@@ -392,8 +392,7 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::TickAttackWindow(UBehaviorTreeComp
 	if (MaxComboAttackWaitTime > 0.0f && Memory->ElapsedTime >= MaxComboAttackWaitTime)
 	{
 
-
-		RestoreMovementSettings(Pawn, NodeMemory, !bKeepFacingTargetAfterMove);
+RestoreMovementSettings(Pawn, NodeMemory, !bKeepFacingTargetAfterMove);
 		return EBTNodeResult::Succeeded;
 	}
 
@@ -506,7 +505,7 @@ void UBTTask_MoveAroundTarget::ApplyFacingMode(APawn* Pawn, uint8* NodeMemory) c
 		return;
 	}
 
-	FPdMoveAroundTargetMemory* Memory = reinterpret_cast<FPdMoveAroundTargetMemory*>(NodeMemory);
+	FMoveAroundTargetMemory* Memory = reinterpret_cast<FMoveAroundTargetMemory*>(NodeMemory);
 	Memory->bPreviousOrientRotationToMovement = MovementComponent->bOrientRotationToMovement;
 	Memory->bPreviousUseControllerDesiredRotation = MovementComponent->bUseControllerDesiredRotation;
 	Memory->bPreviousUseControllerRotationYaw = Character->bUseControllerRotationYaw;
@@ -556,7 +555,7 @@ void UBTTask_MoveAroundTarget::UpdateFacing(AAIController* AIController, APawn* 
 
 void UBTTask_MoveAroundTarget::RestoreMovementSettings(APawn* Pawn, uint8* NodeMemory, bool bRestoreFacing) const
 {
-	FPdMoveAroundTargetMemory* Memory = reinterpret_cast<FPdMoveAroundTargetMemory*>(NodeMemory);
+	FMoveAroundTargetMemory* Memory = reinterpret_cast<FMoveAroundTargetMemory*>(NodeMemory);
 	if (!Pawn)
 	{
 		return;

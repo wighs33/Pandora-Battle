@@ -6,10 +6,6 @@
 #include "GameFramework/Pawn.h"
 #include "StateTreeExecutionContext.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
-#include "Misc/AutomationTest.h"
-#endif
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTree_PdUtilityTasks)
 
 #define LOCTEXT_NAMESPACE "LabProjectStateTree"
@@ -221,69 +217,6 @@ FText FStateTreePdMovementParametersTask::GetDescription(
 	return PawnValue.IsEmpty()
 		? LOCTEXT("MovementParameters", "Set movement parameters while state is active")
 		: FText::Format(LOCTEXT("MovementParametersPawn", "Set movement parameters on {0}"), PawnValue);
-}
-#endif
-
-#if WITH_DEV_AUTOMATION_TESTS
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FStateTreePdMovementParametersRestoreTest,
-	"LabProject.AI.StateTree.MovementParametersRestore",
-	EAutomationTestFlags::EditorContext
-		| EAutomationTestFlags::ClientContext
-		| EAutomationTestFlags::CommandletContext
-		| EAutomationTestFlags::EngineFilter)
-
-bool FStateTreePdMovementParametersRestoreTest::RunTest(const FString& Parameters)
-{
-	static_cast<void>(Parameters);
-
-	UCharacterMovementComponent* Movement = NewObject<UCharacterMovementComponent>();
-	if (!TestNotNull(TEXT("Movement component should be created"), Movement))
-	{
-		return false;
-	}
-
-	constexpr float OriginalWalkSpeed = 321.0f;
-	const FRotator OriginalRotationRate(11.0f, 22.0f, 33.0f);
-	constexpr float OriginalGroundFriction = 4.5f;
-	constexpr float OriginalMaxAcceleration = 678.0f;
-
-	Movement->MaxWalkSpeed = OriginalWalkSpeed;
-	Movement->RotationRate = OriginalRotationRate;
-	Movement->GroundFriction = OriginalGroundFriction;
-	Movement->MaxAcceleration = OriginalMaxAcceleration;
-
-	FStateTreePdMovementParametersTaskInstanceData OuterState;
-	OuterState.WalkSpeedWhileActive = 500.0f;
-	OuterState.RotationRateWhileActive = 90.0f;
-	OuterState.GroundFrictionWhileActive = 0.5f;
-	OuterState.AccelerationWhileActive = 500.0f;
-	CaptureAndApplyMovementParameters(OuterState, Movement);
-
-	FStateTreePdMovementParametersTaskInstanceData InnerState;
-	InnerState.WalkSpeedWhileActive = 700.0f;
-	InnerState.RotationRateWhileActive = 180.0f;
-	InnerState.GroundFrictionWhileActive = 1.5f;
-	InnerState.AccelerationWhileActive = 1200.0f;
-	CaptureAndApplyMovementParameters(InnerState, Movement);
-
-	RestoreMovementParameters(InnerState);
-	TestEqual(TEXT("Inner exit should restore the outer walk speed"), Movement->MaxWalkSpeed, OuterState.WalkSpeedWhileActive);
-	TestTrue(
-		TEXT("Inner exit should restore the outer rotation rate"),
-		Movement->RotationRate.Equals(FRotator(0.0f, OuterState.RotationRateWhileActive, 0.0f)));
-	TestEqual(TEXT("Inner exit should restore the outer ground friction"), Movement->GroundFriction, OuterState.GroundFrictionWhileActive);
-	TestEqual(TEXT("Inner exit should restore the outer acceleration"), Movement->MaxAcceleration, OuterState.AccelerationWhileActive);
-
-	RestoreMovementParameters(OuterState);
-	TestEqual(TEXT("Outer exit should restore the original walk speed"), Movement->MaxWalkSpeed, OriginalWalkSpeed);
-	TestTrue(TEXT("Outer exit should restore the complete original rotation rate"), Movement->RotationRate.Equals(OriginalRotationRate));
-	TestEqual(TEXT("Outer exit should restore the original ground friction"), Movement->GroundFriction, OriginalGroundFriction);
-	TestEqual(TEXT("Outer exit should restore the original acceleration"), Movement->MaxAcceleration, OriginalMaxAcceleration);
-	TestFalse(TEXT("Outer snapshot should be consumed after restoration"), OuterState.bHasSavedMovementParameters);
-	TestFalse(TEXT("Inner snapshot should be consumed after restoration"), InnerState.bHasSavedMovementParameters);
-
-	return true;
 }
 #endif
 

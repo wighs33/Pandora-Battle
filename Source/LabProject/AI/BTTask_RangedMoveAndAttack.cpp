@@ -10,18 +10,18 @@
 
 namespace
 {
-	enum class EPdRangedMoveAndAttackPhase : uint8
+	enum class ERangedMoveAndAttackPhase : uint8
 	{
 		Move
 	};
 
-	struct FPdRangedMoveAndAttackMemory
+	struct FRangedMoveAndAttackMemory
 	{
 		FVector Destination = FVector::ZeroVector;
 		float ElapsedTime = 0.0f;
 		float NextAttackRequestTime = 0.0f;
 		float NextRetreatMoveRequestTime = 0.0f;
-		EPdRangedMoveAndAttackPhase Phase = EPdRangedMoveAndAttackPhase::Move;
+		ERangedMoveAndAttackPhase Phase = ERangedMoveAndAttackPhase::Move;
 		uint8 bRetreating : 1;
 	};
 }
@@ -37,7 +37,7 @@ UBTTask_RangedMoveAndAttack::UBTTask_RangedMoveAndAttack()
 
 uint16 UBTTask_RangedMoveAndAttack::GetInstanceMemorySize() const
 {
-	return sizeof(FPdRangedMoveAndAttackMemory);
+	return sizeof(FRangedMoveAndAttackMemory);
 }
 
 FString UBTTask_RangedMoveAndAttack::GetStaticDescription() const
@@ -57,8 +57,8 @@ FString UBTTask_RangedMoveAndAttack::GetStaticDescription() const
 
 EBTNodeResult::Type UBTTask_RangedMoveAndAttack::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	FPdRangedMoveAndAttackMemory* Memory = reinterpret_cast<FPdRangedMoveAndAttackMemory*>(NodeMemory);
-	*Memory = FPdRangedMoveAndAttackMemory();
+	FRangedMoveAndAttackMemory* Memory = reinterpret_cast<FRangedMoveAndAttackMemory*>(NodeMemory);
+	*Memory = FRangedMoveAndAttackMemory();
 
 	AAIController* AIController = OwnerComp.GetAIOwner();
 	APawn* Pawn = AIController ? AIController->GetPawn() : nullptr;
@@ -86,7 +86,7 @@ EBTNodeResult::Type UBTTask_RangedMoveAndAttack::ExecuteTask(UBehaviorTreeCompon
 
 void UBTTask_RangedMoveAndAttack::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	FPdRangedMoveAndAttackMemory* Memory = reinterpret_cast<FPdRangedMoveAndAttackMemory*>(NodeMemory);
+	FRangedMoveAndAttackMemory* Memory = reinterpret_cast<FRangedMoveAndAttackMemory*>(NodeMemory);
 
 	AAIController* AIController = OwnerComp.GetAIOwner();
 	APawn* Pawn = AIController ? AIController->GetPawn() : nullptr;
@@ -129,11 +129,11 @@ EBTNodeResult::Type UBTTask_RangedMoveAndAttack::RequestMove(UBehaviorTreeCompon
 		return EBTNodeResult::Failed;
 	}
 
-	FPdRangedMoveAndAttackMemory* Memory = reinterpret_cast<FPdRangedMoveAndAttackMemory*>(NodeMemory);
+	FRangedMoveAndAttackMemory* Memory = reinterpret_cast<FRangedMoveAndAttackMemory*>(NodeMemory);
 	Memory->ElapsedTime = 0.0f;
 	Memory->NextAttackRequestTime = 0.0f;
 	Memory->NextRetreatMoveRequestTime = FMath::Max(RetreatRepathInterval, 0.05f);
-	Memory->Phase = EPdRangedMoveAndAttackPhase::Move;
+	Memory->Phase = ERangedMoveAndAttackPhase::Move;
 	Memory->bRetreating = false;
 
 	FVector Destination = FVector::ZeroVector;
@@ -188,7 +188,7 @@ EBTNodeResult::Type UBTTask_RangedMoveAndAttack::TickMove(UBehaviorTreeComponent
 		return EBTNodeResult::Failed;
 	}
 
-	FPdRangedMoveAndAttackMemory* Memory = reinterpret_cast<FPdRangedMoveAndAttackMemory*>(NodeMemory);
+	FRangedMoveAndAttackMemory* Memory = reinterpret_cast<FRangedMoveAndAttackMemory*>(NodeMemory);
 	const float DistanceToTarget = Enemy->GetAttackDistanceToActor(TargetActor);
 	if (DistanceToTarget <= RetreatDistance && Memory->ElapsedTime >= Memory->NextRetreatMoveRequestTime)
 	{
@@ -232,7 +232,7 @@ bool UBTTask_RangedMoveAndAttack::RequestRetreatMove(UBehaviorTreeComponent& Own
 		return false;
 	}
 
-	FPdRangedMoveAndAttackMemory* Memory = reinterpret_cast<FPdRangedMoveAndAttackMemory*>(NodeMemory);
+	FRangedMoveAndAttackMemory* Memory = reinterpret_cast<FRangedMoveAndAttackMemory*>(NodeMemory);
 	FVector RetreatDestination = FVector::ZeroVector;
 	if (!BuildRetreatDestination(Pawn, TargetActor, RetreatDestination))
 	{

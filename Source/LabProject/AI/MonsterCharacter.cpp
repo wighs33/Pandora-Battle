@@ -3,6 +3,7 @@
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
+#include "Component/Item/InventoryComponent.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
@@ -15,17 +16,15 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerState.h"
 #include "GameplayEffect.h"
-#include "Definition/Character/CharacterBaseDefinition.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/Item/RewardDefinition.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
-#include "Logging/PdLogRateLimiter.h"
+#include "Logging/LogRateLimiter.h"
 #include "Mode/PdPlayerState.h"
 #include "Component/Player/LevelingComponent.h"
 #include "Component/Player/PlayerNotificationComponent.h"
-#include "UObject/ConstructorHelpers.h"
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
 #endif
@@ -37,17 +36,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogMonsterReward, Log, All);
 namespace
 {
 	constexpr double MissingMonsterRewardLogIntervalSeconds = 30.0;
-	FPdLogRateLimiter MissingMonsterRewardLogLimiter;
+	FLogRateLimiter MissingMonsterRewardLogLimiter;
 }
 
 AMonsterCharacter::AMonsterCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	CharacterDefinition =
-		TSoftObjectPtr<UCharacterBaseDefinition>(
-			UCharacterBaseDefinition::
-				GetDefaultDefinitionPath());
-
 	bReplicates = true;
 	SetReplicateMovement(true);
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
@@ -60,27 +54,18 @@ AMonsterCharacter::AMonsterCharacter(const FObjectInitializer& ObjectInitializer
 	bEnableTrainingBotHitReaction = false;
 
 	ContactDamageDataTag = LabGameplayTags::Data_Damage;
+}
 
-	static ConstructorHelpers::FClassFinder<UGameplayEffect> IncomingDamageEffectFinder(
-		TEXT("/Game/GAS/Effect/GE_IncomingDamage"));
-	if (IncomingDamageEffectFinder.Succeeded())
-	{
-		ContactDamageEffectClass = IncomingDamageEffectFinder.Class;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UAnimMontage> DeathMontageFinder(
-		TEXT("/Game/StackOBot/Characters/Blobling/Anim/AM_Baddy_Death"));
-	if (DeathMontageFinder.Succeeded())
-	{
-		DeathMontage = DeathMontageFinder.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UAnimMontage> HitReactMontageFinder(
-		TEXT("/Game/StackOBot/Characters/Blobling/Anim/AM_Baddy_Hit"));
-	if (HitReactMontageFinder.Succeeded())
-	{
-		MonsterHitReactMontage = HitReactMontageFinder.Object;
-	}
+void AMonsterCharacter::ApplyResolvedEnemyDefinition(
+	const UEnemyBaseDefinition* ResolvedDefinition)
+{
+	Super::ApplyResolvedEnemyDefinition(ResolvedDefinition);
+	MonsterPresentationSettings = ResolvedDefinition
+		? ResolvedDefinition->GetMonsterPresentationSettings()
+		: FMonsterPresentationSettings();
+	ResolvedMonsterMaxHealth = ResolvedDefinition
+		? ResolvedDefinition->GetMonsterMaxHealth()
+		: 0.0f;
 }
 
 void AMonsterCharacter::ModifyResolvedEnemySettings(
@@ -99,6 +84,12 @@ void AMonsterCharacter::ModifyResolvedEnemySettings(
 	TrainingBotSettings.bEnableHitReaction = false;
 }
 
+void AMonsterCharacter::HandleCharacterRuntimeInitialized()
+{
+	Super::HandleCharacterRuntimeInitialized();
+	ApplyMonsterHealthDefaults();
+}
+
 #if WITH_EDITOR
 EDataValidationResult AMonsterCharacter::IsDataValid(FDataValidationContext& Context) const
 {
@@ -106,6 +97,24 @@ EDataValidationResult AMonsterCharacter::IsDataValid(FDataValidationContext& Con
 	if (Result == EDataValidationResult::NotValidated)
 	{
 		Result = EDataValidationResult::Valid;
+	}
+
+	const UEnemyBaseDefinition* ResolvedEnemyDefinition =
+		EnemyDefinition.LoadSynchronous();
+	const FMonsterPresentationSettings* PresentationSettings =
+		ResolvedEnemyDefinition
+			? &ResolvedEnemyDefinition->GetMonsterPresentationSettings()
+			: nullptr;
+	if (!PresentationSettings
+		|| !PresentationSettings->ContactDamageEffectClass
+		|| !PresentationSettings->HitReactMontage
+		|| !PresentationSettings->DeathMontage)
+	{
+		Context.AddError(FText::FromString(
+			FString::Printf(
+				TEXT("%s requires a complete MonsterPresentation configuration in EnemyDefinition."),
+				*GetPathName())));
+		Result = EDataValidationResult::Invalid;
 	}
 
 	if (MonsterRewardDefinition.IsNull())
@@ -180,8 +189,6 @@ void AMonsterCharacter::PossessedBy(AController* NewController)
 	{
 		InitializeBehaviorTreeCombat();
 	}
-
-	ApplyMonsterHealthDefaults();
 }
 
 void AMonsterCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -227,7 +234,7 @@ void AMonsterCharacter::ApplyMonsterHealthDefaults()
 		return;
 	}
 
-	const float ClampedMaxHealth = FMath::Max(MonsterMaxHealth, 1.0f);
+	const float ClampedMaxHealth = FMath::Max(ResolvedMonsterMaxHealth, 1.0f);
 	AbilitySystemComponent->ApplyAttributeDefaultValue(
 		UBasicAttributeSet::GetMaxHealthAttribute(),
 		ClampedMaxHealth);
@@ -249,10 +256,6 @@ void AMonsterCharacter::BeginMonsterContentPreload()
 	if (!MonsterAttackMontage.IsNull())
 	{
 		AssetPaths.Add(MonsterAttackMontage.ToSoftObjectPath());
-	}
-	if (!MonsterHitReactMontage.IsNull())
-	{
-		AssetPaths.Add(MonsterHitReactMontage.ToSoftObjectPath());
 	}
 	if (!MonsterRewardDefinition.IsNull())
 	{
@@ -310,16 +313,6 @@ void AMonsterCharacter::HandleMonsterContentPreloadComplete()
 			*MonsterAttackMontage.ToString(),
 			*GetPathName());
 	}
-	if (!MonsterHitReactMontage.IsNull() && !MonsterHitReactMontage.Get())
-	{
-		UE_LOG(
-			LogMonsterReward,
-			Error,
-			TEXT("Monster hit-react montage '%s' did not resolve after preload for '%s'."),
-			*MonsterHitReactMontage.ToString(),
-			*GetPathName());
-	}
-
 	const bool bShouldRetryAttack = bAttackRequestedWhileContentLoading;
 	bAttackRequestedWhileContentLoading = false;
 	if (bShouldRetryAttack && HasAuthority() && !bDying)
@@ -381,7 +374,7 @@ UAnimMontage* AMonsterCharacter::ResolveMonsterAttackMontage() const
 
 UAnimMontage* AMonsterCharacter::ResolveMonsterHitReactMontage() const
 {
-	return MonsterHitReactMontage.Get();
+	return MonsterPresentationSettings.HitReactMontage;
 }
 
 bool AMonsterCharacter::TryPlayMonsterAttackMontage()
@@ -468,7 +461,9 @@ void AMonsterCharacter::TryPlayMonsterHitReactMontage(const float DamageAmount, 
 		return;
 	}
 
-	MulticastPlayMonsterHitReactMontage(HitReactMontage, MonsterHitReactPlayRate);
+	MulticastPlayMonsterHitReactMontage(
+		HitReactMontage,
+		MonsterPresentationSettings.HitReactPlayRate);
 }
 
 void AMonsterCharacter::HandleAttackComponentBeginOverlap(
@@ -563,7 +558,7 @@ bool AMonsterCharacter::ApplyMonsterDamageToCharacter(
 {
 	if (!HasAuthority()
 		|| !IsValid(TargetCharacter)
-		|| !ContactDamageEffectClass
+		|| !MonsterPresentationSettings.ContactDamageEffectClass
 		|| DamageMagnitude <= 0.0f)
 	{
 		return false;
@@ -581,7 +576,7 @@ bool AMonsterCharacter::ApplyMonsterDamageToCharacter(
 	EffectContext.AddSourceObject(this);
 
 	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(
-		ContactDamageEffectClass,
+		MonsterPresentationSettings.ContactDamageEffectClass,
 		1.0f,
 		EffectContext);
 	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
@@ -717,7 +712,8 @@ void AMonsterCharacter::BeginMonsterDeath()
 
 	if (HasAuthority())
 	{
-		MulticastPlayMonsterDeathPresentation();
+		MulticastPlayMonsterDeathPresentation(
+			MonsterPresentationSettings.DeathMontage);
 
 		GetWorldTimerManager().SetTimer(
 			DeathDestroyTimerHandle,
@@ -906,6 +902,18 @@ void AMonsterCharacter::GrantDefeatRewards()
 		}
 	}
 
+	TArray<FPrimaryAssetId> GrantedPotionDefinitionIds;
+	const FPrimaryAssetId PotionDefinitionId =
+		RewardDefinition->RollMonsterDefeatPotionReward();
+	if (PotionDefinitionId.IsValid())
+	{
+		if (UInventoryComponent* InventoryComponent = RewardPlayerState->GetInventoryComponent())
+		{
+			GrantedPotionDefinitionIds.Add(PotionDefinitionId);
+			InventoryComponent->AddItemsByPrimaryAssetIds(GrantedPotionDefinitionIds);
+		}
+	}
+
 	UPlayerNotificationComponent* NotificationComponent = RewardPlayerState->GetPlayerNotificationComponent();
 	if (!NotificationComponent)
 	{
@@ -924,6 +932,14 @@ void AMonsterCharacter::GrantDefeatRewards()
 		NotificationComponent->SendSoulDustRewardNotification(
 			GrantedSoulDust,
 			RewardDefinition->Notification.SoulDustIcon);
+	}
+
+	if (!GrantedPotionDefinitionIds.IsEmpty())
+	{
+		NotificationComponent->SendRewardNotifications(
+			GrantedPotionDefinitionIds,
+			{},
+			{});
 	}
 }
 
@@ -947,10 +963,11 @@ void AMonsterCharacter::MulticastPlayMonsterHitReactMontage_Implementation(UAnim
 	PlayAnimMontage(HitReactMontage, FMath::Max(PlayRate, 0.01f));
 }
 
-void AMonsterCharacter::MulticastPlayMonsterDeathPresentation_Implementation()
+void AMonsterCharacter::MulticastPlayMonsterDeathPresentation_Implementation(
+	UAnimMontage* InDeathMontage)
 {
-	if (DeathMontage)
+	if (InDeathMontage)
 	{
-		PlayAnimMontage(DeathMontage);
+		PlayAnimMontage(InDeathMontage);
 	}
 }

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Character/EnemyBase.h"
+#include "Definition/Character/EnemyBaseDefinition.h"
 #include "GameplayTagContainer.h"
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -10,7 +11,6 @@
 
 class UAnimMontage;
 struct FStreamableHandle;
-class UGameplayEffect;
 class UPrimitiveComponent;
 class URewardDefinition;
 class APdPlayerState;
@@ -41,6 +41,9 @@ public:
 #endif
 
 protected:
+	virtual void HandleCharacterRuntimeInitialized() override;
+	virtual void ApplyResolvedEnemyDefinition(
+		const UEnemyBaseDefinition* ResolvedDefinition) override;
 	virtual void ModifyResolvedEnemySettings(
 		FEnemyCombatSettings& CombatSettings,
 		FEnemyTrainingBotSettings& TrainingBotSettings) const override;
@@ -80,14 +83,14 @@ protected:
 	const URewardDefinition* GetMonsterRewardDefinition() const;
 	void GrantDefeatRewards();
 
-	UFUNCTION(NetMulticast, Reliable)
+	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPlayMonsterAttackMontage(UAnimMontage* AttackMontage, float PlayRate);
 
-	UFUNCTION(NetMulticast, Reliable)
+	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPlayMonsterHitReactMontage(UAnimMontage* HitReactMontage, float PlayRate);
 
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastPlayMonsterDeathPresentation();
+	void MulticastPlayMonsterDeathPresentation(UAnimMontage* InDeathMontage);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!AI|Monster|Collision")
 	FName DamageComponentName = TEXT("DamageSphere");
@@ -98,14 +101,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Damage", meta = (ClampMin = "0.0"))
 	float AttackDamageMagnitude = 10.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Stats", meta = (ClampMin = "1.0"))
-	float MonsterMaxHealth = 50.0f;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Damage", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float AttackSphereActiveDuration = 0.35f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Damage")
-	TSubclassOf<UGameplayEffect> ContactDamageEffectClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Damage", meta = (Categories = "Data"))
 	FGameplayTag ContactDamageDataTag;
@@ -113,14 +110,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Animation", meta = (AssetBundles = "Server"))
 	TSoftObjectPtr<UAnimMontage> MonsterAttackMontage;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Animation", meta = (AssetBundles = "Server"))
-	TSoftObjectPtr<UAnimMontage> MonsterHitReactMontage;
+	UPROPERTY(Transient)
+	FMonsterPresentationSettings MonsterPresentationSettings;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Animation", meta = (ClampMin = "0.0"))
-	float MonsterHitReactPlayRate = 1.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Animation")
-	TObjectPtr<UAnimMontage> DeathMontage;
+	UPROPERTY(Transient)
+	float ResolvedMonsterMaxHealth = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Reward",
 		meta = (ToolTip = "Required. The single source for this monster's defeat experience and Soul Dust rewards."))

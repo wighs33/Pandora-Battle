@@ -45,8 +45,6 @@ public:
 		const AActor* ExcludedActor = nullptr,
 		APawn* NewlySensedPawn = nullptr);
 
-	void ForgetAllPerceivedActors();
-
 	/** Forgets only when the current target has moved beyond the sight retention radius. */
 	bool ForgetPerceivedPlayerIfOutOfRange();
 

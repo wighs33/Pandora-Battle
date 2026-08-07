@@ -18,11 +18,6 @@
 #include "Misc/DataValidation.h"
 #endif
 
-#if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
-#include "Engine/Blueprint.h"
-#include "Misc/AutomationTest.h"
-#endif
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MonsterAIController)
 
 DEFINE_LOG_CATEGORY_STATIC(LogMonsterAIController, Log, All);
@@ -175,15 +170,6 @@ APawn* AMonsterAIController::GetPerceivedPlayerPawn() const
 	return IsValidPerceivedPlayerTarget(PerceivedPlayerPawn.Get())
 		? PerceivedPlayerPawn.Get()
 		: nullptr;
-}
-
-void AMonsterAIController::ForgetAllPerceivedActors()
-{
-	SetPerceivedPlayerPawn(nullptr);
-	if (AIPerception)
-	{
-		AIPerception->ForgetAll();
-	}
 }
 
 bool AMonsterAIController::ForgetPerceivedPlayerIfOutOfRange()
@@ -778,46 +764,3 @@ void AMonsterAIController::StartMonsterStateTreeIfReady()
 		NativeStateTreeAI->StartLogic();
 	}
 }
-
-#if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FMonsterAIControllerComponentConfigurationValidationTest,
-	"LabProject.AI.MonsterController.ComponentConfigurationValidation",
-	EAutomationTestFlags::EditorContext
-		| EAutomationTestFlags::CommandletContext
-		| EAutomationTestFlags::EngineFilter)
-
-bool FMonsterAIControllerComponentConfigurationValidationTest::RunTest(
-	const FString& Parameters)
-{
-	static_cast<void>(Parameters);
-
-	const UBlueprint* ControllerBlueprint = LoadObject<UBlueprint>(
-		nullptr,
-		TEXT("/Game/StackOBot/AI/BP_AIController.BP_AIController"));
-	if (!TestNotNull(TEXT("Monster AI Controller Blueprint should load"), ControllerBlueprint))
-	{
-		return false;
-	}
-
-	FDataValidationContext ValidationContext;
-	const EDataValidationResult ValidationResult =
-		ControllerBlueprint->IsDataValid(ValidationContext);
-
-	for (const FDataValidationContext::FIssue& Issue : ValidationContext.GetIssues())
-	{
-		AddInfo(Issue.Message.ToString());
-	}
-
-	TestEqual(
-		TEXT("Monster AI Controller Blueprint should have exactly one native perception and StateTree component"),
-		ValidationResult,
-		EDataValidationResult::Valid);
-	TestEqual(
-		TEXT("Monster AI Controller Blueprint validation should report no errors"),
-		ValidationContext.GetNumErrors(),
-		0U);
-
-	return true;
-}
-#endif

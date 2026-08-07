@@ -24,19 +24,19 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/** Monster spawned by this spawner. BP_Bug is the project default. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (DisplayName = "Bug Class"))
+	/** Optional per-spawner override. When empty, DA_EnemyBase supplies the default monster class. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (DisplayName = "Monster Class"))
 	TSubclassOf<AMonsterCharacter> MonsterClass;
 
 	/** Delay before replacing a destroyed monster. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (ClampMin = "0.0", Units = "s"))
 	float RespawnCooldown = 5.0f;
 
-	/** Value forwarded to the BP_Bug expose-on-spawn leash setting. */
+	/** Value forwarded to the spawned monster's expose-on-spawn leash setting. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (ClampMin = "0.0", Units = "cm"))
 	double MaxLeashDistanceFromSpawnPoint = 3000.0;
 
-	/** Value forwarded to the BP_Bug expose-on-spawn roaming setting. */
+	/** Value forwarded to the spawned monster's expose-on-spawn roaming setting. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (ClampMin = "0.0", Units = "cm"))
 	double MinLeashDistanceFromSpawnPointToResumeRoaming = 500.0;
 

@@ -1,10 +1,11 @@
 #include "AI/ServerOnlyMonsterSpawner.h"
 
 #include "AI/MonsterCharacter.h"
+#include "Definition/Character/EnemyBaseDefinition.h"
+#include "Engine/AssetManager.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
-#include "UObject/ConstructorHelpers.h"
 #include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ServerOnlyMonsterSpawner)
@@ -77,12 +78,6 @@ AServerOnlyMonsterSpawner::AServerOnlyMonsterSpawner()
 	bNetLoadOnClient = false;
 	SetReplicateMovement(false);
 
-	static ConstructorHelpers::FClassFinder<AMonsterCharacter> DefaultMonsterClass(
-		TEXT("/Game/StackOBot/AI/BP_Bug"));
-	if (DefaultMonsterClass.Succeeded())
-	{
-		MonsterClass = DefaultMonsterClass.Class;
-	}
 }
 
 void AServerOnlyMonsterSpawner::BeginPlay()
@@ -101,6 +96,27 @@ void AServerOnlyMonsterSpawner::BeginPlay()
 	}
 
 	Super::BeginPlay();
+	if (!MonsterClass)
+	{
+		UAssetManager& AssetManager = UAssetManager::Get();
+		const FPrimaryAssetId DefinitionId =
+			UEnemyBaseDefinition::GetDefaultPrimaryAssetId();
+		UEnemyBaseDefinition* EnemyDefinition =
+			AssetManager.GetPrimaryAssetObject<UEnemyBaseDefinition>(DefinitionId);
+		if (!EnemyDefinition)
+		{
+			const FSoftObjectPath DefinitionPath =
+				AssetManager.GetPrimaryAssetPath(DefinitionId);
+			EnemyDefinition =
+				Cast<UEnemyBaseDefinition>(DefinitionPath.TryLoad());
+		}
+
+		if (EnemyDefinition)
+		{
+			MonsterClass = EnemyDefinition->GetCombatSettings()
+				.DefaultMonsterClass.LoadSynchronous();
+		}
+	}
 	SpawnMonster();
 }
 
