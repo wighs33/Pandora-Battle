@@ -1,16 +1,17 @@
 #include "Mode/PdPlayerController.h"
 
 #include "Component/Chat/ChatControllerComponent.h"
-#include "Component/Player/ControllerDebugGrantComponent.h"
 #include "Component/Player/ControllerInputComponent.h"
 #include "Component/Player/ControllerPresentationComponent.h"
 #include "Component/Player/ControllerProfileSyncComponent.h"
 #include "Component/Player/ControllerSessionComponent.h"
 #include "Components/GameFrameworkComponentManager.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Definition/Player/PlayerControllerDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
+#include "GameFramework/PawnMovementComponent.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayerController)
@@ -30,8 +31,6 @@ APdPlayerController::APdPlayerController(const FObjectInitializer& ObjectInitial
 		CreateDefaultSubobject<UControllerProfileSyncComponent>(TEXT("ControllerProfileSyncComponent"));
 	ControllerSessionComponent =
 		CreateDefaultSubobject<UControllerSessionComponent>(TEXT("ControllerSessionComponent"));
-	ControllerDebugGrantComponent =
-		CreateDefaultSubobject<UControllerDebugGrantComponent>(TEXT("ControllerDebugGrantComponent"));
 	PlayerControllerDefinition = TSoftObjectPtr<UPlayerControllerDefinition>(
 		UPlayerControllerDefinition::GetDefaultDefinitionPath());
 }
@@ -88,18 +87,6 @@ void APdPlayerController::SetupInputComponent()
 	if (ControllerInputComponent)
 	{
 		ControllerInputComponent->RefreshInputDefinition();
-	}
-
-	if (InputComponent)
-	{
-		if (ChatControllerComponent)
-		{
-			ChatControllerComponent->BindInput(*InputComponent);
-		}
-		if (ControllerPresentationComponent)
-		{
-			ControllerPresentationComponent->BindInput(*InputComponent);
-		}
 	}
 }
 
@@ -189,6 +176,16 @@ void APdPlayerController::Client_TravelToTitleWithGameResult_Implementation(
 	}
 }
 
+void APdPlayerController::Client_TravelToTitleWithoutGameResult_Implementation(
+	const FString& TitleMapName)
+{
+	if (ControllerSessionComponent)
+	{
+		ControllerSessionComponent->TravelToTitleWithoutGameResult(
+			TitleMapName);
+	}
+}
+
 void APdPlayerController::Client_StartRespawnDelayCountdown_Implementation(
 	const float DelaySeconds)
 {
@@ -215,12 +212,38 @@ void APdPlayerController::Client_ResetRespawnedPawnStateAtTransform_Implementati
 	}
 }
 
+void APdPlayerController::Client_ApplyPortalTeleport_Implementation(
+	const FVector& TargetLocation,
+	const FRotator& TargetRotation,
+	const FVector& TargetVelocity,
+	const FRotator& TargetControlRotation)
+{
+	APawn* ControlledPawn = GetPawn();
+	if (!IsValid(ControlledPawn))
+	{
+		return;
+	}
+
+	ControlledPawn->TeleportTo(TargetLocation, TargetRotation, false, true);
+	SetControlRotation(TargetControlRotation);
+
+	if (UPawnMovementComponent* MovementComponent = ControlledPawn->GetMovementComponent())
+	{
+		MovementComponent->Velocity = TargetVelocity;
+	}
+}
+
 void APdPlayerController::RequestLocalCosmeticProfileSync()
 {
 	if (ControllerProfileSyncComponent)
 	{
 		ControllerProfileSyncComponent->ScheduleLocalCosmeticProfileSync();
 	}
+}
+
+void APdPlayerController::Client_RequestLocalCosmeticProfileSync_Implementation()
+{
+	RequestLocalCosmeticProfileSync();
 }
 
 void APdPlayerController::Server_SubmitLocalCosmeticProfile_Implementation(
@@ -240,36 +263,10 @@ UControllerInputDefinition* APdPlayerController::GetLoadedInputDefinition() cons
 		: nullptr;
 }
 
-void APdPlayerController::RequestDebugGrantTestResources()
-{
-	if (ControllerDebugGrantComponent)
-	{
-		ControllerDebugGrantComponent->RequestGrantTestResources();
-	}
-}
-
 bool APdPlayerController::RequestExitMatchToTitle()
 {
 	return ControllerSessionComponent
 		&& ControllerSessionComponent->RequestExitMatchToTitle();
-}
-
-void APdPlayerController::Server_GrantDebugTestResources_Implementation()
-{
-#if !UE_BUILD_SHIPPING
-	if (ControllerDebugGrantComponent)
-	{
-		ControllerDebugGrantComponent->GrantTestResourcesOnServer();
-	}
-#endif
-}
-
-void APdPlayerController::Server_RequestExitMatchToTitle_Implementation()
-{
-	if (ControllerSessionComponent)
-	{
-		ControllerSessionComponent->HandleServerRequestExitMatchToTitle();
-	}
 }
 
 void APdPlayerController::ApplyControllerDefinition()
@@ -284,16 +281,6 @@ void APdPlayerController::ApplyControllerDefinition()
 	{
 		ControllerPresentationComponent->ApplySettings(
 			Definition->GetPresentationSettings());
-	}
-	if (ControllerProfileSyncComponent)
-	{
-		ControllerProfileSyncComponent->ApplySettings(
-			Definition->GetProfileSyncSettings());
-	}
-	if (ControllerDebugGrantComponent)
-	{
-		ControllerDebugGrantComponent->ApplySettings(
-			Definition->GetDebugGrantSettings());
 	}
 }
 
@@ -372,25 +359,7 @@ void APdPlayerController::HandleControllerDefinitionPreloaded(
 	}
 
 	ApplyControllerDefinition();
-	if (IsLocalController() && ControllerInputComponent)
-	{
-		const TSoftObjectPtr<UControllerInputDefinition>& DesiredInputDefinition =
-			LoadedPlayerControllerDefinition->GetInputSettings().DefaultInputDefinition;
-		const TSoftObjectPtr<UControllerInputDefinition>& NativeInputDefinition =
-			GetDefault<UPlayerControllerDefinition>()->GetInputSettings().DefaultInputDefinition;
-		const TSoftObjectPtr<UControllerInputDefinition>& ActiveInputDefinition =
-			ControllerInputComponent->GetInputDefinition();
-		if (!DesiredInputDefinition.IsNull()
-			&& (ActiveInputDefinition.IsNull()
-				|| ActiveInputDefinition == NativeInputDefinition))
-		{
-			ControllerInputComponent->SetInputDefinition(DesiredInputDefinition);
-		}
-		else
-		{
-			ControllerInputComponent->RefreshInputDefinition();
-		}
-	}
+	ApplyDefaultInputDefinitionIfMissing();
 }
 
 void APdPlayerController::ReleaseControllerDefinitionPreload()
@@ -417,14 +386,9 @@ void APdPlayerController::ApplyDefaultInputDefinitionIfMissing()
 		return;
 	}
 
-	const UPlayerControllerDefinition* Definition = LoadControllerDefinition();
-	if (!Definition)
-	{
-		return;
-	}
-
-	const TSoftObjectPtr<UControllerInputDefinition>& DefaultInputDefinition =
-		Definition->GetInputSettings().DefaultInputDefinition;
+	const TSoftObjectPtr<UControllerInputDefinition> DefaultInputDefinition =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+			.ControllerInput;
 	if (!DefaultInputDefinition.IsNull())
 	{
 		ControllerInputComponent->SetInputDefinition(DefaultInputDefinition);

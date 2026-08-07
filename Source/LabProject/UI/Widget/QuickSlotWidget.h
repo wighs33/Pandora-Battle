@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Layout/Margin.h"
 #include "QuickSlotWidget.generated.h"
 
 class UInventoryComponent;
@@ -44,16 +43,12 @@ private:
 	TSubclassOf<UQuickSlotEntryWidget> ResolveEntryWidgetClass() const;
 	const USkinDefinition* ResolveGestureSlotSkinDefinition(const USkinEquipmentComponent* SkinEquipmentComponent, int32 QuickSlotIndex) const;
 	int32 ResolveSlotCount() const;
-	FMargin ResolveSlotPadding() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|QuickSlot|Classes", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UQuickSlotEntryWidget> EntryWidgetClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|QuickSlot", meta = (AllowPrivateAccess = "true", ClampMin = "1"))
 	int32 SlotCount = 8;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|QuickSlot", meta = (AllowPrivateAccess = "true"))
-	FMargin SlotPadding = FMargin(5.0f);
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UUniformGridPanel> UniformGridPanel;

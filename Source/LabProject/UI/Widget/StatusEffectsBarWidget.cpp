@@ -3,11 +3,13 @@
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
-#include "Definition/Settings/GameSettingDefinition.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Engine/GameInstance.h"
-#include "Settings/GameSettingsSubsystem.h"
+#include "Engine/StreamableManager.h"
 #include "UI/Widget/StatusEffectWidget.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UObject/UnrealType.h"
@@ -101,14 +103,22 @@ void UStatusEffectsBarWidget::BeginStatusEffectContentPreload()
 	const int32 PreloadGeneration = ++ContentPreloadGeneration;
 
 	UGameInstance* GameInstance = GetGameInstance();
-	UGameSettingsSubsystem* SettingsSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UGameSettingsSubsystem>() : nullptr;
-	if (!SettingsSubsystem)
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
 		return;
 	}
 
-	SettingsSubsystem->PreloadRuntimeContentAsync(
+	TArray<FSoftObjectPath> StatusEffectPaths;
+	for (const TSoftObjectPtr<UStatusEffectDefinition>& StatusEffect :
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().StatusEffects)
+	{
+		StatusEffectPaths.Add(StatusEffect.ToSoftObjectPath());
+	}
+
+	StatusEffectContentPreloadHandle = ContentSubsystem->PreloadSoftObjectPathsAsync(
+		StatusEffectPaths,
 		FSimpleDelegate::CreateWeakLambda(
 			this,
 			[this, PreloadGeneration]()
@@ -127,6 +137,12 @@ void UStatusEffectsBarWidget::BeginStatusEffectContentPreload()
 void UStatusEffectsBarWidget::ReleaseStatusEffectContentPreload()
 {
 	++ContentPreloadGeneration;
+	if (StatusEffectContentPreloadHandle.IsValid())
+	{
+		StatusEffectContentPreloadHandle->CancelHandle();
+		StatusEffectContentPreloadHandle->ReleaseHandle();
+		StatusEffectContentPreloadHandle.Reset();
+	}
 }
 
 void UStatusEffectsBarWidget::SetOwnerActor(AActor* InOwnerActor)
@@ -145,6 +161,7 @@ void UStatusEffectsBarWidget::SetOwnerActor(AActor* InOwnerActor)
 		HorizontalBox->ClearChildren();
 	}
 
+	UnbindStatusEffectTagDelegates();
 	OwnerActor = InOwnerActor;
 	BindRetryCount = 0;
 
@@ -154,25 +171,41 @@ void UStatusEffectsBarWidget::SetOwnerActor(AActor* InOwnerActor)
 	}
 }
 
+void UStatusEffectsBarWidget::CenterHorizontalBox()
+{
+	UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(Slot);
+	if (!CanvasSlot)
+	{
+		return;
+	}
+
+	FAnchorData Layout = CanvasSlot->GetLayout();
+	const float Width = CanvasSlot->GetSize().X;
+	Layout.Anchors.Minimum.X = 0.5f;
+	Layout.Anchors.Maximum.X = 0.5f;
+	Layout.Alignment.X = 0.5f;
+	Layout.Offsets.Left = 0.0f;
+	Layout.Offsets.Right = Width;
+	CanvasSlot->SetLayout(Layout);
+}
+
 void UStatusEffectsBarWidget::ApplyWidgetDefinitionSettings()
 {
 	InvalidateObservedStatusEffectDataAssetCache();
 
 	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
 	{
-		const FStatusEffectsBarWidgetSettings& Settings = WidgetDefinition->GetStatusEffectsBarWidgetSettings();
 		if (const TSubclassOf<UStatusEffectWidget> ResolvedStatusEffectWidgetClass =
 			WidgetDefinition->GetStatusEffectWidgetClass())
 		{
 			StatusEffectWidgetClass = TSubclassOf<UUserWidget>(ResolvedStatusEffectWidgetClass.Get());
 		}
-		StatusEffectWidgetPadding = Settings.StatusEffectWidgetPadding;
 	}
 }
 
 void UStatusEffectsBarWidget::TryAddStatusEffectWidget(UStatusEffectDefinition* DataAsset)
 {
-	if (!HorizontalBox || !DataAsset || AlreadyDisplayingStatusEffect(DataAsset->DebuffTag))
+	if (!HorizontalBox || !DataAsset)
 	{
 		return;
 	}
@@ -194,36 +227,7 @@ void UStatusEffectsBarWidget::TryAddStatusEffectWidget(UStatusEffectDefinition* 
 		SetStatusEffectObjectPropertyValue(StatusEffectWidget, TEXT("EffectDataAsset"), DataAsset);
 	}
 
-	UHorizontalBoxSlot* HorizontalBoxSlot = HorizontalBox->AddChildToHorizontalBox(StatusEffectWidget);
-	if (HorizontalBoxSlot)
-	{
-		HorizontalBoxSlot->SetPadding(StatusEffectWidgetPadding);
-	}
-
-	StatusEffectWidget->SetRenderTranslation(FVector2D(0.0f, StatusEffectWidgetVerticalOffset));
-	const float SafeScale = FMath::Max(StatusEffectWidgetScale, 0.01f);
-	StatusEffectWidget->SetRenderScale(FVector2D(SafeScale, SafeScale));
-}
-
-bool UStatusEffectsBarWidget::AlreadyDisplayingStatusEffect(const FGameplayTag DebuffTag) const
-{
-	if (!HorizontalBox || !DebuffTag.IsValid())
-	{
-		return false;
-	}
-
-	const int32 ChildrenCount = HorizontalBox->GetChildrenCount();
-	for (int32 ChildIndex = 0; ChildIndex < ChildrenCount; ++ChildIndex)
-	{
-		const UWidget* ChildWidget = HorizontalBox->GetChildAt(ChildIndex);
-		const UStatusEffectDefinition* ChildDataAsset = GetStatusEffectDataAssetFromWidget(ChildWidget);
-		if (ChildDataAsset && ChildDataAsset->DebuffTag == DebuffTag)
-		{
-			return true;
-		}
-	}
-
-	return false;
+	HorizontalBox->AddChildToHorizontalBox(StatusEffectWidget);
 }
 
 void UStatusEffectsBarWidget::ScheduleStatusEffectTagBinding()
@@ -285,6 +289,17 @@ void UStatusEffectsBarWidget::BindStatusEffectTagDelegates()
 	}
 
 	BindRetryCount = 0;
+	BoundStatusEffectReplicationComponent = OwnerActor
+		? OwnerActor->FindComponentByClass<UStatusEffectReplicationComponent>()
+		: nullptr;
+	if (BoundStatusEffectReplicationComponent)
+	{
+		ReplicatedStackChangedHandle = BoundStatusEffectReplicationComponent
+			->OnStatusEffectStackChanged()
+			.AddUObject(
+				this,
+				&ThisClass::HandleReplicatedStatusEffectStackChanged);
+	}
 
 	TArray<UStatusEffectDefinition*> ObservedDataAssets;
 	GatherObservedStatusEffectDataAssets(ObservedDataAssets);
@@ -319,6 +334,16 @@ void UStatusEffectsBarWidget::BindStatusEffectTagDelegates()
 
 void UStatusEffectsBarWidget::UnbindStatusEffectTagDelegates()
 {
+	if (BoundStatusEffectReplicationComponent
+		&& ReplicatedStackChangedHandle.IsValid())
+	{
+		BoundStatusEffectReplicationComponent
+			->OnStatusEffectStackChanged()
+			.Remove(ReplicatedStackChangedHandle);
+	}
+	BoundStatusEffectReplicationComponent = nullptr;
+	ReplicatedStackChangedHandle.Reset();
+
 	if (!BoundAbilitySystemComponent)
 	{
 		ObservedTagChangedHandles.Reset();
@@ -347,6 +372,15 @@ void UStatusEffectsBarWidget::HandleObservedTagChanged(const FGameplayTag Callba
 	ScheduleStatusEffectWidgetRefresh();
 }
 
+void UStatusEffectsBarWidget::HandleReplicatedStatusEffectStackChanged(
+	const FGameplayTag DebuffTag,
+	const int32 StackCount)
+{
+	static_cast<void>(DebuffTag);
+	static_cast<void>(StackCount);
+	ScheduleStatusEffectWidgetRefresh();
+}
+
 void UStatusEffectsBarWidget::RefreshStatusEffectWidgets()
 {
 	bStatusEffectWidgetRefreshScheduled = false;
@@ -357,28 +391,34 @@ void UStatusEffectsBarWidget::RefreshStatusEffectWidgets()
 		return;
 	}
 
+	TArray<UStatusEffectDefinition*> ObservedDataAssets;
+	GatherObservedStatusEffectDataAssets(ObservedDataAssets);
+
+	TMap<const UStatusEffectDefinition*, int32> DesiredWidgetCounts;
+	for (const UStatusEffectDefinition* DataAsset : ObservedDataAssets)
+	{
+		if (DataAsset)
+		{
+			DesiredWidgetCounts.Add(DataAsset, GetStatusEffectDisplayCount(DataAsset));
+		}
+	}
+
+	TMap<const UStatusEffectDefinition*, int32> ExistingWidgetCounts;
 	for (int32 ChildIndex = HorizontalBox->GetChildrenCount() - 1; ChildIndex >= 0; --ChildIndex)
 	{
 		UWidget* ChildWidget = HorizontalBox->GetChildAt(ChildIndex);
 		const UStatusEffectDefinition* ChildDataAsset = GetStatusEffectDataAssetFromWidget(ChildWidget);
-		if (!IsStatusEffectActive(ChildDataAsset))
+		const int32* DesiredWidgetCount = DesiredWidgetCounts.Find(ChildDataAsset);
+		int32& ExistingWidgetCount = ExistingWidgetCounts.FindOrAdd(ChildDataAsset);
+		if (!DesiredWidgetCount || ExistingWidgetCount >= *DesiredWidgetCount)
 		{
 			HorizontalBox->RemoveChildAt(ChildIndex);
+			continue;
 		}
+
+		++ExistingWidgetCount;
 	}
 
-	AddWidgetsForExistingTags();
-}
-
-void UStatusEffectsBarWidget::AddWidgetsForExistingTags()
-{
-	if (!BoundAbilitySystemComponent)
-	{
-		return;
-	}
-
-	TArray<UStatusEffectDefinition*> ObservedDataAssets;
-	GatherObservedStatusEffectDataAssets(ObservedDataAssets);
 	for (UStatusEffectDefinition* DataAsset : ObservedDataAssets)
 	{
 		if (!DataAsset)
@@ -386,25 +426,61 @@ void UStatusEffectsBarWidget::AddWidgetsForExistingTags()
 			continue;
 		}
 
-		if (IsStatusEffectActive(DataAsset))
+		const int32 DesiredWidgetCount = DesiredWidgetCounts.FindRef(DataAsset);
+		const int32 ExistingWidgetCount = ExistingWidgetCounts.FindRef(DataAsset);
+		for (int32 WidgetIndex = ExistingWidgetCount;
+			WidgetIndex < DesiredWidgetCount;
+			++WidgetIndex)
 		{
 			TryAddStatusEffectWidget(DataAsset);
 		}
 	}
 }
 
-bool UStatusEffectsBarWidget::IsStatusEffectActive(const UStatusEffectDefinition* DataAsset) const
+int32 UStatusEffectsBarWidget::GetStatusEffectDisplayCount(
+	const UStatusEffectDefinition* DataAsset) const
 {
 	if (!BoundAbilitySystemComponent || !DataAsset)
 	{
-		return false;
+		return 0;
 	}
 
-	const bool bHasDebuffTag = DataAsset->DebuffTag.IsValid()
-		&& BoundAbilitySystemComponent->HasMatchingGameplayTag(DataAsset->DebuffTag);
-	const bool bHasStatusEffectTag = DataAsset->StatusEffectTag.IsValid()
-		&& BoundAbilitySystemComponent->HasMatchingGameplayTag(DataAsset->StatusEffectTag);
-	return bHasDebuffTag || bHasStatusEffectTag;
+	int32 StackCount = 0;
+	if (DataAsset->DebuffTag.IsValid())
+	{
+		if (BoundStatusEffectReplicationComponent)
+		{
+			StackCount = BoundStatusEffectReplicationComponent
+				->GetStatusEffectStackCount(DataAsset->DebuffTag);
+		}
+		else
+		{
+			FGameplayTagContainer DebuffTags;
+			DebuffTags.AddTag(DataAsset->DebuffTag);
+			const TArray<FActiveGameplayEffectHandle> ActiveHandles =
+				BoundAbilitySystemComponent->GetActiveEffectsWithAllTags(DebuffTags);
+			for (const FActiveGameplayEffectHandle ActiveHandle : ActiveHandles)
+			{
+				StackCount += FMath::Max(
+					BoundAbilitySystemComponent->GetCurrentStackCount(ActiveHandle),
+					1);
+			}
+
+			if (StackCount <= 0
+				&& BoundAbilitySystemComponent->HasMatchingGameplayTag(DataAsset->DebuffTag))
+			{
+				StackCount = 1;
+			}
+		}
+	}
+
+	if (DataAsset->StatusEffectTag.IsValid()
+		&& BoundAbilitySystemComponent->HasMatchingGameplayTag(DataAsset->StatusEffectTag))
+	{
+		StackCount = FMath::Max(StackCount, 1);
+	}
+
+	return StackCount > 0 ? 1 : 0;
 }
 
 UUserWidget* UStatusEffectsBarWidget::CreateStatusEffectWidget()
@@ -464,18 +540,10 @@ void UStatusEffectsBarWidget::RebuildObservedStatusEffectDataAssetCache()
 {
 	CachedObservedStatusEffectDataAssets.Reset();
 
-	for (UStatusEffectDefinition* DataAsset : StatusEffectDataAssets)
+	for (const TSoftObjectPtr<UStatusEffectDefinition>& StatusEffect :
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().StatusEffects)
 	{
-		AddObservedStatusEffectDataAsset(DataAsset);
-	}
-
-	if (const UGameSettingDefinition* GameSettingDefinition =
-		UGameSettingsSubsystem::ResolveLoadedGameSettingDefinition(this))
-	{
-		for (const TSoftObjectPtr<UStatusEffectDefinition>& StatusEffectDataAsset : GameSettingDefinition->StatusEffectDataAssets)
-		{
-			AddObservedStatusEffectDataAsset(StatusEffectDataAsset.Get());
-		}
+		AddObservedStatusEffectDataAsset(StatusEffect.Get());
 	}
 
 	bObservedStatusEffectDataAssetCacheValid = true;

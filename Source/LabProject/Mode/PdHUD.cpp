@@ -4,12 +4,13 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Components/Widget.h"
+#include "Definition/Match/MatchRuleDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
 #include "Mode/PdPlayerController.h"
 #include "TimerManager.h"
-#include "UI/InfoUiPresenter.h"
-#include "UI/PdHudUiRouter.h"
+#include "UI/Presenter/InfoUiPresenter.h"
+#include "UI/HudUiRouter.h"
 #include "UI/UiSubsystem.h"
 #include "UI/Widget/DamageScreenEffectWidget.h"
 #include "UI/Widget/GoldenKillAnnouncementWidget.h"
@@ -98,7 +99,7 @@ void APdHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void APdHUD::InitializeUi(UWidgetClassDefinition* InWidgetClassDefinition)
 {
-	UPdHudUiRouter* Router = EnsureUiRouter();
+	UHudUiRouter* Router = EnsureUiRouter();
 	if (!Router || !InWidgetClassDefinition)
 	{
 		return;
@@ -143,15 +144,15 @@ void APdHUD::RefreshHudTimerVisibility()
 
 void APdHUD::CreateAllUi()
 {
-	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	if (UHudUiRouter* Router = EnsureUiRouter())
 	{
 		Router->EnsureCoreLayers();
 	}
 }
 
-void APdHUD::OpenInfoUiFocused(const EPdInfoUiSection Section)
+void APdHUD::OpenInfoUiFocused(const EInfoUiSection Section)
 {
-	UPdHudUiRouter* Router = EnsureUiRouter();
+	UHudUiRouter* Router = EnsureUiRouter();
 	if (!Router)
 	{
 		return;
@@ -171,7 +172,7 @@ void APdHUD::OpenInfoUiFocused(const EPdInfoUiSection Section)
 
 	if (!bWasInfoReadyForSectionChange)
 	{
-		Router->OpenInfo();
+		Router->OpenInfo(Section);
 	}
 
 	if (CachedInfoUI && CachedInfoUI->IsInViewport())
@@ -198,7 +199,7 @@ void APdHUD::CloseInfoUiInternal(const bool bSuppressCameraReturn, const bool bI
 
 void APdHUD::ToggleInfoUi()
 {
-	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	if (UHudUiRouter* Router = EnsureUiRouter())
 	{
 		Router->ToggleInfo();
 	}
@@ -206,7 +207,7 @@ void APdHUD::ToggleInfoUi()
 
 void APdHUD::OpenPandoraTreeUi()
 {
-	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	if (UHudUiRouter* Router = EnsureUiRouter())
 	{
 		Router->OpenPandoraTree();
 	}
@@ -230,7 +231,7 @@ void APdHUD::ClosePandoraTreeUiInternal(const bool bSuppressCameraReturn, const 
 
 void APdHUD::TogglePandoraTreeUi()
 {
-	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	if (UHudUiRouter* Router = EnsureUiRouter())
 	{
 		Router->TogglePandoraTree();
 	}
@@ -238,7 +239,7 @@ void APdHUD::TogglePandoraTreeUi()
 
 void APdHUD::ToggleUiMode(bool bOn)
 {
-	UPdHudUiRouter* Router = EnsureUiRouter();
+	UHudUiRouter* Router = EnsureUiRouter();
 	if (!Router)
 	{
 		return;
@@ -397,7 +398,7 @@ void APdHUD::UpdateSelectPandoraDirectionFromMouse()
 
 void APdHUD::ShowAimCrosshair(FGameplayTag DesiredCrosshairWidgetTag)
 {
-	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	if (UHudUiRouter* Router = EnsureUiRouter())
 	{
 		Router->ShowAimCrosshair(DesiredCrosshairWidgetTag);
 	}
@@ -413,7 +414,6 @@ void APdHUD::HideAimCrosshair()
 
 void APdHUD::ShowRightNotification(const FPdNotificationData& NotificationData)
 {
-
 
 	if (!CachedRightNotificationsUI)
 	{
@@ -433,8 +433,7 @@ void APdHUD::ShowRightNotification(const FPdNotificationData& NotificationData)
 
 	}
 
-
-	CachedRightNotificationsUI->EnqueueNotification(NotificationData);
+CachedRightNotificationsUI->EnqueueNotification(NotificationData);
 }
 
 void APdHUD::ShowDamageScreenEffect(float DamageAmount)
@@ -518,7 +517,6 @@ void APdHUD::ShowRespawnDelay(const float DelaySeconds)
 	URespawnDelayWidget* RespawnDelayWidget = FindRespawnDelayWidget();
 	if (!RespawnDelayWidget)
 	{
-
 		return;
 	}
 
@@ -535,7 +533,7 @@ void APdHUD::HideRespawnDelay()
 
 void APdHUD::ShowInGameScoreboard()
 {
-	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	if (UHudUiRouter* Router = EnsureUiRouter())
 	{
 		Router->ShowScoreboard();
 	}
@@ -559,7 +557,7 @@ void APdHUD::RefreshInGameScoreboard()
 
 void APdHUD::OpenSettingsMenu()
 {
-	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	if (UHudUiRouter* Router = EnsureUiRouter())
 	{
 		Router->OpenSettingsMenu();
 	}
@@ -567,7 +565,7 @@ void APdHUD::OpenSettingsMenu()
 
 void APdHUD::ToggleSettingsMenu()
 {
-	if (UPdHudUiRouter* Router = EnsureUiRouter())
+	if (UHudUiRouter* Router = EnsureUiRouter())
 	{
 		Router->ToggleSettingsMenu();
 	}
@@ -658,11 +656,11 @@ APdPlayerController* APdHUD::GetPdController() const
 	return Cast<APdPlayerController>(GetOwningPlayerController());
 }
 
-UPdHudUiRouter* APdHUD::EnsureUiRouter()
+UHudUiRouter* APdHUD::EnsureUiRouter()
 {
 	if (!UiRouter)
 	{
-		UiRouter = NewObject<UPdHudUiRouter>(this);
+		UiRouter = NewObject<UHudUiRouter>(this);
 		if (UiRouter)
 		{
 			UiRouter->Initialize(this);
@@ -911,11 +909,6 @@ UHudTimerWidget* APdHUD::FindHudTimerWidget()
 		return CachedHudTimerWidget;
 	}
 
-	if (!CachedPlayerHUD)
-	{
-		CreateAllUi();
-	}
-
 	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
 	{
 		return nullptr;
@@ -959,11 +952,6 @@ URespawnDelayWidget* APdHUD::FindRespawnDelayWidget()
 		return CachedRespawnDelayWidget;
 	}
 
-	if (!CachedPlayerHUD)
-	{
-		CreateAllUi();
-	}
-
 	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
 	{
 		return nullptr;
@@ -1002,26 +990,15 @@ URespawnDelayWidget* APdHUD::FindRespawnDelayWidget()
 
 bool APdHUD::IsTrainingRoomMap() const
 {
-	if (!WidgetClassDefinition)
+	const UMatchRuleDefinition* MatchRules =
+		UMatchRuleDefinition::ResolveDefaultDefinition();
+	if (!MatchRules)
 	{
 		return false;
 	}
 
-	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
-	for (const FName TrainingMapName : WidgetClassDefinition->GetTrainingRoomMapNames())
-	{
-		if (TrainingMapName.IsNone())
-		{
-			continue;
-		}
-
-		if (CurrentLevelName.Equals(TrainingMapName.ToString(), ESearchCase::IgnoreCase))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return MatchRules->IsTrainingRoomMapName(
+		UGameplayStatics::GetCurrentLevelName(this, true));
 }
 
 void APdHUD::RefreshTrainingRoomUiPause(const UUserWidget* IgnoredWidget)
@@ -1120,7 +1097,6 @@ void APdHUD::ApplyInventoryWidgetSettings()
 	const bool bTrainingRoom = IsTrainingRoomMap();
 	const int32 InventoryItemCountLimit = WidgetClassDefinition->GetInventoryItemCountLimit(bTrainingRoom);
 	RightInventoryWidget->SetInventorySlotCount(InventoryItemCountLimit);
-
 
 }
 

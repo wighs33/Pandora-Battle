@@ -39,6 +39,7 @@ protected:
 private:
 	void InitializeFromOwner();
 	void QueueInitializeRetry();
+	void StopInitializeRetry();
 	void BindAttributeDelegates();
 	void UnbindAttributeDelegates();
 	UProgressBar* GetProgressBar() const;

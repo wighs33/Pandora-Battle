@@ -1,20 +1,8 @@
 #include "Definition/Player/PlayerControllerDefinition.h"
 
-#include "Definition/Player/ControllerInputDefinition.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerControllerDefinition)
-
-namespace
-{
-	constexpr const TCHAR* DefaultPlayerControllerDefinitionPath =
-		TEXT("/Game/Data/DA_PlayerController.DA_PlayerController");
-}
-
-UPlayerControllerDefinition::UPlayerControllerDefinition()
-{
-	Input.DefaultInputDefinition = TSoftObjectPtr<UControllerInputDefinition>(
-		UControllerInputDefinition::GetDefaultInputDefinitionPath());
-}
 
 FPrimaryAssetId UPlayerControllerDefinition::GetPrimaryAssetId() const
 {
@@ -23,7 +11,8 @@ FPrimaryAssetId UPlayerControllerDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UPlayerControllerDefinition::GetDefaultDefinitionPath()
 {
-	return FSoftObjectPath(DefaultPlayerControllerDefinitionPath);
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.PlayerController.ToSoftObjectPath();
 }
 
 #if WITH_EDITOR
@@ -40,14 +29,6 @@ EDataValidationResult UPlayerControllerDefinition::IsDataValid(FDataValidationCo
 		Result = EDataValidationResult::Invalid;
 		Context.AddError(Message);
 	};
-
-	if (Input.DefaultInputDefinition.IsNull())
-	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerControllerDefinition",
-			"MissingInputDefinition",
-			"Input DefaultInputDefinition is required."));
-	}
 
 	if (!FMath::IsFinite(Presentation.TravelLoadingReadyCheckInterval)
 		|| Presentation.TravelLoadingReadyCheckInterval < 0.01f)
@@ -91,43 +72,6 @@ EDataValidationResult UPlayerControllerDefinition::IsDataValid(FDataValidationCo
 			"PlayerControllerDefinition",
 			"InvalidHealthBarDistance",
 			"Presentation HealthBarVisibilityDistance must be finite and non-negative."));
-	}
-
-	if (!FMath::IsFinite(ProfileSync.LocalShopSaveSyncInterval)
-		|| ProfileSync.LocalShopSaveSyncInterval < 0.01f)
-	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerControllerDefinition",
-			"InvalidProfileSyncInterval",
-			"ProfileSync LocalShopSaveSyncInterval must be finite and at least 0.01 seconds."));
-	}
-
-	if (ProfileSync.LocalShopSaveSyncMaxAttempts < 1
-		|| ProfileSync.MaxClientSyncedSkinNameCount < 1)
-	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerControllerDefinition",
-			"InvalidProfileSyncLimits",
-			"ProfileSync attempt and client skin-name limits must be at least one."));
-	}
-
-	if (!FMath::IsFinite(ProfileSync.RemoteSkinSyncMinInterval)
-		|| ProfileSync.RemoteSkinSyncMinInterval < 0.0f)
-	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerControllerDefinition",
-			"InvalidRemoteSkinSyncInterval",
-			"ProfileSync RemoteSkinSyncMinInterval must be finite and non-negative."));
-	}
-
-	if (DebugGrant.SoulDustGrantAmount < 0
-		|| !FMath::IsFinite(DebugGrant.StatusPointGrantAmount)
-		|| DebugGrant.StatusPointGrantAmount < 0.0f)
-	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerControllerDefinition",
-			"InvalidDebugGrantAmounts",
-			"DebugGrant amounts must be finite and non-negative."));
 	}
 
 	return Result;

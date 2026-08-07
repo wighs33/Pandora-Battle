@@ -6,8 +6,10 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/OverlaySlot.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Definition/Match/MatchRuleDefinition.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
+#include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Mode/PdPlayerState.h"
 #include "UI/TeamColorUtils.h"
@@ -41,6 +43,7 @@ void UPlayerHudWidget::InitializePlayerHud(UWidgetClassDefinition* InWidgetClass
 {
 	WidgetClassDefinition = InWidgetClassDefinition;
 	RefreshLobbyTipVisibility();
+	RefreshKillBoxVisibility();
 
 	if (CanRebuildKillBox())
 	{
@@ -54,6 +57,7 @@ void UPlayerHudWidget::NativeConstruct()
 	Super::NativeConstruct();
 	ClearTransactionalFlagsForRuntimeWidget(this);
 	RefreshLobbyTipVisibility();
+	RefreshKillBoxVisibility();
 
 	if (CanRebuildKillBox())
 	{
@@ -79,6 +83,38 @@ void UPlayerHudWidget::RefreshLobbyTipVisibility()
 	const APlayerController* OwningPlayer = GetOwningPlayer();
 	const bool bIsLobbyHud = OwningPlayer && OwningPlayer->GetHUD<ALobbyHUD>();
 	Txt_LobbyTip->SetVisibility(bIsLobbyHud ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+}
+
+void UPlayerHudWidget::RefreshKillBoxVisibility()
+{
+	if (!HorizontalBox_KillBox)
+	{
+		return;
+	}
+
+	const bool bTrainingRoom = IsTrainingRoomMap();
+	HorizontalBox_KillBox->SetVisibility(
+		bTrainingRoom
+			? ESlateVisibility::Collapsed
+			: ESlateVisibility::HitTestInvisible);
+	if (bTrainingRoom)
+	{
+		ClearKillBoxWidgets();
+	}
+}
+
+bool UPlayerHudWidget::IsTrainingRoomMap() const
+{
+	const UWorld* World = GetWorld();
+	const UMatchRuleDefinition* MatchRules =
+		UMatchRuleDefinition::ResolveDefaultDefinition();
+	if (!World || !MatchRules)
+	{
+		return false;
+	}
+
+	return MatchRules->IsTrainingRoomMapName(
+		UGameplayStatics::GetCurrentLevelName(this, true));
 }
 
 void UPlayerHudWidget::RebuildKillBox()
@@ -114,7 +150,6 @@ void UPlayerHudWidget::BuildKillBoxWidgetsForTeams(const TArray<int32>& TeamColo
 		return;
 	}
 
-	const FMargin EntryPadding = ResolveKillBoxEntryPadding();
 	for (const int32 TeamColorIndex : TeamColorIndices)
 	{
 		UKillBoxWidget* KillBoxWidget = CreateWidget<UKillBoxWidget>(GetOwningPlayer(), KillBoxWidgetClass);
@@ -132,7 +167,6 @@ void UPlayerHudWidget::BuildKillBoxWidgetsForTeams(const TArray<int32>& TeamColo
 
 		if (UHorizontalBoxSlot* KillBoxSlot = HorizontalBox_KillBox->AddChildToHorizontalBox(KillBoxWidget))
 		{
-			KillBoxSlot->SetPadding(EntryPadding);
 			KillBoxSlot->SetHorizontalAlignment(HAlign_Center);
 			KillBoxSlot->SetVerticalAlignment(VAlign_Center);
 		}
@@ -266,17 +300,6 @@ TSubclassOf<UKillBoxWidget> UPlayerHudWidget::ResolveKillBoxWidgetClass() const
 	return nullptr;
 }
 
-FMargin UPlayerHudWidget::ResolveKillBoxEntryPadding() const
-{
-	const UWidgetClassDefinition* ResolvedWidgetDefinition = WidgetClassDefinition
-		? WidgetClassDefinition.Get()
-		: UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
-
-	return ResolvedWidgetDefinition
-		? ResolvedWidgetDefinition->GetKillBoxWidgetSettings().EntryPadding
-		: FMargin(4.0f, 0.0f);
-}
-
 float UPlayerHudWidget::ResolveKillBoxRefreshInterval() const
 {
 	const UWidgetClassDefinition* ResolvedWidgetDefinition = WidgetClassDefinition
@@ -313,7 +336,11 @@ FText UPlayerHudWidget::ResolveTeamName(const int32 TeamColorIndex) const
 bool UPlayerHudWidget::CanRebuildKillBox() const
 {
 	const UWorld* World = GetWorld();
-	return !IsDesignTime() && World && World->IsGameWorld() && HorizontalBox_KillBox;
+	return !IsDesignTime()
+		&& World
+		&& World->IsGameWorld()
+		&& HorizontalBox_KillBox
+		&& !IsTrainingRoomMap();
 }
 
 void UPlayerHudWidget::CenterKillBoxContainer() const

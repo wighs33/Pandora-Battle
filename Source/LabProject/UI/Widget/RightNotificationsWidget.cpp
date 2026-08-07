@@ -57,7 +57,6 @@ void URightNotificationsWidget::EnqueueNotification(const FPdNotificationData& N
 void URightNotificationsWidget::ClearNotifications()
 {
 
-
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DequeueTimerHandle);
@@ -117,7 +116,6 @@ void URightNotificationsWidget::PrimeNotificationPool()
 		AvailableNotifications.AddUnique(EntryWidget);
 	}
 
-
 }
 
 void URightNotificationsWidget::TryShowQueuedNotifications()
@@ -151,8 +149,6 @@ bool URightNotificationsWidget::TryShowNextQueuedNotification()
 		return false;
 	}
 
-
-
 	if (NotificationQueue.IsEmpty())
 	{
 		return false;
@@ -168,9 +164,7 @@ bool URightNotificationsWidget::TryShowNextQueuedNotification()
 	const FPdNotificationData NotificationData = NotificationQueue[0];
 	NotificationQueue.RemoveAt(0);
 
-
-
-	EntryWidget->SetNotificationData(NotificationData);
+EntryWidget->SetNotificationData(NotificationData);
 	EntryWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	if (EntryWidget->GetParent() != NotificationList)
 	{
@@ -196,8 +190,6 @@ void URightNotificationsWidget::ScheduleNextDequeue(float Delay)
 		return;
 	}
 
-
-
 	if (Delay <= 0.0f)
 	{
 		TimerManager.ClearTimer(DequeueTimerHandle);
@@ -216,7 +208,6 @@ void URightNotificationsWidget::HandleDequeueTimer()
 	}
 
 	const bool bShown = TryShowNextQueuedNotification();
-
 
 	if (!NotificationQueue.IsEmpty())
 	{
@@ -319,7 +310,6 @@ void URightNotificationsWidget::BeginRemoveNotification(UNotificationEntryWidget
 
 	const float OutDuration = EntryWidget->PlayNotificationOut();
 
-
 	if (OutDuration <= 0.0f)
 	{
 		FinishRemoveNotification(EntryWidget);
@@ -354,9 +344,7 @@ void URightNotificationsWidget::FinishRemoveNotification(UNotificationEntryWidge
 		}
 	}
 
-
-
-	ActiveNotifications.Remove(EntryWidget);
+ActiveNotifications.Remove(EntryWidget);
 	ReleaseNotificationWidget(EntryWidget);
 
 	TryShowQueuedNotifications();

@@ -8,9 +8,6 @@ class UTextBlock;
 class UMatchRuleDefinition;
 struct FStreamableHandle;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHudTimerFinished);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHudTimerForceMoveTimeReached, const FTransform&, TargetTransform);
-
 UCLASS()
 class LABPROJECT_API UHudTimerWidget : public UUserWidget
 {
@@ -34,11 +31,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Timer")
 	void ResetTimer();
 
-	// Kept as a no-op so existing widget blueprints continue to load. Match flow is server-owned.
-	UFUNCTION(BlueprintCallable, Category = "!Timer|Legacy",
-		meta = (DeprecatedFunction, DeprecationMessage = "HUD timers are display-only; force movement is handled by the authoritative GameMode."))
-	void ForceMoveOwningPawnNow();
-
 	UFUNCTION(BlueprintCallable, Category = "!Timer")
 	void RefreshUI();
 
@@ -51,13 +43,6 @@ public:
 	const UMatchRuleDefinition* GetMatchRuleDefinition() const;
 	bool ShouldSuppressTimer() const;
 	bool ShouldSuppressTimerForCurrentMap() const;
-
-	// Legacy presentation bindings are retained for asset compatibility but are never emitted by the C++ timer.
-	UPROPERTY(BlueprintAssignable, Category = "!Timer|Legacy")
-	FOnHudTimerFinished OnTimerFinished;
-
-	UPROPERTY(BlueprintAssignable, Category = "!Timer|Legacy")
-	FOnHudTimerForceMoveTimeReached OnForceMoveTimeReached;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Timer|Bind")
@@ -84,12 +69,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Timer|Visual")
 	FLinearColor WarningTextColor = FLinearColor(1.0f, 0.18f, 0.12f, 1.0f);
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "!Timer|Legacy", meta = (DisplayName = "On Timer Finished"))
-	void BP_OnTimerFinished();
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "!Timer|Legacy", meta = (DisplayName = "On Force Move Time Reached"))
-	void BP_OnForceMoveTimeReached(const FTransform& TargetTransform);
-
 private:
 	bool BeginMatchRulePreload();
 	void ReleaseMatchRulePreload();
@@ -97,7 +76,6 @@ private:
 	void SyncFromReplicatedTimerState();
 	FText FormatTimerText() const;
 	float GetConfiguredTimerSeconds() const;
-	bool IsCountDownTimer() const;
 
 	FTimerHandle TimerTickHandle;
 	int32 MatchRulePreloadGeneration = 0;

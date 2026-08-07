@@ -40,7 +40,10 @@ void UEnemyAvatarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	OriginalWidgetVisibilities.Reset();
+	bLocalPlayerPresentationInitialized = false;
 	PropagateOwnerActorToChildren();
+	ApplyLocalPlayerPresentation();
 	HandleAvatarUpdateTick();
 	StartAvatarUpdateTimer();
 }
@@ -48,6 +51,7 @@ void UEnemyAvatarWidget::NativeConstruct()
 void UEnemyAvatarWidget::NativeDestruct()
 {
 	StopAvatarUpdateTimer();
+	RestoreOriginalWidgetVisibilities();
 	Super::NativeDestruct();
 }
 
@@ -78,7 +82,7 @@ void UEnemyAvatarWidget::StopAvatarUpdateTimer()
 
 void UEnemyAvatarWidget::HandleAvatarUpdateTick()
 {
-	UpdateWidgetSize();
+	ApplyLocalPlayerPresentation();
 	RefreshAvatarImage();
 }
 
@@ -87,19 +91,17 @@ void UEnemyAvatarWidget::SetOwnerActor(AActor* InOwnerActor)
 	if (OwnerActor.Get() == InOwnerActor)
 	{
 		PropagateOwnerActorToChildren();
+		ApplyLocalPlayerPresentation();
 		RefreshAvatarImage();
 		return;
 	}
 
 	OwnerActor = InOwnerActor;
 	CachedAchievementSourceImage.Reset();
+	bLocalPlayerPresentationInitialized = false;
 	PropagateOwnerActorToChildren();
+	ApplyLocalPlayerPresentation();
 	RefreshAvatarImage();
-}
-
-void UEnemyAvatarWidget::UpdateWidgetSize()
-{
-	SetRenderScale(FVector2D(1.0f, 1.0f));
 }
 
 void UEnemyAvatarWidget::PropagateOwnerActorToChildren()
@@ -185,22 +187,95 @@ void UEnemyAvatarWidget::PropagateOwnerActorToChildren()
 
 	if (!bPropagatedStatusEffectsBar)
 	{
-		if (UUserWidget* StatusEffectsBar = FindFirstChildUserWidget({
+		if (UUserWidget* ResolvedStatusEffectsBar = FindFirstChildUserWidget({
 			TEXT("StatusEffectsBar"),
 			TEXT("W_StatusEffectsBar"),
 			TEXT("WBP_StatusEffectsBar")
 		}))
 		{
-			if (UStatusEffectsBarWidget* NativeStatusEffectsBar = Cast<UStatusEffectsBarWidget>(StatusEffectsBar))
+			if (UStatusEffectsBarWidget* NativeStatusEffectsBar = Cast<UStatusEffectsBarWidget>(ResolvedStatusEffectsBar))
 			{
 				NativeStatusEffectsBar->SetOwnerActor(OwnerActor.Get());
 			}
 			else
 			{
-				SetObjectPropertyValue(StatusEffectsBar, TEXT("OwnerActor"), OwnerActor.Get());
+				SetObjectPropertyValue(ResolvedStatusEffectsBar, TEXT("OwnerActor"), OwnerActor.Get());
 			}
 		}
 	}
+}
+
+void UEnemyAvatarWidget::ApplyLocalPlayerPresentation()
+{
+	const bool bIsLocalPlayerOwner = IsLocalPlayerOwner();
+	if (bLocalPlayerPresentationInitialized
+		&& bLastLocalPlayerOwner == bIsLocalPlayerOwner)
+	{
+		return;
+	}
+
+	bLocalPlayerPresentationInitialized = true;
+	bLastLocalPlayerOwner = bIsLocalPlayerOwner;
+
+	if (!WidgetTree || !StatusEffectsBar)
+	{
+		return;
+	}
+
+	if (OriginalWidgetVisibilities.IsEmpty())
+	{
+		WidgetTree->ForEachWidget([this](UWidget* Widget)
+		{
+			if (Widget)
+			{
+				OriginalWidgetVisibilities.Add(Widget, Widget->GetVisibility());
+			}
+		});
+	}
+
+	TSet<const UWidget*> StatusEffectsPath;
+	for (const UWidget* Widget = StatusEffectsBar.Get(); Widget; Widget = Widget->GetParent())
+	{
+		StatusEffectsPath.Add(Widget);
+	}
+
+	WidgetTree->ForEachWidget([this, bIsLocalPlayerOwner, &StatusEffectsPath](UWidget* Widget)
+	{
+		if (!Widget)
+		{
+			return;
+		}
+
+		if (bIsLocalPlayerOwner && !StatusEffectsPath.Contains(Widget))
+		{
+			Widget->SetVisibility(ESlateVisibility::Collapsed);
+			return;
+		}
+
+		if (const ESlateVisibility* OriginalVisibility = OriginalWidgetVisibilities.Find(Widget))
+		{
+			Widget->SetVisibility(*OriginalVisibility);
+		}
+	});
+
+	if (bIsLocalPlayerOwner)
+	{
+		StatusEffectsBar->CenterHorizontalBox();
+	}
+}
+
+void UEnemyAvatarWidget::RestoreOriginalWidgetVisibilities()
+{
+	for (const TPair<TWeakObjectPtr<UWidget>, ESlateVisibility>& Pair : OriginalWidgetVisibilities)
+	{
+		if (UWidget* Widget = Pair.Key.Get())
+		{
+			Widget->SetVisibility(Pair.Value);
+		}
+	}
+
+	OriginalWidgetVisibilities.Reset();
+	bLocalPlayerPresentationInitialized = false;
 }
 
 void UEnemyAvatarWidget::RefreshAvatarImage()
@@ -208,6 +283,12 @@ void UEnemyAvatarWidget::RefreshAvatarImage()
 	UImage* TargetAvatarImage = ResolveAvatarImage();
 	if (!TargetAvatarImage)
 	{
+		return;
+	}
+
+	if (IsLocalPlayerOwner())
+	{
+		TargetAvatarImage->SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
 
@@ -234,6 +315,12 @@ void UEnemyAvatarWidget::RefreshAvatarImage()
 bool UEnemyAvatarWidget::IsPlayerOwner() const
 {
 	return OwnerActor.Get() && OwnerActor->IsA<APdPlayer>();
+}
+
+bool UEnemyAvatarWidget::IsLocalPlayerOwner() const
+{
+	const APdPlayer* PlayerOwner = Cast<APdPlayer>(OwnerActor.Get());
+	return PlayerOwner && PlayerOwner->IsLocallyControlled();
 }
 
 bool UEnemyAvatarWidget::FindPlayerAchievementBrush(FSlateBrush& OutBrush) const

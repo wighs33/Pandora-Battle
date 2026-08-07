@@ -2,25 +2,16 @@
 
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
+#include "Definition/Player/ControllerInputDefinition.h"
 #include "InputAction.h"
 #include "Item/ItemInstance.h"
+#include "Mode/PdPlayerController.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "UI/Widget/InputKeyIconResolver.h"
 #include "UI/Widget/ItemViewData.h"
-#include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(QuickSlotEntryWidget)
-
-namespace
-{
-	UObject* LoadDesignTimeQuickSlotIcon(const FQuickSlotWidgetSettings& Settings, const int32 SlotIndex)
-	{
-		return PdInputKeyIconResolver::ResolveMappedIconObject(
-			Settings.InputKeyIconSettings,
-			PdInputKeyIconResolver::GetFixedQuickSlotKeyName(SlotIndex));
-	}
-}
 
 void UQuickSlotEntryWidget::NativePreConstruct()
 {
@@ -94,7 +85,7 @@ void UQuickSlotEntryWidget::CacheOptionalWidgets()
 
 void UQuickSlotEntryWidget::ApplyItemVisual()
 {
-	const FPdItemViewData ViewData = SkinDefinition
+	const FItemViewData ViewData = SkinDefinition
 		? FItemViewDataBuilder::FromSkinDefinition(SkinDefinition)
 		: FItemViewDataBuilder::FromItemInstance(ItemInstance);
 
@@ -119,34 +110,15 @@ void UQuickSlotEntryWidget::ApplyInputKeyIcon()
 		return;
 	}
 
-	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
-	if (!WidgetDefinition)
+	if (bHideInputKeyIcon)
 	{
 		KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
 
-	const FQuickSlotWidgetSettings& Settings = WidgetDefinition->GetQuickSlotWidgetSettings();
-	if (Settings.InputKeyIconSettings.bHideInputKeyIcon)
-	{
-		KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
-		return;
-	}
-
-	UObject* IconObject = PdInputKeyIconResolver::ResolveMappedIconObject(
-		Settings.InputKeyIconSettings,
-		PdInputKeyIconResolver::GetFixedQuickSlotKeyName(SlotIndex));
-	if (!IconObject)
-	{
-		IconObject = PdInputKeyIconResolver::ResolveIconObject(
-			GetOwningPlayer(),
-			ResolveInputAction(),
-			Settings.InputKeyIconSettings);
-	}
-	if (!IconObject && IsDesignTime())
-	{
-		IconObject = LoadDesignTimeQuickSlotIcon(Settings, SlotIndex);
-	}
+	UObject* IconObject = PdInputKeyIconResolver::ResolveInputDefinitionIconObject(
+		GetOwningPlayer(),
+		ResolveInputAction());
 
 	if (!IconObject)
 	{
@@ -158,48 +130,17 @@ void UQuickSlotEntryWidget::ApplyInputKeyIcon()
 	KeyIcon->SetBrush(PdInputKeyIconResolver::MakeImageBrushFromExisting(
 		KeyIcon->GetBrush(),
 		IconObject,
-		Settings.InputKeyIconSettings.IconSize));
+		InputKeyIconSize));
 }
 
 UInputAction* UQuickSlotEntryWidget::ResolveInputAction() const
 {
-	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
-	if (!WidgetDefinition)
-	{
-		return nullptr;
-	}
-
-	const FQuickSlotWidgetSettings& Settings = WidgetDefinition->GetQuickSlotWidgetSettings();
-	const TSoftObjectPtr<UInputAction>* InputAction = nullptr;
-	switch (SlotIndex)
-	{
-	case 0:
-		InputAction = &Settings.QuickSlot1InputAction;
-		break;
-	case 1:
-		InputAction = &Settings.QuickSlot2InputAction;
-		break;
-	case 2:
-		InputAction = &Settings.QuickSlot3InputAction;
-		break;
-	case 3:
-		InputAction = &Settings.QuickSlot4InputAction;
-		break;
-	case 4:
-		InputAction = &Settings.GestureSlot1InputAction;
-		break;
-	case 5:
-		InputAction = &Settings.GestureSlot2InputAction;
-		break;
-	case 6:
-		InputAction = &Settings.GestureSlot3InputAction;
-		break;
-	case 7:
-		InputAction = &Settings.GestureSlot4InputAction;
-		break;
-	default:
-		break;
-	}
-
-	return InputAction ? InputAction->Get() : nullptr;
+	const APdPlayerController* PlayerController =
+		Cast<APdPlayerController>(GetOwningPlayer());
+	const UControllerInputDefinition* InputDefinition = PlayerController
+		? PlayerController->GetLoadedInputDefinition()
+		: nullptr;
+	return InputDefinition
+		? InputDefinition->GetLoadedQuickSlotInputAction(SlotIndex)
+		: nullptr;
 }

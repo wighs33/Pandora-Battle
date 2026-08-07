@@ -10,7 +10,9 @@ class AActor;
 class UAbilitySystemComponent;
 class UHorizontalBox;
 class UStatusEffectDefinition;
+class UStatusEffectReplicationComponent;
 class UUserWidget;
+struct FStreamableHandle;
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UStatusEffectsBarWidget : public UUserWidget
@@ -23,14 +25,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|StatusEffect")
 	void SetOwnerActor(AActor* InOwnerActor);
 
-	UFUNCTION(BlueprintCallable, Category = "!UI|StatusEffect")
-	void TryAddStatusEffectWidget(UStatusEffectDefinition* DataAsset);
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "!UI|StatusEffect")
-	bool AlreadyDisplayingStatusEffect(FGameplayTag DebuffTag) const;
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|StatusEffect")
-	void RefreshStatusEffectWidgets();
+	void CenterHorizontalBox();
 
 protected:
 	virtual void NativeConstruct() override;
@@ -45,19 +40,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect")
 	TSubclassOf<UUserWidget> StatusEffectWidgetClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect")
-	TArray<TObjectPtr<UStatusEffectDefinition>> StatusEffectDataAssets;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect")
-	FMargin StatusEffectWidgetPadding = FMargin(5.0f, 0.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect|Layout")
-	float StatusEffectWidgetVerticalOffset = 0.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect|Layout", meta = (ClampMin = "0.01"))
-	float StatusEffectWidgetScale = 1.0f;
-
 private:
+	void TryAddStatusEffectWidget(UStatusEffectDefinition* DataAsset);
+	void RefreshStatusEffectWidgets();
 	void ApplyWidgetDefinitionSettings();
 	void BeginStatusEffectContentPreload();
 	void ReleaseStatusEffectContentPreload();
@@ -66,8 +51,8 @@ private:
 	void BindStatusEffectTagDelegates();
 	void UnbindStatusEffectTagDelegates();
 	void HandleObservedTagChanged(FGameplayTag CallbackTag, int32 NewCount);
-	void AddWidgetsForExistingTags();
-	bool IsStatusEffectActive(const UStatusEffectDefinition* DataAsset) const;
+	void HandleReplicatedStatusEffectStackChanged(FGameplayTag DebuffTag, int32 StackCount);
+	int32 GetStatusEffectDisplayCount(const UStatusEffectDefinition* DataAsset) const;
 	UUserWidget* CreateStatusEffectWidget();
 	void ResolveStatusEffectWidgetClass();
 	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
@@ -80,9 +65,14 @@ private:
 	TObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UStatusEffectReplicationComponent> BoundStatusEffectReplicationComponent;
+
+	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStatusEffectDefinition>> CachedObservedStatusEffectDataAssets;
+	TSharedPtr<FStreamableHandle> StatusEffectContentPreloadHandle;
 
 	TMap<FGameplayTag, FDelegateHandle> ObservedTagChangedHandles;
+	FDelegateHandle ReplicatedStackChangedHandle;
 	FTimerHandle BindStatusEffectTagsTimerHandle;
 	FTimerHandle RefreshStatusEffectWidgetsTimerHandle;
 	int32 BindRetryCount = 0;

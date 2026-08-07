@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/Player/ControllerInputDefinition.h"
 #include "Abilities/GameplayAbility.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/Pandora/PandoraComponent.h"
@@ -17,6 +18,7 @@
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "Mode/PdPlayerController.h"
 #include "Pandora/PandoraSkillRuntimeContext.h"
 #include "TimerManager.h"
 #include "UI/Widget/InputKeyIconResolver.h"
@@ -357,33 +359,6 @@ void UAbilitySlotWidget::ApplyWidgetDefinitionSettings()
 	const FAbilitySlotWidgetSettings& Settings = WidgetDefinition->GetAbilitySlotWidgetSettings();
 	DisabledSlotOpacity = Settings.DisabledSlotOpacity;
 	bShowCooldownTimeRemaining = Settings.bShowCooldownTimeRemaining;
-	bHideInputKeyIcon = Settings.InputKeyIconSettings.bHideInputKeyIcon;
-	ReadyInputKeyOpacity = Settings.ReadyInputKeyOpacity;
-	CooldownInputKeyOpacity = Settings.CooldownInputKeyOpacity;
-	ActiveInputKeyColor = Settings.ActiveInputKeyColor;
-	InactiveInputKeyColor = Settings.InactiveInputKeyColor;
-	InputKeyIconSize = Settings.InputKeyIconSettings.IconSize;
-
-	if (!Settings.DefaultAbilityImage.IsNull())
-	{
-		DefaultAbilityImage = Settings.DefaultAbilityImage.Get();
-	}
-	if (!Settings.Skill1InputAction.IsNull())
-	{
-		Skill1InputAction = Settings.Skill1InputAction.Get();
-	}
-	if (!Settings.Skill2InputAction.IsNull())
-	{
-		Skill2InputAction = Settings.Skill2InputAction.Get();
-	}
-	if (!Settings.Skill3InputAction.IsNull())
-	{
-		Skill3InputAction = Settings.Skill3InputAction.Get();
-	}
-	if (!Settings.Skill4InputAction.IsNull())
-	{
-		Skill4InputAction = Settings.Skill4InputAction.Get();
-	}
 }
 
 void UAbilitySlotWidget::RefreshAbilityBinding()
@@ -695,66 +670,49 @@ double UAbilitySlotWidget::ResolveConfiguredCooldownDuration() const
 
 UInputAction* UAbilitySlotWidget::ResolveInputAction() const
 {
-	UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
-	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent ? AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle) : nullptr;
-	if (!AbilitySpec)
+	const APdPlayerController* PlayerController =
+		Cast<APdPlayerController>(GetOwningPlayer());
+	const UControllerInputDefinition* InputDefinition = PlayerController
+		? PlayerController->GetLoadedInputDefinition()
+		: nullptr;
+	if (!InputDefinition)
 	{
 		return nullptr;
 	}
 
-	const FGameplayTagContainer& SourceTags = AbilitySpec->GetDynamicSpecSourceTags();
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill1))
+	int32 ResolvedSkillSlotIndex = SkillSlotIndex;
+	UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
+	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent ? AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle) : nullptr;
+	if (AbilitySpec)
 	{
-		return Skill1InputAction.Get();
-	}
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill2))
-	{
-		return Skill2InputAction.Get();
-	}
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill3))
-	{
-		return Skill3InputAction.Get();
-	}
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill4))
-	{
-		return Skill4InputAction.Get();
+		const FGameplayTagContainer& SourceTags =
+			AbilitySpec->GetDynamicSpecSourceTags();
+		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill1))
+		{
+			ResolvedSkillSlotIndex = 0;
+		}
+		else if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill2))
+		{
+			ResolvedSkillSlotIndex = 1;
+		}
+		else if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill3))
+		{
+			ResolvedSkillSlotIndex = 2;
+		}
+		else if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill4))
+		{
+			ResolvedSkillSlotIndex = 3;
+		}
 	}
 
-	return nullptr;
+	return InputDefinition->GetLoadedSkillInputAction(ResolvedSkillSlotIndex);
 }
 
 UObject* UAbilitySlotWidget::ResolveInputIconObject() const
 {
-	if (UObject* FixedIconObject = ResolveFixedSkillSlotInputIconObject())
-	{
-		return FixedIconObject;
-	}
-
-	const UInputAction* InputAction = ResolveInputAction();
-	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
-	if (!InputAction || !WidgetDefinition)
-	{
-		return nullptr;
-	}
-
-	return PdInputKeyIconResolver::ResolveIconObject(
+	return PdInputKeyIconResolver::ResolveInputDefinitionIconObject(
 		GetOwningPlayer(),
-		InputAction,
-		WidgetDefinition->GetAbilitySlotWidgetSettings().InputKeyIconSettings);
-}
-
-UObject* UAbilitySlotWidget::ResolveFixedSkillSlotInputIconObject() const
-{
-	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
-	if (!WidgetDefinition)
-	{
-		return nullptr;
-	}
-
-	const FString FixedKeyName = PdInputKeyIconResolver::GetFixedSkillSlotKeyName(SkillSlotIndex);
-	return PdInputKeyIconResolver::ResolveMappedIconObject(
-		WidgetDefinition->GetAbilitySlotWidgetSettings().InputKeyIconSettings,
-		FixedKeyName);
+		ResolveInputAction());
 }
 
 FSlateBrush UAbilitySlotWidget::MakeImageBrush(UObject* ResourceObject)

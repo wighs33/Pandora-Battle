@@ -13,7 +13,7 @@ void URecordEntryWidget::NativeConstruct()
 	RefreshUI();
 }
 
-void URecordEntryWidget::SetRecord(const int32 InDisplayNumber, const FPdMatchRecord& InRecord)
+void URecordEntryWidget::SetRecord(const int32 InDisplayNumber, const FMatchRecord& InRecord)
 {
 	DisplayNumber = FMath::Max(InDisplayNumber, 1);
 	Record = InRecord;

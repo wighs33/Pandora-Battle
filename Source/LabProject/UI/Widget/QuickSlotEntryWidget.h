@@ -53,6 +53,12 @@ private:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|QuickSlot", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<const USkinDefinition> SkinDefinition = nullptr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|QuickSlot|Input", meta = (AllowPrivateAccess = "true"))
+	bool bHideInputKeyIcon = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|QuickSlot|Input", meta = (AllowPrivateAccess = "true"))
+	FVector2D InputKeyIconSize = FVector2D(32.0f, 32.0f);
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UImage> IconImage;
 

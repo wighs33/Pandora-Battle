@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/Player/ControllerInputDefinition.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
 #include "Common/LabGameplayTags.h"
@@ -14,15 +15,16 @@
 #include "GameFramework/Pawn.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Mode/PdPlayerState.h"
+#include "Mode/PdPlayerController.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
+#include "InputAction.h"
 #include "Pandora/PandoraSkillRuntimeContext.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "TimerManager.h"
 #include "UI/Widget/AbilitySlotWidget.h"
 #include "UI/Widget/InputKeyIconResolver.h"
-#include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/WidgetLookup.h"
 #include "UObject/UnrealType.h"
 
@@ -121,7 +123,10 @@ void UAbilitiesBarWidget::FillAbilitiesBar()
 {
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::RebuildAbilitiesBar);
+		World->GetTimerManager().ClearTimer(RebuildBarTimerHandle);
+		RebuildBarTimerHandle = World->GetTimerManager().SetTimerForNextTick(
+			this,
+			&ThisClass::RebuildAbilitiesBar);
 		return;
 	}
 
@@ -154,6 +159,9 @@ void UAbilitiesBarWidget::InitializeAbilitySystemBinding()
 
 void UAbilitiesBarWidget::RebuildAbilitiesBar()
 {
+	RebuildBarTimerHandle.Invalidate();
+	BindPandoraTreeChangedEvent();
+
 	if (!ContainerHorizontalBox)
 	{
 		return;
@@ -172,7 +180,6 @@ void UAbilitiesBarWidget::RebuildAbilitiesBar()
 
 		const int32 NumPandoraSkillSlots = FMath::Clamp(PandoraSkillSlots, 0, UPandoraDefinition::GetFixedMaxLevel());
 		const int32 SelectedPandoraLevel = GetSelectedPandoraLevel(SelectedPandoraDefinition);
-
 
 		for (int32 SlotIndex = 0; SlotIndex < NumPandoraSkillSlots; ++SlotIndex)
 		{
@@ -348,6 +355,7 @@ void UAbilitiesBarWidget::ApplySkillSlotKeyIcon(UUserWidget* Widget, const int32
 	if (UAbilitySlotWidget* AbilitySlotWidget = Cast<UAbilitySlotWidget>(Widget))
 	{
 		AbilitySlotWidget->SetSkillSlotIndex(SkillSlotIndex);
+		return;
 	}
 
 	UImage* KeyIcon = PdWidgetLookup::FindWidgetByNames<UImage>(Widget, {
@@ -358,23 +366,18 @@ void UAbilitiesBarWidget::ApplySkillSlotKeyIcon(UUserWidget* Widget, const int32
 		return;
 	}
 
-	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
-	if (!WidgetDefinition)
-	{
-		KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
-		return;
-	}
+	const APdPlayerController* PlayerController =
+		Cast<APdPlayerController>(GetOwningPlayer());
+	const UControllerInputDefinition* InputDefinition = PlayerController
+		? PlayerController->GetLoadedInputDefinition()
+		: nullptr;
+	const UInputAction* InputAction = InputDefinition
+		? InputDefinition->GetLoadedSkillInputAction(SkillSlotIndex)
+		: nullptr;
 
-	const FAbilitySlotWidgetSettings& Settings = WidgetDefinition->GetAbilitySlotWidgetSettings();
-	if (Settings.InputKeyIconSettings.bHideInputKeyIcon)
-	{
-		KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
-		return;
-	}
-
-	UObject* IconObject = PdInputKeyIconResolver::ResolveMappedIconObject(
-		Settings.InputKeyIconSettings,
-		PdInputKeyIconResolver::GetFixedSkillSlotKeyName(SkillSlotIndex));
+	UObject* IconObject = PdInputKeyIconResolver::ResolveInputDefinitionIconObject(
+		GetOwningPlayer(),
+		InputAction);
 	if (!IconObject)
 	{
 		KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
@@ -385,7 +388,7 @@ void UAbilitiesBarWidget::ApplySkillSlotKeyIcon(UUserWidget* Widget, const int32
 	KeyIcon->SetBrush(PdInputKeyIconResolver::MakeImageBrushFromExisting(
 		KeyIcon->GetBrush(),
 		IconObject,
-		Settings.InputKeyIconSettings.IconSize));
+		KeyIcon->GetBrush().ImageSize));
 }
 
 bool UAbilitiesBarWidget::ShouldShowAbilityHandle(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle& AbilitySpecHandle) const
@@ -545,12 +548,22 @@ bool UAbilitiesBarWidget::IsConfiguredPandoraSkill(const FSkill& Skill) const
 
 void UAbilitiesBarWidget::BindAbilitiesChangedEvents()
 {
+	BindPandoraTreeChangedEvent();
+
 	UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
 	if (!AbilitySystemComponent)
 	{
 		return;
 	}
 
+	if (UPdAbilitySystemComponent* PdAbilitySystemComponent = Cast<UPdAbilitySystemComponent>(AbilitySystemComponent))
+	{
+		AbilitiesChangedNativeHandle = PdAbilitySystemComponent->OnAbilitiesChangedNative.AddUObject(this, &ThisClass::HandleAbilitiesChanged);
+		return;
+	}
+
+	// Non-project ability system components do not expose the native delegate.
+	// Keep the gameplay event as a fallback, but never subscribe to both paths.
 	const FGameplayTag AbilitiesChangedTag = LabGameplayTags::Event_Abilities_Changed;
 	if (AbilitiesChangedTag.IsValid())
 	{
@@ -558,15 +571,12 @@ void UAbilitiesBarWidget::BindAbilitiesChangedEvents()
 			.FindOrAdd(AbilitiesChangedTag)
 			.AddUObject(this, &ThisClass::HandleAbilitiesChangedEvent);
 	}
-
-	if (UPdAbilitySystemComponent* PdAbilitySystemComponent = Cast<UPdAbilitySystemComponent>(AbilitySystemComponent))
-	{
-		AbilitiesChangedNativeHandle = PdAbilitySystemComponent->OnAbilitiesChangedNative.AddUObject(this, &ThisClass::HandleAbilitiesChanged);
-	}
 }
 
 void UAbilitiesBarWidget::UnbindAbilitiesChangedEvents()
 {
+	UnbindPandoraTreeChangedEvent();
+
 	UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
 	const FGameplayTag AbilitiesChangedTag = LabGameplayTags::Event_Abilities_Changed;
 	if (AbilitySystemComponent && AbilitiesChangedTag.IsValid() && AbilitiesChangedEventHandle.IsValid())
@@ -589,6 +599,38 @@ void UAbilitiesBarWidget::UnbindAbilitiesChangedEvents()
 	CachedAbilitySystemComponent.Reset();
 }
 
+void UAbilitiesBarWidget::BindPandoraTreeChangedEvent()
+{
+	UPandoraTreeComponent* PandoraTreeComponent = GetPandoraTreeComponent();
+	if (BoundPandoraTreeComponent.Get() == PandoraTreeComponent)
+	{
+		return;
+	}
+
+	UnbindPandoraTreeChangedEvent();
+	if (!PandoraTreeComponent)
+	{
+		return;
+	}
+
+	PandoraTreeComponent->OnPandorasChanged.AddUniqueDynamic(
+		this,
+		&ThisClass::HandlePandoraTreeChanged);
+	BoundPandoraTreeComponent = PandoraTreeComponent;
+}
+
+void UAbilitiesBarWidget::UnbindPandoraTreeChangedEvent()
+{
+	if (UPandoraTreeComponent* PandoraTreeComponent =
+		BoundPandoraTreeComponent.Get())
+	{
+		PandoraTreeComponent->OnPandorasChanged.RemoveDynamic(
+			this,
+			&ThisClass::HandlePandoraTreeChanged);
+	}
+	BoundPandoraTreeComponent.Reset();
+}
+
 void UAbilitiesBarWidget::HandleAbilitiesChanged()
 {
 	FillAbilitiesBar();
@@ -597,6 +639,11 @@ void UAbilitiesBarWidget::HandleAbilitiesChanged()
 void UAbilitiesBarWidget::HandleAbilitiesChangedEvent(const FGameplayEventData* Payload)
 {
 	static_cast<void>(Payload);
+	FillAbilitiesBar();
+}
+
+void UAbilitiesBarWidget::HandlePandoraTreeChanged()
+{
 	FillAbilitiesBar();
 }
 

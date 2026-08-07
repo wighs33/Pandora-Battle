@@ -7,11 +7,8 @@
 #include "GameplayTagContainer.h"
 #include "Layout/Margin.h"
 #include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/UI/WidgetContentBundle.h"
 #include "UObject/SoftObjectPath.h"
-
-#if WITH_EDITOR
-#include "Misc/DataValidation.h"
-#endif
 
 #include "WidgetClassDefinition.generated.h"
 
@@ -20,7 +17,6 @@ class UInfoUiPresenter;
 class AActor;
 class UActionSlotEntryWidget;
 class UCharacterActionDefinition;
-class UChatEntryWidget;
 class UConnectingPopupWidget;
 class UCreateRoomPopupWidget;
 class UGameResultWidget;
@@ -48,10 +44,9 @@ class UTrainingRoomMenuPopupWidget;
 class UWidgetInputIconsDefinition;
 class UWidgetMapUIDefinition;
 class UWidgetStyleDefinition;
-class UWidgetUIClassesDefinition;
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdInputKeyIconSettings
+struct LABPROJECT_API FInputKeyIconSettings
 {
 	GENERATED_BODY()
 
@@ -60,9 +55,6 @@ struct LABPROJECT_API FPdInputKeyIconSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Input Key", meta = (ClampMin = "1.0"))
 	FVector2D IconSize = FVector2D(32.0f, 32.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Input Key", meta = (AllowedClasses = "/Script/Engine.Texture2D,/Script/Engine.MaterialInterface"))
-	TMap<FString, TSoftObjectPtr<UObject>> StringToIconMapping;
 };
 
 USTRUCT(BlueprintType)
@@ -73,38 +65,8 @@ struct LABPROJECT_API FAbilitySlotWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Disabled", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float DisabledSlotOpacity = 0.35f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot")
-	TSoftObjectPtr<UTexture2D> DefaultAbilityImage;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Cooldown")
 	bool bShowCooldownTimeRemaining = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Input")
-	float ReadyInputKeyOpacity = 1.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Input")
-	float CooldownInputKeyOpacity = 0.35f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Input")
-	FLinearColor ActiveInputKeyColor = FLinearColor(1.0f, 0.78f, 0.2f, 1.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Input")
-	FLinearColor InactiveInputKeyColor = FLinearColor::White;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Input")
-	FPdInputKeyIconSettings InputKeyIconSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> Skill1InputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> Skill2InputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> Skill3InputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> Skill4InputAction;
 };
 
 USTRUCT(BlueprintType)
@@ -135,36 +97,6 @@ struct LABPROJECT_API FQuickSlotWidgetSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot", meta = (ClampMin = "1"))
 	int32 SlotCount = 8;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot")
-	FMargin SlotPadding = FMargin(5.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot|Input")
-	FPdInputKeyIconSettings InputKeyIconSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> QuickSlot1InputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> QuickSlot2InputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> QuickSlot3InputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> QuickSlot4InputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> GestureSlot1InputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> GestureSlot2InputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> GestureSlot3InputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot|Input Actions")
-	TSoftObjectPtr<UInputAction> GestureSlot4InputAction;
 };
 
 USTRUCT(BlueprintType)
@@ -188,7 +120,7 @@ struct LABPROJECT_API FActionSlotWidgetSettings
 	float CooldownInputKeyOpacity = 0.35f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|ActionSlot|Input")
-	FPdInputKeyIconSettings InputKeyIconSettings;
+	FInputKeyIconSettings InputKeyIconSettings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|ActionSlot|Actions")
 	TSoftObjectPtr<UCharacterActionDefinition> CharacterActionDefinition;
@@ -220,9 +152,6 @@ struct LABPROJECT_API FKillBoxWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|KillBox")
 	TSoftClassPtr<UKillBoxWidget> EntryWidgetClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|KillBox")
-	FMargin EntryPadding = FMargin(4.0f, 0.0f);
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|KillBox", meta = (ClampMin = "0.01"))
 	float RefreshInterval = 0.2f;
 };
@@ -240,33 +169,6 @@ struct LABPROJECT_API FInfoWidgetSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget")
 	TSubclassOf<UInfoUiPresenter> PresenterClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Layout")
-	bool bAutoApplyInfoLayout = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Layout")
-	FVector2D DesignResolution = FVector2D(1920.0f, 1080.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Layout", meta = (ClampMin = "0.0"))
-	float LeftPanelWidth = 420.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Layout", meta = (ClampMin = "0.0"))
-	float RightPanelWidth = 560.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Layout", meta = (ClampMin = "0.0"))
-	float MinCenterPreviewWidth = 640.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Layout", meta = (ClampMin = "0.0"))
-	float BottomNavigationReservedHeight = 120.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Layout", meta = (ClampMin = "0.0"))
-	float BottomTabBarWidth = 720.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Layout", meta = (ClampMin = "0.0"))
-	float BottomTabBarHeight = 72.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Layout", meta = (ClampMin = "0.0"))
-	float BottomTabBarBottomPadding = 24.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Animation", meta = (ClampMin = "0.0"))
 	float HideAnimationDelay = 0.25f;
@@ -286,8 +188,6 @@ struct LABPROJECT_API FInfoWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Detail")
 	FVector2D DetailPopupOffset = FVector2D(18.0f, 0.0f);
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Map")
-	TArray<FName> MapButtonDisabledMapNames = { TEXT("LV_TrainingRoom") };
 };
 
 USTRUCT(BlueprintType)
@@ -420,9 +320,6 @@ struct LABPROJECT_API FMenuPopupWidgetSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|MenuPopup")
 	TSubclassOf<UTrainingRoomMenuPopupWidget> TrainingRoomMenuPopupWidgetClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|MenuPopup")
-	TArray<FName> TrainingRoomMapNames;
 };
 
 USTRUCT(BlueprintType)
@@ -533,7 +430,7 @@ struct LABPROJECT_API FMapWidgetTeamMarkImage
 	GENERATED_BODY()
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Marker")
-	EPdTeamColor TeamColor = EPdTeamColor::Red;
+	ETeamColor TeamColor = ETeamColor::Red;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Marker", meta = (AllowedClasses = "/Script/Engine.Texture2D,/Script/Engine.MaterialInterface"))
 	TSoftObjectPtr<UObject> TeamMarkImage;
@@ -610,35 +507,11 @@ struct LABPROJECT_API FStatusEffectsBarWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|StatusEffect")
 	TSubclassOf<UStatusEffectWidget> StatusEffectWidgetClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|StatusEffect")
-	FMargin StatusEffectWidgetPadding = FMargin(5.0f, 0.0f);
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|StatusEffect|Entry", meta = (ClampMin = "0.001"))
 	float MeterUpdateInterval = 0.033333f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|StatusEffect|Entry", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float InitialIconOpacity = 0.65f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|StatusEffect|Entry", meta = (ClampMin = "1.0"))
-	FVector2D IconImageSize = FVector2D(32.0f, 32.0f);
-};
-
-USTRUCT(BlueprintType)
-struct LABPROJECT_API FChatWidgetSettings
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Chat")
-	TSubclassOf<UChatEntryWidget> ChatEntryWidgetClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Chat|Input", meta = (ClampMin = "1.0"))
-	float ScrollMultiplier = 60.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Chat|Fallback")
-	TArray<FName> ChatScrollBoxCandidateNames;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Chat|Fallback")
-	TArray<FName> ChatInputCandidateNames;
 };
 
 USTRUCT(BlueprintType)
@@ -733,6 +606,9 @@ struct LABPROJECT_API FInventoryWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Inventory", meta = (ClampMin = "0"))
 	int32 TrainingRoomInventoryItemCountLimit = 120;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Inventory|Style", meta = (DisplayName = "Duplicate Weapon Or Equipment Background Color"))
+	FLinearColor DuplicateWeaponOrEquipmentBackgroundColor = FLinearColor(0.45f, 0.08f, 0.08f, 0.35f);
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Inventory|Filter", meta = (Categories = "Item"))
 	FGameplayTag WeaponTypeTag;
 
@@ -769,11 +645,11 @@ struct LABPROJECT_API FSkinWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Filter", meta = (Categories = "Skin"))
 	FGameplayTag PetTypeTag;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin", meta = (DisplayName = "Canvas Transform Offset"))
-	FTransform PaintCanvasTransformOffset = FTransform(FRotator::ZeroRotator, FVector(120.0, 0.0, 100.0), FVector::OneVector);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Paint", meta = (DisplayName = "Brush Material"))
+	TSoftObjectPtr<UMaterialInterface> PaintBrushMaterial;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin", meta = (DisplayName = "Export Canvas Transform Offset"))
-	FTransform PaintCanvasExportTransformOffset = FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, 260.0), FVector::OneVector);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Paint", meta = (DisplayName = "Canvas Display Material"))
+	TSoftObjectPtr<UMaterialInterface> PaintCanvasDisplayMaterial;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Face Decal", meta = (DisplayName = "Face Decal Material"))
 	TSoftObjectPtr<UMaterialInterface> PaintCanvasFaceDecalMaterial;
@@ -797,18 +673,14 @@ class LABPROJECT_API UWidgetClassDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UWidgetClassDefinition();
-
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-
-#if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
-#endif
 
 	static const UWidgetClassDefinition* ResolveWidgetClassDefinition(const UObject* WorldContextObject);
 
-	/** Collects every soft asset used by this UI composition and its definition fragments. */
-	void GetRuntimePreloadAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const;
+	/** Collects the effective soft assets for one screen-lifetime bundle. */
+	void GetRuntimePreloadAssetPaths(
+		EWidgetContentBundle Bundle,
+		TArray<FSoftObjectPath>& OutAssetPaths) const;
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Widget")
 	TSubclassOf<UUserWidget> FindWidgetClassByTag(FGameplayTag WidgetTag) const;
@@ -830,7 +702,6 @@ public:
 	TSubclassOf<UPandoraDescriptionWidget> GetPandoraDescriptionWidgetClass() const;
 	TSubclassOf<URecordEntryWidget> GetRecordEntryWidgetClass() const;
 	TSubclassOf<UStatusEffectWidget> GetStatusEffectWidgetClass() const;
-	TSubclassOf<UChatEntryWidget> GetChatEntryWidgetClass() const;
 	TSubclassOf<URoomItemWidget> GetRoomItemWidgetClass() const;
 	TSubclassOf<UCreateRoomPopupWidget> GetCreateRoomPopupWidgetClass() const;
 	TSubclassOf<ULobbyUserWidget> GetLobbyUserWidgetClass() const;
@@ -844,7 +715,6 @@ public:
 	TSoftClassPtr<UQuickSlotEntryWidget> GetQuickSlotEntryWidgetClass() const;
 	TSoftClassPtr<UActionSlotEntryWidget> GetActionSlotEntryWidgetClass() const;
 	TSoftObjectPtr<UInputAction> GetTogglePandoraTreeInputAction() const;
-	const TArray<FName>& GetTrainingRoomMapNames() const;
 	int32 GetInventoryItemCountLimit(bool bTrainingRoom) const;
 	const FPlayerHudWidgetSettings& GetPlayerHudWidgetSettings() const { return PlayerHudWidgetSettings; }
 	const FKillBoxWidgetSettings& GetKillBoxWidgetSettings() const;
@@ -862,7 +732,6 @@ public:
 	const FMapWidgetSettings& GetMapWidgetSettings() const;
 	const FRecordWidgetSettings& GetRecordWidgetSettings() const;
 	const FStatusEffectsBarWidgetSettings& GetStatusEffectsBarWidgetSettings() const;
-	const FChatWidgetSettings& GetChatWidgetSettings() const;
 	const FRoomListWidgetSettings& GetRoomListWidgetSettings() const;
 	const FLobbyWidgetSettings& GetLobbyWidgetSettings() const;
 	const FGameResultWidgetSettings& GetGameResultWidgetSettings() const { return GameResultWidgetSettings; }
@@ -875,15 +744,7 @@ public:
 	const FQuickSlotWidgetSettings& GetQuickSlotWidgetSettings() const;
 	const FActionSlotWidgetSettings& GetActionSlotWidgetSettings() const;
 
-	const UWidgetUIClassesDefinition* GetUIClassesDefinition() const { return UIClasses; }
-	const UWidgetStyleDefinition* GetStyleDefinition() const { return Style; }
-	const UWidgetInputIconsDefinition* GetInputIconsDefinition() const { return InputIcons; }
-	const UWidgetMapUIDefinition* GetMapUIDefinition() const { return MapUI; }
-
 private:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Fragments", meta = (AllowPrivateAccess = "true", IncludeAssetBundles))
-	TObjectPtr<UWidgetUIClassesDefinition> UIClasses;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Fragments", meta = (AllowPrivateAccess = "true", IncludeAssetBundles))
 	TObjectPtr<UWidgetStyleDefinition> Style;
 
@@ -893,34 +754,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Fragments", meta = (AllowPrivateAccess = "true", IncludeAssetBundles))
 	TObjectPtr<UWidgetMapUIDefinition> MapUI;
 
-	// Legacy values remain serialized during migration. Each fragment overrides
-	// only its own group, so existing DA_Widget assets keep their current behavior.
+	// Settings not owned by one of the domain fragments remain on this asset.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PlayerHUD", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
 	FPlayerHudWidgetSettings PlayerHudWidgetSettings;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|KillBox", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FKillBoxWidgetSettings KillBoxWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FInfoWidgetSettings InfoWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SelectPandoraWidget", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FSelectPandoraWidgetSettings SelectPandoraWidgetSettings;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|AimCrosshairWidget", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
 	FAimCrosshairWidgetSettings AimCrosshairWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FPandoraTreeWidgetSettings PandoraTreeWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraWidget", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FPandoraWidgetSettings PandoraWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|RightPandora", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FRightPandoraWidgetSettings RightPandoraWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|RightNotificationsWidget", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FRightNotificationsWidgetSettings RightNotificationsWidgetSettings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|MenuPopup", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
 	FMenuPopupWidgetSettings MenuPopupWidgetSettings;
@@ -928,54 +767,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|ConnectingPopup", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
 	FConnectingPopupWidgetSettings ConnectingPopupWidgetSettings;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Title", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FTitleAuxiliaryWidgetSettings TitleAuxiliaryWidgetSettings;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Auxiliary", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
 	FInfoAuxiliaryWidgetSettings InfoAuxiliaryWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FMapWidgetSettings MapWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Record", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FRecordWidgetSettings RecordWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|StatusEffect", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FStatusEffectsBarWidgetSettings StatusEffectsBarWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Chat", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FChatWidgetSettings ChatWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|RoomList", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FRoomListWidgetSettings RoomListWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FLobbyWidgetSettings LobbyWidgetSettings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|GameResult", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
 	FGameResultWidgetSettings GameResultWidgetSettings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Character", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
 	FCharacterWidgetSettings CharacterWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Inventory", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FInventoryWidgetSettings InventoryWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FSkinWidgetSettings SkinWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillSlot", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FAbilitySlotWidgetSettings AbilitySlotWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|SkillTip|EffectIcons", meta = (AllowPrivateAccess = "true", AssetBundles = "Client", DisplayName = "Skill Tip Effect Icon Settings"))
-	FSkillTipWidgetSettings SkillTipWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraDescription|EffectIcons", meta = (AllowPrivateAccess = "true", AssetBundles = "Client", DisplayName = "Pandora Description Effect Icon Settings"))
-	FSkillTipWidgetSettings PandoraDescriptionEffectIconSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|QuickSlot", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FQuickSlotWidgetSettings QuickSlotWidgetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|ActionSlot", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FActionSlotWidgetSettings ActionSlotWidgetSettings;
 };

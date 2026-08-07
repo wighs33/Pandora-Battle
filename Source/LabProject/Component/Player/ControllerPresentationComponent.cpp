@@ -3,16 +3,19 @@
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
-#include "Components/InputComponent.h"
+#include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
-#include "InputCoreTypes.h"
+#include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
+#include "Lobby/Contents/TitleHUD.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Lobby/UI/LobbyWidget.h"
+#include "Mode/ExperienceGameMode.h"
 #include "Mode/PdGameInstance.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
@@ -101,33 +104,21 @@ void UControllerPresentationComponent::RefreshAfterPossession(
 	}
 }
 
-void UControllerPresentationComponent::BindInput(UInputComponent& InputComponent)
-{
-	FInputKeyBinding& ScoreboardPressedBinding = InputComponent.BindKey(
-		EKeys::Tab,
-		IE_Pressed,
-		this,
-		&ThisClass::HandleInGameScoreboardPressed);
-	ScoreboardPressedBinding.bConsumeInput = false;
-
-	FInputKeyBinding& ScoreboardReleasedBinding = InputComponent.BindKey(
-		EKeys::Tab,
-		IE_Released,
-		this,
-		&ThisClass::HandleInGameScoreboardReleased);
-	ScoreboardReleasedBinding.bConsumeInput = false;
-}
-
 void UControllerPresentationComponent::Shutdown()
 {
 	StopHealthBarVisibilityManagement();
+	if (TravelLoadingReadyTickerHandle.IsValid())
+	{
+		FTSTicker::RemoveTicker(TravelLoadingReadyTickerHandle);
+		TravelLoadingReadyTickerHandle.Reset();
+	}
+	SetTrainingRoomLoadingPaused(false);
 
 	if (UWorld* World = GetWorld())
 	{
 		FTimerManager& TimerManager = World->GetTimerManager();
 		TimerManager.ClearTimer(RespawnTransformResetNextTickTimerHandle);
 		TimerManager.ClearTimer(RespawnTransformResetRetryTimerHandle);
-		TimerManager.ClearTimer(TravelLoadingHideTimerHandle);
 	}
 	TravelLoadingHideRetryCount = 0;
 }
@@ -255,7 +246,7 @@ void UControllerPresentationComponent::RestoreGameplayInputMode() const
 	Controller->bEnableMouseOverEvents = false;
 }
 
-void UControllerPresentationComponent::RefreshTravelLoadingScreen() const
+void UControllerPresentationComponent::RefreshTravelLoadingScreen()
 {
 	APdPlayerController* Controller = GetPdController();
 	if (!Controller || !Controller->IsLocalController())
@@ -268,6 +259,7 @@ void UControllerPresentationComponent::RefreshTravelLoadingScreen() const
 	if (UiSubsystem && UiSubsystem->IsTravelLoadingScreenActive())
 	{
 		UiSubsystem->ShowTravelLoadingScreen();
+		SetTrainingRoomLoadingPaused(true);
 	}
 }
 
@@ -287,38 +279,51 @@ void UControllerPresentationComponent::ScheduleHideTravelLoadingScreenWhenReady(
 	}
 
 	TravelLoadingHideRetryCount = 0;
-	if (UWorld* World = GetWorld())
+	SetTrainingRoomLoadingPaused(true);
+	if (TravelLoadingReadyTickerHandle.IsValid())
 	{
-		FTimerManager& TimerManager = World->GetTimerManager();
-		TimerManager.ClearTimer(TravelLoadingHideTimerHandle);
-		TravelLoadingHideTimerHandle =
-			TimerManager.SetTimerForNextTick(this, &ThisClass::HideTravelLoadingScreenWhenReady);
+		FTSTicker::RemoveTicker(TravelLoadingReadyTickerHandle);
+		TravelLoadingReadyTickerHandle.Reset();
 	}
+	TravelLoadingReadyTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(
+			this,
+			&ThisClass::TickTravelLoadingScreenReady),
+		FMath::Max(Settings.TravelLoadingReadyCheckInterval, 0.01f));
 }
 
-void UControllerPresentationComponent::HideTravelLoadingScreenWhenReady()
+bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 {
 	APdPlayerController* Controller = GetPdController();
 	if (!Controller || !Controller->IsLocalController())
 	{
-		return;
+		SetTrainingRoomLoadingPaused(false);
+		TravelLoadingReadyTickerHandle.Reset();
+		return false;
 	}
 
 	ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer();
 	UUiSubsystem* UiSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 	if (!UiSubsystem || !UiSubsystem->IsTravelLoadingScreenActive())
 	{
-		return;
+		SetTrainingRoomLoadingPaused(false);
+		TravelLoadingReadyTickerHandle.Reset();
+		return false;
 	}
+	SetTrainingRoomLoadingPaused(true);
 
 	const bool bHasCharacterPawn = Cast<ACharacterBase>(Controller->GetPawn()) != nullptr;
 	const bool bHasPlayerState = Controller->GetPlayerState<APdPlayerState>() != nullptr;
 	const APdHUD* PdHUD = Controller->GetHUD<APdHUD>();
 	const bool bHasPlayerHudWidget = PdHUD && PdHUD->GetPlayerHudWidget();
+	const bool bIsTitleScreen = Controller->GetHUD<ATitleHUD>() != nullptr;
 	const bool bBasePresentationReady =
-		bHasCharacterPawn && bHasPlayerState && bHasPlayerHudWidget;
+		bIsTitleScreen
+		|| (bHasCharacterPawn && bHasPlayerState && bHasPlayerHudWidget);
+	const bool bStartupContentReady = UiSubsystem->IsStartupContentReady();
 
 	bool bLobbyContentReady = true;
+	bool bGameEntryContentReady = true;
 	const bool bIsLobbyController = Controller->IsA<ALobbyPlayerController>();
 	if (bIsLobbyController)
 	{
@@ -335,28 +340,48 @@ void UControllerPresentationComponent::HideTravelLoadingScreenWhenReady()
 			&& LobbyGameState
 			&& LobbyGameState->IsSelectedMapImageReady();
 	}
+	else
+	{
+		const UGameInstance* GameInstance = Controller->GetGameInstance();
+		const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
+			GameInstance
+				? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>()
+				: nullptr;
+		if (LobbyRuntimeSubsystem
+			&& LobbyRuntimeSubsystem->GetGameEntryContentPreloadResult()
+				!= ELobbyContentPreloadResult::NotStarted)
+		{
+			bGameEntryContentReady =
+				LobbyRuntimeSubsystem->IsGameEntryContentReady();
+		}
+	}
 
 	const int32 MaxReadyCheckAttempts =
 		FMath::Max(Settings.TravelLoadingReadyCheckMaxAttempts, 0);
 	const bool bMayRetryBasePresentation =
 		TravelLoadingHideRetryCount < MaxReadyCheckAttempts;
 	if ((!bBasePresentationReady && (bIsLobbyController || bMayRetryBasePresentation))
-		|| !bLobbyContentReady)
+		|| !bStartupContentReady
+		|| !bLobbyContentReady
+		|| !bGameEntryContentReady)
 	{
 		++TravelLoadingHideRetryCount;
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().SetTimer(
-				TravelLoadingHideTimerHandle,
-				this,
-				&ThisClass::HideTravelLoadingScreenWhenReady,
-				FMath::Max(Settings.TravelLoadingReadyCheckInterval, 0.01f),
-				false);
-		}
-		return;
+		return true;
 	}
 
 	UiSubsystem->HideTravelLoadingScreen();
+	SetTrainingRoomLoadingPaused(false);
+	if (!bIsLobbyController)
+	{
+		if (UGameInstance* GameInstance = Controller->GetGameInstance())
+		{
+			if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
+				GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>())
+			{
+				LobbyRuntimeSubsystem->ReleaseLobbyEntryContentPreload();
+			}
+		}
+	}
 	if (ALobbyPlayerController* LobbyController = Cast<ALobbyPlayerController>(Controller))
 	{
 		if (ALobbyHUD* LobbyHUD = LobbyController->GetHUD<ALobbyHUD>())
@@ -377,6 +402,51 @@ void UControllerPresentationComponent::HideTravelLoadingScreenWhenReady()
 		RestoreGameplayInputMode();
 	}
 	TravelLoadingHideRetryCount = 0;
+	TravelLoadingReadyTickerHandle.Reset();
+	return false;
+}
+
+void UControllerPresentationComponent::SetTrainingRoomLoadingPaused(
+	const bool bPaused)
+{
+	APdPlayerController* Controller = GetPdController();
+	UWorld* World = GetWorld();
+	if (!Controller || !World)
+	{
+		if (!bPaused)
+		{
+			bAppliedTrainingRoomLoadingPause = false;
+		}
+		return;
+	}
+
+	if (bPaused)
+	{
+		const AExperienceGameMode* ExperienceGameMode =
+			World->GetAuthGameMode<AExperienceGameMode>();
+		const UExperiencePlayerProvisioningComponent* Provisioning =
+			ExperienceGameMode
+				? ExperienceGameMode->GetPlayerProvisioningComponent()
+				: nullptr;
+		if (bAppliedTrainingRoomLoadingPause
+			|| !Provisioning
+			|| !Provisioning->IsTrainingRoomMap()
+			|| World->GetNetMode() != NM_Standalone
+			|| UGameplayStatics::IsGamePaused(World))
+		{
+			return;
+		}
+
+		bAppliedTrainingRoomLoadingPause =
+			UGameplayStatics::SetGamePaused(World, true);
+		return;
+	}
+
+	if (bAppliedTrainingRoomLoadingPause)
+	{
+		UGameplayStatics::SetGamePaused(World, false);
+		bAppliedTrainingRoomLoadingPause = false;
+	}
 }
 
 void UControllerPresentationComponent::StartHealthBarVisibilityManagement()
@@ -427,6 +497,12 @@ void UControllerPresentationComponent::UpdateManagedHealthBarVisibility()
 		ACharacterBase* TargetCharacter = *It;
 		if (!IsValid(TargetCharacter))
 		{
+			continue;
+		}
+
+		if (TargetCharacter == Controller->GetPawn())
+		{
+			TargetCharacter->SetHealthBarVisibleForLocalViewer(true);
 			continue;
 		}
 
@@ -492,7 +568,7 @@ void UControllerPresentationComponent::ResetRespawnedPawnStateForClientAtTransfo
 	}
 }
 
-void UControllerPresentationComponent::HandleInGameScoreboardPressed()
+void UControllerPresentationComponent::ShowInGameScoreboard()
 {
 	if (APdPlayerController* Controller = GetPdController())
 	{
@@ -506,7 +582,7 @@ void UControllerPresentationComponent::HandleInGameScoreboardPressed()
 	}
 }
 
-void UControllerPresentationComponent::HandleInGameScoreboardReleased()
+void UControllerPresentationComponent::HideInGameScoreboard()
 {
 	if (APdPlayerController* Controller = GetPdController())
 	{

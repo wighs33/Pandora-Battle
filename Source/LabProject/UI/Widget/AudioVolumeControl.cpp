@@ -14,7 +14,7 @@
 
 namespace
 {
-	constexpr int32 MaxMasterVolumePercent = 100;
+	constexpr int32 AudioVolumeControlMaxMasterVolumePercent = 100;
 
 	void SetBrushTexture(FSlateBrush& Brush, UTexture2D* Texture)
 	{
@@ -143,9 +143,9 @@ void UAudioVolumeControl::HandleSliderValueChanged(const float NormalizedValue)
 	if (UAudioSettingsSubsystem* AudioSettingsSubsystem = GetAudioSettingsSubsystem())
 	{
 		const int32 VolumePercent = FMath::Clamp(
-			FMath::RoundToInt(NormalizedValue * static_cast<float>(MaxMasterVolumePercent)),
+			FMath::RoundToInt(NormalizedValue * static_cast<float>(AudioVolumeControlMaxMasterVolumePercent)),
 			0,
-			MaxMasterVolumePercent);
+			AudioVolumeControlMaxMasterVolumePercent);
 		AudioSettingsSubsystem->SetMasterVolumePercent(VolumePercent);
 	}
 }
@@ -186,8 +186,8 @@ void UAudioVolumeControl::SetSliderValueFromPercent(const int32 VolumePercent)
 
 	TGuardValue<bool> SynchronizingGuard(bSynchronizing, true);
 	VolumeSlider->Value = static_cast<float>(
-		FMath::Clamp(VolumePercent, 0, MaxMasterVolumePercent))
-		/ static_cast<float>(MaxMasterVolumePercent);
+		FMath::Clamp(VolumePercent, 0, AudioVolumeControlMaxMasterVolumePercent))
+		/ static_cast<float>(AudioVolumeControlMaxMasterVolumePercent);
 	static_cast<UAudioSliderBase*>(VolumeSlider.Get())->SynchronizeProperties();
 }
 

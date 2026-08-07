@@ -3,12 +3,16 @@
 #include "AudioSlider.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Components/Button.h"
+#include "Components/Slider.h"
+#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
+#include "Mode/PdGameInstance.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Online/OnlineSessionsSubsystem.h"
+#include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "UI/UiSubsystem.h"
 #include "UI/Widget/AudioVolumeControl.h"
 #include "UI/Widget/GuideWidget.h"
@@ -56,6 +60,8 @@ void UMenuPopupWidget::NativeConstruct()
 		AudioVolumeControl->Initialize(this, AudioVolumeSlider_, Btn_Sound);
 	}
 
+	InitializeMouseSensitivitySlider();
+
 	if (!bInputModeManagedExternally)
 	{
 		ApplyMenuInputMode();
@@ -77,6 +83,7 @@ void UMenuPopupWidget::NativeDestruct()
 		AudioVolumeControl->Shutdown();
 		AudioVolumeControl = nullptr;
 	}
+	ShutdownMouseSensitivitySlider();
 
 	if (Btn_Resume)
 	{
@@ -164,7 +171,19 @@ UWidget* UMenuPopupWidget::GetActiveGuideWidget() const
 
 void UMenuPopupWidget::ExitToTitleMap()
 {
+	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
+		: nullptr;
+	if (OnlineSessionsSubsystem)
+	{
+		OnlineSessionsSubsystem->MarkVoluntaryMatchExit();
+	}
 
+	if (UPdGameInstance* PdGameInstance =
+		GetGameInstance<UPdGameInstance>())
+	{
+		PdGameInstance->ClearPendingTitleGameResult();
+	}
 
 	if (bAppliedPause)
 	{
@@ -190,9 +209,6 @@ void UMenuPopupWidget::ExitToTitleMap()
 		}
 	}
 
-	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr;
 	const bool bNeedsSessionDestroy = bDestroySessionOnExit
 		&& OnlineSessionsSubsystem
 		&& OnlineSessionsSubsystem->HasNamedSession();
@@ -243,6 +259,78 @@ void UMenuPopupWidget::HandleGuideClosed(UGuideWidget* ClosedGuideWidget)
 	ActiveGuideWidget->OnGuideClosed.RemoveDynamic(this, &ThisClass::HandleGuideClosed);
 	ActiveGuideWidget = nullptr;
 	RestoreMenuAfterGuide();
+}
+
+void UMenuPopupWidget::HandleMouseSensitivityChanged(const float NormalizedValue)
+{
+	if (ULocalPlayerSettingsSubsystem* SettingsSubsystem =
+		ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer()))
+	{
+		SettingsSubsystem->SetMouseSensitivitySliderValue(NormalizedValue);
+	}
+}
+
+void UMenuPopupWidget::InitializeMouseSensitivitySlider()
+{
+	ShutdownMouseSensitivitySlider();
+
+	if (!MouseSlider)
+	{
+		MouseSlider = GetWidgetFromName(TEXT("MouseSlider"));
+	}
+
+	ULocalPlayerSettingsSubsystem* SettingsSubsystem =
+		ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer());
+	if (!MouseSlider || !SettingsSubsystem)
+	{
+		return;
+	}
+
+	const float SliderValue = SettingsSubsystem->GetMouseSensitivitySliderValue();
+	StandardMouseSlider = Cast<USlider>(MouseSlider);
+	if (StandardMouseSlider)
+	{
+		StandardMouseSlider->SetValue(SliderValue);
+		StandardMouseSlider->OnValueChanged.AddUniqueDynamic(
+			this,
+			&ThisClass::HandleMouseSensitivityChanged);
+		return;
+	}
+
+	AudioMouseSlider = Cast<UAudioVolumeSlider>(MouseSlider);
+	if (AudioMouseSlider)
+	{
+		AudioMouseSlider->Value = SliderValue;
+		static_cast<UAudioSliderBase*>(AudioMouseSlider.Get())->SynchronizeProperties();
+		AudioMouseSlider->OnValueChanged.AddUniqueDynamic(
+			this,
+			&ThisClass::HandleMouseSensitivityChanged);
+	}
+}
+
+void UMenuPopupWidget::ShutdownMouseSensitivitySlider()
+{
+	if (StandardMouseSlider)
+	{
+		StandardMouseSlider->OnValueChanged.RemoveDynamic(
+			this,
+			&ThisClass::HandleMouseSensitivityChanged);
+	}
+	if (AudioMouseSlider)
+	{
+		AudioMouseSlider->OnValueChanged.RemoveDynamic(
+			this,
+			&ThisClass::HandleMouseSensitivityChanged);
+	}
+
+	if (ULocalPlayerSettingsSubsystem* SettingsSubsystem =
+		ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer()))
+	{
+		SettingsSubsystem->SaveInputSettings();
+	}
+
+	StandardMouseSlider = nullptr;
+	AudioMouseSlider = nullptr;
 }
 
 void UMenuPopupWidget::OpenGuide()
@@ -330,10 +418,10 @@ void UMenuPopupWidget::ApplyMenuInputMode()
 	{
 		if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>())
 		{
-			FPdUiModalInputConfig InputConfig;
+			FUiModalInputConfig InputConfig;
 			InputConfig.RestorePolicy = bRestoreGameInputOnClose
-				? EPdUiInputRestorePolicy::Gameplay
-				: EPdUiInputRestorePolicy::PreviousState;
+				? EUiInputRestorePolicy::Gameplay
+				: EUiInputRestorePolicy::PreviousState;
 			if (UiSubsystem->UpdateModalInput(
 				this,
 				MenuModalInputToken,
@@ -418,8 +506,9 @@ void UMenuPopupWidget::SetRequestedPause(const bool bPaused)
 
 FString UMenuPopupWidget::GetResolvedTitleTravelMapName() const
 {
-	const FString LongPackageName = TitleMap.ToSoftObjectPath().GetLongPackageName();
-	return LongPackageName.IsEmpty() ? TitleTravelMapName : LongPackageName;
+	const ULobbyModeDefinition* Definition =
+		ULobbyModeDefinition::ResolveDefaultDefinition();
+	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 
 void UMenuPopupWidget::TravelToTitleMap()
@@ -430,7 +519,6 @@ void UMenuPopupWidget::TravelToTitleMap()
 
 		return;
 	}
-
 
 	if (UWorld* World = GetWorld())
 	{
@@ -461,7 +549,6 @@ void UMenuPopupWidget::ClearDestroySessionDelegate()
 void UMenuPopupWidget::HandleDestroySessionForExit(const bool bWasSuccessful)
 {
 
-
-	ClearDestroySessionDelegate();
+ClearDestroySessionDelegate();
 	TravelToTitleMap();
 }

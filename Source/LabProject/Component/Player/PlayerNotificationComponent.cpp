@@ -39,8 +39,7 @@ void UPlayerNotificationComponent::SendNotification(const FPdNotificationData& N
 		return;
 	}
 
-
-	PlayerController->Client_ShowRightNotification(NotificationData);
+PlayerController->Client_ShowRightNotification(NotificationData);
 }
 
 void UPlayerNotificationComponent::SendRewardNotifications(
@@ -238,8 +237,7 @@ void UPlayerNotificationComponent::SendRewardNotificationForAsset(const FPrimary
 	FPdNotificationData NotificationData;
 	NotificationData.Text = FallbackText;
 
-
-	UObject* RewardObject = ResolvePrimaryAssetObject(AssetId);
+UObject* RewardObject = ResolvePrimaryAssetObject(AssetId);
 	if (const UItemDefinition* ItemDefinition = Cast<UItemDefinition>(RewardObject))
 	{
 		NotificationData.Text = FormatRewardNotificationText(ItemDefinition->DisplayName.IsEmpty() ? FText::FromName(ItemDefinition->GetFName()) : ItemDefinition->DisplayName);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
+#include "Containers/Ticker.h"
 #include "CoreMinimal.h"
 #include "Definition/Player/PlayerControllerDefinition.h"
 #include "TimerManager.h"
@@ -9,7 +10,6 @@
 class ACharacterBase;
 class APawn;
 class APdPlayerController;
-class UInputComponent;
 struct FKillLogEntry;
 struct FPdNotificationData;
 
@@ -29,10 +29,9 @@ public:
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	void ApplySettings(const FPdControllerPresentationSettings& InSettings) { Settings = InSettings; }
+	void ApplySettings(const FControllerPresentationSettings& InSettings) { Settings = InSettings; }
 	void InitializeLocalPresentation();
 	void RefreshAfterPossession(APawn* PossessedPawn, bool bRestoreCachedPaintFaceDecal);
-	void BindInput(UInputComponent& InputComponent);
 	void Shutdown();
 
 	void ApplyCameraViewPitchClamp() const;
@@ -42,29 +41,30 @@ public:
 	void StartRespawnDelayCountdown(float DelaySeconds) const;
 	void HideRespawnDelayCountdown() const;
 	void ResetRespawnedPawnStateAtTransform(const FTransform& RespawnTransform);
+	void ShowInGameScoreboard();
+	void HideInGameScoreboard();
 
 private:
 	APdPlayerController* GetPdController() const;
 	const APdPlayerController* GetPdControllerConst() const;
 
 	void RestoreGameplayInputMode() const;
-	void RefreshTravelLoadingScreen() const;
+	void RefreshTravelLoadingScreen();
 	void ScheduleHideTravelLoadingScreenWhenReady();
-	void HideTravelLoadingScreenWhenReady();
+	bool TickTravelLoadingScreenReady(float DeltaTime);
+	void SetTrainingRoomLoadingPaused(bool bPaused);
 	void StartHealthBarVisibilityManagement();
 	void StopHealthBarVisibilityManagement();
 	void UpdateManagedHealthBarVisibility();
 	bool ShouldManageHealthBarForTarget(const ACharacterBase* TargetCharacter) const;
 	void ResetRespawnedPawnStateForClientAtTransform(FTransform RespawnTransform);
-	void HandleInGameScoreboardPressed();
-	void HandleInGameScoreboardReleased();
-
 	UPROPERTY(Transient)
-	FPdControllerPresentationSettings Settings;
+	FControllerPresentationSettings Settings;
 
 	FTimerHandle RespawnTransformResetNextTickTimerHandle;
 	FTimerHandle RespawnTransformResetRetryTimerHandle;
-	FTimerHandle TravelLoadingHideTimerHandle;
 	FTimerHandle HealthBarVisibilityManagementTimerHandle;
+	FTSTicker::FDelegateHandle TravelLoadingReadyTickerHandle;
 	int32 TravelLoadingHideRetryCount = 0;
+	bool bAppliedTrainingRoomLoadingPause = false;
 };

@@ -147,16 +147,9 @@ void UHudTimerWidget::StopTimer(const bool bResetTimer)
 void UHudTimerWidget::ResetTimer()
 {
 	const float ConfiguredTimerSeconds = FMath::Max(GetConfiguredTimerSeconds(), 0.0f);
-	CurrentTimerSeconds = IsCountDownTimer()
-		? ConfiguredTimerSeconds
-		: 0.0f;
+	CurrentTimerSeconds = ConfiguredTimerSeconds;
 	SyncFromReplicatedTimerState();
 	RefreshUI();
-}
-
-void UHudTimerWidget::ForceMoveOwningPawnNow()
-{
-	// Intentionally empty. Gameplay transitions are executed only by the authoritative GameMode.
 }
 
 bool UHudTimerWidget::IsTimerRunning() const
@@ -165,7 +158,7 @@ bool UHudTimerWidget::IsTimerRunning() const
 	const AExperienceGameState* ExperienceGameState =
 		World ? World->GetGameState<AExperienceGameState>() : nullptr;
 	return ExperienceGameState
-		&& ExperienceGameState->GetMatchTimerPhase() == EPdMatchTimerPhase::Running;
+		&& ExperienceGameState->GetMatchTimerPhase() == EMatchTimerPhase::Running;
 }
 
 void UHudTimerWidget::RefreshUI()
@@ -178,7 +171,6 @@ void UHudTimerWidget::RefreshUI()
 	Txt_Timer->SetText(FormatTimerText());
 
 	const bool bUseWarningColor = bUseWarningTextColor
-		&& IsCountDownTimer()
 		&& CurrentTimerSeconds > 0.0f
 		&& CurrentTimerSeconds <= WarningThresholdSeconds;
 	Txt_Timer->SetColorAndOpacity(FSlateColor(bUseWarningColor ? WarningTextColor : NormalTextColor));
@@ -214,24 +206,18 @@ void UHudTimerWidget::SyncFromReplicatedTimerState()
 	}
 
 	const float ConfiguredTimerSeconds = FMath::Max(GetConfiguredTimerSeconds(), 0.0f);
-	const bool bCountDownTimer = IsCountDownTimer();
 	float AuthoritativeRemainingSeconds = 0.0f;
 	switch (ExperienceGameState->GetMatchTimerPhase())
 	{
-	case EPdMatchTimerPhase::Running:
+	case EMatchTimerPhase::Running:
 		if (ExperienceGameState->TryGetMatchTimerRemainingSeconds(AuthoritativeRemainingSeconds))
 		{
-			CurrentTimerSeconds = bCountDownTimer
-				? AuthoritativeRemainingSeconds
-				: FMath::Clamp(
-					ConfiguredTimerSeconds - AuthoritativeRemainingSeconds,
-					0.0f,
-					ConfiguredTimerSeconds);
+			CurrentTimerSeconds = AuthoritativeRemainingSeconds;
 		}
 		break;
 
-	case EPdMatchTimerPhase::Expired:
-		CurrentTimerSeconds = bCountDownTimer ? 0.0f : ConfiguredTimerSeconds;
+	case EMatchTimerPhase::Expired:
+		CurrentTimerSeconds = 0.0f;
 		if (const UMatchRuleDefinition* MatchRules = GetMatchRuleDefinition();
 			MatchRules && MatchRules->bHudHideWhenFinished)
 		{
@@ -239,25 +225,22 @@ void UHudTimerWidget::SyncFromReplicatedTimerState()
 		}
 		break;
 
-	case EPdMatchTimerPhase::Inactive:
-	case EPdMatchTimerPhase::Suppressed:
+	case EMatchTimerPhase::Inactive:
+	case EMatchTimerPhase::Suppressed:
 	default:
-		CurrentTimerSeconds = bCountDownTimer ? ConfiguredTimerSeconds : 0.0f;
+		CurrentTimerSeconds = ConfiguredTimerSeconds;
 		break;
 	}
 }
 
 FText UHudTimerWidget::FormatTimerText() const
 {
-	const bool bCountDownTimer = IsCountDownTimer();
-	if (bCountDownTimer && CurrentTimerSeconds <= 0.0f)
+	if (CurrentTimerSeconds <= 0.0f)
 	{
 		return FinishedText;
 	}
 
-	const int32 TotalSeconds = bCountDownTimer
-		? FMath::CeilToInt(FMath::Max(CurrentTimerSeconds, 0.0f))
-		: FMath::FloorToInt(FMath::Max(CurrentTimerSeconds, 0.0f));
+	const int32 TotalSeconds = FMath::CeilToInt(FMath::Max(CurrentTimerSeconds, 0.0f));
 	const int32 Hours = TotalSeconds / 3600;
 	const int32 Minutes = (TotalSeconds % 3600) / 60;
 	const int32 Seconds = TotalSeconds % 60;
@@ -288,7 +271,7 @@ const UMatchRuleDefinition* UHudTimerWidget::GetMatchRuleDefinition() const
 		}
 	}
 
-	return GetDefault<UMatchRuleDefinition>();
+	return UMatchRuleDefinition::ResolveDefaultDefinition();
 }
 
 bool UHudTimerWidget::ShouldSuppressTimer() const
@@ -298,9 +281,9 @@ bool UHudTimerWidget::ShouldSuppressTimer() const
 		World ? World->GetGameState<AExperienceGameState>() : nullptr;
 	if (ExperienceGameState)
 	{
-		const EPdMatchTimerPhase TimerPhase = ExperienceGameState->GetMatchTimerPhase();
-		return TimerPhase == EPdMatchTimerPhase::Inactive
-			|| TimerPhase == EPdMatchTimerPhase::Suppressed;
+		const EMatchTimerPhase TimerPhase = ExperienceGameState->GetMatchTimerPhase();
+		return TimerPhase == EMatchTimerPhase::Inactive
+			|| TimerPhase == EMatchTimerPhase::Suppressed;
 	}
 
 	return ShouldSuppressTimerForCurrentMap();
@@ -309,23 +292,18 @@ bool UHudTimerWidget::ShouldSuppressTimer() const
 bool UHudTimerWidget::ShouldSuppressTimerForCurrentMap() const
 {
 	const UMatchRuleDefinition* MatchRules = GetMatchRuleDefinition();
-	if (!MatchRules || MatchRules->MapsWithoutMatchTimer.IsEmpty())
+	if (!MatchRules)
 	{
 		return false;
 	}
 
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
-	return MatchRules->MapsWithoutMatchTimer.Contains(FName(*CurrentLevelName));
+	return MatchRules->IsTrainingRoomMapName(CurrentLevelName)
+		|| MatchRules->MapsWithoutMatchTimer.Contains(FName(*CurrentLevelName));
 }
 
 float UHudTimerWidget::GetConfiguredTimerSeconds() const
 {
 	const UMatchRuleDefinition* MatchRules = GetMatchRuleDefinition();
 	return MatchRules ? MatchRules->MatchTimerSeconds : 0.0f;
-}
-
-bool UHudTimerWidget::IsCountDownTimer() const
-{
-	const UMatchRuleDefinition* MatchRules = GetMatchRuleDefinition();
-	return !MatchRules || MatchRules->bHudCountDown;
 }

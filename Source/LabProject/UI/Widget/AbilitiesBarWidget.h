@@ -71,8 +71,13 @@ private:
 
 	void BindAbilitiesChangedEvents();
 	void UnbindAbilitiesChangedEvents();
+	void BindPandoraTreeChangedEvent();
+	void UnbindPandoraTreeChangedEvent();
 	void HandleAbilitiesChanged();
 	void HandleAbilitiesChangedEvent(const FGameplayEventData* Payload);
+
+	UFUNCTION()
+	void HandlePandoraTreeChanged();
 
 	static FProperty* FindPropertyByExactNameOrPrefix(UStruct* Struct, FName ExactName, const FString& Prefix);
 
@@ -95,6 +100,7 @@ private:
 	TObjectPtr<UHorizontalBox> ContainerHorizontalBox;
 
 	TWeakObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
+	TWeakObjectPtr<UPandoraTreeComponent> BoundPandoraTreeComponent;
 	FDelegateHandle AbilitiesChangedEventHandle;
 	FDelegateHandle AbilitiesChangedNativeHandle;
 	FTimerHandle RebuildBarTimerHandle;

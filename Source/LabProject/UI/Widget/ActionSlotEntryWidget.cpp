@@ -12,8 +12,6 @@
 #include "GameFramework/PlayerController.h"
 #include "GameplayEffect.h"
 #include "InputAction.h"
-#include "Mode/PdPlayerController.h"
-#include "Definition/Player/ControllerInputDefinition.h"
 #include "TimerManager.h"
 #include "UI/Widget/InputKeyIconResolver.h"
 #include "Definition/UI/WidgetClassDefinition.h"
@@ -24,11 +22,6 @@
 namespace
 {
 	constexpr float CooldownBindingRetryInterval = 0.1f;
-
-	FString GetFixedActionSlotKeyName(const int32 SlotIndex)
-	{
-		return SlotIndex == 0 ? TEXT("Shift") : FString();
-	}
 
 	const TSoftObjectPtr<UInputAction>* GetSettingsInputAction(
 		const FActionSlotWidgetSettings& Settings,
@@ -60,14 +53,12 @@ void UActionSlotEntryWidget::NativeConstruct()
 
 	ApplyWidgetDefinitionSettings();
 	RefreshVisual();
-	BindCharacterActionCooldownChanged();
 	BindAbilityCooldownChanged();
 	CheckForCooldown();
 }
 
 void UActionSlotEntryWidget::NativeDestruct()
 {
-	UnbindCharacterActionCooldownChanged();
 	UnbindAbilityCooldownChanged();
 	ClearCooldownTimer();
 
@@ -84,7 +75,6 @@ void UActionSlotEntryWidget::SetActionSlotData(
 	ActionDefinition = InActionDefinition;
 
 	RefreshVisual();
-	BindCharacterActionCooldownChanged();
 	BindAbilityCooldownChanged();
 	CheckForCooldown();
 }
@@ -309,97 +299,12 @@ void UActionSlotEntryWidget::UpdateCooldownProgress()
 	}
 }
 
-void UActionSlotEntryWidget::BindCharacterActionCooldownChanged()
-{
-	UnbindCharacterActionCooldownChanged();
-
-	if (UsesGameplayAbilityCooldown())
-	{
-		return;
-	}
-
-	APdPlayer* PlayerCharacter = ResolveOwningPlayerCharacter();
-	if (!PlayerCharacter)
-	{
-		ScheduleCharacterActionCooldownBindingRetry();
-		return;
-	}
-
-	BoundPlayerCharacter = PlayerCharacter;
-	CooldownChangedHandle = PlayerCharacter->OnCharacterActionCooldownChanged.AddUObject(
-		this,
-		&ThisClass::HandleCharacterActionCooldownChanged);
-}
-
-void UActionSlotEntryWidget::UnbindCharacterActionCooldownChanged()
-{
-	ClearCharacterActionCooldownBindingRetry();
-
-	APdPlayer* PlayerCharacter = BoundPlayerCharacter.Get();
-	if (PlayerCharacter && CooldownChangedHandle.IsValid())
-	{
-		PlayerCharacter->OnCharacterActionCooldownChanged.Remove(CooldownChangedHandle);
-	}
-
-	CooldownChangedHandle.Reset();
-	BoundPlayerCharacter.Reset();
-}
-
-void UActionSlotEntryWidget::RetryBindCharacterActionCooldown()
-{
-	if (UsesGameplayAbilityCooldown())
-	{
-		ClearCharacterActionCooldownBindingRetry();
-		return;
-	}
-
-	if (BoundPlayerCharacter.IsValid())
-	{
-		ClearCharacterActionCooldownBindingRetry();
-		return;
-	}
-
-	if (!ResolveOwningPlayerCharacter())
-	{
-		return;
-	}
-
-	BindCharacterActionCooldownChanged();
-	CheckForCooldown();
-}
-
-void UActionSlotEntryWidget::ScheduleCharacterActionCooldownBindingRetry()
-{
-	UWorld* World = GetWorld();
-	if (!World || World->GetTimerManager().IsTimerActive(CharacterActionCooldownBindingRetryTimerHandle))
-	{
-		return;
-	}
-
-	World->GetTimerManager().SetTimer(
-		CharacterActionCooldownBindingRetryTimerHandle,
-		this,
-		&ThisClass::RetryBindCharacterActionCooldown,
-		CooldownBindingRetryInterval,
-		true);
-}
-
-void UActionSlotEntryWidget::ClearCharacterActionCooldownBindingRetry()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(CharacterActionCooldownBindingRetryTimerHandle);
-	}
-
-	CharacterActionCooldownBindingRetryTimerHandle.Invalidate();
-}
-
 void UActionSlotEntryWidget::BindAbilityCooldownChanged()
 {
 	UnbindAbilityCooldownChanged();
 
 	const FGameplayTag CooldownTag = ResolveAbilityCooldownTag();
-	if (!UsesGameplayAbilityCooldown() || !CooldownTag.IsValid())
+	if (!CooldownTag.IsValid())
 	{
 		return;
 	}
@@ -464,7 +369,7 @@ void UActionSlotEntryWidget::UnbindAbilityCooldownChanged()
 
 void UActionSlotEntryWidget::RetryBindAbilityCooldown()
 {
-	if (!UsesGameplayAbilityCooldown())
+	if (!ResolveAbilityCooldownTag().IsValid())
 	{
 		ClearAbilityCooldownBindingRetry();
 		return;
@@ -522,19 +427,10 @@ void UActionSlotEntryWidget::ClearCooldownTimer()
 	UpdateCooldownTimerHandle.Invalidate();
 }
 
-void UActionSlotEntryWidget::HandleCharacterActionCooldownChanged(const ECharacterActionType ChangedActionType)
-{
-	if (ChangedActionType == ActionType)
-	{
-		CheckForCooldown();
-	}
-}
-
 void UActionSlotEntryWidget::HandleAbilityCooldownTagChanged(const FGameplayTag ChangedTag, const int32 NewCount)
 {
 	static_cast<void>(NewCount);
-	if (UsesGameplayAbilityCooldown()
-		&& ChangedTag.MatchesTagExact(ResolveAbilityCooldownTag()))
+	if (ChangedTag.MatchesTagExact(ResolveAbilityCooldownTag()))
 	{
 		CheckForCooldown();
 	}
@@ -548,7 +444,7 @@ void UActionSlotEntryWidget::HandleAbilityCooldownEffectAdded(
 	static_cast<void>(TargetAbilitySystemComponent);
 	static_cast<void>(ActiveHandle);
 
-	if (UsesGameplayAbilityCooldown() && IsAbilityCooldownSpec(AppliedSpec))
+	if (IsAbilityCooldownSpec(AppliedSpec))
 	{
 		CheckForCooldown();
 	}
@@ -557,7 +453,7 @@ void UActionSlotEntryWidget::HandleAbilityCooldownEffectAdded(
 void UActionSlotEntryWidget::HandleAbilityCooldownEffectRemoved(
 	const FActiveGameplayEffect& RemovedEffect)
 {
-	if (UsesGameplayAbilityCooldown() && IsAbilityCooldownSpec(RemovedEffect.Spec))
+	if (IsAbilityCooldownSpec(RemovedEffect.Spec))
 	{
 		CheckForCooldown();
 	}
@@ -619,53 +515,9 @@ UInputAction* UActionSlotEntryWidget::ResolveInputAction() const
 
 UObject* UActionSlotEntryWidget::ResolveInputIconObject() const
 {
-	const UInputAction* InputAction = ResolveInputAction();
-	if (UObject* InputDefinitionIconObject = ResolveInputDefinitionIconObject(InputAction))
-	{
-		return InputDefinitionIconObject;
-	}
-
-	if (UObject* FixedIconObject = ResolveFixedActionSlotInputIconObject())
-	{
-		return FixedIconObject;
-	}
-
-	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
-	if (!InputAction || !WidgetDefinition)
-	{
-		return nullptr;
-	}
-
-	return PdInputKeyIconResolver::ResolveIconObject(
+	return PdInputKeyIconResolver::ResolveInputDefinitionIconObject(
 		GetOwningPlayer(),
-		InputAction,
-		WidgetDefinition->GetActionSlotWidgetSettings().InputKeyIconSettings);
-}
-
-UObject* UActionSlotEntryWidget::ResolveInputDefinitionIconObject(const UInputAction* InputAction) const
-{
-	const APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer());
-	const UControllerInputDefinition* InputDefinition = PlayerController ? PlayerController->GetLoadedInputDefinition() : nullptr;
-	return InputDefinition ? InputDefinition->ResolveInputActionIconObject(InputAction) : nullptr;
-}
-
-UObject* UActionSlotEntryWidget::ResolveFixedActionSlotInputIconObject() const
-{
-	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
-	if (!WidgetDefinition)
-	{
-		return nullptr;
-	}
-
-	return PdInputKeyIconResolver::ResolveMappedIconObject(
-		WidgetDefinition->GetActionSlotWidgetSettings().InputKeyIconSettings,
-		GetFixedActionSlotKeyName(SlotIndex));
-}
-
-bool UActionSlotEntryWidget::UsesGameplayAbilityCooldown() const
-{
-	return ActionType == ECharacterActionType::PandoraWeaponSwap
-		|| ActionType == ECharacterActionType::GrappleHook;
+		ResolveInputAction());
 }
 
 FGameplayTag UActionSlotEntryWidget::ResolveAbilityCooldownTag() const
@@ -679,49 +531,6 @@ FGameplayTag UActionSlotEntryWidget::ResolveAbilityCooldownTag() const
 	default:
 		return FGameplayTag();
 	}
-}
-
-FGameplayTag UActionSlotEntryWidget::ResolveActionAbilityTag() const
-{
-	switch (ActionType)
-	{
-	case ECharacterActionType::PandoraWeaponSwap:
-		return LabGameplayTags::Action_Equip;
-	case ECharacterActionType::GrappleHook:
-		return LabGameplayTags::GameplayAbility_Movement_Grapple;
-	default:
-		return FGameplayTag();
-	}
-}
-
-TSubclassOf<UGameplayEffect> UActionSlotEntryWidget::ResolveAbilityCooldownEffectClass() const
-{
-	const APdPlayer* PlayerCharacter = ResolveOwningPlayerCharacter();
-	const UAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter
-		? PlayerCharacter->GetAbilitySystemComponent()
-		: nullptr;
-	const FGameplayTag AbilityTag = ResolveActionAbilityTag();
-	if (!AbilitySystemComponent || !AbilityTag.IsValid())
-	{
-		return nullptr;
-	}
-
-	for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystemComponent->GetActivatableAbilities())
-	{
-		UGameplayAbility* Ability = AbilitySpec.Ability.Get();
-		if (!Ability
-			|| !Ability->GetAssetTags().HasTagExact(AbilityTag))
-		{
-			continue;
-		}
-
-		if (const UGameplayEffect* CooldownEffect = Ability->GetCooldownGameplayEffect())
-		{
-			return CooldownEffect->GetClass();
-		}
-	}
-
-	return nullptr;
 }
 
 bool UActionSlotEntryWidget::ResolveAbilityCooldownTiming(
@@ -763,22 +572,7 @@ bool UActionSlotEntryWidget::ResolveAbilityCooldownTiming(
 		AccumulateCooldownTiming(FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(CooldownTags));
 	}
 
-	if (const TSubclassOf<UGameplayEffect> CooldownEffectClass = ResolveAbilityCooldownEffectClass())
-	{
-		FGameplayEffectQuery EffectClassQuery;
-		EffectClassQuery.EffectDefinition = CooldownEffectClass;
-		AccumulateCooldownTiming(EffectClassQuery);
-	}
-
 	return OutTimeRemaining > 0.0f;
-}
-
-bool UActionSlotEntryWidget::IsAbilityCooldownEffect(const UGameplayEffect* GameplayEffect) const
-{
-	const TSubclassOf<UGameplayEffect> CooldownEffectClass = ResolveAbilityCooldownEffectClass();
-	return GameplayEffect
-		&& CooldownEffectClass
-		&& GameplayEffect->GetClass() == CooldownEffectClass.Get();
 }
 
 bool UActionSlotEntryWidget::IsAbilityCooldownSpec(
@@ -794,45 +588,25 @@ bool UActionSlotEntryWidget::IsAbilityCooldownSpec(
 
 	FGameplayTagContainer AssetTags;
 	GameplayEffectSpec.GetAllAssetTags(AssetTags);
-	return (CooldownTag.IsValid() && AssetTags.HasTagExact(CooldownTag))
-		|| IsAbilityCooldownEffect(GameplayEffectSpec.Def);
+	return CooldownTag.IsValid() && AssetTags.HasTagExact(CooldownTag);
 }
 
 float UActionSlotEntryWidget::ResolveCooldownTimeRemaining() const
 {
-	const APdPlayer* PlayerCharacter = ResolveOwningPlayerCharacter();
-	if (UsesGameplayAbilityCooldown())
-	{
-		float TimeRemaining = 0.0f;
-		float Duration = 0.0f;
-		ResolveAbilityCooldownTiming(TimeRemaining, Duration);
-		return TimeRemaining;
-	}
-
-	return PlayerCharacter ? PlayerCharacter->GetCharacterActionCooldownRemaining(ActionType) : 0.0f;
+	float TimeRemaining = 0.0f;
+	float Duration = 0.0f;
+	ResolveAbilityCooldownTiming(TimeRemaining, Duration);
+	return TimeRemaining;
 }
 
 double UActionSlotEntryWidget::ResolveConfiguredCooldownDuration() const
 {
-	if (UsesGameplayAbilityCooldown())
+	float TimeRemaining = 0.0f;
+	float Duration = 0.0f;
+	if (ResolveAbilityCooldownTiming(TimeRemaining, Duration)
+		&& Duration > 0.0f)
 	{
-		float TimeRemaining = 0.0f;
-		float Duration = 0.0f;
-		if (ResolveAbilityCooldownTiming(TimeRemaining, Duration) && Duration > 0.0f)
-		{
-			return Duration;
-		}
-
-		return ActionDefinition ? ActionDefinition->GetCooldownDuration(ActionType) : 0.0;
-	}
-
-	const APdPlayer* PlayerCharacter = ResolveOwningPlayerCharacter();
-	const float ActiveCooldownDuration = PlayerCharacter
-		? PlayerCharacter->GetCharacterActionCooldownDuration(ActionType)
-		: 0.0f;
-	if (ActiveCooldownDuration > 0.0f)
-	{
-		return ActiveCooldownDuration;
+		return Duration;
 	}
 
 	return ActionDefinition ? ActionDefinition->GetCooldownDuration(ActionType) : 0.0;

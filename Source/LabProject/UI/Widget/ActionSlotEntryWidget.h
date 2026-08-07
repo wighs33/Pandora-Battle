@@ -56,18 +56,12 @@ private:
 	void ApplyWidgetDefinitionSettings();
 	void ApplyActionVisual();
 	void ApplyInputKeyIcon();
-	void BindCharacterActionCooldownChanged();
-	void UnbindCharacterActionCooldownChanged();
-	void RetryBindCharacterActionCooldown();
-	void ScheduleCharacterActionCooldownBindingRetry();
-	void ClearCharacterActionCooldownBindingRetry();
 	void BindAbilityCooldownChanged();
 	void UnbindAbilityCooldownChanged();
 	void RetryBindAbilityCooldown();
 	void ScheduleAbilityCooldownBindingRetry();
 	void ClearAbilityCooldownBindingRetry();
 	void ClearCooldownTimer();
-	void HandleCharacterActionCooldownChanged(ECharacterActionType ChangedActionType);
 	void HandleAbilityCooldownTagChanged(FGameplayTag ChangedTag, int32 NewCount);
 	void HandleAbilityCooldownEffectAdded(
 		UAbilitySystemComponent* TargetAbilitySystemComponent,
@@ -80,14 +74,8 @@ private:
 	UObject* ResolveActionIcon() const;
 	UInputAction* ResolveInputAction() const;
 	UObject* ResolveInputIconObject() const;
-	UObject* ResolveInputDefinitionIconObject(const UInputAction* InputAction) const;
-	UObject* ResolveFixedActionSlotInputIconObject() const;
-	bool UsesGameplayAbilityCooldown() const;
 	FGameplayTag ResolveAbilityCooldownTag() const;
-	FGameplayTag ResolveActionAbilityTag() const;
-	TSubclassOf<UGameplayEffect> ResolveAbilityCooldownEffectClass() const;
 	bool ResolveAbilityCooldownTiming(float& OutTimeRemaining, float& OutDuration) const;
-	bool IsAbilityCooldownEffect(const UGameplayEffect* GameplayEffect) const;
 	bool IsAbilityCooldownSpec(const FGameplayEffectSpec& GameplayEffectSpec) const;
 	float ResolveCooldownTimeRemaining() const;
 	double ResolveConfiguredCooldownDuration() const;
@@ -142,14 +130,11 @@ private:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> ActionActiveFrame;
 
-	TWeakObjectPtr<APdPlayer> BoundPlayerCharacter;
 	TWeakObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
 	FGameplayTag BoundAbilityCooldownTag;
-	FDelegateHandle CooldownChangedHandle;
 	FDelegateHandle AbilityCooldownChangedHandle;
 	FDelegateHandle AbilityCooldownEffectAddedHandle;
 	FDelegateHandle AbilityCooldownEffectRemovedHandle;
-	FTimerHandle CharacterActionCooldownBindingRetryTimerHandle;
 	FTimerHandle AbilityCooldownBindingRetryTimerHandle;
 	FTimerHandle UpdateCooldownTimerHandle;
 };

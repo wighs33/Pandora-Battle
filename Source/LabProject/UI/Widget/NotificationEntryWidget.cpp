@@ -14,7 +14,6 @@ void UNotificationEntryWidget::NativePreConstruct()
 
 	CacheOptionalWidgets();
 
-
 	if (IsDesignTime())
 	{
 		if (HasNotificationContent(PreviewNotificationData))
@@ -36,9 +35,7 @@ void UNotificationEntryWidget::SetNotificationData(const FPdNotificationData& In
 	bHasRuntimeNotificationData = true;
 	CacheOptionalWidgets();
 
-
-
-	ApplyNotificationData(InNotificationData, true);
+ApplyNotificationData(InNotificationData, true);
 }
 
 void UNotificationEntryWidget::ApplyNotificationData(const FPdNotificationData& InNotificationData, bool bNotifyBlueprint)

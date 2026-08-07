@@ -264,7 +264,6 @@ void UQuickSlotWidget::RebuildQuickSlotBar()
 	}
 
 	UniformGridPanel->ClearChildren();
-	UniformGridPanel->SetSlotPadding(ResolveSlotPadding());
 	EntryWidgets.Reset();
 
 	UInventoryComponent* InventoryComponent = nullptr;
@@ -423,14 +422,4 @@ int32 UQuickSlotWidget::ResolveSlotCount() const
 	}
 
 	return FMath::Max(RequiredQuickSlotCount, SlotCount);
-}
-
-FMargin UQuickSlotWidget::ResolveSlotPadding() const
-{
-	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
-	{
-		return WidgetDefinition->GetQuickSlotWidgetSettings().SlotPadding;
-	}
-
-	return SlotPadding;
 }

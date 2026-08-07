@@ -16,7 +16,7 @@ public:
 	virtual void NativeConstruct() override;
 
 	UFUNCTION(BlueprintCallable, Category = "!Record")
-	void SetRecord(int32 InDisplayNumber, const FPdMatchRecord& InRecord);
+	void SetRecord(int32 InDisplayNumber, const FMatchRecord& InRecord);
 
 	UFUNCTION(BlueprintCallable, Category = "!Record")
 	void RefreshUI();
@@ -50,7 +50,7 @@ private:
 	void ResolveWidgets();
 
 	UPROPERTY(Transient)
-	FPdMatchRecord Record;
+	FMatchRecord Record;
 
 	int32 DisplayNumber = 0;
 	bool bHasRecord = false;

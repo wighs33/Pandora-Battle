@@ -102,7 +102,7 @@ void UActionSlotWidget::BeginActionPresentationPreload(
 		if (const UControllerInputDefinition* InputDefinition =
 			PlayerController->GetLoadedInputDefinition())
 		{
-			for (const FPdInputActionIconMapping& Mapping :
+			for (const FInputActionIconMapping& Mapping :
 				InputDefinition->GetInputActionIconMappings())
 			{
 				if (!Mapping.InputAction.IsNull())
@@ -289,7 +289,7 @@ UActionSlotWidget::ResolveActionDefinitionReference() const
 		return {};
 	}
 
-	return InputDefinition->GetCharacterActionDefinition();
+	return InputDefinition->GetEffectiveCharacterActionDefinition();
 }
 
 ECharacterActionType UActionSlotWidget::ResolveActionType(const int32 SlotIndex) const

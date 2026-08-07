@@ -17,10 +17,10 @@ class UHudTimerWidget;
 class UInfoWidget;
 class UKillLogWidget;
 class UMenuPopupWidget;
-class UPdHudMenuLayer;
-class UPdHudScreenLayer;
-class UPdHudScoreboardLayer;
-class UPdHudUiRouter;
+class UHudMenuLayer;
+class UHudScreenLayer;
+class UHudScoreboardLayer;
+class UHudUiRouter;
 class URespawnDelayWidget;
 class URightNotificationsWidget;
 class USelectPandoraWidget;
@@ -50,7 +50,7 @@ public:
 
 	void RefreshHudTimerVisibility();
 
-	void OpenInfoUiFocused(EPdInfoUiSection Section);
+	void OpenInfoUiFocused(EInfoUiSection Section);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
 	void CloseInfoUi();
@@ -125,13 +125,13 @@ protected:
 	void RefreshPlayerHudVisibility();
 
 private:
-	friend class UPdHudMenuLayer;
-	friend class UPdHudScreenLayer;
-	friend class UPdHudScoreboardLayer;
-	friend class UPdHudUiRouter;
+	friend class UHudMenuLayer;
+	friend class UHudScreenLayer;
+	friend class UHudScoreboardLayer;
+	friend class UHudUiRouter;
 
 	APdPlayerController* GetPdController() const;
-	UPdHudUiRouter* EnsureUiRouter();
+	UHudUiRouter* EnsureUiRouter();
 	UInfoUiPresenter* GetInfoUiPresenter();
 	UUiSubsystem* GetUiSubsystem() const;
 	bool ApplyStatusViewModelToWidget(UUserWidget* InWidget);
@@ -162,7 +162,7 @@ private:
 	TObjectPtr<UWidgetClassDefinition> WidgetClassDefinition = nullptr;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UPdHudUiRouter> UiRouter = nullptr;
+	TObjectPtr<UHudUiRouter> UiRouter = nullptr;
 
 	UPROPERTY(Transient)
 	int32 CachedDirIndex = -1;

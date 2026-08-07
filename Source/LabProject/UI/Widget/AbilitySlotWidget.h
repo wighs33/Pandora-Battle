@@ -92,7 +92,6 @@ private:
 	double ResolveConfiguredCooldownDuration() const;
 	UInputAction* ResolveInputAction() const;
 	UObject* ResolveInputIconObject() const;
-	UObject* ResolveFixedSkillSlotInputIconObject() const;
 
 	static FSlateBrush MakeImageBrush(UObject* ResourceObject);
 	static FSlateBrush MakeImageBrushFromExisting(const FSlateBrush& ExistingBrush, UObject* ResourceObject, FVector2D ImageSize);
@@ -139,21 +138,6 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability|Input", meta = (AllowPrivateAccess = "true"))
 	FVector2D InputKeyIconSize = FVector2D(32.0f, 32.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability|Input", meta = (AllowPrivateAccess = "true"))
-	TMap<FString, TObjectPtr<UObject>> StringToIconMapping;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability|Input Actions", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> Skill1InputAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability|Input Actions", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> Skill2InputAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability|Input Actions", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> Skill3InputAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability|Input Actions", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> Skill4InputAction;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Ability|Cooldown", meta = (AllowPrivateAccess = "true"))
 	double TotalCooldownTime = 0.0;

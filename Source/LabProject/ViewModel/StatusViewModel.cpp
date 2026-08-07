@@ -108,8 +108,7 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 		return;
 	}
 
-
-	// =================================================================================================================
+// =================================================================================================================
 
 	if (ASC.Get() == InASC && IsViewModelInitialized())
 	{
@@ -196,8 +195,7 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 
 	UpdateAllData();
 
-
-	Super::InitializeViewModel(SourceObject);
+Super::InitializeViewModel(SourceObject);
 }
 
 void UStatusViewModel::UninitializeViewModel()
@@ -459,7 +457,6 @@ void UStatusViewModel::UpdateResourceIncreasePercentData()
 		StatusViewModel::RoundPercentValue(StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxManaIncreasePercentAttribute())));
 	UE_MVVM_SET_PROPERTY_VALUE(MaxStaminaIncreasePercent,
 		StatusViewModel::RoundPercentValue(StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxStaminaIncreasePercentAttribute())));
-
 
 }
 

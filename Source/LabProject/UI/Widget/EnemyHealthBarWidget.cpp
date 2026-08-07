@@ -13,6 +13,7 @@
 void UEnemyHealthBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	InitializeRetryCount = 0;
 
 	if (UWorld* World = GetWorld())
 	{
@@ -26,11 +27,7 @@ void UEnemyHealthBarWidget::NativeConstruct()
 
 void UEnemyHealthBarWidget::NativeDestruct()
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(InitializeTimerHandle);
-	}
-	InitializeTimerHandle.Invalidate();
+	StopInitializeRetry();
 
 	ClearAnimationTimers();
 	UnbindAttributeDelegates();
@@ -40,6 +37,7 @@ void UEnemyHealthBarWidget::NativeDestruct()
 
 void UEnemyHealthBarWidget::SetOwnerActor(AActor* InOwnerActor)
 {
+	StopInitializeRetry();
 	OwnerActor = InOwnerActor;
 	InitializeRetryCount = 0;
 	InitializeFromOwner();
@@ -52,7 +50,6 @@ void UEnemyHealthBarWidget::UpdateHealthPercent()
 		HealthProgressBar->SetPercent(GetHealthPercent(CurrentHealth, MaxHealth));
 		return;
 	}
-
 
 }
 
@@ -121,6 +118,11 @@ void UEnemyHealthBarWidget::InitializeFromOwner()
 {
 	UnbindAttributeDelegates();
 	ClearAnimationTimers();
+	if (!GetProgressBar())
+	{
+		StopInitializeRetry();
+		return;
+	}
 
 	BoundAbilitySystemComponent = GetOwnerAbilitySystemComponent();
 	if (!BoundAbilitySystemComponent)
@@ -135,16 +137,16 @@ void UEnemyHealthBarWidget::InitializeFromOwner()
 	CurrentHealth = GetAttributeValue(UBasicAttributeSet::GetHealthAttribute(), &bFoundHealth);
 	MaxHealth = GetAttributeValue(UBasicAttributeSet::GetMaxHealthAttribute(), &bFoundMaxHealth);
 
-
-
-	if (!bFoundHealth || !bFoundMaxHealth || !GetProgressBar())
+	if (!bFoundHealth || !bFoundMaxHealth)
 	{
 		QueueInitializeRetry();
+		UpdateHealthPercent();
+		HideAnimatedProgressBar();
+		return;
 	}
-	else
-	{
-		InitializeRetryCount = 0;
-	}
+
+	StopInitializeRetry();
+	InitializeRetryCount = 0;
 
 	UpdateHealthPercent();
 	HideAnimatedProgressBar();
@@ -158,16 +160,29 @@ void UEnemyHealthBarWidget::QueueInitializeRetry()
 	{
 		return;
 	}
+	if (InitializeRetryCount >= MaxInitializeRetryCount)
+	{
+		StopInitializeRetry();
+		return;
+	}
 
 	++InitializeRetryCount;
-	const float RetryDelay = InitializeRetryCount >= MaxInitializeRetryCount ? 0.25f : 0.1f;
 	World->GetTimerManager().ClearTimer(InitializeTimerHandle);
 	World->GetTimerManager().SetTimer(
 		InitializeTimerHandle,
 		this,
 		&ThisClass::InitializeFromOwner,
-		RetryDelay,
+		0.1f,
 		false);
+}
+
+void UEnemyHealthBarWidget::StopInitializeRetry()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(InitializeTimerHandle);
+	}
+	InitializeTimerHandle.Invalidate();
 }
 
 void UEnemyHealthBarWidget::BindAttributeDelegates()
@@ -303,9 +318,7 @@ void UEnemyHealthBarWidget::OnHealthChanged(const FOnAttributeChangeData& Change
 	CurrentHealth = ChangeData.NewValue;
 	const float NewPercent = GetHealthPercent(CurrentHealth, MaxHealth);
 
-
-
-	UpdateHealthPercent();
+UpdateHealthPercent();
 	AnimateHealth(OldPercent, NewPercent);
 }
 

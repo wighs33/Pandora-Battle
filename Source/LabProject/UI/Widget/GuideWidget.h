@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/ComboBoxString.h"
 #include "Definition/UI/GuideDefinition.h"
+#include "Fonts/SlateFontInfo.h"
 #include "GuideWidget.generated.h"
 
 class UButton;
@@ -58,9 +59,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Guide|Bind")
 	TObjectPtr<UWidget> Img_BackgroundPattern;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Guide", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<UGuideDefinition> GuideData;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Guide|Bind")
 	TArray<FName> GuideButtonWidgetNames;
 
@@ -85,10 +83,12 @@ private:
 	UFUNCTION() void HandleGuideButton11Clicked();
 
 	void ResolveWidgets();
+	void InitializeLanguageOptions();
 	void ApplyBackgroundPatternVisibility();
 	void BeginContentPreload();
 	void BeginPageImagePreload(int32 PreloadGeneration);
 	void ReleaseContentPreloads();
+	const UGuideDefinition* ResolveGuideDefinition() const;
 	void RebuildPages();
 	void BindGuideButtons();
 	void UnbindGuideButtons();
@@ -96,6 +96,7 @@ private:
 	void UnbindGuideButton(int32 PageIndex, UButton* Button);
 	UButton* FindButtonForPage(int32 PageIndex, const FGuidePageEntry& Page) const;
 	void ApplyPage(const FGuidePageEntry& Page);
+	void ApplyContentFont();
 	void ApplyImage(UTexture2D* Texture);
 	void SelectBoundGuideButton(int32 PageIndex);
 	void ResolveSelectedLanguage();
@@ -112,6 +113,9 @@ private:
 	int32 CurrentPageIndex = INDEX_NONE;
 	int32 ContentPreloadGeneration = 0;
 	ESlateVisibility DefaultBackgroundPatternVisibility = ESlateVisibility::Visible;
+	UPROPERTY(Transient)
+	FSlateFontInfo DefaultContentFont;
+	bool bCapturedDefaultContentFont = false;
 	bool bCapturedBackgroundPatternVisibility = false;
 	bool bOpenedFromGameplayMenu = false;
 	bool bIsClosing = false;

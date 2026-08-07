@@ -8,7 +8,6 @@
 #include "PdPlayerController.generated.h"
 
 class UChatControllerComponent;
-class UControllerDebugGrantComponent;
 class UControllerInputComponent;
 class UControllerInputDefinition;
 class UControllerPresentationComponent;
@@ -64,6 +63,10 @@ public:
 		const FGameResultPresentationData& GameResultData,
 		const FString& TitleMapName);
 
+	UFUNCTION(Client, Reliable, Category = "!Match")
+	void Client_TravelToTitleWithoutGameResult(
+		const FString& TitleMapName);
+
 	UFUNCTION(Client, Reliable, Category = "!UI|Respawn")
 	void Client_StartRespawnDelayCountdown(float DelaySeconds);
 
@@ -73,7 +76,17 @@ public:
 	UFUNCTION(Client, Reliable, Category = "!Respawn")
 	void Client_ResetRespawnedPawnStateAtTransform(const FTransform& RespawnTransform);
 
+	UFUNCTION(Client, Reliable, Category = "!Portal")
+	void Client_ApplyPortalTeleport(
+		const FVector& TargetLocation,
+		const FRotator& TargetRotation,
+		const FVector& TargetVelocity,
+		const FRotator& TargetControlRotation);
+
 	void RequestLocalCosmeticProfileSync();
+
+	UFUNCTION(Client, Reliable, Category = "!Skin|Profile")
+	void Client_RequestLocalCosmeticProfileSync();
 
 	/**
 	 * Submits an unverified local cosmetic profile to the listen server.
@@ -86,7 +99,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Input")
 	UControllerInputDefinition* GetLoadedInputDefinition() const;
 
-	void RequestDebugGrantTestResources();
 	bool RequestExitMatchToTitle();
 
 	UFUNCTION(BlueprintPure, Category = "!Components")
@@ -107,17 +119,10 @@ public:
 		return ControllerSessionComponent;
 	}
 
-	UFUNCTION(BlueprintPure, Category = "!Components")
-	UControllerDebugGrantComponent* GetControllerDebugGrantComponent() const
-	{
-		return ControllerDebugGrantComponent;
-	}
-
 protected:
 	UControllerInputComponent* GetControllerInputComponent() const;
 
 private:
-	friend class UControllerDebugGrantComponent;
 	friend class UControllerSessionComponent;
 
 	void ApplyControllerDefinition();
@@ -126,12 +131,6 @@ private:
 	void HandleControllerDefinitionPreloaded(uint32 RequestGeneration);
 	void ReleaseControllerDefinitionPreload();
 	void ApplyDefaultInputDefinitionIfMissing();
-
-	UFUNCTION(Server, Reliable)
-	void Server_GrantDebugTestResources();
-
-	UFUNCTION(Server, Reliable)
-	void Server_RequestExitMatchToTitle();
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Composition
@@ -149,9 +148,6 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UControllerSessionComponent> ControllerSessionComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Components", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UControllerDebugGrantComponent> ControllerDebugGrantComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Controller|Definition",
 		meta = (AllowPrivateAccess = "true", AllowedTypes = "PlayerControllerDefinition"))

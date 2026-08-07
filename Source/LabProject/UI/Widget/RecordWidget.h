@@ -47,9 +47,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record|Setup")
 	TSubclassOf<URecordEntryWidget> RecordEntryWidgetClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record|Setup", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<URecordDefinition> RecordData;
-
 private:
 	UFUNCTION()
 	void HandleCloseClicked();

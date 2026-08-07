@@ -37,8 +37,9 @@ protected:
 
 private:
 	void RefreshLobbyTipVisibility();
+	void RefreshKillBoxVisibility();
+	bool IsTrainingRoomMap() const;
 	TSubclassOf<UKillBoxWidget> ResolveKillBoxWidgetClass() const;
-	FMargin ResolveKillBoxEntryPadding() const;
 	float ResolveKillBoxRefreshInterval() const;
 	FText ResolveTeamName(int32 TeamColorIndex) const;
 	bool CanRebuildKillBox() const;

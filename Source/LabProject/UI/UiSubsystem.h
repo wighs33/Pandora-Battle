@@ -1,8 +1,11 @@
 #pragma once
 
+#include "Containers/Ticker.h"
 #include "CoreMinimal.h"
+#include "Definition/UI/WidgetContentBundle.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
+#include "Templates/SubclassOf.h"
 #include "UiSubsystem.generated.h"
 
 class UAbilitySystemComponent;
@@ -15,11 +18,12 @@ class UWidget;
 class UWidgetClassDefinition;
 class UWorld;
 class SWidget;
+class FWidgetContentBundleLease;
 
 DECLARE_LOG_CATEGORY_EXTERN(PdUiSubsystemLog, Log, All);
 
 UENUM(BlueprintType)
-enum class EPdUiInputMode : uint8
+enum class EUiInputMode : uint8
 {
 	GameOnly,
 	GameAndUI,
@@ -35,19 +39,19 @@ enum class EPdUiInputMode : uint8
  * and packaged builds.
  */
 UENUM(BlueprintType)
-enum class EPdUiInputRestorePolicy : uint8
+enum class EUiInputRestorePolicy : uint8
 {
 	PreviousState,
 	Gameplay
 };
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdUiModalInputConfig
+struct LABPROJECT_API FUiModalInputConfig
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	EPdUiInputMode InputMode = EPdUiInputMode::GameAndUI;
+	EUiInputMode InputMode = EUiInputMode::GameAndUI;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
 	EMouseLockMode MouseLockMode = EMouseLockMode::DoNotLock;
@@ -73,7 +77,7 @@ struct LABPROJECT_API FPdUiModalInputConfig
 
 	/** The bottom modal entry owns the state restored when the stack becomes empty. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	EPdUiInputRestorePolicy RestorePolicy = EPdUiInputRestorePolicy::PreviousState;
+	EUiInputRestorePolicy RestorePolicy = EUiInputRestorePolicy::PreviousState;
 };
 
 UCLASS(Config = Game)
@@ -107,6 +111,24 @@ public:
 	void SetWidgetClassDefinition(UWidgetClassDefinition* InWidgetClassDefinition);
 	void ClearWidgetClassDefinition(const UWidgetClassDefinition* ExpectedWidgetClassDefinition);
 	UWidgetClassDefinition* GetWidgetClassDefinition() const { return WidgetClassDefinition; }
+	void EnsureConfiguredWidgetContentPreload();
+	bool IsConfiguredWidgetContentReady() const
+	{
+		return bConfiguredWidgetContentReady;
+	}
+	/** True after the always-needed UI and all skill definitions are resident. */
+	bool IsStartupContentReady() const;
+
+	/** Keeps one explicit-definition bundle resident for the lease lifetime. */
+	TSharedPtr<FWidgetContentBundleLease> AcquireWidgetContentBundle(
+		UWidgetClassDefinition* Definition,
+		EWidgetContentBundle Bundle,
+		FSimpleDelegate OnComplete = FSimpleDelegate());
+
+	/** Queues the request while the configured DA_Widget root is still loading. */
+	TSharedPtr<FWidgetContentBundleLease> AcquireConfiguredWidgetContentBundle(
+		EWidgetContentBundle Bundle,
+		FSimpleDelegate OnComplete = FSimpleDelegate());
 #if WITH_EDITOR
 	static UWidgetClassDefinition* LoadConfiguredEditorWidgetClassDefinition();
 #endif
@@ -121,14 +143,14 @@ public:
 	FGuid AcquireModalInput(
 		UObject* Owner,
 		UWidget* FocusWidget,
-		const FPdUiModalInputConfig& InputConfig);
+		const FUiModalInputConfig& InputConfig);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Input")
 	bool UpdateModalInput(
 		UObject* Owner,
 		FGuid Token,
 		UWidget* FocusWidget,
-		const FPdUiModalInputConfig& InputConfig);
+		const FUiModalInputConfig& InputConfig);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Input")
 	bool ReleaseModalInput(UObject* Owner, FGuid Token);
@@ -136,17 +158,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Input")
 	void ReleaseModalInputsForOwner(UObject* Owner);
 
-	UFUNCTION(BlueprintPure, Category = "!UI|Input")
-	bool IsModalInputActive(FGuid Token) const;
-
 	/** Prunes stale world-scoped entries before gameplay decides its final input mode. */
 	bool HasActiveModalInput();
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Connecting Popup
-	UFUNCTION(BlueprintCallable, Category = "!UI|Connecting")
-	void SetConnectingPopupWidgetClass(TSubclassOf<UConnectingPopupWidget> InWidgetClass);
-
 	UFUNCTION(BlueprintCallable, Category = "!UI|Connecting")
 	UConnectingPopupWidget* ShowConnectingPopup(bool bEnableCancelButton = true);
 
@@ -156,7 +172,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Loading")
 	UConnectingPopupWidget* ShowTravelLoadingScreen(bool bEnableCancelButton = false);
 
-	/** Keeps the travel screen active while DA_Setting and DA_MatchRule are prepared for lobby entry. */
+	/** Keeps the travel screen active while lobby UI/data and skill definitions are prepared. */
 	UFUNCTION(BlueprintCallable, Category = "!UI|Loading")
 	UConnectingPopupWidget* ShowLobbyEntryLoadingScreen(bool bEnableCancelButton = false);
 
@@ -181,7 +197,7 @@ private:
 		TWeakObjectPtr<UObject> Owner;
 		TWeakObjectPtr<UWidget> FocusWidget;
 		TWeakObjectPtr<UWorld> World;
-		FPdUiModalInputConfig InputConfig;
+		FUiModalInputConfig InputConfig;
 		bool bTracksFocusWidgetLifetime = false;
 	};
 
@@ -190,7 +206,7 @@ private:
 		TWeakObjectPtr<APlayerController> PlayerController;
 		TWeakObjectPtr<UWorld> World;
 		TWeakPtr<SWidget> FocusedSlateWidget;
-		EPdUiInputMode InputMode = EPdUiInputMode::GameOnly;
+		EUiInputMode InputMode = EUiInputMode::GameOnly;
 		EMouseCaptureMode MouseCaptureMode = EMouseCaptureMode::CapturePermanently;
 		EMouseLockMode MouseLockMode = EMouseLockMode::LockOnCapture;
 		bool bIgnoreViewportInput = false;
@@ -211,7 +227,7 @@ private:
 	bool ApplyModalInput(
 		APlayerController* PlayerController,
 		UWidget* FocusWidget,
-		const FPdUiModalInputConfig& InputConfig) const;
+		const FUiModalInputConfig& InputConfig) const;
 	bool ApplyGameplayInput(APlayerController* PlayerController) const;
 	void ApplyTopModalInput();
 	void RestoreInputStateAfterLastModal();
@@ -222,8 +238,17 @@ private:
 
 	void BeginConfiguredWidgetDefinitionPreload();
 	void HandleConfiguredWidgetDefinitionLoaded();
-	void HandleConfiguredWidgetDependenciesLoaded();
 	void ReleaseConfiguredWidgetDefinitionPreload();
+
+	void BindPendingConfiguredWidgetContentBundleLeases();
+	void FailPendingConfiguredWidgetContentBundleLeases();
+	void StartWidgetContentBundleLease(
+		const TSharedPtr<FWidgetContentBundleLease>& Lease,
+		UWidgetClassDefinition* Definition);
+	void RefreshConfiguredWidgetContentState();
+	void BeginStartupLoadingScreen();
+	void CancelStartupLoadingScreenReadyCheck();
+	bool TickStartupLoadingScreenReady(float DeltaTime);
 
 	TSubclassOf<UConnectingPopupWidget> ResolveConnectingPopupWidgetClass();
 
@@ -243,8 +268,12 @@ private:
 	TObjectPtr<UWidgetClassDefinition> WidgetClassDefinition;
 
 	TSharedPtr<FStreamableHandle> ConfiguredDefinitionLoadHandle;
-	TSharedPtr<FStreamableHandle> ConfiguredDefinitionDependenciesHandle;
+	TSharedPtr<FWidgetContentBundleLease> ConfiguredCoreBundleLease;
+	TArray<TWeakPtr<FWidgetContentBundleLease>>
+		PendingConfiguredWidgetContentBundleLeases;
 	bool bHasExternalWidgetClassDefinition = false;
+	bool bConfiguredWidgetContentPreloadPending = false;
+	bool bConfiguredWidgetContentReady = false;
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- ViewModel
@@ -255,7 +284,7 @@ private:
 	//--- Modal Input
 	TArray<FModalInputEntry> ModalInputStack;
 	FInputStateSnapshot InputStateBeforeModals;
-	EPdUiInputRestorePolicy RestorePolicyAfterModals = EPdUiInputRestorePolicy::PreviousState;
+	EUiInputRestorePolicy RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
 	bool bIsDeinitializing = false;
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -273,4 +302,7 @@ private:
 
 	UPROPERTY(Transient)
 	bool bTravelLoadingScreenCancelEnabled = false;
+
+	bool bStartupLoadingScreenPending = false;
+	FTSTicker::FDelegateHandle StartupLoadingScreenReadyTickerHandle;
 };

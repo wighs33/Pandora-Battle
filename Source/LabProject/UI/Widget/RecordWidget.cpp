@@ -12,6 +12,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Mode/PdGameInstance.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/UI/RecordDefinition.h"
 #include "UI/WidgetLookup.h"
 #include "UI/Widget/RecordEntryWidget.h"
@@ -22,14 +23,11 @@
 URecordWidget::URecordWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	RecordData = TSoftObjectPtr<URecordDefinition>(
-		FSoftObjectPath(TEXT("/Game/Data/DA_Record.DA_Record")));
 }
 
 void URecordWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-
 	ApplyWidgetDefinitionSettings();
 	ResolveWidgets();
 	BindWidgets();
@@ -52,14 +50,16 @@ void URecordWidget::BeginContentPreload()
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	if (!ContentSubsystem || RecordData.IsNull())
+	const TSoftObjectPtr<URecordDefinition>& RecordDefinition =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Record;
+	if (!ContentSubsystem || RecordDefinition.IsNull())
 	{
 		return;
 	}
 
 	RecordDefinitionPreloadHandle =
 		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			{RecordData.ToSoftObjectPath()},
+			{RecordDefinition.ToSoftObjectPath()},
 			FSimpleDelegate::CreateWeakLambda(
 				this,
 				[this, PreloadGeneration]()
@@ -75,7 +75,7 @@ void URecordWidget::BeginTierImagePreload(const int32 PreloadGeneration)
 		return;
 	}
 
-	const URecordDefinition* LoadedRecordData = RecordData.Get();
+	const URecordDefinition* LoadedRecordData = ResolveRecordDefinition();
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
@@ -160,7 +160,7 @@ void URecordWidget::RefreshRecords()
 		return;
 	}
 
-	const TArray<FPdMatchRecord> MatchRecords = PdGameInstance->GetMatchRecords(PlayerId);
+	const TArray<FMatchRecord> MatchRecords = PdGameInstance->GetMatchRecords(PlayerId);
 	const int32 VisibleCount = FMath::Min(MatchRecords.Num(), MaxVisibleRecordEntries);
 	for (int32 DisplayIndex = 0; DisplayIndex < VisibleCount; ++DisplayIndex)
 	{
@@ -329,12 +329,7 @@ TSubclassOf<URecordEntryWidget> URecordWidget::ResolveRecordEntryWidgetClass() c
 
 const URecordDefinition* URecordWidget::ResolveRecordDefinition()
 {
-	if (RecordData.IsNull())
-	{
-		return nullptr;
-	}
-
-	return RecordData.Get();
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Record.Get();
 }
 
 void URecordWidget::ApplyTierImage(const FString& PlayerId)

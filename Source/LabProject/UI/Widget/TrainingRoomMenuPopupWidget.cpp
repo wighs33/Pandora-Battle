@@ -159,8 +159,6 @@ bool UTrainingRoomMenuPopupWidget::SelectTrainingBotWeaponDefinitionInternal(
 	OnTrainingBotWeaponSelected.Broadcast(WeaponDefinition);
 	BP_OnTrainingBotWeaponSelected(WeaponDefinition);
 
-
-
 	return bApplied;
 }
 
@@ -345,7 +343,6 @@ void UTrainingRoomMenuPopupWidget::SetTrainingBotAttackEnabled(bool bEnabled)
 	SyncBotCanAttackCheckBox();
 	const bool bApplied = ApplyAttackEnabledToTrainingBots(bTrainingBotAttackEnabled);
 
-
 }
 
 void UTrainingRoomMenuPopupWidget::HandleBotCanAttackCheckStateChanged(bool bIsChecked)
@@ -375,8 +372,6 @@ bool UTrainingRoomMenuPopupWidget::SelectTrainingBotUnarmedInternal(const int32 
 	OnTrainingBotWeaponSelected.Broadcast(nullptr);
 	BP_OnTrainingBotWeaponSelected(nullptr);
 
-
-
 	return bApplied;
 }
 
@@ -403,11 +398,8 @@ bool UTrainingRoomMenuPopupWidget::ApplyWeaponToTrainingBot(UItemDefinition* Wea
 			continue;
 		}
 
-		const bool bEquipped = TrainingBot->RequestTrainingBotWeaponChange(WeaponDefinition);
-
-		return bEquipped;
+		return TrainingBot->RequestTrainingBotWeaponChange(WeaponDefinition);
 	}
-
 
 	return false;
 }
@@ -430,11 +422,8 @@ bool UTrainingRoomMenuPopupWidget::ApplyUnarmedToTrainingBot() const
 			continue;
 		}
 
-		const bool bUnequipped = TrainingBot->RequestTrainingBotUnarmed();
-
-		return bUnequipped;
+		return TrainingBot->RequestTrainingBotUnarmed();
 	}
-
 
 	return false;
 }
@@ -460,8 +449,7 @@ bool UTrainingRoomMenuPopupWidget::ApplyAttackEnabledToTrainingBots(bool bEnable
 		TrainingBot->SetAttackEnabled(bEnabled);
 		bAppliedToAnyBot = true;
 
-
-	}
+}
 
 	return bAppliedToAnyBot;
 }
@@ -522,10 +510,8 @@ bool UTrainingRoomMenuPopupWidget::SyncSelectedWeaponFromTrainingBot()
 			SelectedBuiltInButtonWidgetName = DaggerButtonWidgetName;
 		}
 
-
 		return true;
 	}
-
 
 	return false;
 }

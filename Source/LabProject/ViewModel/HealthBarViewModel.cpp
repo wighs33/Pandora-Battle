@@ -63,8 +63,7 @@ void UHealthBarViewModel::InitializeViewModel(UObject* SourceObject)
 			UninitializeViewModel();
 		}
 
-
-		ResetViewData();
+ResetViewData();
 		return;
 	}
 

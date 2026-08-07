@@ -10,8 +10,8 @@ class AActor;
 class UAbilitySystemComponent;
 class UImage;
 class UStatusEffectDefinition;
+class UStatusEffectReplicationComponent;
 class UProgressBar;
-struct FGameplayEventData;
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UStatusEffectWidget : public UUserWidget
@@ -57,9 +57,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0"), Category = "!UI|StatusEffect")
 	float InitialIconOpacity = 0.65f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect")
-	FVector2D IconImageSize = FVector2D(32.0f, 32.0f);
-
 private:
 	void ApplyWidgetDefinitionSettings();
 	void InitializeStatusEffect();
@@ -68,35 +65,42 @@ private:
 	void SetIconStyle();
 	void RefreshFromActiveEffects();
 	void UpdateFillMeter();
-	void StartDecreaseFillMeterTimer();
-	void DecreaseStackFill();
+	void RestartStackFillPresentation();
+	void StartStackFillDecrease();
+	void UpdateStackFillDecrease();
+	void ClearStackFillPresentationTimers();
 	void HandleStatusEffectApplied();
 	void UpdateTimeRemaining();
 	void EvaluateRemovalAfterDebuffRemoved();
 	void RemoveStatusEffectWidget();
 	void BindGameplayListeners();
 	void UnbindGameplayListeners();
-	void ClearDecreaseStackFillTimer();
 	void ClearUpdateTimeRemainingTimer();
 	void OnDebuffTagChanged(FGameplayTag CallbackTag, int32 NewCount);
 	void OnStatusEffectTagChanged(FGameplayTag CallbackTag, int32 NewCount);
-	void OnStackCountChangedEvent(const FGameplayEventData* Payload);
+	void OnReplicatedStatusEffectStackChanged(FGameplayTag DebuffTag, int32 StackCount);
 
 	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
 	int32 GetMaxStackCount() const;
-	float GetDebuffStackDuration() const;
 	float GetStatusDuration() const;
 	int32 GetActiveDebuffStackCount() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UStatusEffectReplicationComponent> BoundStatusEffectReplicationComponent;
+
 	FGameplayTag BoundDebuffTag;
 	FGameplayTag BoundStatusEffectTag;
 	FDelegateHandle DebuffTagChangedHandle;
 	FDelegateHandle StatusEffectTagChangedHandle;
-	FDelegateHandle StackCountChangedEventHandle;
-	FTimerHandle DecreaseStackFillTimer;
+	FDelegateHandle ReplicatedStackChangedHandle;
+	FTimerHandle StackFillHoldTimer;
+	FTimerHandle UpdateStackFillTimer;
 	FTimerHandle UpdateTimeRemainingTimer;
+	double StackFillDecreaseStartTime = 0.0;
+	float StackFillDecreaseStartPercent = 0.0f;
 	bool bIsConstructed = false;
+	bool bIsStatusEffectApplied = false;
 };

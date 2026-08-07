@@ -15,6 +15,7 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerState.h"
 #include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/WidgetContentBundleLease.h"
 #include "View/MVVMView.h"
 #include "View/MVVMViewClass.h"
 #include "ViewModel/StatusViewModel.h"
@@ -22,20 +23,55 @@
 
 DEFINE_LOG_CATEGORY(PdUiSubsystemLog);
 
+namespace
+{
+	void ReleaseUiStreamableHandle(TSharedPtr<FStreamableHandle>& Handle)
+	{
+		if (Handle.IsValid())
+		{
+			Handle->CancelHandle();
+			Handle->ReleaseHandle();
+			Handle.Reset();
+		}
+	}
+}
+
 void UUiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	bIsDeinitializing = false;
 	bHasExternalWidgetClassDefinition = false;
+	bConfiguredWidgetContentPreloadPending = false;
+	bConfiguredWidgetContentReady = false;
+	bTravelLoadingScreenActive = false;
+	bTravelLoadingScreenCancelEnabled = false;
+	bStartupLoadingScreenPending = false;
 	ConfiguredWidgetClassDefinition = nullptr;
 	WidgetClassDefinition = nullptr;
+	PendingConfiguredWidgetContentBundleLeases.Reset();
+	ConfiguredCoreBundleLease.Reset();
 	StatusViewModel = NewObject<UStatusViewModel>(this);
+	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
+	if (UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr)
+	{
+		ContentSubsystem->EnsureSkillDataAssetsPreload();
+	}
 	BeginConfiguredWidgetDefinitionPreload();
+	ConfiguredCoreBundleLease = AcquireConfiguredWidgetContentBundle(
+		EWidgetContentBundle::Core,
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::RefreshConfiguredWidgetContentState));
+	RefreshConfiguredWidgetContentState();
+	BeginStartupLoadingScreen();
 }
 
 void UUiSubsystem::Deinitialize()
 {
 	bIsDeinitializing = true;
+	CancelStartupLoadingScreenReadyCheck();
 
 	if (StatusViewModel && StatusViewModel->IsViewModelInitialized())
 	{
@@ -48,7 +84,7 @@ void UUiSubsystem::Deinitialize()
 	ReleaseConfiguredWidgetDefinitionPreload();
 	ModalInputStack.Reset();
 	InputStateBeforeModals.Reset();
-	RestorePolicyAfterModals = EPdUiInputRestorePolicy::PreviousState;
+	RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
 	StatusViewModel = nullptr;
 	WidgetClassDefinition = nullptr;
 	ConfiguredWidgetClassDefinition = nullptr;
@@ -65,7 +101,7 @@ void UUiSubsystem::SetWidgetClassDefinition(UWidgetClassDefinition* InWidgetClas
 		ConnectingPopupWidgetClass = WidgetClassDefinition->GetConnectingPopupWidgetClass();
 		if (bTravelLoadingScreenActive)
 		{
-			ShowTravelLoadingScreen(bTravelLoadingScreenCancelEnabled);
+			ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
 		}
 	}
 }
@@ -82,17 +118,109 @@ void UUiSubsystem::ClearWidgetClassDefinition(
 			: nullptr;
 		if (bTravelLoadingScreenActive)
 		{
-			ShowTravelLoadingScreen(bTravelLoadingScreenCancelEnabled);
+			ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
 		}
 	}
 }
 
+void UUiSubsystem::EnsureConfiguredWidgetContentPreload()
+{
+	BeginConfiguredWidgetDefinitionPreload();
+}
+
+bool UUiSubsystem::IsStartupContentReady() const
+{
+	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	const UGameInstance* GameInstance =
+		LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
+	const UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	return bConfiguredWidgetContentReady
+		&& ContentSubsystem
+		&& ContentSubsystem->IsSkillDataAssetsReady();
+}
+
+TSharedPtr<FWidgetContentBundleLease> UUiSubsystem::AcquireWidgetContentBundle(
+	UWidgetClassDefinition* Definition,
+	const EWidgetContentBundle Bundle,
+	FSimpleDelegate OnComplete)
+{
+	if (!IsValid(Definition) || bIsDeinitializing)
+	{
+		return nullptr;
+	}
+
+	TSharedPtr<FWidgetContentBundleLease> Lease = MakeShareable(
+		new FWidgetContentBundleLease(Bundle, MoveTemp(OnComplete)));
+	StartWidgetContentBundleLease(Lease, Definition);
+	return Lease;
+}
+
+TSharedPtr<FWidgetContentBundleLease>
+UUiSubsystem::AcquireConfiguredWidgetContentBundle(
+	const EWidgetContentBundle Bundle,
+	FSimpleDelegate OnComplete)
+{
+	if (bIsDeinitializing)
+	{
+		return nullptr;
+	}
+
+	TSharedPtr<FWidgetContentBundleLease> Lease = MakeShareable(
+		new FWidgetContentBundleLease(Bundle, MoveTemp(OnComplete)));
+	if (ConfiguredWidgetClassDefinition)
+	{
+		StartWidgetContentBundleLease(Lease, ConfiguredWidgetClassDefinition);
+	}
+	else
+	{
+		PendingConfiguredWidgetContentBundleLeases.Add(Lease);
+		BeginConfiguredWidgetDefinitionPreload();
+	}
+	return Lease;
+}
+
 void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 {
-	if (DefaultWidgetClassDefinition.IsNull())
+	if (ConfiguredWidgetClassDefinition)
+	{
+		if (ConfiguredCoreBundleLease.IsValid()
+			&& ConfiguredCoreBundleLease->GetState()
+				== EWidgetContentBundleState::Failed)
+		{
+			ConfiguredCoreBundleLease.Reset();
+		}
+		if (!ConfiguredCoreBundleLease.IsValid())
+		{
+			ConfiguredCoreBundleLease = AcquireConfiguredWidgetContentBundle(
+				EWidgetContentBundle::Core,
+				FSimpleDelegate::CreateUObject(
+					this,
+					&ThisClass::RefreshConfiguredWidgetContentState));
+		}
+		RefreshConfiguredWidgetContentState();
+		return;
+	}
+
+	if (bConfiguredWidgetContentReady
+		|| bConfiguredWidgetContentPreloadPending)
 	{
 		return;
 	}
+
+	if (DefaultWidgetClassDefinition.IsNull())
+	{
+		bConfiguredWidgetContentReady = false;
+		FailPendingConfiguredWidgetContentBundleLeases();
+		UE_LOG(
+			PdUiSubsystemLog,
+			Error,
+			TEXT("Default WidgetClassDefinition is required but was not configured."));
+		return;
+	}
+
+	bConfiguredWidgetContentReady = false;
+	bConfiguredWidgetContentPreloadPending = true;
 
 	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
@@ -104,10 +232,13 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 			PdUiSubsystemLog,
 			Error,
 			TEXT("Default WidgetClassDefinition preload could not start because ContentDataSubsystem is unavailable."));
+		bConfiguredWidgetContentPreloadPending = false;
+		FailPendingConfiguredWidgetContentBundleLeases();
 		return;
 	}
 
 	const TWeakObjectPtr<ThisClass> WeakThis(this);
+	ReleaseUiStreamableHandle(ConfiguredDefinitionLoadHandle);
 	ConfiguredDefinitionLoadHandle =
 		ContentSubsystem->PreloadSoftObjectPathsAsync(
 			{DefaultWidgetClassDefinition.ToSoftObjectPath()},
@@ -131,6 +262,8 @@ void UUiSubsystem::HandleConfiguredWidgetDefinitionLoaded()
 	ConfiguredWidgetClassDefinition = DefaultWidgetClassDefinition.Get();
 	if (!ConfiguredWidgetClassDefinition)
 	{
+		bConfiguredWidgetContentPreloadPending = false;
+		FailPendingConfiguredWidgetContentBundleLeases();
 		UE_LOG(
 			PdUiSubsystemLog,
 			Error,
@@ -139,9 +272,8 @@ void UUiSubsystem::HandleConfiguredWidgetDefinitionLoaded()
 		return;
 	}
 
-	// The connecting screen is needed before the rest of DA_Widget's dependencies.
-	// Publish the root definition immediately so a quick-match click can be painted
-	// while the remaining content continues loading asynchronously.
+	// Publish the root definition as soon as it resolves. The Core lease below owns
+	// only always-needed UI; Lobby/InGame/Info/Map are acquired by their screens.
 	if (!bHasExternalWidgetClassDefinition)
 	{
 		WidgetClassDefinition = ConfiguredWidgetClassDefinition;
@@ -151,78 +283,146 @@ void UUiSubsystem::HandleConfiguredWidgetDefinitionLoaded()
 
 	if (bTravelLoadingScreenActive)
 	{
-		ShowTravelLoadingScreen(bTravelLoadingScreenCancelEnabled);
+		ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
 	}
 
-	TArray<FSoftObjectPath> DependencyPaths;
-	ConfiguredWidgetClassDefinition->GetRuntimePreloadAssetPaths(DependencyPaths);
-	if (DependencyPaths.IsEmpty())
+	BindPendingConfiguredWidgetContentBundleLeases();
+	RefreshConfiguredWidgetContentState();
+}
+
+void UUiSubsystem::BindPendingConfiguredWidgetContentBundleLeases()
+{
+	if (!ConfiguredWidgetClassDefinition)
 	{
-		HandleConfiguredWidgetDependenciesLoaded();
 		return;
 	}
 
+	TArray<TWeakPtr<FWidgetContentBundleLease>> PendingLeases =
+		MoveTemp(PendingConfiguredWidgetContentBundleLeases);
+	PendingConfiguredWidgetContentBundleLeases.Reset();
+	for (const TWeakPtr<FWidgetContentBundleLease>& WeakLease : PendingLeases)
+	{
+		if (const TSharedPtr<FWidgetContentBundleLease> Lease = WeakLease.Pin())
+		{
+			StartWidgetContentBundleLease(Lease, ConfiguredWidgetClassDefinition);
+		}
+	}
+}
+
+void UUiSubsystem::FailPendingConfiguredWidgetContentBundleLeases()
+{
+	TArray<TWeakPtr<FWidgetContentBundleLease>> PendingLeases =
+		MoveTemp(PendingConfiguredWidgetContentBundleLeases);
+	PendingConfiguredWidgetContentBundleLeases.Reset();
+	for (const TWeakPtr<FWidgetContentBundleLease>& WeakLease : PendingLeases)
+	{
+		if (const TSharedPtr<FWidgetContentBundleLease> Lease = WeakLease.Pin())
+		{
+			Lease->MarkFailed();
+		}
+	}
+}
+
+void UUiSubsystem::StartWidgetContentBundleLease(
+	const TSharedPtr<FWidgetContentBundleLease>& Lease,
+	UWidgetClassDefinition* Definition)
+{
+	if (!Lease.IsValid())
+	{
+		return;
+	}
 	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
 	UContentDataSubsystem* ContentSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	if (!ContentSubsystem)
-	{
-		UE_LOG(
-			PdUiSubsystemLog,
-			Error,
-			TEXT("Default WidgetClassDefinition dependencies could not preload because ContentDataSubsystem is unavailable."));
-		return;
-	}
-
-	const TWeakObjectPtr<ThisClass> WeakThis(this);
-	ConfiguredDefinitionDependenciesHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			DependencyPaths,
-			FSimpleDelegate::CreateLambda(
-				[WeakThis]()
-				{
-					if (ThisClass* This = WeakThis.Get())
-					{
-						This->HandleConfiguredWidgetDependenciesLoaded();
-					}
-				}));
+	Lease->Start(Definition, ContentSubsystem);
 }
 
-void UUiSubsystem::HandleConfiguredWidgetDependenciesLoaded()
+void UUiSubsystem::RefreshConfiguredWidgetContentState()
 {
-	if (bIsDeinitializing || !ConfiguredWidgetClassDefinition)
+	if (!ConfiguredWidgetClassDefinition)
 	{
+		bConfiguredWidgetContentReady = false;
 		return;
 	}
-
-	if (!bHasExternalWidgetClassDefinition)
+	const EWidgetContentBundleState CoreState = ConfiguredCoreBundleLease.IsValid()
+		? ConfiguredCoreBundleLease->GetState()
+		: EWidgetContentBundleState::Unloaded;
+	bConfiguredWidgetContentReady = CoreState == EWidgetContentBundleState::Ready;
+	bConfiguredWidgetContentPreloadPending = !bConfiguredWidgetContentReady
+		&& CoreState == EWidgetContentBundleState::Loading;
+	if (bConfiguredWidgetContentReady && bTravelLoadingScreenActive)
 	{
-		WidgetClassDefinition = ConfiguredWidgetClassDefinition;
-		ConnectingPopupWidgetClass =
-			ConfiguredWidgetClassDefinition->GetConnectingPopupWidgetClass();
+		ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
+	}
+}
+
+void UUiSubsystem::BeginStartupLoadingScreen()
+{
+	bStartupLoadingScreenPending = true;
+	bTravelLoadingScreenActive = true;
+	bTravelLoadingScreenCancelEnabled = false;
+	ShowConnectingPopup(false);
+
+	if (!StartupLoadingScreenReadyTickerHandle.IsValid())
+	{
+		StartupLoadingScreenReadyTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+			FTickerDelegate::CreateUObject(
+				this,
+				&ThisClass::TickStartupLoadingScreenReady),
+			0.05f);
+	}
+}
+
+void UUiSubsystem::CancelStartupLoadingScreenReadyCheck()
+{
+	bStartupLoadingScreenPending = false;
+	if (StartupLoadingScreenReadyTickerHandle.IsValid())
+	{
+		FTSTicker::RemoveTicker(StartupLoadingScreenReadyTickerHandle);
+		StartupLoadingScreenReadyTickerHandle.Reset();
+	}
+}
+
+bool UUiSubsystem::TickStartupLoadingScreenReady(float)
+{
+	if (bIsDeinitializing || !bStartupLoadingScreenPending)
+	{
+		StartupLoadingScreenReadyTickerHandle.Reset();
+		return false;
 	}
 
-	if (bTravelLoadingScreenActive)
+	if (!IsValid(ActiveConnectingPopupWidget))
 	{
-		ShowTravelLoadingScreen(bTravelLoadingScreenCancelEnabled);
+		ShowConnectingPopup(false);
 	}
+
+	if (!IsStartupContentReady())
+	{
+		return true;
+	}
+
+	bStartupLoadingScreenPending = false;
+	StartupLoadingScreenReadyTickerHandle.Reset();
+	HideTravelLoadingScreen();
+	return false;
 }
 
 void UUiSubsystem::ReleaseConfiguredWidgetDefinitionPreload()
 {
-	auto ReleaseHandle = [](TSharedPtr<FStreamableHandle>& Handle)
+	bConfiguredWidgetContentPreloadPending = false;
+	bConfiguredWidgetContentReady = false;
+	ConfiguredCoreBundleLease.Reset();
+	for (const TWeakPtr<FWidgetContentBundleLease>& WeakLease :
+		PendingConfiguredWidgetContentBundleLeases)
 	{
-		if (Handle.IsValid())
+		if (const TSharedPtr<FWidgetContentBundleLease> Lease = WeakLease.Pin())
 		{
-			Handle->CancelHandle();
-			Handle->ReleaseHandle();
-			Handle.Reset();
+			Lease->Release();
 		}
-	};
-
-	ReleaseHandle(ConfiguredDefinitionDependenciesHandle);
-	ReleaseHandle(ConfiguredDefinitionLoadHandle);
+	}
+	PendingConfiguredWidgetContentBundleLeases.Reset();
+	ReleaseUiStreamableHandle(ConfiguredDefinitionLoadHandle);
 }
 
 #if WITH_EDITOR
@@ -322,7 +522,7 @@ bool UUiSubsystem::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
 FGuid UUiSubsystem::AcquireModalInput(
 	UObject* Owner,
 	UWidget* FocusWidget,
-	const FPdUiModalInputConfig& InputConfig)
+	const FUiModalInputConfig& InputConfig)
 {
 	if (bIsDeinitializing || !IsValid(Owner))
 	{
@@ -358,7 +558,7 @@ bool UUiSubsystem::UpdateModalInput(
 	UObject* Owner,
 	const FGuid Token,
 	UWidget* FocusWidget,
-	const FPdUiModalInputConfig& InputConfig)
+	const FUiModalInputConfig& InputConfig)
 {
 	if (!IsValid(Owner) || !Token.IsValid())
 	{
@@ -441,30 +641,10 @@ void UUiSubsystem::ReleaseModalInputsForOwner(UObject* Owner)
 	}
 }
 
-bool UUiSubsystem::IsModalInputActive(const FGuid Token) const
-{
-	return Token.IsValid()
-		&& ModalInputStack.ContainsByPredicate(
-			[this, &Token](const FModalInputEntry& Entry)
-			{
-				return Entry.Token == Token && IsModalInputEntryValid(Entry);
-			});
-}
-
 bool UUiSubsystem::HasActiveModalInput()
 {
 	PruneInvalidModalInputs();
 	return !ModalInputStack.IsEmpty();
-}
-
-void UUiSubsystem::SetConnectingPopupWidgetClass(TSubclassOf<UConnectingPopupWidget> InWidgetClass)
-{
-	ConnectingPopupWidgetClass = InWidgetClass;
-
-	if (bTravelLoadingScreenActive)
-	{
-		ShowTravelLoadingScreen(bTravelLoadingScreenCancelEnabled);
-	}
 }
 
 UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCancelButton)
@@ -516,7 +696,7 @@ UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCanc
 		ActiveConnectingPopupWidget->AddToViewport(1000);
 	}
 
-	const FPdUiModalInputConfig InputConfig;
+	const FUiModalInputConfig InputConfig;
 	if (!UpdateModalInput(
 			ActiveConnectingPopupWidget,
 			ConnectingPopupModalToken,
@@ -529,8 +709,6 @@ UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCanc
 			ActiveConnectingPopupWidget,
 			InputConfig);
 	}
-
-
 
 	return ActiveConnectingPopupWidget;
 }
@@ -553,6 +731,7 @@ void UUiSubsystem::HideConnectingPopup()
 UConnectingPopupWidget* UUiSubsystem::ShowTravelLoadingScreen(
 	const bool bEnableCancelButton)
 {
+	CancelStartupLoadingScreenReadyCheck();
 	bTravelLoadingScreenActive = true;
 	bTravelLoadingScreenCancelEnabled = bEnableCancelButton;
 	return ShowConnectingPopup(bEnableCancelButton);
@@ -561,6 +740,7 @@ UConnectingPopupWidget* UUiSubsystem::ShowTravelLoadingScreen(
 UConnectingPopupWidget* UUiSubsystem::ShowLobbyEntryLoadingScreen(
 	const bool bEnableCancelButton)
 {
+	EnsureConfiguredWidgetContentPreload();
 	UConnectingPopupWidget* LoadingScreen =
 		ShowTravelLoadingScreen(bEnableCancelButton);
 	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
@@ -575,6 +755,7 @@ UConnectingPopupWidget* UUiSubsystem::ShowLobbyEntryLoadingScreen(
 
 void UUiSubsystem::HideTravelLoadingScreen()
 {
+	CancelStartupLoadingScreenReadyCheck();
 	bTravelLoadingScreenActive = false;
 	bTravelLoadingScreenCancelEnabled = false;
 	HideConnectingPopup();
@@ -673,22 +854,22 @@ bool UUiSubsystem::CaptureInputState(
 
 		if (OutSnapshot.bIgnoreViewportInput)
 		{
-			OutSnapshot.InputMode = EPdUiInputMode::UIOnly;
+			OutSnapshot.InputMode = EUiInputMode::UIOnly;
 		}
 		else if (OutSnapshot.MouseCaptureMode == EMouseCaptureMode::CapturePermanently
 			|| OutSnapshot.MouseCaptureMode == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown)
 		{
-			OutSnapshot.InputMode = EPdUiInputMode::GameOnly;
+			OutSnapshot.InputMode = EUiInputMode::GameOnly;
 		}
 		else
 		{
-			OutSnapshot.InputMode = EPdUiInputMode::GameAndUI;
+			OutSnapshot.InputMode = EUiInputMode::GameAndUI;
 		}
 	}
 	else
 	{
 		OutSnapshot.InputMode =
-			OutSnapshot.bShowMouseCursor ? EPdUiInputMode::GameAndUI : EPdUiInputMode::GameOnly;
+			OutSnapshot.bShowMouseCursor ? EUiInputMode::GameAndUI : EUiInputMode::GameOnly;
 	}
 
 	if (const ULocalPlayer* LocalPlayer = GetLocalPlayer())
@@ -717,7 +898,7 @@ bool UUiSubsystem::ApplyInputState(const FInputStateSnapshot& Snapshot) const
 	const TSharedPtr<SWidget> FocusedSlateWidget = Snapshot.FocusedSlateWidget.Pin();
 	switch (Snapshot.InputMode)
 	{
-	case EPdUiInputMode::UIOnly:
+	case EUiInputMode::UIOnly:
 		{
 			FInputModeUIOnly InputMode;
 			InputMode.SetWidgetToFocus(FocusedSlateWidget);
@@ -726,7 +907,7 @@ bool UUiSubsystem::ApplyInputState(const FInputStateSnapshot& Snapshot) const
 			break;
 		}
 
-	case EPdUiInputMode::GameAndUI:
+	case EUiInputMode::GameAndUI:
 		{
 			FInputModeGameAndUI InputMode;
 			InputMode.SetWidgetToFocus(FocusedSlateWidget);
@@ -736,7 +917,7 @@ bool UUiSubsystem::ApplyInputState(const FInputStateSnapshot& Snapshot) const
 			break;
 		}
 
-	case EPdUiInputMode::GameOnly:
+	case EUiInputMode::GameOnly:
 	default:
 		{
 			FInputModeGameOnly InputMode;
@@ -761,7 +942,7 @@ bool UUiSubsystem::ApplyInputState(const FInputStateSnapshot& Snapshot) const
 	PlayerController->bEnableClickEvents = Snapshot.bEnableClickEvents;
 	PlayerController->bEnableMouseOverEvents = Snapshot.bEnableMouseOverEvents;
 
-	if (Snapshot.InputMode != EPdUiInputMode::GameOnly && !FocusedSlateWidget.IsValid())
+	if (Snapshot.InputMode != EUiInputMode::GameOnly && !FocusedSlateWidget.IsValid())
 	{
 		if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
 		{
@@ -778,7 +959,7 @@ bool UUiSubsystem::ApplyInputState(const FInputStateSnapshot& Snapshot) const
 bool UUiSubsystem::ApplyModalInput(
 	APlayerController* PlayerController,
 	UWidget* FocusWidget,
-	const FPdUiModalInputConfig& InputConfig) const
+	const FUiModalInputConfig& InputConfig) const
 {
 	if (!IsValid(PlayerController))
 	{
@@ -794,7 +975,7 @@ bool UUiSubsystem::ApplyModalInput(
 	{
 		switch (InputConfig.InputMode)
 		{
-		case EPdUiInputMode::UIOnly:
+		case EUiInputMode::UIOnly:
 			{
 				FInputModeUIOnly InputMode;
 				InputMode.SetWidgetToFocus(SlateWidget);
@@ -803,14 +984,14 @@ bool UUiSubsystem::ApplyModalInput(
 				break;
 			}
 
-		case EPdUiInputMode::GameOnly:
+		case EUiInputMode::GameOnly:
 			{
 				FInputModeGameOnly InputMode;
 				PlayerController->SetInputMode(InputMode);
 				break;
 			}
 
-		case EPdUiInputMode::GameAndUI:
+		case EUiInputMode::GameAndUI:
 		default:
 			{
 				FInputModeGameAndUI InputMode;
@@ -829,7 +1010,7 @@ bool UUiSubsystem::ApplyModalInput(
 
 	if (InputConfig.bApplyInputMode
 		&& IsValid(FocusWidget)
-		&& InputConfig.InputMode != EPdUiInputMode::GameOnly)
+		&& InputConfig.InputMode != EUiInputMode::GameOnly)
 	{
 		FocusWidget->SetUserFocus(PlayerController);
 	}
@@ -844,8 +1025,8 @@ bool UUiSubsystem::ApplyModalInput(
 
 bool UUiSubsystem::ApplyGameplayInput(APlayerController* PlayerController) const
 {
-	FPdUiModalInputConfig GameplayInputConfig;
-	GameplayInputConfig.InputMode = EPdUiInputMode::GameOnly;
+	FUiModalInputConfig GameplayInputConfig;
+	GameplayInputConfig.InputMode = EUiInputMode::GameOnly;
 	GameplayInputConfig.bShowMouseCursor = false;
 	GameplayInputConfig.bEnableClickEvents = false;
 	GameplayInputConfig.bEnableMouseOverEvents = false;
@@ -888,7 +1069,7 @@ void UUiSubsystem::RestoreInputStateAfterLastModal()
 			&& InputStateBeforeModals.World.Get() == PlayerController->GetWorld();
 
 		if (bSameInputContext
-			&& RestorePolicyAfterModals == EPdUiInputRestorePolicy::Gameplay)
+			&& RestorePolicyAfterModals == EUiInputRestorePolicy::Gameplay)
 		{
 			ApplyGameplayInput(PlayerController);
 		}
@@ -898,7 +1079,7 @@ void UUiSubsystem::RestoreInputStateAfterLastModal()
 		}
 	}
 	InputStateBeforeModals.Reset();
-	RestorePolicyAfterModals = EPdUiInputRestorePolicy::PreviousState;
+	RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
 }
 
 void UUiSubsystem::RefreshRestorePolicyFromBottomModal()
