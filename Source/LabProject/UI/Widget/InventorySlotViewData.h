@@ -13,7 +13,10 @@ class LABPROJECT_API UInventorySlotViewData : public UObject
 	GENERATED_BODY()
 
 public:
-	void Initialize(int32 InSlotIndex, UItemInstance* InItemInstance);
+	void Initialize(
+		int32 InSlotIndex,
+		UItemInstance* InItemInstance,
+		bool bInDuplicateWeaponOrEquipment = false);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
 	int32 GetSlotIndex() const { return SlotIndex; }
@@ -25,7 +28,10 @@ public:
 	bool IsEmpty() const { return ItemInstance == nullptr; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
-	FPdItemViewData GetViewData() const { return ViewData; }
+	FItemViewData GetViewData() const { return ViewData; }
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
+	bool IsDuplicateWeaponOrEquipment() const { return bDuplicateWeaponOrEquipment; }
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Inventory", meta = (AllowPrivateAccess = "true"))
@@ -35,5 +41,8 @@ private:
 	TObjectPtr<UItemInstance> ItemInstance;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Inventory", meta = (AllowPrivateAccess = "true"))
-	FPdItemViewData ViewData;
+	FItemViewData ViewData;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Inventory", meta = (AllowPrivateAccess = "true"))
+	bool bDuplicateWeaponOrEquipment = false;
 };

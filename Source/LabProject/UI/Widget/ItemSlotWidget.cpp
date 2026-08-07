@@ -2,6 +2,7 @@
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Definition/Common/ProjectTagConfig.h"
+#include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
@@ -9,6 +10,7 @@
 #include "InputCoreTypes.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Definition/Item/ItemDefinition.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerState.h"
@@ -37,11 +39,13 @@ void UItemSlotWidget::NativePreConstruct()
 	Super::NativePreConstruct();
 
 	ApplySelectionVisual();
+	ApplyDuplicateBackgroundVisual();
 }
 
 void UItemSlotWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
 	IUserObjectListEntry::NativeOnListItemObjectSet(ListItemObject);
+	SetSelected(false);
 
 	if (UInventorySlotViewData* SlotViewData = Cast<UInventorySlotViewData>(ListItemObject))
 	{
@@ -95,9 +99,26 @@ FReply UItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 		return FReply::Handled();
 	}
 
-	if (CachedData && InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+	if (InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
 	{
-		return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
+		if (CachedSlotData)
+		{
+			if (UInfoWidget* InfoWidget = ResolveInfoWidgetFromSlot(this))
+			{
+				if (URightInventoryWidget* RightInventoryWidget = InfoWidget->GetRightInventoryWidget())
+				{
+					RightInventoryWidget->SelectInventorySlot(CachedSlotData);
+				}
+			}
+		}
+
+		if (CachedData)
+		{
+			return UWidgetBlueprintLibrary::DetectDragIfPressed(
+				InMouseEvent,
+				this,
+				EKeys::LeftMouseButton).NativeReply;
+		}
 	}
 
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
@@ -151,7 +172,7 @@ void UItemSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FP
 
 bool UItemSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
-	if (RequestMergeDraggedStack(InOperation))
+	if (RequestMergeDraggedItem(InOperation))
 	{
 		return true;
 	}
@@ -181,6 +202,7 @@ void UItemSlotWidget::SetData(UItemInstance* Target)
 	CachedData = Target;
 	CachedSlotData = nullptr;
 	CachedViewData = FItemViewDataBuilder::FromItemInstance(Target);
+	bDuplicateWeaponOrEquipment = false;
 
 	ApplyItemVisual(CachedViewData);
 }
@@ -189,12 +211,14 @@ void UItemSlotWidget::SetSlotData(UInventorySlotViewData* Target)
 {
 	CachedSlotData = Target;
 	CachedData = Target ? Target->GetItemInstance() : nullptr;
-	CachedViewData = Target ? Target->GetViewData() : FPdItemViewData();
+	CachedViewData = Target ? Target->GetViewData() : FItemViewData();
+	bDuplicateWeaponOrEquipment =
+		Target && Target->IsDuplicateWeaponOrEquipment();
 
 	ApplyItemVisual(CachedViewData);
 }
 
-void UItemSlotWidget::ApplyItemVisual(const FPdItemViewData& ViewData)
+void UItemSlotWidget::ApplyItemVisual(const FItemViewData& ViewData)
 {
 	CacheOptionalWidgets();
 
@@ -210,14 +234,27 @@ void UItemSlotWidget::ApplyItemVisual(const FPdItemViewData& ViewData)
 		TextBlock->SetVisibility(ViewData.IconResource ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}
 
-	if (QuantityTextBlock)
+	if (Txt_Quantity)
 	{
 		const bool bShowQuantity = IsCachedItemConsumable() && ViewData.Quantity > 0 && ViewData.HasContent();
-		QuantityTextBlock->SetText(FText::AsNumber(FMath::Max(0, ViewData.Quantity)));
-		QuantityTextBlock->SetVisibility(bShowQuantity ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		Txt_Quantity->SetText(FText::AsNumber(FMath::Max(0, ViewData.Quantity)));
+		Txt_Quantity->SetVisibility(bShowQuantity ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	if (Txt_Upgrade)
+	{
+		const int32 UpgradeLevel = FMath::Max(ViewData.UpgradeLevel, 0);
+		Txt_Upgrade->SetText(FText::Format(
+			NSLOCTEXT("ItemSlotWidget", "UpgradeLevelFormat", "+{0}"),
+			FText::AsNumber(UpgradeLevel)));
+		Txt_Upgrade->SetVisibility(
+			UpgradeLevel > 0 && ViewData.HasContent()
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
 	}
 
 	ApplySelectionVisual();
+	ApplyDuplicateBackgroundVisual();
 }
 
 void UItemSlotWidget::SetSelected(const bool bInSelected)
@@ -255,15 +292,61 @@ void UItemSlotWidget::CacheOptionalWidgets()
 		});
 	}
 
-	if (!QuantityTextBlock)
+	if (!Txt_Quantity)
 	{
-		QuantityTextBlock = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("QuantityTextBlock"),
+		Txt_Quantity = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
 			TEXT("Txt_Quantity"),
 			TEXT("Text_Quantity"),
 			TEXT("QuantityText"),
 			TEXT("ItemCountText")
 		});
+	}
+
+	if (!Txt_Upgrade)
+	{
+		Txt_Upgrade = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
+			TEXT("Txt_Upgrade"),
+			TEXT("UpgradeText"),
+			TEXT("UpgradeTextBlock")
+		});
+	}
+
+	if (!SlotBackgroundImage && !SlotBackgroundBorder)
+	{
+		const TArray<FName> BackgroundWidgetNames = {
+			TEXT("Background"),
+			TEXT("BackgroundImage"),
+			TEXT("Border"),
+			TEXT("ItemBorder"),
+			TEXT("SlotBorder"),
+			TEXT("SlotBackground"),
+			TEXT("SlotBackgroundImage"),
+			TEXT("ItemBackground")
+		};
+		SlotBackgroundImage =
+			PdWidgetLookup::FindWidgetByNames<UImage>(this, BackgroundWidgetNames);
+		if (!SlotBackgroundImage)
+		{
+			SlotBackgroundBorder =
+				PdWidgetLookup::FindWidgetByNames<UBorder>(this, BackgroundWidgetNames);
+			if (!SlotBackgroundBorder)
+			{
+				SlotBackgroundBorder =
+					PdWidgetLookup::FindFirstWidgetOfType<UBorder>(WidgetTree);
+			}
+		}
+	}
+
+	if (SlotBackgroundImage && !bDefaultBackgroundImageColorCached)
+	{
+		DefaultBackgroundImageColor = SlotBackgroundImage->GetColorAndOpacity();
+		bDefaultBackgroundImageColorCached = true;
+	}
+
+	if (SlotBackgroundBorder && !bDefaultBackgroundBorderColorCached)
+	{
+		DefaultBackgroundBorderColor = SlotBackgroundBorder->GetBrushColor();
+		bDefaultBackgroundBorderColorCached = true;
 	}
 }
 
@@ -280,6 +363,40 @@ void UItemSlotWidget::ApplySelectionVisual()
 	SelectionBorderImage->SetColorAndOpacity(bIsSelected ? SelectionBorderSelectedColor : SelectionBorderDefaultColor);
 }
 
+void UItemSlotWidget::ApplyDuplicateBackgroundVisual()
+{
+	CacheOptionalWidgets();
+	const FLinearColor DuplicateBackgroundColor = ResolveDuplicateBackgroundColor();
+
+	if (SlotBackgroundImage && bDefaultBackgroundImageColorCached)
+	{
+		SlotBackgroundImage->SetColorAndOpacity(
+			bDuplicateWeaponOrEquipment
+				? DuplicateBackgroundColor
+				: DefaultBackgroundImageColor);
+	}
+
+	if (SlotBackgroundBorder && bDefaultBackgroundBorderColorCached)
+	{
+		SlotBackgroundBorder->SetBrushColor(
+			bDuplicateWeaponOrEquipment
+				? DuplicateBackgroundColor
+				: DefaultBackgroundBorderColor);
+	}
+}
+
+FLinearColor UItemSlotWidget::ResolveDuplicateBackgroundColor() const
+{
+	if (const UWidgetClassDefinition* WidgetDefinition =
+		UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
+	{
+		return WidgetDefinition->GetInventoryWidgetSettings()
+			.DuplicateWeaponOrEquipmentBackgroundColor;
+	}
+
+	return FInventoryWidgetSettings().DuplicateWeaponOrEquipmentBackgroundColor;
+}
+
 bool UItemSlotWidget::IsItemConsumable(const UItemInstance* ItemInstance) const
 {
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
@@ -291,6 +408,21 @@ bool UItemSlotWidget::IsItemConsumable(const UItemInstance* ItemInstance) const
 bool UItemSlotWidget::IsCachedItemConsumable() const
 {
 	return IsItemConsumable(CachedData);
+}
+
+bool UItemSlotWidget::IsItemUpgradeable(const UItemInstance* ItemInstance) const
+{
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
+		? ItemInstance->ItemDefinition.Get()
+		: nullptr;
+	if (!ItemDefinition)
+	{
+		return false;
+	}
+
+	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	return ItemDefinition->IsWeaponDefinition(TagConfig->GetItemWeaponTypeTag())
+		|| ItemDefinition->MatchesItemType(TagConfig->GetItemEquipmentTypeTag());
 }
 
 UInventoryComponent* UItemSlotWidget::ResolveOwningInventoryComponent() const
@@ -321,12 +453,10 @@ bool UItemSlotWidget::RequestSplitCachedStack() const
 	}
 
 	const FGuid ItemId = CachedData->GetItemId();
-	const bool bRequested = InventoryComponent->SplitConsumableStack(ItemId);
-
-	return bRequested;
+	return InventoryComponent->SplitConsumableStack(ItemId);
 }
 
-bool UItemSlotWidget::RequestMergeDraggedStack(UDragDropOperation* InOperation) const
+bool UItemSlotWidget::RequestMergeDraggedItem(UDragDropOperation* InOperation) const
 {
 	const UItemSlotDragDropOperation* ItemDragOperation = Cast<UItemSlotDragDropOperation>(InOperation);
 	UItemInstance* SourceItem = ItemDragOperation ? ItemDragOperation->GetItemInstance() : nullptr;
@@ -337,7 +467,7 @@ bool UItemSlotWidget::RequestMergeDraggedStack(UDragDropOperation* InOperation) 
 
 	const UItemDefinition* SourceDefinition = SourceItem->ItemDefinition.Get();
 	const UItemDefinition* TargetDefinition = CachedData->ItemDefinition.Get();
-	if (!SourceDefinition || SourceDefinition != TargetDefinition || !IsItemConsumable(SourceItem) || !IsCachedItemConsumable())
+	if (!SourceDefinition || SourceDefinition != TargetDefinition)
 	{
 		return false;
 	}
@@ -351,7 +481,15 @@ bool UItemSlotWidget::RequestMergeDraggedStack(UDragDropOperation* InOperation) 
 
 	const FGuid SourceItemId = SourceItem->GetItemId();
 	const FGuid TargetItemId = CachedData->GetItemId();
-	const bool bRequested = InventoryComponent->MergeConsumableStacks(SourceItemId, TargetItemId);
+	if (IsItemConsumable(SourceItem) && IsCachedItemConsumable())
+	{
+		return InventoryComponent->MergeConsumableStacks(SourceItemId, TargetItemId);
+	}
 
-	return bRequested;
+	if (IsItemUpgradeable(SourceItem) && IsItemUpgradeable(CachedData))
+	{
+		return InventoryComponent->MergeUpgradeableItems(SourceItemId, TargetItemId);
+	}
+
+	return false;
 }

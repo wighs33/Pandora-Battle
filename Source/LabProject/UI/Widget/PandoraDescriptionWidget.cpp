@@ -154,7 +154,6 @@ void UPandoraDescriptionWidget::SetDetails()
 		return;
 	}
 
-
 }
 
 void UPandoraDescriptionWidget::PlayShowAnimation()
@@ -195,7 +194,6 @@ void UPandoraDescriptionWidget::ResolvePandoraTreeComponent()
 	{
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
-
 
 }
 

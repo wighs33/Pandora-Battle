@@ -3,6 +3,7 @@
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
+#include "Components/TextBlock.h"
 #include "Components/TileView.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
@@ -52,8 +53,14 @@ void URightInventoryWidget::NativeConstruct()
 		Btn_Search->OnClicked.AddUniqueDynamic(this, &ThisClass::OnSearchButtonClicked);
 	}
 
+	if (TileView)
+	{
+		TileView->SetSelectionMode(ESelectionMode::Single);
+	}
+
 	RebuildFilterButtonList();
 	FilterButtonHighlightState.Initialize(FilterButtonList, AllButton, SelectedFilterAccentColor);
+	UpdateCombineMessage(false);
 }
 
 void URightInventoryWidget::NativeDestruct()
@@ -112,7 +119,6 @@ void URightInventoryWidget::SelectTypeFilter(FGameplayTag TypeTag)
 void URightInventoryWidget::ToggleActiveFiliterButtons(bool bActive)
 {
 
-
 	for (UButton* Button : FilterButtonList)
 	{
 		if (Button)
@@ -147,6 +153,21 @@ void URightInventoryWidget::ClearTileViewItemClicked()
 	}
 }
 
+void URightInventoryWidget::SelectInventorySlot(UInventorySlotViewData* SlotViewData)
+{
+	if (!TileView || !SlotViewData)
+	{
+		return;
+	}
+
+	// Inventory slots support drag detection, so item-filled entries can consume
+	// the mouse press before TileView performs its normal selection handling.
+	// Clear explicitly to guarantee that only the latest clicked slot is highlighted.
+	TileView->SetSelectionMode(ESelectionMode::Single);
+	TileView->ClearSelection();
+	TileView->SetSelectedItem(SlotViewData);
+}
+
 void URightInventoryWidget::SetInventorySlotCount(const int32 InInventorySlotCount)
 {
 	const int32 NewInventorySlotCount = FMath::Max(InInventorySlotCount, 0);
@@ -155,8 +176,7 @@ void URightInventoryWidget::SetInventorySlotCount(const int32 InInventorySlotCou
 		return;
 	}
 
-
-	InventorySlotCount = NewInventorySlotCount;
+InventorySlotCount = NewInventorySlotCount;
 }
 
 void URightInventoryWidget::BroadcastDroppedInventorySlot(const int32 SourceSlotIndex, const int32 TargetSlotIndex, UItemInstance* SourceItem)
@@ -216,7 +236,6 @@ void URightInventoryWidget::RebuildFilterButtonList()
 	FilterButtonList.Add(ConsumableButton);
 	FilterButtonList.Add(ValuableButton);
 
-
 }
 
 void URightInventoryWidget::RebuildTileViewFromCachedSourceItems()
@@ -234,13 +253,32 @@ void URightInventoryWidget::RebuildTileViewFromCachedSourceItems()
 	const bool bUseSearch = !SearchText.IsEmpty();
 	int32 ItemCount = 0;
 	int32 MatchedItemCount = 0;
+	TMap<const UItemDefinition*, int32> DuplicateCandidateCounts;
 	for (const TObjectPtr<UObject>& ListItem : CachedSourceListItems)
 	{
-		if (Cast<UItemInstance>(ListItem.Get()))
+		const UItemInstance* ItemInstance = Cast<UItemInstance>(ListItem.Get());
+		if (ItemInstance)
 		{
 			++ItemCount;
+
+			const UItemDefinition* ItemDefinition = ItemInstance->ItemDefinition.Get();
+			if (IsDuplicateHighlightCandidate(ItemDefinition))
+			{
+				++DuplicateCandidateCounts.FindOrAdd(ItemDefinition);
+			}
 		}
 	}
+
+	bool bHasCombinableItems = false;
+	for (const TPair<const UItemDefinition*, int32>& DuplicateCandidate : DuplicateCandidateCounts)
+	{
+		if (DuplicateCandidate.Value > 1)
+		{
+			bHasCombinableItems = true;
+			break;
+		}
+	}
+	UpdateCombineMessage(bHasCombinableItems);
 
 	const int32 SlotCountToDisplay = bUseSearch ? CachedSourceListItems.Num() : FMath::Max(InventorySlotCount, CachedSourceListItems.Num());
 	CachedSlotViewData.Reserve(SlotCountToDisplay);
@@ -263,12 +301,37 @@ void URightInventoryWidget::RebuildTileViewFromCachedSourceItems()
 		}
 
 		UInventorySlotViewData* SlotViewData = NewObject<UInventorySlotViewData>(this);
-		SlotViewData->Initialize(SlotIndex, ItemInstance);
+		const UItemDefinition* ItemDefinition = ItemInstance
+			? ItemInstance->ItemDefinition.Get()
+			: nullptr;
+		const int32* DuplicateCount = ItemDefinition
+			? DuplicateCandidateCounts.Find(ItemDefinition)
+			: nullptr;
+		SlotViewData->Initialize(
+			SlotIndex,
+			ItemInstance,
+			DuplicateCount && *DuplicateCount > 1);
 		CachedSlotViewData.Add(SlotViewData);
 		TileView->AddItem(SlotViewData);
 	}
 
+}
 
+void URightInventoryWidget::UpdateCombineMessage(const bool bHasCombinableItems) const
+{
+	if (!Txt_Message)
+	{
+		return;
+	}
+
+	Txt_Message->SetText(NSLOCTEXT(
+		"RightInventoryWidget",
+		"CombineDuplicateItemsMessage",
+		"Combine duplicate weapons or equipment to upgrade them."));
+	Txt_Message->SetVisibility(
+		bHasCombinableItems
+			? ESlateVisibility::SelfHitTestInvisible
+			: ESlateVisibility::Collapsed);
 }
 
 bool URightInventoryWidget::DoesItemMatchSearch(const UItemInstance* ItemInstance, const FString& SearchText) const
@@ -291,6 +354,14 @@ bool URightInventoryWidget::DoesItemMatchSearch(const UItemInstance* ItemInstanc
 	}
 
 	return ItemDefinition->GetName().Contains(SearchText, ESearchCase::IgnoreCase);
+}
+
+bool URightInventoryWidget::IsDuplicateHighlightCandidate(
+	const UItemDefinition* ItemDefinition) const
+{
+	return ItemDefinition
+		&& (ItemDefinition->IsWeaponDefinition(GetWeaponTypeTag())
+			|| ItemDefinition->MatchesItemType(GetEquipmentTypeTag()));
 }
 
 void URightInventoryWidget::ApplyWidgetDefinitionSettings()

@@ -7,12 +7,12 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ItemViewData)
 
-FPdItemViewData FItemViewDataBuilder::FromItemInstance(
+FItemViewData FItemViewDataBuilder::FromItemInstance(
 	const UItemInstance* ItemInstance,
 	const bool bOwned,
 	const bool bActive)
 {
-	FPdItemViewData ViewData;
+	FItemViewData ViewData;
 	ViewData.bOwned = bOwned && ItemInstance != nullptr;
 	ViewData.bActive = bActive && ItemInstance != nullptr;
 	ViewData.bEnabled = ItemInstance != nullptr;
@@ -27,11 +27,13 @@ FPdItemViewData FItemViewDataBuilder::FromItemInstance(
 	ViewData.Description = ItemDefinition->Description;
 	ViewData.IconResource = ItemDefinition->IconTexture.Get();
 	ViewData.Stats = BuildItemStatMap(ItemInstance);
+	ItemInstance->BuildUpgradeBonusStatMagnitudes(ViewData.UpgradeBonusStats);
 	ViewData.Quantity = ItemInstance->Quantity;
+	ViewData.UpgradeLevel = ItemInstance->GetUpgradeLevel();
 	return ViewData;
 }
 
-FPdItemViewData FItemViewDataBuilder::FromSkinInstance(
+FItemViewData FItemViewDataBuilder::FromSkinInstance(
 	const USkinInstance* SkinInstance,
 	const bool bOwned,
 	const bool bActive)
@@ -40,12 +42,12 @@ FPdItemViewData FItemViewDataBuilder::FromSkinInstance(
 	return FromSkinDefinition(SkinDefinition, bOwned && SkinInstance != nullptr, bActive && SkinInstance != nullptr);
 }
 
-FPdItemViewData FItemViewDataBuilder::FromSkinDefinition(
+FItemViewData FItemViewDataBuilder::FromSkinDefinition(
 	const USkinDefinition* SkinDefinition,
 	const bool bOwned,
 	const bool bActive)
 {
-	FPdItemViewData ViewData;
+	FItemViewData ViewData;
 	ViewData.bOwned = bOwned && SkinDefinition != nullptr;
 	ViewData.bActive = bActive && SkinDefinition != nullptr;
 	ViewData.bEnabled = SkinDefinition != nullptr;
@@ -64,19 +66,9 @@ FPdItemViewData FItemViewDataBuilder::FromSkinDefinition(
 TMap<FGameplayTag, float> FItemViewDataBuilder::BuildItemStatMap(const UItemInstance* ItemInstance)
 {
 	TMap<FGameplayTag, float> Result;
-
-	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
-	if (ItemDefinition)
+	if (IsValid(ItemInstance))
 	{
-		Result = ItemDefinition->Map_Stat_Magnitude;
-	}
-
-	if (ItemInstance)
-	{
-		for (const TPair<FGameplayTag, float>& EnhancedStat : ItemInstance->Map_EnhancedStat_Magnitude)
-		{
-			Result.FindOrAdd(EnhancedStat.Key) += EnhancedStat.Value;
-		}
+		ItemInstance->BuildEffectiveStatMagnitudes(Result);
 	}
 
 	return Result;

@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 
-enum class EPdInfoUiSection : uint8
+enum class EInfoUiSection : uint8
 {
 	Profile,
 	Item,

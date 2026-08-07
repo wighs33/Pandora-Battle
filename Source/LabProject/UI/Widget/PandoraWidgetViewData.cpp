@@ -1,5 +1,6 @@
 #include "UI/Widget/PandoraWidgetViewData.h"
 
+#include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraInstance.h"
@@ -18,7 +19,12 @@ namespace
 	FString MakeWeaponTagDisplayName(const FGameplayTag& WeaponTag)
 	{
 		FString TagText = WeaponTag.ToString();
-		TagText.RemoveFromStart(TEXT("Item.Weapon."));
+		const FGameplayTag& WeaponTypeRoot = LabGameplayTags::Item_Weapon;
+		if (WeaponTag.MatchesTag(WeaponTypeRoot))
+		{
+			const FString WeaponTypePrefix = WeaponTypeRoot.ToString() + TEXT(".");
+			TagText.RemoveFromStart(WeaponTypePrefix);
+		}
 		return TagText.Replace(TEXT("."), TEXT(" / "));
 	}
 

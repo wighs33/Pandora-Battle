@@ -33,9 +33,7 @@ void URightStatusWidget::NativeConstruct()
 	const FGameplayTag MovementSpeedStatTag = GetMovementSpeedStatTag();
 	const FGameplayTag CriticalStatTag = GetCriticalStatTag();
 
-
-
-	ValidateConfiguredStatTags();
+ValidateConfiguredStatTags();
 	BindButtonCallbacks();
 }
 
@@ -253,7 +251,6 @@ void URightStatusWidget::HandleCriticalDownClicked()
 void URightStatusWidget::HandleStatUpButtonClicked(FGameplayTag InStatTag, const TCHAR* StatTagPropertyName, const UButton* SourceButton)
 {
 
-
 	if (!InStatTag.IsValid())
 	{
 
@@ -265,7 +262,6 @@ void URightStatusWidget::HandleStatUpButtonClicked(FGameplayTag InStatTag, const
 
 void URightStatusWidget::HandleStatDownButtonClicked(FGameplayTag InStatTag, const TCHAR* StatTagPropertyName, const UButton* SourceButton)
 {
-
 
 	if (!InStatTag.IsValid())
 	{
@@ -285,8 +281,7 @@ void URightStatusWidget::ValidateConfiguredStatTags() const
 			return;
 		}
 
-
-	};
+};
 
 	ValidateTag(TEXT("StrengthStatTag"), GetStrengthStatTag(), Button_Up_Strength);
 	ValidateTag(TEXT("IntelligenceStatTag"), GetIntelligenceStatTag(), Button_Up_Intelligence);

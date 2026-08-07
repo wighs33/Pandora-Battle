@@ -1,5 +1,6 @@
 #include "UI/Widget/PandoraSlotWidget.h"
 
+#include "Common/LabGameplayTags.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "GameFramework/PlayerController.h"
@@ -18,14 +19,13 @@ UInfoWidget* ResolveInfoWidgetFromPandoraSlot(const UUserWidget* Widget)
 	return Hud ? Hud->GetInfoWidget() : nullptr;
 }
 
-bool HasRequiredWeaponTag(const FGameplayTagContainer& RequiredWeaponTags, const TCHAR* WeaponTagName)
+bool HasRequiredWeaponTag(const FGameplayTagContainer& RequiredWeaponTags, const FGameplayTag& WeaponTag)
 {
 	if (RequiredWeaponTags.IsEmpty())
 	{
 		return false;
 	}
 
-	const FGameplayTag WeaponTag = FGameplayTag::RequestGameplayTag(FName(WeaponTagName), false);
 	if (!WeaponTag.IsValid())
 	{
 		return false;
@@ -152,12 +152,12 @@ void UPandoraSlotWidget::RefreshWeaponRequirementImages(const FGameplayTagContai
 {
 	HideAllWeaponRequirementImages();
 
-	SetWeaponRequirementImageVisible(Axe, HasRequiredWeaponTag(RequiredWeaponTags, TEXT("Item.Weapon.Axe")));
-	SetWeaponRequirementImageVisible(Bow, HasRequiredWeaponTag(RequiredWeaponTags, TEXT("Item.Weapon.Bow")));
-	SetWeaponRequirementImageVisible(Dagger, HasRequiredWeaponTag(RequiredWeaponTags, TEXT("Item.Weapon.Dagger")));
-	SetWeaponRequirementImageVisible(Greatsword, HasRequiredWeaponTag(RequiredWeaponTags, TEXT("Item.Weapon.GreatSword")));
-	SetWeaponRequirementImageVisible(Sword, HasRequiredWeaponTag(RequiredWeaponTags, TEXT("Item.Weapon.Sword")));
-	SetWeaponRequirementImageVisible(Gun, HasRequiredWeaponTag(RequiredWeaponTags, TEXT("Item.Weapon.Gun")));
+	SetWeaponRequirementImageVisible(Axe, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_Axe));
+	SetWeaponRequirementImageVisible(Bow, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_Bow));
+	SetWeaponRequirementImageVisible(Dagger, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_Dagger));
+	SetWeaponRequirementImageVisible(Greatsword, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_GreatSword));
+	SetWeaponRequirementImageVisible(Sword, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_Sword));
+	SetWeaponRequirementImageVisible(Gun, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_Gun));
 }
 
 void UPandoraSlotWidget::HideAllWeaponRequirementImages() const

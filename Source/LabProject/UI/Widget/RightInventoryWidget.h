@@ -9,7 +9,9 @@
 class UButton;
 class UEditableTextBox;
 class UInventorySlotViewData;
+class UItemDefinition;
 class UItemInstance;
+class UTextBlock;
 class UTileView;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedInventoryFilterAllButton);
@@ -48,6 +50,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
 	UTileView* GetTileView() const { return TileView; }
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
+	void SelectInventorySlot(UInventorySlotViewData* SlotViewData);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
 	int32 GetInventorySlotCount() const { return InventorySlotCount; }
@@ -106,6 +111,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory|Search", meta = (BindWidgetOptional))
 	TObjectPtr<UEditableTextBox> SearchBox;
 
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory|Combine", meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> Txt_Message;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Inventory|Slots", meta = (ClampMin = "0"))
 	int32 InventorySlotCount = 40;
 
@@ -141,7 +149,9 @@ private:
 
 	void RebuildFilterButtonList();
 	void RebuildTileViewFromCachedSourceItems();
+	void UpdateCombineMessage(bool bHasCombinableItems) const;
 	bool DoesItemMatchSearch(const UItemInstance* ItemInstance, const FString& SearchText) const;
+	bool IsDuplicateHighlightCandidate(const UItemDefinition* ItemDefinition) const;
 	void ApplyWidgetDefinitionSettings();
 	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
 	FGameplayTag GetWeaponTypeTag() const;

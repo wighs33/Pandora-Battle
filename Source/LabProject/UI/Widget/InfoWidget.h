@@ -2,7 +2,6 @@
 
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
-#include "TimerManager.h"
 #include "UI/InfoUiTypes.h"
 #include "UI/Widget/LeftEquipmentWidget.h"
 #include "UI/Widget/LeftPandoraWidget.h"
@@ -16,20 +15,24 @@
 
 class UButton;
 class UDragDropOperation;
+class UInfoCharacterPreviewController;
+class UInfoDetailController;
+class UInfoMapController;
+class UInfoPaintCanvasController;
 class UItemDetailWidget;
 class UItemInstance;
 class UMapWidget;
 class UOverlay;
 class UPandoraDescriptionWidget;
 class UPandoraInstance;
-class USizeBox;
+class UPaintCanvasWidget;
 class USkinDefinition;
 class USkinInstance;
+class UTextBlock;
 class UWidget;
 class UWidgetAnimation;
 class UWidgetSwitcher;
 class AActor;
-struct FStreamableHandle;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnClickedInfoCenterButton, FGameplayTag, LeftUiTag, FGameplayTag, RightUiTag);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedMapButton);
@@ -62,8 +65,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
 	void SelectMapTab();
 
-	void FocusSection(EPdInfoUiSection Section, bool bAnimateTransition);
-	EPdInfoUiSection GetFocusedSection() const { return FocusedSection; }
+	void FocusSection(EInfoUiSection Section, bool bAnimateTransition);
+	EInfoUiSection GetFocusedSection() const { return FocusedSection; }
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Animation")
 	void ShowInfoUi();
@@ -147,59 +150,19 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Layout
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Layout")
-	void ApplyInfoLayout();
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Info|Layout")
 	UWidget* GetCenterPreviewPanel() const { return CenterPreviewPanel; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Layout")
-	bool bAutoApplyInfoLayout = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Layout")
-	FVector2D DesignResolution = FVector2D(1920.0f, 1080.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Layout", meta = (ClampMin = "0.0"))
-	float LeftPanelWidth = 420.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Layout", meta = (ClampMin = "0.0"))
-	float RightPanelWidth = 560.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Layout", meta = (ClampMin = "0.0"))
-	float MinCenterPreviewWidth = 640.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Layout", meta = (ClampMin = "0.0"))
-	float BottomNavigationReservedHeight = 120.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Layout", meta = (ClampMin = "0.0"))
-	float BottomTabBarWidth = 720.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Layout", meta = (ClampMin = "0.0"))
-	float BottomTabBarHeight = 72.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Layout", meta = (ClampMin = "0.0"))
-	float BottomTabBarBottomPadding = 24.0f;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Layout", meta = (BindWidgetOptional))
-	TObjectPtr<USizeBox> DesignRootSizeBox;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Layout", meta = (BindWidgetOptional))
-	TObjectPtr<UWidget> LeftCurtainPanel;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Layout", meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> CenterPreviewPanel;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Layout", meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> CharacterPanel;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Layout", meta = (BindWidgetOptional))
-	TObjectPtr<UWidget> RightCurtainPanel;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Layout", meta = (BindWidgetOptional))
-	TObjectPtr<UWidget> BottomTabBar;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Info|Animation", meta = (BindWidgetAnimOptional))
 	TObjectPtr<UWidgetAnimation> SlideInLeft;
@@ -231,9 +194,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Character Preview")
 	TSubclassOf<AActor> CharacterPreviewClass;
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Info|Character Preview")
-	TObjectPtr<AActor> SpawnedCharacterPreview;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Detail")
 	TSubclassOf<UItemDetailWidget> ItemDetailWidgetClass;
 
@@ -242,12 +202,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Detail")
 	FVector2D DetailPopupOffset = FVector2D(18.0f, 0.0f);
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Info|Detail")
-	TObjectPtr<UItemDetailWidget> ItemDetailWidget;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Info|Detail")
-	TObjectPtr<UPandoraDescriptionWidget> PandoraDescriptionWidget;
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Root Widgets
@@ -292,6 +246,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> Btn_Debug;
 
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Paint", meta = (BindWidget))
+	TObjectPtr<UPaintCanvasWidget> Canvas;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Paint", meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> Txt_Canvas;
+
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Map
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Map", meta = (BindWidgetOptional))
@@ -302,9 +262,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Map")
 	TSubclassOf<UMapWidget> TotalMapWidgetClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Map")
-	TArray<FName> MapButtonDisabledMapNames = { TEXT("LV_TrainingRoom") };
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Left Pages
@@ -335,6 +292,8 @@ protected:
 	TObjectPtr<URightPandoraWidget> WB_RightPandora;
 
 private:
+	friend class UInfoMapController;
+
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Button Callbacks
 	UFUNCTION()
@@ -371,47 +330,21 @@ private:
 	void OnDebugButtonClicked();
 
 	UFUNCTION()
-	void HandleMapSlideAnimationFinished();
-
-	UFUNCTION()
 	void HandlePaintCanvasGroupVisibilityChanged(bool bVisible);
 
-	bool IsMapButtonDisabledForCurrentMap() const;
-	void BeginMapUiContentPreload();
-	void BeginMapWidgetClassPreload(int32 PreloadGeneration);
-	void ReleaseMapUiContentPreloads();
+	void EnsureControllers();
+	void ConfigureControllers();
 	void ApplyWidgetDefinitionSettings();
-	void RefreshMapButtonEnabledState();
-	bool EnsureMapOverlay();
-	TSubclassOf<UMapWidget> ResolveTotalMapWidgetClassForCurrentMap() const;
-	void EnsureTotalMapWidget();
-	void HideMapOverlayImmediately();
-	void PlayMapSlideInAnimation();
-	void PlayMapSlideOutAnimation();
-	void TickMapSlideAnimation();
-	void FinishMapSlideOutAnimation();
 	void PlaySidePanelsSlideInAnimation();
 	void PlaySidePanelsSlideOutAnimation();
 	void SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag);
 	void HideSkinPaintCanvasGroup();
+	bool SetPaintCanvasWidgetVisible(bool bVisible);
 	void SetCanvasExportButtonVisible(bool bVisible) const;
 	void SetPandoraUpgradeButtonVisible(bool bVisible) const;
 	void BindLeftSkinPaintCanvasEvents();
 	void UnbindLeftSkinPaintCanvasEvents();
 	bool IsScreenPositionInsideCharacterDropPanel(const FVector2D& ScreenSpacePosition) const;
-	void ResolveCharacterPreviewClass();
-	void SpawnCharacterPreview();
-	void ReturnCameraToPawn() const;
-	void DestroyCharacterPreview();
-	UItemDetailWidget* GetOrCreateItemDetailWidget();
-	UPandoraDescriptionWidget* GetOrCreatePandoraDescriptionWidget();
-	void ShowPandoraDescriptionDetailAtWidgetInternal(
-		UPandoraInstance* PandoraInstance,
-		UWidget* AnchorWidget,
-		bool bPlaceLeftOfWidget,
-		bool bPlayShowAnimation);
-	void PositionDetailWidgetAdjacentToWidget(UUserWidget* DetailWidget, const UWidget* AnchorWidget, bool bPlaceLeftOfWidget) const;
-	UItemInstance* ResolveEquippedItemForComparison(UItemInstance* HoveredItem) const;
 	FGameplayTag GetProfileLeftUiTag() const;
 	FGameplayTag GetProfileRightUiTag() const;
 	FGameplayTag GetItemLeftUiTag() const;
@@ -421,16 +354,17 @@ private:
 	FGameplayTag GetPandoraLeftUiTag() const;
 	FGameplayTag GetPandoraRightUiTag() const;
 
-	FTimerHandle MapSlideTimerHandle;
-	double MapSlideStartTime = 0.0;
-	bool bMapOverlayOpen = false;
-	bool bMapSlideReverse = false;
-	bool bMapUiContentReady = false;
-	int32 MapUiContentPreloadGeneration = 0;
-	TSharedPtr<FStreamableHandle> MapRulePreloadHandle;
-	TSharedPtr<FStreamableHandle> MapWidgetClassPreloadHandle;
-	EPdInfoUiSection FocusedSection = EPdInfoUiSection::Profile;
+	UPROPERTY(Transient)
+	TObjectPtr<UInfoDetailController> DetailController;
 
-	TWeakObjectPtr<UWidget> ActivePandoraDescriptionAnchor;
-	TWeakObjectPtr<UPandoraInstance> ActivePandoraDescriptionInstance;
+	UPROPERTY(Transient)
+	TObjectPtr<UInfoCharacterPreviewController> CharacterPreviewController;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInfoMapController> MapController;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInfoPaintCanvasController> PaintCanvasController;
+
+	EInfoUiSection FocusedSection = EInfoUiSection::Profile;
 };

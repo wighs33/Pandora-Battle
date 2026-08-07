@@ -196,7 +196,6 @@ void USkinEquipSlotWidget::SetData(USkinInstance* Target)
 	SkinInstance = Target;
 	SkinDefinition = IsValid(SkinInstance) ? SkinInstance->SkinDefinition.Get() : nullptr;
 
-
 	if (!SkinDefinition)
 	{
 		bUseSelectedEmptyIcon = false;
@@ -221,7 +220,6 @@ void USkinEquipSlotWidget::SetSkinDefinition(const USkinDefinition* Target)
 {
 	SkinInstance = nullptr;
 	SkinDefinition = Target;
-
 
 	if (!SkinDefinition)
 	{

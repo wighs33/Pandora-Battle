@@ -10,7 +10,7 @@ class USkinDefinition;
 class USkinInstance;
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdItemViewData
+struct LABPROJECT_API FItemViewData
 {
 	GENERATED_BODY()
 
@@ -27,7 +27,13 @@ struct LABPROJECT_API FPdItemViewData
 	TMap<FGameplayTag, float> Stats;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
+	TMap<FGameplayTag, float> UpgradeBonusStats;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
 	int32 Quantity = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
+	int32 UpgradeLevel = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData", meta = (Categories = "Item.Weapon"))
 	FGameplayTagContainer RequiredWeaponTags;
@@ -50,9 +56,9 @@ struct LABPROJECT_API FPdItemViewData
 class LABPROJECT_API FItemViewDataBuilder
 {
 public:
-	static FPdItemViewData FromItemInstance(const UItemInstance* ItemInstance, bool bOwned = true, bool bActive = true);
-	static FPdItemViewData FromSkinInstance(const USkinInstance* SkinInstance, bool bOwned = true, bool bActive = true);
-	static FPdItemViewData FromSkinDefinition(const USkinDefinition* SkinDefinition, bool bOwned = true, bool bActive = true);
+	static FItemViewData FromItemInstance(const UItemInstance* ItemInstance, bool bOwned = true, bool bActive = true);
+	static FItemViewData FromSkinInstance(const USkinInstance* SkinInstance, bool bOwned = true, bool bActive = true);
+	static FItemViewData FromSkinDefinition(const USkinDefinition* SkinDefinition, bool bOwned = true, bool bActive = true);
 
 private:
 	static TMap<FGameplayTag, float> BuildItemStatMap(const UItemInstance* ItemInstance);

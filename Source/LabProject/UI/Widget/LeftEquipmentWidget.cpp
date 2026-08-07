@@ -1,5 +1,6 @@
 #include "UI/Widget/LeftEquipmentWidget.h"
 
+#include "Common/LabGameplayTags.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Engine/GameInstance.h"
@@ -53,7 +54,6 @@ void ULeftEquipmentWidget::NativeConstruct()
 	const FGameplayTag ConsumableEquipTypeTag = ResolveEquipTypeTagForSlot(QuickSlot1);
 	const FGameplayTag ValuableEquipTypeTag = ResolveEquipTypeTagForSlot(ToolSlot1);
 
-
 }
 
 void ULeftEquipmentWidget::NativeDestruct()
@@ -84,7 +84,6 @@ void ULeftEquipmentWidget::ToggleActiveEquipSlots(bool bActive)
 {
 	RebuildEquipSlotList();
 
-
 	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
 	{
 		if (EquipSlot)
@@ -103,9 +102,7 @@ void ULeftEquipmentWidget::SelectEquipSlot(FGameplayTag EquipTypeTag, UEquipSlot
 
 	SelectedEquipSlot = InSelectedEquipSlot;
 
-
-
-	BroadcastClickedEquipTypeSlot(EquipTypeTag, SelectedEquipSlot, false);
+BroadcastClickedEquipTypeSlot(EquipTypeTag, SelectedEquipSlot, false);
 
 	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
 	{
@@ -375,7 +372,6 @@ void ULeftEquipmentWidget::RebuildEquipSlotList()
 	EquipSlotList.Add(Weapon2);
 	EquipSlotList.Add(Weapon3);
 
-
 }
 
 void ULeftEquipmentWidget::RebuildEquipSlotNameList()
@@ -484,10 +480,8 @@ UTexture2D* ULeftEquipmentWidget::ResolvePandoraWeaponRequirementIcon(
 	}
 
 	const FGameplayTagContainer& RequiredWeaponTags = PandoraDefinition->ActivatableWeaponTags;
-	const auto HasWeaponTag = [&RequiredWeaponTags](const TCHAR* WeaponTagName)
+	const auto HasWeaponTag = [&RequiredWeaponTags](const FGameplayTag& WeaponTag)
 	{
-		const FGameplayTag WeaponTag =
-			FGameplayTag::RequestGameplayTag(FName(WeaponTagName), false);
 		if (!WeaponTag.IsValid())
 		{
 			return false;
@@ -504,27 +498,27 @@ UTexture2D* ULeftEquipmentWidget::ResolvePandoraWeaponRequirementIcon(
 		return false;
 	};
 
-	if (HasWeaponTag(TEXT("Item.Weapon.Axe")))
+	if (HasWeaponTag(LabGameplayTags::Item_Weapon_Axe))
 	{
 		return PandoraAxeIcon.Get();
 	}
-	if (HasWeaponTag(TEXT("Item.Weapon.Bow")))
+	if (HasWeaponTag(LabGameplayTags::Item_Weapon_Bow))
 	{
 		return PandoraBowIcon.Get();
 	}
-	if (HasWeaponTag(TEXT("Item.Weapon.Dagger")))
+	if (HasWeaponTag(LabGameplayTags::Item_Weapon_Dagger))
 	{
 		return PandoraDaggerIcon.Get();
 	}
-	if (HasWeaponTag(TEXT("Item.Weapon.GreatSword")))
+	if (HasWeaponTag(LabGameplayTags::Item_Weapon_GreatSword))
 	{
 		return PandoraGreatswordIcon.Get();
 	}
-	if (HasWeaponTag(TEXT("Item.Weapon.Sword")))
+	if (HasWeaponTag(LabGameplayTags::Item_Weapon_Sword))
 	{
 		return PandoraSwordIcon.Get();
 	}
-	if (HasWeaponTag(TEXT("Item.Weapon.Gun")))
+	if (HasWeaponTag(LabGameplayTags::Item_Weapon_Gun))
 	{
 		return PandoraGunIcon.Get();
 	}

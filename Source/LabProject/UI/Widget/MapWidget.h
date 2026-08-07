@@ -6,12 +6,14 @@
 
 class UButton;
 class UCanvasPanel;
+class UHorizontalBox;
 class UImage;
 class UPanelWidget;
 class USizeBox;
 class UTextBlock;
 class UTexture2D;
 class APawn;
+enum class EPlayerMapRegion : uint8;
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UMapWidget : public UUserWidget
@@ -72,6 +74,15 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map", meta = (BindWidgetOptional))
 	TObjectPtr<UCanvasPanel> MarkerLayer;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Area", meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> DomeMarkers;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Area", meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> WindmillMarkers;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Area", meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> TempleMarkers;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map", meta = (BindWidgetOptional))
 	TObjectPtr<UImage> CharacterMark;
@@ -154,6 +165,10 @@ private:
 	void StopMapUpdateTimers();
 	void HandleMapUpdateTick();
 	void RefreshRemotePlayerPawns();
+	void RefreshAreaMapRegionMarkers();
+	void SetAreaMapRegionMarkersVisible(bool bVisible) const;
+	UHorizontalBox* ResolveAreaMapRegionMarkerBox(
+		EPlayerMapRegion MapRegion) const;
 	void UpdateCharacterMark();
 	void UpdateTeamMarks();
 	void HideTeamMarks();
@@ -165,6 +180,9 @@ private:
 	bool UpdatePawnMapMark(UImage* MarkWidget, const APawn& Pawn, bool bRotateToPawnForward = true) const;
 	bool ApplyCharacterMarkImage(UImage* MarkWidget) const;
 	bool ApplyTeamMarkImage(UImage* MarkWidget, const APawn& Pawn) const;
+	bool ApplyTeamMarkImageForTeamColor(
+		UImage* MarkWidget,
+		int32 TeamColorIndex) const;
 	bool DoesPawnMatchCurrentMapView(const APawn& Pawn) const;
 	const FTransform& GetCurrentPlaneTransform() const;
 	FVector2D GetCurrentTotalSizeBoxSize() const;
@@ -181,14 +199,17 @@ private:
 	UPROPERTY(Transient)
 	TArray<TWeakObjectPtr<APawn>> CachedRemotePlayerPawns;
 
+	TArray<uint64> AreaMapMarkerStateKeys;
+	bool bAreaMapMarkerWidgetsComplete = false;
+
 	UPROPERTY(Transient)
-	TMap<int32, TObjectPtr<UObject>> TeamMarkImagesByTeamColorIndex;
+	TMap<int32, TSoftObjectPtr<UObject>> TeamMarkImagesByTeamColorIndex;
 
 	UPROPERTY(Transient)
 	TMap<int32, FVector2D> TeamMarkImageSizesByTeamColorIndex;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UObject> CharacterMarkResourceObject;
+	TSoftObjectPtr<UObject> CharacterMarkResourceObject;
 
 	UPROPERTY(Transient)
 	FVector2D CharacterMarkResolvedImageSize = FVector2D::ZeroVector;
@@ -205,8 +226,8 @@ private:
 	FTimerHandle MarkerUpdateTimerHandle;
 	FTimerHandle RemotePlayerListRefreshTimerHandle;
 
-	EMapView CurrentMapView = EMapView::Windmill;
-	EMapView LastSyncedPlayerMapView = EMapView::Windmill;
+	EMapView CurrentMapView = EMapView::Dome;
+	EMapView LastSyncedPlayerMapView = EMapView::Dome;
 	bool bHasSyncedPlayerMapView = false;
 	bool bHasManualMapViewSelection = false;
 };

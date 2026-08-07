@@ -5,9 +5,13 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InventorySlotViewData)
 
-void UInventorySlotViewData::Initialize(const int32 InSlotIndex, UItemInstance* InItemInstance)
+void UInventorySlotViewData::Initialize(
+	const int32 InSlotIndex,
+	UItemInstance* InItemInstance,
+	const bool bInDuplicateWeaponOrEquipment)
 {
 	SlotIndex = InSlotIndex;
 	ItemInstance = InItemInstance;
 	ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance);
+	bDuplicateWeaponOrEquipment = bInDuplicateWeaponOrEquipment;
 }

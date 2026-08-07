@@ -10,6 +10,20 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ItemDetailWidget)
 
+namespace
+{
+	FString FormatStatMagnitude(const float Magnitude)
+	{
+		const float SafeMagnitude = FMath::IsFinite(Magnitude) ? Magnitude : 0.0f;
+		return FString::FromInt(FMath::RoundToInt(SafeMagnitude));
+	}
+
+	int32 RoundStatMagnitude(const float Magnitude)
+	{
+		return FMath::RoundToInt(FMath::IsFinite(Magnitude) ? Magnitude : 0.0f);
+	}
+}
+
 void UItemDetailWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
@@ -22,11 +36,11 @@ void UItemDetailWidget::SetItem(UItemInstance* InItemInstance, UItemInstance* In
 	CacheOptionalWidgets();
 	(void)InCompareItemInstance;
 
-	const FPdItemViewData ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance);
+	const FItemViewData ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance);
 	SetItemViewData(ViewData);
 }
 
-void UItemDetailWidget::SetItemViewData(const FPdItemViewData& InViewData)
+void UItemDetailWidget::SetItemViewData(const FItemViewData& InViewData)
 {
 	CacheOptionalWidgets();
 
@@ -37,14 +51,14 @@ void UItemDetailWidget::SetItemViewData(const FPdItemViewData& InViewData)
 	}
 
 	SetHeader(InViewData);
-	PopulateStats(InViewData.Stats);
+	PopulateStats(InViewData.Stats, InViewData.UpgradeBonusStats);
 }
 
 void UItemDetailWidget::SetSkin(USkinInstance* InSkinInstance)
 {
 	CacheOptionalWidgets();
 
-	const FPdItemViewData ViewData = FItemViewDataBuilder::FromSkinInstance(InSkinInstance);
+	const FItemViewData ViewData = FItemViewDataBuilder::FromSkinInstance(InSkinInstance);
 	SetItemViewData(ViewData);
 }
 
@@ -52,7 +66,7 @@ void UItemDetailWidget::SetSkinDefinition(const USkinDefinition* SkinDefinition)
 {
 	CacheOptionalWidgets();
 
-	const FPdItemViewData ViewData = FItemViewDataBuilder::FromSkinDefinition(SkinDefinition);
+	const FItemViewData ViewData = FItemViewDataBuilder::FromSkinDefinition(SkinDefinition);
 	SetItemViewData(ViewData);
 }
 
@@ -60,7 +74,7 @@ void UItemDetailWidget::ClearDetails()
 {
 	CacheOptionalWidgets();
 
-	SetHeader(FPdItemViewData());
+	SetHeader(FItemViewData());
 
 	if (StatsList)
 	{
@@ -118,7 +132,7 @@ void UItemDetailWidget::SetIconResource(UObject* IconResource) const
 	IconImage->SetVisibility(IconResource ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 }
 
-void UItemDetailWidget::SetHeader(const FPdItemViewData& ViewData) const
+void UItemDetailWidget::SetHeader(const FItemViewData& ViewData) const
 {
 	SetIconResource(ViewData.IconResource);
 
@@ -134,7 +148,9 @@ void UItemDetailWidget::SetHeader(const FPdItemViewData& ViewData) const
 	}
 }
 
-void UItemDetailWidget::PopulateStats(const TMap<FGameplayTag, float>& NewStats)
+void UItemDetailWidget::PopulateStats(
+	const TMap<FGameplayTag, float>& NewStats,
+	const TMap<FGameplayTag, float>& UpgradeBonusStats)
 {
 	if (!StatsList)
 	{
@@ -153,18 +169,30 @@ void UItemDetailWidget::PopulateStats(const TMap<FGameplayTag, float>& NewStats)
 	for (const FGameplayTag& StatTag : StatTags)
 	{
 		const float NewValue = NewStats.FindRef(StatTag);
-		AddStatRow(StatTag, NewValue);
+		AddStatRow(StatTag, NewValue, UpgradeBonusStats.FindRef(StatTag));
 	}
 }
 
-void UItemDetailWidget::AddStatRow(const FGameplayTag StatTag, const float NewValue)
+void UItemDetailWidget::AddStatRow(
+	const FGameplayTag StatTag,
+	const float NewValue,
+	const float UpgradeBonusValue)
 {
 	if (!StatsList)
 	{
 		return;
 	}
 
-	FString ValueText = FString::Printf(TEXT("%.0f"), NewValue);
+	FString ValueText = FormatStatMagnitude(NewValue);
+	const int32 RoundedUpgradeBonus = RoundStatMagnitude(UpgradeBonusValue);
+	if (RoundedUpgradeBonus != 0)
+	{
+		const FString UpgradeSign = RoundedUpgradeBonus > 0 ? TEXT("+") : TEXT("");
+		ValueText += FString::Printf(
+			TEXT(" (%s%d)"),
+			*UpgradeSign,
+			RoundedUpgradeBonus);
+	}
 
 	UTextBlock* RowText = NewObject<UTextBlock>(this);
 	if (!RowText)

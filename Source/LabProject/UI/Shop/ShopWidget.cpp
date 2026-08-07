@@ -29,7 +29,7 @@ void UShopWidget::NativeConstruct()
 	EnsurePlayerSaveLoaded();
 	if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
 	{
-		PdGameInstance->PlayBgmForContext(EPdBgmContext::Shop);
+		PdGameInstance->PlayBgmForContext(EBgmContext::Shop);
 	}
 	BeginContentPreload();
 	RefreshUI();
@@ -339,8 +339,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 		PdPlayerController->RequestLocalCosmeticProfileSync();
 	}
 
-
-	RefreshUI();
+RefreshUI();
 	SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
 	return true;
 }
@@ -392,8 +391,7 @@ void UShopWidget::HandleResetShopSaveClicked()
 		PdGameInstance->SaveGame(PlayerId);
 	}
 
-
-	RefreshUI();
+RefreshUI();
 	if (SelectedProductObject)
 	{
 		SelectEntry(FindEntryDataByProduct(SelectedProductObject, SelectedProductType));
@@ -622,7 +620,6 @@ void UShopWidget::RebuildEntryData()
 		EntryData->OnClicked.AddUObject(this, &ThisClass::HandleEntryDataClicked);
 		EntryDataList.Add(EntryData);
 	}
-
 
 }
 

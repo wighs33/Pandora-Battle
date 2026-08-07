@@ -301,9 +301,7 @@ void UPandoraWidget::SetPandoraInfo()
 		ViewModel->SetAtMaxLevel(ViewData.bAtMaxLevel);
 	}
 
-
-
-	RefreshEquipHintState(IsHovered());
+RefreshEquipHintState(IsHovered());
 }
 
 void UPandoraWidget::ConfirmSpendPointOnPandora()
@@ -461,7 +459,6 @@ void UPandoraWidget::ResolvePandoraTreeComponent()
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
 
-
 }
 
 void UPandoraWidget::ResolvePandoraComponent()
@@ -470,7 +467,6 @@ void UPandoraWidget::ResolvePandoraComponent()
 	{
 		PandoraComponent = ResolvePandoraComponentFromPandoraWidget(this);
 	}
-
 
 }
 
@@ -587,7 +583,6 @@ void UPandoraWidget::ResolveControlWidgets()
 	{
 		ButtonProgressBar = PdWidgetLookup::FindFirstWidgetOfType<UProgressBar>(WidgetTree);
 	}
-
 
 }
 
@@ -891,9 +886,7 @@ bool UPandoraWidget::RequestAutoEquipPandora()
 		return false;
 	}
 
-	const bool bRequested = ResolvedPandoraComponent->RequestAutoSetPandoraLoadoutSlot(PandoraDefinition.Get());
-
-	return bRequested;
+	return ResolvedPandoraComponent->RequestAutoSetPandoraLoadoutSlot(PandoraDefinition.Get());
 }
 
 bool UPandoraWidget::RequestUnequipPandora()
@@ -918,9 +911,7 @@ bool UPandoraWidget::RequestUnequipPandora()
 		return false;
 	}
 
-	const bool bRequested = PandoraComponent->RequestSetPandoraLoadoutSlot(EquippedDirection, nullptr);
-
-	return bRequested;
+	return PandoraComponent->RequestSetPandoraLoadoutSlot(EquippedDirection, nullptr);
 }
 
 void UPandoraWidget::RefreshPandoraDescriptionRequest(const bool bForceRefresh)

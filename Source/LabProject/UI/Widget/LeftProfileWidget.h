@@ -86,12 +86,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Profile|Tier")
 	TObjectPtr<UImage> Img_Tier;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Profile|Tier", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<URecordDefinition> RecordData;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Profile|Achievement", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<UAchievementDefinition> AchievementData;
-
 private:
 	UFUNCTION()
 	void HandleAchievementButtonClicked();

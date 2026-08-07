@@ -171,8 +171,7 @@ bool UEquipSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDrop
 			return true;
 		}
 
-
-	}
+}
 
 	ApplySlotVisual();
 	return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
@@ -209,7 +208,6 @@ void UEquipSlotWidget::SetIcon(UTexture2D* InIconTexture)
 {
 	SlotIconTexture = InIconTexture;
 
-
 	if (!ItemInstance)
 	{
 		CurrentIconTexture = SlotIconTexture;
@@ -222,7 +220,6 @@ void UEquipSlotWidget::SetIcon(UTexture2D* InIconTexture)
 void UEquipSlotWidget::SetHoverIcon(UTexture2D* InIconTexture)
 {
 	SlotHoverIconTexture = InIconTexture;
-
 
 	if (!ItemInstance)
 	{
@@ -245,7 +242,6 @@ void UEquipSlotWidget::SetData(UItemInstance* Target)
 {
 	ItemInstance = Target;
 	const UItemDefinition* ItemDefinition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr;
-
 
 	if (!ItemInstance || !ItemDefinition)
 	{
@@ -319,8 +315,6 @@ void UEquipSlotWidget::ApplySlotVisual()
 	const bool bShowingPandoraWeaponRequirement =
 		PandoraWeaponRequirementIconTexture
 		&& DisplayIconTexture == PandoraWeaponRequirementIconTexture;
-
-
 
 	if (IconImage)
 	{

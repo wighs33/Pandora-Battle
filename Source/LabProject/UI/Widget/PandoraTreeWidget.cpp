@@ -8,6 +8,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/Button.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Containers/Ticker.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Actor.h"
@@ -56,19 +57,6 @@ namespace
 		}
 
 		return nullptr;
-	}
-
-	void CallNoParamFunction(UObject* Object, const FName FunctionName)
-	{
-		if (!IsValid(Object))
-		{
-			return;
-		}
-
-		if (UFunction* Function = Object->FindFunction(FunctionName))
-		{
-			Object->ProcessEvent(Function, nullptr);
-		}
 	}
 
 	void DisablePreviewCameraLetterboxing(AActor* ViewTarget)
@@ -258,7 +246,6 @@ void UPandoraTreeWidget::ShowPandoraTree()
 	ClearHideTimer();
 	SetVisibility(ESlateVisibility::Visible);
 	SetFocus();
-
 
 	if (SlideInLeft)
 	{
@@ -506,7 +493,18 @@ void UPandoraTreeWidget::HandleLoadoutClicked()
 	{
 		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
 		{
-			Hud->OpenInfoUiFocused(EPdInfoUiSection::Pandora);
+			const TWeakObjectPtr<APdHUD> WeakHud = Hud;
+			FTSTicker::GetCoreTicker().AddTicker(
+				FTickerDelegate::CreateLambda(
+					[WeakHud](float)
+					{
+						if (APdHUD* ValidHud = WeakHud.Get())
+						{
+							ValidHud->OpenInfoUiFocused(EInfoUiSection::Pandora);
+						}
+
+						return false;
+					}));
 		}
 	}
 }
@@ -562,7 +560,6 @@ void UPandoraTreeWidget::ResolvePandoraTreeComponent()
 	{
 		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
 	}
-
 
 }
 
@@ -746,7 +743,6 @@ void UPandoraTreeWidget::RefreshPandoraWidget(UWidget* Widget)
 		return;
 	}
 
-	CallNoParamFunction(Widget, TEXT("SetPandoraInfo"));
 }
 
 void UPandoraTreeWidget::BindPandoraWidgetEvents(UPandoraWidget* PandoraWidget)
@@ -1004,13 +1000,13 @@ bool UPandoraTreeWidget::ApplyRoutedPandoraInput()
 		return false;
 	}
 
-	FPdUiModalInputConfig InputConfig;
-	InputConfig.InputMode = EPdUiInputMode::GameAndUI;
+	FUiModalInputConfig InputConfig;
+	InputConfig.InputMode = EUiInputMode::GameAndUI;
 	InputConfig.bHideCursorDuringCapture = false;
 	InputConfig.bShowMouseCursor = true;
 	InputConfig.bEnableClickEvents = true;
 	InputConfig.bEnableMouseOverEvents = true;
-	InputConfig.RestorePolicy = EPdUiInputRestorePolicy::Gameplay;
+	InputConfig.RestorePolicy = EUiInputRestorePolicy::Gameplay;
 
 	if (UiSubsystem->UpdateModalInput(
 		this,

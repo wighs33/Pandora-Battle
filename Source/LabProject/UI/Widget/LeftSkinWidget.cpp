@@ -2,14 +2,13 @@
 
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
+#include "Component/Player/PaintCanvasComponent.h"
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Components/Button.h"
 #include "GameFramework/PlayerController.h"
-#include "Mode/PdHUD.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
 #include "Skin/SkinInstance.h"
-#include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftSkinWidget)
 
@@ -79,8 +78,7 @@ void ULeftSkinWidget::SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipS
 
 	SelectedSkinEquipSlot = InSelectedSkinEquipSlot;
 
-
-	BroadcastClickedSkinEquipTypeSlot(EquipTypeTag, SelectedSkinEquipSlot, false);
+BroadcastClickedSkinEquipTypeSlot(EquipTypeTag, SelectedSkinEquipSlot, false);
 
 	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
 	{
@@ -97,7 +95,6 @@ void ULeftSkinWidget::SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipS
 void ULeftSkinWidget::RefreshEquippedSkinSlots(const USkinEquipmentComponent* SkinEquipmentComponent)
 {
 	RebuildSkinEquipSlotList();
-
 
 	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
 	{
@@ -265,7 +262,6 @@ void ULeftSkinWidget::HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinE
 
 void ULeftSkinWidget::HandleDrawButtonClicked()
 {
-	APlayerController* PlayerController = GetOwningPlayer();
 	APdPlayer* PlayerCharacter = GetOwningPdPlayer();
 	if (!PlayerCharacter)
 	{
@@ -280,15 +276,10 @@ void ULeftSkinWidget::HandleDrawButtonClicked()
 		return;
 	}
 
-	FTransform PaintCanvasTransformOffset = FSkinWidgetSettings().PaintCanvasTransformOffset;
-	const APdHUD* PdHUD = PlayerController ? Cast<APdHUD>(PlayerController->GetHUD()) : nullptr;
-	if (const UWidgetClassDefinition* WidgetDefinition = PdHUD ? PdHUD->GetWidgetClassDefinition() : nullptr)
-	{
-		PaintCanvasTransformOffset = WidgetDefinition->GetSkinWidgetSettings().PaintCanvasTransformOffset;
-	}
-
-	AActor* PaintCanvasActor = PlayerCharacter->ShowPaintCanvasWithCharacterOffset(PaintCanvasTransformOffset);
-	BroadcastPaintCanvasGroupVisibilityChanged(PaintCanvasActor != nullptr && PlayerCharacter->HasActivePaintCanvas());
+	UPaintCanvasComponent* PaintCanvasComponent = PlayerCharacter->GetPaintCanvasComponent();
+	const bool bPaintCanvasVisible = PaintCanvasComponent
+		&& PaintCanvasComponent->BeginPaintCanvasUiSession();
+	BroadcastPaintCanvasGroupVisibilityChanged(bPaintCanvasVisible);
 
 }
 

@@ -6,6 +6,7 @@
 #include "ItemSlotWidget.generated.h"
 
 class UItemInstance;
+class UBorder;
 class UImage;
 class UInventorySlotViewData;
 class UDragItemVisualWidget;
@@ -63,7 +64,10 @@ protected:
 	TObjectPtr<UTextBlock> TextBlock;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
-	TObjectPtr<UTextBlock> QuantityTextBlock;
+	TObjectPtr<UTextBlock> Txt_Quantity;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
+	TObjectPtr<UTextBlock> Txt_Upgrade;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
 	TObjectPtr<UImage> IconImage;
@@ -78,17 +82,32 @@ protected:
 	TObjectPtr<UInventorySlotViewData> CachedSlotData;
 
 private:
-	void ApplyItemVisual(const FPdItemViewData& ViewData);
+	void ApplyItemVisual(const FItemViewData& ViewData);
 	void CacheOptionalWidgets();
 	void ApplySelectionVisual();
+	void ApplyDuplicateBackgroundVisual();
+	FLinearColor ResolveDuplicateBackgroundColor() const;
 	bool IsItemConsumable(const UItemInstance* ItemInstance) const;
+	bool IsItemUpgradeable(const UItemInstance* ItemInstance) const;
 	bool IsCachedItemConsumable() const;
 	UInventoryComponent* ResolveOwningInventoryComponent() const;
 	bool RequestSplitCachedStack() const;
-	bool RequestMergeDraggedStack(UDragDropOperation* InOperation) const;
+	bool RequestMergeDraggedItem(UDragDropOperation* InOperation) const;
 
 	UPROPERTY(Transient)
-	FPdItemViewData CachedViewData;
+	FItemViewData CachedViewData;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> SlotBackgroundImage;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> SlotBackgroundBorder;
+
+	FLinearColor DefaultBackgroundImageColor = FLinearColor::White;
+	FLinearColor DefaultBackgroundBorderColor = FLinearColor::White;
+	bool bDefaultBackgroundImageColorCached = false;
+	bool bDefaultBackgroundBorderColorCached = false;
+	bool bDuplicateWeaponOrEquipment = false;
 
 	bool bIsSelected = false;
 };

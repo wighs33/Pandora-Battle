@@ -15,6 +15,7 @@
 #include "Mode/PdHUD.h"
 #include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerState.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Online/AchievementDefinition.h"
 #include "Online/AchievementSubsystem.h"
 #include "SavedGameData/PdSaveGame.h"
@@ -26,10 +27,6 @@
 ULeftProfileWidget::ULeftProfileWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	RecordData = TSoftObjectPtr<URecordDefinition>(
-		FSoftObjectPath(TEXT("/Game/Data/DA_Record.DA_Record")));
-	AchievementData = TSoftObjectPtr<UAchievementDefinition>(
-		FSoftObjectPath(TEXT("/Game/Data/DA_Achievement.DA_Achievement")));
 }
 
 void ULeftProfileWidget::NativeConstruct()
@@ -76,7 +73,12 @@ void ULeftProfileWidget::BeginContentPreload()
 
 	DefinitionPreloadHandle =
 		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			{RecordData.ToSoftObjectPath(), AchievementData.ToSoftObjectPath()},
+			{
+				UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+					.Record.ToSoftObjectPath(),
+				UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+					.Achievement.ToSoftObjectPath()
+			},
 			FSimpleDelegate::CreateWeakLambda(
 				this,
 				[this, PreloadGeneration]()
@@ -101,7 +103,7 @@ void ULeftProfileWidget::BeginPresentationPreload(const int32 PreloadGeneration)
 	}
 
 	TArray<FSoftObjectPath> PresentationPaths;
-	if (const URecordDefinition* LoadedRecordData = RecordData.Get())
+	if (const URecordDefinition* LoadedRecordData = ResolveRecordDefinition())
 	{
 		for (const FRecordTierEntry& TierEntry : LoadedRecordData->TierEntries)
 		{
@@ -109,9 +111,9 @@ void ULeftProfileWidget::BeginPresentationPreload(const int32 PreloadGeneration)
 		}
 	}
 
-	if (const UAchievementDefinition* LoadedAchievementData = AchievementData.Get())
+	if (const UAchievementDefinition* LoadedAchievementData = ResolveAchievementDefinition())
 	{
-		for (const FPdAchievementEntry& Achievement : LoadedAchievementData->Achievements)
+		for (const FAchievementEntry& Achievement : LoadedAchievementData->Achievements)
 		{
 			PresentationPaths.Add(Achievement.LockedIcon.ToSoftObjectPath());
 			PresentationPaths.Add(Achievement.UnlockedIcon.ToSoftObjectPath());
@@ -128,6 +130,7 @@ void ULeftProfileWidget::BeginPresentationPreload(const int32 PreloadGeneration)
 					if (PreloadGeneration == ContentPreloadGeneration)
 					{
 						RefreshTierImage();
+						RefreshAchievementButtons();
 					}
 				}));
 }
@@ -229,7 +232,7 @@ void ULeftProfileWidget::RefreshAchievementButtons()
 			continue;
 		}
 
-		const FPdAchievementEntry& Achievement = LoadedAchievementData->Achievements[AchievementIndex];
+		const FAchievementEntry& Achievement = LoadedAchievementData->Achievements[AchievementIndex];
 		const TSoftObjectPtr<UTexture2D>& Icon = bUnlocked ? Achievement.UnlockedIcon : Achievement.LockedIcon;
 		if (UTexture2D* IconTexture = Icon.Get())
 		{
@@ -482,15 +485,10 @@ bool ULeftProfileWidget::IsAchievementUnlocked(const int32 AchievementIndex)
 		return false;
 	}
 
-	const FPdAchievementEntry& Achievement = LoadedAchievementData->Achievements[AchievementIndex];
+	const FAchievementEntry& Achievement = LoadedAchievementData->Achievements[AchievementIndex];
 	if (!Achievement.bEnabled)
 	{
 		return false;
-	}
-
-	if (Achievement.Trigger == EPdAchievementTrigger::Manual)
-	{
-		return true;
 	}
 
 	return GetAchievementProgressValue(AchievementIndex) >= FMath::Max(Achievement.RequiredValue, 1);
@@ -516,7 +514,7 @@ int32 ULeftProfileWidget::GetAchievementProgressValue(const int32 AchievementInd
 		return 0;
 	}
 
-	const FPdAchievementEntry& Achievement = LoadedAchievementData->Achievements[AchievementIndex];
+	const FAchievementEntry& Achievement = LoadedAchievementData->Achievements[AchievementIndex];
 	if (const UAchievementSubsystem* AchievementSubsystem = GetGameInstance()->GetSubsystem<UAchievementSubsystem>())
 	{
 		return AchievementSubsystem->CalculateAchievementProgressValue(PlayerId, Achievement);
@@ -524,24 +522,24 @@ int32 ULeftProfileWidget::GetAchievementProgressValue(const int32 AchievementInd
 
 	switch (Achievement.Trigger)
 	{
-	case EPdAchievementTrigger::Manual:
-		return Achievement.RequiredValue;
-	case EPdAchievementTrigger::MatchPlayed:
+	case EAchievementTrigger::FirstLogin:
+		return 1;
+	case EAchievementTrigger::MatchPlayed:
 		return PdGameInstance->GetMatchRecords(PlayerId).Num();
-	case EPdAchievementTrigger::WinCount:
+	case EAchievementTrigger::WinCount:
 		return PdGameInstance->GetWinCount(PlayerId);
-	case EPdAchievementTrigger::KillCount:
-	case EPdAchievementTrigger::DeathCount:
-	case EPdAchievementTrigger::RewardGold:
-	case EPdAchievementTrigger::ItemCollected:
+	case EAchievementTrigger::KillCount:
+	case EAchievementTrigger::DeathCount:
+	case EAchievementTrigger::RewardGold:
+	case EAchievementTrigger::ItemCollected:
 		return 0;
-	case EPdAchievementTrigger::PandoraUnlocked:
+	case EAchievementTrigger::PandoraUnlocked:
 		if (const UPdSaveGame* SaveGame = PdGameInstance->GetOrCreateSaveGame(PlayerId))
 		{
 			return SaveGame->PlayerPandoraData.GrantedPandorasById.Num();
 		}
 		return 0;
-	case EPdAchievementTrigger::SkinUnlocked:
+	case EAchievementTrigger::SkinUnlocked:
 		if (const UPdSaveGame* SaveGame = PdGameInstance->GetOrCreateSaveGame(PlayerId))
 		{
 			return SaveGame->PlayerSkinData.GrantedSkinsById.Num();
@@ -700,20 +698,17 @@ FString ULeftProfileWidget::ResolveProfileSavePlayerId() const
 
 const URecordDefinition* ULeftProfileWidget::ResolveRecordDefinition()
 {
-	if (RecordData.IsNull())
-	{
-		return nullptr;
-	}
-
-	return RecordData.Get();
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Record.Get();
 }
 
 const UAchievementDefinition* ULeftProfileWidget::ResolveAchievementDefinition() const
 {
-	if (AchievementData.IsNull())
+	const UGameInstance* GameInstance = GetGameInstance();
+	if (UAchievementSubsystem* AchievementSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UAchievementSubsystem>() : nullptr)
 	{
-		return nullptr;
+		return AchievementSubsystem->GetAchievementDefinition();
 	}
 
-	return AchievementData.Get();
+	return nullptr;
 }

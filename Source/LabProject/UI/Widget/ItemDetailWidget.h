@@ -23,7 +23,7 @@ public:
 	void SetItem(UItemInstance* InItemInstance, UItemInstance* InCompareItemInstance = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Detail")
-	void SetItemViewData(const FPdItemViewData& InViewData);
+	void SetItemViewData(const FItemViewData& InViewData);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Detail")
 	void SetSkin(USkinInstance* InSkinInstance);
@@ -54,8 +54,10 @@ protected:
 private:
 	void CacheOptionalWidgets();
 	void SetIconResource(UObject* IconResource) const;
-	void SetHeader(const FPdItemViewData& ViewData) const;
-	void PopulateStats(const TMap<FGameplayTag, float>& NewStats);
-	void AddStatRow(FGameplayTag StatTag, float NewValue);
+	void SetHeader(const FItemViewData& ViewData) const;
+	void PopulateStats(
+		const TMap<FGameplayTag, float>& NewStats,
+		const TMap<FGameplayTag, float>& UpgradeBonusStats);
+	void AddStatRow(FGameplayTag StatTag, float NewValue, float UpgradeBonusValue);
 	static FString GetDisplayNameForStatTag(FGameplayTag StatTag);
 };

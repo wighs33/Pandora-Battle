@@ -3,15 +3,19 @@
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/PanelWidget.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "EngineUtils.h"
 #include "Engine/Texture2D.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
 #include "Mode/PdPlayerState.h"
 #include "TimerManager.h"
+#include "UI/TeamColorUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MapWidget)
 
@@ -22,7 +26,7 @@ namespace
 		return Size.X > 0.0f && Size.Y > 0.0f;
 	}
 
-	int32 TeamColorToIndex(const EPdTeamColor TeamColor)
+	int32 TeamColorToIndex(const ETeamColor TeamColor)
 	{
 		return static_cast<int32>(TeamColor);
 	}
@@ -32,18 +36,38 @@ namespace
 		return FVector2D(32.0f, 32.0f);
 	}
 
-	UMapWidget::EMapView MapRegionToView(const EPdPlayerMapRegion MapRegion)
+	UMapWidget::EMapView MapRegionToView(const EPlayerMapRegion MapRegion)
 	{
 		switch (MapRegion)
 		{
-		case EPdPlayerMapRegion::Dome:
+		case EPlayerMapRegion::Dome:
 			return UMapWidget::EMapView::Dome;
-		case EPdPlayerMapRegion::Temple:
+		case EPlayerMapRegion::Temple:
 			return UMapWidget::EMapView::Temple;
-		case EPdPlayerMapRegion::Windmill:
-		default:
+		case EPlayerMapRegion::Windmill:
 			return UMapWidget::EMapView::Windmill;
+		default:
+			return UMapWidget::EMapView::Dome;
 		}
+	}
+
+	uint64 MakeAreaMapMarkerStateKey(const APdPlayerState& PlayerState)
+	{
+		const UPlayerMatchComponent* MatchComponent =
+			PlayerState.GetPlayerMatchComponent();
+		const uint32 PlayerId = static_cast<uint32>(
+			PlayerState.GetPlayerId());
+		const uint16 TeamColorIndex = static_cast<uint16>(
+			MatchComponent
+				? MatchComponent->GetMatchTeamColorIndex() + 1
+				: 0);
+		const uint8 MapRegion = static_cast<uint8>(
+			MatchComponent
+				? MatchComponent->GetPlayerMapRegion()
+				: EPlayerMapRegion::Dome);
+		return (static_cast<uint64>(PlayerId) << 32)
+			| (static_cast<uint64>(MapRegion) << 16)
+			| TeamColorIndex;
 	}
 
 }
@@ -172,6 +196,8 @@ void UMapWidget::NativeDestruct()
 	}
 	RemoteTeamMarkWidgets.Reset();
 	CachedRemotePlayerPawns.Reset();
+	AreaMapMarkerStateKeys.Reset();
+	bAreaMapMarkerWidgetsComplete = false;
 
 	Super::NativeDestruct();
 }
@@ -287,7 +313,16 @@ void UMapWidget::ApplyMapView(const EMapView NewMapView)
 		break;
 	}
 
-
+	if (CurrentMapView == EMapView::Area)
+	{
+		RefreshAreaMapRegionMarkers();
+	}
+	else
+	{
+		SetAreaMapRegionMarkersVisible(false);
+		RefreshRemotePlayerPawns();
+		UpdateTeamMarks();
+	}
 }
 
 void UMapWidget::ApplyMapTexture(UTexture2D* Texture)
@@ -351,7 +386,7 @@ void UMapWidget::ApplyWidgetDefinitionSettings()
 	RemotePlayerListRefreshInterval = FMath::Max(Settings.RemotePlayerListRefreshInterval, 0.1f);
 	TeamMarkImagesByTeamColorIndex.Reset();
 	TeamMarkImageSizesByTeamColorIndex.Reset();
-	CharacterMarkResourceObject = Settings.CharacterMarkImage.Get();
+	CharacterMarkResourceObject = Settings.CharacterMarkImage;
 	CharacterMarkResolvedImageSize = Settings.CharacterMarkImageSize;
 
 	if (const FMapWidgetProjectionSettings* ProjectionOverride = FindProjectionOverride(Settings))
@@ -366,9 +401,11 @@ void UMapWidget::ApplyWidgetDefinitionSettings()
 	for (const FMapWidgetTeamMarkImage& TeamMarkImage : Settings.TeamMarkImages)
 	{
 		const int32 TeamColorIndex = TeamColorToIndex(TeamMarkImage.TeamColor);
-		if (UObject* ResourceObject = TeamMarkImage.TeamMarkImage.Get())
+		if (!TeamMarkImage.TeamMarkImage.IsNull())
 		{
-			TeamMarkImagesByTeamColorIndex.Add(TeamColorIndex, ResourceObject);
+			TeamMarkImagesByTeamColorIndex.Add(
+				TeamColorIndex,
+				TeamMarkImage.TeamMarkImage);
 		}
 
 		if (HasPositiveSize(TeamMarkImage.TeamMarkImageSize))
@@ -512,7 +549,6 @@ void UMapWidget::SyncMapViewToPlayerMapRegion()
 	LastSyncedPlayerMapView = PlayerMapView;
 	ApplyMapView(PlayerMapView);
 
-
 }
 
 void UMapWidget::StartMapUpdateTimers()
@@ -560,6 +596,7 @@ void UMapWidget::HandleMapUpdateTick()
 void UMapWidget::RefreshRemotePlayerPawns()
 {
 	CachedRemotePlayerPawns.Reset();
+	RefreshAreaMapRegionMarkers();
 
 	if (!bShowRemotePlayerMarks)
 	{
@@ -589,6 +626,147 @@ void UMapWidget::RefreshRemotePlayerPawns()
 		}
 
 		CachedRemotePlayerPawns.Add(CandidatePawn);
+	}
+}
+
+void UMapWidget::RefreshAreaMapRegionMarkers()
+{
+	const bool bShowAreaMarkers = CurrentMapView == EMapView::Area;
+	SetAreaMapRegionMarkersVisible(bShowAreaMarkers);
+	if (!bShowAreaMarkers)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
+	if (!GameState)
+	{
+		AreaMapMarkerStateKeys.Reset();
+		bAreaMapMarkerWidgetsComplete = false;
+		return;
+	}
+
+	TArray<APdPlayerState*> PlayerStates;
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		if (APdPlayerState* PdPlayerState =
+			Cast<APdPlayerState>(PlayerState))
+		{
+			PlayerStates.Add(PdPlayerState);
+		}
+	}
+	PlayerStates.Sort(
+		[](const APdPlayerState& Left, const APdPlayerState& Right)
+		{
+			if (Left.GetPlayerId() != Right.GetPlayerId())
+			{
+				return Left.GetPlayerId() < Right.GetPlayerId();
+			}
+			return Left.GetName() < Right.GetName();
+		});
+
+	TArray<uint64> NewMarkerStateKeys;
+	NewMarkerStateKeys.Reserve(PlayerStates.Num());
+	for (const APdPlayerState* PlayerState : PlayerStates)
+	{
+		if (PlayerState)
+		{
+			NewMarkerStateKeys.Add(
+				MakeAreaMapMarkerStateKey(*PlayerState));
+		}
+	}
+
+	if (bAreaMapMarkerWidgetsComplete
+		&& AreaMapMarkerStateKeys == NewMarkerStateKeys)
+	{
+		return;
+	}
+
+	for (UHorizontalBox* MarkerBox :
+		{DomeMarkers.Get(), WindmillMarkers.Get(), TempleMarkers.Get()})
+	{
+		if (MarkerBox)
+		{
+			MarkerBox->ClearChildren();
+		}
+	}
+
+	int32 RequiredMarkerCount = 0;
+	int32 AddedMarkerCount = 0;
+	for (const APdPlayerState* PlayerState : PlayerStates)
+	{
+		const UPlayerMatchComponent* MatchComponent =
+			PlayerState
+				? PlayerState->GetPlayerMatchComponent()
+				: nullptr;
+		if (!MatchComponent)
+		{
+			continue;
+		}
+
+		UHorizontalBox* MarkerBox = ResolveAreaMapRegionMarkerBox(
+			MatchComponent->GetPlayerMapRegion());
+		if (!MarkerBox)
+		{
+			continue;
+		}
+		++RequiredMarkerCount;
+
+		UImage* MarkerImage = NewObject<UImage>(this);
+		if (!MarkerImage
+			|| !ApplyTeamMarkImageForTeamColor(
+				MarkerImage,
+				MatchComponent->GetMatchTeamColorIndex()))
+		{
+			continue;
+		}
+
+		MarkerImage->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+		MarkerImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+		if (UHorizontalBoxSlot* MarkerSlot =
+			MarkerBox->AddChildToHorizontalBox(MarkerImage))
+		{
+			MarkerSlot->SetHorizontalAlignment(HAlign_Center);
+			MarkerSlot->SetVerticalAlignment(VAlign_Center);
+			++AddedMarkerCount;
+		}
+	}
+
+	AreaMapMarkerStateKeys = MoveTemp(NewMarkerStateKeys);
+	bAreaMapMarkerWidgetsComplete =
+		AddedMarkerCount == RequiredMarkerCount;
+}
+
+void UMapWidget::SetAreaMapRegionMarkersVisible(
+	const bool bVisible) const
+{
+	const ESlateVisibility NewVisibility = bVisible
+		? ESlateVisibility::HitTestInvisible
+		: ESlateVisibility::Collapsed;
+	for (UHorizontalBox* MarkerBox :
+		{DomeMarkers.Get(), WindmillMarkers.Get(), TempleMarkers.Get()})
+	{
+		if (MarkerBox)
+		{
+			MarkerBox->SetVisibility(NewVisibility);
+		}
+	}
+}
+
+UHorizontalBox* UMapWidget::ResolveAreaMapRegionMarkerBox(
+	const EPlayerMapRegion MapRegion) const
+{
+	switch (MapRegion)
+	{
+	case EPlayerMapRegion::Dome:
+		return DomeMarkers;
+	case EPlayerMapRegion::Temple:
+		return TempleMarkers;
+	case EPlayerMapRegion::Windmill:
+		return WindmillMarkers;
+	default:
+		return DomeMarkers;
 	}
 }
 
@@ -921,24 +1099,64 @@ bool UMapWidget::ApplyTeamMarkImage(UImage* MarkWidget, const APawn& Pawn) const
 		return false;
 	}
 
-	const int32 TeamColorIndex = FMath::Clamp(
-		PdPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex(),
+	return ApplyTeamMarkImageForTeamColor(
+		MarkWidget,
+		PdPlayerState->GetPlayerMatchComponent()
+			->GetMatchTeamColorIndex());
+}
+
+bool UMapWidget::ApplyTeamMarkImageForTeamColor(
+	UImage* MarkWidget,
+	const int32 TeamColorIndex) const
+{
+	if (!MarkWidget)
+	{
+		return false;
+	}
+
+	const int32 NormalizedTeamColorIndex = FMath::Clamp(
+		TeamColorIndex,
 		0,
-		TeamColorToIndex(EPdTeamColor::Orange));
-	const TObjectPtr<UObject>* FoundResource = TeamMarkImagesByTeamColorIndex.Find(TeamColorIndex);
+		TeamColorToIndex(ETeamColor::Orange));
+	const TSoftObjectPtr<UObject>* FoundResource =
+		TeamMarkImagesByTeamColorIndex.Find(NormalizedTeamColorIndex);
 	UObject* ResourceObject = FoundResource ? FoundResource->Get() : nullptr;
+	FVector2D DesiredImageSize = FVector2D::ZeroVector;
+	if (const FVector2D* FoundImageSize =
+		TeamMarkImageSizesByTeamColorIndex.Find(
+			NormalizedTeamColorIndex))
+	{
+		DesiredImageSize = *FoundImageSize;
+	}
+
+	bool bUseTeamColorTint = false;
+	if (!ResourceObject)
+	{
+		ResourceObject = CharacterMarkResourceObject.Get();
+		DesiredImageSize = CharacterMarkResolvedImageSize;
+		bUseTeamColorTint = ResourceObject != nullptr;
+	}
+	if (!ResourceObject && TeamMark)
+	{
+		const FSlateBrush& DesignerBrush = TeamMark->GetBrush();
+		ResourceObject = DesignerBrush.GetResourceObject();
+		DesiredImageSize = DesignerBrush.ImageSize;
+		bUseTeamColorTint = ResourceObject != nullptr;
+	}
 	if (!ResourceObject)
 	{
 		return false;
 	}
 
-	FVector2D DesiredImageSize = FVector2D::ZeroVector;
-	if (const FVector2D* FoundImageSize = TeamMarkImageSizesByTeamColorIndex.Find(TeamColorIndex))
-	{
-		DesiredImageSize = *FoundImageSize;
-	}
-
-	return ApplyMarkImage(MarkWidget, ResourceObject, DesiredImageSize);
+	MarkWidget->SetColorAndOpacity(
+		bUseTeamColorTint
+			? LabTeamColorUtils::GetTeamColor(
+				NormalizedTeamColorIndex)
+			: FLinearColor::White);
+	return ApplyMarkImage(
+		MarkWidget,
+		ResourceObject,
+		DesiredImageSize);
 }
 
 bool UMapWidget::DoesPawnMatchCurrentMapView(const APawn& Pawn) const
