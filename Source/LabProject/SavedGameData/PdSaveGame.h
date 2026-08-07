@@ -6,21 +6,19 @@
 #include "SavedGameData/PlayerSkinData.h"
 #include "PdSaveGame.generated.h"
 
-namespace PdSaveGameSchema
+namespace PdProfileSaveData
 {
-	inline constexpr int32 LegacyAssetNames = 0;
-	inline constexpr int32 PrimaryAssetIds = 1;
-	inline constexpr int32 Current = PrimaryAssetIds;
+	inline constexpr int32 Current = 1;
+	inline constexpr int32 MaxMatchRecordCount = 5;
 }
 
 namespace PdProfileSaveStorage
 {
-	inline constexpr int32 ObfuscatedPayload = 1;
-	inline constexpr int32 Current = ObfuscatedPayload;
+	inline constexpr int32 Current = 2;
 }
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdMatchRecord
+struct LABPROJECT_API FMatchRecord
 {
 	GENERATED_BODY()
 
@@ -43,9 +41,8 @@ class LABPROJECT_API UPdSaveGame : public USaveGame
 	GENERATED_BODY()
 
 public:
-	// Missing in legacy saves, so zero reliably identifies the name-based schema.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Save")
-	int32 SaveSchemaVersion = PdSaveGameSchema::LegacyAssetNames;
+	int32 ProfileDataVersion = PdProfileSaveData::Current;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Save")
 	FGuid SaveId;
@@ -82,10 +79,9 @@ public:
 	FPlayerSkinData PlayerSkinData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record")
-	TArray<FPdMatchRecord> MatchRecords;
+	TArray<FMatchRecord> MatchRecords;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Save")
-	TArray<FString> ImportedLegacySaveSlots;
+	bool IsCurrentFormat() const;
 };
 
 /**
@@ -93,12 +89,12 @@ public:
  * This is intentionally lightweight obfuscation, not a security boundary.
  */
 UCLASS()
-class LABPROJECT_API UPdProfileSaveEnvelope : public USaveGame
+class LABPROJECT_API UProfileSaveEnvelope : public USaveGame
 {
 	GENERATED_BODY()
 
 public:
-	static UPdProfileSaveEnvelope* CreateFromProfile(
+	static UProfileSaveEnvelope* CreateFromProfile(
 		UPdSaveGame* Profile,
 		const FString& PlayerId,
 		UObject* Outer = nullptr);
@@ -107,10 +103,8 @@ public:
 
 	int32 GetStorageFormatVersion() const { return StorageFormatVersion; }
 	int32 GetObfuscatedPayloadSize() const { return ObfuscatedPayload.Num(); }
-
-#if WITH_DEV_AUTOMATION_TESTS
-	void CorruptPayloadForTest();
-#endif
+	const FGuid& GetProfileSaveId() const { return ProfileSaveId; }
+	int64 GetProfileRevision() const { return ProfileRevision; }
 
 private:
 	UPROPERTY()
@@ -121,6 +115,12 @@ private:
 
 	UPROPERTY()
 	uint32 PlainPayloadCrc = 0;
+
+	UPROPERTY()
+	FGuid ProfileSaveId;
+
+	UPROPERTY()
+	int64 ProfileRevision = 0;
 
 	UPROPERTY()
 	TArray<uint8> ObfuscatedPayload;

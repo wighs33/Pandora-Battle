@@ -2,7 +2,7 @@
 
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
-#include "Logging/PdLogRateLimiter.h"
+#include "Logging/LogRateLimiter.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -15,8 +15,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogProjectTagConfig, Log, All);
 namespace
 {
 	constexpr double RequiredConfigLogIntervalSeconds = 30.0;
-	FPdLogRateLimiter MissingConfigLogLimiter;
-	FPdLogRateLimiter LoadFailedConfigLogLimiter;
+	FLogRateLimiter MissingConfigLogLimiter;
+	FLogRateLimiter LoadFailedConfigLogLimiter;
 	TSharedPtr<FStreamableHandle> PendingConfigLoadHandle;
 
 	const UProjectTagConfig* LoadProjectTagConfigPrimaryAsset()

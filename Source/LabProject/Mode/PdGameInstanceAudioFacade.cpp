@@ -2,7 +2,7 @@
 
 #include "Settings/BgmSubsystem.h"
 
-void UPdGameInstance::PlayBgmForContext(const EPdBgmContext BgmContext)
+void UPdGameInstance::PlayBgmForContext(const EBgmContext BgmContext)
 {
 	if (UBgmSubsystem* BgmSubsystem = GetSubsystem<UBgmSubsystem>())
 	{

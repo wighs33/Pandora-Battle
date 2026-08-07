@@ -4,21 +4,19 @@
 #include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameSettingsSubsystem)
 
 DEFINE_LOG_CATEGORY_STATIC(LogGameSettingsSubsystem, Log, All);
 
-UGameSettingsSubsystem::UGameSettingsSubsystem()
-	: GameSettingDefinition(GetDefaultGameSettingDefinitionPath())
-{
-}
-
 void UGameSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	Collection.InitializeDependency<UContentDataSubsystem>();
+	GameSettingDefinition = TSoftObjectPtr<UGameSettingDefinition>(
+		GetDefaultGameSettingDefinitionPath());
 	bGameSettingDefinitionReady = false;
 	bRuntimeContentReady = false;
 	bRuntimeContentPreloadPending = false;
@@ -39,10 +37,10 @@ void UGameSettingsSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-const FSoftObjectPath& UGameSettingsSubsystem::GetDefaultGameSettingDefinitionPath()
+FSoftObjectPath UGameSettingsSubsystem::GetDefaultGameSettingDefinitionPath()
 {
-	static const FSoftObjectPath DefaultSettingDefinitionPath(TEXT("/Game/Data/DA_Setting.DA_Setting"));
-	return DefaultSettingDefinitionPath;
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.GameSetting.ToSoftObjectPath();
 }
 
 UGameSettingDefinition* UGameSettingsSubsystem::ResolveGameSettingDefinition(const UObject* WorldContextObject)
@@ -90,7 +88,7 @@ UGameSettingDefinition* UGameSettingsSubsystem::GetGameSettingDefinition()
 
 	if (!GameSettingDefinition.IsNull())
 	{
-		CachedGameSettingDefinition = GameSettingDefinition.Get();
+		CachedGameSettingDefinition = GameSettingDefinition.LoadSynchronous();
 	}
 
 	if (!CachedGameSettingDefinition)
@@ -141,7 +139,7 @@ void UGameSettingsSubsystem::PreloadRuntimeContentAsync(
 			LogGameSettingsSubsystem,
 			Error,
 			TEXT("GameSetting runtime preload could not start because ContentDataSubsystem is unavailable."));
-		FinishRuntimeContentPreload();
+		FinishRuntimeContentPreload(false);
 		return;
 	}
 
@@ -191,7 +189,7 @@ void UGameSettingsSubsystem::HandleDefinitionPreloadComplete()
 			*(!GameSettingDefinition.IsNull()
 				? GameSettingDefinition.ToString()
 				: GetDefaultGameSettingDefinitionPath().ToString()));
-		FinishRuntimeContentPreload();
+		FinishRuntimeContentPreload(false);
 		return;
 	}
 
@@ -201,7 +199,7 @@ void UGameSettingsSubsystem::HandleDefinitionPreloadComplete()
 	CachedGameSettingDefinition->GetRuntimePreloadAssetPaths(RuntimeAssetPaths);
 	if (RuntimeAssetPaths.IsEmpty())
 	{
-		FinishRuntimeContentPreload();
+		FinishRuntimeContentPreload(true);
 		return;
 	}
 
@@ -214,7 +212,7 @@ void UGameSettingsSubsystem::HandleDefinitionPreloadComplete()
 			LogGameSettingsSubsystem,
 			Error,
 			TEXT("GameSetting runtime dependencies could not preload because ContentDataSubsystem is unavailable."));
-		FinishRuntimeContentPreload();
+		FinishRuntimeContentPreload(false);
 		return;
 	}
 
@@ -247,10 +245,12 @@ void UGameSettingsSubsystem::HandleRuntimeContentPreloadComplete(
 		return;
 	}
 
+	bool bAllAssetsResolved = true;
 	for (const FSoftObjectPath& AssetPath : ExpectedAssetPaths)
 	{
 		if (!AssetPath.ResolveObject())
 		{
+			bAllAssetsResolved = false;
 			UE_LOG(
 				LogGameSettingsSubsystem,
 				Error,
@@ -259,13 +259,15 @@ void UGameSettingsSubsystem::HandleRuntimeContentPreloadComplete(
 		}
 	}
 
-	FinishRuntimeContentPreload();
+	FinishRuntimeContentPreload(bAllAssetsResolved);
 }
 
-void UGameSettingsSubsystem::FinishRuntimeContentPreload()
+void UGameSettingsSubsystem::FinishRuntimeContentPreload(
+	const bool bSucceeded)
 {
 	bRuntimeContentPreloadPending = false;
-	bRuntimeContentReady = CachedGameSettingDefinition != nullptr;
+	bRuntimeContentReady = bSucceeded
+		&& CachedGameSettingDefinition != nullptr;
 
 	TArray<FSimpleDelegate> CompletionCallbacks =
 		MoveTemp(PendingRuntimeContentCallbacks);

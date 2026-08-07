@@ -14,6 +14,10 @@
 namespace
 {
 	const FPrimaryAssetType SkinDefinitionAssetType(TEXT("SkinDefinition"));
+	constexpr float LocalCosmeticProfileSyncInterval = 0.50f;
+	constexpr int32 LocalCosmeticProfileSyncMaxAttempts = 5;
+	constexpr int32 MaxClientSyncedSkinNameCount = 512;
+	constexpr double RemoteSkinSyncMinInterval = 0.20;
 }
 
 UControllerProfileSyncComponent::UControllerProfileSyncComponent()
@@ -54,7 +58,7 @@ void UControllerProfileSyncComponent::ScheduleLocalCosmeticProfileSync()
 			LocalCosmeticProfileSyncTimerHandle,
 			this,
 			&ThisClass::PushLocalCosmeticProfileToServer,
-			FMath::Max(Settings.LocalShopSaveSyncInterval, 0.01f),
+			LocalCosmeticProfileSyncInterval,
 			true);
 	}
 }
@@ -124,9 +128,7 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 		return;
 	}
 
-	const int32 MaxSkinNameCount =
-		FMath::Max(Settings.MaxClientSyncedSkinNameCount, 1);
-	if (OwnedSkinNames.Num() > MaxSkinNameCount)
+	if (OwnedSkinNames.Num() > MaxClientSyncedSkinNameCount)
 	{
 		UE_LOG(
 			PdPlayerControllerLog,
@@ -134,7 +136,7 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 			TEXT("Ignored oversized local cosmetic profile. Player=%s Count=%d Limit=%d"),
 			*GetNameSafe(Controller->PlayerState),
 			OwnedSkinNames.Num(),
-			MaxSkinNameCount);
+			MaxClientSyncedSkinNameCount);
 		return;
 	}
 
@@ -173,14 +175,6 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 		}
 
 		UniqueSkinNames.Add(SkinName);
-		if (bRemoteClaim
-			&& !IsRemoteSkinNameAllowedByPolicy(
-				SkinName,
-				Settings.RemoteSkinClaimPolicy))
-		{
-			continue;
-		}
-
 		const FPrimaryAssetId SkinDefinitionId =
 			ContentDataSubsystem->GetSkinDefinitionIdByName(SkinName);
 		if (SkinDefinitionId.IsValid()
@@ -193,26 +187,6 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 	if (!OwnedSkinDefinitionIds.IsEmpty())
 	{
 		SkinComponent->AddSkinsByPrimaryAssetIds(OwnedSkinDefinitionIds);
-	}
-}
-
-bool UControllerProfileSyncComponent::IsRemoteSkinNameAllowedByPolicy(
-	const FName SkinName,
-	const EPdRemoteSkinClaimPolicy ClaimPolicy)
-{
-	if (SkinName.IsNone())
-	{
-		return false;
-	}
-
-	switch (ClaimPolicy)
-	{
-	case EPdRemoteSkinClaimPolicy::TrustLocalCosmeticProfile:
-		return true;
-	case EPdRemoteSkinClaimPolicy::DefaultUnlocksOnly:
-		return SkinDefaultUnlockPolicy::IsDefaultUnlockedSkinName(SkinName);
-	default:
-		return false;
 	}
 }
 
@@ -303,11 +277,11 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 		return Left.LexicalLess(Right);
 	});
 
-	const int32 MaxSkinNameCount =
-		FMath::Max(Settings.MaxClientSyncedSkinNameCount, 1);
-	if (OwnedSkinNames.Num() > MaxSkinNameCount)
+	if (OwnedSkinNames.Num() > MaxClientSyncedSkinNameCount)
 	{
-		OwnedSkinNames.SetNum(MaxSkinNameCount, EAllowShrinking::No);
+		OwnedSkinNames.SetNum(
+			MaxClientSyncedSkinNameCount,
+			EAllowShrinking::No);
 	}
 
 	if (Controller->HasAuthority())
@@ -363,7 +337,7 @@ void UControllerProfileSyncComponent::CompleteLocalCosmeticProfileSyncAttempt()
 {
 	++LocalCosmeticProfileSyncAttemptCount;
 	if (LocalCosmeticProfileSyncAttemptCount
-		>= FMath::Max(Settings.LocalShopSaveSyncMaxAttempts, 1))
+		>= LocalCosmeticProfileSyncMaxAttempts)
 	{
 		if (UWorld* World = GetWorld())
 		{
@@ -381,10 +355,9 @@ bool UControllerProfileSyncComponent::TryConsumeRemoteSkinSyncRequest()
 	}
 
 	const double CurrentTime = World->GetTimeSeconds();
-	const double MinInterval =
-		FMath::Max(static_cast<double>(Settings.RemoteSkinSyncMinInterval), 0.0);
 	if (LastRemoteSkinSyncRequestTime >= 0.0
-		&& CurrentTime - LastRemoteSkinSyncRequestTime < MinInterval)
+		&& CurrentTime - LastRemoteSkinSyncRequestTime
+			< RemoteSkinSyncMinInterval)
 	{
 		return false;
 	}

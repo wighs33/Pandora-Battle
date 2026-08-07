@@ -6,7 +6,7 @@
  * Small per-call-site/per-object limiter for logs that must remain visible but
  * can otherwise be repeated by ticks, retries, RPC spam, or many actors.
  */
-struct FPdLogRateLimiter
+struct FLogRateLimiter
 {
 	bool TryAcquire(const double IntervalSeconds, uint32& OutSuppressedCount)
 	{

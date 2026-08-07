@@ -5,6 +5,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdSaveGame)
 
+DEFINE_LOG_CATEGORY_STATIC(LogProfileSaveEnvelope, Log, All);
+
 namespace
 {
 	constexpr int32 MaxProfilePayloadSize = 16 * 1024 * 1024;
@@ -67,13 +69,30 @@ namespace
 	}
 }
 
-UPdProfileSaveEnvelope* UPdProfileSaveEnvelope::CreateFromProfile(
+bool UPdSaveGame::IsCurrentFormat() const
+{
+	return ProfileDataVersion == PdProfileSaveData::Current
+		&& SaveId.IsValid()
+		&& SaveRevision >= 0;
+}
+
+UProfileSaveEnvelope* UProfileSaveEnvelope::CreateFromProfile(
 	UPdSaveGame* Profile,
 	const FString& PlayerId,
 	UObject* Outer)
 {
 	if (!IsValid(Profile) || PlayerId.IsEmpty())
 	{
+		return nullptr;
+	}
+
+	if (!Profile->IsCurrentFormat())
+	{
+		UE_LOG(
+			LogProfileSaveEnvelope,
+			Error,
+			TEXT("[SaveGameWrite] Refused to serialize profile '%s' with an invalid version or identity."),
+			*PlayerId);
 		return nullptr;
 	}
 
@@ -85,8 +104,8 @@ UPdProfileSaveEnvelope* UPdProfileSaveEnvelope::CreateFromProfile(
 		return nullptr;
 	}
 
-	UPdProfileSaveEnvelope* Envelope =
-		NewObject<UPdProfileSaveEnvelope>(
+	UProfileSaveEnvelope* Envelope =
+		NewObject<UProfileSaveEnvelope>(
 			Outer ? Outer : GetTransientPackage());
 	if (!Envelope)
 	{
@@ -104,6 +123,8 @@ UPdProfileSaveEnvelope* UPdProfileSaveEnvelope::CreateFromProfile(
 
 	Envelope->PlainPayloadCrc =
 		CalculatePayloadCrc(PlainPayload, PlayerId);
+	Envelope->ProfileSaveId = Profile->SaveId;
+	Envelope->ProfileRevision = Profile->SaveRevision;
 	Envelope->ObfuscatedPayload = MoveTemp(PlainPayload);
 	ObfuscatePayload(
 		Envelope->ObfuscatedPayload,
@@ -113,15 +134,60 @@ UPdProfileSaveEnvelope* UPdProfileSaveEnvelope::CreateFromProfile(
 	return Envelope;
 }
 
-UPdSaveGame* UPdProfileSaveEnvelope::DecodeProfile(
+UPdSaveGame* UProfileSaveEnvelope::DecodeProfile(
 	const FString& PlayerId) const
 {
-	if (PlayerId.IsEmpty()
-		|| StorageFormatVersion != PdProfileSaveStorage::Current
-		|| ObfuscationNonce == 0
-		|| ObfuscatedPayload.IsEmpty()
+	if (PlayerId.IsEmpty())
+	{
+		UE_LOG(
+			LogProfileSaveEnvelope,
+			Error,
+			TEXT("[SaveGameLoad] Envelope decode rejected an empty PlayerId."));
+		return nullptr;
+	}
+
+	if (StorageFormatVersion != PdProfileSaveStorage::Current)
+	{
+		UE_LOG(
+			LogProfileSaveEnvelope,
+			Error,
+			TEXT("[SaveGameLoad] Envelope decode failed for '%s': unsupported storage version %d (current=%d)."),
+			*PlayerId,
+			StorageFormatVersion,
+			PdProfileSaveStorage::Current);
+		return nullptr;
+	}
+
+	if (ObfuscationNonce == 0)
+	{
+		UE_LOG(
+			LogProfileSaveEnvelope,
+			Error,
+			TEXT("[SaveGameLoad] Envelope decode failed for '%s': invalid zero nonce."),
+			*PlayerId);
+		return nullptr;
+	}
+
+	if (!ProfileSaveId.IsValid() || ProfileRevision < 0)
+	{
+		UE_LOG(
+			LogProfileSaveEnvelope,
+			Error,
+			TEXT("[SaveGameLoad] Envelope decode failed for '%s': invalid header SaveId or Revision."),
+			*PlayerId);
+		return nullptr;
+	}
+
+	if (ObfuscatedPayload.IsEmpty()
 		|| ObfuscatedPayload.Num() > MaxProfilePayloadSize)
 	{
+		UE_LOG(
+			LogProfileSaveEnvelope,
+			Error,
+			TEXT("[SaveGameLoad] Envelope decode failed for '%s': invalid payload size %d (allowed=1..%d bytes)."),
+			*PlayerId,
+			ObfuscatedPayload.Num(),
+			MaxProfilePayloadSize);
 		return nullptr;
 	}
 
@@ -132,21 +198,69 @@ UPdSaveGame* UPdProfileSaveEnvelope::DecodeProfile(
 		StorageFormatVersion,
 		ObfuscationNonce);
 
-	if (CalculatePayloadCrc(PlainPayload, PlayerId) != PlainPayloadCrc)
+	const uint32 CalculatedPayloadCrc =
+		CalculatePayloadCrc(PlainPayload, PlayerId);
+	if (CalculatedPayloadCrc != PlainPayloadCrc)
 	{
+		UE_LOG(
+			LogProfileSaveEnvelope,
+			Error,
+			TEXT("[SaveGameLoad] Envelope decode failed for '%s': payload CRC mismatch (stored=0x%08X, calculated=0x%08X). "
+				"The file may be corrupt or may have been saved for a different PlayerId."),
+			*PlayerId,
+			PlainPayloadCrc,
+			CalculatedPayloadCrc);
 		return nullptr;
 	}
 
-	return Cast<UPdSaveGame>(
-		UGameplayStatics::LoadGameFromMemory(PlainPayload));
-}
-
-#if WITH_DEV_AUTOMATION_TESTS
-void UPdProfileSaveEnvelope::CorruptPayloadForTest()
-{
-	if (!ObfuscatedPayload.IsEmpty())
+	USaveGame* DecodedSaveGame =
+		UGameplayStatics::LoadGameFromMemory(PlainPayload);
+	UPdSaveGame* DecodedProfile = Cast<UPdSaveGame>(DecodedSaveGame);
+	if (!DecodedProfile)
 	{
-		ObfuscatedPayload[ObfuscatedPayload.Num() / 2] ^= 0x5Au;
+		UE_LOG(
+			LogProfileSaveEnvelope,
+			Error,
+			TEXT("[SaveGameLoad] Envelope payload for '%s' could not be deserialized as UPdSaveGame. Object='%s', Class='%s'."),
+			*PlayerId,
+			*GetNameSafe(DecodedSaveGame),
+			DecodedSaveGame ? *GetNameSafe(DecodedSaveGame->GetClass()) : TEXT("None"));
+		return nullptr;
 	}
+
+	if (DecodedProfile->SaveId != ProfileSaveId
+		|| DecodedProfile->SaveRevision != ProfileRevision)
+	{
+		UE_LOG(
+			LogProfileSaveEnvelope,
+			Error,
+			TEXT("[SaveGameLoad] Envelope metadata mismatch for '%s': HeaderSaveId='%s', PayloadSaveId='%s', HeaderRevision=%lld, PayloadRevision=%lld."),
+			*PlayerId,
+			*ProfileSaveId.ToString(),
+			*DecodedProfile->SaveId.ToString(),
+			ProfileRevision,
+			DecodedProfile->SaveRevision);
+		return nullptr;
+	}
+
+	if (!DecodedProfile->IsCurrentFormat())
+	{
+		UE_LOG(
+			LogProfileSaveEnvelope,
+			Error,
+			TEXT("[SaveGameLoad] Envelope payload for '%s' has an invalid version or identity."),
+			*PlayerId);
+		return nullptr;
+	}
+
+	UE_LOG(
+		LogProfileSaveEnvelope,
+		Log,
+		TEXT("[SaveGameLoad] Envelope decoded successfully for '%s': PayloadBytes=%d, SaveId='%s', Revision=%lld, DataVersion=%d."),
+		*PlayerId,
+		PlainPayload.Num(),
+		*DecodedProfile->SaveId.ToString(),
+		DecodedProfile->SaveRevision,
+		DecodedProfile->ProfileDataVersion);
+	return DecodedProfile;
 }
-#endif

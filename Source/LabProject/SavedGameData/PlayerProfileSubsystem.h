@@ -2,7 +2,6 @@
 
 #include "Containers/Ticker.h"
 #include "CoreMinimal.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "SavedGameData/PdSaveGame.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "PlayerProfileSubsystem.generated.h"
@@ -10,7 +9,7 @@
 class APlayerController;
 class APlayerState;
 class UPandoraDefinition;
-class UPdProfileSaveEnvelope;
+class UProfileSaveEnvelope;
 class URewardDefinition;
 class USkinDefinition;
 
@@ -22,13 +21,8 @@ class LABPROJECT_API UPlayerProfileSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	UPlayerProfileSubsystem();
-
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
-
-	void ApplySettings(const FPdPlayerProfilePersistenceSettings& InSettings);
-	const FPdPlayerProfilePersistenceSettings& GetSettings() const { return Settings; }
 
 	void LoadGame(const FString& PlayerId);
 	void SaveGame(const FString& PlayerId);
@@ -41,8 +35,8 @@ public:
 	void SetPreferredSavePlayerId(const FString& PlayerId);
 	const FString& GetPreferredSavePlayerId() const { return PreferredSavePlayerId; }
 
-	void AddMatchRecord(const FString& PlayerId, const FPdMatchRecord& MatchRecord, bool bSaveImmediately = true);
-	TArray<FPdMatchRecord> GetMatchRecords(const FString& PlayerId);
+	void AddMatchRecord(const FString& PlayerId, const FMatchRecord& MatchRecord, bool bSaveImmediately = true);
+	TArray<FMatchRecord> GetMatchRecords(const FString& PlayerId);
 	int32 GetWinCount(const FString& PlayerId);
 	int32 GetItemCollectedCount(const FString& PlayerId);
 	int32 AddItemCollectedCount(const FString& PlayerId, int32 Amount, bool bSaveImmediately = true);
@@ -90,12 +84,7 @@ private:
 	UPdSaveGame* CreateConfiguredSaveGameObject() const;
 	UPdSaveGame* LoadBestAvailableSaveGame(
 		const FString& PlayerId,
-		bool& bOutRecoveredFromFallback,
-		bool& bOutRequiresStorageMigration) const;
-	bool UpgradeSaveGameSchema(
-		UPdSaveGame& SaveGameObject,
-		const FString& SourceSlotName,
-		bool& bOutChanged) const;
+		bool& bOutRecoveredFromFallback) const;
 	void RequestProfileSave(const FString& PlayerId, bool bSaveImmediately);
 	void EnsureSaveTicker();
 	bool TickPendingSaves(float DeltaTime);
@@ -104,8 +93,8 @@ private:
 	void HandleBackupSaveCompleted(const FString& PlayerId, bool bSucceeded);
 	void FinishAsyncSave(const FString& PlayerId);
 	void FlushPendingSavesToShutdownSlots();
-	void TryImportLocalProfileSave(const FString& TargetPlayerId, UPdSaveGame* TargetSaveGame);
 	void NotifyProfileProgressChanged(const FString& PlayerId);
+	FString NormalizeProfilePlayerId(const FString& PlayerId) const;
 	static FString GetBackupSlotName(const FString& PlayerId);
 	static FString GetShutdownSlotName(const FString& PlayerId);
 
@@ -117,9 +106,6 @@ private:
 
 	UPROPERTY(Transient)
 	FString PreferredSavePlayerId;
-
-	UPROPERTY(Transient)
-	FPdPlayerProfilePersistenceSettings Settings;
 
 	TSet<FString> DirtyPlayerIds;
 	TSet<FString> SaveInFlightPlayerIds;

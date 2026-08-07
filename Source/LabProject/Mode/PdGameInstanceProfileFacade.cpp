@@ -77,7 +77,7 @@ FString UPdGameInstance::GetPreferredSavePlayerId() const
 
 void UPdGameInstance::AddMatchRecord(
 	const FString& PlayerId,
-	const FPdMatchRecord& MatchRecord,
+	const FMatchRecord& MatchRecord,
 	const bool bSaveImmediately)
 {
 	if (UPlayerProfileSubsystem* ProfileSubsystem =
@@ -87,7 +87,7 @@ void UPdGameInstance::AddMatchRecord(
 	}
 }
 
-TArray<FPdMatchRecord> UPdGameInstance::GetMatchRecords(const FString& PlayerId)
+TArray<FMatchRecord> UPdGameInstance::GetMatchRecords(const FString& PlayerId)
 {
 	if (UPlayerProfileSubsystem* ProfileSubsystem =
 		GetSubsystem<UPlayerProfileSubsystem>())

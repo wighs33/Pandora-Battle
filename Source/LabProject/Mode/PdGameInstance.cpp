@@ -1,6 +1,6 @@
 #include "Mode/PdGameInstance.h"
 
-#include "Mode/PdGameInstanceRuntimeSubsystem.h"
+#include "Mode/GameInstanceRuntimeSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdGameInstance)
 
@@ -8,8 +8,8 @@ void UPdGameInstance::OnStart()
 {
 	Super::OnStart();
 
-	if (UPdGameInstanceRuntimeSubsystem* RuntimeSubsystem =
-		GetSubsystem<UPdGameInstanceRuntimeSubsystem>())
+	if (UGameInstanceRuntimeSubsystem* RuntimeSubsystem =
+		GetSubsystem<UGameInstanceRuntimeSubsystem>())
 	{
 		RuntimeSubsystem->HandleGameInstanceStarted();
 	}
@@ -17,8 +17,8 @@ void UPdGameInstance::OnStart()
 
 void UPdGameInstance::Shutdown()
 {
-	if (UPdGameInstanceRuntimeSubsystem* RuntimeSubsystem =
-		GetSubsystem<UPdGameInstanceRuntimeSubsystem>())
+	if (UGameInstanceRuntimeSubsystem* RuntimeSubsystem =
+		GetSubsystem<UGameInstanceRuntimeSubsystem>())
 	{
 		RuntimeSubsystem->HandleGameInstanceShutdown();
 	}

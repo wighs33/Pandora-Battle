@@ -20,7 +20,7 @@ public:
 	virtual void Deinitialize() override;
 
 	UFUNCTION(BlueprintCallable, Category = "!Audio")
-	void PlayBgmForContext(EPdBgmContext BgmContext);
+	void PlayBgmForContext(EBgmContext BgmContext);
 
 	UFUNCTION(BlueprintCallable, Category = "!Audio")
 	void RestoreWorldBgm();
@@ -29,18 +29,18 @@ public:
 	void StopBgm();
 
 private:
-	void PlayBgmForContext(EPdBgmContext BgmContext, UWorld* World);
+	void PlayBgmForContext(EBgmContext BgmContext, UWorld* World);
 	void BeginBgmSoundPreload(
 		uint64 LoadGeneration,
-		EPdBgmContext BgmContext,
+		EBgmContext BgmContext,
 		TWeakObjectPtr<UWorld> World);
 	void CompleteBgmSoundPreload(
 		uint64 LoadGeneration,
-		EPdBgmContext BgmContext,
+		EBgmContext BgmContext,
 		TWeakObjectPtr<UWorld> World);
 	void CancelPendingBgmLoads();
 	void StopActiveBgmAudio();
-	EPdBgmContext ResolveWorldBgmContext(UWorld* World) const;
+	EBgmContext ResolveWorldBgmContext(UWorld* World) const;
 	void HandlePostLoadMapWithWorld(UWorld* LoadedWorld);
 
 	UFUNCTION()
@@ -49,7 +49,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> StartupBgmAudioComponent;
 
-	EPdBgmContext ActiveBgmContext = EPdBgmContext::Startup;
+	EBgmContext ActiveBgmContext = EBgmContext::Startup;
 	FSoftObjectPath ActiveBgmSoundPath;
 	FDelegateHandle PostLoadMapWithWorldHandle;
 	float ActiveBgmBaseVolume = 1.0f;

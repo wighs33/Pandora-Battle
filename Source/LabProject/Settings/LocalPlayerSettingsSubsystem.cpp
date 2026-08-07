@@ -6,10 +6,15 @@
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/Texture2D.h"
+#include "GameFramework/InputSettings.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerInput.h"
 #include "InputAction.h"
+#include "InputCoreTypes.h"
 #include "InputMappingContext.h"
+#include "Kismet/GameplayStatics.h"
 #include "Definition/Settings/GameSettingDefinition.h"
+#include "SavedGameData/InputSettingsSaveGame.h"
 #include "Settings/GameSettingsSubsystem.h"
 #include "UI/Cursor/MouseCursorWidget.h"
 #include "Widgets/SWidget.h"
@@ -22,6 +27,15 @@ namespace
 	constexpr float DefaultPlayerViewPitchMax = 60.0f;
 	constexpr float MinSupportedViewPitch = -89.9f;
 	constexpr float MaxSupportedViewPitch = 89.9f;
+	constexpr int32 MinMouseSensitivityPercent = 10;
+	constexpr int32 MaxMouseSensitivityPercent = 200;
+	constexpr int32 DefaultMouseSensitivityPercent = 100;
+
+	const FString& GetInputSettingsSaveSlotName()
+	{
+		static const FString InputSettingsSaveSlotName(TEXT("InputSettings"));
+		return InputSettingsSaveSlotName;
+	}
 
 	constexpr EMouseCursor::Type CustomCursorMappedTypes[] =
 	{
@@ -53,9 +67,16 @@ ULocalPlayerSettingsSubsystem* ULocalPlayerSettingsSubsystem::Get(const APlayerC
 	return LocalPlayer ? LocalPlayer->GetSubsystem<ULocalPlayerSettingsSubsystem>() : nullptr;
 }
 
+void ULocalPlayerSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+	LoadInputSettings();
+}
+
 void ULocalPlayerSettingsSubsystem::Deinitialize()
 {
 	ReleaseRuntimeSettingsPreload();
+	SaveInputSettings();
 	Super::Deinitialize();
 }
 
@@ -63,6 +84,7 @@ void ULocalPlayerSettingsSubsystem::ApplyLocalPlayerSettings(APlayerController* 
 {
 	ApplyConfiguredMouseCursor(PlayerController);
 	ApplyCameraViewPitchClamp(PlayerController);
+	ApplyMouseSensitivity(PlayerController);
 }
 
 bool ULocalPlayerSettingsSubsystem::ApplyConfiguredMouseCursor(APlayerController* PlayerController)
@@ -175,6 +197,165 @@ void ULocalPlayerSettingsSubsystem::ApplyCameraViewPitchClamp(APlayerController*
 		CurrentControlRotation.Pitch = ClampedPitch;
 		PlayerController->SetControlRotation(CurrentControlRotation);
 	}
+}
+
+int32 ULocalPlayerSettingsSubsystem::GetMouseSensitivityPercent() const
+{
+	return FMath::Clamp(
+		MouseSensitivityPercent,
+		MinMouseSensitivityPercent,
+		MaxMouseSensitivityPercent);
+}
+
+float ULocalPlayerSettingsSubsystem::GetMouseSensitivityMultiplier() const
+{
+	return static_cast<float>(GetMouseSensitivityPercent())
+		/ static_cast<float>(DefaultMouseSensitivityPercent);
+}
+
+float ULocalPlayerSettingsSubsystem::GetMouseSensitivitySliderValue() const
+{
+	return FMath::GetMappedRangeValueClamped(
+		FVector2D(MinMouseSensitivityPercent, MaxMouseSensitivityPercent),
+		FVector2D(0.0, 1.0),
+		static_cast<double>(GetMouseSensitivityPercent()));
+}
+
+void ULocalPlayerSettingsSubsystem::SetMouseSensitivitySliderValue(const float NormalizedValue)
+{
+	const int32 NewSensitivityPercent = FMath::RoundToInt(FMath::GetMappedRangeValueClamped(
+		FVector2D(0.0, 1.0),
+		FVector2D(MinMouseSensitivityPercent, MaxMouseSensitivityPercent),
+		static_cast<double>(NormalizedValue)));
+	if (MouseSensitivityPercent != NewSensitivityPercent)
+	{
+		MouseSensitivityPercent = NewSensitivityPercent;
+		bInputSettingsDirty = true;
+	}
+
+	if (const ULocalPlayer* LocalPlayer = GetLocalPlayer())
+	{
+		ApplyMouseSensitivity(LocalPlayer->GetPlayerController(GetWorld()));
+	}
+}
+
+void ULocalPlayerSettingsSubsystem::ApplyMouseSensitivity(
+	APlayerController* PlayerController) const
+{
+	if (!PlayerController
+		|| !PlayerController->IsLocalController()
+		|| !PlayerController->PlayerInput)
+	{
+		return;
+	}
+
+	const UInputSettings* DefaultInputSettings = GetDefault<UInputSettings>();
+	if (!DefaultInputSettings)
+	{
+		return;
+	}
+
+	const float SensitivityMultiplier = GetMouseSensitivityMultiplier();
+	bool bAppliedAxisSensitivity = false;
+	const auto ApplyAxisSensitivity = [
+		PlayerController,
+		DefaultInputSettings,
+		SensitivityMultiplier,
+		&bAppliedAxisSensitivity](
+		const FKey& AxisKey)
+	{
+		FInputAxisProperties RuntimeAxisProperties;
+		if (!PlayerController->PlayerInput->GetAxisProperties(AxisKey, RuntimeAxisProperties))
+		{
+			return;
+		}
+
+		float DefaultSensitivity = 1.0f;
+		for (const FInputAxisConfigEntry& DefaultAxisConfig : DefaultInputSettings->AxisConfig)
+		{
+			if (DefaultAxisConfig.AxisKeyName == AxisKey.GetFName())
+			{
+				DefaultSensitivity = DefaultAxisConfig.AxisProperties.Sensitivity;
+				break;
+			}
+		}
+
+		RuntimeAxisProperties.Sensitivity = DefaultSensitivity * SensitivityMultiplier;
+		PlayerController->PlayerInput->SetAxisProperties(AxisKey, RuntimeAxisProperties);
+		bAppliedAxisSensitivity = true;
+	};
+
+	ApplyAxisSensitivity(EKeys::MouseX);
+	ApplyAxisSensitivity(EKeys::MouseY);
+	ApplyAxisSensitivity(EKeys::Mouse2D);
+
+	if (bAppliedAxisSensitivity)
+	{
+		if (const ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
+				LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+			{
+				FModifyContextOptions RebuildOptions;
+				RebuildOptions.bForceImmediately = true;
+				InputSubsystem->RequestRebuildControlMappings(RebuildOptions);
+			}
+		}
+	}
+}
+
+void ULocalPlayerSettingsSubsystem::SaveInputSettings()
+{
+	if (!bInputSettingsDirty)
+	{
+		return;
+	}
+
+	if (!IsValid(InputSettingsSaveGame))
+	{
+		InputSettingsSaveGame = Cast<UInputSettingsSaveGame>(
+			UGameplayStatics::CreateSaveGameObject(UInputSettingsSaveGame::StaticClass()));
+	}
+	if (!IsValid(InputSettingsSaveGame))
+	{
+		return;
+	}
+
+	InputSettingsSaveGame->bHasMouseSensitivitySetting = true;
+	InputSettingsSaveGame->MouseSensitivityPercent = GetMouseSensitivityPercent();
+	if (UGameplayStatics::SaveGameToSlot(InputSettingsSaveGame, GetInputSettingsSaveSlotName(), 0))
+	{
+		bInputSettingsDirty = false;
+	}
+}
+
+void ULocalPlayerSettingsSubsystem::LoadInputSettings()
+{
+	if (UGameplayStatics::DoesSaveGameExist(GetInputSettingsSaveSlotName(), 0))
+	{
+		InputSettingsSaveGame = Cast<UInputSettingsSaveGame>(
+			UGameplayStatics::LoadGameFromSlot(GetInputSettingsSaveSlotName(), 0));
+	}
+
+	if (!IsValid(InputSettingsSaveGame))
+	{
+		InputSettingsSaveGame = Cast<UInputSettingsSaveGame>(
+			UGameplayStatics::CreateSaveGameObject(UInputSettingsSaveGame::StaticClass()));
+	}
+
+	if (IsValid(InputSettingsSaveGame)
+		&& InputSettingsSaveGame->bHasMouseSensitivitySetting)
+	{
+		MouseSensitivityPercent = FMath::Clamp(
+			InputSettingsSaveGame->MouseSensitivityPercent,
+			MinMouseSensitivityPercent,
+			MaxMouseSensitivityPercent);
+		return;
+	}
+
+	MouseSensitivityPercent = DefaultMouseSensitivityPercent;
+	bInputSettingsDirty = true;
+	SaveInputSettings();
 }
 
 void ULocalPlayerSettingsSubsystem::QueueRuntimeSettingsApplication(

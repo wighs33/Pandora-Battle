@@ -13,15 +13,13 @@ class LABPROJECT_API UGameSettingsSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	UGameSettingsSubsystem();
-
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
 	static UGameSettingDefinition* ResolveGameSettingDefinition(const UObject* WorldContextObject);
 	static UGameSettingDefinition* ResolveLoadedGameSettingDefinition(
 		const UObject* WorldContextObject);
-	static const FSoftObjectPath& GetDefaultGameSettingDefinitionPath();
+	static FSoftObjectPath GetDefaultGameSettingDefinitionPath();
 
 	UFUNCTION(BlueprintCallable, Category = "!Setting")
 	UGameSettingDefinition* GetGameSettingDefinition();
@@ -39,10 +37,10 @@ private:
 	void HandleDefinitionPreloadComplete();
 	void HandleRuntimeContentPreloadComplete(
 		TArray<FSoftObjectPath> ExpectedAssetPaths);
-	void FinishRuntimeContentPreload();
+	void FinishRuntimeContentPreload(bool bSucceeded);
 	void ReleaseRuntimeContentPreloadHandles();
 
-	UPROPERTY(Config, EditAnywhere, Category = "Setting")
+	UPROPERTY(Transient)
 	TSoftObjectPtr<UGameSettingDefinition> GameSettingDefinition;
 
 	UPROPERTY(Transient)

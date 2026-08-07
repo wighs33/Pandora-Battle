@@ -55,10 +55,10 @@ public:
 	FString GetPreferredSavePlayerId() const;
 
 	UFUNCTION(BlueprintCallable, Category = "!Record")
-	void AddMatchRecord(const FString& PlayerId, const FPdMatchRecord& MatchRecord, bool bSaveImmediately = true);
+	void AddMatchRecord(const FString& PlayerId, const FMatchRecord& MatchRecord, bool bSaveImmediately = true);
 
 	UFUNCTION(BlueprintCallable, Category = "!Record")
-	TArray<FPdMatchRecord> GetMatchRecords(const FString& PlayerId);
+	TArray<FMatchRecord> GetMatchRecords(const FString& PlayerId);
 
 	UFUNCTION(BlueprintCallable, Category = "!Record")
 	int32 GetWinCount(const FString& PlayerId);
@@ -170,7 +170,7 @@ public:
 	int32 GetLobbyMaxBotCount() const;
 
 	UFUNCTION(BlueprintCallable, Category = "!Audio")
-	void PlayBgmForContext(EPdBgmContext BgmContext);
+	void PlayBgmForContext(EBgmContext BgmContext);
 
 	UFUNCTION(BlueprintCallable, Category = "!Audio")
 	void RestoreWorldBgm();
@@ -206,6 +206,7 @@ public:
 		FName TextureParameterName);
 	bool ConsumeLocalLobbyPaintCanvasFaceDecalCache(FLobbyPaintCanvasFaceDecalCache& OutFaceDecalCache);
 	void SetPendingTitleGameResult(const FGameResultPresentationData& GameResultData);
+	void ClearPendingTitleGameResult();
 	bool ConsumePendingTitleGameResult(FGameResultPresentationData& OutGameResultData);
 	bool HasPendingTitleGameResult() const;
 };

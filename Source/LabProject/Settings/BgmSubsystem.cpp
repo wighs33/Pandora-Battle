@@ -26,7 +26,7 @@ namespace
 
 	bool ResolveBgmSettings(
 		const UGameSettingDefinition* SettingDefinition,
-		const EPdBgmContext BgmContext,
+		const EBgmContext BgmContext,
 		FResolvedBgmSettings& OutSettings)
 	{
 		if (!SettingDefinition)
@@ -36,49 +36,49 @@ namespace
 
 		switch (BgmContext)
 		{
-		case EPdBgmContext::Startup:
+		case EBgmContext::Startup:
 			OutSettings.bEnabled = SettingDefinition->bPlayStartupBgm;
 			OutSettings.Sound = SettingDefinition->StartupBgm;
 			OutSettings.Volume = SettingDefinition->StartupBgmVolume;
 			OutSettings.Pitch = SettingDefinition->StartupBgmPitch;
 			OutSettings.bPersistAcrossLevelTransition = SettingDefinition->bPersistStartupBgmAcrossLevelTransition;
 			return true;
-		case EPdBgmContext::Lobby:
+		case EBgmContext::Lobby:
 			OutSettings.bEnabled = SettingDefinition->bPlayLobbyBgm;
 			OutSettings.Sound = SettingDefinition->LobbyBgm;
 			OutSettings.Volume = SettingDefinition->LobbyBgmVolume;
 			OutSettings.Pitch = SettingDefinition->LobbyBgmPitch;
 			OutSettings.bPersistAcrossLevelTransition = SettingDefinition->bPersistLobbyBgmAcrossLevelTransition;
 			return true;
-		case EPdBgmContext::RoomList:
+		case EBgmContext::RoomList:
 			OutSettings.bEnabled = SettingDefinition->bPlayRoomListBgm;
 			OutSettings.Sound = SettingDefinition->RoomListBgm;
 			OutSettings.Volume = SettingDefinition->RoomListBgmVolume;
 			OutSettings.Pitch = SettingDefinition->RoomListBgmPitch;
 			OutSettings.bPersistAcrossLevelTransition = SettingDefinition->bPersistRoomListBgmAcrossLevelTransition;
 			return true;
-		case EPdBgmContext::Shop:
+		case EBgmContext::Shop:
 			OutSettings.bEnabled = SettingDefinition->bPlayShopBgm;
 			OutSettings.Sound = SettingDefinition->ShopBgm;
 			OutSettings.Volume = SettingDefinition->ShopBgmVolume;
 			OutSettings.Pitch = SettingDefinition->ShopBgmPitch;
 			OutSettings.bPersistAcrossLevelTransition = SettingDefinition->bPersistShopBgmAcrossLevelTransition;
 			return true;
-		case EPdBgmContext::TrainingRoom:
+		case EBgmContext::TrainingRoom:
 			OutSettings.bEnabled = SettingDefinition->bPlayTrainingRoomBgm;
 			OutSettings.Sound = SettingDefinition->TrainingRoomBgm;
 			OutSettings.Volume = SettingDefinition->TrainingRoomBgmVolume;
 			OutSettings.Pitch = SettingDefinition->TrainingRoomBgmPitch;
 			OutSettings.bPersistAcrossLevelTransition = SettingDefinition->bPersistTrainingRoomBgmAcrossLevelTransition;
 			return true;
-		case EPdBgmContext::Gameplay:
+		case EBgmContext::Gameplay:
 			OutSettings.bEnabled = SettingDefinition->bPlayGameplayBgm;
 			OutSettings.Sound = SettingDefinition->GameplayBgm;
 			OutSettings.Volume = SettingDefinition->GameplayBgmVolume;
 			OutSettings.Pitch = SettingDefinition->GameplayBgmPitch;
 			OutSettings.bPersistAcrossLevelTransition = SettingDefinition->bPersistGameplayBgmAcrossLevelTransition;
 			return true;
-		case EPdBgmContext::Guide:
+		case EBgmContext::Guide:
 			OutSettings.bEnabled = SettingDefinition->bPlayGuideBgm;
 			OutSettings.Sound = SettingDefinition->GuideBgm;
 			OutSettings.Volume = SettingDefinition->GuideBgmVolume;
@@ -116,7 +116,7 @@ void UBgmSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UBgmSubsystem::PlayBgmForContext(const EPdBgmContext BgmContext)
+void UBgmSubsystem::PlayBgmForContext(const EBgmContext BgmContext)
 {
 	PlayBgmForContext(BgmContext, GetWorld());
 }
@@ -144,7 +144,7 @@ void UBgmSubsystem::StopActiveBgmAudio()
 	ActiveBgmBaseVolume = 1.0f;
 }
 
-void UBgmSubsystem::PlayBgmForContext(const EPdBgmContext BgmContext, UWorld* World)
+void UBgmSubsystem::PlayBgmForContext(const EBgmContext BgmContext, UWorld* World)
 {
 	if (!World || !World->IsGameWorld() || World->GetNetMode() == NM_DedicatedServer)
 	{
@@ -185,7 +185,7 @@ void UBgmSubsystem::PlayBgmForContext(const EPdBgmContext BgmContext, UWorld* Wo
 
 void UBgmSubsystem::BeginBgmSoundPreload(
 	const uint64 LoadGeneration,
-	const EPdBgmContext BgmContext,
+	const EBgmContext BgmContext,
 	const TWeakObjectPtr<UWorld> World)
 {
 	if (LoadGeneration != BgmLoadGeneration)
@@ -273,7 +273,7 @@ void UBgmSubsystem::BeginBgmSoundPreload(
 
 void UBgmSubsystem::CompleteBgmSoundPreload(
 	const uint64 LoadGeneration,
-	const EPdBgmContext BgmContext,
+	const EBgmContext BgmContext,
 	const TWeakObjectPtr<UWorld> World)
 {
 	if (LoadGeneration != BgmLoadGeneration)
@@ -353,32 +353,32 @@ void UBgmSubsystem::CancelPendingBgmLoads()
 	CancelHandle(PendingSoundLoadHandle);
 }
 
-EPdBgmContext UBgmSubsystem::ResolveWorldBgmContext(UWorld* World) const
+EBgmContext UBgmSubsystem::ResolveWorldBgmContext(UWorld* World) const
 {
 	if (!World || !World->IsGameWorld())
 	{
-		return EPdBgmContext::Startup;
+		return EBgmContext::Startup;
 	}
 
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
 	if (CurrentLevelName.Contains(TEXT("Title"), ESearchCase::IgnoreCase))
 	{
-		return EPdBgmContext::Startup;
+		return EBgmContext::Startup;
 	}
 
 	if (CurrentLevelName.Contains(TEXT("Training"), ESearchCase::IgnoreCase))
 	{
-		return EPdBgmContext::TrainingRoom;
+		return EBgmContext::TrainingRoom;
 	}
 
 	if (CurrentLevelName.Contains(TEXT("Lobby"), ESearchCase::IgnoreCase))
 	{
-		return EPdBgmContext::Lobby;
+		return EBgmContext::Lobby;
 	}
 
 	if (CurrentLevelName.Contains(TEXT("Room"), ESearchCase::IgnoreCase))
 	{
-		return EPdBgmContext::RoomList;
+		return EBgmContext::RoomList;
 	}
 
 	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
@@ -388,10 +388,10 @@ EPdBgmContext UBgmSubsystem::ResolveWorldBgmContext(UWorld* World) const
 		: NAME_None;
 	if (SelectedMapKey.ToString().Contains(TEXT("Training"), ESearchCase::IgnoreCase))
 	{
-		return EPdBgmContext::TrainingRoom;
+		return EBgmContext::TrainingRoom;
 	}
 
-	return EPdBgmContext::Gameplay;
+	return EBgmContext::Gameplay;
 }
 
 void UBgmSubsystem::HandlePostLoadMapWithWorld(UWorld* LoadedWorld)

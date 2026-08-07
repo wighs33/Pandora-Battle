@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Definition/AbilitySystem/AbilityAttributeConfig.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "InputCoreTypes.h"
@@ -9,34 +8,10 @@
 
 class UTexture2D;
 class USoundBase;
-class UAchievementDefinition;
-class UStatusEffectDefinition;
-
-USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdGameplayEffectRemovalPolicy
-{
-	GENERATED_BODY()
-
-	/** Effect asset/dynamic asset tags. Matching this query is sufficient for removal. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability System|Effect Removal")
-	FGameplayTagQuery EffectTagQuery;
-
-	/** Tags granted to the effect owner. Matching this query is also sufficient for removal. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability System|Effect Removal")
-	FGameplayTagQuery OwningTagQuery;
-
-	/** Remaining loose tags matching this query are cleared after active effects are removed. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability System|Effect Removal")
-	FGameplayTagQuery LooseTagQuery;
-
-	/** Persistent cue fallbacks to remove after matching effects are removed. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability System|Effect Removal",
-		meta = (Categories = "GameplayCue"))
-	FGameplayTagContainer GameplayCuesToRemove;
-};
+class UGameplayEffect;
 
 UENUM(BlueprintType)
-enum class EPdBgmContext : uint8
+enum class EBgmContext : uint8
 {
 	Startup,
 	Lobby,
@@ -53,16 +28,15 @@ class LABPROJECT_API UGameSettingDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UGameSettingDefinition();
-
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 	void GetRuntimePreloadAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const;
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Memo", meta = (DisplayName = "Memo", ToolTip = "긴 한글 입력 시 IME 조합이 깨지지 않도록 내용을 여러 항목으로 나누어 적습니다."))
-	TArray<FString> Memo;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Memo",
+		meta = (DisplayName = "Memo", MultiLine = "true"))
+	TArray<FText> Memo;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Mouse Cursor")
 	bool bUseCustomMouseCursor = true;
@@ -84,8 +58,18 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Equipment",
 		meta = (DisplayName = "Equip Weapons Without Animation",
-			ToolTip = "Skips both unequip and equip montages so weapon selection completes immediately."))
+			ToolTip = "Skips the equip montage so weapon attachment completes immediately. Unequip montages still play when removing or switching weapons."))
 	bool bEquipWeaponsWithoutAnimation = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Equipment|Gameplay Effect",
+		meta = (DisplayName = "Equipped Item Gameplay Effect",
+			ToolTip = "Infinite GE used to grant the equipped item's gameplay tag."))
+	TSubclassOf<UGameplayEffect> EquippedItemGameplayEffectClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Equipment|Gameplay Effect",
+		meta = (DisplayName = "Equipment Stat Gameplay Effect",
+			ToolTip = "Instant GE used to apply and remove equipment stat values."))
+	TSubclassOf<UGameplayEffect> EquipmentStatGameplayEffectClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Camera|Clamp", meta = (ClampMin = "-89.9", ClampMax = "89.9", UIMin = "-89.9", UIMax = "89.9", DisplayName = "Player View Pitch Min"))
 	float PlayerViewPitchMin = -60.0f;
@@ -93,28 +77,44 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Camera|Clamp", meta = (ClampMin = "-89.9", ClampMax = "89.9", UIMin = "-89.9", UIMax = "89.9", DisplayName = "Player View Pitch Max"))
 	float PlayerViewPitchMax = 60.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Achievement", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<UAchievementDefinition> AchievementData;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Effect Removal|Death",
+		meta = (Categories = "GameplayCue", DisplayName = "Gameplay Cues To Remove"))
+	FGameplayTagContainer DeathGameplayCuesToRemove;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Status Effect UI", meta = (AssetBundles = "Client"))
-	TArray<TSoftObjectPtr<UStatusEffectDefinition>> StatusEffectDataAssets;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Effect Removal|Respawn",
+		meta = (Categories = "GameplayCue", DisplayName = "Gameplay Cues To Remove"))
+	FGameplayTagContainer RespawnGameplayCuesToRemove;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Effect Removal")
-	FPdGameplayEffectRemovalPolicy RemoveOnDeathPolicy;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Effect Removal|Pandora Reset",
+		meta = (Categories = "GameplayCue", DisplayName = "Gameplay Cues To Remove"))
+	FGameplayTagContainer PandoraResetGameplayCuesToRemove;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Effect Removal")
-	FPdGameplayEffectRemovalPolicy RemoveOnRespawnPolicy;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Cost",
+		meta = (DisplayName = "Ability Cost Gameplay Effect",
+			ToolTip = "Instant GE with additive Mana/Data.ManaCost and Stamina/Data.StaminaCost SetByCaller modifiers."))
+	TSubclassOf<UGameplayEffect> AbilityCostGameplayEffectClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Effect Removal")
-	FPdGameplayEffectRemovalPolicy RemoveOnPandoraResetPolicy;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Cooldown",
+		meta = (DisplayName = "Ability Cooldown Gameplay Effect",
+			ToolTip = "Shared Has Duration GE whose duration magnitude reads the Data.Cooldown SetByCaller tag."))
+	TSubclassOf<UGameplayEffect> AbilityCooldownGameplayEffectClass;
 
-	/**
-	 * Core tag-to-attribute mappings shared by players and enemies.
-	 * GameFeature attribute configs can override these entries at runtime.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Attributes",
-		meta = (TitleProperty = "StatTag"))
-	FPdAttributeConfig CoreAttributeConfig;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Movement",
+		meta = (DisplayName = "Movement Speed Gameplay Effect",
+			ToolTip = "Infinite GE that applies Data.MovementSpeed to the MovementSpeed attribute."))
+	TSubclassOf<UGameplayEffect> MovementSpeedGameplayEffectClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Stamina",
+		meta = (DisplayName = "Stamina Regen Gameplay Effect",
+			AssetBundles = "Server",
+			ToolTip = "Gameplay Effect applied after stamina is consumed to regenerate stamina."))
+	TSubclassOf<UGameplayEffect> StaminaRegenGameplayEffectClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Recovery",
+		meta = (DisplayName = "Recovery Heal Gameplay Effect",
+			AssetBundles = "Server",
+			ToolTip = "Infinite Gameplay Effect that restores health and mana using Data.Heal and Data.Mana."))
+	TSubclassOf<UGameplayEffect> RecoveryHealGameplayEffectClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Stamina|Low",
 		meta = (ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "100.0", ForceUnits = "%"))

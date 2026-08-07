@@ -262,6 +262,15 @@ void UPdGameInstance::SetPendingTitleGameResult(
 	}
 }
 
+void UPdGameInstance::ClearPendingTitleGameResult()
+{
+	if (ULobbyRuntimeSubsystem* LobbySubsystem =
+		GetSubsystem<ULobbyRuntimeSubsystem>())
+	{
+		LobbySubsystem->ClearPendingTitleGameResult();
+	}
+}
+
 bool UPdGameInstance::ConsumePendingTitleGameResult(
 	FGameResultPresentationData& OutGameResultData)
 {
