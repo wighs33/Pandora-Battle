@@ -80,24 +80,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_Sound;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Travel")
-	TSoftObjectPtr<UWorld> LobbyMap;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Travel")
-	FString LobbyTravelMapName = TEXT("/Game/Map/LV_Lobby");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Travel")
-	TSoftObjectPtr<UWorld> RoomMap;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Travel")
-	FString RoomTravelMapName = TEXT("/Game/Map/LV_Room");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Travel")
-	TSoftObjectPtr<UWorld> TrainingRoomMap;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Travel")
-	FString TrainingRoomTravelMapName = TEXT("/Game/Map/LV_TrainingRoom");
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|UI")
 	TSubclassOf<UShopWidget> ShopWidgetClass;
 

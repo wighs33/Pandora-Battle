@@ -51,12 +51,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Room|Session")
 	bool bCreateLAN = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Room|Travel")
-	TSoftObjectPtr<UWorld> LobbyMap;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Room|Travel")
-	FString LobbyTravelMapName = TEXT("/Game/Map/LV_Lobby");
-
 private:
 	void ApplyWidgetDefinitionSettings();
 	UButton* GetCreateButton() const;

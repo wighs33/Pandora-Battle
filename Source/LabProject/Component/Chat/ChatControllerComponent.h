@@ -7,7 +7,6 @@
 class APlayerController;
 class UChatBoxWidget;
 class UChatEntryWidget;
-class UInputComponent;
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UChatControllerComponent : public UActorComponent
@@ -20,7 +19,7 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	void BindInput(UInputComponent& InputComponent);
+	void HandleChatInputAction();
 
 	UFUNCTION(BlueprintCallable, Category = "!Chat")
 	void FocusChat();
@@ -51,9 +50,6 @@ public:
 private:
 	bool EnsureChatBox(bool bLogIfMissing = true);
 	UChatBoxWidget* FindChatBoxInPlayerHUD() const;
-	void HandleEnterPressed();
-	void HandleMouseWheelUp();
-	void HandleMouseWheelDown();
 
 	FString SanitizeChatMessage(const FString& Message) const;
 	FString GetSenderDisplayName() const;
@@ -75,6 +71,5 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UChatBoxWidget> ChatBoxWidget;
 
-	bool bSuppressNextEnterFocus = false;
 	double LastServerSendTime = -1000.0;
 };

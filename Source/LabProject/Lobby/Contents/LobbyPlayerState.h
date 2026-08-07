@@ -7,10 +7,10 @@
 class UBasicAttributeSet;
 class UInventoryComponent;
 class ULobbyPlayerStateComponent;
-class ULobbyPreviewDefinition;
 class UPandoraComponent;
 class UPandoraTreeComponent;
 class USkinComponent;
+class UStatUpgradeComponent;
 
 DECLARE_MULTICAST_DELEGATE(FOnLobbyPlayerStateChanged);
 
@@ -74,8 +74,7 @@ public:
 
 	void ImportPlayerMatchIdentity(
 		const FPlayerMatchIdentity& InMatchIdentity);
-	void InitializeLobbyPreviewAbilitySystem(
-		const ULobbyPreviewDefinition* PreviewDefinition = nullptr);
+	void InitializeLobbyPreviewAbilitySystem();
 
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
 	void RefreshLobbyUI() const;
@@ -105,4 +104,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Preview", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBasicAttributeSet> LobbyBasicAttributeSet;
+
+	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Preview", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UStatUpgradeComponent> LobbyStatUpgradeComponent;
 };

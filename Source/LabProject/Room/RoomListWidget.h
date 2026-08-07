@@ -85,12 +85,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Room|Session")
 	bool bUseLobbies = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Room|Travel")
-	TSoftObjectPtr<UWorld> TitleMap;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Room|Travel")
-	FString TitleTravelMapName = TEXT("/Game/Map/LV_Title");
-
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Room|UI")
 	TArray<TObjectPtr<URoomItemWidget>> Rooms;
 

@@ -11,7 +11,7 @@ class ALobbyGameMode;
 class APawn;
 
 /**
- * Lobby-only delayed respawn runtime.
+ * Lobby-only respawn runtime.
  *
  * This intentionally stays separate from UExperienceSpawnComponent because
  * lobby respawn reuses preview pawns and has no gameplay random-spawn policy.
@@ -24,22 +24,13 @@ class LABPROJECT_API ULobbyRespawnComponent : public UActorComponent
 public:
 	ULobbyRespawnComponent();
 
-	virtual void EndPlay(
-		const EEndPlayReason::Type EndPlayReason) override;
-
 	void RequestLobbyPlayerRespawn(
 		AController* PlayerController,
 		APawn* DeadPawn);
-	void HandlePlayerLogout(AController* ExitingController);
-	void Shutdown();
-
-	int32 GetPendingRespawnCount() const
-	{
-		return PendingLobbyRespawnTimers.Num();
-	}
 
 private:
 	ALobbyGameMode* GetLobbyGameMode() const;
+	float GetLobbyPlayerRespawnDelay() const;
 	void FinishLobbyPlayerRespawn(
 		TWeakObjectPtr<AController> WeakPlayerController,
 		TWeakObjectPtr<APawn> WeakDeadPawn);
@@ -48,8 +39,7 @@ private:
 		FTransform& OutRespawnTransform);
 	void ResetLobbyPlayerStateForRespawn(
 		AController* PlayerController) const;
-	float GetLobbyRespawnDelay() const;
 
 	TMap<TObjectKey<AController>, FTimerHandle>
-		PendingLobbyRespawnTimers;
+		PendingLobbyPlayerRespawnTimers;
 };

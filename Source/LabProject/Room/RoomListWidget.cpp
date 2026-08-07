@@ -3,6 +3,7 @@
 #include "AudioSlider.h"
 #include "Components/Button.h"
 #include "Components/WrapBox.h"
+#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/UI/ConnectingPopupWidget.h"
@@ -67,7 +68,7 @@ void URoomListWidget::NativeConstruct()
 	HideConnectingPopup();
 	if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
 	{
-		PdGameInstance->PlayBgmForContext(EPdBgmContext::RoomList);
+		PdGameInstance->PlayBgmForContext(EBgmContext::RoomList);
 	}
 	SetInfo();
 }
@@ -189,14 +190,11 @@ void URoomListWidget::SetInfo()
 		Rooms.Add(RoomItemWidget);
 	}
 
-
-
-	RefreshUI();
+RefreshUI();
 }
 
 void URoomListWidget::RefreshUI()
 {
-
 
 	for (int32 Index = 0; Index < Rooms.Num(); ++Index)
 	{
@@ -222,9 +220,7 @@ void URoomListWidget::HandleRefreshClicked()
 {
 	const UWorld* World = GetWorld();
 
-
-
-	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
+UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr;
 	if (!OnlineSessionsSubsystem)
@@ -398,7 +394,7 @@ void URoomListWidget::OpenTitleMap() const
 {
 	if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
 	{
-		PdGameInstance->PlayBgmForContext(EPdBgmContext::Startup);
+		PdGameInstance->PlayBgmForContext(EBgmContext::Startup);
 	}
 
 	const FString TitleMapName = GetResolvedTitleTravelMapName();
@@ -419,8 +415,9 @@ void URoomListWidget::OpenTitleMap() const
 
 FString URoomListWidget::GetResolvedTitleTravelMapName() const
 {
-	const FString LongPackageName = TitleMap.ToSoftObjectPath().GetLongPackageName();
-	return LongPackageName.IsEmpty() ? TitleTravelMapName : LongPackageName;
+	const ULobbyModeDefinition* Definition =
+		ULobbyModeDefinition::ResolveDefaultDefinition();
+	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 
 UUiSubsystem* URoomListWidget::GetUiSubsystem() const

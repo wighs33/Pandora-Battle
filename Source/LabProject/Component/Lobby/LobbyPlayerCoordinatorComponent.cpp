@@ -1,7 +1,6 @@
 #include "Component/Lobby/LobbyPlayerCoordinatorComponent.h"
 
 #include "Component/Player/PlayerMatchComponent.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Engine/World.h"
 #include "GameFramework/GameSession.h"
 #include "GameFramework/GameStateBase.h"
@@ -11,6 +10,7 @@
 #include "Lobby/Contents/LobbyPlayerState.h"
 #include "Lobby/Coordination/LobbyMatchCoordinator.h"
 #include "Mode/PdGameInstance.h"
+#include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyPlayerCoordinatorComponent)
 
@@ -18,13 +18,6 @@ ULobbyPlayerCoordinatorComponent::
 ULobbyPlayerCoordinatorComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
-}
-
-void ULobbyPlayerCoordinatorComponent::EndPlay(
-	const EEndPlayReason::Type EndPlayReason)
-{
-	Shutdown();
-	Super::EndPlay(EndPlayReason);
 }
 
 void ULobbyPlayerCoordinatorComponent::
@@ -58,9 +51,6 @@ InitializeLobbyPlayerState(
 			DefaultNickname);
 	}
 
-	LobbyPlayerState
-		->InitializeLobbyPreviewAbilitySystem(
-			GameMode->GetLobbyPreviewDefinition());
 	AssignLobbySpawnIndexIfNeeded(LobbyPlayerState);
 	if (ULobbyMatchCoordinator* MatchCoordinator =
 		GameMode->GetMatchCoordinator())
@@ -74,7 +64,7 @@ InitializeLobbyPlayerState(
 void ULobbyPlayerCoordinatorComponent::HandlePlayerLogout(
 	AController* ExitingController)
 {
-	ClearKickTimer(ExitingController);
+	static_cast<void>(ExitingController);
 
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
 	UWorld* World = GameMode
@@ -89,16 +79,6 @@ void ULobbyPlayerCoordinatorComponent::HandlePlayerLogout(
 	RefreshDelegate.BindWeakLambda(this, [this]()
 	{
 		RefreshLobbyUIForAllPlayers();
-		if (ALobbyGameMode* CurrentGameMode =
-			GetLobbyGameMode())
-		{
-			if (ULobbyMatchCoordinator* MatchCoordinator =
-				CurrentGameMode->GetMatchCoordinator())
-			{
-				MatchCoordinator
-					->UpdateFullLobbyAutoStartTimer();
-			}
-		}
 	});
 	World->GetTimerManager().SetTimerForNextTick(
 		RefreshDelegate);
@@ -118,9 +98,7 @@ void ULobbyPlayerCoordinatorComponent::KickPlayer(
 	APlayerController* TargetPlayerController =
 		ResolvePlayerControllerForPlayerState(
 			TargetPlayerState);
-	const FString RoomMapName =
-		GameMode->GetRoomTravelMapName();
-	if (!TargetPlayerController || RoomMapName.IsEmpty())
+	if (!TargetPlayerController)
 	{
 		return;
 	}
@@ -133,71 +111,12 @@ void ULobbyPlayerCoordinatorComponent::KickPlayer(
 		MatchCoordinator->CancelPendingGameStart(
 			TEXT("player_kicked"));
 	}
-	else if (MatchCoordinator)
-	{
-		MatchCoordinator->ClearStartTimers();
-	}
 
 	TargetPlayerState->SetLeavingLobby(true);
 	ResetLobbyReadyStates();
 	RefreshLobbyUIForAllPlayers();
-	if (MatchCoordinator)
-	{
-		MatchCoordinator
-			->UpdateFullLobbyAutoStartTimer();
-	}
 
-	ALobbyPlayerController* TargetLobbyPlayerController =
-		Cast<ALobbyPlayerController>(
-			TargetPlayerController);
-	if (!TargetLobbyPlayerController)
-	{
-		return;
-	}
-
-	TargetLobbyPlayerController->Client_KickedByHost(
-		RoomMapName);
-
-	const ULobbyModeDefinition* Definition =
-		GameMode->GetLobbyModeDefinition();
-	const float KickDisconnectDelay = Definition
-		? FMath::Max(
-			Definition->GetFlowSettings()
-				.KickDisconnectDelay,
-			0.0f)
-		: 0.0f;
-	if (KickDisconnectDelay <= 0.0f)
-	{
-		ForceKickPlayer(TargetPlayerController);
-		return;
-	}
-
-	ClearKickTimer(TargetPlayerController);
-	const TObjectKey<AController> ControllerKey(
-		TargetPlayerController);
-	TWeakObjectPtr<APlayerController>
-		WeakTargetPlayerController(
-			TargetPlayerController);
-	FTimerDelegate KickDelegate;
-	KickDelegate.BindWeakLambda(
-		this,
-		[this, ControllerKey, WeakTargetPlayerController]()
-		{
-			PendingKickTimers.Remove(ControllerKey);
-			if (APlayerController* PlayerController =
-				WeakTargetPlayerController.Get())
-			{
-				ForceKickPlayer(PlayerController);
-			}
-		});
-
-	FTimerHandle& KickTimerHandle =
-		PendingKickTimers.FindOrAdd(ControllerKey);
-	GameMode->GetWorldTimerManager().SetTimer(
-		KickTimerHandle,
-		KickDelegate,
-		KickDisconnectDelay,
-		false);
+	ForceKickPlayer(TargetPlayerController);
 }
 
 void ULobbyPlayerCoordinatorComponent::
@@ -307,22 +226,6 @@ ResolvePlayerControllerForPlayerState(
 	return nullptr;
 }
 
-void ULobbyPlayerCoordinatorComponent::Shutdown()
-{
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (GameMode)
-	{
-		for (TPair<TObjectKey<AController>, FTimerHandle>&
-			KickTimer : PendingKickTimers)
-		{
-			GameMode->GetWorldTimerManager().ClearTimer(
-				KickTimer.Value);
-		}
-	}
-
-	PendingKickTimers.Reset();
-}
-
 ALobbyGameMode*
 ULobbyPlayerCoordinatorComponent::GetLobbyGameMode() const
 {
@@ -415,27 +318,4 @@ void ULobbyPlayerCoordinatorComponent::ForceKickPlayer(
 			"Lobby",
 			"KickedByHost",
 			"Kicked by host"));
-}
-
-void ULobbyPlayerCoordinatorComponent::ClearKickTimer(
-	AController* Controller)
-{
-	if (!Controller)
-	{
-		return;
-	}
-
-	const TObjectKey<AController> ControllerKey(
-		Controller);
-	if (FTimerHandle* TimerHandle =
-		PendingKickTimers.Find(ControllerKey))
-	{
-		if (ALobbyGameMode* GameMode =
-			GetLobbyGameMode())
-		{
-			GameMode->GetWorldTimerManager().ClearTimer(
-				*TimerHandle);
-		}
-		PendingKickTimers.Remove(ControllerKey);
-	}
 }

@@ -7,7 +7,6 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "InputCoreTypes.h"
 #include "Mode/PdGameInstance.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerState.h"
@@ -37,13 +36,6 @@ void UChatControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ChatBoxWidget = nullptr;
 	Super::EndPlay(EndPlayReason);
-}
-
-void UChatControllerComponent::BindInput(UInputComponent& InputComponent)
-{
-	InputComponent.BindKey(EKeys::Enter, IE_Pressed, this, &ThisClass::HandleEnterPressed);
-	InputComponent.BindKey(EKeys::MouseScrollUp, IE_Pressed, this, &ThisClass::HandleMouseWheelUp);
-	InputComponent.BindKey(EKeys::MouseScrollDown, IE_Pressed, this, &ThisClass::HandleMouseWheelDown);
 }
 
 void UChatControllerComponent::FocusChat()
@@ -111,7 +103,6 @@ void UChatControllerComponent::SubmitChatMessage(const FString& RawMessage)
 		Server_SendChatMessage(SanitizedMessage);
 	}
 
-	bSuppressNextEnterFocus = true;
 	ExitChat();
 }
 
@@ -172,7 +163,6 @@ bool UChatControllerComponent::EnsureChatBox(const bool bLogIfMissing)
 		return true;
 	}
 
-
 	return false;
 }
 
@@ -197,14 +187,8 @@ UChatBoxWidget* UChatControllerComponent::FindChatBoxInPlayerHUD() const
 	return PdWidgetLookup::FindFirstWidgetOfType<UChatBoxWidget>(PlayerHUDWidget->WidgetTree);
 }
 
-void UChatControllerComponent::HandleEnterPressed()
+void UChatControllerComponent::HandleChatInputAction()
 {
-	if (bSuppressNextEnterFocus)
-	{
-		bSuppressNextEnterFocus = false;
-		return;
-	}
-
 	if (!ChatBoxWidget)
 	{
 		EnsureChatBox();
@@ -218,16 +202,6 @@ void UChatControllerComponent::HandleEnterPressed()
 	{
 		FocusChat();
 	}
-}
-
-void UChatControllerComponent::HandleMouseWheelUp()
-{
-	ScrollChat(true);
-}
-
-void UChatControllerComponent::HandleMouseWheelDown()
-{
-	ScrollChat(false);
 }
 
 FString UChatControllerComponent::SanitizeChatMessage(const FString& Message) const
@@ -308,8 +282,6 @@ void UChatControllerComponent::BroadcastChatMessage(const FString& Message)
 	{
 		return;
 	}
-
-
 
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
 	{

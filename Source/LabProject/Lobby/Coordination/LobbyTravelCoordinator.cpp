@@ -15,11 +15,14 @@
 #include "Lobby/Contents/LobbyPlayerController.h"
 #include "Lobby/Contents/LobbyPlayerState.h"
 #include "Lobby/Coordination/LobbyMatchCoordinator.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdGameInstance.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyTravelCoordinator)
+
+DEFINE_LOG_CATEGORY_STATIC(LogLobbyTravelCoordinator, Log, All);
 
 void ULobbyTravelCoordinator::StartSessionAndTravel()
 {
@@ -34,7 +37,6 @@ void ULobbyTravelCoordinator::StartSessionAndTravel()
 		if (GameMode->MatchCoordinator)
 		{
 			GameMode->MatchCoordinator->CancelPendingGameStart(TEXT("pre_start_session_validation"));
-			GameMode->MatchCoordinator->UpdateFullLobbyAutoStartTimer();
 		}
 		return;
 	}
@@ -60,8 +62,11 @@ void ULobbyTravelCoordinator::CancelPendingTravel()
 	ClearStartSessionDelegate();
 	if (ALobbyGameMode* GameMode = GetLobbyGameMode())
 	{
+		GameMode->GetWorldTimerManager().ClearTimer(
+			GameEntryContentPreloadPollTimerHandle);
 		GameMode->GetWorldTimerManager().ClearTimer(TravelDelayTimerHandle);
 	}
+	PendingTravelMapName.Reset();
 }
 
 void ULobbyTravelCoordinator::Shutdown()
@@ -142,8 +147,18 @@ bool ULobbyTravelCoordinator::IsLobbyReadyForSelectedMap() const
 
 void ULobbyTravelCoordinator::HandleStartSessionComplete(const bool bWasSuccessful)
 {
-	static_cast<void>(bWasSuccessful);
 	ClearStartSessionDelegate();
+	if (!bWasSuccessful)
+	{
+		if (ALobbyGameMode* GameMode = GetLobbyGameMode();
+			GameMode && GameMode->MatchCoordinator)
+		{
+			GameMode->MatchCoordinator->CancelPendingGameStart(
+				TEXT("start_online_session_failed"));
+		}
+		return;
+	}
+
 	StartGameTravel();
 }
 
@@ -173,7 +188,6 @@ void ULobbyTravelCoordinator::StartGameTravel()
 		if (GameMode->MatchCoordinator)
 		{
 			GameMode->MatchCoordinator->CancelPendingGameStart(TEXT("pre_travel_map_capacity_validation"));
-			GameMode->MatchCoordinator->UpdateFullLobbyAutoStartTimer();
 		}
 		return;
 	}
@@ -185,7 +199,6 @@ void ULobbyTravelCoordinator::StartGameTravel()
 		if (GameMode->MatchCoordinator)
 		{
 			GameMode->MatchCoordinator->CancelPendingGameStart(TEXT("travel_map_missing"));
-			GameMode->MatchCoordinator->UpdateFullLobbyAutoStartTimer();
 		}
 		return;
 	}
@@ -194,7 +207,8 @@ void ULobbyTravelCoordinator::StartGameTravel()
 	CacheLobbyTravelState(GameMode->GetGameInstance<UPdGameInstance>());
 	SetAllLobbyPawnsTravelLocked(true);
 	ShowGameStartConnectingPopupForAllPlayers();
-	ScheduleServerTravel(BuildGameTravelUrl(TravelMapName));
+	ScheduleServerTravelWhenContentReady(
+		BuildGameTravelUrl(TravelMapName));
 }
 
 bool ULobbyTravelCoordinator::ResolveSelectedGameTravel(
@@ -264,12 +278,11 @@ void ULobbyTravelCoordinator::PersistSelectedGameConfig(
 
 	FLobbyMatchMapOption RuntimeMapOption = SelectedMapOption;
 	RuntimeMapOption.MaxPlayerCount = FMath::Max(RuntimeMapOption.MaxPlayerCount, 1);
-	RuntimeMapOption.DefaultMaxBotCount = FMath::Clamp(RuntimeMapOption.DefaultMaxBotCount, 0, 100);
 	PdGameInstance->SetLobbyGameConfig(
 		RuntimeMapOption.MapKey,
 		TravelMapName,
 		RuntimeMapOption.MaxPlayerCount,
-		RuntimeMapOption.DefaultMaxBotCount);
+		FMath::Clamp(PdGameInstance->GetLobbyMaxBotCount(), 0, 100));
 
 	if (ALobbyGameState* LobbyGameState = GameMode->GetGameState<ALobbyGameState>())
 	{
@@ -383,6 +396,145 @@ void ULobbyTravelCoordinator::ShowGameStartConnectingPopupForAllPlayers() const
 			LobbyPlayerController->Client_ShowGameStartConnectingPopup();
 		}
 	}
+}
+
+void ULobbyTravelCoordinator::HideGameStartConnectingPopupForAllPlayers() const
+{
+	const ALobbyGameMode* GameMode = GetLobbyGameMode();
+	const UWorld* World = GameMode ? GameMode->GetWorld() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It =
+		World->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (ALobbyPlayerController* LobbyPlayerController =
+			Cast<ALobbyPlayerController>(It->Get()))
+		{
+			LobbyPlayerController->Client_HideGameStartConnectingPopup();
+		}
+	}
+}
+
+void ULobbyTravelCoordinator::ScheduleServerTravelWhenContentReady(
+	const FString& TravelMapName)
+{
+	ALobbyGameMode* GameMode = GetLobbyGameMode();
+	UWorld* World = GameMode ? GameMode->GetWorld() : nullptr;
+	if (!GameMode || !World || TravelMapName.IsEmpty())
+	{
+		return;
+	}
+
+	PendingTravelMapName = TravelMapName;
+	ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
+		GameMode->GetGameInstance()
+			? GameMode->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>()
+			: nullptr;
+	if (!LobbyRuntimeSubsystem)
+	{
+		HandleGameEntryContentPreloadFailure(
+			ELobbyContentPreloadResult::Failed);
+		return;
+	}
+
+	LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
+	const ELobbyContentPreloadResult PreloadResult =
+		LobbyRuntimeSubsystem->GetGameEntryContentPreloadResult();
+	if (PreloadResult == ELobbyContentPreloadResult::Success)
+	{
+		World->GetTimerManager().ClearTimer(
+			GameEntryContentPreloadPollTimerHandle);
+		const FString ReadyTravelMapName = MoveTemp(PendingTravelMapName);
+		ScheduleServerTravel(ReadyTravelMapName);
+		return;
+	}
+	if (PreloadResult != ELobbyContentPreloadResult::Loading)
+	{
+		HandleGameEntryContentPreloadFailure(PreloadResult);
+		return;
+	}
+
+	if (!World->GetTimerManager().IsTimerActive(
+		GameEntryContentPreloadPollTimerHandle))
+	{
+		World->GetTimerManager().SetTimer(
+			GameEntryContentPreloadPollTimerHandle,
+			this,
+			&ThisClass::HandleGameEntryContentPreloadPoll,
+			0.05f,
+			true);
+	}
+}
+
+void ULobbyTravelCoordinator::HandleGameEntryContentPreloadPoll()
+{
+	ALobbyGameMode* GameMode = GetLobbyGameMode();
+	UWorld* World = GameMode ? GameMode->GetWorld() : nullptr;
+	if (!GameMode || !World || PendingTravelMapName.IsEmpty())
+	{
+		CancelPendingTravel();
+		return;
+	}
+
+	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
+		GameMode->GetGameInstance()
+			? GameMode->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>()
+			: nullptr;
+	if (!LobbyRuntimeSubsystem)
+	{
+		HandleGameEntryContentPreloadFailure(
+			ELobbyContentPreloadResult::Failed);
+		return;
+	}
+
+	const ELobbyContentPreloadResult PreloadResult =
+		LobbyRuntimeSubsystem->GetGameEntryContentPreloadResult();
+	if (PreloadResult == ELobbyContentPreloadResult::Loading)
+	{
+		return;
+	}
+	if (PreloadResult != ELobbyContentPreloadResult::Success)
+	{
+		HandleGameEntryContentPreloadFailure(PreloadResult);
+		return;
+	}
+
+	World->GetTimerManager().ClearTimer(
+		GameEntryContentPreloadPollTimerHandle);
+	const FString ReadyTravelMapName = MoveTemp(PendingTravelMapName);
+	ScheduleServerTravel(ReadyTravelMapName);
+}
+
+void ULobbyTravelCoordinator::HandleGameEntryContentPreloadFailure(
+	const ELobbyContentPreloadResult Result)
+{
+	UE_LOG(
+		LogLobbyTravelCoordinator,
+		Error,
+		TEXT("Game travel was canceled because required content preload ended with result '%s'."),
+		*UEnum::GetValueAsString(Result));
+
+	ALobbyGameMode* GameMode = GetLobbyGameMode();
+	if (!GameMode)
+	{
+		CancelPendingTravel();
+		return;
+	}
+
+	if (GameMode->MatchCoordinator)
+	{
+		GameMode->MatchCoordinator->CancelPendingGameStart(
+			TEXT("game_entry_content_preload_failed"));
+	}
+	else
+	{
+		CancelPendingTravel();
+		SetAllLobbyPawnsTravelLocked(false);
+	}
+	HideGameStartConnectingPopupForAllPlayers();
 }
 
 void ULobbyTravelCoordinator::ScheduleServerTravel(const FString& TravelMapName)

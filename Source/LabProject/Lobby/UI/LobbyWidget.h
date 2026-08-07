@@ -148,12 +148,6 @@ protected:
 		ToolTip = "Optional override for Txt_Warning. If empty, the text written on Txt_Warning in the widget designer is used."))
 	FText TeamBalanceWarningText;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Travel")
-	TSoftObjectPtr<UWorld> TitleMap;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Travel")
-	FString TitleTravelMapName;
-
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Lobby|UI")
 	TArray<TObjectPtr<ULobbyUserWidget>> LobbyUsers;
 

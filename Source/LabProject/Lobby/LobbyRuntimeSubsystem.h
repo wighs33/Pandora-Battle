@@ -7,6 +7,7 @@
 #include "Mode/PdLobbyRuntimeTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "UI/GameResultTypes.h"
+#include "UObject/PrimaryAssetId.h"
 #include "LobbyRuntimeSubsystem.generated.h"
 
 class APlayerController;
@@ -14,7 +15,19 @@ class APlayerState;
 class UMaterialInterface;
 class UMatchRuleDefinition;
 class UTexture2D;
+class UUiSubsystem;
+class FWidgetContentBundleLease;
 struct FStreamableHandle;
+
+UENUM(BlueprintType)
+enum class ELobbyContentPreloadResult : uint8
+{
+	NotStarted,
+	Loading,
+	Success,
+	Failed,
+	MissingAssets
+};
 
 UCLASS()
 class LABPROJECT_API ULobbyRuntimeSubsystem : public UGameInstanceSubsystem
@@ -26,7 +39,26 @@ public:
 	virtual void Deinitialize() override;
 
 	void BeginLobbyEntryContentPreload();
+	/** Releases lobby-only UI/data after the game screen has taken ownership. */
+	void ReleaseLobbyEntryContentPreload();
 	bool IsLobbyEntryContentReady() const;
+	void BeginGameEntryContentPreload();
+	void CancelGameEntryContentPreload();
+	bool IsGameEntryContentReady() const
+	{
+		return GameEntryContentPreloadResult
+			== ELobbyContentPreloadResult::Success;
+	}
+	ELobbyContentPreloadResult GetGameEntryContentPreloadResult() const
+	{
+		return GameEntryContentPreloadResult;
+	}
+	const TArray<FPrimaryAssetId>& GetMissingGameEntryPrimaryAssetIds() const
+	{
+		return MissingGameEntryPrimaryAssetIds;
+	}
+	static void GetGameEntryPrimaryAssetIds(
+		TArray<FPrimaryAssetId>& OutAssetIds);
 	const UMatchRuleDefinition* GetLoadedLobbyMatchRuleDefinition() const
 	{
 		return bLobbyMatchRuleReady ? LoadedLobbyMatchRuleDefinition.Get() : nullptr;
@@ -76,20 +108,44 @@ public:
 	bool ConsumeLocalLobbyPaintCanvasFaceDecalCache(FLobbyPaintCanvasFaceDecalCache& OutFaceDecalCache);
 
 	void SetPendingTitleGameResult(const FGameResultPresentationData& GameResultData);
+	void ClearPendingTitleGameResult();
 	bool ConsumePendingTitleGameResult(FGameResultPresentationData& OutGameResultData);
 	bool HasPendingTitleGameResult() const { return bHasPendingTitleGameResult; }
 
 private:
 	void HandleLobbyMatchRulePreloadComplete();
-	void ReleaseLobbyEntryContentPreload();
+	void HandleLobbyDataAssetsPreloadComplete();
+	void HandleGameEntryContentPreloadComplete(uint32 RequestGeneration);
+	void ReleaseGameEntryContentPreload();
+	void SetGameEntryContentPreloadResult(
+		ELobbyContentPreloadResult Result,
+		TArray<FPrimaryAssetId> MissingAssetIds = {});
+	static void FindUnregisteredGameEntryAssets(
+		const TArray<FPrimaryAssetId>& AssetIds,
+		TArray<FPrimaryAssetId>& OutMissingAssetIds);
+	static void FindUnresolvedGameEntryAssets(
+		const TArray<FPrimaryAssetId>& AssetIds,
+		TArray<FPrimaryAssetId>& OutMissingAssetIds);
+	bool IsLocalPlayerWidgetContentReady() const;
 	TArray<FString> MakeLobbyPlayerCacheKeys(const APlayerState* PlayerState) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMatchRuleDefinition> LoadedLobbyMatchRuleDefinition;
 
 	TSharedPtr<FStreamableHandle> LobbyMatchRulePreloadHandle;
+	TSharedPtr<FStreamableHandle> LobbyDataAssetsPreloadHandle;
+	TMap<TWeakObjectPtr<UUiSubsystem>, TSharedPtr<FWidgetContentBundleLease>>
+		LobbyWidgetBundleLeases;
 	bool bLobbyMatchRulePreloadPending = false;
 	bool bLobbyMatchRuleReady = false;
+	bool bLobbyDataAssetsPreloadPending = false;
+	bool bLobbyDataAssetsReady = false;
+
+	TSharedPtr<FStreamableHandle> GameEntryContentPreloadHandle;
+	uint32 GameEntryContentRequestGeneration = 0;
+	ELobbyContentPreloadResult GameEntryContentPreloadResult =
+		ELobbyContentPreloadResult::NotStarted;
+	TArray<FPrimaryAssetId> MissingGameEntryPrimaryAssetIds;
 
 	UPROPERTY(Transient)
 	FLobbyRuntimeConfig LobbyRuntimeConfig;

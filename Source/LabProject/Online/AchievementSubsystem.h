@@ -8,6 +8,7 @@
 
 class IOnlineSubsystem;
 class UPdSaveGame;
+struct FStreamableHandle;
 
 UCLASS()
 class LABPROJECT_API UAchievementSubsystem : public UGameInstanceSubsystem
@@ -19,8 +20,8 @@ public:
 	virtual void Deinitialize() override;
 
 	void EvaluateAndUnlockAchievementsForPlayerId(const FString& PlayerId);
-	void RequestUnlockAchievementById(const FString& AchievementId);
-	int32 CalculateAchievementProgressValue(const FString& PlayerId, const FPdAchievementEntry& Achievement) const;
+	int32 CalculateAchievementProgressValue(const FString& PlayerId, const FAchievementEntry& Achievement) const;
+	const UAchievementDefinition* GetAchievementDefinition();
 
 private:
 	const UAchievementDefinition* ResolveAchievementDefinition();
@@ -52,8 +53,8 @@ private:
 
 	bool bAchievementsQueried = false;
 	bool bAchievementQueryInFlight = false;
-	bool bDefinitionPreloadCallbackRegistered = false;
 	UPROPERTY(Transient)
 	TObjectPtr<UAchievementDefinition> CachedAchievementDefinition;
+	TSharedPtr<FStreamableHandle> DefinitionPreloadHandle;
 	FDelegateHandle ProfileProgressChangedHandle;
 };

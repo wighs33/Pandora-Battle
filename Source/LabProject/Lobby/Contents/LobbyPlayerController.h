@@ -16,7 +16,6 @@ public:
 	ALobbyPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual void AcknowledgePossession(APawn* P) override;
 
@@ -28,9 +27,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "!Lobby")
 	void Server_HandleKickPlayer(ALobbyPlayerState* TargetPlayerState);
-
-	UFUNCTION(Client, Reliable, Category = "!Lobby")
-	void Client_KickedByHost(const FString& RoomTravelMapName);
 
 	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")
 	void Client_RefreshLobbyUI();
@@ -44,16 +40,15 @@ public:
 	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")
 	void Client_ShowGameStartConnectingPopup();
 
+	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")
+	void Client_HideGameStartConnectingPopup();
+
 	UFUNCTION(Client, Reliable, Category = "!Lobby|Travel")
 	void Client_SetLobbyTravelLock(bool bLocked);
 
 private:
 	static FText SanitizeNickname(const FText& InNickname);
 	void ApplyLobbyTravelLock(bool bLocked);
-	void HandleDestroySessionForKick(bool bWasSuccessful);
-	void TravelToPendingKickMap();
 
 	bool bLobbyTravelLocked = false;
-	FDelegateHandle DestroySessionCompleteHandle;
-	FString PendingKickTravelMapName;
 };

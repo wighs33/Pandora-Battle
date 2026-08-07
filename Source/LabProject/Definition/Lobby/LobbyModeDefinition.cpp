@@ -1,26 +1,28 @@
 #include "Definition/Lobby/LobbyModeDefinition.h"
 
-#include "Definition/Lobby/LobbyPreviewDefinition.h"
-#include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Misc/PackageName.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyModeDefinition)
 
 namespace
 {
-	constexpr const TCHAR* DefaultLobbyModeDefinitionPath =
-		TEXT("/Game/Data/DA_LobbyMode.DA_LobbyMode");
-	constexpr const TCHAR* DefaultLobbyPreviewDefinitionPath =
-		TEXT("/Game/Data/DA_LobbyPreview.DA_LobbyPreview");
-}
+	FString ResolveMapPackageName(const TSoftObjectPtr<UWorld>& Map)
+	{
+		return Map.ToSoftObjectPath().GetLongPackageName();
+	}
 
-ULobbyModeDefinition::ULobbyModeDefinition()
-{
-	Content.MatchRuleDefinition =
-		TSoftObjectPtr<UMatchRuleDefinition>(
-			UMatchRuleDefinition::GetDefaultDefinitionPath());
-	Content.LobbyPreviewDefinition =
-		TSoftObjectPtr<ULobbyPreviewDefinition>(
-			FSoftObjectPath(DefaultLobbyPreviewDefinitionPath));
+	bool DoesMapMatchLevelName(
+		const TSoftObjectPtr<UWorld>& Map,
+		const FString& LevelName)
+	{
+		const FString MapPackageName = ResolveMapPackageName(Map);
+		return !MapPackageName.IsEmpty()
+			&& (MapPackageName.Equals(LevelName, ESearchCase::IgnoreCase)
+				|| FPackageName::GetShortName(MapPackageName).Equals(
+					LevelName,
+					ESearchCase::IgnoreCase));
+	}
 }
 
 FPrimaryAssetId ULobbyModeDefinition::GetPrimaryAssetId() const
@@ -30,7 +32,46 @@ FPrimaryAssetId ULobbyModeDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath ULobbyModeDefinition::GetDefaultDefinitionPath()
 {
-	return FSoftObjectPath(DefaultLobbyModeDefinitionPath);
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.LobbyMode.ToSoftObjectPath();
+}
+
+const ULobbyModeDefinition* ULobbyModeDefinition::ResolveDefaultDefinition()
+{
+	const FSoftObjectPath DefinitionPath = GetDefaultDefinitionPath();
+	if (!DefinitionPath.IsValid())
+	{
+		return nullptr;
+	}
+
+	if (const ULobbyModeDefinition* LoadedDefinition =
+		Cast<ULobbyModeDefinition>(DefinitionPath.ResolveObject()))
+	{
+		return LoadedDefinition;
+	}
+
+	return Cast<ULobbyModeDefinition>(DefinitionPath.TryLoad());
+}
+
+FString ULobbyModeDefinition::GetTitleTravelMapName() const
+{
+	return ResolveMapPackageName(Travel.TitleMap);
+}
+
+FString ULobbyModeDefinition::GetLobbyTravelMapName() const
+{
+	return ResolveMapPackageName(Travel.LobbyMap);
+}
+
+FString ULobbyModeDefinition::GetRoomTravelMapName() const
+{
+	return ResolveMapPackageName(Travel.RoomMap);
+}
+
+bool ULobbyModeDefinition::IsLobbyMapName(const FString& LevelName) const
+{
+	return !LevelName.TrimStartAndEnd().IsEmpty()
+		&& DoesMapMatchLevelName(Travel.LobbyMap, LevelName);
 }
 
 #if WITH_EDITOR
@@ -48,90 +89,28 @@ EDataValidationResult ULobbyModeDefinition::IsDataValid(
 		Result = EDataValidationResult::Invalid;
 		Context.AddError(Message);
 	};
-	auto ValidateNonNegativeFinite = [&MarkInvalid](
-		const float Value,
-		const FText& FieldName)
-	{
-		if (!FMath::IsFinite(Value) || Value < 0.0f)
-		{
-			MarkInvalid(FText::Format(
-				NSLOCTEXT(
-					"LobbyModeDefinition",
-					"InvalidNonNegativeTime",
-					"{0} must be a non-negative finite value."),
-				FieldName));
-		}
-	};
-
-	ValidateNonNegativeFinite(
-		Flow.FullLobbyAutoStartDelay,
-		NSLOCTEXT(
-			"LobbyModeDefinition",
-			"FullLobbyAutoStartDelay",
-			"Flow.FullLobbyAutoStartDelay"));
-	ValidateNonNegativeFinite(
-		Flow.KickDisconnectDelay,
-		NSLOCTEXT(
-			"LobbyModeDefinition",
-			"KickDisconnectDelay",
-			"Flow.KickDisconnectDelay"));
-	ValidateNonNegativeFinite(
-		Flow.LobbyRespawnDelay,
-		NSLOCTEXT(
-			"LobbyModeDefinition",
-			"LobbyRespawnDelay",
-			"Flow.LobbyRespawnDelay"));
-
-	if (DedicatedSession.bAutoCreateDedicatedServerSession
-		&& DedicatedSession.DedicatedServerRoomName.TrimStartAndEnd().IsEmpty())
+	if (Travel.TitleMap.IsNull())
 	{
 		MarkInvalid(NSLOCTEXT(
 			"LobbyModeDefinition",
-			"MissingDedicatedServerRoomName",
-			"DedicatedSession.DedicatedServerRoomName is required when automatic dedicated-session creation is enabled."));
+			"MissingTitleTravelDestination",
+			"Travel.TitleMap is required."));
 	}
 
-	if (Travel.RoomMap.IsNull()
-		&& Travel.RoomTravelMapName.TrimStartAndEnd().IsEmpty())
+	if (Travel.LobbyMap.IsNull())
+	{
+		MarkInvalid(NSLOCTEXT(
+			"LobbyModeDefinition",
+			"MissingLobbyTravelDestination",
+			"Travel.LobbyMap is required."));
+	}
+
+	if (Travel.RoomMap.IsNull())
 	{
 		MarkInvalid(NSLOCTEXT(
 			"LobbyModeDefinition",
 			"MissingRoomTravelDestination",
-			"Travel must provide RoomMap or RoomTravelMapName."));
-	}
-
-	if (Content.MatchRuleDefinition.IsNull())
-	{
-		MarkInvalid(NSLOCTEXT(
-			"LobbyModeDefinition",
-			"MissingMatchRuleDefinition",
-			"Content.MatchRuleDefinition is required."));
-	}
-	else if (!Content.MatchRuleDefinition.LoadSynchronous())
-	{
-		MarkInvalid(FText::Format(
-			NSLOCTEXT(
-				"LobbyModeDefinition",
-				"InvalidMatchRuleDefinition",
-				"Content.MatchRuleDefinition could not be loaded: {0}"),
-			FText::FromString(Content.MatchRuleDefinition.ToString())));
-	}
-
-	if (Content.LobbyPreviewDefinition.IsNull())
-	{
-		MarkInvalid(NSLOCTEXT(
-			"LobbyModeDefinition",
-			"MissingLobbyPreviewDefinition",
-			"Content.LobbyPreviewDefinition is required."));
-	}
-	else if (!Content.LobbyPreviewDefinition.LoadSynchronous())
-	{
-		MarkInvalid(FText::Format(
-			NSLOCTEXT(
-				"LobbyModeDefinition",
-				"InvalidLobbyPreviewDefinition",
-				"Content.LobbyPreviewDefinition could not be loaded: {0}"),
-			FText::FromString(Content.LobbyPreviewDefinition.ToString())));
+			"Travel.RoomMap is required."));
 	}
 
 	return Result;

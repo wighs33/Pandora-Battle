@@ -8,7 +8,6 @@
 #include "OnlineSessionsSubsystem.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnlineSessionBoolDelegate, bool /*bWasSuccessful*/);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnlineSessionFindDelegate, const TArray<FBlueprintSessionResult>& /*Results*/, bool /*bWasSuccessful*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnlineSessionRequestBoolDelegate, uint64 /*RequestId*/, bool /*bWasSuccessful*/);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(
 	FOnlineSessionRequestFindDelegate,
@@ -37,15 +36,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
 	void CreateRoomSession(const FString& RoomName, const FString& MapName, int32 NumPublicConnections = 6, bool bIsLAN = false);
-
-	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
-	void FindRoomSessions(int32 MaxSearchResults = 50, bool bIsLAN = false, bool bUseLobbies = true);
-
-	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
-	void JoinRoomSession(const FBlueprintSessionResult& SessionResult);
-
-	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
-	void CancelPendingJoinSession();
 
 	uint64 BeginCreateRoomSession(
 		ULocalPlayer* RequestingLocalPlayer,
@@ -83,9 +73,6 @@ public:
 	void DestroySession();
 
 	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
-	void UpdateSessionMapName(const FString& MapName, bool bAllowJoinInProgress = true);
-
-	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
 	void UpdateSessionSettings(const FString& MapName, int32 NumPublicConnections, bool bAllowJoinInProgress = true);
 
 	UFUNCTION(BlueprintPure, Category = "!Online|Session")
@@ -94,16 +81,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Online|Session")
 	FString GetOnlineSubsystemName() const;
 
+	void MarkVoluntaryMatchExit();
+
 	static FName GetRoomNameSettingKey();
 	static FName GetMapNameSettingKey();
 
-	FOnlineSessionBoolDelegate OnCreateSessionComplete;
-	FOnlineSessionFindDelegate OnFindSessionsComplete;
-	FOnlineSessionBoolDelegate OnJoinSessionComplete;
 	FOnlineSessionBoolDelegate OnStartSessionComplete;
 	FOnlineSessionBoolDelegate OnEndSessionComplete;
 	FOnlineSessionBoolDelegate OnDestroySessionComplete;
-	FOnlineSessionBoolDelegate OnUpdateSessionComplete;
 	FOnlineSessionRequestBoolDelegate OnCreateRoomRequestComplete;
 	FOnlineSessionRequestFindDelegate OnFindRoomsRequestComplete;
 	FOnlineSessionRequestBoolDelegate OnJoinRoomRequestComplete;
@@ -135,6 +120,13 @@ private:
 		CleaningCanceledSession
 	};
 
+	enum class ESessionLifecycleOperation : uint8
+	{
+		None,
+		Starting,
+		Ending
+	};
+
 	uint64 BeginSessionRequest(ULocalPlayer* RequestingLocalPlayer, ESessionRequestKind RequestKind);
 	bool StartCreateRoomPhase(uint64 RequestId);
 	bool StartFindRoomsPhase(uint64 RequestId);
@@ -150,6 +142,22 @@ private:
 	ULocalPlayer* ResolveDefaultLocalPlayer() const;
 	APlayerController* ResolveActiveLocalPlayerController() const;
 	void HandleCanceledCreateOrJoinCompletion(uint64 RequestId);
+	uint64 BeginSessionLifecycleOperation(
+		ESessionLifecycleOperation Operation);
+	bool IsSessionLifecycleOperationActive(
+		ESessionLifecycleOperation Operation,
+		uint64 RequestId) const;
+	void ArmSessionLifecycleTimeout(
+		ESessionLifecycleOperation Operation,
+		uint64 RequestId);
+	void HandleSessionLifecycleTimeout(
+		ESessionLifecycleOperation Operation,
+		uint64 RequestId);
+	void CompleteSessionLifecycleOperation(
+		ESessionLifecycleOperation Operation,
+		uint64 RequestId,
+		bool bWasSuccessful);
+	void ClearSessionLifecycleOperation();
 	void ClearSessionDelegates();
 
 	void OnCreateSessionCompleted(FName SessionName, bool bWasSuccessful, uint64 CallbackRequestId);
@@ -158,8 +166,14 @@ private:
 		FName SessionName,
 		EOnJoinSessionCompleteResult::Type Result,
 		uint64 CallbackRequestId);
-	void OnStartSessionCompleted(FName SessionName, bool bWasSuccessful);
-	void OnEndSessionCompleted(FName SessionName, bool bWasSuccessful);
+	void OnStartSessionCompleted(
+		FName SessionName,
+		bool bWasSuccessful,
+		uint64 CallbackRequestId);
+	void OnEndSessionCompleted(
+		FName SessionName,
+		bool bWasSuccessful,
+		uint64 CallbackRequestId);
 	void OnDestroySessionCompleted(FName SessionName, bool bWasSuccessful, uint64 CallbackRequestId);
 	void OnUpdateSessionCompleted(FName SessionName, bool bWasSuccessful);
 	void HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
@@ -212,9 +226,17 @@ private:
 	int32 ActiveRequestControllerId = 0;
 	bool bActiveRequestCancelRequested = false;
 	bool bActiveRequestCompletionBroadcast = false;
+	bool bVoluntaryMatchExitInProgress = false;
+
+	uint64 NextSessionLifecycleRequestId = 1;
+	uint64 ActiveSessionLifecycleRequestId = 0;
+	ESessionLifecycleOperation ActiveSessionLifecycleOperation =
+		ESessionLifecycleOperation::None;
+	IOnlineSessionPtr ActiveSessionLifecycleManager;
 
 	UPROPERTY(Config, EditAnywhere, Category = "!Online|Session", meta = (ClampMin = "1.0", ForceUnits = "s"))
 	float SessionOperationTimeoutSeconds = 30.0f;
 
 	FTimerHandle SessionOperationTimeoutHandle;
+	FTimerHandle SessionLifecycleTimeoutHandle;
 };

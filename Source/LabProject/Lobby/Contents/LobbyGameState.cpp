@@ -1,7 +1,9 @@
 #include "Lobby/Contents/LobbyGameState.h"
 
 #include "Component/Experience/ExperienceManagerComponent.h"
+#include "Engine/GameInstance.h"
 #include "Lobby/Contents/LobbyHUD.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
@@ -32,7 +34,6 @@ void ALobbyGameState::SetSelectedMapOption(const FLobbyMatchMapOption& InMapOpti
 		&& SelectedMapOption.Map.ToSoftObjectPath() == InMapOption.Map.ToSoftObjectPath()
 		&& SelectedMapOption.TravelMapName == InMapOption.TravelMapName
 		&& SelectedMapOption.MaxPlayerCount == InMapOption.MaxPlayerCount
-		&& SelectedMapOption.DefaultMaxBotCount == InMapOption.DefaultMaxBotCount
 		&& SelectedMapOption.Thumbnail.Get() == InMapOption.Thumbnail.Get())
 	{
 		return;
@@ -42,9 +43,44 @@ void ALobbyGameState::SetSelectedMapOption(const FLobbyMatchMapOption& InMapOpti
 	MARK_PROPERTY_DIRTY_FROM_NAME(ALobbyGameState, SelectedMapOption, this);
 	ForceNetUpdate();
 
+RefreshLocalLobbyUI();
+}
 
+FLobbyMatchMapOption ALobbyGameState::GetSelectedMapOption() const
+{
+	FLobbyMatchMapOption ResolvedMapOption = SelectedMapOption;
+	if (ResolvedMapOption.MapKey.IsNone()
+		|| IsValid(ResolvedMapOption.Thumbnail))
+	{
+		return ResolvedMapOption;
+	}
 
-	RefreshLocalLobbyUI();
+	const UGameInstance* GameInstance = GetGameInstance();
+	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
+		GameInstance
+			? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>()
+			: nullptr;
+	const UMatchRuleDefinition* MatchRuleDefinition =
+		LobbyRuntimeSubsystem
+			? LobbyRuntimeSubsystem->GetLoadedLobbyMatchRuleDefinition()
+			: nullptr;
+	FLobbyMatchMapOption ConfiguredMapOption;
+	if (MatchRuleDefinition
+		&& MatchRuleDefinition->FindLobbyMapOption(
+			ResolvedMapOption.MapKey,
+			ConfiguredMapOption))
+	{
+		ResolvedMapOption.Thumbnail = ConfiguredMapOption.Thumbnail;
+	}
+
+	return ResolvedMapOption;
+}
+
+bool ALobbyGameState::IsSelectedMapImageReady() const
+{
+	const FLobbyMatchMapOption ResolvedMapOption = GetSelectedMapOption();
+	return !ResolvedMapOption.MapKey.IsNone()
+		&& IsValid(ResolvedMapOption.Thumbnail);
 }
 
 void ALobbyGameState::SetGameStartPending(
@@ -82,6 +118,7 @@ void ALobbyGameState::SetGameStartPending(
 			this);
 	}
 	ForceNetUpdate();
+	RefreshGameEntryContentPreload();
 	RefreshLocalLobbyUI();
 }
 
@@ -100,13 +137,35 @@ float ALobbyGameState::GetGameStartRemainingSeconds() const
 void ALobbyGameState::OnRep_SelectedMapOption()
 {
 
-
-	RefreshLocalLobbyUI();
+RefreshLocalLobbyUI();
 }
 
 void ALobbyGameState::OnRep_GameStartState()
 {
+	RefreshGameEntryContentPreload();
 	RefreshLocalLobbyUI();
+}
+
+void ALobbyGameState::RefreshGameEntryContentPreload() const
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
+		GameInstance
+			? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>()
+			: nullptr;
+	if (!LobbyRuntimeSubsystem)
+	{
+		return;
+	}
+
+	if (bStartPending)
+	{
+		LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
+	}
+	else
+	{
+		LobbyRuntimeSubsystem->CancelGameEntryContentPreload();
+	}
 }
 
 void ALobbyGameState::RefreshLocalLobbyUI() const

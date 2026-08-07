@@ -9,6 +9,7 @@ class ALobbyGameMode;
 class ALobbyPlayerState;
 class APlayerController;
 class UPdGameInstance;
+enum class ELobbyContentPreloadResult : uint8;
 struct FLobbyMatchMapOption;
 
 UCLASS(Transient)
@@ -45,8 +46,15 @@ private:
 	TMap<FGameplayTag, FName> BuildEquippedSkinNamesBySlot(
 		const APlayerController* PlayerController) const;
 	void ShowGameStartConnectingPopupForAllPlayers() const;
+	void HideGameStartConnectingPopupForAllPlayers() const;
+	void ScheduleServerTravelWhenContentReady(const FString& TravelMapName);
+	void HandleGameEntryContentPreloadPoll();
+	void HandleGameEntryContentPreloadFailure(
+		ELobbyContentPreloadResult Result);
 	void ScheduleServerTravel(const FString& TravelMapName);
 
 	FDelegateHandle StartSessionCompleteHandle;
+	FTimerHandle GameEntryContentPreloadPollTimerHandle;
 	FTimerHandle TravelDelayTimerHandle;
+	FString PendingTravelMapName;
 };

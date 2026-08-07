@@ -2,6 +2,7 @@
 
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
+#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
@@ -95,8 +96,7 @@ void UCreateRoomPopupWidget::HandleCreateClicked()
 {
 	const FString InitialSessionMapName = TEXT("Lobby");
 
-
-	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
+UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr;
 	if (!OnlineSessionsSubsystem)
@@ -237,8 +237,9 @@ UEditableTextBox* UCreateRoomPopupWidget::GetRoomNameTextBox() const
 
 FString UCreateRoomPopupWidget::GetResolvedLobbyTravelMapName() const
 {
-	const FString LongPackageName = LobbyMap.ToSoftObjectPath().GetLongPackageName();
-	return LongPackageName.IsEmpty() ? LobbyTravelMapName : LongPackageName;
+	const ULobbyModeDefinition* Definition =
+		ULobbyModeDefinition::ResolveDefaultDefinition();
+	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 
 UUiSubsystem* UCreateRoomPopupWidget::GetUiSubsystem() const

@@ -23,6 +23,12 @@ bool UControllerSessionComponent::RequestExitMatchToTitle()
 	{
 		return false;
 	}
+	if (!Controller->HasAuthority() || !Controller->IsLocalController())
+	{
+		// Returning false lets the local menu destroy its session and travel.
+		// The server settles the match only after observing the real Logout.
+		return false;
+	}
 
 	if (AExperienceGameMode* ExperienceGameMode =
 		Controller->GetWorld()
@@ -32,21 +38,7 @@ bool UControllerSessionComponent::RequestExitMatchToTitle()
 		return ExperienceGameMode->RequestAbortMatchToTitle(Controller);
 	}
 
-	Controller->Server_RequestExitMatchToTitle();
-	return true;
-}
-
-void UControllerSessionComponent::HandleServerRequestExitMatchToTitle() const
-{
-	APdPlayerController* Controller = GetPdController();
-	AExperienceGameMode* ExperienceGameMode =
-		Controller && Controller->GetWorld()
-			? Controller->GetWorld()->GetAuthGameMode<AExperienceGameMode>()
-			: nullptr;
-	if (ExperienceGameMode)
-	{
-		ExperienceGameMode->RequestAbortMatchToTitle(Controller);
-	}
+	return false;
 }
 
 void UControllerSessionComponent::TravelToTitleWithGameResult(
@@ -62,6 +54,44 @@ void UControllerSessionComponent::TravelToTitleWithGameResult(
 	if (UPdGameInstance* PdGameInstance = Controller->GetGameInstance<UPdGameInstance>())
 	{
 		PdGameInstance->SetPendingTitleGameResult(GameResultData);
+	}
+
+	DestroySessionAndTravelToTitle(TitleMapName);
+}
+
+void UControllerSessionComponent::TravelToTitleWithoutGameResult(
+	const FString& TitleMapName) const
+{
+	APdPlayerController* Controller = GetPdController();
+	if (!Controller)
+	{
+		return;
+	}
+
+	if (UPdGameInstance* PdGameInstance =
+		Controller->GetGameInstance<UPdGameInstance>())
+	{
+		PdGameInstance->ClearPendingTitleGameResult();
+	}
+	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem =
+		Controller->GetGameInstance()
+			? Controller->GetGameInstance()
+				->GetSubsystem<UOnlineSessionsSubsystem>()
+			: nullptr)
+	{
+		OnlineSessionsSubsystem->MarkVoluntaryMatchExit();
+	}
+
+	DestroySessionAndTravelToTitle(TitleMapName);
+}
+
+void UControllerSessionComponent::DestroySessionAndTravelToTitle(
+	const FString& TitleMapName) const
+{
+	APdPlayerController* Controller = GetPdController();
+	if (!Controller)
+	{
+		return;
 	}
 
 	UOnlineSessionsSubsystem* OnlineSessionsSubsystem =

@@ -10,9 +10,9 @@
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Lobby/Contents/LobbyPlayerState.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Lobby/UI/LobbyWidget.h"
 #include "Mode/PdGameInstance.h"
-#include "Online/OnlineSessionsSubsystem.h"
 #include "Component/Player/ControllerInputComponent.h"
 #include "Settings/CursorSettingsLibrary.h"
 #include "UI/UiSubsystem.h"
@@ -37,7 +37,7 @@ void ALobbyPlayerController::BeginPlay()
 		UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, this);
 		if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
 		{
-			PdGameInstance->PlayBgmForContext(EPdBgmContext::Lobby);
+			PdGameInstance->PlayBgmForContext(EBgmContext::Lobby);
 		}
 		if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
 		{
@@ -48,22 +48,6 @@ void ALobbyPlayerController::BeginPlay()
 			}
 		}
 	}
-}
-
-void ALobbyPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr)
-	{
-		if (DestroySessionCompleteHandle.IsValid())
-		{
-			OnlineSessionsSubsystem->OnDestroySessionComplete.Remove(DestroySessionCompleteHandle);
-			DestroySessionCompleteHandle.Reset();
-		}
-	}
-
-	Super::EndPlay(EndPlayReason);
 }
 
 void ALobbyPlayerController::SetupInputComponent()
@@ -128,8 +112,7 @@ void ALobbyPlayerController::Server_HandleChangeTeamColor_Implementation(const i
 		return;
 	}
 
-
-	LobbyPlayerState->SetTeamColorIndex(TeamColorIndex);
+LobbyPlayerState->SetTeamColorIndex(TeamColorIndex);
 
 	if (ALobbyGameMode* MutableLobbyGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALobbyGameMode>() : nullptr)
 	{
@@ -139,7 +122,6 @@ void ALobbyPlayerController::Server_HandleChangeTeamColor_Implementation(const i
 
 void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(ALobbyPlayerState* TargetPlayerState)
 {
-
 
 	if (!HasAuthority() || !TargetPlayerState)
 	{
@@ -161,37 +143,6 @@ void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(ALobbyPlayer
 	{
 		LobbyGameMode->KickPlayer(TargetPlayerState);
 	}
-}
-
-void ALobbyPlayerController::Client_KickedByHost_Implementation(const FString& RoomTravelMapName)
-{
-	PendingKickTravelMapName = RoomTravelMapName.TrimStartAndEnd();
-	if (PendingKickTravelMapName.IsEmpty())
-	{
-		PendingKickTravelMapName = TEXT("/Game/Map/LV_Room");
-	}
-
-
-
-	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr;
-	if (!OnlineSessionsSubsystem)
-	{
-		TravelToPendingKickMap();
-		return;
-	}
-
-	if (DestroySessionCompleteHandle.IsValid())
-	{
-		OnlineSessionsSubsystem->OnDestroySessionComplete.Remove(DestroySessionCompleteHandle);
-		DestroySessionCompleteHandle.Reset();
-	}
-
-	DestroySessionCompleteHandle = OnlineSessionsSubsystem->OnDestroySessionComplete.AddUObject(
-		this,
-		&ThisClass::HandleDestroySessionForKick);
-	OnlineSessionsSubsystem->DestroySession();
 }
 
 void ALobbyPlayerController::Client_RefreshLobbyUI_Implementation()
@@ -251,6 +202,25 @@ void ALobbyPlayerController::Client_ShowGameStartConnectingPopup_Implementation(
 	}
 
 	UiSubsystem->ShowTravelLoadingScreen();
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
+			GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>())
+		{
+			LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
+		}
+	}
+
+}
+
+void ALobbyPlayerController::Client_HideGameStartConnectingPopup_Implementation()
+{
+	ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	if (UUiSubsystem* UiSubsystem =
+		LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr)
+	{
+		UiSubsystem->HideTravelLoadingScreen();
+	}
 
 }
 
@@ -301,34 +271,4 @@ void ALobbyPlayerController::ApplyLobbyTravelLock(const bool bLocked)
 	}
 
 	MovementComponent->SetMovementMode(MOVE_Walking);
-}
-
-void ALobbyPlayerController::HandleDestroySessionForKick(const bool bWasSuccessful)
-{
-
-
-	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr)
-	{
-		if (DestroySessionCompleteHandle.IsValid())
-		{
-			OnlineSessionsSubsystem->OnDestroySessionComplete.Remove(DestroySessionCompleteHandle);
-			DestroySessionCompleteHandle.Reset();
-		}
-	}
-
-	TravelToPendingKickMap();
-}
-
-void ALobbyPlayerController::TravelToPendingKickMap()
-{
-	if (PendingKickTravelMapName.IsEmpty())
-	{
-
-		return;
-	}
-
-
-	ClientTravel(PendingKickTravelMapName, TRAVEL_Absolute);
 }

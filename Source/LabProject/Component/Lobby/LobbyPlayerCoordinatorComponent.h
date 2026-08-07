@@ -2,8 +2,6 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
-#include "TimerManager.h"
-#include "UObject/ObjectKey.h"
 #include "LobbyPlayerCoordinatorComponent.generated.h"
 
 class AController;
@@ -23,9 +21,6 @@ class LABPROJECT_API ULobbyPlayerCoordinatorComponent : public UActorComponent
 public:
 	ULobbyPlayerCoordinatorComponent();
 
-	virtual void EndPlay(
-		const EEndPlayReason::Type EndPlayReason) override;
-
 	void InitializeLobbyPlayerState(
 		APlayerController* PlayerController,
 		ALobbyPlayerState* LobbyPlayerState);
@@ -35,12 +30,6 @@ public:
 	void RefreshLobbyUIForAllPlayers() const;
 	APlayerController* ResolvePlayerControllerForPlayerState(
 		const APlayerState* PlayerState) const;
-	void Shutdown();
-
-	int32 GetPendingKickCount() const
-	{
-		return PendingKickTimers.Num();
-	}
 
 private:
 	ALobbyGameMode* GetLobbyGameMode() const;
@@ -50,9 +39,6 @@ private:
 		const ALobbyPlayerState* IgnoredPlayerState) const;
 	void ForceKickPlayer(
 		APlayerController* TargetPlayerController);
-	void ClearKickTimer(AController* Controller);
 
 	int32 NicknameIndex = 0;
-	TMap<TObjectKey<AController>, FTimerHandle>
-		PendingKickTimers;
 };

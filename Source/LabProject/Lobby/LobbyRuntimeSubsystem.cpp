@@ -2,9 +2,11 @@
 
 #include "Data/ContentDataSubsystem.h"
 #include "Definition/Match/MatchRuleDefinition.h"
+#include "Engine/AssetManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/StreamableManager.h"
+#include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Interfaces/OnlineIdentityInterface.h"
@@ -12,6 +14,9 @@
 #include "GameFramework/OnlineReplStructs.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 #include "Settings/GameSettingsSubsystem.h"
+#include "Settings/ProjectBootstrapSettings.h"
+#include "UI/UiSubsystem.h"
+#include "UI/WidgetContentBundleLease.h"
 #include "UObject/UObjectGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyRuntimeSubsystem)
@@ -53,11 +58,14 @@ void ULobbyRuntimeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	LoadedLobbyMatchRuleDefinition = nullptr;
 	bLobbyMatchRulePreloadPending = false;
 	bLobbyMatchRuleReady = false;
+	GameEntryContentPreloadResult = ELobbyContentPreloadResult::NotStarted;
+	MissingGameEntryPrimaryAssetIds.Reset();
 }
 
 void ULobbyRuntimeSubsystem::Deinitialize()
 {
 	ReleaseLobbyEntryContentPreload();
+	ReleaseGameEntryContentPreload();
 	LoadedLobbyMatchRuleDefinition = nullptr;
 	bLobbyMatchRulePreloadPending = false;
 	bLobbyMatchRuleReady = false;
@@ -66,17 +74,51 @@ void ULobbyRuntimeSubsystem::Deinitialize()
 void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 {
 	UGameInstance* GameInstance = GetGameInstance();
+	if (GameInstance)
+	{
+		TArray<TWeakObjectPtr<UUiSubsystem>> InvalidUiSubsystems;
+		for (const TPair<TWeakObjectPtr<UUiSubsystem>,
+			TSharedPtr<FWidgetContentBundleLease>>& LeasePair :
+			LobbyWidgetBundleLeases)
+		{
+			if (!LeasePair.Key.IsValid())
+			{
+				InvalidUiSubsystems.Add(LeasePair.Key);
+			}
+		}
+		for (const TWeakObjectPtr<UUiSubsystem>& InvalidUiSubsystem :
+			InvalidUiSubsystems)
+		{
+			LobbyWidgetBundleLeases.Remove(InvalidUiSubsystem);
+		}
+
+		for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
+		{
+			if (UUiSubsystem* UiSubsystem =
+				LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr)
+			{
+				UiSubsystem->EnsureConfiguredWidgetContentPreload();
+				TSharedPtr<FWidgetContentBundleLease>& BundleLease =
+					LobbyWidgetBundleLeases.FindOrAdd(UiSubsystem);
+				if (BundleLease.IsValid()
+					&& BundleLease->GetState() == EWidgetContentBundleState::Failed)
+				{
+					BundleLease.Reset();
+				}
+				if (!BundleLease.IsValid())
+				{
+					BundleLease = UiSubsystem->AcquireConfiguredWidgetContentBundle(
+						EWidgetContentBundle::Lobby);
+				}
+			}
+		}
+	}
+
 	if (UGameSettingsSubsystem* GameSettingsSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UGameSettingsSubsystem>() : nullptr)
 	{
 		GameSettingsSubsystem->PreloadRuntimeContentAsync();
 	}
-
-	if (bLobbyMatchRuleReady || bLobbyMatchRulePreloadPending)
-	{
-		return;
-	}
-
 	UContentDataSubsystem* ContentDataSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentDataSubsystem)
@@ -87,12 +129,29 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 			TEXT("Lobby entry preload could not start because ContentDataSubsystem is unavailable."));
 		return;
 	}
+	ContentDataSubsystem->EnsureSkillDataAssetsPreload();
+
+	if (bLobbyMatchRuleReady || bLobbyMatchRulePreloadPending)
+	{
+		return;
+	}
 
 	bLobbyMatchRulePreloadPending = true;
+	const FSoftObjectPath MatchRulePath =
+		UMatchRuleDefinition::GetDefaultDefinitionPath();
+	if (!MatchRulePath.IsValid())
+	{
+		bLobbyMatchRulePreloadPending = false;
+		UE_LOG(
+			LogLobbyRuntimeSubsystem,
+			Error,
+			TEXT("Lobby entry preload has no configured MatchRule Definition."));
+		return;
+	}
 	const TWeakObjectPtr<ThisClass> WeakThis(this);
 	TSharedPtr<FStreamableHandle> PreloadHandle =
 		ContentDataSubsystem->PreloadSoftObjectPathsAsync(
-			{ UMatchRuleDefinition::GetDefaultDefinitionPath() },
+			{ MatchRulePath },
 			FSimpleDelegate::CreateLambda(
 				[WeakThis]()
 				{
@@ -112,10 +171,249 @@ bool ULobbyRuntimeSubsystem::IsLobbyEntryContentReady() const
 	const UGameInstance* GameInstance = GetGameInstance();
 	const UGameSettingsSubsystem* GameSettingsSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UGameSettingsSubsystem>() : nullptr;
+	const UContentDataSubsystem* ContentDataSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	return GameSettingsSubsystem
-		&& GameSettingsSubsystem->IsGameSettingDefinitionReady()
+		&& GameSettingsSubsystem->IsRuntimeContentReady()
+		&& ContentDataSubsystem
+		&& ContentDataSubsystem->IsSkillDataAssetsReady()
 		&& bLobbyMatchRuleReady
-		&& LoadedLobbyMatchRuleDefinition != nullptr;
+		&& LoadedLobbyMatchRuleDefinition != nullptr
+		&& IsLocalPlayerWidgetContentReady();
+}
+
+void ULobbyRuntimeSubsystem::BeginGameEntryContentPreload()
+{
+	if (GameEntryContentPreloadResult == ELobbyContentPreloadResult::Success
+		|| GameEntryContentPreloadResult == ELobbyContentPreloadResult::Loading)
+	{
+		return;
+	}
+
+	ReleaseGameEntryContentPreload();
+	GameEntryContentPreloadResult = ELobbyContentPreloadResult::Loading;
+
+	UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentDataSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentDataSubsystem)
+	{
+		UE_LOG(
+			LogLobbyRuntimeSubsystem,
+			Error,
+			TEXT("Game entry preload could not start because ContentDataSubsystem is unavailable."));
+		SetGameEntryContentPreloadResult(
+			ELobbyContentPreloadResult::Failed);
+		return;
+	}
+
+	TArray<FPrimaryAssetId> AssetIds;
+	GetGameEntryPrimaryAssetIds(AssetIds);
+	TArray<FPrimaryAssetId> UnregisteredAssetIds;
+	FindUnregisteredGameEntryAssets(AssetIds, UnregisteredAssetIds);
+	if (!UnregisteredAssetIds.IsEmpty())
+	{
+		SetGameEntryContentPreloadResult(
+			ELobbyContentPreloadResult::MissingAssets,
+			MoveTemp(UnregisteredAssetIds));
+		return;
+	}
+
+	const uint32 RequestGeneration = GameEntryContentRequestGeneration;
+	const TWeakObjectPtr<ThisClass> WeakThis(this);
+	TSharedPtr<FStreamableHandle> PreloadHandle =
+		ContentDataSubsystem->PreloadPrimaryAssetsAsync(
+			AssetIds,
+			FSimpleDelegate::CreateLambda(
+				[WeakThis, RequestGeneration]()
+				{
+					if (ThisClass* This = WeakThis.Get())
+					{
+						This->HandleGameEntryContentPreloadComplete(
+							RequestGeneration);
+					}
+				}));
+	if (PreloadHandle.IsValid())
+	{
+		GameEntryContentPreloadHandle = MoveTemp(PreloadHandle);
+	}
+	else if (GameEntryContentPreloadResult
+		== ELobbyContentPreloadResult::Loading)
+	{
+		UE_LOG(
+			LogLobbyRuntimeSubsystem,
+			Error,
+			TEXT("Game entry preload request did not return a valid handle."));
+		SetGameEntryContentPreloadResult(
+			ELobbyContentPreloadResult::Failed);
+	}
+}
+
+void ULobbyRuntimeSubsystem::CancelGameEntryContentPreload()
+{
+	ReleaseGameEntryContentPreload();
+}
+
+void ULobbyRuntimeSubsystem::GetGameEntryPrimaryAssetIds(
+	TArray<FPrimaryAssetId>& OutAssetIds)
+{
+	OutAssetIds.Reset();
+	const UProjectBootstrapSettings* BootstrapSettings =
+		GetDefault<UProjectBootstrapSettings>();
+	if (!BootstrapSettings)
+	{
+		return;
+	}
+
+	for (const FPrimaryAssetId& AssetId :
+		BootstrapSettings->GetGameEntryRequiredPrimaryAssets())
+	{
+		if (AssetId.IsValid())
+		{
+			OutAssetIds.AddUnique(AssetId);
+		}
+	}
+
+	for (const FPrimaryAssetType& AssetType :
+		BootstrapSettings->GetGameEntryRequiredPrimaryAssetTypes())
+	{
+		if (!AssetType.IsValid())
+		{
+			continue;
+		}
+
+		TArray<FPrimaryAssetId> TypeAssetIds;
+		UAssetManager::Get().GetPrimaryAssetIdList(AssetType, TypeAssetIds);
+		for (const FPrimaryAssetId& AssetId : TypeAssetIds)
+		{
+			if (AssetId.IsValid())
+			{
+				OutAssetIds.AddUnique(AssetId);
+			}
+		}
+	}
+	OutAssetIds.Sort(
+		[](const FPrimaryAssetId& Left, const FPrimaryAssetId& Right)
+		{
+			return Left.ToString() < Right.ToString();
+		});
+}
+
+void ULobbyRuntimeSubsystem::HandleGameEntryContentPreloadComplete(
+	const uint32 RequestGeneration)
+{
+	if (RequestGeneration != GameEntryContentRequestGeneration)
+	{
+		return;
+	}
+
+	TArray<FPrimaryAssetId> AssetIds;
+	GetGameEntryPrimaryAssetIds(AssetIds);
+	TArray<FPrimaryAssetId> MissingAssetIds;
+	FindUnresolvedGameEntryAssets(AssetIds, MissingAssetIds);
+	if (!MissingAssetIds.IsEmpty())
+	{
+		SetGameEntryContentPreloadResult(
+			ELobbyContentPreloadResult::MissingAssets,
+			MoveTemp(MissingAssetIds));
+		return;
+	}
+
+	SetGameEntryContentPreloadResult(
+		ELobbyContentPreloadResult::Success);
+}
+
+void ULobbyRuntimeSubsystem::ReleaseGameEntryContentPreload()
+{
+	++GameEntryContentRequestGeneration;
+	GameEntryContentPreloadResult = ELobbyContentPreloadResult::NotStarted;
+	MissingGameEntryPrimaryAssetIds.Reset();
+	if (GameEntryContentPreloadHandle.IsValid())
+	{
+		GameEntryContentPreloadHandle->CancelHandle();
+		GameEntryContentPreloadHandle->ReleaseHandle();
+		GameEntryContentPreloadHandle.Reset();
+	}
+}
+
+void ULobbyRuntimeSubsystem::SetGameEntryContentPreloadResult(
+	const ELobbyContentPreloadResult Result,
+	TArray<FPrimaryAssetId> MissingAssetIds)
+{
+	GameEntryContentPreloadResult = Result;
+	MissingGameEntryPrimaryAssetIds = MoveTemp(MissingAssetIds);
+
+	for (const FPrimaryAssetId& MissingAssetId :
+		MissingGameEntryPrimaryAssetIds)
+	{
+		UE_LOG(
+			LogLobbyRuntimeSubsystem,
+			Error,
+			TEXT("Game entry preload is missing required data asset '%s'."),
+			*MissingAssetId.ToString());
+	}
+}
+
+void ULobbyRuntimeSubsystem::FindUnregisteredGameEntryAssets(
+	const TArray<FPrimaryAssetId>& AssetIds,
+	TArray<FPrimaryAssetId>& OutMissingAssetIds)
+{
+	OutMissingAssetIds.Reset();
+	const UAssetManager& AssetManager = UAssetManager::Get();
+	for (const FPrimaryAssetId& AssetId : AssetIds)
+	{
+		if (!AssetId.IsValid()
+			|| !AssetManager.GetPrimaryAssetPath(AssetId).IsValid())
+		{
+			OutMissingAssetIds.AddUnique(AssetId);
+		}
+	}
+}
+
+void ULobbyRuntimeSubsystem::FindUnresolvedGameEntryAssets(
+	const TArray<FPrimaryAssetId>& AssetIds,
+	TArray<FPrimaryAssetId>& OutMissingAssetIds)
+{
+	OutMissingAssetIds.Reset();
+	const UAssetManager& AssetManager = UAssetManager::Get();
+	for (const FPrimaryAssetId& AssetId : AssetIds)
+	{
+		const FSoftObjectPath AssetPath =
+			AssetManager.GetPrimaryAssetPath(AssetId);
+		if (!AssetPath.IsValid()
+			|| (!AssetManager.GetPrimaryAssetObject(AssetId)
+				&& !AssetPath.ResolveObject()))
+		{
+			OutMissingAssetIds.AddUnique(AssetId);
+		}
+	}
+}
+
+bool ULobbyRuntimeSubsystem::IsLocalPlayerWidgetContentReady() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	if (!GameInstance)
+	{
+		return false;
+	}
+
+	for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
+	{
+		UUiSubsystem* UiSubsystem =
+			LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
+		const TSharedPtr<FWidgetContentBundleLease>* BundleLease =
+			UiSubsystem ? LobbyWidgetBundleLeases.Find(UiSubsystem) : nullptr;
+		if (!UiSubsystem
+			|| !UiSubsystem->IsConfiguredWidgetContentReady()
+			|| !BundleLease
+			|| !BundleLease->IsValid()
+			|| !(*BundleLease)->IsReady())
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 void ULobbyRuntimeSubsystem::HandleLobbyMatchRulePreloadComplete()
@@ -155,12 +453,17 @@ void ULobbyRuntimeSubsystem::HandleLobbyMatchRulePreloadComplete()
 
 void ULobbyRuntimeSubsystem::ReleaseLobbyEntryContentPreload()
 {
+	LobbyWidgetBundleLeases.Reset();
+
 	if (LobbyMatchRulePreloadHandle.IsValid())
 	{
 		LobbyMatchRulePreloadHandle->CancelHandle();
 		LobbyMatchRulePreloadHandle->ReleaseHandle();
 		LobbyMatchRulePreloadHandle.Reset();
 	}
+	LoadedLobbyMatchRuleDefinition = nullptr;
+	bLobbyMatchRulePreloadPending = false;
+	bLobbyMatchRuleReady = false;
 }
 
 void ULobbyRuntimeSubsystem::SetLobbyGameConfig(
@@ -457,6 +760,12 @@ void ULobbyRuntimeSubsystem::SetPendingTitleGameResult(const FGameResultPresenta
 	bHasPendingTitleGameResult = true;
 }
 
+void ULobbyRuntimeSubsystem::ClearPendingTitleGameResult()
+{
+	PendingTitleGameResult = FGameResultPresentationData();
+	bHasPendingTitleGameResult = false;
+}
+
 bool ULobbyRuntimeSubsystem::ConsumePendingTitleGameResult(FGameResultPresentationData& OutGameResultData)
 {
 	if (!bHasPendingTitleGameResult)
@@ -466,8 +775,7 @@ bool ULobbyRuntimeSubsystem::ConsumePendingTitleGameResult(FGameResultPresentati
 	}
 
 	OutGameResultData = PendingTitleGameResult;
-	PendingTitleGameResult = FGameResultPresentationData();
-	bHasPendingTitleGameResult = false;
+	ClearPendingTitleGameResult();
 	return true;
 }
 

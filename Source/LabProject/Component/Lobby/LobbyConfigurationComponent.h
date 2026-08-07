@@ -7,7 +7,7 @@
 
 class ALobbyGameMode;
 class ULobbyModeDefinition;
-class ULobbyPreviewDefinition;
+class UDefaultProvisionDefinition;
 struct FStreamableHandle;
 
 /**
@@ -52,7 +52,7 @@ public:
 
 	const ULobbyModeDefinition* GetLobbyModeDefinition();
 	const UMatchRuleDefinition* GetMatchRuleDefinition();
-	const ULobbyPreviewDefinition* GetLobbyPreviewDefinition();
+	const UDefaultProvisionDefinition* GetDefaultProvisionDefinition();
 
 private:
 	ALobbyGameMode* GetLobbyGameMode() const;
@@ -77,12 +77,12 @@ private:
 		LoadedMatchRuleDefinition;
 
 	UPROPERTY(Transient)
-	TObjectPtr<ULobbyPreviewDefinition>
-		LoadedLobbyPreviewDefinition;
+	TObjectPtr<UDefaultProvisionDefinition>
+		LoadedDefaultProvisionDefinition;
 
 	bool bLoggedMissingLobbyModeDefinition = false;
 	bool bLoggedMissingMatchRuleDefinition = false;
-	bool bLoggedMissingLobbyPreviewDefinition = false;
+	bool bLoggedMissingDefaultProvisionDefinition = false;
 	TSharedPtr<FStreamableHandle> LobbyModePreloadHandle;
 	TSharedPtr<FStreamableHandle> LobbyDependenciesPreloadHandle;
 	FSimpleDelegate RuntimeReadyDelegate;

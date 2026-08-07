@@ -3,6 +3,7 @@
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/NetDriver.h"
+#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -19,11 +20,12 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineSessionsSubsystem)
 
+DEFINE_LOG_CATEGORY_STATIC(LogOnlineSessionsSubsystem, Log, All);
+
 namespace LabOnlineSession
 {
 	const FName RoomNameSettingKey(TEXT("ROOM_NAME"));
 	const FName MapNameSettingKey(TEXT("MAP_NAME"));
-	const TCHAR* TitleTravelMapName = TEXT("/Game/Map/LV_Title");
 }
 
 namespace
@@ -131,9 +133,7 @@ namespace
 }
 
 UOnlineSessionsSubsystem::UOnlineSessionsSubsystem()
-	: StartSessionCompleteDelegate(FOnStartSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnStartSessionCompleted))
-	, EndSessionCompleteDelegate(FOnEndSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnEndSessionCompleted))
-	, UpdateSessionCompleteDelegate(FOnUpdateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnUpdateSessionCompleted))
+	: UpdateSessionCompleteDelegate(FOnUpdateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnUpdateSessionCompleted))
 {
 }
 
@@ -149,7 +149,6 @@ void UOnlineSessionsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 
 	SessionManager = GetSessionManagerForWorld();
-
 
 	if (GEngine)
 	{
@@ -179,7 +178,9 @@ void UOnlineSessionsSubsystem::Deinitialize()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
+		World->GetTimerManager().ClearTimer(SessionLifecycleTimeoutHandle);
 	}
+	ClearSessionLifecycleOperation();
 	FinishActiveSessionRequest();
 	SessionManager.Reset();
 	LastSessionSearch.Reset();
@@ -192,44 +193,12 @@ void UOnlineSessionsSubsystem::CreateRoomSession(
 	const int32 NumPublicConnections,
 	const bool bIsLAN)
 {
-	if (BeginCreateRoomSession(
+	BeginCreateRoomSession(
 		ResolveDefaultLocalPlayer(),
 		RoomName,
 		MapName,
 		NumPublicConnections,
-		bIsLAN) == 0)
-	{
-		OnCreateSessionComplete.Broadcast(false);
-	}
-}
-
-void UOnlineSessionsSubsystem::FindRoomSessions(const int32 MaxSearchResults, const bool bIsLAN, const bool bUseLobbies)
-{
-	if (BeginFindRoomSessions(
-		ResolveDefaultLocalPlayer(),
-		MaxSearchResults,
-		bIsLAN,
-		bUseLobbies) == 0)
-	{
-		OnFindSessionsComplete.Broadcast(TArray<FBlueprintSessionResult>(), false);
-	}
-}
-
-void UOnlineSessionsSubsystem::JoinRoomSession(const FBlueprintSessionResult& SessionResult)
-{
-	if (BeginJoinRoomSession(ResolveDefaultLocalPlayer(), SessionResult) == 0)
-	{
-		OnJoinSessionComplete.Broadcast(false);
-	}
-}
-
-void UOnlineSessionsSubsystem::CancelPendingJoinSession()
-{
-	if (ActiveSessionRequestId != 0
-		&& SessionOperationState == ESessionOperationState::JoiningSession)
-	{
-		CancelSessionRequest(ActiveSessionRequestId);
-	}
+		bIsLAN);
 }
 
 uint64 UOnlineSessionsSubsystem::BeginCreateRoomSession(
@@ -436,52 +405,6 @@ bool UOnlineSessionsSubsystem::IsSessionRequestActive(const uint64 RequestId) co
 		&& SessionOperationState != ESessionOperationState::Idle;
 }
 
-void UOnlineSessionsSubsystem::StartSession()
-{
-	if (!RefreshSessionManager() || !SessionManager->GetNamedSession(NAME_GameSession))
-	{
-		OnStartSessionComplete.Broadcast(true);
-		return;
-	}
-
-	if (StartSessionCompleteDelegateHandle.IsValid())
-	{
-		SessionManager->ClearOnStartSessionCompleteDelegate_Handle(StartSessionCompleteDelegateHandle);
-		StartSessionCompleteDelegateHandle.Reset();
-	}
-	StartSessionCompleteDelegateHandle = SessionManager->AddOnStartSessionCompleteDelegate_Handle(StartSessionCompleteDelegate);
-
-	if (!SessionManager->StartSession(NAME_GameSession))
-	{
-		SessionManager->ClearOnStartSessionCompleteDelegate_Handle(StartSessionCompleteDelegateHandle);
-		StartSessionCompleteDelegateHandle.Reset();
-		OnStartSessionComplete.Broadcast(true);
-	}
-}
-
-void UOnlineSessionsSubsystem::EndSession()
-{
-	if (!RefreshSessionManager() || !SessionManager->GetNamedSession(NAME_GameSession))
-	{
-		OnEndSessionComplete.Broadcast(true);
-		return;
-	}
-
-	if (EndSessionCompleteDelegateHandle.IsValid())
-	{
-		SessionManager->ClearOnEndSessionCompleteDelegate_Handle(EndSessionCompleteDelegateHandle);
-		EndSessionCompleteDelegateHandle.Reset();
-	}
-	EndSessionCompleteDelegateHandle = SessionManager->AddOnEndSessionCompleteDelegate_Handle(EndSessionCompleteDelegate);
-
-	if (!SessionManager->EndSession(NAME_GameSession))
-	{
-		SessionManager->ClearOnEndSessionCompleteDelegate_Handle(EndSessionCompleteDelegateHandle);
-		EndSessionCompleteDelegateHandle.Reset();
-		OnEndSessionComplete.Broadcast(true);
-	}
-}
-
 void UOnlineSessionsSubsystem::DestroySession()
 {
 	if (!RefreshSessionManager() || !SessionManager->GetNamedSession(NAME_GameSession))
@@ -496,23 +419,6 @@ void UOnlineSessionsSubsystem::DestroySession()
 	}
 }
 
-void UOnlineSessionsSubsystem::UpdateSessionMapName(
-	const FString& MapName,
-	const bool bAllowJoinInProgress)
-{
-	const IOnlineSessionPtr Sessions = GetSessionManagerForWorld();
-	const FNamedOnlineSession* ExistingSession = Sessions.IsValid()
-		? Sessions->GetNamedSession(NAME_GameSession)
-		: nullptr;
-	const int32 ExistingPublicConnections = ExistingSession
-		? ExistingSession->SessionSettings.NumPublicConnections
-		: LabGameSession::MaxPlayerCount;
-	UpdateSessionSettings(
-		MapName,
-		ExistingPublicConnections,
-		bAllowJoinInProgress);
-}
-
 void UOnlineSessionsSubsystem::UpdateSessionSettings(
 	const FString& MapName,
 	const int32 NumPublicConnections,
@@ -520,14 +426,12 @@ void UOnlineSessionsSubsystem::UpdateSessionSettings(
 {
 	if (!RefreshSessionManager())
 	{
-		OnUpdateSessionComplete.Broadcast(false);
 		return;
 	}
 
 	FNamedOnlineSession* ExistingSession = SessionManager->GetNamedSession(NAME_GameSession);
 	if (!ExistingSession)
 	{
-		OnUpdateSessionComplete.Broadcast(true);
 		return;
 	}
 
@@ -541,8 +445,6 @@ void UOnlineSessionsSubsystem::UpdateSessionSettings(
 	UpdatedSettings.bUsesPresence = bUseLobbySession;
 	UpdatedSettings.bUseLobbiesIfAvailable = bUseLobbySession;
 
-
-
 	if (UpdateSessionCompleteDelegateHandle.IsValid())
 	{
 		SessionManager->ClearOnUpdateSessionCompleteDelegate_Handle(UpdateSessionCompleteDelegateHandle);
@@ -554,7 +456,6 @@ void UOnlineSessionsSubsystem::UpdateSessionSettings(
 	{
 		SessionManager->ClearOnUpdateSessionCompleteDelegate_Handle(UpdateSessionCompleteDelegateHandle);
 		UpdateSessionCompleteDelegateHandle.Reset();
-		OnUpdateSessionComplete.Broadcast(false);
 	}
 }
 
@@ -593,13 +494,7 @@ IOnlineSessionPtr UOnlineSessionsSubsystem::GetSessionManagerForWorld() const
 bool UOnlineSessionsSubsystem::RefreshSessionManager()
 {
 	SessionManager = GetSessionManagerForWorld();
-	if (!SessionManager.IsValid())
-	{
-
-		return false;
-	}
-
-	return true;
+	return SessionManager.IsValid();
 }
 
 bool UOnlineSessionsSubsystem::IsNullSubsystemActive() const
@@ -634,440 +529,10 @@ FName UOnlineSessionsSubsystem::GetMapNameSettingKey()
 	return LabOnlineSession::MapNameSettingKey;
 }
 
-uint64 UOnlineSessionsSubsystem::BeginSessionRequest(
-	ULocalPlayer* RequestingLocalPlayer,
-	const ESessionRequestKind RequestKind)
-{
-	if (SessionOperationState != ESessionOperationState::Idle
-		|| !RefreshSessionManager()
-		|| (!RequestingLocalPlayer && !IsRunningDedicatedServer()))
-	{
-		return 0;
-	}
-
-	const uint64 RequestId = NextSessionRequestId++;
-	if (NextSessionRequestId == 0)
-	{
-		NextSessionRequestId = 1;
-	}
-
-	ActiveSessionRequestId = RequestId;
-	ActiveSessionRequestKind = RequestKind;
-	ActiveRequestLocalPlayer = RequestingLocalPlayer;
-	ActiveRequestLocalPlayerNetId = RequestingLocalPlayer
-		? RequestingLocalPlayer->GetPreferredUniqueNetId()
-		: FUniqueNetIdRepl();
-	ActiveRequestControllerId = RequestingLocalPlayer
-		? RequestingLocalPlayer->GetControllerId()
-		: 0;
-	bActiveRequestCancelRequested = false;
-	bActiveRequestCompletionBroadcast = false;
-	return RequestId;
-}
-
-bool UOnlineSessionsSubsystem::StartCreateRoomPhase(const uint64 RequestId)
-{
-	if (!IsCallbackForActiveRequest(RequestId)
-		|| !RefreshSessionManager()
-		|| SessionManager->GetNamedSession(NAME_GameSession))
-	{
-		return false;
-	}
-
-	CleanupOperationDelegateForState(SessionOperationState);
-	SessionOperationState = ESessionOperationState::CreatingSession;
-	CreateSessionCompleteDelegate = FOnCreateSessionCompleteDelegate::CreateUObject(
-		this,
-		&ThisClass::OnCreateSessionCompleted,
-		RequestId);
-	CreateSessionCompleteDelegateHandle =
-		SessionManager->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
-
-	FOnlineSessionSettings Settings;
-	const bool bDedicatedSession = IsRunningDedicatedServer()
-		|| (GetWorld() && GetWorld()->GetNetMode() == NM_DedicatedServer);
-	const bool bUseLobbySession = IsSteamSubsystemActive() && !bDedicatedSession;
-	Settings.NumPublicConnections = PendingNumPublicConnections;
-	Settings.bShouldAdvertise = true;
-	Settings.bAllowJoinInProgress = true;
-	Settings.bIsLANMatch = bPendingIsLAN;
-	Settings.bIsDedicated = bDedicatedSession;
-	Settings.bUsesPresence = bUseLobbySession;
-	Settings.bAllowJoinViaPresence = bUseLobbySession;
-	Settings.bUseLobbiesIfAvailable = bUseLobbySession;
-	Settings.Set(
-		LabOnlineSession::RoomNameSettingKey,
-		PendingRoomName,
-		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
-	Settings.Set(
-		LabOnlineSession::MapNameSettingKey,
-		PendingMapName,
-		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
-
-	const bool bStarted = ActiveRequestLocalPlayerNetId.IsValid()
-		? SessionManager->CreateSession(
-			*ActiveRequestLocalPlayerNetId,
-			NAME_GameSession,
-			Settings)
-		: SessionManager->CreateSession(
-			ActiveRequestControllerId,
-			NAME_GameSession,
-			Settings);
-	if (!bStarted)
-	{
-		CleanupOperationDelegateForState(SessionOperationState);
-		return false;
-	}
-
-	ArmSessionOperationTimeout(RequestId);
-	return true;
-}
-
-bool UOnlineSessionsSubsystem::StartFindRoomsPhase(const uint64 RequestId)
-{
-	if (!IsCallbackForActiveRequest(RequestId) || !RefreshSessionManager())
-	{
-		return false;
-	}
-
-	CleanupOperationDelegateForState(SessionOperationState);
-	SessionOperationState = ESessionOperationState::FindingSessions;
-	FindSessionsCompleteDelegate = FOnFindSessionsCompleteDelegate::CreateUObject(
-		this,
-		&ThisClass::OnFindSessionsCompleted,
-		RequestId);
-	FindSessionsCompleteDelegateHandle =
-		SessionManager->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
-
-	LastSessionSearch = MakeShared<FOnlineSessionSearch>();
-	LastSessionSearch->MaxSearchResults = PendingMaxSearchResults;
-	LastSessionSearch->bIsLanQuery = bPendingIsLAN;
-	if (bPendingUseLobbies)
-	{
-		LastSessionSearch->QuerySettings.Set(
-			SEARCH_LOBBIES,
-			true,
-			EOnlineComparisonOp::Equals);
-	}
-
-	const bool bStarted = ActiveRequestLocalPlayerNetId.IsValid()
-		? SessionManager->FindSessions(
-			*ActiveRequestLocalPlayerNetId,
-			LastSessionSearch.ToSharedRef())
-		: SessionManager->FindSessions(
-			ActiveRequestControllerId,
-			LastSessionSearch.ToSharedRef());
-	if (!bStarted)
-	{
-		CleanupOperationDelegateForState(SessionOperationState);
-		LastSessionSearch.Reset();
-		return false;
-	}
-
-	ArmSessionOperationTimeout(RequestId);
-	return true;
-}
-
-bool UOnlineSessionsSubsystem::StartJoinRoomPhase(const uint64 RequestId)
-{
-	if (!IsCallbackForActiveRequest(RequestId)
-		|| !RefreshSessionManager()
-		|| !PendingJoinSessionResult.OnlineResult.IsValid())
-	{
-		return false;
-	}
-
-	CleanupOperationDelegateForState(SessionOperationState);
-	SessionOperationState = ESessionOperationState::JoiningSession;
-	JoinSessionCompleteDelegate = FOnJoinSessionCompleteDelegate::CreateUObject(
-		this,
-		&ThisClass::OnJoinSessionCompleted,
-		RequestId);
-	JoinSessionCompleteDelegateHandle =
-		SessionManager->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
-
-	const bool bStarted = ActiveRequestLocalPlayerNetId.IsValid()
-		? SessionManager->JoinSession(
-			*ActiveRequestLocalPlayerNetId,
-			NAME_GameSession,
-			PendingJoinSessionResult.OnlineResult)
-		: SessionManager->JoinSession(
-			ActiveRequestControllerId,
-			NAME_GameSession,
-			PendingJoinSessionResult.OnlineResult);
-	if (!bStarted)
-	{
-		CleanupOperationDelegateForState(SessionOperationState);
-		return false;
-	}
-
-	ArmSessionOperationTimeout(RequestId);
-	return true;
-}
-
-bool UOnlineSessionsSubsystem::StartDestroySessionPhase(
-	const uint64 RequestId,
-	const bool bCleanupCanceledSession)
-{
-	if (!IsCallbackForActiveRequest(RequestId)
-		|| !RefreshSessionManager()
-		|| !SessionManager->GetNamedSession(NAME_GameSession))
-	{
-		return false;
-	}
-
-	CleanupOperationDelegateForState(SessionOperationState);
-	SessionOperationState = bCleanupCanceledSession
-		? ESessionOperationState::CleaningCanceledSession
-		: ESessionOperationState::DestroyingExistingSession;
-	DestroySessionCompleteDelegate = FOnDestroySessionCompleteDelegate::CreateUObject(
-		this,
-		&ThisClass::OnDestroySessionCompleted,
-		RequestId);
-	DestroySessionCompleteDelegateHandle =
-		SessionManager->AddOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegate);
-	if (!SessionManager->DestroySession(NAME_GameSession))
-	{
-		CleanupOperationDelegateForState(SessionOperationState);
-		return false;
-	}
-
-	ArmSessionOperationTimeout(RequestId);
-	return true;
-}
-
-void UOnlineSessionsSubsystem::ArmSessionOperationTimeout(const uint64 RequestId)
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
-	World->GetTimerManager().SetTimer(
-		SessionOperationTimeoutHandle,
-		FTimerDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleSessionOperationTimeout,
-			RequestId),
-		FMath::Max(SessionOperationTimeoutSeconds, 1.0f),
-		false);
-}
-
-void UOnlineSessionsSubsystem::HandleSessionOperationTimeout(const uint64 RequestId)
-{
-	if (!IsSessionRequestActive(RequestId))
-	{
-		return;
-	}
-
-	if (SessionOperationState == ESessionOperationState::CleaningCanceledSession)
-	{
-		FinishActiveSessionRequest();
-		return;
-	}
-
-	if (bActiveRequestCancelRequested)
-	{
-		return;
-	}
-
-	bActiveRequestCancelRequested = true;
-	switch (SessionOperationState)
-	{
-	case ESessionOperationState::DestroyingExistingSession:
-		SessionOperationState = ESessionOperationState::CancelingDestroy;
-		break;
-	case ESessionOperationState::FindingSessions:
-		SessionOperationState = ESessionOperationState::CancelingFind;
-		if (SessionManager.IsValid())
-		{
-			SessionManager->CancelFindSessions();
-		}
-		BroadcastActiveRequestFailure();
-		FinishActiveSessionRequest();
-		return;
-	case ESessionOperationState::CreatingSession:
-		SessionOperationState = ESessionOperationState::CancelingCreate;
-		break;
-	case ESessionOperationState::JoiningSession:
-		SessionOperationState = ESessionOperationState::CancelingJoin;
-		break;
-	default:
-		break;
-	}
-
-	BroadcastActiveRequestFailure();
-}
-
-void UOnlineSessionsSubsystem::BroadcastActiveRequestFailure()
-{
-	if (bActiveRequestCompletionBroadcast || ActiveSessionRequestId == 0)
-	{
-		return;
-	}
-
-	bActiveRequestCompletionBroadcast = true;
-	switch (ActiveSessionRequestKind)
-	{
-	case ESessionRequestKind::CreateRoom:
-		OnCreateRoomRequestComplete.Broadcast(ActiveSessionRequestId, false);
-		OnCreateSessionComplete.Broadcast(false);
-		break;
-	case ESessionRequestKind::FindRooms:
-		OnFindRoomsRequestComplete.Broadcast(
-			ActiveSessionRequestId,
-			TArray<FBlueprintSessionResult>(),
-			false);
-		OnFindSessionsComplete.Broadcast(TArray<FBlueprintSessionResult>(), false);
-		break;
-	case ESessionRequestKind::JoinRoom:
-		OnJoinRoomRequestComplete.Broadcast(ActiveSessionRequestId, false);
-		OnJoinSessionComplete.Broadcast(false);
-		break;
-	case ESessionRequestKind::DestroySession:
-		OnDestroySessionRequestComplete.Broadcast(ActiveSessionRequestId, false);
-		OnDestroySessionComplete.Broadcast(false);
-		break;
-	case ESessionRequestKind::QuickMatch:
-		OnQuickMatchRequestComplete.Broadcast(ActiveSessionRequestId, false, false);
-		break;
-	default:
-		break;
-	}
-}
-
-void UOnlineSessionsSubsystem::FinishActiveSessionRequest()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
-	}
-
-	CleanupOperationDelegateForState(SessionOperationState);
-	SessionOperationState = ESessionOperationState::Idle;
-	ActiveSessionRequestKind = ESessionRequestKind::None;
-	ActiveSessionRequestId = 0;
-	ActiveRequestLocalPlayer.Reset();
-	ActiveRequestLocalPlayerNetId = FUniqueNetIdRepl();
-	ActiveRequestControllerId = 0;
-	bActiveRequestCancelRequested = false;
-	bActiveRequestCompletionBroadcast = false;
-	LastSessionSearch.Reset();
-	PendingJoinSessionResult = FBlueprintSessionResult();
-}
-
-void UOnlineSessionsSubsystem::CleanupOperationDelegateForState(
-	const ESessionOperationState OperationState)
-{
-	if (!SessionManager.IsValid())
-	{
-		return;
-	}
-
-	switch (OperationState)
-	{
-	case ESessionOperationState::CreatingSession:
-	case ESessionOperationState::CancelingCreate:
-		if (CreateSessionCompleteDelegateHandle.IsValid())
-		{
-			SessionManager->ClearOnCreateSessionCompleteDelegate_Handle(
-				CreateSessionCompleteDelegateHandle);
-			CreateSessionCompleteDelegateHandle.Reset();
-		}
-		break;
-	case ESessionOperationState::FindingSessions:
-	case ESessionOperationState::CancelingFind:
-		if (FindSessionsCompleteDelegateHandle.IsValid())
-		{
-			SessionManager->ClearOnFindSessionsCompleteDelegate_Handle(
-				FindSessionsCompleteDelegateHandle);
-			FindSessionsCompleteDelegateHandle.Reset();
-		}
-		break;
-	case ESessionOperationState::JoiningSession:
-	case ESessionOperationState::CancelingJoin:
-		if (JoinSessionCompleteDelegateHandle.IsValid())
-		{
-			SessionManager->ClearOnJoinSessionCompleteDelegate_Handle(
-				JoinSessionCompleteDelegateHandle);
-			JoinSessionCompleteDelegateHandle.Reset();
-		}
-		break;
-	case ESessionOperationState::DestroyingExistingSession:
-	case ESessionOperationState::CancelingDestroy:
-	case ESessionOperationState::CleaningCanceledSession:
-		if (DestroySessionCompleteDelegateHandle.IsValid())
-		{
-			SessionManager->ClearOnDestroySessionCompleteDelegate_Handle(
-				DestroySessionCompleteDelegateHandle);
-			DestroySessionCompleteDelegateHandle.Reset();
-		}
-		break;
-	default:
-		break;
-	}
-}
-
-bool UOnlineSessionsSubsystem::IsCallbackForActiveRequest(
-	const uint64 CallbackRequestId) const
-{
-	return CallbackRequestId != 0
-		&& CallbackRequestId == ActiveSessionRequestId;
-}
-
-bool UOnlineSessionsSubsystem::IsActiveLocalPlayerIdentityValid() const
-{
-	if (IsRunningDedicatedServer())
-	{
-		return true;
-	}
-
-	const ULocalPlayer* LocalPlayer = ActiveRequestLocalPlayer.Get();
-	if (!LocalPlayer || LocalPlayer->GetControllerId() != ActiveRequestControllerId)
-	{
-		return false;
-	}
-
-	if (!ActiveRequestLocalPlayerNetId.IsValid())
-	{
-		return true;
-	}
-
-	const FUniqueNetIdRepl CurrentNetId = LocalPlayer->GetPreferredUniqueNetId();
-	return CurrentNetId.IsValid()
-		&& *CurrentNetId == *ActiveRequestLocalPlayerNetId;
-}
-
-ULocalPlayer* UOnlineSessionsSubsystem::ResolveDefaultLocalPlayer() const
-{
-	return GetWorld() ? GetWorld()->GetFirstLocalPlayerFromController() : nullptr;
-}
-
-APlayerController* UOnlineSessionsSubsystem::ResolveActiveLocalPlayerController() const
-{
-	const ULocalPlayer* LocalPlayer = ActiveRequestLocalPlayer.Get();
-	return LocalPlayer && GetWorld()
-		? LocalPlayer->GetPlayerController(GetWorld())
-		: nullptr;
-}
-
-void UOnlineSessionsSubsystem::HandleCanceledCreateOrJoinCompletion(
-	const uint64 RequestId)
-{
-	if (SessionManager.IsValid()
-		&& SessionManager->GetNamedSession(NAME_GameSession)
-		&& StartDestroySessionPhase(RequestId, true))
-	{
-		return;
-	}
-
-	FinishActiveSessionRequest();
-}
-
 void UOnlineSessionsSubsystem::ClearSessionDelegates()
 {
+	ClearSessionLifecycleOperation();
+
 	if (!SessionManager.IsValid())
 	{
 		return;
@@ -1110,289 +575,7 @@ void UOnlineSessionsSubsystem::ClearSessionDelegates()
 	}
 }
 
-void UOnlineSessionsSubsystem::OnCreateSessionCompleted(
-	FName SessionName,
-	const bool bWasSuccessful,
-	const uint64 CallbackRequestId)
-{
-	static_cast<void>(SessionName);
-
-	if (!IsCallbackForActiveRequest(CallbackRequestId))
-	{
-		return;
-	}
-
-	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
-	const bool bIdentityValid = IsActiveLocalPlayerIdentityValid();
-	const bool bCanceled = bActiveRequestCancelRequested || !bIdentityValid;
-	CleanupOperationDelegateForState(SessionOperationState);
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
-	}
-
-	if (bCanceled)
-	{
-		if (!bActiveRequestCompletionBroadcast)
-		{
-			BroadcastActiveRequestFailure();
-		}
-		HandleCanceledCreateOrJoinCompletion(CallbackRequestId);
-		return;
-	}
-
-	bActiveRequestCompletionBroadcast = true;
-	if (CompletedRequestKind == ESessionRequestKind::QuickMatch)
-	{
-		OnQuickMatchRequestComplete.Broadcast(
-			CallbackRequestId,
-			bWasSuccessful,
-			bWasSuccessful);
-	}
-	else if (CompletedRequestKind == ESessionRequestKind::CreateRoom)
-	{
-		OnCreateRoomRequestComplete.Broadcast(CallbackRequestId, bWasSuccessful);
-		OnCreateSessionComplete.Broadcast(bWasSuccessful);
-	}
-
-	FinishActiveSessionRequest();
-}
-
-void UOnlineSessionsSubsystem::OnFindSessionsCompleted(
-	const bool bWasSuccessful,
-	const uint64 CallbackRequestId)
-{
-	if (!IsCallbackForActiveRequest(CallbackRequestId))
-	{
-		return;
-	}
-
-	TArray<FBlueprintSessionResult> Results;
-	if (bWasSuccessful && LastSessionSearch.IsValid())
-	{
-		for (const FOnlineSessionSearchResult& SearchResult : LastSessionSearch->SearchResults)
-		{
-			FBlueprintSessionResult BlueprintResult;
-			BlueprintResult.OnlineResult = SearchResult;
-			Results.Add(BlueprintResult);
-		}
-	}
-
-	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
-	const bool bIdentityValid = IsActiveLocalPlayerIdentityValid();
-	const bool bCanceled = bActiveRequestCancelRequested || !bIdentityValid;
-	CleanupOperationDelegateForState(SessionOperationState);
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
-	}
-
-	if (bCanceled)
-	{
-		if (!bActiveRequestCompletionBroadcast)
-		{
-			BroadcastActiveRequestFailure();
-		}
-		FinishActiveSessionRequest();
-		return;
-	}
-
-	if (CompletedRequestKind == ESessionRequestKind::QuickMatch)
-	{
-		if (bWasSuccessful)
-		{
-			TArray<const FBlueprintSessionResult*> JoinableResults;
-			JoinableResults.Reserve(Results.Num());
-
-			for (const FBlueprintSessionResult& Result : Results)
-			{
-				if (Result.OnlineResult.IsValid()
-					&& Result.OnlineResult.Session.NumOpenPublicConnections > 0)
-				{
-					JoinableResults.Add(&Result);
-				}
-			}
-
-			if (!JoinableResults.IsEmpty())
-			{
-				const int32 SelectedResultIndex = FMath::RandHelper(JoinableResults.Num());
-				PendingJoinSessionResult = *JoinableResults[SelectedResultIndex];
-				if (StartJoinRoomPhase(CallbackRequestId))
-				{
-					return;
-				}
-
-				BroadcastActiveRequestFailure();
-				FinishActiveSessionRequest();
-				return;
-			}
-		}
-
-		if (StartCreateRoomPhase(CallbackRequestId))
-		{
-			return;
-		}
-
-		BroadcastActiveRequestFailure();
-		FinishActiveSessionRequest();
-		return;
-	}
-
-	bActiveRequestCompletionBroadcast = true;
-	OnFindRoomsRequestComplete.Broadcast(
-		CallbackRequestId,
-		Results,
-		bWasSuccessful);
-	OnFindSessionsComplete.Broadcast(Results, bWasSuccessful);
-	FinishActiveSessionRequest();
-}
-
-void UOnlineSessionsSubsystem::OnJoinSessionCompleted(
-	FName SessionName,
-	const EOnJoinSessionCompleteResult::Type Result,
-	const uint64 CallbackRequestId)
-{
-	if (!IsCallbackForActiveRequest(CallbackRequestId))
-	{
-		return;
-	}
-
-	bool bWasSuccessful = Result == EOnJoinSessionCompleteResult::Success;
-	FString ConnectString;
-	if (bWasSuccessful && SessionManager.IsValid())
-	{
-		bWasSuccessful = SessionManager->GetResolvedConnectString(SessionName, ConnectString);
-	}
-
-	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
-	const bool bIdentityValid = IsActiveLocalPlayerIdentityValid();
-	const bool bCanceled = bActiveRequestCancelRequested || !bIdentityValid;
-	CleanupOperationDelegateForState(SessionOperationState);
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
-	}
-
-	if (bCanceled)
-	{
-		if (!bActiveRequestCompletionBroadcast)
-		{
-			BroadcastActiveRequestFailure();
-		}
-		HandleCanceledCreateOrJoinCompletion(CallbackRequestId);
-		return;
-	}
-
-	bActiveRequestCompletionBroadcast = true;
-	if (bWasSuccessful)
-	{
-		if (APlayerController* PlayerController = ResolveActiveLocalPlayerController())
-		{
-			PlayerController->ClientTravel(ConnectString, TRAVEL_Absolute);
-		}
-		else
-		{
-			bWasSuccessful = false;
-		}
-	}
-
-	if (CompletedRequestKind == ESessionRequestKind::QuickMatch)
-	{
-		OnQuickMatchRequestComplete.Broadcast(
-			CallbackRequestId,
-			bWasSuccessful,
-			false);
-	}
-	else if (CompletedRequestKind == ESessionRequestKind::JoinRoom)
-	{
-		OnJoinRoomRequestComplete.Broadcast(CallbackRequestId, bWasSuccessful);
-		OnJoinSessionComplete.Broadcast(bWasSuccessful);
-	}
-
-	FinishActiveSessionRequest();
-}
-
-void UOnlineSessionsSubsystem::OnStartSessionCompleted(FName SessionName, const bool bWasSuccessful)
-{
-	if (SessionManager.IsValid() && StartSessionCompleteDelegateHandle.IsValid())
-	{
-		SessionManager->ClearOnStartSessionCompleteDelegate_Handle(StartSessionCompleteDelegateHandle);
-		StartSessionCompleteDelegateHandle.Reset();
-	}
-
-
-	OnStartSessionComplete.Broadcast(bWasSuccessful);
-}
-
-void UOnlineSessionsSubsystem::OnEndSessionCompleted(FName SessionName, const bool bWasSuccessful)
-{
-	if (SessionManager.IsValid() && EndSessionCompleteDelegateHandle.IsValid())
-	{
-		SessionManager->ClearOnEndSessionCompleteDelegate_Handle(EndSessionCompleteDelegateHandle);
-		EndSessionCompleteDelegateHandle.Reset();
-	}
-
-
-	OnEndSessionComplete.Broadcast(bWasSuccessful);
-}
-
-void UOnlineSessionsSubsystem::OnDestroySessionCompleted(
-	FName SessionName,
-	const bool bWasSuccessful,
-	const uint64 CallbackRequestId)
-{
-	static_cast<void>(SessionName);
-
-	if (!IsCallbackForActiveRequest(CallbackRequestId))
-	{
-		return;
-	}
-
-	const ESessionOperationState CompletedOperationState = SessionOperationState;
-	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
-	const bool bIdentityValid = IsActiveLocalPlayerIdentityValid();
-	const bool bCanceled = bActiveRequestCancelRequested || !bIdentityValid;
-	CleanupOperationDelegateForState(SessionOperationState);
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
-	}
-
-	if (CompletedOperationState == ESessionOperationState::CleaningCanceledSession)
-	{
-		FinishActiveSessionRequest();
-		return;
-	}
-
-	if (bCanceled)
-	{
-		if (!bActiveRequestCompletionBroadcast)
-		{
-			BroadcastActiveRequestFailure();
-		}
-		FinishActiveSessionRequest();
-		return;
-	}
-
-	if (CompletedRequestKind == ESessionRequestKind::QuickMatch)
-	{
-		if (bWasSuccessful && StartFindRoomsPhase(CallbackRequestId))
-		{
-			return;
-		}
-
-		BroadcastActiveRequestFailure();
-		FinishActiveSessionRequest();
-		return;
-	}
-
-	bActiveRequestCompletionBroadcast = true;
-	OnDestroySessionRequestComplete.Broadcast(CallbackRequestId, bWasSuccessful);
-	OnDestroySessionComplete.Broadcast(bWasSuccessful);
-	FinishActiveSessionRequest();
-}
-
-void UOnlineSessionsSubsystem::OnUpdateSessionCompleted(FName SessionName, const bool bWasSuccessful)
+void UOnlineSessionsSubsystem::OnUpdateSessionCompleted(FName, const bool)
 {
 	if (SessionManager.IsValid() && UpdateSessionCompleteDelegateHandle.IsValid())
 	{
@@ -1400,8 +583,6 @@ void UOnlineSessionsSubsystem::OnUpdateSessionCompleted(FName SessionName, const
 		UpdateSessionCompleteDelegateHandle.Reset();
 	}
 
-
-	OnUpdateSessionComplete.Broadcast(bWasSuccessful);
 }
 
 void UOnlineSessionsSubsystem::HandleNetworkFailure(
@@ -1414,6 +595,15 @@ void UOnlineSessionsSubsystem::HandleNetworkFailure(
 
 	if (World && GetWorld() && World != GetWorld())
 	{
+		return;
+	}
+	if (bVoluntaryMatchExitInProgress)
+	{
+		if (UPdGameInstance* PdGameInstance =
+			Cast<UPdGameInstance>(GetGameInstance()))
+		{
+			PdGameInstance->ClearPendingTitleGameResult();
+		}
 		return;
 	}
 
@@ -1432,11 +622,16 @@ void UOnlineSessionsSubsystem::HandleNetworkFailure(
 
 			if (World)
 			{
-				World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(World, [World]()
+				const ULobbyModeDefinition* LobbyDefinition =
+					ULobbyModeDefinition::ResolveDefaultDefinition();
+				const FString TitleMapName = LobbyDefinition
+					? LobbyDefinition->GetTitleTravelMapName()
+					: FString();
+				World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(World, [World, TitleMapName]()
 				{
-					if (IsValid(World))
+					if (IsValid(World) && !TitleMapName.IsEmpty())
 					{
-						UGameplayStatics::OpenLevel(World, FName(LabOnlineSession::TitleTravelMapName));
+						UGameplayStatics::OpenLevel(World, FName(*TitleMapName));
 					}
 				}));
 			}

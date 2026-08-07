@@ -5,6 +5,7 @@
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Lobby/LobbyPlayerStateComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
+#include "Component/Player/StatUpgradeComponent.h"
 #include "Component/Skin/SkinComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyHUD.h"
@@ -36,6 +37,9 @@ ALobbyPlayerState::ALobbyPlayerState(
 	LobbyBasicAttributeSet =
 		CreateDefaultSubobject<UBasicAttributeSet>(
 			TEXT("LobbyBasicAttributeSet"));
+	LobbyStatUpgradeComponent =
+		CreateDefaultSubobject<UStatUpgradeComponent>(
+			TEXT("LobbyStatUpgradeComponent"));
 }
 
 void ALobbyPlayerState::BeginPlay()
@@ -176,16 +180,20 @@ void ALobbyPlayerState::ImportPlayerMatchIdentity(
 	}
 }
 
-void ALobbyPlayerState::InitializeLobbyPreviewAbilitySystem(
-	const ULobbyPreviewDefinition* PreviewDefinition)
+void ALobbyPlayerState::InitializeLobbyPreviewAbilitySystem()
 {
 	if (LobbyPlayerStateComponent)
 	{
 		LobbyPlayerStateComponent
 			->InitializePreviewAbilitySystem(
 				GetPdAbilitySystemComponent(),
-				LobbyBasicAttributeSet,
-				PreviewDefinition);
+				LobbyBasicAttributeSet);
+	}
+
+	if (HasAuthority() && LobbyStatUpgradeComponent)
+	{
+		LobbyStatUpgradeComponent
+			->ApplyConfiguredAttributeDefaults();
 	}
 }
 

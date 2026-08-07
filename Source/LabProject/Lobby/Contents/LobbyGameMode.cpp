@@ -7,14 +7,15 @@
 #include "Component/Lobby/LobbyPlayerCoordinatorComponent.h"
 #include "Component/Lobby/LobbyRespawnComponent.h"
 #include "Definition/Lobby/LobbyModeDefinition.h"
-#include "Definition/Lobby/LobbyPreviewDefinition.h"
+#include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
 #include "Lobby/Contents/LobbyPlayerState.h"
 #include "Lobby/Coordination/LobbyMatchCoordinator.h"
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
-#include "Lobby/Services/LobbyPreviewGrantService.h"
+#include "Mode/PdPlayerController.h"
+#include "Provision/DefaultPlayerProvisioner.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyGameMode)
 
@@ -40,9 +41,9 @@ ALobbyGameMode::ALobbyGameMode(
 	MatchCoordinator =
 		CreateDefaultSubobject<ULobbyMatchCoordinator>(
 			TEXT("LobbyMatchCoordinator"));
-	PreviewGrantService =
-		CreateDefaultSubobject<ULobbyPreviewGrantService>(
-			TEXT("LobbyPreviewGrantService"));
+	DefaultPlayerProvisioner =
+		CreateDefaultSubobject<UDefaultPlayerProvisioner>(
+			TEXT("DefaultPlayerProvisioner"));
 	TravelCoordinator =
 		CreateDefaultSubobject<ULobbyTravelCoordinator>(
 			TEXT("LobbyTravelCoordinator"));
@@ -101,19 +102,10 @@ void ALobbyGameMode::EndPlay(
 	{
 		TravelCoordinator->Shutdown();
 	}
-	if (PreviewGrantService)
+	if (DefaultPlayerProvisioner)
 	{
-		PreviewGrantService->Shutdown();
+		DefaultPlayerProvisioner->Shutdown();
 	}
-	if (LobbyPlayerCoordinatorComponent)
-	{
-		LobbyPlayerCoordinatorComponent->Shutdown();
-	}
-	if (LobbyRespawnComponent)
-	{
-		LobbyRespawnComponent->Shutdown();
-	}
-
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -174,16 +166,13 @@ void ALobbyGameMode::PostLogin(
 				NewPlayer,
 				LobbyPlayerState);
 	}
+	if (APdPlayerController* PdPlayerController =
+		Cast<APdPlayerController>(NewPlayer))
+	{
+		PdPlayerController->Client_RequestLocalCosmeticProfileSync();
+	}
 	RefreshLobbyUIForAllPlayers();
-	if (MatchCoordinator)
-	{
-		MatchCoordinator
-			->UpdateFullLobbyAutoStartTimer();
-	}
-	if (PreviewGrantService)
-	{
-		PreviewGrantService->ScheduleGrant(NewPlayer);
-	}
+	ProvisionLobbyPlayer(NewPlayer);
 }
 
 void ALobbyGameMode::
@@ -199,10 +188,7 @@ HandleStartingNewPlayer_Implementation(
 
 	Super::HandleStartingNewPlayer_Implementation(
 		NewPlayer);
-	if (PreviewGrantService)
-	{
-		PreviewGrantService->ScheduleGrant(NewPlayer);
-	}
+	ProvisionLobbyPlayer(NewPlayer);
 	const ALobbyGameState* LobbyGameState =
 		GetGameState<ALobbyGameState>();
 	if (LobbyGameState
@@ -241,16 +227,12 @@ GetDefaultPawnClassForController_Implementation(
 
 void ALobbyGameMode::Logout(AController* Exiting)
 {
-	if (PreviewGrantService)
+	if (DefaultPlayerProvisioner)
 	{
-		PreviewGrantService->HandlePlayerLogout(Exiting);
+		DefaultPlayerProvisioner->ClearRuntimeStateForController(
+			Exiting,
+			Exiting ? Exiting->PlayerState : nullptr);
 	}
-	if (LobbyRespawnComponent)
-	{
-		LobbyRespawnComponent->HandlePlayerLogout(
-			Exiting);
-	}
-
 	Super::Logout(Exiting);
 
 	if (LobbyPlayerCoordinatorComponent)
@@ -421,54 +403,28 @@ ALobbyGameMode::GetMatchRuleDefinition() const
 		: GetDefault<UMatchRuleDefinition>();
 }
 
-const ULobbyPreviewDefinition*
-ALobbyGameMode::GetLobbyPreviewDefinition() const
+const UDefaultProvisionDefinition*
+ALobbyGameMode::GetDefaultProvisionDefinition() const
 {
 	return LobbyConfigurationComponent
 		? LobbyConfigurationComponent
-			->GetLobbyPreviewDefinition()
-		: GetDefault<ULobbyPreviewDefinition>();
+			->GetDefaultProvisionDefinition()
+		: GetDefault<UDefaultProvisionDefinition>();
 }
 
-float ALobbyGameMode::GetFullLobbyAutoStartDelay() const
+void ALobbyGameMode::ProvisionLobbyPlayer(
+	APlayerController* PlayerController)
 {
-	const ULobbyModeDefinition* Definition =
-		GetLobbyModeDefinition();
-	return Definition
-		? FMath::Max(
-			Definition->GetFlowSettings()
-				.FullLobbyAutoStartDelay,
-			0.0f)
-		: 0.0f;
-}
+	if (!DefaultPlayerProvisioner || !PlayerController)
+	{
+		return;
+	}
 
-bool ALobbyGameMode::
-ShouldAutoCreateDedicatedServerSession() const
-{
-	const ULobbyModeDefinition* Definition =
-		GetLobbyModeDefinition();
-	return Definition
-		&& Definition->GetDedicatedSessionSettings()
-			.bAutoCreateDedicatedServerSession;
-}
-
-FString ALobbyGameMode::GetDedicatedServerRoomName() const
-{
-	const ULobbyModeDefinition* Definition =
-		GetLobbyModeDefinition();
-	return Definition
-		? Definition->GetDedicatedSessionSettings()
-			.DedicatedServerRoomName
-		: FString();
-}
-
-bool ALobbyGameMode::IsDedicatedServerSessionLAN() const
-{
-	const ULobbyModeDefinition* Definition =
-		GetLobbyModeDefinition();
-	return Definition
-		&& Definition->GetDedicatedSessionSettings()
-			.bDedicatedServerSessionLAN;
+	DefaultPlayerProvisioner->SetDefinition(
+		GetDefaultProvisionDefinition());
+	DefaultPlayerProvisioner->ProvisionPlayer(
+		PlayerController,
+		EDefaultProvisionMode::Lobby);
 }
 
 void ALobbyGameMode::EnsureLobbyFrameworkClasses()

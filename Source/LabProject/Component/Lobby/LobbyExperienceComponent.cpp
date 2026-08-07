@@ -6,7 +6,6 @@
 #include "Experience/PdWorldSettings.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyGameState.h"
-#include "Lobby/Services/LobbyPreviewGrantService.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyExperienceComponent)
 
@@ -205,12 +204,7 @@ void ULobbyExperienceComponent::ResumeWaitingPlayers()
 			GameMode->RestartPlayer(PlayerController);
 		}
 
-		if (ULobbyPreviewGrantService* PreviewGrantService =
-			GameMode->GetPreviewGrantService())
-		{
-			PreviewGrantService->ScheduleGrant(
-				PlayerController);
-		}
+		GameMode->ProvisionLobbyPlayer(PlayerController);
 	}
 
 	GameMode->RefreshLobbyUIForAllPlayers();

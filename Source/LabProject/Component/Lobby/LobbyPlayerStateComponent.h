@@ -6,7 +6,6 @@
 #include "LobbyPlayerStateComponent.generated.h"
 
 class UBasicAttributeSet;
-class ULobbyPreviewDefinition;
 class UPdAbilitySystemComponent;
 
 DECLARE_MULTICAST_DELEGATE(FOnLobbyRuntimeStateChanged);
@@ -53,8 +52,7 @@ public:
 
 	void InitializePreviewAbilitySystem(
 		UPdAbilitySystemComponent* AbilitySystemComponent,
-		UBasicAttributeSet* BasicAttributeSet,
-		const ULobbyPreviewDefinition* PreviewDefinition);
+		UBasicAttributeSet* BasicAttributeSet);
 
 private:
 	bool HasAuthority() const;

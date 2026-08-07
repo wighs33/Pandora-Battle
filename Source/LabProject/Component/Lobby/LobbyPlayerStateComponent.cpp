@@ -2,7 +2,6 @@
 
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Definition/Lobby/LobbyPreviewDefinition.h"
 #include "GameFramework/PlayerState.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -209,8 +208,7 @@ ULobbyPlayerStateComponent::BuildConfirmedPlayerMatchIdentity() const
 
 void ULobbyPlayerStateComponent::InitializePreviewAbilitySystem(
 	UPdAbilitySystemComponent* AbilitySystemComponent,
-	UBasicAttributeSet* BasicAttributeSet,
-	const ULobbyPreviewDefinition* PreviewDefinition)
+	UBasicAttributeSet* BasicAttributeSet)
 {
 	if (!AbilitySystemComponent || !BasicAttributeSet)
 	{
@@ -223,39 +221,6 @@ void ULobbyPlayerStateComponent::InitializePreviewAbilitySystem(
 		AbilitySystemComponent->AddSpawnedAttribute(
 			BasicAttributeSet);
 	}
-
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	const ULobbyPreviewDefinition* EffectiveDefinition =
-		PreviewDefinition
-			? PreviewDefinition
-			: GetDefault<ULobbyPreviewDefinition>();
-	const FLobbyPreviewAttributeSettings& Attributes =
-		EffectiveDefinition->GetPreviewAttributeSettings();
-	AbilitySystemComponent->ApplyAttributeDefaultValue(
-		UBasicAttributeSet::GetMaxHealthAttribute(),
-		Attributes.MaxHealth);
-	AbilitySystemComponent->ApplyAttributeDefaultValue(
-		UBasicAttributeSet::GetHealthAttribute(),
-		Attributes.Health);
-	AbilitySystemComponent->ApplyAttributeDefaultValue(
-		UBasicAttributeSet::GetShieldAttribute(),
-		Attributes.Shield);
-	AbilitySystemComponent->ApplyAttributeDefaultValue(
-		UBasicAttributeSet::GetMaxManaAttribute(),
-		Attributes.MaxMana);
-	AbilitySystemComponent->ApplyAttributeDefaultValue(
-		UBasicAttributeSet::GetManaAttribute(),
-		Attributes.Mana);
-	AbilitySystemComponent->ApplyAttributeDefaultValue(
-		UBasicAttributeSet::GetMaxStaminaAttribute(),
-		Attributes.MaxStamina);
-	AbilitySystemComponent->ApplyAttributeDefaultValue(
-		UBasicAttributeSet::GetStaminaAttribute(),
-		Attributes.Stamina);
 }
 
 bool ULobbyPlayerStateComponent::HasAuthority() const

@@ -232,11 +232,17 @@ void ULobbyUserWidget::RefreshUI()
 
 	if (Editable_PlayerName)
 	{
+		const bool bPreserveLocalNicknameDraft =
+			bLocalPlayer && Editable_PlayerName->HasKeyboardFocus();
+
 		Editable_PlayerName->SetVisibility(ESlateVisibility::Visible);
 		Editable_PlayerName->SetHintText(PlayerState->GetNicknameHint());
-		Editable_PlayerName->SetText(PlayerState->IsUsingNicknameHint()
-			? FText::GetEmpty()
-			: PlayerState->GetNickname());
+		if (!bPreserveLocalNicknameDraft)
+		{
+			Editable_PlayerName->SetText(PlayerState->IsUsingNicknameHint()
+				? FText::GetEmpty()
+				: PlayerState->GetNickname());
+		}
 		Editable_PlayerName->SetIsReadOnly(!bLocalPlayer);
 	}
 
@@ -249,8 +255,6 @@ void ULobbyUserWidget::HandleKickClicked()
 	{
 		return;
 	}
-
-
 
 	if (ALobbyPlayerController* LobbyPlayerController = Cast<ALobbyPlayerController>(GetOwningPlayer()))
 	{

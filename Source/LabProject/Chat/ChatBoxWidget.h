@@ -16,8 +16,6 @@ class LABPROJECT_API UChatBoxWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UChatBoxWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
@@ -45,10 +43,10 @@ public:
 	bool IsChatFocused() const { return bChatFocused; }
 
 protected:
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Chat|Bind")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!Chat|Bind")
 	TObjectPtr<UScrollBox> ScrollBox_ChatMessages;
 
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Chat|Bind")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!Chat|Bind")
 	TObjectPtr<UEditableText> TxtBox_ChatInput;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Chat|UI")
@@ -57,18 +55,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Chat|Input", meta = (ClampMin = "1.0"))
 	float ScrollMultiplier = 60.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Chat|Fallback")
-	TArray<FName> ChatScrollBoxCandidateNames;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Chat|Fallback")
-	TArray<FName> ChatInputCandidateNames;
-
 private:
 	UFUNCTION()
 	void HandleChatTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
-	void ApplyWidgetDefinitionSettings();
-	void CacheWidgets();
 	bool ApplyRoutedChatInput(UEditableText* ChatInputText);
 	bool ReleaseRoutedChatInput();
 	void RestoreGameInputFallback() const;
@@ -80,12 +70,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UChatControllerComponent> ChatControllerComponent;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UEditableText> CachedChatInputText;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UScrollBox> CachedChatScrollBox;
 
 	FGuid ChatModalInputToken;
 	bool bChatFocused = false;

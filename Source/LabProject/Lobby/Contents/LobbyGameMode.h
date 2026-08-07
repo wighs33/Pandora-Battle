@@ -13,8 +13,8 @@ class ULobbyExperienceComponent;
 class ULobbyMatchCoordinator;
 class ULobbyModeDefinition;
 class ULobbyPlayerCoordinatorComponent;
-class ULobbyPreviewDefinition;
-class ULobbyPreviewGrantService;
+class UDefaultProvisionDefinition;
+class UDefaultPlayerProvisioner;
 class ULobbyRespawnComponent;
 class ULobbyTravelCoordinator;
 class UMatchRuleDefinition;
@@ -70,6 +70,7 @@ public:
 	void RequestLobbyPlayerRespawn(
 		AController* PlayerController,
 		APawn* DeadPawn);
+	void ProvisionLobbyPlayer(APlayerController* PlayerController);
 
 	UFUNCTION(BlueprintPure, Category = "!Lobby")
 	FString GetRoomTravelMapName() const;
@@ -125,10 +126,6 @@ public:
 	{
 		return MatchCoordinator.Get();
 	}
-	ULobbyPreviewGrantService* GetPreviewGrantService() const
-	{
-		return PreviewGrantService.Get();
-	}
 	ULobbyTravelCoordinator* GetTravelCoordinator() const
 	{
 		return TravelCoordinator.Get();
@@ -138,13 +135,8 @@ public:
 		GetLobbyModeDefinition() const;
 	const UMatchRuleDefinition*
 		GetMatchRuleDefinition() const;
-	const ULobbyPreviewDefinition*
-		GetLobbyPreviewDefinition() const;
-
-	float GetFullLobbyAutoStartDelay() const;
-	bool ShouldAutoCreateDedicatedServerSession() const;
-	FString GetDedicatedServerRoomName() const;
-	bool IsDedicatedServerSessionLAN() const;
+	const UDefaultProvisionDefinition*
+		GetDefaultProvisionDefinition() const;
 
 protected:
 	void EnsureLobbyFrameworkClasses();
@@ -166,7 +158,6 @@ private:
 	friend class ULobbyConfigurationComponent;
 	friend class ULobbyExperienceComponent;
 	friend class ULobbyMatchCoordinator;
-	friend class ULobbyPreviewGrantService;
 	friend class ULobbyTravelCoordinator;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components",
@@ -193,8 +184,8 @@ private:
 	TObjectPtr<ULobbyMatchCoordinator> MatchCoordinator;
 
 	UPROPERTY(Transient)
-	TObjectPtr<ULobbyPreviewGrantService>
-		PreviewGrantService;
+	TObjectPtr<UDefaultPlayerProvisioner>
+		DefaultPlayerProvisioner;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ULobbyTravelCoordinator> TravelCoordinator;

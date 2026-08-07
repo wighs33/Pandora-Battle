@@ -6,6 +6,7 @@
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Lobby/UI/GameResultPlayerStatEntryWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/TeamColorUtils.h"
@@ -161,6 +162,11 @@ void UGameResultWidget::SetExitToLobbyEnabled(const bool bInExitToLobbyEnabled)
 	RefreshUI();
 }
 
+void UGameResultWidget::SetCloseOnlyOnExit(const bool bInCloseOnlyOnExit)
+{
+	bCloseOnlyOnExit = bInCloseOnlyOnExit;
+}
+
 void UGameResultWidget::SetShowRewards(const bool bInShowRewards)
 {
 	bShowRewards = bInShowRewards;
@@ -200,6 +206,18 @@ void UGameResultWidget::HandleExitClicked()
 		PlayerController->bShowMouseCursor = false;
 	}
 
+	if (bCloseOnlyOnExit)
+	{
+		RemoveFromParent();
+		if (PlayerController)
+		{
+			UWidgetBlueprintLibrary::SetInputMode_GameOnly(PlayerController);
+			PlayerController->bEnableClickEvents = false;
+			PlayerController->bEnableMouseOverEvents = false;
+		}
+		return;
+	}
+
 	UWorld* World = GetWorld();
 	const FString LobbyMapName = GetResolvedLobbyTravelMapName();
 	if (bExitToLobbyEnabled && World && World->GetAuthGameMode() && !LobbyMapName.IsEmpty())
@@ -220,6 +238,10 @@ void UGameResultWidget::HandleExitClicked()
 		}
 
 		bPendingLobbyTravelAfterEndSession = true;
+		if (Btn_Exit)
+		{
+			Btn_Exit->SetIsEnabled(false);
+		}
 		EndSessionCompleteHandle = OnlineSessionsSubsystem->OnEndSessionComplete.AddUObject(
 			this,
 			&ThisClass::HandleEndSessionForExit);
@@ -245,8 +267,9 @@ void UGameResultWidget::HandleExitClicked()
 
 FString UGameResultWidget::GetResolvedLobbyTravelMapName() const
 {
-	const FString LongPackageName = LobbyMap.ToSoftObjectPath().GetLongPackageName();
-	return LongPackageName.IsEmpty() ? LobbyTravelMapName : LongPackageName;
+	const ULobbyModeDefinition* Definition =
+		ULobbyModeDefinition::ResolveDefaultDefinition();
+	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 
 void UGameResultWidget::ResolveExitButton()
@@ -275,8 +298,6 @@ void UGameResultWidget::ResolveExitButton()
 
 void UGameResultWidget::HandleEndSessionForExit(const bool bWasSuccessful)
 {
-	static_cast<void>(bWasSuccessful);
-
 	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr)
@@ -288,11 +309,33 @@ void UGameResultWidget::HandleEndSessionForExit(const bool bWasSuccessful)
 		}
 	}
 
-	if (bPendingLobbyTravelAfterEndSession)
+	if (!bPendingLobbyTravelAfterEndSession)
 	{
-		bPendingLobbyTravelAfterEndSession = false;
-		TravelToLobbyMap();
+		return;
 	}
+
+	bPendingLobbyTravelAfterEndSession = false;
+	if (!bWasSuccessful)
+	{
+		if (Btn_Exit)
+		{
+			Btn_Exit->SetIsEnabled(true);
+		}
+		if (APlayerController* PlayerController = GetOwningPlayer())
+		{
+			UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(
+				PlayerController,
+				this,
+				EMouseLockMode::DoNotLock,
+				false);
+			PlayerController->bShowMouseCursor = true;
+			PlayerController->bEnableClickEvents = true;
+			PlayerController->bEnableMouseOverEvents = true;
+		}
+		return;
+	}
+
+	TravelToLobbyMap();
 }
 
 void UGameResultWidget::TravelToLobbyMap()

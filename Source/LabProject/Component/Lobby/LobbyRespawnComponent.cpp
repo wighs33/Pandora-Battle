@@ -4,25 +4,18 @@
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
+#include "Definition/Match/MatchRuleDefinition.h"
 #include "GameplayEffect.h"
 #include "Lobby/Contents/LobbyGameMode.h"
-#include "Lobby/Services/LobbyPreviewGrantService.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyRespawnComponent)
 
 ULobbyRespawnComponent::ULobbyRespawnComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
-}
-
-void ULobbyRespawnComponent::EndPlay(
-	const EEndPlayReason::Type EndPlayReason)
-{
-	Shutdown();
-	Super::EndPlay(EndPlayReason);
 }
 
 void ULobbyRespawnComponent::RequestLobbyPlayerRespawn(
@@ -38,10 +31,8 @@ void ULobbyRespawnComponent::RequestLobbyPlayerRespawn(
 		return;
 	}
 
-	const TObjectKey<AController> PlayerControllerKey(
-		PlayerController);
-	if (PendingLobbyRespawnTimers.Contains(
-		PlayerControllerKey))
+	const TObjectKey<AController> ControllerKey(PlayerController);
+	if (PendingLobbyPlayerRespawnTimers.Contains(ControllerKey))
 	{
 		return;
 	}
@@ -49,7 +40,7 @@ void ULobbyRespawnComponent::RequestLobbyPlayerRespawn(
 	TWeakObjectPtr<AController> WeakPlayerController(
 		PlayerController);
 	TWeakObjectPtr<APawn> WeakDeadPawn(DeadPawn);
-	const float RespawnDelay = GetLobbyRespawnDelay();
+	const float RespawnDelay = GetLobbyPlayerRespawnDelay();
 
 	if (ACharacterBase* DeadCharacter =
 		Cast<ACharacterBase>(DeadPawn))
@@ -57,17 +48,15 @@ void ULobbyRespawnComponent::RequestLobbyPlayerRespawn(
 		DeadCharacter->ClearCharacterOverlayMaterial();
 		if (RespawnDelay > 0.0f)
 		{
-			DeadCharacter->StartDeathDissolve(
-				RespawnDelay);
+			DeadCharacter->StartDeathDissolve(RespawnDelay);
 		}
 	}
 
-	if (APdPlayerController* PlayerControllerForUi =
+	if (APdPlayerController* PdPlayerController =
 		Cast<APdPlayerController>(PlayerController))
 	{
-		PlayerControllerForUi
-			->Client_StartRespawnDelayCountdown(
-				RespawnDelay);
+		PdPlayerController->Client_StartRespawnDelayCountdown(
+			RespawnDelay);
 	}
 
 	if (RespawnDelay <= 0.0f)
@@ -78,7 +67,7 @@ void ULobbyRespawnComponent::RequestLobbyPlayerRespawn(
 		return;
 	}
 
-	UWorld* World = GameMode->GetWorld();
+	UWorld* World = GetWorld();
 	if (!World)
 	{
 		return;
@@ -89,66 +78,34 @@ void ULobbyRespawnComponent::RequestLobbyPlayerRespawn(
 		RespawnTimerHandle,
 		FTimerDelegate::CreateWeakLambda(
 			this,
-			[this,
-				WeakPlayerController,
-				WeakDeadPawn,
-				PlayerControllerKey]()
+			[this, WeakPlayerController, WeakDeadPawn, ControllerKey]()
 			{
-				PendingLobbyRespawnTimers.Remove(
-					PlayerControllerKey);
+				PendingLobbyPlayerRespawnTimers.Remove(ControllerKey);
 				FinishLobbyPlayerRespawn(
 					WeakPlayerController,
 					WeakDeadPawn);
 			}),
 		RespawnDelay,
 		false);
-	PendingLobbyRespawnTimers.Add(
-		PlayerControllerKey,
+	PendingLobbyPlayerRespawnTimers.Add(
+		ControllerKey,
 		RespawnTimerHandle);
-}
-
-void ULobbyRespawnComponent::HandlePlayerLogout(
-	AController* ExitingController)
-{
-	if (!ExitingController)
-	{
-		return;
-	}
-
-	const TObjectKey<AController> ControllerKey(
-		ExitingController);
-	if (FTimerHandle* TimerHandle =
-		PendingLobbyRespawnTimers.Find(ControllerKey))
-	{
-		if (ALobbyGameMode* GameMode =
-			GetLobbyGameMode())
-		{
-			GameMode->GetWorldTimerManager().ClearTimer(
-				*TimerHandle);
-		}
-		PendingLobbyRespawnTimers.Remove(ControllerKey);
-	}
-}
-
-void ULobbyRespawnComponent::Shutdown()
-{
-	if (ALobbyGameMode* GameMode = GetLobbyGameMode())
-	{
-		for (TPair<TObjectKey<AController>, FTimerHandle>&
-			RespawnTimer : PendingLobbyRespawnTimers)
-		{
-			GameMode->GetWorldTimerManager().ClearTimer(
-				RespawnTimer.Value);
-		}
-	}
-
-	PendingLobbyRespawnTimers.Reset();
 }
 
 ALobbyGameMode*
 ULobbyRespawnComponent::GetLobbyGameMode() const
 {
 	return Cast<ALobbyGameMode>(GetOwner());
+}
+
+float ULobbyRespawnComponent::GetLobbyPlayerRespawnDelay() const
+{
+	const ALobbyGameMode* GameMode = GetLobbyGameMode();
+	const UMatchRuleDefinition* MatchRules =
+		GameMode ? GameMode->GetMatchRuleDefinition() : nullptr;
+	return MatchRules
+		? FMath::Max(MatchRules->PlayerRespawnDelay, 0.0f)
+		: 0.0f;
 }
 
 void ULobbyRespawnComponent::FinishLobbyPlayerRespawn(
@@ -168,8 +125,6 @@ void ULobbyRespawnComponent::FinishLobbyPlayerRespawn(
 		return;
 	}
 
-	PendingLobbyRespawnTimers.Remove(
-		TObjectKey<AController>(PlayerController));
 	ResetLobbyPlayerStateForRespawn(
 		PlayerController);
 
@@ -283,12 +238,7 @@ void ULobbyRespawnComponent::FinishLobbyPlayerRespawn(
 	if (APlayerController* PlayerControllerForGrant =
 		Cast<APlayerController>(PlayerController))
 	{
-		if (ULobbyPreviewGrantService* PreviewGrantService =
-			GameMode->GetPreviewGrantService())
-		{
-			PreviewGrantService->ScheduleGrant(
-				PlayerControllerForGrant);
-		}
+		GameMode->ProvisionLobbyPlayer(PlayerControllerForGrant);
 	}
 }
 
@@ -375,19 +325,4 @@ ResetLobbyPlayerStateForRespawn(
 		UBasicAttributeSet::GetManaAttribute(),
 		FMath::Max(MaxMana, 0.0f));
 	AbilitySystemComponent->ForceReplication();
-}
-
-float ULobbyRespawnComponent::GetLobbyRespawnDelay() const
-{
-	const ALobbyGameMode* GameMode =
-		GetLobbyGameMode();
-	const ULobbyModeDefinition* Definition = GameMode
-		? GameMode->GetLobbyModeDefinition()
-		: nullptr;
-	return Definition
-		? FMath::Max(
-			Definition->GetFlowSettings()
-				.LobbyRespawnDelay,
-			0.0f)
-		: 0.0f;
 }

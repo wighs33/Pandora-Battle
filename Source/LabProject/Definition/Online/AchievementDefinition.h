@@ -7,9 +7,9 @@
 class UTexture2D;
 
 UENUM(BlueprintType)
-enum class EPdAchievementTrigger : uint8
+enum class EAchievementTrigger : uint8
 {
-	Manual,
+	FirstLogin,
 	MatchPlayed,
 	WinCount,
 	KillCount,
@@ -21,7 +21,7 @@ enum class EPdAchievementTrigger : uint8
 };
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FPdAchievementEntry
+struct LABPROJECT_API FAchievementEntry
 {
 	GENERATED_BODY()
 
@@ -38,7 +38,7 @@ struct LABPROJECT_API FPdAchievementEntry
 	FText Description;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Achievement")
-	EPdAchievementTrigger Trigger = EPdAchievementTrigger::Manual;
+	EAchievementTrigger Trigger = EAchievementTrigger::FirstLogin;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Achievement", meta = (ClampMin = "1", UIMin = "1"))
 	int32 RequiredValue = 1;
@@ -62,6 +62,6 @@ public:
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Achievement", meta = (TitleProperty = "AchievementId"))
-	TArray<FPdAchievementEntry> Achievements;
+	TArray<FAchievementEntry> Achievements;
 
 };

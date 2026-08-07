@@ -22,12 +22,15 @@ public:
 	UControllerSessionComponent();
 
 	bool RequestExitMatchToTitle();
-	void HandleServerRequestExitMatchToTitle() const;
 	void TravelToTitleWithGameResult(
 		const FGameResultPresentationData& GameResultData,
+		const FString& TitleMapName) const;
+	void TravelToTitleWithoutGameResult(
 		const FString& TitleMapName) const;
 
 private:
 	APdPlayerController* GetPdController() const;
 	bool CanRequestExitMatchToTitle() const;
+	void DestroySessionAndTravelToTitle(
+		const FString& TitleMapName) const;
 };

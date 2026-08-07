@@ -6,10 +6,11 @@
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Engine/StreamableManager.h"
 #include "SavedGameData/PdSaveGame.h"
 #include "SavedGameData/PlayerProfileSubsystem.h"
-#include "Definition/Settings/GameSettingDefinition.h"
-#include "Settings/GameSettingsSubsystem.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "steam/steam_api.h"
@@ -22,7 +23,7 @@ void UAchievementSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	Collection.InitializeDependency<UPlayerProfileSubsystem>();
-	Collection.InitializeDependency<UGameSettingsSubsystem>();
+	Collection.InitializeDependency<UContentDataSubsystem>();
 	if (UPlayerProfileSubsystem* ProfileSubsystem =
 		GetGameInstance()->GetSubsystem<UPlayerProfileSubsystem>())
 	{
@@ -55,7 +56,12 @@ void UAchievementSubsystem::Deinitialize()
 	InFlightWriteObjects.Reset();
 	bAchievementsQueried = false;
 	bAchievementQueryInFlight = false;
-	bDefinitionPreloadCallbackRegistered = false;
+	if (DefinitionPreloadHandle.IsValid())
+	{
+		DefinitionPreloadHandle->CancelHandle();
+		DefinitionPreloadHandle->ReleaseHandle();
+		DefinitionPreloadHandle.Reset();
+	}
 	CachedAchievementDefinition = nullptr;
 
 	Super::Deinitialize();
@@ -84,7 +90,7 @@ void UAchievementSubsystem::EvaluateAndUnlockAchievementsForPlayerId(const FStri
 	}
 	PendingEvaluationPlayerIds.Remove(TrimmedPlayerId);
 
-	for (const FPdAchievementEntry& Achievement : AchievementDefinition->Achievements)
+	for (const FAchievementEntry& Achievement : AchievementDefinition->Achievements)
 	{
 		if (!Achievement.bEnabled)
 		{
@@ -108,30 +114,21 @@ void UAchievementSubsystem::EvaluateAndUnlockAchievementsForPlayerId(const FStri
 	FlushPendingAchievementUnlocks();
 }
 
-void UAchievementSubsystem::RequestUnlockAchievementById(const FString& AchievementId)
-{
-	QueueUnlockAchievement(NormalizeAchievementId(AchievementId));
-	EnsureAchievementsQueried();
-	FlushPendingAchievementUnlocks();
-}
-
 int32 UAchievementSubsystem::CalculateAchievementProgressValue(
 	const FString& PlayerId,
-	const FPdAchievementEntry& Achievement) const
+	const FAchievementEntry& Achievement) const
 {
 	const UPdSaveGame* SaveGame = ResolveSaveGame(PlayerId);
 	if (!SaveGame)
 	{
-		return Achievement.Trigger == EPdAchievementTrigger::Manual
-			? FMath::Max(Achievement.RequiredValue, 1)
-			: 0;
+		return 0;
 	}
 
 	int32 MatchRecordKillCount = 0;
 	int32 MatchRecordDeathCount = 0;
 	int32 MatchRecordRewardGold = 0;
 	int32 MatchRecordWinCount = 0;
-	for (const FPdMatchRecord& MatchRecord : SaveGame->MatchRecords)
+	for (const FMatchRecord& MatchRecord : SaveGame->MatchRecords)
 	{
 		MatchRecordKillCount += FMath::Max(MatchRecord.KillCount, 0);
 		MatchRecordDeathCount += FMath::Max(MatchRecord.DeathCount, 0);
@@ -144,30 +141,35 @@ int32 UAchievementSubsystem::CalculateAchievementProgressValue(
 
 	switch (Achievement.Trigger)
 	{
-	case EPdAchievementTrigger::Manual:
-		return FMath::Max(Achievement.RequiredValue, 1);
-	case EPdAchievementTrigger::MatchPlayed:
+	case EAchievementTrigger::FirstLogin:
+		return 1;
+	case EAchievementTrigger::MatchPlayed:
 		return FMath::Max(SaveGame->MatchPlayedCount, SaveGame->MatchRecords.Num());
-	case EPdAchievementTrigger::WinCount:
+	case EAchievementTrigger::WinCount:
 		return FMath::Max(SaveGame->WinCount, MatchRecordWinCount);
-	case EPdAchievementTrigger::KillCount:
+	case EAchievementTrigger::KillCount:
 		return FMath::Max(SaveGame->TotalKillCount, MatchRecordKillCount);
-	case EPdAchievementTrigger::DeathCount:
+	case EAchievementTrigger::DeathCount:
 		return FMath::Max(SaveGame->TotalDeathCount, MatchRecordDeathCount);
-	case EPdAchievementTrigger::RewardGold:
+	case EAchievementTrigger::RewardGold:
 		return FMath::Max3(
 			SaveGame->TotalRewardGold,
 			FMath::Max(SaveGame->Gold, 0),
 			MatchRecordRewardGold);
-	case EPdAchievementTrigger::PandoraUnlocked:
+	case EAchievementTrigger::PandoraUnlocked:
 		return SaveGame->PlayerPandoraData.GrantedPandorasById.Num();
-	case EPdAchievementTrigger::SkinUnlocked:
+	case EAchievementTrigger::SkinUnlocked:
 		return SaveGame->PlayerSkinData.GrantedSkinsById.Num();
-	case EPdAchievementTrigger::ItemCollected:
+	case EAchievementTrigger::ItemCollected:
 		return FMath::Max(SaveGame->ItemCollectedCount, 0);
 	default:
 		return 0;
 	}
+}
+
+const UAchievementDefinition* UAchievementSubsystem::GetAchievementDefinition()
+{
+	return ResolveAchievementDefinition();
 }
 
 const UAchievementDefinition* UAchievementSubsystem::ResolveAchievementDefinition()
@@ -177,19 +179,8 @@ const UAchievementDefinition* UAchievementSubsystem::ResolveAchievementDefinitio
 		return CachedAchievementDefinition;
 	}
 
-	TSoftObjectPtr<UAchievementDefinition> AchievementData;
-
-	if (const UGameSettingDefinition* GameSettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this))
-	{
-		AchievementData = GameSettingDefinition->AchievementData;
-	}
-
-	if (AchievementData.IsNull())
-	{
-		AchievementData = TSoftObjectPtr<UAchievementDefinition>(
-			FSoftObjectPath(TEXT("/Game/Data/DA_Achievement.DA_Achievement")));
-	}
+	const TSoftObjectPtr<UAchievementDefinition>& AchievementData =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Achievement;
 
 	CachedAchievementDefinition = AchievementData.Get();
 	if (!CachedAchievementDefinition && AchievementData.IsNull() == false)
@@ -202,21 +193,29 @@ const UAchievementDefinition* UAchievementSubsystem::ResolveAchievementDefinitio
 
 void UAchievementSubsystem::BeginAchievementDefinitionPreload()
 {
-	if (CachedAchievementDefinition || bDefinitionPreloadCallbackRegistered)
+	if (CachedAchievementDefinition || DefinitionPreloadHandle.IsValid())
+	{
+		return;
+	}
+
+	const FSoftObjectPath AchievementPath =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+			.Achievement.ToSoftObjectPath();
+	if (AchievementPath.IsNull())
 	{
 		return;
 	}
 
 	UGameInstance* GameInstance = GetGameInstance();
-	UGameSettingsSubsystem* SettingsSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UGameSettingsSubsystem>() : nullptr;
-	if (!SettingsSubsystem)
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
 		return;
 	}
 
-	bDefinitionPreloadCallbackRegistered = true;
-	SettingsSubsystem->PreloadRuntimeContentAsync(
+	DefinitionPreloadHandle = ContentSubsystem->PreloadSoftObjectPathsAsync(
+		{AchievementPath},
 		FSimpleDelegate::CreateUObject(
 			this,
 			&ThisClass::HandleAchievementDefinitionContentReady));
@@ -224,7 +223,11 @@ void UAchievementSubsystem::BeginAchievementDefinitionPreload()
 
 void UAchievementSubsystem::HandleAchievementDefinitionContentReady()
 {
-	bDefinitionPreloadCallbackRegistered = false;
+	if (DefinitionPreloadHandle.IsValid())
+	{
+		DefinitionPreloadHandle->ReleaseHandle();
+		DefinitionPreloadHandle.Reset();
+	}
 	CachedAchievementDefinition = nullptr;
 	if (!ResolveAchievementDefinition())
 	{

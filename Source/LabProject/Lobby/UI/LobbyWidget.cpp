@@ -10,6 +10,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Components/VerticalBox.h"
+#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
@@ -608,7 +609,6 @@ void ULobbyWidget::HandleInviteClicked()
 		return;
 	}
 
-
 }
 
 void ULobbyWidget::HandleMapPreviousClicked()
@@ -637,8 +637,9 @@ void ULobbyWidget::HandleMapNextClicked()
 
 FString ULobbyWidget::GetResolvedTitleTravelMapName() const
 {
-	const FString LongPackageName = TitleMap.ToSoftObjectPath().GetLongPackageName();
-	return LongPackageName.IsEmpty() ? TitleTravelMapName : LongPackageName;
+	const ULobbyModeDefinition* Definition =
+		ULobbyModeDefinition::ResolveDefaultDefinition();
+	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 
 UUiSubsystem* ULobbyWidget::GetUiSubsystem() const

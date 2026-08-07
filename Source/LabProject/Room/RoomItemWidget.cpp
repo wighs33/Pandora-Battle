@@ -97,8 +97,7 @@ void URoomItemWidget::RefreshUI()
 void URoomItemWidget::HandleJoinClicked()
 {
 
-
-	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
+UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr;
 	if (!OnlineSessionsSubsystem)

@@ -8,49 +8,32 @@
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
 #include "UI/UiSubsystem.h"
-#include "UI/WidgetLookup.h"
-#include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChatBoxWidget)
-
-UChatBoxWidget::UChatBoxWidget(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	ChatScrollBoxCandidateNames =
-	{
-		TEXT("ScrollBox_ChatMessages"),
-		TEXT("ScrollBox_MessageList"),
-		TEXT("ChatScrollBox"),
-		TEXT("MessageScrollBox"),
-		TEXT("ScrollBox")
-	};
-
-	ChatInputCandidateNames =
-	{
-		TEXT("TxtBox_ChatInput"),
-		TEXT("EditableText_ChatInput"),
-		TEXT("Input_Chat"),
-		TEXT("ChatInput"),
-		TEXT("InputMessage"),
-		TEXT("EditableTextBox"),
-		TEXT("EditableText")
-	};
-}
 
 void UChatBoxWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	ApplyWidgetDefinitionSettings();
-	CacheWidgets();
+	if (TxtBox_ChatInput)
+	{
+		TxtBox_ChatInput->OnTextCommitted.RemoveDynamic(
+			this,
+			&ThisClass::HandleChatTextCommitted);
+		TxtBox_ChatInput->OnTextCommitted.AddUniqueDynamic(
+			this,
+			&ThisClass::HandleChatTextCommitted);
+	}
 	SetChatInputEnabled(false);
 }
 
 void UChatBoxWidget::NativeDestruct()
 {
-	if (CachedChatInputText)
+	if (TxtBox_ChatInput)
 	{
-		CachedChatInputText->OnTextCommitted.RemoveDynamic(this, &ThisClass::HandleChatTextCommitted);
+		TxtBox_ChatInput->OnTextCommitted.RemoveDynamic(
+			this,
+			&ThisClass::HandleChatTextCommitted);
 	}
 
 	ReleaseRoutedChatInput();
@@ -81,9 +64,7 @@ void UChatBoxWidget::InitializeChat(
 		ChatEntryWidgetClass = InChatEntryWidgetClass;
 	}
 
-	ScrollMultiplier = InScrollMultiplier;
-	ApplyWidgetDefinitionSettings();
-	CacheWidgets();
+	ScrollMultiplier = FMath::Max(InScrollMultiplier, 1.0f);
 	SetChatInputEnabled(false);
 }
 
@@ -173,14 +154,6 @@ void UChatBoxWidget::AddChatMessage(const FString& Message)
 
 	if (!ChatEntryWidgetClass)
 	{
-		if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
-		{
-			ChatEntryWidgetClass = WidgetDefinition->GetChatEntryWidgetClass();
-		}
-	}
-
-	if (!ChatEntryWidgetClass)
-	{
 
 		return;
 	}
@@ -206,61 +179,6 @@ void UChatBoxWidget::HandleChatTextCommitted(const FText& Text, const ETextCommi
 	}
 }
 
-void UChatBoxWidget::ApplyWidgetDefinitionSettings()
-{
-	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
-	{
-		const FChatWidgetSettings& Settings = WidgetDefinition->GetChatWidgetSettings();
-		if (const TSubclassOf<UChatEntryWidget> ResolvedChatEntryWidgetClass =
-			WidgetDefinition->GetChatEntryWidgetClass())
-		{
-			ChatEntryWidgetClass = ResolvedChatEntryWidgetClass;
-		}
-		ScrollMultiplier = FMath::Max(Settings.ScrollMultiplier, 1.0f);
-		if (!Settings.ChatScrollBoxCandidateNames.IsEmpty())
-		{
-			ChatScrollBoxCandidateNames = Settings.ChatScrollBoxCandidateNames;
-		}
-		if (!Settings.ChatInputCandidateNames.IsEmpty())
-		{
-			ChatInputCandidateNames = Settings.ChatInputCandidateNames;
-		}
-	}
-}
-
-void UChatBoxWidget::CacheWidgets()
-{
-	UWidgetTree* CurrentWidgetTree = WidgetTree;
-
-	CachedChatScrollBox = ScrollBox_ChatMessages;
-	if (!CachedChatScrollBox)
-	{
-		CachedChatScrollBox = PdWidgetLookup::FindWidgetByNames<UScrollBox>(CurrentWidgetTree, ChatScrollBoxCandidateNames);
-	}
-	if (!CachedChatScrollBox)
-	{
-		CachedChatScrollBox = PdWidgetLookup::FindFirstWidgetOfType<UScrollBox>(CurrentWidgetTree);
-	}
-
-	CachedChatInputText = TxtBox_ChatInput;
-	if (!CachedChatInputText)
-	{
-		CachedChatInputText = PdWidgetLookup::FindWidgetByNames<UEditableText>(CurrentWidgetTree, ChatInputCandidateNames);
-	}
-	if (!CachedChatInputText)
-	{
-		CachedChatInputText = PdWidgetLookup::FindFirstWidgetOfType<UEditableText>(CurrentWidgetTree);
-	}
-
-	if (CachedChatInputText)
-	{
-		CachedChatInputText->OnTextCommitted.RemoveDynamic(this, &ThisClass::HandleChatTextCommitted);
-		CachedChatInputText->OnTextCommitted.AddUniqueDynamic(this, &ThisClass::HandleChatTextCommitted);
-	}
-
-
-}
-
 bool UChatBoxWidget::ApplyRoutedChatInput(UEditableText* ChatInputText)
 {
 	if (!IsValid(ChatInputText))
@@ -277,13 +195,13 @@ bool UChatBoxWidget::ApplyRoutedChatInput(UEditableText* ChatInputText)
 		return false;
 	}
 
-	FPdUiModalInputConfig InputConfig;
-	InputConfig.InputMode = EPdUiInputMode::GameAndUI;
+	FUiModalInputConfig InputConfig;
+	InputConfig.InputMode = EUiInputMode::GameAndUI;
 	InputConfig.bHideCursorDuringCapture = true;
 	InputConfig.bShowMouseCursor = false;
 	InputConfig.bEnableClickEvents = false;
 	InputConfig.bEnableMouseOverEvents = false;
-	InputConfig.RestorePolicy = EPdUiInputRestorePolicy::Gameplay;
+	InputConfig.RestorePolicy = EUiInputRestorePolicy::Gameplay;
 
 	if (UiSubsystem->UpdateModalInput(
 		this,
@@ -365,10 +283,10 @@ void UChatBoxWidget::SetChatInputText(const FText& Text) const
 
 UEditableText* UChatBoxWidget::GetChatInputWidget() const
 {
-	return CachedChatInputText.Get();
+	return TxtBox_ChatInput;
 }
 
 UScrollBox* UChatBoxWidget::GetChatScrollBox() const
 {
-	return CachedChatScrollBox.Get();
+	return ScrollBox_ChatMessages;
 }

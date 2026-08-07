@@ -14,7 +14,6 @@
 void ULobbyMatchCoordinator::InitializeSession()
 {
 	UpdateAdvertisedSessionSettingsForCurrentConfig();
-	CreateDedicatedServerSessionIfNeeded();
 }
 
 void ULobbyMatchCoordinator::Shutdown()
@@ -70,7 +69,6 @@ void ULobbyMatchCoordinator::NotifyLobbyTeamChanged()
 	}
 
 	GameMode->RefreshLobbyUIForAllPlayers();
-	UpdateFullLobbyAutoStartTimer();
 }
 
 void ULobbyMatchCoordinator::BeginStartGame(const TCHAR* Reason)
@@ -157,61 +155,12 @@ void ULobbyMatchCoordinator::CancelPendingGameStart(const TCHAR* Reason)
 	GameMode->RefreshLobbyUIForAllPlayers();
 }
 
-void ULobbyMatchCoordinator::UpdateFullLobbyAutoStartTimer()
-{
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode)
-	{
-		return;
-	}
-
-	if (!GameMode->HasAuthority() || bGameStartRequested)
-	{
-		GameMode->GetWorldTimerManager().ClearTimer(FullLobbyAutoStartTimerHandle);
-		return;
-	}
-
-	const int32 ActivePlayerCount = GetActiveLobbyPlayerCount();
-	const int32 MaxPlayerCount = GameMode->GetConfiguredMaxPlayerCount();
-	if (ActivePlayerCount == MaxPlayerCount && AreLobbyTeamsBalanced())
-	{
-		const float FullLobbyAutoStartDelay =
-			GameMode->GetFullLobbyAutoStartDelay();
-		if (FullLobbyAutoStartDelay <= 0.0f)
-		{
-			BeginStartGame(TEXT("full_lobby_auto"));
-			return;
-		}
-
-		if (!GameMode->GetWorldTimerManager().IsTimerActive(FullLobbyAutoStartTimerHandle))
-		{
-			GameMode->GetWorldTimerManager().SetTimer(
-				FullLobbyAutoStartTimerHandle,
-				this,
-				&ThisClass::HandleFullLobbyAutoStart,
-				FullLobbyAutoStartDelay,
-				false);
-		}
-		return;
-	}
-
-	GameMode->GetWorldTimerManager().ClearTimer(FullLobbyAutoStartTimerHandle);
-}
-
 void ULobbyMatchCoordinator::ClearStartTimers()
 {
 	if (ALobbyGameMode* GameMode = GetLobbyGameMode())
 	{
 		GameMode->GetWorldTimerManager().ClearTimer(StartGameTimerHandle);
-		GameMode->GetWorldTimerManager().ClearTimer(FullLobbyAutoStartTimerHandle);
 	}
-}
-
-bool ULobbyMatchCoordinator::IsFullLobbyAutoStartTimerActive() const
-{
-	const ALobbyGameMode* GameMode = GetLobbyGameMode();
-	return GameMode
-		&& GameMode->GetWorldTimerManager().IsTimerActive(FullLobbyAutoStartTimerHandle);
 }
 
 int32 ULobbyMatchCoordinator::GetActiveLobbyPlayerCount() const
@@ -290,25 +239,6 @@ void ULobbyMatchCoordinator::HandleStartCountdownElapsed()
 	{
 		GameMode->TravelCoordinator->StartSessionAndTravel();
 	}
-}
-
-void ULobbyMatchCoordinator::HandleFullLobbyAutoStart()
-{
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !GameMode->HasAuthority() || bGameStartRequested)
-	{
-		return;
-	}
-
-	const int32 ActivePlayerCount = GetActiveLobbyPlayerCount();
-	const int32 MaxPlayerCount = GameMode->GetConfiguredMaxPlayerCount();
-	if (ActivePlayerCount != MaxPlayerCount || !AreLobbyTeamsBalanced())
-	{
-		UpdateFullLobbyAutoStartTimer();
-		return;
-	}
-
-	BeginStartGame(TEXT("full_lobby_auto"));
 }
 
 float ULobbyMatchCoordinator::GetEffectiveStartGameDelay(const int32 ActivePlayerCount) const
@@ -401,33 +331,6 @@ void ULobbyMatchCoordinator::UpdateAdvertisedSessionSettingsForCurrentConfig() c
 		? PdGameInstance->GetLobbySelectedMapKey()
 		: GameMode->GetFirstMapKey();
 	UpdateAdvertisedSessionSettings(SessionMapKey, GameMode->GetConfiguredMaxPlayerCount());
-}
-
-void ULobbyMatchCoordinator::CreateDedicatedServerSessionIfNeeded()
-{
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode
-		|| !GameMode->HasAuthority()
-		|| GameMode->GetNetMode() != NM_DedicatedServer
-		|| !GameMode
-			->ShouldAutoCreateDedicatedServerSession())
-	{
-		return;
-	}
-
-	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GameMode->GetGameInstance()
-		? GameMode->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr;
-	if (!OnlineSessionsSubsystem || OnlineSessionsSubsystem->HasNamedSession())
-	{
-		return;
-	}
-
-	OnlineSessionsSubsystem->CreateRoomSession(
-		GameMode->GetDedicatedServerRoomName(),
-		GetInitialSessionMapName(),
-		GameMode->GetConfiguredMaxPlayerCount(),
-		GameMode->IsDedicatedServerSessionLAN());
 }
 
 FString ULobbyMatchCoordinator::GetInitialSessionMapName() const

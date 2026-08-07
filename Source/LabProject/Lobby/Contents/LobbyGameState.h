@@ -22,7 +22,7 @@ public:
 	void SetSelectedMapOption(const FLobbyMatchMapOption& InMapOption);
 
 	UFUNCTION(BlueprintPure, Category = "!Lobby|Map")
-	FLobbyMatchMapOption GetSelectedMapOption() const { return SelectedMapOption; }
+	FLobbyMatchMapOption GetSelectedMapOption() const;
 
 	UFUNCTION(BlueprintPure, Category = "!Lobby|Map")
 	FName GetSelectedMapKey() const { return SelectedMapOption.MapKey; }
@@ -31,11 +31,7 @@ public:
 	int32 GetSelectedMapMaxPlayerCount() const { return FMath::Max(SelectedMapOption.MaxPlayerCount, 1); }
 
 	UFUNCTION(BlueprintPure, Category = "!Lobby|Map")
-	bool IsSelectedMapImageReady() const
-	{
-		return !SelectedMapOption.MapKey.IsNone()
-			&& IsValid(SelectedMapOption.Thumbnail);
-	}
+	bool IsSelectedMapImageReady() const;
 
 	void SetGameStartPending(bool bInStartPending, double InStartEndServerTimeSeconds);
 
@@ -56,6 +52,7 @@ protected:
 	void OnRep_GameStartState();
 
 private:
+	void RefreshGameEntryContentPreload() const;
 	void RefreshLocalLobbyUI() const;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Experience", meta = (AllowPrivateAccess = "true"))

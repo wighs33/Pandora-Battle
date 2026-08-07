@@ -19,8 +19,6 @@ void UGameConfigWidget::NativeConstruct()
 	SetIsFocusable(true);
 	SetFocus();
 
-
-
 	if (Btn_Back)
 	{
 		Btn_Back->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleBackClicked);

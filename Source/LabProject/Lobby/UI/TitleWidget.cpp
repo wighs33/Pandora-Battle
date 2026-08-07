@@ -2,12 +2,15 @@
 
 #include "AudioSlider.h"
 #include "Components/Button.h"
+#include "Definition/Lobby/LobbyModeDefinition.h"
+#include "Definition/Match/MatchRuleDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Lobby/UI/ConnectingPopupWidget.h"
 #include "Mode/PdGameInstance.h"
 #include "Online/OnlineSessionsSubsystem.h"
@@ -298,20 +301,25 @@ void UTitleWidget::HandleQuickMatchCancel()
 
 FString UTitleWidget::GetResolvedLobbyTravelMapName() const
 {
-	const FString LongPackageName = LobbyMap.ToSoftObjectPath().GetLongPackageName();
-	return LongPackageName.IsEmpty() ? LobbyTravelMapName : LongPackageName;
+	const ULobbyModeDefinition* Definition =
+		ULobbyModeDefinition::ResolveDefaultDefinition();
+	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 
 FString UTitleWidget::GetResolvedRoomTravelMapName() const
 {
-	const FString LongPackageName = RoomMap.ToSoftObjectPath().GetLongPackageName();
-	return LongPackageName.IsEmpty() ? RoomTravelMapName : LongPackageName;
+	const ULobbyModeDefinition* Definition =
+		ULobbyModeDefinition::ResolveDefaultDefinition();
+	return Definition ? Definition->GetRoomTravelMapName() : FString();
 }
 
 FString UTitleWidget::GetResolvedTrainingRoomTravelMapName() const
 {
-	const FString LongPackageName = TrainingRoomMap.ToSoftObjectPath().GetLongPackageName();
-	return LongPackageName.IsEmpty() ? TrainingRoomTravelMapName : LongPackageName;
+	const UMatchRuleDefinition* Definition =
+		UMatchRuleDefinition::ResolveDefaultDefinition();
+	return Definition
+		? Definition->GetTrainingRoomTravelMapName()
+		: FString();
 }
 
 void UTitleWidget::OpenRoomList()
@@ -323,8 +331,7 @@ void UTitleWidget::OpenRoomList()
 		return;
 	}
 
-
-	ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenRoomList"));
+ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenRoomList"));
 	UGameplayStatics::OpenLevel(this, FName(*RoomMapName));
 }
 
@@ -337,7 +344,18 @@ void UTitleWidget::OpenTrainingRoom()
 		return;
 	}
 
-
+	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
+	{
+		UiSubsystem->ShowTravelLoadingScreen();
+	}
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
+			GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>())
+		{
+			LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
+		}
+	}
 	ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenTrainingRoom"));
 	UGameplayStatics::OpenLevel(this, FName(*TrainingRoomMapName));
 }
@@ -347,9 +365,7 @@ void UTitleWidget::OpenShop()
 	EnsurePreferredSaveGameLoaded();
 	ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenShop"));
 
-
-
-	const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass();
+const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass();
 	if (!ResolvedShopWidgetClass)
 	{
 
@@ -386,7 +402,6 @@ void UTitleWidget::OpenShop()
 	{
 		ShopWidget->AddToViewport(50);
 	}
-
 
 }
 
@@ -617,7 +632,6 @@ TSubclassOf<UShopWidget> UTitleWidget::ResolveShopWidgetClass() const
 		return WidgetDefinition->GetShopWidgetClass();
 	}
 
-
 	return nullptr;
 }
 
@@ -633,7 +647,6 @@ TSubclassOf<UUserWidget> UTitleWidget::ResolveGuideWidgetClass() const
 		return TSubclassOf<UUserWidget>(WidgetDefinition->GetGuideWidgetClass().Get());
 	}
 
-
 	return nullptr;
 }
 
@@ -648,7 +661,6 @@ TSubclassOf<UUserWidget> UTitleWidget::ResolveRecordWidgetClass() const
 	{
 		return TSubclassOf<UUserWidget>(WidgetDefinition->GetRecordWidgetClass().Get());
 	}
-
 
 	return nullptr;
 }

@@ -38,6 +38,9 @@ public:
 	void SetExitToLobbyEnabled(bool bInExitToLobbyEnabled);
 
 	UFUNCTION(BlueprintCallable, Category = "!GameResult")
+	void SetCloseOnlyOnExit(bool bInCloseOnlyOnExit);
+
+	UFUNCTION(BlueprintCallable, Category = "!GameResult")
 	void SetShowRewards(bool bInShowRewards);
 
 	UFUNCTION(BlueprintCallable, Category = "!GameResult")
@@ -83,12 +86,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Text")
 	FText UnknownPlayerText = NSLOCTEXT("GameResult", "UnknownPlayerText", "Unknown");
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Travel")
-	TSoftObjectPtr<UWorld> LobbyMap;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Travel")
-	FString LobbyTravelMapName;
-
 private:
 	FString GetResolvedLobbyTravelMapName() const;
 	void ResolveExitButton();
@@ -116,5 +113,6 @@ private:
 	bool bPendingLobbyTravelAfterEndSession = false;
 	bool bInGameScoreboardMode = false;
 	bool bExitToLobbyEnabled = true;
+	bool bCloseOnlyOnExit = false;
 	bool bShowRewards = true;
 };

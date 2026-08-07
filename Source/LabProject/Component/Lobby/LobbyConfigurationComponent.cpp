@@ -2,7 +2,8 @@
 
 #include "Common/GameSessionConstants.h"
 #include "Definition/Lobby/LobbyModeDefinition.h"
-#include "Definition/Lobby/LobbyPreviewDefinition.h"
+#include "Definition/Provision/DefaultProvisionDefinition.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Lobby/Contents/LobbyGameMode.h"
@@ -82,18 +83,14 @@ void ULobbyConfigurationComponent::ApplyDefaultLobbyConfigIfNeeded()
 					FMath::Max(
 						SelectedMapOption.MaxPlayerCount,
 						1);
-				SelectedMapOption.DefaultMaxBotCount =
-					FMath::Clamp(
-						SelectedMapOption
-							.DefaultMaxBotCount,
-						0,
-						100);
 				GameInstance->SetLobbyGameConfig(
 					SelectedMapOption.MapKey,
 					TravelMapName,
 					SelectedMapOption.MaxPlayerCount,
-					SelectedMapOption
-						.DefaultMaxBotCount);
+					FMath::Clamp(
+						GameInstance->GetLobbyMaxBotCount(),
+						0,
+						100));
 
 				if (ALobbyGameState* LobbyGameState =
 					GameMode->GetGameState<
@@ -127,8 +124,6 @@ void ULobbyConfigurationComponent::ApplyDefaultLobbyConfigIfNeeded()
 	{
 		FirstMapOption.MaxPlayerCount =
 			FirstMaxPlayerCount;
-		FirstMapOption.DefaultMaxBotCount =
-			FirstMaxBotCount;
 		if (ALobbyGameState* LobbyGameState =
 			GameMode->GetGameState<ALobbyGameState>())
 		{
@@ -157,7 +152,7 @@ SyncSelectedLobbyConfigToRuntime()
 
 	SelectedMapOption.MaxPlayerCount =
 		GetConfiguredMaxPlayerCount();
-	SelectedMapOption.DefaultMaxBotCount =
+	const int32 MaxBotCount =
 		GetConfiguredMaxBotCount(
 			SelectedMapOption.MapKey);
 	if (UPdGameInstance* GameInstance =
@@ -168,7 +163,7 @@ SyncSelectedLobbyConfigToRuntime()
 			ResolveTravelMapName(
 				SelectedMapOption.MapKey),
 			SelectedMapOption.MaxPlayerCount,
-			SelectedMapOption.DefaultMaxBotCount);
+			MaxBotCount);
 	}
 
 	if (ALobbyGameState* LobbyGameState =
@@ -228,8 +223,6 @@ void ULobbyConfigurationComponent::SaveConfig(
 	{
 		SelectedMapOption.MaxPlayerCount =
 			MaxPlayerCount;
-		SelectedMapOption.DefaultMaxBotCount =
-			GameInstance->GetLobbyMaxBotCount();
 		if (ALobbyGameState* LobbyGameState =
 			GameMode->GetGameState<ALobbyGameState>())
 		{
@@ -246,11 +239,6 @@ void ULobbyConfigurationComponent::SaveConfig(
 				MaxPlayerCount);
 	}
 	GameMode->RefreshLobbyUIForAllPlayers();
-	if (MatchCoordinator)
-	{
-		MatchCoordinator
-			->UpdateFullLobbyAutoStartTimer();
-	}
 }
 
 FString ULobbyConfigurationComponent::GetRoomTravelMapName()
@@ -262,11 +250,7 @@ FString ULobbyConfigurationComponent::GetRoomTravelMapName()
 		return FString();
 	}
 
-	const FLobbyTravelSettings& Settings =
-		Definition->GetTravelSettings();
-	return ResolveSoftMapPath(
-		Settings.RoomMap,
-		Settings.RoomTravelMapName);
+	return Definition->GetRoomTravelMapName();
 }
 
 FString ULobbyConfigurationComponent::ResolveTravelMapName(
@@ -391,9 +375,7 @@ void ULobbyConfigurationComponent::SelectLobbyMapByOffset(
 	ULobbyMatchCoordinator* MatchCoordinator =
 		GameMode->GetMatchCoordinator();
 	if (MatchCoordinator
-		&& (MatchCoordinator->IsGameStartRequested()
-			|| MatchCoordinator
-				->IsFullLobbyAutoStartTimerActive()))
+		&& MatchCoordinator->IsGameStartRequested())
 	{
 		MatchCoordinator->CancelPendingGameStart(
 			TEXT("map_changed"));
@@ -402,7 +384,7 @@ void ULobbyConfigurationComponent::SelectLobbyMapByOffset(
 	SaveConfig(
 		NewMapOption.MapKey,
 		NewMapOption.MaxPlayerCount,
-		NewMapOption.DefaultMaxBotCount);
+		GetConfiguredMaxBotCount(NewMapOption.MapKey));
 }
 
 FName ULobbyConfigurationComponent::ResolveConfiguredMapKey(
@@ -461,14 +443,7 @@ GetConfiguredMaxPlayerCount()
 int32 ULobbyConfigurationComponent::GetConfiguredMaxBotCount(
 	const FName MapKey)
 {
-	FLobbyMatchMapOption MapOption;
-	if (FindConfiguredMapOption(MapKey, MapOption))
-	{
-		return FMath::Clamp(
-			MapOption.DefaultMaxBotCount,
-			0,
-			100);
-	}
+	static_cast<void>(MapKey);
 
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	const UPdGameInstance* GameInstance = GameMode
@@ -521,14 +496,9 @@ ULobbyConfigurationComponent::GetMatchRuleDefinition()
 		return LoadedMatchRuleDefinition;
 	}
 
-	const ULobbyModeDefinition* Definition =
-		GetLobbyModeDefinition();
-	if (Definition)
-	{
-		LoadedMatchRuleDefinition =
-			Definition->GetContentSettings()
-				.MatchRuleDefinition.Get();
-	}
+	LoadedMatchRuleDefinition =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+			.MatchRule.Get();
 	if (!LoadedMatchRuleDefinition)
 	{
 		if (!bLoggedMissingMatchRuleDefinition)
@@ -546,37 +516,32 @@ ULobbyConfigurationComponent::GetMatchRuleDefinition()
 	return LoadedMatchRuleDefinition;
 }
 
-const ULobbyPreviewDefinition*
-ULobbyConfigurationComponent::GetLobbyPreviewDefinition()
+const UDefaultProvisionDefinition*
+ULobbyConfigurationComponent::GetDefaultProvisionDefinition()
 {
-	if (LoadedLobbyPreviewDefinition)
+	if (LoadedDefaultProvisionDefinition)
 	{
-		return LoadedLobbyPreviewDefinition;
+		return LoadedDefaultProvisionDefinition;
 	}
 
-	const ULobbyModeDefinition* Definition =
-		GetLobbyModeDefinition();
-	if (Definition)
+	LoadedDefaultProvisionDefinition =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+			.DefaultProvision.Get();
+	if (!LoadedDefaultProvisionDefinition)
 	{
-		LoadedLobbyPreviewDefinition =
-			Definition->GetContentSettings()
-				.LobbyPreviewDefinition.Get();
-	}
-	if (!LoadedLobbyPreviewDefinition)
-	{
-		if (!bLoggedMissingLobbyPreviewDefinition)
+		if (!bLoggedMissingDefaultProvisionDefinition)
 		{
-			bLoggedMissingLobbyPreviewDefinition = true;
+			bLoggedMissingDefaultProvisionDefinition = true;
 			UE_LOG(
 				LogLobbyConfiguration,
 				Error,
-				TEXT("Required LobbyPreviewDefinition is missing; using native defaults."));
+				TEXT("Required DefaultProvisionDefinition is missing; using native defaults."));
 		}
-		LoadedLobbyPreviewDefinition =
-			GetMutableDefault<ULobbyPreviewDefinition>();
+		LoadedDefaultProvisionDefinition =
+			GetMutableDefault<UDefaultProvisionDefinition>();
 	}
 
-	return LoadedLobbyPreviewDefinition;
+	return LoadedDefaultProvisionDefinition;
 }
 
 ALobbyGameMode*
@@ -611,17 +576,21 @@ void ULobbyConfigurationComponent::HandleLobbyModePreloadComplete(
 	}
 
 	TArray<FSoftObjectPath> DependencyPaths;
-	const FLobbyContentSettings& Content =
-		LoadedLobbyModeDefinition->GetContentSettings();
-	if (!Content.MatchRuleDefinition.IsNull())
+	const FProjectDefinitionReferences& DefinitionReferences =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+	const TSoftObjectPtr<UMatchRuleDefinition> MatchRuleDefinition =
+		DefinitionReferences.MatchRule;
+	const TSoftObjectPtr<UDefaultProvisionDefinition> DefaultProvisionDefinition =
+		DefinitionReferences.DefaultProvision;
+	if (!MatchRuleDefinition.IsNull())
 	{
 		DependencyPaths.AddUnique(
-			Content.MatchRuleDefinition.ToSoftObjectPath());
+			MatchRuleDefinition.ToSoftObjectPath());
 	}
-	if (!Content.LobbyPreviewDefinition.IsNull())
+	if (!DefaultProvisionDefinition.IsNull())
 	{
 		DependencyPaths.AddUnique(
-			Content.LobbyPreviewDefinition.ToSoftObjectPath());
+			DefaultProvisionDefinition.ToSoftObjectPath());
 	}
 
 	if (DependencyPaths.IsEmpty())
@@ -662,17 +631,17 @@ void ULobbyConfigurationComponent::FinishRuntimeInitialization(
 		return;
 	}
 
-	const FLobbyContentSettings& Content =
-		LoadedLobbyModeDefinition->GetContentSettings();
-	LoadedMatchRuleDefinition = Content.MatchRuleDefinition.Get();
-	LoadedLobbyPreviewDefinition = Content.LobbyPreviewDefinition.Get();
+	const FProjectDefinitionReferences& DefinitionReferences =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+	LoadedMatchRuleDefinition = DefinitionReferences.MatchRule.Get();
+	LoadedDefaultProvisionDefinition = DefinitionReferences.DefaultProvision.Get();
 	if (!LoadedMatchRuleDefinition)
 	{
 		LoadedMatchRuleDefinition = GetMutableDefault<UMatchRuleDefinition>();
 	}
-	if (!LoadedLobbyPreviewDefinition)
+	if (!LoadedDefaultProvisionDefinition)
 	{
-		LoadedLobbyPreviewDefinition = GetMutableDefault<ULobbyPreviewDefinition>();
+		LoadedDefaultProvisionDefinition = GetMutableDefault<UDefaultProvisionDefinition>();
 	}
 
 	FSimpleDelegate ReadyDelegate = MoveTemp(RuntimeReadyDelegate);
