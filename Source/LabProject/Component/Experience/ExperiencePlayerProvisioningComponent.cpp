@@ -1,11 +1,12 @@
 #include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
 
-#include "Component/Experience/ExperienceGameplayLoadoutProvisioner.h"
-#include "Component/Experience/ExperienceLobbyProfileProvisioner.h"
-#include "Component/Experience/ExperienceTrainingRoomProvisioner.h"
+#include "Component/Experience/ExperiencePlayerProfileService.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Definition/Match/MatchRuleDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
+#include "Kismet/GameplayStatics.h"
+#include "Provision/DefaultPlayerProvisioner.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ExperiencePlayerProvisioningComponent)
 
@@ -14,32 +15,17 @@ UExperiencePlayerProvisioningComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
-	LobbyProfileProvisioner =
-		CreateDefaultSubobject<UExperienceLobbyProfileProvisioner>(
-			TEXT("LobbyProfileProvisioner"));
-	GameplayLoadoutProvisioner =
-		CreateDefaultSubobject<UExperienceGameplayLoadoutProvisioner>(
-			TEXT("GameplayLoadoutProvisioner"));
-	TrainingRoomProvisioner =
-		CreateDefaultSubobject<UExperienceTrainingRoomProvisioner>(
-			TEXT("TrainingRoomProvisioner"));
+	PlayerProfileService =
+		CreateDefaultSubobject<UExperiencePlayerProfileService>(
+			TEXT("PlayerProfileService"));
+	DefaultPlayerProvisioner =
+		CreateDefaultSubobject<UDefaultPlayerProvisioner>(
+			TEXT("DefaultPlayerProvisioner"));
 
 	// Match the former embedded settings value even when this component is
 	// constructed outside AExperienceGameMode and no explicit settings have
 	// been injected yet.
 	ApplySettings(FExperiencePlayerProvisioningSettings());
-}
-
-void UExperiencePlayerProvisioningComponent::OnRegister()
-{
-	Super::OnRegister();
-
-	// Nested UObject default subobjects inherited through BP_GameMode can keep
-	// their archetype outer unless the reference is explicitly instanced. Keep
-	// a runtime guard as well so previously saved Blueprint classes are repaired
-	// without requiring an asset resave.
-	EnsureRuntimeProvisioners();
-	ApplySettingsToProvisioners(CachedSettings);
 }
 
 void UExperiencePlayerProvisioningComponent::BeginPlay()
@@ -54,13 +40,9 @@ void UExperiencePlayerProvisioningComponent::EndPlay(
 	ReleaseProvisioningContentPreload();
 	PendingGameplayProvisions.Reset();
 	bProvisioningContentReady = false;
-	if (GameplayLoadoutProvisioner)
+	if (DefaultPlayerProvisioner)
 	{
-		GameplayLoadoutProvisioner->Shutdown();
-	}
-	if (TrainingRoomProvisioner)
-	{
-		TrainingRoomProvisioner->Shutdown();
+		DefaultPlayerProvisioner->Shutdown();
 	}
 
 	Super::EndPlay(EndPlayReason);
@@ -70,34 +52,23 @@ void UExperiencePlayerProvisioningComponent::ApplySettings(
 	const FExperiencePlayerProvisioningSettings& InSettings)
 {
 	CachedSettings = InSettings;
-	EnsureRuntimeProvisioners();
-	ApplySettingsToProvisioners(InSettings);
-}
-
-void UExperiencePlayerProvisioningComponent::ApplySettingsToProvisioners(
-	const FExperiencePlayerProvisioningSettings& InSettings)
-{
-	if (LobbyProfileProvisioner)
+	if (PlayerProfileService)
 	{
-		LobbyProfileProvisioner->ApplySettings(InSettings);
+		PlayerProfileService->ApplySettings(InSettings);
 	}
-	if (GameplayLoadoutProvisioner)
+	if (DefaultPlayerProvisioner)
 	{
-		GameplayLoadoutProvisioner->ApplySettings(InSettings);
-	}
-	if (TrainingRoomProvisioner)
-	{
-		TrainingRoomProvisioner->ApplySettings(InSettings);
+		DefaultPlayerProvisioner->SetDefinition(
+			InSettings.DefaultProvisionDefinition);
 	}
 }
 
 void UExperiencePlayerProvisioningComponent::InitializeLoggedInPlayer(
 	APlayerController* NewPlayer)
 {
-	EnsureRuntimeProvisioners();
-	if (LobbyProfileProvisioner)
+	if (PlayerProfileService)
 	{
-		LobbyProfileProvisioner->InitializeLoggedInPlayer(NewPlayer);
+		PlayerProfileService->InitializeLoggedInPlayer(NewPlayer);
 	}
 }
 
@@ -133,32 +104,16 @@ void UExperiencePlayerProvisioningComponent::PreparePlayerForGameplayInternal(
 	APlayerController* NewPlayer,
 	const bool bApplyLobbySkinEquipment)
 {
-	EnsureRuntimeProvisioners();
-
-	const bool bIsTrainingRoom =
-		TrainingRoomProvisioner
-		&& TrainingRoomProvisioner->IsTrainingRoomMap();
-
-	// Preserve the existing provisioning order: clear/initialize the gameplay
-	// loadout, apply cached cosmetics, grant fallback gestures, then add
-	// training-room-only content.
-	if (GameplayLoadoutProvisioner)
+	const EDefaultProvisionMode Mode = IsTrainingRoomMap()
+		? EDefaultProvisionMode::TrainingRoom
+		: EDefaultProvisionMode::Gameplay;
+	if (bApplyLobbySkinEquipment && PlayerProfileService)
 	{
-		GameplayLoadoutProvisioner->PrepareGameplayLoadout(
-			NewPlayer,
-			bIsTrainingRoom);
+		PlayerProfileService->ApplyCachedLobbySkinEquipment(NewPlayer);
 	}
-	if (bApplyLobbySkinEquipment && LobbyProfileProvisioner)
+	if (DefaultPlayerProvisioner)
 	{
-		LobbyProfileProvisioner->ApplyCachedLobbySkinEquipment(NewPlayer);
-	}
-	if (GameplayLoadoutProvisioner)
-	{
-		GameplayLoadoutProvisioner->GrantDefaultGameplayGestures(NewPlayer);
-	}
-	if (TrainingRoomProvisioner)
-	{
-		TrainingRoomProvisioner->PreparePlayerForGameplay(NewPlayer);
+		DefaultPlayerProvisioner->ProvisionPlayer(NewPlayer, Mode);
 	}
 }
 
@@ -178,17 +133,9 @@ ClearRuntimeStateForController(
 		{
 			return PendingProvision.PlayerController.Get() == Controller;
 		});
-	EnsureRuntimeProvisioners();
-
-	if (GameplayLoadoutProvisioner)
+	if (DefaultPlayerProvisioner)
 	{
-		GameplayLoadoutProvisioner->ClearRuntimeStateForController(
-			Controller,
-			PlayerState);
-	}
-	if (TrainingRoomProvisioner)
-	{
-		TrainingRoomProvisioner->ClearRuntimeStateForController(
+		DefaultPlayerProvisioner->ClearRuntimeStateForController(
 			Controller,
 			PlayerState);
 	}
@@ -213,13 +160,20 @@ void UExperiencePlayerProvisioningComponent::BeginProvisioningContentPreload()
 
 	TArray<FPrimaryAssetId> ContentIds;
 	TArray<FPrimaryAssetId> TypeContentIds;
-	ContentSubsystem->GetPandoraDefinitionIds(TypeContentIds);
-	ContentIds.Append(TypeContentIds);
-	ContentSubsystem->GetSkinDefinitionIds(TypeContentIds);
-	for (const FPrimaryAssetId& ContentId : TypeContentIds)
+	const auto AppendUniqueContentIds = [&ContentIds](
+		const TArray<FPrimaryAssetId>& AssetIds)
 	{
-		ContentIds.AddUnique(ContentId);
-	}
+		for (const FPrimaryAssetId& AssetId : AssetIds)
+		{
+			ContentIds.AddUnique(AssetId);
+		}
+	};
+	ContentSubsystem->GetSkillDataAssetIds(TypeContentIds);
+	AppendUniqueContentIds(TypeContentIds);
+	ContentSubsystem->GetPandoraDefinitionIds(TypeContentIds);
+	AppendUniqueContentIds(TypeContentIds);
+	ContentSubsystem->GetSkinDefinitionIds(TypeContentIds);
+	AppendUniqueContentIds(TypeContentIds);
 
 	bProvisioningContentLoadPending = true;
 	TSharedPtr<FStreamableHandle> NewLoadHandle =
@@ -275,65 +229,38 @@ void UExperiencePlayerProvisioningComponent::FlushPendingGameplayProvisions()
 }
 
 void UExperiencePlayerProvisioningComponent::
-GrantTrainingRoomStatusPointsForPlayerState(APlayerState* PlayerState)
+ApplyConfiguredStatusPointsForPlayerState(APlayerState* PlayerState)
 {
-	EnsureRuntimeProvisioners();
-	if (TrainingRoomProvisioner)
+	if (DefaultPlayerProvisioner)
 	{
-		TrainingRoomProvisioner
-			->GrantTrainingRoomStatusPointsForPlayerState(PlayerState);
+		DefaultPlayerProvisioner
+			->ApplyConfiguredStatusPointsForPlayerState(
+				PlayerState,
+				IsTrainingRoomMap()
+					? EDefaultProvisionMode::TrainingRoom
+					: EDefaultProvisionMode::Gameplay);
 	}
 }
 
 bool UExperiencePlayerProvisioningComponent::IsTrainingRoomMap() const
 {
-	return TrainingRoomProvisioner
-		&& TrainingRoomProvisioner->IsTrainingRoomMap();
-}
-
-int32 UExperiencePlayerProvisioningComponent::
-GetPendingDefaultItemGrantCount() const
-{
-	return GameplayLoadoutProvisioner
-		? GameplayLoadoutProvisioner->GetPendingDefaultItemGrantCount()
-		: 0;
-}
-
-void UExperiencePlayerProvisioningComponent::EnsureRuntimeProvisioners()
-{
-	if (IsTemplate())
+	const UWorld* World = GetWorld();
+	if (!World)
 	{
-		return;
+		return false;
 	}
 
-	bool bRecreatedProvisioner = false;
-	if (!IsValid(LobbyProfileProvisioner)
-		|| LobbyProfileProvisioner->GetOuter() != this
-		|| LobbyProfileProvisioner->IsTemplate())
+	const UMatchRuleDefinition* MatchRules =
+		CachedSettings.MatchRuleDefinition.Get();
+	if (!MatchRules && !CachedSettings.MatchRuleDefinition.IsNull())
 	{
-		LobbyProfileProvisioner =
-			NewObject<UExperienceLobbyProfileProvisioner>(this);
-		bRecreatedProvisioner = true;
+		MatchRules = CachedSettings.MatchRuleDefinition.LoadSynchronous();
 	}
-	if (!IsValid(GameplayLoadoutProvisioner)
-		|| GameplayLoadoutProvisioner->GetOuter() != this
-		|| GameplayLoadoutProvisioner->IsTemplate())
+	if (!MatchRules)
 	{
-		GameplayLoadoutProvisioner =
-			NewObject<UExperienceGameplayLoadoutProvisioner>(this);
-		bRecreatedProvisioner = true;
+		MatchRules = UMatchRuleDefinition::ResolveDefaultDefinition();
 	}
-	if (!IsValid(TrainingRoomProvisioner)
-		|| TrainingRoomProvisioner->GetOuter() != this
-		|| TrainingRoomProvisioner->IsTemplate())
-	{
-		TrainingRoomProvisioner =
-			NewObject<UExperienceTrainingRoomProvisioner>(this);
-		bRecreatedProvisioner = true;
-	}
-
-	if (bRecreatedProvisioner)
-	{
-		ApplySettingsToProvisioners(CachedSettings);
-	}
+	return MatchRules
+		&& MatchRules->IsTrainingRoomMapName(
+			UGameplayStatics::GetCurrentLevelName(World, true));
 }

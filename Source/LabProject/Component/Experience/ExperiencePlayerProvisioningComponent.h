@@ -6,17 +6,15 @@
 #include "ExperiencePlayerProvisioningComponent.generated.h"
 
 class APlayerController;
-class UExperienceGameplayLoadoutProvisioner;
-class UExperienceLobbyProfileProvisioner;
-class UExperienceTrainingRoomProvisioner;
+class UDefaultPlayerProvisioner;
+class UExperiencePlayerProfileService;
 struct FStreamableHandle;
 
 /**
  * Coordinates server-side player provisioning in a stable, explicit order.
  *
- * Domain policy and retry state live in the lobby-profile, gameplay-loadout,
- * and training-room provisioners. This component remains the GameMode-facing
- * facade so existing lifecycle calls do not depend on those implementations.
+ * DA_DefaultProvision grants are handled by one mode-driven provisioner.
+ * Save/profile restoration remains separate because it is not a default grant.
  */
 UCLASS(ClassGroup = (Experience))
 class LABPROJECT_API UExperiencePlayerProvisioningComponent
@@ -27,7 +25,6 @@ class LABPROJECT_API UExperiencePlayerProvisioningComponent
 public:
 	UExperiencePlayerProvisioningComponent();
 
-	virtual void OnRegister() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
@@ -40,29 +37,9 @@ public:
 	void ClearRuntimeStateForController(
 		AController* Controller,
 		APlayerState* PlayerState);
-	void GrantTrainingRoomStatusPointsForPlayerState(
+	void ApplyConfiguredStatusPointsForPlayerState(
 		APlayerState* PlayerState);
-
 	bool IsTrainingRoomMap() const;
-	int32 GetPendingDefaultItemGrantCount() const;
-
-	const UExperienceLobbyProfileProvisioner*
-	GetLobbyProfileProvisioner() const
-	{
-		return LobbyProfileProvisioner;
-	}
-
-	const UExperienceGameplayLoadoutProvisioner*
-	GetGameplayLoadoutProvisioner() const
-	{
-		return GameplayLoadoutProvisioner;
-	}
-
-	const UExperienceTrainingRoomProvisioner*
-	GetTrainingRoomProvisioner() const
-	{
-		return TrainingRoomProvisioner;
-	}
 
 private:
 	struct FPendingGameplayProvision
@@ -71,9 +48,6 @@ private:
 		bool bApplyLobbySkinEquipment = false;
 	};
 
-	void EnsureRuntimeProvisioners();
-	void ApplySettingsToProvisioners(
-		const FExperiencePlayerProvisioningSettings& InSettings);
 	void BeginProvisioningContentPreload();
 	void HandleProvisioningContentPreloaded();
 	void ReleaseProvisioningContentPreload();
@@ -81,18 +55,13 @@ private:
 	void PreparePlayerForGameplayInternal(
 		APlayerController* NewPlayer,
 		bool bApplyLobbySkinEquipment);
+	UPROPERTY(Transient)
+	TObjectPtr<UExperiencePlayerProfileService>
+		PlayerProfileService;
 
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Provisioning")
-	TObjectPtr<UExperienceLobbyProfileProvisioner>
-		LobbyProfileProvisioner;
-
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Provisioning")
-	TObjectPtr<UExperienceGameplayLoadoutProvisioner>
-		GameplayLoadoutProvisioner;
-
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Provisioning")
-	TObjectPtr<UExperienceTrainingRoomProvisioner>
-		TrainingRoomProvisioner;
+	UPROPERTY(Transient)
+	TObjectPtr<UDefaultPlayerProvisioner>
+		DefaultPlayerProvisioner;
 
 	FExperiencePlayerProvisioningSettings CachedSettings;
 	TArray<FPendingGameplayProvision> PendingGameplayProvisions;

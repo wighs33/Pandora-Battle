@@ -67,7 +67,7 @@ public:
 
 	bool TryGetPlayerInitialSpawnTransform(AController* PlayerController, FTransform& OutSpawnTransform) const;
 
-	void GrantTrainingRoomStatusPointsForPlayerState(APlayerState* PlayerState);
+	void ApplyConfiguredStatusPointsForPlayerState(APlayerState* PlayerState);
 
 protected:
 	bool IsExperienceLoaded() const;
@@ -78,11 +78,7 @@ protected:
 	FPrimaryAssetId GetConfiguredExperienceId() const;
 
 protected:
-	/**
-	 * These source properties stay on the facade at their original paths so
-	 * existing BP_GameMode defaults remain serialized. InitGame copies them
-	 * into role-specific settings owned by the runtime components.
-	 */
+	/** InitGame copies these policy values into role-specific runtime components. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Experience", meta = (AllowedTypes = "ExperienceDefinition"))
 	FPrimaryAssetId DefaultExperienceId;
 
@@ -110,60 +106,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules")
 	TSoftObjectPtr<UMatchRuleDefinition> MatchRuleDefinition;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Flow")
-	TSoftObjectPtr<UWorld> TitleMap;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Flow")
-	FString TitleTravelMapName = TEXT("/Game/Map/LV_Title");
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Training")
-	bool bGrantAllItemsInTrainingRoom = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Training", meta = (TitleProperty = "ItemDefinitionId"))
-	TArray<FTrainingRoomItemStackGrant> TrainingRoomItemStackGrants =
-	{
-		FTrainingRoomItemStackGrant(FPrimaryAssetId(FPrimaryAssetType(TEXT("ItemDefinition")), TEXT("DA_HealPotion")), 100),
-		FTrainingRoomItemStackGrant(FPrimaryAssetId(FPrimaryAssetType(TEXT("ItemDefinition")), TEXT("DA_ManaPotion")), 100),
-		FTrainingRoomItemStackGrant(FPrimaryAssetId(FPrimaryAssetType(TEXT("ItemDefinition")), TEXT("DA_StaminaPotion")), 100)
-	};
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Gameplay|Inventory", meta = (TitleProperty = "ItemDefinitionId"))
-	TArray<FGameplayItemStackGrant> DefaultGameplayItemStackGrants =
-	{
-		FGameplayItemStackGrant(FPrimaryAssetId(FPrimaryAssetType(TEXT("ItemDefinition")), TEXT("DA_HealPotion")), 3, 0),
-		FGameplayItemStackGrant(FPrimaryAssetId(FPrimaryAssetType(TEXT("ItemDefinition")), TEXT("DA_ManaPotion")), 3, 1),
-		FGameplayItemStackGrant(FPrimaryAssetId(FPrimaryAssetType(TEXT("ItemDefinition")), TEXT("DA_StaminaPotion")), 3, 2)
-	};
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Gameplay|Inventory", meta = (ClampMin = "1"))
-	int32 DefaultGameplayItemGrantMaxAttempts = 50;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Gameplay|Inventory", meta = (ClampMin = "0.01", ForceUnits = "s"))
-	float DefaultGameplayItemGrantRetryDelay = 0.1f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Gameplay|Gesture", meta = (TitleProperty = "SkinDefinitionId"))
-	TArray<FGameplayGestureSlotGrant> DefaultGameplayGestureSlotGrants =
-	{
-		FGameplayGestureSlotGrant(
-			FPrimaryAssetId(FPrimaryAssetType(TEXT("SkinDefinition")), TEXT("DA_HandRaising")),
-			0)
-	};
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Training")
-	bool bInitializeStatusPointsInTrainingRoom = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Training", meta = (ClampMin = "0.0"))
-	float TrainingRoomStatusPointValue = 50.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Training")
-	bool bInitializeSoulDustInTrainingRoom = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Training", meta = (ClampMin = "0"))
-	int32 TrainingRoomSoulDustValue = 100;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Training")
-	TArray<FName> TrainingRoomMapNames = { TEXT("LV_TrainingRoom") };
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Team")
 	bool bAssignDefaultTeamWhenLobbyTeamMissing = true;

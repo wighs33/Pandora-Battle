@@ -230,6 +230,17 @@ bool UExperienceSpawnComponent::TryGetPlayerInitialSpawnTransform(
 			OutSpawnTransform = *CachedSpawnTransform;
 			return true;
 		}
+
+		if (const TWeakObjectPtr<AActor>* AssignedPlayerStart =
+			AssignedPlayerStartsByController.Find(
+				TObjectKey<AController>(PlayerController)))
+		{
+			if (const AActor* PlayerStart = AssignedPlayerStart->Get())
+			{
+				OutSpawnTransform = PlayerStart->GetActorTransform();
+				return true;
+			}
+		}
 	}
 
 	return false;
@@ -575,6 +586,13 @@ bool UExperienceSpawnComponent::TryGetPlayerRespawnTransform(
 		GetExperienceGameModeConst();
 	const UExperienceMatchFlowComponent* MatchFlow =
 		GameMode ? GameMode->GetMatchFlowComponent() : nullptr;
+	if (MatchFlow && MatchFlow->IsGoldenKillActive())
+	{
+		return TryGetPlayerInitialSpawnTransform(
+			PlayerController,
+			OutRespawnTransform);
+	}
+
 	const UMatchRuleDefinition* MatchRules =
 		MatchFlow ? MatchFlow->GetMatchRuleDefinition() : nullptr;
 	if (MatchRules && MatchRules->bUseRandomPlayerStartRespawns)

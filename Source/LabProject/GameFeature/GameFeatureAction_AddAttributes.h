@@ -16,7 +16,7 @@ struct FWorldContext;
 
 DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddAttributesLog, Log, All);
 
-struct FPdGameFeatureAttributeHandles
+struct FGameFeatureAttributeHandles
 {
 	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;
 	TMap<TWeakObjectPtr<AActor>, int32> AttributeConfigHandles;
@@ -62,11 +62,11 @@ private:
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Attribute Setup
-	void AddAttributesToActor(AActor* Actor, FPdGameFeatureAttributeHandles& Handles);
-	void RemoveAttributesFromActor(AActor* Actor, FPdGameFeatureAttributeHandles& Handles) const;
-	void RemoveAllAttributes(FPdGameFeatureAttributeHandles& Handles) const;
+	void AddAttributesToActor(AActor* Actor, FGameFeatureAttributeHandles& Handles);
+	void RemoveAttributesFromActor(AActor* Actor, FGameFeatureAttributeHandles& Handles) const;
+	void RemoveAllAttributes(FGameFeatureAttributeHandles& Handles) const;
 	void AddAttributeSetsToActor(AActor* Actor, UPdAbilitySystemComponent* AbilitySystemComponent,
-		FPdGameFeatureAttributeHandles& Handles) const;
+		FGameFeatureAttributeHandles& Handles) const;
 	void CollectTargetClasses(TArray<TSubclassOf<AActor>>& OutTargetClasses) const;
 	void CollectAttributeSetClasses(TArray<TSubclassOf<UAttributeSet>>& OutAttributeSetClasses) const;
 	UAttributeSet* FindExistingAttributeSet(AActor* Actor, TSubclassOf<UAttributeSet> AttributeSetClass) const;
@@ -85,10 +85,10 @@ public:
 	TArray<TSoftClassPtr<UAttributeSet>> AttributeSetClasses;
 
 	UPROPERTY(EditAnywhere, Category = "Attributes")
-	FPdAttributeConfig AttributeConfig;
+	FAttributeConfig AttributeConfig;
 
 private:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Runtime State
-	TMap<FGameFeatureStateChangeContext, FPdGameFeatureAttributeHandles> ContextHandles;
+	TMap<FGameFeatureStateChangeContext, FGameFeatureAttributeHandles> ContextHandles;
 };

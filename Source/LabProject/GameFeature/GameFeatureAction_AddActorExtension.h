@@ -15,7 +15,7 @@ struct FWorldContext;
 
 DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddActorExtensionLog, Log, All);
 
-struct FPdGameFeatureActorExtensionHandles
+struct FGameFeatureActorExtensionHandles
 {
 	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;
 	TMap<TWeakObjectPtr<AActor>, FActorExtension> ActorExtensions;
@@ -53,7 +53,7 @@ private:
 	bool CanActivateActorExtension(AActor* Actor) const;
 	void ActivateActorExtension(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
 	void DeactivateActorExtension(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
-	void DeactivateAllActorExtensions(FPdGameFeatureActorExtensionHandles& Handles) const;
+	void DeactivateAllActorExtensions(FGameFeatureActorExtensionHandles& Handles) const;
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Extension", meta = (AllowAbstract = "false"))
@@ -69,5 +69,5 @@ public:
 	uint8 bAddToSimulatedProxy : 1 = false;
 
 private:
-	TMap<FGameFeatureStateChangeContext, FPdGameFeatureActorExtensionHandles> ContextHandles;
+	TMap<FGameFeatureStateChangeContext, FGameFeatureActorExtensionHandles> ContextHandles;
 };

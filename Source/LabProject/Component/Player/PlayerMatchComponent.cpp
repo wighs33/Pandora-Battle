@@ -123,7 +123,7 @@ bool UPlayerMatchComponent::TryGetInitialSpawnTransform(FTransform& OutSpawnTran
 	return true;
 }
 
-void UPlayerMatchComponent::SetPlayerMapRegion(const EPdPlayerMapRegion InMapRegion)
+void UPlayerMatchComponent::SetPlayerMapRegion(const EPlayerMapRegion InMapRegion)
 {
 	if (!HasAuthority() || PlayerMapRegion == InMapRegion)
 	{
@@ -247,7 +247,7 @@ void UPlayerMatchComponent::OnRep_DeathCount(const int32 PreviousDeathCount)
 	}
 }
 
-void UPlayerMatchComponent::OnRep_PlayerMapRegion(const EPdPlayerMapRegion PreviousPlayerMapRegion)
+void UPlayerMatchComponent::OnRep_PlayerMapRegion(const EPlayerMapRegion PreviousPlayerMapRegion)
 {
 	if (PlayerMapRegion != PreviousPlayerMapRegion)
 	{

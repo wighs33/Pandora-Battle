@@ -32,7 +32,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnMatchDisplayNameChanged, const FText& /*N
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMatchTeamColorChanged, int32 /*NewTeamColorIndex*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerMatchIdentityChanged, const FPlayerMatchIdentity& /*NewMatchIdentity*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerDeathCountChanged, int32 /*NewDeathCount*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerMapRegionChanged, EPdPlayerMapRegion /*NewMapRegion*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerMapRegionChanged, EPlayerMapRegion /*NewMapRegion*/);
 
 UCLASS(BlueprintType, ClassGroup=(Player))
 class LABPROJECT_API UPlayerMatchComponent : public UPlayerStateComponent
@@ -86,10 +86,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Match|Spawn")
 	bool TryGetInitialSpawnTransform(FTransform& OutSpawnTransform) const;
 
-	void SetPlayerMapRegion(EPdPlayerMapRegion InMapRegion);
+	void SetPlayerMapRegion(EPlayerMapRegion InMapRegion);
 
 	UFUNCTION(BlueprintPure, Category = "!Match|Map")
-	EPdPlayerMapRegion GetPlayerMapRegion() const { return PlayerMapRegion; }
+	EPlayerMapRegion GetPlayerMapRegion() const { return PlayerMapRegion; }
 
 	void CopyMatchStateTo(
 		UPlayerMatchComponent* TargetComponent,
@@ -109,7 +109,7 @@ private:
 	void OnRep_DeathCount(int32 PreviousDeathCount);
 
 	UFUNCTION()
-	void OnRep_PlayerMapRegion(EPdPlayerMapRegion PreviousPlayerMapRegion);
+	void OnRep_PlayerMapRegion(EPlayerMapRegion PreviousPlayerMapRegion);
 
 	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_PlayerMatchIdentity, Category = "!Match|Identity")
 	FPlayerMatchIdentity PlayerMatchIdentity;
@@ -124,5 +124,5 @@ private:
 	FTransform InitialSpawnTransform = FTransform::Identity;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_PlayerMapRegion, Category = "!Match|Map", meta = (AllowPrivateAccess = "true"))
-	EPdPlayerMapRegion PlayerMapRegion = EPdPlayerMapRegion::Windmill;
+	EPlayerMapRegion PlayerMapRegion = EPlayerMapRegion::Dome;
 };

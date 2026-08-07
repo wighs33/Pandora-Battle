@@ -5,6 +5,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Abilities/GameplayAbility.h"
 #include "AssetRegistry/AssetBundleData.h"
+#include "Common/LabGameplayTags.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFeature/ActorExtensionWorldSubsystem.h"
@@ -56,7 +57,7 @@ void UGameFeatureAction_AddAbilities::OnGameFeatureDeactivating(FGameFeatureDeac
 	Super::OnGameFeatureDeactivating(Context);
 
 	const FGameFeatureStateChangeContext ChangeContext(Context);
-	FPdGameFeatureAbilityGrantHandles* Handles = ContextHandles.Find(ChangeContext);
+	FGameFeatureAbilityGrantHandles* Handles = ContextHandles.Find(ChangeContext);
 	if (!Handles)
 	{
 		return;
@@ -111,13 +112,15 @@ EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(FDataValidati
 		}
 
 		const FGameplayTag& InputTag = Abilities[EntryIndex].InputTag;
+		const FGameplayTag& InputAbilityRoot = LabGameplayTags::Input_Ability;
 		if (InputTag.IsValid()
-			&& !InputTag.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Input.Ability"))))
+			&& !InputTag.MatchesTag(InputAbilityRoot))
 		{
 			Result = EDataValidationResult::Invalid;
 			Context.AddError(FText::Format(
-				NSLOCTEXT("PdGameFeatureAction_AddAbilities", "InvalidInputTag", "Ability entry {0} InputTag must be under Input.Ability."),
-				FText::AsNumber(EntryIndex)));
+				NSLOCTEXT("PdGameFeatureAction_AddAbilities", "InvalidInputTag", "Ability entry {0} InputTag must be under {1}."),
+				FText::AsNumber(EntryIndex),
+				FText::FromName(InputAbilityRoot.GetTagName())));
 		}
 
 		const FSoftObjectPath AbilityPath = Abilities[EntryIndex].Ability.ToSoftObjectPath();
@@ -157,7 +160,7 @@ void UGameFeatureAction_AddAbilities::AddAdditionalAssetBundleData(FAssetBundleD
 		}
 	}
 
-	for (const FPdGameFeatureAbilityEntry& Entry : Abilities)
+	for (const FGameFeatureAbilityEntry& Entry : Abilities)
 	{
 		if (!Entry.Ability.IsNull())
 		{
@@ -215,23 +218,23 @@ void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(
 		return;
 	}
 
-	FPdGameFeatureAbilityGrantHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
+	FGameFeatureAbilityGrantHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
 
-	FPdActorExtensionSpec ExtensionSpec;
+	FActorExtensionSpec ExtensionSpec;
 	ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateWeakLambda(this, [this](AActor* Actor)
 	{
 		return Actor && Actor->HasAuthority() && GetAbilitySystemComponent(Actor) != nullptr;
 	});
 	ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
 	{
-		if (FPdGameFeatureAbilityGrantHandles* FoundHandles = ContextHandles.Find(ChangeContext))
+		if (FGameFeatureAbilityGrantHandles* FoundHandles = ContextHandles.Find(ChangeContext))
 		{
 			GrantAbilitiesToActor(Actor, *FoundHandles);
 		}
 	});
 	ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
 	{
-		if (FPdGameFeatureAbilityGrantHandles* FoundHandles = ContextHandles.Find(ChangeContext))
+		if (FGameFeatureAbilityGrantHandles* FoundHandles = ContextHandles.Find(ChangeContext))
 		{
 			RemoveAbilitiesFromActor(Actor, *FoundHandles);
 		}
@@ -245,7 +248,7 @@ void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(
 
 //----------------------------------------------------------------------------------------------------------------------
 //--- Ability Grants
-void UGameFeatureAction_AddAbilities::GrantAbilitiesToActor(AActor* Actor, FPdGameFeatureAbilityGrantHandles& Handles)
+void UGameFeatureAction_AddAbilities::GrantAbilitiesToActor(AActor* Actor, FGameFeatureAbilityGrantHandles& Handles)
 {
 	if (!Actor || !Actor->HasAuthority() || Handles.AbilitySpecHandles.Contains(Actor))
 	{
@@ -259,7 +262,7 @@ void UGameFeatureAction_AddAbilities::GrantAbilitiesToActor(AActor* Actor, FPdGa
 	}
 
 	TArray<FGameplayAbilitySpecHandle>& ActorHandles = Handles.AbilitySpecHandles.Add(Actor);
-	for (const FPdGameFeatureAbilityEntry& Entry : Abilities)
+	for (const FGameFeatureAbilityEntry& Entry : Abilities)
 	{
 		TSubclassOf<UGameplayAbility> AbilityClass = Entry.Ability.Get();
 		if (!AbilityClass)
@@ -303,7 +306,7 @@ void UGameFeatureAction_AddAbilities::GrantAbilitiesToActor(AActor* Actor, FPdGa
 	}
 }
 
-void UGameFeatureAction_AddAbilities::RemoveAbilitiesFromActor(AActor* Actor, FPdGameFeatureAbilityGrantHandles& Handles) const
+void UGameFeatureAction_AddAbilities::RemoveAbilitiesFromActor(AActor* Actor, FGameFeatureAbilityGrantHandles& Handles) const
 {
 	if (!Actor)
 	{
@@ -331,7 +334,7 @@ void UGameFeatureAction_AddAbilities::RemoveAbilitiesFromActor(AActor* Actor, FP
 	}
 }
 
-void UGameFeatureAction_AddAbilities::RemoveAllGrantedAbilities(FPdGameFeatureAbilityGrantHandles& Handles) const
+void UGameFeatureAction_AddAbilities::RemoveAllGrantedAbilities(FGameFeatureAbilityGrantHandles& Handles) const
 {
 	TArray<TWeakObjectPtr<AActor>> Actors;
 	Handles.AbilitySpecHandles.GetKeys(Actors);

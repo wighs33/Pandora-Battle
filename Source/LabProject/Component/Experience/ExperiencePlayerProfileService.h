@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "ExperienceLobbyProfileProvisioner.generated.h"
+#include "ExperiencePlayerProfileService.generated.h"
 
 class AExperienceGameMode;
 class APlayerController;
@@ -12,11 +12,10 @@ struct FExperiencePlayerProvisioningSettings;
 /**
  * Applies persisted lobby identity and cosmetic selections to a player.
  *
- * The owning provisioning component controls when this policy runs. This
- * object owns only lobby/profile-specific configuration and has no retries.
+ * This is a profile/session service, not a DA_DefaultProvision grant path.
  */
-UCLASS()
-class LABPROJECT_API UExperienceLobbyProfileProvisioner : public UObject
+UCLASS(Transient)
+class LABPROJECT_API UExperiencePlayerProfileService : public UObject
 {
 	GENERATED_BODY()
 

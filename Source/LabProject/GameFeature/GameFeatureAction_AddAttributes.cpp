@@ -52,7 +52,7 @@ void UGameFeatureAction_AddAttributes::OnGameFeatureDeactivating(FGameFeatureDea
 	Super::OnGameFeatureDeactivating(Context);
 
 	const FGameFeatureStateChangeContext ChangeContext(Context);
-	FPdGameFeatureAttributeHandles* Handles = ContextHandles.Find(ChangeContext);
+	FGameFeatureAttributeHandles* Handles = ContextHandles.Find(ChangeContext);
 	if (!Handles)
 	{
 		return;
@@ -123,7 +123,7 @@ EDataValidationResult UGameFeatureAction_AddAttributes::IsDataValid(FDataValidat
 	TSet<FString> AttributeNames;
 	for (int32 EntryIndex = 0; EntryIndex < AttributeConfig.AttributeMappings.Num(); ++EntryIndex)
 	{
-		const FPdAttributeTagMapping& Entry = AttributeConfig.AttributeMappings[EntryIndex];
+		const FAttributeTagMapping& Entry = AttributeConfig.AttributeMappings[EntryIndex];
 		if (!Entry.IsValid())
 		{
 			continue;
@@ -226,7 +226,7 @@ void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(
 		return;
 	}
 
-	FPdGameFeatureAttributeHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
+	FGameFeatureAttributeHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
 
 	for (const TSubclassOf<AActor>& LoadedTargetClass : LoadedTargetClasses)
 	{
@@ -235,7 +235,7 @@ void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(
 			continue;
 		}
 
-		FPdActorExtensionSpec ExtensionSpec;
+		FActorExtensionSpec ExtensionSpec;
 		ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateWeakLambda(this, [this](AActor* Actor)
 		{
 			UPdAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
@@ -244,14 +244,14 @@ void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(
 		});
 		ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
 		{
-			if (FPdGameFeatureAttributeHandles* FoundHandles = ContextHandles.Find(ChangeContext))
+			if (FGameFeatureAttributeHandles* FoundHandles = ContextHandles.Find(ChangeContext))
 			{
 				AddAttributesToActor(Actor, *FoundHandles);
 			}
 		});
 		ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
 		{
-			if (FPdGameFeatureAttributeHandles* FoundHandles = ContextHandles.Find(ChangeContext))
+			if (FGameFeatureAttributeHandles* FoundHandles = ContextHandles.Find(ChangeContext))
 			{
 				RemoveAttributesFromActor(Actor, *FoundHandles);
 			}
@@ -266,7 +266,7 @@ void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(
 
 //----------------------------------------------------------------------------------------------------------------------
 //--- Attribute Setup
-void UGameFeatureAction_AddAttributes::AddAttributesToActor(AActor* Actor, FPdGameFeatureAttributeHandles& Handles)
+void UGameFeatureAction_AddAttributes::AddAttributesToActor(AActor* Actor, FGameFeatureAttributeHandles& Handles)
 {
 	if (!Actor || Handles.AttributeConfigHandles.Contains(Actor))
 	{
@@ -302,7 +302,7 @@ void UGameFeatureAction_AddAttributes::AddAttributesToActor(AActor* Actor, FPdGa
 				{
 					if (AExperienceGameMode* ExperienceGameMode = World->GetAuthGameMode<AExperienceGameMode>())
 					{
-						ExperienceGameMode->GrantTrainingRoomStatusPointsForPlayerState(PlayerState);
+						ExperienceGameMode->ApplyConfiguredStatusPointsForPlayerState(PlayerState);
 					}
 				}
 			}
@@ -310,7 +310,7 @@ void UGameFeatureAction_AddAttributes::AddAttributesToActor(AActor* Actor, FPdGa
 	}
 }
 
-void UGameFeatureAction_AddAttributes::RemoveAttributesFromActor(AActor* Actor, FPdGameFeatureAttributeHandles& Handles) const
+void UGameFeatureAction_AddAttributes::RemoveAttributesFromActor(AActor* Actor, FGameFeatureAttributeHandles& Handles) const
 {
 	if (!Actor)
 	{
@@ -347,7 +347,7 @@ void UGameFeatureAction_AddAttributes::RemoveAttributesFromActor(AActor* Actor, 
 	}
 }
 
-void UGameFeatureAction_AddAttributes::RemoveAllAttributes(FPdGameFeatureAttributeHandles& Handles) const
+void UGameFeatureAction_AddAttributes::RemoveAllAttributes(FGameFeatureAttributeHandles& Handles) const
 {
 	TArray<TWeakObjectPtr<AActor>> Actors;
 	Handles.AttributeConfigHandles.GetKeys(Actors);
@@ -362,7 +362,7 @@ void UGameFeatureAction_AddAttributes::RemoveAllAttributes(FPdGameFeatureAttribu
 }
 
 void UGameFeatureAction_AddAttributes::AddAttributeSetsToActor(AActor* Actor, UPdAbilitySystemComponent* AbilitySystemComponent,
-	FPdGameFeatureAttributeHandles& Handles) const
+	FGameFeatureAttributeHandles& Handles) const
 {
 	if (!Actor || !AbilitySystemComponent)
 	{
@@ -437,7 +437,7 @@ void UGameFeatureAction_AddAttributes::CollectAttributeSetClasses(TArray<TSubcla
 		}
 	}
 
-	for (const FPdAttributeTagMapping& Entry : AttributeConfig.AttributeMappings)
+	for (const FAttributeTagMapping& Entry : AttributeConfig.AttributeMappings)
 	{
 		if (!Entry.Attribute.IsValid())
 		{

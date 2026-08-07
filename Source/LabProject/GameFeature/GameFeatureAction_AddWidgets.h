@@ -7,7 +7,7 @@
 class AActor;
 class APdHUD;
 class FActorExtensionHandle;
-struct FStreamableHandle;
+class FWidgetContentBundleLease;
 class UWidgetClassDefinition;
 class UWorld;
 struct FAssetBundleData;
@@ -17,12 +17,13 @@ struct FWorldContext;
 
 DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddWidgetsLog, Log, All);
 
-struct FPdGameFeatureWidgetHandles
+struct FGameFeatureWidgetHandles
 {
 	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;
 	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<UWidgetClassDefinition>> WidgetDefinitionsByActor;
 	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<UWidgetClassDefinition>> PendingWidgetDefinitionsByActor;
-	TMap<TWeakObjectPtr<AActor>, TSharedPtr<FStreamableHandle>> WidgetPreloadHandlesByActor;
+	TMap<TWeakObjectPtr<AActor>, TArray<TSharedPtr<FWidgetContentBundleLease>>>
+		WidgetContentLeasesByActor;
 };
 
 UCLASS(meta = (DisplayName = "Add Widgets"))
@@ -53,7 +54,7 @@ private:
 		FGameFeatureStateChangeContext ChangeContext,
 		UWidgetClassDefinition* ExpectedWidgetClassDefinition);
 	void RemoveWidgetsFromActor(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
-	void RemoveAllWidgets(FPdGameFeatureWidgetHandles& Handles) const;
+	void RemoveAllWidgets(FGameFeatureWidgetHandles& Handles) const;
 
 public:
 	UPROPERTY(EditAnywhere, Category = "UI", meta = (AllowAbstract = "false"))
@@ -63,5 +64,5 @@ public:
 	TSoftObjectPtr<UWidgetClassDefinition> WidgetClassDefinition;
 
 private:
-	TMap<FGameFeatureStateChangeContext, FPdGameFeatureWidgetHandles> ContextHandles;
+	TMap<FGameFeatureStateChangeContext, FGameFeatureWidgetHandles> ContextHandles;
 };

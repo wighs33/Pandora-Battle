@@ -1,6 +1,8 @@
 #include "Definition/Match/MatchRuleDefinition.h"
 
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/PackageName.h"
 #include "UI/Widget/MapWidget.h"
 
 #if WITH_EDITOR
@@ -11,9 +13,6 @@
 
 namespace
 {
-	const FSoftObjectPath DefaultMatchRuleDefinitionPath(
-		TEXT("/Game/Data/DA_MatchRule.DA_MatchRule"));
-
 #if WITH_EDITOR
 	void MarkMatchRuleInvalid(FDataValidationContext& Context, EDataValidationResult& Result, const FText& Message)
 	{
@@ -135,13 +134,6 @@ namespace
 					OptionLabel));
 			}
 
-			if (MapOption.DefaultMaxBotCount < 0)
-			{
-				MarkMatchRuleInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("MatchRuleDefinition", "InvalidDefaultMaxBotCount", "{0} DefaultMaxBotCount cannot be negative."),
-					OptionLabel));
-			}
-
 			if (!MapOption.GameplayMapWidgetClass.IsNull() && !MapOption.GameplayMapWidgetClass.LoadSynchronous())
 			{
 				MarkMatchRuleInvalid(Context, Result, FText::Format(
@@ -155,12 +147,12 @@ namespace
 	void ValidateTeamOverlayMaterials(
 		FDataValidationContext& Context,
 		EDataValidationResult& Result,
-		const TArray<FPdTeamOverlayMaterial>& TeamOverlayMaterials)
+		const TArray<FTeamOverlayMaterial>& TeamOverlayMaterials)
 	{
 		TSet<uint8> UsedTeamColors;
 		for (int32 Index = 0; Index < TeamOverlayMaterials.Num(); ++Index)
 		{
-			const FPdTeamOverlayMaterial& TeamOverlayMaterial = TeamOverlayMaterials[Index];
+			const FTeamOverlayMaterial& TeamOverlayMaterial = TeamOverlayMaterials[Index];
 			const uint8 TeamColorValue = static_cast<uint8>(TeamOverlayMaterial.TeamColor);
 
 			if (UsedTeamColors.Contains(TeamColorValue))
@@ -221,14 +213,53 @@ FPrimaryAssetId UMatchRuleDefinition::GetPrimaryAssetId() const
 	return FPrimaryAssetId(TEXT("MatchRuleDefinition"), GetFName());
 }
 
-const FSoftObjectPath& UMatchRuleDefinition::GetDefaultDefinitionPath()
+FSoftObjectPath UMatchRuleDefinition::GetDefaultDefinitionPath()
 {
-	return DefaultMatchRuleDefinitionPath;
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.MatchRule.ToSoftObjectPath();
+}
+
+const UMatchRuleDefinition* UMatchRuleDefinition::ResolveDefaultDefinition()
+{
+	const FSoftObjectPath DefinitionPath = GetDefaultDefinitionPath();
+	if (!DefinitionPath.IsValid())
+	{
+		return nullptr;
+	}
+
+	if (const UMatchRuleDefinition* LoadedDefinition =
+		Cast<UMatchRuleDefinition>(DefinitionPath.ResolveObject()))
+	{
+		return LoadedDefinition;
+	}
+
+	return Cast<UMatchRuleDefinition>(DefinitionPath.TryLoad());
+}
+
+FString UMatchRuleDefinition::GetTrainingRoomTravelMapName() const
+{
+	return TrainingRoomMap.ToSoftObjectPath().GetLongPackageName();
+}
+
+bool UMatchRuleDefinition::IsTrainingRoomMapName(
+	const FString& LevelName) const
+{
+	if (LevelName.TrimStartAndEnd().IsEmpty())
+	{
+		return false;
+	}
+
+	const FString MapPackageName = GetTrainingRoomTravelMapName();
+	return !MapPackageName.IsEmpty()
+		&& (MapPackageName.Equals(LevelName, ESearchCase::IgnoreCase)
+			|| FPackageName::GetShortName(MapPackageName).Equals(
+				LevelName,
+				ESearchCase::IgnoreCase));
 }
 
 UMaterialInterface* UMatchRuleDefinition::GetTeamOverlayMaterial(const int32 TeamColorIndex) const
 {
-	EPdTeamColor TeamColor = EPdTeamColor::Red;
+	ETeamColor TeamColor = ETeamColor::Red;
 	if (!TryGetTeamColorForIndex(TeamColorIndex, TeamColor))
 	{
 		return nullptr;
@@ -237,37 +268,37 @@ UMaterialInterface* UMatchRuleDefinition::GetTeamOverlayMaterial(const int32 Tea
 	return GetTeamOverlayMaterialByTeamColor(TeamColor);
 }
 
-bool UMatchRuleDefinition::TryGetTeamColorForIndex(const int32 TeamColorIndex, EPdTeamColor& OutTeamColor)
+bool UMatchRuleDefinition::TryGetTeamColorForIndex(const int32 TeamColorIndex, ETeamColor& OutTeamColor)
 {
 	switch (TeamColorIndex)
 	{
 	case 0:
-		OutTeamColor = EPdTeamColor::Red;
+		OutTeamColor = ETeamColor::Red;
 		return true;
 	case 1:
-		OutTeamColor = EPdTeamColor::Blue;
+		OutTeamColor = ETeamColor::Blue;
 		return true;
 	case 2:
-		OutTeamColor = EPdTeamColor::Yellow;
+		OutTeamColor = ETeamColor::Yellow;
 		return true;
 	case 3:
-		OutTeamColor = EPdTeamColor::Purple;
+		OutTeamColor = ETeamColor::Purple;
 		return true;
 	case 4:
-		OutTeamColor = EPdTeamColor::Green;
+		OutTeamColor = ETeamColor::Green;
 		return true;
 	case 5:
-		OutTeamColor = EPdTeamColor::Orange;
+		OutTeamColor = ETeamColor::Orange;
 		return true;
 	default:
-		OutTeamColor = EPdTeamColor::Red;
+		OutTeamColor = ETeamColor::Red;
 		return false;
 	}
 }
 
-UMaterialInterface* UMatchRuleDefinition::GetTeamOverlayMaterialByTeamColor(const EPdTeamColor TeamColor) const
+UMaterialInterface* UMatchRuleDefinition::GetTeamOverlayMaterialByTeamColor(const ETeamColor TeamColor) const
 {
-	for (const FPdTeamOverlayMaterial& TeamOverlayMaterial : TeamOverlayMaterials)
+	for (const FTeamOverlayMaterial& TeamOverlayMaterial : TeamOverlayMaterials)
 	{
 		if (TeamOverlayMaterial.TeamColor == TeamColor)
 		{
@@ -352,12 +383,12 @@ EDataValidationResult UMatchRuleDefinition::IsDataValid(FDataValidationContext& 
 	ValidateNameArray(Context, Result, MapsWithoutMatchTimer, TEXT("MapsWithoutMatchTimer"));
 	ValidateNameArray(Context, Result, RandomRespawnPlayerStartTags, TEXT("RandomRespawnPlayerStartTags"));
 
-	if (bEnableServerMatchTimer && MatchTimerSeconds <= 0.0f)
+	if (MatchTimerSeconds <= 0.0f)
 	{
 		Context.AddWarning(NSLOCTEXT(
 			"MatchRuleDefinition",
-			"EnabledZeroServerTimer",
-			"bEnableServerMatchTimer is true, but MatchTimerSeconds is zero. Server match timer will not start."));
+			"ZeroServerTimer",
+			"MatchTimerSeconds is zero. The server match timer will expire immediately."));
 	}
 
 	if (bUseRandomPlayerStartRespawns && RandomRespawnPlayerStartTags.IsEmpty())

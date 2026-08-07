@@ -48,7 +48,7 @@ void UActorExtensionWorldSubsystem::Deinitialize()
 
 		for (const int32 ExtensionId : Pair.Value)
 		{
-			if (const FPdActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId))
+			if (const FActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId))
 			{
 				DeactivateExtensionForActor(Actor, ExtensionId, *ExtensionSpec);
 			}
@@ -83,13 +83,13 @@ void UActorExtensionWorldSubsystem::Tick(float DeltaTime)
 		CollectExtensionsForActor(Actor, ExtensionIds);
 		if (!ExtensionIds.IsEmpty())
 		{
-			RegisterActors.Add(FPdRegisteredActorExtension{ Actor, MoveTemp(ExtensionIds) });
+			RegisterActors.Add(FRegisteredActorExtension{ Actor, MoveTemp(ExtensionIds) });
 		}
 	}
 
 	for (int32 ActorIndex = RegisterActors.Num() - 1; ActorIndex >= 0; --ActorIndex)
 	{
-		FPdRegisteredActorExtension& RegisteredActor = RegisterActors[ActorIndex];
+		FRegisteredActorExtension& RegisteredActor = RegisterActors[ActorIndex];
 		AActor* Actor = RegisteredActor.Actor.Get();
 		if (!Actor)
 		{
@@ -100,7 +100,7 @@ void UActorExtensionWorldSubsystem::Tick(float DeltaTime)
 		for (int32 ExtensionIndex = RegisteredActor.ExtensionIds.Num() - 1; ExtensionIndex >= 0; --ExtensionIndex)
 		{
 			const int32 ExtensionId = RegisteredActor.ExtensionIds[ExtensionIndex];
-			FPdActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId);
+			FActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId);
 			if (!ExtensionSpec || IsExtensionActiveForActor(Actor, ExtensionId) || !ShouldApplyExtensionToActor(Actor, *ExtensionSpec))
 			{
 				RegisteredActor.ExtensionIds.RemoveAtSwap(ExtensionIndex);
@@ -146,7 +146,7 @@ bool UActorExtensionWorldSubsystem::IsTickable() const
 
 TSharedPtr<FActorExtensionHandle> UActorExtensionWorldSubsystem::RegisterExtensionForClass(
 	UClass* TargetClass,
-	FPdActorExtensionSpec ExtensionSpec)
+	FActorExtensionSpec ExtensionSpec)
 {
 	if (!TargetClass)
 	{
@@ -158,18 +158,7 @@ TSharedPtr<FActorExtensionHandle> UActorExtensionWorldSubsystem::RegisterExtensi
 
 	const int32 ExtensionId = NextExtensionId++;
 	ExtensionById.Add(ExtensionId, MoveTemp(ExtensionSpec));
-
-	TArray<UClass*> Classes;
-	GetDerivedClasses(TargetClass, Classes, true);
-	Classes.Add(TargetClass);
-
-	for (UClass* Class : Classes)
-	{
-		if (Class)
-		{
-			ClassExtensionIds.FindOrAdd(Class).Add(ExtensionId);
-		}
-	}
+	ClassExtensionIds.FindOrAdd(TargetClass).Add(ExtensionId);
 
 	QueueExistingActorsForClass(TargetClass);
 	return MakeShared<FActorExtensionHandle>(this, ExtensionId);
@@ -177,7 +166,7 @@ TSharedPtr<FActorExtensionHandle> UActorExtensionWorldSubsystem::RegisterExtensi
 
 void UActorExtensionWorldSubsystem::UnregisterExtension(int32 ExtensionId)
 {
-	const FPdActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId);
+	const FActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId);
 	if (!ExtensionSpec)
 	{
 		return;
@@ -202,7 +191,7 @@ void UActorExtensionWorldSubsystem::UnregisterExtension(int32 ExtensionId)
 		}
 	}
 
-	for (FPdRegisteredActorExtension& RegisteredActor : RegisterActors)
+	for (FRegisteredActorExtension& RegisteredActor : RegisterActors)
 	{
 		RegisteredActor.ExtensionIds.Remove(ExtensionId);
 	}
@@ -342,24 +331,27 @@ void UActorExtensionWorldSubsystem::CollectExtensionsForActor(AActor* Actor, TAr
 		return;
 	}
 
-	const TSet<int32>* ExtensionIds = ClassExtensionIds.Find(Actor->GetClass());
-	if (!ExtensionIds)
+	for (UClass* ActorClass = Actor->GetClass(); ActorClass; ActorClass = ActorClass->GetSuperClass())
 	{
-		return;
-	}
-
-	for (const int32 ExtensionId : *ExtensionIds)
-	{
-		const FPdActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId);
-		if (!ExtensionSpec
-			|| IsExtensionActiveForActor(Actor, ExtensionId)
-			|| IsExtensionPendingForActor(Actor, ExtensionId)
-			|| !ShouldApplyExtensionToActor(Actor, *ExtensionSpec))
+		const TSet<int32>* ExtensionIds = ClassExtensionIds.Find(ActorClass);
+		if (!ExtensionIds)
 		{
 			continue;
 		}
 
-		OutExtensionIds.Add(ExtensionId);
+		for (const int32 ExtensionId : *ExtensionIds)
+		{
+			const FActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId);
+			if (!ExtensionSpec
+				|| IsExtensionActiveForActor(Actor, ExtensionId)
+				|| IsExtensionPendingForActor(Actor, ExtensionId)
+				|| !ShouldApplyExtensionToActor(Actor, *ExtensionSpec))
+			{
+				continue;
+			}
+
+			OutExtensionIds.AddUnique(ExtensionId);
+		}
 	}
 }
 
@@ -375,7 +367,7 @@ void UActorExtensionWorldSubsystem::RemoveActor(AActor* Actor)
 	{
 		for (const int32 ExtensionId : *ActiveExtensionIds)
 		{
-			if (const FPdActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId))
+			if (const FActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId))
 			{
 				DeactivateExtensionForActor(Actor, ExtensionId, *ExtensionSpec);
 			}
@@ -404,7 +396,7 @@ void UActorExtensionWorldSubsystem::RemoveActor(AActor* Actor)
 void UActorExtensionWorldSubsystem::DeactivateExtensionForActor(
 	AActor* Actor,
 	int32 ExtensionId,
-	const FPdActorExtensionSpec& ExtensionSpec)
+	const FActorExtensionSpec& ExtensionSpec)
 {
 	static_cast<void>(ExtensionId);
 
@@ -422,7 +414,7 @@ bool UActorExtensionWorldSubsystem::IsExtensionActiveForActor(AActor* Actor, int
 
 bool UActorExtensionWorldSubsystem::IsExtensionPendingForActor(AActor* Actor, int32 ExtensionId) const
 {
-	for (const FPdRegisteredActorExtension& RegisteredActor : RegisterActors)
+	for (const FRegisteredActorExtension& RegisteredActor : RegisterActors)
 	{
 		if (RegisteredActor.Actor.Get() == Actor && RegisteredActor.ExtensionIds.Contains(ExtensionId))
 		{
@@ -435,7 +427,7 @@ bool UActorExtensionWorldSubsystem::IsExtensionPendingForActor(AActor* Actor, in
 
 bool UActorExtensionWorldSubsystem::ShouldApplyExtensionToActor(
 	AActor* Actor,
-	const FPdActorExtensionSpec& ExtensionSpec) const
+	const FActorExtensionSpec& ExtensionSpec) const
 {
 	if (!Actor || !ExtensionSpec.bUseClientRoleFilter)
 	{

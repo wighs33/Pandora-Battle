@@ -5,6 +5,7 @@
 #include "Component/Experience/ExperienceSpawnComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Item/RewardDefinition.h"
+#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
@@ -29,6 +30,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogExperienceMatchFlowContent, Log, All);
 
 namespace
 {
+constexpr float GameResultLobbyReturnDelaySeconds = 5.0f;
+
 FString StripTravelOptions(const FString& TravelMapName)
 {
 	FString CleanMapName = TravelMapName;
@@ -127,9 +130,11 @@ void UExperienceMatchFlowComponent::EndPlay(
 	{
 		World->GetTimerManager().ClearTimer(MatchTimerHandle);
 		World->GetTimerManager().ClearTimer(ChestConfigurationRetryTimerHandle);
+		World->GetTimerManager().ClearTimer(GameResultLobbyReturnTimerHandle);
 	}
 	MatchTimerHandle.Invalidate();
 	ChestConfigurationRetryTimerHandle.Invalidate();
+	GameResultLobbyReturnTimerHandle.Invalidate();
 	ReleaseRuntimeContentPreload();
 
 	Super::EndPlay(EndPlayReason);
@@ -177,8 +182,8 @@ void UExperienceMatchFlowComponent::InitializeGameState()
 		const_cast<UMatchRuleDefinition*>(GetMatchRuleDefinition()));
 	ExperienceGameState->SetMatchTimerState(
 		ShouldSuppressServerMatchTimer()
-			? EPdMatchTimerPhase::Suppressed
-			: EPdMatchTimerPhase::Inactive);
+			? EMatchTimerPhase::Suppressed
+			: EMatchTimerPhase::Inactive);
 }
 
 void UExperienceMatchFlowComponent::StartServerMatchTimerIfNeeded()
@@ -208,24 +213,16 @@ void UExperienceMatchFlowComponent::StartServerMatchTimerIfNeeded()
 		if (ExperienceGameState)
 		{
 			ExperienceGameState->SetMatchTimerState(
-				EPdMatchTimerPhase::Suppressed);
+				EMatchTimerPhase::Suppressed);
 		}
 		return;
 	}
 
 	const UMatchRuleDefinition* MatchRules =
 		GetMatchRuleDefinition();
-	if (!MatchRules || !MatchRules->bEnableServerMatchTimer)
-	{
-		if (ExperienceGameState)
-		{
-			ExperienceGameState->SetMatchTimerState(
-				EPdMatchTimerPhase::Inactive);
-		}
-		return;
-	}
-
-	const float MatchTimerSeconds = MatchRules->MatchTimerSeconds;
+	const float MatchTimerSeconds = MatchRules
+		? MatchRules->MatchTimerSeconds
+		: GetDefault<UMatchRuleDefinition>()->MatchTimerSeconds;
 	if (MatchTimerSeconds <= 0.0f)
 	{
 		HandleMatchTimerExpired();
@@ -241,7 +238,7 @@ void UExperienceMatchFlowComponent::StartServerMatchTimerIfNeeded()
 	if (ExperienceGameState)
 	{
 		ExperienceGameState->SetMatchTimerState(
-			EPdMatchTimerPhase::Running,
+			EMatchTimerPhase::Running,
 			ExperienceGameState->GetServerWorldTimeSeconds()
 				+ MatchTimerSeconds);
 	}
@@ -417,7 +414,7 @@ void UExperienceMatchFlowComponent::HandleMatchTimerExpired()
 		GameMode->GetGameState<AExperienceGameState>())
 	{
 		ExperienceGameState->SetMatchTimerState(
-			EPdMatchTimerPhase::Expired);
+			EMatchTimerPhase::Expired);
 	}
 
 	APdPlayerState* WinnerPlayerState = nullptr;
@@ -431,13 +428,25 @@ void UExperienceMatchFlowComponent::HandleMatchTimerExpired()
 		ShowGameResultForWinner(WinnerPlayerState);
 		return;
 	}
+	if (bTopKillCountTied
+		&& TryFindSharedLeadingTeamWinner(
+			WinnerPlayerState,
+			TopKillCount))
+	{
+		// A player tie inside one team is already a team victory. Golden Kill is
+		// only needed when the leading score is shared by opposing teams.
+		ShowGameResultForWinner(WinnerPlayerState);
+		return;
+	}
 
 	const UMatchRuleDefinition* MatchRules =
 		GetMatchRuleDefinition();
-	if (MatchRules && MatchRules->bGoldenKillEnabled)
+	if (bTopKillCountTied
+		&& MatchRules
+		&& MatchRules->bGoldenKillEnabled)
 	{
-		ForceMovePlayersForTimerTie();
-		StartTimerTieNextKillWins();
+		StartGoldenKill(TopKillCount);
+		ForceMovePlayersForGoldenKill();
 	}
 }
 
@@ -458,12 +467,14 @@ bool UExperienceMatchFlowComponent::ShowGameResultForWinner(
 	}
 
 	bGameResultShown = true;
+	bGoldenKillActive = false;
+	GoldenKillVictoryScore = 0;
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(MatchTimerHandle);
 	}
 	ExperienceGameState->SetMatchTimerState(
-		EPdMatchTimerPhase::Expired);
+		EMatchTimerPhase::Expired);
 
 	APdPlayerState* TopKillerPlayerState = nullptr;
 	int32 TopKillCount = 0;
@@ -506,6 +517,16 @@ bool UExperienceMatchFlowComponent::ShowGameResultForWinner(
 				: WinnerPlayerState),
 		TopKillCount,
 		PlayerStats);
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			GameResultLobbyReturnTimerHandle,
+			this,
+			&ThisClass::ReturnToLobbyAfterGameResult,
+			GameResultLobbyReturnDelaySeconds,
+			false);
+	}
 	return true;
 }
 
@@ -516,7 +537,7 @@ void UExperienceMatchFlowComponent::NotifyPlayerKillScored(
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
 	if (!GameMode
 		|| !GameMode->HasAuthority()
-		|| !bTimerTieNextKillWinsActive
+		|| !bGoldenKillActive
 		|| bGameResultShown
 		|| !KillerPlayerState
 		|| KillerPlayerState == VictimPlayerState)
@@ -524,9 +545,22 @@ void UExperienceMatchFlowComponent::NotifyPlayerKillScored(
 		return;
 	}
 
-	if (ShowGameResultForWinner(KillerPlayerState))
+	APdPlayerState* UniqueLeaderPlayerState = nullptr;
+	int32 TopKillCount = 0;
+	bool bTopKillCountTied = false;
+	if (!TryFindUniqueKillLeader(
+			UniqueLeaderPlayerState,
+			TopKillCount,
+			bTopKillCountTied)
+		|| UniqueLeaderPlayerState != KillerPlayerState)
 	{
-		bTimerTieNextKillWinsActive = false;
+		return;
+	}
+
+	if (ShowGameResultForWinner(UniqueLeaderPlayerState))
+	{
+		bGoldenKillActive = false;
+		GoldenKillVictoryScore = 0;
 	}
 }
 
@@ -535,11 +569,43 @@ bool UExperienceMatchFlowComponent::RequestAbortMatchToTitle(
 {
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameModeConst();
+	if (!GameMode
+		|| !GameMode->HasAuthority()
+		|| !RequestingPlayer
+		// Only the listen host may intentionally end the whole match. Remote
+		// players leave locally and are handled by Logout on the server.
+		|| !RequestingPlayer->IsLocalController()
+		|| !AbortMatchToTitleForPlayerExit(
+			RequestingPlayer->PlayerState))
+	{
+		return false;
+	}
+
+	const FString TitleMapName = GetResolvedTitleTravelMapName();
+	if (APdPlayerController* PdPlayerController =
+		Cast<APdPlayerController>(RequestingPlayer))
+	{
+		PdPlayerController->Client_TravelToTitleWithoutGameResult(
+			TitleMapName);
+	}
+	else if (!TitleMapName.IsEmpty())
+	{
+		RequestingPlayer->ClientTravel(
+			TitleMapName,
+			TRAVEL_Absolute);
+	}
+	return true;
+}
+
+bool UExperienceMatchFlowComponent::HandlePlayerLogout(
+	const APlayerState* ExitingPlayerState)
+{
+	const AExperienceGameMode* GameMode =
+		GetExperienceGameModeConst();
 	return GameMode
 		&& GameMode->HasAuthority()
-		&& RequestingPlayer
-		&& AbortMatchToTitleForPlayerExit(
-			RequestingPlayer->PlayerState);
+		&& ExitingPlayerState
+		&& AbortMatchToTitleForPlayerExit(ExitingPlayerState);
 }
 
 bool UExperienceMatchFlowComponent::AbortMatchToTitleForPlayerExit(
@@ -552,6 +618,8 @@ bool UExperienceMatchFlowComponent::AbortMatchToTitleForPlayerExit(
 	}
 
 	bGameResultShown = true;
+	bGoldenKillActive = false;
+	GoldenKillVictoryScore = 0;
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(MatchTimerHandle);
@@ -560,29 +628,45 @@ bool UExperienceMatchFlowComponent::AbortMatchToTitleForPlayerExit(
 		GameMode->GetGameState<AExperienceGameState>())
 	{
 		ExperienceGameState->SetMatchTimerState(
-			EPdMatchTimerPhase::Expired);
+			EMatchTimerPhase::Expired);
 	}
 
 	APdPlayerState* WinnerPlayerState = nullptr;
 	int32 TopKillCount = 0;
 	bool bTopKillCountTied = false;
-	TryFindUniqueKillLeader(
+	const bool bHasUniqueWinner = TryFindUniqueKillLeader(
 		WinnerPlayerState,
 		TopKillCount,
-		bTopKillCountTied);
+		bTopKillCountTied,
+		ExitingPlayerState);
+	if (!bHasUniqueWinner)
+	{
+		if (!bTopKillCountTied
+			|| !TryFindSharedLeadingTeamWinner(
+				WinnerPlayerState,
+				TopKillCount,
+				ExitingPlayerState))
+		{
+			// An opposing-team tie has no winner when the host aborts the match.
+			WinnerPlayerState = nullptr;
+		}
+	}
 
 	const int32 WinnerTeamColorIndex = WinnerPlayerState
 		? WinnerPlayerState->GetPlayerMatchComponent()
 			->GetMatchTeamColorIndex()
 		: INDEX_NONE;
 	const int32 WinnerTeamMemberCount =
-		CountPlayersOnTeam(WinnerTeamColorIndex);
+		CountPlayersOnTeam(
+			WinnerTeamColorIndex,
+			ExitingPlayerState);
 	if (WinnerPlayerState)
 	{
 		GrantVictoryRewardsForWinner(
 			WinnerPlayerState,
 			WinnerTeamColorIndex,
-			WinnerTeamMemberCount);
+			WinnerTeamMemberCount,
+			ExitingPlayerState);
 	}
 
 	SendPlayerExitGameResultToTitle(
@@ -590,7 +674,8 @@ bool UExperienceMatchFlowComponent::AbortMatchToTitleForPlayerExit(
 			ExitingPlayerState,
 			WinnerPlayerState,
 			WinnerTeamColorIndex,
-			WinnerTeamMemberCount));
+			WinnerTeamMemberCount),
+		ExitingPlayerState);
 	return true;
 }
 
@@ -687,6 +772,47 @@ int32 UExperienceMatchFlowComponent::CalculateVictoryGoldReward(
 	return FMath::Max(RawReward, 0);
 }
 
+int32 UExperienceMatchFlowComponent::CalculateGoldenKillVictoryScore(
+	const int32 TopKillCount)
+{
+	return FMath::Max(TopKillCount, 0) + 1;
+}
+
+bool UExperienceMatchFlowComponent::HasReachedGoldenKillVictoryScore(
+	const int32 KillCount,
+	const int32 VictoryScore)
+{
+	return VictoryScore > 0
+		&& FMath::Max(KillCount, 0) >= VictoryScore;
+}
+
+bool UExperienceMatchFlowComponent::ShouldEnterGoldenKillForLeaderTeams(
+	const TArray<int32>& LeaderTeamColorIndices)
+{
+	if (LeaderTeamColorIndices.Num() < 2)
+	{
+		return false;
+	}
+
+	const int32 FirstTeamColorIndex = LeaderTeamColorIndices[0];
+	if (FirstTeamColorIndex == INDEX_NONE)
+	{
+		// Players without an assigned team are independent competitors.
+		return true;
+	}
+
+	for (int32 Index = 1; Index < LeaderTeamColorIndices.Num(); ++Index)
+	{
+		if (LeaderTeamColorIndices[Index] == INDEX_NONE
+			|| LeaderTeamColorIndices[Index] != FirstTeamColorIndex)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool UExperienceMatchFlowComponent::
 ShouldSuppressServerMatchTimerForCurrentMap() const
 {
@@ -712,7 +838,8 @@ bool UExperienceMatchFlowComponent::ShouldSuppressServerMatchTimer() const
 bool UExperienceMatchFlowComponent::TryFindUniqueKillLeader(
 	APdPlayerState*& OutWinnerPlayerState,
 	int32& OutTopKillCount,
-	bool& bOutTie) const
+	bool& bOutTie,
+	const APlayerState* ExcludedPlayerState) const
 {
 	OutWinnerPlayerState = nullptr;
 	OutTopKillCount = 0;
@@ -733,6 +860,11 @@ bool UExperienceMatchFlowComponent::TryFindUniqueKillLeader(
 	int32 TopKillCount = MIN_int32;
 	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
 	{
+		if (PlayerState == ExcludedPlayerState)
+		{
+			continue;
+		}
+
 		APdPlayerState* PdPlayerState =
 			Cast<APdPlayerState>(PlayerState);
 		if (!PdPlayerState)
@@ -763,6 +895,61 @@ bool UExperienceMatchFlowComponent::TryFindUniqueKillLeader(
 
 	OutTopKillCount = FMath::Max(TopKillCount, 0);
 	return !bOutTie;
+}
+
+bool UExperienceMatchFlowComponent::TryFindSharedLeadingTeamWinner(
+	APdPlayerState*& OutWinnerPlayerState,
+	const int32 TopKillCount,
+	const APlayerState* ExcludedPlayerState) const
+{
+	OutWinnerPlayerState = nullptr;
+
+	const AExperienceGameMode* GameMode =
+		GetExperienceGameModeConst();
+	const AGameStateBase* CurrentGameState =
+		GameMode
+			? GameMode->GetGameState<AGameStateBase>()
+			: nullptr;
+	if (!CurrentGameState)
+	{
+		return false;
+	}
+
+	TArray<int32> LeaderTeamColorIndices;
+	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
+	{
+		if (PlayerState == ExcludedPlayerState)
+		{
+			continue;
+		}
+
+		APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState);
+		if (!PdPlayerState
+			|| FMath::Max(
+				FMath::RoundToInt(PdPlayerState->GetScore()),
+				0) != TopKillCount)
+		{
+			continue;
+		}
+
+		if (!OutWinnerPlayerState)
+		{
+			OutWinnerPlayerState = PdPlayerState;
+		}
+		LeaderTeamColorIndices.Add(
+			PdPlayerState->GetPlayerMatchComponent()
+				->GetMatchTeamColorIndex());
+	}
+
+	if (!OutWinnerPlayerState
+		|| ShouldEnterGoldenKillForLeaderTeams(
+			LeaderTeamColorIndices))
+	{
+		OutWinnerPlayerState = nullptr;
+		return false;
+	}
+
+	return LeaderTeamColorIndices.Num() >= 2;
 }
 
 bool UExperienceMatchFlowComponent::FindTopKiller(
@@ -839,13 +1026,38 @@ bool UExperienceMatchFlowComponent::ShouldAbortMatchForPlayerExit(
 		&& CurrentGameState->PlayerArray.Num() > 1;
 }
 
+void UExperienceMatchFlowComponent::ReturnToLobbyAfterGameResult()
+{
+	GameResultLobbyReturnTimerHandle.Invalidate();
+	AExperienceGameMode* GameMode = GetExperienceGameMode();
+	UWorld* World = GetWorld();
+	if (!GameMode
+		|| !GameMode->HasAuthority()
+		|| !bGameResultShown
+		|| !World)
+	{
+		return;
+	}
+
+	const FString LobbyMapName = GetResolvedLobbyTravelMapName();
+	if (!LobbyMapName.IsEmpty())
+	{
+		World->ServerTravel(LobbyMapName);
+	}
+}
+
 FString UExperienceMatchFlowComponent::GetResolvedTitleTravelMapName() const
 {
-	const FString LongPackageName =
-		Settings.TitleMap.ToSoftObjectPath().GetLongPackageName();
-	return LongPackageName.IsEmpty()
-		? Settings.TitleTravelMapName
-		: LongPackageName;
+	const ULobbyModeDefinition* Definition =
+		ULobbyModeDefinition::ResolveDefaultDefinition();
+	return Definition ? Definition->GetTitleTravelMapName() : FString();
+}
+
+FString UExperienceMatchFlowComponent::GetResolvedLobbyTravelMapName() const
+{
+	const ULobbyModeDefinition* Definition =
+		ULobbyModeDefinition::ResolveDefaultDefinition();
+	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 
 FGameResultPresentationData
@@ -862,7 +1074,7 @@ UExperienceMatchFlowComponent::BuildPlayerExitGameResult(
 		"Match Ended Due to Player Leaving");
 	GameResultData.WinnerTeamColorIndex = WinnerTeamColorIndex;
 	GameResultData.bAllowLobbyTravelOnExit = false;
-	GameResultData.bShowRewards = true;
+	GameResultData.bShowRewards = WinnerPlayerState != nullptr;
 
 	BuildGameResultPlayerStats(GameResultData.PlayerStats);
 	if (WinnerPlayerState)
@@ -871,7 +1083,8 @@ UExperienceMatchFlowComponent::BuildPlayerExitGameResult(
 			GameResultData.PlayerStats,
 			WinnerPlayerState,
 			WinnerTeamColorIndex,
-			WinnerTeamMemberCount);
+			WinnerTeamMemberCount,
+			ExitingPlayerState);
 	}
 
 	if (!GameResultData.PlayerStats.IsEmpty())
@@ -891,7 +1104,8 @@ UExperienceMatchFlowComponent::BuildPlayerExitGameResult(
 }
 
 void UExperienceMatchFlowComponent::SendPlayerExitGameResultToTitle(
-	const FGameResultPresentationData& GameResultData)
+	const FGameResultPresentationData& GameResultData,
+	const APlayerState* ExitingPlayerState)
 {
 	UWorld* World = GetWorld();
 	const FString TitleMapName = GetResolvedTitleTravelMapName();
@@ -906,7 +1120,8 @@ void UExperienceMatchFlowComponent::SendPlayerExitGameResultToTitle(
 		++Iterator)
 	{
 		APlayerController* PlayerController = Iterator->Get();
-		if (!PlayerController)
+		if (!PlayerController
+			|| PlayerController->PlayerState == ExitingPlayerState)
 		{
 			continue;
 		}
@@ -952,7 +1167,8 @@ AController* UExperienceMatchFlowComponent::FindControllerForPlayerState(
 }
 
 int32 UExperienceMatchFlowComponent::CountPlayersOnTeam(
-	const int32 TeamColorIndex) const
+	const int32 TeamColorIndex,
+	const APlayerState* ExcludedPlayerState) const
 {
 	if (TeamColorIndex == INDEX_NONE)
 	{
@@ -973,6 +1189,11 @@ int32 UExperienceMatchFlowComponent::CountPlayersOnTeam(
 	int32 TeamMemberCount = 0;
 	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
 	{
+		if (PlayerState == ExcludedPlayerState)
+		{
+			continue;
+		}
+
 		const APdPlayerState* PdPlayerState =
 			Cast<APdPlayerState>(PlayerState);
 		if (PdPlayerState
@@ -989,9 +1210,11 @@ int32 UExperienceMatchFlowComponent::CountPlayersOnTeam(
 int32 UExperienceMatchFlowComponent::GrantVictoryRewardsForWinner(
 	APlayerState* WinnerPlayerState,
 	const int32 WinnerTeamColorIndex,
-	const int32 WinnerTeamMemberCount)
+	const int32 WinnerTeamMemberCount,
+	const APlayerState* ExcludedPlayerState)
 {
-	if (!WinnerPlayerState)
+	if (!WinnerPlayerState
+		|| WinnerPlayerState == ExcludedPlayerState)
 	{
 		return 0;
 	}
@@ -1008,6 +1231,11 @@ int32 UExperienceMatchFlowComponent::GrantVictoryRewardsForWinner(
 		for (APlayerState* PlayerState :
 			CurrentGameState->PlayerArray)
 		{
+			if (PlayerState == ExcludedPlayerState)
+			{
+				continue;
+			}
+
 			const APdPlayerState* PdPlayerState =
 				Cast<APdPlayerState>(PlayerState);
 			if (!PdPlayerState
@@ -1046,10 +1274,22 @@ void UExperienceMatchFlowComponent::ApplyVictoryRewardEligibility(
 	TArray<FGameResultPlayerStat>& PlayerStats,
 	const APlayerState* WinnerPlayerState,
 	const int32 WinnerTeamColorIndex,
-	const int32 WinnerTeamMemberCount) const
+	const int32 WinnerTeamMemberCount,
+	const APlayerState* ExcludedPlayerState) const
 {
+	const int32 ExcludedPlayerStateId = ExcludedPlayerState
+		? ExcludedPlayerState->GetPlayerId()
+		: INDEX_NONE;
+	const FText ExcludedPlayerName =
+		ResolveResultPlayerName(ExcludedPlayerState);
 	for (FGameResultPlayerStat& PlayerStat : PlayerStats)
 	{
+		const bool bIsExcludedPlayer = ExcludedPlayerState
+			&& ((ExcludedPlayerStateId != INDEX_NONE
+				&& PlayerStat.PlayerStateId == ExcludedPlayerStateId)
+				|| (ExcludedPlayerStateId == INDEX_NONE
+					&& PlayerStat.PlayerName.EqualTo(
+						ExcludedPlayerName)));
 		const bool bIsWinningTeamMember =
 			WinnerTeamColorIndex != INDEX_NONE
 			&& PlayerStat.TeamColorIndex == WinnerTeamColorIndex;
@@ -1058,7 +1298,8 @@ void UExperienceMatchFlowComponent::ApplyVictoryRewardEligibility(
 			&& PlayerStat.PlayerName.EqualTo(
 				ResolveResultPlayerName(WinnerPlayerState));
 		PlayerStat.bVictoryRewardEligible =
-			bIsWinningTeamMember || bIsFallbackWinner;
+			!bIsExcludedPlayer
+			&& (bIsWinningTeamMember || bIsFallbackWinner);
 		PlayerStat.GoldReward = PlayerStat.bVictoryRewardEligible
 			? CalculateVictoryGoldReward(
 				PlayerStat.KillCount,
@@ -1208,7 +1449,7 @@ void UExperienceMatchFlowComponent::BuildGameResultPlayerStats(
 		});
 }
 
-void UExperienceMatchFlowComponent::ForceMovePlayersForTimerTie()
+void UExperienceMatchFlowComponent::ForceMovePlayersForGoldenKill()
 {
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameModeConst();
@@ -1220,10 +1461,10 @@ void UExperienceMatchFlowComponent::ForceMovePlayersForTimerTie()
 			SpawnComponent->ForceMovePlayersToInitialSpawns();
 		}
 	}
-	RaiseForceMoveGatesForTimerTie();
+	RaiseForceMoveGatesForGoldenKill();
 }
 
-void UExperienceMatchFlowComponent::RaiseForceMoveGatesForTimerTie()
+void UExperienceMatchFlowComponent::RaiseForceMoveGatesForGoldenKill()
 {
 	UWorld* World = GetWorld();
 	if (!World)
@@ -1244,7 +1485,8 @@ void UExperienceMatchFlowComponent::RaiseForceMoveGatesForTimerTie()
 	}
 }
 
-void UExperienceMatchFlowComponent::StartTimerTieNextKillWins()
+void UExperienceMatchFlowComponent::StartGoldenKill(
+	const int32 TopKillCount)
 {
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameModeConst();
@@ -1252,7 +1494,9 @@ void UExperienceMatchFlowComponent::StartTimerTieNextKillWins()
 		&& GameMode->HasAuthority()
 		&& !bGameResultShown)
 	{
-		bTimerTieNextKillWinsActive = true;
+		GoldenKillVictoryScore =
+			CalculateGoldenKillVictoryScore(TopKillCount);
+		bGoldenKillActive = true;
 	}
 }
 

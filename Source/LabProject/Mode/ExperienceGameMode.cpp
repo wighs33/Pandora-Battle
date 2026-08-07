@@ -6,6 +6,7 @@
 #include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
 #include "Component/Experience/ExperienceSpawnComponent.h"
 #include "Definition/Experience/ExperienceDefinition.h"
+#include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Engine/World.h"
 #include "Experience/PdWorldSettings.h"
 #include "GameFramework/GameStateBase.h"
@@ -133,10 +134,11 @@ void AExperienceGameMode::Logout(AController* Exiting)
 	APlayerState* ExitingPlayerState =
 		Exiting ? Exiting->PlayerState : nullptr;
 
+	// A real disconnect uses the same settlement policy for listen host and
+	// remote players. Client RPC requests cannot call this trusted path.
 	if (MatchFlowComponent)
 	{
-		MatchFlowComponent->AbortMatchToTitleForPlayerExit(
-			ExitingPlayerState);
+		MatchFlowComponent->HandlePlayerLogout(ExitingPlayerState);
 	}
 	if (SpawnComponent)
 	{
@@ -315,13 +317,13 @@ bool AExperienceGameMode::TryGetPlayerInitialSpawnTransform(
 }
 
 void AExperienceGameMode::
-GrantTrainingRoomStatusPointsForPlayerState(
+ApplyConfiguredStatusPointsForPlayerState(
 	APlayerState* PlayerState)
 {
 	if (PlayerProvisioningComponent)
 	{
 		PlayerProvisioningComponent
-			->GrantTrainingRoomStatusPointsForPlayerState(PlayerState);
+			->ApplyConfiguredStatusPointsForPlayerState(PlayerState);
 	}
 }
 
@@ -361,10 +363,10 @@ bool AExperienceGameMode::IsExperienceLoadPending() const
 		return false;
 	}
 
-	const EPdExperienceLoadState LoadState =
+	const EExperienceLoadState LoadState =
 		ExperienceManager->GetLoadState();
-	return LoadState != EPdExperienceLoadState::Loaded
-		&& LoadState != EPdExperienceLoadState::Failed;
+	return LoadState != EExperienceLoadState::Loaded
+		&& LoadState != EExperienceLoadState::Failed;
 }
 
 void AExperienceGameMode::StartExperienceLoad()
@@ -522,36 +524,16 @@ void AExperienceGameMode::ApplyRuntimeComponentSettings()
 		MatchFlowSettings.ChestSpawnRewardDefinition =
 			ChestSpawnRewardDefinition;
 		MatchFlowSettings.MatchRuleDefinition = MatchRuleDefinition;
-		MatchFlowSettings.TitleMap = TitleMap;
-		MatchFlowSettings.TitleTravelMapName = TitleTravelMapName;
 		MatchFlowComponent->ApplySettings(MatchFlowSettings);
 	}
 
 	if (PlayerProvisioningComponent)
 	{
 		FExperiencePlayerProvisioningSettings ProvisioningSettings;
-		ProvisioningSettings.bGrantAllItemsInTrainingRoom =
-			bGrantAllItemsInTrainingRoom;
-		ProvisioningSettings.TrainingRoomItemStackGrants =
-			TrainingRoomItemStackGrants;
-		ProvisioningSettings.DefaultGameplayItemStackGrants =
-			DefaultGameplayItemStackGrants;
-		ProvisioningSettings.DefaultGameplayItemGrantMaxAttempts =
-			DefaultGameplayItemGrantMaxAttempts;
-		ProvisioningSettings.DefaultGameplayItemGrantRetryDelay =
-			DefaultGameplayItemGrantRetryDelay;
-		ProvisioningSettings.DefaultGameplayGestureSlotGrants =
-			DefaultGameplayGestureSlotGrants;
-		ProvisioningSettings.bInitializeStatusPointsInTrainingRoom =
-			bInitializeStatusPointsInTrainingRoom;
-		ProvisioningSettings.TrainingRoomStatusPointValue =
-			TrainingRoomStatusPointValue;
-		ProvisioningSettings.bInitializeSoulDustInTrainingRoom =
-			bInitializeSoulDustInTrainingRoom;
-		ProvisioningSettings.TrainingRoomSoulDustValue =
-			TrainingRoomSoulDustValue;
-		ProvisioningSettings.TrainingRoomMapNames =
-			TrainingRoomMapNames;
+		ProvisioningSettings.DefaultProvisionDefinition =
+			const_cast<UDefaultProvisionDefinition*>(
+				UDefaultProvisionDefinition::ResolveDefaultDefinition());
+		ProvisioningSettings.MatchRuleDefinition = MatchRuleDefinition;
 		ProvisioningSettings.bAssignDefaultTeamWhenLobbyTeamMissing =
 			bAssignDefaultTeamWhenLobbyTeamMissing;
 		ProvisioningSettings.DefaultLobbyTeamColorIndex =

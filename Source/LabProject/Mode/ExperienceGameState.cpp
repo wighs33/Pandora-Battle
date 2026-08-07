@@ -50,12 +50,12 @@ void AExperienceGameState::OnRep_MatchRuleDefinition()
 }
 
 void AExperienceGameState::SetMatchTimerState(
-	const EPdMatchTimerPhase InPhase,
+	const EMatchTimerPhase InPhase,
 	const float InEndServerTimeSeconds)
 {
 	FReplicatedMatchTimerState NewState;
 	NewState.Phase = InPhase;
-	NewState.EndServerTimeSeconds = InPhase == EPdMatchTimerPhase::Running
+	NewState.EndServerTimeSeconds = InPhase == EMatchTimerPhase::Running
 		? FMath::Max(InEndServerTimeSeconds, 0.0f)
 		: 0.0f;
 
@@ -72,13 +72,13 @@ void AExperienceGameState::SetMatchTimerState(
 
 bool AExperienceGameState::TryGetMatchTimerRemainingSeconds(float& OutRemainingSeconds) const
 {
-	if (MatchTimerState.Phase == EPdMatchTimerPhase::Expired)
+	if (MatchTimerState.Phase == EMatchTimerPhase::Expired)
 	{
 		OutRemainingSeconds = 0.0f;
 		return true;
 	}
 
-	if (MatchTimerState.Phase != EPdMatchTimerPhase::Running
+	if (MatchTimerState.Phase != EMatchTimerPhase::Running
 		|| MatchTimerState.EndServerTimeSeconds <= 0.0f)
 	{
 		return false;
@@ -155,10 +155,10 @@ void AExperienceGameState::Multicast_ShowGameResult_Implementation(
 	}
 
 	GameResultWidget->SetInfo(WinnerTitle, WinnerTeamColorIndex, MaxKillerName, MaxKillCount, PlayerStats);
+	GameResultWidget->SetCloseOnlyOnExit(true);
 	GameResultWidget->AddToViewport(100);
 
-
-	UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(LocalPlayerController, GameResultWidget, EMouseLockMode::DoNotLock, false, false);
+UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(LocalPlayerController, GameResultWidget, EMouseLockMode::DoNotLock, false, false);
 	LocalPlayerController->bShowMouseCursor = true;
 	LocalPlayerController->bEnableClickEvents = true;
 	LocalPlayerController->bEnableMouseOverEvents = true;
@@ -213,7 +213,7 @@ void AExperienceGameState::SaveLocalMatchRecord(
 		return;
 	}
 
-	FPdMatchRecord MatchRecord;
+	FMatchRecord MatchRecord;
 	MatchRecord.bWin = LocalPlayerStat->bVictoryRewardEligible;
 	MatchRecord.KillCount = LocalPlayerStat->KillCount;
 	MatchRecord.DeathCount = LocalPlayerStat->DeathCount;
@@ -221,6 +221,5 @@ void AExperienceGameState::SaveLocalMatchRecord(
 
 	PdGameInstance->SetPreferredSavePlayerId(PlayerId);
 	PdGameInstance->AddMatchRecord(PlayerId, MatchRecord, true);
-
 
 }

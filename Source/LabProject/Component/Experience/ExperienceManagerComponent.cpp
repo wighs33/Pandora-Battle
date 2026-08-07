@@ -102,7 +102,7 @@ void UExperienceManagerComponent::SetCurrentExperienceAuth(FPrimaryAssetId Exper
 		return;
 	}
 
-	if (LoadState != EPdExperienceLoadState::Unloaded)
+	if (LoadState != EExperienceLoadState::Unloaded)
 	{
 		UE_LOG(
 			PdExperienceManagerLog,
@@ -167,12 +167,12 @@ void UExperienceManagerComponent::HandleCurrentExperienceIdReplicated()
 //--- Load Flow
 void UExperienceManagerComponent::StartExperienceLoad()
 {
-	if (!CurrentExperienceId.IsValid() || LoadState != EPdExperienceLoadState::Unloaded)
+	if (!CurrentExperienceId.IsValid() || LoadState != EExperienceLoadState::Unloaded)
 	{
 		return;
 	}
 
-	LoadState = EPdExperienceLoadState::Loading;
+	LoadState = EExperienceLoadState::Loading;
 	LastFailedExperienceId = FPrimaryAssetId();
 	LastLoadFailureMessage.Reset();
 
@@ -196,7 +196,7 @@ void UExperienceManagerComponent::HandleExperienceAssetLoaded(FPrimaryAssetId Lo
 		return;
 	}
 
-	if (LoadState != EPdExperienceLoadState::Loading)
+	if (LoadState != EExperienceLoadState::Loading)
 	{
 		return;
 	}
@@ -217,7 +217,7 @@ void UExperienceManagerComponent::HandleExperienceAssetLoaded(FPrimaryAssetId Lo
 
 void UExperienceManagerComponent::StartGameFeatureLoads()
 {
-	LoadState = EPdExperienceLoadState::LoadingGameFeatures;
+	LoadState = EExperienceLoadState::LoadingGameFeatures;
 	GameFeaturePluginURLs.Reset();
 	PendingGameFeatureLoadCount = 0;
 
@@ -270,7 +270,7 @@ void UExperienceManagerComponent::StartGameFeatureLoads()
 
 void UExperienceManagerComponent::HandleGameFeatureLoaded(const UE::GameFeatures::FResult& Result, FString PluginURL)
 {
-	if (LoadState != EPdExperienceLoadState::LoadingGameFeatures || !GameFeaturePluginURLs.Contains(PluginURL))
+	if (LoadState != EExperienceLoadState::LoadingGameFeatures || !GameFeaturePluginURLs.Contains(PluginURL))
 	{
 		return;
 	}
@@ -292,12 +292,12 @@ void UExperienceManagerComponent::HandleGameFeatureLoaded(const UE::GameFeatures
 
 void UExperienceManagerComponent::FinishExperienceLoad()
 {
-	if (LoadState != EPdExperienceLoadState::LoadingGameFeatures)
+	if (LoadState != EExperienceLoadState::LoadingGameFeatures)
 	{
 		return;
 	}
 
-	LoadState = EPdExperienceLoadState::Loaded;
+	LoadState = EExperienceLoadState::Loaded;
 	LastFailedExperienceId = FPrimaryAssetId();
 	LastLoadFailureMessage.Reset();
 	OnExperienceLoaded.Broadcast(CurrentExperience);
@@ -307,7 +307,7 @@ void UExperienceManagerComponent::FinishExperienceLoad()
 
 void UExperienceManagerComponent::FailExperienceLoad(FPrimaryAssetId FailedExperienceId, FString FailureMessage)
 {
-	if (LoadState == EPdExperienceLoadState::Failed || LoadState == EPdExperienceLoadState::Deactivating)
+	if (LoadState == EExperienceLoadState::Failed || LoadState == EExperienceLoadState::Deactivating)
 	{
 		return;
 	}
@@ -327,7 +327,7 @@ void UExperienceManagerComponent::FailExperienceLoad(FPrimaryAssetId FailedExper
 	CurrentExperience = nullptr;
 	GameFeaturePluginURLs.Reset();
 	PendingGameFeatureLoadCount = 0;
-	LoadState = EPdExperienceLoadState::Failed;
+	LoadState = EExperienceLoadState::Failed;
 
 	OnExperienceLoaded.Clear();
 	OnExperienceLoadFailed.Broadcast(LastFailedExperienceId, LastLoadFailureMessage);
@@ -336,12 +336,12 @@ void UExperienceManagerComponent::FailExperienceLoad(FPrimaryAssetId FailedExper
 
 void UExperienceManagerComponent::DeactivateExperience()
 {
-	if (LoadState == EPdExperienceLoadState::Unloaded || LoadState == EPdExperienceLoadState::Deactivating)
+	if (LoadState == EExperienceLoadState::Unloaded || LoadState == EExperienceLoadState::Deactivating)
 	{
 		return;
 	}
 
-	LoadState = EPdExperienceLoadState::Deactivating;
+	LoadState = EExperienceLoadState::Deactivating;
 
 	ReleaseGameFeaturePluginReferences();
 
@@ -363,7 +363,7 @@ void UExperienceManagerComponent::DeactivateExperience()
 	LastLoadFailureMessage.Reset();
 	OnExperienceLoaded.Clear();
 	OnExperienceLoadFailed.Clear();
-	LoadState = EPdExperienceLoadState::Unloaded;
+	LoadState = EExperienceLoadState::Unloaded;
 }
 
 void UExperienceManagerComponent::ReleaseGameFeaturePluginReferences()

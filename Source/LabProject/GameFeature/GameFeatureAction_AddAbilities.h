@@ -19,7 +19,7 @@ struct FWorldContext;
 DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddAbilitiesLog, Log, All);
 
 USTRUCT(BlueprintType)
-struct FPdGameFeatureAbilityEntry
+struct FGameFeatureAbilityEntry
 {
 	GENERATED_BODY()
 
@@ -29,11 +29,11 @@ struct FPdGameFeatureAbilityEntry
 	UPROPERTY(EditAnywhere, Category = "Ability", meta = (ClampMin = "1"))
 	int32 Level = 1;
 
-	UPROPERTY(EditAnywhere, Category = "Ability", meta = (Categories = "Input.Ability"))
+	UPROPERTY(EditAnywhere, Category = "Ability")
 	FGameplayTag InputTag;
 };
 
-struct FPdGameFeatureAbilityGrantHandles
+struct FGameFeatureAbilityGrantHandles
 {
 	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;
 	TMap<TWeakObjectPtr<AActor>, TArray<FGameplayAbilitySpecHandle>> AbilitySpecHandles;
@@ -77,9 +77,9 @@ private:
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Ability Grants
-	void GrantAbilitiesToActor(AActor* Actor, FPdGameFeatureAbilityGrantHandles& Handles);
-	void RemoveAbilitiesFromActor(AActor* Actor, FPdGameFeatureAbilityGrantHandles& Handles) const;
-	void RemoveAllGrantedAbilities(FPdGameFeatureAbilityGrantHandles& Handles) const;
+	void GrantAbilitiesToActor(AActor* Actor, FGameFeatureAbilityGrantHandles& Handles);
+	void RemoveAbilitiesFromActor(AActor* Actor, FGameFeatureAbilityGrantHandles& Handles) const;
+	void RemoveAllGrantedAbilities(FGameFeatureAbilityGrantHandles& Handles) const;
 	UAbilitySystemComponent* GetAbilitySystemComponent(AActor* Actor) const;
 	bool HasAbilityClass(const UAbilitySystemComponent* AbilitySystemComponent, TSubclassOf<UGameplayAbility> AbilityClass) const;
 
@@ -90,10 +90,10 @@ public:
 	TSoftClassPtr<AActor> TargetClass;
 
 	UPROPERTY(EditAnywhere, Category = "Abilities", meta = (TitleProperty = "{Ability}"))
-	TArray<FPdGameFeatureAbilityEntry> Abilities;
+	TArray<FGameFeatureAbilityEntry> Abilities;
 
 private:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Runtime State
-	TMap<FGameFeatureStateChangeContext, FPdGameFeatureAbilityGrantHandles> ContextHandles;
+	TMap<FGameFeatureStateChangeContext, FGameFeatureAbilityGrantHandles> ContextHandles;
 };

@@ -12,7 +12,7 @@ struct FStreamableHandle;
 DECLARE_LOG_CATEGORY_EXTERN(PdExperienceManagerLog, Log, All);
 
 UENUM(BlueprintType)
-enum class EPdExperienceLoadState : uint8
+enum class EExperienceLoadState : uint8
 {
 	Unloaded,
 	Loading,
@@ -41,9 +41,9 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Experience API
 	void SetCurrentExperienceAuth(FPrimaryAssetId ExperienceId);
-	bool IsExperienceLoaded() const { return LoadState == EPdExperienceLoadState::Loaded; }
-	bool HasExperienceLoadFailed() const { return LoadState == EPdExperienceLoadState::Failed; }
-	EPdExperienceLoadState GetLoadState() const { return LoadState; }
+	bool IsExperienceLoaded() const { return LoadState == EExperienceLoadState::Loaded; }
+	bool HasExperienceLoadFailed() const { return LoadState == EExperienceLoadState::Failed; }
+	EExperienceLoadState GetLoadState() const { return LoadState; }
 	const UExperienceDefinition* GetCurrentExperienceChecked() const;
 	FDelegateHandle CallOrRegister_OnExperienceLoaded(FOnPdExperienceLoaded::FDelegate Delegate);
 	FDelegateHandle CallOrRegister_OnExperienceLoadFailed(FOnPdExperienceLoadFailed::FDelegate Delegate);
@@ -77,7 +77,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<const UExperienceDefinition> CurrentExperience;
 
-	EPdExperienceLoadState LoadState = EPdExperienceLoadState::Unloaded;
+	EExperienceLoadState LoadState = EExperienceLoadState::Unloaded;
 	TSharedPtr<FStreamableHandle> ExperienceLoadHandle;
 	TArray<FString> GameFeaturePluginURLs;
 	int32 PendingGameFeatureLoadCount = 0;

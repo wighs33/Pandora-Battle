@@ -20,7 +20,7 @@ void UGameFeatureAction_AddActorExtension::OnGameFeatureDeactivating(FGameFeatur
 	Super::OnGameFeatureDeactivating(Context);
 
 	const FGameFeatureStateChangeContext ChangeContext(Context);
-	FPdGameFeatureActorExtensionHandles* Handles = ContextHandles.Find(ChangeContext);
+	FGameFeatureActorExtensionHandles* Handles = ContextHandles.Find(ChangeContext);
 	if (!Handles)
 	{
 		return;
@@ -132,9 +132,9 @@ void UGameFeatureAction_AddActorExtension::RegisterActorExtension(
 		return;
 	}
 
-	FPdGameFeatureActorExtensionHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
+	FGameFeatureActorExtensionHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
 
-	FPdActorExtensionSpec ExtensionSpec;
+	FActorExtensionSpec ExtensionSpec;
 	ExtensionSpec.bUseClientRoleFilter = bClientAction;
 	ExtensionSpec.bAddToLocallyControlled = bAddToLocallyControlled;
 	ExtensionSpec.bAddToSimulatedProxy = bAddToSimulatedProxy;
@@ -162,7 +162,7 @@ void UGameFeatureAction_AddActorExtension::ActivateActorExtension(
 		return;
 	}
 
-	FPdGameFeatureActorExtensionHandles* Handles = ContextHandles.Find(ChangeContext);
+	FGameFeatureActorExtensionHandles* Handles = ContextHandles.Find(ChangeContext);
 	if (!Handles || Handles->ActorExtensions.Contains(Actor))
 	{
 		return;
@@ -181,7 +181,7 @@ void UGameFeatureAction_AddActorExtension::DeactivateActorExtension(
 		return;
 	}
 
-	FPdGameFeatureActorExtensionHandles* Handles = ContextHandles.Find(ChangeContext);
+	FGameFeatureActorExtensionHandles* Handles = ContextHandles.Find(ChangeContext);
 	if (!Handles)
 	{
 		return;
@@ -195,7 +195,7 @@ void UGameFeatureAction_AddActorExtension::DeactivateActorExtension(
 }
 
 void UGameFeatureAction_AddActorExtension::DeactivateAllActorExtensions(
-	FPdGameFeatureActorExtensionHandles& Handles) const
+	FGameFeatureActorExtensionHandles& Handles) const
 {
 	TArray<TWeakObjectPtr<AActor>> Actors;
 	Handles.ActorExtensions.GetKeys(Actors);

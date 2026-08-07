@@ -11,7 +11,7 @@ class UMatchRuleDefinition;
 class APlayerController;
 
 UENUM(BlueprintType)
-enum class EPdMatchTimerPhase : uint8
+enum class EMatchTimerPhase : uint8
 {
 	Inactive,
 	Running,
@@ -25,7 +25,7 @@ struct LABPROJECT_API FReplicatedMatchTimerState
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Match Rules|Timer")
-	EPdMatchTimerPhase Phase = EPdMatchTimerPhase::Inactive;
+	EMatchTimerPhase Phase = EMatchTimerPhase::Inactive;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Match Rules|Timer")
 	float EndServerTimeSeconds = 0.0f;
@@ -54,9 +54,9 @@ public:
 	void SetMatchRuleDefinition(UMatchRuleDefinition* InMatchRuleDefinition);
 	const UMatchRuleDefinition* GetMatchRuleDefinition() const { return MatchRuleDefinition; }
 
-	void SetMatchTimerState(EPdMatchTimerPhase InPhase, float InEndServerTimeSeconds = 0.0f);
-	EPdMatchTimerPhase GetMatchTimerPhase() const { return MatchTimerState.Phase; }
-	bool IsMatchTimerSuppressed() const { return MatchTimerState.Phase == EPdMatchTimerPhase::Suppressed; }
+	void SetMatchTimerState(EMatchTimerPhase InPhase, float InEndServerTimeSeconds = 0.0f);
+	EMatchTimerPhase GetMatchTimerPhase() const { return MatchTimerState.Phase; }
+	bool IsMatchTimerSuppressed() const { return MatchTimerState.Phase == EMatchTimerPhase::Suppressed; }
 	bool TryGetMatchTimerRemainingSeconds(float& OutRemainingSeconds) const;
 
 	UFUNCTION(NetMulticast, Reliable, BlueprintCallable, Category = "!GameResult")

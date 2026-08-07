@@ -1,4 +1,4 @@
-#include "Component/Experience/ExperienceLobbyProfileProvisioner.h"
+#include "Component/Experience/ExperiencePlayerProfileService.h"
 
 #include "Character/CharacterBase.h"
 #include "Component/Experience/ExperienceMatchFlowComponent.h"
@@ -13,11 +13,12 @@
 #include "GameFramework/PlayerController.h"
 #include "Mode/ExperienceGameMode.h"
 #include "Mode/PdGameInstance.h"
+#include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ExperienceLobbyProfileProvisioner)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ExperiencePlayerProfileService)
 
-void UExperienceLobbyProfileProvisioner::ApplySettings(
+void UExperiencePlayerProfileService::ApplySettings(
 	const FExperiencePlayerProvisioningSettings& InSettings)
 {
 	bAssignDefaultTeamWhenLobbyTeamMissing =
@@ -26,7 +27,7 @@ void UExperienceLobbyProfileProvisioner::ApplySettings(
 		InSettings.DefaultLobbyTeamColorIndex;
 }
 
-void UExperienceLobbyProfileProvisioner::InitializeLoggedInPlayer(
+void UExperiencePlayerProfileService::InitializeLoggedInPlayer(
 	APlayerController* NewPlayer) const
 {
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
@@ -48,11 +49,16 @@ void UExperienceLobbyProfileProvisioner::InitializeLoggedInPlayer(
 		}
 		ApplyCachedLobbyPlayerIdentity(NewPlayer, *PdGameInstance);
 	}
+	if (APdPlayerController* PdPlayerController =
+		Cast<APdPlayerController>(NewPlayer))
+	{
+		PdPlayerController->Client_RequestLocalCosmeticProfileSync();
+	}
 
 	ApplyInitialPlayerMapRegion(NewPlayer);
 }
 
-void UExperienceLobbyProfileProvisioner::ApplyCachedLobbyPlayerIdentity(
+void UExperiencePlayerProfileService::ApplyCachedLobbyPlayerIdentity(
 	APlayerController* NewPlayer,
 	UPdGameInstance& PdGameInstance) const
 {
@@ -95,7 +101,7 @@ void UExperienceLobbyProfileProvisioner::ApplyCachedLobbyPlayerIdentity(
 	}
 }
 
-void UExperienceLobbyProfileProvisioner::ApplyInitialPlayerMapRegion(
+void UExperiencePlayerProfileService::ApplyInitialPlayerMapRegion(
 	APlayerController* NewPlayer) const
 {
 	const AExperienceGameMode* GameMode = GetExperienceGameMode();
@@ -123,7 +129,7 @@ void UExperienceLobbyProfileProvisioner::ApplyInitialPlayerMapRegion(
 	}
 }
 
-void UExperienceLobbyProfileProvisioner::ApplyCachedLobbySkinEquipment(
+void UExperiencePlayerProfileService::ApplyCachedLobbySkinEquipment(
 	APlayerController* NewPlayer) const
 {
 	const AExperienceGameMode* GameMode = GetExperienceGameMode();
@@ -204,7 +210,7 @@ void UExperienceLobbyProfileProvisioner::ApplyCachedLobbySkinEquipment(
 }
 
 AExperienceGameMode*
-UExperienceLobbyProfileProvisioner::GetExperienceGameMode() const
+UExperiencePlayerProfileService::GetExperienceGameMode() const
 {
 	const UExperiencePlayerProvisioningComponent* Coordinator =
 		GetTypedOuter<UExperiencePlayerProvisioningComponent>();

@@ -12,7 +12,7 @@ DECLARE_DELEGATE_OneParam(FPdActorExtensionExecute, AActor*);
 
 class UActorExtensionWorldSubsystem;
 
-struct FPdActorExtensionSpec
+struct FActorExtensionSpec
 {
 	FPdActorExtensionCanActivate CanActivate;
 	FPdActorExtensionExecute OnActivate;
@@ -36,7 +36,7 @@ private:
 	int32 ExtensionId = INDEX_NONE;
 };
 
-struct FPdRegisteredActorExtension
+struct FRegisteredActorExtension
 {
 	TWeakObjectPtr<AActor> Actor;
 	TArray<int32> ExtensionIds;
@@ -54,7 +54,7 @@ public:
 	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
 	virtual bool IsTickable() const override;
 
-	TSharedPtr<FActorExtensionHandle> RegisterExtensionForClass(UClass* TargetClass, FPdActorExtensionSpec ExtensionSpec);
+	TSharedPtr<FActorExtensionHandle> RegisterExtensionForClass(UClass* TargetClass, FActorExtensionSpec ExtensionSpec);
 	void UnregisterExtension(int32 ExtensionId);
 
 private:
@@ -65,17 +65,17 @@ private:
 	void QueueExistingActorsForClass(UClass* TargetClass);
 	void CollectExtensionsForActor(AActor* Actor, TArray<int32>& OutExtensionIds) const;
 	void RemoveActor(AActor* Actor);
-	void DeactivateExtensionForActor(AActor* Actor, int32 ExtensionId, const FPdActorExtensionSpec& ExtensionSpec);
+	void DeactivateExtensionForActor(AActor* Actor, int32 ExtensionId, const FActorExtensionSpec& ExtensionSpec);
 	bool IsExtensionActiveForActor(AActor* Actor, int32 ExtensionId) const;
 	bool IsExtensionPendingForActor(AActor* Actor, int32 ExtensionId) const;
-	bool ShouldApplyExtensionToActor(AActor* Actor, const FPdActorExtensionSpec& ExtensionSpec) const;
+	bool ShouldApplyExtensionToActor(AActor* Actor, const FActorExtensionSpec& ExtensionSpec) const;
 
 private:
 	TArray<TWeakObjectPtr<AActor>> UncheckedActors;
-	TArray<FPdRegisteredActorExtension> RegisterActors;
+	TArray<FRegisteredActorExtension> RegisterActors;
 	TMap<TWeakObjectPtr<AActor>, TSet<int32>> ActiveActorExtensions;
 
-	TMap<int32, FPdActorExtensionSpec> ExtensionById;
+	TMap<int32, FActorExtensionSpec> ExtensionById;
 	TMap<UClass*, TSet<int32>> ClassExtensionIds;
 	TMap<UClass*, TSharedPtr<FComponentRequestHandle>> ExtensionEventHandles;
 	int32 NextExtensionId = 1;
