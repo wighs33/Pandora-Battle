@@ -22,7 +22,7 @@ void UOnlineSessionsSubsystem::MarkVoluntaryMatchExit()
 	bVoluntaryMatchExitInProgress = true;
 }
 
-DEFINE_LOG_CATEGORY_STATIC(LogOnlineSessionsSubsystem, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogOnlineSessionsSubsystemLifecycle, Log, All);
 
 void UOnlineSessionsSubsystem::StartSession()
 {
@@ -241,7 +241,7 @@ void UOnlineSessionsSubsystem::HandleSessionLifecycleTimeout(
 	}
 
 	UE_LOG(
-		LogOnlineSessionsSubsystem,
+		LogOnlineSessionsSubsystemLifecycle,
 		Error,
 		TEXT("Session %s operation timed out after %.1f seconds."),
 		Operation == ESessionLifecycleOperation::Starting

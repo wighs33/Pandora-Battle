@@ -3,17 +3,20 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Character/PdPlayer.h"
+#include "Component/Player/PlayerMatchComponent.h"
 #include "Components/ContentWidget.h"
 #include "Components/Image.h"
 #include "Components/PanelWidget.h"
 #include "Components/Widget.h"
+#include "Definition/Online/AchievementDefinition.h"
+#include "Engine/GameInstance.h"
+#include "Engine/Texture2D.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
-#include "Kismet/GameplayStatics.h"
-#include "Mode/PdHUD.h"
+#include "Mode/PdPlayerState.h"
+#include "Online/AchievementSubsystem.h"
 #include "UI/Widget/EnemyHealthBarWidget.h"
 #include "UI/Widget/EnemyShieldBarWidget.h"
-#include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/StatusEffectsBarWidget.h"
 #include "TimerManager.h"
 #include "UObject/UnrealType.h"
@@ -42,6 +45,14 @@ void UEnemyAvatarWidget::NativeConstruct()
 
 	OriginalWidgetVisibilities.Reset();
 	bLocalPlayerPresentationInitialized = false;
+	if (!bHasDefaultAvatarBrush)
+	{
+		if (const UImage* ResolvedAvatarImage = ResolveAvatarImage())
+		{
+			DefaultAvatarBrush = ResolvedAvatarImage->GetBrush();
+			bHasDefaultAvatarBrush = true;
+		}
+	}
 	PropagateOwnerActorToChildren();
 	ApplyLocalPlayerPresentation();
 	HandleAvatarUpdateTick();
@@ -97,7 +108,7 @@ void UEnemyAvatarWidget::SetOwnerActor(AActor* InOwnerActor)
 	}
 
 	OwnerActor = InOwnerActor;
-	CachedAchievementSourceImage.Reset();
+	RestoreDefaultAvatarBrush(ResolveAvatarImage());
 	bLocalPlayerPresentationInitialized = false;
 	PropagateOwnerActorToChildren();
 	ApplyLocalPlayerPresentation();
@@ -294,20 +305,22 @@ void UEnemyAvatarWidget::RefreshAvatarImage()
 
 	if (!IsPlayerOwner())
 	{
+		RestoreDefaultAvatarBrush(TargetAvatarImage);
 		TargetAvatarImage->SetRenderOpacity(1.0f);
 		TargetAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		return;
 	}
 
-	FSlateBrush AchievementBrush;
-	if (!FindPlayerAchievementBrush(AchievementBrush))
+	UTexture2D* AchievementTexture = ResolvePlayerAchievementTexture();
+	if (!AchievementTexture)
 	{
+		RestoreDefaultAvatarBrush(TargetAvatarImage);
 		TargetAvatarImage->SetRenderOpacity(1.0f);
 		TargetAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		return;
 	}
 
-	TargetAvatarImage->SetBrush(AchievementBrush);
+	TargetAvatarImage->SetBrushFromTexture(AchievementTexture, true);
 	TargetAvatarImage->SetRenderOpacity(1.0f);
 	TargetAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
@@ -317,21 +330,60 @@ bool UEnemyAvatarWidget::IsPlayerOwner() const
 	return OwnerActor.Get() && OwnerActor->IsA<APdPlayer>();
 }
 
+void UEnemyAvatarWidget::RestoreDefaultAvatarBrush(UImage* TargetAvatarImage)
+{
+	if (TargetAvatarImage && bHasDefaultAvatarBrush)
+	{
+		TargetAvatarImage->SetBrush(DefaultAvatarBrush);
+	}
+}
+
 bool UEnemyAvatarWidget::IsLocalPlayerOwner() const
 {
 	const APdPlayer* PlayerOwner = Cast<APdPlayer>(OwnerActor.Get());
 	return PlayerOwner && PlayerOwner->IsLocallyControlled();
 }
 
-bool UEnemyAvatarWidget::FindPlayerAchievementBrush(FSlateBrush& OutBrush) const
+UTexture2D* UEnemyAvatarWidget::ResolvePlayerAchievementTexture() const
 {
-	if (UImage* SourceImage = ResolveAchievementSourceImage())
+	const APdPlayer* PlayerOwner = Cast<APdPlayer>(OwnerActor.Get());
+	const APdPlayerState* PlayerState =
+		PlayerOwner ? PlayerOwner->GetPlayerState<APdPlayerState>() : nullptr;
+	const UPlayerMatchComponent* PlayerMatchComponent =
+		PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
+	const FName AchievementId = PlayerMatchComponent
+		? PlayerMatchComponent->GetSelectedAchievementId()
+		: NAME_None;
+	if (AchievementId.IsNone())
 	{
-		OutBrush = SourceImage->GetBrush();
-		return true;
+		return nullptr;
 	}
 
-	return false;
+	const UGameInstance* GameInstance = GetGameInstance();
+	UAchievementSubsystem* AchievementSubsystem = GameInstance
+		? GameInstance->GetSubsystem<UAchievementSubsystem>()
+		: nullptr;
+	const UAchievementDefinition* AchievementDefinition = AchievementSubsystem
+		? AchievementSubsystem->GetAchievementDefinition()
+		: nullptr;
+	if (!AchievementDefinition)
+	{
+		return nullptr;
+	}
+
+	for (const FAchievementEntry& Achievement : AchievementDefinition->Achievements)
+	{
+		FString CanonicalId = Achievement.AchievementId;
+		CanonicalId.TrimStartAndEndInline();
+		if (Achievement.bEnabled
+			&& !CanonicalId.IsEmpty()
+			&& FName(*CanonicalId) == AchievementId)
+		{
+			return Achievement.UnlockedIcon.Get();
+		}
+	}
+
+	return nullptr;
 }
 
 UImage* UEnemyAvatarWidget::ResolveAvatarImage() const
@@ -350,43 +402,6 @@ UImage* UEnemyAvatarWidget::ResolveAvatarImage() const
 	UImage* ResolvedImage = FindImageInUserWidget(const_cast<UEnemyAvatarWidget*>(this), TEXT("AvatarImage"));
 	const_cast<UEnemyAvatarWidget*>(this)->CachedAvatarImage = ResolvedImage;
 	return ResolvedImage;
-}
-
-UImage* UEnemyAvatarWidget::ResolveAchievementSourceImage() const
-{
-	if (CachedAchievementSourceImage.IsValid())
-	{
-		return CachedAchievementSourceImage.Get();
-	}
-
-	const APlayerController* PlayerController = GetOwningPlayer()
-		? GetOwningPlayer()
-		: UGameplayStatics::GetPlayerController(this, 0);
-	const APdHUD* HUD = PlayerController ? Cast<APdHUD>(PlayerController->GetHUD()) : nullptr;
-	if (!HUD)
-	{
-		return nullptr;
-	}
-
-	if (UUserWidget* InfoWidget = HUD->GetInfoWidget())
-	{
-		if (UImage* PlayerAchieveIcon = FindImageInUserWidget(InfoWidget, TEXT("PlayerAchieveIcon")))
-		{
-			const_cast<UEnemyAvatarWidget*>(this)->CachedAchievementSourceImage = PlayerAchieveIcon;
-			return PlayerAchieveIcon;
-		}
-	}
-
-	if (UUserWidget* PlayerHudWidget = HUD->GetPlayerHudWidget())
-	{
-		if (UImage* PlayerAvatarImage = FindImageInUserWidget(PlayerHudWidget, TEXT("PlayerAvatar")))
-		{
-			const_cast<UEnemyAvatarWidget*>(this)->CachedAchievementSourceImage = PlayerAvatarImage;
-			return PlayerAvatarImage;
-		}
-	}
-
-	return nullptr;
 }
 
 UUserWidget* UEnemyAvatarWidget::FindChildUserWidget(const FName WidgetName) const

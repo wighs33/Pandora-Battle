@@ -69,6 +69,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Achievement")
 	int32 AddItemCollectedCount(const FString& PlayerId, int32 Amount, bool bSaveImmediately = true);
 
+	UFUNCTION(BlueprintPure, Category = "!Achievement")
+	FName GetSelectedAchievementId(const FString& PlayerId);
+
+	UFUNCTION(BlueprintCallable, Category = "!Achievement")
+	bool SetSelectedAchievementId(
+		const FString& PlayerId,
+		FName AchievementId,
+		bool bSaveImmediately = true);
+
 	UFUNCTION(BlueprintCallable, Category = "!Currency|Gold")
 	int32 GetGold(const FString& PlayerId);
 

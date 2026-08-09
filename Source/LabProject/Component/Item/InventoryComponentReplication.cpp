@@ -16,7 +16,7 @@
 
 namespace
 {
-	int32 GetPandoraWeaponLoadoutIndex(const EEnum_Direction Direction)
+	int32 GetReplicatedPandoraWeaponLoadoutIndex(const EEnum_Direction Direction)
 	{
 		switch (Direction)
 		{
@@ -429,7 +429,7 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 		return false;
 	}
 
-	const int32 SlotIndex = GetPandoraWeaponLoadoutIndex(Direction);
+	const int32 SlotIndex = GetReplicatedPandoraWeaponLoadoutIndex(Direction);
 	if (SlotIndex == INDEX_NONE)
 	{
 		return false;

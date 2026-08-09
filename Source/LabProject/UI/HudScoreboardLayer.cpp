@@ -27,8 +27,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudScoreboardLayer)
 
-DEFINE_LOG_CATEGORY_STATIC(LogHudUiRouter, Log, All);
-
 namespace
 {
 	constexpr float ScoreboardRefreshIntervalSeconds = 0.20f;

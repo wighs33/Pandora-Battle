@@ -72,6 +72,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Achievement", meta = (ClampMin = "0", UIMin = "0"))
 	int32 ItemCollectedCount = 0;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Achievement")
+	FName SelectedAchievementId;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Pandora")
 	FPlayerPandoraData PlayerPandoraData;
 

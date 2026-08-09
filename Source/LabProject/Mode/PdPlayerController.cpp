@@ -247,12 +247,15 @@ void APdPlayerController::Client_RequestLocalCosmeticProfileSync_Implementation(
 }
 
 void APdPlayerController::Server_SubmitLocalCosmeticProfile_Implementation(
-	const TArray<FName>& OwnedSkinNames)
+	const TArray<FName>& OwnedSkinNames,
+	const FName SelectedAchievementId)
 {
 	if (ControllerProfileSyncComponent)
 	{
 		ControllerProfileSyncComponent
-			->ApplySubmittedLocalCosmeticProfileOnServer(OwnedSkinNames);
+			->ApplySubmittedLocalCosmeticProfileOnServer(
+				OwnedSkinNames,
+				SelectedAchievementId);
 	}
 }
 

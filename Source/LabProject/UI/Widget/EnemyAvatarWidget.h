@@ -12,6 +12,7 @@ class UEnemyShieldBarWidget;
 class UEnemyHealthBarWidget;
 class UImage;
 class UStatusEffectsBarWidget;
+class UTexture2D;
 class UUserWidget;
 class UWidget;
 
@@ -48,23 +49,22 @@ private:
 	void ApplyLocalPlayerPresentation();
 	void RestoreOriginalWidgetVisibilities();
 	void RefreshAvatarImage();
+	void RestoreDefaultAvatarBrush(UImage* TargetAvatarImage);
 	bool IsPlayerOwner() const;
 	bool IsLocalPlayerOwner() const;
-	bool FindPlayerAchievementBrush(FSlateBrush& OutBrush) const;
+	UTexture2D* ResolvePlayerAchievementTexture() const;
 	UUserWidget* FindChildUserWidget(FName WidgetName) const;
 	UUserWidget* FindFirstChildUserWidget(std::initializer_list<FName> WidgetNames) const;
 	UImage* ResolveAvatarImage() const;
-	UImage* ResolveAchievementSourceImage() const;
 	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
 	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UImage> CachedAvatarImage;
 
-	UPROPERTY(Transient)
-	TWeakObjectPtr<UImage> CachedAchievementSourceImage;
-
 	TMap<TWeakObjectPtr<UWidget>, ESlateVisibility> OriginalWidgetVisibilities;
+	FSlateBrush DefaultAvatarBrush;
+	bool bHasDefaultAvatarBrush = false;
 	bool bLocalPlayerPresentationInitialized = false;
 	bool bLastLocalPlayerOwner = false;
 

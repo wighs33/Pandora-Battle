@@ -27,7 +27,9 @@ public:
 	void ScheduleLocalCosmeticProfileSync();
 	void ApplyGameVictoryGoldReward(const FString& PlayerId, int32 GoldReward) const;
 	void ApplyCollectedItemCount(const FString& PlayerId, int32 ItemCount) const;
-	void ApplySubmittedLocalCosmeticProfileOnServer(const TArray<FName>& OwnedSkinNames);
+	void ApplySubmittedLocalCosmeticProfileOnServer(
+		const TArray<FName>& OwnedSkinNames,
+		FName SelectedAchievementId);
 
 private:
 	APdPlayerController* GetPdController() const;

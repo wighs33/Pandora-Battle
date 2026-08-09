@@ -120,6 +120,9 @@ private:
 	void HandlePlayerNameRefreshRetry();
 	void HandleMatchDisplayNameChanged(const FText& NewDisplayName);
 	void ApplyAchievementIcon(int32 AchievementIndex);
+	void RefreshSelectedAchievementIcon();
+	void ApplyAchievementBrush(int32 AchievementIndex);
+	int32 FindAchievementIndexById(FName AchievementId) const;
 	bool IsAchievementUnlocked(int32 AchievementIndex);
 	int32 GetAchievementProgressValue(int32 AchievementIndex);
 	UButton* GetAchievementButton(int32 AchievementIndex) const;

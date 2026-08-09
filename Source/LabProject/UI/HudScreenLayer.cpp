@@ -28,8 +28,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudScreenLayer)
 
-DEFINE_LOG_CATEGORY_STATIC(LogHudUiRouter, Log, All);
-
 namespace
 {
 	constexpr float InfoUiTrainingRoomPauseDelaySeconds = 0.03f;

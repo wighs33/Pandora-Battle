@@ -93,8 +93,10 @@ public:
 	 * The server applies the configured claim policy and resolves every name
 	 * against its own canonical skin catalog before granting anything.
 	 */
-	UFUNCTION(Server, Reliable, Category = "!Skin|Profile")
-	void Server_SubmitLocalCosmeticProfile(const TArray<FName>& OwnedSkinNames);
+	UFUNCTION(Server, Reliable, Category = "!Cosmetic|Profile")
+	void Server_SubmitLocalCosmeticProfile(
+		const TArray<FName>& OwnedSkinNames,
+		FName SelectedAchievementId);
 
 	UFUNCTION(BlueprintPure, Category = "!Input")
 	UControllerInputDefinition* GetLoadedInputDefinition() const;

@@ -13,8 +13,6 @@
 
 using namespace PlayerProfilePolicy;
 
-DEFINE_LOG_CATEGORY_STATIC(LogPlayerProfile, Log, All);
-
 namespace
 {
 	int32 AddNonNegativeSaturated(const int32 CurrentValue, const int32 Amount)
@@ -138,6 +136,47 @@ int32 UPlayerProfileSubsystem::AddItemCollectedCount(
 
 	NotifyProfileProgressChanged(TrimmedPlayerId);
 	return SaveGameObject->ItemCollectedCount;
+}
+
+FName UPlayerProfileSubsystem::GetSelectedAchievementId(const FString& PlayerId)
+{
+	FString TrimmedPlayerId = PlayerId;
+	TrimmedPlayerId.TrimStartAndEndInline();
+	if (TrimmedPlayerId.IsEmpty())
+	{
+		return NAME_None;
+	}
+
+	const UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(TrimmedPlayerId);
+	return IsValid(SaveGameObject) ? SaveGameObject->SelectedAchievementId : NAME_None;
+}
+
+bool UPlayerProfileSubsystem::SetSelectedAchievementId(
+	const FString& PlayerId,
+	const FName AchievementId,
+	const bool bSaveImmediately)
+{
+	FString TrimmedPlayerId = PlayerId;
+	TrimmedPlayerId.TrimStartAndEndInline();
+	if (TrimmedPlayerId.IsEmpty())
+	{
+		return false;
+	}
+
+	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(TrimmedPlayerId);
+	if (!IsValid(SaveGameObject))
+	{
+		return false;
+	}
+
+	if (SaveGameObject->SelectedAchievementId == AchievementId)
+	{
+		return true;
+	}
+
+	SaveGameObject->SelectedAchievementId = AchievementId;
+	RequestProfileSave(TrimmedPlayerId, bSaveImmediately);
+	return true;
 }
 
 int32 UPlayerProfileSubsystem::GetGold(const FString& PlayerId)

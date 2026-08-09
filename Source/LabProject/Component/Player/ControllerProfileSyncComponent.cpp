@@ -1,11 +1,13 @@
 #include "Component/Player/ControllerProfileSyncComponent.h"
 
+#include "Component/Player/PlayerMatchComponent.h"
 #include "Component/Skin/SkinComponent.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/World.h"
 #include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "Online/AchievementSubsystem.h"
 #include "SavedGameData/PdSaveGame.h"
 #include "Skin/SkinDefaultUnlockPolicy.h"
 
@@ -18,6 +20,44 @@ namespace
 	constexpr int32 LocalCosmeticProfileSyncMaxAttempts = 5;
 	constexpr int32 MaxClientSyncedSkinNameCount = 512;
 	constexpr double RemoteSkinSyncMinInterval = 0.20;
+
+	bool TryResolveCanonicalAchievementId(
+		UPdGameInstance* PdGameInstance,
+		const FName SubmittedAchievementId,
+		FName& OutAchievementId)
+	{
+		OutAchievementId = NAME_None;
+		if (SubmittedAchievementId.IsNone())
+		{
+			return true;
+		}
+
+		UAchievementSubsystem* AchievementSubsystem = PdGameInstance
+			? PdGameInstance->GetSubsystem<UAchievementSubsystem>()
+			: nullptr;
+		const UAchievementDefinition* AchievementDefinition = AchievementSubsystem
+			? AchievementSubsystem->GetAchievementDefinition()
+			: nullptr;
+		if (!AchievementDefinition)
+		{
+			return false;
+		}
+
+		for (const FAchievementEntry& Achievement : AchievementDefinition->Achievements)
+		{
+			FString CanonicalId = Achievement.AchievementId;
+			CanonicalId.TrimStartAndEndInline();
+			if (Achievement.bEnabled
+				&& !CanonicalId.IsEmpty()
+				&& FName(*CanonicalId) == SubmittedAchievementId)
+			{
+				OutAchievementId = FName(*CanonicalId);
+				return true;
+			}
+		}
+
+		return true;
+	}
 }
 
 UControllerProfileSyncComponent::UControllerProfileSyncComponent()
@@ -120,7 +160,8 @@ void UControllerProfileSyncComponent::ApplyCollectedItemCount(
 }
 
 void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer(
-	const TArray<FName>& OwnedSkinNames)
+	const TArray<FName>& OwnedSkinNames,
+	const FName SelectedAchievementId)
 {
 	APdPlayerController* Controller = GetPdController();
 	if (!Controller || !Controller->HasAuthority())
@@ -149,13 +190,26 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 	GrantDefaultSkinEntitlementsOnServer();
 
 	APdPlayerState* PdPlayerState = Controller->GetPlayerState<APdPlayerState>();
+	UPdGameInstance* PdGameInstance = Controller->GetGameInstance<UPdGameInstance>();
+	if (UPlayerMatchComponent* PlayerMatchComponent =
+		PdPlayerState ? PdPlayerState->GetPlayerMatchComponent() : nullptr)
+	{
+		FName CanonicalAchievementId;
+		if (TryResolveCanonicalAchievementId(
+			PdGameInstance,
+			SelectedAchievementId,
+			CanonicalAchievementId))
+		{
+			PlayerMatchComponent->SetSelectedAchievementId(CanonicalAchievementId);
+		}
+	}
+
 	USkinComponent* SkinComponent = PdPlayerState ? PdPlayerState->GetSkinComponent() : nullptr;
 	if (!SkinComponent)
 	{
 		return;
 	}
 
-	UPdGameInstance* PdGameInstance = Controller->GetGameInstance<UPdGameInstance>();
 	const UContentDataSubsystem* ContentDataSubsystem =
 		PdGameInstance ? PdGameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentDataSubsystem)
@@ -286,11 +340,15 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 
 	if (Controller->HasAuthority())
 	{
-		ApplySubmittedLocalCosmeticProfileOnServer(OwnedSkinNames);
+		ApplySubmittedLocalCosmeticProfileOnServer(
+			OwnedSkinNames,
+			SaveGame->SelectedAchievementId);
 	}
 	else
 	{
-		Controller->Server_SubmitLocalCosmeticProfile(OwnedSkinNames);
+		Controller->Server_SubmitLocalCosmeticProfile(
+			OwnedSkinNames,
+			SaveGame->SelectedAchievementId);
 	}
 
 	CompleteLocalCosmeticProfileSyncAttempt();

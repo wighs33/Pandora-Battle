@@ -20,11 +20,15 @@ struct LABPROJECT_API FPlayerMatchIdentity
 	UPROPERTY(EditAnywhere, Category = "!Match|Identity")
 	int32 TeamColorIndex = INDEX_NONE;
 
+	UPROPERTY(EditAnywhere, Category = "!Match|Identity")
+	FName SelectedAchievementId;
+
 	bool Matches(const FPlayerMatchIdentity& Other) const
 	{
 		return DisplayName.EqualTo(Other.DisplayName)
 			&& SpawnIndex == Other.SpawnIndex
-			&& TeamColorIndex == Other.TeamColorIndex;
+			&& TeamColorIndex == Other.TeamColorIndex
+			&& SelectedAchievementId == Other.SelectedAchievementId;
 	}
 };
 
@@ -68,6 +72,11 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!Match|Identity")
 	int32 GetMatchTeamColorIndex() const { return PlayerMatchIdentity.TeamColorIndex; }
+
+	void SetSelectedAchievementId(FName InAchievementId);
+
+	UFUNCTION(BlueprintPure, Category = "!Match|Identity")
+	FName GetSelectedAchievementId() const { return PlayerMatchIdentity.SelectedAchievementId; }
 
 	UFUNCTION(BlueprintPure, Category = "!Match|Stats")
 	int32 GetKillCount() const;

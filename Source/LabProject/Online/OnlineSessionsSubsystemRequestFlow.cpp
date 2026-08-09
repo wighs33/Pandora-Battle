@@ -17,13 +17,11 @@
 #include "TimerManager.h"
 #include "UI/GameResultTypes.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogOnlineSessionsSubsystem, Log, All);
-
 namespace LabOnlineSession
 {
 	// Internal-linkage copies used by the request-flow translation unit.
-	const FName RoomNameSettingKey(TEXT("ROOM_NAME"));
-	const FName MapNameSettingKey(TEXT("MAP_NAME"));
+	const FName RequestRoomNameSettingKey(TEXT("ROOM_NAME"));
+	const FName RequestMapNameSettingKey(TEXT("MAP_NAME"));
 }
 
 uint64 UOnlineSessionsSubsystem::BeginSessionRequest(
@@ -94,11 +92,11 @@ bool UOnlineSessionsSubsystem::StartCreateRoomPhase(const uint64 RequestId)
 	Settings.bAllowJoinViaPresence = bUseLobbySession;
 	Settings.bUseLobbiesIfAvailable = bUseLobbySession;
 	Settings.Set(
-		LabOnlineSession::RoomNameSettingKey,
+		LabOnlineSession::RequestRoomNameSettingKey,
 		PendingRoomName,
 		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	Settings.Set(
-		LabOnlineSession::MapNameSettingKey,
+		LabOnlineSession::RequestMapNameSettingKey,
 		PendingMapName,
 		EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 

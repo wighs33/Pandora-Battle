@@ -2,16 +2,24 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/ContentWidget.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
 #include "Components/OverlaySlot.h"
+#include "Components/PanelWidget.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Online/AchievementDefinition.h"
+#include "Engine/GameInstance.h"
+#include "Engine/Texture2D.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyHUD.h"
+#include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerState.h"
+#include "Online/AchievementSubsystem.h"
 #include "UI/TeamColorUtils.h"
 #include "UI/Widget/KillBoxWidget.h"
 #include "Definition/UI/WidgetClassDefinition.h"
@@ -44,6 +52,10 @@ void UPlayerHudWidget::InitializePlayerHud(UWidgetClassDefinition* InWidgetClass
 	WidgetClassDefinition = InWidgetClassDefinition;
 	RefreshLobbyTipVisibility();
 	RefreshKillBoxVisibility();
+	if (!RefreshAchievementAvatar())
+	{
+		StartAchievementAvatarRefreshRetry();
+	}
 
 	if (CanRebuildKillBox())
 	{
@@ -58,6 +70,11 @@ void UPlayerHudWidget::NativeConstruct()
 	ClearTransactionalFlagsForRuntimeWidget(this);
 	RefreshLobbyTipVisibility();
 	RefreshKillBoxVisibility();
+	AchievementAvatarRefreshRetryCount = 0;
+	if (!RefreshAchievementAvatar())
+	{
+		StartAchievementAvatarRefreshRetry();
+	}
 
 	if (CanRebuildKillBox())
 	{
@@ -68,6 +85,7 @@ void UPlayerHudWidget::NativeConstruct()
 
 void UPlayerHudWidget::NativeDestruct()
 {
+	ClearAchievementAvatarRefreshRetry();
 	ClearKillBoxWidgets();
 	ResetEditorTransactionBufferIfContainsPieObjects();
 	Super::NativeDestruct();
@@ -83,6 +101,170 @@ void UPlayerHudWidget::RefreshLobbyTipVisibility()
 	const APlayerController* OwningPlayer = GetOwningPlayer();
 	const bool bIsLobbyHud = OwningPlayer && OwningPlayer->GetHUD<ALobbyHUD>();
 	Txt_LobbyTip->SetVisibility(bIsLobbyHud ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+}
+
+bool UPlayerHudWidget::RefreshAchievementAvatar()
+{
+	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	const APlayerController* PlayerController = GetOwningPlayer();
+	if (!PdGameInstance || !PlayerController)
+	{
+		return false;
+	}
+
+	FString PlayerId = PdGameInstance->GetPreferredSavePlayerId();
+	PlayerId.TrimStartAndEndInline();
+	if (PlayerId.IsEmpty())
+	{
+		PlayerId = PdGameInstance->ResolveSavePlayerId(
+			PlayerController,
+			PlayerController->PlayerState);
+		PlayerId.TrimStartAndEndInline();
+	}
+	if (PlayerId.IsEmpty())
+	{
+		PlayerId = PdGameInstance->GetLocalClientSavePlayerId();
+		PlayerId.TrimStartAndEndInline();
+	}
+	if (PlayerId.IsEmpty())
+	{
+		return false;
+	}
+
+	const FName SelectedAchievementId =
+		PdGameInstance->GetSelectedAchievementId(PlayerId);
+	if (SelectedAchievementId.IsNone())
+	{
+		return true;
+	}
+
+	UAchievementSubsystem* AchievementSubsystem =
+		PdGameInstance->GetSubsystem<UAchievementSubsystem>();
+	const UAchievementDefinition* AchievementDefinition = AchievementSubsystem
+		? AchievementSubsystem->GetAchievementDefinition()
+		: nullptr;
+	if (!AchievementDefinition)
+	{
+		return false;
+	}
+
+	for (const FAchievementEntry& Achievement : AchievementDefinition->Achievements)
+	{
+		FString CanonicalId = Achievement.AchievementId;
+		CanonicalId.TrimStartAndEndInline();
+		if (!Achievement.bEnabled
+			|| CanonicalId.IsEmpty()
+			|| FName(*CanonicalId) != SelectedAchievementId)
+		{
+			continue;
+		}
+
+		UTexture2D* AchievementTexture = Achievement.UnlockedIcon.Get();
+		UImage* PlayerAvatarImage = FindImageInUserWidget(this, TEXT("PlayerAvatar"));
+		if (!AchievementTexture || !PlayerAvatarImage)
+		{
+			return false;
+		}
+
+		PlayerAvatarImage->SetBrushFromTexture(AchievementTexture, true);
+		PlayerAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		return true;
+	}
+
+	return true;
+}
+
+void UPlayerHudWidget::StartAchievementAvatarRefreshRetry()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			AchievementAvatarRefreshTimerHandle,
+			this,
+			&ThisClass::HandleAchievementAvatarRefreshRetry,
+			0.2f,
+			true);
+	}
+}
+
+void UPlayerHudWidget::HandleAchievementAvatarRefreshRetry()
+{
+	++AchievementAvatarRefreshRetryCount;
+	if (RefreshAchievementAvatar() || AchievementAvatarRefreshRetryCount >= 25)
+	{
+		ClearAchievementAvatarRefreshRetry();
+	}
+}
+
+void UPlayerHudWidget::ClearAchievementAvatarRefreshRetry()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AchievementAvatarRefreshTimerHandle);
+	}
+	AchievementAvatarRefreshTimerHandle.Invalidate();
+}
+
+UImage* UPlayerHudWidget::FindImageInUserWidget(
+	UUserWidget* RootWidget,
+	const FName ImageName) const
+{
+	if (!RootWidget || !RootWidget->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	if (UImage* FoundImage = Cast<UImage>(RootWidget->WidgetTree->FindWidget(ImageName)))
+	{
+		return FoundImage;
+	}
+
+	return FindImageInWidget(RootWidget->WidgetTree->RootWidget, ImageName);
+}
+
+UImage* UPlayerHudWidget::FindImageInWidget(
+	UWidget* RootWidget,
+	const FName ImageName) const
+{
+	if (!RootWidget)
+	{
+		return nullptr;
+	}
+
+	if (RootWidget->GetFName() == ImageName)
+	{
+		if (UImage* Image = Cast<UImage>(RootWidget))
+		{
+			return Image;
+		}
+	}
+
+	if (UUserWidget* ChildUserWidget = Cast<UUserWidget>(RootWidget))
+	{
+		if (UImage* FoundImage = FindImageInUserWidget(ChildUserWidget, ImageName))
+		{
+			return FoundImage;
+		}
+	}
+
+	if (const UPanelWidget* PanelWidget = Cast<UPanelWidget>(RootWidget))
+	{
+		for (int32 ChildIndex = 0; ChildIndex < PanelWidget->GetChildrenCount(); ++ChildIndex)
+		{
+			if (UImage* FoundImage =
+				FindImageInWidget(PanelWidget->GetChildAt(ChildIndex), ImageName))
+			{
+				return FoundImage;
+			}
+		}
+	}
+
+	if (const UContentWidget* ContentWidget = Cast<UContentWidget>(RootWidget))
+	{
+		return FindImageInWidget(ContentWidget->GetContent(), ImageName);
+	}
+
+	return nullptr;
 }
 
 void UPlayerHudWidget::RefreshKillBoxVisibility()

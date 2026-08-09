@@ -6,7 +6,9 @@
 #include "PlayerHudWidget.generated.h"
 
 class UHorizontalBox;
+class UImage;
 class UKillBoxWidget;
+class UUserWidget;
 class UWidget;
 class UWidgetClassDefinition;
 
@@ -24,6 +26,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|PlayerHUD|KillBox")
 	void RefreshKillBox();
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|PlayerHUD|Achievement")
+	bool RefreshAchievementAvatar();
 
 protected:
 	virtual void NativeConstruct() override;
@@ -51,6 +56,11 @@ private:
 	void ClearKillBoxWidgets();
 	void ClearKillBoxTimer();
 	void ClearTransactionalFlagsForRuntimeWidget(UUserWidget* Widget) const;
+	void StartAchievementAvatarRefreshRetry();
+	void HandleAchievementAvatarRefreshRetry();
+	void ClearAchievementAvatarRefreshRetry();
+	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
+	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UWidgetClassDefinition> WidgetClassDefinition = nullptr;
@@ -59,4 +69,6 @@ private:
 	TMap<int32, TObjectPtr<UKillBoxWidget>> KillBoxWidgets;
 
 	FTimerHandle KillBoxRefreshTimerHandle;
+	FTimerHandle AchievementAvatarRefreshTimerHandle;
+	int32 AchievementAvatarRefreshRetryCount = 0;
 };

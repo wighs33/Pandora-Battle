@@ -62,6 +62,12 @@ void UAchievementSubsystem::Deinitialize()
 		DefinitionPreloadHandle->ReleaseHandle();
 		DefinitionPreloadHandle.Reset();
 	}
+	if (PresentationPreloadHandle.IsValid())
+	{
+		PresentationPreloadHandle->CancelHandle();
+		PresentationPreloadHandle->ReleaseHandle();
+		PresentationPreloadHandle.Reset();
+	}
 	CachedAchievementDefinition = nullptr;
 
 	Super::Deinitialize();
@@ -169,7 +175,12 @@ int32 UAchievementSubsystem::CalculateAchievementProgressValue(
 
 const UAchievementDefinition* UAchievementSubsystem::GetAchievementDefinition()
 {
-	return ResolveAchievementDefinition();
+	const UAchievementDefinition* AchievementDefinition = ResolveAchievementDefinition();
+	if (AchievementDefinition)
+	{
+		BeginAchievementPresentationPreload();
+	}
+	return AchievementDefinition;
 }
 
 const UAchievementDefinition* UAchievementSubsystem::ResolveAchievementDefinition()
@@ -221,6 +232,47 @@ void UAchievementSubsystem::BeginAchievementDefinitionPreload()
 			&ThisClass::HandleAchievementDefinitionContentReady));
 }
 
+void UAchievementSubsystem::BeginAchievementPresentationPreload()
+{
+	if (PresentationPreloadHandle.IsValid())
+	{
+		return;
+	}
+
+	const UAchievementDefinition* AchievementDefinition = ResolveAchievementDefinition();
+	if (!AchievementDefinition)
+	{
+		return;
+	}
+
+	TArray<FSoftObjectPath> PresentationPaths;
+	for (const FAchievementEntry& Achievement : AchievementDefinition->Achievements)
+	{
+		if (!Achievement.bEnabled || Achievement.UnlockedIcon.IsNull())
+		{
+			continue;
+		}
+
+		PresentationPaths.AddUnique(Achievement.UnlockedIcon.ToSoftObjectPath());
+	}
+
+	if (PresentationPaths.IsEmpty())
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		return;
+	}
+
+	PresentationPreloadHandle =
+		ContentSubsystem->PreloadSoftObjectPathsAsync(PresentationPaths);
+}
+
 void UAchievementSubsystem::HandleAchievementDefinitionContentReady()
 {
 	if (DefinitionPreloadHandle.IsValid())
@@ -233,6 +285,7 @@ void UAchievementSubsystem::HandleAchievementDefinitionContentReady()
 	{
 		return;
 	}
+	BeginAchievementPresentationPreload();
 
 	TArray<FString> PlayerIdsToEvaluate = PendingEvaluationPlayerIds.Array();
 	PendingEvaluationPlayerIds.Reset();

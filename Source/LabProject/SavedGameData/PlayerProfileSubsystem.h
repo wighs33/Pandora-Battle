@@ -40,6 +40,11 @@ public:
 	int32 GetWinCount(const FString& PlayerId);
 	int32 GetItemCollectedCount(const FString& PlayerId);
 	int32 AddItemCollectedCount(const FString& PlayerId, int32 Amount, bool bSaveImmediately = true);
+	FName GetSelectedAchievementId(const FString& PlayerId);
+	bool SetSelectedAchievementId(
+		const FString& PlayerId,
+		FName AchievementId,
+		bool bSaveImmediately = true);
 
 	int32 GetGold(const FString& PlayerId);
 	int32 SetGold(const FString& PlayerId, int32 NewGold, bool bSaveImmediately = true);

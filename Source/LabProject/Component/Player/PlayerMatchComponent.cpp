@@ -70,6 +70,13 @@ void UPlayerMatchComponent::SetMatchTeamColorIndex(const int32 InTeamColorIndex)
 	SetPlayerMatchIdentity(NewMatchIdentity);
 }
 
+void UPlayerMatchComponent::SetSelectedAchievementId(const FName InAchievementId)
+{
+	FPlayerMatchIdentity NewMatchIdentity = PlayerMatchIdentity;
+	NewMatchIdentity.SelectedAchievementId = InAchievementId;
+	SetPlayerMatchIdentity(NewMatchIdentity);
+}
+
 int32 UPlayerMatchComponent::GetKillCount() const
 {
 	const APlayerState* OwnerPlayerState = Cast<APlayerState>(GetOwner());

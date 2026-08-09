@@ -26,6 +26,7 @@ public:
 private:
 	const UAchievementDefinition* ResolveAchievementDefinition();
 	void BeginAchievementDefinitionPreload();
+	void BeginAchievementPresentationPreload();
 	void HandleAchievementDefinitionContentReady();
 	UPdSaveGame* ResolveSaveGame(const FString& PlayerId) const;
 	IOnlineSubsystem* ResolveOnlineSubsystem() const;
@@ -56,5 +57,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAchievementDefinition> CachedAchievementDefinition;
 	TSharedPtr<FStreamableHandle> DefinitionPreloadHandle;
+	TSharedPtr<FStreamableHandle> PresentationPreloadHandle;
 	FDelegateHandle ProfileProgressChangedHandle;
 };

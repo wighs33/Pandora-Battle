@@ -137,6 +137,34 @@ int32 UPdGameInstance::AddItemCollectedCount(
 	return 0;
 }
 
+FName UPdGameInstance::GetSelectedAchievementId(const FString& PlayerId)
+{
+	if (UPlayerProfileSubsystem* ProfileSubsystem =
+		GetSubsystem<UPlayerProfileSubsystem>())
+	{
+		return ProfileSubsystem->GetSelectedAchievementId(PlayerId);
+	}
+
+	return NAME_None;
+}
+
+bool UPdGameInstance::SetSelectedAchievementId(
+	const FString& PlayerId,
+	const FName AchievementId,
+	const bool bSaveImmediately)
+{
+	if (UPlayerProfileSubsystem* ProfileSubsystem =
+		GetSubsystem<UPlayerProfileSubsystem>())
+	{
+		return ProfileSubsystem->SetSelectedAchievementId(
+			PlayerId,
+			AchievementId,
+			bSaveImmediately);
+	}
+
+	return false;
+}
+
 int32 UPdGameInstance::GetGold(const FString& PlayerId)
 {
 	if (UPlayerProfileSubsystem* ProfileSubsystem =

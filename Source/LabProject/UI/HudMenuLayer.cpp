@@ -27,7 +27,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudMenuLayer)
 
-DEFINE_LOG_CATEGORY_STATIC(LogHudUiRouter, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogHudMenuLayer, Log, All);
 
 void UHudMenuLayer::Initialize(APdHUD* InOwnerHud, UHudUiRouter* InRouter)
 {
@@ -78,14 +78,14 @@ bool UHudMenuLayer::Open()
 	}
 	if (!MenuPopupClass)
 	{
-		UE_LOG(LogHudUiRouter, Error, TEXT("Settings menu layer has no configured widget class."));
+		UE_LOG(LogHudMenuLayer, Error, TEXT("Settings menu layer has no configured widget class."));
 		return false;
 	}
 
 	ActiveWidget = CreateWidget<UMenuPopupWidget>(Controller, MenuPopupClass);
 	if (!ActiveWidget)
 	{
-		UE_LOG(LogHudUiRouter, Error, TEXT("Failed to create settings menu widget."));
+		UE_LOG(LogHudMenuLayer, Error, TEXT("Failed to create settings menu widget."));
 		return false;
 	}
 

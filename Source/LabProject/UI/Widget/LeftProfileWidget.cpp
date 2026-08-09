@@ -14,6 +14,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdGameInstance.h"
+#include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Online/AchievementDefinition.h"
@@ -240,6 +241,8 @@ void ULeftProfileWidget::RefreshAchievementButtons()
 			Image->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		}
 	}
+
+	RefreshSelectedAchievementIcon();
 }
 
 void ULeftProfileWidget::BindAchievementButtons()
@@ -455,10 +458,61 @@ void ULeftProfileWidget::ApplyAchievementIcon(const int32 AchievementIndex)
 		return;
 	}
 
+	const UAchievementDefinition* AchievementDefinition = ResolveAchievementDefinition();
+	if (!AchievementDefinition
+		|| !AchievementDefinition->Achievements.IsValidIndex(AchievementIndex))
+	{
+		return;
+	}
+
+	FString AchievementId =
+		AchievementDefinition->Achievements[AchievementIndex].AchievementId;
+	AchievementId.TrimStartAndEndInline();
+	if (AchievementId.IsEmpty())
+	{
+		return;
+	}
+
+	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	const FString PlayerId = ResolveProfileSavePlayerId();
+	if (!PdGameInstance
+		|| !PdGameInstance->SetSelectedAchievementId(
+			PlayerId,
+			FName(*AchievementId),
+			true))
+	{
+		return;
+	}
+
+	ApplyAchievementBrush(AchievementIndex);
+	if (APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
+	{
+		PlayerController->RequestLocalCosmeticProfileSync();
+	}
+}
+
+void ULeftProfileWidget::RefreshSelectedAchievementIcon()
+{
+	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	if (!PdGameInstance)
+	{
+		return;
+	}
+
+	const FName SelectedAchievementId =
+		PdGameInstance->GetSelectedAchievementId(ResolveProfileSavePlayerId());
+	const int32 AchievementIndex = FindAchievementIndexById(SelectedAchievementId);
+	if (AchievementIndex != INDEX_NONE && IsAchievementUnlocked(AchievementIndex))
+	{
+		ApplyAchievementBrush(AchievementIndex);
+	}
+}
+
+void ULeftProfileWidget::ApplyAchievementBrush(const int32 AchievementIndex)
+{
 	UImage* SourceImage = GetAchievementImage(AchievementIndex);
 	if (!SourceImage)
 	{
-
 		return;
 	}
 
@@ -473,8 +527,39 @@ void ULeftProfileWidget::ApplyAchievementIcon(const int32 AchievementIndex)
 	{
 		PlayerAvatarImage->SetBrush(AchievementBrush);
 		PlayerAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-
 	}
+}
+
+int32 ULeftProfileWidget::FindAchievementIndexById(const FName AchievementId) const
+{
+	if (AchievementId.IsNone())
+	{
+		return INDEX_NONE;
+	}
+
+	const UAchievementDefinition* AchievementDefinition = ResolveAchievementDefinition();
+	if (!AchievementDefinition)
+	{
+		return INDEX_NONE;
+	}
+
+	for (int32 AchievementIndex = 0;
+		AchievementIndex < AchievementDefinition->Achievements.Num();
+		++AchievementIndex)
+	{
+		const FAchievementEntry& Achievement =
+			AchievementDefinition->Achievements[AchievementIndex];
+		FString CanonicalId = Achievement.AchievementId;
+		CanonicalId.TrimStartAndEndInline();
+		if (Achievement.bEnabled
+			&& !CanonicalId.IsEmpty()
+			&& FName(*CanonicalId) == AchievementId)
+		{
+			return AchievementIndex;
+		}
+	}
+
+	return INDEX_NONE;
 }
 
 bool ULeftProfileWidget::IsAchievementUnlocked(const int32 AchievementIndex)
