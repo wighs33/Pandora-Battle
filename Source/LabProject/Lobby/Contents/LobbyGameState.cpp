@@ -60,13 +60,13 @@ FLobbyMatchMapOption ALobbyGameState::GetSelectedMapOption() const
 		GameInstance
 			? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>()
 			: nullptr;
-	const UMatchRuleDefinition* MatchRuleDefinition =
+	const ULevelDefinition* LevelDefinition =
 		LobbyRuntimeSubsystem
-			? LobbyRuntimeSubsystem->GetLoadedLobbyMatchRuleDefinition()
+			? LobbyRuntimeSubsystem->GetLoadedLevelDefinition()
 			: nullptr;
 	FLobbyMatchMapOption ConfiguredMapOption;
-	if (MatchRuleDefinition
-		&& MatchRuleDefinition->FindLobbyMapOption(
+	if (LevelDefinition
+		&& LevelDefinition->FindIngameLevel(
 			ResolvedMapOption.MapKey,
 			ConfiguredMapOption))
 	{

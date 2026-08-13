@@ -11,6 +11,7 @@ class AExperienceGameMode;
 class APdPlayerState;
 class APlayerState;
 class ARewardChest;
+class ULevelDefinition;
 class UMatchRuleDefinition;
 class URewardDefinition;
 struct FLobbyMatchMapOption;
@@ -48,6 +49,7 @@ public:
 	bool HandlePlayerLogout(const APlayerState* ExitingPlayerState);
 
 	const UMatchRuleDefinition* GetMatchRuleDefinition() const;
+	const ULevelDefinition* GetLevelDefinition() const;
 	bool FindCurrentMatchMapOption(
 		FLobbyMatchMapOption& OutMapOption) const;
 	bool IsGameResultShown() const { return bGameResultShown; }

@@ -5,7 +5,7 @@
 #include "Common/GameSessionConstants.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
-#include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "GameFramework/Character.h"

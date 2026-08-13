@@ -5,6 +5,7 @@
 #include "UObject/PrimaryAssetId.h"
 #include "ExperienceGameModeSettings.generated.h"
 
+class ULevelDefinition;
 class UMatchRuleDefinition;
 class URewardDefinition;
 class UDefaultProvisionDefinition;
@@ -66,6 +67,9 @@ struct LABPROJECT_API FExperienceMatchFlowSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules")
 	TSoftObjectPtr<UMatchRuleDefinition> MatchRuleDefinition;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Level")
+	TSoftObjectPtr<ULevelDefinition> LevelDefinition;
 };
 
 /**
@@ -79,8 +83,8 @@ struct LABPROJECT_API FExperiencePlayerProvisioningSettings
 	UPROPERTY(Transient)
 	TObjectPtr<UDefaultProvisionDefinition> DefaultProvisionDefinition;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules")
-	TSoftObjectPtr<UMatchRuleDefinition> MatchRuleDefinition;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Level")
+	TSoftObjectPtr<ULevelDefinition> LevelDefinition;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Team")
 	bool bAssignDefaultTeamWhenLobbyTeamMissing = true;

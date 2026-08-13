@@ -2,7 +2,6 @@
 
 #include "Component/Experience/ExperienceManagerComponent.h"
 #include "Definition/Experience/ExperienceDefinition.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Experience/PdWorldSettings.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyGameState.h"
@@ -142,12 +141,7 @@ ULobbyExperienceComponent::GetConfiguredExperienceId() const
 		}
 	}
 
-	const ULobbyModeDefinition* Definition =
-		GameMode->GetLobbyModeDefinition();
-	return Definition
-		? Definition->GetContentSettings()
-			.DefaultExperienceId
-		: FPrimaryAssetId();
+	return FPrimaryAssetId();
 }
 
 ALobbyGameMode*

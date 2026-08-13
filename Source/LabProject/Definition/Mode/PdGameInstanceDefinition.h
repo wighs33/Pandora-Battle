@@ -13,7 +13,7 @@ class UEnemyBaseDefinition;
 class UAchievementDefinition;
 class UGameSettingDefinition;
 class UGuideDefinition;
-class ULobbyModeDefinition;
+class ULevelDefinition;
 class UDefaultProvisionDefinition;
 class UMatchRuleDefinition;
 class UPlayerControllerDefinition;
@@ -70,9 +70,9 @@ struct LABPROJECT_API FProjectDefinitionReferences
 		meta = (AssetBundles = "Client,Server"))
 	TSoftObjectPtr<UMatchRuleDefinition> MatchRule;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Lobby",
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Level",
 		meta = (AssetBundles = "Client,Server"))
-	TSoftObjectPtr<ULobbyModeDefinition> LobbyMode;
+	TSoftObjectPtr<ULevelDefinition> LevelDefinition;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions|Player",
 		meta = (AssetBundles = "Client,Server", FormerlySerializedAs = "LobbyPreview"))

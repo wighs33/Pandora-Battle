@@ -1,6 +1,7 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 
 #include "Data/ContentDataSubsystem.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/GameInstance.h"
@@ -55,9 +56,9 @@ void ULobbyRuntimeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 	Collection.InitializeDependency<UContentDataSubsystem>();
 	Collection.InitializeDependency<UGameSettingsSubsystem>();
-	LoadedLobbyMatchRuleDefinition = nullptr;
-	bLobbyMatchRulePreloadPending = false;
-	bLobbyMatchRuleReady = false;
+	LoadedLevelDefinition = nullptr;
+	bLevelDefinitionPreloadPending = false;
+	bLevelDefinitionReady = false;
 	GameEntryContentPreloadResult = ELobbyContentPreloadResult::NotStarted;
 	MissingGameEntryPrimaryAssetIds.Reset();
 }
@@ -66,9 +67,9 @@ void ULobbyRuntimeSubsystem::Deinitialize()
 {
 	ReleaseLobbyEntryContentPreload();
 	ReleaseGameEntryContentPreload();
-	LoadedLobbyMatchRuleDefinition = nullptr;
-	bLobbyMatchRulePreloadPending = false;
-	bLobbyMatchRuleReady = false;
+	LoadedLevelDefinition = nullptr;
+	bLevelDefinitionPreloadPending = false;
+	bLevelDefinitionReady = false;
 	Super::Deinitialize();
 }
 void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
@@ -131,38 +132,45 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 	}
 	ContentDataSubsystem->EnsureSkillDataAssetsPreload();
 
-	if (bLobbyMatchRuleReady || bLobbyMatchRulePreloadPending)
+	if (bLevelDefinitionReady || bLevelDefinitionPreloadPending)
 	{
 		return;
 	}
 
-	bLobbyMatchRulePreloadPending = true;
-	const FSoftObjectPath MatchRulePath =
-		UMatchRuleDefinition::GetDefaultDefinitionPath();
-	if (!MatchRulePath.IsValid())
+	bLevelDefinitionPreloadPending = true;
+	const FSoftObjectPath LevelDefinitionPath =
+		ULevelDefinition::GetDefaultDefinitionPath();
+	if (!LevelDefinitionPath.IsValid())
 	{
-		bLobbyMatchRulePreloadPending = false;
+		bLevelDefinitionPreloadPending = false;
 		UE_LOG(
 			LogLobbyRuntimeSubsystem,
 			Error,
-			TEXT("Lobby entry preload has no configured MatchRule Definition."));
+			TEXT("Lobby entry preload has no configured Level Definition."));
 		return;
 	}
 	const TWeakObjectPtr<ThisClass> WeakThis(this);
+	TArray<FSoftObjectPath> DefinitionPaths = { LevelDefinitionPath };
+	const FSoftObjectPath MatchRulePath =
+		UMatchRuleDefinition::GetDefaultDefinitionPath();
+	if (MatchRulePath.IsValid())
+	{
+		DefinitionPaths.AddUnique(MatchRulePath);
+	}
 	TSharedPtr<FStreamableHandle> PreloadHandle =
 		ContentDataSubsystem->PreloadSoftObjectPathsAsync(
-			{ MatchRulePath },
+			DefinitionPaths,
 			FSimpleDelegate::CreateLambda(
 				[WeakThis]()
 				{
 					if (ThisClass* This = WeakThis.Get())
 					{
-						This->HandleLobbyMatchRulePreloadComplete();
+						This->HandleLevelDefinitionPreloadComplete();
 					}
 				}));
 	if (PreloadHandle.IsValid())
 	{
-		LobbyMatchRulePreloadHandle = MoveTemp(PreloadHandle);
+		LevelDefinitionPreloadHandle = MoveTemp(PreloadHandle);
 	}
 }
 
@@ -177,9 +185,16 @@ bool ULobbyRuntimeSubsystem::IsLobbyEntryContentReady() const
 		&& GameSettingsSubsystem->IsRuntimeContentReady()
 		&& ContentDataSubsystem
 		&& ContentDataSubsystem->IsSkillDataAssetsReady()
-		&& bLobbyMatchRuleReady
-		&& LoadedLobbyMatchRuleDefinition != nullptr
+		&& bLevelDefinitionReady
+		&& LoadedLevelDefinition != nullptr
 		&& IsLocalPlayerWidgetContentReady();
+}
+
+const UMatchRuleDefinition*
+ULobbyRuntimeSubsystem::GetLoadedLobbyMatchRuleDefinition() const
+{
+	return Cast<UMatchRuleDefinition>(
+		UMatchRuleDefinition::GetDefaultDefinitionPath().ResolveObject());
 }
 
 void ULobbyRuntimeSubsystem::BeginGameEntryContentPreload()
@@ -416,22 +431,22 @@ bool ULobbyRuntimeSubsystem::IsLocalPlayerWidgetContentReady() const
 	return true;
 }
 
-void ULobbyRuntimeSubsystem::HandleLobbyMatchRulePreloadComplete()
+void ULobbyRuntimeSubsystem::HandleLevelDefinitionPreloadComplete()
 {
-	bLobbyMatchRulePreloadPending = false;
-	LoadedLobbyMatchRuleDefinition = Cast<UMatchRuleDefinition>(
-		UMatchRuleDefinition::GetDefaultDefinitionPath().ResolveObject());
-	bLobbyMatchRuleReady = LoadedLobbyMatchRuleDefinition != nullptr
-		&& !LoadedLobbyMatchRuleDefinition->LobbyMapOptions.IsEmpty();
+	bLevelDefinitionPreloadPending = false;
+	LoadedLevelDefinition = Cast<ULevelDefinition>(
+		ULevelDefinition::GetDefaultDefinitionPath().ResolveObject());
+	bLevelDefinitionReady = LoadedLevelDefinition != nullptr
+		&& !LoadedLevelDefinition->IngameLevels.IsEmpty();
 
-	if (bLobbyMatchRuleReady)
+	if (bLevelDefinitionReady)
 	{
 		for (const FLobbyMatchMapOption& MapOption :
-			LoadedLobbyMatchRuleDefinition->LobbyMapOptions)
+			LoadedLevelDefinition->IngameLevels)
 		{
 			if (!IsValid(MapOption.Thumbnail))
 			{
-				bLobbyMatchRuleReady = false;
+				bLevelDefinitionReady = false;
 				UE_LOG(
 					LogLobbyRuntimeSubsystem,
 					Error,
@@ -441,13 +456,13 @@ void ULobbyRuntimeSubsystem::HandleLobbyMatchRulePreloadComplete()
 		}
 	}
 
-	if (!bLobbyMatchRuleReady)
+	if (!bLevelDefinitionReady)
 	{
 		UE_LOG(
 			LogLobbyRuntimeSubsystem,
 			Error,
 			TEXT("Lobby entry preload did not fully resolve '%s'."),
-			*UMatchRuleDefinition::GetDefaultDefinitionPath().ToString());
+			*ULevelDefinition::GetDefaultDefinitionPath().ToString());
 	}
 }
 
@@ -455,15 +470,15 @@ void ULobbyRuntimeSubsystem::ReleaseLobbyEntryContentPreload()
 {
 	LobbyWidgetBundleLeases.Reset();
 
-	if (LobbyMatchRulePreloadHandle.IsValid())
+	if (LevelDefinitionPreloadHandle.IsValid())
 	{
-		LobbyMatchRulePreloadHandle->CancelHandle();
-		LobbyMatchRulePreloadHandle->ReleaseHandle();
-		LobbyMatchRulePreloadHandle.Reset();
+		LevelDefinitionPreloadHandle->CancelHandle();
+		LevelDefinitionPreloadHandle->ReleaseHandle();
+		LevelDefinitionPreloadHandle.Reset();
 	}
-	LoadedLobbyMatchRuleDefinition = nullptr;
-	bLobbyMatchRulePreloadPending = false;
-	bLobbyMatchRuleReady = false;
+	LoadedLevelDefinition = nullptr;
+	bLevelDefinitionPreloadPending = false;
+	bLevelDefinitionReady = false;
 }
 
 void ULobbyRuntimeSubsystem::SetLobbyGameConfig(

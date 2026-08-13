@@ -80,6 +80,12 @@ EDataValidationResult UEnemyBaseDefinition::IsDataValid(FDataValidationContext& 
 			TEXT("Combat.DefaultMonsterClass is required.")));
 		Result = EDataValidationResult::Invalid;
 	}
+	if (MonsterStateTree.IsNull())
+	{
+		Context.AddError(FText::FromString(
+			TEXT("MonsterStateTree is required for server-side monster AI.")));
+		Result = EDataValidationResult::Invalid;
+	}
 
 	const bool bHasAnyMonsterPresentationSetting =
 		MonsterPresentation.ContactDamageEffectClass

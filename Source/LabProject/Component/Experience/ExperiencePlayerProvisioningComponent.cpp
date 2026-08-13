@@ -2,7 +2,7 @@
 
 #include "Component/Experience/ExperiencePlayerProfileService.h"
 #include "Data/ContentDataSubsystem.h"
-#include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
 #include "Kismet/GameplayStatics.h"
@@ -250,17 +250,17 @@ bool UExperiencePlayerProvisioningComponent::IsTrainingRoomMap() const
 		return false;
 	}
 
-	const UMatchRuleDefinition* MatchRules =
-		CachedSettings.MatchRuleDefinition.Get();
-	if (!MatchRules && !CachedSettings.MatchRuleDefinition.IsNull())
+	const ULevelDefinition* Levels =
+		CachedSettings.LevelDefinition.Get();
+	if (!Levels && !CachedSettings.LevelDefinition.IsNull())
 	{
-		MatchRules = CachedSettings.MatchRuleDefinition.LoadSynchronous();
+		Levels = CachedSettings.LevelDefinition.LoadSynchronous();
 	}
-	if (!MatchRules)
+	if (!Levels)
 	{
-		MatchRules = UMatchRuleDefinition::ResolveDefaultDefinition();
+		Levels = ULevelDefinition::ResolveDefaultDefinition();
 	}
-	return MatchRules
-		&& MatchRules->IsTrainingRoomMapName(
+	return Levels
+		&& Levels->IsTrainingRoomMapName(
 			UGameplayStatics::GetCurrentLevelName(World, true));
 }

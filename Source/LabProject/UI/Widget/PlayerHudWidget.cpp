@@ -9,7 +9,7 @@
 #include "Components/OverlaySlot.h"
 #include "Components/PanelWidget.h"
 #include "Components/VerticalBoxSlot.h"
-#include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Definition/Online/AchievementDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/Texture2D.h"
@@ -288,14 +288,14 @@ void UPlayerHudWidget::RefreshKillBoxVisibility()
 bool UPlayerHudWidget::IsTrainingRoomMap() const
 {
 	const UWorld* World = GetWorld();
-	const UMatchRuleDefinition* MatchRules =
-		UMatchRuleDefinition::ResolveDefaultDefinition();
-	if (!World || !MatchRules)
+	const ULevelDefinition* Levels =
+		ULevelDefinition::ResolveDefaultDefinition();
+	if (!World || !Levels)
 	{
 		return false;
 	}
 
-	return MatchRules->IsTrainingRoomMapName(
+	return Levels->IsTrainingRoomMapName(
 		UGameplayStatics::GetCurrentLevelName(this, true));
 }
 

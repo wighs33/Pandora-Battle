@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
-#include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "LobbyGameState.generated.h"
 
 class UExperienceManagerComponent;

@@ -3,6 +3,11 @@
 #include "CoreMinimal.h"
 #include "GameFramework/WorldSettings.h"
 #include "UObject/PrimaryAssetId.h"
+
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include "PdWorldSettings.generated.h"
 
 UCLASS()
@@ -12,6 +17,10 @@ class LABPROJECT_API APdWorldSettings : public AWorldSettings
 
 public:
 	APdWorldSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Experience Setup

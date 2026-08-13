@@ -7,7 +7,7 @@
 #include "Component/Skin/SkinComponent.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
 #include "Definition/Experience/ExperienceGameModeSettings.h"
-#include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"

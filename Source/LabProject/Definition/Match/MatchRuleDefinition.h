@@ -1,9 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Common/GameSessionConstants.h"
 #include "Engine/DataAsset.h"
-#include "Map/PdMapTypes.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -12,9 +10,6 @@
 #include "MatchRuleDefinition.generated.h"
 
 class UMaterialInterface;
-class UMapWidget;
-class UTexture2D;
-class UWorld;
 
 UENUM(BlueprintType)
 enum class ETeamColor : uint8
@@ -37,36 +32,6 @@ struct LABPROJECT_API FTeamOverlayMaterial
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Team")
 	TObjectPtr<UMaterialInterface> OverlayMaterial;
-};
-
-USTRUCT(BlueprintType)
-struct LABPROJECT_API FLobbyMatchMapOption
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Lobby")
-	FName MapKey;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Lobby")
-	FText DisplayName;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Lobby")
-	TSoftObjectPtr<UWorld> Map;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Lobby")
-	FString TravelMapName;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Lobby", meta = (ClampMin = "1"))
-	int32 MaxPlayerCount = LabGameSession::MaxPlayerCount;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Lobby")
-	TObjectPtr<UTexture2D> Thumbnail = nullptr;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Lobby|Gameplay Map")
-	TSoftClassPtr<UMapWidget> GameplayMapWidgetClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Lobby|Gameplay Map", meta = (FormerlySerializedAs = "InitialPlayerMapLayer"))
-	EPlayerMapRegion InitialPlayerMapRegion = EPlayerMapRegion::Dome;
 };
 
 UCLASS(BlueprintType, Blueprintable)
@@ -93,22 +58,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Match Rules|Team")
 	UMaterialInterface* GetTeamOverlayMaterialByTeamColor(ETeamColor TeamColor) const;
 
-	UFUNCTION(BlueprintPure, Category = "!Match Rules|Lobby")
-	bool GetLobbyMapOptionAtIndex(int32 Index, FLobbyMatchMapOption& OutMapOption) const;
-
-	UFUNCTION(BlueprintPure, Category = "!Match Rules|Lobby")
-	bool FindLobbyMapOption(FName MapKey, FLobbyMatchMapOption& OutMapOption) const;
-
-	UFUNCTION(BlueprintPure, Category = "!Match Rules|Lobby")
-	FName ResolveLobbyMapKey(FName MapKey) const;
-
-	FString GetTrainingRoomTravelMapName() const;
-	bool IsTrainingRoomMapName(const FString& LevelName) const;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Lobby", meta = (TitleProperty = "DisplayName"))
-	TArray<FLobbyMatchMapOption> LobbyMapOptions;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Lobby|Countdown",
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Countdown",
 		meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float LobbyStartCountdownSeconds = 3.0f;
 
@@ -117,9 +67,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Timer")
 	TArray<FName> MapsWithoutMatchTimer;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Training")
-	TSoftObjectPtr<UWorld> TrainingRoomMap;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Victory",
 		meta = (DisplayName = "Golden Kill Enable", FormerlySerializedAs = "bForceMoveOnTimerTie"))

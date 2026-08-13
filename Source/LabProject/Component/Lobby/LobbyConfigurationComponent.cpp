@@ -1,7 +1,6 @@
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 
 #include "Common/GameSessionConstants.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Engine/AssetManager.h"
@@ -16,8 +15,6 @@
 DEFINE_LOG_CATEGORY_STATIC(LogLobbyConfiguration, Log, All);
 
 ULobbyConfigurationComponent::ULobbyConfigurationComponent()
-	: LobbyModeDefinition(
-		ULobbyModeDefinition::GetDefaultDefinitionPath())
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
@@ -33,24 +30,42 @@ void ULobbyConfigurationComponent::InitializeRuntime(FSimpleDelegate OnReady)
 {
 	ReleaseRuntimePreloads();
 	RuntimeReadyDelegate = MoveTemp(OnReady);
-	LoadedLobbyModeDefinition = LobbyModeDefinition.Get();
 	const uint32 RequestGeneration = RuntimePreloadRequestGeneration;
-	if (LoadedLobbyModeDefinition || LobbyModeDefinition.IsNull())
+	TArray<FSoftObjectPath> DependencyPaths;
+	const FProjectDefinitionReferences& DefinitionReferences =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+	if (!DefinitionReferences.MatchRule.IsNull())
 	{
-		HandleLobbyModePreloadComplete(RequestGeneration);
+		DependencyPaths.AddUnique(
+			DefinitionReferences.MatchRule.ToSoftObjectPath());
+	}
+	if (!DefinitionReferences.LevelDefinition.IsNull())
+	{
+		DependencyPaths.AddUnique(
+			DefinitionReferences.LevelDefinition.ToSoftObjectPath());
+	}
+	if (!DefinitionReferences.DefaultProvision.IsNull())
+	{
+		DependencyPaths.AddUnique(
+			DefinitionReferences.DefaultProvision.ToSoftObjectPath());
+	}
+
+	if (DependencyPaths.IsEmpty())
+	{
+		FinishRuntimeInitialization(RequestGeneration);
 		return;
 	}
 
-	LobbyModePreloadHandle =
+	LobbyDependenciesPreloadHandle =
 		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			LobbyModeDefinition.ToSoftObjectPath(),
+			DependencyPaths,
 			FStreamableDelegate::CreateUObject(
 				this,
-				&ThisClass::HandleLobbyModePreloadComplete,
+				&ThisClass::HandleLobbyDependenciesPreloadComplete,
 				RequestGeneration));
-	if (!LobbyModePreloadHandle.IsValid())
+	if (!LobbyDependenciesPreloadHandle.IsValid())
 	{
-		HandleLobbyModePreloadComplete(RequestGeneration);
+		FinishRuntimeInitialization(RequestGeneration);
 	}
 }
 
@@ -243,8 +258,7 @@ void ULobbyConfigurationComponent::SaveConfig(
 
 FString ULobbyConfigurationComponent::GetRoomTravelMapName()
 {
-	const ULobbyModeDefinition* Definition =
-		GetLobbyModeDefinition();
+	const ULevelDefinition* Definition = GetLevelDefinition();
 	if (!Definition)
 	{
 		return FString();
@@ -266,11 +280,10 @@ FString ULobbyConfigurationComponent::ResolveTravelMapName(
 
 FName ULobbyConfigurationComponent::GetFirstMapKey()
 {
-	if (const UMatchRuleDefinition* MatchRules =
-		GetMatchRuleDefinition())
+	if (const ULevelDefinition* Levels = GetLevelDefinition())
 	{
 		FLobbyMatchMapOption MapOption;
-		if (MatchRules->GetLobbyMapOptionAtIndex(
+		if (Levels->GetIngameLevelAtIndex(
 			0,
 			MapOption))
 		{
@@ -282,10 +295,9 @@ FName ULobbyConfigurationComponent::GetFirstMapKey()
 
 int32 ULobbyConfigurationComponent::GetLobbyMapOptionCount()
 {
-	const UMatchRuleDefinition* MatchRules =
-		GetMatchRuleDefinition();
-	return MatchRules
-		? MatchRules->LobbyMapOptions.Num()
+	const ULevelDefinition* Levels = GetLevelDefinition();
+	return Levels
+		? Levels->IngameLevels.Num()
 		: 0;
 }
 
@@ -293,10 +305,9 @@ bool ULobbyConfigurationComponent::GetLobbyMapOptionAtIndex(
 	const int32 Index,
 	FLobbyMatchMapOption& OutMapOption)
 {
-	const UMatchRuleDefinition* MatchRules =
-		GetMatchRuleDefinition();
-	return MatchRules
-		&& MatchRules->GetLobbyMapOptionAtIndex(
+	const ULevelDefinition* Levels = GetLevelDefinition();
+	return Levels
+		&& Levels->GetIngameLevelAtIndex(
 			Index,
 			OutMapOption);
 }
@@ -390,10 +401,9 @@ void ULobbyConfigurationComponent::SelectLobbyMapByOffset(
 FName ULobbyConfigurationComponent::ResolveConfiguredMapKey(
 	const FName MapKey)
 {
-	const UMatchRuleDefinition* MatchRules =
-		GetMatchRuleDefinition();
-	return MatchRules
-		? MatchRules->ResolveLobbyMapKey(MapKey)
+	const ULevelDefinition* Levels = GetLevelDefinition();
+	return Levels
+		? Levels->ResolveIngameLevelKey(MapKey)
 		: MapKey;
 }
 
@@ -401,10 +411,9 @@ bool ULobbyConfigurationComponent::FindConfiguredMapOption(
 	const FName MapKey,
 	FLobbyMatchMapOption& OutMapOption)
 {
-	const UMatchRuleDefinition* MatchRules =
-		GetMatchRuleDefinition();
-	return MatchRules
-		&& MatchRules->FindLobbyMapOption(
+	const ULevelDefinition* Levels = GetLevelDefinition();
+	return Levels
+		&& Levels->FindIngameLevel(
 			MapKey,
 			OutMapOption);
 }
@@ -457,35 +466,31 @@ int32 ULobbyConfigurationComponent::GetConfiguredMaxBotCount(
 		100);
 }
 
-const ULobbyModeDefinition*
-ULobbyConfigurationComponent::GetLobbyModeDefinition()
+const ULevelDefinition*
+ULobbyConfigurationComponent::GetLevelDefinition()
 {
-	if (LoadedLobbyModeDefinition)
+	if (LoadedLevelDefinition)
 	{
-		return LoadedLobbyModeDefinition;
+		return LoadedLevelDefinition;
 	}
 
-	if (!LobbyModeDefinition.IsNull())
+	LoadedLevelDefinition =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+			.LevelDefinition.Get();
+	if (!LoadedLevelDefinition)
 	{
-		LoadedLobbyModeDefinition =
-			LobbyModeDefinition.Get();
-	}
-	if (!LoadedLobbyModeDefinition)
-	{
-		if (!bLoggedMissingLobbyModeDefinition)
+		if (!bLoggedMissingLevelDefinition)
 		{
-			bLoggedMissingLobbyModeDefinition = true;
+			bLoggedMissingLevelDefinition = true;
 			UE_LOG(
 				LogLobbyConfiguration,
 				Error,
-				TEXT("Required LobbyModeDefinition could not be loaded from '%s'; using native defaults."),
-				*LobbyModeDefinition.ToString());
+				TEXT("Required LevelDefinition is missing; using native defaults."));
 		}
-		LoadedLobbyModeDefinition =
-			GetMutableDefault<ULobbyModeDefinition>();
+		LoadedLevelDefinition = GetMutableDefault<ULevelDefinition>();
 	}
 
-	return LoadedLobbyModeDefinition;
+	return LoadedLevelDefinition;
 }
 
 const UMatchRuleDefinition*
@@ -561,62 +566,6 @@ FString ULobbyConfigurationComponent::ResolveSoftMapPath(
 		: LongPackageName;
 }
 
-void ULobbyConfigurationComponent::HandleLobbyModePreloadComplete(
-	const uint32 RequestGeneration)
-{
-	if (RequestGeneration != RuntimePreloadRequestGeneration)
-	{
-		return;
-	}
-
-	LoadedLobbyModeDefinition = LobbyModeDefinition.Get();
-	if (!LoadedLobbyModeDefinition)
-	{
-		LoadedLobbyModeDefinition = GetMutableDefault<ULobbyModeDefinition>();
-	}
-
-	TArray<FSoftObjectPath> DependencyPaths;
-	const FProjectDefinitionReferences& DefinitionReferences =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
-	const TSoftObjectPtr<UMatchRuleDefinition> MatchRuleDefinition =
-		DefinitionReferences.MatchRule;
-	const TSoftObjectPtr<UDefaultProvisionDefinition> DefaultProvisionDefinition =
-		DefinitionReferences.DefaultProvision;
-	if (!MatchRuleDefinition.IsNull())
-	{
-		DependencyPaths.AddUnique(
-			MatchRuleDefinition.ToSoftObjectPath());
-	}
-	if (!DefaultProvisionDefinition.IsNull())
-	{
-		DependencyPaths.AddUnique(
-			DefaultProvisionDefinition.ToSoftObjectPath());
-	}
-
-	if (DependencyPaths.IsEmpty())
-	{
-		FinishRuntimeInitialization(RequestGeneration);
-		return;
-	}
-
-	LobbyDependenciesPreloadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			DependencyPaths,
-			FStreamableDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleLobbyDependenciesPreloadComplete,
-				RequestGeneration));
-	if (LobbyModePreloadHandle.IsValid())
-	{
-		LobbyModePreloadHandle->ReleaseHandle();
-		LobbyModePreloadHandle.Reset();
-	}
-	if (!LobbyDependenciesPreloadHandle.IsValid())
-	{
-		FinishRuntimeInitialization(RequestGeneration);
-	}
-}
-
 void ULobbyConfigurationComponent::HandleLobbyDependenciesPreloadComplete(
 	const uint32 RequestGeneration)
 {
@@ -633,8 +582,13 @@ void ULobbyConfigurationComponent::FinishRuntimeInitialization(
 
 	const FProjectDefinitionReferences& DefinitionReferences =
 		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+	LoadedLevelDefinition = DefinitionReferences.LevelDefinition.Get();
 	LoadedMatchRuleDefinition = DefinitionReferences.MatchRule.Get();
 	LoadedDefaultProvisionDefinition = DefinitionReferences.DefaultProvision.Get();
+	if (!LoadedLevelDefinition)
+	{
+		LoadedLevelDefinition = GetMutableDefault<ULevelDefinition>();
+	}
 	if (!LoadedMatchRuleDefinition)
 	{
 		LoadedMatchRuleDefinition = GetMutableDefault<UMatchRuleDefinition>();
@@ -653,12 +607,6 @@ void ULobbyConfigurationComponent::ReleaseRuntimePreloads()
 {
 	++RuntimePreloadRequestGeneration;
 	RuntimeReadyDelegate.Unbind();
-	if (LobbyModePreloadHandle.IsValid())
-	{
-		LobbyModePreloadHandle->CancelHandle();
-		LobbyModePreloadHandle->ReleaseHandle();
-		LobbyModePreloadHandle.Reset();
-	}
 	if (LobbyDependenciesPreloadHandle.IsValid())
 	{
 		LobbyDependenciesPreloadHandle->CancelHandle();

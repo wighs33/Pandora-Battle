@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "GameFramework/GameModeBase.h"
 #include "LobbyGameMode.generated.h"
@@ -11,7 +12,6 @@ class APawn;
 class ULobbyConfigurationComponent;
 class ULobbyExperienceComponent;
 class ULobbyMatchCoordinator;
-class ULobbyModeDefinition;
 class ULobbyPlayerCoordinatorComponent;
 class UDefaultProvisionDefinition;
 class UDefaultPlayerProvisioner;
@@ -131,8 +131,6 @@ public:
 		return TravelCoordinator.Get();
 	}
 
-	const ULobbyModeDefinition*
-		GetLobbyModeDefinition() const;
 	const UMatchRuleDefinition*
 		GetMatchRuleDefinition() const;
 	const UDefaultProvisionDefinition*

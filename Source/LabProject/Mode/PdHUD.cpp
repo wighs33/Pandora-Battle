@@ -4,7 +4,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Components/Widget.h"
-#include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
 #include "Mode/PdPlayerController.h"
@@ -990,14 +990,14 @@ URespawnDelayWidget* APdHUD::FindRespawnDelayWidget()
 
 bool APdHUD::IsTrainingRoomMap() const
 {
-	const UMatchRuleDefinition* MatchRules =
-		UMatchRuleDefinition::ResolveDefaultDefinition();
-	if (!MatchRules)
+	const ULevelDefinition* Levels =
+		ULevelDefinition::ResolveDefaultDefinition();
+	if (!Levels)
 	{
 		return false;
 	}
 
-	return MatchRules->IsTrainingRoomMapName(
+	return Levels->IsTrainingRoomMapName(
 		UGameplayStatics::GetCurrentLevelName(this, true));
 }
 

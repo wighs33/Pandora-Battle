@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "Mode/ExperienceGameState.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "TimerManager.h"
 
@@ -292,14 +293,11 @@ bool UHudTimerWidget::ShouldSuppressTimer() const
 bool UHudTimerWidget::ShouldSuppressTimerForCurrentMap() const
 {
 	const UMatchRuleDefinition* MatchRules = GetMatchRuleDefinition();
-	if (!MatchRules)
-	{
-		return false;
-	}
-
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
-	return MatchRules->IsTrainingRoomMapName(CurrentLevelName)
-		|| MatchRules->MapsWithoutMatchTimer.Contains(FName(*CurrentLevelName));
+	const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
+	return (Levels && Levels->IsTrainingRoomMapName(CurrentLevelName))
+		|| (MatchRules
+			&& MatchRules->MapsWithoutMatchTimer.Contains(FName(*CurrentLevelName)));
 }
 
 float UHudTimerWidget::GetConfiguredTimerSeconds() const

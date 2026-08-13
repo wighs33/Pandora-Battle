@@ -5,7 +5,7 @@
 #include "Component/Experience/ExperienceSpawnComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Item/RewardDefinition.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
@@ -694,12 +694,26 @@ UExperienceMatchFlowComponent::GetMatchRuleDefinition() const
 	return GetDefault<UMatchRuleDefinition>();
 }
 
+const ULevelDefinition*
+UExperienceMatchFlowComponent::GetLevelDefinition() const
+{
+	if (!Settings.LevelDefinition.IsNull())
+	{
+		if (const ULevelDefinition* LoadedLevels =
+			Settings.LevelDefinition.Get())
+		{
+			return LoadedLevels;
+		}
+	}
+
+	return GetDefault<ULevelDefinition>();
+}
+
 bool UExperienceMatchFlowComponent::FindCurrentMatchMapOption(
 	FLobbyMatchMapOption& OutMapOption) const
 {
-	const UMatchRuleDefinition* MatchRules =
-		GetMatchRuleDefinition();
-	if (!MatchRules || MatchRules->LobbyMapOptions.IsEmpty())
+	const ULevelDefinition* Levels = GetLevelDefinition();
+	if (!Levels || Levels->IngameLevels.IsEmpty())
 	{
 		return false;
 	}
@@ -724,7 +738,7 @@ bool UExperienceMatchFlowComponent::FindCurrentMatchMapOption(
 		const FName SelectedMapKey =
 			GameInstance->GetLobbySelectedMapKey();
 		if (!SelectedMapKey.IsNone()
-			&& MatchRules->FindLobbyMapOption(
+			&& Levels->FindIngameLevel(
 				SelectedMapKey,
 				OutMapOption)
 			&& (!bHasCurrentLevelContext
@@ -738,7 +752,7 @@ bool UExperienceMatchFlowComponent::FindCurrentMatchMapOption(
 	}
 
 	for (const FLobbyMatchMapOption& MapOption :
-		MatchRules->LobbyMapOptions)
+		Levels->IngameLevels)
 	{
 		if (DoesMapOptionMatchWorld(
 			MapOption,
@@ -1048,15 +1062,15 @@ void UExperienceMatchFlowComponent::ReturnToLobbyAfterGameResult()
 
 FString UExperienceMatchFlowComponent::GetResolvedTitleTravelMapName() const
 {
-	const ULobbyModeDefinition* Definition =
-		ULobbyModeDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition =
+		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 
 FString UExperienceMatchFlowComponent::GetResolvedLobbyTravelMapName() const
 {
-	const ULobbyModeDefinition* Definition =
-		ULobbyModeDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition =
+		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 
@@ -1549,6 +1563,7 @@ void UExperienceMatchFlowComponent::BeginRuntimeContentPreload()
 	AddSoftPath(Settings.GameVictoryRewardDefinition);
 	AddSoftPath(Settings.ChestSpawnRewardDefinition);
 	AddSoftPath(Settings.MatchRuleDefinition);
+	AddSoftPath(Settings.LevelDefinition);
 
 	if (AssetPaths.IsEmpty())
 	{

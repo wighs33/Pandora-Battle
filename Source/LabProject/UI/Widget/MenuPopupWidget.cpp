@@ -4,7 +4,7 @@
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Components/Button.h"
 #include "Components/Slider.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
@@ -506,8 +506,8 @@ void UMenuPopupWidget::SetRequestedPause(const bool bPaused)
 
 FString UMenuPopupWidget::GetResolvedTitleTravelMapName() const
 {
-	const ULobbyModeDefinition* Definition =
-		ULobbyModeDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition =
+		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 

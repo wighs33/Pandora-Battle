@@ -6,7 +6,7 @@
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Lobby/UI/GameResultPlayerStatEntryWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/TeamColorUtils.h"
@@ -267,8 +267,8 @@ void UGameResultWidget::HandleExitClicked()
 
 FString UGameResultWidget::GetResolvedLobbyTravelMapName() const
 {
-	const ULobbyModeDefinition* Definition =
-		ULobbyModeDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition =
+		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 

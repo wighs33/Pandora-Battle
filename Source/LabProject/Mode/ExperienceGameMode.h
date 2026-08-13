@@ -78,10 +78,6 @@ protected:
 	FPrimaryAssetId GetConfiguredExperienceId() const;
 
 protected:
-	/** InitGame copies these policy values into role-specific runtime components. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Experience", meta = (AllowedTypes = "ExperienceDefinition"))
-	FPrimaryAssetId DefaultExperienceId;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Spawn")
 	bool bUseLobbySpawnIndexPlayerStarts = true;
 

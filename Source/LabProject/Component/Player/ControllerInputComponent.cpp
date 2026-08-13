@@ -24,7 +24,7 @@
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/PlayerRewardComponent.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
 #include "UI/InfoUiTypes.h"
@@ -1138,9 +1138,9 @@ bool UControllerInputComponent::IsOpenLobbyInputAllowed() const
 		return false;
 	}
 
-	const ULobbyModeDefinition* LobbyDefinition =
-		ULobbyModeDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Levels =
+		ULevelDefinition::ResolveDefaultDefinition();
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
-	return LobbyDefinition
-		&& LobbyDefinition->IsLobbyMapName(CurrentLevelName);
+	return Levels
+		&& Levels->IsLobbyMapName(CurrentLevelName);
 }

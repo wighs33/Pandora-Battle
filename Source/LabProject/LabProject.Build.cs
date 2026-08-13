@@ -50,24 +50,16 @@ public class LabProject : ModuleRules
 
 		if (Target.bBuildEditor)
 		{
-			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.AddRange(new string[]
+			{
+				"EngineSettings",
+				"UnrealEd"
+			});
 		}
 
 		DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "Steamworks");
-
-		if (Target.Platform == UnrealTargetPlatform.Win64 &&
-			Target.Configuration == UnrealTargetConfiguration.Shipping)
-		{
-			// Keep local packaged-build testing on the same Steam App ID as the
-			// compile-time Shipping configuration. Steam-distributed builds are
-			// still launched by the Steam client in the normal way.
-			RuntimeDependencies.Add(
-				"$(TargetOutputDir)/steam_appid.txt",
-				"$(ProjectDir)/steam_appid.txt",
-				StagedFileType.NonUFS);
-		}
 
 	}
 }

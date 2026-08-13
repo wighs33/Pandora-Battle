@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
 #include "Blueprint/UserWidget.h"
-#include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "LobbyWidget.generated.h"
 
 class ALobbyPlayerState;

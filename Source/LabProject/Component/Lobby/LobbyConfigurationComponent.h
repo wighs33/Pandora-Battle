@@ -2,11 +2,11 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "LobbyConfigurationComponent.generated.h"
 
 class ALobbyGameMode;
-class ULobbyModeDefinition;
 class UDefaultProvisionDefinition;
 struct FStreamableHandle;
 
@@ -50,7 +50,7 @@ public:
 	int32 GetConfiguredMaxPlayerCount();
 	int32 GetConfiguredMaxBotCount(FName MapKey);
 
-	const ULobbyModeDefinition* GetLobbyModeDefinition();
+	const ULevelDefinition* GetLevelDefinition();
 	const UMatchRuleDefinition* GetMatchRuleDefinition();
 	const UDefaultProvisionDefinition* GetDefaultProvisionDefinition();
 
@@ -59,18 +59,13 @@ private:
 	FString ResolveSoftMapPath(
 		const TSoftObjectPtr<UWorld>& Map,
 		const FString& FallbackTravelMapName) const;
-	void HandleLobbyModePreloadComplete(uint32 RequestGeneration);
 	void HandleLobbyDependenciesPreloadComplete(uint32 RequestGeneration);
 	void FinishRuntimeInitialization(uint32 RequestGeneration);
 	void ReleaseRuntimePreloads();
 
-	UPROPERTY(EditDefaultsOnly, Category = "!Lobby|Definition",
-		meta = (AllowedTypes = "LobbyModeDefinition"))
-	TSoftObjectPtr<ULobbyModeDefinition> LobbyModeDefinition;
-
 	UPROPERTY(Transient)
-	TObjectPtr<ULobbyModeDefinition>
-		LoadedLobbyModeDefinition;
+	TObjectPtr<ULevelDefinition>
+		LoadedLevelDefinition;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMatchRuleDefinition>
@@ -80,10 +75,9 @@ private:
 	TObjectPtr<UDefaultProvisionDefinition>
 		LoadedDefaultProvisionDefinition;
 
-	bool bLoggedMissingLobbyModeDefinition = false;
+	bool bLoggedMissingLevelDefinition = false;
 	bool bLoggedMissingMatchRuleDefinition = false;
 	bool bLoggedMissingDefaultProvisionDefinition = false;
-	TSharedPtr<FStreamableHandle> LobbyModePreloadHandle;
 	TSharedPtr<FStreamableHandle> LobbyDependenciesPreloadHandle;
 	FSimpleDelegate RuntimeReadyDelegate;
 	uint32 RuntimePreloadRequestGeneration = 0;

@@ -27,15 +27,6 @@ EDataValidationResult UExperienceDefinition::IsDataValid(FDataValidationContext&
 		Context.AddError(NSLOCTEXT("ExperienceDefinition", "MissingDefaultPawnClass", "DefaultPawnClass is required."));
 	}
 
-	if (!MonsterStateTree)
-	{
-		Result = EDataValidationResult::Invalid;
-		Context.AddError(NSLOCTEXT(
-			"ExperienceDefinition",
-			"MissingMonsterStateTree",
-			"MonsterStateTree is required for server-side monster AI."));
-	}
-
 	TSet<FPrimaryAssetId> UniqueGameFeatureIds;
 	for (int32 Index = 0; Index < GameFeaturesToEnable.Num(); ++Index)
 	{

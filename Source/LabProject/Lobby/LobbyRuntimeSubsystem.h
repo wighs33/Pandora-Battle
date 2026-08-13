@@ -13,6 +13,7 @@
 class APlayerController;
 class APlayerState;
 class UMaterialInterface;
+class ULevelDefinition;
 class UMatchRuleDefinition;
 class UTexture2D;
 class UUiSubsystem;
@@ -59,10 +60,11 @@ public:
 	}
 	static void GetGameEntryPrimaryAssetIds(
 		TArray<FPrimaryAssetId>& OutAssetIds);
-	const UMatchRuleDefinition* GetLoadedLobbyMatchRuleDefinition() const
+	const ULevelDefinition* GetLoadedLevelDefinition() const
 	{
-		return bLobbyMatchRuleReady ? LoadedLobbyMatchRuleDefinition.Get() : nullptr;
+		return bLevelDefinitionReady ? LoadedLevelDefinition.Get() : nullptr;
 	}
+	const UMatchRuleDefinition* GetLoadedLobbyMatchRuleDefinition() const;
 
 	void SetLobbyGameConfig(FName MapKey, const FString& TravelMapName, int32 MaxPlayerCount, int32 MaxBotCount);
 	void SetLobbyRuntimeConfig(const FLobbyRuntimeConfig& InLobbyRuntimeConfig);
@@ -113,7 +115,7 @@ public:
 	bool HasPendingTitleGameResult() const { return bHasPendingTitleGameResult; }
 
 private:
-	void HandleLobbyMatchRulePreloadComplete();
+	void HandleLevelDefinitionPreloadComplete();
 	void HandleLobbyDataAssetsPreloadComplete();
 	void HandleGameEntryContentPreloadComplete(uint32 RequestGeneration);
 	void ReleaseGameEntryContentPreload();
@@ -130,14 +132,14 @@ private:
 	TArray<FString> MakeLobbyPlayerCacheKeys(const APlayerState* PlayerState) const;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UMatchRuleDefinition> LoadedLobbyMatchRuleDefinition;
+	TObjectPtr<ULevelDefinition> LoadedLevelDefinition;
 
-	TSharedPtr<FStreamableHandle> LobbyMatchRulePreloadHandle;
+	TSharedPtr<FStreamableHandle> LevelDefinitionPreloadHandle;
 	TSharedPtr<FStreamableHandle> LobbyDataAssetsPreloadHandle;
 	TMap<TWeakObjectPtr<UUiSubsystem>, TSharedPtr<FWidgetContentBundleLease>>
 		LobbyWidgetBundleLeases;
-	bool bLobbyMatchRulePreloadPending = false;
-	bool bLobbyMatchRuleReady = false;
+	bool bLevelDefinitionPreloadPending = false;
+	bool bLevelDefinitionReady = false;
 	bool bLobbyDataAssetsPreloadPending = false;
 	bool bLobbyDataAssetsReady = false;
 

@@ -65,7 +65,8 @@ protected:
 	TObjectPtr<UStateTree> ResolvedMonsterStateTree;
 
 	bool ConfigureStateTreeAI();
-	bool ResolveMonsterStateTreeFromExperience();
+	bool IsExperienceReadyOrWait();
+	bool ResolveMonsterStateTreeFromEnemyDefinition();
 	bool HasRequiredNavigationData() const;
 	void ConfigurePerception();
 	void GatherComponentConfigurationErrors(TArray<FText>& OutErrors) const;

@@ -6,6 +6,7 @@
 #include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
 #include "Component/Experience/ExperienceSpawnComponent.h"
 #include "Definition/Experience/ExperienceDefinition.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Engine/World.h"
 #include "Experience/PdWorldSettings.h"
@@ -496,11 +497,14 @@ FPrimaryAssetId AExperienceGameMode::GetConfiguredExperienceId() const
 		}
 	}
 
-	return DefaultExperienceId;
+	return FPrimaryAssetId();
 }
 
 void AExperienceGameMode::ApplyRuntimeComponentSettings()
 {
+	const TSoftObjectPtr<ULevelDefinition> LevelDefinition =
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().LevelDefinition;
+
 	if (SpawnComponent)
 	{
 		FExperienceSpawnSettings SpawnSettings;
@@ -524,6 +528,7 @@ void AExperienceGameMode::ApplyRuntimeComponentSettings()
 		MatchFlowSettings.ChestSpawnRewardDefinition =
 			ChestSpawnRewardDefinition;
 		MatchFlowSettings.MatchRuleDefinition = MatchRuleDefinition;
+		MatchFlowSettings.LevelDefinition = LevelDefinition;
 		MatchFlowComponent->ApplySettings(MatchFlowSettings);
 	}
 
@@ -533,7 +538,7 @@ void AExperienceGameMode::ApplyRuntimeComponentSettings()
 		ProvisioningSettings.DefaultProvisionDefinition =
 			const_cast<UDefaultProvisionDefinition*>(
 				UDefaultProvisionDefinition::ResolveDefaultDefinition());
-		ProvisioningSettings.MatchRuleDefinition = MatchRuleDefinition;
+		ProvisioningSettings.LevelDefinition = LevelDefinition;
 		ProvisioningSettings.bAssignDefaultTeamWhenLobbyTeamMissing =
 			bAssignDefaultTeamWhenLobbyTeamMissing;
 		ProvisioningSettings.DefaultLobbyTeamColorIndex =

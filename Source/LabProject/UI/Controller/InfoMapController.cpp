@@ -9,7 +9,7 @@
 #include "Components/OverlaySlot.h"
 #include "Components/PanelWidget.h"
 #include "Data/ContentDataSubsystem.h"
-#include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
@@ -33,15 +33,15 @@ float GetAnimationDuration(const UWidgetAnimation* Animation, const float Fallba
 		: FallbackDuration;
 }
 
-TSoftObjectPtr<UMatchRuleDefinition> GetDefaultMapUiMatchRuleDefinition()
+TSoftObjectPtr<ULevelDefinition> GetDefaultMapUiLevelDefinition()
 {
-	return TSoftObjectPtr<UMatchRuleDefinition>(
-		UMatchRuleDefinition::GetDefaultDefinitionPath());
+	return TSoftObjectPtr<ULevelDefinition>(
+		ULevelDefinition::GetDefaultDefinitionPath());
 }
 
-const UMatchRuleDefinition* ResolveLoadedMapUiMatchRuleDefinition()
+const ULevelDefinition* ResolveLoadedMapUiLevelDefinition()
 {
-	return GetDefaultMapUiMatchRuleDefinition().Get();
+	return GetDefaultMapUiLevelDefinition().Get();
 }
 
 FString StripTravelOptions(const FString& TravelMapName)
@@ -81,8 +81,8 @@ bool DoesMapOptionMatchCurrentLevel(
 
 bool FindMapOptionForCurrentMap(const UInfoWidget* Widget, FLobbyMatchMapOption& OutMapOption)
 {
-	const UMatchRuleDefinition* MatchRules = ResolveLoadedMapUiMatchRuleDefinition();
-	if (!Widget || !MatchRules || MatchRules->LobbyMapOptions.IsEmpty())
+	const ULevelDefinition* Levels = ResolveLoadedMapUiLevelDefinition();
+	if (!Widget || !Levels || Levels->IngameLevels.IsEmpty())
 	{
 		return false;
 	}
@@ -99,7 +99,7 @@ bool FindMapOptionForCurrentMap(const UInfoWidget* Widget, FLobbyMatchMapOption&
 		{
 			const FName SelectedMapKey = GameInstance->GetLobbySelectedMapKey();
 			if (!SelectedMapKey.IsNone()
-				&& MatchRules->FindLobbyMapOption(SelectedMapKey, OutMapOption)
+				&& Levels->FindIngameLevel(SelectedMapKey, OutMapOption)
 				&& !OutMapOption.GameplayMapWidgetClass.IsNull()
 				&& (!bHasLevelContext
 					|| DoesMapOptionMatchCurrentLevel(
@@ -112,7 +112,7 @@ bool FindMapOptionForCurrentMap(const UInfoWidget* Widget, FLobbyMatchMapOption&
 		}
 	}
 
-	for (const FLobbyMatchMapOption& MapOption : MatchRules->LobbyMapOptions)
+	for (const FLobbyMatchMapOption& MapOption : Levels->IngameLevels)
 	{
 		if (!MapOption.GameplayMapWidgetClass.IsNull()
 			&& DoesMapOptionMatchCurrentLevel(MapOption, CurrentPackageName, CurrentLevelName))
@@ -226,15 +226,15 @@ void UInfoMapController::HandleWidgetBundleCompletion(
 		return;
 	}
 
-	const TSoftObjectPtr<UMatchRuleDefinition> MatchRules =
-		GetDefaultMapUiMatchRuleDefinition();
-	if (MatchRules.IsNull() || MatchRules.Get())
+	const TSoftObjectPtr<ULevelDefinition> Levels =
+		GetDefaultMapUiLevelDefinition();
+	if (Levels.IsNull() || Levels.Get())
 	{
 		BeginMapWidgetClassPreload(PreloadGeneration);
 		return;
 	}
 	MapRulePreloadHandle = ContentSubsystem->PreloadSoftObjectPathsAsync(
-		{MatchRules.ToSoftObjectPath()},
+		{Levels.ToSoftObjectPath()},
 		FSimpleDelegate::CreateWeakLambda(this, [this, PreloadGeneration]()
 		{
 			BeginMapWidgetClassPreload(PreloadGeneration);
@@ -266,10 +266,10 @@ bool UInfoMapController::IsDisabledForCurrentMap() const
 		return false;
 	}
 
-	const UMatchRuleDefinition* MatchRules =
-		ResolveLoadedMapUiMatchRuleDefinition();
-	return MatchRules
-		&& MatchRules->IsTrainingRoomMapName(
+	const ULevelDefinition* Levels =
+		ResolveLoadedMapUiLevelDefinition();
+	return Levels
+		&& Levels->IsTrainingRoomMapName(
 			UGameplayStatics::GetCurrentLevelName(
 				OwnerWidget,
 				true));
@@ -461,9 +461,9 @@ void UInfoMapController::BeginMapWidgetClassPreload(const int32 PreloadGeneratio
 	}
 
 	TArray<FSoftObjectPath> ContentPaths;
-	if (const UMatchRuleDefinition* MatchRules = ResolveLoadedMapUiMatchRuleDefinition())
+	if (const ULevelDefinition* Levels = ResolveLoadedMapUiLevelDefinition())
 	{
-		for (const FLobbyMatchMapOption& MapOption : MatchRules->LobbyMapOptions)
+		for (const FLobbyMatchMapOption& MapOption : Levels->IngameLevels)
 		{
 			if (!MapOption.GameplayMapWidgetClass.IsNull())
 			{

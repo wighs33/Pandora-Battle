@@ -2,7 +2,7 @@
 
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
@@ -237,8 +237,8 @@ UEditableTextBox* UCreateRoomPopupWidget::GetRoomNameTextBox() const
 
 FString UCreateRoomPopupWidget::GetResolvedLobbyTravelMapName() const
 {
-	const ULobbyModeDefinition* Definition =
-		ULobbyModeDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition =
+		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 

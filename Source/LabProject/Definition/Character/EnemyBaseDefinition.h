@@ -10,6 +10,7 @@
 class UAnimMontage;
 class UGameplayEffect;
 class UItemDefinition;
+class UStateTree;
 class UStatUpgradeDefinition;
 class AMonsterCharacter;
 
@@ -127,6 +128,7 @@ public:
 	TSoftObjectPtr<UStatUpgradeDefinition> GetEffectiveDefaultStatDefinition() const;
 	const FEnemyTrainingBotSettings& GetTrainingBotSettings() const { return TrainingBot; }
 	const FMonsterPresentationSettings& GetMonsterPresentationSettings() const { return MonsterPresentation; }
+	const TSoftObjectPtr<UStateTree>& GetMonsterStateTree() const { return MonsterStateTree; }
 	float GetMonsterMaxHealth() const { return MonsterMaxHealth; }
 
 private:
@@ -139,6 +141,11 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster",
 		meta = (AllowPrivateAccess = "true"))
 	FMonsterPresentationSettings MonsterPresentation;
+
+	/** Required server-side behavior shared by monster AI controllers. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster|AI",
+		meta = (AllowPrivateAccess = "true", AssetBundles = "Server"))
+	TSoftObjectPtr<UStateTree> MonsterStateTree;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster|Stats",
 		meta = (AllowPrivateAccess = "true", ClampMin = "1.0"))

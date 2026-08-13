@@ -3,7 +3,7 @@
 #include "AudioSlider.h"
 #include "Components/Button.h"
 #include "Components/WrapBox.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/UI/ConnectingPopupWidget.h"
@@ -415,8 +415,8 @@ void URoomListWidget::OpenTitleMap() const
 
 FString URoomListWidget::GetResolvedTitleTravelMapName() const
 {
-	const ULobbyModeDefinition* Definition =
-		ULobbyModeDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition =
+		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 

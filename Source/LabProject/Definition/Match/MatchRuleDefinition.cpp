@@ -2,8 +2,6 @@
 
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Materials/MaterialInterface.h"
-#include "Misc/PackageName.h"
-#include "UI/Widget/MapWidget.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -50,97 +48,6 @@ namespace
 			MarkMatchRuleInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("MatchRuleDefinition", "InvalidPositiveFloat", "{0} must be a positive finite value."),
 				MatchRuleFieldText(FieldName)));
-		}
-	}
-
-	bool HasLobbyTravelDestination(const FLobbyMatchMapOption& MapOption)
-	{
-		return !MapOption.Map.IsNull() || !MapOption.TravelMapName.TrimStartAndEnd().IsEmpty();
-	}
-
-	FText MakeLobbyMapOptionLabel(const int32 Index, const FLobbyMatchMapOption& MapOption)
-	{
-		return FText::Format(
-			NSLOCTEXT("MatchRuleDefinition", "LobbyMapOptionLabel", "LobbyMapOptions[{0}] ({1})"),
-			FText::AsNumber(Index),
-			FText::FromName(MapOption.MapKey));
-	}
-
-	void ValidateLobbyMapOptions(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
-		const TArray<FLobbyMatchMapOption>& LobbyMapOptions)
-	{
-		if (LobbyMapOptions.IsEmpty())
-		{
-			Context.AddWarning(NSLOCTEXT(
-				"MatchRuleDefinition",
-				"EmptyLobbyMapOptions",
-				"LobbyMapOptions is empty. Lobby map selection will fall back to the requested map key."));
-			return;
-		}
-
-		TSet<FName> UsedMapKeys;
-		for (int32 Index = 0; Index < LobbyMapOptions.Num(); ++Index)
-		{
-			const FLobbyMatchMapOption& MapOption = LobbyMapOptions[Index];
-			const FText OptionLabel = MakeLobbyMapOptionLabel(Index, MapOption);
-
-			if (MapOption.MapKey.IsNone())
-			{
-				MarkMatchRuleInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("MatchRuleDefinition", "MissingMapKey", "{0} MapKey is required."),
-					OptionLabel));
-			}
-			else if (UsedMapKeys.Contains(MapOption.MapKey))
-			{
-				MarkMatchRuleInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("MatchRuleDefinition", "DuplicateMapKey", "{0} has a duplicate MapKey."),
-					OptionLabel));
-			}
-			UsedMapKeys.Add(MapOption.MapKey);
-
-			if (MapOption.DisplayName.IsEmpty())
-			{
-				Context.AddWarning(FText::Format(
-					NSLOCTEXT("MatchRuleDefinition", "MissingDisplayName", "{0} DisplayName is empty."),
-					OptionLabel));
-			}
-
-			if (!HasLobbyTravelDestination(MapOption))
-			{
-				MarkMatchRuleInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("MatchRuleDefinition", "MissingTravelDestination", "{0} must set Map or TravelMapName."),
-					OptionLabel));
-			}
-
-			if (!MapOption.Thumbnail)
-			{
-				MarkMatchRuleInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("MatchRuleDefinition", "MissingLobbyMapThumbnail", "{0} Thumbnail is required before the lobby can be presented."),
-					OptionLabel));
-			}
-
-			if (MapOption.MaxPlayerCount < 1)
-			{
-				MarkMatchRuleInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("MatchRuleDefinition", "InvalidMaxPlayerCount", "{0} MaxPlayerCount must be at least 1."),
-					OptionLabel));
-			}
-			else if (MapOption.MaxPlayerCount > LabGameSession::MaxPlayerCount)
-			{
-				MarkMatchRuleInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("MatchRuleDefinition", "MaxPlayerCountExceedsSessionLimit", "{0} MaxPlayerCount cannot exceed LabGameSession::MaxPlayerCount."),
-					OptionLabel));
-			}
-
-			if (!MapOption.GameplayMapWidgetClass.IsNull() && !MapOption.GameplayMapWidgetClass.LoadSynchronous())
-			{
-				MarkMatchRuleInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("MatchRuleDefinition", "InvalidGameplayMapWidgetClass", "{0} GameplayMapWidgetClass could not be loaded: {1}"),
-					OptionLabel,
-					FText::FromString(MapOption.GameplayMapWidgetClass.ToString())));
-			}
 		}
 	}
 
@@ -236,27 +143,6 @@ const UMatchRuleDefinition* UMatchRuleDefinition::ResolveDefaultDefinition()
 	return Cast<UMatchRuleDefinition>(DefinitionPath.TryLoad());
 }
 
-FString UMatchRuleDefinition::GetTrainingRoomTravelMapName() const
-{
-	return TrainingRoomMap.ToSoftObjectPath().GetLongPackageName();
-}
-
-bool UMatchRuleDefinition::IsTrainingRoomMapName(
-	const FString& LevelName) const
-{
-	if (LevelName.TrimStartAndEnd().IsEmpty())
-	{
-		return false;
-	}
-
-	const FString MapPackageName = GetTrainingRoomTravelMapName();
-	return !MapPackageName.IsEmpty()
-		&& (MapPackageName.Equals(LevelName, ESearchCase::IgnoreCase)
-			|| FPackageName::GetShortName(MapPackageName).Equals(
-				LevelName,
-				ESearchCase::IgnoreCase));
-}
-
 UMaterialInterface* UMatchRuleDefinition::GetTeamOverlayMaterial(const int32 TeamColorIndex) const
 {
 	ETeamColor TeamColor = ETeamColor::Red;
@@ -309,58 +195,6 @@ UMaterialInterface* UMatchRuleDefinition::GetTeamOverlayMaterialByTeamColor(cons
 	return nullptr;
 }
 
-bool UMatchRuleDefinition::GetLobbyMapOptionAtIndex(const int32 Index, FLobbyMatchMapOption& OutMapOption) const
-{
-	if (!LobbyMapOptions.IsValidIndex(Index))
-	{
-		return false;
-	}
-
-	OutMapOption = LobbyMapOptions[Index];
-	return true;
-}
-
-bool UMatchRuleDefinition::FindLobbyMapOption(const FName MapKey, FLobbyMatchMapOption& OutMapOption) const
-{
-	const FName ResolvedMapKey = ResolveLobbyMapKey(MapKey);
-	if (ResolvedMapKey.IsNone())
-	{
-		return false;
-	}
-
-	for (const FLobbyMatchMapOption& MapOption : LobbyMapOptions)
-	{
-		if (MapOption.MapKey == ResolvedMapKey)
-		{
-			OutMapOption = MapOption;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-FName UMatchRuleDefinition::ResolveLobbyMapKey(const FName MapKey) const
-{
-	if (LobbyMapOptions.IsEmpty())
-	{
-		return MapKey;
-	}
-
-	if (!MapKey.IsNone())
-	{
-		for (const FLobbyMatchMapOption& MapOption : LobbyMapOptions)
-		{
-			if (MapOption.MapKey == MapKey)
-			{
-				return MapKey;
-			}
-		}
-	}
-
-	return LobbyMapOptions[0].MapKey;
-}
-
 #if WITH_EDITOR
 EDataValidationResult UMatchRuleDefinition::IsDataValid(FDataValidationContext& Context) const
 {
@@ -370,7 +204,6 @@ EDataValidationResult UMatchRuleDefinition::IsDataValid(FDataValidationContext& 
 		Result = EDataValidationResult::Valid;
 	}
 
-	ValidateLobbyMapOptions(Context, Result, LobbyMapOptions);
 	ValidateTeamOverlayMaterials(Context, Result, TeamOverlayMaterials);
 	ValidateFiniteNonNegativeFloat(
 		Context,

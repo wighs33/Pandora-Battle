@@ -2,8 +2,7 @@
 
 #include "AudioSlider.h"
 #include "Components/Button.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
-#include "Definition/Match/MatchRuleDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -301,22 +300,22 @@ void UTitleWidget::HandleQuickMatchCancel()
 
 FString UTitleWidget::GetResolvedLobbyTravelMapName() const
 {
-	const ULobbyModeDefinition* Definition =
-		ULobbyModeDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition =
+		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 
 FString UTitleWidget::GetResolvedRoomTravelMapName() const
 {
-	const ULobbyModeDefinition* Definition =
-		ULobbyModeDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition =
+		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetRoomTravelMapName() : FString();
 }
 
 FString UTitleWidget::GetResolvedTrainingRoomTravelMapName() const
 {
-	const UMatchRuleDefinition* Definition =
-		UMatchRuleDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition =
+		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition
 		? Definition->GetTrainingRoomTravelMapName()
 		: FString();

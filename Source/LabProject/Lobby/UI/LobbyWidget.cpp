@@ -10,7 +10,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Components/VerticalBox.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
@@ -637,8 +637,8 @@ void ULobbyWidget::HandleMapNextClicked()
 
 FString ULobbyWidget::GetResolvedTitleTravelMapName() const
 {
-	const ULobbyModeDefinition* Definition =
-		ULobbyModeDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition =
+		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 

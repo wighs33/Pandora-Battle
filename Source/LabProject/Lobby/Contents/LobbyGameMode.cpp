@@ -6,7 +6,6 @@
 #include "Component/Lobby/LobbyExperienceComponent.h"
 #include "Component/Lobby/LobbyPlayerCoordinatorComponent.h"
 #include "Component/Lobby/LobbyRespawnComponent.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyHUD.h"
@@ -383,15 +382,6 @@ void ALobbyGameMode::SelectLobbyMapByOffset(
 		LobbyConfigurationComponent
 			->SelectLobbyMapByOffset(Offset);
 	}
-}
-
-const ULobbyModeDefinition*
-ALobbyGameMode::GetLobbyModeDefinition() const
-{
-	return LobbyConfigurationComponent
-		? LobbyConfigurationComponent
-			->GetLobbyModeDefinition()
-		: GetDefault<ULobbyModeDefinition>();
 }
 
 const UMatchRuleDefinition*

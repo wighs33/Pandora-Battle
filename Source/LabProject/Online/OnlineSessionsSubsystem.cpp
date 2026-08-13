@@ -3,7 +3,7 @@
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/NetDriver.h"
-#include "Definition/Lobby/LobbyModeDefinition.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -622,10 +622,10 @@ void UOnlineSessionsSubsystem::HandleNetworkFailure(
 
 			if (World)
 			{
-				const ULobbyModeDefinition* LobbyDefinition =
-					ULobbyModeDefinition::ResolveDefaultDefinition();
-				const FString TitleMapName = LobbyDefinition
-					? LobbyDefinition->GetTitleTravelMapName()
+				const ULevelDefinition* Levels =
+					ULevelDefinition::ResolveDefaultDefinition();
+				const FString TitleMapName = Levels
+					? Levels->GetTitleTravelMapName()
 					: FString();
 				World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(World, [World, TitleMapName]()
 				{

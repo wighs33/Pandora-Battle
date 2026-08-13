@@ -3,6 +3,7 @@
 #include "Component/Experience/ExperienceManagerComponent.h"
 #include "Components/StateTreeAIComponent.h"
 #include "Character/EnemyBase.h"
+#include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/Experience/ExperienceDefinition.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -542,8 +543,8 @@ bool AMonsterAIController::ConfigureStateTreeAI()
 				LogMonsterAIController,
 				Error,
 				TEXT(
-					"%s has no Monster State Tree. Configure MonsterStateTree on the active "
-					"Experience before spawning monsters."),
+					"%s has no Monster State Tree. Configure MonsterStateTree on the "
+					"Enemy Base Definition before spawning monsters."),
 				*GetPathName());
 			bLoggedConfigurationError = true;
 		}
@@ -561,13 +562,8 @@ bool AMonsterAIController::ConfigureStateTreeAI()
 	return true;
 }
 
-bool AMonsterAIController::ResolveMonsterStateTreeFromExperience()
+bool AMonsterAIController::IsExperienceReadyOrWait()
 {
-	if (IsValid(ResolvedMonsterStateTree))
-	{
-		return true;
-	}
-
 	const UWorld* World = GetWorld();
 	const AExperienceGameState* ExperienceGameState =
 		World ? World->GetGameState<AExperienceGameState>() : nullptr;
@@ -591,10 +587,7 @@ bool AMonsterAIController::ResolveMonsterStateTreeFromExperience()
 
 	if (ExperienceManager->IsExperienceLoaded())
 	{
-		const UExperienceDefinition* Experience =
-			ExperienceManager->GetCurrentExperienceChecked();
-		ResolvedMonsterStateTree = Experience ? Experience->MonsterStateTree : nullptr;
-		return IsValid(ResolvedMonsterStateTree);
+		return true;
 	}
 
 	if (!ExperienceLoadedDelegateHandle.IsValid())
@@ -608,6 +601,77 @@ bool AMonsterAIController::ResolveMonsterStateTreeFromExperience()
 	}
 
 	return false;
+}
+
+bool AMonsterAIController::ResolveMonsterStateTreeFromEnemyDefinition()
+{
+	if (IsValid(ResolvedMonsterStateTree))
+	{
+		return true;
+	}
+
+	const FSoftObjectPath DefinitionPath =
+		UEnemyBaseDefinition::GetDefaultDefinitionPath();
+	if (DefinitionPath.IsNull())
+	{
+		if (!bLoggedConfigurationError)
+		{
+			UE_LOG(
+				LogMonsterAIController,
+				Error,
+				TEXT("%s cannot resolve monster AI because DA_GameInstance has no Enemy Base Definition."),
+				*GetPathName());
+			bLoggedConfigurationError = true;
+		}
+		return false;
+	}
+
+	UEnemyBaseDefinition* EnemyDefinition =
+		Cast<UEnemyBaseDefinition>(DefinitionPath.ResolveObject());
+	if (!EnemyDefinition)
+	{
+		EnemyDefinition = Cast<UEnemyBaseDefinition>(DefinitionPath.TryLoad());
+	}
+
+	if (!EnemyDefinition)
+	{
+		if (!bLoggedConfigurationError)
+		{
+			UE_LOG(
+				LogMonsterAIController,
+				Error,
+				TEXT("%s cannot load Enemy Base Definition '%s'."),
+				*GetPathName(),
+				*DefinitionPath.ToString());
+			bLoggedConfigurationError = true;
+		}
+		return false;
+	}
+
+	const TSoftObjectPtr<UStateTree>& StateTreeReference =
+		EnemyDefinition->GetMonsterStateTree();
+	ResolvedMonsterStateTree = StateTreeReference.Get();
+	if (!ResolvedMonsterStateTree && !StateTreeReference.IsNull())
+	{
+		ResolvedMonsterStateTree = StateTreeReference.LoadSynchronous();
+	}
+
+	if (!IsValid(ResolvedMonsterStateTree))
+	{
+		if (!bLoggedConfigurationError)
+		{
+			UE_LOG(
+				LogMonsterAIController,
+				Error,
+				TEXT("%s cannot start monster AI because Enemy Base Definition '%s' has no valid MonsterStateTree."),
+				*GetPathName(),
+				*DefinitionPath.ToString());
+			bLoggedConfigurationError = true;
+		}
+		return false;
+	}
+
+	return true;
 }
 
 void AMonsterAIController::StopWaitingForExperience()
@@ -624,27 +688,11 @@ void AMonsterAIController::StopWaitingForExperience()
 
 void AMonsterAIController::HandleExperienceLoaded(const UExperienceDefinition* Experience)
 {
+	static_cast<void>(Experience);
 	ExperienceManagerWaitingForLoad.Reset();
 	ExperienceLoadedDelegateHandle.Reset();
 
-	ResolvedMonsterStateTree = Experience ? Experience->MonsterStateTree : nullptr;
 	bStateTreeConfigured = false;
-
-	if (!IsValid(ResolvedMonsterStateTree))
-	{
-		if (!bLoggedConfigurationError)
-		{
-			UE_LOG(
-				LogMonsterAIController,
-				Error,
-				TEXT(
-					"%s cannot start monster AI because the loaded Experience has no "
-					"MonsterStateTree."),
-				*GetPathName());
-			bLoggedConfigurationError = true;
-		}
-		return;
-	}
 
 	StartMonsterStateTreeIfReady();
 }
@@ -727,7 +775,12 @@ void AMonsterAIController::StartMonsterStateTreeIfReady()
 		return;
 	}
 
-	if (!ResolveMonsterStateTreeFromExperience())
+	if (!IsExperienceReadyOrWait())
+	{
+		return;
+	}
+
+	if (!ResolveMonsterStateTreeFromEnemyDefinition())
 	{
 		return;
 	}
