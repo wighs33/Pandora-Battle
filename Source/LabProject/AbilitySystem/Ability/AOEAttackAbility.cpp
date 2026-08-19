@@ -662,6 +662,12 @@ void UAOEAttackAbility::ApplyEffectToHitActor(AActor* HitActor)
 
 void UAOEAttackAbility::ApplyDirectAOECamera(bool bEnabled) const
 {
+	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetSourceSkillDataAsset());
+	if (!SkillDataAsset || !SkillDataAsset->bUseAOECameraSettings)
+	{
+		return;
+	}
+
 	APdPlayer* Player = Cast<APdPlayer>(GetAvatarActorFromActorInfo());
 	if (!Player || !Player->IsLocallyControlled())
 	{
@@ -671,7 +677,7 @@ void UAOEAttackAbility::ApplyDirectAOECamera(bool bEnabled) const
 
 	const FWeaponAimCameraSettings CameraSettings = GetConfiguredAOECameraSettings();
 
-Player->SetAbilityCameraOverrideActive(bEnabled, CameraSettings);
+	Player->SetAbilityCameraOverrideActive(bEnabled, CameraSettings);
 }
 
 void UAOEAttackAbility::RemovePersistentGameplayCues()

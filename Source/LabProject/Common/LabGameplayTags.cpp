@@ -77,6 +77,7 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Debuff_Shock, "Debuff.Shock", "Stacking electric shock debuff tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_HitReaction, "Effect.HitReaction", "Gameplay effect asset tag that allows damage to trigger hit reaction.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "State tag granted while a character is dead.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_DefenseField_Invulnerable, "State.DefenseField.Invulnerable", "Invulnerability state granted while the Defense Field effect is active.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Movement_Airborne, "State.Movement.Airborne", "Character is currently falling or jumping.");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Damage, "Data.Damage", "SetByCaller damage magnitude tag.");
@@ -176,7 +177,7 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Offense_CriticalLevel, "Status.Offense.CriticalLevel", "Critical investment level tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_Armor, "Status.Defense.Armor", "Armor stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_Recovery, "Status.Defense.Recovery", "Recovery stat tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_Shield, "Status.Defense.Shield", "Active shield defense buff tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_Shield, "Status.Defense.Shield", "Current shield resource stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_MaxShield, "Status.Defense.MaxShield", "Maximum shield stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_MaxShieldIncreasePercent, "Status.Defense.MaxShieldIncreasePercent", "Maximum shield increase percent stat tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Defense_ArmorLevel, "Status.Defense.ArmorLevel", "Armor investment level tag.");

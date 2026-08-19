@@ -528,12 +528,6 @@ struct LABPROJECT_API FMissileSkillConfig
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Missile|Damage Over Time", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	double DamageRadius = 256.0;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Missile|Debug")
-	bool bDrawDebugDamageRadius = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Missile|Debug", meta = (EditCondition = "bDrawDebugDamageRadius", ClampMin = "0.0", ForceUnits = "s"))
-	double DebugDamageRadiusDrawTime = 5.0;
-
 	UPROPERTY()
 	double DamageDuration = 0.0;
 };
@@ -804,17 +798,29 @@ struct LABPROJECT_API FSkillNiagaraSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Aura")
 	FVector AuraScale = FVector::OneVector;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Ground")
+	TObjectPtr<UNiagaraSystem> GroundNiagaraSystem;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Ground", meta = (DisplayName = "Follow Character"))
+	bool bGroundNiagaraFollowsCharacter = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Ground", meta = (EditCondition = "bGroundNiagaraFollowsCharacter", DisplayName = "Follow Socket Name"))
+	FName GroundFollowSocketName = TEXT("root");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Ground")
+	FVector GroundLocationOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Ground")
+	FRotator GroundRotationOffset = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Ground")
+	FVector GroundScale = FVector::OneVector;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Socket")
 	TObjectPtr<UNiagaraSystem> SocketNiagaraSystem;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Socket")
 	FName SocketNiagaraComponentName = NAME_None;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Socket", meta = (DisplayName = "Spawn At Character Location"))
-	bool bSpawnSocketNiagaraAtCharacterLocation = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Socket", meta = (EditCondition = "bSpawnSocketNiagaraAtCharacterLocation", DisplayName = "Spawn At Character Location Offset"))
-	FVector SpawnAtCharacterLocationOffset = FVector::ZeroVector;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Socket")
 	FName SocketName = NAME_None;
@@ -827,27 +833,6 @@ struct LABPROJECT_API FSkillNiagaraSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Socket")
 	FVector SocketScale = FVector::OneVector;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Target")
-	FName AimPositionParameterName = NAME_None;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Target")
-	FName TargetSocketName = NAME_None;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Target", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	double AutoTargetSearchRadius = 0.0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Target", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	double EffectRadius = 0.0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Target", meta = (ClampMin = "0.0", ForceUnits = "s"))
-	double EffectStartDelay = 0.0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Target", meta = (ClampMin = "0.0", ForceUnits = "s"))
-	double EffectDuration = 0.0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Target", meta = (ClampMin = "0.05", ForceUnits = "s"))
-	double EffectInterval = 0.5;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Gameplay Effect", meta = (ShowOnlyInnerProperties))
 	FSkillGameplayEffectConfig GameplayEffect;
@@ -1391,7 +1376,7 @@ public:
 	UPROPERTY()
 	FSummonSkillConfig Summon;
 
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Ability", meta = (DisplayName = "Abilities to Grant"))
 	TArray<TSubclassOf<UGameplayAbility>> AbilitiesToGrant;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Area|Targeting", meta = (ClampMin = "0.0", ForceUnits = "cm", DisplayName = "Targeting Max Range"))

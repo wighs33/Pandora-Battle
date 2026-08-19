@@ -189,10 +189,11 @@ protected:
 	void SpawnConfiguredCharacterDecal();
 	void StartConfiguredDefaultFX();
 	void StopConfiguredDefaultFX();
+	void StartConfiguredGroundFX();
 	void StartConfiguredCharacterOverlay();
 	void StopConfiguredCharacterOverlay();
-	void StartConfiguredMissilePresentation(const FVector& TargetLocation);
-	void UpdateConfiguredMissilePresentationTarget(const FVector& TargetLocation);
+	void StartConfiguredMissilePresentation();
+	void UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors);
 	void StopConfiguredMissilePresentation();
 	void StartConfiguredSelfBuff(
 		const FGameplayAbilitySpecHandle Handle,

@@ -826,6 +826,14 @@ void UPdGameplayAbility::StopConfiguredDefaultFX()
 	}
 }
 
+void UPdGameplayAbility::StartConfiguredGroundFX()
+{
+	if (PresentationRuntime)
+	{
+		PresentationRuntime->StartConfiguredGroundFX(*this);
+	}
+}
+
 void UPdGameplayAbility::StartConfiguredCharacterOverlay()
 {
 	if (PresentationRuntime)
@@ -842,24 +850,21 @@ void UPdGameplayAbility::StopConfiguredCharacterOverlay()
 	}
 }
 
-void UPdGameplayAbility::StartConfiguredMissilePresentation(
-	const FVector& TargetLocation)
+void UPdGameplayAbility::StartConfiguredMissilePresentation()
 {
 	if (PresentationRuntime)
 	{
-		PresentationRuntime->StartConfiguredMissilePresentation(
-			*this,
-			TargetLocation);
+		PresentationRuntime->StartConfiguredMissilePresentation(*this);
 	}
 }
 
-void UPdGameplayAbility::UpdateConfiguredMissilePresentationTarget(
-	const FVector& TargetLocation)
+void UPdGameplayAbility::UpdateConfiguredMissilePresentationTargets(
+	const TArray<AActor*>& TargetActors)
 {
 	if (PresentationRuntime)
 	{
 		PresentationRuntime
-			->UpdateConfiguredMissilePresentationTarget(TargetLocation);
+			->UpdateConfiguredMissilePresentationTargets(TargetActors);
 	}
 }
 

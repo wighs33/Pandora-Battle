@@ -108,7 +108,6 @@ private:
 	float CalculateStrengthAdjustedWeaponDamage(float WeaponDamage, float SourceStrength) const;
 	float GetActionStaminaCost() const;
 	bool HasCombatAuthority() const;
-	bool IsDamageBlockedByDefense(const UPdAbilitySystemComponent* TargetASC) const;
 	void CompactTemporaryWeaponDamageBonuses();
 
 protected:

@@ -1,5 +1,7 @@
 #include "AbilitySystem/Ability/DeathAbility.h"
 
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "AbilitySystemComponent.h"
 #include "Common/LabGameplayTags.h"
 #include "GameplayEffect.h"
 #if WITH_EDITOR
@@ -48,6 +50,29 @@ EDataValidationResult UDeathAbility::IsDataValid(FDataValidationContext& Context
 	return Result;
 }
 #endif
+
+bool UDeathAbility::CanActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	static_cast<void>(Handle);
+	static_cast<void>(SourceTags);
+	static_cast<void>(TargetTags);
+	static_cast<void>(OptionalRelevantTags);
+
+	// Death is a terminal state transition and must not be rejected by an
+	// active skill's general GameplayAbility block tag.
+	const UAbilitySystemComponent* AbilitySystemComponent =
+		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	return AbilitySystemComponent
+		&& AbilitySystemComponent->GetNumericAttribute(
+			UBasicAttributeSet::GetHealthAttribute()) <= 0.0f
+		&& !AbilitySystemComponent->HasMatchingGameplayTag(
+			LabGameplayTags::State_Dead);
+}
 
 void UDeathAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)

@@ -17,10 +17,4 @@ public:
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage")
 	FGameplayTag NativeDamageDataTag;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage")
-	FGameplayTag NativeShieldBuffTag;
-
-	UPROPERTY()
-	float NativeStrengthDamageScale = 0.05f;
 };

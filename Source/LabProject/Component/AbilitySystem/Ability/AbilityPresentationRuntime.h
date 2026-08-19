@@ -28,12 +28,12 @@ class LABPROJECT_API UAbilityPresentationRuntime : public UObject
 public:
 	void StartConfiguredDefaultFX(UPdGameplayAbility& Ability);
 	void StopConfiguredDefaultFX(UPdGameplayAbility& Ability);
+	void StartConfiguredGroundFX(UPdGameplayAbility& Ability);
+	void StopConfiguredGroundFX(UPdGameplayAbility& Ability);
 	void StartConfiguredCharacterOverlay(UPdGameplayAbility& Ability);
 	void StopConfiguredCharacterOverlay(UPdGameplayAbility& Ability);
-	void StartConfiguredMissilePresentation(
-		UPdGameplayAbility& Ability,
-		const FVector& TargetLocation);
-	void UpdateConfiguredMissilePresentationTarget(const FVector& TargetLocation);
+	void StartConfiguredMissilePresentation(UPdGameplayAbility& Ability);
+	void UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors);
 	void StopConfiguredMissilePresentation(UPdGameplayAbility& Ability);
 	void CleanupConfiguredPresentation();
 
