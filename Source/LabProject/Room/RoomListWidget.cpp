@@ -71,6 +71,7 @@ void URoomListWidget::NativeConstruct()
 		PdGameInstance->PlayBgmForContext(EBgmContext::RoomList);
 	}
 	SetInfo();
+	HandleRefreshClicked();
 }
 
 void URoomListWidget::ApplyWidgetDefinitionSettings()
@@ -218,9 +219,7 @@ void URoomListWidget::RefreshUI()
 
 void URoomListWidget::HandleRefreshClicked()
 {
-	const UWorld* World = GetWorld();
-
-UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
+	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr;
 	if (!OnlineSessionsSubsystem)
