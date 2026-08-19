@@ -64,6 +64,27 @@ void UEquipmentComponent::BeginPlay()
 
 void UEquipmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	UnbindEquipmentSlotsChanged();
+	UnbindInventoryChanged();
+	if (HasEquipmentAuthority())
+	{
+		if (!ClearAppliedEquipmentState(CachedASC))
+		{
+			UE_LOG(
+				EquipmentComponentLog,
+				Error,
+				TEXT("Failed to clear applied equipment state while ending play for %s."),
+				*GetNameSafe(GetOwner()));
+		}
+	}
+	if (CachedASC && EquipCooldownTagChangedDelegateHandle.IsValid())
+	{
+		CachedASC->RegisterGameplayTagEvent(
+			LabGameplayTags::Cooldown_EquipWeapon,
+			EGameplayTagEventType::NewOrRemoved).Remove(
+				EquipCooldownTagChangedDelegateHandle);
+		EquipCooldownTagChangedDelegateHandle.Reset();
+	}
 	ReleaseWeaponPresentationLoads();
 	Super::EndPlay(EndPlayReason);
 }
@@ -72,8 +93,69 @@ void UEquipmentComponent::RefreshCachedReferences()
 {
 	CachedOwner = Cast<ACharacterBase>(GetOwner());
 	const APdPlayerState* PdPlayerState = CachedOwner ? Cast<APdPlayerState>(CachedOwner->GetPlayerState()) : nullptr;
-	CachedASC = CachedOwner ? CachedOwner->GetPdAbilitySystemComponent() : nullptr;
-	CachedInventory = PdPlayerState ? PdPlayerState->GetInventoryComponent() : nullptr;
+	UPdAbilitySystemComponent* NewAbilitySystem =
+		CachedOwner ? CachedOwner->GetPdAbilitySystemComponent() : nullptr;
+	UInventoryComponent* NewInventory =
+		PdPlayerState ? PdPlayerState->GetInventoryComponent() : nullptr;
+	const bool bAbilitySystemChanged = CachedASC != NewAbilitySystem;
+	const bool bInventoryChanged = CachedInventory != NewInventory;
+	if (bAbilitySystemChanged && HasEquipmentAuthority())
+	{
+		if (!ClearAppliedEquipmentState(CachedASC))
+		{
+			UE_LOG(
+				EquipmentComponentLog,
+				Error,
+				TEXT("Failed to clear applied equipment state before changing the ability system for %s."),
+				*GetNameSafe(GetOwner()));
+			// These snapshots belong to the previous ASC. Never carry them into the
+			// new ASC as if they had already been applied there.
+			CurrentWeaponStatSnapshot.Reset();
+			EquippedItemsStatSnapshot.Reset();
+		}
+	}
+	if (CachedASC != NewAbilitySystem)
+	{
+		if (CachedASC && EquipCooldownTagChangedDelegateHandle.IsValid())
+		{
+			CachedASC->RegisterGameplayTagEvent(
+				LabGameplayTags::Cooldown_EquipWeapon,
+				EGameplayTagEventType::NewOrRemoved).Remove(
+					EquipCooldownTagChangedDelegateHandle);
+		}
+		EquipCooldownTagChangedDelegateHandle.Reset();
+		CachedASC = NewAbilitySystem;
+		if (CachedASC)
+		{
+			EquipCooldownTagChangedDelegateHandle =
+				CachedASC->RegisterGameplayTagEvent(
+					LabGameplayTags::Cooldown_EquipWeapon,
+					EGameplayTagEventType::NewOrRemoved).AddUObject(
+						this,
+						&ThisClass::HandleEquipCooldownTagChanged);
+		}
+	}
+	if (bInventoryChanged)
+	{
+		UnbindEquipmentSlotsChanged();
+		UnbindInventoryChanged();
+		CachedInventory = NewInventory;
+		if (CachedInventory)
+		{
+			EquipmentSlotsChangedDelegateHandle =
+				CachedInventory->OnEquipmentSlotsChanged.AddUObject(
+					this,
+					&ThisClass::HandleEquipmentSlotsChanged);
+			InventoryChangedDelegateHandle =
+				CachedInventory->OnInventoryChanged.AddUObject(
+					this,
+					&ThisClass::HandleInventoryChanged);
+		}
+	}
+	if (bAbilitySystemChanged || bInventoryChanged)
+	{
+		bEquipmentStatsInitialized = false;
+	}
 	if (const UGameSettingDefinition* SettingDefinition =
 		UGameSettingsSubsystem::ResolveGameSettingDefinition(this))
 	{
@@ -81,6 +163,23 @@ void UEquipmentComponent::RefreshCachedReferences()
 			SettingDefinition->EquippedItemGameplayEffectClass;
 		EquipmentStatGameplayEffectClass =
 			SettingDefinition->EquipmentStatGameplayEffectClass;
+	}
+
+	if (HasEquipmentAuthority()
+		&& CachedASC
+		&& CachedInventory
+		&& !bEquipmentStatsInitialized
+		&& !bRefreshingEquipmentStats)
+	{
+		RefreshEquipmentStats();
+	}
+
+	if (bAbilitySystemChanged
+		&& HasEquipmentAuthority()
+		&& CachedASC
+		&& CurrentWeaponDefinition)
+	{
+		ApplyCurrentWeaponTagEffect(CachedASC, CurrentWeaponDefinition);
 	}
 }
 
@@ -97,6 +196,12 @@ void UEquipmentComponent::OnRep_CurrentWeaponActor()
 	RefreshCachedReferences();
 	AttachWeaponToOwner(CurrentWeaponActor, CurrentWeaponDefinition);
 	RefreshCurrentWeaponPresentation();
+	NotifyCurrentWeaponStateChanged();
+}
+
+void UEquipmentComponent::OnRep_CurrentWeaponId()
+{
+	RefreshCachedReferences();
 	NotifyCurrentWeaponStateChanged();
 }
 
@@ -121,6 +226,26 @@ void UEquipmentComponent::NotifyCurrentWeaponStateChanged()
 	if (CachedASC)
 	{
 		CachedASC->NotifyAbilitiesChanged();
+	}
+	OnEquipmentStatsChanged.Broadcast();
+}
+
+void UEquipmentComponent::HandleEquipCooldownTagChanged(
+	const FGameplayTag CallbackTag,
+	const int32 NewCount)
+{
+	if (CallbackTag != LabGameplayTags::Cooldown_EquipWeapon || NewCount > 0)
+	{
+		return;
+	}
+
+	RefreshCachedReferences();
+	APdPlayerState* PlayerState = CachedOwner
+		? CachedOwner->GetPlayerState<APdPlayerState>()
+		: nullptr;
+	if (PlayerState)
+	{
+		PlayerState->ApplySelectedWeaponPandoraLoadout();
 	}
 }
 
@@ -313,8 +438,12 @@ const UItemDefinition* ItemDefinition = nullptr;
 		return false;
 	}
 
-	ApplyAndStoreWeaponStats(ItemDefinition, PendingStatSnapshot);
-	ApplyCurrentWeaponTagEffect(ItemDefinition);
+	if (!ApplyAndStoreWeaponStats(PendingStatSnapshot))
+	{
+		SpawnedWeapon->Destroy();
+		return false;
+	}
+	ApplyCurrentWeaponTagEffect(CachedASC, ItemDefinition);
 	CommitCurrentWeaponState(NewCurrentWeaponId, SpawnedWeapon, ItemDefinition, SanitizedWeaponLoadoutDirection);
 
 	return true;
@@ -610,7 +739,7 @@ bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 		return false;
 	}
 
-	RemoveCurrentWeaponTagEffect(CurrentWeaponDefinition);
+	RemoveCurrentWeaponTagEffect(CachedASC, CurrentWeaponDefinition);
 
 	// =================================================================================================================
 

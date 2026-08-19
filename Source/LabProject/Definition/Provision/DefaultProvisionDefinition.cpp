@@ -106,7 +106,7 @@ const UDefaultProvisionDefinition* UDefaultProvisionDefinition::ResolveDefaultDe
 	const FSoftObjectPath DefinitionPath = GetDefaultDefinitionPath();
 	if (!DefinitionPath.IsValid())
 	{
-		return GetDefault<UDefaultProvisionDefinition>();
+		return nullptr;
 	}
 
 	if (const UDefaultProvisionDefinition* LoadedDefinition =
@@ -115,11 +115,7 @@ const UDefaultProvisionDefinition* UDefaultProvisionDefinition::ResolveDefaultDe
 		return LoadedDefinition;
 	}
 
-	const UDefaultProvisionDefinition* LoadedDefinition =
-		Cast<UDefaultProvisionDefinition>(DefinitionPath.TryLoad());
-	return LoadedDefinition
-		? LoadedDefinition
-		: GetDefault<UDefaultProvisionDefinition>();
+	return Cast<UDefaultProvisionDefinition>(DefinitionPath.TryLoad());
 }
 
 void UDefaultProvisionDefinition::GetPandoraKeys(

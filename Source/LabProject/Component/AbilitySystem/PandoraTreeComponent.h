@@ -6,6 +6,7 @@
 #include "PandoraTreeComponent.generated.h"
 
 class APdPlayerState;
+class UDefaultPlayerProvisioner;
 class UPdAbilitySystemComponent;
 class UPandoraDefinition;
 
@@ -53,18 +54,6 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-	/**
-	 * Composes the default Pandora ownership/loadout once for this PlayerState's
-	 * current match. Repeated pawn possession must not reset earned progress.
-	 */
-	bool InitializeForCurrentSession();
-
-	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
-	void InitializePandoraTree(
-		const TArray<FGrantedPandora>& InGrantedPandoras,
-		int32 InPointsAvailable = -1,
-		bool bIncludeConfiguredDefaultPandoras = true);
 
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
 	void SetOwnedPandoraNames(const TArray<FName>& InOwnedPandoraNames);
@@ -154,6 +143,13 @@ public:
 	FPdPandoraPointsChangedDelegate OnPointsChanged;
 
 protected:
+	friend class UDefaultPlayerProvisioner;
+
+	/** Replaces the tree with the authoritative DA_DefaultProvision state. */
+	void InitializeFromDefaultProvision(
+		const TArray<FGrantedPandora>& InGrantedPandoras,
+		int32 InPointsAvailable);
+
 	UFUNCTION()
 	void OnRep_GrantedPandoras();
 
@@ -177,20 +173,16 @@ protected:
 	void RefreshSelectedPandoraAbilityBindings() const;
 	const UPandoraDefinition* GetCurrentPandoraDefinition() const;
 	void CollectValidGrantedPandoras(const TArray<FGrantedPandora>& SourcePandoras, TArray<FGrantedPandora>& OutPandoras) const;
-	void MergeGrantedPandoras(const TArray<FGrantedPandora>& Defaults, const TArray<FGrantedPandora>& Overrides, TArray<FGrantedPandora>& OutPandoras) const;
-	int32 GetGrantedDefaultPandoraLevel(UPandoraDefinition* Pandora) const;
+	int32 GetInitialGrantedPandoraLevel(UPandoraDefinition* Pandora) const;
 	int32 CalculateSpentPandoraPoints() const;
 	int32 CalculateResetPandoraPoints() const;
 	void LogRejectedServerRequest(const TCHAR* RequestName, const FString& Reason);
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!PandoraTree|Defaults")
-	bool bInitializeDefaultPandorasOnBeginPlay = true;
+	UPROPERTY(Transient)
+	TArray<FGrantedPandora> InitialGrantedPandoras;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!PandoraTree|Defaults")
-	int32 DefaultPandoraPoints = 0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!PandoraTree|Defaults")
-	TArray<FGrantedPandora> DefaultPandoras;
+	UPROPERTY(Transient)
+	int32 InitialPointsAvailable = 0;
 
 	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly, Category = "!PandoraTree")
 	TObjectPtr<UPandoraDefinition> PandoraDefinition;
@@ -209,9 +201,6 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPdAbilitySystemComponent> OwnerASC;
-
-	UPROPERTY(Transient)
-	bool bCurrentSessionInitialized = false;
 
 	FLogRateLimiter ServerValidationLogLimiter;
 };

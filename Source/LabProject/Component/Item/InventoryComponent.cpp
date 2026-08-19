@@ -117,6 +117,7 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, ReplicatedEntries, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, ConsumableQuickSlotItemIds, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, PandoraWeaponLoadoutItemIds, OwnerOnlyParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, EquippedItemSlots, OwnerOnlyParams);
 }
 
 void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& ItemDefinitions)
@@ -357,6 +358,14 @@ void UInventoryComponent::ClearAllItems()
 		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ConsumableQuickSlotItemIds, this);
 	}
 
+	const bool bHadEquippedItemReferences = !EquippedItemSlots.IsEmpty();
+	if (bHadEquippedItemReferences)
+	{
+		EquippedItemSlots.Reset();
+		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, EquippedItemSlots, this);
+		OnEquipmentSlotsChanged.Broadcast();
+	}
+
 	EnsurePandoraWeaponLoadoutArray();
 	bool bHadPandoraWeaponLoadoutReferences = false;
 	for (FGuid& WeaponItemId : PandoraWeaponLoadoutItemIds)
@@ -374,7 +383,10 @@ void UInventoryComponent::ClearAllItems()
 		OnPandoraWeaponLoadoutChanged.Broadcast();
 	}
 
-	if (bHadItems || bHadQuickSlotReferences || bHadPandoraWeaponLoadoutReferences)
+	if (bHadItems
+		|| bHadQuickSlotReferences
+		|| bHadEquippedItemReferences
+		|| bHadPandoraWeaponLoadoutReferences)
 	{
 		OnInventoryChanged.Broadcast();
 	}
@@ -550,6 +562,67 @@ UItemInstance* UInventoryComponent::GetConsumableQuickSlotItem(const int32 SlotI
 	}
 
 	return FindItemInstanceById(ConsumableQuickSlotItemIds[SlotIndex]);
+}
+
+bool UInventoryComponent::SetEquipmentSlot(
+	const FGameplayTag SlotTag,
+	UItemInstance* ItemInstance)
+{
+	const FGameplayTag ResolvedSlotTag = ResolveEquipmentSlotTag(SlotTag);
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
+		? ItemInstance->ItemDefinition.Get()
+		: nullptr;
+	if (!ResolvedSlotTag.IsValid()
+		|| !ItemDefinition
+		|| !ItemDefinition->IdTag.IsValid()
+		|| !ItemDefinition->IdTag.MatchesTag(ResolvedSlotTag))
+	{
+		return false;
+	}
+
+	const FGuid ItemId = ItemInstance->GetOrCreateItemId();
+	if (!ItemId.IsValid() || FindItemInstanceById(ItemId) != ItemInstance)
+	{
+		return false;
+	}
+
+	if (!HasInventoryAuthority())
+	{
+		ServerSetEquipmentSlot(ResolvedSlotTag, ItemId);
+		return true;
+	}
+
+	return SetEquipmentSlotItemId(ResolvedSlotTag, ItemId);
+}
+
+bool UInventoryComponent::ClearEquipmentSlot(const FGameplayTag SlotTag)
+{
+	const FGameplayTag ResolvedSlotTag = ResolveEquipmentSlotTag(SlotTag);
+	if (!ResolvedSlotTag.IsValid())
+	{
+		return false;
+	}
+
+	if (!HasInventoryAuthority())
+	{
+		ServerSetEquipmentSlot(ResolvedSlotTag, FGuid());
+		return true;
+	}
+
+	return SetEquipmentSlotItemId(ResolvedSlotTag, FGuid());
+}
+
+FGuid UInventoryComponent::GetEquipmentSlotItemId(const FGameplayTag SlotTag) const
+{
+	const int32 SlotIndex = FindEquipmentSlotIndex(SlotTag);
+	return EquippedItemSlots.IsValidIndex(SlotIndex)
+		? EquippedItemSlots[SlotIndex].ItemId
+		: FGuid();
+}
+
+UItemInstance* UInventoryComponent::GetEquipmentSlotItem(const FGameplayTag SlotTag) const
+{
+	return FindItemInstanceById(GetEquipmentSlotItemId(SlotTag));
 }
 
 bool UInventoryComponent::SetPandoraWeaponLoadoutSlot(
@@ -737,36 +810,53 @@ bool UInventoryComponent::MergeUpgradeableItems(
 		return false;
 	}
 
-	// Loadout weapons are removed from the inventory view. Reject direct RPCs
-	// against them as well so an equipped item cannot disappear mid-combat.
-	if (PandoraWeaponLoadoutItemIds.Contains(SourceItemId)
-		|| PandoraWeaponLoadoutItemIds.Contains(TargetItemId))
+	const auto IsItemAssigned = [this](const FGuid ItemId)
 	{
+		return PandoraWeaponLoadoutItemIds.Contains(ItemId)
+			|| EquippedItemSlots.ContainsByPredicate(
+			[ItemId](const FEquippedItemSlot& EquippedItemSlot)
+		{
+			return EquippedItemSlot.ItemId == ItemId;
+		});
+	};
+
+	const bool bSourceIsAssigned = IsItemAssigned(SourceItemId);
+	const bool bTargetIsAssigned = IsItemAssigned(TargetItemId);
+	if (bSourceIsAssigned && bTargetIsAssigned)
+	{
+		// Never consume an item that another equipment/loadout slot still owns.
 		return false;
 	}
 
-	const int32 SourceEntryIndex = FindReplicatedEntryIndexById(SourceItemId);
-	FReplicatedInventoryEntry* TargetEntry = FindReplicatedEntryById(TargetItemId);
+	// Dropping in either direction upgrades the assigned item and consumes the
+	// unassigned duplicate, so its slot reference and active stats stay intact.
+	const FGuid ConsumedItemId = bSourceIsAssigned ? TargetItemId : SourceItemId;
+	const FGuid UpgradedItemId = bSourceIsAssigned ? SourceItemId : TargetItemId;
+	UItemInstance* ConsumedItem = bSourceIsAssigned ? TargetItem : SourceItem;
+	UItemInstance* UpgradedItem = bSourceIsAssigned ? SourceItem : TargetItem;
+
+	const int32 SourceEntryIndex = FindReplicatedEntryIndexById(ConsumedItemId);
+	FReplicatedInventoryEntry* TargetEntry = FindReplicatedEntryById(UpgradedItemId);
 	if (SourceEntryIndex == INDEX_NONE || !TargetEntry)
 	{
 		return false;
 	}
 
 	const int64 MergedUpgradeLevel =
-		static_cast<int64>(SourceItem->GetUpgradeLevel())
-		+ static_cast<int64>(TargetItem->GetUpgradeLevel())
+		static_cast<int64>(ConsumedItem->GetUpgradeLevel())
+		+ static_cast<int64>(UpgradedItem->GetUpgradeLevel())
 		+ 1;
 	const int32 NewUpgradeLevel = static_cast<int32>(FMath::Min<int64>(
 		MergedUpgradeLevel,
 		static_cast<int64>(MAX_int32)));
-	TargetItem->SetUpgradeLevel(NewUpgradeLevel);
+	UpgradedItem->SetUpgradeLevel(NewUpgradeLevel);
 	TargetEntry->UpgradeLevel = NewUpgradeLevel;
 	ReplicatedEntries.MarkEntryDirty(*TargetEntry);
 
 	for (int32 ItemIndex = AllItemList.Items.Num() - 1; ItemIndex >= 0; --ItemIndex)
 	{
 		const UItemInstance* ItemInstance = AllItemList.Items[ItemIndex];
-		if (IsValid(ItemInstance) && ItemInstance->GetItemId() == SourceItemId)
+		if (IsValid(ItemInstance) && ItemInstance->GetItemId() == ConsumedItemId)
 		{
 			AllItemList.Items.RemoveAt(ItemIndex);
 			break;
@@ -776,8 +866,9 @@ bool UInventoryComponent::MergeUpgradeableItems(
 	ReplicatedEntries.Entries.RemoveAt(SourceEntryIndex);
 	ReplicatedEntries.MarkArrayDirty();
 	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
-	ClearConsumableQuickSlotReferencesToItem(SourceItemId);
-	ClearPandoraWeaponLoadoutReferencesToItem(SourceItemId);
+	ClearConsumableQuickSlotReferencesToItem(ConsumedItemId);
+	ClearEquipmentSlotReferencesToItem(ConsumedItemId);
+	ClearPandoraWeaponLoadoutReferencesToItem(ConsumedItemId);
 	RebuildFilteredItemMap();
 	OnInventoryChanged.Broadcast();
 	return true;

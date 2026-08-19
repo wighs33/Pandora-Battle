@@ -199,7 +199,6 @@ protected:
 	void NotifyPandoraLoadoutChanged();
 	void RefreshPlacedPandoraSkillPreloads();
 	void ReleasePlacedPandoraSkillPreloads();
-	void TryAutoSelectPandoraForLoadoutSlot(EEnum_Direction Direction, const UPandoraDefinition* PandoraDefinition);
 	bool ResolveAutoPandoraLoadoutDirection(const UPandoraDefinition* PandoraDefinition, EEnum_Direction& OutDirection) const;
 	bool ResolvePreferredAutoPandoraLoadoutDirection(const UPandoraDefinition* PandoraDefinition, EEnum_Direction& OutDirection) const;
 	bool SetPandoraLoadoutSlotInternal(EEnum_Direction Direction, const UPandoraDefinition* PandoraDefinition, bool bRequireOwnedPandora);

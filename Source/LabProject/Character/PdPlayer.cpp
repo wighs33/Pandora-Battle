@@ -13,7 +13,6 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Mode/PdPlayerState.h"
-#include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/GrappleComponent.h"
 #include "Component/Player/PaintCanvasComponent.h"
@@ -145,17 +144,14 @@ void APdPlayer::PostInitializeComponents()
 void APdPlayer::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
+	if (APdPlayerState* PdPlayerState = GetPdPlayerState())
+	{
+		PdPlayerState->ApplySelectedWeaponPandoraLoadout();
+	}
 	ReapplyCurrentRotationPolicy();
 	if (PlayerAimComponent)
 	{
 		PlayerAimComponent->StartReplication();
-	}
-	if (APdPlayerState* PdPlayerState = GetPlayerState<APdPlayerState>())
-	{
-		if (UPandoraTreeComponent* PandoraTreeComponent = PdPlayerState->GetPandoraTreeComponent())
-		{
-			PandoraTreeComponent->InitializeForCurrentSession();
-		}
 	}
 }
 

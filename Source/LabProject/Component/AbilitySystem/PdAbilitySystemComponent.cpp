@@ -174,6 +174,37 @@ bool UPdAbilitySystemComponent::ApplyAttributeDefaultValue(
 			DefaultValue);
 }
 
+bool UPdAbilitySystemComponent::HasAppliedConfiguredAttributeDefaults(
+	const UAttributeSet* AttributeSet,
+	const FSoftObjectPath& DefinitionPath) const
+{
+	return AttributeSet
+		&& !DefinitionPath.IsNull()
+		&& ConfiguredDefaultsAttributeSet.Get() == AttributeSet
+		&& ConfiguredDefaultsDefinitionPath == DefinitionPath;
+}
+
+void UPdAbilitySystemComponent::MarkConfiguredAttributeDefaultsApplied(
+	UAttributeSet* AttributeSet,
+	const FSoftObjectPath& DefinitionPath)
+{
+	ConfiguredDefaultsAttributeSet = AttributeSet;
+	ConfiguredDefaultsDefinitionPath = DefinitionPath;
+}
+
+void UPdAbilitySystemComponent::ClearConfiguredAttributeDefaultsApplied(
+	const UAttributeSet* AttributeSet,
+	const FSoftObjectPath& DefinitionPath)
+{
+	if (!HasAppliedConfiguredAttributeDefaults(AttributeSet, DefinitionPath))
+	{
+		return;
+	}
+
+	ConfiguredDefaultsAttributeSet.Reset();
+	ConfiguredDefaultsDefinitionPath.Reset();
+}
+
 void UPdAbilitySystemComponent::AbilityInputTagPressed(const FGameplayTag& InputTag)
 {
 	if (CollectionRuntime)

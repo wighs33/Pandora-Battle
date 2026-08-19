@@ -22,6 +22,7 @@ struct FStreamableHandle;
 
 DECLARE_LOG_CATEGORY_EXTERN(EquipmentComponentLog, Log, All);
 DECLARE_MULTICAST_DELEGATE(FOnCurrentWeaponDefinitionChanged);
+DECLARE_MULTICAST_DELEGATE(FOnEquipmentStatsChanged);
 
 USTRUCT(BlueprintType)
 struct FEquippedItemStatSnapshot
@@ -34,15 +35,23 @@ struct FEquippedItemStatSnapshot
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
 	TMap<FGameplayTag, float> EnhancedStatMagnitudes;
 
+	// Weapon damage-source stats are read directly by combat instead of being
+	// added to an ASC attribute, but still participate in snapshot change detection.
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
+	TMap<FGameplayTag, float> NonAttributeStatMagnitudes;
+
 	void Reset()
 	{
 		BaseStatMagnitudes.Reset();
 		EnhancedStatMagnitudes.Reset();
+		NonAttributeStatMagnitudes.Reset();
 	}
 
 	bool HasAnyMagnitude() const
 	{
-		return !BaseStatMagnitudes.IsEmpty() || !EnhancedStatMagnitudes.IsEmpty();
+		return !BaseStatMagnitudes.IsEmpty()
+			|| !EnhancedStatMagnitudes.IsEmpty()
+			|| !NonAttributeStatMagnitudes.IsEmpty();
 	}
 };
 
@@ -84,12 +93,16 @@ UFUNCTION(BlueprintPure, Category = "!Equipment")
 
 	float GetCurrentWeaponStatMagnitude(FGameplayTag StatTag) const;
 
+	void GetEquipmentBonusStatMagnitudes(
+		TMap<FGameplayTag, float>& OutStatMagnitudes) const;
+
 	void RefreshCurrentWeaponAnimationLayer();
 
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	EEnum_Direction GetCurrentWeaponLoadoutDirection() const { return CurrentWeaponLoadoutDirection; }
 
 	FOnCurrentWeaponDefinitionChanged OnCurrentWeaponDefinitionChanged;
+	FOnEquipmentStatsChanged OnEquipmentStatsChanged;
 
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
 	bool SetRequestedWeaponInstance(UItemInstance* WeaponInstance);
@@ -158,10 +171,14 @@ protected:
 
 	AWeaponBase* SpawnAndAttachWeaponActor(TSubclassOf<AWeaponBase> WeaponClass, const UItemDefinition* ItemDefinition) const;
 
-	void ApplyAndStoreWeaponStats(const UItemDefinition* ItemDefinition, FEquippedItemStatSnapshot& PendingStatSnapshot);
-	void ApplyCurrentWeaponTagEffect(const UItemDefinition* ItemDefinition);
+	bool ApplyAndStoreWeaponStats(const FEquippedItemStatSnapshot& PendingStatSnapshot);
+	void ApplyCurrentWeaponTagEffect(
+		UPdAbilitySystemComponent* AbilitySystemComponent,
+		const UItemDefinition* ItemDefinition);
 	bool ApplyEquipAbilityCooldown();
-	void RemoveCurrentWeaponTagEffect(const UItemDefinition* ItemDefinition);
+	void RemoveCurrentWeaponTagEffect(
+		UPdAbilitySystemComponent* AbilitySystemComponent,
+		const UItemDefinition* ItemDefinition);
 
 	bool RemoveCurrentWeaponStats();
 
@@ -177,13 +194,34 @@ protected:
 	UFUNCTION()
 	void OnRep_CurrentWeaponActor();
 
+	UFUNCTION()
+	void OnRep_CurrentWeaponId();
+
 	void NotifyCurrentWeaponDefinitionChanged();
 	void NotifyCurrentWeaponStateChanged();
+	void HandleEquipCooldownTagChanged(FGameplayTag CallbackTag, int32 NewCount);
+	void HandleEquipmentSlotsChanged();
+	void HandleInventoryChanged();
 
 	bool BuildItemStatSnapshot(const UItemInstance* ItemInstance, FEquippedItemStatSnapshot& OutSnapshot) const;
 	bool BuildItemDefinitionStatSnapshot(const UItemDefinition* ItemDefinition, FEquippedItemStatSnapshot& OutSnapshot) const;
+	bool BuildEquippedItemsStatSnapshot(FEquippedItemStatSnapshot& OutSnapshot) const;
+	bool BuildCurrentWeaponStatSnapshot(FEquippedItemStatSnapshot& OutSnapshot) const;
 
-	bool ApplyItemStatSnapshot(const FEquippedItemStatSnapshot& StatSnapshot, float MagnitudeScale) const;
+	bool ApplyItemStatSnapshot(
+		UPdAbilitySystemComponent* AbilitySystemComponent,
+		const FEquippedItemStatSnapshot& StatSnapshot,
+		float MagnitudeScale) const;
+	bool SetAppliedStatSnapshot(
+		UPdAbilitySystemComponent* AbilitySystemComponent,
+		FEquippedItemStatSnapshot& AppliedSnapshot,
+		const FEquippedItemStatSnapshot& DesiredSnapshot,
+		bool& bOutChanged) const;
+	bool RefreshEquipmentStats();
+	bool ClearAppliedEquipmentState(UPdAbilitySystemComponent* AbilitySystemComponent);
+	void NotifyEquipmentStatsChanged();
+	void UnbindEquipmentSlotsChanged();
+	void UnbindInventoryChanged();
 
 	UItemInstance* FindOwnedItemInstanceById(FGuid ItemId) const;
 
@@ -210,6 +248,10 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UInventoryComponent> CachedInventory;
 
+	FDelegateHandle EquipCooldownTagChangedDelegateHandle;
+	FDelegateHandle EquipmentSlotsChangedDelegateHandle;
+	FDelegateHandle InventoryChangedDelegateHandle;
+
 	UPROPERTY(Transient)
 	TSubclassOf<UGameplayEffect> EquipmentStatGameplayEffectClass;
 
@@ -228,7 +270,7 @@ UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipm
 	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	EEnum_Direction RequestedWeaponLoadoutDirection = EEnum_Direction::Center;
 
-	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeaponId, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	FGuid CurrentWeaponId;
 
 	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
@@ -236,6 +278,12 @@ UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipm
 
 	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
 	FEquippedItemStatSnapshot CurrentWeaponStatSnapshot;
+
+	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
+	FEquippedItemStatSnapshot EquippedItemsStatSnapshot;
+
+	bool bEquipmentStatsInitialized = false;
+	bool bRefreshingEquipmentStats = false;
 
 	FActiveGameplayEffectHandle CurrentWeaponTagEffectHandle;
 

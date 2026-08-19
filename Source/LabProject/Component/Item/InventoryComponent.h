@@ -16,6 +16,7 @@ struct FStreamableHandle;
 
 DECLARE_LOG_CATEGORY_EXTERN(InventoryComponentLog, Log, All);
 DECLARE_MULTICAST_DELEGATE(FPdInventoryChanged);
+DECLARE_MULTICAST_DELEGATE(FPdEquipmentSlotsChanged);
 DECLARE_MULTICAST_DELEGATE(FPdPandoraWeaponLoadoutChanged);
 
 USTRUCT(BlueprintType)
@@ -26,6 +27,18 @@ struct FItemList
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
 	TArray<TObjectPtr<UItemInstance>> Items;
+};
+
+USTRUCT(BlueprintType)
+struct LABPROJECT_API FEquippedItemSlot
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Inventory|Equipment")
+	FGameplayTag SlotTag;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!Inventory|Equipment")
+	FGuid ItemId;
 };
 
 USTRUCT()
@@ -147,6 +160,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Inventory|Quick Slots")
 	UItemInstance* GetConsumableQuickSlotItem(int32 SlotIndex) const;
 
+	UFUNCTION(BlueprintCallable, Category = "!Inventory|Equipment")
+	bool SetEquipmentSlot(FGameplayTag SlotTag, UItemInstance* ItemInstance);
+
+	UFUNCTION(BlueprintCallable, Category = "!Inventory|Equipment")
+	bool ClearEquipmentSlot(FGameplayTag SlotTag);
+
+	UFUNCTION(BlueprintPure, Category = "!Inventory|Equipment")
+	FGuid GetEquipmentSlotItemId(FGameplayTag SlotTag) const;
+
+	UFUNCTION(BlueprintPure, Category = "!Inventory|Equipment")
+	UItemInstance* GetEquipmentSlotItem(FGameplayTag SlotTag) const;
+
 	UFUNCTION(BlueprintCallable, Category = "!Inventory|Pandora Weapon Loadout")
 	bool SetPandoraWeaponLoadoutSlot(EEnum_Direction Direction, UItemInstance* WeaponInstance);
 
@@ -171,6 +196,7 @@ public:
 	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
 
 	FPdInventoryChanged OnInventoryChanged;
+	FPdEquipmentSlotsChanged OnEquipmentSlotsChanged;
 	FPdPandoraWeaponLoadoutChanged OnPandoraWeaponLoadoutChanged;
 
 protected:
@@ -214,6 +240,9 @@ int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
 	void ServerSetPandoraWeaponLoadoutSlot(EEnum_Direction Direction, FGuid ItemId);
 
 	UFUNCTION(Server, Reliable)
+	void ServerSetEquipmentSlot(FGameplayTag SlotTag, FGuid ItemId);
+
+	UFUNCTION(Server, Reliable)
 	void ServerSplitConsumableStack(FGuid ItemId);
 
 	UFUNCTION(Server, Reliable)
@@ -237,6 +266,10 @@ int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
 	bool IsValidConsumableQuickSlotIndex(int32 SlotIndex) const;
 	bool SetConsumableQuickSlotItemId(int32 SlotIndex, FGuid ItemId);
 	bool ClearConsumableQuickSlotReferencesToItem(FGuid ItemId);
+	FGameplayTag ResolveEquipmentSlotTag(FGameplayTag SlotTag) const;
+	int32 FindEquipmentSlotIndex(FGameplayTag SlotTag) const;
+	bool SetEquipmentSlotItemId(FGameplayTag SlotTag, FGuid ItemId);
+	bool ClearEquipmentSlotReferencesToItem(FGuid ItemId);
 	bool SetPandoraWeaponLoadoutItemId(EEnum_Direction Direction, FGuid ItemId);
 	bool ClearPandoraWeaponLoadoutReferencesToItem(FGuid ItemId);
 	bool IsConsumableItem(const UItemInstance* ItemInstance) const;
@@ -247,6 +280,9 @@ int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
 
 	UFUNCTION()
 	void OnRep_PandoraWeaponLoadoutItemIds();
+
+	UFUNCTION()
+	void OnRep_EquippedItemSlots();
 
 public:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter")
@@ -267,6 +303,9 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_PandoraWeaponLoadoutItemIds)
 	TArray<FGuid> PandoraWeaponLoadoutItemIds;
+
+	UPROPERTY(ReplicatedUsing = OnRep_EquippedItemSlots)
+	TArray<FEquippedItemSlot> EquippedItemSlots;
 
 	uint64 ItemLoadGeneration = 0;
 	int32 PendingItemLoadRequestCount = 0;

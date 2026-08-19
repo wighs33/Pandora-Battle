@@ -96,9 +96,6 @@ public:
 	void BuildGrantedPandorasFromNames(
 		const TMap<FName, int32>& GrantedPandorasByName,
 		TArray<FGrantedPandora>& OutGrantedPandoras) const;
-	void BuildDefaultUnlockedPandoras(
-		TArray<FName>& OutOwnedPandoraNames,
-		TArray<FPrimaryAssetId>* OutPandoraDefinitionIds = nullptr) const;
 	void BuildGrantedSkinDefinitionsFromNames(
 		const TMap<FName, int32>& GrantedSkinsByName,
 		TArray<USkinDefinition*>& OutSkinDefinitions) const;

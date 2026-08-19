@@ -399,7 +399,7 @@ ALobbyGameMode::GetDefaultProvisionDefinition() const
 	return LobbyConfigurationComponent
 		? LobbyConfigurationComponent
 			->GetDefaultProvisionDefinition()
-		: GetDefault<UDefaultProvisionDefinition>();
+		: nullptr;
 }
 
 void ALobbyGameMode::ProvisionLobbyPlayer(

@@ -2,8 +2,6 @@
 
 #include "AbilitySystemComponent.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
-#include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -31,15 +29,6 @@ void UPandoraTreeComponent::BeginPlay()
 	Super::BeginPlay();
 
 	InitializeVariables();
-
-const bool bDeferPlayerStateInitializationToPossessedPawn = OwnerPlayerState != nullptr;
-	if (HasPandoraTreeAuthority()
-		&& bInitializeDefaultPandorasOnBeginPlay
-		&& !bDeferPlayerStateInitializationToPossessedPawn
-		&& (!DefaultPandoras.IsEmpty() || DefaultPandoraPoints > 0))
-	{
-		InitializePandoraTree(TArray<FGrantedPandora>(), FMath::Max(DefaultPandoraPoints, 0));
-	}
 }
 
 void UPandoraTreeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -63,46 +52,9 @@ void UPandoraTreeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME_WITH_PARAMS_FAST(UPandoraTreeComponent, PandoraDefinition, Params);
 }
 
-bool UPandoraTreeComponent::InitializeForCurrentSession()
-{
-	InitializeVariables();
-
-	if (bCurrentSessionInitialized)
-	{
-		return true;
-	}
-
-	if (!HasPandoraTreeAuthority()
-		|| !OwnerPlayerState
-		|| OwnerPlayerState->IsA<ALobbyPlayerState>())
-	{
-		return false;
-	}
-
-	UPandoraComponent* PandoraComponent = OwnerPlayerState->GetPandoraComponent();
-	UPdGameInstance* GameInstance = OwnerPlayerState->GetGameInstance<UPdGameInstance>();
-	if (!PandoraComponent || !GameInstance)
-	{
-		return false;
-	}
-
-	TArray<FName> DefaultOwnedPandoraNames;
-	TArray<FPrimaryAssetId> DefaultUnlockedPandoraIds;
-	GameInstance->BuildDefaultUnlockedPandoras(
-		DefaultOwnedPandoraNames,
-		&DefaultUnlockedPandoraIds);
-
-	SetOwnedPandoraNames(DefaultOwnedPandoraNames);
-	InitializePandoraTree(TArray<FGrantedPandora>(), -1, false);
-	PandoraComponent->ActivatePandoras(DefaultUnlockedPandoraIds);
-	bCurrentSessionInitialized = true;
-	return true;
-}
-
-void UPandoraTreeComponent::InitializePandoraTree(
+void UPandoraTreeComponent::InitializeFromDefaultProvision(
 	const TArray<FGrantedPandora>& InGrantedPandoras,
-	int32 InPointsAvailable,
-	const bool bIncludeConfiguredDefaultPandoras)
+	const int32 InPointsAvailable)
 {
 	if (!HasPandoraTreeAuthority())
 	{
@@ -112,23 +64,17 @@ void UPandoraTreeComponent::InitializePandoraTree(
 
 	InitializeVariables();
 
+	CollectValidGrantedPandoras(
+		InGrantedPandoras,
+		InitialGrantedPandoras);
+	InitialPointsAvailable = FMath::Max(InPointsAvailable, 0);
+
 	GrantedPandoras.Reset();
-	PointsAvailable = InPointsAvailable >= 0 ? InPointsAvailable : FMath::Max(DefaultPandoraPoints, 0);
+	PointsAvailable = InitialPointsAvailable;
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraTreeComponent, GrantedPandoras, this);
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraTreeComponent, PointsAvailable, this);
 
-TArray<FGrantedPandora> ValidDefaultPandoras;
-	if (bIncludeConfiguredDefaultPandoras)
-	{
-		CollectValidGrantedPandoras(DefaultPandoras, ValidDefaultPandoras);
-	}
-
-	TArray<FGrantedPandora> ValidInputPandoras;
-	CollectValidGrantedPandoras(InGrantedPandoras, ValidInputPandoras);
-
-	TArray<FGrantedPandora> PandorasToGrant;
-	MergeGrantedPandoras(ValidDefaultPandoras, ValidInputPandoras, PandorasToGrant);
-	for (const FGrantedPandora& GrantedPandora : PandorasToGrant)
+	for (const FGrantedPandora& GrantedPandora : InitialGrantedPandoras)
 	{
 		if (GrantedPandora.Pandora)
 		{
@@ -523,14 +469,11 @@ bool UPandoraTreeComponent::ResetPandoraInternal()
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraTreeComponent, GrantedPandoras, this);
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraTreeComponent, PointsAvailable, this);
 
-	TArray<FGrantedPandora> ValidDefaultPandoras;
-	CollectValidGrantedPandoras(DefaultPandoras, ValidDefaultPandoras);
-
-	for (const FGrantedPandora& DefaultPandora : ValidDefaultPandoras)
+	for (const FGrantedPandora& InitialPandora : InitialGrantedPandoras)
 	{
-		if (DefaultPandora.Pandora)
+		if (InitialPandora.Pandora)
 		{
-			GrantPandora(DefaultPandora.Pandora, DefaultPandora.Level, true);
+			GrantPandora(InitialPandora.Pandora, InitialPandora.Level, true);
 		}
 	}
 
@@ -803,50 +746,18 @@ void UPandoraTreeComponent::CollectValidGrantedPandoras(const TArray<FGrantedPan
 	}
 }
 
-void UPandoraTreeComponent::MergeGrantedPandoras(
-	const TArray<FGrantedPandora>& Defaults,
-	const TArray<FGrantedPandora>& Overrides,
-	TArray<FGrantedPandora>& OutPandoras) const
-{
-	OutPandoras = Defaults;
-
-	for (const FGrantedPandora& OverridePandora : Overrides)
-	{
-		if (!CanReferencePandoraDefinition(OverridePandora.Pandora.Get()))
-		{
-			continue;
-		}
-
-		bool bUpdatedExisting = false;
-		for (FGrantedPandora& ExistingPandora : OutPandoras)
-		{
-			if (ExistingPandora.Pandora == OverridePandora.Pandora)
-			{
-				ExistingPandora.Level = OverridePandora.Level;
-				bUpdatedExisting = true;
-				break;
-			}
-		}
-
-		if (!bUpdatedExisting)
-		{
-			OutPandoras.Add(OverridePandora);
-		}
-	}
-}
-
-int32 UPandoraTreeComponent::GetGrantedDefaultPandoraLevel(UPandoraDefinition* Pandora) const
+int32 UPandoraTreeComponent::GetInitialGrantedPandoraLevel(UPandoraDefinition* Pandora) const
 {
 	if (!CanReferencePandoraDefinition(Pandora))
 	{
 		return 0;
 	}
 
-	for (const FGrantedPandora& DefaultPandora : DefaultPandoras)
+	for (const FGrantedPandora& InitialPandora : InitialGrantedPandoras)
 	{
-		if (DefaultPandora.Pandora == Pandora)
+		if (InitialPandora.Pandora == Pandora)
 		{
-			return ClampPandoraLevel(Pandora, DefaultPandora.Level);
+			return ClampPandoraLevel(Pandora, InitialPandora.Level);
 		}
 	}
 
@@ -863,8 +774,8 @@ int32 UPandoraTreeComponent::CalculateSpentPandoraPoints() const
 			continue;
 		}
 
-		const int32 DefaultGrantedLevel = GetGrantedDefaultPandoraLevel(GrantedPandora.Pandora.Get());
-		const int32 FirstPaidLevel = FMath::Max(DefaultGrantedLevel + 1, 1);
+		const int32 InitialGrantedLevel = GetInitialGrantedPandoraLevel(GrantedPandora.Pandora.Get());
+		const int32 FirstPaidLevel = FMath::Max(InitialGrantedLevel + 1, 1);
 		const int32 CurrentLevel = ClampPandoraLevel(GrantedPandora.Pandora.Get(), GrantedPandora.Level);
 		SpentPoints += CalculatePointCostForPandoraLevels(
 			GrantedPandora.Pandora.Get(),
@@ -878,7 +789,7 @@ int32 UPandoraTreeComponent::CalculateSpentPandoraPoints() const
 int32 UPandoraTreeComponent::CalculateResetPandoraPoints() const
 {
 	const int64 ResetPoints = FMath::Max<int64>(
-		FMath::Max(DefaultPandoraPoints, 0),
+		InitialPointsAvailable,
 		static_cast<int64>(PointsAvailable) + static_cast<int64>(CalculateSpentPandoraPoints()));
 	return static_cast<int32>(FMath::Clamp<int64>(ResetPoints, 0, MAX_int32));
 }
