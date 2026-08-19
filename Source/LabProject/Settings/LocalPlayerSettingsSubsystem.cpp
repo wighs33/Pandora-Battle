@@ -30,6 +30,40 @@ namespace
 	constexpr int32 MinMouseSensitivityPercent = 10;
 	constexpr int32 MaxMouseSensitivityPercent = 200;
 	constexpr int32 DefaultMouseSensitivityPercent = 100;
+	constexpr double DefaultMouseSensitivitySliderValue = 0.5;
+
+	double MouseSensitivityPercentToSliderValue(const int32 SensitivityPercent)
+	{
+		const bool bBelowDefault = SensitivityPercent <= DefaultMouseSensitivityPercent;
+		const FVector2D SensitivityRange = bBelowDefault
+			? FVector2D(MinMouseSensitivityPercent, DefaultMouseSensitivityPercent)
+			: FVector2D(DefaultMouseSensitivityPercent, MaxMouseSensitivityPercent);
+		const FVector2D SliderRange = bBelowDefault
+			? FVector2D(0.0, DefaultMouseSensitivitySliderValue)
+			: FVector2D(DefaultMouseSensitivitySliderValue, 1.0);
+
+		return FMath::GetMappedRangeValueClamped(
+			SensitivityRange,
+			SliderRange,
+			static_cast<double>(SensitivityPercent));
+	}
+
+	int32 MouseSensitivitySliderValueToPercent(const float SliderValue)
+	{
+		const double ClampedSliderValue = FMath::Clamp(static_cast<double>(SliderValue), 0.0, 1.0);
+		const bool bBelowDefault = ClampedSliderValue <= DefaultMouseSensitivitySliderValue;
+		const FVector2D SliderRange = bBelowDefault
+			? FVector2D(0.0, DefaultMouseSensitivitySliderValue)
+			: FVector2D(DefaultMouseSensitivitySliderValue, 1.0);
+		const FVector2D SensitivityRange = bBelowDefault
+			? FVector2D(MinMouseSensitivityPercent, DefaultMouseSensitivityPercent)
+			: FVector2D(DefaultMouseSensitivityPercent, MaxMouseSensitivityPercent);
+
+		return FMath::RoundToInt(FMath::GetMappedRangeValueClamped(
+			SliderRange,
+			SensitivityRange,
+			ClampedSliderValue));
+	}
 
 	const FString& GetInputSettingsSaveSlotName()
 	{
@@ -215,18 +249,12 @@ float ULocalPlayerSettingsSubsystem::GetMouseSensitivityMultiplier() const
 
 float ULocalPlayerSettingsSubsystem::GetMouseSensitivitySliderValue() const
 {
-	return FMath::GetMappedRangeValueClamped(
-		FVector2D(MinMouseSensitivityPercent, MaxMouseSensitivityPercent),
-		FVector2D(0.0, 1.0),
-		static_cast<double>(GetMouseSensitivityPercent()));
+	return static_cast<float>(MouseSensitivityPercentToSliderValue(GetMouseSensitivityPercent()));
 }
 
 void ULocalPlayerSettingsSubsystem::SetMouseSensitivitySliderValue(const float NormalizedValue)
 {
-	const int32 NewSensitivityPercent = FMath::RoundToInt(FMath::GetMappedRangeValueClamped(
-		FVector2D(0.0, 1.0),
-		FVector2D(MinMouseSensitivityPercent, MaxMouseSensitivityPercent),
-		static_cast<double>(NormalizedValue)));
+	const int32 NewSensitivityPercent = MouseSensitivitySliderValueToPercent(NormalizedValue);
 	if (MouseSensitivityPercent != NewSensitivityPercent)
 	{
 		MouseSensitivityPercent = NewSensitivityPercent;
