@@ -81,26 +81,6 @@ void UPdGameInstance::BuildGrantedPandorasFromNames(
 	OutGrantedPandoras.Reset();
 }
 
-void UPdGameInstance::BuildDefaultUnlockedPandoras(
-	TArray<FName>& OutOwnedPandoraNames,
-	TArray<FPrimaryAssetId>* OutPandoraDefinitionIds)
-{
-	if (const UContentDataSubsystem* ContentDataSubsystem =
-		GetSubsystem<UContentDataSubsystem>())
-	{
-		ContentDataSubsystem->BuildDefaultUnlockedPandoras(
-			OutOwnedPandoraNames,
-			OutPandoraDefinitionIds);
-		return;
-	}
-
-	OutOwnedPandoraNames.Reset();
-	if (OutPandoraDefinitionIds)
-	{
-		OutPandoraDefinitionIds->Reset();
-	}
-}
-
 void UPdGameInstance::BuildGrantedSkinDefinitionsFromNames(
 	const TMap<FName, int32>& GrantedSkinsByName,
 	TArray<USkinDefinition*>& OutSkinDefinitions) const

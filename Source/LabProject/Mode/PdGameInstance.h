@@ -156,10 +156,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Pandora", meta = (AutoCreateRefTerm = "GrantedPandorasByName"))
 	void BuildGrantedPandorasFromNames(const TMap<FName, int32>& GrantedPandorasByName, TArray<FGrantedPandora>& OutGrantedPandoras) const;
 
-	void BuildDefaultUnlockedPandoras(
-		TArray<FName>& OutOwnedPandoraNames,
-		TArray<FPrimaryAssetId>* OutPandoraDefinitionIds = nullptr);
-
 	UFUNCTION(BlueprintCallable, Category = "!Skin", meta = (AutoCreateRefTerm = "GrantedSkinsByName"))
 	void BuildGrantedSkinDefinitionsFromNames(const TMap<FName, int32>& GrantedSkinsByName, TArray<USkinDefinition*>& OutSkinDefinitions) const;
 

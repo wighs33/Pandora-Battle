@@ -99,6 +99,7 @@ public:
 	const FGameplayTag& GetEquipmentEquipAbilityTag() const { return ResolveTag(EquipmentEquipAbilityTag, LabGameplayTags::Action_Equip); }
 	const FGameplayTag& GetEquipmentUnequipAbilityTag() const { return ResolveTag(EquipmentUnequipAbilityTag, LabGameplayTags::Action_Unequip); }
 
+	void GetItemEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const;
 	void GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) const;
 	void GetPandoraFilterTypeTags(TArray<FGameplayTag>& OutTags) const;
 	void GetSkinFilterTypeTags(TArray<FGameplayTag>& OutTags) const;

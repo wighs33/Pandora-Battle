@@ -30,16 +30,16 @@
 
 namespace
 {
-	bool IsWeaponLoadoutDirection(const EEnum_Direction Direction)
+	bool IsSelectionWeaponLoadoutDirection(const EEnum_Direction Direction)
 	{
 		return Direction == EEnum_Direction::Left
 			|| Direction == EEnum_Direction::Up
 			|| Direction == EEnum_Direction::Right;
 	}
 
-	EEnum_Direction SanitizeWeaponLoadoutDirection(const EEnum_Direction Direction)
+	EEnum_Direction SanitizeSelectionWeaponLoadoutDirection(const EEnum_Direction Direction)
 	{
-		return IsWeaponLoadoutDirection(Direction) ? Direction : EEnum_Direction::Center;
+		return IsSelectionWeaponLoadoutDirection(Direction) ? Direction : EEnum_Direction::Center;
 	}
 }
 
@@ -85,7 +85,7 @@ bool UEquipmentComponent::RequestWeaponSelectionForDirection(
 		return false;
 	}
 
-	RequestedWeaponLoadoutDirection = SanitizeWeaponLoadoutDirection(Direction);
+	RequestedWeaponLoadoutDirection = SanitizeSelectionWeaponLoadoutDirection(Direction);
 
 	const FGameplayTag EquipAbilityTag = GetEquipAbilityTag();
 	const FGameplayTag UnequipAbilityTag = GetUnequipAbilityTag();
@@ -130,19 +130,21 @@ FGuid SelectedWeaponId;
 
 	if (IsCurrentWeapon(SelectedWeaponId))
 	{
-		const bool bHasRequestedLoadoutDirection = IsWeaponLoadoutDirection(RequestedWeaponLoadoutDirection);
+		const EEnum_Direction SelectedLoadoutDirection = RequestedWeaponLoadoutDirection;
+		ClearRequestedWeapon();
+		const bool bHasRequestedLoadoutDirection = IsSelectionWeaponLoadoutDirection(SelectedLoadoutDirection);
 		const bool bDirectionChanged = bHasRequestedLoadoutDirection
-			&& CurrentWeaponLoadoutDirection != RequestedWeaponLoadoutDirection;
+			&& CurrentWeaponLoadoutDirection != SelectedLoadoutDirection;
 
 		if (bHasRequestedLoadoutDirection && !HasEquipmentAuthority())
 		{
-			ServerSetCurrentWeaponLoadoutDirection(SelectedWeaponId, RequestedWeaponLoadoutDirection);
+			ServerSetCurrentWeaponLoadoutDirection(SelectedWeaponId, SelectedLoadoutDirection);
 			return true;
 		}
 
 		if (bDirectionChanged)
 		{
-			ApplyCurrentWeaponLoadoutDirection(SelectedWeaponId, RequestedWeaponLoadoutDirection);
+			ApplyCurrentWeaponLoadoutDirection(SelectedWeaponId, SelectedLoadoutDirection);
 		}
 
 		return true;
@@ -374,8 +376,12 @@ bool UEquipmentComponent::EquipWeaponDefinition(const UItemDefinition* WeaponDef
 		return false;
 	}
 
-	ApplyAndStoreWeaponStats(WeaponDefinition, PendingStatSnapshot);
-	ApplyCurrentWeaponTagEffect(WeaponDefinition);
+	if (!ApplyAndStoreWeaponStats(PendingStatSnapshot))
+	{
+		SpawnedWeapon->Destroy();
+		return false;
+	}
+	ApplyCurrentWeaponTagEffect(CachedASC, WeaponDefinition);
 	CommitCurrentWeaponState(FGuid::NewGuid(), SpawnedWeapon, WeaponDefinition, EEnum_Direction::Center);
 	if (ACharacterBase* CharacterOwner = CachedOwner.Get())
 	{
@@ -425,7 +431,7 @@ void UEquipmentComponent::ServerSetRequestedWeapon_Implementation(
 
 	++WeaponPresentationRequestGeneration;
 	RequestedWeaponId = WeaponId;
-	RequestedWeaponLoadoutDirection = SanitizeWeaponLoadoutDirection(RequestedDirection);
+	RequestedWeaponLoadoutDirection = SanitizeSelectionWeaponLoadoutDirection(RequestedDirection);
 }
 
 bool UEquipmentComponent::RequestCurrentWeaponLoadoutDirection(
@@ -434,8 +440,8 @@ bool UEquipmentComponent::RequestCurrentWeaponLoadoutDirection(
 {
 	RefreshCachedReferences();
 
-	const EEnum_Direction SanitizedDirection = SanitizeWeaponLoadoutDirection(Direction);
-	if (!IsWeaponLoadoutDirection(SanitizedDirection))
+	const EEnum_Direction SanitizedDirection = SanitizeSelectionWeaponLoadoutDirection(Direction);
+	if (!IsSelectionWeaponLoadoutDirection(SanitizedDirection))
 	{
 
 		return false;
@@ -471,14 +477,14 @@ bool UEquipmentComponent::ApplyCurrentWeaponLoadoutDirection(
 {
 	RefreshCachedReferences();
 
-	const EEnum_Direction SanitizedDirection = SanitizeWeaponLoadoutDirection(Direction);
+	const EEnum_Direction SanitizedDirection = SanitizeSelectionWeaponLoadoutDirection(Direction);
 	if (!HasEquipmentAuthority())
 	{
 
 		return false;
 	}
 
-	if (!WeaponId.IsValid() || !IsCurrentWeapon(WeaponId) || !IsWeaponLoadoutDirection(SanitizedDirection))
+	if (!WeaponId.IsValid() || !IsCurrentWeapon(WeaponId) || !IsSelectionWeaponLoadoutDirection(SanitizedDirection))
 	{
 
 		return false;

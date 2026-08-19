@@ -102,5 +102,6 @@ private:
 		InitializedPandoras;
 	TMap<TObjectKey<APlayerState>, TWeakObjectPtr<USkinEquipmentComponent>>
 		InitializedGestureEquipment;
+	bool bLoggedMissingProvisionDefinition = false;
 	bool bShuttingDown = false;
 };

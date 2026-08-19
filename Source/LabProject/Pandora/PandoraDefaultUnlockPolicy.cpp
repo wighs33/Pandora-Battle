@@ -3,16 +3,6 @@
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 
-const TArray<FName>& PandoraDefaultUnlockPolicy::GetDefaultUnlockedPandoraKeys()
-{
-	static TArray<FName> DefaultUnlockedPandoraKeys;
-	UDefaultProvisionDefinition::ResolveDefaultDefinition()
-		->GetPandoraKeys(
-			EDefaultProvisionMode::Gameplay,
-			DefaultUnlockedPandoraKeys);
-	return DefaultUnlockedPandoraKeys;
-}
-
 FString PandoraDefaultUnlockPolicy::NormalizePandoraKey(const FName PandoraName)
 {
 	FString PandoraKey = PandoraName.ToString();
@@ -28,8 +18,10 @@ bool PandoraDefaultUnlockPolicy::IsDefaultUnlockedPandoraName(const FName Pandor
 		return false;
 	}
 
-	return UDefaultProvisionDefinition::ResolveDefaultDefinition()
-		->IsPandoraKeyGranted(
+	const UDefaultProvisionDefinition* DefaultProvision =
+		UDefaultProvisionDefinition::ResolveDefaultDefinition();
+	return DefaultProvision
+		&& DefaultProvision->IsPandoraKeyGranted(
 			PandoraName,
 			EDefaultProvisionMode::Gameplay);
 }

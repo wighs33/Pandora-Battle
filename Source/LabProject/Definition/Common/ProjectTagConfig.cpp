@@ -262,11 +262,9 @@ EDataValidationResult UProjectTagConfig::IsDataValid(FDataValidationContext& Con
 }
 #endif
 
-void UProjectTagConfig::GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) const
+void UProjectTagConfig::GetItemEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const
 {
 	OutTags.Reset();
-	AddValidTag(OutTags, GetItemWeaponTypeTag());
-	AddValidTag(OutTags, GetItemEquipmentTypeTag());
 	AddValidTag(OutTags, GetItemHatEquipTypeTag());
 	AddValidTag(OutTags, GetItemTopEquipTypeTag());
 	AddValidTag(OutTags, GetItemBottomEquipTypeTag());
@@ -275,6 +273,19 @@ void UProjectTagConfig::GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) con
 	AddValidTag(OutTags, GetItemNecklaceEquipTypeTag());
 	AddValidTag(OutTags, GetItemRingEquipTypeTag());
 	AddValidTag(OutTags, GetItemRuneEquipTypeTag());
+}
+
+void UProjectTagConfig::GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) const
+{
+	OutTags.Reset();
+	AddValidTag(OutTags, GetItemWeaponTypeTag());
+	AddValidTag(OutTags, GetItemEquipmentTypeTag());
+	TArray<FGameplayTag> EquipmentSlotTags;
+	GetItemEquipmentSlotTags(EquipmentSlotTags);
+	for (const FGameplayTag& EquipmentSlotTag : EquipmentSlotTags)
+	{
+		AddValidTag(OutTags, EquipmentSlotTag);
+	}
 	AddValidTag(OutTags, GetItemConsumableTypeTag());
 	AddValidTag(OutTags, GetItemValuableTypeTag());
 }

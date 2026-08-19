@@ -125,6 +125,8 @@ protected:
 	UPROPERTY(Transient)
 	double LastGestureCancelRequestTime = -1.0;
 
+	bool bGesturePlayRequestPending = false;
+
 	TSharedPtr<FStreamableHandle> SkinPresentationLoadHandle;
 	uint32 SkinPresentationRequestGeneration = 0;
 };

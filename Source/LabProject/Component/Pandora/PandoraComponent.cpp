@@ -1095,54 +1095,6 @@ void UPandoraComponent::ReleasePlacedPandoraSkillPreloads()
 	PlacedPandoraSkillPreloadHandles.Reset();
 }
 
-void UPandoraComponent::TryAutoSelectPandoraForLoadoutSlot(
-	const EEnum_Direction Direction,
-	const UPandoraDefinition* PandoraDefinition)
-{
-	if (!HasPandoraAuthority())
-	{
-
-		return;
-	}
-
-	if (!PandoraLoadout::IsLoadoutDirection(Direction))
-	{
-
-		return;
-	}
-
-	if (!PandoraDefinition)
-	{
-
-		return;
-	}
-
-	const EEnum_Direction CurrentWeaponLoadoutDirection = GetCurrentWeaponLoadoutDirection();
-
-	const bool bMatchesCurrentPandoraDirection = CurrentPandoraLoadoutDirection == Direction;
-	const bool bMatchesCurrentWeaponDirection = CurrentWeaponLoadoutDirection == Direction;
-	if (!bMatchesCurrentPandoraDirection && !bMatchesCurrentWeaponDirection)
-	{
-
-		return;
-	}
-
-	if (!IsPandoraCompatibleWithCurrentWeapon(PandoraDefinition))
-	{
-
-		return;
-	}
-
-	if (CurrentPandoraDefinition == PandoraDefinition)
-	{
-
-		RefreshCurrentPandoraForWeaponChange();
-		return;
-	}
-
-	SelectPandoraByPrimaryAssetId(PandoraDefinition->GetPrimaryAssetId(), Direction);
-}
-
 bool UPandoraComponent::ResolveAutoPandoraLoadoutDirection(
 	const UPandoraDefinition* PandoraDefinition,
 	EEnum_Direction& OutDirection) const
@@ -1211,6 +1163,12 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 
 		return false;
 	}
+	APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
+	const EEnum_Direction SelectedDirection = PlayerState
+		? PandoraLoadout::GetDirectionFromLoadoutNumber(
+			PlayerState->GetSelectedWeaponPandoraLoadoutNumber())
+		: EEnum_Direction::Center;
+	const bool bUpdatesSelectedLoadout = SelectedDirection == Direction;
 
 	if (PandoraDefinition && bRequireOwnedPandora)
 	{
@@ -1228,23 +1186,21 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 		{
 			if (PandoraLoadoutSlots[Index].Direction == Direction)
 			{
-				const UPandoraDefinition* RemovedPandoraDefinition = PandoraLoadoutSlots[Index].PandoraDefinition.Get();
-				const bool bClearsCurrentPandora =
-					(CurrentPandoraLoadoutDirection == Direction)
-					|| (RemovedPandoraDefinition && CurrentPandoraDefinition == RemovedPandoraDefinition);
-
 				PandoraLoadoutSlots.RemoveAt(Index);
 				MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, PandoraLoadoutSlots, this);
 				NotifyPandoraLoadoutChanged();
-
-				if (bClearsCurrentPandora)
+				if (PlayerState && bUpdatesSelectedLoadout)
 				{
-					SelectPandoraByPrimaryAssetId(FPrimaryAssetId(), EEnum_Direction::Center);
+					PlayerState->ApplySelectedWeaponPandoraLoadout();
 				}
 				return true;
 			}
 		}
 
+		if (PlayerState && bUpdatesSelectedLoadout)
+		{
+			PlayerState->ApplySelectedWeaponPandoraLoadout();
+		}
 		return true;
 	}
 
@@ -1252,12 +1208,14 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 	{
 		if (ExistingSlot->PandoraDefinition == PandoraDefinition)
 		{
-
-			TryAutoSelectPandoraForLoadoutSlot(Direction, PandoraDefinition);
+			if (PlayerState && bUpdatesSelectedLoadout)
+			{
+				PlayerState->ApplySelectedWeaponPandoraLoadout();
+			}
 			return true;
 		}
 
-ExistingSlot->PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
+		ExistingSlot->PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
 	}
 	else
 	{
@@ -1269,7 +1227,10 @@ ExistingSlot->PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinit
 
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, PandoraLoadoutSlots, this);
 	NotifyPandoraLoadoutChanged();
-	TryAutoSelectPandoraForLoadoutSlot(Direction, PandoraDefinition);
+	if (PlayerState && bUpdatesSelectedLoadout)
+	{
+		PlayerState->ApplySelectedWeaponPandoraLoadout();
+	}
 
 	return true;
 }

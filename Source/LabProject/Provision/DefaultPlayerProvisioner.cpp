@@ -23,6 +23,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DefaultPlayerProvisioner)
 
+DEFINE_LOG_CATEGORY_STATIC(LogDefaultPlayerProvisioner, Log, All);
+
 namespace
 {
 	FGameplayTag ResolveGestureSlotTag(const int32 GestureSlotIndex)
@@ -67,6 +69,7 @@ void UDefaultPlayerProvisioner::SetDefinition(
 	InitializedGestureEquipment.Reset();
 	PendingItemPlayerStates.Reset();
 	AttemptedContentLoadModes.Reset();
+	bLoggedMissingProvisionDefinition = false;
 	bShuttingDown = false;
 }
 
@@ -108,6 +111,14 @@ bool UDefaultPlayerProvisioner::EnsureContentLoaded(
 	const UDefaultProvisionDefinition* Definition = GetDefinition();
 	if (!Definition)
 	{
+		if (!bLoggedMissingProvisionDefinition)
+		{
+			bLoggedMissingProvisionDefinition = true;
+			UE_LOG(
+				LogDefaultPlayerProvisioner,
+				Error,
+				TEXT("Required DA_DefaultProvision is missing; no default grants were applied."));
+		}
 		return true;
 	}
 
@@ -592,10 +603,11 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(
 
 	PandoraComponent->ClearAllPandoras();
 	PandoraTreeComponent->SetOwnedPandoraNames(OwnedPandoraNames);
-	PandoraTreeComponent->InitializePandoraTree(
+	const int32 ConfiguredSoulDust =
+		Definition->GetSoulDustValues().GetCount(Mode);
+	PandoraTreeComponent->InitializeFromDefaultProvision(
 		GrantedPandoras,
-		0,
-		false);
+		ConfiguredSoulDust);
 
 	TMap<EEnum_Direction, FPrimaryAssetId> LoadoutByDirection;
 	if (Mode == EDefaultProvisionMode::Gameplay)

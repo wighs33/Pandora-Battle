@@ -13,6 +13,7 @@
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
+#include "Pandora/PandoraLoadoutTypes.h"
 
 namespace
 {
@@ -220,6 +221,7 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 	ReplicatedEntries.MarkArrayDirty();
 	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
 	ClearConsumableQuickSlotReferencesToItem(ItemId);
+	ClearEquipmentSlotReferencesToItem(ItemId);
 	ClearPandoraWeaponLoadoutReferencesToItem(ItemId);
 	RebuildFilteredItemMap();
 	OnInventoryChanged.Broadcast();
@@ -302,6 +304,12 @@ void UInventoryComponent::OnRep_PandoraWeaponLoadoutItemIds()
 	OnPandoraWeaponLoadoutChanged.Broadcast();
 }
 
+void UInventoryComponent::OnRep_EquippedItemSlots()
+{
+	OnEquipmentSlotsChanged.Broadcast();
+	OnInventoryChanged.Broadcast();
+}
+
 void UInventoryComponent::ServerSetConsumableQuickSlot_Implementation(const int32 SlotIndex, const FGuid ItemId)
 {
 	SetConsumableQuickSlotItemId(SlotIndex, ItemId);
@@ -322,6 +330,13 @@ void UInventoryComponent::ServerSetPandoraWeaponLoadoutSlot_Implementation(
 	const FGuid ItemId)
 {
 	SetPandoraWeaponLoadoutItemId(Direction, ItemId);
+}
+
+void UInventoryComponent::ServerSetEquipmentSlot_Implementation(
+	const FGameplayTag SlotTag,
+	const FGuid ItemId)
+{
+	SetEquipmentSlotItemId(SlotTag, ItemId);
 }
 
 void UInventoryComponent::ServerSplitConsumableStack_Implementation(const FGuid ItemId)
@@ -420,6 +435,149 @@ bool UInventoryComponent::ClearConsumableQuickSlotReferencesToItem(const FGuid I
 	return bChanged;
 }
 
+FGameplayTag UInventoryComponent::ResolveEquipmentSlotTag(
+	const FGameplayTag SlotTag) const
+{
+	if (!SlotTag.IsValid())
+	{
+		return FGameplayTag();
+	}
+
+	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	TArray<FGameplayTag> EquipmentSlotTags;
+	TagConfig->GetItemEquipmentSlotTags(EquipmentSlotTags);
+
+	for (const FGameplayTag& EquipmentSlotTag : EquipmentSlotTags)
+	{
+		if (EquipmentSlotTag.IsValid() && SlotTag == EquipmentSlotTag)
+		{
+			return EquipmentSlotTag;
+		}
+	}
+	return FGameplayTag();
+}
+
+int32 UInventoryComponent::FindEquipmentSlotIndex(const FGameplayTag SlotTag) const
+{
+	const FGameplayTag ResolvedSlotTag = ResolveEquipmentSlotTag(SlotTag);
+	if (!ResolvedSlotTag.IsValid())
+	{
+		return INDEX_NONE;
+	}
+
+	for (int32 SlotIndex = 0; SlotIndex < EquippedItemSlots.Num(); ++SlotIndex)
+	{
+		if (EquippedItemSlots[SlotIndex].SlotTag == ResolvedSlotTag)
+		{
+			return SlotIndex;
+		}
+	}
+	return INDEX_NONE;
+}
+
+bool UInventoryComponent::SetEquipmentSlotItemId(
+	const FGameplayTag SlotTag,
+	const FGuid ItemId)
+{
+	if (!HasInventoryAuthority())
+	{
+		return false;
+	}
+
+	const FGameplayTag ResolvedSlotTag = ResolveEquipmentSlotTag(SlotTag);
+	if (!ResolvedSlotTag.IsValid())
+	{
+		return false;
+	}
+
+	if (ItemId.IsValid())
+	{
+		const UItemInstance* ItemInstance = FindItemInstanceById(ItemId);
+		const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
+			? ItemInstance->ItemDefinition.Get()
+			: nullptr;
+		if (!ItemDefinition
+			|| !ItemDefinition->IdTag.IsValid()
+			|| !ItemDefinition->IdTag.MatchesTag(ResolvedSlotTag))
+		{
+			return false;
+		}
+	}
+
+	bool bChanged = false;
+	for (int32 ExistingIndex = EquippedItemSlots.Num() - 1;
+		ExistingIndex >= 0;
+		--ExistingIndex)
+	{
+		if (EquippedItemSlots[ExistingIndex].ItemId == ItemId
+			&& ItemId.IsValid()
+			&& EquippedItemSlots[ExistingIndex].SlotTag != ResolvedSlotTag)
+		{
+			EquippedItemSlots.RemoveAt(ExistingIndex);
+			bChanged = true;
+		}
+	}
+
+	const int32 ExistingSlotIndex = FindEquipmentSlotIndex(ResolvedSlotTag);
+	if (!ItemId.IsValid())
+	{
+		if (ExistingSlotIndex != INDEX_NONE)
+		{
+			EquippedItemSlots.RemoveAt(ExistingSlotIndex);
+			bChanged = true;
+		}
+	}
+	else if (ExistingSlotIndex == INDEX_NONE)
+	{
+		FEquippedItemSlot& NewSlot = EquippedItemSlots.AddDefaulted_GetRef();
+		NewSlot.SlotTag = ResolvedSlotTag;
+		NewSlot.ItemId = ItemId;
+		bChanged = true;
+	}
+	else if (EquippedItemSlots[ExistingSlotIndex].ItemId != ItemId)
+	{
+		EquippedItemSlots[ExistingSlotIndex].ItemId = ItemId;
+		bChanged = true;
+	}
+
+	if (!bChanged)
+	{
+		return true;
+	}
+
+	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, EquippedItemSlots, this);
+	if (AActor* OwnerActor = GetOwner())
+	{
+		OwnerActor->ForceNetUpdate();
+	}
+	OnEquipmentSlotsChanged.Broadcast();
+	OnInventoryChanged.Broadcast();
+	return true;
+}
+
+bool UInventoryComponent::ClearEquipmentSlotReferencesToItem(
+	const FGuid ItemId)
+{
+	if (!HasInventoryAuthority() || !ItemId.IsValid())
+	{
+		return false;
+	}
+
+	const int32 RemovedCount = EquippedItemSlots.RemoveAll(
+		[ItemId](const FEquippedItemSlot& EquippedItemSlot)
+		{
+			return EquippedItemSlot.ItemId == ItemId;
+		});
+	if (RemovedCount <= 0)
+	{
+		return false;
+	}
+
+	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, EquippedItemSlots, this);
+	OnEquipmentSlotsChanged.Broadcast();
+	return true;
+}
+
 bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 	const EEnum_Direction Direction,
 	const FGuid ItemId)
@@ -436,6 +594,15 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 	}
 
 	EnsurePandoraWeaponLoadoutArray();
+	APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
+	const EEnum_Direction SelectedDirection = PlayerState
+		? PandoraLoadout::GetDirectionFromLoadoutNumber(
+			PlayerState->GetSelectedWeaponPandoraLoadoutNumber())
+		: EEnum_Direction::Center;
+	const FGuid PreviousSelectedWeaponId =
+		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
+			? GetPandoraWeaponLoadoutItemId(SelectedDirection)
+			: FGuid();
 	if (ItemId.IsValid())
 	{
 		UItemInstance* WeaponInstance = FindItemInstanceById(ItemId);
@@ -467,6 +634,10 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 	if (!bChanged)
 	{
 		RefreshPandoraWeaponLoadoutPresentationAssets();
+		if (PlayerState && SelectedDirection == Direction)
+		{
+			PlayerState->ApplySelectedWeaponPandoraLoadout();
+		}
 		return true;
 	}
 
@@ -477,6 +648,15 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 	}
 	RefreshPandoraWeaponLoadoutPresentationAssets();
 	OnPandoraWeaponLoadoutChanged.Broadcast();
+	const bool bSelectedWeaponChanged =
+		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
+		&& PreviousSelectedWeaponId
+			!= GetPandoraWeaponLoadoutItemId(SelectedDirection);
+	if (PlayerState
+		&& (SelectedDirection == Direction || bSelectedWeaponChanged))
+	{
+		PlayerState->ApplySelectedWeaponPandoraLoadout();
+	}
 	return true;
 }
 
@@ -488,6 +668,14 @@ bool UInventoryComponent::ClearPandoraWeaponLoadoutReferencesToItem(const FGuid 
 	}
 
 	EnsurePandoraWeaponLoadoutArray();
+	APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
+	const EEnum_Direction SelectedDirection = PlayerState
+		? PandoraLoadout::GetDirectionFromLoadoutNumber(
+			PlayerState->GetSelectedWeaponPandoraLoadoutNumber())
+		: EEnum_Direction::Center;
+	const bool bClearsSelectedWeapon =
+		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
+		&& GetPandoraWeaponLoadoutItemId(SelectedDirection) == ItemId;
 	bool bChanged = false;
 	for (FGuid& WeaponItemId : PandoraWeaponLoadoutItemIds)
 	{
@@ -506,5 +694,9 @@ bool UInventoryComponent::ClearPandoraWeaponLoadoutReferencesToItem(const FGuid 
 	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, PandoraWeaponLoadoutItemIds, this);
 	RefreshPandoraWeaponLoadoutPresentationAssets();
 	OnPandoraWeaponLoadoutChanged.Broadcast();
+	if (PlayerState && bClearsSelectedWeapon)
+	{
+		PlayerState->ApplySelectedWeaponPandoraLoadout();
+	}
 	return true;
 }

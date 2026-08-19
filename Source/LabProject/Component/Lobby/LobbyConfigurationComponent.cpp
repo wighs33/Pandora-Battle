@@ -540,10 +540,8 @@ ULobbyConfigurationComponent::GetDefaultProvisionDefinition()
 			UE_LOG(
 				LogLobbyConfiguration,
 				Error,
-				TEXT("Required DefaultProvisionDefinition is missing; using native defaults."));
+				TEXT("Required DA_DefaultProvision is missing; default player provisioning is disabled."));
 		}
-		LoadedDefaultProvisionDefinition =
-			GetMutableDefault<UDefaultProvisionDefinition>();
 	}
 
 	return LoadedDefaultProvisionDefinition;
@@ -592,10 +590,6 @@ void ULobbyConfigurationComponent::FinishRuntimeInitialization(
 	if (!LoadedMatchRuleDefinition)
 	{
 		LoadedMatchRuleDefinition = GetMutableDefault<UMatchRuleDefinition>();
-	}
-	if (!LoadedDefaultProvisionDefinition)
-	{
-		LoadedDefaultProvisionDefinition = GetMutableDefault<UDefaultProvisionDefinition>();
 	}
 
 	FSimpleDelegate ReadyDelegate = MoveTemp(RuntimeReadyDelegate);

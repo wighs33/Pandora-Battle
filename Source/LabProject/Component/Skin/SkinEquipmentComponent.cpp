@@ -160,6 +160,7 @@ bool USkinEquipmentComponent::RequestPlayGestureSlot(const int32 GestureSlotInde
 			return false;
 		}
 
+		bGesturePlayRequestPending = true;
 		ServerPlayGestureSlot(GestureSlotIndex);
 		return true;
 	}
@@ -190,19 +191,25 @@ bool USkinEquipmentComponent::RequestCancelActiveGestureMontage(const float Blen
 	const float SafeBlendOutTime = GetClampedGestureBlendOutTime(BlendOutTime);
 	if (!HasSkinEquipmentAuthority())
 	{
-		CancelActiveGestureMontage(SafeBlendOutTime);
+		const bool bCanceledLocally = CancelActiveGestureMontage(SafeBlendOutTime);
+		if (!bGesturePlayRequestPending && !bCanceledLocally)
+		{
+			return false;
+		}
+
+		bGesturePlayRequestPending = false;
 		ServerCancelActiveGestureMontage(SafeBlendOutTime);
 		return true;
 	}
 
-	if (!TryConsumeGestureCancelRequest())
+	const bool bCanceledLocally = CancelActiveGestureMontage(SafeBlendOutTime);
+	if (!bCanceledLocally)
 	{
 		return false;
 	}
 
-	const bool bCanceledLocally = CancelActiveGestureMontage(SafeBlendOutTime);
 	MulticastCancelActiveGestureMontage(SafeBlendOutTime);
-	return bCanceledLocally;
+	return true;
 }
 
 void USkinEquipmentComponent::ServerEquipSkin_Implementation(USkinDefinition* SkinDefinition, const FGameplayTag SlotTag)
@@ -245,11 +252,13 @@ void USkinEquipmentComponent::ServerCancelActiveGestureMontage_Implementation(co
 
 void USkinEquipmentComponent::MulticastPlayGestureMontage_Implementation(UAnimMontage* GestureMontage)
 {
+	bGesturePlayRequestPending = false;
 	PlayGestureMontage(GestureMontage);
 }
 
 void USkinEquipmentComponent::MulticastCancelActiveGestureMontage_Implementation(const float BlendOutTime)
 {
+	bGesturePlayRequestPending = false;
 	CancelActiveGestureMontage(GetClampedGestureBlendOutTime(BlendOutTime));
 }
 

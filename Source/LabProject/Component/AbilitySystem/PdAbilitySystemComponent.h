@@ -10,6 +10,7 @@
 
 class UGameplayAbility;
 class UGameplayEffect;
+class UAttributeSet;
 class UAbilityAttributeRuntime;
 class UAbilityCollectionRuntime;
 class UAbilityResetRuntime;
@@ -48,6 +49,15 @@ public:
 	int32 AddAttributeConfig(const FAttributeConfig& AttributeConfig);
 	void RemoveAttributeConfig(int32 AttributeConfigHandle);
 	bool ApplyAttributeDefaultValue(const FGameplayAttribute& Attribute, float DefaultValue);
+	bool HasAppliedConfiguredAttributeDefaults(
+		const UAttributeSet* AttributeSet,
+		const FSoftObjectPath& DefinitionPath) const;
+	void MarkConfiguredAttributeDefaultsApplied(
+		UAttributeSet* AttributeSet,
+		const FSoftObjectPath& DefinitionPath);
+	void ClearConfiguredAttributeDefaultsApplied(
+		const UAttributeSet* AttributeSet,
+		const FSoftObjectPath& DefinitionPath);
 
 	void AbilityInputTagPressed(const FGameplayTag& InputTag);
 	void AbilityInputTagReleased(const FGameplayTag& InputTag);
@@ -111,4 +121,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Runtime")
 	TObjectPtr<UAbilityResetRuntime> ResetRuntime;
+
+	TWeakObjectPtr<UAttributeSet> ConfiguredDefaultsAttributeSet;
+	FSoftObjectPath ConfiguredDefaultsDefinitionPath;
 };

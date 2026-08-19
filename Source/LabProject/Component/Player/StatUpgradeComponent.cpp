@@ -640,7 +640,7 @@ void UStatUpgradeComponent::ReleaseStatUpgradeDefinitionPreload()
 
 bool UStatUpgradeComponent::ApplyConfiguredAttributeDefaults()
 {
-	const UStatUpgradeDefinition* LoadedDefinition = LoadStatUpgradeDefinition();
+	UStatUpgradeDefinition* LoadedDefinition = LoadStatUpgradeDefinition();
 	if (!LoadedDefinition)
 	{
 		bApplyDefaultsWhenDefinitionReady = !StatUpgradeDefinition.IsNull();
@@ -657,6 +657,23 @@ bool UStatUpgradeComponent::ApplyConfiguredAttributeDefaults()
 	{
 		return false;
 	}
+	UAttributeSet* DefaultAttributeSet = const_cast<UAttributeSet*>(
+		ASC->GetAttributeSet(UBasicAttributeSet::StaticClass()));
+	const FSoftObjectPath DefinitionPath =
+		StatUpgradeDefinition.ToSoftObjectPath();
+	if (!ASC->IsOwnerActorAuthoritative()
+		|| !DefaultAttributeSet
+		|| DefinitionPath.IsNull())
+	{
+		return false;
+	}
+
+	if (ASC->HasAppliedConfiguredAttributeDefaults(
+		DefaultAttributeSet,
+		DefinitionPath))
+	{
+		return true;
+	}
 
 	TArray<FStatAttributeDefaultValue> OrderedDefaults = LoadedDefinition->GetAttributeDefaultValues();
 	OrderedDefaults.StableSort([](const FStatAttributeDefaultValue& Left, const FStatAttributeDefaultValue& Right)
@@ -664,7 +681,8 @@ bool UStatUpgradeComponent::ApplyConfiguredAttributeDefaults()
 		return Left.Priority < Right.Priority;
 	});
 
-	bool bAppliedAny = false;
+	TArray<TPair<FGameplayAttribute, float>> ResolvedDefaults;
+	ResolvedDefaults.Reserve(OrderedDefaults.Num());
 	for (const FStatAttributeDefaultValue& AttributeDefault : OrderedDefaults)
 	{
 		if (!AttributeDefault.IsValid())
@@ -675,43 +693,102 @@ bool UStatUpgradeComponent::ApplyConfiguredAttributeDefaults()
 		FGameplayAttribute Attribute;
 		if (!ASC->ResolveAttributeFromTag(AttributeDefault.StatTag, Attribute))
 		{
-			continue;
+			UE_LOG(
+				StatUpgradeComponentLog,
+				Warning,
+				TEXT("Cannot apply configured attribute defaults because stat tag '%s' is not mapped on %s."),
+				*AttributeDefault.StatTag.ToString(),
+				*GetNameSafe(ASC));
+			return false;
 		}
 
-		if (ASC->ApplyAttributeDefaultValue(Attribute, AttributeDefault.DefaultValue))
-		{
-			bAppliedAny = true;
-		}
+		ResolvedDefaults.Emplace(
+			Attribute,
+			AttributeDefault.DefaultValue);
+	}
+	if (ResolvedDefaults.IsEmpty())
+	{
+		return false;
 	}
 
-	bAppliedAny |= RecalculateConfiguredMaxResources();
-	bAppliedAny |= RecalculateCompoundedPercentStats();
-
-	for (const FPairedResourceStatTag& Pair : LoadedDefinition->GetPairedResourceStatTags())
+	TArray<TPair<FGameplayAttribute, FGameplayAttribute>>
+		ResolvedPairedResources;
+	for (const FPairedResourceStatTag& Pair :
+		LoadedDefinition->GetPairedResourceStatTags())
 	{
-		float ExplicitCurrentValue = 0.f;
+		float ExplicitCurrentValue = 0.0f;
 		if (!Pair.IsValid()
-			|| LoadedDefinition->TryGetExactAttributeDefaultValue(Pair.CurrentStatTag, ExplicitCurrentValue))
+			|| LoadedDefinition->TryGetExactAttributeDefaultValue(
+				Pair.CurrentStatTag,
+				ExplicitCurrentValue))
 		{
 			continue;
 		}
 
 		FGameplayAttribute MaxAttribute;
 		FGameplayAttribute CurrentAttribute;
-		if (!ASC->ResolveAttributeFromTag(Pair.MaxStatTag, MaxAttribute)
-			|| !ASC->ResolveAttributeFromTag(Pair.CurrentStatTag, CurrentAttribute))
+		if (!ASC->ResolveAttributeFromTag(
+				Pair.MaxStatTag,
+				MaxAttribute)
+			|| !ASC->ResolveAttributeFromTag(
+				Pair.CurrentStatTag,
+				CurrentAttribute))
 		{
-			continue;
+			UE_LOG(
+				StatUpgradeComponentLog,
+				Warning,
+				TEXT("Cannot apply configured attribute defaults because resource pair '%s'/'%s' is not mapped on %s."),
+				*Pair.CurrentStatTag.ToString(),
+				*Pair.MaxStatTag.ToString(),
+				*GetNameSafe(ASC));
+			return false;
 		}
+		ResolvedPairedResources.Emplace(
+			MaxAttribute,
+			CurrentAttribute);
+	}
 
-		const float MaxValue = ASC->GetNumericAttribute(MaxAttribute);
-		if (!FMath::IsNearlyEqual(ASC->GetNumericAttribute(CurrentAttribute), MaxValue))
+	ASC->MarkConfiguredAttributeDefaultsApplied(
+		DefaultAttributeSet,
+		DefinitionPath);
+
+	for (const TPair<FGameplayAttribute, float>& ResolvedDefault :
+		ResolvedDefaults)
+	{
+		if (!ASC->ApplyAttributeDefaultValue(
+			ResolvedDefault.Key,
+			ResolvedDefault.Value))
 		{
-			bAppliedAny |= ASC->ApplyAttributeDefaultValue(CurrentAttribute, MaxValue);
+			ASC->ClearConfiguredAttributeDefaultsApplied(
+				DefaultAttributeSet,
+				DefinitionPath);
+			return false;
 		}
 	}
 
-	return bAppliedAny;
+	RecalculateConfiguredMaxResources();
+	RecalculateCompoundedPercentStats();
+
+	for (const TPair<FGameplayAttribute, FGameplayAttribute>& ResolvedPair :
+		ResolvedPairedResources)
+	{
+		const float MaxValue =
+			ASC->GetNumericAttribute(ResolvedPair.Key);
+		if (!FMath::IsNearlyEqual(
+			ASC->GetNumericAttribute(ResolvedPair.Value),
+			MaxValue)
+			&& !ASC->ApplyAttributeDefaultValue(
+				ResolvedPair.Value,
+				MaxValue))
+		{
+			ASC->ClearConfiguredAttributeDefaultsApplied(
+				DefaultAttributeSet,
+				DefinitionPath);
+			return false;
+		}
+	}
+
+	return true;
 }
 
 bool UStatUpgradeComponent::ResolveStatUpButtonSettings(const FGameplayTag& StatTag, float& OutMagnitude, EEnum_Operation& OutOperation,

@@ -30,7 +30,22 @@ public:
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void CopyProperties(APlayerState* NewPlayerState) override;
+
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Weapon/Pandora Loadout Selection
+	UFUNCTION(BlueprintPure, Category = "!Loadout")
+	int32 GetSelectedWeaponPandoraLoadoutNumber() const
+	{
+		return SelectedWeaponPandoraLoadoutNumber;
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "!Loadout")
+	void RequestSetSelectedWeaponPandoraLoadoutNumber(int32 LoadoutNumber);
+
+	/** Applies both the weapon and Pandora assigned to the selected loadout number. Authority only. */
+	bool ApplySelectedWeaponPandoraLoadout();
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Ability System
@@ -54,7 +69,15 @@ public:
 protected:
 	virtual FPlayerMatchIdentity GetMatchIdentityForCopyProperties() const;
 
+	UFUNCTION(Server, Reliable)
+	void ServerSetSelectedWeaponPandoraLoadoutNumber(int32 LoadoutNumber);
+
 private:
+	void SetSelectedWeaponPandoraLoadoutNumberInternal(int32 LoadoutNumber);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "!Loadout", meta = (AllowPrivateAccess = "true"))
+	int32 SelectedWeaponPandoraLoadoutNumber = 0;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPdAbilitySystemComponent> AbilitySystemComponent;
 

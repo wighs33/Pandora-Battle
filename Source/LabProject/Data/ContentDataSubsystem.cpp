@@ -362,34 +362,6 @@ void UContentDataSubsystem::BuildGrantedPandorasFromNames(
 	}
 }
 
-void UContentDataSubsystem::BuildDefaultUnlockedPandoras(
-	TArray<FName>& OutOwnedPandoraNames,
-	TArray<FPrimaryAssetId>* OutPandoraDefinitionIds) const
-{
-	OutOwnedPandoraNames.Reset();
-	if (OutPandoraDefinitionIds)
-	{
-		OutPandoraDefinitionIds->Reset();
-	}
-
-	TArray<FPrimaryAssetId> PandoraDefinitionIds;
-	GetPandoraDefinitionIds(PandoraDefinitionIds);
-	for (const FPrimaryAssetId& PandoraDefinitionId : PandoraDefinitionIds)
-	{
-		if (!PandoraDefaultUnlockPolicy::IsDefaultUnlockedPandoraName(
-			PandoraDefinitionId.PrimaryAssetName))
-		{
-			continue;
-		}
-
-		OutOwnedPandoraNames.AddUnique(PandoraDefinitionId.PrimaryAssetName);
-		if (OutPandoraDefinitionIds)
-		{
-			OutPandoraDefinitionIds->AddUnique(PandoraDefinitionId);
-		}
-	}
-}
-
 void UContentDataSubsystem::BuildGrantedSkinDefinitionsFromNames(
 	const TMap<FName, int32>& GrantedSkinsByName,
 	TArray<USkinDefinition*>& OutSkinDefinitions) const
