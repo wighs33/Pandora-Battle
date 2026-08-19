@@ -64,7 +64,7 @@ bool AreStatSnapshotsEqual(
 			Right.NonAttributeStatMagnitudes);
 }
 
-void AddStatMagnitude(
+void AddEquipmentStatMagnitude(
 	TMap<FGameplayTag, float>& StatMagnitudes,
 	const FGameplayTag StatTag,
 	const float Magnitude)
@@ -336,7 +336,7 @@ bool UEquipmentComponent::BuildEquippedItemsStatSnapshot(
 		for (const TPair<FGameplayTag, float>& Pair :
 			ItemDefinition->Map_Stat_Magnitude)
 		{
-			AddStatMagnitude(
+			AddEquipmentStatMagnitude(
 				OutSnapshot.BaseStatMagnitudes,
 				Pair.Key,
 				Pair.Value);
@@ -344,7 +344,7 @@ bool UEquipmentComponent::BuildEquippedItemsStatSnapshot(
 		for (const TPair<FGameplayTag, float>& Pair :
 			ItemInstance->Map_EnhancedStat_Magnitude)
 		{
-			AddStatMagnitude(
+			AddEquipmentStatMagnitude(
 				OutSnapshot.EnhancedStatMagnitudes,
 				Pair.Key,
 				Pair.Value);
@@ -354,7 +354,7 @@ bool UEquipmentComponent::BuildEquippedItemsStatSnapshot(
 		ItemInstance->BuildUpgradeBonusStatMagnitudes(UpgradeBonusMagnitudes);
 		for (const TPair<FGameplayTag, float>& Pair : UpgradeBonusMagnitudes)
 		{
-			AddStatMagnitude(
+			AddEquipmentStatMagnitude(
 				OutSnapshot.EnhancedStatMagnitudes,
 				Pair.Key,
 				Pair.Value);
@@ -554,7 +554,7 @@ void UEquipmentComponent::GetEquipmentBonusStatMagnitudes(
 		{
 			for (const TPair<FGameplayTag, float>& Pair : StatMagnitudes)
 			{
-				AddStatMagnitude(OutStatMagnitudes, Pair.Key, Pair.Value);
+				AddEquipmentStatMagnitude(OutStatMagnitudes, Pair.Key, Pair.Value);
 			}
 		};
 
@@ -596,7 +596,7 @@ bool UEquipmentComponent::BuildItemStatSnapshot(const UItemInstance* ItemInstanc
 			Pair.Key.MatchesTagExact(LabGameplayTags::Status_Offense_Strength)
 				? OutSnapshot.NonAttributeStatMagnitudes
 				: OutSnapshot.EnhancedStatMagnitudes;
-		AddStatMagnitude(TargetMagnitudes, Pair.Key, Pair.Value);
+		AddEquipmentStatMagnitude(TargetMagnitudes, Pair.Key, Pair.Value);
 	}
 
 	TMap<FGameplayTag, float> UpgradeBonusMagnitudes;
@@ -613,7 +613,7 @@ bool UEquipmentComponent::BuildItemStatSnapshot(const UItemInstance* ItemInstanc
 			Pair.Key.MatchesTagExact(LabGameplayTags::Status_Offense_Strength)
 				? OutSnapshot.NonAttributeStatMagnitudes
 				: OutSnapshot.EnhancedStatMagnitudes;
-		AddStatMagnitude(TargetMagnitudes, Pair.Key, Pair.Value);
+		AddEquipmentStatMagnitude(TargetMagnitudes, Pair.Key, Pair.Value);
 	}
 
 	return true;
@@ -640,7 +640,7 @@ bool UEquipmentComponent::BuildItemDefinitionStatSnapshot(const UItemDefinition*
 			Pair.Key.MatchesTagExact(LabGameplayTags::Status_Offense_Strength)
 				? OutSnapshot.NonAttributeStatMagnitudes
 				: OutSnapshot.BaseStatMagnitudes;
-		AddStatMagnitude(TargetMagnitudes, Pair.Key, Pair.Value);
+		AddEquipmentStatMagnitude(TargetMagnitudes, Pair.Key, Pair.Value);
 	}
 
 	return true;
