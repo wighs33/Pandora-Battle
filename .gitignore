@@ -3,57 +3,11 @@ Binaries/
 DerivedDataCache/
 Intermediate/
 Saved/
-output/
-tmp/
-Scripts/
 
 # Content policy for showcase repository
-# Ignore all content by default, reopen project-owned roots, then allow
-# gameplay logic assets only. New top-level content packs stay ignored until
-# they are intentionally added to this allowlist.
+# Ignore all content by default, then allow gameplay logic assets only.
 Content/**
-!Content/Actor/
-!Content/Actor/**/
-!Content/Animation/
-!Content/Animation/**/
-!Content/Anime_Aura/
-!Content/Anime_Aura/**/
-!Content/CharacterPreview/
-!Content/CharacterPreview/**/
-!Content/Characters/
-!Content/Characters/**/
-!Content/Data/
-!Content/Data/**/
-!Content/effect/
-!Content/effect/**/
-!Content/Env/
-!Content/Env/**/
-!Content/GAS/
-!Content/GAS/**/
-!Content/Helper/
-!Content/Helper/**/
-!Content/Input/
-!Content/Input/**/
-!Content/Item/
-!Content/Item/**/
-!Content/Materials/
-!Content/Materials/**/
-!Content/Mode/
-!Content/Mode/**/
-!Content/Pandora/
-!Content/Pandora/**/
-!Content/Projectiles/
-!Content/Projectiles/**/
-!Content/Skin/
-!Content/Skin/**/
-!Content/StackOBot/
-!Content/StackOBot/**/
-!Content/StatusEffects/
-!Content/StatusEffects/**/
-!Content/UI/
-!Content/UI/**/
-!Content/VFX/
-!Content/VFX/**/
+!Content/**/
 !Content/**/BP_*.uasset
 !Content/**/ABP_*.uasset
 !Content/**/ALI_*.uasset
@@ -84,17 +38,15 @@ Content/**
 Content/**/*.pre_restore_*.uasset
 Content/**/*.before_recover_*.uasset
 
-# Ignore art-heavy subfolders inside otherwise allowed project roots.
-Content/VFX/Environment/**
-
-# Map dressing assets are maintained outside the gameplay showcase history.
-Content/Env/BP_Windmill.uasset
+# Ignore marketplace / art-heavy packs even if they contain blueprint assets
+Content/IgniteStarterPack/**
+Content/SwordAndShield/**
+Content/MuzzleFlash/Demo/**
 
 # IDE and local tooling
 .idea/
 .vs/
 .codex/
-.codex_tmp/
 .claude/settings.local.json
 
 # Rider / Visual Studio user files
