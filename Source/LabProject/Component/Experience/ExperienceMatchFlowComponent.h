@@ -132,6 +132,7 @@ private:
 	void ForceMovePlayersForGoldenKill();
 	void RaiseForceMoveGatesForGoldenKill();
 	void StartGoldenKill(int32 TopKillCount);
+	void RestorePlayerResourcesForGoldenKill() const;
 	const URewardDefinition* ResolveRewardDefinitionForChestSpawns(
 		const TArray<ARewardChest*>& RewardChests) const;
 	void BeginRuntimeContentPreload();
