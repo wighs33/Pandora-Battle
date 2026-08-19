@@ -29,9 +29,9 @@ namespace
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	TAutoConsoleVariable<int32> CVarSkillDebugDrawing(
 		TEXT("lab.Skill.DebugDraw"),
-		0,
+		1,
 		TEXT("Enables skill debug drawing for data assets whose individual debug flag is enabled.\n")
-		TEXT("0: disabled (default), 1: enabled"),
+		TEXT("0: disabled, 1: enabled (default)"),
 		ECVF_Cheat);
 #endif
 
@@ -385,18 +385,12 @@ namespace
 
 		ValidateVector(Context, Result, SkillDataAsset.Niagara.AuraLocationOffset, TEXT("Niagara.AuraLocationOffset"));
 		ValidateVector(Context, Result, SkillDataAsset.Niagara.AuraScale, TEXT("Niagara.AuraScale"));
-		ValidateVector(Context, Result, SkillDataAsset.Niagara.SpawnAtCharacterLocationOffset, TEXT("Niagara.SpawnAtCharacterLocationOffset"));
+		ValidateVector(Context, Result, SkillDataAsset.Niagara.GroundLocationOffset, TEXT("Niagara.GroundLocationOffset"));
+		ValidateRotator(Context, Result, SkillDataAsset.Niagara.GroundRotationOffset, TEXT("Niagara.GroundRotationOffset"));
+		ValidateVector(Context, Result, SkillDataAsset.Niagara.GroundScale, TEXT("Niagara.GroundScale"));
 		ValidateVector(Context, Result, SkillDataAsset.Niagara.SocketLocationOffset, TEXT("Niagara.SocketLocationOffset"));
 		ValidateRotator(Context, Result, SkillDataAsset.Niagara.SocketRotationOffset, TEXT("Niagara.SocketRotationOffset"));
 		ValidateVector(Context, Result, SkillDataAsset.Niagara.SocketScale, TEXT("Niagara.SocketScale"));
-		ValidateNonNegative(Context, Result, SkillDataAsset.Niagara.AutoTargetSearchRadius, TEXT("Niagara.AutoTargetSearchRadius"));
-		ValidateNonNegative(Context, Result, SkillDataAsset.Niagara.EffectRadius, TEXT("Niagara.EffectRadius"));
-		ValidateNonNegative(Context, Result, SkillDataAsset.Niagara.EffectStartDelay, TEXT("Niagara.EffectStartDelay"));
-		ValidateNonNegative(Context, Result, SkillDataAsset.Niagara.EffectDuration, TEXT("Niagara.EffectDuration"));
-		if (SkillDataAsset.Niagara.EffectDuration > 0.0)
-		{
-			ValidatePositive(Context, Result, SkillDataAsset.Niagara.EffectInterval, TEXT("Niagara.EffectInterval"));
-		}
 		ValidateGameplayEffectConfig(Context, Result, SkillDataAsset.Niagara.GameplayEffect, TEXT("Niagara.GameplayEffect"));
 
 		if (SkillDataAsset.SkillType == ESkillType::Active
@@ -581,10 +575,9 @@ namespace
 		}
 
 		if (SkillDataAsset.Niagara.SocketNiagaraSystem.Get()
-			&& SkillDataAsset.Niagara.SocketName.IsNone()
-			&& !SkillDataAsset.Niagara.bSpawnSocketNiagaraAtCharacterLocation)
+			&& SkillDataAsset.Niagara.SocketName.IsNone())
 		{
-			Context.AddWarning(NSLOCTEXT("SkillDataAsset", "AuraSocketNiagaraMissingSocket", "SocketNiagaraSystem is set, but SocketName is None and bSpawnSocketNiagaraAtCharacterLocation is false."));
+			Context.AddWarning(NSLOCTEXT("SkillDataAsset", "AuraSocketNiagaraMissingSocket", "SocketNiagaraSystem is set, but SocketName is None."));
 		}
 
 		if (SkillDataAsset.Movement.bOverrideMovementSpeedWhileActive)
@@ -646,10 +639,6 @@ namespace
 		ValidateNonNegative(Context, Result, SkillDataAsset.Missile.DamageApplicationDuration, TEXT("Missile.DamageApplicationDuration"));
 		ValidatePositive(Context, Result, SkillDataAsset.Missile.DamageInterval, TEXT("Missile.DamageInterval"));
 		ValidateNonNegative(Context, Result, SkillDataAsset.Missile.DamageRadius, TEXT("Missile.DamageRadius"));
-		if (SkillDataAsset.Missile.bDrawDebugDamageRadius)
-		{
-			ValidateNonNegative(Context, Result, SkillDataAsset.Missile.DebugDamageRadiusDrawTime, TEXT("Missile.DebugDamageRadiusDrawTime"));
-		}
 	}
 
 	void ValidateSummonSkillData(
@@ -905,14 +894,6 @@ EDataValidationResult USkillDefinition::IsDataValid(FDataValidationContext& Cont
 	ValidateStaticSkillData(Context, Result, *this);
 	ValidateFillShieldSkillData(Context, Result, *this);
 	ValidateUniqueSkillContentNames(Context, Result, *this);
-	if (HasEnabledDebugDrawingFlags())
-	{
-		MarkSkillTypeInvalid(Context, Result, NSLOCTEXT(
-			"SkillDataAsset",
-			"PerAssetDebugDrawingEnabled",
-			"Per-asset skill debug drawing flags must be disabled before validation or cooking. Use lab.Skill.DebugDraw for temporary development visualization."));
-	}
-
 	return Result;
 }
 #endif
@@ -973,8 +954,7 @@ bool USkillDefinition::HasEnabledDebugDrawingFlags() const
 		|| ProjectileSettings.bDrawGroundTargetingDebug
 		|| bAOEDebugTargeting
 		|| bAOEDrawDebugDamageRadius
-		|| Missile.bDebugTargeting
-		|| Missile.bDrawDebugDamageRadius;
+		|| Missile.bDebugTargeting;
 }
 
 void USkillDefinition::MigrateLegacyProjectileSettings()
@@ -1124,11 +1104,9 @@ void USkillDefinition::ApplyCurrentSettingsToRuntimeConfig()
 		Aura.BodyAuraSystem = Niagara.AuraNiagaraSystem;
 		Aura.BodyAuraComponentName = Niagara.AuraNiagaraComponentName;
 		Aura.AttachedNiagaraSystem = Niagara.SocketNiagaraSystem;
-		Aura.bSpawnAttachedNiagaraAtCharacterLocation = Niagara.bSpawnSocketNiagaraAtCharacterLocation;
+		Aura.bSpawnAttachedNiagaraAtCharacterLocation = false;
 		Aura.AttachedNiagaraSocketName = Niagara.SocketName;
-		Aura.AttachedNiagaraLocationOffset = Niagara.bSpawnSocketNiagaraAtCharacterLocation
-			? Niagara.SpawnAtCharacterLocationOffset
-			: Niagara.SocketLocationOffset;
+		Aura.AttachedNiagaraLocationOffset = Niagara.SocketLocationOffset;
 		Aura.AttachedNiagaraRotationOffset = Niagara.SocketRotationOffset;
 		Aura.AttachedNiagaraScale = Niagara.SocketScale;
 		Aura.bSpawnAttachedNiagaraWhileActive = Niagara.SocketNiagaraSystem != nullptr;
@@ -1175,13 +1153,6 @@ void USkillDefinition::ApplyCurrentSettingsToRuntimeConfig()
 		Missile.NiagaraSpawnLocationOffset = Niagara.SocketLocationOffset;
 		Missile.NiagaraSpawnRotationOffset = Niagara.SocketRotationOffset;
 		Missile.NiagaraScale = Niagara.SocketScale;
-		Missile.AimPositionParameterName = Niagara.AimPositionParameterName;
-		Missile.TargetSocketName = Niagara.TargetSocketName;
-		Missile.AutoTargetSearchRadius = Niagara.AutoTargetSearchRadius;
-		Missile.DamageRadius = Niagara.EffectRadius;
-		Missile.DamageStartDelay = Niagara.EffectStartDelay;
-		Missile.DamageApplicationDuration = Niagara.EffectDuration;
-		Missile.DamageInterval = Niagara.EffectInterval;
 		const FSkillGameplayEffectConfig ResolvedDamage = GetResolvedDamageConfig();
 		GameplayEffect = ResolvedDamage;
 		Missile.Damage.DamageEffectClass = ResolvedDamage.GameplayEffectClass;

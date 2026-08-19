@@ -3,11 +3,9 @@
 #include "CoreMinimal.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
-#include "Engine/OverlapResult.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
 #include "TimerManager.h"
-#include "UObject/ObjectKey.h"
 #include "MissileAbility.generated.h"
 
 class AActor;
@@ -47,19 +45,18 @@ private:
 	UAnimMontage* GetResolvedMissileMontage() const;
 	FGameplayTag GetResolvedMontageTriggerEventTag() const;
 	void LaunchMissileFromResolvedTarget();
-	bool ResolveMissileTargetLocation(FVector& OutTargetLocation, AActor*& OutTargetActor) const;
+	bool ResolveMissileTargetLocation(FVector& OutTargetLocation) const;
 	bool ResolveForwardGroundTargetLocation(FVector& OutGroundLocation) const;
 	void StartTargeting();
-	void ConfirmMissileAtLocation(const FVector& TargetLocation, AActor* TargetActor);
+	void ConfirmMissileAtLocation(const FVector& TargetLocation);
 	void LaunchMissile();
-	void SpawnMissileNiagara();
-	void ApplyAimPositionToMissileNiagara();
+	void StartMissilePresentation();
 	void StartMissileDurationTimer();
 	void HandleMissileDurationFinished();
 	void StartMissileTargetTracking();
 	void StopMissileTargetTracking();
 	void HandleMissileTargetTrackingTick();
-	bool RefreshTrackedMissileTargetLocation();
+	void RefreshMissileTargets();
 	void StartDamageSequence();
 	void HandleDamageDelayFinished();
 	void HandleDamageTick();
@@ -68,8 +65,8 @@ private:
 	void ConfigureSpawnedTargetActor(AGameplayAbilityTargetActor* SpawnedActor);
 	FGameplayAbilityTargetingLocationInfo MakeTargetStartLocation();
 	AActor* FindAutoTargetActor() const;
-	bool TryGetAutoTargetGroundLocation(FVector& OutGroundLocation, AActor*& OutTargetActor) const;
-	bool TryGetAttackTargetGroundLocation(FVector& OutGroundLocation, AActor*& OutTargetActor) const;
+	bool TryGetAutoTargetGroundLocation(FVector& OutGroundLocation) const;
+	bool TryGetAttackTargetGroundLocation(FVector& OutGroundLocation) const;
 	bool ResolveTargetAimLocation(AActor* TargetActor, FVector& OutAimLocation) const;
 	bool IsEligibleMissileTargetActor(const AActor* TargetActor) const;
 	bool TryValidateServerMissileActorTarget(AActor* TargetActor, FVector& OutTargetLocation) const;
@@ -91,8 +88,7 @@ private:
 	int32 CalculateDamageTickCount() const;
 	float CalculateDamageApplicationDuration() const;
 	float CalculateDamageInterval() const;
-	bool ShouldDrawDebugDamageRadius() const;
-	void DrawDebugDamageRadius(const TCHAR* Context) const;
+	void DrawDebugTargetingRange() const;
 	void MarkDamageSequenceFinished();
 	void TryFinishMissileAbilityAfterWork();
 	void FinishMissileAbility(bool bWasCancelled);
@@ -122,16 +118,7 @@ private:
 	TObjectPtr<UAbilityTask_WaitTargetData> WaitTargetDataTask;
 
 	UPROPERTY(Transient)
-	FVector ConfirmedMissileLocation = FVector::ZeroVector;
-
-	UPROPERTY(Transient)
-	FVector MissileTargetingOrigin = FVector::ZeroVector;
-
-	UPROPERTY(Transient)
-	bool bHasMissileTargetingOrigin = false;
-
-	UPROPERTY(Transient)
-	TWeakObjectPtr<AActor> TrackedMissileTargetActor;
+	TArray<TWeakObjectPtr<AActor>> ActiveMissileTargetActors;
 
 	UPROPERTY(Transient)
 	bool bMissileLaunched = false;
@@ -140,9 +127,6 @@ private:
 	FTimerHandle MissileTargetTrackingTimerHandle;
 	FTimerHandle DamageDelayTimerHandle;
 	FTimerHandle DamageTickTimerHandle;
-
-	TSet<FObjectKey> MissileDamageHitActorKeys;
-	TArray<FOverlapResult> MissileDamageOverlapResults;
 
 	int32 DamageTicksApplied = 0;
 	int32 PlannedDamageTickCount = 0;

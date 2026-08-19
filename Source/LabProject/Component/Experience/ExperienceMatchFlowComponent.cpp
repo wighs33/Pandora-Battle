@@ -1,6 +1,8 @@
 #include "Component/Experience/ExperienceMatchFlowComponent.h"
 
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Common/GameSessionConstants.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
 #include "Component/Experience/ExperienceSpawnComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
@@ -1511,6 +1513,50 @@ void UExperienceMatchFlowComponent::StartGoldenKill(
 		GoldenKillVictoryScore =
 			CalculateGoldenKillVictoryScore(TopKillCount);
 		bGoldenKillActive = true;
+		RestorePlayerResourcesForGoldenKill();
+	}
+}
+
+void UExperienceMatchFlowComponent::RestorePlayerResourcesForGoldenKill() const
+{
+	const AExperienceGameMode* GameMode =
+		GetExperienceGameModeConst();
+	const AGameStateBase* CurrentGameState = GameMode
+		? GameMode->GetGameState<AGameStateBase>()
+		: nullptr;
+	if (!CurrentGameState)
+	{
+		return;
+	}
+
+	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
+	{
+		const APdPlayerState* PdPlayerState =
+			Cast<APdPlayerState>(PlayerState);
+		UPdAbilitySystemComponent* AbilitySystemComponent =
+			PdPlayerState
+				? PdPlayerState->GetPdAbilitySystemComponent()
+				: nullptr;
+		if (!AbilitySystemComponent
+			|| !AbilitySystemComponent->GetAttributeSet(
+				UBasicAttributeSet::StaticClass()))
+		{
+			continue;
+		}
+
+		AbilitySystemComponent->SetNumericAttributeBase(
+			UBasicAttributeSet::GetHealthAttribute(),
+			AbilitySystemComponent->GetNumericAttribute(
+				UBasicAttributeSet::GetMaxHealthAttribute()));
+		AbilitySystemComponent->SetNumericAttributeBase(
+			UBasicAttributeSet::GetManaAttribute(),
+			AbilitySystemComponent->GetNumericAttribute(
+				UBasicAttributeSet::GetMaxManaAttribute()));
+		AbilitySystemComponent->SetNumericAttributeBase(
+			UBasicAttributeSet::GetStaminaAttribute(),
+			AbilitySystemComponent->GetNumericAttribute(
+				UBasicAttributeSet::GetMaxStaminaAttribute()));
+		AbilitySystemComponent->ForceReplication();
 	}
 }
 

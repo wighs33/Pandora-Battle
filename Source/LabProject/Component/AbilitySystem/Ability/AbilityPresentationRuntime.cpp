@@ -22,18 +22,27 @@ void UAbilityPresentationRuntime::StartConfiguredDefaultFX(
 	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
 	if (!SkillDataAsset
 		|| !Character
-		|| !Character->HasAuthority()
-		|| (!SkillDataAsset->Niagara.AuraNiagaraSystem
-			&& !SkillDataAsset->Niagara.SocketNiagaraSystem))
+		|| !Character->HasAuthority())
 	{
 		return;
 	}
 
 	StopConfiguredDefaultFX(Ability);
-	SetConfiguredPresentationEnabled(
-		Ability,
-		static_cast<uint8>(ESkillPresentationFlags::DefaultFX),
-		true);
+	if (SkillDataAsset->Niagara.AuraNiagaraSystem
+		|| SkillDataAsset->Niagara.SocketNiagaraSystem)
+	{
+		SetConfiguredPresentationEnabled(
+			Ability,
+			static_cast<uint8>(ESkillPresentationFlags::DefaultFX),
+			true);
+	}
+	if (SkillDataAsset->Niagara.GroundNiagaraSystem)
+	{
+		SetConfiguredPresentationEnabled(
+			Ability,
+			static_cast<uint8>(ESkillPresentationFlags::GroundFX),
+			true);
+	}
 }
 
 void UAbilityPresentationRuntime::StopConfiguredDefaultFX(
@@ -42,6 +51,37 @@ void UAbilityPresentationRuntime::StopConfiguredDefaultFX(
 	SetConfiguredPresentationEnabled(
 		Ability,
 		static_cast<uint8>(ESkillPresentationFlags::DefaultFX),
+		false);
+	StopConfiguredGroundFX(Ability);
+}
+
+void UAbilityPresentationRuntime::StartConfiguredGroundFX(
+	UPdGameplayAbility& Ability)
+{
+	const USkillDefinition* SkillDataAsset =
+		Ability.GetSourceSkillDataAsset();
+	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
+	if (!SkillDataAsset
+		|| !Character
+		|| !Character->HasAuthority()
+		|| !SkillDataAsset->Niagara.GroundNiagaraSystem)
+	{
+		return;
+	}
+
+	StopConfiguredGroundFX(Ability);
+	SetConfiguredPresentationEnabled(
+		Ability,
+		static_cast<uint8>(ESkillPresentationFlags::GroundFX),
+		true);
+}
+
+void UAbilityPresentationRuntime::StopConfiguredGroundFX(
+	UPdGameplayAbility& Ability)
+{
+	SetConfiguredPresentationEnabled(
+		Ability,
+		static_cast<uint8>(ESkillPresentationFlags::GroundFX),
 		false);
 }
 
@@ -77,8 +117,7 @@ void UAbilityPresentationRuntime::StopConfiguredCharacterOverlay(
 }
 
 void UAbilityPresentationRuntime::StartConfiguredMissilePresentation(
-	UPdGameplayAbility& Ability,
-	const FVector& TargetLocation)
+	UPdGameplayAbility& Ability)
 {
 	const USkillDefinition* SkillDataAsset =
 		Ability.GetSourceSkillDataAsset();
@@ -99,25 +138,30 @@ void UAbilityPresentationRuntime::StartConfiguredMissilePresentation(
 		return;
 	}
 
-	PresentationActor->SetMissileTargetLocation(TargetLocation);
 	PresentationActor->SetPresentationEnabled(
 		ESkillPresentationFlags::Missile,
 		true);
 }
 
 void UAbilityPresentationRuntime::
-UpdateConfiguredMissilePresentationTarget(const FVector& TargetLocation)
+UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors)
 {
 	if (ASkillPresentationActor* PresentationActor =
 		ActiveSkillPresentationActor.Get())
 	{
-		PresentationActor->SetMissileTargetLocation(TargetLocation);
+		PresentationActor->SetMissileTargetActors(TargetActors);
 	}
 }
 
 void UAbilityPresentationRuntime::StopConfiguredMissilePresentation(
 	UPdGameplayAbility& Ability)
 {
+	if (ASkillPresentationActor* PresentationActor =
+		ActiveSkillPresentationActor.Get())
+	{
+		PresentationActor->SetMissileTargetActors({});
+	}
+
 	SetConfiguredPresentationEnabled(
 		Ability,
 		static_cast<uint8>(ESkillPresentationFlags::Missile),
@@ -542,8 +586,7 @@ UAbilityPresentationRuntime::EnsureConfiguredPresentationActor(
 	PresentationActor->InitializePresentation(
 		Character,
 		SkillDataAsset,
-		ESkillPresentationFlags::None,
-		FVector::ZeroVector);
+		ESkillPresentationFlags::None);
 	PresentationActor->FinishSpawning(SpawnTransform);
 	ActiveSkillPresentationActor = PresentationActor;
 	return PresentationActor;

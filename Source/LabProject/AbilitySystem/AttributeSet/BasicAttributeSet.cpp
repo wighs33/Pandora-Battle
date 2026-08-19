@@ -289,9 +289,26 @@ namespace
 			return;
 		}
 
-		TryActivateAbilityByTag(
-			ASC,
+		FGameplayTagContainer DeathAbilityTags;
+		DeathAbilityTags.AddTag(
 			LabGameplayTags::GameplayAbility_Death);
+
+		TArray<FGameplayAbilitySpec*> DeathAbilitySpecs;
+		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(
+			DeathAbilityTags,
+			DeathAbilitySpecs,
+			false);
+		for (const FGameplayAbilitySpec* DeathAbilitySpec :
+			DeathAbilitySpecs)
+		{
+			if (DeathAbilitySpec
+				&& ASC->TryActivateAbility(
+					DeathAbilitySpec->Handle,
+					true))
+			{
+				return;
+			}
+		}
 	}
 
 	APlayerState* ResolvePlayerStateFromActor(AActor* Actor)
@@ -737,7 +754,13 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 		bPendingIncomingDamageAllowHitReact = true;
 		SetIncomingDamage(0.f);
 		const bool bAllowDamageHitReact = bAllowHitReact && !bStatusDamage;
-		const float HealthDamage = ApplyIncomingDamage(MitigatedIncomingDamage, bCriticalHit, DamageInstigator, DamageCauser, bAllowDamageHitReact);
+		const float HealthDamage = ApplyIncomingDamage(
+			MitigatedIncomingDamage,
+			bCriticalHit,
+			DamageInstigator,
+			DamageCauser,
+			bAllowDamageHitReact,
+			!bStatusDamage);
 		const bool bShouldHitReact =
 			bAllowHitReact
 			&& !FMath::IsNearlyZero(HealthDamage)
@@ -925,12 +948,45 @@ void UBasicAttributeSet::SetPendingIncomingDamageAllowHitReact(bool bAllowHitRea
 	bPendingIncomingDamageAllowHitReact = bAllowHitReact;
 }
 
-float UBasicAttributeSet::ApplyIncomingDamage(float IncomingDamageAmount, bool bCriticalHit, AActor* DamageInstigator, AActor* DamageCauser, bool bAllowHitReact)
+float UBasicAttributeSet::ApplyIncomingDamage(
+	const float IncomingDamageAmount,
+	const bool bCriticalHit,
+	AActor* DamageInstigator,
+	AActor* DamageCauser,
+	const bool bAllowHitReact,
+	const bool bShowMiss)
 {
 	const float FinalDamage = FMath::Max(IncomingDamageAmount, 0.f);
+	UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
+	ACharacterBase* DamageTargetCharacter =
+		ASC ? Cast<ACharacterBase>(ASC->GetAvatarActor()) : nullptr;
 
 	if (FinalDamage <= 0.f)
 	{
+		if (bShowMiss && DamageTargetCharacter)
+		{
+			DamageTargetCharacter->HandleDamageTaken(
+				0.0f,
+				false,
+				false,
+				DamageInstigator,
+				DamageCauser);
+		}
+		return 0.f;
+	}
+
+	if (ASC && ASC->HasMatchingGameplayTag(
+		LabGameplayTags::State_DefenseField_Invulnerable))
+	{
+		if (DamageTargetCharacter)
+		{
+			DamageTargetCharacter->HandleDamageTaken(
+				0.0f,
+				false,
+				false,
+				DamageInstigator,
+				DamageCauser);
+		}
 		return 0.f;
 	}
 
@@ -944,13 +1000,15 @@ float UBasicAttributeSet::ApplyIncomingDamage(float IncomingDamageAmount, bool b
 		RemainingHealthDamage = FMath::Max(FinalDamage - ShieldDamage, 0.f);
 	}
 
-	if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+	if (DamageTargetCharacter)
 	{
-		if (ACharacterBase* Character = Cast<ACharacterBase>(ASC->GetAvatarActor()))
-		{
-			const float DisplayDamage = ShieldDamage > 0.f ? ShieldDamage : RemainingHealthDamage;
-			Character->HandleDamageTaken(DisplayDamage, bCriticalHit, bAllowHitReact, DamageInstigator, DamageCauser);
-		}
+		const float DisplayDamage = ShieldDamage + RemainingHealthDamage;
+		DamageTargetCharacter->HandleDamageTaken(
+			DisplayDamage,
+			bCriticalHit,
+			bAllowHitReact && RemainingHealthDamage > 0.0f,
+			DamageInstigator,
+			DamageCauser);
 	}
 
 	if (RemainingHealthDamage <= 0.f)

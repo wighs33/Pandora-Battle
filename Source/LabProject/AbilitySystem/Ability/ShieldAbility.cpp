@@ -23,7 +23,7 @@ UShieldAbility::UShieldAbility(const FObjectInitializer& ObjectInitializer)
 	SetAssetTags(AbilityAssetTags);
 
 	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_Defensive_Shield_Active);
-	ActivationBlockedTags.AddTag(LabGameplayTags::Status_Defense_Shield);
+	ActivationBlockedTags.AddTag(LabGameplayTags::State_DefenseField_Invulnerable);
 }
 
 void UShieldAbility::ActivateAbility(

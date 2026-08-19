@@ -198,7 +198,13 @@ protected:
 	UFUNCTION()
 	void OnRep_MaxStaminaLevel(const FGameplayAttributeData& OldValue);
 
-	float ApplyIncomingDamage(float IncomingDamageAmount, bool bCriticalHit, AActor* DamageInstigator, AActor* DamageCauser, bool bAllowHitReact = true);
+	float ApplyIncomingDamage(
+		float IncomingDamageAmount,
+		bool bCriticalHit,
+		AActor* DamageInstigator,
+		AActor* DamageCauser,
+		bool bAllowHitReact = true,
+		bool bShowMiss = true);
 
 private:
 	bool bLastOutgoingDamageCriticalHit = false;

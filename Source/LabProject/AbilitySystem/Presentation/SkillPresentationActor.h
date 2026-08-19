@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/NetSerialization.h"
 #include "GameFramework/Actor.h"
 #include "SkillPresentationActor.generated.h"
 
@@ -17,7 +16,8 @@ enum class ESkillPresentationFlags : uint8
 	None = 0,
 	DefaultFX = 1 << 0,
 	CharacterOverlay = 1 << 1,
-	Missile = 1 << 2
+	Missile = 1 << 2,
+	GroundFX = 1 << 3
 };
 ENUM_CLASS_FLAGS(ESkillPresentationFlags);
 
@@ -37,15 +37,15 @@ public:
 	void InitializePresentation(
 		ACharacterBase* InSourceCharacter,
 		USkillDefinition* InSkillDefinition,
-		ESkillPresentationFlags InFlags,
-		const FVector& InMissileTargetLocation);
+		ESkillPresentationFlags InFlags);
 
 	void SetPresentationEnabled(ESkillPresentationFlags Flag, bool bEnabled);
-	void SetMissileTargetLocation(const FVector& InTargetLocation);
+	void SetMissileTargetActors(const TArray<AActor*>& InTargetActors);
 	bool HasAnyPresentation() const;
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -60,11 +60,17 @@ private:
 	void CleanupLocalPresentation();
 	void StartDefaultFX();
 	void StopDefaultFX();
+	void StartGroundFX();
+	void StopGroundFX();
 	void StartCharacterOverlay();
 	void StopCharacterOverlay();
-	void StartMissile();
-	void StopMissile();
-	void ApplyMissileTargetLocation();
+	void RefreshLocalMissiles();
+	UNiagaraComponent* StartMissileForTarget(AActor* TargetActor);
+	void StopMissileAtIndex(int32 Index);
+	void StopMissiles();
+	void UpdateLocalMissileTargets();
+	void ApplyMissileTargetLocation(AActor* TargetActor, UNiagaraComponent* MissileComponent) const;
+	bool ResolveMissileTargetLocation(const AActor* TargetActor, FVector& OutTargetLocation) const;
 	ACharacterBase* ResolveSourceCharacter() const;
 	FVector ResolveCharacterFloorLocation(const ACharacterBase* Character) const;
 
@@ -78,13 +84,16 @@ private:
 	uint8 PresentationFlags = static_cast<uint8>(ESkillPresentationFlags::None);
 
 	UPROPERTY(ReplicatedUsing = OnRep_PresentationState)
-	FVector_NetQuantize10 MissileTargetLocation = FVector::ZeroVector;
+	TArray<TObjectPtr<AActor>> MissileTargetActors;
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<ACharacterBase> LocalPresentationSourceCharacter;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UNiagaraComponent> LocalDefaultSocketNiagaraComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraComponent> LocalDefaultGroundNiagaraComponent;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UNiagaraComponent> LocalBorrowedSocketNiagaraComponent;
@@ -105,5 +114,8 @@ private:
 	bool bCharacterOverlayApplied = false;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UNiagaraComponent> LocalMissileNiagaraComponent;
+	TArray<TObjectPtr<AActor>> LocalMissileTargetActors;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UNiagaraComponent>> LocalMissileNiagaraComponents;
 };

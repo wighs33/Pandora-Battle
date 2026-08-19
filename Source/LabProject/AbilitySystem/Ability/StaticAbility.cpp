@@ -208,11 +208,14 @@ void UStaticAbility::EndAbility(
 			const bool bForceDestroyForSourceBuffActor = SpawnedActor && SpawnedActor->IsA<AAnimeAuraActor>();
 			const bool bForceDestroyForBoundDamageTrigger =
 				SpawnedActor && ActorsWithBoundDamageTriggers.Contains(SpawnedActor);
+			const bool bExpiresThroughConfiguredLifeSpan =
+				StaticSettings->bUseSpawnedActorLifeSpan
+				&& StaticSettings->SpawnedActorLifeSpan > 0.0;
 			if (SpawnedActor
 				&& SpawnedActor->HasAuthority()
 				&& (bDestroySpawnedActorsOnAbilityEnd
 					|| bForceDestroyForSourceBuffActor
-					|| bForceDestroyForBoundDamageTrigger))
+					|| (bForceDestroyForBoundDamageTrigger && !bExpiresThroughConfiguredLifeSpan)))
 			{
 				DestroyStaticActorWhenReplicationIsSafe(SpawnedActor, *StaticSettings);
 			}

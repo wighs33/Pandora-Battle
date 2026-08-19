@@ -772,11 +772,6 @@ bool UCombatComponent::ApplyWeaponDamageToTarget(AActor* TargetActor)
 		return false;
 	}
 
-	if (IsDamageBlockedByDefense(TargetASC))
-	{
-		return false;
-	}
-
 	AWeaponBase* CurrentWeaponActor = GetCurrentWeaponActor();
 	const bool bShouldTriggerHitReactOnDamage = !CurrentWeaponActor || CurrentWeaponActor->ShouldTriggerHitReactOnDamage();
 	UBasicAttributeSet* SourceAttributeSet = const_cast<UBasicAttributeSet*>(SourceASC->GetSet<UBasicAttributeSet>());
@@ -1169,11 +1164,6 @@ bool UCombatComponent::ApplyUnarmedDamageToTarget(AActor* TargetActor)
 		return false;
 	}
 
-	if (IsDamageBlockedByDefense(TargetASC))
-	{
-		return false;
-	}
-
 	UBasicAttributeSet* SourceAttributeSet = const_cast<UBasicAttributeSet*>(SourceASC->GetSet<UBasicAttributeSet>());
 	if (!SourceAttributeSet)
 	{
@@ -1256,11 +1246,6 @@ bool UCombatComponent::HasCombatAuthority() const
 {
 	const AActor* OwnerActor = GetOwner();
 	return OwnerActor && OwnerActor->HasAuthority();
-}
-
-bool UCombatComponent::IsDamageBlockedByDefense(const UPdAbilitySystemComponent* TargetASC) const
-{
-	return TargetASC && TargetASC->HasMatchingGameplayTag(LabGameplayTags::Status_Defense_Shield);
 }
 
 void UCombatComponent::CompactTemporaryWeaponDamageBonuses()
