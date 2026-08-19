@@ -59,6 +59,9 @@ private:
 	void StartAchievementAvatarRefreshRetry();
 	void HandleAchievementAvatarRefreshRetry();
 	void ClearAchievementAvatarRefreshRetry();
+	void BindSteamAchievementStateChanged();
+	void UnbindSteamAchievementStateChanged();
+	void HandleSteamAchievementStateChanged();
 	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
 	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
 
@@ -70,5 +73,6 @@ private:
 
 	FTimerHandle KillBoxRefreshTimerHandle;
 	FTimerHandle AchievementAvatarRefreshTimerHandle;
+	FDelegateHandle SteamAchievementStateChangedHandle;
 	int32 AchievementAvatarRefreshRetryCount = 0;
 };

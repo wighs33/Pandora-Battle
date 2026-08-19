@@ -5,6 +5,7 @@
 #include "Components/ComboBoxString.h"
 #include "Components/EditableTextBox.h"
 #include "Components/Image.h"
+#include "Components/Overlay.h"
 #include "Components/TextBlock.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
@@ -197,12 +198,6 @@ void ULobbyUserWidget::RefreshUI()
 	uint64 ParsedSteamId = 0;
 	const bool bCanAddFriend = !bLocalPlayer && TryParseSteamId64(GetRepresentedSteamIdString(), ParsedSteamId);
 
-	if (Btn_Ready)
-	{
-		Btn_Ready->SetVisibility(ESlateVisibility::Collapsed);
-		Btn_Ready->SetIsEnabled(false);
-	}
-
 	if (Btn_KickPlayer)
 	{
 		Btn_KickPlayer->SetVisibility(bCanKick ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
@@ -210,18 +205,18 @@ void ULobbyUserWidget::RefreshUI()
 
 	if (Btn_FriendAdd)
 	{
-		Btn_FriendAdd->SetVisibility(bLocalPlayer ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
 		Btn_FriendAdd->SetIsEnabled(bCanAddFriend);
+	}
+
+	if (Overlay_AddFriend)
+	{
+		Overlay_AddFriend->SetVisibility(
+			bLocalPlayer ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
 	}
 
 	if (Img_OwnerMark)
 	{
 		Img_OwnerMark->SetVisibility(IsLobbyOwnerPlayer() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-	}
-
-	if (Txt_Ready)
-	{
-		Txt_Ready->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (Txt_PlayerName)
@@ -269,6 +264,7 @@ void ULobbyUserWidget::HandleFriendAddClicked()
 		return;
 	}
 
+	OpenSteamFriendAddOverlay();
 }
 
 void ULobbyUserWidget::HandlePlayerNameCommitted(const FText& InText, ETextCommit::Type CommitMethod)

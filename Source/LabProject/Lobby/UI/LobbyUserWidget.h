@@ -11,6 +11,7 @@ class UBorder;
 class UButton;
 class UComboBoxString;
 class UImage;
+class UOverlay;
 class UTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
@@ -42,22 +43,19 @@ protected:
 	void HandleTeamColorSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
-	TObjectPtr<UTextBlock> Txt_Ready;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UTextBlock> Txt_PlayerName;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UEditableTextBox> Editable_PlayerName;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
-	TObjectPtr<UButton> Btn_Ready;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_KickPlayer;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_FriendAdd;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
+	TObjectPtr<UOverlay> Overlay_AddFriend;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UImage> Img_OwnerMark;

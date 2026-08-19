@@ -68,6 +68,7 @@ UControllerProfileSyncComponent::UControllerProfileSyncComponent()
 
 void UControllerProfileSyncComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	UnbindSteamAchievementStateChanged();
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(LocalCosmeticProfileSyncTimerHandle);
@@ -85,6 +86,7 @@ void UControllerProfileSyncComponent::ScheduleLocalCosmeticProfileSync()
 	{
 		return;
 	}
+	BindSteamAchievementStateChanged();
 
 	LocalCosmeticProfileSyncAttemptCount = 0;
 	if (UWorld* World = GetWorld())
@@ -338,17 +340,43 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 			EAllowShrinking::No);
 	}
 
+	FName SteamValidatedAchievementId = NAME_None;
+	UAchievementSubsystem* AchievementSubsystem =
+		PdGameInstance->GetSubsystem<UAchievementSubsystem>();
+	if (AchievementSubsystem
+		&& !AchievementSubsystem->IsSteamAchievementQueryComplete())
+	{
+		AchievementSubsystem->RequestSteamAchievementQuery();
+	}
+
+	if (!SaveGame->SelectedAchievementId.IsNone()
+		&& AchievementSubsystem
+		&& AchievementSubsystem->HasSteamAchievementData()
+		&& AchievementSubsystem->IsSteamAchievementKnown(
+			SaveGame->SelectedAchievementId.ToString())
+		&& AchievementSubsystem->IsSteamAchievementUnlocked(
+			SaveGame->SelectedAchievementId.ToString()))
+	{
+		SteamValidatedAchievementId = SaveGame->SelectedAchievementId;
+	}
+	else if (!SaveGame->SelectedAchievementId.IsNone()
+		&& AchievementSubsystem
+		&& AchievementSubsystem->HasSteamAchievementData())
+	{
+		PdGameInstance->SetSelectedAchievementId(PlayerId, NAME_None, true);
+	}
+
 	if (Controller->HasAuthority())
 	{
 		ApplySubmittedLocalCosmeticProfileOnServer(
 			OwnedSkinNames,
-			SaveGame->SelectedAchievementId);
+			SteamValidatedAchievementId);
 	}
 	else
 	{
 		Controller->Server_SubmitLocalCosmeticProfile(
 			OwnedSkinNames,
-			SaveGame->SelectedAchievementId);
+			SteamValidatedAchievementId);
 	}
 
 	CompleteLocalCosmeticProfileSyncAttempt();
@@ -402,6 +430,51 @@ void UControllerProfileSyncComponent::CompleteLocalCosmeticProfileSyncAttempt()
 			World->GetTimerManager().ClearTimer(LocalCosmeticProfileSyncTimerHandle);
 		}
 	}
+}
+
+void UControllerProfileSyncComponent::BindSteamAchievementStateChanged()
+{
+	if (SteamAchievementStateChangedHandle.IsValid())
+	{
+		return;
+	}
+
+	APdPlayerController* Controller = GetPdController();
+	UPdGameInstance* PdGameInstance =
+		Controller ? Controller->GetGameInstance<UPdGameInstance>() : nullptr;
+	UAchievementSubsystem* AchievementSubsystem = PdGameInstance
+		? PdGameInstance->GetSubsystem<UAchievementSubsystem>()
+		: nullptr;
+	if (!AchievementSubsystem)
+	{
+		return;
+	}
+
+	SteamAchievementStateChangedHandle =
+		AchievementSubsystem->OnSteamAchievementStateChanged().AddUObject(
+			this,
+			&ThisClass::HandleSteamAchievementStateChanged);
+}
+
+void UControllerProfileSyncComponent::UnbindSteamAchievementStateChanged()
+{
+	APdPlayerController* Controller = GetPdController();
+	UPdGameInstance* PdGameInstance =
+		Controller ? Controller->GetGameInstance<UPdGameInstance>() : nullptr;
+	UAchievementSubsystem* AchievementSubsystem = PdGameInstance
+		? PdGameInstance->GetSubsystem<UAchievementSubsystem>()
+		: nullptr;
+	if (AchievementSubsystem && SteamAchievementStateChangedHandle.IsValid())
+	{
+		AchievementSubsystem->OnSteamAchievementStateChanged().Remove(
+			SteamAchievementStateChangedHandle);
+	}
+	SteamAchievementStateChangedHandle.Reset();
+}
+
+void UControllerProfileSyncComponent::HandleSteamAchievementStateChanged()
+{
+	ScheduleLocalCosmeticProfileSync();
 }
 
 bool UControllerProfileSyncComponent::TryConsumeRemoteSkinSyncRequest()
