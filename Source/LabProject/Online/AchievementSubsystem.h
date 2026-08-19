@@ -10,6 +10,8 @@ class IOnlineSubsystem;
 class UPdSaveGame;
 struct FStreamableHandle;
 
+DECLARE_MULTICAST_DELEGATE(FOnSteamAchievementStateChanged);
+
 UCLASS()
 class LABPROJECT_API UAchievementSubsystem : public UGameInstanceSubsystem
 {
@@ -22,6 +24,16 @@ public:
 	void EvaluateAndUnlockAchievementsForPlayerId(const FString& PlayerId);
 	int32 CalculateAchievementProgressValue(const FString& PlayerId, const FAchievementEntry& Achievement) const;
 	const UAchievementDefinition* GetAchievementDefinition();
+	bool RequestSteamAchievementQuery();
+	bool IsSteamAchievementQueryComplete() const { return bAchievementQueryCompleted; }
+	bool HasSteamAchievementData() const { return bAchievementsQueried; }
+	bool IsSteamAchievementKnown(const FString& AchievementId) const;
+	bool IsSteamAchievementUnlocked(const FString& AchievementId) const;
+	double GetSteamAchievementProgress(const FString& AchievementId) const;
+	FOnSteamAchievementStateChanged& OnSteamAchievementStateChanged()
+	{
+		return SteamAchievementStateChanged;
+	}
 
 private:
 	const UAchievementDefinition* ResolveAchievementDefinition();
@@ -36,6 +48,8 @@ private:
 	bool TryResolveLocalUniqueNetId(FUniqueNetIdPtr& OutUniqueNetId) const;
 	bool EnsureAchievementsQueried();
 	void HandleAchievementsQueried(const FUniqueNetId& PlayerId, bool bWasSuccessful);
+	void RebuildSteamAchievementSnapshot(const FUniqueNetId& PlayerId);
+	void RefreshSteamAchievementQuery();
 
 	void QueueUnlockAchievement(FString AchievementId);
 	void FlushPendingAchievementUnlocks();
@@ -51,9 +65,12 @@ private:
 	TSet<FString> InFlightAchievementIds;
 	TSet<FString> LocallyUnlockedAchievementIds;
 	TMap<FString, FOnlineAchievementsWritePtr> InFlightWriteObjects;
+	TMap<FString, double> SteamAchievementProgressById;
 
 	bool bAchievementsQueried = false;
 	bool bAchievementQueryInFlight = false;
+	bool bAchievementQueryCompleted = false;
+	FOnSteamAchievementStateChanged SteamAchievementStateChanged;
 	UPROPERTY(Transient)
 	TObjectPtr<UAchievementDefinition> CachedAchievementDefinition;
 	TSharedPtr<FStreamableHandle> DefinitionPreloadHandle;

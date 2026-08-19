@@ -19,7 +19,6 @@
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Online/AchievementDefinition.h"
 #include "Online/AchievementSubsystem.h"
-#include "SavedGameData/PdSaveGame.h"
 #include "TimerManager.h"
 #include "Definition/UI/RecordDefinition.h"
 
@@ -34,6 +33,7 @@ void ULeftProfileWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	BindAchievementButtons();
+	BindSteamAchievementStateChanged();
 	BeginContentPreload();
 	RefreshTierImage();
 	RefreshAchievementButtons();
@@ -55,6 +55,7 @@ void ULeftProfileWidget::NativeDestruct()
 	}
 
 	UnbindMatchDisplayNameChanged();
+	UnbindSteamAchievementStateChanged();
 	UnbindAchievementButtons();
 	Super::NativeDestruct();
 }
@@ -210,20 +211,48 @@ void ULeftProfileWidget::RefreshTierImage()
 void ULeftProfileWidget::RefreshAchievementButtons()
 {
 	const UAchievementDefinition* LoadedAchievementData = ResolveAchievementDefinition();
+	const UGameInstance* GameInstance = GetGameInstance();
+	UAchievementSubsystem* AchievementSubsystem = GameInstance
+		? GameInstance->GetSubsystem<UAchievementSubsystem>()
+		: nullptr;
+	if (AchievementSubsystem
+		&& !AchievementSubsystem->IsSteamAchievementQueryComplete())
+	{
+		AchievementSubsystem->RequestSteamAchievementQuery();
+	}
+
 	for (int32 AchievementIndex = 0; AchievementIndex < 7; ++AchievementIndex)
 	{
-		const bool bHasAchievementEntry = LoadedAchievementData
+		FString AchievementId;
+		const bool bHasLocalPresentation = LoadedAchievementData
 			&& LoadedAchievementData->Achievements.IsValidIndex(AchievementIndex)
 			&& LoadedAchievementData->Achievements[AchievementIndex].bEnabled;
-		const bool bUnlocked = bHasAchievementEntry && IsAchievementUnlocked(AchievementIndex);
+		if (bHasLocalPresentation)
+		{
+			AchievementId = LoadedAchievementData->Achievements[AchievementIndex].AchievementId;
+			AchievementId.TrimStartAndEndInline();
+		}
+		const bool bHasSteamAchievement = AchievementSubsystem
+			&& AchievementSubsystem->HasSteamAchievementData()
+			&& !AchievementId.IsEmpty()
+			&& AchievementSubsystem->IsSteamAchievementKnown(AchievementId);
+		const bool bHasAchievementEntry = bHasLocalPresentation && bHasSteamAchievement;
+		const bool bUnlocked = bHasAchievementEntry
+			&& AchievementSubsystem->IsSteamAchievementUnlocked(AchievementId);
 
 		if (UButton* Button = GetAchievementButton(AchievementIndex))
 		{
+			Button->SetVisibility(
+				bHasAchievementEntry ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 			Button->SetIsEnabled(bUnlocked);
 		}
 
 		if (!bHasAchievementEntry)
 		{
+			if (UImage* Image = GetAchievementImage(AchievementIndex))
+			{
+				Image->SetVisibility(ESlateVisibility::Collapsed);
+			}
 			continue;
 		}
 
@@ -243,6 +272,44 @@ void ULeftProfileWidget::RefreshAchievementButtons()
 	}
 
 	RefreshSelectedAchievementIcon();
+}
+
+void ULeftProfileWidget::BindSteamAchievementStateChanged()
+{
+	UnbindSteamAchievementStateChanged();
+	UGameInstance* GameInstance = GetGameInstance();
+	UAchievementSubsystem* AchievementSubsystem = GameInstance
+		? GameInstance->GetSubsystem<UAchievementSubsystem>()
+		: nullptr;
+	if (!AchievementSubsystem)
+	{
+		return;
+	}
+
+	SteamAchievementStateChangedHandle =
+		AchievementSubsystem->OnSteamAchievementStateChanged().AddUObject(
+			this,
+			&ThisClass::HandleSteamAchievementStateChanged);
+	AchievementSubsystem->RequestSteamAchievementQuery();
+}
+
+void ULeftProfileWidget::UnbindSteamAchievementStateChanged()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UAchievementSubsystem* AchievementSubsystem = GameInstance
+		? GameInstance->GetSubsystem<UAchievementSubsystem>()
+		: nullptr;
+	if (AchievementSubsystem && SteamAchievementStateChangedHandle.IsValid())
+	{
+		AchievementSubsystem->OnSteamAchievementStateChanged().Remove(
+			SteamAchievementStateChangedHandle);
+	}
+	SteamAchievementStateChangedHandle.Reset();
+}
+
+void ULeftProfileWidget::HandleSteamAchievementStateChanged()
+{
+	RefreshAchievementButtons();
 }
 
 void ULeftProfileWidget::BindAchievementButtons()
@@ -493,6 +560,11 @@ void ULeftProfileWidget::ApplyAchievementIcon(const int32 AchievementIndex)
 
 void ULeftProfileWidget::RefreshSelectedAchievementIcon()
 {
+	if (PlayerAchieveIcon)
+	{
+		PlayerAchieveIcon->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
 	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
 	if (!PdGameInstance)
 	{
@@ -501,10 +573,32 @@ void ULeftProfileWidget::RefreshSelectedAchievementIcon()
 
 	const FName SelectedAchievementId =
 		PdGameInstance->GetSelectedAchievementId(ResolveProfileSavePlayerId());
+	if (SelectedAchievementId.IsNone())
+	{
+		return;
+	}
+
+	UAchievementSubsystem* AchievementSubsystem =
+		PdGameInstance->GetSubsystem<UAchievementSubsystem>();
+	if (!AchievementSubsystem || !AchievementSubsystem->HasSteamAchievementData())
+	{
+		return;
+	}
+
 	const int32 AchievementIndex = FindAchievementIndexById(SelectedAchievementId);
 	if (AchievementIndex != INDEX_NONE && IsAchievementUnlocked(AchievementIndex))
 	{
 		ApplyAchievementBrush(AchievementIndex);
+		return;
+	}
+
+	const FString PlayerId = ResolveProfileSavePlayerId();
+	if (PdGameInstance->SetSelectedAchievementId(PlayerId, NAME_None, true))
+	{
+		if (APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
+		{
+			PlayerController->RequestLocalCosmeticProfileSync();
+		}
 	}
 }
 
@@ -562,7 +656,7 @@ int32 ULeftProfileWidget::FindAchievementIndexById(const FName AchievementId) co
 	return INDEX_NONE;
 }
 
-bool ULeftProfileWidget::IsAchievementUnlocked(const int32 AchievementIndex)
+bool ULeftProfileWidget::IsAchievementUnlocked(const int32 AchievementIndex) const
 {
 	const UAchievementDefinition* LoadedAchievementData = ResolveAchievementDefinition();
 	if (!LoadedAchievementData || !LoadedAchievementData->Achievements.IsValidIndex(AchievementIndex))
@@ -576,63 +670,14 @@ bool ULeftProfileWidget::IsAchievementUnlocked(const int32 AchievementIndex)
 		return false;
 	}
 
-	return GetAchievementProgressValue(AchievementIndex) >= FMath::Max(Achievement.RequiredValue, 1);
-}
-
-int32 ULeftProfileWidget::GetAchievementProgressValue(const int32 AchievementIndex)
-{
-	const UAchievementDefinition* LoadedAchievementData = ResolveAchievementDefinition();
-	if (!LoadedAchievementData || !LoadedAchievementData->Achievements.IsValidIndex(AchievementIndex))
-	{
-		return 0;
-	}
-
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
-	{
-		return 0;
-	}
-
-	const FString PlayerId = ResolveProfileSavePlayerId();
-	if (PlayerId.IsEmpty())
-	{
-		return 0;
-	}
-
-	const FAchievementEntry& Achievement = LoadedAchievementData->Achievements[AchievementIndex];
-	if (const UAchievementSubsystem* AchievementSubsystem = GetGameInstance()->GetSubsystem<UAchievementSubsystem>())
-	{
-		return AchievementSubsystem->CalculateAchievementProgressValue(PlayerId, Achievement);
-	}
-
-	switch (Achievement.Trigger)
-	{
-	case EAchievementTrigger::FirstLogin:
-		return 1;
-	case EAchievementTrigger::MatchPlayed:
-		return PdGameInstance->GetMatchRecords(PlayerId).Num();
-	case EAchievementTrigger::WinCount:
-		return PdGameInstance->GetWinCount(PlayerId);
-	case EAchievementTrigger::KillCount:
-	case EAchievementTrigger::DeathCount:
-	case EAchievementTrigger::RewardGold:
-	case EAchievementTrigger::ItemCollected:
-		return 0;
-	case EAchievementTrigger::PandoraUnlocked:
-		if (const UPdSaveGame* SaveGame = PdGameInstance->GetOrCreateSaveGame(PlayerId))
-		{
-			return SaveGame->PlayerPandoraData.GrantedPandorasById.Num();
-		}
-		return 0;
-	case EAchievementTrigger::SkinUnlocked:
-		if (const UPdSaveGame* SaveGame = PdGameInstance->GetOrCreateSaveGame(PlayerId))
-		{
-			return SaveGame->PlayerSkinData.GrantedSkinsById.Num();
-		}
-		return 0;
-	default:
-		return 0;
-	}
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UAchievementSubsystem* AchievementSubsystem = GameInstance
+		? GameInstance->GetSubsystem<UAchievementSubsystem>()
+		: nullptr;
+	return AchievementSubsystem
+		&& AchievementSubsystem->HasSteamAchievementData()
+		&& AchievementSubsystem->IsSteamAchievementKnown(Achievement.AchievementId)
+		&& AchievementSubsystem->IsSteamAchievementUnlocked(Achievement.AchievementId);
 }
 
 UButton* ULeftProfileWidget::GetAchievementButton(const int32 AchievementIndex) const

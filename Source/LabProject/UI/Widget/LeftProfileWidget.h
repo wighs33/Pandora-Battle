@@ -110,6 +110,9 @@ private:
 
 	void BindAchievementButtons();
 	void UnbindAchievementButtons();
+	void BindSteamAchievementStateChanged();
+	void UnbindSteamAchievementStateChanged();
+	void HandleSteamAchievementStateChanged();
 	void BeginContentPreload();
 	void BeginPresentationPreload(int32 PreloadGeneration);
 	void ReleaseContentPreloads();
@@ -123,8 +126,7 @@ private:
 	void RefreshSelectedAchievementIcon();
 	void ApplyAchievementBrush(int32 AchievementIndex);
 	int32 FindAchievementIndexById(FName AchievementId) const;
-	bool IsAchievementUnlocked(int32 AchievementIndex);
-	int32 GetAchievementProgressValue(int32 AchievementIndex);
+	bool IsAchievementUnlocked(int32 AchievementIndex) const;
 	UButton* GetAchievementButton(int32 AchievementIndex) const;
 	UImage* GetAchievementImage(int32 AchievementIndex) const;
 	UImage* FindHudPlayerAvatarImage() const;
@@ -136,6 +138,7 @@ private:
 
 	TWeakObjectPtr<APdPlayerState> BoundPlayerState;
 	FDelegateHandle MatchDisplayNameChangedHandle;
+	FDelegateHandle SteamAchievementStateChangedHandle;
 	FTimerHandle PlayerNameRefreshRetryTimerHandle;
 	int32 PlayerNameRefreshRetryCount = 0;
 	int32 ContentPreloadGeneration = 0;

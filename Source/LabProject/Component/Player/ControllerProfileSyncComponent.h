@@ -38,8 +38,12 @@ private:
 	void GrantDefaultSkinEntitlementsOnServer() const;
 	void CompleteLocalCosmeticProfileSyncAttempt();
 	bool TryConsumeRemoteSkinSyncRequest();
+	void BindSteamAchievementStateChanged();
+	void UnbindSteamAchievementStateChanged();
+	void HandleSteamAchievementStateChanged();
 
 	FTimerHandle LocalCosmeticProfileSyncTimerHandle;
+	FDelegateHandle SteamAchievementStateChangedHandle;
 	int32 LocalCosmeticProfileSyncAttemptCount = 0;
 	double LastRemoteSkinSyncRequestTime = -1.0;
 };

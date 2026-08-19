@@ -68,6 +68,7 @@ void UPlayerHudWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	ClearTransactionalFlagsForRuntimeWidget(this);
+	BindSteamAchievementStateChanged();
 	RefreshLobbyTipVisibility();
 	RefreshKillBoxVisibility();
 	AchievementAvatarRefreshRetryCount = 0;
@@ -85,6 +86,7 @@ void UPlayerHudWidget::NativeConstruct()
 
 void UPlayerHudWidget::NativeDestruct()
 {
+	UnbindSteamAchievementStateChanged();
 	ClearAchievementAvatarRefreshRetry();
 	ClearKillBoxWidgets();
 	ResetEditorTransactionBufferIfContainsPieObjects();
@@ -108,6 +110,27 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
 	const APlayerController* PlayerController = GetOwningPlayer();
 	if (!PdGameInstance || !PlayerController)
+	{
+		return false;
+	}
+
+	UImage* PlayerAvatarImage = FindImageInUserWidget(this, TEXT("PlayerAvatar"));
+	if (PlayerAvatarImage)
+	{
+		PlayerAvatarImage->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	UAchievementSubsystem* AchievementSubsystem =
+		PdGameInstance->GetSubsystem<UAchievementSubsystem>();
+	if (!AchievementSubsystem)
+	{
+		return false;
+	}
+	if (!AchievementSubsystem->IsSteamAchievementQueryComplete())
+	{
+		AchievementSubsystem->RequestSteamAchievementQuery();
+	}
+	if (!AchievementSubsystem->HasSteamAchievementData())
 	{
 		return false;
 	}
@@ -138,8 +161,13 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 		return true;
 	}
 
-	UAchievementSubsystem* AchievementSubsystem =
-		PdGameInstance->GetSubsystem<UAchievementSubsystem>();
+	const FString SteamAchievementId = SelectedAchievementId.ToString();
+	if (!AchievementSubsystem->IsSteamAchievementKnown(SteamAchievementId)
+		|| !AchievementSubsystem->IsSteamAchievementUnlocked(SteamAchievementId))
+	{
+		return true;
+	}
+
 	const UAchievementDefinition* AchievementDefinition = AchievementSubsystem
 		? AchievementSubsystem->GetAchievementDefinition()
 		: nullptr;
@@ -160,7 +188,6 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 		}
 
 		UTexture2D* AchievementTexture = Achievement.UnlockedIcon.Get();
-		UImage* PlayerAvatarImage = FindImageInUserWidget(this, TEXT("PlayerAvatar"));
 		if (!AchievementTexture || !PlayerAvatarImage)
 		{
 			return false;
@@ -172,6 +199,48 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 	}
 
 	return true;
+}
+
+void UPlayerHudWidget::BindSteamAchievementStateChanged()
+{
+	UnbindSteamAchievementStateChanged();
+	UGameInstance* GameInstance = GetGameInstance();
+	UAchievementSubsystem* AchievementSubsystem = GameInstance
+		? GameInstance->GetSubsystem<UAchievementSubsystem>()
+		: nullptr;
+	if (!AchievementSubsystem)
+	{
+		return;
+	}
+
+	SteamAchievementStateChangedHandle =
+		AchievementSubsystem->OnSteamAchievementStateChanged().AddUObject(
+			this,
+			&ThisClass::HandleSteamAchievementStateChanged);
+	AchievementSubsystem->RequestSteamAchievementQuery();
+}
+
+void UPlayerHudWidget::UnbindSteamAchievementStateChanged()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UAchievementSubsystem* AchievementSubsystem = GameInstance
+		? GameInstance->GetSubsystem<UAchievementSubsystem>()
+		: nullptr;
+	if (AchievementSubsystem && SteamAchievementStateChangedHandle.IsValid())
+	{
+		AchievementSubsystem->OnSteamAchievementStateChanged().Remove(
+			SteamAchievementStateChangedHandle);
+	}
+	SteamAchievementStateChangedHandle.Reset();
+}
+
+void UPlayerHudWidget::HandleSteamAchievementStateChanged()
+{
+	ClearAchievementAvatarRefreshRetry();
+	if (!RefreshAchievementAvatar())
+	{
+		StartAchievementAvatarRefreshRetry();
+	}
 }
 
 void UPlayerHudWidget::StartAchievementAvatarRefreshRetry()
