@@ -1,5 +1,7 @@
 #include "UI/Widget/RightSkinWidget.h"
 
+#include "Character/CharacterBase.h"
+#include "Component/Skin/SkinEquipmentComponent.h"
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
@@ -59,10 +61,12 @@ void URightSkinWidget::NativeConstruct()
 
 	RebuildFilterButtonList();
 	FilterButtonHighlightState.Initialize(FilterButtonList, AllButton, SelectedFilterAccentColor);
+	RefreshSkinEquipmentBinding();
 }
 
 void URightSkinWidget::NativeDestruct()
 {
+	ClearSkinEquipmentBinding();
 	FilterButtonHighlightState.Reset();
 
 	if (AllButton)
@@ -137,6 +141,7 @@ void URightSkinWidget::ResetFilterHighlightToAll()
 
 void URightSkinWidget::SetTileView(const TArray<UObject*>& InListItems)
 {
+	RefreshSkinEquipmentBinding();
 	CachedSourceListItems.Reset();
 	CachedSourceListItems.Reserve(InListItems.Num());
 	for (UObject* ListItem : InListItems)
@@ -213,6 +218,23 @@ void URightSkinWidget::RebuildTileViewFromCachedSourceItems()
 
 	TileView->ClearListItems();
 	CachedSlotViewData.Reset();
+	RefreshSkinEquipmentBinding();
+
+	TSet<const USkinDefinition*> AssignedSkinDefinitions;
+	if (const USkinEquipmentComponent* SkinEquipment =
+		BoundSkinEquipmentComponent.Get())
+	{
+		TArray<FEquippedSkinSlot> EquippedSkinSlots;
+		SkinEquipment->GetEquippedSkinSlots(EquippedSkinSlots);
+		for (const FEquippedSkinSlot& EquippedSkinSlot : EquippedSkinSlots)
+		{
+			if (const USkinDefinition* SkinDefinition =
+				EquippedSkinSlot.SkinDefinition.Get())
+			{
+				AssignedSkinDefinitions.Add(SkinDefinition);
+			}
+		}
+	}
 
 	TArray<USkinInstance*> SkinInstances;
 	SkinInstances.Reserve(CachedSourceListItems.Num());
@@ -240,11 +262,59 @@ void URightSkinWidget::RebuildTileViewFromCachedSourceItems()
 
 	for (int32 SlotIndex = 0; SlotIndex < SlotCountToDisplay; ++SlotIndex)
 	{
+		USkinInstance* SkinInstance = SkinInstances.IsValidIndex(SlotIndex)
+			? SkinInstances[SlotIndex]
+			: nullptr;
+		const USkinDefinition* SkinDefinition = IsValid(SkinInstance)
+			? SkinInstance->SkinDefinition.Get()
+			: nullptr;
 		USkinSlotViewData* SlotViewData = NewObject<USkinSlotViewData>(this);
-		SlotViewData->Initialize(SlotIndex, SkinInstances.IsValidIndex(SlotIndex) ? SkinInstances[SlotIndex] : nullptr);
+		SlotViewData->Initialize(
+			SlotIndex,
+			SkinInstance,
+			AssignedSkinDefinitions.Contains(SkinDefinition));
 		CachedSlotViewData.Add(SlotViewData);
 		TileView->AddItem(SlotViewData);
 	}
+}
+
+void URightSkinWidget::HandleEquippedSkinsChanged()
+{
+	RebuildTileViewFromCachedSourceItems();
+}
+
+void URightSkinWidget::RefreshSkinEquipmentBinding()
+{
+	const ACharacterBase* Character =
+		Cast<ACharacterBase>(GetOwningPlayerPawn());
+	USkinEquipmentComponent* ResolvedSkinEquipment = Character
+		? Character->GetSkinEquipmentComponent()
+		: nullptr;
+	if (BoundSkinEquipmentComponent.Get() == ResolvedSkinEquipment)
+	{
+		return;
+	}
+
+	ClearSkinEquipmentBinding();
+	BoundSkinEquipmentComponent = ResolvedSkinEquipment;
+	if (ResolvedSkinEquipment)
+	{
+		ResolvedSkinEquipment->OnEquippedSkinsChanged.AddUniqueDynamic(
+			this,
+			&ThisClass::HandleEquippedSkinsChanged);
+	}
+}
+
+void URightSkinWidget::ClearSkinEquipmentBinding()
+{
+	if (USkinEquipmentComponent* SkinEquipment =
+		BoundSkinEquipmentComponent.Get())
+	{
+		SkinEquipment->OnEquippedSkinsChanged.RemoveDynamic(
+			this,
+			&ThisClass::HandleEquippedSkinsChanged);
+	}
+	BoundSkinEquipmentComponent.Reset();
 }
 
 bool URightSkinWidget::DoesSkinMatchSearch(const USkinInstance* SkinInstance, const FString& SearchText) const

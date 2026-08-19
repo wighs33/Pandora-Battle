@@ -6,7 +6,6 @@
 #include "ItemSlotWidget.generated.h"
 
 class UItemInstance;
-class UBorder;
 class UImage;
 class UInventorySlotViewData;
 class UDragItemVisualWidget;
@@ -61,13 +60,19 @@ protected:
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
-	TObjectPtr<UTextBlock> TextBlock;
+	TObjectPtr<UTextBlock> Txt_Upgradeable;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
+	TObjectPtr<UTextBlock> Txt_Assigned;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
 	TObjectPtr<UTextBlock> Txt_Quantity;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
 	TObjectPtr<UTextBlock> Txt_Upgrade;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
+	TObjectPtr<UImage> Img_Back;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
 	TObjectPtr<UImage> IconImage;
@@ -85,8 +90,7 @@ private:
 	void ApplyItemVisual(const FItemViewData& ViewData);
 	void CacheOptionalWidgets();
 	void ApplySelectionVisual();
-	void ApplyDuplicateBackgroundVisual();
-	FLinearColor ResolveDuplicateBackgroundColor() const;
+	FLinearColor ResolveBackgroundColor(bool bAssigned) const;
 	bool IsItemConsumable(const UItemInstance* ItemInstance) const;
 	bool IsItemUpgradeable(const UItemInstance* ItemInstance) const;
 	bool IsCachedItemConsumable() const;
@@ -97,16 +101,8 @@ private:
 	UPROPERTY(Transient)
 	FItemViewData CachedViewData;
 
-	UPROPERTY(Transient)
-	TObjectPtr<UImage> SlotBackgroundImage;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UBorder> SlotBackgroundBorder;
-
-	FLinearColor DefaultBackgroundImageColor = FLinearColor::White;
-	FLinearColor DefaultBackgroundBorderColor = FLinearColor::White;
-	bool bDefaultBackgroundImageColorCached = false;
-	bool bDefaultBackgroundBorderColorCached = false;
+	FLinearColor DefaultBackgroundColor = FLinearColor::White;
+	bool bDefaultBackgroundColorCached = false;
 	bool bDuplicateWeaponOrEquipment = false;
 
 	bool bIsSelected = false;

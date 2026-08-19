@@ -9,6 +9,7 @@
 
 class UButton;
 class UEditableTextBox;
+class USkinEquipmentComponent;
 class USkinInstance;
 class USkinSlotViewData;
 class UTileView;
@@ -137,8 +138,13 @@ private:
 	UFUNCTION()
 	void OnSearchButtonClicked();
 
+	UFUNCTION()
+	void HandleEquippedSkinsChanged();
+
 	void RebuildFilterButtonList();
 	void RebuildTileViewFromCachedSourceItems();
+	void RefreshSkinEquipmentBinding();
+	void ClearSkinEquipmentBinding();
 	bool DoesSkinMatchSearch(const USkinInstance* SkinInstance, const FString& SearchText) const;
 	void ApplyWidgetDefinitionSettings();
 	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
@@ -155,4 +161,5 @@ private:
 	FGameplayTag PetTypeTagOverride;
 
 	FFilterButtonHighlightState FilterButtonHighlightState;
+	TWeakObjectPtr<USkinEquipmentComponent> BoundSkinEquipmentComponent;
 };

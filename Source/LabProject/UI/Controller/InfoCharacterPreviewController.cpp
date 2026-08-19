@@ -28,7 +28,7 @@ void CutToViewTarget(APlayerController* PlayerController, AActor* ViewTarget)
 	}
 }
 
-void DisablePreviewCameraLetterboxing(AActor* ViewTarget)
+void ConfigurePreviewCamera(AActor* ViewTarget)
 {
 	if (!IsValid(ViewTarget))
 	{
@@ -76,7 +76,7 @@ void UInfoCharacterPreviewController::ShowPreview()
 		{
 			return;
 		}
-		DisablePreviewCameraLetterboxing(SpawnedPreview);
+		ConfigurePreviewCamera(SpawnedPreview);
 		CutToViewTarget(OwnerWidget->GetOwningPlayer(), SpawnedPreview);
 		return;
 	}
@@ -99,7 +99,7 @@ void UInfoCharacterPreviewController::ShowPreview()
 			EAttachmentRule::KeepRelative,
 			EAttachmentRule::KeepRelative,
 			true));
-	DisablePreviewCameraLetterboxing(SpawnedPreview);
+	ConfigurePreviewCamera(SpawnedPreview);
 	CutToViewTarget(OwnerWidget->GetOwningPlayer(), SpawnedPreview);
 }
 

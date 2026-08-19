@@ -294,7 +294,6 @@ void UInfoUiPresenter::HandleLoadoutStateChanged(const EInfoLoadoutStateChange C
 		{
 			ItemPresenter->ResetInventoryDisplaySlots();
 			ItemPresenter->HandleInventoryChanged();
-			ItemPresenter->ReconcileCurrentWeaponLoadoutDirection();
 		}
 		if (PandoraPresenter)
 		{

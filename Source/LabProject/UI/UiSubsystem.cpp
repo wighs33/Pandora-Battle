@@ -458,65 +458,72 @@ bool UUiSubsystem::RefreshStatusViewModel()
 
 bool UUiSubsystem::ApplyStatusViewModelToWidget(UUserWidget* InWidget)
 {
+	return BindStatusViewModelToWidget(InWidget)
+		&& RefreshStatusViewModel();
+}
+
+bool UUiSubsystem::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
+{
+	if (!RootWidget || !StatusViewModel)
+	{
+		return false;
+	}
+
+	bool bBoundAny = false;
+	TSet<UUserWidget*> VisitedWidgets;
+	TFunction<void(UUserWidget*)> BindWidgetTree =
+		[this, &bBoundAny, &VisitedWidgets, &BindWidgetTree](
+			UUserWidget* UserWidget)
+	{
+		if (!UserWidget || VisitedWidgets.Contains(UserWidget))
+		{
+			return;
+		}
+
+		VisitedWidgets.Add(UserWidget);
+		bBoundAny |= BindStatusViewModelToWidget(UserWidget);
+		if (!UserWidget->WidgetTree)
+		{
+			return;
+		}
+
+		// ForEachWidget visits nested UUserWidget objects themselves but does not
+		// enter their foreign WidgetTrees. Recurse explicitly so MVVM extensions
+		// attached to those user widgets are never skipped.
+		UserWidget->WidgetTree->ForEachWidget(
+			[&BindWidgetTree](UWidget* ChildWidget)
+			{
+				if (UUserWidget* ChildUserWidget =
+					Cast<UUserWidget>(ChildWidget))
+				{
+					BindWidgetTree(ChildUserWidget);
+				}
+			});
+	};
+
+	BindWidgetTree(RootWidget);
+	return bBoundAny && RefreshStatusViewModel();
+}
+
+bool UUiSubsystem::BindStatusViewModelToWidget(UUserWidget* InWidget)
+{
 	if (!InWidget || !StatusViewModel)
 	{
 		return false;
 	}
 
-	const bool bViewModelReady = RefreshStatusViewModel();
-
 	UMVVMView* ViewExtension = InWidget->GetExtension<UMVVMView>();
 	if (!ViewExtension)
 	{
-
 		return false;
 	}
 
-	const FName ViewModelSourceName = ResolveStatusViewModelSourceName(InWidget);
-	if (ViewModelSourceName.IsNone())
-	{
-
-		return false;
-	}
-
-	const bool bSuccess = ViewExtension->SetViewModel(ViewModelSourceName, StatusViewModel);
-	if (!bSuccess)
-	{
-
-		return false;
-	}
-
-	if (bViewModelReady)
-	{
-		StatusViewModel->UpdateAllData();
-	}
-
-	return bViewModelReady;
-}
-
-bool UUiSubsystem::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
-{
-	if (!RootWidget)
-	{
-		return false;
-	}
-
-	bool bAppliedAny = ApplyStatusViewModelToWidget(RootWidget);
-
-	if (!RootWidget->WidgetTree)
-	{
-		return bAppliedAny;
-	}
-
-	RootWidget->WidgetTree->ForEachWidget([this, &bAppliedAny](UWidget* Widget)
-	{
-		if (UUserWidget* ChildUserWidget = Cast<UUserWidget>(Widget))
-		{
-			bAppliedAny |= ApplyStatusViewModelToWidgetTree(ChildUserWidget);
-		}
-	});
-
-	return bAppliedAny;
+	const FName ViewModelSourceName =
+		ResolveStatusViewModelSourceName(InWidget);
+	return !ViewModelSourceName.IsNone()
+		&& ViewExtension->SetViewModel(
+			ViewModelSourceName,
+			StatusViewModel);
 }
 
 FGuid UUiSubsystem::AcquireModalInput(

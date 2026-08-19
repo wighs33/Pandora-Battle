@@ -606,8 +606,11 @@ struct LABPROJECT_API FInventoryWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Inventory", meta = (ClampMin = "0"))
 	int32 TrainingRoomInventoryItemCountLimit = 120;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Inventory|Style", meta = (DisplayName = "Duplicate Weapon Or Equipment Background Color"))
-	FLinearColor DuplicateWeaponOrEquipmentBackgroundColor = FLinearColor(0.45f, 0.08f, 0.08f, 0.35f);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Inventory|Style", meta = (DisplayName = "Upgradeable Item Background Color", HideAlphaChannel))
+	FLinearColor UpgradeableItemBackgroundColor = FLinearColor(1.0f, 0.55f, 0.55f, 1.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Inventory|Style", meta = (DisplayName = "Assigned Item Background Color", HideAlphaChannel))
+	FLinearColor AssignedItemBackgroundColor = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Inventory|Filter", meta = (Categories = "Item"))
 	FGameplayTag WeaponTypeTag;

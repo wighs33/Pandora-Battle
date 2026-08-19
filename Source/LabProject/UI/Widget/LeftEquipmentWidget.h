@@ -50,13 +50,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
 	void SetConsumableQuickSlotData(int32 QuickSlotNumber, UItemInstance* ItemInstance);
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
+	void SetEquipmentSlotData(FGameplayTag EquipTypeTag, UItemInstance* ItemInstance);
+
 	UFUNCTION(BlueprintPure, Category = "!UI|Equipment")
 	UEquipSlotWidget* FindFirstCompatibleEquipSlot(UItemInstance* ItemInstance) const;
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Equipment")
 	UEquipSlotWidget* FindFirstEquippedCompatibleEquipSlot(UItemInstance* ItemInstance) const;
-
-	void GetEquippedItemIds(TSet<FGuid>& OutItemIds, FGameplayTag ExcludedEquipTypeRootTag = FGameplayTag()) const;
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment", meta = (Categories = "Item"))
 	void BroadcastClickedEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* InSelectedEquipSlot, bool bInIsSelectedAnyButton);

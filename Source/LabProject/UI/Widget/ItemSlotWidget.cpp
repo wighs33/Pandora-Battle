@@ -2,7 +2,6 @@
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Definition/Common/ProjectTagConfig.h"
-#include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
@@ -39,7 +38,6 @@ void UItemSlotWidget::NativePreConstruct()
 	Super::NativePreConstruct();
 
 	ApplySelectionVisual();
-	ApplyDuplicateBackgroundVisual();
 }
 
 void UItemSlotWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
@@ -221,6 +219,7 @@ void UItemSlotWidget::SetSlotData(UInventorySlotViewData* Target)
 void UItemSlotWidget::ApplyItemVisual(const FItemViewData& ViewData)
 {
 	CacheOptionalWidgets();
+	const bool bAssigned = CachedSlotData && CachedSlotData->IsAssigned();
 
 	if (IconImage)
 	{
@@ -228,10 +227,28 @@ void UItemSlotWidget::ApplyItemVisual(const FItemViewData& ViewData)
 		IconImage->SetVisibility(ViewData.IconResource ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 
-	if (TextBlock)
+	if (Img_Back)
 	{
-		TextBlock->SetText(ViewData.DisplayName);
-		TextBlock->SetVisibility(ViewData.IconResource ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		Img_Back->SetColorAndOpacity(
+			ViewData.HasContent()
+				? ResolveBackgroundColor(bAssigned)
+				: DefaultBackgroundColor);
+	}
+
+	if (Txt_Upgradeable)
+	{
+		Txt_Upgradeable->SetVisibility(
+			bDuplicateWeaponOrEquipment && ViewData.HasContent()
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
+	}
+
+	if (Txt_Assigned)
+	{
+		Txt_Assigned->SetVisibility(
+			bAssigned && ViewData.HasContent()
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
 	}
 
 	if (Txt_Quantity)
@@ -254,7 +271,6 @@ void UItemSlotWidget::ApplyItemVisual(const FItemViewData& ViewData)
 	}
 
 	ApplySelectionVisual();
-	ApplyDuplicateBackgroundVisual();
 }
 
 void UItemSlotWidget::SetSelected(const bool bInSelected)
@@ -270,6 +286,16 @@ void UItemSlotWidget::SetSelected(const bool bInSelected)
 
 void UItemSlotWidget::CacheOptionalWidgets()
 {
+	if (!Img_Back)
+	{
+		Img_Back = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("Img_Back"),
+			TEXT("BackgroundImage"),
+			TEXT("ItemBackgroundImage"),
+			TEXT("SlotBackgroundImage")
+		});
+	}
+
 	if (!IconImage)
 	{
 		IconImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
@@ -302,6 +328,21 @@ void UItemSlotWidget::CacheOptionalWidgets()
 		});
 	}
 
+	if (Img_Back && !bDefaultBackgroundColorCached)
+	{
+		DefaultBackgroundColor = Img_Back->GetColorAndOpacity();
+		bDefaultBackgroundColorCached = true;
+	}
+
+	if (!Txt_Assigned)
+	{
+		Txt_Assigned = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
+			TEXT("Txt_Assigned"),
+			TEXT("AssignedText"),
+			TEXT("AssignedTextBlock")
+		});
+	}
+
 	if (!Txt_Upgrade)
 	{
 		Txt_Upgrade = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
@@ -311,43 +352,6 @@ void UItemSlotWidget::CacheOptionalWidgets()
 		});
 	}
 
-	if (!SlotBackgroundImage && !SlotBackgroundBorder)
-	{
-		const TArray<FName> BackgroundWidgetNames = {
-			TEXT("Background"),
-			TEXT("BackgroundImage"),
-			TEXT("Border"),
-			TEXT("ItemBorder"),
-			TEXT("SlotBorder"),
-			TEXT("SlotBackground"),
-			TEXT("SlotBackgroundImage"),
-			TEXT("ItemBackground")
-		};
-		SlotBackgroundImage =
-			PdWidgetLookup::FindWidgetByNames<UImage>(this, BackgroundWidgetNames);
-		if (!SlotBackgroundImage)
-		{
-			SlotBackgroundBorder =
-				PdWidgetLookup::FindWidgetByNames<UBorder>(this, BackgroundWidgetNames);
-			if (!SlotBackgroundBorder)
-			{
-				SlotBackgroundBorder =
-					PdWidgetLookup::FindFirstWidgetOfType<UBorder>(WidgetTree);
-			}
-		}
-	}
-
-	if (SlotBackgroundImage && !bDefaultBackgroundImageColorCached)
-	{
-		DefaultBackgroundImageColor = SlotBackgroundImage->GetColorAndOpacity();
-		bDefaultBackgroundImageColorCached = true;
-	}
-
-	if (SlotBackgroundBorder && !bDefaultBackgroundBorderColorCached)
-	{
-		DefaultBackgroundBorderColor = SlotBackgroundBorder->GetBrushColor();
-		bDefaultBackgroundBorderColorCached = true;
-	}
 }
 
 void UItemSlotWidget::ApplySelectionVisual()
@@ -363,38 +367,24 @@ void UItemSlotWidget::ApplySelectionVisual()
 	SelectionBorderImage->SetColorAndOpacity(bIsSelected ? SelectionBorderSelectedColor : SelectionBorderDefaultColor);
 }
 
-void UItemSlotWidget::ApplyDuplicateBackgroundVisual()
+FLinearColor UItemSlotWidget::ResolveBackgroundColor(const bool bAssigned) const
 {
-	CacheOptionalWidgets();
-	const FLinearColor DuplicateBackgroundColor = ResolveDuplicateBackgroundColor();
+	const UWidgetClassDefinition* WidgetDefinition =
+		UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	const FInventoryWidgetSettings DefaultSettings;
+	const FInventoryWidgetSettings& Settings = WidgetDefinition
+		? WidgetDefinition->GetInventoryWidgetSettings()
+		: DefaultSettings;
 
-	if (SlotBackgroundImage && bDefaultBackgroundImageColorCached)
+	if (bAssigned)
 	{
-		SlotBackgroundImage->SetColorAndOpacity(
-			bDuplicateWeaponOrEquipment
-				? DuplicateBackgroundColor
-				: DefaultBackgroundImageColor);
+		return Settings.AssignedItemBackgroundColor;
 	}
-
-	if (SlotBackgroundBorder && bDefaultBackgroundBorderColorCached)
+	if (bDuplicateWeaponOrEquipment)
 	{
-		SlotBackgroundBorder->SetBrushColor(
-			bDuplicateWeaponOrEquipment
-				? DuplicateBackgroundColor
-				: DefaultBackgroundBorderColor);
+		return Settings.UpgradeableItemBackgroundColor;
 	}
-}
-
-FLinearColor UItemSlotWidget::ResolveDuplicateBackgroundColor() const
-{
-	if (const UWidgetClassDefinition* WidgetDefinition =
-		UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
-	{
-		return WidgetDefinition->GetInventoryWidgetSettings()
-			.DuplicateWeaponOrEquipmentBackgroundColor;
-	}
-
-	return FInventoryWidgetSettings().DuplicateWeaponOrEquipmentBackgroundColor;
+	return DefaultBackgroundColor;
 }
 
 bool UItemSlotWidget::IsItemConsumable(const UItemInstance* ItemInstance) const

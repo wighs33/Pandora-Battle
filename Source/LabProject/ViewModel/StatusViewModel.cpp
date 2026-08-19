@@ -7,6 +7,8 @@
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/LevelingComponent.h"
+#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Player/StatUpgradeDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatusViewModel)
 
@@ -39,6 +41,64 @@ namespace StatusViewModel
 	float RoundPercentValue(float Value)
 	{
 		return FMath::RoundToFloat(Value);
+	}
+
+	FText FormatSignedStatBonus(const float BonusValue)
+	{
+		if (!FMath::IsFinite(BonusValue) || FMath::IsNearlyZero(BonusValue))
+		{
+			return FText::GetEmpty();
+		}
+
+		const FText NumberText = FText::AsNumber(BonusValue);
+		return BonusValue > 0.0f
+			? FText::Format(
+				NSLOCTEXT(
+					"StatusViewModel",
+					"PositiveStatBonusFormat",
+					"+{0}"),
+				NumberText)
+			: NumberText;
+	}
+
+	const UStatUpgradeDefinition* LoadDefaultStatUpgradeDefinition()
+	{
+		TSoftObjectPtr<UStatUpgradeDefinition> StatDefinition(
+			UStatUpgradeDefinition::GetDefaultDefinitionPath());
+		return StatDefinition.LoadSynchronous();
+	}
+
+	float CalculateDisplayedMaxResourceIncreasePercent(
+		UAbilitySystemComponent* ASC,
+		const TMap<FGameplayTag, float>& EquipmentBonusMagnitudes,
+		const UStatUpgradeDefinition* StatDefinition,
+		const FGameplayAttribute& IncreasePercentAttribute,
+		const FGameplayTag MaxResourceStatTag)
+	{
+		const float AttributeIncreasePercent = GetAttributeValue(
+			ASC,
+			IncreasePercentAttribute);
+		if (!StatDefinition || !MaxResourceStatTag.IsValid())
+		{
+			return RoundPercentValue(AttributeIncreasePercent);
+		}
+
+		float DefaultMaxResource = 0.0f;
+		if (!StatDefinition->TryGetExactAttributeDefaultValue(
+				MaxResourceStatTag,
+				DefaultMaxResource)
+			|| !FMath::IsFinite(DefaultMaxResource)
+			|| DefaultMaxResource <= UE_KINDA_SMALL_NUMBER)
+		{
+			return RoundPercentValue(AttributeIncreasePercent);
+		}
+
+		const float EquipmentBonus =
+			EquipmentBonusMagnitudes.FindRef(MaxResourceStatTag);
+		const float EquipmentIncreasePercent =
+			EquipmentBonus / DefaultMaxResource * 100.0f;
+		return RoundPercentValue(
+			AttributeIncreasePercent + EquipmentIncreasePercent);
 	}
 
 	ACharacterBase* ResolveCharacter(UAbilitySystemComponent* ASC)
@@ -91,6 +151,7 @@ namespace StatusViewModel
 	{
 		return FMath::Max(MaxHealth, 0.f) * FMath::Max(Recovery, 0.f) * 0.01f;
 	}
+
 }
 
 UStatusViewModel::UStatusViewModel()
@@ -436,28 +497,119 @@ void UStatusViewModel::UpdateStatLevelData()
 
 }
 
-void UStatusViewModel::UpdateResourceIncreasePercentData()
+void UStatusViewModel::UpdateEquipmentDerivedData()
 {
-	UAbilitySystemComponent* ASCPtr = ASC.Get();
-	if (!ASCPtr)
+	RefreshEquipmentComponentBinding();
+	TMap<FGameplayTag, float> EquipmentBonusMagnitudes;
+	if (const UEquipmentComponent* BoundEquipmentComponent =
+		EquipmentComponent.Get())
+	{
+		BoundEquipmentComponent->GetEquipmentBonusStatMagnitudes(
+			EquipmentBonusMagnitudes);
+	}
+
+	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	if (UAbilitySystemComponent* ASCPtr = ASC.Get())
+	{
+		const UStatUpgradeDefinition* StatDefinition =
+			StatusViewModel::LoadDefaultStatUpgradeDefinition();
+		UE_MVVM_SET_PROPERTY_VALUE(MaxHealthIncreasePercent,
+			StatusViewModel::CalculateDisplayedMaxResourceIncreasePercent(
+				ASCPtr,
+				EquipmentBonusMagnitudes,
+				StatDefinition,
+				UBasicAttributeSet::GetMaxHealthIncreasePercentAttribute(),
+				TagConfig->GetStatusMaxHealthTag()));
+		UE_MVVM_SET_PROPERTY_VALUE(MaxShieldIncreasePercent,
+			StatusViewModel::CalculateDisplayedMaxResourceIncreasePercent(
+				ASCPtr,
+				EquipmentBonusMagnitudes,
+				StatDefinition,
+				UBasicAttributeSet::GetMaxShieldIncreasePercentAttribute(),
+				TagConfig->GetStatusMaxShieldTag()));
+		UE_MVVM_SET_PROPERTY_VALUE(MaxManaIncreasePercent,
+			StatusViewModel::CalculateDisplayedMaxResourceIncreasePercent(
+				ASCPtr,
+				EquipmentBonusMagnitudes,
+				StatDefinition,
+				UBasicAttributeSet::GetMaxManaIncreasePercentAttribute(),
+				TagConfig->GetStatusMaxManaTag()));
+		UE_MVVM_SET_PROPERTY_VALUE(MaxStaminaIncreasePercent,
+			StatusViewModel::CalculateDisplayedMaxResourceIncreasePercent(
+				ASCPtr,
+				EquipmentBonusMagnitudes,
+				StatDefinition,
+				UBasicAttributeSet::GetMaxStaminaIncreasePercentAttribute(),
+				TagConfig->GetStatusMaxStaminaTag()));
+	}
+	else
 	{
 		UE_MVVM_SET_PROPERTY_VALUE(MaxHealthIncreasePercent, 0.f);
 		UE_MVVM_SET_PROPERTY_VALUE(MaxShieldIncreasePercent, 0.f);
 		UE_MVVM_SET_PROPERTY_VALUE(MaxManaIncreasePercent, 0.f);
 		UE_MVVM_SET_PROPERTY_VALUE(MaxStaminaIncreasePercent, 0.f);
-
-		return;
 	}
 
-	UE_MVVM_SET_PROPERTY_VALUE(MaxHealthIncreasePercent,
-		StatusViewModel::RoundPercentValue(StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxHealthIncreasePercentAttribute())));
-	UE_MVVM_SET_PROPERTY_VALUE(MaxShieldIncreasePercent,
-		StatusViewModel::RoundPercentValue(StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxShieldIncreasePercentAttribute())));
-	UE_MVVM_SET_PROPERTY_VALUE(MaxManaIncreasePercent,
-		StatusViewModel::RoundPercentValue(StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxManaIncreasePercentAttribute())));
-	UE_MVVM_SET_PROPERTY_VALUE(MaxStaminaIncreasePercent,
-		StatusViewModel::RoundPercentValue(StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxStaminaIncreasePercentAttribute())));
+	const auto GetBonusMagnitude = [&EquipmentBonusMagnitudes](
+		const FGameplayTag StatTag)
+	{
+		return EquipmentBonusMagnitudes.FindRef(StatTag);
+	};
 
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusStrengthText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusStrengthTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusIntelligenceText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusIntelligenceTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusArcaneText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusArcaneTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusArmorText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusArmorTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusRecoveryText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusRecoveryTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusMaxShieldText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusMaxShieldTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusFrostbiteText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusFrostbiteTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusBurnText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusBurnTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusElectricShockText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusElectricShockTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusFirstPandoraText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusFirstPandoraTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusSecondPandoraText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusSecondPandoraTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusThirdPandoraText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusThirdPandoraTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusMaxHealthText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusMaxHealthTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusMaxManaText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusMaxManaTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusMaxStaminaText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusMaxStaminaTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusAttackSpeedText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusAttackSpeedTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusMovementSpeedText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusMovementSpeedTag())));
+	UE_MVVM_SET_PROPERTY_VALUE(EquipmentBonusCriticalText,
+		StatusViewModel::FormatSignedStatBonus(
+			GetBonusMagnitude(TagConfig->GetStatusCriticalTag())));
 }
 
 void UStatusViewModel::UpdateHealthData()
@@ -549,7 +701,7 @@ void UStatusViewModel::UpdateAllData()
 	UpdateShieldData();
 	UpdateManaData();
 	UpdateStaminaData();
-	UpdateResourceIncreasePercentData();
+	UpdateEquipmentDerivedData();
 }
 
 void UStatusViewModel::OnLevelingChanged(const FOnAttributeChangeData& Data)
@@ -611,7 +763,7 @@ void UStatusViewModel::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 {
 
 	UpdateHealthData();
-	UpdateResourceIncreasePercentData();
+	UpdateEquipmentDerivedData();
 }
 
 /** Shield changed. */
@@ -625,7 +777,7 @@ void UStatusViewModel::OnMaxShieldChanged(const FOnAttributeChangeData& Data)
 {
 
 	UpdateShieldData();
-	UpdateResourceIncreasePercentData();
+	UpdateEquipmentDerivedData();
 }
 
 void UStatusViewModel::OnManaChanged(const FOnAttributeChangeData& Data)
@@ -638,7 +790,7 @@ void UStatusViewModel::OnMaxManaChanged(const FOnAttributeChangeData& Data)
 {
 
 	UpdateManaData();
-	UpdateResourceIncreasePercentData();
+	UpdateEquipmentDerivedData();
 }
 
 void UStatusViewModel::OnStaminaChanged(const FOnAttributeChangeData& Data)
@@ -651,24 +803,31 @@ void UStatusViewModel::OnMaxStaminaChanged(const FOnAttributeChangeData& Data)
 {
 
 	UpdateStaminaData();
-	UpdateResourceIncreasePercentData();
+	UpdateEquipmentDerivedData();
 }
 
 void UStatusViewModel::OnResourceIncreasePercentChanged(const FOnAttributeChangeData& Data)
 {
 
-	UpdateResourceIncreasePercentData();
+	UpdateEquipmentDerivedData();
 	UpdateHealthData();
 	UpdateShieldData();
 	UpdateManaData();
 	UpdateStaminaData();
 }
 
-void UStatusViewModel::OnCurrentWeaponDefinitionChanged()
+void UStatusViewModel::OnEquipmentStatsChanged()
 {
-
+	UpdateEquipmentDerivedData();
 	UpdateOffenseData();
 	UpdateDefenseData();
+	UpdateResistanceData();
+	UpdatePandoraForceData();
+	UpdateAgilityData();
+	UpdateHealthData();
+	UpdateShieldData();
+	UpdateManaData();
+	UpdateStaminaData();
 }
 
 void UStatusViewModel::RefreshEquipmentComponentBinding()
@@ -687,7 +846,9 @@ void UStatusViewModel::RefreshEquipmentComponentBinding()
 	}
 
 	EquipmentComponent = ResolvedEquipmentComponent;
-	ResolvedEquipmentComponent->OnCurrentWeaponDefinitionChanged.AddUObject(this, &ThisClass::OnCurrentWeaponDefinitionChanged);
+	ResolvedEquipmentComponent->OnEquipmentStatsChanged.AddUObject(
+		this,
+		&ThisClass::OnEquipmentStatsChanged);
 
 }
 
@@ -695,7 +856,7 @@ void UStatusViewModel::ClearEquipmentComponentBinding()
 {
 	if (UEquipmentComponent* BoundEquipmentComponent = EquipmentComponent.Get())
 	{
-		BoundEquipmentComponent->OnCurrentWeaponDefinitionChanged.RemoveAll(this);
+		BoundEquipmentComponent->OnEquipmentStatsChanged.RemoveAll(this);
 	}
 
 	EquipmentComponent.Reset();

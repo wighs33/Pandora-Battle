@@ -6,6 +6,7 @@
 #include "SelectPandoraWidget.generated.h"
 
 class UImage;
+class UTextBlock;
 class UTexture2D;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnSelectedPandoraDirection, EEnum_Direction, Direction);
@@ -52,6 +53,33 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
 	TObjectPtr<UImage> ThirdWeaponImage;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UImage> Img_FirstCut;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UImage> Img_SecondCut;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UImage> Img_ThirdCut;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UImage> Img_Highlight1;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UImage> Img_Highlight2;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UImage> Img_Highlight3;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UTextBlock> Txt_First;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UTextBlock> Txt_Second;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UTextBlock> Txt_Third;
+
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Pandora")
 	EEnum_Direction Direction = EEnum_Direction::Center;
 
@@ -65,6 +93,8 @@ private:
 	void CacheDefaultImageBrushes();
 	void SetImageByIndex(const TArray<UImage*>& Images, const TArray<FSlateBrush>& DefaultBrushes, int32 Nth, UTexture2D* Texture);
 	void SetImageTintByIndex(const TArray<UImage*>& Images, int32 Nth, const FLinearColor& TintColor) const;
+	void RefreshSelectedLoadoutNumber();
+	void SetSelectedLoadoutNumberVisibility(int32 LoadoutNumber) const;
 	void SelectDirection(EEnum_Direction InDirection, bool bBroadcast);
 
 	UPROPERTY(Transient)

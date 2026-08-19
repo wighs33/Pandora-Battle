@@ -2,11 +2,9 @@
 
 #include "Components/TileView.h"
 #include "Component/Item/InventoryComponent.h"
-#include "Component/Player/EquipmentComponent.h"
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
-#include "Pandora/PandoraLoadoutTypes.h"
 #include "UI/InfoLoadoutStore.h"
 #include "UI/PandoraLoadoutUiModel.h"
 #include "UI/Widget/EquipSlotWidget.h"
@@ -87,8 +85,6 @@ void UInfoItemTabPresenter::Deinitialize()
 	SelectedEquipSlot = nullptr;
 	SelectedEquipTypeTag = FGameplayTag();
 	CurrentItemFilterTag = FGameplayTag();
-	PendingClearedWeaponId.Invalidate();
-	PendingClearedWeaponDirection = EEnum_Direction::Center;
 	bUseItemTypeFilter = false;
 	bActive = false;
 	LoadoutStore.Reset();
@@ -147,7 +143,6 @@ void UInfoItemTabPresenter::HandleInfoUiOpened()
 		LeftEquipmentWidget->InitialzeEquipSlots();
 	}
 	RefreshEquipmentSlots();
-	ReconcileCurrentWeaponLoadoutDirection();
 
 	if (URightInventoryWidget* RightInventoryWidget = InfoWidget ? InfoWidget->GetRightInventoryWidget() : nullptr)
 	{
@@ -166,7 +161,6 @@ void UInfoItemTabPresenter::HandleWeaponLoadoutChanged()
 {
 	RefreshEquipmentSlots();
 	RefreshInventoryTileView();
-	ReconcileCurrentWeaponLoadoutDirection();
 }
 
 void UInfoItemTabPresenter::HandlePandoraLoadoutChanged()
@@ -218,6 +212,15 @@ void UInfoItemTabPresenter::RefreshEquipmentSlots() const
 		Store ? Store->GetSelectedPandoraDefinition(EEnum_Direction::Right) : nullptr);
 
 	const UInventoryComponent* Inventory = Store ? Store->GetInventoryComponent() : nullptr;
+	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	TArray<FGameplayTag> EquipmentSlotTags;
+	TagConfig->GetItemEquipmentSlotTags(EquipmentSlotTags);
+	for (const FGameplayTag& EquipmentSlotTag : EquipmentSlotTags)
+	{
+		LeftEquipmentWidget->SetEquipmentSlotData(
+			EquipmentSlotTag,
+			Inventory ? Inventory->GetEquipmentSlotItem(EquipmentSlotTag) : nullptr);
+	}
 	for (int32 SlotIndex = 0; SlotIndex < UInventoryComponent::ConsumableQuickSlotCount; ++SlotIndex)
 	{
 		LeftEquipmentWidget->SetConsumableQuickSlotData(
@@ -274,8 +277,20 @@ void UInfoItemTabPresenter::HandleItemSlotClicked(UObject* Item)
 			return;
 		}
 
-		PendingClearedWeaponId.Invalidate();
-		PendingClearedWeaponDirection = EEnum_Direction::Center;
+		ClearInventoryTileItemClicked();
+		return;
+	}
+
+	const bool bEquipmentSlot = GetEquipmentItemTypeTag().IsValid()
+		&& SelectedEquipTypeTag.MatchesTag(GetEquipmentItemTypeTag());
+	if (bEquipmentSlot)
+	{
+		if (!Store
+			|| !Store->RequestSetEquipmentSlot(SelectedEquipTypeTag, ItemInstance))
+		{
+			return;
+		}
+
 		ClearInventoryTileItemClicked();
 		return;
 	}
@@ -464,70 +479,19 @@ void UInfoItemTabPresenter::RefreshInventoryTileView()
 		}
 	}
 
-	RemoveEquippedItemsFromInventoryList(AllInventoryItems);
-	if (bUseItemTypeFilter)
-	{
-		RemoveEquippedItemsFromInventoryList(CurrentItemList);
-	}
-	else
+	ReconcileInventoryDisplaySlots(AllInventoryItems);
+	if (!bUseItemTypeFilter)
 	{
 		CurrentItemList = AllInventoryItems;
 	}
 
-	ReconcileInventoryDisplaySlots(AllInventoryItems);
+	TSet<FGuid> AssignedItemIds;
+	CollectAssignedItemIds(AssignedItemIds);
+
 	TArray<UObject*> ViewSlotItems;
 	BuildInventoryViewSlots(CurrentItemList, ViewSlotItems);
+	RightInventoryWidget->SetAssignedItemIds(AssignedItemIds);
 	RightInventoryWidget->SetTileView(ViewSlotItems);
-}
-
-void UInfoItemTabPresenter::ReconcileCurrentWeaponLoadoutDirection()
-{
-	UInfoLoadoutStore* Store = LoadoutStore.Get();
-	UEquipmentComponent* Equipment = Store ? Store->GetEquipmentComponent() : nullptr;
-	const UInventoryComponent* Inventory = Store ? Store->GetInventoryComponent() : nullptr;
-	if (!Equipment || !Inventory)
-	{
-		return;
-	}
-
-	const FGuid CurrentWeaponId = Equipment->GetCurrentWeaponId();
-	if (!CurrentWeaponId.IsValid())
-	{
-		PendingClearedWeaponId.Invalidate();
-		PendingClearedWeaponDirection = EEnum_Direction::Center;
-		return;
-	}
-
-	for (const EEnum_Direction Direction :
-		{ EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
-	{
-		if (Inventory->GetPandoraWeaponLoadoutItemId(Direction) != CurrentWeaponId)
-		{
-			continue;
-		}
-
-		if (Equipment->GetCurrentWeaponLoadoutDirection() != Direction)
-		{
-			if (UItemInstance* CurrentWeapon = Inventory->FindItemInstanceById(CurrentWeaponId))
-			{
-				Store->RequestCurrentWeaponLoadoutDirection(Direction, CurrentWeapon);
-			}
-		}
-		PendingClearedWeaponId.Invalidate();
-		PendingClearedWeaponDirection = EEnum_Direction::Center;
-		return;
-	}
-
-	const bool bConfirmedPendingClear = PendingClearedWeaponId == CurrentWeaponId
-		&& PandoraLoadout::IsLoadoutDirection(PendingClearedWeaponDirection)
-		&& Inventory->GetPandoraWeaponLoadoutItemId(PendingClearedWeaponDirection)
-			!= PendingClearedWeaponId;
-	if (bConfirmedPendingClear)
-	{
-		Store->RequestWeaponUnequip();
-		PendingClearedWeaponId.Invalidate();
-		PendingClearedWeaponDirection = EEnum_Direction::Center;
-	}
 }
 
 void UInfoItemTabPresenter::BindEvents()
@@ -657,7 +621,6 @@ void UInfoItemTabPresenter::ClearEquipmentSlot(
 		EquipTypeTag = TargetEquipSlot->GetAcceptedEquipTypeTag();
 	}
 
-	UItemInstance* ClearedItemInstance = TargetEquipSlot->GetItemInstance();
 	UInfoLoadoutStore* Store = LoadoutStore.Get();
 	if (GetConsumableItemTypeTag().IsValid()
 		&& EquipTypeTag.MatchesTag(GetConsumableItemTypeTag()))
@@ -675,14 +638,20 @@ void UInfoItemTabPresenter::ClearEquipmentSlot(
 	{
 		const EEnum_Direction Direction =
 			FPandoraLoadoutUiModel::GetDirectionFromSelectSlotNumber(TargetEquipSlot->GetNth());
-		PendingClearedWeaponId = IsValid(ClearedItemInstance)
-			? ClearedItemInstance->GetItemId()
-			: FGuid();
-		PendingClearedWeaponDirection = Direction;
 		if (!Store || !Store->RequestClearWeaponLoadoutSlot(Direction))
 		{
-			PendingClearedWeaponId.Invalidate();
-			PendingClearedWeaponDirection = EEnum_Direction::Center;
+			return;
+		}
+		SelectedEquipSlot = nullptr;
+		SelectedEquipTypeTag = FGameplayTag();
+		return;
+	}
+
+	if (GetEquipmentItemTypeTag().IsValid()
+		&& EquipTypeTag.MatchesTag(GetEquipmentItemTypeTag()))
+	{
+		if (!Store || !Store->RequestClearEquipmentSlot(EquipTypeTag))
+		{
 			return;
 		}
 		SelectedEquipSlot = nullptr;
@@ -883,51 +852,32 @@ int32 UInfoItemTabPresenter::FindInventoryDisplaySlotIndexByItemId(const FGuid I
 	return INDEX_NONE;
 }
 
-int32 UInfoItemTabPresenter::RemoveEquippedItemsFromInventoryList(TArray<UObject*>& InOutItemList) const
+void UInfoItemTabPresenter::CollectAssignedItemIds(TSet<FGuid>& OutAssignedItemIds) const
 {
-	TSet<FGuid> EquippedItemIds;
+	OutAssignedItemIds.Reset();
 	const UInfoLoadoutStore* Store = LoadoutStore.Get();
 	const UInventoryComponent* Inventory = Store ? Store->GetInventoryComponent() : nullptr;
-	const FGameplayTag WeaponItemTypeTag = GetWeaponItemTypeTag();
-	const FGameplayTag ConsumableItemTypeTag = GetConsumableItemTypeTag();
-
-	const UInfoWidget* InfoWidget = GetInfoWidget();
-	const ULeftEquipmentWidget* LeftEquipmentWidget = InfoWidget
-		? InfoWidget->GetLeftEquipmentWidget()
-		: nullptr;
-	if (LeftEquipmentWidget)
-	{
-		TSet<FGuid> UiEquippedItemIds;
-		LeftEquipmentWidget->GetEquippedItemIds(UiEquippedItemIds);
-		for (const FGuid ItemId : UiEquippedItemIds)
-		{
-			const UItemInstance* ItemInstance = Inventory
-				? Inventory->FindItemInstanceById(ItemId)
-				: nullptr;
-			const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
-				? ItemInstance->ItemDefinition.Get()
-				: nullptr;
-			const bool bIsReplicatedLoadoutItem = ItemDefinition
-				&& ItemDefinition->IdTag.IsValid()
-				&& ((WeaponItemTypeTag.IsValid()
-						&& ItemDefinition->IdTag.MatchesTag(WeaponItemTypeTag))
-					|| (ConsumableItemTypeTag.IsValid()
-						&& ItemDefinition->IdTag.MatchesTag(ConsumableItemTypeTag)));
-			if (!bIsReplicatedLoadoutItem)
-			{
-				EquippedItemIds.Add(ItemId);
-			}
-		}
-	}
 
 	if (Inventory)
 	{
+		const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+		TArray<FGameplayTag> EquipmentSlotTags;
+		TagConfig->GetItemEquipmentSlotTags(EquipmentSlotTags);
+		for (const FGameplayTag& EquipmentSlotTag : EquipmentSlotTags)
+		{
+			const FGuid EquippedItemId =
+				Inventory->GetEquipmentSlotItemId(EquipmentSlotTag);
+			if (EquippedItemId.IsValid())
+			{
+				OutAssignedItemIds.Add(EquippedItemId);
+			}
+		}
 		for (int32 SlotIndex = 0; SlotIndex < UInventoryComponent::ConsumableQuickSlotCount; ++SlotIndex)
 		{
 			const UItemInstance* QuickSlotItem = Inventory->GetConsumableQuickSlotItem(SlotIndex);
 			if (IsValid(QuickSlotItem) && QuickSlotItem->GetItemId().IsValid())
 			{
-				EquippedItemIds.Add(QuickSlotItem->GetItemId());
+				OutAssignedItemIds.Add(QuickSlotItem->GetItemId());
 			}
 		}
 		for (const EEnum_Direction Direction :
@@ -936,18 +886,15 @@ int32 UInfoItemTabPresenter::RemoveEquippedItemsFromInventoryList(TArray<UObject
 			const FGuid WeaponItemId = Inventory->GetPandoraWeaponLoadoutItemId(Direction);
 			if (WeaponItemId.IsValid())
 			{
-				EquippedItemIds.Add(WeaponItemId);
+				OutAssignedItemIds.Add(WeaponItemId);
 			}
 		}
 	}
+}
 
-	const int32 BeforeCount = InOutItemList.Num();
-	InOutItemList.RemoveAll([&EquippedItemIds](UObject* ItemObject)
-	{
-		const UItemInstance* ItemInstance = Cast<UItemInstance>(ItemObject);
-		return IsValid(ItemInstance) && EquippedItemIds.Contains(ItemInstance->GetItemId());
-	});
-	return BeforeCount - InOutItemList.Num();
+FGameplayTag UInfoItemTabPresenter::GetEquipmentItemTypeTag() const
+{
+	return UProjectTagConfig::Get(this)->GetItemEquipmentTypeTag();
 }
 
 FGameplayTag UInfoItemTabPresenter::GetWeaponItemTypeTag() const

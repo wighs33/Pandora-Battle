@@ -145,6 +145,11 @@ void URightInventoryWidget::SetTileView(const TArray<UObject*>& InListItems)
 	RebuildTileViewFromCachedSourceItems();
 }
 
+void URightInventoryWidget::SetAssignedItemIds(const TSet<FGuid>& InAssignedItemIds)
+{
+	AssignedItemIds = InAssignedItemIds;
+}
+
 void URightInventoryWidget::ClearTileViewItemClicked()
 {
 	if (TileView)
@@ -304,13 +309,16 @@ void URightInventoryWidget::RebuildTileViewFromCachedSourceItems()
 		const UItemDefinition* ItemDefinition = ItemInstance
 			? ItemInstance->ItemDefinition.Get()
 			: nullptr;
+		const FGuid ItemId = ItemInstance ? ItemInstance->GetItemId() : FGuid();
+		const bool bAssigned = ItemId.IsValid() && AssignedItemIds.Contains(ItemId);
 		const int32* DuplicateCount = ItemDefinition
 			? DuplicateCandidateCounts.Find(ItemDefinition)
 			: nullptr;
 		SlotViewData->Initialize(
 			SlotIndex,
 			ItemInstance,
-			DuplicateCount && *DuplicateCount > 1);
+			DuplicateCount && *DuplicateCount > 1,
+			bAssigned);
 		CachedSlotViewData.Add(SlotViewData);
 		TileView->AddItem(SlotViewData);
 	}

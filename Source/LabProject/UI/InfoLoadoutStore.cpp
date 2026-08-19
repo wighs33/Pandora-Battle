@@ -152,14 +152,21 @@ bool UInfoLoadoutStore::WouldSelectedDirectionChangeLoadout(
 {
 	const UEquipmentComponent* Equipment = GetEquipmentComponent();
 	const UPandoraComponent* PandoraComponent = GetPandoraComponent();
+	const APdPlayerState* PlayerState = IsValid(OwningController)
+		? OwningController->GetPlayerState<APdPlayerState>()
+		: nullptr;
 	if (Direction == EEnum_Direction::Down)
 	{
+		const bool bWouldChangeSelectedLoadout = PlayerState
+			&& PlayerState->GetSelectedWeaponPandoraLoadoutNumber() != 0;
 		const bool bWouldUnequipWeapon = Equipment
 			&& (Equipment->GetCurrentWeaponId().IsValid()
 				|| Equipment->GetCurrentWeaponDefinition());
 		const bool bWouldClearPandora = PandoraComponent
 			&& PandoraComponent->GetCurrentPandoraDefinition();
-		return bWouldUnequipWeapon || bWouldClearPandora;
+		return bWouldChangeSelectedLoadout
+			|| bWouldUnequipWeapon
+			|| bWouldClearPandora;
 	}
 	if (!PandoraLoadout::IsLoadoutDirection(Direction))
 	{
@@ -167,12 +174,21 @@ bool UInfoLoadoutStore::WouldSelectedDirectionChangeLoadout(
 	}
 
 	const UPandoraDefinition* PandoraDefinition = GetSelectedPandoraDefinition(Direction);
-	const bool bPandoraWouldChange = PandoraComponent && PandoraDefinition
+	const int32 RequestedLoadoutNumber =
+		PandoraLoadout::GetLoadoutNumberFromDirection(Direction);
+	const bool bWouldChangeSelectedLoadout = PlayerState
+		&& PlayerState->GetSelectedWeaponPandoraLoadoutNumber()
+			!= RequestedLoadoutNumber;
+	const bool bPandoraWouldChange = PandoraComponent
 		&& (PandoraComponent->GetCurrentPandoraDefinition() != PandoraDefinition
-			|| PandoraComponent->GetCurrentPandoraLoadoutDirection() != Direction);
+			|| (PandoraDefinition
+				&& PandoraComponent->GetCurrentPandoraLoadoutDirection() != Direction));
 
 	UItemInstance* Weapon = GetSelectedWeapon(Direction);
-	bool bWeaponWouldChange = false;
+	bool bWeaponWouldChange = Equipment
+		&& !IsValid(Weapon)
+		&& (Equipment->GetCurrentWeaponId().IsValid()
+			|| Equipment->GetCurrentWeaponDefinition());
 	if (Equipment && IsValid(Weapon))
 	{
 		const FGuid WeaponId = Weapon->GetOrCreateItemId();
@@ -183,7 +199,9 @@ bool UInfoLoadoutStore::WouldSelectedDirectionChangeLoadout(
 		bWeaponWouldChange = !bSameWeapon
 			|| Equipment->GetCurrentWeaponLoadoutDirection() != Direction;
 	}
-	return bPandoraWouldChange || bWeaponWouldChange;
+	return bWouldChangeSelectedLoadout
+		|| bPandoraWouldChange
+		|| bWeaponWouldChange;
 }
 
 bool UInfoLoadoutStore::RequestSetConsumableQuickSlot(
@@ -202,6 +220,28 @@ bool UInfoLoadoutStore::RequestClearConsumableQuickSlot(const int32 SlotIndex)
 {
 	if (IsValid(BoundInventoryComponent)
 		&& BoundInventoryComponent->ClearConsumableQuickSlot(SlotIndex))
+	{
+		return true;
+	}
+	return PublishRejectedCommand(EInfoLoadoutStateChange::Inventory);
+}
+
+bool UInfoLoadoutStore::RequestSetEquipmentSlot(
+	const FGameplayTag SlotTag,
+	UItemInstance* ItemInstance)
+{
+	if (IsValid(BoundInventoryComponent)
+		&& BoundInventoryComponent->SetEquipmentSlot(SlotTag, ItemInstance))
+	{
+		return true;
+	}
+	return PublishRejectedCommand(EInfoLoadoutStateChange::Inventory);
+}
+
+bool UInfoLoadoutStore::RequestClearEquipmentSlot(const FGameplayTag SlotTag)
+{
+	if (IsValid(BoundInventoryComponent)
+		&& BoundInventoryComponent->ClearEquipmentSlot(SlotTag))
 	{
 		return true;
 	}
@@ -244,55 +284,25 @@ bool UInfoLoadoutStore::RequestSetPandoraLoadoutSlot(
 
 bool UInfoLoadoutStore::RequestSelectLoadoutDirection(const EEnum_Direction Direction)
 {
-	UEquipmentComponent* Equipment = GetEquipmentComponent();
-	UPandoraComponent* PandoraComponent = GetPandoraComponent();
-	if (Direction == EEnum_Direction::Down)
-	{
-		const bool bWeaponRequested = Equipment && Equipment->RequestWeaponUnequip();
-		const bool bPandoraRequested = PandoraComponent
-			&& PandoraComponent->RequestPandoraSelection(nullptr);
-		return bWeaponRequested || bPandoraRequested;
-	}
-	if (!PandoraLoadout::IsLoadoutDirection(Direction))
+	APdPlayerState* PlayerState = IsValid(OwningController)
+		? OwningController->GetPlayerState<APdPlayerState>()
+		: nullptr;
+	if (!PlayerState)
 	{
 		return false;
 	}
 
-	bool bRequested = false;
-	if (const UPandoraDefinition* PandoraDefinition = GetSelectedPandoraDefinition(Direction))
+	if (Direction != EEnum_Direction::Down
+		&& !PandoraLoadout::IsLoadoutDirection(Direction))
 	{
-		bRequested = PandoraComponent
-			&& PandoraComponent->RequestPandoraSelectionForDirection(
-				Direction,
-				PandoraDefinition);
+		return false;
 	}
-	if (UItemInstance* Weapon = GetSelectedWeapon(Direction))
-	{
-		bRequested = (Equipment
-			&& Equipment->RequestWeaponSelectionForDirection(Direction, Weapon))
-			|| bRequested;
-	}
-	return bRequested;
-}
 
-bool UInfoLoadoutStore::RequestCurrentWeaponLoadoutDirection(
-	const EEnum_Direction Direction,
-	UItemInstance* WeaponInstance)
-{
-	if (UEquipmentComponent* Equipment = GetEquipmentComponent())
-	{
-		return Equipment->RequestCurrentWeaponLoadoutDirection(Direction, WeaponInstance);
-	}
-	return false;
-}
-
-bool UInfoLoadoutStore::RequestWeaponUnequip()
-{
-	if (UEquipmentComponent* Equipment = GetEquipmentComponent())
-	{
-		return Equipment->RequestWeaponUnequip();
-	}
-	return false;
+	PlayerState->RequestSetSelectedWeaponPandoraLoadoutNumber(
+		Direction == EEnum_Direction::Down
+			? 0
+			: PandoraLoadout::GetLoadoutNumberFromDirection(Direction));
+	return true;
 }
 
 void UInfoLoadoutStore::NotifyPresentationAssetsReady()
