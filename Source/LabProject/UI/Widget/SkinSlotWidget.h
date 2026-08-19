@@ -51,7 +51,10 @@ protected:
 	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
-	TObjectPtr<UTextBlock> TextBlock;
+	TObjectPtr<UTextBlock> Txt_Assigned;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
+	TObjectPtr<UImage> Img_Back;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
 	TObjectPtr<UImage> IconImage;
@@ -75,6 +78,10 @@ private:
 	void ApplySkinVisual(USkinInstance* Target);
 	void CacheOptionalWidgets();
 	void ApplySelectionVisual();
+	FLinearColor ResolveAssignedBackgroundColor() const;
+
+	FLinearColor DefaultBackgroundColor = FLinearColor::White;
+	bool bDefaultBackgroundColorCached = false;
 
 	bool bIsSelected = false;
 };

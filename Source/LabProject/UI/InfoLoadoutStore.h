@@ -2,6 +2,7 @@
 
 #include "Common/Enum_Direction.h"
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "UObject/Object.h"
 #include "InfoLoadoutStore.generated.h"
 
@@ -54,16 +55,14 @@ public:
 
 	bool RequestSetConsumableQuickSlot(int32 SlotIndex, UItemInstance* ItemInstance);
 	bool RequestClearConsumableQuickSlot(int32 SlotIndex);
+	bool RequestSetEquipmentSlot(FGameplayTag SlotTag, UItemInstance* ItemInstance);
+	bool RequestClearEquipmentSlot(FGameplayTag SlotTag);
 	bool RequestSetWeaponLoadoutSlot(EEnum_Direction Direction, UItemInstance* ItemInstance);
 	bool RequestClearWeaponLoadoutSlot(EEnum_Direction Direction);
 	bool RequestSetPandoraLoadoutSlot(
 		EEnum_Direction Direction,
 		const UPandoraDefinition* PandoraDefinition);
 	bool RequestSelectLoadoutDirection(EEnum_Direction Direction);
-	bool RequestCurrentWeaponLoadoutDirection(
-		EEnum_Direction Direction,
-		UItemInstance* WeaponInstance);
-	bool RequestWeaponUnequip();
 
 	void NotifyPresentationAssetsReady();
 

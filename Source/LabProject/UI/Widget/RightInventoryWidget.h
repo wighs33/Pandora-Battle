@@ -45,6 +45,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
 	void SetTileView(const TArray<UObject*>& InListItems);
 
+	void SetAssignedItemIds(const TSet<FGuid>& InAssignedItemIds);
+
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
 	void ClearTileViewItemClicked();
 
@@ -125,6 +127,8 @@ protected:
 
 	UPROPERTY(Transient)
 	FString ActiveSearchText;
+
+	TSet<FGuid> AssignedItemIds;
 
 private:
 	//------------------------------------------------------------------------------------------------------------------

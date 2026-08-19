@@ -16,7 +16,8 @@ public:
 	void Initialize(
 		int32 InSlotIndex,
 		UItemInstance* InItemInstance,
-		bool bInDuplicateWeaponOrEquipment = false);
+		bool bInDuplicateWeaponOrEquipment = false,
+		bool bInAssigned = false);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
 	int32 GetSlotIndex() const { return SlotIndex; }
@@ -33,6 +34,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
 	bool IsDuplicateWeaponOrEquipment() const { return bDuplicateWeaponOrEquipment; }
 
+	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
+	bool IsAssigned() const { return bAssigned; }
+
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Inventory", meta = (AllowPrivateAccess = "true"))
 	int32 SlotIndex = INDEX_NONE;
@@ -45,4 +49,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Inventory", meta = (AllowPrivateAccess = "true"))
 	bool bDuplicateWeaponOrEquipment = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Inventory", meta = (AllowPrivateAccess = "true"))
+	bool bAssigned = false;
 };

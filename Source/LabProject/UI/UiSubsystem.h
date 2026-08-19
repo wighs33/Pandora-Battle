@@ -186,6 +186,7 @@ private:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Ability System
 	UAbilitySystemComponent* ResolveAbilitySystemComponent() const;
+	bool BindStatusViewModelToWidget(UUserWidget* InWidget);
 
 	FName ResolveStatusViewModelSourceName(const UUserWidget* InWidget) const;
 

@@ -59,7 +59,7 @@ private:
 
 	void OnResourceIncreasePercentChanged(const FOnAttributeChangeData& Data);
 
-	void OnCurrentWeaponDefinitionChanged();
+	void OnEquipmentStatsChanged();
 
 	void RefreshEquipmentComponentBinding();
 
@@ -134,6 +134,60 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Offense")
 	float FinalCriticalDamage = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusStrengthText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusIntelligenceText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusArcaneText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusArmorText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusRecoveryText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusMaxShieldText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusFrostbiteText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusBurnText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusElectricShockText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusFirstPandoraText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusSecondPandoraText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusThirdPandoraText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusMaxHealthText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusMaxManaText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusMaxStaminaText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusAttackSpeedText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusMovementSpeedText;
+
+	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Equipment Bonus")
+	FText EquipmentBonusCriticalText;
 
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Point")
 	float OffensePoint = 0.f;
@@ -268,7 +322,7 @@ public:
 
 	void UpdateStatLevelData();
 
-	void UpdateResourceIncreasePercentData();
+	void UpdateEquipmentDerivedData();
 
 	void UpdateHealthData();
 

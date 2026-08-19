@@ -7,6 +7,7 @@
 #include "InputCoreTypes.h"
 #include "Mode/PdHUD.h"
 #include "Definition/Skin/SkinDefinition.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 #include "Skin/SkinInstance.h"
 #include "UI/Widget/DragItemVisualWidget.h"
 #include "UI/Widget/InfoWidget.h"
@@ -179,8 +180,8 @@ void USkinSlotWidget::SetSlotData(USkinSlotViewData* Target)
 void USkinSlotWidget::ApplySkinVisual(USkinInstance* Target)
 {
 	const USkinDefinition* SkinDefinition = Target ? Target->SkinDefinition.Get() : nullptr;
-	const FText DisplayName = SkinDefinition ? SkinDefinition->DisplayName : FText::GetEmpty();
 	UTexture2D* IconTexture = SkinDefinition ? SkinDefinition->IconTexture.Get() : nullptr;
+	const bool bAssigned = CachedSlotData && CachedSlotData->IsAssigned();
 
 	CacheOptionalWidgets();
 
@@ -190,10 +191,20 @@ void USkinSlotWidget::ApplySkinVisual(USkinInstance* Target)
 		IconImage->SetVisibility(IconTexture ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 
-	if (TextBlock)
+	if (Txt_Assigned)
 	{
-		TextBlock->SetText(DisplayName);
-		TextBlock->SetVisibility(IconTexture ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		Txt_Assigned->SetVisibility(
+			bAssigned && SkinDefinition
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
+	}
+
+	if (Img_Back)
+	{
+		Img_Back->SetColorAndOpacity(
+			bAssigned && SkinDefinition
+				? ResolveAssignedBackgroundColor()
+				: DefaultBackgroundColor);
 	}
 
 	ApplySelectionVisual();
@@ -212,6 +223,25 @@ void USkinSlotWidget::SetSelected(const bool bInSelected)
 
 void USkinSlotWidget::CacheOptionalWidgets()
 {
+	if (!Txt_Assigned)
+	{
+		Txt_Assigned = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
+			TEXT("Txt_Assigned"),
+			TEXT("AssignedText"),
+			TEXT("AssignedTextBlock")
+		});
+	}
+
+	if (!Img_Back)
+	{
+		Img_Back = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
+			TEXT("Img_Back"),
+			TEXT("BackgroundImage"),
+			TEXT("SkinBackgroundImage"),
+			TEXT("SlotBackgroundImage")
+		});
+	}
+
 	if (!IconImage)
 	{
 		IconImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
@@ -233,6 +263,12 @@ void USkinSlotWidget::CacheOptionalWidgets()
 			TEXT("SelectionHighlightImage")
 		});
 	}
+
+	if (Img_Back && !bDefaultBackgroundColorCached)
+	{
+		DefaultBackgroundColor = Img_Back->GetColorAndOpacity();
+		bDefaultBackgroundColorCached = true;
+	}
 }
 
 void USkinSlotWidget::ApplySelectionVisual()
@@ -246,4 +282,14 @@ void USkinSlotWidget::ApplySelectionVisual()
 
 	SelectionBorderImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	SelectionBorderImage->SetColorAndOpacity(bIsSelected ? SelectionBorderSelectedColor : SelectionBorderDefaultColor);
+}
+
+FLinearColor USkinSlotWidget::ResolveAssignedBackgroundColor() const
+{
+	const UWidgetClassDefinition* WidgetDefinition =
+		UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	const FInventoryWidgetSettings DefaultSettings;
+	return WidgetDefinition
+		? WidgetDefinition->GetInventoryWidgetSettings().AssignedItemBackgroundColor
+		: DefaultSettings.AssignedItemBackgroundColor;
 }

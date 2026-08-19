@@ -12,7 +12,10 @@ class LABPROJECT_API USkinSlotViewData : public UObject
 	GENERATED_BODY()
 
 public:
-	void Initialize(int32 InSlotIndex, USkinInstance* InSkinInstance);
+	void Initialize(
+		int32 InSlotIndex,
+		USkinInstance* InSkinInstance,
+		bool bInAssigned = false);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
 	int32 GetSlotIndex() const { return SlotIndex; }
@@ -23,10 +26,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
 	bool IsEmpty() const { return SkinInstance == nullptr; }
 
+	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
+	bool IsAssigned() const { return bAssigned; }
+
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Skin", meta = (AllowPrivateAccess = "true"))
 	int32 SlotIndex = INDEX_NONE;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Skin", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USkinInstance> SkinInstance;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Skin", meta = (AllowPrivateAccess = "true"))
+	bool bAssigned = false;
 };

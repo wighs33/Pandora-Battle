@@ -4,35 +4,16 @@
 #include "Item/ItemInstance.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
+#include "Pandora/PandoraLoadoutTypes.h"
 
 EEnum_Direction FPandoraLoadoutUiModel::GetDirectionFromSelectSlotNumber(const int32 SlotNumber)
 {
-	switch (SlotNumber)
-	{
-	case 1:
-		return EEnum_Direction::Left;
-	case 2:
-		return EEnum_Direction::Up;
-	case 3:
-		return EEnum_Direction::Right;
-	default:
-		return EEnum_Direction::Center;
-	}
+	return PandoraLoadout::GetDirectionFromLoadoutNumber(SlotNumber);
 }
 
 int32 FPandoraLoadoutUiModel::GetSelectSlotNumberFromDirection(const EEnum_Direction Direction)
 {
-	switch (Direction)
-	{
-	case EEnum_Direction::Left:
-		return 1;
-	case EEnum_Direction::Up:
-		return 2;
-	case EEnum_Direction::Right:
-		return 3;
-	default:
-		return 0;
-	}
+	return PandoraLoadout::GetLoadoutNumberFromDirection(Direction);
 }
 
 TArray<FPandoraSelectSlotUiData> FPandoraLoadoutUiModel::BuildSelectSlots(

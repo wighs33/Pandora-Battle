@@ -243,6 +243,51 @@ void ULeftEquipmentWidget::SetConsumableQuickSlotData(const int32 QuickSlotNumbe
 	}
 }
 
+void ULeftEquipmentWidget::SetEquipmentSlotData(
+	const FGameplayTag EquipTypeTag,
+	UItemInstance* ItemInstance)
+{
+	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	UEquipSlotWidget* TargetSlot = nullptr;
+	if (EquipTypeTag == TagConfig->GetItemHatEquipTypeTag())
+	{
+		TargetSlot = HatSlot;
+	}
+	else if (EquipTypeTag == TagConfig->GetItemTopEquipTypeTag())
+	{
+		TargetSlot = TopSlot;
+	}
+	else if (EquipTypeTag == TagConfig->GetItemBottomEquipTypeTag())
+	{
+		TargetSlot = BottomSlot;
+	}
+	else if (EquipTypeTag == TagConfig->GetItemShoesEquipTypeTag())
+	{
+		TargetSlot = ShoesSlot;
+	}
+	else if (EquipTypeTag == TagConfig->GetItemEarringEquipTypeTag())
+	{
+		TargetSlot = EarringSlot;
+	}
+	else if (EquipTypeTag == TagConfig->GetItemNecklaceEquipTypeTag())
+	{
+		TargetSlot = NecklaceSlot;
+	}
+	else if (EquipTypeTag == TagConfig->GetItemRingEquipTypeTag())
+	{
+		TargetSlot = RingSlot;
+	}
+	else if (EquipTypeTag == TagConfig->GetItemRuneEquipTypeTag())
+	{
+		TargetSlot = RuneSlot;
+	}
+
+	if (TargetSlot)
+	{
+		TargetSlot->SetData(ItemInstance);
+	}
+}
+
 UEquipSlotWidget* ULeftEquipmentWidget::FindFirstCompatibleEquipSlot(UItemInstance* ItemInstance) const
 {
 	const UItemDefinition* ItemDefinition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr;
@@ -302,36 +347,6 @@ UEquipSlotWidget* ULeftEquipmentWidget::FindFirstEquippedCompatibleEquipSlot(UIt
 	}
 
 	return nullptr;
-}
-
-void ULeftEquipmentWidget::GetEquippedItemIds(TSet<FGuid>& OutItemIds, const FGameplayTag ExcludedEquipTypeRootTag) const
-{
-	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
-	{
-		if (!EquipSlot)
-		{
-			continue;
-		}
-
-		const FGameplayTag SlotTag = ResolveEquipTypeTagForSlot(EquipSlot);
-		if (ExcludedEquipTypeRootTag.IsValid() && SlotTag.IsValid() && SlotTag.MatchesTag(ExcludedEquipTypeRootTag))
-		{
-			continue;
-		}
-
-		UItemInstance* ItemInstance = EquipSlot->GetItemInstance();
-		if (!IsValid(ItemInstance))
-		{
-			continue;
-		}
-
-		const FGuid ItemId = ItemInstance->GetOrCreateItemId();
-		if (ItemId.IsValid())
-		{
-			OutItemIds.Add(ItemId);
-
-		}
-	}
 }
 
 void ULeftEquipmentWidget::BroadcastClickedEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* InSelectedEquipSlot, bool bInIsSelectedAnyButton)

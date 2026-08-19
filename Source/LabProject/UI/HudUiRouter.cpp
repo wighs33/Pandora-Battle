@@ -22,7 +22,6 @@
 #include "UI/Widget/PandoraTreeWidget.h"
 #include "UI/Widget/PlayerHudWidget.h"
 #include "UI/Widget/RightNotificationsWidget.h"
-#include "UI/Widget/RightStatusWidget.h"
 #include "UI/Widget/SelectPandoraWidget.h"
 #include "UI/Widget/TrainingRoomMenuPopupWidget.h"
 #include "Definition/UI/WidgetClassDefinition.h"
@@ -257,12 +256,6 @@ void UHudUiRouter::EnsureInfoLayers()
 				&UInfoUiPresenter::HandleClickedInfoCenterButton);
 		}
 
-		if (URightStatusWidget* RightStatusWidget =
-			Hud->CachedInfoUI->GetRightStatusWidget())
-		{
-			Hud->ApplyStatusViewModelToWidget(RightStatusWidget);
-		}
-		Hud->ApplyStatusViewModelToWidgetTree(Hud->CachedInfoUI);
 		Hud->ApplyInventoryWidgetSettings();
 	}
 }

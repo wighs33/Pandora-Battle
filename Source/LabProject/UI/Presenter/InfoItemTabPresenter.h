@@ -33,7 +33,6 @@ public:
 	UItemInstance* GetSelectedWeapon(EEnum_Direction Direction) const;
 	void RefreshEquipmentSlots() const;
 	void RefreshInventoryTileView();
-	void ReconcileCurrentWeaponLoadoutDirection();
 
 	UFUNCTION()
 	void HandleItemSlotClicked(UObject* Item);
@@ -74,7 +73,8 @@ private:
 	void ReconcileInventoryDisplaySlots(const TArray<UObject*>& InventoryItems);
 	void BuildInventoryViewSlots(const TArray<UObject*>& SourceItems, TArray<UObject*>& OutViewItems);
 	int32 FindInventoryDisplaySlotIndexByItemId(FGuid ItemId) const;
-	int32 RemoveEquippedItemsFromInventoryList(TArray<UObject*>& InOutItemList) const;
+	void CollectAssignedItemIds(TSet<FGuid>& OutAssignedItemIds) const;
+	FGameplayTag GetEquipmentItemTypeTag() const;
 	FGameplayTag GetWeaponItemTypeTag() const;
 	FGameplayTag GetConsumableItemTypeTag() const;
 
@@ -94,8 +94,6 @@ private:
 	FGameplayTag CurrentItemFilterTag;
 
 	TWeakObjectPtr<UInfoLoadoutStore> LoadoutStore;
-	FGuid PendingClearedWeaponId;
-	EEnum_Direction PendingClearedWeaponDirection = EEnum_Direction::Center;
 	bool bUseItemTypeFilter = false;
 	bool bInventoryDisplaySlotsInitialized = false;
 	bool bActive = false;
