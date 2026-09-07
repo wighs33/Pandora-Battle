@@ -5,42 +5,28 @@
 #include "LobbyPlayerState.generated.h"
 
 class UBasicAttributeSet;
-class UInventoryComponent;
 class ULobbyPlayerStateComponent;
-class UPandoraComponent;
-class UPandoraTreeComponent;
-class USkinComponent;
-class UStatUpgradeComponent;
 
-DECLARE_MULTICAST_DELEGATE(FOnLobbyPlayerStateChanged);
-
+/**
+ * 로비 플레이어의 상태와 프리뷰용 기본 속성을 소유한다.
+ *
+ * 표시 이름과 팀은 경기 정보 컴포넌트를 원본으로 사용하며,
+ * 화면 갱신은 상태 변경을 구독하는 HUD가 담당한다.
+ */
 UCLASS()
 class LABPROJECT_API ALobbyPlayerState : public APdPlayerState
 {
 	GENERATED_BODY()
 
 public:
-	ALobbyPlayerState(
-		const FObjectInitializer& ObjectInitializer =
-			FObjectInitializer::Get());
+	ALobbyPlayerState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void BeginPlay() override;
-	virtual void EndPlay(
-		const EEndPlayReason::Type EndPlayReason) override;
-	virtual USkinComponent* GetSkinComponent() const override;
 
-	FOnLobbyPlayerStateChanged OnLobbyPlayerStateChanged;
-
-	ULobbyPlayerStateComponent* GetLobbyPlayerStateComponent() const
-	{
-		return LobbyPlayerStateComponent.Get();
-	}
-
-	UFUNCTION(BlueprintCallable, Category = "!Lobby")
-	void SetReady(bool bInReady);
-
-	UFUNCTION(BlueprintPure, Category = "!Lobby")
-	bool IsReady() const;
+	//------------------------------------------------------------------------------------------------------------------
+	ULobbyPlayerStateComponent* GetLobbyPlayerStateComponent() const { return LobbyPlayerStateComponent.Get(); }
 
 	UFUNCTION(BlueprintCallable, Category = "!Lobby")
 	void SetLeavingLobby(bool bInLeavingLobby);
@@ -72,39 +58,16 @@ public:
 	UFUNCTION()
 	int32 GetTeamColorIndex() const;
 
-	void ImportPlayerMatchIdentity(
-		const FPlayerMatchIdentity& InMatchIdentity);
-	void InitializeLobbyPreviewAbilitySystem();
-
-	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
-	void RefreshLobbyUI() const;
-
 protected:
-	virtual FPlayerMatchIdentity
-		GetMatchIdentityForCopyProperties() const override;
+	virtual void ReceiveMatchIdentityFromCopyProperties(const FPlayerMatchIdentity& Identity) override;
 
 private:
-	void HandleLobbyRuntimeStateChanged();
-	void RequestDeferredLobbyUiRefresh() const;
-
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Components
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Lobby|State", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ULobbyPlayerStateComponent> LobbyPlayerStateComponent;
 
-	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Preview", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInventoryComponent> LobbyInventoryComponent;
-
-	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Preview", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<USkinComponent> LobbySkinComponent;
-
-	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Preview", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UPandoraComponent> LobbyPandoraComponent;
-
-	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Preview", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UPandoraTreeComponent> LobbyPandoraTreeComponent;
-
+	//------------------------------------------------------------------------------------------------------------------
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Preview", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBasicAttributeSet> LobbyBasicAttributeSet;
-
-	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Preview", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UStatUpgradeComponent> LobbyStatUpgradeComponent;
 };

@@ -11,7 +11,7 @@ class APlayerController;
 class APlayerState;
 
 /**
- * Lobby roster identity, slot assignment, UI fan-out, and kick lifecycle.
+ * 로비 참가자의 기본 이름·입장 슬롯을 배정하고 호스트의 강퇴 요청을 처리한다.
  */
 UCLASS(ClassGroup = (Lobby))
 class LABPROJECT_API ULobbyPlayerCoordinatorComponent : public UActorComponent
@@ -24,10 +24,7 @@ public:
 	void InitializeLobbyPlayerState(
 		APlayerController* PlayerController,
 		ALobbyPlayerState* LobbyPlayerState);
-	void HandlePlayerLogout(AController* ExitingController);
 	void KickPlayer(ALobbyPlayerState* TargetPlayerState);
-	void ResetLobbyReadyStates() const;
-	void RefreshLobbyUIForAllPlayers() const;
 	APlayerController* ResolvePlayerControllerForPlayerState(
 		const APlayerState* PlayerState) const;
 

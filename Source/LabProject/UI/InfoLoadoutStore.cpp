@@ -4,6 +4,7 @@
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Component/Player/EquipmentComponent.h"
+#include "Component/Player/PlayerLoadoutComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Item/ItemInstance.h"
@@ -155,10 +156,11 @@ bool UInfoLoadoutStore::WouldSelectedDirectionChangeLoadout(
 	const APdPlayerState* PlayerState = IsValid(OwningController)
 		? OwningController->GetPlayerState<APdPlayerState>()
 		: nullptr;
+	const UPlayerLoadoutComponent* LoadoutComponent = PlayerState ? PlayerState->GetPlayerLoadoutComponent() : nullptr;
 	if (Direction == EEnum_Direction::Down)
 	{
-		const bool bWouldChangeSelectedLoadout = PlayerState
-			&& PlayerState->GetSelectedWeaponPandoraLoadoutNumber() != 0;
+		const bool bWouldChangeSelectedLoadout = LoadoutComponent
+			&& LoadoutComponent->GetSelectedLoadoutNumber() != 0;
 		const bool bWouldUnequipWeapon = Equipment
 			&& (Equipment->GetCurrentWeaponId().IsValid()
 				|| Equipment->GetCurrentWeaponDefinition());
@@ -176,8 +178,8 @@ bool UInfoLoadoutStore::WouldSelectedDirectionChangeLoadout(
 	const UPandoraDefinition* PandoraDefinition = GetSelectedPandoraDefinition(Direction);
 	const int32 RequestedLoadoutNumber =
 		PandoraLoadout::GetLoadoutNumberFromDirection(Direction);
-	const bool bWouldChangeSelectedLoadout = PlayerState
-		&& PlayerState->GetSelectedWeaponPandoraLoadoutNumber()
+	const bool bWouldChangeSelectedLoadout = LoadoutComponent
+		&& LoadoutComponent->GetSelectedLoadoutNumber()
 			!= RequestedLoadoutNumber;
 	const bool bPandoraWouldChange = PandoraComponent
 		&& (PandoraComponent->GetCurrentPandoraDefinition() != PandoraDefinition
@@ -287,7 +289,8 @@ bool UInfoLoadoutStore::RequestSelectLoadoutDirection(const EEnum_Direction Dire
 	APdPlayerState* PlayerState = IsValid(OwningController)
 		? OwningController->GetPlayerState<APdPlayerState>()
 		: nullptr;
-	if (!PlayerState)
+	UPlayerLoadoutComponent* LoadoutComponent = PlayerState ? PlayerState->GetPlayerLoadoutComponent() : nullptr;
+	if (!LoadoutComponent)
 	{
 		return false;
 	}
@@ -298,7 +301,7 @@ bool UInfoLoadoutStore::RequestSelectLoadoutDirection(const EEnum_Direction Dire
 		return false;
 	}
 
-	PlayerState->RequestSetSelectedWeaponPandoraLoadoutNumber(
+	LoadoutComponent->RequestSelectLoadout(
 		Direction == EEnum_Direction::Down
 			? 0
 			: PandoraLoadout::GetLoadoutNumberFromDirection(Direction));

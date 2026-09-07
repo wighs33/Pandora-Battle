@@ -1,5 +1,6 @@
 #include "AbilitySystem/Ability/ShieldAbility.h"
 
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
@@ -61,15 +62,10 @@ void UShieldAbility::ActivateAbility(
 	}
 }
 
-void UShieldAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	bool bReplicateEndAbility,
-	bool bWasCancelled)
+void UShieldAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	CleanupShieldTasks();
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 const FShieldSkillConfig* UShieldAbility::GetShieldSkillConfig() const
@@ -161,7 +157,7 @@ void UShieldAbility::ApplyShieldFromMontageTrigger()
 		return;
 	}
 
-	SpawnConfiguredCharacterDecal();
+	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
 	const FActiveGameplayEffectHandle EffectHandle =
 		BP_ApplyGameplayEffectToOwner(ResolvedShieldGameplayEffectClass, FMath::Max(GetAbilityLevel(), 1), 1);
 	if (K2_HasAuthority() && !EffectHandle.WasSuccessfullyApplied())

@@ -5,9 +5,8 @@
 #include "Logging/LogRateLimiter.h"
 #include "PandoraTreeComponent.generated.h"
 
-class APdPlayerState;
 class UDefaultPlayerProvisioner;
-class UPdAbilitySystemComponent;
+class UPandoraComponent;
 class UPandoraDefinition;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraTreeChangedDelegate);
@@ -43,6 +42,12 @@ struct LABPROJECT_API FGrantedPandora
 	}
 };
 
+/**
+ * 판도라의 경기 중 레벨 투자와 소울 더스트 환불을 관리한다.
+ *
+ * 소유권과 장착은 PandoraComponent가 담당하며, 해금·비용 판정은 서버와 UI가 공유한다.
+ * 리셋은 투자분만 되돌리고 이미 획득한 판도라의 소유권은 유지한다.
+ */
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UPandoraTreeComponent : public UPlayerStateComponent
 {
@@ -51,21 +56,13 @@ class LABPROJECT_API UPandoraTreeComponent : public UPlayerStateComponent
 public:
 	UPandoraTreeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
-	void SetOwnedPandoraNames(const TArray<FName>& InOwnedPandoraNames);
-
-	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
-	void SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition);
-
-	UFUNCTION(Server, Reliable, Category = "!PandoraTree")
-	void ServerSetPandoraDefinition(UPandoraDefinition* InPandoraDefinition);
-
-	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	UPandoraDefinition* GetPandoraDefinition() const;
+	//------------------------------------------------------------------------------------------------------------------
 
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
 	bool GrantPandora(UPandoraDefinition* Pandora, int32 StartingLevel = 1, bool bIgnorePointCost = false);
@@ -100,8 +97,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
 	bool ArePandoraUnlockRulesMet(UPandoraDefinition* Pandora) const;
 
+	// 비용과 최대 레벨을 제외한 해금 판정이다. 보유 판도라는 선행 조건을 다시 요구하지 않는다.
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	FText GetPandoraUnlockRequirementsText(UPandoraDefinition* Pandora) const;
+	bool IsPandoraAvailableForInvestment(UPandoraDefinition* Pandora) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
 	int32 GetRequiredPointsForPandora(UPandoraDefinition* Pandora, bool bNextLevel = false) const;
@@ -142,40 +140,32 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "!PandoraTree")
 	FPdPandoraPointsChangedDelegate OnPointsChanged;
 
-protected:
+private:
 	friend class UDefaultPlayerProvisioner;
 
-	/** Replaces the tree with the authoritative DA_DefaultProvision state. */
-	void InitializeFromDefaultProvision(
-		const TArray<FGrantedPandora>& InGrantedPandoras,
-		int32 InPointsAvailable);
+	// 경기 시작 지급 상태를 기록해 이후 환불의 기준으로 사용한다.
+	void InitializeFromDefaultProvision(const TArray<FGrantedPandora>& InGrantedPandoras, int32 InPointsAvailable);
 
 	UFUNCTION()
 	void OnRep_GrantedPandoras();
 
 	UFUNCTION()
-	void OnRep_OwnedPandoraNames();
+	void HandlePandoraInventoryChanged();
 
 	UFUNCTION()
 	void OnRep_PointsAvailable();
 
-	void InitializeVariables();
 	bool HasPandoraTreeAuthority() const;
-	bool CanReferencePandoraDefinition(const UPandoraDefinition* Pandora) const;
+	UPandoraComponent* GetOwnerPandoraComponent() const;
+	int32 FindGrantedPandoraIndex(UPandoraDefinition* Pandora) const;
+	bool TryGetInvestmentCost(UPandoraDefinition* Pandora, int32 CurrentLevel, int32 TargetLevel, bool bIgnorePointCost, int32& OutCost) const;
+	bool ApplyPandoraInvestment(UPandoraDefinition* Pandora, int32 EntryIndex, int32 NewLevel, int32 Cost);
 	bool SpendPointOnPandoraInternal(UPandoraDefinition* Pandora);
 	bool ResetPandoraInternal();
-	bool SpendPointsForPandora(UPandoraDefinition* Pandora, int32 Level);
+	void RestoreInitialPandoras(int32 NewPointsAvailable);
 	int32 ClampPandoraLevel(const UPandoraDefinition* Pandora, int32 Level) const;
-	int32 CalculatePointCostForPandoraLevels(const UPandoraDefinition* Pandora, int32 FirstLevel, int32 LastLevel) const;
-	bool IncrementGrantedPandoraLevel(UPandoraDefinition* Pandora, int32& OutNewLevel);
-	void RefreshSelectedPandoraAfterLevelChange(const UPandoraDefinition* Pandora) const;
-	void BroadcastPandoraTreeChanged();
-	void RefreshSelectedPandoraAbilityBindings() const;
-	const UPandoraDefinition* GetCurrentPandoraDefinition() const;
-	void CollectValidGrantedPandoras(const TArray<FGrantedPandora>& SourcePandoras, TArray<FGrantedPandora>& OutPandoras) const;
-	int32 GetInitialGrantedPandoraLevel(UPandoraDefinition* Pandora) const;
-	int32 CalculateSpentPandoraPoints() const;
-	int32 CalculateResetPandoraPoints() const;
+	int64 CalculatePointCostForPandoraLevels(const UPandoraDefinition* Pandora, int32 FirstLevel, int32 LastLevel) const;
+	int64 CalculateSpentPandoraPoints() const;
 	void LogRejectedServerRequest(const TCHAR* RequestName, const FString& Reason);
 
 	UPROPERTY(Transient)
@@ -184,23 +174,13 @@ protected:
 	UPROPERTY(Transient)
 	int32 InitialPointsAvailable = 0;
 
-	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly, Category = "!PandoraTree")
-	TObjectPtr<UPandoraDefinition> PandoraDefinition;
-
-	UPROPERTY(ReplicatedUsing = OnRep_GrantedPandoras, BlueprintReadOnly, Category = "!PandoraTree")
+	UPROPERTY(ReplicatedUsing = OnRep_GrantedPandoras, BlueprintReadOnly, Category = "!PandoraTree", meta = (AllowPrivateAccess = "true"))
 	TArray<FGrantedPandora> GrantedPandoras;
 
-	UPROPERTY(ReplicatedUsing = OnRep_OwnedPandoraNames, BlueprintReadOnly, Category = "!PandoraTree")
-	TArray<FName> OwnedPandoraNames;
-
-	UPROPERTY(ReplicatedUsing = OnRep_PointsAvailable, BlueprintReadOnly, Category = "!PandoraTree")
+	UPROPERTY(ReplicatedUsing = OnRep_PointsAvailable, BlueprintReadOnly, Category = "!PandoraTree", meta = (AllowPrivateAccess = "true"))
 	int32 PointsAvailable = 0;
 
-	UPROPERTY(Transient)
-	TObjectPtr<APdPlayerState> OwnerPlayerState;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UPdAbilitySystemComponent> OwnerASC;
+	bool bChangingPandoras = false;
 
 	FLogRateLimiter ServerValidationLogLimiter;
 };

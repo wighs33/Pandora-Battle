@@ -1,5 +1,8 @@
 #include "Component/Skin/SkinEquipmentComponent.h"
 
+#include "AbilitySystemComponent.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Definition/Common/ProjectTagConfig.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
@@ -46,8 +49,8 @@ bool IsPetSkinDefinition(const USkinDefinition* SkinDefinition, const FGameplayT
 {
 	return SkinDefinition
 		&& (!SkinDefinition->PetActorClass.IsNull()
-			|| SkinDefinition->IdTag.MatchesTag(LabGameplayTags::Skin_Pet)
-			|| SlotTag.MatchesTag(LabGameplayTags::Skin_Pet));
+			|| SkinDefinition->IdTag.MatchesTag(UProjectTagConfig::GetDefaultConfig()->GetSkinPetTypeTag())
+			|| SlotTag == UProjectTagConfig::GetDefaultConfig()->GetSkinPetTypeTag());
 }
 }
 
@@ -60,12 +63,16 @@ USkinEquipmentComponent::USkinEquipmentComponent(const FObjectInitializer& Objec
 
 void USkinEquipmentComponent::BeginPlay()
 {
+	bEndingPlay = false;
 	Super::BeginPlay();
 	RebuildEquippedSkinActors();
 }
 
 void USkinEquipmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	bEndingPlay = true;
+	CancelActiveGestureMontage(0.0f);
+	bGesturePlayRequestPending = false;
 	ReleaseSkinPresentationLoad();
 	DestroyEquippedSkinActors();
 	Super::EndPlay(EndPlayReason);
@@ -80,26 +87,16 @@ void USkinEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME_WITH_PARAMS_FAST(USkinEquipmentComponent, EquippedSkins, Params);
 }
 
+// UI의 소유 인스턴스에서 Definition을 꺼내 공통 장착 요청으로 전달한다.
 bool USkinEquipmentComponent::RequestEquipSkin(USkinInstance* SkinInstance, const FGameplayTag SlotTag)
 {
-	const USkinDefinition* SkinDefinition = IsValid(SkinInstance) ? SkinInstance->SkinDefinition.Get() : nullptr;
-	if (!CanEquipSkinDefinition(SkinDefinition, SlotTag))
-	{
-		return false;
-	}
-
-	if (!HasSkinEquipmentAuthority())
-	{
-		ServerEquipSkin(const_cast<USkinDefinition*>(SkinDefinition), SlotTag);
-		return true;
-	}
-
-	return EquipSkinDefinition(SkinDefinition, SlotTag);
+	USkinDefinition* Definition = IsValid(SkinInstance) ? const_cast<USkinDefinition*>(SkinInstance->SkinDefinition.Get()) : nullptr;
+	return RequestEquipSkinDefinition(Definition, SlotTag);
 }
 
 bool USkinEquipmentComponent::RequestUnequipSkinSlot(const FGameplayTag SlotTag)
 {
-	if (!GetOwner() || !SlotTag.IsValid())
+	if (bEndingPlay || !GetOwner() || !IsSupportedSkinSlot(SlotTag))
 	{
 		return false;
 	}
@@ -140,74 +137,45 @@ bool USkinEquipmentComponent::RequestEquipSkinDefinition(USkinDefinition* SkinDe
 	return EquipSkinDefinition(SkinDefinition, SlotTag);
 }
 
+// 서버가 장착한 제스처와 현재 행동 상태를 확인한 뒤 재생을 승인한다.
 bool USkinEquipmentComponent::RequestPlayGestureSlot(const int32 GestureSlotIndex)
 {
-	if (!GetOwner())
-	{
-		return false;
-	}
-
 	const FGameplayTag SlotTag = ResolveGestureSlotTag(GestureSlotIndex);
-	if (!SlotTag.IsValid())
+	const USkinDefinition* Definition = GetEquippedSkinDefinition(SlotTag);
+	UAnimMontage* Montage = Definition ? Definition->GestureMontage.Get() : nullptr;
+	if (!SlotTag.IsValid() || !Montage || !CanPlayGesture() || !TryConsumeGesturePlayRequest())
 	{
 		return false;
 	}
-
 	if (!HasSkinEquipmentAuthority())
 	{
-		if (!TryConsumeGesturePlayRequest())
-		{
-			return false;
-		}
-
 		bGesturePlayRequestPending = true;
 		ServerPlayGestureSlot(GestureSlotIndex);
 		return true;
 	}
-
-	const USkinDefinition* SkinDefinition = GetEquippedSkinDefinition(SlotTag);
-	UAnimMontage* GestureMontage = SkinDefinition ? SkinDefinition->GestureMontage.Get() : nullptr;
-	if (!GestureMontage)
-	{
-		return false;
-	}
-
-	if (!TryConsumeGesturePlayRequest())
-	{
-		return false;
-	}
-
-	MulticastPlayGestureMontage(GestureMontage);
+	MulticastPlayGestureMontage(Montage);
 	return true;
 }
 
+// 이동 입력은 슬롯 내용이 바뀌었어도 직전에 재생한 제스처만 중단한다.
 bool USkinEquipmentComponent::RequestCancelActiveGestureMontage(const float BlendOutTime)
 {
-	if (!GetOwner())
-	{
-		return false;
-	}
-
 	const float SafeBlendOutTime = GetClampedGestureBlendOutTime(BlendOutTime);
 	if (!HasSkinEquipmentAuthority())
 	{
-		const bool bCanceledLocally = CancelActiveGestureMontage(SafeBlendOutTime);
-		if (!bGesturePlayRequestPending && !bCanceledLocally)
+		const bool bHadPendingRequest = bGesturePlayRequestPending;
+		bGesturePlayRequestPending = false;
+		if (!CancelActiveGestureMontage(SafeBlendOutTime) && !bHadPendingRequest)
 		{
 			return false;
 		}
-
-		bGesturePlayRequestPending = false;
 		ServerCancelActiveGestureMontage(SafeBlendOutTime);
 		return true;
 	}
-
-	const bool bCanceledLocally = CancelActiveGestureMontage(SafeBlendOutTime);
-	if (!bCanceledLocally)
+	if (!ActiveGestureMontage)
 	{
 		return false;
 	}
-
 	MulticastCancelActiveGestureMontage(SafeBlendOutTime);
 	return true;
 }
@@ -224,30 +192,13 @@ void USkinEquipmentComponent::ServerUnequipSkinSlot_Implementation(const FGamepl
 
 void USkinEquipmentComponent::ServerPlayGestureSlot_Implementation(const int32 GestureSlotIndex)
 {
-	const FGameplayTag SlotTag = ResolveGestureSlotTag(GestureSlotIndex);
-	const USkinDefinition* SkinDefinition = SlotTag.IsValid() ? GetEquippedSkinDefinition(SlotTag) : nullptr;
-	UAnimMontage* GestureMontage = SkinDefinition ? SkinDefinition->GestureMontage.Get() : nullptr;
-	if (!GestureMontage)
-	{
-		return;
-	}
-
-	if (!TryConsumeGesturePlayRequest())
-	{
-		return;
-	}
-
-	MulticastPlayGestureMontage(GestureMontage);
+	RequestPlayGestureSlot(GestureSlotIndex);
 }
 
+// 취소는 재생 상태를 비우므로 반복 요청이 자동으로 무시된다. 시간 제한으로 필요한 취소를 버리지 않는다.
 void USkinEquipmentComponent::ServerCancelActiveGestureMontage_Implementation(const float BlendOutTime)
 {
-	if (!TryConsumeGestureCancelRequest())
-	{
-		return;
-	}
-
-	MulticastCancelActiveGestureMontage(GetClampedGestureBlendOutTime(BlendOutTime));
+	RequestCancelActiveGestureMontage(BlendOutTime);
 }
 
 void USkinEquipmentComponent::MulticastPlayGestureMontage_Implementation(UAnimMontage* GestureMontage)
@@ -270,7 +221,7 @@ void USkinEquipmentComponent::OnRep_EquippedSkins()
 
 bool USkinEquipmentComponent::EquipSkinDefinition(const USkinDefinition* SkinDefinition, const FGameplayTag SlotTag)
 {
-	if (!CanEquipSkinDefinition(SkinDefinition, SlotTag))
+	if (!HasSkinEquipmentAuthority() || !CanEquipSkinDefinition(SkinDefinition, SlotTag))
 	{
 		return false;
 	}
@@ -292,10 +243,8 @@ bool USkinEquipmentComponent::EquipSkinDefinition(const USkinDefinition* SkinDef
 		NewSlot.SkinDefinition = SkinDefinition;
 	}
 
-	if (HasSkinEquipmentAuthority())
-	{
-		MARK_PROPERTY_DIRTY_FROM_NAME(USkinEquipmentComponent, EquippedSkins, this);
-	}
+	MARK_PROPERTY_DIRTY_FROM_NAME(USkinEquipmentComponent, EquippedSkins, this);
+	GetOwner()->ForceNetUpdate();
 
 	RebuildEquippedSkinActors();
 	OnEquippedSkinsChanged.Broadcast();
@@ -305,6 +254,10 @@ bool USkinEquipmentComponent::EquipSkinDefinition(const USkinDefinition* SkinDef
 
 bool USkinEquipmentComponent::UnequipSkinSlotInternal(const FGameplayTag SlotTag)
 {
+	if (bEndingPlay || !HasSkinEquipmentAuthority() || !IsSupportedSkinSlot(SlotTag))
+	{
+		return false;
+	}
 	const int32 ExistingSlotIndex = FindEquippedSkinSlotIndex(SlotTag);
 	if (ExistingSlotIndex == INDEX_NONE)
 	{
@@ -312,10 +265,8 @@ bool USkinEquipmentComponent::UnequipSkinSlotInternal(const FGameplayTag SlotTag
 	}
 
 	EquippedSkins.RemoveAt(ExistingSlotIndex);
-	if (HasSkinEquipmentAuthority())
-	{
-		MARK_PROPERTY_DIRTY_FROM_NAME(USkinEquipmentComponent, EquippedSkins, this);
-	}
+	MARK_PROPERTY_DIRTY_FROM_NAME(USkinEquipmentComponent, EquippedSkins, this);
+	GetOwner()->ForceNetUpdate();
 
 	RebuildEquippedSkinActors();
 	OnEquippedSkinsChanged.Broadcast();
@@ -324,7 +275,7 @@ bool USkinEquipmentComponent::UnequipSkinSlotInternal(const FGameplayTag SlotTag
 
 bool USkinEquipmentComponent::CanEquipSkinDefinition(const USkinDefinition* SkinDefinition, const FGameplayTag SlotTag) const
 {
-	if (!GetOwner() || !CanReferenceSkinDefinition(SkinDefinition) || !SlotTag.IsValid())
+	if (bEndingPlay || !GetOwner() || !CanReferenceSkinDefinition(SkinDefinition) || !IsSupportedSkinSlot(SlotTag))
 	{
 		return false;
 	}
@@ -335,7 +286,7 @@ bool USkinEquipmentComponent::CanEquipSkinDefinition(const USkinDefinition* Skin
 	}
 
 	const FGameplayTag RequiredSkinTag = SlotTag.MatchesTag(LabGameplayTags::Skin_Gesture)
-		? LabGameplayTags::Skin_Gesture
+		? UProjectTagConfig::Get(this)->GetSkinGestureTypeTag()
 		: SlotTag;
 	if (!SkinDefinition->IdTag.MatchesTag(RequiredSkinTag))
 	{
@@ -374,33 +325,20 @@ bool USkinEquipmentComponent::HasSkinEquipmentAuthority() const
 	return OwnerActor && OwnerActor->HasAuthority();
 }
 
-bool USkinEquipmentComponent::TryConsumeGestureNetworkEvent(double& LastRequestTime, const double MinInterval)
+bool USkinEquipmentComponent::TryConsumeGesturePlayRequest()
 {
-	UWorld* World = GetWorld();
+	const UWorld* World = GetWorld();
 	if (!World)
 	{
 		return false;
 	}
-
 	const double CurrentTime = World->GetTimeSeconds();
-	const double SafeMinInterval = FMath::Max(MinInterval, 0.0);
-	if (LastRequestTime >= 0.0 && CurrentTime - LastRequestTime < SafeMinInterval)
+	if (LastGesturePlayRequestTime >= 0.0 && CurrentTime - LastGesturePlayRequestTime < FMath::Max(GesturePlayRequestMinInterval, 0.0))
 	{
 		return false;
 	}
-
-	LastRequestTime = CurrentTime;
+	LastGesturePlayRequestTime = CurrentTime;
 	return true;
-}
-
-bool USkinEquipmentComponent::TryConsumeGesturePlayRequest()
-{
-	return TryConsumeGestureNetworkEvent(LastGesturePlayRequestTime, GesturePlayRequestMinInterval);
-}
-
-bool USkinEquipmentComponent::TryConsumeGestureCancelRequest()
-{
-	return TryConsumeGestureNetworkEvent(LastGestureCancelRequestTime, GestureCancelRequestMinInterval);
 }
 
 float USkinEquipmentComponent::GetClampedGestureBlendOutTime(const float BlendOutTime) const
@@ -430,141 +368,165 @@ ACharacterBase* USkinEquipmentComponent::GetCharacterOwner() const
 	return Cast<ACharacterBase>(GetOwner());
 }
 
-bool USkinEquipmentComponent::PlayGestureMontage(UAnimMontage* GestureMontage) const
+// 다른 몽타주 전체를 중단하지 않고 제스처 재생 대상을 별도로 기억한다.
+bool USkinEquipmentComponent::PlayGestureMontage(UAnimMontage* GestureMontage)
 {
-	ACharacterBase* CharacterOwner = GetCharacterOwner();
-	USkeletalMeshComponent* OwnerMesh = CharacterOwner ? CharacterOwner->GetMesh() : nullptr;
-	UAnimInstance* AnimInstance = OwnerMesh ? OwnerMesh->GetAnimInstance() : nullptr;
-	if (!GestureMontage || !AnimInstance)
+	ACharacterBase* Character = GetCharacterOwner();
+	UAnimInstance* AnimInstance = Character && Character->GetMesh() ? Character->GetMesh()->GetAnimInstance() : nullptr;
+	if (!GestureMontage)
 	{
 		return false;
 	}
-
-	const float Duration = AnimInstance->Montage_Play(GestureMontage);
-
-	return Duration > 0.0f;
+	CancelActiveGestureMontage(DefaultGestureCancelBlendOutTime);
+	const bool bPlayed = AnimInstance
+		&& AnimInstance->Montage_Play(GestureMontage, 1.f, EMontagePlayReturnType::MontageLength, 0.f, false) > 0.f;
+	// 로컬 AnimInstance 준비 여부와 무관하게 서버가 승인한 취소 대상을 기억한다.
+	ActiveGestureMontage = GestureMontage;
+	return bPlayed;
 }
 
-bool USkinEquipmentComponent::CancelActiveGestureMontage(const float BlendOutTime) const
+bool USkinEquipmentComponent::CancelActiveGestureMontage(const float BlendOutTime)
 {
-	ACharacterBase* CharacterOwner = GetCharacterOwner();
-	USkeletalMeshComponent* OwnerMesh = CharacterOwner ? CharacterOwner->GetMesh() : nullptr;
-	UAnimInstance* AnimInstance = OwnerMesh ? OwnerMesh->GetAnimInstance() : nullptr;
-	if (!AnimInstance)
+	UAnimMontage* Montage = ActiveGestureMontage;
+	ActiveGestureMontage = nullptr;
+	ACharacterBase* Character = GetCharacterOwner();
+	UAnimInstance* AnimInstance = Character && Character->GetMesh() ? Character->GetMesh()->GetAnimInstance() : nullptr;
+	if (Montage && AnimInstance && AnimInstance->Montage_IsPlaying(Montage))
 	{
-		return false;
+		AnimInstance->Montage_Stop(BlendOutTime, Montage);
 	}
-
-	bool bCanceled = false;
-	for (const FEquippedSkinSlot& EquippedSkin : EquippedSkins)
-	{
-		const USkinDefinition* SkinDefinition = EquippedSkin.SkinDefinition.Get();
-		UAnimMontage* GestureMontage = nullptr;
-		if (CanReferenceSkinDefinition(SkinDefinition)
-			&& SkinDefinition->IdTag.MatchesTag(LabGameplayTags::Skin_Gesture))
-		{
-			GestureMontage = SkinDefinition->GestureMontage.Get();
-		}
-
-		if (!GestureMontage || !AnimInstance->Montage_IsPlaying(GestureMontage))
-		{
-			continue;
-		}
-
-		AnimInstance->Montage_Stop(BlendOutTime, GestureMontage);
-		bCanceled = true;
-	}
-
-	return bCanceled;
+	return Montage != nullptr;
 }
 
+// 변경되지 않은 장식과 펫은 유지하고, 변경된 슬롯에서 아직 없는 클래스만 비동기로 준비한다.
 void USkinEquipmentComponent::RebuildEquippedSkinActors()
 {
-	ReleaseSkinPresentationLoad();
-	DestroyEquippedSkinActors();
-
-	const bool bIsDedicatedServer = GetNetMode() == NM_DedicatedServer;
-	TSet<FSoftObjectPath> PresentationAssetPaths;
-	for (const FEquippedSkinSlot& EquippedSkin : EquippedSkins)
+	if (bEndingPlay)
 	{
-		const USkinDefinition* SkinDefinition = EquippedSkin.SkinDefinition.Get();
-		if (!CanReferenceSkinDefinition(SkinDefinition))
+		return;
+	}
+	ReleaseSkinPresentationLoad();
+	const uint32 RequestGeneration = SkinPresentationRequestGeneration;
+	TArray<FGameplayTag> PreviousSlots;
+	AppliedSkinDefinitions.GetKeys(PreviousSlots);
+	for (const FGameplayTag SlotTag : PreviousSlots)
+	{
+		if (FindEquippedSkinSlotIndex(SlotTag) != INDEX_NONE)
 		{
 			continue;
 		}
-
-		if (IsPetSkinDefinition(SkinDefinition, EquippedSkin.SlotTag))
+		AActor* PreviousActor = EquippedSkinActors.FindRef(SlotTag);
+		EquippedSkinActors.Remove(SlotTag);
+		AppliedSkinDefinitions.Remove(SlotTag);
+		if (IsValid(PreviousActor))
 		{
-			if (!SkinDefinition->PetActorClass.IsNull())
-			{
-				PresentationAssetPaths.Add(SkinDefinition->PetActorClass.ToSoftObjectPath());
-			}
+			PreviousActor->Destroy();
 		}
-		else if (!bIsDedicatedServer && !SkinDefinition->ActorClass.IsNull())
+		if (RequestGeneration != SkinPresentationRequestGeneration)
 		{
-			PresentationAssetPaths.Add(SkinDefinition->ActorClass.ToSoftObjectPath());
+			return;
 		}
 	}
 
-	if (PresentationAssetPaths.IsEmpty())
+	TSet<FSoftObjectPath> MissingPaths;
+	const TArray<FEquippedSkinSlot> DesiredSlots = EquippedSkins;
+	for (const FEquippedSkinSlot& Slot : DesiredSlots)
 	{
+		const USkinDefinition* Definition = Slot.SkinDefinition;
+		if (!CanReferenceSkinDefinition(Definition))
+		{
+			continue;
+		}
+		const bool bIsPet = IsPetSkinDefinition(Definition, Slot.SlotTag);
+		const TSoftClassPtr<AActor> ActorClass = bIsPet ? Definition->PetActorClass : Definition->ActorClass;
+		const bool bNeedsActor = bIsPet ? HasSkinEquipmentAuthority() : GetNetMode() != NM_DedicatedServer;
+		if (bNeedsActor && !ActorClass.IsNull() && !ActorClass.IsValid())
+		{
+			MissingPaths.Add(ActorClass.ToSoftObjectPath());
+		}
+		else
+		{
+			ApplyEquippedSkinSlot(Slot);
+		}
+		if (RequestGeneration != SkinPresentationRequestGeneration)
+		{
+			return;
+		}
+	}
+	if (MissingPaths.IsEmpty())
+	{
+		return;
+	}
+	SkinPresentationLoadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(MissingPaths.Array(),
+		FStreamableDelegate::CreateUObject(this, &ThisClass::RebuildEquippedSkinActorsFromLoadedContent, RequestGeneration));
+	if (!SkinPresentationLoadHandle.IsValid())
+	{
+		UE_LOG(SkinEquipmentComponentLog, Error, TEXT("Failed to preload changed skins for '%s'."), *GetPathNameSafe(GetOwner()));
+	}
+}
+
+// 로딩 중 다른 선택이나 종료가 발생했다면 이전 결과를 적용하지 않는다.
+void USkinEquipmentComponent::RebuildEquippedSkinActorsFromLoadedContent(const uint32 RequestGeneration)
+{
+	const TArray<FEquippedSkinSlot> DesiredSlots = EquippedSkins;
+	for (const FEquippedSkinSlot& Slot : DesiredSlots)
+	{
+		if (bEndingPlay || RequestGeneration != SkinPresentationRequestGeneration || !IsValid(GetOwner()))
+		{
+			return;
+		}
+		ApplyEquippedSkinSlot(Slot);
+	}
+}
+
+// 새 외형을 만들 수 있을 때만 이전 외형을 교체한다. 로딩·생성 실패 시 기존 펫과 장식은 남긴다.
+void USkinEquipmentComponent::ApplyEquippedSkinSlot(const FEquippedSkinSlot& Slot)
+{
+	const USkinDefinition* Definition = Slot.SkinDefinition;
+	if (!CanReferenceSkinDefinition(Definition) || GetEquippedSkinDefinition(Slot.SlotTag) != Definition)
+	{
+		return;
+	}
+	const bool bIsPet = IsPetSkinDefinition(Definition, Slot.SlotTag);
+	const TSoftClassPtr<AActor> ActorClass = bIsPet ? Definition->PetActorClass : Definition->ActorClass;
+	const bool bNeedsActor = !ActorClass.IsNull() && (bIsPet ? HasSkinEquipmentAuthority() : GetNetMode() != NM_DedicatedServer);
+	AActor* PreviousActor = EquippedSkinActors.FindRef(Slot.SlotTag);
+	if (AppliedSkinDefinitions.FindRef(Slot.SlotTag) == Definition && (!bNeedsActor || IsValid(PreviousActor)))
+	{
+		return;
+	}
+	if (bNeedsActor && !ActorClass.IsValid())
+	{
+		UE_LOG(SkinEquipmentComponentLog, Error, TEXT("Skin class '%s' was unavailable after preload."), *ActorClass.ToString());
 		return;
 	}
 
 	const uint32 RequestGeneration = SkinPresentationRequestGeneration;
-	SkinPresentationLoadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			PresentationAssetPaths.Array(),
-			FStreamableDelegate::CreateUObject(
-				this,
-				&ThisClass::RebuildEquippedSkinActorsFromLoadedContent,
-				RequestGeneration));
-	if (!SkinPresentationLoadHandle.IsValid())
-	{
-		UE_LOG(
-			SkinEquipmentComponentLog,
-			Error,
-			TEXT("Failed to start skin presentation preload for '%s'."),
-			*GetPathNameSafe(GetOwner()));
-	}
-}
-
-void USkinEquipmentComponent::RebuildEquippedSkinActorsFromLoadedContent(
-	const uint32 RequestGeneration)
-{
-	if (RequestGeneration != SkinPresentationRequestGeneration
-		|| !IsValid(GetOwner()))
+	AActor* NewActor = bNeedsActor ? (bIsPet ? SpawnPetSkinActor(Definition) : SpawnAndAttachSkinActor(Definition)) : nullptr;
+	if (bNeedsActor && !NewActor)
 	{
 		return;
 	}
-
-	const bool bHasAuthority = HasSkinEquipmentAuthority();
-	const bool bIsDedicatedServer = GetNetMode() == NM_DedicatedServer;
-	for (const FEquippedSkinSlot& EquippedSkin : EquippedSkins)
+	if (bEndingPlay || RequestGeneration != SkinPresentationRequestGeneration || GetEquippedSkinDefinition(Slot.SlotTag) != Definition)
 	{
-		const USkinDefinition* SkinDefinition = EquippedSkin.SkinDefinition.Get();
-		if (!CanReferenceSkinDefinition(SkinDefinition))
+		if (IsValid(NewActor))
 		{
-			continue;
+			NewActor->Destroy();
 		}
-
-		AActor* SpawnedActor = nullptr;
-		if (IsPetSkinDefinition(SkinDefinition, EquippedSkin.SlotTag))
-		{
-			if (bHasAuthority)
-			{
-				SpawnedActor = SpawnPetSkinActor(SkinDefinition);
-			}
-		}
-		else if (!bIsDedicatedServer && !SkinDefinition->ActorClass.IsNull())
-		{
-			SpawnedActor = SpawnAndAttachSkinActor(SkinDefinition);
-		}
-
-		if (SpawnedActor)
-		{
-			EquippedSkinActors.Add(EquippedSkin.SlotTag, SpawnedActor);
-		}
+		return;
+	}
+	AppliedSkinDefinitions.Add(Slot.SlotTag, Definition);
+	if (NewActor)
+	{
+		EquippedSkinActors.Add(Slot.SlotTag, NewActor);
+	}
+	else
+	{
+		EquippedSkinActors.Remove(Slot.SlotTag);
+	}
+	if (IsValid(PreviousActor))
+	{
+		PreviousActor->Destroy();
 	}
 }
 
@@ -579,17 +541,19 @@ void USkinEquipmentComponent::ReleaseSkinPresentationLoad()
 	}
 }
 
+// 캐릭터 종료 시에만 모든 슬롯의 생성 Actor를 정리한다.
 void USkinEquipmentComponent::DestroyEquippedSkinActors()
 {
-	for (TPair<FGameplayTag, TObjectPtr<AActor>>& EquippedSkinActor : EquippedSkinActors)
+	TMap<FGameplayTag, TObjectPtr<AActor>> ActorsToDestroy = MoveTemp(EquippedSkinActors);
+	EquippedSkinActors.Reset();
+	AppliedSkinDefinitions.Reset();
+	for (const TPair<FGameplayTag, TObjectPtr<AActor>>& Entry : ActorsToDestroy)
 	{
-		if (AActor* SkinActor = EquippedSkinActor.Value.Get())
+		if (IsValid(Entry.Value))
 		{
-			SkinActor->Destroy();
+			Entry.Value->Destroy();
 		}
 	}
-
-	EquippedSkinActors.Reset();
 }
 
 AActor* USkinEquipmentComponent::SpawnPetSkinActor(const USkinDefinition* SkinDefinition) const
@@ -747,4 +711,33 @@ AActor* USkinEquipmentComponent::SpawnAndAttachSkinActor(const USkinDefinition* 
 	}
 
 	return SkinActor;
+}
+
+// 장착 가능 여부와 별개로 전투·사망·빙결 중에는 제스처로 행동 몽타주를 덮어쓰지 못하게 한다.
+bool USkinEquipmentComponent::CanPlayGesture() const
+{
+	const ACharacterBase* Character = GetCharacterOwner();
+	const UAbilitySystemComponent* ASC = Character ? Character->GetAbilitySystemComponent() : nullptr;
+	if (bEndingPlay || !Character || !ASC || Character->IsStatusFrozen()
+		|| ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
+		|| ASC->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_Active))
+	{
+		return false;
+	}
+	if (ASC->HasAttributeSetForAttribute(UBasicAttributeSet::GetHealthAttribute())
+		&& ASC->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.f)
+	{
+		return false;
+	}
+	const UAnimInstance* AnimInstance = Character->GetMesh() ? Character->GetMesh()->GetAnimInstance() : nullptr;
+	return !AnimInstance || !AnimInstance->IsAnyMontagePlaying()
+		|| (ActiveGestureMontage && AnimInstance->Montage_IsPlaying(ActiveGestureMontage));
+}
+
+// 스킨 분류의 상위 태그가 아니라 프로젝트에서 지원하는 정확한 슬롯만 허용한다.
+bool USkinEquipmentComponent::IsSupportedSkinSlot(const FGameplayTag SlotTag) const
+{
+	TArray<FGameplayTag> SupportedSlots;
+	UProjectTagConfig::Get(this)->GetSkinEquipmentSlotTags(SupportedSlots);
+	return SupportedSlots.Contains(SlotTag);
 }

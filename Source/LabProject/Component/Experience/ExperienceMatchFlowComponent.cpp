@@ -2,7 +2,7 @@
 
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Common/GameSessionConstants.h"
-#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "AbilitySystemComponent.h"
 #include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
 #include "Component/Experience/ExperienceSpawnComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
@@ -22,7 +22,9 @@
 #include "Misc/PackageName.h"
 #include "Mode/ExperienceGameMode.h"
 #include "Mode/ExperienceGameState.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 
@@ -130,14 +132,14 @@ void UExperienceMatchFlowComponent::EndPlay(
 {
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().ClearTimer(MatchTimerHandle);
-		World->GetTimerManager().ClearTimer(ChestConfigurationRetryTimerHandle);
-		World->GetTimerManager().ClearTimer(GameResultLobbyReturnTimerHandle);
+		// GameMode가 이 컴포넌트에 예약한 다음 틱 작업도 함께 취소한다.
+		World->GetTimerManager().ClearAllTimersForObject(this);
 	}
 	MatchTimerHandle.Invalidate();
 	ChestConfigurationRetryTimerHandle.Invalidate();
 	GameResultLobbyReturnTimerHandle.Invalidate();
 	ReleaseRuntimeContentPreload();
+	OnRuntimeContentReady.Clear();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -188,68 +190,40 @@ void UExperienceMatchFlowComponent::InitializeGameState()
 			: EMatchTimerPhase::Inactive);
 }
 
+// GameMode의 준비 판정 이후 한 번만 시작한다. 중복 요청이나 늦은 입장으로 종료 시각을 갱신하지 않는다.
 void UExperienceMatchFlowComponent::StartServerMatchTimerIfNeeded()
 {
-	if (bRuntimeContentLoadPending)
+	if (bRuntimeContentLoadPending || bServerMatchTimerStarted || bGameResultShown)
 	{
-		bStartMatchTimerRequested = true;
 		return;
 	}
-	bStartMatchTimerRequested = false;
 
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
-	if (!GameMode || !GameMode->HasAuthority())
+	UWorld* World = GetWorld();
+	AExperienceGameState* ExperienceGameState = GameMode ? GameMode->GetGameState<AExperienceGameState>() : nullptr;
+	if (!GameMode || !GameMode->HasAuthority() || !World || !ExperienceGameState)
 	{
 		return;
 	}
-
-	AExperienceGameState* ExperienceGameState =
-		GameMode->GetGameState<AExperienceGameState>();
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(MatchTimerHandle);
-	}
+	bServerMatchTimerStarted = true;
 
 	if (ShouldSuppressServerMatchTimer())
 	{
-		if (ExperienceGameState)
-		{
-			ExperienceGameState->SetMatchTimerState(
-				EMatchTimerPhase::Suppressed);
-		}
+		ExperienceGameState->SetMatchTimerState(EMatchTimerPhase::Suppressed);
 		return;
 	}
 
-	const UMatchRuleDefinition* MatchRules =
-		GetMatchRuleDefinition();
-	const float MatchTimerSeconds = MatchRules
-		? MatchRules->MatchTimerSeconds
-		: GetDefault<UMatchRuleDefinition>()->MatchTimerSeconds;
+	const UMatchRuleDefinition* MatchRules = GetMatchRuleDefinition();
+	const float MatchTimerSeconds = MatchRules ? MatchRules->MatchTimerSeconds : GetDefault<UMatchRuleDefinition>()->MatchTimerSeconds;
 	if (MatchTimerSeconds <= 0.0f)
 	{
 		HandleMatchTimerExpired();
 		return;
 	}
 
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	if (ExperienceGameState)
-	{
-		ExperienceGameState->SetMatchTimerState(
-			EMatchTimerPhase::Running,
-			ExperienceGameState->GetServerWorldTimeSeconds()
-				+ MatchTimerSeconds);
-	}
-	World->GetTimerManager().SetTimer(
-		MatchTimerHandle,
-		this,
-		&ThisClass::HandleMatchTimerExpired,
-		MatchTimerSeconds,
-		false);
+	ExperienceGameState->SetMatchTimerState(
+		EMatchTimerPhase::Running, ExperienceGameState->GetServerWorldTimeSeconds() + MatchTimerSeconds);
+	World->GetTimerManager().SetTimer(MatchTimerHandle, this, &ThisClass::HandleMatchTimerExpired, MatchTimerSeconds, false);
 }
 
 void UExperienceMatchFlowComponent::ConfigureRewardChestSpawns()
@@ -357,16 +331,16 @@ int32 UExperienceMatchFlowComponent::GrantGameVictoryGoldReward(
 		return 0;
 	}
 
-	UPdGameInstance* GameInstance =
-		GameMode->GetGameInstance<UPdGameInstance>();
-	if (!GameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem =
+		UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GameMode->GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 		return 0;
 	}
 
 	const APlayerController* WinnerPlayerController =
 		Cast<APlayerController>(WinnerController);
-	const FString PlayerId = GameInstance->ResolveSavePlayerId(
+	const FString PlayerId = ProfileSubsystem->ResolveSavePlayerId(
 		WinnerPlayerController,
 		WinnerController->PlayerState);
 	const bool bWinnerLocal =
@@ -380,9 +354,9 @@ int32 UExperienceMatchFlowComponent::GrantGameVictoryGoldReward(
 	int32 NewGold = 0;
 	if (GoldReward > 0 && bWinnerLocal)
 	{
-		NewGold = GameInstance->AddGold(PlayerId, GoldReward, false);
-		GameInstance->SetPreferredSavePlayerId(PlayerId);
-		GameInstance->SaveGame(PlayerId);
+		NewGold = ProfileSubsystem->AddGold(PlayerId, GoldReward, false);
+		ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
+		ProfileSubsystem->SaveGame(PlayerId);
 	}
 
 	if (APdPlayerController* WinnerPdPlayerController =
@@ -732,13 +706,13 @@ bool UExperienceMatchFlowComponent::FindCurrentMatchMapOption(
 
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameModeConst();
-	const UPdGameInstance* GameInstance = GameMode
-		? GameMode->GetGameInstance<UPdGameInstance>()
+	const ULobbyRuntimeSubsystem* LobbySubsystem = GameMode
+		? UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance())
 		: nullptr;
-	if (GameInstance)
+	if (LobbySubsystem)
 	{
 		const FName SelectedMapKey =
-			GameInstance->GetLobbySelectedMapKey();
+			LobbySubsystem->GetLobbySelectedMapKey();
 		if (!SelectedMapKey.IsNone()
 			&& Levels->FindIngameLevel(
 				SelectedMapKey,
@@ -1533,9 +1507,9 @@ void UExperienceMatchFlowComponent::RestorePlayerResourcesForGoldenKill() const
 	{
 		const APdPlayerState* PdPlayerState =
 			Cast<APdPlayerState>(PlayerState);
-		UPdAbilitySystemComponent* AbilitySystemComponent =
+		UAbilitySystemComponent* AbilitySystemComponent =
 			PdPlayerState
-				? PdPlayerState->GetPdAbilitySystemComponent()
+				? PdPlayerState->GetAbilitySystemComponent()
 				: nullptr;
 		if (!AbilitySystemComponent
 			|| !AbilitySystemComponent->GetAttributeSet(
@@ -1666,22 +1640,19 @@ void UExperienceMatchFlowComponent::ReleaseRuntimeContentPreload()
 void UExperienceMatchFlowComponent::ResumePendingInitialization()
 {
 	const bool bShouldInitializeGameState = bInitializeGameStateRequested;
-	const bool bShouldStartMatchTimer = bStartMatchTimerRequested;
 	const bool bShouldConfigureRewardChests = bConfigureRewardChestsRequested;
 	bInitializeGameStateRequested = false;
-	bStartMatchTimerRequested = false;
 	bConfigureRewardChestsRequested = false;
 
 	if (bShouldInitializeGameState)
 	{
 		InitializeGameState();
 	}
-	if (bShouldStartMatchTimer)
-	{
-		StartServerMatchTimerIfNeeded();
-	}
 	if (bShouldConfigureRewardChests)
 	{
 		ConfigureRewardChestSpawns();
 	}
+
+	// 콘텐츠 로딩만으로 타이머를 시작하지 않고, GameMode에서 플레이어 준비까지 확인한다.
+	OnRuntimeContentReady.Broadcast();
 }

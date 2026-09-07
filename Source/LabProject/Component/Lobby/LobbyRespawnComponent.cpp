@@ -1,5 +1,6 @@
 #include "Component/Lobby/LobbyRespawnComponent.h"
 
+#include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
@@ -102,7 +103,7 @@ float ULobbyRespawnComponent::GetLobbyPlayerRespawnDelay() const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	const UMatchRuleDefinition* MatchRules =
-		GameMode ? GameMode->GetMatchRuleDefinition() : nullptr;
+		GameMode ? GameMode->GetLobbyConfigurationComponent()->GetMatchRuleDefinition() : nullptr;
 	return MatchRules
 		? FMath::Max(MatchRules->PlayerRespawnDelay, 0.0f)
 		: 0.0f;
@@ -176,8 +177,7 @@ void ULobbyRespawnComponent::FinishLobbyPlayerRespawn(
 				PlayerController))
 		{
 			PdPlayerController
-				->Client_ResetRespawnedPawnStateAtTransform(
-					FinalRespawnTransform);
+				->Client_ResetRespawnedPawnStateAtTransform(RespawnPawn, FinalRespawnTransform);
 			PdPlayerController
 				->Client_HideRespawnDelayCountdown();
 		}
@@ -229,8 +229,7 @@ void ULobbyRespawnComponent::FinishLobbyPlayerRespawn(
 		Cast<APdPlayerController>(PlayerController))
 	{
 		PdPlayerController
-			->Client_ResetRespawnedPawnStateAtTransform(
-				FinalRespawnTransform);
+			->Client_ResetRespawnedPawnStateAtTransform(SpawnedPawn, FinalRespawnTransform);
 		PdPlayerController
 			->Client_HideRespawnDelayCountdown();
 	}
@@ -281,7 +280,7 @@ ResetLobbyPlayerStateForRespawn(
 		: nullptr;
 	UPdAbilitySystemComponent* AbilitySystemComponent =
 		PlayerState
-			? PlayerState->GetPdAbilitySystemComponent()
+			? Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent())
 			: nullptr;
 	if (!AbilitySystemComponent
 		|| !AbilitySystemComponent->IsRegistered()

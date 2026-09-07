@@ -8,7 +8,7 @@
 class ALobbyGameMode;
 class ALobbyPlayerState;
 class APlayerController;
-class UPdGameInstance;
+class ULobbyRuntimeSubsystem;
 enum class ELobbyContentPreloadResult : uint8;
 struct FLobbyMatchMapOption;
 
@@ -39,9 +39,9 @@ private:
 	void PersistSelectedGameConfig(
 		const FLobbyMatchMapOption& SelectedMapOption,
 		const FString& TravelMapName) const;
-	void CacheLobbyTravelState(UPdGameInstance* PdGameInstance) const;
+	void CacheLobbyTravelState(ULobbyRuntimeSubsystem* LobbySubsystem) const;
 	void CacheLobbyPlayerTravelState(
-		UPdGameInstance* PdGameInstance,
+		ULobbyRuntimeSubsystem* LobbySubsystem,
 		const ALobbyPlayerState* LobbyPlayerState) const;
 	TMap<FGameplayTag, FName> BuildEquippedSkinNamesBySlot(
 		const APlayerController* PlayerController) const;

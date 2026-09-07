@@ -1,5 +1,6 @@
 #include "AbilitySystem/Ability/StaticAbility.h"
 
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystem/EffectActors/EffectAreaBase.h"
@@ -166,13 +167,9 @@ void UStaticAbility::ActivateAbility(
 
 }
 
-void UStaticAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const bool bReplicateEndAbility,
-	const bool bWasCancelled)
+void UStaticAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	CleanupStaticTasks();
 	RemoveStaticMovementSpeedIncrease();
 
@@ -230,8 +227,6 @@ void UStaticAbility::EndAbility(
 	StaticOverlappingActorsBySource.Reset();
 	NextStaticSocketIndex = 0;
 	bStaticStarted = false;
-
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 const FSkillStaticSettings* UStaticAbility::GetStaticSettings() const
@@ -306,7 +301,7 @@ void UStaticAbility::TryCommitAndStartStatic()
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	if (!AvatarActor || !AvatarActor->HasAuthority())
 	{
-		StartConfiguredDefaultFX();
+		GetPresentationRuntime().StartConfiguredDefaultFX(*this);
 		if (!StaticEndTimerHandle.IsValid() && !GetResolvedStaticMontage())
 		{
 			K2_EndAbilityLocally();
@@ -322,8 +317,8 @@ void UStaticAbility::TryCommitAndStartStatic()
 	}
 
 	ApplyStaticMovementSpeedIncrease();
-	StartConfiguredDefaultFX();
-	SpawnConfiguredCharacterDecal();
+	GetPresentationRuntime().StartConfiguredDefaultFX(*this);
+	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
 	StartStaticDurationMovementLockIfAllowed();
 	StartStaticSpawnSequence();
 	if (IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))

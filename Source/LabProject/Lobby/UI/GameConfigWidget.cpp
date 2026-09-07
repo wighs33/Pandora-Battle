@@ -8,7 +8,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Mode/PdHUD.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "InputCoreTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameConfigWidget)
@@ -29,24 +30,24 @@ void UGameConfigWidget::NativeConstruct()
 		ComboBox_Map->OnSelectionChanged.AddUniqueDynamic(this, &ThisClass::HandleMapSelectionChanged);
 	}
 
-	const UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (PdGameInstance)
+	const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GetGameInstance());
+	if (LobbySubsystem)
 	{
 		if (Editable_MaxPlayerCount)
 		{
-			Editable_MaxPlayerCount->SetText(FText::AsNumber(PdGameInstance->GetLobbyMaxPlayerCount()));
+			Editable_MaxPlayerCount->SetText(FText::AsNumber(LobbySubsystem->GetLobbyMaxPlayerCount()));
 		}
 
 		if (Editable_MaxBotCount)
 		{
-			Editable_MaxBotCount->SetText(FText::AsNumber(PdGameInstance->GetLobbyMaxBotCount()));
+			Editable_MaxBotCount->SetText(FText::AsNumber(LobbySubsystem->GetLobbyMaxBotCount()));
 		}
 
 	}
 
 	if (ComboBox_Map)
 	{
-		const FName SavedMapKey = PdGameInstance ? PdGameInstance->GetLobbySelectedMapKey() : NAME_None;
+		const FName SavedMapKey = LobbySubsystem ? LobbySubsystem->GetLobbySelectedMapKey() : NAME_None;
 		const FString SavedMapOption = SavedMapKey.ToString();
 		const bool bHasSavedMapOption = !SavedMapKey.IsNone()
 			&& ComboBox_Map->FindOptionIndex(SavedMapOption) != INDEX_NONE;
@@ -111,9 +112,9 @@ void UGameConfigWidget::SaveConfig()
 		return;
 	}
 
-	const UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	const int32 DefaultMaxPlayers = PdGameInstance ? PdGameInstance->GetLobbyMaxPlayerCount() : LabGameSession::MaxPlayerCount;
-	const int32 DefaultMaxBots = PdGameInstance ? PdGameInstance->GetLobbyMaxBotCount() : 10;
+	const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GetGameInstance());
+	const int32 DefaultMaxPlayers = LobbySubsystem ? LobbySubsystem->GetLobbyMaxPlayerCount() : LabGameSession::MaxPlayerCount;
+	const int32 DefaultMaxBots = LobbySubsystem ? LobbySubsystem->GetLobbyMaxBotCount() : 10;
 
 	LobbyGameMode->SaveConfig(
 		GetSelectedMapKey(),

@@ -1,269 +1,125 @@
 #include "Mode/PdPlayerState.h"
 
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
-#include "Component/Player/EquipmentComponent.h"
+#include "Component/Player/PlayerLoadoutComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Component/Item/InventoryComponent.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Component/Player/LevelingComponent.h"
-#include "Component/Player/PlayerNotificationComponent.h"
 #include "Component/Player/PlayerRewardComponent.h"
 #include "Component/Player/StatUpgradeComponent.h"
 #include "Component/Skin/SkinComponent.h"
-#include "Net/UnrealNetwork.h"
-#include "Pandora/PandoraLoadoutTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayerState)
 
-namespace
-{
-	int32 SanitizeWeaponPandoraLoadoutNumber(const int32 LoadoutNumber)
-	{
-		return PandoraLoadout::GetLoadoutNumberFromDirection(
-			PandoraLoadout::GetDirectionFromLoadoutNumber(LoadoutNumber));
-	}
-
-	template<typename ComponentType>
-	ComponentType* FindPlayerStateComponent(const AActor* Owner)
-	{
-		return Owner ? Owner->FindComponentByClass<ComponentType>() : nullptr;
-	}
-}
-
+// 플레이어 상태를 관리할 기본 컴포넌트를 구성하고 네트워크 상태 갱신 빈도를 설정한다.
 APdPlayerState::APdPlayerState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	SetNetUpdateFrequency(100.0f);
 
 	AbilitySystemComponent = CreateDefaultSubobject<UPdAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	PlayerLoadoutComponent = CreateDefaultSubobject<UPlayerLoadoutComponent>(TEXT("PlayerLoadoutComponent"));
 	PlayerMatchComponent = CreateDefaultSubobject<UPlayerMatchComponent>(TEXT("PlayerMatchComponent"));
-	NotificationComponent = CreateDefaultSubobject<UPlayerNotificationComponent>(TEXT("NotificationComponent"));
 	LevelingComponent = CreateDefaultSubobject<ULevelingComponent>(TEXT("LevelingComponent"));
 	SkinComponent = CreateDefaultSubobject<USkinComponent>(TEXT("SkinComponent"));
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+	PandoraComponent = CreateDefaultSubobject<UPandoraComponent>(TEXT("PandoraComponent"));
+	PlayerRewardComponent = CreateDefaultSubobject<UPlayerRewardComponent>(TEXT("PlayerRewardComponent"));
+	StatUpgradeComponent = CreateDefaultSubobject<UStatUpgradeComponent>(TEXT("StatUpgradeComponent"));
+	PandoraTreeComponent = CreateDefaultSubobject<UPandoraTreeComponent>(TEXT("PandoraTreeComponent"));
 }
 
-//----------------------------------------------------------------------------------------------------------------------
-//--- Engine Callbacks
+// 컴포넌트는 직접 소유하되, 게임피처의 능력·속성 부여와 확장 초기화를 위해 GFCM 등록을 유지한다.
 void APdPlayerState::PreInitializeComponents()
 {
 	Super::PreInitializeComponents();
 	UGameFrameworkComponentManager::AddGameFrameworkComponentReceiver(this);
 }
 
+// 플레이어 상태가 준비되었음을 게임피처에 알려 관련 기능의 초기화를 이어갈 수 있게 한다.
 void APdPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
-
 	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(this, UGameFrameworkComponentManager::NAME_GameActorReady);
 }
 
+// 플레이어 상태가 종료될 때 GFCM 수신 등록을 해제하여 게임피처와의 연결을 정리한다.
 void APdPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UGameFrameworkComponentManager::RemoveGameFrameworkComponentReceiver(this);
 	Super::EndPlay(EndPlayReason);
 }
 
-void APdPlayerState::GetLifetimeReplicatedProps(
-	TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(
-		APdPlayerState,
-		SelectedWeaponPandoraLoadoutNumber);
-}
-
+// PlayerState 교체 시 엔진 기본 정보와 프로젝트의 플레이어 식별 정보를 인계한다.
+// 프로젝트의 사망 횟수·맵 구역·로드아웃 선택은 인계하지 않는다.
 void APdPlayerState::CopyProperties(APlayerState* NewPlayerState)
 {
 	Super::CopyProperties(NewPlayerState);
 
-	if (APdPlayerState* PdPlayerState = Cast<APdPlayerState>(NewPlayerState))
-	{
-		PdPlayerState->SetSelectedWeaponPandoraLoadoutNumberInternal(
-			SelectedWeaponPandoraLoadoutNumber);
-	}
-
-	if (!PlayerMatchComponent)
+	APdPlayerState* TargetPlayerState = Cast<APdPlayerState>(NewPlayerState);
+	if (!TargetPlayerState)
 	{
 		return;
 	}
 
-	const FPlayerMatchIdentity MatchIdentityToCopy = GetMatchIdentityForCopyProperties();
-	if (ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(NewPlayerState))
+	if (PlayerMatchComponent)
 	{
-		LobbyPlayerState->ImportPlayerMatchIdentity(MatchIdentityToCopy);
-	}
-	else if (APdPlayerState* PdPlayerState = Cast<APdPlayerState>(NewPlayerState))
-	{
-		const bool bCopyMatchStats = !IsA<ALobbyPlayerState>();
-		PlayerMatchComponent->CopyMatchStateTo(
-			PdPlayerState->GetPlayerMatchComponent(),
-			MatchIdentityToCopy,
-			bCopyMatchStats);
+		TargetPlayerState->ReceiveMatchIdentityFromCopyProperties(BuildMatchIdentityForCopyProperties());
 	}
 }
 
-void APdPlayerState::RequestSetSelectedWeaponPandoraLoadoutNumber(
-	const int32 LoadoutNumber)
-{
-	const int32 SanitizedLoadoutNumber =
-		SanitizeWeaponPandoraLoadoutNumber(LoadoutNumber);
-	SetSelectedWeaponPandoraLoadoutNumberInternal(SanitizedLoadoutNumber);
-	if (!HasAuthority())
-	{
-		ServerSetSelectedWeaponPandoraLoadoutNumber(
-			SanitizedLoadoutNumber);
-	}
-}
-
-void APdPlayerState::ServerSetSelectedWeaponPandoraLoadoutNumber_Implementation(
-	const int32 LoadoutNumber)
-{
-	SetSelectedWeaponPandoraLoadoutNumberInternal(LoadoutNumber);
-}
-
-void APdPlayerState::SetSelectedWeaponPandoraLoadoutNumberInternal(
-	const int32 LoadoutNumber)
-{
-	const int32 SanitizedLoadoutNumber =
-		SanitizeWeaponPandoraLoadoutNumber(LoadoutNumber);
-	if (SelectedWeaponPandoraLoadoutNumber != SanitizedLoadoutNumber)
-	{
-		SelectedWeaponPandoraLoadoutNumber = SanitizedLoadoutNumber;
-		if (HasAuthority())
-		{
-			ForceNetUpdate();
-		}
-	}
-
-	if (HasAuthority())
-	{
-		ApplySelectedWeaponPandoraLoadout();
-	}
-}
-
-bool APdPlayerState::ApplySelectedWeaponPandoraLoadout()
-{
-	if (!HasAuthority())
-	{
-		return false;
-	}
-
-	const EEnum_Direction SelectedDirection =
-		PandoraLoadout::GetDirectionFromLoadoutNumber(
-			SelectedWeaponPandoraLoadoutNumber);
-	UInventoryComponent* Inventory = GetInventoryComponent();
-	UPandoraComponent* PandoraComponent = GetPandoraComponent();
-	UEquipmentComponent* Equipment = GetPawn()
-		? GetPawn()->FindComponentByClass<UEquipmentComponent>()
-		: nullptr;
-	bool bHandled = false;
-
-	if (Equipment)
-	{
-		UItemInstance* SelectedWeapon =
-			SelectedDirection != EEnum_Direction::Center && Inventory
-				? Inventory->GetPandoraWeaponLoadoutItem(SelectedDirection)
-				: nullptr;
-		if (SelectedWeapon)
-		{
-			Equipment->RequestWeaponSelectionForDirection(
-				SelectedDirection,
-				SelectedWeapon);
-		}
-		else if (Equipment->GetCurrentWeaponId().IsValid()
-			|| Equipment->GetCurrentWeaponDefinition()
-			|| Equipment->GetRequestedWeaponDefinition())
-		{
-			Equipment->RequestWeaponUnequip();
-		}
-		bHandled = true;
-	}
-
-	if (PandoraComponent)
-	{
-		const UPandoraDefinition* PandoraDefinition =
-			SelectedDirection == EEnum_Direction::Center
-				? nullptr
-				: PandoraComponent->GetPandoraLoadoutDefinition(SelectedDirection);
-		if (PandoraDefinition
-			&& (PandoraComponent->GetCurrentPandoraDefinition() != PandoraDefinition
-				|| PandoraComponent->GetCurrentPandoraLoadoutDirection()
-					!= SelectedDirection))
-		{
-			PandoraComponent->RequestPandoraSelectionForDirection(
-				SelectedDirection,
-				PandoraDefinition);
-		}
-		else if (!PandoraDefinition
-			&& (PandoraComponent->GetCurrentPandoraDefinition()
-				|| PandoraComponent->GetCurrentPandoraLoadoutDirection()
-					!= EEnum_Direction::Center))
-		{
-			PandoraComponent->RequestPandoraSelection(nullptr);
-		}
-		bHandled = true;
-	}
-
-	return bHandled;
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-//--- Ability System
+// GAS와 다른 게임 로직이 플레이어의 능력·속성을 관리하는 ASC에 접근할 수 있게 한다.
 UAbilitySystemComponent* APdPlayerState::GetAbilitySystemComponent() const
 {
-	return GetPdAbilitySystemComponent();
+	return AbilitySystemComponent.Get();
 }
 
-UBasicAttributeSet* APdPlayerState::GetPdAttributeSet() const
-{
-	const UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponent();
-	return ASC ? const_cast<UBasicAttributeSet*>(ASC->GetSet<UBasicAttributeSet>()) : nullptr;
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-//--- Components
+// 상호작용 보상과 플레이어 처치 보상을 처리하는 컴포넌트를 조회한다.
 UPlayerRewardComponent* APdPlayerState::GetPlayerRewardComponent() const
 {
-	return FindPlayerStateComponent<UPlayerRewardComponent>(this);
+	return PlayerRewardComponent.Get();
 }
 
+// 플레이어의 능력치 투자와 회수를 처리하는 컴포넌트를 조회한다.
 UStatUpgradeComponent* APdPlayerState::GetStatUpgradeComponent() const
 {
-	return FindPlayerStateComponent<UStatUpgradeComponent>(this);
+	return StatUpgradeComponent.Get();
 }
 
+// 소지 아이템과 무기 로드아웃을 관리하는 인벤토리 컴포넌트를 조회한다.
 UInventoryComponent* APdPlayerState::GetInventoryComponent() const
 {
-	return FindPlayerStateComponent<UInventoryComponent>(this);
+	return InventoryComponent.Get();
 }
 
-USkinComponent* APdPlayerState::GetSkinComponent() const
-{
-	if (SkinComponent)
-	{
-		return SkinComponent.Get();
-	}
-
-	return FindPlayerStateComponent<USkinComponent>(this);
-}
-
+// 보유 판도라와 로드아웃 슬롯, 현재 선택한 판도라를 관리하는 컴포넌트를 조회한다.
 UPandoraComponent* APdPlayerState::GetPandoraComponent() const
 {
-	return FindPlayerStateComponent<UPandoraComponent>(this);
+	return PandoraComponent.Get();
 }
 
+// 판도라 획득과 레벨업을 관리하는 트리 컴포넌트를 조회한다.
 UPandoraTreeComponent* APdPlayerState::GetPandoraTreeComponent() const
 {
-	return FindPlayerStateComponent<UPandoraTreeComponent>(this);
+	return PandoraTreeComponent.Get();
 }
 
-FPlayerMatchIdentity APdPlayerState::GetMatchIdentityForCopyProperties() const
+// 다음 PlayerState에 넘길 표시 이름·팀·스폰 식별 정보·선택 업적을 반환한다.
+FPlayerMatchIdentity APdPlayerState::BuildMatchIdentityForCopyProperties() const
 {
 	return PlayerMatchComponent
 		? PlayerMatchComponent->GetPlayerMatchIdentity()
 		: FPlayerMatchIdentity();
+}
+
+// 이전 PlayerState에서 전달받은 플레이어 식별 정보를 현재 경기 정보 컴포넌트에 적용한다.
+void APdPlayerState::ReceiveMatchIdentityFromCopyProperties(const FPlayerMatchIdentity& Identity)
+{
+	if (PlayerMatchComponent)
+	{
+		PlayerMatchComponent->SetPlayerMatchIdentity(Identity);
+	}
 }

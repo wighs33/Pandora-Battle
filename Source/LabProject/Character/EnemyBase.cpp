@@ -277,9 +277,11 @@ void AEnemyBase::InitializeEnemyRuntime()
 		bEnemyRuntimeInitialized = true;
 		if (CombatComponent)
 		{
-			CombatComponent->ApplyDefinition(
-				Cast<UPlayerPawnDefinition>(
-					UPlayerPawnDefinition::GetDefaultDefinitionPath().TryLoad()));
+			// 기본 자산은 기존 구성을 유지하되 전투 컴포넌트에는 공통 설정만 전달한다.
+			if (const UPlayerPawnDefinition* Definition = Cast<UPlayerPawnDefinition>(UPlayerPawnDefinition::GetDefaultDefinitionPath().TryLoad()))
+			{
+				CombatComponent->ApplySettings(Definition->GetCombatDamageSettings(), Definition->GetUnarmedCombatSettings());
+			}
 		}
 		if (EnemyTrainingBotComponent)
 		{

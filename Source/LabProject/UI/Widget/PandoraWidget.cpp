@@ -11,7 +11,6 @@
 #include "GameFramework/PlayerState.h"
 #include "HAL/PlatformTime.h"
 #include "InputCoreTypes.h"
-#include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerState.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
@@ -146,6 +145,12 @@ void UPandoraWidget::NativeTick(const FGeometry& MyGeometry, const float InDelta
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
+	// 레벨과 포인트가 함께 복제되어도 표시 갱신은 한 프레임에 한 번만 한다. 일시 정지 중에도 동작한다.
+	if (bPandoraInfoDirty)
+	{
+		SetPandoraInfo();
+	}
+
 	// Pandora Tree pauses standalone training gameplay. UMG continues ticking
 	// while paused, whereas UWorld timers do not, so hold progress belongs here.
 	if (bIsButtonHoldActive)
@@ -233,7 +238,7 @@ void UPandoraWidget::SetPandoraTreeComponent(UPandoraTreeComponent* InPandoraTre
 	PandoraTreeComponent = InPandoraTreeComponent;
 	if (!PandoraDefinition && PandoraTreeComponent)
 	{
-		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
+		PandoraDefinition = FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(PandoraTreeComponent);
 	}
 
 	BindPandoraTreeEvents();
@@ -249,9 +254,10 @@ const UWidget* UPandoraWidget::GetPandoraDescriptionAnchorWidget() const
 
 void UPandoraWidget::SetPandoraInfo()
 {
+	bPandoraInfoDirty = false;
 	UPandoraWidgetViewModel* ViewModel = GetOrCreatePandoraWidgetViewModel();
 
-	if (ButtonProgressBar)
+	if (ButtonProgressBar && !bIsButtonHoldActive)
 	{
 		ButtonProgressBar->SetPercent(0.0f);
 		ButtonProgressBar->SetRenderOpacity(1.0f);
@@ -270,8 +276,7 @@ void UPandoraWidget::SetPandoraInfo()
 		PandoraDefinition.Get(),
 		PandoraTreeComponent.Get(),
 		Style);
-	const bool bUnlockedInSave = IsPandoraUnlockedInSave();
-	if (!bUnlockedInSave && PandoraDefinition)
+	if (!PandoraTreeComponent && PandoraDefinition && !FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(this, PandoraDefinition))
 	{
 		ViewData.bCanSpend = false;
 		ViewData.bActive = false;
@@ -280,10 +285,6 @@ void UPandoraWidget::SetPandoraInfo()
 		ViewData.OverlayColor = LockedOverlayColor;
 		ViewData.ContentOpacity = UnavailableContentOpacity;
 		ViewData.StateIconVisibility = ESlateVisibility::HitTestInvisible;
-	}
-	else if (bUnlockedInSave && PandoraDefinition)
-	{
-		ViewData.StateIconVisibility = ESlateVisibility::Collapsed;
 	}
 
 	if (ViewModel)
@@ -301,12 +302,12 @@ void UPandoraWidget::SetPandoraInfo()
 		ViewModel->SetAtMaxLevel(ViewData.bAtMaxLevel);
 	}
 
-RefreshEquipHintState(IsHovered());
+	RefreshEquipHintState(IsHovered());
 }
 
 void UPandoraWidget::ConfirmSpendPointOnPandora()
 {
-	if (!IsPandoraUnlockedInSave() || !PandoraTreeComponent || !PandoraDefinition)
+	if (!PandoraTreeComponent || !PandoraDefinition)
 	{
 		return;
 	}
@@ -366,11 +367,6 @@ void UPandoraWidget::ResetButtonPress()
 
 void UPandoraWidget::HandleButtonPressed()
 {
-	if (!IsPandoraUnlockedInSave())
-	{
-		return;
-	}
-
 	const bool bCanSpend = PandoraTreeComponent
 		&& PandoraDefinition
 		&& PandoraTreeComponent->CanSpendPointOnPandora(PandoraDefinition.Get());
@@ -433,13 +429,13 @@ void UPandoraWidget::HandleButtonUnhovered()
 
 void UPandoraWidget::HandlePandoraStateChanged()
 {
-	SetPandoraInfo();
+	bPandoraInfoDirty = true;
 }
 
 void UPandoraWidget::HandlePandoraPointsChanged(int32 NewPointsAvailable)
 {
 	(void)NewPointsAvailable;
-	SetPandoraInfo();
+	bPandoraInfoDirty = true;
 }
 
 void UPandoraWidget::HandlePandoraLoadoutChanged()
@@ -456,7 +452,7 @@ void UPandoraWidget::ResolvePandoraTreeComponent()
 
 	if (!PandoraDefinition && PandoraTreeComponent)
 	{
-		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
+		PandoraDefinition = FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(PandoraTreeComponent);
 	}
 
 }
@@ -488,9 +484,7 @@ void UPandoraWidget::BindPandoraTreeEvents()
 		return;
 	}
 
-	PandoraTreeComponent->OnPandorasChanged.RemoveDynamic(this, &ThisClass::HandlePandoraStateChanged);
 	PandoraTreeComponent->OnPandorasChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraStateChanged);
-	PandoraTreeComponent->OnPointsChanged.RemoveDynamic(this, &ThisClass::HandlePandoraPointsChanged);
 	PandoraTreeComponent->OnPointsChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraPointsChanged);
 }
 
@@ -779,22 +773,9 @@ void UPandoraWidget::RefreshEquipHintState(const bool bHovered)
 
 bool UPandoraWidget::CanShowEquipHint() const
 {
-	if (!PandoraDefinition)
-	{
-		return false;
-	}
-
-	if (!IsPandoraUnlockedInSave())
-	{
-		return false;
-	}
-
-	if (!PandoraTreeComponent)
-	{
-		return false;
-	}
-
-	return PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition.Get()) >= 1;
+	return PandoraTreeComponent && PandoraDefinition
+		&& PandoraTreeComponent->IsPandoraUnlockedForTree(PandoraDefinition)
+		&& PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition) >= 1;
 }
 
 bool UPandoraWidget::CanAutoEquipPandora() const
@@ -951,37 +932,4 @@ void UPandoraWidget::ClearButtonPressTimer()
 	}
 
 	ButtonHoldTimerHandle.Invalidate();
-}
-
-bool UPandoraWidget::IsPandoraUnlockedInSave() const
-{
-	if (!PandoraDefinition)
-	{
-		return false;
-	}
-
-	const bool bUnlockedInTree = PandoraTreeComponent
-		&& PandoraTreeComponent->IsPandoraUnlockedForTree(PandoraDefinition.Get());
-	if (bUnlockedInTree)
-	{
-
-		return true;
-	}
-
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
-	{
-		return false;
-	}
-
-	const APlayerController* PlayerController = GetOwningPlayer();
-	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
-	FString PlayerId = PdGameInstance->ResolveSavePlayerId(PlayerController, PlayerState);
-	if (PlayerId.IsEmpty())
-	{
-		PlayerId = PdGameInstance->GetPreferredSavePlayerId();
-	}
-
-	// Default-unlocked definitions are resolved before IsPandoraGranted requires a player id.
-	return PdGameInstance->IsPandoraGranted(PlayerId, PandoraDefinition.Get());
 }

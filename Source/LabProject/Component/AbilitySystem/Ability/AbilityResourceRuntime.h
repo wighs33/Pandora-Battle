@@ -6,6 +6,8 @@
 #include "AbilityResourceRuntime.generated.h"
 
 class UPdGameplayAbility;
+class UAbilitySystemComponent;
+class UPandoraSkillRuntimeContext;
 struct FGameplayAbilityActivationInfo;
 struct FGameplayAbilityActorInfo;
 struct FGameplayAbilitySpecHandle;
@@ -15,7 +17,7 @@ struct FGameplayEffectSpecHandle;
  * Owns the per-ability resource and cooldown runtime state.
  *
  * GAS lifecycle overrides remain on UPdGameplayAbility, while project-specific
- * mana, stamina, slot cooldown, and deferred cooldown behavior lives here.
+ * mana, stamina, source-specific cooldown, and deferred cooldown behavior lives here.
  */
 UCLASS()
 class LABPROJECT_API UAbilityResourceRuntime : public UObject
@@ -60,15 +62,12 @@ public:
 
 	void AppendCooldownRemovalPolicyTags(
 		FGameplayEffectSpecHandle& CooldownSpecHandle,
-		const FGameplayTagContainer& RemovalPolicyTags,
-		bool bPandoraCooldown) const;
+		const FGameplayTagContainer& RemovalPolicyTags) const;
 
 	bool TryCommitAdditionalActionStaminaCost(const UPdGameplayAbility& Ability) const;
 
-	FGameplayTag GetSkillSlotCooldownTag(const UPdGameplayAbility& Ability) const;
-	void BuildDynamicCooldownGrantedTags(
-		const UPdGameplayAbility& Ability,
-		FGameplayTagContainer& OutCooldownTags) const;
+	static void GetPandoraCooldown(const UAbilitySystemComponent& ASC, const UPandoraSkillRuntimeContext& Source,
+		float& OutRemaining, float& OutDuration);
 	float GetSkillCooldownReductionPercent(const UPdGameplayAbility& Ability) const;
 
 	void MarkCooldownForAbilityEnd() const { bApplySkillCooldownWhenAbilityEnds = true; }

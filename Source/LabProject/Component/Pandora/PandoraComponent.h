@@ -7,7 +7,7 @@
 #include "UObject/PrimaryAssetId.h"
 #include "Components/PlayerStateComponent.h"
 #include "Pandora/PandoraLoadoutTypes.h"
-#include "Pandora/PandoraSelectedContent.h"
+#include "GameplayAbilitySpecHandle.h"
 #include "PandoraComponent.generated.h"
 
 class UPandoraComponent;
@@ -21,6 +21,7 @@ struct FStreamableHandle;
 DECLARE_LOG_CATEGORY_EXTERN(PandoraComponentLog, Log, All);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdPandoraSelectionChangedDelegate, UPandoraDefinition*, PandoraDefinition);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraLoadoutChangedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraInventoryChangedDelegate);
 
 USTRUCT(BlueprintType, Blueprintable)
 struct FPandoraList
@@ -28,7 +29,7 @@ struct FPandoraList
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
+	UPROPERTY(BlueprintReadOnly, Category = "!Inventory")
 	TArray<TObjectPtr<UPandoraInstance>> Pandoras;
 };
 
@@ -55,6 +56,8 @@ struct LABPROJECT_API FReplicatedPandoraList : public FIrisFastArraySerializer
 	GENERATED_BODY()
 
 public:
+	void PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters);
+
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 	{
 		return FFastArraySerializer::FastArrayDeltaSerialize<FReplicatedPandoraEntry, FReplicatedPandoraList>(Entries, DeltaParms, *this);
@@ -78,17 +81,23 @@ struct TStructOpsTypeTraits<FReplicatedPandoraList> : public TStructOpsTypeTrait
 	enum { WithNetDeltaSerializer = true };
 };
 
+/**
+ * 플레이어의 판도라 보유 목록과 로드아웃을 관리한다.
+ *
+ * 성장과 포인트는 트리 컴포넌트에 맡기고, 선택 변경에서는 기존 능력을 유지한다.
+ */
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UPandoraComponent : public UPlayerStateComponent
 {
 	GENERATED_BODY()
 
 	friend struct FReplicatedPandoraEntry;
+	friend struct FReplicatedPandoraList;
 
 public:
 	UPandoraComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	// Timing hooks
+	// Engine Callbacks
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -106,11 +115,16 @@ public:
 	UFUNCTION()
 	void ClearAllPandoras();
 
-	UFUNCTION(BlueprintCallable, Category = "!Inventory")
-	void FilterPandoras(UPandoraInstance* PandoraInstance);
+	bool GrantPandoraDefinition(const UPandoraDefinition* PandoraDefinition);
 
-	UFUNCTION(BlueprintCallable, Category = "!Inventory")
-	void AddValueToMap(FGameplayTag TypeTag, UPandoraInstance* PandoraInstance);
+	UFUNCTION(BlueprintPure, Category = "!Pandora")
+	bool HasPandoraDefinition(const UPandoraDefinition* PandoraDefinition) const;
+
+	const FPandoraList& GetAllPandoras() const { return AllPandoraList; }
+	const TMap<FGameplayTag, FPandoraList>& GetFilteredPandoraMap() const { return Map_Type_PandoraList; }
+
+	UPROPERTY(BlueprintAssignable, Category = "!Inventory")
+	FPdPandoraInventoryChangedDelegate OnPandoraInventoryChanged;
 
 	UFUNCTION(BlueprintCallable, Category = "!Pandora|Skill")
 	bool RequestPandoraSelection(const UPandoraDefinition* PandoraDefinition);
@@ -152,17 +166,18 @@ public:
 	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
 
 protected:
-	// Replication timing callbacks
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedPandoraEntry& Entry);
 	void HandleReplicatedEntryRemoved(const UPandoraDefinition* PandoraDefinition);
 
-	// State rebuild helpers
-	void InitializeReplicatedEntriesFromRuntimePandoras();
 	void RebuildRuntimePandorasFromReplicatedEntries();
 	void RebuildFilteredPandoraMap();
-	void AddReplicatedPandora(UPandoraInstance* PandoraInstance);
+	void FilterPandoras(UPandoraInstance* PandoraInstance);
+	bool AddPandoraDefinition(const UPandoraDefinition* PandoraDefinition, bool bOwned);
+	void LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& PandoraDefinitions,
+		const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection, bool bOwned);
+	void CancelPendingPandoraLoads();
 	bool SelectPandoraByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId, EEnum_Direction RequestedDirection = EEnum_Direction::Center);
-	void ClearSelectedPandoraContent();
+	void ClearGrantedPandoraContent();
 	bool HasPandoraAuthority() const;
 	int32 ResolveSelectedPandoraRuntimeLevel(const UPandoraDefinition* PandoraDefinition) const;
 	EEnum_Direction ResolvePandoraSelectionDirection(const UPandoraDefinition* PandoraDefinition, EEnum_Direction RequestedDirection) const;
@@ -210,14 +225,19 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Default", meta = (DisplayName = "All Pandroa Definition"))
 	TArray<FPrimaryAssetId> AllPandroaDefinition;
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter")
+private:
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (AllowPrivateAccess = "true"))
 	TArray<FGameplayTag> FilterTypeTags;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory", meta = (AllowPrivateAccess = "true"))
 	FPandoraList AllPandoraList;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory", meta = (AllowPrivateAccess = "true"))
 	TMap<FGameplayTag, FPandoraList> Map_Type_PandoraList;
+
+	uint64 PandoraLoadGeneration = 0;
+	bool bReplicatedInventoryChanged = false;
+	TArray<TSharedPtr<FStreamableHandle>> PendingPandoraLoadHandles;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Pandora|Selection")
@@ -227,7 +247,7 @@ protected:
 	FReplicatedPandoraList ReplicatedEntries;
 
 	UPROPERTY(Transient)
-	FPandoraSelectedContent SelectedPandoraContent;
+	TArray<FGameplayAbilitySpecHandle> GrantedPandoraAbilityHandles;
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentPandoraDefinition)
 	TObjectPtr<const UPandoraDefinition> CurrentPandoraDefinition;

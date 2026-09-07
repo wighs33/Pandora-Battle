@@ -43,12 +43,7 @@ protected:
 		const FGameplayAbilityActivationInfo ActivationInfo,
 		const FGameplayEventData* TriggerEventData) override;
 
-	virtual void EndAbility(
-		const FGameplayAbilitySpecHandle Handle,
-		const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo,
-		bool bReplicateEndAbility,
-		bool bWasCancelled) override;
+	virtual void OnAbilityEnding() override;
 
 private:
 	UFUNCTION()
@@ -159,7 +154,6 @@ private:
 	FLinearColor GetConfiguredGroundTargetingDecalColor() const;
 	float CalculateConfiguredImpactAreaDamageRadius(float ChargeDamageAlpha) const;
 	bool TryBuildGroundTargetingDecalGrowth(float& OutStartSize, float& OutTargetSize, float& OutDuration) const;
-	bool HasPlayerController() const;
 	void PauseProjectileMontageForAiming();
 	void ResumeProjectileMontageAfterAiming();
 	void CleanupAimingState();

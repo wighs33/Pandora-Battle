@@ -12,7 +12,8 @@
 #include "Kismet/KismetRenderingLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
@@ -245,9 +246,9 @@ bool UPaintCanvasComponent::BeginPaintCanvasUiSession()
 	PendingPaintStrokeRequests.Reset();
 	if (PlayerOwner->IsLocallyControlled())
 	{
-		if (UPdGameInstance* PdGameInstance = PlayerOwner->GetGameInstance<UPdGameInstance>())
+		if (ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(PlayerOwner->GetGameInstance()))
 		{
-			PdGameInstance->ResetLocalLobbyPaintCanvasCache();
+			LobbySubsystem->ResetLocalLobbyPaintCanvasCache();
 		}
 	}
 
@@ -1212,9 +1213,9 @@ void UPaintCanvasComponent::CacheLocalPaintCanvasStrokeForTravel(
 		return;
 	}
 
-	if (UPdGameInstance* PdGameInstance = PlayerOwner->GetGameInstance<UPdGameInstance>())
+	if (ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(PlayerOwner->GetGameInstance()))
 	{
-		PdGameInstance->CacheLocalLobbyPaintCanvasStroke(InBrushTexture, InBrushSize, DrawLocation);
+		LobbySubsystem->CacheLocalLobbyPaintCanvasStroke(InBrushTexture, InBrushSize, DrawLocation);
 	}
 }
 
@@ -1231,9 +1232,9 @@ void UPaintCanvasComponent::CacheLocalPaintCanvasFaceDecalForTravel(
 		return;
 	}
 
-	if (UPdGameInstance* PdGameInstance = PlayerOwner->GetGameInstance<UPdGameInstance>())
+	if (ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(PlayerOwner->GetGameInstance()))
 	{
-		PdGameInstance->CacheLocalLobbyPaintCanvasFaceDecal(
+		LobbySubsystem->CacheLocalLobbyPaintCanvasFaceDecal(
 			FaceDecalMaterial,
 			AttachSocketName,
 			FaceDecalTransformOffset,
@@ -1528,14 +1529,14 @@ void UPaintCanvasComponent::RestoreCachedLobbyPaintCanvasFaceDecal()
 		return;
 	}
 
-	UPdGameInstance* PdGameInstance = PlayerOwner->GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(PlayerOwner->GetGameInstance());
+	if (!LobbySubsystem)
 	{
 		return;
 	}
 
 	FLobbyPaintCanvasFaceDecalCache FaceDecalCache;
-	if (!PdGameInstance->ConsumeLocalLobbyPaintCanvasFaceDecalCache(FaceDecalCache))
+	if (!LobbySubsystem->ConsumeLocalLobbyPaintCanvasFaceDecalCache(FaceDecalCache))
 	{
 		return;
 	}

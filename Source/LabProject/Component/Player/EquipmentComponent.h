@@ -35,8 +35,7 @@ struct FEquippedItemStatSnapshot
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
 	TMap<FGameplayTag, float> EnhancedStatMagnitudes;
 
-	// Weapon damage-source stats are read directly by combat instead of being
-	// added to an ASC attribute, but still participate in snapshot change detection.
+	// 무기 피해량은 전투가 직접 읽으므로 ASC에 더하지 않고 변경 감지에만 포함한다.
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
 	TMap<FGameplayTag, float> NonAttributeStatMagnitudes;
 
@@ -55,6 +54,12 @@ struct FEquippedItemStatSnapshot
 	}
 };
 
+/**
+ * 캐릭터에 적용할 무기와 장비 능력치를 관리한다.
+ *
+ * 플레이어 소유 목록은 InventoryComponent에 두고, 서버에서 승인한 무기 전환과
+ * 현재 Pawn의 무기 Actor·애니메이션·능력치 적용을 담당한다.
+ */
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UEquipmentComponent : public UActorComponent
 {
@@ -63,8 +68,11 @@ class LABPROJECT_API UEquipmentComponent : public UActorComponent
 public:
 	UEquipmentComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	//------------------------------------------------------------------------------------------------------------------
 	void RefreshCachedReferences();
 
 	const UItemDefinition* GetRequestedWeaponDefinition() const;
@@ -82,7 +90,7 @@ public:
 
 	bool GetHitReactData(FHitReactData& OutHitReactData) const;
 
-UFUNCTION(BlueprintPure, Category = "!Equipment")
+	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	AWeaponBase* GetCurrentWeaponActor() const { return CurrentWeaponActor; }
 
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
@@ -105,18 +113,13 @@ UFUNCTION(BlueprintPure, Category = "!Equipment")
 	FOnEquipmentStatsChanged OnEquipmentStatsChanged;
 
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
-	bool SetRequestedWeaponInstance(UItemInstance* WeaponInstance);
-
-	UFUNCTION(BlueprintCallable, Category = "!Equipment")
 	void ClearRequestedWeaponInstance();
 
 	bool RequestWeaponSelectionForDirection(EEnum_Direction Direction, UItemInstance* WeaponInstance);
 
-	bool RequestCurrentWeaponLoadoutDirection(EEnum_Direction Direction, UItemInstance* WeaponInstance);
-
 	bool RequestWeaponUnequip();
 
-	UFUNCTION(BlueprintCallable, Category = "!Equipment")
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Equipment")
 	bool EquipWeapon();
 
 	bool CompletePendingWeaponSelectionWithoutAnimation();
@@ -125,24 +128,16 @@ UFUNCTION(BlueprintPure, Category = "!Equipment")
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Equipment")
 	bool EquipWeaponDefinition(const UItemDefinition* WeaponDefinition);
 
-	UFUNCTION(BlueprintCallable, Category = "!Equipment")
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Equipment")
 	bool UnequipCurrentWeapon();
 
 protected:
-	// Timing hooks
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// Network timing callbacks
-	UFUNCTION(Server, Reliable)
-	void ServerSetRequestedWeapon(FGuid WeaponId, EEnum_Direction RequestedDirection);
-
-	UFUNCTION(Server, Reliable)
-	void ServerSetCurrentWeaponLoadoutDirection(FGuid WeaponId, EEnum_Direction RequestedDirection);
-
-	UFUNCTION(Server, Reliable)
-	void ServerEquipWeapon();
-
+	//------------------------------------------------------------------------------------------------------------------
 	bool EquipWeaponInternal(UItemInstance* WeaponInstance, EEnum_Direction WeaponLoadoutDirection);
 
 	bool ResolveWeaponEquipRequest(UItemInstance* WeaponInstance, const UItemDefinition*& OutItemDefinition, FGuid& OutWeaponId) const;
@@ -156,13 +151,13 @@ protected:
 	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
 	FGameplayTag GetEquipAbilityTag() const;
 	FGameplayTag GetUnequipAbilityTag() const;
-	UAnimMontage* GetCachedEquipMontage(const UItemDefinition* ItemDefinition) const;
-	TSubclassOf<UAnimInstance> GetCachedEquipAnimLayer(const UItemDefinition* ItemDefinition) const;
-	UAnimMontage* GetCachedUnequipMontage(const UItemDefinition* ItemDefinition) const;
-	UAnimMontage* GetCachedAttackMontage(const UItemDefinition* ItemDefinition) const;
-	UAnimMontage* GetCachedHitReactMontage(const UItemDefinition* ItemDefinition) const;
+	UAnimMontage* GetLoadedEquipMontage(const UItemDefinition* ItemDefinition) const;
+	TSubclassOf<UAnimInstance> GetLoadedEquipAnimLayer(const UItemDefinition* ItemDefinition) const;
+	UAnimMontage* GetLoadedUnequipMontage(const UItemDefinition* ItemDefinition) const;
+	UAnimMontage* GetLoadedAttackMontage(const UItemDefinition* ItemDefinition) const;
+	UAnimMontage* GetLoadedHitReactMontage(const UItemDefinition* ItemDefinition) const;
 
-	TSubclassOf<AWeaponBase> LoadWeaponActorClass(const UItemDefinition* ItemDefinition) const;
+	TSubclassOf<AWeaponBase> GetLoadedWeaponActorClass(const UItemDefinition* ItemDefinition) const;
 	bool IsWeaponPresentationLoaded(const UItemDefinition* ItemDefinition) const;
 	bool RequestWeaponPresentationLoad(const UItemDefinition* ItemDefinition, FSimpleDelegate OnLoaded);
 	void HandleWeaponPresentationLoaded(FPrimaryAssetId ItemDefinitionId);
@@ -182,11 +177,14 @@ protected:
 
 	bool RemoveCurrentWeaponStats();
 
-	void CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor, const UItemDefinition* NewWeaponDefinition, EEnum_Direction NewWeaponLoadoutDirection);
+	void CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor,
+		const UItemDefinition* NewWeaponDefinition, EEnum_Direction NewWeaponLoadoutDirection);
 
 	bool UnequipCurrentWeaponInternal();
 
-	void ClearRequestedWeapon();
+	// 승인된 장착 완료와 AI의 직접 장착이 공유하는 적용 단계다. 클라이언트 요청을 받지 않는다.
+	bool ReplaceWeapon(const UItemDefinition* Definition, FGuid WeaponId, EEnum_Direction Direction,
+		const FEquippedItemStatSnapshot& StatSnapshot);
 
 	UFUNCTION()
 	void OnRep_CurrentWeaponDefinition();
@@ -228,7 +226,6 @@ protected:
 	void AttachWeaponToOwner(AWeaponBase* WeaponActor, const UItemDefinition* ItemDefinition) const;
 	bool HasEquipmentAuthority() const;
 	bool ResolveWeaponIdFromInstance(UItemInstance* WeaponInstance, FGuid& OutWeaponId) const;
-	bool ResolveOwnedWeaponById(FGuid WeaponId, UItemInstance*& OutWeaponInstance, const UItemDefinition*& OutItemDefinition) const;
 	bool IsWeaponDefinitionEquipable(const UItemDefinition* ItemDefinition) const;
 	void MarkCurrentWeaponStateDirty(
 		bool bCurrentWeaponChanged,
@@ -264,7 +261,7 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeaponDefinition, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	TObjectPtr<const UItemDefinition> CurrentWeaponDefinition;
 
-UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
+	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	FGuid RequestedWeaponId;
 
 	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
@@ -282,25 +279,13 @@ UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipm
 	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
 	FEquippedItemStatSnapshot EquippedItemsStatSnapshot;
 
+	bool bEndingPlay = false;
 	bool bEquipmentStatsInitialized = false;
 	bool bRefreshingEquipmentStats = false;
 
 	FActiveGameplayEffectHandle CurrentWeaponTagEffectHandle;
 
-	mutable const UItemDefinition* CachedEquipDataItemDefinition = nullptr;
-	mutable TWeakObjectPtr<UAnimMontage> CachedEquipMontage;
-	mutable TWeakObjectPtr<UClass> CachedEquipAnimLayerClass;
-	mutable const UItemDefinition* CachedUnequipDataItemDefinition = nullptr;
-	mutable TWeakObjectPtr<UAnimMontage> CachedUnequipMontage;
-	mutable const UItemDefinition* CachedAttackDataItemDefinition = nullptr;
-	mutable TWeakObjectPtr<UAnimMontage> CachedAttackMontage;
-	mutable const UItemDefinition* CachedHitReactDataItemDefinition = nullptr;
-	mutable TWeakObjectPtr<UAnimMontage> CachedHitReactMontage;
-	mutable const UItemDefinition* CachedWeaponActorClassItemDefinition = nullptr;
-	mutable TWeakObjectPtr<UClass> CachedWeaponActorClass;
-
 	TMap<FPrimaryAssetId, TSharedPtr<FStreamableHandle>> WeaponPresentationLoadHandles;
 	TMap<FPrimaryAssetId, TArray<FSimpleDelegate>> PendingWeaponPresentationCallbacks;
 	uint32 WeaponPresentationRequestGeneration = 0;
-	FPrimaryAssetId PendingDefinitionEquipAssetId;
 };

@@ -89,15 +89,13 @@ EDataValidationResult UEnemyBaseDefinition::IsDataValid(FDataValidationContext& 
 
 	const bool bHasAnyMonsterPresentationSetting =
 		MonsterPresentation.ContactDamageEffectClass
-		|| MonsterPresentation.HitReactMontage
-		|| MonsterPresentation.DeathMontage;
+		|| MonsterPresentation.HitReactMontage;
 	if (bHasAnyMonsterPresentationSetting
 		&& (!MonsterPresentation.ContactDamageEffectClass
-			|| !MonsterPresentation.HitReactMontage
-			|| !MonsterPresentation.DeathMontage))
+			|| !MonsterPresentation.HitReactMontage))
 	{
 		Context.AddError(FText::FromString(
-			TEXT("MonsterPresentation must configure the contact damage effect, hit-react montage, and death montage together.")));
+			TEXT("MonsterPresentation must configure the damage effect and hit-react montage together. Death uses immediate ragdoll.")));
 		Result = EDataValidationResult::Invalid;
 	}
 	if (!FMath::IsFinite(MonsterPresentation.HitReactPlayRate)

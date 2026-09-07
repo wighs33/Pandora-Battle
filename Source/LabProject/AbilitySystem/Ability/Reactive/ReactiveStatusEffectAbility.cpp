@@ -53,20 +53,14 @@ WaitGameplayEffectAppliedTask = UAbilityTask_WaitGameplayEffectApplied_Target::W
 	WaitGameplayEffectAppliedTask->ReadyForActivation();
 }
 
-void UReactiveStatusEffectAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	bool bReplicateEndAbility,
-	bool bWasCancelled)
+void UReactiveStatusEffectAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	if (WaitGameplayEffectAppliedTask)
 	{
 		WaitGameplayEffectAppliedTask->EndTask();
 		WaitGameplayEffectAppliedTask = nullptr;
 	}
-
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 FGameplayEffectSpecHandle UReactiveStatusEffectAbility::ModifyEffectSpecBeforeApplication_Implementation(FGameplayEffectSpecHandle SpecHandle)

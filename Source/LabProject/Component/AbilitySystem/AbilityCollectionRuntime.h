@@ -11,8 +11,9 @@ class UPandoraSkillRuntimeContext;
 class UPdAbilitySystemComponent;
 
 /**
- * Owns ability collection concerns: input routing, queries, grants, source
- * object lifetime, and replicated-list snapshots.
+ * 입력 전달과 능력 목록을 관리한다.
+ *
+ * 능력 부여·조회, 눌렀던 입력의 추적, 판도라 원본 객체의 수명과 복제 등록을 담당한다.
  */
 UCLASS()
 class LABPROJECT_API UAbilityCollectionRuntime : public UObject
@@ -20,8 +21,9 @@ class LABPROJECT_API UAbilityCollectionRuntime : public UObject
 	GENERATED_BODY()
 
 public:
-	void AbilityInputTagPressed(UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayTag& InputTag) const;
-	void AbilityInputTagReleased(UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayTag& InputTag) const;
+	void ClearPressedAbilityInputs() { PressedAbilityHandles.Reset(); }
+	void AbilityInputTagPressed(UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayTag& InputTag);
+	void AbilityInputTagReleased(UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayTag& InputTag);
 	void ReplayReleasedPressInputAfterActivation(
 		UPdAbilitySystemComponent& AbilitySystemComponent,
 		FGameplayAbilitySpecHandle AbilityHandle) const;
@@ -52,24 +54,16 @@ public:
 
 	void ReactivateAutoActivatedAbilities(UPdAbilitySystemComponent& AbilitySystemComponent) const;
 
-	void CachePandoraSkillRuntimeContext(UObject* SourceObject);
+	void CachePandoraSkillRuntimeContext(UPdAbilitySystemComponent& AbilitySystemComponent, UObject* SourceObject);
 	void ReleasePandoraSkillRuntimeContextIfUnused(
-		const UPdAbilitySystemComponent& AbilitySystemComponent,
+		UPdAbilitySystemComponent& AbilitySystemComponent,
 		UPandoraSkillRuntimeContext* RuntimeContext,
 		FGameplayAbilitySpecHandle RemovedHandle);
 
-	bool IsPandoraAbilitySpec(const FGameplayAbilitySpec& AbilitySpec) const;
-	bool HasReplicatedAbilityListChanged(const UPdAbilitySystemComponent& AbilitySystemComponent) const;
-	void CacheReplicatedAbilityList(const UPdAbilitySystemComponent& AbilitySystemComponent);
-
 private:
-	bool HasGrantedAbilityClass(
-		const UPdAbilitySystemComponent& AbilitySystemComponent,
-		TSubclassOf<UGameplayAbility> AbilityClass) const;
+	TMap<FGameplayTag, TArray<FGameplayAbilitySpecHandle>> PressedAbilityHandles;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPandoraSkillRuntimeContext>> GrantedPandoraSkillRuntimeContexts;
 
-	TArray<FGameplayAbilitySpecHandle> LastReplicatedAbilityHandles;
-	TArray<TSubclassOf<UGameplayAbility>> LastReplicatedAbilityClasses;
 };

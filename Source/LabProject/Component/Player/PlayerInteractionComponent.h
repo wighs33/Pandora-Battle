@@ -10,10 +10,9 @@ class UAnimMontage;
 struct FPlayerInteractionSettings;
 
 /**
- * Interaction sensor and networked interaction-montage owner.
+ * 주변 상호작용 대상과 상호작용 몽타주의 실행 상태를 관리한다.
  *
- * The component keeps the legacy "InteractionBox" subobject name so existing
- * Blueprint component lookups and aura policies continue to resolve it.
+ * 기존 Blueprint와 오라 탐색을 위해 센서의 하위 객체 이름은 InteractionBox로 유지한다.
  */
 UCLASS(ClassGroup = (Player), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UPlayerInteractionComponent : public UBoxComponent
@@ -23,7 +22,12 @@ class LABPROJECT_API UPlayerInteractionComponent : public UBoxComponent
 public:
 	UPlayerInteractionComponent();
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	//------------------------------------------------------------------------------------------------------------------
 
 	void ApplySettings(const FPlayerInteractionSettings& Settings);
 
@@ -68,6 +72,9 @@ private:
 		AActor* OtherActor,
 		TScriptInterface<IInteractableInterface>& OutInteractableActor) const;
 	bool StopInteractionMontageLocally(float BlendOutTime);
+
+	UPROPERTY(Transient)
+	TArray<TScriptInterface<IInteractableInterface>> CurrentInteractActors;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAnimMontage> ActiveInteractionMontage;

@@ -832,24 +832,24 @@ void UStatusViewModel::OnEquipmentStatsChanged()
 
 void UStatusViewModel::RefreshEquipmentComponentBinding()
 {
-	UEquipmentComponent* ResolvedEquipmentComponent = StatusViewModel::ResolveEquipmentComponent(ASC.Get());
-	if (EquipmentComponent.Get() == ResolvedEquipmentComponent)
+	UEquipmentComponent* ResolvedEquipment = StatusViewModel::ResolveEquipmentComponent(ASC.Get());
+	const ACharacterBase* Character = StatusViewModel::ResolveCharacter(ASC.Get());
+	UCombatComponent* ResolvedCombat = Character ? Character->GetCombatComponent() : nullptr;
+	if (EquipmentComponent.Get() == ResolvedEquipment && CombatComponent.Get() == ResolvedCombat)
 	{
 		return;
 	}
-
 	ClearEquipmentComponentBinding();
-
-	if (!ResolvedEquipmentComponent)
+	EquipmentComponent = ResolvedEquipment;
+	CombatComponent = ResolvedCombat;
+	if (ResolvedEquipment)
 	{
-		return;
+		ResolvedEquipment->OnEquipmentStatsChanged.AddUObject(this, &ThisClass::OnEquipmentStatsChanged);
 	}
-
-	EquipmentComponent = ResolvedEquipmentComponent;
-	ResolvedEquipmentComponent->OnEquipmentStatsChanged.AddUObject(
-		this,
-		&ThisClass::OnEquipmentStatsChanged);
-
+	if (ResolvedCombat)
+	{
+		ResolvedCombat->OnDamageBonusChanged.AddUObject(this, &ThisClass::OnCombatDamageBonusChanged);
+	}
 }
 
 void UStatusViewModel::ClearEquipmentComponentBinding()
@@ -860,4 +860,16 @@ void UStatusViewModel::ClearEquipmentComponentBinding()
 	}
 
 	EquipmentComponent.Reset();
+	if (UCombatComponent* Combat = CombatComponent.Get())
+	{
+		Combat->OnDamageBonusChanged.RemoveAll(this);
+	}
+	CombatComponent.Reset();
+}
+
+// 임시 피해 보너스는 공격력뿐 아니라 공격력을 사용하는 방어 계산에도 반영한다.
+void UStatusViewModel::OnCombatDamageBonusChanged()
+{
+	UpdateOffenseData();
+	UpdateDefenseData();
 }

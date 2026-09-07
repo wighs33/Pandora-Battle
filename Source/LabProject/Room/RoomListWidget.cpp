@@ -7,7 +7,8 @@
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/UI/ConnectingPopupWidget.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Settings/BgmSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "Room/CreateRoomPopupWidget.h"
 #include "Room/RoomItemWidget.h"
@@ -66,9 +67,9 @@ void URoomListWidget::NativeConstruct()
 	}
 
 	HideConnectingPopup();
-	if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
+	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
-		PdGameInstance->PlayBgmForContext(EBgmContext::RoomList);
+		BgmSubsystem->PlayBgmForContext(EBgmContext::RoomList);
 	}
 	SetInfo();
 	HandleRefreshClicked();
@@ -391,9 +392,9 @@ void URoomListWidget::HandleDestroySessionForClose(
 
 void URoomListWidget::OpenTitleMap() const
 {
-	if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
+	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
-		PdGameInstance->PlayBgmForContext(EBgmContext::Startup);
+		BgmSubsystem->PlayBgmForContext(EBgmContext::Startup);
 	}
 
 	const FString TitleMapName = GetResolvedTitleTravelMapName();

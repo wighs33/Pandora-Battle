@@ -7,6 +7,7 @@
 
 class USkinEquipSlotWidget;
 class USkinInstance;
+class USkinComponent;
 
 UCLASS()
 class LABPROJECT_API UInfoSkinTabPresenter : public UInfoTabPresenterBase
@@ -46,6 +47,9 @@ public:
 	void HandleSkinFilterAllClicked();
 
 private:
+	UFUNCTION()
+	void HandleSkinsChanged();
+
 	void BindEvents();
 	void UnbindEvents();
 	void BindTileItemClicked();
@@ -58,4 +62,7 @@ private:
 
 	UPROPERTY(Transient)
 	FGameplayTag SelectedEquipTypeTag;
+
+	FGameplayTag CurrentFilterTag;
+	TWeakObjectPtr<USkinComponent> BoundSkinComponent;
 };

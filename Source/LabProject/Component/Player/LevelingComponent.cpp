@@ -1,313 +1,68 @@
 #include "Component/Player/LevelingComponent.h"
 
-#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Common/Enum_Operation.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "GameplayEffect.h"
-#include "GameFramework/PlayerState.h"
-#include "Definition/Item/RewardDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
-#include "Component/Player/PlayerNotificationComponent.h"
-#include "Mode/PdPlayerState.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelingComponent)
 
-DEFINE_LOG_CATEGORY(LogLevelingComponent);
-
-ULevelingComponent::ULevelingComponent(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	SetIsReplicatedByDefault(true);
-}
-
-void ULevelingComponent::BeginPlay()
-{
-	Super::BeginPlay();
-	BeginPlayerKillRewardPreload();
-}
-
-void ULevelingComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	ReleasePlayerKillRewardPreload();
-	Super::EndPlay(EndPlayReason);
-}
-
+// 서버에서 획득 경험치에 맞는 상승 레벨 수와 남은 경험치, 카테고리별 포인트를 계산해 한 번에 지급한다.
 bool ULevelingComponent::GrantRewardExperience(const int32 ExperienceAmount)
 {
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority() || ExperienceAmount <= 0)
-	{
-		return false;
-	}
-
-	return GrantExperienceInternal(static_cast<float>(ExperienceAmount));
-}
-
-bool ULevelingComponent::GrantKillExperience(APlayerState* VictimPlayerState)
-{
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-
-		return false;
-	}
-
-	if (!IsValid(VictimPlayerState)
-		|| VictimPlayerState == OwnerActor
-		|| VictimPlayerState->GetWorld() != OwnerActor->GetWorld())
-	{
-
-		return false;
-	}
-
-	const URewardDefinition* RewardDefinition = GetPlayerKillRewardDefinition();
-	const float KillExperienceReward = RewardDefinition
-		? static_cast<float>(RewardDefinition->RollPlayerKillExperienceReward())
-		: PlayerKillExperienceReward;
-	if (KillExperienceReward <= 0.f)
-	{
-		return false;
-	}
-
-	if (!GrantExperienceInternal(KillExperienceReward))
-	{
-		return false;
-	}
-
-	if (const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(OwnerActor))
-	{
-		if (UPlayerNotificationComponent* NotificationComponent = PdPlayerState->GetPlayerNotificationComponent())
-		{
-			NotificationComponent->SendExperienceRewardNotification(
-				KillExperienceReward,
-				RewardDefinition ? RewardDefinition->Notification.ExperienceIcon.Get() : nullptr);
-		}
-	}
-
-	return true;
-}
-
-float ULevelingComponent::GetRequiredExperienceForNextLevel() const
-{
-	const UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponent();
-	if (ASC)
-	{
-		const float AttributeMaxExperience = ASC->GetNumericAttribute(UBasicAttributeSet::GetMaxExperienceAttribute());
-		if (AttributeMaxExperience > 0.f)
-		{
-			return AttributeMaxExperience;
-		}
-	}
-
-	return RequiredExperienceForNextLevel;
-}
-
-bool ULevelingComponent::GrantExperienceInternal(const float ExperienceAmount)
-{
 	const AActor* OwnerActor = GetOwner();
-	if (!OwnerActor
-		|| !OwnerActor->HasAuthority()
-		|| !FMath::IsFinite(ExperienceAmount)
-		|| ExperienceAmount <= 0.f
-		|| !LevelingGameplayEffectClass
-		|| !ExperienceStatTag.IsValid())
+	if (!OwnerActor || !OwnerActor->HasAuthority() || ExperienceAmount <= 0 || !LevelingGameplayEffectClass)
 	{
 		return false;
 	}
 
-	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponent();
-	if (!ASC)
-	{
-
-		return false;
-	}
-
-	const bool bApplied = ASC->ApplyStatUpEffectByTag(LevelingGameplayEffectClass, ExperienceStatTag, ExperienceAmount, EEnum_Operation::Add);
-
-const float RequiredExperience = GetRequiredExperienceForNextLevel();
-	if (!bApplied || !bAutoLevelUpWhenExperienceReached || RequiredExperience <= 0.f)
-	{
-		return bApplied;
-	}
-
-	ProcessAutoLevelUps();
-
-	return true;
-}
-
-bool ULevelingComponent::ApplyLevelUpInternal()
-{
-	const AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
+	UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerActor));
+	FGameplayAttribute ExperienceAttribute;
+	FGameplayAttribute LevelAttribute;
+	if (!ASC || !ASC->ResolveAttributeFromTag(ExperienceStatTag, ExperienceAttribute)
+		|| !ASC->ResolveAttributeFromTag(LevelStatTag, LevelAttribute))
 	{
 		return false;
 	}
 
-	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponent();
-	if (!ASC || !LevelingGameplayEffectClass || !LevelStatTag.IsValid())
+	const float CurrentExperience = ASC->GetNumericAttribute(ExperienceAttribute);
+	const float RequiredExperience = ASC->GetNumericAttribute(UBasicAttributeSet::GetMaxExperienceAttribute());
+	if (!FMath::IsFinite(CurrentExperience) || !FMath::IsFinite(RequiredExperience) || RequiredExperience <= 0.f)
 	{
-
 		return false;
 	}
 
-	TMap<FGameplayTag, float> LevelUpMagnitudes;
-	LevelUpMagnitudes.Add(LevelStatTag, 1.f);
-
-	if (bResetExperienceOnLevelUp && ExperienceStatTag.IsValid())
+	// 현재 규칙은 레벨마다 같은 요구량을 소비한다. 중간 경험치 합산은 double로 계산해 큰 보상의 오차를 줄인다.
+	const double TotalExperience = static_cast<double>(CurrentExperience) + ExperienceAmount;
+	const float LevelsGained = static_cast<float>(FMath::FloorToDouble(TotalExperience / RequiredExperience));
+	const float RemainingExperience = static_cast<float>(FMath::Fmod(TotalExperience, static_cast<double>(RequiredExperience)));
+	const float PointsGained = LevelsGained * FMath::Max(PointsPerCategoryOnLevelUp, 0.f);
+	if (!FMath::IsFinite(LevelsGained) || !FMath::IsFinite(PointsGained))
 	{
-		const float RequiredExperience = GetRequiredExperienceForNextLevel();
-		if (RequiredExperience <= 0.f)
-		{
-
-			return false;
-		}
-
-		float CurrentExperience = 0.f;
-		if (!GetCurrentAttributeValue(ExperienceStatTag, CurrentExperience))
-		{
-
-			return false;
-		}
-
-		if (CurrentExperience < RequiredExperience)
-		{
-
-			return false;
-		}
-
-		LevelUpMagnitudes.Add(ExperienceStatTag, -RequiredExperience);
+		return false;
 	}
 
-	const float PointGrant = FMath::Max(PointsPerCategoryOnLevelUp, 0.f);
-	if (PointGrant > 0.f)
+	TMap<FGameplayTag, float> StatMagnitudes;
+	StatMagnitudes.Add(ExperienceStatTag, RemainingExperience - CurrentExperience);
+	if (LevelsGained > 0.f)
 	{
+		StatMagnitudes.Add(LevelStatTag, LevelsGained);
 		for (const FGameplayTag& CategoryPointTag : CategoryPointStatTags)
 		{
 			if (CategoryPointTag.IsValid())
 			{
-				LevelUpMagnitudes.FindOrAdd(CategoryPointTag) += PointGrant;
+				StatMagnitudes.FindOrAdd(CategoryPointTag) += PointsGained;
 			}
 		}
 	}
 
-	return ASC->ApplyStatUpEffectByTags(LevelingGameplayEffectClass, LevelUpMagnitudes, EEnum_Operation::Add);
+	return ASC->ApplyStatUpEffectByTags(LevelingGameplayEffectClass, StatMagnitudes, EEnum_Operation::Add);
 }
 
-bool ULevelingComponent::ProcessAutoLevelUps()
+// 경험치 바와 레벨업 계산이 같은 GAS 요구 경험치를 사용하도록 현재 값을 조회한다.
+float ULevelingComponent::GetRequiredExperienceForNextLevel() const
 {
-	if (!bAutoLevelUpWhenExperienceReached || !ExperienceStatTag.IsValid())
-	{
-		return false;
-	}
-
-	bool bLeveledUp = false;
-	constexpr int32 MaxLevelUpsPerGrant = 50;
-
-	for (int32 LevelUpCount = 0; LevelUpCount < MaxLevelUpsPerGrant; ++LevelUpCount)
-	{
-		const float RequiredExperience = GetRequiredExperienceForNextLevel();
-		if (RequiredExperience <= 0.f)
-		{
-			break;
-		}
-
-		float CurrentExperience = 0.f;
-		if (!GetCurrentAttributeValue(ExperienceStatTag, CurrentExperience) || CurrentExperience < RequiredExperience)
-		{
-			break;
-		}
-
-		if (!ApplyLevelUpInternal())
-		{
-			break;
-		}
-
-		bLeveledUp = true;
-		if (!bResetExperienceOnLevelUp)
-		{
-			break;
-		}
-	}
-
-	if (bLeveledUp)
-	{
-		float RemainingExperience = 0.f;
-		GetCurrentAttributeValue(ExperienceStatTag, RemainingExperience);
-
-	}
-
-	return bLeveledUp;
-}
-
-UPdAbilitySystemComponent* ULevelingComponent::GetPdAbilitySystemComponent() const
-{
-	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	return PlayerState ? PlayerState->GetPdAbilitySystemComponent() : nullptr;
-}
-
-bool ULevelingComponent::GetCurrentAttributeValue(const FGameplayTag StatTag, float& OutValue) const
-{
-	OutValue = 0.f;
-
-	const UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponent();
-	if (!ASC || !StatTag.IsValid())
-	{
-		return false;
-	}
-
-	FGameplayAttribute Attribute;
-	if (!ASC->ResolveAttributeFromTag(StatTag, Attribute))
-	{
-
-		return false;
-	}
-
-	OutValue = ASC->GetNumericAttribute(Attribute);
-	return true;
-}
-
-const URewardDefinition* ULevelingComponent::GetPlayerKillRewardDefinition() const
-{
-	if (PlayerKillRewardDefinition.IsNull())
-	{
-		return nullptr;
-	}
-
-	return LoadedPlayerKillRewardDefinition
-		? LoadedPlayerKillRewardDefinition.Get()
-		: PlayerKillRewardDefinition.Get();
-}
-
-void ULevelingComponent::BeginPlayerKillRewardPreload()
-{
-	ReleasePlayerKillRewardPreload();
-	LoadedPlayerKillRewardDefinition = PlayerKillRewardDefinition.Get();
-	if (LoadedPlayerKillRewardDefinition || PlayerKillRewardDefinition.IsNull())
-	{
-		return;
-	}
-
-	PlayerKillRewardPreloadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			PlayerKillRewardDefinition.ToSoftObjectPath(),
-			FStreamableDelegate::CreateUObject(
-				this,
-				&ThisClass::HandlePlayerKillRewardPreloadComplete));
-}
-
-void ULevelingComponent::HandlePlayerKillRewardPreloadComplete()
-{
-	LoadedPlayerKillRewardDefinition = PlayerKillRewardDefinition.Get();
-}
-
-void ULevelingComponent::ReleasePlayerKillRewardPreload()
-{
-	if (PlayerKillRewardPreloadHandle.IsValid())
-	{
-		PlayerKillRewardPreloadHandle->CancelHandle();
-		PlayerKillRewardPreloadHandle->ReleaseHandle();
-		PlayerKillRewardPreloadHandle.Reset();
-	}
-	LoadedPlayerKillRewardDefinition = nullptr;
+	const UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
+	return ASC ? ASC->GetNumericAttribute(UBasicAttributeSet::GetMaxExperienceAttribute()) : 0.f;
 }

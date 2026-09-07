@@ -112,7 +112,10 @@ void UGrappleComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 void UGrappleComponent::SetHookComponent(UCableComponent* InHookComponent)
 {
 	HookComponent = InHookComponent;
-	ConfigureHookComponent();
+	if (HasBegunPlay())
+	{
+		ConfigureHookComponent();
+	}
 }
 
 bool UGrappleComponent::TraceGrappleFromView(

@@ -4,6 +4,7 @@
 #include "Definition/Character/CharacterBaseDefinition.h"
 #include "GameplayCueInterface.h"
 #include "GameplayTagContainer.h"
+#include "UObject/ObjectKey.h"
 #include "CharacterPresentationComponent.generated.h"
 
 class ACharacterBase;
@@ -12,6 +13,7 @@ class UMaterialInterface;
 class UMatchRuleDefinition;
 class UNiagaraComponent;
 class UNiagaraSystem;
+class USkeletalMeshComponent;
 
 /**
  * Shared visual state for characters: animation layers, aim-offset data,
@@ -49,6 +51,10 @@ public:
 	void ClearSkillPresentationOverlay(UObject* PresentationSource);
 	void ClearCharacterOverlayMaterialLocal();
 
+	// 동시에 유지되는 스킬들이 서로의 확대 효과를 원복하지 않도록 출처별 배율을 합성한다.
+	void SetTemporaryMeshScaleMultiplier(UObject* SourceObject, float ScaleMultiplier);
+	void ClearTemporaryMeshScaleMultiplier(UObject* SourceObject);
+
 	void HandleDashGameplayCue(
 		EGameplayCueEvent::Type EventType,
 		const FGameplayCueParameters& Parameters);
@@ -71,6 +77,7 @@ private:
 
 	void HandleMatchTeamColorChanged(int32 NewTeamColorIndex);
 	void RefreshCharacterOverlayMaterial();
+	void RefreshTemporaryMeshScale();
 	UMaterialInterface* GetPreferredSkillOverlayMaterial();
 	const UMatchRuleDefinition* GetTeamOverlayMatchRuleDefinition() const;
 	void QueueTeamOverlayMaterialRetry();
@@ -100,6 +107,10 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInterface>> SkillPresentationOverlayMaterials;
+
+	TMap<FObjectKey, float> TemporaryMeshScaleMultipliers;
+	TWeakObjectPtr<USkeletalMeshComponent> ScaledMeshComponent;
+	FVector MeshRelativeScaleBeforeModifiers = FVector::OneVector;
 
 	FTimerHandle TeamOverlayMaterialRetryTimerHandle;
 	int32 TeamOverlayMaterialRetryCount = 0;

@@ -16,8 +16,8 @@ public:
 	ALobbyPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void BeginPlay() override;
-	virtual void SetupInputComponent() override;
 	virtual void AcknowledgePossession(APawn* P) override;
+	virtual bool UsesLobbyPresentation() const override { return true; }
 
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "!Lobby")
 	void Server_HandleChangeNickname(const FText& InNickname);
@@ -27,9 +27,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "!Lobby")
 	void Server_HandleKickPlayer(ALobbyPlayerState* TargetPlayerState);
-
-	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")
-	void Client_RefreshLobbyUI();
 
 	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")
 	void Client_StartGameCountdown(float DelaySeconds);

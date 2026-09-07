@@ -6,12 +6,13 @@
 #include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
 #include "Provision/DefaultPlayerProvisioner.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ExperiencePlayerProvisioningComponent)
 
-UExperiencePlayerProvisioningComponent::
-UExperiencePlayerProvisioningComponent()
+UExperiencePlayerProvisioningComponent::UExperiencePlayerProvisioningComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
@@ -22,9 +23,7 @@ UExperiencePlayerProvisioningComponent()
 		CreateDefaultSubobject<UDefaultPlayerProvisioner>(
 			TEXT("DefaultPlayerProvisioner"));
 
-	// Match the former embedded settings value even when this component is
-	// constructed outside AExperienceGameMode and no explicit settings have
-	// been injected yet.
+	// GameMode 외부에서 생성해도 동일한 기본 설정을 사용한다.
 	ApplySettings(FExperiencePlayerProvisioningSettings());
 }
 
@@ -34,17 +33,15 @@ void UExperiencePlayerProvisioningComponent::BeginPlay()
 	BeginProvisioningContentPreload();
 }
 
-void UExperiencePlayerProvisioningComponent::EndPlay(
-	const EEndPlayReason::Type EndPlayReason)
+void UExperiencePlayerProvisioningComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ReleaseProvisioningContentPreload();
-	PendingGameplayProvisions.Reset();
+	PendingGameplayPlayers.Reset();
+	ReadyGameplayPawns.Reset();
+	OnPlayerGameplayReady.Clear();
 	bProvisioningContentReady = false;
-	if (DefaultPlayerProvisioner)
-	{
-		DefaultPlayerProvisioner->Shutdown();
-	}
-
+	DefaultPlayerProvisioner->OnPlayerProvisioned.RemoveAll(this);
+	DefaultPlayerProvisioner->Shutdown();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -72,73 +69,86 @@ void UExperiencePlayerProvisioningComponent::InitializeLoggedInPlayer(
 	}
 }
 
-void UExperiencePlayerProvisioningComponent::PreparePlayerForGameplay(
-	APlayerController* NewPlayer,
-	const bool bApplyLobbySkinEquipment)
+void UExperiencePlayerProvisioningComponent::InitializeMatchIdentity(APlayerController* NewPlayer)
 {
-	if (!NewPlayer)
+	if (PlayerProfileService)
+	{
+		PlayerProfileService->InitializeMatchIdentity(NewPlayer);
+	}
+}
+
+// 로딩 중의 입장 요청은 중복 없이 보관하고, 같은 Pawn에 완료된 지급은 반복하지 않는다.
+void UExperiencePlayerProvisioningComponent::PreparePlayerForGameplay(APlayerController* NewPlayer)
+{
+	if (!IsValid(NewPlayer) || !IsValid(NewPlayer->GetPawn()) || IsPlayerReadyForGameplay(NewPlayer))
 	{
 		return;
 	}
 
+	if (!DefaultPlayerProvisioner->OnPlayerProvisioned.IsBoundToObject(this))
+	{
+		DefaultPlayerProvisioner->OnPlayerProvisioned.AddUObject(this, &ThisClass::HandlePlayerProvisioned);
+	}
 	if (!bProvisioningContentReady)
 	{
-		PendingGameplayProvisions.RemoveAll(
-			[NewPlayer](const FPendingGameplayProvision& PendingProvision)
-			{
-				return PendingProvision.PlayerController.Get() == NewPlayer;
-			});
-		FPendingGameplayProvision& PendingProvision =
-			PendingGameplayProvisions.AddDefaulted_GetRef();
-		PendingProvision.PlayerController = NewPlayer;
-		PendingProvision.bApplyLobbySkinEquipment =
-			bApplyLobbySkinEquipment;
+		PendingGameplayPlayers.AddUnique(NewPlayer);
 		BeginProvisioningContentPreload();
 		return;
 	}
-
-	PreparePlayerForGameplayInternal(NewPlayer, bApplyLobbySkinEquipment);
+	PreparePlayerForGameplayInternal(NewPlayer);
 }
 
-void UExperiencePlayerProvisioningComponent::PreparePlayerForGameplayInternal(
-	APlayerController* NewPlayer,
-	const bool bApplyLobbySkinEquipment)
+// 로비에서 선택한 외형을 현재 Pawn에 복원한 뒤 게임 모드에 맞는 기본 지급을 실행한다.
+void UExperiencePlayerProvisioningComponent::PreparePlayerForGameplayInternal(APlayerController* NewPlayer)
 {
-	const EDefaultProvisionMode Mode = IsTrainingRoomMap()
-		? EDefaultProvisionMode::TrainingRoom
-		: EDefaultProvisionMode::Gameplay;
-	if (bApplyLobbySkinEquipment && PlayerProfileService)
+	if (!IsValid(NewPlayer) || !IsValid(NewPlayer->GetPawn()) || IsPlayerReadyForGameplay(NewPlayer))
 	{
-		PlayerProfileService->ApplyCachedLobbySkinEquipment(NewPlayer);
+		return;
 	}
-	if (DefaultPlayerProvisioner)
-	{
-		DefaultPlayerProvisioner->ProvisionPlayer(NewPlayer, Mode);
-	}
+
+	PlayerProfileService->ApplyCachedLobbySkinEquipment(NewPlayer);
+	const EDefaultProvisionMode Mode = IsTrainingRoomMap() ? EDefaultProvisionMode::TrainingRoom : EDefaultProvisionMode::Gameplay;
+	DefaultPlayerProvisioner->ProvisionPlayer(NewPlayer, Mode);
 }
 
-void UExperiencePlayerProvisioningComponent::
-ClearRuntimeStateForController(
-	AController* Controller,
-	APlayerState* PlayerState)
+// 지급 함수 호출 시점이 아니라 비동기 지급까지 성공한 시점에 현재 Pawn을 준비 완료로 기록한다.
+void UExperiencePlayerProvisioningComponent::HandlePlayerProvisioned(APlayerController* PlayerController)
 {
-	// Match the previous contract: a null controller means there is no runtime
-	// session key to clear.
+	if (!bProvisioningContentReady || !IsValid(PlayerController) || !IsValid(PlayerController->GetPawn()))
+	{
+		return;
+	}
+
+	ReadyGameplayPawns.Add(PlayerController, PlayerController->GetPawn());
+	OnPlayerGameplayReady.Broadcast();
+}
+
+// 이전 Pawn의 준비 완료 상태가 새 Pawn까지 준비됐다고 오인되지 않도록 인스턴스를 비교한다.
+bool UExperiencePlayerProvisioningComponent::IsPlayerReadyForGameplay(APlayerController* PlayerController) const
+{
+	if (!IsValid(PlayerController) || !IsValid(PlayerController->GetPawn()))
+	{
+		return false;
+	}
+
+	const TWeakObjectPtr<APawn>* ReadyPawn = ReadyGameplayPawns.Find(PlayerController);
+	return ReadyPawn && ReadyPawn->Get() == PlayerController->GetPawn();
+}
+
+// 퇴장한 참가자의 대기·완료 기록과 지급 재시도를 함께 제거한다.
+void UExperiencePlayerProvisioningComponent::ClearRuntimeStateForController(AController* Controller, APlayerState* PlayerState)
+{
 	if (!Controller)
 	{
 		return;
 	}
-	PendingGameplayProvisions.RemoveAll(
-		[Controller](const FPendingGameplayProvision& PendingProvision)
-		{
-			return PendingProvision.PlayerController.Get() == Controller;
-		});
-	if (DefaultPlayerProvisioner)
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
-		DefaultPlayerProvisioner->ClearRuntimeStateForController(
-			Controller,
-			PlayerState);
+		PendingGameplayPlayers.Remove(PlayerController);
+		ReadyGameplayPawns.Remove(PlayerController);
 	}
+	DefaultPlayerProvisioner->ClearRuntimeStateForController(Controller, PlayerState);
 }
 
 void UExperiencePlayerProvisioningComponent::BeginProvisioningContentPreload()
@@ -206,6 +216,7 @@ void UExperiencePlayerProvisioningComponent::ReleaseProvisioningContentPreload()
 	}
 }
 
+// 공통 콘텐츠 로딩이 끝나면 기다리던 참가자들의 지급을 재개한다.
 void UExperiencePlayerProvisioningComponent::FlushPendingGameplayProvisions()
 {
 	if (!bProvisioningContentReady)
@@ -213,23 +224,15 @@ void UExperiencePlayerProvisioningComponent::FlushPendingGameplayProvisions()
 		return;
 	}
 
-	TArray<FPendingGameplayProvision> Provisions =
-		MoveTemp(PendingGameplayProvisions);
-	PendingGameplayProvisions.Reset();
-	for (const FPendingGameplayProvision& Provision : Provisions)
+	TArray<TWeakObjectPtr<APlayerController>> PendingPlayers = MoveTemp(PendingGameplayPlayers);
+	PendingGameplayPlayers.Reset();
+	for (const TWeakObjectPtr<APlayerController>& Player : PendingPlayers)
 	{
-		if (APlayerController* PlayerController =
-			Provision.PlayerController.Get())
-		{
-			PreparePlayerForGameplayInternal(
-				PlayerController,
-				Provision.bApplyLobbySkinEquipment);
-		}
+		PreparePlayerForGameplayInternal(Player.Get());
 	}
 }
 
-void UExperiencePlayerProvisioningComponent::
-ApplyConfiguredStatusPointsForPlayerState(APlayerState* PlayerState)
+void UExperiencePlayerProvisioningComponent::ApplyConfiguredStatusPointsForPlayerState(APlayerState* PlayerState)
 {
 	if (DefaultPlayerProvisioner)
 	{

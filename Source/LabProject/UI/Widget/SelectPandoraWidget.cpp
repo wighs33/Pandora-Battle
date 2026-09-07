@@ -2,6 +2,7 @@
 
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
+#include "Component/Player/PlayerLoadoutComponent.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerState.h"
@@ -137,9 +138,10 @@ void USelectPandoraWidget::RefreshSelectedLoadoutNumber()
 	const APdPlayerState* PlayerState = PlayerController
 		? PlayerController->GetPlayerState<APdPlayerState>()
 		: nullptr;
+	const UPlayerLoadoutComponent* LoadoutComponent = PlayerState ? PlayerState->GetPlayerLoadoutComponent() : nullptr;
 	SetSelectedLoadoutNumberVisibility(
-		PlayerState
-			? PlayerState->GetSelectedWeaponPandoraLoadoutNumber()
+		LoadoutComponent
+			? LoadoutComponent->GetSelectedLoadoutNumber()
 			: 0);
 }
 

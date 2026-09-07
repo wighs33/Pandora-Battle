@@ -62,7 +62,7 @@ void TryActivateGrantedAbilityNextTick(
 
 void UAbilityCollectionRuntime::AbilityInputTagPressed(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
-	const FGameplayTag& InputTag) const
+	const FGameplayTag& InputTag)
 {
 	if (!InputTag.IsValid())
 	{
@@ -78,6 +78,7 @@ void UAbilityCollectionRuntime::AbilityInputTagPressed(
 			continue;
 		}
 
+		PressedAbilityHandles.FindOrAdd(InputTag).AddUnique(AbilitySpec.Handle);
 		AbilitySpec.InputPressed = true;
 		if (AbilitySpec.IsActive())
 		{
@@ -106,22 +107,25 @@ void UAbilityCollectionRuntime::AbilityInputTagPressed(
 
 void UAbilityCollectionRuntime::AbilityInputTagReleased(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
-	const FGameplayTag& InputTag) const
+	const FGameplayTag& InputTag)
 {
 	if (!InputTag.IsValid())
 	{
 		return;
 	}
 
+	TArray<FGameplayAbilitySpecHandle> PressedHandles;
+	PressedAbilityHandles.RemoveAndCopyValue(InputTag, PressedHandles);
 	FScopedAbilityListLock AbilityListLock(AbilitySystemComponent);
-	for (FGameplayAbilitySpec& AbilitySpec : AbilitySystemComponent.GetActivatableAbilities())
+	for (const FGameplayAbilitySpecHandle Handle : PressedHandles)
 	{
-		if (!AbilitySpec.Ability
-			|| !AbilitySpec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
+		FGameplayAbilitySpec* FoundSpec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
+		if (!FoundSpec || !FoundSpec->Ability)
 		{
 			continue;
 		}
-
+		// 누른 뒤 판도라를 바꿔도, 해제 입력은 처음 누른 능력에 전달한다.
+		FGameplayAbilitySpec& AbilitySpec = *FoundSpec;
 		AbilitySpec.InputPressed = false;
 		if (!AbilitySpec.IsActive())
 		{
@@ -270,7 +274,7 @@ TArray<FGameplayAbilitySpecHandle> UAbilityCollectionRuntime::GrantAbilities(
 	for (const TSubclassOf<UGameplayAbility>& AbilityClass : AbilityClasses)
 	{
 		if (!AbilityClass
-			|| HasGrantedAbilityClass(AbilitySystemComponent, AbilityClass))
+			|| AbilitySystemComponent.FindAbilitySpecFromClass(AbilityClass))
 		{
 			continue;
 		}
@@ -354,17 +358,21 @@ void UAbilityCollectionRuntime::ReactivateAutoActivatedAbilities(
 	}
 }
 
-void UAbilityCollectionRuntime::CachePandoraSkillRuntimeContext(UObject* SourceObject)
+void UAbilityCollectionRuntime::CachePandoraSkillRuntimeContext(UPdAbilitySystemComponent& AbilitySystemComponent, UObject* SourceObject)
 {
 	if (UPandoraSkillRuntimeContext* RuntimeContext =
 		Cast<UPandoraSkillRuntimeContext>(SourceObject))
 	{
 		GrantedPandoraSkillRuntimeContexts.AddUnique(RuntimeContext);
+		if (AbilitySystemComponent.IsReadyForReplication() && AbilitySystemComponent.IsOwnerActorAuthoritative())
+		{
+			AbilitySystemComponent.AddReplicatedSubObject(RuntimeContext);
+		}
 	}
 }
 
 void UAbilityCollectionRuntime::ReleasePandoraSkillRuntimeContextIfUnused(
-	const UPdAbilitySystemComponent& AbilitySystemComponent,
+	UPdAbilitySystemComponent& AbilitySystemComponent,
 	UPandoraSkillRuntimeContext* RuntimeContext,
 	const FGameplayAbilitySpecHandle RemovedHandle)
 {
@@ -382,82 +390,9 @@ void UAbilityCollectionRuntime::ReleasePandoraSkillRuntimeContextIfUnused(
 		}
 	}
 
+	if (AbilitySystemComponent.IsOwnerActorAuthoritative())
+	{
+		AbilitySystemComponent.DestroyReplicatedSubObjectOnRemotePeers(RuntimeContext);
+	}
 	GrantedPandoraSkillRuntimeContexts.Remove(RuntimeContext);
-}
-
-bool UAbilityCollectionRuntime::IsPandoraAbilitySpec(
-	const FGameplayAbilitySpec& AbilitySpec) const
-{
-	if (Cast<UPandoraSkillRuntimeContext>(AbilitySpec.SourceObject.Get()))
-	{
-		return true;
-	}
-
-	const FGameplayTagContainer& SourceTags = AbilitySpec.GetDynamicSpecSourceTags();
-	return SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill1)
-		|| SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill2)
-		|| SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill3)
-		|| SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill4);
-}
-
-bool UAbilityCollectionRuntime::HasReplicatedAbilityListChanged(
-	const UPdAbilitySystemComponent& AbilitySystemComponent) const
-{
-	const TArray<FGameplayAbilitySpec>& CurrentAbilities =
-		AbilitySystemComponent.GetActivatableAbilities();
-	if (LastReplicatedAbilityHandles.Num() != CurrentAbilities.Num()
-		|| LastReplicatedAbilityClasses.Num() != CurrentAbilities.Num())
-	{
-		return true;
-	}
-
-	for (int32 Index = 0; Index < CurrentAbilities.Num(); ++Index)
-	{
-		const FGameplayAbilitySpec& CurrentSpec = CurrentAbilities[Index];
-		const TSubclassOf<UGameplayAbility> CurrentAbilityClass =
-			CurrentSpec.Ability ? CurrentSpec.Ability->GetClass() : nullptr;
-
-		if (LastReplicatedAbilityHandles[Index] != CurrentSpec.Handle
-			|| LastReplicatedAbilityClasses[Index] != CurrentAbilityClass)
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void UAbilityCollectionRuntime::CacheReplicatedAbilityList(
-	const UPdAbilitySystemComponent& AbilitySystemComponent)
-{
-	LastReplicatedAbilityHandles.Reset();
-	LastReplicatedAbilityClasses.Reset();
-
-	for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystemComponent.GetActivatableAbilities())
-	{
-		LastReplicatedAbilityHandles.Add(AbilitySpec.Handle);
-		LastReplicatedAbilityClasses.Add(
-			AbilitySpec.Ability ? AbilitySpec.Ability->GetClass() : nullptr);
-	}
-}
-
-bool UAbilityCollectionRuntime::HasGrantedAbilityClass(
-	const UPdAbilitySystemComponent& AbilitySystemComponent,
-	const TSubclassOf<UGameplayAbility> AbilityClass) const
-{
-	const UClass* AbilityClassType = AbilityClass.Get();
-	if (!AbilityClassType)
-	{
-		return false;
-	}
-
-	for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystemComponent.GetActivatableAbilities())
-	{
-		if (AbilitySpec.Ability && AbilitySpec.Ability->GetClass() == AbilityClassType)
-		{
-			return true;
-		}
-	}
-
-	return false;
 }

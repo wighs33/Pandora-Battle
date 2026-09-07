@@ -13,7 +13,7 @@
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Component/Player/CombatComponent.h"
-#include "Component/Player/LevelingComponent.h"
+#include "Component/Player/PlayerRewardComponent.h"
 #include "UI/KillLogTypes.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BasicAttributeSet)
 
@@ -424,10 +424,10 @@ namespace
 			KillerPlayerState->SetScore(PreviousScore + 1.0f);
 
 			APdPlayerState* KillerPdPlayerState = Cast<APdPlayerState>(KillerPlayerState);
-			ULevelingComponent* LevelingComponent = KillerPdPlayerState ? KillerPdPlayerState->GetLevelingComponent() : nullptr;
-			const bool bGrantedKillExperience = LevelingComponent
-				? LevelingComponent->GrantKillExperience(VictimPlayerState)
-				: false;
+			if (UPlayerRewardComponent* RewardComponent = KillerPdPlayerState ? KillerPdPlayerState->GetPlayerRewardComponent() : nullptr)
+			{
+				RewardComponent->GrantKillExperience(VictimPlayerState);
+			}
 
 			if (UWorld* World = VictimActor->GetWorld())
 			{

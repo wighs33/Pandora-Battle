@@ -23,23 +23,6 @@ class URewardDefinition;
 class UStatUpgradeDefinition;
 class UStatusEffectDefinition;
 
-UENUM(BlueprintType)
-enum class EStartupWindowMode : uint8
-{
-	Windowed,
-	WindowedFullscreen,
-	Fullscreen
-};
-
-USTRUCT(BlueprintType)
-struct LABPROJECT_API FGameInstanceLifecycleSettings
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Lifecycle|Window")
-	EStartupWindowMode StartupWindowMode = EStartupWindowMode::WindowedFullscreen;
-};
-
 /** Default project content selected once by the GameInstance bootstrap asset. */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FProjectDefinitionReferences
@@ -128,13 +111,7 @@ public:
 		meta = (DisplayName = "Memo", MultiLine = "true"))
 	TArray<FText> Memo;
 
-	const FGameInstanceLifecycleSettings& GetLifecycleSettings() const { return Lifecycle; }
-
 private:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Lifecycle",
-		meta = (AllowPrivateAccess = "true"))
-	FGameInstanceLifecycleSettings Lifecycle;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Game Instance|Definitions",
 		meta = (AllowPrivateAccess = "true"))
 	FProjectDefinitionReferences Definitions;

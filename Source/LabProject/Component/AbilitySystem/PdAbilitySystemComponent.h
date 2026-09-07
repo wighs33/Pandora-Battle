@@ -1,8 +1,8 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
 #include "Common/Enum_Operation.h"
-#include "CoreMinimal.h"
 #include "Definition/AbilitySystem/AbilityAttributeConfig.h"
 #include "GameplayAbilitySpec.h"
 #include "GameplayTagContainer.h"
@@ -11,19 +11,19 @@
 class UGameplayAbility;
 class UGameplayEffect;
 class UAttributeSet;
+class UStatUpgradeDefinition;
 class UAbilityAttributeRuntime;
 class UAbilityCollectionRuntime;
-class UAbilityResetRuntime;
+class UPandoraSkillRuntimeContext;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdAbilitiesChangedDynamicDelegate);
 DECLARE_MULTICAST_DELEGATE(FPdAbilitiesChangedNativeDelegate);
 
 /**
- * Project AbilitySystemComponent facade.
+ * 프로젝트의 능력 시스템을 GAS와 연결하는 컴포넌트.
  *
- * GAS integration and compatibility APIs stay here. Focused runtime objects own
- * attribute, ability collection, and reset behavior so the same implementation
- * is reused by PlayerState and enemy-owned ability systems.
+ * 속성과 능력 목록은 내부 Runtime에 위임하고, 리셋은 ASC에서 처리하며,
+ * 플레이어와 적이 동일한 공개 API를 사용한다.
  */
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UPdAbilitySystemComponent : public UAbilitySystemComponent
@@ -33,31 +33,25 @@ class LABPROJECT_API UPdAbilitySystemComponent : public UAbilitySystemComponent
 public:
 	UPdAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual void OnRegister() override;
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
+	virtual void ReadyForReplication() override;
 	virtual void OnGiveAbility(FGameplayAbilitySpec& AbilitySpec) override;
 	virtual void OnRemoveAbility(FGameplayAbilitySpec& AbilitySpec) override;
-	virtual void NotifyAbilityActivated(
-		FGameplayAbilitySpecHandle Handle,
-		UGameplayAbility* Ability) override;
+	virtual void NotifyAbilityActivated(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability) override;
 
+	//------------------------------------------------------------------------------------------------------------------
+
+	// ActorInfo의 할당 여부이며, Owner와 Avatar의 초기화 완료를 의미하지는 않는다.
 	bool HasAbilityActorInfoAllocated() const { return AbilityActorInfo.IsValid(); }
-
-	UAbilityAttributeRuntime* GetAttributeRuntime() const { return AttributeRuntime.Get(); }
-	UAbilityCollectionRuntime* GetCollectionRuntime() const { return CollectionRuntime.Get(); }
-	UAbilityResetRuntime* GetResetRuntime() const { return ResetRuntime.Get(); }
 
 	int32 AddAttributeConfig(const FAttributeConfig& AttributeConfig);
 	void RemoveAttributeConfig(int32 AttributeConfigHandle);
+	bool ApplyConfiguredAttributeDefaults(const UStatUpgradeDefinition& Definition);
 	bool ApplyAttributeDefaultValue(const FGameplayAttribute& Attribute, float DefaultValue);
-	bool HasAppliedConfiguredAttributeDefaults(
-		const UAttributeSet* AttributeSet,
-		const FSoftObjectPath& DefinitionPath) const;
-	void MarkConfiguredAttributeDefaultsApplied(
-		UAttributeSet* AttributeSet,
-		const FSoftObjectPath& DefinitionPath);
-	void ClearConfiguredAttributeDefaultsApplied(
-		const UAttributeSet* AttributeSet,
-		const FSoftObjectPath& DefinitionPath);
+	bool HasAppliedConfiguredAttributeDefaults(const UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath) const;
+	void MarkConfiguredAttributeDefaultsApplied(UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath);
+	void ClearConfiguredAttributeDefaultsApplied(const UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath);
 
 	void AbilityInputTagPressed(const FGameplayTag& InputTag);
 	void AbilityInputTagReleased(const FGameplayTag& InputTag);
@@ -65,9 +59,7 @@ public:
 	const FGameplayAbilitySpec* FindActiveAbilitySpecByTags(const FGameplayTagContainer& AbilityTags) const;
 	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
 	bool HasActiveAbilityOfClass(TSubclassOf<UGameplayAbility> AbilityClass, bool bIncludeChildClasses = true) const;
-	bool HasActiveAbilityOfAnyClass(
-		const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
-		bool bIncludeChildClasses = true) const;
+	bool HasActiveAbilityOfAnyClass(const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, bool bIncludeChildClasses = true) const;
 
 	bool ApplyStatUpEffectByTag(
 		TSubclassOf<UGameplayEffect> GameplayEffectClass,
@@ -90,16 +82,16 @@ public:
 	void RemoveAbilities(const TArray<FGameplayAbilitySpecHandle>& AbilityHandles);
 
 	void ResetAbilityRuntimeStateForDeath();
-	void ResetPandoraAbilityRuntimeState();
 	int32 ClearStatusEffectsForRespawn();
 	void ReactivateAutoActivatedAbilities();
-	bool IsResettingAbilityRuntimeState() const;
+	bool IsResettingAbilityRuntimeState() const { return bResettingAbilityRuntimeState; }
 
 	bool ResolveAttributeFromTag(const FGameplayTag& StatTag, FGameplayAttribute& OutAttribute) const;
 	bool ResolveDamageMagnitudeSetByCallerTag(FGameplayTag& OutTag) const;
 	bool ResolveStatUpOperationSetByCallerTag(FGameplayTag& OutTag) const;
 
 	void NotifyAbilitiesChanged();
+	void NotifyPandoraSourceReplicated(UPandoraSkillRuntimeContext* Source);
 
 	FPdAbilitiesChangedNativeDelegate OnAbilitiesChangedNative;
 
@@ -108,10 +100,18 @@ public:
 
 protected:
 	virtual void OnRep_ActivateAbilities() override;
+	virtual void ClientActivateAbilitySucceedWithEventData_Implementation(
+		FGameplayAbilitySpecHandle Handle, FPredictionKey PredictionKey, FGameplayEventData TriggerEventData) override;
+	virtual void ClientEndAbility_Implementation(FGameplayAbilitySpecHandle Handle, FGameplayAbilityActivationInfo ActivationInfo) override;
+	virtual void ClientCancelAbility_Implementation(FGameplayAbilitySpecHandle Handle, FGameplayAbilityActivationInfo ActivationInfo) override;
 
 private:
-	void ReplayReleasedPressInputAfterActivation(
-		FGameplayAbilitySpecHandle AbilityHandle);
+	void ReplaySourceReadyActivations();
+	TArray<FPendingAbilityInfo> PendingSourceActivations;
+
+	void ReplayReleasedPressInputAfterActivation(FGameplayAbilitySpecHandle AbilityHandle);
+	int32 RemoveRuntimeEffects(const FGameplayTagContainer& EffectTags, const FGameplayTagContainer& OwnedTags,
+		const FGameplayTagContainer& LooseTags, const FGameplayTagContainer& GameplayCues);
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Runtime")
 	TObjectPtr<UAbilityAttributeRuntime> AttributeRuntime;
@@ -119,9 +119,6 @@ private:
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Runtime")
 	TObjectPtr<UAbilityCollectionRuntime> CollectionRuntime;
 
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Runtime")
-	TObjectPtr<UAbilityResetRuntime> ResetRuntime;
-
-	TWeakObjectPtr<UAttributeSet> ConfiguredDefaultsAttributeSet;
-	FSoftObjectPath ConfiguredDefaultsDefinitionPath;
+	UPROPERTY(Transient)
+	bool bResettingAbilityRuntimeState = false;
 };

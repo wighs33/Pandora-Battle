@@ -1,7 +1,6 @@
 #include "UI/Presenter/InfoPandoraTabPresenter.h"
 
 #include "Components/TileView.h"
-#include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
@@ -48,6 +47,7 @@ void UInfoPandoraTabPresenter::Deinitialize()
 void UInfoPandoraTabPresenter::SetLoadoutStore(UInfoLoadoutStore* InLoadoutStore)
 {
 	LoadoutStore = InLoadoutStore;
+	BindEvents();
 }
 
 void UInfoPandoraTabPresenter::SetActive(const bool bInActive)
@@ -188,8 +188,31 @@ void UInfoPandoraTabPresenter::HandlePandoraFilterAllClicked()
 	RefreshPandoraTileView();
 }
 
+void UInfoPandoraTabPresenter::HandlePandoraInventoryChanged()
+{
+	if (bActive)
+	{
+		RefreshPandoraTileView();
+	}
+	RefreshLoadoutPresentation();
+}
+
 void UInfoPandoraTabPresenter::BindEvents()
 {
+	const APdPlayerState* PlayerState = GetPlayerState();
+	UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	if (BoundPandoraComponent.Get() != PandoraComponent)
+	{
+		if (BoundPandoraComponent.IsValid())
+		{
+			BoundPandoraComponent->OnPandoraInventoryChanged.RemoveDynamic(this, &ThisClass::HandlePandoraInventoryChanged);
+		}
+		BoundPandoraComponent = PandoraComponent;
+	}
+	if (PandoraComponent)
+	{
+		PandoraComponent->OnPandoraInventoryChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraInventoryChanged);
+	}
 	UInfoWidget* InfoWidget = GetInfoWidget();
 	if (!InfoWidget)
 	{
@@ -224,6 +247,11 @@ void UInfoPandoraTabPresenter::BindEvents()
 
 void UInfoPandoraTabPresenter::UnbindEvents()
 {
+	if (BoundPandoraComponent.IsValid())
+	{
+		BoundPandoraComponent->OnPandoraInventoryChanged.RemoveDynamic(this, &ThisClass::HandlePandoraInventoryChanged);
+	}
+	BoundPandoraComponent.Reset();
 	UnbindPandoraTileItemClicked();
 	UInfoWidget* InfoWidget = GetInfoWidget();
 	if (!InfoWidget)
@@ -342,23 +370,9 @@ void UInfoPandoraTabPresenter::RefreshSelectPandoraCompatibility() const
 
 bool UInfoPandoraTabPresenter::IsPandoraOwned(const UPandoraInstance* PandoraInstance) const
 {
-	if (!IsValid(PandoraInstance))
-	{
-		return false;
-	}
-	UPandoraDefinition* PandoraDefinition =
-		const_cast<UPandoraDefinition*>(PandoraInstance->PandoraDefinition.Get());
-	if (!IsValid(PandoraDefinition))
-	{
-		return false;
-	}
 	const APdPlayerState* PlayerState = GetPlayerState();
-	const UPandoraTreeComponent* PandoraTree = PlayerState
-		? PlayerState->GetPandoraTreeComponent()
-		: nullptr;
-	return PandoraTree
-		? PandoraTree->IsPandoraUnlockedForTree(PandoraDefinition)
-		: PandoraInstance->IsOwned;
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	return IsValid(PandoraInstance) && PandoraComponent && PandoraComponent->HasPandoraDefinition(PandoraInstance->PandoraDefinition);
 }
 
 void UInfoPandoraTabPresenter::BuildPandoraTileViewItems(
@@ -375,8 +389,8 @@ void UInfoPandoraTabPresenter::BuildPandoraTileViewItems(
 	}
 
 	const FPandoraList* SourceList = TypeTag.IsValid()
-		? PandoraComponent->Map_Type_PandoraList.Find(TypeTag)
-		: &PandoraComponent->AllPandoraList;
+		? PandoraComponent->GetFilteredPandoraMap().Find(TypeTag)
+		: &PandoraComponent->GetAllPandoras();
 	if (!SourceList)
 	{
 		return;

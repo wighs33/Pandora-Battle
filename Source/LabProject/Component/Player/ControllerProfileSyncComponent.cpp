@@ -4,7 +4,8 @@
 #include "Component/Skin/SkinComponent.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/World.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "SavedGameData/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Online/AchievementSubsystem.h"
@@ -22,7 +23,7 @@ namespace
 	constexpr double RemoteSkinSyncMinInterval = 0.20;
 
 	bool TryResolveCanonicalAchievementId(
-		UPdGameInstance* PdGameInstance,
+		UGameInstance* GameInstance,
 		const FName SubmittedAchievementId,
 		FName& OutAchievementId)
 	{
@@ -32,8 +33,8 @@ namespace
 			return true;
 		}
 
-		UAchievementSubsystem* AchievementSubsystem = PdGameInstance
-			? PdGameInstance->GetSubsystem<UAchievementSubsystem>()
+		UAchievementSubsystem* AchievementSubsystem = GameInstance
+			? GameInstance->GetSubsystem<UAchievementSubsystem>()
 			: nullptr;
 		const UAchievementDefinition* AchievementDefinition = AchievementSubsystem
 			? AchievementSubsystem->GetAchievementDefinition()
@@ -115,9 +116,9 @@ void UControllerProfileSyncComponent::ApplyGameVictoryGoldReward(
 	}
 
 	APdPlayerController* Controller = GetPdController();
-	UPdGameInstance* PdGameInstance =
-		Controller ? Controller->GetGameInstance<UPdGameInstance>() : nullptr;
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem =
+		Controller ? UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(Controller->GetGameInstance()) : nullptr;
+	if (!ProfileSubsystem)
 	{
 		return;
 	}
@@ -128,9 +129,9 @@ void UControllerProfileSyncComponent::ApplyGameVictoryGoldReward(
 		return;
 	}
 
-	PdGameInstance->AddGold(RewardPlayerId, GoldReward, false);
-	PdGameInstance->SetPreferredSavePlayerId(RewardPlayerId);
-	PdGameInstance->SaveGame(RewardPlayerId);
+	ProfileSubsystem->AddGold(RewardPlayerId, GoldReward, false);
+	ProfileSubsystem->SetPreferredSavePlayerId(RewardPlayerId);
+	ProfileSubsystem->SaveGame(RewardPlayerId);
 }
 
 void UControllerProfileSyncComponent::ApplyCollectedItemCount(
@@ -143,9 +144,9 @@ void UControllerProfileSyncComponent::ApplyCollectedItemCount(
 	}
 
 	APdPlayerController* Controller = GetPdController();
-	UPdGameInstance* PdGameInstance =
-		Controller ? Controller->GetGameInstance<UPdGameInstance>() : nullptr;
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem =
+		Controller ? UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(Controller->GetGameInstance()) : nullptr;
+	if (!ProfileSubsystem)
 	{
 		return;
 	}
@@ -156,9 +157,9 @@ void UControllerProfileSyncComponent::ApplyCollectedItemCount(
 		return;
 	}
 
-	PdGameInstance->AddItemCollectedCount(RewardPlayerId, ItemCount, false);
-	PdGameInstance->SetPreferredSavePlayerId(RewardPlayerId);
-	PdGameInstance->SaveGame(RewardPlayerId);
+	ProfileSubsystem->AddItemCollectedCount(RewardPlayerId, ItemCount, false);
+	ProfileSubsystem->SetPreferredSavePlayerId(RewardPlayerId);
+	ProfileSubsystem->SaveGame(RewardPlayerId);
 }
 
 void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer(
@@ -192,13 +193,13 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 	GrantDefaultSkinEntitlementsOnServer();
 
 	APdPlayerState* PdPlayerState = Controller->GetPlayerState<APdPlayerState>();
-	UPdGameInstance* PdGameInstance = Controller->GetGameInstance<UPdGameInstance>();
+	UGameInstance* GameInstance = Controller->GetGameInstance();
 	if (UPlayerMatchComponent* PlayerMatchComponent =
 		PdPlayerState ? PdPlayerState->GetPlayerMatchComponent() : nullptr)
 	{
 		FName CanonicalAchievementId;
 		if (TryResolveCanonicalAchievementId(
-			PdGameInstance,
+			GameInstance,
 			SelectedAchievementId,
 			CanonicalAchievementId))
 		{
@@ -213,7 +214,7 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 	}
 
 	const UContentDataSubsystem* ContentDataSubsystem =
-		PdGameInstance ? PdGameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentDataSubsystem)
 	{
 		return;
@@ -255,18 +256,18 @@ FString UControllerProfileSyncComponent::ResolveRewardPlayerId(
 	const FString& FallbackPlayerId) const
 {
 	APdPlayerController* Controller = GetPdController();
-	UPdGameInstance* PdGameInstance =
-		Controller ? Controller->GetGameInstance<UPdGameInstance>() : nullptr;
-	if (!Controller || !PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem =
+		Controller ? UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(Controller->GetGameInstance()) : nullptr;
+	if (!Controller || !ProfileSubsystem)
 	{
 		return FString();
 	}
 
-	FString RewardPlayerId = PdGameInstance->GetPreferredSavePlayerId();
+	FString RewardPlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
 	RewardPlayerId.TrimStartAndEndInline();
 	if (RewardPlayerId.IsEmpty())
 	{
-		RewardPlayerId = PdGameInstance->ResolveSavePlayerId(
+		RewardPlayerId = ProfileSubsystem->ResolveSavePlayerId(
 			Controller,
 			Controller->GetPlayerState<APdPlayerState>());
 	}
@@ -300,17 +301,17 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 		return;
 	}
 
-	UPdGameInstance* PdGameInstance = Controller->GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(Controller->GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 		CompleteLocalCosmeticProfileSyncAttempt();
 		return;
 	}
 
-	const FString PlayerId = PdGameInstance->ResolveSavePlayerId(
+	const FString PlayerId = ProfileSubsystem->ResolveSavePlayerId(
 		Controller,
 		Controller->GetPlayerState<APdPlayerState>());
-	UPdSaveGame* SaveGame = PdGameInstance->GetOrCreateSaveGame(PlayerId);
+	UPdSaveGame* SaveGame = ProfileSubsystem->GetOrCreateSaveGame(PlayerId);
 	if (!SaveGame)
 	{
 		CompleteLocalCosmeticProfileSyncAttempt();
@@ -342,7 +343,7 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 
 	FName SteamValidatedAchievementId = NAME_None;
 	UAchievementSubsystem* AchievementSubsystem =
-		PdGameInstance->GetSubsystem<UAchievementSubsystem>();
+		UGameInstance::GetSubsystem<UAchievementSubsystem>(Controller->GetGameInstance());
 	if (AchievementSubsystem
 		&& !AchievementSubsystem->IsSteamAchievementQueryComplete())
 	{
@@ -363,7 +364,7 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 		&& AchievementSubsystem
 		&& AchievementSubsystem->HasSteamAchievementData())
 	{
-		PdGameInstance->SetSelectedAchievementId(PlayerId, NAME_None, true);
+		ProfileSubsystem->SetSelectedAchievementId(PlayerId, NAME_None, true);
 	}
 
 	if (Controller->HasAuthority())
@@ -392,9 +393,9 @@ void UControllerProfileSyncComponent::GrantDefaultSkinEntitlementsOnServer() con
 
 	APdPlayerState* PdPlayerState = Controller->GetPlayerState<APdPlayerState>();
 	USkinComponent* SkinComponent = PdPlayerState ? PdPlayerState->GetSkinComponent() : nullptr;
-	UPdGameInstance* PdGameInstance = Controller->GetGameInstance<UPdGameInstance>();
+	UGameInstance* GameInstance = Controller->GetGameInstance();
 	const UContentDataSubsystem* ContentDataSubsystem =
-		PdGameInstance ? PdGameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!SkinComponent || !ContentDataSubsystem)
 	{
 		return;
@@ -440,10 +441,10 @@ void UControllerProfileSyncComponent::BindSteamAchievementStateChanged()
 	}
 
 	APdPlayerController* Controller = GetPdController();
-	UPdGameInstance* PdGameInstance =
-		Controller ? Controller->GetGameInstance<UPdGameInstance>() : nullptr;
-	UAchievementSubsystem* AchievementSubsystem = PdGameInstance
-		? PdGameInstance->GetSubsystem<UAchievementSubsystem>()
+	UGameInstance* GameInstance =
+		Controller ? Controller->GetGameInstance() : nullptr;
+	UAchievementSubsystem* AchievementSubsystem = GameInstance
+		? GameInstance->GetSubsystem<UAchievementSubsystem>()
 		: nullptr;
 	if (!AchievementSubsystem)
 	{
@@ -459,10 +460,10 @@ void UControllerProfileSyncComponent::BindSteamAchievementStateChanged()
 void UControllerProfileSyncComponent::UnbindSteamAchievementStateChanged()
 {
 	APdPlayerController* Controller = GetPdController();
-	UPdGameInstance* PdGameInstance =
-		Controller ? Controller->GetGameInstance<UPdGameInstance>() : nullptr;
-	UAchievementSubsystem* AchievementSubsystem = PdGameInstance
-		? PdGameInstance->GetSubsystem<UAchievementSubsystem>()
+	UGameInstance* GameInstance =
+		Controller ? Controller->GetGameInstance() : nullptr;
+	UAchievementSubsystem* AchievementSubsystem = GameInstance
+		? GameInstance->GetSubsystem<UAchievementSubsystem>()
 		: nullptr;
 	if (AchievementSubsystem && SteamAchievementStateChangedHandle.IsValid())
 	{

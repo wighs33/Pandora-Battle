@@ -2,6 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
+#include "Component/Player/PlayerLoadoutComponent.h"
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
@@ -10,31 +11,36 @@
 #include "GameplayEffectTypes.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
+#include "Misc/ScopeExit.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 
-namespace
+void FReplicatedInventoryList::PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters)
 {
-	int32 GetReplicatedPandoraWeaponLoadoutIndex(const EEnum_Direction Direction)
+	if (Owner)
 	{
-		switch (Direction)
-		{
-		case EEnum_Direction::Left: return 0;
-		case EEnum_Direction::Up: return 1;
-		case EEnum_Direction::Right: return 2;
-		default: return INDEX_NONE;
-		}
+		Owner->RefreshPandoraWeaponLoadoutPresentationAssets();
+		Owner->FlushInventoryChanges();
 	}
 }
 
-void UInventoryComponent::InitializeReplicatedEntriesFromRuntimeItems()
+// 분리·병합·일괄 지급 중에는 알림을 보류하고, 완성된 목록을 한 번 전달한다.
+void UInventoryComponent::NotifyInventoryChanged()
 {
-	for (UItemInstance* ItemInstance : AllItemList.Items)
+	bInventoryChangePending = true;
+	FlushInventoryChanges();
+}
+
+void UInventoryComponent::FlushInventoryChanges()
+{
+	if (InventoryUpdateDepth > 0 || !bInventoryChangePending)
 	{
-		AddReplicatedItem(ItemInstance);
+		return;
 	}
+	bInventoryChangePending = false;
+	OnInventoryChanged.Broadcast();
 }
 
 void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
@@ -64,7 +70,7 @@ void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
 void UInventoryComponent::RebuildFilteredItemMap()
 {
 
-Map_Type_ItemList.Reset();
+	Map_Type_ItemList.Reset();
 
 	if (FilterTypeTags.IsEmpty())
 	{
@@ -81,6 +87,7 @@ Map_Type_ItemList.Reset();
 
 void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry)
 {
+	TGuardValue<int32> UpdateGuard(InventoryUpdateDepth, InventoryUpdateDepth + 1);
 	// =================================================================================================================
 	if (!Entry.ItemId.IsValid() || !IsValid(Entry.ItemDefinition))
 	{
@@ -114,12 +121,12 @@ void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedI
 		RebuildFilteredItemMap();
 	}
 
-	OnInventoryChanged.Broadcast();
-	RefreshPandoraWeaponLoadoutPresentationAssets();
+	NotifyInventoryChanged();
 }
 
 void UInventoryComponent::HandleReplicatedEntryRemoved(FGuid ItemId)
 {
+	TGuardValue<int32> UpdateGuard(InventoryUpdateDepth, InventoryUpdateDepth + 1);
 	if (!ItemId.IsValid())
 	{
 		return;
@@ -133,14 +140,16 @@ void UInventoryComponent::HandleReplicatedEntryRemoved(FGuid ItemId)
 		if (IsValid(ItemInstance) && ItemInstance->GetItemId() == ItemId)
 		{
 			AllItemList.Items.RemoveAt(Index);
+			for (TPair<FGameplayTag, FItemList>& Pair : Map_Type_ItemList)
+			{
+				Pair.Value.Items.Remove(ItemInstance);
+			}
 			break;
 		}
 	}
 
-	RebuildFilteredItemMap();
 	ClearConsumableQuickSlotReferencesToItem(ItemId);
-	RefreshPandoraWeaponLoadoutPresentationAssets();
-	OnInventoryChanged.Broadcast();
+	NotifyInventoryChanged();
 }
 
 void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
@@ -165,8 +174,10 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 
 	// =================================================================================================================
 
+	bool bDefinitionChanged = false;
 	if (FReplicatedInventoryEntry* ExistingEntry = FindReplicatedEntryById(ItemInstance->GetItemId()))
 	{
+		bDefinitionChanged = ExistingEntry->ItemDefinition != ItemInstance->ItemDefinition;
 		ExistingEntry->ItemDefinition = ItemInstance->ItemDefinition;
 		ExistingEntry->Quantity = ItemInstance->Quantity;
 		ExistingEntry->UpgradeLevel = ItemInstance->GetUpgradeLevel();
@@ -184,8 +195,15 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
 	}
 
-	RebuildFilteredItemMap();
-	OnInventoryChanged.Broadcast();
+	if (bDefinitionChanged)
+	{
+		RebuildFilteredItemMap();
+	}
+	else
+	{
+		FilterItem(ItemInstance);
+	}
+	NotifyInventoryChanged();
 }
 
 bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
@@ -203,7 +221,8 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 		return false;
 	}
 
-	// =================================================================================================================
+	++InventoryUpdateDepth;
+	ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
 
 	for (int32 Index = AllItemList.Items.Num() - 1; Index >= 0; --Index)
 	{
@@ -211,6 +230,10 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 		if (IsValid(ItemInstance) && ItemInstance->GetItemId() == ItemId)
 		{
 			AllItemList.Items.RemoveAt(Index);
+			for (TPair<FGameplayTag, FItemList>& Pair : Map_Type_ItemList)
+			{
+				Pair.Value.Items.Remove(ItemInstance);
+			}
 			break;
 		}
 	}
@@ -223,8 +246,7 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 	ClearConsumableQuickSlotReferencesToItem(ItemId);
 	ClearEquipmentSlotReferencesToItem(ItemId);
 	ClearPandoraWeaponLoadoutReferencesToItem(ItemId);
-	RebuildFilteredItemMap();
-	OnInventoryChanged.Broadcast();
+	NotifyInventoryChanged();
 	return true;
 }
 
@@ -251,13 +273,16 @@ bool UInventoryComponent::SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQ
 		return false;
 	}
 
-	// =================================================================================================================
+	if (Entry->Quantity == NewQuantity && ItemInstance->Quantity == NewQuantity)
+	{
+		return true;
+	}
+
 	ItemInstance->Quantity = NewQuantity;
 	Entry->Quantity = NewQuantity;
 	ReplicatedEntries.MarkEntryDirty(*Entry);
 	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
-	RebuildFilteredItemMap();
-	OnInventoryChanged.Broadcast();
+	NotifyInventoryChanged();
 	return true;
 }
 
@@ -294,7 +319,7 @@ const FReplicatedInventoryEntry* UInventoryComponent::FindReplicatedEntryById(FG
 void UInventoryComponent::OnRep_ConsumableQuickSlotItemIds()
 {
 	EnsureConsumableQuickSlotArray();
-	OnInventoryChanged.Broadcast();
+	NotifyInventoryChanged();
 }
 
 void UInventoryComponent::OnRep_PandoraWeaponLoadoutItemIds()
@@ -307,7 +332,7 @@ void UInventoryComponent::OnRep_PandoraWeaponLoadoutItemIds()
 void UInventoryComponent::OnRep_EquippedItemSlots()
 {
 	OnEquipmentSlotsChanged.Broadcast();
-	OnInventoryChanged.Broadcast();
+	NotifyInventoryChanged();
 }
 
 void UInventoryComponent::ServerSetConsumableQuickSlot_Implementation(const int32 SlotIndex, const FGuid ItemId)
@@ -406,7 +431,7 @@ bool UInventoryComponent::SetConsumableQuickSlotItemId(const int32 SlotIndex, co
 		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ConsumableQuickSlotItemIds, this);
 	}
 
-	OnInventoryChanged.Broadcast();
+	NotifyInventoryChanged();
 	return true;
 }
 
@@ -551,7 +576,7 @@ bool UInventoryComponent::SetEquipmentSlotItemId(
 		OwnerActor->ForceNetUpdate();
 	}
 	OnEquipmentSlotsChanged.Broadcast();
-	OnInventoryChanged.Broadcast();
+	NotifyInventoryChanged();
 	return true;
 }
 
@@ -587,7 +612,7 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 		return false;
 	}
 
-	const int32 SlotIndex = GetReplicatedPandoraWeaponLoadoutIndex(Direction);
+	const int32 SlotIndex = (PandoraLoadout::GetLoadoutNumberFromDirection(Direction) - 1);
 	if (SlotIndex == INDEX_NONE)
 	{
 		return false;
@@ -595,9 +620,10 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 
 	EnsurePandoraWeaponLoadoutArray();
 	APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	const EEnum_Direction SelectedDirection = PlayerState
+	UPlayerLoadoutComponent* LoadoutComponent = PlayerState ? PlayerState->GetPlayerLoadoutComponent() : nullptr;
+	const EEnum_Direction SelectedDirection = LoadoutComponent
 		? PandoraLoadout::GetDirectionFromLoadoutNumber(
-			PlayerState->GetSelectedWeaponPandoraLoadoutNumber())
+			LoadoutComponent->GetSelectedLoadoutNumber())
 		: EEnum_Direction::Center;
 	const FGuid PreviousSelectedWeaponId =
 		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
@@ -634,9 +660,9 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 	if (!bChanged)
 	{
 		RefreshPandoraWeaponLoadoutPresentationAssets();
-		if (PlayerState && SelectedDirection == Direction)
+		if (LoadoutComponent && SelectedDirection == Direction)
 		{
-			PlayerState->ApplySelectedWeaponPandoraLoadout();
+			LoadoutComponent->ApplySelectedLoadout();
 		}
 		return true;
 	}
@@ -652,10 +678,10 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
 		&& PreviousSelectedWeaponId
 			!= GetPandoraWeaponLoadoutItemId(SelectedDirection);
-	if (PlayerState
+	if (LoadoutComponent
 		&& (SelectedDirection == Direction || bSelectedWeaponChanged))
 	{
-		PlayerState->ApplySelectedWeaponPandoraLoadout();
+		LoadoutComponent->ApplySelectedLoadout();
 	}
 	return true;
 }
@@ -669,9 +695,10 @@ bool UInventoryComponent::ClearPandoraWeaponLoadoutReferencesToItem(const FGuid 
 
 	EnsurePandoraWeaponLoadoutArray();
 	APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	const EEnum_Direction SelectedDirection = PlayerState
+	UPlayerLoadoutComponent* LoadoutComponent = PlayerState ? PlayerState->GetPlayerLoadoutComponent() : nullptr;
+	const EEnum_Direction SelectedDirection = LoadoutComponent
 		? PandoraLoadout::GetDirectionFromLoadoutNumber(
-			PlayerState->GetSelectedWeaponPandoraLoadoutNumber())
+			LoadoutComponent->GetSelectedLoadoutNumber())
 		: EEnum_Direction::Center;
 	const bool bClearsSelectedWeapon =
 		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
@@ -694,9 +721,9 @@ bool UInventoryComponent::ClearPandoraWeaponLoadoutReferencesToItem(const FGuid 
 	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, PandoraWeaponLoadoutItemIds, this);
 	RefreshPandoraWeaponLoadoutPresentationAssets();
 	OnPandoraWeaponLoadoutChanged.Broadcast();
-	if (PlayerState && bClearsSelectedWeapon)
+	if (LoadoutComponent && bClearsSelectedWeapon)
 	{
-		PlayerState->ApplySelectedWeaponPandoraLoadout();
+		LoadoutComponent->ApplySelectedLoadout();
 	}
 	return true;
 }

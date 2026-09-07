@@ -1,7 +1,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Definition/Player/PlayerPawnDefinition.h"
+#include "Definition/Common/CombatSettings.h"
+#include "GameplayAbilitySpecHandle.h"
+#include "GameplayPrediction.h"
 #include "GameplayTagContainer.h"
 #include "Components/ActorComponent.h"
 #include "TimerManager.h"
@@ -16,15 +18,20 @@ class AWeaponBase;
 class UAbilitySystemComponent;
 class UAttackAbility;
 class UAnimMontage;
-class UBasicAttributeSet;
 class UGameplayEffect;
-class UNiagaraSystem;
 class UPdAbilitySystemComponent;
-class UPlayerPawnDefinition;
-struct FGameplayAbilitySpec;
+struct FOnAttributeChangeData;
 struct FAttackData;
 struct FStreamableHandle;
 
+DECLARE_MULTICAST_DELEGATE(FOnCombatDamageBonusChanged);
+
+/**
+ * 캐릭터의 기본 공격 입력과 실제 타격을 연결한다.
+ *
+ * 장착 정보는 EquipmentComponent에서 읽고, 능력의 콤보 타이밍에 맞춰 맨손 판정과
+ * 서버 피해를 적용한다. 피해 GE 설정은 플레이어·AI가 공통으로 전달한다.
+ */
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UCombatComponent : public UActorComponent
 {
@@ -33,8 +40,12 @@ class LABPROJECT_API UCombatComponent : public UActorComponent
 public:
 	UCombatComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	//------------------------------------------------------------------------------------------------------------------
 	void StartPrimaryAttack();
 	void StopPrimaryAttack();
 	void StartAim();
@@ -42,12 +53,12 @@ public:
 	void StopAutomaticFire();
 
 	UFUNCTION(BlueprintPure, Category = "!Combat")
-	float GetWeaponDamageSourceMagnitude();
+	float GetWeaponDamageSourceMagnitude() const;
 
 	UFUNCTION(BlueprintPure, Category = "!Combat")
-	float GetStrengthAdjustedWeaponDamageMagnitude(float SourceStrength);
+	float GetStrengthAdjustedWeaponDamageMagnitude(float SourceStrength) const;
 
-	UFUNCTION(BlueprintCallable, Category = "!Combat")
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Combat")
 	bool ApplyWeaponDamageToTarget(AActor* TargetActor);
 
 	bool CanAffordRangedWeaponAttackStamina() const;
@@ -64,16 +75,18 @@ public:
 	void SetUnarmedAttackTraceEnabledForSection(bool bEnabled, FName AttackSectionName);
 	void ResetUnarmedAttackHitTracking();
 
-	void ApplyDefinition(const UPlayerPawnDefinition* Definition);
+	void ApplySettings(const FCombatDamageSettings& DamageSettings, const FUnarmedCombatSettings& UnarmedSettings);
+	FOnCombatDamageBonusChanged OnDamageBonusChanged;
 	void RefreshCachedReferences();
 
 protected:
-	// Timing hooks
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void BeginPlay() override;
 
 private:
 	UFUNCTION(Server, Reliable)
-	void ServerRequestAttackJumpSection(FName ClientExpectedSectionName, FGameplayTag AbilityTag);
+	void ServerRequestNextComboInput(FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey ActivationKey, FName ClientExpectedSectionName);
 
 	APdPlayer* GetPlayerOwner() const;
 	APdHUD* GetPdHUD() const;
@@ -84,7 +97,6 @@ private:
 	FGameplayTag GetRangedAttackAbilityTag() const;
 	FGameplayTag GetWeaponDamageSourceTag() const;
 
-	FGameplayTagContainer MakeAbilityTagContainer(const FGameplayTag& AbilityTag) const;
 	UAttackAbility* ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
 	UAnimMontage* GetCachedUnarmedAttackMontage() const;
 	void BeginUnarmedAttackMontagePreload();
@@ -96,11 +108,12 @@ private:
 	bool TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter, AWeaponBase* WeaponActor) const;
 	bool ShouldUseRangedAttackAbility(const AWeaponBase* WeaponActor) const;
 	FGameplayTag GetSelectedAttackAbilityTag(const AWeaponBase* WeaponActor) const;
-	void RequestNextAttackSection(UAttackAbility* ActiveAttackAbility, const FGameplayTag& AbilityTag);
+	void RequestNextAttackSection(UAttackAbility* ActiveAttackAbility);
 	bool TryActivateAttackAbility(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
 	bool TryStartAutomaticFire();
 	void HandleAutomaticFireTick();
-	void StartUnarmedAttackTrace(bool bResetHitActors = true);
+	void HandleAttackSpeedChanged(const FOnAttributeChangeData& Data);
+	void StartUnarmedAttackTrace();
 	void StopUnarmedAttackTrace();
 	void PerformUnarmedAttackTrace();
 	bool ApplyUnarmedDamageToTarget(AActor* TargetActor);
@@ -108,7 +121,12 @@ private:
 	float CalculateStrengthAdjustedWeaponDamage(float WeaponDamage, float SourceStrength) const;
 	float GetActionStaminaCost() const;
 	bool HasCombatAuthority() const;
-	void CompactTemporaryWeaponDamageBonuses();
+	void RefreshTemporaryWeaponDamageBonus();
+
+	UFUNCTION()
+	void OnRep_TemporaryWeaponDamageBonus();
+
+	bool ApplyAttackDamageToTarget(AActor* TargetActor, float RawDamage, UObject* SourceObject, AActor* DamageCauser, bool bAllowHitReact);
 
 protected:
 	bool ApplyDamageEffect(UPdAbilitySystemComponent* SourceASC, UPdAbilitySystemComponent* TargetASC,
@@ -123,9 +141,12 @@ protected:
 	TObjectPtr<UPdAbilitySystemComponent> CachedASC;
 
 	UPROPERTY(Transient)
+	FCombatDamageSettings CombatDamageSettings;
+
+	UPROPERTY(Transient)
 	FUnarmedCombatSettings UnarmedCombatSettings;
 
-	TSet<TObjectPtr<AActor>> HitActorsInCurrentUnarmedAttack;
+	TSet<TWeakObjectPtr<AActor>> HitActorsInCurrentUnarmedAttack;
 
 	UPROPERTY(Transient)
 	FName TrackedUnarmedAttackSectionName = NAME_None;
@@ -137,6 +158,7 @@ protected:
 	TArray<TEnumAsByte<EObjectTypeQuery>> CachedUnarmedAttackObjectTypes;
 	TArray<AActor*> UnarmedAttackActorsToIgnore;
 	TArray<FHitResult> UnarmedAttackHitResults;
+	TArray<FHitResult> InterpolatedUnarmedHitResults;
 	TArray<FVector> PreviousUnarmedAttackTraceStartLocations;
 	TArray<FVector> PreviousUnarmedAttackTraceEndLocations;
 	TArray<uint8> PreviousUnarmedAttackTraceValid;
@@ -145,6 +167,15 @@ protected:
 	UPROPERTY(Transient)
 	float ActiveComboDamageMultiplier = 1.0f;
 
+	UPROPERTY(ReplicatedUsing = OnRep_TemporaryWeaponDamageBonus)
+	float ReplicatedTemporaryWeaponDamageBonus = 0.0f;
+
+	bool bPrimaryAttackHeld = false;
+	bool bEndingPlay = false;
+	bool bUnarmedAttackTraceActive = false;
+	uint32 UnarmedAttackTraceGeneration = 0;
+	double LastPrimaryAttackRequestTime = 0.0;
+	FDelegateHandle AttackSpeedChangedDelegateHandle;
 	FTimerHandle UnarmedAttackTraceTimerHandle;
 	FTimerHandle AutomaticFireTimerHandle;
 };

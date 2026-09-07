@@ -1,5 +1,8 @@
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
 
+#include "Component/Lobby/LobbyExperienceComponent.h"
+#include "Component/Lobby/LobbyPlayerCoordinatorComponent.h"
+#include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Character/PdPlayer.h"
 #include "Common/Enum_Direction.h"
 #include "Common/GameSessionConstants.h"
@@ -16,7 +19,7 @@
 #include "Lobby/Contents/LobbyPlayerState.h"
 #include "Lobby/Coordination/LobbyMatchCoordinator.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "TimerManager.h"
 
@@ -34,9 +37,9 @@ void ULobbyTravelCoordinator::StartSessionAndTravel()
 
 	if (!IsLobbyReadyForSelectedMap())
 	{
-		if (GameMode->MatchCoordinator)
+		if (GameMode->GetMatchCoordinator())
 		{
-			GameMode->MatchCoordinator->CancelPendingGameStart(TEXT("pre_start_session_validation"));
+			GameMode->GetMatchCoordinator()->CancelPendingGameStart(TEXT("pre_start_session_validation"));
 		}
 		return;
 	}
@@ -131,7 +134,7 @@ bool ULobbyTravelCoordinator::IsLobbyReadyForSelectedMap() const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	const ULobbyMatchCoordinator* MatchCoordinator = GameMode
-		? GameMode->MatchCoordinator.Get()
+		? GameMode->GetMatchCoordinator()
 		: nullptr;
 	if (!GameMode || !GameMode->HasAuthority() || !MatchCoordinator)
 	{
@@ -139,8 +142,9 @@ bool ULobbyTravelCoordinator::IsLobbyReadyForSelectedMap() const
 	}
 
 	const int32 ActivePlayerCount = MatchCoordinator->GetActiveLobbyPlayerCount();
-	const int32 MaxPlayerCount = FMath::Max(GameMode->GetConfiguredMaxPlayerCount(), 1);
-	return ActivePlayerCount > 0
+	const int32 MaxPlayerCount = FMath::Max(GameMode->GetLobbyConfigurationComponent()->GetConfiguredMaxPlayerCount(), 1);
+	return !GameMode->GetLobbyExperienceComponent()->ShouldDelayPlayerStart()
+		&& ActivePlayerCount > 0
 		&& ActivePlayerCount <= MaxPlayerCount
 		&& MatchCoordinator->AreLobbyTeamsBalanced();
 }
@@ -151,9 +155,9 @@ void ULobbyTravelCoordinator::HandleStartSessionComplete(const bool bWasSuccessf
 	if (!bWasSuccessful)
 	{
 		if (ALobbyGameMode* GameMode = GetLobbyGameMode();
-			GameMode && GameMode->MatchCoordinator)
+			GameMode && GameMode->GetMatchCoordinator())
 		{
-			GameMode->MatchCoordinator->CancelPendingGameStart(
+			GameMode->GetMatchCoordinator()->CancelPendingGameStart(
 				TEXT("start_online_session_failed"));
 		}
 		return;
@@ -185,9 +189,9 @@ void ULobbyTravelCoordinator::StartGameTravel()
 	}
 	if (!IsLobbyReadyForSelectedMap())
 	{
-		if (GameMode->MatchCoordinator)
+		if (GameMode->GetMatchCoordinator())
 		{
-			GameMode->MatchCoordinator->CancelPendingGameStart(TEXT("pre_travel_map_capacity_validation"));
+			GameMode->GetMatchCoordinator()->CancelPendingGameStart(TEXT("pre_travel_map_capacity_validation"));
 		}
 		return;
 	}
@@ -196,15 +200,15 @@ void ULobbyTravelCoordinator::StartGameTravel()
 	FString TravelMapName;
 	if (!ResolveSelectedGameTravel(TravelMapName, SelectedMapOption))
 	{
-		if (GameMode->MatchCoordinator)
+		if (GameMode->GetMatchCoordinator())
 		{
-			GameMode->MatchCoordinator->CancelPendingGameStart(TEXT("travel_map_missing"));
+			GameMode->GetMatchCoordinator()->CancelPendingGameStart(TEXT("travel_map_missing"));
 		}
 		return;
 	}
 
 	PersistSelectedGameConfig(SelectedMapOption, TravelMapName);
-	CacheLobbyTravelState(GameMode->GetGameInstance<UPdGameInstance>());
+	CacheLobbyTravelState(UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance()));
 	SetAllLobbyPawnsTravelLocked(true);
 	ShowGameStartConnectingPopupForAllPlayers();
 	ScheduleServerTravelWhenContentReady(
@@ -224,24 +228,24 @@ bool ULobbyTravelCoordinator::ResolveSelectedGameTravel(
 		return false;
 	}
 
-	const UPdGameInstance* PdGameInstance = GameMode->GetGameInstance<UPdGameInstance>();
+	const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance());
 	FName SelectedMapKey = NAME_None;
 	if (const ALobbyGameState* LobbyGameState = GameMode->GetGameState<ALobbyGameState>())
 	{
 		SelectedMapKey = LobbyGameState->GetSelectedMapKey();
 	}
-	if (SelectedMapKey.IsNone() && PdGameInstance)
+	if (SelectedMapKey.IsNone() && LobbySubsystem)
 	{
-		SelectedMapKey = PdGameInstance->GetLobbySelectedMapKey();
+		SelectedMapKey = LobbySubsystem->GetLobbySelectedMapKey();
 	}
 
-	const FName ResolvedMapKey = GameMode->ResolveConfiguredMapKey(SelectedMapKey);
-	if (!GameMode->FindConfiguredMapOption(ResolvedMapKey, OutSelectedMapOption))
+	const FName ResolvedMapKey = GameMode->GetLobbyConfigurationComponent()->ResolveConfiguredMapKey(SelectedMapKey);
+	if (!GameMode->GetLobbyConfigurationComponent()->FindConfiguredMapOption(ResolvedMapKey, OutSelectedMapOption))
 	{
 		return false;
 	}
 
-	OutTravelMapName = GameMode->ResolveTravelMapName(OutSelectedMapOption.MapKey);
+	OutTravelMapName = GameMode->GetLobbyConfigurationComponent()->ResolveTravelMapName(OutSelectedMapOption.MapKey);
 	return !OutTravelMapName.IsEmpty();
 }
 
@@ -259,8 +263,8 @@ bool ULobbyTravelCoordinator::ShouldStartGameWithoutMatchTimer() const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	return GameMode
-		&& GameMode->MatchCoordinator
-		&& GameMode->MatchCoordinator->GetActiveLobbyPlayerCount() == 1;
+		&& GameMode->GetMatchCoordinator()
+		&& GameMode->GetMatchCoordinator()->GetActiveLobbyPlayerCount() == 1;
 }
 
 void ULobbyTravelCoordinator::PersistSelectedGameConfig(
@@ -268,21 +272,21 @@ void ULobbyTravelCoordinator::PersistSelectedGameConfig(
 	const FString& TravelMapName) const
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	UPdGameInstance* PdGameInstance = GameMode
-		? GameMode->GetGameInstance<UPdGameInstance>()
+	ULobbyRuntimeSubsystem* LobbySubsystem = GameMode
+		? UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance())
 		: nullptr;
-	if (!GameMode || !PdGameInstance)
+	if (!GameMode || !LobbySubsystem)
 	{
 		return;
 	}
 
 	FLobbyMatchMapOption RuntimeMapOption = SelectedMapOption;
 	RuntimeMapOption.MaxPlayerCount = FMath::Max(RuntimeMapOption.MaxPlayerCount, 1);
-	PdGameInstance->SetLobbyGameConfig(
+	LobbySubsystem->SetLobbyGameConfig(
 		RuntimeMapOption.MapKey,
 		TravelMapName,
 		RuntimeMapOption.MaxPlayerCount,
-		FMath::Clamp(PdGameInstance->GetLobbyMaxBotCount(), 0, 100));
+		FMath::Clamp(LobbySubsystem->GetLobbyMaxBotCount(), 0, 100));
 
 	if (ALobbyGameState* LobbyGameState = GameMode->GetGameState<ALobbyGameState>())
 	{
@@ -290,46 +294,46 @@ void ULobbyTravelCoordinator::PersistSelectedGameConfig(
 	}
 }
 
-void ULobbyTravelCoordinator::CacheLobbyTravelState(UPdGameInstance* PdGameInstance) const
+void ULobbyTravelCoordinator::CacheLobbyTravelState(ULobbyRuntimeSubsystem* LobbySubsystem) const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	const AGameStateBase* GameState = GameMode
 		? GameMode->GetGameState<AGameStateBase>()
 		: nullptr;
-	if (!PdGameInstance || !GameState)
+	if (!LobbySubsystem || !GameState)
 	{
 		return;
 	}
 
-	PdGameInstance->ResetCachedPlayerMatchIdentities();
-	PdGameInstance->ResetCachedLobbyEquippedSkinSlots();
-	PdGameInstance->ResetCachedLobbyPandoraLoadouts();
+	LobbySubsystem->ResetCachedPlayerMatchIdentities();
+	LobbySubsystem->ResetCachedLobbyEquippedSkinSlots();
+	LobbySubsystem->ResetCachedLobbyPandoraLoadouts();
 	for (APlayerState* PlayerState : GameState->PlayerArray)
 	{
 		if (const ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(PlayerState))
 		{
-			CacheLobbyPlayerTravelState(PdGameInstance, LobbyPlayerState);
+			CacheLobbyPlayerTravelState(LobbySubsystem, LobbyPlayerState);
 		}
 	}
 }
 
 void ULobbyTravelCoordinator::CacheLobbyPlayerTravelState(
-	UPdGameInstance* PdGameInstance,
+	ULobbyRuntimeSubsystem* LobbySubsystem,
 	const ALobbyPlayerState* LobbyPlayerState) const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !PdGameInstance || !LobbyPlayerState)
+	if (!GameMode || !LobbySubsystem || !LobbyPlayerState)
 	{
 		return;
 	}
 
-	PdGameInstance->CachePlayerMatchIdentityForPlayerState(
+	LobbySubsystem->CachePlayerMatchIdentityForPlayerState(
 		LobbyPlayerState,
 		LobbyPlayerState->GetPlayerMatchComponent()->GetPlayerMatchIdentity());
 
 	const APlayerController* LobbyPlayerController =
-		GameMode->ResolvePlayerControllerForPlayerState(LobbyPlayerState);
-	PdGameInstance->CacheLobbyEquippedSkinSlotsForPlayerState(
+		GameMode->GetLobbyPlayerCoordinatorComponent()->ResolvePlayerControllerForPlayerState(LobbyPlayerState);
+	LobbySubsystem->CacheLobbyEquippedSkinSlotsForPlayerState(
 		LobbyPlayerState,
 		BuildEquippedSkinNamesBySlot(LobbyPlayerController));
 
@@ -346,7 +350,7 @@ void ULobbyTravelCoordinator::CacheLobbyPlayerTravelState(
 			}
 		}
 	}
-	PdGameInstance->CacheLobbyPandoraLoadoutForPlayerState(
+	LobbySubsystem->CacheLobbyPandoraLoadoutForPlayerState(
 		LobbyPlayerState,
 		PandoraNamesByDirection);
 }
@@ -524,9 +528,9 @@ void ULobbyTravelCoordinator::HandleGameEntryContentPreloadFailure(
 		return;
 	}
 
-	if (GameMode->MatchCoordinator)
+	if (GameMode->GetMatchCoordinator())
 	{
-		GameMode->MatchCoordinator->CancelPendingGameStart(
+		GameMode->GetMatchCoordinator()->CancelPendingGameStart(
 			TEXT("game_entry_content_preload_failed"));
 	}
 	else

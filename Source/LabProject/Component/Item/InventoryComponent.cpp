@@ -10,30 +10,14 @@
 #include "GameplayEffectTypes.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
+#include "Misc/ScopeExit.h"
+#include "Pandora/PandoraLoadoutTypes.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InventoryComponent)
 
 DEFINE_LOG_CATEGORY(InventoryComponentLog);
-
-namespace
-{
-	int32 GetPandoraWeaponLoadoutIndex(const EEnum_Direction Direction)
-	{
-		switch (Direction)
-		{
-		case EEnum_Direction::Left:
-			return 0;
-		case EEnum_Direction::Up:
-			return 1;
-		case EEnum_Direction::Right:
-			return 2;
-		default:
-			return INDEX_NONE;
-		}
-	}
-}
 
 void FReplicatedInventoryEntry::PostReplicatedAdd(const FReplicatedInventoryList& InArraySerializer)
 {
@@ -85,7 +69,6 @@ void UInventoryComponent::BeginPlay()
 	// =================================================================================================================
 	if (HasInventoryAuthority())
 	{
-		InitializeReplicatedEntriesFromRuntimeItems();
 		RebuildFilteredItemMap();
 	}
 	else
@@ -99,6 +82,7 @@ void UInventoryComponent::BeginPlay()
 void UInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CancelPendingItemLoads();
+	ReplicatedEntries.Owner = nullptr;
 	ReleasePandoraWeaponLoadoutPresentationAssets();
 
 	Super::EndPlay(EndPlayReason);
@@ -120,88 +104,75 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, EquippedItemSlots, OwnerOnlyParams);
 }
 
+// 기존 BP 지급 요청도 완료 통지를 지원하는 동일한 인벤토리 추가 경로를 사용한다.
 void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& ItemDefinitions)
 {
-	// =================================================================================================================
-	if (!HasInventoryAuthority())
-	{
+	AddItemsByPrimaryAssetIdsWithCompletion(ItemDefinitions, {});
+}
 
+// 자산 로딩에 성공한 아이템만 지급하고 실제 추가 결과를 요청자에게 전달한다.
+void UInventoryComponent::AddItemsByPrimaryAssetIdsWithCompletion(const TArray<FPrimaryAssetId>& ItemDefinitions, FOnPdItemsAdded OnComplete)
+{
+	if (!HasInventoryAuthority() || ItemDefinitions.IsEmpty())
+	{
+		OnComplete.ExecuteIfBound({});
 		return;
 	}
-
-	// =================================================================================================================
-
-	if (ItemDefinitions.IsEmpty())
-	{
-		RebuildFilteredItemMap();
-		return;
-	}
-
-	// =================================================================================================================
-
 	CleanupCompletedItemLoadHandles();
-
 	const uint64 RequestGeneration = ItemLoadGeneration;
 	++PendingItemLoadRequestCount;
-	UAssetManager& AssetManager = UAssetManager::Get();
-	TSharedPtr<FStreamableHandle> LoadHandle = AssetManager.LoadPrimaryAssets(
-		ItemDefinitions,
-		{},
-		FStreamableDelegate::CreateWeakLambda(
-			this,
-			[this, ItemDefinitions, RequestGeneration]()
+	TSharedPtr<FStreamableHandle> LoadHandle = UAssetManager::Get().LoadPrimaryAssets(
+		ItemDefinitions, {}, FStreamableDelegate::CreateWeakLambda(this, [this, ItemDefinitions, RequestGeneration, OnComplete]()
 		{
 			if (RequestGeneration != ItemLoadGeneration)
 			{
 				return;
 			}
-
-			if (!HasInventoryAuthority())
+			TArray<FPrimaryAssetId> AddedItems;
+			if (HasInventoryAuthority())
 			{
-				CompletePendingItemLoadRequest(RequestGeneration);
-				CleanupCompletedItemLoadHandles();
-				return;
-			}
-
-			UAssetManager& LoadedAssetManager = UAssetManager::Get();
-
-			// =================================================================================================================
-
-			for (const FPrimaryAssetId& ItemDefinitionId : ItemDefinitions)
-			{
-				const UItemDefinition* ItemDefinition = Cast<UItemDefinition>(LoadedAssetManager.GetPrimaryAssetObject(ItemDefinitionId));
-				if (!IsValid(ItemDefinition))
-				{
-					UE_LOG(
-						InventoryComponentLog,
-						Error,
-						TEXT("Failed to resolve asynchronously loaded item definition '%s'."),
-						*ItemDefinitionId.ToString());
-					continue;
-				}
-
+				++InventoryUpdateDepth;
+				ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
+				UAssetManager& AssetManager = UAssetManager::Get();
 				const FGameplayTag ConsumableTypeTag = UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
-				if (ItemDefinition->IsConsumableDefinition(ConsumableTypeTag))
+				for (const FPrimaryAssetId& DefinitionId : ItemDefinitions)
 				{
-					if (UItemInstance* ExistingConsumable = FindFirstItemInstanceByDefinition(ItemDefinition))
+					const UItemDefinition* Definition = Cast<UItemDefinition>(AssetManager.GetPrimaryAssetObject(DefinitionId));
+					if (!IsValid(Definition))
 					{
-						SetReplicatedItemQuantityById(ExistingConsumable->GetOrCreateItemId(), ExistingConsumable->Quantity + 1);
-
+						UE_LOG(InventoryComponentLog, Error, TEXT("Failed to resolve asynchronously loaded item definition '%s'."),
+							*DefinitionId.ToString());
 						continue;
 					}
+					if (Definition->IsConsumableDefinition(ConsumableTypeTag))
+					{
+						UItemInstance* Existing = FindFirstItemInstanceByDefinition(Definition);
+						if (Existing && Existing->Quantity < MAX_int32)
+						{
+							if (SetReplicatedItemQuantityById(Existing->GetOrCreateItemId(), Existing->Quantity + 1))
+							{
+								AddedItems.Add(DefinitionId);
+							}
+							continue;
+						}
+					}
+					// 가득 찬 소비 아이템 스택은 유지하고 새 스택으로 추가한다.
+					UItemInstance* Item = NewObject<UItemInstance>(this);
+					Item->ItemDefinition = Definition;
+					Item->Quantity = 1;
+					AddReplicatedItem(Item);
+					AddedItems.Add(DefinitionId);
 				}
-
-				UItemInstance* NewItemInstance = NewObject<UItemInstance>(this);
-				NewItemInstance->ItemDefinition = ItemDefinition;
-				NewItemInstance->Quantity = 1;
-				AddReplicatedItem(NewItemInstance);
 			}
-
 			CompletePendingItemLoadRequest(RequestGeneration);
 			CleanupCompletedItemLoadHandles();
+			if (RequestGeneration == ItemLoadGeneration)
+			{
+				OnComplete.ExecuteIfBound(AddedItems);
+			}
 		}));
-
-	if (LoadHandle.IsValid())
+	// 이미 로딩된 PrimaryAsset은 핸들 없이 완료 콜백만 예약될 수 있다.
+	if (LoadHandle)
 	{
 		PendingItemLoadHandles.Add(LoadHandle);
 	}
@@ -276,6 +247,8 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(
 				return;
 			}
 
+			++InventoryUpdateDepth;
+			ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
 			UItemInstance* ExistingItem = FindFirstItemInstanceByDefinition(ItemDefinition);
 			if (Quantity <= 0)
 			{
@@ -363,7 +336,6 @@ void UInventoryComponent::ClearAllItems()
 	{
 		EquippedItemSlots.Reset();
 		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, EquippedItemSlots, this);
-		OnEquipmentSlotsChanged.Broadcast();
 	}
 
 	EnsurePandoraWeaponLoadoutArray();
@@ -383,12 +355,16 @@ void UInventoryComponent::ClearAllItems()
 		OnPandoraWeaponLoadoutChanged.Broadcast();
 	}
 
+	if (bHadEquippedItemReferences)
+	{
+		OnEquipmentSlotsChanged.Broadcast();
+	}
 	if (bHadItems
 		|| bHadQuickSlotReferences
 		|| bHadEquippedItemReferences
 		|| bHadPandoraWeaponLoadoutReferences)
 	{
-		OnInventoryChanged.Broadcast();
+		NotifyInventoryChanged();
 	}
 }
 
@@ -416,28 +392,14 @@ void UInventoryComponent::FilterItem(UItemInstance* ItemInstance)
 
 	// =================================================================================================================
 
-	bool bMatchedAnyType = false;
 	for (const FGameplayTag& TypeTag : FilterTypeTags)
 	{
 		if (ItemDefinition->IdTag.MatchesTag(TypeTag))
 		{
-			AddValueToMap(TypeTag, ItemInstance);
-			bMatchedAnyType = true;
+			Map_Type_ItemList.FindOrAdd(TypeTag).Items.AddUnique(ItemInstance);
 
 		}
 	}
-
-}
-
-void UInventoryComponent::AddValueToMap(FGameplayTag TypeTag, UItemInstance* ItemInstance)
-{
-	if (!IsValid(ItemInstance))
-	{
-		return;
-	}
-
-	FItemList& ItemList = Map_Type_ItemList.FindOrAdd(TypeTag);
-	ItemList.Items.AddUnique(ItemInstance);
 
 }
 
@@ -629,7 +591,7 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutSlot(
 	const EEnum_Direction Direction,
 	UItemInstance* WeaponInstance)
 {
-	if (GetPandoraWeaponLoadoutIndex(Direction) == INDEX_NONE || !IsWeaponItem(WeaponInstance))
+	if ((PandoraLoadout::GetLoadoutNumberFromDirection(Direction) - 1) == INDEX_NONE || !IsWeaponItem(WeaponInstance))
 	{
 		return false;
 	}
@@ -651,7 +613,7 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutSlot(
 
 bool UInventoryComponent::ClearPandoraWeaponLoadoutSlot(const EEnum_Direction Direction)
 {
-	if (GetPandoraWeaponLoadoutIndex(Direction) == INDEX_NONE)
+	if ((PandoraLoadout::GetLoadoutNumberFromDirection(Direction) - 1) == INDEX_NONE)
 	{
 		return false;
 	}
@@ -667,7 +629,7 @@ bool UInventoryComponent::ClearPandoraWeaponLoadoutSlot(const EEnum_Direction Di
 
 FGuid UInventoryComponent::GetPandoraWeaponLoadoutItemId(const EEnum_Direction Direction) const
 {
-	const int32 SlotIndex = GetPandoraWeaponLoadoutIndex(Direction);
+	const int32 SlotIndex = (PandoraLoadout::GetLoadoutNumberFromDirection(Direction) - 1);
 	return PandoraWeaponLoadoutItemIds.IsValidIndex(SlotIndex)
 		? PandoraWeaponLoadoutItemIds[SlotIndex]
 		: FGuid();
@@ -711,6 +673,8 @@ bool UInventoryComponent::SplitConsumableStack(const FGuid ItemId)
 		return false;
 	}
 
+	++InventoryUpdateDepth;
+	ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
 	const int32 NewStackQuantity = SourceItem->Quantity / 2;
 	const int32 RemainingQuantity = SourceItem->Quantity - NewStackQuantity;
 	const UItemDefinition* ItemDefinition = SourceItem->ItemDefinition.Get();
@@ -762,13 +726,15 @@ bool UInventoryComponent::MergeConsumableStacks(const FGuid SourceItemId, const 
 
 	const int32 SourceQuantity = FMath::Max(0, SourceItem->Quantity);
 	const int32 TargetQuantity = FMath::Max(0, TargetItem->Quantity);
-	const int32 MergedQuantity = SourceQuantity + TargetQuantity;
-	if (MergedQuantity <= 0)
+	const int64 CombinedQuantity = static_cast<int64>(SourceQuantity) + TargetQuantity;
+	if (CombinedQuantity <= 0 || CombinedQuantity > MAX_int32)
 	{
 		return false;
 	}
 
-	if (!SetReplicatedItemQuantityById(TargetItemId, MergedQuantity))
+	++InventoryUpdateDepth;
+	ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
+	if (!SetReplicatedItemQuantityById(TargetItemId, static_cast<int32>(CombinedQuantity)))
 	{
 
 		return false;
@@ -853,25 +819,7 @@ bool UInventoryComponent::MergeUpgradeableItems(
 	TargetEntry->UpgradeLevel = NewUpgradeLevel;
 	ReplicatedEntries.MarkEntryDirty(*TargetEntry);
 
-	for (int32 ItemIndex = AllItemList.Items.Num() - 1; ItemIndex >= 0; --ItemIndex)
-	{
-		const UItemInstance* ItemInstance = AllItemList.Items[ItemIndex];
-		if (IsValid(ItemInstance) && ItemInstance->GetItemId() == ConsumedItemId)
-		{
-			AllItemList.Items.RemoveAt(ItemIndex);
-			break;
-		}
-	}
-
-	ReplicatedEntries.Entries.RemoveAt(SourceEntryIndex);
-	ReplicatedEntries.MarkArrayDirty();
-	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
-	ClearConsumableQuickSlotReferencesToItem(ConsumedItemId);
-	ClearEquipmentSlotReferencesToItem(ConsumedItemId);
-	ClearPandoraWeaponLoadoutReferencesToItem(ConsumedItemId);
-	RebuildFilteredItemMap();
-	OnInventoryChanged.Broadcast();
-	return true;
+	return RemoveReplicatedItemById(ConsumedItemId);
 }
 
 void UInventoryComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig)
@@ -880,7 +828,7 @@ void UInventoryComponent::ApplyProjectTagConfig(const UProjectTagConfig* Project
 	EffectiveConfig->GetItemFilterTypeTags(FilterTypeTags);
 
 	RebuildFilteredItemMap();
-	OnInventoryChanged.Broadcast();
+	NotifyInventoryChanged();
 }
 
 bool UInventoryComponent::HasInventoryAuthority() const

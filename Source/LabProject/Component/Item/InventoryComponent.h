@@ -15,6 +15,7 @@ class UProjectTagConfig;
 struct FStreamableHandle;
 
 DECLARE_LOG_CATEGORY_EXTERN(InventoryComponentLog, Log, All);
+DECLARE_DELEGATE_OneParam(FOnPdItemsAdded, const TArray<FPrimaryAssetId>&);
 DECLARE_MULTICAST_DELEGATE(FPdInventoryChanged);
 DECLARE_MULTICAST_DELEGATE(FPdEquipmentSlotsChanged);
 DECLARE_MULTICAST_DELEGATE(FPdPandoraWeaponLoadoutChanged);
@@ -25,7 +26,7 @@ struct FItemList
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
+	UPROPERTY(BlueprintReadOnly, Category = "!Inventory")
 	TArray<TObjectPtr<UItemInstance>> Items;
 };
 
@@ -72,6 +73,8 @@ struct LABPROJECT_API FReplicatedInventoryList : public FIrisFastArraySerializer
 	GENERATED_BODY()
 
 public:
+	void PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters);
+
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 	{
 		return FFastArraySerializer::FastArrayDeltaSerialize<FReplicatedInventoryEntry, FReplicatedInventoryList>(Entries, DeltaParms, *this);
@@ -95,17 +98,23 @@ struct TStructOpsTypeTraits<FReplicatedInventoryList> : public TStructOpsTypeTra
 	enum { WithNetDeltaSerializer = true };
 };
 
+/**
+ * 플레이어의 아이템 보유 상태와 슬롯 참조를 관리한다.
+ *
+ * 수량과 슬롯 변경을 함께 검증하고, 실제 장착 표현은 장비 컴포넌트에 맡긴다.
+ */
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UInventoryComponent : public UPlayerStateComponent
 {
 	GENERATED_BODY()
 
 	friend struct FReplicatedInventoryEntry;
+	friend struct FReplicatedInventoryList;
 
 public:
 	UInventoryComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	// Timing hooks
+	// Engine Callbacks
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
@@ -116,6 +125,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Inventory")
 	void AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& ItemDefinitions);
+
+	// 로딩과 추가가 완료된 실제 아이템 목록만 반환한다. 취소된 요청은 완료 통지를 보내지 않는다.
+	void AddItemsByPrimaryAssetIdsWithCompletion(const TArray<FPrimaryAssetId>& ItemDefinitions, FOnPdItemsAdded OnComplete);
 
 	/**
 	 * Includes requests whose Asset Manager completion delegate is queued even
@@ -135,10 +147,6 @@ public:
 
 	UFUNCTION()
 	void ClearAllItems();
-	void FilterItem(UItemInstance* ItemInstance);
-
-	UFUNCTION(BlueprintCallable, Category = "!Inventory")
-	void AddValueToMap(FGameplayTag TypeTag, UItemInstance* ItemInstance);
 
 	UFUNCTION(BlueprintCallable, Category = "!Inventory")
 	FGuid GetOrCreateItemId(UItemInstance* ItemInstance);
@@ -200,13 +208,13 @@ public:
 	FPdPandoraWeaponLoadoutChanged OnPandoraWeaponLoadoutChanged;
 
 protected:
-	// Replication timing callbacks
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry);
 
 	void HandleReplicatedEntryRemoved(FGuid ItemId);
 
-	// State rebuild helpers
-	void InitializeReplicatedEntriesFromRuntimeItems();
+	void FilterItem(UItemInstance* ItemInstance);
+	void NotifyInventoryChanged();
+	void FlushInventoryChanges();
 
 	void RebuildRuntimeItemsFromReplicatedEntries();
 
@@ -218,7 +226,7 @@ protected:
 
 	bool SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQuantity);
 
-int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
+	int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
 
 	FReplicatedInventoryEntry* FindReplicatedEntryById(FGuid ItemId);
 
@@ -284,15 +292,18 @@ int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
 	UFUNCTION()
 	void OnRep_EquippedItemSlots();
 
-public:
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter")
+private:
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (AllowPrivateAccess = "true"))
 	TArray<FGameplayTag> FilterTypeTags;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory", meta = (AllowPrivateAccess = "true"))
 	FItemList AllItemList;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Inventory")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory", meta = (AllowPrivateAccess = "true"))
 	TMap<FGameplayTag, FItemList> Map_Type_ItemList;
+
+	int32 InventoryUpdateDepth = 0;
+	bool bInventoryChangePending = false;
 
 protected:
 	UPROPERTY(Replicated)

@@ -6,6 +6,19 @@
 #include "UObject/PrimaryAssetId.h"
 #include "StatUpgradeDefinition.generated.h"
 
+// 투자 대상과 투자 레벨, 복리 표시값, 현재 자원의 연결을 한곳에서 정의한다.
+struct FStatUpgradeBinding
+{
+	FGameplayTag StatTag;
+	FGameplayTag LevelTag;
+	FGameplayTag PercentTag;
+	FGameplayTag CurrentResourceTag;
+	bool bCompounded = false;
+
+	FGameplayTag GetEffectTag() const { return PercentTag.IsValid() ? PercentTag : StatTag; }
+	bool IsMaxResource() const { return CurrentResourceTag.IsValid(); }
+};
+
 USTRUCT(BlueprintType)
 struct FStatUpgradeRule
 {
@@ -66,6 +79,11 @@ struct FPairedResourceStatTag
 	}
 };
 
+/**
+ * 초기 능력치와 스탯 투자 규칙을 정의한다.
+ *
+ * 스탯별 연결과 투자 공식은 초기화와 투자·환불 경로에서 함께 사용한다.
+ */
 UCLASS(BlueprintType, Const, meta = (DisplayName = "DA Stat"))
 class LABPROJECT_API UStatUpgradeDefinition : public UPrimaryDataAsset
 {
@@ -74,12 +92,16 @@ class LABPROJECT_API UStatUpgradeDefinition : public UPrimaryDataAsset
 public:
 	UStatUpgradeDefinition();
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	static FSoftObjectPath GetDefaultDefinitionPath();
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	//------------------------------------------------------------------------------------------------------------------
+	static FSoftObjectPath GetDefaultDefinitionPath();
 
 	const TArray<FStatUpgradeRule>& GetUpgradeRules() const { return UpgradeRules; }
 	const TArray<FPairedResourceStatTag>& GetPairedResourceStatTags() const { return PairedResourceStatTags; }
@@ -89,6 +111,11 @@ public:
 	bool TryGetAttributeValuePerUpgrade(const FGameplayTag& StatTag, float& OutValue) const;
 	float GetAttributeValuePerUpgrade(const FGameplayTag& StatTag) const;
 	bool TryGetExactAttributeDefaultValue(const FGameplayTag& StatTag, float& OutValue) const;
+	static TConstArrayView<FStatUpgradeBinding> GetStatBindings();
+	static const FStatUpgradeBinding* FindStatBinding(const FGameplayTag& StatTag);
+	bool TryGetUpgradeMagnitude(const FStatUpgradeBinding& Binding, float& OutMagnitude) const;
+	bool TryGetResourceBaseValue(const FStatUpgradeBinding& Binding, float& OutValue) const;
+	static float CalculateInvestmentValue(float Magnitude, float InvestmentLevel, bool bCompounded);
 	static bool TryResolveDefaultStatLevelTag(const FGameplayTag& StatTag, FGameplayTag& OutLevelTag);
 
 private:

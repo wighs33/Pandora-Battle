@@ -6,6 +6,7 @@
 #include "CharacterAbilityRuntimeComponent.generated.h"
 
 class ACharacterBase;
+class AController;
 class UAbilitySystemComponent;
 class UActorComponent;
 class UCharacterMovementComponent;
@@ -72,6 +73,9 @@ private:
 	void RemoveStaminaRegenEffects();
 	float GetCurrentMaxStamina() const;
 
+	// PlayerState 연결이 먼저 끊겨도 자신이 연결했던 ASC를 정확히 해제한다.
+	TWeakObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
+
 	UPROPERTY(Transient)
 	bool bActorInfoInitializationQueued = false;
 
@@ -105,8 +109,7 @@ private:
 	UPROPERTY(Transient)
 	bool bFrozenRotationStateCached = false;
 
-	UPROPERTY(Transient)
-	bool bFrozenAppliedIgnoreLookInput = false;
+	TWeakObjectPtr<AController> FrozenInputController;
 
 	UPROPERTY(Transient)
 	bool bFrozenCachedOrientRotationToMovement = true;

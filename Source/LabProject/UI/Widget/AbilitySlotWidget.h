@@ -87,9 +87,7 @@ private:
 	UObject* ResolveAbilityImage() const;
 	const FSkill* ResolvePandoraSkill() const;
 	const USkillDefinition* ResolveSkillDataAsset() const;
-	FGameplayTag ResolveSkillSlotCooldownTag() const;
-	float ResolveCooldownTimeRemaining() const;
-	double ResolveConfiguredCooldownDuration() const;
+	void ResolveCooldown(float& OutTimeRemaining, float& OutDuration) const;
 	UInputAction* ResolveInputAction() const;
 	UObject* ResolveInputIconObject() const;
 

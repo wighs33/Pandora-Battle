@@ -400,7 +400,8 @@ bool UAbilitiesBarWidget::ShouldShowAbilityHandle(UAbilitySystemComponent* Abili
 
 	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle);
 	const USkillDefinition* SourceSkill = ResolveSourceSkillDataAsset(AbilitySpec);
-	return SourceSkill && SourceSkill->ShouldShowInAbilitiesBar();
+	return SourceSkill && SourceSkill->ShouldShowInAbilitiesBar()
+		&& !AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora);
 }
 
 UAbilitySystemComponent* UAbilitiesBarWidget::GetOwningAbilitySystemComponent() const
@@ -509,8 +510,6 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 		return FGameplayAbilitySpecHandle();
 	}
 
-	FGameplayAbilitySpecHandle InputTagMatchedHandle;
-
 	TArray<FGameplayAbilitySpecHandle> AbilityHandles;
 	AbilitySystemComponent->GetAllAbilities(AbilityHandles);
 	for (const FGameplayAbilitySpecHandle& AbilityHandle : AbilityHandles)
@@ -524,19 +523,15 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 		const UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(AbilitySpec->SourceObject.Get());
 		if (RuntimeContext
 			&& RuntimeContext->GetPandoraDefinition() == PandoraDefinition
-			&& RuntimeContext->GetSkillIndex() == SkillIndex)
+			&& RuntimeContext->GetSkillIndex() == SkillIndex
+			&& AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(SkillInputTag))
 		{
 			return AbilityHandle;
 		}
 
-		const bool bMatchesSkillInput = AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(SkillInputTag);
-		if (bMatchesSkillInput && !InputTagMatchedHandle.IsValid())
-		{
-			InputTagMatchedHandle = AbilityHandle;
-		}
 	}
 
-	return InputTagMatchedHandle;
+	return FGameplayAbilitySpecHandle();
 }
 
 bool UAbilitiesBarWidget::IsConfiguredPandoraSkill(const FSkill& Skill) const

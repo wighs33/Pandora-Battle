@@ -1,81 +1,59 @@
 #include "AI/MonsterCharacter.h"
 
+#include "AI/MonsterAIController.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/AbilitySystem/PandoraTreeComponent.h"
-#include "Component/Item/InventoryComponent.h"
-#include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
-#include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
 #include "Common/EquipmentAbilityData.h"
 #include "Common/LabGameplayTags.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/Player/PlayerRewardComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
+#include "Definition/Item/RewardDefinition.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "GameFramework/PlayerState.h"
 #include "GameplayEffect.h"
-#include "Definition/Character/EnemyBaseDefinition.h"
-#include "Definition/Item/RewardDefinition.h"
-#include "Data/ContentDataSubsystem.h"
-#include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
-#include "Logging/LogRateLimiter.h"
 #include "Mode/PdPlayerState.h"
-#include "Component/Player/LevelingComponent.h"
-#include "Component/Player/PlayerNotificationComponent.h"
+#include "TimerManager.h"
+
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MonsterCharacter)
 
-DEFINE_LOG_CATEGORY_STATIC(LogMonsterReward, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogMonsterCharacter, Log, All);
 
-namespace
-{
-	constexpr double MissingMonsterRewardLogIntervalSeconds = 30.0;
-	FLogRateLimiter MissingMonsterRewardLogLimiter;
-}
-
+// 몬스터는 서버에서 생성하고, 자동 공격 타이머 대신 StateTree가 공격 시점을 결정한다.
 AMonsterCharacter::AMonsterCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bReplicates = true;
 	SetReplicateMovement(true);
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-
-	// Keep the legacy facade defaults aligned with the native monster
-	// settings so existing Blueprint overrides can still be detected and
-	// migrated into the focused components during PreInitializeComponents.
 	bStartCombatOnPossess = false;
 	bUseBehaviorTreeCombat = false;
 	bEnableTrainingBotHitReaction = false;
-
 	ContactDamageDataTag = LabGameplayTags::Data_Damage;
 }
 
-void AMonsterCharacter::ApplyResolvedEnemyDefinition(
-	const UEnemyBaseDefinition* ResolvedDefinition)
+// 이 몬스터에 지정된 정의에서 체력과 피격 표현 설정을 가져온다.
+void AMonsterCharacter::ApplyResolvedEnemyDefinition(const UEnemyBaseDefinition* ResolvedDefinition)
 {
 	Super::ApplyResolvedEnemyDefinition(ResolvedDefinition);
-	MonsterPresentationSettings = ResolvedDefinition
-		? ResolvedDefinition->GetMonsterPresentationSettings()
-		: FMonsterPresentationSettings();
-	ResolvedMonsterMaxHealth = ResolvedDefinition
-		? ResolvedDefinition->GetMonsterMaxHealth()
-		: 0.0f;
+	MonsterPresentationSettings = ResolvedDefinition ? ResolvedDefinition->GetMonsterPresentationSettings() : FMonsterPresentationSettings();
+	ResolvedMonsterMaxHealth = ResolvedDefinition ? ResolvedDefinition->GetMonsterMaxHealth() : 0.0f;
 }
 
+// 일반 적의 자동 공격·훈련봇 리스폰을 끄고 몬스터 행동 트리의 제어에 맞춘다.
 void AMonsterCharacter::ModifyResolvedEnemySettings(
-	FEnemyCombatSettings& CombatSettings,
-	FEnemyTrainingBotSettings& TrainingBotSettings) const
+	FEnemyCombatSettings& CombatSettings, FEnemyTrainingBotSettings& TrainingBotSettings) const
 {
-	Super::ModifyResolvedEnemySettings(
-		CombatSettings,
-		TrainingBotSettings);
-
+	Super::ModifyResolvedEnemySettings(CombatSettings, TrainingBotSettings);
+	CombatSettings.bUseNearestPlayerWhenTargetUnset = false;
 	CombatSettings.bAttackEnabled = true;
 	CombatSettings.bStartCombatOnPossess = false;
 	CombatSettings.bUseBehaviorTreeCombat = false;
@@ -84,13 +62,37 @@ void AMonsterCharacter::ModifyResolvedEnemySettings(
 	TrainingBotSettings.bEnableHitReaction = false;
 }
 
+// 공통 캐릭터와 몬스터 공격 자산이 모두 준비되기 전에는 게임플레이 초기화를 보류한다.
+bool AMonsterCharacter::IsAdditionalCharacterRuntimeContentReady() const
+{
+	return bMonsterContentReady && Super::IsAdditionalCharacterRuntimeContentReady();
+}
+
+// 체력을 확정하고 빙결 중 공격을 중단하도록 연결한 뒤, 컨트롤러에 AI 시작을 요청한다.
 void AMonsterCharacter::HandleCharacterRuntimeInitialized()
 {
 	Super::HandleCharacterRuntimeInitialized();
 	ApplyMonsterHealthDefaults();
+	if (HasAuthority() && AbilitySystemComponent)
+	{
+		FrozenTagChangedHandle = AbilitySystemComponent->RegisterGameplayTagEvent(
+			LabGameplayTags::Status_Frostbite, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::HandleFrozenTagChanged);
+	}
+	if (AMonsterAIController* MonsterController = Cast<AMonsterAIController>(GetController()))
+	{
+		MonsterController->StartMonsterStateTreeIfReady();
+	}
+}
+
+// 구성 오류로 공격할 수 없거나 이미 죽은 몬스터의 AI가 시작되지 않게 한다.
+bool AMonsterCharacter::IsMonsterReadyForAI() const
+{
+	return IsCharacterRuntimeInitialized() && !bDying
+		&& (MonsterAttackMontage.IsNull() || (MonsterAttackMontage.Get() && AttackComponent.IsValid()));
 }
 
 #if WITH_EDITOR
+// 전투에 필요한 자산과 수치를 검증한다. 즉시 래그돌 사망에는 사망 몽타주가 필요하지 않다.
 EDataValidationResult AMonsterCharacter::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
@@ -98,152 +100,153 @@ EDataValidationResult AMonsterCharacter::IsDataValid(FDataValidationContext& Con
 	{
 		Result = EDataValidationResult::Valid;
 	}
-
-	const UEnemyBaseDefinition* ResolvedEnemyDefinition =
-		EnemyDefinition.LoadSynchronous();
-	const FMonsterPresentationSettings* PresentationSettings =
-		ResolvedEnemyDefinition
-			? &ResolvedEnemyDefinition->GetMonsterPresentationSettings()
-			: nullptr;
-	if (!PresentationSettings
-		|| !PresentationSettings->ContactDamageEffectClass
-		|| !PresentationSettings->HitReactMontage
-		|| !PresentationSettings->DeathMontage)
+	// BP 컴파일 중 새 BP 의존성을 로딩하면 컴파일러에 재진입하므로 이미 로딩된 설정만 검사한다.
+	const UEnemyBaseDefinition* Definition = GCompilingBlueprint ? EnemyDefinition.Get() : EnemyDefinition.LoadSynchronous();
+	if (EnemyDefinition.IsNull() || (!GCompilingBlueprint && !Definition)
+		|| (Definition && (!Definition->GetMonsterPresentationSettings().ContactDamageEffectClass
+			|| !Definition->GetMonsterPresentationSettings().HitReactMontage)))
 	{
-		Context.AddError(FText::FromString(
-			FString::Printf(
-				TEXT("%s requires a complete MonsterPresentation configuration in EnemyDefinition."),
-				*GetPathName())));
+		Context.AddError(FText::FromString(TEXT("Monster EnemyDefinition requires damage and hit-react settings.")));
 		Result = EDataValidationResult::Invalid;
 	}
-
-	if (MonsterRewardDefinition.IsNull())
+	if (MonsterRewardDefinition.IsNull() || (!GCompilingBlueprint && !MonsterRewardDefinition.LoadSynchronous()))
 	{
-		Context.AddError(FText::FromString(
-			FString::Printf(
-				TEXT("%s requires MonsterRewardDefinition. Monster rewards have no runtime fallback."),
-				*GetPathName())));
-		return EDataValidationResult::Invalid;
+		Context.AddError(FText::FromString(TEXT("MonsterRewardDefinition must reference a loadable reward definition.")));
+		Result = EDataValidationResult::Invalid;
 	}
-
-	if (!MonsterRewardDefinition.LoadSynchronous())
+	if (!MonsterAttackMontage.IsNull() && ((!GCompilingBlueprint && !MonsterAttackMontage.LoadSynchronous()) || AttackComponentName.IsNone()))
 	{
-		Context.AddError(FText::FromString(
-			FString::Printf(
-				TEXT("%s references an unloadable MonsterRewardDefinition: %s"),
-				*GetPathName(),
-				*MonsterRewardDefinition.ToString())));
-		return EDataValidationResult::Invalid;
+		Context.AddError(FText::FromString(TEXT("A configured monster attack requires a loadable montage and an exact component name.")));
+		Result = EDataValidationResult::Invalid;
 	}
-
+	if (!FMath::IsFinite(AttackDamageMagnitude) || AttackDamageMagnitude < 0.0f
+		|| !FMath::IsFinite(AttackSphereActiveDuration) || AttackSphereActiveDuration < 0.0f
+		|| !FMath::IsFinite(DeathDestroyDelay) || DeathDestroyDelay < 0.0f)
+	{
+		Context.AddError(FText::FromString(TEXT("Monster damage and durations must be finite and non-negative.")));
+		Result = EDataValidationResult::Invalid;
+	}
 	return Result;
 }
 #endif
 
+// 공격 금지 조건을 먼저 판정하고, 전용 공격을 설정하지 않은 몬스터만 기존 GAS 공격을 사용한다.
 void AMonsterCharacter::Attack()
 {
-	if (TryPlayMonsterAttackMontage())
+	if (!HasAuthority() || !IsMonsterReadyForAI() || !IsAttackEnabled() || IsAttackInProgress()
+		|| IsStatusFrozen() || IsTrainingHitStunned() || !AbilitySystemComponent
+		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
 	{
 		return;
 	}
-
-	Super::Attack();
+	if (MonsterAttackMontage.IsNull())
+	{
+		Super::Attack();
+		return;
+	}
+	TryPlayMonsterAttackMontage();
 }
 
+// StateTree는 실제 시작한 공격만 기다린다. 아직 로딩 중인 요청을 공격 중으로 취급하지 않는다.
 bool AMonsterCharacter::IsAttackInProgress() const
 {
-	if (bAttackRequestedWhileContentLoading || Super::IsAttackInProgress())
-	{
-		return true;
-	}
-
-	UAnimMontage* AttackMontage = MonsterAttackMontage.Get();
-	UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
-	return IsValid(AttackMontage)
-		&& IsValid(AnimInstance)
-		&& AnimInstance->Montage_IsPlaying(AttackMontage);
+	return bMonsterAttackActive || Super::IsAttackInProgress();
 }
 
+// BP에서 만든 충돌 형태를 유지하면서 참조를 확보하고, 공격 자산을 준비한 뒤 공통 초기화를 진행한다.
 void AMonsterCharacter::BeginPlay()
 {
-	Super::BeginPlay();
-
-	BeginMonsterContentPreload();
+	CacheCollisionComponents();
 	DeactivateDamageSphere();
-
-	if (UPrimitiveComponent* AttackComponent = ResolveAttackComponent())
-	{
-		AttackComponent->OnComponentBeginOverlap.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleAttackComponentBeginOverlap);
-	}
 	DeactivateAttackSphere();
+	BeginMonsterContentPreload();
+	Super::BeginPlay();
 }
 
+// 먼저 준비된 캐릭터를 나중에 컨트롤러가 조종하게 된 경우에도 AI 시작 조건을 다시 확인한다.
 void AMonsterCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
-
-	BeginMonsterContentPreload();
+	// 기존 적의 능력치·시작 장비 준비 경로는 유지한다. 실제 AI 시작은 모든 자산 준비 후로 제한한다.
 	if (HasAuthority() && !IsDefaultAttributeSetupComplete())
 	{
 		InitializeBehaviorTreeCombat();
 	}
+	if (AMonsterAIController* MonsterController = Cast<AMonsterAIController>(NewController))
+	{
+		MonsterController->StartMonsterStateTreeIfReady();
+	}
 }
 
+// 몬스터 제거 후 공격 판정·로딩 완료·상태 변경 콜백이 남지 않도록 정리한다.
 void AMonsterCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	GetWorldTimerManager().ClearTimer(AttackSphereTimerHandle);
-	GetWorldTimerManager().ClearTimer(DeathDestroyTimerHandle);
-	ReleaseMonsterContentPreload();
-
-	DeactivateDamageSphere();
-
-	if (UPrimitiveComponent* AttackComponent = ResolveAttackComponent())
+	bDying = true;
+	if (AMonsterAIController* MonsterController = Cast<AMonsterAIController>(GetController()))
 	{
-		AttackComponent->OnComponentBeginOverlap.RemoveAll(this);
+		MonsterController->StopMonsterAI();
 	}
-
+	DeactivateAttackSphere();
+	DeactivateDamageSphere();
+	GetWorldTimerManager().ClearTimer(DeathDestroyTimerHandle);
+	if (MonsterContentPreloadHandle)
+	{
+		MonsterContentPreloadHandle->CancelHandle();
+		MonsterContentPreloadHandle.Reset();
+	}
+	if (AbilitySystemComponent && FrozenTagChangedHandle.IsValid())
+	{
+		AbilitySystemComponent->RegisterGameplayTagEvent(
+			LabGameplayTags::Status_Frostbite, EGameplayTagEventType::NewOrRemoved).Remove(FrozenTagChangedHandle);
+		FrozenTagChangedHandle.Reset();
+	}
+	if (UAnimInstance* AnimInstance = AttackAnimInstance.Get())
+	{
+		AnimInstance->OnMontageBlendingOut.RemoveDynamic(this, &ThisClass::HandleAttackMontageBlendingOut);
+		AnimInstance->OnMontageEnded.RemoveDynamic(this, &ThisClass::HandleAttackMontageEnded);
+	}
+	if (UPrimitiveComponent* Collision = AttackComponent.Get())
+	{
+		Collision->OnComponentBeginOverlap.RemoveDynamic(this, &ThisClass::HandleAttackComponentBeginOverlap);
+	}
 	Super::EndPlay(EndPlayReason);
 }
 
+// 실제 피해를 준 공격의 수령자를 즉시 확정한다. 빗나감·무적 피해나 이후 Pawn 파괴가 보상 소유자를 바꾸지 않는다.
 void AMonsterCharacter::HandleDamageTaken(
-	float DamageAmount,
-	bool bCriticalHit,
-	bool bAllowHitReact,
-	AActor* DamageInstigator,
-	AActor* DamageCauser)
+	float DamageAmount, bool bCriticalHit, bool bAllowHitReact, AActor* DamageInstigator, AActor* DamageCauser)
 {
-	RememberDamageSource(DamageInstigator, DamageCauser);
+	if (HasAuthority() && !bDying && FMath::IsFinite(DamageAmount) && DamageAmount > 0.0f)
+	{
+		APdPlayerState* RewardPlayerState = ResolvePlayerStateFromActor(DamageInstigator);
+		LastDamagingPlayerState = RewardPlayerState ? RewardPlayerState : ResolvePlayerStateFromActor(DamageCauser);
+	}
 	Super::HandleDamageTaken(DamageAmount, bCriticalHit, bAllowHitReact, DamageInstigator, DamageCauser);
 	TryPlayMonsterHitReactMontage(DamageAmount, bAllowHitReact);
 }
 
+// 작은 몬스터 몸체에 맞춰 피해 숫자의 표시 높이를 낮춘다.
 FVector AMonsterCharacter::GetDamageIndicatorWorldLocation() const
 {
-	const FVector DefaultIndicatorLocation = Super::GetDamageIndicatorWorldLocation();
-	const float HalfHeightZ = GetActorLocation().Z
-		+ (DefaultIndicatorLocation.Z - GetActorLocation().Z) * 0.5f;
-	return FVector(DefaultIndicatorLocation.X, DefaultIndicatorLocation.Y, HalfHeightZ);
+	FVector Location = Super::GetDamageIndicatorWorldLocation();
+	Location.Z = GetActorLocation().Z + (Location.Z - GetActorLocation().Z) * 0.5f;
+	return Location;
 }
 
+// 공통 능력치 초기화가 끝난 서버에서 몬스터 종류별 최대 체력과 시작 체력을 적용한다.
 void AMonsterCharacter::ApplyMonsterHealthDefaults()
 {
 	if (!HasAuthority() || !AbilitySystemComponent)
 	{
 		return;
 	}
-
-	const float ClampedMaxHealth = FMath::Max(ResolvedMonsterMaxHealth, 1.0f);
-	AbilitySystemComponent->ApplyAttributeDefaultValue(
-		UBasicAttributeSet::GetMaxHealthAttribute(),
-		ClampedMaxHealth);
-	AbilitySystemComponent->ApplyAttributeDefaultValue(
-		UBasicAttributeSet::GetHealthAttribute(),
-		ClampedMaxHealth);
+	const float MaxHealth = FMath::IsFinite(ResolvedMonsterMaxHealth) ? FMath::Max(ResolvedMonsterMaxHealth, 1.0f) : 1.0f;
+	AbilitySystemComponent->ApplyAttributeDefaultValue(UBasicAttributeSet::GetMaxHealthAttribute(), MaxHealth);
+	AbilitySystemComponent->ApplyAttributeDefaultValue(UBasicAttributeSet::GetHealthAttribute(), MaxHealth);
 	RefreshHealthBarViewModel();
 }
 
+// 공격 자산만 미리 읽는다. 보상 로딩은 시체 수명과 무관하게 플레이어 보상 컴포넌트가 소유한다.
 void AMonsterCharacter::BeginMonsterContentPreload()
 {
 	if (bMonsterContentPreloadStarted)
@@ -251,723 +254,411 @@ void AMonsterCharacter::BeginMonsterContentPreload()
 		return;
 	}
 	bMonsterContentPreloadStarted = true;
-
-	TArray<FSoftObjectPath> AssetPaths;
-	if (!MonsterAttackMontage.IsNull())
+	if (MonsterAttackMontage.IsNull() || MonsterAttackMontage.Get())
 	{
-		AssetPaths.Add(MonsterAttackMontage.ToSoftObjectPath());
-	}
-	if (!MonsterRewardDefinition.IsNull())
-	{
-		AssetPaths.Add(MonsterRewardDefinition.ToSoftObjectPath());
-	}
-
-	if (AssetPaths.IsEmpty())
-	{
+		HandleMonsterContentPreloadComplete();
 		return;
 	}
-
-	UGameInstance* GameInstance = GetGameInstance();
-	UContentDataSubsystem* ContentSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	if (!ContentSubsystem)
+	MonsterContentPreloadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
+		MonsterAttackMontage.ToSoftObjectPath(), FStreamableDelegate::CreateUObject(this, &ThisClass::HandleMonsterContentPreloadComplete),
+		FStreamableManager::DefaultAsyncLoadPriority, false, true);
+	if (MonsterContentPreloadHandle)
 	{
-		bMonsterContentPreloadStarted = false;
-		UE_LOG(
-			LogMonsterReward,
-			Error,
-			TEXT("Monster content preload could not start for '%s': ContentDataSubsystem is unavailable."),
-			*GetPathName());
-		return;
+		MonsterContentPreloadHandle->StartStalledHandle();
 	}
-
-	bMonsterContentLoadPending = true;
-	const TWeakObjectPtr<ThisClass> WeakThis(this);
-	MonsterContentPreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			AssetPaths,
-			FSimpleDelegate::CreateLambda(
-				[WeakThis]()
-				{
-					if (ThisClass* This = WeakThis.Get())
-					{
-						This->HandleMonsterContentPreloadComplete();
-					}
-				}));
+	else
+	{
+		HandleMonsterContentPreloadComplete();
+	}
 }
 
+// 로딩 결과를 초기화 흐름에 전달한다. 과거 StateTree 상태에서 요청한 공격을 뒤늦게 재실행하지 않는다.
 void AMonsterCharacter::HandleMonsterContentPreloadComplete()
 {
-	if (!bMonsterContentLoadPending)
+	if (bDying)
 	{
 		return;
 	}
-	bMonsterContentLoadPending = false;
-
+	bMonsterContentReady = true;
 	if (!MonsterAttackMontage.IsNull() && !MonsterAttackMontage.Get())
 	{
-		UE_LOG(
-			LogMonsterReward,
-			Error,
-			TEXT("Monster attack montage '%s' did not resolve after preload for '%s'."),
-			*MonsterAttackMontage.ToString(),
-			*GetPathName());
+		UE_LOG(LogMonsterCharacter, Error, TEXT("Monster attack montage could not be loaded: %s."), *MonsterAttackMontage.ToString());
 	}
-	const bool bShouldRetryAttack = bAttackRequestedWhileContentLoading;
-	bAttackRequestedWhileContentLoading = false;
-	if (bShouldRetryAttack && HasAuthority() && !bDying)
-	{
-		Attack();
-	}
-
-	if (bDefeatRewardGrantPending)
-	{
-		GrantDefeatRewards();
-	}
-
-	if (bDestroyAfterContentLoad && !bDefeatRewardGrantPending)
-	{
-		bDestroyAfterContentLoad = false;
-		Destroy();
-	}
+	TryInitializeCharacterRuntime();
 }
 
-void AMonsterCharacter::ReleaseMonsterContentPreload()
-{
-	bMonsterContentLoadPending = false;
-	bAttackRequestedWhileContentLoading = false;
-	bDefeatRewardGrantPending = false;
-	bDestroyAfterContentLoad = false;
-
-	if (MonsterContentPreloadHandle.IsValid())
-	{
-		MonsterContentPreloadHandle->CancelHandle();
-		MonsterContentPreloadHandle->ReleaseHandle();
-		MonsterContentPreloadHandle.Reset();
-	}
-}
-
+// 중복 사망을 차단하고 AI·공격을 종료한 뒤, 보상 요청과 기존 즉시 래그돌 사망을 각각 진행한다.
 void AMonsterCharacter::HandleDeath_Implementation()
 {
-	BeginMonsterDeath();
+	if (bDying)
+	{
+		return;
+	}
+	bDying = true;
+	SetAttackEnabled(false);
+	StopMonsterAttack();
+	if (AMonsterAIController* MonsterController = Cast<AMonsterAIController>(GetController()))
+	{
+		MonsterController->StopMonsterAI();
+	}
+	DeactivateDamageSphere();
+	if (HasAuthority())
+	{
+		if (APdPlayerState* RewardPlayerState = LastDamagingPlayerState.Get())
+		{
+			if (UPlayerRewardComponent* RewardComponent = RewardPlayerState->GetPlayerRewardComponent())
+			{
+				RewardComponent->GrantMonsterDefeatRewards(MonsterRewardDefinition);
+			}
+		}
+	}
 	Super::HandleDeath_Implementation();
+	const float DestroyDelay = FMath::IsFinite(DeathDestroyDelay) ? FMath::Max(DeathDestroyDelay, 0.01f) : 0.01f;
+	StartDeathDissolve(DestroyDelay);
+	if (HasAuthority())
+	{
+		GetWorldTimerManager().SetTimer(DeathDestroyTimerHandle, this, &ThisClass::FinishMonsterDeath, DestroyDelay, false);
+	}
 }
 
+// 시체 표시 시간이 끝나면 제거한다. 보상 로딩 때문에 몬스터를 남겨 두지 않는다.
+void AMonsterCharacter::FinishMonsterDeath()
+{
+	Destroy();
+}
+
+// 기존 GAS 공격이 몬스터 몽타주를 조회하는 호환 경로를 유지한다.
 bool AMonsterCharacter::GetFallbackAttackData(FAttackData& OutAttackData) const
 {
 	OutAttackData = FAttackData();
-
-	UAnimMontage* LoadedAttackMontage = ResolveMonsterAttackMontage();
-	if (!LoadedAttackMontage)
-	{
-		return false;
-	}
-
-	OutAttackData.AttackMontage = LoadedAttackMontage;
-	return true;
+	OutAttackData.AttackMontage = MonsterAttackMontage.Get();
+	return OutAttackData.AttackMontage != nullptr;
 }
 
-UAnimMontage* AMonsterCharacter::ResolveMonsterAttackMontage() const
-{
-	return MonsterAttackMontage.Get();
-}
-
-UAnimMontage* AMonsterCharacter::ResolveMonsterHitReactMontage() const
-{
-	return MonsterPresentationSettings.HitReactMontage;
-}
-
+// 대상에게 접근하고 서버에서 몽타주가 실제 시작된 경우에만 타격 판정을 연다.
 bool AMonsterCharacter::TryPlayMonsterAttackMontage()
 {
-	if (!HasAuthority() || bDying || !IsAttackEnabled())
+	AActor* Target = ITargetingInterface::Execute_GetAttackTarget(this);
+	if (!IsActorValidAttackTarget(Target))
 	{
 		return false;
 	}
-
-	if (!AbilitySystemComponent || AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	FVector ToTarget = Target->GetActorLocation() - GetActorLocation();
+	ToTarget.Z = 0.0f;
+	if (!ToTarget.IsNearlyZero())
 	{
-		return false;
-	}
-
-	if (IsTrainingHitStunned())
-	{
-		return false;
-	}
-
-	AActor* CurrentAttackTarget = ITargetingInterface::Execute_GetAttackTarget(this);
-	if (!IsActorValidAttackTarget(CurrentAttackTarget))
-	{
-		return false;
-	}
-
-	if (!IsStatusFrozen())
-	{
-		FVector ToTarget = CurrentAttackTarget->GetActorLocation() - GetActorLocation();
-		ToTarget.Z = 0.0f;
-		if (!ToTarget.IsNearlyZero())
+		const FRotator Rotation = ToTarget.Rotation();
+		if (AController* CurrentController = GetController())
 		{
-			const FRotator LookAtRotation = ToTarget.Rotation();
-			if (AController* CurrentController = GetController())
-			{
-				CurrentController->SetControlRotation(LookAtRotation);
-			}
-			SetActorRotation(LookAtRotation);
+			CurrentController->SetControlRotation(Rotation);
 		}
+		SetActorRotation(Rotation);
 	}
-
-	if (MoveToAttackTarget(CurrentAttackTarget))
+	if (MoveToAttackTarget(Target))
 	{
-		return true;
-	}
-
-	UAnimMontage* AttackMontage = ResolveMonsterAttackMontage();
-	if (!AttackMontage)
-	{
-		if (bMonsterContentLoadPending && !MonsterAttackMontage.IsNull())
-		{
-			bAttackRequestedWhileContentLoading = true;
-			return true;
-		}
 		return false;
 	}
-
-	bAttackRequestedWhileContentLoading = false;
+	UAnimMontage* Montage = MonsterAttackMontage.Get();
+	if (!PlayMonsterAttackMontageLocal(Montage, 1.0f))
+	{
+		return false;
+	}
+	MulticastPlayMonsterAttackMontage(Montage, 1.0f);
 	ActivateAttackSphere();
-	MulticastPlayMonsterAttackMontage(AttackMontage, 1.0f);
 	return true;
 }
 
-void AMonsterCharacter::TryPlayMonsterHitReactMontage(const float DamageAmount, const bool bAllowHitReact)
+// 몽타주 종료·중단을 공격 상태와 연결한다. 재생 실패 시에는 피해 판정을 시작하지 않는다.
+bool AMonsterCharacter::PlayMonsterAttackMontageLocal(UAnimMontage* AttackMontage, float PlayRate)
 {
-	if (!HasAuthority() || bDying || !bAllowHitReact || DamageAmount <= 0.0f)
+	UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+	if (bDying || !AttackMontage || !AnimInstance || PlayAnimMontage(AttackMontage, PlayRate) <= 0.0f)
 	{
-		return;
+		return false;
 	}
-
-	if (!AbilitySystemComponent || AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	if (UAnimInstance* PreviousInstance = AttackAnimInstance.Get(); PreviousInstance && PreviousInstance != AnimInstance)
 	{
-		return;
+		PreviousInstance->OnMontageBlendingOut.RemoveDynamic(this, &ThisClass::HandleAttackMontageBlendingOut);
+		PreviousInstance->OnMontageEnded.RemoveDynamic(this, &ThisClass::HandleAttackMontageEnded);
 	}
-
-	const UBasicAttributeSet* AttributeSet = AbilitySystemComponent->GetSet<UBasicAttributeSet>();
-	if (!AttributeSet || AttributeSet->GetHealth() <= DamageAmount)
-	{
-		return;
-	}
-
-	UAnimMontage* HitReactMontage = ResolveMonsterHitReactMontage();
-	if (!HitReactMontage)
-	{
-		return;
-	}
-
-	MulticastPlayMonsterHitReactMontage(
-		HitReactMontage,
-		MonsterPresentationSettings.HitReactPlayRate);
+	AttackAnimInstance = AnimInstance;
+	AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &ThisClass::HandleAttackMontageBlendingOut);
+	AnimInstance->OnMontageEnded.AddUniqueDynamic(this, &ThisClass::HandleAttackMontageEnded);
+	bMonsterAttackActive = true;
+	return true;
 }
 
+// 공격 모션이 끝나거나 다른 모션에 끊기는 순간 남아 있는 피해 판정을 닫는다.
+void AMonsterCharacter::HandleAttackMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (Montage == MonsterAttackMontage.Get())
+	{
+		DeactivateAttackSphere();
+	}
+}
+
+// 공격 몽타주가 완전히 끝났음을 StateTree의 공격 완료 조회에 반영한다.
+void AMonsterCharacter::HandleAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (Montage == MonsterAttackMontage.Get())
+	{
+		bMonsterAttackActive = false;
+		DeactivateAttackSphere();
+	}
+}
+
+// 상태 전환·빙결·사망으로 취소한 공격의 모션과 판정을 서버와 클라이언트에서 함께 종료한다.
+void AMonsterCharacter::StopMonsterAttack()
+{
+	DeactivateAttackSphere();
+	if (HasAuthority() && bMonsterAttackActive)
+	{
+		MulticastStopMonsterAttack();
+	}
+}
+
+// 빙결은 이동 여부 설정과 관계없이 이미 시작한 몬스터 공격도 중단시킨다.
+void AMonsterCharacter::HandleFrozenTagChanged(FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount > 0)
+	{
+		StopMonsterAttack();
+	}
+}
+
+// 살아남은 피격에만 반응하며, 서버 종류와 관계없이 공격 중단 결과를 동일하게 처리한다.
+void AMonsterCharacter::TryPlayMonsterHitReactMontage(float DamageAmount, bool bAllowHitReact)
+{
+	if (!HasAuthority() || bDying || !bAllowHitReact || DamageAmount <= 0.0f || !AbilitySystemComponent
+		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	{
+		return;
+	}
+	const UBasicAttributeSet* Attributes = AbilitySystemComponent->GetSet<UBasicAttributeSet>();
+	UAnimMontage* HitReactMontage = MonsterPresentationSettings.HitReactMontage;
+	if (!Attributes || Attributes->GetHealth() <= DamageAmount || !HitReactMontage)
+	{
+		return;
+	}
+	StopMonsterAttack();
+	MulticastPlayMonsterHitReactMontage(HitReactMontage, MonsterPresentationSettings.HitReactPlayRate);
+}
+
+// BP 충돌 컴포넌트를 정확한 이름으로 한 번만 연결한다. 비슷한 이름의 다른 컴포넌트로 대체하지 않는다.
+void AMonsterCharacter::CacheCollisionComponents()
+{
+	TInlineComponentArray<UPrimitiveComponent*> Components(this);
+	for (UPrimitiveComponent* Component : Components)
+	{
+		if (Component->GetFName() == AttackComponentName)
+		{
+			AttackComponent = Component;
+		}
+		if (Component->GetFName() == DamageComponentName)
+		{
+			LegacyDamageComponent = Component;
+		}
+	}
+	if (UPrimitiveComponent* Collision = AttackComponent.Get())
+	{
+		Collision->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleAttackComponentBeginOverlap);
+	}
+	else if (!MonsterAttackMontage.IsNull())
+	{
+		UE_LOG(LogMonsterCharacter, Error, TEXT("%s requires an attack component named exactly '%s'."),
+			*GetPathName(), *AttackComponentName.ToString());
+	}
+}
+
+// 공격 판정에 들어온 캐릭터를 서버의 1회 타격 처리로 전달한다.
 void AMonsterCharacter::HandleAttackComponentBeginOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult)
+	UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	static_cast<void>(OverlappedComponent);
-	static_cast<void>(OtherComp);
-	static_cast<void>(OtherBodyIndex);
-	static_cast<void>(bFromSweep);
-	static_cast<void>(SweepResult);
-
-	if (!HasAuthority() || bDying || !IsValidMonsterDamageTarget(OtherActor))
+	if (IsValidMonsterDamageTarget(OtherActor))
 	{
-		return;
+		ApplyAttackDamageToCharacter(Cast<ACharacterBase>(OtherActor));
 	}
-
-	ApplyAttackDamageToCharacter(Cast<ACharacterBase>(OtherActor));
 }
 
-UPrimitiveComponent* AMonsterCharacter::ResolveDamageComponent() const
-{
-	return ResolvePrimitiveComponentByName(DamageComponentName);
-}
-
-UPrimitiveComponent* AMonsterCharacter::ResolveAttackComponent() const
-{
-	return ResolvePrimitiveComponentByName(AttackComponentName);
-}
-
-UPrimitiveComponent* AMonsterCharacter::ResolvePrimitiveComponentByName(FName ComponentName) const
-{
-	TArray<UPrimitiveComponent*> PrimitiveComponents;
-	GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-
-	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		if (PrimitiveComponent && PrimitiveComponent->GetFName() == ComponentName)
-		{
-			return PrimitiveComponent;
-		}
-	}
-
-	const FString ConfiguredName = ComponentName.ToString();
-	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		if (PrimitiveComponent && PrimitiveComponent->GetName().StartsWith(ConfiguredName))
-		{
-			return PrimitiveComponent;
-		}
-	}
-
-	return nullptr;
-}
-
+// 자신·같은 팀·사망한 캐릭터를 몬스터의 타격 대상에서 제외한다.
 bool AMonsterCharacter::IsValidMonsterDamageTarget(const AActor* OtherActor) const
 {
-	if (!IsValid(OtherActor) || OtherActor == this)
+	const ACharacterBase* Character = Cast<ACharacterBase>(OtherActor);
+	if (!IsValid(Character) || Character == this || !CanDamageCharacterByTeam(Character))
 	{
 		return false;
 	}
-
-	const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(OtherActor);
-	if (!TargetCharacter || !CanDamageCharacterByTeam(TargetCharacter))
-	{
-		return false;
-	}
-
-	const UAbilitySystemComponent* TargetASC = TargetCharacter->GetAbilitySystemComponent();
-	return TargetASC && !TargetASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
+	const UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent();
+	return ASC && !ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
 }
 
+// 한 번의 공격에서 같은 캐릭터에게 중복 피해를 주지 않으며, 중단된 공격의 늦은 오버랩을 무시한다.
 void AMonsterCharacter::ApplyAttackDamageToCharacter(ACharacterBase* TargetCharacter)
 {
-	if (!IsValid(TargetCharacter) || AttackHitActorsThisSwing.Contains(TargetCharacter))
+	if (!HasAuthority() || bDying || !bMonsterAttackActive || !bAttackWindowOpen || !IsAttackEnabled() || IsStatusFrozen()
+		|| !IsValidMonsterDamageTarget(TargetCharacter) || AttackHitActorsThisSwing.Contains(TargetCharacter))
 	{
 		return;
 	}
-
 	AttackHitActorsThisSwing.Add(TargetCharacter);
-	ApplyMonsterDamageToCharacter(TargetCharacter, AttackDamageMagnitude, 0.0f);
+	ApplyMonsterDamageToCharacter(TargetCharacter);
 }
 
-bool AMonsterCharacter::ApplyMonsterDamageToCharacter(
-	ACharacterBase* TargetCharacter,
-	float DamageMagnitude,
-	float KnockbackStrength)
+// 설정된 몬스터 피해 GE를 적용한다. 플레이어의 피격 모션 억제 규칙은 기존대로 유지한다.
+bool AMonsterCharacter::ApplyMonsterDamageToCharacter(ACharacterBase* TargetCharacter)
 {
-	if (!HasAuthority()
-		|| !IsValid(TargetCharacter)
-		|| !MonsterPresentationSettings.ContactDamageEffectClass
-		|| DamageMagnitude <= 0.0f)
+	if (!MonsterPresentationSettings.ContactDamageEffectClass || !FMath::IsFinite(AttackDamageMagnitude) || AttackDamageMagnitude <= 0.0f)
 	{
 		return false;
 	}
-
 	UPdAbilitySystemComponent* SourceASC = GetEnemyAbilitySystemComponent();
 	UPdAbilitySystemComponent* TargetASC = TargetCharacter->GetPdAbilitySystemComponent();
 	if (!SourceASC || !TargetASC)
 	{
 		return false;
 	}
-
-	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
-	EffectContext.AddInstigator(this, this);
-	EffectContext.AddSourceObject(this);
-
-	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(
-		MonsterPresentationSettings.ContactDamageEffectClass,
-		1.0f,
-		EffectContext);
-	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
+	FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
+	Context.AddInstigator(this, this);
+	Context.AddSourceObject(this);
+	FGameplayEffectSpecHandle Spec = SourceASC->MakeOutgoingSpec(MonsterPresentationSettings.ContactDamageEffectClass, 1.0f, Context);
+	FGameplayTag DamageTag = ContactDamageDataTag;
+	if (!DamageTag.IsValid())
+	{
+		SourceASC->ResolveDamageMagnitudeSetByCallerTag(DamageTag);
+	}
+	if (!Spec.IsValid() || !DamageTag.IsValid())
 	{
 		return false;
 	}
-
-	FGameplayTag DamageDataTag = ContactDamageDataTag;
-	if (!DamageDataTag.IsValid())
+	UBasicAttributeSet* TargetAttributes = const_cast<UBasicAttributeSet*>(TargetASC->GetSet<UBasicAttributeSet>());
+	const bool bSuppressHitReact = TargetCharacter->IsA<APdPlayer>() && TargetAttributes;
+	if (bSuppressHitReact)
 	{
-		SourceASC->ResolveDamageMagnitudeSetByCallerTag(DamageDataTag);
+		TargetAttributes->SetPendingIncomingDamageAllowHitReact(false);
 	}
-
-	if (!DamageDataTag.IsValid())
+	Spec.Data->SetSetByCallerMagnitude(DamageTag, AttackDamageMagnitude);
+	const bool bApplied = SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC).WasSuccessfullyApplied();
+	if (bSuppressHitReact)
 	{
-		return false;
+		TargetAttributes->SetPendingIncomingDamageAllowHitReact(true);
 	}
-
-	UBasicAttributeSet* TargetAttributeSet =
-		const_cast<UBasicAttributeSet*>(TargetASC->GetSet<UBasicAttributeSet>());
-	const bool bSuppressPlayerHitReact = TargetCharacter->IsA<APdPlayer>();
-	if (bSuppressPlayerHitReact && TargetAttributeSet)
-	{
-		TargetAttributeSet->SetPendingIncomingDamageAllowHitReact(false);
-	}
-
-	SpecHandle.Data->SetSetByCallerMagnitude(DamageDataTag, DamageMagnitude);
-	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
-
-	if (bSuppressPlayerHitReact && TargetAttributeSet)
-	{
-		TargetAttributeSet->SetPendingIncomingDamageAllowHitReact(true);
-	}
-
-	if (KnockbackStrength > 0.0f)
-	{
-		FVector KnockbackDirection = TargetCharacter->GetActorLocation() - GetActorLocation();
-		KnockbackDirection.Z = 0.0f;
-		KnockbackDirection = KnockbackDirection.GetSafeNormal();
-		if (!KnockbackDirection.IsNearlyZero())
-		{
-			TargetCharacter->LaunchCharacter(KnockbackDirection * KnockbackStrength, true, false);
-		}
-	}
-
-	return true;
+	return bApplied;
 }
 
+// 과거 BP의 상시 접촉 피해 충돌은 비활성화해 공격 판정과 중복되지 않게 한다.
 void AMonsterCharacter::DeactivateDamageSphere()
 {
-	if (UPrimitiveComponent* DamageComponent = ResolveDamageComponent())
+	if (UPrimitiveComponent* Collision = LegacyDamageComponent.Get())
 	{
-		DamageComponent->OnComponentBeginOverlap.RemoveAll(this);
-		DamageComponent->SetGenerateOverlapEvents(false);
-		DamageComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Collision->OnComponentBeginOverlap.RemoveAll(this);
+		Collision->SetGenerateOverlapEvents(false);
+		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 }
 
+// 공격 시작 때 이미 범위 안에 있던 대상도 포함해 기존 시간만큼 타격 창을 연다.
 void AMonsterCharacter::ActivateAttackSphere()
 {
-	if (!HasAuthority() || bDying || AttackDamageMagnitude <= 0.0f)
+	UPrimitiveComponent* Collision = AttackComponent.Get();
+	if (!HasAuthority() || bDying || !bMonsterAttackActive || !Collision)
 	{
 		return;
 	}
-
-	UPrimitiveComponent* AttackComponent = ResolveAttackComponent();
-	if (!AttackComponent)
-	{
-		return;
-	}
-
 	AttackHitActorsThisSwing.Reset();
-	AttackComponent->OnComponentBeginOverlap.AddUniqueDynamic(
-		this,
-		&ThisClass::HandleAttackComponentBeginOverlap);
-	AttackComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	AttackComponent->SetGenerateOverlapEvents(true);
-	AttackComponent->UpdateOverlaps();
-
+	bAttackWindowOpen = true;
+	Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Collision->SetGenerateOverlapEvents(true);
+	Collision->UpdateOverlaps();
 	TArray<AActor*> OverlappingActors;
-	AttackComponent->GetOverlappingActors(OverlappingActors, ACharacterBase::StaticClass());
-	for (AActor* OverlappingActor : OverlappingActors)
+	Collision->GetOverlappingActors(OverlappingActors, ACharacterBase::StaticClass());
+	for (AActor* Actor : OverlappingActors)
 	{
-		if (IsValidMonsterDamageTarget(OverlappingActor))
+		if (IsValidMonsterDamageTarget(Actor))
 		{
-			ApplyAttackDamageToCharacter(Cast<ACharacterBase>(OverlappingActor));
+			ApplyAttackDamageToCharacter(Cast<ACharacterBase>(Actor));
 		}
 	}
-
-	GetWorldTimerManager().ClearTimer(AttackSphereTimerHandle);
-	GetWorldTimerManager().SetTimer(
-		AttackSphereTimerHandle,
-		this,
-		&ThisClass::DeactivateAttackSphere,
-		FMath::Max(AttackSphereActiveDuration, 0.01f),
-		false);
+	if (bDying || !bMonsterAttackActive)
+	{
+		return;
+	}
+	const float ActiveDuration = FMath::IsFinite(AttackSphereActiveDuration) ? FMath::Max(AttackSphereActiveDuration, 0.01f) : 0.01f;
+	GetWorldTimerManager().SetTimer(AttackSphereTimerHandle, this, &ThisClass::DeactivateAttackSphere, ActiveDuration, false);
 }
 
+// 공격 시간이 끝나거나 취소되면 충돌과 이번 공격의 타격 기록을 정리한다.
 void AMonsterCharacter::DeactivateAttackSphere()
 {
+	bAttackWindowOpen = false;
 	GetWorldTimerManager().ClearTimer(AttackSphereTimerHandle);
-
-	if (UPrimitiveComponent* AttackComponent = ResolveAttackComponent())
+	if (UPrimitiveComponent* Collision = AttackComponent.Get())
 	{
-		AttackComponent->SetGenerateOverlapEvents(false);
-		AttackComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Collision->SetGenerateOverlapEvents(false);
+		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
-
 	AttackHitActorsThisSwing.Reset();
 }
 
-void AMonsterCharacter::BeginMonsterDeath()
-{
-	if (bDying)
-	{
-		return;
-	}
-
-	GrantDefeatRewards();
-
-	bDying = true;
-	SetAttackEnabled(false);
-	DeactivateAttackSphere();
-	GetWorldTimerManager().ClearTimer(DeathDestroyTimerHandle);
-	DeactivateDamageSphere();
-	StartDeathDissolve(FMath::Max(DeathDestroyDelay, 0.01f));
-
-	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
-	{
-		MovementComponent->StopMovementImmediately();
-		MovementComponent->DisableMovement();
-	}
-
-	if (HasAuthority())
-	{
-		MulticastPlayMonsterDeathPresentation(
-			MonsterPresentationSettings.DeathMontage);
-
-		GetWorldTimerManager().SetTimer(
-			DeathDestroyTimerHandle,
-			this,
-			&ThisClass::FinishMonsterDeath,
-			FMath::Max(DeathDestroyDelay, 0.01f),
-			false);
-	}
-}
-
-void AMonsterCharacter::FinishMonsterDeath()
-{
-	if (bDefeatRewardGrantPending && bMonsterContentLoadPending)
-	{
-		bDestroyAfterContentLoad = true;
-		return;
-	}
-
-	Destroy();
-}
-
-void AMonsterCharacter::RememberDamageSource(AActor* DamageInstigator, AActor* DamageCauser)
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	if (IsValid(DamageInstigator) && DamageInstigator != this)
-	{
-		LastDamageInstigator = DamageInstigator;
-	}
-
-	if (IsValid(DamageCauser) && DamageCauser != this)
-	{
-		LastDamageCauser = DamageCauser;
-	}
-}
-
-APdPlayerState* AMonsterCharacter::ResolveRewardPlayerState() const
-{
-	if (APdPlayerState* ResolvedPlayerState = ResolvePlayerStateFromActor(LastDamageInstigator.Get()))
-	{
-		return ResolvedPlayerState;
-	}
-
-	return ResolvePlayerStateFromActor(LastDamageCauser.Get());
-}
-
+// 발사체·무기 등에서 전달된 공격자 정보를 현재 공격에 해당하는 RewardPlayerState로 해석한다.
 APdPlayerState* AMonsterCharacter::ResolvePlayerStateFromActor(AActor* Actor) const
 {
-	if (!IsValid(Actor))
+	for (AActor* Source = Actor; IsValid(Source); Source = Source->GetOwner())
 	{
-		return nullptr;
-	}
-
-	if (APdPlayerState* ActorPlayerState = Cast<APdPlayerState>(Actor))
-	{
-		return ActorPlayerState;
-	}
-
-	if (APawn* Pawn = Cast<APawn>(Actor))
-	{
-		if (APdPlayerState* PawnPlayerState = Pawn->GetPlayerState<APdPlayerState>())
+		if (APdPlayerState* RewardPlayerState = Cast<APdPlayerState>(Source))
 		{
-			return PawnPlayerState;
+			return RewardPlayerState;
 		}
-	}
-
-	if (AController* ActorController = Cast<AController>(Actor))
-	{
-		if (APdPlayerState* ControllerPlayerState = Cast<APdPlayerState>(ActorController->PlayerState))
+		if (const APawn* Pawn = Cast<APawn>(Source))
 		{
-			return ControllerPlayerState;
+			if (APdPlayerState* RewardPlayerState = Pawn->GetPlayerState<APdPlayerState>())
+			{
+				return RewardPlayerState;
+			}
 		}
-	}
-
-	if (APawn* InstigatorPawn = Actor->GetInstigator())
-	{
-		if (APdPlayerState* InstigatorPlayerState = InstigatorPawn->GetPlayerState<APdPlayerState>())
+		if (const AController* SourceController = Cast<AController>(Source))
 		{
-			return InstigatorPlayerState;
+			if (APdPlayerState* RewardPlayerState = Cast<APdPlayerState>(SourceController->PlayerState))
+			{
+				return RewardPlayerState;
+			}
 		}
-	}
-
-	AActor* OwnerActor = Actor->GetOwner();
-	return OwnerActor && OwnerActor != Actor ? ResolvePlayerStateFromActor(OwnerActor) : nullptr;
-}
-
-const URewardDefinition* AMonsterCharacter::GetMonsterRewardDefinition() const
-{
-	if (MonsterRewardDefinition.IsNull())
-	{
-		uint32 SuppressedCount = 0;
-		if (MissingMonsterRewardLogLimiter.TryAcquire(
-			MissingMonsterRewardLogIntervalSeconds,
-			SuppressedCount))
+		if (const APawn* InstigatorPawn = Source->GetInstigator())
 		{
-			UE_LOG(
-				LogMonsterReward,
-				Error,
-				TEXT("[MonsterReward] Required MonsterRewardDefinition is not configured for '%s'. "
-					"No defeat reward will be granted. SuppressedSinceLast=%u"),
-				*GetPathName(),
-				SuppressedCount);
+			if (APdPlayerState* RewardPlayerState = InstigatorPawn->GetPlayerState<APdPlayerState>())
+			{
+				return RewardPlayerState;
+			}
 		}
-		return nullptr;
-	}
-
-	if (const URewardDefinition* LoadedRewardDefinition = MonsterRewardDefinition.Get())
-	{
-		return LoadedRewardDefinition;
-	}
-
-	if (bMonsterContentLoadPending)
-	{
-		return nullptr;
-	}
-
-	uint32 SuppressedCount = 0;
-	if (MissingMonsterRewardLogLimiter.TryAcquire(
-		MissingMonsterRewardLogIntervalSeconds,
-		SuppressedCount))
-	{
-		UE_LOG(
-			LogMonsterReward,
-			Error,
-			TEXT("[MonsterReward] Required reward definition '%s' could not be loaded for '%s'. "
-				"No defeat reward will be granted. SuppressedSinceLast=%u"),
-			*MonsterRewardDefinition.ToString(),
-			*GetPathName(),
-			SuppressedCount);
 	}
 	return nullptr;
 }
 
-void AMonsterCharacter::GrantDefeatRewards()
-{
-	if (!HasAuthority() || bDefeatRewardsGranted)
-	{
-		return;
-	}
-
-	APdPlayerState* RewardPlayerState = ResolveRewardPlayerState();
-	if (!RewardPlayerState)
-	{
-		bDefeatRewardGrantPending = false;
-		bDefeatRewardsGranted = true;
-		return;
-	}
-
-	const URewardDefinition* RewardDefinition = GetMonsterRewardDefinition();
-	if (!RewardDefinition)
-	{
-		if (bMonsterContentLoadPending && !MonsterRewardDefinition.IsNull())
-		{
-			bDefeatRewardGrantPending = true;
-			return;
-		}
-
-		bDefeatRewardGrantPending = false;
-		bDefeatRewardsGranted = true;
-		return;
-	}
-
-	bDefeatRewardGrantPending = false;
-	bDefeatRewardsGranted = true;
-
-	int32 GrantedExperience = RewardDefinition->RollMonsterDefeatExperienceReward();
-	if (GrantedExperience > 0)
-	{
-		ULevelingComponent* LevelingComponent = RewardPlayerState->GetLevelingComponent();
-		if (!LevelingComponent || !LevelingComponent->GrantRewardExperience(GrantedExperience))
-		{
-			GrantedExperience = 0;
-		}
-	}
-
-	int32 GrantedSoulDust = RewardDefinition->RollMonsterDefeatSoulDustReward();
-	if (GrantedSoulDust > 0)
-	{
-		UPandoraTreeComponent* PandoraTreeComponent = RewardPlayerState->GetPandoraTreeComponent();
-		if (!PandoraTreeComponent || !PandoraTreeComponent->AddSoulDust(GrantedSoulDust))
-		{
-			GrantedSoulDust = 0;
-		}
-	}
-
-	TArray<FPrimaryAssetId> GrantedPotionDefinitionIds;
-	const FPrimaryAssetId PotionDefinitionId =
-		RewardDefinition->RollMonsterDefeatPotionReward();
-	if (PotionDefinitionId.IsValid())
-	{
-		if (UInventoryComponent* InventoryComponent = RewardPlayerState->GetInventoryComponent())
-		{
-			GrantedPotionDefinitionIds.Add(PotionDefinitionId);
-			InventoryComponent->AddItemsByPrimaryAssetIds(GrantedPotionDefinitionIds);
-		}
-	}
-
-	UPlayerNotificationComponent* NotificationComponent = RewardPlayerState->GetPlayerNotificationComponent();
-	if (!NotificationComponent)
-	{
-		return;
-	}
-
-	if (GrantedExperience > 0)
-	{
-		NotificationComponent->SendExperienceRewardNotification(
-			static_cast<float>(GrantedExperience),
-			RewardDefinition->Notification.ExperienceIcon);
-	}
-
-	if (GrantedSoulDust > 0)
-	{
-		NotificationComponent->SendSoulDustRewardNotification(
-			GrantedSoulDust,
-			RewardDefinition->Notification.SoulDustIcon);
-	}
-
-	if (!GrantedPotionDefinitionIds.IsEmpty())
-	{
-		NotificationComponent->SendRewardNotifications(
-			GrantedPotionDefinitionIds,
-			{},
-			{});
-	}
-}
-
+// 서버에서 이미 시작한 공격 몽타주를 원격 화면에만 재생한다.
 void AMonsterCharacter::MulticastPlayMonsterAttackMontage_Implementation(UAnimMontage* AttackMontage, float PlayRate)
 {
-	if (!AttackMontage)
+	if (!HasAuthority())
 	{
-		return;
+		PlayMonsterAttackMontageLocal(AttackMontage, PlayRate);
 	}
-
-	PlayAnimMontage(AttackMontage, PlayRate);
 }
 
+// 취소된 공격이 원격 화면이나 충돌 판정에 남지 않게 한다.
+void AMonsterCharacter::MulticastStopMonsterAttack_Implementation()
+{
+	bMonsterAttackActive = false;
+	DeactivateAttackSphere();
+	if (UAnimMontage* Montage = MonsterAttackMontage.Get())
+	{
+		StopAnimMontage(Montage);
+	}
+}
+
+// 피격 표현은 렌더링하는 인스턴스에서만 재생한다. 공격 중단 여부는 서버에서 이미 확정했다.
 void AMonsterCharacter::MulticastPlayMonsterHitReactMontage_Implementation(UAnimMontage* HitReactMontage, float PlayRate)
 {
-	if (!HitReactMontage || GetNetMode() == NM_DedicatedServer)
+	if (!bDying && HitReactMontage && GetNetMode() != NM_DedicatedServer)
 	{
-		return;
-	}
-
-	PlayAnimMontage(HitReactMontage, FMath::Max(PlayRate, 0.01f));
-}
-
-void AMonsterCharacter::MulticastPlayMonsterDeathPresentation_Implementation(
-	UAnimMontage* InDeathMontage)
-{
-	if (InDeathMontage)
-	{
-		PlayAnimMontage(InDeathMontage);
+		PlayAnimMontage(HitReactMontage, FMath::Max(PlayRate, 0.01f));
 	}
 }

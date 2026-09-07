@@ -13,7 +13,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Mode/PdHUD.h"
-#include "Mode/PdGameInstance.h"
+#include "SavedGameData/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
@@ -157,8 +157,8 @@ void ULeftProfileWidget::ReleaseContentPreloads()
 
 void ULeftProfileWidget::RefreshTierImage()
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 		if (Img_Tier)
 		{
@@ -177,7 +177,7 @@ void ULeftProfileWidget::RefreshTierImage()
 		return;
 	}
 
-	const int32 WinCount = PdGameInstance->GetWinCount(PlayerId);
+	const int32 WinCount = ProfileSubsystem->GetWinCount(PlayerId);
 	if (Txt_WinCount)
 	{
 		Txt_WinCount->SetText(FText::AsNumber(WinCount));
@@ -540,10 +540,10 @@ void ULeftProfileWidget::ApplyAchievementIcon(const int32 AchievementIndex)
 		return;
 	}
 
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
 	const FString PlayerId = ResolveProfileSavePlayerId();
-	if (!PdGameInstance
-		|| !PdGameInstance->SetSelectedAchievementId(
+	if (!ProfileSubsystem
+		|| !ProfileSubsystem->SetSelectedAchievementId(
 			PlayerId,
 			FName(*AchievementId),
 			true))
@@ -565,21 +565,21 @@ void ULeftProfileWidget::RefreshSelectedAchievementIcon()
 		PlayerAchieveIcon->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 		return;
 	}
 
 	const FName SelectedAchievementId =
-		PdGameInstance->GetSelectedAchievementId(ResolveProfileSavePlayerId());
+		ProfileSubsystem->GetSelectedAchievementId(ResolveProfileSavePlayerId());
 	if (SelectedAchievementId.IsNone())
 	{
 		return;
 	}
 
 	UAchievementSubsystem* AchievementSubsystem =
-		PdGameInstance->GetSubsystem<UAchievementSubsystem>();
+		UGameInstance::GetSubsystem<UAchievementSubsystem>(GetGameInstance());
 	if (!AchievementSubsystem || !AchievementSubsystem->HasSteamAchievementData())
 	{
 		return;
@@ -593,7 +593,7 @@ void ULeftProfileWidget::RefreshSelectedAchievementIcon()
 	}
 
 	const FString PlayerId = ResolveProfileSavePlayerId();
-	if (PdGameInstance->SetSelectedAchievementId(PlayerId, NAME_None, true))
+	if (ProfileSubsystem->SetSelectedAchievementId(PlayerId, NAME_None, true))
 	{
 		if (APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
 		{
@@ -797,13 +797,13 @@ UImage* ULeftProfileWidget::FindImageInWidget(UWidget* RootWidget, const FName I
 
 FString ULeftProfileWidget::ResolveProfileSavePlayerId() const
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 		return FString();
 	}
 
-	FString PlayerId = PdGameInstance->GetPreferredSavePlayerId();
+	FString PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
 	PlayerId.TrimStartAndEndInline();
 	if (!PlayerId.IsEmpty())
 	{
@@ -812,7 +812,7 @@ FString ULeftProfileWidget::ResolveProfileSavePlayerId() const
 
 	const APlayerController* PlayerController = GetOwningPlayer();
 	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
-	PlayerId = PdGameInstance->ResolveSavePlayerId(
+	PlayerId = ProfileSubsystem->ResolveSavePlayerId(
 		PlayerController,
 		PlayerState);
 	PlayerId.TrimStartAndEndInline();
@@ -821,7 +821,7 @@ FString ULeftProfileWidget::ResolveProfileSavePlayerId() const
 		return PlayerId;
 	}
 
-	PlayerId = PdGameInstance->GetLocalClientSavePlayerId();
+	PlayerId = ProfileSubsystem->GetLocalClientSavePlayerId();
 	PlayerId.TrimStartAndEndInline();
 	return PlayerId;
 }

@@ -297,13 +297,8 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	ExecuteEquipCue();
 }
 
-void UEquipAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const bool bReplicateEndAbility,
-	const bool bWasCancelled)
+void UEquipAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	ResolveEquipTransition();
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

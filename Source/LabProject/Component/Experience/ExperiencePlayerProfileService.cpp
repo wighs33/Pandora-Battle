@@ -1,18 +1,19 @@
 #include "Component/Experience/ExperiencePlayerProfileService.h"
 
 #include "Character/CharacterBase.h"
-#include "Component/Experience/ExperienceMatchFlowComponent.h"
 #include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Component/Skin/SkinComponent.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
 #include "Definition/Experience/ExperienceGameModeSettings.h"
-#include "Definition/Level/LevelDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/ExperienceGameMode.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Data/ContentDataSubsystem.h"
+#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 
@@ -36,61 +37,57 @@ void UExperiencePlayerProfileService::InitializeLoggedInPlayer(
 		return;
 	}
 
-	if (UPdGameInstance* PdGameInstance =
-		GameMode->GetGameInstance<UPdGameInstance>())
+	if (UPlayerProfileSubsystem* ProfileSubsystem =
+		UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GameMode->GetGameInstance()))
 	{
 		const APlayerState* NewPlayerState = NewPlayer->PlayerState;
-		const FString PlayerId = PdGameInstance->ResolveSavePlayerId(
+		const FString PlayerId = ProfileSubsystem->ResolveSavePlayerId(
 			NewPlayer,
 			NewPlayerState);
 		if (NewPlayer->IsLocalController() && !PlayerId.IsEmpty())
 		{
-			PdGameInstance->LoadGame(PlayerId);
+			ProfileSubsystem->LoadGame(PlayerId);
 		}
-		ApplyCachedLobbyPlayerIdentity(NewPlayer, *PdGameInstance);
 	}
 	if (APdPlayerController* PdPlayerController =
 		Cast<APdPlayerController>(NewPlayer))
 	{
 		PdPlayerController->Client_RequestLocalCosmeticProfileSync();
 	}
-
-	ApplyInitialPlayerMapRegion(NewPlayer);
 }
 
-void UExperiencePlayerProfileService::ApplyCachedLobbyPlayerIdentity(
-	APlayerController* NewPlayer,
-	UPdGameInstance& PdGameInstance) const
+void UExperiencePlayerProfileService::InitializeMatchIdentity(APlayerController* NewPlayer) const
 {
 	const AExperienceGameMode* GameMode = GetExperienceGameMode();
-	APdPlayerState* PdPlayerState =
-		NewPlayer ? NewPlayer->GetPlayerState<APdPlayerState>() : nullptr;
-	UPlayerMatchComponent* PlayerMatchComponent =
-		PdPlayerState ? PdPlayerState->GetPlayerMatchComponent() : nullptr;
-	if (!GameMode || !NewPlayer || !PdPlayerState || !PlayerMatchComponent)
+	const ULobbyRuntimeSubsystem* LobbySubsystem =
+		GameMode ? UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance()) : nullptr;
+	APdPlayerState* PdPlayerState = NewPlayer ? NewPlayer->GetPlayerState<APdPlayerState>() : nullptr;
+	UPlayerMatchComponent* PlayerMatchComponent = PdPlayerState ? PdPlayerState->GetPlayerMatchComponent() : nullptr;
+	if (!GameMode || !GameMode->HasAuthority() || !PlayerMatchComponent)
 	{
 		return;
 	}
 
+	// 로비 캐시가 없어도 기본 이름과 팀은 초기화하며, 전달받은 식별 정보는 덮어쓰지 않는다.
 	FPlayerMatchIdentity CachedMatchIdentity;
-	if (PdGameInstance.TryGetCachedPlayerMatchIdentityForPlayerState(
-		NewPlayer->PlayerState,
-		CachedMatchIdentity))
+	if (LobbySubsystem && PlayerMatchComponent->GetPlayerMatchIdentity().Matches(FPlayerMatchIdentity())
+		&& LobbySubsystem->TryGetCachedPlayerMatchIdentityForPlayerState(PdPlayerState, CachedMatchIdentity))
 	{
 		PlayerMatchComponent->SetPlayerMatchIdentity(CachedMatchIdentity);
 	}
 
 	if (PlayerMatchComponent->GetMatchDisplayName().IsEmpty())
 	{
-		const AGameStateBase* CurrentGameState =
-			GameMode->GetGameState<AGameStateBase>();
-		const int32 FallbackDisplayNameIndex =
-			CurrentGameState ? CurrentGameState->PlayerArray.Num() : 1;
-		PlayerMatchComponent->SetMatchDisplayName(
-			PdGameInstance.ResolveDefaultPlayerNickname(
-				NewPlayer,
-				PdPlayerState,
-				FallbackDisplayNameIndex));
+		int32 FallbackDisplayNameIndex = 1;
+		if (const AGameStateBase* CurrentGameState = GameMode->GetGameState<AGameStateBase>())
+		{
+			const int32 PlayerIndex = CurrentGameState->PlayerArray.IndexOfByKey(PdPlayerState);
+			FallbackDisplayNameIndex = PlayerIndex != INDEX_NONE ? PlayerIndex + 1 : CurrentGameState->PlayerArray.Num() + 1;
+		}
+		const FText DefaultNickname = LobbySubsystem
+			? LobbySubsystem->ResolveDefaultPlayerNickname(NewPlayer, PdPlayerState, FallbackDisplayNameIndex)
+			: FText::Format(NSLOCTEXT("Lobby", "DefaultNicknameFormat", "User{0}"), FallbackDisplayNameIndex);
+		PlayerMatchComponent->SetMatchDisplayName(DefaultNickname);
 	}
 
 	if (bAssignDefaultTeamWhenLobbyTeamMissing
@@ -98,34 +95,6 @@ void UExperiencePlayerProfileService::ApplyCachedLobbyPlayerIdentity(
 	{
 		PlayerMatchComponent->SetMatchTeamColorIndex(
 			DefaultLobbyTeamColorIndex);
-	}
-}
-
-void UExperiencePlayerProfileService::ApplyInitialPlayerMapRegion(
-	APlayerController* NewPlayer) const
-{
-	const AExperienceGameMode* GameMode = GetExperienceGameMode();
-	if (!GameMode || !GameMode->HasAuthority() || !NewPlayer)
-	{
-		return;
-	}
-
-	APdPlayerState* PdPlayerState =
-		NewPlayer->GetPlayerState<APdPlayerState>();
-	UPlayerMatchComponent* PlayerMatchComponent =
-		PdPlayerState ? PdPlayerState->GetPlayerMatchComponent() : nullptr;
-	const UExperienceMatchFlowComponent* MatchFlow =
-		GameMode->GetMatchFlowComponent();
-	if (!PlayerMatchComponent || !MatchFlow)
-	{
-		return;
-	}
-
-	FLobbyMatchMapOption MapOption;
-	if (MatchFlow->FindCurrentMatchMapOption(MapOption))
-	{
-		PlayerMatchComponent->SetPlayerMapRegion(
-			MapOption.InitialPlayerMapRegion);
 	}
 }
 
@@ -138,8 +107,8 @@ void UExperiencePlayerProfileService::ApplyCachedLobbySkinEquipment(
 		return;
 	}
 
-	UPdGameInstance* PdGameInstance =
-		GameMode->GetGameInstance<UPdGameInstance>();
+	ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance());
+	UContentDataSubsystem* ContentDataSubsystem = UGameInstance::GetSubsystem<UContentDataSubsystem>(GameMode->GetGameInstance());
 	APdPlayerState* PdPlayerState =
 		NewPlayer->GetPlayerState<APdPlayerState>();
 	ACharacterBase* PlayerCharacter =
@@ -150,14 +119,14 @@ void UExperiencePlayerProfileService::ApplyCachedLobbySkinEquipment(
 		PlayerCharacter
 			? PlayerCharacter->GetSkinEquipmentComponent()
 			: nullptr;
-	if (!PdGameInstance || !PdPlayerState || !PlayerCharacter
+	if (!LobbySubsystem || !ContentDataSubsystem || !PdPlayerState || !PlayerCharacter
 		|| !SkinComponent || !SkinEquipmentComponent)
 	{
 		return;
 	}
 
 	TMap<FGameplayTag, FName> EquippedSkinNamesBySlot;
-	if (!PdGameInstance->TryGetCachedLobbyEquippedSkinSlotsForPlayerState(
+	if (!LobbySubsystem->TryGetCachedLobbyEquippedSkinSlotsForPlayerState(
 			PdPlayerState,
 			EquippedSkinNamesBySlot)
 		|| EquippedSkinNamesBySlot.IsEmpty())
@@ -177,7 +146,7 @@ void UExperiencePlayerProfileService::ApplyCachedLobbySkinEquipment(
 		}
 
 		USkinDefinition* SkinDefinition =
-			PdGameInstance->GetSkinDefinitionByName(
+			ContentDataSubsystem->GetSkinDefinitionByName(
 				EquippedSkinPair.Value);
 		if (!SkinDefinition)
 		{

@@ -1,6 +1,8 @@
 #include "Component/Character/CharacterAbilityRuntimeComponent.h"
 
 #include "AIController.h"
+#include "AbilitySystem/Ability/Reactive/ReactiveRecoveryAbility.h"
+#include "Mode/PdPlayerState.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
@@ -66,6 +68,17 @@ void UCharacterAbilityRuntimeComponent::TryInitializeAbilitySystemActorInfo()
 		Character ? Character->GetAbilitySystemOwnerActor() : nullptr;
 	AActor* AvatarActor =
 		Character ? Character->GetAbilitySystemAvatarActor() : nullptr;
+	if (BoundAbilitySystemComponent.IsValid() && BoundAbilitySystemComponent.Get() != ASC)
+	{
+		ClearAbilitySystemActorInfo();
+	}
+	// 이전 Pawn의 늦은 초기화 요청으로 PlayerState의 새 Avatar를 빼앗지 않는다.
+	if (const APdPlayerState* PlayerState = Cast<APdPlayerState>(OwnerActor);
+		PlayerState && PlayerState->GetPawn() != AvatarActor)
+	{
+		ClearAbilitySystemActorInfo();
+		return;
+	}
 	if (!Character || !ASC || !OwnerActor || !AvatarActor)
 	{
 		QueueAbilitySystemActorInfoInitializationRetry();
@@ -94,7 +107,23 @@ void UCharacterAbilityRuntimeComponent::TryInitializeAbilitySystemActorInfo()
 	bActorInfoInitializationQueued = false;
 	ActorInfoInitializationRetryCount = 0;
 
+	// 같은 ASC가 새 캐릭터로 넘어갈 때 이전 캐릭터의 구독부터 해제한다.
+	if (ACharacterBase* PreviousAvatar = Cast<ACharacterBase>(ASC->GetAvatarActor()); PreviousAvatar && PreviousAvatar != Character)
+	{
+		PreviousAvatar->ClearAbilitySystemActorInfo();
+	}
+	BoundAbilitySystemComponent = ASC;
 	ASC->InitAbilityActorInfo(OwnerActor, AvatarActor);
+	if (Character->HasAuthority() && OwnerActor->IsA<APdPlayerState>())
+	{
+		// 플레이어의 기본 패시브이며, 중복 부여 방지는 기존 능력 목록 API가 담당한다.
+		PdASC->GrantAbilities({ UReactiveRecoveryAbility::StaticClass() }, 1, OwnerActor);
+		if (const FGameplayAbilitySpec* RecoverySpec = PdASC->FindAbilitySpecFromClass(UReactiveRecoveryAbility::StaticClass());
+			RecoverySpec && !RecoverySpec->IsActive())
+		{
+			PdASC->TryActivateAbility(RecoverySpec->Handle);
+		}
+	}
 	BindStaminaRegenToASC(ASC);
 	BindMovementSpeedAttributeToASC(ASC);
 	BindDeadTagEvent(ASC);
@@ -145,46 +174,45 @@ QueueAbilitySystemActorInfoInitializationRetry()
 		false);
 }
 
+// 자신의 Avatar 연결과 이동 상태만 정리한다. 새 Pawn의 ASC 상태나 판도라 능력·쿨다운은 건드리지 않는다.
 void UCharacterAbilityRuntimeComponent::ClearAbilitySystemActorInfo()
 {
 	ACharacterBase* Character = GetCharacterOwner();
-	if (UWorld* World = GetWorld())
+	UAbilitySystemComponent* ASC = BoundAbilitySystemComponent.Get();
+	if (!ASC && Character)
 	{
-		World->GetTimerManager().ClearTimer(
-			ActorInfoInitializationRetryTimerHandle);
+		ASC = Character->GetAbilitySystemComponent();
 	}
-	bActorInfoInitializationQueued = false;
-	ActorInfoInitializationRetryCount = 0;
-	SetAirborneGameplayTag(false);
+
+	UnbindFrozenTagEvent();
 	UnbindStaminaRegenFromASC();
 	UnbindMovementSpeedAttribute();
 	UnbindDeadTagEvent();
-	UnbindFrozenTagEvent();
+	BoundAbilitySystemComponent.Reset();
 
-	if (UAbilitySystemComponent* ASC =
-		Character ? Character->GetAbilitySystemComponent() : nullptr)
+	if (UWorld* World = GetWorld())
 	{
-		ASC->ClearActorInfo();
+		World->GetTimerManager().ClearTimer(ActorInfoInitializationRetryTimerHandle);
+		World->GetTimerManager().ClearTimer(MovementSpeedAttributeRetryTimerHandle);
+	}
+	bActorInfoInitializationQueued = false;
+	ActorInfoInitializationRetryCount = 0;
+
+	if (ASC && Character && ASC->GetAvatarActor() == Character)
+	{
+		ASC->SetLooseGameplayTagCount(LabGameplayTags::State_Movement_Airborne, 0,
+			Character->HasAuthority() ? EGameplayTagReplicationState::CountToOwner : EGameplayTagReplicationState::None);
+		ASC->CancelAbility(UReactiveRecoveryAbility::StaticClass()->GetDefaultObject<UGameplayAbility>());
+		if (ASC->GetAvatarActor() == Character)
+		{
+			ASC->ClearActorInfo();
+		}
 	}
 }
 
 void UCharacterAbilityRuntimeComponent::ShutdownRuntime()
 {
-	SetAirborneGameplayTag(false);
-	UnbindStaminaRegenFromASC();
-	UnbindMovementSpeedAttribute();
-	UnbindDeadTagEvent();
-	UnbindFrozenTagEvent();
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(
-			ActorInfoInitializationRetryTimerHandle);
-		World->GetTimerManager().ClearTimer(
-			MovementSpeedAttributeRetryTimerHandle);
-	}
-	bActorInfoInitializationQueued = false;
-	ActorInfoInitializationRetryCount = 0;
+	ClearAbilitySystemActorInfo();
 }
 
 void UCharacterAbilityRuntimeComponent::HandleMovementModeChanged()
@@ -677,10 +705,10 @@ void UCharacterAbilityRuntimeComponent::SetAirborneGameplayTag(
 	const bool bAirborne)
 {
 	ACharacterBase* Character = GetCharacterOwner();
-	UAbilitySystemComponent* ASC =
-		Character ? Character->GetAbilitySystemComponent() : nullptr;
+	UAbilitySystemComponent* ASC = BoundAbilitySystemComponent.Get();
 	if (!Character
 		|| !ASC
+		|| ASC->GetAvatarActor() != Character
 		|| (!Character->HasAuthority() && !Character->IsLocallyControlled()))
 	{
 		return;
@@ -786,10 +814,10 @@ void UCharacterAbilityRuntimeComponent::OnFrozenTagChanged(
 		Character->bUseControllerRotationYaw = false;
 
 		if (AController* Controller = Character->GetController();
-			Controller && !bFrozenAppliedIgnoreLookInput)
+			Controller && !FrozenInputController.IsValid())
 		{
 			Controller->SetIgnoreLookInput(true);
-			bFrozenAppliedIgnoreLookInput = true;
+			FrozenInputController = Controller;
 		}
 		MaintainFrozenRotationLock();
 		return;
@@ -801,14 +829,11 @@ void UCharacterAbilityRuntimeComponent::OnFrozenTagChanged(
 	}
 
 	bFrozenMovementActive = false;
-	if (bFrozenAppliedIgnoreLookInput)
+	if (AController* Controller = FrozenInputController.Get())
 	{
-		if (AController* Controller = Character->GetController())
-		{
-			Controller->SetIgnoreLookInput(false);
-		}
-		bFrozenAppliedIgnoreLookInput = false;
+		Controller->SetIgnoreLookInput(false);
 	}
+	FrozenInputController.Reset();
 
 	if (bFrozenRotationStateCached)
 	{

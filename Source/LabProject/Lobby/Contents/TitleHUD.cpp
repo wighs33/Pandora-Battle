@@ -3,7 +3,8 @@
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Lobby/UI/GameResultWidget.h"
 #include "Lobby/UI/TitleWidget.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Settings/CursorSettingsLibrary.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
@@ -60,14 +61,14 @@ void ATitleHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ATitleHUD::ShowPendingGameResult()
 {
 	APlayerController* PlayerController = GetOwningPlayerController();
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PlayerController || !PlayerController->IsLocalController() || !PdGameInstance)
+	ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GetGameInstance());
+	if (!PlayerController || !PlayerController->IsLocalController() || !LobbySubsystem)
 	{
 		return;
 	}
 
 	FGameResultPresentationData GameResultData;
-	if (!PdGameInstance->ConsumePendingTitleGameResult(GameResultData))
+	if (!LobbySubsystem->ConsumePendingTitleGameResult(GameResultData))
 	{
 		return;
 	}

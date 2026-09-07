@@ -101,13 +101,9 @@ void UGrappleAbility::ActivateAbility(
 	}
 }
 
-void UGrappleAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const bool bReplicateEndAbility,
-	const bool bWasCancelled)
+void UGrappleAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	SetLocalAimPresentation(false);
 
 	if (WaitInputReleaseTask)
@@ -142,13 +138,6 @@ void UGrappleAbility::EndAbility(
 	GrappleFinishedDelegateHandle.Reset();
 	bCommittedGrapple = false;
 	bStartedGrapple = false;
-
-	Super::EndAbility(
-		Handle,
-		ActorInfo,
-		ActivationInfo,
-		bReplicateEndAbility,
-		bWasCancelled);
 }
 
 const FGameplayTagContainer* UGrappleAbility::GetCooldownTags() const

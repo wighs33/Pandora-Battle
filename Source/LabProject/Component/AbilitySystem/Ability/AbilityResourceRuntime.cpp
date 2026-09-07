@@ -5,13 +5,13 @@
 #include "AbilitySystemGlobals.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
-#include "Component/AbilitySystem/Ability/AbilitySourceRuntime.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
+#include "Pandora/PandoraSkillRuntimeContext.h"
 #include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityResourceRuntime)
@@ -149,28 +149,6 @@ void AddCostFailureTag(FGameplayTagContainer* OptionalRelevantTags)
 	}
 }
 
-FGameplayTag GetPandoraSkillCooldownTagFromSourceTags(
-	const FGameplayTagContainer& SourceTags)
-{
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill1))
-	{
-		return LabGameplayTags::Cooldown_Skill1;
-	}
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill2))
-	{
-		return LabGameplayTags::Cooldown_Skill2;
-	}
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill3))
-	{
-		return LabGameplayTags::Cooldown_Skill3;
-	}
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill4))
-	{
-		return LabGameplayTags::Cooldown_Skill4;
-	}
-
-	return FGameplayTag();
-}
 }
 
 const FGameplayTagContainer* UAbilityResourceRuntime::BuildCooldownTags(
@@ -202,18 +180,7 @@ const FGameplayTagContainer* UAbilityResourceRuntime::BuildCooldownTags(
 			return nullptr;
 		}
 
-		const FGameplayTag DefaultCooldownTag = LabGameplayTags::Cooldown;
-		const FGameplayTag SkillSlotCooldownTag =
-			GetSkillSlotCooldownTag(Ability);
-		if (SkillSlotCooldownTag.IsValid())
-		{
-			RuntimeCooldownTags.RemoveTag(DefaultCooldownTag);
-			RuntimeCooldownTags.AddTag(SkillSlotCooldownTag);
-		}
-		else if (DefaultCooldownTag.IsValid())
-		{
-			RuntimeCooldownTags.AddTag(DefaultCooldownTag);
-		}
+		RuntimeCooldownTags.AddTag(LabGameplayTags::Cooldown);
 	}
 
 	return RuntimeCooldownTags.IsEmpty() ? nullptr : &RuntimeCooldownTags;
@@ -227,19 +194,12 @@ bool UAbilityResourceRuntime::CheckCost(
 {
 	UAbilitySystemComponent* AbilitySystemComponent =
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec =
 		AbilitySystemComponent && Handle.IsValid()
 			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
-			: (SourceRuntime
-				? SourceRuntime->ResolveCurrentAbilitySpec(Ability)
-				: nullptr);
-	const USkillDefinition* SkillDataAsset = SourceRuntime
-		? SourceRuntime->ResolveSkillDataAsset(
-			Ability,
-			AbilitySpec,
-			ActorInfo)
-		: nullptr;
+			: Ability.GetCurrentAbilitySpec();
+	const USkillDefinition* SkillDataAsset =
+		Ability.ResolveSourceSkillDataAsset(AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr);
 	const float ManaCost = GetManaCostFromSkillDataAsset(SkillDataAsset);
 	const float StaminaCost =
 		GetActionStaminaCost(ActorInfo, AbilitySpec, SkillDataAsset);
@@ -287,19 +247,12 @@ void UAbilityResourceRuntime::ApplyCost(
 		return;
 	}
 
-	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec =
 		AbilitySystemComponent && Handle.IsValid()
 			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
-			: (SourceRuntime
-				? SourceRuntime->ResolveCurrentAbilitySpec(Ability)
-				: nullptr);
-	const USkillDefinition* SkillDataAsset = SourceRuntime
-		? SourceRuntime->ResolveSkillDataAsset(
-			Ability,
-			AbilitySpec,
-			ActorInfo)
-		: nullptr;
+			: Ability.GetCurrentAbilitySpec();
+	const USkillDefinition* SkillDataAsset =
+		Ability.ResolveSourceSkillDataAsset(AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr);
 	const float ManaCost = GetManaCostFromSkillDataAsset(SkillDataAsset);
 	const float StaminaCost =
 		GetActionStaminaCost(ActorInfo, AbilitySpec, SkillDataAsset);
@@ -359,50 +312,42 @@ bool UAbilityResourceRuntime::CheckConfiguredCooldown(
 
 	UAbilitySystemComponent* AbilitySystemComponent =
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec =
 		AbilitySystemComponent && Handle.IsValid()
 			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
-			: (SourceRuntime
-				? SourceRuntime->ResolveCurrentAbilitySpec(Ability)
-				: nullptr);
-	const USkillDefinition* SkillDataAsset = SourceRuntime
-		? SourceRuntime->ResolveSkillDataAsset(
-			Ability,
-			AbilitySpec,
-			ActorInfo)
-		: nullptr;
-	if (!AbilitySystemComponent
-		|| !SkillDataAsset
-		|| SkillDataAsset->Time.CooldownDuration <= 0.0)
+			: Ability.GetCurrentAbilitySpec();
+	const USkillDefinition* SkillDataAsset =
+		Ability.ResolveSourceSkillDataAsset(AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr);
+	if (!AbilitySystemComponent || !SkillDataAsset)
 	{
 		return true;
 	}
 
 	bOutHandled = true;
-	FGameplayTagContainer CooldownTags;
-	if (ParentCooldownTags)
+	if (SkillDataAsset->Time.CooldownDuration <= 0.0)
 	{
-		CooldownTags.AppendTags(*ParentCooldownTags);
+		return true;
 	}
-
 	const FGameplayTag DefaultCooldownTag = LabGameplayTags::Cooldown;
-	const FGameplayTag SkillSlotCooldownTag = AbilitySpec
-		? GetPandoraSkillCooldownTagFromSourceTags(
-			AbilitySpec->GetDynamicSpecSourceTags())
-		: FGameplayTag();
-	if (SkillSlotCooldownTag.IsValid())
+	const UPandoraSkillRuntimeContext* Source = AbilitySpec ? Cast<UPandoraSkillRuntimeContext>(AbilitySpec->SourceObject.Get()) : nullptr;
+	bool bOnCooldown = false;
+	if (Source)
 	{
-		CooldownTags.RemoveTag(DefaultCooldownTag);
-		CooldownTags.AddTag(SkillSlotCooldownTag);
+		float Remaining = 0.0f;
+		float Duration = 0.0f;
+		GetPandoraCooldown(*AbilitySystemComponent, *Source, Remaining, Duration);
+		bOnCooldown = Remaining > 0.0f;
 	}
-	else if (DefaultCooldownTag.IsValid())
+	else
 	{
-		CooldownTags.AddTag(DefaultCooldownTag);
+		FGameplayTagContainer CooldownTags(DefaultCooldownTag);
+		if (ParentCooldownTags)
+		{
+			CooldownTags.AppendTags(*ParentCooldownTags);
+		}
+		bOnCooldown = AbilitySystemComponent->HasAnyMatchingGameplayTags(CooldownTags);
 	}
-
-	if (CooldownTags.IsEmpty()
-		|| !AbilitySystemComponent->HasAnyMatchingGameplayTags(CooldownTags))
+	if (!bOnCooldown)
 	{
 		return true;
 	}
@@ -427,19 +372,12 @@ bool UAbilityResourceRuntime::ShouldDeferCooldown(
 {
 	const UAbilitySystemComponent* AbilitySystemComponent =
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec =
 		AbilitySystemComponent && Handle.IsValid()
 			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
-			: (SourceRuntime
-				? SourceRuntime->ResolveCurrentAbilitySpec(Ability)
-				: nullptr);
-	const USkillDefinition* SkillDataAsset = SourceRuntime
-		? SourceRuntime->ResolveSkillDataAsset(
-			Ability,
-			AbilitySpec,
-			ActorInfo)
-		: nullptr;
+			: Ability.GetCurrentAbilitySpec();
+	const USkillDefinition* SkillDataAsset =
+		Ability.ResolveSourceSkillDataAsset(AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr);
 	return SkillDataAsset
 		&& SkillDataAsset->Time.CooldownDuration > 0.0;
 }
@@ -452,19 +390,12 @@ bool UAbilityResourceRuntime::ApplyConfiguredCooldownImmediately(
 {
 	const UAbilitySystemComponent* AbilitySystemComponent =
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
 	const FGameplayAbilitySpec* AbilitySpec =
 		AbilitySystemComponent && Handle.IsValid()
 			? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
-			: (SourceRuntime
-				? SourceRuntime->ResolveCurrentAbilitySpec(Ability)
-				: nullptr);
-	const USkillDefinition* SkillDataAsset = SourceRuntime
-		? SourceRuntime->ResolveSkillDataAsset(
-			Ability,
-			AbilitySpec,
-			ActorInfo)
-		: nullptr;
+			: Ability.GetCurrentAbilitySpec();
+	const USkillDefinition* SkillDataAsset =
+		Ability.ResolveSourceSkillDataAsset(AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr);
 	if (!SkillDataAsset)
 	{
 		return false;
@@ -494,22 +425,19 @@ bool UAbilityResourceRuntime::ApplyConfiguredCooldownImmediately(
 		return true;
 	}
 
-	FGameplayTagContainer DynamicCooldownTags;
-	BuildDynamicCooldownGrantedTags(Ability, DynamicCooldownTags);
+	const FGameplayTagContainer DynamicCooldownTags(LabGameplayTags::Cooldown);
 	Ability.ApplySharedCooldownEffect(
 		Handle,
 		ActorInfo,
 		ActivationInfo,
 		EffectiveDuration,
-		DynamicCooldownTags,
-		SourceRuntime && SourceRuntime->IsPandoraSkillSpec(AbilitySpec));
+		DynamicCooldownTags);
 	return true;
 }
 
 void UAbilityResourceRuntime::AppendCooldownRemovalPolicyTags(
 	FGameplayEffectSpecHandle& CooldownSpecHandle,
-	const FGameplayTagContainer& RemovalPolicyTags,
-	const bool bPandoraCooldown) const
+	const FGameplayTagContainer& RemovalPolicyTags) const
 {
 	if (!CooldownSpecHandle.IsValid()
 		|| !CooldownSpecHandle.Data.IsValid())
@@ -517,17 +445,7 @@ void UAbilityResourceRuntime::AppendCooldownRemovalPolicyTags(
 		return;
 	}
 
-	FGameplayTagContainer PolicyTags = RemovalPolicyTags;
-	if (bPandoraCooldown)
-	{
-		PolicyTags.AddTag(
-			LabGameplayTags::Effect_Policy_RemoveOnPandoraReset);
-	}
-
-	if (!PolicyTags.IsEmpty())
-	{
-		CooldownSpecHandle.Data->AppendDynamicAssetTags(PolicyTags);
-	}
+	CooldownSpecHandle.Data->AppendDynamicAssetTags(RemovalPolicyTags);
 }
 
 bool UAbilityResourceRuntime::TryCommitAdditionalActionStaminaCost(
@@ -599,37 +517,19 @@ bool UAbilityResourceRuntime::TryCommitAdditionalActionStaminaCost(
 		CostSpecHandle).WasSuccessfullyApplied();
 }
 
-FGameplayTag UAbilityResourceRuntime::GetSkillSlotCooldownTag(
-	const UPdGameplayAbility& Ability) const
+// 시전 가능 여부와 스킬바가 GAS의 동일한 효과를 조회한다. 별도의 쿨다운 사본은 보관하지 않는다.
+void UAbilityResourceRuntime::GetPandoraCooldown(const UAbilitySystemComponent& ASC,
+	const UPandoraSkillRuntimeContext& Source, float& OutRemaining, float& OutDuration)
 {
-	const UAbilitySourceRuntime* SourceRuntime = Ability.GetSourceRuntime();
-	const FGameplayAbilitySpec* AbilitySpec = SourceRuntime
-		? SourceRuntime->ResolveCurrentAbilitySpec(Ability)
-		: nullptr;
-	return AbilitySpec
-		? GetPandoraSkillCooldownTagFromSourceTags(
-			AbilitySpec->GetDynamicSpecSourceTags())
-		: FGameplayTag();
-}
-
-void UAbilityResourceRuntime::BuildDynamicCooldownGrantedTags(
-	const UPdGameplayAbility& Ability,
-	FGameplayTagContainer& OutCooldownTags) const
-{
-	OutCooldownTags.Reset();
-
-	const FGameplayTag SkillSlotCooldownTag =
-		GetSkillSlotCooldownTag(Ability);
-	if (SkillSlotCooldownTag.IsValid())
+	OutRemaining = 0.0f;
+	OutDuration = 0.0f;
+	for (const TPair<float, float>& Time : ASC.GetActiveEffectsTimeRemainingAndDuration(Source.MakeCooldownQuery()))
 	{
-		OutCooldownTags.AddTag(SkillSlotCooldownTag);
-		return;
-	}
-
-	const FGameplayTag DefaultCooldownTag = LabGameplayTags::Cooldown;
-	if (DefaultCooldownTag.IsValid())
-	{
-		OutCooldownTags.AddTag(DefaultCooldownTag);
+		if (Time.Key > OutRemaining)
+		{
+			OutRemaining = Time.Key;
+			OutDuration = Time.Value;
+		}
 	}
 }
 

@@ -6,6 +6,7 @@
 
 class UAbilitySystemComponent;
 class UEquipmentComponent;
+class UCombatComponent;
 struct FOnAttributeChangeData;
 
 DECLARE_LOG_CATEGORY_EXTERN(StatusViewModelLog, Log, All);
@@ -60,6 +61,7 @@ private:
 	void OnResourceIncreasePercentChanged(const FOnAttributeChangeData& Data);
 
 	void OnEquipmentStatsChanged();
+	void OnCombatDamageBonusChanged();
 
 	void RefreshEquipmentComponentBinding();
 
@@ -343,4 +345,7 @@ protected:
 
 	UPROPERTY()
 	TWeakObjectPtr<UEquipmentComponent> EquipmentComponent;
+
+	UPROPERTY()
+	TWeakObjectPtr<UCombatComponent> CombatComponent;
 };

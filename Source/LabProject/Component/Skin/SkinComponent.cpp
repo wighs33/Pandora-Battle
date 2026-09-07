@@ -2,6 +2,7 @@
 
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Definition/Skin/SkinDefinition.h"
@@ -34,6 +35,15 @@ void FReplicatedSkinEntry::PreReplicatedRemove(const FReplicatedSkinList& InArra
 	}
 }
 
+void FReplicatedSkinList::PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters)
+{
+	if (Owner && Owner->bReplicatedInventoryChanged)
+	{
+		Owner->bReplicatedInventoryChanged = false;
+		Owner->NotifySkinsChanged();
+	}
+}
+
 USkinComponent::USkinComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -51,7 +61,6 @@ void USkinComponent::BeginPlay()
 	UProjectTagConfig::Get(this)->GetSkinFilterTypeTags(FilterTypeTags);
 	if (HasSkinAuthority())
 	{
-		InitializeReplicatedEntriesFromRuntimeSkins();
 		RebuildFilteredSkinMap();
 	}
 	else
@@ -62,6 +71,15 @@ void USkinComponent::BeginPlay()
 
 void USkinComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	++SkinLoadGeneration;
+	for (const TSharedPtr<FStreamableHandle>& Handle : PendingSkinLoadHandles)
+	{
+		if (Handle.IsValid() && !Handle->HasLoadCompleted())
+		{
+			Handle->CancelHandle();
+		}
+	}
+	PendingSkinLoadHandles.Reset();
 	ReplicatedEntries.Owner = nullptr;
 
 	Super::EndPlay(EndPlayReason);
@@ -83,83 +101,71 @@ bool USkinComponent::HasSkinAuthority() const
 	return OwnerActor && OwnerActor->HasAuthority();
 }
 
-void USkinComponent::MakeAndAddSkins(const TArray<FPrimaryAssetId>& SkinDefinitions)
-{
-	AddSkinsByPrimaryAssetIds(SkinDefinitions);
-}
-
+// 보상으로 받은 스킨을 비동기로 읽고, 한 번의 지급이 끝난 뒤 목록 변경을 알린다.
 void USkinComponent::AddSkinsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& SkinDefinitions)
 {
-	if (!HasSkinAuthority())
-	{
-
-		return;
-	}
-
-	if (SkinDefinitions.IsEmpty())
+	if (!HasSkinAuthority() || SkinDefinitions.IsEmpty())
 	{
 		return;
 	}
-
-	UAssetManager& AssetManager = UAssetManager::Get();
-	AssetManager.LoadPrimaryAssets(
-		SkinDefinitions,
-		{},
-		FStreamableDelegate::CreateWeakLambda(this, [this, SkinDefinitions]()
+	PendingSkinLoadHandles.RemoveAll([](const TSharedPtr<FStreamableHandle>& Handle)
+	{
+		return !Handle.IsValid() || Handle->HasLoadCompleted();
+	});
+	const uint64 RequestGeneration = SkinLoadGeneration;
+	TSharedPtr<FStreamableHandle> LoadHandle = UAssetManager::Get().LoadPrimaryAssets(
+		SkinDefinitions, {}, FStreamableDelegate::CreateWeakLambda(this, [this, SkinDefinitions, RequestGeneration]()
 		{
-			if (!HasSkinAuthority())
+			if (RequestGeneration != SkinLoadGeneration || !HasSkinAuthority())
 			{
 				return;
 			}
-
-			UAssetManager& LoadedAssetManager = UAssetManager::Get();
-
-			for (const FPrimaryAssetId& SkinDefinitionId : SkinDefinitions)
+			bool bChanged = false;
+			for (const FPrimaryAssetId& DefinitionId : SkinDefinitions)
 			{
-				const USkinDefinition* SkinDefinition = Cast<USkinDefinition>(LoadedAssetManager.GetPrimaryAssetObject(SkinDefinitionId));
-				if (!CanReferenceSkinDefinition(SkinDefinition))
+				const USkinDefinition* Definition = Cast<USkinDefinition>(UAssetManager::Get().GetPrimaryAssetObject(DefinitionId));
+				if (!IsValid(Definition))
 				{
-
+					UE_LOG(SkinComponentLog, Error, TEXT("Failed to load skin definition '%s'."), *DefinitionId.ToString());
 					continue;
 				}
-
-				if (FindReplicatedEntryByDefinition(SkinDefinition))
-				{
-					continue;
-				}
-
-				USkinInstance* NewSkinInstance = NewObject<USkinInstance>(this);
-				NewSkinInstance->SkinDefinition = SkinDefinition;
-				AddReplicatedSkin(NewSkinInstance);
+				bChanged |= AddSkinDefinition(Definition);
+			}
+			if (bChanged)
+			{
+				NotifySkinsChanged();
 			}
 		}));
+	if (LoadHandle.IsValid())
+	{
+		PendingSkinLoadHandles.Add(LoadHandle);
+	}
 }
 
 void USkinComponent::AddSkinDefinitions(const TArray<USkinDefinition*>& SkinDefinitions)
 {
 	if (!HasSkinAuthority())
 	{
-
 		return;
 	}
-
-	for (USkinDefinition* SkinDefinition : SkinDefinitions)
+	bool bChanged = false;
+	for (const USkinDefinition* Definition : SkinDefinitions)
 	{
-		if (!CanReferenceSkinDefinition(SkinDefinition) || FindReplicatedEntryByDefinition(SkinDefinition))
+		if (IsValid(Definition))
 		{
-			continue;
+			bChanged |= AddSkinDefinition(Definition);
 		}
-
-		USkinInstance* NewSkinInstance = NewObject<USkinInstance>(this);
-		NewSkinInstance->SkinDefinition = SkinDefinition;
-		AddReplicatedSkin(NewSkinInstance);
+	}
+	if (bChanged)
+	{
+		NotifySkinsChanged();
 	}
 }
 
 void USkinComponent::FilterSkin(USkinInstance* SkinInstance)
 {
 	const USkinDefinition* SkinDefinition = IsValid(SkinInstance) ? SkinInstance->SkinDefinition.Get() : nullptr;
-	if (!CanReferenceSkinDefinition(SkinDefinition))
+	if (!IsValid(SkinDefinition))
 	{
 		return;
 	}
@@ -174,19 +180,9 @@ void USkinComponent::FilterSkin(USkinInstance* SkinInstance)
 	{
 		if (SkinDefinition->IdTag.MatchesTag(TypeTag))
 		{
-			AddValueToMap(TypeTag, SkinInstance);
+			Map_Type_SkinList.FindOrAdd(TypeTag).Skins.AddUnique(SkinInstance);
 		}
 	}
-}
-
-void USkinComponent::AddValueToMap(FGameplayTag TypeTag, USkinInstance* SkinInstance)
-{
-	if (!IsValid(SkinInstance))
-	{
-		return;
-	}
-
-	Map_Type_SkinList.FindOrAdd(TypeTag).Skins.AddUnique(SkinInstance);
 }
 
 void USkinComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig)
@@ -195,20 +191,12 @@ void USkinComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagCo
 	EffectiveConfig->GetSkinFilterTypeTags(FilterTypeTags);
 
 	RebuildFilteredSkinMap();
+	NotifySkinsChanged();
 }
 
 bool USkinComponent::HasSkinDefinition(const USkinDefinition* SkinDefinition) const
 {
-	return CanReferenceSkinDefinition(SkinDefinition)
-		&& (FindSkinInstanceByDefinition(SkinDefinition) || FindReplicatedEntryByDefinition(SkinDefinition));
-}
-
-void USkinComponent::InitializeReplicatedEntriesFromRuntimeSkins()
-{
-	for (USkinInstance* SkinInstance : AllSkinList.Skins)
-	{
-		AddReplicatedSkin(SkinInstance);
-	}
+	return IsValid(SkinDefinition) && FindReplicatedEntryByDefinition(SkinDefinition) != nullptr;
 }
 
 void USkinComponent::RebuildRuntimeSkinsFromReplicatedEntries()
@@ -243,7 +231,7 @@ void USkinComponent::RebuildFilteredSkinMap()
 
 void USkinComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedSkinEntry& Entry)
 {
-	if (!CanReferenceSkinDefinition(Entry.SkinDefinition.Get()))
+	if (!IsValid(Entry.SkinDefinition.Get()))
 	{
 		return;
 	}
@@ -255,13 +243,13 @@ void USkinComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedSkinEn
 		SkinInstance->SkinDefinition = Entry.SkinDefinition;
 		AllSkinList.Skins.Add(SkinInstance);
 		FilterSkin(SkinInstance);
-		NotifySkinsChanged();
+		bReplicatedInventoryChanged = true;
 	}
 }
 
 void USkinComponent::HandleReplicatedEntryRemoved(const USkinDefinition* SkinDefinition)
 {
-	if (!CanReferenceSkinDefinition(SkinDefinition))
+	if (!IsValid(SkinDefinition))
 	{
 		return;
 	}
@@ -276,47 +264,25 @@ void USkinComponent::HandleReplicatedEntryRemoved(const USkinDefinition* SkinDef
 	}
 
 	RebuildFilteredSkinMap();
-	NotifySkinsChanged();
+	bReplicatedInventoryChanged = true;
 }
 
-void USkinComponent::AddReplicatedSkin(USkinInstance* SkinInstance)
+bool USkinComponent::AddSkinDefinition(const USkinDefinition* SkinDefinition)
 {
-	if (!HasSkinAuthority() || !IsValid(SkinInstance))
-	{
-		return;
-	}
-
-	const USkinDefinition* SkinDefinition = SkinInstance->SkinDefinition.Get();
-	if (!CanReferenceSkinDefinition(SkinDefinition))
-	{
-		return;
-	}
-
 	if (FindReplicatedEntryByDefinition(SkinDefinition))
 	{
-		return;
+		return false;
 	}
-
-	AllSkinList.Skins.AddUnique(SkinInstance);
+	USkinInstance* SkinInstance = NewObject<USkinInstance>(this);
+	SkinInstance->SkinDefinition = SkinDefinition;
+	AllSkinList.Skins.Add(SkinInstance);
 	FilterSkin(SkinInstance);
 
 	FReplicatedSkinEntry& NewEntry = ReplicatedEntries.Entries.AddDefaulted_GetRef();
 	NewEntry.SkinDefinition = SkinDefinition;
 	ReplicatedEntries.MarkEntryDirty(NewEntry);
 	MARK_PROPERTY_DIRTY_FROM_NAME(USkinComponent, ReplicatedEntries, this);
-	NotifySkinsChanged();
-}
-
-bool USkinComponent::CanReferenceSkinDefinition(const USkinDefinition* SkinDefinition) const
-{
-	if (!IsValid(SkinDefinition))
-	{
-		return false;
-	}
-
-	const FPrimaryAssetId PrimaryAssetId = SkinDefinition->GetPrimaryAssetId();
-	return PrimaryAssetId.IsValid()
-		&& PrimaryAssetId.PrimaryAssetType == FPrimaryAssetType(TEXT("SkinDefinition"));
+	return true;
 }
 
 void USkinComponent::NotifySkinsChanged()
@@ -326,7 +292,7 @@ void USkinComponent::NotifySkinsChanged()
 
 USkinInstance* USkinComponent::FindSkinInstanceByDefinition(const USkinDefinition* SkinDefinition) const
 {
-	if (!CanReferenceSkinDefinition(SkinDefinition))
+	if (!IsValid(SkinDefinition))
 	{
 		return nullptr;
 	}
@@ -344,7 +310,7 @@ USkinInstance* USkinComponent::FindSkinInstanceByDefinition(const USkinDefinitio
 
 int32 USkinComponent::FindReplicatedEntryIndexByDefinition(const USkinDefinition* SkinDefinition) const
 {
-	if (!CanReferenceSkinDefinition(SkinDefinition))
+	if (!IsValid(SkinDefinition))
 	{
 		return INDEX_NONE;
 	}

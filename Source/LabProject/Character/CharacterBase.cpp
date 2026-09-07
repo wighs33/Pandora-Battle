@@ -31,54 +31,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCharacterBaseRuntime, Log, All);
 
-namespace
-{
-template <typename ComponentType>
-ComponentType* FindConfiguredComponent(const AActor* Owner, ComponentType* DefaultComponent)
-{
-	if (!Owner)
-	{
-		return DefaultComponent;
-	}
-
-	TArray<ComponentType*> Components;
-	Owner->GetComponents<ComponentType>(Components);
-	for (ComponentType* Component : Components)
-	{
-		if (Component && Component != DefaultComponent)
-		{
-			return Component;
-		}
-	}
-
-	return DefaultComponent ? DefaultComponent : (Components.IsEmpty() ? nullptr : Components[0]);
-}
-
-UCombatComponent* FindCombatComponent(const AActor* Owner)
-{
-	if (!Owner)
-	{
-		return nullptr;
-	}
-
-	TArray<UCombatComponent*> Components;
-	Owner->GetComponents<UCombatComponent>(Components);
-	if (Components.IsEmpty())
-	{
-		return nullptr;
-	}
-
-	for (UCombatComponent* Component : Components)
-	{
-		if (Component && Component->CreationMethod == EComponentCreationMethod::Instance)
-		{
-			return Component;
-		}
-	}
-	return Components[0];
-}
-} // namespace
-
+// 플레이어와 적이 공통으로 사용할 이동·피격 충돌과 능력 연결·사망·외형·체력바·장비 컴포넌트를 구성한다.
 ACharacterBase::ACharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -116,6 +69,7 @@ ACharacterBase::ACharacterBase(const FObjectInitializer& ObjectInitializer)
 	CharacterHealthBar->SetupAttachment(GetRootComponent());
 	HealthBarWidget = CharacterHealthBar;
 
+	EquipmentComponent = CreateDefaultSubobject<UEquipmentComponent>(TEXT("EquipmentComponent"));
 	SkinEquipmentComponent = CreateDefaultSubobject<USkinEquipmentComponent>(TEXT("SkinEquipmentComponent"));
 
 	CharacterDefinition = TSoftObjectPtr<UCharacterBaseDefinition>(UCharacterBaseDefinition::GetDefaultDefinitionPath());
@@ -123,18 +77,15 @@ ACharacterBase::ACharacterBase(const FObjectInitializer& ObjectInitializer)
 	ApplyCameraCollisionIgnoreToCharacterComponents();
 }
 
+// 캐릭터를 GFCM 확장 기능의 수신 대상으로 등록하고, 외형·사망 처리에 필요한 공통 설정 로딩을 시작한다.
 void ACharacterBase::PreInitializeComponents()
 {
 	Super::PreInitializeComponents();
-	ApplyCharacterDefinition();
-	if (CharacterAbilityRuntimeComponent)
-	{
-		CharacterAbilityRuntimeComponent->CaptureBaseMovementSpeed();
-	}
 	UGameFrameworkComponentManager::AddGameFrameworkComponentReceiver(this);
 	BeginCharacterDefinitionPreload();
 }
 
+// 캐릭터가 월드에서 활동을 시작할 때 애니메이션·충돌 설정을 보정하고, 준비된 설정으로 공통 초기화를 시도한다.
 void ACharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
@@ -145,13 +96,12 @@ void ACharacterBase::BeginPlay()
 		CharacterMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickMontagesAndRefreshBonesWhenPlayingMontages;
 	}
 	ApplyCameraCollisionIgnoreToCharacterComponents();
-	// Blueprint component templates may still contain the legacy collision
-	// responses, so enforce the shared skill-hit policy after deserialization.
 	ApplySkillDamageCollisionToCharacterComponents();
 
 	TryInitializeCharacterRuntime();
 }
 
+// 빙결 중 회전 고정과 사망 연출을 갱신하고, 계속 처리할 일이 없으면 캐릭터 Tick을 끈다.
 void ACharacterBase::Tick(const float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -166,6 +116,7 @@ void ACharacterBase::Tick(const float DeltaSeconds)
 	RefreshCharacterTickEnabled();
 }
 
+// 캐릭터가 월드를 떠나거나 제거될 때 설정 로딩과 ASC·외형·체력바·사망 처리의 연결 및 GFCM 등록을 정리한다.
 void ACharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ReleaseCharacterDefinitionPreload();
@@ -195,24 +146,23 @@ void ACharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+// 서버에서 플레이어나 AI의 조종자가 배정되면 현재 소유 관계에 맞춰 ASC 연결과 팀 외형을 갱신한다.
 void ACharacterBase::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
-	if (bCharacterRuntimeInitialized)
-	{
-		InitializeAbilitySystemActorInfo();
-		if (CharacterPresentationComponent)
-		{
-			CharacterPresentationComponent->BindMatchTeamColorChanged();
-			CharacterPresentationComponent->ApplyTeamOverlayMaterial();
-		}
-	}
-	RefreshCharacterTickEnabled();
+	RefreshCharacterRuntimeBindings();
 }
 
+// 클라이언트에 PlayerState가 도착하거나 바뀌면 캐릭터의 ASC 연결과 팀 외형을 갱신한다.
 void ACharacterBase::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
+	RefreshCharacterRuntimeBindings();
+}
+
+// 빙의와 PlayerState 복제 양쪽에서 준비된 캐릭터의 ASC·팀 색상 연결을 갱신하고 Tick 필요 여부를 다시 판단한다.
+void ACharacterBase::RefreshCharacterRuntimeBindings()
+{
 	if (bCharacterRuntimeInitialized)
 	{
 		InitializeAbilitySystemActorInfo();
@@ -225,12 +175,14 @@ void ACharacterBase::OnRep_PlayerState()
 	RefreshCharacterTickEnabled();
 }
 
+// 조종자가 바뀌면 로컬 플레이어 여부 등 새 조건에 맞춰 캐릭터 Tick 필요 여부를 다시 판단한다.
 void ACharacterBase::NotifyControllerChanged()
 {
 	Super::NotifyControllerChanged();
 	RefreshCharacterTickEnabled();
 }
 
+// 점프·낙하·착지 등 이동 방식의 변화를 능력 연결 컴포넌트에 알려 공중 상태 태그와 관련 공격 취소를 갱신한다.
 void ACharacterBase::OnMovementModeChanged(const EMovementMode PrevMovementMode, const uint8 PreviousCustomMode)
 {
 	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
@@ -240,9 +192,10 @@ void ACharacterBase::OnMovementModeChanged(const EMovementMode PrevMovementMode,
 	}
 }
 
+// 조종이 해제되는 캐릭터의 ASC·입력 잠금·팀 색상 구독·체력바 연결을 끊어 이전 조종 상태가 남지 않게 한다.
 void ACharacterBase::UnPossessed()
 {
-	Super::UnPossessed();
+	// Super가 PlayerState와 Controller를 비우기 전에 ASC와 입력 잠금을 해제한다.
 	ClearAbilitySystemActorInfo();
 	if (CharacterPresentationComponent)
 	{
@@ -252,9 +205,11 @@ void ACharacterBase::UnPossessed()
 	{
 		CharacterHealthBar->ShutdownHealthBar();
 	}
+	Super::UnPossessed();
 	RefreshCharacterTickEnabled();
 }
 
+// 로드된 공통 정의의 외형·사망 설정을 담당 컴포넌트에 적용하며, 정의가 없으면 기본값을 사용한다.
 void ACharacterBase::ApplyCharacterDefinition()
 {
 	LoadedCharacterDefinition = CharacterDefinition.Get();
@@ -277,6 +232,7 @@ void ACharacterBase::ApplyCharacterDefinition()
 	}
 }
 
+// 캐릭터의 외형·사망 설정을 비동기로 준비하고, 이미 로드되었거나 지정되지 않은 경우에는 즉시 준비 완료로 처리한다.
 void ACharacterBase::BeginCharacterDefinitionPreload()
 {
 	ReleaseCharacterDefinitionPreload();
@@ -322,6 +278,7 @@ void ACharacterBase::BeginCharacterDefinitionPreload()
 	}
 }
 
+// 공통 설정의 최신 로딩 결과를 기록하고 캐릭터 초기화를 이어 간다. 실패하면 기본값으로 진행한다.
 void ACharacterBase::HandleCharacterDefinitionPreloaded(
 	const uint32 RequestGeneration)
 {
@@ -341,14 +298,10 @@ void ACharacterBase::HandleCharacterDefinitionPreloaded(
 			*CharacterDefinition.ToString());
 	}
 
-	ApplyCharacterDefinition();
-	if (CharacterAbilityRuntimeComponent)
-	{
-		CharacterAbilityRuntimeComponent->CaptureBaseMovementSpeed();
-	}
 	TryInitializeCharacterRuntime();
 }
 
+// 공통 설정의 로딩 요청을 취소하고 이전 완료 콜백을 무효화해, 종료된 캐릭터가 다시 초기화되지 않게 한다.
 void ACharacterBase::ReleaseCharacterDefinitionPreload()
 {
 	++CharacterDefinitionLoadGeneration;
@@ -360,6 +313,7 @@ void ACharacterBase::ReleaseCharacterDefinitionPreload()
 	}
 }
 
+// BeginPlay와 공통·전용 설정이 준비되면 사망·ASC·외형·체력바를 한 번 초기화하고 파생 클래스와 확장 기능에 알린다.
 void ACharacterBase::TryInitializeCharacterRuntime()
 {
 	if (bCharacterRuntimeInitialized
@@ -378,10 +332,6 @@ void ACharacterBase::TryInitializeCharacterRuntime()
 		CharacterDeathComponent->InitializeDeathRuntime();
 	}
 
-	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(
-		this,
-		UGameFrameworkComponentManager::NAME_GameActorReady);
-
 	if (CharacterAbilityRuntimeComponent)
 	{
 		CharacterAbilityRuntimeComponent->CaptureBaseMovementSpeed();
@@ -390,11 +340,6 @@ void ACharacterBase::TryInitializeCharacterRuntime()
 	if (CharacterPresentationComponent)
 	{
 		CharacterPresentationComponent->InitializePresentation(BodyAuraNiagaraComponent);
-		if (Controller || GetPlayerState())
-		{
-			CharacterPresentationComponent->BindMatchTeamColorChanged();
-			CharacterPresentationComponent->ApplyTeamOverlayMaterial();
-		}
 	}
 	if (UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent())
 	{
@@ -403,35 +348,44 @@ void ACharacterBase::TryInitializeCharacterRuntime()
 
 	HandleCharacterRuntimeInitialized();
 	RefreshCharacterTickEnabled();
+
+	// 정의와 파생 클래스 설정을 적용한 뒤 확장 기능에 캐릭터 준비를 알린다.
+	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(this, UGameFrameworkComponentManager::NAME_GameActorReady);
 }
 
+// 플레이어·적이 전용 설정의 준비 여부를 추가할 수 있는 조건 함수다. 공통 캐릭터 자체에는 추가 대기 조건이 없다.
 bool ACharacterBase::IsAdditionalCharacterRuntimeContentReady() const
 {
 	return true;
 }
 
+// 공통 초기화 뒤 플레이어는 장비를, 적은 전용 전투 설정 등을 이어 붙일 수 있게 둔 확장 지점이다.
 void ACharacterBase::HandleCharacterRuntimeInitialized()
 {
 }
 
+// 공통 캐릭터는 ASC를 직접 제공하지 않으며, 플레이어와 적이 각자의 ASC 소유 방식에 맞게 재정의하도록 한다.
 UAbilitySystemComponent* ACharacterBase::GetAbilitySystemComponent() const
 {
 	return nullptr;
 }
 
+// 캐릭터의 ASC를 프로젝트 확장 타입으로 제공해 사망 리셋 등 전용 기능에 접근할 수 있게 한다.
 UPdAbilitySystemComponent* ACharacterBase::GetPdAbilitySystemComponent() const
 {
 	return Cast<UPdAbilitySystemComponent>(GetAbilitySystemComponent());
 }
 
+// 공통 초기화가 끝난 캐릭터에 한해 ASC의 소유자·실행 캐릭터 연결과 상태 구독을 준비하도록 요청한다.
 void ACharacterBase::InitializeAbilitySystemActorInfo()
 {
-	if (CharacterAbilityRuntimeComponent)
+	if (bCharacterRuntimeInitialized && CharacterAbilityRuntimeComponent)
 	{
 		CharacterAbilityRuntimeComponent->InitializeAbilitySystemActorInfo();
 	}
 }
 
+// 캐릭터의 ASC 연결과 상태 구독을 해제하도록 요청하며, 이미 새 캐릭터로 넘어간 ASC와 일반 능력·쿨다운은 보존한다.
 void ACharacterBase::ClearAbilitySystemActorInfo()
 {
 	if (CharacterAbilityRuntimeComponent)
@@ -440,36 +394,43 @@ void ACharacterBase::ClearAbilitySystemActorInfo()
 	}
 }
 
+// 별도 재정의가 없으면 능력 데이터의 소유자를 이 캐릭터로 정한다. 플레이어는 PlayerState로 바꾼다.
 AActor* ACharacterBase::GetAbilitySystemOwnerActor() const
 {
 	return const_cast<ACharacterBase*>(this);
 }
 
+// 능력이 실제로 이동·공격·연출을 수행할 대상으로 월드에 있는 이 캐릭터를 지정한다.
 AActor* ACharacterBase::GetAbilitySystemAvatarActor() const
 {
 	return const_cast<ACharacterBase*>(this);
 }
 
+// 기존 체력바 위젯 참조를 통해 체력 데이터 연결과 화면 표시를 관리하는 컴포넌트를 제공한다.
 UCharacterHealthBarComponent* ACharacterBase::GetCharacterHealthBarComponent() const
 {
 	return Cast<UCharacterHealthBarComponent>(HealthBarWidget.Get());
 }
 
+// 무기 장착·해제와 장착 외형을 처리할 수 있도록 이 캐릭터의 장비 컴포넌트를 제공한다.
 UEquipmentComponent* ACharacterBase::GetEquipmentComponent() const
 {
-	return FindConfiguredComponent(this, EquipmentComponent.Get());
+	return EquipmentComponent.Get();
 }
 
+// 캐릭터에 부착된 전투 컴포넌트를 찾아 기본 공격·조준 등 전투 동작의 진입점을 제공한다.
 UCombatComponent* ACharacterBase::GetCombatComponent() const
 {
-	return FindCombatComponent(this);
+	return FindComponentByClass<UCombatComponent>();
 }
 
+// 캐릭터에 부착된 피해 숫자 표시 컴포넌트를 찾는다. 해당 연출이 없는 캐릭터에서는 찾지 못할 수 있다.
 UDamageIndicatorComponent* ACharacterBase::GetDamageIndicatorComponent() const
 {
-	return FindConfiguredComponent(this, DamageIndicatorComponent.Get());
+	return FindComponentByClass<UDamageIndicatorComponent>();
 }
 
+// ASC나 체력 데이터가 준비·변경되었을 때 체력바의 데이터 연결을 다시 구성하도록 요청한다.
 void ACharacterBase::RefreshHealthBarViewModel()
 {
 	if (UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent())
@@ -478,12 +439,14 @@ void ACharacterBase::RefreshHealthBarViewModel()
 	}
 }
 
+// 체력바 UI가 이 캐릭터의 체력 등 표시 데이터를 읽을 수 있도록 현재 뷰모델을 제공한다.
 UHealthBarViewModel* ACharacterBase::GetHealthBarViewModel() const
 {
 	const UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent();
 	return CharacterHealthBar ? CharacterHealthBar->GetHealthBarViewModel() : nullptr;
 }
 
+// 관찰자의 거리·시야와 캐릭터 상태를 기준으로 이 화면에 체력바를 보여 줄지 판단하고 방향을 맞추도록 요청한다.
 void ACharacterBase::UpdateHealthBarVisibilityForLocalViewer(
 	APlayerController* LocalPlayerController,
 	const FVector& CameraLocation,
@@ -496,6 +459,7 @@ void ACharacterBase::UpdateHealthBarVisibilityForLocalViewer(
 	}
 }
 
+// 현재 화면에서 체력바를 표시하거나 숨기도록 요청하며, 사망한 캐릭터는 표시 요청이 있어도 숨긴다.
 void ACharacterBase::SetHealthBarVisibleForLocalViewer(const bool bVisible)
 {
 	if (UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent())
@@ -504,16 +468,19 @@ void ACharacterBase::SetHealthBarVisibleForLocalViewer(const bool bVisible)
 	}
 }
 
+// 애니메이션이 몸의 방향과 조준 방향 사이의 좌우 각도 차이를 읽을 수 있도록 제공한다.
 float ACharacterBase::GetAimYawForAnimation() const
 {
 	return CharacterPresentationComponent ? CharacterPresentationComponent->GetAimYaw() : 0.0f;
 }
 
+// 애니메이션이 몸의 방향과 조준 방향 사이의 상하 각도 차이를 읽을 수 있도록 제공한다.
 float ACharacterBase::GetAimPitchForAnimation() const
 {
 	return CharacterPresentationComponent ? CharacterPresentationComponent->GetAimPitch() : 0.0f;
 }
 
+// 무기나 특수 행동의 애니메이션을 기본 캐릭터 레이어로 되돌리도록 요청한다.
 void ACharacterBase::ResetAnimationToDefault()
 {
 	if (CharacterPresentationComponent)
@@ -522,6 +489,7 @@ void ACharacterBase::ResetAnimationToDefault()
 	}
 }
 
+// 장착 무기나 행동에 맞는 애니메이션 레이어를 현재 상태로 지정하고, 서버의 변경은 다른 클라이언트에도 반영하게 한다.
 void ACharacterBase::SetCurrentAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass)
 {
 	if (CharacterPresentationComponent)
@@ -530,6 +498,7 @@ void ACharacterBase::SetCurrentAnimLayer(TSubclassOf<UAnimInstance> AnimLayerCla
 	}
 }
 
+// 현재 메시의 애니메이션에 지정된 레이어를 직접 연결한다. 복제할 레이어 상태 자체를 변경하는 함수는 아니다.
 void ACharacterBase::LinkAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass) const
 {
 	if (CharacterPresentationComponent)
@@ -538,6 +507,7 @@ void ACharacterBase::LinkAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass) co
 	}
 }
 
+// 캐릭터가 바라보는 방향과 몸의 회전 차이를 계산해 상체 조준 애니메이션에 사용할 값을 갱신한다.
 void ACharacterBase::UpdateAimOffsetForAnimation()
 {
 	if (CharacterPresentationComponent)
@@ -546,6 +516,7 @@ void ACharacterBase::UpdateAimOffsetForAnimation()
 	}
 }
 
+// 복제 등 외부에서 전달받은 좌우·상하 조준값을 캐릭터 애니메이션용 상태에 반영한다.
 void ACharacterBase::SetAimOffsetForAnimation(const float AimYaw, const float AimPitch)
 {
 	if (CharacterPresentationComponent)
@@ -554,6 +525,7 @@ void ACharacterBase::SetAimOffsetForAnimation(const float AimYaw, const float Ai
 	}
 }
 
+// 경기의 팀 색상을 캐릭터 외형에 반영하도록 표현 컴포넌트에 요청한다.
 void ACharacterBase::ApplyTeamOverlayMaterial()
 {
 	if (CharacterPresentationComponent)
@@ -562,6 +534,7 @@ void ACharacterBase::ApplyTeamOverlayMaterial()
 	}
 }
 
+// 스킬이 캐릭터 위에 표시할 오버레이 재질을 해당 연출의 출처와 함께 등록한다.
 void ACharacterBase::ApplySkillPresentationOverlay(UObject* PresentationSource, UMaterialInterface* OverlayMaterial)
 {
 	if (CharacterPresentationComponent)
@@ -570,6 +543,7 @@ void ACharacterBase::ApplySkillPresentationOverlay(UObject* PresentationSource, 
 	}
 }
 
+// 종료된 스킬 출처의 오버레이만 제거하고, 남아 있는 스킬이나 팀 색상에 맞춰 외형을 다시 결정하게 한다.
 void ACharacterBase::ClearSkillPresentationOverlay(UObject* PresentationSource)
 {
 	if (CharacterPresentationComponent)
@@ -578,12 +552,14 @@ void ACharacterBase::ClearSkillPresentationOverlay(UObject* PresentationSource)
 	}
 }
 
+// 몸 주변 오라를 재생할 Niagara 컴포넌트를 이름으로 찾도록 요청하며, 표현 컴포넌트가 없으면 기본 오라를 반환한다.
 UNiagaraComponent* ACharacterBase::FindBodyAuraNiagaraComponent(const FName ComponentName) const
 {
 	return CharacterPresentationComponent ? CharacterPresentationComponent->FindBodyAuraNiagaraComponent(ComponentName)
 										  : BodyAuraNiagaraComponent.Get();
 }
 
+// 캐릭터 몸의 오라 이펙트에 종류·위치·크기를 적용하고 활성화 또는 초기화하도록 요청한다.
 void ACharacterBase::ApplyBodyAuraNiagaraWithOffset(
 	const FName ComponentName,
 	UNiagaraSystem* NiagaraSystem,
@@ -599,6 +575,7 @@ void ACharacterBase::ApplyBodyAuraNiagaraWithOffset(
 	}
 }
 
+// 끝나는 연출과 현재 오라 이펙트가 일치할 때만 제거해, 뒤이어 적용된 다른 오라를 지우지 않게 한다.
 void ACharacterBase::ClearBodyAuraNiagaraIfMatching(const FName ComponentName, const UNiagaraSystem* ExpectedNiagaraSystem)
 {
 	if (CharacterPresentationComponent)
@@ -607,6 +584,7 @@ void ACharacterBase::ClearBodyAuraNiagaraIfMatching(const FName ComponentName, c
 	}
 }
 
+// 대시 GameplayCue를 캐릭터의 대시 연출로 연결하고, GAS의 기본 큐 처리도 이어서 실행한다.
 void ACharacterBase::HandleGameplayCue(
 	AActor* Self,
 	const FGameplayTag GameplayCueTag,
@@ -620,6 +598,7 @@ void ACharacterBase::HandleGameplayCue(
 	IGameplayCueInterface::HandleGameplayCue(Self, GameplayCueTag, EventType, Parameters);
 }
 
+// 현재 PlayerState의 경기 팀 색상 번호를 읽어 외형과 팀 판정에 사용하며, 팀 정보가 없으면 INDEX_NONE을 반환한다.
 int32 ACharacterBase::GetMatchTeamColorIndex() const
 {
 	const APdPlayerState* PdPlayerState = GetPlayerState<APdPlayerState>();
@@ -627,6 +606,7 @@ int32 ACharacterBase::GetMatchTeamColorIndex() const
 	return MatchComponent ? MatchComponent->GetMatchTeamColorIndex() : INDEX_NONE;
 }
 
+// 두 캐릭터가 모두 유효한 경기 팀 색상 번호를 가지고 그 번호가 같은지 판단한다. FactionId 비교는 하지 않는다.
 bool ACharacterBase::IsSameTeam(const ACharacterBase* OtherCharacter) const
 {
 	if (!OtherCharacter)
@@ -638,16 +618,19 @@ bool ACharacterBase::IsSameTeam(const ACharacterBase* OtherCharacter) const
 	return MyTeamColorIndex != INDEX_NONE && OtherTeamColorIndex != INDEX_NONE && MyTeamColorIndex == OtherTeamColorIndex;
 }
 
+// 자기 자신과 같은 팀을 제외하는 팀 기준 피해 허용 여부를 판단한다. 무적 등 다른 피해 조건은 검사하지 않는다.
 bool ACharacterBase::CanDamageCharacterByTeam(const ACharacterBase* OtherCharacter) const
 {
 	return OtherCharacter && OtherCharacter != this && !IsSameTeam(OtherCharacter);
 }
 
+// 캐릭터의 이동과 회전이 빙결 상태로 잠겨 있는지 능력 연결 컴포넌트에서 확인한다.
 bool ACharacterBase::IsStatusFrozen() const
 {
 	return CharacterAbilityRuntimeComponent && CharacterAbilityRuntimeComponent->IsFrozen();
 }
 
+// 빙결로 회전이 잠긴 동안은 건드리지 않고, 그 외에는 현재 조준·이동 상태에 맞는 회전 방식을 다시 적용한다.
 void ACharacterBase::ReapplyCurrentRotationPolicy()
 {
 	UCharacterMovementComponent* MovementComponent = GetCharacterMovement();
@@ -659,11 +642,13 @@ void ACharacterBase::ReapplyCurrentRotationPolicy()
 	ApplyCurrentRotationPolicy(MovementComponent);
 }
 
+// 이 캐릭터의 사망 처리가 이미 시작되었는지 확인해 외형이나 체력바 등의 후속 판단에 제공한다.
 bool ACharacterBase::IsDeathHandled() const
 {
 	return CharacterDeathComponent && CharacterDeathComponent->IsDeathHandled();
 }
 
+// 빙결 전에 저장한 회전 설정을 복구한 뒤 현재 조준·이동 상태에 맞는 회전 방식을 다시 적용한다.
 void ACharacterBase::RestoreRotationSettingsAfterFrozen(UCharacterMovementComponent* MovementComponent)
 {
 	if (CharacterAbilityRuntimeComponent)
@@ -674,17 +659,20 @@ void ACharacterBase::RestoreRotationSettingsAfterFrozen(UCharacterMovementCompon
 	ReapplyCurrentRotationPolicy();
 }
 
+// 빙의 변경이나 빙결 해제 후 적용할 회전 방식을 파생 클래스가 정하는 확장 지점이며, 기본 구현은 변경하지 않는다.
 void ACharacterBase::ApplyCurrentRotationPolicy(
 	UCharacterMovementComponent* MovementComponent)
 {
 	static_cast<void>(MovementComponent);
 }
 
+// 파생 클래스가 상시 갱신이 필요한 캐릭터인지 정하는 조건 함수다. 공통 캐릭터는 별도 요구가 없으면 상시 Tick을 쓰지 않는다.
 bool ACharacterBase::ShouldUseContinuousCharacterTick() const
 {
 	return false;
 }
 
+// GAS의 이동속도 속성과 현재 상태에 맞춰 실제 캐릭터 이동속도를 갱신하도록 요청한다.
 void ACharacterBase::ApplyMovementSpeedFromAttribute()
 {
 	if (CharacterAbilityRuntimeComponent)
@@ -693,6 +681,7 @@ void ACharacterBase::ApplyMovementSpeedFromAttribute()
 	}
 }
 
+// 초기 구동·파생 클래스의 상시 갱신·빙결·사망 연출 중 필요한 일이 있을 때만 캐릭터 Tick을 켠다.
 void ACharacterBase::RefreshCharacterTickEnabled()
 {
 	const bool bRuntimeNeedsTick = CharacterAbilityRuntimeComponent && CharacterAbilityRuntimeComponent->NeedsCharacterTick();
@@ -700,16 +689,19 @@ void ACharacterBase::RefreshCharacterTickEnabled()
 	SetActorTickEnabled(!HasActorBegunPlay() || ShouldUseContinuousCharacterTick() || bRuntimeNeedsTick || bDeathNeedsTick);
 }
 
+// UI 정의에서 이 캐릭터의 머리 위 체력바에 사용할 위젯 클래스를 선택한다.
 TSubclassOf<UUserWidget> ACharacterBase::ResolveHealthBarWidgetClass(const UWidgetClassDefinition* WidgetDefinition) const
 {
 	return WidgetDefinition ? WidgetDefinition->GetHealthBarWidgetClass() : nullptr;
 }
 
+// 캐릭터에 이미 지정된 체력바 위젯은 유지하고, 비어 있을 때만 정의에서 찾은 위젯으로 채울지 판단한다.
 bool ACharacterBase::ShouldApplyResolvedHealthBarWidgetClass(UClass* CurrentWidgetClass, TSubclassOf<UUserWidget> ResolvedWidgetClass) const
 {
 	return !CurrentWidgetClass && ResolvedWidgetClass != nullptr;
 }
 
+// 캐릭터 캡슐·메시·체력바가 카메라 충돌을 막아 시점을 불필요하게 밀어내지 않도록 설정한다.
 void ACharacterBase::ApplyCameraCollisionIgnoreToCharacterComponents() const
 {
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
@@ -726,10 +718,9 @@ void ACharacterBase::ApplyCameraCollisionIgnoreToCharacterComponents() const
 	}
 }
 
+// 투사체가 이동용 캡슐을 통과하고 실제 피격용 메시를 맞히도록 충돌 채널과 반응을 맞춘다.
 void ACharacterBase::ApplySkillDamageCollisionToCharacterComponents() const
 {
-	// Capsules are movement geometry, not damage geometry. Skill projectiles must
-	// pass through them and stop only on the primary skeletal mesh.
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
 		Capsule->SetCollisionResponseToChannel(LabCollisionChannels::Projectile(), ECR_Ignore);
@@ -747,6 +738,7 @@ void ACharacterBase::ApplySkillDamageCollisionToCharacterComponents() const
 	}
 }
 
+// 사망한 캐릭터의 이동·충돌·체력바·메시 물리를 사망 상태로 전환하도록 사망 컴포넌트에 요청한다.
 void ACharacterBase::HandleDeath_Implementation()
 {
 	if (CharacterDeathComponent)
@@ -755,6 +747,7 @@ void ACharacterBase::HandleDeath_Implementation()
 	}
 }
 
+// 같은 캐릭터를 다시 사용할 수 있도록 사망 연출과 물리·이동·외형 등의 상태를 리스폰 기준으로 복구한다.
 void ACharacterBase::ResetDeathStateForRespawn()
 {
 	if (CharacterDeathComponent)
@@ -763,6 +756,7 @@ void ACharacterBase::ResetDeathStateForRespawn()
 	}
 }
 
+// 캐릭터를 지정된 리스폰 위치로 옮겨 복구하고, 서버에서는 같은 위치와 복구 요청을 클라이언트에도 전달한다.
 void ACharacterBase::ResetDeathStateForRespawnAtTransform(const FTransform& RespawnTransform)
 {
 	SetActorTransform(RespawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
@@ -775,6 +769,7 @@ void ACharacterBase::ResetDeathStateForRespawnAtTransform(const FTransform& Resp
 	}
 }
 
+// 시체가 서서히 사라지는 디졸브 연출을 시작하며, 서버의 요청은 클라이언트에도 전달한다.
 void ACharacterBase::StartDeathDissolve(const float DurationSeconds)
 {
 	if (!CharacterDeathComponent)
@@ -790,6 +785,7 @@ void ACharacterBase::StartDeathDissolve(const float DurationSeconds)
 	CharacterDeathComponent->StartDeathDissolveLocal(SafeDuration);
 }
 
+// 캐릭터에 남은 오버레이 재질을 제거하도록 요청하며, 서버의 요청은 클라이언트에도 전달한다.
 void ACharacterBase::ClearCharacterOverlayMaterial()
 {
 	if (HasAuthority())
@@ -803,6 +799,7 @@ void ACharacterBase::ClearCharacterOverlayMaterial()
 	}
 }
 
+// 서버의 사망 알림을 받은 클라이언트가 능력 상태 정리와 캐릭터 사망 처리를 중복 없이 수행하게 한다.
 void ACharacterBase::MulticastHandleDeath_Implementation()
 {
 	if (CharacterDeathComponent)
@@ -811,6 +808,7 @@ void ACharacterBase::MulticastHandleDeath_Implementation()
 	}
 }
 
+// 서버가 지정한 시간으로 각 인스턴스에서 사망 디졸브 연출을 재생한다.
 void ACharacterBase::MulticastStartDeathDissolve_Implementation(const float DurationSeconds)
 {
 	if (CharacterDeathComponent)
@@ -819,6 +817,7 @@ void ACharacterBase::MulticastStartDeathDissolve_Implementation(const float Dura
 	}
 }
 
+// 클라이언트의 캐릭터를 서버가 지정한 리스폰 위치로 옮기고 사망 상태를 복구한다. 서버에서는 중복 실행하지 않는다.
 void ACharacterBase::MulticastResetDeathStateForRespawnAtTransform_Implementation(const FTransform& RespawnTransform)
 {
 	if (HasAuthority())
@@ -829,6 +828,7 @@ void ACharacterBase::MulticastResetDeathStateForRespawnAtTransform_Implementatio
 	ResetDeathStateForRespawn();
 }
 
+// 서버의 오버레이 제거 요청을 각 인스턴스의 캐릭터 외형에 적용한다.
 void ACharacterBase::MulticastClearCharacterOverlayMaterial_Implementation()
 {
 	if (CharacterDeathComponent)
@@ -837,6 +837,7 @@ void ACharacterBase::MulticastClearCharacterOverlayMaterial_Implementation()
 	}
 }
 
+// 서버에서 확정된 피해량과 치명타 여부를 피해 표시 알림으로 전달한다. 체력 차감이나 피격 반응 실행은 맡지 않는다.
 void ACharacterBase::HandleDamageTaken(
 	const float DamageAmount,
 	const bool bCriticalHit,
@@ -853,6 +854,7 @@ void ACharacterBase::HandleDamageTaken(
 	}
 }
 
+// 피해 숫자가 나타날 월드 위치를 구하며, 전용 표시 컴포넌트가 없으면 캐릭터 머리 위 위치를 사용한다.
 FVector ACharacterBase::GetDamageIndicatorWorldLocation() const
 {
 	if (UDamageIndicatorComponent* DamageIndicator = GetDamageIndicatorComponent())
@@ -865,6 +867,7 @@ FVector ACharacterBase::GetDamageIndicatorWorldLocation() const
 	return GetActorLocation() + FVector(0.0f, 0.0f, HeightOffset);
 }
 
+// 전달된 피해 정보를 각 화면의 피해 숫자·로컬 피격 화면 효과·Blueprint 피격 알림으로 연결한다.
 void ACharacterBase::MulticastHandleDamageTaken_Implementation(
 	const float DamageAmount,
 	const bool bCriticalHit,
@@ -876,6 +879,7 @@ void ACharacterBase::MulticastHandleDamageTaken_Implementation(
 	}
 }
 
+// 캐릭터의 진영 식별자를 제공한다. 경기의 팀 색상 번호와는 별도로 보관되는 값이다.
 int32 ACharacterBase::GetFactionId() const
 {
 	return FactionId;

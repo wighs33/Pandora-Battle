@@ -38,6 +38,18 @@ void UPlayerPawnDefinition::PostLoad()
 {
 	Super::PostLoad();
 
+	// 저장된 맨손 설정의 피해 GE를 공통 설정으로 옮긴다. 기존 자산을 다시 만들 필요는 없다.
+	if (!CombatDamageSettings.OutgoingDamageEffectClass)
+	{
+		CombatDamageSettings.OutgoingDamageEffectClass = UnarmedCombatSettings.OutgoingDamageEffectClass;
+	}
+	if (!CombatDamageSettings.IncomingDamageEffectClass)
+	{
+		CombatDamageSettings.IncomingDamageEffectClass = UnarmedCombatSettings.IncomingDamageEffectClass;
+	}
+	UnarmedCombatSettings.OutgoingDamageEffectClass = nullptr;
+	UnarmedCombatSettings.IncomingDamageEffectClass = nullptr;
+
 	// DA_PlayerPawn was once saved with the intended yaw values in Pitch.
 	// Repair only that exact legacy shape; arbitrary invalid designer values
 	// remain visible to IsDataValid instead of being silently overwritten.
@@ -145,13 +157,13 @@ EDataValidationResult UPlayerPawnDefinition::IsDataValid(FDataValidationContext&
 			"MovementHitReactCancelTags is empty; the runtime native fallback tags will be used."));
 	}
 
-	if (!UnarmedCombatSettings.OutgoingDamageEffectClass
-		|| !UnarmedCombatSettings.IncomingDamageEffectClass)
+	if (!CombatDamageSettings.OutgoingDamageEffectClass
+		|| !CombatDamageSettings.IncomingDamageEffectClass)
 	{
 		MarkInvalid(NSLOCTEXT(
 			"PlayerPawnDefinition",
-			"MissingUnarmedDamageEffects",
-			"Unarmed combat requires both outgoing and incoming damage Gameplay Effects."));
+			"MissingCombatDamageEffects",
+			"Combat requires both outgoing and incoming damage Gameplay Effects."));
 	}
 	if (UnarmedCombatSettings.AttackMontage.IsNull())
 	{
@@ -184,6 +196,12 @@ EDataValidationResult UPlayerPawnDefinition::IsDataValid(FDataValidationContext&
 			"PlayerPawnDefinition",
 			"InvalidUnarmedTraceTiming",
 			"Unarmed trace interval and interpolation distance must be finite and positive."));
+	}
+	if (UnarmedCombatSettings.MaxTraceInterpolationSteps < 1 || UnarmedCombatSettings.MaxTraceInterpolationSteps > 64
+		|| !FMath::IsFinite(UnarmedCombatSettings.MaxTraceTravelDistance) || UnarmedCombatSettings.MaxTraceTravelDistance <= 0.0f)
+	{
+		MarkInvalid(NSLOCTEXT("PlayerPawnDefinition", "InvalidUnarmedTraceLimits",
+			"Unarmed trace requires 1-64 interpolation steps and a finite positive maximum travel distance."));
 	}
 	if (UnarmedCombatSettings.AttackTraces.IsEmpty()
 		|| UnarmedCombatSettings.TraceObjectTypes.IsEmpty())

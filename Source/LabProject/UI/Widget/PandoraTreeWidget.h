@@ -148,7 +148,6 @@ private:
 	void UnbindPandoraTreeEvents();
 	void BindButtonEvents();
 	void UnbindButtonEvents();
-	void ApplyPandoraDefinitionToComponent();
 	void RefreshPandoraWidget(UWidget* Widget);
 	void BindPandoraWidgetEvents(UPandoraWidget* PandoraWidget);
 	void UnbindPandoraWidgetEvents();
@@ -188,4 +187,5 @@ private:
 	TArray<TWeakObjectPtr<UPandoraWidget>> PandoraDescriptionRequestStack;
 	FGuid PandoraModalInputToken;
 	bool bInputModeManagedExternally = false;
+	bool bPandoraDescriptionDirty = false;
 };

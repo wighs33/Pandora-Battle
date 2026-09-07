@@ -30,6 +30,9 @@ public:
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	FSimpleMulticastDelegate OnRuntimeContentReady;
+	bool IsRuntimeContentReady() const { return !bRuntimeContentLoadPending; }
+
 	void ApplySettings(const FExperienceMatchFlowSettings& InSettings);
 
 	void InitializeTravelOptions(const FString& Options);
@@ -143,6 +146,7 @@ private:
 	UPROPERTY(Transient)
 	FExperienceMatchFlowSettings Settings;
 
+	bool bServerMatchTimerStarted = false;
 	bool bMatchTimerExpired = false;
 	bool bGoldenKillActive = false;
 	int32 GoldenKillVictoryScore = 0;
@@ -155,6 +159,5 @@ private:
 	uint32 RuntimeContentRequestGeneration = 0;
 	bool bRuntimeContentLoadPending = false;
 	bool bInitializeGameStateRequested = false;
-	bool bStartMatchTimerRequested = false;
 	bool bConfigureRewardChestsRequested = false;
 };

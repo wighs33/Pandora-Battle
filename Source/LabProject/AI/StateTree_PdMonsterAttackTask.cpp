@@ -1,6 +1,7 @@
 #include "AI/StateTree_PdMonsterAttackTask.h"
 
 #include "AIController.h"
+#include "AI/MonsterCharacter.h"
 #include "Character/EnemyBase.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "StateTreeExecutionContext.h"
@@ -190,6 +191,11 @@ void FStateTreePdMonsterAttackTask::ExitState(
 	static_cast<void>(Transition);
 
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	// 공격 상태를 벗어난 뒤 몬스터 전용 공격의 모션·타격 창이 뒤늦게 남지 않게 한다.
+	if (AMonsterCharacter* Monster = InstanceData.AIController ? Cast<AMonsterCharacter>(InstanceData.AIController->GetPawn()) : nullptr)
+	{
+		Monster->StopMonsterAttack();
+	}
 	if (InstanceData.bMoveRequested && IsValid(InstanceData.AIController))
 	{
 		InstanceData.AIController->StopMovement();

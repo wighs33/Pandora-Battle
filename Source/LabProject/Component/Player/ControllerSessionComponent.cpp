@@ -3,7 +3,8 @@
 #include "Engine/World.h"
 #include "Mode/ExperienceGameMode.h"
 #include "Mode/ExperienceGameState.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/GameResultTypes.h"
@@ -51,9 +52,9 @@ void UControllerSessionComponent::TravelToTitleWithGameResult(
 		return;
 	}
 
-	if (UPdGameInstance* PdGameInstance = Controller->GetGameInstance<UPdGameInstance>())
+	if (ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(Controller->GetGameInstance()))
 	{
-		PdGameInstance->SetPendingTitleGameResult(GameResultData);
+		LobbySubsystem->SetPendingTitleGameResult(GameResultData);
 	}
 
 	DestroySessionAndTravelToTitle(TitleMapName);
@@ -68,10 +69,10 @@ void UControllerSessionComponent::TravelToTitleWithoutGameResult(
 		return;
 	}
 
-	if (UPdGameInstance* PdGameInstance =
-		Controller->GetGameInstance<UPdGameInstance>())
+	if (ULobbyRuntimeSubsystem* LobbySubsystem =
+		UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(Controller->GetGameInstance()))
 	{
-		PdGameInstance->ClearPendingTitleGameResult();
+		LobbySubsystem->ClearPendingTitleGameResult();
 	}
 	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem =
 		Controller->GetGameInstance()

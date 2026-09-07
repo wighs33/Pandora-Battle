@@ -19,6 +19,8 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "GameplayEffect.h"
+#include "Net/Core/PushModel/PushModel.h"
+#include "Net/UnrealNetwork.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Mode/PdPlayerController.h"
@@ -47,38 +49,74 @@ UCombatComponent::UCombatComponent(const FObjectInitializer& ObjectInitializer)
 
 void UCombatComponent::BeginPlay()
 {
+	bEndingPlay = false;
 	Super::BeginPlay();
 
 	RefreshCachedReferences();
+	// Pawn 정의가 BeginPlay 이전에 적용된 경우에도 몽타주 로딩을 시작한다.
+	BeginUnarmedAttackMontagePreload();
 }
 
+// 캐릭터 종료 시 입력 반복·타격 판정·로딩·ASC 구독을 함께 정리한다.
 void UCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	bEndingPlay = true;
 	StopAutomaticFire();
 	StopUnarmedAttackTrace();
 	ReleaseUnarmedAttackMontagePreload();
+	if (CachedASC && AttackSpeedChangedDelegateHandle.IsValid())
+	{
+		CachedASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetAttackSpeedAttribute()).Remove(AttackSpeedChangedDelegateHandle);
+	}
+	AttackSpeedChangedDelegateHandle.Reset();
 	TemporaryWeaponDamageBonuses.Reset();
 	Super::EndPlay(EndPlayReason);
 }
 
-void UCombatComponent::RefreshCachedReferences()
+void UCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-	CachedOwner = Cast<ACharacterBase>(GetOwner());
-	CachedASC = CachedOwner ? CachedOwner->GetPdAbilitySystemComponent() : nullptr;
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	Params.Condition = COND_OwnerOnly;
+	DOREPLIFETIME_WITH_PARAMS_FAST(UCombatComponent, ReplicatedTemporaryWeaponDamageBonus, Params);
 }
 
-void UCombatComponent::ApplyDefinition(const UPlayerPawnDefinition* Definition)
+// 빙의·PlayerState 도착에 맞춰 ASC를 갱신하고 공격속도 변화가 연사 예약에 반영되게 한다.
+void UCombatComponent::RefreshCachedReferences()
+{
+	if (bEndingPlay)
+	{
+		return;
+	}
+	CachedOwner = Cast<ACharacterBase>(GetOwner());
+	UPdAbilitySystemComponent* NewASC = CachedOwner ? CachedOwner->GetPdAbilitySystemComponent() : nullptr;
+	if (CachedASC == NewASC)
+	{
+		return;
+	}
+	if (CachedASC && AttackSpeedChangedDelegateHandle.IsValid())
+	{
+		CachedASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetAttackSpeedAttribute()).Remove(AttackSpeedChangedDelegateHandle);
+	}
+	AttackSpeedChangedDelegateHandle.Reset();
+	CachedASC = NewASC;
+	if (CachedASC)
+	{
+		AttackSpeedChangedDelegateHandle = CachedASC->GetGameplayAttributeValueChangeDelegate(
+			UBasicAttributeSet::GetAttackSpeedAttribute()).AddUObject(this, &ThisClass::HandleAttackSpeedChanged);
+	}
+}
+
+// 플레이어·AI가 선택한 피해 설정과 맨손 연출 설정을 적용한다.
+void UCombatComponent::ApplySettings(const FCombatDamageSettings& DamageSettings, const FUnarmedCombatSettings& UnarmedSettings)
 {
 	StopUnarmedAttackTrace();
-	UnarmedCombatSettings = Definition
-		? Definition->GetUnarmedCombatSettings()
-		: FUnarmedCombatSettings();
-
+	CombatDamageSettings = DamageSettings;
+	UnarmedCombatSettings = UnarmedSettings;
 	CachedUnarmedAttackObjectTypes = UnarmedCombatSettings.TraceObjectTypes;
-	HitActorsInCurrentUnarmedAttack.Reset();
-	TrackedUnarmedAttackSectionName = NAME_None;
-
-	if (HasBegunPlay())
+	ResetUnarmedAttackHitTracking();
+	if (HasBegunPlay() && !bEndingPlay)
 	{
 		BeginUnarmedAttackMontagePreload();
 	}
@@ -115,8 +153,14 @@ void UCombatComponent::PlayUnarmedComboWindowStartEffect() const
 		true);
 }
 
+// 누르기 입력은 즉시 한 번 처리하고 자동 무기라면 다음 입력을 예약한다.
 void UCombatComponent::StartPrimaryAttack()
 {
+	RefreshCachedReferences();
+	if (bEndingPlay)
+	{
+		return;
+	}
 	if (IsPrimaryAttackBlockedByAbilityTags())
 	{
 		if (UAbilitySystemComponent* BlockingAbilitySystemComponent = GetPlayerAbilitySystemComponent())
@@ -127,6 +171,8 @@ void UCombatComponent::StartPrimaryAttack()
 		return;
 	}
 
+	bPrimaryAttackHeld = true;
+	LastPrimaryAttackRequestTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	ProcessAttackInput();
 	TryStartAutomaticFire();
 }
@@ -189,8 +235,7 @@ void UCombatComponent::StopAim()
 		WeaponActor->HandleAimEnd(PlayerCharacter);
 	}
 
-	// A weapon subclass may perform extra teardown, but aim state itself must
-	// never survive a completed StopAim command (or a missing Super call).
+	// 무기별 해제 처리가 누락돼도 조준 상태 자체는 반드시 종료한다.
 	if (PlayerCharacter->IsWeaponAimActive())
 	{
 		PlayerCharacter->SetWeaponAimActive(
@@ -201,53 +246,44 @@ void UCombatComponent::StopAim()
 
 void UCombatComponent::StopAutomaticFire()
 {
+	bPrimaryAttackHeld = false;
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(AutomaticFireTimerHandle);
 	}
 }
 
-void UCombatComponent::ServerRequestAttackJumpSection_Implementation(
-	FName ClientExpectedSectionName,
-	FGameplayTag AbilityTag)
+// 태그뿐 아니라 GAS의 능력 핸들과 실행 키까지 확인해 이전 공격의 입력이 새 공격으로 섞이지 않게 한다.
+void UCombatComponent::ServerRequestNextComboInput_Implementation(
+	FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey ActivationKey, FName ClientExpectedSectionName)
 {
 	RefreshCachedReferences();
-
-	if (!AbilityTag.IsValid())
+	if (bEndingPlay || !HasCombatAuthority() || IsPrimaryAttackBlockedByAbilityTags() || !ActivationKey.IsValidKey())
 	{
 		return;
 	}
-
-	UAbilitySystemComponent* AbilitySystemComponent = GetPlayerAbilitySystemComponent();
-	if (!AbilitySystemComponent)
+	UAbilitySystemComponent* ASC = GetPlayerAbilitySystemComponent();
+	FGameplayAbilitySpec* Spec = ASC ? ASC->FindAbilitySpecFromHandle(AbilityHandle) : nullptr;
+	UAttackAbility* Attack = Spec ? Cast<UAttackAbility>(Spec->GetPrimaryInstance()) : nullptr;
+	const FGameplayTag SelectedTag = GetSelectedAttackAbilityTag(GetCurrentWeaponActor());
+	if (!Attack || !SelectedTag.IsValid() || !Attack->GetAssetTags().HasTagExact(SelectedTag)
+		|| Attack->GetCurrentActivationInfo().GetActivationPredictionKey() != ActivationKey)
 	{
 		return;
 	}
-
-	const FGameplayTag ServerSelectedAbilityTag = GetSelectedAttackAbilityTag(GetCurrentWeaponActor());
-	if (!ServerSelectedAbilityTag.IsValid() || !AbilityTag.MatchesTagExact(ServerSelectedAbilityTag))
+	if (Spec->IsActive())
 	{
-		return;
-	}
-
-	if (UAttackAbility* ActiveAttackAbility = ResolveActiveAttackAbility(AbilitySystemComponent, MakeAbilityTagContainer(AbilityTag)))
-	{
-		const FName ServerExpectedSectionName = ActiveAttackAbility->GetNextAttackSectionName();
-		if (ClientExpectedSectionName != ServerExpectedSectionName)
+		if (ClientExpectedSectionName == Attack->GetNextAttackSectionName())
 		{
-			return;
+			Attack->RequestNextComboInput();
 		}
-
-		ActiveAttackAbility->RequestNextComboInput();
 		return;
 	}
-
-	// The client may press during the last montage recovery frames and the RPC
-	// can arrive after the server has already ended that ability. Treat that
-	// valid late request as the next primary attack instead of dropping it.
-	TryActivateAttackAbility(
-		AbilitySystemComponent,
-		MakeAbilityTagContainer(ServerSelectedAbilityTag));
+	// 같은 실행이 자연 종료된 직후의 입력만 한 번 보정한다. 취소·오래된 입력은 재시작하지 않는다.
+	if (Attack->TryConsumeLateComboInput())
+	{
+		ASC->TryActivateAbility(AbilityHandle);
+	}
 }
 
 APdPlayer* UCombatComponent::GetPlayerOwner() const
@@ -300,17 +336,6 @@ FGameplayTag UCombatComponent::GetWeaponDamageSourceTag() const
 	return UProjectTagConfig::Get(this)->GetCombatWeaponDamageSourceTag();
 }
 
-FGameplayTagContainer UCombatComponent::MakeAbilityTagContainer(const FGameplayTag& AbilityTag) const
-{
-	FGameplayTagContainer AbilityTags;
-	if (AbilityTag.IsValid())
-	{
-		AbilityTags.AddTag(AbilityTag);
-	}
-
-	return AbilityTags;
-}
-
 UAttackAbility* UCombatComponent::ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent,
 	const FGameplayTagContainer& AbilityTags) const
 {
@@ -350,7 +375,7 @@ void UCombatComponent::ProcessAttackInput()
 		return;
 	}
 
-	const FGameplayTagContainer AttackTagContainer = MakeAbilityTagContainer(SelectedAttackAbilityTag);
+	const FGameplayTagContainer AttackTagContainer = FGameplayTagContainer(SelectedAttackAbilityTag);
 
 	if (ShouldUseRangedAttackAbility(CurrentWeaponActor))
 	{
@@ -360,7 +385,7 @@ void UCombatComponent::ProcessAttackInput()
 
 	if (UAttackAbility* ActiveAttackAbility = ResolveActiveAttackAbility(AbilitySystemComponent, AttackTagContainer))
 	{
-		RequestNextAttackSection(ActiveAttackAbility, SelectedAttackAbilityTag);
+		RequestNextAttackSection(ActiveAttackAbility);
 		return;
 	}
 
@@ -379,7 +404,9 @@ bool UCombatComponent::IsPrimaryAttackBlockedByAbilityTags() const
 
 	const UAbilitySystemComponent* AbilitySystemComponent = GetPlayerAbilitySystemComponent();
 	return AbilitySystemComponent
-		&& (AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
+		&& (AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
+			|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Status_Frostbite)
+			|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
 			|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_ShootProjectile_Active));
 }
 
@@ -409,7 +436,7 @@ FGameplayTag UCombatComponent::GetSelectedAttackAbilityTag(const AWeaponBase* We
 	return WeaponActor ? GetAttackAbilityTag() : GetPunchAbilityTag();
 }
 
-void UCombatComponent::RequestNextAttackSection(UAttackAbility* ActiveAttackAbility, const FGameplayTag& AbilityTag)
+void UCombatComponent::RequestNextAttackSection(UAttackAbility* ActiveAttackAbility)
 {
 	if (!ActiveAttackAbility)
 	{
@@ -425,7 +452,8 @@ void UCombatComponent::RequestNextAttackSection(UAttackAbility* ActiveAttackAbil
 
 	if (AActor* OwnerActor = GetOwner(); OwnerActor && !OwnerActor->HasAuthority())
 	{
-		ServerRequestAttackJumpSection(ClientExpectedSectionName, AbilityTag);
+		ServerRequestNextComboInput(ActiveAttackAbility->GetCurrentAbilitySpecHandle(),
+			ActiveAttackAbility->GetCurrentActivationInfo().GetActivationPredictionKey(), ClientExpectedSectionName);
 	}
 }
 
@@ -445,65 +473,48 @@ bool UCombatComponent::TryActivateAttackAbility(UAbilitySystemComponent* Ability
 	return AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTags, true);
 }
 
+// 반복 주기를 고정하지 않고 현재 공격속도와 마지막 요청 시점으로 다음 한 발을 예약한다.
 bool UCombatComponent::TryStartAutomaticFire()
 {
-	if (IsPrimaryAttackBlockedByAbilityTags())
+	if (bEndingPlay || !bPrimaryAttackHeld || IsPrimaryAttackBlockedByAbilityTags())
 	{
 		StopAutomaticFire();
 		return false;
 	}
-
-	AWeaponBase* WeaponActor = GetCurrentWeaponActor();
-	if (!WeaponActor || !WeaponActor->SupportsAutomaticFire())
-	{
-		StopAutomaticFire();
-		return false;
-	}
-
-	const float FireInterval = WeaponActor->GetAutomaticFireInterval();
-	if (FireInterval <= 0.f)
-	{
-		StopAutomaticFire();
-		return false;
-	}
-
+	AWeaponBase* Weapon = GetCurrentWeaponActor();
 	UWorld* World = GetWorld();
-	if (!World)
+	const float Interval = Weapon ? Weapon->GetAutomaticFireInterval() : 0.0f;
+	if (!World || !Weapon || !Weapon->SupportsAutomaticFire() || !FMath::IsFinite(Interval) || Interval <= 0.0f)
 	{
+		StopAutomaticFire();
 		return false;
 	}
-
-	if (World->GetTimerManager().IsTimerActive(AutomaticFireTimerHandle))
-	{
-		return true;
-	}
-
-	World->GetTimerManager().SetTimer(
-		AutomaticFireTimerHandle,
-		this,
-		&ThisClass::HandleAutomaticFireTick,
-		FireInterval,
-		true,
-		FireInterval);
+	const double Elapsed = World->GetTimeSeconds() - LastPrimaryAttackRequestTime;
+	const float Delay = FMath::Max(static_cast<float>(Interval - Elapsed), UE_SMALL_NUMBER);
+	World->GetTimerManager().SetTimer(AutomaticFireTimerHandle, this, &ThisClass::HandleAutomaticFireTick, Delay, false);
 	return true;
 }
 
 void UCombatComponent::HandleAutomaticFireTick()
 {
-	if (IsPrimaryAttackBlockedByAbilityTags())
+	AWeaponBase* Weapon = GetCurrentWeaponActor();
+	if (!bPrimaryAttackHeld || bEndingPlay || IsPrimaryAttackBlockedByAbilityTags() || !Weapon || !Weapon->SupportsAutomaticFire())
 	{
 		StopAutomaticFire();
 		return;
 	}
-
-	AWeaponBase* WeaponActor = GetCurrentWeaponActor();
-	if (!WeaponActor || !WeaponActor->SupportsAutomaticFire())
-	{
-		StopAutomaticFire();
-		return;
-	}
-
+	LastPrimaryAttackRequestTime = GetWorld()->GetTimeSeconds();
 	ProcessAttackInput();
+	TryStartAutomaticFire();
+}
+
+// 누르는 도중 버프가 바뀌어도 다음 발사 요청의 남은 시간을 다시 계산한다.
+void UCombatComponent::HandleAttackSpeedChanged(const FOnAttributeChangeData& Data)
+{
+	if (bPrimaryAttackHeld)
+	{
+		TryStartAutomaticFire();
+	}
 }
 
 float UCombatComponent::GetActionStaminaCost() const
@@ -639,7 +650,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 		*CostSpecHandle.Data.Get()).WasSuccessfullyApplied();
 }
 
-float UCombatComponent::GetWeaponDamageSourceMagnitude()
+float UCombatComponent::GetWeaponDamageSourceMagnitude() const
 {
 	const ACharacterBase* CharacterOwner = CachedOwner.Get();
 	if (!CharacterOwner)
@@ -666,9 +677,8 @@ float UCombatComponent::CalculateStrengthAdjustedWeaponDamage(const float Weapon
 	return FMath::Max(static_cast<float>(static_cast<double>(ClampedWeaponDamage) * StrengthMultiplier), 0.0f);
 }
 
-float UCombatComponent::GetStrengthAdjustedWeaponDamageMagnitude(const float SourceStrength)
+float UCombatComponent::GetStrengthAdjustedWeaponDamageMagnitude(const float SourceStrength) const
 {
-	RefreshCachedReferences();
 
 	const bool bHasEquippedWeapon = GetCurrentWeaponActor() != nullptr;
 	const float RawWeaponDamageAmount = bHasEquippedWeapon
@@ -679,51 +689,40 @@ float UCombatComponent::GetStrengthAdjustedWeaponDamageMagnitude(const float Sou
 	return CalculateStrengthAdjustedWeaponDamage(WeaponDamageWithBonus, SourceStrength);
 }
 
+// 출처별 보너스는 서버에만 기록하고 소유 클라이언트에는 합계만 보낸다.
 void UCombatComponent::SetTemporaryWeaponDamageBonus(UObject* SourceObject, const float DamageBonus)
 {
-	if (!HasCombatAuthority())
+	if (bEndingPlay || !HasCombatAuthority() || !IsValid(SourceObject))
 	{
 		return;
 	}
-
-	CompactTemporaryWeaponDamageBonuses();
-
-	if (!SourceObject)
+	if (FMath::IsFinite(DamageBonus) && DamageBonus > 0.0f)
 	{
-		return;
+		TemporaryWeaponDamageBonuses.Add(FObjectKey(SourceObject), DamageBonus);
 	}
-
-	const FObjectKey SourceKey(SourceObject);
-	const float ClampedDamageBonus = FMath::Max(DamageBonus, 0.0f);
-	if (ClampedDamageBonus <= 0.0f)
+	else
 	{
-		TemporaryWeaponDamageBonuses.Remove(SourceKey);
-		return;
+		TemporaryWeaponDamageBonuses.Remove(FObjectKey(SourceObject));
 	}
-
-	TemporaryWeaponDamageBonuses.Add(SourceKey, ClampedDamageBonus);
-
+	RefreshTemporaryWeaponDamageBonus();
 }
 
 void UCombatComponent::ClearTemporaryWeaponDamageBonus(UObject* SourceObject)
 {
-	if (!HasCombatAuthority())
+	if (!HasCombatAuthority() || !SourceObject)
 	{
 		return;
 	}
-
-	CompactTemporaryWeaponDamageBonuses();
-
-	if (!SourceObject)
-	{
-		return;
-	}
-
 	TemporaryWeaponDamageBonuses.Remove(FObjectKey(SourceObject));
+	RefreshTemporaryWeaponDamageBonus();
 }
 
 float UCombatComponent::GetTemporaryWeaponDamageBonus() const
 {
+	if (!HasCombatAuthority())
+	{
+		return ReplicatedTemporaryWeaponDamageBonus;
+	}
 	float TotalBonus = 0.0f;
 	for (const TPair<FObjectKey, float>& Entry : TemporaryWeaponDamageBonuses)
 	{
@@ -745,98 +744,16 @@ void UCombatComponent::SetActiveComboDamageMultiplier(const float DamageMultipli
 		return;
 	}
 
-	ActiveComboDamageMultiplier = FMath::Max(DamageMultiplier, 1.0f);
+	ActiveComboDamageMultiplier = FMath::IsFinite(DamageMultiplier) ? FMath::Max(DamageMultiplier, 1.0f) : 1.0f;
 }
 
+// 무기 피해량과 출처만 정하고 실제 타격 처리는 맨손과 공유한다.
 bool UCombatComponent::ApplyWeaponDamageToTarget(AActor* TargetActor)
 {
 	RefreshCachedReferences();
-
-	if (!HasCombatAuthority())
-	{
-		return false;
-	}
-
-	ACharacterBase* SourceCharacter = CachedOwner.Get();
-	ACharacterBase* TargetCharacter = Cast<ACharacterBase>(TargetActor);
-	UPdAbilitySystemComponent* SourceASC = CachedASC.Get();
-	UPdAbilitySystemComponent* TargetASC = TargetCharacter ? TargetCharacter->GetPdAbilitySystemComponent() : nullptr;
-
-	if (!SourceCharacter || !TargetCharacter || SourceCharacter == TargetCharacter || !SourceASC || !TargetASC)
-	{
-		return false;
-	}
-
-	if (!SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
-	{
-		return false;
-	}
-
-	AWeaponBase* CurrentWeaponActor = GetCurrentWeaponActor();
-	const bool bShouldTriggerHitReactOnDamage = !CurrentWeaponActor || CurrentWeaponActor->ShouldTriggerHitReactOnDamage();
-	UBasicAttributeSet* SourceAttributeSet = const_cast<UBasicAttributeSet*>(SourceASC->GetSet<UBasicAttributeSet>());
-	const float SourceStrength = SourceAttributeSet ? FMath::Max(SourceAttributeSet->GetStrength(), 0.0f) : 0.0f;
-	const float RawWeaponDamageAmount = GetWeaponDamageSourceMagnitude();
-	const float SkillWeaponDamageBonus = GetTemporaryWeaponDamageBonus();
-	const float WeaponDamageWithBonus = FMath::Max(RawWeaponDamageAmount, 0.0f) + SkillWeaponDamageBonus;
-	const float BaseDamageAmount =
-		CalculateStrengthAdjustedWeaponDamage(WeaponDamageWithBonus, SourceStrength)
-		* ActiveComboDamageMultiplier;
-	if (BaseDamageAmount <= 0.f)
-	{
-		return false;
-	}
-
-	if (!SourceAttributeSet)
-	{
-		return false;
-	}
-
-	SourceAttributeSet->ConsumeOutgoingDamage();
-
-	if (!ApplyDamageEffect(
-		SourceASC,
-		SourceASC,
-		UnarmedCombatSettings.OutgoingDamageEffectClass,
-		BaseDamageAmount,
-		TargetCharacter))
-	{
-		return false;
-	}
-
-	const float FinalOutgoingDamage = SourceAttributeSet->ConsumeOutgoingDamage();
-	if (FinalOutgoingDamage <= 0.f)
-	{
-		return false;
-	}
-	const bool bCriticalHit = SourceAttributeSet->ConsumeOutgoingDamageCriticalHit();
-
-	UBasicAttributeSet* TargetAttributeSet = const_cast<UBasicAttributeSet*>(TargetASC->GetSet<UBasicAttributeSet>());
-	if (!TargetAttributeSet)
-	{
-		return false;
-	}
-
-	AActor* DamageCauser = CurrentWeaponActor ? Cast<AActor>(CurrentWeaponActor) : Cast<AActor>(SourceCharacter);
-	UObject* DamageSourceObject = CurrentWeaponActor ? static_cast<UObject*>(CurrentWeaponActor) : static_cast<UObject*>(SourceCharacter);
-
-	TargetAttributeSet->SetPendingIncomingDamageCriticalHit(bCriticalHit);
-	TargetAttributeSet->SetPendingIncomingDamageAllowHitReact(bShouldTriggerHitReactOnDamage);
-	if (!ApplyDamageEffect(
-		SourceASC,
-		TargetASC,
-		UnarmedCombatSettings.IncomingDamageEffectClass,
-		FinalOutgoingDamage,
-		DamageSourceObject,
-		SourceCharacter,
-		DamageCauser))
-	{
-		TargetAttributeSet->SetPendingIncomingDamageCriticalHit(false);
-		TargetAttributeSet->SetPendingIncomingDamageAllowHitReact(true);
-		return false;
-	}
-
-	return true;
+	AWeaponBase* Weapon = GetCurrentWeaponActor();
+	return Weapon && ApplyAttackDamageToTarget(TargetActor,
+		GetWeaponDamageSourceMagnitude() + GetTemporaryWeaponDamageBonus(), Weapon, Weapon, Weapon->ShouldTriggerHitReactOnDamage());
 }
 
 UAnimMontage* UCombatComponent::GetCachedUnarmedAttackMontage() const
@@ -918,61 +835,44 @@ void UCombatComponent::SetUnarmedAttackTraceEnabledForSection(
 		PreviousUnarmedAttackTraceValid.Init(0, UnarmedCombatSettings.AttackTraces.Num());
 	}
 
-	StartUnarmedAttackTrace(false);
+	StartUnarmedAttackTrace();
 }
 
 void UCombatComponent::ResetUnarmedAttackHitTracking()
 {
+	++UnarmedAttackTraceGeneration;
+	PreviousUnarmedAttackTraceValid.Init(0, UnarmedCombatSettings.AttackTraces.Num());
 	TrackedUnarmedAttackSectionName = NAME_None;
 	HitActorsInCurrentUnarmedAttack.Reset();
 }
 
-void UCombatComponent::StartUnarmedAttackTrace(const bool bResetHitActors)
+// 공격 판정 창이 열려 있는 동안만 서버가 손·발의 충돌 검사를 반복한다.
+void UCombatComponent::StartUnarmedAttackTrace()
 {
-	if (!HasCombatAuthority())
-	{
-
-		return;
-	}
-
-	if (UnarmedAttackTraceTimerHandle.IsValid())
-	{
-
-		return;
-	}
-
-	if (bResetHitActors)
-	{
-		HitActorsInCurrentUnarmedAttack.Reset();
-	}
-	if (UnarmedCombatSettings.AttackTraces.IsEmpty()
-		|| UnarmedCombatSettings.TraceObjectTypes.IsEmpty()
-		|| !FMath::IsFinite(UnarmedCombatSettings.TraceInterval)
-		|| UnarmedCombatSettings.TraceInterval <= 0.0f
-		|| !FMath::IsFinite(UnarmedCombatSettings.TraceInterpolationDistance)
-		|| UnarmedCombatSettings.TraceInterpolationDistance <= 0.0f)
+	UWorld* World = GetWorld();
+	if (bEndingPlay || !HasCombatAuthority() || bUnarmedAttackTraceActive || !World
+		|| UnarmedCombatSettings.AttackTraces.IsEmpty() || CachedUnarmedAttackObjectTypes.IsEmpty()
+		|| !FMath::IsFinite(UnarmedCombatSettings.TraceInterval) || UnarmedCombatSettings.TraceInterval <= 0.0f
+		|| !FMath::IsFinite(UnarmedCombatSettings.TraceInterpolationDistance) || UnarmedCombatSettings.TraceInterpolationDistance <= 0.0f
+		|| !FMath::IsFinite(UnarmedCombatSettings.MaxTraceTravelDistance) || UnarmedCombatSettings.MaxTraceTravelDistance <= 0.0f)
 	{
 		return;
 	}
-
+	bUnarmedAttackTraceActive = true;
+	++UnarmedAttackTraceGeneration;
 	PreviousUnarmedAttackTraceStartLocations.SetNumZeroed(UnarmedCombatSettings.AttackTraces.Num());
 	PreviousUnarmedAttackTraceEndLocations.SetNumZeroed(UnarmedCombatSettings.AttackTraces.Num());
 	PreviousUnarmedAttackTraceValid.Init(0, UnarmedCombatSettings.AttackTraces.Num());
+	World->GetTimerManager().SetTimer(UnarmedAttackTraceTimerHandle, this, &ThisClass::PerformUnarmedAttackTrace,
+		UnarmedCombatSettings.TraceInterval, true);
+	// 즉시 타격의 콜백에서 공격이 끝나도 타이머를 다시 등록하지 않는다.
 	PerformUnarmedAttackTrace();
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			UnarmedAttackTraceTimerHandle,
-			this,
-			&ThisClass::PerformUnarmedAttackTrace,
-			UnarmedCombatSettings.TraceInterval,
-			true);
-	}
 }
 
 void UCombatComponent::StopUnarmedAttackTrace()
 {
+	bUnarmedAttackTraceActive = false;
+	++UnarmedAttackTraceGeneration;
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(UnarmedAttackTraceTimerHandle);
@@ -990,7 +890,7 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 	ACharacterBase* SourceCharacter = CachedOwner.Get();
 	USkeletalMeshComponent* SourceMesh = SourceCharacter ? SourceCharacter->GetMesh() : nullptr;
 	UWorld* World = GetWorld();
-	if (!OwnerActor || !HasCombatAuthority() || !SourceCharacter || !SourceMesh || !World)
+	if (bEndingPlay || !bUnarmedAttackTraceActive || !OwnerActor || !HasCombatAuthority() || !SourceCharacter || !SourceMesh || !World)
 	{
 		return;
 	}
@@ -1002,9 +902,9 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 		return;
 	}
 
-	UnarmedAttackActorsToIgnore.Reset(2);
+	const uint32 TraceGeneration = UnarmedAttackTraceGeneration;
+	UnarmedAttackActorsToIgnore.Reset(1);
 	UnarmedAttackActorsToIgnore.Add(SourceCharacter);
-	UnarmedAttackActorsToIgnore.Add(OwnerActor);
 	const UGameSettingDefinition* SettingDefinition =
 		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	const bool bDrawAttackDebug = SettingDefinition
@@ -1054,7 +954,20 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 			continue;
 		}
 		const FRotator TraceRotation = SourceCharacter->GetActorRotation();
-		const bool bHasPreviousTrace = PreviousUnarmedAttackTraceValid[TraceIndex] != 0;
+		if (TraceStart.ContainsNaN() || TraceEnd.ContainsNaN())
+		{
+			PreviousUnarmedAttackTraceValid[TraceIndex] = 0;
+			continue;
+		}
+		bool bHasPreviousTrace = PreviousUnarmedAttackTraceValid[TraceIndex] != 0;
+		if (bHasPreviousTrace)
+		{
+			const double TravelDistance = FMath::Max(
+				FVector::Distance(PreviousUnarmedAttackTraceStartLocations[TraceIndex], TraceStart),
+				FVector::Distance(PreviousUnarmedAttackTraceEndLocations[TraceIndex], TraceEnd));
+			// 순간이동이나 큰 위치 보정은 이전 위치에서 이어서 휘두른 공격으로 취급하지 않는다.
+			bHasPreviousTrace = FMath::IsFinite(TravelDistance) && TravelDistance <= UnarmedCombatSettings.MaxTraceTravelDistance;
+		}
 		const FVector PreviousTraceStart = bHasPreviousTrace
 			? PreviousUnarmedAttackTraceStartLocations[TraceIndex]
 			: TraceStart;
@@ -1065,9 +978,8 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 			FVector::Distance(PreviousTraceStart, TraceStart),
 			FVector::Distance(PreviousTraceEnd, TraceEnd));
 		const float InterpolationDistance = UnarmedCombatSettings.TraceInterpolationDistance;
-		const int32 InterpolationCount = FMath::Max(
-			1,
-			FMath::CeilToInt(MaxTravelDistance / InterpolationDistance));
+		const int32 MaxSteps = FMath::Clamp(UnarmedCombatSettings.MaxTraceInterpolationSteps, 1, 64);
+		const int32 InterpolationCount = FMath::CeilToInt(FMath::Clamp(MaxTravelDistance / InterpolationDistance, 1.0f, static_cast<float>(MaxSteps)));
 
 		for (int32 InterpolationIndex = 1; InterpolationIndex <= InterpolationCount; ++InterpolationIndex)
 		{
@@ -1075,7 +987,7 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 				static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
 			const FVector InterpolatedTraceStart = FMath::Lerp(PreviousTraceStart, TraceStart, Alpha);
 			const FVector InterpolatedTraceEnd = FMath::Lerp(PreviousTraceEnd, TraceEnd, Alpha);
-			TArray<FHitResult> InterpolatedHitResults;
+			InterpolatedUnarmedHitResults.Reset();
 			UKismetSystemLibrary::BoxTraceMultiForObjects(
 				this,
 				InterpolatedTraceStart,
@@ -1086,12 +998,12 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 				false,
 				UnarmedAttackActorsToIgnore,
 				EDrawDebugTrace::None,
-				InterpolatedHitResults,
+				InterpolatedUnarmedHitResults,
 				true,
 				FLinearColor::Red,
 				FLinearColor::Green,
 				UnarmedTraceDebugDrawTime);
-			UnarmedAttackHitResults.Append(InterpolatedHitResults);
+			UnarmedAttackHitResults.Append(InterpolatedUnarmedHitResults);
 		}
 
 		PreviousUnarmedAttackTraceStartLocations[TraceIndex] = TraceStart;
@@ -1134,99 +1046,64 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 
 			HitActorsInCurrentUnarmedAttack.Add(HitActor);
 			ApplyUnarmedDamageToTarget(HitActor);
+			if (TraceGeneration != UnarmedAttackTraceGeneration)
+			{
+				return;
+			}
 		}
 	}
 }
 
 bool UCombatComponent::ApplyUnarmedDamageToTarget(AActor* TargetActor)
 {
+	return ApplyAttackDamageToTarget(TargetActor, GetUnarmedDamageSourceMagnitude(), GetOwner(), GetOwner(), true);
+}
+
+// 팀·능력치·치명타·피격 반응을 같은 순서로 적용한다. GE와 AttributeSet의 피해 규칙은 유지한다.
+bool UCombatComponent::ApplyAttackDamageToTarget(AActor* TargetActor, const float RawDamage,
+	UObject* SourceObject, AActor* DamageCauser, const bool bAllowHitReact)
+{
 	RefreshCachedReferences();
-
-	if (!HasCombatAuthority())
-	{
-		return false;
-	}
-
-	ACharacterBase* SourceCharacter = CachedOwner.Get();
-	ACharacterBase* TargetCharacter = Cast<ACharacterBase>(TargetActor);
+	ACharacterBase* Source = CachedOwner.Get();
+	ACharacterBase* Target = Cast<ACharacterBase>(TargetActor);
 	UPdAbilitySystemComponent* SourceASC = CachedASC.Get();
-	UPdAbilitySystemComponent* TargetASC = TargetCharacter ? TargetCharacter->GetPdAbilitySystemComponent() : nullptr;
-
-	if (!SourceCharacter || !TargetCharacter || SourceCharacter == TargetCharacter || !SourceASC || !TargetASC)
+	UPdAbilitySystemComponent* TargetASC = IsValid(Target) ? Target->GetPdAbilitySystemComponent() : nullptr;
+	if (bEndingPlay || !HasCombatAuthority() || !IsValid(Source) || !IsValid(Target)
+		|| Source == Target || !SourceASC || !TargetASC || !Source->CanDamageCharacterByTeam(Target))
 	{
-
 		return false;
 	}
-
-	if (!SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
+	UBasicAttributeSet* SourceAttributes = const_cast<UBasicAttributeSet*>(SourceASC->GetSet<UBasicAttributeSet>());
+	UBasicAttributeSet* TargetAttributes = const_cast<UBasicAttributeSet*>(TargetASC->GetSet<UBasicAttributeSet>());
+	if (!SourceAttributes || !TargetAttributes || !FMath::IsFinite(RawDamage))
 	{
-
 		return false;
 	}
-
-	UBasicAttributeSet* SourceAttributeSet = const_cast<UBasicAttributeSet*>(SourceASC->GetSet<UBasicAttributeSet>());
-	if (!SourceAttributeSet)
+	const float BaseDamage = CalculateStrengthAdjustedWeaponDamage(RawDamage, SourceAttributes->GetStrength()) * ActiveComboDamageMultiplier;
+	if (!FMath::IsFinite(BaseDamage) || BaseDamage <= 0.0f)
 	{
-
 		return false;
 	}
-
-	const float RawUnarmedDamageAmount = GetUnarmedDamageSourceMagnitude();
-	const float SourceStrength = FMath::Max(SourceAttributeSet->GetStrength(), 0.0f);
-	const float BaseDamageAmount =
-		CalculateStrengthAdjustedWeaponDamage(RawUnarmedDamageAmount, SourceStrength)
-		* ActiveComboDamageMultiplier;
-	if (BaseDamageAmount <= 0.f)
+	SourceAttributes->ConsumeOutgoingDamage();
+	if (!ApplyDamageEffect(SourceASC, SourceASC, CombatDamageSettings.OutgoingDamageEffectClass, BaseDamage, Target))
 	{
-
 		return false;
 	}
-
-	SourceAttributeSet->ConsumeOutgoingDamage();
-	if (!ApplyDamageEffect(
-		SourceASC,
-		SourceASC,
-		UnarmedCombatSettings.OutgoingDamageEffectClass,
-		BaseDamageAmount,
-		TargetCharacter))
+	const float FinalDamage = SourceAttributes->ConsumeOutgoingDamage();
+	const bool bCritical = SourceAttributes->ConsumeOutgoingDamageCriticalHit();
+	if (!FMath::IsFinite(FinalDamage) || FinalDamage <= 0.0f)
 	{
-
 		return false;
 	}
-
-	const float FinalOutgoingDamage = SourceAttributeSet->ConsumeOutgoingDamage();
-	if (FinalOutgoingDamage <= 0.f)
+	TargetAttributes->SetPendingIncomingDamageCriticalHit(bCritical);
+	TargetAttributes->SetPendingIncomingDamageAllowHitReact(bAllowHitReact);
+	if (!ApplyDamageEffect(SourceASC, TargetASC, CombatDamageSettings.IncomingDamageEffectClass,
+		FinalDamage, SourceObject, Source, DamageCauser))
 	{
-
+		TargetAttributes->SetPendingIncomingDamageCriticalHit(false);
+		TargetAttributes->SetPendingIncomingDamageAllowHitReact(true);
 		return false;
 	}
-
-	const bool bCriticalHit = SourceAttributeSet->ConsumeOutgoingDamageCriticalHit();
-
-	UBasicAttributeSet* TargetAttributeSet = const_cast<UBasicAttributeSet*>(TargetASC->GetSet<UBasicAttributeSet>());
-	if (!TargetAttributeSet)
-	{
-
-		return false;
-	}
-
-	TargetAttributeSet->SetPendingIncomingDamageCriticalHit(bCriticalHit);
-	TargetAttributeSet->SetPendingIncomingDamageAllowHitReact(true);
-	if (!ApplyDamageEffect(
-		SourceASC,
-		TargetASC,
-		UnarmedCombatSettings.IncomingDamageEffectClass,
-		FinalOutgoingDamage,
-		SourceCharacter,
-		SourceCharacter,
-		SourceCharacter))
-	{
-		TargetAttributeSet->SetPendingIncomingDamageCriticalHit(false);
-		TargetAttributeSet->SetPendingIncomingDamageAllowHitReact(true);
-
-		return false;
-	}
-
 	return true;
 }
 
@@ -1238,7 +1115,7 @@ float UCombatComponent::GetUnarmedDamageSourceMagnitude() const
 	}
 
 	return GetCurrentWeaponActor()
-		? const_cast<UCombatComponent*>(this)->GetWeaponDamageSourceMagnitude()
+		? GetWeaponDamageSourceMagnitude()
 		: 0.0f;
 }
 
@@ -1248,15 +1125,30 @@ bool UCombatComponent::HasCombatAuthority() const
 	return OwnerActor && OwnerActor->HasAuthority();
 }
 
-void UCombatComponent::CompactTemporaryWeaponDamageBonuses()
+void UCombatComponent::RefreshTemporaryWeaponDamageBonus()
 {
-	for (auto BonusIt = TemporaryWeaponDamageBonuses.CreateIterator(); BonusIt; ++BonusIt)
+	for (auto It = TemporaryWeaponDamageBonuses.CreateIterator(); It; ++It)
 	{
-		if (!IsValid(BonusIt.Key().ResolveObjectPtr()) || BonusIt.Value() <= 0.0f)
+		if (!IsValid(It.Key().ResolveObjectPtr()))
 		{
-			BonusIt.RemoveCurrent();
+			It.RemoveCurrent();
 		}
 	}
+	const float NewBonus = GetTemporaryWeaponDamageBonus();
+	if (ReplicatedTemporaryWeaponDamageBonus == NewBonus)
+	{
+		return;
+	}
+	ReplicatedTemporaryWeaponDamageBonus = NewBonus;
+	MARK_PROPERTY_DIRTY_FROM_NAME(UCombatComponent, ReplicatedTemporaryWeaponDamageBonus, this);
+	GetOwner()->ForceNetUpdate();
+	OnRep_TemporaryWeaponDamageBonus();
+}
+
+// 서버의 실제 보너스가 바뀌면 능력치 UI도 공격력·방어 파생값을 다시 계산한다.
+void UCombatComponent::OnRep_TemporaryWeaponDamageBonus()
+{
+	OnDamageBonusChanged.Broadcast();
 }
 
 bool UCombatComponent::ApplyDamageEffect(UPdAbilitySystemComponent* SourceASC, UPdAbilitySystemComponent* TargetASC,
@@ -1266,7 +1158,7 @@ bool UCombatComponent::ApplyDamageEffect(UPdAbilitySystemComponent* SourceASC, U
 	FGameplayTag DamageMagnitudeSetByCallerTag;
 	const bool bHasDamageMagnitudeTag =
 		SourceASC && SourceASC->ResolveDamageMagnitudeSetByCallerTag(DamageMagnitudeSetByCallerTag);
-	if (!HasCombatAuthority() || !SourceASC || !TargetASC || !DamageEffectClass || Magnitude <= 0.0f
+	if (!HasCombatAuthority() || !SourceASC || !TargetASC || !DamageEffectClass || !FMath::IsFinite(Magnitude) || Magnitude <= 0.0f
 		|| !bHasDamageMagnitudeTag)
 	{
 		return false;

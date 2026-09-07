@@ -22,7 +22,6 @@ void ULobbyExperienceComponent::StartExperienceLoad()
 		GetConfiguredExperienceId();
 	if (!GameMode || !ExperienceId.IsValid())
 	{
-		bWaitingForExperience = false;
 		return;
 	}
 
@@ -30,11 +29,7 @@ void ULobbyExperienceComponent::StartExperienceLoad()
 		GameMode->GetGameState<ALobbyGameState>();
 	if (!LobbyGameState)
 	{
-		UE_LOG(
-			LogLobbyExperience,
-			Error,
-			TEXT("Lobby experience load failed: LobbyGameState is missing."));
-		bWaitingForExperience = false;
+		HandleExperienceLoadFailed(ExperienceId, TEXT("LobbyGameState is missing."));
 		return;
 	}
 
@@ -42,15 +37,10 @@ void ULobbyExperienceComponent::StartExperienceLoad()
 		LobbyGameState->GetExperienceManagerComponent();
 	if (!ExperienceManager)
 	{
-		UE_LOG(
-			LogLobbyExperience,
-			Error,
-			TEXT("Lobby experience load failed: ExperienceManagerComponent is missing."));
-		bWaitingForExperience = false;
+		HandleExperienceLoadFailed(ExperienceId, TEXT("ExperienceManagerComponent is missing."));
 		return;
 	}
 
-	bWaitingForExperience = true;
 	ExperienceManager->CallOrRegister_OnExperienceLoaded(
 		FOnPdExperienceLoaded::FDelegate::CreateUObject(
 			this,
@@ -85,8 +75,7 @@ bool ULobbyExperienceComponent::IsExperienceLoaded() const
 
 bool ULobbyExperienceComponent::ShouldDelayPlayerStart() const
 {
-	return bWaitingForExperience
-		&& !IsExperienceLoaded();
+	return !IsExperienceLoaded();
 }
 
 UClass*
@@ -154,22 +143,34 @@ void ULobbyExperienceComponent::HandleExperienceLoaded(
 	const UExperienceDefinition* Experience)
 {
 	static_cast<void>(Experience);
-	bWaitingForExperience = false;
+	if (ALobbyGameMode* GameMode = GetLobbyGameMode())
+	{
+		if (ALobbyGameState* GameState = GameMode->GetGameState<ALobbyGameState>())
+		{
+			GameState->SetExperienceLoadFailed(false);
+		}
+	}
 	ResumeWaitingPlayers();
 }
 
+// 필수 Experience 실패는 기본 Pawn 시작으로 우회하지 않고 서버와 클라이언트에 실패 상태를 남긴다.
 void ULobbyExperienceComponent::HandleExperienceLoadFailed(
 	const FPrimaryAssetId ExperienceId,
 	const FString& FailureMessage)
 {
-	bWaitingForExperience = false;
 	UE_LOG(
 		LogLobbyExperience,
 		Error,
 		TEXT("Lobby experience load failed: id=%s reason=%s"),
 		*ExperienceId.ToString(),
 		*FailureMessage);
-	ResumeWaitingPlayers();
+	if (ALobbyGameMode* GameMode = GetLobbyGameMode())
+	{
+		if (ALobbyGameState* GameState = GameMode->GetGameState<ALobbyGameState>())
+		{
+			GameState->SetExperienceLoadFailed(true);
+		}
+	}
 }
 
 void ULobbyExperienceComponent::ResumeWaitingPlayers()
@@ -195,11 +196,7 @@ void ULobbyExperienceComponent::ResumeWaitingPlayers()
 			&& GameMode->PlayerCanRestart(
 				PlayerController))
 		{
-			GameMode->RestartPlayer(PlayerController);
+			GameMode->HandleStartingNewPlayer(PlayerController);
 		}
-
-		GameMode->ProvisionLobbyPlayer(PlayerController);
 	}
-
-	GameMode->RefreshLobbyUIForAllPlayers();
 }

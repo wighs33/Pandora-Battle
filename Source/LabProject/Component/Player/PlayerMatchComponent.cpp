@@ -1,15 +1,12 @@
 #include "Component/Player/PlayerMatchComponent.h"
 
-#include "Engine/World.h"
-#include "GameFramework/GameStateBase.h"
-#include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "Mode/PdGameInstance.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerMatchComponent)
 
+// 경기 중 플레이어 정보를 네트워크로 공유하도록 설정하고, 매 프레임 갱신은 사용하지 않는다.
 UPlayerMatchComponent::UPlayerMatchComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -17,12 +14,7 @@ UPlayerMatchComponent::UPlayerMatchComponent(const FObjectInitializer& ObjectIni
 	SetIsReplicatedByDefault(true);
 }
 
-void UPlayerMatchComponent::BeginPlay()
-{
-	Super::BeginPlay();
-	InitializeDefaultMatchDisplayNameIfNeeded();
-}
-
+// 이름·팀·스폰 번호·선택 업적과 사망 횟수·현재 맵 구역을 클라이언트에 복제할 대상으로 등록한다.
 void UPlayerMatchComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -34,6 +26,7 @@ void UPlayerMatchComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME_WITH_PARAMS_FAST(UPlayerMatchComponent, PlayerMapRegion, Params);
 }
 
+// 서버에서 확정한 플레이어 식별 정보를 반영하고, 이름과 팀 표시를 갱신하도록 변경을 알린다.
 void UPlayerMatchComponent::SetPlayerMatchIdentity(const FPlayerMatchIdentity& InMatchIdentity)
 {
 	if (!HasAuthority() || PlayerMatchIdentity.Matches(InMatchIdentity))
@@ -46,9 +39,10 @@ void UPlayerMatchComponent::SetPlayerMatchIdentity(const FPlayerMatchIdentity& I
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPlayerMatchComponent, PlayerMatchIdentity, this);
 	GetOwner()->ForceNetUpdate();
 
-	BroadcastPlayerMatchIdentityChanged(&PreviousIdentity);
+	BroadcastPlayerMatchIdentityChanged(PreviousIdentity);
 }
 
+// 스코어보드와 킬 로그 등에서 사용할 경기 표시 이름을 서버에서 갱신한다.
 void UPlayerMatchComponent::SetMatchDisplayName(const FText& InDisplayName)
 {
 	FPlayerMatchIdentity NewMatchIdentity = PlayerMatchIdentity;
@@ -56,6 +50,7 @@ void UPlayerMatchComponent::SetMatchDisplayName(const FText& InDisplayName)
 	SetPlayerMatchIdentity(NewMatchIdentity);
 }
 
+// 로비에서 배정한 스폰 번호를 저장해 경기 입장 시 시작 위치를 고르는 데 사용한다.
 void UPlayerMatchComponent::SetMatchSpawnIndex(const int32 InSpawnIndex)
 {
 	FPlayerMatchIdentity NewMatchIdentity = PlayerMatchIdentity;
@@ -63,6 +58,7 @@ void UPlayerMatchComponent::SetMatchSpawnIndex(const int32 InSpawnIndex)
 	SetPlayerMatchIdentity(NewMatchIdentity);
 }
 
+// 캐릭터와 HUD에서 플레이어를 구분할 팀 색상 인덱스를 서버에서 갱신한다.
 void UPlayerMatchComponent::SetMatchTeamColorIndex(const int32 InTeamColorIndex)
 {
 	FPlayerMatchIdentity NewMatchIdentity = PlayerMatchIdentity;
@@ -70,6 +66,7 @@ void UPlayerMatchComponent::SetMatchTeamColorIndex(const int32 InTeamColorIndex)
 	SetPlayerMatchIdentity(NewMatchIdentity);
 }
 
+// 캐릭터의 업적 아이콘 표시에 사용할 선택 업적 ID를 서버에서 갱신한다.
 void UPlayerMatchComponent::SetSelectedAchievementId(const FName InAchievementId)
 {
 	FPlayerMatchIdentity NewMatchIdentity = PlayerMatchIdentity;
@@ -77,14 +74,16 @@ void UPlayerMatchComponent::SetSelectedAchievementId(const FName InAchievementId
 	SetPlayerMatchIdentity(NewMatchIdentity);
 }
 
+// 킬당 1점인 현재 경기 규칙에 따라 PlayerState의 Score를 스코어보드와 경기 결과에 사용할 킬 수로 반환한다.
 int32 UPlayerMatchComponent::GetKillCount() const
 {
-	const APlayerState* OwnerPlayerState = Cast<APlayerState>(GetOwner());
+	const APlayerState* OwnerPlayerState = GetPlayerState<APlayerState>();
 	return OwnerPlayerState
 		? FMath::Max(FMath::RoundToInt(OwnerPlayerState->GetScore()), 0)
 		: 0;
 }
 
+// 플레이어 사망 처리에서 호출해 서버에서 현재 경기의 사망 횟수를 누적한다.
 bool UPlayerMatchComponent::RecordDeath(const int32 Amount)
 {
 	if (!HasAuthority() || Amount <= 0)
@@ -97,39 +96,7 @@ bool UPlayerMatchComponent::RecordDeath(const int32 Amount)
 	return true;
 }
 
-void UPlayerMatchComponent::SetInitialSpawnTransform(const FTransform& InSpawnTransform)
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	bHasInitialSpawnTransform = true;
-	InitialSpawnTransform = InSpawnTransform;
-}
-
-void UPlayerMatchComponent::ClearInitialSpawnTransform()
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	bHasInitialSpawnTransform = false;
-	InitialSpawnTransform = FTransform::Identity;
-}
-
-bool UPlayerMatchComponent::TryGetInitialSpawnTransform(FTransform& OutSpawnTransform) const
-{
-	if (!bHasInitialSpawnTransform)
-	{
-		return false;
-	}
-
-	OutSpawnTransform = InitialSpawnTransform;
-	return true;
-}
-
+// 구역 진입 시 현재 맵 구역을 서버에서 갱신해 지도 UI가 플레이어를 알맞은 구역에 표시하도록 한다.
 void UPlayerMatchComponent::SetPlayerMapRegion(const EPlayerMapRegion InMapRegion)
 {
 	if (!HasAuthority() || PlayerMapRegion == InMapRegion)
@@ -140,124 +107,50 @@ void UPlayerMatchComponent::SetPlayerMapRegion(const EPlayerMapRegion InMapRegio
 	PlayerMapRegion = InMapRegion;
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPlayerMatchComponent, PlayerMapRegion, this);
 	GetOwner()->ForceNetUpdate();
-
-	OnPlayerMapRegionChanged.Broadcast(PlayerMapRegion);
 }
 
-void UPlayerMatchComponent::CopyMatchStateTo(
-	UPlayerMatchComponent* TargetComponent,
-	const FPlayerMatchIdentity& MatchIdentityToCopy,
-	const bool bCopyMatchStats) const
+// 새 경기 입장 시 식별 정보는 유지하고 킬·사망 기록과 맵 구역을 초기화한다. 리스폰 때는 호출하지 않는다.
+void UPlayerMatchComponent::ResetForNewMatch(const EPlayerMapRegion InitialMapRegion)
 {
-	if (!HasAuthority() || !IsValid(TargetComponent) || !TargetComponent->HasAuthority())
+	APlayerState* PlayerState = GetPlayerState<APlayerState>();
+	if (!PlayerState || !HasAuthority())
 	{
 		return;
 	}
 
-	const APlayerState* SourcePlayerState = Cast<APlayerState>(GetOwner());
-	APlayerState* TargetPlayerState = Cast<APlayerState>(TargetComponent->GetOwner());
-	if (!SourcePlayerState || !TargetPlayerState)
-	{
-		return;
-	}
-
-	TargetComponent->SetPlayerMatchIdentity(MatchIdentityToCopy);
-	TargetComponent->SetPlayerMapRegion(PlayerMapRegion);
-	TargetPlayerState->SetScore(bCopyMatchStats ? SourcePlayerState->GetScore() : 0.0f);
-	TargetComponent->SetDeathCount(bCopyMatchStats ? DeathCount : 0);
+	PlayerState->SetScore(0.0f);
+	SetDeathCount(0);
+	SetPlayerMapRegion(InitialMapRegion);
 }
 
-bool UPlayerMatchComponent::HasAuthority() const
-{
-	const AActor* OwnerActor = GetOwner();
-	return OwnerActor && OwnerActor->HasAuthority();
-}
-
-void UPlayerMatchComponent::InitializeDefaultMatchDisplayNameIfNeeded()
-{
-	APlayerState* OwnerPlayerState = Cast<APlayerState>(GetOwner());
-	if (!OwnerPlayerState || !OwnerPlayerState->HasAuthority() || !GetMatchDisplayName().IsEmpty())
-	{
-		return;
-	}
-
-	UPdGameInstance* PdGameInstance = GetWorld()
-		? GetWorld()->GetGameInstance<UPdGameInstance>()
-		: nullptr;
-	if (!PdGameInstance)
-	{
-		return;
-	}
-
-	int32 FallbackDisplayNameIndex = 1;
-	if (const UWorld* World = GetWorld())
-	{
-		if (const AGameStateBase* CurrentGameState = World->GetGameState())
-		{
-			const int32 PlayerIndex = CurrentGameState->PlayerArray.IndexOfByKey(OwnerPlayerState);
-			FallbackDisplayNameIndex = PlayerIndex != INDEX_NONE
-				? PlayerIndex + 1
-				: CurrentGameState->PlayerArray.Num() + 1;
-		}
-	}
-
-	SetMatchDisplayName(PdGameInstance->ResolveDefaultPlayerNickname(
-		Cast<APlayerController>(OwnerPlayerState->GetOwner()),
-		OwnerPlayerState,
-		FallbackDisplayNameIndex));
-}
-
+// 사망 집계나 새 경기 초기화에서 정한 사망 횟수를 저장하고 클라이언트에 복제되도록 갱신을 요청한다.
 void UPlayerMatchComponent::SetDeathCount(const int32 InDeathCount)
 {
-	if (!HasAuthority())
+	if (DeathCount == InDeathCount)
 	{
 		return;
 	}
 
-	const int32 SanitizedDeathCount = FMath::Max(InDeathCount, 0);
-	if (DeathCount == SanitizedDeathCount)
-	{
-		return;
-	}
-
-	DeathCount = SanitizedDeathCount;
+	DeathCount = InDeathCount;
 	MARK_PROPERTY_DIRTY_FROM_NAME(UPlayerMatchComponent, DeathCount, this);
 	GetOwner()->ForceNetUpdate();
-	OnPlayerDeathCountChanged.Broadcast(DeathCount);
 }
 
-void UPlayerMatchComponent::BroadcastPlayerMatchIdentityChanged(
-	const FPlayerMatchIdentity* PreviousIdentity)
+// 실제로 바뀐 이름과 팀 색상만 구독자에게 알려 프로필 UI와 캐릭터 표시를 갱신하게 한다.
+void UPlayerMatchComponent::BroadcastPlayerMatchIdentityChanged(const FPlayerMatchIdentity& PreviousIdentity)
 {
-	OnPlayerMatchIdentityChanged.Broadcast(PlayerMatchIdentity);
-
-	if (!PreviousIdentity || !PreviousIdentity->DisplayName.EqualTo(PlayerMatchIdentity.DisplayName))
+	if (!PreviousIdentity.DisplayName.EqualTo(PlayerMatchIdentity.DisplayName))
 	{
 		OnMatchDisplayNameChanged.Broadcast(PlayerMatchIdentity.DisplayName);
 	}
-	if (!PreviousIdentity || PreviousIdentity->TeamColorIndex != PlayerMatchIdentity.TeamColorIndex)
+	if (PreviousIdentity.TeamColorIndex != PlayerMatchIdentity.TeamColorIndex)
 	{
 		OnMatchTeamColorChanged.Broadcast(PlayerMatchIdentity.TeamColorIndex);
 	}
 }
 
+// 클라이언트가 서버의 식별 정보를 전달받으면 이름과 팀의 변경을 알려 화면 표시를 갱신하게 한다.
 void UPlayerMatchComponent::OnRep_PlayerMatchIdentity(const FPlayerMatchIdentity& PreviousIdentity)
 {
-	BroadcastPlayerMatchIdentityChanged(&PreviousIdentity);
-}
-
-void UPlayerMatchComponent::OnRep_DeathCount(const int32 PreviousDeathCount)
-{
-	if (DeathCount != PreviousDeathCount)
-	{
-		OnPlayerDeathCountChanged.Broadcast(DeathCount);
-	}
-}
-
-void UPlayerMatchComponent::OnRep_PlayerMapRegion(const EPlayerMapRegion PreviousPlayerMapRegion)
-{
-	if (PlayerMapRegion != PreviousPlayerMapRegion)
-	{
-		OnPlayerMapRegionChanged.Broadcast(PlayerMapRegion);
-	}
+	BroadcastPlayerMatchIdentityChanged(PreviousIdentity);
 }

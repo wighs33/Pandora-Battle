@@ -85,10 +85,6 @@ public:
 		meta = (Categories = "GameplayCue", DisplayName = "Gameplay Cues To Remove"))
 	FGameplayTagContainer RespawnGameplayCuesToRemove;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Effect Removal|Pandora Reset",
-		meta = (Categories = "GameplayCue", DisplayName = "Gameplay Cues To Remove"))
-	FGameplayTagContainer PandoraResetGameplayCuesToRemove;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Ability System|Cost",
 		meta = (DisplayName = "Ability Cost Gameplay Effect",
 			ToolTip = "Instant GE with additive Mana/Data.ManaCost and Stamina/Data.StaminaCost SetByCaller modifiers."))

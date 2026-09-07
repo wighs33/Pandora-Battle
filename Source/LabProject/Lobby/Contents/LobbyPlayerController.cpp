@@ -1,5 +1,6 @@
 #include "Lobby/Contents/LobbyPlayerController.h"
 
+#include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Common/GameSessionConstants.h"
 #include "Engine/LocalPlayer.h"
@@ -12,8 +13,8 @@
 #include "Lobby/Contents/LobbyPlayerState.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Lobby/UI/LobbyWidget.h"
-#include "Mode/PdGameInstance.h"
-#include "Component/Player/ControllerInputComponent.h"
+#include "Engine/GameInstance.h"
+#include "Settings/BgmSubsystem.h"
 #include "Settings/CursorSettingsLibrary.h"
 #include "UI/UiSubsystem.h"
 
@@ -35,9 +36,9 @@ void ALobbyPlayerController::BeginPlay()
 		bEnableClickEvents = true;
 		bEnableMouseOverEvents = true;
 		UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, this);
-		if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
+		if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 		{
-			PdGameInstance->PlayBgmForContext(EBgmContext::Lobby);
+			BgmSubsystem->PlayBgmForContext(EBgmContext::Lobby);
 		}
 		if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
 		{
@@ -50,19 +51,10 @@ void ALobbyPlayerController::BeginPlay()
 	}
 }
 
-void ALobbyPlayerController::SetupInputComponent()
-{
-	Super::SetupInputComponent();
-}
-
 void ALobbyPlayerController::AcknowledgePossession(APawn* P)
 {
 	Super::AcknowledgePossession(P);
 
-	if (UControllerInputComponent* ControllerInputComp = GetControllerInputComponent())
-	{
-		ControllerInputComp->RefreshInputDefinition();
-	}
 	if (bLobbyTravelLocked)
 	{
 		ApplyLobbyTravelLock(true);
@@ -105,7 +97,7 @@ void ALobbyPlayerController::Server_HandleChangeTeamColor_Implementation(const i
 	}
 
 	const ALobbyGameMode* LobbyGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALobbyGameMode>() : nullptr;
-	const int32 MaxPlayerCount = LobbyGameMode ? LobbyGameMode->GetSelectedLobbyMaxPlayerCount() : LabGameSession::MaxPlayerCount;
+	const int32 MaxPlayerCount = LobbyGameMode ? LobbyGameMode->GetLobbyConfigurationComponent()->GetSelectedLobbyMaxPlayerCount() : LabGameSession::MaxPlayerCount;
 	const int32 TeamColorIndex = FMath::Clamp(InTeamColorIndex, 0, FMath::Max(MaxPlayerCount, 1) - 1);
 	if (LobbyPlayerState->GetTeamColorIndex() == TeamColorIndex)
 	{
@@ -142,14 +134,6 @@ void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(ALobbyPlayer
 	if (ALobbyGameMode* LobbyGameMode = Cast<ALobbyGameMode>(UGameplayStatics::GetGameMode(this)))
 	{
 		LobbyGameMode->KickPlayer(TargetPlayerState);
-	}
-}
-
-void ALobbyPlayerController::Client_RefreshLobbyUI_Implementation()
-{
-	if (ALobbyHUD* LobbyHUD = GetHUD<ALobbyHUD>())
-	{
-		LobbyHUD->RefreshLobbyUI();
 	}
 }
 

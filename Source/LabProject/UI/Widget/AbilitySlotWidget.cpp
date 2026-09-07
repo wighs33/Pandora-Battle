@@ -172,59 +172,6 @@ void UAbilitySlotWidget::SetInputKeyIcon()
 
 void UAbilitySlotWidget::CheckForCooldown()
 {
-	if (!bAbilitySlotEnabled)
-	{
-		ClearCooldownTimer();
-		if (CooldownTimerContainer)
-		{
-			CooldownTimerContainer->SetVisibility(ESlateVisibility::Collapsed);
-		}
-		return;
-	}
-
-	if (!AbilityObjectRef && !AbilitySpecHandle.IsValid())
-	{
-		return;
-	}
-
-	if (UWorld* World = GetWorld())
-	{
-		if (World->GetTimerManager().IsTimerActive(UpdateCooldownTimerHandle))
-		{
-			return;
-		}
-	}
-
-	const float TimeRemaining = ResolveCooldownTimeRemaining();
-	if (TimeRemaining <= 0.0f)
-	{
-		return;
-	}
-
-	const double ConfiguredCooldownDuration = ResolveConfiguredCooldownDuration();
-	TotalCooldownTime = ConfiguredCooldownDuration > 0.0
-		? FMath::Max(ConfiguredCooldownDuration, static_cast<double>(TimeRemaining))
-		: static_cast<double>(TimeRemaining);
-
-	ClearCooldownTimer();
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			UpdateCooldownTimerHandle,
-			this,
-			&ThisClass::UpdateCooldownProgress,
-			0.05f,
-			true);
-	}
-
-	if (CooldownTimerContainer)
-	{
-		CooldownTimerContainer->SetVisibility(ESlateVisibility::Visible);
-	}
-
-	SetInputKeyRenderOpacity(CooldownInputKeyOpacity);
-
 	UpdateCooldownProgress();
 }
 
@@ -273,21 +220,17 @@ void UAbilitySlotWidget::CheckForManaAvailability()
 
 void UAbilitySlotWidget::UpdateCooldownProgress()
 {
-	if (!bAbilitySlotEnabled)
+	float TimeRemaining = 0.0f;
+	float Duration = 0.0f;
+	if (bAbilitySlotEnabled)
 	{
-		ClearCooldownTimer();
-		return;
+		ResolveCooldown(TimeRemaining, Duration);
 	}
 
-	if (!AbilityObjectRef && !AbilitySpecHandle.IsValid())
-	{
-		return;
-	}
-
-	const float TimeRemaining = ResolveCooldownTimeRemaining();
 	if (TimeRemaining <= 0.0f)
 	{
 		ClearCooldownTimer();
+		TotalCooldownTime = 0.0;
 
 		if (CooldownTimerContainer)
 		{
@@ -304,9 +247,21 @@ void UAbilitySlotWidget::UpdateCooldownProgress()
 			TimerText->SetText(FText::GetEmpty());
 		}
 
-		SetInputKeyRenderOpacity(ReadyInputKeyOpacity);
+		SetInputKeyRenderOpacity(bAbilitySlotEnabled ? ReadyInputKeyOpacity : DisabledSlotOpacity);
 		return;
 	}
+
+	// 위젯 재생성이나 판도라 재연결 시에도 타이머 유무와 관계없이 현재 쿨다운 표시를 복원한다.
+	TotalCooldownTime = FMath::Max(Duration, TimeRemaining);
+	if (UWorld* World = GetWorld(); World && !World->GetTimerManager().IsTimerActive(UpdateCooldownTimerHandle))
+	{
+		World->GetTimerManager().SetTimer(UpdateCooldownTimerHandle, this, &ThisClass::UpdateCooldownProgress, 0.05f, true);
+	}
+	if (CooldownTimerContainer)
+	{
+		CooldownTimerContainer->SetVisibility(ESlateVisibility::Visible);
+	}
+	SetInputKeyRenderOpacity(CooldownInputKeyOpacity);
 
 	if (CooldownProgress)
 	{
@@ -363,6 +318,7 @@ void UAbilitySlotWidget::ApplyWidgetDefinitionSettings()
 
 void UAbilitySlotWidget::RefreshAbilityBinding()
 {
+	ClearCooldownTimer();
 	UnbindGameplayTagEvents();
 	InitializeAbilityObject();
 	BindGameplayTagEvents();
@@ -379,11 +335,7 @@ void UAbilitySlotWidget::BindGameplayTagEvents()
 		return;
 	}
 
-	FGameplayTag CooldownTag = ResolveSkillSlotCooldownTag();
-	if (!CooldownTag.IsValid())
-	{
-		CooldownTag = LabGameplayTags::Cooldown;
-	}
+	const FGameplayTag CooldownTag = LabGameplayTags::Cooldown;
 	if (CooldownTag.IsValid())
 	{
 		BoundCooldownTag = CooldownTag;
@@ -493,20 +445,8 @@ void UAbilitySlotWidget::ApplyAbilitySlotEnabledState()
 		InputKeyOverlay->SetRenderOpacity(bAbilitySlotEnabled ? ReadyInputKeyOpacity : DisabledSlotOpacity);
 	}
 
-	if (!bAbilitySlotEnabled)
-	{
-		ClearCooldownTimer();
-		if (CooldownTimerContainer)
-		{
-			CooldownTimerContainer->SetVisibility(ESlateVisibility::Collapsed);
-		}
-
-		if (AbilityActiveFrame)
-		{
-			AbilityActiveFrame->SetVisibility(ESlateVisibility::Collapsed);
-		}
-	}
-
+	CheckForCooldown();
+	CheckForActivation();
 	CheckForManaAvailability();
 }
 
@@ -596,76 +536,20 @@ const USkillDefinition* UAbilitySlotWidget::ResolveSkillDataAsset() const
 		: nullptr;
 }
 
-FGameplayTag UAbilitySlotWidget::ResolveSkillSlotCooldownTag() const
+void UAbilitySlotWidget::ResolveCooldown(float& OutTimeRemaining, float& OutDuration) const
 {
+	OutTimeRemaining = 0.0f;
+	OutDuration = 0.0f;
 	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
-	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent ? AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle) : nullptr;
-	if (!AbilitySpec)
+	if (!AbilityObjectRef || !AbilitySystemComponent || !AbilitySystemComponent->AbilityActorInfo.IsValid()
+		|| !AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle))
 	{
-		return FGameplayTag();
+		return;
 	}
 
-	const FGameplayTagContainer& SourceTags = AbilitySpec->GetDynamicSpecSourceTags();
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill1))
-	{
-		return LabGameplayTags::Cooldown_Skill1;
-	}
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill2))
-	{
-		return LabGameplayTags::Cooldown_Skill2;
-	}
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill3))
-	{
-		return LabGameplayTags::Cooldown_Skill3;
-	}
-	if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill4))
-	{
-		return LabGameplayTags::Cooldown_Skill4;
-	}
-
-	return FGameplayTag();
-}
-
-float UAbilitySlotWidget::ResolveCooldownTimeRemaining() const
-{
-	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
-	const FGameplayTag SkillSlotCooldownTag = ResolveSkillSlotCooldownTag();
-	if (AbilitySystemComponent && SkillSlotCooldownTag.IsValid())
-	{
-		FGameplayTagContainer CooldownTags;
-		CooldownTags.AddTag(SkillSlotCooldownTag);
-		const FGameplayEffectQuery Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(CooldownTags);
-		TArray<float> Durations = AbilitySystemComponent->GetActiveEffectsTimeRemaining(Query);
-		if (Durations.Num() > 0)
-		{
-			Durations.Sort();
-			return Durations.Last();
-		}
-	}
-
-	return AbilityObjectRef ? AbilityObjectRef->GetCooldownTimeRemaining() : 0.0f;
-}
-
-double UAbilitySlotWidget::ResolveConfiguredCooldownDuration() const
-{
-	const USkillDefinition* SkillDataAsset = ResolveSkillDataAsset();
-	double CooldownDuration = SkillDataAsset ? FMath::Max(SkillDataAsset->Time.CooldownDuration, 0.0) : 0.0;
-	if (CooldownDuration <= 0.0)
-	{
-		return 0.0;
-	}
-
-	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
-	const float ArcaneReductionPercent = AbilitySystemComponent
-		? FMath::Max(AbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetArcaneAttribute()), 0.0f)
-		: 0.0f;
-	if (ArcaneReductionPercent <= 0.0f)
-	{
-		return CooldownDuration;
-	}
-
-	const double ReductionAlpha = FMath::Clamp(static_cast<double>(ArcaneReductionPercent), 0.0, 100.0) / 100.0;
-	return FMath::Max(CooldownDuration * (1.0 - ReductionAlpha), 0.0);
+	// 능력 인스턴스의 최근 실행 정보가 아닌 슬롯의 Spec으로 적용 당시 효과의 남은 시간과 전체 시간을 함께 읽는다.
+	AbilityObjectRef->GetCooldownTimeRemainingAndDuration(
+		AbilitySpecHandle, AbilitySystemComponent->AbilityActorInfo.Get(), OutTimeRemaining, OutDuration);
 }
 
 UInputAction* UAbilitySlotWidget::ResolveInputAction() const

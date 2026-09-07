@@ -17,7 +17,9 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Item/ItemInstance.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerState.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 
@@ -98,6 +100,7 @@ void UDefaultPlayerProvisioner::ProvisionPlayer(
 	if (TryProvisionPlayer(PlayerController, Mode))
 	{
 		ClearRetryTimer(PlayerController);
+		OnPlayerProvisioned.Broadcast(PlayerController);
 		return;
 	}
 
@@ -571,7 +574,6 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(
 	}
 
 	TArray<FPrimaryAssetId> UnlockedPandoraIds;
-	TArray<FName> OwnedPandoraNames;
 	TArray<FGrantedPandora> GrantedPandoras;
 	UAssetManager& AssetManager = UAssetManager::Get();
 	for (const FDefaultProvisionPandoraGrant& Grant
@@ -594,7 +596,6 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(
 
 		UnlockedPandoraIds.AddUnique(
 			PandoraDefinition->GetPrimaryAssetId());
-		OwnedPandoraNames.AddUnique(PandoraDefinition->GetFName());
 		if (Level > 0)
 		{
 			GrantedPandoras.Add(FGrantedPandora(PandoraDefinition, Level));
@@ -602,7 +603,8 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(
 	}
 
 	PandoraComponent->ClearAllPandoras();
-	PandoraTreeComponent->SetOwnedPandoraNames(OwnedPandoraNames);
+	// 전체 초기화는 이전 목록 로딩도 취소하므로 잠긴 항목을 명시적으로 다시 채운다.
+	PandoraComponent->AddPandorasByPrimaryAssetIds(PandoraComponent->AllPandroaDefinition);
 	const int32 ConfiguredSoulDust =
 		Definition->GetSoulDustValues().GetCount(Mode);
 	PandoraTreeComponent->InitializeFromDefaultProvision(
@@ -612,12 +614,12 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(
 	TMap<EEnum_Direction, FPrimaryAssetId> LoadoutByDirection;
 	if (Mode == EDefaultProvisionMode::Gameplay)
 	{
-		if (UPdGameInstance* GameInstance =
-			PlayerState->GetGameInstance<UPdGameInstance>())
+		ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(PlayerState->GetGameInstance());
+		UContentDataSubsystem* ContentDataSubsystem = UGameInstance::GetSubsystem<UContentDataSubsystem>(PlayerState->GetGameInstance());
+		if (LobbySubsystem && ContentDataSubsystem)
 		{
 			TMap<EEnum_Direction, FName> CachedNamesByDirection;
-			if (GameInstance
-				->TryGetCachedLobbyPandoraLoadoutForPlayerState(
+			if (LobbySubsystem->TryGetCachedLobbyPandoraLoadoutForPlayerState(
 					PlayerState,
 					CachedNamesByDirection))
 			{
@@ -630,7 +632,7 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(
 						continue;
 					}
 					if (const UPandoraDefinition* PandoraDefinition =
-						GameInstance->GetPandoraDefinitionByName(Pair.Value))
+						ContentDataSubsystem->GetPandoraDefinitionByName(Pair.Value))
 					{
 						const FPrimaryAssetId PandoraId =
 							PandoraDefinition->GetPrimaryAssetId();

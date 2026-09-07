@@ -16,7 +16,7 @@
 #include "Engine/StreamableManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/PackageName.h"
-#include "Mode/PdGameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/MapWidget.h"
 #include "UI/UiSubsystem.h"
@@ -95,9 +95,9 @@ bool FindMapOptionForCurrentMap(const UInfoWidget* Widget, FLobbyMatchMapOption&
 	const bool bHasLevelContext = !CurrentPackageName.IsEmpty() || !CurrentLevelName.IsEmpty();
 	if (CurrentWorld)
 	{
-		if (const UPdGameInstance* GameInstance = CurrentWorld->GetGameInstance<UPdGameInstance>())
+		if (const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(CurrentWorld->GetGameInstance()))
 		{
-			const FName SelectedMapKey = GameInstance->GetLobbySelectedMapKey();
+			const FName SelectedMapKey = LobbySubsystem->GetLobbySelectedMapKey();
 			if (!SelectedMapKey.IsNone()
 				&& Levels->FindIngameLevel(SelectedMapKey, OutMapOption)
 				&& !OutMapOption.GameplayMapWidgetClass.IsNull()

@@ -25,6 +25,7 @@
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Widget/PandoraDescriptionWidget.h"
 #include "UI/Widget/PandoraWidget.h"
+#include "UI/Widget/PandoraWidgetViewData.h"
 #include "View/MVVMView.h"
 #include "View/MVVMViewClass.h"
 #include "ViewModel/PandoraTreeViewModel.h"
@@ -109,7 +110,6 @@ void UPandoraTreeWidget::NativeConstruct()
 	ResolveControlWidgets();
 	GetOrCreatePandoraTreeViewModel();
 	ApplyPandoraTreeViewModelToMvvmView();
-	ApplyPandoraDefinitionToComponent();
 	BindPandoraTreeEvents();
 	BindButtonEvents();
 	SetPandoraPointsText();
@@ -119,6 +119,7 @@ void UPandoraTreeWidget::NativeConstruct()
 void UPandoraTreeWidget::NativeDestruct()
 {
 	ClearHideTimer();
+	bPandoraDescriptionDirty = false;
 	UnbindPandoraWidgetEvents();
 	PandoraDescriptionRequestStack.Reset();
 	HidePandoraDescription();
@@ -146,6 +147,12 @@ void UPandoraTreeWidget::NativeDestruct()
 void UPandoraTreeWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (bPandoraDescriptionDirty)
+	{
+		bPandoraDescriptionDirty = false;
+		RefreshActivePandoraDescription();
+	}
 
 	if (PandoraDescriptionWidget
 		&& PandoraDescriptionWidget->GetVisibility() != ESlateVisibility::Collapsed
@@ -202,7 +209,6 @@ void UPandoraTreeWidget::SetPandoraDefinition(UPandoraDefinition* InPandoraDefin
 	}
 
 	PandoraDefinition = InPandoraDefinition;
-	ApplyPandoraDefinitionToComponent();
 	RefreshPandoraWidgets();
 }
 
@@ -470,16 +476,15 @@ void UPandoraTreeWidget::ShowTopRequestedPandoraDescription()
 
 void UPandoraTreeWidget::HandlePandoraStateChanged()
 {
-	RefreshPandoraWidgets();
-	RefreshActivePandoraDescription();
+	// 각 노드는 자신의 변경 이벤트로 갱신한다. 부모는 열린 설명만 한 프레임에 한 번 갱신한다.
+	bPandoraDescriptionDirty = true;
 }
 
 void UPandoraTreeWidget::HandlePandoraPointsChanged(int32 NewPointsAvailable)
 {
 	(void)NewPointsAvailable;
 	SetPandoraPointsText();
-	RefreshPandoraWidgets();
-	RefreshActivePandoraDescription();
+	bPandoraDescriptionDirty = true;
 }
 
 void UPandoraTreeWidget::HandleResetPandoraClicked()
@@ -558,7 +563,7 @@ void UPandoraTreeWidget::ResolvePandoraTreeComponent()
 
 	if (!PandoraDefinition && PandoraTreeComponent)
 	{
-		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
+		PandoraDefinition = FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(PandoraTreeComponent);
 	}
 
 }
@@ -672,9 +677,7 @@ void UPandoraTreeWidget::BindPandoraTreeEvents()
 		return;
 	}
 
-	PandoraTreeComponent->OnPandorasChanged.RemoveDynamic(this, &ThisClass::HandlePandoraStateChanged);
 	PandoraTreeComponent->OnPandorasChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraStateChanged);
-	PandoraTreeComponent->OnPointsChanged.RemoveDynamic(this, &ThisClass::HandlePandoraPointsChanged);
 	PandoraTreeComponent->OnPointsChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraPointsChanged);
 }
 
@@ -717,14 +720,6 @@ void UPandoraTreeWidget::UnbindPandoraTreeEvents()
 
 	PandoraTreeComponent->OnPandorasChanged.RemoveDynamic(this, &ThisClass::HandlePandoraStateChanged);
 	PandoraTreeComponent->OnPointsChanged.RemoveDynamic(this, &ThisClass::HandlePandoraPointsChanged);
-}
-
-void UPandoraTreeWidget::ApplyPandoraDefinitionToComponent()
-{
-	if (PandoraTreeComponent && PandoraDefinition)
-	{
-		PandoraTreeComponent->SetPandoraDefinition(PandoraDefinition.Get());
-	}
 }
 
 void UPandoraTreeWidget::RefreshPandoraWidget(UWidget* Widget)

@@ -26,14 +26,14 @@ public:
 	const FGameplayTag& GetJumpSectionEventTag() const { return JumpSectionEventTag; }
 	FName GetNextAttackSectionName() const;
 	bool RequestNextComboInput();
+	bool TryConsumeLateComboInput();
 	bool RequestJumpToSection(FName RequestedSectionName);
 
 protected:
 	// Timing hooks
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	virtual void OnAbilityEnding() override;
 
 	// Delegate callbacks
 	UFUNCTION()
@@ -169,5 +169,8 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_WaitInputPress> WaitInputPressTask;
 
+	// 실행 키는 GAS가 관리하고, 자연 종료 직후의 보정 가능 시간만 능력 인스턴스가 기억한다.
+	double LastUnconsumedComboWindowCloseTime = -1.0;
+	double LateComboInputExpiresAt = -1.0;
 	FTimerHandle AttackDamageWindowCloseTimerHandle;
 };

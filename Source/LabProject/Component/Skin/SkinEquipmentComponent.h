@@ -26,6 +26,11 @@ struct LABPROJECT_API FEquippedSkinSlot
 	TObjectPtr<const USkinDefinition> SkinDefinition = nullptr;
 };
 
+/**
+ * 현재 캐릭터의 스킨 슬롯을 복제하고 외형과 제스처를 적용한다.
+ *
+ * 소유권은 PlayerState의 SkinComponent에서 확인하며, 바뀌지 않은 장식과 펫은 유지한다.
+ */
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API USkinEquipmentComponent : public UActorComponent
 {
@@ -34,10 +39,13 @@ class LABPROJECT_API USkinEquipmentComponent : public UActorComponent
 public:
 	USkinEquipmentComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	//------------------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Skin|Equipment")
 	bool RequestEquipSkin(USkinInstance* SkinInstance, FGameplayTag SlotTag);
 
@@ -89,16 +97,17 @@ protected:
 	bool CanEquipSkinDefinition(const USkinDefinition* SkinDefinition, FGameplayTag SlotTag) const;
 	bool CanReferenceSkinDefinition(const USkinDefinition* SkinDefinition) const;
 	bool HasSkinEquipmentAuthority() const;
-	bool TryConsumeGestureNetworkEvent(double& LastRequestTime, double MinInterval);
 	bool TryConsumeGesturePlayRequest();
-	bool TryConsumeGestureCancelRequest();
 	float GetClampedGestureBlendOutTime(float BlendOutTime) const;
 	int32 FindEquippedSkinSlotIndex(FGameplayTag SlotTag) const;
 	ACharacterBase* GetCharacterOwner() const;
-	bool PlayGestureMontage(UAnimMontage* GestureMontage) const;
-	bool CancelActiveGestureMontage(float BlendOutTime) const;
+	bool CanPlayGesture() const;
+	bool IsSupportedSkinSlot(FGameplayTag SlotTag) const;
+	bool PlayGestureMontage(UAnimMontage* GestureMontage);
+	bool CancelActiveGestureMontage(float BlendOutTime);
 	void RebuildEquippedSkinActors();
 	void RebuildEquippedSkinActorsFromLoadedContent(uint32 RequestGeneration);
+	void ApplyEquippedSkinSlot(const FEquippedSkinSlot& Slot);
 	void ReleaseSkinPresentationLoad();
 	void DestroyEquippedSkinActors();
 	AActor* SpawnPetSkinActor(const USkinDefinition* SkinDefinition) const;
@@ -114,18 +123,19 @@ protected:
 	double GesturePlayRequestMinInterval = 0.15;
 
 	UPROPERTY(EditDefaultsOnly, Category = "!Skin|Gesture|Network", meta = (ClampMin = "0.0", ForceUnits = "s"))
-	double GestureCancelRequestMinInterval = 0.05;
-
-	UPROPERTY(EditDefaultsOnly, Category = "!Skin|Gesture|Network", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	double MaxGestureCancelBlendOutTime = 2.0;
 
 	UPROPERTY(Transient)
 	double LastGesturePlayRequestTime = -1.0;
 
 	UPROPERTY(Transient)
-	double LastGestureCancelRequestTime = -1.0;
+	TMap<FGameplayTag, TObjectPtr<const USkinDefinition>> AppliedSkinDefinitions;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAnimMontage> ActiveGestureMontage;
 
 	bool bGesturePlayRequestPending = false;
+	bool bEndingPlay = false;
 
 	TSharedPtr<FStreamableHandle> SkinPresentationLoadHandle;
 	uint32 SkinPresentationRequestGeneration = 0;

@@ -34,12 +34,10 @@ class UWidgetComponent;
 struct FStreamableHandle;
 
 /**
- * Shared character facade.
+ * 캐릭터 공통 컴포넌트를 구성하고 생명주기를 연결한다.
  *
- * Runtime state lives in focused components so players, enemies, and monsters
- * can reuse only the behavior they need. This actor keeps the stable Blueprint
- * and network API, owns the component composition, and supplies overridable
- * character-specific hooks.
+ * 플레이어와 적의 ASC 소유 방식은 파생 클래스가 정하며,
+ * 사망·이동 상태·외형의 실제 처리는 각 컴포넌트에 맡긴다.
  */
 UCLASS()
 class LABPROJECT_API ACharacterBase : public ACharacter, public IAbilitySystemInterface, public IGameplayCueInterface
@@ -49,6 +47,8 @@ class LABPROJECT_API ACharacterBase : public ACharacter, public IAbilitySystemIn
 public:
 	ACharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -58,6 +58,8 @@ public:
 	virtual void NotifyControllerChanged() override;
 	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
 	virtual void UnPossessed() override;
+
+	//------------------------------------------------------------------------------------------------------------------
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "!Damage", meta = (DisplayName = "On Damage Taken"))
 	void OnDamageTaken(float DamageAmount, bool bCriticalHit, FVector WorldLocation);
@@ -161,10 +163,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Status")
 	bool IsStatusFrozen() const;
 
-	/**
-	 * Reapplies the character-specific steady-state rotation policy after a
-	 * temporary gameplay system has released control of CharacterMovement.
-	 */
+	// 스킬이나 빙결이 임시 회전 제어를 해제하면 캐릭터의 평상시 회전 정책을 복구한다.
 	void ReapplyCurrentRotationPolicy();
 
 	bool IsDeathHandled() const;
@@ -226,6 +225,7 @@ protected:
 	virtual bool IsAdditionalCharacterRuntimeContentReady() const;
 	virtual void HandleCharacterRuntimeInitialized();
 
+	void RefreshCharacterRuntimeBindings();
 	void ApplyCharacterDefinition();
 	void BeginCharacterDefinitionPreload();
 	void HandleCharacterDefinitionPreloaded(uint32 RequestGeneration);
@@ -246,6 +246,8 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UCharacterBaseDefinition> LoadedCharacterDefinition;
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Components
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Character|Runtime", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCharacterAbilityRuntimeComponent> CharacterAbilityRuntimeComponent;
 
@@ -264,19 +266,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Skin", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USkinEquipmentComponent> SkinEquipmentComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!DamageIndicator", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UDamageIndicatorComponent> DamageIndicatorComponent;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Ability|Aura", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UNiagaraComponent> BodyAuraNiagaraComponent;
 
-	// Kept under its original property and subobject names for serialized
-	// Blueprint compatibility. The actual object is a
-	// UCharacterHealthBarComponent.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Widget", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UWidgetComponent> HealthBarWidget;
 
-	// Per-instance gameplay identity is intentionally not definition data.
+	//------------------------------------------------------------------------------------------------------------------
+
+	// 진영은 정의 데이터가 아니라 배치된 캐릭터의 식별 정보다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Faction")
 	int32 FactionId = 0;
 

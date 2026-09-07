@@ -126,11 +126,10 @@ void URangedAttackAbility::OnAttackTraceEnd(FGameplayEventData Payload)
 }
 
 // Ability flow
-void URangedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+void URangedAttackAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	CleanupAttackState();
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void URangedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,

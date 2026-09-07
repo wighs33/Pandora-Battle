@@ -16,7 +16,7 @@ struct LABPROJECT_API FPlayerMatchIdentity
 	UPROPERTY(EditAnywhere, Category = "!Match|Identity")
 	int32 SpawnIndex = INDEX_NONE;
 
-	/** Red : 0, Blue : 1, ... */
+	/** 팀 색상 인덱스: 빨강 0, 파랑 1, ... */
 	UPROPERTY(EditAnywhere, Category = "!Match|Identity")
 	int32 TeamColorIndex = INDEX_NONE;
 
@@ -34,10 +34,13 @@ struct LABPROJECT_API FPlayerMatchIdentity
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMatchDisplayNameChanged, const FText& /*NewDisplayName*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMatchTeamColorChanged, int32 /*NewTeamColorIndex*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerMatchIdentityChanged, const FPlayerMatchIdentity& /*NewMatchIdentity*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerDeathCountChanged, int32 /*NewDeathCount*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerMapRegionChanged, EPlayerMapRegion /*NewMapRegion*/);
 
+/**
+ * 플레이어의 식별 정보와 현재 경기 상태를 저장하고 복제한다.
+ *
+ * 이름과 팀의 변경을 알리며, 새 경기에서는 식별 정보를 유지하고 경기 기록만 초기화한다.
+ * 닉네임 결정과 스폰 위치 관리는 각 입장 처리와 스폰 컴포넌트에서 담당한다.
+ */
 UCLASS(BlueprintType, ClassGroup=(Player))
 class LABPROJECT_API UPlayerMatchComponent : public UPlayerStateComponent
 {
@@ -46,14 +49,13 @@ class LABPROJECT_API UPlayerMatchComponent : public UPlayerStateComponent
 public:
 	UPlayerMatchComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual void BeginPlay() override;
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	//------------------------------------------------------------------------------------------------------------------
 	FOnMatchDisplayNameChanged OnMatchDisplayNameChanged;
 	FOnMatchTeamColorChanged OnMatchTeamColorChanged;
-	FOnPlayerMatchIdentityChanged OnPlayerMatchIdentityChanged;
-	FOnPlayerDeathCountChanged OnPlayerDeathCountChanged;
-	FOnPlayerMapRegionChanged OnPlayerMapRegionChanged;
 
 	void SetPlayerMatchIdentity(const FPlayerMatchIdentity& InMatchIdentity);
 	const FPlayerMatchIdentity& GetPlayerMatchIdentity() const { return PlayerMatchIdentity; }
@@ -86,52 +88,27 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Match|Stats")
 	int32 GetDeathCount() const { return DeathCount; }
 
-	void SetInitialSpawnTransform(const FTransform& InSpawnTransform);
-	void ClearInitialSpawnTransform();
-
-	UFUNCTION(BlueprintPure, Category = "!Match|Spawn")
-	bool HasInitialSpawnTransform() const { return bHasInitialSpawnTransform; }
-
-	UFUNCTION(BlueprintPure, Category = "!Match|Spawn")
-	bool TryGetInitialSpawnTransform(FTransform& OutSpawnTransform) const;
-
 	void SetPlayerMapRegion(EPlayerMapRegion InMapRegion);
 
 	UFUNCTION(BlueprintPure, Category = "!Match|Map")
 	EPlayerMapRegion GetPlayerMapRegion() const { return PlayerMapRegion; }
 
-	void CopyMatchStateTo(
-		UPlayerMatchComponent* TargetComponent,
-		const FPlayerMatchIdentity& MatchIdentityToCopy,
-		bool bCopyMatchStats) const;
+	/** 리스폰이 아닌 새 경기 입장에서 호출하며, 식별 정보는 유지한다. */
+	void ResetForNewMatch(EPlayerMapRegion InitialMapRegion);
 
 private:
-	bool HasAuthority() const;
-	void InitializeDefaultMatchDisplayNameIfNeeded();
 	void SetDeathCount(int32 InDeathCount);
-	void BroadcastPlayerMatchIdentityChanged(const FPlayerMatchIdentity* PreviousIdentity = nullptr);
+	void BroadcastPlayerMatchIdentityChanged(const FPlayerMatchIdentity& PreviousIdentity);
 
 	UFUNCTION()
 	void OnRep_PlayerMatchIdentity(const FPlayerMatchIdentity& PreviousIdentity);
 
-	UFUNCTION()
-	void OnRep_DeathCount(int32 PreviousDeathCount);
-
-	UFUNCTION()
-	void OnRep_PlayerMapRegion(EPlayerMapRegion PreviousPlayerMapRegion);
-
 	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_PlayerMatchIdentity, Category = "!Match|Identity")
 	FPlayerMatchIdentity PlayerMatchIdentity;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_DeathCount, Category = "!Match|Stats", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "!Match|Stats", meta = (AllowPrivateAccess = "true"))
 	int32 DeathCount = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Match|Spawn", meta = (AllowPrivateAccess = "true"))
-	bool bHasInitialSpawnTransform = false;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Match|Spawn", meta = (AllowPrivateAccess = "true"))
-	FTransform InitialSpawnTransform = FTransform::Identity;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_PlayerMapRegion, Category = "!Match|Map", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "!Match|Map", meta = (AllowPrivateAccess = "true"))
 	EPlayerMapRegion PlayerMapRegion = EPlayerMapRegion::Dome;
 };

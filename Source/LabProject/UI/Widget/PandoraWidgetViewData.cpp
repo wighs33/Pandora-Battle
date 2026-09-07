@@ -1,6 +1,12 @@
 #include "UI/Widget/PandoraWidgetViewData.h"
 
+#include "Blueprint/UserWidget.h"
 #include "Common/LabGameplayTags.h"
+#include "Component/Pandora/PandoraComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/GameInstance.h"
+#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Mode/PdPlayerState.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraInstance.h"
@@ -53,6 +59,25 @@ namespace
 			NSLOCTEXT("PandoraDescriptionWidget", "WeaponRequirementFormat", "Required Weapon Type: {0}"),
 			FText::FromString(FString::Join(WeaponTypeNames, TEXT(", "))));
 	}
+
+	// 해금 판정은 게임플레이 컴포넌트가 맡고, 조건의 표시 문구만 UI에서 만든다.
+	FText MakePandoraUnlockRequirementsText(const UPandoraDefinition* Definition, const UPandoraTreeComponent* Tree)
+	{
+		TArray<FText> Lines;
+		for (const FPandoraUnlockRule& Rule : Definition->UnlockRules)
+		{
+			if (Rule.RequiredPandora)
+			{
+				Lines.Add(FText::Format(
+					NSLOCTEXT("PandoraTreeComponent", "PandoraUnlockRequirementLine", "- {0} Lv. {1} ({2}/{1})"),
+					Rule.RequiredPandora->GetDisplayName(), FText::AsNumber(FMath::Max(Rule.RequiredLevel, 1)),
+					FText::AsNumber(Tree->GetCurrentPandoraLevel(Rule.RequiredPandora))));
+			}
+		}
+		return Lines.IsEmpty() ? FText::GetEmpty() : FText::Format(
+			NSLOCTEXT("PandoraTreeComponent", "PandoraUnlockRequirements", "요구 조건\n{0}"),
+			FText::Join(FText::FromString(TEXT("\n")), Lines));
+	}
 }
 
 FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
@@ -88,9 +113,7 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 		: INDEX_NONE;
 	ViewData.bUnlockRulesMet = !PandoraTreeComponent
 		|| !PandoraDefinition
-		|| ViewData.CurrentLevel > 0
-		|| bUnlockedForTree
-		|| PandoraTreeComponent->ArePandoraUnlockRulesMet(PandoraDefinition);
+		|| PandoraTreeComponent->IsPandoraAvailableForInvestment(PandoraDefinition);
 
 	ViewData.bAtMaxLevel = PandoraDefinition && ViewData.MaxLevel > 0 && ViewData.CurrentLevel >= ViewData.MaxLevel;
 	ViewData.bLocked = PandoraTreeComponent && PandoraDefinition && ViewData.CurrentLevel <= 0 && !ViewData.bUnlockRulesMet;
@@ -116,6 +139,34 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 	ViewData.IconResource = PandoraDefinition ? PandoraDefinition->GetIconResource() : nullptr;
 
 	return ViewData;
+}
+
+
+UPandoraDefinition* FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(const UPandoraTreeComponent* PandoraTreeComponent)
+{
+	const APdPlayerState* PlayerState = PandoraTreeComponent ? PandoraTreeComponent->GetPlayerState<APdPlayerState>() : nullptr;
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	return PandoraComponent ? const_cast<UPandoraDefinition*>(PandoraComponent->GetCurrentPandoraDefinition()) : nullptr;
+}
+
+// 경기 트리가 없는 미리보기에서만 로컬 프로필의 소유 목록을 사용한다.
+bool FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(const UUserWidget* Widget, UPandoraDefinition* PandoraDefinition)
+{
+	UPlayerProfileSubsystem* ProfileSubsystem =
+		Widget ? UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(Widget->GetGameInstance()) : nullptr;
+	if (!ProfileSubsystem || !IsValid(PandoraDefinition))
+	{
+		return false;
+	}
+
+	const APlayerController* PlayerController = Widget->GetOwningPlayer();
+	FString PlayerId =
+		ProfileSubsystem->ResolveSavePlayerId(PlayerController, PlayerController ? PlayerController->PlayerState.Get() : nullptr);
+	if (PlayerId.IsEmpty())
+	{
+		PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
+	}
+	return ProfileSubsystem->IsPandoraGranted(PlayerId, PandoraDefinition);
 }
 
 FText FPandoraWidgetViewDataBuilder::MakeLevelText(
@@ -199,8 +250,7 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 	}
 
 	ViewData.bLockedByPandoraRequirement = PandoraTreeComponent
-		&& ViewData.CurrentLevel <= 0
-		&& !PandoraTreeComponent->ArePandoraUnlockRulesMet(PandoraDefinition);
+		&& !PandoraTreeComponent->IsPandoraAvailableForInvestment(PandoraDefinition);
 
 	const FText WeaponRequirement = MakeWeaponRequirementText(PandoraDefinition->ActivatableWeaponTags);
 	ViewData.WeaponRequirementText = WeaponRequirement;
@@ -208,7 +258,7 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 
 	if (ViewData.bLockedByPandoraRequirement)
 	{
-		FText RequirementText = PandoraTreeComponent->GetPandoraUnlockRequirementsText(PandoraDefinition);
+		FText RequirementText = MakePandoraUnlockRequirementsText(PandoraDefinition, PandoraTreeComponent);
 		if (RequirementText.IsEmpty())
 		{
 			RequirementText = NSLOCTEXT("PandoraDescriptionWidget", "LockedRequirementFallback", "Unlock requirements are not met.");

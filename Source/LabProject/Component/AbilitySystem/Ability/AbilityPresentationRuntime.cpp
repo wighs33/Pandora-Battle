@@ -4,13 +4,9 @@
 #include "AbilitySystem/Presentation/SkillPresentationActor.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
-#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/Player/CombatComponent.h"
+#include "Component/Character/CharacterPresentationComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
-#include "GameplayEffect.h"
-#include "Weapon/WeaponBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityPresentationRuntime)
 
@@ -182,250 +178,26 @@ void UAbilityPresentationRuntime::CleanupConfiguredPresentation()
 	ActiveSkillPresentationActor = nullptr;
 }
 
-void UAbilityPresentationRuntime::StartConfiguredSelfBuff(
-	UPdGameplayAbility& Ability,
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo& ActivationInfo)
-{
-	static_cast<void>(ActivationInfo);
-
-	StopConfiguredSelfBuff(Ability);
-
-	const USkillDefinition* SkillDataAsset =
-		Ability.GetSourceSkillDataAsset();
-	const FSkillSelfBuffSettings* SelfBuffSettings =
-		SkillDataAsset ? &SkillDataAsset->SelfBuff : nullptr;
-	if (!SkillDataAsset
-		|| !SelfBuffSettings
-		|| !SelfBuffSettings->bEnabled)
-	{
-		return;
-	}
-
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Ability.GetPdAbilitySystemComponentFromActorInfo();
-	AActor* AvatarActor = Ability.GetAvatarActorFromActorInfo();
-	if (!AbilitySystemComponent || !AvatarActor)
-	{
-		return;
-	}
-
-	ApplySelfBuffCharacterScale(Ability, *SelfBuffSettings);
-	ApplySelfBuffWeaponTraceEndZ(Ability, *SelfBuffSettings);
-
-	if (!AbilitySystemComponent->IsOwnerActorAuthoritative())
-	{
-		return;
-	}
-
-	const int32 AbilityLevel =
-		FMath::Max(Ability.GetAbilityLevel(Handle, ActorInfo), 1);
-
-	if (ACharacterBase* Character = Cast<ACharacterBase>(AvatarActor))
-	{
-		if (UCombatComponent* CombatComponent =
-			Character->GetCombatComponent())
-		{
-			const float WeaponDamageBonus =
-				CalculateSelfBuffWeaponDamageBonus(*SelfBuffSettings);
-			if (WeaponDamageBonus > 0.0f)
-			{
-				CombatComponent->SetTemporaryWeaponDamageBonus(
-					&Ability,
-					WeaponDamageBonus);
-				bTemporaryWeaponDamageBonusApplied = true;
-			}
-		}
-	}
-
-	if (!SelfBuffSettings->GameplayEffectClass)
-	{
-		return;
-	}
-
-	FGameplayEffectContextHandle EffectContext =
-		AbilitySystemComponent->MakeEffectContext();
-	EffectContext.AddInstigator(AvatarActor, AvatarActor);
-	EffectContext.AddSourceObject(
-		const_cast<USkillDefinition*>(SkillDataAsset));
-
-	FGameplayEffectSpecHandle SpecHandle =
-		AbilitySystemComponent->MakeOutgoingSpec(
-			SelfBuffSettings->GameplayEffectClass,
-			AbilityLevel,
-			EffectContext);
-	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
-	{
-		return;
-	}
-
-	const float BuffMagnitude =
-		CalculateSelfBuffMagnitude(*SelfBuffSettings);
-	if (SelfBuffSettings->MagnitudeDataTag.IsValid())
-	{
-		SpecHandle.Data->SetSetByCallerMagnitude(
-			SelfBuffSettings->MagnitudeDataTag,
-			BuffMagnitude);
-	}
-
-	const FActiveGameplayEffectHandle AppliedHandle =
-		AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
-			*SpecHandle.Data.Get());
-	if (AppliedHandle.IsValid()
-		&& SelfBuffSettings->bRemoveOnAbilityEnd)
-	{
-		ActiveSelfBuffEffectHandles.Add(AppliedHandle);
-	}
-}
-
-void UAbilityPresentationRuntime::StopConfiguredSelfBuff(
-	UPdGameplayAbility& Ability)
-{
-	RestoreSelfBuffWeaponTraceEndZ(Ability);
-	RestoreSelfBuffCharacterScale();
-
-	if (bTemporaryWeaponDamageBonusApplied)
-	{
-		if (ACharacterBase* Character =
-			Ability.GetPdCharacterFromActorInfo())
-		{
-			if (UCombatComponent* CombatComponent =
-				Character->GetCombatComponent())
-			{
-				CombatComponent->ClearTemporaryWeaponDamageBonus(&Ability);
-			}
-		}
-
-		bTemporaryWeaponDamageBonusApplied = false;
-	}
-
-	if (ActiveSelfBuffEffectHandles.IsEmpty())
-	{
-		return;
-	}
-
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Ability.GetPdAbilitySystemComponentFromActorInfo();
-	if (!AbilitySystemComponent
-		|| !AbilitySystemComponent->IsOwnerActorAuthoritative())
-	{
-		ActiveSelfBuffEffectHandles.Reset();
-		return;
-	}
-
-	for (const FActiveGameplayEffectHandle& ActiveHandle :
-		ActiveSelfBuffEffectHandles)
-	{
-		if (ActiveHandle.IsValid())
-		{
-			AbilitySystemComponent->RemoveActiveGameplayEffect(
-				ActiveHandle);
-		}
-	}
-
-	ActiveSelfBuffEffectHandles.Reset();
-}
-
-float UAbilityPresentationRuntime::CalculateSelfBuffMagnitude(
-	const FSkillSelfBuffSettings& SelfBuffSettings) const
-{
-	return static_cast<float>(SelfBuffSettings.Magnitude);
-}
-
-float UAbilityPresentationRuntime::CalculateSelfBuffWeaponDamageBonus(
-	const FSkillSelfBuffSettings& SelfBuffSettings) const
-{
-	return static_cast<float>(SelfBuffSettings.WeaponDamageBonus);
-}
-
+// 공유 메시의 크기는 캐릭터가 합성하고, 이 객체는 자신이 적용했던 대상만 기억한다.
 void UAbilityPresentationRuntime::ApplySelfBuffCharacterScale(
-	UPdGameplayAbility& Ability,
-	const FSkillSelfBuffSettings& SelfBuffSettings)
+	UPdGameplayAbility& Ability, const FSkillSelfBuffSettings& SelfBuffSettings)
 {
-	const float ScaleMultiplier = static_cast<float>(
-		FMath::Max(SelfBuffSettings.CharacterScaleMultiplier, 1.0));
-	if (ScaleMultiplier <= 1.0f || bSelfBuffCharacterScaleApplied)
-	{
-		return;
-	}
-
 	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
-	USkeletalMeshComponent* MeshComponent =
-		Character ? Character->GetMesh() : nullptr;
-	if (!MeshComponent)
+	UCharacterPresentationComponent* Presentation = Character ? Character->GetCharacterPresentationComponent() : nullptr;
+	if (Presentation && SelfBuffSettings.CharacterScaleMultiplier > 1.0)
 	{
-		return;
+		Presentation->SetTemporaryMeshScaleMultiplier(&Ability, static_cast<float>(SelfBuffSettings.CharacterScaleMultiplier));
+		SelfBuffScaleOwner = Presentation;
 	}
-
-	SelfBuffScaledMeshComponent = MeshComponent;
-	CachedSelfBuffMeshWorldScale = MeshComponent->GetComponentScale();
-	MeshComponent->SetWorldScale3D(
-		CachedSelfBuffMeshWorldScale * ScaleMultiplier);
-	bSelfBuffCharacterScaleApplied = true;
 }
 
-void UAbilityPresentationRuntime::RestoreSelfBuffCharacterScale()
+void UAbilityPresentationRuntime::RestoreSelfBuffCharacterScale(UPdGameplayAbility& Ability)
 {
-	if (!bSelfBuffCharacterScaleApplied)
+	if (UCharacterPresentationComponent* Presentation = SelfBuffScaleOwner.Get())
 	{
-		SelfBuffScaledMeshComponent = nullptr;
-		return;
+		Presentation->ClearTemporaryMeshScaleMultiplier(&Ability);
 	}
-
-	if (SelfBuffScaledMeshComponent)
-	{
-		SelfBuffScaledMeshComponent->SetWorldScale3D(
-			CachedSelfBuffMeshWorldScale);
-	}
-
-	SelfBuffScaledMeshComponent = nullptr;
-	CachedSelfBuffMeshWorldScale = FVector::OneVector;
-	bSelfBuffCharacterScaleApplied = false;
-}
-
-void UAbilityPresentationRuntime::ApplySelfBuffWeaponTraceEndZ(
-	UPdGameplayAbility& Ability,
-	const FSkillSelfBuffSettings& SelfBuffSettings)
-{
-	const float TraceEndZMultiplier = static_cast<float>(
-		FMath::Max(SelfBuffSettings.WeaponTraceEndZMultiplier, 1.0));
-	if (TraceEndZMultiplier <= 1.0f || bSelfBuffTraceEndZApplied)
-	{
-		return;
-	}
-
-	AWeaponBase* CurrentWeapon =
-		Ability.GetCurrentWeaponActorFromAvatar();
-	if (!CurrentWeapon)
-	{
-		return;
-	}
-
-	CurrentWeapon->SetTemporaryAttackTraceEndZMultiplier(
-		&Ability,
-		TraceEndZMultiplier);
-	SelfBuffTraceEndZWeapon = CurrentWeapon;
-	bSelfBuffTraceEndZApplied = true;
-}
-
-void UAbilityPresentationRuntime::RestoreSelfBuffWeaponTraceEndZ(
-	UPdGameplayAbility& Ability)
-{
-	if (!bSelfBuffTraceEndZApplied)
-	{
-		SelfBuffTraceEndZWeapon = nullptr;
-		return;
-	}
-
-	if (SelfBuffTraceEndZWeapon)
-	{
-		SelfBuffTraceEndZWeapon
-			->ClearTemporaryAttackTraceEndZMultiplier(&Ability);
-	}
-
-	SelfBuffTraceEndZWeapon = nullptr;
-	bSelfBuffTraceEndZApplied = false;
+	SelfBuffScaleOwner.Reset();
 }
 
 void UAbilityPresentationRuntime::SpawnConfiguredCharacterDecal(

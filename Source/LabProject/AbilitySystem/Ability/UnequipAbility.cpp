@@ -244,16 +244,10 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	}
 }
 
-void UUnequipAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const bool bReplicateEndAbility,
-	const bool bWasCancelled)
+void UUnequipAbility::OnAbilityEnding()
 {
-	const bool bShouldActivateRequestedEquip = ShouldActivateRequestedEquip();
+	Super::OnAbilityEnding();
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
-	UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
 
 	if (!bUnequipTransitionResolved)
 	{
@@ -269,14 +263,18 @@ void UUnequipAbility::EndAbility(
 		ActiveUnequipWeaponDefinition = nullptr;
 		bUnequipCommitted = false;
 	}
+}
 
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
-
-	if (!bShouldActivateRequestedEquip || !EquipmentComponent)
+// 장착 해제 능력이 실제로 끝난 뒤에만 대기 중인 새 무기의 장착을 이어 간다.
+void UUnequipAbility::OnAbilityEnded(const bool bWasCancelled)
+{
+	Super::OnAbilityEnded(bWasCancelled);
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
+	UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
+	if (!ShouldActivateRequestedEquip() || !EquipmentComponent)
 	{
 		return;
 	}
-
 	if (bWasCancelled || !ActivateRequestedEquipIfNeeded(true))
 	{
 		EquipmentComponent->CompletePendingWeaponSelectionWithoutAnimation();

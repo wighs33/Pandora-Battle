@@ -59,6 +59,8 @@ void UCharacterPresentationComponent::InitializePresentation(
 
 void UCharacterPresentationComponent::ShutdownPresentation()
 {
+	TemporaryMeshScaleMultipliers.Reset();
+	RefreshTemporaryMeshScale();
 	UnbindMatchTeamColorChanged();
 	if (UWorld* World = GetWorld())
 	{
@@ -530,4 +532,65 @@ const ACharacterBase*
 UCharacterPresentationComponent::GetCharacterOwnerConst() const
 {
 	return Cast<ACharacterBase>(GetOwner());
+}
+
+// 원래 메시 크기를 한 번만 보관하고, 남은 스킬 배율들의 곱으로 현재 크기를 결정한다.
+void UCharacterPresentationComponent::SetTemporaryMeshScaleMultiplier(UObject* SourceObject, const float ScaleMultiplier)
+{
+	if (!IsValid(SourceObject) || !FMath::IsFinite(ScaleMultiplier))
+	{
+		return;
+	}
+	if (ScaleMultiplier <= 1.0f)
+	{
+		ClearTemporaryMeshScaleMultiplier(SourceObject);
+		return;
+	}
+	if (!ScaledMeshComponent.IsValid())
+	{
+		ACharacterBase* Character = GetCharacterOwner();
+		USkeletalMeshComponent* MeshComponent = Character ? Character->GetMesh() : nullptr;
+		if (!MeshComponent)
+		{
+			return;
+		}
+		TemporaryMeshScaleMultipliers.Reset();
+		ScaledMeshComponent = MeshComponent;
+		MeshRelativeScaleBeforeModifiers = MeshComponent->GetRelativeScale3D();
+	}
+	TemporaryMeshScaleMultipliers.Add(FObjectKey(SourceObject), ScaleMultiplier);
+	RefreshTemporaryMeshScale();
+}
+
+// 종료된 스킬의 기여만 제거하며, 다른 스킬의 확대 효과는 유지한다.
+void UCharacterPresentationComponent::ClearTemporaryMeshScaleMultiplier(UObject* SourceObject)
+{
+	if (SourceObject)
+	{
+		TemporaryMeshScaleMultipliers.Remove(FObjectKey(SourceObject));
+	}
+	RefreshTemporaryMeshScale();
+}
+
+void UCharacterPresentationComponent::RefreshTemporaryMeshScale()
+{
+	float CombinedMultiplier = 1.0f;
+	for (auto It = TemporaryMeshScaleMultipliers.CreateIterator(); It; ++It)
+	{
+		if (!IsValid(It.Key().ResolveObjectPtr()))
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+		CombinedMultiplier *= It.Value();
+	}
+	if (USkeletalMeshComponent* MeshComponent = ScaledMeshComponent.Get())
+	{
+		MeshComponent->SetRelativeScale3D(MeshRelativeScaleBeforeModifiers * CombinedMultiplier);
+	}
+	if (TemporaryMeshScaleMultipliers.IsEmpty())
+	{
+		ScaledMeshComponent.Reset();
+		MeshRelativeScaleBeforeModifiers = FVector::OneVector;
+	}
 }

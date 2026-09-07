@@ -1,5 +1,6 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Character/CharacterBase.h"
 #include "Common/WeaponDefinitionData.h"
 #include "Interface/InteractableInterface.h"
@@ -8,6 +9,7 @@
 class UBoxComponent;
 class UCameraComponent;
 class UCableComponent;
+class UCombatComponent;
 class UGrappleComponent;
 class UPaintCanvasComponent;
 class UPlayerActionComponent;
@@ -16,12 +18,16 @@ class UPlayerCameraComponent;
 class UPlayerInteractionComponent;
 class UPlayerPawnDefinition;
 class USpringArmComponent;
-class APdPlayerState;
 class AActor;
 class UAnimMontage;
 class UMaterialInterface;
 class UStaticMeshComponent;
 
+/**
+ * 플레이어 전용 컴포넌트를 구성하고 조작·카메라·로드아웃의 생명주기를 연결한다.
+ *
+ * 능력과 경기 데이터는 PlayerState에, 상호작용·조준·그래플의 실행 상태는 각 컴포넌트에 둔다.
+ */
 UCLASS()
 class LABPROJECT_API APdPlayer : public ACharacterBase
 {
@@ -30,14 +36,17 @@ class LABPROJECT_API APdPlayer : public ACharacterBase
 public:
 	APdPlayer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	// Timing hooks
-	virtual void BeginPlay() override;
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
+	virtual void PreInitializeComponents() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostInitializeComponents() override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void UnPossessed() override;
 	virtual void NotifyControllerChanged() override;
 	virtual void Tick(float DeltaSeconds) override;
+
+	//------------------------------------------------------------------------------------------------------------------
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	virtual void HandleDeath_Implementation() override;
@@ -108,33 +117,33 @@ public:
 	bool IsInteractionMontagePlaying() const;
 
 protected:
-	// Ability-system timing hooks
 	virtual AActor* GetAbilitySystemOwnerActor() const override;
 	virtual void ApplyCurrentRotationPolicy(UCharacterMovementComponent* MovementComponent) override;
 	virtual bool ShouldUseContinuousCharacterTick() const override;
-	void ResolvePlayerPawnDefinition();
+	virtual bool IsAdditionalCharacterRuntimeContentReady() const override;
+	virtual void HandleCharacterRuntimeInitialized() override;
+	void BeginPlayerPawnDefinitionPreload();
+	void HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPath, uint32 RequestGeneration);
+	void ReleasePlayerPawnDefinitionPreload();
+	void ApplySelectedPlayerLoadout();
 	void ApplyPlayerPawnDefinition();
 	void UpdateAimOffsetForReplicationComponent();
 	void ApplyReplicatedAimOffsetFromComponent(float AimYaw, float AimPitch);
 
-	APdPlayerState* GetPdPlayerState() const;
-
 protected:
 	friend class UPlayerAimComponent;
-	friend class UPlayerInteractionComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Definition",
 		meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPlayerPawnDefinition> PlayerPawnDefinition;
 
-	UPROPERTY(BlueprintReadWrite, Transient, Category = "!Interaction")
-	TArray<TScriptInterface<IInteractableInterface>> CurrentInteractActors;
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Components
+	UPROPERTY(VisibleAnywhere, Category = "!Player|Component")
+	TObjectPtr<UCombatComponent> CombatComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Interaction", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBoxComponent> InteractionBox;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Interaction", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	float InteractionServerValidationDistance = 250.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Player|Component", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPlayerInteractionComponent> PlayerInteractionComponent;
@@ -166,4 +175,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> FollowCamera;
 
+private:
+	TSharedPtr<FStreamableHandle> PlayerPawnDefinitionLoadHandle;
+	uint32 PlayerPawnDefinitionLoadGeneration = 0;
+	bool bPlayerPawnDefinitionReady = false;
 };

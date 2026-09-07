@@ -12,7 +12,6 @@
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 #include "Mode/ExperienceGameMode.h"
-#include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 
@@ -64,7 +63,9 @@ AActor* UExperienceSpawnComponent::ChooseConfiguredPlayerStart(
 		return nullptr;
 	}
 
-	const int32 SpawnIndex = ResolveMatchSpawnIndex(Player);
+	const APdPlayerState* PlayerState = Player ? Player->GetPlayerState<APdPlayerState>() : nullptr;
+	const UPlayerMatchComponent* MatchComponent = PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
+	const int32 SpawnIndex = MatchComponent ? MatchComponent->GetMatchSpawnIndex() : INDEX_NONE;
 	if (AActor* TaggedPlayerStart =
 		FindPlayerStartByMatchSpawnIndex(
 			SpawnIndex,
@@ -104,29 +105,12 @@ void UExperienceSpawnComponent::MarkPlayerStartUsed(
 	}
 }
 
-void UExperienceSpawnComponent::RecordInitialSpawn(
-	AController* PlayerController,
-	const FTransform& InitialSpawnTransform)
+void UExperienceSpawnComponent::RecordInitialSpawn(AController* PlayerController, const FTransform& InitialSpawnTransform)
 {
 	if (PlayerController)
 	{
-		const TObjectKey<AController> ControllerKey(PlayerController);
-		if (!InitialPlayerSpawnTransforms.Contains(ControllerKey))
-		{
-			InitialPlayerSpawnTransforms.Add(
-				ControllerKey,
-				InitialSpawnTransform);
-		}
-	}
-
-	APdPlayerState* PlayerState = PlayerController
-		? PlayerController->GetPlayerState<APdPlayerState>()
-		: nullptr;
-	UPlayerMatchComponent* MatchComponent =
-		PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
-	if (MatchComponent && !MatchComponent->HasInitialSpawnTransform())
-	{
-		MatchComponent->SetInitialSpawnTransform(InitialSpawnTransform);
+		// 같은 경기의 리스폰으로 처음 배정된 위치가 덮어써지지 않게 한다.
+		InitialPlayerSpawnTransforms.FindOrAdd(TObjectKey<AController>(PlayerController), InitialSpawnTransform);
 	}
 }
 
@@ -210,17 +194,6 @@ bool UExperienceSpawnComponent::TryGetPlayerInitialSpawnTransform(
 	AController* PlayerController,
 	FTransform& OutSpawnTransform) const
 {
-	const APdPlayerState* PlayerState = PlayerController
-		? PlayerController->GetPlayerState<APdPlayerState>()
-		: nullptr;
-	const UPlayerMatchComponent* MatchComponent =
-		PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
-	if (MatchComponent
-		&& MatchComponent->TryGetInitialSpawnTransform(OutSpawnTransform))
-	{
-		return true;
-	}
-
 	if (PlayerController)
 	{
 		if (const FTransform* CachedSpawnTransform =
@@ -327,41 +300,6 @@ void UExperienceSpawnComponent::ClearRuntimeStateForController(
 		}
 	}
 	AssignedPlayerStartsByController.Remove(ControllerKey);
-}
-
-int32 UExperienceSpawnComponent::ResolveMatchSpawnIndex(
-	AController* Player) const
-{
-	APdPlayerState* PlayerState =
-		Player ? Player->GetPlayerState<APdPlayerState>() : nullptr;
-	UPlayerMatchComponent* MatchComponent =
-		PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
-	if (!MatchComponent)
-	{
-		return INDEX_NONE;
-	}
-
-	if (MatchComponent->GetMatchSpawnIndex() != INDEX_NONE)
-	{
-		return MatchComponent->GetMatchSpawnIndex();
-	}
-
-	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
-	const UPdGameInstance* GameInstance =
-		GameMode ? GameMode->GetGameInstance<UPdGameInstance>() : nullptr;
-	FPlayerMatchIdentity CachedMatchIdentity;
-	if (GameInstance
-		&& GameInstance->TryGetCachedPlayerMatchIdentityForPlayerState(
-			PlayerState,
-			CachedMatchIdentity)
-		&& CachedMatchIdentity.SpawnIndex != INDEX_NONE)
-	{
-		MatchComponent->SetPlayerMatchIdentity(CachedMatchIdentity);
-		return CachedMatchIdentity.SpawnIndex;
-	}
-
-	return INDEX_NONE;
 }
 
 AActor* UExperienceSpawnComponent::FindPlayerStartByMatchSpawnIndex(
@@ -493,24 +431,21 @@ void UExperienceSpawnComponent::FinishPlayerRespawn(
 
 		if (IsValid(RespawnPawn))
 		{
-			RespawnPawn->SetActorTransform(
-				RespawnTransform,
-				false,
-				nullptr,
-				ETeleportType::TeleportPhysics);
-			PlayerController->SetControlRotation(
-				RespawnTransform.GetRotation().Rotator());
-			if (ACharacterBase* RespawnedCharacter =
-				Cast<ACharacterBase>(RespawnPawn))
+			if (ACharacterBase* RespawnedCharacter = Cast<ACharacterBase>(RespawnPawn))
 			{
-				RespawnedCharacter->ResetDeathStateForRespawn();
+				RespawnedCharacter->ResetDeathStateForRespawnAtTransform(RespawnTransform);
 			}
+			else
+			{
+				RespawnPawn->SetActorTransform(RespawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
+				RespawnPawn->ForceNetUpdate();
+			}
+			PlayerController->SetControlRotation(RespawnTransform.GetRotation().Rotator());
 			if (APdPlayerController* PdPlayerController =
 				Cast<APdPlayerController>(PlayerController))
 			{
 				PdPlayerController
-					->Client_ResetRespawnedPawnStateAtTransform(
-						RespawnTransform);
+					->Client_ResetRespawnedPawnStateAtTransform(RespawnPawn, RespawnTransform);
 				PdPlayerController
 					->Client_HideRespawnDelayCountdown();
 			}
@@ -525,14 +460,13 @@ void UExperienceSpawnComponent::FinishPlayerRespawn(
 		if (ACharacterBase* RespawnedCharacter =
 			Cast<ACharacterBase>(PlayerController->GetPawn()))
 		{
-			RespawnedCharacter->ResetDeathStateForRespawn();
+			RespawnedCharacter->ResetDeathStateForRespawnAtTransform(RespawnTransform);
 		}
 		if (APdPlayerController* PdPlayerController =
 			Cast<APdPlayerController>(PlayerController))
 		{
 			PdPlayerController
-				->Client_ResetRespawnedPawnStateAtTransform(
-					RespawnTransform);
+				->Client_ResetRespawnedPawnStateAtTransform(PlayerController->GetPawn(), RespawnTransform);
 			PdPlayerController->Client_HideRespawnDelayCountdown();
 		}
 		return;
@@ -548,24 +482,22 @@ void UExperienceSpawnComponent::FinishPlayerRespawn(
 	{
 		const FTransform FallbackRespawnTransform =
 			FallbackRespawnPawn->GetActorTransform();
-		FallbackRespawnPawn->SetActorTransform(
-			FallbackRespawnTransform,
-			false,
-			nullptr,
-			ETeleportType::TeleportPhysics);
 		PlayerController->SetControlRotation(
 			FallbackRespawnTransform.GetRotation().Rotator());
 		if (ACharacterBase* RespawnedCharacter =
 			Cast<ACharacterBase>(FallbackRespawnPawn))
 		{
-			RespawnedCharacter->ResetDeathStateForRespawn();
+			RespawnedCharacter->ResetDeathStateForRespawnAtTransform(FallbackRespawnTransform);
+		}
+		else
+		{
+			FallbackRespawnPawn->ForceNetUpdate();
 		}
 		if (APdPlayerController* PdPlayerController =
 			Cast<APdPlayerController>(PlayerController))
 		{
 			PdPlayerController
-				->Client_ResetRespawnedPawnStateAtTransform(
-					FallbackRespawnTransform);
+				->Client_ResetRespawnedPawnStateAtTransform(FallbackRespawnPawn, FallbackRespawnTransform);
 			PdPlayerController->Client_HideRespawnDelayCountdown();
 		}
 		return;
@@ -713,7 +645,7 @@ void UExperienceSpawnComponent::ResetPlayerStateForRespawn(
 		: nullptr;
 	UPdAbilitySystemComponent* AbilitySystemComponent =
 		PlayerState
-			? PlayerState->GetPdAbilitySystemComponent()
+			? Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent())
 			: nullptr;
 	if (!AbilitySystemComponent
 		|| !AbilitySystemComponent->IsRegistered()

@@ -55,11 +55,13 @@ void UInfoSkinTabPresenter::Deinitialize()
 	UnbindEvents();
 	SelectedEquipSlot = nullptr;
 	SelectedEquipTypeTag = FGameplayTag();
+	CurrentFilterTag = FGameplayTag();
 	Super::Deinitialize();
 }
 
 void UInfoSkinTabPresenter::Activate()
 {
+	CurrentFilterTag = FGameplayTag();
 	SelectedEquipSlot = nullptr;
 	SelectedEquipTypeTag = FGameplayTag();
 	BindEvents();
@@ -84,6 +86,7 @@ void UInfoSkinTabPresenter::Activate()
 void UInfoSkinTabPresenter::HandleInfoUiOpened()
 {
 	BindEvents();
+	HandleSkinsChanged();
 	if (UInfoWidget* InfoWidget = GetInfoWidget())
 	{
 		if (ULeftSkinWidget* LeftSkinWidget = InfoWidget->GetLeftSkinWidget())
@@ -212,6 +215,7 @@ void UInfoSkinTabPresenter::HandleSkinDroppedToCharacter(USkinInstance* SkinInst
 void UInfoSkinTabPresenter::HandleSkinFilterTypeClicked(FGameplayTag TypeTag)
 {
 	TypeTag = ResolveSkinDefinitionMatchTag(TypeTag);
+	CurrentFilterTag = TypeTag;
 	if (!GetController())
 	{
 		return;
@@ -222,13 +226,13 @@ void UInfoSkinTabPresenter::HandleSkinFilterTypeClicked(FGameplayTag TypeTag)
 	const USkinComponent* SkinComponent = PlayerState ? PlayerState->GetSkinComponent() : nullptr;
 	if (SkinComponent)
 	{
-		if (const FSkinList* FoundSkinList = SkinComponent->Map_Type_SkinList.Find(TypeTag))
+		if (const FSkinList* FoundSkinList = SkinComponent->GetFilteredSkinMap().Find(TypeTag))
 		{
 			AppendSkinListAsObjects(*FoundSkinList, CurrentSkinList);
 		}
 		else if (TypeTag.IsValid())
 		{
-			for (USkinInstance* SkinInstance : SkinComponent->AllSkinList.Skins)
+			for (USkinInstance* SkinInstance : SkinComponent->GetAllSkins().Skins)
 			{
 				const USkinDefinition* SkinDefinition = IsValid(SkinInstance)
 					? SkinInstance->SkinDefinition.Get()
@@ -250,11 +254,39 @@ void UInfoSkinTabPresenter::HandleSkinFilterTypeClicked(FGameplayTag TypeTag)
 
 void UInfoSkinTabPresenter::HandleSkinFilterAllClicked()
 {
+	CurrentFilterTag = FGameplayTag();
 	PopulateAllSkins();
+}
+
+void UInfoSkinTabPresenter::HandleSkinsChanged()
+{
+	// 획득 알림이 와도 사용자가 보고 있던 분류와 장착 대상을 유지한다.
+	if (CurrentFilterTag.IsValid())
+	{
+		HandleSkinFilterTypeClicked(CurrentFilterTag);
+	}
+	else
+	{
+		PopulateAllSkins();
+	}
 }
 
 void UInfoSkinTabPresenter::BindEvents()
 {
+	const APdPlayerState* PlayerState = GetPlayerState();
+	USkinComponent* SkinComponent = PlayerState ? PlayerState->GetSkinComponent() : nullptr;
+	if (BoundSkinComponent.Get() != SkinComponent)
+	{
+		if (BoundSkinComponent.IsValid())
+		{
+			BoundSkinComponent->OnSkinsChanged.RemoveDynamic(this, &ThisClass::HandleSkinsChanged);
+		}
+		BoundSkinComponent = SkinComponent;
+	}
+	if (SkinComponent)
+	{
+		SkinComponent->OnSkinsChanged.AddUniqueDynamic(this, &ThisClass::HandleSkinsChanged);
+	}
 	UInfoWidget* InfoWidget = GetInfoWidget();
 	if (!InfoWidget)
 	{
@@ -303,6 +335,11 @@ void UInfoSkinTabPresenter::BindEvents()
 
 void UInfoSkinTabPresenter::UnbindEvents()
 {
+	if (BoundSkinComponent.IsValid())
+	{
+		BoundSkinComponent->OnSkinsChanged.RemoveDynamic(this, &ThisClass::HandleSkinsChanged);
+	}
+	BoundSkinComponent.Reset();
 	ClearTileItemClicked();
 	UInfoWidget* InfoWidget = GetInfoWidget();
 	if (!InfoWidget)
@@ -402,7 +439,7 @@ void UInfoSkinTabPresenter::PopulateAllSkins() const
 	const USkinComponent* SkinComponent = PlayerState ? PlayerState->GetSkinComponent() : nullptr;
 	if (SkinComponent)
 	{
-		AppendSkinListAsObjects(SkinComponent->AllSkinList, CurrentSkinList);
+		AppendSkinListAsObjects(SkinComponent->GetAllSkins(), CurrentSkinList);
 	}
 
 	UInfoWidget* InfoWidget = GetInfoWidget();

@@ -61,7 +61,6 @@ private:
 	void ApplyEffectIconResources();
 	UPandoraDescriptionViewModel* GetOrCreatePandoraDescriptionViewModel();
 	void ApplyPandoraDescriptionViewModelToMvvmView();
-	bool IsPandoraUnlockedInSave() const;
 
 	UPROPERTY(BlueprintReadOnly, Transient, Category = "!UI|Pandora|ViewModel", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPandoraDescriptionViewModel> PandoraDescriptionViewModel;

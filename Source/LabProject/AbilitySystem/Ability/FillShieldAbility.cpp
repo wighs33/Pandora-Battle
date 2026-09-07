@@ -1,5 +1,6 @@
 #include "AbilitySystem/Ability/FillShieldAbility.h"
 
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
@@ -53,15 +54,10 @@ void UFillShieldAbility::ActivateAbility(
 	}
 }
 
-void UFillShieldAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	bool bReplicateEndAbility,
-	bool bWasCancelled)
+void UFillShieldAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	CleanupFillShieldTasks();
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 const FShieldSkillConfig* UFillShieldAbility::GetFillShieldSkillConfig() const
@@ -150,7 +146,7 @@ void UFillShieldAbility::ApplyFillShieldFromMontageTrigger()
 		return;
 	}
 
-	SpawnConfiguredCharacterDecal();
+	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
 	const FActiveGameplayEffectHandle EffectHandle =
 		BP_ApplyGameplayEffectToOwner(FillShieldGameplayEffectClass, FMath::Max(GetAbilityLevel(), 1), 1);
 	if (K2_HasAuthority() && !EffectHandle.WasSuccessfullyApplied())

@@ -17,6 +17,8 @@ class UPandoraTreeComponent;
 class USkinEquipmentComponent;
 struct FStreamableHandle;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDefaultPlayerProvisioned, APlayerController*);
+
 /**
  * Applies DA_DefaultProvision to a player.
  *
@@ -30,6 +32,8 @@ class LABPROJECT_API UDefaultPlayerProvisioner : public UObject
 
 public:
 	virtual UWorld* GetWorld() const override;
+
+	FOnDefaultPlayerProvisioned OnPlayerProvisioned;
 
 	void SetDefinition(const UDefaultProvisionDefinition* InDefinition);
 	void ProvisionPlayer(

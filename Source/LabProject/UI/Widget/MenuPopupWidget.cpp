@@ -8,7 +8,8 @@
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Online/OnlineSessionsSubsystem.h"
@@ -179,10 +180,10 @@ void UMenuPopupWidget::ExitToTitleMap()
 		OnlineSessionsSubsystem->MarkVoluntaryMatchExit();
 	}
 
-	if (UPdGameInstance* PdGameInstance =
-		GetGameInstance<UPdGameInstance>())
+	if (ULobbyRuntimeSubsystem* LobbySubsystem =
+		UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GetGameInstance()))
 	{
-		PdGameInstance->ClearPendingTitleGameResult();
+		LobbySubsystem->ClearPendingTitleGameResult();
 	}
 
 	if (bAppliedPause)

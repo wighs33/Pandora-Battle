@@ -1,6 +1,5 @@
 #pragma once
 
-#include "ActiveGameplayEffectHandle.h"
 #include "CoreMinimal.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
 #include "UObject/Object.h"
@@ -8,17 +7,14 @@
 
 class ACharacterBase;
 class ASkillPresentationActor;
-class AWeaponBase;
-class USkeletalMeshComponent;
+class UCharacterPresentationComponent;
 class USkillDefinition;
 class UPdGameplayAbility;
-struct FGameplayAbilityActivationInfo;
-struct FGameplayAbilityActorInfo;
-struct FGameplayAbilitySpecHandle;
 
 /**
- * Owns replicated skill presentation, temporary self-buff visuals, and decals
- * for one ability instance.
+ * 한 능력의 시각효과 액터·데칼·캐릭터 확대 연출을 관리한다.
+ *
+ * 버프의 능력치와 GameplayEffect 적용·해제는 능력이 담당한다.
  */
 UCLASS()
 class LABPROJECT_API UAbilityPresentationRuntime : public UObject
@@ -37,25 +33,8 @@ public:
 	void StopConfiguredMissilePresentation(UPdGameplayAbility& Ability);
 	void CleanupConfiguredPresentation();
 
-	void StartConfiguredSelfBuff(
-		UPdGameplayAbility& Ability,
-		const FGameplayAbilitySpecHandle Handle,
-		const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo& ActivationInfo);
-	void StopConfiguredSelfBuff(UPdGameplayAbility& Ability);
-
-	float CalculateSelfBuffMagnitude(
-		const FSkillSelfBuffSettings& SelfBuffSettings) const;
-	float CalculateSelfBuffWeaponDamageBonus(
-		const FSkillSelfBuffSettings& SelfBuffSettings) const;
-	void ApplySelfBuffCharacterScale(
-		UPdGameplayAbility& Ability,
-		const FSkillSelfBuffSettings& SelfBuffSettings);
-	void RestoreSelfBuffCharacterScale();
-	void ApplySelfBuffWeaponTraceEndZ(
-		UPdGameplayAbility& Ability,
-		const FSkillSelfBuffSettings& SelfBuffSettings);
-	void RestoreSelfBuffWeaponTraceEndZ(UPdGameplayAbility& Ability);
+	void ApplySelfBuffCharacterScale(UPdGameplayAbility& Ability, const FSkillSelfBuffSettings& SelfBuffSettings);
+	void RestoreSelfBuffCharacterScale(UPdGameplayAbility& Ability);
 
 	void SpawnConfiguredCharacterDecal(UPdGameplayAbility& Ability);
 	FVector ResolveConfiguredCharacterDecalLocation(
@@ -79,24 +58,5 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ASkillPresentationActor> ActiveSkillPresentationActor;
 
-	UPROPERTY(Transient)
-	TArray<FActiveGameplayEffectHandle> ActiveSelfBuffEffectHandles;
-
-	UPROPERTY(Transient)
-	bool bTemporaryWeaponDamageBonusApplied = false;
-
-	UPROPERTY(Transient)
-	TObjectPtr<USkeletalMeshComponent> SelfBuffScaledMeshComponent;
-
-	UPROPERTY(Transient)
-	FVector CachedSelfBuffMeshWorldScale = FVector::OneVector;
-
-	UPROPERTY(Transient)
-	bool bSelfBuffCharacterScaleApplied = false;
-
-	UPROPERTY(Transient)
-	TObjectPtr<AWeaponBase> SelfBuffTraceEndZWeapon;
-
-	UPROPERTY(Transient)
-	bool bSelfBuffTraceEndZApplied = false;
+	TWeakObjectPtr<UCharacterPresentationComponent> SelfBuffScaleOwner;
 };

@@ -1,17 +1,18 @@
 #pragma once
 
-#include "Components/PlayerStateComponent.h"
 #include "CoreMinimal.h"
-#include "Component/Player/PlayerMatchComponent.h"
+#include "Components/PlayerStateComponent.h"
 #include "LobbyPlayerStateComponent.generated.h"
 
-class UBasicAttributeSet;
-class UPdAbilitySystemComponent;
+class UPlayerMatchComponent;
 
 DECLARE_MULTICAST_DELEGATE(FOnLobbyRuntimeStateChanged);
 
 /**
- * Replicated lobby presence and identity state owned by ALobbyPlayerState.
+ * 로비의 퇴장 여부와 닉네임 입력 상태를 복제한다.
+ *
+ * 실제 표시 이름과 팀은 PlayerMatchComponent에서 조회하며,
+ * 로비 상태 또는 공통 식별 정보가 바뀌면 구독자에게 알린다.
  */
 UCLASS(BlueprintType, ClassGroup = (Lobby))
 class LABPROJECT_API ULobbyPlayerStateComponent : public UPlayerStateComponent
@@ -19,19 +20,16 @@ class LABPROJECT_API ULobbyPlayerStateComponent : public UPlayerStateComponent
 	GENERATED_BODY()
 
 public:
-	ULobbyPlayerStateComponent(
-		const FObjectInitializer& ObjectInitializer =
-			FObjectInitializer::Get());
+	ULobbyPlayerStateComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void GetLifetimeReplicatedProps(
-		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	//------------------------------------------------------------------------------------------------------------------
 	FOnLobbyRuntimeStateChanged OnLobbyRuntimeStateChanged;
-
-	void SetReady(bool bInReady);
-	bool IsReady() const { return bReady; }
 
 	void SetLeavingLobby(bool bInLeavingLobby);
 	bool IsLeavingLobby() const { return bLeavingLobby; }
@@ -39,58 +37,33 @@ public:
 	void SetNickname(const FText& InNickname);
 	void SetDefaultNickname(const FText& InNickname);
 	void ClearCustomNickname();
-	const FText& GetNickname() const { return Nickname; }
+	FText GetNickname() const;
 	const FText& GetNicknameHint() const { return NicknameHint; }
-	bool IsUsingNicknameHint() const { return bUsingNicknameHint; }
+	bool IsUsingNicknameHint() const { return bUsingNicknameHint && GetNickname().EqualTo(NicknameHint); }
 
 	void SetTeamColorIndex(int32 InTeamColorIndex);
 	int32 GetTeamColorIndex() const;
 
-	void ImportPlayerMatchIdentity(
-		const FPlayerMatchIdentity& InMatchIdentity);
-	FPlayerMatchIdentity BuildConfirmedPlayerMatchIdentity() const;
-
-	void InitializePreviewAbilitySystem(
-		UPdAbilitySystemComponent* AbilitySystemComponent,
-		UBasicAttributeSet* BasicAttributeSet);
-
 private:
 	bool HasAuthority() const;
 	UPlayerMatchComponent* GetPlayerMatchComponent() const;
-	void SetNicknameInternal(
-		const FText& InNickname,
-		const FText& InNicknameHint,
-		bool bInUsingNicknameHint);
+	void SetNicknameInternal(const FText& InNickname, const FText& InNicknameHint, bool bInUsingNicknameHint);
+	void HandleMatchDisplayNameChanged(const FText& NewDisplayName);
 	void HandleMatchTeamColorChanged(int32 NewTeamColorIndex);
 	void NotifyLobbyRuntimeStateChanged();
 
 	UFUNCTION()
-	void OnRep_Ready();
+	void OnRep_LobbyState();
 
-	UFUNCTION()
-	void OnRep_LeavingLobby();
-
-	UFUNCTION()
-	void OnRep_Nickname();
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_Ready,
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_LobbyState,
 		Category = "!Lobby", meta = (AllowPrivateAccess = "true"))
-	bool bReady = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly,
-		ReplicatedUsing = OnRep_LeavingLobby, Category = "!Lobby",
-		meta = (AllowPrivateAccess = "true"))
 	bool bLeavingLobby = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_Nickname,
-		Category = "!Lobby", meta = (AllowPrivateAccess = "true"))
-	FText Nickname;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_Nickname,
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_LobbyState,
 		Category = "!Lobby", meta = (AllowPrivateAccess = "true"))
 	FText NicknameHint;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_Nickname,
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_LobbyState,
 		Category = "!Lobby", meta = (AllowPrivateAccess = "true"))
 	bool bUsingNicknameHint = false;
 };

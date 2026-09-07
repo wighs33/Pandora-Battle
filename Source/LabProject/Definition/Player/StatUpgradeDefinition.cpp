@@ -1,6 +1,7 @@
 #include "Definition/Player/StatUpgradeDefinition.h"
 
 #include "Common/LabGameplayTags.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 
 #if WITH_EDITOR
@@ -86,12 +87,6 @@ namespace
 	}
 #endif
 
-	struct FDefaultStatLevelTagMapping
-	{
-		FGameplayTag StatTag;
-		FGameplayTag LevelTag;
-	};
-
 	const FStatAttributeDefaultValue* FindExactAttributeValue(
 		const TArray<FStatAttributeDefaultValue>& AttributeValues,
 		const FGameplayTag& StatTag)
@@ -165,53 +160,85 @@ const FStatUpgradeRule* UStatUpgradeDefinition::FindUpgradeRuleForStat(const FGa
 
 float UStatUpgradeDefinition::GetMaxInvestedLevel() const
 {
-	return FMath::Clamp(MaxInvestedLevel, 0.f, MaxSupportedInvestedLevel);
+	return FMath::IsFinite(MaxInvestedLevel) ? FMath::Clamp(MaxInvestedLevel, 0.f, MaxSupportedInvestedLevel) : 0.f;
 }
 
-bool UStatUpgradeDefinition::TryResolveDefaultStatLevelTag(const FGameplayTag& StatTag, FGameplayTag& OutLevelTag)
+TConstArrayView<FStatUpgradeBinding> UStatUpgradeDefinition::GetStatBindings()
 {
-	OutLevelTag = FGameplayTag();
-	if (!StatTag.IsValid())
-	{
-		return false;
-	}
-
-	const FDefaultStatLevelTagMapping DefaultMappings[] =
+	static const FStatUpgradeBinding Bindings[] =
 	{
 		{ LabGameplayTags::Status_Offense_Strength, LabGameplayTags::Status_Offense_StrengthLevel },
 		{ LabGameplayTags::Status_Offense_Intelligence, LabGameplayTags::Status_Offense_IntelligenceLevel },
 		{ LabGameplayTags::Status_Offense_Critical, LabGameplayTags::Status_Offense_CriticalLevel },
 		{ LabGameplayTags::Status_Defense_Armor, LabGameplayTags::Status_Defense_ArmorLevel },
 		{ LabGameplayTags::Status_Defense_Recovery, LabGameplayTags::Status_Defense_RecoveryLevel },
-		{ LabGameplayTags::Status_Defense_MaxShield, LabGameplayTags::Status_Defense_MaxShieldLevel },
-		{ LabGameplayTags::Status_Defense_MaxShieldIncreasePercent, LabGameplayTags::Status_Defense_MaxShieldLevel },
 		{ LabGameplayTags::Status_Resistance_Frostbite, LabGameplayTags::Status_Resistance_FrostbiteLevel },
 		{ LabGameplayTags::Status_Resistance_Burn, LabGameplayTags::Status_Resistance_BurnLevel },
 		{ LabGameplayTags::Status_Resistance_ElectricShock, LabGameplayTags::Status_Resistance_ElectricShockLevel },
-		{ LabGameplayTags::Status_PandoraForce_FirstPandora, LabGameplayTags::Status_PandoraForce_FirstPandoraLevel },
-		{ LabGameplayTags::Status_PandoraForce_SecondPandora, LabGameplayTags::Status_PandoraForce_SecondPandoraLevel },
-		{ LabGameplayTags::Status_PandoraForce_ThirdPandora, LabGameplayTags::Status_PandoraForce_ThirdPandoraLevel },
-		{ LabGameplayTags::Status_Resource_MaxHealth, LabGameplayTags::Status_Resource_MaxHealthLevel },
-		{ LabGameplayTags::Status_Resource_MaxHealthIncreasePercent, LabGameplayTags::Status_Resource_MaxHealthLevel },
-		{ LabGameplayTags::Status_Resource_MaxMana, LabGameplayTags::Status_Resource_MaxManaLevel },
-		{ LabGameplayTags::Status_Resource_MaxManaIncreasePercent, LabGameplayTags::Status_Resource_MaxManaLevel },
-		{ LabGameplayTags::Status_Resource_MaxStamina, LabGameplayTags::Status_Resource_MaxStaminaLevel },
-		{ LabGameplayTags::Status_Resource_MaxStaminaIncreasePercent, LabGameplayTags::Status_Resource_MaxStaminaLevel },
 		{ LabGameplayTags::Status_Agility_AttackSpeed, LabGameplayTags::Status_Agility_AttackSpeedLevel },
 		{ LabGameplayTags::Status_Agility_MovementSpeed, LabGameplayTags::Status_Agility_MovementSpeedLevel },
-		{ LabGameplayTags::Status_Agility_Arcane, LabGameplayTags::Status_Agility_ArcaneLevel }
+		{ LabGameplayTags::Status_Agility_Arcane, LabGameplayTags::Status_Agility_ArcaneLevel },
+		{ LabGameplayTags::Status_PandoraForce_FirstPandora, LabGameplayTags::Status_PandoraForce_FirstPandoraLevel, {}, {}, true },
+		{ LabGameplayTags::Status_PandoraForce_SecondPandora, LabGameplayTags::Status_PandoraForce_SecondPandoraLevel, {}, {}, true },
+		{ LabGameplayTags::Status_PandoraForce_ThirdPandora, LabGameplayTags::Status_PandoraForce_ThirdPandoraLevel, {}, {}, true },
+		{ LabGameplayTags::Status_Defense_MaxShield, LabGameplayTags::Status_Defense_MaxShieldLevel,
+			LabGameplayTags::Status_Defense_MaxShieldIncreasePercent, LabGameplayTags::Status_Defense_Shield, true },
+		{ LabGameplayTags::Status_Resource_MaxHealth, LabGameplayTags::Status_Resource_MaxHealthLevel,
+			LabGameplayTags::Status_Resource_MaxHealthIncreasePercent, LabGameplayTags::Status_Resource_Health, true },
+		{ LabGameplayTags::Status_Resource_MaxMana, LabGameplayTags::Status_Resource_MaxManaLevel,
+			LabGameplayTags::Status_Resource_MaxManaIncreasePercent, LabGameplayTags::Status_Resource_Mana, true },
+		{ LabGameplayTags::Status_Resource_MaxStamina, LabGameplayTags::Status_Resource_MaxStaminaLevel,
+			LabGameplayTags::Status_Resource_MaxStaminaIncreasePercent, LabGameplayTags::Status_Resource_Stamina, true },
 	};
+	return MakeArrayView(Bindings);
+}
 
-	for (const FDefaultStatLevelTagMapping& Mapping : DefaultMappings)
+const FStatUpgradeBinding* UStatUpgradeDefinition::FindStatBinding(const FGameplayTag& StatTag)
+{
+	for (const FStatUpgradeBinding& Binding : GetStatBindings())
 	{
-		if (StatTag.MatchesTagExact(Mapping.StatTag))
+		if (StatTag == Binding.StatTag || (Binding.PercentTag.IsValid() && StatTag == Binding.PercentTag))
 		{
-			OutLevelTag = Mapping.LevelTag;
-			return OutLevelTag.IsValid();
+			return &Binding;
 		}
 	}
+	return nullptr;
+}
 
-	return false;
+bool UStatUpgradeDefinition::TryResolveDefaultStatLevelTag(const FGameplayTag& StatTag, FGameplayTag& OutLevelTag)
+{
+	const FStatUpgradeBinding* Binding = FindStatBinding(StatTag);
+	OutLevelTag = Binding ? Binding->LevelTag : FGameplayTag();
+	return Binding != nullptr;
+}
+
+bool UStatUpgradeDefinition::TryGetUpgradeMagnitude(const FStatUpgradeBinding& Binding, float& OutMagnitude) const
+{
+	return (TryGetAttributeValuePerUpgrade(Binding.GetEffectTag(), OutMagnitude)
+		|| TryGetAttributeValuePerUpgrade(Binding.StatTag, OutMagnitude))
+		&& FMath::IsFinite(OutMagnitude) && OutMagnitude > 0.f;
+}
+
+// 장비나 버프가 섞인 현재 최대값에서 기본값을 역산하지 않는다.
+bool UStatUpgradeDefinition::TryGetResourceBaseValue(const FStatUpgradeBinding& Binding, float& OutValue) const
+{
+	if (!TryGetExactAttributeDefaultValue(Binding.StatTag, OutValue))
+	{
+		FGameplayAttribute Attribute;
+		if (!UBasicAttributeSet::ResolveAttributeFromStatTag(Binding.StatTag, Attribute))
+		{
+			return false;
+		}
+		OutValue = Attribute.GetNumericValue(GetDefault<UBasicAttributeSet>());
+	}
+	return FMath::IsFinite(OutValue) && OutValue > 0.f;
+}
+
+float UStatUpgradeDefinition::CalculateInvestmentValue(float Magnitude, float InvestmentLevel, bool bCompounded)
+{
+	return bCompounded
+		? static_cast<float>((FMath::Pow(1.0 + static_cast<double>(Magnitude) * 0.01, static_cast<double>(InvestmentLevel)) - 1.0) * 100.0)
+		: Magnitude * InvestmentLevel;
 }
 
 bool UStatUpgradeDefinition::TryGetAttributeValuePerUpgrade(const FGameplayTag& StatTag, float& OutValue) const

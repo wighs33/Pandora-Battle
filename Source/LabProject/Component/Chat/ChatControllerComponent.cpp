@@ -7,7 +7,8 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerState.h"
 #include "UI/WidgetLookup.h"
@@ -237,7 +238,7 @@ FString UChatControllerComponent::GetSenderDisplayName() const
 
 	if (const UWorld* World = GetWorld())
 	{
-		if (const UPdGameInstance* PdGameInstance = World->GetGameInstance<UPdGameInstance>())
+		if (const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(World->GetGameInstance()))
 		{
 			int32 FallbackNicknameIndex = 1;
 			if (const AGameStateBase* GameState = World->GetGameState())
@@ -250,7 +251,7 @@ FString UChatControllerComponent::GetSenderDisplayName() const
 					: GameState->PlayerArray.Num() + 1;
 			}
 
-			const FString ResolvedNickname = PdGameInstance->ResolveDefaultPlayerNickname(
+			const FString ResolvedNickname = LobbySubsystem->ResolveDefaultPlayerNickname(
 				PlayerController,
 				PlayerState,
 				FallbackNicknameIndex).ToString().TrimStartAndEnd();

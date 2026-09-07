@@ -50,12 +50,7 @@ protected:
 		const FGameplayAbilityActivationInfo ActivationInfo,
 		const FGameplayEventData* TriggerEventData) override;
 
-	virtual void EndAbility(
-		const FGameplayAbilitySpecHandle Handle,
-		const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo,
-		bool bReplicateEndAbility,
-		bool bWasCancelled) override;
+	virtual void OnAbilityEnding() override;
 
 	UPROPERTY(Transient)
 	bool bIsWaitingTargetData = false;
@@ -128,7 +123,6 @@ private:
 	FGameplayTag GetConfiguredLightningBoltCueTag() const;
 	float GetConfiguredLightningDamageDelay() const;
 	FWeaponAimCameraSettings GetConfiguredAOECameraSettings() const;
-	bool HasPlayerController() const;
 	double CalculateAOERadiusFromSkillData() const;
 	float CalculateDamageMagnitude() const;
 	bool ShouldDrawDebugDamageRadius() const;

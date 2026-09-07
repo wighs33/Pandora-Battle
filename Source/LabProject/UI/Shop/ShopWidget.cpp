@@ -8,7 +8,9 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Definition/Item/ItemDefinition.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Settings/BgmSubsystem.h"
+#include "SavedGameData/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "SavedGameData/PdSaveGame.h"
@@ -27,9 +29,9 @@ void UShopWidget::NativeConstruct()
 	ResolveWidgets();
 	BindWidgets();
 	EnsurePlayerSaveLoaded();
-	if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
+	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
-		PdGameInstance->PlayBgmForContext(EBgmContext::Shop);
+		BgmSubsystem->PlayBgmForContext(EBgmContext::Shop);
 	}
 	BeginContentPreload();
 	RefreshUI();
@@ -39,9 +41,9 @@ void UShopWidget::NativeDestruct()
 {
 	ReleaseContentPreloads();
 	UnbindWidgets();
-	if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
+	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
-		PdGameInstance->RestoreWorldBgm();
+		BgmSubsystem->RestoreWorldBgm();
 	}
 	Super::NativeDestruct();
 }
@@ -255,8 +257,8 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 		return false;
 	}
 
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 
 		return false;
@@ -276,7 +278,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 				return false;
 			}
 
-			if (PdGameInstance->IsPandoraGranted(PlayerId, PandoraDefinition))
+			if (ProfileSubsystem->IsPandoraGranted(PlayerId, PandoraDefinition))
 			{
 				SetMessage(AlreadyOwnedText);
 				RefreshUI();
@@ -284,7 +286,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 				return false;
 			}
 
-			bPurchased = PdGameInstance->TryPurchasePandoraWithGold(
+			bPurchased = ProfileSubsystem->TryPurchasePandoraWithGold(
 				PlayerId,
 				PandoraDefinition,
 				GoldPrice,
@@ -302,7 +304,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 				return false;
 			}
 
-			if (PdGameInstance->IsSkinGranted(PlayerId, SkinDefinition))
+			if (ProfileSubsystem->IsSkinGranted(PlayerId, SkinDefinition))
 			{
 				SetMessage(AlreadyOwnedText);
 				RefreshUI();
@@ -310,7 +312,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 				return false;
 			}
 
-			bPurchased = PdGameInstance->TryPurchaseSkinWithGold(
+			bPurchased = ProfileSubsystem->TryPurchaseSkinWithGold(
 				PlayerId,
 				SkinDefinition,
 				GoldPrice,
@@ -332,8 +334,8 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 	}
 
 	SetMessage(FText::Format(PurchaseSucceededTextFormat, PurchasedName));
-	PdGameInstance->SetPreferredSavePlayerId(PlayerId);
-	PdGameInstance->SaveGame(PlayerId);
+	ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
+	ProfileSubsystem->SaveGame(PlayerId);
 	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
 	{
 		PdPlayerController->RequestLocalCosmeticProfileSync();
@@ -367,8 +369,8 @@ void UShopWidget::HandleBuyRequested(UShopEntryViewData* EntryData)
 
 void UShopWidget::HandleResetShopSaveClicked()
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 
 		return;
@@ -384,11 +386,11 @@ void UShopWidget::HandleResetShopSaveClicked()
 	UObject* SelectedProductObject = SelectedEntryData ? SelectedEntryData->GetProductObject() : nullptr;
 	const EShopProductType SelectedProductType = SelectedEntryData ? SelectedEntryData->GetProductType() : ActiveCategory;
 
-	PdGameInstance->SetPreferredSavePlayerId(PlayerId);
-	const bool bReset = PdGameInstance->ResetShopSaveData(PlayerId, false);
+	ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
+	const bool bReset = ProfileSubsystem->ResetShopSaveData(PlayerId, false);
 	if (bReset)
 	{
-		PdGameInstance->SaveGame(PlayerId);
+		ProfileSubsystem->SaveGame(PlayerId);
 	}
 
 RefreshUI();
@@ -890,21 +892,21 @@ FString UShopWidget::GetResolvedPlayerId() const
 	const APlayerController* PlayerController = GetOwningPlayer();
 	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
 
-	if (const UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
+	if (const UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance()))
 	{
-		const FString ResolvedPlayerId = PdGameInstance->ResolveSavePlayerId(PlayerController, PlayerState);
+		const FString ResolvedPlayerId = ProfileSubsystem->ResolveSavePlayerId(PlayerController, PlayerState);
 		if (!ResolvedPlayerId.IsEmpty())
 		{
 			return ResolvedPlayerId;
 		}
 
-		const FString PreferredPlayerId = PdGameInstance->GetPreferredSavePlayerId();
+		const FString PreferredPlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
 		if (!PreferredPlayerId.IsEmpty())
 		{
 			return PreferredPlayerId;
 		}
 
-		return PdGameInstance->GetLocalClientSavePlayerId();
+		return ProfileSubsystem->GetLocalClientSavePlayerId();
 	}
 
 	return TEXT("LocalProfile");
@@ -912,8 +914,8 @@ FString UShopWidget::GetResolvedPlayerId() const
 
 int32 UShopWidget::GetCurrentGold() const
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	return PdGameInstance ? PdGameInstance->GetGold(GetResolvedPlayerId()) : 0;
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	return ProfileSubsystem ? ProfileSubsystem->GetGold(GetResolvedPlayerId()) : 0;
 }
 
 bool UShopWidget::IsProductOwned(UShopEntryViewData* EntryData) const
@@ -923,8 +925,8 @@ bool UShopWidget::IsProductOwned(UShopEntryViewData* EntryData) const
 
 bool UShopWidget::IsProductOwned(UObject* ProductObject, const EShopProductType ProductType) const
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance || !ProductObject)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem || !ProductObject)
 	{
 		return false;
 	}
@@ -932,9 +934,9 @@ bool UShopWidget::IsProductOwned(UObject* ProductObject, const EShopProductType 
 	switch (ProductType)
 	{
 	case EShopProductType::Pandora:
-		return PdGameInstance->IsPandoraGranted(GetResolvedPlayerId(), Cast<UPandoraDefinition>(ProductObject));
+		return ProfileSubsystem->IsPandoraGranted(GetResolvedPlayerId(), Cast<UPandoraDefinition>(ProductObject));
 	case EShopProductType::Skin:
-		return PdGameInstance->IsSkinGranted(GetResolvedPlayerId(), Cast<USkinDefinition>(ProductObject));
+		return ProfileSubsystem->IsSkinGranted(GetResolvedPlayerId(), Cast<USkinDefinition>(ProductObject));
 	case EShopProductType::Item:
 	default:
 		return false;
@@ -992,8 +994,8 @@ bool UShopWidget::CanPurchaseProductType(const EShopProductType ProductType) con
 
 void UShopWidget::EnsurePlayerSaveLoaded() const
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 		return;
 	}
@@ -1004,10 +1006,10 @@ void UShopWidget::EnsurePlayerSaveLoaded() const
 		return;
 	}
 
-	PdGameInstance->SetPreferredSavePlayerId(PlayerId);
-	PdGameInstance->LoadGame(PlayerId);
+	ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
+	ProfileSubsystem->LoadGame(PlayerId);
 
-	const UPdSaveGame* SaveGame = PdGameInstance->GetOrCreateSaveGame(PlayerId);
+	const UPdSaveGame* SaveGame = ProfileSubsystem->GetOrCreateSaveGame(PlayerId);
 
 }
 

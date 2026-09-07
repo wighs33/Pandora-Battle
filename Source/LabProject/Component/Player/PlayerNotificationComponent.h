@@ -1,54 +1,43 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/PlayerStateComponent.h"
+#include "Components/ControllerComponent.h"
 #include "UI/NotificationData.h"
 #include "PlayerNotificationComponent.generated.h"
 
-class APdPlayerState;
-class UObject;
 struct FStreamableHandle;
-struct FPrimaryAssetId;
 
-UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class LABPROJECT_API UPlayerNotificationComponent : public UPlayerStateComponent
+/**
+ * 지급된 보상을 소유 플레이어에게 알리는 컴포넌트.
+ *
+ * 서버는 보상 정보를 Controller의 RPC로 전달하고, 소유 클라이언트가
+ * 표시용 에셋을 비동기로 읽어 알림 문구와 아이콘을 준비한다.
+ */
+UCLASS(BlueprintType, Blueprintable, ClassGroup=(PlayerController), meta=(BlueprintSpawnableComponent))
+class LABPROJECT_API UPlayerNotificationComponent : public UControllerComponent
 {
 	GENERATED_BODY()
 
 public:
 	UPlayerNotificationComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	void SendNotification(const FPdNotificationData& NotificationData) const;
-	void SendRewardNotifications(
-		const TArray<FPrimaryAssetId>& RewardItemDefinitions,
-		const TArray<FPrimaryAssetId>& RewardSkinDefinitions,
-		const TArray<FPrimaryAssetId>& RewardPandoraDefinitions);
+	void SendRewardNotifications(const TArray<FPrimaryAssetId>& RewardItemDefinitions,
+		const TArray<FPrimaryAssetId>& RewardSkinDefinitions, const TArray<FPrimaryAssetId>& RewardPandoraDefinitions) const;
 	void SendExperienceRewardNotification(float RewardAmount, UObject* IconResource) const;
 	void SendSoulDustRewardNotification(int32 RewardAmount, UObject* IconResource) const;
+	void ShowRewardNotifications(const TArray<FPdRewardNotification>& Rewards);
 
 protected:
+	//--------------------------------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
-	void SendNumericRewardNotification(
-		const FText& RewardName,
-		float RewardAmount,
-		UObject* IconResource) const;
-	void SendRewardNotificationForAsset(const FPrimaryAssetId& AssetId, const FText& FallbackText) const;
-	void CompleteRewardNotificationLoad(
-		uint64 RequestId,
-		TArray<FPrimaryAssetId> RewardItemDefinitions,
-		TArray<FPrimaryAssetId> RewardSkinDefinitions,
-		TArray<FPrimaryAssetId> RewardPandoraDefinitions);
-	void SendLoadedRewardNotifications(
-		const TArray<FPrimaryAssetId>& RewardItemDefinitions,
-		const TArray<FPrimaryAssetId>& RewardSkinDefinitions,
-		const TArray<FPrimaryAssetId>& RewardPandoraDefinitions) const;
-	void ReleasePendingRewardNotificationLoads();
-	UObject* ResolvePrimaryAssetObject(const FPrimaryAssetId& AssetId) const;
-	APdPlayerState* GetPdPlayerState() const;
+	//--------------------------------------------------------------------------------------------------------------------------------------------
+	void SendNumericRewardNotification(EPdRewardNotificationType Type, double RewardAmount, UObject* IconResource) const;
+	void CompleteRewardNotificationLoad(uint64 RequestId, const TArray<FPdRewardNotification>& Rewards);
+	void ShowLoadedRewardNotifications(const TArray<FPdRewardNotification>& Rewards) const;
 
 	uint64 NextRewardNotificationRequestId = 1;
-	TSet<uint64> ActiveRewardNotificationRequestIds;
 	TMap<uint64, TSharedPtr<FStreamableHandle>> PendingRewardNotificationLoadHandles;
 };

@@ -6,7 +6,6 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "Mode/PdGameInstance.h"
 #include "Mode/PdPlayerState.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "UI/Widget/SkillEffectIconResolver.h"
@@ -77,7 +76,7 @@ void UPandoraDescriptionWidget::SetPandoraTreeComponent(UPandoraTreeComponent* I
 	PandoraTreeComponent = InPandoraTreeComponent;
 	if (!PandoraDefinition && PandoraTreeComponent)
 	{
-		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
+		PandoraDefinition = FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(PandoraTreeComponent);
 	}
 
 	SetDetails();
@@ -98,8 +97,7 @@ void UPandoraDescriptionWidget::SetDetails()
 	FPandoraDescriptionViewData ViewData = FPandoraDescriptionViewDataBuilder::Build(
 		PandoraDefinition.Get(),
 		PandoraTreeComponent.Get());
-	const bool bUnlockedInSave = IsPandoraUnlockedInSave();
-	if (PandoraDefinition && !bUnlockedInSave)
+	if (!PandoraTreeComponent && PandoraDefinition && !FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(this, PandoraDefinition))
 	{
 		ViewData.DescriptionText = NSLOCTEXT("PandoraDescriptionWidget", "UnownedPandoraDescription", "You do not own this Pandora.");
 		ViewData.WeaponRequirementVisibility = ESlateVisibility::Collapsed;
@@ -135,25 +133,6 @@ void UPandoraDescriptionWidget::SetDetails()
 			SkillViewData ? SkillViewData->DisplayName : FText::GetEmpty(),
 			SkillViewData ? SkillViewData->Description : FText::GetEmpty());
 	}
-
-	if (!ViewData.bHasPandoraDefinition)
-	{
-
-		return;
-	}
-
-	if (ViewData.bLockedByPandoraRequirement)
-	{
-
-		return;
-	}
-
-	if (PandoraDefinition && !bUnlockedInSave)
-	{
-
-		return;
-	}
-
 }
 
 void UPandoraDescriptionWidget::PlayShowAnimation()
@@ -192,7 +171,7 @@ void UPandoraDescriptionWidget::ResolvePandoraTreeComponent()
 
 	if (!PandoraDefinition && PandoraTreeComponent)
 	{
-		PandoraDefinition = PandoraTreeComponent->GetPandoraDefinition();
+		PandoraDefinition = FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(PandoraTreeComponent);
 	}
 
 }
@@ -275,37 +254,4 @@ void UPandoraDescriptionWidget::ApplyPandoraDescriptionViewModelToMvvmView()
 	}
 
 	ViewExtension->SetViewModel(RuntimeViewModelName, PandoraDescriptionViewModel);
-}
-
-bool UPandoraDescriptionWidget::IsPandoraUnlockedInSave() const
-{
-	if (!PandoraDefinition)
-	{
-		return false;
-	}
-
-	const bool bUnlockedInTree = PandoraTreeComponent
-		&& PandoraTreeComponent->IsPandoraUnlockedForTree(PandoraDefinition.Get());
-	if (bUnlockedInTree)
-	{
-
-		return true;
-	}
-
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
-	{
-		return false;
-	}
-
-	const APlayerController* PlayerController = GetOwningPlayer();
-	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
-	FString PlayerId = PdGameInstance->ResolveSavePlayerId(PlayerController, PlayerState);
-	if (PlayerId.IsEmpty())
-	{
-		PlayerId = PdGameInstance->GetPreferredSavePlayerId();
-	}
-
-	// Default-unlocked definitions are resolved before IsPandoraGranted requires a player id.
-	return PdGameInstance->IsPandoraGranted(PlayerId, PandoraDefinition.Get());
 }

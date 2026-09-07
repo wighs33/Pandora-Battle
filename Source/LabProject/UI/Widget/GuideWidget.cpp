@@ -12,7 +12,7 @@
 #include "InputCoreTypes.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Mode/PdHUD.h"
-#include "Mode/PdGameInstance.h"
+#include "Settings/BgmSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GuideWidget)
 
@@ -217,9 +217,9 @@ void UGuideWidget::NativeConstruct()
 		CB_Language->OnSelectionChanged.AddUniqueDynamic(this, &ThisClass::HandleLanguageSelectionChanged);
 	}
 
-	if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
+	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
-		PdGameInstance->PlayBgmForContext(EBgmContext::Guide);
+		BgmSubsystem->PlayBgmForContext(EBgmContext::Guide);
 	}
 
 	BeginContentPreload();
@@ -241,9 +241,9 @@ void UGuideWidget::NativeDestruct()
 		CB_Language->OnSelectionChanged.RemoveDynamic(this, &ThisClass::HandleLanguageSelectionChanged);
 	}
 
-	if (UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>())
+	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
-		PdGameInstance->RestoreWorldBgm();
+		BgmSubsystem->RestoreWorldBgm();
 	}
 
 	Super::NativeDestruct();

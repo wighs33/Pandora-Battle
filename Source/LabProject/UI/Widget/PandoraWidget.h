@@ -162,7 +162,6 @@ private:
 	void ApplyPandoraWidgetViewModelToMvvmView();
 	void ApplyDesignerDefaults();
 	void ClearButtonPressTimer();
-	bool IsPandoraUnlockedInSave() const;
 	void RefreshPandoraDescriptionRequest(bool bForceRefresh = false);
 	void ResolveEquipHintWidgets();
 	void ApplyEquipHintDefaults();
@@ -179,6 +178,7 @@ private:
 	double ButtonHoldElapsedTime = 0.0;
 	double ButtonHoldStartRealTime = 0.0;
 	bool bIsButtonHoldActive = false;
+	bool bPandoraInfoDirty = false;
 	FTimerHandle ButtonHoldTimerHandle;
 
 	UPROPERTY(Transient)

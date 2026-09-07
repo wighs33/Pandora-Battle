@@ -1,11 +1,14 @@
 #include "Lobby/Coordination/LobbyMatchCoordinator.h"
 
+#include "Component/Lobby/LobbyExperienceComponent.h"
+#include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyPlayerState.h"
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "TimerManager.h"
 
@@ -39,9 +42,10 @@ bool ULobbyMatchCoordinator::CanHostStartGame() const
 	}
 
 	const int32 ActivePlayerCount = GetActiveLobbyPlayerCount();
-	const int32 MaxPlayerCount = GameMode->GetConfiguredMaxPlayerCount();
+	const int32 MaxPlayerCount = GameMode->GetLobbyConfigurationComponent()->GetConfiguredMaxPlayerCount();
 	return GameMode->HasAuthority()
 		&& !bGameStartRequested
+		&& !GameMode->GetLobbyExperienceComponent()->ShouldDelayPlayerStart()
 		&& ActivePlayerCount > 0
 		&& ActivePlayerCount <= MaxPlayerCount
 		&& AreLobbyTeamsBalanced();
@@ -68,7 +72,6 @@ void ULobbyMatchCoordinator::NotifyLobbyTeamChanged()
 		CancelPendingGameStart(TEXT("team_changed"));
 	}
 
-	GameMode->RefreshLobbyUIForAllPlayers();
 }
 
 void ULobbyMatchCoordinator::BeginStartGame(const TCHAR* Reason)
@@ -76,24 +79,23 @@ void ULobbyMatchCoordinator::BeginStartGame(const TCHAR* Reason)
 	static_cast<void>(Reason);
 
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !GameMode->HasAuthority() || bGameStartRequested)
+	if (!GameMode || !GameMode->HasAuthority() || bGameStartRequested
+		|| GameMode->GetLobbyExperienceComponent()->ShouldDelayPlayerStart())
 	{
 		return;
 	}
 
 	const int32 ActivePlayerCount = GetActiveLobbyPlayerCount();
 	const int32 MaxPlayerCount = FMath::Max(
-		GameMode->GetConfiguredMaxPlayerCount(),
+		GameMode->GetLobbyConfigurationComponent()->GetConfiguredMaxPlayerCount(),
 		1);
 	if (ActivePlayerCount <= 0 || ActivePlayerCount > MaxPlayerCount)
 	{
-		GameMode->RefreshLobbyUIForAllPlayers();
 		return;
 	}
 
 	if (!AreLobbyTeamsBalanced())
 	{
-		GameMode->RefreshLobbyUIForAllPlayers();
 		return;
 	}
 
@@ -109,11 +111,10 @@ void ULobbyMatchCoordinator::BeginStartGame(const TCHAR* Reason)
 				+ FMath::Max(EffectiveStartGameDelay, 0.0f));
 	}
 
-	if (GameMode->TravelCoordinator)
+	if (GameMode->GetTravelCoordinator())
 	{
-		GameMode->TravelCoordinator->SetAllLobbyPawnsTravelLocked(true);
+		GameMode->GetTravelCoordinator()->SetAllLobbyPawnsTravelLocked(true);
 	}
-	GameMode->RefreshLobbyUIForAllPlayers();
 
 	if (EffectiveStartGameDelay > 0.0f)
 	{
@@ -147,12 +148,11 @@ void ULobbyMatchCoordinator::CancelPendingGameStart(const TCHAR* Reason)
 		LobbyGameState->SetGameStartPending(false, 0.0);
 	}
 
-	if (GameMode->TravelCoordinator)
+	if (GameMode->GetTravelCoordinator())
 	{
-		GameMode->TravelCoordinator->CancelPendingTravel();
-		GameMode->TravelCoordinator->SetAllLobbyPawnsTravelLocked(false);
+		GameMode->GetTravelCoordinator()->CancelPendingTravel();
+		GameMode->GetTravelCoordinator()->SetAllLobbyPawnsTravelLocked(false);
 	}
-	GameMode->RefreshLobbyUIForAllPlayers();
 }
 
 void ULobbyMatchCoordinator::ClearStartTimers()
@@ -223,7 +223,7 @@ void ULobbyMatchCoordinator::AssignLobbyTeamColorIfNeeded(ALobbyPlayerState* Lob
 		TeamColorIndex = FindAvailableLobbyTeamColorIndex(LobbyPlayerState);
 	}
 
-	TeamColorIndex = FMath::Clamp(TeamColorIndex, 0, GameMode->GetConfiguredMaxPlayerCount() - 1);
+	TeamColorIndex = FMath::Clamp(TeamColorIndex, 0, GameMode->GetLobbyConfigurationComponent()->GetConfiguredMaxPlayerCount() - 1);
 	LobbyPlayerState->SetTeamColorIndex(TeamColorIndex);
 }
 
@@ -235,16 +235,16 @@ ALobbyGameMode* ULobbyMatchCoordinator::GetLobbyGameMode() const
 void ULobbyMatchCoordinator::HandleStartCountdownElapsed()
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (GameMode && GameMode->TravelCoordinator)
+	if (GameMode && GameMode->GetTravelCoordinator())
 	{
-		GameMode->TravelCoordinator->StartSessionAndTravel();
+		GameMode->GetTravelCoordinator()->StartSessionAndTravel();
 	}
 }
 
 float ULobbyMatchCoordinator::GetEffectiveStartGameDelay(const int32 ActivePlayerCount) const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
-	const UMatchRuleDefinition* MatchRules = GameMode ? GameMode->GetMatchRuleDefinition() : nullptr;
+	const UMatchRuleDefinition* MatchRules = GameMode ? GameMode->GetLobbyConfigurationComponent()->GetMatchRuleDefinition() : nullptr;
 	const float CountdownSeconds = MatchRules
 		? MatchRules->LobbyStartCountdownSeconds
 		: GetDefault<UMatchRuleDefinition>()->LobbyStartCountdownSeconds;
@@ -326,17 +326,17 @@ void ULobbyMatchCoordinator::UpdateAdvertisedSessionSettingsForCurrentConfig() c
 		return;
 	}
 
-	const UPdGameInstance* PdGameInstance = GameMode->GetGameInstance<UPdGameInstance>();
-	const FName SessionMapKey = PdGameInstance && !PdGameInstance->GetLobbySelectedMapKey().IsNone()
-		? PdGameInstance->GetLobbySelectedMapKey()
-		: GameMode->GetFirstMapKey();
-	UpdateAdvertisedSessionSettings(SessionMapKey, GameMode->GetConfiguredMaxPlayerCount());
+	const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance());
+	const FName SessionMapKey = LobbySubsystem && !LobbySubsystem->GetLobbySelectedMapKey().IsNone()
+		? LobbySubsystem->GetLobbySelectedMapKey()
+		: GameMode->GetLobbyConfigurationComponent()->GetFirstMapKey();
+	UpdateAdvertisedSessionSettings(SessionMapKey, GameMode->GetLobbyConfigurationComponent()->GetConfiguredMaxPlayerCount());
 }
 
 FString ULobbyMatchCoordinator::GetInitialSessionMapName() const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
-	const FName FirstMapKey = GameMode ? GameMode->GetFirstMapKey() : NAME_None;
+	const FName FirstMapKey = GameMode ? GameMode->GetLobbyConfigurationComponent()->GetFirstMapKey() : NAME_None;
 	return FirstMapKey.IsNone() ? FString(TEXT("Lobby")) : FirstMapKey.ToString();
 }
 
@@ -368,7 +368,7 @@ int32 ULobbyMatchCoordinator::FindAvailableLobbyTeamColorIndex(
 		}
 	}
 
-	for (int32 TeamColorIndex = 0; TeamColorIndex < GameMode->GetConfiguredMaxPlayerCount(); ++TeamColorIndex)
+	for (int32 TeamColorIndex = 0; TeamColorIndex < GameMode->GetLobbyConfigurationComponent()->GetConfiguredMaxPlayerCount(); ++TeamColorIndex)
 	{
 		if (!UsedTeamColorIndices.Contains(TeamColorIndex))
 		{

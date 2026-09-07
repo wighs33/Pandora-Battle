@@ -12,7 +12,8 @@
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
 #include "Item/ItemInstance.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "SavedGameData/PlayerProfileSubsystem.h"
 #include "Mode/PdHUD.h"
 #include "Pandora/PandoraInstance.h"
 #include "Skin/SkinInstance.h"
@@ -753,13 +754,13 @@ void UInfoWidget::OnFaceDecalButtonClicked()
 
 void UInfoWidget::OnDebugButtonClicked()
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 		return;
 	}
 
-	const FString PlayerId = PdGameInstance->GetLocalClientSavePlayerId();
+	const FString PlayerId = ProfileSubsystem->GetLocalClientSavePlayerId();
 	if (PlayerId.IsEmpty())
 	{
 		return;
@@ -769,8 +770,8 @@ void UInfoWidget::OnDebugButtonClicked()
 	FMatchRecord VictoryRecord;
 	VictoryRecord.bWin = true;
 	VictoryRecord.Reward = DebugVictoryGold;
-	PdGameInstance->AddMatchRecord(PlayerId, VictoryRecord, false);
-	PdGameInstance->AddGold(PlayerId, DebugVictoryGold, true);
+	ProfileSubsystem->AddMatchRecord(PlayerId, VictoryRecord, false);
+	ProfileSubsystem->AddGold(PlayerId, DebugVictoryGold, true);
 
 	if (WB_LeftProfile)
 	{

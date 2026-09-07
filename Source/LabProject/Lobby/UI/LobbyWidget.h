@@ -189,6 +189,7 @@ private:
 	FTimerHandle CloseDestroyTimerHandle;
 	FTimerHandle GameStartCountdownTickHandle;
 	bool bPendingCloseAfterDestroy = false;
+	FText DefaultTeamBalanceWarningText;
 	FSlateColor DefaultSelectedMapPlayerCountColor;
 	bool bHasDefaultSelectedMapPlayerCountColor = false;
 	TMap<TWeakObjectPtr<UWidget>, bool> LobbyInteractionEnabledStates;

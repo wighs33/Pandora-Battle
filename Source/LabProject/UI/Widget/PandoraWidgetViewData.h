@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 
+class UUserWidget;
 class UPandoraDefinition;
 class UPandoraInstance;
 class UPandoraTreeComponent;
@@ -93,6 +94,9 @@ public:
 		UPandoraDefinition* PandoraDefinition,
 		const UPandoraTreeComponent* PandoraTreeComponent,
 		const FPandoraWidgetStyleConfig& Style);
+
+	static UPandoraDefinition* GetSelectedPandoraDefinition(const UPandoraTreeComponent* PandoraTreeComponent);
+	static bool IsPandoraOwnedInProfile(const UUserWidget* Widget, UPandoraDefinition* PandoraDefinition);
 
 	static FText MakeLevelText(int32 CurrentLevel, int32 MaxLevel, bool bShowMaxText);
 };

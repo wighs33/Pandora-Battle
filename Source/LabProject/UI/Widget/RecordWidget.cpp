@@ -11,7 +11,7 @@
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "Mode/PdGameInstance.h"
+#include "SavedGameData/PlayerProfileSubsystem.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/UI/RecordDefinition.h"
 #include "UI/WidgetLookup.h"
@@ -128,8 +128,8 @@ void URecordWidget::RefreshRecords()
 	ApplyWidgetDefinitionSettings();
 	ResolveWidgets();
 
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 
 		return;
@@ -160,7 +160,7 @@ void URecordWidget::RefreshRecords()
 		return;
 	}
 
-	const TArray<FMatchRecord> MatchRecords = PdGameInstance->GetMatchRecords(PlayerId);
+	const TArray<FMatchRecord> MatchRecords = ProfileSubsystem->GetMatchRecords(PlayerId);
 	const int32 VisibleCount = FMath::Min(MatchRecords.Num(), MaxVisibleRecordEntries);
 	for (int32 DisplayIndex = 0; DisplayIndex < VisibleCount; ++DisplayIndex)
 	{
@@ -283,13 +283,13 @@ void URecordWidget::ApplyWidgetDefinitionSettings()
 
 FString URecordWidget::ResolveRecordPlayerId() const
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 		return FString();
 	}
 
-	FString PlayerId = PdGameInstance->GetPreferredSavePlayerId();
+	FString PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
 	PlayerId.TrimStartAndEndInline();
 	if (!PlayerId.IsEmpty())
 	{
@@ -298,7 +298,7 @@ FString URecordWidget::ResolveRecordPlayerId() const
 
 	const APlayerController* PlayerController = GetOwningPlayer();
 	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
-	PlayerId = PdGameInstance->ResolveSavePlayerId(
+	PlayerId = ProfileSubsystem->ResolveSavePlayerId(
 		PlayerController,
 		PlayerState);
 	PlayerId.TrimStartAndEndInline();
@@ -307,7 +307,7 @@ FString URecordWidget::ResolveRecordPlayerId() const
 		return PlayerId;
 	}
 
-	PlayerId = PdGameInstance->GetLocalClientSavePlayerId();
+	PlayerId = ProfileSubsystem->GetLocalClientSavePlayerId();
 	PlayerId.TrimStartAndEndInline();
 	return PlayerId;
 }
@@ -339,15 +339,15 @@ void URecordWidget::ApplyTierImage(const FString& PlayerId)
 		return;
 	}
 
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
 	const URecordDefinition* LoadedRecordData = ResolveRecordDefinition();
-	if (!PdGameInstance || !LoadedRecordData)
+	if (!ProfileSubsystem || !LoadedRecordData)
 	{
 		Img_MyTier->SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
 
-	const int32 WinCount = PdGameInstance->GetWinCount(PlayerId);
+	const int32 WinCount = ProfileSubsystem->GetWinCount(PlayerId);
 	const FRecordTierEntry TierEntry = LoadedRecordData->ResolveTierForWinCount(WinCount);
 	UTexture2D* TierTexture = TierEntry.TierImage.Get();
 	if (!TierTexture)
@@ -362,8 +362,8 @@ void URecordWidget::ApplyTierImage(const FString& PlayerId)
 
 void URecordWidget::ApplyWinCountUI(const FString& PlayerId)
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	const int32 WinCount = PdGameInstance ? PdGameInstance->GetWinCount(PlayerId) : 0;
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	const int32 WinCount = ProfileSubsystem ? ProfileSubsystem->GetWinCount(PlayerId) : 0;
 
 	if (Txt_WinCount)
 	{

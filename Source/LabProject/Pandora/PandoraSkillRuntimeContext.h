@@ -9,6 +9,7 @@
 class UPandoraDefinition;
 class USkillDefinition;
 struct FSkill;
+struct FGameplayEffectQuery;
 
 UCLASS(BlueprintType)
 class LABPROJECT_API UPandoraSkillRuntimeContext : public UObject
@@ -24,6 +25,14 @@ public:
 		EEnum_Direction InLoadoutDirection = EEnum_Direction::Center);
 
 	virtual bool IsSupportedForNetworking() const override { return true; }
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+#if UE_WITH_IRIS
+	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context,
+		UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
+#endif
+
+	bool IsSourceReady() const { return PandoraDefinition && SkillDataAsset && SkillIndex != INDEX_NONE; }
+	FGameplayEffectQuery MakeCooldownQuery() const;
 
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	const UPandoraDefinition* GetPandoraDefinition() const { return PandoraDefinition.Get(); }
@@ -44,18 +53,21 @@ public:
 	TArray<FProjectileImpactEffectAreaSpawnConfig> GetProjectileImpactEffectAreas() const;
 
 private:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
+	UFUNCTION()
+	void OnRep_Source();
+
+	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<const UPandoraDefinition> PandoraDefinition;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<const USkillDefinition> SkillDataAsset;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
 	int32 SkillIndex = INDEX_NONE;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
 	int32 PandoraLevel = 1;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
 	EEnum_Direction LoadoutDirection = EEnum_Direction::Center;
 };

@@ -14,9 +14,7 @@ namespace
 	void ConfigureInteractionSensorCollision(UPrimitiveComponent& InteractionSensor)
 	{
 		InteractionSensor.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		// Interaction sensors have their own object channel. Treating this volume as
-		// WorldDynamic makes projectile and skill traces stop in front of the
-		// character before they can reach the damage mesh.
+		// 상호작용 센서가 피격 메시보다 먼저 투사체·스킬 검사를 막지 않도록 전용 채널을 쓴다.
 		InteractionSensor.SetCollisionObjectType(LabCollisionChannels::OverlapBox());
 		InteractionSensor.SetCollisionResponseToAllChannels(ECR_Overlap);
 		InteractionSensor.SetCollisionResponseToChannel(
@@ -45,9 +43,16 @@ void UPlayerInteractionComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Re-apply after Blueprint component defaults have been deserialized so old
-	// player Blueprint assets cannot restore the legacy WorldDynamic setting.
+	// Blueprint에 저장된 과거 충돌 설정이 스킬 투사체를 막지 않도록 역직렬화 후 보정한다.
 	ConfigureInteractionSensorCollision(*this);
+}
+
+// 월드 종료나 컴포넌트 제거 이후에는 이전 상호작용 대상을 보관하지 않는다.
+void UPlayerInteractionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CurrentInteractActors.Reset();
+	ActiveInteractionMontage = nullptr;
+	Super::EndPlay(EndPlayReason);
 }
 
 void UPlayerInteractionComponent::ApplySettings(const FPlayerInteractionSettings& Settings)
@@ -58,10 +63,14 @@ void UPlayerInteractionComponent::ApplySettings(const FPlayerInteractionSettings
 bool UPlayerInteractionComponent::HasCurrentInteractActors(
 	TArray<TScriptInterface<IInteractableInterface>>& OutCurrentInteractActors) const
 {
-	const APdPlayer* Player = GetPlayerOwner();
-	OutCurrentInteractActors = Player
-		? Player->CurrentInteractActors
-		: TArray<TScriptInterface<IInteractableInterface>>();
+	OutCurrentInteractActors.Reset();
+	for (const TScriptInterface<IInteractableInterface>& Entry : CurrentInteractActors)
+	{
+		if (IsValid(Entry.GetObject()))
+		{
+			OutCurrentInteractActors.Add(Entry);
+		}
+	}
 	return !OutCurrentInteractActors.IsEmpty();
 }
 
@@ -73,7 +82,7 @@ AActor* UPlayerInteractionComponent::GetCurrentInteractActor() const
 		return nullptr;
 	}
 
-	for (const TScriptInterface<IInteractableInterface>& Entry : Player->CurrentInteractActors)
+	for (const TScriptInterface<IInteractableInterface>& Entry : CurrentInteractActors)
 	{
 		AActor* InteractableActor = Cast<AActor>(Entry.GetObject());
 		if (CanInteractWithActor(InteractableActor))
@@ -269,7 +278,7 @@ void UPlayerInteractionComponent::HandleBeginOverlap(
 		return;
 	}
 
-	const bool bAlreadyTracked = Player->CurrentInteractActors.ContainsByPredicate(
+	const bool bAlreadyTracked = CurrentInteractActors.ContainsByPredicate(
 		[OtherActor](const TScriptInterface<IInteractableInterface>& Entry)
 		{
 			return Entry.GetObject() == OtherActor;
@@ -277,7 +286,7 @@ void UPlayerInteractionComponent::HandleBeginOverlap(
 
 	if (!bAlreadyTracked)
 	{
-		Player->CurrentInteractActors.Add(InteractableActor);
+		CurrentInteractActors.Add(InteractableActor);
 	}
 }
 
@@ -287,16 +296,14 @@ void UPlayerInteractionComponent::HandleEndOverlap(
 	UPrimitiveComponent* /*OtherComp*/,
 	int32 /*OtherBodyIndex*/)
 {
-	APdPlayer* Player = GetPlayerOwner();
-	TScriptInterface<IInteractableInterface> InteractableActor;
-	if (!Player || !TryMakeInteractableEntry(OtherActor, InteractableActor))
+	// 다른 충돌 부위가 센서 안에 남아 있으면 같은 액터를 목록에서 빼지 않는다.
+	if (IsValid(OtherActor) && IsOverlappingActor(OtherActor))
 	{
 		return;
 	}
-
-	Player->CurrentInteractActors.RemoveAll(
+	CurrentInteractActors.RemoveAll(
 		[OtherActor](const TScriptInterface<IInteractableInterface>& Entry)
 		{
-			return Entry.GetObject() == OtherActor;
+			return !IsValid(Entry.GetObject()) || Entry.GetObject() == OtherActor;
 		});
 }

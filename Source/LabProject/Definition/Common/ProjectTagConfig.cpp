@@ -299,6 +299,26 @@ void UProjectTagConfig::GetPandoraFilterTypeTags(TArray<FGameplayTag>& OutTags) 
 	AddValidTag(OutTags, GetPandoraSpecialTypeTag());
 }
 
+// 분류용 상위 태그와 실제 장착 슬롯을 구분해 서버가 허용하는 슬롯만 나열한다.
+void UProjectTagConfig::GetSkinEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const
+{
+	OutTags.Reset();
+	AddValidTag(OutTags, GetSkinHatEquipTypeTag());
+	AddValidTag(OutTags, GetSkinTopEquipTypeTag());
+	AddValidTag(OutTags, GetSkinBottomEquipTypeTag());
+	AddValidTag(OutTags, GetSkinShoesEquipTypeTag());
+	AddValidTag(OutTags, GetSkinHeadEquipTypeTag());
+	AddValidTag(OutTags, GetSkinColorEquipTypeTag());
+	AddValidTag(OutTags, GetSkinBackEquipTypeTag());
+	AddValidTag(OutTags, GetSkinAuraEquipTypeTag());
+	AddValidTag(OutTags, GetSkinRidingTypeTag());
+	AddValidTag(OutTags, GetSkinPetTypeTag());
+	AddValidTag(OutTags, LabGameplayTags::Skin_Gesture_Slot1);
+	AddValidTag(OutTags, LabGameplayTags::Skin_Gesture_Slot2);
+	AddValidTag(OutTags, LabGameplayTags::Skin_Gesture_Slot3);
+	AddValidTag(OutTags, LabGameplayTags::Skin_Gesture_Slot4);
+}
+
 void UProjectTagConfig::GetSkinFilterTypeTags(TArray<FGameplayTag>& OutTags) const
 {
 	OutTags.Reset();

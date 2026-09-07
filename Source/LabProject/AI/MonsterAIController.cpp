@@ -3,6 +3,9 @@
 #include "Component/Experience/ExperienceManagerComponent.h"
 #include "Components/StateTreeAIComponent.h"
 #include "Character/EnemyBase.h"
+#include "AI/MonsterCharacter.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/Experience/ExperienceDefinition.h"
 #include "Engine/World.h"
@@ -23,11 +26,13 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogMonsterAIController, Log, All);
 
+// 감지와 StateTree를 네이티브 컴포넌트로 만들고, 변경 가능한 감지 설정의 기본값만 지정한다.
 AMonsterAIController::AMonsterAIController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	NativeStateTreeAI = CreateDefaultSubobject<UStateTreeAIComponent>(TEXT("NativeStateTreeAI"));
 	BrainComponent = NativeStateTreeAI;
+	bStartAILogicOnPossess = false;
 
 	AIPerception = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerception"));
 	NativeSightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("NativeSightConfig"));
@@ -37,12 +42,23 @@ AMonsterAIController::AMonsterAIController(const FObjectInitializer& ObjectIniti
 		NativeStateTreeAI->SetStartLogicAutomatically(false);
 	}
 
+	NativeSightConfig->SightRadius = 1000.0f;
+	NativeSightConfig->LoseSightRadius = 2500.0f;
+	NativeSightConfig->PeripheralVisionAngleDegrees = 90.0f;
+	NativeSightConfig->AutoSuccessRangeFromLastSeenLocation = 500.0f;
+	NativeSightConfig->SetMaxAge(1.0f);
+	NativeSightConfig->SetStartsEnabled(true);
+	NativeSightConfig->DetectionByAffiliation.bDetectEnemies = true;
+	NativeSightConfig->DetectionByAffiliation.bDetectFriendlies = true;
+	NativeSightConfig->DetectionByAffiliation.bDetectNeutrals = true;
 	ConfigurePerception();
 }
 
+// BP에 저장된 감지 수치를 보존해 등록하고, 컴포넌트의 중복과 연결 상태를 한 번 검증한다.
 void AMonsterAIController::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
+	bStartAILogicOnPossess = false;
 
 	if (NativeStateTreeAI)
 	{
@@ -51,10 +67,11 @@ void AMonsterAIController::PostInitializeComponents()
 	}
 
 	ConfigurePerception();
-	ValidateComponentConfiguration();
+	bComponentConfigurationValid = ValidateComponentConfiguration();
 }
 
 #if WITH_EDITOR
+// 에디터에서 감지·StateTree 컴포넌트가 중복되거나 잘못 연결된 구성을 찾는다.
 EDataValidationResult AMonsterAIController::IsDataValid(
 	FDataValidationContext& Context) const
 {
@@ -72,15 +89,16 @@ EDataValidationResult AMonsterAIController::IsDataValid(
 		Result = EDataValidationResult::Invalid;
 	}
 
-	return Result;
+	return Result == EDataValidationResult::NotValidated ? EDataValidationResult::Valid : Result;
 }
 #endif
 
+// 감지 이벤트를 연결하고 이미 준비된 몬스터의 AI 시작을 시도한다.
 void AMonsterAIController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!ValidateComponentConfiguration())
+	if (!bComponentConfigurationValid)
 	{
 		return;
 	}
@@ -99,6 +117,7 @@ void AMonsterAIController::BeginPlay()
 	StartMonsterStateTreeIfReady();
 }
 
+// 월드 종료 후 감지 이벤트와 준비 완료 콜백이 남지 않도록 해제한다.
 void AMonsterAIController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (AIPerception)
@@ -111,61 +130,39 @@ void AMonsterAIController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 			&AMonsterAIController::HandleTargetPerceptionForgotten);
 	}
 
-	SetPerceivedPlayerPawn(nullptr);
-	StopWaitingForExperience();
-	StopWaitingForNavigationData();
+	StopMonsterAI();
 	Super::EndPlay(EndPlayReason);
 }
 
+// 이전 몬스터의 행동과 기억을 정리하고 새 몬스터의 준비 상태부터 확인한다.
 void AMonsterAIController::OnPossess(APawn* InPawn)
 {
+	StopMonsterAI();
 	Super::OnPossess(InPawn);
-
-	SetPerceivedPlayerPawn(nullptr);
-	if (!ValidateComponentConfiguration())
-	{
-		if (AEnemyBase* Enemy = Cast<AEnemyBase>(InPawn))
-		{
-			Enemy->SetUseNearestPlayerWhenTargetUnset(true);
-		}
-		return;
-	}
-
+	bAIStopped = false;
+	bLoggedConfigurationError = false;
 	if (AEnemyBase* Enemy = Cast<AEnemyBase>(InPawn))
 	{
-		// The StateTree publishes the authoritative combat target. Do not let
-		// EnemyBase independently pick an unseen player in multiplayer.
 		Enemy->SetUseNearestPlayerWhenTargetUnset(false);
 	}
-
-	if (AIPerception)
+	if (!bComponentConfigurationValid)
 	{
-		AIPerception->RequestStimuliListenerUpdate();
-		RefreshPerceivedPlayerPawn();
+		return;
 	}
-
-	if (HasActorBegunPlay())
-	{
-		StartMonsterStateTreeIfReady();
-	}
+	AIPerception->SetSenseEnabled(UAISense_Sight::StaticClass(), true);
+	AIPerception->RequestStimuliListenerUpdate();
+	RefreshPerceivedPlayerPawn();
+	StartMonsterStateTreeIfReady();
 }
 
+// 조종하지 않는 몬스터를 계속 추적하거나 공격하지 않도록 AI를 종료한다.
 void AMonsterAIController::OnUnPossess()
 {
-	if (NativeStateTreeAI && NativeStateTreeAI->IsRunning())
-	{
-		NativeStateTreeAI->StopLogic(TEXT("Monster controller no longer possesses a pawn"));
-	}
-
-	SetPerceivedPlayerPawn(nullptr);
-	if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
-	{
-		Enemy->SetUseNearestPlayerWhenTargetUnset(true);
-	}
-
+	StopMonsterAI();
 	Super::OnUnPossess();
 }
 
+// StateTree에 현재 유효한 플레이어 표적만 제공한다.
 APawn* AMonsterAIController::GetPerceivedPlayerPawn() const
 {
 	return IsValidPerceivedPlayerTarget(PerceivedPlayerPawn.Get())
@@ -173,6 +170,7 @@ APawn* AMonsterAIController::GetPerceivedPlayerPawn() const
 		: nullptr;
 }
 
+// 추적 유지 거리를 벗어난 표적을 잊고 다른 감지 대상을 찾는다.
 bool AMonsterAIController::ForgetPerceivedPlayerIfOutOfRange()
 {
 	APawn* TargetPawn = GetPerceivedPlayerPawn();
@@ -191,6 +189,7 @@ bool AMonsterAIController::ForgetPerceivedPlayerIfOutOfRange()
 	return true;
 }
 
+// 기본값을 다시 덮지 않고 현재 SightConfig를 감지 컴포넌트에 등록한다.
 void AMonsterAIController::ConfigurePerception()
 {
 	if (!AIPerception || !NativeSightConfig)
@@ -198,20 +197,11 @@ void AMonsterAIController::ConfigurePerception()
 		return;
 	}
 
-	NativeSightConfig->SightRadius = 1000.0f;
-	NativeSightConfig->LoseSightRadius = 2500.0f;
-	NativeSightConfig->PeripheralVisionAngleDegrees = 90.0f;
-	NativeSightConfig->AutoSuccessRangeFromLastSeenLocation = 500.0f;
-	NativeSightConfig->SetMaxAge(1.0f);
-	NativeSightConfig->SetStartsEnabled(true);
-	NativeSightConfig->DetectionByAffiliation.bDetectEnemies = true;
-	NativeSightConfig->DetectionByAffiliation.bDetectFriendlies = true;
-	NativeSightConfig->DetectionByAffiliation.bDetectNeutrals = true;
-
 	AIPerception->ConfigureSense(*NativeSightConfig);
 	SetPerceptionComponent(*AIPerception);
 }
 
+// 두 개의 감지·행동 컴포넌트가 동시에 작동할 수 있는 설정 오류를 수집한다.
 void AMonsterAIController::GatherComponentConfigurationErrors(
 	TArray<FText>& OutErrors) const
 {
@@ -281,6 +271,7 @@ void AMonsterAIController::GatherComponentConfigurationErrors(
 	}
 }
 
+// 플레이 시작 시 잘못된 컴포넌트 구성을 알리고 AI 실행을 막는다.
 bool AMonsterAIController::ValidateComponentConfiguration()
 {
 	TArray<FText> Errors;
@@ -307,9 +298,10 @@ bool AMonsterAIController::ValidateComponentConfiguration()
 	return false;
 }
 
+// 죽었거나 같은 팀인 대상 등 공격할 수 없는 플레이어를 제외한다.
 bool AMonsterAIController::IsValidPerceivedPlayerTarget(APawn* PlayerPawn) const
 {
-	if (!IsValid(PlayerPawn) || !PlayerPawn->IsPlayerControlled())
+	if (bAIStopped || !IsValid(PlayerPawn) || !PlayerPawn->IsPlayerControlled())
 	{
 		return false;
 	}
@@ -318,6 +310,7 @@ bool AMonsterAIController::IsValidPerceivedPlayerTarget(APawn* PlayerPawn) const
 	return !Enemy || Enemy->IsActorValidAttackTarget(PlayerPawn);
 }
 
+// 몬스터의 평면 거리 기준으로 표적을 계속 기억할 수 있는지 판단한다.
 bool AMonsterAIController::IsWithinTargetRetentionDistance(
 	const AActor* TargetActor) const
 {
@@ -340,6 +333,7 @@ bool AMonsterAIController::IsWithinTargetRetentionDistance(
 		<= FMath::Square(RetentionDistance);
 }
 
+// 감지 표적과 캐릭터의 실제 공격 대상을 함께 갱신한다.
 void AMonsterAIController::SetPerceivedPlayerPawn(APawn* PlayerPawn)
 {
 	APawn* ValidTarget = IsValidPerceivedPlayerTarget(PlayerPawn)
@@ -364,11 +358,12 @@ void AMonsterAIController::SetPerceivedPlayerPawn(APawn* PlayerPawn)
 	}
 }
 
+// 현재 표적을 안정적으로 유지하고 필요할 때 가장 가까운 감지 플레이어로 교체한다.
 void AMonsterAIController::RefreshPerceivedPlayerPawn(
 	const AActor* ExcludedActor,
 	APawn* NewlySensedPawn)
 {
-	if (!AIPerception)
+	if (bAIStopped || !AIPerception)
 	{
 		SetPerceivedPlayerPawn(nullptr);
 		return;
@@ -413,9 +408,7 @@ void AMonsterAIController::RefreshPerceivedPlayerPawn(
 		|| CurrentlyPerceivedActors.Contains(CurrentTarget);
 	if (bCurrentTargetIsStillKnown && IsSelectableTarget(CurrentTarget))
 	{
-		// Keep a valid combat target stable even when another player generates
-		// a perception update. This also repairs any external attack-target
-		// overwrite by synchronizing EnemyBase again.
+		// 새 감지 이벤트가 와도 유효한 현재 표적은 유지하고 캐릭터의 공격 대상과 동기화한다.
 		SetPerceivedPlayerPawn(CurrentTarget);
 		return;
 	}
@@ -469,8 +462,7 @@ void AMonsterAIController::RefreshPerceivedPlayerPawn(
 			return ClosestTarget;
 		};
 
-	// Prefer a player that is visible now. Remembered sight stimuli are only a
-	// fallback for the short MaxAge grace period.
+	// 현재 보이는 플레이어를 우선하고, 없을 때만 기억이 만료되지 않은 플레이어를 선택한다.
 	APawn* NewTarget = SelectClosestTarget(CurrentlyPerceivedActors);
 	if (!NewTarget)
 	{
@@ -480,6 +472,7 @@ void AMonsterAIController::RefreshPerceivedPlayerPawn(
 	SetPerceivedPlayerPawn(NewTarget);
 }
 
+// 플레이어를 새로 보거나 놓친 결과를 표적 선택 정책에 반영한다.
 void AMonsterAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 {
 	APawn* PlayerPawn = Cast<APawn>(Actor);
@@ -499,9 +492,7 @@ void AMonsterAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 		return;
 	}
 
-	// Preserve the perception MaxAge grace period after losing line of sight,
-	// but never retain a target that has crossed the configured lose-sight
-	// radius.
+	// 시야에서 사라진 표적은 기억 시간 동안 유지하되, 유지 거리 밖이면 즉시 해제한다.
 	if (Actor == PerceivedPlayerPawn
 		&& !IsWithinTargetRetentionDistance(PlayerPawn))
 	{
@@ -510,6 +501,7 @@ void AMonsterAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 	}
 }
 
+// 감지 기억이 만료된 표적을 제거하고 남은 플레이어로 전환한다.
 void AMonsterAIController::HandleTargetPerceptionForgotten(AActor* Actor)
 {
 	APawn* ForgottenPawn = Cast<APawn>(Actor);
@@ -523,14 +515,14 @@ void AMonsterAIController::HandleTargetPerceptionForgotten(AActor* Actor)
 		SetPerceivedPlayerPawn(nullptr);
 	}
 
-	// If another player remains perceived, switch immediately instead of
-	// waiting for that actor to generate a fresh perception update.
+	// 다른 플레이어가 감지되어 있으면 새 이벤트를 기다리지 않고 전환한다.
 	RefreshPerceivedPlayerPawn(Actor);
 }
 
+// 준비된 몬스터 전용 StateTree를 엔진의 BrainComponent에 연결한다.
 bool AMonsterAIController::ConfigureStateTreeAI()
 {
-	if (!ValidateComponentConfiguration())
+	if (!bComponentConfigurationValid)
 	{
 		return false;
 	}
@@ -551,8 +543,6 @@ bool AMonsterAIController::ConfigureStateTreeAI()
 		return false;
 	}
 
-	BrainComponent = NativeStateTreeAI;
-	NativeStateTreeAI->SetStartLogicAutomatically(false);
 	if (!NativeStateTreeAI->IsRunning())
 	{
 		NativeStateTreeAI->SetStateTree(ResolvedMonsterStateTree);
@@ -562,6 +552,7 @@ bool AMonsterAIController::ConfigureStateTreeAI()
 	return true;
 }
 
+// 현재 경기의 Experience가 준비되지 않았다면 완료 이벤트를 기다린다.
 bool AMonsterAIController::IsExperienceReadyOrWait()
 {
 	const UWorld* World = GetWorld();
@@ -603,77 +594,108 @@ bool AMonsterAIController::IsExperienceReadyOrWait()
 	return false;
 }
 
+// 전역 기본값이 아닌 현재 몬스터 정의에서 행동 자산을 비동기로 준비한다.
 bool AMonsterAIController::ResolveMonsterStateTreeFromEnemyDefinition()
 {
-	if (IsValid(ResolvedMonsterStateTree))
+	if (ResolvedMonsterStateTree)
 	{
 		return true;
 	}
-
-	const FSoftObjectPath DefinitionPath =
-		UEnemyBaseDefinition::GetDefaultDefinitionPath();
-	if (DefinitionPath.IsNull())
+	if (StateTreeLoadHandle)
+	{
+		return false;
+	}
+	const AMonsterCharacter* Monster = Cast<AMonsterCharacter>(GetPawn());
+	const UEnemyBaseDefinition* Definition = Monster ? Monster->GetMonsterDefinition() : nullptr;
+	const TSoftObjectPtr<UStateTree> StateTreeReference = Definition ? Definition->GetMonsterStateTree() : nullptr;
+	if (StateTreeReference.IsNull())
 	{
 		if (!bLoggedConfigurationError)
 		{
-			UE_LOG(
-				LogMonsterAIController,
-				Error,
-				TEXT("%s cannot resolve monster AI because DA_GameInstance has no Enemy Base Definition."),
+			UE_LOG(LogMonsterAIController, Error, TEXT("%s requires a MonsterStateTree in its possessed monster's EnemyDefinition."),
 				*GetPathName());
 			bLoggedConfigurationError = true;
 		}
 		return false;
 	}
-
-	UEnemyBaseDefinition* EnemyDefinition =
-		Cast<UEnemyBaseDefinition>(DefinitionPath.ResolveObject());
-	if (!EnemyDefinition)
-	{
-		EnemyDefinition = Cast<UEnemyBaseDefinition>(DefinitionPath.TryLoad());
-	}
-
-	if (!EnemyDefinition)
-	{
-		if (!bLoggedConfigurationError)
-		{
-			UE_LOG(
-				LogMonsterAIController,
-				Error,
-				TEXT("%s cannot load Enemy Base Definition '%s'."),
-				*GetPathName(),
-				*DefinitionPath.ToString());
-			bLoggedConfigurationError = true;
-		}
-		return false;
-	}
-
-	const TSoftObjectPtr<UStateTree>& StateTreeReference =
-		EnemyDefinition->GetMonsterStateTree();
 	ResolvedMonsterStateTree = StateTreeReference.Get();
-	if (!ResolvedMonsterStateTree && !StateTreeReference.IsNull())
+	if (ResolvedMonsterStateTree)
 	{
-		ResolvedMonsterStateTree = StateTreeReference.LoadSynchronous();
+		return true;
 	}
-
-	if (!IsValid(ResolvedMonsterStateTree))
+	StateTreeLoadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
+		StateTreeReference.ToSoftObjectPath(),
+		FStreamableDelegate::CreateUObject(this, &ThisClass::HandleMonsterStateTreeLoaded, StateTreeLoadGeneration),
+		FStreamableManager::DefaultAsyncLoadPriority, false, true);
+	if (StateTreeLoadHandle)
 	{
-		if (!bLoggedConfigurationError)
-		{
-			UE_LOG(
-				LogMonsterAIController,
-				Error,
-				TEXT("%s cannot start monster AI because Enemy Base Definition '%s' has no valid MonsterStateTree."),
-				*GetPathName(),
-				*DefinitionPath.ToString());
-			bLoggedConfigurationError = true;
-		}
-		return false;
+		StateTreeLoadHandle->StartStalledHandle();
 	}
-
-	return true;
+	else if (!bLoggedConfigurationError)
+	{
+		UE_LOG(LogMonsterAIController, Error, TEXT("Could not request monster StateTree: %s."), *StateTreeReference.ToString());
+		bLoggedConfigurationError = true;
+	}
+	return false;
 }
 
+// 조종 대상이 바뀌기 전에 요청한 로딩 완료는 무시하고, 현재 몬스터의 행동 자산만 연결한다.
+void AMonsterAIController::HandleMonsterStateTreeLoaded(uint32 RequestGeneration)
+{
+	if (RequestGeneration != StateTreeLoadGeneration || bAIStopped)
+	{
+		return;
+	}
+	const AMonsterCharacter* Monster = Cast<AMonsterCharacter>(GetPawn());
+	const UEnemyBaseDefinition* Definition = Monster ? Monster->GetMonsterDefinition() : nullptr;
+	ResolvedMonsterStateTree = Definition ? Definition->GetMonsterStateTree().Get() : nullptr;
+	if (!ResolvedMonsterStateTree)
+	{
+		UE_LOG(LogMonsterAIController, Error, TEXT("%s failed to load its monster StateTree."), *GetPathName());
+		bLoggedConfigurationError = true;
+		return;
+	}
+	StartMonsterStateTreeIfReady();
+}
+
+// 사망·조종 해제·월드 종료 시 판단과 이동을 멈추고, 지연 콜백이 AI를 다시 켜지 못하게 한다.
+void AMonsterAIController::StopMonsterAI()
+{
+	bAIStopped = true;
+	++StateTreeLoadGeneration;
+	StopWaitingForExperience();
+	StopWaitingForNavigationData();
+	if (StateTreeLoadHandle)
+	{
+		StateTreeLoadHandle->CancelHandle();
+		StateTreeLoadHandle.Reset();
+	}
+	if (NativeStateTreeAI && NativeStateTreeAI->IsRunning())
+	{
+		NativeStateTreeAI->StopLogic(TEXT("Monster AI stopped"));
+	}
+	if (NativeStateTreeAI)
+	{
+		NativeStateTreeAI->SetStateTree(nullptr);
+	}
+	if (AMonsterCharacter* Monster = Cast<AMonsterCharacter>(GetPawn()))
+	{
+		Monster->StopMonsterAttack();
+	}
+	StopMovement();
+	ClearFocus(EAIFocusPriority::Gameplay);
+	SetPerceivedPlayerPawn(nullptr);
+	if (AIPerception)
+	{
+		AIPerception->SetSenseEnabled(UAISense_Sight::StaticClass(), false);
+		AIPerception->ForgetAll();
+	}
+	ResolvedMonsterStateTree = nullptr;
+	bStateTreeConfigured = false;
+	bLoggedNavigationError = false;
+}
+
+// 더 이상 사용할 수 없는 경기 준비 알림을 해제한다.
 void AMonsterAIController::StopWaitingForExperience()
 {
 	if (UExperienceManagerComponent* ExperienceManager =
@@ -686,6 +708,7 @@ void AMonsterAIController::StopWaitingForExperience()
 	ExperienceLoadedDelegateHandle.Reset();
 }
 
+// 경기 준비가 끝나면 남은 AI 시작 조건을 다시 확인한다.
 void AMonsterAIController::HandleExperienceLoaded(const UExperienceDefinition* Experience)
 {
 	static_cast<void>(Experience);
@@ -697,6 +720,7 @@ void AMonsterAIController::HandleExperienceLoaded(const UExperienceDefinition* E
 	StartMonsterStateTreeIfReady();
 }
 
+// 조종 중인 몬스터의 이동 규격에 맞는 내비게이션 데이터가 있는지 확인한다.
 bool AMonsterAIController::HasRequiredNavigationData() const
 {
 	const UWorld* World = GetWorld();
@@ -719,6 +743,7 @@ bool AMonsterAIController::HasRequiredNavigationData() const
 		!= nullptr;
 }
 
+// 내비게이션 등록·생성 완료 이벤트를 기다린다.
 void AMonsterAIController::WaitForNavigationData()
 {
 	if (bWaitingForNavigationData)
@@ -739,6 +764,7 @@ void AMonsterAIController::WaitForNavigationData()
 	}
 }
 
+// 내비게이션이 준비됐거나 AI가 끝났을 때 대기 이벤트를 해제한다.
 void AMonsterAIController::StopWaitingForNavigationData()
 {
 	if (!bWaitingForNavigationData)
@@ -760,6 +786,7 @@ void AMonsterAIController::StopWaitingForNavigationData()
 	bWaitingForNavigationData = false;
 }
 
+// 내비게이션 데이터가 추가되면 AI 시작을 다시 시도한다.
 void AMonsterAIController::HandleNavigationDataAvailable(ANavigationData* NavigationData)
 {
 	if (NavigationData)
@@ -768,9 +795,12 @@ void AMonsterAIController::HandleNavigationDataAvailable(ANavigationData* Naviga
 	}
 }
 
+// 몬스터·경기·행동 자산·내비게이션이 모두 준비된 서버에서만 행동을 시작한다.
 void AMonsterAIController::StartMonsterStateTreeIfReady()
 {
-	if (!GetPawn())
+	const AMonsterCharacter* Monster = Cast<AMonsterCharacter>(GetPawn());
+	if (bAIStopped || !HasAuthority() || (!HasActorBegunPlay() && !IsActorBeginningPlay()) || !bComponentConfigurationValid
+		|| !IsValid(Monster) || !Monster->IsMonsterReadyForAI())
 	{
 		return;
 	}
@@ -796,9 +826,9 @@ void AMonsterAIController::StartMonsterStateTreeIfReady()
 		{
 			UE_LOG(
 				LogMonsterAIController,
-				Error,
+				Warning,
 				TEXT(
-					"%s cannot start monster AI because no compatible NavData exists at %s. "
+					"%s is waiting for compatible NavData at %s. "
 					"The map or active Experience must provide a NavMeshBoundsVolume and built navigation data."),
 				*GetPathName(),
 				*GetPawn()->GetActorLocation().ToCompactString());

@@ -102,6 +102,7 @@ public:
 	void GetItemEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const;
 	void GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) const;
 	void GetPandoraFilterTypeTags(TArray<FGameplayTag>& OutTags) const;
+	void GetSkinEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const;
 	void GetSkinFilterTypeTags(TArray<FGameplayTag>& OutTags) const;
 
 private:

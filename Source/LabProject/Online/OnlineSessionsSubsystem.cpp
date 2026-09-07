@@ -9,7 +9,8 @@
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Mode/ExperienceGameState.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerState.h"
 #include "Online/OnlineSessionNames.h"
 #include "OnlineSessionSettings.h"
@@ -599,10 +600,10 @@ void UOnlineSessionsSubsystem::HandleNetworkFailure(
 	}
 	if (bVoluntaryMatchExitInProgress)
 	{
-		if (UPdGameInstance* PdGameInstance =
-			Cast<UPdGameInstance>(GetGameInstance()))
+		if (ULobbyRuntimeSubsystem* LobbySubsystem =
+			UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GetGameInstance()))
 		{
-			PdGameInstance->ClearPendingTitleGameResult();
+			LobbySubsystem->ClearPendingTitleGameResult();
 		}
 		return;
 	}
@@ -612,11 +613,11 @@ void UOnlineSessionsSubsystem::HandleNetworkFailure(
 		FGameResultPresentationData GameResultData;
 		if (BuildNetworkFailureGameResult(World, GameResultData))
 		{
-			if (UPdGameInstance* PdGameInstance = Cast<UPdGameInstance>(GetGameInstance()))
+			if (ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GetGameInstance()))
 			{
-				if (!PdGameInstance->HasPendingTitleGameResult())
+				if (!LobbySubsystem->HasPendingTitleGameResult())
 				{
-					PdGameInstance->SetPendingTitleGameResult(GameResultData);
+					LobbySubsystem->SetPendingTitleGameResult(GameResultData);
 				}
 			}
 

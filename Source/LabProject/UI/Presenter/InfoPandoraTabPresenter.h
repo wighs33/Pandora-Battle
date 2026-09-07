@@ -49,6 +49,9 @@ public:
 	void HandlePandoraFilterAllClicked();
 
 private:
+	UFUNCTION()
+	void HandlePandoraInventoryChanged();
+
 	void BindEvents();
 	void UnbindEvents();
 	class USelectPandoraWidget* GetSelectPandoraWidget() const;
@@ -79,6 +82,7 @@ private:
 	FGameplayTag CurrentFilterTag;
 
 	TWeakObjectPtr<UInfoLoadoutStore> LoadoutStore;
+	TWeakObjectPtr<UPandoraComponent> BoundPandoraComponent;
 	TWeakObjectPtr<UTileView> BoundTileView;
 	FDelegateHandle TileItemClickedDelegateHandle;
 	bool bUseTypeFilter = false;

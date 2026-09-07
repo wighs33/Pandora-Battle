@@ -23,6 +23,8 @@
 
 namespace
 {
+constexpr double LateComboInputGraceSeconds = 0.15;
+
 float CalculateWeaponAttackSpeedPlayRate(const FGameplayAbilityActorInfo* ActorInfo)
 {
 	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
@@ -114,6 +116,11 @@ void UAttackAbility::CleanupAttackState()
 // Timing callbacks
 void UAttackAbility::OnAttackMontageCompleted()
 {
+	const UWorld* World = GetWorld();
+	const double Now = World ? World->GetTimeSeconds() : 0.0;
+	const bool bRecentInputWindow = bCanReceiveAttackInput
+		|| (LastUnconsumedComboWindowCloseTime >= 0.0 && Now - LastUnconsumedComboWindowCloseTime <= LateComboInputGraceSeconds);
+	LateComboInputExpiresAt = !bComboInputConsumedForCurrentWindow && bRecentInputWindow ? Now + LateComboInputGraceSeconds : -1.0;
 	const bool bShouldRestartAttack = bRestartAttackAfterMontage;
 	const bool bCanRestartOnThisMachine = HasAuthority(&CurrentActivationInfo);
 
@@ -127,11 +134,13 @@ void UAttackAbility::OnAttackMontageCompleted()
 
 void UAttackAbility::OnAttackMontageInterrupted()
 {
+	LateComboInputExpiresAt = -1.0;
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
 void UAttackAbility::OnAttackMontageCancelled()
 {
+	LateComboInputExpiresAt = -1.0;
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
@@ -194,6 +203,8 @@ void UAttackAbility::OnComboInputWindowOpened(FGameplayEventData Payload)
 void UAttackAbility::OnComboInputWindowClosed(FGameplayEventData Payload)
 {
 	static_cast<void>(Payload);
+	LastUnconsumedComboWindowCloseTime = bCanReceiveAttackInput && !bComboInputConsumedForCurrentWindow && GetWorld()
+		? GetWorld()->GetTimeSeconds() : -1.0;
 
 	if (!BufferedJumpSectionName.IsNone() && !bReachedJumpSectionTiming)
 	{
@@ -293,17 +304,18 @@ void UAttackAbility::OnContinueInputPressed(float TimeWaited)
 }
 
 // Ability flow
-void UAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+void UAttackAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	CleanupAttackState();
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	static_cast<void>(TriggerEventData);
+	LateComboInputExpiresAt = -1.0;
+	LastUnconsumedComboWindowCloseTime = -1.0;
 
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!Character)
@@ -541,6 +553,19 @@ bool UAttackAbility::RequestNextComboInput()
 	}
 
 	return RequestJumpToSection(NextSectionName);
+}
+
+// 네트워크 지연 보정은 자연 종료된 같은 실행에 대해 짧은 시간 동안 한 번만 허용한다.
+bool UAttackAbility::TryConsumeLateComboInput()
+{
+	const UWorld* World = GetWorld();
+	if (IsActive() || !HasAuthority(&CurrentActivationInfo) || !World
+		|| LateComboInputExpiresAt < 0.0 || World->GetTimeSeconds() > LateComboInputExpiresAt)
+	{
+		return false;
+	}
+	LateComboInputExpiresAt = -1.0;
+	return true;
 }
 
 bool UAttackAbility::RequestJumpToSection(FName RequestedSectionName)

@@ -1,5 +1,6 @@
 #include "AbilitySystem/Ability/AOEAttackAbility.h"
 
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
 #include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
@@ -224,13 +225,9 @@ ConfirmStrike();
 	StartTargeting();
 }
 
-void UAOEAttackAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	bool bReplicateEndAbility,
-	bool bWasCancelled)
+void UAOEAttackAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	RestoreAvatarMovementForAbility();
 	bIsWaitingTargetData = false;
 	bWaitingLightningDamage = false;
@@ -268,8 +265,6 @@ void UAOEAttackAbility::EndAbility(
 		LightningDamageDelayTask->EndTask();
 		LightningDamageDelayTask = nullptr;
 	}
-
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UAOEAttackAbility::StartTargeting()
@@ -615,7 +610,8 @@ void UAOEAttackAbility::ConfigureSpawnedTargetActor(AGameplayAbilityTargetActor*
 			const FSkillDecalSettings& DecalSettings = SkillDataAsset->CharacterDecal;
 			const double StartSize = DecalSettings.DecalSize > 0.0 ? DecalSettings.DecalSize : 512.0;
 			const double FinalSize = DecalSettings.FinalDecalSize > 0.0 ? DecalSettings.FinalDecalSize : StartSize;
-			DecalTargetActor->ConfigureDecalGrowth(StartSize, FinalSize, ResolveConfiguredCharacterDecalDuration(SkillDataAsset));
+			DecalTargetActor->ConfigureDecalGrowth(
+				StartSize, FinalSize, GetPresentationRuntime().ResolveConfiguredCharacterDecalDuration(SkillDataAsset));
 		}
 	}
 }
@@ -930,11 +926,7 @@ void UAOEAttackAbility::ApplyStatusEffectToHitActor(
 		TargetASC);
 }
 
-bool UAOEAttackAbility::HasPlayerController() const
-{
-	const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
-	return AvatarPawn && Cast<APlayerController>(AvatarPawn->GetController());
-}
+
 
 UAnimMontage* UAOEAttackAbility::GetConfiguredTargetingMontage() const
 {
@@ -1363,7 +1355,7 @@ void UAOEAttackAbility::HandleMontageTriggerEvent(FGameplayEventData Payload)
 		return;
 	}
 
-	SpawnConfiguredCharacterDecal();
+	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
 	FGameplayCueParameters LightningCueParams;
 	LightningCueParams.Location = ConfirmedAOELocation;
 	LightningCueParams.Instigator = GetAvatarActorFromActorInfo();

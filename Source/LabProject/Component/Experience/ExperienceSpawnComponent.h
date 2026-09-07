@@ -12,10 +12,10 @@ class APlayerStart;
 class UMatchRuleDefinition;
 
 /**
- * Server-only player-start and respawn runtime owned by AExperienceGameMode.
+ * GameMode에서 서버의 스폰 위치 배정과 리스폰을 관리한다.
  *
- * Match identity stays on PlayerState's match component. This component only
- * owns world-lifetime assignment caches and pending respawn timers.
+ * 현재 경기의 초기 스폰 위치와 예약된 리스폰을 소유한다.
+ * 로비에서 전달받은 스폰 순서 등의 식별 정보는 PlayerState의 경기 컴포넌트에 남긴다.
  */
 UCLASS(ClassGroup = (Experience))
 class LABPROJECT_API UExperienceSpawnComponent : public UActorComponent
@@ -56,7 +56,6 @@ private:
 	AExperienceGameMode* GetExperienceGameMode() const;
 	const AExperienceGameMode* GetExperienceGameModeConst() const;
 
-	int32 ResolveMatchSpawnIndex(AController* Player) const;
 	AActor* FindPlayerStartByMatchSpawnIndex(
 		int32 SpawnIndex,
 		FName PlayerStartTagPrefix) const;

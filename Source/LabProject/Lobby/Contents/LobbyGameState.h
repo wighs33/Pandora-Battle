@@ -3,9 +3,17 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
 #include "Definition/Level/LevelDefinition.h"
+#include "UObject/PrimaryAssetId.h"
 #include "LobbyGameState.generated.h"
 
 class UExperienceManagerComponent;
+class UExperienceDefinition;
+
+DECLARE_MULTICAST_DELEGATE(FOnLobbyStateChanged);
+
+/**
+ * 복제되는 로비 설정과 참가자 목록의 변경을 알린다. 화면 갱신은 HUD가 구독해서 처리한다.
+ */
 
 UCLASS()
 class LABPROJECT_API ALobbyGameState : public AGameStateBase
@@ -17,7 +25,19 @@ public:
 
 	UExperienceManagerComponent* GetExperienceManagerComponent() const { return ExperienceManagerComponent; }
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void AddPlayerState(APlayerState* PlayerState) override;
+	virtual void RemovePlayerState(APlayerState* PlayerState) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	FOnLobbyStateChanged OnLobbyStateChanged;
+	void SetExperienceLoadFailed(bool bFailed);
+	bool HasExperienceLoadFailed() const;
 
 	void SetSelectedMapOption(const FLobbyMatchMapOption& InMapOption);
 
@@ -52,11 +72,23 @@ protected:
 	void OnRep_GameStartState();
 
 private:
-	void RefreshGameEntryContentPreload() const;
-	void RefreshLocalLobbyUI() const;
+	UFUNCTION()
+	void OnRep_ExperienceLoadFailed();
 
+	void HandleExperienceLoaded(const UExperienceDefinition* Experience);
+	void HandleExperienceLoadFailed(FPrimaryAssetId ExperienceId, const FString& FailureMessage);
+	void NotifyLobbyStateChanged();
+	void RefreshGameEntryContentPreload() const;
+
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Components
 	UPROPERTY(VisibleAnywhere, Category = "!Experience", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UExperienceManagerComponent> ExperienceManagerComponent;
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	UPROPERTY(ReplicatedUsing = OnRep_ExperienceLoadFailed)
+	bool bExperienceLoadFailed = false;
 
 	UPROPERTY(ReplicatedUsing = OnRep_SelectedMapOption, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Lobby|Map", meta = (AllowPrivateAccess = "true"))
 	FLobbyMatchMapOption SelectedMapOption;

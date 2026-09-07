@@ -17,7 +17,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyHUD.h"
-#include "Mode/PdGameInstance.h"
+#include "SavedGameData/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerState.h"
 #include "Online/AchievementSubsystem.h"
 #include "UI/TeamColorUtils.h"
@@ -107,9 +107,9 @@ void UPlayerHudWidget::RefreshLobbyTipVisibility()
 
 bool UPlayerHudWidget::RefreshAchievementAvatar()
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
 	const APlayerController* PlayerController = GetOwningPlayer();
-	if (!PdGameInstance || !PlayerController)
+	if (!ProfileSubsystem || !PlayerController)
 	{
 		return false;
 	}
@@ -121,7 +121,7 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 	}
 
 	UAchievementSubsystem* AchievementSubsystem =
-		PdGameInstance->GetSubsystem<UAchievementSubsystem>();
+		UGameInstance::GetSubsystem<UAchievementSubsystem>(GetGameInstance());
 	if (!AchievementSubsystem)
 	{
 		return false;
@@ -135,18 +135,18 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 		return false;
 	}
 
-	FString PlayerId = PdGameInstance->GetPreferredSavePlayerId();
+	FString PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
 	PlayerId.TrimStartAndEndInline();
 	if (PlayerId.IsEmpty())
 	{
-		PlayerId = PdGameInstance->ResolveSavePlayerId(
+		PlayerId = ProfileSubsystem->ResolveSavePlayerId(
 			PlayerController,
 			PlayerController->PlayerState);
 		PlayerId.TrimStartAndEndInline();
 	}
 	if (PlayerId.IsEmpty())
 	{
-		PlayerId = PdGameInstance->GetLocalClientSavePlayerId();
+		PlayerId = ProfileSubsystem->GetLocalClientSavePlayerId();
 		PlayerId.TrimStartAndEndInline();
 	}
 	if (PlayerId.IsEmpty())
@@ -155,7 +155,7 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 	}
 
 	const FName SelectedAchievementId =
-		PdGameInstance->GetSelectedAchievementId(PlayerId);
+		ProfileSubsystem->GetSelectedAchievementId(PlayerId);
 	if (SelectedAchievementId.IsNone())
 	{
 		return true;

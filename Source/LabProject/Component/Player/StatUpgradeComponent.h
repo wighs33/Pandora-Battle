@@ -1,21 +1,22 @@
 #pragma once
 
-#include "ActiveGameplayEffectHandle.h"
 #include "CoreMinimal.h"
-#include "Common/Enum_Operation.h"
 #include "Components/PlayerStateComponent.h"
 #include "GameplayTagContainer.h"
-#include "Misc/Optional.h"
 #include "StatUpgradeComponent.generated.h"
 
-class UGameplayEffect;
-class UPdAbilitySystemComponent;
+class UAbilitySystemComponent;
 class UStatUpgradeDefinition;
 struct FStreamableHandle;
-struct FOnAttributeChangeData;
 
 DECLARE_LOG_CATEGORY_EXTERN(StatUpgradeComponentLog, Log, All);
 
+/**
+ * 플레이어의 스탯 투자와 환불 요청을 처리한다.
+ *
+ * 서버에서 비용과 투자 한도를 확인하고 투자분만 능력치에 반영한다.
+ * 기본값 적용은 ASC의 속성 초기화에, 자동 회복은 패시브 능력에 맡긴다.
+ */
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UStatUpgradeComponent : public UPlayerStateComponent
 {
@@ -24,9 +25,14 @@ class LABPROJECT_API UStatUpgradeComponent : public UPlayerStateComponent
 public:
 	UStatUpgradeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	//------------------------------------------------------------------------------------------------------------------
+
+	// 클라이언트의 true는 요청 전송을 뜻하며, 확정 결과는 복제된 능력치로 확인한다.
 	UFUNCTION(BlueprintCallable, Category = "!AbilitySystem|Stat", meta = (GameplayTagFilter = "Status"))
 	bool RequestStatUp(FGameplayTag StatTag);
 
@@ -45,31 +51,12 @@ private:
 	UFUNCTION(Server, Reliable)
 	void ServerRequestStatDown(FGameplayTag StatTag);
 
-	bool ApplyStatUpInternal(FGameplayTag StatTag);
-	bool ApplyStatDownInternal(FGameplayTag StatTag);
+	bool ApplyStatChange(FGameplayTag StatTag, int32 LevelDelta);
+	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
 	UStatUpgradeDefinition* LoadStatUpgradeDefinition();
 	void BeginStatUpgradeDefinitionPreload();
 	void HandleStatUpgradeDefinitionPreloaded(uint32 RequestGeneration);
 	void ReleaseStatUpgradeDefinitionPreload();
-	bool ResolveStatUpButtonSettings(const FGameplayTag& StatTag, float& OutMagnitude, EEnum_Operation& OutOperation,
-		FGameplayTag& OutCostPointTag, float& OutCost) const;
-	bool ResolvePairedCurrentResourceStatTag(const FGameplayTag& StatTag, FGameplayTag& OutPairedStatTag) const;
-	bool ResolveStatLevelTag(const FGameplayTag& StatTag, FGameplayTag& OutStatLevelTag) const;
-	bool RecalculateConfiguredMaxResources();
-	bool RecalculateConfiguredMaxResource(const FGameplayTag& ResourceStatTag, TOptional<float> PreviousInvestmentLevel = TOptional<float>(),
-		TOptional<float> PerUpgradePercent = TOptional<float>());
-	bool RecalculateCompoundedPercentStats();
-	bool RecalculateCompoundedPercentStat(const FGameplayTag& StatTag, TOptional<float> PerUpgradePercent = TOptional<float>());
-	bool ApplyStatUpgradeEffects(TSubclassOf<UGameplayEffect> GameplayEffectClass, const TMap<FGameplayTag, float>& StatMagnitudes,
-		EEnum_Operation Operation, float Level = 1.f);
-	TSubclassOf<UGameplayEffect> GetEquipmentStatGameplayEffectClass() const;
-	UPdAbilitySystemComponent* GetOwnerPdAbilitySystemComponent() const;
-	void BindRecoveryAttributeChanged();
-	void UnbindRecoveryAttributeChanged();
-	void HandleRecoveryAttributeChanged(const FOnAttributeChangeData& Data);
-	void StartRecoveryHealthRegen();
-	void StopRecoveryHealthRegen();
-	void ApplyRecoveryHealthRegenEffect();
 
 	UPROPERTY(EditDefaultsOnly, Category = "!AbilitySystem|Stat", meta = (AllowPrivateAccess = "true", DisplayName = "DA Stat"))
 	TSoftObjectPtr<UStatUpgradeDefinition> StatUpgradeDefinition;
@@ -80,9 +67,5 @@ private:
 	TSharedPtr<FStreamableHandle> StatUpgradeDefinitionLoadHandle;
 	uint32 StatUpgradeDefinitionLoadGeneration = 0;
 	bool bApplyDefaultsWhenDefinitionReady = false;
-
-	FActiveGameplayEffectHandle RecoveryHealthRegenEffectHandle;
-	FDelegateHandle RecoveryAttributeChangedDelegateHandle;
-	FDelegateHandle RecoveryMaxHealthAttributeChangedDelegateHandle;
-	FDelegateHandle RecoveryMaxManaAttributeChangedDelegateHandle;
+	bool bApplyingStatChange = false;
 };

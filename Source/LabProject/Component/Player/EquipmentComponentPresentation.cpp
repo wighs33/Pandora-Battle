@@ -1,75 +1,23 @@
 #include "Component/Player/EquipmentComponent.h"
 
-#include "Abilities/GameplayAbility.h"
-#include "AbilitySystem/Ability/PdGameplayAbility.h"
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/Character/CharacterAbilityRuntimeComponent.h"
-#include "Character/CharacterBase.h"
-#include "Common/Enum_Operation.h"
-#include "Common/LabGameplayTags.h"
-#include "Definition/Common/ProjectTagConfig.h"
 #include "Animation/AnimInstance.h"
+#include "Character/CharacterBase.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
-#include "GameFramework/Actor.h"
-#include "GameplayEffect.h"
-#include "Component/Item/InventoryComponent.h"
-#include "Definition/Item/ItemDefinition.h"
-#include "Item/ItemInstance.h"
-#include "Mode/PdPlayerState.h"
-#include "Net/Core/PushModel/PushModel.h"
-#include "Net/UnrealNetwork.h"
-#include "Component/Pandora/PandoraComponent.h"
-#include "Definition/Pandora/PandoraDefinition.h"
-#include "Definition/Settings/GameSettingDefinition.h"
-#include "Settings/GameSettingsSubsystem.h"
 #include "Weapon/WeaponBase.h"
 
-UAnimMontage* UEquipmentComponent::GetCachedEquipMontage(const UItemDefinition* ItemDefinition) const
+// 로딩은 StreamableHandle이 맡고, 준비된 참조는 Soft Pointer에서 바로 읽는다.
+UAnimMontage* UEquipmentComponent::GetLoadedEquipMontage(const UItemDefinition* ItemDefinition) const
 {
-	if (!ItemDefinition)
-	{
-		return nullptr;
-	}
-
-	if (CachedEquipDataItemDefinition != ItemDefinition)
-	{
-		CachedEquipDataItemDefinition = ItemDefinition;
-		CachedEquipMontage.Reset();
-		CachedEquipAnimLayerClass.Reset();
-	}
-
-	if (!CachedEquipMontage.IsValid() && !ItemDefinition->WeaponData.Equip.EquipMontage.IsNull())
-	{
-		CachedEquipMontage = ItemDefinition->WeaponData.Equip.EquipMontage.Get();
-	}
-
-	return CachedEquipMontage.Get();
+	return ItemDefinition ? ItemDefinition->WeaponData.Equip.EquipMontage.Get() : nullptr;
 }
 
-TSubclassOf<UAnimInstance> UEquipmentComponent::GetCachedEquipAnimLayer(const UItemDefinition* ItemDefinition) const
+TSubclassOf<UAnimInstance> UEquipmentComponent::GetLoadedEquipAnimLayer(const UItemDefinition* ItemDefinition) const
 {
-	if (!ItemDefinition)
-	{
-		return nullptr;
-	}
-
-	if (CachedEquipDataItemDefinition != ItemDefinition)
-	{
-		CachedEquipDataItemDefinition = ItemDefinition;
-		CachedEquipMontage.Reset();
-		CachedEquipAnimLayerClass.Reset();
-	}
-
-	if (!CachedEquipAnimLayerClass.IsValid() && !ItemDefinition->WeaponData.Equip.AnimLayer.IsNull())
-	{
-		CachedEquipAnimLayerClass = ItemDefinition->WeaponData.Equip.AnimLayer.Get();
-	}
-
-	return CachedEquipAnimLayerClass.Get();
+	return ItemDefinition ? ItemDefinition->WeaponData.Equip.AnimLayer.Get() : nullptr;
 }
 
 void UEquipmentComponent::RefreshCurrentWeaponAnimationLayer()
@@ -83,7 +31,7 @@ void UEquipmentComponent::RefreshCurrentWeaponAnimationLayer()
 	}
 
 	const UItemDefinition* WeaponDefinition = GetCurrentWeaponDefinition();
-	if (TSubclassOf<UAnimInstance> EquipAnimLayer = GetCachedEquipAnimLayer(WeaponDefinition))
+	if (TSubclassOf<UAnimInstance> EquipAnimLayer = GetLoadedEquipAnimLayer(WeaponDefinition))
 	{
 		CharacterOwner->SetCurrentAnimLayer(EquipAnimLayer);
 		return;
@@ -265,7 +213,6 @@ void UEquipmentComponent::RefreshCurrentWeaponPresentation()
 void UEquipmentComponent::ReleaseWeaponPresentationLoads()
 {
 	++WeaponPresentationRequestGeneration;
-	PendingDefinitionEquipAssetId = FPrimaryAssetId();
 	PendingWeaponPresentationCallbacks.Reset();
 	for (TPair<FPrimaryAssetId, TSharedPtr<FStreamableHandle>>& HandlePair :
 		WeaponPresentationLoadHandles)
@@ -278,96 +225,24 @@ void UEquipmentComponent::ReleaseWeaponPresentationLoads()
 	WeaponPresentationLoadHandles.Reset();
 }
 
-UAnimMontage* UEquipmentComponent::GetCachedUnequipMontage(const UItemDefinition* ItemDefinition) const
+UAnimMontage* UEquipmentComponent::GetLoadedUnequipMontage(const UItemDefinition* ItemDefinition) const
 {
-	if (!ItemDefinition)
-	{
-		return nullptr;
-	}
-
-	if (CachedUnequipDataItemDefinition != ItemDefinition)
-	{
-		CachedUnequipDataItemDefinition = ItemDefinition;
-		CachedUnequipMontage.Reset();
-	}
-
-	if (!CachedUnequipMontage.IsValid() && !ItemDefinition->WeaponData.Equip.UnequipMontage.IsNull())
-	{
-		CachedUnequipMontage = ItemDefinition->WeaponData.Equip.UnequipMontage.Get();
-	}
-
-	return CachedUnequipMontage.Get();
+	return ItemDefinition ? ItemDefinition->WeaponData.Equip.UnequipMontage.Get() : nullptr;
 }
 
-UAnimMontage* UEquipmentComponent::GetCachedAttackMontage(const UItemDefinition* ItemDefinition) const
+UAnimMontage* UEquipmentComponent::GetLoadedAttackMontage(const UItemDefinition* ItemDefinition) const
 {
-	if (!ItemDefinition)
-	{
-		return nullptr;
-	}
-
-	if (CachedAttackDataItemDefinition != ItemDefinition)
-	{
-		CachedAttackDataItemDefinition = ItemDefinition;
-		CachedAttackMontage.Reset();
-	}
-
-	if (!CachedAttackMontage.IsValid() && !ItemDefinition->WeaponData.Attack.AttackMontage.IsNull())
-	{
-		CachedAttackMontage = ItemDefinition->WeaponData.Attack.AttackMontage.Get();
-	}
-
-	return CachedAttackMontage.Get();
+	return ItemDefinition ? ItemDefinition->WeaponData.Attack.AttackMontage.Get() : nullptr;
 }
 
-UAnimMontage* UEquipmentComponent::GetCachedHitReactMontage(const UItemDefinition* ItemDefinition) const
+UAnimMontage* UEquipmentComponent::GetLoadedHitReactMontage(const UItemDefinition* ItemDefinition) const
 {
-	if (!ItemDefinition)
-	{
-		return nullptr;
-	}
-
-	if (CachedHitReactDataItemDefinition != ItemDefinition)
-	{
-		CachedHitReactDataItemDefinition = ItemDefinition;
-		CachedHitReactMontage.Reset();
-	}
-
-	if (!CachedHitReactMontage.IsValid() && !ItemDefinition->WeaponData.HitReact.HitReactMontage.IsNull())
-	{
-		CachedHitReactMontage = ItemDefinition->WeaponData.HitReact.HitReactMontage.Get();
-	}
-
-	return CachedHitReactMontage.Get();
+	return ItemDefinition ? ItemDefinition->WeaponData.HitReact.HitReactMontage.Get() : nullptr;
 }
 
-TSubclassOf<AWeaponBase> UEquipmentComponent::LoadWeaponActorClass(const UItemDefinition* ItemDefinition) const
+TSubclassOf<AWeaponBase> UEquipmentComponent::GetLoadedWeaponActorClass(const UItemDefinition* ItemDefinition) const
 {
-	if (!ItemDefinition)
-	{
-
-		return nullptr;
-	}
-
-	if (CachedWeaponActorClassItemDefinition != ItemDefinition)
-	{
-		CachedWeaponActorClassItemDefinition = ItemDefinition;
-		CachedWeaponActorClass.Reset();
-	}
-
-	if (!CachedWeaponActorClass.IsValid() && !ItemDefinition->WeaponData.Equip.ActorClass.IsNull())
-	{
-		CachedWeaponActorClass = ItemDefinition->WeaponData.Equip.ActorClass.Get();
-	}
-
-	UClass* WeaponClass = CachedWeaponActorClass.Get();
-	if (!WeaponClass)
-	{
-
-		return nullptr;
-	}
-
-	return WeaponClass;
+	return ItemDefinition ? ItemDefinition->WeaponData.Equip.ActorClass.Get() : nullptr;
 }
 
 AWeaponBase* UEquipmentComponent::SpawnAndAttachWeaponActor(TSubclassOf<AWeaponBase> WeaponClass, const UItemDefinition* ItemDefinition) const
@@ -377,7 +252,6 @@ AWeaponBase* UEquipmentComponent::SpawnAndAttachWeaponActor(TSubclassOf<AWeaponB
 	UWorld* World = GetWorld();
 	if (!WeaponClass || !ItemDefinition || !CharacterOwner || !OwnerMesh || !World)
 	{
-
 		return nullptr;
 	}
 
@@ -396,7 +270,6 @@ AWeaponBase* UEquipmentComponent::SpawnAndAttachWeaponActor(TSubclassOf<AWeaponB
 	AWeaponBase* SpawnedWeapon = World->SpawnActor<AWeaponBase>(WeaponClass, SpawnTransform, SpawnParams);
 	if (!SpawnedWeapon)
 	{
-
 		return nullptr;
 	}
 
@@ -404,7 +277,6 @@ AWeaponBase* UEquipmentComponent::SpawnAndAttachWeaponActor(TSubclassOf<AWeaponB
 	SpawnedWeapon->SetReplicates(true);
 	AttachWeaponToOwner(SpawnedWeapon, ItemDefinition);
 	SpawnedWeapon->ForceNetUpdate();
-
 	return SpawnedWeapon;
 }
 
@@ -414,16 +286,12 @@ void UEquipmentComponent::AttachWeaponToOwner(AWeaponBase* WeaponActor, const UI
 	USkeletalMeshComponent* OwnerMesh = CharacterOwner ? CharacterOwner->GetMesh() : nullptr;
 	if (!WeaponActor || !OwnerMesh)
 	{
-
 		return;
 	}
-
-	// =================================================================================================================
 
 	const FName AttachSocketName = ItemDefinition ? ItemDefinition->WeaponData.Equip.GetResolvedAttachSocketName() : NAME_None;
 	WeaponActor->AttachToComponent(
 		OwnerMesh,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		AttachSocketName);
-
 }

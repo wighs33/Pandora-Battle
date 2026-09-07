@@ -1,5 +1,7 @@
 #include "Pandora/PandoraLoadoutTypes.h"
 
+#include "Component/Item/InventoryComponent.h"
+
 bool PandoraLoadout::IsLoadoutDirection(const EEnum_Direction Direction)
 {
 	return Direction == EEnum_Direction::Left
@@ -35,6 +37,13 @@ int32 PandoraLoadout::GetLoadoutNumberFromDirection(const EEnum_Direction Direct
 	default:
 		return 0;
 	}
+}
+
+int32 PandoraLoadout::NormalizeLoadoutNumber(const int32 LoadoutNumber)
+{
+	return (LoadoutNumber >= 0 && LoadoutNumber <= UInventoryComponent::PandoraWeaponLoadoutSlotCount)
+		? LoadoutNumber
+		: 0;
 }
 
 FPandoraLoadoutSlot* PandoraLoadout::FindSlot(TArray<FPandoraLoadoutSlot>& Slots, const EEnum_Direction Direction)

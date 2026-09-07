@@ -1,5 +1,6 @@
 #include "AbilitySystem/Ability/TrailAbility.h"
 
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
@@ -124,7 +125,7 @@ void UTrailAbility::ActivateAbility(
 		AdditionalDamageConfig.MagnitudeDataTag,
 		AdditionalDamageMagnitude,
 		FMath::Max(GetAbilityLevel(), 1),
-		GetCurrentAbilitySpecSourceObject(),
+		GetCurrentSourceObject(),
 		DebuffEffectSpecHandle,
 		SkillDataAsset->StatusEffectDataAsset.Get());
 
@@ -136,7 +137,7 @@ void UTrailAbility::ActivateAbility(
 		return;
 	}
 	bStartedWeaponTrail = bHasTrailSystem;
-	SpawnConfiguredCharacterDecal();
+	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
 
 	if (bUsesSlashHitTrace)
 	{
@@ -210,13 +211,9 @@ void UTrailAbility::ActivateAbility(
 	}
 }
 
-void UTrailAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	bool bReplicateEndAbility,
-	bool bWasCancelled)
+void UTrailAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	if (TrailMontageTask)
 	{
 		TrailMontageTask->EndTask();
@@ -247,7 +244,6 @@ void UTrailAbility::EndAbility(
 	{
 		CurrentWeapon->ClearSkillSlash();
 	}
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UTrailAbility::HandleTrailMontageCompleted()

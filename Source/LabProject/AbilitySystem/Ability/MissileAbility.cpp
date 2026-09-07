@@ -1,5 +1,6 @@
 #include "AbilitySystem/Ability/MissileAbility.h"
 
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
 #include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
@@ -143,13 +144,9 @@ void UMissileAbility::ActivateAbility(
 	}
 }
 
-void UMissileAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const bool bReplicateEndAbility,
-	const bool bWasCancelled)
+void UMissileAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	RestoreAvatarMovementForAbility();
 
 	if (WaitTargetDataTask)
@@ -179,8 +176,6 @@ void UMissileAbility::EndAbility(
 	}
 
 	ActiveMissileTargetActors.Reset();
-
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UMissileAbility::StartWaitMissileMontageTriggerTask()
@@ -369,9 +364,9 @@ void UMissileAbility::LaunchMissile()
 		return;
 	}
 
-	SpawnConfiguredCharacterDecal();
+	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
 	StartDurationMovementLock();
-	StartConfiguredGroundFX();
+	GetPresentationRuntime().StartConfiguredGroundFX(*this);
 	StartMissilePresentation();
 	StartMissileTargetTracking();
 	StartMissileDurationTimer();
@@ -387,7 +382,7 @@ void UMissileAbility::StartMissilePresentation()
 		return;
 	}
 
-	StartConfiguredMissilePresentation();
+	GetPresentationRuntime().StartConfiguredMissilePresentation(*this);
 }
 
 void UMissileAbility::StartMissileDurationTimer()
@@ -428,7 +423,7 @@ void UMissileAbility::HandleMissileDurationFinished()
 
 	StopMissileTargetTracking();
 	ActiveMissileTargetActors.Reset();
-	StopConfiguredMissilePresentation();
+	GetPresentationRuntime().StopConfiguredMissilePresentation(*this);
 
 	TryFinishMissileAbilityAfterWork();
 }
@@ -575,7 +570,7 @@ void UMissileAbility::RefreshMissileTargets()
 		}
 	}
 
-	UpdateConfiguredMissilePresentationTargets(PresentationTargets);
+	GetPresentationRuntime().UpdateConfiguredMissilePresentationTargets(PresentationTargets);
 }
 
 void UMissileAbility::StartDamageSequence()

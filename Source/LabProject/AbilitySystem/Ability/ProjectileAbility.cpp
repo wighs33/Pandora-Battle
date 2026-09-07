@@ -1,5 +1,6 @@
 #include "AbilitySystem/Ability/ProjectileAbility.h"
 
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
 #include "Abilities/GameplayAbilityTargetActor_SingleLineTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
@@ -86,16 +87,11 @@ void UProjectileAbility::ActivateAbility(
 	BeginConfirmedShot();
 }
 
-void UProjectileAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const bool bReplicateEndAbility,
-	const bool bWasCancelled)
+void UProjectileAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	CleanupAimingState();
 	ClearSocketBarrageState(true);
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UProjectileAbility::HandleMontageFinished()
@@ -227,7 +223,7 @@ void UProjectileAbility::BeginConfirmedShot()
 	}
 
 	LockAvatarMovementForAbility();
-	SpawnConfiguredCharacterDecal();
+	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
 
 	if (IsConfiguredImmediateFireMode())
 	{
@@ -812,12 +808,7 @@ FGameplayEffectSpecHandle UProjectileAbility::MakeStatusEffectSpec() const
 		GetConfiguredStatusEffectLevel());
 }
 
-bool UProjectileAbility::HasPlayerController() const
-{
-	const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
-	const AController* Controller = AvatarPawn ? AvatarPawn->GetController() : nullptr;
-	return Controller && Controller->IsPlayerController();
-}
+
 
 void UProjectileAbility::PauseProjectileMontageForAiming()
 {

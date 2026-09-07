@@ -219,20 +219,10 @@ void UHitReactAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, 
 	static_cast<void>(TriggerEventData);
 }
 
-void UHitReactAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const bool bReplicateEndAbility,
-	const bool bWasCancelled)
+void UHitReactAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	ReleaseHitReactMontagePreload();
-	Super::EndAbility(
-		Handle,
-		ActorInfo,
-		ActivationInfo,
-		bReplicateEndAbility,
-		bWasCancelled);
 }
 
 void UHitReactAbility::BeginHitReactMontagePreload()

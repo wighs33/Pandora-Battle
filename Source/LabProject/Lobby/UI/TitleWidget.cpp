@@ -11,7 +11,8 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Lobby/UI/ConnectingPopupWidget.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "SavedGameData/PlayerProfileSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "TimerManager.h"
 #include "UI/Widget/GuideWidget.h"
@@ -541,13 +542,13 @@ UButton* UTitleWidget::FindRecordCloseButton() const
 
 FString UTitleWidget::ResolveTitleSavePlayerId() const
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 		return FString();
 	}
 
-	FString PlayerId = PdGameInstance->GetPreferredSavePlayerId();
+	FString PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
 	PlayerId.TrimStartAndEndInline();
 	if (!PlayerId.IsEmpty())
 	{
@@ -556,11 +557,11 @@ FString UTitleWidget::ResolveTitleSavePlayerId() const
 
 	const APlayerController* PlayerController = GetOwningPlayer();
 	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
-	PlayerId = PdGameInstance->ResolveSavePlayerId(PlayerController, PlayerState);
+	PlayerId = ProfileSubsystem->ResolveSavePlayerId(PlayerController, PlayerState);
 	PlayerId.TrimStartAndEndInline();
 	if (!PlayerId.IsEmpty())
 	{
-		PdGameInstance->SetPreferredSavePlayerId(PlayerId);
+		ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
 	}
 
 	return PlayerId;
@@ -666,8 +667,8 @@ TSubclassOf<UUserWidget> UTitleWidget::ResolveRecordWidgetClass() const
 
 void UTitleWidget::EnsurePreferredSaveGameLoaded() const
 {
-	UPdGameInstance* PdGameInstance = GetGameInstance<UPdGameInstance>();
-	if (!PdGameInstance)
+	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
+	if (!ProfileSubsystem)
 	{
 		return;
 	}
@@ -678,7 +679,7 @@ void UTitleWidget::EnsurePreferredSaveGameLoaded() const
 		return;
 	}
 
-	PdGameInstance->LoadGame(PlayerId);
+	ProfileSubsystem->LoadGame(PlayerId);
 
 }
 

@@ -1,69 +1,57 @@
 #include "Component/Player/EquipmentComponent.h"
 
-#include "Abilities/GameplayAbility.h"
-#include "AbilitySystem/Ability/PdGameplayAbility.h"
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Animation/AnimInstance.h"
+#include "Character/CharacterBase.h"
+#include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/CharacterAbilityRuntimeComponent.h"
-#include "Character/CharacterBase.h"
-#include "Common/Enum_Operation.h"
-#include "Common/LabGameplayTags.h"
-#include "Definition/Common/ProjectTagConfig.h"
-#include "Animation/AnimInstance.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
-#include "Engine/World.h"
-#include "GameFramework/Actor.h"
-#include "GameplayEffect.h"
 #include "Component/Item/InventoryComponent.h"
+#include "Component/Pandora/PandoraComponent.h"
+#include "Component/Player/PlayerLoadoutComponent.h"
+#include "Definition/Common/ProjectTagConfig.h"
 #include "Definition/Item/ItemDefinition.h"
+#include "Definition/Settings/GameSettingDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
-#include "Component/Pandora/PandoraComponent.h"
-#include "Definition/Pandora/PandoraDefinition.h"
-#include "Definition/Settings/GameSettingDefinition.h"
+#include "Pandora/PandoraLoadoutTypes.h"
 #include "Settings/GameSettingsSubsystem.h"
 #include "Weapon/WeaponBase.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EquipmentComponent)
 
 DEFINE_LOG_CATEGORY(EquipmentComponentLog);
 
-namespace
-{
-	bool IsWeaponLoadoutDirection(const EEnum_Direction Direction)
-	{
-		return Direction == EEnum_Direction::Left
-			|| Direction == EEnum_Direction::Up
-			|| Direction == EEnum_Direction::Right;
-	}
-
-	EEnum_Direction SanitizeWeaponLoadoutDirection(const EEnum_Direction Direction)
-	{
-		return IsWeaponLoadoutDirection(Direction) ? Direction : EEnum_Direction::Center;
-	}
-}
-
 UEquipmentComponent::UEquipmentComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
-
 }
 
+// Pawn이 사용할 ASC와 인벤토리의 변경 알림을 연결한다.
 void UEquipmentComponent::BeginPlay()
 {
+	bEndingPlay = false;
 	Super::BeginPlay();
 
 	RefreshCachedReferences();
 }
 
+// Pawn 종료 시 적용 능력치와 직접 생성한 무기를 정리한다. 일반 교체 알림은 보내지 않는다.
 void UEquipmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	bEndingPlay = true;
+	// 늦게 도착한 로딩 완료와 쿨다운 알림이 종료 중인 Pawn의 장착을 다시 시작하지 않게 한다.
+	ClearRequestedWeaponInstance();
+	ReleaseWeaponPresentationLoads();
+	if (CachedASC && EquipCooldownTagChangedDelegateHandle.IsValid())
+	{
+		CachedASC->RegisterGameplayTagEvent(LabGameplayTags::Cooldown_EquipWeapon,
+			EGameplayTagEventType::NewOrRemoved).Remove(EquipCooldownTagChangedDelegateHandle);
+	}
+	EquipCooldownTagChangedDelegateHandle.Reset();
 	UnbindEquipmentSlotsChanged();
 	UnbindInventoryChanged();
 	if (HasEquipmentAuthority())
@@ -77,20 +65,24 @@ void UEquipmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 				*GetNameSafe(GetOwner()));
 		}
 	}
-	if (CachedASC && EquipCooldownTagChangedDelegateHandle.IsValid())
+	if (HasEquipmentAuthority() && IsValid(CurrentWeaponActor))
 	{
-		CachedASC->RegisterGameplayTagEvent(
-			LabGameplayTags::Cooldown_EquipWeapon,
-			EGameplayTagEventType::NewOrRemoved).Remove(
-				EquipCooldownTagChangedDelegateHandle);
-		EquipCooldownTagChangedDelegateHandle.Reset();
+		CurrentWeaponActor->Destroy();
 	}
-	ReleaseWeaponPresentationLoads();
+	CurrentWeaponActor = nullptr;
+	CurrentWeaponDefinition = nullptr;
+	CurrentWeaponId.Invalidate();
+	CurrentWeaponLoadoutDirection = EEnum_Direction::Center;
 	Super::EndPlay(EndPlayReason);
 }
 
+// 빙의와 PlayerState 도착 순서에 맞춰 참조·구독을 갱신하고 아직 적용하지 않은 장비 능력치를 동기화한다.
 void UEquipmentComponent::RefreshCachedReferences()
 {
+	if (bEndingPlay)
+	{
+		return;
+	}
 	CachedOwner = Cast<ACharacterBase>(GetOwner());
 	const APdPlayerState* PdPlayerState = CachedOwner ? Cast<APdPlayerState>(CachedOwner->GetPlayerState()) : nullptr;
 	UPdAbilitySystemComponent* NewAbilitySystem =
@@ -108,8 +100,7 @@ void UEquipmentComponent::RefreshCachedReferences()
 				Error,
 				TEXT("Failed to clear applied equipment state before changing the ability system for %s."),
 				*GetNameSafe(GetOwner()));
-			// These snapshots belong to the previous ASC. Never carry them into the
-			// new ASC as if they had already been applied there.
+			// 이전 ASC의 적용 기록을 새 ASC에 적용한 것으로 간주하지 않는다.
 			CurrentWeaponStatSnapshot.Reset();
 			EquippedItemsStatSnapshot.Reset();
 		}
@@ -245,7 +236,10 @@ void UEquipmentComponent::HandleEquipCooldownTagChanged(
 		: nullptr;
 	if (PlayerState)
 	{
-		PlayerState->ApplySelectedWeaponPandoraLoadout();
+		if (UPlayerLoadoutComponent* LoadoutComponent = PlayerState->GetPlayerLoadoutComponent())
+		{
+			LoadoutComponent->ApplySelectedLoadout();
+		}
 	}
 }
 
@@ -253,16 +247,12 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	// =================================================================================================================
-
 	FDoRepLifetimeParams CurrentWeaponParams;
 	CurrentWeaponParams.bIsPushBased = true;
 
 	FDoRepLifetimeParams CurrentWeaponIdParams;
 	CurrentWeaponIdParams.bIsPushBased = true;
 	CurrentWeaponIdParams.Condition = COND_OwnerOnly;
-
-	// =================================================================================================================
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UEquipmentComponent, CurrentWeaponActor, CurrentWeaponParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UEquipmentComponent, CurrentWeaponDefinition, CurrentWeaponParams);
@@ -272,8 +262,6 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 
 const UItemDefinition* UEquipmentComponent::GetRequestedWeaponDefinition() const
 {
-	// =================================================================================================================
-
 	if (RequestedWeaponId.IsValid())
 	{
 		if (const UItemInstance* ItemInstance = FindOwnedItemInstanceById(RequestedWeaponId))
@@ -281,61 +269,50 @@ const UItemDefinition* UEquipmentComponent::GetRequestedWeaponDefinition() const
 			return ItemInstance->ItemDefinition.Get();
 		}
 	}
-
 	return nullptr;
 }
 
 bool UEquipmentComponent::GetEquipData(FEquipData& OutEquipData) const
 {
-	// =================================================================================================================
-
 	OutEquipData = FEquipData();
 
 	const UItemDefinition* ItemDefinition = GetRequestedWeaponDefinition();
 	if (!ItemDefinition)
 	{
-
 		return false;
 	}
 
 	UAnimMontage* EquipMontage = nullptr;
 	if (!ShouldEquipWeaponsWithoutAnimation())
 	{
-		EquipMontage = GetCachedEquipMontage(ItemDefinition);
+		EquipMontage = GetLoadedEquipMontage(ItemDefinition);
 		if (!EquipMontage)
 		{
 			return false;
 		}
 	}
 
-	// =================================================================================================================
-
 	OutEquipData.ItemDefinition = ItemDefinition;
 	OutEquipData.EquipMontage = EquipMontage;
-	OutEquipData.EquipAnimLayer = GetCachedEquipAnimLayer(ItemDefinition);
+	OutEquipData.EquipAnimLayer = GetLoadedEquipAnimLayer(ItemDefinition);
 	return true;
 }
 
 bool UEquipmentComponent::GetUnequipData(FUnequipData& OutUnequipData) const
 {
-	// =================================================================================================================
-
 	OutUnequipData = FUnequipData();
 
 	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
 	if (!ItemDefinition)
 	{
-
 		return false;
 	}
 
-	UAnimMontage* UnequipMontage = GetCachedUnequipMontage(ItemDefinition);
+	UAnimMontage* UnequipMontage = GetLoadedUnequipMontage(ItemDefinition);
 	if (!UnequipMontage)
 	{
 		return false;
 	}
-
-	// =================================================================================================================
 
 	OutUnequipData.ItemDefinition = ItemDefinition;
 	OutUnequipData.UnequipMontage = UnequipMontage;
@@ -349,17 +326,23 @@ bool UEquipmentComponent::ShouldEquipWeaponsWithoutAnimation() const
 	return SettingDefinition && SettingDefinition->bEquipWeaponsWithoutAnimation;
 }
 
+// 장착 완료 시점에 인벤토리 소유권을 다시 확인하고 준비된 무기를 적용한다.
 bool UEquipmentComponent::EquipWeaponInternal(
 	UItemInstance* WeaponInstance,
 	const EEnum_Direction WeaponLoadoutDirection)
 {
-	const EEnum_Direction SanitizedWeaponLoadoutDirection = SanitizeWeaponLoadoutDirection(WeaponLoadoutDirection);
+	if (bEndingPlay || !HasEquipmentAuthority())
+	{
+		return false;
+	}
 
-const UItemDefinition* ItemDefinition = nullptr;
+	const EEnum_Direction SanitizedWeaponLoadoutDirection =
+		PandoraLoadout::IsLoadoutDirection(WeaponLoadoutDirection) ? WeaponLoadoutDirection : EEnum_Direction::Center;
+
+	const UItemDefinition* ItemDefinition = nullptr;
 	FGuid NewCurrentWeaponId;
 	if (!ResolveWeaponEquipRequest(WeaponInstance, ItemDefinition, NewCurrentWeaponId))
 	{
-
 		return false;
 	}
 
@@ -376,7 +359,6 @@ const UItemDefinition* ItemDefinition = nullptr;
 			RefreshPandoraForWeaponChange();
 			NotifyCurrentWeaponStateChanged();
 		}
-
 		return true;
 	}
 
@@ -407,46 +389,9 @@ const UItemDefinition* ItemDefinition = nullptr;
 
 	RequestWeaponPresentationLoad(ItemDefinition, FSimpleDelegate());
 
-	TSubclassOf<AWeaponBase> WeaponClass = LoadWeaponActorClass(ItemDefinition);
-	if (!WeaponClass)
-	{
-
-		return false;
-	}
-
 	FEquippedItemStatSnapshot PendingStatSnapshot;
-	if (!BuildItemStatSnapshot(WeaponInstance, PendingStatSnapshot))
-	{
-
-		return false;
-	}
-
-	const bool bHadCurrentWeaponState = CurrentWeaponId.IsValid()
-		|| CurrentWeaponActor
-		|| CurrentWeaponDefinition
-		|| CurrentWeaponStatSnapshot.HasAnyMagnitude()
-		|| CurrentWeaponTagEffectHandle.IsValid();
-	if (!UnequipCurrentWeaponInternal() && bHadCurrentWeaponState)
-	{
-		return false;
-	}
-
-	AWeaponBase* SpawnedWeapon = SpawnAndAttachWeaponActor(WeaponClass, ItemDefinition);
-	if (!SpawnedWeapon)
-	{
-
-		return false;
-	}
-
-	if (!ApplyAndStoreWeaponStats(PendingStatSnapshot))
-	{
-		SpawnedWeapon->Destroy();
-		return false;
-	}
-	ApplyCurrentWeaponTagEffect(CachedASC, ItemDefinition);
-	CommitCurrentWeaponState(NewCurrentWeaponId, SpawnedWeapon, ItemDefinition, SanitizedWeaponLoadoutDirection);
-
-	return true;
+	return BuildItemStatSnapshot(WeaponInstance, PendingStatSnapshot)
+		&& ReplaceWeapon(ItemDefinition, NewCurrentWeaponId, SanitizedWeaponLoadoutDirection, PendingStatSnapshot);
 }
 
 bool UEquipmentComponent::ResolveWeaponEquipRequest(UItemInstance* WeaponInstance, const UItemDefinition*& OutItemDefinition, FGuid& OutWeaponId) const
@@ -458,14 +403,12 @@ bool UEquipmentComponent::ResolveWeaponEquipRequest(UItemInstance* WeaponInstanc
 	const UItemDefinition* ItemDefinition = WeaponInstance ? WeaponInstance->ItemDefinition.Get() : nullptr;
 	if (!CharacterOwner || !ItemDefinition || !IsWeaponDefinitionEquipable(ItemDefinition))
 	{
-
 		return false;
 	}
 
 	FGuid NewCurrentWeaponId;
 	if (!ResolveWeaponIdFromInstance(WeaponInstance, NewCurrentWeaponId))
 	{
-
 		return false;
 	}
 
@@ -545,31 +488,6 @@ bool UEquipmentComponent::ResolveWeaponIdFromInstance(UItemInstance* WeaponInsta
 	return true;
 }
 
-bool UEquipmentComponent::ResolveOwnedWeaponById(
-	const FGuid WeaponId,
-	UItemInstance*& OutWeaponInstance,
-	const UItemDefinition*& OutItemDefinition) const
-{
-	OutWeaponInstance = nullptr;
-	OutItemDefinition = nullptr;
-
-	if (!WeaponId.IsValid())
-	{
-		return false;
-	}
-
-	UItemInstance* WeaponInstance = FindOwnedItemInstanceById(WeaponId);
-	const UItemDefinition* ItemDefinition = IsValid(WeaponInstance) ? WeaponInstance->ItemDefinition.Get() : nullptr;
-	if (!IsValid(WeaponInstance) || !IsWeaponDefinitionEquipable(ItemDefinition))
-	{
-		return false;
-	}
-
-	OutWeaponInstance = WeaponInstance;
-	OutItemDefinition = ItemDefinition;
-	return true;
-}
-
 bool UEquipmentComponent::IsWeaponDefinitionEquipable(const UItemDefinition* ItemDefinition) const
 {
 	return ItemDefinition && !ItemDefinition->WeaponData.Equip.ActorClass.IsNull();
@@ -581,7 +499,7 @@ void UEquipmentComponent::MarkCurrentWeaponStateDirty(
 	const bool bCurrentWeaponDefinitionChanged,
 	const bool bCurrentWeaponLoadoutDirectionChanged)
 {
-	if (!HasEquipmentAuthority())
+	if (bEndingPlay || !HasEquipmentAuthority())
 	{
 		return;
 	}
@@ -609,7 +527,7 @@ void UEquipmentComponent::MarkCurrentWeaponStateDirty(
 
 void UEquipmentComponent::RefreshPandoraForWeaponChange() const
 {
-	if (!HasEquipmentAuthority())
+	if (bEndingPlay || !HasEquipmentAuthority())
 	{
 		return;
 	}
@@ -632,7 +550,6 @@ bool UEquipmentComponent::TryActivateSingleAbilityTag(const FGameplayTag& Abilit
 	UPdAbilitySystemComponent* ASC = CachedASC.Get();
 	if (!ASC || !AbilityTag.IsValid())
 	{
-
 		return false;
 	}
 
@@ -648,7 +565,6 @@ bool UEquipmentComponent::HasActiveAbilityWithTags(const FGameplayTagContainer& 
 	{
 		return false;
 	}
-
 	return ASC->HasActiveAbilityWithTags(AbilityTags);
 }
 
@@ -668,7 +584,8 @@ void UEquipmentComponent::CommitCurrentWeaponState(
 	const UItemDefinition* NewWeaponDefinition,
 	const EEnum_Direction NewWeaponLoadoutDirection)
 {
-	const EEnum_Direction SanitizedNewWeaponLoadoutDirection = SanitizeWeaponLoadoutDirection(NewWeaponLoadoutDirection);
+	const EEnum_Direction SanitizedNewWeaponLoadoutDirection =
+		PandoraLoadout::IsLoadoutDirection(NewWeaponLoadoutDirection) ? NewWeaponLoadoutDirection : EEnum_Direction::Center;
 	const bool bCurrentWeaponChanged = CurrentWeaponActor != NewWeaponActor;
 	const bool bCurrentWeaponIdChanged = CurrentWeaponId != NewCurrentWeaponId;
 	const bool bCurrentWeaponDefinitionChanged = CurrentWeaponDefinition != NewWeaponDefinition;
@@ -678,7 +595,7 @@ void UEquipmentComponent::CommitCurrentWeaponState(
 	CurrentWeaponDefinition = NewWeaponDefinition;
 	CurrentWeaponLoadoutDirection = SanitizedNewWeaponLoadoutDirection;
 
-MarkCurrentWeaponStateDirty(
+	MarkCurrentWeaponStateDirty(
 		bCurrentWeaponChanged,
 		bCurrentWeaponIdChanged,
 		bCurrentWeaponDefinitionChanged,
@@ -715,8 +632,6 @@ MarkCurrentWeaponStateDirty(
 
 bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 {
-	// =================================================================================================================
-
 	const bool bHasCurrentWeaponState = CurrentWeaponId.IsValid()
 		|| CurrentWeaponActor
 		|| CurrentWeaponDefinition
@@ -730,7 +645,6 @@ bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 			MarkCurrentWeaponStateDirty(false, false, false, true);
 			NotifyCurrentWeaponStateChanged();
 		}
-
 		return false;
 	}
 
@@ -741,14 +655,10 @@ bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 
 	RemoveCurrentWeaponTagEffect(CachedASC, CurrentWeaponDefinition);
 
-	// =================================================================================================================
-
 	if (CurrentWeaponActor)
 	{
 		CurrentWeaponActor->Destroy();
 	}
-
-	// =================================================================================================================
 
 	const bool bCurrentWeaponChanged = CurrentWeaponActor != nullptr;
 	const bool bCurrentWeaponIdChanged = CurrentWeaponId.IsValid();
@@ -779,7 +689,6 @@ bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 	{
 		NotifyCurrentWeaponStateChanged();
 	}
-
 	return true;
 }
 
@@ -793,7 +702,7 @@ bool UEquipmentComponent::GetAttackData(FAttackData& OutAttackData) const
 		return false;
 	}
 
-	UAnimMontage* AttackMontage = GetCachedAttackMontage(ItemDefinition);
+	UAnimMontage* AttackMontage = GetLoadedAttackMontage(ItemDefinition);
 	if (!AttackMontage)
 	{
 		return false;
@@ -820,7 +729,7 @@ bool UEquipmentComponent::GetHitReactData(FHitReactData& OutHitReactData) const
 		return false;
 	}
 
-	UAnimMontage* HitReactMontage = GetCachedHitReactMontage(ItemDefinition);
+	UAnimMontage* HitReactMontage = GetLoadedHitReactMontage(ItemDefinition);
 	if (!HitReactMontage)
 	{
 		return false;
@@ -831,9 +740,42 @@ bool UEquipmentComponent::GetHitReactData(FHitReactData& OutHitReactData) const
 	return true;
 }
 
-void UEquipmentComponent::ClearRequestedWeapon()
+// 선택 변경과 해제는 같은 세대 번호로 이전 소유 무기·AI 무기의 로딩 완료를 무효화한다.
+void UEquipmentComponent::ClearRequestedWeaponInstance()
 {
 	++WeaponPresentationRequestGeneration;
 	RequestedWeaponId.Invalidate();
 	RequestedWeaponLoadoutDirection = EEnum_Direction::Center;
+}
+
+// 소유 아이템과 AI 기본 무기가 같은 Actor 생성·능력치 적용·복제 확정 절차를 사용한다.
+bool UEquipmentComponent::ReplaceWeapon(const UItemDefinition* Definition, const FGuid WeaponId,
+	const EEnum_Direction Direction, const FEquippedItemStatSnapshot& StatSnapshot)
+{
+	const TSubclassOf<AWeaponBase> WeaponClass = GetLoadedWeaponActorClass(Definition);
+	if (bEndingPlay || !HasEquipmentAuthority() || !WeaponClass)
+	{
+		return false;
+	}
+
+	const bool bHadCurrentWeaponState = CurrentWeaponId.IsValid() || CurrentWeaponActor || CurrentWeaponDefinition
+		|| CurrentWeaponStatSnapshot.HasAnyMagnitude() || CurrentWeaponTagEffectHandle.IsValid();
+	if (!UnequipCurrentWeaponInternal() && bHadCurrentWeaponState)
+	{
+		return false;
+	}
+
+	AWeaponBase* SpawnedWeapon = SpawnAndAttachWeaponActor(WeaponClass, Definition);
+	if (!SpawnedWeapon)
+	{
+		return false;
+	}
+	if (!ApplyAndStoreWeaponStats(StatSnapshot))
+	{
+		SpawnedWeapon->Destroy();
+		return false;
+	}
+	ApplyCurrentWeaponTagEffect(CachedASC, Definition);
+	CommitCurrentWeaponState(WeaponId, SpawnedWeapon, Definition, Direction);
+	return true;
 }

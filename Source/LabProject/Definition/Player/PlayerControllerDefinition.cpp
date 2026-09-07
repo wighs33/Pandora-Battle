@@ -47,15 +47,6 @@ EDataValidationResult UPlayerControllerDefinition::IsDataValid(FDataValidationCo
 			"Presentation TravelLoadingReadyCheckMaxAttempts must be non-negative."));
 	}
 
-	if (!FMath::IsFinite(Presentation.RespawnStateResetRetryDelay)
-		|| Presentation.RespawnStateResetRetryDelay < 0.0f)
-	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerControllerDefinition",
-			"InvalidRespawnRetryDelay",
-			"Presentation RespawnStateResetRetryDelay must be finite and non-negative."));
-	}
-
 	if (!FMath::IsFinite(Presentation.HealthBarVisibilityUpdateInterval)
 		|| Presentation.HealthBarVisibilityUpdateInterval < 0.01f)
 	{

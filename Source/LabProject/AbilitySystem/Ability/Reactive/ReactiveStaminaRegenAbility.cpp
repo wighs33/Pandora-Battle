@@ -43,13 +43,9 @@ void UReactiveStaminaRegenAbility::ActivateAbility(
 		.AddUObject(this, &ThisClass::HandleStaminaChanged);
 }
 
-void UReactiveStaminaRegenAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	bool bReplicateEndAbility,
-	bool bWasCancelled)
+void UReactiveStaminaRegenAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	ClearRegenDelayTimer();
 	RemoveStaminaRegenEffects();
 
@@ -62,7 +58,6 @@ void UReactiveStaminaRegenAbility::EndAbility(
 	}
 
 	StaminaChangedDelegateHandle.Reset();
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UReactiveStaminaRegenAbility::HandleStaminaChanged(const FOnAttributeChangeData& Data)

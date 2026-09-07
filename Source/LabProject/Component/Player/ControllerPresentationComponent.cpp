@@ -5,18 +5,17 @@
 #include "Character/PdPlayer.h"
 #include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
 #include "Engine/LocalPlayer.h"
-#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Lobby/Contents/LobbyGameState.h"
-#include "Lobby/Contents/LobbyPlayerController.h"
 #include "Lobby/Contents/TitleHUD.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Lobby/UI/LobbyWidget.h"
 #include "Mode/ExperienceGameMode.h"
-#include "Mode/PdGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Settings/BgmSubsystem.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
@@ -27,18 +26,40 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerPresentationComponent)
 
+// 로컬 화면 처리에 필요한 상태만 보관하고 상시 Tick과 네트워크 복제는 사용하지 않는다.
 UControllerPresentationComponent::UControllerPresentationComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(false);
 }
 
+// 컨트롤러가 종료되면 화면 갱신 타이머와 로딩 중 일시정지를 해제한다.
 void UControllerPresentationComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Shutdown();
 	Super::EndPlay(EndPlayReason);
 }
 
+// 늦게 로드된 설정을 실행 중인 체력바와 로딩 화면의 갱신 주기에도 적용한다.
+void UControllerPresentationComponent::ApplySettings(const FControllerPresentationSettings& InSettings)
+{
+	const bool bHealthBarIntervalChanged = Settings.HealthBarVisibilityUpdateInterval != InSettings.HealthBarVisibilityUpdateInterval;
+	const bool bTravelIntervalChanged = Settings.TravelLoadingReadyCheckInterval != InSettings.TravelLoadingReadyCheckInterval;
+	Settings = InSettings;
+
+	if (UWorld* World = GetWorld(); bHealthBarIntervalChanged && World
+		&& World->GetTimerManager().TimerExists(HealthBarVisibilityManagementTimerHandle))
+	{
+		StartHealthBarVisibilityManagement();
+	}
+	if (bTravelIntervalChanged && TravelLoadingReadyTickerHandle.IsValid())
+	{
+		// 설정 변경은 로딩 대기 횟수를 초기화하지 않고 실행 주기만 바꾼다.
+		UpdateTravelLoadingReadyTicker();
+	}
+}
+
+// 로컬 입력 모드·카메라 설정·배경음악을 적용하고 로딩 화면과 체력바 갱신을 시작한다.
 void UControllerPresentationComponent::InitializeLocalPresentation()
 {
 	APdPlayerController* Controller = GetPdController();
@@ -52,11 +73,11 @@ void UControllerPresentationComponent::InitializeLocalPresentation()
 	{
 		LocalPlayerSettings->ApplyLocalPlayerSettings(Controller);
 	}
-	if (UPdGameInstance* PdGameInstance = Controller->GetGameInstance<UPdGameInstance>())
+	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(Controller->GetGameInstance()))
 	{
-		PdGameInstance->RestoreWorldBgm();
+		BgmSubsystem->RestoreWorldBgm();
 	}
-	if (Controller->IsA<ALobbyPlayerController>())
+	if (Controller->UsesLobbyPresentation())
 	{
 		ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer();
 		if (UUiSubsystem* UiSubsystem =
@@ -71,9 +92,8 @@ void UControllerPresentationComponent::InitializeLocalPresentation()
 	StartHealthBarVisibilityManagement();
 }
 
-void UControllerPresentationComponent::RefreshAfterPossession(
-	APawn* PossessedPawn,
-	const bool bRestoreCachedPaintFaceDecal)
+// 새로 조종하는 Pawn에 맞춰 카메라와 로딩 화면을 갱신하고 필요한 얼굴 데칼을 복원한다.
+void UControllerPresentationComponent::RefreshAfterPossession(APawn* PossessedPawn)
 {
 	APdPlayerController* Controller = GetPdController();
 	if (!Controller || !Controller->IsLocalController())
@@ -89,13 +109,13 @@ void UControllerPresentationComponent::RefreshAfterPossession(
 	if ((!UiSubsystem
 			|| (!UiSubsystem->IsTravelLoadingScreenActive()
 				&& !UiSubsystem->HasActiveModalInput()))
-		&& !Controller->IsA<ALobbyPlayerController>())
+		&& !Controller->UsesLobbyPresentation())
 	{
 		RestoreGameplayInputMode();
 	}
 	StartHealthBarVisibilityManagement();
 
-	if (bRestoreCachedPaintFaceDecal)
+	if (!Controller->UsesLobbyPresentation())
 	{
 		if (APdPlayer* PlayerCharacter = Cast<APdPlayer>(PossessedPawn))
 		{
@@ -104,6 +124,7 @@ void UControllerPresentationComponent::RefreshAfterPossession(
 	}
 }
 
+// 화면 처리에 등록한 타이머와 티커를 해제하고 이 컴포넌트가 건 일시정지만 되돌린다.
 void UControllerPresentationComponent::Shutdown()
 {
 	StopHealthBarVisibilityManagement();
@@ -114,15 +135,10 @@ void UControllerPresentationComponent::Shutdown()
 	}
 	SetTrainingRoomLoadingPaused(false);
 
-	if (UWorld* World = GetWorld())
-	{
-		FTimerManager& TimerManager = World->GetTimerManager();
-		TimerManager.ClearTimer(RespawnTransformResetNextTickTimerHandle);
-		TimerManager.ClearTimer(RespawnTransformResetRetryTimerHandle);
-	}
 	TravelLoadingHideRetryCount = 0;
 }
 
+// 플레이어 설정에 맞춰 카메라의 상하 회전 범위를 적용한다.
 void UControllerPresentationComponent::ApplyCameraViewPitchClamp() const
 {
 	if (APdPlayerController* Controller = GetPdController())
@@ -134,10 +150,11 @@ void UControllerPresentationComponent::ApplyCameraViewPitchClamp() const
 	}
 }
 
+// 로컬 HUD에 보상이나 상태 알림을 전달한다.
 void UControllerPresentationComponent::ShowRightNotification(
 	const FPdNotificationData& NotificationData) const
 {
-	if (const APdPlayerController* Controller = GetPdControllerConst())
+	if (const APdPlayerController* Controller = GetPdController())
 	{
 		if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
 		{
@@ -146,9 +163,10 @@ void UControllerPresentationComponent::ShowRightNotification(
 	}
 }
 
+// 로컬 HUD의 킬 로그에 처치 기록을 추가한다.
 void UControllerPresentationComponent::AddKillLogEntry(const FKillLogEntry& KillLogEntry) const
 {
-	if (const APdPlayerController* Controller = GetPdControllerConst())
+	if (const APdPlayerController* Controller = GetPdController())
 	{
 		if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
 		{
@@ -157,9 +175,10 @@ void UControllerPresentationComponent::AddKillLogEntry(const FKillLogEntry& Kill
 	}
 }
 
+// 골든 킬 안내 문구를 로컬 HUD에 표시한다.
 void UControllerPresentationComponent::ShowGoldenKillAnnouncement(const FText& AnnouncementText) const
 {
-	if (const APdPlayerController* Controller = GetPdControllerConst())
+	if (const APdPlayerController* Controller = GetPdController())
 	{
 		if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
 		{
@@ -168,9 +187,10 @@ void UControllerPresentationComponent::ShowGoldenKillAnnouncement(const FText& A
 	}
 }
 
+// 부활까지 남은 대기 시간을 HUD에 표시한다.
 void UControllerPresentationComponent::StartRespawnDelayCountdown(const float DelaySeconds) const
 {
-	if (const APdPlayerController* Controller = GetPdControllerConst())
+	if (const APdPlayerController* Controller = GetPdController())
 	{
 		if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
 		{
@@ -179,9 +199,10 @@ void UControllerPresentationComponent::StartRespawnDelayCountdown(const float De
 	}
 }
 
+// 부활 대기 표시를 숨긴다.
 void UControllerPresentationComponent::HideRespawnDelayCountdown() const
 {
-	if (const APdPlayerController* Controller = GetPdControllerConst())
+	if (const APdPlayerController* Controller = GetPdController())
 	{
 		if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
 		{
@@ -190,48 +211,13 @@ void UControllerPresentationComponent::HideRespawnDelayCountdown() const
 	}
 }
 
-void UControllerPresentationComponent::ResetRespawnedPawnStateAtTransform(
-	const FTransform& RespawnTransform)
-{
-	ResetRespawnedPawnStateForClientAtTransform(RespawnTransform);
-
-	if (UWorld* World = GetWorld())
-	{
-		FTimerManager& TimerManager = World->GetTimerManager();
-		TimerManager.ClearTimer(RespawnTransformResetNextTickTimerHandle);
-		TimerManager.ClearTimer(RespawnTransformResetRetryTimerHandle);
-
-		FTimerDelegate NextTickDelegate;
-		NextTickDelegate.BindUObject(
-			this,
-			&ThisClass::ResetRespawnedPawnStateForClientAtTransform,
-			RespawnTransform);
-		RespawnTransformResetNextTickTimerHandle =
-			TimerManager.SetTimerForNextTick(NextTickDelegate);
-
-		FTimerDelegate RetryDelegate;
-		RetryDelegate.BindUObject(
-			this,
-			&ThisClass::ResetRespawnedPawnStateForClientAtTransform,
-			RespawnTransform);
-		TimerManager.SetTimer(
-			RespawnTransformResetRetryTimerHandle,
-			RetryDelegate,
-			FMath::Max(Settings.RespawnStateResetRetryDelay, 0.01f),
-			false);
-	}
-}
-
+// 화면 처리를 소유한 프로젝트 컨트롤러를 조회한다.
 APdPlayerController* UControllerPresentationComponent::GetPdController() const
 {
 	return Cast<APdPlayerController>(GetOwner());
 }
 
-const APdPlayerController* UControllerPresentationComponent::GetPdControllerConst() const
-{
-	return Cast<APdPlayerController>(GetOwner());
-}
-
+// 모달 화면이 없는 플레이 상태로 입력 모드와 마우스 커서를 복원한다.
 void UControllerPresentationComponent::RestoreGameplayInputMode() const
 {
 	APdPlayerController* Controller = GetPdController();
@@ -246,6 +232,7 @@ void UControllerPresentationComponent::RestoreGameplayInputMode() const
 	Controller->bEnableMouseOverEvents = false;
 }
 
+// 맵 이동 로딩 화면을 유지하고 필요한 경우 훈련실 진행을 일시정지한다.
 void UControllerPresentationComponent::RefreshTravelLoadingScreen()
 {
 	APdPlayerController* Controller = GetPdController();
@@ -263,6 +250,7 @@ void UControllerPresentationComponent::RefreshTravelLoadingScreen()
 	}
 }
 
+// 화면과 콘텐츠가 준비되면 로딩 화면을 닫도록 준비 상태 확인을 시작한다.
 void UControllerPresentationComponent::ScheduleHideTravelLoadingScreenWhenReady()
 {
 	APdPlayerController* Controller = GetPdController();
@@ -280,6 +268,12 @@ void UControllerPresentationComponent::ScheduleHideTravelLoadingScreenWhenReady(
 
 	TravelLoadingHideRetryCount = 0;
 	SetTrainingRoomLoadingPaused(true);
+	UpdateTravelLoadingReadyTicker();
+}
+
+// 기존 준비 확인 티커를 현재 설정 주기로 교체한다.
+void UControllerPresentationComponent::UpdateTravelLoadingReadyTicker()
+{
 	if (TravelLoadingReadyTickerHandle.IsValid())
 	{
 		FTSTicker::RemoveTicker(TravelLoadingReadyTickerHandle);
@@ -292,6 +286,7 @@ void UControllerPresentationComponent::ScheduleHideTravelLoadingScreenWhenReady(
 		FMath::Max(Settings.TravelLoadingReadyCheckInterval, 0.01f));
 }
 
+// 화면·로비·진입 콘텐츠 준비를 확인한 뒤 로딩 화면을 닫고 입력과 게임 진행을 복원한다.
 bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 {
 	APdPlayerController* Controller = GetPdController();
@@ -324,7 +319,7 @@ bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 
 	bool bLobbyContentReady = true;
 	bool bGameEntryContentReady = true;
-	const bool bIsLobbyController = Controller->IsA<ALobbyPlayerController>();
+	const bool bIsLobbyController = Controller->UsesLobbyPresentation();
 	if (bIsLobbyController)
 	{
 		const UGameInstance* GameInstance = Controller->GetGameInstance();
@@ -382,9 +377,9 @@ bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 			}
 		}
 	}
-	if (ALobbyPlayerController* LobbyController = Cast<ALobbyPlayerController>(Controller))
+	if (bIsLobbyController)
 	{
-		if (ALobbyHUD* LobbyHUD = LobbyController->GetHUD<ALobbyHUD>())
+		if (ALobbyHUD* LobbyHUD = Controller->GetHUD<ALobbyHUD>())
 		{
 			const ULobbyWidget* LobbyWidget = LobbyHUD->GetLobbyWidget();
 			if (IsValid(LobbyWidget) && LobbyWidget->IsInViewport())
@@ -406,6 +401,7 @@ bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 	return false;
 }
 
+// 혼자 실행하는 훈련실에서만 로딩 중 게임 진행을 멈추고 이후 재개한다.
 void UControllerPresentationComponent::SetTrainingRoomLoadingPaused(
 	const bool bPaused)
 {
@@ -449,6 +445,7 @@ void UControllerPresentationComponent::SetTrainingRoomLoadingPaused(
 	}
 }
 
+// 로컬 시점에서 보이는 캐릭터 체력바를 즉시 갱신하고 주기 갱신을 예약한다.
 void UControllerPresentationComponent::StartHealthBarVisibilityManagement()
 {
 	APdPlayerController* Controller = GetPdController();
@@ -460,7 +457,7 @@ void UControllerPresentationComponent::StartHealthBarVisibilityManagement()
 
 	FTimerManager& TimerManager = World->GetTimerManager();
 	TimerManager.ClearTimer(HealthBarVisibilityManagementTimerHandle);
-	TimerManager.SetTimerForNextTick(this, &ThisClass::UpdateManagedHealthBarVisibility);
+	UpdateManagedHealthBarVisibility();
 	TimerManager.SetTimer(
 		HealthBarVisibilityManagementTimerHandle,
 		this,
@@ -469,6 +466,7 @@ void UControllerPresentationComponent::StartHealthBarVisibilityManagement()
 		true);
 }
 
+// 컨트롤러 종료 시 체력바 주기 갱신을 중단한다.
 void UControllerPresentationComponent::StopHealthBarVisibilityManagement()
 {
 	if (UWorld* World = GetWorld())
@@ -477,6 +475,7 @@ void UControllerPresentationComponent::StopHealthBarVisibilityManagement()
 	}
 }
 
+// 관찰자의 위치·시선·팀 관계에 맞춰 각 캐릭터의 체력바 가시성을 갱신한다.
 void UControllerPresentationComponent::UpdateManagedHealthBarVisibility()
 {
 	APdPlayerController* Controller = GetPdController();
@@ -520,10 +519,11 @@ void UControllerPresentationComponent::UpdateManagedHealthBarVisibility()
 	}
 }
 
+// 아군을 제외하고 체력바를 표시할 대상 캐릭터인지 판단한다.
 bool UControllerPresentationComponent::ShouldManageHealthBarForTarget(
 	const ACharacterBase* TargetCharacter) const
 {
-	const APdPlayerController* Controller = GetPdControllerConst();
+	const APdPlayerController* Controller = GetPdController();
 	if (!Controller || !TargetCharacter || TargetCharacter == Controller->GetPawn())
 	{
 		return false;
@@ -543,31 +543,22 @@ bool UControllerPresentationComponent::ShouldManageHealthBarForTarget(
 	return true;
 }
 
-void UControllerPresentationComponent::ResetRespawnedPawnStateForClientAtTransform(
-	FTransform RespawnTransform)
+// 서버가 지정한 Pawn을 현재 조종 중일 때만 부활 시선과 카메라 대상을 복구한다.
+void UControllerPresentationComponent::RefreshAfterRespawn(APawn* RespawnedPawn, const FRotator& RespawnRotation)
 {
 	APdPlayerController* Controller = GetPdController();
-	ACharacterBase* RespawnedCharacter =
-		Controller ? Cast<ACharacterBase>(Controller->GetPawn()) : nullptr;
-	if (!Controller || !RespawnedCharacter)
+	if (!Controller || !Controller->IsLocalController() || !IsValid(RespawnedPawn) || Controller->GetPawn() != RespawnedPawn)
 	{
+		// 아직 빙의가 반영되지 않은 새 Pawn은 엔진의 빙의 완료 경로에서 카메라를 준비한다.
 		return;
 	}
 
-	RespawnedCharacter->SetActorTransform(
-		RespawnTransform,
-		false,
-		nullptr,
-		ETeleportType::TeleportPhysics);
-	Controller->SetControlRotation(RespawnTransform.GetRotation().Rotator());
+	Controller->SetControlRotation(RespawnRotation);
 	ApplyCameraViewPitchClamp();
-	RespawnedCharacter->ResetDeathStateForRespawn();
-	if (Controller->IsLocalController())
-	{
-		Controller->SetViewTarget(RespawnedCharacter);
-	}
+	Controller->SetViewTarget(RespawnedPawn);
 }
 
+// 소유 플레이어의 점수판을 연다.
 void UControllerPresentationComponent::ShowInGameScoreboard()
 {
 	if (APdPlayerController* Controller = GetPdController())
@@ -582,6 +573,7 @@ void UControllerPresentationComponent::ShowInGameScoreboard()
 	}
 }
 
+// 소유 플레이어의 점수판을 닫는다.
 void UControllerPresentationComponent::HideInGameScoreboard()
 {
 	if (APdPlayerController* Controller = GetPdController())

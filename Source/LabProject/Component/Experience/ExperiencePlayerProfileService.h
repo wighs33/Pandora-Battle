@@ -6,7 +6,6 @@
 
 class AExperienceGameMode;
 class APlayerController;
-class UPdGameInstance;
 struct FExperiencePlayerProvisioningSettings;
 
 /**
@@ -23,16 +22,12 @@ public:
 	void ApplySettings(
 		const FExperiencePlayerProvisioningSettings& InSettings);
 	void InitializeLoggedInPlayer(APlayerController* NewPlayer) const;
+	void InitializeMatchIdentity(APlayerController* NewPlayer) const;
 	void ApplyCachedLobbySkinEquipment(
 		APlayerController* NewPlayer) const;
 
 private:
 	AExperienceGameMode* GetExperienceGameMode() const;
-	void ApplyCachedLobbyPlayerIdentity(
-		APlayerController* NewPlayer,
-		UPdGameInstance& PdGameInstance) const;
-	void ApplyInitialPlayerMapRegion(
-		APlayerController* NewPlayer) const;
 
 	bool bAssignDefaultTeamWhenLobbyTeamMissing = true;
 	int32 DefaultLobbyTeamColorIndex = 0;

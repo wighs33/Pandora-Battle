@@ -1,5 +1,6 @@
 #include "AbilitySystem/Ability/SummonAbility.h"
 
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
@@ -118,13 +119,9 @@ StartDurationMovementLock();
 	}
 }
 
-void USummonAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const bool bReplicateEndAbility,
-	const bool bWasCancelled)
+void USummonAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	CleanupSummonTasks();
 
 	if (UWorld* World = GetWorld())
@@ -149,7 +146,6 @@ void USummonAbility::EndAbility(
 	SummonTriggerComponent.Reset();
 	DamagedSummonTriggerActors.Reset();
 	SummonOverlappingActors.Reset();
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 const FSummonSkillConfig* USummonAbility::GetSummonConfig() const
@@ -239,8 +235,8 @@ void USummonAbility::TryCommitAndStartSummon()
 	if (!AvatarActor || !AvatarActor->HasAuthority())
 	{
 
-		StartConfiguredCharacterOverlay();
-		StartConfiguredDefaultFX();
+		GetPresentationRuntime().StartConfiguredCharacterOverlay(*this);
+		GetPresentationRuntime().StartConfiguredDefaultFX(*this);
 		if (!GetResolvedSummonMontage())
 		{
 			K2_EndAbilityLocally();
@@ -254,15 +250,15 @@ void USummonAbility::TryCommitAndStartSummon()
 		return;
 	}
 
-	StartConfiguredCharacterOverlay();
-	StartConfiguredDefaultFX();
+	GetPresentationRuntime().StartConfiguredCharacterOverlay(*this);
+	GetPresentationRuntime().StartConfiguredDefaultFX(*this);
 	if (!SpawnSummonedActor())
 	{
 		CancelAbilityForSkillExecutionFailure();
 		return;
 	}
 
-	SpawnConfiguredCharacterDecal();
+	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
 	StartDurationMovementLock();
 	StartSummonRise();
 }

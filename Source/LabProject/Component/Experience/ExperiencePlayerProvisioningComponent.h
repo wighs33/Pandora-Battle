@@ -3,18 +3,19 @@
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 #include "Definition/Experience/ExperienceGameModeSettings.h"
+#include "UObject/ObjectKey.h"
 #include "ExperiencePlayerProvisioningComponent.generated.h"
 
 class APlayerController;
+class APawn;
 class UDefaultPlayerProvisioner;
 class UExperiencePlayerProfileService;
 struct FStreamableHandle;
 
 /**
- * Coordinates server-side player provisioning in a stable, explicit order.
+ * 서버에서 저장 데이터 복원과 기본 지급의 순서를 연결한다.
  *
- * DA_DefaultProvision grants are handled by one mode-driven provisioner.
- * Save/profile restoration remains separate because it is not a default grant.
+ * 프로필 복원과 기본 지급은 기존 전용 객체가 담당하며, 현재 Pawn의 지급 완료를 GameMode에 알린다.
  */
 UCLASS(ClassGroup = (Experience))
 class LABPROJECT_API UExperiencePlayerProvisioningComponent
@@ -25,15 +26,21 @@ class LABPROJECT_API UExperiencePlayerProvisioningComponent
 public:
 	UExperiencePlayerProvisioningComponent();
 
+	//------------------------------------------------------------------------------------------------------------------
+	//--- Engine Callbacks
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	FSimpleMulticastDelegate OnPlayerGameplayReady;
+	bool IsPlayerReadyForGameplay(APlayerController* PlayerController) const;
 
 	void ApplySettings(
 		const FExperiencePlayerProvisioningSettings& InSettings);
 	void InitializeLoggedInPlayer(APlayerController* NewPlayer);
-	void PreparePlayerForGameplay(
-		APlayerController* NewPlayer,
-		bool bApplyLobbySkinEquipment);
+	void InitializeMatchIdentity(APlayerController* NewPlayer);
+	void PreparePlayerForGameplay(APlayerController* NewPlayer);
 	void ClearRuntimeStateForController(
 		AController* Controller,
 		APlayerState* PlayerState);
@@ -42,19 +49,13 @@ public:
 	bool IsTrainingRoomMap() const;
 
 private:
-	struct FPendingGameplayProvision
-	{
-		TWeakObjectPtr<APlayerController> PlayerController;
-		bool bApplyLobbySkinEquipment = false;
-	};
-
 	void BeginProvisioningContentPreload();
 	void HandleProvisioningContentPreloaded();
 	void ReleaseProvisioningContentPreload();
 	void FlushPendingGameplayProvisions();
-	void PreparePlayerForGameplayInternal(
-		APlayerController* NewPlayer,
-		bool bApplyLobbySkinEquipment);
+	void PreparePlayerForGameplayInternal(APlayerController* NewPlayer);
+	void HandlePlayerProvisioned(APlayerController* PlayerController);
+
 	UPROPERTY(Transient)
 	TObjectPtr<UExperiencePlayerProfileService>
 		PlayerProfileService;
@@ -64,7 +65,8 @@ private:
 		DefaultPlayerProvisioner;
 
 	FExperiencePlayerProvisioningSettings CachedSettings;
-	TArray<FPendingGameplayProvision> PendingGameplayProvisions;
+	TArray<TWeakObjectPtr<APlayerController>> PendingGameplayPlayers;
+	TMap<TObjectKey<APlayerController>, TWeakObjectPtr<APawn>> ReadyGameplayPawns;
 	TSharedPtr<FStreamableHandle> ProvisioningContentLoadHandle;
 	bool bProvisioningContentLoadPending = false;
 	bool bProvisioningContentReady = false;

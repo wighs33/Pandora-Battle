@@ -1,16 +1,15 @@
 #include "Component/Lobby/LobbyPlayerCoordinatorComponent.h"
 
+#include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/GameSession.h"
 #include "GameFramework/GameStateBase.h"
 #include "Lobby/Contents/LobbyGameMode.h"
-#include "Lobby/Contents/LobbyHUD.h"
-#include "Lobby/Contents/LobbyPlayerController.h"
 #include "Lobby/Contents/LobbyPlayerState.h"
 #include "Lobby/Coordination/LobbyMatchCoordinator.h"
-#include "Mode/PdGameInstance.h"
-#include "TimerManager.h"
+#include "Engine/GameInstance.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyPlayerCoordinatorComponent)
 
@@ -34,10 +33,10 @@ InitializeLobbyPlayerState(
 	if (LobbyPlayerState->GetNickname().IsEmpty())
 	{
 		++NicknameIndex;
-		const UPdGameInstance* GameInstance =
-			GameMode->GetGameInstance<UPdGameInstance>();
-		const FText DefaultNickname = GameInstance
-			? GameInstance->ResolveDefaultPlayerNickname(
+		const ULobbyRuntimeSubsystem* LobbySubsystem =
+			UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance());
+		const FText DefaultNickname = LobbySubsystem
+			? LobbySubsystem->ResolveDefaultPlayerNickname(
 				PlayerController,
 				LobbyPlayerState,
 				NicknameIndex)
@@ -59,29 +58,6 @@ InitializeLobbyPlayerState(
 			->AssignLobbyTeamColorIfNeeded(
 				LobbyPlayerState);
 	}
-}
-
-void ULobbyPlayerCoordinatorComponent::HandlePlayerLogout(
-	AController* ExitingController)
-{
-	static_cast<void>(ExitingController);
-
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	UWorld* World = GameMode
-		? GameMode->GetWorld()
-		: nullptr;
-	if (!GameMode || !World)
-	{
-		return;
-	}
-
-	FTimerDelegate RefreshDelegate;
-	RefreshDelegate.BindWeakLambda(this, [this]()
-	{
-		RefreshLobbyUIForAllPlayers();
-	});
-	World->GetTimerManager().SetTimerForNextTick(
-		RefreshDelegate);
 }
 
 void ULobbyPlayerCoordinatorComponent::KickPlayer(
@@ -113,74 +89,8 @@ void ULobbyPlayerCoordinatorComponent::KickPlayer(
 	}
 
 	TargetPlayerState->SetLeavingLobby(true);
-	ResetLobbyReadyStates();
-	RefreshLobbyUIForAllPlayers();
 
 	ForceKickPlayer(TargetPlayerController);
-}
-
-void ULobbyPlayerCoordinatorComponent::
-ResetLobbyReadyStates() const
-{
-	const ALobbyGameMode* GameMode =
-		GetLobbyGameMode();
-	if (!GameMode || !GameMode->GameState)
-	{
-		return;
-	}
-
-	for (APlayerState* PlayerState :
-		GameMode->GameState->PlayerArray)
-	{
-		if (ALobbyPlayerState* LobbyPlayerState =
-			Cast<ALobbyPlayerState>(PlayerState))
-		{
-			LobbyPlayerState->SetReady(false);
-		}
-	}
-}
-
-void ULobbyPlayerCoordinatorComponent::
-RefreshLobbyUIForAllPlayers() const
-{
-	const ALobbyGameMode* GameMode =
-		GetLobbyGameMode();
-	UWorld* World = GameMode
-		? GameMode->GetWorld()
-		: nullptr;
-	if (!World)
-	{
-		return;
-	}
-
-	for (FConstPlayerControllerIterator Iterator =
-		World->GetPlayerControllerIterator();
-		Iterator;
-		++Iterator)
-	{
-		ALobbyPlayerController* LobbyPlayerController =
-			Cast<ALobbyPlayerController>(
-				Iterator->Get());
-		if (!LobbyPlayerController)
-		{
-			continue;
-		}
-
-		if (LobbyPlayerController->IsLocalController())
-		{
-			if (ALobbyHUD* LobbyHUD =
-				LobbyPlayerController
-					->GetHUD<ALobbyHUD>())
-			{
-				LobbyHUD->RefreshLobbyUI();
-			}
-		}
-		else
-		{
-			LobbyPlayerController
-				->Client_RefreshLobbyUI();
-		}
-	}
 }
 
 APlayerController* ULobbyPlayerCoordinatorComponent::
@@ -284,7 +194,7 @@ FindAvailableLobbySpawnIndex(
 	const int32 SearchLimit = FMath::Max(
 		GameMode
 			? GameMode
-				->GetSelectedLobbyMaxPlayerCount()
+				->GetLobbyConfigurationComponent()->GetSelectedLobbyMaxPlayerCount()
 			: 1,
 		1);
 	for (int32 SpawnIndex = 0;

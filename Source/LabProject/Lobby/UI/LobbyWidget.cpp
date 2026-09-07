@@ -1,5 +1,6 @@
 #include "Lobby/UI/LobbyWidget.h"
 
+#include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "AudioSlider.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Blueprint/WidgetTree.h"
@@ -41,6 +42,10 @@ void ULobbyWidget::NativeConstruct()
 	SetFocus();
 
 	ApplyWidgetDefinitionSettings();
+	if (const UTextBlock* WarningText = FindTeamBalanceWarningText())
+	{
+		DefaultTeamBalanceWarningText = WarningText->GetText();
+	}
 	ApplyLobbyInputPassthroughVisibility();
 	if (!bHasDefaultSelectedMapPlayerCountColor)
 	{
@@ -164,6 +169,11 @@ bool ULobbyWidget::CloseTopmostUiForEscape()
 
 void ULobbyWidget::NativeDestruct()
 {
+	if (UTextBlock* WarningText = FindTeamBalanceWarningText())
+	{
+		WarningText->SetText(DefaultTeamBalanceWarningText);
+	}
+
 	if (AudioVolumeControl)
 	{
 		AudioVolumeControl->Shutdown();
@@ -367,11 +377,12 @@ void ULobbyWidget::RefreshUI()
 
 	if (UTextBlock* WarningText = FindTeamBalanceWarningText())
 	{
-		const bool bShowWarning = !bStartPending && LobbyPlayerStates.Num() > 0 && !bTeamsBalanced;
-		if (!TeamBalanceWarningText.IsEmpty())
-		{
-			WarningText->SetText(TeamBalanceWarningText);
-		}
+		const ALobbyGameState* GameState = GetLobbyGameState();
+		const bool bExperienceFailed = GameState && GameState->HasExperienceLoadFailed();
+		const bool bShowWarning = !bStartPending && (bExperienceFailed || (LobbyPlayerStates.Num() > 0 && !bTeamsBalanced));
+		WarningText->SetText(bExperienceFailed
+			? NSLOCTEXT("Lobby", "ExperienceLoadFailed", "Lobby content failed to load. Leave and rejoin the room.")
+			: (TeamBalanceWarningText.IsEmpty() ? DefaultTeamBalanceWarningText : TeamBalanceWarningText));
 		SetTeamBalanceWarningVisibility(bShowWarning ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 
@@ -619,7 +630,7 @@ void ULobbyWidget::HandleMapPreviousClicked()
 		return;
 	}
 
-	LobbyGameMode->SelectLobbyMapByOffset(-1);
+	LobbyGameMode->GetLobbyConfigurationComponent()->SelectLobbyMapByOffset(-1);
 	RefreshUI();
 }
 
@@ -631,7 +642,7 @@ void ULobbyWidget::HandleMapNextClicked()
 		return;
 	}
 
-	LobbyGameMode->SelectLobbyMapByOffset(1);
+	LobbyGameMode->GetLobbyConfigurationComponent()->SelectLobbyMapByOffset(1);
 	RefreshUI();
 }
 
@@ -926,7 +937,7 @@ bool ULobbyWidget::GetSelectedMapOptionForUI(FLobbyMatchMapOption& OutMapOption)
 
 	if (const ALobbyGameMode* LobbyGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALobbyGameMode>() : nullptr)
 	{
-		return LobbyGameMode->GetSelectedLobbyMapOption(OutMapOption);
+		return LobbyGameMode->GetLobbyConfigurationComponent()->GetSelectedLobbyMapOption(OutMapOption);
 	}
 
 	return false;
@@ -950,7 +961,7 @@ void ULobbyWidget::RefreshSelectedMapUI()
 	const bool bHasMapOption = GetSelectedMapOptionForUI(MapOption);
 	const bool bIsServer = GetWorld() && GetWorld()->GetAuthGameMode() != nullptr;
 	const ALobbyGameMode* LobbyGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALobbyGameMode>() : nullptr;
-	const int32 OptionCount = LobbyGameMode ? LobbyGameMode->GetLobbyMapOptionCount() : 0;
+	const int32 OptionCount = LobbyGameMode ? LobbyGameMode->GetLobbyConfigurationComponent()->GetLobbyMapOptionCount() : 0;
 	const int32 ActivePlayers = GetLobbyPlayerStates().Num();
 	const int32 MaxPlayers = bHasMapOption
 		? FMath::Max(MapOption.MaxPlayerCount, 1)

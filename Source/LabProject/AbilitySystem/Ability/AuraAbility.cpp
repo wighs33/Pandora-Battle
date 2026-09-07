@@ -1,5 +1,6 @@
 #include "AbilitySystem/Ability/AuraAbility.h"
 
+#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "AbilitySystem/EffectActors/EffectAreaBase.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
@@ -164,9 +165,9 @@ void UAuraAbility::ActivateAbility(
 	ActiveAuraSkillDataAsset = SkillDataAsset;
 	ActiveAuraSourceCharacter = GetPdCharacterFromActorInfo();
 	StartDurationMovementLock();
-	SpawnConfiguredCharacterDecal();
-	StartConfiguredDefaultFX();
-	StartConfiguredCharacterOverlay();
+	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
+	GetPresentationRuntime().StartConfiguredDefaultFX(*this);
+	GetPresentationRuntime().StartConfiguredCharacterOverlay(*this);
 	ApplyMovementSpeedIncrease(SkillDataAsset);
 	StartMovementContactDamage();
 	StartAuraEffectAreaSpawning(SkillDataAsset);
@@ -197,13 +198,9 @@ void UAuraAbility::ActivateAbility(
 	AuraDurationTask->ReadyForActivation();
 }
 
-void UAuraAbility::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const bool bReplicateEndAbility,
-	const bool bWasCancelled)
+void UAuraAbility::OnAbilityEnding()
 {
+	Super::OnAbilityEnding();
 	if (AuraDurationTask)
 	{
 		AuraDurationTask->EndTask();
@@ -215,8 +212,6 @@ void UAuraAbility::EndAbility(
 	RemoveMovementSpeedIncrease();
 	ActiveAuraSkillDataAsset = nullptr;
 	ActiveAuraSourceCharacter.Reset();
-
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UAuraAbility::InputReleased(
@@ -674,7 +669,7 @@ FVector UAuraAbility::ResolveHealFieldOrigin(ACharacterBase* SourceCharacter) co
 		return FVector::ZeroVector;
 	}
 
-	const FVector GroundLocation = ResolveConfiguredCharacterDecalLocation(SourceCharacter);
+	const FVector GroundLocation = GetPresentationRuntime().ResolveConfiguredCharacterDecalLocation(SourceCharacter);
 	return GroundLocation.IsNearlyZero() ? SourceCharacter->GetActorLocation() : GroundLocation;
 }
 
