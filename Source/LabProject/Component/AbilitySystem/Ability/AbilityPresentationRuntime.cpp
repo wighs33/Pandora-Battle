@@ -164,7 +164,7 @@ void UAbilityPresentationRuntime::StopConfiguredMissilePresentation(
 		false);
 }
 
-void UAbilityPresentationRuntime::CleanupConfiguredPresentation()
+void UAbilityPresentationRuntime::DestroyActiveSkillPresentationActor()
 {
 	if (ASkillPresentationActor* PresentationActor =
 		ActiveSkillPresentationActor.Get())

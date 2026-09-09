@@ -8,7 +8,7 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
-#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Pandora/PandoraSkillSource.h"
 #include "Component/Player/EquipmentComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HitReactAbility)
 
@@ -17,9 +17,9 @@ namespace
 const USkillDefinition* ResolveSkillDataAssetFromSpec(const FGameplayAbilitySpec& AbilitySpec)
 {
 	const UObject* SourceObject = AbilitySpec.SourceObject.Get();
-	if (const UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(SourceObject))
+	if (const UPandoraSkillSource* SkillSource = Cast<UPandoraSkillSource>(SourceObject))
 	{
-		return RuntimeContext->GetSkillDataAsset();
+		return SkillSource->GetSkillDataAsset();
 	}
 
 	if (const USkillDefinition* SkillDataAsset = Cast<USkillDefinition>(SourceObject))

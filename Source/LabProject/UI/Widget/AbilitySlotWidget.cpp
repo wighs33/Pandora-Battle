@@ -19,7 +19,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Mode/PdPlayerController.h"
-#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Pandora/PandoraSkillSource.h"
 #include "TimerManager.h"
 #include "UI/Widget/InputKeyIconResolver.h"
 #include "Definition/UI/WidgetClassDefinition.h"
@@ -485,10 +485,10 @@ const FSkill* UAbilitySlotWidget::ResolvePandoraSkill() const
 	}
 
 	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle);
-	const UPandoraSkillRuntimeContext* RuntimeContext = AbilitySpec
-		? Cast<UPandoraSkillRuntimeContext>(AbilitySpec->SourceObject.Get())
+	const UPandoraSkillSource* SkillSource = AbilitySpec
+		? Cast<UPandoraSkillSource>(AbilitySpec->SourceObject.Get())
 		: nullptr;
-	return RuntimeContext ? RuntimeContext->GetPandoraSkill() : nullptr;
+	return SkillSource ? SkillSource->GetPandoraSkill() : nullptr;
 }
 
 const USkillDefinition* UAbilitySlotWidget::ResolveSkillDataAsset() const
@@ -504,10 +504,10 @@ const USkillDefinition* UAbilitySlotWidget::ResolveSkillDataAsset() const
 	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
 	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent ? AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle) : nullptr;
 	const UObject* SourceObject = AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr;
-	const UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(SourceObject);
-	if (RuntimeContext)
+	const UPandoraSkillSource* SkillSource = Cast<UPandoraSkillSource>(SourceObject);
+	if (SkillSource)
 	{
-		return RuntimeContext->GetSkillDataAsset();
+		return SkillSource->GetSkillDataAsset();
 	}
 	if (const USkillDefinition* SourceSkillDataAsset = Cast<USkillDefinition>(SourceObject))
 	{

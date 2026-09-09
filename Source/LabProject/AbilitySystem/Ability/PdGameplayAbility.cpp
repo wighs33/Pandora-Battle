@@ -13,7 +13,7 @@
 #include "Component/AbilitySystem/Ability/AbilityResourceRuntime.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
-#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Pandora/PandoraSkillSource.h"
 #include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/CombatComponent.h"
@@ -88,7 +88,13 @@ void UPdGameplayAbility::AppendCooldownRemovalPolicyTags(
 	ResourceRuntime->AppendCooldownRemovalPolicyTags(CooldownSpecHandle, CooldownRemovalPolicyTags);
 }
 
-void UPdGameplayAbility::SuppressPendingCooldownForRuntimeReset() const
+bool UPdGameplayAbility::ShouldConfirmTargetingOnInputRelease() const
+{
+	const USkillDefinition* Skill = GetSourceSkillDataAsset();
+	return Skill && Skill->SkillType == ESkillType::Press;
+}
+
+void UPdGameplayAbility::DisableCooldownOnAbilityEnd() const
 {
 	ResourceRuntime->SuppressPendingCooldown();
 }
@@ -106,7 +112,7 @@ void UPdGameplayAbility::PreActivate(
 		const APdPlayerState* PlayerState = Cast<APdPlayerState>(ActorInfo->OwnerActor.Get());
 		const UPandoraComponent* Pandora = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
 		const FGameplayAbilitySpec* Spec = ActorInfo->AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
-		UPandoraSkillRuntimeContext* Source = Spec ? Cast<UPandoraSkillRuntimeContext>(Spec->SourceObject.Get()) : nullptr;
+		UPandoraSkillSource* Source = Spec ? Cast<UPandoraSkillSource>(Spec->SourceObject.Get()) : nullptr;
 		if (Source && Pandora && Source->GetPandoraDefinition() == Pandora->GetCurrentPandoraDefinition())
 		{
 			Source->Initialize(Source->GetPandoraDefinition(), Source->GetSkillDataAsset(), Source->GetSkillIndex(),
@@ -119,7 +125,7 @@ void UPdGameplayAbility::PreActivate(
 		ActivationInfo,
 		OnGameplayAbilityEndedDelegate,
 		TriggerEventData);
-	CleanupConfiguredPresentation();
+	DestroyActiveSkillPresentationActor();
 
 	UPdAbilitySystemComponent* AbilitySystemComponent = ActorInfo
 		? Cast<UPdAbilitySystemComponent>(
@@ -260,7 +266,7 @@ void UPdGameplayAbility::EndAbility(
 		GetAssetTags().HasTagExact(LabGameplayTags::Action_Equip)
 		|| GetAssetTags().HasTagExact(LabGameplayTags::Action_Unequip);
 
-	CleanupConfiguredPresentation();
+	DestroyActiveSkillPresentationActor();
 	StopConfiguredSelfBuff();
 	StopMovementContactDamage();
 	StopDurationMovementLock();
@@ -486,7 +492,7 @@ const USkillDefinition* UPdGameplayAbility::ResolveSourceSkillDataAsset(UObject*
 	{
 		return SkillDefinition;
 	}
-	const UPandoraSkillRuntimeContext* Source = Cast<UPandoraSkillRuntimeContext>(SourceObject);
+	const UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(SourceObject);
 	return Source ? Source->GetSkillDataAsset() : nullptr;
 }
 
@@ -495,14 +501,14 @@ USkillDefinition* UPdGameplayAbility::GetSourceSkillDataAsset() const
 	return const_cast<USkillDefinition*>(ResolveSourceSkillDataAsset(GetCurrentSourceObject()));
 }
 
-UPandoraSkillRuntimeContext* UPdGameplayAbility::GetSourceSkillRuntimeContext() const
+UPandoraSkillSource* UPdGameplayAbility::GetPandoraSkillSource() const
 {
-	return Cast<UPandoraSkillRuntimeContext>(GetCurrentSourceObject());
+	return Cast<UPandoraSkillSource>(GetCurrentSourceObject());
 }
 
 TArray<FProjectileImpactEffectAreaSpawnConfig> UPdGameplayAbility::GetSourceProjectileImpactEffectAreas() const
 {
-	const UPandoraSkillRuntimeContext* Source = GetSourceSkillRuntimeContext();
+	const UPandoraSkillSource* Source = GetPandoraSkillSource();
 	return Source ? Source->GetProjectileImpactEffectAreas() : TArray<FProjectileImpactEffectAreaSpawnConfig>();
 }
 
@@ -557,7 +563,7 @@ float UPdGameplayAbility::ApplyIntelligenceToSkillDamage(const float DamageMagni
 	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	const UBasicAttributeSet* Attributes = ASC ? ASC->GetSet<UBasicAttributeSet>() : nullptr;
 	float DamageBonusPercent = Attributes ? FMath::Max(Attributes->GetIntelligence(), 0.0f) : 0.0f;
-	const UPandoraSkillRuntimeContext* Source = GetSourceSkillRuntimeContext();
+	const UPandoraSkillSource* Source = GetPandoraSkillSource();
 	if (Attributes && Source)
 	{
 		switch (Source->GetLoadoutDirection())
@@ -793,9 +799,9 @@ const UAbilityPresentationRuntime& UPdGameplayAbility::GetPresentationRuntime() 
 }
 
 // 재시전·종료·ASC 리셋에서 이 능력이 남긴 연출 액터를 공통으로 정리한다.
-void UPdGameplayAbility::CleanupConfiguredPresentation()
+void UPdGameplayAbility::DestroyActiveSkillPresentationActor()
 {
-	PresentationRuntime->CleanupConfiguredPresentation();
+	PresentationRuntime->DestroyActiveSkillPresentationActor();
 }
 
 // 자기 버프의 게임 규칙은 능력이 적용한다. 시각효과 객체에는 메시 확대 연출만 맡긴다.
@@ -1085,7 +1091,7 @@ bool UPdGameplayAbility::CanActivateAbility(FGameplayAbilitySpecHandle Handle, c
 	const FGameplayAbilitySpec* Spec = ASC ? ASC->FindAbilitySpecFromHandle(Handle) : nullptr;
 	if (Spec && Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora))
 	{
-		const UPandoraSkillRuntimeContext* Source = Cast<UPandoraSkillRuntimeContext>(Spec->SourceObject.Get());
+		const UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(Spec->SourceObject.Get());
 		if (!Source || !Source->IsSourceReady() || !Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Pandora_Selected))
 		{
 			return false;
@@ -1107,7 +1113,7 @@ void UPdGameplayAbility::GetCooldownTimeRemainingAndDuration(FGameplayAbilitySpe
 {
 	const UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	const FGameplayAbilitySpec* Spec = ASC ? ASC->FindAbilitySpecFromHandle(Handle) : nullptr;
-	const UPandoraSkillRuntimeContext* Source = Spec ? Cast<UPandoraSkillRuntimeContext>(Spec->SourceObject.Get()) : nullptr;
+	const UPandoraSkillSource* Source = Spec ? Cast<UPandoraSkillSource>(Spec->SourceObject.Get()) : nullptr;
 	if (Source)
 	{
 		UAbilityResourceRuntime::GetPandoraCooldown(*ASC, *Source, TimeRemaining, CooldownDuration);

@@ -4,7 +4,7 @@
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Common/LabGameplayTags.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Pandora/PandoraSkillSource.h"
 #include "TimerManager.h"
 
 namespace
@@ -49,7 +49,7 @@ namespace
 	{
 		for (FGameplayAbilitySpec& Spec : ASC.GetActivatableAbilities())
 		{
-			const UPandoraSkillRuntimeContext* Source = Cast<UPandoraSkillRuntimeContext>(Spec.SourceObject.Get());
+			const UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(Spec.SourceObject.Get());
 			if (Spec.Ability && Spec.Ability->GetClass() == AbilityClass && Source
 				&& Source->GetPandoraDefinition() == Definition && Source->GetSkillIndex() == SkillIndex)
 			{
@@ -90,13 +90,13 @@ TArray<FGameplayAbilitySpecHandle> FPandoraSkillBinder::GrantPandoraContent(
 				// 실행 중인 시전의 원본은 건드리지 않는다. 다음 시전은 PreActivate에서 선택 방향을 반영한다.
 				if (!ExistingSpec->IsActive())
 				{
-					CastChecked<UPandoraSkillRuntimeContext>(ExistingSpec->SourceObject.Get())->Initialize(
+					CastChecked<UPandoraSkillSource>(ExistingSpec->SourceObject.Get())->Initialize(
 						Definition, Skill.SkillDefinition.Get(), SkillIndex, SkillLevel, LoadoutDirection);
 				}
 				continue;
 			}
 
-			UPandoraSkillRuntimeContext* Source = NewObject<UPandoraSkillRuntimeContext>(ASC);
+			UPandoraSkillSource* Source = NewObject<UPandoraSkillSource>(ASC);
 			Source->Initialize(Definition, Skill.SkillDefinition.Get(), SkillIndex, SkillLevel, LoadoutDirection);
 			FGameplayAbilitySpec Spec(AbilityClass, SkillLevel, INDEX_NONE, Source);
 			Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Ability_Source_Pandora);
@@ -154,7 +154,7 @@ void FPandoraSkillBinder::RefreshInputBindings(
 	}
 	for (FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
 	{
-		const UPandoraSkillRuntimeContext* Source = Cast<UPandoraSkillRuntimeContext>(Spec.SourceObject.Get());
+		const UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(Spec.SourceObject.Get());
 		if (!Source || !Spec.Ability)
 		{
 			continue;

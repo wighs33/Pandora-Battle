@@ -2,7 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
-#include "Component/Player/PlayerLoadoutComponent.h"
+#include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
@@ -21,7 +21,7 @@ void FReplicatedInventoryList::PostReplicatedReceive(const FFastArraySerializer:
 {
 	if (Owner)
 	{
-		Owner->RefreshPandoraWeaponLoadoutPresentationAssets();
+		Owner->RefreshWeaponLoadoutPresentationAssets();
 		Owner->FlushInventoryChanges();
 	}
 }
@@ -245,7 +245,7 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
 	ClearConsumableQuickSlotReferencesToItem(ItemId);
 	ClearEquipmentSlotReferencesToItem(ItemId);
-	ClearPandoraWeaponLoadoutReferencesToItem(ItemId);
+	ClearLoadoutSlotsReferencingWeapon(ItemId);
 	NotifyInventoryChanged();
 	return true;
 }
@@ -322,11 +322,11 @@ void UInventoryComponent::OnRep_ConsumableQuickSlotItemIds()
 	NotifyInventoryChanged();
 }
 
-void UInventoryComponent::OnRep_PandoraWeaponLoadoutItemIds()
+void UInventoryComponent::OnRep_WeaponIdsByLoadoutSlot()
 {
-	EnsurePandoraWeaponLoadoutArray();
-	RefreshPandoraWeaponLoadoutPresentationAssets();
-	OnPandoraWeaponLoadoutChanged.Broadcast();
+	EnsureWeaponLoadoutSlotCount();
+	RefreshWeaponLoadoutPresentationAssets();
+	OnWeaponLoadoutChanged.Broadcast();
 }
 
 void UInventoryComponent::OnRep_EquippedItemSlots()
@@ -350,11 +350,11 @@ void UInventoryComponent::ServerUseConsumableQuickSlot_Implementation(const int3
 	UseConsumableQuickSlot(SlotIndex);
 }
 
-void UInventoryComponent::ServerSetPandoraWeaponLoadoutSlot_Implementation(
+void UInventoryComponent::ServerSetWeaponIdForLoadoutSlot_Implementation(
 	const EEnum_Direction Direction,
 	const FGuid ItemId)
 {
-	SetPandoraWeaponLoadoutItemId(Direction, ItemId);
+	SetWeaponIdForLoadoutSlot(Direction, ItemId);
 }
 
 void UInventoryComponent::ServerSetEquipmentSlot_Implementation(
@@ -389,11 +389,11 @@ void UInventoryComponent::EnsureConsumableQuickSlotArray()
 	}
 }
 
-void UInventoryComponent::EnsurePandoraWeaponLoadoutArray()
+void UInventoryComponent::EnsureWeaponLoadoutSlotCount()
 {
-	if (PandoraWeaponLoadoutItemIds.Num() != PandoraWeaponLoadoutSlotCount)
+	if (WeaponIdsByLoadoutSlot.Num() != WeaponLoadoutSlotCount)
 	{
-		PandoraWeaponLoadoutItemIds.SetNum(PandoraWeaponLoadoutSlotCount);
+		WeaponIdsByLoadoutSlot.SetNum(WeaponLoadoutSlotCount);
 	}
 }
 
@@ -603,7 +603,7 @@ bool UInventoryComponent::ClearEquipmentSlotReferencesToItem(
 	return true;
 }
 
-bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
+bool UInventoryComponent::SetWeaponIdForLoadoutSlot(
 	const EEnum_Direction Direction,
 	const FGuid ItemId)
 {
@@ -618,16 +618,16 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 		return false;
 	}
 
-	EnsurePandoraWeaponLoadoutArray();
+	EnsureWeaponLoadoutSlotCount();
 	APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	UPlayerLoadoutComponent* LoadoutComponent = PlayerState ? PlayerState->GetPlayerLoadoutComponent() : nullptr;
-	const EEnum_Direction SelectedDirection = LoadoutComponent
+	USelectingPandoraAndWeaponComponent* PandoraAndWeaponComponent = PlayerState ? PlayerState->GetSelectingPandoraAndWeaponComponent() : nullptr;
+	const EEnum_Direction SelectedDirection = PandoraAndWeaponComponent
 		? PandoraLoadout::GetDirectionFromLoadoutNumber(
-			LoadoutComponent->GetSelectedLoadoutNumber())
+			PandoraAndWeaponComponent->GetSelectedPandoraAndWeaponNumber())
 		: EEnum_Direction::Center;
 	const FGuid PreviousSelectedWeaponId =
 		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
-			? GetPandoraWeaponLoadoutItemId(SelectedDirection)
+			? GetWeaponIdForLoadoutSlot(SelectedDirection)
 			: FGuid();
 	if (ItemId.IsValid())
 	{
@@ -641,70 +641,70 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutItemId(
 	bool bChanged = false;
 	if (ItemId.IsValid())
 	{
-		for (int32 ExistingIndex = 0; ExistingIndex < PandoraWeaponLoadoutItemIds.Num(); ++ExistingIndex)
+		for (int32 ExistingIndex = 0; ExistingIndex < WeaponIdsByLoadoutSlot.Num(); ++ExistingIndex)
 		{
-			if (ExistingIndex != SlotIndex && PandoraWeaponLoadoutItemIds[ExistingIndex] == ItemId)
+			if (ExistingIndex != SlotIndex && WeaponIdsByLoadoutSlot[ExistingIndex] == ItemId)
 			{
-				PandoraWeaponLoadoutItemIds[ExistingIndex].Invalidate();
+				WeaponIdsByLoadoutSlot[ExistingIndex].Invalidate();
 				bChanged = true;
 			}
 		}
 	}
 
-	if (PandoraWeaponLoadoutItemIds[SlotIndex] != ItemId)
+	if (WeaponIdsByLoadoutSlot[SlotIndex] != ItemId)
 	{
-		PandoraWeaponLoadoutItemIds[SlotIndex] = ItemId;
+		WeaponIdsByLoadoutSlot[SlotIndex] = ItemId;
 		bChanged = true;
 	}
 
 	if (!bChanged)
 	{
-		RefreshPandoraWeaponLoadoutPresentationAssets();
-		if (LoadoutComponent && SelectedDirection == Direction)
+		RefreshWeaponLoadoutPresentationAssets();
+		if (PandoraAndWeaponComponent && SelectedDirection == Direction)
 		{
-			LoadoutComponent->ApplySelectedLoadout();
+			PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
 		}
 		return true;
 	}
 
-	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, PandoraWeaponLoadoutItemIds, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, WeaponIdsByLoadoutSlot, this);
 	if (AActor* OwnerActor = GetOwner())
 	{
 		OwnerActor->ForceNetUpdate();
 	}
-	RefreshPandoraWeaponLoadoutPresentationAssets();
-	OnPandoraWeaponLoadoutChanged.Broadcast();
+	RefreshWeaponLoadoutPresentationAssets();
+	OnWeaponLoadoutChanged.Broadcast();
 	const bool bSelectedWeaponChanged =
 		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
 		&& PreviousSelectedWeaponId
-			!= GetPandoraWeaponLoadoutItemId(SelectedDirection);
-	if (LoadoutComponent
+			!= GetWeaponIdForLoadoutSlot(SelectedDirection);
+	if (PandoraAndWeaponComponent
 		&& (SelectedDirection == Direction || bSelectedWeaponChanged))
 	{
-		LoadoutComponent->ApplySelectedLoadout();
+		PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
 	}
 	return true;
 }
 
-bool UInventoryComponent::ClearPandoraWeaponLoadoutReferencesToItem(const FGuid ItemId)
+bool UInventoryComponent::ClearLoadoutSlotsReferencingWeapon(const FGuid ItemId)
 {
 	if (!HasInventoryAuthority() || !ItemId.IsValid())
 	{
 		return false;
 	}
 
-	EnsurePandoraWeaponLoadoutArray();
+	EnsureWeaponLoadoutSlotCount();
 	APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	UPlayerLoadoutComponent* LoadoutComponent = PlayerState ? PlayerState->GetPlayerLoadoutComponent() : nullptr;
-	const EEnum_Direction SelectedDirection = LoadoutComponent
+	USelectingPandoraAndWeaponComponent* PandoraAndWeaponComponent = PlayerState ? PlayerState->GetSelectingPandoraAndWeaponComponent() : nullptr;
+	const EEnum_Direction SelectedDirection = PandoraAndWeaponComponent
 		? PandoraLoadout::GetDirectionFromLoadoutNumber(
-			LoadoutComponent->GetSelectedLoadoutNumber())
+			PandoraAndWeaponComponent->GetSelectedPandoraAndWeaponNumber())
 		: EEnum_Direction::Center;
 	const bool bClearsSelectedWeapon =
 		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
-		&& GetPandoraWeaponLoadoutItemId(SelectedDirection) == ItemId;
+		&& GetWeaponIdForLoadoutSlot(SelectedDirection) == ItemId;
 	bool bChanged = false;
-	for (FGuid& WeaponItemId : PandoraWeaponLoadoutItemIds)
+	for (FGuid& WeaponItemId : WeaponIdsByLoadoutSlot)
 	{
 		if (WeaponItemId == ItemId)
 		{
@@ -718,12 +718,12 @@ bool UInventoryComponent::ClearPandoraWeaponLoadoutReferencesToItem(const FGuid 
 		return false;
 	}
 
-	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, PandoraWeaponLoadoutItemIds, this);
-	RefreshPandoraWeaponLoadoutPresentationAssets();
-	OnPandoraWeaponLoadoutChanged.Broadcast();
-	if (LoadoutComponent && bClearsSelectedWeapon)
+	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, WeaponIdsByLoadoutSlot, this);
+	RefreshWeaponLoadoutPresentationAssets();
+	OnWeaponLoadoutChanged.Broadcast();
+	if (PandoraAndWeaponComponent && bClearsSelectedWeapon)
 	{
-		LoadoutComponent->ApplySelectedLoadout();
+		PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
 	}
 	return true;
 }

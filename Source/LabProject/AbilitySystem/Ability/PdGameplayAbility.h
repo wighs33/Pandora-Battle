@@ -19,7 +19,7 @@ class UAnimMontage;
 class UGameplayEffect;
 class UNiagaraSystem;
 class USkillDefinition;
-class UPandoraSkillRuntimeContext;
+class UPandoraSkillSource;
 class UAbilityMovementRuntime;
 class UAbilityPresentationRuntime;
 class UAbilityResourceRuntime;
@@ -58,16 +58,16 @@ public:
 
 	bool ShouldAutoActivateWhenGranted() const { return bAutoActivateWhenGranted; }
 	// 단계형 스킬은 키를 떼는 대신 기본 공격 같은 별도 입력으로 시전을 확정할 수 있다.
-	virtual bool ShouldAutoConfirmOnInputRelease() const { return true; }
+	virtual bool ShouldConfirmTargetingOnInputRelease() const;
 
 	void AppendCooldownRemovalPolicyTags(FGameplayEffectSpecHandle& CooldownSpecHandle) const;
 	virtual FGameplayTag GetDefaultInputTag() const { return FGameplayTag(); }
-	void SuppressPendingCooldownForRuntimeReset() const;
-	void CleanupConfiguredPresentation();
+	void DisableCooldownOnAbilityEnd() const;
+	void DestroyActiveSkillPresentationActor();
 
 	USkillDefinition* GetSourceSkillDataAsset() const;
 
-	UPandoraSkillRuntimeContext* GetSourceSkillRuntimeContext() const;
+	UPandoraSkillSource* GetPandoraSkillSource() const;
 
 	TArray<FProjectileImpactEffectAreaSpawnConfig> GetSourceProjectileImpactEffectAreas() const;
 

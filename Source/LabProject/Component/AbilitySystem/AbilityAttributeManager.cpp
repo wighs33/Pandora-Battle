@@ -1,4 +1,4 @@
-#include "Component/AbilitySystem/AbilityAttributeRuntime.h"
+#include "Component/AbilitySystem/AbilityAttributeManager.h"
 
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
@@ -8,9 +8,9 @@
 #include "GameplayEffect.h"
 #include "Net/Core/PushModel/PushModel.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityAttributeRuntime)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityAttributeManager)
 
-int32 UAbilityAttributeRuntime::AddAttributeConfig(const FAttributeConfig& AttributeConfig)
+int32 UAbilityAttributeManager::AddAttributeConfig(const FAttributeConfig& AttributeConfig)
 {
 	if (!AttributeConfig.HasAnyData())
 	{
@@ -23,7 +23,7 @@ int32 UAbilityAttributeRuntime::AddAttributeConfig(const FAttributeConfig& Attri
 	return AttributeConfigHandle;
 }
 
-void UAbilityAttributeRuntime::RemoveAttributeConfig(const int32 AttributeConfigHandle)
+void UAbilityAttributeManager::RemoveAttributeConfig(const int32 AttributeConfigHandle)
 {
 	if (AttributeConfigHandle == INDEX_NONE)
 	{
@@ -34,7 +34,7 @@ void UAbilityAttributeRuntime::RemoveAttributeConfig(const int32 AttributeConfig
 	AttributeConfigOrder.Remove(AttributeConfigHandle);
 }
 
-bool UAbilityAttributeRuntime::HasAppliedConfiguredAttributeDefaults(
+bool UAbilityAttributeManager::HasAppliedConfiguredAttributeDefaults(
 	const UAttributeSet* AttributeSet,
 	const FSoftObjectPath& DefinitionPath) const
 {
@@ -44,7 +44,7 @@ bool UAbilityAttributeRuntime::HasAppliedConfiguredAttributeDefaults(
 		&& ConfiguredDefaultsDefinitionPath == DefinitionPath;
 }
 
-void UAbilityAttributeRuntime::MarkConfiguredAttributeDefaultsApplied(
+void UAbilityAttributeManager::MarkConfiguredAttributeDefaultsApplied(
 	UAttributeSet* AttributeSet,
 	const FSoftObjectPath& DefinitionPath)
 {
@@ -52,7 +52,7 @@ void UAbilityAttributeRuntime::MarkConfiguredAttributeDefaultsApplied(
 	ConfiguredDefaultsDefinitionPath = DefinitionPath;
 }
 
-void UAbilityAttributeRuntime::ClearConfiguredAttributeDefaultsApplied(
+void UAbilityAttributeManager::ClearConfiguredAttributeDefaultsApplied(
 	const UAttributeSet* AttributeSet,
 	const FSoftObjectPath& DefinitionPath)
 {
@@ -67,7 +67,7 @@ void UAbilityAttributeRuntime::ClearConfiguredAttributeDefaultsApplied(
 }
 
 // 초기 능력치와 시작 투자분을 한 번만 설정한다. 최종값 계산과 변경 알림은 GAS에 맡긴다.
-bool UAbilityAttributeRuntime::ApplyConfiguredAttributeDefaults(
+bool UAbilityAttributeManager::ApplyConfiguredAttributeDefaults(
 	UPdAbilitySystemComponent& ASC, const UStatUpgradeDefinition& Definition)
 {
 	UAttributeSet* AttributeSet = const_cast<UBasicAttributeSet*>(ASC.GetSet<UBasicAttributeSet>());
@@ -196,7 +196,7 @@ bool UAbilityAttributeRuntime::ApplyConfiguredAttributeDefaults(
 	return true;
 }
 
-bool UAbilityAttributeRuntime::ApplyAttributeDefaultValue(
+bool UAbilityAttributeManager::ApplyAttributeDefaultValue(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	const FGameplayAttribute& Attribute,
 	const float DefaultValue) const
@@ -231,7 +231,7 @@ bool UAbilityAttributeRuntime::ApplyAttributeDefaultValue(
 	return true;
 }
 
-bool UAbilityAttributeRuntime::ApplyStatUpEffectByTag(
+bool UAbilityAttributeManager::ApplyStatUpEffectByTag(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	TSubclassOf<UGameplayEffect> GameplayEffectClass,
 	const FGameplayTag StatTag,
@@ -254,7 +254,7 @@ bool UAbilityAttributeRuntime::ApplyStatUpEffectByTag(
 		Level);
 }
 
-bool UAbilityAttributeRuntime::ApplyStatUpEffectByTags(
+bool UAbilityAttributeManager::ApplyStatUpEffectByTags(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	TSubclassOf<UGameplayEffect> GameplayEffectClass,
 	const TMap<FGameplayTag, float>& StatMagnitudes,
@@ -308,7 +308,7 @@ bool UAbilityAttributeRuntime::ApplyStatUpEffectByTags(
 	return AppliedHandle.WasSuccessfullyApplied();
 }
 
-bool UAbilityAttributeRuntime::ResolveAttributeFromTag(
+bool UAbilityAttributeManager::ResolveAttributeFromTag(
 	const FGameplayTag& StatTag,
 	FGameplayAttribute& OutAttribute) const
 {
@@ -340,7 +340,7 @@ bool UAbilityAttributeRuntime::ResolveAttributeFromTag(
 	return false;
 }
 
-bool UAbilityAttributeRuntime::ResolveDamageMagnitudeSetByCallerTag(
+bool UAbilityAttributeManager::ResolveDamageMagnitudeSetByCallerTag(
 	const UPdAbilitySystemComponent& AbilitySystemComponent,
 	FGameplayTag& OutTag) const
 {
@@ -355,7 +355,7 @@ bool UAbilityAttributeRuntime::ResolveDamageMagnitudeSetByCallerTag(
 	return OutTag.IsValid();
 }
 
-bool UAbilityAttributeRuntime::ResolveStatUpOperationSetByCallerTag(
+bool UAbilityAttributeManager::ResolveStatUpOperationSetByCallerTag(
 	const UPdAbilitySystemComponent& AbilitySystemComponent,
 	FGameplayTag& OutTag) const
 {

@@ -20,6 +20,7 @@
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
+#include "ShaderPipelineCache.h"
 #include "UI/KillLogTypes.h"
 #include "UI/NotificationData.h"
 #include "UI/UiSubsystem.h"
@@ -361,6 +362,12 @@ bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 		|| !bGameEntryContentReady)
 	{
 		++TravelLoadingHideRetryCount;
+		return true;
+	}
+
+	// 콘텐츠 로드가 끝나도 등록된 PSO의 비동기 컴파일이 남아 있으면 화면을 유지한다.
+	if (FShaderPipelineCache::NumPrecompilesRemaining() > 0)
+	{
 		return true;
 	}
 

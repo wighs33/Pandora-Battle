@@ -11,7 +11,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Mode/PdPlayerState.h"
-#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Pandora/PandoraSkillSource.h"
 
 // 판도라를 교체해도 이미 부여된 능력의 스킬 출처는 새 선택으로 바뀌면 안 된다.
 // 출처 조회와 입력 해제만 검사하며, 실제 능력 실행·쿨다운 UI·네트워크 전달은 검사하지 않는다.
@@ -58,7 +58,7 @@ bool FAbilitySourceSelectionTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("First Pandora is selected before the change"), Pandora->GetCurrentPandoraDefinition() == FirstPandora);
 
-	UPandoraSkillRuntimeContext* Source = NewObject<UPandoraSkillRuntimeContext>(ASC);
+	UPandoraSkillSource* Source = NewObject<UPandoraSkillSource>(ASC);
 	Source->Initialize(FirstPandora, FirstSkill, 0, 1, EEnum_Direction::Left);
 	FGameplayAbilitySpec GrantSpec(UProjectileAbility::StaticClass(), 1, INDEX_NONE, Source);
 	GrantSpec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Input_Ability_Skill1);
@@ -89,7 +89,7 @@ bool FAbilitySourceSelectionTest::RunTest(const FString& Parameters)
 	// 확인: 새 선택은 반영되지만 기존 능력의 출처는 유지되고, 새 입력만 받지 않게 된다.
 	TestTrue(TEXT("Selection changes to the second Pandora"), Pandora->GetCurrentPandoraDefinition() == SecondPandora);
 	TestFalse(TEXT("Previous ability loses the skill input binding"), Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Input_Ability_Skill1));
-	TestTrue(TEXT("Previous ability retains its source context"), Ability->GetSourceSkillRuntimeContext() == Source);
+	TestTrue(TEXT("Previous ability retains its source context"), Ability->GetPandoraSkillSource() == Source);
 	TestTrue(TEXT("Previous ability still resolves the first skill"), Ability->GetSourceSkillDataAsset() == FirstSkill);
 	TestTrue(TEXT("Source still identifies the first Pandora"), Source->GetPandoraDefinition() == FirstPandora);
 	TestEqual(TEXT("Source direction remains unchanged"), Source->GetLoadoutDirection(), EEnum_Direction::Left);

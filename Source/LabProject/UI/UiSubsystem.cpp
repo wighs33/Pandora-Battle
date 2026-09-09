@@ -14,6 +14,7 @@
 #include "Lobby/UI/ConnectingPopupWidget.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerState.h"
+#include "ShaderPipelineCache.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/WidgetContentBundleLease.h"
 #include "View/MVVMView.h"
@@ -398,6 +399,12 @@ bool UUiSubsystem::TickStartupLoadingScreenReady(float)
 	}
 
 	if (!IsStartupContentReady())
+	{
+		return true;
+	}
+
+	// 시작 콘텐츠에서 요청한 PSO가 준비될 때까지 기존 티커로 확인한다.
+	if (FShaderPipelineCache::NumPrecompilesRemaining() > 0)
 	{
 		return true;
 	}

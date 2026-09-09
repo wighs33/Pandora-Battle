@@ -6,7 +6,7 @@
 #include "Component/Experience/ExperienceMatchFlowComponent.h"
 #include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
 #include "Component/Experience/ExperienceSpawnComponent.h"
-#include "Component/Player/PlayerLoadoutComponent.h"
+#include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Experience/ExperienceDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
@@ -128,9 +128,9 @@ void AExperienceGameMode::GenericPlayerInitialization(AController* Controller)
 	{
 		PlayerMatch->ResetForNewMatch(InitialMapRegion);
 	}
-	if (UPlayerLoadoutComponent* PlayerLoadout = PlayerState->GetPlayerLoadoutComponent())
+	if (USelectingPandoraAndWeaponComponent* PlayerLoadout = PlayerState->GetSelectingPandoraAndWeaponComponent())
 	{
-		PlayerLoadout->RequestSelectLoadout(0);
+		PlayerLoadout->RequestSelectPandoraAndWeapon(0);
 	}
 }
 

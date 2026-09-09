@@ -11,7 +11,7 @@
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
-#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Pandora/PandoraSkillSource.h"
 #include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityResourceRuntime)
@@ -329,7 +329,7 @@ bool UAbilityResourceRuntime::CheckConfiguredCooldown(
 		return true;
 	}
 	const FGameplayTag DefaultCooldownTag = LabGameplayTags::Cooldown;
-	const UPandoraSkillRuntimeContext* Source = AbilitySpec ? Cast<UPandoraSkillRuntimeContext>(AbilitySpec->SourceObject.Get()) : nullptr;
+	const UPandoraSkillSource* Source = AbilitySpec ? Cast<UPandoraSkillSource>(AbilitySpec->SourceObject.Get()) : nullptr;
 	bool bOnCooldown = false;
 	if (Source)
 	{
@@ -519,7 +519,7 @@ bool UAbilityResourceRuntime::TryCommitAdditionalActionStaminaCost(
 
 // 시전 가능 여부와 스킬바가 GAS의 동일한 효과를 조회한다. 별도의 쿨다운 사본은 보관하지 않는다.
 void UAbilityResourceRuntime::GetPandoraCooldown(const UAbilitySystemComponent& ASC,
-	const UPandoraSkillRuntimeContext& Source, float& OutRemaining, float& OutDuration)
+	const UPandoraSkillSource& Source, float& OutRemaining, float& OutDuration)
 {
 	OutRemaining = 0.0f;
 	OutDuration = 0.0f;

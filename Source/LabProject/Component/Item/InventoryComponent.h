@@ -18,7 +18,7 @@ DECLARE_LOG_CATEGORY_EXTERN(InventoryComponentLog, Log, All);
 DECLARE_DELEGATE_OneParam(FOnPdItemsAdded, const TArray<FPrimaryAssetId>&);
 DECLARE_MULTICAST_DELEGATE(FPdInventoryChanged);
 DECLARE_MULTICAST_DELEGATE(FPdEquipmentSlotsChanged);
-DECLARE_MULTICAST_DELEGATE(FPdPandoraWeaponLoadoutChanged);
+DECLARE_MULTICAST_DELEGATE(FPdWeaponLoadoutChanged);
 
 USTRUCT(BlueprintType)
 struct FItemList
@@ -121,7 +121,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	static constexpr int32 ConsumableQuickSlotCount = 4;
-	static constexpr int32 PandoraWeaponLoadoutSlotCount = 3;
+	static constexpr int32 WeaponLoadoutSlotCount = 3;
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Inventory")
 	void AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& ItemDefinitions);
@@ -180,17 +180,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Inventory|Equipment")
 	UItemInstance* GetEquipmentSlotItem(FGameplayTag SlotTag) const;
 
-	UFUNCTION(BlueprintCallable, Category = "!Inventory|Pandora Weapon Loadout")
-	bool SetPandoraWeaponLoadoutSlot(EEnum_Direction Direction, UItemInstance* WeaponInstance);
+	UFUNCTION(BlueprintCallable, Category = "!Inventory|Weapon Loadout")
+	bool AssignWeaponToLoadoutSlot(EEnum_Direction Direction, UItemInstance* WeaponInstance);
 
-	UFUNCTION(BlueprintCallable, Category = "!Inventory|Pandora Weapon Loadout")
-	bool ClearPandoraWeaponLoadoutSlot(EEnum_Direction Direction);
+	UFUNCTION(BlueprintCallable, Category = "!Inventory|Weapon Loadout")
+	bool ClearWeaponFromLoadoutSlot(EEnum_Direction Direction);
 
-	UFUNCTION(BlueprintPure, Category = "!Inventory|Pandora Weapon Loadout")
-	FGuid GetPandoraWeaponLoadoutItemId(EEnum_Direction Direction) const;
+	UFUNCTION(BlueprintPure, Category = "!Inventory|Weapon Loadout")
+	FGuid GetWeaponIdForLoadoutSlot(EEnum_Direction Direction) const;
 
-	UFUNCTION(BlueprintPure, Category = "!Inventory|Pandora Weapon Loadout")
-	UItemInstance* GetPandoraWeaponLoadoutItem(EEnum_Direction Direction) const;
+	UFUNCTION(BlueprintPure, Category = "!Inventory|Weapon Loadout")
+	UItemInstance* FindWeaponForLoadoutSlot(EEnum_Direction Direction) const;
 
 	UFUNCTION(BlueprintCallable, Category = "!Inventory|Stack")
 	bool SplitConsumableStack(FGuid ItemId);
@@ -205,7 +205,7 @@ public:
 
 	FPdInventoryChanged OnInventoryChanged;
 	FPdEquipmentSlotsChanged OnEquipmentSlotsChanged;
-	FPdPandoraWeaponLoadoutChanged OnPandoraWeaponLoadoutChanged;
+	FPdWeaponLoadoutChanged OnWeaponLoadoutChanged;
 
 protected:
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry);
@@ -245,7 +245,7 @@ protected:
 	void ServerUseConsumableQuickSlot(int32 SlotIndex);
 
 	UFUNCTION(Server, Reliable)
-	void ServerSetPandoraWeaponLoadoutSlot(EEnum_Direction Direction, FGuid ItemId);
+	void ServerSetWeaponIdForLoadoutSlot(EEnum_Direction Direction, FGuid ItemId);
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetEquipmentSlot(FGameplayTag SlotTag, FGuid ItemId);
@@ -267,10 +267,10 @@ protected:
 	void CleanupCompletedItemLoadHandles();
 	void CompletePendingItemLoadRequest(uint64 RequestGeneration);
 	void CancelPendingItemLoads();
-	void RefreshPandoraWeaponLoadoutPresentationAssets();
-	void ReleasePandoraWeaponLoadoutPresentationAssets();
+	void RefreshWeaponLoadoutPresentationAssets();
+	void ReleaseWeaponLoadoutPresentationAssets();
 	void EnsureConsumableQuickSlotArray();
-	void EnsurePandoraWeaponLoadoutArray();
+	void EnsureWeaponLoadoutSlotCount();
 	bool IsValidConsumableQuickSlotIndex(int32 SlotIndex) const;
 	bool SetConsumableQuickSlotItemId(int32 SlotIndex, FGuid ItemId);
 	bool ClearConsumableQuickSlotReferencesToItem(FGuid ItemId);
@@ -278,8 +278,8 @@ protected:
 	int32 FindEquipmentSlotIndex(FGameplayTag SlotTag) const;
 	bool SetEquipmentSlotItemId(FGameplayTag SlotTag, FGuid ItemId);
 	bool ClearEquipmentSlotReferencesToItem(FGuid ItemId);
-	bool SetPandoraWeaponLoadoutItemId(EEnum_Direction Direction, FGuid ItemId);
-	bool ClearPandoraWeaponLoadoutReferencesToItem(FGuid ItemId);
+	bool SetWeaponIdForLoadoutSlot(EEnum_Direction Direction, FGuid ItemId);
+	bool ClearLoadoutSlotsReferencingWeapon(FGuid ItemId);
 	bool IsConsumableItem(const UItemInstance* ItemInstance) const;
 	bool IsWeaponItem(const UItemInstance* ItemInstance) const;
 	bool IsUpgradeableItem(const UItemInstance* ItemInstance) const;
@@ -287,7 +287,7 @@ protected:
 	UItemInstance* FindFirstItemInstanceByDefinition(const UItemDefinition* ItemDefinition) const;
 
 	UFUNCTION()
-	void OnRep_PandoraWeaponLoadoutItemIds();
+	void OnRep_WeaponIdsByLoadoutSlot();
 
 	UFUNCTION()
 	void OnRep_EquippedItemSlots();
@@ -312,8 +312,8 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_ConsumableQuickSlotItemIds)
 	TArray<FGuid> ConsumableQuickSlotItemIds;
 
-	UPROPERTY(ReplicatedUsing = OnRep_PandoraWeaponLoadoutItemIds)
-	TArray<FGuid> PandoraWeaponLoadoutItemIds;
+	UPROPERTY(ReplicatedUsing = OnRep_WeaponIdsByLoadoutSlot)
+	TArray<FGuid> WeaponIdsByLoadoutSlot;
 
 	UPROPERTY(ReplicatedUsing = OnRep_EquippedItemSlots)
 	TArray<FEquippedItemSlot> EquippedItemSlots;

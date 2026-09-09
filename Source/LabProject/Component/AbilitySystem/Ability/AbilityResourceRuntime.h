@@ -7,7 +7,7 @@
 
 class UPdGameplayAbility;
 class UAbilitySystemComponent;
-class UPandoraSkillRuntimeContext;
+class UPandoraSkillSource;
 struct FGameplayAbilityActivationInfo;
 struct FGameplayAbilityActorInfo;
 struct FGameplayAbilitySpecHandle;
@@ -66,7 +66,7 @@ public:
 
 	bool TryCommitAdditionalActionStaminaCost(const UPdGameplayAbility& Ability) const;
 
-	static void GetPandoraCooldown(const UAbilitySystemComponent& ASC, const UPandoraSkillRuntimeContext& Source,
+	static void GetPandoraCooldown(const UAbilitySystemComponent& ASC, const UPandoraSkillSource& Source,
 		float& OutRemaining, float& OutDuration);
 	float GetSkillCooldownReductionPercent(const UPdGameplayAbility& Ability) const;
 

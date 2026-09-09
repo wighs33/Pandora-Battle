@@ -13,7 +13,7 @@ class UInventoryComponent;
 class ULevelingComponent;
 class ULobbyPlayerStateComponent;
 class UBasicAttributeSet;
-class UPlayerLoadoutComponent;
+class USelectingPandoraAndWeaponComponent;
 class UPlayerRewardComponent;
 class USkinComponent;
 class UStatUpgradeComponent;
@@ -41,7 +41,7 @@ public:
 	//--------------------------------------------------------------------------------------------------------------------------------------------
 	//--- Components
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-	UPlayerLoadoutComponent* GetPlayerLoadoutComponent() const { return PlayerLoadoutComponent.Get(); }
+	USelectingPandoraAndWeaponComponent* GetSelectingPandoraAndWeaponComponent() const { return SelectingPandoraAndWeaponComponent.Get(); }
 	UPlayerRewardComponent* GetPlayerRewardComponent() const;
 	UStatUpgradeComponent* GetStatUpgradeComponent() const;
 	UPlayerMatchComponent* GetPlayerMatchComponent() const { return PlayerMatchComponent.Get(); }
@@ -55,7 +55,7 @@ public:
 	//--------------------------------------------------------------------------------------------------------------------------------------------
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Loadout", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UPlayerLoadoutComponent> PlayerLoadoutComponent;
+	TObjectPtr<USelectingPandoraAndWeaponComponent> SelectingPandoraAndWeaponComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPdAbilitySystemComponent> AbilitySystemComponent;

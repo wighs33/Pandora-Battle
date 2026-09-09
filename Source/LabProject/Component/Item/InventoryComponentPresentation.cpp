@@ -62,12 +62,12 @@ void UInventoryComponent::CancelPendingItemLoads()
 	PendingItemLoadHandles.Reset();
 }
 
-void UInventoryComponent::RefreshPandoraWeaponLoadoutPresentationAssets()
+void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 {
-	EnsurePandoraWeaponLoadoutArray();
+	EnsureWeaponLoadoutSlotCount();
 
 	TMap<FPrimaryAssetId, const UItemDefinition*> DesiredItemDefinitions;
-	for (const FGuid& WeaponItemId : PandoraWeaponLoadoutItemIds)
+	for (const FGuid& WeaponItemId : WeaponIdsByLoadoutSlot)
 	{
 		const UItemInstance* WeaponInstance = FindItemInstanceById(WeaponItemId);
 		const UItemDefinition* ItemDefinition =
@@ -199,7 +199,7 @@ void UInventoryComponent::RefreshPandoraWeaponLoadoutPresentationAssets()
 	}
 }
 
-void UInventoryComponent::ReleasePandoraWeaponLoadoutPresentationAssets()
+void UInventoryComponent::ReleaseWeaponLoadoutPresentationAssets()
 {
 	for (TPair<FPrimaryAssetId, TArray<TSharedPtr<FStreamableHandle>>>& HandlePair :
 		PandoraWeaponPresentationLoadHandles)

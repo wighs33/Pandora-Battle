@@ -252,6 +252,7 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentPandoraDefinition)
 	TObjectPtr<const UPandoraDefinition> CurrentPandoraDefinition;
 
+	// 빈 슬롯을 선택해도 방향은 유지한다. 판도라 선택 여부는 CurrentPandoraDefinition으로 판단한다.
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentPandoraLoadoutDirection)
 	EEnum_Direction CurrentPandoraLoadoutDirection = EEnum_Direction::Center;
 

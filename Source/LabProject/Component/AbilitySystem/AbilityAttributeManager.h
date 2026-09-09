@@ -5,7 +5,7 @@
 #include "Definition/AbilitySystem/AbilityAttributeConfig.h"
 #include "UObject/Object.h"
 #include "UObject/SoftObjectPath.h"
-#include "AbilityAttributeRuntime.generated.h"
+#include "AbilityAttributeManager.generated.h"
 
 class UGameplayEffect;
 class UStatUpgradeDefinition;
@@ -17,7 +17,7 @@ class UPdAbilitySystemComponent;
  * 설정의 우선순위와 기본값 적용 기록은 소유 ASC마다 독립적으로 유지한다.
  */
 UCLASS()
-class LABPROJECT_API UAbilityAttributeRuntime : public UObject
+class LABPROJECT_API UAbilityAttributeManager : public UObject
 {
 	GENERATED_BODY()
 

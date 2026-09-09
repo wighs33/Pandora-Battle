@@ -31,7 +31,7 @@ public:
 	void StartConfiguredMissilePresentation(UPdGameplayAbility& Ability);
 	void UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors);
 	void StopConfiguredMissilePresentation(UPdGameplayAbility& Ability);
-	void CleanupConfiguredPresentation();
+	void DestroyActiveSkillPresentationActor();
 
 	void ApplySelfBuffCharacterScale(UPdGameplayAbility& Ability, const FSkillSelfBuffSettings& SelfBuffSettings);
 	void RestoreSelfBuffCharacterScale(UPdGameplayAbility& Ability);

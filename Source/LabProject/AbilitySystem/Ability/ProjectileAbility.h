@@ -28,7 +28,7 @@ class LABPROJECT_API UProjectileAbility : public UPdGameplayAbility
 
 public:
 	UProjectileAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	virtual bool ShouldAutoConfirmOnInputRelease() const override { return false; }
+	virtual bool ShouldConfirmTargetingOnInputRelease() const override { return false; }
 
 	UFUNCTION(BlueprintCallable, Category = "!Ability|Projectile")
 	FVector GetSpawnLocation() const;

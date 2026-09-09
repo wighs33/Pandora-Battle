@@ -1,5 +1,8 @@
 #include "Mode/PdPlayerController.h"
 
+#include "Mode/PdPlayerState.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+
 #include "Component/Chat/ChatControllerComponent.h"
 #include "Component/Player/ControllerInputComponent.h"
 #include "Component/Player/ControllerPresentationComponent.h"
@@ -84,6 +87,22 @@ void APdPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 	RefreshControllerInput();
+}
+
+// 입력 수집 이후에 능력 입력을 처리해, 같은 프레임의 짧은 누름·해제도 순서를 보장한다.
+void APdPlayerController::PostProcessInput(const float DeltaTime, const bool bGamePaused)
+{
+	if (!bGamePaused)
+	{
+		if (const APdPlayerState* PdPlayerState = GetPlayerState<APdPlayerState>())
+		{
+			if (UPdAbilitySystemComponent* AbilitySystem = Cast<UPdAbilitySystemComponent>(PdPlayerState->GetAbilitySystemComponent()))
+			{
+				AbilitySystem->ProcessAbilityInput();
+			}
+		}
+	}
+	Super::PostProcessInput(DeltaTime, bGamePaused);
 }
 
 // 소유 클라이언트가 조종할 Pawn을 확인하면 입력·화면·외형 프로필을 갱신한다.

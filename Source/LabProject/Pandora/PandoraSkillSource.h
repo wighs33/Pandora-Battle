@@ -4,7 +4,7 @@
 #include "Definition/AbilitySystem/SkillTypes.h"
 #include "Common/Enum_Direction.h"
 #include "UObject/Object.h"
-#include "PandoraSkillRuntimeContext.generated.h"
+#include "PandoraSkillSource.generated.h"
 
 class UPandoraDefinition;
 class USkillDefinition;
@@ -12,7 +12,7 @@ struct FSkill;
 struct FGameplayEffectQuery;
 
 UCLASS(BlueprintType)
-class LABPROJECT_API UPandoraSkillRuntimeContext : public UObject
+class LABPROJECT_API UPandoraSkillSource : public UObject
 {
 	GENERATED_BODY()
 

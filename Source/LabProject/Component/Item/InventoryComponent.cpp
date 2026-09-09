@@ -52,7 +52,7 @@ UInventoryComponent::UInventoryComponent(const FObjectInitializer& ObjectInitial
 	SetIsReplicatedByDefault(true);
 	ReplicatedEntries.Owner = this;
 	EnsureConsumableQuickSlotArray();
-	EnsurePandoraWeaponLoadoutArray();
+	EnsureWeaponLoadoutSlotCount();
 }
 
 void UInventoryComponent::BeginPlay()
@@ -63,7 +63,7 @@ void UInventoryComponent::BeginPlay()
 
 	ReplicatedEntries.Owner = this;
 	EnsureConsumableQuickSlotArray();
-	EnsurePandoraWeaponLoadoutArray();
+	EnsureWeaponLoadoutSlotCount();
 
 	UProjectTagConfig::Get(this)->GetItemFilterTypeTags(FilterTypeTags);
 	// =================================================================================================================
@@ -76,14 +76,14 @@ void UInventoryComponent::BeginPlay()
 		RebuildRuntimeItemsFromReplicatedEntries();
 	}
 
-	RefreshPandoraWeaponLoadoutPresentationAssets();
+	RefreshWeaponLoadoutPresentationAssets();
 }
 
 void UInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CancelPendingItemLoads();
 	ReplicatedEntries.Owner = nullptr;
-	ReleasePandoraWeaponLoadoutPresentationAssets();
+	ReleaseWeaponLoadoutPresentationAssets();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -100,7 +100,7 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, ReplicatedEntries, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, ConsumableQuickSlotItemIds, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, PandoraWeaponLoadoutItemIds, OwnerOnlyParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, WeaponIdsByLoadoutSlot, OwnerOnlyParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, EquippedItemSlots, OwnerOnlyParams);
 }
 
@@ -338,21 +338,21 @@ void UInventoryComponent::ClearAllItems()
 		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, EquippedItemSlots, this);
 	}
 
-	EnsurePandoraWeaponLoadoutArray();
-	bool bHadPandoraWeaponLoadoutReferences = false;
-	for (FGuid& WeaponItemId : PandoraWeaponLoadoutItemIds)
+	EnsureWeaponLoadoutSlotCount();
+	bool bHadWeaponLoadoutReferences = false;
+	for (FGuid& WeaponItemId : WeaponIdsByLoadoutSlot)
 	{
 		if (WeaponItemId.IsValid())
 		{
 			WeaponItemId.Invalidate();
-			bHadPandoraWeaponLoadoutReferences = true;
+			bHadWeaponLoadoutReferences = true;
 		}
 	}
-	if (bHadPandoraWeaponLoadoutReferences)
+	if (bHadWeaponLoadoutReferences)
 	{
-		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, PandoraWeaponLoadoutItemIds, this);
-		RefreshPandoraWeaponLoadoutPresentationAssets();
-		OnPandoraWeaponLoadoutChanged.Broadcast();
+		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, WeaponIdsByLoadoutSlot, this);
+		RefreshWeaponLoadoutPresentationAssets();
+		OnWeaponLoadoutChanged.Broadcast();
 	}
 
 	if (bHadEquippedItemReferences)
@@ -362,7 +362,7 @@ void UInventoryComponent::ClearAllItems()
 	if (bHadItems
 		|| bHadQuickSlotReferences
 		|| bHadEquippedItemReferences
-		|| bHadPandoraWeaponLoadoutReferences)
+		|| bHadWeaponLoadoutReferences)
 	{
 		NotifyInventoryChanged();
 	}
@@ -587,7 +587,7 @@ UItemInstance* UInventoryComponent::GetEquipmentSlotItem(const FGameplayTag Slot
 	return FindItemInstanceById(GetEquipmentSlotItemId(SlotTag));
 }
 
-bool UInventoryComponent::SetPandoraWeaponLoadoutSlot(
+bool UInventoryComponent::AssignWeaponToLoadoutSlot(
 	const EEnum_Direction Direction,
 	UItemInstance* WeaponInstance)
 {
@@ -604,14 +604,14 @@ bool UInventoryComponent::SetPandoraWeaponLoadoutSlot(
 
 	if (!HasInventoryAuthority())
 	{
-		ServerSetPandoraWeaponLoadoutSlot(Direction, ItemId);
+		ServerSetWeaponIdForLoadoutSlot(Direction, ItemId);
 		return true;
 	}
 
-	return SetPandoraWeaponLoadoutItemId(Direction, ItemId);
+	return SetWeaponIdForLoadoutSlot(Direction, ItemId);
 }
 
-bool UInventoryComponent::ClearPandoraWeaponLoadoutSlot(const EEnum_Direction Direction)
+bool UInventoryComponent::ClearWeaponFromLoadoutSlot(const EEnum_Direction Direction)
 {
 	if ((PandoraLoadout::GetLoadoutNumberFromDirection(Direction) - 1) == INDEX_NONE)
 	{
@@ -620,24 +620,24 @@ bool UInventoryComponent::ClearPandoraWeaponLoadoutSlot(const EEnum_Direction Di
 
 	if (!HasInventoryAuthority())
 	{
-		ServerSetPandoraWeaponLoadoutSlot(Direction, FGuid());
+		ServerSetWeaponIdForLoadoutSlot(Direction, FGuid());
 		return true;
 	}
 
-	return SetPandoraWeaponLoadoutItemId(Direction, FGuid());
+	return SetWeaponIdForLoadoutSlot(Direction, FGuid());
 }
 
-FGuid UInventoryComponent::GetPandoraWeaponLoadoutItemId(const EEnum_Direction Direction) const
+FGuid UInventoryComponent::GetWeaponIdForLoadoutSlot(const EEnum_Direction Direction) const
 {
 	const int32 SlotIndex = (PandoraLoadout::GetLoadoutNumberFromDirection(Direction) - 1);
-	return PandoraWeaponLoadoutItemIds.IsValidIndex(SlotIndex)
-		? PandoraWeaponLoadoutItemIds[SlotIndex]
+	return WeaponIdsByLoadoutSlot.IsValidIndex(SlotIndex)
+		? WeaponIdsByLoadoutSlot[SlotIndex]
 		: FGuid();
 }
 
-UItemInstance* UInventoryComponent::GetPandoraWeaponLoadoutItem(const EEnum_Direction Direction) const
+UItemInstance* UInventoryComponent::FindWeaponForLoadoutSlot(const EEnum_Direction Direction) const
 {
-	return FindItemInstanceById(GetPandoraWeaponLoadoutItemId(Direction));
+	return FindItemInstanceById(GetWeaponIdForLoadoutSlot(Direction));
 }
 
 bool UInventoryComponent::SplitConsumableStack(const FGuid ItemId)
@@ -778,7 +778,7 @@ bool UInventoryComponent::MergeUpgradeableItems(
 
 	const auto IsItemAssigned = [this](const FGuid ItemId)
 	{
-		return PandoraWeaponLoadoutItemIds.Contains(ItemId)
+		return WeaponIdsByLoadoutSlot.Contains(ItemId)
 			|| EquippedItemSlots.ContainsByPredicate(
 			[ItemId](const FEquippedItemSlot& EquippedItemSlot)
 		{

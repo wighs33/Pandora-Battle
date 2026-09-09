@@ -41,7 +41,7 @@ int32 PandoraLoadout::GetLoadoutNumberFromDirection(const EEnum_Direction Direct
 
 int32 PandoraLoadout::NormalizeLoadoutNumber(const int32 LoadoutNumber)
 {
-	return (LoadoutNumber >= 0 && LoadoutNumber <= UInventoryComponent::PandoraWeaponLoadoutSlotCount)
+	return (LoadoutNumber >= 0 && LoadoutNumber <= UInventoryComponent::WeaponLoadoutSlotCount)
 		? LoadoutNumber
 		: 0;
 }

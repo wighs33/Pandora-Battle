@@ -4,7 +4,7 @@
 #include "Component/Lobby/LobbyPlayerStateComponent.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
-#include "Component/Player/PlayerLoadoutComponent.h"
+#include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Component/Item/InventoryComponent.h"
@@ -20,11 +20,12 @@
 APdPlayerState::APdPlayerState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	PrimaryActorTick.bCanEverTick = false;
 	SetNetUpdateFrequency(100.0f);
 
 	AbilitySystemComponent = CreateDefaultSubobject<UPdAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	BasicAttributeSet = CreateDefaultSubobject<UBasicAttributeSet>(TEXT("BasicAttributeSet"));
-	PlayerLoadoutComponent = CreateDefaultSubobject<UPlayerLoadoutComponent>(TEXT("PlayerLoadoutComponent"));
+	SelectingPandoraAndWeaponComponent = CreateDefaultSubobject<USelectingPandoraAndWeaponComponent>(TEXT("SelectingPandoraAndWeaponComponent"));
 	PlayerMatchComponent = CreateDefaultSubobject<UPlayerMatchComponent>(TEXT("PlayerMatchComponent"));
 	LobbyPlayerStateComponent = CreateDefaultSubobject<ULobbyPlayerStateComponent>(TEXT("LobbyPlayerStateComponent"));
 	LevelingComponent = CreateDefaultSubobject<ULevelingComponent>(TEXT("LevelingComponent"));

@@ -22,7 +22,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
-#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Pandora/PandoraSkillSource.h"
 #include "UObject/ObjectKey.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ProjectileBase)
@@ -982,12 +982,12 @@ void AProjectileBase::TrySpawnImpactEffectAreas(AActor* TargetActor, const bool 
 			SpawnParams);
 		if (SpawnedArea)
 		{
-			const UPandoraSkillRuntimeContext* RuntimeContext = DamageEffectSpecHandle.Data.IsValid()
-				? Cast<UPandoraSkillRuntimeContext>(DamageEffectSpecHandle.Data->GetContext().GetSourceObject())
+			const UPandoraSkillSource* SkillSource = DamageEffectSpecHandle.Data.IsValid()
+				? Cast<UPandoraSkillSource>(DamageEffectSpecHandle.Data->GetContext().GetSourceObject())
 				: nullptr;
-			if (RuntimeContext)
+			if (SkillSource)
 			{
-				SpawnedArea->SetSourcePandoraLoadoutDirection(RuntimeContext->GetLoadoutDirection());
+				SpawnedArea->SetSourcePandoraLoadoutDirection(SkillSource->GetLoadoutDirection());
 			}
 		}
 		if (SpawnedArea && SpawnConfig.LifeSpan > 0.0)

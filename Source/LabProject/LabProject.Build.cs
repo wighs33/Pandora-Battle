@@ -42,6 +42,7 @@ public class LabProject : ModuleRules
 			"AudioWidgets",
 			"AnimGraphRuntime",
 			"Niagara",
+			"RenderCore",
 			"AssetRegistry",
 			"CableComponent",
 			"Slate",

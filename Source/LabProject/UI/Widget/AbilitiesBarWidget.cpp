@@ -20,7 +20,7 @@
 #include "Component/Pandora/PandoraComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "InputAction.h"
-#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Pandora/PandoraSkillSource.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "TimerManager.h"
 #include "UI/Widget/AbilitySlotWidget.h"
@@ -41,9 +41,9 @@ namespace
 			return nullptr;
 		}
 
-		if (const UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(AbilitySpec->SourceObject.Get()))
+		if (const UPandoraSkillSource* SkillSource = Cast<UPandoraSkillSource>(AbilitySpec->SourceObject.Get()))
 		{
-			return RuntimeContext->GetSkillDataAsset();
+			return SkillSource->GetSkillDataAsset();
 		}
 
 		if (const USkillDefinition* SkillDataAsset = Cast<USkillDefinition>(AbilitySpec->SourceObject.Get()))
@@ -520,10 +520,10 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 			continue;
 		}
 
-		const UPandoraSkillRuntimeContext* RuntimeContext = Cast<UPandoraSkillRuntimeContext>(AbilitySpec->SourceObject.Get());
-		if (RuntimeContext
-			&& RuntimeContext->GetPandoraDefinition() == PandoraDefinition
-			&& RuntimeContext->GetSkillIndex() == SkillIndex
+		const UPandoraSkillSource* SkillSource = Cast<UPandoraSkillSource>(AbilitySpec->SourceObject.Get());
+		if (SkillSource
+			&& SkillSource->GetPandoraDefinition() == PandoraDefinition
+			&& SkillSource->GetSkillIndex() == SkillIndex
 			&& AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(SkillInputTag))
 		{
 			return AbilityHandle;

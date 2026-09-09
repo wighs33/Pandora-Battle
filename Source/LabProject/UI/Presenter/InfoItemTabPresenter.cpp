@@ -883,7 +883,7 @@ void UInfoItemTabPresenter::CollectAssignedItemIds(TSet<FGuid>& OutAssignedItemI
 		for (const EEnum_Direction Direction :
 			{ EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
 		{
-			const FGuid WeaponItemId = Inventory->GetPandoraWeaponLoadoutItemId(Direction);
+			const FGuid WeaponItemId = Inventory->GetWeaponIdForLoadoutSlot(Direction);
 			if (WeaponItemId.IsValid())
 			{
 				OutAssignedItemIds.Add(WeaponItemId);

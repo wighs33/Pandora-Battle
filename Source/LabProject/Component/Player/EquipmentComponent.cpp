@@ -7,7 +7,7 @@
 #include "Component/Character/CharacterAbilityRuntimeComponent.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
-#include "Component/Player/PlayerLoadoutComponent.h"
+#include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
@@ -236,9 +236,9 @@ void UEquipmentComponent::HandleEquipCooldownTagChanged(
 		: nullptr;
 	if (PlayerState)
 	{
-		if (UPlayerLoadoutComponent* LoadoutComponent = PlayerState->GetPlayerLoadoutComponent())
+		if (USelectingPandoraAndWeaponComponent* PandoraAndWeaponComponent = PlayerState->GetSelectingPandoraAndWeaponComponent())
 		{
-			LoadoutComponent->ApplySelectedLoadout();
+			PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
 		}
 	}
 }

@@ -118,7 +118,7 @@ protected:
 	void BeginPlayerPawnDefinitionPreload();
 	void HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPath, uint32 RequestGeneration);
 	void ReleasePlayerPawnDefinitionPreload();
-	void ApplySelectedPlayerLoadout();
+	void ApplySelectedPlayerPandoraAndWeapon();
 	void ApplyPlayerPawnDefinition();
 
 protected:

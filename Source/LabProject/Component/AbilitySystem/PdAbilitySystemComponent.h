@@ -12,9 +12,9 @@ class UGameplayAbility;
 class UGameplayEffect;
 class UAttributeSet;
 class UStatUpgradeDefinition;
-class UAbilityAttributeRuntime;
-class UAbilityCollectionRuntime;
-class UPandoraSkillRuntimeContext;
+class UAbilityAttributeManager;
+class UAbilityGrantAndInputManager;
+class UPandoraSkillSource;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdAbilitiesChangedDynamicDelegate);
 DECLARE_MULTICAST_DELEGATE(FPdAbilitiesChangedNativeDelegate);
@@ -22,7 +22,7 @@ DECLARE_MULTICAST_DELEGATE(FPdAbilitiesChangedNativeDelegate);
 /**
  * 프로젝트의 능력 시스템을 GAS와 연결하는 컴포넌트.
  *
- * 속성과 능력 목록은 내부 Runtime에 위임하고, 리셋은 ASC에서 처리하며,
+ * 속성과 능력 목록은 역할별 관리 객체에 위임하고, 리셋은 ASC에서 처리하며,
  * 플레이어와 적이 동일한 공개 API를 사용한다.
  */
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
@@ -38,7 +38,8 @@ public:
 	virtual void ReadyForReplication() override;
 	virtual void OnGiveAbility(FGameplayAbilitySpec& AbilitySpec) override;
 	virtual void OnRemoveAbility(FGameplayAbilitySpec& AbilitySpec) override;
-	virtual void NotifyAbilityActivated(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability) override;
+	virtual void NotifyAbilityEnded(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability, bool bWasCancelled) override;
+	virtual void NotifyAbilityFailed(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability, const FGameplayTagContainer& FailureReason) override;
 
 	//------------------------------------------------------------------------------------------------------------------
 
@@ -53,8 +54,9 @@ public:
 	void MarkConfiguredAttributeDefaultsApplied(UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath);
 	void ClearConfiguredAttributeDefaultsApplied(const UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath);
 
-	void AbilityInputTagPressed(const FGameplayTag& InputTag);
-	void AbilityInputTagReleased(const FGameplayTag& InputTag);
+	void QueueAbilityInputPressed(const FGameplayTag& InputTag);
+	void QueueAbilityInputReleased(const FGameplayTag& InputTag);
+	void ProcessAbilityInput();
 
 	const FGameplayAbilitySpec* FindActiveAbilitySpecByTags(const FGameplayTagContainer& AbilityTags) const;
 	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
@@ -91,7 +93,7 @@ public:
 	bool ResolveStatUpOperationSetByCallerTag(FGameplayTag& OutTag) const;
 
 	void NotifyAbilitiesChanged();
-	void NotifyPandoraSourceReplicated(UPandoraSkillRuntimeContext* Source);
+	void NotifyPandoraSourceReplicated(UPandoraSkillSource* Source);
 
 	FPdAbilitiesChangedNativeDelegate OnAbilitiesChangedNative;
 
@@ -100,24 +102,31 @@ public:
 
 protected:
 	virtual void OnRep_ActivateAbilities() override;
+	virtual void ClientActivateAbilityFailed_Implementation(FGameplayAbilitySpecHandle Handle, int16 PredictionKey) override;
 	virtual void ClientActivateAbilitySucceedWithEventData_Implementation(
 		FGameplayAbilitySpecHandle Handle, FPredictionKey PredictionKey, FGameplayEventData TriggerEventData) override;
 	virtual void ClientEndAbility_Implementation(FGameplayAbilitySpecHandle Handle, FGameplayAbilityActivationInfo ActivationInfo) override;
 	virtual void ClientCancelAbility_Implementation(FGameplayAbilitySpecHandle Handle, FGameplayAbilityActivationInfo ActivationInfo) override;
 
 private:
-	void ReplaySourceReadyActivations();
-	TArray<FPendingAbilityInfo> PendingSourceActivations;
+	void RegisterPandoraSkillSource(UObject* SourceObject);
+	void ReleasePandoraSkillSourceIfUnused(UPandoraSkillSource* SkillSource, FGameplayAbilitySpecHandle RemovedHandle);
+	void ActivateAbilitiesWithReadySources();
 
-	void ReplayReleasedPressInputAfterActivation(FGameplayAbilitySpecHandle AbilityHandle);
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPandoraSkillSource>> GrantedPandoraSkillSources;
+
+	TArray<FPendingAbilityInfo> ActivationsWaitingForSource;
+
+	void CancelActiveAbilitiesForDeath();
 	int32 RemoveRuntimeEffects(const FGameplayTagContainer& EffectTags, const FGameplayTagContainer& OwnedTags,
 		const FGameplayTagContainer& LooseTags, const FGameplayTagContainer& GameplayCues);
 
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Runtime")
-	TObjectPtr<UAbilityAttributeRuntime> AttributeRuntime;
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Attributes")
+	TObjectPtr<UAbilityAttributeManager> AttributeManager;
 
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Runtime")
-	TObjectPtr<UAbilityCollectionRuntime> CollectionRuntime;
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Abilities")
+	TObjectPtr<UAbilityGrantAndInputManager> AbilityGrantAndInputManager;
 
 	UPROPERTY(Transient)
 	bool bResettingAbilityRuntimeState = false;

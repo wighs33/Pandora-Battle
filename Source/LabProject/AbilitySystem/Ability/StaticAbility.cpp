@@ -23,7 +23,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameplayEffectTypes.h"
 #include "Kismet/GameplayStatics.h"
-#include "Pandora/PandoraSkillRuntimeContext.h"
+#include "Pandora/PandoraSkillSource.h"
 #include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticAbility)
@@ -637,12 +637,12 @@ AActor* UStaticAbility::SpawnStaticActorForSocket(const FName SocketName, const 
 		{
 			FinishDamageConfig = SkillDataAsset->GetResolvedStaticFinishDamageConfig();
 		}
-		const UPandoraSkillRuntimeContext* RuntimeContext = GetSourceSkillRuntimeContext();
+		const UPandoraSkillSource* SkillSource = GetPandoraSkillSource();
 		OmenOrbGlitchActor->ConfigureFromStaticSettings(
 			*StaticSettings,
 			FinishDamageConfig,
 			FMath::Max(GetAbilityLevel(), 1),
-			RuntimeContext ? RuntimeContext->GetLoadoutDirection() : EEnum_Direction::Center);
+			SkillSource ? SkillSource->GetLoadoutDirection() : EEnum_Direction::Center);
 	}
 
 	if (AAnimeAuraActor* AnimeAuraActor = Cast<AAnimeAuraActor>(SpawnedActor))
@@ -656,9 +656,9 @@ AActor* UStaticAbility::SpawnStaticActorForSocket(const FName SocketName, const 
 		EffectArea->SetSourceActor(AvatarActor);
 		EffectArea->SetIgnoreSourceActor(StaticSettings->bIgnoreSourceActor || StaticSettings->bEffectAreaIgnoreSourceActor);
 		EffectArea->SetAffectEnemiesOnly(StaticSettings->bEffectAreaAffectEnemiesOnly);
-		if (const UPandoraSkillRuntimeContext* RuntimeContext = GetSourceSkillRuntimeContext())
+		if (const UPandoraSkillSource* SkillSource = GetPandoraSkillSource())
 		{
-			EffectArea->SetSourcePandoraLoadoutDirection(RuntimeContext->GetLoadoutDirection());
+			EffectArea->SetSourcePandoraLoadoutDirection(SkillSource->GetLoadoutDirection());
 		}
 	}
 

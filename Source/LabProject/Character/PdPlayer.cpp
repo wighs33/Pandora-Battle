@@ -21,7 +21,7 @@
 #include "Component/Player/PlayerAimComponent.h"
 #include "Component/Player/PlayerCameraComponent.h"
 #include "Component/Player/PlayerInteractionComponent.h"
-#include "Component/Player/PlayerLoadoutComponent.h"
+#include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Definition/Player/PlayerPawnDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayer)
@@ -122,7 +122,7 @@ void APdPlayer::PossessedBy(AController* NewController)
 	ReapplyCurrentRotationPolicy();
 	if (IsCharacterRuntimeInitialized())
 	{
-		ApplySelectedPlayerLoadout();
+		ApplySelectedPlayerPandoraAndWeapon();
 		if (PlayerAimComponent)
 		{
 			PlayerAimComponent->StartReplication();
@@ -247,7 +247,7 @@ bool APdPlayer::IsAdditionalCharacterRuntimeContentReady() const
 void APdPlayer::HandleCharacterRuntimeInitialized()
 {
 	Super::HandleCharacterRuntimeInitialized();
-	ApplySelectedPlayerLoadout();
+	ApplySelectedPlayerPandoraAndWeapon();
 	if (PlayerAimComponent)
 	{
 		PlayerAimComponent->StartReplication();
@@ -255,13 +255,13 @@ void APdPlayer::HandleCharacterRuntimeInitialized()
 }
 
 // PlayerState에 보관된 현재 무기·판도라 선택을 이 캐릭터에 적용하도록 로드아웃 컴포넌트에 요청한다.
-void APdPlayer::ApplySelectedPlayerLoadout()
+void APdPlayer::ApplySelectedPlayerPandoraAndWeapon()
 {
 	if (APdPlayerState* PdPlayerState = GetPlayerState<APdPlayerState>())
 	{
-		if (UPlayerLoadoutComponent* LoadoutComponent = PdPlayerState->GetPlayerLoadoutComponent())
+		if (USelectingPandoraAndWeaponComponent* PandoraAndWeaponComponent = PdPlayerState->GetSelectingPandoraAndWeaponComponent())
 		{
-			LoadoutComponent->ApplySelectedLoadout();
+			PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
 		}
 	}
 }
