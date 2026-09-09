@@ -169,7 +169,7 @@ void ACharacterBase::RefreshCharacterRuntimeBindings()
 		if (CharacterPresentationComponent)
 		{
 			CharacterPresentationComponent->BindMatchTeamColorChanged();
-			CharacterPresentationComponent->ApplyTeamOverlayMaterial();
+			CharacterPresentationComponent->RefreshCharacterOverlayMaterial();
 		}
 	}
 	RefreshCharacterTickEnabled();
@@ -522,15 +522,6 @@ void ACharacterBase::SetAimOffsetForAnimation(const float AimYaw, const float Ai
 	if (CharacterPresentationComponent)
 	{
 		CharacterPresentationComponent->SetAimOffset(AimYaw, AimPitch);
-	}
-}
-
-// 경기의 팀 색상을 캐릭터 외형에 반영하도록 표현 컴포넌트에 요청한다.
-void ACharacterBase::ApplyTeamOverlayMaterial()
-{
-	if (CharacterPresentationComponent)
-	{
-		CharacterPresentationComponent->ApplyTeamOverlayMaterial();
 	}
 }
 

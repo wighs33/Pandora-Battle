@@ -54,85 +54,89 @@ UWorld* UDefaultPlayerProvisioner::GetWorld() const
 		: nullptr;
 }
 
-void UDefaultPlayerProvisioner::SetDefinition(
-	const UDefaultProvisionDefinition* InDefinition)
+bool UDefaultPlayerProvisioner::Initialize(
+	const UDefaultProvisionDefinition* InDefinition, const EDefaultProvisionMode InMode)
 {
-	if (ProvisionDefinition.Get() == InDefinition && !bShuttingDown)
+	if (!InDefinition || bShuttingDown)
 	{
-		return;
+		return false;
 	}
-	ProvisionDefinition =
-		const_cast<UDefaultProvisionDefinition*>(InDefinition);
-	InitializedInventories.Reset();
-	InitializedInventoryModes.Reset();
-	CompletedItemPlayerStates.Reset();
-	InitializedModeValues.Reset();
-	InitializedPandoras.Reset();
-	InitializedGestureEquipment.Reset();
-	PendingItemPlayerStates.Reset();
-	AttemptedContentLoadModes.Reset();
-	bLoggedMissingProvisionDefinition = false;
-	bShuttingDown = false;
+	if (ProvisionDefinition)
+	{
+		// A different map/mode owns a new provisioner. In-flight grants cannot be reconfigured.
+		if (ProvisionDefinition != InDefinition || Mode != InMode)
+		{
+			UE_LOG(LogDefaultPlayerProvisioner, Error,
+				TEXT("Provision definition and mode are fixed for this runtime; create a new provisioner for a different configuration."));
+			return false;
+		}
+		return true;
+	}
+	ProvisionDefinition = const_cast<UDefaultProvisionDefinition*>(InDefinition);
+	Mode = InMode;
+	return true;
 }
 
 const UDefaultProvisionDefinition*
 UDefaultPlayerProvisioner::GetDefinition() const
 {
-	return ProvisionDefinition
-		? ProvisionDefinition.Get()
-		: UDefaultProvisionDefinition::ResolveDefaultDefinition();
+	return IsInitialized() ? ProvisionDefinition.Get() : nullptr;
 }
 
-void UDefaultPlayerProvisioner::ProvisionPlayer(
-	APlayerController* PlayerController,
-	const EDefaultProvisionMode Mode)
+void UDefaultPlayerProvisioner::ProvisionPlayer(APlayerController* PlayerController)
 {
-	if (bShuttingDown || !PlayerController)
+	if (!IsInitialized() || !IsValid(PlayerController) || !PlayerController->HasAuthority())
 	{
 		return;
 	}
 
-	if (!EnsureContentLoaded(PlayerController, Mode))
+	if (!EnsureContentLoaded(PlayerController))
 	{
 		return;
 	}
 
-	if (TryProvisionPlayer(PlayerController, Mode))
+	if (TryProvisionPlayer(PlayerController))
 	{
 		ClearRetryTimer(PlayerController);
 		OnPlayerProvisioned.Broadcast(PlayerController);
 		return;
 	}
 
-	ScheduleRetry(PlayerController, Mode);
+	ScheduleRetry(PlayerController);
 }
 
-bool UDefaultPlayerProvisioner::EnsureContentLoaded(
-	APlayerController* PlayerController,
-	const EDefaultProvisionMode Mode)
+bool UDefaultPlayerProvisioner::EnsureContentLoaded(APlayerController* PlayerController)
 {
-	const UDefaultProvisionDefinition* Definition = GetDefinition();
-	if (!Definition)
+	if (ContentState == EContentState::Ready)
 	{
-		if (!bLoggedMissingProvisionDefinition)
-		{
-			bLoggedMissingProvisionDefinition = true;
-			UE_LOG(
-				LogDefaultPlayerProvisioner,
-				Error,
-				TEXT("Required DA_DefaultProvision is missing; no default grants were applied."));
-		}
 		return true;
 	}
+	if (ContentState == EContentState::Failed)
+	{
+		return false;
+	}
+	PendingContentControllers.AddUnique(PlayerController);
+	if (ContentState == EContentState::Loading)
+	{
+		return false;
+	}
 
-	TArray<FPrimaryAssetId> ContentIds;
+	const UDefaultProvisionDefinition* Definition = GetDefinition();
+	check(Definition);
+	for (const FDefaultProvisionItemStackGrant& Grant : Definition->GetItemGrants())
+	{
+		if (Grant.ItemDefinitionId.IsValid() && Grant.Counts.GetCount(Mode) > 0)
+		{
+			RequiredContentIds.AddUnique(Grant.ItemDefinitionId);
+		}
+	}
 	for (const FDefaultProvisionPandoraGrant& Grant
 		: Definition->GetPandoraGrants())
 	{
 		if (Grant.PandoraDefinitionId.IsValid()
 			&& Grant.Levels.GetLevel(Mode) >= 0)
 		{
-			ContentIds.AddUnique(Grant.PandoraDefinitionId);
+			RequiredContentIds.AddUnique(Grant.PandoraDefinitionId);
 		}
 	}
 	for (const FDefaultProvisionGestureSlotGrant& Grant
@@ -141,7 +145,7 @@ bool UDefaultPlayerProvisioner::EnsureContentLoaded(
 		if (Grant.SkinDefinitionId.IsValid()
 			&& ResolveGestureSlotTag(Grant.GestureSlotIndex).IsValid())
 		{
-			ContentIds.AddUnique(Grant.SkinDefinitionId);
+			RequiredContentIds.AddUnique(Grant.SkinDefinitionId);
 		}
 	}
 	if (Definition->GetGrantAllWeapons().IsEnabled(Mode)
@@ -151,68 +155,70 @@ bool UDefaultPlayerProvisioner::EnsureContentLoaded(
 		UAssetManager::Get().GetPrimaryAssetIdList(
 			FPrimaryAssetType(TEXT("ItemDefinition")),
 			ItemDefinitionIds);
+		if (ItemDefinitionIds.IsEmpty())
+		{
+			ContentState = EContentState::Failed;
+			PendingContentControllers.Reset();
+			UE_LOG(LogDefaultPlayerProvisioner, Error, TEXT("Default inventory policy requires an ItemDefinition catalog, but it is empty."));
+			return false;
+		}
 		for (const FPrimaryAssetId& ItemDefinitionId
 			: ItemDefinitionIds)
 		{
-			ContentIds.AddUnique(ItemDefinitionId);
+			RequiredContentIds.AddUnique(ItemDefinitionId);
 		}
 	}
 
 	UAssetManager& AssetManager = UAssetManager::Get();
-	const bool bAllLoaded = !ContentIds.ContainsByPredicate(
+	const bool bAllLoaded = !RequiredContentIds.ContainsByPredicate(
 		[&AssetManager](const FPrimaryAssetId& AssetId)
 		{
 			return !AssetManager.GetPrimaryAssetObject(AssetId);
 		});
 	if (bAllLoaded)
 	{
+		ContentState = EContentState::Ready;
+		PendingContentControllers.Reset();
 		return true;
 	}
 
-	const TObjectKey<AController> ControllerKey(PlayerController);
-	if (const EDefaultProvisionMode* AttemptedMode =
-		AttemptedContentLoadModes.Find(ControllerKey);
-		AttemptedMode && *AttemptedMode == Mode)
-	{
-		return true;
-	}
-	if (PendingContentControllers.Contains(ControllerKey))
-	{
-		return false;
-	}
-	PendingContentControllers.Add(ControllerKey);
-
-	const TWeakObjectPtr<APlayerController> WeakPlayer(PlayerController);
-	TSharedPtr<FStreamableHandle> LoadHandle =
-		AssetManager.LoadPrimaryAssets(
-			ContentIds,
-			{},
-			FStreamableDelegate::CreateWeakLambda(
-				this,
-				[this, WeakPlayer, ControllerKey, Mode]()
-				{
-					AttemptedContentLoadModes.Add(ControllerKey, Mode);
-					if (PendingContentControllers.Remove(ControllerKey) > 0
-						&& !bShuttingDown)
-					{
-						ProvisionPlayer(WeakPlayer.Get(), Mode);
-					}
-					CleanupLoadHandles();
-				}));
-	if (LoadHandle.IsValid())
-	{
-		PendingLoadHandles.Add(LoadHandle);
-		return false;
-	}
-
-	PendingContentControllers.Remove(ControllerKey);
-	AttemptedContentLoadModes.Add(ControllerKey, Mode);
-	return true;
+	// All players in this runtime share one immutable content request and its lifetime.
+	ContentState = EContentState::Loading;
+	ContentLoadHandle = AssetManager.LoadPrimaryAssets(RequiredContentIds, {},
+		FStreamableDelegate::CreateUObject(this, &ThisClass::HandleContentLoaded));
+	return false;
 }
 
-bool UDefaultPlayerProvisioner::TryProvisionPlayer(
-	APlayerController* PlayerController,
-	const EDefaultProvisionMode Mode)
+void UDefaultPlayerProvisioner::HandleContentLoaded()
+{
+	if (bShuttingDown || ContentState != EContentState::Loading)
+	{
+		return;
+	}
+	for (const FPrimaryAssetId& Id : RequiredContentIds)
+	{
+		if (!UAssetManager::Get().GetPrimaryAssetObject(Id))
+		{
+			ContentState = EContentState::Failed;
+			PendingContentControllers.Reset();
+			UE_LOG(LogDefaultPlayerProvisioner, Error,
+				TEXT("Required provisioning content failed to load: %s. Default grants were not applied."), *Id.ToString());
+			return;
+		}
+	}
+	ContentState = EContentState::Ready;
+	const TArray<TWeakObjectPtr<APlayerController>> WaitingPlayers = PendingContentControllers;
+	for (const TWeakObjectPtr<APlayerController>& Player : WaitingPlayers)
+	{
+		// A previous player's callback may log out another waiting player or shut down the runtime.
+		if (PendingContentControllers.Remove(Player) > 0)
+		{
+			ProvisionPlayer(Player.Get());
+		}
+	}
+}
+
+bool UDefaultPlayerProvisioner::TryProvisionPlayer(APlayerController* PlayerController)
 {
 	APdPlayerState* PlayerState = PlayerController
 		? PlayerController->GetPlayerState<APdPlayerState>()
@@ -225,12 +231,12 @@ bool UDefaultPlayerProvisioner::TryProvisionPlayer(
 	const UDefaultProvisionDefinition* Definition = GetDefinition();
 	if (!Definition)
 	{
-		return true;
+		return false;
 	}
 
-	const bool bModeValuesReady = ApplyModeValues(PlayerState, Mode);
-	const bool bItemsReady = ApplyItems(PlayerState, Mode);
-	const bool bPandorasReady = ApplyPandoras(PlayerState, Mode);
+	const bool bModeValuesReady = ApplyModeValues(PlayerState);
+	const bool bItemsReady = ApplyItems(PlayerState);
+	const bool bPandorasReady = ApplyPandoras(PlayerState);
 	const bool bGesturesReady = ApplyGestures(
 		PlayerController,
 		PlayerState);
@@ -266,19 +272,17 @@ int32 UDefaultPlayerProvisioner::GetInventoryItemQuantity(
 	return TotalQuantity;
 }
 
-bool UDefaultPlayerProvisioner::ApplyItems(
-	APdPlayerState* PlayerState,
-	const EDefaultProvisionMode Mode)
+bool UDefaultPlayerProvisioner::ApplyItems(APdPlayerState* PlayerState)
 {
 	const UDefaultProvisionDefinition* Definition = GetDefinition();
 	if (!Definition || !PlayerState)
 	{
-		return true;
+		return false;
 	}
 
 	const bool bHasConfiguredItems =
 		Definition->GetItemGrants().ContainsByPredicate(
-			[Mode](const FDefaultProvisionItemStackGrant& Grant)
+			[this](const FDefaultProvisionItemStackGrant& Grant)
 			{
 				return Grant.ItemDefinitionId.IsValid()
 					&& Grant.Counts.GetCount(Mode) > 0;
@@ -303,34 +307,25 @@ bool UDefaultPlayerProvisioner::ApplyItems(
 	}
 
 	const TObjectKey<APlayerState> PlayerStateKey(PlayerState);
-	const TWeakObjectPtr<UInventoryComponent>* InitializedInventory =
-		InitializedInventories.Find(PlayerStateKey);
-	const bool bSameInventoryAndMode = InitializedInventory
-		&& InitializedInventory->Get() == InventoryComponent
-		&& InitializedInventoryModes.FindRef(PlayerStateKey) == Mode;
-	if (!bSameInventoryAndMode)
+	FInventoryProvisionState& State = InventoryStates.FindOrAdd(PlayerStateKey);
+	if (State.Inventory.Get() == InventoryComponent && State.bCompleted)
 	{
-		InitializedInventories.Add(PlayerStateKey, InventoryComponent);
-		InitializedInventoryModes.Add(PlayerStateKey, Mode);
-		PendingItemPlayerStates.Remove(PlayerStateKey);
-		CompletedItemPlayerStates.Remove(PlayerStateKey);
+		return true;
+	}
+	// Inventory owns asynchronous mutations. Never reconcile a snapshot with unfinished writes,
+	// even after a controller's provisioning records have been cleared on logout.
+	if (InventoryComponent->HasPendingItemLoads())
+	{
+		return false;
+	}
+	if (State.Inventory.Get() != InventoryComponent)
+	{
+		State.Inventory = InventoryComponent;
+		State.bCompleted = false;
 		if (Mode != EDefaultProvisionMode::Lobby)
 		{
 			InventoryComponent->ClearAllItems();
 		}
-	}
-	else if (CompletedItemPlayerStates.Contains(PlayerStateKey))
-	{
-		return true;
-	}
-
-	if (PendingItemPlayerStates.Contains(PlayerStateKey))
-	{
-		if (InventoryComponent->HasPendingItemLoads())
-		{
-			return false;
-		}
-		PendingItemPlayerStates.Remove(PlayerStateKey);
 	}
 
 	bool bIssuedRequest = false;
@@ -454,26 +449,22 @@ bool UDefaultPlayerProvisioner::ApplyItems(
 
 	if (bIssuedRequest || InventoryComponent->HasPendingItemLoads())
 	{
-		PendingItemPlayerStates.Add(PlayerStateKey);
 		return false;
 	}
-	CompletedItemPlayerStates.Add(PlayerStateKey);
+	// A completed default grant is not a permanent inventory minimum (items can be used/upgraded).
+	State.bCompleted = true;
 	return true;
 }
 
-bool UDefaultPlayerProvisioner::ApplyModeValues(
-	APdPlayerState* PlayerState,
-	const EDefaultProvisionMode Mode)
+bool UDefaultPlayerProvisioner::ApplyModeValues(APdPlayerState* PlayerState)
 {
 	const UDefaultProvisionDefinition* Definition = GetDefinition();
 	if (!Definition || !PlayerState || !PlayerState->HasAuthority())
 	{
-		return Definition == nullptr;
+		return false;
 	}
 	const TObjectKey<APlayerState> PlayerStateKey(PlayerState);
-	if (const EDefaultProvisionMode* InitializedMode =
-		InitializedModeValues.Find(PlayerStateKey);
-		InitializedMode && *InitializedMode == Mode)
+	if (InitializedModeValues.Contains(PlayerStateKey))
 	{
 		return true;
 	}
@@ -507,14 +498,13 @@ bool UDefaultPlayerProvisioner::ApplyModeValues(
 	{
 		return false;
 	}
-	InitializedModeValues.Add(PlayerStateKey, Mode);
+	InitializedModeValues.Add(PlayerStateKey);
 	return true;
 }
 
 bool UDefaultPlayerProvisioner::
 ApplyConfiguredStatusPointsForPlayerState(
-	APlayerState* PlayerState,
-	const EDefaultProvisionMode Mode) const
+	APlayerState* PlayerState) const
 {
 	APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState);
 	const UDefaultProvisionDefinition* Definition = GetDefinition();
@@ -532,14 +522,12 @@ ApplyConfiguredStatusPointsForPlayerState(
 		: PointValue <= 0.0f;
 }
 
-bool UDefaultPlayerProvisioner::ApplyPandoras(
-	APdPlayerState* PlayerState,
-	const EDefaultProvisionMode Mode)
+bool UDefaultPlayerProvisioner::ApplyPandoras(APdPlayerState* PlayerState)
 {
 	const UDefaultProvisionDefinition* Definition = GetDefinition();
 	if (!Definition)
 	{
-		return true;
+		return false;
 	}
 	const bool bShouldApplyPandoras =
 		Mode != EDefaultProvisionMode::Lobby
@@ -565,7 +553,6 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(
 	const FInitializedPandoraState* InitializedState =
 		InitializedPandoras.Find(PlayerStateKey);
 	if (InitializedState
-		&& InitializedState->Mode == Mode
 		&& InitializedState->PandoraComponent.Get() == PandoraComponent
 		&& InitializedState->PandoraTreeComponent.Get()
 			== PandoraTreeComponent)
@@ -651,7 +638,6 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(
 
 	FInitializedPandoraState& NewState =
 		InitializedPandoras.FindOrAdd(PlayerStateKey);
-	NewState.Mode = Mode;
 	NewState.PandoraComponent = PandoraComponent;
 	NewState.PandoraTreeComponent = PandoraTreeComponent;
 	return true;
@@ -662,7 +648,11 @@ bool UDefaultPlayerProvisioner::ApplyGestures(
 	APdPlayerState* PlayerState)
 {
 	const UDefaultProvisionDefinition* Definition = GetDefinition();
-	if (!Definition || Definition->GetGestureGrants().IsEmpty())
+	if (!Definition)
+	{
+		return false;
+	}
+	if (Definition->GetGestureGrants().IsEmpty())
 	{
 		return true;
 	}
@@ -719,9 +709,7 @@ bool UDefaultPlayerProvisioner::ApplyGestures(
 	return true;
 }
 
-void UDefaultPlayerProvisioner::ScheduleRetry(
-	APlayerController* PlayerController,
-	const EDefaultProvisionMode Mode)
+void UDefaultPlayerProvisioner::ScheduleRetry(APlayerController* PlayerController)
 {
 	UWorld* World = GetWorld();
 	if (bShuttingDown || !World || !PlayerController)
@@ -735,24 +723,18 @@ void UDefaultPlayerProvisioner::ScheduleRetry(
 		ExistingTimer
 		&& World->GetTimerManager().IsTimerActive(*ExistingTimer))
 	{
-		if (PendingRetryModes.FindRef(ControllerKey) == Mode)
-		{
-			return;
-		}
-		World->GetTimerManager().ClearTimer(*ExistingTimer);
+		return;
 	}
 
-	PendingRetryModes.Add(ControllerKey, Mode);
 	const TWeakObjectPtr<APlayerController> WeakPlayer(PlayerController);
 	const FTimerHandle TimerHandle =
 		World->GetTimerManager().SetTimerForNextTick(
 			FTimerDelegate::CreateWeakLambda(
 				this,
-				[this, WeakPlayer, ControllerKey, Mode]()
+				[this, WeakPlayer, ControllerKey]()
 				{
 					PendingRetryTimers.Remove(ControllerKey);
-					PendingRetryModes.Remove(ControllerKey);
-					ProvisionPlayer(WeakPlayer.Get(), Mode);
+					ProvisionPlayer(WeakPlayer.Get());
 				}));
 	PendingRetryTimers.Add(ControllerKey, TimerHandle);
 }
@@ -775,7 +757,6 @@ void UDefaultPlayerProvisioner::ClearRetryTimer(
 		}
 	}
 	PendingRetryTimers.Remove(ControllerKey);
-	PendingRetryModes.Remove(ControllerKey);
 }
 
 void UDefaultPlayerProvisioner::ClearRuntimeStateForController(
@@ -786,13 +767,7 @@ void UDefaultPlayerProvisioner::ClearRuntimeStateForController(
 		Cast<APlayerController>(Controller))
 	{
 		ClearRetryTimer(PlayerController);
-	}
-	if (Controller)
-	{
-		PendingContentControllers.Remove(
-			TObjectKey<AController>(Controller));
-		AttemptedContentLoadModes.Remove(
-			TObjectKey<AController>(Controller));
+		PendingContentControllers.Remove(PlayerController);
 	}
 	if (!PlayerState)
 	{
@@ -800,22 +775,10 @@ void UDefaultPlayerProvisioner::ClearRuntimeStateForController(
 	}
 
 	const TObjectKey<APlayerState> PlayerStateKey(PlayerState);
-	PendingItemPlayerStates.Remove(PlayerStateKey);
-	InitializedInventories.Remove(PlayerStateKey);
-	InitializedInventoryModes.Remove(PlayerStateKey);
-	CompletedItemPlayerStates.Remove(PlayerStateKey);
+	InventoryStates.Remove(PlayerStateKey);
 	InitializedModeValues.Remove(PlayerStateKey);
 	InitializedPandoras.Remove(PlayerStateKey);
 	InitializedGestureEquipment.Remove(PlayerStateKey);
-}
-
-void UDefaultPlayerProvisioner::CleanupLoadHandles()
-{
-	PendingLoadHandles.RemoveAll(
-		[](const TSharedPtr<FStreamableHandle>& LoadHandle)
-		{
-			return !LoadHandle.IsValid() || LoadHandle->HasLoadCompleted();
-		});
 }
 
 void UDefaultPlayerProvisioner::Shutdown()
@@ -830,24 +793,19 @@ void UDefaultPlayerProvisioner::Shutdown()
 		}
 	}
 	PendingRetryTimers.Reset();
-	PendingRetryModes.Reset();
 	PendingContentControllers.Reset();
-	AttemptedContentLoadModes.Reset();
-	PendingItemPlayerStates.Reset();
-	InitializedInventories.Reset();
-	InitializedInventoryModes.Reset();
-	CompletedItemPlayerStates.Reset();
+	InventoryStates.Reset();
 	InitializedModeValues.Reset();
 	InitializedPandoras.Reset();
 	InitializedGestureEquipment.Reset();
 
-	for (const TSharedPtr<FStreamableHandle>& LoadHandle
-		: PendingLoadHandles)
+	if (ContentLoadHandle.IsValid())
 	{
-		if (LoadHandle.IsValid() && !LoadHandle->HasLoadCompleted())
-		{
-			LoadHandle->CancelHandle();
-		}
+		ContentLoadHandle->CancelHandle();
+		ContentLoadHandle->ReleaseHandle();
+		ContentLoadHandle.Reset();
 	}
-	PendingLoadHandles.Reset();
+	RequiredContentIds.Reset();
+	ProvisionDefinition = nullptr;
+	OnPlayerProvisioned.Clear();
 }

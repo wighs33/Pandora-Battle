@@ -179,7 +179,7 @@ bool UCharacterHealthBarComponent::TryApplyViewModelToWidget(UUserWidget* InWidg
 
 bool UCharacterHealthBarComponent::TryApplyViewModelToWidget()
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character
 		|| Character->GetNetMode() == NM_DedicatedServer
 		|| !GetWidgetClass())
@@ -253,7 +253,7 @@ void UCharacterHealthBarComponent::RetryRefreshViewModel()
 void UCharacterHealthBarComponent::SetVisibleForLocalViewer(
 	const bool bRequestedVisible)
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character || Character->GetNetMode() == NM_DedicatedServer)
 	{
 		return;
@@ -279,7 +279,7 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(
 	const FRotator& CameraRotation,
 	const float MaxDistanceSquared)
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character || Character->GetNetMode() == NM_DedicatedServer)
 	{
 		return;
@@ -344,7 +344,7 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(
 
 void UCharacterHealthBarComponent::UpdateFacing()
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character
 		|| Character->GetNetMode() == NM_DedicatedServer
 		|| !IsVisible()
@@ -372,7 +372,7 @@ bool UCharacterHealthBarComponent::ShouldShowForLocalViewer(
 	const FVector& CameraLocation,
 	const FRotator& CameraRotation) const
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character
 		|| !LocalPlayerController
 		|| !LocalPlayerController->IsLocalController())
@@ -461,7 +461,7 @@ FVector UCharacterHealthBarComponent::GetLineOfSightStartLocation(
 
 FVector UCharacterHealthBarComponent::GetVisibilityTargetLocation() const
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character)
 	{
 		return GetComponentLocation();
@@ -479,11 +479,6 @@ FVector UCharacterHealthBarComponent::GetVisibilityTargetLocation() const
 }
 
 ACharacterBase* UCharacterHealthBarComponent::GetCharacterOwner() const
-{
-	return Cast<ACharacterBase>(GetOwner());
-}
-
-const ACharacterBase* UCharacterHealthBarComponent::GetCharacterOwnerConst() const
 {
 	return Cast<ACharacterBase>(GetOwner());
 }

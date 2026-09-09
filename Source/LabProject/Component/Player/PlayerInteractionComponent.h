@@ -31,8 +31,6 @@ public:
 
 	void ApplySettings(const FPlayerInteractionSettings& Settings);
 
-	bool HasCurrentInteractActors(
-		TArray<TScriptInterface<IInteractableInterface>>& OutCurrentInteractActors) const;
 	AActor* GetCurrentInteractActor() const;
 	bool InteractWithCurrentTarget();
 	bool CanInteractWithActor(AActor* InteractableActor) const;

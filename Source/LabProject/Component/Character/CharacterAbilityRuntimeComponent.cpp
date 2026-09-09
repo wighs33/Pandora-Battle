@@ -38,7 +38,7 @@ UCharacterAbilityRuntimeComponent::UCharacterAbilityRuntimeComponent()
 
 void UCharacterAbilityRuntimeComponent::CaptureBaseMovementSpeed()
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (const UCharacterMovementComponent* MovementComponent =
 		Character ? Character->GetCharacterMovement() : nullptr)
 	{
@@ -79,20 +79,11 @@ void UCharacterAbilityRuntimeComponent::TryInitializeAbilitySystemActorInfo()
 		ClearAbilitySystemActorInfo();
 		return;
 	}
-	if (!Character || !ASC || !OwnerActor || !AvatarActor)
+	if (!Character || !ASC || !OwnerActor || !AvatarActor
+		|| !PdASC->IsRegistered() || !PdASC->HasAbilityActorInfoAllocated())
 	{
 		QueueAbilitySystemActorInfoInitializationRetry();
 		if (Character && Character->GetCharacterHealthBarComponent())
-		{
-			Character->GetCharacterHealthBarComponent()->TryRefreshViewModel();
-		}
-		return;
-	}
-
-	if (!PdASC->IsRegistered() || !PdASC->HasAbilityActorInfoAllocated())
-	{
-		QueueAbilitySystemActorInfoInitializationRetry();
-		if (Character->GetCharacterHealthBarComponent())
 		{
 			Character->GetCharacterHealthBarComponent()->TryRefreshViewModel();
 		}
@@ -231,7 +222,7 @@ void UCharacterAbilityRuntimeComponent::TickRuntime()
 void UCharacterAbilityRuntimeComponent::BindStaminaRegenToASC(
 	UAbilitySystemComponent* AbilitySystemComponent)
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character || !Character->HasAuthority())
 	{
 		return;
@@ -694,7 +685,7 @@ void UCharacterAbilityRuntimeComponent::UnbindFrozenTagEvent()
 
 void UCharacterAbilityRuntimeComponent::RefreshAirborneGameplayTag()
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	const UCharacterMovementComponent* MovementComponent =
 		Character ? Character->GetCharacterMovement() : nullptr;
 	SetAirborneGameplayTag(
@@ -950,7 +941,7 @@ void UCharacterAbilityRuntimeComponent::ClearFrozenStateForRespawn()
 void UCharacterAbilityRuntimeComponent::HandleStaminaChanged(
 	const FOnAttributeChangeData& Data)
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character
 		|| !Character->HasAuthority()
 		|| FMath::IsNearlyEqual(Data.NewValue, Data.OldValue))
@@ -992,7 +983,7 @@ void UCharacterAbilityRuntimeComponent::HandleStaminaChanged(
 
 void UCharacterAbilityRuntimeComponent::ApplyStaminaRegenEffect()
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	const UGameSettingDefinition* SettingDefinition =
 		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	if (!Character
@@ -1056,12 +1047,6 @@ float UCharacterAbilityRuntimeComponent::GetCurrentMaxStamina() const
 }
 
 ACharacterBase* UCharacterAbilityRuntimeComponent::GetCharacterOwner() const
-{
-	return Cast<ACharacterBase>(GetOwner());
-}
-
-const ACharacterBase*
-UCharacterAbilityRuntimeComponent::GetCharacterOwnerConst() const
 {
 	return Cast<ACharacterBase>(GetOwner());
 }

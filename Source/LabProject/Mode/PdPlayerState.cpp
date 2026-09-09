@@ -1,5 +1,7 @@
 #include "Mode/PdPlayerState.h"
 
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Component/Lobby/LobbyPlayerStateComponent.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Component/Player/PlayerLoadoutComponent.h"
@@ -21,8 +23,10 @@ APdPlayerState::APdPlayerState(const FObjectInitializer& ObjectInitializer)
 	SetNetUpdateFrequency(100.0f);
 
 	AbilitySystemComponent = CreateDefaultSubobject<UPdAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	BasicAttributeSet = CreateDefaultSubobject<UBasicAttributeSet>(TEXT("BasicAttributeSet"));
 	PlayerLoadoutComponent = CreateDefaultSubobject<UPlayerLoadoutComponent>(TEXT("PlayerLoadoutComponent"));
 	PlayerMatchComponent = CreateDefaultSubobject<UPlayerMatchComponent>(TEXT("PlayerMatchComponent"));
+	LobbyPlayerStateComponent = CreateDefaultSubobject<ULobbyPlayerStateComponent>(TEXT("LobbyPlayerStateComponent"));
 	LevelingComponent = CreateDefaultSubobject<ULevelingComponent>(TEXT("LevelingComponent"));
 	SkinComponent = CreateDefaultSubobject<USkinComponent>(TEXT("SkinComponent"));
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
@@ -39,11 +43,15 @@ void APdPlayerState::PreInitializeComponents()
 	UGameFrameworkComponentManager::AddGameFrameworkComponentReceiver(this);
 }
 
-// 플레이어 상태가 준비되었음을 게임피처에 알려 관련 기능의 초기화를 이어갈 수 있게 한다.
+// 기본 속성의 ASC 등록 이후 게임피처에 준비를 알리고 서버에서 공통 기본값을 적용한다.
 void APdPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
 	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(this, UGameFrameworkComponentManager::NAME_GameActorReady);
+	if (HasAuthority())
+	{
+		StatUpgradeComponent->ApplyConfiguredAttributeDefaults();
+	}
 }
 
 // 플레이어 상태가 종료될 때 GFCM 수신 등록을 해제하여 게임피처와의 연결을 정리한다.
@@ -65,9 +73,10 @@ void APdPlayerState::CopyProperties(APlayerState* NewPlayerState)
 		return;
 	}
 
-	if (PlayerMatchComponent)
+	if (PlayerMatchComponent && TargetPlayerState->PlayerMatchComponent)
 	{
-		TargetPlayerState->ReceiveMatchIdentityFromCopyProperties(BuildMatchIdentityForCopyProperties());
+		const FPlayerMatchIdentity Identity = PlayerMatchComponent->GetPlayerMatchIdentity();
+		TargetPlayerState->PlayerMatchComponent->SetPlayerMatchIdentity(Identity);
 	}
 }
 
@@ -105,21 +114,4 @@ UPandoraComponent* APdPlayerState::GetPandoraComponent() const
 UPandoraTreeComponent* APdPlayerState::GetPandoraTreeComponent() const
 {
 	return PandoraTreeComponent.Get();
-}
-
-// 다음 PlayerState에 넘길 표시 이름·팀·스폰 식별 정보·선택 업적을 반환한다.
-FPlayerMatchIdentity APdPlayerState::BuildMatchIdentityForCopyProperties() const
-{
-	return PlayerMatchComponent
-		? PlayerMatchComponent->GetPlayerMatchIdentity()
-		: FPlayerMatchIdentity();
-}
-
-// 이전 PlayerState에서 전달받은 플레이어 식별 정보를 현재 경기 정보 컴포넌트에 적용한다.
-void APdPlayerState::ReceiveMatchIdentityFromCopyProperties(const FPlayerMatchIdentity& Identity)
-{
-	if (PlayerMatchComponent)
-	{
-		PlayerMatchComponent->SetPlayerMatchIdentity(Identity);
-	}
 }

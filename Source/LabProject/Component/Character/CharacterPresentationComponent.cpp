@@ -29,32 +29,26 @@ UCharacterPresentationComponent::UCharacterPresentationComponent()
 	SetIsReplicatedByDefault(true);
 }
 
-void UCharacterPresentationComponent::GetLifetimeReplicatedProps(
-	TArray<FLifetimeProperty>& OutLifetimeProps) const
+void UCharacterPresentationComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
-	DOREPLIFETIME_WITH_PARAMS_FAST(
-		UCharacterPresentationComponent,
-		CurrentAnimLayer,
-		Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UCharacterPresentationComponent, CurrentAnimLayer, Params);
 }
 
-void UCharacterPresentationComponent::ApplySettings(
-	const FCharacterPresentationSettings& InSettings)
+void UCharacterPresentationComponent::ApplySettings(const FCharacterPresentationSettings& InSettings)
 {
 	Settings = InSettings;
 }
 
-void UCharacterPresentationComponent::InitializePresentation(
-	UNiagaraComponent* InDefaultBodyAuraComponent)
+void UCharacterPresentationComponent::InitializePresentation(UNiagaraComponent* InDefaultBodyAuraComponent)
 {
 	DefaultBodyAuraComponent = InDefaultBodyAuraComponent;
 	ResetAnimationToDefault();
 	BindMatchTeamColorChanged();
-	ApplyTeamOverlayMaterial();
+	RefreshCharacterOverlayMaterial();
 }
 
 void UCharacterPresentationComponent::ShutdownPresentation()
@@ -76,8 +70,7 @@ void UCharacterPresentationComponent::ResetAnimationToDefault()
 	SetCurrentAnimLayer(Settings.DefaultAnimLayer);
 }
 
-void UCharacterPresentationComponent::SetCurrentAnimLayer(
-	TSubclassOf<UAnimInstance> AnimLayerClass)
+void UCharacterPresentationComponent::SetCurrentAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass)
 {
 	ACharacterBase* Character = GetCharacterOwner();
 	if (!Character)
@@ -85,17 +78,13 @@ void UCharacterPresentationComponent::SetCurrentAnimLayer(
 		return;
 	}
 
-	const TSubclassOf<UAnimInstance> NewAnimLayer =
-		AnimLayerClass ? AnimLayerClass : Settings.DefaultAnimLayer;
+	const TSubclassOf<UAnimInstance> NewAnimLayer = AnimLayerClass ? AnimLayerClass : Settings.DefaultAnimLayer;
 	const bool bAnimLayerChanged = CurrentAnimLayer != NewAnimLayer;
 	CurrentAnimLayer = NewAnimLayer;
 
 	if (bAnimLayerChanged && Character->HasAuthority())
 	{
-		MARK_PROPERTY_DIRTY_FROM_NAME(
-			UCharacterPresentationComponent,
-			CurrentAnimLayer,
-			this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(UCharacterPresentationComponent, CurrentAnimLayer, this);
 	}
 
 	LinkAnimLayer(NewAnimLayer);
@@ -103,16 +92,12 @@ void UCharacterPresentationComponent::SetCurrentAnimLayer(
 
 void UCharacterPresentationComponent::OnRep_CurrentAnimLayer()
 {
-	LinkAnimLayer(
-		CurrentAnimLayer
-			? CurrentAnimLayer
-			: Settings.DefaultAnimLayer);
+	LinkAnimLayer(CurrentAnimLayer ? CurrentAnimLayer : Settings.DefaultAnimLayer);
 }
 
-void UCharacterPresentationComponent::LinkAnimLayer(
-	TSubclassOf<UAnimInstance> AnimLayerClass) const
+void UCharacterPresentationComponent::LinkAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass) const
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (AnimLayerClass && Character && Character->GetMesh())
 	{
 		Character->GetMesh()->LinkAnimClassLayers(AnimLayerClass);
@@ -121,7 +106,7 @@ void UCharacterPresentationComponent::LinkAnimLayer(
 
 void UCharacterPresentationComponent::UpdateAimOffset()
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character
 		|| (!Character->HasAuthority() && !Character->IsLocallyControlled())
 		|| Character->IsStatusFrozen())
@@ -129,16 +114,12 @@ void UCharacterPresentationComponent::UpdateAimOffset()
 		return;
 	}
 
-	const FRotator AimDelta = (
-		Character->GetBaseAimRotation()
-		- Character->GetActorRotation()).GetNormalized();
+	const FRotator AimDelta = (Character->GetBaseAimRotation() - Character->GetActorRotation()).GetNormalized();
 	AimYaw = AimDelta.Yaw;
 	AimPitch = AimDelta.Pitch;
 }
 
-void UCharacterPresentationComponent::SetAimOffset(
-	const float InAimYaw,
-	const float InAimPitch)
+void UCharacterPresentationComponent::SetAimOffset(const float InAimYaw, const float InAimPitch)
 {
 	AimYaw = InAimYaw;
 	AimPitch = InAimPitch;
@@ -147,8 +128,7 @@ void UCharacterPresentationComponent::SetAimOffset(
 void UCharacterPresentationComponent::BindMatchTeamColorChanged()
 {
 	ACharacterBase* Character = GetCharacterOwner();
-	APdPlayerState* PdPlayerState =
-		Character ? Character->GetPlayerState<APdPlayerState>() : nullptr;
+	APdPlayerState* PdPlayerState = Character ? Character->GetPlayerState<APdPlayerState>() : nullptr;
 	if (TeamColorBoundPlayerState.Get() == PdPlayerState)
 	{
 		return;
@@ -159,8 +139,7 @@ void UCharacterPresentationComponent::BindMatchTeamColorChanged()
 	if (PdPlayerState && PdPlayerState->GetPlayerMatchComponent())
 	{
 		PdPlayerState->GetPlayerMatchComponent()->OnMatchTeamColorChanged.AddUObject(
-			this,
-			&ThisClass::HandleMatchTeamColorChanged);
+			this, &ThisClass::HandleMatchTeamColorChanged);
 	}
 }
 
@@ -168,8 +147,7 @@ void UCharacterPresentationComponent::UnbindMatchTeamColorChanged()
 {
 	if (APdPlayerState* PdPlayerState = TeamColorBoundPlayerState.Get())
 	{
-		if (UPlayerMatchComponent* MatchComponent =
-			PdPlayerState->GetPlayerMatchComponent())
+		if (UPlayerMatchComponent* MatchComponent = PdPlayerState->GetPlayerMatchComponent())
 		{
 			MatchComponent->OnMatchTeamColorChanged.RemoveAll(this);
 		}
@@ -177,35 +155,27 @@ void UCharacterPresentationComponent::UnbindMatchTeamColorChanged()
 	TeamColorBoundPlayerState.Reset();
 }
 
-void UCharacterPresentationComponent::HandleMatchTeamColorChanged(
-	const int32 NewTeamColorIndex)
+void UCharacterPresentationComponent::HandleMatchTeamColorChanged(const int32 NewTeamColorIndex)
 {
 	static_cast<void>(NewTeamColorIndex);
-	ApplyTeamOverlayMaterial();
+	RefreshCharacterOverlayMaterial();
 }
 
-const UMatchRuleDefinition*
-UCharacterPresentationComponent::GetTeamOverlayMatchRuleDefinition() const
+const UMatchRuleDefinition* UCharacterPresentationComponent::GetTeamOverlayMatchRuleDefinition() const
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	const AExperienceGameState* ExperienceGameState =
-		Character && Character->GetWorld()
-			? Character->GetWorld()->GetGameState<AExperienceGameState>()
-			: nullptr;
+		Character && Character->GetWorld() ? Character->GetWorld()->GetGameState<AExperienceGameState>() : nullptr;
 	if (ExperienceGameState && ExperienceGameState->GetMatchRuleDefinition())
 	{
 		return ExperienceGameState->GetMatchRuleDefinition();
 	}
 
-	const UGameInstance* GameInstance = Character
-		? Character->GetGameInstance()
-		: nullptr;
-	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem = GameInstance
-		? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>()
-		: nullptr;
-	if (const UMatchRuleDefinition* LobbyMatchRules = LobbyRuntimeSubsystem
-		? LobbyRuntimeSubsystem->GetLoadedLobbyMatchRuleDefinition()
-		: nullptr)
+	const UGameInstance* GameInstance = Character ? Character->GetGameInstance() : nullptr;
+	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem = 
+		GameInstance ? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>() : nullptr;
+	if (const UMatchRuleDefinition* LobbyMatchRules =
+		LobbyRuntimeSubsystem ? LobbyRuntimeSubsystem->GetLoadedLobbyMatchRuleDefinition() : nullptr)
 	{
 		return LobbyMatchRules;
 	}
@@ -213,35 +183,24 @@ UCharacterPresentationComponent::GetTeamOverlayMatchRuleDefinition() const
 	return UMatchRuleDefinition::ResolveDefaultDefinition();
 }
 
-void UCharacterPresentationComponent::ApplyTeamOverlayMaterial()
-{
-	RefreshCharacterOverlayMaterial();
-}
-
 void UCharacterPresentationComponent::RefreshCharacterOverlayMaterial()
 {
 	ACharacterBase* Character = GetCharacterOwner();
-	USkeletalMeshComponent* CharacterMesh =
-		Character ? Character->GetMesh() : nullptr;
+	USkeletalMeshComponent* CharacterMesh = Character ? Character->GetMesh() : nullptr;
 	if (!CharacterMesh)
 	{
 		return;
 	}
 
-	if (UMaterialInterface* SkillOverlayMaterial =
-		GetPreferredSkillOverlayMaterial())
+	if (UMaterialInterface* SkillOverlayMaterial = GetPreferredSkillOverlayMaterial())
 	{
 		CharacterMesh->SetOverlayMaterial(SkillOverlayMaterial);
 		return;
 	}
 
-	const APdPlayerState* PdPlayerState =
-		Character->GetPlayerState<APdPlayerState>();
-	const UPlayerMatchComponent* MatchComponent =
-		PdPlayerState ? PdPlayerState->GetPlayerMatchComponent() : nullptr;
-	const int32 TeamColorIndex = MatchComponent
-		? MatchComponent->GetMatchTeamColorIndex()
-		: INDEX_NONE;
+	const APdPlayerState* PdPlayerState = Character->GetPlayerState<APdPlayerState>();
+	const UPlayerMatchComponent* MatchComponent = PdPlayerState ? PdPlayerState->GetPlayerMatchComponent() : nullptr;
+	const int32 TeamColorIndex = MatchComponent ? MatchComponent->GetMatchTeamColorIndex() : INDEX_NONE;
 	if (TeamColorIndex == INDEX_NONE)
 	{
 		CharacterMesh->SetOverlayMaterial(nullptr);
@@ -249,8 +208,7 @@ void UCharacterPresentationComponent::RefreshCharacterOverlayMaterial()
 		return;
 	}
 
-	const UMatchRuleDefinition* MatchRules =
-		GetTeamOverlayMatchRuleDefinition();
+	const UMatchRuleDefinition* MatchRules = GetTeamOverlayMatchRuleDefinition();
 	if (!MatchRules)
 	{
 		CharacterMesh->SetOverlayMaterial(nullptr);
@@ -263,20 +221,15 @@ void UCharacterPresentationComponent::RefreshCharacterOverlayMaterial()
 	{
 		World->GetTimerManager().ClearTimer(TeamOverlayMaterialRetryTimerHandle);
 	}
-	CharacterMesh->SetOverlayMaterial(
-		MatchRules->GetTeamOverlayMaterial(TeamColorIndex));
+	CharacterMesh->SetOverlayMaterial(MatchRules->GetTeamOverlayMaterial(TeamColorIndex));
 }
 
-UMaterialInterface*
-UCharacterPresentationComponent::GetPreferredSkillOverlayMaterial()
+UMaterialInterface* UCharacterPresentationComponent::GetPreferredSkillOverlayMaterial()
 {
-	const int32 EntryCount = FMath::Min(
-		SkillPresentationOverlaySources.Num(),
-		SkillPresentationOverlayMaterials.Num());
+	const int32 EntryCount = FMath::Min(SkillPresentationOverlaySources.Num(), SkillPresentationOverlayMaterials.Num());
 	for (int32 Index = EntryCount - 1; Index >= 0; --Index)
 	{
-		if (IsValid(SkillPresentationOverlaySources[Index])
-			&& IsValid(SkillPresentationOverlayMaterials[Index]))
+		if (IsValid(SkillPresentationOverlaySources[Index]) && IsValid(SkillPresentationOverlayMaterials[Index]))
 		{
 			return SkillPresentationOverlayMaterials[Index];
 		}
@@ -287,21 +240,16 @@ UCharacterPresentationComponent::GetPreferredSkillOverlayMaterial()
 	return nullptr;
 }
 
-void UCharacterPresentationComponent::ApplySkillPresentationOverlay(
-	UObject* PresentationSource,
-	UMaterialInterface* OverlayMaterial)
+void UCharacterPresentationComponent::ApplySkillPresentationOverlay(UObject* PresentationSource, UMaterialInterface* OverlayMaterial)
 {
 	if (!IsValid(PresentationSource))
 	{
 		return;
 	}
 
-	for (int32 Index = SkillPresentationOverlaySources.Num() - 1;
-		Index >= 0;
-		--Index)
+	for (int32 Index = SkillPresentationOverlaySources.Num() - 1; Index >= 0; --Index)
 	{
-		if (!IsValid(SkillPresentationOverlaySources[Index])
-			|| SkillPresentationOverlaySources[Index] == PresentationSource)
+		if (!IsValid(SkillPresentationOverlaySources[Index]) || SkillPresentationOverlaySources[Index] == PresentationSource)
 		{
 			SkillPresentationOverlaySources.RemoveAt(Index);
 			if (SkillPresentationOverlayMaterials.IsValidIndex(Index))
@@ -319,15 +267,11 @@ void UCharacterPresentationComponent::ApplySkillPresentationOverlay(
 	RefreshCharacterOverlayMaterial();
 }
 
-void UCharacterPresentationComponent::ClearSkillPresentationOverlay(
-	UObject* PresentationSource)
+void UCharacterPresentationComponent::ClearSkillPresentationOverlay(UObject* PresentationSource)
 {
-	for (int32 Index = SkillPresentationOverlaySources.Num() - 1;
-		Index >= 0;
-		--Index)
+	for (int32 Index = SkillPresentationOverlaySources.Num() - 1; Index >= 0; --Index)
 	{
-		if (!IsValid(SkillPresentationOverlaySources[Index])
-			|| SkillPresentationOverlaySources[Index] == PresentationSource)
+		if (!IsValid(SkillPresentationOverlaySources[Index]) || SkillPresentationOverlaySources[Index] == PresentationSource)
 		{
 			SkillPresentationOverlaySources.RemoveAt(Index);
 			if (SkillPresentationOverlayMaterials.IsValidIndex(Index))
@@ -337,8 +281,7 @@ void UCharacterPresentationComponent::ClearSkillPresentationOverlay(
 		}
 	}
 
-	while (SkillPresentationOverlayMaterials.Num()
-		> SkillPresentationOverlaySources.Num())
+	while (SkillPresentationOverlayMaterials.Num() > SkillPresentationOverlaySources.Num())
 	{
 		SkillPresentationOverlayMaterials.Pop();
 	}
@@ -362,10 +305,8 @@ void UCharacterPresentationComponent::QueueTeamOverlayMaterialRetry()
 {
 	UWorld* World = GetWorld();
 	if (!World
-		|| World->GetTimerManager().IsTimerActive(
-			TeamOverlayMaterialRetryTimerHandle)
-		|| TeamOverlayMaterialRetryCount
-			>= TeamOverlayMaterialRetryAttempts)
+		|| World->GetTimerManager().IsTimerActive(TeamOverlayMaterialRetryTimerHandle)
+		|| TeamOverlayMaterialRetryCount >= TeamOverlayMaterialRetryAttempts)
 	{
 		return;
 	}
@@ -377,7 +318,7 @@ void UCharacterPresentationComponent::QueueTeamOverlayMaterialRetry()
 		{
 			TeamOverlayMaterialRetryTimerHandle.Invalidate();
 			BindMatchTeamColorChanged();
-			ApplyTeamOverlayMaterial();
+			RefreshCharacterOverlayMaterial();
 		}),
 		TeamOverlayMaterialRetryInterval,
 		false);
@@ -414,42 +355,34 @@ void UCharacterPresentationComponent::HandleDashGameplayCue(
 	}
 }
 
-FVector UCharacterPresentationComponent::GetClampedBodyAuraRelativeLocationOffset(
-	FVector RelativeLocationOffset) const
+FVector UCharacterPresentationComponent::GetClampedBodyAuraRelativeLocationOffset(FVector RelativeLocationOffset) const
 {
 	if (RelativeLocationOffset.ContainsNaN())
 	{
 		return FVector::ZeroVector;
 	}
 
-	const float MaxOffsetDistance =
-		MaxBodyAuraRelativeOffsetDistance;
-	return MaxOffsetDistance > 0.0f
-		? RelativeLocationOffset.GetClampedToMaxSize(MaxOffsetDistance)
-		: FVector::ZeroVector;
+	const float MaxOffsetDistance = MaxBodyAuraRelativeOffsetDistance;
+	return MaxOffsetDistance > 0.0f ? RelativeLocationOffset.GetClampedToMaxSize(MaxOffsetDistance) : FVector::ZeroVector;
 }
 
-FVector UCharacterPresentationComponent::GetClampedBodyAuraRelativeScale(
-	FVector RelativeScale) const
+FVector UCharacterPresentationComponent::GetClampedBodyAuraRelativeScale(FVector RelativeScale) const
 {
 	if (RelativeScale.ContainsNaN())
 	{
 		return FVector::OneVector;
 	}
 
-	const float MaxScale =
-		MaxBodyAuraRelativeScale;
+	const float MaxScale = MaxBodyAuraRelativeScale;
 	return FVector(
 		FMath::Clamp(RelativeScale.X, 0.0f, MaxScale),
 		FMath::Clamp(RelativeScale.Y, 0.0f, MaxScale),
 		FMath::Clamp(RelativeScale.Z, 0.0f, MaxScale));
 }
 
-UNiagaraComponent*
-UCharacterPresentationComponent::FindBodyAuraNiagaraComponent(
-	const FName ComponentName) const
+UNiagaraComponent* UCharacterPresentationComponent::FindBodyAuraNiagaraComponent(const FName ComponentName) const
 {
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character)
 	{
 		return DefaultBodyAuraComponent.Get();
@@ -480,8 +413,7 @@ void UCharacterPresentationComponent::ApplyBodyAuraNiagaraWithOffset(
 	const FVector RelativeLocationOffset,
 	const FVector RelativeScale)
 {
-	UNiagaraComponent* AuraComponent =
-		FindBodyAuraNiagaraComponent(ComponentName);
+	UNiagaraComponent* AuraComponent = FindBodyAuraNiagaraComponent(ComponentName);
 	if (!AuraComponent)
 	{
 		return;
@@ -490,10 +422,8 @@ void UCharacterPresentationComponent::ApplyBodyAuraNiagaraWithOffset(
 	AuraComponent->SetAsset(NiagaraSystem);
 	if (NiagaraSystem && bActivate)
 	{
-		AuraComponent->SetRelativeLocation(
-			GetClampedBodyAuraRelativeLocationOffset(RelativeLocationOffset));
-		AuraComponent->SetRelativeScale3D(
-			GetClampedBodyAuraRelativeScale(RelativeScale));
+		AuraComponent->SetRelativeLocation(GetClampedBodyAuraRelativeLocationOffset(RelativeLocationOffset));
+		AuraComponent->SetRelativeScale3D(GetClampedBodyAuraRelativeScale(RelativeScale));
 		if (bResetSystem)
 		{
 			AuraComponent->ResetSystem();
@@ -507,14 +437,10 @@ void UCharacterPresentationComponent::ApplyBodyAuraNiagaraWithOffset(
 }
 
 void UCharacterPresentationComponent::ClearBodyAuraNiagaraIfMatching(
-	const FName ComponentName,
-	const UNiagaraSystem* ExpectedNiagaraSystem)
+	const FName ComponentName, const UNiagaraSystem* ExpectedNiagaraSystem)
 {
-	UNiagaraComponent* AuraComponent =
-		FindBodyAuraNiagaraComponent(ComponentName);
-	if (!AuraComponent
-		|| (ExpectedNiagaraSystem
-			&& AuraComponent->GetAsset() != ExpectedNiagaraSystem))
+	UNiagaraComponent* AuraComponent = FindBodyAuraNiagaraComponent(ComponentName);
+	if (!AuraComponent || (ExpectedNiagaraSystem && AuraComponent->GetAsset() != ExpectedNiagaraSystem))
 	{
 		return;
 	}
@@ -524,12 +450,6 @@ void UCharacterPresentationComponent::ClearBodyAuraNiagaraIfMatching(
 }
 
 ACharacterBase* UCharacterPresentationComponent::GetCharacterOwner() const
-{
-	return Cast<ACharacterBase>(GetOwner());
-}
-
-const ACharacterBase*
-UCharacterPresentationComponent::GetCharacterOwnerConst() const
 {
 	return Cast<ACharacterBase>(GetOwner());
 }

@@ -1,4 +1,6 @@
 #include "Lobby/UI/LobbyUserWidget.h"
+#include "Component/Lobby/LobbyPlayerStateComponent.h"
+#include "Component/Player/PlayerMatchComponent.h"
 
 #include "Components/Border.h"
 #include "Components/Button.h"
@@ -11,7 +13,7 @@
 #include "GameFramework/PlayerState.h"
 #include "HAL/PlatformProcess.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
+#include "Mode/PdPlayerState.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "steam/steam_api.h"
@@ -179,7 +181,7 @@ void ULobbyUserWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void ULobbyUserWidget::SetInfo(ALobbyPlayerState* InPlayerState)
+void ULobbyUserWidget::SetInfo(APdPlayerState* InPlayerState)
 {
 	PlayerState = InPlayerState;
 	RefreshUI();
@@ -219,10 +221,12 @@ void ULobbyUserWidget::RefreshUI()
 		Img_OwnerMark->SetVisibility(IsLobbyOwnerPlayer() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
+	const FText DisplayName = PlayerState->GetPlayerMatchComponent()->GetMatchDisplayName();
+	const ULobbyPlayerStateComponent* LobbyState = PlayerState->GetLobbyPlayerStateComponent();
 	if (Txt_PlayerName)
 	{
 		Txt_PlayerName->SetVisibility(ESlateVisibility::Hidden);
-		Txt_PlayerName->SetText(PlayerState->GetNickname());
+		Txt_PlayerName->SetText(DisplayName);
 	}
 
 	if (Editable_PlayerName)
@@ -231,12 +235,12 @@ void ULobbyUserWidget::RefreshUI()
 			bLocalPlayer && Editable_PlayerName->HasKeyboardFocus();
 
 		Editable_PlayerName->SetVisibility(ESlateVisibility::Visible);
-		Editable_PlayerName->SetHintText(PlayerState->GetNicknameHint());
+		Editable_PlayerName->SetHintText(LobbyState->GetNicknameHint());
 		if (!bPreserveLocalNicknameDraft)
 		{
-			Editable_PlayerName->SetText(PlayerState->IsUsingNicknameHint()
+			Editable_PlayerName->SetText(LobbyState->IsUsingNicknameHint()
 				? FText::GetEmpty()
-				: PlayerState->GetNickname());
+				: DisplayName);
 		}
 		Editable_PlayerName->SetIsReadOnly(!bLocalPlayer);
 	}
@@ -300,7 +304,7 @@ void ULobbyUserWidget::HandleTeamColorSelectionChanged(FString SelectedItem, ESe
 		return;
 	}
 
-	if (PlayerState->GetTeamColorIndex() == SelectedTeamColorIndex)
+	if (PlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex() == SelectedTeamColorIndex)
 	{
 		return;
 	}
@@ -326,7 +330,7 @@ bool ULobbyUserWidget::CanLocalPlayerKick() const
 
 bool ULobbyUserWidget::IsLobbyOwnerPlayer() const
 {
-	if (!PlayerState || PlayerState->IsLeavingLobby())
+	if (!PlayerState || PlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
 	{
 		return false;
 	}
@@ -338,11 +342,11 @@ bool ULobbyUserWidget::IsLobbyOwnerPlayer() const
 		return false;
 	}
 
-	const ALobbyPlayerState* OwnerState = nullptr;
+	const APdPlayerState* OwnerState = nullptr;
 	for (APlayerState* CandidateState : GameState->PlayerArray)
 	{
-		const ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(CandidateState);
-		if (!LobbyPlayerState || LobbyPlayerState->IsLeavingLobby())
+		const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(CandidateState);
+		if (!LobbyPlayerState || LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
 		{
 			continue;
 		}
@@ -424,7 +428,7 @@ void ULobbyUserWidget::RefreshTeamColorUI()
 		return;
 	}
 
-	const int32 TeamColorIndex = NormalizeLobbyTeamColorIndex(PlayerState->GetTeamColorIndex());
+	const int32 TeamColorIndex = NormalizeLobbyTeamColorIndex(PlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex());
 
 	if (Cbb_TeamColor)
 	{

@@ -4,7 +4,7 @@
 #include "Mode/PdPlayerController.h"
 #include "LobbyPlayerController.generated.h"
 
-class ALobbyPlayerState;
+class APdPlayerState;
 class APawn;
 
 UCLASS()
@@ -26,7 +26,7 @@ public:
 	void Server_HandleChangeTeamColor(int32 InTeamColorIndex);
 
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "!Lobby")
-	void Server_HandleKickPlayer(ALobbyPlayerState* TargetPlayerState);
+	void Server_HandleKickPlayer(APdPlayerState* TargetPlayerState);
 
 	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")
 	void Client_StartGameCountdown(float DelaySeconds);

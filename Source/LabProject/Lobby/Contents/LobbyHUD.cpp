@@ -112,7 +112,13 @@ ULobbyWidget* ALobbyHUD::CreateLobbyUI()
 
 void ALobbyHUD::RefreshLobbyUI()
 {
-	if (!LobbyWidget)
+	// 예약 실행과 직접 갱신이 같은 경로를 사용하며, 남은 중복 예약은 취소한다.
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(LobbyUIRefreshTimerHandle);
+	}
+	const ALobbyGameState* GameState = ObservedLobbyGameState.Get();
+	if (!IsValid(LobbyWidget) || (GameState && GameState->IsGameStartPending()))
 	{
 		CreateLobbyUI();
 	}
@@ -189,16 +195,6 @@ void ALobbyHUD::RequestLobbyUIRefresh()
 {
 	if (UWorld* World = GetWorld(); World && !LobbyUIRefreshTimerHandle.IsValid())
 	{
-		LobbyUIRefreshTimerHandle = World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::RefreshLobbyUIFromState);
+		LobbyUIRefreshTimerHandle = World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::RefreshLobbyUI);
 	}
-}
-
-void ALobbyHUD::RefreshLobbyUIFromState()
-{
-	LobbyUIRefreshTimerHandle.Invalidate();
-	if (const ALobbyGameState* GameState = ObservedLobbyGameState.Get(); GameState && GameState->IsGameStartPending())
-	{
-		CreateLobbyUI();
-	}
-	RefreshLobbyUI();
 }

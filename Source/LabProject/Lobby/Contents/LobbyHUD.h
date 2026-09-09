@@ -54,7 +54,6 @@ protected:
 private:
 	void HandleGameStateSet(AGameStateBase* GameState);
 	void RequestLobbyUIRefresh();
-	void RefreshLobbyUIFromState();
 
 	TWeakObjectPtr<ALobbyGameState> ObservedLobbyGameState;
 	FTimerHandle LobbyUIRefreshTimerHandle;

@@ -22,8 +22,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnDefaultPlayerProvisioned, APlayerControll
 /**
  * Applies DA_DefaultProvision to a player.
  *
- * Lobby, training-room, and gameplay differences are data selected by Mode;
- * they do not require separate provisioner implementations.
+ * The owner loads the definition and initializes one provisioner per play space.
+ * Definition and mode remain fixed until Shutdown; repeated initialization never resets grants.
  */
 UCLASS(Transient)
 class LABPROJECT_API UDefaultPlayerProvisioner : public UObject
@@ -35,51 +35,43 @@ public:
 
 	FOnDefaultPlayerProvisioned OnPlayerProvisioned;
 
-	void SetDefinition(const UDefaultProvisionDefinition* InDefinition);
-	void ProvisionPlayer(
-		APlayerController* PlayerController,
-		EDefaultProvisionMode Mode);
+	bool Initialize(const UDefaultProvisionDefinition* InDefinition, EDefaultProvisionMode InMode);
+	bool IsInitialized() const { return ProvisionDefinition != nullptr && !bShuttingDown; }
+	void ProvisionPlayer(APlayerController* PlayerController);
 	void ClearRuntimeStateForController(
 		AController* Controller,
 		APlayerState* PlayerState);
 	void Shutdown();
 
 	bool ApplyConfiguredStatusPointsForPlayerState(
-		APlayerState* PlayerState,
-		EDefaultProvisionMode Mode) const;
+		APlayerState* PlayerState) const;
 
 private:
+	enum class EContentState : uint8 { NotStarted, Loading, Ready, Failed };
+	struct FInventoryProvisionState
+	{
+		TWeakObjectPtr<UInventoryComponent> Inventory;
+		bool bCompleted = false;
+	};
+
 	struct FInitializedPandoraState
 	{
-		EDefaultProvisionMode Mode = EDefaultProvisionMode::Lobby;
 		TWeakObjectPtr<UPandoraComponent> PandoraComponent;
 		TWeakObjectPtr<UPandoraTreeComponent> PandoraTreeComponent;
 	};
 
 	const UDefaultProvisionDefinition* GetDefinition() const;
-	bool EnsureContentLoaded(
-		APlayerController* PlayerController,
-		EDefaultProvisionMode Mode);
-	bool TryProvisionPlayer(
-		APlayerController* PlayerController,
-		EDefaultProvisionMode Mode);
-	bool ApplyItems(
-		APdPlayerState* PlayerState,
-		EDefaultProvisionMode Mode);
-	bool ApplyModeValues(
-		APdPlayerState* PlayerState,
-		EDefaultProvisionMode Mode);
-	bool ApplyPandoras(
-		APdPlayerState* PlayerState,
-		EDefaultProvisionMode Mode);
+	bool EnsureContentLoaded(APlayerController* PlayerController);
+	void HandleContentLoaded();
+	bool TryProvisionPlayer(APlayerController* PlayerController);
+	bool ApplyItems(APdPlayerState* PlayerState);
+	bool ApplyModeValues(APdPlayerState* PlayerState);
+	bool ApplyPandoras(APdPlayerState* PlayerState);
 	bool ApplyGestures(
 		APlayerController* PlayerController,
 		APdPlayerState* PlayerState);
-	void ScheduleRetry(
-		APlayerController* PlayerController,
-		EDefaultProvisionMode Mode);
+	void ScheduleRetry(APlayerController* PlayerController);
 	void ClearRetryTimer(APlayerController* PlayerController);
-	void CleanupLoadHandles();
 	int32 GetInventoryItemQuantity(
 		const UInventoryComponent* InventoryComponent,
 		FPrimaryAssetId ItemDefinitionId) const;
@@ -88,24 +80,16 @@ private:
 	TObjectPtr<UDefaultProvisionDefinition> ProvisionDefinition;
 
 	TMap<TObjectKey<APlayerController>, FTimerHandle> PendingRetryTimers;
-	TMap<TObjectKey<APlayerController>, EDefaultProvisionMode>
-		PendingRetryModes;
-	TSet<TObjectKey<AController>> PendingContentControllers;
-	TMap<TObjectKey<AController>, EDefaultProvisionMode>
-		AttemptedContentLoadModes;
-	TArray<TSharedPtr<FStreamableHandle>> PendingLoadHandles;
-	TSet<TObjectKey<APlayerState>> PendingItemPlayerStates;
-	TMap<TObjectKey<APlayerState>, TWeakObjectPtr<UInventoryComponent>>
-		InitializedInventories;
-	TMap<TObjectKey<APlayerState>, EDefaultProvisionMode>
-		InitializedInventoryModes;
-	TSet<TObjectKey<APlayerState>> CompletedItemPlayerStates;
-	TMap<TObjectKey<APlayerState>, EDefaultProvisionMode>
-		InitializedModeValues;
+	TArray<TWeakObjectPtr<APlayerController>> PendingContentControllers;
+	TArray<FPrimaryAssetId> RequiredContentIds;
+	TSharedPtr<FStreamableHandle> ContentLoadHandle;
+	EContentState ContentState = EContentState::NotStarted;
+	EDefaultProvisionMode Mode = EDefaultProvisionMode::Lobby;
+	TMap<TObjectKey<APlayerState>, FInventoryProvisionState> InventoryStates;
+	TSet<TObjectKey<APlayerState>> InitializedModeValues;
 	TMap<TObjectKey<APlayerState>, FInitializedPandoraState>
 		InitializedPandoras;
 	TMap<TObjectKey<APlayerState>, TWeakObjectPtr<USkinEquipmentComponent>>
 		InitializedGestureEquipment;
-	bool bLoggedMissingProvisionDefinition = false;
 	bool bShuttingDown = false;
 };

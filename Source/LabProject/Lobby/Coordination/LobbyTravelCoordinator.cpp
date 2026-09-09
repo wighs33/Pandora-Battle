@@ -1,6 +1,5 @@
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
 
-#include "Component/Lobby/LobbyExperienceComponent.h"
 #include "Component/Lobby/LobbyPlayerCoordinatorComponent.h"
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Character/PdPlayer.h"
@@ -16,7 +15,7 @@
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
+#include "Mode/PdPlayerState.h"
 #include "Lobby/Coordination/LobbyMatchCoordinator.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Engine/GameInstance.h"
@@ -143,7 +142,7 @@ bool ULobbyTravelCoordinator::IsLobbyReadyForSelectedMap() const
 
 	const int32 ActivePlayerCount = MatchCoordinator->GetActiveLobbyPlayerCount();
 	const int32 MaxPlayerCount = FMath::Max(GameMode->GetLobbyConfigurationComponent()->GetConfiguredMaxPlayerCount(), 1);
-	return !GameMode->GetLobbyExperienceComponent()->ShouldDelayPlayerStart()
+	return GameMode->IsReadyForPlayerStart()
 		&& ActivePlayerCount > 0
 		&& ActivePlayerCount <= MaxPlayerCount
 		&& MatchCoordinator->AreLobbyTeamsBalanced();
@@ -310,7 +309,7 @@ void ULobbyTravelCoordinator::CacheLobbyTravelState(ULobbyRuntimeSubsystem* Lobb
 	LobbySubsystem->ResetCachedLobbyPandoraLoadouts();
 	for (APlayerState* PlayerState : GameState->PlayerArray)
 	{
-		if (const ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(PlayerState))
+		if (const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState))
 		{
 			CacheLobbyPlayerTravelState(LobbySubsystem, LobbyPlayerState);
 		}
@@ -319,7 +318,7 @@ void ULobbyTravelCoordinator::CacheLobbyTravelState(ULobbyRuntimeSubsystem* Lobb
 
 void ULobbyTravelCoordinator::CacheLobbyPlayerTravelState(
 	ULobbyRuntimeSubsystem* LobbySubsystem,
-	const ALobbyPlayerState* LobbyPlayerState) const
+	const APdPlayerState* LobbyPlayerState) const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	if (!GameMode || !LobbySubsystem || !LobbyPlayerState)

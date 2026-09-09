@@ -53,10 +53,10 @@ void UExperiencePlayerProvisioningComponent::ApplySettings(
 	{
 		PlayerProfileService->ApplySettings(InSettings);
 	}
-	if (DefaultPlayerProvisioner)
+	if (DefaultPlayerProvisioner && InSettings.DefaultProvisionDefinition)
 	{
-		DefaultPlayerProvisioner->SetDefinition(
-			InSettings.DefaultProvisionDefinition);
+		DefaultPlayerProvisioner->Initialize(InSettings.DefaultProvisionDefinition,
+			IsTrainingRoomMap() ? EDefaultProvisionMode::TrainingRoom : EDefaultProvisionMode::Gameplay);
 	}
 }
 
@@ -107,8 +107,7 @@ void UExperiencePlayerProvisioningComponent::PreparePlayerForGameplayInternal(AP
 	}
 
 	PlayerProfileService->ApplyCachedLobbySkinEquipment(NewPlayer);
-	const EDefaultProvisionMode Mode = IsTrainingRoomMap() ? EDefaultProvisionMode::TrainingRoom : EDefaultProvisionMode::Gameplay;
-	DefaultPlayerProvisioner->ProvisionPlayer(NewPlayer, Mode);
+	DefaultPlayerProvisioner->ProvisionPlayer(NewPlayer);
 }
 
 // 지급 함수 호출 시점이 아니라 비동기 지급까지 성공한 시점에 현재 Pawn을 준비 완료로 기록한다.
@@ -238,10 +237,7 @@ void UExperiencePlayerProvisioningComponent::ApplyConfiguredStatusPointsForPlaye
 	{
 		DefaultPlayerProvisioner
 			->ApplyConfiguredStatusPointsForPlayerState(
-				PlayerState,
-				IsTrainingRoomMap()
-					? EDefaultProvisionMode::TrainingRoom
-					: EDefaultProvisionMode::Gameplay);
+				PlayerState);
 	}
 }
 

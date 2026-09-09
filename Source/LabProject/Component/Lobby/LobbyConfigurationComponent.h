@@ -23,6 +23,8 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	void InitializeRuntime(FSimpleDelegate OnReady = FSimpleDelegate());
+	bool IsRuntimeReady() const { return RuntimeState == ERuntimeState::Ready; }
+	bool HasRuntimeInitializationFailed() const { return RuntimeState == ERuntimeState::Failed; }
 	void ApplyDefaultLobbyConfigIfNeeded();
 	void SyncSelectedLobbyConfigToRuntime();
 	void SaveConfig(
@@ -52,9 +54,10 @@ public:
 
 	const ULevelDefinition* GetLevelDefinition();
 	const UMatchRuleDefinition* GetMatchRuleDefinition();
-	const UDefaultProvisionDefinition* GetDefaultProvisionDefinition();
+	const UDefaultProvisionDefinition* GetDefaultProvisionDefinition() const;
 
 private:
+	enum class ERuntimeState : uint8 { NotStarted, Loading, Ready, Failed };
 	ALobbyGameMode* GetLobbyGameMode() const;
 	FString ResolveSoftMapPath(
 		const TSoftObjectPtr<UWorld>& Map,
@@ -77,7 +80,7 @@ private:
 
 	bool bLoggedMissingLevelDefinition = false;
 	bool bLoggedMissingMatchRuleDefinition = false;
-	bool bLoggedMissingDefaultProvisionDefinition = false;
+	ERuntimeState RuntimeState = ERuntimeState::NotStarted;
 	TSharedPtr<FStreamableHandle> LobbyDependenciesPreloadHandle;
 	FSimpleDelegate RuntimeReadyDelegate;
 	uint32 RuntimePreloadRequestGeneration = 0;

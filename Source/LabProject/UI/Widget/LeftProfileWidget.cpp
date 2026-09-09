@@ -420,7 +420,7 @@ bool ULeftProfileWidget::RefreshPlayerName()
 	}
 
 	bool bHasMatchDisplayName = false;
-	FText PlayerName = NSLOCTEXT("LeftProfile", "DefaultPlayerName", "Player");
+	FText PlayerName = FText::FromString(TEXT("Player"));
 
 	const APlayerController* PlayerController = GetOwningPlayer();
 	if (const APdPlayerState* PlayerState = PlayerController ? Cast<APdPlayerState>(PlayerController->PlayerState) : nullptr)
@@ -478,7 +478,7 @@ void ULeftProfileWidget::HandleMatchDisplayNameChanged(const FText& NewDisplayNa
 	if (Txt_PlayerName)
 	{
 		Txt_PlayerName->SetText(NewDisplayName.IsEmpty()
-			? NSLOCTEXT("LeftProfile", "DefaultPlayerName", "Player")
+			? FText::FromString(TEXT("Player"))
 			: NewDisplayName);
 	}
 }

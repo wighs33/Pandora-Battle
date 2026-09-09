@@ -61,7 +61,7 @@ void UControllerInputComponent::RefreshInputDefinition()
 		return;
 	}
 
-	if (!LoadInputDefinition()
+	if (!GetLoadedInputDefinition()
 		|| !InputContentLoadHandle.IsValid())
 	{
 		BeginInputDefinitionPreload();
@@ -91,22 +91,10 @@ void UControllerInputComponent::SetInputDefinition(const TSoftObjectPtr<UControl
 
 UControllerInputDefinition* UControllerInputComponent::GetLoadedInputDefinition()
 {
-	return LoadInputDefinition();
-}
-
-UControllerInputDefinition* UControllerInputComponent::LoadInputDefinition()
-{
-	if (LoadedInputDefinition)
+	if (!LoadedInputDefinition && !ActiveInputDefinition.IsNull())
 	{
-		return LoadedInputDefinition;
+		LoadedInputDefinition = ActiveInputDefinition.Get();
 	}
-
-	if (ActiveInputDefinition.IsNull())
-	{
-		return nullptr;
-	}
-
-	LoadedInputDefinition = ActiveInputDefinition.Get();
 	return LoadedInputDefinition;
 }
 
@@ -120,7 +108,7 @@ void UControllerInputComponent::BeginInputDefinitionPreload()
 	ReleaseInputDefinitionPreload();
 	bInputPreloadPending = true;
 	const uint32 RequestGeneration = InputPreloadRequestGeneration;
-	if (LoadInputDefinition())
+	if (GetLoadedInputDefinition())
 	{
 		HandleInputDefinitionPreloadComplete(RequestGeneration);
 		return;
@@ -225,7 +213,7 @@ bool UControllerInputComponent::ApplyInputDefinition()
 		return false;
 	}
 
-	UControllerInputDefinition* LoadedDefinition = LoadInputDefinition();
+	UControllerInputDefinition* LoadedDefinition = GetLoadedInputDefinition();
 	if (!LoadedDefinition)
 	{
 		return false;
@@ -332,7 +320,7 @@ const UCharacterActionDefinition* UControllerInputComponent::LoadCharacterAction
 	UControllerInputDefinition* Definition = LoadedInputDefinition.Get();
 	if (!Definition)
 	{
-		Definition = LoadInputDefinition();
+		Definition = GetLoadedInputDefinition();
 	}
 	if (!Definition)
 	{
@@ -466,11 +454,6 @@ void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& 
 	BindLoadedAction(Definition.GetTargetConfirmInputAction(), ETriggerEvent::Started, &ThisClass::HandleTargetConfirmInputStarted, false);
 }
 
-bool UControllerInputComponent::CancelHitReactForMoveInput(APdPlayer* PlayerCharacter) const
-{
-	return PlayerCharacter && PlayerCharacter->RequestCancelHitReactForMovement();
-}
-
 void UControllerInputComponent::HandleMoveInput(const FInputActionValue& InputValue)
 {
 	APdPlayerController* Controller = GetPdController();
@@ -494,7 +477,7 @@ void UControllerInputComponent::HandleMoveInput(const FInputActionValue& InputVa
 	APdPlayer* PlayerCharacter = Cast<APdPlayer>(ControlledPawn);
 	const UEquipmentComponent* EquipmentComponent = PlayerCharacter ? PlayerCharacter->GetEquipmentComponent() : nullptr;
 	UAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetAbilitySystemComponent() : nullptr;
-	const bool bCancelledHitReactForMovement = CancelHitReactForMoveInput(PlayerCharacter);
+	const bool bCancelledHitReactForMovement = PlayerCharacter && PlayerCharacter->RequestCancelHitReactForMovement();
 	const FGameplayTag MovementBlockStateTag = LoadedInputDefinition ? LoadedInputDefinition->GetMovementBlockStateTag() : FGameplayTag();
 	if (!bCancelledHitReactForMovement
 		&& AbilitySystemComponent

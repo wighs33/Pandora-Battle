@@ -386,6 +386,7 @@ void UGameFeatureAction_AddAttributes::AddAttributeSetsToActor(AActor* Actor, UP
 		}
 
 		UAttributeSet* AttributeSet = FindExistingAttributeSet(Actor, AttributeSetClass);
+		const bool bCreatedByFeature = AttributeSet == nullptr;
 		if (!AttributeSet)
 		{
 			AttributeSet = NewObject<UAttributeSet>(AbilitySystemComponent->GetOwner(), AttributeSetClass);
@@ -397,7 +398,11 @@ void UGameFeatureAction_AddAttributes::AddAttributeSetsToActor(AActor* Actor, UP
 		}
 
 		AbilitySystemComponent->AddSpawnedAttribute(AttributeSet);
-		ActorAttributeSets.Add(AttributeSet);
+		// PlayerState가 소유한 기본 속성은 피처 해제 시에도 유지한다.
+		if (bCreatedByFeature)
+		{
+			ActorAttributeSets.Add(AttributeSet);
+		}
 	}
 
 	if (ActorAttributeSets.IsEmpty())

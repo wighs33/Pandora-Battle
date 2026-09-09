@@ -1023,10 +1023,6 @@ float UBasicAttributeSet::ApplyIncomingDamage(
 	if (OldHealth > 0.f && NewHealth <= 0.f)
 	{
 		TryBroadcastKillLog(GetOwningActor(), DamageInstigator, DamageCauser);
-	}
-
-	if (OldHealth > 0.f && NewHealth <= 0.f)
-	{
 		TryActivateDeathAbility(GetOwningAbilitySystemComponent());
 	}
 

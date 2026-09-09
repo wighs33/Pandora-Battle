@@ -4,7 +4,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "LobbyGameMode.generated.h"
 
-class ALobbyPlayerState;
+class APdPlayerState;
 class ULobbyConfigurationComponent;
 class ULobbyExperienceComponent;
 class ULobbyMatchCoordinator;
@@ -40,26 +40,16 @@ public:
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 
 	//------------------------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintCallable, Category = "!Lobby")
+	// 외부에서는 로비 명령과 시작 조건만 사용하고, 담당 컴포넌트 선택은 GameMode에 맡긴다.
 	void SaveConfig(FName MapKey, int32 InMaxPlayerCount, int32 InMaxBotCount);
-
-	UFUNCTION(BlueprintCallable, Category = "!Lobby")
 	void TryStartGame();
-
-	UFUNCTION(BlueprintPure, Category = "!Lobby")
 	bool CanHostStartGame() const;
-
-	UFUNCTION(BlueprintPure, Category = "!Lobby|Team")
-	bool AreLobbyTeamsBalanced() const;
-
-	UFUNCTION(BlueprintCallable, Category = "!Lobby|Team")
 	void NotifyLobbyTeamChanged();
-
-	UFUNCTION(BlueprintCallable, Category = "!Lobby")
-	void KickPlayer(ALobbyPlayerState* TargetPlayerState);
-
+	void KickPlayer(APdPlayerState* TargetPlayerState);
 	void RequestLobbyPlayerRespawn(AController* PlayerController, APawn* DeadPawn);
+
 	void ProvisionLobbyPlayer(APlayerController* PlayerController);
+	bool IsReadyForPlayerStart() const;
 
 	ULobbyConfigurationComponent* GetLobbyConfigurationComponent() const { return LobbyConfigurationComponent.Get(); }
 	ULobbyExperienceComponent* GetLobbyExperienceComponent() const { return LobbyExperienceComponent.Get(); }
@@ -70,6 +60,7 @@ public:
 
 private:
 	void EnsureLobbyFrameworkClasses();
+	void ResumeWaitingPlayers();
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Components

@@ -305,23 +305,6 @@ void APdPlayer::ApplyPlayerPawnDefinition()
 	ReapplyCurrentRotationPolicy();
 }
 
-// 다른 플레이어에게 조준 방향을 보내기 전에 현재 캐릭터의 애니메이션용 조준값을 계산한다.
-void APdPlayer::UpdateAimOffsetForReplicationComponent()
-{
-	UpdateAimOffsetForAnimation();
-}
-
-// 네트워크로 받은 조준 방향을 원격 캐릭터의 상체 애니메이션에 반영하며, 로컬 조준값은 덮지 않는다.
-void APdPlayer::ApplyReplicatedAimOffsetFromComponent(
-	const float AimYaw,
-	const float AimPitch)
-{
-	if (!IsLocallyControlled())
-	{
-		SetAimOffsetForAnimation(AimYaw, AimPitch);
-	}
-}
-
 // 능력과 쿨다운을 관리하는 현재 PlayerState의 ASC를 제공한다. 플레이어 캐릭터 자체에는 별도 ASC를 만들지 않는다.
 UAbilitySystemComponent* APdPlayer::GetAbilitySystemComponent() const
 {
@@ -463,20 +446,6 @@ void APdPlayer::StopInteractionMontage(float BlendOutTime)
 	}
 }
 
-// 다른 행동으로 전환하기 전에 상호작용용 몽타주가 아직 재생 중인지 확인한다.
-bool APdPlayer::IsInteractionMontagePlaying() const
-{
-	return PlayerInteractionComponent
-		&& PlayerInteractionComponent->IsInteractionMontagePlaying();
-}
-
-// 상호작용 센서가 추적 중인 유효한 대상 목록을 제공한다. 각 대상의 실제 상호작용 허용 여부와는 별개다.
-bool APdPlayer::HasCurrentInteractActors(TArray<TScriptInterface<IInteractableInterface>>& OutCurrentInteractActors) const
-{
-	return PlayerInteractionComponent
-		&& PlayerInteractionComponent->HasCurrentInteractActors(OutCurrentInteractActors);
-}
-
 // 주변에 추적 중인 대상 가운데 센서 겹침 또는 허용 거리 조건을 만족하는 첫 대상을 찾는다.
 AActor* APdPlayer::GetCurrentInteractActor() const
 {
@@ -546,7 +515,7 @@ void APdPlayer::ApplyCurrentRotationPolicy(
 
 	if (PlayerAimComponent)
 	{
-		PlayerAimComponent->RestoreMovementSettings(MovementComponent);
+		PlayerAimComponent->ApplyMovementSettings(MovementComponent);
 		return;
 	}
 

@@ -1,4 +1,6 @@
 #include "Lobby/UI/LobbyWidget.h"
+#include "Component/Lobby/LobbyPlayerStateComponent.h"
+#include "Component/Player/PlayerMatchComponent.h"
 
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "AudioSlider.h"
@@ -20,7 +22,7 @@
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyHUD.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
+#include "Mode/PdPlayerState.h"
 #include "Lobby/UI/ConnectingPopupWidget.h"
 #include "Lobby/UI/GameConfigWidget.h"
 #include "Lobby/UI/LobbyUserWidget.h"
@@ -279,10 +281,18 @@ void ULobbyWidget::ApplyLobbyInputPassthroughVisibility()
 
 void ULobbyWidget::SetInfo()
 {
+	if (RebuildPlayerSlots())
+	{
+		RefreshUI();
+	}
+}
+
+// 슬롯 생성만 담당한다. 실패 시 화면 갱신을 다시 호출하지 않는다.
+bool ULobbyWidget::RebuildPlayerSlots()
+{
 	if (!UserList)
 	{
-
-		return;
+		return false;
 	}
 
 	UserList->ClearChildren();
@@ -296,41 +306,43 @@ void ULobbyWidget::SetInfo()
 		}
 	}
 
-	for (int32 Index = 0; Index < GetMaxLobbySlotsForUI(); ++Index)
+	if (!LobbyUserWidgetClass || !GetOwningPlayer())
 	{
-		if (!LobbyUserWidgetClass)
-		{
-			break;
-		}
+		return false;
+	}
 
+	const int32 SlotCount = GetMaxLobbySlotsForUI();
+	for (int32 Index = 0; Index < SlotCount; ++Index)
+	{
 		ULobbyUserWidget* ChildWidget = CreateWidget<ULobbyUserWidget>(GetOwningPlayer(), LobbyUserWidgetClass);
 		if (!ChildWidget)
 		{
-			continue;
+			return false;
 		}
 
 		UserList->AddChildToVerticalBox(ChildWidget);
 		LobbyUsers.Add(ChildWidget);
 	}
 
-	RefreshUI();
+	return true;
 }
 
 void ULobbyWidget::RefreshUI()
 {
 	if (UserList && LobbyUsers.Num() != GetMaxLobbySlotsForUI())
 	{
-		SetInfo();
-		return;
+		if (!RebuildPlayerSlots())
+		{
+			return;
+		}
 	}
 
-	const TArray<ALobbyPlayerState*> LobbyPlayerStates = GetLobbyPlayerStates();
+	const TArray<APdPlayerState*> LobbyPlayerStates = GetLobbyPlayerStates();
 	const bool bStartPending = IsGameStartPending();
 	if (!bStartPending)
 	{
 		SetLobbyInteractionsLocked(false);
 	}
-	RefreshSelectedMapUI();
 
 	for (int32 Index = 0; Index < LobbyUsers.Num(); ++Index)
 	{
@@ -422,9 +434,9 @@ void ULobbyWidget::HideGameCountdown()
 	RefreshUI();
 }
 
-TArray<ALobbyPlayerState*> ULobbyWidget::GetLobbyPlayerStates() const
+TArray<APdPlayerState*> ULobbyWidget::GetLobbyPlayerStates() const
 {
-	TArray<ALobbyPlayerState*> LobbyPlayerStates;
+	TArray<APdPlayerState*> LobbyPlayerStates;
 
 	const AGameStateBase* GameState = UGameplayStatics::GetGameState(this);
 	if (!GameState)
@@ -434,16 +446,16 @@ TArray<ALobbyPlayerState*> ULobbyWidget::GetLobbyPlayerStates() const
 
 	for (APlayerState* PlayerState : GameState->PlayerArray)
 	{
-		if (ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(PlayerState))
+		if (APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState))
 		{
-			if (!LobbyPlayerState->IsLeavingLobby())
+			if (!LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
 			{
 				LobbyPlayerStates.Add(LobbyPlayerState);
 			}
 		}
 	}
 
-	LobbyPlayerStates.Sort([](const ALobbyPlayerState& Left, const ALobbyPlayerState& Right)
+	LobbyPlayerStates.Sort([](const APdPlayerState& Left, const APdPlayerState& Right)
 	{
 		return Left.GetPlayerId() < Right.GetPlayerId();
 	});
@@ -1016,20 +1028,20 @@ void ULobbyWidget::RefreshSelectedMapUI()
 	}
 }
 
-bool ULobbyWidget::AreLobbyTeamsBalancedForUI(const TArray<ALobbyPlayerState*>& LobbyPlayerStates) const
+bool ULobbyWidget::AreLobbyTeamsBalancedForUI(const TArray<APdPlayerState*>& LobbyPlayerStates) const
 {
 	TMap<int32, int32> TeamCounts;
 	int32 ActivePlayerCount = 0;
 	bool bHasUnassignedTeam = false;
-	for (const ALobbyPlayerState* LobbyPlayerState : LobbyPlayerStates)
+	for (const APdPlayerState* LobbyPlayerState : LobbyPlayerStates)
 	{
-		if (!LobbyPlayerState || LobbyPlayerState->IsLeavingLobby())
+		if (!LobbyPlayerState || LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
 		{
 			continue;
 		}
 
 		++ActivePlayerCount;
-		const int32 TeamColorIndex = LobbyPlayerState->GetTeamColorIndex();
+		const int32 TeamColorIndex = LobbyPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex();
 		if (TeamColorIndex == INDEX_NONE)
 		{
 			bHasUnassignedTeam = true;

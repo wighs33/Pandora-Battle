@@ -50,7 +50,6 @@ public:
 
 private:
 	ACharacterBase* GetCharacterOwner() const;
-	const ACharacterBase* GetCharacterOwnerConst() const;
 	void CacheInitialRespawnState();
 	void InitializeDeathDissolveMaterials();
 	void UpdateDeathDissolve(float DeltaSeconds);

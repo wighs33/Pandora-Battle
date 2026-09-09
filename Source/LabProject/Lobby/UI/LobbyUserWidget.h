@@ -6,7 +6,7 @@
 #include "Components/EditableTextBox.h"
 #include "LobbyUserWidget.generated.h"
 
-class ALobbyPlayerState;
+class APdPlayerState;
 class UBorder;
 class UButton;
 class UComboBoxString;
@@ -24,7 +24,7 @@ public:
 	virtual void NativeDestruct() override;
 
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
-	void SetInfo(ALobbyPlayerState* InPlayerState);
+	void SetInfo(APdPlayerState* InPlayerState);
 
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
 	void RefreshUI();
@@ -67,7 +67,7 @@ protected:
 	TObjectPtr<UBorder> ColorBorder;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Lobby|UI")
-	TObjectPtr<ALobbyPlayerState> PlayerState;
+	TObjectPtr<APdPlayerState> PlayerState;
 
 private:
 	void EnsureTeamColorOptions();

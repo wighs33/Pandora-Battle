@@ -6,7 +6,7 @@
 
 class AController;
 class ALobbyGameMode;
-class ALobbyPlayerState;
+class APdPlayerState;
 class APlayerController;
 class APlayerState;
 
@@ -23,17 +23,17 @@ public:
 
 	void InitializeLobbyPlayerState(
 		APlayerController* PlayerController,
-		ALobbyPlayerState* LobbyPlayerState);
-	void KickPlayer(ALobbyPlayerState* TargetPlayerState);
+		APdPlayerState* LobbyPlayerState);
+	void KickPlayer(APdPlayerState* TargetPlayerState);
 	APlayerController* ResolvePlayerControllerForPlayerState(
 		const APlayerState* PlayerState) const;
 
 private:
 	ALobbyGameMode* GetLobbyGameMode() const;
 	void AssignLobbySpawnIndexIfNeeded(
-		ALobbyPlayerState* LobbyPlayerState) const;
+		APdPlayerState* LobbyPlayerState) const;
 	int32 FindAvailableLobbySpawnIndex(
-		const ALobbyPlayerState* IgnoredPlayerState) const;
+		const APdPlayerState* IgnoredPlayerState) const;
 	void ForceKickPlayer(
 		APlayerController* TargetPlayerController);
 

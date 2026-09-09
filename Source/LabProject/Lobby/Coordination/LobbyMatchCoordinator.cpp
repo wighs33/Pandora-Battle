@@ -1,11 +1,12 @@
 #include "Lobby/Coordination/LobbyMatchCoordinator.h"
+#include "Component/Lobby/LobbyPlayerStateComponent.h"
+#include "Component/Player/PlayerMatchComponent.h"
 
-#include "Component/Lobby/LobbyExperienceComponent.h"
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyGameState.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
+#include "Mode/PdPlayerState.h"
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
 #include "Engine/GameInstance.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
@@ -45,7 +46,7 @@ bool ULobbyMatchCoordinator::CanHostStartGame() const
 	const int32 MaxPlayerCount = GameMode->GetLobbyConfigurationComponent()->GetConfiguredMaxPlayerCount();
 	return GameMode->HasAuthority()
 		&& !bGameStartRequested
-		&& !GameMode->GetLobbyExperienceComponent()->ShouldDelayPlayerStart()
+		&& GameMode->IsReadyForPlayerStart()
 		&& ActivePlayerCount > 0
 		&& ActivePlayerCount <= MaxPlayerCount
 		&& AreLobbyTeamsBalanced();
@@ -80,7 +81,7 @@ void ULobbyMatchCoordinator::BeginStartGame(const TCHAR* Reason)
 
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
 	if (!GameMode || !GameMode->HasAuthority() || bGameStartRequested
-		|| GameMode->GetLobbyExperienceComponent()->ShouldDelayPlayerStart())
+		|| !GameMode->IsReadyForPlayerStart())
 	{
 		return;
 	}
@@ -174,8 +175,8 @@ int32 ULobbyMatchCoordinator::GetActiveLobbyPlayerCount() const
 	int32 ActivePlayerCount = 0;
 	for (APlayerState* PlayerState : GameMode->GameState->PlayerArray)
 	{
-		const ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(PlayerState);
-		if (LobbyPlayerState && !LobbyPlayerState->IsLeavingLobby())
+		const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState);
+		if (LobbyPlayerState && !LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
 		{
 			++ActivePlayerCount;
 		}
@@ -208,10 +209,10 @@ void ULobbyMatchCoordinator::UpdateAdvertisedSessionSettings(
 	OnlineSessionsSubsystem->UpdateSessionSettings(SessionMapName, MaxPlayerCount, true);
 }
 
-void ULobbyMatchCoordinator::AssignLobbyTeamColorIfNeeded(ALobbyPlayerState* LobbyPlayerState) const
+void ULobbyMatchCoordinator::AssignLobbyTeamColorIfNeeded(APdPlayerState* LobbyPlayerState) const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !LobbyPlayerState || LobbyPlayerState->GetTeamColorIndex() != INDEX_NONE)
+	if (!GameMode || !LobbyPlayerState || LobbyPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex() != INDEX_NONE)
 	{
 		return;
 	}
@@ -224,7 +225,7 @@ void ULobbyMatchCoordinator::AssignLobbyTeamColorIfNeeded(ALobbyPlayerState* Lob
 	}
 
 	TeamColorIndex = FMath::Clamp(TeamColorIndex, 0, GameMode->GetLobbyConfigurationComponent()->GetConfiguredMaxPlayerCount() - 1);
-	LobbyPlayerState->SetTeamColorIndex(TeamColorIndex);
+	LobbyPlayerState->GetPlayerMatchComponent()->SetMatchTeamColorIndex(TeamColorIndex);
 }
 
 ALobbyGameMode* ULobbyMatchCoordinator::GetLobbyGameMode() const
@@ -270,14 +271,14 @@ bool ULobbyMatchCoordinator::GetLobbyTeamBalanceStatus(
 	bool bHasUnassignedTeam = false;
 	for (APlayerState* PlayerState : GameMode->GameState->PlayerArray)
 	{
-		const ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(PlayerState);
-		if (!LobbyPlayerState || LobbyPlayerState->IsLeavingLobby())
+		const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState);
+		if (!LobbyPlayerState || LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
 		{
 			continue;
 		}
 
 		++OutActivePlayerCount;
-		const int32 TeamColorIndex = LobbyPlayerState->GetTeamColorIndex();
+		const int32 TeamColorIndex = LobbyPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex();
 		if (TeamColorIndex == INDEX_NONE)
 		{
 			bHasUnassignedTeam = true;
@@ -341,7 +342,7 @@ FString ULobbyMatchCoordinator::GetInitialSessionMapName() const
 }
 
 int32 ULobbyMatchCoordinator::FindAvailableLobbyTeamColorIndex(
-	const ALobbyPlayerState* IgnoredPlayerState) const
+	const APdPlayerState* IgnoredPlayerState) const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	if (!GameMode)
@@ -354,13 +355,13 @@ int32 ULobbyMatchCoordinator::FindAvailableLobbyTeamColorIndex(
 	{
 		for (APlayerState* PlayerState : GameMode->GameState->PlayerArray)
 		{
-			const ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(PlayerState);
-			if (!LobbyPlayerState || LobbyPlayerState == IgnoredPlayerState || LobbyPlayerState->IsLeavingLobby())
+			const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState);
+			if (!LobbyPlayerState || LobbyPlayerState == IgnoredPlayerState || LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
 			{
 				continue;
 			}
 
-			const int32 TeamColorIndex = LobbyPlayerState->GetTeamColorIndex();
+			const int32 TeamColorIndex = LobbyPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex();
 			if (TeamColorIndex != INDEX_NONE)
 			{
 				UsedTeamColorIndices.Add(TeamColorIndex);

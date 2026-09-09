@@ -136,7 +136,7 @@ void UPlayerMatchComponent::SetDeathCount(const int32 InDeathCount)
 	GetOwner()->ForceNetUpdate();
 }
 
-// 실제로 바뀐 이름과 팀 색상만 구독자에게 알려 프로필 UI와 캐릭터 표시를 갱신하게 한다.
+// 개별 표시를 갱신한 뒤, 식별 정보 변경 한 건을 로비 등의 구독자에게 알린다.
 void UPlayerMatchComponent::BroadcastPlayerMatchIdentityChanged(const FPlayerMatchIdentity& PreviousIdentity)
 {
 	if (!PreviousIdentity.DisplayName.EqualTo(PlayerMatchIdentity.DisplayName))
@@ -147,6 +147,7 @@ void UPlayerMatchComponent::BroadcastPlayerMatchIdentityChanged(const FPlayerMat
 	{
 		OnMatchTeamColorChanged.Broadcast(PlayerMatchIdentity.TeamColorIndex);
 	}
+	OnMatchIdentityChanged.Broadcast();
 }
 
 // 클라이언트가 서버의 식별 정보를 전달받으면 이름과 팀의 변경을 알려 화면 표시를 갱신하게 한다.

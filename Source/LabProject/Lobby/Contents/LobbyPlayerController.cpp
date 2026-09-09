@@ -1,4 +1,6 @@
 #include "Lobby/Contents/LobbyPlayerController.h"
+#include "Component/Lobby/LobbyPlayerStateComponent.h"
+#include "Component/Player/PlayerMatchComponent.h"
 
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
@@ -10,7 +12,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyHUD.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
+#include "Mode/PdPlayerState.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Lobby/UI/LobbyWidget.h"
 #include "Engine/GameInstance.h"
@@ -68,7 +70,7 @@ void ALobbyPlayerController::Server_HandleChangeNickname_Implementation(const FT
 		return;
 	}
 
-	ALobbyPlayerState* LobbyPlayerState = GetPlayerState<ALobbyPlayerState>();
+	APdPlayerState* LobbyPlayerState = GetPlayerState<APdPlayerState>();
 	if (!LobbyPlayerState)
 	{
 		return;
@@ -76,11 +78,11 @@ void ALobbyPlayerController::Server_HandleChangeNickname_Implementation(const FT
 
 	if (InNickname.ToString().TrimStartAndEnd().IsEmpty())
 	{
-		LobbyPlayerState->ClearCustomNickname();
+		LobbyPlayerState->GetLobbyPlayerStateComponent()->ClearCustomNickname();
 		return;
 	}
 
-	LobbyPlayerState->SetNickname(SanitizeNickname(InNickname));
+	LobbyPlayerState->GetLobbyPlayerStateComponent()->SetNickname(SanitizeNickname(InNickname));
 }
 
 void ALobbyPlayerController::Server_HandleChangeTeamColor_Implementation(const int32 InTeamColorIndex)
@@ -90,8 +92,8 @@ void ALobbyPlayerController::Server_HandleChangeTeamColor_Implementation(const i
 		return;
 	}
 
-	ALobbyPlayerState* LobbyPlayerState = GetPlayerState<ALobbyPlayerState>();
-	if (!LobbyPlayerState || LobbyPlayerState->IsLeavingLobby())
+	APdPlayerState* LobbyPlayerState = GetPlayerState<APdPlayerState>();
+	if (!LobbyPlayerState || LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
 	{
 		return;
 	}
@@ -99,12 +101,12 @@ void ALobbyPlayerController::Server_HandleChangeTeamColor_Implementation(const i
 	const ALobbyGameMode* LobbyGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALobbyGameMode>() : nullptr;
 	const int32 MaxPlayerCount = LobbyGameMode ? LobbyGameMode->GetLobbyConfigurationComponent()->GetSelectedLobbyMaxPlayerCount() : LabGameSession::MaxPlayerCount;
 	const int32 TeamColorIndex = FMath::Clamp(InTeamColorIndex, 0, FMath::Max(MaxPlayerCount, 1) - 1);
-	if (LobbyPlayerState->GetTeamColorIndex() == TeamColorIndex)
+	if (LobbyPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex() == TeamColorIndex)
 	{
 		return;
 	}
 
-LobbyPlayerState->SetTeamColorIndex(TeamColorIndex);
+	LobbyPlayerState->GetPlayerMatchComponent()->SetMatchTeamColorIndex(TeamColorIndex);
 
 	if (ALobbyGameMode* MutableLobbyGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALobbyGameMode>() : nullptr)
 	{
@@ -112,7 +114,7 @@ LobbyPlayerState->SetTeamColorIndex(TeamColorIndex);
 	}
 }
 
-void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(ALobbyPlayerState* TargetPlayerState)
+void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(APdPlayerState* TargetPlayerState)
 {
 
 	if (!HasAuthority() || !TargetPlayerState)

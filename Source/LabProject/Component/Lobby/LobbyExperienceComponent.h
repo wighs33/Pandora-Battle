@@ -9,7 +9,7 @@ class ALobbyGameMode;
 class UExperienceDefinition;
 
 /**
- * 로비 Experience의 준비가 끝날 때까지 플레이어 시작을 보류하고, 실패 시 시작을 차단한다.
+ * 로비 Experience를 로딩하고 준비 상태와 사용할 Pawn 클래스를 제공한다.
  */
 UCLASS(ClassGroup = (Lobby))
 class LABPROJECT_API ULobbyExperienceComponent : public UActorComponent
@@ -21,7 +21,7 @@ public:
 
 	void StartExperienceLoad();
 	bool IsExperienceLoaded() const;
-	bool ShouldDelayPlayerStart() const;
+	FSimpleMulticastDelegate OnExperienceReady;
 	UClass* ResolveExperiencePawnClass() const;
 	FPrimaryAssetId GetConfiguredExperienceId() const;
 
@@ -32,5 +32,4 @@ private:
 	void HandleExperienceLoadFailed(
 		FPrimaryAssetId ExperienceId,
 		const FString& FailureMessage);
-	void ResumeWaitingPlayers();
 };

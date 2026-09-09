@@ -73,11 +73,6 @@ bool ULobbyExperienceComponent::IsExperienceLoaded() const
 		&& ExperienceManager->IsExperienceLoaded();
 }
 
-bool ULobbyExperienceComponent::ShouldDelayPlayerStart() const
-{
-	return !IsExperienceLoaded();
-}
-
 UClass*
 ULobbyExperienceComponent::ResolveExperiencePawnClass() const
 {
@@ -150,7 +145,7 @@ void ULobbyExperienceComponent::HandleExperienceLoaded(
 			GameState->SetExperienceLoadFailed(false);
 		}
 	}
-	ResumeWaitingPlayers();
+	OnExperienceReady.Broadcast();
 }
 
 // 필수 Experience 실패는 기본 Pawn 시작으로 우회하지 않고 서버와 클라이언트에 실패 상태를 남긴다.
@@ -169,34 +164,6 @@ void ULobbyExperienceComponent::HandleExperienceLoadFailed(
 		if (ALobbyGameState* GameState = GameMode->GetGameState<ALobbyGameState>())
 		{
 			GameState->SetExperienceLoadFailed(true);
-		}
-	}
-}
-
-void ULobbyExperienceComponent::ResumeWaitingPlayers()
-{
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	UWorld* World = GameMode
-		? GameMode->GetWorld()
-		: nullptr;
-	if (!GameMode || !World)
-	{
-		return;
-	}
-
-	for (FConstPlayerControllerIterator Iterator =
-		World->GetPlayerControllerIterator();
-		Iterator;
-		++Iterator)
-	{
-		APlayerController* PlayerController =
-			Iterator->Get();
-		if (PlayerController
-			&& !PlayerController->GetPawn()
-			&& GameMode->PlayerCanRestart(
-				PlayerController))
-		{
-			GameMode->HandleStartingNewPlayer(PlayerController);
 		}
 	}
 }

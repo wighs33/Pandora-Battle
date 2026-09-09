@@ -145,9 +145,6 @@ public:
 
 	void LinkAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass) const;
 
-	UFUNCTION(BlueprintCallable, Category = "!Team")
-	void ApplyTeamOverlayMaterial();
-
 	void ApplySkillPresentationOverlay(UObject* PresentationSource, UMaterialInterface* OverlayMaterial);
 	void ClearSkillPresentationOverlay(UObject* PresentationSource);
 

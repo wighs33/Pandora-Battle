@@ -102,8 +102,6 @@ private:
 	UCombatComponent* GetPlayerCombatComponent() const;
 	bool IsGameplayInputBlockedByUi() const;
 	bool IsOpenLobbyInputAllowed() const;
-	bool CancelHitReactForMoveInput(APdPlayer* PlayerCharacter) const;
-	UControllerInputDefinition* LoadInputDefinition();
 	void BeginInputDefinitionPreload();
 	void HandleInputDefinitionPreloadComplete(uint32 RequestGeneration);
 	void HandleInputContentPreloadComplete(uint32 RequestGeneration);

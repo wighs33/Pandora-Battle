@@ -1,4 +1,5 @@
 #include "Component/Lobby/LobbyPlayerCoordinatorComponent.h"
+#include "Component/Lobby/LobbyPlayerStateComponent.h"
 
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
@@ -6,7 +7,7 @@
 #include "GameFramework/GameSession.h"
 #include "GameFramework/GameStateBase.h"
 #include "Lobby/Contents/LobbyGameMode.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
+#include "Mode/PdPlayerState.h"
 #include "Lobby/Coordination/LobbyMatchCoordinator.h"
 #include "Engine/GameInstance.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
@@ -22,15 +23,19 @@ ULobbyPlayerCoordinatorComponent()
 void ULobbyPlayerCoordinatorComponent::
 InitializeLobbyPlayerState(
 	APlayerController* PlayerController,
-	ALobbyPlayerState* LobbyPlayerState)
+	APdPlayerState* LobbyPlayerState)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !LobbyPlayerState)
+	if (!GameMode || !GameMode->HasAuthority() || !LobbyPlayerState)
 	{
 		return;
 	}
 
-	if (LobbyPlayerState->GetNickname().IsEmpty())
+	LobbyPlayerState->SetNetUpdateFrequency(30.0f);
+	ULobbyPlayerStateComponent* LobbyState = LobbyPlayerState->GetLobbyPlayerStateComponent();
+	LobbyState->SetLeavingLobby(false);
+
+	if (LobbyPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName().IsEmpty())
 	{
 		++NicknameIndex;
 		const ULobbyRuntimeSubsystem* LobbySubsystem =
@@ -46,8 +51,12 @@ InitializeLobbyPlayerState(
 					"DefaultNicknameFormat",
 					"User{0}"),
 				NicknameIndex);
-		LobbyPlayerState->SetDefaultNickname(
-			DefaultNickname);
+		LobbyState->SetDefaultNickname(DefaultNickname);
+	}
+	else
+	{
+		// 이전 경기에서 인계된 이름을 이번 로비의 입력 힌트로 준비한다.
+		LobbyState->SetDefaultNickname(LobbyPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName());
 	}
 
 	AssignLobbySpawnIndexIfNeeded(LobbyPlayerState);
@@ -61,7 +70,7 @@ InitializeLobbyPlayerState(
 }
 
 void ULobbyPlayerCoordinatorComponent::KickPlayer(
-	ALobbyPlayerState* TargetPlayerState)
+	APdPlayerState* TargetPlayerState)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
 	if (!GameMode
@@ -88,7 +97,7 @@ void ULobbyPlayerCoordinatorComponent::KickPlayer(
 			TEXT("player_kicked"));
 	}
 
-	TargetPlayerState->SetLeavingLobby(true);
+	TargetPlayerState->GetLobbyPlayerStateComponent()->SetLeavingLobby(true);
 
 	ForceKickPlayer(TargetPlayerController);
 }
@@ -144,7 +153,7 @@ ULobbyPlayerCoordinatorComponent::GetLobbyGameMode() const
 
 void ULobbyPlayerCoordinatorComponent::
 AssignLobbySpawnIndexIfNeeded(
-	ALobbyPlayerState* LobbyPlayerState) const
+	APdPlayerState* LobbyPlayerState) const
 {
 	if (!LobbyPlayerState
 		|| LobbyPlayerState->GetPlayerMatchComponent()
@@ -161,7 +170,7 @@ AssignLobbySpawnIndexIfNeeded(
 
 int32 ULobbyPlayerCoordinatorComponent::
 FindAvailableLobbySpawnIndex(
-	const ALobbyPlayerState* IgnoredPlayerState) const
+	const APdPlayerState* IgnoredPlayerState) const
 {
 	const ALobbyGameMode* GameMode =
 		GetLobbyGameMode();
@@ -171,8 +180,8 @@ FindAvailableLobbySpawnIndex(
 		for (APlayerState* PlayerState :
 			GameMode->GameState->PlayerArray)
 		{
-			const ALobbyPlayerState* LobbyPlayerState =
-				Cast<ALobbyPlayerState>(PlayerState);
+			const APdPlayerState* LobbyPlayerState =
+				Cast<APdPlayerState>(PlayerState);
 			if (!LobbyPlayerState
 				|| LobbyPlayerState
 					== IgnoredPlayerState)

@@ -3,7 +3,8 @@
 #include "Component/Experience/ExperienceManagerComponent.h"
 #include "Engine/GameInstance.h"
 #include "Component/Lobby/LobbyPlayerStateComponent.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
+#include "Component/Player/PlayerMatchComponent.h"
+#include "Mode/PdPlayerState.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -32,8 +33,9 @@ void ALobbyGameState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	for (APlayerState* PlayerState : PlayerArray)
 	{
-		if (ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(PlayerState))
+		if (APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState))
 		{
+			LobbyPlayerState->GetPlayerMatchComponent()->OnMatchIdentityChanged.RemoveAll(this);
 			LobbyPlayerState->GetLobbyPlayerStateComponent()->OnLobbyRuntimeStateChanged.RemoveAll(this);
 		}
 	}
@@ -41,12 +43,15 @@ void ALobbyGameState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-// 참가자가 실제 로컬 목록에 등록되는 시점부터 이름·팀·퇴장 상태를 관찰한다.
+// 공통 식별 정보와 로비 전용 상태를 각각 원본 컴포넌트에서 직접 구독한다.
 void ALobbyGameState::AddPlayerState(APlayerState* PlayerState)
 {
 	Super::AddPlayerState(PlayerState);
-	if (ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(PlayerState))
+	if (APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState))
 	{
+		UPlayerMatchComponent* MatchState = LobbyPlayerState->GetPlayerMatchComponent();
+		MatchState->OnMatchIdentityChanged.RemoveAll(this);
+		MatchState->OnMatchIdentityChanged.AddUObject(this, &ThisClass::NotifyLobbyStateChanged);
 		ULobbyPlayerStateComponent* LobbyState = LobbyPlayerState->GetLobbyPlayerStateComponent();
 		LobbyState->OnLobbyRuntimeStateChanged.RemoveAll(this);
 		LobbyState->OnLobbyRuntimeStateChanged.AddUObject(this, &ThisClass::NotifyLobbyStateChanged);
@@ -57,8 +62,9 @@ void ALobbyGameState::AddPlayerState(APlayerState* PlayerState)
 // 참가자 제거가 완료된 목록을 HUD가 다시 읽도록 알린다.
 void ALobbyGameState::RemovePlayerState(APlayerState* PlayerState)
 {
-	if (ALobbyPlayerState* LobbyPlayerState = Cast<ALobbyPlayerState>(PlayerState))
+	if (APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState))
 	{
+		LobbyPlayerState->GetPlayerMatchComponent()->OnMatchIdentityChanged.RemoveAll(this);
 		LobbyPlayerState->GetLobbyPlayerStateComponent()->OnLobbyRuntimeStateChanged.RemoveAll(this);
 	}
 	Super::RemovePlayerState(PlayerState);

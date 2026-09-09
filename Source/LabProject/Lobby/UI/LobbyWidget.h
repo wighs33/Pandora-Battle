@@ -6,7 +6,7 @@
 #include "Definition/Level/LevelDefinition.h"
 #include "LobbyWidget.generated.h"
 
-class ALobbyPlayerState;
+class APdPlayerState;
 class ALobbyGameState;
 class UAudioVolumeSlider;
 class UAudioVolumeControl;
@@ -43,7 +43,7 @@ public:
 	void HideGameCountdown();
 
 	UFUNCTION(BlueprintPure, Category = "!Lobby|UI")
-	TArray<ALobbyPlayerState*> GetLobbyPlayerStates() const;
+	TArray<APdPlayerState*> GetLobbyPlayerStates() const;
 
 	bool CloseTopmostUiForEscape();
 
@@ -155,6 +155,7 @@ protected:
 	TObjectPtr<UGameConfigWidget> ActiveGameConfigWidget;
 
 private:
+	bool RebuildPlayerSlots();
 	void ApplyWidgetDefinitionSettings();
 	FString GetResolvedTitleTravelMapName() const;
 	UUiSubsystem* GetUiSubsystem() const;
@@ -171,7 +172,7 @@ private:
 	bool GetSelectedMapOptionForUI(FLobbyMatchMapOption& OutMapOption) const;
 	int32 GetMaxLobbySlotsForUI() const;
 	void RefreshSelectedMapUI();
-	bool AreLobbyTeamsBalancedForUI(const TArray<ALobbyPlayerState*>& LobbyPlayerStates) const;
+	bool AreLobbyTeamsBalancedForUI(const TArray<APdPlayerState*>& LobbyPlayerStates) const;
 	void SetGameStartCountdownVisibility(ESlateVisibility InVisibility);
 	void SetTeamBalanceWarningVisibility(ESlateVisibility InVisibility);
 	void RefreshGameStartCountdownUI();

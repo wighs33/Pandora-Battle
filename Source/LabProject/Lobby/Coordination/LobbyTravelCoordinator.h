@@ -6,7 +6,7 @@
 #include "LobbyTravelCoordinator.generated.h"
 
 class ALobbyGameMode;
-class ALobbyPlayerState;
+class APdPlayerState;
 class APlayerController;
 class ULobbyRuntimeSubsystem;
 enum class ELobbyContentPreloadResult : uint8;
@@ -42,7 +42,7 @@ private:
 	void CacheLobbyTravelState(ULobbyRuntimeSubsystem* LobbySubsystem) const;
 	void CacheLobbyPlayerTravelState(
 		ULobbyRuntimeSubsystem* LobbySubsystem,
-		const ALobbyPlayerState* LobbyPlayerState) const;
+		const APdPlayerState* LobbyPlayerState) const;
 	TMap<FGameplayTag, FName> BuildEquippedSkinNamesBySlot(
 		const APlayerController* PlayerController) const;
 	void ShowGameStartConnectingPopupForAllPlayers() const;

@@ -60,20 +60,6 @@ void UPlayerInteractionComponent::ApplySettings(const FPlayerInteractionSettings
 	ServerValidationDistance = FMath::Max(0.0f, Settings.ServerValidationDistance);
 }
 
-bool UPlayerInteractionComponent::HasCurrentInteractActors(
-	TArray<TScriptInterface<IInteractableInterface>>& OutCurrentInteractActors) const
-{
-	OutCurrentInteractActors.Reset();
-	for (const TScriptInterface<IInteractableInterface>& Entry : CurrentInteractActors)
-	{
-		if (IsValid(Entry.GetObject()))
-		{
-			OutCurrentInteractActors.Add(Entry);
-		}
-	}
-	return !OutCurrentInteractActors.IsEmpty();
-}
-
 AActor* UPlayerInteractionComponent::GetCurrentInteractActor() const
 {
 	const APdPlayer* Player = GetPlayerOwner();

@@ -36,7 +36,7 @@ public:
 		const FWeaponAimCameraSettings& CameraSettings);
 	bool IsWeaponAimActive() const { return bWeaponAimActive; }
 
-	void RestoreMovementSettings(UCharacterMovementComponent* MovementComponent);
+	void ApplyMovementSettings(UCharacterMovementComponent* MovementComponent);
 
 private:
 	UFUNCTION(Server, Reliable)
@@ -55,7 +55,6 @@ private:
 		bool bEnabled,
 		const FWeaponAimCameraSettings& CameraSettings);
 	void CacheMovementDefaults(UCharacterMovementComponent* MovementComponent);
-	void ApplyMovementSettings(UCharacterMovementComponent* MovementComponent);
 	void UpdateReplicatedAimOffset();
 
 	UPROPERTY(ReplicatedUsing = OnRep_WeaponAimActive, Transient)

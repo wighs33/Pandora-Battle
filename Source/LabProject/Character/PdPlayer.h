@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "Character/CharacterBase.h"
 #include "Common/WeaponDefinitionData.h"
-#include "Interface/InteractableInterface.h"
 #include "PdPlayer.generated.h"
 
 class UBoxComponent;
@@ -51,9 +50,6 @@ public:
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	virtual void HandleDeath_Implementation() override;
 	virtual void ResetDeathStateForRespawn() override;
-
-	UFUNCTION(BlueprintCallable, Category = "!Interaction", meta = (DisplayName = "HasCurrentInteractActors?"))
-	bool HasCurrentInteractActors(TArray<TScriptInterface<IInteractableInterface>>& OutCurrentInteractActors) const;
 
 	UFUNCTION(BlueprintPure, Category = "!Interaction")
 	AActor* GetCurrentInteractActor() const;
@@ -113,9 +109,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Interaction|Animation", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	void StopInteractionMontage(float BlendOutTime = 0.15f);
 
-	UFUNCTION(BlueprintPure, Category = "!Interaction|Animation")
-	bool IsInteractionMontagePlaying() const;
-
 protected:
 	virtual AActor* GetAbilitySystemOwnerActor() const override;
 	virtual void ApplyCurrentRotationPolicy(UCharacterMovementComponent* MovementComponent) override;
@@ -127,8 +120,6 @@ protected:
 	void ReleasePlayerPawnDefinitionPreload();
 	void ApplySelectedPlayerLoadout();
 	void ApplyPlayerPawnDefinition();
-	void UpdateAimOffsetForReplicationComponent();
-	void ApplyReplicatedAimOffsetFromComponent(float AimYaw, float AimPitch);
 
 protected:
 	friend class UPlayerAimComponent;

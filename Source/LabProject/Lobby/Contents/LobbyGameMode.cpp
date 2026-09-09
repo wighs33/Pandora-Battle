@@ -8,7 +8,7 @@
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
+#include "Mode/PdPlayerState.h"
 #include "Lobby/Coordination/LobbyMatchCoordinator.h"
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
 #include "Mode/PdPlayerController.h"
@@ -31,7 +31,7 @@ ALobbyGameMode::ALobbyGameMode(const FObjectInitializer& ObjectInitializer) : Su
 
 	PlayerControllerClass = ALobbyPlayerController::StaticClass();
 	GameStateClass = ALobbyGameState::StaticClass();
-	PlayerStateClass = ALobbyPlayerState::StaticClass();
+	PlayerStateClass = APdPlayerState::StaticClass();
 	HUDClass = ALobbyHUD::StaticClass();
 	DefaultPawnClass = APdPlayer::StaticClass();
 	bUseSeamlessTravel = true;
@@ -50,9 +50,16 @@ void ALobbyGameMode::BeginPlay()
 	Super::BeginPlay();
 	LobbyConfigurationComponent->InitializeRuntime(FSimpleDelegate::CreateWeakLambda(this, [this]()
 	{
+		if (!DefaultPlayerProvisioner->Initialize(
+			LobbyConfigurationComponent->GetDefaultProvisionDefinition(), EDefaultProvisionMode::Lobby))
+		{
+			return;
+		}
 		LobbyConfigurationComponent->ApplyDefaultLobbyConfigIfNeeded();
 		LobbyConfigurationComponent->SyncSelectedLobbyConfigToRuntime();
 		MatchCoordinator->InitializeSession();
+		// Experience와 로비 설정 중 어느 쪽이 먼저 로딩되어도 두 준비가 끝난 뒤 플레이어를 시작한다.
+		ResumeWaitingPlayers();
 	}));
 }
 
@@ -62,6 +69,7 @@ void ALobbyGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	MatchCoordinator->Shutdown();
 	TravelCoordinator->Shutdown();
 	DefaultPlayerProvisioner->Shutdown();
+	LobbyExperienceComponent->OnExperienceReady.RemoveAll(this);
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -69,6 +77,7 @@ void ALobbyGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ALobbyGameMode::InitGameState()
 {
 	Super::InitGameState();
+	LobbyExperienceComponent->OnExperienceReady.AddUObject(this, &ThisClass::ResumeWaitingPlayers);
 	LobbyExperienceComponent->StartExperienceLoad();
 }
 
@@ -88,7 +97,7 @@ void ALobbyGameMode::GenericPlayerInitialization(AController* Controller)
 {
 	Super::GenericPlayerInitialization(Controller);
 	APlayerController* PlayerController = Cast<APlayerController>(Controller);
-	ALobbyPlayerState* LobbyPlayerState = PlayerController ? PlayerController->GetPlayerState<ALobbyPlayerState>() : nullptr;
+	APdPlayerState* LobbyPlayerState = PlayerController ? PlayerController->GetPlayerState<APdPlayerState>() : nullptr;
 	if (!LobbyPlayerState)
 	{
 		return;
@@ -104,7 +113,7 @@ void ALobbyGameMode::GenericPlayerInitialization(AController* Controller)
 // 필수 콘텐츠 준비 후 Pawn을 시작하고 로비 장비를 지급한다. 전환 중 입장한 Pawn도 이동을 잠근다.
 void ALobbyGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
 {
-	if (LobbyExperienceComponent->ShouldDelayPlayerStart())
+	if (!IsReadyForPlayerStart())
 	{
 		return;
 	}
@@ -121,7 +130,7 @@ void ALobbyGameMode::HandleStartingNewPlayer_Implementation(APlayerController* N
 // 설정된 Experience가 준비된 경우에만 해당 Pawn을 선택하고, 미설정 맵에서는 기본 클래스를 사용한다.
 UClass* ALobbyGameMode::GetDefaultPawnClassForController_Implementation(AController* InController)
 {
-	if (LobbyExperienceComponent->ShouldDelayPlayerStart())
+	if (!IsReadyForPlayerStart())
 	{
 		return nullptr;
 	}
@@ -157,12 +166,6 @@ bool ALobbyGameMode::CanHostStartGame() const
 	return MatchCoordinator->CanHostStartGame();
 }
 
-// 팀 인원 균형을 조회한다.
-bool ALobbyGameMode::AreLobbyTeamsBalanced() const
-{
-	return MatchCoordinator->AreLobbyTeamsBalanced();
-}
-
 // 팀 변경 시 진행 중인 시작 카운트다운을 취소하게 한다.
 void ALobbyGameMode::NotifyLobbyTeamChanged()
 {
@@ -170,7 +173,7 @@ void ALobbyGameMode::NotifyLobbyTeamChanged()
 }
 
 // 호스트가 지정한 플레이어의 강퇴를 처리한다.
-void ALobbyGameMode::KickPlayer(ALobbyPlayerState* TargetPlayerState)
+void ALobbyGameMode::KickPlayer(APdPlayerState* TargetPlayerState)
 {
 	LobbyPlayerCoordinatorComponent->KickPlayer(TargetPlayerState);
 }
@@ -184,12 +187,35 @@ void ALobbyGameMode::RequestLobbyPlayerRespawn(AController* PlayerController, AP
 // Pawn이 준비된 플레이어에게 로비 장비와 기본 상태를 지급한다. 반복 요청의 중복 방지는 지급기가 담당한다.
 void ALobbyGameMode::ProvisionLobbyPlayer(APlayerController* PlayerController)
 {
-	if (!PlayerController || !PlayerController->GetPawn() || LobbyExperienceComponent->ShouldDelayPlayerStart())
+	if (!PlayerController || !PlayerController->GetPawn() || !IsReadyForPlayerStart())
 	{
 		return;
 	}
-	DefaultPlayerProvisioner->SetDefinition(LobbyConfigurationComponent->GetDefaultProvisionDefinition());
-	DefaultPlayerProvisioner->ProvisionPlayer(PlayerController, EDefaultProvisionMode::Lobby);
+	DefaultPlayerProvisioner->ProvisionPlayer(PlayerController);
+}
+
+bool ALobbyGameMode::IsReadyForPlayerStart() const
+{
+	return LobbyConfigurationComponent->IsRuntimeReady()
+		&& DefaultPlayerProvisioner->IsInitialized()
+		&& LobbyExperienceComponent->IsExperienceLoaded();
+}
+
+void ALobbyGameMode::ResumeWaitingPlayers()
+{
+	UWorld* World = GetWorld();
+	if (!World || !IsReadyForPlayerStart())
+	{
+		return;
+	}
+	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	{
+		APlayerController* Player = Iterator->Get();
+		if (IsValid(Player) && !Player->GetPawn() && PlayerCanRestart(Player))
+		{
+			HandleStartingNewPlayer(Player);
+		}
+	}
 }
 
 // 유효한 파생 BP 클래스는 유지하고, 로비 계약을 어긴 설정만 생성 전에 경고와 함께 보정한다.
@@ -207,11 +233,11 @@ void ALobbyGameMode::EnsureLobbyFrameworkClasses()
 			*GetNameSafe(GameStateClass.Get()));
 		GameStateClass = ALobbyGameState::StaticClass();
 	}
-	if (!PlayerStateClass || !PlayerStateClass->IsChildOf(ALobbyPlayerState::StaticClass()))
+	if (!PlayerStateClass || !PlayerStateClass->IsChildOf(APdPlayerState::StaticClass()))
 	{
-		UE_LOG(LogLobbyGameMode, Warning, TEXT("PlayerStateClass '%s' is not a ALobbyPlayerState; using the native lobby default."),
+		UE_LOG(LogLobbyGameMode, Warning, TEXT("PlayerStateClass '%s' is not an APdPlayerState; using the native lobby default."),
 			*GetNameSafe(PlayerStateClass.Get()));
-		PlayerStateClass = ALobbyPlayerState::StaticClass();
+		PlayerStateClass = APdPlayerState::StaticClass();
 	}
 	if (!HUDClass || !HUDClass->IsChildOf(ALobbyHUD::StaticClass()))
 	{

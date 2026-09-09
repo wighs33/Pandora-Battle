@@ -132,12 +132,6 @@ void UPlayerAimComponent::SetWeaponAimActive(
 	}
 }
 
-void UPlayerAimComponent::RestoreMovementSettings(
-	UCharacterMovementComponent* MovementComponent)
-{
-	ApplyMovementSettings(MovementComponent);
-}
-
 void UPlayerAimComponent::ServerSetWeaponAimActive_Implementation(
 	const bool bEnabled,
 	FWeaponAimCameraSettings CameraSettings)
@@ -171,9 +165,9 @@ void UPlayerAimComponent::OnRep_WeaponAimActive()
 
 void UPlayerAimComponent::OnRep_ReplicatedAimOffset()
 {
-	if (APdPlayer* Player = GetPlayerOwner())
+	if (APdPlayer* Player = GetPlayerOwner(); Player && !Player->IsLocallyControlled())
 	{
-		Player->ApplyReplicatedAimOffsetFromComponent(
+		Player->SetAimOffsetForAnimation(
 			FRotator::NormalizeAxis(FRotator::DecompressAxisFromByte(ReplicatedAimYaw)),
 			FRotator::NormalizeAxis(FRotator::DecompressAxisFromByte(ReplicatedAimPitch)));
 	}
@@ -275,7 +269,7 @@ void UPlayerAimComponent::UpdateReplicatedAimOffset()
 		return;
 	}
 
-	Player->UpdateAimOffsetForReplicationComponent();
+	Player->UpdateAimOffsetForAnimation();
 	const uint8 NewAimYaw =
 		FRotator::CompressAxisToByte(Player->GetAimYawForAnimation());
 	const uint8 NewAimPitch =

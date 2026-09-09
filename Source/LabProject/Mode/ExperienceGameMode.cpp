@@ -112,6 +112,7 @@ void AExperienceGameMode::GenericPlayerInitialization(AController* Controller)
 	}
 
 	// 같은 경기의 리스폰에서는 이 초기화를 반복하지 않는다.
+	PlayerState->SetNetUpdateFrequency(100.0f);
 	SpawnComponent->ClearRuntimeStateForController(Controller);
 	PlayerProvisioningComponent->InitializeMatchIdentity(Cast<APlayerController>(Controller));
 
@@ -341,6 +342,12 @@ void AExperienceGameMode::ApplyRuntimeComponentSettings()
 	FExperiencePlayerProvisioningSettings ProvisioningSettings;
 	ProvisioningSettings.DefaultProvisionDefinition =
 		const_cast<UDefaultProvisionDefinition*>(UDefaultProvisionDefinition::ResolveDefaultDefinition());
+	if (!ProvisioningSettings.DefaultProvisionDefinition)
+	{
+		UE_LOG(PdExperienceGameModeLog, Error,
+			TEXT("Required DA_DefaultProvision failed to load: %s. Player gameplay readiness is blocked."),
+			*UDefaultProvisionDefinition::GetDefaultDefinitionPath().ToString());
+	}
 	ProvisioningSettings.LevelDefinition = LevelDefinition;
 	ProvisioningSettings.bAssignDefaultTeamWhenLobbyTeamMissing = bAssignDefaultTeamWhenLobbyTeamMissing;
 	ProvisioningSettings.DefaultLobbyTeamColorIndex = DefaultLobbyTeamColorIndex;

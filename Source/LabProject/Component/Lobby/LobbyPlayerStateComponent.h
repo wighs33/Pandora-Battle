@@ -12,7 +12,7 @@ DECLARE_MULTICAST_DELEGATE(FOnLobbyRuntimeStateChanged);
  * 로비의 퇴장 여부와 닉네임 입력 상태를 복제한다.
  *
  * 실제 표시 이름과 팀은 PlayerMatchComponent에서 조회하며,
- * 로비 상태 또는 공통 식별 정보가 바뀌면 구독자에게 알린다.
+ * 퇴장 여부와 닉네임 힌트의 변경만 알린다. 공통 식별 정보는 GameState가 직접 구독한다.
  */
 UCLASS(BlueprintType, ClassGroup = (Lobby))
 class LABPROJECT_API ULobbyPlayerStateComponent : public UPlayerStateComponent
@@ -24,8 +24,6 @@ public:
 
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Engine Callbacks
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -37,20 +35,13 @@ public:
 	void SetNickname(const FText& InNickname);
 	void SetDefaultNickname(const FText& InNickname);
 	void ClearCustomNickname();
-	FText GetNickname() const;
 	const FText& GetNicknameHint() const { return NicknameHint; }
-	bool IsUsingNicknameHint() const { return bUsingNicknameHint && GetNickname().EqualTo(NicknameHint); }
-
-	void SetTeamColorIndex(int32 InTeamColorIndex);
-	int32 GetTeamColorIndex() const;
+	bool IsUsingNicknameHint() const;
 
 private:
 	bool HasAuthority() const;
 	UPlayerMatchComponent* GetPlayerMatchComponent() const;
 	void SetNicknameInternal(const FText& InNickname, const FText& InNicknameHint, bool bInUsingNicknameHint);
-	void HandleMatchDisplayNameChanged(const FText& NewDisplayName);
-	void HandleMatchTeamColorChanged(int32 NewTeamColorIndex);
-	void NotifyLobbyRuntimeStateChanged();
 
 	UFUNCTION()
 	void OnRep_LobbyState();

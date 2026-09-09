@@ -11,13 +11,15 @@ class UPandoraTreeComponent;
 class UPdAbilitySystemComponent;
 class UInventoryComponent;
 class ULevelingComponent;
+class ULobbyPlayerStateComponent;
+class UBasicAttributeSet;
 class UPlayerLoadoutComponent;
 class UPlayerRewardComponent;
 class USkinComponent;
 class UStatUpgradeComponent;
 
 /**
- * 플레이어의 공통 상태와 기능별 컴포넌트를 연결하는 PlayerState.
+ * 로비와 경기에서 사용하는 상태, 기본 속성과 기능별 컴포넌트를 소유한다.
  *
  * 세부 게임플레이는 컴포넌트에 위임하고, GAS와 GFCM의 연결을 담당한다.
  */
@@ -43,6 +45,7 @@ public:
 	UPlayerRewardComponent* GetPlayerRewardComponent() const;
 	UStatUpgradeComponent* GetStatUpgradeComponent() const;
 	UPlayerMatchComponent* GetPlayerMatchComponent() const { return PlayerMatchComponent.Get(); }
+	ULobbyPlayerStateComponent* GetLobbyPlayerStateComponent() const { return LobbyPlayerStateComponent.Get(); }
 	ULevelingComponent* GetLevelingComponent() const { return LevelingComponent.Get(); }
 	UInventoryComponent* GetInventoryComponent() const;
 	USkinComponent* GetSkinComponent() const { return SkinComponent.Get(); }
@@ -50,11 +53,6 @@ public:
 	UPandoraTreeComponent* GetPandoraTreeComponent() const;
 
 	//--------------------------------------------------------------------------------------------------------------------------------------------
-protected:
-	// 로비 등 파생 클래스마다 식별 정보의 저장 구조가 달라 복사 과정을 재정의할 수 있다.
-	virtual FPlayerMatchIdentity BuildMatchIdentityForCopyProperties() const;
-	virtual void ReceiveMatchIdentityFromCopyProperties(const FPlayerMatchIdentity& Identity);
-
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Loadout", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPlayerLoadoutComponent> PlayerLoadoutComponent;
@@ -62,8 +60,14 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPdAbilitySystemComponent> AbilitySystemComponent;
 
+	UPROPERTY(VisibleAnywhere, Category = "Abilities")
+	TObjectPtr<UBasicAttributeSet> BasicAttributeSet;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Match", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPlayerMatchComponent> PlayerMatchComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Lobby|State", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<ULobbyPlayerStateComponent> LobbyPlayerStateComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Leveling", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ULevelingComponent> LevelingComponent;

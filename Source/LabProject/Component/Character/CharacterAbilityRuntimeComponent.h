@@ -42,7 +42,6 @@ public:
 
 private:
 	ACharacterBase* GetCharacterOwner() const;
-	const ACharacterBase* GetCharacterOwnerConst() const;
 	void TryInitializeAbilitySystemActorInfo();
 	void QueueAbilitySystemActorInfoInitializationRetry();
 	void BindStaminaRegenToASC(UAbilitySystemComponent* AbilitySystemComponent);

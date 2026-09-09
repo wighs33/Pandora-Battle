@@ -14,28 +14,6 @@ ULobbyPlayerStateComponent::ULobbyPlayerStateComponent(const FObjectInitializer&
 	SetIsReplicatedByDefault(true);
 }
 
-// 공통 경기 정보에서 직접 바뀐 이름과 팀도 로비 구독자에게 전달한다.
-void ULobbyPlayerStateComponent::BeginPlay()
-{
-	Super::BeginPlay();
-	if (UPlayerMatchComponent* MatchComponent = GetPlayerMatchComponent())
-	{
-		MatchComponent->OnMatchDisplayNameChanged.AddUObject(this, &ThisClass::HandleMatchDisplayNameChanged);
-		MatchComponent->OnMatchTeamColorChanged.AddUObject(this, &ThisClass::HandleMatchTeamColorChanged);
-	}
-}
-
-// 로비를 떠날 때 공통 경기 정보의 변경 구독을 해제한다.
-void ULobbyPlayerStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	if (UPlayerMatchComponent* MatchComponent = GetPlayerMatchComponent())
-	{
-		MatchComponent->OnMatchDisplayNameChanged.RemoveAll(this);
-		MatchComponent->OnMatchTeamColorChanged.RemoveAll(this);
-	}
-	Super::EndPlay(EndPlayReason);
-}
-
 // 이름과 팀은 MatchComponent에 맡기고 로비 전용 값만 전송한다.
 void ULobbyPlayerStateComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -57,7 +35,7 @@ void ULobbyPlayerStateComponent::SetLeavingLobby(const bool bInLeavingLobby)
 	bLeavingLobby = bInLeavingLobby;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ULobbyPlayerStateComponent, bLeavingLobby, this);
 	GetOwner()->ForceNetUpdate();
-	NotifyLobbyRuntimeStateChanged();
+	OnLobbyRuntimeStateChanged.Broadcast();
 }
 
 // 직접 입력한 닉네임을 적용하되 기존 기본 이름 힌트는 유지한다.
@@ -82,30 +60,16 @@ void ULobbyPlayerStateComponent::ClearCustomNickname()
 	}
 }
 
-// 로비 전용 복사본 없이 공통 경기 정보의 표시 이름을 읽는다.
-FText ULobbyPlayerStateComponent::GetNickname() const
+// 힌트 사용 여부는 로비 상태와 원본 표시 이름을 함께 확인한다.
+bool ULobbyPlayerStateComponent::IsUsingNicknameHint() const
 {
-	const UPlayerMatchComponent* MatchComponent = GetPlayerMatchComponent();
-	return MatchComponent ? MatchComponent->GetMatchDisplayName() : FText::GetEmpty();
-}
-
-// 서버가 확정한 팀 선택을 공통 경기 정보에 전달한다.
-void ULobbyPlayerStateComponent::SetTeamColorIndex(const int32 InTeamColorIndex)
-{
-	if (HasAuthority())
+	if (!bUsingNicknameHint)
 	{
-		if (UPlayerMatchComponent* MatchComponent = GetPlayerMatchComponent())
-		{
-			MatchComponent->SetMatchTeamColorIndex(InTeamColorIndex);
-		}
+		return false;
 	}
-}
-
-// 로비 팀 표시와 인게임 팀 판정이 같은 값을 사용하게 한다.
-int32 ULobbyPlayerStateComponent::GetTeamColorIndex() const
-{
 	const UPlayerMatchComponent* MatchComponent = GetPlayerMatchComponent();
-	return MatchComponent ? MatchComponent->GetMatchTeamColorIndex() : INDEX_NONE;
+	const FText DisplayName = MatchComponent ? MatchComponent->GetMatchDisplayName() : FText::GetEmpty();
+	return DisplayName.EqualTo(NicknameHint);
 }
 
 // 상태 변경을 서버로 제한한다.
@@ -151,33 +115,15 @@ void ULobbyPlayerStateComponent::SetNicknameInternal(
 	}
 	MatchComponent->SetMatchDisplayName(InNickname);
 	GetOwner()->ForceNetUpdate();
-	// BeginPlay 전의 기본 닉네임 설정과 힌트만 바뀐 경우에도 알림을 보장한다.
-	if (!bNicknameChanged || !HasBegunPlay())
+	// 이름 변경은 MatchComponent가 알리고, 여기서는 로비 전용 입력 상태만 알린다.
+	if (bHintChanged || bUsingHintChanged)
 	{
-		NotifyLobbyRuntimeStateChanged();
+		OnLobbyRuntimeStateChanged.Broadcast();
 	}
-}
-
-// 공통 이름이 직접 변경되거나 복제되어도 로비 목록을 갱신하게 한다.
-void ULobbyPlayerStateComponent::HandleMatchDisplayNameChanged(const FText& NewDisplayName)
-{
-	NotifyLobbyRuntimeStateChanged();
-}
-
-// 공통 팀이 변경되거나 복제되면 로비 팀 표시를 갱신하게 한다.
-void ULobbyPlayerStateComponent::HandleMatchTeamColorChanged(const int32 NewTeamColorIndex)
-{
-	NotifyLobbyRuntimeStateChanged();
-}
-
-// 구체적인 HUD를 찾지 않고 상태 변경만 구독자에게 알린다.
-void ULobbyPlayerStateComponent::NotifyLobbyRuntimeStateChanged()
-{
-	OnLobbyRuntimeStateChanged.Broadcast();
 }
 
 // 클라이언트에 로비 전용 상태가 도착한 뒤 구독자에게 알린다.
 void ULobbyPlayerStateComponent::OnRep_LobbyState()
 {
-	NotifyLobbyRuntimeStateChanged();
+	OnLobbyRuntimeStateChanged.Broadcast();
 }

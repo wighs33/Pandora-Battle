@@ -34,6 +34,7 @@ struct LABPROJECT_API FPlayerMatchIdentity
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMatchDisplayNameChanged, const FText& /*NewDisplayName*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMatchTeamColorChanged, int32 /*NewTeamColorIndex*/);
+DECLARE_MULTICAST_DELEGATE(FOnMatchIdentityChanged);
 
 /**
  * 플레이어의 식별 정보와 현재 경기 상태를 저장하고 복제한다.
@@ -56,6 +57,8 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	FOnMatchDisplayNameChanged OnMatchDisplayNameChanged;
 	FOnMatchTeamColorChanged OnMatchTeamColorChanged;
+	/** 식별 정보 변경 한 건을 알린다. 구독자는 이 컴포넌트에서 최종 값을 읽는다. */
+	FOnMatchIdentityChanged OnMatchIdentityChanged;
 
 	void SetPlayerMatchIdentity(const FPlayerMatchIdentity& InMatchIdentity);
 	const FPlayerMatchIdentity& GetPlayerMatchIdentity() const { return PlayerMatchIdentity; }

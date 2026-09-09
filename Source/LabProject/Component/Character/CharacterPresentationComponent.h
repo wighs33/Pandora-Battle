@@ -44,7 +44,7 @@ public:
 
 	void BindMatchTeamColorChanged();
 	void UnbindMatchTeamColorChanged();
-	void ApplyTeamOverlayMaterial();
+	void RefreshCharacterOverlayMaterial();
 	void ApplySkillPresentationOverlay(
 		UObject* PresentationSource,
 		UMaterialInterface* OverlayMaterial);
@@ -76,7 +76,6 @@ private:
 	void OnRep_CurrentAnimLayer();
 
 	void HandleMatchTeamColorChanged(int32 NewTeamColorIndex);
-	void RefreshCharacterOverlayMaterial();
 	void RefreshTemporaryMeshScale();
 	UMaterialInterface* GetPreferredSkillOverlayMaterial();
 	const UMatchRuleDefinition* GetTeamOverlayMatchRuleDefinition() const;
@@ -85,7 +84,6 @@ private:
 		FVector RelativeLocationOffset) const;
 	FVector GetClampedBodyAuraRelativeScale(FVector RelativeScale) const;
 	ACharacterBase* GetCharacterOwner() const;
-	const ACharacterBase* GetCharacterOwnerConst() const;
 
 	UPROPERTY(Transient)
 	FCharacterPresentationSettings Settings;

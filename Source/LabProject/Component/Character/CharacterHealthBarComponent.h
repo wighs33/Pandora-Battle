@@ -37,7 +37,6 @@ public:
 
 private:
 	ACharacterBase* GetCharacterOwner() const;
-	const ACharacterBase* GetCharacterOwnerConst() const;
 	void ConfigureWidget();
 	bool TryApplyViewModelToWidget(UUserWidget* InWidget);
 	bool TryApplyViewModelToWidget();

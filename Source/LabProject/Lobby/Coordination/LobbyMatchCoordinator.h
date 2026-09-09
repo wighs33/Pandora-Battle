@@ -5,7 +5,7 @@
 #include "LobbyMatchCoordinator.generated.h"
 
 class ALobbyGameMode;
-class ALobbyPlayerState;
+class APdPlayerState;
 
 UCLASS(Transient)
 class LABPROJECT_API ULobbyMatchCoordinator : public UObject
@@ -28,7 +28,7 @@ public:
 	int32 GetActiveLobbyPlayerCount() const;
 
 	void UpdateAdvertisedSessionSettings(FName SessionMapKey, int32 MaxPlayerCount) const;
-	void AssignLobbyTeamColorIfNeeded(ALobbyPlayerState* LobbyPlayerState) const;
+	void AssignLobbyTeamColorIfNeeded(APdPlayerState* LobbyPlayerState) const;
 
 private:
 	ALobbyGameMode* GetLobbyGameMode() const;
@@ -40,7 +40,7 @@ private:
 		int32& OutPlayersPerTeam) const;
 	void UpdateAdvertisedSessionSettingsForCurrentConfig() const;
 	FString GetInitialSessionMapName() const;
-	int32 FindAvailableLobbyTeamColorIndex(const ALobbyPlayerState* IgnoredPlayerState) const;
+	int32 FindAvailableLobbyTeamColorIndex(const APdPlayerState* IgnoredPlayerState) const;
 
 	FTimerHandle StartGameTimerHandle;
 	bool bGameStartRequested = false;

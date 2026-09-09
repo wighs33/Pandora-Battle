@@ -1,14 +1,17 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "AbilitySystemComponent.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Component/Player/PlayerLoadoutComponent.h"
+#include "Component/Lobby/LobbyPlayerStateComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
-#include "Lobby/Contents/LobbyPlayerState.h"
+#include "Lobby/Contents/LobbyGameMode.h"
+#include "Mode/PdPlayerState.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Mode/ExperienceGameMode.h"
-#include "Mode/PdPlayerState.h"
 
 // 플레이어 식별 정보는 인계하되, 새 경기의 점수·사망 횟수·맵 구역·선택 슬롯은 초기화해야 한다.
 // 상태 인계와 입장 함수를 직접 호출하는 검사이며, 실제 맵 이동·네트워크·리스폰은 검사하지 않는다.
@@ -25,12 +28,14 @@ bool FPlayerMatchLifecycleTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	ON_SCOPE_EXIT { World->DestroyWorld(false); };
-	ALobbyPlayerState* Lobby = World->SpawnActor<ALobbyPlayerState>();
+	APdPlayerState* Lobby = World->SpawnActor<APdPlayerState>();
 	APdPlayerState* PlayerState = World->SpawnActor<APdPlayerState>();
 	AExperienceGameMode* GameMode = World->SpawnActor<AExperienceGameMode>();
+	ALobbyGameMode* LobbyGameMode = World->SpawnActor<ALobbyGameMode>();
 	APlayerController* Controller = World->SpawnActor<APlayerController>();
 	if (!TestNotNull(TEXT("Lobby PlayerState"), Lobby) || !TestNotNull(TEXT("Match PlayerState"), PlayerState)
-		|| !TestNotNull(TEXT("Match GameMode"), GameMode) || !TestNotNull(TEXT("Player controller"), Controller))
+		|| !TestNotNull(TEXT("Match GameMode"), GameMode) || !TestNotNull(TEXT("Lobby GameMode"), LobbyGameMode)
+		|| !TestNotNull(TEXT("Player controller"), Controller))
 	{
 		return false;
 	}
@@ -38,9 +43,23 @@ bool FPlayerMatchLifecycleTest::RunTest(const FString& Parameters)
 	UPlayerMatchComponent* Match = PlayerState->GetPlayerMatchComponent();
 	UPlayerLoadoutComponent* Loadout = PlayerState->GetPlayerLoadoutComponent();
 
+	// 피처가 없는 상태에서도 공통 PlayerState의 기본 속성이 엔진 초기화로 등록되어야 한다.
+	UAbilitySystemComponent* ASC = PlayerState->GetAbilitySystemComponent();
+	if (!ASC->HasBeenInitialized())
+	{
+		ASC->InitializeComponent();
+	}
+	TestNotNull(TEXT("Common PlayerState supplies basic attributes without a GameFeature"), ASC->GetSet<UBasicAttributeSet>());
+	int32 BasicAttributeSetCount = 0;
+	for (const UAttributeSet* AttributeSet : ASC->GetSpawnedAttributes())
+	{
+		BasicAttributeSetCount += AttributeSet && AttributeSet->IsA<UBasicAttributeSet>() ? 1 : 0;
+	}
+	TestEqual(TEXT("Basic attributes are registered exactly once"), BasicAttributeSetCount, 1);
+
 	// 준비: 인계할 식별 정보와 이전 경기의 기록을 서로 구분할 수 있는 값으로 채운다.
-	Lobby->SetNickname(FText::FromString(TEXT("ConfirmedPlayer")));
-	Lobby->SetTeamColorIndex(1);
+	Lobby->GetLobbyPlayerStateComponent()->SetNickname(FText::FromString(TEXT("ConfirmedPlayer")));
+	Lobby->GetPlayerMatchComponent()->SetMatchTeamColorIndex(1);
 	Lobby->GetPlayerMatchComponent()->SetMatchSpawnIndex(2);
 	Lobby->GetPlayerMatchComponent()->SetSelectedAchievementId(TEXT("TestAchievement"));
 	Lobby->GetPlayerMatchComponent()->SetPlayerMapRegion(EPlayerMapRegion::Temple);
@@ -72,6 +91,22 @@ bool FPlayerMatchLifecycleTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("New match resets deaths"), Match->GetDeathCount(), 0);
 	TestEqual(TEXT("A map without explicit settings uses the default region"), Match->GetPlayerMapRegion(), EPlayerMapRegion::Dome);
 	TestEqual(TEXT("New match clears the selected loadout"), Loadout->GetSelectedLoadoutNumber(), 0);
+
+	// CopyProperties 호출 없이 재입장해도 로비 전용 상태를 새로 준비하고 공통 식별 정보는 유지한다.
+	ULobbyPlayerStateComponent* LobbyState = PlayerState->GetLobbyPlayerStateComponent();
+	LobbyState->SetDefaultNickname(FText::FromString(TEXT("PreviousLobbyHint")));
+	Match->SetPlayerMatchIdentity(Identity);
+	LobbyState->SetLeavingLobby(true);
+	TestFalse(TEXT("Stale nickname hint differs from the confirmed name"), LobbyState->GetNicknameHint().EqualTo(Identity.DisplayName));
+	TestTrue(TEXT("Previous lobby leaving state is prepared"), LobbyState->IsLeavingLobby());
+	LobbyGameMode->GenericPlayerInitialization(Controller);
+	TestTrue(TEXT("Lobby entry preserves name, team, spawn index and achievement"), Match->GetPlayerMatchIdentity().Matches(Identity));
+	TestFalse(TEXT("Lobby entry clears previous leaving state"), LobbyState->IsLeavingLobby());
+	TestTrue(TEXT("Lobby entry uses the confirmed name as its new hint"), LobbyState->GetNicknameHint().EqualTo(Identity.DisplayName));
+	TestTrue(TEXT("Lobby entry activates its nickname hint"), LobbyState->IsUsingNicknameHint());
+	TestEqual(TEXT("Lobby entry uses the lobby update frequency"), PlayerState->GetNetUpdateFrequency(), 30.0f);
+	GameMode->GenericPlayerInitialization(Controller);
+	TestEqual(TEXT("Match entry restores the gameplay update frequency"), PlayerState->GetNetUpdateFrequency(), 100.0f);
 	return true;
 }
 

@@ -30,6 +30,7 @@ void ULobbyConfigurationComponent::EndPlay(
 void ULobbyConfigurationComponent::InitializeRuntime(FSimpleDelegate OnReady)
 {
 	ReleaseRuntimePreloads();
+	RuntimeState = ERuntimeState::Loading;
 	RuntimeReadyDelegate = MoveTemp(OnReady);
 	const uint32 RequestGeneration = RuntimePreloadRequestGeneration;
 	TArray<FSoftObjectPath> DependencyPaths;
@@ -522,29 +523,9 @@ ULobbyConfigurationComponent::GetMatchRuleDefinition()
 }
 
 const UDefaultProvisionDefinition*
-ULobbyConfigurationComponent::GetDefaultProvisionDefinition()
+ULobbyConfigurationComponent::GetDefaultProvisionDefinition() const
 {
-	if (LoadedDefaultProvisionDefinition)
-	{
-		return LoadedDefaultProvisionDefinition;
-	}
-
-	LoadedDefaultProvisionDefinition =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-			.DefaultProvision.Get();
-	if (!LoadedDefaultProvisionDefinition)
-	{
-		if (!bLoggedMissingDefaultProvisionDefinition)
-		{
-			bLoggedMissingDefaultProvisionDefinition = true;
-			UE_LOG(
-				LogLobbyConfiguration,
-				Error,
-				TEXT("Required DA_DefaultProvision is missing; default player provisioning is disabled."));
-		}
-	}
-
-	return LoadedDefaultProvisionDefinition;
+	return IsRuntimeReady() ? LoadedDefaultProvisionDefinition.Get() : nullptr;
 }
 
 ALobbyGameMode*
@@ -573,7 +554,7 @@ void ULobbyConfigurationComponent::HandleLobbyDependenciesPreloadComplete(
 void ULobbyConfigurationComponent::FinishRuntimeInitialization(
 	const uint32 RequestGeneration)
 {
-	if (RequestGeneration != RuntimePreloadRequestGeneration)
+	if (RequestGeneration != RuntimePreloadRequestGeneration || RuntimeState != ERuntimeState::Loading)
 	{
 		return;
 	}
@@ -583,6 +564,15 @@ void ULobbyConfigurationComponent::FinishRuntimeInitialization(
 	LoadedLevelDefinition = DefinitionReferences.LevelDefinition.Get();
 	LoadedMatchRuleDefinition = DefinitionReferences.MatchRule.Get();
 	LoadedDefaultProvisionDefinition = DefinitionReferences.DefaultProvision.Get();
+	if (!LoadedDefaultProvisionDefinition)
+	{
+		RuntimeState = ERuntimeState::Failed;
+		RuntimeReadyDelegate.Unbind();
+		UE_LOG(LogLobbyConfiguration, Error,
+			TEXT("Required DA_DefaultProvision failed to load: %s. Lobby player start is blocked."),
+			*DefinitionReferences.DefaultProvision.ToSoftObjectPath().ToString());
+		return;
+	}
 	if (!LoadedLevelDefinition)
 	{
 		LoadedLevelDefinition = GetMutableDefault<ULevelDefinition>();
@@ -592,6 +582,7 @@ void ULobbyConfigurationComponent::FinishRuntimeInitialization(
 		LoadedMatchRuleDefinition = GetMutableDefault<UMatchRuleDefinition>();
 	}
 
+	RuntimeState = ERuntimeState::Ready;
 	FSimpleDelegate ReadyDelegate = MoveTemp(RuntimeReadyDelegate);
 	RuntimeReadyDelegate.Unbind();
 	ReadyDelegate.ExecuteIfBound();
@@ -599,6 +590,8 @@ void ULobbyConfigurationComponent::FinishRuntimeInitialization(
 
 void ULobbyConfigurationComponent::ReleaseRuntimePreloads()
 {
+	RuntimeState = ERuntimeState::NotStarted;
+	LoadedDefaultProvisionDefinition = nullptr;
 	++RuntimePreloadRequestGeneration;
 	RuntimeReadyDelegate.Unbind();
 	if (LobbyDependenciesPreloadHandle.IsValid())

@@ -269,7 +269,10 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 
 	Character->ApplyCameraCollisionIgnoreToCharacterComponents();
 	ResetDeathDissolve();
-	Character->ApplyTeamOverlayMaterial();
+	if (UCharacterPresentationComponent* Presentation = Character->GetCharacterPresentationComponent())
+	{
+		Presentation->RefreshCharacterOverlayMaterial();
+	}
 
 	if (UCharacterMovementComponent* MovementComponent =
 		Character->GetCharacterMovement())
@@ -332,7 +335,7 @@ float UCharacterDeathComponent::GetSafeDissolveDuration(
 void UCharacterDeathComponent::InitializeDeathDissolveMaterials()
 {
 	DeathDissolveMaterialInstances.Reset();
-	const ACharacterBase* Character = GetCharacterOwnerConst();
+	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character
 		|| !Settings.bUseDissolve
 		|| Character->GetNetMode() == NM_DedicatedServer)
@@ -602,11 +605,6 @@ void UCharacterDeathComponent::ConfigureWeaponDamageMesh(
 }
 
 ACharacterBase* UCharacterDeathComponent::GetCharacterOwner() const
-{
-	return Cast<ACharacterBase>(GetOwner());
-}
-
-const ACharacterBase* UCharacterDeathComponent::GetCharacterOwnerConst() const
 {
 	return Cast<ACharacterBase>(GetOwner());
 }
