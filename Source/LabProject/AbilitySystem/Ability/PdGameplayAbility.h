@@ -71,8 +71,6 @@ public:
 
 	UPandoraSkillSource* GetPandoraSkillSource() const;
 
-	TArray<FProjectileImpactEffectAreaSpawnConfig> GetSourceProjectileImpactEffectAreas() const;
-
 	// 능력 실행과 GameplayEffect 적용·조회
 	bool TryActivateAbilitiesByTags(FGameplayTagContainer InAbilityTags, bool bAllowRemoteActivation = true) const;
 	bool ApplyGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel = 1.0f, int32 StackCount = 1);
@@ -113,11 +111,6 @@ protected:
 	bool CanExecuteSkillPayload() const;
 	void CancelAbilityForSkillExecutionFailure();
 
-	// 파생 능력이 사용하는 효과·무기·스킬 실행 도구
-	FActiveGameplayEffectHandle ApplyGameplayEffectHandle(
-		TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel = 1.0f, int32 StackCount = 1);
-	FActiveGameplayEffectHandle ApplyGameplayEffectHandle(TSubclassOf<UGameplayEffect> GameplayEffectClass,
-		const FGameplayTagContainer& DynamicGrantedTags, float EffectLevel = 1.0f, int32 StackCount = 1);
 	bool HasActiveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass) const;
 
 	AWeaponBase* GetCurrentWeaponActorFromAvatar() const;

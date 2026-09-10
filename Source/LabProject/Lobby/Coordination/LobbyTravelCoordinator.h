@@ -27,34 +27,28 @@ public:
 
 private:
 	ALobbyGameMode* GetLobbyGameMode() const;
-	bool IsLobbyReadyForSelectedMap() const;
 	void HandleStartSessionComplete(bool bWasSuccessful);
 	void ClearStartSessionDelegate();
-	void StartGameTravel();
-	bool ResolveSelectedGameTravel(
-		FString& OutTravelMapName,
-		FLobbyMatchMapOption& OutSelectedMapOption) const;
+
+	// 다음 전장에 전달할 맵·경기 옵션·플레이어 정보.
+	void PrepareMatchTravel();
+	bool ResolveSelectedMatchMap(FString& OutTravelMapName, FLobbyMatchMapOption& OutSelectedMapOption) const;
 	FString BuildGameTravelUrl(const FString& TravelMapName) const;
-	bool ShouldStartGameWithoutMatchTimer() const;
-	void PersistSelectedGameConfig(
-		const FLobbyMatchMapOption& SelectedMapOption,
-		const FString& TravelMapName) const;
+	void PersistSelectedGameConfig(const FLobbyMatchMapOption& SelectedMapOption, const FString& TravelMapName) const;
 	void CacheLobbyTravelState(ULobbyRuntimeSubsystem* LobbySubsystem) const;
-	void CacheLobbyPlayerTravelState(
-		ULobbyRuntimeSubsystem* LobbySubsystem,
-		const APdPlayerState* LobbyPlayerState) const;
-	TMap<FGameplayTag, FName> BuildEquippedSkinNamesBySlot(
-		const APlayerController* PlayerController) const;
-	void ShowGameStartConnectingPopupForAllPlayers() const;
-	void HideGameStartConnectingPopupForAllPlayers() const;
-	void ScheduleServerTravelWhenContentReady(const FString& TravelMapName);
-	void HandleGameEntryContentPreloadPoll();
-	void HandleGameEntryContentPreloadFailure(
-		ELobbyContentPreloadResult Result);
-	void ScheduleServerTravel(const FString& TravelMapName);
+	void CacheLobbyPlayerTravelState(ULobbyRuntimeSubsystem* LobbySubsystem, const APdPlayerState* LobbyPlayerState) const;
+	TMap<FGameplayTag, FName> BuildEquippedSkinNamesBySlot(const APlayerController* PlayerController) const;
+
+	// 콘텐츠 로딩과 클라이언트의 진입 화면을 준비한 후 서버 이동.
+	void SetGameStartConnectingPopupVisible(bool bVisible) const;
+	void PreloadContentAndScheduleTravel(const FString& TravelUrl);
+	void CheckContentPreloadAndScheduleTravel();
+	void HandleGameEntryContentPreloadFailure(ELobbyContentPreloadResult Result);
+	void ScheduleServerTravel(const FString& TravelUrl);
 
 	FDelegateHandle StartSessionCompleteHandle;
 	FTimerHandle GameEntryContentPreloadPollTimerHandle;
 	FTimerHandle TravelDelayTimerHandle;
-	FString PendingTravelMapName;
+	// 맵 경로와 NoMatchTimer 등의 옵션이 포함된 이동 URL.
+	FString PendingTravelUrl;
 };

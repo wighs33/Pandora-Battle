@@ -22,48 +22,39 @@ class LABPROJECT_API UAbilityAttributeManager : public UObject
 	GENERATED_BODY()
 
 public:
+	// 속성 태그 연결과 등록 우선순위
 	int32 AddAttributeConfig(const FAttributeConfig& AttributeConfig);
 	void RemoveAttributeConfig(int32 AttributeConfigHandle);
+	bool ResolveAttributeFromTag(const FGameplayTag& StatTag, FGameplayAttribute& OutAttribute) const;
 
-	bool HasAppliedConfiguredAttributeDefaults(
-		const UAttributeSet* AttributeSet,
-		const FSoftObjectPath& DefinitionPath) const;
-	void MarkConfiguredAttributeDefaultsApplied(
-		UAttributeSet* AttributeSet,
-		const FSoftObjectPath& DefinitionPath);
-	void ClearConfiguredAttributeDefaultsApplied(
-		const UAttributeSet* AttributeSet,
-		const FSoftObjectPath& DefinitionPath);
-
+	// 서버 초기화와 능력치 변경
 	bool ApplyConfiguredAttributeDefaults(UPdAbilitySystemComponent& AbilitySystemComponent, const UStatUpgradeDefinition& Definition);
 
 	bool ApplyAttributeDefaultValue(
-		UPdAbilitySystemComponent& AbilitySystemComponent,
-		const FGameplayAttribute& Attribute,
-		float DefaultValue) const;
+		UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayAttribute& Attribute, float DefaultValue) const;
 
-	bool ApplyStatUpEffectByTags(
-		UPdAbilitySystemComponent& AbilitySystemComponent,
-		TSubclassOf<UGameplayEffect> GameplayEffectClass,
-		const TMap<FGameplayTag, float>& StatMagnitudes,
-		EEnum_Operation Operation,
-		float Level) const;
+	bool ApplyStatUpEffectByTags(UPdAbilitySystemComponent& AbilitySystemComponent, TSubclassOf<UGameplayEffect> GameplayEffectClass,
+		const TMap<FGameplayTag, float>& StatMagnitudes, EEnum_Operation Operation, float Level) const;
 
-	bool ResolveAttributeFromTag(
-		const FGameplayTag& StatTag,
-		FGameplayAttribute& OutAttribute) const;
+	// GameplayEffect에 값을 전달할 프로젝트 공통 태그
+	bool ResolveDamageMagnitudeSetByCallerTag(const UPdAbilitySystemComponent& AbilitySystemComponent, FGameplayTag& OutTag) const;
 
-	bool ResolveDamageMagnitudeSetByCallerTag(
-		const UPdAbilitySystemComponent& AbilitySystemComponent,
-		FGameplayTag& OutTag) const;
-
-	bool ResolveStatUpOperationSetByCallerTag(
-		const UPdAbilitySystemComponent& AbilitySystemComponent,
-		FGameplayTag& OutTag) const;
+	bool ResolveStatUpOperationSetByCallerTag(const UPdAbilitySystemComponent& AbilitySystemComponent, FGameplayTag& OutTag) const;
 
 private:
-	TMap<int32, FAttributeConfig> ActiveAttributeConfigs;
-	TArray<int32> AttributeConfigOrder;
+	// 초기화 재진입 방지와 실패 기록 정리
+	void ClearConfiguredAttributeDefaultsApplied(const UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath);
+
+	bool HasAppliedConfiguredAttributeDefaults(const UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath) const;
+
+	struct FRegisteredAttributeConfig
+	{
+		int32 Handle;
+		FAttributeConfig Config;
+	};
+
+	// 뒤에 등록한 설정을 먼저 조회한다. 제거 시 상대적인 등록 순서는 유지한다.
+	TArray<FRegisteredAttributeConfig> ActiveAttributeConfigs;
 	int32 NextAttributeConfigHandle = 1;
 
 	TWeakObjectPtr<UAttributeSet> ConfiguredDefaultsAttributeSet;

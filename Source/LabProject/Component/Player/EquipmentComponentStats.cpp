@@ -2,7 +2,7 @@
 
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/Character/CharacterAbilityRuntimeComponent.h"
+#include "Component/Character/AbilityStateComponent.h"
 #include "Character/CharacterBase.h"
 #include "Common/Enum_Operation.h"
 #include "Common/LabGameplayTags.h"
@@ -475,10 +475,10 @@ void UEquipmentComponent::NotifyEquipmentStatsChanged()
 	}
 	if (const ACharacterBase* CharacterOwner = CachedOwner.Get())
 	{
-		if (UCharacterAbilityRuntimeComponent* AbilityRuntime =
-			CharacterOwner->GetCharacterAbilityRuntimeComponent())
+		if (UAbilityStateComponent* AbilityState =
+			CharacterOwner->GetAbilityStateComponent())
 		{
-			AbilityRuntime->ApplyMovementSpeedFromAttribute();
+			AbilityState->ApplyMovementSpeedFromAttribute();
 		}
 	}
 	OnEquipmentStatsChanged.Broadcast();

@@ -13,35 +13,33 @@ class LABPROJECT_API ULobbyMatchCoordinator : public UObject
 	GENERATED_BODY()
 
 public:
-	void InitializeSession();
-	void Shutdown();
-
+	// 호스트의 시작 요청과 팀·맵·인원 변경에 따른 취소.
 	void TryStartGame();
 	bool CanHostStartGame() const;
-	bool AreLobbyTeamsBalanced() const;
+	bool AreMatchStartConditionsMet() const;
 	void NotifyLobbyTeamChanged();
-	void BeginStartGame(const TCHAR* Reason);
-	void CancelPendingGameStart(const TCHAR* Reason);
-	void ClearStartTimers();
-
-	bool IsGameStartRequested() const { return bGameStartRequested; }
+	void CancelPendingGameStart();
+	bool IsGameStartRequested() const
+	{
+		return bGameStartRequested;
+	}
 	int32 GetActiveLobbyPlayerCount() const;
 
-	void UpdateAdvertisedSessionSettings(FName SessionMapKey, int32 MaxPlayerCount) const;
+	// 로비 입장 시 팀 배정과 온라인 방 목록의 맵·정원 갱신.
 	void AssignLobbyTeamColorIfNeeded(APdPlayerState* LobbyPlayerState) const;
+	void UpdateAdvertisedSessionSettingsFromLobbyConfig();
+	void UpdateAdvertisedSessionSettings(FName SessionMapKey, int32 MaxPlayerCount) const;
+	void Shutdown();
 
 private:
 	ALobbyGameMode* GetLobbyGameMode() const;
 	void HandleStartCountdownElapsed();
-	float GetEffectiveStartGameDelay(int32 ActivePlayerCount) const;
-	bool GetLobbyTeamBalanceStatus(
-		int32& OutActivePlayerCount,
-		int32& OutTeamCount,
-		int32& OutPlayersPerTeam) const;
-	void UpdateAdvertisedSessionSettingsForCurrentConfig() const;
-	FString GetInitialSessionMapName() const;
+	float GetStartCountdownSeconds(int32 ActivePlayerCount) const;
+	void ClearStartCountdownTimer();
+	bool AreLobbyTeamsBalanced() const;
 	int32 FindAvailableLobbyTeamColorIndex(const APdPlayerState* IgnoredPlayerState) const;
 
-	FTimerHandle StartGameTimerHandle;
+	FTimerHandle StartCountdownTimerHandle;
+	// 카운트다운 이후 온라인 세션 시작·콘텐츠 준비·맵 이동 대기까지 포함한다.
 	bool bGameStartRequested = false;
 };

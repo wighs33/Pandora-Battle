@@ -128,7 +128,7 @@ void UProjectileAbility::ShootProjectile_Implementation(FVector TargetLocation)
 	if (const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset())
 	{
 		Projectile->SetImpactEffectAreaSpawnConfigs(
-			GetSourceProjectileImpactEffectAreas(),
+			{},
 			FMath::Max(GetAbilityLevel(), 1));
 	}
 
@@ -224,7 +224,7 @@ AProjectileBase* UProjectileAbility::SpawnReadiedProjectile()
 		if (const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset())
 		{
 			Projectile->SetImpactEffectAreaSpawnConfigs(
-				GetSourceProjectileImpactEffectAreas(),
+				{},
 				FMath::Max(GetAbilityLevel(), 1));
 		}
 	}

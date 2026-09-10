@@ -5,6 +5,8 @@
 #include "UObject/Object.h"
 #include "AbilityPresentationManager.generated.h"
 
+enum class ESkillPresentationFlags : uint8;
+
 class ACharacterBase;
 class ASkillPresentationActor;
 class UCharacterPresentationComponent;
@@ -23,11 +25,8 @@ class LABPROJECT_API UAbilityPresentationManager : public UObject
 
 public:
 	void StartConfiguredDefaultFX(UPdGameplayAbility& Ability);
-	void StopConfiguredDefaultFX(UPdGameplayAbility& Ability);
 	void StartConfiguredGroundFX(UPdGameplayAbility& Ability);
-	void StopConfiguredGroundFX(UPdGameplayAbility& Ability);
 	void StartConfiguredCharacterOverlay(UPdGameplayAbility& Ability);
-	void StopConfiguredCharacterOverlay(UPdGameplayAbility& Ability);
 	void StartConfiguredMissilePresentation(UPdGameplayAbility& Ability);
 	void UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors);
 	void StopConfiguredMissilePresentation(UPdGameplayAbility& Ability);
@@ -37,19 +36,13 @@ public:
 	void RestoreSelfBuffCharacterScale(UPdGameplayAbility& Ability);
 
 	void SpawnConfiguredCharacterDecal(UPdGameplayAbility& Ability);
-	FVector ResolveConfiguredCharacterDecalLocation(
-		const ACharacterBase* Character) const;
-	float ResolveConfiguredCharacterDecalDuration(
-		const USkillDefinition* SkillDataAsset) const;
-
-	ASkillPresentationActor* EnsureConfiguredPresentationActor(
-		UPdGameplayAbility& Ability);
-	void SetConfiguredPresentationEnabled(
-		UPdGameplayAbility& Ability,
-		uint8 PresentationFlag,
-		bool bEnabled);
+	FVector ResolveConfiguredCharacterDecalLocation(const ACharacterBase* Character) const;
+	float ResolveConfiguredCharacterDecalDuration(const USkillDefinition* SkillDataAsset) const;
 
 private:
+	ASkillPresentationActor* GetOrCreatePresentationActor(UPdGameplayAbility& Ability);
+	void SetConfiguredPresentationEnabled(UPdGameplayAbility& Ability, ESkillPresentationFlags PresentationFlag, bool bEnabled);
+
 	UPROPERTY(Transient)
 	TObjectPtr<ASkillPresentationActor> ActiveSkillPresentationActor;
 

@@ -53,17 +53,6 @@ const FSkill* UPandoraSkillSource::GetPandoraSkill() const
 	return Definition && Definition->Skill.IsValidIndex(SkillIndex) ? &Definition->Skill[SkillIndex] : nullptr;
 }
 
-TArray<FProjectileImpactEffectAreaSpawnConfig> UPandoraSkillSource::GetProjectileImpactEffectAreas() const
-{
-	const USkillDefinition* SkillData = SkillDataAsset.Get();
-	if (!SkillData || SkillData->SkillDataType != ESkillDataType::Projectile)
-	{
-		return TArray<FProjectileImpactEffectAreaSpawnConfig>();
-	}
-
-	return TArray<FProjectileImpactEffectAreaSpawnConfig>();
-}
-
 // 현재 선택과 무관하게, 서버가 부여한 원래 판도라와 스킬 정보를 클라이언트에 전달한다.
 void UPandoraSkillSource::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {

@@ -131,7 +131,7 @@ AProjectileBase* UProjectileAbility::SpawnPreparedSocketBarrageProjectile(const 
 	ApplyConfiguredProjectileImpactPersistence(Projectile);
 	ApplyConfiguredStatusEffect(Projectile);
 	Projectile->SetImpactEffectAreaSpawnConfigs(
-		GetSourceProjectileImpactEffectAreas(),
+		{},
 		FMath::Max(GetAbilityLevel(), 1));
 	Projectile->PrepareProjectile(MakeDamageEffectSpec());
 	UGameplayStatics::FinishSpawningActor(Projectile, SpawnTransform);

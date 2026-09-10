@@ -119,7 +119,6 @@ private:
 	bool ApplyUnarmedDamageToTarget(AActor* TargetActor);
 	float GetUnarmedDamageSourceMagnitude() const;
 	float CalculateStrengthAdjustedWeaponDamage(float WeaponDamage, float SourceStrength) const;
-	float GetActionStaminaCost() const;
 	bool HasCombatAuthority() const;
 	void RefreshTemporaryWeaponDamageBonus();
 

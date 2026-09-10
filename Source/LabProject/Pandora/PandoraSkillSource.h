@@ -50,7 +50,6 @@ public:
 	EEnum_Direction GetLoadoutDirection() const { return LoadoutDirection; }
 
 	const FSkill* GetPandoraSkill() const;
-	TArray<FProjectileImpactEffectAreaSpawnConfig> GetProjectileImpactEffectAreas() const;
 
 private:
 	UFUNCTION()

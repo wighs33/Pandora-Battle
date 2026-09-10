@@ -1,8 +1,8 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Abilities/GameplayAbilityTypes.h"
 #include "AbilitySystemInterface.h"
-#include "CoreMinimal.h"
 #include "Engine/NetSerialization.h"
 #include "GameFramework/Character.h"
 #include "GameplayCueInterface.h"
@@ -12,7 +12,7 @@
 class APlayerController;
 class UAbilitySystemComponent;
 class UAnimInstance;
-class UCharacterAbilityRuntimeComponent;
+class UAbilityStateComponent;
 class UCharacterBaseDefinition;
 class UCharacterDeathComponent;
 class UCharacterHealthBarComponent;
@@ -21,7 +21,6 @@ class UCharacterPresentationComponent;
 class UCombatComponent;
 class UDamageIndicatorComponent;
 class UEquipmentComponent;
-class UHealthBarViewModel;
 class UMaterialInterface;
 class UNiagaraComponent;
 class UNiagaraSystem;
@@ -47,8 +46,7 @@ class LABPROJECT_API ACharacterBase : public ACharacter, public IAbilitySystemIn
 public:
 	ACharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// 엔진 생명주기와 조종자·이동 상태 변경.
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -59,17 +57,10 @@ public:
 	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
 	virtual void UnPossessed() override;
 
-	//------------------------------------------------------------------------------------------------------------------
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "!Damage", meta = (DisplayName = "On Damage Taken"))
-	void OnDamageTaken(float DamageAmount, bool bCriticalHit, FVector WorldLocation);
-
+	// ASC 소유 관계와 능력 상태 연결.
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	virtual void HandleGameplayCue(
-		AActor* Self,
-		FGameplayTag GameplayCueTag,
-		EGameplayCueEvent::Type EventType,
-		const FGameplayCueParameters& Parameters) override;
+		AActor* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters) override;
 
 	UFUNCTION(BlueprintPure, Category = "!AbilitySystem")
 	UPdAbilitySystemComponent* GetPdAbilitySystemComponent() const;
@@ -77,8 +68,9 @@ public:
 	void InitializeAbilitySystemActorInfo();
 	void ClearAbilitySystemActorInfo();
 
+	// 캐릭터 공통 기능을 실제로 처리하는 컴포넌트.
 	UFUNCTION(BlueprintPure, Category = "!Character|Runtime")
-	UCharacterAbilityRuntimeComponent* GetCharacterAbilityRuntimeComponent() const { return CharacterAbilityRuntimeComponent; }
+	UAbilityStateComponent* GetAbilityStateComponent() const { return AbilityStateComponent; }
 
 	UFUNCTION(BlueprintPure, Category = "!Character|Death")
 	UCharacterDeathComponent* GetCharacterDeathComponent() const { return CharacterDeathComponent; }
@@ -104,33 +96,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!DamageIndicator")
 	UDamageIndicatorComponent* GetDamageIndicatorComponent() const;
 
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Aura")
-	UNiagaraComponent* FindBodyAuraNiagaraComponent(FName ComponentName) const;
-
-	UFUNCTION(BlueprintCallable, Category = "!Ability|Aura")
-	void ApplyBodyAuraNiagaraWithOffset(
-		FName ComponentName,
-		UNiagaraSystem* NiagaraSystem,
-		bool bActivate,
-		bool bResetSystem,
-		FVector RelativeLocationOffset,
-		FVector RelativeScale);
-
-	void ClearBodyAuraNiagaraIfMatching(FName ComponentName, const UNiagaraSystem* ExpectedNiagaraSystem);
-
+	// 체력바 데이터 연결과 관찰자별 표시.
 	UFUNCTION(BlueprintCallable, Category = "!ViewModel")
 	void RefreshHealthBarViewModel();
 
-	UFUNCTION(BlueprintPure, Category = "!ViewModel")
-	UHealthBarViewModel* GetHealthBarViewModel() const;
-
 	void UpdateHealthBarVisibilityForLocalViewer(
-		APlayerController* LocalPlayerController,
-		const FVector& CameraLocation,
-		const FRotator& CameraRotation,
-		float MaxDistanceSquared);
+		APlayerController* LocalPlayerController, const FVector& CameraLocation, const FRotator& CameraRotation, float MaxDistanceSquared);
 	void SetHealthBarVisibleForLocalViewer(bool bVisible);
 
+	// 조준 애니메이션·장비 레이어·스킬 외형.
 	UFUNCTION(BlueprintPure, Category = "!Animation|Aim")
 	float GetAimYawForAnimation() const;
 
@@ -143,11 +117,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Animation")
 	void SetCurrentAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass);
 
-	void LinkAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass) const;
-
 	void ApplySkillPresentationOverlay(UObject* PresentationSource, UMaterialInterface* OverlayMaterial);
 	void ClearSkillPresentationOverlay(UObject* PresentationSource);
 
+	UFUNCTION(BlueprintCallable, Category = "!Ability|Aura")
+	void ApplyBodyAuraNiagaraWithOffset(FName ComponentName, UNiagaraSystem* NiagaraSystem, bool bActivate, bool bResetSystem,
+		FVector RelativeLocationOffset, FVector RelativeScale);
+
+	void ClearBodyAuraNiagaraIfMatching(FName ComponentName, const UNiagaraSystem* ExpectedNiagaraSystem);
+
+	// 경기 팀과 진영, 빙결·사망 상태.
 	UFUNCTION()
 	int32 GetMatchTeamColorIndex() const;
 
@@ -156,6 +135,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!Team")
 	bool CanDamageCharacterByTeam(const ACharacterBase* OtherCharacter) const;
+
+	UFUNCTION(BlueprintPure, Category = "!Faction")
+	int32 GetFactionId() const;
 
 	UFUNCTION(BlueprintPure, Category = "!Status")
 	bool IsStatusFrozen() const;
@@ -168,12 +150,12 @@ public:
 	// GAS의 사망 상태를 조회한다. 사망 연출 처리 여부와는 별개다.
 	bool IsDead() const;
 
-	virtual void HandleDamageTaken(
-		float DamageAmount,
-		bool bCriticalHit = false,
-		bool bAllowHitReact = true,
-		AActor* DamageInstigator = nullptr,
-		AActor* DamageCauser = nullptr);
+	// 피격·사망·리스폰의 캐릭터 진입점. 서버의 확정 결과는 아래 Multicast RPC로 전달한다.
+	UFUNCTION(BlueprintImplementableEvent, Category = "!Damage", meta = (DisplayName = "On Damage Taken"))
+	void OnDamageTaken(float DamageAmount, bool bCriticalHit, FVector WorldLocation);
+
+	virtual void HandleDamageTaken(float DamageAmount, bool bCriticalHit = false, bool bAllowHitReact = true,
+		AActor* DamageInstigator = nullptr, AActor* DamageCauser = nullptr);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "!Damage")
 	void HandleDeath();
@@ -189,9 +171,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Presentation")
 	void ClearCharacterOverlayMaterial();
 
-	UFUNCTION(BlueprintPure, Category = "!Faction")
-	int32 GetFactionId() const;
-
 	UFUNCTION(BlueprintImplementableEvent, Category = "!AbilitySystem|Cue", meta = (DisplayName = "On Dash Cue Activated"))
 	void OnDashCueActivated(const FGameplayCueParameters& Parameters);
 
@@ -199,6 +178,7 @@ public:
 	void OnDashCueRemoved(const FGameplayCueParameters& Parameters);
 
 protected:
+	// 서버가 확정한 피격·사망 연출과 리스폰 위치를 각 클라이언트에 적용한다.
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastHandleDamageTaken(float DamageAmount, bool bCriticalHit, FVector_NetQuantize WorldLocation);
 
@@ -214,6 +194,7 @@ protected:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastClearCharacterOverlayMaterial();
 
+	// 플레이어와 적의 소유 방식·전용 설정·회전·UI 차이를 유지하는 확장 지점.
 	virtual AActor* GetAbilitySystemOwnerActor() const;
 	virtual AActor* GetAbilitySystemAvatarActor() const;
 	virtual void RestoreRotationSettingsAfterFrozen(UCharacterMovementComponent* MovementComponent);
@@ -225,11 +206,12 @@ protected:
 	virtual bool IsAdditionalCharacterRuntimeContentReady() const;
 	virtual void HandleCharacterRuntimeInitialized();
 
-	void RefreshCharacterRuntimeBindings();
+	// BeginPlay와 비동기 콘텐츠 준비를 합류시켜 공통 시스템을 초기화한다.
+	void RefreshAbilitySystemAndTeamBindings();
 	void ApplyCharacterDefinition();
 	void BeginCharacterDefinitionPreload();
 	void HandleCharacterDefinitionPreloaded(uint32 RequestGeneration);
-	void ReleaseCharacterDefinitionPreload();
+	void CancelCharacterDefinitionPreload();
 	void TryInitializeCharacterRuntime();
 	bool IsCharacterRuntimeInitialized() const { return bCharacterRuntimeInitialized; }
 	void ApplyCameraCollisionIgnoreToCharacterComponents() const;
@@ -246,10 +228,9 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UCharacterBaseDefinition> LoadedCharacterDefinition;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Components
+	// 공통 기본 서브오브젝트. 표시·사망·장비 로직은 각 컴포넌트가 소유한다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Character|Runtime", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UCharacterAbilityRuntimeComponent> CharacterAbilityRuntimeComponent;
+	TObjectPtr<UAbilityStateComponent> AbilityStateComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Character|Death", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCharacterDeathComponent> CharacterDeathComponent;
@@ -272,20 +253,22 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Widget", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UWidgetComponent> HealthBarWidget;
 
-	//------------------------------------------------------------------------------------------------------------------
-
 	// 진영은 정의 데이터가 아니라 배치된 캐릭터의 식별 정보다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Faction")
 	int32 FactionId = 0;
 
+	// 로딩 중 애셋의 수명을 유지하고, 취소·재요청 이전의 완료 콜백을 구분한다.
 	TSharedPtr<FStreamableHandle> CharacterDefinitionLoadHandle;
 	uint32 CharacterDefinitionLoadGeneration = 0;
+	// Super::BeginPlay 내부의 엔진 상태와 구분해, 공통 BeginPlay 설정 적용 이후만 초기화를 허용한다.
 	bool bCharacterBeginPlayCalled = false;
+	// 로드 성공뿐 아니라 미지정·실패 후 기본 설정으로 진행할 수 있는 상태도 포함한다.
 	bool bCharacterDefinitionReady = false;
+	// 공통 컴포넌트의 초기화 시작 여부다. ASC ActorInfo 준비는 별도 재시도가 이어질 수 있다.
 	bool bCharacterRuntimeInitialized = false;
 
 private:
-	friend class UCharacterAbilityRuntimeComponent;
+	friend class UAbilityStateComponent;
 	friend class UCharacterDeathComponent;
 	friend class UCharacterHealthBarComponent;
 	friend class UCharacterPresentationComponent;

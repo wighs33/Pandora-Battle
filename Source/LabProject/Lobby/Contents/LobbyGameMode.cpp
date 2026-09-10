@@ -57,7 +57,7 @@ void ALobbyGameMode::BeginPlay()
 		}
 		LobbyConfigurationComponent->ApplyDefaultLobbyConfigIfNeeded();
 		LobbyConfigurationComponent->SyncSelectedLobbyConfigToRuntime();
-		MatchCoordinator->InitializeSession();
+		MatchCoordinator->UpdateAdvertisedSessionSettingsFromLobbyConfig();
 		// Experience와 로비 설정 중 어느 쪽이 먼저 로딩되어도 두 준비가 끝난 뒤 플레이어를 시작한다.
 		ResumeWaitingPlayers();
 	}));

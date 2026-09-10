@@ -2,6 +2,7 @@
 
 #include "AbilitySystem/Ability/AttackAbility.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/AbilitySystem/Ability/AbilityCostAndCooldownManager.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Abilities/GameplayAbility.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -517,36 +518,6 @@ void UCombatComponent::HandleAttackSpeedChanged(const FOnAttributeChangeData& Da
 	}
 }
 
-float UCombatComponent::GetActionStaminaCost() const
-{
-	const ACharacterBase* CharacterOwner = CachedOwner.Get();
-	if (!CharacterOwner)
-	{
-		CharacterOwner = Cast<ACharacterBase>(GetOwner());
-	}
-
-	const UEquipmentComponent* EquipmentComponent = CharacterOwner
-		? CharacterOwner->GetEquipmentComponent()
-		: nullptr;
-	if (const UItemDefinition* WeaponDefinition = EquipmentComponent
-		? EquipmentComponent->GetCurrentWeaponDefinition()
-		: nullptr)
-	{
-		return WeaponDefinition->GetSafeAttackStaminaCost();
-	}
-
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
-	if (!SettingDefinition)
-	{
-		SettingDefinition = GetDefault<UGameSettingDefinition>();
-	}
-
-	return SettingDefinition
-		? FMath::Max(SettingDefinition->ActionStaminaCost, 0.0f)
-		: 0.0f;
-}
-
 bool UCombatComponent::CanAffordRangedWeaponAttackStamina() const
 {
 	const ACharacterBase* CharacterOwner = CachedOwner.Get();
@@ -564,7 +535,7 @@ bool UCombatComponent::CanAffordRangedWeaponAttackStamina() const
 		return true;
 	}
 
-	const float StaminaCost = GetActionStaminaCost();
+	const float StaminaCost = UAbilityCostAndCooldownManager::GetWeaponAttackStaminaCost(CharacterOwner);
 	if (StaminaCost <= 0.0f)
 	{
 		return true;
@@ -601,7 +572,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 		return true;
 	}
 
-	const float StaminaCost = GetActionStaminaCost();
+	const float StaminaCost = UAbilityCostAndCooldownManager::GetWeaponAttackStaminaCost(CharacterOwner);
 	if (StaminaCost <= 0.0f)
 	{
 		return true;
@@ -617,11 +588,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 		return false;
 	}
 
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
-	const TSubclassOf<UGameplayEffect> CostEffectClass = SettingDefinition
-		? SettingDefinition->AbilityCostGameplayEffectClass
-		: nullptr;
+	const TSubclassOf<UGameplayEffect> CostEffectClass = UAbilityCostAndCooldownManager::GetCostGameplayEffectClass(this);
 	if (!CostEffectClass)
 	{
 		return false;
@@ -635,17 +602,10 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 			CostEffectClass,
 			1.0f,
 			EffectContext);
-	if (!CostSpecHandle.IsValid() || !CostSpecHandle.Data.IsValid())
+	if (!UAbilityCostAndCooldownManager::SetCostEffectMagnitudes(CostSpecHandle, 0.0f, StaminaCost))
 	{
 		return false;
 	}
-
-	CostSpecHandle.Data->SetSetByCallerMagnitude(
-		LabGameplayTags::Data_ManaCost,
-		0.0f);
-	CostSpecHandle.Data->SetSetByCallerMagnitude(
-		LabGameplayTags::Data_StaminaCost,
-		-StaminaCost);
 	return AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
 		*CostSpecHandle.Data.Get()).WasSuccessfullyApplied();
 }

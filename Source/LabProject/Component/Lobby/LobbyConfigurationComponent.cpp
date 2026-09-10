@@ -389,8 +389,7 @@ void ULobbyConfigurationComponent::SelectLobbyMapByOffset(
 	if (MatchCoordinator
 		&& MatchCoordinator->IsGameStartRequested())
 	{
-		MatchCoordinator->CancelPendingGameStart(
-			TEXT("map_changed"));
+		MatchCoordinator->CancelPendingGameStart();
 	}
 
 	SaveConfig(

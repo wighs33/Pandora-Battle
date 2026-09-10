@@ -6,7 +6,7 @@
 #include "Common/CollisionChannels.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/Character/CharacterAbilityRuntimeComponent.h"
+#include "Component/Character/AbilityStateComponent.h"
 #include "Component/Character/CharacterHealthBarComponent.h"
 #include "Component/Character/CharacterPresentationComponent.h"
 #include "Component/Player/EquipmentComponent.h"
@@ -221,10 +221,10 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 		}
 	}
 
-	if (UCharacterAbilityRuntimeComponent* AbilityRuntime =
-		Character->GetCharacterAbilityRuntimeComponent())
+	if (UAbilityStateComponent* AbilityState =
+		Character->GetAbilityStateComponent())
 	{
-		AbilityRuntime->ClearFrozenStateForRespawn();
+		AbilityState->ClearFrozenStateForRespawn();
 	}
 
 	bDeathHandled = false;
@@ -293,10 +293,10 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 		MovementComponent->SetMovementMode(RestoredMovementMode);
 	}
 
-	if (UCharacterAbilityRuntimeComponent* AbilityRuntime =
-		Character->GetCharacterAbilityRuntimeComponent())
+	if (UAbilityStateComponent* AbilityState =
+		Character->GetAbilityStateComponent())
 	{
-		AbilityRuntime->ApplyMovementSpeedFromAttribute();
+		AbilityState->ApplyMovementSpeedFromAttribute();
 	}
 
 	Character->InitializeAbilitySystemActorInfo();

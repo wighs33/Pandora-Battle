@@ -4,7 +4,7 @@
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/Character/CharacterAbilityRuntimeComponent.h"
+#include "Component/Character/AbilityStateComponent.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
@@ -201,10 +201,10 @@ void UEquipmentComponent::NotifyCurrentWeaponDefinitionChanged()
 	NotifyCurrentWeaponStateChanged();
 	if (const ACharacterBase* CharacterOwner = CachedOwner.Get())
 	{
-		if (UCharacterAbilityRuntimeComponent* AbilityRuntime =
-			CharacterOwner->GetCharacterAbilityRuntimeComponent())
+		if (UAbilityStateComponent* AbilityState =
+			CharacterOwner->GetAbilityStateComponent())
 		{
-			AbilityRuntime->ApplyMovementSpeedFromAttribute();
+			AbilityState->ApplyMovementSpeedFromAttribute();
 		}
 	}
 	OnCurrentWeaponDefinitionChanged.Broadcast();

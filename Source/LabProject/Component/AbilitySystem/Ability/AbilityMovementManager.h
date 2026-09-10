@@ -8,7 +8,6 @@
 #include "AbilityMovementManager.generated.h"
 
 class UPdGameplayAbility;
-struct FGameplayEffectSpecHandle;
 
 /** 한 능력의 이동 잠금·복구와 이동 중 접촉 피해를 관리한다. */
 UCLASS()
@@ -27,14 +26,8 @@ public:
 	void StopMovementContactDamage(UPdGameplayAbility& Ability);
 
 private:
-	UPdGameplayAbility* GetOwningAbility() const;
 	void HandleMovementContactDamageTick();
 	void ApplyMovementContactDamageToActor(UPdGameplayAbility& Ability, AActor* HitActor);
-	FGameplayEffectSpecHandle MakeMovementContactDamageSpec(
-		const UPdGameplayAbility& Ability,
-		float DamageMagnitude) const;
-	float CalculateMovementContactDamageMagnitude(
-		const UPdGameplayAbility& Ability) const;
 
 	UPROPERTY(Transient)
 	uint8 CachedAbilityMovementMode = 0;
@@ -69,7 +62,6 @@ private:
 	FTimerHandle MovementContactDamageTimerHandle;
 	TSet<FObjectKey> MovementContactOverlappingActors;
 	TSet<FObjectKey> MovementContactCurrentActors;
-	TSet<FObjectKey> MovementContactProcessedActors;
 	TArray<FHitResult> MovementContactSweepHits;
 	TArray<FOverlapResult> MovementContactOverlapResults;
 };

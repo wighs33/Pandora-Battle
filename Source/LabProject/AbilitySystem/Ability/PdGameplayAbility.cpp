@@ -262,7 +262,9 @@ bool UPdGameplayAbility::CanExecuteSkillPayload() const
 	}
 
 	const UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
-	const UBasicAttributeSet* BasicAttributeSet = AbilitySystemComponent ? AbilitySystemComponent->GetSet<UBasicAttributeSet>() : nullptr;
+	const UBasicAttributeSet* BasicAttributeSet = AbilitySystemComponent ?
+		AbilitySystemComponent->GetSet<UBasicAttributeSet>() : nullptr;
+
 	if (BasicAttributeSet && BasicAttributeSet->GetHealth() <= 0.0f)
 	{
 		return false;
@@ -390,7 +392,7 @@ void UPdGameplayAbility::AppendCooldownRemovalPolicyTags(FGameplayEffectSpecHand
 // 이미 적용된 쿨다운 효과를 제거하는 함수는 아니다.
 void UPdGameplayAbility::DisableCooldownOnAbilityEnd() const
 {
-	CostAndCooldownManager->SuppressPendingCooldown();
+	CostAndCooldownManager->ClearPendingAbilityEndCooldown();
 }
 
 // 판도라 스킬·무기 장착·그래플 등이 지정한 시간과 태그로 프로젝트 공통 쿨다운 효과를 자신에게 적용한다.
@@ -469,14 +471,6 @@ USkillDefinition* UPdGameplayAbility::GetSourceSkillDataAsset() const
 UPandoraSkillSource* UPdGameplayAbility::GetPandoraSkillSource() const
 {
 	return Cast<UPandoraSkillSource>(GetCurrentSourceObject());
-}
-
-// 투사체 생성 코드에 출처의 충돌 시 추가 영역 설정을 전달한다.
-// 현재 UPandoraSkillSource 구현은 빈 목록을 반환하므로 이 경로에서는 추가 영역 설정이 전달되지 않는다.
-TArray<FProjectileImpactEffectAreaSpawnConfig> UPdGameplayAbility::GetSourceProjectileImpactEffectAreas() const
-{
-	const UPandoraSkillSource* Source = GetPandoraSkillSource();
-	return Source ? Source->GetProjectileImpactEffectAreas() : TArray<FProjectileImpactEffectAreaSpawnConfig>();
 }
 
 // 공통 입력 처리가 키 해제를 받았을 때 타기팅을 확정할지 알려 준다. 기본은 Press 스킬만 해당한다.
@@ -689,39 +683,21 @@ FActiveGameplayEffectHandle UPdGameplayAbility::ApplyConfiguredStatusEffectToTar
 bool UPdGameplayAbility::ApplyGameplayEffect(
 	TSubclassOf<UGameplayEffect> GameplayEffectClass, const float EffectLevel, const int32 StackCount)
 {
-	return ApplyGameplayEffectHandle(GameplayEffectClass, EffectLevel, StackCount).WasSuccessfullyApplied();
-}
-
-// 자기 자신에게 효과를 적용하고, 종료 시 특정 효과를 제거하거나 추적할 수 있도록 핸들을 반환한다.
-// 별도의 동적 부여 태그가 없는 호출은 빈 태그 목록으로 공통 적용 경로를 사용한다.
-FActiveGameplayEffectHandle UPdGameplayAbility::ApplyGameplayEffectHandle(
-	TSubclassOf<UGameplayEffect> GameplayEffectClass, const float EffectLevel, const int32 StackCount)
-{
-	const FGameplayTagContainer DynamicGrantedTags;
-	return ApplyGameplayEffectHandle(GameplayEffectClass, DynamicGrantedTags, EffectLevel, StackCount);
-}
-
-// 권한 또는 예측 키를 확인한 뒤 자기 자신에게 적용할 효과 Spec에 레벨·중첩 수·추가 부여 태그를 담아 적용한다.
-// 효과 핸들을 반환해 호출부가 적용된 효과를 추적하거나 종료 시 제거할 수 있게 한다.
-FActiveGameplayEffectHandle UPdGameplayAbility::ApplyGameplayEffectHandle(TSubclassOf<UGameplayEffect> GameplayEffectClass,
-	const FGameplayTagContainer& DynamicGrantedTags, const float EffectLevel, const int32 StackCount)
-{
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
 	if (!AbilitySystemComponent || !GameplayEffectClass || !ActorInfo || !HasAuthorityOrPredictionKey(ActorInfo, &CurrentActivationInfo))
 	{
-		return FActiveGameplayEffectHandle();
+		return false;
 	}
 
 	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(GameplayEffectClass, FMath::Max(EffectLevel, 1.0f));
 	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
 	{
-		return FActiveGameplayEffectHandle();
+		return false;
 	}
 
 	SpecHandle.Data->SetStackCount(FMath::Max(StackCount, 1));
-	SpecHandle.Data->DynamicGrantedTags.AppendTags(DynamicGrantedTags);
-	return ApplyGameplayEffectSpecToOwner(CurrentSpecHandle, ActorInfo, CurrentActivationInfo, SpecHandle);
+	return ApplyGameplayEffectSpecToOwner(CurrentSpecHandle, ActorInfo, CurrentActivationInfo, SpecHandle).WasSuccessfullyApplied();
 }
 
 // 현재 자신에게 지정한 효과 클래스가 적용 중인지 확인해 공격 상태 효과 등의 중복 적용을 방지한다.

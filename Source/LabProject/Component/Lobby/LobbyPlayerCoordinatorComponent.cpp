@@ -93,8 +93,7 @@ void ULobbyPlayerCoordinatorComponent::KickPlayer(
 	if (MatchCoordinator
 		&& MatchCoordinator->IsGameStartRequested())
 	{
-		MatchCoordinator->CancelPendingGameStart(
-			TEXT("player_kicked"));
+		MatchCoordinator->CancelPendingGameStart();
 	}
 
 	TargetPlayerState->GetLobbyPlayerStateComponent()->SetLeavingLobby(true);
