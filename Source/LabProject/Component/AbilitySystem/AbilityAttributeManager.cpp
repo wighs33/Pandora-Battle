@@ -141,7 +141,7 @@ bool UAbilityAttributeManager::ApplyConfiguredAttributeDefaults(UPdAbilitySystem
 		}
 		FGameplayAttribute MaxAttribute;
 		FGameplayAttribute CurrentAttribute;
-		if (!ResolveAttributeFromTag(Pair.MaxStatTag, MaxAttribute) || !ResolveAttributeFromTag(Pair.CurrentStatTag, CurrentAttribute)
+		if (!ASC.ResolveAttributeFromTag(Pair.MaxStatTag, MaxAttribute) || !ASC.ResolveAttributeFromTag(Pair.CurrentStatTag, CurrentAttribute)
 			|| !ASC.HasAttributeSetForAttribute(MaxAttribute) || !ASC.HasAttributeSetForAttribute(CurrentAttribute))
 		{
 			return false;
@@ -154,11 +154,12 @@ bool UAbilityAttributeManager::ApplyConfiguredAttributeDefaults(UPdAbilitySystem
 		return !CurrentResourceTags.Contains(Left) && CurrentResourceTags.Contains(Right);
 	});
 	TArray<TPair<FGameplayAttribute, float>> ResolvedDefaults;
+	// 기능별 연결이 없어도 BasicAttributeSet의 기본 연결로 초기화할 수 있도록 ASC에서 조회한다.
 	for (FGameplayTag Tag : OrderedTags)
 	{
 		FGameplayAttribute Attribute;
 		const float Value = InitialValues.FindChecked(Tag);
-		if (!FMath::IsFinite(Value) || !ResolveAttributeFromTag(Tag, Attribute) || !ASC.HasAttributeSetForAttribute(Attribute))
+		if (!FMath::IsFinite(Value) || !ASC.ResolveAttributeFromTag(Tag, Attribute) || !ASC.HasAttributeSetForAttribute(Attribute))
 		{
 			return false;
 		}
