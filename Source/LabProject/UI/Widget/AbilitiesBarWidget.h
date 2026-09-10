@@ -16,7 +16,6 @@ class UPandoraTreeComponent;
 class UPdAbilitySystemComponent;
 class UUserWidget;
 struct FSkill;
-struct FGameplayEventData;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UAbilitiesBarWidget : public UUserWidget
@@ -74,7 +73,6 @@ private:
 	void BindPandoraTreeChangedEvent();
 	void UnbindPandoraTreeChangedEvent();
 	void HandleAbilitiesChanged();
-	void HandleAbilitiesChangedEvent(const FGameplayEventData* Payload);
 
 	UFUNCTION()
 	void HandlePandoraTreeChanged();
@@ -101,7 +99,6 @@ private:
 
 	TWeakObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
 	TWeakObjectPtr<UPandoraTreeComponent> BoundPandoraTreeComponent;
-	FDelegateHandle AbilitiesChangedEventHandle;
 	FDelegateHandle AbilitiesChangedNativeHandle;
 	FTimerHandle RebuildBarTimerHandle;
 	FTimerHandle RetryInitializeTimerHandle;

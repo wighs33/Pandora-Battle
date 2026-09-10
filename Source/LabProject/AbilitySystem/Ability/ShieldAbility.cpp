@@ -1,6 +1,6 @@
 #include "AbilitySystem/Ability/ShieldAbility.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
@@ -157,7 +157,7 @@ void UShieldAbility::ApplyShieldFromMontageTrigger()
 		return;
 	}
 
-	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
+	GetPresentationManager().SpawnConfiguredCharacterDecal(*this);
 	const FActiveGameplayEffectHandle EffectHandle =
 		BP_ApplyGameplayEffectToOwner(ResolvedShieldGameplayEffectClass, FMath::Max(GetAbilityLevel(), 1), 1);
 	if (K2_HasAuthority() && !EffectHandle.WasSuccessfullyApplied())

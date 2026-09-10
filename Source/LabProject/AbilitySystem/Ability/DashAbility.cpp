@@ -1,6 +1,6 @@
 #include "AbilitySystem/Ability/DashAbility.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/GameplayAbilityTypes.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
@@ -101,7 +101,7 @@ void UDashAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, cons
 		return;
 	}
 
-	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
+	GetPresentationManager().SpawnConfiguredCharacterDecal(*this);
 	StartMovementContactDamage();
 
 	if (SkillDataAsset->Niagara.GameplayCueTag.IsValid())

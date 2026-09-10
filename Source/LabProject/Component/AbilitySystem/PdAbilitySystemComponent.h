@@ -16,7 +16,6 @@ class UAbilityAttributeManager;
 class UAbilityGrantAndInputManager;
 class UPandoraSkillSource;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdAbilitiesChangedDynamicDelegate);
 DECLARE_MULTICAST_DELEGATE(FPdAbilitiesChangedNativeDelegate);
 
 /**
@@ -50,9 +49,6 @@ public:
 	void RemoveAttributeConfig(int32 AttributeConfigHandle);
 	bool ApplyConfiguredAttributeDefaults(const UStatUpgradeDefinition& Definition);
 	bool ApplyAttributeDefaultValue(const FGameplayAttribute& Attribute, float DefaultValue);
-	bool HasAppliedConfiguredAttributeDefaults(const UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath) const;
-	void MarkConfiguredAttributeDefaultsApplied(UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath);
-	void ClearConfiguredAttributeDefaultsApplied(const UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath);
 
 	void QueueAbilityInputPressed(const FGameplayTag& InputTag);
 	void QueueAbilityInputReleased(const FGameplayTag& InputTag);
@@ -62,13 +58,6 @@ public:
 	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
 	bool HasActiveAbilityOfClass(TSubclassOf<UGameplayAbility> AbilityClass, bool bIncludeChildClasses = true) const;
 	bool HasActiveAbilityOfAnyClass(const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, bool bIncludeChildClasses = true) const;
-
-	bool ApplyStatUpEffectByTag(
-		TSubclassOf<UGameplayEffect> GameplayEffectClass,
-		FGameplayTag StatTag,
-		float Magnitude,
-		EEnum_Operation Operation = EEnum_Operation::Add,
-		float Level = 1.0f);
 
 	bool ApplyStatUpEffectByTags(
 		TSubclassOf<UGameplayEffect> GameplayEffectClass,
@@ -92,13 +81,10 @@ public:
 	bool ResolveDamageMagnitudeSetByCallerTag(FGameplayTag& OutTag) const;
 	bool ResolveStatUpOperationSetByCallerTag(FGameplayTag& OutTag) const;
 
-	void NotifyAbilitiesChanged();
 	void NotifyPandoraSourceReplicated(UPandoraSkillSource* Source);
 
 	FPdAbilitiesChangedNativeDelegate OnAbilitiesChangedNative;
 
-	UPROPERTY(BlueprintAssignable, Category = "!AbilitySystem|Abilities")
-	FPdAbilitiesChangedDynamicDelegate OnAbilitiesChanged;
 
 protected:
 	virtual void OnRep_ActivateAbilities() override;

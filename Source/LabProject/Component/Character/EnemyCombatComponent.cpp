@@ -33,30 +33,23 @@ DEFINE_LOG_CATEGORY_STATIC(LogEnemyCombatComponent, Log, All);
 
 namespace
 {
-bool IsDeadCharacter(const AActor* Actor)
-{
-	const ACharacterBase* Character = Cast<ACharacterBase>(Actor);
-	const UAbilitySystemComponent* AbilitySystemComponent =
-		Character ? Character->GetAbilitySystemComponent() : nullptr;
-	return AbilitySystemComponent
-		&& AbilitySystemComponent->HasMatchingGameplayTag(
-			LabGameplayTags::State_Dead);
-}
-
 bool IsValidEnemyAttackTarget(
 	const AEnemyBase* Enemy,
 	const AActor* PotentialTarget)
 {
 	if (!IsValid(Enemy)
 		|| !IsValid(PotentialTarget)
-		|| PotentialTarget == Enemy
-		|| IsDeadCharacter(PotentialTarget))
+		|| PotentialTarget == Enemy)
 	{
 		return false;
 	}
 
 	const ACharacterBase* TargetCharacter =
 		Cast<ACharacterBase>(PotentialTarget);
+	if (TargetCharacter && TargetCharacter->IsDead())
+	{
+		return false;
+	}
 	if (TargetCharacter
 		&& Enemy->GetFactionId() != 0
 		&& TargetCharacter->GetFactionId() == Enemy->GetFactionId())

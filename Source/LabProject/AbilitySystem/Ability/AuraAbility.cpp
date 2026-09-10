@@ -1,6 +1,6 @@
 #include "AbilitySystem/Ability/AuraAbility.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "AbilitySystem/EffectActors/EffectAreaBase.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
@@ -165,9 +165,9 @@ void UAuraAbility::ActivateAbility(
 	ActiveAuraSkillDataAsset = SkillDataAsset;
 	ActiveAuraSourceCharacter = GetPdCharacterFromActorInfo();
 	StartDurationMovementLock();
-	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
-	GetPresentationRuntime().StartConfiguredDefaultFX(*this);
-	GetPresentationRuntime().StartConfiguredCharacterOverlay(*this);
+	GetPresentationManager().SpawnConfiguredCharacterDecal(*this);
+	GetPresentationManager().StartConfiguredDefaultFX(*this);
+	GetPresentationManager().StartConfiguredCharacterOverlay(*this);
 	ApplyMovementSpeedIncrease(SkillDataAsset);
 	StartMovementContactDamage();
 	StartAuraEffectAreaSpawning(SkillDataAsset);
@@ -669,7 +669,7 @@ FVector UAuraAbility::ResolveHealFieldOrigin(ACharacterBase* SourceCharacter) co
 		return FVector::ZeroVector;
 	}
 
-	const FVector GroundLocation = GetPresentationRuntime().ResolveConfiguredCharacterDecalLocation(SourceCharacter);
+	const FVector GroundLocation = GetPresentationManager().ResolveConfiguredCharacterDecalLocation(SourceCharacter);
 	return GroundLocation.IsNearlyZero() ? SourceCharacter->GetActorLocation() : GroundLocation;
 }
 

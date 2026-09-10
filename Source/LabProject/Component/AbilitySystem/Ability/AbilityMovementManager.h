@@ -5,16 +5,14 @@
 #include "TimerManager.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectKey.h"
-#include "AbilityMovementRuntime.generated.h"
+#include "AbilityMovementManager.generated.h"
 
 class UPdGameplayAbility;
 struct FGameplayEffectSpecHandle;
 
-/**
- * Owns movement locking and movement-contact damage for one ability instance.
- */
+/** 한 능력의 이동 잠금·복구와 이동 중 접촉 피해를 관리한다. */
 UCLASS()
-class LABPROJECT_API UAbilityMovementRuntime : public UObject
+class LABPROJECT_API UAbilityMovementManager : public UObject
 {
 	GENERATED_BODY()
 
@@ -27,9 +25,6 @@ public:
 
 	void StartMovementContactDamage(UPdGameplayAbility& Ability);
 	void StopMovementContactDamage(UPdGameplayAbility& Ability);
-
-	bool IsMovementLocked() const { return bAbilityMovementLocked; }
-	bool IsContactDamageActive() const { return bMovementContactDamageActive; }
 
 private:
 	UPdGameplayAbility* GetOwningAbility() const;

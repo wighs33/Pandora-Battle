@@ -554,17 +554,6 @@ void UAbilitiesBarWidget::BindAbilitiesChangedEvents()
 	if (UPdAbilitySystemComponent* PdAbilitySystemComponent = Cast<UPdAbilitySystemComponent>(AbilitySystemComponent))
 	{
 		AbilitiesChangedNativeHandle = PdAbilitySystemComponent->OnAbilitiesChangedNative.AddUObject(this, &ThisClass::HandleAbilitiesChanged);
-		return;
-	}
-
-	// Non-project ability system components do not expose the native delegate.
-	// Keep the gameplay event as a fallback, but never subscribe to both paths.
-	const FGameplayTag AbilitiesChangedTag = LabGameplayTags::Event_Abilities_Changed;
-	if (AbilitiesChangedTag.IsValid())
-	{
-		AbilitiesChangedEventHandle = AbilitySystemComponent->GenericGameplayEventCallbacks
-			.FindOrAdd(AbilitiesChangedTag)
-			.AddUObject(this, &ThisClass::HandleAbilitiesChangedEvent);
 	}
 }
 
@@ -573,13 +562,6 @@ void UAbilitiesBarWidget::UnbindAbilitiesChangedEvents()
 	UnbindPandoraTreeChangedEvent();
 
 	UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
-	const FGameplayTag AbilitiesChangedTag = LabGameplayTags::Event_Abilities_Changed;
-	if (AbilitySystemComponent && AbilitiesChangedTag.IsValid() && AbilitiesChangedEventHandle.IsValid())
-	{
-		AbilitySystemComponent->GenericGameplayEventCallbacks
-			.FindOrAdd(AbilitiesChangedTag)
-			.Remove(AbilitiesChangedEventHandle);
-	}
 
 	if (UPdAbilitySystemComponent* PdAbilitySystemComponent = Cast<UPdAbilitySystemComponent>(AbilitySystemComponent))
 	{
@@ -589,7 +571,6 @@ void UAbilitiesBarWidget::UnbindAbilitiesChangedEvents()
 		}
 	}
 
-	AbilitiesChangedEventHandle.Reset();
 	AbilitiesChangedNativeHandle.Reset();
 	CachedAbilitySystemComponent.Reset();
 }
@@ -628,12 +609,6 @@ void UAbilitiesBarWidget::UnbindPandoraTreeChangedEvent()
 
 void UAbilitiesBarWidget::HandleAbilitiesChanged()
 {
-	FillAbilitiesBar();
-}
-
-void UAbilitiesBarWidget::HandleAbilitiesChangedEvent(const FGameplayEventData* Payload)
-{
-	static_cast<void>(Payload);
 	FillAbilitiesBar();
 }
 

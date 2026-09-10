@@ -184,5 +184,5 @@ void FPandoraSkillBinder::RefreshInputBindings(
 			ASC->MarkAbilitySpecDirty(Spec);
 		}
 	}
-	ASC->NotifyAbilitiesChanged();
+	ASC->OnAbilitiesChangedNative.Broadcast();
 }

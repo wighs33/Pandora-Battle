@@ -42,14 +42,6 @@ public:
 		const FGameplayAttribute& Attribute,
 		float DefaultValue) const;
 
-	bool ApplyStatUpEffectByTag(
-		UPdAbilitySystemComponent& AbilitySystemComponent,
-		TSubclassOf<UGameplayEffect> GameplayEffectClass,
-		FGameplayTag StatTag,
-		float Magnitude,
-		EEnum_Operation Operation,
-		float Level) const;
-
 	bool ApplyStatUpEffectByTags(
 		UPdAbilitySystemComponent& AbilitySystemComponent,
 		TSubclassOf<UGameplayEffect> GameplayEffectClass,

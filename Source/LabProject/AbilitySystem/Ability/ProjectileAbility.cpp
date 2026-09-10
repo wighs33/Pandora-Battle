@@ -1,6 +1,6 @@
 #include "AbilitySystem/Ability/ProjectileAbility.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/GameplayAbilityTargetActor_SingleLineTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
@@ -223,7 +223,7 @@ void UProjectileAbility::BeginConfirmedShot()
 	}
 
 	LockAvatarMovementForAbility();
-	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
+	GetPresentationManager().SpawnConfiguredCharacterDecal(*this);
 
 	if (IsConfiguredImmediateFireMode())
 	{

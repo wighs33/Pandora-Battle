@@ -1,6 +1,6 @@
 #include "AbilitySystem/Ability/AOEAttackAbility.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
@@ -611,7 +611,7 @@ void UAOEAttackAbility::ConfigureSpawnedTargetActor(AGameplayAbilityTargetActor*
 			const double StartSize = DecalSettings.DecalSize > 0.0 ? DecalSettings.DecalSize : 512.0;
 			const double FinalSize = DecalSettings.FinalDecalSize > 0.0 ? DecalSettings.FinalDecalSize : StartSize;
 			DecalTargetActor->ConfigureDecalGrowth(
-				StartSize, FinalSize, GetPresentationRuntime().ResolveConfiguredCharacterDecalDuration(SkillDataAsset));
+				StartSize, FinalSize, GetPresentationManager().ResolveConfiguredCharacterDecalDuration(SkillDataAsset));
 		}
 	}
 }
@@ -1355,7 +1355,7 @@ void UAOEAttackAbility::HandleMontageTriggerEvent(FGameplayEventData Payload)
 		return;
 	}
 
-	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
+	GetPresentationManager().SpawnConfiguredCharacterDecal(*this);
 	FGameplayCueParameters LightningCueParams;
 	LightningCueParams.Location = ConfirmedAOELocation;
 	LightningCueParams.Instigator = GetAvatarActorFromActorInfo();

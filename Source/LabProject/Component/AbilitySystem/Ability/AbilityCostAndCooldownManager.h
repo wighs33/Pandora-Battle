@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "UObject/Object.h"
-#include "AbilityResourceRuntime.generated.h"
+#include "AbilityCostAndCooldownManager.generated.h"
 
 class UPdGameplayAbility;
 class UAbilitySystemComponent;
@@ -13,14 +13,9 @@ struct FGameplayAbilityActorInfo;
 struct FGameplayAbilitySpecHandle;
 struct FGameplayEffectSpecHandle;
 
-/**
- * Owns the per-ability resource and cooldown runtime state.
- *
- * GAS lifecycle overrides remain on UPdGameplayAbility, while project-specific
- * mana, stamina, source-specific cooldown, and deferred cooldown behavior lives here.
- */
+/** 한 능력의 마나·스태미나 비용과 출처별 쿨다운, 종료 시 적용할 쿨다운을 관리한다. */
 UCLASS()
-class LABPROJECT_API UAbilityResourceRuntime : public UObject
+class LABPROJECT_API UAbilityCostAndCooldownManager : public UObject
 {
 	GENERATED_BODY()
 
@@ -60,10 +55,6 @@ public:
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo& ActivationInfo) const;
 
-	void AppendCooldownRemovalPolicyTags(
-		FGameplayEffectSpecHandle& CooldownSpecHandle,
-		const FGameplayTagContainer& RemovalPolicyTags) const;
-
 	bool TryCommitAdditionalActionStaminaCost(const UPdGameplayAbility& Ability) const;
 
 	static void GetPandoraCooldown(const UAbilitySystemComponent& ASC, const UPandoraSkillSource& Source,
@@ -75,6 +66,6 @@ public:
 	bool ConsumePendingCooldown(bool bAbilityWasCancelled = false);
 
 private:
-	mutable FGameplayTagContainer RuntimeCooldownTags;
+	mutable FGameplayTagContainer CachedCooldownTags;
 	mutable bool bApplySkillCooldownWhenAbilityEnds = false;
 };

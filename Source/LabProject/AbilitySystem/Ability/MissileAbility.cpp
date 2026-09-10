@@ -1,6 +1,6 @@
 #include "AbilitySystem/Ability/MissileAbility.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
@@ -364,9 +364,9 @@ void UMissileAbility::LaunchMissile()
 		return;
 	}
 
-	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
+	GetPresentationManager().SpawnConfiguredCharacterDecal(*this);
 	StartDurationMovementLock();
-	GetPresentationRuntime().StartConfiguredGroundFX(*this);
+	GetPresentationManager().StartConfiguredGroundFX(*this);
 	StartMissilePresentation();
 	StartMissileTargetTracking();
 	StartMissileDurationTimer();
@@ -382,7 +382,7 @@ void UMissileAbility::StartMissilePresentation()
 		return;
 	}
 
-	GetPresentationRuntime().StartConfiguredMissilePresentation(*this);
+	GetPresentationManager().StartConfiguredMissilePresentation(*this);
 }
 
 void UMissileAbility::StartMissileDurationTimer()
@@ -423,7 +423,7 @@ void UMissileAbility::HandleMissileDurationFinished()
 
 	StopMissileTargetTracking();
 	ActiveMissileTargetActors.Reset();
-	GetPresentationRuntime().StopConfiguredMissilePresentation(*this);
+	GetPresentationManager().StopConfiguredMissilePresentation(*this);
 
 	TryFinishMissileAbilityAfterWork();
 }
@@ -570,7 +570,7 @@ void UMissileAbility::RefreshMissileTargets()
 		}
 	}
 
-	GetPresentationRuntime().UpdateConfiguredMissilePresentationTargets(PresentationTargets);
+	GetPresentationManager().UpdateConfiguredMissilePresentationTargets(PresentationTargets);
 }
 
 void UMissileAbility::StartDamageSequence()

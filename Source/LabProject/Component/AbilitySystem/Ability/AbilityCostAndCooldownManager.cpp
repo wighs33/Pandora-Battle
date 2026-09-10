@@ -1,4 +1,4 @@
-#include "Component/AbilitySystem/Ability/AbilityResourceRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityCostAndCooldownManager.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
@@ -14,7 +14,7 @@
 #include "Pandora/PandoraSkillSource.h"
 #include "Settings/GameSettingsSubsystem.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityResourceRuntime)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityCostAndCooldownManager)
 
 namespace
 {
@@ -151,21 +151,21 @@ void AddCostFailureTag(FGameplayTagContainer* OptionalRelevantTags)
 
 }
 
-const FGameplayTagContainer* UAbilityResourceRuntime::BuildCooldownTags(
+const FGameplayTagContainer* UAbilityCostAndCooldownManager::BuildCooldownTags(
 	const UPdGameplayAbility& Ability,
 	const FGameplayTagContainer* ParentCooldownTags) const
 {
-	RuntimeCooldownTags.Reset();
+	CachedCooldownTags.Reset();
 	if (ParentCooldownTags)
 	{
-		RuntimeCooldownTags.AppendTags(*ParentCooldownTags);
+		CachedCooldownTags.AppendTags(*ParentCooldownTags);
 	}
 
 	if (!Ability.IsInstantiated())
 	{
-		return RuntimeCooldownTags.IsEmpty()
+		return CachedCooldownTags.IsEmpty()
 			? nullptr
-			: &RuntimeCooldownTags;
+			: &CachedCooldownTags;
 	}
 
 	const USkillDefinition* SkillDataAsset =
@@ -174,19 +174,19 @@ const FGameplayTagContainer* UAbilityResourceRuntime::BuildCooldownTags(
 	{
 		// SkillDefinition is the only cooldown configuration source for skills.
 		// Ignore legacy CooldownGameplayEffectClass tags authored on the GA.
-		RuntimeCooldownTags.Reset();
+		CachedCooldownTags.Reset();
 		if (SkillDataAsset->Time.CooldownDuration <= 0.0)
 		{
 			return nullptr;
 		}
 
-		RuntimeCooldownTags.AddTag(LabGameplayTags::Cooldown);
+		CachedCooldownTags.AddTag(LabGameplayTags::Cooldown);
 	}
 
-	return RuntimeCooldownTags.IsEmpty() ? nullptr : &RuntimeCooldownTags;
+	return CachedCooldownTags.IsEmpty() ? nullptr : &CachedCooldownTags;
 }
 
-bool UAbilityResourceRuntime::CheckCost(
+bool UAbilityCostAndCooldownManager::CheckCost(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -233,7 +233,7 @@ bool UAbilityResourceRuntime::CheckCost(
 	return false;
 }
 
-void UAbilityResourceRuntime::ApplyCost(
+void UAbilityCostAndCooldownManager::ApplyCost(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -300,7 +300,7 @@ void UAbilityResourceRuntime::ApplyCost(
 		CostSpecHandle);
 }
 
-bool UAbilityResourceRuntime::CheckConfiguredCooldown(
+bool UAbilityCostAndCooldownManager::CheckConfiguredCooldown(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -365,7 +365,7 @@ bool UAbilityResourceRuntime::CheckConfiguredCooldown(
 	return false;
 }
 
-bool UAbilityResourceRuntime::ShouldDeferCooldown(
+bool UAbilityCostAndCooldownManager::ShouldDeferCooldown(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo) const
@@ -382,7 +382,7 @@ bool UAbilityResourceRuntime::ShouldDeferCooldown(
 		&& SkillDataAsset->Time.CooldownDuration > 0.0;
 }
 
-bool UAbilityResourceRuntime::ApplyConfiguredCooldownImmediately(
+bool UAbilityCostAndCooldownManager::ApplyConfiguredCooldownImmediately(
 	const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -435,20 +435,7 @@ bool UAbilityResourceRuntime::ApplyConfiguredCooldownImmediately(
 	return true;
 }
 
-void UAbilityResourceRuntime::AppendCooldownRemovalPolicyTags(
-	FGameplayEffectSpecHandle& CooldownSpecHandle,
-	const FGameplayTagContainer& RemovalPolicyTags) const
-{
-	if (!CooldownSpecHandle.IsValid()
-		|| !CooldownSpecHandle.Data.IsValid())
-	{
-		return;
-	}
-
-	CooldownSpecHandle.Data->AppendDynamicAssetTags(RemovalPolicyTags);
-}
-
-bool UAbilityResourceRuntime::TryCommitAdditionalActionStaminaCost(
+bool UAbilityCostAndCooldownManager::TryCommitAdditionalActionStaminaCost(
 	const UPdGameplayAbility& Ability) const
 {
 	const FGameplayAbilityActorInfo* ActorInfo =
@@ -518,7 +505,7 @@ bool UAbilityResourceRuntime::TryCommitAdditionalActionStaminaCost(
 }
 
 // 시전 가능 여부와 스킬바가 GAS의 동일한 효과를 조회한다. 별도의 쿨다운 사본은 보관하지 않는다.
-void UAbilityResourceRuntime::GetPandoraCooldown(const UAbilitySystemComponent& ASC,
+void UAbilityCostAndCooldownManager::GetPandoraCooldown(const UAbilitySystemComponent& ASC,
 	const UPandoraSkillSource& Source, float& OutRemaining, float& OutDuration)
 {
 	OutRemaining = 0.0f;
@@ -533,7 +520,7 @@ void UAbilityResourceRuntime::GetPandoraCooldown(const UAbilitySystemComponent& 
 	}
 }
 
-float UAbilityResourceRuntime::GetSkillCooldownReductionPercent(
+float UAbilityCostAndCooldownManager::GetSkillCooldownReductionPercent(
 	const UPdGameplayAbility& Ability) const
 {
 	const UPdAbilitySystemComponent* AbilitySystemComponent =
@@ -546,7 +533,7 @@ float UAbilityResourceRuntime::GetSkillCooldownReductionPercent(
 		: 0.0f;
 }
 
-bool UAbilityResourceRuntime::ConsumePendingCooldown(
+bool UAbilityCostAndCooldownManager::ConsumePendingCooldown(
 	const bool bAbilityWasCancelled)
 {
 	const bool bWasPending = bApplySkillCooldownWhenAbilityEnds;

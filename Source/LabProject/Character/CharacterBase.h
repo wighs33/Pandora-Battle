@@ -165,6 +165,9 @@ public:
 
 	bool IsDeathHandled() const;
 
+	// GAS의 사망 상태를 조회한다. 사망 연출 처리 여부와는 별개다.
+	bool IsDead() const;
+
 	virtual void HandleDamageTaken(
 		float DamageAmount,
 		bool bCriticalHit = false,

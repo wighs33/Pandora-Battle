@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Definition/AbilitySystem/SkillTypes.h"
 #include "UObject/Object.h"
-#include "AbilityPresentationRuntime.generated.h"
+#include "AbilityPresentationManager.generated.h"
 
 class ACharacterBase;
 class ASkillPresentationActor;
@@ -17,7 +17,7 @@ class UPdGameplayAbility;
  * 버프의 능력치와 GameplayEffect 적용·해제는 능력이 담당한다.
  */
 UCLASS()
-class LABPROJECT_API UAbilityPresentationRuntime : public UObject
+class LABPROJECT_API UAbilityPresentationManager : public UObject
 {
 	GENERATED_BODY()
 
@@ -48,11 +48,6 @@ public:
 		UPdGameplayAbility& Ability,
 		uint8 PresentationFlag,
 		bool bEnabled);
-
-	ASkillPresentationActor* GetActivePresentationActor() const
-	{
-		return ActiveSkillPresentationActor.Get();
-	}
 
 private:
 	UPROPERTY(Transient)

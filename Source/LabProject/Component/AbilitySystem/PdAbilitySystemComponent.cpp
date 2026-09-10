@@ -32,7 +32,7 @@ void UPdAbilitySystemComponent::OnGiveAbility(FGameplayAbilitySpec& AbilitySpec)
 	RegisterPandoraSkillSource(AbilitySpec.SourceObject.Get());
 
 	Super::OnGiveAbility(AbilitySpec);
-	NotifyAbilitiesChanged();
+	OnAbilitiesChangedNative.Broadcast();
 }
 
 // 능력이 회수될 때 남은 연출을 정리하고, 다른 능력도 사용하지 않는 판도라 출처 정보의 보관을 해제한다.
@@ -62,7 +62,7 @@ void UPdAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& AbilitySpe
 
 	ReleasePandoraSkillSourceIfUnused(RemovedSkillSource, RemovedHandle);
 
-	NotifyAbilitiesChanged();
+	OnAbilitiesChangedNative.Broadcast();
 }
 
 // 종료·실패한 시전의 입력을 버려, 이후 시전이 이전 키 해제를 물려받지 않게 한다.
@@ -96,7 +96,7 @@ void UPdAbilitySystemComponent::OnRep_ActivateAbilities()
 		RegisterPandoraSkillSource(Spec.SourceObject.Get());
 	}
 	ActivateAbilitiesWithReadySources();
-	NotifyAbilitiesChanged();
+	OnAbilitiesChangedNative.Broadcast();
 }
 
 // 게임피처나 적 설정이 제공한 '스탯 태그 → 실제 속성' 연결 규칙을 등록하고, 나중에 해제할 때 쓸 번호를 돌려준다.
@@ -121,26 +121,6 @@ bool UPdAbilitySystemComponent::ApplyConfiguredAttributeDefaults(const UStatUpgr
 bool UPdAbilitySystemComponent::ApplyAttributeDefaultValue(const FGameplayAttribute& Attribute, const float DefaultValue)
 {
 	return AttributeManager->ApplyAttributeDefaultValue(*this, Attribute, DefaultValue);
-}
-
-// 스탯 컴포넌트가 다시 초기화되어도 성장한 수치를 기본값으로 덮어쓰지 않도록, 같은 설정의 적용 기록을 확인한다.
-bool UPdAbilitySystemComponent::HasAppliedConfiguredAttributeDefaults(
-	const UAttributeSet* AttributeSet,
-	const FSoftObjectPath& DefinitionPath) const
-{
-	return AttributeManager->HasAppliedConfiguredAttributeDefaults(AttributeSet, DefinitionPath);
-}
-
-// 어떤 AttributeSet에 어떤 기본 스탯 설정을 적용하는지 기록해 중복 초기화를 막는다. 여기서 수치를 변경하지는 않는다.
-void UPdAbilitySystemComponent::MarkConfiguredAttributeDefaultsApplied(UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath)
-{
-	AttributeManager->MarkConfiguredAttributeDefaultsApplied(AttributeSet, DefinitionPath);
-}
-
-// 기본값 적용 실패 등으로 다시 초기화해야 할 때, 대상과 일치하는 적용 기록만 지운다. 현재 스탯 수치는 유지한다.
-void UPdAbilitySystemComponent::ClearConfiguredAttributeDefaultsApplied(const UAttributeSet* AttributeSet, const FSoftObjectPath& DefinitionPath)
-{
-	AttributeManager->ClearConfiguredAttributeDefaultsApplied(AttributeSet, DefinitionPath);
 }
 
 // 입력 태그에 연결된 능력을 기억하고, 이번 프레임에 처리할 누름을 기록한다.
@@ -194,17 +174,6 @@ bool UPdAbilitySystemComponent::HasActiveAbilityOfAnyClass(
 	const bool bIncludeChildClasses) const
 {
 	return AbilityGrantAndInputManager->HasActiveAbilityOfAnyClass(*this, AbilityClasses, bIncludeChildClasses);
-}
-
-// 하나의 스탯 태그와 변화량을 받아, 지정한 연산 방식의 GameplayEffect를 서버에서 자신에게 적용한다.
-bool UPdAbilitySystemComponent::ApplyStatUpEffectByTag(
-	TSubclassOf<UGameplayEffect> GameplayEffectClass,
-	const FGameplayTag StatTag,
-	const float Magnitude,
-	const EEnum_Operation Operation,
-	const float Level)
-{
-	return AttributeManager->ApplyStatUpEffectByTag(*this, GameplayEffectClass, StatTag, Magnitude, Operation, Level);
 }
 
 // 여러 스탯의 변화량을 하나의 GameplayEffect에 담아 서버에서 자신에게 적용한다. 각 변화량과 연산 방식은 태그로 전달한다.
@@ -262,19 +231,6 @@ bool UPdAbilitySystemComponent::ResolveStatUpOperationSetByCallerTag(FGameplayTa
 	return AttributeManager->ResolveStatUpOperationSetByCallerTag(*this, OutTag);
 }
 
-// 능력 구성이나 리셋 결과를 스킬바 등 구독자에게 알린다. 델리게이트 구독자와 GAS 이벤트 수신자가 각자 표시·상태를 갱신한다.
-void UPdAbilitySystemComponent::NotifyAbilitiesChanged()
-{
-	OnAbilitiesChanged.Broadcast();
-	OnAbilitiesChangedNative.Broadcast();
-
-	FGameplayEventData EventData;
-	EventData.EventTag = LabGameplayTags::Event_Abilities_Changed;
-	EventData.Instigator = GetAvatarActor();
-	EventData.Target = GetAvatarActor();
-	HandleGameplayEvent(LabGameplayTags::Event_Abilities_Changed, &EventData);
-}
-
 // 사망 능력은 유지하고 다른 시전을 취소한다. 종료 중 쿨다운 재생성을 막고, 이미 적용된 쿨다운도 제거한다.
 void UPdAbilitySystemComponent::ResetAbilityRuntimeStateForDeath()
 {
@@ -287,7 +243,7 @@ void UPdAbilitySystemComponent::ResetAbilityRuntimeStateForDeath()
 	const UGameSettingDefinition* Settings = UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	RemoveRuntimeEffects(EffectTags, FGameplayTagContainer(LabGameplayTags::Cooldown), FGameplayTagContainer(),
 		Settings ? Settings->DeathGameplayCuesToRemove : FGameplayTagContainer());
-	NotifyAbilitiesChanged();
+	OnAbilitiesChangedNative.Broadcast();
 }
 
 
@@ -408,7 +364,7 @@ void UPdAbilitySystemComponent::NotifyPandoraSourceReplicated(UPandoraSkillSourc
 {
 	RegisterPandoraSkillSource(Source);
 	ActivateAbilitiesWithReadySources();
-	NotifyAbilitiesChanged();
+	OnAbilitiesChangedNative.Broadcast();
 }
 
 // 서버의 실행 통지가 출처 복제보다 먼저 도착하면 실행 정보만 잠시 보관한다.

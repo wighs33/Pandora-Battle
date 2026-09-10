@@ -216,7 +216,7 @@ void UEquipmentComponent::NotifyCurrentWeaponStateChanged()
 
 	if (CachedASC)
 	{
-		CachedASC->NotifyAbilitiesChanged();
+		CachedASC->OnAbilitiesChangedNative.Broadcast();
 	}
 	OnEquipmentStatsChanged.Broadcast();
 }

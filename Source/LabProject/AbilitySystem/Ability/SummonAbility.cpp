@@ -1,6 +1,6 @@
 #include "AbilitySystem/Ability/SummonAbility.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
@@ -235,8 +235,8 @@ void USummonAbility::TryCommitAndStartSummon()
 	if (!AvatarActor || !AvatarActor->HasAuthority())
 	{
 
-		GetPresentationRuntime().StartConfiguredCharacterOverlay(*this);
-		GetPresentationRuntime().StartConfiguredDefaultFX(*this);
+		GetPresentationManager().StartConfiguredCharacterOverlay(*this);
+		GetPresentationManager().StartConfiguredDefaultFX(*this);
 		if (!GetResolvedSummonMontage())
 		{
 			K2_EndAbilityLocally();
@@ -250,15 +250,15 @@ void USummonAbility::TryCommitAndStartSummon()
 		return;
 	}
 
-	GetPresentationRuntime().StartConfiguredCharacterOverlay(*this);
-	GetPresentationRuntime().StartConfiguredDefaultFX(*this);
+	GetPresentationManager().StartConfiguredCharacterOverlay(*this);
+	GetPresentationManager().StartConfiguredDefaultFX(*this);
 	if (!SpawnSummonedActor())
 	{
 		CancelAbilityForSkillExecutionFailure();
 		return;
 	}
 
-	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
+	GetPresentationManager().SpawnConfiguredCharacterDecal(*this);
 	StartDurationMovementLock();
 	StartSummonRise();
 }

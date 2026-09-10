@@ -63,7 +63,7 @@ flowchart TD
     Lobby --> Client["클라이언트<br/>로드아웃 선택 / 페인트 입력"]
     Client -->|Server RPC| Server["서버<br/>요청 검증 및 권한 있는 상태 변경"]
 
-    Server --> Loadout["PlayerLoadoutComponent<br/>선택 상태"]
+    Server --> Loadout["SelectingPandoraAndWeaponComponent<br/>선택 상태"]
     Server --> Inventory["InventoryComponent<br/>Iris Fast Array"]
     Server --> Paint["PaintCanvasComponent<br/>Fast Array · 시퀀스 / 리비전 / 체크섬"]
 
@@ -83,7 +83,7 @@ flowchart TD
     class Client,LocalState,Presentation client
 ```
 
-관련 코드: [세션 요청](Source/LabProject/Online/OnlineSessionsSubsystem.h) · [로드아웃 서버 처리](Source/LabProject/Component/Player/PlayerLoadoutComponent.cpp) · [인벤토리 복제](Source/LabProject/Component/Item/InventoryComponentReplication.cpp) · [공유 캔버스 동기화](Source/LabProject/Component/Player/PaintCanvasComponent.cpp)
+관련 코드: [세션 요청](Source/LabProject/Online/OnlineSessionsSubsystem.h) · [로드아웃 서버 처리](Source/LabProject/Component/Player/SelectingPandoraAndWeaponComponent.cpp) · [인벤토리 복제](Source/LabProject/Component/Item/InventoryComponentReplication.cpp) · [공유 캔버스 동기화](Source/LabProject/Component/Player/PaintCanvasComponent.cpp)
 
 ## 핵심 구현
 
@@ -108,7 +108,7 @@ Experience 정의에 따라 콘텐츠를 로드하고 Game Feature 플러그인�
 Iris와 Push Model을 사용하며, 인벤토리와 공유 페인트 데이터에는 Fast Array 기반 복제를 적용합니다. 로드아웃 변경은 서버 RPC로 처리하고, 페인트 동기화에는 시퀀스·리비전·체크섬을 사용합니다.
 
 - [인벤토리 복제](Source/LabProject/Component/Item/InventoryComponentReplication.cpp)
-- [로드아웃 변경](Source/LabProject/Component/Player/PlayerLoadoutComponent.cpp)
+- [로드아웃 변경](Source/LabProject/Component/Player/SelectingPandoraAndWeaponComponent.cpp)
 - [페인트 캔버스 동기화](Source/LabProject/Component/Player/PaintCanvasComponent.cpp)
 
 ### 온라인 세션과 UI

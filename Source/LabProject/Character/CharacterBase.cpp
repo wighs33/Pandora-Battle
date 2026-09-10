@@ -639,6 +639,12 @@ bool ACharacterBase::IsDeathHandled() const
 	return CharacterDeathComponent && CharacterDeathComponent->IsDeathHandled();
 }
 
+bool ACharacterBase::IsDead() const
+{
+	const UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent();
+	return AbilitySystemComponent && AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
+}
+
 // 빙결 전에 저장한 회전 설정을 복구한 뒤 현재 조준·이동 상태에 맞는 회전 방식을 다시 적용한다.
 void ACharacterBase::RestoreRotationSettingsAfterFrozen(UCharacterMovementComponent* MovementComponent)
 {

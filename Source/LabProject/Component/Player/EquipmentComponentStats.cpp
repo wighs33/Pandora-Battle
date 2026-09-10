@@ -471,7 +471,7 @@ void UEquipmentComponent::NotifyEquipmentStatsChanged()
 {
 	if (CachedASC)
 	{
-		CachedASC->NotifyAbilitiesChanged();
+		CachedASC->OnAbilitiesChangedNative.Broadcast();
 	}
 	if (const ACharacterBase* CharacterOwner = CachedOwner.Get())
 	{

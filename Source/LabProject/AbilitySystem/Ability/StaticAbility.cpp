@@ -1,6 +1,6 @@
 #include "AbilitySystem/Ability/StaticAbility.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystem/EffectActors/EffectAreaBase.h"
@@ -301,7 +301,7 @@ void UStaticAbility::TryCommitAndStartStatic()
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	if (!AvatarActor || !AvatarActor->HasAuthority())
 	{
-		GetPresentationRuntime().StartConfiguredDefaultFX(*this);
+		GetPresentationManager().StartConfiguredDefaultFX(*this);
 		if (!StaticEndTimerHandle.IsValid() && !GetResolvedStaticMontage())
 		{
 			K2_EndAbilityLocally();
@@ -317,8 +317,8 @@ void UStaticAbility::TryCommitAndStartStatic()
 	}
 
 	ApplyStaticMovementSpeedIncrease();
-	GetPresentationRuntime().StartConfiguredDefaultFX(*this);
-	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
+	GetPresentationManager().StartConfiguredDefaultFX(*this);
+	GetPresentationManager().SpawnConfiguredCharacterDecal(*this);
 	StartStaticDurationMovementLockIfAllowed();
 	StartStaticSpawnSequence();
 	if (IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))

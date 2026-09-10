@@ -17,7 +17,6 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Notifier_Attack_DamageWindowClose, "Notifier.Attack.DamageWindowClose", "Attack damage window closed.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Notifier_Attack_NextCombo, "Notifier.Attack.NextCombo", "Attack montage timing event for jumping to the next combo section.");
 
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Abilities_Changed, "Event.Abilities.Changed", "Gameplay event sent when granted abilities change.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ActivateAbility, "Event.ActivateAbility", "Root gameplay event tag for ability activation.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ActivateAbility_Dash, "Event.ActivateAbility.Dash", "Gameplay event used to activate dash with payload data.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Effect_StackCountChanged, "Event.Effect.StackCountChanged", "Gameplay event sent to status UI when a debuff stack count changes.");

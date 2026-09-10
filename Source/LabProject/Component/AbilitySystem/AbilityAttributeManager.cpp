@@ -231,29 +231,6 @@ bool UAbilityAttributeManager::ApplyAttributeDefaultValue(
 	return true;
 }
 
-bool UAbilityAttributeManager::ApplyStatUpEffectByTag(
-	UPdAbilitySystemComponent& AbilitySystemComponent,
-	TSubclassOf<UGameplayEffect> GameplayEffectClass,
-	const FGameplayTag StatTag,
-	const float Magnitude,
-	const EEnum_Operation Operation,
-	const float Level) const
-{
-	if (!StatTag.IsValid() || FMath::IsNearlyZero(Magnitude))
-	{
-		return false;
-	}
-
-	TMap<FGameplayTag, float> StatMagnitudes;
-	StatMagnitudes.Add(StatTag, Magnitude);
-	return ApplyStatUpEffectByTags(
-		AbilitySystemComponent,
-		GameplayEffectClass,
-		StatMagnitudes,
-		Operation,
-		Level);
-}
-
 bool UAbilityAttributeManager::ApplyStatUpEffectByTags(
 	UPdAbilitySystemComponent& AbilitySystemComponent,
 	TSubclassOf<UGameplayEffect> GameplayEffectClass,

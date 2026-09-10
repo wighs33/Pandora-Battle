@@ -959,7 +959,7 @@ void UPandoraComponent::NotifyPandoraSelectionChanged()
 	if (UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(
 		PlayerStateOwner ? PlayerStateOwner->GetAbilitySystemComponent() : nullptr))
 	{
-		ASC->NotifyAbilitiesChanged();
+		ASC->OnAbilitiesChangedNative.Broadcast();
 	}
 
 	OnPandoraSelectionChanged.Broadcast(const_cast<UPandoraDefinition*>(CurrentPandoraDefinition.Get()));

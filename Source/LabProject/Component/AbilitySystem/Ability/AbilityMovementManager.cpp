@@ -1,4 +1,4 @@
-#include "Component/AbilitySystem/Ability/AbilityMovementRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityMovementManager.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystemComponent.h"
@@ -11,7 +11,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityMovementRuntime)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityMovementManager)
 
 namespace
 {
@@ -19,12 +19,12 @@ constexpr float MovementContactDamageTickInterval = 1.0f / 30.0f;
 constexpr float MovementContactDamageCapsuleInflation = 15.0f;
 }
 
-UPdGameplayAbility* UAbilityMovementRuntime::GetOwningAbility() const
+UPdGameplayAbility* UAbilityMovementManager::GetOwningAbility() const
 {
 	return GetTypedOuter<UPdGameplayAbility>();
 }
 
-void UAbilityMovementRuntime::StopAvatarMovementForSkillActivation(
+void UAbilityMovementManager::StopAvatarMovementForSkillActivation(
 	UPdGameplayAbility& Ability)
 {
 	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
@@ -44,7 +44,7 @@ void UAbilityMovementRuntime::StopAvatarMovementForSkillActivation(
 	MovementComponent->StopMovementImmediately();
 }
 
-void UAbilityMovementRuntime::LockAvatarMovementForAbility(
+void UAbilityMovementManager::LockAvatarMovementForAbility(
 	UPdGameplayAbility& Ability)
 {
 	if (bAbilityMovementLocked)
@@ -97,7 +97,7 @@ void UAbilityMovementRuntime::LockAvatarMovementForAbility(
 	Character->bUseControllerRotationYaw = false;
 }
 
-void UAbilityMovementRuntime::RestoreAvatarMovementForAbility(
+void UAbilityMovementManager::RestoreAvatarMovementForAbility(
 	UPdGameplayAbility& Ability)
 {
 	if (!bAbilityMovementLocked)
@@ -167,7 +167,7 @@ void UAbilityMovementRuntime::RestoreAvatarMovementForAbility(
 	Character->ReapplyCurrentRotationPolicy();
 }
 
-void UAbilityMovementRuntime::StartDurationMovementLock(
+void UAbilityMovementManager::StartDurationMovementLock(
 	UPdGameplayAbility& Ability)
 {
 	if (bDurationMovementLockActive)
@@ -191,7 +191,7 @@ void UAbilityMovementRuntime::StartDurationMovementLock(
 		!bWasAlreadyLocked && bAbilityMovementLocked;
 }
 
-void UAbilityMovementRuntime::StopDurationMovementLock(
+void UAbilityMovementManager::StopDurationMovementLock(
 	UPdGameplayAbility& Ability)
 {
 	if (!bDurationMovementLockActive)
@@ -203,7 +203,7 @@ void UAbilityMovementRuntime::StopDurationMovementLock(
 	RestoreAvatarMovementForAbility(Ability);
 }
 
-void UAbilityMovementRuntime::StartMovementContactDamage(
+void UAbilityMovementManager::StartMovementContactDamage(
 	UPdGameplayAbility& Ability)
 {
 	StopMovementContactDamage(Ability);
@@ -251,7 +251,7 @@ void UAbilityMovementRuntime::StartMovementContactDamage(
 	}
 }
 
-void UAbilityMovementRuntime::StopMovementContactDamage(
+void UAbilityMovementManager::StopMovementContactDamage(
 	UPdGameplayAbility& Ability)
 {
 	if (UWorld* World = Ability.GetWorld())
@@ -270,7 +270,7 @@ void UAbilityMovementRuntime::StopMovementContactDamage(
 	MovementContactOverlapResults.Reset();
 }
 
-void UAbilityMovementRuntime::HandleMovementContactDamageTick()
+void UAbilityMovementManager::HandleMovementContactDamageTick()
 {
 	if (!bMovementContactDamageActive)
 	{
@@ -395,7 +395,7 @@ void UAbilityMovementRuntime::HandleMovementContactDamageTick()
 	}
 }
 
-void UAbilityMovementRuntime::ApplyMovementContactDamageToActor(
+void UAbilityMovementManager::ApplyMovementContactDamageToActor(
 	UPdGameplayAbility& Ability,
 	AActor* HitActor)
 {
@@ -455,7 +455,7 @@ void UAbilityMovementRuntime::ApplyMovementContactDamageToActor(
 }
 
 FGameplayEffectSpecHandle
-UAbilityMovementRuntime::MakeMovementContactDamageSpec(
+UAbilityMovementManager::MakeMovementContactDamageSpec(
 	const UPdGameplayAbility& Ability,
 	const float DamageMagnitude) const
 {
@@ -476,7 +476,7 @@ UAbilityMovementRuntime::MakeMovementContactDamageSpec(
 		DamageMagnitude);
 }
 
-float UAbilityMovementRuntime::CalculateMovementContactDamageMagnitude(
+float UAbilityMovementManager::CalculateMovementContactDamageMagnitude(
 	const UPdGameplayAbility& Ability) const
 {
 	const USkillDefinition* SkillDataAsset =

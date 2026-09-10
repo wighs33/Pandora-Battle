@@ -1,6 +1,6 @@
 #include "AbilitySystem/Ability/TrailAbility.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
@@ -137,7 +137,7 @@ void UTrailAbility::ActivateAbility(
 		return;
 	}
 	bStartedWeaponTrail = bHasTrailSystem;
-	GetPresentationRuntime().SpawnConfiguredCharacterDecal(*this);
+	GetPresentationManager().SpawnConfiguredCharacterDecal(*this);
 
 	if (bUsesSlashHitTrace)
 	{

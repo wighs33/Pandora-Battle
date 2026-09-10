@@ -1,4 +1,4 @@
-#include "Component/AbilitySystem/Ability/AbilityPresentationRuntime.h"
+#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/Presentation/SkillPresentationActor.h"
@@ -8,9 +8,9 @@
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityPresentationRuntime)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityPresentationManager)
 
-void UAbilityPresentationRuntime::StartConfiguredDefaultFX(
+void UAbilityPresentationManager::StartConfiguredDefaultFX(
 	UPdGameplayAbility& Ability)
 {
 	const USkillDefinition* SkillDataAsset =
@@ -41,7 +41,7 @@ void UAbilityPresentationRuntime::StartConfiguredDefaultFX(
 	}
 }
 
-void UAbilityPresentationRuntime::StopConfiguredDefaultFX(
+void UAbilityPresentationManager::StopConfiguredDefaultFX(
 	UPdGameplayAbility& Ability)
 {
 	SetConfiguredPresentationEnabled(
@@ -51,7 +51,7 @@ void UAbilityPresentationRuntime::StopConfiguredDefaultFX(
 	StopConfiguredGroundFX(Ability);
 }
 
-void UAbilityPresentationRuntime::StartConfiguredGroundFX(
+void UAbilityPresentationManager::StartConfiguredGroundFX(
 	UPdGameplayAbility& Ability)
 {
 	const USkillDefinition* SkillDataAsset =
@@ -72,7 +72,7 @@ void UAbilityPresentationRuntime::StartConfiguredGroundFX(
 		true);
 }
 
-void UAbilityPresentationRuntime::StopConfiguredGroundFX(
+void UAbilityPresentationManager::StopConfiguredGroundFX(
 	UPdGameplayAbility& Ability)
 {
 	SetConfiguredPresentationEnabled(
@@ -81,7 +81,7 @@ void UAbilityPresentationRuntime::StopConfiguredGroundFX(
 		false);
 }
 
-void UAbilityPresentationRuntime::StartConfiguredCharacterOverlay(
+void UAbilityPresentationManager::StartConfiguredCharacterOverlay(
 	UPdGameplayAbility& Ability)
 {
 	const USkillDefinition* SkillDataAsset =
@@ -103,7 +103,7 @@ void UAbilityPresentationRuntime::StartConfiguredCharacterOverlay(
 		true);
 }
 
-void UAbilityPresentationRuntime::StopConfiguredCharacterOverlay(
+void UAbilityPresentationManager::StopConfiguredCharacterOverlay(
 	UPdGameplayAbility& Ability)
 {
 	SetConfiguredPresentationEnabled(
@@ -112,7 +112,7 @@ void UAbilityPresentationRuntime::StopConfiguredCharacterOverlay(
 		false);
 }
 
-void UAbilityPresentationRuntime::StartConfiguredMissilePresentation(
+void UAbilityPresentationManager::StartConfiguredMissilePresentation(
 	UPdGameplayAbility& Ability)
 {
 	const USkillDefinition* SkillDataAsset =
@@ -139,7 +139,7 @@ void UAbilityPresentationRuntime::StartConfiguredMissilePresentation(
 		true);
 }
 
-void UAbilityPresentationRuntime::
+void UAbilityPresentationManager::
 UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors)
 {
 	if (ASkillPresentationActor* PresentationActor =
@@ -149,7 +149,7 @@ UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors)
 	}
 }
 
-void UAbilityPresentationRuntime::StopConfiguredMissilePresentation(
+void UAbilityPresentationManager::StopConfiguredMissilePresentation(
 	UPdGameplayAbility& Ability)
 {
 	if (ASkillPresentationActor* PresentationActor =
@@ -164,7 +164,7 @@ void UAbilityPresentationRuntime::StopConfiguredMissilePresentation(
 		false);
 }
 
-void UAbilityPresentationRuntime::DestroyActiveSkillPresentationActor()
+void UAbilityPresentationManager::DestroyActiveSkillPresentationActor()
 {
 	if (ASkillPresentationActor* PresentationActor =
 		ActiveSkillPresentationActor.Get())
@@ -179,7 +179,7 @@ void UAbilityPresentationRuntime::DestroyActiveSkillPresentationActor()
 }
 
 // 공유 메시의 크기는 캐릭터가 합성하고, 이 객체는 자신이 적용했던 대상만 기억한다.
-void UAbilityPresentationRuntime::ApplySelfBuffCharacterScale(
+void UAbilityPresentationManager::ApplySelfBuffCharacterScale(
 	UPdGameplayAbility& Ability, const FSkillSelfBuffSettings& SelfBuffSettings)
 {
 	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
@@ -191,7 +191,7 @@ void UAbilityPresentationRuntime::ApplySelfBuffCharacterScale(
 	}
 }
 
-void UAbilityPresentationRuntime::RestoreSelfBuffCharacterScale(UPdGameplayAbility& Ability)
+void UAbilityPresentationManager::RestoreSelfBuffCharacterScale(UPdGameplayAbility& Ability)
 {
 	if (UCharacterPresentationComponent* Presentation = SelfBuffScaleOwner.Get())
 	{
@@ -200,7 +200,7 @@ void UAbilityPresentationRuntime::RestoreSelfBuffCharacterScale(UPdGameplayAbili
 	SelfBuffScaleOwner.Reset();
 }
 
-void UAbilityPresentationRuntime::SpawnConfiguredCharacterDecal(
+void UAbilityPresentationManager::SpawnConfiguredCharacterDecal(
 	UPdGameplayAbility& Ability)
 {
 	const USkillDefinition* SkillDataAsset =
@@ -253,7 +253,7 @@ void UAbilityPresentationRuntime::SpawnConfiguredCharacterDecal(
 }
 
 FVector
-UAbilityPresentationRuntime::ResolveConfiguredCharacterDecalLocation(
+UAbilityPresentationManager::ResolveConfiguredCharacterDecalLocation(
 	const ACharacterBase* Character) const
 {
 	if (!Character)
@@ -306,7 +306,7 @@ UAbilityPresentationRuntime::ResolveConfiguredCharacterDecalLocation(
 }
 
 float
-UAbilityPresentationRuntime::ResolveConfiguredCharacterDecalDuration(
+UAbilityPresentationManager::ResolveConfiguredCharacterDecalDuration(
 	const USkillDefinition* SkillDataAsset) const
 {
 	if (SkillDataAsset
@@ -320,7 +320,7 @@ UAbilityPresentationRuntime::ResolveConfiguredCharacterDecalDuration(
 }
 
 ASkillPresentationActor*
-UAbilityPresentationRuntime::EnsureConfiguredPresentationActor(
+UAbilityPresentationManager::EnsureConfiguredPresentationActor(
 	UPdGameplayAbility& Ability)
 {
 	if (IsValid(ActiveSkillPresentationActor))
@@ -364,7 +364,7 @@ UAbilityPresentationRuntime::EnsureConfiguredPresentationActor(
 	return PresentationActor;
 }
 
-void UAbilityPresentationRuntime::SetConfiguredPresentationEnabled(
+void UAbilityPresentationManager::SetConfiguredPresentationEnabled(
 	UPdGameplayAbility& Ability,
 	const uint8 PresentationFlag,
 	const bool bEnabled)
