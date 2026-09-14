@@ -480,3 +480,21 @@ void UPdAbilitySystemComponent::ReleasePandoraSkillSourceIfUnused(
 	}
 	GrantedPandoraSkillSources.Remove(SkillSource);
 }
+
+void UPdAbilitySystemComponent::ApplyAbilityBlockAndCancelTags(const FGameplayTagContainer& AbilityTags,
+	UGameplayAbility* RequestingAbility, bool bEnableBlockTags, const FGameplayTagContainer& BlockTags,
+	bool bExecuteCancelTags, const FGameplayTagContainer& CancelTags)
+{
+	Super::ApplyAbilityBlockAndCancelTags(AbilityTags, RequestingAbility, bEnableBlockTags, BlockTags, false, CancelTags);
+	if (!bExecuteCancelTags || CancelTags.IsEmpty()) return;
+	ABILITYLIST_SCOPE_LOCK();
+	for (FGameplayAbilitySpec& Spec : GetActivatableAbilities())
+	{
+		// 공통 SkillAbility의 스킬별 식별 태그는 클래스 기본값 대신 Spec에 저장된다.
+		if (Spec.IsActive() && Spec.Ability
+			&& (Spec.Ability->GetAssetTags().HasAny(CancelTags) || Spec.GetDynamicSpecSourceTags().HasAny(CancelTags)))
+		{
+			CancelAbilitySpec(Spec, RequestingAbility);
+		}
+	}
+}

@@ -5,7 +5,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Character/CharacterBase.h"
 #include "Components/CapsuleComponent.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"

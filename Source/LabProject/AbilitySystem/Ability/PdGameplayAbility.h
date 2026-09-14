@@ -4,7 +4,7 @@
 #include "ActiveGameplayEffectHandle.h"
 #include "GameplayTagContainer.h"
 #include "Abilities/GameplayAbility.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "PdGameplayAbility.generated.h"
 
 class ACharacterBase;

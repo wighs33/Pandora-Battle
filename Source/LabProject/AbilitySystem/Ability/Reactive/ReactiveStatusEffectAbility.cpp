@@ -1,6 +1,7 @@
 #include "AbilitySystem/Ability/Reactive/ReactiveStatusEffectAbility.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEffectApplied_Target.h"
@@ -79,7 +80,7 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 	}
 
 	const UGameplayEffect* AppliedGameplayEffect = SpecHandle.Data.IsValid() ? SpecHandle.Data->Def.Get() : nullptr;
-	if (!AppliedGameplayEffect || !AppliedGameplayEffect->GetGrantedTags().HasTag(StatusEffectDataAsset->DebuffTag))
+	if (!AppliedGameplayEffect || !AppliedGameplayEffect->GetGrantedTags().HasTag(StatusEffectDataAsset->StackTag))
 	{
 		return;
 	}
@@ -89,10 +90,10 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 	{
 		return;
 	}
-	if (!StatusEffectDataAsset->CanAccumulateDebuffOn(
+	if (!StatusEffectDataAsset->CanStack(
 		TargetAbilitySystemComponent))
 	{
-		StatusEffectDataAsset->ClearAccumulatedDebuff(
+		StatusEffectDataAsset->RemoveStacks(
 			TargetAbilitySystemComponent);
 		return;
 	}
@@ -154,30 +155,33 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 			TargetAbilitySystemComponent);
 	if (AppliedStatusEffectHandle.WasSuccessfullyApplied())
 	{
-		StatusEffectDataAsset->ClearAccumulatedDebuff(
+		StatusEffectDataAsset->RemoveStacks(
 			TargetAbilitySystemComponent);
 	}
 }
 
 void UReactiveStatusEffectAbility::ApplyDefaultSetByCallerMagnitudes(FGameplayEffectSpecHandle& SpecHandle) const
 {
-	if (!SpecHandle.Data.IsValid() || !StatusEffectDataAsset || StatusEffectDataAsset->ResolveDamageMagnitude() <= 0.0)
+	if (!SpecHandle.Data.IsValid() || !StatusEffectDataAsset || StatusEffectDataAsset->GetDamageMagnitude() <= 0.0f)
 	{
 		return;
 	}
 
 	FSkillGameplayEffectConfig DamageConfig;
-	DamageConfig.Magnitude = StatusEffectDataAsset->ResolveDamageMagnitude();
+	DamageConfig.Magnitude = StatusEffectDataAsset->GetDamageMagnitude();
 	const float SkillScaledDamage = CalculateSkillDamageMagnitude(DamageConfig);
-	StatusEffectDataAsset->SetDamageMagnitude(
+	const UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+	const UBasicAttributeSet* SourceAttributes = SourceASC ? SourceASC->GetSet<UBasicAttributeSet>() : nullptr;
+	UBasicAttributeSet::SetStatusEffectDamageOnSpec(
 		SpecHandle,
-		GetAbilitySystemComponentFromActorInfo(),
+		SourceAttributes,
+		StatusEffectDataAsset->StatusEffectTag,
 		SkillScaledDamage);
 }
 
 int32 UReactiveStatusEffectAbility::GetDebuffStackCount(AActor* TargetActor, FActiveGameplayEffectHandle ActiveHandle) const
 {
-	if (!IsValid(TargetActor) || !StatusEffectDataAsset || !StatusEffectDataAsset->DebuffTag.IsValid())
+	if (!IsValid(TargetActor) || !StatusEffectDataAsset || !StatusEffectDataAsset->StackTag.IsValid())
 	{
 		return ActiveHandle.IsValid() ? 1 : 0;
 	}
@@ -189,7 +193,7 @@ int32 UReactiveStatusEffectAbility::GetDebuffStackCount(AActor* TargetActor, FAc
 	}
 
 	FGameplayTagContainer DebuffTags;
-	DebuffTags.AddTag(StatusEffectDataAsset->DebuffTag);
+	DebuffTags.AddTag(StatusEffectDataAsset->StackTag);
 
 	int32 StackCount = 0;
 	const TArray<FActiveGameplayEffectHandle> ActiveDebuffHandles = TargetASC->GetActiveEffectsWithAllTags(DebuffTags);
@@ -203,7 +207,7 @@ int32 UReactiveStatusEffectAbility::GetDebuffStackCount(AActor* TargetActor, FAc
 		StackCount = FMath::Max(TargetASC->GetCurrentStackCount(ActiveHandle), 1);
 	}
 
-	if (StackCount <= 0 && TargetASC->HasMatchingGameplayTag(StatusEffectDataAsset->DebuffTag))
+	if (StackCount <= 0 && TargetASC->HasMatchingGameplayTag(StatusEffectDataAsset->StackTag))
 	{
 		StackCount = 1;
 	}

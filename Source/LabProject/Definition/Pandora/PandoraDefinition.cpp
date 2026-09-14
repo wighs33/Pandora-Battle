@@ -1,16 +1,6 @@
 #include "Definition/Pandora/PandoraDefinition.h"
 
-#include "AbilitySystem/Ability/AOEAttackAbility.h"
-#include "AbilitySystem/Ability/AuraAbility.h"
-#include "AbilitySystem/Ability/DashAbility.h"
-#include "AbilitySystem/Ability/FillShieldAbility.h"
-#include "AbilitySystem/Ability/MissileAbility.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
-#include "AbilitySystem/Ability/ProjectileAbility.h"
-#include "AbilitySystem/Ability/ShieldAbility.h"
-#include "AbilitySystem/Ability/StaticAbility.h"
-#include "AbilitySystem/Ability/SummonAbility.h"
-#include "AbilitySystem/Ability/TrailAbility.h"
 #include "AbilitySystem/EffectActors/EffectAreaBase.h"
 #include "Abilities/GameplayAbility.h"
 #include "Definition/Item/ItemDefinition.h"
@@ -27,77 +17,6 @@ namespace
 {
 	constexpr int32 FixedPandoraMaxLevel = 3;
 
-	TSubclassOf<UGameplayAbility> GetDefaultAbilityClassForSkillDataType(const ESkillDataType SkillDataType)
-	{
-		switch (SkillDataType)
-		{
-		case ESkillDataType::Projectile:
-			return UProjectileAbility::StaticClass();
-		case ESkillDataType::Area:
-			return UAOEAttackAbility::StaticClass();
-		case ESkillDataType::Dash:
-			return UDashAbility::StaticClass();
-		case ESkillDataType::Aura:
-			return UAuraAbility::StaticClass();
-		case ESkillDataType::Trail:
-			return UTrailAbility::StaticClass();
-		case ESkillDataType::Missile:
-			return UMissileAbility::StaticClass();
-		case ESkillDataType::Summon:
-			return USummonAbility::StaticClass();
-		case ESkillDataType::Static:
-			return UStaticAbility::StaticClass();
-		case ESkillDataType::ShieldBubble:
-			return UShieldAbility::StaticClass();
-		case ESkillDataType::FillShield:
-			return UFillShieldAbility::StaticClass();
-		case ESkillDataType::Default:
-		default:
-			return nullptr;
-		}
-	}
-
-	TSubclassOf<UGameplayAbility> GetDefaultAbilityClassForSkillDefinition(const USkillDefinition* SkillDefinition)
-	{
-		if (!SkillDefinition)
-		{
-			return nullptr;
-		}
-
-		return GetDefaultAbilityClassForSkillDataType(SkillDefinition->GetResolvedSkillDataType());
-	}
-
-	bool DoesAbilityClassMatchSkillDataType(
-		const TSubclassOf<UGameplayAbility> AbilityClass,
-		const USkillDefinition* SkillDefinition)
-	{
-		const TSubclassOf<UGameplayAbility> ExpectedAbilityClass = GetDefaultAbilityClassForSkillDefinition(SkillDefinition);
-		return AbilityClass
-			&& AbilityClass->IsChildOf(UPdGameplayAbility::StaticClass())
-			&& (!ExpectedAbilityClass || AbilityClass->IsChildOf(ExpectedAbilityClass));
-	}
-
-	bool IsInputDrivenSkillType(const ESkillType SkillType)
-	{
-		return SkillType == ESkillType::Instant
-			|| SkillType == ESkillType::Press
-			|| SkillType == ESkillType::Duration;
-	}
-
-	void FilterActiveAbilityClassesBySkillDataType(
-		TArray<TSubclassOf<UGameplayAbility>>& InOutAbilityClasses,
-		const USkillDefinition* SkillDefinition)
-	{
-		if (!SkillDefinition || !IsInputDrivenSkillType(SkillDefinition->SkillType))
-		{
-			return;
-		}
-
-		InOutAbilityClasses.RemoveAll([SkillDefinition](const TSubclassOf<UGameplayAbility>& AbilityClass)
-		{
-			return !DoesAbilityClassMatchSkillDataType(AbilityClass, SkillDefinition);
-		});
-	}
 
 #if WITH_EDITOR
 	void MarkPandoraInvalid(FDataValidationContext& Context, EDataValidationResult& Result, const FText& Message)
@@ -256,48 +175,20 @@ namespace
 				FText::AsNumber(SkillSlotIndex)));
 		}
 
-		if (SkillDefinition->ShouldShowInAbilitiesBar() && !SkillDefinition->GetIconResource())
+		if (!SkillDefinition->GetIconResource())
 		{
 			Context.AddWarning(FText::Format(
-				NSLOCTEXT("PandoraDefinition", "SkillMissingIcon", "Skill[{0}] is shown in the abilities bar, but its SkillDefinition has no icon."),
+				NSLOCTEXT("PandoraDefinition", "SkillMissingIcon", "Skill[{0}] uses a SkillDefinition with no icon."),
 				FText::AsNumber(SkillSlotIndex)));
 		}
 
-		const bool bInputDrivenSkill = IsInputDrivenSkillType(SkillDefinition->SkillType);
-		const TArray<TSubclassOf<UGameplayAbility>>& ExplicitAbilitiesToGrant = SkillDefinition->GetExplicitAbilitiesToGrant();
-		for (int32 AbilityIndex = 0; AbilityIndex < ExplicitAbilitiesToGrant.Num(); ++AbilityIndex)
-		{
-			const TSubclassOf<UGameplayAbility>& AbilityClass = ExplicitAbilitiesToGrant[AbilityIndex];
-			if (!AbilityClass)
-			{
-				MarkPandoraInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("PandoraDefinition", "NullExplicitAbility", "Skill[{0}] has a null AbilitiesToGrant entry at index {1}."),
-					FText::AsNumber(SkillSlotIndex),
-					FText::AsNumber(AbilityIndex)));
-				continue;
-			}
-
-			if (bInputDrivenSkill && !DoesAbilityClassMatchSkillDataType(AbilityClass, SkillDefinition))
-			{
-				MarkPandoraInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("PandoraDefinition", "MismatchedExplicitAbility", "Skill[{0}] must grant a UPdGameplayAbility class that matches the Skill Data Type: {1}"),
-					FText::AsNumber(SkillSlotIndex),
-					FText::FromString(GetNameSafe(AbilityClass.Get()))));
-			}
-		}
-
-		if (bInputDrivenSkill && SkillEntry.GetAbilitiesToGrant().IsEmpty())
+		if (!SkillDefinition->Action)
 		{
 			MarkPandoraInvalid(Context, Result, FText::Format(
-				NSLOCTEXT("PandoraDefinition", "SkillGrantsNoAbilities", "Skill[{0}] is input-driven but grants no gameplay ability."),
+				NSLOCTEXT("PandoraDefinition", "MissingSkillAction", "Skill[{0}] has no action."),
 				FText::AsNumber(SkillSlotIndex)));
 		}
-		else if (!bInputDrivenSkill && SkillDefinition->bShowInAbilitiesBar)
-		{
-			Context.AddWarning(FText::Format(
-				NSLOCTEXT("PandoraDefinition", "NonInputSkillShownInBar", "Skill[{0}] is not input-driven but is marked to show in the abilities bar."),
-				FText::AsNumber(SkillSlotIndex)));
-		}
+
 	}
 
 	void ValidatePandoraSkills(FDataValidationContext& Context, EDataValidationResult& Result, const UPandoraDefinition& PandoraDefinition)
@@ -396,44 +287,6 @@ FText FSkill::GetDescription() const
 UObject* FSkill::GetIconResource() const
 {
 	return SkillDefinition ? SkillDefinition->GetIconResource() : nullptr;
-}
-
-bool FSkill::ShouldShowInAbilitiesBar() const
-{
-	return SkillDefinition && SkillDefinition->bShowInAbilitiesBar;
-}
-
-TArray<TSubclassOf<UGameplayAbility>> FSkill::GetAbilitiesToGrant() const
-{
-	TArray<TSubclassOf<UGameplayAbility>> Result;
-	if (SkillDefinition && IsInputDrivenSkillType(SkillDefinition->SkillType))
-	{
-		const USkillDefinition* SkillDefinitionData = SkillDefinition.Get();
-		const auto AddDefaultAbilityClass = [&Result, SkillDefinitionData]()
-		{
-			if (const TSubclassOf<UGameplayAbility> DefaultAbilityClass = GetDefaultAbilityClassForSkillDefinition(SkillDefinitionData))
-			{
-				Result.AddUnique(DefaultAbilityClass);
-			}
-		};
-
-		Result.Append(SkillDefinitionData->GetExplicitAbilitiesToGrant());
-
-		if (Result.IsEmpty())
-		{
-			AddDefaultAbilityClass();
-		}
-
-		FilterActiveAbilityClassesBySkillDataType(Result, SkillDefinitionData);
-		if (Result.IsEmpty())
-		{
-			AddDefaultAbilityClass();
-		}
-
-		return Result;
-	}
-
-	return Result;
 }
 
 UPandoraDefinition::UPandoraDefinition()

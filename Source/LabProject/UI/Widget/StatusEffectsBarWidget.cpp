@@ -310,12 +310,12 @@ void UStatusEffectsBarWidget::BindStatusEffectTagDelegates()
 			continue;
 		}
 
-		if (DataAsset->DebuffTag.IsValid() && !ObservedTagChangedHandles.Contains(DataAsset->DebuffTag))
+		if (DataAsset->StackTag.IsValid() && !ObservedTagChangedHandles.Contains(DataAsset->StackTag))
 		{
 			ObservedTagChangedHandles.Add(
-				DataAsset->DebuffTag,
+				DataAsset->StackTag,
 				BoundAbilitySystemComponent
-					->RegisterGameplayTagEvent(DataAsset->DebuffTag, EGameplayTagEventType::NewOrRemoved)
+					->RegisterGameplayTagEvent(DataAsset->StackTag, EGameplayTagEventType::NewOrRemoved)
 					.AddUObject(this, &ThisClass::HandleObservedTagChanged));
 		}
 
@@ -446,17 +446,17 @@ int32 UStatusEffectsBarWidget::GetStatusEffectDisplayCount(
 	}
 
 	int32 StackCount = 0;
-	if (DataAsset->DebuffTag.IsValid())
+	if (DataAsset->StackTag.IsValid())
 	{
 		if (BoundStatusEffectReplicationComponent)
 		{
 			StackCount = BoundStatusEffectReplicationComponent
-				->GetStatusEffectStackCount(DataAsset->DebuffTag);
+				->GetStatusEffectStackCount(DataAsset->StackTag);
 		}
 		else
 		{
 			FGameplayTagContainer DebuffTags;
-			DebuffTags.AddTag(DataAsset->DebuffTag);
+			DebuffTags.AddTag(DataAsset->StackTag);
 			const TArray<FActiveGameplayEffectHandle> ActiveHandles =
 				BoundAbilitySystemComponent->GetActiveEffectsWithAllTags(DebuffTags);
 			for (const FActiveGameplayEffectHandle ActiveHandle : ActiveHandles)
@@ -467,7 +467,7 @@ int32 UStatusEffectsBarWidget::GetStatusEffectDisplayCount(
 			}
 
 			if (StackCount <= 0
-				&& BoundAbilitySystemComponent->HasMatchingGameplayTag(DataAsset->DebuffTag))
+				&& BoundAbilitySystemComponent->HasMatchingGameplayTag(DataAsset->StackTag))
 			{
 				StackCount = 1;
 			}

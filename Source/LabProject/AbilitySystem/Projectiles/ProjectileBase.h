@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "GameFramework/Actor.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
@@ -19,6 +19,8 @@ class UNiagaraComponent;
 class UNiagaraSystem;
 class UStatusEffectDefinition;
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(FProjectileSkillImpact, AActor*, const FHitResult&);
+
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API AProjectileBase : public AActor
 {
@@ -26,6 +28,9 @@ class LABPROJECT_API AProjectileBase : public AActor
 
 public:
 	AProjectileBase();
+
+	/** ???? ??? ??? ??? ? ??? ??? ?? ????? ????. */
+	FProjectileSkillImpact OnSkillImpact;
 
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -60,11 +65,6 @@ public:
 	void SetDebuffEffectSpecHandle(
 		const FGameplayEffectSpecHandle& InDebuffEffectSpecHandle,
 		UStatusEffectDefinition* InStatusEffectDefinition);
-
-	UFUNCTION(BlueprintCallable, Category = "!Projectile|Impact")
-	void SetImpactEffectAreaSpawnConfigs(
-		const TArray<FProjectileImpactEffectAreaSpawnConfig>& InImpactEffectAreaSpawnConfigs,
-		int32 InSourceSkillLevel);
 
 	void SetImpactAreaDamageRadius(float InImpactAreaDamageRadius);
 
@@ -131,11 +131,6 @@ protected:
 	bool TryApplyDamageToTarget(AActor* TargetActor);
 	bool TryApplyDamageInImpactArea(const FVector& ImpactLocation);
 	bool TryApplyDebuffToTarget(AActor* TargetActor, UAbilitySystemComponent* SourceASC, UAbilitySystemComponent* TargetASC) const;
-	void TrySpawnImpactEffectAreas(AActor* TargetActor, bool bDamageApplied);
-	bool ResolveImpactEffectAreaSpawnTransform(
-		const FProjectileImpactEffectAreaSpawnConfig& SpawnConfig,
-		AActor* TargetActor,
-		FTransform& OutSpawnTransform) const;
 	AActor* ResolveDamageTargetActor(AActor* OtherActor, const UPrimitiveComponent* OtherComponent) const;
 	bool IsIgnoredImpactActor(const AActor* OtherActor) const;
 	void ExecuteSpawnGameplayCue() const;
@@ -199,12 +194,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Projectile|Debuff")
 	TObjectPtr<UStatusEffectDefinition> StatusEffectDefinition;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Projectile|Impact")
-	TArray<FProjectileImpactEffectAreaSpawnConfig> ImpactEffectAreaSpawnConfigs;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Projectile|Impact", meta = (ClampMin = "1"))
-	int32 SourceSkillLevel = 1;
 
 	UPROPERTY(Transient)
 	float ImpactAreaDamageRadius = 0.0f;

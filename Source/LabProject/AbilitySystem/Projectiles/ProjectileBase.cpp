@@ -1,7 +1,5 @@
 #include "AbilitySystem/Projectiles/ProjectileBase.h"
 
-#include "AbilitySystem/EffectActors/EffectAreaBase.h"
-#include "AbilitySystem/SkillGroundProjection.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
@@ -22,7 +20,6 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
-#include "Pandora/PandoraSkillSource.h"
 #include "UObject/ObjectKey.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ProjectileBase)
@@ -281,15 +278,6 @@ void AProjectileBase::SetDebuffEffectSpecHandle(
 {
 	DebuffEffectSpecHandle = InDebuffEffectSpecHandle;
 	StatusEffectDefinition = InStatusEffectDefinition;
-
-}
-
-void AProjectileBase::SetImpactEffectAreaSpawnConfigs(
-	const TArray<FProjectileImpactEffectAreaSpawnConfig>& InImpactEffectAreaSpawnConfigs,
-	const int32 InSourceSkillLevel)
-{
-	ImpactEffectAreaSpawnConfigs = InImpactEffectAreaSpawnConfigs;
-	SourceSkillLevel = FMath::Max(InSourceSkillLevel, 1);
 
 }
 
@@ -704,10 +692,14 @@ void AProjectileBase::HandleImpact(
 			: (bHasReportedImpactLocation ? FVector(Hit.Location) : GetActorLocation());
 		StopAtImpact(ImpactLocation);
 
-		const bool bAppliedDamage = ImpactAreaDamageRadius > UE_SMALL_NUMBER
-			? TryApplyDamageInImpactArea(ImpactLocation)
-			: TryApplyDamageToTarget(DamageTargetActor);
-		TrySpawnImpactEffectAreas(DamageTargetActor, bAppliedDamage);
+		if (ImpactAreaDamageRadius > UE_SMALL_NUMBER)
+		{
+			TryApplyDamageInImpactArea(ImpactLocation);
+		}
+		else
+		{
+			TryApplyDamageToTarget(DamageTargetActor);
+		}
 
 		if (bKeepProjectileAfterImpact)
 		{
@@ -748,6 +740,10 @@ void AProjectileBase::HandleImpact(
 			bKeepProjectileAfterImpact,
 			StuckCharacter,
 			StuckBoneName);
+
+		FHitResult SkillHit = Hit;
+		SkillHit.ImpactPoint = ImpactLocation;
+		OnSkillImpact.Broadcast(DamageTargetActor, SkillHit);
 
 		if (bKeepProjectileAfterImpact)
 		{
@@ -936,123 +932,6 @@ bool AProjectileBase::TryApplyDamageInImpactArea(const FVector& ImpactLocation)
 	return bAppliedAnyDamage;
 }
 
-void AProjectileBase::TrySpawnImpactEffectAreas(AActor* TargetActor, const bool bDamageApplied)
-{
-	if (!HasAuthority() || ImpactEffectAreaSpawnConfigs.IsEmpty())
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World || !IsValid(TargetActor))
-	{
-
-		return;
-	}
-
-	for (const FProjectileImpactEffectAreaSpawnConfig& SpawnConfig : ImpactEffectAreaSpawnConfigs)
-	{
-		if (!SpawnConfig.EffectAreaClass)
-		{
-
-			continue;
-		}
-
-		if (SpawnConfig.bRequireSuccessfulDamageApplication && !bDamageApplied)
-		{
-
-			continue;
-		}
-
-		FTransform SpawnTransform;
-		if (!ResolveImpactEffectAreaSpawnTransform(SpawnConfig, TargetActor, SpawnTransform))
-		{
-
-			continue;
-		}
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = GetOwner();
-		SpawnParams.Instigator = GetInstigator();
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		AEffectAreaBase* SpawnedArea = World->SpawnActor<AEffectAreaBase>(
-			SpawnConfig.EffectAreaClass,
-			SpawnTransform,
-			SpawnParams);
-		if (SpawnedArea)
-		{
-			const UPandoraSkillSource* SkillSource = DamageEffectSpecHandle.Data.IsValid()
-				? Cast<UPandoraSkillSource>(DamageEffectSpecHandle.Data->GetContext().GetSourceObject())
-				: nullptr;
-			if (SkillSource)
-			{
-				SpawnedArea->SetSourcePandoraLoadoutDirection(SkillSource->GetLoadoutDirection());
-			}
-		}
-		if (SpawnedArea && SpawnConfig.LifeSpan > 0.0)
-		{
-			SpawnedArea->SetLifeSpan(static_cast<float>(SpawnConfig.LifeSpan));
-		}
-
-}
-}
-
-bool AProjectileBase::ResolveImpactEffectAreaSpawnTransform(
-	const FProjectileImpactEffectAreaSpawnConfig& SpawnConfig,
-	AActor* TargetActor,
-	FTransform& OutSpawnTransform) const
-{
-	if (!IsValid(TargetActor))
-	{
-		return false;
-	}
-
-	const FVector BaseLocation = SpawnConfig.bSpawnAtTargetFeet ? TargetActor->GetActorLocation() : GetActorLocation();
-	FVector SpawnLocation = BaseLocation;
-	FVector GroundNormal = FVector::UpVector;
-
-	if (SpawnConfig.bSpawnAtTargetFeet)
-	{
-		TArray<AActor*> ActorsToIgnore;
-		PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, const_cast<AProjectileBase*>(this));
-		PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, TargetActor);
-		if (AActor* OwningActor = GetOwner())
-		{
-			PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, OwningActor);
-		}
-		if (APawn* InstigatorPawn = GetInstigator())
-		{
-			PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, InstigatorPawn);
-		}
-
-		PdSkillGroundProjection::FGroundProjectionResult GroundProjection;
-		const bool bHit = PdSkillGroundProjection::TryProjectToGround(
-			GetWorld(),
-			BaseLocation,
-			SpawnConfig.GroundTraceChannel,
-			SpawnConfig.GroundTraceStartHeight,
-			SpawnConfig.GroundTraceDepth,
-			ActorsToIgnore,
-			GroundProjection);
-
-		if (bHit)
-		{
-			SpawnLocation = GroundProjection.Location;
-			GroundNormal = GroundProjection.Normal.GetSafeNormal();
-
-		}
-	}
-
-	SpawnLocation += SpawnConfig.SpawnOffset;
-
-	const FRotator SpawnRotation = SpawnConfig.bAlignToGroundNormal && !GroundNormal.IsNearlyZero()
-		? FRotationMatrix::MakeFromZ(GroundNormal).Rotator()
-		: FRotator(0.0, GetActorRotation().Yaw, 0.0);
-	OutSpawnTransform = FTransform(SpawnRotation, SpawnLocation);
-	return true;
-}
-
 bool AProjectileBase::TryApplyDebuffToTarget(AActor* TargetActor, UAbilitySystemComponent* SourceASC, UAbilitySystemComponent* TargetASC) const
 {
 	if (!HasAuthority()
@@ -1062,7 +941,7 @@ bool AProjectileBase::TryApplyDebuffToTarget(AActor* TargetActor, UAbilitySystem
 		|| !SourceASC
 		|| !TargetASC
 		|| !StatusEffectDefinition
-		|| !StatusEffectDefinition->CanAccumulateDebuffOn(TargetASC))
+		|| !StatusEffectDefinition->CanStack(TargetASC))
 	{
 		return false;
 	}

@@ -87,7 +87,7 @@ void UPdGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, co
 		if (Source && Pandora && Source->GetPandoraDefinition() == Pandora->GetCurrentPandoraDefinition())
 		{
 			Source->Initialize(
-				Source->GetPandoraDefinition(), Source->GetSkillDataAsset(), Source->GetSkillIndex(),
+				Source->GetPandoraDefinition(), Source->GetSkillIndex(),
 				Source->GetPandoraLevel(), Pandora->GetCurrentPandoraLoadoutDirection());
 		}
 	}
@@ -605,10 +605,10 @@ FGameplayEffectSpecHandle UPdGameplayAbility::MakeConfiguredStatusEffectSpec(con
 	const UStatusEffectDefinition* StatusEffectDefinition = SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
 	if (StatusEffectDefinition)
 	{
-		StatusEffectDefinition->SynchronizeDebuffGameplayEffectStackLimit();
+		StatusEffectDefinition->SynchronizeStackEffectStackLimit();
 	}
 	const TSubclassOf<UGameplayEffect> DebuffGameplayEffectClass =
-		StatusEffectDefinition ? StatusEffectDefinition->DebuffGameplayEffectClass : FallbackStatusEffectClass;
+		StatusEffectDefinition ? StatusEffectDefinition->StackGameplayEffectClass : FallbackStatusEffectClass;
 	if (!SourceAbilitySystemComponent || !DebuffGameplayEffectClass)
 	{
 		return FGameplayEffectSpecHandle();
@@ -636,7 +636,8 @@ FGameplayEffectSpecHandle UPdGameplayAbility::MakeConfiguredStatusEffectSpec(con
 	{
 		return StatusEffectSpecHandle;
 	}
-	StatusEffectSpecHandle.Data->SetDuration(StatusEffectTiming::FullStackLifetimeSeconds, true);
+	StatusEffectSpecHandle.Data->SetDuration(
+		StatusEffectTiming::FullStackLifetimeSeconds, true);
 
 	return StatusEffectSpecHandle;
 }
@@ -652,7 +653,7 @@ FActiveGameplayEffectHandle UPdGameplayAbility::ApplyConfiguredStatusEffectToTar
 		return FActiveGameplayEffectHandle();
 	}
 	const UStatusEffectDefinition* StatusEffectDefinition = SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
-	if (StatusEffectDefinition && !StatusEffectDefinition->CanAccumulateDebuffOn(TargetAbilitySystemComponent))
+	if (StatusEffectDefinition && !StatusEffectDefinition->CanStack(TargetAbilitySystemComponent))
 	{
 		return FActiveGameplayEffectHandle();
 	}

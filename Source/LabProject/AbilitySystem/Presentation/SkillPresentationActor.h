@@ -41,6 +41,7 @@ public:
 
 	void SetPresentationEnabled(ESkillPresentationFlags Flag, bool bEnabled);
 	void SetMissileTargetActors(const TArray<AActor*>& InTargetActors);
+	void SetMissileTargeting(FName InAimParameter, FName InTargetSocket);
 	bool HasAnyPresentation() const;
 
 protected:
@@ -85,6 +86,12 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_PresentationState)
 	TArray<TObjectPtr<AActor>> MissileTargetActors;
+
+	/** 미사일 액션이 전달한 연출용 표적 설정. 클라이언트는 실행 액션을 참조하지 않는다. */
+	UPROPERTY(ReplicatedUsing = OnRep_PresentationState)
+	FName MissileAimParameter = TEXT("aim_position");
+	UPROPERTY(ReplicatedUsing = OnRep_PresentationState)
+	FName MissileTargetSocket;
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<ACharacterBase> LocalPresentationSourceCharacter;

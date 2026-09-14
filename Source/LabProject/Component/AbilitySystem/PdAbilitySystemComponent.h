@@ -39,6 +39,9 @@ public:
 	virtual void OnRemoveAbility(FGameplayAbilitySpec& AbilitySpec) override;
 	virtual void NotifyAbilityEnded(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability, bool bWasCancelled) override;
 	virtual void NotifyAbilityFailed(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability, const FGameplayTagContainer& FailureReason) override;
+	virtual void ApplyAbilityBlockAndCancelTags(const FGameplayTagContainer& AbilityTags, UGameplayAbility* RequestingAbility,
+		bool bEnableBlockTags, const FGameplayTagContainer& BlockTags, bool bExecuteCancelTags,
+		const FGameplayTagContainer& CancelTags) override;
 
 	//------------------------------------------------------------------------------------------------------------------
 
@@ -98,22 +101,22 @@ private:
 	void RegisterPandoraSkillSource(UObject* SourceObject);
 	void ReleasePandoraSkillSourceIfUnused(UPandoraSkillSource* SkillSource, FGameplayAbilitySpecHandle RemovedHandle);
 	void ActivateAbilitiesWithReadySources();
+	void CancelActiveAbilitiesForDeath();
+	int32 RemoveRuntimeEffects(const FGameplayTagContainer& EffectTags, const FGameplayTagContainer& OwnedTags,
+		const FGameplayTagContainer& LooseTags, const FGameplayTagContainer& GameplayCues);
+
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPandoraSkillSource>> GrantedPandoraSkillSources;
 
 	TArray<FPendingAbilityInfo> ActivationsWaitingForSource;
 
-	void CancelActiveAbilitiesForDeath();
-	int32 RemoveRuntimeEffects(const FGameplayTagContainer& EffectTags, const FGameplayTagContainer& OwnedTags,
-		const FGameplayTagContainer& LooseTags, const FGameplayTagContainer& GameplayCues);
+	UPROPERTY(Transient)
+	bool bResettingAbilityRuntimeState = false;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Attributes")
 	TObjectPtr<UAbilityAttributeManager> AttributeManager;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Abilities")
 	TObjectPtr<UAbilityGrantAndInputManager> AbilityGrantAndInputManager;
-
-	UPROPERTY(Transient)
-	bool bResettingAbilityRuntimeState = false;
 };

@@ -1,7 +1,8 @@
 #pragma once
+#include "Definition/AbilitySystem/SkillStaticSettings.h"
 
 #include "CoreMinimal.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "GameFramework/Actor.h"
 #include "AnimeAuraActor.generated.h"
 

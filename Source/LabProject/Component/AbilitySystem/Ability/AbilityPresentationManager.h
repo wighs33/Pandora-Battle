@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "UObject/Object.h"
 #include "AbilityPresentationManager.generated.h"
 
@@ -28,6 +28,7 @@ public:
 	void StartConfiguredGroundFX(UPdGameplayAbility& Ability);
 	void StartConfiguredCharacterOverlay(UPdGameplayAbility& Ability);
 	void StartConfiguredMissilePresentation(UPdGameplayAbility& Ability);
+	void SetMissileTargeting(FName AimParameter, FName TargetSocket);
 	void UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors);
 	void StopConfiguredMissilePresentation(UPdGameplayAbility& Ability);
 	void DestroyActiveSkillPresentationActor();

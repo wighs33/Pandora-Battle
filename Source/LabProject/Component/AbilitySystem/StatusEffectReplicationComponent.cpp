@@ -109,13 +109,13 @@ void UStatusEffectReplicationComponent::TrackAppliedStatusEffect(
 	if (!OwnerActor
 		|| !OwnerActor->HasAuthority()
 		|| !StatusEffectDefinition
-		|| !StatusEffectDefinition->DebuffTag.IsValid()
+		|| !StatusEffectDefinition->StackTag.IsValid()
 		|| !ActiveEffectHandle.IsValid())
 	{
 		return;
 	}
 
-	const FGameplayTag DebuffTag = StatusEffectDefinition->DebuffTag;
+	const FGameplayTag DebuffTag = StatusEffectDefinition->StackTag;
 	EnsureAbilitySystemBinding();
 	const int32 StackCount = BoundAbilitySystemComponent.IsValid()
 		? BoundAbilitySystemComponent->GetCurrentStackCount(ActiveEffectHandle)
@@ -447,14 +447,14 @@ void UStatusEffectReplicationComponent::RestartStatusEffectDecay(
 	UWorld* World = GetWorld();
 	if (!World
 		|| !StatusEffectDefinition
-		|| !StatusEffectDefinition->DebuffTag.IsValid()
+		|| !StatusEffectDefinition->StackTag.IsValid()
 		|| !ActiveEffectHandle.IsValid()
 		|| StackCount <= 0)
 	{
 		return;
 	}
 
-	const FGameplayTag DebuffTag = StatusEffectDefinition->DebuffTag;
+	const FGameplayTag DebuffTag = StatusEffectDefinition->StackTag;
 	ClearStatusEffectDecay(DebuffTag);
 
 	FStatusEffectDecayState& DecayState =
@@ -467,7 +467,7 @@ void UStatusEffectReplicationComponent::RestartStatusEffectDecay(
 		StatusEffectDefinition->MaxStackCount,
 		1);
 	const float StackBoundaryInterval =
-		StatusEffectTiming::StackDecaySeconds
+		(StatusEffectTiming::FullStackLifetimeSeconds - StatusEffectTiming::StackHoldSeconds)
 		/ static_cast<float>(DecayState.MaxStackCount);
 
 	World->GetTimerManager().SetTimer(
@@ -509,7 +509,7 @@ void UStatusEffectReplicationComponent::UpdateStatusEffectDecay(
 		0.0);
 	const double RemovedStackProgress =
 		(ElapsedSeconds
-			/ static_cast<double>(StatusEffectTiming::StackDecaySeconds))
+			/ static_cast<double>(StatusEffectTiming::FullStackLifetimeSeconds - StatusEffectTiming::StackHoldSeconds))
 		* static_cast<double>(DecayState->MaxStackCount);
 	const int32 TargetStackCount = FMath::Max(
 		FMath::CeilToInt(
@@ -538,7 +538,7 @@ void UStatusEffectReplicationComponent::UpdateStatusEffectDecay(
 	const int32 RemovedStackCount =
 		MutableDecayState->StartingStackCount - TargetStackCount;
 	const double StackBoundaryInterval =
-		static_cast<double>(StatusEffectTiming::StackDecaySeconds)
+		static_cast<double>(StatusEffectTiming::FullStackLifetimeSeconds - StatusEffectTiming::StackHoldSeconds)
 		/ static_cast<double>(MutableDecayState->MaxStackCount);
 	const double NextBoundaryTime = MutableDecayState->DecayStartTime
 		+ (static_cast<double>(RemovedStackCount + 1)

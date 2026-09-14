@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Engine/StreamableManager.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "UObject/PrimaryAssetId.h"

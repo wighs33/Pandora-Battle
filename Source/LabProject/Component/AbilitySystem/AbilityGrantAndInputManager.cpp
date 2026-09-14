@@ -137,7 +137,9 @@ const FGameplayAbilitySpec* UAbilityGrantAndInputManager::FindActiveAbilitySpecB
 
 	for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystemComponent.GetActivatableAbilities())
 	{
-		if (AbilitySpec.IsActive() && AbilitySpec.Ability && AbilitySpec.Ability->GetAssetTags().HasAny(AbilityTags))
+		if (AbilitySpec.IsActive() && AbilitySpec.Ability
+			&& (AbilitySpec.Ability->GetAssetTags().HasAny(AbilityTags)
+				|| AbilitySpec.GetDynamicSpecSourceTags().HasAny(AbilityTags)))
 		{
 			return &AbilitySpec;
 		}

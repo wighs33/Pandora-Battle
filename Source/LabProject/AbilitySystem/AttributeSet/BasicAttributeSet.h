@@ -5,6 +5,8 @@
 #include "AbilitySystemComponent.h"
 #include "BasicAttributeSet.generated.h"
 
+struct FGameplayEffectSpecHandle;
+
 #define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
 GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
 GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName) \
@@ -26,6 +28,23 @@ public:
 	virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) override;
 
 	// Public API
+	/** 상태 태그에 해당하는 피해 증가율(%)을 반환한다. 지원하지 않는 태그나 음수 능력치는 0으로 처리한다. */
+	float GetStatusEffectDamageBonusPercent(const FGameplayTag& StatusTag) const;
+
+	/** 스킬 피해량에 상태별 피해 증가율과 추가 배율을 적용한 최종 피해량을 반환한다. */
+	float CalculateStatusEffectDamage(
+		const FGameplayTag& StatusTag,
+		float SkillScaledDamageMagnitude,
+		float DamageScale = 1.0f) const;
+
+	/** 상태 이상 피해를 계산하여 Spec의 Data_Damage에 기록한다. 어트리뷰트가 없으면 보너스는 0%다. */
+	static bool SetStatusEffectDamageOnSpec(
+		FGameplayEffectSpecHandle& SpecHandle,
+		const UBasicAttributeSet* SourceAttributes,
+		const FGameplayTag& StatusTag,
+		float SkillScaledDamageMagnitude,
+		float DamageScale = 1.0f);
+
 	float ConsumeOutgoingDamage();
 	bool ConsumeOutgoingDamageCriticalHit();
 	void SetPendingIncomingDamageCriticalHit(bool bCriticalHit);

@@ -1558,7 +1558,7 @@ void AWeaponBase::ApplySkillDebuffToTarget(
 		return;
 	}
 	if (!StatusEffectDefinition
-		|| !StatusEffectDefinition->CanAccumulateDebuffOn(TargetASC))
+		|| !StatusEffectDefinition->CanStack(TargetASC))
 	{
 		return;
 	}

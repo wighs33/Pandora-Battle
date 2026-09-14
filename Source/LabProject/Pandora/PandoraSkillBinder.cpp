@@ -1,6 +1,6 @@
 #include "Pandora/PandoraSkillBinder.h"
 
-#include "AbilitySystem/Ability/PdGameplayAbility.h"
+#include "AbilitySystem/Ability/SkillAbility.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Common/LabGameplayTags.h"
 #include "Definition/Pandora/PandoraDefinition.h"
@@ -45,12 +45,12 @@ namespace
 	}
 
 	FGameplayAbilitySpec* FindGrantedSkill(UPdAbilitySystemComponent& ASC, const UPandoraDefinition* Definition,
-		const int32 SkillIndex, const TSubclassOf<UGameplayAbility> AbilityClass)
+		const int32 SkillIndex)
 	{
 		for (FGameplayAbilitySpec& Spec : ASC.GetActivatableAbilities())
 		{
 			const UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(Spec.SourceObject.Get());
-			if (Spec.Ability && Spec.Ability->GetClass() == AbilityClass && Source
+			if (Spec.Ability && Spec.Ability->IsA<USkillAbility>() && Source
 				&& Source->GetPandoraDefinition() == Definition && Source->GetSkillIndex() == SkillIndex)
 			{
 				return &Spec;
@@ -79,41 +79,40 @@ TArray<FGameplayAbilitySpecHandle> FPandoraSkillBinder::GrantPandoraContent(
 		}
 		const FSkill& Skill = Definition->Skill[SkillIndex];
 		const int32 SkillLevel = UPandoraDefinition::GetRequiredLevelForSkillSlot(SkillIndex);
-		for (const TSubclassOf<UGameplayAbility>& AbilityClass : Skill.GetAbilitiesToGrant())
+		const TSubclassOf<UGameplayAbility> AbilityClass = USkillAbility::StaticClass();
+		if (!Skill.SkillDefinition || !Skill.SkillDefinition->Action)
 		{
-			if (!AbilityClass)
+			continue;
+		}
+		if (FGameplayAbilitySpec* ExistingSpec = FindGrantedSkill(*ASC, Definition, SkillIndex))
+		{
+			// 실행 중인 시전의 원본은 건드리지 않는다. 다음 시전은 PreActivate에서 선택 방향을 반영한다.
+			if (!ExistingSpec->IsActive())
 			{
-				continue;
+				CastChecked<UPandoraSkillSource>(ExistingSpec->SourceObject.Get())->Initialize(
+					Definition, SkillIndex, SkillLevel, LoadoutDirection);
 			}
-			if (FGameplayAbilitySpec* ExistingSpec = FindGrantedSkill(*ASC, Definition, SkillIndex, AbilityClass))
-			{
-				// 실행 중인 시전의 원본은 건드리지 않는다. 다음 시전은 PreActivate에서 선택 방향을 반영한다.
-				if (!ExistingSpec->IsActive())
-				{
-					CastChecked<UPandoraSkillSource>(ExistingSpec->SourceObject.Get())->Initialize(
-						Definition, Skill.SkillDefinition.Get(), SkillIndex, SkillLevel, LoadoutDirection);
-				}
-				continue;
-			}
+			continue;
+		}
 
-			UPandoraSkillSource* Source = NewObject<UPandoraSkillSource>(ASC);
-			Source->Initialize(Definition, Skill.SkillDefinition.Get(), SkillIndex, SkillLevel, LoadoutDirection);
-			FGameplayAbilitySpec Spec(AbilityClass, SkillLevel, INDEX_NONE, Source);
-			Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Ability_Source_Pandora);
-			Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Ability_Pandora_Selected);
-			if (Skill.SkillDefinition && Skill.SkillDefinition->SkillType == ESkillType::Press)
+		UPandoraSkillSource* Source = NewObject<UPandoraSkillSource>(ASC);
+		Source->Initialize(Definition, SkillIndex, SkillLevel, LoadoutDirection);
+		FGameplayAbilitySpec Spec(AbilityClass, SkillLevel, INDEX_NONE, Source);
+		Spec.GetDynamicSpecSourceTags().AppendTags(Skill.SkillDefinition->Activation.Tags);
+		Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Ability_Source_Pandora);
+		Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Ability_Pandora_Selected);
+		if (Skill.SkillDefinition && Skill.SkillDefinition->SkillType == ESkillType::Press)
+		{
+			Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Skill_Type_Press);
+		}
+		const FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(Spec);
+		if (Handle.IsValid())
+		{
+			NewHandles.Add(Handle);
+			const UPdGameplayAbility* AbilityCDO = Cast<UPdGameplayAbility>(AbilityClass->GetDefaultObject());
+			if (AbilityCDO && AbilityCDO->ShouldAutoActivateWhenGranted())
 			{
-				Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Skill_Type_Press);
-			}
-			const FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(Spec);
-			if (Handle.IsValid())
-			{
-				NewHandles.Add(Handle);
-				const UPdGameplayAbility* AbilityCDO = Cast<UPdGameplayAbility>(AbilityClass->GetDefaultObject());
-				if (AbilityCDO && AbilityCDO->ShouldAutoActivateWhenGranted())
-				{
-					TryActivateAbilityNextTick(ASC, Handle);
-				}
+				TryActivateAbilityNextTick(ASC, Handle);
 			}
 		}
 	}
@@ -173,8 +172,7 @@ void FPandoraSkillBinder::RefreshInputBindings(
 			&& Definition->IsSkillSlotUnlocked(SkillIndex, PandoraLevel) && Definition->Skill.IsValidIndex(SkillIndex))
 		{
 			Tags.AddTag(LabGameplayTags::Ability_Pandora_Selected);
-			const TArray<TSubclassOf<UGameplayAbility>> Classes = Definition->Skill[SkillIndex].GetAbilitiesToGrant();
-			if (!Classes.IsEmpty() && Spec.Ability->GetClass() == Classes[0])
+			if (Spec.Ability->IsA<USkillAbility>())
 			{
 				Tags.AddTag(GetPandoraInputTag(SkillIndex));
 			}

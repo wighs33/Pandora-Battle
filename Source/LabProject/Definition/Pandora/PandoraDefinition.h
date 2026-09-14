@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "GameplayTagContainer.h"
 #include "Engine/DataAsset.h"
 #include "UI/Shop/ShopTypes.h"
@@ -42,8 +42,6 @@ public:
 	FText GetDisplayName() const;
 	FText GetDescription() const;
 	UObject* GetIconResource() const;
-	bool ShouldShowInAbilitiesBar() const;
-	TArray<TSubclassOf<UGameplayAbility>> GetAbilitiesToGrant() const;
 };
 
 UCLASS(BlueprintType, Blueprintable)
@@ -85,7 +83,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Pandora|Unlock Rules")
 	TArray<FPandoraUnlockRule> UnlockRules;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Pandora", meta = (DisplayName = "Skills"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Pandora", meta = (DisplayName = "Skills"))
 	TArray<FSkill> Skill;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Pandora")

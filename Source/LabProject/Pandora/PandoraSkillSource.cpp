@@ -14,7 +14,6 @@
 
 void UPandoraSkillSource::Initialize(
 	const UPandoraDefinition* InPandoraDefinition,
-	const USkillDefinition* InSkillDataAsset,
 	const int32 InSkillIndex,
 	const int32 InPandoraLevel,
 	const EEnum_Direction InLoadoutDirection)
@@ -23,11 +22,6 @@ void UPandoraSkillSource::Initialize(
 	{
 		PandoraDefinition = InPandoraDefinition;
 		MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraSkillSource, PandoraDefinition, this);
-	}
-	if (SkillDataAsset != InSkillDataAsset)
-	{
-		SkillDataAsset = InSkillDataAsset;
-		MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraSkillSource, SkillDataAsset, this);
 	}
 	if (SkillIndex != InSkillIndex)
 	{
@@ -47,6 +41,12 @@ void UPandoraSkillSource::Initialize(
 	}
 }
 
+const USkillDefinition* UPandoraSkillSource::GetSkillDataAsset() const
+{
+	const FSkill* Skill = GetPandoraSkill();
+	return Skill ? Skill->SkillDefinition.Get() : nullptr;
+}
+
 const FSkill* UPandoraSkillSource::GetPandoraSkill() const
 {
 	const UPandoraDefinition* Definition = PandoraDefinition.Get();
@@ -60,7 +60,6 @@ void UPandoraSkillSource::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PandoraDefinition, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SkillDataAsset, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SkillIndex, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PandoraLevel, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, LoadoutDirection, Params);

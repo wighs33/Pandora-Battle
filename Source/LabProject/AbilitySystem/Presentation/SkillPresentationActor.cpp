@@ -5,7 +5,7 @@
 #include "Common/CollisionChannels.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
@@ -182,6 +182,8 @@ void ASkillPresentationActor::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ThisClass, SkillDefinition);
 	DOREPLIFETIME(ThisClass, PresentationFlags);
 	DOREPLIFETIME(ThisClass, MissileTargetActors);
+	DOREPLIFETIME(ThisClass, MissileAimParameter);
+	DOREPLIFETIME(ThisClass, MissileTargetSocket);
 }
 
 void ASkillPresentationActor::OnRep_PresentationState()
@@ -508,25 +510,25 @@ UNiagaraComponent* ASkillPresentationActor::StartMissileForTarget(AActor* Target
 	if (!Character
 		|| !IsValid(TargetActor)
 		|| !SkillDefinition
-		|| !SkillDefinition->Missile.MissileSystem)
+		|| !SkillDefinition->Niagara.SocketNiagaraSystem)
 	{
 		return nullptr;
 	}
 
-	const FMissileSkillConfig& MissileConfig = SkillDefinition->Missile;
+	const FSkillNiagaraSettings& NiagaraSettings = SkillDefinition->Niagara;
 	UNiagaraComponent* MissileComponent = nullptr;
 	USkeletalMeshComponent* MeshComponent = Character->GetMesh();
 	if (MeshComponent
-		&& !MissileConfig.NiagaraSpawnSocketName.IsNone()
-		&& MeshComponent->DoesSocketExist(MissileConfig.NiagaraSpawnSocketName))
+		&& !NiagaraSettings.SocketName.IsNone()
+		&& MeshComponent->DoesSocketExist(NiagaraSettings.SocketName))
 	{
 		MissileComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
-			MissileConfig.MissileSystem,
+			NiagaraSettings.SocketNiagaraSystem,
 			MeshComponent,
-			MissileConfig.NiagaraSpawnSocketName,
-			MissileConfig.NiagaraSpawnLocationOffset,
-			MissileConfig.NiagaraSpawnRotationOffset,
-			MissileConfig.NiagaraScale,
+			NiagaraSettings.SocketName,
+			NiagaraSettings.SocketLocationOffset,
+			NiagaraSettings.SocketRotationOffset,
+			NiagaraSettings.SocketScale,
 			EAttachLocation::KeepRelativeOffset,
 			false,
 			ENCPoolMethod::None,
@@ -537,17 +539,17 @@ UNiagaraComponent* ASkillPresentationActor::StartMissileForTarget(AActor* Target
 	{
 		const FVector SpawnLocation =
 			Character->GetActorLocation()
-			+ Character->GetActorForwardVector() * MissileConfig.NiagaraSpawnLocationOffset.X
-			+ Character->GetActorRightVector() * MissileConfig.NiagaraSpawnLocationOffset.Y
-			+ Character->GetActorUpVector() * MissileConfig.NiagaraSpawnLocationOffset.Z;
+			+ Character->GetActorForwardVector() * NiagaraSettings.SocketLocationOffset.X
+			+ Character->GetActorRightVector() * NiagaraSettings.SocketLocationOffset.Y
+			+ Character->GetActorUpVector() * NiagaraSettings.SocketLocationOffset.Z;
 		const FRotator SpawnRotation =
-			Character->GetActorRotation() + MissileConfig.NiagaraSpawnRotationOffset;
+			Character->GetActorRotation() + NiagaraSettings.SocketRotationOffset;
 		MissileComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			Character,
-			MissileConfig.MissileSystem,
+			NiagaraSettings.SocketNiagaraSystem,
 			SpawnLocation,
 			SpawnRotation,
-			MissileConfig.NiagaraScale,
+			NiagaraSettings.SocketScale,
 			false,
 			false,
 			ENCPoolMethod::None,
@@ -627,7 +629,7 @@ void ASkillPresentationActor::ApplyMissileTargetLocation(
 	}
 
 	const FName ParameterName = NormalizeNiagaraUserParameterName(
-		SkillDefinition->Missile.AimPositionParameterName);
+		MissileAimParameter);
 	FVector TargetLocation = FVector::ZeroVector;
 	if (ParameterName.IsNone()
 		|| !ResolveMissileTargetLocation(TargetActor, TargetLocation))
@@ -648,7 +650,7 @@ bool ASkillPresentationActor::ResolveMissileTargetLocation(
 		return false;
 	}
 
-	const FName TargetSocketName = SkillDefinition->Missile.TargetSocketName;
+	const FName TargetSocketName = MissileTargetSocket;
 	if (!TargetSocketName.IsNone())
 	{
 		if (const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(TargetActor);
@@ -722,4 +724,13 @@ FVector ASkillPresentationActor::ResolveCharacterFloorLocation(
 	}
 
 	return FloorLocation;
+}
+
+void ASkillPresentationActor::SetMissileTargeting(FName InAimParameter, FName InTargetSocket)
+{
+	if (!HasAuthority()) return;
+	MissileAimParameter = InAimParameter;
+	MissileTargetSocket = InTargetSocket;
+	RefreshLocalPresentation();
+	ForceNetUpdate();
 }

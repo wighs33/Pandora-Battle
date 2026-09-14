@@ -66,13 +66,19 @@ void UAbilityPresentationManager::StartConfiguredMissilePresentation(UPdGameplay
 {
 	const USkillDefinition* SkillDataAsset = Ability.GetSourceSkillDataAsset();
 	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
-	if (!SkillDataAsset || !Character || !Character->HasAuthority() || !SkillDataAsset->Missile.MissileSystem)
+	if (!SkillDataAsset || !Character || !Character->HasAuthority() || !SkillDataAsset->Niagara.SocketNiagaraSystem)
 	{
 		return;
 	}
 
 	StopConfiguredMissilePresentation(Ability);
 	SetConfiguredPresentationEnabled(Ability, ESkillPresentationFlags::Missile, true);
+}
+
+void UAbilityPresentationManager::SetMissileTargeting(FName AimParameter, FName TargetSocket)
+{
+	if (ASkillPresentationActor* PresentationActor = ActiveSkillPresentationActor.Get())
+		PresentationActor->SetMissileTargeting(AimParameter, TargetSocket);
 }
 
 // 활성 미사일 연출에 현재 추적할 대상 목록을 전달한다.

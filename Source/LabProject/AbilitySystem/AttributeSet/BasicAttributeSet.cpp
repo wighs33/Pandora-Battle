@@ -444,7 +444,7 @@ UBasicAttributeSet::UBasicAttributeSet()
 {
 	Level = 1.0f;
 	Experience = 0.0f;
-	MaxExperience = 100.0f;
+	MaxExperience = 0.0f;
 	OffensePoint = 0.0f;
 	DefensePoint = 0.0f;
 	ResistancePoint = 0.0f;
@@ -469,12 +469,12 @@ UBasicAttributeSet::UBasicAttributeSet()
 	AttackSpeedLevel = 0.0f;
 	MovementSpeedLevel = 0.0f;
 	CriticalLevel = 0.0f;
-	Health = 100.0f;
-	MaxHealth = 100.0f;
+	Health = 0.0f;
+	MaxHealth = 0.0f;
 	Shield = 0.0f;
-	MaxShield = 100.0f;
-	Stamina = 100.0f;
-	MaxStamina = 100.0f;
+	MaxShield = 0.0f;
+	Stamina = 0.0f;
+	MaxStamina = 0.0f;
 	MaxHealthIncreasePercent = 0.0f;
 	MaxShieldIncreasePercent = 0.0f;
 	MaxManaIncreasePercent = 0.0f;
@@ -922,6 +922,68 @@ void UBasicAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute
 			}
 		}
 	}
+}
+
+float UBasicAttributeSet::GetStatusEffectDamageBonusPercent(const FGameplayTag& StatusTag) const
+{
+	if (!StatusTag.IsValid())
+	{
+		return 0.0f;
+	}
+
+	if (StatusTag.MatchesTag(LabGameplayTags::Status_Burning))
+	{
+		return FMath::Max(GetBurn(), 0.0f);
+	}
+
+	if (StatusTag.MatchesTag(LabGameplayTags::Status_Frostbite))
+	{
+		return FMath::Max(GetFrostbite(), 0.0f);
+	}
+
+	if (StatusTag.MatchesTag(LabGameplayTags::Status_ElectricShock))
+	{
+		return FMath::Max(GetElectricShock(), 0.0f);
+	}
+
+	return 0.0f;
+}
+
+float UBasicAttributeSet::CalculateStatusEffectDamage(
+	const FGameplayTag& StatusTag,
+	const float SkillScaledDamageMagnitude,
+	const float DamageScale) const
+{
+	const float StatusDamageBonusPercent = GetStatusEffectDamageBonusPercent(StatusTag);
+	const float DamageMultiplier = 1.0f + (StatusDamageBonusPercent * 0.01f);
+	const float ScaledDamage = FMath::Max(SkillScaledDamageMagnitude, 0.0f)
+		* DamageMultiplier
+		* FMath::Max(DamageScale, 0.0f);
+	return FMath::Max(ScaledDamage, 0.0f);
+}
+
+bool UBasicAttributeSet::SetStatusEffectDamageOnSpec(
+	FGameplayEffectSpecHandle& SpecHandle,
+	const UBasicAttributeSet* SourceAttributes,
+	const FGameplayTag& StatusTag,
+	const float SkillScaledDamageMagnitude,
+	const float DamageScale)
+{
+	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
+	{
+		return false;
+	}
+
+	const float CalculatedDamageMagnitude = SourceAttributes
+		? SourceAttributes->CalculateStatusEffectDamage(StatusTag, SkillScaledDamageMagnitude, DamageScale)
+		: FMath::Max(SkillScaledDamageMagnitude, 0.0f) * FMath::Max(DamageScale, 0.0f);
+	if (CalculatedDamageMagnitude <= 0.0f)
+	{
+		return false;
+	}
+
+	SpecHandle.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_Damage, CalculatedDamageMagnitude);
+	return true;
 }
 
 float UBasicAttributeSet::ConsumeOutgoingDamage()

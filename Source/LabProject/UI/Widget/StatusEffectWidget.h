@@ -31,6 +31,7 @@ public:
 protected:
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual void NativeDestruct() override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|StatusEffect|Widgets")
@@ -97,10 +98,10 @@ private:
 	FDelegateHandle StatusEffectTagChangedHandle;
 	FDelegateHandle ReplicatedStackChangedHandle;
 	FTimerHandle StackFillHoldTimer;
-	FTimerHandle UpdateStackFillTimer;
 	FTimerHandle UpdateTimeRemainingTimer;
 	double StackFillDecreaseStartTime = 0.0;
 	float StackFillDecreaseStartPercent = 0.0f;
+	bool bIsStackFillDecreasing = false;
 	bool bIsConstructed = false;
 	bool bIsStatusEffectApplied = false;
 };

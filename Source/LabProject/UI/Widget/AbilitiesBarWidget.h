@@ -15,7 +15,6 @@ class UPandoraDefinition;
 class UPandoraTreeComponent;
 class UPdAbilitySystemComponent;
 class UUserWidget;
-struct FSkill;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UAbilitiesBarWidget : public UUserWidget
@@ -66,7 +65,6 @@ private:
 		UAbilitySystemComponent* AbilitySystemComponent,
 		const UPandoraDefinition* PandoraDefinition,
 		int32 SkillIndex) const;
-	bool IsConfiguredPandoraSkill(const FSkill& Skill) const;
 
 	void BindAbilitiesChangedEvents();
 	void UnbindAbilitiesChangedEvents();

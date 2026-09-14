@@ -41,6 +41,16 @@ void UStatusEffectWidget::NativeConstruct()
 	InitializeStatusEffect();
 }
 
+void UStatusEffectWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (bIsConstructed && bIsStackFillDecreasing)
+	{
+		UpdateStackFillDecrease();
+	}
+}
+
 void UStatusEffectWidget::NativeDestruct()
 {
 	bIsConstructed = false;
@@ -250,12 +260,7 @@ void UStatusEffectWidget::StartStackFillDecrease()
 	StackFillDecreaseStartTime = World->GetTimeSeconds();
 	StackFillDecreaseStartPercent = EffectFillMeter->GetPercent();
 
-	World->GetTimerManager().SetTimer(
-		UpdateStackFillTimer,
-		this,
-		&ThisClass::UpdateStackFillDecrease,
-		StatusEffectTiming::StackPresentationUpdateIntervalSeconds,
-		true);
+	bIsStackFillDecreasing = true;
 }
 
 void UStatusEffectWidget::UpdateStackFillDecrease()
@@ -267,7 +272,7 @@ void UStatusEffectWidget::UpdateStackFillDecrease()
 		return;
 	}
 
-	if (StatusEffectTiming::StackDecaySeconds <= 0.0f)
+	if (StatusEffectTiming::FullStackLifetimeSeconds <= StatusEffectTiming::StackHoldSeconds)
 	{
 		ClearStackFillPresentationTimers();
 		return;
@@ -279,7 +284,7 @@ void UStatusEffectWidget::UpdateStackFillDecrease()
 	const float NewPercent = FMath::Clamp(
 		StackFillDecreaseStartPercent
 			- static_cast<float>(ElapsedSeconds
-				/ static_cast<double>(StatusEffectTiming::StackDecaySeconds)),
+				/ static_cast<double>(StatusEffectTiming::FullStackLifetimeSeconds - StatusEffectTiming::StackHoldSeconds)),
 		MeterEmptyPercent,
 		MeterFullPercent);
 	EffectFillMeter->SetPercent(NewPercent);
@@ -295,11 +300,10 @@ void UStatusEffectWidget::ClearStackFillPresentationTimers()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(StackFillHoldTimer);
-		World->GetTimerManager().ClearTimer(UpdateStackFillTimer);
 	}
 
 	StackFillHoldTimer.Invalidate();
-	UpdateStackFillTimer.Invalidate();
+	bIsStackFillDecreasing = false;
 	StackFillDecreaseStartTime = 0.0;
 	StackFillDecreaseStartPercent = MeterEmptyPercent;
 }
@@ -358,13 +362,13 @@ void UStatusEffectWidget::EvaluateRemovalAfterDebuffRemoved()
 {
 	UAbilitySystemComponent* AbilitySystemComponent = GetOwnerAbilitySystemComponent();
 	const bool bHasDebuff = EffectDataAsset
-		&& EffectDataAsset->DebuffTag.IsValid()
+		&& EffectDataAsset->StackTag.IsValid()
 		&& (BoundStatusEffectReplicationComponent
 			? BoundStatusEffectReplicationComponent->GetStatusEffectStackCount(
-				EffectDataAsset->DebuffTag) > 0
+				EffectDataAsset->StackTag) > 0
 			: AbilitySystemComponent
 				&& AbilitySystemComponent->HasMatchingGameplayTag(
-					EffectDataAsset->DebuffTag));
+					EffectDataAsset->StackTag));
 	const bool bHasStatusEffect = bIsStatusEffectApplied
 		|| (AbilitySystemComponent
 			&& EffectDataAsset
@@ -402,7 +406,7 @@ void UStatusEffectWidget::BindGameplayListeners()
 		return;
 	}
 
-	BoundDebuffTag = EffectDataAsset->DebuffTag;
+	BoundDebuffTag = EffectDataAsset->StackTag;
 	BoundStatusEffectTag = EffectDataAsset->StatusEffectTag;
 
 	if (BoundDebuffTag.IsValid())
@@ -550,7 +554,7 @@ void UStatusEffectWidget::OnReplicatedStatusEffectStackChanged(
 	const int32 StackCount)
 {
 	if (!EffectDataAsset
-		|| !DebuffTag.MatchesTagExact(EffectDataAsset->DebuffTag))
+		|| !DebuffTag.MatchesTagExact(EffectDataAsset->StackTag))
 	{
 		return;
 	}
@@ -594,18 +598,18 @@ float UStatusEffectWidget::GetStatusDuration() const
 
 int32 UStatusEffectWidget::GetActiveDebuffStackCount() const
 {
-	if (!BoundAbilitySystemComponent || !EffectDataAsset || !EffectDataAsset->DebuffTag.IsValid())
+	if (!BoundAbilitySystemComponent || !EffectDataAsset || !EffectDataAsset->StackTag.IsValid())
 	{
 		return 0;
 	}
 
 	FGameplayTagContainer DebuffTags;
-	DebuffTags.AddTag(EffectDataAsset->DebuffTag);
+	DebuffTags.AddTag(EffectDataAsset->StackTag);
 
 	if (BoundStatusEffectReplicationComponent)
 	{
 		return BoundStatusEffectReplicationComponent->GetStatusEffectStackCount(
-			EffectDataAsset->DebuffTag);
+			EffectDataAsset->StackTag);
 	}
 
 	int32 StackCount = 0;
@@ -618,7 +622,7 @@ int32 UStatusEffectWidget::GetActiveDebuffStackCount() const
 			1);
 	}
 
-	if (StackCount <= 0 && BoundAbilitySystemComponent->HasMatchingGameplayTag(EffectDataAsset->DebuffTag))
+	if (StackCount <= 0 && BoundAbilitySystemComponent->HasMatchingGameplayTag(EffectDataAsset->StackTag))
 	{
 		StackCount = 1;
 	}

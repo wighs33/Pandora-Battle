@@ -3,7 +3,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
@@ -191,7 +191,8 @@ void UAbilitiesBarWidget::RebuildAbilitiesBar()
 			}
 
 			const FSkill& Skill = SelectedPandoraDefinition->Skill[SlotIndex];
-			if (!Skill.ShouldShowInAbilitiesBar() || !IsConfiguredPandoraSkill(Skill))
+			// 스킬 정의가 있으면 표시하고, 해금 및 무기 조건은 슬롯의 활성 상태에만 반영한다.
+			if (!Skill.SkillDefinition)
 			{
 
 				AddEmptySlot(true, SlotIndex);
@@ -400,7 +401,8 @@ bool UAbilitiesBarWidget::ShouldShowAbilityHandle(UAbilitySystemComponent* Abili
 
 	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle);
 	const USkillDefinition* SourceSkill = ResolveSourceSkillDataAsset(AbilitySpec);
-	return SourceSkill && SourceSkill->ShouldShowInAbilitiesBar()
+	// 판도라 스킬은 선택된 판도라의 전용 슬롯에서 표시한다.
+	return SourceSkill
 		&& !AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora);
 }
 
@@ -532,13 +534,6 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 	}
 
 	return FGameplayAbilitySpecHandle();
-}
-
-bool UAbilitiesBarWidget::IsConfiguredPandoraSkill(const FSkill& Skill) const
-{
-	return !Skill.GetAbilitiesToGrant().IsEmpty()
-		|| Skill.GetIconResource() != nullptr
-		|| !Skill.GetDisplayName().IsEmpty();
 }
 
 void UAbilitiesBarWidget::BindAbilitiesChangedEvents()

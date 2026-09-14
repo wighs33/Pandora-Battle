@@ -1,8 +1,9 @@
 #include "AbilitySystem/StaticActors/OmenOrbGlitchActor.h"
+#include "Definition/AbilitySystem/SkillStaticSettings.h"
 
 #include "ActiveGameplayEffectHandle.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"

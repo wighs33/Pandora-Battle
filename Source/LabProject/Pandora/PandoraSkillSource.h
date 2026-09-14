@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Definition/AbilitySystem/SkillTypes.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Common/Enum_Direction.h"
 #include "UObject/Object.h"
 #include "PandoraSkillSource.generated.h"
@@ -19,7 +19,6 @@ class LABPROJECT_API UPandoraSkillSource : public UObject
 public:
 	void Initialize(
 		const UPandoraDefinition* InPandoraDefinition,
-		const USkillDefinition* InSkillDataAsset,
 		int32 InSkillIndex,
 		int32 InPandoraLevel,
 		EEnum_Direction InLoadoutDirection = EEnum_Direction::Center);
@@ -31,14 +30,14 @@ public:
 		UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 #endif
 
-	bool IsSourceReady() const { return PandoraDefinition && SkillDataAsset && SkillIndex != INDEX_NONE; }
+	bool IsSourceReady() const { return GetSkillDataAsset() != nullptr; }
 	FGameplayEffectQuery MakeCooldownQuery() const;
 
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	const UPandoraDefinition* GetPandoraDefinition() const { return PandoraDefinition.Get(); }
 
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
-	const USkillDefinition* GetSkillDataAsset() const { return SkillDataAsset.Get(); }
+	const USkillDefinition* GetSkillDataAsset() const;
 
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	int32 GetSkillIndex() const { return SkillIndex; }
@@ -57,9 +56,6 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<const UPandoraDefinition> PandoraDefinition;
-
-	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<const USkillDefinition> SkillDataAsset;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
 	int32 SkillIndex = INDEX_NONE;
