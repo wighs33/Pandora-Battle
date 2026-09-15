@@ -27,68 +27,6 @@ UPdAbilitySystemComponent::UPdAbilitySystemComponent(const FObjectInitializer& O
 	SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
 	AbilityGrantAndInputManager = CreateDefaultSubobject<UAbilityGrantAndInputManager>(TEXT("AbilityGrantAndInputManager"));
-
-	OnActiveGameplayEffectAddedDelegateToSelf.AddUObject(this, &ThisClass::OnCooldownEffectAdded);
-	OnAnyGameplayEffectRemovedDelegate().AddUObject(this, &ThisClass::OnCooldownEffectRemoved);
-}
-
-// 출처보다 먼저 복제된 쿨다운 효과만 다시 연결한다.
-void UPdAbilitySystemComponent::PostNetReceive()
-{
-	Super::PostNetReceive();
-	LinkPendingCooldownEffects();
-}
-
-void UPdAbilitySystemComponent::OnCooldownEffectAdded(UAbilitySystemComponent* TargetASC,
-	const FGameplayEffectSpec& Spec, const FActiveGameplayEffectHandle EffectHandle)
-{
-	FGameplayTagContainer GrantedTags;
-	Spec.GetAllGrantedTags(GrantedTags);
-	if (!GrantedTags.HasTag(LabGameplayTags::Cooldown))
-	{
-		return;
-	}
-
-	UObject* SourceObject = Spec.GetContext().GetSourceObject();
-	if (UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(SourceObject))
-	{
-		Source->SetCooldownEffectHandle(EffectHandle);
-	}
-	else if (!SourceObject && !IsOwnerActorAuthoritative())
-	{
-		PendingCooldownEffects.AddUnique(EffectHandle);
-	}
-}
-
-void UPdAbilitySystemComponent::OnCooldownEffectRemoved(const FActiveGameplayEffect& Effect)
-{
-	PendingCooldownEffects.Remove(Effect.Handle);
-	if (UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(Effect.Spec.GetContext().GetSourceObject()))
-	{
-		Source->ClearCooldownEffectHandle(Effect.Handle);
-	}
-}
-
-void UPdAbilitySystemComponent::LinkPendingCooldownEffects()
-{
-	for (auto It = PendingCooldownEffects.CreateIterator(); It; ++It)
-	{
-		const FActiveGameplayEffect* Effect = GetActiveGameplayEffect(*It);
-		if (!Effect || Effect->IsPendingRemove)
-		{
-			It.RemoveCurrent();
-			continue;
-		}
-
-		if (UObject* SourceObject = Effect->Spec.GetContext().GetSourceObject())
-		{
-			if (UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(SourceObject))
-			{
-				Source->SetCooldownEffectHandle(*It);
-			}
-			It.RemoveCurrent();
-		}
-	}
 }
 
 // 능력이 부여되면 판도라 출처 정보가 사라지지 않도록 보관하고, 스킬바 등 구독자에게 변경을 알린다.
@@ -176,77 +114,22 @@ void UPdAbilitySystemComponent::OnRep_ActivateAbilities()
 // 플레이어의 초기화 시점과 중복 호출 방지는 StatUpgradeComponent가 담당한다.
 bool UPdAbilitySystemComponent::ApplyConfiguredAttributeDefaults(const UStatUpgradeDefinition& Definition)
 {
-	if (!IsOwnerActorAuthoritative() || !GetSet<UBasicAttributeSet>() || Definition.GetAttributeDefaultValues().IsEmpty())
+	if (!IsOwnerActorAuthoritative() || !GetSet<UBasicAttributeSet>())
 	{
 		return false;
 	}
 
-	// 1. 우선순위대로 기본값을 모은다. 같은 태그는 나중 값으로 덮어쓰고 적용 순서는 유지한다.
-	TArray<FStatAttributeDefaultValue> OrderedDefaults = Definition.GetAttributeDefaultValues();
-	OrderedDefaults.StableSort(
-		[](const FStatAttributeDefaultValue& Left, const FStatAttributeDefaultValue& Right) { return Left.Priority < Right.Priority; });
-	TMap<FGameplayTag, float> InitialValues;
-	TArray<FGameplayTag> OrderedTags;
-	for (const FStatAttributeDefaultValue& Entry : OrderedDefaults)
+	TArray<TPair<FGameplayTag, float>> InitialValues;
+	TArray<FPairedResourceStatTag> ResourcesToFill;
+	if (!Definition.CalculateInitialAttributeValues(InitialValues, ResourcesToFill))
 	{
-		if (Entry.IsValid())
-		{
-			InitialValues.Add(Entry.StatTag, Entry.DefaultValue);
-			OrderedTags.AddUnique(Entry.StatTag);
-		}
+		return false;
 	}
 
-	// 2. 시작부터 투자된 레벨이 있다면 같은 투자 공식으로 기본값에 투자분을 더한다.
-	for (const FStatUpgradeBinding& Binding : UStatUpgradeDefinition::GetStatBindings())
-	{
-		const float* ConfiguredLevel = InitialValues.Find(Binding.LevelTag);
-		if (!Binding.bCompounded || !ConfiguredLevel || *ConfiguredLevel == 0.f)
-		{
-			continue;
-		}
-		float Magnitude = 0.f;
-		if (!FMath::IsFinite(*ConfiguredLevel) || *ConfiguredLevel < 0.f
-			|| *ConfiguredLevel > FMath::FloorToFloat(Definition.GetMaxInvestedLevel())
-			|| !Definition.TryGetUpgradeMagnitude(Binding, Magnitude))
-		{
-			return false;
-		}
-		const float Investment = UStatUpgradeDefinition::CalculateInvestmentValue(Magnitude, *ConfiguredLevel, true);
-		InitialValues.FindOrAdd(Binding.GetEffectTag()) += Investment;
-		OrderedTags.AddUnique(Binding.GetEffectTag());
-		if (Binding.IsMaxResource())
-		{
-			float BaseValue = 0.f;
-			if (!Definition.TryGetResourceBaseValue(Binding, BaseValue))
-			{
-				return false;
-			}
-			InitialValues.Add(Binding.StatTag, BaseValue * (1.f + Investment * 0.01f));
-			OrderedTags.AddUnique(Binding.StatTag);
-		}
-	}
-
-	// 3. 현재 자원 태그와, 별도 초기값이 없어 최대값으로 채울 자원 쌍을 찾는다.
-	TSet<FGameplayTag> CurrentResourceTags;
-	for (const FStatUpgradeBinding& Binding : UStatUpgradeDefinition::GetStatBindings())
-	{
-		if (Binding.IsMaxResource())
-		{
-			CurrentResourceTags.Add(Binding.CurrentResourceTag);
-		}
-	}
+	// 값을 변경하기 전에 모든 태그가 이 ASC의 어트리뷰트로 연결되는지 확인한다.
 	TArray<TPair<FGameplayAttribute, FGameplayAttribute>> PairedResources;
-	for (const FPairedResourceStatTag& Pair : Definition.GetPairedResourceStatTags())
+	for (const FPairedResourceStatTag& Pair : ResourcesToFill)
 	{
-		if (!Pair.IsValid())
-		{
-			continue;
-		}
-		CurrentResourceTags.Add(Pair.CurrentStatTag);
-		if (InitialValues.Contains(Pair.CurrentStatTag))
-		{
-			continue;
-		}
 		FGameplayAttribute MaxAttribute;
 		FGameplayAttribute CurrentAttribute;
 		if (!UBasicAttributeSet::ResolveAttributeFromStatTag(Pair.MaxStatTag, MaxAttribute) || !UBasicAttributeSet::ResolveAttributeFromStatTag(Pair.CurrentStatTag, CurrentAttribute)
@@ -257,43 +140,40 @@ bool UPdAbilitySystemComponent::ApplyConfiguredAttributeDefaults(const UStatUpgr
 		PairedResources.Emplace(MaxAttribute, CurrentAttribute);
 	}
 
-	// 4. 변경 전에 모든 태그와 값을 검증한다. 최대값을 먼저 설정해 현재 자원이 이전 최대값으로 잘리지 않게 한다.
-	OrderedTags.StableSort([&CurrentResourceTags](FGameplayTag Left, FGameplayTag Right) {
-		return !CurrentResourceTags.Contains(Left) && CurrentResourceTags.Contains(Right);
-	});
 	TArray<TPair<FGameplayAttribute, float>> ResolvedDefaults;
-	// BasicAttributeSet의 고정 태그 연결을 조회한다.
-	for (FGameplayTag Tag : OrderedTags)
+	for (const TPair<FGameplayTag, float>& Entry : InitialValues)
 	{
 		FGameplayAttribute Attribute;
-		const float Value = InitialValues.FindChecked(Tag);
-		if (!FMath::IsFinite(Value) || !UBasicAttributeSet::ResolveAttributeFromStatTag(Tag, Attribute) || !HasAttributeSetForAttribute(Attribute))
+		if (!UBasicAttributeSet::ResolveAttributeFromStatTag(Entry.Key, Attribute) || !HasAttributeSetForAttribute(Attribute))
 		{
 			return false;
 		}
-		ResolvedDefaults.Emplace(Attribute, Value);
-	}
-	if (ResolvedDefaults.IsEmpty())
-	{
-		return false;
+		ResolvedDefaults.Emplace(Attribute, Entry.Value);
 	}
 
-	// 5. 검증한 기본값을 GAS에 적용한다.
+	// 정의가 계산한 순서대로 최대값을 먼저 적용하고 현재 자원을 나중에 설정한다.
 	for (const TPair<FGameplayAttribute, float>& Entry : ResolvedDefaults)
 	{
-		if (!ApplyAttributeDefaultValue(Entry.Key, Entry.Value))
-		{
-			return false;
-		}
+		SetNumericAttributeBase(Entry.Key, Entry.Value);
 	}
+	bool bAllResourcesFilled = true;
 	for (const TPair<FGameplayAttribute, FGameplayAttribute>& Pair : PairedResources)
 	{
-		if (!ApplyAttributeDefaultValue(Pair.Value, GetNumericAttribute(Pair.Key)))
+		// 장비·버프와 클램프까지 반영된 실제 최대값으로 채운다.
+		const float MaxValue = GetNumericAttribute(Pair.Key);
+		if (!FMath::IsFinite(MaxValue))
 		{
-			return false;
+			bAllResourcesFilled = false;
+			break;
 		}
+		SetNumericAttributeBase(Pair.Value, MaxValue);
 	}
-	return true;
+	// 초기화 중 변경된 값은 한 번만 복제 갱신을 요청한다.
+	if (AActor* OwningActor = GetOwner())
+	{
+		OwningActor->ForceNetUpdate();
+	}
+	return bAllResourcesFilled;
 }
 
 // 서버에서 값을 검증해 GAS 기본값을 변경한다. Dirty 표시는 엔진에 맡기고 복제 갱신을 요청한다.
@@ -574,7 +454,6 @@ void UPdAbilitySystemComponent::ReadyForReplication()
 void UPdAbilitySystemComponent::NotifyPandoraSourceReplicated(UPandoraSkillSource* Source)
 {
 	RegisterPandoraSkillSource(Source);
-	LinkPendingCooldownEffects();
 	ActivateAbilitiesWithReadySources();
 	OnAbilitiesChangedNative.Broadcast();
 }
@@ -629,14 +508,7 @@ void UPdAbilitySystemComponent::ActivateAbilitiesWithReadySources()
 void UPdAbilitySystemComponent::ClientEndAbility_Implementation(
 	FGameplayAbilitySpecHandle Handle, FGameplayAbilityActivationInfo ActivationInfo)
 {
-	const int32 RemovedCount = ActivationsWaitingForSource.RemoveAll([&](const FPendingAbilityInfo& Pending)
-	{
-		return Pending.Handle == Handle && Pending.PredictionKey == ActivationInfo.GetActivationPredictionKey();
-	});
-	if (RemovedCount > 0)
-	{
-		AbilityGrantAndInputManager->ClearAbilityInput(Handle);
-	}
+	ClearPendingActivation(Handle, ActivationInfo.GetActivationPredictionKey());
 	Super::ClientEndAbility_Implementation(Handle, ActivationInfo);
 }
 
@@ -644,15 +516,21 @@ void UPdAbilitySystemComponent::ClientEndAbility_Implementation(
 void UPdAbilitySystemComponent::ClientCancelAbility_Implementation(
 	FGameplayAbilitySpecHandle Handle, FGameplayAbilityActivationInfo ActivationInfo)
 {
+	ClearPendingActivation(Handle, ActivationInfo.GetActivationPredictionKey());
+	Super::ClientCancelAbility_Implementation(Handle, ActivationInfo);
+}
+
+void UPdAbilitySystemComponent::ClearPendingActivation(
+	FGameplayAbilitySpecHandle Handle, const FPredictionKey& PredictionKey)
+{
 	const int32 RemovedCount = ActivationsWaitingForSource.RemoveAll([&](const FPendingAbilityInfo& Pending)
 	{
-		return Pending.Handle == Handle && Pending.PredictionKey == ActivationInfo.GetActivationPredictionKey();
+		return Pending.Handle == Handle && Pending.PredictionKey == PredictionKey;
 	});
 	if (RemovedCount > 0)
 	{
 		AbilityGrantAndInputManager->ClearAbilityInput(Handle);
 	}
-	Super::ClientCancelAbility_Implementation(Handle, ActivationInfo);
 }
 
 void UPdAbilitySystemComponent::RegisterPandoraSkillSource(UObject* SourceObject)

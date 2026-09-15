@@ -2,7 +2,7 @@
 
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Engine/World.h"
+#include "Common/LabGameplayTags.h"
 #include "GameplayEffect.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -50,22 +50,28 @@ void UPandoraSkillSource::GetCooldownTimeRemainingAndDuration(float& OutRemainin
 	OutDuration = 0.0f;
 
 	const UAbilitySystemComponent* ASC = GetTypedOuter<UAbilitySystemComponent>();
-	const UWorld* World = ASC ? ASC->GetWorld() : nullptr;
-	if (!World)
+	if (!ASC || !ASC->GetWorld())
 	{
 		return;
 	}
 
-	const FActiveGameplayEffect* Effect = ASC->GetActiveGameplayEffect(CooldownEffectHandle);
-	if (!Effect || Effect->IsPendingRemove)
+	// 선택 변경 후에도 같은 출처를 유지하므로, 현재 슬롯 대신 이 객체로 효과를 구분한다.
+	FGameplayEffectQuery Query;
+	Query.EffectSource = this;
+	// 기존 추가 알림과 동일하게, Cooldown을 부여하는 효과만 조회한다.
+	Query.CustomMatchDelegate.BindLambda([](const FActiveGameplayEffect& Effect)
 	{
-		return;
-	}
-	const float Remaining = Effect->GetTimeRemaining(World->GetTimeSeconds());
-	if (Remaining > 0.0f)
+		FGameplayTagContainer GrantedTags;
+		Effect.Spec.GetAllGrantedTags(GrantedTags);
+		return GrantedTags.HasTag(LabGameplayTags::Cooldown);
+	});
+	for (const TPair<float, float>& Time : ASC->GetActiveEffectsTimeRemainingAndDuration(Query))
 	{
-		OutRemaining = Remaining;
-		OutDuration = Effect->GetDuration();
+		if (Time.Key > OutRemaining)
+		{
+			OutRemaining = Time.Key;
+			OutDuration = Time.Value;
+		}
 	}
 }
 
@@ -86,22 +92,5 @@ void UPandoraSkillSource::OnRep_Source()
 	if (UPdAbilitySystemComponent* ASC = GetTypedOuter<UPdAbilitySystemComponent>())
 	{
 		ASC->NotifyPandoraSourceReplicated(this);
-	}
-}
-
-void UPandoraSkillSource::SetCooldownEffectHandle(const FActiveGameplayEffectHandle EffectHandle)
-{
-	if (EffectHandle.IsValid())
-	{
-		CooldownEffectHandle = EffectHandle;
-	}
-}
-
-void UPandoraSkillSource::ClearCooldownEffectHandle(const FActiveGameplayEffectHandle EffectHandle)
-{
-	// 이전 효과의 제거 알림이 나중에 도착해도 새 쿨다운 핸들은 유지한다.
-	if (CooldownEffectHandle == EffectHandle)
-	{
-		CooldownEffectHandle.Invalidate();
 	}
 }

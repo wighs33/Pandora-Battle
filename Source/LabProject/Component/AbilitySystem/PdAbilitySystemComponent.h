@@ -32,7 +32,6 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Engine Callbacks
 	virtual void ReadyForReplication() override;
-	virtual void PostNetReceive() override;
 	virtual void OnGiveAbility(FGameplayAbilitySpec& AbilitySpec) override;
 	virtual void NotifyAbilityActivated(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability) override;
 	virtual void OnRemoveAbility(FGameplayAbilitySpec& AbilitySpec) override;
@@ -87,17 +86,10 @@ protected:
 	virtual void ClientCancelAbility_Implementation(FGameplayAbilitySpecHandle Handle, FGameplayAbilityActivationInfo ActivationInfo) override;
 
 private:
-	// OnActiveGameplayEffectAddedDelegateToSelf를 통해 GE 추가 알림 받음
-	void OnCooldownEffectAdded(UAbilitySystemComponent* TargetASC, const FGameplayEffectSpec& Spec,
-		FActiveGameplayEffectHandle EffectHandle);
-
-	// OnAnyGameplayEffectRemovedDelegate를 통해 GE 종료 알림 받음
-	void OnCooldownEffectRemoved(const FActiveGameplayEffect& Effect);
-	void LinkPendingCooldownEffects();
-
 	void RegisterPandoraSkillSource(UObject* SourceObject);
 	void ReleasePandoraSkillSourceIfUnused(UPandoraSkillSource* SkillSource, FGameplayAbilitySpecHandle RemovedHandle);
 	void ActivateAbilitiesWithReadySources();
+	void ClearPendingActivation(FGameplayAbilitySpecHandle Handle, const FPredictionKey& PredictionKey);
 	void CancelActiveAbilitiesForDeath();
 	int32 RemoveRuntimeEffects(const FGameplayTagContainer& EffectTags, const FGameplayTagContainer& OwnedTags,
 		const FGameplayTagContainer& LooseTags, const FGameplayTagContainer& GameplayCues);
@@ -109,7 +101,6 @@ private:
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Abilities")
 	TObjectPtr<UAbilityGrantAndInputManager> AbilityGrantAndInputManager;
 
-	// 클라이언트에서 효과의 출처 객체가 아직 복제되지 않은 경우에만 연결을 보류한다.
-	TArray<FActiveGameplayEffectHandle> PendingCooldownEffects;
+	// 서버의 활성화 통지가 스킬 출처보다 먼저 도착한 경우에만 실행을 보류한다.
 	TArray<FPendingAbilityInfo> ActivationsWaitingForSource;
 };

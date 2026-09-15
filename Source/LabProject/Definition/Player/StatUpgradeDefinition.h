@@ -106,6 +106,12 @@ public:
 	const TArray<FStatUpgradeRule>& GetUpgradeRules() const { return UpgradeRules; }
 	const TArray<FPairedResourceStatTag>& GetPairedResourceStatTags() const { return PairedResourceStatTags; }
 	const TArray<FStatAttributeDefaultValue>& GetAttributeDefaultValues() const { return AttributeDefaultValues; }
+
+	// 기본값과 시작 투자분을 계산해 현재 자원이 마지막에 오도록 반환한다.
+	// 별도 초기값이 없는 자원은 ASC가 실제 최대값으로 채우도록 따로 반환한다. 실패 시 출력은 비운다.
+	bool CalculateInitialAttributeValues(TArray<TPair<FGameplayTag, float>>& OutValues,
+		TArray<FPairedResourceStatTag>& OutResourcesToFill) const;
+
 	float GetMaxInvestedLevel() const;
 	const FStatUpgradeRule* FindUpgradeRuleForStat(const FGameplayTag& StatTag) const;
 	bool TryGetAttributeValuePerUpgrade(const FGameplayTag& StatTag, float& OutValue) const;

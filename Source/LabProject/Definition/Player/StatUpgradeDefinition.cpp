@@ -158,6 +158,98 @@ const FStatUpgradeRule* UStatUpgradeDefinition::FindUpgradeRuleForStat(const FGa
 	return StatTag.IsValid() ? FindMatchingUpgradeRule(UpgradeRules, StatTag) : nullptr;
 }
 
+bool UStatUpgradeDefinition::CalculateInitialAttributeValues(TArray<TPair<FGameplayTag, float>>& OutValues,
+	TArray<FPairedResourceStatTag>& OutResourcesToFill) const
+{
+	OutValues.Reset();
+	OutResourcesToFill.Reset();
+
+	// 같은 태그는 우선순위가 뒤인 값으로 덮어쓰고, 처음 등장한 순서는 유지한다.
+	TArray<FStatAttributeDefaultValue> OrderedDefaults = AttributeDefaultValues;
+	OrderedDefaults.StableSort(
+		[](const FStatAttributeDefaultValue& Left, const FStatAttributeDefaultValue& Right) { return Left.Priority < Right.Priority; });
+	TMap<FGameplayTag, float> InitialValues;
+	TArray<FGameplayTag> OrderedTags;
+	for (const FStatAttributeDefaultValue& Entry : OrderedDefaults)
+	{
+		if (Entry.IsValid())
+		{
+			InitialValues.Add(Entry.StatTag, Entry.DefaultValue);
+			OrderedTags.AddUnique(Entry.StatTag);
+		}
+	}
+	if (OrderedTags.IsEmpty())
+	{
+		return false;
+	}
+
+	// 시작 투자분도 투자·환불과 같은 공식을 사용한다.
+	TSet<FGameplayTag> CurrentResourceTags;
+	for (const FStatUpgradeBinding& Binding : GetStatBindings())
+	{
+		if (Binding.IsMaxResource())
+		{
+			CurrentResourceTags.Add(Binding.CurrentResourceTag);
+		}
+		const float* ConfiguredLevel = InitialValues.Find(Binding.LevelTag);
+		if (!Binding.bCompounded || !ConfiguredLevel || *ConfiguredLevel == 0.f)
+		{
+			continue;
+		}
+		float Magnitude = 0.f;
+		if (!FMath::IsFinite(*ConfiguredLevel) || *ConfiguredLevel < 0.f
+			|| *ConfiguredLevel > FMath::FloorToFloat(GetMaxInvestedLevel())
+			|| !TryGetUpgradeMagnitude(Binding, Magnitude))
+		{
+			return false;
+		}
+		const float Investment = CalculateInvestmentValue(Magnitude, *ConfiguredLevel, true);
+		InitialValues.FindOrAdd(Binding.GetEffectTag()) += Investment;
+		OrderedTags.AddUnique(Binding.GetEffectTag());
+		if (Binding.IsMaxResource())
+		{
+			float BaseValue = 0.f;
+			if (!TryGetResourceBaseValue(Binding, BaseValue))
+			{
+				return false;
+			}
+			InitialValues.Add(Binding.StatTag, BaseValue * (1.f + Investment * 0.01f));
+			OrderedTags.AddUnique(Binding.StatTag);
+		}
+	}
+
+	TArray<FPairedResourceStatTag> ResourcesToFill;
+	for (const FPairedResourceStatTag& Pair : PairedResourceStatTags)
+	{
+		if (!Pair.IsValid())
+		{
+			continue;
+		}
+		CurrentResourceTags.Add(Pair.CurrentStatTag);
+		if (!InitialValues.Contains(Pair.CurrentStatTag))
+		{
+			ResourcesToFill.Add(Pair);
+		}
+	}
+	OrderedTags.StableSort([&CurrentResourceTags](FGameplayTag Left, FGameplayTag Right) {
+		return !CurrentResourceTags.Contains(Left) && CurrentResourceTags.Contains(Right);
+	});
+
+	TArray<TPair<FGameplayTag, float>> Values;
+	for (FGameplayTag Tag : OrderedTags)
+	{
+		const float Value = InitialValues.FindChecked(Tag);
+		if (!FMath::IsFinite(Value))
+		{
+			return false;
+		}
+		Values.Emplace(Tag, Value);
+	}
+	OutValues = MoveTemp(Values);
+	OutResourcesToFill = MoveTemp(ResourcesToFill);
+	return true;
+}
+
 float UStatUpgradeDefinition::GetMaxInvestedLevel() const
 {
 	return FMath::IsFinite(MaxInvestedLevel) ? FMath::Clamp(MaxInvestedLevel, 0.f, MaxSupportedInvestedLevel) : 0.f;
