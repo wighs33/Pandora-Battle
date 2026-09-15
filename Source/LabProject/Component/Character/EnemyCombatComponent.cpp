@@ -578,96 +578,21 @@ bool UEnemyCombatComponent::ApplyDefaultStatDefinition()
 	AEnemyBase* Enemy = GetEnemyOwner();
 	UPdAbilitySystemComponent* AbilitySystemComponent =
 		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
-	if (!Enemy
-		|| !Enemy->HasAuthority()
-		|| !AbilitySystemComponent
-		|| bDefaultStatDefinitionApplied
-		|| Settings.DefaultStatDefinition.IsNull())
+	const UStatUpgradeDefinition* StatDefinition = Settings.DefaultStatDefinition.Get();
+	if (!Enemy || !Enemy->HasAuthority() || !AbilitySystemComponent
+		|| bDefaultStatDefinitionApplied || !StatDefinition)
 	{
 		return false;
 	}
 
-	const UStatUpgradeDefinition* LoadedStatDefinition =
-		Settings.DefaultStatDefinition.Get();
-	if (!LoadedStatDefinition
-		|| LoadedStatDefinition->GetAttributeDefaultValues().IsEmpty())
+	// 플레이어와 같은 초기화 규칙을 사용하며, 적용에 성공한 뒤에만 완료로 표시한다.
+	if (!AbilitySystemComponent->ApplyConfiguredAttributeDefaults(*StatDefinition))
 	{
 		return false;
 	}
-
-	TArray<FStatAttributeDefaultValue> OrderedDefaults =
-		LoadedStatDefinition->GetAttributeDefaultValues();
-	OrderedDefaults.StableSort(
-		[](const FStatAttributeDefaultValue& Left,
-			const FStatAttributeDefaultValue& Right)
-		{
-			return Left.Priority < Right.Priority;
-		});
-
-	bool bAppliedAny = false;
-	for (const FStatAttributeDefaultValue& AttributeDefault : OrderedDefaults)
-	{
-		if (!AttributeDefault.IsValid())
-		{
-			continue;
-		}
-
-		FGameplayAttribute Attribute;
-		if (UBasicAttributeSet::ResolveAttributeFromStatTag(
-				AttributeDefault.StatTag,
-				Attribute))
-		{
-			bAppliedAny |= AbilitySystemComponent->ApplyAttributeDefaultValue(
-				Attribute,
-				AttributeDefault.DefaultValue);
-		}
-	}
-
-	for (const FPairedResourceStatTag& Pair :
-		LoadedStatDefinition->GetPairedResourceStatTags())
-	{
-		if (!Pair.IsValid())
-		{
-			continue;
-		}
-
-		float ExplicitCurrentDefault = 0.0f;
-		if (LoadedStatDefinition->TryGetExactAttributeDefaultValue(
-				Pair.CurrentStatTag,
-				ExplicitCurrentDefault))
-		{
-			continue;
-		}
-
-		FGameplayAttribute MaxAttribute;
-		FGameplayAttribute CurrentAttribute;
-		if (!UBasicAttributeSet::ResolveAttributeFromStatTag(
-				Pair.MaxStatTag,
-				MaxAttribute)
-			|| !UBasicAttributeSet::ResolveAttributeFromStatTag(
-				Pair.CurrentStatTag,
-				CurrentAttribute))
-		{
-			continue;
-		}
-
-		const float MaxValue =
-			AbilitySystemComponent->GetNumericAttribute(MaxAttribute);
-		if (MaxValue > UE_KINDA_SMALL_NUMBER)
-		{
-			bAppliedAny |= AbilitySystemComponent->ApplyAttributeDefaultValue(
-				CurrentAttribute,
-				MaxValue);
-		}
-	}
-
 	bDefaultStatDefinitionApplied = true;
-	if (bAppliedAny)
-	{
-		Enemy->RefreshHealthBarViewModel();
-	}
-
-	return bAppliedAny;
+	Enemy->RefreshHealthBarViewModel();
+	return true;
 }
 
 bool UEnemyCombatComponent::EquipStartingWeapon()

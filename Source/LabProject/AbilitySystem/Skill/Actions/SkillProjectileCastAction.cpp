@@ -47,12 +47,6 @@ USkillProjectileCastAction::USkillProjectileCastAction()
 
 void USkillProjectileCastAction::OnStart()
 {
-	const auto Handle = GetAbility()->GetCurrentAbilitySpecHandle();
-	const auto* ActorInfo = GetAbility()->GetCurrentActorInfo();
-	const auto ActivationInfo = GetAbility()->GetCurrentActivationInfo();
-	const auto* TriggerEventData = &GetContext().EventData;
-	static_cast<void>(TriggerEventData);
-
 	bEndAfterProjectileFired = false;
 	bPausedForPlayerAim = false;
 	bPlayerProjectileConfirmed = false;
@@ -62,17 +56,15 @@ void USkillProjectileCastAction::OnStart()
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
-
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
-	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = GetConfiguredProjectileClass();
+	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = Settings.ProjectileActorClass;
 	const float ConfiguredProjectileSpeed = GetConfiguredProjectileSpeed();
 	if (!ConfiguredProjectileClass || ConfiguredProjectileSpeed <= 0.0f)
 	{
-
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 	BeginConfirmedShot();
@@ -177,7 +169,7 @@ void USkillProjectileCastAction::StartPlayerAiming()
 		ConfirmCancelTask = nullptr;
 	}
 
-	if (ShouldUseGroundTargeting())
+	if (Settings.bUseGroundTargeting)
 	{
 		WaitForPlayerTargetData();
 		return;
@@ -208,7 +200,7 @@ void USkillProjectileCastAction::BeginConfirmedShot()
 
 	if (!GetAbility()->CommitSkill())
 	{
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
@@ -283,11 +275,11 @@ void USkillProjectileCastAction::ConfirmPlayerShot()
 		bEndAfterProjectileFired = true;
 	}
 
-	if (ShouldUseGroundTargeting())
+	if (Settings.bUseGroundTargeting)
 	{
 		WaitForPlayerTargetData();
 	}
-	else if (GetConfiguredTargetTraceProfile().Name == TEXT("NoCollision"))
+	else if (Settings.TargetTraceProfile.Name == TEXT("NoCollision"))
 	{
 		if (ExecuteProjectileShot(ResolveDefaultTargetLocation())
 			&& bEndAfterProjectileFired
@@ -363,7 +355,7 @@ void USkillProjectileCastAction::ExecuteFallbackProjectileShot()
 
 void USkillProjectileCastAction::HandleTargetDataValid(const FGameplayAbilityTargetDataHandle& Data)
 {
-	const bool bUsingGroundTargeting = ShouldUseGroundTargeting();
+	const bool bUsingGroundTargeting = Settings.bUseGroundTargeting;
 	if (bUsingGroundTargeting && bWaitingForPlayerConfirm)
 	{
 		// Receiving valid UserConfirmed target data is the explicit fire input.
@@ -472,7 +464,7 @@ bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(
 		ValidationParams.MaxRange = GetConfiguredGroundTargetingMaxRange();
 		ValidationParams.GroundTraceStartHeight = GetConfiguredGroundTargetingTraceStartHeight();
 		ValidationParams.GroundTraceDepth = GetConfiguredGroundTargetingTraceDepth();
-		ValidationParams.LineOfSightProfileName = GetConfiguredGroundTargetingTraceProfile().Name;
+		ValidationParams.LineOfSightProfileName = Settings.GroundTargetingTraceProfile.Name;
 
 		PdTargetValidator::FValidatedGroundTarget ValidatedTarget;
 		if (!PdTargetValidator::ValidateGroundTarget(
@@ -496,7 +488,7 @@ bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(
 
 	PdTargetValidator::FPointTargetValidationParams ValidationParams;
 	ValidationParams.MaxRange = GetConfiguredTargetTraceMaxRange();
-	ValidationParams.LineOfSightProfileName = GetConfiguredTargetTraceProfile().Name;
+	ValidationParams.LineOfSightProfileName = Settings.TargetTraceProfile.Name;
 
 	PdTargetValidator::FValidatedPointTarget ValidatedTarget;
 	if (!PdTargetValidator::ValidatePointTarget(
@@ -575,7 +567,7 @@ void USkillProjectileCastAction::StartShootProjectileEventTask()
 
 void USkillProjectileCastAction::WaitForPlayerTargetData()
 {
-	const bool bUsingGroundTargeting = ShouldUseGroundTargeting();
+	const bool bUsingGroundTargeting = Settings.bUseGroundTargeting;
 	const TSubclassOf<AGameplayAbilityTargetActor> TargetActorClass = bUsingGroundTargeting
 		? GetConfiguredGroundTargetActorClass()
 		: TSubclassOf<AGameplayAbilityTargetActor>(AGameplayAbilityTargetActor_SingleLineTrace::StaticClass());
@@ -593,8 +585,8 @@ void USkillProjectileCastAction::WaitForPlayerTargetData()
 	}
 
 	const FCollisionProfileName ConfiguredTargetTraceProfile = bUsingGroundTargeting
-		? GetConfiguredGroundTargetingTraceProfile()
-		: GetConfiguredTargetTraceProfile();
+		? Settings.GroundTargetingTraceProfile
+		: Settings.TargetTraceProfile;
 
 	if (TargetDataTask)
 	{
@@ -634,8 +626,8 @@ void USkillProjectileCastAction::WaitForPlayerTargetData()
 			TraceActor->MaxRange = bUsingGroundTargeting ? GetConfiguredGroundTargetingMaxRange() : GetConfiguredTargetTraceMaxRange();
 			TraceActor->TraceProfile = ConfiguredTargetTraceProfile;
 			TraceActor->bTraceAffectsAimPitch = bUsingGroundTargeting
-				? GetConfiguredGroundTargetingTraceAffectsAimPitch()
-				: GetConfiguredTraceAffectsAimPitch();
+				? Settings.bGroundTargetingTraceAffectsAimPitch
+				: Settings.bTraceAffectsAimPitch;
 		}
 
 		if (AGameplayAbilityTargetActor_GroundTrace* GroundTraceActor = Cast<AGameplayAbilityTargetActor_GroundTrace>(SpawnedActor))
@@ -649,9 +641,9 @@ void USkillProjectileCastAction::WaitForPlayerTargetData()
 			DecalTargetActor->ConfigureGroundProjection(
 				GetConfiguredGroundTargetingTraceStartHeight(),
 				GetConfiguredGroundTargetingTraceDepth());
-			DecalTargetActor->Decal = GetConfiguredGroundTargetingDecal();
+			DecalTargetActor->Decal = Settings.TargetDecal.Get();
 			DecalTargetActor->DecalSize = GetConfiguredGroundTargetingDecalSize();
-			DecalTargetActor->DecalColor = GetConfiguredGroundTargetingDecalColor();
+			DecalTargetActor->DecalColor = Settings.TargetDecalColor;
 
 			float DecalStartSize = 0.0f;
 			float DecalTargetSize = 0.0f;
@@ -721,7 +713,7 @@ bool USkillProjectileCastAction::TryResolveProjectileAimTargetLocation(FVector& 
 	}
 
 	const FVector ViewTraceEnd = ViewTraceStart + (AimDirection * ConfiguredTargetTraceMaxRange);
-	const FCollisionProfileName ConfiguredTargetTraceProfile = GetConfiguredTargetTraceProfile();
+	const FCollisionProfileName ConfiguredTargetTraceProfile = Settings.TargetTraceProfile;
 	if (ConfiguredTargetTraceProfile.Name == TEXT("NoCollision"))
 	{
 		OutTargetLocation = ViewTraceEnd;
@@ -783,8 +775,7 @@ FGameplayEffectSpecHandle USkillProjectileCastAction::MakeDamageEffectSpec(const
 		return FGameplayEffectSpecHandle();
 	}
 
-	const float ScaledDamage = GetAbility()->CalculateBaseSkillDamageMagnitude(DamageConfig);
-	const float FullDamage = GetAbility()->ApplyIntelligenceToSkillDamage(ScaledDamage);
+	const float FullDamage = GetAbility()->CalculateSkillDamageMagnitude(DamageConfig);
 	const float ClampedChargeDamageAlpha = FMath::Clamp(ChargeDamageAlpha, 0.0f, 1.0f);
 	const float CalculatedDamage = FullDamage * ClampedChargeDamageAlpha;
 	return GetAbility()->MakeConfiguredDamageEffectSpec(DamageConfig, CalculatedDamage);

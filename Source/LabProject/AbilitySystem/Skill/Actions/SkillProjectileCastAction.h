@@ -95,66 +95,42 @@ private:
 	FVector ResolveDefaultTargetLocation() const;
 	FGameplayEffectSpecHandle MakeDamageEffectSpec(float ChargeDamageAlpha = 1.0f) const;
 	FGameplayEffectSpecHandle MakeStatusEffectSpec() const;
+
+	// 스킬 공통 데이터와 액션 설정의 우선순위·값 보정
 	UAnimMontage* GetConfiguredShootMontage() const;
-	TSubclassOf<AProjectileBase> GetConfiguredProjectileClass() const;
-	TSubclassOf<UGameplayEffect> GetConfiguredDamageEffectClass() const;
 	UStatusEffectDefinition* GetConfiguredStatusEffectDataAsset() const;
 	TSubclassOf<UGameplayEffect> GetConfiguredStatusEffectClass() const;
 	float GetConfiguredStatusEffectLevel() const;
-	float GetConfiguredStatusEffectDuration() const;
 	float GetConfiguredProjectileSpeed() const;
 	float GetConfiguredProjectileRadius() const;
-	bool ShouldUseConfiguredProjectileArcTrajectory() const;
 	float GetConfiguredProjectileArcHeight() const;
 	float GetConfiguredProjectileArcGravityScale() const;
-	FGameplayTag GetConfiguredDamageDataTag() const;
 	FGameplayTag GetConfiguredShootProjectileEventTag() const;
 	bool IsConfiguredImmediateFireMode() const;
 	TArray<FName> GetConfiguredProjectileSocketNames() const;
 	float GetConfiguredProjectileSocketFireInterval() const;
-	void GetConfiguredProjectileVisuals(
-		UNiagaraSystem*& OutMuzzleFX,
-		UNiagaraSystem*& OutProjectileFX,
-		UNiagaraSystem*& OutHitFX,
-		bool& bOutSpawnHitNiagaraOnGround,
-		FGameplayTag& OutSpawnGameplayCueTag,
-		FGameplayTag& OutImpactGameplayCueTag) const;
 	void ApplyConfiguredProjectileVisuals(AProjectileBase* Projectile) const;
 	void ApplyConfiguredProjectileTrajectory(AProjectileBase* Projectile) const;
 	void ApplyConfiguredProjectileImpactPersistence(AProjectileBase* Projectile) const;
 	float GetConfiguredTargetTraceMaxRange() const;
-	FCollisionProfileName GetConfiguredTargetTraceProfile() const;
 	float GetConfiguredMinimumTargetDistanceFromSpawn() const;
-	bool GetConfiguredTraceAffectsAimPitch() const;
 	bool GetConfiguredDrawTargetTraceDebug() const;
 	FName GetConfiguredSpawnSocketName() const;
 	FVector GetSpawnLocationForSocket(FName SocketName) const;
-	FVector GetConfiguredSpawnLocationOffset() const;
 	float GetConfiguredMinimumForwardSpawnOffset() const;
 	bool IsConfiguredReadiedProjectileChargeGrowthEnabled() const;
-	FVector GetConfiguredReadiedProjectileStartScale() const;
-	FVector GetConfiguredReadiedProjectileTargetScale() const;
 	float GetConfiguredReadiedProjectileScaleDuration() const;
-	FName GetConfiguredReadiedProjectileNiagaraVector2DParameterName() const;
-	FVector2D GetConfiguredReadiedProjectileNiagaraStartSize() const;
-	FVector2D GetConfiguredReadiedProjectileNiagaraTargetSize() const;
 	void ApplyConfiguredStatusEffect(AProjectileBase* Projectile) const;
 	void ApplyReadiedProjectileScaleGrowth(AProjectileBase* Projectile) const;
-	bool ShouldUseGroundTargeting() const;
 	TSubclassOf<AGameplayAbilityTargetActor> GetConfiguredGroundTargetActorClass() const;
 	float GetConfiguredGroundTargetingMaxRange() const;
-	FCollisionProfileName GetConfiguredGroundTargetingTraceProfile() const;
 	float GetConfiguredGroundTargetingTraceStartHeight() const;
 	float GetConfiguredGroundTargetingTraceDepth() const;
 	float GetConfiguredGroundTargetingCollisionRadius() const;
 	float GetConfiguredGroundTargetingCollisionHeight() const;
-	bool GetConfiguredGroundTargetingTraceAffectsAimPitch() const;
 	bool GetConfiguredDrawGroundTargetingDebug() const;
-	UMaterialInterface* GetConfiguredGroundTargetingDecal() const;
 	float GetConfiguredGroundTargetingDecalSize() const;
 	float GetConfiguredGroundTargetingDecalFinalSize() const;
-	bool ShouldGrowConfiguredGroundTargetingDecal() const;
-	FLinearColor GetConfiguredGroundTargetingDecalColor() const;
 	float CalculateConfiguredImpactAreaDamageRadius(float ChargeDamageAlpha) const;
 	bool TryBuildGroundTargetingDecalGrowth(float& OutStartSize, float& OutTargetSize, float& OutDuration) const;
 	void PauseProjectileMontageForAiming();

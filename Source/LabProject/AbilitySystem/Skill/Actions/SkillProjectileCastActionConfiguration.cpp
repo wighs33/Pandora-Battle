@@ -1,66 +1,18 @@
 #include "AbilitySystem/Skill/Actions/SkillProjectileCastAction.h"
 
-#include "Abilities/GameplayAbilityTargetActor_SingleLineTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
-#include "Abilities/GameplayAbilityTargetActor_Trace.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
-#include "Abilities/Tasks/AbilityTask_WaitConfirmCancel.h"
-#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
-#include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
-#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "AbilitySystem/Projectiles/ProjectileBase.h"
-#include "Definition/AbilitySystem/SkillProjectileSettings.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
-#include "AbilitySystem/TargetValidator.h"
 #include "AbilitySystem/TargetingActors/TargetActor_GroundTrace_Decal.h"
-#include "AbilitySystemBlueprintLibrary.h"
-#include "Character/CharacterBase.h"
-#include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Engine/World.h"
-#include "GameFramework/Controller.h"
-#include "GameFramework/Pawn.h"
-#include "GameplayEffect.h"
-#include "Kismet/GameplayStatics.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Materials/MaterialInterface.h"
 #include "NiagaraSystem.h"
 
-namespace
-{
-FName GetFirstConfiguredProjectileSocketName(const FSkillProjectileSettings& ProjectileSettings)
-	{
-		for (const FName& SocketName : ProjectileSettings.ProjectileSocketNames)
-		{
-			if (!SocketName.IsNone())
-			{
-				return SocketName;
-			}
-		}
-		return NAME_None;
-	}
-}
-
+// 스킬 공통 데이터와 액션 설정의 우선순위 및 입력값 보정을 처리한다.
 UAnimMontage* USkillProjectileCastAction::GetConfiguredShootMontage() const
 {
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	return SkillDataAsset && SkillDataAsset->Animation.PrimaryMontage
-		? SkillDataAsset->Animation.PrimaryMontage.Get()
-		: nullptr;
-}
-
-TSubclassOf<AProjectileBase> USkillProjectileCastAction::GetConfiguredProjectileClass() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? ProjectileSettings->ProjectileActorClass : nullptr;
-}
-
-TSubclassOf<UGameplayEffect> USkillProjectileCastAction::GetConfiguredDamageEffectClass() const
-{
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	return SkillDataAsset ? SkillDataAsset->GetResolvedDamageConfig().GameplayEffectClass : nullptr;
+	return SkillDataAsset ? SkillDataAsset->Animation.PrimaryMontage.Get() : nullptr;
 }
 
 UStatusEffectDefinition* USkillProjectileCastAction::GetConfiguredStatusEffectDataAsset() const
@@ -78,149 +30,67 @@ TSubclassOf<UGameplayEffect> USkillProjectileCastAction::GetConfiguredStatusEffe
 			return StatusEffectDataAsset->StackGameplayEffectClass;
 		}
 	}
-
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? ProjectileSettings->StatusEffectClass : nullptr;
+	return Settings.StatusEffectClass;
 }
 
 float USkillProjectileCastAction::GetConfiguredStatusEffectLevel() const
 {
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	if (SkillDataAsset && SkillDataAsset->StatusEffectDataAsset)
-	{
-		return FMath::Max(SkillDataAsset->StatusEffectLevel, 1.0f);
-	}
-
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? FMath::Max(ProjectileSettings->StatusEffectLevel, 1.0f) : 1.0f;
-}
-
-float USkillProjectileCastAction::GetConfiguredStatusEffectDuration() const
-{
-	const UStatusEffectDefinition* StatusEffectDataAsset = GetConfiguredStatusEffectDataAsset();
-	return StatusEffectDataAsset ? FMath::Max(StatusEffectDataAsset->StatusDuration, 0.0f) : 0.0f;
+	return FMath::Max(SkillDataAsset && SkillDataAsset->StatusEffectDataAsset
+		? SkillDataAsset->StatusEffectLevel : Settings.StatusEffectLevel, 1.0f);
 }
 
 float USkillProjectileCastAction::GetConfiguredProjectileSpeed() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->ProjectileSpeed, 0.0))
-		: 0.0f;
+	return static_cast<float>(FMath::Max(Settings.ProjectileSpeed, 0.0));
 }
 
 float USkillProjectileCastAction::GetConfiguredProjectileRadius() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->ProjectileRadius, 0.0))
-		: 0.0f;
-}
-
-bool USkillProjectileCastAction::ShouldUseConfiguredProjectileArcTrajectory() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings && ProjectileSettings->bUseArcTrajectory;
+	return static_cast<float>(FMath::Max(Settings.ProjectileRadius, 0.0));
 }
 
 float USkillProjectileCastAction::GetConfiguredProjectileArcHeight() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->ProjectileArcHeight, 0.0))
-		: 0.0f;
+	return static_cast<float>(FMath::Max(Settings.ProjectileArcHeight, 0.0));
 }
 
 float USkillProjectileCastAction::GetConfiguredProjectileArcGravityScale() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->ProjectileArcGravityScale, 0.0))
-		: 1.0f;
-}
-
-FGameplayTag USkillProjectileCastAction::GetConfiguredDamageDataTag() const
-{
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	if (!SkillDataAsset)
-	{
-		return FGameplayTag();
-	}
-
-	return SkillDataAsset->GetResolvedDamageConfig().MagnitudeDataTag;
+	return static_cast<float>(FMath::Max(Settings.ProjectileArcGravityScale, 0.0));
 }
 
 FGameplayTag USkillProjectileCastAction::GetConfiguredShootProjectileEventTag() const
 {
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	if (!ProjectileSettings)
+	if (Settings.FireEventTag.IsValid())
 	{
-		return FGameplayTag();
+		return Settings.FireEventTag;
 	}
-
-	return ProjectileSettings->FireEventTag.IsValid()
-		? ProjectileSettings->FireEventTag
-		: SkillDataAsset->Animation.PrimaryEventTag;
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
+	return SkillDataAsset ? SkillDataAsset->Animation.PrimaryEventTag : FGameplayTag();
 }
 
 bool USkillProjectileCastAction::IsConfiguredImmediateFireMode() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings && ProjectileSettings->FireMode == EProjectileFireMode::Immediate;
+	return Settings.FireMode == EProjectileFireMode::Immediate;
 }
 
 TArray<FName> USkillProjectileCastAction::GetConfiguredProjectileSocketNames() const
 {
 	TArray<FName> SocketNames;
-	if (const FSkillProjectileSettings* ProjectileSettings = &Settings)
+	for (const FName& SocketName : Settings.ProjectileSocketNames)
 	{
-		for (const FName& SocketName : ProjectileSettings->ProjectileSocketNames)
+		if (!SocketName.IsNone())
 		{
-			if (!SocketName.IsNone())
-			{
-				SocketNames.Add(SocketName);
-			}
+			SocketNames.Add(SocketName);
 		}
 	}
-
 	return SocketNames;
 }
 
 float USkillProjectileCastAction::GetConfiguredProjectileSocketFireInterval() const
 {
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	if (const FSkillProjectileSettings* ProjectileSettings = &Settings)
-	{
-		return static_cast<float>(FMath::Max(ProjectileSettings->ProjectileSocketFireInterval, 0.0));
-	}
-
-	return 0.0f;
-}
-
-void USkillProjectileCastAction::GetConfiguredProjectileVisuals(
-	UNiagaraSystem*& OutMuzzleFX,
-	UNiagaraSystem*& OutProjectileFX,
-	UNiagaraSystem*& OutHitFX,
-	bool& bOutSpawnHitNiagaraOnGround,
-	FGameplayTag& OutSpawnGameplayCueTag,
-	FGameplayTag& OutImpactGameplayCueTag) const
-{
-	OutMuzzleFX = nullptr;
-	OutProjectileFX = nullptr;
-	OutHitFX = nullptr;
-	bOutSpawnHitNiagaraOnGround = false;
-	OutSpawnGameplayCueTag = FGameplayTag();
-	OutImpactGameplayCueTag = FGameplayTag();
-
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	if (const FSkillProjectileSettings* ProjectileSettings = &Settings)
-	{
-		OutMuzzleFX = ProjectileSettings->MuzzleNiagaraSystem.Get();
-		OutProjectileFX = ProjectileSettings->ProjectileNiagaraSystem.Get();
-		OutHitFX = ProjectileSettings->HitNiagaraSystem.Get();
-		bOutSpawnHitNiagaraOnGround = ProjectileSettings->bSpawnHitNiagaraOnGround;
-	}
+	return static_cast<float>(FMath::Max(Settings.ProjectileSocketFireInterval, 0.0));
 }
 
 void USkillProjectileCastAction::ApplyConfiguredProjectileVisuals(AProjectileBase* Projectile) const
@@ -229,28 +99,13 @@ void USkillProjectileCastAction::ApplyConfiguredProjectileVisuals(AProjectileBas
 	{
 		return;
 	}
-
-	UNiagaraSystem* MuzzleFX = nullptr;
-	UNiagaraSystem* ProjectileFX = nullptr;
-	UNiagaraSystem* HitFX = nullptr;
-	bool bSpawnHitNiagaraOnGround = false;
-	FGameplayTag SpawnGameplayCueTag;
-	FGameplayTag ImpactGameplayCueTag;
-	GetConfiguredProjectileVisuals(
-		MuzzleFX,
-		ProjectileFX,
-		HitFX,
-		bSpawnHitNiagaraOnGround,
-		SpawnGameplayCueTag,
-		ImpactGameplayCueTag);
-
 	Projectile->ConfigureProjectileVisuals(
-		MuzzleFX,
-		ProjectileFX,
-		HitFX,
-		bSpawnHitNiagaraOnGround,
-		SpawnGameplayCueTag,
-		ImpactGameplayCueTag);
+		Settings.MuzzleNiagaraSystem.Get(),
+		Settings.ProjectileNiagaraSystem.Get(),
+		Settings.HitNiagaraSystem.Get(),
+		Settings.bSpawnHitNiagaraOnGround,
+		FGameplayTag(),
+		FGameplayTag());
 }
 
 void USkillProjectileCastAction::ApplyConfiguredProjectileTrajectory(AProjectileBase* Projectile) const
@@ -261,7 +116,7 @@ void USkillProjectileCastAction::ApplyConfiguredProjectileTrajectory(AProjectile
 	}
 
 	Projectile->ConfigureArcTrajectory(
-		ShouldUseConfiguredProjectileArcTrajectory(),
+		Settings.bUseArcTrajectory,
 		GetConfiguredProjectileArcHeight(),
 		GetConfiguredProjectileArcGravityScale());
 }
@@ -272,122 +127,51 @@ void USkillProjectileCastAction::ApplyConfiguredProjectileImpactPersistence(APro
 	{
 		return;
 	}
-
-	const FSkillProjectileSettings* ProjectileSettings =
-		&Settings;
 	Projectile->ConfigureImpactPersistence(
-		ProjectileSettings && ProjectileSettings->bStickOnImpact,
-		ProjectileSettings
-			? static_cast<float>(FMath::Max(ProjectileSettings->PostImpactLifeSpan, 0.0))
-			: 0.0f);
+		Settings.bStickOnImpact,
+		static_cast<float>(FMath::Max(Settings.PostImpactLifeSpan, 0.0)));
 }
 
 float USkillProjectileCastAction::GetConfiguredTargetTraceMaxRange() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->TargetTraceMaxRange, 0.0))
-		: 0.0f;
-}
-
-FCollisionProfileName USkillProjectileCastAction::GetConfiguredTargetTraceProfile() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? ProjectileSettings->TargetTraceProfile
-		: FCollisionProfileName(TEXT("NoCollision"));
+	return static_cast<float>(FMath::Max(Settings.TargetTraceMaxRange, 0.0));
 }
 
 float USkillProjectileCastAction::GetConfiguredMinimumTargetDistanceFromSpawn() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->MinimumTargetDistanceFromSpawn, 0.0))
-		: 0.0f;
-}
-
-bool USkillProjectileCastAction::GetConfiguredTraceAffectsAimPitch() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings && ProjectileSettings->bTraceAffectsAimPitch;
+	return static_cast<float>(FMath::Max(Settings.MinimumTargetDistanceFromSpawn, 0.0));
 }
 
 bool USkillProjectileCastAction::GetConfiguredDrawTargetTraceDebug() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return LabSkillDebug::IsDrawingEnabled()
-		&& ProjectileSettings
-		&& ProjectileSettings->bDrawTargetTraceDebug;
+	return LabSkillDebug::IsDrawingEnabled() && Settings.bDrawTargetTraceDebug;
 }
 
 FName USkillProjectileCastAction::GetConfiguredSpawnSocketName() const
 {
-	if (const FSkillProjectileSettings* ProjectileSettings = &Settings)
+	for (const FName& SocketName : Settings.ProjectileSocketNames)
 	{
-		return GetFirstConfiguredProjectileSocketName(*ProjectileSettings);
+		if (!SocketName.IsNone())
+		{
+			return SocketName;
+		}
 	}
-
 	return NAME_None;
-}
-
-FVector USkillProjectileCastAction::GetConfiguredSpawnLocationOffset() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? ProjectileSettings->SpawnLocationOffset : FVector::ZeroVector;
 }
 
 float USkillProjectileCastAction::GetConfiguredMinimumForwardSpawnOffset() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->MinimumForwardSpawnOffset, 0.0))
-		: 0.0f;
+	return static_cast<float>(FMath::Max(Settings.MinimumForwardSpawnOffset, 0.0));
 }
 
 bool USkillProjectileCastAction::IsConfiguredReadiedProjectileChargeGrowthEnabled() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		&& (ProjectileSettings->bGrowProjectileSize
-			|| ProjectileSettings->FireMode == EProjectileFireMode::HoldThenConfirm);
-}
-
-FVector USkillProjectileCastAction::GetConfiguredReadiedProjectileStartScale() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? ProjectileSettings->ProjectileStartScale : FVector::OneVector;
-}
-
-FVector USkillProjectileCastAction::GetConfiguredReadiedProjectileTargetScale() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? ProjectileSettings->ProjectileFinalScale : FVector::OneVector;
+	return Settings.bGrowProjectileSize || Settings.FireMode == EProjectileFireMode::HoldThenConfirm;
 }
 
 float USkillProjectileCastAction::GetConfiguredReadiedProjectileScaleDuration() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->ProjectileScaleDuration, 0.0))
-		: 0.0f;
-}
-
-FName USkillProjectileCastAction::GetConfiguredReadiedProjectileNiagaraVector2DParameterName() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? ProjectileSettings->GrowthUserParameterName : NAME_None;
-}
-
-FVector2D USkillProjectileCastAction::GetConfiguredReadiedProjectileNiagaraStartSize() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? ProjectileSettings->GrowthUserParameterStartValue : FVector2D::UnitVector;
-}
-
-FVector2D USkillProjectileCastAction::GetConfiguredReadiedProjectileNiagaraTargetSize() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? ProjectileSettings->GrowthUserParameterFinalValue : FVector2D::UnitVector;
+	return static_cast<float>(FMath::Max(Settings.ProjectileScaleDuration, 0.0));
 }
 
 void USkillProjectileCastAction::ApplyConfiguredStatusEffect(AProjectileBase* Projectile) const
@@ -413,16 +197,15 @@ void USkillProjectileCastAction::ApplyReadiedProjectileScaleGrowth(AProjectileBa
 
 	if (!IsConfiguredReadiedProjectileChargeGrowthEnabled())
 	{
-
 		return;
 	}
 
 	const float ScaleDuration = GetConfiguredReadiedProjectileScaleDuration();
-	const FVector StartScale = GetConfiguredReadiedProjectileStartScale();
-	const FVector TargetScale = GetConfiguredReadiedProjectileTargetScale();
-	const FName NiagaraVector2DParameterName = GetConfiguredReadiedProjectileNiagaraVector2DParameterName();
-	const FVector2D NiagaraStartSize = GetConfiguredReadiedProjectileNiagaraStartSize();
-	const FVector2D NiagaraTargetSize = GetConfiguredReadiedProjectileNiagaraTargetSize();
+	const FVector StartScale = Settings.ProjectileStartScale;
+	const FVector TargetScale = Settings.ProjectileFinalScale;
+	const FName NiagaraVector2DParameterName = Settings.GrowthUserParameterName;
+	const FVector2D NiagaraStartSize = Settings.GrowthUserParameterStartValue;
+	const FVector2D NiagaraTargetSize = Settings.GrowthUserParameterFinalValue;
 	const bool bHasActorScaleGrowth = !StartScale.Equals(TargetScale);
 	const bool bHasNiagaraSizeGrowth = !NiagaraVector2DParameterName.IsNone() && !NiagaraStartSize.Equals(NiagaraTargetSize);
 	if (ScaleDuration <= 0.0f || (!bHasActorScaleGrowth && !bHasNiagaraSizeGrowth))
@@ -440,139 +223,71 @@ void USkillProjectileCastAction::ApplyReadiedProjectileScaleGrowth(AProjectileBa
 
 }
 
-bool USkillProjectileCastAction::ShouldUseGroundTargeting() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings && ProjectileSettings->bUseGroundTargeting;
-}
-
 TSubclassOf<AGameplayAbilityTargetActor> USkillProjectileCastAction::GetConfiguredGroundTargetActorClass() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredClass =
-		ProjectileSettings ? ProjectileSettings->GroundTargetActorClass : nullptr;
+	const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredClass = Settings.GroundTargetActorClass;
 	if (ConfiguredClass
 		&& ConfiguredClass->IsChildOf(AGameplayAbilityTargetActor_GroundTrace::StaticClass())
 		&& !ConfiguredClass->IsChildOf(ATargetActor_GroundTrace_Decal::StaticClass()))
 	{
 		return ATargetActor_GroundTrace_Decal::StaticClass();
 	}
-
 	return ConfiguredClass;
 }
 
 float USkillProjectileCastAction::GetConfiguredGroundTargetingMaxRange() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->GroundTargetingMaxRange, 0.0))
-		: 0.0f;
-}
-
-FCollisionProfileName USkillProjectileCastAction::GetConfiguredGroundTargetingTraceProfile() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? ProjectileSettings->GroundTargetingTraceProfile
-		: FCollisionProfileName(TEXT("BlockAll"));
+	return static_cast<float>(FMath::Max(Settings.GroundTargetingMaxRange, 0.0));
 }
 
 float USkillProjectileCastAction::GetConfiguredGroundTargetingTraceStartHeight() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->TargetGroundTraceStartHeight, 0.0))
-		: 0.0f;
+	return static_cast<float>(FMath::Max(Settings.TargetGroundTraceStartHeight, 0.0));
 }
 
 float USkillProjectileCastAction::GetConfiguredGroundTargetingTraceDepth() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->TargetGroundTraceDepth, 0.0))
-		: 0.0f;
+	return static_cast<float>(FMath::Max(Settings.TargetGroundTraceDepth, 0.0));
 }
 
 float USkillProjectileCastAction::GetConfiguredGroundTargetingCollisionRadius() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->GroundTargetingCollisionRadius, 0.0))
-		: 0.0f;
+	return static_cast<float>(FMath::Max(Settings.GroundTargetingCollisionRadius, 0.0));
 }
 
 float USkillProjectileCastAction::GetConfiguredGroundTargetingCollisionHeight() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->GroundTargetingCollisionHeight, 0.0))
-		: 0.0f;
-}
-
-bool USkillProjectileCastAction::GetConfiguredGroundTargetingTraceAffectsAimPitch() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings && ProjectileSettings->bGroundTargetingTraceAffectsAimPitch;
+	return static_cast<float>(FMath::Max(Settings.GroundTargetingCollisionHeight, 0.0));
 }
 
 bool USkillProjectileCastAction::GetConfiguredDrawGroundTargetingDebug() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return LabSkillDebug::IsDrawingEnabled()
-		&& ProjectileSettings
-		&& ProjectileSettings->bDrawGroundTargetingDebug;
-}
-
-UMaterialInterface* USkillProjectileCastAction::GetConfiguredGroundTargetingDecal() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? ProjectileSettings->TargetDecal.Get() : nullptr;
+	return LabSkillDebug::IsDrawingEnabled() && Settings.bDrawGroundTargetingDebug;
 }
 
 float USkillProjectileCastAction::GetConfiguredGroundTargetingDecalSize() const
 {
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings
-		? static_cast<float>(FMath::Max(ProjectileSettings->TargetDecalSize, 0.0))
-		: 0.0f;
+	return static_cast<float>(FMath::Max(Settings.TargetDecalSize, 0.0));
 }
 
 float USkillProjectileCastAction::GetConfiguredGroundTargetingDecalFinalSize() const
 {
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	if (const FSkillProjectileSettings* ProjectileSettings = &Settings)
-	{
-		return ProjectileSettings->TargetDecalFinalSize > 0.0
-			? static_cast<float>(ProjectileSettings->TargetDecalFinalSize)
-			: GetConfiguredGroundTargetingDecalSize();
-	}
-
-	return GetConfiguredGroundTargetingDecalSize();
-}
-
-bool USkillProjectileCastAction::ShouldGrowConfiguredGroundTargetingDecal() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings && ProjectileSettings->bGrowTargetDecalSize;
-}
-
-FLinearColor USkillProjectileCastAction::GetConfiguredGroundTargetingDecalColor() const
-{
-	const FSkillProjectileSettings* ProjectileSettings = &Settings;
-	return ProjectileSettings ? ProjectileSettings->TargetDecalColor : FLinearColor::White;
+	return Settings.TargetDecalFinalSize > 0.0
+		? static_cast<float>(Settings.TargetDecalFinalSize)
+		: GetConfiguredGroundTargetingDecalSize();
 }
 
 float USkillProjectileCastAction::CalculateConfiguredImpactAreaDamageRadius(
 	const float ChargeDamageAlpha) const
 {
-	if (!ShouldUseGroundTargeting() || !GetConfiguredGroundTargetingDecal())
+	if (!Settings.bUseGroundTargeting || !Settings.TargetDecal.Get())
 	{
 		return 0.0f;
 	}
 
-	const float StartDiameter = FMath::Max(GetConfiguredGroundTargetingDecalSize(), 0.0f);
-	const float FinalDiameter = FMath::Max(GetConfiguredGroundTargetingDecalFinalSize(), 0.0f);
-	const float DamageDiameter = ShouldGrowConfiguredGroundTargetingDecal()
+	const float StartDiameter = GetConfiguredGroundTargetingDecalSize();
+	const float FinalDiameter = GetConfiguredGroundTargetingDecalFinalSize();
+	const float DamageDiameter = Settings.bGrowTargetDecalSize
 		? FMath::Lerp(StartDiameter, FinalDiameter, FMath::Clamp(ChargeDamageAlpha, 0.0f, 1.0f))
 		: StartDiameter;
 
@@ -589,8 +304,8 @@ bool USkillProjectileCastAction::TryBuildGroundTargetingDecalGrowth(
 	OutTargetSize = GetConfiguredGroundTargetingDecalFinalSize();
 	OutDuration = 0.0f;
 
-	if (!ShouldUseGroundTargeting()
-		|| !ShouldGrowConfiguredGroundTargetingDecal()
+	if (!Settings.bUseGroundTargeting
+		|| !Settings.bGrowTargetDecalSize
 		|| OutStartSize <= 0.0f
 		|| OutTargetSize <= 0.0f)
 	{

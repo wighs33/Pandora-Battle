@@ -88,7 +88,7 @@ AProjectileBase* USkillProjectileCastAction::SpawnPreparedSocketBarrageProjectil
 
 	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
 	UWorld* World = GetWorld();
-	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = GetConfiguredProjectileClass();
+	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = Settings.ProjectileActorClass;
 	if (!AvatarActor || !AvatarActor->HasAuthority() || !World || !ConfiguredProjectileClass)
 	{
 		return nullptr;

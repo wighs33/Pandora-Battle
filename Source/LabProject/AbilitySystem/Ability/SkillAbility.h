@@ -43,8 +43,6 @@ public:
 	using UGameplayAbility::MakeTargetLocationInfoFromOwnerActor;
 	using UGameplayAbility::MakeTargetLocationInfoFromOwnerSkeletalMeshComponent;
 	using UPdGameplayAbility::ApplyConfiguredStatusEffectToTarget;
-	using UPdGameplayAbility::ApplyIntelligenceToSkillDamage;
-	using UPdGameplayAbility::CalculateBaseSkillDamageMagnitude;
 	using UPdGameplayAbility::CalculateSkillDamageMagnitude;
 	using UPdGameplayAbility::MakeConfiguredDamageEffectSpec;
 	using UPdGameplayAbility::MakeConfiguredStatusEffectSpec;

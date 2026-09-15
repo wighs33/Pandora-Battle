@@ -104,11 +104,8 @@ void UPdGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, co
 	const USkillDefinition* SkillDefinition =
 		ResolveSourceSkillDataAsset(AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr);
 
-	const bool bInputDrivenSkill = SkillDefinition
-		&& (SkillDefinition->SkillType == ESkillType::Instant || SkillDefinition->SkillType == ESkillType::Press
-			|| SkillDefinition->SkillType == ESkillType::Duration);
-
-	if (!AbilitySystemComponent || !bInputDrivenSkill)
+	// 모든 스킬은 실행 전에 장비 전환과의 충돌을 해소한다.
+	if (!AbilitySystemComponent || !SkillDefinition)
 	{
 		return;
 	}
@@ -275,19 +272,6 @@ bool UPdGameplayAbility::CanExecuteSkillPayload() const
 	return true;
 }
 
-// 타깃 확보나 실제 스킬 실행에 실패하면 취소 금지 상태를 해제하고 능력을 취소한다.
-// 정상 완료가 아니므로 종료 쿨다운을 적용하지 않는다.
-void UPdGameplayAbility::CancelAbilityForSkillExecutionFailure()
-{
-	// 실제 스킬 실행 실패는 보호 상태라도 취소로 종료해 쿨다운을 부과하지 않는다.
-	if (!CanBeCanceled())
-	{
-		SetCanBeCanceled(true);
-	}
-
-	K2_CancelAbility();
-}
-
 // 비용과 쿨다운
 
 // 양수 쿨다운이 설정된 스킬에는 공통 태그를 제공하고, 일반 능력은 부모 GAS 설정을 따른다.
@@ -376,15 +360,6 @@ void UPdGameplayAbility::GetCooldownTimeRemainingAndDuration(
 	Super::GetCooldownTimeRemainingAndDuration(Handle, ActorInfo, TimeRemaining, CooldownDuration);
 }
 
-// 생성한 쿨다운 효과에 사망 시 제거 같은 정책 태그를 붙여, ASC의 상태 정리가 해당 효과를 찾을 수 있게 한다.
-void UPdGameplayAbility::AppendCooldownRemovalPolicyTags(FGameplayEffectSpecHandle& CooldownSpecHandle) const
-{
-	if (CooldownSpecHandle.IsValid() && CooldownSpecHandle.Data.IsValid())
-	{
-		CooldownSpecHandle.Data->AppendDynamicAssetTags(CooldownRemovalPolicyTags);
-	}
-}
-
 // 판도라 스킬·무기 장착·그래플 등이 지정한 시간과 태그로 프로젝트 공통 쿨다운 효과를 자신에게 적용한다.
 // 효과에는 시전 출처와 제거 정책도 함께 담긴다.
 bool UPdGameplayAbility::ApplySharedCooldownEffect(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -405,7 +380,7 @@ bool UPdGameplayAbility::ApplySharedCooldownEffect(const FGameplayAbilitySpecHan
 
 	FGameplayEffectSpecHandle CooldownSpec =
 		MakeOutgoingGameplayEffectSpec(Handle, ActorInfo, ActivationInfo, CooldownEffectClass, GetAbilityLevel(Handle, ActorInfo));
-	if (!CooldownSpec.IsValid() || !CooldownSpec.Data.IsValid())
+	if (!CooldownSpec.IsValid())
 	{
 		return false;
 	}
@@ -414,7 +389,7 @@ bool UPdGameplayAbility::ApplySharedCooldownEffect(const FGameplayAbilitySpecHan
 	CooldownSpec.Data->DynamicGrantedTags.AppendTags(CooldownTags);
 	CooldownSpec.Data->AppendDynamicAssetTags(CooldownTags);
 
-	AppendCooldownRemovalPolicyTags(CooldownSpec);
+	CooldownSpec.Data->AppendDynamicAssetTags(CooldownRemovalPolicyTags);
 	return ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, CooldownSpec).WasSuccessfullyApplied();
 }
 
@@ -463,14 +438,14 @@ UPandoraSkillSource* UPdGameplayAbility::GetPandoraSkillSource() const
 	return Cast<UPandoraSkillSource>(GetCurrentSourceObject());
 }
 
-// 공통 입력 처리가 키 해제를 받았을 때 타기팅을 확정할지 알려 준다. 기본은 Press 스킬만 해당한다.
-// 기본 공격 입력으로 확정하는 ProjectileAbility 등은 이 정책을 재정의한다.
+// Press 스킬은 입력 해제가 필요하다. 그래플처럼 별도 해제 동작이 있는 능력은 이 정책을 재정의한다.
 bool UPdGameplayAbility::UsesInputRelease(const FGameplayAbilitySpec& Spec) const
 {
 	const USkillDefinition* Skill = ResolveSourceSkillDataAsset(Spec.SourceObject.Get());
 	return Skill && Skill->SkillType == ESkillType::Press;
 }
 
+// Press 스킬은 기본적으로 키 해제로 확정하고, SkillAbility는 데이터 애셋의 확정 정책도 반영한다.
 bool UPdGameplayAbility::ShouldConfirmTargetingOnInputRelease() const
 {
 	const USkillDefinition* Skill = GetSourceSkillDataAsset();
@@ -499,26 +474,12 @@ AActor* UPdGameplayAbility::GetAttackTargetFromAvatar() const
 	return TargetCharacter && TargetCharacter->IsDead() ? nullptr : AttackTarget;
 }
 
-// 파생 능력이 태그에 해당하는 다른 능력의 실행을 요청할 때 ASC로 전달한다.
-// 원격 실행 허용 여부도 전달하며, 실제 활성화 가능 여부는 요청받은 능력과 GAS가 판단한다.
-bool UPdGameplayAbility::TryActivateAbilitiesByTags(FGameplayTagContainer InAbilityTags, const bool bAllowRemoteActivation) const
-{
-	UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
-	return AbilitySystemComponent && !InAbilityTags.IsEmpty()
-		&& AbilitySystemComponent->TryActivateAbilitiesByTag(InAbilityTags, bAllowRemoteActivation);
-}
-
 // 피해량과 상태 효과
 
-// 스킬 설정의 기본 피해량을 0 이상으로 정리해 가져온다. 지능·판도라 슬롯 보정 전 수치다.
-float UPdGameplayAbility::CalculateBaseSkillDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const
+// 기본 피해량에 지능·판도라 슬롯 보너스를 적용한 최종 스킬 피해량을 계산한다.
+float UPdGameplayAbility::CalculateSkillDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const
 {
-	return static_cast<float>(FMath::Max(DamageConfig.Magnitude, 0.0));
-}
-
-// 피해량에 지능과 이 능력의 출처 슬롯(왼쪽·위·오른쪽)에 해당하는 판도라 능력치의 퍼센트 보너스를 적용한다.
-float UPdGameplayAbility::ApplyIntelligenceToSkillDamage(const float DamageMagnitude) const
-{
+	const float BaseDamage = static_cast<float>(FMath::Max(DamageConfig.Magnitude, 0.0));
 	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	const UBasicAttributeSet* Attributes = ASC ? ASC->GetSet<UBasicAttributeSet>() : nullptr;
 	float DamageBonusPercent = Attributes ? FMath::Max(Attributes->GetIntelligence(), 0.0f) : 0.0f;
@@ -540,13 +501,7 @@ float UPdGameplayAbility::ApplyIntelligenceToSkillDamage(const float DamageMagni
 			break;
 		}
 	}
-	return static_cast<float>(FMath::Max(DamageMagnitude, 0.0f) * (1.0 + static_cast<double>(DamageBonusPercent) * 0.01));
-}
-
-// 설정된 기본 피해량에 지능·판도라 슬롯 보너스를 합쳐, 피해 효과에 전달할 스킬 피해량을 계산한다.
-float UPdGameplayAbility::CalculateSkillDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const
-{
-	return ApplyIntelligenceToSkillDamage(CalculateBaseSkillDamageMagnitude(DamageConfig));
+	return static_cast<float>(FMath::Max(BaseDamage, 0.0f) * (1.0 + static_cast<double>(DamageBonusPercent) * 0.01));
 }
 
 // 공격자·출처·능력 레벨과 계산된 피해량을 담은 GameplayEffectSpec을 만들어 적중 처리에 넘긴다.
@@ -573,7 +528,7 @@ FGameplayEffectSpecHandle UPdGameplayAbility::MakeConfiguredDamageEffectSpec(
 
 	FGameplayEffectSpecHandle DamageSpecHandle =
 		SourceAbilitySystemComponent->MakeOutgoingSpec(DamageConfig.GameplayEffectClass, FMath::Max(GetAbilityLevel(), 1), EffectContext);
-	if (!DamageSpecHandle.IsValid() || !DamageSpecHandle.Data.IsValid())
+	if (!DamageSpecHandle.IsValid())
 	{
 		return FGameplayEffectSpecHandle();
 	}
@@ -619,7 +574,7 @@ FGameplayEffectSpecHandle UPdGameplayAbility::MakeConfiguredStatusEffectSpec(con
 																			 : FMath::Max(FallbackStatusEffectLevel, 1.0f);
 	FGameplayEffectSpecHandle StatusEffectSpecHandle =
 		SourceAbilitySystemComponent->MakeOutgoingSpec(DebuffGameplayEffectClass, StatusEffectLevel, EffectContext);
-	if (!StatusEffectSpecHandle.IsValid() || !StatusEffectSpecHandle.Data.IsValid())
+	if (!StatusEffectSpecHandle.IsValid())
 	{
 		return FGameplayEffectSpecHandle();
 	}
@@ -656,7 +611,7 @@ FActiveGameplayEffectHandle UPdGameplayAbility::ApplyConfiguredStatusEffectToTar
 
 	const FGameplayEffectSpecHandle StatusEffectSpecHandle =
 		MakeConfiguredStatusEffectSpec(SkillDataAsset, FallbackStatusEffectClass, FallbackStatusEffectLevel);
-	if (!StatusEffectSpecHandle.IsValid() || !StatusEffectSpecHandle.Data.IsValid())
+	if (!StatusEffectSpecHandle.IsValid())
 	{
 		return FActiveGameplayEffectHandle();
 	}
@@ -688,7 +643,7 @@ bool UPdGameplayAbility::ApplyGameplayEffect(
 	}
 
 	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(GameplayEffectClass, FMath::Max(EffectLevel, 1.0f));
-	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
+	if (!SpecHandle.IsValid())
 	{
 		return false;
 	}

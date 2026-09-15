@@ -23,7 +23,6 @@ class UAbilitySystemComponent;
 class UAnimMontage;
 class UGameplayEffect;
 class UMaterialInterface;
-class UStatusEffectDefinition;
 
 /** 지면을 조준하고 몽타주 이벤트에 맞춰 범위 피해를 적용한다. */
 UCLASS(meta = (DisplayName = "Targeted Area"))
@@ -94,39 +93,15 @@ private:
 		const FVector& TargetDataEndPoint,
 		FVector& OutValidatedLocation);
 	FGameplayEffectSpecHandle MakeDamageEffectSpec() const;
+
+	// 몽타주·데칼의 기본값 선택과 디버그 표시 규칙
 	UAnimMontage* GetConfiguredTargetingMontage() const;
 	UAnimMontage* GetConfiguredTriggerMontage() const;
-	TSubclassOf<UGameplayEffect> GetConfiguredDamageEffectClass() const;
-	TArray<TEnumAsByte<EObjectTypeQuery>> GetConfiguredDamageObjectTypes() const;
 	TSubclassOf<AGameplayAbilityTargetActor> GetConfiguredTargetActorClass() const;
 	UMaterialInterface* GetConfiguredTargetingDecal() const;
 	double GetConfiguredTargetingDecalSize() const;
-	FLinearColor GetConfiguredTargetingDecalColor() const;
-	FName GetConfiguredTargetingTraceProfileName() const;
-	float GetConfiguredTargetingMaxRange() const;
-	float GetConfiguredTargetingCollisionRadius() const;
-	float GetConfiguredTargetingCollisionHeight() const;
-	bool GetConfiguredTargetingTraceAffectsAimPitch() const;
 	bool GetConfiguredDebugTargeting() const;
-	bool GetConfiguredDrawDebugDamageRadius() const;
-	float GetConfiguredDebugDamageRadiusDrawTime() const;
-	FName GetConfiguredTargetingSocketName() const;
-	TEnumAsByte<ETraceTypeQuery> GetConfiguredTargetGroundTraceChannel() const;
-	float GetConfiguredTargetGroundTraceDepth() const;
-	FGameplayTag GetConfiguredDamageDataTag() const;
-	const UStatusEffectDefinition* GetConfiguredStatusEffectDataAsset() const;
-	TSubclassOf<UGameplayEffect> GetConfiguredStatusEffectClass() const;
-	float GetConfiguredStatusEffectLevel() const;
-	float GetConfiguredStatusEffectDuration() const;
-	FGameplayEffectSpecHandle MakeStatusEffectSpec() const;
-	void ApplyStatusEffectToHitActor(AActor* HitActor, UAbilitySystemComponent* SourceASC, UAbilitySystemComponent* TargetASC) const;
 	FGameplayTag GetConfiguredMontageTriggerEventTag() const;
-	FGameplayTag GetConfiguredAOEIndicatorCueTag() const;
-	FGameplayTag GetConfiguredLightningBoltCueTag() const;
-	float GetConfiguredLightningDamageDelay() const;
-	FWeaponAimCameraSettings GetConfiguredAOECameraSettings() const;
-	double CalculateAOERadiusFromSkillData() const;
-	float CalculateDamageMagnitude() const;
 	bool ShouldDrawDebugDamageRadius() const;
 	void DrawDebugDamageRadius(const TCHAR* Context, const FColor& CircleColor, const FColor& SphereColor) const;
 

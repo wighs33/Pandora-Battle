@@ -10,7 +10,6 @@
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystem/TargetValidator.h"
-#include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
 #include "AbilitySystem/TargetingActors/TargetActor_GroundTrace_Decal.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -40,13 +39,6 @@ namespace
 	constexpr float AOEGroundProjectionStartHeight = 500.0f;
 	constexpr float AOEGroundProjectionMinDepth = 1000.0f;
 	constexpr float AOEGroundMinNormalZ = 0.35f;
-
-	const USkillDefinition* GetAOESkillDataAsset(const USkillDefinition* SkillDataAsset)
-	{
-		return SkillDataAsset
-			? SkillDataAsset
-			: nullptr;
-	}
 
 	bool IsIgnoredAOEGroundActor(const AActor* Actor)
 	{
@@ -148,15 +140,11 @@ namespace
 
 void USkillTargetedAreaAction::OnStart()
 {
-	const auto Handle = GetAbility()->GetCurrentAbilitySpecHandle();
 	const auto* ActorInfo = GetAbility()->GetCurrentActorInfo();
-	const auto ActivationInfo = GetAbility()->GetCurrentActivationInfo();
-	const auto* TriggerEventData = &GetContext().EventData;
-	static_cast<void>(TriggerEventData);
 
 	if (!ActorInfo || !ActorInfo->AvatarActor.IsValid())
 	{
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
@@ -164,16 +152,15 @@ void USkillTargetedAreaAction::OnStart()
 	if (!SkillDataAsset)
 	{
 
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
 	const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredTargetActorClass = GetConfiguredTargetActorClass();
-	const double ConfiguredAOERadius = CalculateAOERadiusFromSkillData();
-	if (!ConfiguredTargetActorClass || ConfiguredAOERadius <= 0.0)
+	if (!ConfiguredTargetActorClass || Settings.Radius <= 0.0)
 	{
 
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
@@ -184,7 +171,7 @@ void USkillTargetedAreaAction::OnStart()
 	ConfirmedAOELocation = FVector::ZeroVector;
 	HitActorKeys.Reset();
 	AOEOverlapResults.Reset();
-	CachedAOERadius = CalculateAOERadiusFromSkillData();
+	CachedAOERadius = Settings.Radius;
 
 	if (AActor* AttackTarget = GetAbility()->GetAttackTargetFromAvatar(); IsValid(AttackTarget))
 	{
@@ -194,7 +181,7 @@ void USkillTargetedAreaAction::OnStart()
 
 		}
 
-ConfirmStrike();
+		ConfirmStrike();
 		return;
 	}
 
@@ -320,7 +307,7 @@ void USkillTargetedAreaAction::ConfirmStrike()
 	}
 	bStrikeConfirmed = true;
 
-DrawDebugDamageRadius(TEXT("ConfirmStrike"), FColor::Cyan, FColor::Blue);
+	DrawDebugDamageRadius(TEXT("ConfirmStrike"), FColor::Cyan, FColor::Blue);
 
 	FGameplayCueParameters IndicatorParams;
 	IndicatorParams.RawMagnitude = static_cast<float>(CachedAOERadius * 2.0);
@@ -328,7 +315,7 @@ DrawDebugDamageRadius(TEXT("ConfirmStrike"), FColor::Cyan, FColor::Blue);
 	IndicatorParams.Instigator = GetAbility()->GetAvatarActorFromActorInfo();
 	IndicatorParams.EffectCauser = GetAbility()->GetAvatarActorFromActorInfo();
 
-	const FGameplayTag ConfiguredAOEIndicatorCueTag = GetConfiguredAOEIndicatorCueTag();
+	const FGameplayTag ConfiguredAOEIndicatorCueTag = Settings.IndicatorCueTag;
 	if (ConfiguredAOEIndicatorCueTag.IsValid())
 	{
 		GetAbility()->K2_AddGameplayCueWithParams(ConfiguredAOEIndicatorCueTag, IndicatorParams, true);
@@ -364,13 +351,6 @@ void USkillTargetedAreaAction::AOEDamage()
 		return;
 	}
 
-	TArray<TEnumAsByte<EObjectTypeQuery>> ConfiguredDamageObjectTypes = GetConfiguredDamageObjectTypes();
-	if (ConfiguredDamageObjectTypes.IsEmpty())
-	{
-
-		return;
-	}
-
 	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
 	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
 	if (!World)
@@ -380,27 +360,14 @@ void USkillTargetedAreaAction::AOEDamage()
 	}
 
 	FCollisionObjectQueryParams ObjectQueryParams;
-	for (const TEnumAsByte<EObjectTypeQuery>& ObjectType : ConfiguredDamageObjectTypes)
-	{
-		const ECollisionChannel CollisionChannel = UEngineTypes::ConvertToCollisionChannel(ObjectType);
-		if (CollisionChannel != ECC_MAX)
-		{
-			ObjectQueryParams.AddObjectTypesToQuery(CollisionChannel);
-		}
-	}
-
-	if (!ObjectQueryParams.IsValid())
-	{
-
-		return;
-	}
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(AOEDamage), false, AvatarActor);
 	const FCollisionShape SphereShape = FCollisionShape::MakeSphere(static_cast<float>(CachedAOERadius));
 
 	DrawDebugDamageRadius(TEXT("AOEDamage"), FColor::Yellow, FColor::Red);
 
-AOEOverlapResults.Reset();
+	AOEOverlapResults.Reset();
 	World->OverlapMultiByObjectType(
 		AOEOverlapResults,
 		ConfirmedAOELocation,
@@ -510,7 +477,7 @@ void USkillTargetedAreaAction::StartWaitMontageTrigger()
 		return;
 	}
 
-WaitMontageTriggerTask = GetAbility()->CreateWaitGameplayEventTask(ConfiguredMontageTriggerEventTag, true);
+	WaitMontageTriggerTask = GetAbility()->CreateWaitGameplayEventTask(ConfiguredMontageTriggerEventTag, true);
 	if (!WaitMontageTriggerTask)
 	{
 
@@ -524,7 +491,7 @@ WaitMontageTriggerTask = GetAbility()->CreateWaitGameplayEventTask(ConfiguredMon
 void USkillTargetedAreaAction::StartLightningDamageDelay()
 {
 	bWaitingLightningDamage = true;
-	const float ConfiguredLightningDamageDelay = GetConfiguredLightningDamageDelay();
+	const float ConfiguredLightningDamageDelay = static_cast<float>(FMath::Max(Settings.DamageDelay, 0.0));
 
 	if (ConfiguredLightningDamageDelay <= 0.0f)
 	{
@@ -557,20 +524,20 @@ void USkillTargetedAreaAction::ConfigureSpawnedTargetActor(AGameplayAbilityTarge
 
 	if (AGameplayAbilityTargetActor_Trace* TraceActor = Cast<AGameplayAbilityTargetActor_Trace>(SpawnedActor))
 	{
-		TraceActor->MaxRange = GetConfiguredTargetingMaxRange();
-		TraceActor->TraceProfile = FCollisionProfileName(GetConfiguredTargetingTraceProfileName());
-		TraceActor->bTraceAffectsAimPitch = GetConfiguredTargetingTraceAffectsAimPitch();
+		TraceActor->MaxRange = static_cast<float>(Settings.TargetingMaxRange);
+		TraceActor->TraceProfile = FCollisionProfileName(Settings.TargetingTraceProfileName);
+		TraceActor->bTraceAffectsAimPitch = Settings.bTargetingTraceAffectsAimPitch;
 	}
 
 	if (AGameplayAbilityTargetActor_GroundTrace* GroundTraceActor = Cast<AGameplayAbilityTargetActor_GroundTrace>(SpawnedActor))
 	{
-		GroundTraceActor->CollisionRadius = GetConfiguredTargetingCollisionRadius();
-		GroundTraceActor->CollisionHeight = GetConfiguredTargetingCollisionHeight();
+		GroundTraceActor->CollisionRadius = static_cast<float>(Settings.TargetingCollisionRadius);
+		GroundTraceActor->CollisionHeight = static_cast<float>(Settings.TargetingCollisionHeight);
 	}
 
 	if (ATargetActor_GroundTrace_Decal* DecalTargetActor = Cast<ATargetActor_GroundTrace_Decal>(SpawnedActor))
 	{
-		const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
+		const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 		UMaterialInterface* TargetingDecal = GetConfiguredTargetingDecal();
 		const double TargetingDecalSize = GetConfiguredTargetingDecalSize();
 		const bool bUseCharacterDecal = SkillDataAsset && SkillDataAsset->CharacterDecal.DecalMaterial;
@@ -579,7 +546,7 @@ void USkillTargetedAreaAction::ConfigureSpawnedTargetActor(AGameplayAbilityTarge
 		DecalTargetActor->Decal = TargetingDecal;
 		DecalTargetActor->DecalSize = TargetingDecalSize;
 		DecalTargetActor->bOverrideDecalColor = false;
-		DecalTargetActor->DecalColor = GetConfiguredTargetingDecalColor();
+		DecalTargetActor->DecalColor = Settings.TargetingDecalColor;
 
 		if (bGrowCharacterDecal)
 		{
@@ -617,7 +584,7 @@ void USkillTargetedAreaAction::ApplyEffectToHitActor(AActor* HitActor)
 
 	bool bAppliedDamage = false;
 	FGameplayEffectSpecHandle DamageSpecHandle = MakeDamageEffectSpec();
-	if (DamageSpecHandle.IsValid() && DamageSpecHandle.Data.IsValid())
+	if (DamageSpecHandle.IsValid())
 	{
 		const FActiveGameplayEffectHandle AppliedHandle =
 			SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), TargetASC);
@@ -627,14 +594,14 @@ void USkillTargetedAreaAction::ApplyEffectToHitActor(AActor* HitActor)
 
 	if (bAppliedDamage)
 	{
-		ApplyStatusEffectToHitActor(HitActor, SourceASC, TargetASC);
+		GetAbility()->ApplyConfiguredStatusEffectToTarget(GetAbility()->GetSourceSkillDataAsset(), TargetASC);
 	}
 
 }
 
 void USkillTargetedAreaAction::ApplyDirectAOECamera(bool bEnabled) const
 {
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	if (!SkillDataAsset || !Settings.bUseCameraSettings)
 	{
 		return;
@@ -647,16 +614,21 @@ void USkillTargetedAreaAction::ApplyDirectAOECamera(bool bEnabled) const
 		return;
 	}
 
-	const FWeaponAimCameraSettings CameraSettings = GetConfiguredAOECameraSettings();
+	const FWeaponAimCameraSettings CameraSettings = Settings.CameraSettings;
 
 	Player->SetAbilityCameraOverrideActive(bEnabled, CameraSettings);
 }
 
 void USkillTargetedAreaAction::RemovePersistentGameplayCues()
 {
+	if (!GetAbility()->GetSourceSkillDataAsset())
+	{
+		return;
+	}
+
 	ApplyDirectAOECamera(false);
 
-	const FGameplayTag ConfiguredAOEIndicatorCueTag = GetConfiguredAOEIndicatorCueTag();
+	const FGameplayTag ConfiguredAOEIndicatorCueTag = Settings.IndicatorCueTag;
 	if (ConfiguredAOEIndicatorCueTag.IsValid())
 	{
 		GetAbility()->K2_RemoveGameplayCue(ConfiguredAOEIndicatorCueTag);
@@ -665,7 +637,7 @@ void USkillTargetedAreaAction::RemovePersistentGameplayCues()
 
 FGameplayAbilityTargetingLocationInfo USkillTargetedAreaAction::MakeTargetStartLocation()
 {
-	const FName ConfiguredTargetingSocketName = GetConfiguredTargetingSocketName();
+	const FName ConfiguredTargetingSocketName = Settings.TargetingSocketName;
 	if (!ConfiguredTargetingSocketName.IsNone())
 	{
 		return GetAbility()->MakeTargetLocationInfoFromOwnerSkeletalMeshComponent(ConfiguredTargetingSocketName);
@@ -692,8 +664,8 @@ bool USkillTargetedAreaAction::GetTargetGroundLocation(AActor* AttackTarget, FVe
 		AttackTarget->GetWorld(),
 		AttackTarget->GetActorLocation(),
 		ActorsToIgnore,
-		GetConfiguredTargetGroundTraceChannel(),
-		GetConfiguredTargetGroundTraceDepth(),
+		Settings.TargetGroundTraceChannel,
+		static_cast<float>(Settings.TargetGroundTraceDepth),
 		OutGroundLocation);
 }
 
@@ -724,7 +696,7 @@ bool USkillTargetedAreaAction::ResolveFallbackAOELocation(
 		return false;
 	}
 
-	const float MaxRange = GetConfiguredTargetingMaxRange();
+	const float MaxRange = static_cast<float>(Settings.TargetingMaxRange);
 	const float ForwardDistance = FMath::Clamp(
 		MaxRange > 0.0f ? MaxRange * 0.65f : 800.0f,
 		300.0f,
@@ -737,8 +709,8 @@ bool USkillTargetedAreaAction::ResolveFallbackAOELocation(
 		World,
 		CandidateLocation,
 		ActorsToIgnore,
-		GetConfiguredTargetGroundTraceChannel(),
-		GetConfiguredTargetGroundTraceDepth(),
+		Settings.TargetGroundTraceChannel,
+		static_cast<float>(Settings.TargetGroundTraceDepth),
 		OutGroundLocation))
 	{
 		return true;
@@ -767,8 +739,8 @@ FVector USkillTargetedAreaAction::ResolveConfirmedAOELocation(const FHitResult& 
 			World,
 			ResolvedLocation,
 			ActorsToIgnore,
-			GetConfiguredTargetGroundTraceChannel(),
-			GetConfiguredTargetGroundTraceDepth(),
+			Settings.TargetGroundTraceChannel,
+			static_cast<float>(Settings.TargetGroundTraceDepth),
 			GroundLocation))
 		{
 			return GroundLocation;
@@ -784,8 +756,8 @@ FVector USkillTargetedAreaAction::ResolveConfirmedAOELocation(const FHitResult& 
 		HitActor->GetWorld(),
 		HitActor->GetActorLocation(),
 		ActorsToIgnore,
-		GetConfiguredTargetGroundTraceChannel(),
-		GetConfiguredTargetGroundTraceDepth(),
+		Settings.TargetGroundTraceChannel,
+		static_cast<float>(Settings.TargetGroundTraceDepth),
 		GroundLocation))
 	{
 		return GroundLocation;
@@ -819,10 +791,10 @@ bool USkillTargetedAreaAction::TryValidateServerAOELocation(
 	const FVector AuthoritySourceLocation = TargetStartLocation.GetTargetingTransform().GetLocation();
 
 	PdTargetValidator::FGroundTargetValidationParams ValidationParams;
-	ValidationParams.MaxRange = GetConfiguredTargetingMaxRange();
-	ValidationParams.GroundTraceDepth = GetConfiguredTargetGroundTraceDepth();
-	ValidationParams.GroundTraceType = GetConfiguredTargetGroundTraceChannel();
-	ValidationParams.LineOfSightProfileName = GetConfiguredTargetingTraceProfileName();
+	ValidationParams.MaxRange = static_cast<float>(Settings.TargetingMaxRange);
+	ValidationParams.GroundTraceDepth = static_cast<float>(Settings.TargetGroundTraceDepth);
+	ValidationParams.GroundTraceType = Settings.TargetGroundTraceChannel;
+	ValidationParams.LineOfSightProfileName = Settings.TargetingTraceProfileName;
 
 	PdTargetValidator::FValidatedGroundTarget ValidatedTarget;
 	if (!PdTargetValidator::ValidateGroundTarget(
@@ -842,94 +814,32 @@ bool USkillTargetedAreaAction::TryValidateServerAOELocation(
 
 FGameplayEffectSpecHandle USkillTargetedAreaAction::MakeDamageEffectSpec() const
 {
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	const FSkillGameplayEffectConfig DamageConfig = SkillDataAsset ? SkillDataAsset->GetResolvedDamageConfig() : FSkillGameplayEffectConfig();
-	if (!DamageConfig.GameplayEffectClass)
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
+	if (!SkillDataAsset)
 	{
-
 		return FGameplayEffectSpecHandle();
 	}
-
-	return GetAbility()->MakeConfiguredDamageEffectSpec(DamageConfig, CalculateDamageMagnitude());
+	const FSkillGameplayEffectConfig DamageConfig = SkillDataAsset->GetResolvedDamageConfig();
+	return GetAbility()->MakeConfiguredDamageEffectSpec(
+		DamageConfig, GetAbility()->CalculateSkillDamageMagnitude(DamageConfig));
 }
-
-const UStatusEffectDefinition* USkillTargetedAreaAction::GetConfiguredStatusEffectDataAsset() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
-}
-
-TSubclassOf<UGameplayEffect> USkillTargetedAreaAction::GetConfiguredStatusEffectClass() const
-{
-	const UStatusEffectDefinition* StatusEffectDataAsset = GetConfiguredStatusEffectDataAsset();
-	return StatusEffectDataAsset
-		? StatusEffectDataAsset->StackGameplayEffectClass
-		: nullptr;
-}
-
-float USkillTargetedAreaAction::GetConfiguredStatusEffectLevel() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset && SkillDataAsset->StatusEffectDataAsset
-		? FMath::Max(SkillDataAsset->StatusEffectLevel, 1.0f)
-		: 1.0f;
-}
-
-float USkillTargetedAreaAction::GetConfiguredStatusEffectDuration() const
-{
-	const UStatusEffectDefinition* StatusEffectDataAsset = GetConfiguredStatusEffectDataAsset();
-	return StatusEffectDataAsset ? FMath::Max(StatusEffectDataAsset->StatusDuration, 0.0f) : 0.0f;
-}
-
-FGameplayEffectSpecHandle USkillTargetedAreaAction::MakeStatusEffectSpec() const
-{
-	return GetAbility()->MakeConfiguredStatusEffectSpec(
-		GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset()));
-}
-
-void USkillTargetedAreaAction::ApplyStatusEffectToHitActor(
-	AActor* HitActor,
-	UAbilitySystemComponent* SourceASC,
-	UAbilitySystemComponent* TargetASC) const
-{
-	if (!IsValid(HitActor) || !SourceASC || !TargetASC)
-	{
-		return;
-	}
-
-	GetAbility()->ApplyConfiguredStatusEffectToTarget(
-		GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset()),
-		TargetASC);
-}
-
 
 
 UAnimMontage* USkillTargetedAreaAction::GetConfiguredTargetingMontage() const
 {
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	return SkillDataAsset ? SkillDataAsset->Animation.SecondaryMontage.Get() : nullptr;
 }
 
 UAnimMontage* USkillTargetedAreaAction::GetConfiguredTriggerMontage() const
 {
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	return SkillDataAsset ? SkillDataAsset->Animation.PrimaryMontage.Get() : nullptr;
-}
-
-TSubclassOf<UGameplayEffect> USkillTargetedAreaAction::GetConfiguredDamageEffectClass() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? SkillDataAsset->GetResolvedDamageConfig().GameplayEffectClass : nullptr;
-}
-
-TArray<TEnumAsByte<EObjectTypeQuery>> USkillTargetedAreaAction::GetConfiguredDamageObjectTypes() const
-{
-	return { UEngineTypes::ConvertToObjectType(ECC_Pawn) };
 }
 
 TSubclassOf<AGameplayAbilityTargetActor> USkillTargetedAreaAction::GetConfiguredTargetActorClass() const
 {
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredClass =
 		SkillDataAsset ? Settings.TargetActorClass : nullptr;
 	if (ConfiguredClass
@@ -944,7 +854,7 @@ TSubclassOf<AGameplayAbilityTargetActor> USkillTargetedAreaAction::GetConfigured
 
 UMaterialInterface* USkillTargetedAreaAction::GetConfiguredTargetingDecal() const
 {
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
 		return nullptr;
@@ -961,7 +871,7 @@ UMaterialInterface* USkillTargetedAreaAction::GetConfiguredTargetingDecal() cons
 double USkillTargetedAreaAction::GetConfiguredTargetingDecalSize() const
 {
 	const double FallbackSize = CachedAOERadius > 0.0 ? CachedAOERadius * 2.0 : 512.0;
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	if (!SkillDataAsset || !SkillDataAsset->CharacterDecal.DecalMaterial)
 	{
 		return FallbackSize;
@@ -974,137 +884,20 @@ double USkillTargetedAreaAction::GetConfiguredTargetingDecalSize() const
 		: StartSize;
 }
 
-FLinearColor USkillTargetedAreaAction::GetConfiguredTargetingDecalColor() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? Settings.TargetingDecalColor : FLinearColor::White;
-}
-
-FName USkillTargetedAreaAction::GetConfiguredTargetingTraceProfileName() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? Settings.TargetingTraceProfileName : NAME_None;
-}
-
-float USkillTargetedAreaAction::GetConfiguredTargetingMaxRange() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? static_cast<float>(Settings.TargetingMaxRange) : 0.0f;
-}
-
-float USkillTargetedAreaAction::GetConfiguredTargetingCollisionRadius() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? static_cast<float>(Settings.TargetingCollisionRadius) : 0.0f;
-}
-
-float USkillTargetedAreaAction::GetConfiguredTargetingCollisionHeight() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? static_cast<float>(Settings.TargetingCollisionHeight) : 0.0f;
-}
-
-bool USkillTargetedAreaAction::GetConfiguredTargetingTraceAffectsAimPitch() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset && Settings.bTargetingTraceAffectsAimPitch;
-}
-
 bool USkillTargetedAreaAction::GetConfiguredDebugTargeting() const
 {
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return LabSkillDebug::IsDrawingEnabled()
-		&& SkillDataAsset
-		&& Settings.bDebugTargeting;
-}
-
-bool USkillTargetedAreaAction::GetConfiguredDrawDebugDamageRadius() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return LabSkillDebug::IsDrawingEnabled()
-		&& SkillDataAsset
-		&& Settings.bDrawDebugDamageRadius;
-}
-
-float USkillTargetedAreaAction::GetConfiguredDebugDamageRadiusDrawTime() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? static_cast<float>(FMath::Max(Settings.DebugDamageRadiusDrawTime, 0.0)) : 0.0f;
-}
-
-FName USkillTargetedAreaAction::GetConfiguredTargetingSocketName() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? Settings.TargetingSocketName : NAME_None;
-}
-
-TEnumAsByte<ETraceTypeQuery> USkillTargetedAreaAction::GetConfiguredTargetGroundTraceChannel() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset
-		? Settings.TargetGroundTraceChannel
-		: TEnumAsByte<ETraceTypeQuery>(LabCollisionChannels::VisibilityTrace());
-}
-
-float USkillTargetedAreaAction::GetConfiguredTargetGroundTraceDepth() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? static_cast<float>(Settings.TargetGroundTraceDepth) : 0.0f;
-}
-
-FGameplayTag USkillTargetedAreaAction::GetConfiguredDamageDataTag() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? SkillDataAsset->GetResolvedDamageConfig().MagnitudeDataTag : FGameplayTag();
+	return LabSkillDebug::IsDrawingEnabled() && Settings.bDebugTargeting;
 }
 
 FGameplayTag USkillTargetedAreaAction::GetConfiguredMontageTriggerEventTag() const
 {
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	return SkillDataAsset ? SkillDataAsset->Animation.PrimaryEventTag : FGameplayTag();
-}
-
-FGameplayTag USkillTargetedAreaAction::GetConfiguredAOEIndicatorCueTag() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? Settings.IndicatorCueTag : FGameplayTag();
-}
-
-FGameplayTag USkillTargetedAreaAction::GetConfiguredLightningBoltCueTag() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? Settings.ImpactCueTag : FGameplayTag();
-}
-
-float USkillTargetedAreaAction::GetConfiguredLightningDamageDelay() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? static_cast<float>(FMath::Max(Settings.DamageDelay, 0.0)) : 0.0f;
-}
-
-FWeaponAimCameraSettings USkillTargetedAreaAction::GetConfiguredAOECameraSettings() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset && Settings.bUseCameraSettings ? Settings.CameraSettings : FWeaponAimCameraSettings();
-}
-
-double USkillTargetedAreaAction::CalculateAOERadiusFromSkillData() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset ? Settings.Radius : 0.0;
-}
-
-float USkillTargetedAreaAction::CalculateDamageMagnitude() const
-{
-	const USkillDefinition* SkillDataAsset = GetAOESkillDataAsset(GetAbility()->GetSourceSkillDataAsset());
-	return SkillDataAsset
-		? GetAbility()->CalculateSkillDamageMagnitude(SkillDataAsset->GetResolvedDamageConfig())
-		: 0.0f;
 }
 
 bool USkillTargetedAreaAction::ShouldDrawDebugDamageRadius() const
 {
-	return GetConfiguredDrawDebugDamageRadius();
+	return LabSkillDebug::IsDrawingEnabled() && Settings.bDrawDebugDamageRadius;
 }
 
 void USkillTargetedAreaAction::DrawDebugDamageRadius(const TCHAR* Context, const FColor& CircleColor, const FColor& SphereColor) const
@@ -1122,7 +915,7 @@ void USkillTargetedAreaAction::DrawDebugDamageRadius(const TCHAR* Context, const
 	}
 
 	const float Radius = static_cast<float>(CachedAOERadius);
-	const float DrawTime = FMath::Max(GetConfiguredDebugDamageRadiusDrawTime(), 0.0f);
+	const float DrawTime = static_cast<float>(FMath::Max(Settings.DebugDamageRadiusDrawTime, 0.0));
 	const FVector Center = ConfirmedAOELocation;
 	const uint8 DepthPriority = 1;
 	constexpr int32 CircleSegments = 128;
@@ -1337,7 +1130,7 @@ void USkillTargetedAreaAction::HandleMontageTriggerEvent(FGameplayEventData Payl
 	LightningCueParams.Instigator = GetAbility()->GetAvatarActorFromActorInfo();
 	LightningCueParams.EffectCauser = GetAbility()->GetAvatarActorFromActorInfo();
 
-	const FGameplayTag ResolvedLightningBoltCueTag = GetConfiguredLightningBoltCueTag();
+	const FGameplayTag ResolvedLightningBoltCueTag = Settings.ImpactCueTag;
 	if (ResolvedLightningBoltCueTag.IsValid())
 	{
 		GetAbility()->K2_ExecuteGameplayCueWithParams(ResolvedLightningBoltCueTag, LightningCueParams);

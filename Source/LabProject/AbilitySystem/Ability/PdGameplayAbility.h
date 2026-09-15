@@ -48,39 +48,32 @@ public:
 	virtual void GetCooldownTimeRemainingAndDuration(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		float& TimeRemaining, float& CooldownDuration) const override;
 
-	// 출처·캐릭터·입력 정책
+	// 출처와 실행 대상 조회
 	ACharacterBase* GetPdCharacterFromActorInfo() const;
 	UPdAbilitySystemComponent* GetPdAbilitySystemComponentFromActorInfo() const;
+	USkillDefinition* GetSourceSkillDataAsset() const;
+	UPandoraSkillSource* GetPandoraSkillSource() const;
+	AActor* GetAttackTargetFromAvatar() const;
+	bool HasPlayerController() const;
 
+	// 자동 실행과 입력 정책
 	// 능력을 부여하거나 부활 후 자동 능력을 재개할 때, 별도 입력 없이 활성화를 시도할 대상인지 알려 준다.
-	bool ShouldAutoActivateWhenGranted() const { return bAutoActivateWhenGranted;}
+	bool ShouldAutoActivateWhenGranted() const { return bAutoActivateWhenGranted; }
 
 	// 단계형 스킬은 키를 떼는 대신 기본 공격 같은 별도 입력으로 시전을 확정할 수 있다.
 	virtual bool ShouldConfirmTargetingOnInputRelease() const;
 	/** 키 해제가 동작에 필요한 능력인지 판정한다. 기본 구현은 출처 스킬의 Press 정책을 따른다. */
 	virtual bool UsesInputRelease(const FGameplayAbilitySpec& Spec) const;
 
-	// 쿨다운 효과의 제거 정책
-	void AppendCooldownRemovalPolicyTags(FGameplayEffectSpecHandle& CooldownSpecHandle) const;
-
 	// GameFeature가 능력을 부여할 때 연결할 기본 입력 태그를 제공한다. 기본은 비어 있고 Grapple 등 파생 능력이 지정한다.
 	virtual FGameplayTag GetDefaultInputTag() const { return FGameplayTag(); }
 
-	void DestroyActiveSkillPresentationActor();
-
-	USkillDefinition* GetSourceSkillDataAsset() const;
-
-	UPandoraSkillSource* GetPandoraSkillSource() const;
-
-	// 능력 실행과 GameplayEffect 적용·조회
-	bool TryActivateAbilitiesByTags(FGameplayTagContainer InAbilityTags, bool bAllowRemoteActivation = true) const;
+	// 자기 효과 적용·제거와 연출 정리
 	bool ApplyGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel = 1.0f, int32 StackCount = 1);
 	bool RemoveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass);
 
 	int32 RemoveGameplayEffectsWithGrantedTags(const FGameplayTagContainer& GrantedTags);
-	bool HasPlayerController() const;
-
-	AActor* GetAttackTargetFromAvatar() const;
+	void DestroyActiveSkillPresentationActor();
 
 protected:
 	// GAS 실행 시작·확정·종료
@@ -113,7 +106,6 @@ protected:
 
 	void FinishAbilityFromDuration();
 	bool CanExecuteSkillPayload() const;
-	void CancelAbilityForSkillExecutionFailure();
 
 	bool HasActiveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass) const;
 
@@ -125,8 +117,6 @@ protected:
 	bool ApplySharedCooldownEffect(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, float CooldownDuration, const FGameplayTagContainer& CooldownTags) const;
 	bool TryCommitAdditionalActionStaminaCost() const;
-	float CalculateBaseSkillDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const;
-	float ApplyIntelligenceToSkillDamage(float DamageMagnitude) const;
 	float CalculateSkillDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const;
 
 	UAbilityTask_PlayMontageAndWait* CreateDefaultMontageAndWaitTask(UAnimMontage* MontageToPlay);
@@ -170,7 +160,10 @@ private:
 
 	static const USkillDefinition* ResolveSourceSkillDataAsset(UObject* SourceObject);
 
+	// Super::EndAbility에 진입하기 전, 파생 능력과 자기 효과를 정리하는 동안의 재진입을 막는다.
 	bool bIsCleaningUpAbility = false;
+
+	// 시전 중 장비·Avatar가 바뀌어도 버프를 처음 적용했던 대상에서 해제한다.
 	FActiveGameplayEffectHandle ActiveSelfBuffEffectHandle;
 	TWeakObjectPtr<UAbilitySystemComponent> SelfBuffAbilitySystemComponent;
 	TWeakObjectPtr<UCombatComponent> SelfBuffCombatComponent;

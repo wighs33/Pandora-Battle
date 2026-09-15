@@ -111,7 +111,7 @@ void UPdAbilitySystemComponent::OnRep_ActivateAbilities()
 }
 
 // 서버에서 기본값과 시작 투자분을 검증해 최대 자원, 현재 자원 순서로 초기화한다.
-// 플레이어의 초기화 시점과 중복 호출 방지는 StatUpgradeComponent가 담당한다.
+// 초기화 시점과 중복 호출 방지는 호출하는 플레이어·적 컴포넌트가 담당한다.
 bool UPdAbilitySystemComponent::ApplyConfiguredAttributeDefaults(const UStatUpgradeDefinition& Definition)
 {
 	if (!IsOwnerActorAuthoritative() || !GetSet<UBasicAttributeSet>())

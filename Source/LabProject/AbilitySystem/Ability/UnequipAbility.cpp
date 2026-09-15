@@ -3,6 +3,7 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Component/Player/EquipmentComponent.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
@@ -97,7 +98,8 @@ bool UUnequipAbility::ActivateRequestedEquipIfNeeded(const bool bShouldActivate)
 
 	FGameplayTagContainer EquipAbilityTags;
 	EquipAbilityTags.AddTag(PostUnequipEquipAbilityTag);
-	return TryActivateAbilitiesByTags(EquipAbilityTags, true);
+	UPdAbilitySystemComponent* ASC = GetPdAbilitySystemComponentFromActorInfo();
+	return ASC && !EquipAbilityTags.IsEmpty() && ASC->TryActivateAbilitiesByTag(EquipAbilityTags, true);
 }
 
 void UUnequipAbility::OnUnequipMontageCompleted()
@@ -118,29 +120,6 @@ void UUnequipAbility::OnUnequipCommitTiming(FGameplayEventData Payload)
 {
 	static_cast<void>(Payload);
 	FinalizeUnequipCommit();
-
-	// =================================================================================================================
-	if (bUnequipCommitted || !HasAuthority(&CurrentActivationInfo) || !ActiveUnequipWeaponDefinition)
-	{
-		return;
-	}
-
-	// =================================================================================================================
-
-	FGameplayTagContainer GrantedTags;
-	if (ActiveUnequipWeaponDefinition->IdTag.IsValid())
-	{
-		GrantedTags.AddTag(ActiveUnequipWeaponDefinition->IdTag);
-	}
-
-	// =================================================================================================================
-
-	if (!GrantedTags.IsEmpty())
-	{
-		RemoveGameplayEffectsWithGrantedTags(GrantedTags);
-	}
-
-	ActiveUnequipWeaponDefinition = nullptr;
 }
 
 // Ability flow

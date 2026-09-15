@@ -45,7 +45,7 @@ FVector USkillProjectileCastAction::GetSpawnLocationForSocket(const FName Socket
 	if (CharacterMesh && !SocketName.IsNone() && CharacterMesh->DoesSocketExist(SocketName))
 	{
 		const FTransform SocketTransform = CharacterMesh->GetSocketTransform(SocketName, RTS_World);
-		const FVector ConfiguredSpawnLocationOffset = GetConfiguredSpawnLocationOffset();
+		const FVector ConfiguredSpawnLocationOffset = Settings.SpawnLocationOffset;
 		const FVector OffsetLocation =
 			SocketTransform.GetLocation() + SocketTransform.TransformVectorNoScale(ConfiguredSpawnLocationOffset);
 
@@ -59,7 +59,7 @@ FVector SpawnForward = AvatarActor->GetActorForwardVector();
 		SpawnForward = HorizontalForward;
 	}
 
-	const FVector ConfiguredSpawnLocationOffset = GetConfiguredSpawnLocationOffset();
+	const FVector ConfiguredSpawnLocationOffset = Settings.SpawnLocationOffset;
 	const float ForwardSpawnDistance =
 		FMath::Max(GetConfiguredMinimumForwardSpawnOffset() + ConfiguredSpawnLocationOffset.X, 0.0f);
 	const FVector ForwardOffset = SpawnForward * ForwardSpawnDistance;
@@ -74,7 +74,7 @@ void USkillProjectileCastAction::ShootProjectile_Implementation(FVector TargetLo
 {
 	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
 	UWorld* World = GetWorld();
-	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = GetConfiguredProjectileClass();
+	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = Settings.ProjectileActorClass;
 	if (!AvatarActor || !AvatarActor->HasAuthority() || !World || !ConfiguredProjectileClass)
 	{
 		return;
@@ -153,7 +153,7 @@ AProjectileBase* USkillProjectileCastAction::SpawnReadiedProjectile()
 {
 	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
 	UWorld* World = GetWorld();
-	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = GetConfiguredProjectileClass();
+	const TSubclassOf<AProjectileBase> ConfiguredProjectileClass = Settings.ProjectileActorClass;
 	const APawn* AvatarPawn = Cast<APawn>(AvatarActor);
 	const bool bAvatarHasAuthority = AvatarActor && AvatarActor->HasAuthority();
 	const bool bLocallyControlledAvatar = AvatarPawn && AvatarPawn->IsLocallyControlled();
