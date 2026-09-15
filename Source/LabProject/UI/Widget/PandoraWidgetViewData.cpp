@@ -9,7 +9,6 @@
 #include "Mode/PdPlayerState.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Pandora/PandoraInstance.h"
 
 namespace
 {
@@ -64,7 +63,7 @@ namespace
 	FText MakePandoraUnlockRequirementsText(const UPandoraDefinition* Definition, const UPandoraTreeComponent* Tree)
 	{
 		TArray<FText> Lines;
-		for (const FPandoraUnlockRule& Rule : Definition->UnlockRules)
+		for (const FPandoraUnlockRule& Rule : Definition->GetUnlockRules())
 		{
 			if (Rule.RequiredPandora)
 			{
@@ -92,7 +91,7 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 		ViewData.DisplayName = PandoraDefinition->GetDisplayName();
 		ViewData.Description = PandoraDefinition->GetDescription();
 		ViewData.MaxLevel = PandoraDefinition->GetMaxLevel();
-		ViewData.RequiredWeaponTags = PandoraDefinition->ActivatableWeaponTags;
+		ViewData.RequiredWeaponTags = PandoraDefinition->GetActivatableWeaponTags();
 	}
 
 	ViewData.CurrentLevel = PandoraTreeComponent && PandoraDefinition
@@ -185,14 +184,12 @@ FText FPandoraWidgetViewDataBuilder::MakeLevelText(
 		FText::AsNumber(MaxLevel));
 }
 
-FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(const UPandoraInstance* PandoraInstance)
+FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(
+	const UPandoraDefinition* PandoraDefinition,
+	const UPandoraComponent* PandoraComponent)
 {
 	FPandoraSlotViewData ViewData;
-	const UPandoraDefinition* PandoraDefinition = IsValid(PandoraInstance)
-		? PandoraInstance->PandoraDefinition.Get()
-		: nullptr;
-
-	ViewData.bOwned = IsValid(PandoraInstance) && PandoraInstance->IsOwned;
+	ViewData.bOwned = PandoraComponent && PandoraComponent->HasPandoraDefinition(PandoraDefinition);
 	ViewData.bActive = ViewData.bOwned;
 	ViewData.bEnabled = ViewData.bOwned;
 
@@ -204,7 +201,7 @@ FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(const UPandoraInstance* 
 	ViewData.DisplayName = PandoraDefinition->GetDisplayName();
 	ViewData.Description = PandoraDefinition->GetDescription();
 	ViewData.IconResource = PandoraDefinition->GetIconResource();
-	ViewData.RequiredWeaponTags = PandoraDefinition->ActivatableWeaponTags;
+	ViewData.RequiredWeaponTags = PandoraDefinition->GetActivatableWeaponTags();
 	return ViewData;
 }
 
@@ -237,22 +234,22 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 
 	for (int32 SkillIndex = 0; SkillIndex < ViewData.SkillSlots.Num(); ++SkillIndex)
 	{
-		if (!PandoraDefinition->Skill.IsValidIndex(SkillIndex))
+		const USkillDefinition* Skill = PandoraDefinition->GetSkillDefinition(SkillIndex);
+		if (!Skill)
 		{
 			continue;
 		}
 
-		const FSkill& Skill = PandoraDefinition->Skill[SkillIndex];
 		FPandoraSkillSlotViewData& SkillViewData = ViewData.SkillSlots[SkillIndex];
-		SkillViewData.IconResource = Skill.GetIconResource();
-		SkillViewData.DisplayName = Skill.GetDisplayName();
-		SkillViewData.Description = Skill.GetDescription();
+		SkillViewData.IconResource = Skill->GetIconResource();
+		SkillViewData.DisplayName = Skill->GetDisplayName();
+		SkillViewData.Description = Skill->Description;
 	}
 
 	ViewData.bLockedByPandoraRequirement = PandoraTreeComponent
 		&& !PandoraTreeComponent->IsPandoraAvailableForInvestment(PandoraDefinition);
 
-	const FText WeaponRequirement = MakeWeaponRequirementText(PandoraDefinition->ActivatableWeaponTags);
+	const FText WeaponRequirement = MakeWeaponRequirementText(PandoraDefinition->GetActivatableWeaponTags());
 	ViewData.WeaponRequirementText = WeaponRequirement;
 	ViewData.WeaponRequirementVisibility = WeaponRequirement.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
 

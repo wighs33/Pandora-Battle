@@ -9,13 +9,12 @@ class UButton;
 class UDragDropOperation;
 class UImage;
 class USkinDefinition;
-class USkinInstance;
 class USkinEquipSlotWidget;
 class UTextBlock;
 class UTexture2D;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedSkinEquipSlot, USkinEquipSlotWidget*, SkinEquipSlot);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnDroppedSkinEquipSlot, USkinEquipSlotWidget*, SkinEquipSlot, USkinInstance*, SkinInstance);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnDroppedSkinEquipSlot, USkinEquipSlotWidget*, SkinEquipSlot, const USkinDefinition*, SkinDefinition);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API USkinEquipSlotWidget : public UUserWidget
@@ -36,9 +35,6 @@ public:
 	void SetHoverIcon(UTexture2D* InIconTexture);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
-	void SetData(USkinInstance* Target);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
 	void SetSkinDefinition(const USkinDefinition* Target);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
@@ -55,9 +51,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
 	UTexture2D* GetSlotHoverIconTexture() const { return SlotHoverIconTexture; }
-
-	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
-	USkinInstance* GetSkinInstance() const { return SkinInstance; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
 	const USkinDefinition* GetSkinDefinition() const { return SkinDefinition; }
@@ -142,7 +135,7 @@ private:
 	void ApplySlotVisual();
 	void CacheOptionalWidgets();
 	void ApplyButtonBackgroundStyle();
-	bool CanAcceptDroppedSkin(USkinInstance* DroppedSkin) const;
+	bool CanAcceptDroppedSkin(const USkinDefinition* DroppedSkin) const;
 	UTexture2D* GetCurrentIconTexture(bool bForHover) const;
 	void CacheDefaultButtonStyle();
 
@@ -157,9 +150,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> CurrentSkinIconTexture;
-
-	UPROPERTY(Transient)
-	TObjectPtr<USkinInstance> SkinInstance;
 
 	UPROPERTY(Transient)
 	TObjectPtr<const USkinDefinition> SkinDefinition;

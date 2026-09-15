@@ -248,7 +248,7 @@ void ALobbyPlayerController::ApplyLobbyTravelLock(const bool bLocked)
 	}
 
 	MovementComponent->StopMovementImmediately();
-	MovementComponent->SetBase(nullptr);
+	MovementComponent->SetBase(static_cast<FMovementBaseInterfaceData*>(nullptr));
 
 	if (bLocked)
 	{

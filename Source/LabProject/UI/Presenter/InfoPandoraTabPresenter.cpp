@@ -9,7 +9,6 @@
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
-#include "Pandora/PandoraInstance.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 #include "UI/InfoLoadoutStore.h"
 #include "UI/PandoraLoadoutUiModel.h"
@@ -108,15 +107,12 @@ void UInfoPandoraTabPresenter::RefreshLoadoutPresentation() const
 
 void UInfoPandoraTabPresenter::HandlePandoraSlotClicked(UObject* Item)
 {
-	UPandoraInstance* PandoraInstance = Cast<UPandoraInstance>(Item);
-	if (!GetController() || !IsPandoraOwned(PandoraInstance))
+	const UPandoraDefinition* PandoraDefinition = Cast<UPandoraDefinition>(Item);
+	if (!GetController() || !IsPandoraOwned(PandoraDefinition))
 	{
 		return;
 	}
 
-	const UPandoraDefinition* PandoraDefinition = PandoraInstance
-		? PandoraInstance->PandoraDefinition.Get()
-		: nullptr;
 	UInfoLoadoutStore* Store = LoadoutStore.Get();
 	UPandoraComponent* PandoraComponent = Store ? Store->GetPandoraComponent() : nullptr;
 	EEnum_Direction Direction = EEnum_Direction::Center;
@@ -368,11 +364,11 @@ void UInfoPandoraTabPresenter::RefreshSelectPandoraCompatibility() const
 	}
 }
 
-bool UInfoPandoraTabPresenter::IsPandoraOwned(const UPandoraInstance* PandoraInstance) const
+bool UInfoPandoraTabPresenter::IsPandoraOwned(const UPandoraDefinition* PandoraDefinition) const
 {
 	const APdPlayerState* PlayerState = GetPlayerState();
 	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
-	return IsValid(PandoraInstance) && PandoraComponent && PandoraComponent->HasPandoraDefinition(PandoraInstance->PandoraDefinition);
+	return IsValid(PandoraDefinition) && PandoraComponent && PandoraComponent->HasPandoraDefinition(PandoraDefinition);
 }
 
 void UInfoPandoraTabPresenter::BuildPandoraTileViewItems(
@@ -397,12 +393,13 @@ void UInfoPandoraTabPresenter::BuildPandoraTileViewItems(
 	}
 
 	OutListItems.Reserve(SourceList->Pandoras.Num());
-	for (const TObjectPtr<UPandoraInstance>& Pandora : SourceList->Pandoras)
+	for (const TObjectPtr<const UPandoraDefinition>& Pandora : SourceList->Pandoras)
 	{
-		UPandoraInstance* PandoraInstance = Pandora.Get();
-		if (IsValid(PandoraInstance) && (!bOwnedOnly || IsPandoraOwned(PandoraInstance)))
+		const UPandoraDefinition* PandoraDefinition = Pandora.Get();
+		if (IsValid(PandoraDefinition) && (!bOwnedOnly || IsPandoraOwned(PandoraDefinition)))
 		{
-			OutListItems.Add(PandoraInstance);
+			// UMG 목록은 UObject*를 받지만 데이터 애셋은 읽기 전용으로 사용한다.
+			OutListItems.Add(const_cast<UPandoraDefinition*>(PandoraDefinition));
 		}
 	}
 }

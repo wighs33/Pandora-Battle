@@ -246,12 +246,6 @@ bool AExperienceGameMode::TryGetPlayerInitialSpawnTransform(AController* PlayerC
 	return SpawnComponent->TryGetPlayerInitialSpawnTransform(PlayerController, OutSpawnTransform);
 }
 
-// 현재 게임 모드에 맞는 초기 스탯 포인트 지급을 요청한다.
-void AExperienceGameMode::ApplyConfiguredStatusPointsForPlayerState(APlayerState* PlayerState)
-{
-	PlayerProvisioningComponent->ApplyConfiguredStatusPointsForPlayerState(PlayerState);
-}
-
 // Experience 미지정은 정상 기본 실행이며, 지정된 Experience의 실패는 명시적으로 허용해야 진행한다.
 bool AExperienceGameMode::CanStartGameplay() const
 {

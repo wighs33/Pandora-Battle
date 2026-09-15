@@ -7,7 +7,6 @@
 #include "TimerManager.h"
 #include "SkillAuraAction.generated.h"
 
-class UAbilityTask_WaitDelay;
 class AEffectAreaBase;
 class ACharacterBase;
 class USkillDefinition;
@@ -36,9 +35,6 @@ protected:
 	virtual void OnStop() override;
 
 private:
-	UFUNCTION()
-	void OnAuraDurationFinished();
-
 	void StartAuraEffectAreaSpawning(USkillDefinition* SkillDataAsset);
 	void StopAuraEffectAreaSpawning();
 	ACharacterBase* ResolveAuraSourceCharacter() const;
@@ -60,9 +56,6 @@ private:
 	void ClearInteractionHealEffects(const TCHAR* RemoveReason);
 
 	UPROPERTY(Transient)
-	TObjectPtr<UAbilityTask_WaitDelay> AuraDurationTask;
-
-	UPROPERTY(Transient)
 	TObjectPtr<USkillDefinition> ActiveAuraSkillDataAsset;
 
 	UPROPERTY(Transient)
@@ -74,8 +67,6 @@ private:
 	TArray<TWeakObjectPtr<AEffectAreaBase>> ActiveAuraEffectAreas;
 
 	FActiveGameplayEffectHandle MovementSpeedEffectHandle;
-
-	double AuraActivationWorldTime = 0.0;
 
 	UPROPERTY(Transient)
 	FVector ActiveHealFieldOrigin = FVector::ZeroVector;

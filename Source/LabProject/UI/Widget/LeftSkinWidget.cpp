@@ -8,7 +8,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
-#include "Skin/SkinInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftSkinWidget)
 
@@ -112,9 +111,8 @@ void ULeftSkinWidget::RefreshEquippedSkinSlots(const USkinEquipmentComponent* Sk
 	}
 }
 
-USkinEquipSlotWidget* ULeftSkinWidget::FindFirstCompatibleSkinEquipSlot(USkinInstance* SkinInstance) const
+USkinEquipSlotWidget* ULeftSkinWidget::FindFirstCompatibleSkinEquipSlot(const USkinDefinition* SkinDefinition) const
 {
-	const USkinDefinition* SkinDefinition = SkinInstance ? SkinInstance->SkinDefinition.Get() : nullptr;
 	if (!SkinDefinition || !SkinDefinition->IdTag.IsValid())
 	{
 		return nullptr;
@@ -253,11 +251,11 @@ void ULeftSkinWidget::UnbindSkinEquipSlotCallbacks()
 	}
 }
 
-void ULeftSkinWidget::HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinEquipSlot, USkinInstance* SkinInstance)
+void ULeftSkinWidget::HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinEquipSlot, const USkinDefinition* SkinDefinition)
 {
 	const FGameplayTag ResolvedTag = ResolveSkinEquipTypeTagForSlot(SkinEquipSlot);
 
-	OnDroppedSkin_SkinEquipTypeSlot.Broadcast(ResolvedTag, SkinEquipSlot, SkinInstance);
+	OnDroppedSkin_SkinEquipTypeSlot.Broadcast(ResolvedTag, SkinEquipSlot, SkinDefinition);
 }
 
 void ULeftSkinWidget::HandleDrawButtonClicked()

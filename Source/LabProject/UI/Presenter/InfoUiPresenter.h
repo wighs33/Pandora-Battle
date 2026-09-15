@@ -14,7 +14,6 @@ class UInfoSkinTabPresenter;
 class UInfoStatusTabPresenter;
 class UInfoWidget;
 class UItemInstance;
-class UPandoraInstance;
 struct FStreamableHandle;
 enum class EInfoLoadoutStateChange : uint8;
 
@@ -36,7 +35,6 @@ public:
 	void BindInfoUi(UInfoWidget* InInfoWidget);
 	void UnbindInfoUi(const UInfoWidget* ExpectedInfoWidget = nullptr);
 	UItemInstance* GetSelectedWeapon(EEnum_Direction Direction) const;
-	UPandoraInstance* GetSelectedPandora(EEnum_Direction Direction) const;
 	bool WouldSelectedPandoraDirectionChangeLoadout(EEnum_Direction Direction) const;
 
 	UFUNCTION()

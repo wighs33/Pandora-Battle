@@ -1,6 +1,7 @@
 #include "Weapon/WeaponBase.h"
 
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Definition/Common/ProjectTagConfig.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "ActiveGameplayEffectHandle.h"
@@ -1216,7 +1217,7 @@ void AWeaponBase::ApplySkillAdditionalDamageToTarget(
 
 	if (!DamageDataTag.IsValid())
 	{
-		SourceASC->ResolveDamageMagnitudeSetByCallerTag(DamageDataTag);
+		DamageDataTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
 	}
 
 	if (!DamageDataTag.IsValid())

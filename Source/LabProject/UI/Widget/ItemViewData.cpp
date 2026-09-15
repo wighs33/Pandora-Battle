@@ -3,7 +3,6 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Definition/Skin/SkinDefinition.h"
-#include "Skin/SkinInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ItemViewData)
 
@@ -31,15 +30,6 @@ FItemViewData FItemViewDataBuilder::FromItemInstance(
 	ViewData.Quantity = ItemInstance->Quantity;
 	ViewData.UpgradeLevel = ItemInstance->GetUpgradeLevel();
 	return ViewData;
-}
-
-FItemViewData FItemViewDataBuilder::FromSkinInstance(
-	const USkinInstance* SkinInstance,
-	const bool bOwned,
-	const bool bActive)
-{
-	const USkinDefinition* SkinDefinition = IsValid(SkinInstance) ? SkinInstance->SkinDefinition.Get() : nullptr;
-	return FromSkinDefinition(SkinDefinition, bOwned && SkinInstance != nullptr, bActive && SkinInstance != nullptr);
 }
 
 FItemViewData FItemViewDataBuilder::FromSkinDefinition(

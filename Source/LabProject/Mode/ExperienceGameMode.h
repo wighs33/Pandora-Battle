@@ -57,7 +57,6 @@ public:
 	bool RequestAbortMatchToTitle(APlayerController* RequestingPlayer);
 	void RequestPlayerRespawn(AController* PlayerController, APawn* DeadPawn);
 	bool TryGetPlayerInitialSpawnTransform(AController* PlayerController, FTransform& OutSpawnTransform) const;
-	void ApplyConfiguredStatusPointsForPlayerState(APlayerState* PlayerState);
 
 protected:
 	bool CanStartGameplay() const;

@@ -1,7 +1,7 @@
 #include "UI/Widget/SkillEffectIconResolver.h"
 
 #include "Components/Image.h"
-#include "Definition/Pandora/PandoraDefinition.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/Texture2D.h"
 
@@ -16,9 +16,8 @@ namespace
 		Shield
 	};
 
-	ESkillEffectIconType ResolveSkillEffectIconType(const FSkill& Skill)
+	ESkillEffectIconType ResolveSkillEffectIconType(const USkillDefinition* SkillDefinition)
 	{
-		const USkillDefinition* SkillDefinition = Skill.SkillDefinition.Get();
 		if (!SkillDefinition)
 		{
 			return ESkillEffectIconType::None;
@@ -79,7 +78,7 @@ namespace
 
 void PdSkillEffectIconResolver::ApplySkillEffectIcon(
 	const UObject* WorldContextObject,
-	const FSkill* Skill,
+	const USkillDefinition* Skill,
 	UImage* ImageWidget,
 	const ESkillEffectIconSet IconSet)
 {
@@ -88,9 +87,7 @@ void PdSkillEffectIconResolver::ApplySkillEffectIcon(
 		return;
 	}
 
-	const ESkillEffectIconType EffectIconType = Skill
-		? ResolveSkillEffectIconType(*Skill)
-		: ESkillEffectIconType::None;
+	const ESkillEffectIconType EffectIconType = ResolveSkillEffectIconType(Skill);
 	if (EffectIconType == ESkillEffectIconType::None)
 	{
 		ImageWidget->SetVisibility(ESlateVisibility::Hidden);

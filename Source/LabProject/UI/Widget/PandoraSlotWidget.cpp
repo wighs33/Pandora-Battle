@@ -5,7 +5,8 @@
 #include "Components/TextBlock.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdHUD.h"
-#include "Pandora/PandoraInstance.h"
+#include "Mode/PdPlayerState.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 #include "UI/Widget/InfoWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraSlotWidget)
@@ -48,7 +49,8 @@ void UPandoraSlotWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	bIsHoverActive = false;
-	ApplyViewData(FPandoraSlotViewDataBuilder::Build(CachedData));
+	const APdPlayerState* PlayerState = GetOwningPlayerState<APdPlayerState>();
+	ApplyViewData(FPandoraSlotViewDataBuilder::Build(CachedData, PlayerState ? PlayerState->GetPandoraComponent() : nullptr));
 }
 
 void UPandoraSlotWidget::NativeDestruct()
@@ -69,10 +71,7 @@ void UPandoraSlotWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
 	IUserObjectListEntry::NativeOnListItemObjectSet(ListItemObject);
 
-	if (UPandoraInstance* PandoraInstance = Cast<UPandoraInstance>(ListItemObject))
-	{
-		SetData(PandoraInstance);
-	}
+	SetData(Cast<UPandoraDefinition>(ListItemObject));
 }
 
 void UPandoraSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -123,11 +122,12 @@ void UPandoraSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 	Super::NativeOnMouseLeave(InMouseEvent);
 }
 
-void UPandoraSlotWidget::SetData(UPandoraInstance* Target)
+void UPandoraSlotWidget::SetData(const UPandoraDefinition* Target)
 {
 	CachedData = Target;
 
-	ApplyViewData(FPandoraSlotViewDataBuilder::Build(CachedData));
+	const APdPlayerState* PlayerState = GetOwningPlayerState<APdPlayerState>();
+	ApplyViewData(FPandoraSlotViewDataBuilder::Build(CachedData, PlayerState ? PlayerState->GetPandoraComponent() : nullptr));
 }
 
 void UPandoraSlotWidget::ApplyViewData(const FPandoraSlotViewData& ViewData)

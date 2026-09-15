@@ -865,7 +865,7 @@ FShopProductDefinitionData UShopWidget::ResolveShopData(UObject* ProductObject, 
 	case EShopProductType::Pandora:
 		if (const UPandoraDefinition* PandoraDefinition = Cast<UPandoraDefinition>(ProductObject))
 		{
-			return PandoraDefinition->ShopData;
+			return PandoraDefinition->GetShopData();
 		}
 		break;
 	case EShopProductType::Skin:

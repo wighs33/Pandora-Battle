@@ -8,7 +8,7 @@
 
 class UButton;
 class UEditableTextBox;
-class UPandoraInstance;
+class UPandoraDefinition;
 class UTileView;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedPandoraFilterAllButton);
@@ -110,7 +110,7 @@ private:
 
 	void RebuildFilterButtonList();
 	void RebuildTileViewFromCachedSourceItems();
-	bool DoesPandoraMatchSearch(const UPandoraInstance* PandoraInstance, const FString& SearchText) const;
+	bool DoesPandoraMatchSearch(const UPandoraDefinition* PandoraDefinition, const FString& SearchText) const;
 	void ApplyWidgetDefinitionSettings();
 	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
 	FGameplayTag GetOffensiveTypeTag() const;

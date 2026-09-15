@@ -17,7 +17,6 @@ class UTextBlock;
 class UTexture2D;
 class UWidget;
 struct FOnAttributeChangeData;
-struct FSkill;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UAbilitySlotWidget : public UUserWidget
@@ -85,7 +84,6 @@ private:
 	void ApplyAbilitySlotEnabledState();
 
 	UObject* ResolveAbilityImage() const;
-	const FSkill* ResolvePandoraSkill() const;
 	const USkillDefinition* ResolveSkillDataAsset() const;
 	void ResolveCooldown(float& OutTimeRemaining, float& OutDuration) const;
 	UInputAction* ResolveInputAction() const;

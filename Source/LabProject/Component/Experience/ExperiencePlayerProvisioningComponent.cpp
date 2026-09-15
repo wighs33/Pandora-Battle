@@ -231,16 +231,6 @@ void UExperiencePlayerProvisioningComponent::FlushPendingGameplayProvisions()
 	}
 }
 
-void UExperiencePlayerProvisioningComponent::ApplyConfiguredStatusPointsForPlayerState(APlayerState* PlayerState)
-{
-	if (DefaultPlayerProvisioner)
-	{
-		DefaultPlayerProvisioner
-			->ApplyConfiguredStatusPointsForPlayerState(
-				PlayerState);
-	}
-}
-
 bool UExperiencePlayerProvisioningComponent::IsTrainingRoomMap() const
 {
 	const UWorld* World = GetWorld();

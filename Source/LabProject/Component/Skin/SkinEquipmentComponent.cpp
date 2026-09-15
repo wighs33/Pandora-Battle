@@ -17,7 +17,6 @@
 #include "Pet/PetCharacter.h"
 #include "Component/Skin/SkinComponent.h"
 #include "Definition/Skin/SkinDefinition.h"
-#include "Skin/SkinInstance.h"
 #include "UObject/PrimaryAssetId.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinEquipmentComponent)
@@ -87,13 +86,6 @@ void USkinEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME_WITH_PARAMS_FAST(USkinEquipmentComponent, EquippedSkins, Params);
 }
 
-// UI의 소유 인스턴스에서 Definition을 꺼내 공통 장착 요청으로 전달한다.
-bool USkinEquipmentComponent::RequestEquipSkin(USkinInstance* SkinInstance, const FGameplayTag SlotTag)
-{
-	USkinDefinition* Definition = IsValid(SkinInstance) ? const_cast<USkinDefinition*>(SkinInstance->SkinDefinition.Get()) : nullptr;
-	return RequestEquipSkinDefinition(Definition, SlotTag);
-}
-
 bool USkinEquipmentComponent::RequestUnequipSkinSlot(const FGameplayTag SlotTag)
 {
 	if (bEndingPlay || !GetOwner() || !IsSupportedSkinSlot(SlotTag))
@@ -121,7 +113,7 @@ void USkinEquipmentComponent::GetEquippedSkinSlots(TArray<FEquippedSkinSlot>& Ou
 	OutEquippedSkins = EquippedSkins;
 }
 
-bool USkinEquipmentComponent::RequestEquipSkinDefinition(USkinDefinition* SkinDefinition, const FGameplayTag SlotTag)
+bool USkinEquipmentComponent::RequestEquipSkinDefinition(const USkinDefinition* SkinDefinition, const FGameplayTag SlotTag)
 {
 	if (!CanEquipSkinDefinition(SkinDefinition, SlotTag))
 	{
@@ -180,7 +172,7 @@ bool USkinEquipmentComponent::RequestCancelActiveGestureMontage(const float Blen
 	return true;
 }
 
-void USkinEquipmentComponent::ServerEquipSkin_Implementation(USkinDefinition* SkinDefinition, const FGameplayTag SlotTag)
+void USkinEquipmentComponent::ServerEquipSkin_Implementation(const USkinDefinition* SkinDefinition, const FGameplayTag SlotTag)
 {
 	EquipSkinDefinition(SkinDefinition, SlotTag);
 }

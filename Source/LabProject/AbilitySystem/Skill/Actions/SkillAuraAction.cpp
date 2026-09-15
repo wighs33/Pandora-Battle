@@ -1,7 +1,6 @@
 #include "AbilitySystem/Skill/Actions/SkillAuraAction.h"
 
 #include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
-#include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "AbilitySystem/EffectActors/EffectAreaBase.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
@@ -72,31 +71,6 @@ float ResolveGroundEffectZOffset(const FAuraSkillConfig& AuraConfig)
 		FRotator SpawnRotation = Character ? Character->GetActorRotation() : FRotator::ZeroRotator;
 		return FTransform(SpawnRotation, SpawnLocation);
 	}
-
-	float ResolveAuraDuration(const USkillDefinition* SkillDataAsset, const FAuraSkillConfig* AuraConfig)
-	{
-		if (!SkillDataAsset || SkillDataAsset->SkillType != ESkillType::Duration || !AuraConfig)
-		{
-			return 0.0f;
-		}
-
-		const float ConfigDuration = SkillDataAsset->Time.Duration > 0.0
-			? static_cast<float>(SkillDataAsset->Time.Duration)
-			: static_cast<float>(FMath::Max(SkillDataAsset->Time.Duration, 0.0));
-		if (!AuraConfig->bSpawnEffectArea || !AuraConfig->bRepeatEffectAreaSpawn)
-		{
-			return ConfigDuration;
-		}
-
-		const float Interval = static_cast<float>(FMath::Max(AuraConfig->EffectAreaSpawnInterval, 0.1));
-		const float MinimumRepeatDuration = Interval * 2.0f + KINDA_SMALL_NUMBER;
-		if (ConfigDuration > 0.0f)
-		{
-			return FMath::Max(ConfigDuration, MinimumRepeatDuration);
-		}
-
-		return FMath::Max(static_cast<float>(AuraConfig->EffectAreaLifeSpan), MinimumRepeatDuration);
-	}
 }
 
 USkillAuraAction::USkillAuraAction()
@@ -112,7 +86,6 @@ void USkillAuraAction::OnStart()
 	const auto* TriggerEventData = &GetContext().EventData;
 	static_cast<void>(TriggerEventData);
 
-	AuraDurationTask = nullptr;
 	ActiveAuraSkillDataAsset = nullptr;
 	ActiveAuraSourceCharacter.Reset();
 	MovementSpeedEffectHandle.Invalidate();
@@ -120,7 +93,6 @@ void USkillAuraAction::OnStart()
 	ActiveHealFieldOrigin = FVector::ZeroVector;
 	ActiveHealFieldRadius = 0.0f;
 	ActiveInteractionHealEffectHandles.Reset();
-	AuraActivationWorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 
 	USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
@@ -137,7 +109,6 @@ void USkillAuraAction::OnStart()
 		return;
 	}
 
-	const FAuraSkillConfig* AuraConfig = &Settings;
 	const bool bPressSkill = SkillDataAsset->SkillType == ESkillType::Press;
 	ActiveAuraSkillDataAsset = SkillDataAsset;
 	ActiveAuraSourceCharacter = GetAbility()->GetPdCharacterFromActorInfo();
@@ -150,50 +121,22 @@ void USkillAuraAction::OnStart()
 	StartAuraEffectAreaSpawning(SkillDataAsset);
 	StartHealFieldTeamHealing(SkillDataAsset);
 
-	const float Duration = ResolveAuraDuration(SkillDataAsset, AuraConfig);
-
-	if (Duration <= 0.0f)
+	// 유지 액션의 종료 시점은 스킬 실행자가 관리한다.
+	if (!GetAbility()->HasDurationDeadline() && !bPressSkill)
 	{
-		if (bPressSkill)
-		{
-
-			return;
-		}
-
-		Finish(!(false));
-		return;
+		Finish();
 	}
-
-	AuraDurationTask = UAbilityTask_WaitDelay::WaitDelay(GetAbility(), Duration);
-	if (!AuraDurationTask)
-	{
-		Finish(!(true));
-		return;
-	}
-
-	AuraDurationTask->OnFinish.AddDynamic(this, &ThisClass::OnAuraDurationFinished);
-	AuraDurationTask->ReadyForActivation();
 }
 
 void USkillAuraAction::OnStop()
 {
-	if (AuraDurationTask)
-	{
-		AuraDurationTask->EndTask();
-		AuraDurationTask = nullptr;
-	}
+
 
 	StopHealFieldTeamHealing();
 	StopAuraEffectAreaSpawning();
 	RemoveMovementSpeedIncrease();
 	ActiveAuraSkillDataAsset = nullptr;
 	ActiveAuraSourceCharacter.Reset();
-}
-
-void USkillAuraAction::OnAuraDurationFinished()
-{
-	AuraDurationTask = nullptr;
-	Finish();
 }
 
 void USkillAuraAction::StartAuraEffectAreaSpawning(USkillDefinition* SkillDataAsset)

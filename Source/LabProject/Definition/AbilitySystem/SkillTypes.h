@@ -17,7 +17,7 @@ enum class ESkillType : uint8
 	Instant UMETA(DisplayName = "Instant"),
 	/** 입력을 유지하는 동안 실행하고 입력을 놓으면 종료한다. */
 	Press UMETA(DisplayName = "Press"),
-	/** 유지 액션이 Time.Duration을 사용하며, 액션 트리 완료 시 종료한다. */
+	/** 스킬 활성화부터 Time.Duration 동안 유지하고, 종료 시 실행 중인 모든 액션을 정리한다. */
 	Duration UMETA(DisplayName = "Duration")
 };
 
@@ -31,7 +31,7 @@ struct LABPROJECT_API FSkillTimeSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Time", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	double CooldownDuration = 0.0;
 
-	/** 오라·검기·소환·배치 등 유지 액션의 지속시간(초). 각 액션의 시작 시점을 기준으로 사용한다. */
+	/** Duration 스킬의 전체 지속시간(초). 조준·준비·몽타주를 포함하며, 액션이 늦게 시작해도 종료 시점은 늘어나지 않는다. 0이면 액션 없이 종료한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Time", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	double Duration = 0.0;
 };

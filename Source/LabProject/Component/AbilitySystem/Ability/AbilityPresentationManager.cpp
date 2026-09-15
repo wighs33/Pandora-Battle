@@ -1,4 +1,5 @@
 #include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
+#include "AbilitySystem/Ability/SkillAbility.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/Presentation/SkillPresentationActor.h"
@@ -154,7 +155,9 @@ void UAbilityPresentationManager::SpawnConfiguredCharacterDecal(UPdGameplayAbili
 	const float StartSize = DecalSettings.DecalSize > 0.0 ? static_cast<float>(DecalSettings.DecalSize) : 512.0f;
 	const float FinalSize =
 		DecalSettings.bGrowDecalSize && DecalSettings.FinalDecalSize > 0.0 ? static_cast<float>(DecalSettings.FinalDecalSize) : StartSize;
-	const float LifeSpan = ResolveConfiguredCharacterDecalDuration(SkillDataAsset);
+	const USkillAbility* SkillAbility = Cast<USkillAbility>(&Ability);
+	const float LifeSpan = SkillAbility && SkillAbility->HasDurationDeadline() ? SkillAbility->GetRemainingDuration() : 2.0f;
+	if (LifeSpan <= 0.0f) return;
 	const float GrowthDuration = DecalSettings.bGrowDecalSize && !FMath::IsNearlyEqual(StartSize, FinalSize) ? LifeSpan : 0.0f;
 
 	FGameplayCueParameters DecalCueParameters;
@@ -206,17 +209,6 @@ FVector UAbilityPresentationManager::ResolveConfiguredCharacterDecalLocation(con
 	}
 
 	return DecalLocation;
-}
-
-// 지속형 스킬은 설정된 지속시간을, 나머지는 기본 데칼 수명을 사용한다.
-float UAbilityPresentationManager::ResolveConfiguredCharacterDecalDuration(const USkillDefinition* SkillDataAsset) const
-{
-	if (SkillDataAsset && SkillDataAsset->SkillType == ESkillType::Duration && SkillDataAsset->Time.Duration > 0.0)
-	{
-		return static_cast<float>(SkillDataAsset->Time.Duration);
-	}
-
-	return 2.0f;
 }
 
 // 이 능력의 연출 액터를 재사용하거나 서버에서 생성·초기화한다.

@@ -44,8 +44,6 @@ public:
 	void ClearRuntimeStateForController(
 		AController* Controller,
 		APlayerState* PlayerState);
-	void ApplyConfiguredStatusPointsForPlayerState(
-		APlayerState* PlayerState);
 	bool IsTrainingRoomMap() const;
 
 private:

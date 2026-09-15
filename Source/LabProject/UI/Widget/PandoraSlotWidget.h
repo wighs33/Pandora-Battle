@@ -7,7 +7,7 @@
 #include "PandoraSlotWidget.generated.h"
 
 class UImage;
-class UPandoraInstance;
+class UPandoraDefinition;
 class UTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
@@ -17,10 +17,10 @@ class LABPROJECT_API UPandoraSlotWidget : public UUserWidget, public IUserObject
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
-	void SetData(UPandoraInstance* Target);
+	void SetData(const UPandoraDefinition* Target);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Pandora")
-	UPandoraInstance* GetCachedData() const { return CachedData; }
+	const UPandoraDefinition* GetCachedData() const { return CachedData; }
 
 protected:
 	virtual void NativeConstruct() override;
@@ -54,7 +54,7 @@ protected:
 	TObjectPtr<UImage> Gun;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Pandora")
-	TObjectPtr<UPandoraInstance> CachedData;
+	TObjectPtr<const UPandoraDefinition> CachedData;
 
 private:
 	void ApplyViewData(const FPandoraSlotViewData& ViewData);

@@ -7,6 +7,7 @@
 #include "AbilityGrantAndInputManager.generated.h"
 
 class UGameplayAbility;
+class UAbilitySystemComponent;
 class UPdAbilitySystemComponent;
 
 /**
@@ -22,11 +23,14 @@ class LABPROJECT_API UAbilityGrantAndInputManager : public UObject
 public:
 	// 능력 부여·회수와 자동 실행
 	TArray<FGameplayAbilitySpecHandle> GrantAbilities(UPdAbilitySystemComponent& AbilitySystemComponent,
-		const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, int32 AbilityLevel, UObject* SourceObject);
+		const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, int32 AbilityLevel);
 
 	void RemoveAbilities(UPdAbilitySystemComponent& AbilitySystemComponent, const TArray<FGameplayAbilitySpecHandle>& AbilityHandles) const;
 
 	void ReactivateAutoActivatedAbilities(UPdAbilitySystemComponent& AbilitySystemComponent) const;
+
+	// 부여 경로와 관계없이 다음 틱에 활성화를 시도한다. World가 없으면 즉시 시도한다.
+	static void TryActivateGrantedAbilityNextTick(UAbilitySystemComponent* AbilitySystemComponent, FGameplayAbilitySpecHandle AbilityHandle);
 
 	// 실행 중 능력 조회
 	const FGameplayAbilitySpec* FindActiveAbilitySpecByTags(
@@ -38,34 +42,31 @@ public:
 	bool HasActiveAbilityOfAnyClass(const UPdAbilitySystemComponent& AbilitySystemComponent,
 		const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, bool bIncludeChildClasses) const;
 
-	// 프레임 입력 수집·전달·정리
-	void QueueAbilityInputPressed(UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayTag& InputTag);
+	// 누름은 즉시 전달하고, 해제를 사용하는 능력만 입력 대상을 보관한다.
+	void HandleAbilityInputPressed(UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayTag& InputTag);
 
-	void QueueAbilityInputReleased(const FGameplayTag& InputTag);
+	void HandleAbilityInputReleased(const FGameplayTag& InputTag);
 
-	void ProcessAbilityInput(UPdAbilitySystemComponent& AbilitySystemComponent);
+	void ProcessPendingInputReleases(UPdAbilitySystemComponent& AbilitySystemComponent);
 
 	void ClearAbilityInput(FGameplayAbilitySpecHandle Handle);
+	void NotifyAbilityActivated(FGameplayAbilitySpecHandle Handle) { PendingRemoteActivations.Remove(Handle); }
 
 	// 사망·초기화 시 누른 키와 대기 입력을 모두 비운다.
 	void ClearAllAbilityInputs()
 	{
-		AbilityHandlesByPressedInputTag.Reset();
-		AbilityInputStates.Reset();
+		HoldAbilityHandlesByInputTag.Reset();
+		PendingHoldReleases.Reset();
+		PendingRemoteActivations.Reset();
 	}
 
 private:
-	struct FAbilityInputState
-	{
-		bool bPressPending = false;
-		bool bReleasePending = false;
-		// 서버 응답을 기다리는 동안 같은 활성화 요청을 다시 보내지 않는다.
-		bool bActivationRequestSent = false;
-	};
-
 	void SendInputToActiveAbility(UPdAbilitySystemComponent& AbilitySystemComponent, FGameplayAbilitySpecHandle Handle, bool bPressed);
 
-	// 슬롯이 바뀌어도 누를 때 선택한 능력에 해제를 전달하기 위한 기록이다.
-	TMap<FGameplayTag, TArray<FGameplayAbilitySpecHandle>> AbilityHandlesByPressedInputTag;
-	TMap<FGameplayAbilitySpecHandle, FAbilityInputState> AbilityInputStates;
+	// Press 스킬·그래플처럼 해제를 사용하는 능력만 누른 시점의 연결을 보관한다.
+	TMap<FGameplayTag, TArray<FGameplayAbilitySpecHandle>> HoldAbilityHandlesByInputTag;
+	// 키는 뗐지만 아직 해제를 전달하지 못한 능력. 활성화 전 해제도 여기에 보관한다.
+	TSet<FGameplayAbilitySpecHandle> PendingHoldReleases;
+	// 활성화 응답을 받는 ServerInitiated 요청만 중복을 막는다. 로컬 예측 스킬과 ServerOnly는 저장하지 않는다.
+	TSet<FGameplayAbilitySpecHandle> PendingRemoteActivations;
 };

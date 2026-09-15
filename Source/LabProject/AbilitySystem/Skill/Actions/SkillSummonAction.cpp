@@ -587,6 +587,9 @@ StartSummonLifetimeTimerOrEnd();
 
 void USkillSummonAction::StartSummonLifetimeTimerOrEnd()
 {
+	// Duration 소환은 준비·상승 시간을 포함한 스킬의 공통 종료 시점을 따른다.
+	if (GetAbility()->HasDurationDeadline()) return;
+
 	if (SummonDurationTask)
 	{
 		return;
@@ -613,10 +616,9 @@ void USkillSummonAction::StartSummonLifetimeTimerOrEnd()
 
 float USkillSummonAction::ResolveSummonActiveDuration() const
 {
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	if (SkillDataAsset && SkillDataAsset->SkillType == ESkillType::Duration && SkillDataAsset->Time.Duration > 0.0)
+	if (GetAbility()->HasDurationDeadline())
 	{
-		return static_cast<float>(SkillDataAsset->Time.Duration);
+		return GetAbility()->GetRemainingDuration();
 	}
 
 	const FSkillSummonSettings* SummonConfig = GetSummonConfig();

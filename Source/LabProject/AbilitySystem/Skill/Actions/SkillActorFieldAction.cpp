@@ -129,7 +129,6 @@ void USkillActorFieldAction::OnStart()
 		return;
 	}
 
-	StartStaticDurationTimerFromSkillStart();
 	StartStaticDurationMovementLockIfAllowed();
 	StartWaitStaticMontageTriggerTask();
 
@@ -176,7 +175,8 @@ void USkillActorFieldAction::OnStop()
 	StaticTriggerDamageTickTimerHandle.Invalidate();
 
 	const FSkillStaticSettings* StaticSettings = GetStaticSettings();
-	const bool bDestroySpawnedActorsOnAbilityEnd = StaticSettings && StaticSettings->bDestroySpawnedActorsOnAbilityEnd;
+	const bool bDestroySpawnedActorsOnAbilityEnd = GetAbility()->HasDurationDeadline()
+		|| (StaticSettings && StaticSettings->bDestroySpawnedActorsOnAbilityEnd);
 	if (StaticSettings && (bDestroySpawnedActorsOnAbilityEnd || !SpawnedStaticActors.IsEmpty()))
 	{
 		for (AActor* SpawnedActor : SpawnedStaticActors)
@@ -281,7 +281,7 @@ void USkillActorFieldAction::TryCommitAndStartStatic()
 	if (!AvatarActor || !AvatarActor->HasAuthority())
 	{
 		GetAbility()->GetPresentationManager().StartConfiguredDefaultFX(*GetAbility());
-		if (!StaticEndTimerHandle.IsValid() && !GetResolvedStaticMontage())
+		if (!GetAbility()->HasDurationDeadline() && !StaticEndTimerHandle.IsValid() && !GetResolvedStaticMontage())
 		{
 			Finish();
 		}
@@ -302,7 +302,7 @@ void USkillActorFieldAction::TryCommitAndStartStatic()
 	StartStaticSpawnSequence();
 	if (IsRunning())
 	{
-		StartStaticRepeatAndEndTimers();
+		StartStaticRepeatTimer();
 	}
 }
 
@@ -379,36 +379,6 @@ void USkillActorFieldAction::RemoveStaticMovementSpeedIncrease()
 	MovementSpeedEffectHandle.Invalidate();
 }
 
-bool USkillActorFieldAction::StartStaticDurationTimerFromSkillStart()
-{
-	if (StaticEndTimerHandle.IsValid())
-	{
-		return true;
-	}
-
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	if (!SkillDataAsset
-		|| SkillDataAsset->SkillType != ESkillType::Duration
-		|| SkillDataAsset->Time.Duration <= 0.0)
-	{
-		return false;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-
-	World->GetTimerManager().SetTimer(
-		StaticEndTimerHandle,
-		this,
-		&ThisClass::HandleStaticDurationFinished,
-		static_cast<float>(SkillDataAsset->Time.Duration),
-		false);
-	return true;
-}
-
 void USkillActorFieldAction::StartStaticDurationMovementLockIfAllowed()
 {
 	if (ShouldSkipStaticDurationMovementLock())
@@ -471,7 +441,7 @@ void USkillActorFieldAction::StartStaticSpawnSequence()
 SpawnNextStaticActor();
 }
 
-void USkillActorFieldAction::StartStaticRepeatAndEndTimers()
+void USkillActorFieldAction::StartStaticRepeatTimer()
 {
 	if (!ShouldRepeatStaticSpawnSequence())
 	{
@@ -494,15 +464,7 @@ void USkillActorFieldAction::StartStaticRepeatAndEndTimers()
 		RepeatInterval,
 		true);
 
-	if (!StaticEndTimerHandle.IsValid())
-	{
-		World->GetTimerManager().SetTimer(
-			StaticEndTimerHandle,
-			this,
-			&ThisClass::HandleStaticDurationFinished,
-			static_cast<float>(SkillDataAsset->Time.Duration),
-			false);
-	}
+
 
 }
 
@@ -696,7 +658,7 @@ void USkillActorFieldAction::DestroyStaticActorWhenReplicationIsSafe(
 	const float RemainingReplicationLifetime = FMath::Max(
 		MinimumReplicatedLifetime - SpawnedActor->GetGameTimeSinceCreation(),
 		0.0f);
-	if (RemainingReplicationLifetime > KINDA_SMALL_NUMBER)
+	if (!GetAbility()->HasDurationDeadline() && RemainingReplicationLifetime > KINDA_SMALL_NUMBER)
 	{
 		// Damage delegates have already been removed. Keep only the replicated
 		// actor alive long enough for a cold client to load and instantiate it.
@@ -812,8 +774,8 @@ bool USkillActorFieldAction::ShouldRepeatStaticSpawnSequence() const
 	return SkillDataAsset
 		&& StaticSettings
 		&& StaticSettings->bRepeatSpawnSequence
-		&& SkillDataAsset->SkillType == ESkillType::Duration
-		&& SkillDataAsset->Time.Duration > 0.0
+		&& GetAbility()->HasDurationDeadline()
+		&& GetAbility()->GetRemainingDuration() > 0.0f
 		&& StaticSettings->RepeatSpawnInterval > 0.0;
 }
 
@@ -1224,7 +1186,6 @@ float USkillActorFieldAction::CalculateStaticTriggerDamageMagnitude() const
 
 void USkillActorFieldAction::ScheduleCompletion()
 {
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	const FSkillStaticSettings* StaticSettings = GetStaticSettings();
 	if (ShouldRepeatStaticSpawnSequence())
 	{
@@ -1236,15 +1197,9 @@ void USkillActorFieldAction::ScheduleCompletion()
 		? static_cast<float>(FMath::Max(StaticSettings->TriggerActiveDurationAfterLastSpawn, 0.0))
 		: 0.0f;
 
-	if (SkillDataAsset && SkillDataAsset->SkillType == ESkillType::Duration && SkillDataAsset->Time.Duration > 0.0)
+	if (GetAbility()->HasDurationDeadline())
 	{
-		if (StaticEndTimerHandle.IsValid())
-		{
-
-			return;
-		}
-
-		EndDelay = static_cast<float>(SkillDataAsset->Time.Duration);
+		return;
 	}
 
 	if (EndDelay <= KINDA_SMALL_NUMBER)
@@ -1309,7 +1264,7 @@ void USkillActorFieldAction::HandleStaticMontageFinished()
 	if (bStaticStarted)
 	{
 		const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-		if ((!AvatarActor || !AvatarActor->HasAuthority()) && !StaticEndTimerHandle.IsValid())
+		if ((!AvatarActor || !AvatarActor->HasAuthority()) && !GetAbility()->HasDurationDeadline() && !StaticEndTimerHandle.IsValid())
 		{
 			Finish();
 		}
@@ -1326,7 +1281,7 @@ void USkillActorFieldAction::HandleStaticMontageInterrupted()
 	if (bStaticStarted)
 	{
 		const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-		if ((!AvatarActor || !AvatarActor->HasAuthority()) && !StaticEndTimerHandle.IsValid())
+		if ((!AvatarActor || !AvatarActor->HasAuthority()) && !GetAbility()->HasDurationDeadline() && !StaticEndTimerHandle.IsValid())
 		{
 			Finish();
 		}

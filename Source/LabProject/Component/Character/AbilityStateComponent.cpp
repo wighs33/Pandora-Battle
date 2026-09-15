@@ -76,7 +76,7 @@ void UAbilityStateComponent::TryInitializeAbilitySystemActorInfo()
 		ClearAbilitySystemActorInfo();
 		return;
 	}
-	if (!Character || !ASC || !OwnerActor || !AvatarActor || !ASC->IsRegistered() || !ASC->HasAbilityActorInfoAllocated())
+	if (!Character || !ASC || !OwnerActor || !AvatarActor || !ASC->IsRegistered() || !ASC->AbilityActorInfo.IsValid())
 	{
 		QueueAbilitySystemActorInfoInitializationRetry();
 		if (Character && Character->GetCharacterHealthBarComponent())
@@ -103,7 +103,7 @@ void UAbilityStateComponent::TryInitializeAbilitySystemActorInfo()
 	if (Character->HasAuthority() && OwnerActor->IsA<APdPlayerState>())
 	{
 		// 플레이어의 기본 패시브이며, 중복 부여 방지는 기존 능력 목록 API가 담당한다.
-		ASC->GrantAbilities({UReactiveRecoveryAbility::StaticClass()}, 1, OwnerActor);
+		ASC->GrantAbilities({UReactiveRecoveryAbility::StaticClass()});
 		if (const FGameplayAbilitySpec* RecoverySpec = ASC->FindAbilitySpecFromClass(UReactiveRecoveryAbility::StaticClass());
 			RecoverySpec && !RecoverySpec->IsActive())
 		{

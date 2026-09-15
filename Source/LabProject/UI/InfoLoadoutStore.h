@@ -12,7 +12,6 @@ class UInventoryComponent;
 class UItemInstance;
 class UPandoraComponent;
 class UPandoraDefinition;
-class UPandoraInstance;
 
 /** A single state transition emitted after the store has refreshed its cached read model. */
 enum class EInfoLoadoutStateChange : uint8
@@ -49,7 +48,6 @@ public:
 	UEquipmentComponent* GetEquipmentComponent() const;
 
 	UItemInstance* GetSelectedWeapon(EEnum_Direction Direction) const;
-	UPandoraInstance* GetSelectedPandora(EEnum_Direction Direction) const;
 	const UPandoraDefinition* GetSelectedPandoraDefinition(EEnum_Direction Direction) const;
 	bool WouldSelectedDirectionChangeLoadout(EEnum_Direction Direction) const;
 
@@ -98,15 +96,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UItemInstance> RightWeapon;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UPandoraInstance> LeftPandora;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UPandoraInstance> UpPandora;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UPandoraInstance> RightPandora;
 
 	UPROPERTY(Transient)
 	TObjectPtr<const UPandoraDefinition> LeftPandoraDefinition;

@@ -7,7 +7,6 @@
 class UItemInstance;
 class UObject;
 class USkinDefinition;
-class USkinInstance;
 
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FItemViewData
@@ -57,7 +56,6 @@ class LABPROJECT_API FItemViewDataBuilder
 {
 public:
 	static FItemViewData FromItemInstance(const UItemInstance* ItemInstance, bool bOwned = true, bool bActive = true);
-	static FItemViewData FromSkinInstance(const USkinInstance* SkinInstance, bool bOwned = true, bool bActive = true);
 	static FItemViewData FromSkinDefinition(const USkinDefinition* SkinDefinition, bool bOwned = true, bool bActive = true);
 
 private:

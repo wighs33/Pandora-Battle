@@ -4,7 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "SkinSlotWidget.generated.h"
 
-class USkinInstance;
+class USkinDefinition;
 class UImage;
 class USkinSlotViewData;
 class UTextBlock;
@@ -18,7 +18,7 @@ class LABPROJECT_API USkinSlotWidget : public UUserWidget, public IUserObjectLis
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
-	void SetData(USkinInstance* Target);
+	void SetData(const USkinDefinition* Target);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
 	void SetSlotData(USkinSlotViewData* Target);
@@ -30,7 +30,7 @@ public:
 	bool IsSelected() const { return bIsSelected; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
-	USkinInstance* GetCachedData() const { return CachedData; }
+	const USkinDefinition* GetCachedData() const { return CachedData; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
 	USkinSlotViewData* GetCachedSlotData() const { return CachedSlotData; }
@@ -69,13 +69,13 @@ protected:
 	FVector2D DragIconSize = FVector2D(96.0f, 96.0f);
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin")
-	TObjectPtr<USkinInstance> CachedData;
+	TObjectPtr<const USkinDefinition> CachedData;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin")
 	TObjectPtr<USkinSlotViewData> CachedSlotData;
 
 private:
-	void ApplySkinVisual(USkinInstance* Target);
+	void ApplySkinVisual(const USkinDefinition* Target);
 	void CacheOptionalWidgets();
 	void ApplySelectionVisual();
 	FLinearColor ResolveAssignedBackgroundColor() const;

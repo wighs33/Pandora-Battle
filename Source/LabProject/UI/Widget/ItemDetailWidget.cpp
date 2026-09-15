@@ -4,7 +4,7 @@
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Item/ItemInstance.h"
-#include "Skin/SkinInstance.h"
+#include "Definition/Skin/SkinDefinition.h"
 #include "UI/Widget/ItemViewData.h"
 #include "UI/WidgetLookup.h"
 
@@ -52,14 +52,6 @@ void UItemDetailWidget::SetItemViewData(const FItemViewData& InViewData)
 
 	SetHeader(InViewData);
 	PopulateStats(InViewData.Stats, InViewData.UpgradeBonusStats);
-}
-
-void UItemDetailWidget::SetSkin(USkinInstance* InSkinInstance)
-{
-	CacheOptionalWidgets();
-
-	const FItemViewData ViewData = FItemViewDataBuilder::FromSkinInstance(InSkinInstance);
-	SetItemViewData(ViewData);
 }
 
 void UItemDetailWidget::SetSkinDefinition(const USkinDefinition* SkinDefinition)

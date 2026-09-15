@@ -5,6 +5,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Definition/Common/ProjectTagConfig.h"
 #include "AbilitySystem/Interfaces/TargetingInterface.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
@@ -154,7 +155,7 @@ bool UPdGameplayAbility::CommitAbility(const FGameplayAbilitySpecHandle Handle, 
 }
 
 // 정상 종료·취소 시 파생 스킬 정리, 연출·자기 버프·접촉 피해·이동 잠금 해제를 순서대로 수행한다.
-// 정상 종료에 예약된 쿨다운을 적용한 뒤 GAS 종료를 알리고, 필요한 장비 전환과 회전 정책을 복구한다.
+// 정상 종료 시 파생 능력의 쿨다운을 적용한 뒤 GAS 종료를 알리고, 필요한 장비 전환과 회전 정책을 복구한다.
 // 중복 종료와 잠금 중 종료를 제어해 같은 시전의 정리가 겹쳐 실행되지 않게 한다.
 void UPdGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const bool bReplicateEndAbility, const bool bWasCancelled)
@@ -183,14 +184,10 @@ void UPdGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, con
 	MovementManager->StopDurationMovementLock(*this);
 	RestoreAvatarMovementForAbility();
 
-	const UPdAbilitySystemComponent* AbilitySystemComponent =
-		ActorInfo ? Cast<UPdAbilitySystemComponent>(ActorInfo->AbilitySystemComponent.Get()) : nullptr;
-	const bool bCooldownWasPending = CostAndCooldownManager->ConsumePendingCooldown(bWasCancelled);
-	const bool bShouldApplySkillCooldown =
-		bCooldownWasPending && !(AbilitySystemComponent && AbilitySystemComponent->IsResettingAbilityRuntimeState());
-	if (bShouldApplySkillCooldown)
+	// 사망 정리 중 정상 종료 알림이 들어와도 새 쿨다운을 적용하지 않는다.
+	if (!bWasCancelled && CanExecuteSkillPayload())
 	{
-		ApplyCooldownImmediately(Handle, ActorInfo, ActivationInfo);
+		ApplyCooldownOnEnd(Handle, ActorInfo, ActivationInfo);
 	}
 
 	// 이제부터는 GAS의 bIsAbilityEnding이 재진입을 막는다.
@@ -230,11 +227,15 @@ void UPdGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, con
 // 공통 정리는 EndAbility가 담당하므로 기본 구현은 비워 둔다.
 void UPdGameplayAbility::OnAbilityEnding() {}
 
+// 종료 시 쿨다운이 필요한 파생 능력만 구현한다. 일반 능력은 GAS의 시전 확정 시점을 따른다.
+void UPdGameplayAbility::ApplyCooldownOnEnd(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) {}
+
 // GAS 종료 후 파생 스킬이 대기 입력이나 다음 행동을 이어 가는 확장 지점이다.
 // 이미 같은 인스턴스가 다시 활성화된 경우에는 EndAbility에서 이 호출을 생략한다.
 void UPdGameplayAbility::OnAbilityEnded(bool bWasCancelled) {}
 
-// 오라처럼 지속시간이 끝난 스킬을 취소가 아닌 정상 종료로 마무리해 예약된 종료 쿨다운이 적용되게 한다.
+// 오라처럼 지속시간이 끝난 스킬을 정상 종료해 종료 시점부터 쿨다운을 시작한다.
 // 서버에서 끝낼 때는 종료 사실을 클라이언트에도 전달한다.
 void UPdGameplayAbility::FinishAbilityFromDuration()
 {
@@ -247,8 +248,8 @@ void UPdGameplayAbility::FinishAbilityFromDuration()
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, bReplicateEndAbility, false);
 }
 
-// 지연된 타이머·이벤트가 실제 스킬 효과를 실행하기 전에 시전자 생존 여부와 ASC 리셋 상태를 확인한다.
-// 사망 태그 반영 전이라도 체력이 0 이하이면 실행을 막는다.
+// 스킬 효과 실행과 종료 쿨다운에 공통으로 사용하는 시전자 생존 조건이다.
+// 사망 통지가 태그·체력 복제보다 먼저 도착해도 이미 시작된 사망 처리를 확인한다.
 bool UPdGameplayAbility::CanExecuteSkillPayload() const
 {
 	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
@@ -256,7 +257,8 @@ bool UPdGameplayAbility::CanExecuteSkillPayload() const
 	{
 		return false;
 	}
-	if (const ACharacterBase* Character = Cast<ACharacterBase>(AvatarActor); Character && Character->IsDead())
+	if (const ACharacterBase* Character = Cast<ACharacterBase>(AvatarActor);
+		Character && (Character->IsDead() || Character->IsDeathHandled()))
 	{
 		return false;
 	}
@@ -270,14 +272,14 @@ bool UPdGameplayAbility::CanExecuteSkillPayload() const
 		return false;
 	}
 
-	return !AbilitySystemComponent || !AbilitySystemComponent->IsResettingAbilityRuntimeState();
+	return true;
 }
 
 // 타깃 확보나 실제 스킬 실행에 실패하면 취소 금지 상태를 해제하고 능력을 취소한다.
-// 정상 완료가 아니므로 예약된 종료 쿨다운이 부과되지 않게 한다.
+// 정상 완료가 아니므로 종료 쿨다운을 적용하지 않는다.
 void UPdGameplayAbility::CancelAbilityForSkillExecutionFailure()
 {
-	// 실제 스킬 실행 실패는 보호 상태라도 취소로 종료해, 예약된 종료 쿨다운을 부과하지 않는다.
+	// 실제 스킬 실행 실패는 보호 상태라도 취소로 종료해 쿨다운을 부과하지 않는다.
 	if (!CanBeCanceled())
 	{
 		SetCanBeCanceled(true);
@@ -288,10 +290,19 @@ void UPdGameplayAbility::CancelAbilityForSkillExecutionFailure()
 
 // 비용과 쿨다운
 
-// GAS가 쿨다운 상태를 식별할 태그를 제공한다. 스킬 정의가 있으면 그 설정을, 없으면 부모 설정을 사용한다.
+// 양수 쿨다운이 설정된 스킬에는 공통 태그를 제공하고, 일반 능력은 부모 GAS 설정을 따른다.
 const FGameplayTagContainer* UPdGameplayAbility::GetCooldownTags() const
 {
-	return CostAndCooldownManager->BuildCooldownTags(*this, Super::GetCooldownTags());
+	const USkillDefinition* SkillDefinition = IsInstantiated() ? GetSourceSkillDataAsset() : nullptr;
+	if (!SkillDefinition)
+	{
+		const FGameplayTagContainer* ParentCooldownTags = Super::GetCooldownTags();
+		return ParentCooldownTags && !ParentCooldownTags->IsEmpty() ? ParentCooldownTags : nullptr;
+	}
+
+	const float BaseDuration = static_cast<float>(FMath::Max(SkillDefinition->Time.CooldownDuration, 0.0));
+	static const FGameplayTagContainer SkillCooldownTags(LabGameplayTags::Cooldown);
+	return BaseDuration > 0.0f ? &SkillCooldownTags : nullptr;
 }
 
 // 시전 전에 기본 GAS 비용과 프로젝트의 마나·스태미나 요구량을 검사하고, 부족하면 실패 태그를 남긴다.
@@ -323,25 +334,11 @@ bool UPdGameplayAbility::CheckCooldown(
 	return bHandled ? bAvailable : Super::CheckCooldown(Handle, ActorInfo, OptionalRelevantTags);
 }
 
-// 시전 확정 때 호출되며, 양수 쿨다운이 설정된 스킬은 정상 종료 시 적용하도록 예약한다.
-// 종료까지 미룰 대상이 아니면 즉시 쿨다운 적용 경로로 넘긴다.
+// 어트리뷰트가 계산한 스킬 쿨다운을 적용하고, 스킬 정의가 없으면 부모 GAS 설정을 적용한다.
 void UPdGameplayAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	if (CostAndCooldownManager->ShouldDeferCooldown(*this, Handle, ActorInfo))
-	{
-		CostAndCooldownManager->MarkCooldownForAbilityEnd();
-		return;
-	}
-
-	ApplyCooldownImmediately(Handle, ActorInfo, ActivationInfo);
-}
-
-// 스킬 정의의 쿨다운에 신비(Arcane) 감소율을 반영해 적용하고, 스킬 정의가 없으면 부모 GAS 설정을 적용한다.
-void UPdGameplayAbility::ApplyCooldownImmediately(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo) const
-{
-	const bool bHandled = CostAndCooldownManager->ApplyConfiguredCooldownImmediately(*this, Handle, ActorInfo, ActivationInfo);
+	const bool bHandled = CostAndCooldownManager->ApplyConfiguredCooldown(*this, Handle, ActorInfo, ActivationInfo);
 	if (!bHandled)
 	{
 		Super::ApplyCooldown(Handle, ActorInfo, ActivationInfo);
@@ -367,7 +364,7 @@ void UPdGameplayAbility::GetCooldownTimeRemainingAndDuration(
 	const UPandoraSkillSource* Source = Spec ? Cast<UPandoraSkillSource>(Spec->SourceObject.Get()) : nullptr;
 	if (Source)
 	{
-		UAbilityCostAndCooldownManager::GetPandoraCooldown(*ASC, *Source, TimeRemaining, CooldownDuration);
+		Source->GetCooldownTimeRemainingAndDuration(TimeRemaining, CooldownDuration);
 		return;
 	}
 	if (Spec && Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora))
@@ -386,13 +383,6 @@ void UPdGameplayAbility::AppendCooldownRemovalPolicyTags(FGameplayEffectSpecHand
 	{
 		CooldownSpecHandle.Data->AppendDynamicAssetTags(CooldownRemovalPolicyTags);
 	}
-}
-
-// 사망·능력 회수로 강제 정리할 때 종료 쿨다운 예약을 취소해, 정리 도중 쿨다운이 새로 생기지 않게 한다.
-// 이미 적용된 쿨다운 효과를 제거하는 함수는 아니다.
-void UPdGameplayAbility::DisableCooldownOnAbilityEnd() const
-{
-	CostAndCooldownManager->ClearPendingAbilityEndCooldown();
 }
 
 // 판도라 스킬·무기 장착·그래플 등이 지정한 시간과 태그로 프로젝트 공통 쿨다운 효과를 자신에게 적용한다.
@@ -475,6 +465,12 @@ UPandoraSkillSource* UPdGameplayAbility::GetPandoraSkillSource() const
 
 // 공통 입력 처리가 키 해제를 받았을 때 타기팅을 확정할지 알려 준다. 기본은 Press 스킬만 해당한다.
 // 기본 공격 입력으로 확정하는 ProjectileAbility 등은 이 정책을 재정의한다.
+bool UPdGameplayAbility::UsesInputRelease(const FGameplayAbilitySpec& Spec) const
+{
+	const USkillDefinition* Skill = ResolveSourceSkillDataAsset(Spec.SourceObject.Get());
+	return Skill && Skill->SkillType == ESkillType::Press;
+}
+
 bool UPdGameplayAbility::ShouldConfirmTargetingOnInputRelease() const
 {
 	const USkillDefinition* Skill = GetSourceSkillDataAsset();
@@ -585,7 +581,7 @@ FGameplayEffectSpecHandle UPdGameplayAbility::MakeConfiguredDamageEffectSpec(
 	FGameplayTag DamageDataTag = DamageConfig.MagnitudeDataTag;
 	if (!DamageDataTag.IsValid())
 	{
-		SourceAbilitySystemComponent->ResolveDamageMagnitudeSetByCallerTag(DamageDataTag);
+		DamageDataTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
 	}
 
 	if (DamageDataTag.IsValid())

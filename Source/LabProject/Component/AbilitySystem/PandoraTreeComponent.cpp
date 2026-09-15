@@ -182,7 +182,7 @@ bool UPandoraTreeComponent::ArePandoraUnlockRulesMet(UPandoraDefinition* Pandora
 		return false;
 	}
 
-	for (const FPandoraUnlockRule& Rule : Pandora->UnlockRules)
+	for (const FPandoraUnlockRule& Rule : Pandora->GetUnlockRules())
 	{
 		if (Rule.RequiredPandora && GetCurrentPandoraLevel(Rule.RequiredPandora) < FMath::Max(Rule.RequiredLevel, 1))
 		{

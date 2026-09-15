@@ -43,14 +43,13 @@ private:
 	bool StartStaticMontageTask();
 	void StartWaitStaticMontageTriggerTask();
 	void TryCommitAndStartStatic();
-	bool StartStaticDurationTimerFromSkillStart();
 	void StartStaticDurationMovementLockIfAllowed();
 	bool ShouldSkipStaticDurationMovementLock() const;
 	void ApplyStaticMovementSpeedIncrease();
 	void RemoveStaticMovementSpeedIncrease();
 	TArray<FName> GetConfiguredStaticSocketNames() const;
 	void StartStaticSpawnSequence();
-	void StartStaticRepeatAndEndTimers();
+	void StartStaticRepeatTimer();
 	void SpawnNextStaticActor();
 	void FinishStaticSpawnSequence();
 	AActor* SpawnStaticActorForSocket(FName SocketName, int32 SocketIndex, int32 SocketCount);

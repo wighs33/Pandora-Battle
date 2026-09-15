@@ -1,12 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "GameFeature/GameFeatureAction_WorldNetworkBase.h"
 #include "GameFeatureAction_AddAttributes.generated.h"
 
 class AActor;
 class UAttributeSet;
+class UPdAbilitySystemComponent;
 class UWorld;
 class FActorExtensionHandle;
 struct FAssetBundleData;
@@ -19,7 +19,7 @@ DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddAttributesLog, Log, All);
 struct FGameFeatureAttributeHandles
 {
 	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;
-	TMap<TWeakObjectPtr<AActor>, int32> AttributeConfigHandles;
+	// 키는 초기화한 액터, 값은 이 피처가 생성해 해제할 속성 집합이다. 빈 값도 중복 초기화를 막는다.
 	TMap<TWeakObjectPtr<AActor>, TArray<TWeakObjectPtr<UAttributeSet>>> AttributeSets;
 };
 
@@ -83,9 +83,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Attributes", meta = (AssetBundles = "Client,Server"))
 	TArray<TSoftClassPtr<UAttributeSet>> AttributeSetClasses;
-
-	UPROPERTY(EditAnywhere, Category = "Attributes")
-	FAttributeConfig AttributeConfig;
 
 private:
 	//------------------------------------------------------------------------------------------------------------------

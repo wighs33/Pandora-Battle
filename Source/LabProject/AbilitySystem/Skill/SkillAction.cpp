@@ -7,6 +7,12 @@ void USkillAction::Start(USkillAbility* InAbility, const FSkillActionContext& In
 	OwningAbility = InAbility;
 	ExecutionContext = InContext;
 	bRunning = true;
+	// 타이머가 처리되기 전이라도 공통 종료 시점 이후에는 다음 액션을 실행하지 않는다.
+	if (InAbility && InAbility->HasDurationDeadline() && InAbility->GetRemainingDuration() <= 0.0f)
+	{
+		Finish();
+		return;
+	}
 	OnStart();
 }
 

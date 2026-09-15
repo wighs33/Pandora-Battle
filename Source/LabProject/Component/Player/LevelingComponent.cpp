@@ -20,8 +20,8 @@ bool ULevelingComponent::GrantRewardExperience(const int32 ExperienceAmount)
 	UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerActor));
 	FGameplayAttribute ExperienceAttribute;
 	FGameplayAttribute LevelAttribute;
-	if (!ASC || !ASC->ResolveAttributeFromTag(ExperienceStatTag, ExperienceAttribute)
-		|| !ASC->ResolveAttributeFromTag(LevelStatTag, LevelAttribute))
+	if (!ASC || !UBasicAttributeSet::ResolveAttributeFromStatTag(ExperienceStatTag, ExperienceAttribute)
+		|| !UBasicAttributeSet::ResolveAttributeFromStatTag(LevelStatTag, LevelAttribute))
 	{
 		return false;
 	}

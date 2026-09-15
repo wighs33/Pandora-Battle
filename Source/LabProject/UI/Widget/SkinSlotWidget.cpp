@@ -8,7 +8,6 @@
 #include "Mode/PdHUD.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
-#include "Skin/SkinInstance.h"
 #include "UI/Widget/DragItemVisualWidget.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/SkinSlotDragDropOperation.h"
@@ -42,9 +41,9 @@ void USkinSlotWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 	{
 		SetSlotData(SlotViewData);
 	}
-	else if (USkinInstance* SkinInstance = Cast<USkinInstance>(ListItemObject))
+	else
 	{
-		SetData(SkinInstance);
+		SetData(Cast<USkinDefinition>(ListItemObject));
 	}
 }
 
@@ -63,7 +62,7 @@ void USkinSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPoi
 	{
 		if (CachedData)
 		{
-			InfoWidget->ShowSkinDetailAtWidget(CachedData, this, true);
+			InfoWidget->ShowSkinDefinitionDetailAtWidget(CachedData, this, true);
 		}
 		else
 		{
@@ -111,7 +110,7 @@ void USkinSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FP
 	DragOperation->Initialize(SourceSlotIndex, CachedData, CachedSlotData);
 	DragOperation->Pivot = EDragPivot::CenterCenter;
 
-	const USkinDefinition* SkinDefinition = CachedData->SkinDefinition.Get();
+	const USkinDefinition* SkinDefinition = CachedData;
 	UTexture2D* IconTexture = SkinDefinition ? SkinDefinition->IconTexture.Get() : nullptr;
 	if (IconTexture)
 	{
@@ -161,7 +160,7 @@ void USkinSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FP
 	OutOperation = DragOperation;
 }
 
-void USkinSlotWidget::SetData(USkinInstance* Target)
+void USkinSlotWidget::SetData(const USkinDefinition* Target)
 {
 	CachedData = Target;
 	CachedSlotData = nullptr;
@@ -172,14 +171,14 @@ void USkinSlotWidget::SetData(USkinInstance* Target)
 void USkinSlotWidget::SetSlotData(USkinSlotViewData* Target)
 {
 	CachedSlotData = Target;
-	CachedData = Target ? Target->GetSkinInstance() : nullptr;
+	CachedData = Target ? Target->GetSkinDefinition() : nullptr;
 
 	ApplySkinVisual(CachedData);
 }
 
-void USkinSlotWidget::ApplySkinVisual(USkinInstance* Target)
+void USkinSlotWidget::ApplySkinVisual(const USkinDefinition* Target)
 {
-	const USkinDefinition* SkinDefinition = Target ? Target->SkinDefinition.Get() : nullptr;
+	const USkinDefinition* SkinDefinition = Target;
 	UTexture2D* IconTexture = SkinDefinition ? SkinDefinition->IconTexture.Get() : nullptr;
 	const bool bAssigned = CachedSlotData && CachedSlotData->IsAssigned();
 

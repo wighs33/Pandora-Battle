@@ -31,7 +31,7 @@ TArray<FPandoraSelectSlotUiData> FPandoraLoadoutUiModel::BuildSelectSlots(
 		Slot.Direction = Direction;
 		Slot.SlotNumber = GetSelectSlotNumberFromDirection(Direction);
 		Slot.PandoraDefinition = PandoraComponent ? PandoraComponent->GetPandoraLoadoutDefinition(Direction) : nullptr;
-		Slot.IconTexture = Slot.PandoraDefinition ? Slot.PandoraDefinition->IconTexture.Get() : nullptr;
+		Slot.IconTexture = Slot.PandoraDefinition ? Slot.PandoraDefinition->GetIconTexture() : nullptr;
 		Slot.bCompatibleWithWeapon = IsPandoraCompatibleWithWeapon(
 			Slot.PandoraDefinition,
 			GetWeaponForDirection(Direction, LeftWeapon, UpWeapon, RightWeapon));

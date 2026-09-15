@@ -3,16 +3,13 @@
 #include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
 #include "Common/Enum_Operation.h"
-#include "Definition/AbilitySystem/AbilityAttributeConfig.h"
 #include "GameplayAbilitySpec.h"
 #include "GameplayTagContainer.h"
 #include "PdAbilitySystemComponent.generated.h"
 
 class UGameplayAbility;
 class UGameplayEffect;
-class UAttributeSet;
 class UStatUpgradeDefinition;
-class UAbilityAttributeManager;
 class UAbilityGrantAndInputManager;
 class UPandoraSkillSource;
 
@@ -21,7 +18,7 @@ DECLARE_MULTICAST_DELEGATE(FPdAbilitiesChangedNativeDelegate);
 /**
  * 프로젝트의 능력 시스템을 GAS와 연결하는 컴포넌트.
  *
- * 속성과 능력 목록은 역할별 관리 객체에 위임하고, 리셋은 ASC에서 처리하며,
+ * 속성 초기화·변경과 리셋은 직접 처리하고, 능력 목록과 입력 처리는 관리 객체에 위임하며,
  * 플레이어와 적이 동일한 공개 API를 사용한다.
  */
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
@@ -35,7 +32,9 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Engine Callbacks
 	virtual void ReadyForReplication() override;
+	virtual void PostNetReceive() override;
 	virtual void OnGiveAbility(FGameplayAbilitySpec& AbilitySpec) override;
+	virtual void NotifyAbilityActivated(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability) override;
 	virtual void OnRemoveAbility(FGameplayAbilitySpec& AbilitySpec) override;
 	virtual void NotifyAbilityEnded(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability, bool bWasCancelled) override;
 	virtual void NotifyAbilityFailed(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability, const FGameplayTagContainer& FailureReason) override;
@@ -45,23 +44,18 @@ public:
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	// ActorInfo의 할당 여부이며, Owner와 Avatar의 초기화 완료를 의미하지는 않는다.
-	bool HasAbilityActorInfoAllocated() const { return AbilityActorInfo.IsValid(); }
-
-	int32 AddAttributeConfig(const FAttributeConfig& AttributeConfig);
-	void RemoveAttributeConfig(int32 AttributeConfigHandle);
-	bool ApplyConfiguredAttributeDefaults(const UStatUpgradeDefinition& Definition);
-	bool ApplyAttributeDefaultValue(const FGameplayAttribute& Attribute, float DefaultValue);
-
-	void QueueAbilityInputPressed(const FGameplayTag& InputTag);
-	void QueueAbilityInputReleased(const FGameplayTag& InputTag);
-	void ProcessAbilityInput();
+	void HandleAbilityInputPressed(const FGameplayTag& InputTag);
+	void HandleAbilityInputReleased(const FGameplayTag& InputTag);
+	void ProcessPendingInputReleases();
 
 	const FGameplayAbilitySpec* FindActiveAbilitySpecByTags(const FGameplayTagContainer& AbilityTags) const;
 	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
 	bool HasActiveAbilityOfClass(TSubclassOf<UGameplayAbility> AbilityClass, bool bIncludeChildClasses = true) const;
 	bool HasActiveAbilityOfAnyClass(const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, bool bIncludeChildClasses = true) const;
 
+	// 기본 능력치 초기화와 스탯 변경 (서버 전용)
+	bool ApplyConfiguredAttributeDefaults(const UStatUpgradeDefinition& Definition);
+	bool ApplyAttributeDefaultValue(const FGameplayAttribute& Attribute, float DefaultValue);
 	bool ApplyStatUpEffectByTags(
 		TSubclassOf<UGameplayEffect> GameplayEffectClass,
 		const TMap<FGameplayTag, float>& StatMagnitudes,
@@ -70,19 +64,14 @@ public:
 
 	TArray<FGameplayAbilitySpecHandle> GrantAbilities(
 		const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
-		int32 AbilityLevel = 1,
-		UObject* SourceObject = nullptr);
+		int32 AbilityLevel = 1);
 
 	void RemoveAbilities(const TArray<FGameplayAbilitySpecHandle>& AbilityHandles);
 
+	// 캐릭터의 사망 처리가 시작된 뒤 활성 능력과 사망 시 제거할 효과를 정리한다.
 	void ResetAbilityRuntimeStateForDeath();
 	int32 ClearStatusEffectsForRespawn();
 	void ReactivateAutoActivatedAbilities();
-	bool IsResettingAbilityRuntimeState() const { return bResettingAbilityRuntimeState; }
-
-	bool ResolveAttributeFromTag(const FGameplayTag& StatTag, FGameplayAttribute& OutAttribute) const;
-	bool ResolveDamageMagnitudeSetByCallerTag(FGameplayTag& OutTag) const;
-	bool ResolveStatUpOperationSetByCallerTag(FGameplayTag& OutTag) const;
 
 	void NotifyPandoraSourceReplicated(UPandoraSkillSource* Source);
 
@@ -98,6 +87,14 @@ protected:
 	virtual void ClientCancelAbility_Implementation(FGameplayAbilitySpecHandle Handle, FGameplayAbilityActivationInfo ActivationInfo) override;
 
 private:
+	// OnActiveGameplayEffectAddedDelegateToSelf를 통해 GE 추가 알림 받음
+	void OnCooldownEffectAdded(UAbilitySystemComponent* TargetASC, const FGameplayEffectSpec& Spec,
+		FActiveGameplayEffectHandle EffectHandle);
+
+	// OnAnyGameplayEffectRemovedDelegate를 통해 GE 종료 알림 받음
+	void OnCooldownEffectRemoved(const FActiveGameplayEffect& Effect);
+	void LinkPendingCooldownEffects();
+
 	void RegisterPandoraSkillSource(UObject* SourceObject);
 	void ReleasePandoraSkillSourceIfUnused(UPandoraSkillSource* SkillSource, FGameplayAbilitySpecHandle RemovedHandle);
 	void ActivateAbilitiesWithReadySources();
@@ -109,14 +106,10 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPandoraSkillSource>> GrantedPandoraSkillSources;
 
-	TArray<FPendingAbilityInfo> ActivationsWaitingForSource;
-
-	UPROPERTY(Transient)
-	bool bResettingAbilityRuntimeState = false;
-
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Attributes")
-	TObjectPtr<UAbilityAttributeManager> AttributeManager;
-
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Abilities")
 	TObjectPtr<UAbilityGrantAndInputManager> AbilityGrantAndInputManager;
+
+	// 클라이언트에서 효과의 출처 객체가 아직 복제되지 않은 경우에만 연결을 보류한다.
+	TArray<FActiveGameplayEffectHandle> PendingCooldownEffects;
+	TArray<FPendingAbilityInfo> ActivationsWaitingForSource;
 };

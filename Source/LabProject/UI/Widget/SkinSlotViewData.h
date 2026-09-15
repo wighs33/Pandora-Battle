@@ -4,7 +4,7 @@
 #include "UObject/Object.h"
 #include "SkinSlotViewData.generated.h"
 
-class USkinInstance;
+class USkinDefinition;
 
 UCLASS(BlueprintType)
 class LABPROJECT_API USkinSlotViewData : public UObject
@@ -14,17 +14,17 @@ class LABPROJECT_API USkinSlotViewData : public UObject
 public:
 	void Initialize(
 		int32 InSlotIndex,
-		USkinInstance* InSkinInstance,
+		const USkinDefinition* InSkinDefinition,
 		bool bInAssigned = false);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
 	int32 GetSlotIndex() const { return SlotIndex; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
-	USkinInstance* GetSkinInstance() const { return SkinInstance; }
+	const USkinDefinition* GetSkinDefinition() const { return SkinDefinition; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
-	bool IsEmpty() const { return SkinInstance == nullptr; }
+	bool IsEmpty() const { return SkinDefinition == nullptr; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
 	bool IsAssigned() const { return bAssigned; }
@@ -34,7 +34,7 @@ private:
 	int32 SlotIndex = INDEX_NONE;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Skin", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<USkinInstance> SkinInstance;
+	TObjectPtr<const USkinDefinition> SkinDefinition;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!UI|Skin", meta = (AllowPrivateAccess = "true"))
 	bool bAssigned = false;

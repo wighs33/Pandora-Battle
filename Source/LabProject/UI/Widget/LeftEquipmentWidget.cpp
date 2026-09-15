@@ -494,7 +494,7 @@ UTexture2D* ULeftEquipmentWidget::ResolvePandoraWeaponRequirementIcon(
 		return nullptr;
 	}
 
-	const FGameplayTagContainer& RequiredWeaponTags = PandoraDefinition->ActivatableWeaponTags;
+	const FGameplayTagContainer& RequiredWeaponTags = PandoraDefinition->GetActivatableWeaponTags();
 	const auto HasWeaponTag = [&RequiredWeaponTags](const FGameplayTag& WeaponTag)
 	{
 		if (!WeaponTag.IsValid())

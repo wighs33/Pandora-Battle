@@ -6,8 +6,7 @@
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "GameFramework/PlayerController.h"
 #include "Item/ItemInstance.h"
-#include "Pandora/PandoraInstance.h"
-#include "Skin/SkinInstance.h"
+#include "Definition/Skin/SkinDefinition.h"
 #include "UI/Widget/EquipSlotWidget.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/ItemDetailWidget.h"
@@ -67,34 +66,8 @@ void UInfoDetailController::ShowItem(
 		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	ActivePandoraAnchor.Reset();
-	ActivePandoraInstance.Reset();
+	ActivePandoraDefinition.Reset();
 	DetailWidget->SetItem(ItemInstance, ResolveEquippedItemForComparison(ItemInstance));
-	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
-}
-
-void UInfoDetailController::ShowSkin(
-	USkinInstance* SkinInstance,
-	UWidget* AnchorWidget,
-	const bool bPlaceLeftOfWidget)
-{
-	if (!SkinInstance || !AnchorWidget)
-	{
-		HideAll();
-		return;
-	}
-	UItemDetailWidget* DetailWidget = GetOrCreateItemDetailWidget();
-	if (!DetailWidget)
-	{
-		return;
-	}
-	if (PandoraDescriptionWidget)
-	{
-		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
-	ActivePandoraAnchor.Reset();
-	ActivePandoraInstance.Reset();
-	DetailWidget->SetSkin(SkinInstance);
 	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
 }
@@ -119,14 +92,14 @@ void UInfoDetailController::ShowSkinDefinition(
 		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	ActivePandoraAnchor.Reset();
-	ActivePandoraInstance.Reset();
+	ActivePandoraDefinition.Reset();
 	DetailWidget->SetSkinDefinition(SkinDefinition);
 	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
 }
 
 void UInfoDetailController::ShowPandora(
-	UPandoraInstance* PandoraInstance,
+	const UPandoraDefinition* PandoraDefinition,
 	UWidget* AnchorWidget,
 	const bool bPlaceLeftOfWidget,
 	const bool bPlayShowAnimation)
@@ -136,7 +109,7 @@ void UInfoDetailController::ShowPandora(
 	{
 		return;
 	}
-	if (!PandoraInstance || !AnchorWidget)
+	if (!PandoraDefinition || !AnchorWidget)
 	{
 		HideAll();
 		return;
@@ -147,7 +120,7 @@ void UInfoDetailController::ShowPandora(
 		return;
 	}
 	if (ActivePandoraAnchor.Get() == AnchorWidget
-		&& ActivePandoraInstance.Get() == PandoraInstance
+		&& ActivePandoraDefinition.Get() == PandoraDefinition
 		&& DetailWidget->GetVisibility() != ESlateVisibility::Collapsed)
 	{
 		return;
@@ -158,10 +131,8 @@ void UInfoDetailController::ShowPandora(
 	}
 
 	ActivePandoraAnchor = AnchorWidget;
-	ActivePandoraInstance = PandoraInstance;
-	UPandoraDefinition* PandoraDefinition =
-		const_cast<UPandoraDefinition*>(PandoraInstance->PandoraDefinition.Get());
-	DetailWidget->SetPandoraDefinition(PandoraDefinition);
+	ActivePandoraDefinition = PandoraDefinition;
+	DetailWidget->SetPandoraDefinition(const_cast<UPandoraDefinition*>(PandoraDefinition));
 	DetailWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
 	if (bPlayShowAnimation)
@@ -185,7 +156,7 @@ void UInfoDetailController::HideAll()
 		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	ActivePandoraAnchor.Reset();
-	ActivePandoraInstance.Reset();
+	ActivePandoraDefinition.Reset();
 }
 
 void UInfoDetailController::HidePandoraForAnchor(const UWidget* AnchorWidget)
@@ -199,7 +170,7 @@ void UInfoDetailController::HidePandoraForAnchor(const UWidget* AnchorWidget)
 		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	ActivePandoraAnchor.Reset();
-	ActivePandoraInstance.Reset();
+	ActivePandoraDefinition.Reset();
 }
 
 UItemDetailWidget* UInfoDetailController::GetOrCreateItemDetailWidget()

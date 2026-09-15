@@ -60,7 +60,7 @@ bool FExtensionCondition_NetworkReady::IsSatisfied(AActor* Owner) const
 
 	if (const UPdAbilitySystemComponent* PdAbilitySystemComponent = Cast<UPdAbilitySystemComponent>(AbilitySystemComponent))
 	{
-		if (!PdAbilitySystemComponent->HasAbilityActorInfoAllocated())
+		if (!PdAbilitySystemComponent->AbilityActorInfo.IsValid())
 		{
 			return false;
 		}

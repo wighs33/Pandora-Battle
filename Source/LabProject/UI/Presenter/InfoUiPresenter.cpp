@@ -111,11 +111,6 @@ UItemInstance* UInfoUiPresenter::GetSelectedWeapon(const EEnum_Direction Directi
 	return LoadoutStore ? LoadoutStore->GetSelectedWeapon(Direction) : nullptr;
 }
 
-UPandoraInstance* UInfoUiPresenter::GetSelectedPandora(const EEnum_Direction Direction) const
-{
-	return LoadoutStore ? LoadoutStore->GetSelectedPandora(Direction) : nullptr;
-}
-
 bool UInfoUiPresenter::WouldSelectedPandoraDirectionChangeLoadout(
 	const EEnum_Direction Direction) const
 {

@@ -9,7 +9,6 @@
 
 class USkinComponent;
 class USkinDefinition;
-class USkinInstance;
 class UProjectTagConfig;
 struct FStreamableHandle;
 
@@ -22,8 +21,9 @@ struct FSkinList
 	GENERATED_BODY()
 
 public:
+	// 보유한 스킨 정의를 UI 목록에 전달한다.
 	UPROPERTY(BlueprintReadOnly, Category = "!Inventory")
-	TArray<TObjectPtr<USkinInstance>> Skins;
+	TArray<TObjectPtr<const USkinDefinition>> Skins;
 };
 
 USTRUCT()
@@ -113,13 +113,12 @@ protected:
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedSkinEntry& Entry);
 	void HandleReplicatedEntryRemoved(const USkinDefinition* SkinDefinition);
 
-	void RebuildRuntimeSkinsFromReplicatedEntries();
+	void RebuildSkinListsFromReplicatedEntries();
 	void RebuildFilteredSkinMap();
-	void FilterSkin(USkinInstance* SkinInstance);
+	void FilterSkin(const USkinDefinition* SkinDefinition);
 	bool AddSkinDefinition(const USkinDefinition* SkinDefinition);
 	bool HasSkinAuthority() const;
 	void NotifySkinsChanged();
-	USkinInstance* FindSkinInstanceByDefinition(const USkinDefinition* SkinDefinition) const;
 	int32 FindReplicatedEntryIndexByDefinition(const USkinDefinition* SkinDefinition) const;
 	FReplicatedSkinEntry* FindReplicatedEntryByDefinition(const USkinDefinition* SkinDefinition);
 	const FReplicatedSkinEntry* FindReplicatedEntryByDefinition(const USkinDefinition* SkinDefinition) const;

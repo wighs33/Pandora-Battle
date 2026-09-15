@@ -38,7 +38,6 @@ public:
 
 	void SpawnConfiguredCharacterDecal(UPdGameplayAbility& Ability);
 	FVector ResolveConfiguredCharacterDecalLocation(const ACharacterBase* Character) const;
-	float ResolveConfiguredCharacterDecalDuration(const USkillDefinition* SkillDataAsset) const;
 
 private:
 	ASkillPresentationActor* GetOrCreatePresentationActor(UPdGameplayAbility& Ability);

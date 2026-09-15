@@ -26,7 +26,7 @@ public:
 
 	// 실행 정책과 기능 조합
 
-	/** 스킬의 종료 정책. 즉시 실행, 입력 유지, 지정 시간 유지 중 하나를 선택한다. */
+	/** 스킬의 종료 정책. 액션 완료, 입력 해제, 활성화 기준 전체 지속시간 만료 중 하나를 선택한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Properties")
 	ESkillType SkillType = ESkillType::Instant;
 

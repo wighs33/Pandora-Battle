@@ -23,7 +23,7 @@ UStatUpgradeComponent::UStatUpgradeComponent(const FObjectInitializer& ObjectIni
 		UStatUpgradeDefinition::GetDefaultDefinitionPath());
 }
 
-// 경기 시작에 필요한 투자 규칙을 미리 불러온다.
+// 플레이어 상태의 기본 속성이 등록된 뒤 투자 규칙을 로드하고 기본값을 한 번 초기화한다.
 void UStatUpgradeComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -36,7 +36,6 @@ void UStatUpgradeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ReleaseStatUpgradeDefinitionPreload();
 	LoadedStatUpgradeDefinition = nullptr;
-	bApplyDefaultsWhenDefinitionReady = false;
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -85,6 +84,7 @@ bool UStatUpgradeComponent::SetPointsForAllCategories(const float Value)
 	AActor* OwnerActor = GetOwner();
 	if (!OwnerActor
 		|| !OwnerActor->HasAuthority()
+		|| !LoadedStatUpgradeDefinition
 		|| !FMath::IsFinite(Value)
 		|| Value < 0.0f)
 	{
@@ -145,7 +145,7 @@ bool UStatUpgradeComponent::ApplyStatChange(FGameplayTag StatTag, const int32 Le
 	}
 	TGuardValue<bool> ApplyingChange(bApplyingStatChange, true);
 
-	const UStatUpgradeDefinition* Definition = LoadStatUpgradeDefinition();
+	const UStatUpgradeDefinition* Definition = LoadedStatUpgradeDefinition;
 	const FStatUpgradeBinding* Binding = UStatUpgradeDefinition::FindStatBinding(StatTag);
 	const FStatUpgradeRule* Rule = Definition && Binding ? Definition->FindUpgradeRuleForStat(StatTag) : nullptr;
 	const UGameSettingDefinition* Settings = UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
@@ -156,7 +156,7 @@ bool UStatUpgradeComponent::ApplyStatChange(FGameplayTag StatTag, const int32 Le
 
 	FGameplayAttribute LevelAttribute;
 	float Magnitude = 0.f;
-	if (!ASC->ResolveAttributeFromTag(Binding->LevelTag, LevelAttribute)
+	if (!UBasicAttributeSet::ResolveAttributeFromStatTag(Binding->LevelTag, LevelAttribute)
 		|| !Definition->TryGetUpgradeMagnitude(*Binding, Magnitude))
 	{
 		return false;
@@ -178,7 +178,7 @@ bool UStatUpgradeComponent::ApplyStatChange(FGameplayTag StatTag, const int32 Le
 	if (Cost > 0.f)
 	{
 		FGameplayAttribute PointAttribute;
-		if (!ASC->ResolveAttributeFromTag(Rule->CostPointTag, PointAttribute)
+		if (!UBasicAttributeSet::ResolveAttributeFromStatTag(Rule->CostPointTag, PointAttribute)
 			|| (LevelDelta > 0 && ASC->GetNumericAttributeBase(PointAttribute) + UE_KINDA_SMALL_NUMBER < Cost))
 		{
 			return false;
@@ -209,8 +209,8 @@ bool UStatUpgradeComponent::ApplyStatChange(FGameplayTag StatTag, const int32 Le
 	{
 		float ResourceBase = 0.f;
 		if (!Definition->TryGetResourceBaseValue(*Binding, ResourceBase)
-			|| !ASC->ResolveAttributeFromTag(Binding->StatTag, MaxAttribute)
-			|| !ASC->ResolveAttributeFromTag(Binding->CurrentResourceTag, CurrentAttribute))
+			|| !UBasicAttributeSet::ResolveAttributeFromStatTag(Binding->StatTag, MaxAttribute)
+			|| !UBasicAttributeSet::ResolveAttributeFromStatTag(Binding->CurrentResourceTag, CurrentAttribute))
 		{
 			return false;
 		}
@@ -224,7 +224,7 @@ bool UStatUpgradeComponent::ApplyStatChange(FGameplayTag StatTag, const int32 Le
 	for (const TPair<FGameplayTag, float>& Change : StatMagnitudes)
 	{
 		FGameplayAttribute Attribute;
-		if (!FMath::IsFinite(Change.Value) || !ASC->ResolveAttributeFromTag(Change.Key, Attribute)
+		if (!FMath::IsFinite(Change.Value) || !UBasicAttributeSet::ResolveAttributeFromStatTag(Change.Key, Attribute)
 			|| !ASC->HasAttributeSetForAttribute(Attribute)
 			|| !FMath::IsFinite(ASC->GetNumericAttributeBase(Attribute) + Change.Value))
 		{
@@ -249,28 +249,6 @@ bool UStatUpgradeComponent::ApplyStatChange(FGameplayTag StatTag, const int32 Le
 	return true;
 }
 
-// 준비된 투자 규칙을 반환하고, 아직 로딩 전이라면 비동기 로딩을 시작한다.
-UStatUpgradeDefinition* UStatUpgradeComponent::LoadStatUpgradeDefinition()
-{
-	if (LoadedStatUpgradeDefinition)
-	{
-		return LoadedStatUpgradeDefinition;
-	}
-
-	if (StatUpgradeDefinition.IsNull())
-	{
-		return nullptr;
-	}
-
-	LoadedStatUpgradeDefinition = StatUpgradeDefinition.Get();
-	if (!LoadedStatUpgradeDefinition
-		&& !StatUpgradeDefinitionLoadHandle.IsValid())
-	{
-		BeginStatUpgradeDefinitionPreload();
-	}
-	return LoadedStatUpgradeDefinition;
-}
-
 // 현재 정의만 로딩하고 이전 요청의 완료 콜백은 세대 번호로 구분한다.
 void UStatUpgradeComponent::BeginStatUpgradeDefinitionPreload()
 {
@@ -282,14 +260,9 @@ void UStatUpgradeComponent::BeginStatUpgradeDefinitionPreload()
 		return;
 	}
 
-	if (UStatUpgradeDefinition* LoadedDefinition = StatUpgradeDefinition.Get())
+	if (StatUpgradeDefinition.Get())
 	{
-		LoadedStatUpgradeDefinition = LoadedDefinition;
-		if (bApplyDefaultsWhenDefinitionReady)
-		{
-			bApplyDefaultsWhenDefinitionReady = false;
-			ApplyConfiguredAttributeDefaults();
-		}
+		HandleStatUpgradeDefinitionPreloaded(StatUpgradeDefinitionLoadGeneration);
 		return;
 	}
 
@@ -316,22 +289,22 @@ void UStatUpgradeComponent::BeginStatUpgradeDefinitionPreload()
 	}
 }
 
-// 정의 준비를 기다리던 초기화를 이어가고 완료된 로딩 핸들을 해제한다.
+// 동기·비동기 로딩의 공통 완료 경로다. 서버 기본값 적용이 끝난 정의만 투자와 포인트 지급에 공개한다.
 void UStatUpgradeComponent::HandleStatUpgradeDefinitionPreloaded(
 	const uint32 RequestGeneration)
 {
-	if (RequestGeneration != StatUpgradeDefinitionLoadGeneration)
+	if (RequestGeneration != StatUpgradeDefinitionLoadGeneration || LoadedStatUpgradeDefinition || bApplyingStatChange)
 	{
 		return;
 	}
 
-	LoadedStatUpgradeDefinition = StatUpgradeDefinition.Get();
+	UStatUpgradeDefinition* Definition = StatUpgradeDefinition.Get();
 	if (StatUpgradeDefinitionLoadHandle.IsValid())
 	{
 		StatUpgradeDefinitionLoadHandle->ReleaseHandle();
 		StatUpgradeDefinitionLoadHandle.Reset();
 	}
-	if (!LoadedStatUpgradeDefinition)
+	if (!Definition)
 	{
 		UE_LOG(
 			StatUpgradeComponentLog,
@@ -341,11 +314,22 @@ void UStatUpgradeComponent::HandleStatUpgradeDefinitionPreloaded(
 		return;
 	}
 
-	if (bApplyDefaultsWhenDefinitionReady)
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor)
 	{
-		bApplyDefaultsWhenDefinitionReady = false;
-		ApplyConfiguredAttributeDefaults();
+		return;
 	}
+	if (OwnerActor->HasAuthority())
+	{
+		UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(GetOwnerAbilitySystemComponent());
+		TGuardValue<bool> ApplyingDefaults(bApplyingStatChange, true);
+		if (!ASC || !ASC->ApplyConfiguredAttributeDefaults(*Definition))
+		{
+			UE_LOG(StatUpgradeComponentLog, Error, TEXT("Failed to initialize player attributes from '%s'."), *Definition->GetPathName());
+			return;
+		}
+	}
+	LoadedStatUpgradeDefinition = Definition;
 }
 
 // 취소된 로딩이 나중에 완료되어도 현재 플레이어 상태를 변경하지 못하게 한다.
@@ -358,21 +342,6 @@ void UStatUpgradeComponent::ReleaseStatUpgradeDefinitionPreload()
 		StatUpgradeDefinitionLoadHandle->ReleaseHandle();
 		StatUpgradeDefinitionLoadHandle.Reset();
 	}
-}
-
-// 정의의 비동기 준비를 연결하고, 실제 기본값 적용은 기존 속성 Runtime에 위임한다.
-bool UStatUpgradeComponent::ApplyConfiguredAttributeDefaults()
-{
-	UStatUpgradeDefinition* Definition = LoadStatUpgradeDefinition();
-	if (!Definition)
-	{
-		bApplyDefaultsWhenDefinitionReady = !StatUpgradeDefinition.IsNull();
-		return false;
-	}
-	bApplyDefaultsWhenDefinitionReady = false;
-	UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(GetOwnerAbilitySystemComponent());
-	TGuardValue<bool> ApplyingDefaults(bApplyingStatChange, true);
-	return ASC && ASC->ApplyConfiguredAttributeDefaults(*Definition);
 }
 
 // 플레이어 상태가 소유한 ASC를 조회한다.

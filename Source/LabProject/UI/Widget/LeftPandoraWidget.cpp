@@ -10,7 +10,6 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerState.h"
-#include "Pandora/PandoraInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftPandoraWidget)
 
@@ -103,10 +102,8 @@ void ULeftPandoraWidget::RefreshPandoraLoadoutSlots(const UPandoraComponent* Pan
 		UTextBlock* PandoraLevelLabel,
 		const EEnum_Direction Direction)
 	{
-		UPandoraInstance* PandoraInstance =
-			PandoraComponent ? PandoraComponent->GetPandoraLoadoutInstance(Direction) : nullptr;
 		const UPandoraDefinition* PandoraDefinition =
-			PandoraInstance ? PandoraInstance->PandoraDefinition.Get() : nullptr;
+			PandoraComponent ? PandoraComponent->GetPandoraLoadoutDefinition(Direction) : nullptr;
 		const int32 PandoraLevel = PandoraTreeComponent && PandoraDefinition
 			? FMath::Clamp(
 				PandoraTreeComponent->GetCurrentPandoraLevel(
@@ -117,19 +114,19 @@ void ULeftPandoraWidget::RefreshPandoraLoadoutSlots(const UPandoraComponent* Pan
 
 		if (PandoraSlot)
 		{
-			PandoraSlot->SetData(PandoraInstance);
-			PandoraSlot->SetPandoraImageDarkened(PandoraInstance && PandoraLevel == 0);
+			PandoraSlot->SetData(PandoraDefinition);
+			PandoraSlot->SetPandoraImageDarkened(PandoraDefinition && PandoraLevel == 0);
 		}
 
 		if (PandoraLevelText)
 		{
-			PandoraLevelText->SetText(PandoraInstance ? FText::AsNumber(PandoraLevel) : FText::GetEmpty());
+			PandoraLevelText->SetText(PandoraDefinition ? FText::AsNumber(PandoraLevel) : FText::GetEmpty());
 		}
 
 		if (PandoraLevelLabel)
 		{
 			PandoraLevelLabel->SetVisibility(
-				PandoraInstance ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+				PandoraDefinition ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 		}
 	};
 

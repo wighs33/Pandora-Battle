@@ -210,7 +210,8 @@ void USkillSpawnActorAction::OnStart()
 			Area->SetSourcePandoraLoadoutDirection(Source->GetLoadoutDirection());
 	}
 	UGameplayStatics::FinishSpawningActor(Spawned, Transform);
-	Spawned->SetLifeSpan(FMath::Max(LifeSpan, 0.01f));
+	const float ActorLifeSpan = FMath::Max(LifeSpan, 0.01f);
+	Spawned->SetLifeSpan(Ability->HasDurationDeadline() ? FMath::Min(ActorLifeSpan, Ability->GetRemainingDuration()) : ActorLifeSpan);
 	Finish();
 }
 
@@ -239,7 +240,8 @@ void USkillProjectileAction::OnStart()
 	Projectile->PrepareProjectile(DamageSpec);
 	UGameplayStatics::FinishSpawningActor(Projectile, Transform);
 	if (!IsRunning() || !IsValid(Projectile)) return;
-	Projectile->SetLifeSpan(FMath::Max(MaxFlightSeconds, 0.01f));
+	const float FlightLifeSpan = FMath::Max(MaxFlightSeconds, 0.01f);
+	Projectile->SetLifeSpan(Ability->HasDurationDeadline() ? FMath::Min(FlightLifeSpan, Ability->GetRemainingDuration()) : FlightLifeSpan);
 	Projectile->LaunchProjectile(TargetLocation, Speed, DamageSpec);
 }
 void USkillProjectileAction::Impacted(AActor* Target, const FHitResult& Hit)

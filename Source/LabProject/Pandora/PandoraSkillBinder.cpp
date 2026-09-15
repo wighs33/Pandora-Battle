@@ -1,38 +1,14 @@
 #include "Pandora/PandoraSkillBinder.h"
 
 #include "AbilitySystem/Ability/SkillAbility.h"
+#include "Component/AbilitySystem/AbilityGrantAndInputManager.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Common/LabGameplayTags.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraSkillSource.h"
-#include "TimerManager.h"
 
 namespace
 {
-	void TryActivateAbilityNextTick(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle AbilityHandle)
-	{
-		if (!AbilitySystemComponent || !AbilityHandle.IsValid())
-		{
-			return;
-		}
-
-		if (UWorld* World = AbilitySystemComponent->GetWorld())
-		{
-			TWeakObjectPtr<UAbilitySystemComponent> WeakASC = AbilitySystemComponent;
-			World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakASC, AbilityHandle]()
-			{
-				if (UAbilitySystemComponent* ASC = WeakASC.Get())
-				{
-					ASC->TryActivateAbility(AbilityHandle);
-				}
-			}));
-			return;
-		}
-
-		AbilitySystemComponent->TryActivateAbility(AbilityHandle);
-	}
-
-
 	FGameplayTag GetPandoraInputTag(const int32 SkillIndex)
 	{
 		switch (SkillIndex)
@@ -70,17 +46,17 @@ TArray<FGameplayAbilitySpecHandle> FPandoraSkillBinder::GrantPandoraContent(
 		return NewHandles;
 	}
 
-	const int32 SkillCount = FMath::Min(Definition->Skill.Num(), UPandoraDefinition::GetFixedMaxLevel());
+	const int32 SkillCount = FMath::Min(Definition->GetSkillCount(), UPandoraDefinition::GetFixedMaxLevel());
 	for (int32 SkillIndex = 0; SkillIndex < SkillCount; ++SkillIndex)
 	{
 		if (!Definition->IsSkillSlotUnlocked(SkillIndex, PandoraLevel))
 		{
 			continue;
 		}
-		const FSkill& Skill = Definition->Skill[SkillIndex];
+		const USkillDefinition* Skill = Definition->GetSkillDefinition(SkillIndex);
 		const int32 SkillLevel = UPandoraDefinition::GetRequiredLevelForSkillSlot(SkillIndex);
 		const TSubclassOf<UGameplayAbility> AbilityClass = USkillAbility::StaticClass();
-		if (!Skill.SkillDefinition || !Skill.SkillDefinition->Action)
+		if (!Skill || !Skill->Action)
 		{
 			continue;
 		}
@@ -98,10 +74,10 @@ TArray<FGameplayAbilitySpecHandle> FPandoraSkillBinder::GrantPandoraContent(
 		UPandoraSkillSource* Source = NewObject<UPandoraSkillSource>(ASC);
 		Source->Initialize(Definition, SkillIndex, SkillLevel, LoadoutDirection);
 		FGameplayAbilitySpec Spec(AbilityClass, SkillLevel, INDEX_NONE, Source);
-		Spec.GetDynamicSpecSourceTags().AppendTags(Skill.SkillDefinition->Activation.Tags);
+		Spec.GetDynamicSpecSourceTags().AppendTags(Skill->Activation.Tags);
 		Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Ability_Source_Pandora);
 		Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Ability_Pandora_Selected);
-		if (Skill.SkillDefinition && Skill.SkillDefinition->SkillType == ESkillType::Press)
+		if (Skill->SkillType == ESkillType::Press)
 		{
 			Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Skill_Type_Press);
 		}
@@ -112,7 +88,7 @@ TArray<FGameplayAbilitySpecHandle> FPandoraSkillBinder::GrantPandoraContent(
 			const UPdGameplayAbility* AbilityCDO = Cast<UPdGameplayAbility>(AbilityClass->GetDefaultObject());
 			if (AbilityCDO && AbilityCDO->ShouldAutoActivateWhenGranted())
 			{
-				TryActivateAbilityNextTick(ASC, Handle);
+				UAbilityGrantAndInputManager::TryActivateGrantedAbilityNextTick(ASC, Handle);
 			}
 		}
 	}
@@ -169,7 +145,7 @@ void FPandoraSkillBinder::RefreshInputBindings(
 
 		const int32 SkillIndex = Source->GetSkillIndex();
 		if (bShouldBindSelectedPandora && Definition && Source->GetPandoraDefinition() == Definition
-			&& Definition->IsSkillSlotUnlocked(SkillIndex, PandoraLevel) && Definition->Skill.IsValidIndex(SkillIndex))
+			&& Definition->IsSkillSlotUnlocked(SkillIndex, PandoraLevel))
 		{
 			Tags.AddTag(LabGameplayTags::Ability_Pandora_Selected);
 			if (Spec.Ability->IsA<USkillAbility>())

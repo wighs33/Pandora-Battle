@@ -6,7 +6,6 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Definition/Skin/SkinDefinition.h"
-#include "Skin/SkinInstance.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinComponent)
 
 DEFINE_LOG_CATEGORY(SkinComponentLog)
@@ -65,7 +64,7 @@ void USkinComponent::BeginPlay()
 	}
 	else
 	{
-		RebuildRuntimeSkinsFromReplicatedEntries();
+		RebuildSkinListsFromReplicatedEntries();
 	}
 }
 
@@ -162,9 +161,8 @@ void USkinComponent::AddSkinDefinitions(const TArray<USkinDefinition*>& SkinDefi
 	}
 }
 
-void USkinComponent::FilterSkin(USkinInstance* SkinInstance)
+void USkinComponent::FilterSkin(const USkinDefinition* SkinDefinition)
 {
-	const USkinDefinition* SkinDefinition = IsValid(SkinInstance) ? SkinInstance->SkinDefinition.Get() : nullptr;
 	if (!IsValid(SkinDefinition))
 	{
 		return;
@@ -180,7 +178,7 @@ void USkinComponent::FilterSkin(USkinInstance* SkinInstance)
 	{
 		if (SkinDefinition->IdTag.MatchesTag(TypeTag))
 		{
-			Map_Type_SkinList.FindOrAdd(TypeTag).Skins.AddUnique(SkinInstance);
+			Map_Type_SkinList.FindOrAdd(TypeTag).Skins.AddUnique(SkinDefinition);
 		}
 	}
 }
@@ -199,7 +197,7 @@ bool USkinComponent::HasSkinDefinition(const USkinDefinition* SkinDefinition) co
 	return IsValid(SkinDefinition) && FindReplicatedEntryByDefinition(SkinDefinition) != nullptr;
 }
 
-void USkinComponent::RebuildRuntimeSkinsFromReplicatedEntries()
+void USkinComponent::RebuildSkinListsFromReplicatedEntries()
 {
 	AllSkinList.Skins.Reset();
 
@@ -210,9 +208,7 @@ void USkinComponent::RebuildRuntimeSkinsFromReplicatedEntries()
 			continue;
 		}
 
-		USkinInstance* NewSkinInstance = NewObject<USkinInstance>(this);
-		NewSkinInstance->SkinDefinition = Entry.SkinDefinition;
-		AllSkinList.Skins.Add(NewSkinInstance);
+		AllSkinList.Skins.AddUnique(Entry.SkinDefinition);
 	}
 
 	RebuildFilteredSkinMap();
@@ -223,9 +219,9 @@ void USkinComponent::RebuildFilteredSkinMap()
 {
 	Map_Type_SkinList.Reset();
 
-	for (USkinInstance* SkinInstance : AllSkinList.Skins)
+	for (const USkinDefinition* SkinDefinition : AllSkinList.Skins)
 	{
-		FilterSkin(SkinInstance);
+		FilterSkin(SkinDefinition);
 	}
 }
 
@@ -236,13 +232,10 @@ void USkinComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedSkinEn
 		return;
 	}
 
-	USkinInstance* SkinInstance = FindSkinInstanceByDefinition(Entry.SkinDefinition.Get());
-	if (!IsValid(SkinInstance))
+	if (!AllSkinList.Skins.Contains(Entry.SkinDefinition))
 	{
-		SkinInstance = NewObject<USkinInstance>(this);
-		SkinInstance->SkinDefinition = Entry.SkinDefinition;
-		AllSkinList.Skins.Add(SkinInstance);
-		FilterSkin(SkinInstance);
+		AllSkinList.Skins.Add(Entry.SkinDefinition);
+		FilterSkin(Entry.SkinDefinition);
 		bReplicatedInventoryChanged = true;
 	}
 }
@@ -254,14 +247,7 @@ void USkinComponent::HandleReplicatedEntryRemoved(const USkinDefinition* SkinDef
 		return;
 	}
 
-	for (int32 Index = AllSkinList.Skins.Num() - 1; Index >= 0; --Index)
-	{
-		USkinInstance* SkinInstance = AllSkinList.Skins[Index];
-		if (IsValid(SkinInstance) && SkinInstance->SkinDefinition == SkinDefinition)
-		{
-			AllSkinList.Skins.RemoveAt(Index);
-		}
-	}
+	AllSkinList.Skins.Remove(SkinDefinition);
 
 	RebuildFilteredSkinMap();
 	bReplicatedInventoryChanged = true;
@@ -273,10 +259,8 @@ bool USkinComponent::AddSkinDefinition(const USkinDefinition* SkinDefinition)
 	{
 		return false;
 	}
-	USkinInstance* SkinInstance = NewObject<USkinInstance>(this);
-	SkinInstance->SkinDefinition = SkinDefinition;
-	AllSkinList.Skins.Add(SkinInstance);
-	FilterSkin(SkinInstance);
+	AllSkinList.Skins.Add(SkinDefinition);
+	FilterSkin(SkinDefinition);
 
 	FReplicatedSkinEntry& NewEntry = ReplicatedEntries.Entries.AddDefaulted_GetRef();
 	NewEntry.SkinDefinition = SkinDefinition;
@@ -288,24 +272,6 @@ bool USkinComponent::AddSkinDefinition(const USkinDefinition* SkinDefinition)
 void USkinComponent::NotifySkinsChanged()
 {
 	OnSkinsChanged.Broadcast();
-}
-
-USkinInstance* USkinComponent::FindSkinInstanceByDefinition(const USkinDefinition* SkinDefinition) const
-{
-	if (!IsValid(SkinDefinition))
-	{
-		return nullptr;
-	}
-
-	for (USkinInstance* SkinInstance : AllSkinList.Skins)
-	{
-		if (IsValid(SkinInstance) && SkinInstance->SkinDefinition == SkinDefinition)
-		{
-			return SkinInstance;
-		}
-	}
-
-	return nullptr;
 }
 
 int32 USkinComponent::FindReplicatedEntryIndexByDefinition(const USkinDefinition* SkinDefinition) const

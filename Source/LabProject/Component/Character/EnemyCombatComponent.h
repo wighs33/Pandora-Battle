@@ -55,10 +55,8 @@ public:
 	bool IsUsingGunWeapon() const;
 
 	void EnsureDefaultAttributeSetup();
-	bool IsDefaultAttributeSetupComplete() const
-	{
-		return DefaultAttributeConfigHandle != INDEX_NONE;
-	}
+	// 실제 기본 속성 집합이 ASC에 준비되었는지 확인한다.
+	bool IsDefaultAttributeSetupComplete() const;
 	bool ApplyDefaultStatDefinition();
 	bool EquipStartingWeapon();
 	bool EquipEnemyWeaponDefinition(const UItemDefinition* WeaponDefinition);
@@ -99,6 +97,5 @@ private:
 	bool bRuntimeContentReady = true;
 	bool bHandlePossessedWhenContentReady = false;
 
-	int32 DefaultAttributeConfigHandle = INDEX_NONE;
 	bool bDefaultStatDefinitionApplied = false;
 };

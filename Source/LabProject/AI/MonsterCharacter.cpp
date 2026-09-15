@@ -2,6 +2,7 @@
 
 #include "AI/MonsterAIController.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Definition/Common/ProjectTagConfig.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/PdPlayer.h"
@@ -525,7 +526,7 @@ bool AMonsterCharacter::ApplyMonsterDamageToCharacter(ACharacterBase* TargetChar
 	FGameplayTag DamageTag = ContactDamageDataTag;
 	if (!DamageTag.IsValid())
 	{
-		SourceASC->ResolveDamageMagnitudeSetByCallerTag(DamageTag);
+		DamageTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
 	}
 	if (!Spec.IsValid() || !DamageTag.IsValid())
 	{

@@ -160,14 +160,8 @@ void USkillWeaponTrailAction::OnStart()
 		return true;
 	};
 
-	const bool bUseConfiguredSkillDuration =
-		SkillDataAsset->SkillType == ESkillType::Duration
-		&& SkillDataAsset->Time.Duration > 0.0;
-	if (bUseConfiguredSkillDuration)
-	{
-		bTrailDurationTimerStarted = StartDurationTask(
-			static_cast<float>(SkillDataAsset->Time.Duration));
-	}
+	// Duration은 액션 시작 시 타이머를 다시 만들지 않고 스킬 종료까지 유지한다.
+	bTrailDurationTimerStarted = GetAbility()->HasDurationDeadline();
 
 	UAnimMontage* TrailMontage = SkillDataAsset->Animation.PrimaryMontage.Get();
 	if (TrailMontage && ActorInfo && ActorInfo->GetAnimInstance())
@@ -228,7 +222,7 @@ void USkillWeaponTrailAction::HandleTrailMontageCompleted()
 {
 
 	TrailMontageTask = nullptr;
-	if (TrailDurationTask)
+	if (GetAbility()->HasDurationDeadline() || TrailDurationTask)
 	{
 		return;
 	}
@@ -243,7 +237,7 @@ void USkillWeaponTrailAction::HandleTrailMontageInterrupted()
 {
 
 	TrailMontageTask = nullptr;
-	if (TrailDurationTask)
+	if (GetAbility()->HasDurationDeadline() || TrailDurationTask)
 	{
 		return;
 	}

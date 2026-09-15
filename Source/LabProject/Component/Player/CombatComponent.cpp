@@ -1115,11 +1115,9 @@ bool UCombatComponent::ApplyDamageEffect(UPdAbilitySystemComponent* SourceASC, U
 	TSubclassOf<UGameplayEffect> DamageEffectClass, float Magnitude, UObject* SourceObject,
 	AActor* InstigatorActor, AActor* EffectCauserActor) const
 {
-	FGameplayTag DamageMagnitudeSetByCallerTag;
-	const bool bHasDamageMagnitudeTag =
-		SourceASC && SourceASC->ResolveDamageMagnitudeSetByCallerTag(DamageMagnitudeSetByCallerTag);
+	const FGameplayTag DamageMagnitudeSetByCallerTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
 	if (!HasCombatAuthority() || !SourceASC || !TargetASC || !DamageEffectClass || !FMath::IsFinite(Magnitude) || Magnitude <= 0.0f
-		|| !bHasDamageMagnitudeTag)
+		|| !DamageMagnitudeSetByCallerTag.IsValid())
 	{
 		return false;
 	}

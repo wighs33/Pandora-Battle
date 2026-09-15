@@ -8,7 +8,6 @@
 #include "Definition/Skin/SkinDefinition.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
-#include "Skin/SkinInstance.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/LeftSkinWidget.h"
 #include "UI/Widget/RightSkinWidget.h"
@@ -22,11 +21,12 @@ namespace
 void AppendSkinListAsObjects(const FSkinList& SkinList, TArray<UObject*>& OutListItems)
 {
 	OutListItems.Reserve(OutListItems.Num() + SkinList.Skins.Num());
-	for (const TObjectPtr<USkinInstance>& Skin : SkinList.Skins)
+	for (const TObjectPtr<const USkinDefinition>& Skin : SkinList.Skins)
 	{
-		if (USkinInstance* SkinInstance = Skin.Get())
+		if (const USkinDefinition* SkinDefinition = Skin.Get())
 		{
-			OutListItems.Add(SkinInstance);
+			// UMG 목록의 UObject* 인터페이스에 전달하며 정의 데이터는 수정하지 않는다.
+			OutListItems.Add(const_cast<USkinDefinition*>(SkinDefinition));
 		}
 	}
 }
@@ -115,15 +115,17 @@ void UInfoSkinTabPresenter::RefreshEquippedSlots() const
 void UInfoSkinTabPresenter::HandleSkinSlotClicked(UObject* Item)
 {
 	USkinSlotViewData* SlotViewData = Cast<USkinSlotViewData>(Item);
-	USkinInstance* SkinInstance = Cast<USkinInstance>(Item);
-	if (!SkinInstance && SlotViewData)
+	const USkinDefinition* SkinDefinition = Cast<USkinDefinition>(Item);
+	if (!SkinDefinition && SlotViewData)
 	{
-		SkinInstance = SlotViewData->GetSkinInstance();
+		SkinDefinition = SlotViewData->GetSkinDefinition();
 	}
 
-	const USkinDefinition* SkinDefinition = IsValid(SkinInstance)
-		? SkinInstance->SkinDefinition.Get()
-		: nullptr;
+	EquipSkinDefinition(SkinDefinition);
+}
+
+void UInfoSkinTabPresenter::EquipSkinDefinition(const USkinDefinition* SkinDefinition)
+{
 	if (!GetController()
 		|| !SkinDefinition
 		|| !SkinDefinition->IdTag.IsValid()
@@ -139,14 +141,14 @@ void UInfoSkinTabPresenter::HandleSkinSlotClicked(UObject* Item)
 		return;
 	}
 
-	SelectedEquipSlot->SetData(SkinInstance);
+	SelectedEquipSlot->SetSkinDefinition(SkinDefinition);
 	ClearTileItemClicked();
 
 	APdPlayer* Player = Cast<APdPlayer>(GetController()->GetPawn());
 	USkinEquipmentComponent* SkinEquipment = Player ? Player->GetSkinEquipmentComponent() : nullptr;
 	if (SkinEquipment)
 	{
-		const bool bRequested = SkinEquipment->RequestEquipSkin(SkinInstance, SelectedEquipTypeTag);
+		const bool bRequested = SkinEquipment->RequestEquipSkinDefinition(SkinDefinition, SelectedEquipTypeTag);
 		if (!bRequested || (SkinEquipment->GetOwner() && SkinEquipment->GetOwner()->HasAuthority()))
 		{
 			RefreshEquippedSlots();
@@ -188,19 +190,19 @@ void UInfoSkinTabPresenter::HandleSkinEquipSlotClicked(
 void UInfoSkinTabPresenter::HandleSkinEquipSlotDropped(
 	const FGameplayTag EquipTypeTag,
 	USkinEquipSlotWidget* TargetSkinEquipSlot,
-	USkinInstance* SkinInstance)
+	const USkinDefinition* SkinDefinition)
 {
 	SelectedEquipSlot = TargetSkinEquipSlot;
 	SelectedEquipTypeTag = EquipTypeTag;
-	HandleSkinSlotClicked(SkinInstance);
+	EquipSkinDefinition(SkinDefinition);
 }
 
-void UInfoSkinTabPresenter::HandleSkinDroppedToCharacter(USkinInstance* SkinInstance)
+void UInfoSkinTabPresenter::HandleSkinDroppedToCharacter(const USkinDefinition* SkinDefinition)
 {
 	UInfoWidget* InfoWidget = GetInfoWidget();
 	ULeftSkinWidget* LeftSkinWidget = InfoWidget ? InfoWidget->GetLeftSkinWidget() : nullptr;
 	USkinEquipSlotWidget* TargetSlot = LeftSkinWidget
-		? LeftSkinWidget->FindFirstCompatibleSkinEquipSlot(SkinInstance)
+		? LeftSkinWidget->FindFirstCompatibleSkinEquipSlot(SkinDefinition)
 		: nullptr;
 	if (!TargetSlot)
 	{
@@ -209,7 +211,7 @@ void UInfoSkinTabPresenter::HandleSkinDroppedToCharacter(USkinInstance* SkinInst
 
 	SelectedEquipSlot = TargetSlot;
 	SelectedEquipTypeTag = TargetSlot->GetAcceptedEquipTypeTag();
-	HandleSkinSlotClicked(SkinInstance);
+	EquipSkinDefinition(SkinDefinition);
 }
 
 void UInfoSkinTabPresenter::HandleSkinFilterTypeClicked(FGameplayTag TypeTag)
@@ -232,14 +234,11 @@ void UInfoSkinTabPresenter::HandleSkinFilterTypeClicked(FGameplayTag TypeTag)
 		}
 		else if (TypeTag.IsValid())
 		{
-			for (USkinInstance* SkinInstance : SkinComponent->GetAllSkins().Skins)
+			for (const USkinDefinition* SkinDefinition : SkinComponent->GetAllSkins().Skins)
 			{
-				const USkinDefinition* SkinDefinition = IsValid(SkinInstance)
-					? SkinInstance->SkinDefinition.Get()
-					: nullptr;
 				if (SkinDefinition && SkinDefinition->IdTag.MatchesTag(TypeTag))
 				{
-					CurrentSkinList.Add(SkinInstance);
+					CurrentSkinList.Add(const_cast<USkinDefinition*>(SkinDefinition));
 				}
 			}
 		}

@@ -15,8 +15,8 @@
 #include "Engine/GameInstance.h"
 #include "SavedGameData/PlayerProfileSubsystem.h"
 #include "Mode/PdHUD.h"
-#include "Pandora/PandoraInstance.h"
-#include "Skin/SkinInstance.h"
+#include "Definition/Pandora/PandoraDefinition.h"
+#include "Definition/Skin/SkinDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Controller/InfoCharacterPreviewController.h"
 #include "UI/Controller/InfoDetailController.h"
@@ -290,7 +290,7 @@ bool UInfoWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 
 	if (USkinSlotDragDropOperation* SkinDragOperation = Cast<USkinSlotDragDropOperation>(InOperation))
 	{
-		USkinInstance* DroppedSkin = SkinDragOperation->GetSkinInstance();
+		const USkinDefinition* DroppedSkin = SkinDragOperation->GetSkinDefinition();
 		if (DroppedSkin)
 		{
 
@@ -355,13 +355,6 @@ void UInfoWidget::ShowItemDetailAtWidget(UItemInstance* ItemInstance, UWidget* A
 	DetailController->ShowItem(ItemInstance, AnchorWidget, bPlaceLeftOfWidget);
 }
 
-void UInfoWidget::ShowSkinDetailAtWidget(USkinInstance* SkinInstance, UWidget* AnchorWidget, const bool bPlaceLeftOfWidget)
-{
-	EnsureControllers();
-	ConfigureControllers();
-	DetailController->ShowSkin(SkinInstance, AnchorWidget, bPlaceLeftOfWidget);
-}
-
 void UInfoWidget::ShowSkinDefinitionDetailAtWidget(const USkinDefinition* SkinDefinition, UWidget* AnchorWidget, const bool bPlaceLeftOfWidget)
 {
 	EnsureControllers();
@@ -369,21 +362,21 @@ void UInfoWidget::ShowSkinDefinitionDetailAtWidget(const USkinDefinition* SkinDe
 	DetailController->ShowSkinDefinition(SkinDefinition, AnchorWidget, bPlaceLeftOfWidget);
 }
 
-void UInfoWidget::ShowPandoraDescriptionDetailAtWidget(UPandoraInstance* PandoraInstance, UWidget* AnchorWidget, const bool bPlaceLeftOfWidget)
+void UInfoWidget::ShowPandoraDescriptionDetailAtWidget(const UPandoraDefinition* PandoraDefinition, UWidget* AnchorWidget, const bool bPlaceLeftOfWidget)
 {
 	EnsureControllers();
 	ConfigureControllers();
-	DetailController->ShowPandora(PandoraInstance, AnchorWidget, bPlaceLeftOfWidget, true);
+	DetailController->ShowPandora(PandoraDefinition, AnchorWidget, bPlaceLeftOfWidget, true);
 }
 
 void UInfoWidget::ShowPandoraDescriptionDetailImmediatelyAtWidget(
-	UPandoraInstance* PandoraInstance,
+	const UPandoraDefinition* PandoraDefinition,
 	UWidget* AnchorWidget,
 	const bool bPlaceLeftOfWidget)
 {
 	EnsureControllers();
 	ConfigureControllers();
-	DetailController->ShowPandora(PandoraInstance, AnchorWidget, bPlaceLeftOfWidget, false);
+	DetailController->ShowPandora(PandoraDefinition, AnchorWidget, bPlaceLeftOfWidget, false);
 }
 
 void UInfoWidget::HideDetailWidgets()

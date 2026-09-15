@@ -1,6 +1,8 @@
 #include "AbilitySystem/StatUpExecution.h"
 
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Definition/Common/ProjectTagConfig.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatUpExecution)
 
@@ -42,8 +44,8 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 // =================================================================================================================
 
-	FGameplayTag OperationSetByCallerTag;
-	if (!TargetASC->ResolveStatUpOperationSetByCallerTag(OperationSetByCallerTag))
+	const FGameplayTag OperationSetByCallerTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerStatUpOperationTag();
+	if (!OperationSetByCallerTag.IsValid())
 	{
 
 		return;
@@ -73,7 +75,7 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		// =============================================================================================================
 
 		FGameplayAttribute Attribute;
-		if (!TargetASC->ResolveAttributeFromTag(SetByCallerPair.Key, Attribute))
+		if (!UBasicAttributeSet::ResolveAttributeFromStatTag(SetByCallerPair.Key, Attribute))
 		{
 
 			continue;

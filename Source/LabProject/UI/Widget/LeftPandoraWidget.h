@@ -7,7 +7,6 @@
 
 class UImage;
 class UPandoraComponent;
-class UPandoraInstance;
 class UPandoraTreeComponent;
 class UTextBlock;
 class UTexture2D;

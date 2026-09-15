@@ -28,6 +28,9 @@ public:
 	virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) override;
 
 	// Public API
+	/** 원본 쿨타임에 신비의 감소율(0~100%)을 반영한 최종 지속시간(초)을 계산한다. */
+	float CalculateCooldownDuration(float BaseCooldownDuration) const;
+
 	/** 상태 태그에 해당하는 피해 증가율(%)을 반환한다. 지원하지 않는 태그나 음수 능력치는 0으로 처리한다. */
 	float GetStatusEffectDamageBonusPercent(const FGameplayTag& StatusTag) const;
 

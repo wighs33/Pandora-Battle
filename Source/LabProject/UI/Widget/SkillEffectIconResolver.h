@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 
 class UImage;
-struct FSkill;
+class USkillDefinition;
 
 enum class ESkillEffectIconSet : uint8
 {
@@ -15,7 +15,7 @@ namespace PdSkillEffectIconResolver
 {
 	void ApplySkillEffectIcon(
 		const UObject* WorldContextObject,
-		const FSkill* Skill,
+		const USkillDefinition* Skill,
 		UImage* ImageWidget,
 		ESkillEffectIconSet IconSet);
 }

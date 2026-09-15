@@ -44,15 +44,11 @@ void APdPlayerState::PreInitializeComponents()
 	UGameFrameworkComponentManager::AddGameFrameworkComponentReceiver(this);
 }
 
-// 기본 속성의 ASC 등록 이후 게임피처에 준비를 알리고 서버에서 공통 기본값을 적용한다.
+// 기본 속성의 ASC 등록 이후 게임피처에 준비를 알린다. 기본값은 StatUpgradeComponent가 초기화한다.
 void APdPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
 	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(this, UGameFrameworkComponentManager::NAME_GameActorReady);
-	if (HasAuthority())
-	{
-		StatUpgradeComponent->ApplyConfiguredAttributeDefaults();
-	}
 }
 
 // 플레이어 상태가 종료될 때 GFCM 수신 등록을 해제하여 게임피처와의 연결을 정리한다.
@@ -63,7 +59,6 @@ void APdPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 }
 
 // PlayerState 교체 시 엔진 기본 정보와 프로젝트의 플레이어 식별 정보를 인계한다.
-// 프로젝트의 사망 횟수·맵 구역·로드아웃 선택은 인계하지 않는다.
 void APdPlayerState::CopyProperties(APlayerState* NewPlayerState)
 {
 	Super::CopyProperties(NewPlayerState);

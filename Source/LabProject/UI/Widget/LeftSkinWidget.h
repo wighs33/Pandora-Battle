@@ -6,7 +6,7 @@
 #include "LeftSkinWidget.generated.h"
 
 class USkinEquipmentComponent;
-class USkinInstance;
+class USkinDefinition;
 class UButton;
 class APdPlayer;
 
@@ -20,7 +20,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FPdOnDroppedSkinEquipTypeSlot,
 	FGameplayTag, EquipTypeTag,
 	USkinEquipSlotWidget*, TargetSkinEquipSlot,
-	USkinInstance*, SkinInstance);
+	const USkinDefinition*, SkinDefinition);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnPaintCanvasGroupVisibilityChanged, bool, bVisible);
 
@@ -42,7 +42,7 @@ public:
 	void RefreshEquippedSkinSlots(const USkinEquipmentComponent* SkinEquipmentComponent);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
-	USkinEquipSlotWidget* FindFirstCompatibleSkinEquipSlot(USkinInstance* SkinInstance) const;
+	USkinEquipSlotWidget* FindFirstCompatibleSkinEquipSlot(const USkinDefinition* SkinDefinition) const;
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin", meta = (Categories = "Skin"))
 	void BroadcastClickedSkinEquipTypeSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* InSelectedSkinEquipSlot, bool bInIsSelectedAnySlot);
@@ -126,7 +126,7 @@ private:
 	void HandleSkinEquipSlotClicked(USkinEquipSlotWidget* SkinEquipSlot);
 
 	UFUNCTION()
-	void HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinEquipSlot, USkinInstance* SkinInstance);
+	void HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinEquipSlot, const USkinDefinition* SkinDefinition);
 
 	UFUNCTION()
 	void HandleDrawButtonClicked();

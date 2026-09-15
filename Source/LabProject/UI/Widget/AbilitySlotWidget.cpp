@@ -457,14 +457,6 @@ UObject* UAbilitySlotWidget::ResolveAbilityImage() const
 		return AbilityIconOverride;
 	}
 
-	if (const FSkill* PandoraSkill = ResolvePandoraSkill())
-	{
-		if (UObject* SkillIcon = PandoraSkill->GetIconResource())
-		{
-			return SkillIcon;
-		}
-	}
-
 	if (const USkillDefinition* SkillDataAsset = ResolveSkillDataAsset())
 	{
 		if (UObject* SkillIcon = SkillDataAsset->GetIconResource())
@@ -476,31 +468,8 @@ UObject* UAbilitySlotWidget::ResolveAbilityImage() const
 	return DefaultAbilityImage.Get();
 }
 
-const FSkill* UAbilitySlotWidget::ResolvePandoraSkill() const
-{
-	UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
-	if (!AbilitySystemComponent)
-	{
-		return nullptr;
-	}
-
-	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle);
-	const UPandoraSkillSource* SkillSource = AbilitySpec
-		? Cast<UPandoraSkillSource>(AbilitySpec->SourceObject.Get())
-		: nullptr;
-	return SkillSource ? SkillSource->GetPandoraSkill() : nullptr;
-}
-
 const USkillDefinition* UAbilitySlotWidget::ResolveSkillDataAsset() const
 {
-	if (const FSkill* PandoraSkill = ResolvePandoraSkill())
-	{
-		if (const USkillDefinition* SkillDataAsset = PandoraSkill->SkillDefinition.Get())
-		{
-			return SkillDataAsset;
-		}
-	}
-
 	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
 	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent ? AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle) : nullptr;
 	const UObject* SourceObject = AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr;
@@ -531,8 +500,8 @@ const USkillDefinition* UAbilitySlotWidget::ResolveSkillDataAsset() const
 	const UPandoraDefinition* PandoraDefinition = PandoraComponent
 		? PandoraComponent->GetCurrentPandoraDefinition()
 		: nullptr;
-	return PandoraDefinition && PandoraDefinition->Skill.IsValidIndex(SkillSlotIndex)
-		? PandoraDefinition->Skill[SkillSlotIndex].SkillDefinition.Get()
+	return PandoraDefinition
+		? PandoraDefinition->GetSkillDefinition(SkillSlotIndex)
 		: nullptr;
 }
 

@@ -24,10 +24,9 @@ class UItemInstance;
 class UMapWidget;
 class UOverlay;
 class UPandoraDescriptionWidget;
-class UPandoraInstance;
+class UPandoraDefinition;
 class UPaintCanvasWidget;
 class USkinDefinition;
-class USkinInstance;
 class UTextBlock;
 class UWidget;
 class UWidgetAnimation;
@@ -38,7 +37,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnClickedInfoCenterButton, FGame
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedMapButton);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedSettingButton);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedItemToCharacterPanel, UItemInstance*, ItemInstance);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedSkinToCharacterPanel, USkinInstance*, SkinInstance);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedSkinToCharacterPanel, const USkinDefinition*, SkinDefinition);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UInfoWidget : public UUserWidget
@@ -111,16 +110,14 @@ public:
 	void ShowItemDetailAtWidget(UItemInstance* ItemInstance, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
-	void ShowSkinDetailAtWidget(USkinInstance* SkinInstance, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
-	void ShowPandoraDescriptionDetailAtWidget(UPandoraInstance* PandoraInstance, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
+	void ShowPandoraDescriptionDetailAtWidget(const UPandoraDefinition* PandoraDefinition, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
 
 	void ShowPandoraDescriptionDetailImmediatelyAtWidget(
-		UPandoraInstance* PandoraInstance,
+		const UPandoraDefinition* PandoraDefinition,
 		UWidget* AnchorWidget,
 		bool bPlaceLeftOfWidget);
 
+	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")
 	void ShowSkinDefinitionDetailAtWidget(const USkinDefinition* SkinDefinition, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info|Detail")

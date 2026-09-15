@@ -1,5 +1,6 @@
 #include "AbilitySystem/Ability/SkillAbility.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
@@ -56,6 +57,7 @@ void USkillAbility::PreActivate(FGameplayAbilitySpecHandle Handle, const FGamepl
 		CooldownRemovalPolicyTags = Skill->Activation.CooldownRemovalTags;
 	}
 	bSkillCommitted = false;
+	DurationEndTime = -1.0;
 	Super::PreActivate(Handle, ActorInfo, ActivationInfo, EndedDelegate, TriggerEventData);
 }
 
@@ -63,6 +65,17 @@ bool USkillAbility::ShouldConfirmTargetingOnInputRelease() const
 {
 	const USkillDefinition* Skill = GetSourceSkillDataAsset();
 	return Skill && Skill->SkillType == ESkillType::Press && Skill->Activation.bConfirmTargetingOnInputRelease;
+}
+
+float USkillAbility::GetRemainingDuration() const
+{
+	return HasDurationDeadline() && GetWorld()
+		? static_cast<float>(FMath::Max(DurationEndTime - GetWorld()->GetTimeSeconds(), 0.0)) : 0.0f;
+}
+
+bool USkillAbility::CanRunActions() const
+{
+	return IsActive() && CanExecuteSkillPayload() && (!HasDurationDeadline() || GetRemainingDuration() > 0.0f);
 }
 
 bool USkillAbility::CommitSkill()
@@ -75,13 +88,13 @@ bool USkillAbility::CommitSkill()
 	if (Uses == 1)
 	{
 		bSkillCommitted = CommitAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo);
+		if (bSkillCommitted) UsesSinceCooldown = 0;
 		return bSkillCommitted;
 	}
 	if (!CheckCost(CurrentSpecHandle, CurrentActorInfo) || !CheckCooldown(CurrentSpecHandle, CurrentActorInfo)
 		|| !CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo)) return false;
 	if (++UsesSinceCooldown >= Uses)
 	{
-		if (!CommitAbilityCooldown(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false)) return false;
 		UsesSinceCooldown = 0;
 	}
 	StartConfiguredSelfBuff(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo);
@@ -95,7 +108,11 @@ void USkillAbility::ActivateAbility(FGameplayAbilitySpecHandle Handle,
 	const FGameplayEventData* TriggerEventData)
 {
 	if (!ActorInfo) return;
+	ActivationTime = GetWorld()->GetTimeSeconds();
 	const USkillDefinition* Definition = GetSourceSkillDataAsset();
+	DurationEndTime = Definition && Definition->SkillType == ESkillType::Duration
+		? ActivationTime + (FMath::IsFinite(Definition->Time.Duration) ? FMath::Max(Definition->Time.Duration, 0.0) : 0.0)
+		: -1.0;
 	if (!Definition || !Definition->Action || !CanExecuteSkillPayload()
 		|| !CommitSkill())
 	{
@@ -115,7 +132,17 @@ void USkillAbility::ActivateAbility(FGameplayAbilitySpecHandle Handle,
 			if (Data && Data->HasEndPoint()) Context.Transform = Data->GetEndPointTransform();
 		}
 	}
-	ActivationTime = GetWorld()->GetTimeSeconds();
+	// 액션 트리보다 먼저 타이머를 시작해 조준·준비·몽타주도 전체 지속시간에 포함한다.
+	if (HasDurationDeadline())
+	{
+		const float Remaining = GetRemainingDuration();
+		if (Remaining <= 0.0f)
+		{
+			DurationFinished();
+			return;
+		}
+		GetWorld()->GetTimerManager().SetTimer(DurationTimer, this, &ThisClass::DurationFinished, Remaining, false);
+	}
 	ActiveAction = DuplicateObject<USkillAction>(Definition->Action, this);
 	ActiveAction->OnFinished.AddUObject(this, &ThisClass::ActionFinished);
 	ActiveAction->Start(this, Context);
@@ -123,6 +150,12 @@ void USkillAbility::ActivateAbility(FGameplayAbilitySpecHandle Handle,
 
 void USkillAbility::ActionFinished(USkillAction* Action, bool bSucceeded)
 {
+	// 같은 프레임에 액션 콜백이 타이머보다 먼저 실행되어도 만료는 정상 종료로 처리한다.
+	if (HasDurationDeadline() && GetRemainingDuration() <= 0.0f)
+	{
+		DurationFinished();
+		return;
+	}
 	if (!bSucceeded)
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
@@ -131,7 +164,7 @@ void USkillAbility::ActionFinished(USkillAction* Action, bool bSucceeded)
 	// 클라이언트에서 동작이 먼저 끝나도 서버의 투사체·피해 처리가 완료될 때까지 GAS 종료를 기다린다.
 	if (!CurrentActorInfo || !CurrentActorInfo->IsNetAuthority()) return;
 	const USkillDefinition* Definition = GetSourceSkillDataAsset();
-	if (Definition && Definition->SkillType == ESkillType::Press) return;
+	if (HasDurationDeadline() || (Definition && Definition->SkillType == ESkillType::Press)) return;
 	FinishAbilityFromDuration();
 }
 
@@ -141,7 +174,7 @@ void USkillAbility::InputReleased(FGameplayAbilitySpecHandle Handle,
 	const USkillDefinition* Definition = GetSourceSkillDataAsset();
 	if (ActorInfo && Definition && Definition->SkillType == ESkillType::Press)
 	{
-		const float Remaining = Definition->Activation.MinimumHoldSeconds - (GetWorld()->GetTimeSeconds() - ActivationTime);
+		const float Remaining = static_cast<float>(Definition->Activation.MinimumHoldSeconds - (GetWorld()->GetTimeSeconds() - ActivationTime));
 		if (Remaining <= 0.0f) FinishAbilityFromDuration();
 		else GetWorld()->GetTimerManager().SetTimer(DurationTimer, this, &ThisClass::DurationFinished, Remaining, false);
 	}
@@ -162,6 +195,26 @@ void USkillAbility::OnAbilityEnding()
 		ActiveAction = nullptr;
 	}
 	Super::OnAbilityEnding();
+}
+
+// GAS의 CommitAbility는 쿨다운 적용도 요청한다. 스킬은 정상 종료 때 직접 적용한다.
+void USkillAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+}
+
+void USkillAbility::ApplyCooldownOnEnd(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+{
+	const UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	const FGameplayAbilitySpec* Spec = ASC ? ASC->FindAbilitySpecFromHandle(Handle) : nullptr;
+	// 확정된 시전의 사용 횟수를 모두 소모했을 때만 시작한다. 별도의 적용 예약은 저장하지 않는다.
+	if (!bSkillCommitted || UsesSinceCooldown != 0 || !Spec || Spec->PendingRemove
+		|| UAbilitySystemGlobals::Get().ShouldIgnoreCooldowns())
+	{
+		return;
+	}
+	Super::ApplyCooldown(Handle, ActorInfo, ActivationInfo);
 }
 
 FGameplayEffectSpecHandle USkillAbility::MakeActionDamageSpec(const FSkillGameplayEffectConfig& Damage) const

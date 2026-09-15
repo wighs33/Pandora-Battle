@@ -9,7 +9,6 @@ class UImage;
 class UItemInstance;
 class UPanelWidget;
 class USkinDefinition;
-class USkinInstance;
 class UTextBlock;
 class UTexture2D;
 
@@ -26,8 +25,6 @@ public:
 	void SetItemViewData(const FItemViewData& InViewData);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Detail")
-	void SetSkin(USkinInstance* InSkinInstance);
-
 	void SetSkinDefinition(const USkinDefinition* InSkinDefinition);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Detail")

@@ -7,7 +7,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdHUD.h"
 #include "Definition/Skin/SkinDefinition.h"
-#include "Skin/SkinInstance.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/SkinSlotDragDropOperation.h"
 #include "UI/WidgetLookup.h"
@@ -86,11 +85,7 @@ void USkinEquipSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const
 
 	if (UInfoWidget* InfoWidget = ResolveInfoWidgetFromSkinEquipSlot(this))
 	{
-		if (SkinInstance)
-		{
-			InfoWidget->ShowSkinDetailAtWidget(SkinInstance, this, false);
-		}
-		else if (SkinDefinition)
+		if (SkinDefinition)
 		{
 			InfoWidget->ShowSkinDefinitionDetailAtWidget(SkinDefinition, this, false);
 		}
@@ -117,7 +112,7 @@ bool USkinEquipSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDrag
 
 	if (USkinSlotDragDropOperation* SkinDragOperation = Cast<USkinSlotDragDropOperation>(InOperation))
 	{
-		USkinInstance* DroppedSkin = SkinDragOperation->GetSkinInstance();
+		const USkinDefinition* DroppedSkin = SkinDragOperation->GetSkinDefinition();
 		if (CanAcceptDroppedSkin(DroppedSkin))
 		{
 
@@ -125,8 +120,6 @@ bool USkinEquipSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDrag
 			ApplySlotVisual();
 			return true;
 		}
-
-		const USkinDefinition* DroppedDefinition = DroppedSkin ? DroppedSkin->SkinDefinition.Get() : nullptr;
 
 	}
 
@@ -141,7 +134,7 @@ void USkinEquipSlotWidget::NativeOnDragEnter(const FGeometry& InGeometry, const 
 	bIsAcceptedDragHovered = false;
 	if (USkinSlotDragDropOperation* SkinDragOperation = Cast<USkinSlotDragDropOperation>(InOperation))
 	{
-		bIsAcceptedDragHovered = CanAcceptDroppedSkin(SkinDragOperation->GetSkinInstance());
+		bIsAcceptedDragHovered = CanAcceptDroppedSkin(SkinDragOperation->GetSkinDefinition());
 	}
 
 	ApplySlotVisual();
@@ -170,7 +163,7 @@ void USkinEquipSlotWidget::SetIcon(UTexture2D* InIconTexture)
 {
 	SlotIconTexture = InIconTexture;
 
-	if (!SkinInstance)
+	if (!SkinDefinition)
 	{
 		CurrentIconTexture = SlotIconTexture;
 		CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
@@ -183,42 +176,16 @@ void USkinEquipSlotWidget::SetHoverIcon(UTexture2D* InIconTexture)
 {
 	SlotHoverIconTexture = InIconTexture;
 
-	if (!SkinInstance)
-	{
-		CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
-	}
-
-	ApplySlotVisual();
-}
-
-void USkinEquipSlotWidget::SetData(USkinInstance* Target)
-{
-	SkinInstance = Target;
-	SkinDefinition = IsValid(SkinInstance) ? SkinInstance->SkinDefinition.Get() : nullptr;
-
 	if (!SkinDefinition)
 	{
-		bUseSelectedEmptyIcon = false;
-		SlotText = FText::GetEmpty();
-		CurrentIconTexture = SlotIconTexture;
 		CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
-		CurrentSkinIconTexture = nullptr;
-
-		ApplySlotVisual();
-		return;
 	}
 
-	bUseSelectedEmptyIcon = false;
-	SlotText = SkinDefinition->DisplayName;
-	CurrentIconTexture = SlotIconTexture;
-	CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
-	CurrentSkinIconTexture = SkinDefinition->IconTexture;
 	ApplySlotVisual();
 }
 
 void USkinEquipSlotWidget::SetSkinDefinition(const USkinDefinition* Target)
 {
-	SkinInstance = nullptr;
 	SkinDefinition = Target;
 
 	if (!SkinDefinition)
@@ -421,14 +388,13 @@ void USkinEquipSlotWidget::ApplyButtonBackgroundStyle()
 	ItemButton->SetStyle(ButtonStyle);
 }
 
-bool USkinEquipSlotWidget::CanAcceptDroppedSkin(USkinInstance* DroppedSkin) const
+bool USkinEquipSlotWidget::CanAcceptDroppedSkin(const USkinDefinition* DroppedSkin) const
 {
-	const USkinDefinition* DroppedDefinition = DroppedSkin ? DroppedSkin->SkinDefinition.Get() : nullptr;
 	const FGameplayTag AcceptedTag = GetAcceptedEquipTypeTag();
 	const FGameplayTag RequiredSkinTag = AcceptedTag.MatchesTag(LabGameplayTags::Skin_Gesture)
 		? LabGameplayTags::Skin_Gesture
 		: AcceptedTag;
-	return DroppedDefinition && DroppedDefinition->IdTag.IsValid() && RequiredSkinTag.IsValid() && DroppedDefinition->IdTag.MatchesTag(RequiredSkinTag);
+	return IsValid(DroppedSkin) && DroppedSkin->IdTag.IsValid() && RequiredSkinTag.IsValid() && DroppedSkin->IdTag.MatchesTag(RequiredSkinTag);
 }
 
 UTexture2D* USkinEquipSlotWidget::GetCurrentIconTexture(const bool bForHover) const

@@ -5,7 +5,6 @@
 #include "AbilitySystemGlobals.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
-#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
@@ -203,28 +202,7 @@ bool UAbilityCostAndCooldownManager::TryCommitAdditionalActionStaminaCost(const 
 		.WasSuccessfullyApplied();
 }
 
-// 쿨다운 검사·적용·예약
-
-// 스킬 정의 또는 부모 GAS 설정에서 이번 능력이 사용할 쿨다운 태그를 구성한다.
-const FGameplayTagContainer* UAbilityCostAndCooldownManager::BuildCooldownTags(
-	const UPdGameplayAbility& Ability, const FGameplayTagContainer* ParentCooldownTags) const
-{
-	CachedCooldownTags.Reset();
-	const USkillDefinition* SkillDataAsset = Ability.IsInstantiated() ? Ability.GetSourceSkillDataAsset() : nullptr;
-	if (SkillDataAsset)
-	{
-		// 스킬은 SkillDefinition의 쿨다운만 사용하고, 일반 능력은 부모 GAS 설정을 따른다.
-		if (SkillDataAsset->Time.CooldownDuration > 0.0)
-		{
-			CachedCooldownTags.AddTag(LabGameplayTags::Cooldown);
-		}
-	}
-	else if (ParentCooldownTags)
-	{
-		CachedCooldownTags.AppendTags(*ParentCooldownTags);
-	}
-	return CachedCooldownTags.IsEmpty() ? nullptr : &CachedCooldownTags;
-}
+// 스킬 출처별 쿨다운 검사·적용
 
 // 스킬 정의가 있으면 출처별 쿨다운을 검사한다. bOutHandled가 false면 호출자가 부모 GAS 검사를 수행한다.
 bool UAbilityCostAndCooldownManager::CheckConfiguredCooldown(const UPdGameplayAbility& Ability, const FGameplayAbilitySpecHandle Handle,
@@ -244,7 +222,8 @@ bool UAbilityCostAndCooldownManager::CheckConfiguredCooldown(const UPdGameplayAb
 	}
 
 	bOutHandled = true;
-	if (SkillDataAsset->Time.CooldownDuration <= 0.0)
+	const float BaseDuration = static_cast<float>(FMath::Max(SkillDataAsset->Time.CooldownDuration, 0.0));
+	if (BaseDuration <= 0.0f)
 	{
 		return true;
 	}
@@ -255,7 +234,7 @@ bool UAbilityCostAndCooldownManager::CheckConfiguredCooldown(const UPdGameplayAb
 	{
 		float Remaining = 0.0f;
 		float Duration = 0.0f;
-		GetPandoraCooldown(*AbilitySystemComponent, *Source, Remaining, Duration);
+		Source->GetCooldownTimeRemainingAndDuration(Remaining, Duration);
 		bOnCooldown = Remaining > 0.0f;
 	}
 	else
@@ -281,20 +260,8 @@ bool UAbilityCostAndCooldownManager::CheckConfiguredCooldown(const UPdGameplayAb
 	return false;
 }
 
-// 양수 쿨다운이 설정된 스킬은 시전 시점 대신 정상 종료 시점에 쿨다운을 시작한다.
-bool UAbilityCostAndCooldownManager::ShouldDeferCooldown(
-	const UPdGameplayAbility& Ability, const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo) const
-{
-	const UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent && Handle.IsValid()
-		? AbilitySystemComponent->FindAbilitySpecFromHandle(Handle)
-		: Ability.GetCurrentAbilitySpec();
-	const USkillDefinition* SkillDataAsset = Ability.ResolveSourceSkillDataAsset(AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr);
-	return SkillDataAsset && SkillDataAsset->Time.CooldownDuration > 0.0;
-}
-
-// 신비(Arcane) 감소율을 반영해 스킬 쿨다운을 적용한다. 반환값은 적용 성공이 아닌 스킬 설정 처리 여부다.
-bool UAbilityCostAndCooldownManager::ApplyConfiguredCooldownImmediately(const UPdGameplayAbility& Ability,
+// 어트리뷰트가 계산한 최종 쿨타임을 적용한다. 반환값은 적용 성공이 아닌 스킬 설정 처리 여부다.
+bool UAbilityCostAndCooldownManager::ApplyConfiguredCooldown(const UPdGameplayAbility& Ability,
 	const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo& ActivationInfo) const
 {
@@ -308,16 +275,19 @@ bool UAbilityCostAndCooldownManager::ApplyConfiguredCooldownImmediately(const UP
 		return false;
 	}
 
-	const float ConfiguredDuration = static_cast<float>(FMath::Max(SkillDataAsset->Time.CooldownDuration, 0.0));
-	if (ConfiguredDuration <= 0.0f)
+	// 스킬 쿨다운은 서버에서만 적용하고, 클라이언트는 복제된 효과를 조회한다.
+	if (!AbilitySystemComponent || !AbilitySystemComponent->IsOwnerActorAuthoritative())
 	{
 		return true;
 	}
-	const UPdAbilitySystemComponent* CurrentAbilitySystemComponent = Ability.GetPdAbilitySystemComponentFromActorInfo();
-	const UBasicAttributeSet* AttributeSet =
-		CurrentAbilitySystemComponent ? CurrentAbilitySystemComponent->GetSet<UBasicAttributeSet>() : nullptr;
-	const float ReductionPercent = AttributeSet ? FMath::Clamp(AttributeSet->GetArcane(), 0.0f, 100.0f) : 0.0f;
-	const float EffectiveDuration = ConfiguredDuration * (1.0f - ReductionPercent / 100.0f);
+
+	const float BaseDuration = static_cast<float>(FMath::Max(SkillDataAsset->Time.CooldownDuration, 0.0));
+	if (BaseDuration <= 0.0f)
+	{
+		return true;
+	}
+	const UBasicAttributeSet* AttributeSet = AbilitySystemComponent->GetSet<UBasicAttributeSet>();
+	const float EffectiveDuration = AttributeSet ? AttributeSet->CalculateCooldownDuration(BaseDuration) : BaseDuration;
 
 	if (EffectiveDuration <= 0.0f)
 	{
@@ -327,28 +297,4 @@ bool UAbilityCostAndCooldownManager::ApplyConfiguredCooldownImmediately(const UP
 	const FGameplayTagContainer DynamicCooldownTags(LabGameplayTags::Cooldown);
 	Ability.ApplySharedCooldownEffect(Handle, ActorInfo, ActivationInfo, EffectiveDuration, DynamicCooldownTags);
 	return true;
-}
-
-// 시전 검사와 스킬바가 같은 출처의 GAS 효과에서 남은 시간과 전체 시간을 조회한다.
-void UAbilityCostAndCooldownManager::GetPandoraCooldown(
-	const UAbilitySystemComponent& ASC, const UPandoraSkillSource& Source, float& OutRemaining, float& OutDuration)
-{
-	OutRemaining = 0.0f;
-	OutDuration = 0.0f;
-	for (const TPair<float, float>& Time : ASC.GetActiveEffectsTimeRemainingAndDuration(Source.MakeCooldownQuery()))
-	{
-		if (Time.Key > OutRemaining)
-		{
-			OutRemaining = Time.Key;
-			OutDuration = Time.Value;
-		}
-	}
-}
-
-// 예약을 한 번만 꺼내 비우고, 정상 종료일 때만 쿨다운을 적용하도록 결과를 반환한다.
-bool UAbilityCostAndCooldownManager::ConsumePendingCooldown(const bool bAbilityWasCancelled)
-{
-	const bool bWasPending = bApplySkillCooldownWhenAbilityEnds;
-	bApplySkillCooldownWhenAbilityEnds = false;
-	return bWasPending && !bAbilityWasCancelled;
 }

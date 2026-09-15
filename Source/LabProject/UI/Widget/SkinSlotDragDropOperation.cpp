@@ -1,13 +1,13 @@
 #include "UI/Widget/SkinSlotDragDropOperation.h"
 
-#include "Skin/SkinInstance.h"
+#include "Definition/Skin/SkinDefinition.h"
 #include "UI/Widget/SkinSlotViewData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinSlotDragDropOperation)
 
-void USkinSlotDragDropOperation::Initialize(const int32 InSourceSlotIndex, USkinInstance* InSkinInstance, USkinSlotViewData* InSourceSlotData)
+void USkinSlotDragDropOperation::Initialize(const int32 InSourceSlotIndex, const USkinDefinition* InSkinDefinition, USkinSlotViewData* InSourceSlotData)
 {
 	SourceSlotIndex = InSourceSlotIndex;
-	SkinInstance = InSkinInstance;
+	SkinDefinition = InSkinDefinition;
 	SourceSlotData = InSourceSlotData;
 }

@@ -924,6 +924,12 @@ void UBasicAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute
 	}
 }
 
+float UBasicAttributeSet::CalculateCooldownDuration(const float BaseCooldownDuration) const
+{
+	const float ReductionPercent = FMath::Clamp(GetArcane(), 0.0f, 100.0f);
+	return FMath::Max(BaseCooldownDuration, 0.0f) * (1.0f - ReductionPercent / 100.0f);
+}
+
 float UBasicAttributeSet::GetStatusEffectDamageBonusPercent(const FGameplayTag& StatusTag) const
 {
 	if (!StatusTag.IsValid())

@@ -6,7 +6,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdHUD.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Pandora/PandoraInstance.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateTypes.h"
 #include "UI/Widget/InfoWidget.h"
@@ -82,7 +81,7 @@ void UPandoraEquipSlotWidget::BroadcastHoveredPandoraEquipSlot(UPandoraEquipSlot
 	OnHovered_PandoraEquipSlot.Broadcast(PandoraEquipSlot ? PandoraEquipSlot : this);
 }
 
-void UPandoraEquipSlotWidget::SetData(UPandoraInstance* Target)
+void UPandoraEquipSlotWidget::SetData(const UPandoraDefinition* Target)
 {
 	CachedData = Target;
 	bPandoraImageDarkened = false;
@@ -158,7 +157,7 @@ void UPandoraEquipSlotWidget::HandleButtonUnhovered()
 
 void UPandoraEquipSlotWidget::ApplyButtonStyle()
 {
-	const UPandoraDefinition* PandoraDefinition = CachedData ? CachedData->PandoraDefinition.Get() : nullptr;
+	const UPandoraDefinition* PandoraDefinition = CachedData.Get();
 	if (!ItemButton || !PandoraDefinition)
 	{
 		if (ItemButton && bHasDefaultButtonStyle)
@@ -168,7 +167,7 @@ void UPandoraEquipSlotWidget::ApplyButtonStyle()
 		return;
 	}
 
-	UTexture2D* IconTexture = PandoraDefinition->IconTexture.Get();
+	UTexture2D* IconTexture = PandoraDefinition->GetIconTexture();
 
 	FButtonStyle ButtonStyle;
 	if (bPandoraImageDarkened)

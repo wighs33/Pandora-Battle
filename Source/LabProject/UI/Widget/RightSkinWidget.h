@@ -10,7 +10,7 @@
 class UButton;
 class UEditableTextBox;
 class USkinEquipmentComponent;
-class USkinInstance;
+class USkinDefinition;
 class USkinSlotViewData;
 class UTileView;
 
@@ -145,7 +145,7 @@ private:
 	void RebuildTileViewFromCachedSourceItems();
 	void RefreshSkinEquipmentBinding();
 	void ClearSkinEquipmentBinding();
-	bool DoesSkinMatchSearch(const USkinInstance* SkinInstance, const FString& SearchText) const;
+	bool DoesSkinMatchSearch(const USkinDefinition* SkinDefinition, const FString& SearchText) const;
 	void ApplyWidgetDefinitionSettings();
 	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
 	FGameplayTag GetPandoraTypeTag() const;

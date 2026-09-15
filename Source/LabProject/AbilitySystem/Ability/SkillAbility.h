@@ -26,7 +26,11 @@ public:
 
 	FGameplayEffectSpecHandle MakeActionDamageSpec(const FSkillGameplayEffectConfig& Damage) const;
 	FGameplayEffectSpecHandle MakeActionStatusSpec() const;
-	bool CanRunActions() const { return IsActive() && CanExecuteSkillPayload(); }
+	bool CanRunActions() const;
+	/** Duration 스킬은 활성화 시 확정한 하나의 종료 시점을 공유한다. */
+	bool HasDurationDeadline() const { return DurationEndTime >= 0.0; }
+	/** 준비 동작을 포함한 전체 지속시간 중 남은 시간. 다른 종료 정책은 0을 반환한다. */
+	float GetRemainingDuration() const;
 	/** 같은 시전의 여러 액션이 요청해도 비용과 쿨다운은 한 번만 확정한다. */
 	bool CommitSkill();
 
@@ -63,6 +67,10 @@ protected:
 		FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* EndedDelegate,
 		const FGameplayEventData* TriggerEventData = nullptr) override;
 	virtual void OnAbilityEnding() override;
+	virtual void ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo) const override;
+	virtual void ApplyCooldownOnEnd(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo) override;
 
 private:
 	void ActionFinished(USkillAction* Action, bool bSucceeded);
@@ -72,7 +80,8 @@ private:
 	TObjectPtr<USkillAction> ActiveAction;
 
 	FTimerHandle DurationTimer;
-	float ActivationTime = 0.0f;
+	double ActivationTime = 0.0;
+	double DurationEndTime = -1.0;
 	int32 UsesSinceCooldown = 0;
 	bool bSkillCommitted = false;
 };

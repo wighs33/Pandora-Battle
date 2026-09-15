@@ -11,7 +11,6 @@ class UItemInstance;
 class UPandoraComponent;
 class UPandoraDefinition;
 class UPandoraEquipSlotWidget;
-class UPandoraInstance;
 class UTileView;
 
 UCLASS()
@@ -59,7 +58,7 @@ private:
 	void RefreshLeftPandoraSlots() const;
 	void RefreshSelectPandoraImages() const;
 	void RefreshSelectPandoraCompatibility() const;
-	bool IsPandoraOwned(const UPandoraInstance* PandoraInstance) const;
+	bool IsPandoraOwned(const UPandoraDefinition* PandoraDefinition) const;
 	void BuildPandoraTileViewItems(
 		TArray<UObject*>& OutListItems,
 		FGameplayTag TypeTag,

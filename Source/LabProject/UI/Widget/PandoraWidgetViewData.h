@@ -6,7 +6,7 @@
 
 class UUserWidget;
 class UPandoraDefinition;
-class UPandoraInstance;
+class UPandoraComponent;
 class UPandoraTreeComponent;
 
 struct LABPROJECT_API FPandoraWidgetStyleConfig
@@ -104,7 +104,7 @@ public:
 class LABPROJECT_API FPandoraSlotViewDataBuilder
 {
 public:
-	static FPandoraSlotViewData Build(const UPandoraInstance* PandoraInstance);
+	static FPandoraSlotViewData Build(const UPandoraDefinition* PandoraDefinition, const UPandoraComponent* PandoraComponent);
 };
 
 class LABPROJECT_API FPandoraDescriptionViewDataBuilder

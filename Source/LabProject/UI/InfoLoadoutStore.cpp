@@ -10,7 +10,6 @@
 #include "Item/ItemInstance.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
-#include "Pandora/PandoraInstance.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InfoLoadoutStore)
@@ -112,21 +111,6 @@ UItemInstance* UInfoLoadoutStore::GetSelectedWeapon(const EEnum_Direction Direct
 		return IsValid(UpWeapon) ? UpWeapon.Get() : nullptr;
 	case EEnum_Direction::Right:
 		return IsValid(RightWeapon) ? RightWeapon.Get() : nullptr;
-	default:
-		return nullptr;
-	}
-}
-
-UPandoraInstance* UInfoLoadoutStore::GetSelectedPandora(const EEnum_Direction Direction) const
-{
-	switch (Direction)
-	{
-	case EEnum_Direction::Left:
-		return IsValid(LeftPandora) ? LeftPandora.Get() : nullptr;
-	case EEnum_Direction::Up:
-		return IsValid(UpPandora) ? UpPandora.Get() : nullptr;
-	case EEnum_Direction::Right:
-		return IsValid(RightPandora) ? RightPandora.Get() : nullptr;
 	default:
 		return nullptr;
 	}
@@ -352,16 +336,6 @@ void UInfoLoadoutStore::RebuildLoadoutState()
 		: nullptr;
 	RightWeapon = IsValid(BoundInventoryComponent)
 		? BoundInventoryComponent->FindWeaponForLoadoutSlot(EEnum_Direction::Right)
-		: nullptr;
-
-	LeftPandora = IsValid(BoundPandoraComponent)
-		? BoundPandoraComponent->GetPandoraLoadoutInstance(EEnum_Direction::Left)
-		: nullptr;
-	UpPandora = IsValid(BoundPandoraComponent)
-		? BoundPandoraComponent->GetPandoraLoadoutInstance(EEnum_Direction::Up)
-		: nullptr;
-	RightPandora = IsValid(BoundPandoraComponent)
-		? BoundPandoraComponent->GetPandoraLoadoutInstance(EEnum_Direction::Right)
 		: nullptr;
 
 	LeftPandoraDefinition = IsValid(BoundPandoraComponent)

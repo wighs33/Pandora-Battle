@@ -9,9 +9,8 @@ class UItemDetailWidget;
 class UItemInstance;
 class ULeftEquipmentWidget;
 class UPandoraDescriptionWidget;
-class UPandoraInstance;
+class UPandoraDefinition;
 class USkinDefinition;
-class USkinInstance;
 class UWidget;
 
 /** Owns hover-detail widgets and their viewport positioning for the Info screen. */
@@ -30,10 +29,9 @@ public:
 	void Shutdown();
 
 	void ShowItem(UItemInstance* ItemInstance, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
-	void ShowSkin(USkinInstance* SkinInstance, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
 	void ShowSkinDefinition(const USkinDefinition* SkinDefinition, UWidget* AnchorWidget, bool bPlaceLeftOfWidget);
 	void ShowPandora(
-		UPandoraInstance* PandoraInstance,
+		const UPandoraDefinition* PandoraDefinition,
 		UWidget* AnchorWidget,
 		bool bPlaceLeftOfWidget,
 		bool bPlayShowAnimation);
@@ -60,6 +58,6 @@ private:
 	TObjectPtr<UPandoraDescriptionWidget> PandoraDescriptionWidget;
 
 	TWeakObjectPtr<UWidget> ActivePandoraAnchor;
-	TWeakObjectPtr<UPandoraInstance> ActivePandoraInstance;
+	TWeakObjectPtr<const UPandoraDefinition> ActivePandoraDefinition;
 	FVector2D PopupOffset = FVector2D(18.0f, 0.0f);
 };

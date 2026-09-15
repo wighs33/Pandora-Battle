@@ -587,7 +587,7 @@ void USkillTargetedAreaAction::ConfigureSpawnedTargetActor(AGameplayAbilityTarge
 			const double StartSize = DecalSettings.DecalSize > 0.0 ? DecalSettings.DecalSize : 512.0;
 			const double FinalSize = DecalSettings.FinalDecalSize > 0.0 ? DecalSettings.FinalDecalSize : StartSize;
 			DecalTargetActor->ConfigureDecalGrowth(
-				StartSize, FinalSize, GetAbility()->GetPresentationManager().ResolveConfiguredCharacterDecalDuration(SkillDataAsset));
+				StartSize, FinalSize, GetAbility()->HasDurationDeadline() ? GetAbility()->GetRemainingDuration() : 2.0f);
 		}
 	}
 }

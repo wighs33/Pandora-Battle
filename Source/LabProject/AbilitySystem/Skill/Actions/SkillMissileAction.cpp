@@ -1,4 +1,3 @@
-#include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "AbilitySystem/Skill/Actions/SkillMissileAction.h"
 
 #include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
@@ -360,6 +359,13 @@ void USkillMissileAction::StartMissilePresentation()
 
 void USkillMissileAction::StartMissileDurationTimer()
 {
+	// Duration 스킬은 조준 시작부터 실행자가 관리하는 타이머로 종료한다.
+	if (GetAbility()->HasDurationDeadline())
+	{
+		bMissileDurationFinished = false;
+		return;
+	}
+
 	const float MissileDuration = CalculateMissileDuration();
 	bMissileDurationFinished = MissileDuration <= 0.0f;
 

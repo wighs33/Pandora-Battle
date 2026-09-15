@@ -24,6 +24,7 @@ class LABPROJECT_API UGrappleAbility : public UPdGameplayAbility
 public:
 	UGrappleAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	virtual FGameplayTag GetDefaultInputTag() const override;
+	virtual bool UsesInputRelease(const FGameplayAbilitySpec& Spec) const override { return true; }
 
 protected:
 	virtual void OnAvatarSet(

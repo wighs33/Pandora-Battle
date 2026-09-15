@@ -243,7 +243,7 @@ void UControllerInputComponent::RemoveAppliedInputDefinition()
 	{
 		if (UPdAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter->GetPdAbilitySystemComponent())
 		{
-			AbilitySystemComponent->QueueAbilityInputReleased(
+			AbilitySystemComponent->HandleAbilityInputReleased(
 				LabGameplayTags::Input_Ability_Movement_Grapple);
 		}
 	}
@@ -1048,7 +1048,7 @@ void UControllerInputComponent::HandleAbilityInputStarted(const FInputActionValu
 		return;
 	}
 
-	AbilitySystemComponent->QueueAbilityInputPressed(InputTag);
+	AbilitySystemComponent->HandleAbilityInputPressed(InputTag);
 }
 
 void UControllerInputComponent::HandleAbilityInputEnded(const FInputActionValue& InputValue, const FGameplayTag& InputTag)
@@ -1067,7 +1067,7 @@ void UControllerInputComponent::HandleAbilityInputEnded(const FInputActionValue&
 		return;
 	}
 
-	AbilitySystemComponent->QueueAbilityInputReleased(InputTag);
+	AbilitySystemComponent->HandleAbilityInputReleased(InputTag);
 }
 
 APdPlayerController* UControllerInputComponent::GetPdController() const

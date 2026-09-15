@@ -57,14 +57,15 @@ public:
 
 	// 단계형 스킬은 키를 떼는 대신 기본 공격 같은 별도 입력으로 시전을 확정할 수 있다.
 	virtual bool ShouldConfirmTargetingOnInputRelease() const;
+	/** 키 해제가 동작에 필요한 능력인지 판정한다. 기본 구현은 출처 스킬의 Press 정책을 따른다. */
+	virtual bool UsesInputRelease(const FGameplayAbilitySpec& Spec) const;
 
-	// 외부 시스템이 요청하는 쿨다운·연출 정리
+	// 쿨다운 효과의 제거 정책
 	void AppendCooldownRemovalPolicyTags(FGameplayEffectSpecHandle& CooldownSpecHandle) const;
 
 	// GameFeature가 능력을 부여할 때 연결할 기본 입력 태그를 제공한다. 기본은 비어 있고 Grapple 등 파생 능력이 지정한다.
 	virtual FGameplayTag GetDefaultInputTag() const { return FGameplayTag(); }
 
-	void DisableCooldownOnAbilityEnd() const;
 	void DestroyActiveSkillPresentationActor();
 
 	USkillDefinition* GetSourceSkillDataAsset() const;
@@ -104,6 +105,9 @@ protected:
 
 	// 종료 검사와 잠금 해제 후에만 호출된다. 파생 능력은 엔진 종료 함수를 직접 재정의하지 않는다.
 	virtual void OnAbilityEnding();
+	// 공통 정리를 마친 정상 종료 시점에 호출된다. 사망·취소 중에는 호출하지 않는다.
+	virtual void ApplyCooldownOnEnd(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo);
 	// GAS가 능력을 비활성화한 뒤 다음 행동을 이어야 하는 경우에만 사용한다.
 	virtual void OnAbilityEnded(bool bWasCancelled);
 
@@ -118,8 +122,6 @@ protected:
 	bool StartCurrentWeaponSkillTrail(UNiagaraSystem* TrailSystem) const;
 	void StopCurrentWeaponSkillTrail() const;
 
-	void ApplyCooldownImmediately(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo) const;
 	bool ApplySharedCooldownEffect(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, float CooldownDuration, const FGameplayTagContainer& CooldownTags) const;
 	bool TryCommitAdditionalActionStaminaCost() const;

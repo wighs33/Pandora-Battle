@@ -6,6 +6,7 @@
 #include "Abilities/GameplayAbility.h"
 #include "AssetRegistry/AssetBundleData.h"
 #include "Common/LabGameplayTags.h"
+#include "Component/AbilitySystem/AbilityGrantAndInputManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFeature/ActorExtensionWorldSubsystem.h"
@@ -19,32 +20,6 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddAbilities)
 
 DEFINE_LOG_CATEGORY(PdGameFeatureAction_AddAbilitiesLog);
-
-namespace
-{
-	void TryActivateGameFeatureGrantedAbilityNextTick(UAbilitySystemComponent* AbilitySystemComponent, FGameplayAbilitySpecHandle AbilityHandle)
-	{
-		if (!AbilitySystemComponent || !AbilityHandle.IsValid())
-		{
-			return;
-		}
-
-		if (UWorld* World = AbilitySystemComponent->GetWorld())
-		{
-			TWeakObjectPtr<UAbilitySystemComponent> WeakASC = AbilitySystemComponent;
-			World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakASC, AbilityHandle]()
-			{
-				if (UAbilitySystemComponent* ASC = WeakASC.Get())
-				{
-					ASC->TryActivateAbility(AbilityHandle);
-				}
-			}));
-			return;
-		}
-
-		AbilitySystemComponent->TryActivateAbility(AbilityHandle);
-	}
-}
 
 UGameFeatureAction_AddAbilities::UGameFeatureAction_AddAbilities()
 {
@@ -295,7 +270,7 @@ void UGameFeatureAction_AddAbilities::GrantAbilitiesToActor(AActor* Actor, FGame
 			ActorHandles.Add(GrantedHandle);
 			if (bAutoActivateWhenGranted)
 			{
-				TryActivateGameFeatureGrantedAbilityNextTick(AbilitySystemComponent, GrantedHandle);
+				UAbilityGrantAndInputManager::TryActivateGrantedAbilityNextTick(AbilitySystemComponent, GrantedHandle);
 			}
 		}
 	}

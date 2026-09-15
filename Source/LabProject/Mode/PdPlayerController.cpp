@@ -89,7 +89,7 @@ void APdPlayerController::SetupInputComponent()
 	RefreshControllerInput();
 }
 
-// 입력 수집 이후에 능력 입력을 처리해, 같은 프레임의 짧은 누름·해제도 순서를 보장한다.
+// 누름은 즉시 처리하고, 활성화를 기다리는 Press·그래플의 해제만 프레임 끝에 다시 확인한다.
 void APdPlayerController::PostProcessInput(const float DeltaTime, const bool bGamePaused)
 {
 	if (!bGamePaused)
@@ -98,7 +98,7 @@ void APdPlayerController::PostProcessInput(const float DeltaTime, const bool bGa
 		{
 			if (UPdAbilitySystemComponent* AbilitySystem = Cast<UPdAbilitySystemComponent>(PdPlayerState->GetAbilitySystemComponent()))
 			{
-				AbilitySystem->ProcessAbilityInput();
+				AbilitySystem->ProcessPendingInputReleases();
 			}
 		}
 	}

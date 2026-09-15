@@ -187,8 +187,8 @@ void UPandoraDescriptionWidget::ApplyEffectIconResources()
 
 	for (int32 SkillIndex = 0; SkillIndex < EffectIconResources.Num(); ++SkillIndex)
 	{
-		const FSkill* Skill = PandoraDefinition && PandoraDefinition->Skill.IsValidIndex(SkillIndex)
-			? &PandoraDefinition->Skill[SkillIndex]
+		const USkillDefinition* Skill = PandoraDefinition
+			? PandoraDefinition->GetSkillDefinition(SkillIndex)
 			: nullptr;
 		PdSkillEffectIconResolver::ApplySkillEffectIcon(
 			this,

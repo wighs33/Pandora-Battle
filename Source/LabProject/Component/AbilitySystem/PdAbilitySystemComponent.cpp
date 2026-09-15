@@ -3,8 +3,11 @@
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Common/LabGameplayTags.h"
-#include "Component/AbilitySystem/AbilityAttributeManager.h"
 #include "Component/AbilitySystem/AbilityGrantAndInputManager.h"
+#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Player/StatUpgradeDefinition.h"
+#include "GameFramework/Actor.h"
+#include "GameplayEffect.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Settings/GameSettingsSubsystem.h"
 #include "Pandora/PandoraSkillSource.h"
@@ -12,9 +15,10 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdAbilitySystemComponent)
 
 // 캐릭터의 스탯·능력·입력과 GAS를 연결하는 공통 창구다.
-// 스탯 처리는 AttributeManager에, 능력 목록과 입력 처리는 AbilityGrantAndInputManager에 맡긴다.
+// 스탯 적용은 직접 처리하고, 태그 정의는 AttributeSet과 ProjectTagConfig에서 조회한다.
+// 능력 목록과 입력 처리는 AbilityGrantAndInputManager에 맡긴다.
 
-// 캐릭터의 능력 상태를 네트워크로 공유하도록 설정하고, 스탯과 능력 목록을 관리할 내부 객체를 준비한다.
+// 캐릭터의 능력 상태를 네트워크로 공유하도록 설정하고, 능력 목록과 입력을 관리할 내부 객체를 준비한다.
 UPdAbilitySystemComponent::UPdAbilitySystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -22,8 +26,69 @@ UPdAbilitySystemComponent::UPdAbilitySystemComponent(const FObjectInitializer& O
 	bReplicateUsingRegisteredSubObjectList = true;
 	SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
-	AttributeManager = CreateDefaultSubobject<UAbilityAttributeManager>(TEXT("AttributeManager"));
 	AbilityGrantAndInputManager = CreateDefaultSubobject<UAbilityGrantAndInputManager>(TEXT("AbilityGrantAndInputManager"));
+
+	OnActiveGameplayEffectAddedDelegateToSelf.AddUObject(this, &ThisClass::OnCooldownEffectAdded);
+	OnAnyGameplayEffectRemovedDelegate().AddUObject(this, &ThisClass::OnCooldownEffectRemoved);
+}
+
+// 출처보다 먼저 복제된 쿨다운 효과만 다시 연결한다.
+void UPdAbilitySystemComponent::PostNetReceive()
+{
+	Super::PostNetReceive();
+	LinkPendingCooldownEffects();
+}
+
+void UPdAbilitySystemComponent::OnCooldownEffectAdded(UAbilitySystemComponent* TargetASC,
+	const FGameplayEffectSpec& Spec, const FActiveGameplayEffectHandle EffectHandle)
+{
+	FGameplayTagContainer GrantedTags;
+	Spec.GetAllGrantedTags(GrantedTags);
+	if (!GrantedTags.HasTag(LabGameplayTags::Cooldown))
+	{
+		return;
+	}
+
+	UObject* SourceObject = Spec.GetContext().GetSourceObject();
+	if (UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(SourceObject))
+	{
+		Source->SetCooldownEffectHandle(EffectHandle);
+	}
+	else if (!SourceObject && !IsOwnerActorAuthoritative())
+	{
+		PendingCooldownEffects.AddUnique(EffectHandle);
+	}
+}
+
+void UPdAbilitySystemComponent::OnCooldownEffectRemoved(const FActiveGameplayEffect& Effect)
+{
+	PendingCooldownEffects.Remove(Effect.Handle);
+	if (UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(Effect.Spec.GetContext().GetSourceObject()))
+	{
+		Source->ClearCooldownEffectHandle(Effect.Handle);
+	}
+}
+
+void UPdAbilitySystemComponent::LinkPendingCooldownEffects()
+{
+	for (auto It = PendingCooldownEffects.CreateIterator(); It; ++It)
+	{
+		const FActiveGameplayEffect* Effect = GetActiveGameplayEffect(*It);
+		if (!Effect || Effect->IsPendingRemove)
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+
+		if (UObject* SourceObject = Effect->Spec.GetContext().GetSourceObject())
+		{
+			if (UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(SourceObject))
+			{
+				Source->SetCooldownEffectHandle(*It);
+			}
+			It.RemoveCurrent();
+		}
+	}
 }
 
 // 능력이 부여되면 판도라 출처 정보가 사라지지 않도록 보관하고, 스킬바 등 구독자에게 변경을 알린다.
@@ -39,6 +104,8 @@ void UPdAbilitySystemComponent::OnGiveAbility(FGameplayAbilitySpec& AbilitySpec)
 // 제거 이후에는 스킬바 등 구독자에게 목록 변경을 알린다.
 void UPdAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& AbilitySpec)
 {
+	// GAS는 회수 중인 활성 능력을 정상 종료로 끝내므로, 종료 콜백이 회수를 식별할 수 있게 한다.
+	AbilitySpec.PendingRemove = true;
 	UPandoraSkillSource* RemovedSkillSource = Cast<UPandoraSkillSource>(AbilitySpec.SourceObject.Get());
 	const FGameplayAbilitySpecHandle RemovedHandle = AbilitySpec.Handle;
 	AbilityGrantAndInputManager->ClearAbilityInput(RemovedHandle);
@@ -53,7 +120,6 @@ void UPdAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& AbilitySpe
 
 		if (UPdGameplayAbility* PdAbilityInstance = Cast<UPdGameplayAbility>(AbilityInstance))
 		{
-			PdAbilityInstance->DisableCooldownOnAbilityEnd();
 			PdAbilityInstance->DestroyActiveSkillPresentationActor();
 		}
 	}
@@ -63,6 +129,13 @@ void UPdAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& AbilitySpe
 	ReleasePandoraSkillSourceIfUnused(RemovedSkillSource, RemovedHandle);
 
 	OnAbilitiesChangedNative.Broadcast();
+}
+
+// 활성화가 확인되면 서버 응답 대기 기록을 제거한다.
+void UPdAbilitySystemComponent::NotifyAbilityActivated(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability)
+{
+	AbilityGrantAndInputManager->NotifyAbilityActivated(Handle);
+	Super::NotifyAbilityActivated(Handle, Ability);
 }
 
 // 종료·실패한 시전의 입력을 버려, 이후 시전이 이전 키 해제를 물려받지 않게 한다.
@@ -99,44 +172,169 @@ void UPdAbilitySystemComponent::OnRep_ActivateAbilities()
 	OnAbilitiesChangedNative.Broadcast();
 }
 
-// 게임피처나 적 설정이 제공한 '스탯 태그 → 실제 속성' 연결 규칙을 등록하고, 나중에 해제할 때 쓸 번호를 돌려준다.
-int32 UPdAbilitySystemComponent::AddAttributeConfig(const FAttributeConfig& AttributeConfig)
-{
-	return AttributeManager->AddAttributeConfig(AttributeConfig);
-}
-
-// 기능이 해제될 때 해당 기능이 등록한 스탯 연결 규칙만 제거한다. 이미 적용된 스탯 수치를 되돌리는 함수는 아니다.
-void UPdAbilitySystemComponent::RemoveAttributeConfig(const int32 AttributeConfigHandle)
-{
-	AttributeManager->RemoveAttributeConfig(AttributeConfigHandle);
-}
-
-// 속성 초기화가 투자 컴포넌트의 계산 로직에 의존하지 않도록 속성 관리 객체에 맡긴다.
+// 서버에서 기본값과 시작 투자분을 검증해 최대 자원, 현재 자원 순서로 초기화한다.
+// 플레이어의 초기화 시점과 중복 호출 방지는 StatUpgradeComponent가 담당한다.
 bool UPdAbilitySystemComponent::ApplyConfiguredAttributeDefaults(const UStatUpgradeDefinition& Definition)
 {
-	return AttributeManager->ApplyConfiguredAttributeDefaults(*this, Definition);
+	if (!IsOwnerActorAuthoritative() || !GetSet<UBasicAttributeSet>() || Definition.GetAttributeDefaultValues().IsEmpty())
+	{
+		return false;
+	}
+
+	// 1. 우선순위대로 기본값을 모은다. 같은 태그는 나중 값으로 덮어쓰고 적용 순서는 유지한다.
+	TArray<FStatAttributeDefaultValue> OrderedDefaults = Definition.GetAttributeDefaultValues();
+	OrderedDefaults.StableSort(
+		[](const FStatAttributeDefaultValue& Left, const FStatAttributeDefaultValue& Right) { return Left.Priority < Right.Priority; });
+	TMap<FGameplayTag, float> InitialValues;
+	TArray<FGameplayTag> OrderedTags;
+	for (const FStatAttributeDefaultValue& Entry : OrderedDefaults)
+	{
+		if (Entry.IsValid())
+		{
+			InitialValues.Add(Entry.StatTag, Entry.DefaultValue);
+			OrderedTags.AddUnique(Entry.StatTag);
+		}
+	}
+
+	// 2. 시작부터 투자된 레벨이 있다면 같은 투자 공식으로 기본값에 투자분을 더한다.
+	for (const FStatUpgradeBinding& Binding : UStatUpgradeDefinition::GetStatBindings())
+	{
+		const float* ConfiguredLevel = InitialValues.Find(Binding.LevelTag);
+		if (!Binding.bCompounded || !ConfiguredLevel || *ConfiguredLevel == 0.f)
+		{
+			continue;
+		}
+		float Magnitude = 0.f;
+		if (!FMath::IsFinite(*ConfiguredLevel) || *ConfiguredLevel < 0.f
+			|| *ConfiguredLevel > FMath::FloorToFloat(Definition.GetMaxInvestedLevel())
+			|| !Definition.TryGetUpgradeMagnitude(Binding, Magnitude))
+		{
+			return false;
+		}
+		const float Investment = UStatUpgradeDefinition::CalculateInvestmentValue(Magnitude, *ConfiguredLevel, true);
+		InitialValues.FindOrAdd(Binding.GetEffectTag()) += Investment;
+		OrderedTags.AddUnique(Binding.GetEffectTag());
+		if (Binding.IsMaxResource())
+		{
+			float BaseValue = 0.f;
+			if (!Definition.TryGetResourceBaseValue(Binding, BaseValue))
+			{
+				return false;
+			}
+			InitialValues.Add(Binding.StatTag, BaseValue * (1.f + Investment * 0.01f));
+			OrderedTags.AddUnique(Binding.StatTag);
+		}
+	}
+
+	// 3. 현재 자원 태그와, 별도 초기값이 없어 최대값으로 채울 자원 쌍을 찾는다.
+	TSet<FGameplayTag> CurrentResourceTags;
+	for (const FStatUpgradeBinding& Binding : UStatUpgradeDefinition::GetStatBindings())
+	{
+		if (Binding.IsMaxResource())
+		{
+			CurrentResourceTags.Add(Binding.CurrentResourceTag);
+		}
+	}
+	TArray<TPair<FGameplayAttribute, FGameplayAttribute>> PairedResources;
+	for (const FPairedResourceStatTag& Pair : Definition.GetPairedResourceStatTags())
+	{
+		if (!Pair.IsValid())
+		{
+			continue;
+		}
+		CurrentResourceTags.Add(Pair.CurrentStatTag);
+		if (InitialValues.Contains(Pair.CurrentStatTag))
+		{
+			continue;
+		}
+		FGameplayAttribute MaxAttribute;
+		FGameplayAttribute CurrentAttribute;
+		if (!UBasicAttributeSet::ResolveAttributeFromStatTag(Pair.MaxStatTag, MaxAttribute) || !UBasicAttributeSet::ResolveAttributeFromStatTag(Pair.CurrentStatTag, CurrentAttribute)
+			|| !HasAttributeSetForAttribute(MaxAttribute) || !HasAttributeSetForAttribute(CurrentAttribute))
+		{
+			return false;
+		}
+		PairedResources.Emplace(MaxAttribute, CurrentAttribute);
+	}
+
+	// 4. 변경 전에 모든 태그와 값을 검증한다. 최대값을 먼저 설정해 현재 자원이 이전 최대값으로 잘리지 않게 한다.
+	OrderedTags.StableSort([&CurrentResourceTags](FGameplayTag Left, FGameplayTag Right) {
+		return !CurrentResourceTags.Contains(Left) && CurrentResourceTags.Contains(Right);
+	});
+	TArray<TPair<FGameplayAttribute, float>> ResolvedDefaults;
+	// BasicAttributeSet의 고정 태그 연결을 조회한다.
+	for (FGameplayTag Tag : OrderedTags)
+	{
+		FGameplayAttribute Attribute;
+		const float Value = InitialValues.FindChecked(Tag);
+		if (!FMath::IsFinite(Value) || !UBasicAttributeSet::ResolveAttributeFromStatTag(Tag, Attribute) || !HasAttributeSetForAttribute(Attribute))
+		{
+			return false;
+		}
+		ResolvedDefaults.Emplace(Attribute, Value);
+	}
+	if (ResolvedDefaults.IsEmpty())
+	{
+		return false;
+	}
+
+	// 5. 검증한 기본값을 GAS에 적용한다.
+	for (const TPair<FGameplayAttribute, float>& Entry : ResolvedDefaults)
+	{
+		if (!ApplyAttributeDefaultValue(Entry.Key, Entry.Value))
+		{
+			return false;
+		}
+	}
+	for (const TPair<FGameplayAttribute, FGameplayAttribute>& Pair : PairedResources)
+	{
+		if (!ApplyAttributeDefaultValue(Pair.Value, GetNumericAttribute(Pair.Key)))
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
-// 속성 기본값을 설정하고, 버프를 포함한 현재값 계산은 GAS에 맡긴다.
+// 서버에서 값을 검증해 GAS 기본값을 변경한다. Dirty 표시는 엔진에 맡기고 복제 갱신을 요청한다.
 bool UPdAbilitySystemComponent::ApplyAttributeDefaultValue(const FGameplayAttribute& Attribute, const float DefaultValue)
 {
-	return AttributeManager->ApplyAttributeDefaultValue(*this, Attribute, DefaultValue);
+	if (!IsOwnerActorAuthoritative() || !Attribute.IsValid() || !FMath::IsFinite(DefaultValue)
+		|| !HasAttributeSetForAttribute(Attribute))
+	{
+		return false;
+	}
+
+	SetNumericAttributeBase(Attribute, DefaultValue);
+
+	if (AActor* OwningActor = GetOwner())
+	{
+		OwningActor->ForceNetUpdate();
+	}
+
+	return true;
 }
 
-// 입력 태그에 연결된 능력을 기억하고, 이번 프레임에 처리할 누름을 기록한다.
-void UPdAbilitySystemComponent::QueueAbilityInputPressed(const FGameplayTag& InputTag)
+// 로컬 입력이 유효하면 누름을 즉시 전달한다. 일시 정지와 월드 전환 중에는 새 시전을 시작하지 않는다.
+void UPdAbilitySystemComponent::HandleAbilityInputPressed(const FGameplayTag& InputTag)
 {
-	AbilityGrantAndInputManager->QueueAbilityInputPressed(*this, InputTag);
+	if (!GetWorld() || GetWorld()->IsPaused() || !AbilityActorInfo.IsValid()
+		|| !AbilityActorInfo->OwnerActor.IsValid() || !AbilityActorInfo->AvatarActor.IsValid()
+		|| !AbilityActorInfo->IsLocallyControlled())
+	{
+		return;
+	}
+	AbilityGrantAndInputManager->HandleAbilityInputPressed(*this, InputTag);
 }
 
-// 처음 누른 능력에 해제를 기록한다. 실행 전 해제도 공통 입력 처리에서 전달한다.
-void UPdAbilitySystemComponent::QueueAbilityInputReleased(const FGameplayTag& InputTag)
+// Press·그래플처럼 해제를 사용하는 능력만 누를 때의 대상에 해제를 예약한다.
+void UPdAbilitySystemComponent::HandleAbilityInputReleased(const FGameplayTag& InputTag)
 {
-	AbilityGrantAndInputManager->QueueAbilityInputReleased(InputTag);
+	AbilityGrantAndInputManager->HandleAbilityInputReleased(InputTag);
 }
 
-// 컨트롤러가 이번 프레임의 입력 수집을 마친 뒤 한 번 호출한다.
-void UPdAbilitySystemComponent::ProcessAbilityInput()
+// 컨트롤러의 입력 처리 후, 아직 전달하지 못한 해제만 재확인한다.
+void UPdAbilitySystemComponent::ProcessPendingInputReleases()
 {
 	// Seamless Travel 중에는 ActorInfo만 남고 이전 Owner/Avatar가 먼저 제거될 수 있다.
 	if (!AbilityActorInfo.IsValid()
@@ -147,7 +345,7 @@ void UPdAbilitySystemComponent::ProcessAbilityInput()
 		return;
 	}
 
-	AbilityGrantAndInputManager->ProcessAbilityInput(*this);
+	AbilityGrantAndInputManager->ProcessPendingInputReleases(*this);
 }
 
 // 장비 교체·스킬 사용 등의 상태 판단에 필요한, 지정 태그 중 하나와 일치하는 첫 번째 실행 중 능력을 찾는다.
@@ -183,17 +381,55 @@ bool UPdAbilitySystemComponent::ApplyStatUpEffectByTags(
 	const EEnum_Operation Operation,
 	const float Level)
 {
-	return AttributeManager->ApplyStatUpEffectByTags(*this, GameplayEffectClass, StatMagnitudes, Operation, Level);
+	if (!IsOwnerActorAuthoritative())
+	{
+		return false;
+	}
+
+	const FGameplayTag OperationSetByCallerTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerStatUpOperationTag();
+	if (!GameplayEffectClass || StatMagnitudes.IsEmpty()
+		|| !OperationSetByCallerTag.IsValid())
+	{
+		return false;
+	}
+
+	FGameplayEffectContextHandle EffectContext = MakeEffectContext();
+	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(GameplayEffectClass, Level, EffectContext);
+	if (!SpecHandle.IsValid())
+	{
+		return false;
+	}
+
+	bool bAddedAnyMagnitude = false;
+	for (const TPair<FGameplayTag, float>& Pair : StatMagnitudes)
+	{
+		if (!Pair.Key.IsValid() || FMath::IsNearlyZero(Pair.Value))
+		{
+			continue;
+		}
+
+		SpecHandle.Data->SetSetByCallerMagnitude(Pair.Key, Pair.Value);
+		bAddedAnyMagnitude = true;
+	}
+
+	if (!bAddedAnyMagnitude)
+	{
+		return false;
+	}
+
+	SpecHandle.Data->SetSetByCallerMagnitude(OperationSetByCallerTag, static_cast<float>(Operation));
+
+	const FActiveGameplayEffectHandle AppliedHandle = ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	return AppliedHandle.WasSuccessfullyApplied();
 }
 
 // 서버에서 캐릭터가 사용할 능력을 중복 없이 부여하고, 나중에 회수할 핸들을 돌려준다.
 // 자동 실행 대상으로 설정된 능력은 부여 후 실행도 시도한다.
 TArray<FGameplayAbilitySpecHandle> UPdAbilitySystemComponent::GrantAbilities(
 	const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
-	const int32 AbilityLevel,
-	UObject* SourceObject)
+	const int32 AbilityLevel)
 {
-	return AbilityGrantAndInputManager->GrantAbilities(*this, AbilityClasses, AbilityLevel, SourceObject);
+	return AbilityGrantAndInputManager->GrantAbilities(*this, AbilityClasses, AbilityLevel);
 }
 
 // 기능 해제나 구성 변경 시 서버에서 지정한 능력의 부여를 회수한다. 시전만 중단하는 리셋과 달리 능력 목록에서도 제거한다.
@@ -206,29 +442,6 @@ void UPdAbilitySystemComponent::RemoveAbilities(const TArray<FGameplayAbilitySpe
 void UPdAbilitySystemComponent::ReactivateAutoActivatedAbilities()
 {
 	AbilityGrantAndInputManager->ReactivateAutoActivatedAbilities(*this);
-}
-
-// 체력 같은 스탯 태그를 GAS가 읽고 변경할 실제 속성으로 바꾼다. 기능별 연결 규칙을 우선하고, 없으면 기본 스탯 연결을 사용한다.
-bool UPdAbilitySystemComponent::ResolveAttributeFromTag(const FGameplayTag& StatTag, FGameplayAttribute& OutAttribute) const
-{
-	if (AttributeManager->ResolveAttributeFromTag(StatTag, OutAttribute))
-	{
-		return true;
-	}
-
-	return UBasicAttributeSet::ResolveAttributeFromStatTag(StatTag, OutAttribute);
-}
-
-// 공격 피해량을 GameplayEffect에 전달할 때 사용할 공통 태그를 찾는다. 피해량 자체를 계산하거나 적용하지는 않는다.
-bool UPdAbilitySystemComponent::ResolveDamageMagnitudeSetByCallerTag(FGameplayTag& OutTag) const
-{
-	return AttributeManager->ResolveDamageMagnitudeSetByCallerTag(*this, OutTag);
-}
-
-// 스탯 효과에 더하기·곱하기 등 어떤 연산을 할지 전달하기 위한 공통 태그를 찾는다.
-bool UPdAbilitySystemComponent::ResolveStatUpOperationSetByCallerTag(FGameplayTag& OutTag) const
-{
-	return AttributeManager->ResolveStatUpOperationSetByCallerTag(*this, OutTag);
 }
 
 // 사망 능력은 유지하고 다른 시전을 취소한다. 종료 중 쿨다운 재생성을 막고, 이미 적용된 쿨다운도 제거한다.
@@ -250,7 +463,6 @@ void UPdAbilitySystemComponent::ResetAbilityRuntimeStateForDeath()
 // 사망 능력은 유지하고, 나머지 활성 시전을 정리한 뒤 취소한다.
 void UPdAbilitySystemComponent::CancelActiveAbilitiesForDeath()
 {
-	TGuardValue<bool> ResetGuard(bResettingAbilityRuntimeState, true);
 	TArray<FGameplayAbilitySpecHandle> ActiveAbilityHandles;
 	{
 		FScopedAbilityListLock AbilityListLock(*this);
@@ -277,7 +489,6 @@ void UPdAbilitySystemComponent::CancelActiveAbilitiesForDeath()
 
 				if (UPdGameplayAbility* PdAbilityInstance = Cast<UPdGameplayAbility>(AbilityInstance))
 				{
-					PdAbilityInstance->DisableCooldownOnAbilityEnd();
 					PdAbilityInstance->DestroyActiveSkillPresentationActor();
 				}
 
@@ -363,6 +574,7 @@ void UPdAbilitySystemComponent::ReadyForReplication()
 void UPdAbilitySystemComponent::NotifyPandoraSourceReplicated(UPandoraSkillSource* Source)
 {
 	RegisterPandoraSkillSource(Source);
+	LinkPendingCooldownEffects();
 	ActivateAbilitiesWithReadySources();
 	OnAbilitiesChangedNative.Broadcast();
 }

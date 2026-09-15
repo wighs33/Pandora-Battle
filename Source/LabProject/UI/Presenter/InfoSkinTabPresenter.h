@@ -6,7 +6,7 @@
 #include "InfoSkinTabPresenter.generated.h"
 
 class USkinEquipSlotWidget;
-class USkinInstance;
+class USkinDefinition;
 class USkinComponent;
 
 UCLASS()
@@ -35,10 +35,10 @@ public:
 	void HandleSkinEquipSlotDropped(
 		FGameplayTag EquipTypeTag,
 		USkinEquipSlotWidget* TargetSkinEquipSlot,
-		USkinInstance* SkinInstance);
+		const USkinDefinition* SkinDefinition);
 
 	UFUNCTION()
-	void HandleSkinDroppedToCharacter(USkinInstance* SkinInstance);
+	void HandleSkinDroppedToCharacter(const USkinDefinition* SkinDefinition);
 
 	UFUNCTION()
 	void HandleSkinFilterTypeClicked(FGameplayTag TypeTag);
@@ -47,6 +47,8 @@ public:
 	void HandleSkinFilterAllClicked();
 
 private:
+	void EquipSkinDefinition(const USkinDefinition* SkinDefinition);
+
 	UFUNCTION()
 	void HandleSkinsChanged();
 

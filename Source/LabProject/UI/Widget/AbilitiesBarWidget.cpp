@@ -183,16 +183,9 @@ void UAbilitiesBarWidget::RebuildAbilitiesBar()
 
 		for (int32 SlotIndex = 0; SlotIndex < NumPandoraSkillSlots; ++SlotIndex)
 		{
-				if (!SelectedPandoraDefinition->Skill.IsValidIndex(SlotIndex))
-			{
-
-				AddEmptySlot(true, SlotIndex);
-				continue;
-			}
-
-			const FSkill& Skill = SelectedPandoraDefinition->Skill[SlotIndex];
+			const USkillDefinition* Skill = SelectedPandoraDefinition->GetSkillDefinition(SlotIndex);
 			// 스킬 정의가 있으면 표시하고, 해금 및 무기 조건은 슬롯의 활성 상태에만 반영한다.
-			if (!Skill.SkillDefinition)
+			if (!Skill)
 			{
 
 				AddEmptySlot(true, SlotIndex);
@@ -216,8 +209,8 @@ void UAbilitiesBarWidget::RebuildAbilitiesBar()
 				}
 			}
 
-			SlotData.DisplayNameOverride = Skill.GetDisplayName();
-			SlotData.IconOverride = Skill.GetIconResource();
+			SlotData.DisplayNameOverride = Skill->GetDisplayName();
+			SlotData.IconOverride = Skill->GetIconResource();
 			SlotData.bHasDisplayOverride = true;
 
 			AddAbilitySlot(SlotData);

@@ -43,9 +43,6 @@ public:
 		APlayerState* PlayerState);
 	void Shutdown();
 
-	bool ApplyConfiguredStatusPointsForPlayerState(
-		APlayerState* PlayerState) const;
-
 private:
 	enum class EContentState : uint8 { NotStarted, Loading, Ready, Failed };
 	struct FInventoryProvisionState

@@ -7,7 +7,6 @@
 
 class ACharacterBase;
 class USkinDefinition;
-class USkinInstance;
 class UAnimMontage;
 struct FStreamableHandle;
 
@@ -47,9 +46,6 @@ public:
 
 	//------------------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Skin|Equipment")
-	bool RequestEquipSkin(USkinInstance* SkinInstance, FGameplayTag SlotTag);
-
-	UFUNCTION(BlueprintCallable, Category = "!Skin|Equipment")
 	bool RequestUnequipSkinSlot(FGameplayTag SlotTag);
 
 	UFUNCTION(BlueprintPure, Category = "!Skin|Equipment")
@@ -58,8 +54,8 @@ public:
 	UFUNCTION()
 	void GetEquippedSkinSlots(TArray<FEquippedSkinSlot>& OutEquippedSkins) const;
 
-	UFUNCTION()
-	bool RequestEquipSkinDefinition(USkinDefinition* SkinDefinition, FGameplayTag SlotTag);
+	UFUNCTION(BlueprintCallable, Category = "!Skin|Equipment")
+	bool RequestEquipSkinDefinition(const USkinDefinition* SkinDefinition, FGameplayTag SlotTag);
 
 	UFUNCTION(BlueprintCallable, Category = "!Skin|Gesture")
 	bool RequestPlayGestureSlot(int32 GestureSlotIndex);
@@ -72,7 +68,7 @@ public:
 
 protected:
 	UFUNCTION(Server, Reliable)
-	void ServerEquipSkin(USkinDefinition* SkinDefinition, FGameplayTag SlotTag);
+	void ServerEquipSkin(const USkinDefinition* SkinDefinition, FGameplayTag SlotTag);
 
 	UFUNCTION(Server, Reliable)
 	void ServerUnequipSkinSlot(FGameplayTag SlotTag);

@@ -2,13 +2,10 @@
 
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Common/LabGameplayTags.h"
+#include "Engine/World.h"
 #include "GameplayEffect.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
-#if UE_WITH_IRIS
-#include "Iris/ReplicationSystem/ReplicationFragmentUtil.h"
-#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraSkillSource)
 
@@ -43,14 +40,33 @@ void UPandoraSkillSource::Initialize(
 
 const USkillDefinition* UPandoraSkillSource::GetSkillDataAsset() const
 {
-	const FSkill* Skill = GetPandoraSkill();
-	return Skill ? Skill->SkillDefinition.Get() : nullptr;
+	const UPandoraDefinition* Definition = PandoraDefinition.Get();
+	return Definition ? Definition->GetSkillDefinition(SkillIndex) : nullptr;
 }
 
-const FSkill* UPandoraSkillSource::GetPandoraSkill() const
+void UPandoraSkillSource::GetCooldownTimeRemainingAndDuration(float& OutRemaining, float& OutDuration) const
 {
-	const UPandoraDefinition* Definition = PandoraDefinition.Get();
-	return Definition && Definition->Skill.IsValidIndex(SkillIndex) ? &Definition->Skill[SkillIndex] : nullptr;
+	OutRemaining = 0.0f;
+	OutDuration = 0.0f;
+
+	const UAbilitySystemComponent* ASC = GetTypedOuter<UAbilitySystemComponent>();
+	const UWorld* World = ASC ? ASC->GetWorld() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	const FActiveGameplayEffect* Effect = ASC->GetActiveGameplayEffect(CooldownEffectHandle);
+	if (!Effect || Effect->IsPendingRemove)
+	{
+		return;
+	}
+	const float Remaining = Effect->GetTimeRemaining(World->GetTimeSeconds());
+	if (Remaining > 0.0f)
+	{
+		OutRemaining = Remaining;
+		OutDuration = Effect->GetDuration();
+	}
 }
 
 // 현재 선택과 무관하게, 서버가 부여한 원래 판도라와 스킬 정보를 클라이언트에 전달한다.
@@ -73,25 +89,19 @@ void UPandoraSkillSource::OnRep_Source()
 	}
 }
 
-#if UE_WITH_IRIS
-void UPandoraSkillSource::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context,
-	UE::Net::EFragmentRegistrationFlags RegistrationFlags)
+void UPandoraSkillSource::SetCooldownEffectHandle(const FActiveGameplayEffectHandle EffectHandle)
 {
-	UE::Net::FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags);
-}
-#endif
-
-// 같은 슬롯 번호나 스킬 클래스를 써도 다른 판도라의 쿨다운과 섞이지 않도록 원본을 비교한다.
-FGameplayEffectQuery UPandoraSkillSource::MakeCooldownQuery() const
-{
-	FGameplayEffectQuery Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(FGameplayTagContainer(LabGameplayTags::Cooldown));
-	const TWeakObjectPtr<const UPandoraDefinition> SourcePandora = PandoraDefinition.Get();
-	const int32 SourceSkillIndex = SkillIndex;
-	Query.CustomMatchDelegate.BindLambda([SourcePandora, SourceSkillIndex](const FActiveGameplayEffect& Effect)
+	if (EffectHandle.IsValid())
 	{
-		const UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(Effect.Spec.GetContext().GetSourceObject());
-		return SourcePandora.IsValid() && SourceSkillIndex != INDEX_NONE && Source
-			&& Source->GetPandoraDefinition() == SourcePandora.Get() && Source->GetSkillIndex() == SourceSkillIndex;
-	});
-	return Query;
+		CooldownEffectHandle = EffectHandle;
+	}
+}
+
+void UPandoraSkillSource::ClearCooldownEffectHandle(const FActiveGameplayEffectHandle EffectHandle)
+{
+	// 이전 효과의 제거 알림이 나중에 도착해도 새 쿨다운 핸들은 유지한다.
+	if (CooldownEffectHandle == EffectHandle)
+	{
+		CooldownEffectHandle.Invalidate();
+	}
 }

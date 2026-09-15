@@ -7,7 +7,6 @@
 #include "Components/EditableTextBox.h"
 #include "Components/TileView.h"
 #include "Definition/Skin/SkinDefinition.h"
-#include "Skin/SkinInstance.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Widget/SkinSlotViewData.h"
 
@@ -236,42 +235,39 @@ void URightSkinWidget::RebuildTileViewFromCachedSourceItems()
 		}
 	}
 
-	TArray<USkinInstance*> SkinInstances;
-	SkinInstances.Reserve(CachedSourceListItems.Num());
+	TArray<const USkinDefinition*> SkinDefinitions;
+	SkinDefinitions.Reserve(CachedSourceListItems.Num());
 
 	const FString SearchText = ActiveSearchText.TrimStartAndEnd();
 	const bool bUseSearch = !SearchText.IsEmpty();
 	for (const TObjectPtr<UObject>& ListItem : CachedSourceListItems)
 	{
-		USkinInstance* SkinInstance = Cast<USkinInstance>(ListItem.Get());
-		if (!SkinInstance)
+		const USkinDefinition* SkinDefinition = Cast<USkinDefinition>(ListItem.Get());
+		if (!SkinDefinition)
 		{
 			continue;
 		}
 
-		if (bUseSearch && !DoesSkinMatchSearch(SkinInstance, SearchText))
+		if (bUseSearch && !DoesSkinMatchSearch(SkinDefinition, SearchText))
 		{
 			continue;
 		}
 
-		SkinInstances.Add(SkinInstance);
+		SkinDefinitions.Add(SkinDefinition);
 	}
 
-	const int32 SlotCountToDisplay = bUseSearch ? SkinInstances.Num() : FMath::Max(SkinSlotCount, SkinInstances.Num());
+	const int32 SlotCountToDisplay = bUseSearch ? SkinDefinitions.Num() : FMath::Max(SkinSlotCount, SkinDefinitions.Num());
 	CachedSlotViewData.Reserve(SlotCountToDisplay);
 
 	for (int32 SlotIndex = 0; SlotIndex < SlotCountToDisplay; ++SlotIndex)
 	{
-		USkinInstance* SkinInstance = SkinInstances.IsValidIndex(SlotIndex)
-			? SkinInstances[SlotIndex]
-			: nullptr;
-		const USkinDefinition* SkinDefinition = IsValid(SkinInstance)
-			? SkinInstance->SkinDefinition.Get()
+		const USkinDefinition* SkinDefinition = SkinDefinitions.IsValidIndex(SlotIndex)
+			? SkinDefinitions[SlotIndex]
 			: nullptr;
 		USkinSlotViewData* SlotViewData = NewObject<USkinSlotViewData>(this);
 		SlotViewData->Initialize(
 			SlotIndex,
-			SkinInstance,
+			SkinDefinition,
 			AssignedSkinDefinitions.Contains(SkinDefinition));
 		CachedSlotViewData.Add(SlotViewData);
 		TileView->AddItem(SlotViewData);
@@ -317,15 +313,14 @@ void URightSkinWidget::ClearSkinEquipmentBinding()
 	BoundSkinEquipmentComponent.Reset();
 }
 
-bool URightSkinWidget::DoesSkinMatchSearch(const USkinInstance* SkinInstance, const FString& SearchText) const
+bool URightSkinWidget::DoesSkinMatchSearch(const USkinDefinition* SkinDefinition, const FString& SearchText) const
 {
 	if (SearchText.IsEmpty())
 	{
 		return true;
 	}
 
-	const USkinDefinition* SkinDefinition = IsValid(SkinInstance) ? SkinInstance->SkinDefinition.Get() : nullptr;
-	if (!SkinDefinition)
+	if (!IsValid(SkinDefinition))
 	{
 		return false;
 	}

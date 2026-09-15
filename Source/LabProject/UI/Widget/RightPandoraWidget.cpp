@@ -5,7 +5,6 @@
 #include "Components/EditableTextBox.h"
 #include "Components/TileView.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Pandora/PandoraInstance.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RightPandoraWidget)
@@ -200,35 +199,37 @@ void URightPandoraWidget::RebuildTileViewFromCachedSourceItems()
 	const bool bUseSearch = !SearchText.IsEmpty();
 	for (const TObjectPtr<UObject>& ListItem : CachedSourceListItems)
 	{
-		UPandoraInstance* PandoraInstance = Cast<UPandoraInstance>(ListItem.Get());
-		if (!PandoraInstance)
+		UPandoraDefinition* PandoraDefinition = Cast<UPandoraDefinition>(ListItem.Get());
+		if (!PandoraDefinition)
 		{
 			continue;
 		}
 
-		if (bUseSearch && !DoesPandoraMatchSearch(PandoraInstance, SearchText))
+		if (bUseSearch && !DoesPandoraMatchSearch(PandoraDefinition, SearchText))
 		{
 			continue;
 		}
 
-		TileView->AddItem(PandoraInstance);
+		TileView->AddItem(PandoraDefinition);
 	}
+
+	// 목록 객체가 같아도 보유 상태는 달라질 수 있으므로 항목의 표시 데이터를 다시 만든다.
+	TileView->RegenerateAllEntries();
 }
 
-bool URightPandoraWidget::DoesPandoraMatchSearch(const UPandoraInstance* PandoraInstance, const FString& SearchText) const
+bool URightPandoraWidget::DoesPandoraMatchSearch(const UPandoraDefinition* PandoraDefinition, const FString& SearchText) const
 {
 	if (SearchText.IsEmpty())
 	{
 		return true;
 	}
 
-	const UPandoraDefinition* PandoraDefinition = IsValid(PandoraInstance) ? PandoraInstance->PandoraDefinition.Get() : nullptr;
-	if (!PandoraDefinition)
+	if (!IsValid(PandoraDefinition))
 	{
 		return false;
 	}
 
-	const FString DisplayName = PandoraDefinition->DisplayName.ToString();
+	const FString DisplayName = PandoraDefinition->GetDisplayName().ToString();
 	if (DisplayName.Contains(SearchText, ESearchCase::IgnoreCase))
 	{
 		return true;

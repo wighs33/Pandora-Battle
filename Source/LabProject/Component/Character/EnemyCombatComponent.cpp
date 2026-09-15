@@ -538,6 +538,13 @@ bool UEnemyCombatComponent::IsUsingGunWeapon() const
 	return WeaponDefinition && WeaponDefinition->WeaponData.Gun.HasAnyData();
 }
 
+bool UEnemyCombatComponent::IsDefaultAttributeSetupComplete() const
+{
+	const AEnemyBase* Enemy = GetEnemyOwnerConst();
+	const UPdAbilitySystemComponent* ASC = Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
+	return ASC && ASC->GetSet<UBasicAttributeSet>() != nullptr;
+}
+
 void UEnemyCombatComponent::EnsureDefaultAttributeSetup()
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
@@ -562,72 +569,6 @@ void UEnemyCombatComponent::EnsureDefaultAttributeSetup()
 		}
 	}
 
-	if (DefaultAttributeConfigHandle == INDEX_NONE)
-	{
-		FAttributeConfig AttributeConfig;
-		const auto AddMapping =
-			[&AttributeConfig](
-				const FGameplayTag& StatTag,
-				const FGameplayAttribute& Attribute)
-			{
-				if (!StatTag.IsValid() || !Attribute.IsValid())
-				{
-					return;
-				}
-
-				FAttributeTagMapping Mapping;
-				Mapping.StatTag = StatTag;
-				Mapping.Attribute = Attribute;
-				AttributeConfig.AttributeMappings.Add(Mapping);
-			};
-
-		AddMapping(LabGameplayTags::Status_Offense_Strength, UBasicAttributeSet::GetStrengthAttribute());
-		AddMapping(LabGameplayTags::Status_Offense_StrengthLevel, UBasicAttributeSet::GetStrengthLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Offense_Intelligence, UBasicAttributeSet::GetIntelligenceAttribute());
-		AddMapping(LabGameplayTags::Status_Offense_IntelligenceLevel, UBasicAttributeSet::GetIntelligenceLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Offense_Critical, UBasicAttributeSet::GetCriticalAttribute());
-		AddMapping(LabGameplayTags::Status_Offense_CriticalLevel, UBasicAttributeSet::GetCriticalLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Defense_Armor, UBasicAttributeSet::GetArmorAttribute());
-		AddMapping(LabGameplayTags::Status_Defense_ArmorLevel, UBasicAttributeSet::GetArmorLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Defense_Recovery, UBasicAttributeSet::GetRecoveryAttribute());
-		AddMapping(LabGameplayTags::Status_Defense_RecoveryLevel, UBasicAttributeSet::GetRecoveryLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Defense_MaxShield, UBasicAttributeSet::GetMaxShieldAttribute());
-		AddMapping(LabGameplayTags::Status_Defense_MaxShieldIncreasePercent, UBasicAttributeSet::GetMaxShieldIncreasePercentAttribute());
-		AddMapping(LabGameplayTags::Status_Defense_MaxShieldLevel, UBasicAttributeSet::GetMaxShieldLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Resistance_Frostbite, UBasicAttributeSet::GetFrostbiteAttribute());
-		AddMapping(LabGameplayTags::Status_Resistance_FrostbiteLevel, UBasicAttributeSet::GetFrostbiteLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Resistance_Burn, UBasicAttributeSet::GetBurnAttribute());
-		AddMapping(LabGameplayTags::Status_Resistance_BurnLevel, UBasicAttributeSet::GetBurnLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Resistance_ElectricShock, UBasicAttributeSet::GetElectricShockAttribute());
-		AddMapping(LabGameplayTags::Status_Resistance_ElectricShockLevel, UBasicAttributeSet::GetElectricShockLevelAttribute());
-		AddMapping(LabGameplayTags::Status_PandoraForce_FirstPandora, UBasicAttributeSet::GetFirstPandoraAttribute());
-		AddMapping(LabGameplayTags::Status_PandoraForce_FirstPandoraLevel, UBasicAttributeSet::GetFirstPandoraLevelAttribute());
-		AddMapping(LabGameplayTags::Status_PandoraForce_SecondPandora, UBasicAttributeSet::GetSecondPandoraAttribute());
-		AddMapping(LabGameplayTags::Status_PandoraForce_SecondPandoraLevel, UBasicAttributeSet::GetSecondPandoraLevelAttribute());
-		AddMapping(LabGameplayTags::Status_PandoraForce_ThirdPandora, UBasicAttributeSet::GetThirdPandoraAttribute());
-		AddMapping(LabGameplayTags::Status_PandoraForce_ThirdPandoraLevel, UBasicAttributeSet::GetThirdPandoraLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_Health, UBasicAttributeSet::GetHealthAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_Mana, UBasicAttributeSet::GetManaAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_Stamina, UBasicAttributeSet::GetStaminaAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_MaxHealth, UBasicAttributeSet::GetMaxHealthAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_MaxHealthIncreasePercent, UBasicAttributeSet::GetMaxHealthIncreasePercentAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_MaxHealthLevel, UBasicAttributeSet::GetMaxHealthLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_MaxMana, UBasicAttributeSet::GetMaxManaAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_MaxManaIncreasePercent, UBasicAttributeSet::GetMaxManaIncreasePercentAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_MaxManaLevel, UBasicAttributeSet::GetMaxManaLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_MaxStamina, UBasicAttributeSet::GetMaxStaminaAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_MaxStaminaIncreasePercent, UBasicAttributeSet::GetMaxStaminaIncreasePercentAttribute());
-		AddMapping(LabGameplayTags::Status_Resource_MaxStaminaLevel, UBasicAttributeSet::GetMaxStaminaLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Agility_AttackSpeed, UBasicAttributeSet::GetAttackSpeedAttribute());
-		AddMapping(LabGameplayTags::Status_Agility_AttackSpeedLevel, UBasicAttributeSet::GetAttackSpeedLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Agility_MovementSpeed, UBasicAttributeSet::GetMovementSpeedAttribute());
-		AddMapping(LabGameplayTags::Status_Agility_MovementSpeedLevel, UBasicAttributeSet::GetMovementSpeedLevelAttribute());
-		AddMapping(LabGameplayTags::Status_Agility_Arcane, UBasicAttributeSet::GetArcaneAttribute());
-		AddMapping(LabGameplayTags::Status_Agility_ArcaneLevel, UBasicAttributeSet::GetArcaneLevelAttribute());
-
-		DefaultAttributeConfigHandle =
-			AbilitySystemComponent->AddAttributeConfig(AttributeConfig);
-	}
 
 	ApplyDefaultStatDefinition();
 }
@@ -672,7 +613,7 @@ bool UEnemyCombatComponent::ApplyDefaultStatDefinition()
 		}
 
 		FGameplayAttribute Attribute;
-		if (AbilitySystemComponent->ResolveAttributeFromTag(
+		if (UBasicAttributeSet::ResolveAttributeFromStatTag(
 				AttributeDefault.StatTag,
 				Attribute))
 		{
@@ -700,10 +641,10 @@ bool UEnemyCombatComponent::ApplyDefaultStatDefinition()
 
 		FGameplayAttribute MaxAttribute;
 		FGameplayAttribute CurrentAttribute;
-		if (!AbilitySystemComponent->ResolveAttributeFromTag(
+		if (!UBasicAttributeSet::ResolveAttributeFromStatTag(
 				Pair.MaxStatTag,
 				MaxAttribute)
-			|| !AbilitySystemComponent->ResolveAttributeFromTag(
+			|| !UBasicAttributeSet::ResolveAttributeFromStatTag(
 				Pair.CurrentStatTag,
 				CurrentAttribute))
 		{

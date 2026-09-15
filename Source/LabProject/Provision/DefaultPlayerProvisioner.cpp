@@ -502,26 +502,6 @@ bool UDefaultPlayerProvisioner::ApplyModeValues(APdPlayerState* PlayerState)
 	return true;
 }
 
-bool UDefaultPlayerProvisioner::
-ApplyConfiguredStatusPointsForPlayerState(
-	APlayerState* PlayerState) const
-{
-	APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState);
-	const UDefaultProvisionDefinition* Definition = GetDefinition();
-	if (!PdPlayerState || !PdPlayerState->HasAuthority() || !Definition)
-	{
-		return false;
-	}
-
-	UStatUpgradeComponent* StatUpgradeComponent =
-		PdPlayerState->GetStatUpgradeComponent();
-	const float PointValue =
-		Definition->GetStatusPointValues().GetValue(Mode);
-	return StatUpgradeComponent
-		? StatUpgradeComponent->SetPointsForAllCategories(PointValue)
-		: PointValue <= 0.0f;
-}
-
 bool UDefaultPlayerProvisioner::ApplyPandoras(APdPlayerState* PlayerState)
 {
 	const UDefaultProvisionDefinition* Definition = GetDefinition();

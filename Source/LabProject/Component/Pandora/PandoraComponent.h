@@ -12,7 +12,6 @@
 
 class UPandoraComponent;
 class UPandoraDefinition;
-class UPandoraInstance;
 class UProjectTagConfig;
 class UItemDefinition;
 class ACharacterBase;
@@ -29,8 +28,9 @@ struct FPandoraList
 	GENERATED_BODY()
 
 public:
+	// 표시할 판도라 정의 목록. 보유 여부는 PandoraComponent에서 조회한다.
 	UPROPERTY(BlueprintReadOnly, Category = "!Inventory")
-	TArray<TObjectPtr<UPandoraInstance>> Pandoras;
+	TArray<TObjectPtr<const UPandoraDefinition>> Pandoras;
 };
 
 USTRUCT()
@@ -140,8 +140,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Loadout")
 	const UPandoraDefinition* GetPandoraLoadoutDefinition(EEnum_Direction Direction) const;
 
-	UFUNCTION(BlueprintPure, Category = "!Pandora|Loadout")
-	UPandoraInstance* GetPandoraLoadoutInstance(EEnum_Direction Direction) const;
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	const UPandoraDefinition* GetCurrentPandoraDefinition() const { return CurrentPandoraDefinition; }
 
@@ -169,9 +167,9 @@ protected:
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedPandoraEntry& Entry);
 	void HandleReplicatedEntryRemoved(const UPandoraDefinition* PandoraDefinition);
 
-	void RebuildRuntimePandorasFromReplicatedEntries();
+	void RebuildPandoraListsFromReplicatedEntries();
 	void RebuildFilteredPandoraMap();
-	void FilterPandoras(UPandoraInstance* PandoraInstance);
+	void FilterPandoras(const UPandoraDefinition* PandoraDefinition);
 	bool AddPandoraDefinition(const UPandoraDefinition* PandoraDefinition, bool bOwned);
 	void LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& PandoraDefinitions,
 		const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection, bool bOwned);
@@ -185,9 +183,7 @@ protected:
 	const class UEquipmentComponent* GetCurrentEquipmentComponent() const;
 	const UItemDefinition* GetCurrentWeaponDefinition() const;
 	EEnum_Direction GetCurrentWeaponLoadoutDirection() const;
-	UPandoraInstance* FindPandoraInstanceByDefinition(const UPandoraDefinition* PandoraDefinition) const;
-	UPandoraInstance* FindPandoraInstanceByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId) const;
-	UPandoraInstance* FindOwnedPandoraInstanceByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId) const;
+	const UPandoraDefinition* FindOwnedPandoraDefinitionByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId) const;
 	int32 FindReplicatedEntryIndexByDefinition(const UPandoraDefinition* PandoraDefinition) const;
 	FReplicatedPandoraEntry* FindReplicatedEntryByDefinition(const UPandoraDefinition* PandoraDefinition);
 	const FReplicatedPandoraEntry* FindReplicatedEntryByDefinition(const UPandoraDefinition* PandoraDefinition) const;

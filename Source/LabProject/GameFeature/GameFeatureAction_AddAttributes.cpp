@@ -1,14 +1,12 @@
 #include "GameFeature/GameFeatureAction_AddAttributes.h"
 
 #include "AbilitySystemGlobals.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "AssetRegistry/AssetBundleData.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFeature/ActorExtensionWorldSubsystem.h"
 #include "GameFeaturesSubsystemSettings.h"
-#include "GameFramework/PlayerState.h"
-#include "Mode/ExperienceGameMode.h"
-#include "Component/Player/StatUpgradeComponent.h"
 #include "TimerManager.h"
 
 #if WITH_EDITOR
@@ -91,10 +89,10 @@ EDataValidationResult UGameFeatureAction_AddAttributes::IsDataValid(FDataValidat
 		Context.AddError(NSLOCTEXT("PdGameFeatureAction_AddAttributes", "MissingNetwork", "At least one Network option is required."));
 	}
 
-	if (AttributeSetClasses.IsEmpty() && !AttributeConfig.HasAnyData())
+	if (AttributeSetClasses.IsEmpty())
 	{
 		Result = EDataValidationResult::Invalid;
-		Context.AddError(NSLOCTEXT("PdGameFeatureAction_AddAttributes", "EmptyAttributeAction", "At least one AttributeSetClass or AttributeConfig entry is required."));
+		Context.AddError(NSLOCTEXT("PdGameFeatureAction_AddAttributes", "EmptyAttributeAction", "At least one AttributeSetClass is required."));
 	}
 
 	for (int32 EntryIndex = 0; EntryIndex < AttributeSetClasses.Num(); ++EntryIndex)
@@ -108,48 +106,6 @@ EDataValidationResult UGameFeatureAction_AddAttributes::IsDataValid(FDataValidat
 		}
 	}
 
-	for (int32 EntryIndex = 0; EntryIndex < AttributeConfig.AttributeMappings.Num(); ++EntryIndex)
-	{
-		if (!AttributeConfig.AttributeMappings[EntryIndex].IsValid())
-		{
-			Result = EDataValidationResult::Invalid;
-			Context.AddError(FText::Format(
-				NSLOCTEXT("PdGameFeatureAction_AddAttributes", "InvalidMapping", "AttributeMappings entry {0} requires both StatTag and Attribute."),
-				FText::AsNumber(EntryIndex)));
-		}
-	}
-
-	TSet<FGameplayTag> StatTags;
-	TSet<FString> AttributeNames;
-	for (int32 EntryIndex = 0; EntryIndex < AttributeConfig.AttributeMappings.Num(); ++EntryIndex)
-	{
-		const FAttributeTagMapping& Entry = AttributeConfig.AttributeMappings[EntryIndex];
-		if (!Entry.IsValid())
-		{
-			continue;
-		}
-
-		if (StatTags.Contains(Entry.StatTag))
-		{
-			Result = EDataValidationResult::Invalid;
-			Context.AddError(FText::Format(
-				NSLOCTEXT("PdGameFeatureAction_AddAttributes", "DuplicateStatTag", "AttributeMappings entry {0} duplicates StatTag '{1}'."),
-				FText::AsNumber(EntryIndex),
-				FText::FromString(Entry.StatTag.ToString())));
-		}
-		StatTags.Add(Entry.StatTag);
-
-		const FString AttributeName = Entry.Attribute.GetName();
-		if (AttributeNames.Contains(AttributeName))
-		{
-			Result = EDataValidationResult::Invalid;
-			Context.AddError(FText::Format(
-				NSLOCTEXT("PdGameFeatureAction_AddAttributes", "DuplicateAttribute", "AttributeMappings entry {0} duplicates Attribute '{1}'."),
-				FText::AsNumber(EntryIndex),
-				FText::FromString(AttributeName)));
-		}
-		AttributeNames.Add(AttributeName);
-	}
 
 	return Result;
 }
@@ -240,7 +196,7 @@ void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(
 		{
 			UPdAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
 			return AbilitySystemComponent && AbilitySystemComponent->IsRegistered()
-				&& AbilitySystemComponent->HasAbilityActorInfoAllocated();
+				&& AbilitySystemComponent->AbilityActorInfo.IsValid();
 		});
 		ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
 		{
@@ -268,46 +224,17 @@ void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(
 //--- Attribute Setup
 void UGameFeatureAction_AddAttributes::AddAttributesToActor(AActor* Actor, FGameFeatureAttributeHandles& Handles)
 {
-	if (!Actor || Handles.AttributeConfigHandles.Contains(Actor))
+	if (!Actor || !Actor->HasAuthority() || Handles.AttributeSets.Contains(Actor))
 	{
 		return;
 	}
-
 	UPdAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
 	if (!AbilitySystemComponent)
 	{
 		return;
 	}
+	AddAttributeSetsToActor(Actor, AbilitySystemComponent, Handles);
 
-	if (Actor->HasAuthority())
-	{
-		AddAttributeSetsToActor(Actor, AbilitySystemComponent, Handles);
-	}
-
-	if (AttributeConfig.HasAnyData())
-	{
-		const int32 AttributeConfigHandle = AbilitySystemComponent->AddAttributeConfig(AttributeConfig);
-		Handles.AttributeConfigHandles.Add(Actor, AttributeConfigHandle);
-
-		if (Actor->HasAuthority())
-		{
-			if (APlayerState* PlayerState = Cast<APlayerState>(Actor))
-			{
-				if (UStatUpgradeComponent* StatUpgradeComponent = PlayerState->FindComponentByClass<UStatUpgradeComponent>())
-				{
-					StatUpgradeComponent->ApplyConfiguredAttributeDefaults();
-				}
-
-				if (UWorld* World = Actor->GetWorld())
-				{
-					if (AExperienceGameMode* ExperienceGameMode = World->GetAuthGameMode<AExperienceGameMode>())
-					{
-						ExperienceGameMode->ApplyConfiguredStatusPointsForPlayerState(PlayerState);
-					}
-				}
-			}
-		}
-	}
 }
 
 void UGameFeatureAction_AddAttributes::RemoveAttributesFromActor(AActor* Actor, FGameFeatureAttributeHandles& Handles) const
@@ -317,14 +244,6 @@ void UGameFeatureAction_AddAttributes::RemoveAttributesFromActor(AActor* Actor, 
 		return;
 	}
 
-	int32 AttributeConfigHandle = INDEX_NONE;
-	if (Handles.AttributeConfigHandles.RemoveAndCopyValue(Actor, AttributeConfigHandle))
-	{
-		if (UPdAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor))
-		{
-			AbilitySystemComponent->RemoveAttributeConfig(AttributeConfigHandle);
-		}
-	}
 
 	TArray<TWeakObjectPtr<UAttributeSet>> AttributeSets;
 	if (!Handles.AttributeSets.RemoveAndCopyValue(Actor, AttributeSets))
@@ -350,14 +269,13 @@ void UGameFeatureAction_AddAttributes::RemoveAttributesFromActor(AActor* Actor, 
 void UGameFeatureAction_AddAttributes::RemoveAllAttributes(FGameFeatureAttributeHandles& Handles) const
 {
 	TArray<TWeakObjectPtr<AActor>> Actors;
-	Handles.AttributeConfigHandles.GetKeys(Actors);
+	Handles.AttributeSets.GetKeys(Actors);
 
 	for (const TWeakObjectPtr<AActor>& Actor : Actors)
 	{
 		RemoveAttributesFromActor(Actor.Get(), Handles);
 	}
 
-	Handles.AttributeConfigHandles.Reset();
 	Handles.AttributeSets.Reset();
 }
 
@@ -405,10 +323,7 @@ void UGameFeatureAction_AddAttributes::AddAttributeSetsToActor(AActor* Actor, UP
 		}
 	}
 
-	if (ActorAttributeSets.IsEmpty())
-	{
-		Handles.AttributeSets.Remove(Actor);
-	}
+
 }
 
 void UGameFeatureAction_AddAttributes::CollectTargetClasses(TArray<TSubclassOf<AActor>>& OutTargetClasses) const
@@ -441,21 +356,6 @@ void UGameFeatureAction_AddAttributes::CollectAttributeSetClasses(TArray<TSubcla
 			OutAttributeSetClasses.AddUnique(AttributeSetClass);
 		}
 	}
-
-	for (const FAttributeTagMapping& Entry : AttributeConfig.AttributeMappings)
-	{
-		if (!Entry.Attribute.IsValid())
-		{
-			continue;
-		}
-
-		TSubclassOf<UAttributeSet> AttributeSetClass = const_cast<UClass*>(Entry.Attribute.GetAttributeSetClass());
-		if (AttributeSetClass)
-		{
-			OutAttributeSetClasses.AddUnique(AttributeSetClass);
-		}
-	}
-
 }
 
 UAttributeSet* UGameFeatureAction_AddAttributes::FindExistingAttributeSet(AActor* Actor, TSubclassOf<UAttributeSet> AttributeSetClass) const
@@ -466,7 +366,7 @@ UAttributeSet* UGameFeatureAction_AddAttributes::FindExistingAttributeSet(AActor
 	}
 
 	TArray<UObject*> ChildObjects;
-	GetObjectsWithOuter(Actor, ChildObjects, false);
+	GetObjectsWithOuter(Actor, ChildObjects, EGetObjectsFlags::None);
 
 	for (UObject* ChildObject : ChildObjects)
 	{

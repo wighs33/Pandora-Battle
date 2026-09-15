@@ -5,7 +5,7 @@
 #include "PandoraEquipSlotWidget.generated.h"
 
 class UButton;
-class UPandoraInstance;
+class UPandoraDefinition;
 class UTextBlock;
 class UPandoraEquipSlotWidget;
 
@@ -25,7 +25,7 @@ public:
 	void BroadcastHoveredPandoraEquipSlot(UPandoraEquipSlotWidget* PandoraEquipSlot);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
-	void SetData(UPandoraInstance* Target);
+	void SetData(const UPandoraDefinition* Target);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetPandoraImageDarkened(bool bDarkened);
@@ -34,7 +34,7 @@ public:
 	void ToggleText_Apply(bool bOn);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Pandora")
-	UPandoraInstance* GetCachedData() const { return CachedData; }
+	const UPandoraDefinition* GetCachedData() const { return CachedData; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Pandora")
 	int32 GetNth() const { return Nth; }
@@ -59,7 +59,7 @@ protected:
 	int32 Nth = 0;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Pandora")
-	TObjectPtr<UPandoraInstance> CachedData;
+	TObjectPtr<const UPandoraDefinition> CachedData;
 
 private:
 	UFUNCTION()
