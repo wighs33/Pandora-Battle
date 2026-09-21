@@ -3,119 +3,82 @@ using UnityEngine;
 
 namespace PandoraRPG.Stats
 {
+    /// <summary>
+    /// Owns one character's runtime resources and exposes its authored combat stats.
+    /// Damage formulas themselves belong to CombatMath.
+    /// </summary>
     public sealed class CharacterStats : MonoBehaviour
     {
         public event Action ResourcesChanged;
         public event Action StatsChanged;
         public event Action Died;
 
-        [Header("Leveling")]
+        [Header("Level")]
         [SerializeField, Min(1)] private int level = 1;
         [SerializeField, Min(0f)] private float experience;
-        [SerializeField, Min(1f)] private float maxExperience = 100f;
+        [SerializeField, Min(1f)] private float experienceToNextLevel = 100f;
 
-        [Header("Offense")]
-        [SerializeField, Range(0f, 100f)] private float strength = 10f;
-        [SerializeField, Range(0f, 100f)] private float intelligence = 10f;
-        [SerializeField, Range(0f, 100f)] private float critical = 10f;
+        [Header("Stats")]
+        [SerializeField] private CharacterStatBlock values = new();
 
-        [Header("Defense")]
-        [SerializeField, Range(0f, 100f)] private float armor = 10f;
-        [SerializeField, Range(0f, 100f)] private float recovery = 10f;
-
-        [Header("Resistance")]
-        [SerializeField, Range(0f, 100f)] private float frostbiteResistance = 10f;
-        [SerializeField, Range(0f, 100f)] private float burnResistance = 10f;
-        [SerializeField, Range(0f, 100f)] private float electricShockResistance = 10f;
-
-        [Header("Pandora Force")]
-        [SerializeField, Range(0f, 100f)] private float firstPandora = 10f;
-        [SerializeField, Range(0f, 100f)] private float secondPandora = 10f;
-        [SerializeField, Range(0f, 100f)] private float thirdPandora = 10f;
-
-        [Header("Agility")]
-        [SerializeField, Range(0f, 100f)] private float attackSpeed = 10f;
-        [SerializeField, Range(0f, 100f)] private float movementSpeed = 10f;
-        [SerializeField, Range(0f, 100f)] private float arcane = 10f;
-
-        [Header("Resources")]
-        [SerializeField, Min(1f)] private float maxHealth = 100f;
-        [SerializeField, Min(0f)] private float maxShield;
-        [SerializeField, Min(0f)] private float maxMana = 100f;
-        [SerializeField, Min(0f)] private float maxStamina = 100f;
-
-        private float health;
-        private float shield;
-        private float mana;
-        private float stamina;
+        private float currentHealth;
+        private float currentShield;
+        private float currentMana;
+        private float currentStamina;
 
         public int Level => level;
         public float Experience => experience;
-        public float MaxExperience => maxExperience;
+        public float ExperienceToNextLevel => experienceToNextLevel;
 
-        public float Strength => strength;
-        public float Intelligence => intelligence;
-        public float Critical => critical;
-        public float Armor => armor;
-        public float Recovery => recovery;
+        public CharacterStatBlock Values => values;
 
-        public float FrostbiteResistance => frostbiteResistance;
-        public float BurnResistance => burnResistance;
-        public float ElectricShockResistance => electricShockResistance;
+        public float CurrentHealth => currentHealth;
+        public float CurrentShield => currentShield;
+        public float CurrentMana => currentMana;
+        public float CurrentStamina => currentStamina;
 
-        public float FirstPandora => firstPandora;
-        public float SecondPandora => secondPandora;
-        public float ThirdPandora => thirdPandora;
-
-        public float AttackSpeed => attackSpeed;
-        public float MovementSpeed => movementSpeed;
-        public float Arcane => arcane;
-
-        public float Health => health;
-        public float Shield => shield;
-        public float Mana => mana;
-        public float Stamina => stamina;
-
-        public float MaxHealth => maxHealth;
-        public float MaxShield => maxShield;
-        public float MaxMana => maxMana;
-        public float MaxStamina => maxStamina;
-        public bool IsDead => health <= 0f;
+        public bool IsDead => currentHealth <= 0f;
 
         private void Awake()
         {
-            ResetResources();
+            RestoreAllResources();
         }
 
-        public void ResetResources()
+        public void RestoreAllResources()
         {
-            health = maxHealth;
-            shield = maxShield;
-            mana = maxMana;
-            stamina = maxStamina;
+            currentHealth = values.Resources.Health;
+            currentShield = values.Resources.Shield;
+            currentMana = values.Resources.Mana;
+            currentStamina = values.Resources.Stamina;
+
             ResourcesChanged?.Invoke();
         }
 
-        public float ApplyDamage(float damage)
+        /// <summary>
+        /// Applies already-calculated final damage.
+        /// Shield absorbs damage before health.
+        /// </summary>
+        public float TakeDamage(float finalDamage)
         {
-            float remaining = Mathf.Max(damage, 0f);
-            if (remaining <= 0f || IsDead)
+            if (finalDamage <= 0f || IsDead)
             {
                 return 0f;
             }
 
-            float shieldDamage = Mathf.Min(shield, remaining);
-            shield -= shieldDamage;
-            remaining -= shieldDamage;
+            float remainingDamage = finalDamage;
 
-            float healthDamage = Mathf.Min(health, remaining);
-            health -= healthDamage;
+            float shieldDamage = Mathf.Min(currentShield, remainingDamage);
+            currentShield -= shieldDamage;
+            remainingDamage -= shieldDamage;
+
+            float healthDamage = Mathf.Min(currentHealth, remainingDamage);
+            currentHealth -= healthDamage;
 
             ResourcesChanged?.Invoke();
 
-            if (health <= 0f)
+            if (currentHealth <= 0f)
             {
-                health = 0f;
+                currentHealth = 0f;
                 Died?.Invoke();
             }
 
@@ -129,97 +92,66 @@ namespace PandoraRPG.Stats
                 return 0f;
             }
 
-            float before = health;
-            health = Mathf.Min(health + amount, maxHealth);
+            float previousHealth = currentHealth;
+            currentHealth = Mathf.Min(currentHealth + amount, values.Resources.Health);
+
             ResourcesChanged?.Invoke();
-            return health - before;
+            return currentHealth - previousHealth;
         }
 
         public bool TrySpendMana(float amount)
         {
-            amount = Mathf.Max(amount, 0f);
-            if (mana < amount)
-            {
-                return false;
-            }
-
-            mana -= amount;
-            ResourcesChanged?.Invoke();
-            return true;
+            return TrySpendResource(ref currentMana, amount);
         }
 
         public bool TrySpendStamina(float amount)
         {
-            amount = Mathf.Max(amount, 0f);
-            if (stamina < amount)
-            {
-                return false;
-            }
-
-            stamina -= amount;
-            ResourcesChanged?.Invoke();
-            return true;
+            return TrySpendResource(ref currentStamina, amount);
         }
 
         public void RestoreMana(float amount)
         {
-            mana = Mathf.Min(mana + Mathf.Max(amount, 0f), maxMana);
+            currentMana = RestoreResource(currentMana, amount, values.Resources.Mana);
             ResourcesChanged?.Invoke();
         }
 
         public void RestoreStamina(float amount)
         {
-            stamina = Mathf.Min(stamina + Mathf.Max(amount, 0f), maxStamina);
+            currentStamina = RestoreResource(currentStamina, amount, values.Resources.Stamina);
             ResourcesChanged?.Invoke();
         }
 
-        public void SetCoreCombatStats(
-            float newStrength,
-            float newIntelligence,
-            float newCritical,
-            float newArmor,
-            float newRecovery,
-            float newArcane)
+        public void NotifyStatsChanged()
         {
-            strength = ClampStat(newStrength);
-            intelligence = ClampStat(newIntelligence);
-            critical = ClampStat(newCritical);
-            armor = ClampStat(newArmor);
-            recovery = ClampStat(newRecovery);
-            arcane = ClampStat(newArcane);
+            values.Clamp();
             StatsChanged?.Invoke();
         }
 
-        private static float ClampStat(float value)
+        private bool TrySpendResource(ref float currentValue, float amount)
         {
-            return Mathf.Clamp(value, 0f, 100f);
+            float safeAmount = Mathf.Max(amount, 0f);
+            if (currentValue < safeAmount)
+            {
+                return false;
+            }
+
+            currentValue -= safeAmount;
+            ResourcesChanged?.Invoke();
+            return true;
+        }
+
+        private static float RestoreResource(float currentValue, float amount, float maximum)
+        {
+            return Mathf.Min(currentValue + Mathf.Max(amount, 0f), maximum);
         }
 
         private void OnValidate()
         {
             level = Mathf.Max(level, 1);
             experience = Mathf.Max(experience, 0f);
-            maxExperience = Mathf.Max(maxExperience, 1f);
-
-            strength = ClampStat(strength);
-            intelligence = ClampStat(intelligence);
-            critical = ClampStat(critical);
-            armor = ClampStat(armor);
-            recovery = ClampStat(recovery);
-            frostbiteResistance = ClampStat(frostbiteResistance);
-            burnResistance = ClampStat(burnResistance);
-            electricShockResistance = ClampStat(electricShockResistance);
-            firstPandora = ClampStat(firstPandora);
-            secondPandora = ClampStat(secondPandora);
-            thirdPandora = ClampStat(thirdPandora);
-            attackSpeed = ClampStat(attackSpeed);
-            movementSpeed = ClampStat(movementSpeed);
-            arcane = ClampStat(arcane);
-
-            maxHealth = Mathf.Max(maxHealth, 1f);
-            maxShield = Mathf.Max(maxShield, 0f);
-            maxMana = Mathf.Max(maxMana, 0f);
-            maxStamina = Mathf.Max(maxStamina, 0f);
+            experienceToNextLevel = Mathf.Max(experienceToNextLevel, 1f);
+            values ??= new CharacterStatBlock();
+            values.Clamp();
         }
     }
 }

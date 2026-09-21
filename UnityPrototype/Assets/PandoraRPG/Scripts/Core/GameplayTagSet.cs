@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace PandoraRPG.Core
 {
     /// <summary>
-    /// Lightweight hierarchical tag container inspired by Unreal Gameplay Tags.
-    /// "State.Dead" matches "State", while exact matching requires the full tag.
+    /// Small hierarchical tag set inspired by Unreal Gameplay Tags.
+    /// Example: "State.Dead" is considered a child of "State".
     /// </summary>
     public sealed class GameplayTagSet
     {
@@ -15,12 +15,12 @@ namespace PandoraRPG.Core
 
         public bool Add(string tag)
         {
-            return !string.IsNullOrWhiteSpace(tag) && tags.Add(Normalize(tag));
+            return IsValid(tag) && tags.Add(Normalize(tag));
         }
 
         public bool Remove(string tag)
         {
-            return !string.IsNullOrWhiteSpace(tag) && tags.Remove(Normalize(tag));
+            return IsValid(tag) && tags.Remove(Normalize(tag));
         }
 
         public void Clear()
@@ -28,9 +28,9 @@ namespace PandoraRPG.Core
             tags.Clear();
         }
 
-        public bool Has(string query, bool exact = false)
+        public bool Contains(string query, bool exactMatch = false)
         {
-            if (string.IsNullOrWhiteSpace(query))
+            if (!IsValid(query))
             {
                 return false;
             }
@@ -38,7 +38,11 @@ namespace PandoraRPG.Core
             string normalizedQuery = Normalize(query);
             foreach (string tag in tags)
             {
-                if (exact ? string.Equals(tag, normalizedQuery, StringComparison.Ordinal) : Matches(tag, normalizedQuery))
+                bool matches = exactMatch
+                    ? string.Equals(tag, normalizedQuery, StringComparison.Ordinal)
+                    : MatchesOrIsChildOf(tag, normalizedQuery);
+
+                if (matches)
                 {
                     return true;
                 }
@@ -47,18 +51,23 @@ namespace PandoraRPG.Core
             return false;
         }
 
-        public static bool Matches(string tag, string query)
+        public static bool MatchesOrIsChildOf(string tag, string parentTag)
         {
-            if (string.IsNullOrWhiteSpace(tag) || string.IsNullOrWhiteSpace(query))
+            if (!IsValid(tag) || !IsValid(parentTag))
             {
                 return false;
             }
 
-            tag = Normalize(tag);
-            query = Normalize(query);
+            string normalizedTag = Normalize(tag);
+            string normalizedParent = Normalize(parentTag);
 
-            return string.Equals(tag, query, StringComparison.Ordinal)
-                || tag.StartsWith(query + ".", StringComparison.Ordinal);
+            return string.Equals(normalizedTag, normalizedParent, StringComparison.Ordinal)
+                || normalizedTag.StartsWith(normalizedParent + ".", StringComparison.Ordinal);
+        }
+
+        private static bool IsValid(string tag)
+        {
+            return !string.IsNullOrWhiteSpace(tag);
         }
 
         private static string Normalize(string tag)

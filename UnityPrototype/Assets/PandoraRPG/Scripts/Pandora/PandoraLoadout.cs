@@ -1,9 +1,10 @@
 using System;
 using PandoraRPG.Stats;
+using UnityEngine;
 
 namespace PandoraRPG.Pandora
 {
-    public enum PandoraLoadoutDirection
+    public enum PandoraSlot
     {
         Left,
         Up,
@@ -11,70 +12,72 @@ namespace PandoraRPG.Pandora
     }
 
     [Serializable]
-    public sealed class PandoraLoadoutSlot
+    public sealed class PandoraSlotState
     {
-        public PandoraDefinition definition;
-        public int level = 1;
+        public PandoraDefinition Definition;
+        [Range(1, PandoraDefinition.MaxLevel)] public int Level = 1;
+
+        public bool IsEmpty => Definition == null;
     }
 
     /// <summary>
-    /// Runtime loadout. Only the selected slot receives skill input,
-    /// mirroring Pandora Battle's selected-Pandora input binding policy.
+    /// Owns the three equipped Pandora slots and which one currently receives skill input.
     /// </summary>
     public sealed class PandoraLoadout
     {
-        private readonly PandoraLoadoutSlot left = new();
-        private readonly PandoraLoadoutSlot up = new();
-        private readonly PandoraLoadoutSlot right = new();
+        private readonly PandoraSlotState left = new();
+        private readonly PandoraSlotState up = new();
+        private readonly PandoraSlotState right = new();
 
-        public PandoraLoadoutDirection SelectedDirection { get; private set; } = PandoraLoadoutDirection.Left;
+        public PandoraSlot SelectedSlot { get; private set; } = PandoraSlot.Left;
 
-        public PandoraLoadoutSlot GetSlot(PandoraLoadoutDirection direction)
+        public PandoraSlotState GetSlot(PandoraSlot slot)
         {
-            return direction switch
+            return slot switch
             {
-                PandoraLoadoutDirection.Left => left,
-                PandoraLoadoutDirection.Up => up,
-                PandoraLoadoutDirection.Right => right,
-                _ => left
+                PandoraSlot.Left => left,
+                PandoraSlot.Up => up,
+                PandoraSlot.Right => right,
+                _ => throw new ArgumentOutOfRangeException(nameof(slot), slot, null)
             };
         }
 
-        public PandoraLoadoutSlot GetSelectedSlot()
+        public PandoraSlotState GetSelectedSlot()
         {
-            return GetSlot(SelectedDirection);
+            return GetSlot(SelectedSlot);
         }
 
-        public void SetSlot(PandoraLoadoutDirection direction, PandoraDefinition definition, int level)
+        public void Equip(PandoraSlot slot, PandoraDefinition definition, int level)
         {
-            PandoraLoadoutSlot slot = GetSlot(direction);
-            slot.definition = definition;
-            slot.level = Math.Clamp(level, 1, PandoraDefinition.MaxLevel);
+            PandoraSlotState state = GetSlot(slot);
+            state.Definition = definition;
+            state.Level = Mathf.Clamp(level, 1, PandoraDefinition.MaxLevel);
         }
 
-        public bool Select(PandoraLoadoutDirection direction)
+        public bool TrySelect(PandoraSlot slot)
         {
-            if (GetSlot(direction).definition == null)
+            if (GetSlot(slot).IsEmpty)
             {
                 return false;
             }
 
-            SelectedDirection = direction;
+            SelectedSlot = slot;
             return true;
         }
 
-        public float GetSelectedDamageBonusPercent(CharacterStats stats)
+        public float GetSelectedPowerBonus(CharacterStats characterStats)
         {
-            if (stats == null)
+            if (characterStats == null)
             {
                 return 0f;
             }
 
-            return SelectedDirection switch
+            PandoraPowerStats power = characterStats.Values.PandoraPower;
+            return SelectedSlot switch
             {
-                PandoraLoadoutDirection.Left => stats.FirstPandora,
-                PandoraLoadoutDirection.Up => stats.SecondPandora,
-                PandoraLoadoutDirection.Right => stats.ThirdPandora,
+                PandoraSlot.Left => power.LeftSlot,
+                PandoraSlot.Up => power.UpSlot,
+                PandoraSlot.Right => power.RightSlot,
                 _ => 0f
             };
         }
