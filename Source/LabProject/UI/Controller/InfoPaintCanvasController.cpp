@@ -1,7 +1,7 @@
 #include "UI/Controller/InfoPaintCanvasController.h"
 
 #include "Character/PdPlayer.h"
-#include "Component/Player/PaintCanvasComponent.h"
+#include "Component/Player/PaintCanvas/PaintCanvasComponent.h"
 #include "Components/Image.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/TextureRenderTarget2D.h"

@@ -2,7 +2,7 @@
 
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
-#include "Component/Player/PaintCanvasComponent.h"
+#include "Component/Player/PaintCanvas/PaintCanvasComponent.h"
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Components/Button.h"
 #include "GameFramework/PlayerController.h"
