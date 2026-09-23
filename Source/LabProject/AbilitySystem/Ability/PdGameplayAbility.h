@@ -40,19 +40,17 @@ public:
 	UPdGameplayAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// GAS 엔진 콜백
-	virtual bool CanActivateAbility(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr,
-		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 	using Super::GetCooldownTimeRemaining;
 	virtual float GetCooldownTimeRemaining(const FGameplayAbilityActorInfo* ActorInfo) const override;
 	virtual void GetCooldownTimeRemainingAndDuration(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		float& TimeRemaining, float& CooldownDuration) const override;
 
 	// 출처와 실행 대상 조회
+	// ASC는 출처의 구체 타입 대신 능력이 정의한 준비 조건을 사용한다. CDO에서도 호출된다.
+	// virtual bool IsSourceReady(const FGameplayAbilitySpec& Spec) const;
 	ACharacterBase* GetPdCharacterFromActorInfo() const;
 	UPdAbilitySystemComponent* GetPdAbilitySystemComponentFromActorInfo() const;
 	USkillDefinition* GetSourceSkillDataAsset() const;
-	UPandoraSkillSource* GetPandoraSkillSource() const;
 	AActor* GetAttackTargetFromAvatar() const;
 	bool HasPlayerController() const;
 
@@ -74,6 +72,8 @@ public:
 
 	int32 RemoveGameplayEffectsWithGrantedTags(const FGameplayTagContainer& GrantedTags);
 	void DestroyActiveSkillPresentationActor();
+
+	float CalculateDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const;
 
 protected:
 	// GAS 실행 시작·확정·종료
@@ -103,6 +103,7 @@ protected:
 		const FGameplayAbilityActivationInfo ActivationInfo);
 	// GAS가 능력을 비활성화한 뒤 다음 행동을 이어야 하는 경우에만 사용한다.
 	virtual void OnAbilityEnded(bool bWasCancelled);
+	virtual float GetDamageBonusPercent() const;
 
 	void FinishAbilityFromDuration();
 	bool CanExecuteSkillPayload() const;
@@ -117,7 +118,6 @@ protected:
 	bool ApplySharedCooldownEffect(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, float CooldownDuration, const FGameplayTagContainer& CooldownTags) const;
 	bool TryCommitAdditionalActionStaminaCost() const;
-	float CalculateSkillDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const;
 
 	UAbilityTask_PlayMontageAndWait* CreateDefaultMontageAndWaitTask(UAnimMontage* MontageToPlay);
 	UAbilityTask_WaitGameplayEvent* CreateWaitGameplayEventTask(

@@ -40,7 +40,7 @@ float CalculateWeaponAttackSpeedPlayRate(const FGameplayAbilityActorInfo* ActorI
 UAttackAbility::UAttackAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
 	FGameplayTagContainer AbilityAssetTags;
 	AbilityAssetTags.AddTag(LabGameplayTags::Action_Attack);

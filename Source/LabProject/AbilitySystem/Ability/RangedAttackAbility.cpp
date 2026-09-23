@@ -35,7 +35,7 @@ URangedAttackAbility::URangedAttackAbility(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	bRetriggerInstancedAbility = true;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
 	FGameplayTagContainer AbilityAssetTags;
 	AbilityAssetTags.AddTag(LabGameplayTags::Action_RangedAttack);

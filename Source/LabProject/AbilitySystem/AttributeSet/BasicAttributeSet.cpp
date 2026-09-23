@@ -24,9 +24,8 @@ namespace
 
 	bool RollPercentChance(float PercentChance)
 	{
-		const float ClampedPercentChance = FMath::Clamp(PercentChance, 0.f, 100.f);
-		return ClampedPercentChance >= 100.f
-			|| (ClampedPercentChance > 0.f && FMath::FRandRange(0.f, 100.f) < ClampedPercentChance);
+		float Clamped = FMath::Clamp(PercentChance, 0.f, 100.f);
+		return FMath::FRand() * 100.f < Clamped;
 	}
 
 	float CalculateCriticalDamageMultiplier(float Critical)

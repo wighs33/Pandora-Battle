@@ -106,12 +106,12 @@ void UAbilityPresentationManager::StopConfiguredMissilePresentation(UPdGameplayA
 void UAbilityPresentationManager::DestroyActiveSkillPresentationActor()
 {
 	ASkillPresentationActor* PresentationActor = ActiveSkillPresentationActor.Get();
+	ActiveSkillPresentationActor = nullptr;
+
 	if (IsValid(PresentationActor) && PresentationActor->HasAuthority())
 	{
 		PresentationActor->Destroy();
 	}
-
-	ActiveSkillPresentationActor = nullptr;
 }
 
 // 캐릭터의 공유 크기 합성에 이 능력의 확대 요청을 등록하고 복구할 컴포넌트를 기억한다.

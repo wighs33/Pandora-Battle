@@ -89,22 +89,6 @@ void APdPlayerController::SetupInputComponent()
 	RefreshControllerInput();
 }
 
-// 누름은 즉시 처리하고, 활성화를 기다리는 Press·그래플의 해제만 프레임 끝에 다시 확인한다.
-void APdPlayerController::PostProcessInput(const float DeltaTime, const bool bGamePaused)
-{
-	if (!bGamePaused)
-	{
-		if (const APdPlayerState* PdPlayerState = GetPlayerState<APdPlayerState>())
-		{
-			if (UPdAbilitySystemComponent* AbilitySystem = Cast<UPdAbilitySystemComponent>(PdPlayerState->GetAbilitySystemComponent()))
-			{
-				AbilitySystem->ProcessPendingInputReleases();
-			}
-		}
-	}
-	Super::PostProcessInput(DeltaTime, bGamePaused);
-}
-
 // 소유 클라이언트가 조종할 Pawn을 확인하면 입력·화면·외형 프로필을 갱신한다.
 void APdPlayerController::AcknowledgePossession(APawn* P)
 {

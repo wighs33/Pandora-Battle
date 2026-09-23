@@ -39,7 +39,6 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
-	virtual void PostProcessInput(float DeltaTime, bool bGamePaused) override;
 	virtual void AcknowledgePossession(APawn* P) override;
 
 	UFUNCTION(BlueprintCallable, Category = "!Camera|Clamp")

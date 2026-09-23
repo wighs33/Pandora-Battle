@@ -960,7 +960,7 @@ float USkillSummonAction::CalculateSummonTriggerDamageMagnitude() const
 		return 0.0f;
 	}
 
-	return GetAbility()->CalculateSkillDamageMagnitude(SkillDataAsset->GetResolvedDamageConfig());
+	return GetAbility()->CalculateDamageMagnitude(SkillDataAsset->GetResolvedDamageConfig());
 }
 
 void USkillSummonAction::CleanupSummonTasks()

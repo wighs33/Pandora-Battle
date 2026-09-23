@@ -16,8 +16,6 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
-#include "Common/CollisionChannels.h"
-#include "Common/LabGameplayTags.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -26,7 +24,6 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
-#include "GameplayEffect.h"
 #include "Map/MapLayerTrigger.h"
 #include "Map/OutOfBoundsRespawnVolume.h"
 #include "Materials/MaterialInterface.h"
@@ -821,7 +818,7 @@ FGameplayEffectSpecHandle USkillTargetedAreaAction::MakeDamageEffectSpec() const
 	}
 	const FSkillGameplayEffectConfig DamageConfig = SkillDataAsset->GetResolvedDamageConfig();
 	return GetAbility()->MakeConfiguredDamageEffectSpec(
-		DamageConfig, GetAbility()->CalculateSkillDamageMagnitude(DamageConfig));
+		DamageConfig, GetAbility()->CalculateDamageMagnitude(DamageConfig));
 }
 
 

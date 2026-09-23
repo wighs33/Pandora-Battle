@@ -5,7 +5,6 @@
 #include "AbilitySystem/Ability/SkillAbility.h"
 #include "Definition/AbilitySystem/SkillAreaSettings.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
-#include "Common/WeaponDefinitionData.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/OverlapResult.h"
 #include "GameplayEffectTypes.h"

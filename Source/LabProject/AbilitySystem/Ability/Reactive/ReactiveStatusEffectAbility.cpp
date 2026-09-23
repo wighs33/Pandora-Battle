@@ -169,7 +169,7 @@ void UReactiveStatusEffectAbility::ApplyDefaultSetByCallerMagnitudes(FGameplayEf
 
 	FSkillGameplayEffectConfig DamageConfig;
 	DamageConfig.Magnitude = StatusEffectDataAsset->GetDamageMagnitude();
-	const float SkillScaledDamage = CalculateSkillDamageMagnitude(DamageConfig);
+	const float SkillScaledDamage = CalculateDamageMagnitude(DamageConfig);
 	const UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
 	const UBasicAttributeSet* SourceAttributes = SourceASC ? SourceASC->GetSet<UBasicAttributeSet>() : nullptr;
 	UBasicAttributeSet::SetStatusEffectDamageOnSpec(

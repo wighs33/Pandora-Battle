@@ -1,7 +1,9 @@
 #include "Pandora/PandoraSkillSource.h"
 
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "AbilitySystemComponent.h"
+#include "Component/Pandora/PandoraComponent.h"
+#include "Mode/PdPlayerState.h"
 #include "Common/LabGameplayTags.h"
 #include "GameplayEffect.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -12,7 +14,6 @@
 void UPandoraSkillSource::Initialize(
 	const UPandoraDefinition* InPandoraDefinition,
 	const int32 InSkillIndex,
-	const int32 InPandoraLevel,
 	const EEnum_Direction InLoadoutDirection)
 {
 	if (PandoraDefinition != InPandoraDefinition)
@@ -24,12 +25,6 @@ void UPandoraSkillSource::Initialize(
 	{
 		SkillIndex = InSkillIndex;
 		MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraSkillSource, SkillIndex, this);
-	}
-	const int32 NewPandoraLevel = FMath::Max(InPandoraLevel, 1);
-	if (PandoraLevel != NewPandoraLevel)
-	{
-		PandoraLevel = NewPandoraLevel;
-		MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraSkillSource, PandoraLevel, this);
 	}
 	if (LoadoutDirection != InLoadoutDirection)
 	{
@@ -49,7 +44,8 @@ void UPandoraSkillSource::GetCooldownTimeRemainingAndDuration(float& OutRemainin
 	OutRemaining = 0.0f;
 	OutDuration = 0.0f;
 
-	const UAbilitySystemComponent* ASC = GetTypedOuter<UAbilitySystemComponent>();
+	const APdPlayerState* PlayerState = GetTypedOuter<APdPlayerState>();
+	const UAbilitySystemComponent* ASC = PlayerState ? PlayerState->GetAbilitySystemComponent() : nullptr;
 	if (!ASC || !ASC->GetWorld())
 	{
 		return;
@@ -83,14 +79,22 @@ void UPandoraSkillSource::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	Params.bIsPushBased = true;
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PandoraDefinition, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SkillIndex, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PandoraLevel, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, LoadoutDirection, Params);
 }
 
 void UPandoraSkillSource::OnRep_Source()
 {
-	if (UPdAbilitySystemComponent* ASC = GetTypedOuter<UPdAbilitySystemComponent>())
+	if (UPandoraComponent* Pandora = GetTypedOuter<UPandoraComponent>())
 	{
-		ASC->NotifyPandoraSourceReplicated(this);
+		Pandora->HandleSkillSourceReplicated(this);
 	}
+}
+
+void UPandoraSkillSource::PreDestroyFromReplication()
+{
+	if (UPandoraComponent* Pandora = GetTypedOuter<UPandoraComponent>())
+	{
+		Pandora->HandleSkillSourceDestroyed(this);
+	}
+	Super::PreDestroyFromReplication();
 }

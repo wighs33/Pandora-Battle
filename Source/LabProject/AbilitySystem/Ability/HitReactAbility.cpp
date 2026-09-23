@@ -114,12 +114,12 @@ UHitReactAbility::UHitReactAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Hit reactions may overlap as independent executions, but the ability
-	// instance itself has no state that clients need to replicate. GAS still
-	// propagates the ServerInitiated activation, montage and gameplay cues.
+	// instance itself has no state that clients need to replicate. Prediction,
+	// montage replication and gameplay cues use their own GAS paths.
 	// Replicating an InstancedPerExecution ability is unsupported by GAS.
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateNo;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	bRetriggerInstancedAbility = true;
 
 	FGameplayTagContainer AbilityAssetTags;

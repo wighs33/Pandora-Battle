@@ -2,6 +2,7 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/Ability/SkillAbility.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
@@ -393,6 +394,10 @@ bool UAbilitiesBarWidget::ShouldShowAbilityHandle(UAbilitySystemComponent* Abili
 	}
 
 	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle);
+	if (!AbilitySpec || !AbilitySpec->Ability || !AbilitySpec->Ability->IsA<USkillAbility>())
+	{
+		return false;
+	}
 	const USkillDefinition* SourceSkill = ResolveSourceSkillDataAsset(AbilitySpec);
 	// 판도라 스킬은 선택된 판도라의 전용 슬롯에서 표시한다.
 	return SourceSkill
@@ -510,7 +515,7 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 	for (const FGameplayAbilitySpecHandle& AbilityHandle : AbilityHandles)
 	{
 		const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
-		if (!AbilitySpec)
+		if (!AbilitySpec || !AbilitySpec->Ability || !AbilitySpec->Ability->IsA<USkillAbility>())
 		{
 			continue;
 		}

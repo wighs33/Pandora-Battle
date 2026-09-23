@@ -189,11 +189,11 @@ void UAbilityMovementManager::StartMovementContactDamage(UPdGameplayAbility& Abi
 	}
 
 	const FSkillGameplayEffectConfig DamageConfig = SkillDataAsset->GetResolvedDamageConfig();
-	if (!DamageConfig.GameplayEffectClass || Ability.CalculateSkillDamageMagnitude(DamageConfig) <= 0.0f)
+	if (!DamageConfig.GameplayEffectClass
+		|| Ability.CalculateDamageMagnitude(DamageConfig) <= 0.0f)
 	{
 		return;
 	}
-
 	bMovementContactDamageActive = true;
 	MovementContactOverlappingActors.Reset();
 	MovementContactDamagePreviousLocation = Character->GetCapsuleComponent()->GetComponentLocation();
@@ -359,7 +359,7 @@ void UAbilityMovementManager::ApplyMovementContactDamageToActor(UPdGameplayAbili
 		return;
 	}
 	const FSkillGameplayEffectConfig DamageConfig = SkillDataAsset->GetResolvedDamageConfig();
-	const float DamageMagnitude = Ability.CalculateSkillDamageMagnitude(DamageConfig);
+	const float DamageMagnitude = Ability.CalculateDamageMagnitude(DamageConfig);
 	if (!DamageConfig.GameplayEffectClass || DamageMagnitude <= 0.0f)
 	{
 		return;

@@ -12,10 +12,13 @@
 
 class UPandoraComponent;
 class UPandoraDefinition;
+class UPandoraSkillSource;
+class UPdAbilitySystemComponent;
 class UProjectTagConfig;
 class UItemDefinition;
 class ACharacterBase;
 struct FStreamableHandle;
+struct FGameplayAbilitySpec;
 
 DECLARE_LOG_CATEGORY_EXTERN(PandoraComponentLog, Log, All);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdPandoraSelectionChangedDelegate, UPandoraDefinition*, PandoraDefinition);
@@ -93,12 +96,14 @@ class LABPROJECT_API UPandoraComponent : public UPlayerStateComponent
 
 	friend struct FReplicatedPandoraEntry;
 	friend struct FReplicatedPandoraList;
+	friend class UPandoraSkillSource;
 
 public:
 	UPandoraComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// Engine Callbacks
 	virtual void BeginPlay() override;
+	virtual void ReadyForReplication() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -163,6 +168,12 @@ public:
 
 	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
 
+	// 능력 부여 전에 출처를 초기화하고, 컴포넌트가 보관과 복제 수명을 맡는다.
+	UPandoraSkillSource* CreateSkillSource(const UPandoraDefinition* Definition, int32 SkillIndex,
+		EEnum_Direction LoadoutDirection);
+	void ReleaseSkillSourceIfUnused(UPandoraSkillSource* Source,
+		FGameplayAbilitySpecHandle RemovedHandle = FGameplayAbilitySpecHandle());
+
 protected:
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedPandoraEntry& Entry);
 	void HandleReplicatedEntryRemoved(const UPandoraDefinition* PandoraDefinition);
@@ -222,6 +233,17 @@ public:
 	TArray<FPrimaryAssetId> AllPandroaDefinition;
 
 private:
+	void BindAbilityRemoval();
+	void HandleGrantedAbilityRemoved(const FGameplayAbilitySpec& Spec);
+	void HandleSkillSourceReplicated(UPandoraSkillSource* Source);
+	void HandleSkillSourceDestroyed(UPandoraSkillSource* Source);
+	void ReleaseSkillSourcesForEndPlay();
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPandoraSkillSource>> OwnedSkillSources;
+	TWeakObjectPtr<UPdAbilitySystemComponent> SourceAbilitySystemComponent;
+	FDelegateHandle AbilityRemovedHandle;
+
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (AllowPrivateAccess = "true"))
 	TArray<FGameplayTag> FilterTypeTags;
 

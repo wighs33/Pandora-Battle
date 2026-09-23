@@ -5,6 +5,7 @@
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "TimerManager.h"
+#include "Misc/ScopeExit.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityGrantAndInputManager)
 
@@ -211,14 +212,13 @@ void UAbilityGrantAndInputManager::HandleAbilityInputPressed(UPdAbilitySystemCom
 	for (const FGameplayAbilitySpecHandle Handle : Handles)
 	{
 		FGameplayAbilitySpec* Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
-		if (!Spec || !Spec->Ability || Spec->PendingRemove) continue;
+		if (!Spec || !Spec->Ability) continue;
 
 		const UPdGameplayAbility* Ability = Cast<UPdGameplayAbility>(Spec->Ability);
 		const bool bUsesInputRelease = Ability && Ability->UsesInputRelease(*Spec);
 		if (bUsesInputRelease)
 		{
 			HoldAbilityHandlesByInputTag.FindOrAdd(InputTag).AddUnique(Handle);
-			PendingHoldReleases.Remove(Handle);
 		}
 
 		Spec->InputPressed = true;
@@ -227,19 +227,11 @@ void UAbilityGrantAndInputManager::HandleAbilityInputPressed(UPdAbilitySystemCom
 			// 기본 공격의 콤보 입력과 스킬의 재입력도 즉시 전달한다.
 			SendInputToActiveAbility(AbilitySystemComponent, Handle, true);
 		}
-		else if (!PendingRemoteActivations.Contains(Handle))
+		else
 		{
-			const EGameplayAbilityNetExecutionPolicy::Type Policy = Spec->Ability->GetNetExecutionPolicy();
-			if (!AbilitySystemComponent.IsOwnerActorAuthoritative()
-				&& Policy == EGameplayAbilityNetExecutionPolicy::ServerInitiated)
-			{
-				PendingRemoteActivations.Add(Handle);
-			}
 			if (!AbilitySystemComponent.TryActivateAbility(Handle))
 			{
-				ClearAbilityInput(Handle);
-				if (FGameplayAbilitySpec* FailedSpec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle))
-					FailedSpec->InputPressed = false;
+				ClearAbilityInput(AbilitySystemComponent, Handle);
 			}
 		}
 
@@ -252,35 +244,49 @@ void UAbilityGrantAndInputManager::HandleAbilityInputPressed(UPdAbilitySystemCom
 	}
 }
 
-// 현재 슬롯 대신 누를 때 기록한 능력에 해제를 예약하고, 해당 입력 태그의 누름 기록을 제거한다.
-void UAbilityGrantAndInputManager::HandleAbilityInputReleased(const FGameplayTag& InputTag)
+// 누를 때 기록한 대상을 소비한 뒤, 해제 시점에 실행 중이던 시전에만 즉시 전달한다.
+void UAbilityGrantAndInputManager::HandleAbilityInputReleased(
+	UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayTag& InputTag)
 {
 	TArray<FGameplayAbilitySpecHandle> Handles;
 	HoldAbilityHandlesByInputTag.RemoveAndCopyValue(InputTag, Handles);
-	for (const FGameplayAbilitySpecHandle Handle : Handles) PendingHoldReleases.Add(Handle);
-}
-
-// 보관한 해제만 전달한다. 활성화 응답이 아직 도착하지 않았다면 다음 프레임에 다시 확인한다.
-void UAbilityGrantAndInputManager::ProcessPendingInputReleases(UPdAbilitySystemComponent& AbilitySystemComponent)
-{
-	const TArray<FGameplayAbilitySpecHandle> Handles = PendingHoldReleases.Array();
+	struct FReleaseTarget
+	{
+		FGameplayAbilitySpecHandle Handle;
+		TWeakObjectPtr<UGameplayAbility> Instance;
+		FPredictionKey PredictionKey;
+		bool bEnded = false;
+	};
+	TArray<FReleaseTarget> Targets;
 	FScopedAbilityListLock AbilityListLock(AbilitySystemComponent);
 	for (const FGameplayAbilitySpecHandle Handle : Handles)
 	{
 		FGameplayAbilitySpec* Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
-		if (!Spec || !Spec->Ability || Spec->PendingRemove)
-		{
-			ClearAbilityInput(Handle);
-			continue;
-		}
-		// 앞선 해제 콜백이 다른 능력을 종료했을 수 있다.
-		if (!PendingHoldReleases.Contains(Handle)) continue;
-
+		if (!Spec) continue;
+		// 모든 기존 누름 상태를 콜백 전에 정리해, 콜백에서 들어온 새 Press를 덮어쓰지 않는다.
 		Spec->InputPressed = false;
-		if (Spec->IsActive())
+		if (Spec->Ability && Spec->IsActive())
 		{
-			PendingHoldReleases.Remove(Handle);
-			SendInputToActiveAbility(AbilitySystemComponent, Handle, false);
+			Targets.Add({Handle, Spec->GetPrimaryInstance(), ResolveAbilityInputPredictionKey(*Spec)});
+		}
+	}
+
+	// 리슨 호스트의 시전은 예측 키가 없을 수 있다. 앞선 콜백이 같은 인스턴스를 재활성화해도
+	// 종료 통지로 이전 시전의 스냅샷을 무효화한다. 이 기록은 이번 Release 호출 동안만 존재한다.
+	const FDelegateHandle EndedHandle = AbilitySystemComponent.OnAbilityEnded.AddLambda([&Targets](const FAbilityEndedData& Data)
+	{
+		for (FReleaseTarget& Target : Targets)
+			if (Target.Handle == Data.AbilitySpecHandle) Target.bEnded = true;
+	});
+	ON_SCOPE_EXIT { AbilitySystemComponent.OnAbilityEnded.Remove(EndedHandle); };
+	for (const FReleaseTarget& Target : Targets)
+	{
+		const FGameplayAbilitySpec* Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Target.Handle);
+		if (!Target.bEnded && Spec && Spec->IsActive()
+			&& Spec->GetPrimaryInstance() == Target.Instance.Get()
+			&& ResolveAbilityInputPredictionKey(*Spec) == Target.PredictionKey)
+		{
+			SendInputToActiveAbility(AbilitySystemComponent, Target.Handle, false);
 		}
 	}
 }
@@ -289,6 +295,11 @@ void UAbilityGrantAndInputManager::ProcessPendingInputReleases(UPdAbilitySystemC
 void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 	UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayAbilitySpecHandle Handle, const bool bPressed)
 {
+	// 월드 전환 중에는 입력 기록만 소비하고, 사라진 Owner/Avatar에 콜백을 전달하지 않는다.
+	const auto ActorInfo = AbilitySystemComponent.AbilityActorInfo;
+	if (!ActorInfo.IsValid() || !ActorInfo->OwnerActor.IsValid() || !ActorInfo->AvatarActor.IsValid()
+		|| !ActorInfo->IsLocallyControlled()) return;
+	FScopedAbilityListLock AbilityListLock(AbilitySystemComponent);
 	FGameplayAbilitySpec* Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
 	if (!Spec || !Spec->IsActive())
 	{
@@ -296,6 +307,13 @@ void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 	}
 
 	const FPredictionKey PredictionKey = ResolveAbilityInputPredictionKey(*Spec);
+	const TWeakObjectPtr<UGameplayAbility> Instance = Spec->GetPrimaryInstance();
+	bool bEnded = false;
+	const FDelegateHandle EndedHandle = AbilitySystemComponent.OnAbilityEnded.AddLambda([&bEnded, Handle](const FAbilityEndedData& Data)
+	{
+		if (Data.AbilitySpecHandle == Handle) bEnded = true;
+	});
+	ON_SCOPE_EXIT { AbilitySystemComponent.OnAbilityEnded.Remove(EndedHandle); };
 	if (!bPressed)
 	{
 		const UPdGameplayAbility* Ability = Cast<UPdGameplayAbility>(Spec->GetPrimaryInstance());
@@ -307,11 +325,20 @@ void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 
 	// 타기팅 확정이나 InputReleased가 시전을 끝낼 수 있으므로 같은 시전에만 전달한다.
 	Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
-	if (!Spec || !Spec->IsActive() || ResolveAbilityInputPredictionKey(*Spec) != PredictionKey)
+	if (!ActorInfo->OwnerActor.IsValid() || !ActorInfo->AvatarActor.IsValid()
+		|| bEnded || !Spec || !Spec->IsActive()
+		|| Spec->GetPrimaryInstance() != Instance.Get() || ResolveAbilityInputPredictionKey(*Spec) != PredictionKey)
 	{
 		return;
 	}
 
+	// AbilitySpecInput*는 로컬 콜백만 호출한다. 엔진 AbilityLocalInput*와 같은 직접 RPC 경로를 유지한다.
+	// WaitInput* 태스크의 Generic Event 전송과는 별개이며, 이 RPC는 Generic Event를 발생시키지 않는다.
+	if (Spec->Ability->bReplicateInputDirectly && !AbilitySystemComponent.IsOwnerActorAuthoritative())
+	{
+		if (bPressed) AbilitySystemComponent.ServerSetInputPressed(Handle);
+		else AbilitySystemComponent.ServerSetInputReleased(Handle);
+	}
 	if (bPressed)
 	{
 		AbilitySystemComponent.AbilitySpecInputPressed(*Spec);
@@ -322,7 +349,9 @@ void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 	}
 
 	Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
-	if (Spec && Spec->IsActive() && ResolveAbilityInputPredictionKey(*Spec) == PredictionKey)
+	if (ActorInfo->OwnerActor.IsValid() && ActorInfo->AvatarActor.IsValid()
+		&& !bEnded && Spec && Spec->IsActive()
+		&& Spec->GetPrimaryInstance() == Instance.Get() && ResolveAbilityInputPredictionKey(*Spec) == PredictionKey)
 	{
 		// Handle과 PredictionKey로 구분한 시전의 입력 이벤트를 발생시켜 WaitInputPress/WaitInputRelease 태스크에 전달한다.
 		// 이 호출 자체가 RPC를 보내는 것은 아니며, 필요한 서버 전송은 입력 대기 태스크가 처리한다.
@@ -332,13 +361,18 @@ void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 }
 
 // 종료·실패·회수된 능력의 입력 상태와 모든 입력 태그에 남은 핸들 기록을 함께 제거한다.
-void UAbilityGrantAndInputManager::ClearAbilityInput(const FGameplayAbilitySpecHandle Handle)
+void UAbilityGrantAndInputManager::ClearAbilityInput(UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayAbilitySpecHandle Handle)
 {
-	PendingHoldReleases.Remove(Handle);
-	PendingRemoteActivations.Remove(Handle);
+	if (FGameplayAbilitySpec* Spec =
+		AbilitySystemComponent.FindAbilitySpecFromHandle(Handle))
+	{
+		Spec->InputPressed = false;
+	}
+
 	for (auto It = HoldAbilityHandlesByInputTag.CreateIterator(); It; ++It)
 	{
 		It.Value().Remove(Handle);
+
 		if (It.Value().IsEmpty())
 		{
 			It.RemoveCurrent();

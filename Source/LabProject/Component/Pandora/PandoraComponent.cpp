@@ -17,6 +17,7 @@
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 #include "Pandora/PandoraSkillBinder.h"
+#include "Pandora/PandoraSkillSource.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraComponent)
@@ -66,6 +67,7 @@ UPandoraComponent::UPandoraComponent(const FObjectInitializer& ObjectInitializer
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
+	bReplicateUsingRegisteredSubObjectList = true;
 	ReplicatedEntries.Owner = this;
 }
 
@@ -96,6 +98,7 @@ void UPandoraComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		ClearGrantedPandoraContent();
 	}
+	ReleaseSkillSourcesForEndPlay();
 
 	CachedCharacterOwner.Reset();
 	ReplicatedEntries.Owner = nullptr;
@@ -721,7 +724,7 @@ void UPandoraComponent::RefreshCurrentPandoraForWeaponChange()
 	if (ASC && CurrentPandoraDefinition && bApplyPandoraContentOnSelection && bCompatibleWithCurrentWeapon)
 	{
 		GrantedPandoraAbilityHandles.Append(FPandoraSkillBinder::GrantPandoraContent(
-			ASC, CurrentPandoraDefinition, RuntimeLevel, EffectiveLoadoutDirection));
+			this, ASC, CurrentPandoraDefinition, RuntimeLevel, EffectiveLoadoutDirection));
 
 	}
 
@@ -744,6 +747,13 @@ void UPandoraComponent::ClearGrantedPandoraContent()
 	}
 
 	GrantedPandoraAbilityHandles.Reset();
+	// 부여 실패나 GAS의 대기 중 추가 취소로 회수 콜백이 없었던 출처도 정리한다.
+	// 목록 잠금으로 회수가 보류된 능력의 출처는 실제 회수 이벤트까지 유지한다.
+	const TArray<TObjectPtr<UPandoraSkillSource>> Sources = OwnedSkillSources;
+	for (UPandoraSkillSource* Source : Sources)
+	{
+		ReleaseSkillSourceIfUnused(Source);
+	}
 }
 
 int32 UPandoraComponent::ResolveSelectedPandoraRuntimeLevel(const UPandoraDefinition* PandoraDefinition) const
@@ -914,6 +924,7 @@ void UPandoraComponent::OnRep_PandoraLoadoutSlots()
 
 void UPandoraComponent::NotifyPandoraSelectionChanged()
 {
+	// 서버는 스킬 부여와 입력 연결을 마친 뒤, 클라이언트는 선택 복제를 받은 뒤 갱신한다.
 	APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
 	if (UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(
 		PlayerStateOwner ? PlayerStateOwner->GetAbilitySystemComponent() : nullptr))
@@ -1217,4 +1228,134 @@ const FReplicatedPandoraEntry* UPandoraComponent::FindReplicatedEntryByDefinitio
 {
 	const int32 EntryIndex = FindReplicatedEntryIndexByDefinition(PandoraDefinition);
 	return EntryIndex != INDEX_NONE ? &ReplicatedEntries.Entries[EntryIndex] : nullptr;
+}
+
+
+// ----------------------------------------------------------------------------------------------------------------------
+
+void UPandoraComponent::BindAbilityRemoval()
+{
+	if (AbilityRemovedHandle.IsValid())
+	{
+		return;
+	}
+	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
+	UPdAbilitySystemComponent* ASC = PlayerState
+		? Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent()) : nullptr;
+	if (ASC && HasPandoraAuthority())
+	{
+		SourceAbilitySystemComponent = ASC;
+		AbilityRemovedHandle = ASC->OnAbilityRemovedNative.AddUObject(this, &ThisClass::HandleGrantedAbilityRemoved);
+	}
+}
+
+UPandoraSkillSource* UPandoraComponent::CreateSkillSource(const UPandoraDefinition* Definition,
+	const int32 SkillIndex, const EEnum_Direction LoadoutDirection)
+{
+	if (!HasPandoraAuthority() || !Definition || !Definition->GetSkillDefinition(SkillIndex))
+	{
+		return nullptr;
+	}
+	BindAbilityRemoval();
+	if (!SourceAbilitySystemComponent.IsValid())
+	{
+		return nullptr;
+	}
+
+	UPandoraSkillSource* Source = NewObject<UPandoraSkillSource>(this);
+	Source->Initialize(Definition, SkillIndex, LoadoutDirection);
+	OwnedSkillSources.Add(Source);
+	if (IsReadyForReplication())
+	{
+		AddReplicatedSubObject(Source);
+	}
+	return Source;
+}
+
+void UPandoraComponent::ReadyForReplication()
+{
+	Super::ReadyForReplication();
+	if (!HasPandoraAuthority())
+	{
+		return;
+	}
+	BindAbilityRemoval();
+	// 능력 부여 여부와 무관하게, 복제 준비 전에 생성된 출처도 등록한다.
+	for (UPandoraSkillSource* Source : OwnedSkillSources)
+	{
+		if (IsValid(Source))
+		{
+			AddReplicatedSubObject(Source);
+		}
+	}
+}
+
+void UPandoraComponent::HandleGrantedAbilityRemoved(const FGameplayAbilitySpec& Spec)
+{
+	ReleaseSkillSourceIfUnused(Cast<UPandoraSkillSource>(Spec.SourceObject.Get()), Spec.Handle);
+}
+
+void UPandoraComponent::ReleaseSkillSourceIfUnused(UPandoraSkillSource* Source, const FGameplayAbilitySpecHandle RemovedHandle)
+{
+	if (!HasPandoraAuthority() || !IsValid(Source) || Source->GetOuter() != this
+		|| !OwnedSkillSources.Contains(Source))
+	{
+		return;
+	}
+	if (const UPdAbilitySystemComponent* ASC = SourceAbilitySystemComponent.Get())
+	{
+		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+		{
+			// 회수 콜백은 Spec이 목록에서 삭제되기 전에 실행된다.
+			if (Spec.Handle != RemovedHandle && Spec.SourceObject.Get() == Source)
+			{
+				return;
+			}
+		}
+	}
+	DestroyReplicatedSubObjectOnRemotePeers(Source);
+	OwnedSkillSources.Remove(Source);
+}
+
+void UPandoraComponent::HandleSkillSourceReplicated(UPandoraSkillSource* Source)
+{
+	if (!IsValid(Source) || Source->GetOuter() != this)
+	{
+		return;
+	}
+	// 클라이언트에서는 SourceObject의 약한 참조와 별개로 출처를 보관한다.
+	OwnedSkillSources.AddUnique(Source);
+	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
+	if (UPdAbilitySystemComponent* ASC = PlayerState
+		? Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent()) : nullptr)
+	{
+		// LocalPredicted 시전의 성공 응답은 GAS가 확인만 한다. 출처 수신은 UI 준비 상태만 갱신한다.
+		ASC->OnAbilitiesChangedNative.Broadcast();
+	}
+}
+
+void UPandoraComponent::HandleSkillSourceDestroyed(UPandoraSkillSource* Source)
+{
+	OwnedSkillSources.Remove(Source);
+}
+
+void UPandoraComponent::ReleaseSkillSourcesForEndPlay()
+{
+	if (UPdAbilitySystemComponent* ASC = SourceAbilitySystemComponent.Get())
+	{
+		ASC->OnAbilityRemovedNative.Remove(AbilityRemovedHandle);
+	}
+	AbilityRemovedHandle.Reset();
+	SourceAbilitySystemComponent.Reset();
+	if (HasPandoraAuthority())
+	{
+		for (UPandoraSkillSource* Source : OwnedSkillSources)
+		{
+			if (IsValid(Source))
+			{
+				DestroyReplicatedSubObjectOnRemotePeers(Source);
+			}
+		}
+	}
+	OwnedSkillSources.Reset();
 }

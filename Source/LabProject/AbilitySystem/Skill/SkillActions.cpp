@@ -206,8 +206,7 @@ void USkillSpawnActorAction::OnStart()
 	Spawned->SetReplicates(true);
 	if (AEffectAreaBase* Area = Cast<AEffectAreaBase>(Spawned))
 	{
-		if (const UPandoraSkillSource* Source = Ability->GetPandoraSkillSource())
-			Area->SetSourcePandoraLoadoutDirection(Source->GetLoadoutDirection());
+		Area->SetSourcePandoraLoadoutDirection(Ability->GetPandoraSkillSource()->GetLoadoutDirection());
 	}
 	UGameplayStatics::FinishSpawningActor(Spawned, Transform);
 	const float ActorLifeSpan = FMath::Max(LifeSpan, 0.01f);

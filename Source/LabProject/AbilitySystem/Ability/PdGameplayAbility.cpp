@@ -13,7 +13,6 @@
 #include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Component/AbilitySystem/Ability/AbilityCostAndCooldownManager.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/Pandora/PandoraComponent.h"
 #include "Pandora/PandoraSkillSource.h"
 #include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Component/Player/EquipmentComponent.h"
@@ -24,7 +23,6 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
-#include "Mode/PdPlayerState.h"
 #include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdGameplayAbility)
@@ -36,7 +34,7 @@
 UPdGameplayAbility::UPdGameplayAbility(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
 	ActivationBlockedTags.AddTag(LabGameplayTags::State_Dead);
 	CooldownRemovalPolicyTags.AddTag(LabGameplayTags::Effect_Policy_RemoveOnDeath);
@@ -48,75 +46,13 @@ UPdGameplayAbility::UPdGameplayAbility(const FObjectInitializer& ObjectInitializ
 	check(CostAndCooldownManager && MovementManager && PresentationManager);
 }
 
-// 새 시전 전에 판도라 출처가 준비되었고 해당 판도라가 선택 상태인지 검사한다.
-// 이 조건을 통과하면 비용·쿨다운 등 GAS의 기본 시전 조건도 확인한다.
-bool UPdGameplayAbility::CanActivateAbility(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
-{
-	const UAbilitySystemComponent* ASC = ActorInfo ?
-		ActorInfo->AbilitySystemComponent.Get() : nullptr;
-
-	const FGameplayAbilitySpec* Spec = ASC ?
-		ASC->FindAbilitySpecFromHandle(Handle) : nullptr;
-
-	if (Spec && Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora))
-	{
-		const UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(Spec->SourceObject.Get());
-		if (!Source || !Source->IsSourceReady() ||
-			!Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Pandora_Selected))
-		{
-			return false;
-		}
-	}
-	return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
-}
-
-// 시전 시작 직전 서버에서 출처의 판도라 슬롯 방향을 갱신하고, 이전 시전의 연출 액터를 정리한다.
-// 입력형 스킬이 시작될 때 진행 중인 무기 장착·해제 능력을 취소해 스킬 동작과 겹치지 않게 한다.
+// 새 시전이 시작되기 전에 이전 시전에서 남은 연출 액터를 정리한다.
 void UPdGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate,
 	const FGameplayEventData* TriggerEventData)
 {
-	// 새 시전 직전에만 방향을 갱신한다. 교체 도중 실행 중인 시전의 출처는 변경하지 않는다.
-	if (ActorInfo && ActorInfo->IsNetAuthority())
-	{
-		const APdPlayerState* PlayerState = Cast<APdPlayerState>(ActorInfo->OwnerActor.Get());
-		const UPandoraComponent* Pandora = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
-		const FGameplayAbilitySpec* Spec = ActorInfo->AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
-		UPandoraSkillSource* Source = Spec ? Cast<UPandoraSkillSource>(Spec->SourceObject.Get()) : nullptr;
-
-		if (Source && Pandora && Source->GetPandoraDefinition() == Pandora->GetCurrentPandoraDefinition())
-		{
-			Source->Initialize(
-				Source->GetPandoraDefinition(), Source->GetSkillIndex(),
-				Source->GetPandoraLevel(), Pandora->GetCurrentPandoraLoadoutDirection());
-		}
-	}
 	Super::PreActivate(Handle, ActorInfo, ActivationInfo, OnGameplayAbilityEndedDelegate, TriggerEventData);
 	DestroyActiveSkillPresentationActor();
-
-	UPdAbilitySystemComponent* AbilitySystemComponent = ActorInfo ?
-		Cast<UPdAbilitySystemComponent>(ActorInfo->AbilitySystemComponent.Get()) : nullptr;
-
-	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent ?
-		AbilitySystemComponent->FindAbilitySpecFromHandle(Handle) : nullptr;
-
-	const USkillDefinition* SkillDefinition =
-		ResolveSourceSkillDataAsset(AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr);
-
-	// 모든 스킬은 실행 전에 장비 전환과의 충돌을 해소한다.
-	if (!AbilitySystemComponent || !SkillDefinition)
-	{
-		return;
-	}
-
-	FGameplayTagContainer EquipmentTransitionTags;
-	EquipmentTransitionTags.AddTag(LabGameplayTags::Action_Equip);
-	EquipmentTransitionTags.AddTag(LabGameplayTags::Action_Unequip);
-	if (AbilitySystemComponent->HasActiveAbilityWithTags(EquipmentTransitionTags))
-	{
-		AbilitySystemComponent->CancelAbilities(&EquipmentTransitionTags, nullptr, this);
-	}
 }
 
 // GAS의 시전 확정과 비용 처리가 성공하면 설정에 따라 이동을 멈추고 자기 버프를 적용한다.
@@ -432,12 +368,6 @@ USkillDefinition* UPdGameplayAbility::GetSourceSkillDataAsset() const
 	return const_cast<USkillDefinition*>(ResolveSourceSkillDataAsset(GetCurrentSourceObject()));
 }
 
-// 현재 능력에 부여된 판도라·스킬 번호·레벨·슬롯 방향 정보를 가져와 출처별 피해 보정과 쿨다운에 사용한다.
-UPandoraSkillSource* UPdGameplayAbility::GetPandoraSkillSource() const
-{
-	return Cast<UPandoraSkillSource>(GetCurrentSourceObject());
-}
-
 // Press 스킬은 입력 해제가 필요하다. 그래플처럼 별도 해제 동작이 있는 능력은 이 정책을 재정의한다.
 bool UPdGameplayAbility::UsesInputRelease(const FGameplayAbilitySpec& Spec) const
 {
@@ -474,34 +404,36 @@ AActor* UPdGameplayAbility::GetAttackTargetFromAvatar() const
 	return TargetCharacter && TargetCharacter->IsDead() ? nullptr : AttackTarget;
 }
 
-// 피해량과 상태 효과
-
-// 기본 피해량에 지능·판도라 슬롯 보너스를 적용한 최종 스킬 피해량을 계산한다.
-float UPdGameplayAbility::CalculateSkillDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const
+// 모든 공격 Ability의 기본 피해 보정으로 시전자의 지능을 사용한다.
+// Pandora 등 추가 보정은 파생 Ability에서 이 함수를 재정의해 더한다.
+float UPdGameplayAbility::GetDamageBonusPercent() const
 {
-	const float BaseDamage = static_cast<float>(FMath::Max(DamageConfig.Magnitude, 0.0));
-	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	const UBasicAttributeSet* Attributes = ASC ? ASC->GetSet<UBasicAttributeSet>() : nullptr;
-	float DamageBonusPercent = Attributes ? FMath::Max(Attributes->GetIntelligence(), 0.0f) : 0.0f;
-	const UPandoraSkillSource* Source = GetPandoraSkillSource();
-	if (Attributes && Source)
-	{
-		switch (Source->GetLoadoutDirection())
-		{
-		case EEnum_Direction::Left:
-			DamageBonusPercent += FMath::Max(Attributes->GetFirstPandora(), 0.0f);
-			break;
-		case EEnum_Direction::Up:
-			DamageBonusPercent += FMath::Max(Attributes->GetSecondPandora(), 0.0f);
-			break;
-		case EEnum_Direction::Right:
-			DamageBonusPercent += FMath::Max(Attributes->GetThirdPandora(), 0.0f);
-			break;
-		default:
-			break;
-		}
-	}
-	return static_cast<float>(FMath::Max(BaseDamage, 0.0f) * (1.0 + static_cast<double>(DamageBonusPercent) * 0.01));
+	const UAbilitySystemComponent* ASC =
+		GetAbilitySystemComponentFromActorInfo();
+
+	const UBasicAttributeSet* Attributes =
+		ASC ? ASC->GetSet<UBasicAttributeSet>() : nullptr;
+
+	return Attributes
+		? FMath::Max(Attributes->GetIntelligence(), 0.0f)
+		: 0.0f;
+}
+
+// 기본 피해량에 이 Ability가 제공하는 피해 보정률을 적용한다.
+// 기본 구현은 지능을 사용하며, 스킬처럼 추가 보정이 필요한 파생 능력은 GetDamageBonusPercent()를 재정의한다.
+float UPdGameplayAbility::CalculateDamageMagnitude(
+	const FSkillGameplayEffectConfig& DamageConfig) const
+{
+	const float BaseDamage =
+		static_cast<float>(FMath::Max(DamageConfig.Magnitude, 0.0));
+
+	const float DamageBonusPercent =
+		GetDamageBonusPercent();
+
+	return static_cast<float>(
+		BaseDamage
+		* (1.0
+			+ static_cast<double>(DamageBonusPercent) * 0.01));
 }
 
 // 공격자·출처·능력 레벨과 계산된 피해량을 담은 GameplayEffectSpec을 만들어 적중 처리에 넘긴다.

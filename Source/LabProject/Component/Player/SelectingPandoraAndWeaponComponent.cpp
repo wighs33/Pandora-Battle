@@ -59,15 +59,18 @@ void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 	}
 
 	const EEnum_Direction SelectedDirection = PandoraLoadout::GetDirectionFromLoadoutNumber(SelectedPandoraAndWeaponNumber);
-	APawn* Pawn = PlayerState->GetPawn();
-	UEquipmentComponent* Equipment = Pawn ? Pawn->FindComponentByClass<UEquipmentComponent>() : nullptr;
 
-	// * 방향에 맞는 무기를 장착한다.
-	if (Equipment)
+	APawn* Pawn = PlayerState->GetPawn();
+	if (!Pawn)
+	{
+		return;
+	}
+
+	// 무기 장착 처리
+	if (UEquipmentComponent* Equipment = Pawn->FindComponentByClass<UEquipmentComponent>())
 	{
 		const UInventoryComponent* Inventory = PlayerState->FindComponentByClass<UInventoryComponent>();
-		UItemInstance* SelectedWeapon = Inventory ? Inventory->FindWeaponForLoadoutSlot(SelectedDirection) : nullptr;
-		if (SelectedWeapon)
+		if (UItemInstance* SelectedWeapon = Inventory ? Inventory->FindWeaponForLoadoutSlot(SelectedDirection) : nullptr)
 		{
 			Equipment->RequestWeaponSelectionForDirection(SelectedDirection, SelectedWeapon);
 		}
@@ -77,14 +80,14 @@ void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 		}
 	}
 
-	// * 방향에 맞는 판도라를 장착한다.
+	// 판도라 장착 처리
 	if (UPandoraComponent* PandoraComponent = PlayerState->FindComponentByClass<UPandoraComponent>())
 	{
-		const UPandoraDefinition* PandoraDefinition = PandoraComponent->GetPandoraLoadoutDefinition(SelectedDirection);
+		const UPandoraDefinition* PandoraDefinition =
+			PandoraComponent->GetPandoraLoadoutDefinition(SelectedDirection);
 
-		// 빈 슬롯도 선택한 방향은 유지하고, 판도라와 방향이 같으면 다시 적용하지 않는다.
-		if (PandoraComponent->GetCurrentPandoraDefinition() != PandoraDefinition
-			|| PandoraComponent->GetCurrentPandoraLoadoutDirection() != SelectedDirection)
+		if (PandoraComponent->GetCurrentPandoraDefinition() != PandoraDefinition ||
+			PandoraComponent->GetCurrentPandoraLoadoutDirection() != SelectedDirection)
 		{
 			PandoraComponent->RequestPandoraSelectionForDirection(SelectedDirection, PandoraDefinition);
 		}

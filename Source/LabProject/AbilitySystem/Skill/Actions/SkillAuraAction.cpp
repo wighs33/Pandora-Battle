@@ -233,10 +233,8 @@ void USkillAuraAction::SpawnAuraEffectArea(const USkillDefinition* SkillDataAsse
 		SpawnedArea->SetSourceActor(Character);
 		SpawnedArea->SetIgnoreSourceActor(AuraConfig->bEffectAreaIgnoreSourceActor);
 		SpawnedArea->SetAffectEnemiesOnly(AuraConfig->bEffectAreaAffectEnemiesOnly);
-		if (const UPandoraSkillSource* SkillSource = GetAbility()->GetPandoraSkillSource())
-		{
-			SpawnedArea->SetSourcePandoraLoadoutDirection(SkillSource->GetLoadoutDirection());
-		}
+		SpawnedArea->SetSourcePandoraLoadoutDirection(
+			GetAbility()->GetPandoraSkillSource()->GetLoadoutDirection());
 
 		if (AuraConfig->EffectAreaLifeSpan > 0.0)
 		{

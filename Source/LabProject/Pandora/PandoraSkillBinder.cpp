@@ -3,6 +3,7 @@
 #include "AbilitySystem/Ability/SkillAbility.h"
 #include "Component/AbilitySystem/AbilityGrantAndInputManager.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/Pandora/PandoraComponent.h"
 #include "Common/LabGameplayTags.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraSkillSource.h"
@@ -37,11 +38,12 @@ namespace
 }
 
 TArray<FGameplayAbilitySpecHandle> FPandoraSkillBinder::GrantPandoraContent(
-	UPdAbilitySystemComponent* ASC, const UPandoraDefinition* Definition, const int32 PandoraLevel,
+	UPandoraComponent* SourceOwner, UPdAbilitySystemComponent* ASC, const UPandoraDefinition* Definition, const int32 PandoraLevel,
 	const EEnum_Direction LoadoutDirection)
 {
 	TArray<FGameplayAbilitySpecHandle> NewHandles;
-	if (!ASC || !ASC->IsOwnerActorAuthoritative() || !Definition)
+	if (!SourceOwner || !ASC || SourceOwner->GetOwner() != ASC->GetOwner()
+		|| !ASC->IsOwnerActorAuthoritative() || !Definition)
 	{
 		return NewHandles;
 	}
@@ -66,13 +68,16 @@ TArray<FGameplayAbilitySpecHandle> FPandoraSkillBinder::GrantPandoraContent(
 			if (!ExistingSpec->IsActive())
 			{
 				CastChecked<UPandoraSkillSource>(ExistingSpec->SourceObject.Get())->Initialize(
-					Definition, SkillIndex, SkillLevel, LoadoutDirection);
+					Definition, SkillIndex, LoadoutDirection);
 			}
 			continue;
 		}
 
-		UPandoraSkillSource* Source = NewObject<UPandoraSkillSource>(ASC);
-		Source->Initialize(Definition, SkillIndex, SkillLevel, LoadoutDirection);
+		UPandoraSkillSource* Source = SourceOwner->CreateSkillSource(Definition, SkillIndex, LoadoutDirection);
+		if (!Source)
+		{
+			continue;
+		}
 		FGameplayAbilitySpec Spec(AbilityClass, SkillLevel, INDEX_NONE, Source);
 		Spec.GetDynamicSpecSourceTags().AppendTags(Skill->Activation.Tags);
 		Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Ability_Source_Pandora);
@@ -91,13 +96,16 @@ TArray<FGameplayAbilitySpecHandle> FPandoraSkillBinder::GrantPandoraContent(
 				UAbilityGrantAndInputManager::TryActivateGrantedAbilityNextTick(ASC, Handle);
 			}
 		}
+		else
+		{
+			SourceOwner->ReleaseSkillSourceIfUnused(Source);
+		}
 	}
 	return NewHandles;
 }
 
 // 인벤토리 전체 초기화나 기능 종료에서만 회수한다. 단순 선택 변경은 이 경로를 사용하지 않는다.
-void FPandoraSkillBinder::RemoveGrantedContent(
-	UPdAbilitySystemComponent* ASC, const TArray<FGameplayAbilitySpecHandle>& AbilityHandles)
+void FPandoraSkillBinder::RemoveGrantedContent(UPdAbilitySystemComponent* ASC, const TArray<FGameplayAbilitySpecHandle>& AbilityHandles)
 {
 	if (!ASC || !ASC->IsOwnerActorAuthoritative())
 	{
@@ -158,5 +166,4 @@ void FPandoraSkillBinder::RefreshInputBindings(
 			ASC->MarkAbilitySpecDirty(Spec);
 		}
 	}
-	ASC->OnAbilitiesChangedNative.Broadcast();
 }

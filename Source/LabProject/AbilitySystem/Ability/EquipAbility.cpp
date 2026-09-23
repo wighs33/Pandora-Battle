@@ -193,9 +193,8 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	FEquipData EquipData;
 	if (!EquipmentComponent->GetEquipData(EquipData))
 	{
-		// ServerInitiated activation can reach the owning client after its
-		// transient requested-weapon state was cleared by a skill interrupt.
-		// The replicated current weapon remains the safe presentation source.
+		// A skill interrupt may clear the requested weapon. Restore the current weapon's layer
+		// and finish without committing a stale equipment request.
 		EquipmentComponent->RefreshCurrentWeaponAnimationLayer();
 		EndAbility(
 			Handle,

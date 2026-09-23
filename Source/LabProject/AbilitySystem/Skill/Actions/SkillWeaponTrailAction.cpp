@@ -87,7 +87,7 @@ void USkillWeaponTrailAction::OnStart()
 
 	const FSkillGameplayEffectConfig AdditionalDamageConfig = SkillDataAsset->GetResolvedDamageConfig();
 	const float AdditionalDamageMagnitude = AdditionalDamageConfig.GameplayEffectClass
-		? GetAbility()->CalculateSkillDamageMagnitude(AdditionalDamageConfig)
+		? GetAbility()->CalculateDamageMagnitude(AdditionalDamageConfig)
 		: 0.0f;
 	const FGameplayEffectSpecHandle DebuffEffectSpecHandle =
 		GetAbility()->MakeConfiguredStatusEffectSpec(SkillDataAsset);

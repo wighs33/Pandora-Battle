@@ -18,11 +18,11 @@ public:
 	void Initialize(
 		const UPandoraDefinition* InPandoraDefinition,
 		int32 InSkillIndex,
-		int32 InPandoraLevel,
 		EEnum_Direction InLoadoutDirection = EEnum_Direction::Center);
 
 	virtual bool IsSupportedForNetworking() const override { return true; }
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void PreDestroyFromReplication() override;
 
 	bool IsSourceReady() const { return GetSkillDataAsset() != nullptr; }
 
@@ -39,9 +39,6 @@ public:
 	int32 GetSkillIndex() const { return SkillIndex; }
 
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
-	int32 GetPandoraLevel() const { return PandoraLevel; }
-
-	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	EEnum_Direction GetLoadoutDirection() const { return LoadoutDirection; }
 
 private:
@@ -53,9 +50,6 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
 	int32 SkillIndex = INDEX_NONE;
-
-	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
-	int32 PandoraLevel = 1;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
 	EEnum_Direction LoadoutDirection = EEnum_Direction::Center;
