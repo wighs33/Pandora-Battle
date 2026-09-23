@@ -197,20 +197,20 @@ void ULeftSkinWidget::RebuildEquipSlotNameList()
 {
 	EquipSlotNameList =
 		{
-			FText::FromString(TEXT("Hat")),
-			FText::FromString(TEXT("Top")),
-			FText::FromString(TEXT("Bottom")),
-			FText::FromString(TEXT("Shoes")),
-			FText::FromString(TEXT("Head")),
-			FText::FromString(TEXT("Skin Color")),
-			FText::FromString(TEXT("Back")),
-			FText::FromString(TEXT("Aura")),
+			MenuTextOrFallback(TEXT("Info.Hat"), FText::FromString(TEXT("Hat"))),
+			MenuTextOrFallback(TEXT("Info.Top"), FText::FromString(TEXT("Top"))),
+			MenuTextOrFallback(TEXT("Info.Bottom"), FText::FromString(TEXT("Bottom"))),
+			MenuTextOrFallback(TEXT("Info.Shoes"), FText::FromString(TEXT("Shoes"))),
+			MenuTextOrFallback(TEXT("Info.Head"), FText::FromString(TEXT("Head"))),
+			MenuTextOrFallback(TEXT("Info.SkinColor"), FText::FromString(TEXT("Skin Color"))),
+			MenuTextOrFallback(TEXT("Info.Back"), FText::FromString(TEXT("Back"))),
+			MenuTextOrFallback(TEXT("Info.Aura"), FText::FromString(TEXT("Aura"))),
 			FText::FromString(TEXT("1")),
 			FText::FromString(TEXT("2")),
 			FText::FromString(TEXT("3")),
 			FText::FromString(TEXT("4")),
-			FText::FromString(TEXT("Riding")),
-			FText::FromString(TEXT("Pet")),
+			MenuTextOrFallback(TEXT("Info.Riding"), FText::FromString(TEXT("Riding"))),
+			MenuTextOrFallback(TEXT("Info.Pet"), FText::FromString(TEXT("Pet"))),
 		};
 }
 
@@ -382,4 +382,10 @@ APdPlayer* ULeftSkinWidget::GetOwningPdPlayer() const
 {
 	const APlayerController* PlayerController = GetOwningPlayer();
 	return PlayerController ? Cast<APdPlayer>(PlayerController->GetPawn()) : nullptr;
+}
+
+void ULeftSkinWidget::OnMenuLanguageChanged()
+{
+ RebuildEquipSlotNameList();
+ ApplyEquipSlotNames();
 }

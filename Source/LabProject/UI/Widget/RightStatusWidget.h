@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
 
 #include "RightStatusWidget.generated.h"
@@ -11,7 +11,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedStatUpButton, FGameplayT
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedStatDownButton, FGameplayTag, StatTag);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URightStatusWidget : public UUserWidget
+class LABPROJECT_API URightStatusWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 

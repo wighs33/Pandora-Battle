@@ -4,6 +4,7 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "UI/Shop/ShopEntryViewData.h"
+#include "Settings/MenuLocalizationSubsystem.h"
 #include "UI/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopPreviewPanelWidget)
@@ -33,9 +34,14 @@ void UShopPreviewPanelWidget::NativeDestruct()
 
 void UShopPreviewPanelWidget::SetEntryData(UShopEntryViewData* InEntryData)
 {
-	if (EntryData != InEntryData)
+	// Catalog refresh replaces view-data objects after a purchase. Preserve the
+	// localized result message while the same product is still selected.
+	if (!EntryData || !InEntryData || EntryData->GetProductObject() != InEntryData->GetProductObject()
+		|| EntryData->GetProductType() != InEntryData->GetProductType())
 	{
 		MessageText = FText::GetEmpty();
+		MessageKey = NAME_None;
+		MessageProduct = nullptr;
 	}
 
 	EntryData = InEntryData;
@@ -44,7 +50,17 @@ void UShopPreviewPanelWidget::SetEntryData(UShopEntryViewData* InEntryData)
 
 void UShopPreviewPanelWidget::SetMessage(const FText& Message)
 {
+	MessageKey = NAME_None;
+	MessageProduct = nullptr;
 	MessageText = Message;
+	ApplyMessage();
+}
+
+void UShopPreviewPanelWidget::SetLocalizedMessage(FName Key, const FText& Fallback, UObject* Product)
+{
+	MessageKey = Key;
+	MessageText = Fallback;
+	MessageProduct = Product;
 	ApplyMessage();
 }
 
@@ -177,10 +193,17 @@ void UShopPreviewPanelWidget::ApplyMessage()
 	if (Txt_Message)
 	{
 		const FShopEntryUiData* UiData = EntryData ? &EntryData->GetUiData() : nullptr;
-		const FText EffectiveOwnedText = OwnedText.IsEmpty()
-			? NSLOCTEXT("ShopPreviewPanelWidget", "OwnedFallbackText", "Owned")
-			: OwnedText;
-		const FText EffectiveMessage = (UiData && UiData->bValid && UiData->bOwned) ? EffectiveOwnedText : MessageText;
+		FText EffectiveMessage = MessageKey.IsNone() ? MessageText : MenuTextOrFallback(MessageKey, MessageText);
+		if (MessageProduct)
+		{
+			const UMenuLocalizationSubsystem* Localization = GetLocalization();
+			const FText Name = Localization
+				? Localization->GetProductText(MessageProduct, TEXT("Name"), FText::FromName(MessageProduct->GetFName()))
+				: FText::FromName(MessageProduct->GetFName());
+			EffectiveMessage = FText::Format(EffectiveMessage, Name);
+		}
+		if (UiData && UiData->bValid && UiData->bOwned && EffectiveMessage.IsEmpty())
+			EffectiveMessage = MenuTextOrFallback(TEXT("Shop.Owned"), OwnedText);
 		Txt_Message->SetText(EffectiveMessage);
 		Txt_Message->SetVisibility(EffectiveMessage.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}
@@ -195,7 +218,7 @@ void UShopPreviewPanelWidget::RefreshUI()
 	{
 		if (Txt_Name)
 		{
-			Txt_Name->SetText(EmptyPreviewText);
+			Txt_Name->SetText(MenuTextOrFallback(TEXT("Shop.SelectItem"), EmptyPreviewText));
 			Txt_Name->SetColorAndOpacity(DefaultNameColor);
 		}
 		if (Txt_Description)
@@ -225,23 +248,24 @@ void UShopPreviewPanelWidget::RefreshUI()
 
 	if (Txt_Name)
 	{
-		Txt_Name->SetText(UiData->DisplayName);
+		Txt_Name->SetText(EntryData->GetLocalizedName(GetLocalization()));
 		Txt_Name->SetColorAndOpacity(DefaultNameColor);
 	}
 	if (Txt_Description)
 	{
-		Txt_Description->SetText(UiData->Description);
+		Txt_Description->SetText(EntryData->GetLocalizedDescription(GetLocalization()));
 	}
 	if (Txt_Price)
 	{
-		Txt_Price->SetText(FText::Format(PriceTextFormat, FText::AsNumber(UiData->GoldPrice)));
+		Txt_Price->SetText(FText::Format(MenuTextOrFallback(TEXT("Shop.Price"), PriceTextFormat), FText::AsNumber(UiData->GoldPrice)));
 	}
 	ApplyPriceColor(UiData);
 	if (Txt_State)
 	{
-		const FText StateText = !UiData->bCanSell
-			? NotForSaleText
-			: (!UiData->bOwned && UiData->bCanAfford ? AvailableText : FText::GetEmpty());
+		const FText StateText = UiData->bOwned ? MenuTextOrFallback(TEXT("Shop.Owned"), OwnedText)
+			: (!UiData->bCanSell ? MenuTextOrFallback(TEXT("Shop.NotForSale"), NotForSaleText)
+				: (UiData->bCanAfford ? MenuTextOrFallback(TEXT("Shop.Available"), AvailableText)
+					: MenuTextOrFallback(TEXT("Shop.NeedGold"), NotEnoughGoldText)));
 		Txt_State->SetText(StateText);
 		Txt_State->SetVisibility(StateText.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}

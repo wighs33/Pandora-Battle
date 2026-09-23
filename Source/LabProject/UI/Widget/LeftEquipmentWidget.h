@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
 #include "UI/Widget/EquipSlotWidget.h"
 #include "LeftEquipmentWidget.generated.h"
@@ -23,7 +23,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	UItemInstance*, ItemInstance);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API ULeftEquipmentWidget : public UUserWidget
+class LABPROJECT_API ULeftEquipmentWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -69,6 +69,7 @@ public:
 	FPdOnDroppedItemEquipTypeSlot OnDroppedItem_EquipTypeSlot;
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;

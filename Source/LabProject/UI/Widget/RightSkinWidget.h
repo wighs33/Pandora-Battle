@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
 #include "UI/Widget/FilterButtonHighlight.h"
 
@@ -18,7 +18,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedSkinFilterAllButton);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedSkinFilterTypeButton, FGameplayTag, TypeTag);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URightSkinWidget : public UUserWidget
+class LABPROJECT_API URightSkinWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 

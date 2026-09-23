@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "CoreMinimal.h"
 #include "ShopPreviewPanelWidget.generated.h"
 
@@ -12,7 +12,7 @@ class UTextBlock;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FShopPreviewBuyRequestedDelegate, UShopEntryViewData*, EntryData);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UShopPreviewPanelWidget : public UUserWidget
+class LABPROJECT_API UShopPreviewPanelWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -25,6 +25,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!Shop")
 	void SetMessage(const FText& Message);
+	void SetLocalizedMessage(FName Key, const FText& Fallback, UObject* Product = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "!Shop")
 	void RefreshUI();
@@ -33,6 +34,8 @@ public:
 	FShopPreviewBuyRequestedDelegate OnBuyRequested;
 
 protected:
+	virtual void OnMenuLanguageChanged() override { RefreshUI(); }
+
 	UFUNCTION()
 	void HandleBuyClicked();
 
@@ -96,6 +99,8 @@ private:
 	TObjectPtr<UShopEntryViewData> EntryData = nullptr;
 
 	FText MessageText;
+	FName MessageKey;
+	UPROPERTY(Transient) TObjectPtr<UObject> MessageProduct;
 
 	FSlateColor DefaultNameColor = FSlateColor(FLinearColor::White);
 	FSlateColor DefaultPriceColor = FSlateColor(FLinearColor::White);

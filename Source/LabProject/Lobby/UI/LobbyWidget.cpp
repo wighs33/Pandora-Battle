@@ -143,6 +143,7 @@ FReply ULobbyWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEven
 
 bool ULobbyWidget::CloseTopmostUiForEscape()
 {
+	if (CloseGameSettings()) return true;
 	if (IsGameStartPending())
 	{
 		return true;
@@ -393,8 +394,8 @@ void ULobbyWidget::RefreshUI()
 		const bool bExperienceFailed = GameState && GameState->HasExperienceLoadFailed();
 		const bool bShowWarning = !bStartPending && (bExperienceFailed || (LobbyPlayerStates.Num() > 0 && !bTeamsBalanced));
 		WarningText->SetText(bExperienceFailed
-			? NSLOCTEXT("Lobby", "ExperienceLoadFailed", "Lobby content failed to load. Leave and rejoin the room.")
-			: (TeamBalanceWarningText.IsEmpty() ? DefaultTeamBalanceWarningText : TeamBalanceWarningText));
+			? MenuText(TEXT("Lobby.LoadFailed"))
+			: MenuText(TEXT("Lobby.TeamWarning")));
 		SetTeamBalanceWarningVisibility(bShowWarning ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 
@@ -985,7 +986,7 @@ void ULobbyWidget::RefreshSelectedMapUI()
 		const FText MapName = bHasMapOption && !MapOption.DisplayName.IsEmpty()
 			? MapOption.DisplayName
 			: FText::FromString((bHasMapOption ? MapOption.MapKey : NAME_None).ToString());
-		MapNameText->SetText(MapName);
+		MapNameText->SetText(MenuTextOrFallback(FName(*(TEXT("Map.") + MapOption.MapKey.ToString())), MapName));
 	}
 
 	if (UTextBlock* PlayerCountText = FindSelectedMapPlayerCountText())
@@ -1237,7 +1238,7 @@ FText ULobbyWidget::FormatGameStartCountdownText() const
 	const float RemainingSeconds = GetGameStartRemainingSeconds();
 	if (!IsGameStartPending() || RemainingSeconds <= 0.0f)
 	{
-		return GameStartCountdownFinishedText;
+		return MenuTextOrFallback(TEXT("Lobby.Start"), GameStartCountdownFinishedText);
 	}
 
 	FFormatNamedArguments Arguments;
@@ -1356,4 +1357,11 @@ void ULobbyWidget::TravelToTitleMap() const
 	{
 		PlayerController->ClientTravel(TitleMapName, TRAVEL_Absolute);
 	}
+}
+
+void ULobbyWidget::OnMenuLanguageChanged()
+{
+	RefreshUI();
+	RefreshSelectedMapUI();
+	RefreshGameStartCountdownUI();
 }

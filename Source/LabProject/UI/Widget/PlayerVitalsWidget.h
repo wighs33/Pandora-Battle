@@ -1,8 +1,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "TimerManager.h"
+#include "AttributeSet.h"
 #include "PlayerVitalsWidget.generated.h"
 
 class UAbilitySystemComponent;
@@ -10,13 +11,14 @@ class UProgressBar;
 struct FOnAttributeChangeData;
 
 UCLASS(BlueprintType, Blueprintable)
-class LABPROJECT_API UPlayerVitalsWidget : public UUserWidget
+class LABPROJECT_API UPlayerVitalsWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void OnMenuLanguageChanged() override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Player Vitals")
 	TObjectPtr<UProgressBar> StaminaBar;
@@ -31,6 +33,9 @@ private:
 	void RefreshStaminaFillTint();
 	UProgressBar* ResolveStaminaBar() const;
 	UAbilitySystemComponent* ResolveOwnerAbilitySystemComponent() const;
+	void RefreshResourceReadouts();
+	void HandleResourceChanged(const FOnAttributeChangeData& Data);
+	TArray<TPair<FGameplayAttribute, FDelegateHandle>> ResourceDelegateHandles;
 	void HandleStaminaChanged(const FOnAttributeChangeData& Data);
 	void HandleMaxStaminaChanged(const FOnAttributeChangeData& Data);
 

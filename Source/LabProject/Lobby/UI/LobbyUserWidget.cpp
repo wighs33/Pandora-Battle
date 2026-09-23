@@ -9,6 +9,9 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/TextBlock.h"
+#include "Blueprint/WidgetTree.h"
+#include "Settings/MenuLocalizationSubsystem.h"
+#include "Engine/Font.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "HAL/PlatformProcess.h"
@@ -152,8 +155,10 @@ void ULobbyUserWidget::NativeConstruct()
 
 	if (Cbb_TeamColor)
 	{
+		Cbb_TeamColor->OnGenerateWidgetEvent.BindDynamic(this, &ThisClass::GenerateTeamOption);
 		Cbb_TeamColor->OnSelectionChanged.AddUniqueDynamic(this, &ThisClass::HandleTeamColorSelectionChanged);
 	}
+	OnMenuLanguageChanged();
 }
 
 void ULobbyUserWidget::NativeDestruct()
@@ -175,6 +180,7 @@ void ULobbyUserWidget::NativeDestruct()
 
 	if (Cbb_TeamColor)
 	{
+		Cbb_TeamColor->OnGenerateWidgetEvent.Unbind();
 		Cbb_TeamColor->OnSelectionChanged.RemoveDynamic(this, &ThisClass::HandleTeamColorSelectionChanged);
 	}
 
@@ -451,4 +457,31 @@ void ULobbyUserWidget::SetColorBorderByTeamColorIndex(const int32 TeamColorIndex
 	{
 		ColorBorder->SetBrushColor(GetLobbyTeamColorTint(TeamColorIndex));
 	}
+}
+
+void ULobbyUserWidget::OnMenuLanguageChanged()
+{
+	// Canonical option strings and their indices are unchanged; only their presentation is translated.
+	if (Cbb_TeamColor)
+	{
+		const int32 Selected = Cbb_TeamColor->GetSelectedIndex();
+		Cbb_TeamColor->ClearSelection();
+		Cbb_TeamColor->RefreshOptions();
+		if (Selected != INDEX_NONE) Cbb_TeamColor->SetSelectedIndex(Selected);
+	}
+	RefreshUI();
+}
+
+UWidget* ULobbyUserWidget::GenerateTeamOption(FString Option)
+{
+	UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>();
+	Text->SetText(MenuTextOrFallback(FName(*(TEXT("Team.") + Option)), FText::FromString(Option)));
+	FSlateFontInfo Font = Text->GetFont();
+	Font.Size = 20;
+	Font.TypefaceFontName = NAME_None;
+	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
+		Font.FontObject = Localization->GetFontForLanguage(Localization->GetLanguage());
+	Text->SetFont(Font);
+	Text->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.89f, 0.61f)));
+	return Text;
 }

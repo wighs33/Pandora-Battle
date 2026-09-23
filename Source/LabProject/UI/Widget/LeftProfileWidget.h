@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "LeftProfileWidget.generated.h"
 
 class APdPlayerState;
@@ -15,7 +15,7 @@ class UUserWidget;
 class UWidget;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API ULeftProfileWidget : public UUserWidget
+class LABPROJECT_API ULeftProfileWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -31,6 +31,7 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void OnMenuLanguageChanged() override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Profile|Achievement")
 	TObjectPtr<UButton> AchievementButton;
@@ -125,6 +126,8 @@ private:
 	void ApplyAchievementIcon(int32 AchievementIndex);
 	void RefreshSelectedAchievementIcon();
 	void ApplyAchievementBrush(int32 AchievementIndex);
+	void RefreshAchievementMessage();
+	void UpdateAchievementSelection(int32 AchievementIndex);
 	int32 FindAchievementIndexById(FName AchievementId) const;
 	bool IsAchievementUnlocked(int32 AchievementIndex) const;
 	UButton* GetAchievementButton(int32 AchievementIndex) const;
@@ -142,6 +145,7 @@ private:
 	FTimerHandle PlayerNameRefreshRetryTimerHandle;
 	int32 PlayerNameRefreshRetryCount = 0;
 	int32 ContentPreloadGeneration = 0;
+	bool bAchievementQueryPending = false;
 	TSharedPtr<FStreamableHandle> DefinitionPreloadHandle;
 	TSharedPtr<FStreamableHandle> PresentationPreloadHandle;
 };

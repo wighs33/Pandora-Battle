@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "FindSessionsCallbackProxy.h"
 #include "RoomListWidget.generated.h"
 
@@ -13,9 +13,10 @@ class UCreateRoomPopupWidget;
 class URoomItemWidget;
 class UUiSubsystem;
 class UWrapBox;
+class UTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URoomListWidget : public UUserWidget
+class LABPROJECT_API URoomListWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -30,6 +31,9 @@ public:
 	void RefreshUI();
 
 protected:
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Room|Bind")
+	TObjectPtr<UTextBlock> Txt_EmptyRooms;
+
 	UFUNCTION()
 	void HandleRefreshClicked();
 

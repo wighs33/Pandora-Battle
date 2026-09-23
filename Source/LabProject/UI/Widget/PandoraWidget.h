@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "Common/Enum_Direction.h"
 #include "Input/Events.h"
 #include "Input/Reply.h"
@@ -25,7 +25,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	PandoraWidget);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UPandoraWidget : public UUserWidget
+class LABPROJECT_API UPandoraWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -64,6 +64,7 @@ public:
 	FPandoraWidgetInteractionSignature OnPandoraTreeFocusRequested;
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;

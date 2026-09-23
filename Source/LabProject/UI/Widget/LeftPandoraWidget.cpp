@@ -10,6 +10,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "Settings/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftPandoraWidget)
 
@@ -96,7 +97,7 @@ void ULeftPandoraWidget::RefreshPandoraLoadoutSlots(const UPandoraComponent* Pan
 	}
 
 	const UPandoraTreeComponent* PandoraTreeComponent = BoundPandoraTreeComponent.Get();
-	const auto RefreshSlot = [PandoraComponent, PandoraTreeComponent](
+	const auto RefreshSlot = [this, PandoraComponent, PandoraTreeComponent](
 		UPandoraEquipSlotWidget* PandoraSlot,
 		UTextBlock* PandoraLevelText,
 		UTextBlock* PandoraLevelLabel,
@@ -120,19 +121,29 @@ void ULeftPandoraWidget::RefreshPandoraLoadoutSlots(const UPandoraComponent* Pan
 
 		if (PandoraLevelText)
 		{
-			PandoraLevelText->SetText(PandoraDefinition ? FText::AsNumber(PandoraLevel) : FText::GetEmpty());
+			const UMenuLocalizationSubsystem* Localization = GetLocalization();
+			const FText LevelFormat = Localization ? Localization->GetText(TEXT("Pandora.Level")) : FText::FromString(TEXT("Lv. {Level}"));
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("Level"), FText::AsNumber(PandoraLevel));
+			PandoraLevelText->SetText(PandoraDefinition
+				? FText::Format(LevelFormat, Arguments)
+				: Localization ? Localization->GetText(TEXT("Pandora.Empty")) : FText::FromString(TEXT("Not equipped")));
 		}
 
 		if (PandoraLevelLabel)
 		{
-			PandoraLevelLabel->SetVisibility(
-				PandoraDefinition ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+			PandoraLevelLabel->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	};
 
 	RefreshSlot(FirstPandora, FirstPandoraLevel, Txt1, EEnum_Direction::Left);
 	RefreshSlot(SecondPandora, SecondPandoraLevel, Txt2, EEnum_Direction::Up);
 	RefreshSlot(ThirdPandora, ThirdPandoraLevel, Txt3, EEnum_Direction::Right);
+}
+
+void ULeftPandoraWidget::OnMenuLanguageChanged()
+{
+	RefreshPandoraLoadoutSlots(BoundPandoraComponent.Get());
 }
 
 void ULeftPandoraWidget::SetWeaponImage(const int32 Nth, UTexture2D* WeaponImage)

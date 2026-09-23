@@ -5,6 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/ProgressBar.h"
+#include "Components/TextBlock.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/Pawn.h"
@@ -70,6 +71,7 @@ void UPlayerVitalsWidget::InitializeStaminaPresentation()
 
 	BindStaminaAttributeDelegates();
 	RefreshStaminaFillTint();
+	RefreshResourceReadouts();
 }
 
 void UPlayerVitalsWidget::QueueStaminaPresentationInitializeRetry()
@@ -101,6 +103,18 @@ void UPlayerVitalsWidget::BindStaminaAttributeDelegates()
 		return;
 	}
 
+	// Presentation follows the same ASC as the existing MVVM bars, without polling.
+	for (const FGameplayAttribute Attribute : {
+		UBasicAttributeSet::GetHealthAttribute(), UBasicAttributeSet::GetMaxHealthAttribute(),
+		UBasicAttributeSet::GetManaAttribute(), UBasicAttributeSet::GetMaxManaAttribute(),
+		UBasicAttributeSet::GetShieldAttribute(), UBasicAttributeSet::GetMaxShieldAttribute(),
+		UBasicAttributeSet::GetLevelAttribute()})
+	{
+		ResourceDelegateHandles.Emplace(Attribute, BoundAbilitySystemComponent
+			->GetGameplayAttributeValueChangeDelegate(Attribute)
+			.AddUObject(this, &ThisClass::HandleResourceChanged));
+	}
+
 	StaminaChangedDelegateHandle = BoundAbilitySystemComponent
 		->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetStaminaAttribute())
 		.AddUObject(this, &ThisClass::HandleStaminaChanged);
@@ -113,6 +127,10 @@ void UPlayerVitalsWidget::UnbindStaminaAttributeDelegates()
 {
 	if (BoundAbilitySystemComponent)
 	{
+		for (const auto& Binding : ResourceDelegateHandles)
+		{
+			BoundAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(Binding.Key).Remove(Binding.Value);
+		}
 		if (StaminaChangedDelegateHandle.IsValid())
 		{
 			BoundAbilitySystemComponent
@@ -127,6 +145,7 @@ void UPlayerVitalsWidget::UnbindStaminaAttributeDelegates()
 		}
 	}
 
+	ResourceDelegateHandles.Reset();
 	StaminaChangedDelegateHandle.Reset();
 	MaxStaminaChangedDelegateHandle.Reset();
 	BoundAbilitySystemComponent = nullptr;
@@ -230,11 +249,48 @@ UAbilitySystemComponent* UPlayerVitalsWidget::ResolveOwnerAbilitySystemComponent
 void UPlayerVitalsWidget::HandleStaminaChanged(const FOnAttributeChangeData& Data)
 {
 	CurrentStamina = Data.NewValue;
+	RefreshResourceReadouts();
 	RefreshStaminaFillTint();
 }
 
 void UPlayerVitalsWidget::HandleMaxStaminaChanged(const FOnAttributeChangeData& Data)
 {
 	CurrentMaxStamina = Data.NewValue;
+	RefreshResourceReadouts();
 	RefreshStaminaFillTint();
+}
+
+
+void UPlayerVitalsWidget::OnMenuLanguageChanged()
+{
+	RefreshResourceReadouts();
+}
+
+void UPlayerVitalsWidget::HandleResourceChanged(const FOnAttributeChangeData& Data)
+{
+	RefreshResourceReadouts();
+}
+
+void UPlayerVitalsWidget::RefreshResourceReadouts()
+{
+	if (!BoundAbilitySystemComponent) return;
+	const auto Number = [this](FGameplayAttribute Attribute)
+	{
+		return FText::AsNumber(FMath::Max(0, FMath::RoundToInt(BoundAbilitySystemComponent->GetNumericAttribute(Attribute))));
+	};
+	const auto SetValue = [this, &Number](FName Name, FGameplayAttribute Current, FGameplayAttribute Maximum)
+	{
+		if (UTextBlock* Text = Cast<UTextBlock>(GetWidgetFromName(Name)))
+		{
+			Text->SetText(FText::Format(NSLOCTEXT("PlayerHUD", "ResourcePair", "{0} / {1}"), Number(Current), Number(Maximum)));
+		}
+	};
+	SetValue(TEXT("HealthValue"), UBasicAttributeSet::GetHealthAttribute(), UBasicAttributeSet::GetMaxHealthAttribute());
+	SetValue(TEXT("ManaValue"), UBasicAttributeSet::GetManaAttribute(), UBasicAttributeSet::GetMaxManaAttribute());
+	SetValue(TEXT("StaminaValue"), UBasicAttributeSet::GetStaminaAttribute(), UBasicAttributeSet::GetMaxStaminaAttribute());
+	SetValue(TEXT("ShieldValue"), UBasicAttributeSet::GetShieldAttribute(), UBasicAttributeSet::GetMaxShieldAttribute());
+	if (UTextBlock* Text = Cast<UTextBlock>(GetWidgetFromName(TEXT("LevelValue"))))
+	{
+		Text->SetText(Number(UBasicAttributeSet::GetLevelAttribute()));
+	}
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "Styling/SlateBrush.h"
 #include "UI/Widget/PandoraEquipSlotWidget.h"
 #include "LeftPandoraWidget.generated.h"
@@ -17,7 +17,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	bool, bIsSelectedAnyButton);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API ULeftPandoraWidget : public UUserWidget
+class LABPROJECT_API ULeftPandoraWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -41,6 +41,7 @@ public:
 	FPdOnClickedPandoraEquipSlot OnClicked_PandoraEquipSlot;
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 

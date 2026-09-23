@@ -20,6 +20,26 @@ Content/**
 !Content/**/IA_*.uasset
 !Content/**/IMC_*.uasset
 
+# Project-owned title-screen artwork and editable vector sources.
+!Content/UI/Asset/TitleStyle/*.uasset
+!Content/UI/Asset/TitleStyle/SourceArt/*.png
+!Content/UI/Asset/TitleStyle/SourceArt/*.svg
+!Content/UI/Asset/TitleStyle/SourceArt/background-prompt.txt
+
+# Project-owned lobby UI artwork and editable vector sources.
+!Content/UI/Asset/LobbyStyle/*.uasset
+!Content/UI/Asset/LobbyStyle/SourceArt/*.png
+!Content/UI/Asset/LobbyStyle/SourceArt/*.svg
+
+# Project-owned profile panel artwork and its editable source.
+!Content/UI/Asset/LeftProfileStyle/*.uasset
+!Content/UI/Asset/LeftProfileStyle/SourceArt/*.png
+!Content/UI/Asset/LeftProfileStyle/SourceArt/*-prompt.txt
+
+# Shared menu translations and their editable import source.
+!Content/UI/Localization/*.uasset
+!Content/UI/Localization/Source/*.csv
+
 # Runtime UI rendering material used by the paint-canvas feature.
 !Content/Materials/M_UI_PaintCanvasOpaque.uasset
 !Content/Materials/M_SpeechBubble.uasset
@@ -48,6 +68,8 @@ Content/MuzzleFlash/Demo/**
 .vs/
 .codex/
 .claude/settings.local.json
+
+# Local code study documents
 
 # Rider / Visual Studio user files
 *.sln

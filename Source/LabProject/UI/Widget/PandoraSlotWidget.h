@@ -1,17 +1,18 @@
 #pragma once
 
 #include "Blueprint/IUserObjectListEntry.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
 #include "UI/Widget/PandoraWidgetViewData.h"
 #include "PandoraSlotWidget.generated.h"
 
 class UImage;
+class UPandoraComponent;
 class UPandoraDefinition;
 class UTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UPandoraSlotWidget : public UUserWidget, public IUserObjectListEntry
+class LABPROJECT_API UPandoraSlotWidget : public ULocalizedMenuWidget, public IUserObjectListEntry
 {
 	GENERATED_BODY()
 
@@ -23,6 +24,7 @@ public:
 	const UPandoraDefinition* GetCachedData() const { return CachedData; }
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
@@ -34,6 +36,15 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")
 	TObjectPtr<UImage> IconImage;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UTextBlock> OwnershipText;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UWidget> EquippedMark;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UWidget> HoverBorder;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind|Weapon")
 	TObjectPtr<UImage> Axe;
@@ -57,6 +68,11 @@ protected:
 	TObjectPtr<const UPandoraDefinition> CachedData;
 
 private:
+	UFUNCTION()
+	void RefreshOwnership();
+	void UnbindPandoraEvents();
+	TWeakObjectPtr<UPandoraComponent> BoundPandoraComponent;
+
 	void ApplyViewData(const FPandoraSlotViewData& ViewData);
 	void RefreshWeaponRequirementImages(const FGameplayTagContainer& RequiredWeaponTags) const;
 	void HideAllWeaponRequirementImages() const;

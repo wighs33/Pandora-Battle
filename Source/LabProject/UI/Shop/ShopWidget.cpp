@@ -215,10 +215,10 @@ void UShopWidget::SelectEntry(UShopEntryViewData* EntryData)
 	if (WBP_ShopPreviewPanel)
 	{
 		WBP_ShopPreviewPanel->SetEntryData(EntryData);
-		WBP_ShopPreviewPanel->SetVisibility(EntryData ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		WBP_ShopPreviewPanel->SetVisibility(ESlateVisibility::Visible);
 		if (IsPandoraComingSoonEntry(EntryData))
 		{
-			WBP_ShopPreviewPanel->SetMessage(PandoraComingSoonText);
+			WBP_ShopPreviewPanel->SetLocalizedMessage(TEXT("Shop.ComingSoon"), PandoraComingSoonText);
 		}
 	}
 }
@@ -227,19 +227,19 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 {
 	if (!SelectedEntryData || !SelectedEntryData->GetProductObject())
 	{
-		SetMessage(SelectItemText);
+		SetMessage(TEXT("Shop.SelectItem"), SelectItemText);
 		return false;
 	}
 
 	UObject* ProductObject = SelectedEntryData->GetProductObject();
 	const EShopProductType ProductType = SelectedEntryData->GetProductType();
-	const FText PurchasedName = SelectedEntryData->GetDisplayName();
+
 	const int32 GoldPrice = SelectedEntryData->GetGoldPrice();
 	const FString PlayerId = GetResolvedPlayerId();
 
 	if (IsPandoraComingSoonProduct(ProductObject, ProductType))
 	{
-		SetMessage(PandoraComingSoonText);
+		SetMessage(TEXT("Shop.ComingSoon"), PandoraComingSoonText);
 		RefreshUI();
 		SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
 		return false;
@@ -247,13 +247,13 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 
 	if (!SelectedEntryData->CanSell())
 	{
-		SetMessage(NotForSaleText);
+		SetMessage(TEXT("Shop.NotForSale"), NotForSaleText);
 		return false;
 	}
 
 	if (!CanPurchaseProductType(ProductType))
 	{
-		SetMessage(UnsupportedProductTypeText);
+		SetMessage(TEXT("Shop.Unsupported"), UnsupportedProductTypeText);
 		return false;
 	}
 
@@ -274,13 +274,13 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 			UPandoraDefinition* PandoraDefinition = Cast<UPandoraDefinition>(ProductObject);
 			if (!PandoraDefinition)
 			{
-				SetMessage(UnsupportedProductTypeText);
+				SetMessage(TEXT("Shop.Unsupported"), UnsupportedProductTypeText);
 				return false;
 			}
 
 			if (ProfileSubsystem->IsPandoraGranted(PlayerId, PandoraDefinition))
 			{
-				SetMessage(AlreadyOwnedText);
+				SetMessage(TEXT("Shop.AlreadyOwned"), AlreadyOwnedText);
 				RefreshUI();
 				SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
 				return false;
@@ -300,13 +300,13 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 			USkinDefinition* SkinDefinition = Cast<USkinDefinition>(ProductObject);
 			if (!SkinDefinition)
 			{
-				SetMessage(UnsupportedProductTypeText);
+				SetMessage(TEXT("Shop.Unsupported"), UnsupportedProductTypeText);
 				return false;
 			}
 
 			if (ProfileSubsystem->IsSkinGranted(PlayerId, SkinDefinition))
 			{
-				SetMessage(AlreadyOwnedText);
+				SetMessage(TEXT("Shop.AlreadyOwned"), AlreadyOwnedText);
 				RefreshUI();
 				SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
 				return false;
@@ -321,19 +321,19 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 			break;
 		}
 	default:
-		SetMessage(UnsupportedProductTypeText);
+		SetMessage(TEXT("Shop.Unsupported"), UnsupportedProductTypeText);
 		return false;
 	}
 
 	if (!bPurchased)
 	{
-		SetMessage(NotEnoughGoldText);
+		SetMessage(TEXT("Shop.NeedGold"), NotEnoughGoldText);
 		RefreshUI();
 		SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
 		return false;
 	}
 
-	SetMessage(FText::Format(PurchaseSucceededTextFormat, PurchasedName));
+	SetMessage(TEXT("Shop.Purchased"), PurchaseSucceededTextFormat, ProductObject);
 	ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
 	ProfileSubsystem->SaveGame(PlayerId);
 	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
@@ -401,7 +401,7 @@ RefreshUI();
 
 	if (bReset)
 	{
-		SetMessage(ShopSaveResetText);
+		SetMessage(TEXT("Shop.ResetDone"), ShopSaveResetText);
 	}
 }
 
@@ -1013,11 +1013,11 @@ void UShopWidget::EnsurePlayerSaveLoaded() const
 
 }
 
-void UShopWidget::SetMessage(const FText& Message) const
+void UShopWidget::SetMessage(FName Key, const FText& Fallback, UObject* Product) const
 {
 	if (WBP_ShopPreviewPanel)
 	{
-		WBP_ShopPreviewPanel->SetMessage(Message);
+		WBP_ShopPreviewPanel->SetLocalizedMessage(Key, Fallback, Product);
 	}
 }
 

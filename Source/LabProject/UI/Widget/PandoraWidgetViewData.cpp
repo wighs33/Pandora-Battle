@@ -2,6 +2,7 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Common/LabGameplayTags.h"
+#include "Common/Enum_Direction.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameInstance.h"
@@ -202,6 +203,13 @@ FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(
 	ViewData.Description = PandoraDefinition->GetDescription();
 	ViewData.IconResource = PandoraDefinition->GetIconResource();
 	ViewData.RequiredWeaponTags = PandoraDefinition->GetActivatableWeaponTags();
+	if (PandoraComponent)
+	{
+		for (const EEnum_Direction Direction : { EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
+		{
+			ViewData.bEquipped |= PandoraComponent->GetPandoraLoadoutDefinition(Direction) == PandoraDefinition;
+		}
+	}
 	return ViewData;
 }
 

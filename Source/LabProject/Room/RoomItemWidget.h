@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "FindSessionsCallbackProxy.h"
 #include "RoomItemWidget.generated.h"
 
@@ -11,7 +11,7 @@ class UTextBlock;
 class UUiSubsystem;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URoomItemWidget : public UUserWidget
+class LABPROJECT_API URoomItemWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -26,6 +26,8 @@ public:
 	void RefreshUI();
 
 protected:
+	virtual void OnMenuLanguageChanged() override { RefreshUI(); }
+
 	UFUNCTION()
 	void HandleJoinClicked();
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "TimerManager.h"
 #include "PlayerHudWidget.generated.h"
 
@@ -13,7 +13,7 @@ class UWidget;
 class UWidgetClassDefinition;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UPlayerHudWidget : public UUserWidget
+class LABPROJECT_API UPlayerHudWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -33,6 +33,7 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void OnMenuLanguageChanged() override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|PlayerHUD|KillBox")
 	TObjectPtr<UHorizontalBox> HorizontalBox_KillBox;

@@ -2,27 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Settings/UiLanguage.h"
 #include "GuideDefinition.generated.h"
 
 class UFont;
 class UTexture2D;
 
-UENUM(BlueprintType)
-enum class EGuideLanguage : uint8
-{
-	Korean UMETA(DisplayName = "Korean (ko)"),
-	English UMETA(DisplayName = "English (en)"),
-	Japanese UMETA(DisplayName = "Japanese (ja)"),
-	SimplifiedChinese UMETA(DisplayName = "Simplified Chinese (zh-Hans)"),
-	Spanish UMETA(DisplayName = "Spanish - Spain (es-ES)"),
-	Russian UMETA(DisplayName = "Russian (ru)"),
-	PortugueseBrazil UMETA(DisplayName = "Portuguese - Brazil (pt-BR)"),
-	German UMETA(DisplayName = "German (de)"),
-	French UMETA(DisplayName = "French (fr)"),
-	Polish UMETA(DisplayName = "Polish (pl)"),
-	TraditionalChinese UMETA(DisplayName = "Traditional Chinese (zh-Hant)"),
-	Turkish UMETA(DisplayName = "Turkish (tr)")
-};
 
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FGuidePageEntry

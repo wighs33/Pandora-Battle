@@ -162,6 +162,8 @@ void URecordWidget::RefreshRecords()
 
 	const TArray<FMatchRecord> MatchRecords = ProfileSubsystem->GetMatchRecords(PlayerId);
 	const int32 VisibleCount = FMath::Min(MatchRecords.Num(), MaxVisibleRecordEntries);
+	if (Txt_EmptyRecords)
+		Txt_EmptyRecords->SetVisibility(VisibleCount == 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	for (int32 DisplayIndex = 0; DisplayIndex < VisibleCount; ++DisplayIndex)
 	{
 		const int32 SourceIndex = MatchRecords.Num() - 1 - DisplayIndex;
@@ -186,6 +188,14 @@ void URecordWidget::RefreshRecords()
 void URecordWidget::HandleCloseClicked()
 {
 	RemoveFromParent();
+}
+
+void URecordWidget::OnMenuLanguageChanged()
+{
+	// Entries subscribe independently. Keep the existing rows and scroll position alive.
+	const FString PlayerId = ResolveRecordPlayerId();
+	ApplyWinCountUI(PlayerId);
+	ApplyTierImage(PlayerId);
 }
 
 void URecordWidget::ResolveWidgets()
@@ -349,6 +359,8 @@ void URecordWidget::ApplyTierImage(const FString& PlayerId)
 
 	const int32 WinCount = ProfileSubsystem->GetWinCount(PlayerId);
 	const FRecordTierEntry TierEntry = LoadedRecordData->ResolveTierForWinCount(WinCount);
+	if (Txt_TierName)
+		Txt_TierName->SetText(FText::Format(MenuText(TEXT("Record.Tier")), FText::AsNumber(TierEntry.RankOrder + 1)));
 	UTexture2D* TierTexture = TierEntry.TierImage.Get();
 	if (!TierTexture)
 	{
@@ -374,4 +386,8 @@ void URecordWidget::ApplyWinCountUI(const FString& PlayerId)
 	{
 		TierProgressBar->SetPercent(FMath::Clamp(static_cast<float>(WinCount) / MaxTierProgressWinCount, 0.0f, 1.0f));
 	}
+	if (Txt_ProgressFraction)
+		Txt_ProgressFraction->SetText(FText::Format(FText::FromString(TEXT("{0} / {1}")), FText::AsNumber(WinCount), FText::AsNumber(FMath::RoundToInt(MaxTierProgressWinCount))));
+	if (Txt_RecentCount)
+		Txt_RecentCount->SetText(FText::Format(MenuText(TEXT("Record.RecentCount")), FText::AsNumber(MaxVisibleRecordEntries)));
 }

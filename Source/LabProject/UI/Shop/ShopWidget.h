@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "CoreMinimal.h"
 #include "UI/Shop/ShopTypes.h"
 #include "ShopWidget.generated.h"
@@ -14,7 +14,7 @@ class UTextBlock;
 class UTileView;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UShopWidget : public UUserWidget
+class LABPROJECT_API UShopWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -150,7 +150,7 @@ private:
 	bool IsPandoraComingSoonEntry(const UShopEntryViewData* EntryData) const;
 	bool CanPurchaseProductType(EShopProductType ProductType) const;
 	void EnsurePlayerSaveLoaded() const;
-	void SetMessage(const FText& Message) const;
+	void SetMessage(FName Key, const FText& Fallback, UObject* Product = nullptr) const;
 	UShopEntryViewData* FindEntryDataByProduct(UObject* ProductObject, EShopProductType ProductType) const;
 	void HandleTileViewItemClicked(UObject* ItemObject);
 	void HandleEntryDataClicked(UShopEntryViewData* EntryData);

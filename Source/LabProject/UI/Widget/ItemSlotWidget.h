@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Blueprint/IUserObjectListEntry.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "UI/Widget/ItemViewData.h"
 #include "ItemSlotWidget.generated.h"
 
@@ -14,7 +14,7 @@ class UInventoryComponent;
 class UDragDropOperation;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UItemSlotWidget : public UUserWidget, public IUserObjectListEntry
+class LABPROJECT_API UItemSlotWidget : public ULocalizedMenuWidget, public IUserObjectListEntry
 {
 	GENERATED_BODY()
 

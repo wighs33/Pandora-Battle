@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "CreateRoomPopupWidget.generated.h"
 
 class UButton;
@@ -11,7 +11,7 @@ class UEditableTextBox;
 class UUiSubsystem;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UCreateRoomPopupWidget : public UUserWidget
+class LABPROJECT_API UCreateRoomPopupWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 

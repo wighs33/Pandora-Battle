@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "LobbyWidget.generated.h"
 
@@ -21,7 +21,7 @@ class UVerticalBox;
 class UWidget;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API ULobbyWidget : public UUserWidget
+class LABPROJECT_API ULobbyWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -48,6 +48,8 @@ public:
 	bool CloseTopmostUiForEscape();
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
+
 	UFUNCTION()
 	void HandleCloseClicked();
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
 #include "UI/Widget/FilterButtonHighlight.h"
 #include "RightInventoryWidget.generated.h"
@@ -19,7 +19,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedInventoryFilterTypeButto
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FPdOnDroppedInventorySlot, int32, SourceSlotIndex, int32, TargetSlotIndex, UItemInstance*, SourceItem);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URightInventoryWidget : public UUserWidget
+class LABPROJECT_API URightInventoryWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 

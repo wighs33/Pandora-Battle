@@ -55,6 +55,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")
 	TObjectPtr<UTextBlock> ApplyText;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")
+	TObjectPtr<UWidget> SelectionRing;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora")
 	int32 Nth = 0;
 

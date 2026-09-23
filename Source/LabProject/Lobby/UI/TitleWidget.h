@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "FindSessionsCallbackProxy.h"
 #include "TitleWidget.generated.h"
 
@@ -15,7 +15,7 @@ class UShopWidget;
 class UUiSubsystem;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UTitleWidget : public UUserWidget
+class LABPROJECT_API UTitleWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 

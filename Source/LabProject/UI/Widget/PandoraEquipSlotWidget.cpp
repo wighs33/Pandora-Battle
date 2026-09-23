@@ -101,9 +101,13 @@ void UPandoraEquipSlotWidget::SetPandoraImageDarkened(const bool bDarkened)
 
 void UPandoraEquipSlotWidget::ToggleText_Apply(bool bOn)
 {
+	if (SelectionRing)
+	{
+		SelectionRing->SetVisibility(bOn ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 	if (ApplyText)
 	{
-		ApplyText->SetVisibility(bOn ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+		ApplyText->SetVisibility(bOn && !SelectionRing ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 	}
 }
 

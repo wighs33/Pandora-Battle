@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "SavedGameData/PdSaveGame.h"
 #include "RecordWidget.generated.h"
 
@@ -15,7 +15,7 @@ class URecordDefinition;
 class UTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URecordWidget : public UUserWidget
+class LABPROJECT_API URecordWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -29,6 +29,20 @@ public:
 	void RefreshRecords();
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Record|Bind")
+	TObjectPtr<UTextBlock> Txt_TierName;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Record|Bind")
+	TObjectPtr<UTextBlock> Txt_ProgressFraction;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Record|Bind")
+	TObjectPtr<UTextBlock> Txt_EmptyRecords;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Record|Bind")
+	TObjectPtr<UTextBlock> Txt_RecentCount;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Record|Bind")
 	TObjectPtr<UPanelWidget> RecordScrollBox;
 

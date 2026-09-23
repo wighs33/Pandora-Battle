@@ -80,7 +80,7 @@ void URoomItemWidget::RefreshUI()
 
 	if (Txt_MapName)
 	{
-		Txt_MapName->SetText(FText::FromString(MapName));
+		Txt_MapName->SetText(MenuTextOrFallback(FName(*(TEXT("Map.") + MapName)), FText::FromString(MapName)));
 	}
 
 	if (Txt_PlayerCount)

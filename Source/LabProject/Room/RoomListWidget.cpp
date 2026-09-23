@@ -3,6 +3,7 @@
 #include "AudioSlider.h"
 #include "Components/Button.h"
 #include "Components/WrapBox.h"
+#include "Components/TextBlock.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
@@ -197,6 +198,8 @@ RefreshUI();
 
 void URoomListWidget::RefreshUI()
 {
+	if (Txt_EmptyRooms)
+		Txt_EmptyRooms->SetVisibility(SessionInfos.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 
 	for (int32 Index = 0; Index < Rooms.Num(); ++Index)
 	{

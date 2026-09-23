@@ -3,6 +3,7 @@
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/Font.h"
@@ -13,158 +14,16 @@
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Mode/PdHUD.h"
 #include "Settings/BgmSubsystem.h"
+#include "Settings/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GuideWidget)
 
 namespace
 {
 	constexpr int32 MaxGuideButtonBindings = 12;
-	constexpr const TCHAR* GuideLanguagePlaceholder = TEXT("Select Language");
-
-	bool TryResolveGuideLanguageOption(const FString& Option, EGuideLanguage& OutLanguage)
-	{
-		FString NormalizedOption = Option.TrimStartAndEnd().ToLower();
-		NormalizedOption.ReplaceInline(TEXT(" "), TEXT(""));
-		NormalizedOption.ReplaceInline(TEXT("_"), TEXT("-"));
-
-		if (NormalizedOption == TEXT("russian")
-			|| NormalizedOption == TEXT("russian(ru)")
-			|| NormalizedOption == TEXT("ru"))
-		{
-			OutLanguage = EGuideLanguage::Russian;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("spanish-spain")
-			|| NormalizedOption == TEXT("spanish-spain(es-es)")
-			|| NormalizedOption == TEXT("es-es"))
-		{
-			OutLanguage = EGuideLanguage::Spanish;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("portuguese-brazil")
-			|| NormalizedOption == TEXT("portuguese-brazil(pt-br)")
-			|| NormalizedOption == TEXT("pt-br"))
-		{
-			OutLanguage = EGuideLanguage::PortugueseBrazil;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("german")
-			|| NormalizedOption == TEXT("german(de)")
-			|| NormalizedOption == TEXT("de"))
-		{
-			OutLanguage = EGuideLanguage::German;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("french")
-			|| NormalizedOption == TEXT("french(fr)")
-			|| NormalizedOption == TEXT("fr"))
-		{
-			OutLanguage = EGuideLanguage::French;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("polish")
-			|| NormalizedOption == TEXT("polish(pl)")
-			|| NormalizedOption == TEXT("pl"))
-		{
-			OutLanguage = EGuideLanguage::Polish;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("traditionalchinese")
-			|| NormalizedOption == TEXT("traditionalchinese(zh-hant)")
-			|| NormalizedOption == TEXT("zh-tw")
-			|| NormalizedOption == TEXT("zh-hant"))
-		{
-			OutLanguage = EGuideLanguage::TraditionalChinese;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("turkish")
-			|| NormalizedOption == TEXT("turkish(tr)")
-			|| NormalizedOption == TEXT("tr"))
-		{
-			OutLanguage = EGuideLanguage::Turkish;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("korean")
-			|| NormalizedOption == TEXT("korean(ko)")
-			|| NormalizedOption == TEXT("ko")
-			|| NormalizedOption == TEXT("한국어"))
-		{
-			OutLanguage = EGuideLanguage::Korean;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("english")
-			|| NormalizedOption == TEXT("english(en)")
-			|| NormalizedOption == TEXT("en"))
-		{
-			OutLanguage = EGuideLanguage::English;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("japanese")
-			|| NormalizedOption == TEXT("japanese(ja)")
-			|| NormalizedOption == TEXT("ja")
-			|| NormalizedOption == TEXT("日本語"))
-		{
-			OutLanguage = EGuideLanguage::Japanese;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("chinese")
-			|| NormalizedOption == TEXT("simplifiedchinese")
-			|| NormalizedOption == TEXT("simplifiedchinese(zh-hans)")
-			|| NormalizedOption == TEXT("zh")
-			|| NormalizedOption == TEXT("zh-cn")
-			|| NormalizedOption == TEXT("zh-hans")
-			|| NormalizedOption == TEXT("简体中文"))
-		{
-			OutLanguage = EGuideLanguage::SimplifiedChinese;
-			return true;
-		}
-
-		if (NormalizedOption == TEXT("spanish")
-			|| NormalizedOption == TEXT("spanish(es)")
-			|| NormalizedOption == TEXT("es")
-			|| NormalizedOption == TEXT("español"))
-		{
-			OutLanguage = EGuideLanguage::Spanish;
-			return true;
-		}
-
-		return false;
-	}
-
 	bool HasGuideText(const FText& Text)
 	{
 		return !Text.IsEmptyOrWhitespace();
-	}
-
-	const TCHAR* GetGuideLanguageOptionName(const EGuideLanguage Language)
-	{
-		switch (Language)
-		{
-		case EGuideLanguage::English: return TEXT("English");
-		case EGuideLanguage::SimplifiedChinese: return TEXT("Simplified Chinese");
-		case EGuideLanguage::Russian: return TEXT("Russian");
-		case EGuideLanguage::Spanish: return TEXT("Spanish - Spain");
-		case EGuideLanguage::PortugueseBrazil: return TEXT("Portuguese - Brazil");
-		case EGuideLanguage::German: return TEXT("German");
-		case EGuideLanguage::Japanese: return TEXT("Japanese");
-		case EGuideLanguage::French: return TEXT("French");
-		case EGuideLanguage::Polish: return TEXT("Polish");
-		case EGuideLanguage::Korean: return TEXT("Korean");
-		case EGuideLanguage::TraditionalChinese: return TEXT("Traditional Chinese");
-		case EGuideLanguage::Turkish: return TEXT("Turkish");
-		default: return nullptr;
-		}
 	}
 
 	FText MakeGuideText(const TCHAR* Text)
@@ -205,17 +64,12 @@ void UGuideWidget::NativeConstruct()
 	bIsClosing = false;
 	SetIsFocusable(true);
 	ResolveWidgets();
-	InitializeLanguageOptions();
 	ApplyBackgroundPatternVisibility();
 	if (Btn_Close)
 	{
 		Btn_Close->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCloseClicked);
 	}
 
-	if (CB_Language)
-	{
-		CB_Language->OnSelectionChanged.AddUniqueDynamic(this, &ThisClass::HandleLanguageSelectionChanged);
-	}
 
 	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
@@ -236,10 +90,6 @@ void UGuideWidget::NativeDestruct()
 		Btn_Close->OnClicked.RemoveDynamic(this, &ThisClass::HandleCloseClicked);
 	}
 
-	if (CB_Language)
-	{
-		CB_Language->OnSelectionChanged.RemoveDynamic(this, &ThisClass::HandleLanguageSelectionChanged);
-	}
 
 	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
@@ -292,15 +142,12 @@ void UGuideWidget::BeginPageImagePreload(const int32 PreloadGeneration)
 		return;
 	}
 
-	InitializeLanguageOptions();
 
 	TArray<FSoftObjectPath> ImagePaths;
 	for (const FGuidePageEntry& Page : LoadedGuideData->Pages)
 	{
 		ImagePaths.Add(Page.Image.ToSoftObjectPath());
 	}
-	ImagePaths.Add(LoadedGuideData->PolishContentFont.ToSoftObjectPath());
-	ImagePaths.Add(LoadedGuideData->TurkishContentFont.ToSoftObjectPath());
 
 	GuideImagePreloadHandle =
 		ContentSubsystem->PreloadSoftObjectPathsAsync(
@@ -416,21 +263,9 @@ void UGuideWidget::HandleCloseClicked()
 	CloseGuide();
 }
 
-void UGuideWidget::HandleLanguageSelectionChanged(
-	const FString SelectedItem,
-	const ESelectInfo::Type SelectionType)
+void UGuideWidget::OnMenuLanguageChanged()
 {
-	EGuideLanguage SelectedLanguage = EGuideLanguage::Korean;
-	bHasSelectedLanguage = TryResolveGuideLanguageOption(SelectedItem, SelectedLanguage);
-	if (bHasSelectedLanguage)
-	{
-		CurrentLanguage = SelectedLanguage;
-	}
-
-	if (CachedPages.IsValidIndex(CurrentPageIndex))
-	{
-		ApplyPage(CachedPages[CurrentPageIndex]);
-	}
+	RefreshGuide();
 }
 
 void UGuideWidget::HandleGuideButton0Clicked() { SelectGuidePage(0); }
@@ -468,10 +303,6 @@ void UGuideWidget::ResolveWidgets()
 		Btn_Close = Cast<UButton>(GetWidgetFromName(TEXT("Btn_Close")));
 	}
 
-	if (!CB_Language)
-	{
-		CB_Language = Cast<UComboBoxString>(GetWidgetFromName(TEXT("CB_Language")));
-	}
 
 	if (!Img_BackgroundPattern)
 	{
@@ -481,66 +312,6 @@ void UGuideWidget::ResolveWidgets()
 	{
 		DefaultBackgroundPatternVisibility = Img_BackgroundPattern->GetVisibility();
 		bCapturedBackgroundPatternVisibility = true;
-	}
-}
-
-void UGuideWidget::InitializeLanguageOptions()
-{
-	if (!CB_Language)
-	{
-		return;
-	}
-
-	EGuideLanguage SelectedLanguage = CurrentLanguage;
-	const bool bShouldPreserveSelectedLanguage = bHasSelectedLanguage
-		&& TryResolveGuideLanguageOption(CB_Language->GetSelectedOption(), SelectedLanguage);
-
-	TArray<EGuideLanguage> LanguageOrder = {
-		EGuideLanguage::English,
-		EGuideLanguage::SimplifiedChinese,
-		EGuideLanguage::Russian,
-		EGuideLanguage::Spanish,
-		EGuideLanguage::PortugueseBrazil,
-		EGuideLanguage::German,
-		EGuideLanguage::Japanese,
-		EGuideLanguage::French,
-		EGuideLanguage::Polish,
-		EGuideLanguage::Korean,
-		EGuideLanguage::TraditionalChinese,
-		EGuideLanguage::Turkish
-	};
-	if (const UGuideDefinition* LoadedGuideData = ResolveGuideDefinition();
-		LoadedGuideData && !LoadedGuideData->SupportedLanguages.IsEmpty())
-	{
-		LanguageOrder = LoadedGuideData->SupportedLanguages;
-	}
-
-	CB_Language->ClearOptions();
-	CB_Language->AddOption(GuideLanguagePlaceholder);
-	FString SelectedOption(GuideLanguagePlaceholder);
-	bool bPreservedOptionAdded = false;
-	for (const EGuideLanguage Language : LanguageOrder)
-	{
-		const TCHAR* OptionName = GetGuideLanguageOptionName(Language);
-		if (!OptionName)
-		{
-			continue;
-		}
-
-		const FString Option(OptionName);
-		CB_Language->AddOption(Option);
-		if (bShouldPreserveSelectedLanguage && Language == SelectedLanguage)
-		{
-			SelectedOption = Option;
-			bPreservedOptionAdded = true;
-		}
-	}
-
-	CB_Language->SetSelectedOption(SelectedOption);
-	bHasSelectedLanguage = bShouldPreserveSelectedLanguage && bPreservedOptionAdded;
-	if (bHasSelectedLanguage)
-	{
-		CurrentLanguage = SelectedLanguage;
 	}
 }
 
@@ -692,6 +463,19 @@ UButton* UGuideWidget::FindButtonForPage(const int32 PageIndex, const FGuidePage
 
 void UGuideWidget::ApplyPage(const FGuidePageEntry& Page)
 {
+	// Page identity remains the DA_Guide button name; display labels come from the shared catalog.
+	static const TMap<FName, FName> PageTitles = {
+		{TEXT("Btn_QuickStart"), TEXT("Guide.QuickStart")}, {TEXT("Btn_Controls"), TEXT("Guide.Controls")},
+		{TEXT("Btn_GameRules"), TEXT("Guide.Rules")}, {TEXT("Btn_Modes"), TEXT("Guide.Modes")},
+		{TEXT("Btn_ProfileAndStatus"), TEXT("Guide.Profile")}, {TEXT("Btn_Pandora"), TEXT("Guide.Pandora")},
+		{TEXT("Btn_ItemsAndSkins"), TEXT("Guide.Items")}, {TEXT("Btn_Paint"), TEXT("Guide.Paint")}};
+	if (Txt_PageTitle)
+	{
+		const FName* Key = PageTitles.Find(Page.ButtonWidgetName);
+		Txt_PageTitle->SetText(Key ? MenuText(*Key) : FText::GetEmpty());
+	}
+	if (Txt_PageNumber)
+		Txt_PageNumber->SetText(FText::AsNumber(CurrentPageIndex + 1));
 	if (Txt_Content)
 	{
 		ApplyContentFont();
@@ -703,36 +487,14 @@ void UGuideWidget::ApplyPage(const FGuidePageEntry& Page)
 
 void UGuideWidget::ApplyContentFont()
 {
-	if (!Txt_Content || !bCapturedDefaultContentFont)
+	if (!Txt_Content || !bCapturedDefaultContentFont) return;
+	FSlateFontInfo Font = DefaultContentFont;
+	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
 	{
-		return;
+		Font.FontObject = Localization->GetFontForLanguage(CurrentLanguage);
+		Font.TypefaceFontName = NAME_None;
 	}
-
-	FSlateFontInfo ContentFont = DefaultContentFont;
-	const UGuideDefinition* LoadedGuideData = ResolveGuideDefinition();
-	const UFont* LanguageFont = nullptr;
-	if (bHasSelectedLanguage && LoadedGuideData)
-	{
-		switch (CurrentLanguage)
-		{
-		case EGuideLanguage::Polish:
-			LanguageFont = LoadedGuideData->PolishContentFont.Get();
-			break;
-		case EGuideLanguage::Turkish:
-			LanguageFont = LoadedGuideData->TurkishContentFont.Get();
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (IsValid(LanguageFont))
-	{
-		ContentFont.FontObject = LanguageFont;
-		ContentFont.TypefaceFontName = NAME_None;
-	}
-
-	Txt_Content->SetFont(ContentFont);
+	Txt_Content->SetFont(Font);
 }
 
 void UGuideWidget::ApplyImage(UTexture2D* Texture)
@@ -749,6 +511,13 @@ void UGuideWidget::ApplyImage(UTexture2D* Texture)
 	}
 
 	ImageBorder->SetVisibility(ESlateVisibility::Visible);
+	// The style supplies a ScaleBox around this size box, preserving every original
+	// DA_Guide illustration's aspect ratio instead of stretching it to the panel.
+	if (USizeBox* ImageSize = Cast<USizeBox>(ImageBorder->GetParent()))
+	{
+		ImageSize->SetWidthOverride(Texture->GetSizeX());
+		ImageSize->SetHeightOverride(Texture->GetSizeY());
+	}
 	if (UBorder* Border = Cast<UBorder>(ImageBorder))
 	{
 		Border->SetBrushFromTexture(Texture);
@@ -763,30 +532,18 @@ void UGuideWidget::ApplyImage(UTexture2D* Texture)
 
 void UGuideWidget::ResolveSelectedLanguage()
 {
-	bHasSelectedLanguage = false;
-
-	if (CB_Language)
-	{
-		EGuideLanguage SelectedLanguage = EGuideLanguage::Korean;
-		if (TryResolveGuideLanguageOption(CB_Language->GetSelectedOption(), SelectedLanguage))
-		{
-			CurrentLanguage = SelectedLanguage;
-			bHasSelectedLanguage = true;
-		}
-	}
+	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
+		CurrentLanguage = Localization->GetLanguage();
+	else if (const UGuideDefinition* Definition = ResolveGuideDefinition())
+		CurrentLanguage = Definition->DefaultLanguage;
 }
 
 FText UGuideWidget::ResolvePageContent(const FGuidePageEntry& Page) const
 {
-	if (bHasSelectedLanguage)
-	{
-		if (const FText* LocalizedText = Page.LocalizedContent.Find(CurrentLanguage);
-			LocalizedText && HasGuideText(*LocalizedText))
-		{
-			return *LocalizedText;
-		}
-	}
-
+	if (const FText* Translation = Page.LocalizedContent.Find(CurrentLanguage); Translation && HasGuideText(*Translation))
+		return *Translation;
+	if (const FText* English = Page.LocalizedContent.Find(EGuideLanguage::English); English && HasGuideText(*English))
+		return *English;
 	return Page.Content;
 }
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Blueprint/IUserObjectListEntry.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "CoreMinimal.h"
 #include "ShopEntryWidget.generated.h"
 
@@ -12,7 +12,7 @@ class UTextBlock;
 class UWidget;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UShopEntryWidget : public UUserWidget, public IUserObjectListEntry
+class LABPROJECT_API UShopEntryWidget : public ULocalizedMenuWidget, public IUserObjectListEntry
 {
 	GENERATED_BODY()
 
@@ -29,6 +29,8 @@ public:
 	void SetSelected(bool bInSelected);
 
 protected:
+	virtual void OnMenuLanguageChanged() override { RefreshUI(); }
+
 	UFUNCTION()
 	void HandleSelectClicked();
 

@@ -161,19 +161,21 @@ void UShopEntryWidget::RefreshUI()
 
 	if (Txt_Name)
 	{
-		Txt_Name->SetText(UiData->DisplayName);
+		Txt_Name->SetText(EntryData->GetLocalizedName(GetLocalization()));
 	}
 
 	if (Txt_Price)
 	{
-		Txt_Price->SetText(FText::Format(PriceTextFormat, FText::AsNumber(UiData->GoldPrice)));
+		Txt_Price->SetText(FText::Format(MenuTextOrFallback(TEXT("Shop.Price"), PriceTextFormat), FText::AsNumber(UiData->GoldPrice)));
 	}
 
 	if (Txt_State)
 	{
 		const FText StateText = UiData->bOwned
-			? OwnedText
-			: (!UiData->bCanSell ? NotForSaleText : (UiData->bCanAfford ? AvailableText : NotEnoughGoldText));
+			? MenuTextOrFallback(TEXT("Shop.Owned"), OwnedText)
+			: (!UiData->bCanSell ? MenuTextOrFallback(TEXT("Shop.NotForSale"), NotForSaleText)
+				: (UiData->bCanAfford ? MenuTextOrFallback(TEXT("Shop.Available"), AvailableText)
+					: MenuTextOrFallback(TEXT("Shop.NeedGold"), NotEnoughGoldText)));
 		Txt_State->SetText(StateText);
 	}
 
@@ -196,5 +198,8 @@ void UShopEntryWidget::ApplySelectionVisual()
 	}
 
 	SelectionBorderImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	SelectionBorderImage->SetColorAndOpacity(bIsSelected ? SelectionBorderSelectedColor : SelectionBorderDefaultColor);
+	FSlateBrush SelectionBrush = SelectionBorderImage->GetBrush();
+	SelectionBrush.OutlineSettings.Color = FSlateColor(bIsSelected ? SelectionBorderSelectedColor : SelectionBorderDefaultColor);
+	SelectionBorderImage->SetBrush(SelectionBrush);
+	SelectionBorderImage->SetColorAndOpacity(FLinearColor::White);
 }

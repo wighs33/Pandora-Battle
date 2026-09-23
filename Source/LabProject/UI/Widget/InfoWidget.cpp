@@ -5,6 +5,9 @@
 #include "Containers/Ticker.h"
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Components/Button.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "UI/Widget/PandoraTreeWidget.h"
 #include "Components/Overlay.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
@@ -179,6 +182,7 @@ void UInfoWidget::NativeConstruct()
 	}
 
 	BindLeftSkinPaintCanvasEvents();
+	if (Btn_ClosePaint) Btn_ClosePaint->OnClicked.AddUniqueDynamic(this, &ThisClass::OnClosePaintClicked);
 	SetCanvasExportButtonVisible(false);
 	SetPandoraUpgradeButtonVisible(
 		FocusedSection == EInfoUiSection::Pandora);
@@ -188,6 +192,7 @@ void UInfoWidget::NativeConstruct()
 
 void UInfoWidget::NativeDestruct()
 {
+	ClosePandoraDrawerForNavigation();
 	if (MapController)
 	{
 		MapController->Shutdown();
@@ -265,6 +270,7 @@ void UInfoWidget::NativeDestruct()
 	}
 
 	UnbindLeftSkinPaintCanvasEvents();
+	if (Btn_ClosePaint) Btn_ClosePaint->OnClicked.RemoveDynamic(this, &ThisClass::OnClosePaintClicked);
 	SetCanvasExportButtonVisible(false);
 
 	Super::NativeDestruct();
@@ -558,6 +564,7 @@ CharacterPreviewController->ShowPreview();
 
 void UInfoWidget::HideInfoUi()
 {
+	ClosePandoraDrawerForNavigation();
 	StopAllAnimations();
 	HideSkinPaintCanvasGroup();
 	if (bReturnCameraOnHide && CharacterPreviewController)
@@ -682,6 +689,7 @@ void UInfoWidget::OnSettingButtonClicked()
 
 void UInfoWidget::OnCloseButtonClicked()
 {
+	CloseGameSettings();
 	if (APlayerController* PlayerController = GetOwningPlayer())
 	{
 		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
@@ -877,6 +885,11 @@ void UInfoWidget::HideSkinPaintCanvasGroup()
 	SetCanvasExportButtonVisible(false);
 }
 
+void UInfoWidget::OnClosePaintClicked()
+{
+	HideSkinPaintCanvasGroup();
+}
+
 bool UInfoWidget::SetPaintCanvasWidgetVisible(const bool bVisible)
 {
 	const bool bPaintCanvasVisible = PaintCanvasController
@@ -894,6 +907,7 @@ bool UInfoWidget::SetPaintCanvasWidgetVisible(const bool bVisible)
 
 void UInfoWidget::SetCanvasExportButtonVisible(const bool bVisible) const
 {
+	if (Btn_ClosePaint) Btn_ClosePaint->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	if (Btn_CanvasExport)
 	{
 		Btn_CanvasExport->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -905,8 +919,10 @@ void UInfoWidget::SetCanvasExportButtonVisible(const bool bVisible) const
 	}
 }
 
-void UInfoWidget::SetPandoraUpgradeButtonVisible(const bool bVisible) const
+void UInfoWidget::SetPandoraUpgradeButtonVisible(const bool bVisible)
 {
+	if (!bVisible) ClosePandoraDrawerForNavigation();
+	RefreshPandoraDrawerLabel();
 	if (Btn_PandoraUpgrade)
 	{
 		Btn_PandoraUpgrade->SetVisibility(
@@ -914,6 +930,59 @@ void UInfoWidget::SetPandoraUpgradeButtonVisible(const bool bVisible) const
 				? ESlateVisibility::Visible
 				: ESlateVisibility::Collapsed);
 	}
+}
+
+bool UInfoWidget::AttachPandoraTree(UPandoraTreeWidget* Tree)
+{
+	if (!PandoraTreeHost || !Tree) return false;
+	HideDetailWidgets();
+	PandoraTreeHost->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	if (Tree->GetParent() != PandoraTreeHost)
+	{
+		UCanvasPanelSlot* TreeSlot = PandoraTreeHost->AddChildToCanvas(Tree);
+		TreeSlot->SetAnchors(FAnchors(0, 0, 1, 1));
+		TreeSlot->SetOffsets(FMargin(0));
+	}
+	AttachedPandoraTree = Tree;
+	bPandoraDrawerExpanded = true;
+	if (RightWidgetSwitcher) RightWidgetSwitcher->SetVisibility(ESlateVisibility::Hidden);
+	if (CharacterPanel) CharacterPanel->SetVisibility(ESlateVisibility::Hidden);
+	if (UWidget* Memo = GetWidgetFromName(TEXT("Txt_Memo_LocaleFit"))) Memo->SetVisibility(ESlateVisibility::Hidden);
+	RefreshPandoraDrawerLabel();
+	return true;
+}
+
+void UInfoWidget::OnPandoraDrawerClosed()
+{
+	AttachedPandoraTree.Reset();
+	bPandoraDrawerExpanded = false;
+	if (PandoraTreeHost) PandoraTreeHost->SetVisibility(ESlateVisibility::Collapsed);
+	if (RightWidgetSwitcher) RightWidgetSwitcher->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	if (CharacterPanel) CharacterPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	if (UWidget* Memo = GetWidgetFromName(TEXT("Txt_Memo_LocaleFit"))) Memo->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	RefreshPandoraDrawerLabel();
+}
+
+void UInfoWidget::ClosePandoraDrawerForNavigation()
+{
+	if (!bPandoraDrawerExpanded) return;
+	if (UPandoraTreeWidget* Tree = AttachedPandoraTree.Get()) Tree->HidePandoraTreeImmediately();
+}
+
+void UInfoWidget::RefreshPandoraDrawerLabel()
+{
+	const FText Label = MenuTextOrFallback(bPandoraDrawerExpanded ? TEXT("Pandora.Collapse") : TEXT("Pandora.Expand"),
+		FText::FromString(bPandoraDrawerExpanded ? TEXT("Collapse") : TEXT("Expand")));
+	if (PandoraDrawerAction) PandoraDrawerAction->SetText(Label);
+	if (PandoraDrawerArrow) PandoraDrawerArrow->SetText(FText::FromString(bPandoraDrawerExpanded ? TEXT("‹") : TEXT("›")));
+	if (Btn_PandoraUpgrade) Btn_PandoraUpgrade->SetToolTipText(MenuTextOrFallback(
+		bPandoraDrawerExpanded ? TEXT("Pandora.CollapseHint") : TEXT("Pandora.ExpandHint"), Label));
+}
+
+void UInfoWidget::OnMenuLanguageChanged()
+{
+	Super::OnMenuLanguageChanged();
+	RefreshPandoraDrawerLabel();
 }
 
 void UInfoWidget::BindLeftSkinPaintCanvasEvents()
@@ -939,7 +1008,7 @@ void UInfoWidget::UnbindLeftSkinPaintCanvasEvents()
 bool UInfoWidget::IsScreenPositionInsideCharacterDropPanel(const FVector2D& ScreenSpacePosition) const
 {
 	const UWidget* DropPanel = CharacterPanel ? CharacterPanel.Get() : CenterPreviewPanel.Get();
-	if (!DropPanel)
+	if (!DropPanel || bPandoraDrawerExpanded)
 	{
 		return false;
 	}

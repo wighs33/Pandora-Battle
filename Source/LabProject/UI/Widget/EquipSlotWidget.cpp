@@ -324,7 +324,7 @@ void UEquipSlotWidget::ApplySlotVisual()
 			bShowingPandoraWeaponRequirement
 				? PandoraWeaponRequirementIconOpacity
 				: 1.0f);
-		IconImage->SetVisibility(bHasSlotIcon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		IconImage->SetVisibility(bHasSlotIcon && !bHasItemIcon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 
 	}
 	else if (bHasSlotIcon && ItemButton && !ItemInstance)
@@ -417,6 +417,13 @@ void UEquipSlotWidget::ApplyButtonBackgroundStyle()
 {
 	if (!ItemButton)
 	{
+		return;
+	}
+	// A texture-backed frame owns its hover/pressed treatment. Do not replace the
+	// authored ornament with a solid rectangle when an item is equipped.
+	if (bHasDefaultButtonStyle && DefaultButtonStyle.Normal.GetResourceObject())
+	{
+		ItemButton->SetStyle(ApplyButtonStyleBackgroundOpacity(DefaultButtonStyle, ButtonBackgroundOpacity));
 		return;
 	}
 

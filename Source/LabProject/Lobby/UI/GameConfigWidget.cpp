@@ -5,6 +5,10 @@
 #include "Components/ComboBoxString.h"
 #include "Components/EditableTextBox.h"
 #include "Components/Image.h"
+#include "Components/TextBlock.h"
+#include "Blueprint/WidgetTree.h"
+#include "Settings/MenuLocalizationSubsystem.h"
+#include "Engine/Font.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Mode/PdHUD.h"
@@ -27,6 +31,7 @@ void UGameConfigWidget::NativeConstruct()
 
 	if (ComboBox_Map)
 	{
+		ComboBox_Map->OnGenerateWidgetEvent.BindDynamic(this, &ThisClass::GenerateMapOption);
 		ComboBox_Map->OnSelectionChanged.AddUniqueDynamic(this, &ThisClass::HandleMapSelectionChanged);
 	}
 
@@ -62,6 +67,7 @@ void UGameConfigWidget::NativeConstruct()
 		}
 	}
 
+	OnMenuLanguageChanged();
 	RefreshUI();
 }
 
@@ -93,6 +99,7 @@ void UGameConfigWidget::NativeDestruct()
 
 	if (ComboBox_Map)
 	{
+		ComboBox_Map->OnGenerateWidgetEvent.Unbind();
 		ComboBox_Map->OnSelectionChanged.RemoveDynamic(this, &ThisClass::HandleMapSelectionChanged);
 	}
 
@@ -193,4 +200,26 @@ int32 UGameConfigWidget::ParseClampedInt(const UEditableTextBox* TextBox, const 
 	}
 
 	return FMath::Clamp(FCString::Atoi(*TextValue), MinValue, MaxValue);
+}
+
+void UGameConfigWidget::OnMenuLanguageChanged()
+{
+	if (!ComboBox_Map) return;
+	const int32 Selected = ComboBox_Map->GetSelectedIndex();
+	ComboBox_Map->ClearSelection();
+	ComboBox_Map->RefreshOptions();
+	if (Selected != INDEX_NONE) ComboBox_Map->SetSelectedIndex(Selected);
+}
+
+UWidget* UGameConfigWidget::GenerateMapOption(FString Option)
+{
+	UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>();
+	Text->SetText(MenuTextOrFallback(FName(*(TEXT("Map.") + Option)), FText::FromString(Option)));
+	FSlateFontInfo Font = Text->GetFont();
+	Font.Size = 20;
+	Font.TypefaceFontName = NAME_None;
+	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
+		Font.FontObject = Localization->GetFontForLanguage(Localization->GetLanguage());
+	Text->SetFont(Font);
+	return Text;
 }

@@ -9,6 +9,7 @@ class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UPaintCanvasWidget;
 class APdPlayer;
+class UInfoPaintPreview;
 
 /** Connects the Info screen's paint-canvas widget to the player's shared paint render target. */
 UCLASS()
@@ -34,7 +35,7 @@ public:
 
 private:
 	APdPlayer* GetPlayerCharacter() const;
-	bool PaintAtScreenPosition(const FVector2D& ScreenSpacePosition) const;
+	bool PaintAtScreenPosition(const FVector2D& ScreenSpacePosition);
 	bool TryGetDrawLocation(const FVector2D& ScreenSpacePosition, FVector2D& OutDrawLocation) const;
 
 	UPROPERTY(Transient)
@@ -51,4 +52,6 @@ private:
 	TObjectPtr<UMaterialInstanceDynamic> OpaqueCanvasDisplayMaterialInstance;
 
 	bool bIsDrawing = false;
+	UPROPERTY(Transient)
+	TObjectPtr<UInfoPaintPreview> Preview;
 };

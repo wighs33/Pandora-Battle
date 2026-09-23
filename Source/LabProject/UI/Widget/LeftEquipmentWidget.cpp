@@ -393,14 +393,14 @@ void ULeftEquipmentWidget::RebuildEquipSlotNameList()
 {
 	EquipSlotNameList =
 		{
-			FText::FromString(TEXT("Hat")),
-			FText::FromString(TEXT("Top")),
-			FText::FromString(TEXT("Bottom")),
-			FText::FromString(TEXT("Shoes")),
-			FText::FromString(TEXT("Earring")),
-			FText::FromString(TEXT("Necklace")),
-			FText::FromString(TEXT("Ring")),
-			FText::FromString(TEXT("Rune")),
+			MenuTextOrFallback(TEXT("Info.Hat"), FText::FromString(TEXT("Hat"))),
+			MenuTextOrFallback(TEXT("Info.Top"), FText::FromString(TEXT("Top"))),
+			MenuTextOrFallback(TEXT("Info.Bottom"), FText::FromString(TEXT("Bottom"))),
+			MenuTextOrFallback(TEXT("Info.Shoes"), FText::FromString(TEXT("Shoes"))),
+			MenuTextOrFallback(TEXT("Info.Earring"), FText::FromString(TEXT("Earring"))),
+			MenuTextOrFallback(TEXT("Info.Necklace"), FText::FromString(TEXT("Necklace"))),
+			MenuTextOrFallback(TEXT("Info.Ring"), FText::FromString(TEXT("Ring"))),
+			MenuTextOrFallback(TEXT("Info.Rune"), FText::FromString(TEXT("Rune"))),
 			FText::FromString(TEXT("1")),
 			FText::FromString(TEXT("2")),
 			FText::FromString(TEXT("3")),
@@ -409,9 +409,9 @@ void ULeftEquipmentWidget::RebuildEquipSlotNameList()
 			FText::FromString(TEXT("2")),
 			FText::FromString(TEXT("3")),
 			FText::FromString(TEXT("4")),
-			FText::FromString(TEXT("First\r\nWeapon")),
-			FText::FromString(TEXT("Second\r\nWeapon")),
-			FText::FromString(TEXT("Third\r\nWeapon")),
+			MenuTextOrFallback(TEXT("Info.FirstWeapon"), FText::FromString(TEXT("First\r\nWeapon"))),
+			MenuTextOrFallback(TEXT("Info.SecondWeapon"), FText::FromString(TEXT("Second\r\nWeapon"))),
+			MenuTextOrFallback(TEXT("Info.ThirdWeapon"), FText::FromString(TEXT("Third\r\nWeapon"))),
 		};
 }
 
@@ -605,4 +605,10 @@ FGameplayTag ULeftEquipmentWidget::ResolveEquipTypeTagForSlot(const UEquipSlotWi
 	}
 
 	return FGameplayTag();
+}
+
+void ULeftEquipmentWidget::OnMenuLanguageChanged()
+{
+ RebuildEquipSlotNameList();
+ ApplyEquipSlotNames();
 }

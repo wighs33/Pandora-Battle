@@ -5,6 +5,7 @@
 #include "ShopEntryViewData.generated.h"
 
 class UPandoraDefinition;
+class UMenuLocalizationSubsystem;
 enum class EShopProductType : uint8;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FShopEntryViewDataClickedDelegate, class UShopEntryViewData*);
@@ -21,6 +22,8 @@ public:
 	UObject* GetProductObject() const { return ProductObject.Get(); }
 	UPandoraDefinition* GetPandoraDefinition() const;
 	const FShopEntryUiData& GetUiData() const { return UiData; }
+	FText GetLocalizedName(const UMenuLocalizationSubsystem* Localization) const;
+	FText GetLocalizedDescription(const UMenuLocalizationSubsystem* Localization) const;
 
 	UFUNCTION(BlueprintPure, Category = "!Shop")
 	FText GetDisplayName() const { return UiData.DisplayName; }

@@ -1,0 +1,10 @@
+Use case: precise-object-edit.
+Asset type: production Unreal UMG decorative background plate, portrait, same dimensions and EXACT composition as the input.
+Input image is the edit target: approved Left Profile UI.
+Produce a CLEAN EMPTY ART LAYER of this exact panel. Keep the dark sapphire patterned material, silver-purple outer frame, top violet jewel, gold engraved ornamental rules, the decorative section flourishes, the faint violet circular seal behind the large central tier emblem, the empty outlined level capsule at upper right, the empty outlined victory-count plaque under the central seal, and the tiny neutral lock glyph in the bottom footer.
+REMOVE ALL TEXT, ALL numbers and ALL letter glyphs including the title, username, Lv.1, EXP HP MP, numeric values, section titles, victory text, achievement text and footer words. Inpaint those places with matching navy texture.
+REMOVE ALL ACHIEVEMENT ICONS, including the selected gold diamond beside the username and all seven lower achievement icons, and REMOVE their selection glow. Keep the emptied icon areas dark navy with subtle background pattern.
+REMOVE the entire large central winged TIER EMBLEM, leaving ONLY the faint circular violet seal behind it.
+Keep the THREE narrow ornate gold gauge frames in the upper section in exactly the same positions. REMOVE the green/red/blue colored FILLS completely; their interiors must be uniform near-black blue EMPTY troughs. The actual gauges will be live widgets and must start empty in this artwork.
+Keep the large cleared title and section-title gaps EMPTY. No replacement emblems or labels. No decorative diamond slots where badge icons were; just empty sapphire material.
+Do not redesign, shift, resize, rearrange or add anything. Preserve exact geometry and the polished metalwork. No text, no digits, no badge icons, no tier emblem, no colored resource fill, no cursor, no watermarks anywhere. It is a background art plate, not a completed UI.

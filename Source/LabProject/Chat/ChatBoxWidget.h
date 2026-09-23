@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "Types/SlateEnums.h"
 #include "ChatBoxWidget.generated.h"
 
@@ -11,7 +11,7 @@ class UEditableText;
 class UScrollBox;
 
 UCLASS()
-class LABPROJECT_API UChatBoxWidget : public UUserWidget
+class LABPROJECT_API UChatBoxWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -43,6 +43,7 @@ public:
 	bool IsChatFocused() const { return bChatFocused; }
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!Chat|Bind")
 	TObjectPtr<UScrollBox> ScrollBox_ChatMessages;
 

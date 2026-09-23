@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
 #include "UI/Widget/FilterButtonHighlight.h"
 #include "RightPandoraWidget.generated.h"
@@ -15,7 +15,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedPandoraFilterAllButton);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedPandoraFilterTypeButton, FGameplayTag, TypeTag);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URightPandoraWidget : public UUserWidget
+class LABPROJECT_API URightPandoraWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 

@@ -271,7 +271,7 @@ void APdHUD::ToggleUiMode(bool bOn)
 		{
 			WidgetToFocus = CachedInfoUI;
 		}
-		else if (CachedPandoraTreeUI && !Router->IsPandoraTreeClosing() && CachedPandoraTreeUI->IsInViewport())
+		else if (CachedPandoraTreeUI && !Router->IsPandoraTreeClosing() && CachedPandoraTreeUI->IsPandoraTreeShown())
 		{
 			WidgetToFocus = CachedPandoraTreeUI;
 		}
@@ -591,20 +591,20 @@ bool APdHUD::HandleEscapeInput()
 		return true;
 	}
 
+	if (CachedPandoraTreeUI && CachedPandoraTreeUI->IsPandoraTreeShown())
+	{
+		if (!UiRouter || !UiRouter->IsPandoraTreeClosing())
+		{
+			ClosePandoraTreeUi();
+		}
+		return true;
+	}
+
 	if (CachedInfoUI && CachedInfoUI->IsInViewport())
 	{
 		if (!UiRouter || !UiRouter->IsInfoClosing())
 		{
 			CloseInfoUi();
-		}
-		return true;
-	}
-
-	if (CachedPandoraTreeUI && CachedPandoraTreeUI->IsInViewport())
-	{
-		if (!UiRouter || !UiRouter->IsPandoraTreeClosing())
-		{
-			ClosePandoraTreeUi();
 		}
 		return true;
 	}

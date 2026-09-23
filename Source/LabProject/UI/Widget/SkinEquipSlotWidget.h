@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
 #include "Styling/SlateTypes.h"
 #include "SkinEquipSlotWidget.generated.h"
@@ -12,12 +12,13 @@ class USkinDefinition;
 class USkinEquipSlotWidget;
 class UTextBlock;
 class UTexture2D;
+class UWidget;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedSkinEquipSlot, USkinEquipSlotWidget*, SkinEquipSlot);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnDroppedSkinEquipSlot, USkinEquipSlotWidget*, SkinEquipSlot, const USkinDefinition*, SkinDefinition);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API USkinEquipSlotWidget : public UUserWidget
+class LABPROJECT_API USkinEquipSlotWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -121,6 +122,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
 	TObjectPtr<UImage> SelectionBorderImage;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
+	TObjectPtr<UWidget> AssignedBadgeRoot;
 
 private:
 	UFUNCTION()

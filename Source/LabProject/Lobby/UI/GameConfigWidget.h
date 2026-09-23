@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "Components/ComboBoxString.h"
 #include "GameConfigWidget.generated.h"
 
@@ -10,7 +10,7 @@ class UEditableTextBox;
 class UImage;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UGameConfigWidget : public UUserWidget
+class LABPROJECT_API UGameConfigWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -29,6 +29,8 @@ public:
 	FName GetSelectedMapKey() const;
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "!Lobby|Config")
 	void BP_OnSelectedMapChanged(FName SelectedMapKey);
 
@@ -64,6 +66,7 @@ protected:
 
 private:
 	FName GetFirstComboBoxMapKey() const;
+	UFUNCTION() UWidget* GenerateMapOption(FString Option);
 	void ApplySelectedMapThumbnail(FName SelectedMapKey);
 	static int32 ParseClampedInt(const UEditableTextBox* TextBox, int32 DefaultValue, int32 MinValue, int32 MaxValue);
 };

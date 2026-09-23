@@ -1,14 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "KillBoxWidget.generated.h"
 
 class UBorder;
 class UTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UKillBoxWidget : public UUserWidget
+class LABPROJECT_API UKillBoxWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 

@@ -1,4 +1,5 @@
 #include "UI/Widget/RightPandoraWidget.h"
+#include "Settings/MenuLocalizationSubsystem.h"
 
 #include "Definition/Common/ProjectTagConfig.h"
 #include "Components/Button.h"
@@ -229,7 +230,9 @@ bool URightPandoraWidget::DoesPandoraMatchSearch(const UPandoraDefinition* Pando
 		return false;
 	}
 
-	const FString DisplayName = PandoraDefinition->GetDisplayName().ToString();
+	const FString DisplayName = GetLocalization()
+		? GetLocalization()->GetProductText(PandoraDefinition, TEXT("Name"), PandoraDefinition->GetDisplayName()).ToString()
+		: PandoraDefinition->GetDisplayName().ToString();
 	if (DisplayName.Contains(SearchText, ESearchCase::IgnoreCase))
 	{
 		return true;

@@ -130,7 +130,7 @@ void UPandoraTreeWidget::NativeDestruct()
 	}
 	UnbindButtonEvents();
 	UnbindPandoraTreeEvents();
-	if (bReturnCameraOnHide)
+	if (bReturnCameraOnHide && !bDockedInInfo)
 	{
 		ReturnCameraToPawn(PreviewCameraHideBlendTime);
 	}
@@ -147,6 +147,7 @@ void UPandoraTreeWidget::NativeDestruct()
 void UPandoraTreeWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	if (bDockedInInfo) UpdateDrawerReveal(InDeltaTime, MyGeometry.GetLocalSize().X);
 
 	if (bPandoraDescriptionDirty)
 	{
@@ -230,7 +231,7 @@ void UPandoraTreeWidget::SetPandoraPointsText()
 
 	const int32 PointsAvailable = PandoraTreeComponent->GetPointsAvailable();
 	ViewModel->SetPointsAvailable(PointsAvailable);
-	ViewModel->SetPandoraPointsText(FText::Format(PandoraPointsFormat, FText::AsNumber(PointsAvailable)));
+	ViewModel->SetPandoraPointsText(FText::Format(MenuTextOrFallback(TEXT("Pandora.Points"), PandoraPointsFormat), FText::AsNumber(PointsAvailable)));
 }
 
 void UPandoraTreeWidget::RefreshPandoraWidgets()
@@ -253,12 +254,16 @@ void UPandoraTreeWidget::ShowPandoraTree()
 	SetVisibility(ESlateVisibility::Visible);
 	SetFocus();
 
-	if (SlideInLeft)
+	if (bDockedInInfo)
 	{
-		PlayAnimation(SlideInLeft, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
+		bDrawerClosing = false;
+		UpdateDrawerReveal(0.0f, GetDesiredSize().X);
 	}
-
-	SpawnCharacterPreview();
+	else
+	{
+		if (SlideInLeft) PlayAnimation(SlideInLeft, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
+		SpawnCharacterPreview();
+	}
 
 	if (!ShouldManageInputModeInternally())
 	{
@@ -308,6 +313,11 @@ void UPandoraTreeWidget::SetInputModeManagedExternally(const bool bManagedExtern
 void UPandoraTreeWidget::HidePandoraTree()
 {
 	PrepareToHidePandoraTree();
+	if (bDockedInInfo && PandoraDrawerContent)
+	{
+		bDrawerClosing = true;
+		return;
+	}
 
 	if (SlideInLeft)
 	{
@@ -339,7 +349,7 @@ void UPandoraTreeWidget::PrepareToHidePandoraTree()
 	ClearHideTimer();
 	PandoraDescriptionRequestStack.Reset();
 	HidePandoraDescription();
-	if (bReturnCameraOnHide)
+	if (bReturnCameraOnHide && !bDockedInInfo)
 	{
 		ReturnCameraToPawn(PreviewCameraHideBlendTime);
 	}
@@ -505,7 +515,7 @@ void UPandoraTreeWidget::HandleLoadoutClicked()
 					{
 						if (APdHUD* ValidHud = WeakHud.Get())
 						{
-							ValidHud->OpenInfoUiFocused(EInfoUiSection::Pandora);
+							ValidHud->ClosePandoraTreeUi();
 						}
 
 						return false;
@@ -1040,9 +1050,30 @@ bool UPandoraTreeWidget::ReleaseRoutedPandoraInput()
 void UPandoraTreeWidget::FinishHidePandoraTree()
 {
 	HideTimerHandle.Invalidate();
+	bDrawerClosing = false;
+	DrawerReveal = 0.0f;
 	DestroyCharacterPreview();
 	RemoveFromParent();
 	OnPandoraTreeClosed.Broadcast(this);
+}
+
+void UPandoraTreeWidget::OnMenuLanguageChanged()
+{
+	Super::OnMenuLanguageChanged();
+	SetPandoraPointsText();
+	RefreshPandoraWidgets();
+}
+
+void UPandoraTreeWidget::UpdateDrawerReveal(const float DeltaTime, const float DrawerWidth)
+{
+	// UMG's real-time tick also runs while the training room is paused.
+	DrawerReveal = FMath::FInterpConstantTo(DrawerReveal, bDrawerClosing ? 0.0f : 1.0f, DeltaTime, 4.0f);
+	if (PandoraDrawerContent)
+	{
+		const float Smooth = FMath::SmoothStep(0.0f, 1.0f, DrawerReveal);
+		PandoraDrawerContent->SetRenderTranslation(FVector2D(-DrawerWidth * (1.0f - Smooth), 0));
+	}
+	if (bDrawerClosing && DrawerReveal <= 0.0f) FinishHidePandoraTree();
 }
 
 void UPandoraTreeWidget::ClearHideTimer()

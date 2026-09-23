@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "MapWidget.generated.h"
 
@@ -16,7 +16,7 @@ class APawn;
 enum class EPlayerMapRegion : uint8;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UMapWidget : public UUserWidget
+class LABPROJECT_API UMapWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -44,6 +44,7 @@ public:
 	void ShowTempleMap();
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;

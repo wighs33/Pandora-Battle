@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
 #include "UI/Widget/SkinEquipSlotWidget.h"
 #include "LeftSkinWidget.generated.h"
@@ -25,7 +25,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnPaintCanvasGroupVisibilityChanged, bool, bVisible);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API ULeftSkinWidget : public UUserWidget
+class LABPROJECT_API ULeftSkinWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -60,6 +60,7 @@ public:
 	FPdOnPaintCanvasGroupVisibilityChanged OnPaintCanvasGroupVisibilityChanged;
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;

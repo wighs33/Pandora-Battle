@@ -215,10 +215,12 @@ void ULeftProfileWidget::RefreshAchievementButtons()
 	UAchievementSubsystem* AchievementSubsystem = GameInstance
 		? GameInstance->GetSubsystem<UAchievementSubsystem>()
 		: nullptr;
+	bAchievementQueryPending = false;
 	if (AchievementSubsystem
 		&& !AchievementSubsystem->IsSteamAchievementQueryComplete())
 	{
-		AchievementSubsystem->RequestSteamAchievementQuery();
+		bAchievementQueryPending = AchievementSubsystem->RequestSteamAchievementQuery()
+			&& !AchievementSubsystem->IsSteamAchievementQueryComplete();
 	}
 
 	for (int32 AchievementIndex = 0; AchievementIndex < 7; ++AchievementIndex)
@@ -272,6 +274,49 @@ void ULeftProfileWidget::RefreshAchievementButtons()
 	}
 
 	RefreshSelectedAchievementIcon();
+	RefreshAchievementMessage();
+}
+
+void ULeftProfileWidget::OnMenuLanguageChanged()
+{
+	Super::OnMenuLanguageChanged();
+	RefreshAchievementMessage();
+}
+
+void ULeftProfileWidget::RefreshAchievementMessage()
+{
+	UTextBlock* Message = Cast<UTextBlock>(GetWidgetFromName(TEXT("Profile_AchievementState")));
+	if (!Message)
+	{
+		return;
+	}
+
+	for (int32 Index = 0; Index < 7; ++Index)
+	{
+		const UButton* Button = GetAchievementButton(Index);
+		if (Button && Button->GetVisibility() == ESlateVisibility::Visible)
+		{
+			Message->SetVisibility(ESlateVisibility::Collapsed);
+			return;
+		}
+	}
+
+	Message->SetText(MenuText(bAchievementQueryPending
+		? TEXT("Profile.AchievementsLoading") : TEXT("Profile.AchievementsUnavailable")));
+	Message->SetVisibility(ESlateVisibility::HitTestInvisible);
+}
+
+void ULeftProfileWidget::UpdateAchievementSelection(const int32 AchievementIndex)
+{
+	for (int32 Index = 0; Index < 7; ++Index)
+	{
+		const FName MarkerName(*FString::Printf(TEXT("Profile_AchievementSelection_%d"), Index));
+		if (UWidget* Marker = GetWidgetFromName(MarkerName))
+		{
+			Marker->SetVisibility(Index == AchievementIndex
+				? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		}
+	}
 }
 
 void ULeftProfileWidget::BindSteamAchievementStateChanged()
@@ -560,6 +605,7 @@ void ULeftProfileWidget::ApplyAchievementIcon(const int32 AchievementIndex)
 
 void ULeftProfileWidget::RefreshSelectedAchievementIcon()
 {
+	UpdateAchievementSelection(INDEX_NONE);
 	if (PlayerAchieveIcon)
 	{
 		PlayerAchieveIcon->SetVisibility(ESlateVisibility::Collapsed);
@@ -611,6 +657,7 @@ void ULeftProfileWidget::ApplyAchievementBrush(const int32 AchievementIndex)
 	}
 
 	const FSlateBrush AchievementBrush = SourceImage->GetBrush();
+	UpdateAchievementSelection(AchievementIndex);
 	if (PlayerAchieveIcon)
 	{
 		PlayerAchieveIcon->SetBrush(AchievementBrush);

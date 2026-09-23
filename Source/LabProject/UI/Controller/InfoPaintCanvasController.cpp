@@ -11,6 +11,7 @@
 #include "Mode/PdHUD.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/PaintCanvasWidget.h"
+#include "UI/Controller/InfoPaintPreview.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InfoPaintCanvasController)
 
@@ -42,6 +43,8 @@ void UInfoPaintCanvasController::Initialize(
 
 void UInfoPaintCanvasController::Shutdown()
 {
+	if (Preview) Preview->Shutdown();
+	Preview = nullptr;
 	CancelStroke();
 	HideActiveCanvas();
 	if (PaintCanvasWidget)
@@ -61,6 +64,7 @@ bool UInfoPaintCanvasController::SetVisible(const bool bVisible)
 
 	if (!bVisible)
 	{
+		if (Preview) Preview->Shutdown();
 		if (PaintCanvasWidget)
 		{
 			PaintCanvasWidget->SetVisibility(ESlateVisibility::Collapsed);
@@ -106,6 +110,12 @@ bool UInfoPaintCanvasController::SetVisible(const bool bVisible)
 		CanvasTextureParameterName,
 		RenderTarget);
 	PaintCanvasImage->SetBrushFromMaterial(OpaqueCanvasDisplayMaterialInstance);
+	if (UImage* Speech = PaintCanvasWidget->GetSpeechPreviewImage())
+		Speech->SetBrushFromMaterial(OpaqueCanvasDisplayMaterialInstance);
+	if (!Preview) Preview = NewObject<UInfoPaintPreview>(this);
+	const APdHUD* HUD = OwnerWidget->GetOwningPlayer()->GetHUD<APdHUD>();
+	if (const UWidgetClassDefinition* Definition = HUD ? HUD->GetWidgetClassDefinition() : nullptr)
+		Preview->Show(PlayerCharacter, PaintCanvasWidget, RenderTarget, Definition->GetSkinWidgetSettings());
 	PaintCanvasImage->SetVisibility(ESlateVisibility::Visible);
 	PaintCanvasWidget->SetIsEnabled(true);
 	PaintCanvasWidget->SetVisibility(ESlateVisibility::Visible);
@@ -209,7 +219,7 @@ APdPlayer* UInfoPaintCanvasController::GetPlayerCharacter() const
 	return OwnerWidget ? Cast<APdPlayer>(OwnerWidget->GetOwningPlayerPawn()) : nullptr;
 }
 
-bool UInfoPaintCanvasController::PaintAtScreenPosition(const FVector2D& ScreenSpacePosition) const
+bool UInfoPaintCanvasController::PaintAtScreenPosition(const FVector2D& ScreenSpacePosition)
 {
 	FVector2D DrawLocation = FVector2D::ZeroVector;
 	if (!TryGetDrawLocation(ScreenSpacePosition, DrawLocation))
@@ -221,8 +231,10 @@ bool UInfoPaintCanvasController::PaintAtScreenPosition(const FVector2D& ScreenSp
 	UPaintCanvasComponent* PaintCanvasComponent = PlayerCharacter
 		? PlayerCharacter->GetPaintCanvasComponent()
 		: nullptr;
-	return PaintCanvasComponent
+	const bool bPainted = PaintCanvasComponent
 		&& PaintCanvasComponent->PaintAtNormalizedLocation(DrawLocation);
+	if (bPainted && Preview) Preview->Refresh();
+	return bPainted;
 }
 
 bool UInfoPaintCanvasController::TryGetDrawLocation(

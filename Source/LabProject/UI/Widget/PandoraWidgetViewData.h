@@ -53,6 +53,7 @@ struct LABPROJECT_API FPandoraSlotViewData
 	UObject* IconResource = nullptr;
 	FGameplayTagContainer RequiredWeaponTags;
 	bool bOwned = false;
+	bool bEquipped = false;
 	bool bActive = false;
 	bool bEnabled = false;
 };

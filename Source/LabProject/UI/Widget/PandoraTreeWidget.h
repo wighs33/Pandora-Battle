@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "Input/Reply.h"
 #include "InputCoreTypes.h"
 #include "TimerManager.h"
@@ -22,7 +22,7 @@ class UWidgetAnimation;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPandoraTreeClosedSignature, UPandoraTreeWidget*, PandoraTreeWidget);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UPandoraTreeWidget : public UUserWidget
+class LABPROJECT_API UPandoraTreeWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -44,6 +44,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void ShowPandoraTree();
 	void SetInputModeManagedExternally(bool bManagedExternally);
+	void SetDockedInInfo(bool bDocked) { bDockedInInfo = bDocked; }
+	UFUNCTION(BlueprintPure, Category="!UI|Pandora")
+	bool IsPandoraTreeShown() const { return IsInViewport() || (bDockedInInfo && GetParent() != nullptr); }
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void HidePandoraTree();
@@ -63,6 +66,7 @@ public:
 	FPandoraTreeClosedSignature OnPandoraTreeClosed;
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -174,6 +178,12 @@ private:
 	void FinishHidePandoraTree();
 	void ClearHideTimer();
 
+	void UpdateDrawerReveal(float DeltaTime, float DrawerWidth);
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UWidget> PandoraDrawerContent;
+	bool bDockedInInfo = false;
+	bool bDrawerClosing = false;
+	float DrawerReveal = 0.0f;
 	FTimerHandle HideTimerHandle;
 
 	UPROPERTY(BlueprintReadOnly, Transient, Category = "!UI|Pandora|ViewModel", meta = (AllowPrivateAccess = "true"))

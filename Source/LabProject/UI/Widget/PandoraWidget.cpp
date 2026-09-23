@@ -6,6 +6,7 @@
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "Settings/MenuLocalizationSubsystem.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -289,7 +290,7 @@ void UPandoraWidget::SetPandoraInfo()
 
 	if (ViewModel)
 	{
-		ViewModel->SetDisplayName(ViewData.DisplayName);
+		ViewModel->SetDisplayName(GetLocalization() ? GetLocalization()->GetProductText(PandoraDefinition, TEXT("Name"), ViewData.DisplayName) : ViewData.DisplayName);
 		ViewModel->SetLevelText(ViewData.LevelText);
 		ViewModel->SetIconResource(ViewData.IconResource);
 		ViewModel->SetOverlayColor(ViewData.OverlayColor);
@@ -302,7 +303,23 @@ void UPandoraWidget::SetPandoraInfo()
 		ViewModel->SetAtMaxLevel(ViewData.bAtMaxLevel);
 	}
 
+	// Keep labels readable for locked and unlearned nodes; only the medallion is dimmed.
+	for (const FName Name : { FName(TEXT("PandoraName")), FName(TEXT("LevelText")) })
+		if (UWidget* Label = GetWidgetFromName(Name)) Label->SetRenderOpacity(1.0f);
+	if (UWidget* Icon = GetWidgetFromName(TEXT("PandoraIcon")))
+		Icon->SetRenderOpacity(ViewData.bCanSpend ? 0.85f : ViewData.ContentOpacity);
+
+	if (UWidget* Ready = GetWidgetFromName(TEXT("GrowthReady")))
+		Ready->SetVisibility(ViewData.bCanSpend ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	if (UWidget* ReadyRing = GetWidgetFromName(TEXT("GrowthReadyRing")))
+		ReadyRing->SetVisibility(ViewData.bCanSpend ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	RefreshEquipHintState(IsHovered());
+}
+
+void UPandoraWidget::OnMenuLanguageChanged()
+{
+	Super::OnMenuLanguageChanged();
+	SetPandoraInfo();
 }
 
 void UPandoraWidget::ConfirmSpendPointOnPandora()
@@ -756,8 +773,8 @@ void UPandoraWidget::RefreshEquipHintState(const bool bHovered)
 		if (Txt_Equip)
 		{
 			Txt_Equip->SetText(bHovered
-				? NSLOCTEXT("PandoraWidget", "UnequipText", "Unequip")
-				: NSLOCTEXT("PandoraWidget", "EquippedText", "Equipped"));
+				? MenuTextOrFallback(TEXT("Pandora.Unequip"), NSLOCTEXT("PandoraWidget", "UnequipText", "Unequip"))
+				: MenuTextOrFallback(TEXT("Info.Assigned"), NSLOCTEXT("PandoraWidget", "EquippedText", "Equipped")));
 		}
 		SetEquipHintWidgetsVisible(true, bHovered);
 		return;
@@ -765,7 +782,7 @@ void UPandoraWidget::RefreshEquipHintState(const bool bHovered)
 
 	if (Txt_Equip && bHasCachedDefaultEquipText)
 	{
-		Txt_Equip->SetText(DefaultEquipText);
+		Txt_Equip->SetText(MenuTextOrFallback(TEXT("Pandora.Equip"), DefaultEquipText));
 	}
 
 	SetEquipHintWidgetsVisible(bHovered && CanShowEquipHint(), bHovered && CanShowEquipHint());

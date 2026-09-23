@@ -93,6 +93,17 @@ void UPlayerHudWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+void UPlayerHudWidget::OnMenuLanguageChanged()
+{
+	for (const auto& Pair : KillBoxWidgets)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->SetTeamInfo(Pair.Key, ResolveTeamName(Pair.Key), LabTeamColorUtils::GetTeamColor(Pair.Key));
+		}
+	}
+}
+
 void UPlayerHudWidget::RefreshLobbyTipVisibility()
 {
 	if (!Txt_LobbyTip)
@@ -568,17 +579,17 @@ FText UPlayerHudWidget::ResolveTeamName(const int32 TeamColorIndex) const
 	switch (TeamColorIndex)
 	{
 	case 0:
-		return NSLOCTEXT("PlayerHudWidget", "TeamNameRed", "Red");
+		return MenuText(TEXT("Team.Red"));
 	case 1:
-		return NSLOCTEXT("PlayerHudWidget", "TeamNameBlue", "Blue");
+		return MenuText(TEXT("Team.Blue"));
 	case 2:
-		return NSLOCTEXT("PlayerHudWidget", "TeamNameYellow", "Yellow");
+		return MenuText(TEXT("Team.Yellow"));
 	case 3:
-		return NSLOCTEXT("PlayerHudWidget", "TeamNamePurple", "Purple");
+		return MenuText(TEXT("Team.Purple"));
 	case 4:
-		return NSLOCTEXT("PlayerHudWidget", "TeamNameGreen", "Green");
+		return MenuText(TEXT("Team.Green"));
 	case 5:
-		return NSLOCTEXT("PlayerHudWidget", "TeamNameOrange", "Orange");
+		return MenuText(TEXT("Team.Orange"));
 	default:
 		return FText::GetEmpty();
 	}

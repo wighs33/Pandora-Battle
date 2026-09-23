@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "ConnectingPopupWidget.generated.h"
 
 class UButton;
@@ -10,7 +10,7 @@ class UWidgetAnimation;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FConnectingPopupCanceledSignature);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UConnectingPopupWidget : public UUserWidget
+class LABPROJECT_API UConnectingPopupWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 

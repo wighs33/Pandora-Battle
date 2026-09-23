@@ -198,6 +198,11 @@ void USkinSlotWidget::ApplySkinVisual(const USkinDefinition* Target)
 				: ESlateVisibility::Collapsed);
 	}
 
+	if (AssignedBadgeRoot)
+	{
+		AssignedBadgeRoot->SetVisibility(bAssigned && SkinDefinition ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
 	if (Img_Back)
 	{
 		Img_Back->SetColorAndOpacity(

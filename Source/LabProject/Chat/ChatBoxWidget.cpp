@@ -252,14 +252,19 @@ void UChatBoxWidget::RestoreGameInputFallback() const
 	PlayerController->bEnableMouseOverEvents = false;
 }
 
+void UChatBoxWidget::OnMenuLanguageChanged()
+{
+	SetChatInputEnabled(bChatFocused);
+}
+
 void UChatBoxWidget::SetChatInputEnabled(const bool bEnabled) const
 {
 	if (UEditableText* ChatInputText = GetChatInputWidget())
 	{
 		ChatInputText->SetIsEnabled(bEnabled);
 		ChatInputText->SetHintText(bEnabled
-			? NSLOCTEXT("Chat", "ChatInputHintActive", "Enter message")
-			: NSLOCTEXT("Chat", "ChatInputHintInactive", "Press Enter to chat"));
+			? MenuText(TEXT("HUD.ChatActive"))
+			: MenuText(TEXT("HUD.ChatIdle")));
 	}
 }
 

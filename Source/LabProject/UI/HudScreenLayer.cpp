@@ -31,21 +31,6 @@ namespace
 {
 	constexpr float InfoUiTrainingRoomPauseDelaySeconds = 0.05f;
 
-	void CutToPawnBeforePreviewScreenHandoff(APdPlayerController* Controller)
-	{
-		APawn* PlayerPawn = Controller ? Controller->GetPawn() : nullptr;
-		if (!Controller || !IsValid(PlayerPawn))
-		{
-			return;
-		}
-
-		Controller->SetViewTarget(PlayerPawn);
-		if (Controller->PlayerCameraManager)
-		{
-			Controller->PlayerCameraManager->UpdateCamera(0.0f);
-			Controller->PlayerCameraManager->SetGameCameraCutThisFrame();
-		}
-	}
 }
 
 void UHudScreenLayer::Initialize(APdHUD* InOwnerHud, UHudUiRouter* InRouter)
@@ -115,7 +100,6 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 	TGuardValue<bool> ScreenHandoffGuard(bScreenHandoffInProgress, true);
 	if (IsPandoraTreeOpen())
 	{
-		CutToPawnBeforePreviewScreenHandoff(Controller);
 		ClosePandoraTree(true, true);
 	}
 
@@ -193,6 +177,7 @@ void UHudScreenLayer::CloseInfo(
 
 	ClearInfoCloseTimer();
 	bInfoClosing = true;
+	if (IsPandoraTreeOpen()) ClosePandoraTree(true, true);
 	Hud->CachedInfoUI->SetReturnCameraOnHide(!bSuppressCameraReturn);
 	Hud->CachedInfoUI->HideInfoUi();
 	RefreshTrainingRoomPause(Hud->CachedInfoUI);
@@ -265,29 +250,20 @@ void UHudScreenLayer::OpenPandoraTree()
 		UiRouter->CloseSettingsMenu();
 	}
 	TGuardValue<bool> ScreenHandoffGuard(bScreenHandoffInProgress, true);
-	if (IsInfoOpen())
-	{
-		CutToPawnBeforePreviewScreenHandoff(Controller);
-		CloseInfo(true, true);
-	}
+	if (!IsInfoOpen() || bInfoClosing) OpenInfo(EInfoUiSection::Pandora);
+	if (!Hud->CachedInfoUI || !Hud->CachedInfoUI->IsInViewport()) return;
+	if (Hud->CachedInfoUI->GetFocusedSection() != EInfoUiSection::Pandora)
+		Hud->CachedInfoUI->FocusSection(EInfoUiSection::Pandora, false);
+	if (IsPandoraTreeOpen() && !bPandoraTreeClosing) return;
 
 	bPandoraTreeClosing = false;
-	Hud->CachedPandoraTreeUI->SetReturnCameraOnHide(true);
-	Hud->CachedPandoraTreeUI->OnPandoraTreeClosed.RemoveDynamic(
-		this,
-		&ThisClass::HandlePandoraTreeClosed);
-	Hud->CachedPandoraTreeUI->OnPandoraTreeClosed.AddUniqueDynamic(
-		this,
-		&ThisClass::HandlePandoraTreeClosed);
-
-	if (!Hud->CachedPandoraTreeUI->IsInViewport())
-	{
-		Hud->CachedPandoraTreeUI->AddToViewport();
-	}
-
+	Hud->CachedPandoraTreeUI->SetDockedInInfo(true);
+	Hud->CachedPandoraTreeUI->SetReturnCameraOnHide(false);
+	Hud->CachedPandoraTreeUI->OnPandoraTreeClosed.AddUniqueDynamic(this, &ThisClass::HandlePandoraTreeClosed);
+	if (!Hud->CachedInfoUI->AttachPandoraTree(Hud->CachedPandoraTreeUI)) return;
 	Hud->CachedPandoraTreeUI->ShowPandoraTree();
 	Hud->ToggleUiMode(true);
-	ScheduleTrainingRoomPause(Hud->CachedPandoraTreeUI->GetPreviewCameraShowBlendTime());
+	ScheduleTrainingRoomPause(InfoUiTrainingRoomPauseDelaySeconds);
 }
 
 void UHudScreenLayer::ClosePandoraTree(
@@ -346,7 +322,7 @@ bool UHudScreenLayer::IsInfoOpen() const
 bool UHudScreenLayer::IsPandoraTreeOpen() const
 {
 	const APdHUD* Hud = OwnerHud.Get();
-	return Hud && Hud->CachedPandoraTreeUI && Hud->CachedPandoraTreeUI->IsInViewport();
+	return Hud && Hud->CachedPandoraTreeUI && Hud->CachedPandoraTreeUI->IsPandoraTreeShown();
 }
 
 bool UHudScreenLayer::IsBlockingGameplayInput() const
@@ -396,7 +372,8 @@ void UHudScreenLayer::HandlePandoraTreeClosed(UPandoraTreeWidget* ClosedWidget)
 	ClosedWidget->OnPandoraTreeClosed.RemoveDynamic(
 		this,
 		&ThisClass::HandlePandoraTreeClosed);
-	ClosedWidget->SetReturnCameraOnHide(true);
+	ClosedWidget->SetReturnCameraOnHide(false);
+	if (Hud->CachedInfoUI) Hud->CachedInfoUI->OnPandoraDrawerClosed();
 	RefreshTrainingRoomPause();
 	Hud->RefreshPlayerHudVisibility();
 	Hud->ToggleUiMode(false);

@@ -1,6 +1,7 @@
 #include "UI/Widget/RecordEntryWidget.h"
 
 #include "Components/TextBlock.h"
+#include "Components/Border.h"
 #include "UI/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RecordEntryWidget)
@@ -39,8 +40,11 @@ void URecordEntryWidget::RefreshUI()
 
 	if (Txt_Result)
 	{
-		Txt_Result->SetText(Record.bWin ? WinText : LoseText);
+		Txt_Result->SetText(MenuTextOrFallback(Record.bWin ? TEXT("Record.Win") : TEXT("Record.Lose"), Record.bWin ? WinText : LoseText));
+		Txt_Result->SetColorAndOpacity(FSlateColor(Record.bWin ? FLinearColor(0.58f, 0.9f, 0.7f) : FLinearColor(1.0f, 0.58f, 0.64f)));
 	}
+	if (UBorder* Badge = Cast<UBorder>(GetWidgetFromName(TEXT("ResultBadge"))))
+		Badge->SetBrushColor(Record.bWin ? FLinearColor(0.06f, 0.22f, 0.16f) : FLinearColor(0.26f, 0.07f, 0.12f));
 
 	if (Txt_Kills)
 	{

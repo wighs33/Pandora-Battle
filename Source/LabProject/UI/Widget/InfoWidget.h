@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
 #include "UI/InfoUiTypes.h"
 #include "UI/Widget/LeftEquipmentWidget.h"
@@ -14,6 +14,8 @@
 #include "InfoWidget.generated.h"
 
 class UButton;
+class UCanvasPanel;
+class UPandoraTreeWidget;
 class UDragDropOperation;
 class UInfoCharacterPreviewController;
 class UInfoDetailController;
@@ -40,7 +42,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedItemToCharacterPanel, UI
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedSkinToCharacterPanel, const USkinDefinition*, SkinDefinition);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UInfoWidget : public UUserWidget
+class LABPROJECT_API UInfoWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -63,6 +65,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
 	void SelectMapTab();
+
+	/** Mount the growth drawer in the right-hand space without replacing this screen. */
+	bool AttachPandoraTree(UPandoraTreeWidget* Tree);
+	void OnPandoraDrawerClosed();
+	UFUNCTION(BlueprintPure, Category="!UI|Info|Pandora")
+	bool IsPandoraDrawerExpanded() const { return bPandoraDrawerExpanded; }
 
 	void FocusSection(EInfoUiSection Section, bool bAnimateTransition);
 	EInfoUiSection GetFocusedSection() const { return FocusedSection; }
@@ -141,8 +149,13 @@ public:
 	FPdOnDroppedSkinToCharacterPanel OnDroppedSkinToCharacterPanel;
 
 protected:
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Paint")
+	TObjectPtr<UButton> Btn_ClosePaint;
+	UFUNCTION()
+	void OnClosePaintClicked();
 	//------------------------------------------------------------------------------------------------------------------
 	//--- Engine Callbacks
+	virtual void OnMenuLanguageChanged() override;
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -233,6 +246,13 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> Btn_PandoraUpgrade;
+
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UCanvasPanel> PandoraTreeHost;
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> PandoraDrawerAction;
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UTextBlock> PandoraDrawerArrow;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> Btn_CanvasExport;
@@ -338,7 +358,9 @@ private:
 	void HideSkinPaintCanvasGroup();
 	bool SetPaintCanvasWidgetVisible(bool bVisible);
 	void SetCanvasExportButtonVisible(bool bVisible) const;
-	void SetPandoraUpgradeButtonVisible(bool bVisible) const;
+	void SetPandoraUpgradeButtonVisible(bool bVisible);
+	void RefreshPandoraDrawerLabel();
+	void ClosePandoraDrawerForNavigation();
 	void BindLeftSkinPaintCanvasEvents();
 	void UnbindLeftSkinPaintCanvasEvents();
 	bool IsScreenPositionInsideCharacterDropPanel(const FVector2D& ScreenSpacePosition) const;
@@ -363,5 +385,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoPaintCanvasController> PaintCanvasController;
 
+	TWeakObjectPtr<UPandoraTreeWidget> AttachedPandoraTree;
+	bool bPandoraDrawerExpanded = false;
 	EInfoUiSection FocusedSection = EInfoUiSection::Profile;
 };

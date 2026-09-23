@@ -259,6 +259,7 @@ void URightInventoryWidget::RebuildTileViewFromCachedSourceItems()
 	int32 ItemCount = 0;
 	int32 MatchedItemCount = 0;
 	TMap<const UItemDefinition*, int32> DuplicateCandidateCounts;
+	TSet<const UItemDefinition*> DefinitionsWithUnassignedItems;
 	for (const TObjectPtr<UObject>& ListItem : CachedSourceListItems)
 	{
 		const UItemInstance* ItemInstance = Cast<UItemInstance>(ListItem.Get());
@@ -270,6 +271,10 @@ void URightInventoryWidget::RebuildTileViewFromCachedSourceItems()
 			if (IsDuplicateHighlightCandidate(ItemDefinition))
 			{
 				++DuplicateCandidateCounts.FindOrAdd(ItemDefinition);
+				if (!AssignedItemIds.Contains(ItemInstance->GetItemId()))
+				{
+					DefinitionsWithUnassignedItems.Add(ItemDefinition);
+				}
 			}
 		}
 	}
@@ -277,7 +282,8 @@ void URightInventoryWidget::RebuildTileViewFromCachedSourceItems()
 	bool bHasCombinableItems = false;
 	for (const TPair<const UItemDefinition*, int32>& DuplicateCandidate : DuplicateCandidateCounts)
 	{
-		if (DuplicateCandidate.Value > 1)
+		// Merging two assigned items is rejected by the inventory component.
+		if (DuplicateCandidate.Value > 1 && DefinitionsWithUnassignedItems.Contains(DuplicateCandidate.Key))
 		{
 			bHasCombinableItems = true;
 			break;
@@ -317,7 +323,7 @@ void URightInventoryWidget::RebuildTileViewFromCachedSourceItems()
 		SlotViewData->Initialize(
 			SlotIndex,
 			ItemInstance,
-			DuplicateCount && *DuplicateCount > 1,
+			DuplicateCount && *DuplicateCount > 1 && DefinitionsWithUnassignedItems.Contains(ItemDefinition),
 			bAssigned);
 		CachedSlotViewData.Add(SlotViewData);
 		TileView->AddItem(SlotViewData);
@@ -332,10 +338,10 @@ void URightInventoryWidget::UpdateCombineMessage(const bool bHasCombinableItems)
 		return;
 	}
 
-	Txt_Message->SetText(NSLOCTEXT(
+	Txt_Message->SetText(MenuTextOrFallback(TEXT("Info.Combine"), NSLOCTEXT(
 		"RightInventoryWidget",
 		"CombineDuplicateItemsMessage",
-		"Combine duplicate weapons or equipment to upgrade them."));
+		"Combine duplicate weapons or equipment to upgrade them.")));
 	Txt_Message->SetVisibility(
 		bHasCombinableItems
 			? ESlateVisibility::SelfHitTestInvisible

@@ -1,8 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
-#include "Components/ComboBoxString.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "Definition/UI/GuideDefinition.h"
 #include "Fonts/SlateFontInfo.h"
 #include "GuideWidget.generated.h"
@@ -17,7 +16,7 @@ class UWidget;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGuideClosedSignature, UGuideWidget*, GuideWidget);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UGuideWidget : public UUserWidget
+class LABPROJECT_API UGuideWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -42,19 +41,24 @@ public:
 	FGuideClosedSignature OnGuideClosed;
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
+
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Guide|Bind")
 	TObjectPtr<UTextBlock> Txt_Content;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Guide|Bind")
+	TObjectPtr<UTextBlock> Txt_PageTitle;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Guide|Bind")
+	TObjectPtr<UTextBlock> Txt_PageNumber;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Guide|Bind")
 	TObjectPtr<UWidget> ImageBorder;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Guide|Bind")
 	TObjectPtr<UButton> Btn_Close;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Guide|Bind")
-	TObjectPtr<UComboBoxString> CB_Language;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Guide|Bind")
 	TObjectPtr<UWidget> Img_BackgroundPattern;
@@ -65,9 +69,6 @@ protected:
 private:
 	UFUNCTION()
 	void HandleCloseClicked();
-
-	UFUNCTION()
-	void HandleLanguageSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
 	UFUNCTION() void HandleGuideButton0Clicked();
 	UFUNCTION() void HandleGuideButton1Clicked();
@@ -83,7 +84,6 @@ private:
 	UFUNCTION() void HandleGuideButton11Clicked();
 
 	void ResolveWidgets();
-	void InitializeLanguageOptions();
 	void ApplyBackgroundPatternVisibility();
 	void BeginContentPreload();
 	void BeginPageImagePreload(int32 PreloadGeneration);
@@ -109,7 +109,6 @@ private:
 	TArray<TObjectPtr<UButton>> BoundGuideButtons;
 
 	EGuideLanguage CurrentLanguage = EGuideLanguage::Korean;
-	bool bHasSelectedLanguage = false;
 	int32 CurrentPageIndex = INDEX_NONE;
 	int32 ContentPreloadGeneration = 0;
 	ESlateVisibility DefaultBackgroundPatternVisibility = ESlateVisibility::Visible;

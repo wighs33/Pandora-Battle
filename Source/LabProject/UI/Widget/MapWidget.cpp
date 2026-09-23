@@ -258,7 +258,7 @@ void UMapWidget::ApplyMapView(const EMapView NewMapView)
 		ApplyTotalSizeBoxSize(WindmillMapTotalSizeBoxSize);
 		if (MapName)
 		{
-			MapName->SetText(FText::FromString(TEXT("Windmill")));
+			MapName->SetText(MenuTextOrFallback(TEXT("Info.Windmill"), FText::FromString(TEXT("Windmill"))));
 		}
 		SetRegionSelectionButtonsVisible(false);
 		if (AreaMapButton)
@@ -272,7 +272,7 @@ void UMapWidget::ApplyMapView(const EMapView NewMapView)
 		ApplyTotalSizeBoxSize(DomeMapTotalSizeBoxSize);
 		if (MapName)
 		{
-			MapName->SetText(FText::FromString(TEXT("Dome")));
+			MapName->SetText(MenuTextOrFallback(TEXT("Info.Dome"), FText::FromString(TEXT("Dome"))));
 		}
 		SetRegionSelectionButtonsVisible(false);
 		if (AreaMapButton)
@@ -286,7 +286,7 @@ void UMapWidget::ApplyMapView(const EMapView NewMapView)
 		ApplyTotalSizeBoxSize(TempleMapTotalSizeBoxSize);
 		if (MapName)
 		{
-			MapName->SetText(FText::FromString(TEXT("Temple")));
+			MapName->SetText(MenuTextOrFallback(TEXT("Info.Temple"), FText::FromString(TEXT("Temple"))));
 		}
 		SetRegionSelectionButtonsVisible(false);
 		if (AreaMapButton)
@@ -301,7 +301,7 @@ void UMapWidget::ApplyMapView(const EMapView NewMapView)
 		ApplyTotalSizeBoxSize(AreaMapTotalSizeBoxSize);
 		if (MapName)
 		{
-			MapName->SetText(FText::FromString(TEXT("Area Map")));
+			MapName->SetText(MenuTextOrFallback(TEXT("Info.AreaMap"), FText::FromString(TEXT("Area Map"))));
 		}
 		SetRegionSelectionButtonsVisible(true);
 		if (AreaMapButton)
@@ -1204,4 +1204,9 @@ FVector2D UMapWidget::GetCurrentTotalSizeBoxSize() const
 	default:
 		return AreaMapTotalSizeBoxSize;
 	}
+}
+
+void UMapWidget::OnMenuLanguageChanged()
+{
+ ApplyMapView(CurrentMapView);
 }

@@ -265,6 +265,11 @@ void USkinEquipSlotWidget::ApplySlotVisual()
 
 	UImage* EquippedSkinImage = bHasEquippedSkin ? (SkinImage ? SkinImage.Get() : IconImage.Get()) : nullptr;
 
+	if (AssignedBadgeRoot)
+	{
+		AssignedBadgeRoot->SetVisibility(bHasEquippedSkin ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
 	if (bHasEquippedSkin)
 	{
 		if (EquippedSkinImage)
@@ -367,6 +372,12 @@ void USkinEquipSlotWidget::ApplyButtonBackgroundStyle()
 {
 	if (!ItemButton)
 	{
+		return;
+	}
+	// Preserve the authored frame and its interaction states for equipped skins.
+	if (bHasDefaultButtonStyle && DefaultButtonStyle.Normal.GetResourceObject())
+	{
+		ItemButton->SetStyle(DefaultButtonStyle);
 		return;
 	}
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "Components/ComboBoxString.h"
 #include "Components/EditableTextBox.h"
 #include "LobbyUserWidget.generated.h"
@@ -15,7 +15,7 @@ class UOverlay;
 class UTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API ULobbyUserWidget : public UUserWidget
+class LABPROJECT_API ULobbyUserWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -30,6 +30,8 @@ public:
 	void RefreshUI();
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
+
 	UFUNCTION()
 	void HandleKickClicked();
 
@@ -71,6 +73,7 @@ protected:
 
 private:
 	void EnsureTeamColorOptions();
+	UFUNCTION() UWidget* GenerateTeamOption(FString Option);
 	void RefreshTeamColorUI();
 	void SetColorBorderByTeamColorIndex(int32 TeamColorIndex);
 	bool IsRepresentingLocalPlayer() const;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
 #include "Styling/SlateTypes.h"
 #include "EquipSlotWidget.generated.h"
@@ -16,7 +16,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedEquipSlot, UEquipSlotWid
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnDroppedItemEquipSlot, UEquipSlotWidget*, EquipSlot, UItemInstance*, ItemInstance);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UEquipSlotWidget : public UUserWidget
+class LABPROJECT_API UEquipSlotWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 

@@ -1,14 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "SavedGameData/PdSaveGame.h"
 #include "RecordEntryWidget.generated.h"
 
 class UTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URecordEntryWidget : public UUserWidget
+class LABPROJECT_API URecordEntryWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -22,6 +22,8 @@ public:
 	void RefreshUI();
 
 protected:
+	virtual void OnMenuLanguageChanged() override { RefreshUI(); }
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Record|Bind")
 	TObjectPtr<UTextBlock> Txt_Number;
 

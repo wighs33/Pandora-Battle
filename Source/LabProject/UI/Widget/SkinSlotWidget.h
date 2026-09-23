@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Blueprint/IUserObjectListEntry.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Widget/LocalizedMenuWidget.h"
 #include "SkinSlotWidget.generated.h"
 
 class USkinDefinition;
@@ -10,9 +10,10 @@ class USkinSlotViewData;
 class UTextBlock;
 class UDragItemVisualWidget;
 class UDragDropOperation;
+class UWidget;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API USkinSlotWidget : public UUserWidget, public IUserObjectListEntry
+class LABPROJECT_API USkinSlotWidget : public ULocalizedMenuWidget, public IUserObjectListEntry
 {
 	GENERATED_BODY()
 
@@ -52,6 +53,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
 	TObjectPtr<UTextBlock> Txt_Assigned;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
+	TObjectPtr<UWidget> AssignedBadgeRoot;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
 	TObjectPtr<UImage> Img_Back;
