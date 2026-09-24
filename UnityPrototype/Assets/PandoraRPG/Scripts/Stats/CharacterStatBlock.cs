@@ -3,6 +3,9 @@ using UnityEngine;
 
 namespace PandoraRPG.Stats
 {
+    // These classes intentionally stay as simple Inspector data holders.
+    // Runtime behavior belongs to CharacterStats or CharacterResources.
+
     [Serializable]
     public sealed class OffenseStats
     {
@@ -79,17 +82,17 @@ namespace PandoraRPG.Stats
     [Serializable]
     public sealed class ResourceLimits
     {
-        [Min(1f)] public float Health = 100f;
-        [Min(0f)] public float Shield;
-        [Min(0f)] public float Mana = 100f;
-        [Min(0f)] public float Stamina = 100f;
+        [Min(1f)] public float MaxHealth = 100f;
+        [Min(0f)] public float MaxShield;
+        [Min(0f)] public float MaxMana = 100f;
+        [Min(0f)] public float MaxStamina = 100f;
 
         public void Clamp()
         {
-            Health = Mathf.Max(Health, 1f);
-            Shield = Mathf.Max(Shield, 0f);
-            Mana = Mathf.Max(Mana, 0f);
-            Stamina = Mathf.Max(Stamina, 0f);
+            MaxHealth = Mathf.Max(MaxHealth, 1f);
+            MaxShield = Mathf.Max(MaxShield, 0f);
+            MaxMana = Mathf.Max(MaxMana, 0f);
+            MaxStamina = Mathf.Max(MaxStamina, 0f);
         }
     }
 
@@ -105,6 +108,13 @@ namespace PandoraRPG.Stats
 
         public void Clamp()
         {
+            Offense ??= new OffenseStats();
+            Defense ??= new DefenseStats();
+            Resistance ??= new ResistanceStats();
+            PandoraPower ??= new PandoraPowerStats();
+            Agility ??= new AgilityStats();
+            Resources ??= new ResourceLimits();
+
             Offense.Clamp();
             Defense.Clamp();
             Resistance.Clamp();

@@ -1,101 +1,112 @@
 # Pandora RPG Unity Architecture
 
-## Primary goal
+## Primary rule
 
-The code should be understandable to a developer who did not build the project.
+A class should answer one clear question.
 
-When readability and abstraction conflict, prefer the simpler code until duplication or change pressure proves that another abstraction is needed.
+- **Definition**: What is this thing configured to be?
+- **Stats**: What numbers does this character have?
+- **Resources**: What are this character's current HP / MP / Shield / Stamina values?
+- **Math**: How is a result calculated?
+- **Loadout**: What is currently equipped or selected?
+- **Controller**: What should happen in response to player or AI input?
 
-## Rules
+Avoid classes that own several of these responsibilities at once.
 
-### 1. Separate data, runtime state, and calculations
-
-- ScriptableObject definitions contain authoring data.
-- MonoBehaviour components own runtime state and Unity lifecycle.
-- Pure calculations live in small stateless classes such as `CombatMath`.
-
-A definition should not search the scene or mutate a character.
-A calculation helper should not know about GameObjects.
-A runtime component should not become a database of unrelated content.
-
-### 2. Prefer domain names over generic names
-
-Good:
-- `PandoraLoadout`
-- `CharacterStats`
-- `WeaponDefinition`
-- `SkillDefinition`
-
-Avoid unless the responsibility is genuinely broad:
-- `GameManager`
-- `AbilityManager`
-- `DataHandler`
-- `CommonUtility`
-
-### 3. One obvious path for each action
-
-For example, damage should have one readable flow:
+## Data flow
 
 ```text
-Attack/Skill
-  -> CombatMath calculates outgoing damage
-  -> target CharacterStats.TakeDamage()
-  -> resource change/death events
+ScriptableObject Definitions
+        |
+        v
+Runtime State / Components
+        |
+        v
+Pure Calculation
+        |
+        v
+Gameplay Result
+        |
+        v
+Animation / VFX / UI
 ```
 
-Do not hide the same rule in UI, animation, enemy, and player classes.
+Presentation code should observe gameplay state. It should not contain combat rules.
 
-### 4. Do not port multiplayer architecture into a single-player game
-
-The Unity prototype intentionally does not copy:
-- authority checks
-- RPC wrappers
-- replication callbacks
-- prediction/pending input state
-- server/client presentation branches
-
-If multiplayer is added later, networking should wrap the gameplay model rather than define it.
-
-### 5. Keep data containers boring
-
-Serialized stat groups are simple data classes on purpose.
-They are grouped by meaning so the Inspector and code read the same way.
-
-### 6. Avoid speculative abstractions
-
-Do not introduce an interface, base class, service locator, event bus, or generic action graph until at least two real systems need the shared behavior.
-
-### 7. Comments explain why, not what
-
-Bad:
-```csharp
-// Subtract mana.
-mana -= amount;
-```
-
-Good:
-```csharp
-// Skills pay their cost only after activation validation succeeds.
-```
-
-## Unreal -> Unity simplification
-
-| Unreal project | Unity prototype | Reason |
-| --- | --- | --- |
-| `BasicAttributeSet` | `CharacterStats` + `CharacterStatBlock` | Keep runtime resources separate from grouped stat data |
-| Gameplay Effect math | `CombatMath` | Pure rules are easy to read and test |
-| `PandoraComponent` + `PandoraSkillBinder` | `PandoraLoadout` | No replication or ability granting is needed |
-| Gameplay Tags | `GameplayTagSet` | Keep hierarchical identifiers without GAS |
-| Primary Data Assets | ScriptableObjects | Native Unity authoring model |
-
-## Folder intent
+## Folder responsibilities
 
 ```text
-Scripts/
-├── Abilities/   skill definitions and later skill execution
-├── Combat/      combat rules and hit/damage flow
-├── Core/        small engine-independent project primitives
-├── Items/       item and weapon definitions/runtime equipment
-├── Pandora/     Pandora definitions and loadout
-└── Stats/       character stat data and runtime resources
+Core/
+  Small project-wide utilities only.
+
+Stats/
+  CharacterStats       Configured and derived character numbers.
+  CharacterResources   Current HP, Shield, Mana, Stamina.
+  CharacterStatBlock   Grouped stat data shown in the Inspector.
+
+Combat/
+  CombatMath           Pure combat formulas.
+  Future attack execution and hit result types.
+
+Items/
+  WeaponDefinition     Weapon configuration data.
+
+Abilities/
+  SkillDefinition      Skill configuration data.
+
+Pandora/
+  PandoraDefinition    Pandora configuration data.
+  PandoraLoadout       Equipped slots and current selection.
 ```
+
+## Naming rules
+
+Use names that describe intent instead of implementation.
+
+Good:
+- `TakeDamage`
+- `TrySpendMana`
+- `CanUseWithWeapon`
+- `SelectedSlot`
+- `MaxHealth`
+
+Avoid vague names:
+- `Process`
+- `HandleData`
+- `DoAction`
+- `Value1`
+- `Temp`
+
+Boolean methods should read like questions:
+- `IsDead`
+- `IsSkillUnlocked`
+- `CanUseWithWeapon`
+- `TrySelect`
+
+## Dependency rules
+
+1. Definitions do not depend on runtime player objects.
+2. Math classes do not read scene objects.
+3. UI never calculates damage.
+4. CharacterResources does not know how damage was calculated.
+5. CharacterStats does not own current HP / MP.
+6. PandoraLoadout does not grant abilities itself. A future controller/service will perform execution.
+7. Network-specific concepts are not introduced unless multiplayer becomes an actual requirement.
+
+## Porting rule from Pandora Battle
+
+Do not translate Unreal classes one-to-one.
+
+Keep the gameplay rule, then rebuild the responsibility in the simplest Unity form.
+
+Examples:
+
+- `UBasicAttributeSet`
+  - Unreal: stats, resources, replication, damage scratch attributes, callbacks.
+  - Unity: `CharacterStats` + `CharacterResources` + `CombatMath`.
+
+- `UPandoraComponent`
+  - Unreal: inventory, loadout, selection, replication, async loading, ability grants.
+  - Unity: start with `PandoraLoadout`; add separate inventory and skill execution classes only when the game needs them.
+
+This keeps the single-player project understandable without carrying multiplayer architecture into it.

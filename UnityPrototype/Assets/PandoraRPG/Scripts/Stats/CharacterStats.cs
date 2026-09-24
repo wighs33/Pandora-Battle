@@ -4,145 +4,39 @@ using UnityEngine;
 namespace PandoraRPG.Stats
 {
     /// <summary>
-    /// Owns one character's runtime resources and exposes its authored combat stats.
-    /// Damage formulas themselves belong to CombatMath.
+    /// Stores a character's progression and combat stats.
+    /// Current HP, Mana, Shield, and Stamina belong to CharacterResources.
     /// </summary>
     public sealed class CharacterStats : MonoBehaviour
     {
-        public event Action ResourcesChanged;
         public event Action StatsChanged;
-        public event Action Died;
 
-        [Header("Level")]
+        [Header("Progression")]
         [SerializeField, Min(1)] private int level = 1;
         [SerializeField, Min(0f)] private float experience;
         [SerializeField, Min(1f)] private float experienceToNextLevel = 100f;
 
-        [Header("Stats")]
-        [SerializeField] private CharacterStatBlock values = new();
-
-        private float currentHealth;
-        private float currentShield;
-        private float currentMana;
-        private float currentStamina;
+        [Header("Combat Stats")]
+        [SerializeField] private CharacterStatBlock statBlock = new();
 
         public int Level => level;
         public float Experience => experience;
         public float ExperienceToNextLevel => experienceToNextLevel;
 
-        public CharacterStatBlock Values => values;
-
-        public float CurrentHealth => currentHealth;
-        public float CurrentShield => currentShield;
-        public float CurrentMana => currentMana;
-        public float CurrentStamina => currentStamina;
-
-        public bool IsDead => currentHealth <= 0f;
-
-        private void Awake()
-        {
-            RestoreAllResources();
-        }
-
-        public void RestoreAllResources()
-        {
-            currentHealth = values.Resources.Health;
-            currentShield = values.Resources.Shield;
-            currentMana = values.Resources.Mana;
-            currentStamina = values.Resources.Stamina;
-
-            ResourcesChanged?.Invoke();
-        }
+        public OffenseStats Offense => statBlock.Offense;
+        public DefenseStats Defense => statBlock.Defense;
+        public ResistanceStats Resistance => statBlock.Resistance;
+        public PandoraPowerStats PandoraPower => statBlock.PandoraPower;
+        public AgilityStats Agility => statBlock.Agility;
+        public ResourceLimits Resources => statBlock.Resources;
 
         /// <summary>
-        /// Applies already-calculated final damage.
-        /// Shield absorbs damage before health.
+        /// Call this after changing runtime stats through a progression system.
         /// </summary>
-        public float TakeDamage(float finalDamage)
-        {
-            if (finalDamage <= 0f || IsDead)
-            {
-                return 0f;
-            }
-
-            float remainingDamage = finalDamage;
-
-            float shieldDamage = Mathf.Min(currentShield, remainingDamage);
-            currentShield -= shieldDamage;
-            remainingDamage -= shieldDamage;
-
-            float healthDamage = Mathf.Min(currentHealth, remainingDamage);
-            currentHealth -= healthDamage;
-
-            ResourcesChanged?.Invoke();
-
-            if (currentHealth <= 0f)
-            {
-                currentHealth = 0f;
-                Died?.Invoke();
-            }
-
-            return healthDamage;
-        }
-
-        public float Heal(float amount)
-        {
-            if (amount <= 0f || IsDead)
-            {
-                return 0f;
-            }
-
-            float previousHealth = currentHealth;
-            currentHealth = Mathf.Min(currentHealth + amount, values.Resources.Health);
-
-            ResourcesChanged?.Invoke();
-            return currentHealth - previousHealth;
-        }
-
-        public bool TrySpendMana(float amount)
-        {
-            return TrySpendResource(ref currentMana, amount);
-        }
-
-        public bool TrySpendStamina(float amount)
-        {
-            return TrySpendResource(ref currentStamina, amount);
-        }
-
-        public void RestoreMana(float amount)
-        {
-            currentMana = RestoreResource(currentMana, amount, values.Resources.Mana);
-            ResourcesChanged?.Invoke();
-        }
-
-        public void RestoreStamina(float amount)
-        {
-            currentStamina = RestoreResource(currentStamina, amount, values.Resources.Stamina);
-            ResourcesChanged?.Invoke();
-        }
-
         public void NotifyStatsChanged()
         {
-            values.Clamp();
+            statBlock.Clamp();
             StatsChanged?.Invoke();
-        }
-
-        private bool TrySpendResource(ref float currentValue, float amount)
-        {
-            float safeAmount = Mathf.Max(amount, 0f);
-            if (currentValue < safeAmount)
-            {
-                return false;
-            }
-
-            currentValue -= safeAmount;
-            ResourcesChanged?.Invoke();
-            return true;
-        }
-
-        private static float RestoreResource(float currentValue, float amount, float maximum)
-        {
-            return Mathf.Min(currentValue + Mathf.Max(amount, 0f), maximum);
         }
 
         private void OnValidate()
@@ -150,8 +44,9 @@ namespace PandoraRPG.Stats
             level = Mathf.Max(level, 1);
             experience = Mathf.Max(experience, 0f);
             experienceToNextLevel = Mathf.Max(experienceToNextLevel, 1f);
-            values ??= new CharacterStatBlock();
-            values.Clamp();
+
+            statBlock ??= new CharacterStatBlock();
+            statBlock.Clamp();
         }
     }
 }

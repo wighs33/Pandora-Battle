@@ -21,7 +21,8 @@ namespace PandoraRPG.Pandora
     }
 
     /// <summary>
-    /// Owns the three equipped Pandora slots and which one currently receives skill input.
+    /// Stores the three equipped Pandoras and the currently selected slot.
+    /// Skill execution belongs to a separate controller.
     /// </summary>
     public sealed class PandoraLoadout
     {
@@ -65,14 +66,15 @@ namespace PandoraRPG.Pandora
             return true;
         }
 
-        public float GetSelectedPowerBonus(CharacterStats characterStats)
+        public float GetSelectedPowerBonus(CharacterStats stats)
         {
-            if (characterStats == null)
+            if (stats == null)
             {
                 return 0f;
             }
 
-            PandoraPowerStats power = characterStats.Values.PandoraPower;
+            PandoraPowerStats power = stats.PandoraPower;
+
             return SelectedSlot switch
             {
                 PandoraSlot.Left => power.LeftSlot,
