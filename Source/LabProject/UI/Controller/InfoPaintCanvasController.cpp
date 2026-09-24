@@ -124,6 +124,7 @@ bool UInfoPaintCanvasController::SetVisible(const bool bVisible)
 
 bool UInfoPaintCanvasController::BeginStroke(const FVector2D& ScreenSpacePosition)
 {
+	CancelStroke();
 	bIsDrawing = PaintAtScreenPosition(ScreenSpacePosition);
 	return bIsDrawing;
 }
@@ -161,6 +162,12 @@ bool UInfoPaintCanvasController::EndStroke(const FVector2D& ScreenSpacePosition)
 void UInfoPaintCanvasController::CancelStroke()
 {
 	bIsDrawing = false;
+	APdPlayer* PlayerCharacter = GetPlayerCharacter();
+	UPaintCanvasComponent* PaintCanvas = PlayerCharacter ? PlayerCharacter->GetPaintCanvasComponent() : nullptr;
+	if (PaintCanvas)
+	{
+		PaintCanvas->ResetPaintStroke();
+	}
 }
 
 bool UInfoPaintCanvasController::ExportActiveCanvas()

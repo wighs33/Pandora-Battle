@@ -100,7 +100,8 @@ public:
 		TMap<EEnum_Direction, FName>& OutPandoraNamesByDirection) const;
 
 	void ResetLocalLobbyPaintCanvasCache();
-	void CacheLocalLobbyPaintCanvasStroke(UTexture2D* BrushTexture, double BrushSize, const FVector2D& DrawLocation);
+	void CacheLocalLobbyPaintCanvasStroke(
+		UTexture2D* BrushTexture, double BrushSize, const FVector2D& DrawLocation, bool bStartsNewStroke = true);
 	void CacheLocalLobbyPaintCanvasFaceDecal(
 		UMaterialInterface* FaceDecalMaterial,
 		FName AttachSocketName,

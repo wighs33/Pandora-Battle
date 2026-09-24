@@ -38,6 +38,9 @@ struct LABPROJECT_API FLobbyPaintCanvasStrokeCache
 
 	UPROPERTY()
 	FVector2D DrawLocation = FVector2D::ZeroVector;
+
+	UPROPERTY()
+	bool bStartsNewStroke = true;
 };
 
 USTRUCT(BlueprintType)

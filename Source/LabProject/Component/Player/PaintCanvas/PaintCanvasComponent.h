@@ -2,8 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Component/Player/PaintCanvas/PaintCanvasSync.h"
-#include "Iris/ReplicationState/IrisFastArraySerializer.h"
 #include "TimerManager.h"
 #include "PaintCanvasComponent.generated.h"
 
@@ -14,10 +12,9 @@ class UPaintCanvasDisplay;
 class UPrimitiveComponent;
 class UTexture2D;
 class UTextureRenderTarget2D;
-class UPaintCanvasComponent;
 
 USTRUCT()
-struct LABPROJECT_API FPaintCanvasStrokeRequest
+struct LABPROJECT_API FPaintCanvasStroke
 {
     GENERATED_BODY()
 
@@ -26,89 +23,12 @@ struct LABPROJECT_API FPaintCanvasStrokeRequest
 
     UPROPERTY()
     FVector2f DrawLocation = FVector2f::ZeroVector;
+
+    UPROPERTY()
+    bool bStartsNewStroke = true;
 };
 
-USTRUCT()
-struct LABPROJECT_API FReplicatedPaintCanvasStroke : public FFastArraySerializerItem
-{
-    GENERATED_BODY()
-
-    UPROPERTY()
-    uint32 Sequence = 0;
-
-    UPROPERTY()
-    float BrushSize = 0.0f;
-
-    UPROPERTY()
-    FVector2f DrawLocation = FVector2f::ZeroVector;
-};
-
-
-USTRUCT()
-struct LABPROJECT_API FReplicatedPaintCanvasStrokeArray : public FIrisFastArraySerializer
-{
-    GENERATED_BODY()
-
-    UPROPERTY()
-    TArray<FReplicatedPaintCanvasStroke> Items;
-
-    bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParams)
-    {
-        return FFastArraySerializer::FastArrayDeltaSerialize<
-            FReplicatedPaintCanvasStroke,
-            FReplicatedPaintCanvasStrokeArray>(
-                Items,
-                DeltaParams,
-                *this);
-    }
-
-    void PostReplicatedAdd(const TArrayView<int32>&, int32);
-
-    void PostReplicatedChange(const TArrayView<int32>&, int32);
-
-    void PreReplicatedRemove(const TArrayView<int32>&, int32);
-
-    void SetOwner(UPaintCanvasComponent* InOwner)
-    {
-        Owner = InOwner;
-    }
-
-private:
-    UPaintCanvasComponent* Owner = nullptr;
-};
-
-template <>
-struct TStructOpsTypeTraits<FReplicatedPaintCanvasStrokeArray>
-    : public TStructOpsTypeTraitsBase2<FReplicatedPaintCanvasStrokeArray>
-{
-    enum
-    {
-        WithNetDeltaSerializer = true,
-    };
-};
-
-USTRUCT()
-struct LABPROJECT_API FReplicatedPaintCanvasStateHeader
-{
-    GENERATED_BODY()
-
-    UPROPERTY()
-    uint32 Revision = 1;
-
-    UPROPERTY()
-    uint32 LastSequence = 0;
-
-    UPROPERTY()
-    uint32 Checksum = 0;
-};
-
-/**
- * Paint 기능의 외부 진입점과 네트워크 흐름을 조율한다.
- *
- * - RenderTarget에 Stroke를 그리는 일은 이 컴포넌트가 직접 담당한다.
- * - Sequence/Revision/Checksum 규칙은 PaintCanvasSync로 분리한다.
- * - Speech Bubble/Face Decal 월드 표현은 UPaintCanvasPresentation에 위임한다.
- */
+/** Draw locally, then share the completed stroke history for display. */
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UPaintCanvasComponent : public UActorComponent
 {
@@ -119,12 +39,12 @@ public:
 
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
     void SetSpeechBubbleComponent(UPrimitiveComponent* InSpeechBubbleComponent);
 
     bool BeginPaintCanvasUiSession();
     bool PaintAtNormalizedLocation(const FVector2D& DrawLocation);
+    void ResetPaintStroke();
     void HidePaintCanvas();
     bool HasActivePaintCanvas() const;
 
@@ -143,24 +63,20 @@ public:
     void HidePaintSpeechBubble();
 
 private:
-    friend struct FReplicatedPaintCanvasStrokeArray;
-
     APdPlayer* GetPlayerOwner() const;
     UPaintCanvasDisplay* GetOrCreatePresentation();
 
     // Canvas rendering
     bool EnsurePaintCanvasRenderResources(bool bResetCanvas = false);
     void ResetPaintCanvasRenderTarget();
-    bool DrawBrushToRenderTarget(
-        UTexture2D* InBrushTexture,
-        double InBrushSize,
-        const FVector2D& DrawLocation);
+    bool DrawBrushToRenderTarget(UTexture2D* InBrushTexture, double InBrushSize, const FVector2D& DrawLocation);
+    bool DrawPaintStroke(const FPaintCanvasStroke& Stroke, const FPaintCanvasStroke* PreviousStroke);
     void ApplyBrushMaterialParameters() const;
     UTextureRenderTarget2D* CreatePaintCanvasCopy(
         UTextureRenderTarget2D* SourceRenderTarget,
         double Scale,
         const FLinearColor& ClearTargetColor);
-    void RebuildCanvasFromAuthoritativeHistory(const TArray<const FReplicatedPaintCanvasStroke*>& SortedStrokes);
+    bool ReplayPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes);
 
     // Local session / presentation orchestration
     void CancelPaintCanvasExport();
@@ -173,21 +89,9 @@ private:
         const FTransform& FaceDecalTransformOffset,
         FVector FaceDecalSize,
         FName TextureParameterName);
-    void ProcessPendingPaintPresentation();
 
-    // Network / authoritative history
-    void ResetLocalSharedPaintCanvas();
-    void SubmitPaintCanvasResetForNetwork();
-    void SubmitPaintCanvasStrokeForNetwork(
-        double InBrushSize,
-        const FVector2D& DrawLocation);
-    void FlushPendingPaintStrokeBatches(bool bFlushAll);
-    void SchedulePendingPaintStrokeFlush();
-    void CommitAuthoritativePaintStrokeBatch(
-        const TArray<FPaintCanvasStrokeRequest>& StrokeBatch);
-    void ResetAuthoritativePaintCanvas();
-    void SchedulePaintStateReconciliation();
-    void ReconcileReplicatedPaintState();
+    // Completed drawings only
+    bool IsValidPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes) const;
     void SubmitPaintCanvasExportForNetwork();
 
     void SubmitPaintCanvasFaceDecalForNetwork(
@@ -197,15 +101,9 @@ private:
         FVector FaceDecalSize,
         FName TextureParameterName);
 
-    bool TryConsumePaintNetworkEvent(
-        double& LastAcceptedTime,
-        double MinInterval);
+    bool TryConsumePaintNetworkEvent(double& LastAcceptedTime, double MinInterval);
 
-    // Travel bridge. Lobby 의존성은 별도 리팩터링에서 역전하는 편이 안전하다.
-    void CacheLocalPaintCanvasStrokeForTravel(
-        UTexture2D* InBrushTexture,
-        double InBrushSize,
-        const FVector2D& DrawLocation) const;
+    // Travel cache
     void CacheLocalPaintCanvasFaceDecalForTravel(
         UMaterialInterface* FaceDecalMaterial,
         FName AttachSocketName,
@@ -214,22 +112,14 @@ private:
         FName TextureParameterName) const;
 
     UFUNCTION(Server, Reliable)
-    void ServerResetSharedPaintCanvas();
-
-    UFUNCTION(Server, Reliable)
-    void ServerSubmitPaintCanvasStrokeBatch(const TArray<FPaintCanvasStrokeRequest>& StrokeBatch);
-
-    UFUNCTION(Server, Reliable)
-    void ServerExportPaintCanvas();
+    void ServerExportPaintCanvas(const TArray<FPaintCanvasStroke>& Strokes);
 
     UFUNCTION(NetMulticast, Reliable)
-    void MulticastExportPaintCanvas(
-        uint32 RequiredRevision,
-        uint32 RequiredLastSequence,
-        uint32 RequiredChecksum);
+    void MulticastExportPaintCanvas(const TArray<FPaintCanvasStroke>& Strokes);
 
     UFUNCTION(Server, Reliable)
     void ServerApplyPaintCanvasFaceDecal(
+        const TArray<FPaintCanvasStroke>& Strokes,
         UMaterialInterface* FaceDecalMaterial,
         FName AttachSocketName,
         FTransform FaceDecalTransformOffset,
@@ -238,17 +128,12 @@ private:
 
     UFUNCTION(NetMulticast, Reliable)
     void MulticastApplyPaintCanvasFaceDecal(
+        const TArray<FPaintCanvasStroke>& Strokes,
         UMaterialInterface* FaceDecalMaterial,
         FName AttachSocketName,
         FTransform FaceDecalTransformOffset,
         FVector FaceDecalSize,
-        FName TextureParameterName,
-        uint32 RequiredRevision,
-        uint32 RequiredLastSequence,
-        uint32 RequiredChecksum);
-
-    UFUNCTION()
-    void OnRep_PaintCanvasStateHeader();
+        FName TextureParameterName);
 
 private:
     UPROPERTY(EditAnywhere, Category = "!Paint", meta = (DisplayName = "Brush Texture"))
@@ -271,12 +156,6 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "!Paint|Material")
     FName BrushColorParameterName = TEXT("BrushColor");
-
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "1", ClampMax = "64"))
-    int32 MaxPaintStrokesPerBatch = 32;
-
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "0.005", ForceUnits = "s"))
-    double PaintStrokeBatchInterval = 0.02;
 
     UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "1", ClampMax = "8192"))
     int32 MaxReplicatedPaintStrokeHistory = 4096;
@@ -328,36 +207,10 @@ private:
 
     FTimerHandle PaintCanvasExportTimerHandle;
 
-    // FastArray 사용
-    UPROPERTY(Replicated)
-    FReplicatedPaintCanvasStrokeArray ReplicatedPaintStrokes;
-
-    UPROPERTY(ReplicatedUsing = OnRep_PaintCanvasStateHeader)
-    FReplicatedPaintCanvasStateHeader ReplicatedPaintStateHeader;
-
-    TArray<FPaintCanvasStrokeRequest> PendingPaintStrokeRequests;
-    FTimerHandle PaintStrokeBatchTimerHandle;
-    FTimerHandle PaintStateReconcileTimerHandle;
-
-    FPaintCanvasLocalSyncState LocalSyncState;
-
-    bool bHasPendingPaintExport = false;
-    uint32 PendingPaintExportRevision = 0;
-    uint32 PendingPaintExportLastSequence = 0;
-    uint32 PendingPaintExportChecksum = 0;
-
-    bool bHasPendingFaceDecal = false;
-
     UPROPERTY(Transient)
-    TObjectPtr<UMaterialInterface> PendingFaceDecalMaterial = nullptr;
+    TArray<FPaintCanvasStroke> LocalPaintStrokes;
 
-    FName PendingFaceDecalAttachSocketName = NAME_None;
-    FTransform PendingFaceDecalTransformOffset = FTransform::Identity;
-    FVector PendingFaceDecalSize = FVector::ZeroVector;
-    FName PendingFaceDecalTextureParameterName = NAME_None;
-    uint32 PendingFaceDecalRevision = 0;
-    uint32 PendingFaceDecalLastSequence = 0;
-    uint32 PendingFaceDecalChecksum = 0;
+    bool bHasPreviousPaintLocation = false;
 
     double LastPaintExportServerTime = -1.0e30;
     double LastPaintFaceDecalServerTime = -1.0e30;
