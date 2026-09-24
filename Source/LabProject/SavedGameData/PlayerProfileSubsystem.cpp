@@ -4,7 +4,7 @@
 #include "Engine/AssetManager.h"
 #include "Definition/Item/RewardDefinition.h"
 #include "Kismet/GameplayStatics.h"
-#include "Pandora/PandoraDefaultUnlockPolicy.h"
+#include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Skin/SkinDefaultUnlockPolicy.h"
@@ -298,7 +298,9 @@ bool UPlayerProfileSubsystem::IsPandoraGranted(const FString& PlayerId, UPandora
 	}
 
 	const FPrimaryAssetId PandoraId = ResolvePandoraSaveId(PandoraDefinition);
-	if (PandoraDefaultUnlockPolicy::IsDefaultUnlockedPandoraDefinition(PandoraDefinition))
+	const UDefaultProvisionDefinition* DefaultProvision = IsValid(PandoraDefinition)
+		? UDefaultProvisionDefinition::ResolveDefaultDefinition() : nullptr;
+	if (DefaultProvision && DefaultProvision->IsPandoraKeyGranted(PandoraDefinition->GetFName(), EDefaultProvisionMode::Gameplay))
 	{
 		return true;
 	}
@@ -325,7 +327,9 @@ int32 UPlayerProfileSubsystem::GetGrantedPandoraLevel(const FString& PlayerId, U
 	}
 
 	const FPrimaryAssetId PandoraId = ResolvePandoraSaveId(PandoraDefinition);
-	if (PandoraDefaultUnlockPolicy::IsDefaultUnlockedPandoraDefinition(PandoraDefinition))
+	const UDefaultProvisionDefinition* DefaultProvision = IsValid(PandoraDefinition)
+		? UDefaultProvisionDefinition::ResolveDefaultDefinition() : nullptr;
+	if (DefaultProvision && DefaultProvision->IsPandoraKeyGranted(PandoraDefinition->GetFName(), EDefaultProvisionMode::Gameplay))
 	{
 		return 0;
 	}
@@ -364,8 +368,10 @@ bool UPlayerProfileSubsystem::GrantPandoraToSave(
 	}
 
 	const FPrimaryAssetId PandoraId = ResolvePandoraSaveId(PandoraDefinition);
+	const UDefaultProvisionDefinition* DefaultProvision = PandoraId.IsValid() && IsValid(PandoraDefinition)
+		? UDefaultProvisionDefinition::ResolveDefaultDefinition() : nullptr;
 	if (!PandoraId.IsValid()
-		|| PandoraDefaultUnlockPolicy::IsDefaultUnlockedPandoraDefinition(PandoraDefinition))
+		|| (DefaultProvision && DefaultProvision->IsPandoraKeyGranted(PandoraDefinition->GetFName(), EDefaultProvisionMode::Gameplay)))
 	{
 		return false;
 	}
@@ -400,8 +406,10 @@ bool UPlayerProfileSubsystem::TryPurchasePandoraWithGold(
 	}
 
 	const FPrimaryAssetId PandoraId = ResolvePandoraSaveId(PandoraDefinition);
+	const UDefaultProvisionDefinition* DefaultProvision = PandoraId.IsValid() && IsValid(PandoraDefinition)
+		? UDefaultProvisionDefinition::ResolveDefaultDefinition() : nullptr;
 	if (!PandoraId.IsValid()
-		|| PandoraDefaultUnlockPolicy::IsDefaultUnlockedPandoraDefinition(PandoraDefinition))
+		|| (DefaultProvision && DefaultProvision->IsPandoraKeyGranted(PandoraDefinition->GetFName(), EDefaultProvisionMode::Gameplay)))
 	{
 		return false;
 	}

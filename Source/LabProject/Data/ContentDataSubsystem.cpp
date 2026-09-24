@@ -2,11 +2,11 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "Definition/Pandora/PandoraDefinition.h"
+#include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
-#include "Pandora/PandoraDefaultUnlockPolicy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContentDataSubsystem)
 
@@ -346,10 +346,11 @@ void UContentDataSubsystem::BuildGrantedPandorasFromNames(
 	TArray<FGrantedPandora>& OutGrantedPandoras) const
 {
 	OutGrantedPandoras.Reset();
+	const UDefaultProvisionDefinition* DefaultProvision = UDefaultProvisionDefinition::ResolveDefaultDefinition();
 
 	for (const TPair<FName, int32>& PandoraPair : GrantedPandorasByName)
 	{
-		if (PandoraDefaultUnlockPolicy::IsDefaultUnlockedPandoraName(PandoraPair.Key))
+		if (DefaultProvision && DefaultProvision->IsPandoraKeyGranted(PandoraPair.Key, EDefaultProvisionMode::Gameplay))
 		{
 			continue;
 		}

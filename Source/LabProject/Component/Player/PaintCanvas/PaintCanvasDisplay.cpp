@@ -23,7 +23,6 @@ void UPaintCanvasDisplay::SetSpeechBubbleComponent(UPrimitiveComponent* InSpeech
 
 bool UPaintCanvasDisplay::ShowSpeechBubble(
     UTextureRenderTarget2D* RenderTarget,
-    const FName SpeechBubbleComponentName,
     const int32 MaterialIndex,
     const FName TextureParameterName)
 {
@@ -37,8 +36,7 @@ bool UPaintCanvasDisplay::ShowSpeechBubble(
         UE_LOG(
             LogPaintCanvasPresentation,
             Warning,
-            TEXT("Failed to show paint speech bubble. Component '%s' was not found."),
-            *SpeechBubbleComponentName.ToString());
+            TEXT("Failed to show paint speech bubble. Speech bubble component is not valid."));
         return false;
     }
 
@@ -76,7 +74,7 @@ bool UPaintCanvasDisplay::ShowSpeechBubble(
     return true;
 }
 
-void UPaintCanvasDisplay::HideSpeechBubble(const FName)
+void UPaintCanvasDisplay::HideSpeechBubble()
 {
     if (IsValid(SpeechBubbleComponent))
     {
@@ -173,9 +171,9 @@ void UPaintCanvasDisplay::ClearFaceDecal()
     ActiveFaceDecalSnapshot = nullptr;
 }
 
-void UPaintCanvasDisplay::Reset(const FName SpeechBubbleComponentName)
+void UPaintCanvasDisplay::Reset()
 {
-    HideSpeechBubble(SpeechBubbleComponentName);
+    HideSpeechBubble();
     ClearFaceDecal();
     PlayerOwner = nullptr;
 }

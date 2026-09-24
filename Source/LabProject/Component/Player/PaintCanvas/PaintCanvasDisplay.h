@@ -21,23 +21,13 @@ public:
     void Initialize(APdPlayer* InPlayerOwner);
     void SetSpeechBubbleComponent(UPrimitiveComponent* InSpeechBubbleComponent);
 
-    bool ShowSpeechBubble(
-        UTextureRenderTarget2D* RenderTarget,
-        FName SpeechBubbleComponentName,
-        int32 MaterialIndex,
-        FName TextureParameterName);
-    void HideSpeechBubble(FName SpeechBubbleComponentName);
+    bool ShowSpeechBubble(UTextureRenderTarget2D* RenderTarget, int32 MaterialIndex, FName TextureParameterName);
+    void HideSpeechBubble();
 
-    bool ApplyFaceDecal(
-        UTextureRenderTarget2D* PaintSnapshot,
-        UMaterialInterface* FaceDecalMaterial,
-        FName AttachSocketName,
-        const FTransform& FaceDecalTransformOffset,
-        FVector FaceDecalSize,
-        FName TextureParameterName);
+    bool ApplyFaceDecal(UTextureRenderTarget2D* PaintSnapshot, UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
     void ClearFaceDecal();
 
-    void Reset(FName SpeechBubbleComponentName);
+    void Reset();
 
 private:
     UPROPERTY(Transient)

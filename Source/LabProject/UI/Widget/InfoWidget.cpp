@@ -730,15 +730,8 @@ void UInfoWidget::OnCanvasExportButtonClicked()
 		return;
 	}
 
-	const bool bExported = PaintCanvasController->ExportActiveCanvas();
-	if (bExported)
-	{
-		SetPaintCanvasWidgetVisible(false);
-		OnCloseButtonClicked();
-		return;
-	}
-	SetCanvasExportButtonVisible(
-		PaintCanvasController->HasActiveCanvas());
+	PaintCanvasController->ExportActiveCanvas();
+	SetCanvasExportButtonVisible(PaintCanvasController->HasActiveCanvas());
 }
 
 void UInfoWidget::OnFaceDecalButtonClicked()

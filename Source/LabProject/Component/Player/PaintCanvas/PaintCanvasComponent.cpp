@@ -38,59 +38,6 @@ namespace
             && DrawLocation.Y >= 0.0
             && DrawLocation.Y <= 1.0;
     }
-
-    bool IsValidTransform(
-        const FTransform& Transform,
-        const double MaxTranslationDistance,
-        const double MaxScale)
-    {
-        if (Transform.ContainsNaN())
-        {
-            return false;
-        }
-
-        const FVector Translation = Transform.GetTranslation();
-        if (Translation.SizeSquared() > FMath::Square(FMath::Max(MaxTranslationDistance, 0.0)))
-        {
-            return false;
-        }
-
-        const FVector Scale = Transform.GetScale3D().GetAbs();
-        const double SafeMaxScale = FMath::Max(MaxScale, 0.01);
-        return Scale.X >= 0.01
-            && Scale.Y >= 0.01
-            && Scale.Z >= 0.01
-            && Scale.X <= SafeMaxScale
-            && Scale.Y <= SafeMaxScale
-            && Scale.Z <= SafeMaxScale;
-    }
-
-    bool IsValidFaceDecalPayload(
-        const UMaterialInterface* FaceDecalMaterial,
-        const FTransform& FaceDecalTransformOffset,
-        const FVector& FaceDecalSize,
-        const double MaxFaceDecalSize,
-        const double MaxTranslationDistance,
-        const double MaxScale)
-    {
-        if (!FaceDecalMaterial || FaceDecalSize.ContainsNaN())
-        {
-            return false;
-        }
-
-        const double SafeMaxFaceDecalSize = FMath::Max(MaxFaceDecalSize, 1.0);
-        if (FaceDecalSize.X <= 0.0
-            || FaceDecalSize.Y <= 0.0
-            || FaceDecalSize.Z <= 0.0
-            || FaceDecalSize.X > SafeMaxFaceDecalSize
-            || FaceDecalSize.Y > SafeMaxFaceDecalSize
-            || FaceDecalSize.Z > SafeMaxFaceDecalSize)
-        {
-            return false;
-        }
-
-        return IsValidTransform(FaceDecalTransformOffset, MaxTranslationDistance, MaxScale);
-    }
 }
 
 UPaintCanvasComponent::UPaintCanvasComponent(const FObjectInitializer& ObjectInitializer)
@@ -112,7 +59,7 @@ void UPaintCanvasComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
     CancelPaintCanvasExport();
     if (Presentation)
     {
-        Presentation->Reset(PaintSpeechBubbleComponentName);
+        Presentation->Reset();
     }
 
     Super::EndPlay(EndPlayReason);
@@ -133,8 +80,19 @@ void UPaintCanvasComponent::HidePaintSpeechBubble()
 {
     if (UPaintCanvasDisplay* PaintPresentation = GetOrCreatePresentation())
     {
-        PaintPresentation->HideSpeechBubble(PaintSpeechBubbleComponentName);
+        PaintPresentation->HideSpeechBubble();
     }
+}
+
+void UPaintCanvasComponent::CancelPaintCanvasExport()
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(PaintCanvasExportTimerHandle);
+    }
+    PaintCanvasExportTimerHandle.Invalidate();
+    bPaintCanvasExportActive = false;
+    HidePaintSpeechBubble();
 }
 
 void UPaintCanvasComponent::SetSpeechBubbleComponent(UPrimitiveComponent* InSpeechBubbleComponent)
@@ -184,10 +142,14 @@ bool UPaintCanvasComponent::EnsurePaintCanvasRenderResources(const bool bResetCa
        if (BrushMaterialParent)
        {
           PaintBrushMaterial = UMaterialInstanceDynamic::Create(BrushMaterialParent, this);
+          if (PaintBrushMaterial)
+          {
+              PaintBrushMaterial->SetVectorParameterValue(BrushColorParameterName, OpaqueBlackBrushColor);
+              PaintBrushMaterial->SetVectorParameterValue(TEXT("BaseColor"), OpaqueBlackBrushColor);
+          }
        }
     }
 
-    ApplyBrushMaterialParameters();
     if (bResetCanvas)
     {
        ResetPaintCanvasRenderTarget();
@@ -223,7 +185,6 @@ bool UPaintCanvasComponent::DrawBrushToRenderTarget(
     {
         PaintBrushMaterial->SetTextureParameterValue(BrushTextureParameterName, InBrushTexture);
     }
-    ApplyBrushMaterialParameters();
 
     UCanvas* DrawCanvas = nullptr;
     FVector2D RenderTargetSize = FVector2D::ZeroVector;
@@ -280,17 +241,6 @@ bool UPaintCanvasComponent::DrawPaintStroke(const FPaintCanvasStroke& Stroke, co
     return true;
 }
 
-void UPaintCanvasComponent::ApplyBrushMaterialParameters() const
-{
-    if (!PaintBrushMaterial)
-    {
-       return;
-    }
-
-    PaintBrushMaterial->SetVectorParameterValue(BrushColorParameterName, OpaqueBlackBrushColor);
-    PaintBrushMaterial->SetVectorParameterValue(TEXT("BaseColor"), OpaqueBlackBrushColor);
-}
-
 bool UPaintCanvasComponent::PaintAtNormalizedLocation(const FVector2D& DrawLocation)
 {
     if (!bPaintCanvasUiSessionActive
@@ -338,21 +288,12 @@ bool UPaintCanvasComponent::ExportActivePaintCanvasToSpeechBubble()
        return false;
     }
 
-    bPaintCanvasUiSessionActive = false;
-    SubmitPaintCanvasExportForNetwork();
-    ResetPaintStroke();
-    return true;
-}
-
-void UPaintCanvasComponent::CancelPaintCanvasExport()
-{
-    if (UWorld* World = GetWorld())
+    const APdPlayer* PlayerOwner = GetPlayerOwner();
+    if (PlayerOwner && PlayerOwner->GetNetMode() != NM_Standalone)
     {
-       World->GetTimerManager().ClearTimer(PaintCanvasExportTimerHandle);
+        ServerExportPaintCanvas(LocalPaintStrokes);
     }
-    PaintCanvasExportTimerHandle.Invalidate();
-    bPaintCanvasExportActive = false;
-    HidePaintSpeechBubble();
+    return true;
 }
 
 void UPaintCanvasComponent::HandlePaintCanvasExportExpired()
@@ -485,7 +426,6 @@ bool UPaintCanvasComponent::ApplyPaintCanvasToSpeechBubble()
     return PaintPresentation
         && PaintPresentation->ShowSpeechBubble(
             SpeechBubbleRenderTarget,
-            PaintSpeechBubbleComponentName,
             PaintSpeechBubbleMaterialIndex,
             PaintSpeechBubbleRenderTargetParameterName);
 }
@@ -534,15 +474,6 @@ bool UPaintCanvasComponent::ReplayPaintCanvasStrokes(const TArray<FPaintCanvasSt
         PreviousStroke = &Stroke;
     }
     return true;
-}
-
-void UPaintCanvasComponent::SubmitPaintCanvasExportForNetwork()
-{
-    const APdPlayer* PlayerOwner = GetPlayerOwner();
-    if (PlayerOwner && PlayerOwner->GetNetMode() != NM_Standalone)
-    {
-        ServerExportPaintCanvas(LocalPaintStrokes);
-    }
 }
 
 void UPaintCanvasComponent::CacheLocalPaintCanvasFaceDecalForTravel(
@@ -599,12 +530,17 @@ bool UPaintCanvasComponent::ApplyActivePaintCanvasToFaceDecal(
        FaceDecalTransformOffset,
        FaceDecalSize,
        TextureParameterName);
-    SubmitPaintCanvasFaceDecalForNetwork(
-       FaceDecalMaterial,
-       AttachSocketName,
-       FaceDecalTransformOffset,
-       FaceDecalSize,
-       TextureParameterName);
+    const APdPlayer* PlayerOwner = GetPlayerOwner();
+    if (PlayerOwner && PlayerOwner->GetNetMode() != NM_Standalone)
+    {
+        ServerApplyPaintCanvasFaceDecal(
+            LocalPaintStrokes,
+            FaceDecalMaterial,
+            AttachSocketName,
+            FaceDecalTransformOffset,
+            FaceDecalSize,
+            TextureParameterName);
+    }
     return true;
 }
 
@@ -622,9 +558,6 @@ bool UPaintCanvasComponent::ApplyLocalPaintCanvasToFaceDecal(
         return false;
     }
 
-    // 기존 구현처럼 새 Decal 생성을 시작하면 이전 Decal부터 제거한다.
-    PaintPresentation->ClearFaceDecal();
-
     UTextureRenderTarget2D* PaintSnapshot = CreatePaintCanvasCopy(PaintRenderTarget, 1.0, FLinearColor::Transparent);
     if (!PaintSnapshot)
     {
@@ -638,26 +571,6 @@ bool UPaintCanvasComponent::ApplyLocalPaintCanvasToFaceDecal(
             FaceDecalTransformOffset,
             FaceDecalSize,
             TextureParameterName);
-}
-
-void UPaintCanvasComponent::SubmitPaintCanvasFaceDecalForNetwork(
-    UMaterialInterface* FaceDecalMaterial,
-    FName AttachSocketName,
-    const FTransform& FaceDecalTransformOffset,
-    FVector FaceDecalSize,
-    FName TextureParameterName)
-{
-    const APdPlayer* PlayerOwner = GetPlayerOwner();
-    if (PlayerOwner && PlayerOwner->GetNetMode() != NM_Standalone)
-    {
-        ServerApplyPaintCanvasFaceDecal(
-            LocalPaintStrokes,
-            FaceDecalMaterial,
-            AttachSocketName,
-            FaceDecalTransformOffset,
-            FaceDecalSize,
-            TextureParameterName);
-    }
 }
 
 void UPaintCanvasComponent::ServerExportPaintCanvas_Implementation(const TArray<FPaintCanvasStroke>& Strokes)
@@ -694,13 +607,9 @@ void UPaintCanvasComponent::ServerApplyPaintCanvasFaceDecal_Implementation(
     FName TextureParameterName)
 {
     if (!IsValidPaintCanvasStrokes(Strokes)
-        || !IsValidFaceDecalPayload(
-            FaceDecalMaterial,
-            FaceDecalTransformOffset,
-            FaceDecalSize,
-            MaxReplicatedFaceDecalSize,
-            MaxReplicatedFaceDecalOffsetDistance,
-            MaxReplicatedPaintTransformScale)
+        || !FaceDecalMaterial
+        || FaceDecalTransformOffset.ContainsNaN()
+        || FaceDecalSize.ContainsNaN()
         || !TryConsumePaintNetworkEvent(LastPaintFaceDecalServerTime, PaintControlNetworkMinInterval))
     {
         return;

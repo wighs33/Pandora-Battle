@@ -53,15 +53,9 @@ public:
 
     bool ExportActivePaintCanvasToSpeechBubble();
 
-    bool ApplyActivePaintCanvasToFaceDecal(
-        UMaterialInterface* FaceDecalMaterial,
-        FName AttachSocketName,
-        const FTransform& FaceDecalTransformOffset,
-        FVector FaceDecalSize,
-        FName TextureParameterName);
+    bool ApplyActivePaintCanvasToFaceDecal(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
 
     void RestoreCachedLobbyPaintCanvasFaceDecal();
-    void HidePaintSpeechBubble();
 
 private:
     // Network RPCs ----------------------------------------------------------------------------------------------------
@@ -72,22 +66,10 @@ private:
     void MulticastExportPaintCanvas(const TArray<FPaintCanvasStroke>& Strokes);
 
     UFUNCTION(Server, Reliable)
-    void ServerApplyPaintCanvasFaceDecal(
-        const TArray<FPaintCanvasStroke>& Strokes,
-        UMaterialInterface* FaceDecalMaterial,
-        FName AttachSocketName,
-        FTransform FaceDecalTransformOffset,
-        FVector FaceDecalSize,
-        FName TextureParameterName);
+    void ServerApplyPaintCanvasFaceDecal(const TArray<FPaintCanvasStroke>& Strokes, UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, FTransform FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
 
     UFUNCTION(NetMulticast, Reliable)
-    void MulticastApplyPaintCanvasFaceDecal(
-        const TArray<FPaintCanvasStroke>& Strokes,
-        UMaterialInterface* FaceDecalMaterial,
-        FName AttachSocketName,
-        FTransform FaceDecalTransformOffset,
-        FVector FaceDecalSize,
-        FName TextureParameterName);
+    void MulticastApplyPaintCanvasFaceDecal(const TArray<FPaintCanvasStroke>& Strokes, UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, FTransform FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
 
     // Event Handlers --------------------------------------------------------------------------------------------------
     void HandlePaintCanvasExportExpired();
@@ -100,41 +82,20 @@ private:
     void ResetPaintCanvasRenderTarget();
     bool DrawBrushToRenderTarget(UTexture2D* InBrushTexture, double InBrushSize, const FVector2D& DrawLocation);
     bool DrawPaintStroke(const FPaintCanvasStroke& Stroke, const FPaintCanvasStroke* PreviousStroke);
-    void ApplyBrushMaterialParameters() const;
-    UTextureRenderTarget2D* CreatePaintCanvasCopy(
-        UTextureRenderTarget2D* SourceRenderTarget,
-        double Scale,
-        const FLinearColor& ClearTargetColor);
+    UTextureRenderTarget2D* CreatePaintCanvasCopy(UTextureRenderTarget2D* SourceRenderTarget, double Scale, const FLinearColor& ClearTargetColor);
     bool ReplayPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes);
 
     void CancelPaintCanvasExport();
+    void HidePaintSpeechBubble();
     bool ApplyPaintCanvasToSpeechBubble();
     bool StartLocalPaintCanvasExport();
-    bool ApplyLocalPaintCanvasToFaceDecal(
-        UMaterialInterface* FaceDecalMaterial,
-        FName AttachSocketName,
-        const FTransform& FaceDecalTransformOffset,
-        FVector FaceDecalSize,
-        FName TextureParameterName);
+    bool ApplyLocalPaintCanvasToFaceDecal(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
 
     bool IsValidPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes) const;
-    void SubmitPaintCanvasExportForNetwork();
-
-    void SubmitPaintCanvasFaceDecalForNetwork(
-        UMaterialInterface* FaceDecalMaterial,
-        FName AttachSocketName,
-        const FTransform& FaceDecalTransformOffset,
-        FVector FaceDecalSize,
-        FName TextureParameterName);
 
     bool TryConsumePaintNetworkEvent(double& LastAcceptedTime, double MinInterval);
 
-    void CacheLocalPaintCanvasFaceDecalForTravel(
-        UMaterialInterface* FaceDecalMaterial,
-        FName AttachSocketName,
-        const FTransform& FaceDecalTransformOffset,
-        FVector FaceDecalSize,
-        FName TextureParameterName) const;
+    void CacheLocalPaintCanvasFaceDecalForTravel(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName) const;
 
 private:
     UPROPERTY(EditAnywhere, Category = "!Paint", meta = (DisplayName = "Brush Texture"))
@@ -167,15 +128,6 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "1.0"))
     double MaxReplicatedPaintBrushSize = 256.0;
 
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "0.01"))
-    double MaxReplicatedPaintTransformScale = 4.0;
-
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "1.0", ForceUnits = "cm"))
-    double MaxReplicatedFaceDecalSize = 500.0;
-
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-    double MaxReplicatedFaceDecalOffsetDistance = 500.0;
-
     UPROPERTY(Transient)
     TObjectPtr<UTextureRenderTarget2D> PaintCanvasRenderTarget;
 
@@ -190,9 +142,6 @@ private:
 
     UPROPERTY(EditAnywhere, Category = "!Paint|Export", meta = (ClampMin = "0.1", ForceUnits = "s"))
     double PaintCanvasExportDuration = 10.0;
-
-    UPROPERTY(EditAnywhere, Category = "!Paint|Export")
-    FName PaintSpeechBubbleComponentName = TEXT("SpeechBubble");
 
     UPROPERTY(EditAnywhere, Category = "!Paint|Export")
     FName PaintSpeechBubbleRenderTargetParameterName = TEXT("RenderTarget");
