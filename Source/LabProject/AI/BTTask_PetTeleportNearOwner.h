@@ -9,13 +9,17 @@ class LABPROJECT_API UBTTask_PetTeleportNearOwner : public UBTTask_BlackboardBas
 	GENERATED_BODY()
 
 public:
-	UBTTask_PetTeleportNearOwner();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	UBTTask_PetTeleportNearOwner();
+
 protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	FVector ResolveTeleportLocation(const APawn* Pawn, const AActor* FollowTarget) const;
 
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Pet|Teleport")
 	FVector TeleportOffset = FVector(-180.0f, 100.0f, 0.0f);
 

@@ -28,12 +28,16 @@ class LABPROJECT_API UGameSettingDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	void GetRuntimePreloadAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const;
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	void GetRuntimePreloadAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const;
+
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Memo",
 		meta = (DisplayName = "Memo", MultiLine = "true"))
 	TArray<FText> Memo;

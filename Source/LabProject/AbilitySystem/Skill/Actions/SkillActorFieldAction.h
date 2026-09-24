@@ -24,23 +24,15 @@ class LABPROJECT_API USkillActorFieldAction : public USkillAction
     GENERATED_BODY()
 
 public:
+    // Public API ------------------------------------------------------------------------------------------------------
     USkillActorFieldAction();
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
-    FSkillStaticSettings Settings;
-
 protected:
+    // Event Handlers --------------------------------------------------------------------------------------------------
     virtual void OnStart() override;
     virtual void OnStop() override;
 
 private:
-    // 시전 / 몽타주
-    UAnimMontage* GetResolvedStaticMontage() const;
-    FGameplayTag GetResolvedStaticTriggerEventTag() const;
-    bool StartStaticMontageTask();
-    void StartWaitStaticMontageTriggerTask();
-    void TryCommitAndStartStatic();
-
     UFUNCTION()
     void HandleStaticMontageTriggerEvent(FGameplayEventData Payload);
 
@@ -49,18 +41,46 @@ private:
 
     UFUNCTION()
     void HandleStaticMontageInterrupted();
+    void SpawnNextStaticActor();
 
-    // 이동
+    UFUNCTION()
+    void HandleRepeatedStaticSpawnSequence();
+    void HandleStaticTriggerDamageTick();
+
+    UFUNCTION()
+    void HandleStaticTriggerBeginOverlap(
+        UPrimitiveComponent* OverlappedComponent,
+        AActor* OtherActor,
+        UPrimitiveComponent* OtherComp,
+        int32 OtherBodyIndex,
+        bool bFromSweep,
+        const FHitResult& SweepResult);
+
+    UFUNCTION()
+    void HandleStaticTriggerEndOverlap(
+        UPrimitiveComponent* OverlappedComponent,
+        AActor* OtherActor,
+        UPrimitiveComponent* OtherComp,
+        int32 OtherBodyIndex);
+
+    UFUNCTION()
+    void HandleStaticDurationFinished();
+
+    // Internal Helpers ------------------------------------------------------------------------------------------------
+    UAnimMontage* GetResolvedStaticMontage() const;
+    FGameplayTag GetResolvedStaticTriggerEventTag() const;
+    bool StartStaticMontageTask();
+    void StartWaitStaticMontageTriggerTask();
+    void TryCommitAndStartStatic();
+
     void StartStaticDurationMovementLockIfAllowed();
     bool ShouldSkipStaticDurationMovementLock() const;
     void ApplyStaticMovementSpeedIncrease();
     void RemoveStaticMovementSpeedIncrease();
 
-    // 액터 생성 / 반복 생성
     TArray<FName> GetConfiguredStaticSocketNames() const;
     void StartStaticSpawnSequence();
     void StartStaticRepeatTimer();
-    void SpawnNextStaticActor();
     void FinishStaticSpawnSequence();
     AActor* SpawnStaticActorForSocket(FName SocketName);
 
@@ -73,15 +93,10 @@ private:
     bool AttachSpawnedStaticActorToSocket(AActor* SpawnedActor, FName SocketName) const;
     bool ShouldRepeatStaticSpawnSequence() const;
 
-    UFUNCTION()
-    void HandleRepeatedStaticSpawnSequence();
-
-    // 충돌 피해
     UPrimitiveComponent* FindStaticTriggerComponent(AActor* SpawnedActor) const;
     void BindStaticTriggerDamage(AActor* SpawnedActor);
     void UnbindStaticTriggerDamage();
     void StartStaticTriggerDamageTickIfNeeded();
-    void HandleStaticTriggerDamageTick();
 
     void ApplyStaticTriggerDamageToExistingOverlaps(
         AActor* DamageSourceActor,
@@ -101,37 +116,20 @@ private:
     void TrackStaticTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor);
     void UntrackStaticTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor);
 
-    UFUNCTION()
-    void HandleStaticTriggerBeginOverlap(
-        UPrimitiveComponent* OverlappedComponent,
-        AActor* OtherActor,
-        UPrimitiveComponent* OtherComp,
-        int32 OtherBodyIndex,
-        bool bFromSweep,
-        const FHitResult& SweepResult);
-
-    UFUNCTION()
-    void HandleStaticTriggerEndOverlap(
-        UPrimitiveComponent* OverlappedComponent,
-        AActor* OtherActor,
-        UPrimitiveComponent* OtherComp,
-        int32 OtherBodyIndex);
-
-    // 종료 / 정리
     void ScheduleCompletion();
     void CleanupStaticTasks();
 
-    UFUNCTION()
-    void HandleStaticDurationFinished();
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+    FSkillStaticSettings Settings;
 
-    // Task
+private:
     UPROPERTY(Transient)
     TObjectPtr<UAbilityTask_PlayMontageAndWait> StaticMontageTask;
 
     UPROPERTY(Transient)
     TObjectPtr<UAbilityTask_WaitGameplayEvent> WaitStaticMontageTriggerTask;
 
-    // Spawn 상태
     UPROPERTY(Transient)
     TArray<TObjectPtr<AActor>> SpawnedStaticActors;
 
@@ -144,7 +142,6 @@ private:
     int32 NextStaticSocketIndex = 0;
     bool bStaticStarted = false;
 
-    // Trigger Damage 상태
     UPROPERTY(Transient)
     TArray<TObjectPtr<UPrimitiveComponent>> StaticTriggerComponents;
 
@@ -153,6 +150,5 @@ private:
     TMap<FObjectKey, TWeakObjectPtr<AActor>> StaticDamageSourceActorsByKey;
     TMap<FObjectKey, TArray<TWeakObjectPtr<AActor>>> StaticOverlappingActorsBySource;
 
-    // Buff 상태
     FActiveGameplayEffectHandle MovementSpeedEffectHandle;
 };

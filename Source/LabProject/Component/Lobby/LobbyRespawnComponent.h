@@ -22,6 +22,7 @@ class LABPROJECT_API ULobbyRespawnComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	ULobbyRespawnComponent();
 
 	void RequestLobbyPlayerRespawn(
@@ -29,6 +30,7 @@ public:
 		APawn* DeadPawn);
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ALobbyGameMode* GetLobbyGameMode() const;
 	float GetLobbyPlayerRespawnDelay() const;
 	void FinishLobbyPlayerRespawn(
@@ -40,6 +42,7 @@ private:
 	void ResetLobbyPlayerStateForRespawn(
 		AController* PlayerController) const;
 
+private:
 	TMap<TObjectKey<AController>, FTimerHandle>
 		PendingLobbyPlayerRespawnTimers;
 };

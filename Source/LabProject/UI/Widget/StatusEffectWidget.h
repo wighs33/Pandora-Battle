@@ -18,7 +18,15 @@ class LABPROJECT_API UStatusEffectWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|StatusEffect")
 	void SetOwnerActor(AActor* InOwnerActor);
 
@@ -28,12 +36,38 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "!UI|StatusEffect")
 	UStatusEffectDefinition* GetEffectDataAsset() const;
 
-protected:
-	virtual void NativePreConstruct() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-	virtual void NativeDestruct() override;
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void StartStackFillDecrease();
+	void HandleStatusEffectApplied();
+	void UpdateTimeRemaining();
+	void EvaluateRemovalAfterDebuffRemoved();
+	void OnDebuffTagChanged(FGameplayTag CallbackTag, int32 NewCount);
+	void OnStatusEffectTagChanged(FGameplayTag CallbackTag, int32 NewCount);
+	void OnReplicatedStatusEffectStackChanged(FGameplayTag DebuffTag, int32 StackCount);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplyWidgetDefinitionSettings();
+	void InitializeStatusEffect();
+	void ApplyDesignerDefaults();
+	void SetInitialValues();
+	void SetIconStyle();
+	void RefreshFromActiveEffects();
+	void UpdateFillMeter();
+	void RestartStackFillPresentation();
+	void UpdateStackFillDecrease();
+	void ClearStackFillPresentationTimers();
+	void RemoveStatusEffectWidget();
+	void BindGameplayListeners();
+	void UnbindGameplayListeners();
+	void ClearUpdateTimeRemainingTimer();
+
+	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
+	int32 GetMaxStackCount() const;
+	float GetStatusDuration() const;
+	int32 GetActiveDebuffStackCount() const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|StatusEffect|Widgets")
 	TObjectPtr<UProgressBar> EffectFillMeter;
 
@@ -59,33 +93,6 @@ protected:
 	float InitialIconOpacity = 0.65f;
 
 private:
-	void ApplyWidgetDefinitionSettings();
-	void InitializeStatusEffect();
-	void ApplyDesignerDefaults();
-	void SetInitialValues();
-	void SetIconStyle();
-	void RefreshFromActiveEffects();
-	void UpdateFillMeter();
-	void RestartStackFillPresentation();
-	void StartStackFillDecrease();
-	void UpdateStackFillDecrease();
-	void ClearStackFillPresentationTimers();
-	void HandleStatusEffectApplied();
-	void UpdateTimeRemaining();
-	void EvaluateRemovalAfterDebuffRemoved();
-	void RemoveStatusEffectWidget();
-	void BindGameplayListeners();
-	void UnbindGameplayListeners();
-	void ClearUpdateTimeRemainingTimer();
-	void OnDebuffTagChanged(FGameplayTag CallbackTag, int32 NewCount);
-	void OnStatusEffectTagChanged(FGameplayTag CallbackTag, int32 NewCount);
-	void OnReplicatedStatusEffectStackChanged(FGameplayTag DebuffTag, int32 StackCount);
-
-	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
-	int32 GetMaxStackCount() const;
-	float GetStatusDuration() const;
-	int32 GetActiveDebuffStackCount() const;
-
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
 

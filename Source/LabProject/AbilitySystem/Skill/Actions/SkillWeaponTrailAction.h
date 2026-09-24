@@ -16,12 +16,12 @@ class LABPROJECT_API USkillWeaponTrailAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-
 	/** 무기의 궤적과 검기 타격을 몽타주 이벤트에 연결한다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
 	FSkillSwordTrailSettings Settings;
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 
 	virtual void OnStop() override;
@@ -42,6 +42,7 @@ private:
 	UFUNCTION()
 	void HandleTrailAttackTraceEnd(FGameplayEventData Payload);
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> TrailMontageTask;
 

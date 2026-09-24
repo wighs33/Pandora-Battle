@@ -18,16 +18,21 @@ class LABPROJECT_API UHudScoreboardLayer : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(APdHUD* InOwnerHud, UHudUiRouter* InRouter);
 	void Show();
 	void Hide();
-	void Refresh();
 	bool IsOpen() const;
 	void Shutdown();
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void Refresh();
+
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void BuildPlayerStats(TArray<FGameResultPlayerStat>& OutPlayerStats) const;
 
+private:
 	TWeakObjectPtr<APdHUD> OwnerHud;
 	TWeakObjectPtr<UHudUiRouter> Router;
 

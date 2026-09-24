@@ -27,12 +27,18 @@ class LABPROJECT_API AProjectileBase : public AActor
 	GENERATED_BODY()
 
 public:
-	AProjectileBase();
-
-	FProjectileSkillImpact OnSkillImpact;
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+protected:
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void Destroyed() override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	AProjectileBase();
 
 	UFUNCTION(BlueprintCallable, Category = "!Projectile")
 	void InitializeProjectile(const FVector& InTargetLocation, float InSpeed, const FGameplayEffectSpecHandle& InDamageEffectSpecHandle);
@@ -82,10 +88,18 @@ public:
 	UNiagaraComponent* GetProjectileEffectComponent() const { return ProjectileEffect; }
 
 protected:
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void Destroyed() override;
+	// Network RPCs ----------------------------------------------------------------------------------------------------
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastExecuteImpactGameplayCue(
+		FVector_NetQuantize CueLocation,
+		UNiagaraSystem* InHitFX,
+		bool bInSpawnHitNiagaraOnGround,
+		FGameplayTag InImpactGameplayCueTag,
+		bool bKeepProjectileVisual,
+		ACharacterBase* InStuckCharacter,
+		FName InStuckBoneName);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_ProjectileFlightData();
 
@@ -114,13 +128,14 @@ protected:
 		UPrimitiveComponent* OtherComp,
 		FVector NormalImpulse,
 		const FHitResult& Hit);
+	void HandleImpact(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FHitResult& Hit);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void StartProjectileMovement() const;
 	FVector CalculateArcLaunchVelocity() const;
 	void ConfigureCollision() const;
 	void DisableProjectileCollision() const;
 	void ConfigureIgnoredActors() const;
-	void HandleImpact(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FHitResult& Hit);
 	void StopAtImpact(const FVector& ImpactLocation);
 	FName ResolveImpactBoneName(
 		const UPrimitiveComponent* ImpactComponent,
@@ -150,15 +165,8 @@ protected:
 	void MarkReadiedScaleGrowthDirty();
 	void MarkImpactStateDirty();
 
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastExecuteImpactGameplayCue(
-		FVector_NetQuantize CueLocation,
-		UNiagaraSystem* InHitFX,
-		bool bInSpawnHitNiagaraOnGround,
-		FGameplayTag InImpactGameplayCueTag,
-		bool bKeepProjectileVisual,
-		ACharacterBase* InStuckCharacter,
-		FName InStuckBoneName);
+public:
+	FProjectileSkillImpact OnSkillImpact;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Projectile|Components")

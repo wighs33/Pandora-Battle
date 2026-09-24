@@ -14,20 +14,46 @@ class LABPROJECT_API AForceMoveGateActor : public AActor
 	GENERATED_BODY()
 
 public:
-	AForceMoveGateActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!ForceMoveGate")
-	void HandleForceMoveTriggered(APdPlayerController* TriggeringPlayerController);
+	// Public API ------------------------------------------------------------------------------------------------------
+	AForceMoveGateActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintPure, Category = "!ForceMoveGate")
 	bool ShouldRaiseWhenForceMoveTriggered() const { return bRaiseWhenForceMoveTriggered; }
 
 	UFUNCTION(BlueprintPure, Category = "!ForceMoveGate")
 	bool IsGateRaised() const { return bGateRaised; }
+
+private:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayGateMovement(bool bInRaised, APdPlayerController* TriggeringPlayerController);
+
+public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!ForceMoveGate")
+	void HandleForceMoveTriggered(APdPlayerController* TriggeringPlayerController);
+
+protected:
+	UFUNCTION(BlueprintImplementableEvent, Category = "!ForceMoveGate", meta = (DisplayName = "On Gate Raise Started"))
+	void BP_OnGateRaiseStarted(APdPlayerController* TriggeringPlayerController);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "!ForceMoveGate", meta = (DisplayName = "On Gate Lower Started"))
+	void BP_OnGateLowerStarted();
+
+private:
+	UFUNCTION()
+	void OnRep_GateRaised();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplyGateRaisedStateImmediately();
+	void StartGateMovement(bool bInRaised, APdPlayerController* TriggeringPlayerController);
+	void FinishGateMovement();
+	FVector GetRaisedRelativeLocation() const;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!ForceMoveGate")
@@ -51,24 +77,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!ForceMoveGate")
 	bool bLogGateMovement = true;
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "!ForceMoveGate", meta = (DisplayName = "On Gate Raise Started"))
-	void BP_OnGateRaiseStarted(APdPlayerController* TriggeringPlayerController);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "!ForceMoveGate", meta = (DisplayName = "On Gate Lower Started"))
-	void BP_OnGateLowerStarted();
-
 private:
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_PlayGateMovement(bool bInRaised, APdPlayerController* TriggeringPlayerController);
-
-	UFUNCTION()
-	void OnRep_GateRaised();
-
-	void ApplyGateRaisedStateImmediately();
-	void StartGateMovement(bool bInRaised, APdPlayerController* TriggeringPlayerController);
-	void FinishGateMovement();
-	FVector GetRaisedRelativeLocation() const;
-
 	UPROPERTY(ReplicatedUsing = OnRep_GateRaised)
 	bool bGateRaised = false;
 

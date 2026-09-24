@@ -21,6 +21,7 @@ class LABPROJECT_API UCharacterDeathComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UCharacterDeathComponent();
 
 	void ApplySettings(const FCharacterDeathSettings& InSettings);
@@ -30,10 +31,6 @@ public:
 	bool NeedsCharacterTick() const { return bDeathDissolveActive; }
 
 	bool IsDeathHandled() const { return bDeathHandled; }
-	void HandleDeadTagChanged(
-		int32 NewCount,
-		UAbilitySystemComponent* BoundAbilitySystemComponent);
-	void HandleRemoteDeath();
 	void ApplyDeathPhysics();
 	void ResetDeathStateForRespawn();
 
@@ -42,6 +39,12 @@ public:
 	float GetSafeDissolveDuration(float RequestedDuration) const;
 	void ClearCharacterOverlayMaterialLocal();
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleDeadTagChanged(
+		int32 NewCount,
+		UAbilitySystemComponent* BoundAbilitySystemComponent);
+	void HandleRemoteDeath();
+
 	void HandleDamageTaken(float DamageAmount, bool bCriticalHit);
 	void HandleRemoteDamageTaken(
 		float DamageAmount,
@@ -49,6 +52,7 @@ public:
 		FVector WorldLocation);
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ACharacterBase* GetCharacterOwner() const;
 	void CacheInitialRespawnState();
 	void InitializeDeathDissolveMaterials();
@@ -56,6 +60,7 @@ private:
 	void SetDeathDissolveValue(float DissolveValue);
 	void ConfigureWeaponDamageMesh(USkeletalMeshComponent* CharacterMesh) const;
 
+private:
 	UPROPERTY(Transient)
 	FCharacterDeathSettings Settings;
 

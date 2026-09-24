@@ -29,6 +29,7 @@ class LABPROJECT_API UHudUiRouter : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(APdHUD* InOwnerHud);
 	void Shutdown();
 
@@ -72,11 +73,13 @@ public:
 	void ScheduleTrainingRoomPause(float DelaySeconds);
 
 private:
-	friend class UHudScreenLayer;
-
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyActiveDefinition(UWidgetClassDefinition* NewDefinition);
 	class UUiSubsystem* ResolveUiSubsystem() const;
 	class APdPlayerController* ResolvePlayerController() const;
+
+private:
+	friend class UHudScreenLayer;
 
 	TWeakObjectPtr<APdHUD> OwnerHud;
 

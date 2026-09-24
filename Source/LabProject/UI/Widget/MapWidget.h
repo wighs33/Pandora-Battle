@@ -21,8 +21,6 @@ class LABPROJECT_API UMapWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
-	UMapWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
 	enum class EMapView : uint8
 	{
 		Area,
@@ -30,6 +28,16 @@ public:
 		Dome,
 		Temple
 	};
+
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UMapWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Map")
 	void ShowAreaMap();
@@ -44,11 +52,60 @@ public:
 	void ShowTempleMap();
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override;
-	virtual void NativePreConstruct() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
 
+private:
+	UFUNCTION()
+	void OnWindmillButtonClicked();
+
+	UFUNCTION()
+	void OnDomeButtonClicked();
+
+	UFUNCTION()
+	void OnTempleButtonClicked();
+
+	UFUNCTION()
+	void OnAreaMapButtonClicked();
+	void HandleMapUpdateTick();
+	void RefreshRemotePlayerPawns();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplyMapView(EMapView NewMapView);
+	void ApplyMapTexture(UTexture2D* Texture);
+	void ApplyTotalSizeBoxSize(const FVector2D& Size);
+	void ResolveDefaultTextures();
+	void ApplyWidgetDefinitionSettings();
+	void ApplyProjectionSettings(const FMapWidgetProjectionSettings& ProjectionSettings);
+	bool ApplyMarkImage(UImage* MarkWidget, UObject* ResourceObject, const FVector2D& DesiredImageSize) const;
+	const FMapWidgetProjectionSettings* FindProjectionOverride(const FMapWidgetSettings& Settings) const;
+	void SetRegionSelectionButtonsVisible(bool bVisible);
+	void SyncMapViewToPlayerMapRegion();
+	void StartMapUpdateTimers();
+	void StopMapUpdateTimers();
+	void RefreshAreaMapRegionMarkers();
+	void SetAreaMapRegionMarkersVisible(bool bVisible) const;
+	UHorizontalBox* ResolveAreaMapRegionMarkerBox(
+		EPlayerMapRegion MapRegion) const;
+	void UpdateCharacterMark();
+	void UpdateTeamMarks();
+	void HideTeamMarks();
+	void HideSelfMarks();
+	void HideDesignerMarkerWidgets() const;
+	void EnsureTeamMarkCapacity(int32 RequiredCount);
+	UImage* CreateDynamicMarkerWidget(FName MarkerName, int32 ZOrder);
+	UPanelWidget* GetMarkerParentPanel() const;
+	bool UpdatePawnMapMark(UImage* MarkWidget, const APawn& Pawn, bool bRotateToPawnForward = true) const;
+	bool ApplyCharacterMarkImage(UImage* MarkWidget) const;
+	bool ApplyTeamMarkImage(UImage* MarkWidget, const APawn& Pawn) const;
+	bool ApplyTeamMarkImageForTeamColor(
+		UImage* MarkWidget,
+		int32 TeamColorIndex) const;
+	bool DoesPawnMatchCurrentMapView(const APawn& Pawn) const;
+	const FTransform& GetCurrentPlaneTransform() const;
+	FVector2D GetCurrentTotalSizeBoxSize() const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> WindmillButton;
 
@@ -140,54 +197,6 @@ protected:
 	float RemotePlayerListRefreshInterval = 0.5f;
 
 private:
-	UFUNCTION()
-	void OnWindmillButtonClicked();
-
-	UFUNCTION()
-	void OnDomeButtonClicked();
-
-	UFUNCTION()
-	void OnTempleButtonClicked();
-
-	UFUNCTION()
-	void OnAreaMapButtonClicked();
-
-	void ApplyMapView(EMapView NewMapView);
-	void ApplyMapTexture(UTexture2D* Texture);
-	void ApplyTotalSizeBoxSize(const FVector2D& Size);
-	void ResolveDefaultTextures();
-	void ApplyWidgetDefinitionSettings();
-	void ApplyProjectionSettings(const FMapWidgetProjectionSettings& ProjectionSettings);
-	bool ApplyMarkImage(UImage* MarkWidget, UObject* ResourceObject, const FVector2D& DesiredImageSize) const;
-	const FMapWidgetProjectionSettings* FindProjectionOverride(const FMapWidgetSettings& Settings) const;
-	void SetRegionSelectionButtonsVisible(bool bVisible);
-	void SyncMapViewToPlayerMapRegion();
-	void StartMapUpdateTimers();
-	void StopMapUpdateTimers();
-	void HandleMapUpdateTick();
-	void RefreshRemotePlayerPawns();
-	void RefreshAreaMapRegionMarkers();
-	void SetAreaMapRegionMarkersVisible(bool bVisible) const;
-	UHorizontalBox* ResolveAreaMapRegionMarkerBox(
-		EPlayerMapRegion MapRegion) const;
-	void UpdateCharacterMark();
-	void UpdateTeamMarks();
-	void HideTeamMarks();
-	void HideSelfMarks();
-	void HideDesignerMarkerWidgets() const;
-	void EnsureTeamMarkCapacity(int32 RequiredCount);
-	UImage* CreateDynamicMarkerWidget(FName MarkerName, int32 ZOrder);
-	UPanelWidget* GetMarkerParentPanel() const;
-	bool UpdatePawnMapMark(UImage* MarkWidget, const APawn& Pawn, bool bRotateToPawnForward = true) const;
-	bool ApplyCharacterMarkImage(UImage* MarkWidget) const;
-	bool ApplyTeamMarkImage(UImage* MarkWidget, const APawn& Pawn) const;
-	bool ApplyTeamMarkImageForTeamColor(
-		UImage* MarkWidget,
-		int32 TeamColorIndex) const;
-	bool DoesPawnMatchCurrentMapView(const APawn& Pawn) const;
-	const FTransform& GetCurrentPlaneTransform() const;
-	FVector2D GetCurrentTotalSizeBoxSize() const;
-
 	UPROPERTY(Transient)
 	TObjectPtr<UImage> SelfTeamMarkWidget;
 

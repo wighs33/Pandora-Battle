@@ -13,12 +13,15 @@ class LABPROJECT_API ATitleHUD : public AHUD
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ShowPendingGameResult();
 
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Title|UI")
 	TSubclassOf<UTitleWidget> TitleWidgetClass;
 

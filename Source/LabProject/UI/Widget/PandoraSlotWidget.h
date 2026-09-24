@@ -16,7 +16,18 @@ class LABPROJECT_API UPandoraSlotWidget : public ULocalizedMenuWidget, public IU
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+
+	// Interface Implementations ---------------------------------------------------------------------------------------
+	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetData(const UPandoraDefinition* Target);
 
@@ -24,13 +35,22 @@ public:
 	const UPandoraDefinition* GetCachedData() const { return CachedData; }
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
-	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 
+private:
+	UFUNCTION()
+	void RefreshOwnership();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void UnbindPandoraEvents();
+
+	void ApplyViewData(const FPandoraSlotViewData& ViewData);
+	void RefreshWeaponRequirementImages(const FGameplayTagContainer& RequiredWeaponTags) const;
+	void HideAllWeaponRequirementImages() const;
+	void SetWeaponRequirementImageVisible(UImage* Image, bool bVisible) const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")
 	TObjectPtr<UTextBlock> TextBlock;
 
@@ -68,15 +88,7 @@ protected:
 	TObjectPtr<const UPandoraDefinition> CachedData;
 
 private:
-	UFUNCTION()
-	void RefreshOwnership();
-	void UnbindPandoraEvents();
 	TWeakObjectPtr<UPandoraComponent> BoundPandoraComponent;
-
-	void ApplyViewData(const FPandoraSlotViewData& ViewData);
-	void RefreshWeaponRequirementImages(const FGameplayTagContainer& RequiredWeaponTags) const;
-	void HideAllWeaponRequirementImages() const;
-	void SetWeaponRequirementImageVisible(UImage* Image, bool bVisible) const;
 
 	bool bIsHoverActive = false;
 };

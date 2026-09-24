@@ -20,6 +20,7 @@ class LABPROJECT_API UInfoDetailController : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(
 		UInfoWidget* InOwnerWidget,
 		ULeftEquipmentWidget* InEquipmentWidget,
@@ -39,11 +40,13 @@ public:
 	void HidePandoraForAnchor(const UWidget* AnchorWidget);
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	UItemDetailWidget* GetOrCreateItemDetailWidget();
 	UPandoraDescriptionWidget* GetOrCreatePandoraDescriptionWidget();
 	void PositionAdjacent(UUserWidget* DetailWidget, const UWidget* AnchorWidget, bool bPlaceLeftOfWidget) const;
 	UItemInstance* ResolveEquippedItemForComparison(UItemInstance* HoveredItem) const;
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoWidget> OwnerWidget;
 	UPROPERTY(Transient)

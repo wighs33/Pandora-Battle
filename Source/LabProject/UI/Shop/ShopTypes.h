@@ -35,6 +35,7 @@ struct LABPROJECT_API FShopCatalogProductReference
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
 	EShopProductType ProductType = EShopProductType::Pandora;
 
@@ -47,6 +48,7 @@ struct LABPROJECT_API FShopCatalogProductReference
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop", meta = (EditCondition = "ProductType == EShopProductType::Item", EditConditionHides))
 	TSoftObjectPtr<UItemDefinition> ItemDefinition;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasValidProduct() const
 	{
 		switch (ProductType)
@@ -68,12 +70,14 @@ struct LABPROJECT_API FShopCatalogEntry
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
 	FShopCatalogProductReference Product;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
 	FShopProductDefinitionData ShopData;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasValidProduct() const
 	{
 		return Product.HasValidProduct();

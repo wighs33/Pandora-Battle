@@ -12,6 +12,7 @@ class LABPROJECT_API UCursorSettingsLibrary : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Setting|Mouse Cursor", meta = (WorldContext = "WorldContextObject"))
 	static bool ApplyConfiguredMouseCursor(UObject* WorldContextObject, APlayerController* PlayerController);
 };

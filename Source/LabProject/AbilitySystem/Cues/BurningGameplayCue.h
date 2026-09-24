@@ -14,12 +14,20 @@ class LABPROJECT_API ABurningGameplayCue : public AGameplayCueNotify_Actor
 	GENERATED_BODY()
 
 public:
-	ABurningGameplayCue();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual bool HandlesEvent(EGameplayCueEvent::Type EventType) const override;
 	virtual bool OnActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 	virtual bool WhileActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 	virtual bool OnRemove_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	ABurningGameplayCue();
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool ApplyBurningEffect(AActor* MyTarget, bool bPlaySound);
+	void RemoveBurningEffect();
+	USceneComponent* ResolveAttachComponent(AActor* MyTarget) const;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!GameplayCue|Burning")
@@ -36,9 +44,4 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!GameplayCue|Burning")
 	TObjectPtr<UNiagaraComponent> BurningEffectComponent;
-
-private:
-	bool ApplyBurningEffect(AActor* MyTarget, bool bPlaySound);
-	void RemoveBurningEffect();
-	USceneComponent* ResolveAttachComponent(AActor* MyTarget) const;
 };

@@ -18,6 +18,7 @@ class LABPROJECT_API UPlayerActionComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UPlayerActionComponent();
 
 	void ApplyDefinition(const UPlayerPawnDefinition* Definition);
@@ -25,12 +26,15 @@ public:
 	bool RequestCancelHitReactForMovement(float BlendOutTime);
 
 private:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerCancelHitReactForMovement(float BlendOutTime);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool CancelHitReactForMovementLocally(float BlendOutTime);
 	FGameplayTagContainer ResolveHitReactCancelTags() const;
 
+private:
 	UPROPERTY(Transient)
 	FGameplayTagContainer HitReactCancelTags;
 };

@@ -15,7 +15,13 @@ class LABPROJECT_API UPandoraDescriptionWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition);
 
@@ -31,10 +37,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora|Animation")
 	void ShowWithoutAnimation();
 
-protected:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ResolvePandoraTreeComponent();
+	void ApplyEffectIconResources();
+	UPandoraDescriptionViewModel* GetOrCreatePandoraDescriptionViewModel();
+	void ApplyPandoraDescriptionViewModelToMvvmView();
 
+protected:
 	UPROPERTY(Transient, BlueprintReadOnly, meta = (BindWidgetAnimOptional), Category = "!UI|Pandora|Animation")
 	TObjectPtr<UWidgetAnimation> ScaleUp;
 
@@ -57,11 +67,6 @@ protected:
 	TObjectPtr<UPandoraTreeComponent> PandoraTreeComponent;
 
 private:
-	void ResolvePandoraTreeComponent();
-	void ApplyEffectIconResources();
-	UPandoraDescriptionViewModel* GetOrCreatePandoraDescriptionViewModel();
-	void ApplyPandoraDescriptionViewModelToMvvmView();
-
 	UPROPERTY(BlueprintReadOnly, Transient, Category = "!UI|Pandora|ViewModel", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPandoraDescriptionViewModel> PandoraDescriptionViewModel;
 };

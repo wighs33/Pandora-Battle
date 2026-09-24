@@ -17,24 +17,8 @@ class LABPROJECT_API UPdAnimInstance : public UAnimInstance
 {
 	GENERATED_BODY()
 
-public:
-	//-----------------------------------------------------------------------------
-	// Timing hooks
-	//-----------------------------------------------------------------------------
-
-	virtual void NativeInitializeAnimation() override;
-	virtual void NativeUninitializeAnimation() override;
-	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
-	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
-
-	// Anim notify callbacks
-	UFUNCTION()
-	void AnimNotify_RedrawBow();
-
 protected:
-	//-----------------------------------------------------------------------------
 	// Game-thread snapshot
-	//-----------------------------------------------------------------------------
 
 	struct FGameThreadSnapshot
 	{
@@ -49,6 +33,19 @@ protected:
 		bool bIsValid = false;
 	};
 
+public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeInitializeAnimation() override;
+	virtual void NativeUninitializeAnimation() override;
+	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
+	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	void AnimNotify_RedrawBow();
+
+protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void UpdateLocationData(const FGameThreadSnapshot& Snapshot);
 
 	void UpdateMovementStates(const FGameThreadSnapshot& Snapshot);
@@ -59,20 +56,19 @@ protected:
 
 	void UpdateGrappleState();
 
+private:
+	void RefreshGameThreadReferences(bool bForceNewRevision = false);
+	void CaptureGameThreadSnapshot();
+	void ResetThreadSafeAnimationData();
+
 protected:
-	//-----------------------------------------------------------------------------
 	// Cached UObject references (game thread only)
-	//-----------------------------------------------------------------------------
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "References")
 	TObjectPtr<ACharacter> CachedCharacter;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "References")
 	TObjectPtr<UCharacterMovementComponent> MovementComponent;
-
-	//-----------------------------------------------------------------------------
-	// Location data
-	//-----------------------------------------------------------------------------
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
 	FVector3f Velocity = FVector3f::ZeroVector;
@@ -88,10 +84,6 @@ protected:
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
 	FVector3f Acceleration = FVector3f::ZeroVector;
-
-	//-----------------------------------------------------------------------------
-	// Movement states
-	//-----------------------------------------------------------------------------
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
 	bool bIsMoving = false;
@@ -111,28 +103,16 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States", meta = (DisplayName = "Is Grappling"))
 	bool bIsGrappling = false;
 
-	//-----------------------------------------------------------------------------
-	// Aiming data
-	//-----------------------------------------------------------------------------
-
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Aiming")
 	float AimYaw = 0.f;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Aiming")
 	float AimPitch = 0.f;
 
-	//-----------------------------------------------------------------------------
-	// Settings
-	//-----------------------------------------------------------------------------
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation Data|Settings")
 	float MovingSpeedThreshold = 3.f;
 
 private:
-	void RefreshGameThreadReferences(bool bForceNewRevision = false);
-	void CaptureGameThreadSnapshot();
-	void ResetThreadSafeAnimationData();
-
 	FGameThreadSnapshot GameThreadSnapshot;
 	FVector3f PreviousVelocity = FVector3f::ZeroVector;
 	uint32 GameThreadSourceRevision = 0;

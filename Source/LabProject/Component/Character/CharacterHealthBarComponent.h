@@ -19,6 +19,7 @@ class LABPROJECT_API UCharacterHealthBarComponent : public UWidgetComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UCharacterHealthBarComponent();
 
 	void InitializeHealthBar();
@@ -36,6 +37,10 @@ public:
 	UHealthBarViewModel* GetHealthBarViewModel() const { return HealthBarViewModel.Get(); }
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void RetryRefreshViewModel();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ACharacterBase* GetCharacterOwner() const;
 	void ConfigureWidget();
 	bool TryApplyViewModelToWidget(UUserWidget* InWidget);
@@ -43,7 +48,6 @@ private:
 	bool BindViewModelToASC(UAbilitySystemComponent* AbilitySystemComponent);
 	bool IsAttributeDataReady(const UAbilitySystemComponent* AbilitySystemComponent) const;
 	void QueueViewModelRefreshRetry();
-	void RetryRefreshViewModel();
 	void UpdateFacing();
 	bool ShouldShowForLocalViewer(
 		APlayerController* LocalPlayerController,
@@ -55,6 +59,7 @@ private:
 		const FVector& FallbackCameraLocation) const;
 	FVector GetVisibilityTargetLocation() const;
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UHealthBarViewModel> HealthBarViewModel;
 

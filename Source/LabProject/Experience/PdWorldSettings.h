@@ -16,14 +16,14 @@ class LABPROJECT_API APdWorldSettings : public AWorldSettings
 	GENERATED_BODY()
 
 public:
-	APdWorldSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Experience Setup
+	// Public API ------------------------------------------------------------------------------------------------------
+	APdWorldSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	FPrimaryAssetId GetDefaultExperienceId() const { return DefaultExperienceId; }
 
 private:

@@ -19,7 +19,13 @@ class LABPROJECT_API ULeftProfileWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	ULeftProfileWidget(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Profile|Tier")
@@ -29,10 +35,63 @@ public:
 	void RefreshAchievementButtons();
 
 protected:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override;
 
+private:
+	UFUNCTION()
+	void HandleAchievementButtonClicked();
+
+	UFUNCTION()
+	void HandleAchievementButtonClicked_1();
+
+	UFUNCTION()
+	void HandleAchievementButtonClicked_2();
+
+	UFUNCTION()
+	void HandleAchievementButtonClicked_3();
+
+	UFUNCTION()
+	void HandleAchievementButtonClicked_4();
+
+	UFUNCTION()
+	void HandleAchievementButtonClicked_5();
+
+	UFUNCTION()
+	void HandleAchievementButtonClicked_6();
+	void HandleSteamAchievementStateChanged();
+	void HandlePlayerNameRefreshRetry();
+	void HandleMatchDisplayNameChanged(const FText& NewDisplayName);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void BindAchievementButtons();
+	void UnbindAchievementButtons();
+	void BindSteamAchievementStateChanged();
+	void UnbindSteamAchievementStateChanged();
+	void BeginContentPreload();
+	void BeginPresentationPreload(int32 PreloadGeneration);
+	void ReleaseContentPreloads();
+	void BindMatchDisplayNameChanged();
+	void UnbindMatchDisplayNameChanged();
+	bool RefreshPlayerName();
+	void SchedulePlayerNameRefreshRetry();
+	void ApplyAchievementIcon(int32 AchievementIndex);
+	void RefreshSelectedAchievementIcon();
+	void ApplyAchievementBrush(int32 AchievementIndex);
+	void RefreshAchievementMessage();
+	void UpdateAchievementSelection(int32 AchievementIndex);
+	int32 FindAchievementIndexById(FName AchievementId) const;
+	bool IsAchievementUnlocked(int32 AchievementIndex) const;
+	UButton* GetAchievementButton(int32 AchievementIndex) const;
+	UImage* GetAchievementImage(int32 AchievementIndex) const;
+	UImage* FindHudPlayerAvatarImage() const;
+	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
+	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
+	FString ResolveProfileSavePlayerId() const;
+	const URecordDefinition* ResolveRecordDefinition();
+	const UAchievementDefinition* ResolveAchievementDefinition() const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Profile|Achievement")
 	TObjectPtr<UButton> AchievementButton;
 
@@ -88,57 +147,6 @@ protected:
 	TObjectPtr<UImage> Img_Tier;
 
 private:
-	UFUNCTION()
-	void HandleAchievementButtonClicked();
-
-	UFUNCTION()
-	void HandleAchievementButtonClicked_1();
-
-	UFUNCTION()
-	void HandleAchievementButtonClicked_2();
-
-	UFUNCTION()
-	void HandleAchievementButtonClicked_3();
-
-	UFUNCTION()
-	void HandleAchievementButtonClicked_4();
-
-	UFUNCTION()
-	void HandleAchievementButtonClicked_5();
-
-	UFUNCTION()
-	void HandleAchievementButtonClicked_6();
-
-	void BindAchievementButtons();
-	void UnbindAchievementButtons();
-	void BindSteamAchievementStateChanged();
-	void UnbindSteamAchievementStateChanged();
-	void HandleSteamAchievementStateChanged();
-	void BeginContentPreload();
-	void BeginPresentationPreload(int32 PreloadGeneration);
-	void ReleaseContentPreloads();
-	void BindMatchDisplayNameChanged();
-	void UnbindMatchDisplayNameChanged();
-	bool RefreshPlayerName();
-	void SchedulePlayerNameRefreshRetry();
-	void HandlePlayerNameRefreshRetry();
-	void HandleMatchDisplayNameChanged(const FText& NewDisplayName);
-	void ApplyAchievementIcon(int32 AchievementIndex);
-	void RefreshSelectedAchievementIcon();
-	void ApplyAchievementBrush(int32 AchievementIndex);
-	void RefreshAchievementMessage();
-	void UpdateAchievementSelection(int32 AchievementIndex);
-	int32 FindAchievementIndexById(FName AchievementId) const;
-	bool IsAchievementUnlocked(int32 AchievementIndex) const;
-	UButton* GetAchievementButton(int32 AchievementIndex) const;
-	UImage* GetAchievementImage(int32 AchievementIndex) const;
-	UImage* FindHudPlayerAvatarImage() const;
-	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
-	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
-	FString ResolveProfileSavePlayerId() const;
-	const URecordDefinition* ResolveRecordDefinition();
-	const UAchievementDefinition* ResolveAchievementDefinition() const;
-
 	TWeakObjectPtr<APdPlayerState> BoundPlayerState;
 	FDelegateHandle MatchDisplayNameChangedHandle;
 	FDelegateHandle SteamAchievementStateChangedHandle;

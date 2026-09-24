@@ -21,18 +21,6 @@ class LABPROJECT_API UAbilitiesBarWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
-public:
-	UFUNCTION(BlueprintCallable, Category = "!UI|Abilities")
-	TArray<FGameplayAbilitySpecHandle> GetAbilitiesToShowInBar() const;
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Abilities")
-	void FillAbilitiesBar();
-
-protected:
-	virtual void NativePreConstruct() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-
 private:
 	struct FAbilityBarSlotData
 	{
@@ -44,8 +32,30 @@ private:
 		bool bEnabled = true;
 	};
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "!UI|Abilities")
+	TArray<FGameplayAbilitySpecHandle> GetAbilitiesToShowInBar() const;
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Abilities")
+	void FillAbilitiesBar();
+
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void InitializeAbilitySystemBinding();
 	void RebuildAbilitiesBar();
+	void HandleAbilitiesChanged();
+
+	UFUNCTION()
+	void HandlePandoraTreeChanged();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void AddAbilitySlot(const FGameplayAbilitySpecHandle& AbilitySpecHandle);
 	void AddAbilitySlot(const FGameplayAbilitySpecHandle& AbilitySpecHandle, int32 SkillSlotIndex);
 	void AddAbilitySlot(const FAbilityBarSlotData& SlotData);
@@ -70,13 +80,10 @@ private:
 	void UnbindAbilitiesChangedEvents();
 	void BindPandoraTreeChangedEvent();
 	void UnbindPandoraTreeChangedEvent();
-	void HandleAbilitiesChanged();
-
-	UFUNCTION()
-	void HandlePandoraTreeChanged();
 
 	static FProperty* FindPropertyByExactNameOrPrefix(UStruct* Struct, FName ExactName, const FString& Prefix);
 
+private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities", meta = (AllowPrivateAccess = "true", ClampMin = "0"))
 	int32 MinimumSlots = 3;
 

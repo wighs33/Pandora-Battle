@@ -18,7 +18,21 @@ class LABPROJECT_API UItemSlotWidget : public ULocalizedMenuWidget, public IUser
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
+	// Interface Implementations ---------------------------------------------------------------------------------------
+	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+	virtual void NativeOnItemSelectionChanged(bool bIsSelected) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
 	void SetData(UItemInstance* Target);
 
@@ -37,6 +51,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
 	UInventorySlotViewData* GetCachedSlotData() const { return CachedSlotData; }
 
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplyItemVisual(const FItemViewData& ViewData);
+	void CacheOptionalWidgets();
+	void ApplySelectionVisual();
+	FLinearColor ResolveBackgroundColor(bool bAssigned) const;
+	bool IsItemConsumable(const UItemInstance* ItemInstance) const;
+	bool IsItemUpgradeable(const UItemInstance* ItemInstance) const;
+	bool IsCachedItemConsumable() const;
+	UInventoryComponent* ResolveOwningInventoryComponent() const;
+	bool RequestSplitCachedStack() const;
+	bool RequestMergeDraggedItem(UDragDropOperation* InOperation) const;
+
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Inventory|Style")
 	FLinearColor SelectionBorderDefaultColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.35f);
 
@@ -50,15 +78,6 @@ public:
 	FVector2D DragIconSize = FVector2D(56.0f, 56.0f);
 
 protected:
-	virtual void NativePreConstruct() override;
-	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
-	virtual void NativeOnItemSelectionChanged(bool bIsSelected) override;
-	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
-	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
 	TObjectPtr<UTextBlock> Txt_Upgradeable;
 
@@ -87,17 +106,6 @@ protected:
 	TObjectPtr<UInventorySlotViewData> CachedSlotData;
 
 private:
-	void ApplyItemVisual(const FItemViewData& ViewData);
-	void CacheOptionalWidgets();
-	void ApplySelectionVisual();
-	FLinearColor ResolveBackgroundColor(bool bAssigned) const;
-	bool IsItemConsumable(const UItemInstance* ItemInstance) const;
-	bool IsItemUpgradeable(const UItemInstance* ItemInstance) const;
-	bool IsCachedItemConsumable() const;
-	UInventoryComponent* ResolveOwningInventoryComponent() const;
-	bool RequestSplitCachedStack() const;
-	bool RequestMergeDraggedItem(UDragDropOperation* InOperation) const;
-
 	UPROPERTY(Transient)
 	FItemViewData CachedViewData;
 

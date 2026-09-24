@@ -17,7 +17,20 @@ class LABPROJECT_API USkinSlotWidget : public ULocalizedMenuWidget, public IUser
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
+
+	// Interface Implementations ---------------------------------------------------------------------------------------
+	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+	virtual void NativeOnItemSelectionChanged(bool bIsSelected) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
 	void SetData(const USkinDefinition* Target);
 
@@ -36,6 +49,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
 	USkinSlotViewData* GetCachedSlotData() const { return CachedSlotData; }
 
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplySkinVisual(const USkinDefinition* Target);
+	void CacheOptionalWidgets();
+	void ApplySelectionVisual();
+	FLinearColor ResolveAssignedBackgroundColor() const;
+
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|Style")
 	FLinearColor SelectionBorderDefaultColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.35f);
 
@@ -43,14 +64,6 @@ public:
 	FLinearColor SelectionBorderSelectedColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
 
 protected:
-	virtual void NativePreConstruct() override;
-	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
-	virtual void NativeOnItemSelectionChanged(bool bIsSelected) override;
-	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
 	TObjectPtr<UTextBlock> Txt_Assigned;
 
@@ -79,11 +92,6 @@ protected:
 	TObjectPtr<USkinSlotViewData> CachedSlotData;
 
 private:
-	void ApplySkinVisual(const USkinDefinition* Target);
-	void CacheOptionalWidgets();
-	void ApplySelectionVisual();
-	FLinearColor ResolveAssignedBackgroundColor() const;
-
 	FLinearColor DefaultBackgroundColor = FLinearColor::White;
 	bool bDefaultBackgroundColorCached = false;
 

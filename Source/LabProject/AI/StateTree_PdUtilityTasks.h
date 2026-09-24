@@ -27,10 +27,10 @@ struct LABPROJECT_API FStateTreePdSaveLocationTask : public FStateTreeAITaskBase
 {
 	GENERATED_BODY()
 
+public:
 	using FInstanceDataType = FStateTreePdSaveLocationTaskInstanceData;
 
-	FStateTreePdSaveLocationTask();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 
@@ -41,6 +41,9 @@ struct LABPROJECT_API FStateTreePdSaveLocationTask : public FStateTreeAITaskBase
 		const IStateTreeBindingLookup& BindingLookup,
 		EStateTreeNodeFormatting Formatting = EStateTreeNodeFormatting::Text) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	FStateTreePdSaveLocationTask();
 };
 
 USTRUCT()
@@ -65,10 +68,10 @@ struct LABPROJECT_API FStateTreePdTrackPlayerTask : public FStateTreeAITaskBase
 {
 	GENERATED_BODY()
 
+public:
 	using FInstanceDataType = FStateTreePdTrackPlayerTaskInstanceData;
 
-	FStateTreePdTrackPlayerTask();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
@@ -80,6 +83,9 @@ struct LABPROJECT_API FStateTreePdTrackPlayerTask : public FStateTreeAITaskBase
 		const IStateTreeBindingLookup& BindingLookup,
 		EStateTreeNodeFormatting Formatting = EStateTreeNodeFormatting::Text) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	FStateTreePdTrackPlayerTask();
 };
 
 USTRUCT()
@@ -144,10 +150,10 @@ struct LABPROJECT_API FStateTreePdMovementParametersTask : public FStateTreeAITa
 {
 	GENERATED_BODY()
 
+public:
 	using FInstanceDataType = FStateTreePdMovementParametersTaskInstanceData;
 
-	FStateTreePdMovementParametersTask();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
@@ -159,4 +165,7 @@ struct LABPROJECT_API FStateTreePdMovementParametersTask : public FStateTreeAITa
 		const IStateTreeBindingLookup& BindingLookup,
 		EStateTreeNodeFormatting Formatting = EStateTreeNodeFormatting::Text) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	FStateTreePdMovementParametersTask();
 };

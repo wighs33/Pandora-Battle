@@ -29,7 +29,14 @@ class LABPROJECT_API ULeftSkinWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	ULeftSkinWidget(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
@@ -50,6 +57,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin|Paint")
 	void HidePaintCanvasGroup();
 
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnMenuLanguageChanged() override;
+
+private:
+	UFUNCTION()
+	void HandleSkinEquipSlotClicked(USkinEquipSlotWidget* SkinEquipSlot);
+
+	UFUNCTION()
+	void HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinEquipSlot, const USkinDefinition* SkinDefinition);
+
+	UFUNCTION()
+	void HandleDrawButtonClicked();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void RebuildSkinEquipSlotList();
+	void RebuildEquipSlotNameList();
+	void ApplyEquipSlotNames();
+	void ApplyResolvedEquipTypeTags();
+	void BindSkinEquipSlotCallbacks();
+	void UnbindSkinEquipSlotCallbacks();
+	void BroadcastPaintCanvasGroupVisibilityChanged(bool bVisible);
+	APdPlayer* GetOwningPdPlayer() const;
+
+	FGameplayTag ResolveSkinEquipTypeTagForSlot(const USkinEquipSlotWidget* SkinEquipSlot) const;
+
+public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
 	FPdOnClickedSkinEquipTypeSlot OnClicked_SkinEquipTypeSlot;
 
@@ -60,11 +94,6 @@ public:
 	FPdOnPaintCanvasGroupVisibilityChanged OnPaintCanvasGroupVisibilityChanged;
 
 protected:
-	virtual void OnMenuLanguageChanged() override;
-	virtual void NativePreConstruct() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Skin|Bind")
 	TObjectPtr<USkinEquipSlotWidget> HatSlot;
 
@@ -121,25 +150,4 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin", meta = (DisplayName = "IsSelectedAnySlot?"))
 	bool bIsSelectedAnySlot = false;
-
-private:
-	UFUNCTION()
-	void HandleSkinEquipSlotClicked(USkinEquipSlotWidget* SkinEquipSlot);
-
-	UFUNCTION()
-	void HandleSkinEquipSlotSkinDropped(USkinEquipSlotWidget* SkinEquipSlot, const USkinDefinition* SkinDefinition);
-
-	UFUNCTION()
-	void HandleDrawButtonClicked();
-
-	void RebuildSkinEquipSlotList();
-	void RebuildEquipSlotNameList();
-	void ApplyEquipSlotNames();
-	void ApplyResolvedEquipTypeTags();
-	void BindSkinEquipSlotCallbacks();
-	void UnbindSkinEquipSlotCallbacks();
-	void BroadcastPaintCanvasGroupVisibilityChanged(bool bVisible);
-	APdPlayer* GetOwningPdPlayer() const;
-
-	FGameplayTag ResolveSkinEquipTypeTagForSlot(const USkinEquipSlotWidget* SkinEquipSlot) const;
 };

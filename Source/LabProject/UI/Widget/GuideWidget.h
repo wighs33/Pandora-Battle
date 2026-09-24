@@ -21,10 +21,16 @@ class LABPROJECT_API UGuideWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
-	UGuideWidget(const FObjectInitializer& ObjectInitializer);
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+protected:
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UGuideWidget(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "!Guide")
 	void RefreshGuide();
@@ -37,14 +43,52 @@ public:
 
 	void SetOpenedFromGameplayMenu(bool bInOpenedFromGameplayMenu);
 
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnMenuLanguageChanged() override;
+
+private:
+	UFUNCTION()
+	void HandleCloseClicked();
+
+	UFUNCTION() void HandleGuideButton0Clicked();
+	UFUNCTION() void HandleGuideButton1Clicked();
+	UFUNCTION() void HandleGuideButton2Clicked();
+	UFUNCTION() void HandleGuideButton3Clicked();
+	UFUNCTION() void HandleGuideButton4Clicked();
+	UFUNCTION() void HandleGuideButton5Clicked();
+	UFUNCTION() void HandleGuideButton6Clicked();
+	UFUNCTION() void HandleGuideButton7Clicked();
+	UFUNCTION() void HandleGuideButton8Clicked();
+	UFUNCTION() void HandleGuideButton9Clicked();
+	UFUNCTION() void HandleGuideButton10Clicked();
+	UFUNCTION() void HandleGuideButton11Clicked();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ResolveWidgets();
+	void ApplyBackgroundPatternVisibility();
+	void BeginContentPreload();
+	void BeginPageImagePreload(int32 PreloadGeneration);
+	void ReleaseContentPreloads();
+	const UGuideDefinition* ResolveGuideDefinition() const;
+	void RebuildPages();
+	void BindGuideButtons();
+	void UnbindGuideButtons();
+	void BindGuideButton(int32 PageIndex, UButton* Button);
+	void UnbindGuideButton(int32 PageIndex, UButton* Button);
+	UButton* FindButtonForPage(int32 PageIndex, const FGuidePageEntry& Page) const;
+	void ApplyPage(const FGuidePageEntry& Page);
+	void ApplyContentFont();
+	void ApplyImage(UTexture2D* Texture);
+	void SelectBoundGuideButton(int32 PageIndex);
+	void ResolveSelectedLanguage();
+	FText ResolvePageContent(const FGuidePageEntry& Page) const;
+
+public:
 	UPROPERTY(BlueprintAssignable, Category = "!Guide")
 	FGuideClosedSignature OnGuideClosed;
 
 protected:
-	virtual void OnMenuLanguageChanged() override;
-
-	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Guide|Bind")
 	TObjectPtr<UTextBlock> Txt_Content;
 
@@ -67,41 +111,6 @@ protected:
 	TArray<FName> GuideButtonWidgetNames;
 
 private:
-	UFUNCTION()
-	void HandleCloseClicked();
-
-	UFUNCTION() void HandleGuideButton0Clicked();
-	UFUNCTION() void HandleGuideButton1Clicked();
-	UFUNCTION() void HandleGuideButton2Clicked();
-	UFUNCTION() void HandleGuideButton3Clicked();
-	UFUNCTION() void HandleGuideButton4Clicked();
-	UFUNCTION() void HandleGuideButton5Clicked();
-	UFUNCTION() void HandleGuideButton6Clicked();
-	UFUNCTION() void HandleGuideButton7Clicked();
-	UFUNCTION() void HandleGuideButton8Clicked();
-	UFUNCTION() void HandleGuideButton9Clicked();
-	UFUNCTION() void HandleGuideButton10Clicked();
-	UFUNCTION() void HandleGuideButton11Clicked();
-
-	void ResolveWidgets();
-	void ApplyBackgroundPatternVisibility();
-	void BeginContentPreload();
-	void BeginPageImagePreload(int32 PreloadGeneration);
-	void ReleaseContentPreloads();
-	const UGuideDefinition* ResolveGuideDefinition() const;
-	void RebuildPages();
-	void BindGuideButtons();
-	void UnbindGuideButtons();
-	void BindGuideButton(int32 PageIndex, UButton* Button);
-	void UnbindGuideButton(int32 PageIndex, UButton* Button);
-	UButton* FindButtonForPage(int32 PageIndex, const FGuidePageEntry& Page) const;
-	void ApplyPage(const FGuidePageEntry& Page);
-	void ApplyContentFont();
-	void ApplyImage(UTexture2D* Texture);
-	void SelectBoundGuideButton(int32 PageIndex);
-	void ResolveSelectedLanguage();
-	FText ResolvePageContent(const FGuidePageEntry& Page) const;
-
 	UPROPERTY(Transient)
 	TArray<FGuidePageEntry> CachedPages;
 

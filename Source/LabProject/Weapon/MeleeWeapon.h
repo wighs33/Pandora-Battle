@@ -15,9 +15,11 @@ class LABPROJECT_API AMeleeWeapon : public AWeaponBase
     GENERATED_BODY()
 
 public:
-    AMeleeWeapon();
-
+    // Engine Overrides ------------------------------------------------------------------------------------------------
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+    // Public API ------------------------------------------------------------------------------------------------------
+    AMeleeWeapon();
 
     virtual void StartAttackTrace() override;
     virtual void StartAttackTraceForSection(FName AttackSectionName) override;
@@ -48,15 +50,8 @@ public:
     virtual void ClearTemporaryAttackTraceEndZMultiplier(UObject* SourceObject) override;
     virtual float GetTemporaryAttackTraceEndZMultiplier() const override;
 
-    virtual bool OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter) override;
-
-    UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Weapon|Trace")
-    TObjectPtr<USceneComponent> AttackTraceStart;
-
-    UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Weapon|Trace")
-    TObjectPtr<USceneComponent> AttackTraceEnd;
-
 protected:
+    // Network RPCs ----------------------------------------------------------------------------------------------------
     UFUNCTION(NetMulticast, Unreliable)
     void MulticastSpawnSkillSlashNiagara(
         UNiagaraSystem* SlashSystem,
@@ -70,11 +65,19 @@ protected:
         const TArray<FVector>& EndLocations,
         const TArray<FHitResult>& Hits);
 
+public:
+    // Event Handlers --------------------------------------------------------------------------------------------------
+    virtual bool OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter) override;
+
+private:
+    void PerformAttackTrace();
+
+protected:
+    // Internal Helpers ------------------------------------------------------------------------------------------------
     virtual bool ApplyDamageToTarget(AActor* TargetActor) override;
 
 private:
     void StartAttackTraceInternal(bool bResetHitActors);
-    void PerformAttackTrace();
 
     bool CanDamageMeleeTracedHit(const FHitResult& HitResult) const;
     FVector GetAttackTraceEndLocation(const FVector& TraceStartLocation) const;
@@ -114,6 +117,13 @@ private:
         const TArray<FVector>& StartLocations,
         const TArray<FVector>& EndLocations,
         const TArray<FHitResult>& Hits) const;
+
+public:
+    UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Weapon|Trace")
+    TObjectPtr<USceneComponent> AttackTraceStart;
+
+    UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Weapon|Trace")
+    TObjectPtr<USceneComponent> AttackTraceEnd;
 
 private:
     UPROPERTY(Transient)

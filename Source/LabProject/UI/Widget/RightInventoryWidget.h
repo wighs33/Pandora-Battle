@@ -23,11 +23,15 @@ class LABPROJECT_API URightInventoryWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	URightInventoryWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Filter
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
 	void SelectAllFilter();
 
@@ -40,8 +44,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
 	void ResetFilterHighlightToAll();
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Tile View
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
 	void SetTileView(const TArray<UObject*>& InListItems);
 
@@ -64,6 +66,40 @@ public:
 
 	void BroadcastDroppedInventorySlot(int32 SourceSlotIndex, int32 TargetSlotIndex, UItemInstance* SourceItem);
 
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	void OnAllButtonClicked();
+
+	UFUNCTION()
+	void OnWeaponButtonClicked();
+
+	UFUNCTION()
+	void OnEquipmentButtonClicked();
+
+	UFUNCTION()
+	void OnValuableButtonClicked();
+
+	UFUNCTION()
+	void OnConsumableButtonClicked();
+
+	UFUNCTION()
+	void OnSearchButtonClicked();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void RebuildFilterButtonList();
+	void RebuildTileViewFromCachedSourceItems();
+	void UpdateCombineMessage(bool bHasCombinableItems) const;
+	bool DoesItemMatchSearch(const UItemInstance* ItemInstance, const FString& SearchText) const;
+	bool IsDuplicateHighlightCandidate(const UItemDefinition* ItemDefinition) const;
+	void ApplyWidgetDefinitionSettings();
+	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
+	FGameplayTag GetWeaponTypeTag() const;
+	FGameplayTag GetEquipmentTypeTag() const;
+	FGameplayTag GetValuableTypeTag() const;
+	FGameplayTag GetConsumableTypeTag() const;
+
+public:
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Inventory")
 	FPdOnClickedInventoryFilterAllButton OnClicked_FilterAllButton;
 
@@ -74,13 +110,6 @@ public:
 	FPdOnDroppedInventorySlot OnDropped_InventorySlot;
 
 protected:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Filter Buttons
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory", meta = (BindWidget))
 	TObjectPtr<UButton> AllButton;
 
@@ -102,8 +131,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Inventory|Filter")
 	FLinearColor SelectedFilterAccentColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Tile View
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory", meta = (BindWidget))
 	TObjectPtr<UTileView> TileView;
 
@@ -131,38 +158,6 @@ protected:
 	TSet<FGuid> AssignedItemIds;
 
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Button Callbacks
-	UFUNCTION()
-	void OnAllButtonClicked();
-
-	UFUNCTION()
-	void OnWeaponButtonClicked();
-
-	UFUNCTION()
-	void OnEquipmentButtonClicked();
-
-	UFUNCTION()
-	void OnValuableButtonClicked();
-
-	UFUNCTION()
-	void OnConsumableButtonClicked();
-
-	UFUNCTION()
-	void OnSearchButtonClicked();
-
-	void RebuildFilterButtonList();
-	void RebuildTileViewFromCachedSourceItems();
-	void UpdateCombineMessage(bool bHasCombinableItems) const;
-	bool DoesItemMatchSearch(const UItemInstance* ItemInstance, const FString& SearchText) const;
-	bool IsDuplicateHighlightCandidate(const UItemDefinition* ItemDefinition) const;
-	void ApplyWidgetDefinitionSettings();
-	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
-	FGameplayTag GetWeaponTypeTag() const;
-	FGameplayTag GetEquipmentTypeTag() const;
-	FGameplayTag GetValuableTypeTag() const;
-	FGameplayTag GetConsumableTypeTag() const;
-
 	FGameplayTag WeaponTypeTagOverride;
 	FGameplayTag EquipmentTypeTagOverride;
 	FGameplayTag ValuableTypeTagOverride;

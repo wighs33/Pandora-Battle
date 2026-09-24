@@ -23,10 +23,13 @@ struct LABPROJECT_API FReplicatedStatusEffectStackEntry : public FFastArraySeria
 {
 	GENERATED_BODY()
 
+public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void PostReplicatedAdd(const struct FReplicatedStatusEffectStackList& InArraySerializer);
 	void PostReplicatedChange(const struct FReplicatedStatusEffectStackList& InArraySerializer);
 	void PreReplicatedRemove(const struct FReplicatedStatusEffectStackList& InArraySerializer);
 
+public:
 	UPROPERTY()
 	FGameplayTag DebuffTag;
 
@@ -39,6 +42,8 @@ struct LABPROJECT_API FReplicatedStatusEffectStackList : public FIrisFastArraySe
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 	{
 		return FFastArraySerializer::FastArrayDeltaSerialize<
@@ -51,6 +56,7 @@ struct LABPROJECT_API FReplicatedStatusEffectStackList : public FIrisFastArraySe
 		MarkItemDirty(Entry);
 	}
 
+public:
 	UPROPERTY()
 	TArray<FReplicatedStatusEffectStackEntry> Entries;
 
@@ -77,34 +83,9 @@ class LABPROJECT_API UStatusEffectReplicationComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
+private:
 	friend struct FReplicatedStatusEffectStackEntry;
 
-public:
-	UStatusEffectReplicationComponent(
-		const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void GetLifetimeReplicatedProps(
-		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-	void SetStatusEffectStackCount(
-		FGameplayTag DebuffTag,
-		int32 StackCount,
-		FActiveGameplayEffectHandle ActiveEffectHandle = FActiveGameplayEffectHandle());
-	void TrackAppliedStatusEffect(
-		const UStatusEffectDefinition* StatusEffectDefinition,
-		FActiveGameplayEffectHandle ActiveEffectHandle);
-
-	UFUNCTION(BlueprintPure, Category = "!AbilitySystem|StatusEffect")
-	int32 GetStatusEffectStackCount(FGameplayTag DebuffTag) const;
-
-	FOnStatusEffectStackChanged& OnStatusEffectStackChanged()
-	{
-		return StatusEffectStackChanged;
-	}
-
-private:
 	struct FTrackedActiveEffectBinding
 	{
 		FGameplayTag DebuffTag;
@@ -120,9 +101,49 @@ private:
 		int32 MaxStackCount = 0;
 	};
 
+public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void GetLifetimeReplicatedProps(
+		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UStatusEffectReplicationComponent(
+		const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	void SetStatusEffectStackCount(
+		FGameplayTag DebuffTag,
+		int32 StackCount,
+		FActiveGameplayEffectHandle ActiveEffectHandle = FActiveGameplayEffectHandle());
+	void TrackAppliedStatusEffect(
+		const UStatusEffectDefinition* StatusEffectDefinition,
+		FActiveGameplayEffectHandle ActiveEffectHandle);
+
+	UFUNCTION(BlueprintPure, Category = "!AbilitySystem|StatusEffect")
+	int32 GetStatusEffectStackCount(FGameplayTag DebuffTag) const;
+
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	FOnStatusEffectStackChanged& OnStatusEffectStackChanged()
+	{
+		return StatusEffectStackChanged;
+	}
+
+private:
 	void HandleReplicatedStackAddedOrChanged(
 		const FReplicatedStatusEffectStackEntry& Entry);
 	void HandleReplicatedStackRemoved(FGameplayTag DebuffTag);
+	void RefreshReplicatedStackFromAbilitySystem(FGameplayTag DebuffTag);
+	void UpdateStatusEffectDecay(FGameplayTag DebuffTag);
+
+	void HandleDebuffTagChanged(FGameplayTag DebuffTag, int32 NewCount);
+	void HandleActiveEffectStackChanged(
+		FActiveGameplayEffectHandle ActiveEffectHandle,
+		int32 NewStackCount,
+		int32 PreviousStackCount);
+	void HandleAnyActiveEffectRemoved(const FActiveGameplayEffect& RemovedEffect);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void NotifyStatusEffectStackChanged(FGameplayTag DebuffTag, int32 StackCount);
 
 	void EnsureAbilitySystemBinding();
@@ -132,7 +153,6 @@ private:
 		FGameplayTag DebuffTag,
 		FActiveGameplayEffectHandle ActiveEffectHandle);
 	void RefreshTrackedActiveEffects(FGameplayTag DebuffTag);
-	void RefreshReplicatedStackFromAbilitySystem(FGameplayTag DebuffTag);
 	int32 CalculateStackCountFromAbilitySystem(FGameplayTag DebuffTag) const;
 	void WriteReplicatedStack(FGameplayTag DebuffTag, int32 StackCount);
 	void MarkReplicatedStacksDirty();
@@ -141,17 +161,10 @@ private:
 		const UStatusEffectDefinition* StatusEffectDefinition,
 		FActiveGameplayEffectHandle ActiveEffectHandle,
 		int32 StackCount);
-	void UpdateStatusEffectDecay(FGameplayTag DebuffTag);
 	void ClearStatusEffectDecay(FGameplayTag DebuffTag);
 	void ClearAllStatusEffectDecayTimers();
 
-	void HandleDebuffTagChanged(FGameplayTag DebuffTag, int32 NewCount);
-	void HandleActiveEffectStackChanged(
-		FActiveGameplayEffectHandle ActiveEffectHandle,
-		int32 NewStackCount,
-		int32 PreviousStackCount);
-	void HandleAnyActiveEffectRemoved(const FActiveGameplayEffect& RemovedEffect);
-
+private:
 	UPROPERTY(Replicated)
 	FReplicatedStatusEffectStackList ReplicatedStacks;
 

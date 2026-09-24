@@ -21,11 +21,13 @@ class LABPROJECT_API UPlayerAimComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UPlayerAimComponent();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UPlayerAimComponent();
 
 	void ApplySettings(const FPlayerAimSettings& Settings);
 	void StartReplication();
@@ -39,24 +41,28 @@ public:
 	void ApplyMovementSettings(UCharacterMovementComponent* MovementComponent);
 
 private:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerSetWeaponAimActive(
 		bool bEnabled,
 		FWeaponAimCameraSettings CameraSettings);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_WeaponAimActive();
 
 	UFUNCTION()
 	void OnRep_ReplicatedAimOffset();
+	void UpdateReplicatedAimOffset();
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayer* GetPlayerOwner() const;
 	void ApplyWeaponAimState(
 		bool bEnabled,
 		const FWeaponAimCameraSettings& CameraSettings);
 	void CacheMovementDefaults(UCharacterMovementComponent* MovementComponent);
-	void UpdateReplicatedAimOffset();
 
+private:
 	UPROPERTY(ReplicatedUsing = OnRep_WeaponAimActive, Transient)
 	bool bWeaponAimActive = false;
 

@@ -55,10 +55,7 @@ class LABPROJECT_API UGameFeatureAction_AddAbilities : public UGameFeatureAction
 	GENERATED_BODY()
 
 public:
-	UGameFeatureAction_AddAbilities();
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Game Feature Events
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context) override;
 
 #if WITH_EDITOR
@@ -69,14 +66,14 @@ public:
 	virtual void AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData) override;
 #endif
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	UGameFeatureAction_AddAbilities();
+
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Activation
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual void AddToWorld(const FWorldContext& WorldContext, const FGameFeatureStateChangeContext& ChangeContext) override;
 	void RegisterAbilityExtension(UWorld* World, FGameFeatureStateChangeContext ChangeContext);
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Ability Grants
 	void GrantAbilitiesToActor(AActor* Actor, FGameFeatureAbilityGrantHandles& Handles);
 	void RemoveAbilitiesFromActor(AActor* Actor, FGameFeatureAbilityGrantHandles& Handles) const;
 	void RemoveAllGrantedAbilities(FGameFeatureAbilityGrantHandles& Handles) const;
@@ -84,8 +81,6 @@ private:
 	bool HasAbilityClass(const UAbilitySystemComponent* AbilitySystemComponent, TSubclassOf<UGameplayAbility> AbilityClass) const;
 
 public:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Ability Setup
 	UPROPERTY(EditAnywhere, Category = "Abilities", meta = (AllowAbstract = "false"))
 	TSoftClassPtr<AActor> TargetClass;
 
@@ -93,7 +88,5 @@ public:
 	TArray<FGameFeatureAbilityEntry> Abilities;
 
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Runtime State
 	TMap<FGameFeatureStateChangeContext, FGameFeatureAbilityGrantHandles> ContextHandles;
 };

@@ -15,6 +15,7 @@ class LABPROJECT_API ITargetingInterface
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "!Targeting")
 	AActor* GetAttackTarget() const;
 };

@@ -17,19 +17,25 @@ class LABPROJECT_API ULobbyExperienceComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	ULobbyExperienceComponent();
 
 	void StartExperienceLoad();
 	bool IsExperienceLoaded() const;
-	FSimpleMulticastDelegate OnExperienceReady;
 	UClass* ResolveExperiencePawnClass() const;
 	FPrimaryAssetId GetConfiguredExperienceId() const;
 
 private:
-	ALobbyGameMode* GetLobbyGameMode() const;
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleExperienceLoaded(
 		const UExperienceDefinition* Experience);
 	void HandleExperienceLoadFailed(
 		FPrimaryAssetId ExperienceId,
 		const FString& FailureMessage);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	ALobbyGameMode* GetLobbyGameMode() const;
+
+public:
+	FSimpleMulticastDelegate OnExperienceReady;
 };

@@ -10,6 +10,8 @@ struct LABPROJECT_API FExtensionCondition
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	virtual ~FExtensionCondition() = default;
 
 	virtual bool IsSatisfied(AActor* Owner) const { return true; }

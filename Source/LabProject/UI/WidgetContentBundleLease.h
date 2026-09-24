@@ -19,7 +19,9 @@ struct FStreamableHandle;
 class LABPROJECT_API FWidgetContentBundleLease final
 	: public TSharedFromThis<FWidgetContentBundleLease>
 {
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	~FWidgetContentBundleLease();
 	FWidgetContentBundleLease(const FWidgetContentBundleLease&) = delete;
 	FWidgetContentBundleLease& operator=(const FWidgetContentBundleLease&) = delete;
@@ -32,8 +34,10 @@ public:
 	void Release();
 
 private:
-	friend class UUiSubsystem;
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandlePreloadComplete();
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	FWidgetContentBundleLease(
 		EWidgetContentBundle InBundle,
 		FSimpleDelegate InOnComplete);
@@ -42,9 +46,11 @@ private:
 		UWidgetClassDefinition* InDefinition,
 		UContentDataSubsystem* ContentSubsystem);
 	void MarkFailed();
-	void HandlePreloadComplete();
 	void QueueCompletion();
 	void DispatchCompletion();
+
+private:
+	friend class UUiSubsystem;
 
 	TWeakObjectPtr<UWidgetClassDefinition> Definition;
 	TSharedPtr<FStreamableHandle> StreamableHandle;

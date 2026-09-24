@@ -16,6 +16,7 @@ class LABPROJECT_API UAbilityMovementManager : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void StopAvatarMovementForSkillActivation(UPdGameplayAbility& Ability);
 	void LockAvatarMovementForAbility(UPdGameplayAbility& Ability);
 	void RestoreAvatarMovementForAbility(UPdGameplayAbility& Ability);
@@ -26,9 +27,13 @@ public:
 	void StopMovementContactDamage(UPdGameplayAbility& Ability);
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleMovementContactDamageTick();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyMovementContactDamageToActor(UPdGameplayAbility& Ability, AActor* HitActor);
 
+private:
 	UPROPERTY(Transient)
 	uint8 CachedAbilityMovementMode = 0;
 

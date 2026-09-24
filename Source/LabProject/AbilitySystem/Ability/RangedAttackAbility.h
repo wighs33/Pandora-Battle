@@ -15,7 +15,7 @@ class LABPROJECT_API URangedAttackAbility : public UPdGameplayAbility
 	GENERATED_BODY()
 
 public:
-	URangedAttackAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual bool CanActivateAbility(
 		FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
@@ -24,12 +24,17 @@ public:
 		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 
 protected:
-	// Timing hooks
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	URangedAttackAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnAbilityEnding() override;
 
-	// Delegate callbacks
 	UFUNCTION()
 	void OnAttackMontageCompleted();
 
@@ -45,7 +50,10 @@ protected:
 	UFUNCTION()
 	void OnAttackTraceEnd(FGameplayEventData Payload);
 
-	// State helpers
+	UFUNCTION()
+	void HandleAIPrimaryAttackTimer();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void CleanupAttackState();
 	AWeaponBase* GetCurrentWeaponActor() const;
 	void SetCurrentWeaponTraceEnabled(bool bEnabled) const;
@@ -59,9 +67,7 @@ protected:
 	void ScheduleAIPrimaryAttack();
 	void ClearAIPrimaryAttackTimer();
 
-	UFUNCTION()
-	void HandleAIPrimaryAttackTimer();
-
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> AttackingEffectClass;
 

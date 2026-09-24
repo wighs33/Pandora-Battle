@@ -29,6 +29,7 @@ struct FEquippedItemStatSnapshot
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
 	TMap<FGameplayTag, float> BaseStatMagnitudes;
 
@@ -39,6 +40,7 @@ struct FEquippedItemStatSnapshot
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
 	TMap<FGameplayTag, float> NonAttributeStatMagnitudes;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Reset()
 	{
 		BaseStatMagnitudes.Reset();
@@ -66,13 +68,17 @@ class LABPROJECT_API UEquipmentComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UEquipmentComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	//------------------------------------------------------------------------------------------------------------------
+protected:
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UEquipmentComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	void RefreshCachedReferences();
 
 	const UItemDefinition* GetRequestedWeaponDefinition() const;
@@ -109,9 +115,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	EEnum_Direction GetCurrentWeaponLoadoutDirection() const { return CurrentWeaponLoadoutDirection; }
 
-	FOnCurrentWeaponDefinitionChanged OnCurrentWeaponDefinitionChanged;
-	FOnEquipmentStatsChanged OnEquipmentStatsChanged;
-
 	UFUNCTION(BlueprintCallable, Category = "!Equipment")
 	void ClearRequestedWeaponInstance();
 
@@ -132,12 +135,22 @@ public:
 	bool UnequipCurrentWeapon();
 
 protected:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleWeaponPresentationLoaded(FPrimaryAssetId ItemDefinitionId);
 
-	//------------------------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	void OnRep_CurrentWeaponDefinition();
+
+	UFUNCTION()
+	void OnRep_CurrentWeaponActor();
+
+	UFUNCTION()
+	void OnRep_CurrentWeaponId();
+	void HandleEquipCooldownTagChanged(FGameplayTag CallbackTag, int32 NewCount);
+	void HandleEquipmentSlotsChanged();
+	void HandleInventoryChanged();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool EquipWeaponInternal(UItemInstance* WeaponInstance, EEnum_Direction WeaponLoadoutDirection);
 
 	bool ResolveWeaponEquipRequest(UItemInstance* WeaponInstance, const UItemDefinition*& OutItemDefinition, FGuid& OutWeaponId) const;
@@ -160,7 +173,6 @@ protected:
 	TSubclassOf<AWeaponBase> GetLoadedWeaponActorClass(const UItemDefinition* ItemDefinition) const;
 	bool IsWeaponPresentationLoaded(const UItemDefinition* ItemDefinition) const;
 	bool RequestWeaponPresentationLoad(const UItemDefinition* ItemDefinition, FSimpleDelegate OnLoaded);
-	void HandleWeaponPresentationLoaded(FPrimaryAssetId ItemDefinitionId);
 	void RefreshCurrentWeaponPresentation();
 	void ReleaseWeaponPresentationLoads();
 
@@ -186,20 +198,8 @@ protected:
 	bool ReplaceWeapon(const UItemDefinition* Definition, FGuid WeaponId, EEnum_Direction Direction,
 		const FEquippedItemStatSnapshot& StatSnapshot);
 
-	UFUNCTION()
-	void OnRep_CurrentWeaponDefinition();
-
-	UFUNCTION()
-	void OnRep_CurrentWeaponActor();
-
-	UFUNCTION()
-	void OnRep_CurrentWeaponId();
-
 	void NotifyCurrentWeaponDefinitionChanged();
 	void NotifyCurrentWeaponStateChanged();
-	void HandleEquipCooldownTagChanged(FGameplayTag CallbackTag, int32 NewCount);
-	void HandleEquipmentSlotsChanged();
-	void HandleInventoryChanged();
 
 	bool BuildItemStatSnapshot(const UItemInstance* ItemInstance, FEquippedItemStatSnapshot& OutSnapshot) const;
 	bool BuildItemDefinitionStatSnapshot(const UItemDefinition* ItemDefinition, FEquippedItemStatSnapshot& OutSnapshot) const;
@@ -234,8 +234,11 @@ protected:
 		bool bCurrentWeaponLoadoutDirectionChanged);
 	void RefreshPandoraForWeaponChange() const;
 
-protected:
+public:
+	FOnCurrentWeaponDefinitionChanged OnCurrentWeaponDefinitionChanged;
+	FOnEquipmentStatsChanged OnEquipmentStatsChanged;
 
+protected:
 	UPROPERTY(Transient)
 	TObjectPtr<ACharacterBase> CachedOwner;
 

@@ -12,8 +12,23 @@ class LABPROJECT_API UPandoraWidgetViewModel : public UCommonViewModelBase
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UPandoraWidgetViewModel();
 
+	void ResetViewData();
+	void SetDisplayName(const FText& InDisplayName);
+	void SetLevelText(const FText& InLevelText);
+	void SetIconResource(UObject* ResourceObject, const FVector2D& DefaultImageSize = FVector2D(100.0f, 100.0f));
+	void SetOverlayColor(const FLinearColor& InOverlayColor);
+	void SetContentOpacity(float InContentOpacity);
+	void SetStateIconVisibility(ESlateVisibility InStateIconVisibility);
+	void SetStateIconColor(const FLinearColor& InStateIconColor);
+	void SetCanSpend(bool bInCanSpend);
+	void SetIsLocked(bool bInIsLocked);
+	void SetNotEnoughPoints(bool bInNotEnoughPoints);
+	void SetAtMaxLevel(bool bInAtMaxLevel);
+
+public:
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Widget ViewModel")
 	FText DisplayName;
 
@@ -46,19 +61,6 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Widget ViewModel")
 	bool bAtMaxLevel = false;
-
-	void ResetViewData();
-	void SetDisplayName(const FText& InDisplayName);
-	void SetLevelText(const FText& InLevelText);
-	void SetIconResource(UObject* ResourceObject, const FVector2D& DefaultImageSize = FVector2D(100.0f, 100.0f));
-	void SetOverlayColor(const FLinearColor& InOverlayColor);
-	void SetContentOpacity(float InContentOpacity);
-	void SetStateIconVisibility(ESlateVisibility InStateIconVisibility);
-	void SetStateIconColor(const FLinearColor& InStateIconColor);
-	void SetCanSpend(bool bInCanSpend);
-	void SetIsLocked(bool bInIsLocked);
-	void SetNotEnoughPoints(bool bInNotEnoughPoints);
-	void SetAtMaxLevel(bool bInAtMaxLevel);
 
 	static const FName ViewModelName;
 };

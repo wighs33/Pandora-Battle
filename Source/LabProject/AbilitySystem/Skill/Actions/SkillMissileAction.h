@@ -27,16 +27,26 @@ public:
 	FMissileSkillConfig Settings;
 
 protected:
-	//--------------------------------------------------------------------------------------------------------------
-	// Lifecycle
-
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 	virtual void OnStop() override;
 
 private:
-	//--------------------------------------------------------------------------------------------------------------
-	// Montage / Launch
+	void HandleMissileDurationFinished();
+	void HandleMissileTargetTrackingTick();
+	void HandleDamageDelayFinished();
+	void HandleDamageTick();
 
+	UFUNCTION()
+	void HandleMissileMontageTriggerEvent(FGameplayEventData Payload);
+
+	UFUNCTION()
+	void HandleMissileMontageFinished();
+
+	UFUNCTION()
+	void HandleMissileMontageInterrupted();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void StartWaitMissileMontageTriggerTask();
 	bool StartMissileMontageTask();
 	UAnimMontage* GetResolvedMissileMontage() const;
@@ -45,34 +55,21 @@ private:
 	void TryLaunchMissile();
 	void LaunchMissile();
 
-	//--------------------------------------------------------------------------------------------------------------
-	// Targeting
-
 	bool ResolveTargetAimLocation(AActor* TargetActor, FVector& OutAimLocation) const;
 	bool IsEligibleMissileTargetActor(const AActor* TargetActor) const;
 	bool IsMissileTargetLocationWithinRange(const FVector& TargetLocation) const;
 
 	FVector GetMissileTargetingOrigin() const;
 
-	//--------------------------------------------------------------------------------------------------------------
-	// Presentation / Tracking
-
 	void StartMissilePresentation();
 
 	void StartMissileDurationTimer();
-	void HandleMissileDurationFinished();
 
 	void StartMissileTargetTracking();
 	void StopMissileTargetTracking();
-	void HandleMissileTargetTrackingTick();
 	void RefreshMissileTargets();
 
-	//--------------------------------------------------------------------------------------------------------------
-	// Damage
-
 	void StartDamageSequence();
-	void HandleDamageDelayFinished();
-	void HandleDamageTick();
 
 	void ApplyMissileDamageTick(float TickDamageMagnitude);
 	void ApplyEffectToHitActor(AActor* HitActor, float TickDamageMagnitude);
@@ -85,35 +82,15 @@ private:
 	float CalculateDamageApplicationDuration() const;
 	float CalculateDamageInterval() const;
 
-	//--------------------------------------------------------------------------------------------------------------
-	// Timing / Completion
-
 	float CalculateMissileDuration() const;
 
 	void MarkDamageSequenceFinished();
 	void TryFinishAfterWork();
 	void FinishMissile(bool bWasCancelled);
 
-	//--------------------------------------------------------------------------------------------------------------
-	// Debug
-
 	void DrawDebugTargetingRange() const;
 
-	//--------------------------------------------------------------------------------------------------------------
-	// Task Callbacks
-
-	UFUNCTION()
-	void HandleMissileMontageTriggerEvent(FGameplayEventData Payload);
-
-	UFUNCTION()
-	void HandleMissileMontageFinished();
-
-	UFUNCTION()
-	void HandleMissileMontageInterrupted();
-
-	//--------------------------------------------------------------------------------------------------------------
-	// Runtime State
-
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> MissileMontageTask;
 

@@ -44,8 +44,7 @@ class LABPROJECT_API ACharacterBase : public ACharacter, public IAbilitySystemIn
 	GENERATED_BODY()
 
 public:
-	ACharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	// 엔진 생명주기와 조종자·이동 상태 변경.
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
@@ -57,10 +56,14 @@ public:
 	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
 	virtual void UnPossessed() override;
 
+	// Interface Implementations ---------------------------------------------------------------------------------------
 	// ASC 소유 관계와 능력 상태 연결.
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	virtual void HandleGameplayCue(
 		AActor* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	ACharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintPure, Category = "!AbilitySystem")
 	UPdAbilitySystemComponent* GetPdAbilitySystemComponent() const;
@@ -150,16 +153,6 @@ public:
 	// GAS의 사망 상태를 조회한다. 사망 연출 처리 여부와는 별개다.
 	bool IsDead() const;
 
-	// 피격·사망·리스폰의 캐릭터 진입점. 서버의 확정 결과는 아래 Multicast RPC로 전달한다.
-	UFUNCTION(BlueprintImplementableEvent, Category = "!Damage", meta = (DisplayName = "On Damage Taken"))
-	void OnDamageTaken(float DamageAmount, bool bCriticalHit, FVector WorldLocation);
-
-	virtual void HandleDamageTaken(float DamageAmount, bool bCriticalHit = false, bool bAllowHitReact = true,
-		AActor* DamageInstigator = nullptr, AActor* DamageCauser = nullptr);
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "!Damage")
-	void HandleDeath();
-
 	UFUNCTION(BlueprintCallable, Category = "!Damage|Respawn")
 	virtual void ResetDeathStateForRespawn();
 
@@ -171,13 +164,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Presentation")
 	void ClearCharacterOverlayMaterial();
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "!AbilitySystem|Cue", meta = (DisplayName = "On Dash Cue Activated"))
-	void OnDashCueActivated(const FGameplayCueParameters& Parameters);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "!AbilitySystem|Cue", meta = (DisplayName = "On Dash Cue Removed"))
-	void OnDashCueRemoved(const FGameplayCueParameters& Parameters);
-
 protected:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	// 서버가 확정한 피격·사망 연출과 리스폰 위치를 각 클라이언트에 적용한다.
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastHandleDamageTaken(float DamageAmount, bool bCriticalHit, FVector_NetQuantize WorldLocation);
@@ -194,6 +182,29 @@ protected:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastClearCharacterOverlayMaterial();
 
+public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	// 피격·사망·리스폰의 캐릭터 진입점. 서버의 확정 결과는 아래 Multicast RPC로 전달한다.
+	UFUNCTION(BlueprintImplementableEvent, Category = "!Damage", meta = (DisplayName = "On Damage Taken"))
+	void OnDamageTaken(float DamageAmount, bool bCriticalHit, FVector WorldLocation);
+
+	virtual void HandleDamageTaken(float DamageAmount, bool bCriticalHit = false, bool bAllowHitReact = true,
+		AActor* DamageInstigator = nullptr, AActor* DamageCauser = nullptr);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "!Damage")
+	void HandleDeath();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "!AbilitySystem|Cue", meta = (DisplayName = "On Dash Cue Activated"))
+	void OnDashCueActivated(const FGameplayCueParameters& Parameters);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "!AbilitySystem|Cue", meta = (DisplayName = "On Dash Cue Removed"))
+	void OnDashCueRemoved(const FGameplayCueParameters& Parameters);
+
+protected:
+	virtual void HandleCharacterRuntimeInitialized();
+	void HandleCharacterDefinitionPreloaded(uint32 RequestGeneration);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	// 플레이어와 적의 소유 방식·전용 설정·회전·UI 차이를 유지하는 확장 지점.
 	virtual AActor* GetAbilitySystemOwnerActor() const;
 	virtual AActor* GetAbilitySystemAvatarActor() const;
@@ -204,13 +215,11 @@ protected:
 	virtual bool ShouldUseContinuousCharacterTick() const;
 	virtual FVector GetDamageIndicatorWorldLocation() const;
 	virtual bool IsAdditionalCharacterRuntimeContentReady() const;
-	virtual void HandleCharacterRuntimeInitialized();
 
 	// BeginPlay와 비동기 콘텐츠 준비를 합류시켜 공통 시스템을 초기화한다.
 	void RefreshAbilitySystemAndTeamBindings();
 	void ApplyCharacterDefinition();
 	void BeginCharacterDefinitionPreload();
-	void HandleCharacterDefinitionPreloaded(uint32 RequestGeneration);
 	void CancelCharacterDefinitionPreload();
 	void TryInitializeCharacterRuntime();
 	bool IsCharacterRuntimeInitialized() const { return bCharacterRuntimeInitialized; }

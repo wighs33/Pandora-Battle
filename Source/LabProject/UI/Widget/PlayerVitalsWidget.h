@@ -16,15 +16,20 @@ class LABPROJECT_API UPlayerVitalsWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual void OnMenuLanguageChanged() override;
 
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Player Vitals")
-	TObjectPtr<UProgressBar> StaminaBar;
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnMenuLanguageChanged() override;
 
 private:
 	void InitializeStaminaPresentation();
+	void HandleResourceChanged(const FOnAttributeChangeData& Data);
+	void HandleStaminaChanged(const FOnAttributeChangeData& Data);
+	void HandleMaxStaminaChanged(const FOnAttributeChangeData& Data);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void QueueStaminaPresentationInitializeRetry();
 	void BindStaminaAttributeDelegates();
 	void UnbindStaminaAttributeDelegates();
@@ -34,10 +39,13 @@ private:
 	UProgressBar* ResolveStaminaBar() const;
 	UAbilitySystemComponent* ResolveOwnerAbilitySystemComponent() const;
 	void RefreshResourceReadouts();
-	void HandleResourceChanged(const FOnAttributeChangeData& Data);
+
+protected:
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Player Vitals")
+	TObjectPtr<UProgressBar> StaminaBar;
+
+private:
 	TArray<TPair<FGameplayAttribute, FDelegateHandle>> ResourceDelegateHandles;
-	void HandleStaminaChanged(const FOnAttributeChangeData& Data);
-	void HandleMaxStaminaChanged(const FOnAttributeChangeData& Data);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;

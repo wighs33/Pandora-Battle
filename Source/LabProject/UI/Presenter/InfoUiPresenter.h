@@ -27,8 +27,11 @@ class LABPROJECT_API UInfoUiPresenter : public UObject
 	GENERATED_BODY()
 
 public:
-	UInfoUiPresenter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual UWorld* GetWorld() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UInfoUiPresenter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void Initialize(APdPlayerController* InController);
 	void Deinitialize();
@@ -37,6 +40,7 @@ public:
 	UItemInstance* GetSelectedWeapon(EEnum_Direction Direction) const;
 	bool WouldSelectedPandoraDirectionChangeLoadout(EEnum_Direction Direction) const;
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleSelectedPandoraDirection(EEnum_Direction Direction);
 
@@ -47,6 +51,9 @@ public:
 	void HandleClickedInfoCenterButton(FGameplayTag LeftUiTag, FGameplayTag RightUiTag);
 
 private:
+	void HandleLoadoutStateChanged(EInfoLoadoutStateChange Change);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void EnsureTabPresenters();
 	void BindLoadoutStateNotification();
 	void UnbindLoadoutStateNotification();
@@ -54,8 +61,7 @@ private:
 	void ReleaseItemPresentationPreload();
 	void SetActiveTab(FGameplayTag LeftUiTag);
 
-	void HandleLoadoutStateChanged(EInfoLoadoutStateChange Change);
-
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<APdPlayerController> OwningController;
 	UPROPERTY(Transient)

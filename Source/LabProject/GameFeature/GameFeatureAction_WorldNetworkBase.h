@@ -14,24 +14,27 @@ class LABPROJECT_API UGameFeatureAction_WorldNetworkBase : public UGameFeatureAc
 	GENERATED_BODY()
 
 public:
-	UGameFeatureAction_WorldNetworkBase();
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Game Feature Events
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void OnGameFeatureActivating(FGameFeatureActivatingContext& Context) override;
 	virtual void OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context) override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	UGameFeatureAction_WorldNetworkBase();
+
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleGameInstanceStart(UGameInstance* GameInstance, FGameFeatureStateChangeContext ChangeContext);
+	void HandleGameInstanceWorldChanged(UGameInstance* GameInstance, UWorld* OldWorld, UWorld* NewWorld,
+		FGameFeatureStateChangeContext ChangeContext);
+
 protected:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- World Setup
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual void AddToWorld(const FWorldContext& WorldContext, const FGameFeatureStateChangeContext& ChangeContext)
 		PURE_VIRTUAL(UGameFeatureAction_WorldNetworkBase::AddToWorld, );
 
 	bool ShouldApplyToNetMode(ENetMode NetMode) const;
 
 public:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Network Setup
 	UPROPERTY(EditAnywhere, Category = "Network")
 	uint8 bClientAction : 1;
 
@@ -39,15 +42,6 @@ public:
 	uint8 bServerAction : 1;
 
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- World Events
-	void HandleGameInstanceStart(UGameInstance* GameInstance, FGameFeatureStateChangeContext ChangeContext);
-	void HandleGameInstanceWorldChanged(UGameInstance* GameInstance, UWorld* OldWorld, UWorld* NewWorld,
-		FGameFeatureStateChangeContext ChangeContext);
-
-private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Runtime State
 	TMap<FGameFeatureStateChangeContext, FDelegateHandle> GameInstanceStartHandles;
 	TMap<FGameFeatureStateChangeContext, FDelegateHandle> GameInstanceWorldChangedHandles;
 };

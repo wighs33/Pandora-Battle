@@ -19,9 +19,11 @@ class LABPROJECT_API UShopWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Shop")
 	void RefreshUI();
 
@@ -32,6 +34,7 @@ public:
 	bool TryPurchaseSelectedEntry();
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleCloseClicked();
 
@@ -47,6 +50,44 @@ protected:
 	UFUNCTION()
 	void HandleResetShopSaveClicked();
 
+private:
+	void HandleTileViewItemClicked(UObject* ItemObject);
+	void HandleEntryDataClicked(UShopEntryViewData* EntryData);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ResolveWidgets();
+	void BindWidgets();
+	void UnbindWidgets();
+	void BeginContentPreload();
+	void BeginCatalogPresentationPreload(int32 PreloadGeneration);
+	void ReleaseContentPreloads();
+	void SetActiveCategory(EShopProductType NewCategory);
+	void RefreshCategoryButtonStates() const;
+	void RebuildEntryData();
+	TArray<FShopCatalogEntry> BuildEffectiveCatalog() const;
+	FShopCatalogEntry MakeCatalogEntry(const FShopCatalogProductReference& ProductReference) const;
+	void AppendProductReference(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys, const FShopCatalogProductReference& ProductReference) const;
+	void AppendAllPandoras(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys) const;
+	void AppendAllSkins(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys) const;
+	FString MakeProductKey(const FShopCatalogProductReference& ProductReference) const;
+	void SortCatalogEntries(TArray<FShopCatalogEntry>& CatalogEntries) const;
+	FString GetCatalogEntrySortName(const FShopCatalogEntry& CatalogEntry) const;
+	UObject* ResolveProductObject(const FShopCatalogEntry& CatalogEntry) const;
+	UObject* ResolveProductObject(const FShopCatalogProductReference& ProductReference) const;
+	FShopProductDefinitionData ResolveShopData(UObject* ProductObject, EShopProductType ProductType) const;
+	FString GetResolvedPlayerId() const;
+	int32 GetCurrentGold() const;
+	bool IsProductOwned(UShopEntryViewData* EntryData) const;
+	bool IsProductOwned(UObject* ProductObject, EShopProductType ProductType) const;
+	bool IsPandoraAllowedForShopPurchase(const UObject* ProductObject) const;
+	bool IsPandoraComingSoonProduct(const UObject* ProductObject, EShopProductType ProductType) const;
+	bool IsPandoraComingSoonEntry(const UShopEntryViewData* EntryData) const;
+	bool CanPurchaseProductType(EShopProductType ProductType) const;
+	void EnsurePlayerSaveLoaded() const;
+	void SetMessage(FName Key, const FText& Fallback, UObject* Product = nullptr) const;
+	UShopEntryViewData* FindEntryDataByProduct(UObject* ProductObject, EShopProductType ProductType) const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
 	TObjectPtr<UTileView> TileView = nullptr;
 
@@ -121,40 +162,6 @@ protected:
 	FText ShopSaveResetText = NSLOCTEXT("ShopWidget", "ShopSaveResetText", "Shop data reset.");
 
 private:
-	void ResolveWidgets();
-	void BindWidgets();
-	void UnbindWidgets();
-	void BeginContentPreload();
-	void BeginCatalogPresentationPreload(int32 PreloadGeneration);
-	void ReleaseContentPreloads();
-	void SetActiveCategory(EShopProductType NewCategory);
-	void RefreshCategoryButtonStates() const;
-	void RebuildEntryData();
-	TArray<FShopCatalogEntry> BuildEffectiveCatalog() const;
-	FShopCatalogEntry MakeCatalogEntry(const FShopCatalogProductReference& ProductReference) const;
-	void AppendProductReference(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys, const FShopCatalogProductReference& ProductReference) const;
-	void AppendAllPandoras(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys) const;
-	void AppendAllSkins(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys) const;
-	FString MakeProductKey(const FShopCatalogProductReference& ProductReference) const;
-	void SortCatalogEntries(TArray<FShopCatalogEntry>& CatalogEntries) const;
-	FString GetCatalogEntrySortName(const FShopCatalogEntry& CatalogEntry) const;
-	UObject* ResolveProductObject(const FShopCatalogEntry& CatalogEntry) const;
-	UObject* ResolveProductObject(const FShopCatalogProductReference& ProductReference) const;
-	FShopProductDefinitionData ResolveShopData(UObject* ProductObject, EShopProductType ProductType) const;
-	FString GetResolvedPlayerId() const;
-	int32 GetCurrentGold() const;
-	bool IsProductOwned(UShopEntryViewData* EntryData) const;
-	bool IsProductOwned(UObject* ProductObject, EShopProductType ProductType) const;
-	bool IsPandoraAllowedForShopPurchase(const UObject* ProductObject) const;
-	bool IsPandoraComingSoonProduct(const UObject* ProductObject, EShopProductType ProductType) const;
-	bool IsPandoraComingSoonEntry(const UShopEntryViewData* EntryData) const;
-	bool CanPurchaseProductType(EShopProductType ProductType) const;
-	void EnsurePlayerSaveLoaded() const;
-	void SetMessage(FName Key, const FText& Fallback, UObject* Product = nullptr) const;
-	UShopEntryViewData* FindEntryDataByProduct(UObject* ProductObject, EShopProductType ProductType) const;
-	void HandleTileViewItemClicked(UObject* ItemObject);
-	void HandleEntryDataClicked(UShopEntryViewData* EntryData);
-
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UShopEntryViewData>> EntryDataList;
 

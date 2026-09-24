@@ -16,16 +16,21 @@ class LABPROJECT_API UHitReactAbility : public UPdGameplayAbility
 	GENERATED_BODY()
 
 public:
-	UHitReactAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void PostLoad() override;
 
 protected:
-	// Timing hooks
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UHitReactAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnAbilityEnding() override;
 
-	// Delegate callbacks
 	UFUNCTION()
 	void OnHitReactMontageCompleted();
 
@@ -34,11 +39,11 @@ protected:
 
 	UFUNCTION()
 	void OnHitReactMontageCancelled();
+	void HandleHitReactMontagePreloadComplete(uint32 RequestGeneration);
 
-	// State helpers
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ClearActiveHitReactEffect();
 	void BeginHitReactMontagePreload();
-	void HandleHitReactMontagePreloadComplete(uint32 RequestGeneration);
 	void ReleaseHitReactMontagePreload();
 	void StartHitReactMontage(
 		UAnimMontage* Montage,
@@ -46,6 +51,7 @@ protected:
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo);
 
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Animation")
 	TSoftObjectPtr<UAnimMontage> HitReactMontage = nullptr;
 

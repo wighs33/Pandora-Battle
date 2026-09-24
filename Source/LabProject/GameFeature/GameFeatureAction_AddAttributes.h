@@ -39,10 +39,7 @@ class LABPROJECT_API UGameFeatureAction_AddAttributes : public UGameFeatureActio
 	GENERATED_BODY()
 
 public:
-	UGameFeatureAction_AddAttributes();
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Game Feature Events
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void PostLoad() override;
 	virtual void OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context) override;
 
@@ -54,14 +51,14 @@ public:
 	virtual void AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData) override;
 #endif
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	UGameFeatureAction_AddAttributes();
+
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Activation
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual void AddToWorld(const FWorldContext& WorldContext, const FGameFeatureStateChangeContext& ChangeContext) override;
 	void RegisterAttributeExtension(UWorld* World, FGameFeatureStateChangeContext ChangeContext);
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Attribute Setup
 	void AddAttributesToActor(AActor* Actor, FGameFeatureAttributeHandles& Handles);
 	void RemoveAttributesFromActor(AActor* Actor, FGameFeatureAttributeHandles& Handles) const;
 	void RemoveAllAttributes(FGameFeatureAttributeHandles& Handles) const;
@@ -73,8 +70,6 @@ private:
 	UPdAbilitySystemComponent* GetAbilitySystemComponent(AActor* Actor) const;
 
 public:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Attribute Setup
 	UPROPERTY(EditAnywhere, Category = "Attributes", meta = (AllowAbstract = "false"))
 	TArray<TSoftClassPtr<AActor>> TargetClasses;
 
@@ -85,7 +80,5 @@ public:
 	TArray<TSoftClassPtr<UAttributeSet>> AttributeSetClasses;
 
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Runtime State
 	TMap<FGameFeatureStateChangeContext, FGameFeatureAttributeHandles> ContextHandles;
 };

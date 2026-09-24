@@ -32,23 +32,22 @@ class LABPROJECT_API AEnemyBase
 	GENERATED_BODY()
 
 public:
-	AEnemyBase(
-		const FObjectInitializer& ObjectInitializer =
-			FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void EndPlay(
 		const EEndPlayReason::Type EndPlayReason) override;
+
+	// Interface Implementations ---------------------------------------------------------------------------------------
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-	virtual void HandleDamageTaken(
-		float DamageAmount,
-		bool bCriticalHit = false,
-		bool bAllowHitReact = true,
-		AActor* DamageInstigator = nullptr,
-		AActor* DamageCauser = nullptr) override;
-	virtual void HandleDeath_Implementation() override;
+
+	virtual AActor* GetAttackTarget_Implementation() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	AEnemyBase(
+		const FObjectInitializer& ObjectInitializer =
+			FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintPure, Category = "!AbilitySystem")
 	UPdAbilitySystemComponent* GetEnemyAbilitySystemComponent() const
@@ -130,27 +129,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!AI|Targeting")
 	void SetUseNearestPlayerWhenTargetUnset(bool bInUseNearestPlayer);
 
-	virtual AActor* GetAttackTarget_Implementation() const override;
-
 protected:
-	virtual TSubclassOf<UUserWidget> ResolveHealthBarWidgetClass(
-		const UWidgetClassDefinition* WidgetDefinition) const override;
-	virtual bool ShouldApplyResolvedHealthBarWidgetClass(
-		UClass* CurrentWidgetClass,
-		TSubclassOf<UUserWidget> ResolvedWidgetClass) const override;
-	virtual bool IsAdditionalCharacterRuntimeContentReady() const override;
-	virtual void HandleCharacterRuntimeInitialized() override;
-
-	virtual void ModifyResolvedEnemySettings(
-		FEnemyCombatSettings& CombatSettings,
-		FEnemyTrainingBotSettings& TrainingBotSettings) const;
-	virtual void ApplyResolvedEnemyDefinition(
-		const UEnemyBaseDefinition* ResolvedDefinition);
-
-	bool IsTrainingHitStunned() const;
-	bool MoveToAttackTarget(AActor* CurrentAttackTarget);
-	bool IsDefaultAttributeSetupComplete() const;
-
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPlayTrainingHitReactMontage();
 
@@ -163,12 +143,44 @@ protected:
 		UAnimMontage* UnequipMontage,
 		float PlayRate);
 
+public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void HandleDamageTaken(
+		float DamageAmount,
+		bool bCriticalHit = false,
+		bool bAllowHitReact = true,
+		AActor* DamageInstigator = nullptr,
+		AActor* DamageCauser = nullptr) override;
+	virtual void HandleDeath_Implementation() override;
+
+protected:
+	virtual void HandleCharacterRuntimeInitialized() override;
+	void HandleEnemyDefinitionPreloaded(uint32 RequestGeneration);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	virtual TSubclassOf<UUserWidget> ResolveHealthBarWidgetClass(
+		const UWidgetClassDefinition* WidgetDefinition) const override;
+	virtual bool ShouldApplyResolvedHealthBarWidgetClass(
+		UClass* CurrentWidgetClass,
+		TSubclassOf<UUserWidget> ResolvedWidgetClass) const override;
+	virtual bool IsAdditionalCharacterRuntimeContentReady() const override;
+
+	virtual void ModifyResolvedEnemySettings(
+		FEnemyCombatSettings& CombatSettings,
+		FEnemyTrainingBotSettings& TrainingBotSettings) const;
+	virtual void ApplyResolvedEnemyDefinition(
+		const UEnemyBaseDefinition* ResolvedDefinition);
+
+	bool IsTrainingHitStunned() const;
+	bool MoveToAttackTarget(AActor* CurrentAttackTarget);
+	bool IsDefaultAttributeSetupComplete() const;
+
 	void ApplyEnemyDefinition();
 	void BeginEnemyDefinitionPreload();
-	void HandleEnemyDefinitionPreloaded(uint32 RequestGeneration);
 	void ReleaseEnemyDefinitionPreload();
 	void InitializeEnemyRuntime();
 
+protected:
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,

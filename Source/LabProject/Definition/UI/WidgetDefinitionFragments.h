@@ -11,8 +11,10 @@ class LABPROJECT_API UWidgetStyleDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Style", meta = (AssetBundles = "Client"))
 	FKillBoxWidgetSettings KillBoxWidgetSettings;
 
@@ -69,8 +71,10 @@ class LABPROJECT_API UWidgetInputIconsDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Input", meta = (AssetBundles = "Client"))
 	FSkillTipWidgetSettings SkillTipEffectIconSettings;
 
@@ -91,8 +95,10 @@ class LABPROJECT_API UWidgetMapUIDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Map", meta = (AssetBundles = "Client"))
 	FMapWidgetSettings MapWidgetSettings;
 };

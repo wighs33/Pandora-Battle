@@ -116,13 +116,16 @@ class LABPROJECT_API UEnemyBaseDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	static FPrimaryAssetId GetDefaultPrimaryAssetId();
-	static FSoftObjectPath GetDefaultDefinitionPath();
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	static FPrimaryAssetId GetDefaultPrimaryAssetId();
+	static FSoftObjectPath GetDefaultDefinitionPath();
 
 	const FEnemyCombatSettings& GetCombatSettings() const { return Combat; }
 	TSoftObjectPtr<UStatUpgradeDefinition> GetEffectiveDefaultStatDefinition() const;

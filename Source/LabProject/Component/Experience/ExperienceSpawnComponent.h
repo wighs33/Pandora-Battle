@@ -23,9 +23,11 @@ class LABPROJECT_API UExperienceSpawnComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UExperienceSpawnComponent();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UExperienceSpawnComponent();
 
 	void ApplySettings(const FExperienceSpawnSettings& InSettings)
 	{
@@ -53,6 +55,7 @@ public:
 	}
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	AExperienceGameMode* GetExperienceGameMode() const;
 	const AExperienceGameMode* GetExperienceGameModeConst() const;
 
@@ -77,6 +80,7 @@ private:
 	void ResetPlayerStateForRespawn(AController* PlayerController) const;
 	float GetPlayerRespawnDelay() const;
 
+private:
 	UPROPERTY(Transient)
 	FExperienceSpawnSettings Settings;
 

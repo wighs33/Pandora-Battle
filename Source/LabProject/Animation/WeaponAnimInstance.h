@@ -12,7 +12,7 @@ class LABPROJECT_API UWeaponAnimInstance : public UAnimInstance
 	GENERATED_BODY()
 
 public:
-	// Anim notify callbacks
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void AnimNotify_HoldBow();
 

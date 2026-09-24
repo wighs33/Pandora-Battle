@@ -25,6 +25,7 @@ struct LABPROJECT_API FCharacterActionConfig
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Character Action")
 	FText DisplayName;
 
@@ -38,6 +39,7 @@ struct LABPROJECT_API FCharacterActionConfig
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Character Action|Input", meta = (AssetBundles = "Client"))
 	TSoftObjectPtr<UInputAction> InputAction;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UObject* LoadIconResource() const;
 	UInputAction* LoadInputAction() const;
 	UObject* GetLoadedIconResource() const;
@@ -51,14 +53,16 @@ class LABPROJECT_API UCharacterActionDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UCharacterActionDefinition();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	static FSoftObjectPath GetDefaultDefinitionPath();
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UCharacterActionDefinition();
+	static FSoftObjectPath GetDefaultDefinitionPath();
 
 	UFUNCTION(BlueprintPure, Category = "!Character Action")
 	FText GetDisplayName(ECharacterActionType ActionType) const;
@@ -78,8 +82,10 @@ public:
 	void GetRuntimePreloadAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const;
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	const FCharacterActionConfig& FindActionConfig(ECharacterActionType ActionType) const;
 
+private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Character Action|Pandora / Weapon Swap", meta = (AllowPrivateAccess = "true"))
 	FCharacterActionConfig PandoraWeaponSwap;
 

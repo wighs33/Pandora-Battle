@@ -10,5 +10,6 @@ class LABPROJECT_API UPunchAbility : public UAttackAbility
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UPunchAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 };

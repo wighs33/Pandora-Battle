@@ -20,20 +20,13 @@ class LABPROJECT_API USkillAbility : public UPdGameplayAbility
 	GENERATED_BODY()
 
 public:
-	USkillAbility(
-		const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Ability Lifecycle
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual bool CanActivateAbility(
 		FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayTagContainer* SourceTags = nullptr,
 		const FGameplayTagContainer* TargetTags = nullptr,
 		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
-
-	virtual bool ShouldConfirmTargetingOnInputRelease() const override;
 
 	virtual void ActivateAbility(
 		FGameplayAbilitySpecHandle Handle,
@@ -46,8 +39,26 @@ public:
 		const FGameplayAbilityActorInfo* ActorInfo,
 		FGameplayAbilityActivationInfo ActivationInfo) override;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Skill Execution
+protected:
+	virtual void PreActivate(
+		FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayAbilityActivationInfo ActivationInfo,
+		FOnGameplayAbilityEnded::FDelegate* EndedDelegate,
+		const FGameplayEventData* TriggerEventData = nullptr) override;
+
+	// CommitAbility에서는 쿨다운을 시작하지 않고, 정상적인 스킬 종료 시 ApplyCooldownOnEnd에서 적용한다.
+	virtual void ApplyCooldown(
+		FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayAbilityActivationInfo ActivationInfo) const override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	USkillAbility(
+		const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	virtual bool ShouldConfirmTargetingOnInputRelease() const override;
 
 	// SkillAction이 사용할 피해 EffectSpec을 현재 스킬의 피해 보정값으로 생성한다.
 	FGameplayEffectSpecHandle MakeActionDamageSpec(
@@ -65,9 +76,6 @@ public:
 	// 현재 시전이 Pandora에서 부여된 스킬인 경우에만 Source를 반환한다.
 	const UPandoraSkillSource* GetPandoraSkillSource() const;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Duration
-
 	// Duration 스킬은 활성화 시 확정한 하나의 종료 시점을 공유한다.
 	bool HasDurationDeadline() const
 	{
@@ -76,9 +84,6 @@ public:
 
 	// 준비·조준·몽타주 시간을 포함한 전체 지속시간 중 남은 시간을 반환한다.
 	float GetRemainingDuration() const;
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- APIs exposed to SkillAction
 
 	using UGameplayAbility::ApplyGameplayEffectSpecToOwner;
 	using UGameplayAbility::BP_ApplyGameplayEffectToOwner;
@@ -106,42 +111,24 @@ public:
 	using UPdGameplayAbility::StopCurrentWeaponSkillTrail;
 
 protected:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Ability Lifecycle
-
-	virtual void PreActivate(
-		FGameplayAbilitySpecHandle Handle,
-		const FGameplayAbilityActorInfo* ActorInfo,
-		FGameplayAbilityActivationInfo ActivationInfo,
-		FOnGameplayAbilityEnded::FDelegate* EndedDelegate,
-		const FGameplayEventData* TriggerEventData = nullptr) override;
-
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnAbilityEnding() override;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Cooldown
+private:
+	void ActionFinished(USkillAction* Action, bool bSucceeded);
+	void DurationFinished();
 
-	// CommitAbility에서는 쿨다운을 시작하지 않고, 정상적인 스킬 종료 시 ApplyCooldownOnEnd에서 적용한다.
-	virtual void ApplyCooldown(
-		FGameplayAbilitySpecHandle Handle,
-		const FGameplayAbilityActorInfo* ActorInfo,
-		FGameplayAbilityActivationInfo ActivationInfo) const override;
-
+protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual void ApplyCooldownOnEnd(
 		FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
 		FGameplayAbilityActivationInfo ActivationInfo) override;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Damage
-
 	// 부모의 공통 피해 보정(Intelligence)에 현재 Pandora 슬롯 능력치를 추가한다.
 	virtual float GetDamageBonusPercent() const override;
 
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Skill Source
-
 	// Spec의 SourceObject에서 SkillDefinition을 찾는다.
 	// 일반 스킬은 SkillDefinition을 직접 사용하고,
 	// Pandora 스킬은 PandoraSkillSource를 통해 SkillDefinition을 가져온다.
@@ -149,15 +136,7 @@ private:
 		FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo);
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Action Callbacks
-
-	void ActionFinished(USkillAction* Action, bool bSucceeded);
-	void DurationFinished();
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Runtime State
-
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<USkillAction> ActiveAction;
 

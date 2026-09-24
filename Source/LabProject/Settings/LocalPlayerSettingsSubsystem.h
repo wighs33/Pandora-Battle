@@ -16,9 +16,12 @@ class LABPROJECT_API ULocalPlayerSettingsSubsystem : public ULocalPlayerSubsyste
 	GENERATED_BODY()
 
 public:
-	static ULocalPlayerSettingsSubsystem* Get(const APlayerController* PlayerController);
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	static ULocalPlayerSettingsSubsystem* Get(const APlayerController* PlayerController);
 
 	UFUNCTION(BlueprintCallable, Category = "!Setting|Local Player")
 	void ApplyLocalPlayerSettings(APlayerController* PlayerController);
@@ -49,6 +52,7 @@ public:
 	TArray<FKey> QueryKeysMappedToAction(const UInputAction* InputAction) const;
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void LoadInputSettings();
 	void ApplyMouseSensitivity(APlayerController* PlayerController) const;
 	bool ApplyLoadedConfiguredMouseCursor(
@@ -57,6 +61,7 @@ private:
 	void QueueRuntimeSettingsApplication(APlayerController* PlayerController);
 	void ReleaseRuntimeSettingsPreload();
 
+private:
 	TWeakObjectPtr<APlayerController> PendingSettingsPlayerController;
 
 	UPROPERTY(Transient)

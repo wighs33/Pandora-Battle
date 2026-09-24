@@ -22,11 +22,15 @@ class LABPROJECT_API URightSkinWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	URightSkinWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Filter
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
 	void SelectAllFilter();
 
@@ -39,8 +43,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
 	void ResetFilterHighlightToAll();
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Tile View
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
 	void SetTileView(const TArray<UObject*>& InListItems);
 
@@ -53,70 +55,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
 	int32 GetSkinSlotCount() const { return SkinSlotCount; }
 
-	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
-	FPdOnClickedSkinFilterAllButton OnClicked_SkinFilterAllButton;
-
-	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
-	FPdOnClickedSkinFilterTypeButton OnClicked_SkinFilterTypeButton;
-
-protected:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Filter Buttons
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
-	TObjectPtr<UButton> AllButton;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
-	TObjectPtr<UButton> PandoraButton;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
-	TObjectPtr<UButton> CosmeticsButton;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
-	TObjectPtr<UButton> GestureButton;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
-	TObjectPtr<UButton> RidingButton;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidgetOptional))
-	TObjectPtr<UButton> PetButton;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin")
-	TArray<TObjectPtr<UButton>> FilterButtonList;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|Filter")
-	FLinearColor SelectedFilterAccentColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Tile View
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
-	TObjectPtr<UTileView> TileView;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin|Search", meta = (BindWidgetOptional))
-	TObjectPtr<UButton> Btn_Search;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin|Search", meta = (BindWidgetOptional))
-	TObjectPtr<UEditableTextBox> SearchBox;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|Slots", meta = (ClampMin = "0"))
-	int32 SkinSlotCount = 40;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin|Slots")
-	TArray<TObjectPtr<USkinSlotViewData>> CachedSlotViewData;
-
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UObject>> CachedSourceListItems;
-
-	UPROPERTY(Transient)
-	FString ActiveSearchText;
-
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Button Callbacks
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnAllButtonClicked();
 
@@ -141,6 +81,7 @@ private:
 	UFUNCTION()
 	void HandleEquippedSkinsChanged();
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RebuildFilterButtonList();
 	void RebuildTileViewFromCachedSourceItems();
 	void RefreshSkinEquipmentBinding();
@@ -154,6 +95,60 @@ private:
 	FGameplayTag GetRidingTypeTag() const;
 	FGameplayTag GetPetTypeTag() const;
 
+public:
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
+	FPdOnClickedSkinFilterAllButton OnClicked_SkinFilterAllButton;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
+	FPdOnClickedSkinFilterTypeButton OnClicked_SkinFilterTypeButton;
+
+protected:
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
+	TObjectPtr<UButton> AllButton;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
+	TObjectPtr<UButton> PandoraButton;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
+	TObjectPtr<UButton> CosmeticsButton;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
+	TObjectPtr<UButton> GestureButton;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
+	TObjectPtr<UButton> RidingButton;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> PetButton;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin")
+	TArray<TObjectPtr<UButton>> FilterButtonList;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|Filter")
+	FLinearColor SelectedFilterAccentColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
+	TObjectPtr<UTileView> TileView;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin|Search", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_Search;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin|Search", meta = (BindWidgetOptional))
+	TObjectPtr<UEditableTextBox> SearchBox;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|Slots", meta = (ClampMin = "0"))
+	int32 SkinSlotCount = 40;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin|Slots")
+	TArray<TObjectPtr<USkinSlotViewData>> CachedSlotViewData;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UObject>> CachedSourceListItems;
+
+	UPROPERTY(Transient)
+	FString ActiveSearchText;
+
+private:
 	FGameplayTag PandoraTypeTagOverride;
 	FGameplayTag CosmeticsTypeTagOverride;
 	FGameplayTag GestureTypeTagOverride;

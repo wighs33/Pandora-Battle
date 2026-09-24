@@ -20,7 +20,19 @@ class LABPROJECT_API UEquipSlotWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativePreConstruct() override;
+	virtual void NativeDestruct() override;
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
 	void BroadcastClickedEquipSlot(UEquipSlotWidget* ItemSlot);
 
@@ -74,6 +86,27 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Equipment", meta = (Categories = "Item"))
 	FGameplayTag GetAcceptedEquipTypeTag() const;
 
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	void HandleButtonClicked();
+
+	UFUNCTION()
+	void HandleButtonHovered();
+
+	UFUNCTION()
+	void HandleButtonUnhovered();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplySlotVisual();
+	void CacheOptionalWidgets();
+	void ApplyButtonBackgroundStyle();
+	bool CanAcceptDroppedItem(UItemInstance* DroppedItem) const;
+	bool IsCurrentItemConsumable() const;
+	UTexture2D* GetCurrentIconTexture(bool bForHover) const;
+	void CacheDefaultButtonStyle();
+
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Equipment")
 	int32 Nth = 0;
 
@@ -111,15 +144,6 @@ public:
 	FPdOnDroppedItemEquipSlot OnDroppedItem_EquipSlot;
 
 protected:
-	virtual void NativeConstruct() override;
-	virtual void NativePreConstruct() override;
-	virtual void NativeDestruct() override;
-	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Equipment|Bind")
 	TObjectPtr<UButton> ItemButton;
 
@@ -139,23 +163,6 @@ protected:
 	TObjectPtr<UImage> SelectionBorderImage;
 
 private:
-	UFUNCTION()
-	void HandleButtonClicked();
-
-	UFUNCTION()
-	void HandleButtonHovered();
-
-	UFUNCTION()
-	void HandleButtonUnhovered();
-
-	void ApplySlotVisual();
-	void CacheOptionalWidgets();
-	void ApplyButtonBackgroundStyle();
-	bool CanAcceptDroppedItem(UItemInstance* DroppedItem) const;
-	bool IsCurrentItemConsumable() const;
-	UTexture2D* GetCurrentIconTexture(bool bForHover) const;
-	void CacheDefaultButtonStyle();
-
 	UPROPERTY(Transient)
 	FText SlotText;
 

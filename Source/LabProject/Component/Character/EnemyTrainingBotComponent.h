@@ -19,6 +19,7 @@ class LABPROJECT_API UEnemyTrainingBotComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UEnemyTrainingBotComponent();
 
 	void ApplySettings(const FEnemyTrainingBotSettings& InSettings);
@@ -30,11 +31,6 @@ public:
 	bool ShouldUseHitReaction() const;
 	bool ShouldUseRespawn() const;
 	bool ShouldSuppressDeathHandling() const;
-	void HandleDeathAfterBase();
-	void HandleDamageTaken(
-		float DamageAmount,
-		bool bCriticalHit,
-		bool bAllowHitReact);
 
 	bool RequestWeaponChange(const UItemDefinition* WeaponDefinition);
 	bool RequestUnarmed();
@@ -51,25 +47,35 @@ public:
 		float PlayRate) const;
 	void ResetRespawnVisualsLocal(const FTransform& RespawnTransform);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleDeathAfterBase();
+	void HandleDamageTaken(
+		float DamageAmount,
+		bool bCriticalHit,
+		bool bAllowHitReact);
+
 private:
+	void EndHitStun();
+	void FinishPendingWeaponChange();
+	void Respawn();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	AEnemyBase* GetEnemyOwner() const;
 	const AEnemyBase* GetEnemyOwnerConst() const;
 	void TriggerHitReaction(float DamageAmount, bool bCriticalHit);
 	void StartHitStun();
-	void EndHitStun();
 	bool TryActivateHitReactAbility();
 	UAnimMontage* ResolveHitReactMontage() const;
 
 	void CancelWeaponChangeAttackState(float BlendOutTime = 0.08f);
 	bool PlayCurrentUnequipMontage(float& OutDuration);
-	void FinishPendingWeaponChange();
 
 	void CacheRespawnTransform();
 	void ScheduleRespawn();
-	void Respawn();
 	void ResetRuntimeStateForRespawn();
 	void CleanupArrowProjectilesForRespawn();
 
+private:
 	UPROPERTY(Transient)
 	FEnemyTrainingBotSettings Settings;
 

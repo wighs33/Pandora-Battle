@@ -20,14 +20,12 @@ class LABPROJECT_API UPlayerInteractionComponent : public UBoxComponent
 	GENERATED_BODY()
 
 public:
-	UPlayerInteractionComponent();
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//------------------------------------------------------------------------------------------------------------------
+	// Public API ------------------------------------------------------------------------------------------------------
+	UPlayerInteractionComponent();
 
 	void ApplySettings(const FPlayerInteractionSettings& Settings);
 
@@ -40,6 +38,17 @@ public:
 	bool IsInteractionMontagePlaying() const;
 
 private:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayInteractionMontage(UAnimMontage* Montage, float PlayRate);
+
+	UFUNCTION(Server, Reliable)
+	void ServerStopInteractionMontage(float BlendOutTime);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStopInteractionMontage(float BlendOutTime);
+
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleBeginOverlap(
 		UPrimitiveComponent* OverlappedComponent,
@@ -56,21 +65,14 @@ private:
 		UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex);
 
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastPlayInteractionMontage(UAnimMontage* Montage, float PlayRate);
-
-	UFUNCTION(Server, Reliable)
-	void ServerStopInteractionMontage(float BlendOutTime);
-
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastStopInteractionMontage(float BlendOutTime);
-
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayer* GetPlayerOwner() const;
 	bool TryMakeInteractableEntry(
 		AActor* OtherActor,
 		TScriptInterface<IInteractableInterface>& OutInteractableActor) const;
 	bool StopInteractionMontageLocally(float BlendOutTime);
 
+private:
 	UPROPERTY(Transient)
 	TArray<TScriptInterface<IInteractableInterface>> CurrentInteractActors;
 

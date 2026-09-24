@@ -19,7 +19,9 @@ struct LABPROJECT_API FPandoraSelectSlotUiData
 
 class LABPROJECT_API FPandoraLoadoutUiModel
 {
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	static EEnum_Direction GetDirectionFromSelectSlotNumber(int32 SlotNumber);
 	static int32 GetSelectSlotNumberFromDirection(EEnum_Direction Direction);
 	static TArray<FPandoraSelectSlotUiData> BuildSelectSlots(
@@ -30,6 +32,7 @@ public:
 	static bool IsPandoraCompatibleWithWeapon(const UPandoraDefinition* PandoraDefinition, const UItemInstance* WeaponInstance);
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	static const UItemInstance* GetWeaponForDirection(
 		EEnum_Direction Direction,
 		const UItemInstance* LeftWeapon,

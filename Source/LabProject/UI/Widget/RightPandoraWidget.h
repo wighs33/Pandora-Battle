@@ -19,7 +19,13 @@ class LABPROJECT_API URightPandoraWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	URightPandoraWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
@@ -43,6 +49,38 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Pandora")
 	UTileView* GetTileView() const { return TileView; }
 
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	void OnAllButtonClicked();
+
+	UFUNCTION()
+	void OnOffensiveButtonClicked();
+
+	UFUNCTION()
+	void OnDefensiveButtonClicked();
+
+	UFUNCTION()
+	void OnSupportButtonClicked();
+
+	UFUNCTION()
+	void OnSpecialButtonClicked();
+
+	UFUNCTION()
+	void OnSearchButtonClicked();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void RebuildFilterButtonList();
+	void RebuildTileViewFromCachedSourceItems();
+	bool DoesPandoraMatchSearch(const UPandoraDefinition* PandoraDefinition, const FString& SearchText) const;
+	void ApplyWidgetDefinitionSettings();
+	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
+	FGameplayTag GetOffensiveTypeTag() const;
+	FGameplayTag GetDefensiveTypeTag() const;
+	FGameplayTag GetSupportTypeTag() const;
+	FGameplayTag GetSpecialTypeTag() const;
+
+public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
 	FPdOnClickedPandoraFilterAllButton OnClicked_PandoraFilterAllButton;
 
@@ -50,9 +88,6 @@ public:
 	FPdOnClickedPandoraFilterTypeButton OnClicked_PandoraFilterTypeButton;
 
 protected:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora", meta = (BindWidget))
 	TObjectPtr<UButton> AllButton;
 
@@ -90,34 +125,6 @@ protected:
 	FString ActiveSearchText;
 
 private:
-	UFUNCTION()
-	void OnAllButtonClicked();
-
-	UFUNCTION()
-	void OnOffensiveButtonClicked();
-
-	UFUNCTION()
-	void OnDefensiveButtonClicked();
-
-	UFUNCTION()
-	void OnSupportButtonClicked();
-
-	UFUNCTION()
-	void OnSpecialButtonClicked();
-
-	UFUNCTION()
-	void OnSearchButtonClicked();
-
-	void RebuildFilterButtonList();
-	void RebuildTileViewFromCachedSourceItems();
-	bool DoesPandoraMatchSearch(const UPandoraDefinition* PandoraDefinition, const FString& SearchText) const;
-	void ApplyWidgetDefinitionSettings();
-	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
-	FGameplayTag GetOffensiveTypeTag() const;
-	FGameplayTag GetDefensiveTypeTag() const;
-	FGameplayTag GetSupportTypeTag() const;
-	FGameplayTag GetSpecialTypeTag() const;
-
 	FGameplayTag OffensiveTypeTagOverride;
 	FGameplayTag DefensiveTypeTagOverride;
 	FGameplayTag SupportTypeTagOverride;

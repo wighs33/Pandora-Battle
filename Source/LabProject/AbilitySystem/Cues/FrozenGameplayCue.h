@@ -14,12 +14,20 @@ class LABPROJECT_API AFrozenGameplayCue : public AGameplayCueNotify_Actor
 	GENERATED_BODY()
 
 public:
-	AFrozenGameplayCue();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual bool HandlesEvent(EGameplayCueEvent::Type EventType) const override;
 	virtual bool OnActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 	virtual bool WhileActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 	virtual bool OnRemove_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	AFrozenGameplayCue();
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool ApplyFrozenEffect(AActor* MyTarget, bool bPlaySound);
+	void RemoveFrozenEffect(AActor* MyTarget);
+	USceneComponent* ResolveAttachComponent(AActor* MyTarget) const;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!GameplayCue|Frozen")
@@ -42,9 +50,4 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!GameplayCue|Frozen")
 	TObjectPtr<UNiagaraComponent> FrozenEffectComponent;
-
-private:
-	bool ApplyFrozenEffect(AActor* MyTarget, bool bPlaySound);
-	void RemoveFrozenEffect(AActor* MyTarget);
-	USceneComponent* ResolveAttachComponent(AActor* MyTarget) const;
 };

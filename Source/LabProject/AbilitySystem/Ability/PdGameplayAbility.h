@@ -37,15 +37,36 @@ class LABPROJECT_API UPdGameplayAbility : public UGameplayAbility
 	GENERATED_BODY()
 
 public:
-	UPdGameplayAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	// GAS 엔진 콜백
-	using Super::GetCooldownTimeRemaining;
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual float GetCooldownTimeRemaining(const FGameplayAbilityActorInfo* ActorInfo) const override;
 	virtual void GetCooldownTimeRemainingAndDuration(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		float& TimeRemaining, float& CooldownDuration) const override;
 
-	// 출처와 실행 대상 조회
+protected:
+	virtual void PreActivate(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate,
+		const FGameplayEventData* TriggerEventData = nullptr) override;
+	virtual bool CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, FGameplayTagContainer* OptionalRelevantTags = nullptr) override;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override final;
+
+	virtual const FGameplayTagContainer* GetCooldownTags() const override;
+	virtual bool CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+	virtual void ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo) const override;
+	virtual bool CheckCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+	virtual void ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo) const override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UPdGameplayAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	using Super::GetCooldownTimeRemaining;
+
 	// ASC는 출처의 구체 타입 대신 능력이 정의한 준비 조건을 사용한다. CDO에서도 호출된다.
 	// virtual bool IsSourceReady(const FGameplayAbilitySpec& Spec) const;
 	ACharacterBase* GetPdCharacterFromActorInfo() const;
@@ -54,7 +75,6 @@ public:
 	AActor* GetAttackTargetFromAvatar() const;
 	bool HasPlayerController() const;
 
-	// 자동 실행과 입력 정책
 	// 능력을 부여하거나 부활 후 자동 능력을 재개할 때, 별도 입력 없이 활성화를 시도할 대상인지 알려 준다.
 	bool ShouldAutoActivateWhenGranted() const { return bAutoActivateWhenGranted; }
 
@@ -66,7 +86,6 @@ public:
 	// GameFeature가 능력을 부여할 때 연결할 기본 입력 태그를 제공한다. 기본은 비어 있고 Grapple 등 파생 능력이 지정한다.
 	virtual FGameplayTag GetDefaultInputTag() const { return FGameplayTag(); }
 
-	// 자기 효과 적용·제거와 연출 정리
 	bool ApplyGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass, float EffectLevel = 1.0f, int32 StackCount = 1);
 	bool RemoveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass);
 
@@ -76,33 +95,16 @@ public:
 	float CalculateDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const;
 
 protected:
-	// GAS 실행 시작·확정·종료
-	virtual void PreActivate(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate,
-		const FGameplayEventData* TriggerEventData = nullptr) override;
-	virtual bool CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo, FGameplayTagContainer* OptionalRelevantTags = nullptr) override;
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override final;
-
-	// GAS 비용·쿨다운 확장
-	virtual const FGameplayTagContainer* GetCooldownTags() const override;
-	virtual bool CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
-	virtual void ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo) const override;
-	virtual bool CheckCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
-	virtual void ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo) const override;
-
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	// 종료 검사와 잠금 해제 후에만 호출된다. 파생 능력은 엔진 종료 함수를 직접 재정의하지 않는다.
 	virtual void OnAbilityEnding();
+	// GAS가 능력을 비활성화한 뒤 다음 행동을 이어야 하는 경우에만 사용한다.
+	virtual void OnAbilityEnded(bool bWasCancelled);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	// 공통 정리를 마친 정상 종료 시점에 호출된다. 사망·취소 중에는 호출하지 않는다.
 	virtual void ApplyCooldownOnEnd(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo);
-	// GAS가 능력을 비활성화한 뒤 다음 행동을 이어야 하는 경우에만 사용한다.
-	virtual void OnAbilityEnded(bool bWasCancelled);
 	virtual float GetDamageBonusPercent() const;
 
 	void FinishAbilityFromDuration();
@@ -147,6 +149,10 @@ protected:
 	void StopConfiguredSelfBuff();
 	void StartMovementContactDamage();
 
+private:
+	static const USkillDefinition* ResolveSourceSkillDataAsset(UObject* SourceObject);
+
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Cooldown|Policy", meta = (Categories = "Effect.Policy"))
 	FGameplayTagContainer CooldownRemovalPolicyTags;
 
@@ -157,8 +163,6 @@ private:
 	friend class UAbilityMovementManager;
 	friend class UAbilityPresentationManager;
 	friend class UAbilityCostAndCooldownManager;
-
-	static const USkillDefinition* ResolveSourceSkillDataAsset(UObject* SourceObject);
 
 	// Super::EndAbility에 진입하기 전, 파생 능력과 자기 효과를 정리하는 동안의 재진입을 막는다.
 	bool bIsCleaningUpAbility = false;

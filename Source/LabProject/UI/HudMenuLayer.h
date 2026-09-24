@@ -16,6 +16,7 @@ class LABPROJECT_API UHudMenuLayer : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(APdHUD* InOwnerHud, UHudUiRouter* InRouter);
 	bool Open();
 	bool Toggle();
@@ -25,9 +26,11 @@ public:
 	void Shutdown();
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleMenuClosed(UMenuPopupWidget* ClosedWidget);
 
+private:
 	TWeakObjectPtr<APdHUD> OwnerHud;
 	TWeakObjectPtr<UHudUiRouter> Router;
 

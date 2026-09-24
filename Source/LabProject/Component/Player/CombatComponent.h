@@ -38,14 +38,17 @@ class LABPROJECT_API UCombatComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UCombatComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//------------------------------------------------------------------------------------------------------------------
+protected:
+	virtual void BeginPlay() override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UCombatComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	void StartPrimaryAttack();
 	void StopPrimaryAttack();
 	void StartAim();
@@ -76,18 +79,23 @@ public:
 	void ResetUnarmedAttackHitTracking();
 
 	void ApplySettings(const FCombatDamageSettings& DamageSettings, const FUnarmedCombatSettings& UnarmedSettings);
-	FOnCombatDamageBonusChanged OnDamageBonusChanged;
 	void RefreshCachedReferences();
 
-protected:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
-	virtual void BeginPlay() override;
-
 private:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerRequestNextComboInput(FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey ActivationKey, FName ClientExpectedSectionName);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleUnarmedAttackMontagePreloadComplete();
+	void HandleAutomaticFireTick();
+	void HandleAttackSpeedChanged(const FOnAttributeChangeData& Data);
+	void PerformUnarmedAttackTrace();
+
+	UFUNCTION()
+	void OnRep_TemporaryWeaponDamageBonus();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayer* GetPlayerOwner() const;
 	APdHUD* GetPdHUD() const;
 	AWeaponBase* GetCurrentWeaponActor() const;
@@ -100,7 +108,6 @@ private:
 	UAttackAbility* ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
 	UAnimMontage* GetCachedUnarmedAttackMontage() const;
 	void BeginUnarmedAttackMontagePreload();
-	void HandleUnarmedAttackMontagePreloadComplete();
 	void ReleaseUnarmedAttackMontagePreload();
 
 	void ProcessAttackInput();
@@ -111,19 +118,13 @@ private:
 	void RequestNextAttackSection(UAttackAbility* ActiveAttackAbility);
 	bool TryActivateAttackAbility(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
 	bool TryStartAutomaticFire();
-	void HandleAutomaticFireTick();
-	void HandleAttackSpeedChanged(const FOnAttributeChangeData& Data);
 	void StartUnarmedAttackTrace();
 	void StopUnarmedAttackTrace();
-	void PerformUnarmedAttackTrace();
 	bool ApplyUnarmedDamageToTarget(AActor* TargetActor);
 	float GetUnarmedDamageSourceMagnitude() const;
 	float CalculateStrengthAdjustedWeaponDamage(float WeaponDamage, float SourceStrength) const;
 	bool HasCombatAuthority() const;
 	void RefreshTemporaryWeaponDamageBonus();
-
-	UFUNCTION()
-	void OnRep_TemporaryWeaponDamageBonus();
 
 	bool ApplyAttackDamageToTarget(AActor* TargetActor, float RawDamage, UObject* SourceObject, AActor* DamageCauser, bool bAllowHitReact);
 
@@ -131,6 +132,9 @@ protected:
 	bool ApplyDamageEffect(UPdAbilitySystemComponent* SourceASC, UPdAbilitySystemComponent* TargetASC,
 		TSubclassOf<UGameplayEffect> DamageEffectClass, float Magnitude, UObject* SourceObject,
 		AActor* InstigatorActor = nullptr, AActor* EffectCauserActor = nullptr) const;
+
+public:
+	FOnCombatDamageBonusChanged OnDamageBonusChanged;
 
 protected:
 	UPROPERTY(Transient)

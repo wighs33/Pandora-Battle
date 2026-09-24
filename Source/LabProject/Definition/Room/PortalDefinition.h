@@ -24,12 +24,14 @@ class LABPROJECT_API UPortalDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Portal|Assets",
 		meta = (AssetBundles = "Portal"))
 	TSoftObjectPtr<UStaticMesh> PortalPlaneMesh;

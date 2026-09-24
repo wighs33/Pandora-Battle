@@ -13,12 +13,15 @@ class LABPROJECT_API ALobbyPlayerController : public APdPlayerController
 	GENERATED_BODY()
 
 public:
-	ALobbyPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void AcknowledgePossession(APawn* P) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	ALobbyPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	virtual bool UsesLobbyPresentation() const override { return true; }
 
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "!Lobby")
 	void Server_HandleChangeNickname(const FText& InNickname);
 
@@ -44,8 +47,10 @@ public:
 	void Client_SetLobbyTravelLock(bool bLocked);
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	static FText SanitizeNickname(const FText& InNickname);
 	void ApplyLobbyTravelLock(bool bLocked);
 
+private:
 	bool bLobbyTravelLocked = false;
 };

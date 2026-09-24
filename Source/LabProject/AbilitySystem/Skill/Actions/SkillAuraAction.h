@@ -19,32 +19,28 @@ class LABPROJECT_API USkillAuraAction : public USkillAction
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	USkillAuraAction();
 
-	/** 실행 중 장판 생성, 이동 속도 보정과 아군 회복을 관리한다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
-	FAuraSkillConfig Settings;
-
-	/** 범위 안의 아군에게 적용할 회복 설정. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Healing", meta = (ShowOnlyInnerProperties))
-	FSkillHealSettings Healing;
-
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 
 	virtual void OnStop() override;
 
 private:
+	void HandleRepeatedAuraEffectAreaSpawn();
+	void HandleHealFieldTeamHealTick();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void StartAuraEffectAreaSpawning(USkillDefinition* SkillDataAsset);
 	void StopAuraEffectAreaSpawning();
 	ACharacterBase* ResolveAuraSourceCharacter() const;
 	void SpawnAuraEffectArea(const USkillDefinition* SkillDataAsset, const TCHAR* SpawnReason);
-	void HandleRepeatedAuraEffectAreaSpawn();
 	void ApplyMovementSpeedIncrease(const USkillDefinition* SkillDataAsset);
 	void RemoveMovementSpeedIncrease();
 	void StartHealFieldTeamHealing(USkillDefinition* SkillDataAsset);
 	void StopHealFieldTeamHealing();
-	void HandleHealFieldTeamHealTick();
 	void ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataAsset, const TCHAR* HealReason);
 	UPrimitiveComponent* FindInteractionHealComponent(ACharacterBase* Character, FName ComponentName) const;
 	float ResolveHealFieldRadius(ACharacterBase* SourceCharacter, const USkillDefinition* SkillDataAsset) const;
@@ -55,6 +51,16 @@ private:
 	void RemoveInteractionHealEffectFromTarget(ACharacterBase* TargetCharacter, FActiveGameplayEffectHandle ActiveHandle, const TCHAR* RemoveReason) const;
 	void ClearInteractionHealEffects(const TCHAR* RemoveReason);
 
+public:
+	/** 실행 중 장판 생성, 이동 속도 보정과 아군 회복을 관리한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+	FAuraSkillConfig Settings;
+
+	/** 범위 안의 아군에게 적용할 회복 설정. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Healing", meta = (ShowOnlyInnerProperties))
+	FSkillHealSettings Healing;
+
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<USkillDefinition> ActiveAuraSkillDataAsset;
 

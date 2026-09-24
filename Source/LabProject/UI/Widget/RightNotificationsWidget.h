@@ -12,17 +12,38 @@ class LABPROJECT_API URightNotificationsWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Notification")
 	void EnqueueNotification(const FPdNotificationData& NotificationData);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Notification")
 	void ClearNotifications();
 
-protected:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleDequeueTimer();
+	void BeginRemoveNotification(UNotificationEntryWidget* EntryWidget);
+	void FinishRemoveNotification(UNotificationEntryWidget* EntryWidget);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplyWidgetDefinitionSettings();
+	void CacheOptionalWidgets();
+	void PrimeNotificationPool();
+	void TryShowQueuedNotifications();
+	bool TryShowNextQueuedNotification();
+	void ScheduleNextDequeue(float Delay);
+	UNotificationEntryWidget* AcquireNotificationWidget();
+	void ScheduleRemoveNotification(UNotificationEntryWidget* EntryWidget);
+	void ReleaseNotificationWidget(UNotificationEntryWidget* EntryWidget);
+	void ClearTimerMap(TMap<TWeakObjectPtr<UNotificationEntryWidget>, FTimerHandle>& TimerMap);
+
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!UI|Notification")
 	TSubclassOf<UNotificationEntryWidget> NotificationEntryWidgetClass;
 
@@ -39,20 +60,6 @@ protected:
 	TObjectPtr<UPanelWidget> NotificationList;
 
 private:
-	void ApplyWidgetDefinitionSettings();
-	void CacheOptionalWidgets();
-	void PrimeNotificationPool();
-	void TryShowQueuedNotifications();
-	bool TryShowNextQueuedNotification();
-	void ScheduleNextDequeue(float Delay);
-	void HandleDequeueTimer();
-	UNotificationEntryWidget* AcquireNotificationWidget();
-	void ScheduleRemoveNotification(UNotificationEntryWidget* EntryWidget);
-	void BeginRemoveNotification(UNotificationEntryWidget* EntryWidget);
-	void FinishRemoveNotification(UNotificationEntryWidget* EntryWidget);
-	void ReleaseNotificationWidget(UNotificationEntryWidget* EntryWidget);
-	void ClearTimerMap(TMap<TWeakObjectPtr<UNotificationEntryWidget>, FTimerHandle>& TimerMap);
-
 	UPROPERTY(Transient)
 	TArray<FPdNotificationData> NotificationQueue;
 

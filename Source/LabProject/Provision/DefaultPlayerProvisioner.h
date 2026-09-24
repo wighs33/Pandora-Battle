@@ -31,17 +31,7 @@ class LABPROJECT_API UDefaultPlayerProvisioner : public UObject
 	GENERATED_BODY()
 
 public:
-	virtual UWorld* GetWorld() const override;
-
 	FOnDefaultPlayerProvisioned OnPlayerProvisioned;
-
-	bool Initialize(const UDefaultProvisionDefinition* InDefinition, EDefaultProvisionMode InMode);
-	bool IsInitialized() const { return ProvisionDefinition != nullptr && !bShuttingDown; }
-	void ProvisionPlayer(APlayerController* PlayerController);
-	void ClearRuntimeStateForController(
-		AController* Controller,
-		APlayerState* PlayerState);
-	void Shutdown();
 
 private:
 	enum class EContentState : uint8 { NotStarted, Loading, Ready, Failed };
@@ -57,9 +47,26 @@ private:
 		TWeakObjectPtr<UPandoraTreeComponent> PandoraTreeComponent;
 	};
 
+public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual UWorld* GetWorld() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	bool Initialize(const UDefaultProvisionDefinition* InDefinition, EDefaultProvisionMode InMode);
+	bool IsInitialized() const { return ProvisionDefinition != nullptr && !bShuttingDown; }
+	void ProvisionPlayer(APlayerController* PlayerController);
+	void ClearRuntimeStateForController(
+		AController* Controller,
+		APlayerState* PlayerState);
+	void Shutdown();
+
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleContentLoaded();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	const UDefaultProvisionDefinition* GetDefinition() const;
 	bool EnsureContentLoaded(APlayerController* PlayerController);
-	void HandleContentLoaded();
 	bool TryProvisionPlayer(APlayerController* PlayerController);
 	bool ApplyItems(APdPlayerState* PlayerState);
 	bool ApplyModeValues(APdPlayerState* PlayerState);
@@ -73,6 +80,7 @@ private:
 		const UInventoryComponent* InventoryComponent,
 		FPrimaryAssetId ItemDefinitionId) const;
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UDefaultProvisionDefinition> ProvisionDefinition;
 

@@ -21,12 +21,8 @@ class LABPROJECT_API UGrappleAbility : public UPdGameplayAbility
 {
 	GENERATED_BODY()
 
-public:
-	UGrappleAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	virtual FGameplayTag GetDefaultInputTag() const override;
-	virtual bool UsesInputRelease(const FGameplayAbilitySpec& Spec) const override { return true; }
-
 protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void OnAvatarSet(
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilitySpec& Spec) override;
@@ -39,8 +35,6 @@ protected:
 		const FGameplayAbilityActivationInfo ActivationInfo,
 		const FGameplayEventData* TriggerEventData) override;
 
-	virtual void OnAbilityEnding() override;
-
 	virtual const FGameplayTagContainer* GetCooldownTags() const override;
 
 	virtual void ApplyCooldown(
@@ -48,15 +42,18 @@ protected:
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo) const override;
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UGrappleAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	virtual FGameplayTag GetDefaultInputTag() const override;
+	virtual bool UsesInputRelease(const FGameplayAbilitySpec& Spec) const override { return true; }
+
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnAbilityEnding() override;
+
 private:
-	void StartTargetDataTask();
-	void StartInputReleaseTask();
-	void SetLocalAimPresentation(bool bEnabled) const;
-	UCharacterActionDefinition* LoadCharacterActionDefinition() const;
 	void HandleCharacterActionDefinitionPreloadComplete();
-	void ReleaseCharacterActionDefinitionPreload();
-	double GetConfiguredCooldownDuration() const;
-	UGrappleComponent* GetGrappleComponent() const;
 	void HandleGrappleFinished();
 
 	UFUNCTION()
@@ -68,6 +65,16 @@ private:
 	UFUNCTION()
 	void HandleTargetDataCancelled(const FGameplayAbilityTargetDataHandle& Data);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void StartTargetDataTask();
+	void StartInputReleaseTask();
+	void SetLocalAimPresentation(bool bEnabled) const;
+	UCharacterActionDefinition* LoadCharacterActionDefinition() const;
+	void ReleaseCharacterActionDefinitionPreload();
+	double GetConfiguredCooldownDuration() const;
+	UGrappleComponent* GetGrappleComponent() const;
+
+private:
 	UPROPERTY()
 	TObjectPtr<UAbilityTask_WaitTargetData> WaitTargetDataTask;
 

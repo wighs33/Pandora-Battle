@@ -19,19 +19,22 @@ class LABPROJECT_API UInfoPandoraTabPresenter : public UInfoTabPresenterBase
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	virtual void BindInfoUi(UInfoWidget* InInfoWidget) override;
 	virtual void Deinitialize() override;
 
 	void SetLoadoutStore(UInfoLoadoutStore* InLoadoutStore);
 	void SetActive(bool bInActive);
 	void Activate();
+
+	void RefreshLoadoutPresentation() const;
+
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleInfoUiOpened();
 	void HandleInventoryChanged();
 	void HandleWeaponLoadoutChanged();
 	void HandlePandoraLoadoutChanged();
 	void HandlePresentationAssetsReady();
-
-	void RefreshLoadoutPresentation() const;
 
 	UFUNCTION()
 	void HandlePandoraSlotClicked(UObject* Item);
@@ -51,6 +54,7 @@ private:
 	UFUNCTION()
 	void HandlePandoraInventoryChanged();
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void BindEvents();
 	void UnbindEvents();
 	class USelectPandoraWidget* GetSelectPandoraWidget() const;
@@ -74,6 +78,7 @@ private:
 	void ResetEquipSlotClickState();
 	void ClearPandoraEquipSlot(UPandoraEquipSlotWidget* TargetPandoraEquipSlot);
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraEquipSlotWidget> SelectedEquipSlot;
 

@@ -24,6 +24,7 @@ class LABPROJECT_API UAbilityPresentationManager : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void StartConfiguredDefaultFX(UPdGameplayAbility& Ability);
 	void StartConfiguredGroundFX(UPdGameplayAbility& Ability);
 	void StartConfiguredCharacterOverlay(UPdGameplayAbility& Ability);
@@ -40,9 +41,11 @@ public:
 	FVector ResolveConfiguredCharacterDecalLocation(const ACharacterBase* Character) const;
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ASkillPresentationActor* GetOrCreatePresentationActor(UPdGameplayAbility& Ability);
 	void SetConfiguredPresentationEnabled(UPdGameplayAbility& Ability, ESkillPresentationFlags PresentationFlag, bool bEnabled);
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<ASkillPresentationActor> ActiveSkillPresentationActor;
 

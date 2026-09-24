@@ -17,14 +17,16 @@ class LABPROJECT_API AAnimeAuraActor : public AActor
 	GENERATED_BODY()
 
 public:
-	AAnimeAuraActor();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnRep_Owner() override;
 	virtual void OnRep_Instigator() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	AAnimeAuraActor();
 
 	void ConfigurePresentationSettings(const FAnimeAuraPresentationSettings& InSettings);
 
@@ -35,14 +37,21 @@ public:
 	void StopSourcePlayerEffect();
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleSourcePlayerEffectRetry();
+
+	UFUNCTION()
+	void OnRep_PresentationSettings();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ACharacterBase* ResolveSourceCharacter() const;
 	UNiagaraComponent* FindNiagaraComponentByName(FName ComponentName) const;
 	AWeaponBase* ResolveCurrentWeapon(const ACharacterBase* Character) const;
 	void ApplyEffectAlpha(float Alpha);
 	void RestoreSourcePlayerState();
 	void ScheduleSourcePlayerEffectRetry();
-	void HandleSourcePlayerEffectRetry();
 
+private:
 	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Components")
 	FName StarterNiagaraComponentName = TEXT("NS_Anime_Aura_Starter");
 
@@ -125,7 +134,4 @@ private:
 
 	UPROPERTY(Transient)
 	bool bTraceEndZApplied = false;
-
-	UFUNCTION()
-	void OnRep_PresentationSettings();
 };

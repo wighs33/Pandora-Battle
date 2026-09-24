@@ -17,15 +17,43 @@ class LABPROJECT_API UStatusViewModel : public UCommonViewModelBase
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UStatusViewModel();
 
-	// Timing hooks
 	virtual void InitializeViewModel(UObject* SourceObject) override;
 
 	virtual void UninitializeViewModel() override;
 
+	void UpdateLevelingData();
+
+	void UpdateOffenseData();
+
+	void UpdateDefenseData();
+
+	void UpdateResistanceData();
+
+	void UpdatePandoraForceData();
+
+	void UpdateAgilityData();
+
+	void UpdateInvestmentPointData();
+
+	void UpdateStatLevelData();
+
+	void UpdateEquipmentDerivedData();
+
+	void UpdateHealthData();
+
+	void UpdateShieldData();
+
+	void UpdateManaData();
+
+	void UpdateStaminaData();
+
+	void UpdateAllData();
+
 private:
-	// Attribute delegate callbacks
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void OnLevelingChanged(const FOnAttributeChangeData& Data);
 
 	void OnOffenseChanged(const FOnAttributeChangeData& Data);
@@ -63,6 +91,7 @@ private:
 	void OnEquipmentStatsChanged();
 	void OnCombatDamageBonusChanged();
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshEquipmentComponentBinding();
 
 	void ClearEquipmentComponentBinding();
@@ -308,35 +337,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, FieldNotify, Category = "!Status ViewModel|Stamina")
 	float StaminaPercent = 1.f;
 
-	void UpdateLevelingData();
-
-	void UpdateOffenseData();
-
-	void UpdateDefenseData();
-
-	void UpdateResistanceData();
-
-	void UpdatePandoraForceData();
-
-	void UpdateAgilityData();
-
-	void UpdateInvestmentPointData();
-
-	void UpdateStatLevelData();
-
-	void UpdateEquipmentDerivedData();
-
-	void UpdateHealthData();
-
-	void UpdateShieldData();
-
-	void UpdateManaData();
-
-	void UpdateStaminaData();
-
-	void UpdateAllData();
-
-public:
 	static const FName ViewModelName;
 
 protected:

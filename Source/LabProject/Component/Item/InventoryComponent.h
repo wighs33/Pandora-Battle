@@ -48,12 +48,14 @@ struct LABPROJECT_API FReplicatedInventoryEntry : public FFastArraySerializerIte
 	GENERATED_BODY()
 
 public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void PostReplicatedAdd(const struct FReplicatedInventoryList& InArraySerializer);
 
 	void PostReplicatedChange(const struct FReplicatedInventoryList& InArraySerializer);
 
 	void PreReplicatedRemove(const struct FReplicatedInventoryList& InArraySerializer);
 
+public:
 	UPROPERTY()
 	FGuid ItemId;
 
@@ -73,8 +75,7 @@ struct LABPROJECT_API FReplicatedInventoryList : public FIrisFastArraySerializer
 	GENERATED_BODY()
 
 public:
-	void PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters);
-
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 	{
 		return FFastArraySerializer::FastArrayDeltaSerialize<FReplicatedInventoryEntry, FReplicatedInventoryList>(Entries, DeltaParms, *this);
@@ -85,6 +86,10 @@ public:
 		MarkItemDirty(Entry);
 	}
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters);
+
+public:
 	UPROPERTY()
 	TArray<FReplicatedInventoryEntry> Entries;
 
@@ -108,20 +113,19 @@ class LABPROJECT_API UInventoryComponent : public UPlayerStateComponent
 {
 	GENERATED_BODY()
 
+private:
 	friend struct FReplicatedInventoryEntry;
 	friend struct FReplicatedInventoryList;
 
 public:
-	UInventoryComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	// Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	static constexpr int32 ConsumableQuickSlotCount = 4;
-	static constexpr int32 WeaponLoadoutSlotCount = 3;
+	// Public API ------------------------------------------------------------------------------------------------------
+	UInventoryComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Inventory")
 	void AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& ItemDefinitions);
@@ -203,38 +207,8 @@ public:
 
 	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
 
-	FPdInventoryChanged OnInventoryChanged;
-	FPdEquipmentSlotsChanged OnEquipmentSlotsChanged;
-	FPdWeaponLoadoutChanged OnWeaponLoadoutChanged;
-
 protected:
-	void HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry);
-
-	void HandleReplicatedEntryRemoved(FGuid ItemId);
-
-	void FilterItem(UItemInstance* ItemInstance);
-	void NotifyInventoryChanged();
-	void FlushInventoryChanges();
-
-	void RebuildRuntimeItemsFromReplicatedEntries();
-
-	void RebuildFilteredItemMap();
-
-	void AddReplicatedItem(UItemInstance* ItemInstance);
-
-	bool RemoveReplicatedItemById(FGuid ItemId);
-
-	bool SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQuantity);
-
-	int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
-
-	FReplicatedInventoryEntry* FindReplicatedEntryById(FGuid ItemId);
-
-	const FReplicatedInventoryEntry* FindReplicatedEntryById(FGuid ItemId) const;
-
-	UFUNCTION()
-	void OnRep_ConsumableQuickSlotItemIds();
-
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerSetConsumableQuickSlot(int32 SlotIndex, FGuid ItemId);
 
@@ -258,6 +232,41 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void ServerMergeUpgradeableItems(FGuid SourceItemId, FGuid TargetItemId);
+
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry);
+
+	void HandleReplicatedEntryRemoved(FGuid ItemId);
+
+	UFUNCTION()
+	void OnRep_ConsumableQuickSlotItemIds();
+
+	UFUNCTION()
+	void OnRep_WeaponIdsByLoadoutSlot();
+
+	UFUNCTION()
+	void OnRep_EquippedItemSlots();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void FilterItem(UItemInstance* ItemInstance);
+	void NotifyInventoryChanged();
+	void FlushInventoryChanges();
+
+	void RebuildRuntimeItemsFromReplicatedEntries();
+
+	void RebuildFilteredItemMap();
+
+	void AddReplicatedItem(UItemInstance* ItemInstance);
+
+	bool RemoveReplicatedItemById(FGuid ItemId);
+
+	bool SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQuantity);
+
+	int32 FindReplicatedEntryIndexById(FGuid ItemId) const;
+
+	FReplicatedInventoryEntry* FindReplicatedEntryById(FGuid ItemId);
+
+	const FReplicatedInventoryEntry* FindReplicatedEntryById(FGuid ItemId) const;
 
 	bool HasInventoryAuthority() const;
 	void SetItemQuantityByPrimaryAssetIdInternal(
@@ -286,11 +295,13 @@ protected:
 	bool ApplyConsumableItemEffect(const UItemInstance* ItemInstance) const;
 	UItemInstance* FindFirstItemInstanceByDefinition(const UItemDefinition* ItemDefinition) const;
 
-	UFUNCTION()
-	void OnRep_WeaponIdsByLoadoutSlot();
+public:
+	static constexpr int32 ConsumableQuickSlotCount = 4;
+	static constexpr int32 WeaponLoadoutSlotCount = 3;
 
-	UFUNCTION()
-	void OnRep_EquippedItemSlots();
+	FPdInventoryChanged OnInventoryChanged;
+	FPdEquipmentSlotsChanged OnEquipmentSlotsChanged;
+	FPdWeaponLoadoutChanged OnWeaponLoadoutChanged;
 
 private:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (AllowPrivateAccess = "true"))

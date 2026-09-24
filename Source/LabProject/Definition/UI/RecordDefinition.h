@@ -27,16 +27,19 @@ class LABPROJECT_API URecordDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	URecordDefinition(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	URecordDefinition(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	UFUNCTION(BlueprintPure, Category = "!Record")
+	FRecordTierEntry ResolveTierForWinCount(int32 WinCount) const;
+
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Record", meta = (ClampMin = "1", UIMin = "1"))
 	int32 WinsPerTier = 20;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Record", meta = (TitleProperty = "TierName"))
 	TArray<FRecordTierEntry> TierEntries;
-
-	UFUNCTION(BlueprintPure, Category = "!Record")
-	FRecordTierEntry ResolveTierForWinCount(int32 WinCount) const;
 };

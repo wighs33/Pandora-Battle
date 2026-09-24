@@ -14,8 +14,10 @@ struct LABPROJECT_API FRewardExperienceRange
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	int32 RollReward(const UObject* LogContext, const TCHAR* CategoryName) const;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Experience")
 	bool bGrantRandomExperience = false;
 
@@ -34,8 +36,10 @@ struct LABPROJECT_API FRewardSoulDustRange
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	int32 RollReward(const UObject* LogContext, const TCHAR* CategoryName) const;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Soul Dust")
 	bool bGrantRandomSoulDust = false;
 
@@ -58,8 +62,10 @@ struct LABPROJECT_API FRewardGoldRange
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	int32 RollReward(const UObject* LogContext, const TCHAR* CategoryName) const;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Gold")
 	bool bGrantRandomGold = false;
 
@@ -78,8 +84,10 @@ struct LABPROJECT_API FRewardRandomPotionDrop
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FPrimaryAssetId RollReward() const;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Potion Drop")
 	bool bGrantRandomPotion = false;
 
@@ -99,8 +107,10 @@ struct LABPROJECT_API FRewardChestSpawnCategory
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	int32 ResolveActiveChestCount(int32 TotalChestCount) const;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Chest Spawn",
 		meta = (ClampMin = "0", UIMin = "0",
 			ToolTip = "0 keeps every placed reward chest active. Values greater than 0 keep only this many random placed chests."))
@@ -113,8 +123,10 @@ struct LABPROJECT_API FMonsterDefeatRewardCategory
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FMonsterDefeatRewardCategory();
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Monster Defeat")
 	FRewardExperienceRange Experience;
 
@@ -131,8 +143,10 @@ struct LABPROJECT_API FPlayerKillRewardCategory
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FPlayerKillRewardCategory();
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Player Kill")
 	FRewardExperienceRange Experience;
 };
@@ -166,9 +180,11 @@ class LABPROJECT_API URewardDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	URewardDefinition();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	URewardDefinition();
 	static FSoftObjectPath GetDefaultRewardDefinitionPath();
 
 	UFUNCTION(BlueprintCallable, Category = "!Reward|Monster Defeat")
@@ -189,6 +205,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Reward|Chest Spawn")
 	int32 ResolveActiveRewardChestCount(int32 TotalChestCount) const;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Chest Spawn")
 	FRewardChestSpawnCategory ChestSpawn;
 

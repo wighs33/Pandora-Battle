@@ -10,7 +10,9 @@ class LABPROJECT_API UAnimNotify_RedrawBow : public UAnimNotify_WeaponEvent
 	GENERATED_BODY()
 
 public:
-	UAnimNotify_RedrawBow();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FString GetNotifyName_Implementation() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UAnimNotify_RedrawBow();
 };

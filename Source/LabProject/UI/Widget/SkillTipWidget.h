@@ -14,14 +14,32 @@ class LABPROJECT_API USkillTipWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
-public:
-	UFUNCTION(BlueprintCallable, Category = "!UI|Skill Tip")
-	void RefreshSkillTips();
-
 protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "!UI|Skill Tip")
+	void RefreshSkillTips();
+
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void InitializePandoraBinding();
+
+	UFUNCTION()
+	void HandlePandoraSelectionChanged(UPandoraDefinition* PandoraDefinition);
+
+	UFUNCTION()
+	void HandlePandoraLoadoutChanged();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void UnbindPandoraComponent();
+	void SchedulePandoraBindingRetry();
+	UPandoraComponent* ResolvePandoraComponent() const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Skill Tip|Widgets")
 	TObjectPtr<UImage> Img_FirstSkillTip;
 
@@ -32,17 +50,6 @@ protected:
 	TObjectPtr<UImage> Img_ThirdSkillTip;
 
 private:
-	void InitializePandoraBinding();
-	void UnbindPandoraComponent();
-	void SchedulePandoraBindingRetry();
-	UPandoraComponent* ResolvePandoraComponent() const;
-
-	UFUNCTION()
-	void HandlePandoraSelectionChanged(UPandoraDefinition* PandoraDefinition);
-
-	UFUNCTION()
-	void HandlePandoraLoadoutChanged();
-
 	TWeakObjectPtr<UPandoraComponent> CachedPandoraComponent;
 	FTimerHandle PandoraBindingRetryTimerHandle;
 };

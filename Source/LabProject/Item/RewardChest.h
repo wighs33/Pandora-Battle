@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -35,6 +35,8 @@ struct FRewardChestItemCountChance
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FRewardChestItemCountChance() = default;
 
 	FRewardChestItemCountChance(const int32 InItemCount, const float InChance)
@@ -43,6 +45,7 @@ struct FRewardChestItemCountChance
 	{
 	}
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Reward Chest|Reward", meta = (ClampMin = "1", UIMin = "1"))
 	int32 ItemCount = 1;
 
@@ -56,12 +59,12 @@ class LABPROJECT_API ARewardChest : public AActor, public IInteractableInterface
 	GENERATED_BODY()
 
 public:
-	ARewardChest(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	// Interface Implementations ---------------------------------------------------------------------------------------
 	virtual bool CanInteract_Implementation(AActor* InteractingActor) override;
 	virtual bool Interact_Implementation(AActor* InteractingActor) override;
 	virtual FText GetInteractText_Implementation(AActor* InteractingActor) override;
@@ -69,6 +72,9 @@ public:
 	virtual void GetRewardSkins_Implementation(TArray<FPrimaryAssetId>& OutSkinDefinitionList) override;
 	virtual void GetRewardPandoras_Implementation(TArray<FPrimaryAssetId>& OutPandoraDefinitionList) override;
 	virtual void OnRewardsClaimed_Implementation(AActor* RewardReceiver) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	ARewardChest(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	/** Inventory ownership does not exclude weapon or equipment candidates; duplicate instances are allowed. */
 	void GetRewardItemsForInventory(
 		const UInventoryComponent* InventoryComponent,
@@ -90,6 +96,7 @@ public:
 	bool IsRewardContentReady() const { return bRewardContentReady; }
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_ChestState();
 
@@ -104,6 +111,43 @@ protected:
 	void HandleChestEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex);
 
+private:
+	void HandleRewardContentPreloadComplete();
+	void FinishOpening();
+	void HideOpenedChest();
+	void RetryRespawnAtAvailableLocation();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	template <typename DefinitionType>
+	void AppendPrimaryAssetIds(const TArray<TSoftObjectPtr<DefinitionType>>& SourceDefinitions, TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
+
+	void AppendRandomItemPrimaryAssetIds(
+		TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
+	void AppendConfiguredItemPrimaryAssetIds(
+		TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
+	int32 ResolveRandomRewardItemCount() const;
+	static int32 SelectWeightedItemIndex(const TArray<float>& Weights, float TotalWeight);
+	bool IsWeaponItemDefinition(const UItemDefinition* ItemDefinition) const;
+	void BeginRewardContentPreload();
+	void ReleaseRewardContentPreload();
+
+	void ConfigureChestCollision(bool bEnableInteraction) const;
+	void PlayCharacterInteractionAnimation(AActor* RewardReceiver) const;
+	void SetInteractionAnchorVisible(bool bVisible) const;
+	void SetInteractionTipVisible(bool bVisible) const;
+	void SetChestState(ERewardChestState NewState, AActor* RewardReceiver);
+	void ApplyChestState(AActor* RewardReceiver);
+	void ApplyClosedState();
+	void ApplyOpeningState(AActor* RewardReceiver);
+	void ApplyOpenedState();
+	void ApplyHiddenState();
+	void ScheduleFinishOpening();
+	void ScheduleHideOpenedChest();
+	void ScheduleRespawnAfterOpen();
+	bool TryRespawnAtRandomAvailableLocation();
+	bool IsOccupyingSpawnLocation(const FTransform& SpawnTransform) const;
+
+protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Reward Chest|Components")
 	TObjectPtr<USkeletalMeshComponent> ChestMesh;
 
@@ -174,39 +218,6 @@ protected:
 	float RespawnDelayAfterOpen = 60.0f;
 
 private:
-	template <typename DefinitionType>
-	void AppendPrimaryAssetIds(const TArray<TSoftObjectPtr<DefinitionType>>& SourceDefinitions, TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
-
-	void AppendRandomItemPrimaryAssetIds(
-		TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
-	void AppendConfiguredItemPrimaryAssetIds(
-		TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
-	int32 ResolveRandomRewardItemCount() const;
-	static int32 SelectWeightedItemIndex(const TArray<float>& Weights, float TotalWeight);
-	bool IsWeaponItemDefinition(const UItemDefinition* ItemDefinition) const;
-	void BeginRewardContentPreload();
-	void HandleRewardContentPreloadComplete();
-	void ReleaseRewardContentPreload();
-
-	void ConfigureChestCollision(bool bEnableInteraction) const;
-	void PlayCharacterInteractionAnimation(AActor* RewardReceiver) const;
-	void SetInteractionAnchorVisible(bool bVisible) const;
-	void SetInteractionTipVisible(bool bVisible) const;
-	void SetChestState(ERewardChestState NewState, AActor* RewardReceiver);
-	void ApplyChestState(AActor* RewardReceiver);
-	void ApplyClosedState();
-	void ApplyOpeningState(AActor* RewardReceiver);
-	void ApplyOpenedState();
-	void ApplyHiddenState();
-	void ScheduleFinishOpening();
-	void FinishOpening();
-	void ScheduleHideOpenedChest();
-	void HideOpenedChest();
-	void ScheduleRespawnAfterOpen();
-	void RetryRespawnAtAvailableLocation();
-	bool TryRespawnAtRandomAvailableLocation();
-	bool IsOccupyingSpawnLocation(const FTransform& SpawnTransform) const;
-
 	UPROPERTY(ReplicatedUsing = OnRep_ChestState)
 	ERewardChestState ChestState = ERewardChestState::Closed;
 

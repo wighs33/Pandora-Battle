@@ -11,8 +11,7 @@ class LABPROJECT_API UAnimNotifyState_AttackDamageWindow : public UAnimNotifySta
 	GENERATED_BODY()
 
 public:
-	UAnimNotifyState_AttackDamageWindow();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NotifyBegin(
 		USkeletalMeshComponent* MeshComp,
 		UAnimSequenceBase* Animation,
@@ -25,6 +24,9 @@ public:
 		const FAnimNotifyEventReference& EventReference) override;
 
 	virtual FString GetNotifyName_Implementation() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UAnimNotifyState_AttackDamageWindow();
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Tag")

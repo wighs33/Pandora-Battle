@@ -9,8 +9,7 @@ class LABPROJECT_API UBTTask_RangedMoveAndAttack : public UBTTask_BlackboardBase
 	GENERATED_BODY()
 
 public:
-	UBTTask_RangedMoveAndAttack();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual uint16 GetInstanceMemorySize() const override;
 	virtual FString GetStaticDescription() const override;
 
@@ -19,6 +18,21 @@ protected:
 	virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 	virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UBTTask_RangedMoveAndAttack();
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	EBTNodeResult::Type RequestMove(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, APawn* Pawn, AActor* TargetActor);
+	EBTNodeResult::Type TickMove(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, APawn* Pawn, AActor* TargetActor);
+	bool RequestRetreatMove(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, APawn* Pawn, AActor* TargetActor);
+	bool TryAttack(AAIController* AIController, APawn* Pawn, AActor* TargetActor) const;
+	bool BuildMoveDestination(APawn* Pawn, AActor* TargetActor, FVector& OutDestination) const;
+	bool BuildRetreatDestination(APawn* Pawn, AActor* TargetActor, FVector& OutDestination) const;
+	void UpdateFacing(AAIController* AIController, APawn* Pawn, AActor* TargetActor, float DeltaSeconds) const;
+
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	float MinDistanceFromTarget = 600.0f;
 
@@ -75,13 +89,4 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
 	bool bDrawDebug = false;
-
-private:
-	EBTNodeResult::Type RequestMove(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, APawn* Pawn, AActor* TargetActor);
-	EBTNodeResult::Type TickMove(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, APawn* Pawn, AActor* TargetActor);
-	bool RequestRetreatMove(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, APawn* Pawn, AActor* TargetActor);
-	bool TryAttack(AAIController* AIController, APawn* Pawn, AActor* TargetActor) const;
-	bool BuildMoveDestination(APawn* Pawn, AActor* TargetActor, FVector& OutDestination) const;
-	bool BuildRetreatDestination(APawn* Pawn, AActor* TargetActor, FVector& OutDestination) const;
-	void UpdateFacing(AAIController* AIController, APawn* Pawn, AActor* TargetActor, float DeltaSeconds) const;
 };

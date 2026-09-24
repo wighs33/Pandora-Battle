@@ -32,8 +32,7 @@ class LABPROJECT_API UGameFeatureAction_AddWidgets : public UGameFeatureAction_W
 	GENERATED_BODY()
 
 public:
-	UGameFeatureAction_AddWidgets();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context) override;
 
 #if WITH_EDITOR
@@ -44,16 +43,22 @@ public:
 	virtual void AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData) override;
 #endif
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	UGameFeatureAction_AddWidgets();
+
 private:
-	virtual void AddToWorld(const FWorldContext& WorldContext, const FGameFeatureStateChangeContext& ChangeContext) override;
-	void RegisterWidgetExtension(UWorld* World, FGameFeatureStateChangeContext ChangeContext);
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	bool CanActivateWidgetExtension(AActor* Actor) const;
 	void AddWidgetsToActor(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
+	void RemoveWidgetsFromActor(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	virtual void AddToWorld(const FWorldContext& WorldContext, const FGameFeatureStateChangeContext& ChangeContext) override;
+	void RegisterWidgetExtension(UWorld* World, FGameFeatureStateChangeContext ChangeContext);
 	void CompleteAddWidgetsToActor(
 		AActor* Actor,
 		FGameFeatureStateChangeContext ChangeContext,
 		UWidgetClassDefinition* ExpectedWidgetClassDefinition);
-	void RemoveWidgetsFromActor(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
 	void RemoveAllWidgets(FGameFeatureWidgetHandles& Handles) const;
 
 public:

@@ -44,12 +44,15 @@ class LABPROJECT_API UPlayerControllerDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	static FSoftObjectPath GetDefaultDefinitionPath();
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	static FSoftObjectPath GetDefaultDefinitionPath();
 
 	const FControllerPresentationSettings& GetPresentationSettings() const { return Presentation; }
 
@@ -57,5 +60,4 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Controller|Presentation",
 		meta = (AllowPrivateAccess = "true"))
 	FControllerPresentationSettings Presentation;
-
 };

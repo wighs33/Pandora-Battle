@@ -21,9 +21,11 @@ class LABPROJECT_API URoomListWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Room")
 	void SetInfo();
 
@@ -31,9 +33,7 @@ public:
 	void RefreshUI();
 
 protected:
-	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Room|Bind")
-	TObjectPtr<UTextBlock> Txt_EmptyRooms;
-
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleRefreshClicked();
 
@@ -51,7 +51,20 @@ protected:
 		const TArray<FBlueprintSessionResult>& Results,
 		bool bWasSuccessful);
 	void HandleDestroySessionForClose(uint64 RequestId, bool bWasSuccessful);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void OpenTitleMap() const;
+
+private:
+	void ApplyWidgetDefinitionSettings();
+	FString GetResolvedTitleTravelMapName() const;
+	UUiSubsystem* GetUiSubsystem() const;
+	UConnectingPopupWidget* ShowConnectingPopup(bool bShowCancelButton);
+	void HideConnectingPopup() const;
+
+protected:
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Room|Bind")
+	TObjectPtr<UTextBlock> Txt_EmptyRooms;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Room|Bind")
 	TObjectPtr<UWrapBox> RoomList;
@@ -96,12 +109,6 @@ protected:
 	TArray<FBlueprintSessionResult> SessionInfos;
 
 private:
-	void ApplyWidgetDefinitionSettings();
-	FString GetResolvedTitleTravelMapName() const;
-	UUiSubsystem* GetUiSubsystem() const;
-	UConnectingPopupWidget* ShowConnectingPopup(bool bShowCancelButton);
-	void HideConnectingPopup() const;
-
 	FDelegateHandle FindSessionsCompleteHandle;
 	FDelegateHandle DestroySessionCompleteHandle;
 	uint64 ActiveFindRequestId = 0;

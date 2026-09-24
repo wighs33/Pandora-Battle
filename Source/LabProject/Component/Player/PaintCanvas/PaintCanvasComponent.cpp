@@ -2,7 +2,6 @@
 
 #include "Character/PdPlayer.h"
 #include "Component/Player/PaintCanvas/PaintCanvasDisplay.h"
-#include "Component/Player/PaintCanvas/PaintCanvasSync.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/Canvas.h"
 #include "Engine/GameInstance.h"
@@ -21,6 +20,77 @@ namespace
 {
     const FLinearColor OpaqueBlackBrushColor(0.0f, 0.0f, 0.0f, 1.0f);
     constexpr double PaintBrushSpacingRatio = 0.25;
+
+    double ClampBrushSize(const double BrushSize, const double MaxBrushSize)
+    {
+        if (BrushSize <= 0.0)
+        {
+            return 0.0;
+        }
+
+        return FMath::Clamp(BrushSize, 1.0, FMath::Max(MaxBrushSize, 1.0));
+    }
+
+    bool IsValidDrawLocation(const FVector2D& DrawLocation)
+    {
+        return DrawLocation.X >= 0.0
+            && DrawLocation.X <= 1.0
+            && DrawLocation.Y >= 0.0
+            && DrawLocation.Y <= 1.0;
+    }
+
+    bool IsValidTransform(
+        const FTransform& Transform,
+        const double MaxTranslationDistance,
+        const double MaxScale)
+    {
+        if (Transform.ContainsNaN())
+        {
+            return false;
+        }
+
+        const FVector Translation = Transform.GetTranslation();
+        if (Translation.SizeSquared() > FMath::Square(FMath::Max(MaxTranslationDistance, 0.0)))
+        {
+            return false;
+        }
+
+        const FVector Scale = Transform.GetScale3D().GetAbs();
+        const double SafeMaxScale = FMath::Max(MaxScale, 0.01);
+        return Scale.X >= 0.01
+            && Scale.Y >= 0.01
+            && Scale.Z >= 0.01
+            && Scale.X <= SafeMaxScale
+            && Scale.Y <= SafeMaxScale
+            && Scale.Z <= SafeMaxScale;
+    }
+
+    bool IsValidFaceDecalPayload(
+        const UMaterialInterface* FaceDecalMaterial,
+        const FTransform& FaceDecalTransformOffset,
+        const FVector& FaceDecalSize,
+        const double MaxFaceDecalSize,
+        const double MaxTranslationDistance,
+        const double MaxScale)
+    {
+        if (!FaceDecalMaterial || FaceDecalSize.ContainsNaN())
+        {
+            return false;
+        }
+
+        const double SafeMaxFaceDecalSize = FMath::Max(MaxFaceDecalSize, 1.0);
+        if (FaceDecalSize.X <= 0.0
+            || FaceDecalSize.Y <= 0.0
+            || FaceDecalSize.Z <= 0.0
+            || FaceDecalSize.X > SafeMaxFaceDecalSize
+            || FaceDecalSize.Y > SafeMaxFaceDecalSize
+            || FaceDecalSize.Z > SafeMaxFaceDecalSize)
+        {
+            return false;
+        }
+
+        return IsValidTransform(FaceDecalTransformOffset, MaxTranslationDistance, MaxScale);
+    }
 }
 
 UPaintCanvasComponent::UPaintCanvasComponent(const FObjectInitializer& ObjectInitializer)
@@ -48,6 +118,25 @@ void UPaintCanvasComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
     Super::EndPlay(EndPlayReason);
 }
 
+UPaintCanvasDisplay* UPaintCanvasComponent::GetOrCreatePresentation()
+{
+    if (!Presentation)
+    {
+        Presentation = NewObject<UPaintCanvasDisplay>(this);
+        Presentation->Initialize(GetPlayerOwner());
+    }
+
+    return Presentation.Get();
+}
+
+void UPaintCanvasComponent::HidePaintSpeechBubble()
+{
+    if (UPaintCanvasDisplay* PaintPresentation = GetOrCreatePresentation())
+    {
+        PaintPresentation->HideSpeechBubble(PaintSpeechBubbleComponentName);
+    }
+}
+
 void UPaintCanvasComponent::SetSpeechBubbleComponent(UPrimitiveComponent* InSpeechBubbleComponent)
 {
     if (UPaintCanvasDisplay* PaintPresentation = GetOrCreatePresentation())
@@ -56,19 +145,20 @@ void UPaintCanvasComponent::SetSpeechBubbleComponent(UPrimitiveComponent* InSpee
     }
 }
 
-UPaintCanvasDisplay* UPaintCanvasComponent::GetOrCreatePresentation()
+bool UPaintCanvasComponent::BeginPaintCanvasUiSession()
 {
-    if (!Presentation)
+    CancelPaintCanvasExport();
+    bPaintCanvasUiSessionActive = false;
+
+    APdPlayer* PlayerOwner = GetPlayerOwner();
+    if (!PlayerOwner || !PlayerOwner->IsLocallyControlled() || !EnsurePaintCanvasRenderResources(true))
     {
-        Presentation = NewObject<UPaintCanvasDisplay>(this);
+        return false;
     }
 
-    if (Presentation)
-    {
-        Presentation->Initialize(GetPlayerOwner());
-    }
-
-    return Presentation.Get();
+    LocalPaintStrokes.Reset();
+    bPaintCanvasUiSessionActive = true;
+    return true;
 }
 
 bool UPaintCanvasComponent::EnsurePaintCanvasRenderResources(const bool bResetCanvas)
@@ -120,11 +210,11 @@ bool UPaintCanvasComponent::DrawBrushToRenderTarget(
     const double InBrushSize,
     const FVector2D& DrawLocation)
 {
-    const double SafeBrushSize = PaintCanvasSync::ClampBrushSize(InBrushSize, MaxReplicatedPaintBrushSize);
+    const double SafeBrushSize = ClampBrushSize(InBrushSize, MaxReplicatedPaintBrushSize);
     if (!PaintCanvasRenderTarget
         || !PaintBrushMaterial
         || SafeBrushSize <= 0.0
-        || !PaintCanvasSync::IsValidDrawLocation(DrawLocation))
+        || !IsValidDrawLocation(DrawLocation))
     {
         return false;
     }
@@ -201,33 +291,17 @@ void UPaintCanvasComponent::ApplyBrushMaterialParameters() const
     PaintBrushMaterial->SetVectorParameterValue(TEXT("BaseColor"), OpaqueBlackBrushColor);
 }
 
-bool UPaintCanvasComponent::BeginPaintCanvasUiSession()
-{
-    CancelPaintCanvasExport();
-    bPaintCanvasUiSessionActive = false;
-
-    APdPlayer* PlayerOwner = GetPlayerOwner();
-    if (!PlayerOwner || !PlayerOwner->IsLocallyControlled() || !EnsurePaintCanvasRenderResources(true))
-    {
-        return false;
-    }
-
-    LocalPaintStrokes.Reset();
-    bPaintCanvasUiSessionActive = true;
-    return true;
-}
-
 bool UPaintCanvasComponent::PaintAtNormalizedLocation(const FVector2D& DrawLocation)
 {
     if (!bPaintCanvasUiSessionActive
         || LocalPaintStrokes.Num() >= FMath::Clamp(MaxReplicatedPaintStrokeHistory, 1, 8192)
-        || !PaintCanvasSync::IsValidDrawLocation(DrawLocation))
+        || !IsValidDrawLocation(DrawLocation))
     {
         return false;
     }
 
     FPaintCanvasStroke Stroke;
-    Stroke.BrushSize = static_cast<float>(PaintCanvasSync::ClampBrushSize(BrushSize, MaxReplicatedPaintBrushSize));
+    Stroke.BrushSize = static_cast<float>(ClampBrushSize(BrushSize, MaxReplicatedPaintBrushSize));
     Stroke.DrawLocation = FVector2f(DrawLocation);
     Stroke.bStartsNewStroke = !bHasPreviousPaintLocation;
     const FPaintCanvasStroke* PreviousStroke = LocalPaintStrokes.IsEmpty() ? nullptr : &LocalPaintStrokes.Last();
@@ -416,14 +490,6 @@ bool UPaintCanvasComponent::ApplyPaintCanvasToSpeechBubble()
             PaintSpeechBubbleRenderTargetParameterName);
 }
 
-void UPaintCanvasComponent::HidePaintSpeechBubble()
-{
-    if (UPaintCanvasDisplay* PaintPresentation = GetOrCreatePresentation())
-    {
-        PaintPresentation->HideSpeechBubble(PaintSpeechBubbleComponentName);
-    }
-}
-
 UTextureRenderTarget2D* UPaintCanvasComponent::GetActivePaintCanvasRenderTarget() const
 {
     return PaintCanvasRenderTarget.Get();
@@ -439,9 +505,11 @@ bool UPaintCanvasComponent::IsValidPaintCanvasStrokes(const TArray<FPaintCanvasS
     for (const FPaintCanvasStroke& Stroke : Strokes)
     {
         if (!FMath::IsFinite(Stroke.BrushSize)
+            || !FMath::IsFinite(Stroke.DrawLocation.X)
+            || !FMath::IsFinite(Stroke.DrawLocation.Y)
             || Stroke.BrushSize <= 0.0f
             || Stroke.BrushSize > FMath::Max(MaxReplicatedPaintBrushSize, 1.0)
-            || !PaintCanvasSync::IsValidDrawLocation(FVector2D(Stroke.DrawLocation)))
+            || !IsValidDrawLocation(FVector2D(Stroke.DrawLocation)))
         {
             return false;
         }
@@ -626,7 +694,7 @@ void UPaintCanvasComponent::ServerApplyPaintCanvasFaceDecal_Implementation(
     FName TextureParameterName)
 {
     if (!IsValidPaintCanvasStrokes(Strokes)
-        || !PaintCanvasSync::IsValidFaceDecalPayload(
+        || !IsValidFaceDecalPayload(
             FaceDecalMaterial,
             FaceDecalTransformOffset,
             FaceDecalSize,
@@ -703,7 +771,7 @@ void UPaintCanvasComponent::RestoreCachedLobbyPaintCanvasFaceDecal()
         const FLobbyPaintCanvasStrokeCache& CachedStroke = FaceDecalCache.Strokes[StrokeIndex];
         FPaintCanvasStroke& Stroke = LocalPaintStrokes.AddDefaulted_GetRef();
         Stroke.BrushSize = static_cast<float>(
-            PaintCanvasSync::ClampBrushSize(CachedStroke.BrushSize, MaxReplicatedPaintBrushSize));
+            ClampBrushSize(CachedStroke.BrushSize, MaxReplicatedPaintBrushSize));
         Stroke.DrawLocation = FVector2f(CachedStroke.DrawLocation);
         Stroke.bStartsNewStroke = CachedStroke.bStartsNewStroke;
     }

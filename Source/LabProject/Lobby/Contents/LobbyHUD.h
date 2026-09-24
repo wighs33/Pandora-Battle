@@ -17,19 +17,13 @@ class LABPROJECT_API ALobbyHUD : public APdHUD
 	GENERATED_BODY()
 
 public:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//------------------------------------------------------------------------------------------------------------------
-	virtual bool HandleEscapeInput() override;
-
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
 	ULobbyWidget* CreateLobbyUI();
-
-	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
-	void RefreshLobbyUI();
 
 	UFUNCTION()
 	void NotifyLobbyWidgetOpened();
@@ -40,11 +34,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Lobby|UI")
 	ULobbyWidget* GetLobbyWidget() const { return LobbyWidget; }
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual bool HandleEscapeInput() override;
+
+	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
+	void RefreshLobbyUI();
+
+private:
+	void HandleGameStateSet(AGameStateBase* GameState);
+	void RequestLobbyUIRefresh();
+
 protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual bool IsPlayerHudSuppressedByUi() const override;
 	void ApplyLobbyWidgetInputMode();
 	void RestoreGameInputModeIfPossible();
 
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Lobby|UI")
 	TSubclassOf<ULobbyWidget> LobbyWidgetClass;
 
@@ -52,9 +58,6 @@ protected:
 	TObjectPtr<ULobbyWidget> LobbyWidget;
 
 private:
-	void HandleGameStateSet(AGameStateBase* GameState);
-	void RequestLobbyUIRefresh();
-
 	TWeakObjectPtr<ALobbyGameState> ObservedLobbyGameState;
 	FTimerHandle LobbyUIRefreshTimerHandle;
 };

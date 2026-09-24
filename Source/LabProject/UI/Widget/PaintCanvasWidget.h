@@ -14,7 +14,16 @@ class LABPROJECT_API UPaintCanvasWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+#if WITH_EDITOR
+	virtual void ValidateCompiledWidgetTree(
+		const UWidgetTree& BlueprintWidgetTree,
+		IWidgetCompilerLog& CompileLog) const override;
+#endif
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UImage* GetCanvasImage() const { return Img_Canvas; }
 	UImage* GetFacePreviewImage() const { return Img_FacePreview; }
 	UImage* GetSpeechPreviewImage() const { return Img_SpeechPreview; }
@@ -26,10 +35,4 @@ protected:
 	TObjectPtr<UImage> Img_SpeechPreview;
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Paint", meta = (BindWidget))
 	TObjectPtr<UImage> Img_Canvas;
-
-#if WITH_EDITOR
-	virtual void ValidateCompiledWidgetTree(
-		const UWidgetTree& BlueprintWidgetTree,
-		IWidgetCompilerLog& CompileLog) const override;
-#endif
 };

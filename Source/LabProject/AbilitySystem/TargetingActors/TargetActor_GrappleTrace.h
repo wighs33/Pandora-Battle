@@ -15,8 +15,10 @@ class LABPROJECT_API ATargetActor_GrappleTrace : public AGameplayAbilityTargetAc
 	GENERATED_BODY()
 
 public:
-	ATargetActor_GrappleTrace(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void StartTargeting(UGameplayAbility* Ability) override;
 	virtual void ConfirmTargetingAndContinue() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	ATargetActor_GrappleTrace(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 };

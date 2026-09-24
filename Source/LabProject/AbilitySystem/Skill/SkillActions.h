@@ -14,14 +14,20 @@ UCLASS(meta = (DisplayName = "Wait"))
 class LABPROJECT_API USkillWaitAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0", Units = "s"))
 	float Seconds = 0.0f;
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 	virtual void OnStop() override;
+
 private:
 	void Elapsed();
+
+private:
 	FTimerHandle Timer;
 };
 
@@ -30,18 +36,24 @@ UCLASS(meta = (DisplayName = "Wait Gameplay Event"))
 class LABPROJECT_API USkillWaitEventAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Category = "Skill", meta = (Categories = "Event"))
 	FGameplayTag EventTag;
 	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0.01", Units = "s"))
 	float Timeout = 10.0f;
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 	virtual void OnStop() override;
+
 private:
 	UFUNCTION()
 	void Received(FGameplayEventData Payload);
 	void TimedOut();
+
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_WaitGameplayEvent> Task;
 	FTimerHandle Timer;
@@ -51,17 +63,23 @@ UCLASS(meta = (DisplayName = "Play Montage"))
 class LABPROJECT_API USkillMontageAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Category = "Skill")
 	TObjectPtr<UAnimMontage> Montage;
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 	virtual void OnStop() override;
+
 private:
 	UFUNCTION()
 	void Completed();
 	UFUNCTION()
 	void Interrupted();
+
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> Task;
 };
@@ -71,6 +89,7 @@ UCLASS(meta = (DisplayName = "Dash"))
 class LABPROJECT_API USkillDashAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0", Units = "cm/s"))
 	float Speed = 1000.0f;
@@ -81,14 +100,21 @@ public:
 	/** 대시 GameplayCue가 실행되는 동안 캐릭터를 숨긴다. */
 	UPROPERTY(EditAnywhere, Category = "Skill")
 	bool bHideCharacter = true;
+
+	// Public API ------------------------------------------------------------------------------------------------------
 	static UAbilityTask_ApplyRootMotionConstantForce* CreateTask(UGameplayAbility* Ability,
 		const FVector& Direction, float Speed, float Duration, float FinishSpeed, bool bEnableGravity);
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 	virtual void OnStop() override;
+
 private:
 	UFUNCTION()
 	void Completed();
+
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_ApplyRootMotionConstantForce> Task;
 };
@@ -98,12 +124,15 @@ UCLASS(meta = (DisplayName = "Apply Gameplay Effect"))
 class LABPROJECT_API USkillGameplayEffectAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Category = "Skill")
 	FSkillGameplayEffectConfig Effect;
 	UPROPERTY(EditAnywhere, Category = "Skill")
 	bool bApplyToSelf = false;
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 };
 
@@ -111,12 +140,15 @@ UCLASS(meta = (DisplayName = "Area Damage"))
 class LABPROJECT_API USkillAreaDamageAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Category = "Skill")
 	FSkillGameplayEffectConfig Damage;
 	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0", Units = "cm"))
 	float Radius = 300.0f;
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 };
 
@@ -125,6 +157,7 @@ UCLASS(meta = (DisplayName = "Spawn Actor"))
 class LABPROJECT_API USkillSpawnActorAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Category = "Skill")
 	TSubclassOf<AActor> ActorClass;
@@ -134,7 +167,9 @@ public:
 	float LifeSpan = 10.0f;
 	UPROPERTY(EditAnywhere, Category = "Skill")
 	bool bProjectToGround = true;
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 };
 
@@ -143,6 +178,7 @@ UCLASS(meta = (DisplayName = "Fire Projectile"))
 class LABPROJECT_API USkillProjectileAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Category = "Skill")
 	TSubclassOf<AProjectileBase> ProjectileClass;
@@ -156,14 +192,19 @@ public:
 	FSkillGameplayEffectConfig Damage;
 	UPROPERTY(EditAnywhere, Instanced, Category = "Skill")
 	TObjectPtr<USkillAction> OnImpact;
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 	virtual void OnStop() override;
+
 private:
 	void Impacted(AActor* Target, const FHitResult& Hit);
 	void ImpactActionFinished(USkillAction* Child, bool bSucceeded);
 	UFUNCTION()
 	void ProjectileDestroyed(AActor* Actor);
+
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<AProjectileBase> Projectile;
 };
@@ -173,6 +214,7 @@ UCLASS(meta = (DisplayName = "Repeat"))
 class LABPROJECT_API USkillRepeatAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Instanced, Category = "Skill")
 	TObjectPtr<USkillAction> Action;
@@ -180,12 +222,17 @@ public:
 	int32 Count = 1;
 	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0.01", Units = "s"))
 	float Interval = 0.5f;
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 	virtual void OnStop() override;
+
 private:
 	void RunNext();
 	void ChildFinished(USkillAction* Child, bool bSucceeded);
+
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<USkillAction> Current;
 	int32 CompletedCount = 0;

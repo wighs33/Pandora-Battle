@@ -13,16 +13,23 @@ class LABPROJECT_API UGoldenKillAnnouncementWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UGoldenKillAnnouncementWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UGoldenKillAnnouncementWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!GoldenKill")
 	void PlayGoldenKillAnnouncement(const FText& OverrideText);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!GoldenKill")
 	void HideGoldenKillAnnouncement();
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplyTextStyle(const FText& TextToShow);
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!GoldenKill|Bind")
@@ -44,7 +51,5 @@ protected:
 	float AnimationPlaybackSpeed = 1.0f;
 
 private:
-	void ApplyTextStyle(const FText& TextToShow);
-
 	FTimerHandle HideTimerHandle;
 };

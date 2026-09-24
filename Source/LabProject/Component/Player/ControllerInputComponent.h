@@ -25,23 +25,20 @@ class LABPROJECT_API UControllerInputComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UControllerInputComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void OnRegister() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Input Setup
+	// Public API ------------------------------------------------------------------------------------------------------
+	UControllerInputComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	void RefreshInputDefinition();
 	void SetInputDefinition(const TSoftObjectPtr<UControllerInputDefinition>& NewInputDefinition);
 	const TSoftObjectPtr<UControllerInputDefinition>& GetInputDefinition() const { return ActiveInputDefinition; }
 	UControllerInputDefinition* GetLoadedInputDefinition();
 
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Input Events
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleMoveInput(const FInputActionValue& InputValue);
 	void HandleLookInput(const FInputActionValue& InputValue);
 	void HandleJumpInputStarted(const FInputActionValue& InputValue);
@@ -91,9 +88,10 @@ private:
 	void HandleTargetConfirmInputStarted(const FInputActionValue& InputValue);
 	void HandleAbilityInputStarted(const FInputActionValue& InputValue, const FGameplayTag& InputTag);
 	void HandleAbilityInputEnded(const FInputActionValue& InputValue, const FGameplayTag& InputTag);
+	void HandleInputDefinitionPreloadComplete(uint32 RequestGeneration);
+	void HandleInputContentPreloadComplete(uint32 RequestGeneration);
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Controller Services
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetPdController() const;
 	APdHUD* GetPdHUD() const;
 	APdPlayer* GetPlayerCharacter() const;
@@ -103,8 +101,6 @@ private:
 	bool IsGameplayInputBlockedByUi() const;
 	bool IsOpenLobbyInputAllowed() const;
 	void BeginInputDefinitionPreload();
-	void HandleInputDefinitionPreloadComplete(uint32 RequestGeneration);
-	void HandleInputContentPreloadComplete(uint32 RequestGeneration);
 	void ReleaseInputDefinitionPreload();
 	bool ApplyInputDefinition();
 	void RemoveAppliedInputDefinition();
@@ -114,8 +110,7 @@ private:
 	bool IsCharacterActionAvailable(APdPlayer* PlayerCharacter, ECharacterActionType ActionType) const;
 	void BindNativeInputActions(UEnhancedInputComponent& EnhancedInputComponent, const UControllerInputDefinition& Definition);
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Input Definition
+private:
 	TSoftObjectPtr<UControllerInputDefinition> ActiveInputDefinition;
 
 	UPROPERTY(Transient)

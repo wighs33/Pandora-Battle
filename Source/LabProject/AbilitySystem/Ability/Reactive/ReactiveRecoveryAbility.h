@@ -17,20 +17,26 @@ class LABPROJECT_API UReactiveRecoveryAbility : public UPdGameplayAbility
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UReactiveRecoveryAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnAbilityEnding() override;
 
 private:
 	void HandleRecoveryAttributeChanged(const FOnAttributeChangeData& Data);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshRecoveryEffect();
 
+private:
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 	TMap<FGameplayAttribute, FDelegateHandle> AttributeChangedHandles;
 	FActiveGameplayEffectHandle RecoveryEffectHandle;

@@ -17,8 +17,10 @@ class LABPROJECT_API USelectPandoraWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetPandoraImage(int32 Nth, UTexture2D* PandoraImage);
 
@@ -31,6 +33,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetDirection(int32 Index);
 
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void CacheDefaultImageBrushes();
+	void SetImageByIndex(const TArray<UImage*>& Images, const TArray<FSlateBrush>& DefaultBrushes, int32 Nth, UTexture2D* Texture);
+	void SetImageTintByIndex(const TArray<UImage*>& Images, int32 Nth, const FLinearColor& TintColor) const;
+	void RefreshSelectedLoadoutNumber();
+	void SetSelectedLoadoutNumberVisibility(int32 LoadoutNumber) const;
+	void SelectDirection(EEnum_Direction InDirection, bool bBroadcast);
+
+public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
 	FPdOnSelectedPandoraDirection OnSelected;
 
@@ -90,13 +102,6 @@ protected:
 	FLinearColor DisabledPandoraTint = FLinearColor(0.15f, 0.15f, 0.15f, 0.55f);
 
 private:
-	void CacheDefaultImageBrushes();
-	void SetImageByIndex(const TArray<UImage*>& Images, const TArray<FSlateBrush>& DefaultBrushes, int32 Nth, UTexture2D* Texture);
-	void SetImageTintByIndex(const TArray<UImage*>& Images, int32 Nth, const FLinearColor& TintColor) const;
-	void RefreshSelectedLoadoutNumber();
-	void SetSelectedLoadoutNumberVisibility(int32 LoadoutNumber) const;
-	void SelectDirection(EEnum_Direction InDirection, bool bBroadcast);
-
 	UPROPERTY(Transient)
 	TArray<FSlateBrush> DefaultPandoraImageBrushes;
 

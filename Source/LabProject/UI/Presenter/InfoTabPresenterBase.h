@@ -15,13 +15,16 @@ class LABPROJECT_API UInfoTabPresenterBase : public UObject
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual UWorld* GetWorld() const override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	virtual void Initialize(APdPlayerController* InController);
 	virtual void BindInfoUi(UInfoWidget* InInfoWidget);
 	virtual void Deinitialize();
 
 protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetController() const;
 	APdPlayerState* GetPlayerState() const;
 	UInfoWidget* GetInfoWidget() const;

@@ -14,10 +14,12 @@ class LABPROJECT_API UHudTimerWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UHudTimerWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UHudTimerWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!Timer")
 	void StartTimer();
@@ -43,6 +45,17 @@ public:
 	const UMatchRuleDefinition* GetMatchRuleDefinition() const;
 	bool ShouldSuppressTimer() const;
 	bool ShouldSuppressTimerForCurrentMap() const;
+
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleTimerTick();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool BeginMatchRulePreload();
+	void ReleaseMatchRulePreload();
+	void SyncFromReplicatedTimerState();
+	FText FormatTimerText() const;
+	float GetConfiguredTimerSeconds() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Timer|Bind")
@@ -70,13 +83,6 @@ protected:
 	FLinearColor WarningTextColor = FLinearColor(1.0f, 0.18f, 0.12f, 1.0f);
 
 private:
-	bool BeginMatchRulePreload();
-	void ReleaseMatchRulePreload();
-	void HandleTimerTick();
-	void SyncFromReplicatedTimerState();
-	FText FormatTimerText() const;
-	float GetConfiguredTimerSeconds() const;
-
 	FTimerHandle TimerTickHandle;
 	int32 MatchRulePreloadGeneration = 0;
 	TSharedPtr<FStreamableHandle> MatchRulePreloadHandle;

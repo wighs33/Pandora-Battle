@@ -15,8 +15,11 @@ struct LABPROJECT_API FSkillAreaSettings
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FSkillAreaSettings();
 
+public:
 	/** 조준 위치와 표적 검증에 사용하는 최대 거리(cm). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Area|Targeting", meta = (ClampMin = "0.0", ForceUnits = "cm", DisplayName = "Targeting Max Range"))
 	double TargetingMaxRange = 0.0;

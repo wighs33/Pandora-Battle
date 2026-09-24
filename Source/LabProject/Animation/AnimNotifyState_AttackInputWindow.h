@@ -11,8 +11,7 @@ class LABPROJECT_API UAnimNotifyState_AttackInputWindow : public UAnimNotifyStat
 	GENERATED_BODY()
 
 public:
-	UAnimNotifyState_AttackInputWindow();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration,
 		const FAnimNotifyEventReference& EventReference) override;
 
@@ -20,6 +19,9 @@ public:
 		const FAnimNotifyEventReference& EventReference) override;
 
 	virtual FString GetNotifyName_Implementation() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UAnimNotifyState_AttackInputWindow();
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Tag")

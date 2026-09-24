@@ -17,8 +17,10 @@ class LABPROJECT_API UProjectBootstrapSettings : public UDeveloperSettings
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FName GetCategoryName() const override { return TEXT("Game"); }
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	const TSoftObjectPtr<UPdGameInstanceDefinition>& GetBootstrapDefinition() const
 	{
 		return BootstrapDefinition;

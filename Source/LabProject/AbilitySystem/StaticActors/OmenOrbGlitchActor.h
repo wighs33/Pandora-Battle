@@ -22,12 +22,14 @@ class LABPROJECT_API AOmenOrbGlitchActor : public AActor
 	GENERATED_BODY()
 
 public:
-	AOmenOrbGlitchActor();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	AOmenOrbGlitchActor();
 
 	UFUNCTION(BlueprintCallable, Category = "!Skill|Darkness|Omen Orb")
 	void StartOrbSequence();
@@ -39,10 +41,12 @@ public:
 		EEnum_Direction InSourcePandoraLoadoutDirection = EEnum_Direction::Center);
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintImplementableEvent, Category = "!Skill|Darkness|Omen Orb")
 	void OnOrbSequenceFinished();
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ResolveBlueprintComponents();
 	void CacheInitialComponentScales();
 	void TickGrowth(float DeltaSeconds);
@@ -66,6 +70,7 @@ private:
 	UNiagaraComponent* FindNiagaraComponentByName(FName ComponentName) const;
 	float EvaluateCurveOrLinear(const UCurveFloat* Curve, float NormalizedTime) const;
 
+private:
 	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Components")
 	FName OrbComponentName = TEXT("Orb");
 

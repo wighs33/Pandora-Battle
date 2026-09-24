@@ -18,7 +18,12 @@ class LABPROJECT_API UPlayerNotificationComponent : public UControllerComponent
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UPlayerNotificationComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void SendRewardNotifications(const TArray<FPrimaryAssetId>& RewardItemDefinitions,
@@ -27,17 +32,13 @@ public:
 	void SendSoulDustRewardNotification(int32 RewardAmount, UObject* IconResource) const;
 	void ShowRewardNotifications(const TArray<FPdRewardNotification>& Rewards);
 
-protected:
-	//--------------------------------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
 private:
-	//--------------------------------------------------------------------------------------------------------------------------------------------
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void SendNumericRewardNotification(EPdRewardNotificationType Type, double RewardAmount, UObject* IconResource) const;
 	void CompleteRewardNotificationLoad(uint64 RequestId, const TArray<FPdRewardNotification>& Rewards);
 	void ShowLoadedRewardNotifications(const TArray<FPdRewardNotification>& Rewards) const;
 
+private:
 	uint64 NextRewardNotificationRequestId = 1;
 	TMap<uint64, TSharedPtr<FStreamableHandle>> PendingRewardNotificationLoadHandles;
 };

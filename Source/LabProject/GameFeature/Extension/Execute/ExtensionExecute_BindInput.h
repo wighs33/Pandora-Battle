@@ -12,19 +12,25 @@ struct LABPROJECT_API FExtensionExecute_BindInput : public FExtensionExecute
 {
 	GENERATED_BODY()
 
-	virtual void OnActivate(AActor* Owner) const override;
-	virtual void OnDeactivate(AActor* Owner) const override;
-
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 #if WITH_EDITORONLY_DATA
 	virtual void AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData) const override;
 #endif
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnActivate(AActor* Owner) const override;
+	virtual void OnDeactivate(AActor* Owner) const override;
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	UControllerInputComponent* FindControllerInputComponent(AActor* Owner) const;
+
+public:
 	UPROPERTY(EditAnywhere, Category = "Input", meta = (AssetBundles = "Client"))
 	TSoftObjectPtr<UControllerInputDefinition> InputDefinition;
 
 private:
-	UControllerInputComponent* FindControllerInputComponent(AActor* Owner) const;
-
 	mutable TWeakObjectPtr<UControllerInputComponent> WeakInputComponent;
 	mutable TSoftObjectPtr<UControllerInputDefinition> PreviousInputDefinition;
 };

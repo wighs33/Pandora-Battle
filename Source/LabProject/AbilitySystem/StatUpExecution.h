@@ -11,8 +11,10 @@ class LABPROJECT_API UStatUpExecution : public UGameplayEffectExecutionCalculati
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const override;
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	EGameplayModOp::Type ResolveOperation(const FGameplayEffectSpec& Spec, const FGameplayTag& OperationSetByCallerTag) const;
 };

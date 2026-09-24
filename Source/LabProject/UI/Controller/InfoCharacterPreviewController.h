@@ -14,6 +14,7 @@ class LABPROJECT_API UInfoCharacterPreviewController : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(
 		UInfoWidget* InOwnerWidget,
 		bool bInUsePreviewCamera,
@@ -23,8 +24,10 @@ public:
 	void Shutdown(bool bReturnCamera);
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ResolvePreviewClass();
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoWidget> OwnerWidget;
 	UPROPERTY(Transient)

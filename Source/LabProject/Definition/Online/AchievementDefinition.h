@@ -59,9 +59,10 @@ class LABPROJECT_API UAchievementDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Achievement", meta = (TitleProperty = "AchievementId"))
 	TArray<FAchievementEntry> Achievements;
-
 };

@@ -103,10 +103,14 @@ class LABPROJECT_API UPdGameInstanceDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
 	static FSoftObjectPath GetDefaultDefinitionPath();
 	static const FProjectDefinitionReferences& GetConfiguredDefinitionReferences();
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Memo",
 		meta = (DisplayName = "Memo", MultiLine = "true"))
 	TArray<FText> Memo;

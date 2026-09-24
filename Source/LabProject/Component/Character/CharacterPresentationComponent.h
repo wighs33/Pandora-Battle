@@ -25,10 +25,12 @@ class LABPROJECT_API UCharacterPresentationComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UCharacterPresentationComponent();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UCharacterPresentationComponent();
 
 	void ApplySettings(const FCharacterPresentationSettings& InSettings);
 	void InitializePresentation(UNiagaraComponent* InDefaultBodyAuraComponent);
@@ -55,10 +57,6 @@ public:
 	void SetTemporaryMeshScaleMultiplier(UObject* SourceObject, float ScaleMultiplier);
 	void ClearTemporaryMeshScaleMultiplier(UObject* SourceObject);
 
-	void HandleDashGameplayCue(
-		EGameplayCueEvent::Type EventType,
-		const FGameplayCueParameters& Parameters);
-
 	UNiagaraComponent* FindBodyAuraNiagaraComponent(FName ComponentName) const;
 	void ApplyBodyAuraNiagaraWithOffset(
 		FName ComponentName,
@@ -71,11 +69,18 @@ public:
 		FName ComponentName,
 		const UNiagaraSystem* ExpectedNiagaraSystem);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleDashGameplayCue(
+		EGameplayCueEvent::Type EventType,
+		const FGameplayCueParameters& Parameters);
+
 private:
 	UFUNCTION()
 	void OnRep_CurrentAnimLayer();
 
 	void HandleMatchTeamColorChanged(int32 NewTeamColorIndex);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshTemporaryMeshScale();
 	UMaterialInterface* GetPreferredSkillOverlayMaterial();
 	const UMatchRuleDefinition* GetTeamOverlayMatchRuleDefinition() const;
@@ -85,6 +90,7 @@ private:
 	FVector GetClampedBodyAuraRelativeScale(FVector RelativeScale) const;
 	ACharacterBase* GetCharacterOwner() const;
 
+private:
 	UPROPERTY(Transient)
 	FCharacterPresentationSettings Settings;
 

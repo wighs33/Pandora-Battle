@@ -26,10 +26,12 @@ class LABPROJECT_API ULobbyWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
 	void SetInfo();
 
@@ -48,6 +50,7 @@ public:
 	bool CloseTopmostUiForEscape();
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override;
 
 	UFUNCTION()
@@ -73,10 +76,48 @@ protected:
 
 	void HandleDestroySessionForClose(bool bWasSuccessful);
 	void DestroySessionForClose();
+
+private:
+	void HandleGameStartCountdownTick();
+
+protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void SendRemoteClientsToTitleMap(const FString& TitleMapName) const;
 	void TravelToTitleMap() const;
 	void ApplyLobbyInputPassthroughVisibility();
 
+private:
+	bool RebuildPlayerSlots();
+	void ApplyWidgetDefinitionSettings();
+	FString GetResolvedTitleTravelMapName() const;
+	UUiSubsystem* GetUiSubsystem() const;
+	UWidget* FindGameStartCountdownRoot() const;
+	UTextBlock* FindGameStartCountdownText() const;
+	UWidget* FindTeamBalanceWarningRoot() const;
+	UTextBlock* FindTeamBalanceWarningText() const;
+	UButton* FindEnterButton() const;
+	UButton* FindMapPreviousButton() const;
+	UButton* FindMapNextButton() const;
+	UTextBlock* FindSelectedMapNameText() const;
+	UTextBlock* FindSelectedMapPlayerCountText() const;
+	UImage* FindSelectedMapThumbnailImage() const;
+	bool GetSelectedMapOptionForUI(FLobbyMatchMapOption& OutMapOption) const;
+	int32 GetMaxLobbySlotsForUI() const;
+	void RefreshSelectedMapUI();
+	bool AreLobbyTeamsBalancedForUI(const TArray<APdPlayerState*>& LobbyPlayerStates) const;
+	void SetGameStartCountdownVisibility(ESlateVisibility InVisibility);
+	void SetTeamBalanceWarningVisibility(ESlateVisibility InVisibility);
+	void RefreshGameStartCountdownUI();
+	void ApplyReplicatedGameStartState();
+	void SetLobbyInteractionsLocked(bool bLocked);
+	FText FormatGameStartCountdownText() const;
+	const ALobbyGameState* GetLobbyGameState() const;
+	bool IsGameStartPending() const;
+	float GetGameStartRemainingSeconds() const;
+	void ShowConnectingPopup(bool bShowCancelButton) const;
+	void HideConnectingPopup() const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UVerticalBox> UserList;
 
@@ -157,37 +198,6 @@ protected:
 	TObjectPtr<UGameConfigWidget> ActiveGameConfigWidget;
 
 private:
-	bool RebuildPlayerSlots();
-	void ApplyWidgetDefinitionSettings();
-	FString GetResolvedTitleTravelMapName() const;
-	UUiSubsystem* GetUiSubsystem() const;
-	UWidget* FindGameStartCountdownRoot() const;
-	UTextBlock* FindGameStartCountdownText() const;
-	UWidget* FindTeamBalanceWarningRoot() const;
-	UTextBlock* FindTeamBalanceWarningText() const;
-	UButton* FindEnterButton() const;
-	UButton* FindMapPreviousButton() const;
-	UButton* FindMapNextButton() const;
-	UTextBlock* FindSelectedMapNameText() const;
-	UTextBlock* FindSelectedMapPlayerCountText() const;
-	UImage* FindSelectedMapThumbnailImage() const;
-	bool GetSelectedMapOptionForUI(FLobbyMatchMapOption& OutMapOption) const;
-	int32 GetMaxLobbySlotsForUI() const;
-	void RefreshSelectedMapUI();
-	bool AreLobbyTeamsBalancedForUI(const TArray<APdPlayerState*>& LobbyPlayerStates) const;
-	void SetGameStartCountdownVisibility(ESlateVisibility InVisibility);
-	void SetTeamBalanceWarningVisibility(ESlateVisibility InVisibility);
-	void RefreshGameStartCountdownUI();
-	void HandleGameStartCountdownTick();
-	void ApplyReplicatedGameStartState();
-	void SetLobbyInteractionsLocked(bool bLocked);
-	FText FormatGameStartCountdownText() const;
-	const ALobbyGameState* GetLobbyGameState() const;
-	bool IsGameStartPending() const;
-	float GetGameStartRemainingSeconds() const;
-	void ShowConnectingPopup(bool bShowCancelButton) const;
-	void HideConnectingPopup() const;
-
 	FDelegateHandle DestroySessionCompleteHandle;
 	FTimerHandle CloseDestroyTimerHandle;
 	FTimerHandle GameStartCountdownTickHandle;

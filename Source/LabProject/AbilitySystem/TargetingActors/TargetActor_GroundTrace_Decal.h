@@ -14,15 +14,35 @@ class LABPROJECT_API ATargetActor_GroundTrace_Decal : public AGameplayAbilityTar
 	GENERATED_BODY()
 
 public:
-	ATargetActor_GroundTrace_Decal(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Tick(float DeltaSeconds) override;
+
+protected:
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual FHitResult PerformTrace(AActor* InSourceActor) override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	ATargetActor_GroundTrace_Decal(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!Targeting|Decal")
 	void ConfigureDecalGrowth(double InStartSize, double InTargetSize, double InDuration);
 
 	void ConfigureGroundProjection(double InTraceStartHeight, double InTraceDepth);
 
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void DestroySpawnedDecal();
+	void ApplyDecalSize(double InDecalSize) const;
+	void ApplyGroundHitToDecal(const FHitResult& GroundHit);
+	void ApplyCachedGroundHitToDecal() const;
+	void SetTargetingDecalVisible(bool bVisible) const;
+	void UpdateDecalGrowth();
+	void MarkGroundTraceFailure();
+	void MarkGroundTraceSuccess();
+
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Targeting|Components")
 	TObjectPtr<USceneComponent> DefaultSceneRoot;
 
@@ -47,21 +67,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Targeting|Ground", meta = (ClampMin = "100.0", ForceUnits = "cm"))
 	double GroundProjectionTraceDepth = 100000.0;
 
-protected:
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual FHitResult PerformTrace(AActor* InSourceActor) override;
-
 private:
-	void DestroySpawnedDecal();
-	void ApplyDecalSize(double InDecalSize) const;
-	void ApplyGroundHitToDecal(const FHitResult& GroundHit);
-	void ApplyCachedGroundHitToDecal() const;
-	void SetTargetingDecalVisible(bool bVisible) const;
-	void UpdateDecalGrowth();
-	void MarkGroundTraceFailure();
-	void MarkGroundTraceSuccess();
-
 	UPROPERTY(Transient)
 	TObjectPtr<UDecalComponent> SpawnedDecalComponent;
 

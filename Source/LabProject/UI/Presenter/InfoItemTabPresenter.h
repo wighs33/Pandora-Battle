@@ -17,22 +17,25 @@ class LABPROJECT_API UInfoItemTabPresenter : public UInfoTabPresenterBase
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	virtual void BindInfoUi(UInfoWidget* InInfoWidget) override;
 	virtual void Deinitialize() override;
 
 	void SetLoadoutStore(UInfoLoadoutStore* InLoadoutStore);
 	void SetActive(bool bInActive);
 	void Activate();
-	void HandleInfoUiOpened();
-	void HandleInventoryChanged();
-	void HandleWeaponLoadoutChanged();
-	void HandlePandoraLoadoutChanged();
-	void HandlePresentationAssetsReady();
 	void ResetInventoryDisplaySlots();
 
 	UItemInstance* GetSelectedWeapon(EEnum_Direction Direction) const;
 	void RefreshEquipmentSlots() const;
 	void RefreshInventoryTileView();
+
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleInfoUiOpened();
+	void HandleInventoryChanged();
+	void HandleWeaponLoadoutChanged();
+	void HandlePandoraLoadoutChanged();
+	void HandlePresentationAssetsReady();
 
 	UFUNCTION()
 	void HandleItemSlotClicked(UObject* Item);
@@ -65,6 +68,7 @@ public:
 	void HandleItemFilterAllClicked();
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void BindEvents();
 	void UnbindEvents();
 	void BindInventoryTileItemClicked();
@@ -78,6 +82,7 @@ private:
 	FGameplayTag GetWeaponItemTypeTag() const;
 	FGameplayTag GetConsumableItemTypeTag() const;
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UEquipSlotWidget> SelectedEquipSlot;
 

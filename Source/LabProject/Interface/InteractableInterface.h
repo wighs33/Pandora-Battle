@@ -18,6 +18,7 @@ class LABPROJECT_API IInteractableInterface
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "!Interaction")
 	bool CanInteract(AActor* InteractingActor);
 

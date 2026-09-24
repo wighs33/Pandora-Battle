@@ -26,7 +26,16 @@ class LABPROJECT_API UPandoraTreeWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UPandoraTreeWidget(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
@@ -62,17 +71,75 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void ResetPandora();
 
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnMenuLanguageChanged() override;
+
+private:
+	UFUNCTION()
+	void HandlePandoraStateChanged();
+
+	UFUNCTION()
+	void HandlePandoraPointsChanged(int32 NewPointsAvailable);
+
+	UFUNCTION()
+	void HandleResetPandoraClicked();
+
+	UFUNCTION()
+	void HandleLoadoutClicked();
+
+	UFUNCTION()
+	void HandlePandoraDescriptionRequested(UPandoraWidget* PandoraWidget);
+
+	UFUNCTION()
+	void HandlePandoraDescriptionDismissed(UPandoraWidget* PandoraWidget);
+
+	UFUNCTION()
+	void HandlePandoraTreeFocusRequested(UPandoraWidget* PandoraWidget);
+	void FinishHidePandoraTree();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ResolvePandoraTreeComponent();
+	void ApplyWidgetDefinitionSettings();
+	void ResolveControlWidgets();
+	UPandoraTreeViewModel* GetOrCreatePandoraTreeViewModel();
+	void ApplyPandoraTreeViewModelToMvvmView();
+	void BindPandoraTreeEvents();
+	void UnbindPandoraTreeEvents();
+	void BindButtonEvents();
+	void UnbindButtonEvents();
+	void RefreshPandoraWidget(UWidget* Widget);
+	void BindPandoraWidgetEvents(UPandoraWidget* PandoraWidget);
+	void UnbindPandoraWidgetEvents();
+	void ShowPandoraDescriptionAtWidget(
+		UPandoraDefinition* InPandoraDefinition,
+		UPandoraTreeComponent* InPandoraTreeComponent,
+		const UWidget* AnchorWidget);
+	void HidePandoraDescription(const UWidget* RequestingAnchorWidget = nullptr);
+	void RefreshActivePandoraDescription();
+	void PrunePandoraDescriptionRequests();
+	void ShowTopRequestedPandoraDescription();
+	void ResolveTogglePandoraTreeAction();
+	bool IsTogglePandoraTreeKey(const FKey& Key) const;
+	void ResolveCharacterPreviewClass();
+	void SpawnCharacterPreview();
+	void ReturnCameraToPawn(float BlendTime) const;
+	void DestroyCharacterPreview();
+	UPandoraDescriptionWidget* GetOrCreatePandoraDescriptionWidget();
+	void PositionPandoraDescriptionWidget(const UWidget* AnchorWidget) const;
+	bool ShouldManageInputModeInternally() const;
+	bool ApplyRoutedPandoraInput();
+	bool ReleaseRoutedPandoraInput();
+	void PrepareToHidePandoraTree();
+	void ClearHideTimer();
+
+	void UpdateDrawerReveal(float DeltaTime, float DrawerWidth);
+
+public:
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Pandora")
 	FPandoraTreeClosedSignature OnPandoraTreeClosed;
 
 protected:
-	virtual void OnMenuLanguageChanged() override;
-	virtual void NativePreConstruct() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, DisplayName = "Reset Pandora Button"), Category = "!UI|Pandora|Widgets")
 	TObjectPtr<UButton> ResetPandoraButton;
 
@@ -122,63 +189,6 @@ protected:
 	TObjectPtr<AActor> SpawnedCharacterPreview;
 
 private:
-	UFUNCTION()
-	void HandlePandoraStateChanged();
-
-	UFUNCTION()
-	void HandlePandoraPointsChanged(int32 NewPointsAvailable);
-
-	UFUNCTION()
-	void HandleResetPandoraClicked();
-
-	UFUNCTION()
-	void HandleLoadoutClicked();
-
-	UFUNCTION()
-	void HandlePandoraDescriptionRequested(UPandoraWidget* PandoraWidget);
-
-	UFUNCTION()
-	void HandlePandoraDescriptionDismissed(UPandoraWidget* PandoraWidget);
-
-	UFUNCTION()
-	void HandlePandoraTreeFocusRequested(UPandoraWidget* PandoraWidget);
-
-	void ResolvePandoraTreeComponent();
-	void ApplyWidgetDefinitionSettings();
-	void ResolveControlWidgets();
-	UPandoraTreeViewModel* GetOrCreatePandoraTreeViewModel();
-	void ApplyPandoraTreeViewModelToMvvmView();
-	void BindPandoraTreeEvents();
-	void UnbindPandoraTreeEvents();
-	void BindButtonEvents();
-	void UnbindButtonEvents();
-	void RefreshPandoraWidget(UWidget* Widget);
-	void BindPandoraWidgetEvents(UPandoraWidget* PandoraWidget);
-	void UnbindPandoraWidgetEvents();
-	void ShowPandoraDescriptionAtWidget(
-		UPandoraDefinition* InPandoraDefinition,
-		UPandoraTreeComponent* InPandoraTreeComponent,
-		const UWidget* AnchorWidget);
-	void HidePandoraDescription(const UWidget* RequestingAnchorWidget = nullptr);
-	void RefreshActivePandoraDescription();
-	void PrunePandoraDescriptionRequests();
-	void ShowTopRequestedPandoraDescription();
-	void ResolveTogglePandoraTreeAction();
-	bool IsTogglePandoraTreeKey(const FKey& Key) const;
-	void ResolveCharacterPreviewClass();
-	void SpawnCharacterPreview();
-	void ReturnCameraToPawn(float BlendTime) const;
-	void DestroyCharacterPreview();
-	UPandoraDescriptionWidget* GetOrCreatePandoraDescriptionWidget();
-	void PositionPandoraDescriptionWidget(const UWidget* AnchorWidget) const;
-	bool ShouldManageInputModeInternally() const;
-	bool ApplyRoutedPandoraInput();
-	bool ReleaseRoutedPandoraInput();
-	void PrepareToHidePandoraTree();
-	void FinishHidePandoraTree();
-	void ClearHideTimer();
-
-	void UpdateDrawerReveal(float DeltaTime, float DrawerWidth);
 	UPROPERTY(meta=(BindWidgetOptional))
 	TObjectPtr<UWidget> PandoraDrawerContent;
 	bool bDockedInInfo = false;

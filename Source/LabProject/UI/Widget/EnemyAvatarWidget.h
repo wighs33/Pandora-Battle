@@ -21,30 +21,23 @@ class LABPROJECT_API UEnemyAvatarWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
-public:
-	UFUNCTION(BlueprintCallable, Category = "!UI|Enemy|Avatar")
-	void SetOwnerActor(AActor* InOwnerActor);
-
 protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"), Category = "!UI|Enemy|Avatar")
-	TObjectPtr<AActor> OwnerActor;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Enemy|Avatar")
-	TObjectPtr<UImage> AvatarImage;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Enemy|Avatar")
-	TObjectPtr<UStatusEffectsBarWidget> StatusEffectsBar;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Enemy|Avatar", meta = (ClampMin = "0.02", ForceUnits = "s"))
-	float AvatarUpdateInterval = 0.1f;
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "!UI|Enemy|Avatar")
+	void SetOwnerActor(AActor* InOwnerActor);
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleAvatarUpdateTick();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void StartAvatarUpdateTimer();
 	void StopAvatarUpdateTimer();
-	void HandleAvatarUpdateTick();
 	void PropagateOwnerActorToChildren();
 	void ApplyLocalPlayerPresentation();
 	void RestoreOriginalWidgetVisibilities();
@@ -59,6 +52,20 @@ private:
 	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
 	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
 
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"), Category = "!UI|Enemy|Avatar")
+	TObjectPtr<AActor> OwnerActor;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Enemy|Avatar")
+	TObjectPtr<UImage> AvatarImage;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Enemy|Avatar")
+	TObjectPtr<UStatusEffectsBarWidget> StatusEffectsBar;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Enemy|Avatar", meta = (ClampMin = "0.02", ForceUnits = "s"))
+	float AvatarUpdateInterval = 0.1f;
+
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UImage> CachedAvatarImage;
 

@@ -19,8 +19,7 @@ class LABPROJECT_API UGrappleComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UGrappleComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(
@@ -28,6 +27,9 @@ public:
 		ELevelTick TickType,
 		FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UGrappleComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void SetHookComponent(UCableComponent* InHookComponent);
 
@@ -45,13 +47,15 @@ public:
 
 	void ConfigureHookComponent();
 
-	FGrappleStateDelegate OnGrappleStarted;
-	FGrappleStateDelegate OnGrappleFinished;
-
 private:
-	UFUNCTION()
-	void FinishGrapple();
+	// Network RPCs ----------------------------------------------------------------------------------------------------
+	UFUNCTION(Client, Reliable)
+	void ClientCorrectGrappleEnd(
+		FVector_NetQuantize100 ServerLocation,
+		uint8 ServerMovementMode,
+		uint8 ServerCustomMovementMode);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void AttachGrappleHookToTarget();
 
@@ -64,11 +68,9 @@ private:
 	UFUNCTION()
 	void OnRep_GrappleTarget();
 
-	UFUNCTION(Client, Reliable)
-	void ClientCorrectGrappleEnd(
-		FVector_NetQuantize100 ServerLocation,
-		uint8 ServerMovementMode,
-		uint8 ServerCustomMovementMode);
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	void FinishGrapple();
 
 	APdPlayer* GetPlayerOwner() const;
 	void SetGrappleState(bool bNewIsGrappling);
@@ -82,6 +84,10 @@ private:
 	bool RecoverPlayerFromPenetration();
 	void RestoreMovementAfterGrapple();
 	void ResetGrappleMovementState();
+
+public:
+	FGrappleStateDelegate OnGrappleStarted;
+	FGrappleStateDelegate OnGrappleFinished;
 
 private:
 	UPROPERTY(Transient)

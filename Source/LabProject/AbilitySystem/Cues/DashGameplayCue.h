@@ -13,10 +13,16 @@ class LABPROJECT_API UDashGameplayCue : public UGameplayCueNotify_Static
 	GENERATED_BODY()
 
 public:
-	UDashGameplayCue();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual bool OnActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) const override;
 	virtual bool OnRemove_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UDashGameplayCue();
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	static void SetCharacterMeshVisibility(AActor* Target, bool bVisible);
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Dash Cue")
@@ -39,7 +45,4 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Dash Cue")
 	FVector RemovedSoundLocationOffset = FVector::ZeroVector;
-
-private:
-	static void SetCharacterMeshVisibility(AActor* Target, bool bVisible);
 };

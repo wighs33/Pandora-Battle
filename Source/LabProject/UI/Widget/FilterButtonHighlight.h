@@ -12,7 +12,9 @@ class UButton;
  */
 class FFilterButtonHighlightState
 {
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(
 		const TArray<TObjectPtr<UButton>>& InButtons,
 		UButton* InitialSelectedButton,
@@ -22,12 +24,14 @@ public:
 	void Reset();
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	static void ApplyAccentToButtonStyle(FButtonStyle& ButtonStyle, const FLinearColor& AccentColor);
 	static void ApplyAccentToBrushOutline(FSlateBrush& Brush, const FLinearColor& AccentColor);
 	static FLinearColor MakeAccentColorPreservingValue(
 		const FLinearColor& SourceColor,
 		const FLinearColor& AccentColor);
 
+private:
 	TArray<TWeakObjectPtr<UButton>> Buttons;
 	TArray<FLinearColor> DefaultButtonColors;
 	TArray<FButtonStyle> DefaultButtonStyles;

@@ -10,6 +10,7 @@ struct LABPROJECT_API FPlayerMatchIdentity
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, Category = "!Match|Identity")
 	FText DisplayName;
 
@@ -23,6 +24,7 @@ struct LABPROJECT_API FPlayerMatchIdentity
 	UPROPERTY(EditAnywhere, Category = "!Match|Identity")
 	FName SelectedAchievementId;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool Matches(const FPlayerMatchIdentity& Other) const
 	{
 		return DisplayName.EqualTo(Other.DisplayName)
@@ -48,17 +50,11 @@ class LABPROJECT_API UPlayerMatchComponent : public UPlayerStateComponent
 	GENERATED_BODY()
 
 public:
-	UPlayerMatchComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	//------------------------------------------------------------------------------------------------------------------
-	FOnMatchDisplayNameChanged OnMatchDisplayNameChanged;
-	FOnMatchTeamColorChanged OnMatchTeamColorChanged;
-	/** 식별 정보 변경 한 건을 알린다. 구독자는 이 컴포넌트에서 최종 값을 읽는다. */
-	FOnMatchIdentityChanged OnMatchIdentityChanged;
+	// Public API ------------------------------------------------------------------------------------------------------
+	UPlayerMatchComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void SetPlayerMatchIdentity(const FPlayerMatchIdentity& InMatchIdentity);
 	const FPlayerMatchIdentity& GetPlayerMatchIdentity() const { return PlayerMatchIdentity; }
@@ -100,12 +96,21 @@ public:
 	void ResetForNewMatch(EPlayerMapRegion InitialMapRegion);
 
 private:
-	void SetDeathCount(int32 InDeathCount);
-	void BroadcastPlayerMatchIdentityChanged(const FPlayerMatchIdentity& PreviousIdentity);
-
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_PlayerMatchIdentity(const FPlayerMatchIdentity& PreviousIdentity);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void SetDeathCount(int32 InDeathCount);
+	void BroadcastPlayerMatchIdentityChanged(const FPlayerMatchIdentity& PreviousIdentity);
+
+public:
+	FOnMatchDisplayNameChanged OnMatchDisplayNameChanged;
+	FOnMatchTeamColorChanged OnMatchTeamColorChanged;
+	/** 식별 정보 변경 한 건을 알린다. 구독자는 이 컴포넌트에서 최종 값을 읽는다. */
+	FOnMatchIdentityChanged OnMatchIdentityChanged;
+
+private:
 	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_PlayerMatchIdentity, Category = "!Match|Identity")
 	FPlayerMatchIdentity PlayerMatchIdentity;
 

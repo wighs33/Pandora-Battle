@@ -31,19 +31,18 @@ class LABPROJECT_API UPandoraDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
-	// Getter: 표시 정보
+	// Public API ------------------------------------------------------------------------------------------------------
 	FText GetDisplayName() const;
 	FText GetDescription() const;
 	UTexture2D* GetIconTexture() const { return IconTexture.Get(); }
 	UObject* GetIconResource() const;
 
-	// Getter: 식별 및 무기 조건
 	FGameplayTag GetIdTag() const { return IdTag; }
 	const FGameplayTagContainer& GetActivatableWeaponTags() const { return ActivatableWeaponTags; }
 
-	// Getter: 레벨 및 해금 조건
 	int32 GetMaxLevel() const;
 	int32 GetRequiredPointsForLevel(int32 Level) const;
 	const TArray<FPandoraUnlockRule>& GetUnlockRules() const { return UnlockRules; }
@@ -54,16 +53,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	static int32 GetRequiredLevelForSkillSlot(int32 SkillSlotIndex);
 
-	// Getter: 스킬
 	int32 GetSkillCount() const { return Skills.Num(); }
 
 	/** 슬롯이 없거나 비어 있으면 nullptr를 반환한다. */
 	const USkillDefinition* GetSkillDefinition(int32 SkillSlotIndex) const;
 
-	// Getter: 상점 설정
 	const FShopProductDefinitionData& GetShopData() const { return ShopData; }
 
-	// 사용 조건 판정
 	bool MatchesPandoraType(FGameplayTag PandoraTypeTag) const;
 
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
@@ -76,7 +72,6 @@ public:
 	bool IsCompatibleWithWeaponDefinition(const UItemDefinition* WeaponDefinition) const;
 
 private:
-	// 표시 정보
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Pandora", meta = (AllowPrivateAccess = "true"))
 	FText DisplayName;
 
@@ -86,14 +81,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Pandora", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UTexture2D> IconTexture = nullptr;
 
-	// 식별 및 무기 조건
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Pandora", meta = (AllowPrivateAccess = "true"))
 	FGameplayTag IdTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Pandora|Weapon", meta = (Categories = "Item.Weapon", AllowPrivateAccess = "true"))
 	FGameplayTagContainer ActivatableWeaponTags;
 
-	// 레벨 및 해금 조건
 	/** 판도라의 최대 레벨. */
 	static constexpr int32 MaxLevel = 3;
 
@@ -103,12 +96,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Pandora|Unlock Rules", meta = (AllowPrivateAccess = "true"))
 	TArray<FPandoraUnlockRule> UnlockRules;
 
-	// 스킬
 	/** 슬롯 순서대로 참조하는 스킬 정의. 빈 슬롯은 nullptr로 유지한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Pandora", meta = (AllowPrivateAccess = "true"))
 	TArray<TObjectPtr<USkillDefinition>> Skills;
 
-	// 분류 및 상점 설정
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Pandora", meta = (AllowPrivateAccess = "true"))
 	int32 Tier = 0;
 

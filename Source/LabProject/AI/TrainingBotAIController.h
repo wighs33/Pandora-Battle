@@ -11,10 +11,12 @@ class LABPROJECT_API ATrainingBotAIController : public ADetourCrowdAIController
 	GENERATED_BODY()
 
 public:
-	ATrainingBotAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	ATrainingBotAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!AI|Training Bot")
 	void SetBlackboardTarget(AActor* InTarget);
@@ -22,15 +24,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!AI|Training Bot")
 	void ClearBlackboardTarget();
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!AI|Training Bot")
 	void RefreshTargetFromPlayers();
 
 protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void InitializeBlackboardValues(APawn* InPawn);
 	AActor* FindBestPlayerTarget() const;
 	void StartTargetRefreshTimer();
 	void StopTargetRefreshTimer();
 
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Training Bot")
 	TObjectPtr<UBehaviorTree> BehaviorTreeAsset;
 

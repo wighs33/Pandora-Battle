@@ -84,6 +84,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record")
 	TArray<FMatchRecord> MatchRecords;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool IsCurrentFormat() const;
 };
 
@@ -97,6 +98,7 @@ class LABPROJECT_API UProfileSaveEnvelope : public USaveGame
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	static UProfileSaveEnvelope* CreateFromProfile(
 		UPdSaveGame* Profile,
 		const FString& PlayerId,

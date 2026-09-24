@@ -17,6 +17,8 @@ struct LABPROJECT_API FGrantedPandora
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FGrantedPandora() = default;
 
 	FGrantedPandora(UPandoraDefinition* InPandora, int32 InLevel)
@@ -24,12 +26,6 @@ struct LABPROJECT_API FGrantedPandora
 		, Level(InLevel)
 	{
 	}
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Pandora")
-	TObjectPtr<UPandoraDefinition> Pandora;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Pandora", meta = (ClampMin = "1"))
-	int32 Level = 1;
 
 	bool IsValid() const
 	{
@@ -40,6 +36,13 @@ struct LABPROJECT_API FGrantedPandora
 	{
 		return Pandora == Other.Pandora;
 	}
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Pandora")
+	TObjectPtr<UPandoraDefinition> Pandora;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Pandora", meta = (ClampMin = "1"))
+	int32 Level = 1;
 };
 
 /**
@@ -54,15 +57,13 @@ class LABPROJECT_API UPandoraTreeComponent : public UPlayerStateComponent
 	GENERATED_BODY()
 
 public:
-	UPandoraTreeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	//------------------------------------------------------------------------------------------------------------------
+	// Public API ------------------------------------------------------------------------------------------------------
+	UPandoraTreeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
 	bool GrantPandora(UPandoraDefinition* Pandora, int32 StartingLevel = 1, bool bIgnorePointCost = false);
@@ -72,9 +73,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
 	void SpendPointOnPandora(UPandoraDefinition* Pandora);
-
-	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "!PandoraTree")
-	void ServerSpendPointOnPandora(UPandoraDefinition* Pandora);
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
 	bool FindGrantedPandora(UPandoraDefinition* Pandora, FGrantedPandora& OutGrantedPandora) const;
@@ -116,9 +114,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
 	void ResetPandora();
 
-	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "!PandoraTree")
-	void ServerResetPandora();
-
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
 	void SetPointsAvailable(int32 NewPointsAvailable);
 
@@ -134,18 +129,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree|Soul Dust")
 	int32 GetSoulDust() const { return PointsAvailable; }
 
-	UPROPERTY(BlueprintAssignable, Category = "!PandoraTree")
-	FPdPandoraTreeChangedDelegate OnPandorasChanged;
+	// Network RPCs ----------------------------------------------------------------------------------------------------
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "!PandoraTree")
+	void ServerSpendPointOnPandora(UPandoraDefinition* Pandora);
 
-	UPROPERTY(BlueprintAssignable, Category = "!PandoraTree")
-	FPdPandoraPointsChangedDelegate OnPointsChanged;
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "!PandoraTree")
+	void ServerResetPandora();
 
 private:
-	friend class UDefaultPlayerProvisioner;
-
-	// 경기 시작 지급 상태를 기록해 이후 환불의 기준으로 사용한다.
-	void InitializeFromDefaultProvision(const TArray<FGrantedPandora>& InGrantedPandoras, int32 InPointsAvailable);
-
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_GrantedPandoras();
 
@@ -154,6 +146,10 @@ private:
 
 	UFUNCTION()
 	void OnRep_PointsAvailable();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	// 경기 시작 지급 상태를 기록해 이후 환불의 기준으로 사용한다.
+	void InitializeFromDefaultProvision(const TArray<FGrantedPandora>& InGrantedPandoras, int32 InPointsAvailable);
 
 	bool HasPandoraTreeAuthority() const;
 	UPandoraComponent* GetOwnerPandoraComponent() const;
@@ -167,6 +163,16 @@ private:
 	int64 CalculatePointCostForPandoraLevels(const UPandoraDefinition* Pandora, int32 FirstLevel, int32 LastLevel) const;
 	int64 CalculateSpentPandoraPoints() const;
 	void LogRejectedServerRequest(const TCHAR* RequestName, const FString& Reason);
+
+public:
+	UPROPERTY(BlueprintAssignable, Category = "!PandoraTree")
+	FPdPandoraTreeChangedDelegate OnPandorasChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "!PandoraTree")
+	FPdPandoraPointsChangedDelegate OnPointsChanged;
+
+private:
+	friend class UDefaultPlayerProvisioner;
 
 	UPROPERTY(Transient)
 	TArray<FGrantedPandora> InitialGrantedPandoras;

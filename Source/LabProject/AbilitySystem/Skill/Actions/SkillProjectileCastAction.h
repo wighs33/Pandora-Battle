@@ -26,14 +26,13 @@ class LABPROJECT_API USkillProjectileCastAction : public USkillAction
     GENERATED_BODY()
 
 public:
+    // Public API ------------------------------------------------------------------------------------------------------
     USkillProjectileCastAction();
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
-    FSkillProjectileSettings Settings;
 
     UFUNCTION(BlueprintCallable, Category = "Skill|Projectile")
     FVector GetSpawnLocation() const;
 
+    // Event Handlers --------------------------------------------------------------------------------------------------
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Skill|Projectile")
     void ShootProjectile(FVector TargetLocation);
 
@@ -42,22 +41,6 @@ protected:
     virtual void OnStop() override;
 
 private:
-    // 시전 흐름
-    void StartProjectileCast();
-    void StartShotWithoutMontage();
-    void StartPlayerAiming();
-    void ConfirmPlayerShot();
-    void FireAtCurrentTargetOrFallback();
-    void FireAtDefaultTarget();
-    bool ExecuteProjectileShot(FVector TargetLocation);
-    void TryFinishAfterProjectileFired();
-    void FinishCast();
-
-    // 몽타주 / 입력
-    void StartShootProjectileEventTask();
-    void PauseProjectileMontageForAiming();
-    void ResumeProjectileMontageAfterAiming();
-
     UFUNCTION()
     void HandleMontageFinished();
 
@@ -70,14 +53,29 @@ private:
     UFUNCTION()
     void HandleCancelPressed();
 
-    // 타기팅
-    void WaitForPlayerTargetData();
-
     UFUNCTION()
     void HandleTargetDataValid(const FGameplayAbilityTargetDataHandle& Data);
 
     UFUNCTION()
     void HandleTargetDataCancelled(const FGameplayAbilityTargetDataHandle& Data);
+    void FireNextSocketBarrageProjectile();
+
+    // Internal Helpers ------------------------------------------------------------------------------------------------
+    void StartProjectileCast();
+    void StartShotWithoutMontage();
+    void StartPlayerAiming();
+    void ConfirmPlayerShot();
+    void FireAtCurrentTargetOrFallback();
+    void FireAtDefaultTarget();
+    bool ExecuteProjectileShot(FVector TargetLocation);
+    void TryFinishAfterProjectileFired();
+    void FinishCast();
+
+    void StartShootProjectileEventTask();
+    void PauseProjectileMontageForAiming();
+    void ResumeProjectileMontageAfterAiming();
+
+    void WaitForPlayerTargetData();
 
     bool TryValidateServerProjectileTargetLocation(
         const FHitResult& ClientHitResult,
@@ -89,25 +87,21 @@ private:
     bool TryResolveProjectileAimTargetLocation(FVector& OutTargetLocation) const;
     FVector ResolveDefaultTargetLocation() const;
 
-    // Projectile
     FVector GetSpawnLocationForSocket(FName SocketName) const;
     AProjectileBase* SpawnReadiedProjectile();
     void DestroyReadiedProjectile();
     FGameplayEffectSpecHandle MakeDamageEffectSpec(float ChargeDamageAlpha = 1.0f) const;
     FGameplayEffectSpecHandle MakeStatusEffectSpec() const;
 
-    // Socket Barrage
     bool TryStartSocketBarrage(FVector TargetLocation);
     AProjectileBase* SpawnPreparedSocketBarrageProjectile(FName SocketName);
     void LaunchSocketBarrageProjectile(AProjectileBase* Projectile);
     FVector ResolveSocketBarrageLaunchTargetLocation(const FVector& ProjectileLocation) const;
     FVector ResolveCharacterTargetSocketProjectileTargetLocation(const FVector& FromLocation) const;
-    void FireNextSocketBarrageProjectile();
     void ClearSocketBarrageState(bool bDestroyPendingProjectiles);
     bool IsSocketBarrageActive() const;
     bool ShouldWaitForServerSocketBarrageEnd() const;
 
-    // 설정
     UAnimMontage* GetConfiguredShootMontage() const;
     UStatusEffectDefinition* GetConfiguredStatusEffectDataAsset() const;
     TSubclassOf<UGameplayEffect> GetConfiguredStatusEffectClass() const;
@@ -129,12 +123,10 @@ private:
     void ApplyConfiguredStatusEffect(AProjectileBase* Projectile) const;
     void ApplyReadiedProjectileScaleGrowth(AProjectileBase* Projectile) const;
 
-    // 일반 조준
     float GetConfiguredTargetTraceMaxRange() const;
     float GetConfiguredMinimumTargetDistanceFromSpawn() const;
     bool GetConfiguredDrawTargetTraceDebug() const;
 
-    // 지면 조준
     TSubclassOf<AGameplayAbilityTargetActor> GetConfiguredGroundTargetActorClass() const;
     float GetConfiguredGroundTargetingMaxRange() const;
     float GetConfiguredGroundTargetingTraceStartHeight() const;
@@ -147,10 +139,13 @@ private:
     float CalculateConfiguredImpactAreaDamageRadius(float ChargeDamageAlpha) const;
     bool TryBuildGroundTargetingDecalGrowth(float& OutStartSize, float& OutTargetSize, float& OutDuration) const;
 
-    // 정리
     void CleanupAimingState();
 
-    // 시전 상태
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+    FSkillProjectileSettings Settings;
+
+private:
     UPROPERTY(Transient)
     bool bEndAfterProjectileFired = false;
 
@@ -187,7 +182,6 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<AProjectileBase> ReadiedProjectile;
 
-    // Barrage 상태
     UPROPERTY(Transient)
     TArray<FName> SocketBarrageSocketNames;
 

@@ -14,15 +14,20 @@ struct LABPROJECT_API FActorExtension
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool CanActivate(AActor* Owner) const;
-	void OnActivate(AActor* Owner);
-	void OnDeactivate(AActor* Owner);
 	bool IsActivated() const { return bActivated; }
 
 #if WITH_EDITORONLY_DATA
 	void AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData) const;
 #endif
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void OnActivate(AActor* Owner);
+	void OnDeactivate(AActor* Owner);
+
+public:
 	UPROPERTY(EditAnywhere, Category = "Extension")
 	TArray<TInstancedStruct<FExtensionCondition>> Conditions;
 

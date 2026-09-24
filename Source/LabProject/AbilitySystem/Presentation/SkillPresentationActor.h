@@ -31,7 +31,15 @@ class LABPROJECT_API ASkillPresentationActor : public AActor
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	ASkillPresentationActor();
 
 	void InitializePresentation(
@@ -44,19 +52,15 @@ public:
 	void SetMissileTargeting(FName InAimParameter, FName InTargetSocket);
 	bool HasAnyPresentation() const;
 
-protected:
-	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaSeconds) override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_PresentationState();
 
 	UFUNCTION()
 	void HandleSourceDestroyed(AActor* DestroyedActor);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshLocalPresentation();
 	void CleanupLocalPresentation();
 	void StartDefaultFX();
@@ -75,6 +79,7 @@ private:
 	ACharacterBase* ResolveSourceCharacter() const;
 	FVector ResolveCharacterFloorLocation(const ACharacterBase* Character) const;
 
+private:
 	UPROPERTY(ReplicatedUsing = OnRep_PresentationState)
 	TObjectPtr<ACharacterBase> SourceCharacter;
 

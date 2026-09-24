@@ -34,12 +34,15 @@ class LABPROJECT_API UControllerInputDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	static FSoftObjectPath GetDefaultInputDefinitionPath();
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	static FSoftObjectPath GetDefaultInputDefinitionPath();
 
 	const TSoftObjectPtr<UInputMappingContext>& GetInputMapping() const { return InputMapping; }
 	int32 GetPriority() const { return Priority; }
@@ -87,16 +90,12 @@ public:
 	const FGameplayTag& GetMovementBlockStateTag() const { return MovementBlockStateTag; }
 
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Input Mapping
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Mapping", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputMappingContext> InputMapping;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Mapping", meta = (AllowPrivateAccess = "true"))
 	int32 Priority = 0;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Native Input Actions
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> MoveInputAction;
 
@@ -200,18 +199,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|UI Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> ChatScrollInputAction;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Character Actions
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Character Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UCharacterActionDefinition> CharacterActionDefinition;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Input Icons
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Icons", meta = (TitleProperty = "InputAction", AllowPrivateAccess = "true"))
 	TArray<FInputActionIconMapping> InputActionIconMappings;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Block State
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Block State", meta = (Categories = "State", AllowPrivateAccess = "true"))
 	FGameplayTag MovementBlockStateTag;
 };

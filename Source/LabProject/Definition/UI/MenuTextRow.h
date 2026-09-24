@@ -11,6 +11,7 @@ struct LABPROJECT_API FMenuTextRow : public FTableRowBase
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FText Korean;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FText English;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FText Japanese;
@@ -24,6 +25,7 @@ struct LABPROJECT_API FMenuTextRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FText TraditionalChinese;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FText Turkish;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	const FText& GetTranslation(EGuideLanguage Language) const;
 	FText Resolve(EGuideLanguage Language) const;
 };

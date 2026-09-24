@@ -20,14 +20,11 @@ class LABPROJECT_API ULobbyPlayerStateComponent : public UPlayerStateComponent
 	GENERATED_BODY()
 
 public:
-	ULobbyPlayerStateComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	//------------------------------------------------------------------------------------------------------------------
-	FOnLobbyRuntimeStateChanged OnLobbyRuntimeStateChanged;
+	// Public API ------------------------------------------------------------------------------------------------------
+	ULobbyPlayerStateComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void SetLeavingLobby(bool bInLeavingLobby);
 	bool IsLeavingLobby() const { return bLeavingLobby; }
@@ -39,13 +36,19 @@ public:
 	bool IsUsingNicknameHint() const;
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	void OnRep_LobbyState();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool HasAuthority() const;
 	UPlayerMatchComponent* GetPlayerMatchComponent() const;
 	void SetNicknameInternal(const FText& InNickname, const FText& InNicknameHint, bool bInUsingNicknameHint);
 
-	UFUNCTION()
-	void OnRep_LobbyState();
+public:
+	FOnLobbyRuntimeStateChanged OnLobbyRuntimeStateChanged;
 
+private:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_LobbyState,
 		Category = "!Lobby", meta = (AllowPrivateAccess = "true"))
 	bool bLeavingLobby = false;

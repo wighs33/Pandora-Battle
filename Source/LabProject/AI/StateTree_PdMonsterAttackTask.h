@@ -65,10 +65,10 @@ struct LABPROJECT_API FStateTreePdMonsterAttackTask : public FStateTreeAIActionT
 {
 	GENERATED_BODY()
 
+public:
 	using FInstanceDataType = FStateTreePdMonsterAttackTaskInstanceData;
 
-	FStateTreePdMonsterAttackTask();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
@@ -91,4 +91,7 @@ struct LABPROJECT_API FStateTreePdMonsterAttackTask : public FStateTreeAIActionT
 		return FColor(220, 80, 80);
 	}
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	FStateTreePdMonsterAttackTask();
 };

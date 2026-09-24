@@ -31,8 +31,10 @@ struct LABPROJECT_API FStateTreePdPlayerDistanceCondition : public FStateTreeAIC
 {
 	GENERATED_BODY()
 
+public:
 	using FInstanceDataType = FStateTreePdPlayerDistanceConditionInstanceData;
 
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
@@ -72,8 +74,10 @@ struct LABPROJECT_API FStateTreePdTargetDistanceCondition : public FStateTreeAIC
 {
 	GENERATED_BODY()
 
+public:
 	using FInstanceDataType = FStateTreePdTargetDistanceConditionInstanceData;
 
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 

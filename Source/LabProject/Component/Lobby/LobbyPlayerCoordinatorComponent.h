@@ -19,6 +19,7 @@ class LABPROJECT_API ULobbyPlayerCoordinatorComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	ULobbyPlayerCoordinatorComponent();
 
 	void InitializeLobbyPlayerState(
@@ -29,6 +30,7 @@ public:
 		const APlayerState* PlayerState) const;
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ALobbyGameMode* GetLobbyGameMode() const;
 	void AssignLobbySpawnIndexIfNeeded(
 		APdPlayerState* LobbyPlayerState) const;
@@ -37,5 +39,6 @@ private:
 	void ForceKickPlayer(
 		APlayerController* TargetPlayerController);
 
+private:
 	int32 NicknameIndex = 0;
 };

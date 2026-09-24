@@ -676,8 +676,10 @@ class LABPROJECT_API UWidgetClassDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	static const UWidgetClassDefinition* ResolveWidgetClassDefinition(const UObject* WorldContextObject);
 
 	/** Collects the effective soft assets for one screen-lifetime bundle. */

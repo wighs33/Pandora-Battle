@@ -18,9 +18,15 @@ class LABPROJECT_API ULobbyConfigurationComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
+private:
+	enum class ERuntimeState : uint8 { NotStarted, Loading, Ready, Failed };
+
 public:
-	ULobbyConfigurationComponent();
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	ULobbyConfigurationComponent();
 
 	void InitializeRuntime(FSimpleDelegate OnReady = FSimpleDelegate());
 	bool IsRuntimeReady() const { return RuntimeState == ERuntimeState::Ready; }
@@ -57,15 +63,18 @@ public:
 	const UDefaultProvisionDefinition* GetDefaultProvisionDefinition() const;
 
 private:
-	enum class ERuntimeState : uint8 { NotStarted, Loading, Ready, Failed };
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleLobbyDependenciesPreloadComplete(uint32 RequestGeneration);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ALobbyGameMode* GetLobbyGameMode() const;
 	FString ResolveSoftMapPath(
 		const TSoftObjectPtr<UWorld>& Map,
 		const FString& FallbackTravelMapName) const;
-	void HandleLobbyDependenciesPreloadComplete(uint32 RequestGeneration);
 	void FinishRuntimeInitialization(uint32 RequestGeneration);
 	void ReleaseRuntimePreloads();
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<ULevelDefinition>
 		LoadedLevelDefinition;

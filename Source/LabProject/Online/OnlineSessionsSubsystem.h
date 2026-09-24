@@ -23,43 +23,6 @@ class LABPROJECT_API UOnlineSessionsSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	// 게임 인스턴스 수명
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
-
-	// UI가 요청 ID로 결과와 취소를 구분하는 방 작업. 시작 실패는 0을 반환한다.
-	uint64 BeginCreateRoomSession(ULocalPlayer* RequestingLocalPlayer, const FString& RoomName, const FString& MapName,
-		int32 NumPublicConnections = 6, bool bIsLAN = false);
-	uint64 BeginFindRoomSessions(
-		ULocalPlayer* RequestingLocalPlayer, int32 MaxSearchResults = 50, bool bIsLAN = false, bool bUseLobbies = true);
-	uint64 BeginJoinRoomSession(ULocalPlayer* RequestingLocalPlayer, const FBlueprintSessionResult& SessionResult);
-	uint64 BeginDestroySession(ULocalPlayer* RequestingLocalPlayer);
-	uint64 BeginQuickMatch(ULocalPlayer* RequestingLocalPlayer, int32 MaxSearchResults, int32 MaxPublicConnections, const FString& RoomName,
-		const FString& MapName, bool bIsLAN, bool bUseLobbies);
-	bool CancelSessionRequest(uint64 RequestId);
-	bool IsSessionRequestActive(uint64 RequestId) const;
-
-	// 온라인 경기 시작·종료와 로비·타이틀 복귀
-	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
-	void StartSession();
-
-	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
-	void EndSession();
-
-	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
-	void DestroySession();
-
-	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
-	void UpdateSessionSettings(const FString& MapName, int32 NumPublicConnections, bool bAllowJoinInProgress = true);
-
-	UFUNCTION(BlueprintPure, Category = "!Online|Session")
-	bool HasNamedSession() const;
-
-	void MarkVoluntaryMatchExit();
-
-	static FName GetRoomNameSettingKey();
-	static FName GetMapNameSettingKey();
-
 	// UI와 로비 흐름이 구독하는 완료 알림
 	FOnlineSessionBoolDelegate OnStartSessionComplete;
 	FOnlineSessionBoolDelegate OnEndSessionComplete;
@@ -102,29 +65,49 @@ private:
 		Ending
 	};
 
-	// 방 요청의 단계 전환·취소·정리
-	uint64 BeginSessionRequest(ULocalPlayer* RequestingLocalPlayer, ESessionRequestKind RequestKind);
-	bool StartCreateRoomPhase(uint64 RequestId);
-	bool StartFindRoomsPhase(uint64 RequestId);
-	bool StartJoinRoomPhase(uint64 RequestId);
-	bool StartDestroySessionPhase(uint64 RequestId, bool bCleanupCanceledSession = false);
-	void StartSessionOperationTimeout(uint64 RequestId);
+public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	// UI가 요청 ID로 결과와 취소를 구분하는 방 작업. 시작 실패는 0을 반환한다.
+	uint64 BeginCreateRoomSession(ULocalPlayer* RequestingLocalPlayer, const FString& RoomName, const FString& MapName,
+		int32 NumPublicConnections = 6, bool bIsLAN = false);
+	uint64 BeginFindRoomSessions(
+		ULocalPlayer* RequestingLocalPlayer, int32 MaxSearchResults = 50, bool bIsLAN = false, bool bUseLobbies = true);
+	uint64 BeginJoinRoomSession(ULocalPlayer* RequestingLocalPlayer, const FBlueprintSessionResult& SessionResult);
+	uint64 BeginDestroySession(ULocalPlayer* RequestingLocalPlayer);
+	uint64 BeginQuickMatch(ULocalPlayer* RequestingLocalPlayer, int32 MaxSearchResults, int32 MaxPublicConnections, const FString& RoomName,
+		const FString& MapName, bool bIsLAN, bool bUseLobbies);
+	bool CancelSessionRequest(uint64 RequestId);
+	bool IsSessionRequestActive(uint64 RequestId) const;
+
+	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
+	void StartSession();
+
+	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
+	void EndSession();
+
+	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
+	void DestroySession();
+
+	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
+	void UpdateSessionSettings(const FString& MapName, int32 NumPublicConnections, bool bAllowJoinInProgress = true);
+
+	UFUNCTION(BlueprintPure, Category = "!Online|Session")
+	bool HasNamedSession() const;
+
+	void MarkVoluntaryMatchExit();
+
+	static FName GetRoomNameSettingKey();
+	static FName GetMapNameSettingKey();
+
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleSessionOperationTimeout(uint64 RequestId);
-	void BroadcastActiveRequestFailure();
-	void ResetActiveSessionRequest();
-	void ClearSessionOperationDelegate(ESessionOperationState OperationState);
-	bool MatchesActiveRequestId(uint64 CallbackRequestId) const;
-	bool IsActiveLocalPlayerIdentityValid() const;
-	APlayerController* ResolveActiveLocalPlayerController() const;
 	void HandleCanceledCreateOrJoinCompletion(uint64 RequestId);
-	// 경기 시작·종료의 독립된 작업 수명
-	uint64 BeginSessionLifecycleOperation(ESessionLifecycleOperation Operation);
-	bool IsSessionLifecycleOperationActive(ESessionLifecycleOperation Operation, uint64 RequestId) const;
-	void StartSessionLifecycleTimeout(ESessionLifecycleOperation Operation, uint64 RequestId);
 	void HandleSessionLifecycleTimeout(ESessionLifecycleOperation Operation, uint64 RequestId);
-	void CompleteSessionLifecycleOperation(ESessionLifecycleOperation Operation, uint64 RequestId, bool bWasSuccessful);
-	void ClearSessionLifecycleOperation();
-	void ClearSessionDelegates();
 
 	void OnCreateSessionCompleted(FName SessionName, bool bWasSuccessful, uint64 CallbackRequestId);
 	void OnFindSessionsCompleted(bool bWasSuccessful, uint64 CallbackRequestId);
@@ -133,6 +116,27 @@ private:
 	void OnEndSessionCompleted(FName SessionName, bool bWasSuccessful, uint64 CallbackRequestId);
 	void OnDestroySessionCompleted(FName SessionName, bool bWasSuccessful, uint64 CallbackRequestId);
 	void HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	uint64 BeginSessionRequest(ULocalPlayer* RequestingLocalPlayer, ESessionRequestKind RequestKind);
+	bool StartCreateRoomPhase(uint64 RequestId);
+	bool StartFindRoomsPhase(uint64 RequestId);
+	bool StartJoinRoomPhase(uint64 RequestId);
+	bool StartDestroySessionPhase(uint64 RequestId, bool bCleanupCanceledSession = false);
+	void StartSessionOperationTimeout(uint64 RequestId);
+	void BroadcastActiveRequestFailure();
+	void ResetActiveSessionRequest();
+	void ClearSessionOperationDelegate(ESessionOperationState OperationState);
+	bool MatchesActiveRequestId(uint64 CallbackRequestId) const;
+	bool IsActiveLocalPlayerIdentityValid() const;
+	APlayerController* ResolveActiveLocalPlayerController() const;
+	// 경기 시작·종료의 독립된 작업 수명
+	uint64 BeginSessionLifecycleOperation(ESessionLifecycleOperation Operation);
+	bool IsSessionLifecycleOperationActive(ESessionLifecycleOperation Operation, uint64 RequestId) const;
+	void StartSessionLifecycleTimeout(ESessionLifecycleOperation Operation, uint64 RequestId);
+	void CompleteSessionLifecycleOperation(ESessionLifecycleOperation Operation, uint64 RequestId, bool bWasSuccessful);
+	void ClearSessionLifecycleOperation();
+	void ClearSessionDelegates();
 	bool IsHostConnectionLost(ENetworkFailure::Type FailureType, const FString& ErrorString) const;
 	IOnlineSubsystem* GetOnlineSubsystemForWorld() const;
 	IOnlineSessionPtr GetSessionInterfaceForWorld() const;
@@ -142,6 +146,7 @@ private:
 	bool ShouldUseLANSession(bool bRequestedLAN) const;
 	bool ShouldUseLobbySession(bool bRequestedLobbies) const;
 
+private:
 	// 현재 월드의 세션 API와 현재 검색 수명
 	IOnlineSessionPtr SessionInterface;
 	TSharedPtr<FOnlineSessionSearch> ActiveSessionSearch;

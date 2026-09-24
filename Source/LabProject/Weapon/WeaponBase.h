@@ -26,9 +26,11 @@ class LABPROJECT_API AWeaponBase : public AActor
     GENERATED_BODY()
 
 public:
-    AWeaponBase();
-
+    // Engine Overrides ------------------------------------------------------------------------------------------------
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+    // Public API ------------------------------------------------------------------------------------------------------
+    AWeaponBase();
 
     // Optional melee hooks. AMeleeWeapon overrides these while generic callers stay weapon-agnostic.
     UFUNCTION(BlueprintCallable, Category = "!Weapon|Collision")
@@ -72,7 +74,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "!Weapon|Trace")
     virtual float GetTemporaryAttackTraceEndZMultiplier() const;
 
-    // Common weapon animation / presentation
     bool PlayWeaponAttackMontage(FName StartingSection = NAME_None);
 
     UFUNCTION(BlueprintCallable, Category = "!Weapon|Animation")
@@ -96,14 +97,24 @@ public:
 
     void InitializeFromItemDefinition(const UItemDefinition* InItemDefinition);
 
-    // Query helpers
     bool SupportsAimInput() const;
     bool CanUseRangedWeapon(const ACharacterBase* AttackingCharacter, bool bRequirePlayerAim) const;
     FGameplayTag GetAimCrosshairWidgetTag() const;
     const FWeaponAimCameraSettings& GetAimCameraSettings() const;
     virtual bool ShouldTriggerHitReactOnDamage() const;
+    virtual bool SupportsAutomaticFire() const;
+    virtual float GetAutomaticFireInterval() const;
 
-    // Input commands
+protected:
+    // Network RPCs ----------------------------------------------------------------------------------------------------
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastStartSkillWeaponTrail(UNiagaraSystem* TrailSystem);
+
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastStopSkillWeaponTrail();
+
+public:
+    // Event Handlers --------------------------------------------------------------------------------------------------
     virtual bool HandleAimStart(APdPlayer* PlayerCharacter);
     virtual void HandleAimEnd(APdPlayer* PlayerCharacter);
     virtual bool HandlePrimaryAttack(APdPlayer* PlayerCharacter);
@@ -112,25 +123,11 @@ public:
         ACharacterBase* AttackingCharacter,
         AActor* TargetActor,
         const FVector& TargetLocation);
-    virtual bool SupportsAutomaticFire() const;
-    virtual float GetAutomaticFireInterval() const;
 
-    // Animation notify callback
     virtual bool OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter);
 
-    UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Weapon")
-    TObjectPtr<USceneComponent> SceneRoot;
-
-    UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Weapon")
-    TObjectPtr<USkeletalMeshComponent> WeaponMesh;
-
 protected:
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastStartSkillWeaponTrail(UNiagaraSystem* TrailSystem);
-
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastStopSkillWeaponTrail();
-
+    // Internal Helpers ------------------------------------------------------------------------------------------------
     const UItemDefinition* GetSourceItemDefinition() const;
 
     bool CanServerUseRangedWeapon(
@@ -174,12 +171,20 @@ protected:
     UNiagaraComponent* ResolveSkillTrailComponent() const;
 
 private:
-    friend class AArrowProjectileBase;
-
     bool ApplyDamageFromAuthoritativeProjectileImpact(
         AActor* HitActor,
         const UPrimitiveComponent* HitComponent,
         const AArrowProjectileBase* ProjectileSource);
+
+public:
+    UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Weapon")
+    TObjectPtr<USceneComponent> SceneRoot;
+
+    UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Weapon")
+    TObjectPtr<USkeletalMeshComponent> WeaponMesh;
+
+private:
+    friend class AArrowProjectileBase;
 
 protected:
     UPROPERTY(Replicated, Transient)

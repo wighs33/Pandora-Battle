@@ -17,7 +17,13 @@ class LABPROJECT_API UPandoraEquipSlotWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void BroadcastClickedPandoraEquipSlot(UPandoraEquipSlotWidget* PandoraEquipSlot);
 
@@ -39,6 +45,21 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Pandora")
 	int32 GetNth() const { return Nth; }
 
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	void HandleButtonClicked();
+
+	UFUNCTION()
+	void HandleButtonHovered();
+
+	UFUNCTION()
+	void HandleButtonUnhovered();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplyButtonStyle();
+
+public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
 	FPdOnClickedPandoraEquipSlotWidget OnClicked_PandoraEquipSlot;
 
@@ -46,9 +67,6 @@ public:
 	FPdOnHoveredPandoraEquipSlotWidget OnHovered_PandoraEquipSlot;
 
 protected:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")
 	TObjectPtr<UButton> ItemButton;
 
@@ -65,17 +83,6 @@ protected:
 	TObjectPtr<const UPandoraDefinition> CachedData;
 
 private:
-	UFUNCTION()
-	void HandleButtonClicked();
-
-	UFUNCTION()
-	void HandleButtonHovered();
-
-	UFUNCTION()
-	void HandleButtonUnhovered();
-
-	void ApplyButtonStyle();
-
 	FButtonStyle DefaultButtonStyle;
 	bool bHasDefaultButtonStyle = false;
 	bool bPandoraImageDarkened = false;

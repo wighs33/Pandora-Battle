@@ -36,9 +36,11 @@ class LABPROJECT_API ULobbyRuntimeSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	void BeginLobbyEntryContentPreload();
 	/** Releases lobby-only UI/data after the game screen has taken ownership. */
 	void ReleaseLobbyEntryContentPreload();
@@ -116,9 +118,12 @@ public:
 	bool HasPendingTitleGameResult() const { return bHasPendingTitleGameResult; }
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleLevelDefinitionPreloadComplete();
 	void HandleLobbyDataAssetsPreloadComplete();
 	void HandleGameEntryContentPreloadComplete(uint32 RequestGeneration);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ReleaseGameEntryContentPreload();
 	void SetGameEntryContentPreloadResult(
 		ELobbyContentPreloadResult Result,
@@ -132,6 +137,7 @@ private:
 	bool IsLocalPlayerWidgetContentReady() const;
 	TArray<FString> MakeLobbyPlayerCacheKeys(const APlayerState* PlayerState) const;
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<ULevelDefinition> LoadedLevelDefinition;
 

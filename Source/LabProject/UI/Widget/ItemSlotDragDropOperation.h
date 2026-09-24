@@ -12,6 +12,7 @@ class LABPROJECT_API UItemSlotDragDropOperation : public UDragDropOperation
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(int32 InSourceSlotIndex, UItemInstance* InItemInstance, UInventorySlotViewData* InSourceSlotData);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory|DragDrop")

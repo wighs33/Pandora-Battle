@@ -20,12 +20,11 @@ class LABPROJECT_API UEnemyCombatComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UEnemyCombatComponent();
 
 	void ApplySettings(const FEnemyCombatSettings& InSettings);
 	const FEnemyCombatSettings& GetSettings() const { return Settings; }
-
-	void HandlePossessed();
 	void ShutdownRuntime();
 	void InitializeBehaviorTreeCombat();
 	bool IsRuntimeContentReady() const { return bRuntimeContentReady; }
@@ -64,13 +63,18 @@ public:
 	void ClearStartingWeaponDefinition();
 	void ResetAttributesForRespawn();
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandlePossessed();
+
 private:
+	void HandleInitialCombatDelayElapsed();
+	void HandleRuntimeContentPreloaded(uint32 RequestGeneration);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	AEnemyBase* GetEnemyOwner() const;
 	const AEnemyBase* GetEnemyOwnerConst() const;
-	void HandleInitialCombatDelayElapsed();
 	void StartAttackTimer();
 	void BeginRuntimeContentPreload();
-	void HandleRuntimeContentPreloaded(uint32 RequestGeneration);
 	void ReleaseRuntimeContentPreload();
 	bool ValidateAttackRequest();
 	void StopAttackMovement() const;
@@ -84,6 +88,7 @@ private:
 	bool TryActivateAttackAbility(
 		TArray<FGameplayAbilitySpecHandle>& AbilityHandles);
 
+private:
 	UPROPERTY(Transient)
 	FEnemyCombatSettings Settings;
 

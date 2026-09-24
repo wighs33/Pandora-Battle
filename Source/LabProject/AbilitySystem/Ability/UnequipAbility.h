@@ -14,17 +14,20 @@ class LABPROJECT_API UUnequipAbility : public UPdGameplayAbility
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UUnequipAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
-	// Timing hooks
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnAbilityEnding() override;
 	virtual void OnAbilityEnded(bool bWasCancelled) override;
 
-	// Delegate callbacks
 	UFUNCTION()
 	void OnUnequipMontageCompleted();
 
@@ -37,13 +40,14 @@ protected:
 	UFUNCTION()
 	void OnUnequipCommitTiming(FGameplayEventData Payload);
 
-	// State helpers
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ClearActiveUnequipEffect();
 	void FinalizeUnequipCommit();
 	bool CommitPendingUnequipIfPossible();
 	bool ShouldActivateRequestedEquip() const;
 	bool ActivateRequestedEquipIfNeeded(bool bShouldActivate);
 
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> UnequipEffectClass;
 

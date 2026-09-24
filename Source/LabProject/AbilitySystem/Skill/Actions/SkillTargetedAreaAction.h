@@ -30,11 +30,11 @@ class LABPROJECT_API USkillTargetedAreaAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-
 	/** 지면을 조준하고 몽타주 이벤트에 맞춰 범위 피해를 적용한다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
 	FSkillAreaSettings Settings;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "Skill|AOE")
 	void StartTargeting();
 
@@ -48,33 +48,40 @@ public:
 	void AOEDamage();
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 
 	virtual void OnStop() override;
 
-	UPROPERTY(Transient)
-	bool bIsWaitingTargetData = false;
-
-	UPROPERTY(Transient)
-	bool bStrikeTriggered = false;
-
-	UPROPERTY(Transient)
-	bool bStrikeConfirmed = false;
-
-	UPROPERTY(Transient)
-	bool bWaitingLightningDamage = false;
-
-	UPROPERTY(Transient)
-	double CachedAOERadius = 0.0;
-
-	UPROPERTY(Transient)
-	FVector ConfirmedAOELocation = FVector::ZeroVector;
-
-	TSet<FObjectKey> HitActorKeys;
-
-	TArray<FOverlapResult> AOEOverlapResults;
-
 private:
+	UFUNCTION()
+	void HandleCancelInputPressed(float TimeWaited);
+
+	UFUNCTION()
+	void HandleTargetDataValid(const FGameplayAbilityTargetDataHandle& Data);
+
+	UFUNCTION()
+	void HandleTargetDataCancelled(const FGameplayAbilityTargetDataHandle& Data);
+
+	UFUNCTION()
+	void HandleTargetingMontageBlendOut();
+
+	UFUNCTION()
+	void HandleTargetingMontageInterrupted();
+
+	UFUNCTION()
+	void HandleTriggerMontageFinished();
+
+	UFUNCTION()
+	void HandleTriggerMontageInterrupted();
+
+	UFUNCTION()
+	void HandleMontageTriggerEvent(FGameplayEventData Payload);
+
+	UFUNCTION()
+	void HandleLightningDamageDelayFinished();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void WaitCancelInput();
 	void StartWaitTargetData();
 	void StartWaitMontageTrigger();
@@ -104,33 +111,30 @@ private:
 	bool ShouldDrawDebugDamageRadius() const;
 	void DrawDebugDamageRadius(const TCHAR* Context, const FColor& CircleColor, const FColor& SphereColor) const;
 
-	UFUNCTION()
-	void HandleCancelInputPressed(float TimeWaited);
+protected:
+	UPROPERTY(Transient)
+	bool bIsWaitingTargetData = false;
 
-	UFUNCTION()
-	void HandleTargetDataValid(const FGameplayAbilityTargetDataHandle& Data);
+	UPROPERTY(Transient)
+	bool bStrikeTriggered = false;
 
-	UFUNCTION()
-	void HandleTargetDataCancelled(const FGameplayAbilityTargetDataHandle& Data);
+	UPROPERTY(Transient)
+	bool bStrikeConfirmed = false;
 
-	UFUNCTION()
-	void HandleTargetingMontageBlendOut();
+	UPROPERTY(Transient)
+	bool bWaitingLightningDamage = false;
 
-	UFUNCTION()
-	void HandleTargetingMontageInterrupted();
+	UPROPERTY(Transient)
+	double CachedAOERadius = 0.0;
 
-	UFUNCTION()
-	void HandleTriggerMontageFinished();
+	UPROPERTY(Transient)
+	FVector ConfirmedAOELocation = FVector::ZeroVector;
 
-	UFUNCTION()
-	void HandleTriggerMontageInterrupted();
+	TSet<FObjectKey> HitActorKeys;
 
-	UFUNCTION()
-	void HandleMontageTriggerEvent(FGameplayEventData Payload);
+	TArray<FOverlapResult> AOEOverlapResults;
 
-	UFUNCTION()
-	void HandleLightningDamageDelayFinished();
-
+private:
 	UPROPERTY()
 	TObjectPtr<UAbilityTask_WaitInputPress> WaitCancelInputTask;
 

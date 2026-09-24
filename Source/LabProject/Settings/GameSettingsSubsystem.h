@@ -13,9 +13,11 @@ class LABPROJECT_API UGameSettingsSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	static UGameSettingDefinition* ResolveGameSettingDefinition(const UObject* WorldContextObject);
 	static UGameSettingDefinition* ResolveLoadedGameSettingDefinition(
 		const UObject* WorldContextObject);
@@ -34,12 +36,16 @@ public:
 	bool IsRuntimeContentReady() const { return bRuntimeContentReady; }
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleDefinitionPreloadComplete();
 	void HandleRuntimeContentPreloadComplete(
 		TArray<FSoftObjectPath> ExpectedAssetPaths);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void FinishRuntimeContentPreload(bool bSucceeded);
 	void ReleaseRuntimeContentPreloadHandles();
 
+private:
 	UPROPERTY(Transient)
 	TSoftObjectPtr<UGameSettingDefinition> GameSettingDefinition;
 

@@ -9,12 +9,15 @@
 // 투자 대상과 투자 레벨, 복리 표시값, 현재 자원의 연결을 한곳에서 정의한다.
 struct FStatUpgradeBinding
 {
+
+public:
 	FGameplayTag StatTag;
 	FGameplayTag LevelTag;
 	FGameplayTag PercentTag;
 	FGameplayTag CurrentResourceTag;
 	bool bCompounded = false;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	FGameplayTag GetEffectTag() const { return PercentTag.IsValid() ? PercentTag : StatTag; }
 	bool IsMaxResource() const { return CurrentResourceTag.IsValid(); }
 };
@@ -24,6 +27,7 @@ struct FStatUpgradeRule
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade", meta = (Categories = "Status"))
 	FGameplayTag RootTag;
 
@@ -33,6 +37,7 @@ struct FStatUpgradeRule
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Cost", meta = (ClampMin = "0.0"))
 	float Cost = 0.f;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool IsValid() const
 	{
 		return RootTag.IsValid();
@@ -44,6 +49,7 @@ struct FStatAttributeDefaultValue
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat", meta = (Categories = "Status"))
 	FGameplayTag StatTag;
 
@@ -56,6 +62,7 @@ struct FStatAttributeDefaultValue
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat")
 	int32 Priority = 0;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool IsValid() const
 	{
 		return StatTag.IsValid();
@@ -67,12 +74,14 @@ struct FPairedResourceStatTag
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade", meta = (Categories = "Status"))
 	FGameplayTag MaxStatTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade", meta = (Categories = "Status"))
 	FGameplayTag CurrentStatTag;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool IsValid() const
 	{
 		return MaxStatTag.IsValid() && CurrentStatTag.IsValid();
@@ -90,17 +99,16 @@ class LABPROJECT_API UStatUpgradeDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UStatUpgradeDefinition();
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
-	//------------------------------------------------------------------------------------------------------------------
+	// Public API ------------------------------------------------------------------------------------------------------
+	UStatUpgradeDefinition();
+
 	static FSoftObjectPath GetDefaultDefinitionPath();
 
 	const TArray<FStatUpgradeRule>& GetUpgradeRules() const { return UpgradeRules; }
@@ -128,8 +136,6 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Rules", meta = (AllowPrivateAccess = "true", ClampMin = "1.0", ClampMax = "100.0", UIMin = "1.0", UIMax = "100.0"))
 	float MaxInvestedLevel = 100.f;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Upgrade Rules
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Rules", meta = (TitleProperty = "RootTag", AllowPrivateAccess = "true"))
 	TArray<FStatUpgradeRule> UpgradeRules;
 

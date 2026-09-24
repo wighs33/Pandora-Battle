@@ -13,7 +13,12 @@ class LABPROJECT_API UNotificationEntryWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Notification")
 	void SetNotificationData(const FPdNotificationData& InNotificationData);
 
@@ -24,11 +29,17 @@ public:
 	float PlayNotificationOut();
 
 protected:
-	virtual void NativePreConstruct() override;
-
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintImplementableEvent, Category = "!UI|Notification", meta = (DisplayName = "On Notification Data Set"))
 	void BP_OnNotificationDataSet(const FPdNotificationData& InNotificationData);
 
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void CacheOptionalWidgets();
+	void ApplyNotificationData(const FPdNotificationData& InNotificationData, bool bNotifyBlueprint);
+	static bool HasNotificationContent(const FPdNotificationData& InNotificationData);
+
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!UI|Notification|Preview")
 	FPdNotificationData PreviewNotificationData;
 
@@ -42,10 +53,6 @@ protected:
 	TObjectPtr<UWidgetAnimation> FadeIn;
 
 private:
-	void CacheOptionalWidgets();
-	void ApplyNotificationData(const FPdNotificationData& InNotificationData, bool bNotifyBlueprint);
-	static bool HasNotificationContent(const FPdNotificationData& InNotificationData);
-
 	UPROPERTY(Transient)
 	FPdNotificationData CachedNotificationData;
 

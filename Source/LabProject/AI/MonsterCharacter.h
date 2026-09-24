@@ -24,6 +24,16 @@ class LABPROJECT_API AMonsterCharacter : public AEnemyBase
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void BeginPlay() override;
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
 	AMonsterCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void Attack() override;
@@ -33,35 +43,70 @@ public:
 	bool IsMonsterReadyForAI() const;
 	const UEnemyBaseDefinition* GetMonsterDefinition() const { return LoadedEnemyDefinition; }
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
-	virtual void BeginPlay() override;
-	virtual void PossessedBy(AController* NewController) override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+private:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayMonsterAttackMontage(UAnimMontage* AttackMontage, float PlayRate);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStopMonsterAttack();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayMonsterHitReactMontage(UAnimMontage* HitReactMontage, float PlayRate);
+
+public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void HandleDamageTaken(float DamageAmount, bool bCriticalHit = false, bool bAllowHitReact = true,
 		AActor* DamageInstigator = nullptr, AActor* DamageCauser = nullptr) override;
 	virtual void HandleDeath_Implementation() override;
 
-#if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
-#endif
+protected:
+	virtual void HandleCharacterRuntimeInitialized() override;
+
+private:
+	void DeactivateAttackSphere();
+	void FinishMonsterDeath();
+	void HandleMonsterContentPreloadComplete();
+	void HandleFrozenTagChanged(FGameplayTag Tag, int32 NewCount);
+
+	UFUNCTION()
+	void HandleAttackComponentBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void HandleAttackMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
+
+	UFUNCTION()
+	void HandleAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual bool IsAdditionalCharacterRuntimeContentReady() const override;
-	virtual void HandleCharacterRuntimeInitialized() override;
 	virtual void ApplyResolvedEnemyDefinition(const UEnemyBaseDefinition* ResolvedDefinition) override;
 	virtual void ModifyResolvedEnemySettings(FEnemyCombatSettings& CombatSettings, FEnemyTrainingBotSettings& TrainingBotSettings) const override;
 	virtual FVector GetDamageIndicatorWorldLocation() const override;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Components
+private:
+	void CacheCollisionComponents();
+	bool IsValidMonsterDamageTarget(const AActor* OtherActor) const;
+	void ApplyAttackDamageToCharacter(ACharacterBase* TargetCharacter);
+	bool ApplyMonsterDamageToCharacter(ACharacterBase* TargetCharacter);
+	void DeactivateDamageSphere();
+	void ActivateAttackSphere();
+	void ApplyMonsterHealthDefaults();
+	void BeginMonsterContentPreload();
+	bool TryPlayMonsterAttackMontage();
+	bool PlayMonsterAttackMontageLocal(UAnimMontage* AttackMontage, float PlayRate);
+	void TryPlayMonsterHitReactMontage(float DamageAmount, bool bAllowHitReact);
+	APdPlayerState* ResolvePlayerStateFromActor(AActor* Actor) const;
+
+protected:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UPrimitiveComponent> AttackComponent;
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UPrimitiveComponent> LegacyDamageComponent;
 
-	//------------------------------------------------------------------------------------------------------------------
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!AI|Monster|Collision")
 	FName DamageComponentName = TEXT("DamageSphere");
 
@@ -93,42 +138,6 @@ protected:
 	float DeathDestroyDelay = 8.0f;
 
 private:
-	void CacheCollisionComponents();
-	bool IsValidMonsterDamageTarget(const AActor* OtherActor) const;
-	void ApplyAttackDamageToCharacter(ACharacterBase* TargetCharacter);
-	bool ApplyMonsterDamageToCharacter(ACharacterBase* TargetCharacter);
-	void DeactivateDamageSphere();
-	void ActivateAttackSphere();
-	void DeactivateAttackSphere();
-	void FinishMonsterDeath();
-	void ApplyMonsterHealthDefaults();
-	void BeginMonsterContentPreload();
-	void HandleMonsterContentPreloadComplete();
-	bool TryPlayMonsterAttackMontage();
-	bool PlayMonsterAttackMontageLocal(UAnimMontage* AttackMontage, float PlayRate);
-	void TryPlayMonsterHitReactMontage(float DamageAmount, bool bAllowHitReact);
-	void HandleFrozenTagChanged(FGameplayTag Tag, int32 NewCount);
-	APdPlayerState* ResolvePlayerStateFromActor(AActor* Actor) const;
-
-	UFUNCTION()
-	void HandleAttackComponentBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
-	UFUNCTION()
-	void HandleAttackMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
-
-	UFUNCTION()
-	void HandleAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
-
-	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastPlayMonsterAttackMontage(UAnimMontage* AttackMontage, float PlayRate);
-
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastStopMonsterAttack();
-
-	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastPlayMonsterHitReactMontage(UAnimMontage* HitReactMontage, float PlayRate);
-
 	FTimerHandle AttackSphereTimerHandle;
 	FTimerHandle DeathDestroyTimerHandle;
 	FDelegateHandle FrozenTagChangedHandle;

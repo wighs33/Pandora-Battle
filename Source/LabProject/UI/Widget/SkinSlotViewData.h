@@ -12,6 +12,7 @@ class LABPROJECT_API USkinSlotViewData : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(
 		int32 InSlotIndex,
 		const USkinDefinition* InSkinDefinition,

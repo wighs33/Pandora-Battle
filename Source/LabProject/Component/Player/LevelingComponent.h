@@ -18,6 +18,7 @@ class LABPROJECT_API ULevelingComponent : public UPlayerStateComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool GrantRewardExperience(int32 ExperienceAmount);
 
 	UFUNCTION(BlueprintPure, Category = "!Leveling")

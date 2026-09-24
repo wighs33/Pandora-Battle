@@ -13,8 +13,10 @@ class LABPROJECT_API URecordEntryWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Record")
 	void SetRecord(int32 InDisplayNumber, const FMatchRecord& InRecord);
 
@@ -22,8 +24,14 @@ public:
 	void RefreshUI();
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override { RefreshUI(); }
 
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ResolveWidgets();
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Record|Bind")
 	TObjectPtr<UTextBlock> Txt_Number;
 
@@ -49,8 +57,6 @@ protected:
 	FText RewardTextFormat = NSLOCTEXT("RecordEntryWidget", "RewardTextFormat", "{0}");
 
 private:
-	void ResolveWidgets();
-
 	UPROPERTY(Transient)
 	FMatchRecord Record;
 

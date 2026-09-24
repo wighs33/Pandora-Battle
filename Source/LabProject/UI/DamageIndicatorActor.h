@@ -35,14 +35,14 @@ class LABPROJECT_API ADamageIndicatorActor : public AActor
 	GENERATED_BODY()
 
 public:
-	ADamageIndicatorActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	// Timing hooks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	// Public API
+	// Public API ------------------------------------------------------------------------------------------------------
+	ADamageIndicatorActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	UFUNCTION(BlueprintCallable, Category = "!DamageIndicator")
 	void InitializeDamageIndicator(const FDamageIndicatorPayload& InPayload);
 
@@ -50,7 +50,7 @@ public:
 	const FDamageIndicatorPayload& GetDamageIndicatorPayload() const { return Payload; }
 
 protected:
-	// Blueprint timing events
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintImplementableEvent, Category = "!DamageIndicator", meta = (DisplayName = "On Damage Indicator Initialized"))
 	void ReceiveDamageIndicatorInitialized(const FDamageIndicatorPayload& InPayload);
 
@@ -60,6 +60,7 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "!DamageIndicator", meta = (DisplayName = "On Damage Indicator Finished"))
 	void ReceiveDamageIndicatorFinished();
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyPayloadToWidget();
 	void StartMovement();
 	void FinishMovement();

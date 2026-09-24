@@ -17,11 +17,15 @@ class LABPROJECT_API UShopEntryWidget : public ULocalizedMenuWidget, public IUse
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+	// Interface Implementations ---------------------------------------------------------------------------------------
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
 	virtual void NativeOnItemSelectionChanged(bool bInIsSelected) override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Shop")
 	void SetEntryData(UShopEntryViewData* InEntryData);
 
@@ -29,11 +33,19 @@ public:
 	void SetSelected(bool bInSelected);
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override { RefreshUI(); }
 
 	UFUNCTION()
 	void HandleSelectClicked();
 
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ResolveWidgets();
+	void RefreshUI();
+	void ApplySelectionVisual();
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
 	TObjectPtr<UTextBlock> Txt_Name = nullptr;
 
@@ -74,10 +86,6 @@ protected:
 	FLinearColor SelectionBorderSelectedColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
 
 private:
-	void ResolveWidgets();
-	void RefreshUI();
-	void ApplySelectionVisual();
-
 	UPROPERTY(Transient)
 	TObjectPtr<UShopEntryViewData> EntryData = nullptr;
 

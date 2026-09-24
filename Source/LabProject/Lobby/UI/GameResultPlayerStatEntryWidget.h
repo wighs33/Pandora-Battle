@@ -15,8 +15,10 @@ class LABPROJECT_API UGameResultPlayerStatEntryWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!GameResult")
 	void SetInfo(const FGameResultPlayerStat& InPlayerStat, int32 InWinnerTeamColorIndex);
 

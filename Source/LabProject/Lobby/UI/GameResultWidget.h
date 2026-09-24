@@ -17,11 +17,13 @@ class LABPROJECT_API UGameResultWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UGameResultWidget(const FObjectInitializer& ObjectInitializer);
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UGameResultWidget(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "!GameResult")
 	void SetInfo(
@@ -47,12 +49,24 @@ public:
 	void RefreshUI();
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleExitClicked();
 
 	void HandleEndSessionForExit(bool bWasSuccessful);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void TravelToLobbyMap();
 
+private:
+	FString GetResolvedLobbyTravelMapName() const;
+	void ResolveExitButton();
+	UPanelWidget* FindPlayerStatsContainer();
+	void RefreshPlayerStatsList();
+	void ApplyDisplayModeVisibility();
+	void SetWidgetVisibleForDisplayMode(UWidget* Widget, bool bVisible) const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!GameResult|Bind")
 	TObjectPtr<UTextBlock> Txt_WinnerInfo;
 
@@ -87,13 +101,6 @@ protected:
 	FText UnknownPlayerText = NSLOCTEXT("GameResult", "UnknownPlayerText", "Unknown");
 
 private:
-	FString GetResolvedLobbyTravelMapName() const;
-	void ResolveExitButton();
-	UPanelWidget* FindPlayerStatsContainer();
-	void RefreshPlayerStatsList();
-	void ApplyDisplayModeVisibility();
-	void SetWidgetVisibleForDisplayMode(UWidget* Widget, bool bVisible) const;
-
 	UPROPERTY(Transient)
 	FText WinnerTitle;
 

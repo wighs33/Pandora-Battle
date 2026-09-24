@@ -25,10 +25,7 @@ class LABPROJECT_API ALobbyGameMode : public AGameModeBase
 	GENERATED_BODY()
 
 public:
-	ALobbyGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -39,7 +36,9 @@ public:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 
-	//------------------------------------------------------------------------------------------------------------------
+	// Public API ------------------------------------------------------------------------------------------------------
+	ALobbyGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	// 외부에서는 로비 명령과 시작 조건만 사용하고, 담당 컴포넌트 선택은 GameMode에 맡긴다.
 	void SaveConfig(FName MapKey, int32 InMaxPlayerCount, int32 InMaxBotCount);
 	void TryStartGame();
@@ -59,11 +58,13 @@ public:
 	ULobbyTravelCoordinator* GetTravelCoordinator() const { return TravelCoordinator.Get(); }
 
 private:
-	void EnsureLobbyFrameworkClasses();
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void ResumeWaitingPlayers();
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Components
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void EnsureLobbyFrameworkClasses();
+
+private:
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ULobbyConfigurationComponent> LobbyConfigurationComponent;
 
@@ -76,7 +77,6 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ULobbyRespawnComponent> LobbyRespawnComponent;
 
-	//------------------------------------------------------------------------------------------------------------------
 	UPROPERTY(Transient)
 	TObjectPtr<ULobbyMatchCoordinator> MatchCoordinator;
 

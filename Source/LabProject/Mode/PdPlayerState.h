@@ -29,18 +29,17 @@ class LABPROJECT_API APdPlayerState : public APlayerState, public IAbilitySystem
 	GENERATED_BODY()
 
 public:
-	APdPlayerState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//--------------------------------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void CopyProperties(APlayerState* NewPlayerState) override;
 
-	//--------------------------------------------------------------------------------------------------------------------------------------------
-	//--- Components
+	// Interface Implementations ---------------------------------------------------------------------------------------
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	APdPlayerState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	USelectingPandoraAndWeaponComponent* GetSelectingPandoraAndWeaponComponent() const { return SelectingPandoraAndWeaponComponent.Get(); }
 	UPlayerRewardComponent* GetPlayerRewardComponent() const;
 	UStatUpgradeComponent* GetStatUpgradeComponent() const;
@@ -52,7 +51,6 @@ public:
 	UPandoraComponent* GetPandoraComponent() const;
 	UPandoraTreeComponent* GetPandoraTreeComponent() const;
 
-	//--------------------------------------------------------------------------------------------------------------------------------------------
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Loadout", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USelectingPandoraAndWeaponComponent> SelectingPandoraAndWeaponComponent;

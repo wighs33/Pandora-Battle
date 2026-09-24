@@ -24,7 +24,14 @@ class LABPROJECT_API UActionSlotEntryWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|ActionSlot")
 	void SetActionSlotData(int32 InSlotIndex, ECharacterActionType InActionType, UCharacterActionDefinition* InActionDefinition);
 
@@ -33,9 +40,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|ActionSlot|Cooldown")
 	void CheckForCooldown();
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|ActionSlot|Cooldown")
-	void UpdateCooldownProgress();
 
 	UFUNCTION(BlueprintPure, Category = "!UI|ActionSlot")
 	int32 GetSlotIndex() const { return SlotIndex; }
@@ -46,28 +50,29 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|ActionSlot")
 	const UCharacterActionDefinition* GetActionDefinition() const { return ActionDefinition; }
 
-protected:
-	virtual void NativePreConstruct() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "!UI|ActionSlot|Cooldown")
+	void UpdateCooldownProgress();
 
 private:
-	void CacheOptionalWidgets();
-	void ApplyWidgetDefinitionSettings();
-	void ApplyActionVisual();
-	void ApplyInputKeyIcon();
-	void BindAbilityCooldownChanged();
-	void UnbindAbilityCooldownChanged();
 	void RetryBindAbilityCooldown();
-	void ScheduleAbilityCooldownBindingRetry();
-	void ClearAbilityCooldownBindingRetry();
-	void ClearCooldownTimer();
 	void HandleAbilityCooldownTagChanged(FGameplayTag ChangedTag, int32 NewCount);
 	void HandleAbilityCooldownEffectAdded(
 		UAbilitySystemComponent* TargetAbilitySystemComponent,
 		const FGameplayEffectSpec& AppliedSpec,
 		FActiveGameplayEffectHandle ActiveHandle);
 	void HandleAbilityCooldownEffectRemoved(const FActiveGameplayEffect& RemovedEffect);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void CacheOptionalWidgets();
+	void ApplyWidgetDefinitionSettings();
+	void ApplyActionVisual();
+	void ApplyInputKeyIcon();
+	void BindAbilityCooldownChanged();
+	void UnbindAbilityCooldownChanged();
+	void ScheduleAbilityCooldownBindingRetry();
+	void ClearAbilityCooldownBindingRetry();
+	void ClearCooldownTimer();
 	void SetInputKeyRenderOpacity(float InOpacity) const;
 
 	APdPlayer* ResolveOwningPlayerCharacter() const;
@@ -82,6 +87,7 @@ private:
 
 	static float CalculateCooldownPercent(float TimeRemaining, double CooldownDuration);
 
+private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ActionSlot", meta = (AllowPrivateAccess = "true", ClampMin = "0"))
 	int32 SlotIndex = 0;
 

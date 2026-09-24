@@ -35,12 +35,14 @@ class LABPROJECT_API APdHUD : public AHUD
 	GENERATED_BODY()
 
 public:
-	APdHUD(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	APdHUD(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void InitializeUi(UWidgetClassDefinition* InWidgetClassDefinition);
 	void DeinitializeUi(const UWidgetClassDefinition* InWidgetClassDefinition);
@@ -93,13 +95,7 @@ public:
 	void RefreshInGameScoreboard();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
-	void OpenSettingsMenu();
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
 	void ToggleSettingsMenu();
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
-	virtual bool HandleEscapeInput();
 
 	void RefreshUiBindings();
 
@@ -109,12 +105,25 @@ public:
 	UUserWidget* GetPlayerHudWidget() const { return CachedPlayerHUD; }
 	const UWidgetClassDefinition* GetWidgetClassDefinition() const { return WidgetClassDefinition; }
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
+	void OpenSettingsMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
+	virtual bool HandleEscapeInput();
+
 	void OnOpenSettingsMenuInputStarted(const FInputActionValue& InputValue);
 	void OnSelectPandoraInputStarted(const FInputActionValue& InputValue);
 	bool OnSelectPandoraInputEnded(const FInputActionValue& InputValue);
 	void OnPandoraTreeInputStarted(const FInputActionValue& InputValue);
 
+private:
+	void RetryApplyStatusViewModelToPlayerHud();
+	void HandleSettingsMenuLayerClosed();
+	void RestoreInfoUiInputMode();
+
 protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	/**
 	 * Returns whether a full-screen or modal UI currently owns the screen and
 	 * should suppress the normal gameplay HUD. Derived HUDs can add their own UI.
@@ -125,11 +134,6 @@ protected:
 	void RefreshPlayerHudVisibility();
 
 private:
-	friend class UHudMenuLayer;
-	friend class UHudScreenLayer;
-	friend class UHudScoreboardLayer;
-	friend class UHudUiRouter;
-
 	APdPlayerController* GetPdController() const;
 	UHudUiRouter* EnsureUiRouter();
 	UInfoUiPresenter* GetInfoUiPresenter();
@@ -147,16 +151,19 @@ private:
 	void RefreshTrainingRoomUiPause(const UUserWidget* IgnoredWidget = nullptr);
 	bool ShouldSuppressHudTimer();
 	void ApplyHudTimerVisibility();
-	void RetryApplyStatusViewModelToPlayerHud();
-	void HandleSettingsMenuLayerClosed();
 	void CloseActiveSettingsMenuPopup();
 	UMenuPopupWidget* GetActiveSettingsMenuWidget() const;
 	bool CloseSelectPandoraUiInternal(bool bCommitSelection);
-	void RestoreInfoUiInputMode();
 	void ClosePandoraTreeUiInternal(bool bSuppressCameraReturn, bool bImmediate = false);
 	void CloseInfoUiInternal(bool bSuppressCameraReturn, bool bImmediate = false);
 	void ApplyInventoryWidgetSettings();
 	void RemoveAllUiWidgets();
+
+private:
+	friend class UHudMenuLayer;
+	friend class UHudScreenLayer;
+	friend class UHudScoreboardLayer;
+	friend class UHudUiRouter;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UWidgetClassDefinition> WidgetClassDefinition = nullptr;
@@ -203,5 +210,4 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraTreeWidget> CachedPandoraTreeUI = nullptr;
-
 };

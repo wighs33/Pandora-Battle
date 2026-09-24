@@ -14,12 +14,20 @@ class LABPROJECT_API UKillLogWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UKillLogWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UKillLogWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!KillLog")
 	void AddKillLogEntry(const FKillLogEntry& KillLogEntry);
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	UPanelWidget* FindKillLogContainer();
+	void RemoveKillLogEntry(UKillLogEntryWidget* EntryWidget);
+	void TrimOverflowEntries();
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!KillLog|Bind")
@@ -41,10 +49,6 @@ protected:
 	TArray<FName> KillLogContainerCandidateNames;
 
 private:
-	UPanelWidget* FindKillLogContainer();
-	void RemoveKillLogEntry(UKillLogEntryWidget* EntryWidget);
-	void TrimOverflowEntries();
-
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UKillLogEntryWidget>> ActiveEntries;
 };

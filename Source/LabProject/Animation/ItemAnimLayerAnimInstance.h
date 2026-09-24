@@ -12,9 +12,11 @@ class LABPROJECT_API UItemAnimLayerAnimInstance : public UAnimInstance
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintPure, Category = "!Animation|Item")
 	APdPlayer* GetCachedPlayer() const { return CachedPlayer.Get(); }
 
@@ -22,9 +24,11 @@ public:
 	bool IsAiming() const { return bIsAiming; }
 
 protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshCachedPlayer();
 	void PushValuesToLegacyBlueprintVariables();
 
+protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Animation|References", meta = (DisplayName = "Cached Player"))
 	TObjectPtr<APdPlayer> CachedPlayer = nullptr;
 

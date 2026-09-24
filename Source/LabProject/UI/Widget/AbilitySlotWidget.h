@@ -23,7 +23,13 @@ class LABPROJECT_API UAbilitySlotWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
 	void SetAbilitySpecHandle(FGameplayAbilitySpecHandle InAbilitySpecHandle);
 
@@ -52,9 +58,6 @@ public:
 	void SetAbilityImage();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
-	void SetInputKeyIcon();
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
 	void CheckForCooldown();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
@@ -63,23 +66,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
 	void CheckForManaAvailability();
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
+	void SetInputKeyIcon();
+
 	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
 	void UpdateCooldownProgress();
 
-protected:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-
 private:
+	void HandleCooldownTagChanged(FGameplayTag CallbackTag, int32 NewCount);
+	void HandleGameplayAbilityTagChanged(FGameplayTag CallbackTag, int32 NewCount);
+	void HandleManaChanged(const FOnAttributeChangeData& ChangeData);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyWidgetDefinitionSettings();
 	void InitializeAbilityObject();
 	void RefreshAbilityBinding();
 	void BindGameplayTagEvents();
 	void UnbindGameplayTagEvents();
 	void ClearCooldownTimer();
-	void HandleCooldownTagChanged(FGameplayTag CallbackTag, int32 NewCount);
-	void HandleGameplayAbilityTagChanged(FGameplayTag CallbackTag, int32 NewCount);
-	void HandleManaChanged(const FOnAttributeChangeData& ChangeData);
 	void SetInputKeyRenderOpacity(float InOpacity) const;
 	void ApplyAbilitySlotEnabledState();
 
@@ -93,6 +98,7 @@ private:
 	static FSlateBrush MakeImageBrushFromExisting(const FSlateBrush& ExistingBrush, UObject* ResourceObject, FVector2D ImageSize);
 	static float CalculateCooldownPercent(float TimeRemaining, double CooldownDuration);
 
+private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability", meta = (ExposeOnSpawn = "true", AllowPrivateAccess = "true"))
 	FGameplayAbilitySpecHandle AbilitySpecHandle;
 

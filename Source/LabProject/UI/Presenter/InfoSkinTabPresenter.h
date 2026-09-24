@@ -15,12 +15,15 @@ class LABPROJECT_API UInfoSkinTabPresenter : public UInfoTabPresenterBase
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	virtual void BindInfoUi(UInfoWidget* InInfoWidget) override;
 	virtual void Deinitialize() override;
 
 	void Activate();
-	void HandleInfoUiOpened();
 	void RefreshEquippedSlots() const;
+
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleInfoUiOpened();
 
 	UFUNCTION()
 	void HandleSkinSlotClicked(UObject* Item);
@@ -47,10 +50,11 @@ public:
 	void HandleSkinFilterAllClicked();
 
 private:
-	void EquipSkinDefinition(const USkinDefinition* SkinDefinition);
-
 	UFUNCTION()
 	void HandleSkinsChanged();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void EquipSkinDefinition(const USkinDefinition* SkinDefinition);
 
 	void BindEvents();
 	void UnbindEvents();
@@ -59,6 +63,7 @@ private:
 	void ClearSkinEquipSlot(USkinEquipSlotWidget* TargetSkinEquipSlot, FGameplayTag EquipTypeTag);
 	void PopulateAllSkins() const;
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<USkinEquipSlotWidget> SelectedEquipSlot;
 

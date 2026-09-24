@@ -21,7 +21,13 @@ class LABPROJECT_API ULeftPandoraWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void ToggleActiveEquipSlots(bool bActive);
 
@@ -37,14 +43,38 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetWeaponImage(int32 Nth, UTexture2D* WeaponImage);
 
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnMenuLanguageChanged() override;
+
+private:
+	UFUNCTION()
+	void HandlePandoraEquipSlotClicked(UPandoraEquipSlotWidget* PandoraEquipSlot);
+
+	UFUNCTION()
+	void HandlePandoraLoadoutChanged();
+
+	UFUNCTION()
+	void HandlePandoraTreeChanged();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	UPandoraComponent* ResolveOwningPandoraComponent() const;
+	UPandoraTreeComponent* ResolvePandoraTreeComponent(const UPandoraComponent* PandoraComponent) const;
+	void BindPandoraLoadoutChanged();
+	void BindPandoraLoadoutChanged(UPandoraComponent* PandoraComponent);
+	void UnbindPandoraLoadoutChanged();
+	void BindPandoraTreeChanged(UPandoraTreeComponent* PandoraTreeComponent);
+	void UnbindPandoraTreeChanged();
+	void CacheDefaultWeaponImageBrushes();
+	void RebuildPandoraEquipSlotList();
+	void BindPandoraEquipSlotCallbacks();
+	void UnbindPandoraEquipSlotCallbacks();
+
+public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
 	FPdOnClickedPandoraEquipSlot OnClicked_PandoraEquipSlot;
 
 protected:
-	virtual void OnMenuLanguageChanged() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")
 	TObjectPtr<UPandoraEquipSlotWidget> FirstPandora;
 
@@ -91,27 +121,6 @@ protected:
 	bool bIsSelectedAnyButton = false;
 
 private:
-	UFUNCTION()
-	void HandlePandoraEquipSlotClicked(UPandoraEquipSlotWidget* PandoraEquipSlot);
-
-	UFUNCTION()
-	void HandlePandoraLoadoutChanged();
-
-	UFUNCTION()
-	void HandlePandoraTreeChanged();
-
-	UPandoraComponent* ResolveOwningPandoraComponent() const;
-	UPandoraTreeComponent* ResolvePandoraTreeComponent(const UPandoraComponent* PandoraComponent) const;
-	void BindPandoraLoadoutChanged();
-	void BindPandoraLoadoutChanged(UPandoraComponent* PandoraComponent);
-	void UnbindPandoraLoadoutChanged();
-	void BindPandoraTreeChanged(UPandoraTreeComponent* PandoraTreeComponent);
-	void UnbindPandoraTreeChanged();
-	void CacheDefaultWeaponImageBrushes();
-	void RebuildPandoraEquipSlotList();
-	void BindPandoraEquipSlotCallbacks();
-	void UnbindPandoraEquipSlotCallbacks();
-
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraComponent> BoundPandoraComponent;
 

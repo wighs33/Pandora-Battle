@@ -12,8 +12,27 @@ class LABPROJECT_API UPandoraDescriptionViewModel : public UCommonViewModelBase
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UPandoraDescriptionViewModel();
 
+	void ResetViewData();
+	void SetTitleText(const FText& InTitleText);
+	void SetDescriptionText(const FText& InDescriptionText);
+	void SetWeaponRequirementText(const FText& InWeaponRequirementText);
+	void SetWeaponRequirementTextColor(const FSlateColor& InWeaponRequirementTextColor);
+	void SetWeaponRequirementVisibility(ESlateVisibility InVisibility);
+	void SetCurrentLevelVisibility(ESlateVisibility InVisibility);
+	void SetCurrentLevelTitleText(const FText& InCurrentLevelTitleText);
+	void SetCurrentLevelDescriptionText(const FText& InCurrentLevelDescriptionText);
+	void SetNextLevelVisibility(ESlateVisibility InVisibility);
+	void SetNextLevelTitleText(const FText& InNextLevelTitleText);
+	void SetNextLevelDescriptionText(const FText& InNextLevelDescriptionText);
+	void SetPointsRequiredVisibility(ESlateVisibility InVisibility);
+	void SetPointsRequiredText(const FText& InPointsRequiredText);
+	void SetSkillSectionVisibility(ESlateVisibility InVisibility);
+	void SetSkillSlot(int32 SlotIndex, UObject* InIconResource, const FText& InNameText, const FText& InDescriptionText);
+
+public:
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
 	FText TitleText;
 
@@ -103,23 +122,6 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
 	ESlateVisibility SkillIconVisibility4 = ESlateVisibility::Collapsed;
-
-	void ResetViewData();
-	void SetTitleText(const FText& InTitleText);
-	void SetDescriptionText(const FText& InDescriptionText);
-	void SetWeaponRequirementText(const FText& InWeaponRequirementText);
-	void SetWeaponRequirementTextColor(const FSlateColor& InWeaponRequirementTextColor);
-	void SetWeaponRequirementVisibility(ESlateVisibility InVisibility);
-	void SetCurrentLevelVisibility(ESlateVisibility InVisibility);
-	void SetCurrentLevelTitleText(const FText& InCurrentLevelTitleText);
-	void SetCurrentLevelDescriptionText(const FText& InCurrentLevelDescriptionText);
-	void SetNextLevelVisibility(ESlateVisibility InVisibility);
-	void SetNextLevelTitleText(const FText& InNextLevelTitleText);
-	void SetNextLevelDescriptionText(const FText& InNextLevelDescriptionText);
-	void SetPointsRequiredVisibility(ESlateVisibility InVisibility);
-	void SetPointsRequiredText(const FText& InPointsRequiredText);
-	void SetSkillSectionVisibility(ESlateVisibility InVisibility);
-	void SetSkillSlot(int32 SlotIndex, UObject* InIconResource, const FText& InNameText, const FText& InDescriptionText);
 
 	static const FName ViewModelName;
 };

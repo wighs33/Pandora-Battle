@@ -36,15 +36,14 @@ class LABPROJECT_API USkinEquipmentComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	USkinEquipmentComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	//------------------------------------------------------------------------------------------------------------------
+	// Public API ------------------------------------------------------------------------------------------------------
+	USkinEquipmentComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	UFUNCTION(BlueprintCallable, Category = "!Skin|Equipment")
 	bool RequestUnequipSkinSlot(FGameplayTag SlotTag);
 
@@ -63,10 +62,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Skin|Gesture")
 	bool RequestCancelActiveGestureMontage(float BlendOutTime = 0.12f);
 
-	UPROPERTY(BlueprintAssignable, Category = "!Skin|Equipment")
-	FPdOnEquippedSkinsChanged OnEquippedSkinsChanged;
-
 protected:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerEquipSkin(const USkinDefinition* SkinDefinition, FGameplayTag SlotTag);
 
@@ -85,9 +82,12 @@ protected:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastCancelActiveGestureMontage(float BlendOutTime);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_EquippedSkins();
+	void RebuildEquippedSkinActorsFromLoadedContent(uint32 RequestGeneration);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool EquipSkinDefinition(const USkinDefinition* SkinDefinition, FGameplayTag SlotTag);
 	bool UnequipSkinSlotInternal(FGameplayTag SlotTag);
 	bool CanEquipSkinDefinition(const USkinDefinition* SkinDefinition, FGameplayTag SlotTag) const;
@@ -102,13 +102,17 @@ protected:
 	bool PlayGestureMontage(UAnimMontage* GestureMontage);
 	bool CancelActiveGestureMontage(float BlendOutTime);
 	void RebuildEquippedSkinActors();
-	void RebuildEquippedSkinActorsFromLoadedContent(uint32 RequestGeneration);
 	void ApplyEquippedSkinSlot(const FEquippedSkinSlot& Slot);
 	void ReleaseSkinPresentationLoad();
 	void DestroyEquippedSkinActors();
 	AActor* SpawnPetSkinActor(const USkinDefinition* SkinDefinition) const;
 	AActor* SpawnAndAttachSkinActor(const USkinDefinition* SkinDefinition) const;
 
+public:
+	UPROPERTY(BlueprintAssignable, Category = "!Skin|Equipment")
+	FPdOnEquippedSkinsChanged OnEquippedSkinsChanged;
+
+protected:
 	UPROPERTY(ReplicatedUsing = OnRep_EquippedSkins, Transient, BlueprintReadOnly, Category = "!Skin|Equipment")
 	TArray<FEquippedSkinSlot> EquippedSkins;
 

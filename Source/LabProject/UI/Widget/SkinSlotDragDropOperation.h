@@ -12,6 +12,7 @@ class LABPROJECT_API USkinSlotDragDropOperation : public UDragDropOperation
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(int32 InSourceSlotIndex, const USkinDefinition* InSkinDefinition, USkinSlotViewData* InSourceSlotData);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin|DragDrop")

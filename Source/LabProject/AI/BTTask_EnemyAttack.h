@@ -10,12 +10,15 @@ class LABPROJECT_API UBTTask_EnemyAttack : public UBTTask_BlackboardBase
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UBTTask_EnemyAttack();
 
 protected:
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
 	bool bRequireTargetInAttackRange = true;
 

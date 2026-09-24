@@ -32,10 +32,12 @@ struct LABPROJECT_API FReplicatedSkinEntry : public FFastArraySerializerItem
 	GENERATED_BODY()
 
 public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void PostReplicatedAdd(const struct FReplicatedSkinList& InArraySerializer);
 	void PostReplicatedChange(const struct FReplicatedSkinList& InArraySerializer);
 	void PreReplicatedRemove(const struct FReplicatedSkinList& InArraySerializer);
 
+public:
 	UPROPERTY()
 	TObjectPtr<const USkinDefinition> SkinDefinition = nullptr;
 };
@@ -46,8 +48,7 @@ struct LABPROJECT_API FReplicatedSkinList : public FIrisFastArraySerializer
 	GENERATED_BODY()
 
 public:
-	void PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters);
-
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 	{
 		return FFastArraySerializer::FastArrayDeltaSerialize<FReplicatedSkinEntry, FReplicatedSkinList>(Entries, DeltaParms, *this);
@@ -58,6 +59,10 @@ public:
 		MarkItemDirty(Entry);
 	}
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters);
+
+public:
 	UPROPERTY()
 	TArray<FReplicatedSkinEntry> Entries;
 
@@ -81,16 +86,18 @@ class LABPROJECT_API USkinComponent : public UPlayerStateComponent
 {
 	GENERATED_BODY()
 
+private:
 	friend struct FReplicatedSkinEntry;
 	friend struct FReplicatedSkinList;
 
 public:
-	USkinComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	// Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	USkinComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!Inventory")
 	void AddSkinsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& SkinDefinitions);
@@ -106,13 +113,12 @@ public:
 	const FSkinList& GetAllSkins() const { return AllSkinList; }
 	const TMap<FGameplayTag, FSkinList>& GetFilteredSkinMap() const { return Map_Type_SkinList; }
 
-	UPROPERTY(BlueprintAssignable, Category = "!Inventory")
-	FPdSkinsChangedDelegate OnSkinsChanged;
-
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedSkinEntry& Entry);
 	void HandleReplicatedEntryRemoved(const USkinDefinition* SkinDefinition);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RebuildSkinListsFromReplicatedEntries();
 	void RebuildFilteredSkinMap();
 	void FilterSkin(const USkinDefinition* SkinDefinition);
@@ -122,6 +128,10 @@ protected:
 	int32 FindReplicatedEntryIndexByDefinition(const USkinDefinition* SkinDefinition) const;
 	FReplicatedSkinEntry* FindReplicatedEntryByDefinition(const USkinDefinition* SkinDefinition);
 	const FReplicatedSkinEntry* FindReplicatedEntryByDefinition(const USkinDefinition* SkinDefinition) const;
+
+public:
+	UPROPERTY(BlueprintAssignable, Category = "!Inventory")
+	FPdSkinsChangedDelegate OnSkinsChanged;
 
 private:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (AllowPrivateAccess = "true"))

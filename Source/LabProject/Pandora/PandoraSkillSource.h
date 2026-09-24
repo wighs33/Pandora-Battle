@@ -15,14 +15,16 @@ class LABPROJECT_API UPandoraSkillSource : public UObject
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual bool IsSupportedForNetworking() const override { return true; }
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void PreDestroyFromReplication() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(
 		const UPandoraDefinition* InPandoraDefinition,
 		int32 InSkillIndex,
 		EEnum_Direction InLoadoutDirection = EEnum_Direction::Center);
-
-	virtual bool IsSupportedForNetworking() const override { return true; }
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	virtual void PreDestroyFromReplication() override;
 
 	bool IsSourceReady() const { return GetSkillDataAsset() != nullptr; }
 
@@ -42,9 +44,11 @@ public:
 	EEnum_Direction GetLoadoutDirection() const { return LoadoutDirection; }
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_Source();
 
+private:
 	UPROPERTY(ReplicatedUsing = OnRep_Source, VisibleAnywhere, BlueprintReadOnly, Category = "!Pandora|Skill", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<const UPandoraDefinition> PandoraDefinition;
 

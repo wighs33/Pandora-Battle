@@ -16,6 +16,7 @@ class LABPROJECT_API UShopEntryViewData : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(const FShopCatalogEntry& InCatalogEntry, UObject* InProductObject, int32 InPlayerGold, bool bInOwned);
 
 	const FShopCatalogEntry& GetCatalogEntry() const { return CatalogEntry; }
@@ -57,6 +58,7 @@ public:
 
 	void BroadcastClicked();
 
+public:
 	FShopEntryViewDataClickedDelegate OnClicked;
 
 private:

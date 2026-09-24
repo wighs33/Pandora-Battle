@@ -22,7 +22,19 @@ class LABPROJECT_API USkinEquipSlotWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativePreConstruct() override;
+	virtual void NativeDestruct() override;
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
 	void BroadcastClickedSkinEquipSlot(USkinEquipSlotWidget* SkinEquipSlot);
 
@@ -68,6 +80,26 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|Skin", meta = (Categories = "Skin"))
 	FGameplayTag GetAcceptedEquipTypeTag() const;
 
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	void HandleButtonClicked();
+
+	UFUNCTION()
+	void HandleButtonHovered();
+
+	UFUNCTION()
+	void HandleButtonUnhovered();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplySlotVisual();
+	void CacheOptionalWidgets();
+	void ApplyButtonBackgroundStyle();
+	bool CanAcceptDroppedSkin(const USkinDefinition* DroppedSkin) const;
+	UTexture2D* GetCurrentIconTexture(bool bForHover) const;
+	void CacheDefaultButtonStyle();
+
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin", meta = (Categories = "Skin"))
 	FGameplayTag EquipTypeTag;
 
@@ -99,15 +131,6 @@ public:
 	FPdOnDroppedSkinEquipSlot OnDroppedSkin_SkinEquipSlot;
 
 protected:
-	virtual void NativeConstruct() override;
-	virtual void NativePreConstruct() override;
-	virtual void NativeDestruct() override;
-	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
 	TObjectPtr<UButton> ItemButton;
 
@@ -127,22 +150,6 @@ protected:
 	TObjectPtr<UWidget> AssignedBadgeRoot;
 
 private:
-	UFUNCTION()
-	void HandleButtonClicked();
-
-	UFUNCTION()
-	void HandleButtonHovered();
-
-	UFUNCTION()
-	void HandleButtonUnhovered();
-
-	void ApplySlotVisual();
-	void CacheOptionalWidgets();
-	void ApplyButtonBackgroundStyle();
-	bool CanAcceptDroppedSkin(const USkinDefinition* DroppedSkin) const;
-	UTexture2D* GetCurrentIconTexture(bool bForHover) const;
-	void CacheDefaultButtonStyle();
-
 	UPROPERTY(Transient)
 	FText SlotText;
 

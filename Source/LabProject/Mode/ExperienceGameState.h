@@ -24,12 +24,14 @@ struct LABPROJECT_API FReplicatedMatchTimerState
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Match Rules|Timer")
 	EMatchTimerPhase Phase = EMatchTimerPhase::Inactive;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Match Rules|Timer")
 	float EndServerTimeSeconds = 0.0f;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool operator==(const FReplicatedMatchTimerState& Other) const
 	{
 		return Phase == Other.Phase
@@ -43,13 +45,13 @@ class LABPROJECT_API AExperienceGameState : public AGameStateBase
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
 	AExperienceGameState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Experience API
 	UExperienceManagerComponent* GetExperienceManagerComponent() const { return ExperienceManagerComponent; }
-
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	void SetMatchRuleDefinition(UMatchRuleDefinition* InMatchRuleDefinition);
 	const UMatchRuleDefinition* GetMatchRuleDefinition() const { return MatchRuleDefinition; }
@@ -59,6 +61,7 @@ public:
 	bool IsMatchTimerSuppressed() const { return MatchTimerState.Phase == EMatchTimerPhase::Suppressed; }
 	bool TryGetMatchTimerRemainingSeconds(float& OutRemainingSeconds) const;
 
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(NetMulticast, Reliable, BlueprintCallable, Category = "!GameResult")
 	void Multicast_ShowGameResult(
 		const FText& WinnerTitle,
@@ -68,17 +71,18 @@ public:
 		const TArray<FGameResultPlayerStat>& PlayerStats);
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_MatchRuleDefinition();
 
 	UFUNCTION()
 	void OnRep_MatchTimerState();
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshLocalHudTimer() const;
 	void SaveLocalMatchRecord(APlayerController* LocalPlayerController, const TArray<FGameResultPlayerStat>& PlayerStats) const;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Components
+private:
 	UPROPERTY(VisibleAnywhere, Category = "!Experience", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UExperienceManagerComponent> ExperienceManagerComponent;
 

@@ -37,8 +37,10 @@ class LABPROJECT_API UInfoLoadoutStore : public UObject
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual UWorld* GetWorld() const override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(APdPlayerController* InController);
 	void Deinitialize();
 	void RefreshBindings();
@@ -64,21 +66,25 @@ public:
 
 	void NotifyPresentationAssetsReady();
 
-	FInfoLoadoutStateChanged OnStateChanged;
-
 private:
-	void UnbindInventoryComponent();
-	void UnbindPandoraComponent();
-	void RebuildLoadoutState();
-	void PublishStateChange(EInfoLoadoutStateChange Change);
-	bool PublishRejectedCommand(EInfoLoadoutStateChange Change);
-
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleInventoryChanged();
 	void HandleWeaponLoadoutChanged();
 
 	UFUNCTION()
 	void HandlePandoraLoadoutChanged();
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void UnbindInventoryComponent();
+	void UnbindPandoraComponent();
+	void RebuildLoadoutState();
+	void PublishStateChange(EInfoLoadoutStateChange Change);
+	bool PublishRejectedCommand(EInfoLoadoutStateChange Change);
+
+public:
+	FInfoLoadoutStateChanged OnStateChanged;
+
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<APdPlayerController> OwningController;
 

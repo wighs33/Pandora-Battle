@@ -26,10 +26,7 @@ class LABPROJECT_API AMonsterAIController : public AAIController
 	GENERATED_BODY()
 
 public:
-	AMonsterAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -39,6 +36,9 @@ public:
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	AMonsterAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintPure, Category = "!AI|Monster")
 	UStateTreeAIComponent* GetStateTreeAI() const { return NativeStateTreeAI; }
@@ -60,24 +60,21 @@ public:
 	void StopMonsterAI();
 
 protected:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Components
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!AI|Monster", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UStateTreeAIComponent> NativeStateTreeAI;
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleMonsterStateTreeLoaded(uint32 RequestGeneration);
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!AI|Perception", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UAIPerceptionComponent> AIPerception;
+	void HandleExperienceLoaded(const UExperienceDefinition* Experience);
 
-	//------------------------------------------------------------------------------------------------------------------
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!AI|Perception", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UAISenseConfig_Sight> NativeSightConfig;
+	UFUNCTION()
+	void HandleNavigationDataAvailable(ANavigationData* NavigationData);
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!AI|Perception", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<APawn> PerceivedPlayerPawn;
+	UFUNCTION()
+	void HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
 
-	UPROPERTY(Transient)
-	TObjectPtr<UStateTree> ResolvedMonsterStateTree;
+	UFUNCTION()
+	void HandleTargetPerceptionForgotten(AActor* Actor);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool ConfigureStateTreeAI();
 	bool IsExperienceReadyOrWait();
 	bool ResolveMonsterStateTreeFromEnemyDefinition();
@@ -91,18 +88,22 @@ protected:
 	void StopWaitingForExperience();
 	void WaitForNavigationData();
 	void StopWaitingForNavigationData();
-	void HandleMonsterStateTreeLoaded(uint32 RequestGeneration);
 
-	void HandleExperienceLoaded(const UExperienceDefinition* Experience);
+protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!AI|Monster", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UStateTreeAIComponent> NativeStateTreeAI;
 
-	UFUNCTION()
-	void HandleNavigationDataAvailable(ANavigationData* NavigationData);
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!AI|Perception", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UAIPerceptionComponent> AIPerception;
 
-	UFUNCTION()
-	void HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!AI|Perception", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UAISenseConfig_Sight> NativeSightConfig;
 
-	UFUNCTION()
-	void HandleTargetPerceptionForgotten(AActor* Actor);
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!AI|Perception", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<APawn> PerceivedPlayerPawn;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStateTree> ResolvedMonsterStateTree;
 
 	TWeakObjectPtr<UExperienceManagerComponent> ExperienceManagerWaitingForLoad;
 	FDelegateHandle ExperienceLoadedDelegateHandle;

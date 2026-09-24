@@ -10,7 +10,9 @@ class UPdAbilitySystemComponent;
 
 class LABPROJECT_API FPandoraSkillBinder
 {
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	// 이미 부여된 스킬은 재사용하고, 새로 열린 스킬의 핸들만 반환한다.
 	static TArray<FGameplayAbilitySpecHandle> GrantPandoraContent(
 		UPandoraComponent* SourceOwner, UPdAbilitySystemComponent* AbilitySystemComponent, const UPandoraDefinition* PandoraDefinition,

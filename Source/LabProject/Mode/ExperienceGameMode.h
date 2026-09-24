@@ -30,10 +30,7 @@ class LABPROJECT_API AExperienceGameMode : public AGameModeBase
 	GENERATED_BODY()
 
 public:
-	AExperienceGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -47,7 +44,8 @@ public:
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;
 
-	//------------------------------------------------------------------------------------------------------------------
+	// Public API ------------------------------------------------------------------------------------------------------
+	AExperienceGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UExperienceMatchFlowComponent* GetMatchFlowComponent() const { return MatchFlowComponent; }
 	UExperienceSpawnComponent* GetSpawnComponent() const { return SpawnComponent; }
@@ -59,12 +57,25 @@ public:
 	bool TryGetPlayerInitialSpawnTransform(AController* PlayerController, FTransform& OutSpawnTransform) const;
 
 protected:
-	bool CanStartGameplay() const;
-	void StartExperienceLoad();
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleExperienceLoaded(const UExperienceDefinition* Experience);
 	void HandleExperienceLoadFailed(FPrimaryAssetId ExperienceId, const FString& FailureMessage);
+
+private:
+	void TryStartServerMatch();
+
+protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool CanStartGameplay() const;
+	void StartExperienceLoad();
 	FPrimaryAssetId GetConfiguredExperienceId() const;
 
+private:
+	UExperienceManagerComponent* GetExperienceManager() const;
+	void ResumeStartingPlayers();
+	void ApplyRuntimeComponentSettings();
+
+protected:
 	// Experience 미지정과 로딩 실패는 구분한다. 선택 기능인 맵만 실패 후 기본 Pawn 실행을 허용한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Experience")
 	bool bAllowNativePawnOnExperienceLoadFailure = false;
@@ -101,14 +112,8 @@ protected:
 	int32 DefaultLobbyTeamColorIndex = 0;
 
 private:
-	UExperienceManagerComponent* GetExperienceManager() const;
-	void ResumeStartingPlayers();
-	void TryStartServerMatch();
-	void ApplyRuntimeComponentSettings();
 	bool bExperienceLoadFailed = false;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Components
 	UPROPERTY(VisibleAnywhere, Category = "!Experience|Runtime")
 	TObjectPtr<UExperienceMatchFlowComponent> MatchFlowComponent;
 

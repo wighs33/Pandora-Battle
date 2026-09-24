@@ -17,6 +17,7 @@ struct LABPROJECT_API FAnimeAuraPresentationSettings
 {
 	GENERATED_BODY()
 
+public:
 	/** AnimeAura 액터가 사용하는 강화 연출 몽타주. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static|Anime Aura Presentation")
 	TObjectPtr<UAnimMontage> PowerUpMontage;
@@ -33,6 +34,7 @@ struct LABPROJECT_API FAnimeAuraPresentationSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static|Anime Aura Presentation")
 	TObjectPtr<UMaterialParameterCollection> MaterialParameterCollection;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool IsComplete() const
 	{
 		return PowerUpMontage
@@ -48,12 +50,15 @@ struct LABPROJECT_API FSkillStaticSettings
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FSkillStaticSettings()
 		: GroundTraceChannel(LabCollisionChannels::VisibilityTrace())
 	{
 		SpawnSocketNames.SetNum(6);
 	}
 
+public:
 	/** 지정된 소켓 목록을 사용해 배치 액터를 생성한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Static|Spawn")
 	bool bUseSpawnSockets = true;

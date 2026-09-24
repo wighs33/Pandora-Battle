@@ -20,33 +20,35 @@ class LABPROJECT_API UPlayerRewardComponent : public UPlayerStateComponent
 {
 	GENERATED_BODY()
 
-public:
-	UPlayerRewardComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//------------------------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "!Reward")
-	void ApplyInteractRewards(AActor* InteractableActor);
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UPlayerRewardComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void GrantKillExperience(APlayerState* VictimPlayerState);
 	void GrantMonsterDefeatRewards(TSoftObjectPtr<URewardDefinition> RewardDefinition);
 
-protected:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	// Network RPCs ----------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "!Reward")
+	void ApplyInteractRewards(AActor* InteractableActor);
 
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	bool ApplyInteractRewardsInternal(AActor* InteractableActor);
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandlePlayerKillRewardLoaded();
-	void GrantPlayerKillReward();
 	void HandleMonsterRewardLoaded(FSoftObjectPath DefinitionPath);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool ApplyInteractRewardsInternal(AActor* InteractableActor);
+	void GrantPlayerKillReward();
 	void ApplyMonsterDefeatRewards(const URewardDefinition* RewardDefinition);
 
-	//------------------------------------------------------------------------------------------------------------------
 	APdPlayerState* GetPdPlayerState() const;
 
+private:
 	UPROPERTY(Transient)
 	TSoftObjectPtr<URewardDefinition> PlayerKillRewardDefinition;
 

@@ -20,12 +20,17 @@ class LABPROJECT_API USkillDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	USkillDefinition();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
-	// 실행 정책과 기능 조합
+	// Public API ------------------------------------------------------------------------------------------------------
+	USkillDefinition();
 
+	FText GetDisplayName() const;
+	UObject* GetIconResource() const;
+	FSkillGameplayEffectConfig GetResolvedDamageConfig() const;
+
+public:
 	/** 스킬의 종료 정책. 액션 완료, 입력 해제, 활성화 기준 전체 지속시간 만료 중 하나를 선택한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Properties")
 	ESkillType SkillType = ESkillType::Instant;
@@ -41,8 +46,6 @@ public:
 	/** SkillAbility가 실행할 액션 트리. 순차·병렬 액션으로 기능을 조합한다. */
 	UPROPERTY(EditDefaultsOnly, Instanced, BlueprintReadOnly, Category = "!Skill|Execution")
 	TObjectPtr<USkillAction> Action;
-
-	// 화면 표시
 
 	/** UI에 표시할 스킬 이름. 비어 있으면 데이터 에셋 이름을 사용한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|UI", AssetRegistrySearchable)
@@ -72,8 +75,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|UI|Effect Icon", meta = (DisplayName = "Show Shield Effect Icon"))
 	bool bShowShieldEffectIcon = false;
 
-	// 비용과 시간
-
 	/** 스킬 사용 시 소모하는 마나. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Cost", meta = (ClampMin = "0.0", DisplayName = "Mana Cost"))
 	double ManaCost = 0.0;
@@ -81,8 +82,6 @@ public:
 	/** 재사용 대기시간과 스킬 유지 시간. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Time", meta = (ShowOnlyInnerProperties))
 	FSkillTimeSettings Time;
-
-	// 공통 피해와 상태 효과
 
 	/** 스킬 적중 피해와 트리거 반복 피해의 공통 설정. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ShowOnlyInnerProperties))
@@ -110,8 +109,6 @@ public:
 			ToolTip = "Number of status-effect stacks applied by one successful skill hit."))
 	int32 StackCount = 1;
 
-	// 공통 연출
-
 	/** 시전 액션들이 공유하는 몽타주와 실행 이벤트. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Animation", meta = (ShowOnlyInnerProperties))
 	FSkillAnimationConfig Animation;
@@ -128,13 +125,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX", meta = (ShowOnlyInnerProperties))
 	FSkillNiagaraSettings Niagara;
 
-	// 공통 이동
-
 	/** 이동 속도 증가, 이동 제한 및 접촉 피해 설정. 대시는 해당 액션에서 설정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Movement", meta = (ShowOnlyInnerProperties))
 	FSkillMovementSettings Movement;
-
-	FText GetDisplayName() const;
-	UObject* GetIconResource() const;
-	FSkillGameplayEffectConfig GetResolvedDamageConfig() const;
 };

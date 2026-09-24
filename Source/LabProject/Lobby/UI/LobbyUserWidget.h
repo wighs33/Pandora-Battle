@@ -20,9 +20,11 @@ class LABPROJECT_API ULobbyUserWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
 	void SetInfo(APdPlayerState* InPlayerState);
 
@@ -30,6 +32,7 @@ public:
 	void RefreshUI();
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override;
 
 	UFUNCTION()
@@ -44,6 +47,20 @@ protected:
 	UFUNCTION()
 	void HandleTeamColorSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
+private:
+	UFUNCTION() UWidget* GenerateTeamOption(FString Option);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void EnsureTeamColorOptions();
+	void RefreshTeamColorUI();
+	void SetColorBorderByTeamColorIndex(int32 TeamColorIndex);
+	bool IsRepresentingLocalPlayer() const;
+	bool CanLocalPlayerKick() const;
+	bool IsLobbyOwnerPlayer() const;
+	FString GetRepresentedSteamIdString() const;
+	bool OpenSteamFriendAddOverlay() const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UTextBlock> Txt_PlayerName;
 
@@ -70,15 +87,4 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Lobby|UI")
 	TObjectPtr<APdPlayerState> PlayerState;
-
-private:
-	void EnsureTeamColorOptions();
-	UFUNCTION() UWidget* GenerateTeamOption(FString Option);
-	void RefreshTeamColorUI();
-	void SetColorBorderByTeamColorIndex(int32 TeamColorIndex);
-	bool IsRepresentingLocalPlayer() const;
-	bool CanLocalPlayerKick() const;
-	bool IsLobbyOwnerPlayer() const;
-	FString GetRepresentedSteamIdString() const;
-	bool OpenSteamFriendAddOverlay() const;
 };

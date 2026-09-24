@@ -37,14 +37,12 @@ class LABPROJECT_API UExperienceManagerComponent : public UGameStateComponent
 	GENERATED_BODY()
 
 public:
-	UExperienceManagerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//------------------------------------------------------------------------------------------------------------------
+	// Public API ------------------------------------------------------------------------------------------------------
+	UExperienceManagerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void SetCurrentExperienceAuth(FPrimaryAssetId ExperienceId);
 	bool IsExperienceLoaded() const { return LoadState == EExperienceLoadState::Loaded; }
@@ -56,18 +54,21 @@ public:
 	void RemoveOnExperienceLoaded(FDelegateHandle DelegateHandle);
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleCurrentExperienceIdReplicated();
-
-	void StartExperienceLoad();
 	void HandleExperienceAssetLoaded(TSharedPtr<FStreamableHandle> LoadHandle, FPrimaryAssetId LoadedExperienceId);
-	void StartGameFeatureLoads();
 	void HandleGameFeaturesLoaded(const TMap<FString, UE::GameFeatures::FResult>& Results);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void StartExperienceLoad();
+	void StartGameFeatureLoads();
 	void FinishExperienceLoad();
 	void FailExperienceLoad(FPrimaryAssetId FailedExperienceId, FString FailureMessage);
 	void DeactivateExperience();
 	void ReleaseRuntimeResources();
 
+private:
 	UPROPERTY(ReplicatedUsing = HandleCurrentExperienceIdReplicated)
 	FPrimaryAssetId CurrentExperienceId;
 

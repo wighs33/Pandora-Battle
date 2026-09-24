@@ -19,11 +19,14 @@ UCLASS()
 class LABPROJECT_API UInfoPaintPreview : public UObject
 {
     GENERATED_BODY()
+
 public:
+    // Public API ------------------------------------------------------------------------------------------------------
     bool Show(APdPlayer* Player, UPaintCanvasWidget* Widget, UTextureRenderTarget2D* Canvas,
         const FSkinWidgetSettings& Settings);
     void Refresh();
     void Shutdown();
+
 private:
     UPROPERTY(Transient) TObjectPtr<AActor> PreviewActor;
     UPROPERTY(Transient) TObjectPtr<USceneCaptureComponent2D> Capture;

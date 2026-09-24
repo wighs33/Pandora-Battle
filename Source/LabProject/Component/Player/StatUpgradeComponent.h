@@ -23,14 +23,12 @@ class LABPROJECT_API UStatUpgradeComponent : public UPlayerStateComponent
 	GENERATED_BODY()
 
 public:
-	UStatUpgradeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//------------------------------------------------------------------------------------------------------------------
+	// Public API ------------------------------------------------------------------------------------------------------
+	UStatUpgradeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// 클라이언트의 true는 요청 전송을 뜻하며, 확정 결과는 복제된 능력치로 확인한다.
 	UFUNCTION(BlueprintCallable, Category = "!AbilitySystem|Stat", meta = (GameplayTagFilter = "Status"))
@@ -43,18 +41,23 @@ public:
 	bool SetPointsForAllCategories(float Value);
 
 private:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerRequestStatUp(FGameplayTag StatTag);
 
 	UFUNCTION(Server, Reliable)
 	void ServerRequestStatDown(FGameplayTag StatTag);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleStatUpgradeDefinitionPreloaded(uint32 RequestGeneration);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool ApplyStatChange(FGameplayTag StatTag, int32 LevelDelta);
 	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
 	void BeginStatUpgradeDefinitionPreload();
-	void HandleStatUpgradeDefinitionPreloaded(uint32 RequestGeneration);
 	void ReleaseStatUpgradeDefinitionPreload();
 
+private:
 	UPROPERTY(EditDefaultsOnly, Category = "!AbilitySystem|Stat", meta = (AllowPrivateAccess = "true", DisplayName = "DA Stat"))
 	TSoftObjectPtr<UStatUpgradeDefinition> StatUpgradeDefinition;
 

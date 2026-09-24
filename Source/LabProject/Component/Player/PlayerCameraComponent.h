@@ -22,6 +22,7 @@ class LABPROJECT_API UPlayerCameraComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UPlayerCameraComponent();
 
 	void InitializeCamera(
@@ -52,8 +53,11 @@ public:
 	static FWeaponAimCameraSettings SanitizeAimCameraSettings(FWeaponAimCameraSettings Settings);
 
 private:
-	void CacheCameraDefaults();
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void ClearAbilityCameraOverride();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void CacheCameraDefaults();
 	void UpdateAimCamera(float DeltaSeconds);
 	void UpdateOcclusionMaterialState();
 	void AppendOcclusionMeshComponents(
@@ -62,6 +66,7 @@ private:
 	bool SetOcclusionEnabledForMesh(UMeshComponent* MeshComponent, bool bEnabled);
 	void ResetOcclusionMaterialState();
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<USpringArmComponent> CameraBoom;
 

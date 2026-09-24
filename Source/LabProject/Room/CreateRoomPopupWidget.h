@@ -16,10 +16,12 @@ class LABPROJECT_API UCreateRoomPopupWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleCreateClicked();
 
@@ -30,9 +32,21 @@ protected:
 	void HandleCreateLoadingCancel();
 
 	void HandleCreateSessionComplete(uint64 RequestId, bool bWasSuccessful);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void OpenLobbyAsListenServer() const;
 	FString GetRoomNameInput() const;
 
+private:
+	void ApplyWidgetDefinitionSettings();
+	UButton* GetCreateButton() const;
+	UEditableTextBox* GetRoomNameTextBox() const;
+	FString GetResolvedLobbyTravelMapName() const;
+	UUiSubsystem* GetUiSubsystem() const;
+	UConnectingPopupWidget* ShowConnectingPopup(bool bShowCancelButton);
+	void HideConnectingPopup() const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Room|Bind")
 	TObjectPtr<UButton> Btn_Create;
 
@@ -52,14 +66,6 @@ protected:
 	bool bCreateLAN = false;
 
 private:
-	void ApplyWidgetDefinitionSettings();
-	UButton* GetCreateButton() const;
-	UEditableTextBox* GetRoomNameTextBox() const;
-	FString GetResolvedLobbyTravelMapName() const;
-	UUiSubsystem* GetUiSubsystem() const;
-	UConnectingPopupWidget* ShowConnectingPopup(bool bShowCancelButton);
-	void HideConnectingPopup() const;
-
 	FDelegateHandle CreateSessionCompleteHandle;
 	uint64 ActiveCreateRequestId = 0;
 };

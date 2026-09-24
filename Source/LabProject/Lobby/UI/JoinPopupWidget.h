@@ -14,10 +14,12 @@ class LABPROJECT_API UJoinPopupWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleJoinClicked();
 
@@ -26,6 +28,7 @@ protected:
 
 	void RemoveConnectingPopup();
 
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_Join;
 

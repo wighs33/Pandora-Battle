@@ -10,7 +10,9 @@ class LABPROJECT_API UAnimNotify_SpawnSkillSlash : public UAnimNotify_WeaponEven
 	GENERATED_BODY()
 
 public:
-	UAnimNotify_SpawnSkillSlash();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FString GetNotifyName_Implementation() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UAnimNotify_SpawnSkillSlash();
 };

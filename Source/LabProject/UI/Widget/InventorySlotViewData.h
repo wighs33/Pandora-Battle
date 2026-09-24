@@ -13,6 +13,7 @@ class LABPROJECT_API UInventorySlotViewData : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(
 		int32 InSlotIndex,
 		UItemInstance* InItemInstance,

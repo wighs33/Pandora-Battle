@@ -15,15 +15,21 @@ class LABPROJECT_API UHealthBarViewModel : public UCommonViewModelBase
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UHealthBarViewModel();
 
-	// Timing hooks
 	virtual void InitializeViewModel(UObject* SourceObject) override;
 
 	virtual void UninitializeViewModel() override;
 
+	void UpdateHealthData();
+
+	void UpdateExperienceData();
+
+	void UpdateAllData();
+
 private:
-	// Attribute delegate callbacks
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void OnLevelChanged(const FOnAttributeChangeData& Data);
 
 	void OnExperienceChanged(const FOnAttributeChangeData& Data);
@@ -33,6 +39,11 @@ private:
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 
 	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	UAbilitySystemComponent* ResolveAbilitySystemComponent(UObject* SourceObject) const;
+
+	void ResetViewData();
 
 public:
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!HealthBar ViewModel")
@@ -62,19 +73,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!HealthBar ViewModel|Experience")
 	FText ExperienceText;
 
-	void UpdateHealthData();
-
-	void UpdateExperienceData();
-
-	void UpdateAllData();
-
 	static const FName ViewModelName;
 
 private:
-	UAbilitySystemComponent* ResolveAbilitySystemComponent(UObject* SourceObject) const;
-
-	void ResetViewData();
-
 	UPROPERTY()
 	TWeakObjectPtr<UAbilitySystemComponent> ASC;
 };

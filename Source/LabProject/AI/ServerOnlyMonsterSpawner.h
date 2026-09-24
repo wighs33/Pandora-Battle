@@ -17,13 +17,28 @@ class LABPROJECT_API AServerOnlyMonsterSpawner : public AActor
 {
 	GENERATED_BODY()
 
-public:
-	AServerOnlyMonsterSpawner();
-
 protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	AServerOnlyMonsterSpawner();
+
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void SpawnMonster();
+
+	UFUNCTION()
+	void HandleSpawnedMonsterDestroyed(AActor* DestroyedActor);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ScheduleRespawn();
+	void CleanupSpawnedMonster();
+	bool ApplyMonsterSpawnParameters(AMonsterCharacter* Monster) const;
+
+protected:
 	/** Optional per-spawner override. When empty, DA_EnemyBase supplies the default monster class. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (DisplayName = "Monster Class"))
 	TSubclassOf<AMonsterCharacter> MonsterClass;
@@ -41,14 +56,6 @@ protected:
 	double MinLeashDistanceFromSpawnPointToResumeRoaming = 500.0;
 
 private:
-	void SpawnMonster();
-	void ScheduleRespawn();
-	void CleanupSpawnedMonster();
-	bool ApplyMonsterSpawnParameters(AMonsterCharacter* Monster) const;
-
-	UFUNCTION()
-	void HandleSpawnedMonsterDestroyed(AActor* DestroyedActor);
-
 	UPROPERTY(Transient)
 	TObjectPtr<AMonsterCharacter> SpawnedMonster;
 

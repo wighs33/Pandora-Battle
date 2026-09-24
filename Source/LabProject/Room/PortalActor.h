@@ -29,33 +29,6 @@ class LABPROJECT_API APortalActor : public AActor
 {
 	GENERATED_BODY()
 
-public:
-	APortalActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	virtual void OnConstruction(const FTransform& Transform) override;
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void Tick(float DeltaSeconds) override;
-
-#if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
-#endif
-
-	UFUNCTION(BlueprintCallable, Category = "Portal")
-	void NativeTryInitPortalMaterial();
-
-	UFUNCTION(BlueprintCallable, Category = "Portal")
-	void NativeUpdateSceneCapture();
-
-	UFUNCTION(BlueprintCallable, Category = "Portal")
-	bool NativeTryTeleportOverlappingActor();
-
-	UFUNCTION(BlueprintPure, Category = "Portal")
-	FVector GetPortalForward() const;
-
-	UFUNCTION(BlueprintPure, Category = "Portal")
-	FVector GetPortalPlaneLocation() const;
-
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USceneComponent> SceneRootComponent;
@@ -146,6 +119,37 @@ private:
 		double LastTeleportTime = -BIG_NUMBER;
 	};
 
+public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void OnConstruction(const FTransform& Transform) override;
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void Tick(float DeltaSeconds) override;
+
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	APortalActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	UFUNCTION(BlueprintCallable, Category = "Portal")
+	void NativeUpdateSceneCapture();
+
+	UFUNCTION(BlueprintCallable, Category = "Portal")
+	bool NativeTryTeleportOverlappingActor();
+
+	UFUNCTION(BlueprintPure, Category = "Portal")
+	FVector GetPortalForward() const;
+
+	UFUNCTION(BlueprintPure, Category = "Portal")
+	FVector GetPortalPlaneLocation() const;
+
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "Portal")
+	void NativeTryInitPortalMaterial();
+
+private:
 	UFUNCTION()
 	void HandlePortalBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
@@ -158,6 +162,7 @@ private:
 	UFUNCTION()
 	void HandleDetectionEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool EnsureRenderTargetSize();
 	FIntPoint GetDesiredRenderTargetSize() const;
 	bool ApplyPortalDefinition();
@@ -198,6 +203,7 @@ private:
 	FVector TransformVelocityToLinkedPortal(const FVector& WorldVelocity) const;
 	FTransform GetPortalReferenceTransform() const;
 
+private:
 	FTimerHandle InitMaterialTimerHandle;
 	UPROPERTY(Transient)
 	TObjectPtr<UPortalDefinition> LoadedPortalDefinition;

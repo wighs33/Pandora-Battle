@@ -18,11 +18,19 @@ class LABPROJECT_API USkillShieldAction : public USkillAction
 	GENERATED_BODY()
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 
 	virtual void OnStop() override;
 
 private:
+	UFUNCTION()
+	void HandleShieldMontageFinished();
+
+	UFUNCTION()
+	void HandleMontageTriggerEvent(FGameplayEventData Payload);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	UAnimMontage* GetResolvedShieldMontage() const;
 	TSubclassOf<UGameplayEffect> GetResolvedShieldGameplayEffectClass() const;
 	FGameplayTag GetResolvedMontageTriggerEventTag() const;
@@ -31,12 +39,7 @@ private:
 	void ApplyShieldFromMontageTrigger();
 	void CleanupShieldTasks();
 
-	UFUNCTION()
-	void HandleShieldMontageFinished();
-
-	UFUNCTION()
-	void HandleMontageTriggerEvent(FGameplayEventData Payload);
-
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> ShieldMontageTask;
 

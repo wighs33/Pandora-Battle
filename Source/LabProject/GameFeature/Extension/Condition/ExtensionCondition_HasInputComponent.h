@@ -12,8 +12,11 @@ struct LABPROJECT_API FExtensionCondition_HasInputComponent : public FExtensionC
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	virtual bool IsSatisfied(AActor* Owner) const override;
 
+public:
 	UPROPERTY(EditAnywhere, Category = "Condition", meta = (AllowAbstract = "false"))
 	TSubclassOf<UInputComponent> RequiredClass;
 };

@@ -13,15 +13,22 @@ class LABPROJECT_API UDamageScreenEffectWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UDamageScreenEffectWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UDamageScreenEffectWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!Damage|ScreenEffect")
 	void PlayDamageScreenEffect(float DamageAmount = 0.0f);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Damage|ScreenEffect")
 	void HideDamageScreenEffect();
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplyDamageScreenTint();
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Damage|Bind")
@@ -40,7 +47,5 @@ protected:
 	float FallbackVisibleDuration = 0.35f;
 
 private:
-	void ApplyDamageScreenTint();
-
 	FTimerHandle HideTimerHandle;
 };

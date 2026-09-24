@@ -18,20 +18,21 @@ class LABPROJECT_API AArrowProjectileBase : public AActor
 {
 	GENERATED_BODY()
 
-public:
-	AArrowProjectileBase();
-
-	// Public API
-	UFUNCTION(BlueprintCallable, Category = "!Arrow")
-	bool LaunchArrowActor(const FVector& Direction);
-
 protected:
-	// Timing hooks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	// Delegate callbacks
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	AArrowProjectileBase();
+
+	UFUNCTION(BlueprintCallable, Category = "!Arrow")
+	bool LaunchArrowActor(const FVector& Direction);
+
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleCollisionOverlap(
 		UPrimitiveComponent* OverlappedComponent,
@@ -49,7 +50,7 @@ protected:
 		FVector NormalImpulse,
 		const FHitResult& Hit);
 
-	// Query helpers
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	UPrimitiveComponent* GetCollisionComponent() const;
 	UProjectileMovementComponent* GetProjectileMovementComponent() const;
 	ACharacterBase* GetOwningCharacter() const;

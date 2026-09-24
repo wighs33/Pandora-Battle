@@ -15,7 +15,13 @@ class LABPROJECT_API UQuickSlotEntryWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativePreConstruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|QuickSlot")
 	void SetQuickSlotData(int32 InSlotIndex, UItemInstance* InItemInstance);
 
@@ -34,16 +40,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|QuickSlot")
 	void RefreshVisual();
 
-protected:
-	virtual void NativeConstruct() override;
-	virtual void NativePreConstruct() override;
-
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void CacheOptionalWidgets();
 	void ApplyItemVisual();
 	void ApplyInputKeyIcon();
 	UInputAction* ResolveInputAction() const;
 
+private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|QuickSlot", meta = (AllowPrivateAccess = "true", ClampMin = "0"))
 	int32 SlotIndex = 0;
 

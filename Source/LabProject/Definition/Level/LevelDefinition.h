@@ -53,13 +53,16 @@ class LABPROJECT_API ULevelDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	static FSoftObjectPath GetDefaultDefinitionPath();
-	static const ULevelDefinition* ResolveDefaultDefinition();
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	static FSoftObjectPath GetDefaultDefinitionPath();
+	static const ULevelDefinition* ResolveDefaultDefinition();
 
 	UFUNCTION(BlueprintPure, Category = "!Ingame Level")
 	bool GetIngameLevelAtIndex(int32 Index, FLobbyMatchMapOption& OutLevel) const;
@@ -77,6 +80,7 @@ public:
 	bool IsLobbyMapName(const FString& LevelName) const;
 	bool IsTrainingRoomMapName(const FString& LevelName) const;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ingame Level",
 		meta = (TitleProperty = "DisplayName"))
 	TArray<FLobbyMatchMapOption> IngameLevels;

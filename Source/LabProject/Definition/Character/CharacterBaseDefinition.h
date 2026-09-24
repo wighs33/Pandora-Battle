@@ -58,12 +58,14 @@ class LABPROJECT_API UCharacterBaseDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	static FSoftObjectPath GetDefaultDefinitionPath();
 
 	const FCharacterPresentationSettings& GetPresentationSettings() const { return Presentation; }

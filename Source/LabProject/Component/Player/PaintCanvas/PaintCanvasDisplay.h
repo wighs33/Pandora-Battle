@@ -11,16 +11,13 @@ class UMaterialInterface;
 class UPrimitiveComponent;
 class UTextureRenderTarget2D;
 
-/**
- * 완성된 Paint RenderTarget을 월드 표현(Speech Bubble / Face Decal)에 연결한다.
- * Stroke 생성, 네트워크 동기화, RenderTarget 그리기는 담당하지 않는다.
- */
 UCLASS(Transient)
 class LABPROJECT_API UPaintCanvasDisplay : public UObject
 {
     GENERATED_BODY()
 
 public:
+    // Public API ------------------------------------------------------------------------------------------------------
     void Initialize(APdPlayer* InPlayerOwner);
     void SetSpeechBubbleComponent(UPrimitiveComponent* InSpeechBubbleComponent);
 
@@ -43,16 +40,11 @@ public:
     void Reset(FName SpeechBubbleComponentName);
 
 private:
-    UPrimitiveComponent* FindSpeechBubbleComponent(FName ComponentName) const;
-
     UPROPERTY(Transient)
     TWeakObjectPtr<APdPlayer> PlayerOwner;
 
     UPROPERTY(Transient)
     TObjectPtr<UPrimitiveComponent> SpeechBubbleComponent;
-
-    UPROPERTY(Transient)
-    TObjectPtr<UPrimitiveComponent> ActiveSpeechBubbleComponent;
 
     UPROPERTY(Transient)
     TObjectPtr<UMaterialInstanceDynamic> ActiveSpeechBubbleMaterial;

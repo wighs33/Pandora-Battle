@@ -16,7 +16,13 @@ class LABPROJECT_API AEffectAreaBase : public AActor
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	AEffectAreaBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!EffectArea")
@@ -32,9 +38,7 @@ public:
 	void SetAffectEnemiesOnly(bool bInAffectEnemiesOnly);
 
 protected:
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleAreaBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -43,6 +47,7 @@ protected:
 	void HandleAreaEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyEffectToActor(AActor* TargetActor);
 	void RemoveEffectFromActor(AActor* TargetActor);
 	UAbilitySystemComponent* GetTargetAbilitySystemComponent(AActor* TargetActor) const;

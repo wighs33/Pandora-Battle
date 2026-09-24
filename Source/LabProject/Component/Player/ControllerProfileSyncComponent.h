@@ -20,9 +20,11 @@ class LABPROJECT_API UControllerProfileSyncComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UControllerProfileSyncComponent();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UControllerProfileSyncComponent();
 
 	void ScheduleLocalCosmeticProfileSync();
 	void ApplyGameVictoryGoldReward(const FString& PlayerId, int32 GoldReward) const;
@@ -32,16 +34,20 @@ public:
 		FName SelectedAchievementId);
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void PushLocalCosmeticProfileToServer();
+	void HandleSteamAchievementStateChanged();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetPdController() const;
 	FString ResolveRewardPlayerId(const FString& FallbackPlayerId) const;
-	void PushLocalCosmeticProfileToServer();
 	void GrantDefaultSkinEntitlementsOnServer() const;
 	void CompleteLocalCosmeticProfileSyncAttempt();
 	bool TryConsumeRemoteSkinSyncRequest();
 	void BindSteamAchievementStateChanged();
 	void UnbindSteamAchievementStateChanged();
-	void HandleSteamAchievementStateChanged();
 
+private:
 	FTimerHandle LocalCosmeticProfileSyncTimerHandle;
 	FDelegateHandle SteamAchievementStateChangedHandle;
 	int32 LocalCosmeticProfileSyncAttemptCount = 0;

@@ -10,5 +10,6 @@ class LABPROJECT_API ARoomGameMode : public AGameModeBase
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	ARoomGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 };

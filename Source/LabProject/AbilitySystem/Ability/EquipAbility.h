@@ -15,22 +15,25 @@ class LABPROJECT_API UEquipAbility : public UPdGameplayAbility
 {
 	GENERATED_BODY()
 
-public:
-	UEquipAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
 protected:
-	// Timing hooks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	                             const FGameplayAbilityActivationInfo ActivationInfo,
 	                             const FGameplayEventData* TriggerEventData) override;
-	virtual void OnAbilityEnding() override;
 	virtual const FGameplayTagContainer* GetCooldownTags() const override;
 	virtual void ApplyCooldown(
 		FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
 		FGameplayAbilityActivationInfo ActivationInfo) const override;
 
-	// Delegate callbacks
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UEquipAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnAbilityEnding() override;
+
 	UFUNCTION()
 	void OnEquipMontageCompleted();
 
@@ -43,13 +46,14 @@ protected:
 	UFUNCTION()
 	void OnEquipCommitTiming(FGameplayEventData Payload);
 
-	// State helpers
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ClearActiveEquipEffect();
 	void ClearPendingEquipState();
 	void ResolveEquipTransition();
 	void FinalizeEquipCommit();
 	bool CommitPendingEquipIfPossible();
 
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> EquipEffectClass;
 

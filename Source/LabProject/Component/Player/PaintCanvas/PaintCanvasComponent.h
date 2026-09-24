@@ -28,17 +28,18 @@ struct LABPROJECT_API FPaintCanvasStroke
     bool bStartsNewStroke = true;
 };
 
-/** Draw locally, then share the completed stroke history for display. */
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UPaintCanvasComponent : public UActorComponent
 {
     GENERATED_BODY()
 
 public:
-    UPaintCanvasComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+    // Engine Overrides ------------------------------------------------------------------------------------------------
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+    // Public API ------------------------------------------------------------------------------------------------------
+    UPaintCanvasComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
     void SetSpeechBubbleComponent(UPrimitiveComponent* InSpeechBubbleComponent);
 
@@ -63,54 +64,7 @@ public:
     void HidePaintSpeechBubble();
 
 private:
-    APdPlayer* GetPlayerOwner() const;
-    UPaintCanvasDisplay* GetOrCreatePresentation();
-
-    // Canvas rendering
-    bool EnsurePaintCanvasRenderResources(bool bResetCanvas = false);
-    void ResetPaintCanvasRenderTarget();
-    bool DrawBrushToRenderTarget(UTexture2D* InBrushTexture, double InBrushSize, const FVector2D& DrawLocation);
-    bool DrawPaintStroke(const FPaintCanvasStroke& Stroke, const FPaintCanvasStroke* PreviousStroke);
-    void ApplyBrushMaterialParameters() const;
-    UTextureRenderTarget2D* CreatePaintCanvasCopy(
-        UTextureRenderTarget2D* SourceRenderTarget,
-        double Scale,
-        const FLinearColor& ClearTargetColor);
-    bool ReplayPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes);
-
-    // Local session / presentation orchestration
-    void CancelPaintCanvasExport();
-    void HandlePaintCanvasExportExpired();
-    bool ApplyPaintCanvasToSpeechBubble();
-    bool StartLocalPaintCanvasExport();
-    bool ApplyLocalPaintCanvasToFaceDecal(
-        UMaterialInterface* FaceDecalMaterial,
-        FName AttachSocketName,
-        const FTransform& FaceDecalTransformOffset,
-        FVector FaceDecalSize,
-        FName TextureParameterName);
-
-    // Completed drawings only
-    bool IsValidPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes) const;
-    void SubmitPaintCanvasExportForNetwork();
-
-    void SubmitPaintCanvasFaceDecalForNetwork(
-        UMaterialInterface* FaceDecalMaterial,
-        FName AttachSocketName,
-        const FTransform& FaceDecalTransformOffset,
-        FVector FaceDecalSize,
-        FName TextureParameterName);
-
-    bool TryConsumePaintNetworkEvent(double& LastAcceptedTime, double MinInterval);
-
-    // Travel cache
-    void CacheLocalPaintCanvasFaceDecalForTravel(
-        UMaterialInterface* FaceDecalMaterial,
-        FName AttachSocketName,
-        const FTransform& FaceDecalTransformOffset,
-        FVector FaceDecalSize,
-        FName TextureParameterName) const;
-
+    // Network RPCs ----------------------------------------------------------------------------------------------------
     UFUNCTION(Server, Reliable)
     void ServerExportPaintCanvas(const TArray<FPaintCanvasStroke>& Strokes);
 
@@ -134,6 +88,53 @@ private:
         FTransform FaceDecalTransformOffset,
         FVector FaceDecalSize,
         FName TextureParameterName);
+
+    // Event Handlers --------------------------------------------------------------------------------------------------
+    void HandlePaintCanvasExportExpired();
+
+    // Internal Helpers ------------------------------------------------------------------------------------------------
+    APdPlayer* GetPlayerOwner() const;
+    UPaintCanvasDisplay* GetOrCreatePresentation();
+
+    bool EnsurePaintCanvasRenderResources(bool bResetCanvas = false);
+    void ResetPaintCanvasRenderTarget();
+    bool DrawBrushToRenderTarget(UTexture2D* InBrushTexture, double InBrushSize, const FVector2D& DrawLocation);
+    bool DrawPaintStroke(const FPaintCanvasStroke& Stroke, const FPaintCanvasStroke* PreviousStroke);
+    void ApplyBrushMaterialParameters() const;
+    UTextureRenderTarget2D* CreatePaintCanvasCopy(
+        UTextureRenderTarget2D* SourceRenderTarget,
+        double Scale,
+        const FLinearColor& ClearTargetColor);
+    bool ReplayPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes);
+
+    void CancelPaintCanvasExport();
+    bool ApplyPaintCanvasToSpeechBubble();
+    bool StartLocalPaintCanvasExport();
+    bool ApplyLocalPaintCanvasToFaceDecal(
+        UMaterialInterface* FaceDecalMaterial,
+        FName AttachSocketName,
+        const FTransform& FaceDecalTransformOffset,
+        FVector FaceDecalSize,
+        FName TextureParameterName);
+
+    bool IsValidPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes) const;
+    void SubmitPaintCanvasExportForNetwork();
+
+    void SubmitPaintCanvasFaceDecalForNetwork(
+        UMaterialInterface* FaceDecalMaterial,
+        FName AttachSocketName,
+        const FTransform& FaceDecalTransformOffset,
+        FVector FaceDecalSize,
+        FName TextureParameterName);
+
+    bool TryConsumePaintNetworkEvent(double& LastAcceptedTime, double MinInterval);
+
+    void CacheLocalPaintCanvasFaceDecalForTravel(
+        UMaterialInterface* FaceDecalMaterial,
+        FName AttachSocketName,
+        const FTransform& FaceDecalTransformOffset,
+        FVector FaceDecalSize,
+        FName TextureParameterName) const;
 
 private:
     UPROPERTY(EditAnywhere, Category = "!Paint", meta = (DisplayName = "Brush Texture"))

@@ -12,10 +12,17 @@ class LABPROJECT_API UChatEntryWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Chat")
 	void SetMessage(const FString& InMessage);
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void RefreshUI();
+	UTextBlock* GetMessageTextBlock() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Chat|Bind")
@@ -34,8 +41,4 @@ protected:
 		TEXT("Txt_ChatMessage"),
 		TEXT("TextBlock")
 	};
-
-private:
-	void RefreshUI();
-	UTextBlock* GetMessageTextBlock() const;
 };

@@ -33,8 +33,10 @@ class LABPROJECT_API UGuideDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Guide|Localization")
 	EGuideLanguage DefaultLanguage = EGuideLanguage::Korean;
 

@@ -42,10 +42,12 @@ struct LABPROJECT_API FReplicatedPandoraEntry : public FFastArraySerializerItem
 	GENERATED_BODY()
 
 public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void PostReplicatedAdd(const struct FReplicatedPandoraList& InArraySerializer);
 	void PostReplicatedChange(const struct FReplicatedPandoraList& InArraySerializer);
 	void PreReplicatedRemove(const struct FReplicatedPandoraList& InArraySerializer);
 
+public:
 	UPROPERTY()
 	TObjectPtr<const UPandoraDefinition> PandoraDefinition = nullptr;
 
@@ -59,8 +61,7 @@ struct LABPROJECT_API FReplicatedPandoraList : public FIrisFastArraySerializer
 	GENERATED_BODY()
 
 public:
-	void PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters);
-
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 	{
 		return FFastArraySerializer::FastArrayDeltaSerialize<FReplicatedPandoraEntry, FReplicatedPandoraList>(Entries, DeltaParms, *this);
@@ -71,6 +72,10 @@ public:
 		MarkItemDirty(Entry);
 	}
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters);
+
+public:
 	UPROPERTY()
 	TArray<FReplicatedPandoraEntry> Entries;
 
@@ -94,18 +99,20 @@ class LABPROJECT_API UPandoraComponent : public UPlayerStateComponent
 {
 	GENERATED_BODY()
 
+private:
 	friend struct FReplicatedPandoraEntry;
 	friend struct FReplicatedPandoraList;
 	friend class UPandoraSkillSource;
 
 public:
-	UPandoraComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	// Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void ReadyForReplication() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UPandoraComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!Inventory")
 	void AddPandorasByPrimaryAssetIds(const TArray<FPrimaryAssetId>& PandoraDefinitions);
@@ -128,9 +135,6 @@ public:
 	const FPandoraList& GetAllPandoras() const { return AllPandoraList; }
 	const TMap<FGameplayTag, FPandoraList>& GetFilteredPandoraMap() const { return Map_Type_PandoraList; }
 
-	UPROPERTY(BlueprintAssignable, Category = "!Inventory")
-	FPdPandoraInventoryChangedDelegate OnPandoraInventoryChanged;
-
 	UFUNCTION(BlueprintCallable, Category = "!Pandora|Skill")
 	bool RequestPandoraSelection(const UPandoraDefinition* PandoraDefinition);
 
@@ -151,12 +155,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	EEnum_Direction GetCurrentPandoraLoadoutDirection() const { return CurrentPandoraLoadoutDirection; }
 
-	UPROPERTY(BlueprintAssignable, Category = "!Pandora|Skill")
-	FPdPandoraSelectionChangedDelegate OnPandoraSelectionChanged;
-
-	UPROPERTY(BlueprintAssignable, Category = "!Pandora|Loadout")
-	FPdPandoraLoadoutChangedDelegate OnPandoraLoadoutChanged;
-
 	UFUNCTION(BlueprintCallable, Category = "!Pandora")
 	void RefreshSelectedPandoraAbilityBindings(class UPdAbilitySystemComponent* AbilitySystemComponent = nullptr) const;
 
@@ -175,9 +173,36 @@ public:
 		FGameplayAbilitySpecHandle RemovedHandle = FGameplayAbilitySpecHandle());
 
 protected:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
+	UFUNCTION(Server, Reliable)
+	void ServerRequestPandoraSelection(FPrimaryAssetId PandoraDefinitionId, EEnum_Direction RequestedDirection);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetPandoraLoadoutSlot(EEnum_Direction Direction, FPrimaryAssetId PandoraDefinitionId);
+
+	UFUNCTION(Server, Reliable)
+	void ServerAutoSetPandoraLoadoutSlot(FPrimaryAssetId PandoraDefinitionId);
+
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedPandoraEntry& Entry);
 	void HandleReplicatedEntryRemoved(const UPandoraDefinition* PandoraDefinition);
 
+	UFUNCTION()
+	void OnRep_CurrentPandoraDefinition();
+
+	UFUNCTION()
+	void OnRep_CurrentPandoraLoadoutDirection();
+
+	UFUNCTION()
+	void OnRep_PandoraLoadoutSlots();
+
+private:
+	void HandleGrantedAbilityRemoved(const FGameplayAbilitySpec& Spec);
+	void HandleSkillSourceReplicated(UPandoraSkillSource* Source);
+	void HandleSkillSourceDestroyed(UPandoraSkillSource* Source);
+
+protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RebuildPandoraListsFromReplicatedEntries();
 	void RebuildFilteredPandoraMap();
 	void FilterPandoras(const UPandoraDefinition* PandoraDefinition);
@@ -199,24 +224,6 @@ protected:
 	FReplicatedPandoraEntry* FindReplicatedEntryByDefinition(const UPandoraDefinition* PandoraDefinition);
 	const FReplicatedPandoraEntry* FindReplicatedEntryByDefinition(const UPandoraDefinition* PandoraDefinition) const;
 
-	UFUNCTION(Server, Reliable)
-	void ServerRequestPandoraSelection(FPrimaryAssetId PandoraDefinitionId, EEnum_Direction RequestedDirection);
-
-	UFUNCTION(Server, Reliable)
-	void ServerSetPandoraLoadoutSlot(EEnum_Direction Direction, FPrimaryAssetId PandoraDefinitionId);
-
-	UFUNCTION(Server, Reliable)
-	void ServerAutoSetPandoraLoadoutSlot(FPrimaryAssetId PandoraDefinitionId);
-
-	UFUNCTION()
-	void OnRep_CurrentPandoraDefinition();
-
-	UFUNCTION()
-	void OnRep_CurrentPandoraLoadoutDirection();
-
-	UFUNCTION()
-	void OnRep_PandoraLoadoutSlots();
-
 	void NotifyPandoraSelectionChanged();
 	void NotifyPandoraLoadoutChanged();
 	void RefreshPlacedPandoraSkillPreloads();
@@ -228,17 +235,24 @@ protected:
 	const FPandoraLoadoutSlot* FindPandoraLoadoutSlot(EEnum_Direction Direction) const;
 	void LogRejectedServerRequest(const TCHAR* RequestName, const FString& Reason);
 
+private:
+	void BindAbilityRemoval();
+	void ReleaseSkillSourcesForEndPlay();
+
 public:
+	UPROPERTY(BlueprintAssignable, Category = "!Inventory")
+	FPdPandoraInventoryChangedDelegate OnPandoraInventoryChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "!Pandora|Skill")
+	FPdPandoraSelectionChangedDelegate OnPandoraSelectionChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "!Pandora|Loadout")
+	FPdPandoraLoadoutChangedDelegate OnPandoraLoadoutChanged;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Default", meta = (DisplayName = "All Pandroa Definition"))
 	TArray<FPrimaryAssetId> AllPandroaDefinition;
 
 private:
-	void BindAbilityRemoval();
-	void HandleGrantedAbilityRemoved(const FGameplayAbilitySpec& Spec);
-	void HandleSkillSourceReplicated(UPandoraSkillSource* Source);
-	void HandleSkillSourceDestroyed(UPandoraSkillSource* Source);
-	void ReleaseSkillSourcesForEndPlay();
-
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPandoraSkillSource>> OwnedSkillSources;
 	TWeakObjectPtr<UPdAbilitySystemComponent> SourceAbilitySystemComponent;

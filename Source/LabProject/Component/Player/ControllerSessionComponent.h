@@ -19,6 +19,7 @@ class LABPROJECT_API UControllerSessionComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UControllerSessionComponent();
 
 	bool RequestExitMatchToTitle();
@@ -29,6 +30,7 @@ public:
 		const FString& TitleMapName) const;
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetPdController() const;
 	bool CanRequestExitMatchToTitle() const;
 	void DestroySessionAndTravelToTitle(

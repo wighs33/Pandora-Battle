@@ -13,6 +13,7 @@ class LABPROJECT_API ULobbyMatchCoordinator : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	// 호스트의 시작 요청과 팀·맵·인원 변경에 따른 취소.
 	void TryStartGame();
 	bool CanHostStartGame() const;
@@ -32,13 +33,17 @@ public:
 	void Shutdown();
 
 private:
-	ALobbyGameMode* GetLobbyGameMode() const;
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleStartCountdownElapsed();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	ALobbyGameMode* GetLobbyGameMode() const;
 	float GetStartCountdownSeconds(int32 ActivePlayerCount) const;
 	void ClearStartCountdownTimer();
 	bool AreLobbyTeamsBalanced() const;
 	int32 FindAvailableLobbyTeamColorIndex(const APdPlayerState* IgnoredPlayerState) const;
 
+private:
 	FTimerHandle StartCountdownTimerHandle;
 	// 카운트다운 이후 온라인 세션 시작·콘텐츠 준비·맵 이동 대기까지 포함한다.
 	bool bGameStartRequested = false;

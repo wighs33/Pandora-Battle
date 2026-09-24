@@ -12,6 +12,7 @@ struct LABPROJECT_API FSkillTopLevelDamageConfig
 {
 	GENERATED_BODY()
 
+public:
 	/** 적용할 GameplayEffect 클래스. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
 	TSubclassOf<UGameplayEffect> GameplayEffectClass;
@@ -32,6 +33,7 @@ struct LABPROJECT_API FSkillTopLevelDamageConfig
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bRepeatTriggerDamageWhileOverlapping", EditConditionHides, ClampMin = "0.05", ForceUnits = "s", DisplayName = "Trigger Damage Interval"))
 	double TriggerDamageInterval = 1.0;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	FSkillGameplayEffectConfig ToGameplayEffectConfig() const
 	{
 		FSkillGameplayEffectConfig Config;
@@ -40,7 +42,6 @@ struct LABPROJECT_API FSkillTopLevelDamageConfig
 		Config.Magnitude = Magnitude;
 		return Config;
 	}
-
 };
 
 /** 시전자에게 적용하는 GameplayEffect와 강화 보정. */

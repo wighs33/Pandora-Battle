@@ -19,6 +19,7 @@ struct LABPROJECT_API FDefaultProvisionModeCounts
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Default Provision|Count",
 		meta = (ClampMin = "0"))
 	int32 Lobby = 0;
@@ -31,6 +32,7 @@ struct LABPROJECT_API FDefaultProvisionModeCounts
 		meta = (ClampMin = "0"))
 	int32 Gameplay = 0;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	int32 GetCount(EDefaultProvisionMode Mode) const;
 };
 
@@ -40,6 +42,7 @@ struct LABPROJECT_API FDefaultProvisionModeValues
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Default Provision|Value",
 		meta = (ClampMin = "0.0"))
 	float Lobby = 0.0f;
@@ -52,6 +55,7 @@ struct LABPROJECT_API FDefaultProvisionModeValues
 		meta = (ClampMin = "0.0"))
 	float Gameplay = 0.0f;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	float GetValue(EDefaultProvisionMode Mode) const;
 };
 
@@ -61,6 +65,7 @@ struct LABPROJECT_API FDefaultProvisionModeFlags
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
 		Category = "!Default Provision|Policy")
 	bool Lobby = false;
@@ -73,6 +78,7 @@ struct LABPROJECT_API FDefaultProvisionModeFlags
 		Category = "!Default Provision|Policy")
 	bool Gameplay = false;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool IsEnabled(EDefaultProvisionMode Mode) const;
 };
 
@@ -82,6 +88,7 @@ struct LABPROJECT_API FDefaultProvisionModeLevels
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Default Provision|Level",
 		meta = (ClampMin = "-1", ToolTip = "-1 does not grant this Pandora; 0 grants it at LV0."))
 	int32 Lobby = INDEX_NONE;
@@ -94,6 +101,7 @@ struct LABPROJECT_API FDefaultProvisionModeLevels
 		meta = (ClampMin = "-1", ToolTip = "-1 does not grant this Pandora; 0 grants it at LV0."))
 	int32 Gameplay = INDEX_NONE;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	int32 GetLevel(EDefaultProvisionMode Mode) const;
 };
 
@@ -103,8 +111,11 @@ struct LABPROJECT_API FDefaultProvisionItemStackGrant
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FDefaultProvisionItemStackGrant() = default;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Default Provision|Item",
 		meta = (AllowedTypes = "ItemDefinition"))
 	FPrimaryAssetId ItemDefinitionId;
@@ -137,8 +148,11 @@ struct LABPROJECT_API FDefaultProvisionGestureSlotGrant
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FDefaultProvisionGestureSlotGrant() = default;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Default Provision|Gesture",
 		meta = (AllowedTypes = "SkinDefinition"))
 	FPrimaryAssetId SkinDefinitionId;
@@ -146,7 +160,6 @@ struct LABPROJECT_API FDefaultProvisionGestureSlotGrant
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Default Provision|Gesture",
 		meta = (ClampMin = "0", ClampMax = "3", ToolTip = "0-3 map to gesture keys 5-8."))
 	int32 GestureSlotIndex = 0;
-
 };
 
 /** Common default grants and mode values for lobby, training, and gameplay. */
@@ -156,9 +169,11 @@ class LABPROJECT_API UDefaultProvisionDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UDefaultProvisionDefinition();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UDefaultProvisionDefinition();
 
 	static FSoftObjectPath GetDefaultDefinitionPath();
 	static const UDefaultProvisionDefinition* ResolveDefaultDefinition();

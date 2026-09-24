@@ -17,9 +17,11 @@ class LABPROJECT_API UShopPreviewPanelWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Shop")
 	void SetEntryData(UShopEntryViewData* InEntryData);
 
@@ -30,15 +32,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Shop")
 	void RefreshUI();
 
-	UPROPERTY(BlueprintAssignable, Category = "!Shop")
-	FShopPreviewBuyRequestedDelegate OnBuyRequested;
-
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override { RefreshUI(); }
 
 	UFUNCTION()
 	void HandleBuyClicked();
 
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ResolveWidgets();
+	void CaptureDefaultNameColor();
+	void CaptureDefaultPriceColor();
+	void ConfigureDescriptionTextBlock();
+	void ApplyPriceColor(const struct FShopEntryUiData* UiData);
+	void ApplyMessage();
+
+public:
+	UPROPERTY(BlueprintAssignable, Category = "!Shop")
+	FShopPreviewBuyRequestedDelegate OnBuyRequested;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
 	TObjectPtr<UTextBlock> Txt_Name = nullptr;
 
@@ -88,13 +102,6 @@ protected:
 	float DescriptionWrapTextAt = 0.0f;
 
 private:
-	void ResolveWidgets();
-	void CaptureDefaultNameColor();
-	void CaptureDefaultPriceColor();
-	void ConfigureDescriptionTextBlock();
-	void ApplyPriceColor(const struct FShopEntryUiData* UiData);
-	void ApplyMessage();
-
 	UPROPERTY(Transient)
 	TObjectPtr<UShopEntryViewData> EntryData = nullptr;
 

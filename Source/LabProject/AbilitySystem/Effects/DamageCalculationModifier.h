@@ -10,9 +10,11 @@ class LABPROJECT_API UDamageCalculationModifier : public UGameplayModMagnitudeCa
 	GENERATED_BODY()
 
 public:
-	UDamageCalculationModifier(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual float CalculateBaseMagnitude_Implementation(const FGameplayEffectSpec& Spec) const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UDamageCalculationModifier(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage")

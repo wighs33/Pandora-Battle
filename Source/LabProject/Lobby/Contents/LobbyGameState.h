@@ -21,21 +21,17 @@ class LABPROJECT_API ALobbyGameState : public AGameStateBase
 	GENERATED_BODY()
 
 public:
-	ALobbyGameState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	UExperienceManagerComponent* GetExperienceManagerComponent() const { return ExperienceManagerComponent; }
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void AddPlayerState(APlayerState* PlayerState) override;
 	virtual void RemovePlayerState(APlayerState* PlayerState) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	//------------------------------------------------------------------------------------------------------------------
+	// Public API ------------------------------------------------------------------------------------------------------
+	ALobbyGameState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	FOnLobbyStateChanged OnLobbyStateChanged;
+	UExperienceManagerComponent* GetExperienceManagerComponent() const { return ExperienceManagerComponent; }
 	void SetExperienceLoadFailed(bool bFailed);
 	bool HasExperienceLoadFailed() const;
 
@@ -65,6 +61,7 @@ public:
 	float GetGameStartRemainingSeconds() const;
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_SelectedMapOption();
 
@@ -78,14 +75,16 @@ private:
 	void HandleExperienceLoaded(const UExperienceDefinition* Experience);
 	void HandleExperienceLoadFailed(FPrimaryAssetId ExperienceId, const FString& FailureMessage);
 	void NotifyLobbyStateChanged();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshGameEntryContentPreload() const;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Components
+public:
+	FOnLobbyStateChanged OnLobbyStateChanged;
+
+private:
 	UPROPERTY(VisibleAnywhere, Category = "!Experience", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UExperienceManagerComponent> ExperienceManagerComponent;
-
-	//------------------------------------------------------------------------------------------------------------------
 
 	UPROPERTY(ReplicatedUsing = OnRep_ExperienceLoadFailed)
 	bool bExperienceLoadFailed = false;

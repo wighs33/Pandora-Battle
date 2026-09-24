@@ -16,13 +16,12 @@ class LABPROJECT_API USelectingPandoraAndWeaponComponent : public UPlayerStateCo
 	GENERATED_BODY()
 
 public:
-	USelectingPandoraAndWeaponComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//--------------------------------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	//--------------------------------------------------------------------------------------------------------------------------------------------
+	// Public API ------------------------------------------------------------------------------------------------------
+	USelectingPandoraAndWeaponComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	int32 GetSelectedPandoraAndWeaponNumber() const { return SelectedPandoraAndWeaponNumber; }
 
 	void RequestSelectPandoraAndWeapon(int32 PandoraAndWeaponNumber);
@@ -31,9 +30,11 @@ public:
 	void ApplySelectedPandoraAndWeapon();
 
 private:
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerSelectPandoraAndWeapon(int32 PandoraAndWeaponNumber);
 
+private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "!PandoraAndWeapon", meta = (AllowPrivateAccess = "true"))
 	int32 SelectedPandoraAndWeaponNumber = 0;
 };

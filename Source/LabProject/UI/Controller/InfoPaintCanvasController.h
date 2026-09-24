@@ -18,6 +18,7 @@ class LABPROJECT_API UInfoPaintCanvasController : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(
 		UInfoWidget* InOwnerWidget,
 		UPaintCanvasWidget* InPaintCanvasWidget);
@@ -34,10 +35,12 @@ public:
 	void HideActiveCanvas();
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayer* GetPlayerCharacter() const;
 	bool PaintAtScreenPosition(const FVector2D& ScreenSpacePosition);
 	bool TryGetDrawLocation(const FVector2D& ScreenSpacePosition, FVector2D& OutDrawLocation) const;
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoWidget> OwnerWidget;
 

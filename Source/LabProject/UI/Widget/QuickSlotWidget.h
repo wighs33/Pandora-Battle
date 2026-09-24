@@ -16,25 +16,30 @@ class LABPROJECT_API UQuickSlotWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
-public:
-	UFUNCTION(BlueprintCallable, Category = "!UI|QuickSlot")
-	void FillQuickSlotBar();
-
 protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "!UI|QuickSlot")
+	void FillQuickSlotBar();
+
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void InitializeInventoryBinding();
-	void BindInventoryChangedEvent();
-	void UnbindInventoryChangedEvent();
 	void HandleInventoryChanged();
-	void RefreshQuickSlotIconPreload();
-	void ReleaseQuickSlotIconPreload();
 	UFUNCTION()
 	void HandleSkinEquipmentChanged();
 	void RebuildQuickSlotBar();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void BindInventoryChangedEvent();
+	void UnbindInventoryChangedEvent();
+	void RefreshQuickSlotIconPreload();
+	void ReleaseQuickSlotIconPreload();
 	void AddQuickSlotEntry(int32 SlotIndex, UInventoryComponent* InventoryComponent, USkinEquipmentComponent* SkinEquipmentComponent);
 	UQuickSlotEntryWidget* CreateQuickSlotEntryWidget() const;
 	void AddWidgetToBar(UWidget* Widget, int32 SlotIndex) const;
@@ -44,6 +49,7 @@ private:
 	const USkinDefinition* ResolveGestureSlotSkinDefinition(const USkinEquipmentComponent* SkinEquipmentComponent, int32 QuickSlotIndex) const;
 	int32 ResolveSlotCount() const;
 
+private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|QuickSlot|Classes", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UQuickSlotEntryWidget> EntryWidgetClass;
 

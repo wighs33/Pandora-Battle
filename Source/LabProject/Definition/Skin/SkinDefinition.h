@@ -19,7 +19,10 @@ class LABPROJECT_API USkinDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool IsGrantedByDefault() const { return bGrantedByDefault; }
 
 public:

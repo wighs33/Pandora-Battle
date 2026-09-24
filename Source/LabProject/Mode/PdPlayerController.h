@@ -31,19 +31,50 @@ class LABPROJECT_API APdPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
-	APdPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual void AcknowledgePossession(APawn* P) override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	APdPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	UFUNCTION(BlueprintCallable, Category = "!Camera|Clamp")
 	void ApplyCameraViewPitchClamp();
 
+	void RequestLocalCosmeticProfileSync();
+
+	UFUNCTION(BlueprintPure, Category = "!Input")
+	UControllerInputDefinition* GetLoadedInputDefinition() const;
+
+	bool RequestExitMatchToTitle();
+
+	UPlayerNotificationComponent* GetPlayerNotificationComponent() const { return NotificationComponent.Get(); }
+
+	UFUNCTION(BlueprintPure, Category = "!Components")
+	UControllerPresentationComponent* GetControllerPresentationComponent() const
+	{
+		return ControllerPresentationComponent;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "!Components")
+	UControllerProfileSyncComponent* GetControllerProfileSyncComponent() const
+	{
+		return ControllerProfileSyncComponent;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "!Components")
+	UControllerSessionComponent* GetControllerSessionComponent() const
+	{
+		return ControllerSessionComponent;
+	}
+
+	// 로비의 입력 모드와 로딩 화면 정책은 구체적인 자식 타입 대신 이 정책으로 구분한다.
+	virtual bool UsesLobbyPresentation() const { return false; }
+
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Client, Reliable, Category = "!UI|Notification")
 	void Client_ShowRewardNotifications(const TArray<FPdRewardNotification>& Rewards);
 
@@ -84,8 +115,6 @@ public:
 		const FVector& TargetVelocity,
 		const FRotator& TargetControlRotation);
 
-	void RequestLocalCosmeticProfileSync();
-
 	UFUNCTION(Client, Reliable, Category = "!Skin|Profile")
 	void Client_RequestLocalCosmeticProfileSync();
 
@@ -98,45 +127,18 @@ public:
 		const TArray<FName>& OwnedSkinNames,
 		FName SelectedAchievementId);
 
-	UFUNCTION(BlueprintPure, Category = "!Input")
-	UControllerInputDefinition* GetLoadedInputDefinition() const;
-
-	bool RequestExitMatchToTitle();
-
-	UPlayerNotificationComponent* GetPlayerNotificationComponent() const { return NotificationComponent.Get(); }
-
-	UFUNCTION(BlueprintPure, Category = "!Components")
-	UControllerPresentationComponent* GetControllerPresentationComponent() const
-	{
-		return ControllerPresentationComponent;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "!Components")
-	UControllerProfileSyncComponent* GetControllerProfileSyncComponent() const
-	{
-		return ControllerProfileSyncComponent;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "!Components")
-	UControllerSessionComponent* GetControllerSessionComponent() const
-	{
-		return ControllerSessionComponent;
-	}
-
-	// 로비의 입력 모드와 로딩 화면 정책은 구체적인 자식 타입 대신 이 정책으로 구분한다.
-	virtual bool UsesLobbyPresentation() const { return false; }
-
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleControllerDefinitionPreloaded(uint32 RequestGeneration);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyControllerDefinition();
 	const UPlayerControllerDefinition* GetControllerDefinition() const;
 	void BeginControllerDefinitionPreload();
-	void HandleControllerDefinitionPreloaded(uint32 RequestGeneration);
 	void ReleaseControllerDefinitionPreload();
 	void RefreshControllerInput();
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Components
+private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UControllerInputComponent> ControllerInputComponent;
 
@@ -155,7 +157,6 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "!Components")
 	TObjectPtr<UPlayerNotificationComponent> NotificationComponent;
 
-	//------------------------------------------------------------------------------------------------------------------
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Controller|Definition",
 		meta = (AllowPrivateAccess = "true", AllowedTypes = "PlayerControllerDefinition"))
 	TSoftObjectPtr<UPlayerControllerDefinition> PlayerControllerDefinition;

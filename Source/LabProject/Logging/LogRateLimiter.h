@@ -8,6 +8,9 @@
  */
 struct FLogRateLimiter
 {
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool TryAcquire(const double IntervalSeconds, uint32& OutSuppressedCount)
 	{
 		const double CurrentTimeSeconds = FPlatformTime::Seconds();

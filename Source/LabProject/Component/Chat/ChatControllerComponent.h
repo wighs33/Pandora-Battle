@@ -14,12 +14,12 @@ class LABPROJECT_API UChatControllerComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UChatControllerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	void HandleChatInputAction();
+	// Public API ------------------------------------------------------------------------------------------------------
+	UChatControllerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!Chat")
 	void FocusChat();
@@ -41,13 +41,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Chat")
 	void AddChatMessage(const FString& Message);
 
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void Server_SendChatMessage(const FString& Message);
 
 	UFUNCTION(Client, Reliable)
 	void Client_AddChatMessage(const FString& Message);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleChatInputAction();
+
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool EnsureChatBox(bool bLogIfMissing = true);
 	UChatBoxWidget* FindChatBoxInPlayerHUD() const;
 
@@ -56,6 +61,7 @@ private:
 	bool CanSendMessage() const;
 	void BroadcastChatMessage(const FString& Message);
 
+private:
 	UPROPERTY(EditAnywhere, Category = "!Chat|UI")
 	TSubclassOf<UChatEntryWidget> ChatEntryWidgetClass;
 

@@ -22,12 +22,12 @@ class LABPROJECT_API UAbilityCostAndCooldownManager : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	// 능력과 직접 발사 경로가 공유하는 비용 규칙이다. 인스턴스 상태를 사용하거나 자원을 차감하지 않는다.
 	static TSubclassOf<UGameplayEffect> GetCostGameplayEffectClass(const UObject* WorldContextObject);
 	static float GetWeaponAttackStaminaCost(const APawn* AvatarPawn);
 	static bool SetCostEffectMagnitudes(FGameplayEffectSpecHandle& SpecHandle, float ManaCost, float StaminaCost);
 
-	// 비용 검사와 차감
 	bool CheckCost(const UPdGameplayAbility& Ability, const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		FGameplayTagContainer* OptionalRelevantTags) const;
 
@@ -45,6 +45,7 @@ public:
 		const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo& ActivationInfo) const;
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	static float GetDefaultActionStaminaCost(const UObject* WorldContextObject);
 	static float CalculateAbilityStaminaCost(
 		const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec* AbilitySpec, const USkillDefinition* SkillDataAsset);

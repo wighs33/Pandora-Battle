@@ -24,7 +24,9 @@ struct FActorExtensionSpec
 
 class LABPROJECT_API FActorExtensionHandle
 {
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FActorExtensionHandle(UActorExtensionWorldSubsystem* InSubsystem, int32 InExtensionId);
 	~FActorExtensionHandle();
 
@@ -48,18 +50,23 @@ class LABPROJECT_API UActorExtensionWorldSubsystem : public UTickableWorldSubsys
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Deinitialize() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
 	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
 	virtual bool IsTickable() const override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	TSharedPtr<FActorExtensionHandle> RegisterExtensionForClass(UClass* TargetClass, FActorExtensionSpec ExtensionSpec);
 	void UnregisterExtension(int32 ExtensionId);
 
 private:
-	void EnsureExtensionEventHandler(UClass* TargetClass);
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleActorExtensionEvent(AActor* Actor, FName EventName);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void EnsureExtensionEventHandler(UClass* TargetClass);
 	void RefreshExperienceLoadState();
 	void QueueActor(AActor* Actor);
 	void QueueExistingActorsForClass(UClass* TargetClass);

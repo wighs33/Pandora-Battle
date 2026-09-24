@@ -15,9 +15,12 @@ UCLASS()
 class LABPROJECT_API UMenuLocalizationSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
+
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintPure, Category="UI|Localization")
 	EGuideLanguage GetLanguage() const { return Language; }
 
@@ -37,6 +40,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="UI|Localization")
 	UFont* GetFontForLanguage(EGuideLanguage FontLanguage) const;
 
+public:
 	UPROPERTY(BlueprintAssignable, Category="UI|Localization")
 	FMenuLanguageChanged OnLanguageChanged;
 

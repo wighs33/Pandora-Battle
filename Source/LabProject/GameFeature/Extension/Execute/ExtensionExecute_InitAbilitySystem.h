@@ -9,6 +9,8 @@ struct LABPROJECT_API FExtensionExecute_InitAbilitySystem : public FExtensionExe
 {
 	GENERATED_BODY()
 
+public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnActivate(AActor* Owner) const override;
 	virtual void OnDeactivate(AActor* Owner) const override;
 };

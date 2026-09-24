@@ -9,11 +9,8 @@ class LABPROJECT_API UCommonViewModelBase : public UMVVMViewModelBase
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UCommonViewModelBase();
-
-	//-----------------------------------------------------------------------------
-	// Timing hooks
-	//-----------------------------------------------------------------------------
 
 	virtual void InitializeViewModel(UObject* SourceObject = nullptr);
 

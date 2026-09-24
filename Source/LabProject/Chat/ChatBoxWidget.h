@@ -16,10 +16,12 @@ class LABPROJECT_API UChatBoxWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	void InitializeChat(
 		UChatControllerComponent* InChatControllerComponent,
 		TSubclassOf<UChatEntryWidget> InChatEntryWidgetClass,
@@ -43,7 +45,24 @@ public:
 	bool IsChatFocused() const { return bChatFocused; }
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override;
+
+private:
+	UFUNCTION()
+	void HandleChatTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool ApplyRoutedChatInput(UEditableText* ChatInputText);
+	bool ReleaseRoutedChatInput();
+	void RestoreGameInputFallback() const;
+	void SetChatInputEnabled(bool bEnabled) const;
+	FString GetChatInputText() const;
+	void SetChatInputText(const FText& Text) const;
+	UEditableText* GetChatInputWidget() const;
+	UScrollBox* GetChatScrollBox() const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!Chat|Bind")
 	TObjectPtr<UScrollBox> ScrollBox_ChatMessages;
 
@@ -57,18 +76,6 @@ protected:
 	float ScrollMultiplier = 60.0f;
 
 private:
-	UFUNCTION()
-	void HandleChatTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
-
-	bool ApplyRoutedChatInput(UEditableText* ChatInputText);
-	bool ReleaseRoutedChatInput();
-	void RestoreGameInputFallback() const;
-	void SetChatInputEnabled(bool bEnabled) const;
-	FString GetChatInputText() const;
-	void SetChatInputText(const FText& Text) const;
-	UEditableText* GetChatInputWidget() const;
-	UScrollBox* GetChatScrollBox() const;
-
 	UPROPERTY(Transient)
 	TObjectPtr<UChatControllerComponent> ChatControllerComponent;
 

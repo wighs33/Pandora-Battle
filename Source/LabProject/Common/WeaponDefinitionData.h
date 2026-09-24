@@ -126,6 +126,7 @@ struct LABPROJECT_API FWeaponEquipDefinitionData
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Equip")
 	TSoftClassPtr<AWeaponBase> ActorClass;
 
@@ -141,6 +142,7 @@ struct LABPROJECT_API FWeaponEquipDefinitionData
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Equip")
 	TSoftClassPtr<UAnimInstance> AnimLayer;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasAnyData() const
 	{
 		return !ActorClass.IsNull()
@@ -161,6 +163,7 @@ struct LABPROJECT_API FWeaponAttackDefinitionData
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Attack")
 	TSoftObjectPtr<UAnimMontage> AttackMontage = nullptr;
 
@@ -176,6 +179,7 @@ struct LABPROJECT_API FWeaponAttackDefinitionData
 			ToolTip = "Stamina consumed by each committed attack. Combo steps consume this amount again."))
 	float StaminaCost = 10.0f;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasAnyData() const
 	{
 		return !AttackMontage.IsNull()
@@ -190,12 +194,14 @@ struct LABPROJECT_API FWeaponMovementDefinitionData
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Movement",
 		meta = (ClampMin = "0.01", UIMin = "0.01",
 			DisplayName = "Melee Equipped Movement Speed Multiplier",
 			ToolTip = "Movement speed multiplier applied while this non-aiming melee weapon is equipped. A value of 1.05 is five percent faster."))
 	float MeleeEquippedMovementSpeedMultiplier = 1.05f;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasAnyData() const
 	{
 		return !FMath::IsNearlyEqual(
@@ -209,9 +215,11 @@ struct LABPROJECT_API FWeaponHitReactDefinitionData
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|HitReact")
 	TSoftObjectPtr<UAnimMontage> HitReactMontage = nullptr;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasAnyData() const
 	{
 		return !HitReactMontage.IsNull();
@@ -223,6 +231,7 @@ struct LABPROJECT_API FWeaponAimDefinitionData
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Aim")
 	bool bSupportsInput = false;
 
@@ -235,6 +244,7 @@ struct LABPROJECT_API FWeaponAimDefinitionData
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Aim|Validation", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	float MaxAcceptedServerViewDistance = 0.0f;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasAnyData() const
 	{
 		return bSupportsInput
@@ -247,6 +257,8 @@ struct LABPROJECT_API FBowWeaponDefinitionData
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FBowWeaponDefinitionData()
 	{
 		ArrowAttachSocketName = GetDefaultArrowAttachSocket();
@@ -265,6 +277,14 @@ struct LABPROJECT_API FBowWeaponDefinitionData
 		return PdWeaponSockets::ToName(ArrowAttachSocketName);
 	}
 
+	bool HasAnyData() const
+	{
+		return ArrowActorClass != nullptr
+			|| ArrowAttachSocketName != GetDefaultArrowAttachSocket()
+			|| !WeaponMontage.IsNull();
+	}
+
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Bow|Projectile")
 	TSubclassOf<AActor> ArrowActorClass;
 
@@ -294,13 +314,6 @@ struct LABPROJECT_API FBowWeaponDefinitionData
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Bow|Animation")
 	FName AttackResumeSectionName = TEXT("Skip");
-
-	bool HasAnyData() const
-	{
-		return ArrowActorClass != nullptr
-			|| ArrowAttachSocketName != GetDefaultArrowAttachSocket()
-			|| !WeaponMontage.IsNull();
-	}
 };
 
 USTRUCT(BlueprintType)
@@ -308,6 +321,8 @@ struct LABPROJECT_API FGunWeaponDefinitionData
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FGunWeaponDefinitionData()
 	{
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
@@ -316,6 +331,20 @@ struct LABPROJECT_API FGunWeaponDefinitionData
 		ImpactDecalObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 	}
 
+	bool HasAnyData() const
+	{
+		return bEnableAutomaticFire
+			|| MuzzleFlashCueTag.IsValid()
+			|| MuzzleSocketName != EWeaponSocketName::Muzzle
+			|| !ImpactDecalMaterial.IsNull();
+	}
+
+	FName GetResolvedMuzzleSocketName() const
+	{
+		return PdWeaponSockets::ToName(MuzzleSocketName);
+	}
+
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Gun|Trace")
 	float TraceRange = 10000.0f;
 
@@ -360,19 +389,6 @@ struct LABPROJECT_API FGunWeaponDefinitionData
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|Gun|Impact", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float ImpactDecalLifeSpan = 10.0f;
-
-	bool HasAnyData() const
-	{
-		return bEnableAutomaticFire
-			|| MuzzleFlashCueTag.IsValid()
-			|| MuzzleSocketName != EWeaponSocketName::Muzzle
-			|| !ImpactDecalMaterial.IsNull();
-	}
-
-	FName GetResolvedMuzzleSocketName() const
-	{
-		return PdWeaponSockets::ToName(MuzzleSocketName);
-	}
 };
 
 USTRUCT(BlueprintType)
@@ -380,9 +396,11 @@ struct LABPROJECT_API FWeaponAIDefinitionData
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon|AI|Ranged", meta = (ClampMin = "0.0", ForceUnits = "s", DisplayName = "AI Ranged Target Lock Delay", ToolTip = "Delay between the AI locking the target location and firing at that locked location. Moving players can dodge by leaving the locked position before the shot is released."))
 	float RangedTargetLockDelay = 0.2f;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasAnyData() const
 	{
 		return !FMath::IsNearlyEqual(RangedTargetLockDelay, 0.2f);
@@ -394,6 +412,7 @@ struct LABPROJECT_API FWeaponDefinitionData
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon")
 	FWeaponEquipDefinitionData Equip;
 
@@ -418,6 +437,7 @@ struct LABPROJECT_API FWeaponDefinitionData
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Weapon")
 	FWeaponAIDefinitionData AI;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasAnyData() const
 	{
 		return Equip.HasAnyData()

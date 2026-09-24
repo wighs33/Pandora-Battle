@@ -15,25 +15,31 @@ class LABPROJECT_API UConnectingPopupWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
-	UConnectingPopupWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UConnectingPopupWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|Connecting")
 	void SetCancelButtonEnabled(bool bEnabled);
 
-	UPROPERTY(BlueprintAssignable, Category = "!Lobby|Connecting")
-	FConnectingPopupCanceledSignature OnCanceled;
-
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleCancelClicked();
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyCancelButtonState() const;
 	void PlayWaitAnimation();
 	void StopWaitAnimation();
 
+public:
+	UPROPERTY(BlueprintAssignable, Category = "!Lobby|Connecting")
+	FConnectingPopupCanceledSignature OnCanceled;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_Cancel;
 

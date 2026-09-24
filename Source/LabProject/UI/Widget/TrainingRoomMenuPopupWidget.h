@@ -35,8 +35,10 @@ class LABPROJECT_API UTrainingBotWeaponOptionClickProxy : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(UTrainingRoomMenuPopupWidget* InOwnerWidget, int32 InOptionIndex);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleClicked();
 
@@ -67,11 +69,13 @@ class LABPROJECT_API UTrainingRoomMenuPopupWidget : public UMenuPopupWidget
 	GENERATED_BODY()
 
 public:
-	UTrainingRoomMenuPopupWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UTrainingRoomMenuPopupWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!Training|Menu")
 	bool SelectTrainingBotWeaponOptionByIndex(int32 OptionIndex);
@@ -100,9 +104,51 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Training|Menu")
 	bool IsTrainingBotAttackEnabled() const { return bTrainingBotAttackEnabled; }
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintImplementableEvent, Category = "!Training|Menu")
 	void BP_OnTrainingBotWeaponSelected(UItemDefinition* WeaponDefinition);
 
+private:
+	UFUNCTION()
+	void HandleBotCanAttackCheckStateChanged(bool bIsChecked);
+
+	UFUNCTION()
+	void HandleDaggerButtonClicked();
+
+	UFUNCTION()
+	void HandleUnarmedButtonClicked();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool SelectTrainingBotWeaponDefinitionInternal(
+		UItemDefinition* WeaponDefinition,
+		FName BuiltInButtonWidgetName);
+	bool RequestTrainingBotWeaponSelection(
+		TSoftObjectPtr<UItemDefinition> WeaponDefinition,
+		FName BuiltInButtonWidgetName);
+	void CompletePendingWeaponSelection(
+		int32 SelectionGeneration,
+		TSoftObjectPtr<UItemDefinition> WeaponDefinition,
+		FName BuiltInButtonWidgetName);
+	void BeginConfiguredWeaponPreload();
+	void ReleaseConfiguredWeaponPreload();
+	void CancelPendingWeaponSelection();
+	bool SelectTrainingBotUnarmedInternal(int32 OptionIndex);
+	bool ApplyWeaponToTrainingBot(UItemDefinition* WeaponDefinition) const;
+	bool ApplyUnarmedToTrainingBot() const;
+	bool ApplyAttackEnabledToTrainingBots(bool bEnabled) const;
+	bool ResolveTrainingBotAttackEnabled() const;
+	bool SyncSelectedWeaponFromTrainingBot();
+	void SyncBotCanAttackCheckBox();
+	void BindWeaponOptionButtons();
+	void UnbindWeaponOptionButtons();
+	int32 FindWeaponOptionIndex(const UItemDefinition* WeaponDefinition) const;
+	int32 FindUnarmedWeaponOptionIndex() const;
+	bool DoesSoftWeaponDefinitionMatch(TSoftObjectPtr<UItemDefinition> SoftWeaponDefinition, const UItemDefinition* WeaponDefinition) const;
+	bool IsButtonNameConfiguredInWeaponOptions(FName ButtonWidgetName) const;
+	UImage* GetOptionSelectionBorderImage(const FTrainingBotWeaponOption& Option) const;
+	void SetBuiltInSelectionBorderState(FName SelectionBorderImageName, bool bSelected) const;
+
+public:
 	UPROPERTY(BlueprintAssignable, Category = "!Training|Menu")
 	FTrainingBotWeaponSelectedSignature OnTrainingBotWeaponSelected;
 
@@ -147,44 +193,6 @@ protected:
 	bool bTrainingBotAttackEnabled = true;
 
 private:
-	UFUNCTION()
-	void HandleBotCanAttackCheckStateChanged(bool bIsChecked);
-
-	UFUNCTION()
-	void HandleDaggerButtonClicked();
-
-	UFUNCTION()
-	void HandleUnarmedButtonClicked();
-
-	bool SelectTrainingBotWeaponDefinitionInternal(
-		UItemDefinition* WeaponDefinition,
-		FName BuiltInButtonWidgetName);
-	bool RequestTrainingBotWeaponSelection(
-		TSoftObjectPtr<UItemDefinition> WeaponDefinition,
-		FName BuiltInButtonWidgetName);
-	void CompletePendingWeaponSelection(
-		int32 SelectionGeneration,
-		TSoftObjectPtr<UItemDefinition> WeaponDefinition,
-		FName BuiltInButtonWidgetName);
-	void BeginConfiguredWeaponPreload();
-	void ReleaseConfiguredWeaponPreload();
-	void CancelPendingWeaponSelection();
-	bool SelectTrainingBotUnarmedInternal(int32 OptionIndex);
-	bool ApplyWeaponToTrainingBot(UItemDefinition* WeaponDefinition) const;
-	bool ApplyUnarmedToTrainingBot() const;
-	bool ApplyAttackEnabledToTrainingBots(bool bEnabled) const;
-	bool ResolveTrainingBotAttackEnabled() const;
-	bool SyncSelectedWeaponFromTrainingBot();
-	void SyncBotCanAttackCheckBox();
-	void BindWeaponOptionButtons();
-	void UnbindWeaponOptionButtons();
-	int32 FindWeaponOptionIndex(const UItemDefinition* WeaponDefinition) const;
-	int32 FindUnarmedWeaponOptionIndex() const;
-	bool DoesSoftWeaponDefinitionMatch(TSoftObjectPtr<UItemDefinition> SoftWeaponDefinition, const UItemDefinition* WeaponDefinition) const;
-	bool IsButtonNameConfiguredInWeaponOptions(FName ButtonWidgetName) const;
-	UImage* GetOptionSelectionBorderImage(const FTrainingBotWeaponOption& Option) const;
-	void SetBuiltInSelectionBorderState(FName SelectionBorderImageName, bool bSelected) const;
-
 	UPROPERTY(Transient)
 	TArray<FTrainingBotWeaponOptionBinding> WeaponOptionBindings;
 

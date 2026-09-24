@@ -29,7 +29,21 @@ class LABPROJECT_API UPandoraWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
+	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent) override;
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition);
 
@@ -54,6 +68,61 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora|Button Hold")
 	void ResetButtonPress();
 
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnMenuLanguageChanged() override;
+
+private:
+	UFUNCTION()
+	void HandleButtonPressed();
+
+	UFUNCTION()
+	void HandleButtonReleased();
+
+	UFUNCTION()
+	void HandleButtonHovered();
+
+	UFUNCTION()
+	void HandleButtonUnhovered();
+
+	UFUNCTION()
+	void HandlePandoraStateChanged();
+
+	UFUNCTION()
+	void HandlePandoraPointsChanged(int32 NewPointsAvailable);
+
+	UFUNCTION()
+	void HandlePandoraLoadoutChanged();
+	bool HandlePandoraWidgetMouseButtonDown(const FPointerEvent& InMouseEvent);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ResolvePandoraTreeComponent();
+	void ResolvePandoraComponent();
+	void ApplyWidgetDefinitionSettings();
+	void BindPandoraTreeEvents();
+	void UnbindPandoraTreeEvents();
+	void BindPandoraComponentEvents();
+	void UnbindPandoraComponentEvents();
+	void BindButtonEvents();
+	void UnbindButtonEvents();
+	void ResolveControlWidgets();
+	UPandoraWidgetViewModel* GetOrCreatePandoraWidgetViewModel();
+	void ApplyPandoraWidgetViewModelToMvvmView();
+	void ApplyDesignerDefaults();
+	void ClearButtonPressTimer();
+	void RefreshPandoraDescriptionRequest(bool bForceRefresh = false);
+	void ResolveEquipHintWidgets();
+	void ApplyEquipHintDefaults();
+	void SetEquipHintWidgetsVisible(bool bShowText, bool bShowInputKey);
+	void RefreshEquipHintState(bool bHovered);
+	bool CanShowEquipHint() const;
+	bool CanAutoEquipPandora() const;
+	bool IsPandoraEquipped() const;
+	bool TryGetEquippedPandoraDirection(EEnum_Direction& OutDirection) const;
+	bool RequestAutoEquipPandora();
+	bool RequestUnequipPandora();
+
+public:
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Pandora|Interaction")
 	FPandoraWidgetInteractionSignature OnPandoraDescriptionRequested;
 
@@ -64,18 +133,6 @@ public:
 	FPandoraWidgetInteractionSignature OnPandoraTreeFocusRequested;
 
 protected:
-	virtual void OnMenuLanguageChanged() override;
-	virtual void NativePreConstruct() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
-	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent) override;
-	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Widgets")
 	TObjectPtr<UButton> Button;
 
@@ -128,54 +185,6 @@ protected:
 	float ButtonHoldUpdateInterval = 0.033333f;
 
 private:
-	UFUNCTION()
-	void HandleButtonPressed();
-
-	UFUNCTION()
-	void HandleButtonReleased();
-
-	UFUNCTION()
-	void HandleButtonHovered();
-
-	UFUNCTION()
-	void HandleButtonUnhovered();
-
-	UFUNCTION()
-	void HandlePandoraStateChanged();
-
-	UFUNCTION()
-	void HandlePandoraPointsChanged(int32 NewPointsAvailable);
-
-	UFUNCTION()
-	void HandlePandoraLoadoutChanged();
-
-	void ResolvePandoraTreeComponent();
-	void ResolvePandoraComponent();
-	void ApplyWidgetDefinitionSettings();
-	void BindPandoraTreeEvents();
-	void UnbindPandoraTreeEvents();
-	void BindPandoraComponentEvents();
-	void UnbindPandoraComponentEvents();
-	void BindButtonEvents();
-	void UnbindButtonEvents();
-	void ResolveControlWidgets();
-	UPandoraWidgetViewModel* GetOrCreatePandoraWidgetViewModel();
-	void ApplyPandoraWidgetViewModelToMvvmView();
-	void ApplyDesignerDefaults();
-	void ClearButtonPressTimer();
-	void RefreshPandoraDescriptionRequest(bool bForceRefresh = false);
-	void ResolveEquipHintWidgets();
-	void ApplyEquipHintDefaults();
-	void SetEquipHintWidgetsVisible(bool bShowText, bool bShowInputKey);
-	void RefreshEquipHintState(bool bHovered);
-	bool CanShowEquipHint() const;
-	bool CanAutoEquipPandora() const;
-	bool IsPandoraEquipped() const;
-	bool TryGetEquippedPandoraDirection(EEnum_Direction& OutDirection) const;
-	bool HandlePandoraWidgetMouseButtonDown(const FPointerEvent& InMouseEvent);
-	bool RequestAutoEquipPandora();
-	bool RequestUnequipPandora();
-
 	double ButtonHoldElapsedTime = 0.0;
 	double ButtonHoldStartRealTime = 0.0;
 	bool bIsButtonHoldActive = false;

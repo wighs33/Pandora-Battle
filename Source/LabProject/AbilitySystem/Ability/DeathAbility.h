@@ -13,8 +13,7 @@ class LABPROJECT_API UDeathAbility : public UPdGameplayAbility
 	GENERATED_BODY()
 
 public:
-	UDeathAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
@@ -29,6 +28,11 @@ protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UDeathAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Death")
 	TSubclassOf<UGameplayEffect> DeathEffectClass;
 };

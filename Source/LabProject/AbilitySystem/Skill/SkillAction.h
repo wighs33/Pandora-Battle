@@ -33,20 +33,28 @@ class LABPROJECT_API USkillAction : public UObject
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual UWorld* GetWorld() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Start(USkillAbility* InAbility, const FSkillActionContext& InContext);
 	void Cancel();
 	bool IsRunning() const { return bRunning; }
 	const FSkillActionContext& GetResultContext() const { return ExecutionContext; }
-	FSkillActionFinished OnFinished;
-	virtual UWorld* GetWorld() const override;
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() PURE_VIRTUAL(USkillAction::OnStart, );
 	virtual void OnStop() {}
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void Finish(bool bSucceeded = true);
 	USkillAbility* GetAbility() const { return OwningAbility.Get(); }
 	const FSkillActionContext& GetContext() const { return ExecutionContext; }
 	void SetContext(const FSkillActionContext& InContext) { ExecutionContext = InContext; }
+
+public:
+	FSkillActionFinished OnFinished;
 
 private:
 	UPROPERTY(Transient)
@@ -63,15 +71,23 @@ UCLASS(meta = (DisplayName = "Sequence"))
 class LABPROJECT_API USkillSequenceAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Instanced, Category = "Skill")
 	TArray<TObjectPtr<USkillAction>> Actions;
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 	virtual void OnStop() override;
+
 private:
-	void StartNext();
 	void ChildFinished(USkillAction* Child, bool bSucceeded);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void StartNext();
+
+private:
 	int32 NextIndex = 0;
 };
 
@@ -80,13 +96,19 @@ UCLASS(meta = (DisplayName = "Parallel"))
 class LABPROJECT_API USkillParallelAction : public USkillAction
 {
 	GENERATED_BODY()
+
 public:
 	UPROPERTY(EditAnywhere, Instanced, Category = "Skill")
 	TArray<TObjectPtr<USkillAction>> Actions;
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnStart() override;
 	virtual void OnStop() override;
+
 private:
 	void ChildFinished(USkillAction* Child, bool bSucceeded);
+
+private:
 	int32 Remaining = 0;
 };

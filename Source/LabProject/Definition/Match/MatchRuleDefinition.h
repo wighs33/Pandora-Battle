@@ -40,15 +40,17 @@ class LABPROJECT_API UMatchRuleDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UMatchRuleDefinition();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	static FSoftObjectPath GetDefaultDefinitionPath();
-	static const UMatchRuleDefinition* ResolveDefaultDefinition();
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UMatchRuleDefinition();
+	static FSoftObjectPath GetDefaultDefinitionPath();
+	static const UMatchRuleDefinition* ResolveDefaultDefinition();
 
 	static bool TryGetTeamColorForIndex(int32 TeamColorIndex, ETeamColor& OutTeamColor);
 
@@ -58,6 +60,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Match Rules|Team")
 	UMaterialInterface* GetTeamOverlayMaterialByTeamColor(ETeamColor TeamColor) const;
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Countdown",
 		meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float LobbyStartCountdownSeconds = 3.0f;
@@ -92,5 +95,4 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules|Hud Timer", meta = (ClampMin = "0.01"))
 	float HudTickInterval = 0.1f;
-
 };

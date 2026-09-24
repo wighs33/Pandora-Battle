@@ -11,7 +11,12 @@ class LABPROJECT_API ASkillSummonActor : public AActor
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	ASkillSummonActor();
 
 	UFUNCTION(BlueprintCallable, Category = "!Skill|Summon")
@@ -20,16 +25,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Skill|Summon")
 	void DeactivateSummonNiagara(FName ComponentName, bool bActivateAllWhenNameNone);
 
-protected:
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_SummonNiagaraActive();
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplySummonNiagaraActiveState();
 	void FindSummonNiagaraComponents(FName ComponentName, bool bActivateAllWhenNameNone, TArray<UNiagaraComponent*>& OutComponents) const;
 
+private:
 	UPROPERTY(ReplicatedUsing = OnRep_SummonNiagaraActive)
 	bool bSummonNiagaraActive = false;
 

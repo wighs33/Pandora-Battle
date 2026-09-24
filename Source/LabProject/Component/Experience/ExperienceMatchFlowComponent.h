@@ -26,11 +26,11 @@ class LABPROJECT_API UExperienceMatchFlowComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UExperienceMatchFlowComponent();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	FSimpleMulticastDelegate OnRuntimeContentReady;
+	// Public API ------------------------------------------------------------------------------------------------------
+	UExperienceMatchFlowComponent();
 	bool IsRuntimeContentReady() const { return !bRuntimeContentLoadPending; }
 
 	void ApplySettings(const FExperienceMatchFlowSettings& InSettings);
@@ -38,18 +38,15 @@ public:
 	void InitializeTravelOptions(const FString& Options);
 	void InitializeGameState();
 	void StartServerMatchTimerIfNeeded();
-	void ConfigureRewardChestSpawns();
 
 	int32 GrantGameVictoryGoldReward(
 		AController* WinnerController,
 		int32 WinningTeamMemberCount);
-	void HandleMatchTimerExpired();
 	bool ShowGameResultForWinner(APlayerState* WinnerPlayerState);
 	void NotifyPlayerKillScored(
 		APlayerState* KillerPlayerState,
 		APlayerState* VictimPlayerState);
 	bool RequestAbortMatchToTitle(APlayerController* RequestingPlayer);
-	bool HandlePlayerLogout(const APlayerState* ExitingPlayerState);
 
 	const UMatchRuleDefinition* GetMatchRuleDefinition() const;
 	const ULevelDefinition* GetLevelDefinition() const;
@@ -73,7 +70,16 @@ public:
 		int32 DeathCount,
 		int32 WinningTeamMemberCount) const;
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void ConfigureRewardChestSpawns();
+	void HandleMatchTimerExpired();
+	bool HandlePlayerLogout(const APlayerState* ExitingPlayerState);
+
 private:
+	void ReturnToLobbyAfterGameResult();
+	void HandleRuntimeContentPreloadComplete(uint32 RequestGeneration);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	AExperienceGameMode* GetExperienceGameMode() const;
 	const AExperienceGameMode* GetExperienceGameModeConst() const;
 
@@ -95,7 +101,6 @@ private:
 		const APlayerState* ExitingPlayerState) const;
 	bool AbortMatchToTitleForPlayerExit(
 		const APlayerState* ExitingPlayerState);
-	void ReturnToLobbyAfterGameResult();
 	FString GetResolvedTitleTravelMapName() const;
 	FString GetResolvedLobbyTravelMapName() const;
 	FGameResultPresentationData BuildPlayerExitGameResult(
@@ -139,10 +144,13 @@ private:
 	const URewardDefinition* ResolveRewardDefinitionForChestSpawns(
 		const TArray<ARewardChest*>& RewardChests) const;
 	void BeginRuntimeContentPreload();
-	void HandleRuntimeContentPreloadComplete(uint32 RequestGeneration);
 	void ReleaseRuntimeContentPreload();
 	void ResumePendingInitialization();
 
+public:
+	FSimpleMulticastDelegate OnRuntimeContentReady;
+
+private:
 	UPROPERTY(Transient)
 	FExperienceMatchFlowSettings Settings;
 

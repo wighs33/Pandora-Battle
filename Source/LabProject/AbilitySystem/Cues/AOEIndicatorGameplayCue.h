@@ -13,13 +13,22 @@ class LABPROJECT_API AAOEIndicatorGameplayCue : public AGameplayCueNotify_Actor
 	GENERATED_BODY()
 
 public:
-	AAOEIndicatorGameplayCue();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual bool HandlesEvent(EGameplayCueEvent::Type EventType) const override;
 	virtual bool OnExecute_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 	virtual bool OnActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 	virtual bool OnRemove_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	AAOEIndicatorGameplayCue();
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	UDecalComponent* SpawnDecalFromParameters(AActor* MyTarget, const FGameplayCueParameters& Parameters, bool bTrackAsPersistent);
+	void ApplyDecalGrowth(UDecalComponent* DecalComponent, float StartDiameter, float TargetDiameter, float GrowthDuration);
+	UMaterialInterface* ResolveDecalMaterial(const FGameplayCueParameters& Parameters) const;
+	void DestroySpawnedDecal();
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!GameplayCue|AOE")
@@ -42,10 +51,4 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!GameplayCue|AOE")
 	TObjectPtr<UDecalComponent> SpawnedDecalComponent = nullptr;
-
-private:
-	UDecalComponent* SpawnDecalFromParameters(AActor* MyTarget, const FGameplayCueParameters& Parameters, bool bTrackAsPersistent);
-	void ApplyDecalGrowth(UDecalComponent* DecalComponent, float StartDiameter, float TargetDiameter, float GrowthDuration);
-	UMaterialInterface* ResolveDecalMaterial(const FGameplayCueParameters& Parameters) const;
-	void DestroySpawnedDecal();
 };

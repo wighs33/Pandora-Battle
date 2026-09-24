@@ -16,20 +16,25 @@ class LABPROJECT_API UActionSlotWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
-public:
-	UFUNCTION(BlueprintCallable, Category = "!UI|ActionSlot")
-	void FillActionSlotBar();
-
 protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "!UI|ActionSlot")
+	void FillActionSlotBar();
+
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void RebuildActionSlotBar();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void BeginActionContentPreload();
 	void BeginActionPresentationPreload(int32 PreloadGeneration);
 	void ReleaseActionContentPreloads();
-	void RebuildActionSlotBar();
 	void AddActionSlotEntry(int32 SlotIndex);
 	UActionSlotEntryWidget* CreateActionSlotEntryWidget() const;
 	void AddWidgetToBar(UWidget* Widget) const;
@@ -39,6 +44,7 @@ private:
 	ECharacterActionType ResolveActionType(int32 SlotIndex) const;
 	FMargin ResolveSlotPadding() const;
 
+private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ActionSlot|Classes", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UActionSlotEntryWidget> EntryWidgetClass;
 

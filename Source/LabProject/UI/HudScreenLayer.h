@@ -19,7 +19,16 @@ class LABPROJECT_API UHudScreenLayer : public UObject
 {
 	GENERATED_BODY()
 
+private:
+	enum class EPendingScreenRequest : uint8
+	{
+		None,
+		Info,
+		PandoraTree
+	};
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(APdHUD* InOwnerHud, UHudUiRouter* InRouter);
 	void Shutdown();
 
@@ -42,20 +51,16 @@ public:
 	void ScheduleTrainingRoomPause(float DelaySeconds);
 
 private:
-	enum class EPendingScreenRequest : uint8
-	{
-		None,
-		Info,
-		PandoraTree
-	};
-
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandlePandoraTreeClosed(UPandoraTreeWidget* ClosedWidget);
 
 	void FinishCloseInfo();
+	void HandleDelayedTrainingRoomPause();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ClearInfoCloseTimer();
 	void ClearTrainingRoomPauseTimer();
-	void HandleDelayedTrainingRoomPause();
 	bool IsTrainingRoomPauseUiOpen(const UUserWidget* IgnoredWidget) const;
 	void SetTrainingRoomPaused(bool bPaused);
 	void ApplyInfoInputLock();
@@ -65,6 +70,7 @@ private:
 	void ReleaseInfoContentIfUnused();
 	void ReleaseInfoContent();
 
+private:
 	TWeakObjectPtr<APdHUD> OwnerHud;
 	TWeakObjectPtr<UHudUiRouter> Router;
 

@@ -13,8 +13,10 @@ class LABPROJECT_API UKillBoxWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|KillBox")
 	void SetTeamInfo(int32 InTeamColorIndex, const FText& InTeamName, const FLinearColor& InTeamColor);
 

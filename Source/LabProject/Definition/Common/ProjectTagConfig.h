@@ -12,13 +12,15 @@ class LABPROJECT_API UProjectTagConfig : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UProjectTagConfig();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UProjectTagConfig();
 
 	static const UProjectTagConfig* Get(const UObject* WorldContextObject);
 	static const UProjectTagConfig* GetDefaultConfig();
@@ -106,9 +108,11 @@ public:
 	void GetSkinFilterTypeTags(TArray<FGameplayTag>& OutTags) const;
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	static const FGameplayTag& ResolveTag(const FGameplayTag& ConfiguredTag, const FGameplayTag& DefaultTag);
 	static void AddValidTag(TArray<FGameplayTag>& OutTags, const FGameplayTag& Tag);
 
+private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Tags|Item", meta = (Categories = "Item", AllowPrivateAccess = "true"))
 	FGameplayTag ItemWeaponTypeTag;
 

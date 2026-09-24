@@ -11,8 +11,11 @@ struct LABPROJECT_API FExtensionCondition_NetworkReady : public FExtensionCondit
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	virtual bool IsSatisfied(AActor* Owner) const override;
 
+public:
 	UPROPERTY(EditAnywhere, Category = "Condition")
 	uint8 bRequirePlayerController : 1 = true;
 

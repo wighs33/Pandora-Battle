@@ -16,9 +16,11 @@ class LABPROJECT_API URoomItemWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Room")
 	void SetInfo(const FBlueprintSessionResult& InSessionResult);
 
@@ -26,6 +28,7 @@ public:
 	void RefreshUI();
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override { RefreshUI(); }
 
 	UFUNCTION()
@@ -36,6 +39,13 @@ protected:
 
 	void HandleJoinSessionComplete(uint64 RequestId, bool bWasSuccessful);
 
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	UUiSubsystem* GetUiSubsystem() const;
+	UConnectingPopupWidget* ShowConnectingPopup(bool bShowCancelButton);
+	void HideConnectingPopup() const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Room|Bind")
 	TObjectPtr<UTextBlock> Txt_RoomName;
 
@@ -52,10 +62,6 @@ protected:
 	FBlueprintSessionResult Result;
 
 private:
-	UUiSubsystem* GetUiSubsystem() const;
-	UConnectingPopupWidget* ShowConnectingPopup(bool bShowCancelButton);
-	void HideConnectingPopup() const;
-
 	FDelegateHandle JoinSessionCompleteHandle;
 	uint64 ActiveJoinRequestId = 0;
 };

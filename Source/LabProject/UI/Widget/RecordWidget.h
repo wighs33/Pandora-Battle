@@ -20,17 +20,39 @@ class LABPROJECT_API URecordWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
-	URecordWidget(const FObjectInitializer& ObjectInitializer);
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	URecordWidget(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "!Record")
 	void RefreshRecords();
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override;
 
+private:
+	UFUNCTION()
+	void HandleCloseClicked();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ResolveWidgets();
+	void BindWidgets();
+	void UnbindWidgets();
+	void BeginContentPreload();
+	void BeginTierImagePreload(int32 PreloadGeneration);
+	void ReleaseContentPreloads();
+	void ApplyWidgetDefinitionSettings();
+	FString ResolveRecordPlayerId() const;
+	TSubclassOf<URecordEntryWidget> ResolveRecordEntryWidgetClass() const;
+	const URecordDefinition* ResolveRecordDefinition();
+	void ApplyTierImage(const FString& PlayerId);
+	void ApplyWinCountUI(const FString& PlayerId);
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Record|Bind")
 	TObjectPtr<UTextBlock> Txt_TierName;
 
@@ -62,22 +84,6 @@ protected:
 	TSubclassOf<URecordEntryWidget> RecordEntryWidgetClass;
 
 private:
-	UFUNCTION()
-	void HandleCloseClicked();
-
-	void ResolveWidgets();
-	void BindWidgets();
-	void UnbindWidgets();
-	void BeginContentPreload();
-	void BeginTierImagePreload(int32 PreloadGeneration);
-	void ReleaseContentPreloads();
-	void ApplyWidgetDefinitionSettings();
-	FString ResolveRecordPlayerId() const;
-	TSubclassOf<URecordEntryWidget> ResolveRecordEntryWidgetClass() const;
-	const URecordDefinition* ResolveRecordDefinition();
-	void ApplyTierImage(const FString& PlayerId);
-	void ApplyWinCountUI(const FString& PlayerId);
-
 	bool bWidgetsBound = false;
 	int32 MaxVisibleRecordEntries = 5;
 	float MaxTierProgressWinCount = 160.0f;

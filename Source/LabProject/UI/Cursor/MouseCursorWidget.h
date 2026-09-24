@@ -14,16 +14,20 @@ class LABPROJECT_API UMouseCursorWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual TSharedRef<SWidget> RebuildWidget() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Mouse Cursor")
 	void ConfigureCursor(UTexture2D* InTexture, FVector2D InSize, FVector2D InHotSpot);
 
-protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyCursorVisual();
 
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<USizeBox> CursorRoot;
 

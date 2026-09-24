@@ -15,10 +15,12 @@ class LABPROJECT_API UGameConfigWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|Config")
 	void RefreshUI();
 
@@ -29,6 +31,7 @@ public:
 	FName GetSelectedMapKey() const;
 
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnMenuLanguageChanged() override;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "!Lobby|Config")
@@ -40,6 +43,15 @@ protected:
 	UFUNCTION()
 	void HandleMapSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
+private:
+	UFUNCTION() UWidget* GenerateMapOption(FString Option);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	FName GetFirstComboBoxMapKey() const;
+	void ApplySelectedMapThumbnail(FName SelectedMapKey);
+	static int32 ParseClampedInt(const UEditableTextBox* TextBox, int32 DefaultValue, int32 MinValue, int32 MaxValue);
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_Back;
 
@@ -63,10 +75,4 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Config")
 	FName TestMapKey = TEXT("Test");
-
-private:
-	FName GetFirstComboBoxMapKey() const;
-	UFUNCTION() UWidget* GenerateMapOption(FString Option);
-	void ApplySelectedMapThumbnail(FName SelectedMapKey);
-	static int32 ParseClampedInt(const UEditableTextBox* TextBox, int32 DefaultValue, int32 MinValue, int32 MaxValue);
 };

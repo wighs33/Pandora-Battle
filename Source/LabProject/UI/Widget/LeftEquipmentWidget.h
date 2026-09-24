@@ -27,7 +27,14 @@ class LABPROJECT_API ULeftEquipmentWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	ULeftEquipmentWidget(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
@@ -62,6 +69,32 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment", meta = (Categories = "Item"))
 	void BroadcastClickedEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* InSelectedEquipSlot, bool bInIsSelectedAnyButton);
 
+protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnMenuLanguageChanged() override;
+
+private:
+	UFUNCTION()
+	void HandleEquipSlotClicked(UEquipSlotWidget* ItemSlot);
+
+	UFUNCTION()
+	void HandleEquipSlotItemDropped(UEquipSlotWidget* ItemSlot, UItemInstance* ItemInstance);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void RebuildEquipSlotList();
+	void RebuildEquipSlotNameList();
+	void ApplyEquipSlotNames();
+	void ApplyResolvedEquipTypeTags();
+	void BindEquipSlotCallbacks();
+	void UnbindEquipSlotCallbacks();
+	void BeginPandoraWeaponIconPreload();
+	void ReleasePandoraWeaponIconPreload();
+	void RefreshCachedPandoraWeaponRequirements();
+	UEquipSlotWidget* GetWeaponSlot(int32 WeaponSlotNumber) const;
+	UTexture2D* ResolvePandoraWeaponRequirementIcon(const UPandoraDefinition* PandoraDefinition) const;
+	FGameplayTag ResolveEquipTypeTagForSlot(const UEquipSlotWidget* ItemSlot) const;
+
+public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Equipment")
 	FPdOnClickedEquipTypeSlot OnClicked_EquipTypeSlot;
 
@@ -69,11 +102,6 @@ public:
 	FPdOnDroppedItemEquipTypeSlot OnDroppedItem_EquipTypeSlot;
 
 protected:
-	virtual void OnMenuLanguageChanged() override;
-	virtual void NativePreConstruct() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Equipment|Bind")
 	TObjectPtr<UEquipSlotWidget> HatSlot;
 
@@ -165,25 +193,6 @@ protected:
 	float PandoraWeaponRequirementOpacity = 0.3f;
 
 private:
-	UFUNCTION()
-	void HandleEquipSlotClicked(UEquipSlotWidget* ItemSlot);
-
-	UFUNCTION()
-	void HandleEquipSlotItemDropped(UEquipSlotWidget* ItemSlot, UItemInstance* ItemInstance);
-
-	void RebuildEquipSlotList();
-	void RebuildEquipSlotNameList();
-	void ApplyEquipSlotNames();
-	void ApplyResolvedEquipTypeTags();
-	void BindEquipSlotCallbacks();
-	void UnbindEquipSlotCallbacks();
-	void BeginPandoraWeaponIconPreload();
-	void ReleasePandoraWeaponIconPreload();
-	void RefreshCachedPandoraWeaponRequirements();
-	UEquipSlotWidget* GetWeaponSlot(int32 WeaponSlotNumber) const;
-	UTexture2D* ResolvePandoraWeaponRequirementIcon(const UPandoraDefinition* PandoraDefinition) const;
-	FGameplayTag ResolveEquipTypeTagForSlot(const UEquipSlotWidget* ItemSlot) const;
-
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPandoraDefinition>> CachedWeaponSlotPandoraRequirements;
 

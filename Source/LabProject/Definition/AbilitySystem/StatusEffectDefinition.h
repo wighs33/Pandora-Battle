@@ -24,8 +24,10 @@ class LABPROJECT_API UStatusEffectDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool CanStack(const UAbilitySystemComponent* TargetAbilitySystemComponent) const;
 	void RemoveStacks(UAbilitySystemComponent* TargetAbilitySystemComponent) const;
 
@@ -33,6 +35,7 @@ public:
 
 	void SynchronizeStackEffectStackLimit() const;
 
+public:
 	/** 발동 전 누적 효과를 식별하는 태그. 스택 조회와 누적 효과 제거에 사용한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect|Debuff", meta = (Categories = "Debuff"))
 	FGameplayTag StackTag;

@@ -13,6 +13,7 @@ struct LABPROJECT_API FItemViewData
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
 	FText DisplayName;
 
@@ -46,6 +47,7 @@ struct LABPROJECT_API FItemViewData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ViewData")
 	bool bEnabled = true;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasContent() const
 	{
 		return !DisplayName.IsEmpty() || !Description.IsEmpty() || IconResource != nullptr || !Stats.IsEmpty() || Quantity > 0;
@@ -54,10 +56,13 @@ struct LABPROJECT_API FItemViewData
 
 class LABPROJECT_API FItemViewDataBuilder
 {
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	static FItemViewData FromItemInstance(const UItemInstance* ItemInstance, bool bOwned = true, bool bActive = true);
 	static FItemViewData FromSkinDefinition(const USkinDefinition* SkinDefinition, bool bOwned = true, bool bActive = true);
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	static TMap<FGameplayTag, float> BuildItemStatMap(const UItemInstance* ItemInstance);
 };

@@ -87,16 +87,19 @@ class LABPROJECT_API UPlayerPawnDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UPlayerPawnDefinition();
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void PostLoad() override;
 
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	static FPrimaryAssetId GetDefaultPrimaryAssetId();
-	static FSoftObjectPath GetDefaultDefinitionPath();
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UPlayerPawnDefinition();
+	static FPrimaryAssetId GetDefaultPrimaryAssetId();
+	static FSoftObjectPath GetDefaultDefinitionPath();
 
 	const FPlayerInteractionSettings& GetInteractionSettings() const { return Interaction; }
 	const FPlayerCameraPresentationSettings& GetCameraSettings() const { return Camera; }

@@ -13,18 +13,13 @@ class LABPROJECT_API AGun : public AWeaponBase
 	GENERATED_BODY()
 
 public:
-	// Input commands
-	virtual bool HandlePrimaryAttack(APdPlayer* PlayerCharacter) override;
-	virtual bool HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor) override;
-	virtual bool HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation) override;
-
-	// Query helpers
+	// Public API ------------------------------------------------------------------------------------------------------
 	virtual bool SupportsAutomaticFire() const override;
 	virtual float GetAutomaticFireInterval() const override;
 	virtual bool ShouldTriggerHitReactOnDamage() const override;
 
 protected:
-	// Network timing callbacks
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerHandlePrimaryAttack(FVector_NetQuantize RequestedViewLocation, FVector_NetQuantizeNormal RequestedViewDirection);
 
@@ -34,7 +29,21 @@ protected:
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastSpawnImpactDecal(FVector_NetQuantize ImpactLocation, FVector_NetQuantizeNormal ImpactNormal, float DecalSize);
 
-	// Action helpers
+public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual bool HandlePrimaryAttack(APdPlayer* PlayerCharacter) override;
+	virtual bool HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor) override;
+	virtual bool HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation) override;
+
+protected:
+	bool HandlePrimaryAttackOnServer(
+		APdPlayer* PlayerCharacter,
+		const FVector& RequestedViewLocation,
+		const FVector& RequestedViewDirection);
+	bool HandleAIPrimaryAttackOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor);
+	bool HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ExecuteMuzzleFlashCue(ACharacterBase* Character) const;
 	void SpawnImpactDecal(const FVector& ImpactLocation, const FVector& ImpactNormal, float DecalSize) const;
 	bool TryConsumePrimaryAttackCooldown();
@@ -48,14 +57,7 @@ protected:
 		const FVector& TargetLocation,
 		FHitResult& OutHitResult,
 		FVector& OutShotDirection) const;
-	bool HandlePrimaryAttackOnServer(
-		APdPlayer* PlayerCharacter,
-		const FVector& RequestedViewLocation,
-		const FVector& RequestedViewDirection);
-	bool HandleAIPrimaryAttackOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor);
-	bool HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation);
 
-	// Query helpers
 	bool ShouldSkipMulticastMuzzleFlashCue() const;
 	bool HasConfiguredImpactDecal() const;
 	bool ShouldSpawnImpactDecalForHit(const FHitResult& HitResult) const;
@@ -70,6 +72,7 @@ protected:
 	bool IsFriendlyDamageTargetActor(AActor* HitActor, const UPrimitiveComponent* HitComponent) const;
 	AActor* ResolveDamageTargetActor(AActor* HitActor, const UPrimitiveComponent* HitComponent) const;
 
+protected:
 	UPROPERTY(Transient)
 	float NextPrimaryAttackTimeSeconds = -1.0f;
 };

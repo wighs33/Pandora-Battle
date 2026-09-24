@@ -46,11 +46,21 @@ class LABPROJECT_API UInfoWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UInfoWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Tab Selection
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
 	void SelectProfileTab();
 
@@ -68,7 +78,6 @@ public:
 
 	/** Mount the growth drawer in the right-hand space without replacing this screen. */
 	bool AttachPandoraTree(UPandoraTreeWidget* Tree);
-	void OnPandoraDrawerClosed();
 	UFUNCTION(BlueprintPure, Category="!UI|Info|Pandora")
 	bool IsPandoraDrawerExpanded() const { return bPandoraDrawerExpanded; }
 
@@ -133,6 +142,82 @@ public:
 
 	void HidePandoraDescriptionDetailAtWidget(const UWidget* AnchorWidget);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void OnPandoraDrawerClosed();
+
+protected:
+	UFUNCTION()
+	void OnClosePaintClicked();
+	virtual void OnMenuLanguageChanged() override;
+
+private:
+	UFUNCTION()
+	void OnProfileTabButtonClicked();
+
+	UFUNCTION()
+	void OnItemTabButtonClicked();
+
+	UFUNCTION()
+	void OnSkinButtonClicked();
+
+	UFUNCTION()
+	void OnPandoraButtonClicked();
+
+	UFUNCTION()
+	void OnMapButtonClicked();
+
+	UFUNCTION()
+	void OnSettingButtonClicked();
+
+	UFUNCTION()
+	void OnCloseButtonClicked();
+
+	UFUNCTION()
+	void OnPandoraUpgradeButtonClicked();
+
+	UFUNCTION()
+	void OnCanvasExportButtonClicked();
+
+	UFUNCTION()
+	void OnFaceDecalButtonClicked();
+
+	UFUNCTION()
+	void OnDebugButtonClicked();
+
+	UFUNCTION()
+	void HandlePaintCanvasGroupVisibilityChanged(bool bVisible);
+
+protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintPure, Category = "!UI|Info|Layout")
+	UWidget* GetCenterPreviewPanel() const { return CenterPreviewPanel; }
+
+private:
+	void EnsureControllers();
+	void ConfigureControllers();
+	void ApplyWidgetDefinitionSettings();
+	void PlaySidePanelsSlideInAnimation();
+	void PlaySidePanelsSlideOutAnimation();
+	void SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag);
+	void HideSkinPaintCanvasGroup();
+	bool SetPaintCanvasWidgetVisible(bool bVisible);
+	void SetCanvasExportButtonVisible(bool bVisible) const;
+	void SetPandoraUpgradeButtonVisible(bool bVisible);
+	void RefreshPandoraDrawerLabel();
+	void ClosePandoraDrawerForNavigation();
+	void BindLeftSkinPaintCanvasEvents();
+	void UnbindLeftSkinPaintCanvasEvents();
+	bool IsScreenPositionInsideCharacterDropPanel(const FVector2D& ScreenSpacePosition) const;
+	FGameplayTag GetProfileLeftUiTag() const;
+	FGameplayTag GetProfileRightUiTag() const;
+	FGameplayTag GetItemLeftUiTag() const;
+	FGameplayTag GetItemRightUiTag() const;
+	FGameplayTag GetSkinLeftUiTag() const;
+	FGameplayTag GetSkinRightUiTag() const;
+	FGameplayTag GetPandoraLeftUiTag() const;
+	FGameplayTag GetPandoraRightUiTag() const;
+
+public:
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
 	FPdOnClickedInfoCenterButton OnClickedInfoCenterButton;
 
@@ -151,22 +236,6 @@ public:
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Paint")
 	TObjectPtr<UButton> Btn_ClosePaint;
-	UFUNCTION()
-	void OnClosePaintClicked();
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
-	virtual void OnMenuLanguageChanged() override;
-	virtual void NativePreConstruct() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
-
-	UFUNCTION(BlueprintPure, Category = "!UI|Info|Layout")
-	UWidget* GetCenterPreviewPanel() const { return CenterPreviewPanel; }
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Layout", meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> CenterPreviewPanel;
@@ -213,16 +282,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Detail")
 	FVector2D DetailPopupOffset = FVector2D(18.0f, 0.0f);
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Root Widgets
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidget))
 	TObjectPtr<UWidgetSwitcher> LeftWidgetSwitcher;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidget))
 	TObjectPtr<UWidgetSwitcher> RightWidgetSwitcher;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Tab Buttons
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidget))
 	TObjectPtr<UButton> ProfileTabButton;
 
@@ -269,8 +334,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Paint", meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> Txt_Canvas;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Map
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Map", meta = (BindWidgetOptional))
 	TObjectPtr<UOverlay> MapOverlay;
 
@@ -280,8 +343,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|Map")
 	TSubclassOf<UMapWidget> TotalMapWidgetClass;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Left Pages
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidget))
 	TObjectPtr<ULeftProfileWidget> WB_LeftProfile;
 
@@ -294,8 +355,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidget))
 	TObjectPtr<ULeftPandoraWidget> WB_LeftPandora;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Right Pages
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidget))
 	TObjectPtr<URightStatusWidget> WB_RightStatus;
 
@@ -310,68 +369,6 @@ protected:
 
 private:
 	friend class UInfoMapController;
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Button Callbacks
-	UFUNCTION()
-	void OnProfileTabButtonClicked();
-
-	UFUNCTION()
-	void OnItemTabButtonClicked();
-
-	UFUNCTION()
-	void OnSkinButtonClicked();
-
-	UFUNCTION()
-	void OnPandoraButtonClicked();
-
-	UFUNCTION()
-	void OnMapButtonClicked();
-
-	UFUNCTION()
-	void OnSettingButtonClicked();
-
-	UFUNCTION()
-	void OnCloseButtonClicked();
-
-	UFUNCTION()
-	void OnPandoraUpgradeButtonClicked();
-
-	UFUNCTION()
-	void OnCanvasExportButtonClicked();
-
-	UFUNCTION()
-	void OnFaceDecalButtonClicked();
-
-	UFUNCTION()
-	void OnDebugButtonClicked();
-
-	UFUNCTION()
-	void HandlePaintCanvasGroupVisibilityChanged(bool bVisible);
-
-	void EnsureControllers();
-	void ConfigureControllers();
-	void ApplyWidgetDefinitionSettings();
-	void PlaySidePanelsSlideInAnimation();
-	void PlaySidePanelsSlideOutAnimation();
-	void SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag);
-	void HideSkinPaintCanvasGroup();
-	bool SetPaintCanvasWidgetVisible(bool bVisible);
-	void SetCanvasExportButtonVisible(bool bVisible) const;
-	void SetPandoraUpgradeButtonVisible(bool bVisible);
-	void RefreshPandoraDrawerLabel();
-	void ClosePandoraDrawerForNavigation();
-	void BindLeftSkinPaintCanvasEvents();
-	void UnbindLeftSkinPaintCanvasEvents();
-	bool IsScreenPositionInsideCharacterDropPanel(const FVector2D& ScreenSpacePosition) const;
-	FGameplayTag GetProfileLeftUiTag() const;
-	FGameplayTag GetProfileRightUiTag() const;
-	FGameplayTag GetItemLeftUiTag() const;
-	FGameplayTag GetItemRightUiTag() const;
-	FGameplayTag GetSkinLeftUiTag() const;
-	FGameplayTag GetSkinRightUiTag() const;
-	FGameplayTag GetPandoraLeftUiTag() const;
-	FGameplayTag GetPandoraRightUiTag() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoDetailController> DetailController;

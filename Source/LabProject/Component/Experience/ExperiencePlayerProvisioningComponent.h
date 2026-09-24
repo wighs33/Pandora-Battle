@@ -24,16 +24,12 @@ class LABPROJECT_API UExperiencePlayerProvisioningComponent
 	GENERATED_BODY()
 
 public:
-	UExperiencePlayerProvisioningComponent();
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//------------------------------------------------------------------------------------------------------------------
-
-	FSimpleMulticastDelegate OnPlayerGameplayReady;
+	// Public API ------------------------------------------------------------------------------------------------------
+	UExperiencePlayerProvisioningComponent();
 	bool IsPlayerReadyForGameplay(APlayerController* PlayerController) const;
 
 	void ApplySettings(
@@ -47,13 +43,20 @@ public:
 	bool IsTrainingRoomMap() const;
 
 private:
-	void BeginProvisioningContentPreload();
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleProvisioningContentPreloaded();
+	void HandlePlayerProvisioned(APlayerController* PlayerController);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void BeginProvisioningContentPreload();
 	void ReleaseProvisioningContentPreload();
 	void FlushPendingGameplayProvisions();
 	void PreparePlayerForGameplayInternal(APlayerController* NewPlayer);
-	void HandlePlayerProvisioned(APlayerController* PlayerController);
 
+public:
+	FSimpleMulticastDelegate OnPlayerGameplayReady;
+
+private:
 	UPROPERTY(Transient)
 	TObjectPtr<UExperiencePlayerProfileService>
 		PlayerProfileService;

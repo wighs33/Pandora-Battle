@@ -19,10 +19,12 @@ class LABPROJECT_API UMenuPopupWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UMenuPopupWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UMenuPopupWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!Menu")
 	virtual void CloseMenu();
@@ -37,10 +39,8 @@ public:
 	bool CloseGuide();
 	UWidget* GetActiveGuideWidget() const;
 
-	UPROPERTY(BlueprintAssignable, Category = "!Menu")
-	FMenuPopupClosedSignature OnMenuClosed;
-
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	virtual void HandleResumeClicked();
 
@@ -55,7 +55,9 @@ protected:
 
 	UFUNCTION()
 	void HandleMouseSensitivityChanged(float NormalizedValue);
+	void HandleDestroySessionForExit(bool bWasSuccessful);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyMenuInputMode();
 	void ReleaseMenuInputMode();
 	void RestoreGameInputMode() const;
@@ -63,8 +65,19 @@ protected:
 	FString GetResolvedTitleTravelMapName() const;
 	void TravelToTitleMap();
 	void ClearDestroySessionDelegate();
-	void HandleDestroySessionForExit(bool bWasSuccessful);
 
+private:
+	void OpenGuide();
+	void DiscardGuideWidget();
+	void RestoreMenuAfterGuide();
+	void InitializeMouseSensitivitySlider();
+	void ShutdownMouseSensitivitySlider();
+
+public:
+	UPROPERTY(BlueprintAssignable, Category = "!Menu")
+	FMenuPopupClosedSignature OnMenuClosed;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Menu|Bind")
 	TObjectPtr<UButton> Btn_Resume;
 
@@ -96,12 +109,6 @@ protected:
 	bool bRestoreGameInputOnClose = true;
 
 private:
-	void OpenGuide();
-	void DiscardGuideWidget();
-	void RestoreMenuAfterGuide();
-	void InitializeMouseSensitivitySlider();
-	void ShutdownMouseSensitivitySlider();
-
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioVolumeControl> AudioVolumeControl;
 

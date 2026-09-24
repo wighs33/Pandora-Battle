@@ -85,14 +85,47 @@ class LABPROJECT_API UUiSubsystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
 
+private:
+	struct FModalInputEntry
+	{
+		FGuid Token;
+		TWeakObjectPtr<UObject> Owner;
+		TWeakObjectPtr<UWidget> FocusWidget;
+		TWeakObjectPtr<UWorld> World;
+		FUiModalInputConfig InputConfig;
+		bool bTracksFocusWidgetLifetime = false;
+	};
+
+	struct FInputStateSnapshot
+	{
+
+	public:
+		TWeakObjectPtr<APlayerController> PlayerController;
+		TWeakObjectPtr<UWorld> World;
+		TWeakPtr<SWidget> FocusedSlateWidget;
+		EUiInputMode InputMode = EUiInputMode::GameOnly;
+		EMouseCaptureMode MouseCaptureMode = EMouseCaptureMode::CapturePermanently;
+		EMouseLockMode MouseLockMode = EMouseLockMode::LockOnCapture;
+		bool bIgnoreViewportInput = false;
+		bool bHideCursorDuringCapture = false;
+		bool bShowMouseCursor = false;
+		bool bEnableClickEvents = false;
+		bool bEnableMouseOverEvents = false;
+		bool bValid = false;
+
+		// Public API --------------------------------------------------------------------------------------------------
+		void Reset()
+		{
+			*this = FInputStateSnapshot();
+		}
+	};
+
 public:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- ViewModel
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!ViewModel")
 	bool RefreshStatusViewModel();
 
@@ -105,8 +138,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!ViewModel")
 	UStatusViewModel* GetStatusViewModel() const { return StatusViewModel; }
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Definition
 	/** Stores the active UI composition once per LocalPlayer. */
 	void SetWidgetClassDefinition(UWidgetClassDefinition* InWidgetClassDefinition);
 	void ClearWidgetClassDefinition(const UWidgetClassDefinition* ExpectedWidgetClassDefinition);
@@ -133,8 +164,6 @@ public:
 	static UWidgetClassDefinition* LoadConfiguredEditorWidgetClassDefinition();
 #endif
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Modal Input
 	/**
 	 * Adds a modal input owner to the stack and returns the token required to update or release it.
 	 * The first modal snapshots the current input/focus state; only the top modal controls input.
@@ -161,8 +190,6 @@ public:
 	/** Prunes stale world-scoped entries before gameplay decides its final input mode. */
 	bool HasActiveModalInput();
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Connecting Popup
 	UFUNCTION(BlueprintCallable, Category = "!UI|Connecting")
 	UConnectingPopupWidget* ShowConnectingPopup(bool bEnableCancelButton = true);
 
@@ -183,45 +210,21 @@ public:
 	bool IsTravelLoadingScreenActive() const { return bTravelLoadingScreenActive; }
 
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Ability System
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleConfiguredWidgetDefinitionLoaded();
+	void RefreshConfiguredWidgetContentState();
+	bool TickStartupLoadingScreenReady(float DeltaTime);
+
+	UFUNCTION()
+	void HandleConnectingPopupCanceled();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	UAbilitySystemComponent* ResolveAbilitySystemComponent() const;
 	bool BindStatusViewModelToWidget(UUserWidget* InWidget);
 
 	FName ResolveStatusViewModelSourceName(const UUserWidget* InWidget) const;
 
 	APlayerController* GetLocalPlayerController() const;
-
-	struct FModalInputEntry
-	{
-		FGuid Token;
-		TWeakObjectPtr<UObject> Owner;
-		TWeakObjectPtr<UWidget> FocusWidget;
-		TWeakObjectPtr<UWorld> World;
-		FUiModalInputConfig InputConfig;
-		bool bTracksFocusWidgetLifetime = false;
-	};
-
-	struct FInputStateSnapshot
-	{
-		TWeakObjectPtr<APlayerController> PlayerController;
-		TWeakObjectPtr<UWorld> World;
-		TWeakPtr<SWidget> FocusedSlateWidget;
-		EUiInputMode InputMode = EUiInputMode::GameOnly;
-		EMouseCaptureMode MouseCaptureMode = EMouseCaptureMode::CapturePermanently;
-		EMouseLockMode MouseLockMode = EMouseLockMode::LockOnCapture;
-		bool bIgnoreViewportInput = false;
-		bool bHideCursorDuringCapture = false;
-		bool bShowMouseCursor = false;
-		bool bEnableClickEvents = false;
-		bool bEnableMouseOverEvents = false;
-		bool bValid = false;
-
-		void Reset()
-		{
-			*this = FInputStateSnapshot();
-		}
-	};
 
 	bool CaptureInputState(APlayerController* PlayerController, FInputStateSnapshot& OutSnapshot) const;
 	bool ApplyInputState(const FInputStateSnapshot& Snapshot) const;
@@ -238,7 +241,6 @@ private:
 	bool ReleaseModalInputInternal(const UObject* Owner, const FGuid& Token, bool bRequireOwnerMatch);
 
 	void BeginConfiguredWidgetDefinitionPreload();
-	void HandleConfiguredWidgetDefinitionLoaded();
 	void ReleaseConfiguredWidgetDefinitionPreload();
 
 	void BindPendingConfiguredWidgetContentBundleLeases();
@@ -246,19 +248,12 @@ private:
 	void StartWidgetContentBundleLease(
 		const TSharedPtr<FWidgetContentBundleLease>& Lease,
 		UWidgetClassDefinition* Definition);
-	void RefreshConfiguredWidgetContentState();
 	void BeginStartupLoadingScreen();
 	void CancelStartupLoadingScreenReadyCheck();
-	bool TickStartupLoadingScreenReady(float DeltaTime);
 
 	TSubclassOf<UConnectingPopupWidget> ResolveConnectingPopupWidgetClass();
 
-	UFUNCTION()
-	void HandleConnectingPopupCanceled();
-
 private:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Definition
 	UPROPERTY(Config, EditDefaultsOnly, Category = "!UI|Definition", meta = (AssetBundles = "Client"))
 	TSoftObjectPtr<UWidgetClassDefinition> DefaultWidgetClassDefinition;
 
@@ -276,20 +271,14 @@ private:
 	bool bConfiguredWidgetContentPreloadPending = false;
 	bool bConfiguredWidgetContentReady = false;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- ViewModel
 	UPROPERTY(Transient)
 	TObjectPtr<UStatusViewModel> StatusViewModel;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Modal Input
 	TArray<FModalInputEntry> ModalInputStack;
 	FInputStateSnapshot InputStateBeforeModals;
 	EUiInputRestorePolicy RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
 	bool bIsDeinitializing = false;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Connecting Popup
 	UPROPERTY(Transient)
 	TSubclassOf<UConnectingPopupWidget> ConnectingPopupWidgetClass;
 

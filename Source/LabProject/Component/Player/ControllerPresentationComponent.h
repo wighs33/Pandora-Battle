@@ -25,11 +25,11 @@ class LABPROJECT_API UControllerPresentationComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UControllerPresentationComponent();
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UControllerPresentationComponent();
 
 	void ApplySettings(const FControllerPresentationSettings& InSettings);
 	void InitializeLocalPresentation();
@@ -46,6 +46,11 @@ public:
 	void HideInGameScoreboard();
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	bool TickTravelLoadingScreenReady(float DeltaTime);
+	void UpdateManagedHealthBarVisibility();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetPdController() const;
 	void Shutdown();
 
@@ -53,13 +58,12 @@ private:
 	void RefreshTravelLoadingScreen();
 	void ScheduleHideTravelLoadingScreenWhenReady();
 	void UpdateTravelLoadingReadyTicker();
-	bool TickTravelLoadingScreenReady(float DeltaTime);
 	void SetTrainingRoomLoadingPaused(bool bPaused);
 	void StartHealthBarVisibilityManagement();
 	void StopHealthBarVisibilityManagement();
-	void UpdateManagedHealthBarVisibility();
 	bool ShouldManageHealthBarForTarget(const ACharacterBase* TargetCharacter) const;
 
+private:
 	UPROPERTY(Transient)
 	FControllerPresentationSettings Settings;
 

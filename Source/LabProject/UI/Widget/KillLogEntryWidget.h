@@ -13,13 +13,20 @@ class LABPROJECT_API UKillLogEntryWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!KillLog")
 	void SetInfo(const FKillLogEntry& InKillLogEntry);
 
 	UFUNCTION(BlueprintCallable, Category = "!KillLog")
 	void RefreshUI();
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	FText BuildKillMessage() const;
+	bool ShouldUseSeparatedNameTextBlocks() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!KillLog|Bind")
@@ -53,9 +60,6 @@ protected:
 	FLinearColor MessageColor = FLinearColor::White;
 
 private:
-	FText BuildKillMessage() const;
-	bool ShouldUseSeparatedNameTextBlocks() const;
-
 	UPROPERTY(Transient)
 	FKillLogEntry KillLogEntry;
 

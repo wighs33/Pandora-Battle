@@ -12,22 +12,27 @@ class LABPROJECT_API APetAIController : public AAIController
 	GENERATED_BODY()
 
 public:
-	APetAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	APetAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!AI|Pet")
 	void RefreshFollowTarget();
 
 protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void InitializeBlackboardValues(APawn* InPawn);
 	AActor* ResolveFollowTarget() const;
 	void UpdateDirectFollowFallback(float DeltaSeconds);
 	void StartFollowTargetRefreshTimer();
 	void StopFollowTargetRefreshTimer();
 
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Pet")
 	TObjectPtr<UBehaviorTree> BehaviorTreeAsset;
 

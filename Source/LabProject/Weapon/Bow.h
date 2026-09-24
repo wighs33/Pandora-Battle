@@ -12,22 +12,11 @@ class LABPROJECT_API ABow : public AWeaponBase
 {
 	GENERATED_BODY()
 
-public:
-	// Input commands
-	virtual bool HandleAimStart(APdPlayer* PlayerCharacter) override;
-	virtual void HandleAimEnd(APdPlayer* PlayerCharacter) override;
-	virtual bool HandlePrimaryAttack(APdPlayer* PlayerCharacter) override;
-	virtual bool HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor) override;
-	virtual bool HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation) override;
-
-	// Delegate callbacks
-	virtual bool OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter) override;
-
 protected:
-	// Timing hooks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// Network timing callbacks
+	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerBeginDraw();
 
@@ -39,7 +28,21 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerHandleAimEnd();
 
-	// Query helpers
+public:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual bool HandleAimStart(APdPlayer* PlayerCharacter) override;
+	virtual void HandleAimEnd(APdPlayer* PlayerCharacter) override;
+	virtual bool HandlePrimaryAttack(APdPlayer* PlayerCharacter) override;
+	virtual bool HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor) override;
+	virtual bool HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation) override;
+
+	virtual bool OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter) override;
+
+protected:
+	void HandleOwnerDeadTagChanged(const FGameplayTag CallbackTag, int32 NewCount);
+	void HandleServerDrawReady();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual UAnimMontage* GetConfiguredWeaponMontage() const override;
 	virtual FName GetConfiguredPrimaryAttackResumeWeaponMontageSectionName() const override;
 	TSubclassOf<AActor> GetArrowActorClass() const;
@@ -52,12 +55,9 @@ protected:
 	float GetEffectiveBowFireInterval() const;
 	bool IsServerFireCadenceReady() const;
 
-	// Action helpers
 	bool BeginServerDraw(APdPlayer* PlayerCharacter);
 	void BindServerDrawInvalidation(UPdAbilitySystemComponent* AbilitySystemComponent);
 	void UnbindServerDrawInvalidation();
-	void HandleOwnerDeadTagChanged(const FGameplayTag CallbackTag, int32 NewCount);
-	void HandleServerDrawReady();
 	void InvalidateServerDrawState(bool bDestroyServerDrawnArrow);
 	uint32 ConsumeServerDrawToken();
 	void RecordServerArrowLaunch();
@@ -80,6 +80,7 @@ protected:
 		const FVector& RequestedViewDirection,
 		const FVector& LaunchStartLocation) const;
 
+protected:
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> CurrentDrawnArrow = nullptr;
 

@@ -19,9 +19,11 @@ class LABPROJECT_API UContentDataSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	/**
 	 * Legacy compatibility entry points. They now start an asynchronous Primary Asset load.
 	 * New native code should keep the handle returned by the matching Async method.
@@ -101,6 +103,10 @@ public:
 		TArray<USkinDefinition*>& OutSkinDefinitions) const;
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleSkillDataAssetsPreloaded();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void BuildPrimaryAssetIndexes();
 	void BuildPrimaryAssetIndex(
 		FPrimaryAssetType AssetType,
@@ -122,7 +128,6 @@ private:
 		const TArray<FPrimaryAssetId>& AssetIds,
 		FSimpleDelegate OnComplete,
 		bool bPreload);
-	void HandleSkillDataAssetsPreloaded();
 	bool AreSkillDataAssetsLoaded() const;
 	UObject* LoadPrimaryAssetOnDemand(const FPrimaryAssetId& AssetId) const;
 
@@ -131,6 +136,7 @@ private:
 		const TMap<FName, FPrimaryAssetId>& AssetIdsByName,
 		TMap<FName, TObjectPtr<AssetType>>& OutAssets) const;
 
+private:
 	TMap<FName, FPrimaryAssetId> SkillDataAssetIdsByName;
 	TMap<FName, FPrimaryAssetId> PandoraDefinitionIdsByName;
 	TMap<FName, FPrimaryAssetId> SkinDefinitionIdsByName;

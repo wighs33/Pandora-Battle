@@ -21,9 +21,11 @@ class LABPROJECT_API UPlayerProfileSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	void LoadGame(const FString& PlayerId);
 	void SaveGame(const FString& PlayerId);
 	UPdSaveGame* GetOrCreateSaveGame(const FString& PlayerId);
@@ -83,19 +85,22 @@ public:
 		int32& OutRemainingGold,
 		bool bSaveImmediately = true);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	FOnPlayerProfileProgressChanged& OnProfileProgressChanged() { return ProfileProgressChanged; }
 
 private:
+	bool TickPendingSaves(float DeltaTime);
+	void HandlePrimarySaveCompleted(const FString& PlayerId, bool bSucceeded);
+	void HandleBackupSaveCompleted(const FString& PlayerId, bool bSucceeded);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	UPdSaveGame* CreateConfiguredSaveGameObject() const;
 	UPdSaveGame* LoadBestAvailableSaveGame(
 		const FString& PlayerId,
 		bool& bOutRecoveredFromFallback) const;
 	void RequestProfileSave(const FString& PlayerId, bool bSaveImmediately);
 	void EnsureSaveTicker();
-	bool TickPendingSaves(float DeltaTime);
 	void BeginAsyncSave(const FString& PlayerId);
-	void HandlePrimarySaveCompleted(const FString& PlayerId, bool bSucceeded);
-	void HandleBackupSaveCompleted(const FString& PlayerId, bool bSucceeded);
 	void FinishAsyncSave(const FString& PlayerId);
 	void FlushPendingSavesToShutdownSlots();
 	void NotifyProfileProgressChanged(const FString& PlayerId);
@@ -103,6 +108,7 @@ private:
 	static FString GetBackupSlotName(const FString& PlayerId);
 	static FString GetShutdownSlotName(const FString& PlayerId);
 
+private:
 	UPROPERTY(Transient)
 	TMap<FString, TObjectPtr<UPdSaveGame>> SavedGameByPlayerId;
 

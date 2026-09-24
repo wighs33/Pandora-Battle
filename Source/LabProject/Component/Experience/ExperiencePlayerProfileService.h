@@ -19,6 +19,7 @@ class LABPROJECT_API UExperiencePlayerProfileService : public UObject
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	void ApplySettings(
 		const FExperiencePlayerProvisioningSettings& InSettings);
 	void InitializeLoggedInPlayer(APlayerController* NewPlayer) const;
@@ -27,8 +28,10 @@ public:
 		APlayerController* NewPlayer) const;
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	AExperienceGameMode* GetExperienceGameMode() const;
 
+private:
 	bool bAssignDefaultTeamWhenLobbyTeamMissing = true;
 	int32 DefaultLobbyTeamColorIndex = 0;
 };

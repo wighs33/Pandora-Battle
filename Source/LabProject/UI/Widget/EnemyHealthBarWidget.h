@@ -16,7 +16,13 @@ class LABPROJECT_API UEnemyHealthBarWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Enemy|Health")
 	void SetOwnerActor(AActor* InOwnerActor);
 
@@ -26,13 +32,32 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Enemy|Health")
 	void AnimateHealth(double From, double To);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Enemy|Health")
 	void DecreaseHealthIncrement();
 
-protected:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+private:
+	void InitializeFromOwner();
+	void StartDecreaseHealthAnimation();
 
+	void OnHealthChanged(const FOnAttributeChangeData& ChangeData);
+	void OnMaxHealthChanged(const FOnAttributeChangeData& ChangeData);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void QueueInitializeRetry();
+	void StopInitializeRetry();
+	void BindAttributeDelegates();
+	void UnbindAttributeDelegates();
+	void ClearAnimationTimers();
+	void HideAnimatedProgressBar();
+	UProgressBar* GetProgressBar() const;
+	UProgressBar* GetAnimatedProgressBar() const;
+	UProgressBar* FindProgressBarByName(FName WidgetName) const;
+	float GetAttributeValue(const FGameplayAttribute& Attribute, bool* bOutSuccessfullyFoundAttribute = nullptr) const;
+	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
+	float GetHealthPercent(float CurrentValue, float MaxValue) const;
+
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"), Category = "!UI|Enemy|Health")
 	TObjectPtr<AActor> OwnerActor;
 
@@ -52,24 +77,6 @@ protected:
 	float AnimatedHealthDecreaseStep = 0.025f;
 
 private:
-	void InitializeFromOwner();
-	void QueueInitializeRetry();
-	void StopInitializeRetry();
-	void BindAttributeDelegates();
-	void UnbindAttributeDelegates();
-	void StartDecreaseHealthAnimation();
-	void ClearAnimationTimers();
-	void HideAnimatedProgressBar();
-	UProgressBar* GetProgressBar() const;
-	UProgressBar* GetAnimatedProgressBar() const;
-	UProgressBar* FindProgressBarByName(FName WidgetName) const;
-	float GetAttributeValue(const FGameplayAttribute& Attribute, bool* bOutSuccessfullyFoundAttribute = nullptr) const;
-	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
-	float GetHealthPercent(float CurrentValue, float MaxValue) const;
-
-	void OnHealthChanged(const FOnAttributeChangeData& ChangeData);
-	void OnMaxHealthChanged(const FOnAttributeChangeData& ChangeData);
-
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
 

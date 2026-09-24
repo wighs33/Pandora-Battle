@@ -23,6 +23,7 @@ class LABPROJECT_API UAbilityStateComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UAbilityStateComponent();
 
 	// 캐릭터 초기화·빙의 변경·종료 시 연결 관리.
@@ -41,6 +42,15 @@ public:
 	void RestoreCachedRotationSettings(UCharacterMovementComponent* MovementComponent) const;
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleMovementAttributesChanged(const FOnAttributeChangeData& Data);
+	void RetryApplyMovementSpeedFromAttribute();
+	void OnDeadTagChanged(FGameplayTag CallbackTag, int32 NewCount);
+	void OnFrozenTagChanged(FGameplayTag CallbackTag, int32 NewCount);
+	void HandleStaminaChanged(const FOnAttributeChangeData& Data);
+	void ApplyStaminaRegenEffect();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ACharacterBase* GetCharacterOwner() const;
 	void TryInitializeAbilitySystemActorInfo();
 	void QueueAbilitySystemActorInfoInitializationRetry();
@@ -48,29 +58,23 @@ private:
 	// 속성 기반 이동속도와 저스태미나 연출.
 	void BindMovementSpeedAttributeToASC(UAbilitySystemComponent* AbilitySystemComponent);
 	void UnbindMovementSpeedAttribute();
-
-	void HandleMovementAttributesChanged(const FOnAttributeChangeData& Data);
 	void RefreshLowStaminaEffectComponent(float StaminaPercent, const UGameSettingDefinition* SettingDefinition);
 	UActorComponent* ResolveLowStaminaEffectComponent(FName ComponentName);
 	void QueueMovementSpeedAttributeApplyRetry();
-	void RetryApplyMovementSpeedFromAttribute();
 
 	// 사망·빙결 태그 구독과 상태 복구.
 	void BindDeadTagEvent(UAbilitySystemComponent* AbilitySystemComponent);
 	void UnbindDeadTagEvent();
 	void BindFrozenTagEvent(UAbilitySystemComponent* AbilitySystemComponent);
 	void UnbindFrozenTagEvent();
-	void OnDeadTagChanged(FGameplayTag CallbackTag, int32 NewCount);
-	void OnFrozenTagChanged(FGameplayTag CallbackTag, int32 NewCount);
 
 	// 서버의 소비 후 지연 스태미나 회복.
 	void BindStaminaRegenToASC(UAbilitySystemComponent* AbilitySystemComponent);
 	void UnbindStaminaRegenFromASC();
-	void HandleStaminaChanged(const FOnAttributeChangeData& Data);
-	void ApplyStaminaRegenEffect();
 	void RemoveStaminaRegenEffects();
 	float GetCurrentMaxStamina() const;
 
+private:
 	// PlayerState 연결이 먼저 끊겨도 자신이 연결했던 ASC를 정확히 해제한다.
 	TWeakObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
 

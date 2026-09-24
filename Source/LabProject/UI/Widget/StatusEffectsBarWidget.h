@@ -19,7 +19,13 @@ class LABPROJECT_API UStatusEffectsBarWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UStatusEffectsBarWidget(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|StatusEffect")
@@ -27,10 +33,31 @@ public:
 
 	void CenterHorizontalBox();
 
-protected:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void RefreshStatusEffectWidgets();
+	void BindStatusEffectTagDelegates();
+	void HandleObservedTagChanged(FGameplayTag CallbackTag, int32 NewCount);
+	void HandleReplicatedStatusEffectStackChanged(FGameplayTag DebuffTag, int32 StackCount);
 
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void TryAddStatusEffectWidget(UStatusEffectDefinition* DataAsset);
+	void ApplyWidgetDefinitionSettings();
+	void BeginStatusEffectContentPreload();
+	void ReleaseStatusEffectContentPreload();
+	void ScheduleStatusEffectTagBinding();
+	void ScheduleStatusEffectWidgetRefresh();
+	void UnbindStatusEffectTagDelegates();
+	int32 GetStatusEffectDisplayCount(const UStatusEffectDefinition* DataAsset) const;
+	UUserWidget* CreateStatusEffectWidget();
+	void ResolveStatusEffectWidgetClass();
+	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
+	void GatherObservedStatusEffectDataAssets(TArray<UStatusEffectDefinition*>& OutDataAssets);
+	void RebuildObservedStatusEffectDataAssetCache();
+	void AddObservedStatusEffectDataAsset(UStatusEffectDefinition* DataAsset);
+	void InvalidateObservedStatusEffectDataAssetCache();
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|StatusEffect|Widgets")
 	TObjectPtr<UHorizontalBox> HorizontalBox;
 
@@ -41,26 +68,6 @@ protected:
 	TSubclassOf<UUserWidget> StatusEffectWidgetClass;
 
 private:
-	void TryAddStatusEffectWidget(UStatusEffectDefinition* DataAsset);
-	void RefreshStatusEffectWidgets();
-	void ApplyWidgetDefinitionSettings();
-	void BeginStatusEffectContentPreload();
-	void ReleaseStatusEffectContentPreload();
-	void ScheduleStatusEffectTagBinding();
-	void ScheduleStatusEffectWidgetRefresh();
-	void BindStatusEffectTagDelegates();
-	void UnbindStatusEffectTagDelegates();
-	void HandleObservedTagChanged(FGameplayTag CallbackTag, int32 NewCount);
-	void HandleReplicatedStatusEffectStackChanged(FGameplayTag DebuffTag, int32 StackCount);
-	int32 GetStatusEffectDisplayCount(const UStatusEffectDefinition* DataAsset) const;
-	UUserWidget* CreateStatusEffectWidget();
-	void ResolveStatusEffectWidgetClass();
-	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
-	void GatherObservedStatusEffectDataAssets(TArray<UStatusEffectDefinition*>& OutDataAssets);
-	void RebuildObservedStatusEffectDataAssetCache();
-	void AddObservedStatusEffectDataAsset(UStatusEffectDefinition* DataAsset);
-	void InvalidateObservedStatusEffectDataAssetCache();
-
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
 

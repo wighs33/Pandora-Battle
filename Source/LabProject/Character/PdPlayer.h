@@ -33,10 +33,7 @@ class LABPROJECT_API APdPlayer : public ACharacterBase
 	GENERATED_BODY()
 
 public:
-	APdPlayer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void PreInitializeComponents() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostInitializeComponents() override;
@@ -45,10 +42,11 @@ public:
 	virtual void NotifyControllerChanged() override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	//------------------------------------------------------------------------------------------------------------------
-
+	// Interface Implementations ---------------------------------------------------------------------------------------
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-	virtual void HandleDeath_Implementation() override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	APdPlayer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	virtual void ResetDeathStateForRespawn() override;
 
 	UFUNCTION(BlueprintPure, Category = "!Interaction")
@@ -109,14 +107,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Interaction|Animation", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	void StopInteractionMontage(float BlendOutTime = 0.15f);
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void HandleDeath_Implementation() override;
+
 protected:
+	virtual void HandleCharacterRuntimeInitialized() override;
+	void HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPath, uint32 RequestGeneration);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual AActor* GetAbilitySystemOwnerActor() const override;
 	virtual void ApplyCurrentRotationPolicy(UCharacterMovementComponent* MovementComponent) override;
 	virtual bool ShouldUseContinuousCharacterTick() const override;
 	virtual bool IsAdditionalCharacterRuntimeContentReady() const override;
-	virtual void HandleCharacterRuntimeInitialized() override;
 	void BeginPlayerPawnDefinitionPreload();
-	void HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPath, uint32 RequestGeneration);
 	void ReleasePlayerPawnDefinitionPreload();
 	void ApplySelectedPlayerPandoraAndWeapon();
 	void ApplyPlayerPawnDefinition();
@@ -128,8 +131,6 @@ protected:
 		meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPlayerPawnDefinition> PlayerPawnDefinition;
 
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Components
 	UPROPERTY(VisibleAnywhere, Category = "!Player|Component")
 	TObjectPtr<UCombatComponent> CombatComponent;
 

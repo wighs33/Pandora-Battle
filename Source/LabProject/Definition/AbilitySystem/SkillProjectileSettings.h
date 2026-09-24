@@ -27,11 +27,14 @@ struct LABPROJECT_API FSkillProjectileSettings
 {
 	GENERATED_BODY()
 
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	FSkillProjectileSettings()
 	{
 		ProjectileSocketNames.SetNum(6);
 	}
 
+public:
 	/** 투사체를 발사할 최대 6개의 소켓. 비어 있는 슬롯은 건너뛴다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Projectile", meta = (EditFixedSize))
 	TArray<FName> ProjectileSocketNames;

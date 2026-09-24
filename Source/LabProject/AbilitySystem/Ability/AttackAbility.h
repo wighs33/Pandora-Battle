@@ -15,13 +15,21 @@ class LABPROJECT_API UAttackAbility : public UPdGameplayAbility
 	GENERATED_BODY()
 
 public:
-	UAttackAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual bool CanActivateAbility(
 		FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayTagContainer* SourceTags = nullptr,
 		const FGameplayTagContainer* TargetTags = nullptr,
 		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+
+protected:
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UAttackAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	const FGameplayTag& GetJumpSectionEventTag() const { return JumpSectionEventTag; }
 	FName GetNextAttackSectionName() const;
@@ -30,12 +38,9 @@ public:
 	bool RequestJumpToSection(FName RequestedSectionName);
 
 protected:
-	// Timing hooks
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnAbilityEnding() override;
 
-	// Delegate callbacks
 	UFUNCTION()
 	void OnAttackMontageCompleted();
 
@@ -62,21 +67,19 @@ protected:
 
 	UFUNCTION()
 	void OnContinueInputPressed(float TimeWaited);
-
-	// State helpers
-	void CleanupAttackState();
 	void FinalizeAttackDamageWindowClose();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void CleanupAttackState();
 	void ResetAttackInputState();
 	void WaitForContinueInput();
 	void RestartAttackAfterMontage();
 
-	// Query helpers
 	AWeaponBase* GetCurrentWeaponActor() const;
 	FName GetCurrentAttackSectionName() const;
 	bool IsAttackSectionNameValid(FName SectionName) const;
 	bool IsAITargetInComboRange(const TCHAR* Context) const;
 
-	// Action helpers
 	bool FaceCurrentAttackTarget(const TCHAR* Context) const;
 	void RequestAIChaseTarget(const TCHAR* Context) const;
 	void SetCurrentWeaponBeginOverlapEnabled(bool bEnabled, FName AttackSectionName = NAME_None) const;
@@ -87,8 +90,7 @@ protected:
 	bool QueueBufferedComboTransition();
 	bool TryJumpToSection(FName SectionName);
 
-	// =================================================================================================================
-
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Event",
 		meta = (Categories = "GameplayEvent", DisplayName = "Combo Input Window Open Event"))
 	FGameplayTag AttackInputWindowStartEventTag;
@@ -107,8 +109,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Event", meta = (Categories = "GameplayEvent"))
 	FGameplayTag JumpSectionEventTag;
-
-	// =================================================================================================================
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")
 	TSubclassOf<UGameplayEffect> AttackingEffectClass;
@@ -130,8 +130,6 @@ protected:
 		meta = (ClampMin = "0.0", ClampMax = "0.15", ForceUnits = "s",
 			DisplayName = "Attack Damage Window Close Grace"))
 	float AttackDamageWindowCloseGraceSeconds = 0.05f;
-
-	// =================================================================================================================
 
 	UPROPERTY(Transient)
 	bool bCanReceiveAttackInput = false;

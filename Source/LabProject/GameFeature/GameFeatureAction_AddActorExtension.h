@@ -37,6 +37,7 @@ class LABPROJECT_API UGameFeatureAction_AddActorExtension : public UGameFeatureA
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context) override;
 
 #if WITH_EDITOR
@@ -48,11 +49,14 @@ public:
 #endif
 
 private:
-	virtual void AddToWorld(const FWorldContext& WorldContext, const FGameFeatureStateChangeContext& ChangeContext) override;
-	void RegisterActorExtension(UWorld* World, FGameFeatureStateChangeContext ChangeContext);
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	bool CanActivateActorExtension(AActor* Actor) const;
 	void ActivateActorExtension(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
 	void DeactivateActorExtension(AActor* Actor, FGameFeatureStateChangeContext ChangeContext);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	virtual void AddToWorld(const FWorldContext& WorldContext, const FGameFeatureStateChangeContext& ChangeContext) override;
+	void RegisterActorExtension(UWorld* World, FGameFeatureStateChangeContext ChangeContext);
 	void DeactivateAllActorExtensions(FGameFeatureActorExtensionHandles& Handles) const;
 
 public:

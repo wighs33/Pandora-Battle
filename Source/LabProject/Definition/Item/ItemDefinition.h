@@ -22,14 +22,17 @@ class LABPROJECT_API UItemDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UItemDefinition();
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	static FName GetWeaponPresentationBundleName();
-	void GetWeaponPresentationAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UItemDefinition();
+	static FName GetWeaponPresentationBundleName();
+	void GetWeaponPresentationAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const;
 
 	bool MatchesItemType(FGameplayTag ItemTypeTag) const;
 	bool HasWeaponData() const;

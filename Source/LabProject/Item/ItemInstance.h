@@ -16,6 +16,7 @@ class LABPROJECT_API UItemInstance : public UObject
 public:
 	static constexpr float UpgradeStatBonusRatePerLevel = 0.5f;
 
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Item")
 	FGuid GetOrCreateItemId();
 
@@ -33,6 +34,7 @@ public:
 
 	void EnsureItemId();
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Item")
 	TObjectPtr<const UItemDefinition> ItemDefinition;
 

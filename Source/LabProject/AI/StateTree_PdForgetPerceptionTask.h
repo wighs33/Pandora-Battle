@@ -31,10 +31,10 @@ struct LABPROJECT_API FStateTreePdForgetPerceptionTask : public FStateTreeAITask
 {
 	GENERATED_BODY()
 
+public:
 	using FInstanceDataType = FStateTreePdForgetPerceptionTaskInstanceData;
 
-	FStateTreePdForgetPerceptionTask();
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 
@@ -50,4 +50,7 @@ struct LABPROJECT_API FStateTreePdForgetPerceptionTask : public FStateTreeAITask
 		return FColor(90, 170, 255);
 	}
 #endif
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	FStateTreePdForgetPerceptionTask();
 };

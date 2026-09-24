@@ -13,7 +13,12 @@ class LABPROJECT_API UDragItemVisualWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Drag")
 	void SetIconTexture(UTexture2D* InIconTexture);
 
@@ -23,9 +28,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Drag")
 	void SetQuantity(int32 InQuantity);
 
-protected:
-	virtual void NativePreConstruct() override;
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void CacheOptionalWidgets();
+	void ApplyVisual();
 
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Drag|Bind")
 	TObjectPtr<USizeBox> RootSizeBox;
 
@@ -36,9 +44,6 @@ protected:
 	TObjectPtr<UTextBlock> QuantityTextBlock;
 
 private:
-	void CacheOptionalWidgets();
-	void ApplyVisual();
-
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> IconTexture;
 

@@ -18,18 +18,17 @@ class LABPROJECT_API UExperienceDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
-	//------------------------------------------------------------------------------------------------------------------
-
+	// Public API ------------------------------------------------------------------------------------------------------
 	bool ResolveGameFeaturePluginURLs(TArray<FString>& OutPluginURLs, FText& OutError) const;
 
+public:
 	// 미지정 시 해당 GameMode의 기본 Pawn을 사용한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Experience|Gameplay")
 	TSubclassOf<APawn> DefaultPawnClass;

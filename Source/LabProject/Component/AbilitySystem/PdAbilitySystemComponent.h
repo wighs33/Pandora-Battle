@@ -27,10 +27,7 @@ class LABPROJECT_API UPdAbilitySystemComponent : public UAbilitySystemComponent
 	GENERATED_BODY()
 
 public:
-	UPdAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//------------------------------------------------------------------------------------------------------------------
-	//--- Engine Callbacks
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	// RemoveAbility로 능력 제거 직후
 	virtual void OnRemoveAbility(FGameplayAbilitySpec& AbilitySpec) override;
 	// EndAbility로 종료 시
@@ -42,10 +39,15 @@ public:
 		bool bEnableBlockTags, const FGameplayTagContainer& BlockTags, bool bExecuteCancelTags,
 		const FGameplayTagContainer& CancelTags) override;
 
-	//------------------------------------------------------------------------------------------------------------------
+protected:
+	// 서버의 Ability 목록(ActivatableAbilities) 변경이 클라이언트에 복제되어 도착했을 때
+	virtual void OnRep_ActivateAbilities() override;
+	// LocalPredicted Ability를 클라이언트가 먼저 실행했는데 서버가 활성화를 거부했을 때
+	virtual void ClientActivateAbilityFailed_Implementation(FGameplayAbilitySpecHandle Handle, int16 PredictionKey) override;
 
-	void HandleAbilityInputPressed(const FGameplayTag& InputTag);
-	void HandleAbilityInputReleased(const FGameplayTag& InputTag);
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UPdAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	const FGameplayAbilitySpec* FindActiveAbilitySpecByTags(const FGameplayTagContainer& AbilityTags) const;
 	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
@@ -72,25 +74,23 @@ public:
 	int32 ClearStatusEffectsForRespawn();
 	void ReactivateAutoActivatedAbilities();
 
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleAbilityInputPressed(const FGameplayTag& InputTag);
+	void HandleAbilityInputReleased(const FGameplayTag& InputTag);
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void CancelActiveAbilitiesForDeath();
+	int32 RemoveRuntimeEffects(const FGameplayTagContainer& EffectTags, const FGameplayTagContainer& OwnedTags,
+		const FGameplayTagContainer& LooseTags, const FGameplayTagContainer& GameplayCues);
+
+public:
 	// 스킬바 구성 변경 완료 또는 복제 데이터 도착을 알린다. 개별 능력 부여에서는 방송하지 않는다.
 	FPdAbilitiesChangedNativeDelegate OnAbilitiesChangedNative;
 	// 종료 처리가 끝난 Spec을 알린다. 이 콜백 동안 Spec은 아직 능력 목록에 있을 수 있다.
 	FPdAbilityRemovedNativeDelegate OnAbilityRemovedNative;
 
-
-protected:
-	// 서버의 Ability 목록(ActivatableAbilities) 변경이 클라이언트에 복제되어 도착했을 때
-	virtual void OnRep_ActivateAbilities() override;
-	// LocalPredicted Ability를 클라이언트가 먼저 실행했는데 서버가 활성화를 거부했을 때
-	virtual void ClientActivateAbilityFailed_Implementation(FGameplayAbilitySpecHandle Handle, int16 PredictionKey) override;
-
 private:
-	void CancelActiveAbilitiesForDeath();
-	int32 RemoveRuntimeEffects(const FGameplayTagContainer& EffectTags, const FGameplayTagContainer& OwnedTags,
-		const FGameplayTagContainer& LooseTags, const FGameplayTagContainer& GameplayCues);
-
-
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Abilities")
 	TObjectPtr<UAbilityGrantAndInputManager> AbilityGrantAndInputManager;
-
 };

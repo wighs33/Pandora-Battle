@@ -20,12 +20,15 @@ class LABPROJECT_API UTitleWidget : public ULocalizedMenuWidget
 	GENERATED_BODY()
 
 public:
-	UTitleWidget(const FObjectInitializer& ObjectInitializer);
-
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	UTitleWidget(const FObjectInitializer& ObjectInitializer);
+
 protected:
+	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleRoomListClicked();
 
@@ -50,6 +53,45 @@ protected:
 	UFUNCTION()
 	void HandleQuickMatchCancel();
 
+private:
+	void TryStartQuickMatchAfterLoadingScreen();
+	void BeginQuickMatchRequest();
+	void HandleQuickMatchRequestComplete(uint64 RequestId, bool bWasSuccessful, bool bCreatedRoom);
+
+	UFUNCTION()
+	void HandleRecordCloseClicked();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplyWidgetDefinitionSettings();
+	FString GetResolvedLobbyTravelMapName() const;
+	FString GetResolvedRoomTravelMapName() const;
+	FString GetResolvedTrainingRoomTravelMapName() const;
+	void OpenRoomList();
+	void OpenTrainingRoom();
+	void OpenShop();
+	void OpenGuide();
+	void OpenRecord();
+	void BindRecordCloseButton();
+	void UnbindRecordCloseButton();
+	UButton* FindRecordCloseButton() const;
+	FString ResolveTitleSavePlayerId() const;
+	void ResolveWidgets();
+	TSubclassOf<UShopWidget> ResolveShopWidgetClass() const;
+	TSubclassOf<UUserWidget> ResolveGuideWidgetClass() const;
+	TSubclassOf<UUserWidget> ResolveRecordWidgetClass() const;
+	void EnsurePreferredSaveGameLoaded() const;
+	void StartQuickMatch();
+	void CancelQuickMatchStartTimer();
+	void OpenLobbyAsListenServer() const;
+	void SetQuickMatchEnabled(bool bEnabled) const;
+	void ClearQuickMatchDelegates();
+
+	UUiSubsystem* GetUiSubsystem() const;
+	UConnectingPopupWidget* ShowQuickMatchLoadingScreen();
+	void HideConnectingPopup() const;
+	void HideQuickMatchLoadingScreen() const;
+
+protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_RoomList;
 
@@ -90,41 +132,6 @@ protected:
 	TSubclassOf<UUserWidget> RecordWidgetClass;
 
 private:
-	void ApplyWidgetDefinitionSettings();
-	FString GetResolvedLobbyTravelMapName() const;
-	FString GetResolvedRoomTravelMapName() const;
-	FString GetResolvedTrainingRoomTravelMapName() const;
-	void OpenRoomList();
-	void OpenTrainingRoom();
-	void OpenShop();
-	void OpenGuide();
-	void OpenRecord();
-	void BindRecordCloseButton();
-	void UnbindRecordCloseButton();
-	UButton* FindRecordCloseButton() const;
-	FString ResolveTitleSavePlayerId() const;
-	void ResolveWidgets();
-	TSubclassOf<UShopWidget> ResolveShopWidgetClass() const;
-	TSubclassOf<UUserWidget> ResolveGuideWidgetClass() const;
-	TSubclassOf<UUserWidget> ResolveRecordWidgetClass() const;
-	void EnsurePreferredSaveGameLoaded() const;
-	void StartQuickMatch();
-	void TryStartQuickMatchAfterLoadingScreen();
-	void BeginQuickMatchRequest();
-	void CancelQuickMatchStartTimer();
-	void OpenLobbyAsListenServer() const;
-	void SetQuickMatchEnabled(bool bEnabled) const;
-	void ClearQuickMatchDelegates();
-	void HandleQuickMatchRequestComplete(uint64 RequestId, bool bWasSuccessful, bool bCreatedRoom);
-
-	UFUNCTION()
-	void HandleRecordCloseClicked();
-
-	UUiSubsystem* GetUiSubsystem() const;
-	UConnectingPopupWidget* ShowQuickMatchLoadingScreen();
-	void HideConnectingPopup() const;
-	void HideQuickMatchLoadingScreen() const;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|QuickMatch", meta = (AllowPrivateAccess = "true", ClampMin = "1"))
 	int32 QuickMatchMaxSearchResults = 50;
 

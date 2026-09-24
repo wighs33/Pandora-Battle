@@ -12,6 +12,7 @@ class LABPROJECT_API UDamageIndicatorComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UDamageIndicatorComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!DamageIndicator")
@@ -21,6 +22,7 @@ public:
 	FVector ResolveDamageIndicatorWorldLocation() const;
 
 protected:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool ResolveCameraAxes(FVector& OutCameraUp, FVector& OutCameraRight) const;
 
 protected:

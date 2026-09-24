@@ -16,17 +16,37 @@ class LABPROJECT_API UEnemyShieldBarWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 public:
+	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Enemy|Shield")
 	void SetOwnerActor(AActor* InOwnerActor);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Enemy|Shield")
 	void UpdateShieldPercent();
 
-protected:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void InitializeFromOwner();
 
+	void OnShieldChanged(const FOnAttributeChangeData& ChangeData);
+	void OnMaxShieldChanged(const FOnAttributeChangeData& ChangeData);
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void QueueInitializeRetry();
+	void StopInitializeRetry();
+	void BindAttributeDelegates();
+	void UnbindAttributeDelegates();
+	UProgressBar* GetProgressBar() const;
+	float GetAttributeValue(const FGameplayAttribute& Attribute, bool* bOutSuccessfullyFoundAttribute = nullptr) const;
+	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
+	float GetShieldPercent() const;
+
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"), Category = "!UI|Enemy|Shield")
 	TObjectPtr<AActor> OwnerActor;
 
@@ -37,19 +57,6 @@ protected:
 	float MaxShield = 100.0f;
 
 private:
-	void InitializeFromOwner();
-	void QueueInitializeRetry();
-	void StopInitializeRetry();
-	void BindAttributeDelegates();
-	void UnbindAttributeDelegates();
-	UProgressBar* GetProgressBar() const;
-	float GetAttributeValue(const FGameplayAttribute& Attribute, bool* bOutSuccessfullyFoundAttribute = nullptr) const;
-	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
-	float GetShieldPercent() const;
-
-	void OnShieldChanged(const FOnAttributeChangeData& ChangeData);
-	void OnMaxShieldChanged(const FOnAttributeChangeData& ChangeData);
-
 	UPROPERTY(meta = (BindWidgetOptional, AllowPrivateAccess = "true"))
 	TObjectPtr<UProgressBar> ShieldProgressBar;
 
