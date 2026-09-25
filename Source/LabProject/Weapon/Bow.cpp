@@ -4,7 +4,6 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
-#include "Common/CollisionChannels.h"
 #include "Common/LabGameplayTags.h"
 #include "Common/WeaponAnimNotifyNames.h"
 #include "Component/Player/CombatComponent.h"
@@ -15,26 +14,6 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "TimerManager.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Bow)
-
-namespace
-{
-void AddUniqueTraceObjectType(TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes, ECollisionChannel CollisionChannel)
-{
-	ObjectTypes.AddUnique(UEngineTypes::ConvertToObjectType(CollisionChannel));
-}
-
-TArray<TEnumAsByte<EObjectTypeQuery>> MakeBowTraceObjectTypes(TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes)
-{
-	ObjectTypes.RemoveAll(
-		[](const TEnumAsByte<EObjectTypeQuery> ObjectType)
-		{
-			return UEngineTypes::ConvertToCollisionChannel(ObjectType) == ECC_Pawn;
-		});
-	AddUniqueTraceObjectType(ObjectTypes, ECC_WorldStatic);
-	AddUniqueTraceObjectType(ObjectTypes, LabCollisionChannels::HitableBody());
-	return ObjectTypes;
-}
-}
 
 TSubclassOf<AActor> ABow::GetArrowActorClass() const
 {
@@ -90,10 +69,10 @@ TArray<TEnumAsByte<EObjectTypeQuery>> ABow::GetBowTraceObjectTypes() const
 {
 	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
 	{
-		return MakeBowTraceObjectTypes(ItemDefinition->WeaponData.Bow.TraceObjectTypes);
+		return MakeRangedTraceObjectTypes(ItemDefinition->WeaponData.Bow.TraceObjectTypes);
 	}
 
-	return MakeBowTraceObjectTypes({});
+	return MakeRangedTraceObjectTypes({});
 }
 
 float ABow::GetEffectiveMinimumDrawDuration() const
@@ -187,9 +166,8 @@ void ABow::UnbindServerDrawInvalidation()
 	ServerDrawBoundAbilitySystemComponent.Reset();
 }
 
-void ABow::HandleOwnerDeadTagChanged(const FGameplayTag CallbackTag, int32 NewCount)
+void ABow::HandleOwnerDeadTagChanged(const FGameplayTag, int32 NewCount)
 {
-	static_cast<void>(CallbackTag);
 	if (HasAuthority() && NewCount > 0)
 	{
 		InvalidateServerDrawState(true);
@@ -343,7 +321,8 @@ bool ABow::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 
 	bCanLaunchDrawnArrow = false;
 
-	const FName ResumeSectionName = GetConfiguredPrimaryAttackResumeWeaponMontageSectionName();
+	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
+	const FName ResumeSectionName = ItemDefinition ? ItemDefinition->WeaponData.Bow.AttackResumeSectionName : NAME_None;
 	if (!ResumeSectionName.IsNone())
 	{
 		JumpToWeaponMontageSectionAndResume(ResumeSectionName);
@@ -430,29 +409,6 @@ void ABow::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-UAnimMontage* ABow::GetConfiguredWeaponMontage() const
-{
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
-	{
-		if (UAnimMontage* Montage = ItemDefinition->WeaponData.Bow.WeaponMontage.Get())
-		{
-			return Montage;
-		}
-	}
-
-	return Super::GetConfiguredWeaponMontage();
-}
-
-FName ABow::GetConfiguredPrimaryAttackResumeWeaponMontageSectionName() const
-{
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
-	{
-		return ItemDefinition->WeaponData.Bow.AttackResumeSectionName;
-	}
-
-	return Super::GetConfiguredPrimaryAttackResumeWeaponMontageSectionName();
-}
-
 AActor* ABow::SpawnDrawnArrow(APdPlayer* PlayerCharacter)
 {
 	if (IsValid(CurrentDrawnArrow))
@@ -475,7 +431,7 @@ AActor* ABow::SpawnArrowActor(ACharacterBase* Character, bool bAttachToCharacter
 		return nullptr;
 	}
 
-	const FName AttachSocketName = ResolveArrowAttachSocketName();
+	const FName AttachSocketName = GetArrowAttachSocketName();
 	FTransform SpawnTransform = CharacterMesh->GetComponentTransform();
 	if (AttachSocketName != NAME_None && CharacterMesh->DoesSocketExist(AttachSocketName))
 	{
@@ -521,7 +477,7 @@ void ABow::DestroyDrawnArrow()
 
 bool ABow::TryGetArrowLaunchStartLocation(const ACharacterBase* Character, FVector& OutLocation) const
 {
-	const FName AttachSocketName = ResolveArrowAttachSocketName();
+	const FName AttachSocketName = GetArrowAttachSocketName();
 	if (TryGetOwnerMeshSocketLocation(Character, AttachSocketName, OutLocation))
 	{
 		return true;
@@ -537,22 +493,6 @@ bool ABow::TryGetArrowLaunchStartLocation(const ACharacterBase* Character, FVect
 	return true;
 }
 
-FVector ABow::GetAIArrowAimLocation(const AActor* TargetActor) const
-{
-	if (!IsValid(TargetActor))
-	{
-		return FVector::ZeroVector;
-	}
-
-	float TargetRadius = 0.0f;
-	float TargetHalfHeight = 0.0f;
-	TargetActor->GetSimpleCollisionCylinder(TargetRadius, TargetHalfHeight);
-
-	FVector AimLocation = TargetActor->GetActorLocation();
-	AimLocation.Z += FMath::Max(TargetHalfHeight * 0.5f, 0.0f);
-	return AimLocation;
-}
-
 bool ABow::LaunchArrowAtTargetOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor)
 {
 	if (!HasAuthority() || !AttackingCharacter || !IsValid(TargetActor))
@@ -561,7 +501,7 @@ bool ABow::LaunchArrowAtTargetOnServer(ACharacterBase* AttackingCharacter, AActo
 		return false;
 	}
 
-	return LaunchArrowAtLocationOnServer(AttackingCharacter, TargetActor, GetAIArrowAimLocation(TargetActor));
+	return LaunchArrowAtLocationOnServer(AttackingCharacter, TargetActor, GetAITargetAimLocation(TargetActor));
 }
 
 bool ABow::LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
@@ -730,11 +670,6 @@ AActor* ABow::RefreshDrawnArrow(APdPlayer* PlayerCharacter)
 	return SpawnDrawnArrow(PlayerCharacter);
 }
 
-FName ABow::ResolveArrowAttachSocketName() const
-{
-	return GetArrowAttachSocketName();
-}
-
 FVector ABow::CalculateArrowLaunchDirection(
 	const APdPlayer* PlayerCharacter,
 	const FVector& RequestedViewLocation,
@@ -811,4 +746,10 @@ FVector ABow::CalculateArrowLaunchDirection(
 
 	const FVector TargetLocation = bHit ? HitResult.Location : LaunchTraceEnd;
 	return (TargetLocation - LaunchStartLocation).GetSafeNormal();
+}
+
+UAnimMontage* ABow::GetConfiguredWeaponMontage() const
+{
+	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
+	return ItemDefinition ? ItemDefinition->WeaponData.Bow.WeaponMontage.Get() : nullptr;
 }

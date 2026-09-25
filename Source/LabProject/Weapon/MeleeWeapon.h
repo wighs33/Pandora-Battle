@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayEffectTypes.h"
 #include "Weapon/WeaponBase.h"
 #include "UObject/ObjectKey.h"
 #include "MeleeWeapon.generated.h"
@@ -21,10 +22,15 @@ public:
     // Public API ------------------------------------------------------------------------------------------------------
     AMeleeWeapon();
 
-    virtual void StartAttackTrace() override;
-    virtual void StartAttackTraceForSection(FName AttackSectionName) override;
-    virtual void ResetAttackHitTracking() override;
-    virtual void StopAttackTrace() override;
+    UFUNCTION(BlueprintCallable, Category = "!Weapon|Collision")
+    void SetAttackTraceEnabled(bool bEnabled);
+
+    UFUNCTION(BlueprintCallable, Category = "!Weapon|Collision")
+    virtual void StartAttackTrace();
+    virtual void StartAttackTraceForSection(FName AttackSectionName);
+    virtual void ResetAttackHitTracking();
+    UFUNCTION(BlueprintCallable, Category = "!Weapon|Collision")
+    virtual void StopAttackTrace();
 
     virtual void ConfigureSkillSlash(
         UNiagaraSystem* SlashSystem,
@@ -41,14 +47,17 @@ public:
         UObject* AdditionalDamageSourceObject = nullptr,
         const FGameplayEffectSpecHandle& DebuffEffectSpecHandle = FGameplayEffectSpecHandle(),
         UStatusEffectDefinition* StatusEffectDefinition = nullptr,
-        float AdditionalDamageDelay = 0.12f) override;
+        float AdditionalDamageDelay = 0.12f);
 
-    virtual void PlaySkillSlashVisual() override;
-    virtual void ClearSkillSlash() override;
+    virtual void PlaySkillSlashVisual();
+    virtual void ClearSkillSlash();
 
-    virtual void SetTemporaryAttackTraceEndZMultiplier(UObject* SourceObject, float Multiplier) override;
-    virtual void ClearTemporaryAttackTraceEndZMultiplier(UObject* SourceObject) override;
-    virtual float GetTemporaryAttackTraceEndZMultiplier() const override;
+    UFUNCTION(BlueprintCallable, Category = "!Weapon|Trace")
+    virtual void SetTemporaryAttackTraceEndZMultiplier(UObject* SourceObject, float Multiplier);
+    UFUNCTION(BlueprintCallable, Category = "!Weapon|Trace")
+    virtual void ClearTemporaryAttackTraceEndZMultiplier(UObject* SourceObject);
+    UFUNCTION(BlueprintPure, Category = "!Weapon|Trace")
+    virtual float GetTemporaryAttackTraceEndZMultiplier() const;
 
 protected:
     // Network RPCs ----------------------------------------------------------------------------------------------------

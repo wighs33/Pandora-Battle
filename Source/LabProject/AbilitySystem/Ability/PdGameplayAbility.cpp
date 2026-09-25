@@ -18,6 +18,7 @@
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "Weapon/WeaponBase.h"
+#include "Weapon/MeleeWeapon.h"
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "GameFramework/Controller.h"
@@ -721,7 +722,7 @@ void UPdGameplayAbility::StartConfiguredSelfBuff(const FGameplayAbilitySpecHandl
 	PresentationManager->ApplySelfBuffCharacterScale(*this, Settings);
 	if (Settings.WeaponTraceEndZMultiplier > 1.0)
 	{
-		if (AWeaponBase* Weapon = GetCurrentWeaponActorFromAvatar())
+		if (AMeleeWeapon* Weapon = Cast<AMeleeWeapon>(GetCurrentWeaponActorFromAvatar()))
 		{
 			Weapon->SetTemporaryAttackTraceEndZMultiplier(this, static_cast<float>(Settings.WeaponTraceEndZMultiplier));
 			SelfBuffTraceEndZWeapon = Weapon;
@@ -767,7 +768,7 @@ void UPdGameplayAbility::StartConfiguredSelfBuff(const FGameplayAbilitySpecHandl
 void UPdGameplayAbility::StopConfiguredSelfBuff()
 {
 	PresentationManager->RestoreSelfBuffCharacterScale(*this);
-	if (AWeaponBase* Weapon = SelfBuffTraceEndZWeapon.Get())
+	if (AMeleeWeapon* Weapon = SelfBuffTraceEndZWeapon.Get())
 	{
 		Weapon->ClearTemporaryAttackTraceEndZMultiplier(this);
 	}

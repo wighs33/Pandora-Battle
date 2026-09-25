@@ -74,6 +74,18 @@ bool AMeleeWeapon::OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerC
     return Super::OnWeaponAnimNotifyTiming(NotifyName, PlayerCharacter);
 }
 
+void AMeleeWeapon::SetAttackTraceEnabled(const bool bEnabled)
+{
+    if (bEnabled)
+    {
+        StartAttackTrace();
+    }
+    else
+    {
+        StopAttackTrace();
+    }
+}
+
 void AMeleeWeapon::StartAttackTrace()
 {
     TrackedAttackSectionName = NAME_None;

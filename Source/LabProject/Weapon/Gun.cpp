@@ -4,7 +4,6 @@
 #include "Character/CharacterHitValidation.h"
 #include "Character/PdPlayer.h"
 #include "Component/Player/CombatComponent.h"
-#include "Common/CollisionChannels.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameplayCueManager.h"
@@ -14,26 +13,6 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Gun)
-
-namespace
-{
-void AddUniqueGunTraceObjectType(TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes, ECollisionChannel CollisionChannel)
-{
-	ObjectTypes.AddUnique(UEngineTypes::ConvertToObjectType(CollisionChannel));
-}
-
-TArray<TEnumAsByte<EObjectTypeQuery>> MakeGunTraceObjectTypes(TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes)
-{
-	ObjectTypes.RemoveAll(
-		[](const TEnumAsByte<EObjectTypeQuery> ObjectType)
-		{
-			return UEngineTypes::ConvertToCollisionChannel(ObjectType) == ECC_Pawn;
-		});
-	AddUniqueGunTraceObjectType(ObjectTypes, ECC_WorldStatic);
-	AddUniqueGunTraceObjectType(ObjectTypes, LabCollisionChannels::HitableBody());
-	return ObjectTypes;
-}
-}
 
 bool AGun::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 {
@@ -408,10 +387,10 @@ TArray<TEnumAsByte<EObjectTypeQuery>> AGun::GetGunTraceObjectTypes() const
 {
 	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
 	{
-		return MakeGunTraceObjectTypes(ItemDefinition->WeaponData.Gun.TraceObjectTypes);
+		return MakeRangedTraceObjectTypes(ItemDefinition->WeaponData.Gun.TraceObjectTypes);
 	}
 
-	return MakeGunTraceObjectTypes({});
+	return MakeRangedTraceObjectTypes({});
 }
 
 float AGun::GetGunTraceRange() const
@@ -453,22 +432,6 @@ FVector AGun::GetGunTraceStartLocation(const ACharacterBase* Character) const
 	}
 
 	return GetActorLocation();
-}
-
-FVector AGun::GetAITargetAimLocation(const AActor* TargetActor) const
-{
-	if (!IsValid(TargetActor))
-	{
-		return FVector::ZeroVector;
-	}
-
-	float TargetRadius = 0.0f;
-	float TargetHalfHeight = 0.0f;
-	TargetActor->GetSimpleCollisionCylinder(TargetRadius, TargetHalfHeight);
-
-	FVector AimLocation = TargetActor->GetActorLocation();
-	AimLocation.Z += FMath::Max(TargetHalfHeight * 0.5f, 0.0f);
-	return AimLocation;
 }
 
 bool AGun::TraceAIGunShotAtLocation(

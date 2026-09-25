@@ -15,6 +15,8 @@
 #include "Component/Player/EquipmentComponent.h"
 #include "AbilitySystem/Interfaces/TargetingInterface.h"
 #include "Weapon/WeaponBase.h"
+#include "Weapon/RangedWeaponBase.h"
+#include "Weapon/MeleeWeapon.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RangedAttackAbility)
 
 namespace
@@ -236,10 +238,11 @@ AActor* URangedAttackAbility::ResolveAttackTarget(ACharacterBase* Character) con
 
 bool URangedAttackAbility::ShouldUseAIWeaponFire(ACharacterBase* Character, AWeaponBase* CurrentWeapon) const
 {
+	const ARangedWeaponBase* RangedWeapon = Cast<ARangedWeaponBase>(CurrentWeapon);
 	return Character
 		&& !Character->IsPlayerControlled()
-		&& CurrentWeapon
-		&& CurrentWeapon->SupportsAimInput()
+		&& RangedWeapon
+		&& RangedWeapon->SupportsAimInput()
 		&& HasAuthority(&CurrentActivationInfo);
 }
 
@@ -409,11 +412,11 @@ void URangedAttackAbility::HandleAIPrimaryAttackTimer()
 
 void URangedAttackAbility::SetCurrentWeaponTraceEnabled(bool bEnabled) const
 {
-	AWeaponBase* CurrentWeapon = GetCurrentWeaponActor();
+	AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(GetCurrentWeaponActor());
 	if (!CurrentWeapon)
 	{
 		return;
 	}
 
-	CurrentWeapon->SetBeginOverlapEnabled(bEnabled);
+	CurrentWeapon->SetAttackTraceEnabled(bEnabled);
 }

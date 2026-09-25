@@ -8,6 +8,7 @@
 
 class ACharacterBase;
 class AWeaponBase;
+class AMeleeWeapon;
 class UNiagaraComponent;
 class USkeletalMeshComponent;
 
@@ -115,7 +116,7 @@ private:
 	TObjectPtr<UNiagaraComponent> AttachedNiagaraComponent;
 
 	UPROPERTY(Transient)
-	TObjectPtr<AWeaponBase> ActiveTraceWeapon;
+	TObjectPtr<AMeleeWeapon> ActiveTraceWeapon;
 
 	UPROPERTY(Transient)
 	FVector CachedSourceMeshScale = FVector::OneVector;

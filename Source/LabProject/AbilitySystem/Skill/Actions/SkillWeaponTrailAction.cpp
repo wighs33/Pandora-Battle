@@ -12,24 +12,13 @@
 #include "GameplayEffectTypes.h"
 #include "NiagaraSystem.h"
 #include "Weapon/WeaponBase.h"
+#include "Weapon/MeleeWeapon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillWeaponTrailAction)
 
-namespace
-{
-float GetPositiveDuration(const float Duration)
-	{
-		return FMath::Max(Duration, 0.0f);
-	}
-}
-
 void USkillWeaponTrailAction::OnStart()
 {
-	const auto Handle = GetAbility()->GetCurrentAbilitySpecHandle();
 	const auto* ActorInfo = GetAbility()->GetCurrentActorInfo();
-	const auto ActivationInfo = GetAbility()->GetCurrentActivationInfo();
-	const auto* TriggerEventData = &GetContext().EventData;
-	static_cast<void>(TriggerEventData);
 
 	TrailMontageTask = nullptr;
 	TrailDurationTask = nullptr;
@@ -41,25 +30,17 @@ void USkillWeaponTrailAction::OnStart()
 	if (!SkillDataAsset)
 	{
 
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
 
-	const FSkillSwordTrailSettings* TrailConfig = &Settings;
-	if (!TrailConfig)
-	{
-
-		Finish(!(true));
-		return;
-	}
-
-	const bool bHasTrailSystem = TrailConfig->TrailNiagaraSystem != nullptr;
-	const bool bUsesSlashHitTrace = TrailConfig->bEnableSlashHitTrace;
+	const bool bHasTrailSystem = Settings.TrailNiagaraSystem != nullptr;
+	const bool bUsesSlashHitTrace = Settings.bEnableSlashHitTrace;
 	if (!bHasTrailSystem && !bUsesSlashHitTrace)
 	{
 
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
@@ -67,20 +48,20 @@ void USkillWeaponTrailAction::OnStart()
 	if (!CurrentWeapon)
 	{
 
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
 	if (bHasTrailSystem && !GetAbility()->HasCurrentWeaponSkillTrail())
 	{
 
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
 	if (!GetAbility()->CommitSkill())
 	{
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 	GetAbility()->StartDurationMovementLock();
@@ -92,27 +73,34 @@ void USkillWeaponTrailAction::OnStart()
 	const FGameplayEffectSpecHandle DebuffEffectSpecHandle =
 		GetAbility()->MakeConfiguredStatusEffectSpec(SkillDataAsset);
 
-	CurrentWeapon->ConfigureSkillSlash(
-		TrailConfig->SlashNiagaraSystem,
-		TrailConfig->SlashTransformOffset.GetScale3D(),
-		TrailConfig->SlashTransformOffset.GetLocation(),
-		TrailConfig->SlashSpawnSocketName,
-		TrailConfig->SlashTransformOffset.Rotator(),
-		static_cast<float>(TrailConfig->TrailEndZLengthMultiplier),
-		bUsesSlashHitTrace,
-		AdditionalDamageConfig.GameplayEffectClass,
-		AdditionalDamageConfig.MagnitudeDataTag,
-		AdditionalDamageMagnitude,
-		FMath::Max(GetAbility()->GetAbilityLevel(), 1),
-		GetAbility()->GetCurrentSourceObject(),
-		DebuffEffectSpecHandle,
-		SkillDataAsset->StatusEffectDataAsset.Get());
+	AMeleeWeapon* MeleeWeapon = Cast<AMeleeWeapon>(CurrentWeapon);
+	if (MeleeWeapon)
+	{
+		MeleeWeapon->ConfigureSkillSlash(
+			Settings.SlashNiagaraSystem,
+			Settings.SlashTransformOffset.GetScale3D(),
+			Settings.SlashTransformOffset.GetLocation(),
+			Settings.SlashSpawnSocketName,
+			Settings.SlashTransformOffset.Rotator(),
+			static_cast<float>(Settings.TrailEndZLengthMultiplier),
+			bUsesSlashHitTrace,
+			AdditionalDamageConfig.GameplayEffectClass,
+			AdditionalDamageConfig.MagnitudeDataTag,
+			AdditionalDamageMagnitude,
+			FMath::Max(GetAbility()->GetAbilityLevel(), 1),
+			GetAbility()->GetCurrentSourceObject(),
+			DebuffEffectSpecHandle,
+			SkillDataAsset->StatusEffectDataAsset.Get());
+	}
 
-	if (bHasTrailSystem && !GetAbility()->StartCurrentWeaponSkillTrail(TrailConfig->TrailNiagaraSystem))
+	if (bHasTrailSystem && !GetAbility()->StartCurrentWeaponSkillTrail(Settings.TrailNiagaraSystem))
 	{
 
-		CurrentWeapon->ClearSkillSlash();
-		Finish(!(true));
+		if (MeleeWeapon)
+		{
+			MeleeWeapon->ClearSkillSlash();
+		}
+		Finish(false);
 		return;
 	}
 	bStartedWeaponTrail = bHasTrailSystem;
@@ -136,13 +124,13 @@ void USkillWeaponTrailAction::OnStart()
 	}
 
 	bool bTrailDurationTimerStarted = false;
-	auto StartDurationTask = [this, Handle, ActorInfo, ActivationInfo](const float RequestedDuration) -> bool
+	auto StartDurationTask = [this](const float RequestedDuration) -> bool
 	{
-		const float Duration = GetPositiveDuration(RequestedDuration);
+		const float Duration = FMath::Max(RequestedDuration, 0.0f);
 		if (Duration <= 0.0f)
 		{
 
-			Finish(!(false));
+			Finish(true);
 			return false;
 		}
 
@@ -150,7 +138,7 @@ void USkillWeaponTrailAction::OnStart()
 		if (!TrailDurationTask)
 		{
 
-			Finish(!(true));
+			Finish(false);
 			return false;
 		}
 
@@ -212,7 +200,7 @@ void USkillWeaponTrailAction::OnStop()
 		GetAbility()->StopCurrentWeaponSkillTrail();
 		bStartedWeaponTrail = false;
 	}
-	if (AWeaponBase* CurrentWeapon = GetAbility()->GetCurrentWeaponActorFromAvatar())
+	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(GetAbility()->GetCurrentWeaponActorFromAvatar()))
 	{
 		CurrentWeapon->ClearSkillSlash();
 	}
@@ -229,7 +217,7 @@ void USkillWeaponTrailAction::HandleTrailMontageCompleted()
 
 	if (IsRunning())
 	{
-		Finish(!(false));
+		Finish(true);
 	}
 }
 
@@ -243,7 +231,7 @@ void USkillWeaponTrailAction::HandleTrailMontageInterrupted()
 	}
 	if (IsRunning())
 	{
-		Finish(!(false));
+		Finish(true);
 	}
 }
 
@@ -254,22 +242,18 @@ void USkillWeaponTrailAction::HandleTrailDurationFinished()
 	Finish();
 }
 
-void USkillWeaponTrailAction::HandleTrailAttackTraceStart(FGameplayEventData Payload)
+void USkillWeaponTrailAction::HandleTrailAttackTraceStart(FGameplayEventData)
 {
-	static_cast<void>(Payload);
-
-	if (AWeaponBase* CurrentWeapon = GetAbility()->GetCurrentWeaponActorFromAvatar())
+	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(GetAbility()->GetCurrentWeaponActorFromAvatar()))
 	{
 
 		CurrentWeapon->StartAttackTrace();
 	}
 }
 
-void USkillWeaponTrailAction::HandleTrailAttackTraceEnd(FGameplayEventData Payload)
+void USkillWeaponTrailAction::HandleTrailAttackTraceEnd(FGameplayEventData)
 {
-	static_cast<void>(Payload);
-
-	if (AWeaponBase* CurrentWeapon = GetAbility()->GetCurrentWeaponActorFromAvatar())
+	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(GetAbility()->GetCurrentWeaponActorFromAvatar()))
 	{
 
 		CurrentWeapon->StopAttackTrace();

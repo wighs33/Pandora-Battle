@@ -1,14 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Weapon/WeaponBase.h"
+#include "Weapon/RangedWeaponBase.h"
 #include "Bow.generated.h"
 
 class UAnimMontage;
 class UPdAbilitySystemComponent;
 
 UCLASS(BlueprintType, Blueprintable)
-class LABPROJECT_API ABow : public AWeaponBase
+class LABPROJECT_API ABow : public ARangedWeaponBase
 {
 	GENERATED_BODY()
 
@@ -44,7 +44,6 @@ protected:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual UAnimMontage* GetConfiguredWeaponMontage() const override;
-	virtual FName GetConfiguredPrimaryAttackResumeWeaponMontageSectionName() const override;
 	TSubclassOf<AActor> GetArrowActorClass() const;
 	FName GetArrowAttachSocketName() const;
 	float GetArrowTraceRange() const;
@@ -65,7 +64,6 @@ protected:
 	AActor* SpawnDrawnArrow(APdPlayer* PlayerCharacter);
 	void DestroyDrawnArrow();
 	bool TryGetArrowLaunchStartLocation(const ACharacterBase* Character, FVector& OutLocation) const;
-	FVector GetAIArrowAimLocation(const AActor* TargetActor) const;
 	bool LaunchArrowAtTargetOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor);
 	bool LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation);
 	bool LaunchArrowOnServer(
@@ -73,7 +71,6 @@ protected:
 		const FVector& RequestedViewLocation,
 		const FVector& RequestedViewDirection);
 	AActor* RefreshDrawnArrow(APdPlayer* PlayerCharacter);
-	FName ResolveArrowAttachSocketName() const;
 	FVector CalculateArrowLaunchDirection(
 		const APdPlayer* PlayerCharacter,
 		const FVector& RequestedViewLocation,

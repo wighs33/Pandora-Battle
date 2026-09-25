@@ -10,6 +10,7 @@
 class ACharacterBase;
 class AGameplayAbilityTargetActor;
 class AWeaponBase;
+class AMeleeWeapon;
 class UAbilitySystemComponent;
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitTargetData;
@@ -171,7 +172,7 @@ private:
 	FActiveGameplayEffectHandle ActiveSelfBuffEffectHandle;
 	TWeakObjectPtr<UAbilitySystemComponent> SelfBuffAbilitySystemComponent;
 	TWeakObjectPtr<UCombatComponent> SelfBuffCombatComponent;
-	TWeakObjectPtr<AWeaponBase> SelfBuffTraceEndZWeapon;
+	TWeakObjectPtr<AMeleeWeapon> SelfBuffTraceEndZWeapon;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!Ability|CostAndCooldown")
 	TObjectPtr<UAbilityCostAndCooldownManager> CostAndCooldownManager;

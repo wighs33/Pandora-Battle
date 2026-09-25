@@ -18,6 +18,7 @@
 #include "Item/ArrowProjectileBase.h"
 #include "Templates/UnrealTemplate.h"
 #include "Weapon/WeaponBase.h"
+#include "Weapon/MeleeWeapon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnemyTrainingBotComponent)
 
@@ -481,7 +482,10 @@ void UEnemyTrainingBotComponent::CancelWeaponChangeAttackState(
 	if (AWeaponBase* Weapon =
 			Equipment ? Equipment->GetCurrentWeaponActor() : nullptr)
 	{
-		Weapon->StopAttackTrace();
+		if (AMeleeWeapon* MeleeWeapon = Cast<AMeleeWeapon>(Weapon))
+		{
+			MeleeWeapon->StopAttackTrace();
+		}
 		Weapon->StopWeaponMontage(BlendOutTime);
 	}
 }
@@ -719,7 +723,10 @@ void UEnemyTrainingBotComponent::ResetRuntimeStateForRespawn()
 	if (AWeaponBase* Weapon =
 			Equipment ? Equipment->GetCurrentWeaponActor() : nullptr)
 	{
-		Weapon->StopAttackTrace();
+		if (AMeleeWeapon* MeleeWeapon = Cast<AMeleeWeapon>(Weapon))
+		{
+			MeleeWeapon->StopAttackTrace();
+		}
 		Weapon->StopWeaponMontage(0.0f);
 	}
 

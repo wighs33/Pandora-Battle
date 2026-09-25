@@ -10,6 +10,7 @@
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "Weapon/WeaponBase.h"
+#include "Weapon/RangedWeaponBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerAimComponent)
 
@@ -140,8 +141,8 @@ void UPlayerAimComponent::ServerSetWeaponAimActive_Implementation(
 	const UEquipmentComponent* EquipmentComponent = Player
 		? Player->GetEquipmentComponent()
 		: nullptr;
-	const AWeaponBase* CurrentWeapon = EquipmentComponent
-		? EquipmentComponent->GetCurrentWeaponActor()
+	const ARangedWeaponBase* CurrentWeapon = EquipmentComponent
+		? Cast<ARangedWeaponBase>(EquipmentComponent->GetCurrentWeaponActor())
 		: nullptr;
 	if (bEnabled
 		&& (!CurrentWeapon

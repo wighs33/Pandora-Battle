@@ -31,6 +31,7 @@
 #include "NiagaraSystem.h"
 #include "Settings/GameSettingsSubsystem.h"
 #include "Weapon/WeaponBase.h"
+#include "Weapon/RangedWeaponBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CombatComponent)
 
@@ -196,7 +197,7 @@ void UCombatComponent::StartAim()
 		return;
 	}
 
-	AWeaponBase* WeaponActor = GetCurrentWeaponActor();
+	ARangedWeaponBase* WeaponActor = Cast<ARangedWeaponBase>(GetCurrentWeaponActor());
 	if (!WeaponActor || !WeaponActor->SupportsAimInput())
 	{
 		return;
@@ -230,7 +231,7 @@ void UCombatComponent::StopAim()
 		HUD->HideAimCrosshair();
 	}
 
-	AWeaponBase* WeaponActor = GetCurrentWeaponActor();
+	ARangedWeaponBase* WeaponActor = Cast<ARangedWeaponBase>(GetCurrentWeaponActor());
 	if (WeaponActor && WeaponActor->SupportsAimInput())
 	{
 		WeaponActor->HandleAimEnd(PlayerCharacter);
@@ -413,7 +414,8 @@ bool UCombatComponent::IsPrimaryAttackBlockedByAbilityTags() const
 
 bool UCombatComponent::TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter, AWeaponBase* WeaponActor) const
 {
-	if (!WeaponActor || !WeaponActor->SupportsAimInput())
+	const ARangedWeaponBase* RangedWeapon = Cast<ARangedWeaponBase>(WeaponActor);
+	if (!RangedWeapon || !RangedWeapon->SupportsAimInput())
 	{
 
 		return true;
@@ -424,7 +426,8 @@ bool UCombatComponent::TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter,
 
 bool UCombatComponent::ShouldUseRangedAttackAbility(const AWeaponBase* WeaponActor) const
 {
-	return WeaponActor && WeaponActor->SupportsAimInput();
+	const ARangedWeaponBase* RangedWeapon = Cast<ARangedWeaponBase>(WeaponActor);
+	return RangedWeapon && RangedWeapon->SupportsAimInput();
 }
 
 FGameplayTag UCombatComponent::GetSelectedAttackAbilityTag(const AWeaponBase* WeaponActor) const

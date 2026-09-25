@@ -5,8 +5,6 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Character/CharacterHitValidation.h"
-#include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
 #include "Common/WeaponAnimNotifyNames.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/CombatComponent.h"
@@ -16,9 +14,7 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Settings/GameSettingsSubsystem.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "Item/ArrowProjectileBase.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
@@ -26,28 +22,6 @@
 #include "NiagaraSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WeaponBase)
-
-namespace
-{
-    const FName SkillTrailComponentName(TEXT("SkillTrailComponent"));
-    const FName SkillTrailComponentDisplayName(TEXT("Skill Trail Component"));
-    const FName SkillTrailName(TEXT("SkillTrail"));
-
-    bool IsNamedSkillTrailComponent(const UNiagaraComponent* NiagaraComponent)
-    {
-        if (!NiagaraComponent)
-        {
-            return false;
-        }
-
-        return NiagaraComponent->GetFName() == SkillTrailComponentName
-            || NiagaraComponent->GetFName() == SkillTrailComponentDisplayName
-            || NiagaraComponent->GetFName() == SkillTrailName
-            || NiagaraComponent->ComponentHasTag(SkillTrailComponentName)
-            || NiagaraComponent->ComponentHasTag(SkillTrailComponentDisplayName)
-            || NiagaraComponent->ComponentHasTag(SkillTrailName);
-    }
-}
 
 AWeaponBase::AWeaponBase()
 {
@@ -70,93 +44,6 @@ void AWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
     FDoRepLifetimeParams Params;
     Params.bIsPushBased = true;
     DOREPLIFETIME_WITH_PARAMS_FAST(AWeaponBase, SourceItemDefinition, Params);
-}
-
-void AWeaponBase::SetBeginOverlapEnabled(const bool bEnabled)
-{
-    if (bEnabled)
-    {
-        StartAttackTrace();
-    }
-    else
-    {
-        StopAttackTrace();
-    }
-}
-
-void AWeaponBase::StartAttackTrace()
-{
-}
-
-void AWeaponBase::StartAttackTraceForSection(FName AttackSectionName)
-{
-    static_cast<void>(AttackSectionName);
-}
-
-void AWeaponBase::ResetAttackHitTracking()
-{
-}
-
-void AWeaponBase::StopAttackTrace()
-{
-}
-
-void AWeaponBase::ConfigureSkillSlash(
-    UNiagaraSystem* SlashSystem,
-    const FVector& SlashScale,
-    const FVector& SlashSpawnLocationOffset,
-    FName SlashSpawnSocketName,
-    const FRotator& SlashSpawnRotationOffset,
-    float AttackTraceEndMultiplier,
-    bool bEnableHitTrace,
-    TSubclassOf<UGameplayEffect> AdditionalDamageEffectClass,
-    FGameplayTag AdditionalDamageDataTag,
-    float AdditionalDamageMagnitude,
-    int32 AdditionalDamageLevel,
-    UObject* AdditionalDamageSourceObject,
-    const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
-    UStatusEffectDefinition* StatusEffectDefinition,
-    float AdditionalDamageDelay)
-{
-    static_cast<void>(SlashSystem);
-    static_cast<void>(SlashScale);
-    static_cast<void>(SlashSpawnLocationOffset);
-    static_cast<void>(SlashSpawnSocketName);
-    static_cast<void>(SlashSpawnRotationOffset);
-    static_cast<void>(AttackTraceEndMultiplier);
-    static_cast<void>(bEnableHitTrace);
-    static_cast<void>(AdditionalDamageEffectClass);
-    static_cast<void>(AdditionalDamageDataTag);
-    static_cast<void>(AdditionalDamageMagnitude);
-    static_cast<void>(AdditionalDamageLevel);
-    static_cast<void>(AdditionalDamageSourceObject);
-    static_cast<void>(DebuffEffectSpecHandle);
-    static_cast<void>(StatusEffectDefinition);
-    static_cast<void>(AdditionalDamageDelay);
-}
-
-void AWeaponBase::PlaySkillSlashVisual()
-{
-}
-
-void AWeaponBase::ClearSkillSlash()
-{
-}
-
-void AWeaponBase::SetTemporaryAttackTraceEndZMultiplier(UObject* SourceObject, float Multiplier)
-{
-    static_cast<void>(SourceObject);
-    static_cast<void>(Multiplier);
-}
-
-void AWeaponBase::ClearTemporaryAttackTraceEndZMultiplier(UObject* SourceObject)
-{
-    static_cast<void>(SourceObject);
-}
-
-float AWeaponBase::GetTemporaryAttackTraceEndZMultiplier() const
-{
-    return 1.0f;
 }
 
 bool AWeaponBase::PlayWeaponAttackMontage(FName StartingSection)
@@ -259,11 +146,6 @@ bool AWeaponBase::StartSkillWeaponTrail(UNiagaraSystem* TrailSystem)
     return ApplySkillWeaponTrailVisual(true);
 }
 
-bool AWeaponBase::StartSkillWeaponTrail()
-{
-    return StartSkillWeaponTrail(ActiveSkillTrailSystem);
-}
-
 void AWeaponBase::StopSkillWeaponTrail()
 {
     if (HasAuthority())
@@ -316,119 +198,24 @@ void AWeaponBase::InitializeFromItemDefinition(const UItemDefinition* InItemDefi
     }
 }
 
-bool AWeaponBase::SupportsAimInput() const
-{
-    const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-    return ItemDefinition && ItemDefinition->WeaponData.Aim.bSupportsInput;
-}
-
-bool AWeaponBase::CanUseRangedWeapon(const ACharacterBase* AttackingCharacter, const bool bRequirePlayerAim) const
-{
-    if (!SupportsAimInput()
-        || !AttackingCharacter
-        || AttackingCharacter != GetOwningCharacter()
-        || !IsCurrentWeaponForOwner()
-        || AttackingCharacter->IsStatusFrozen())
-    {
-        return false;
-    }
-
-    const UPdAbilitySystemComponent* AbilitySystemComponent = AttackingCharacter->GetPdAbilitySystemComponent();
-    if (!AbilitySystemComponent
-        || AbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f
-        || AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
-        || AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Status_Frostbite)
-        || AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Movement_Airborne)
-        || AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
-        || AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_ShootProjectile_Active))
-    {
-        return false;
-    }
-
-    const UCharacterMovementComponent* MovementComponent = AttackingCharacter->GetCharacterMovement();
-    if (MovementComponent && MovementComponent->IsFalling())
-    {
-        return false;
-    }
-
-    if (!bRequirePlayerAim)
-    {
-        return true;
-    }
-
-    const APdPlayer* PlayerCharacter = Cast<APdPlayer>(AttackingCharacter);
-    return PlayerCharacter && PlayerCharacter->IsWeaponAimActive();
-}
-
-bool AWeaponBase::CanServerUseRangedWeapon(const ACharacterBase* AttackingCharacter, const bool bRequirePlayerAim) const
-{
-    return HasAuthority() && CanUseRangedWeapon(AttackingCharacter, bRequirePlayerAim);
-}
-
-FGameplayTag AWeaponBase::GetAimCrosshairWidgetTag() const
-{
-    const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-    return ItemDefinition ? ItemDefinition->WeaponData.Aim.CrosshairWidgetTag : FGameplayTag();
-}
-
-const FWeaponAimCameraSettings& AWeaponBase::GetAimCameraSettings() const
-{
-    if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
-    {
-        return ItemDefinition->WeaponData.Aim.CameraSettings;
-    }
-
-    static const FWeaponAimCameraSettings DefaultAimCameraSettings;
-    return DefaultAimCameraSettings;
-}
-
 bool AWeaponBase::ShouldTriggerHitReactOnDamage() const
 {
     return true;
 }
 
-bool AWeaponBase::HandleAimStart(APdPlayer* PlayerCharacter)
+// 근접 공격은 Ability에서 처리하므로 직접 발사 API의 기본값은 미지원이다.
+bool AWeaponBase::HandlePrimaryAttack(APdPlayer*)
 {
-    if (!CanUseRangedWeapon(PlayerCharacter, false))
-    {
-        return false;
-    }
-
-    PlayerCharacter->SetWeaponAimActive(true, GetAimCameraSettings());
-    return true;
-}
-
-void AWeaponBase::HandleAimEnd(APdPlayer* PlayerCharacter)
-{
-    if (!SupportsAimInput() || !PlayerCharacter)
-    {
-        return;
-    }
-
-    PlayerCharacter->SetWeaponAimActive(false, GetAimCameraSettings());
-}
-
-bool AWeaponBase::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
-{
-    static_cast<void>(PlayerCharacter);
     return false;
 }
 
-bool AWeaponBase::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor)
+bool AWeaponBase::HandleAIPrimaryAttack(ACharacterBase*, AActor*)
 {
-    static_cast<void>(AttackingCharacter);
-    static_cast<void>(TargetActor);
     return false;
 }
 
-bool AWeaponBase::HandleAIPrimaryAttackAtLocation(
-    ACharacterBase* AttackingCharacter,
-    AActor* TargetActor,
-    const FVector& TargetLocation)
+bool AWeaponBase::HandleAIPrimaryAttackAtLocation(ACharacterBase*, AActor*, const FVector&)
 {
-    static_cast<void>(AttackingCharacter);
-    static_cast<void>(TargetActor);
-    static_cast<void>(TargetLocation);
     return false;
 }
 
@@ -442,13 +229,11 @@ float AWeaponBase::GetAutomaticFireInterval() const
     return 0.0f;
 }
 
-bool AWeaponBase::OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter)
+bool AWeaponBase::OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer*)
 {
-    static_cast<void>(PlayerCharacter);
-
     if (NotifyName == WeaponAnimNotifyNames::StartSkillTrail())
     {
-        return ActiveSkillTrailSystem ? StartSkillWeaponTrail() : false;
+        return ActiveSkillTrailSystem ? StartSkillWeaponTrail(ActiveSkillTrailSystem) : false;
     }
 
     if (NotifyName == WeaponAnimNotifyNames::StopSkillTrail())
@@ -483,123 +268,6 @@ bool AWeaponBase::TryGetOwnerMeshSocketLocation(
     return true;
 }
 
-bool AWeaponBase::ResolveServerAimViewPoint(
-    const APdPlayer* PlayerCharacter,
-    const FVector& RequestedViewLocation,
-    const FVector& RequestedViewDirection,
-    FVector& OutViewLocation,
-    FVector& OutViewDirection) const
-{
-    if (!PlayerCharacter)
-    {
-        return false;
-    }
-
-    const FVector RequestedDirection = RequestedViewDirection.GetSafeNormal();
-    const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-    const float MaxAcceptedViewDistance = ItemDefinition
-        ? ItemDefinition->WeaponData.Aim.MaxAcceptedServerViewDistance
-        : 0.0f;
-
-    if (!RequestedDirection.IsNearlyZero()
-        && MaxAcceptedViewDistance > 0.0f
-        && FVector::DistSquared(RequestedViewLocation, PlayerCharacter->GetActorLocation()) <= FMath::Square(MaxAcceptedViewDistance))
-    {
-        OutViewLocation = RequestedViewLocation;
-        OutViewDirection = RequestedDirection;
-        return true;
-    }
-
-    return PlayerCharacter->GetWeaponAimViewPoint(OutViewLocation, OutViewDirection);
-}
-
-bool AWeaponBase::ResolveAimTargetBeyondLaunchPoint(
-    const FVector& ViewLocation,
-    const FVector& ViewDirection,
-    const FVector& LaunchStartLocation,
-    float TraceRange,
-    const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
-    const TArray<AActor*>& ActorsToIgnore,
-    EDrawDebugTrace::Type DebugDrawType,
-    FVector& OutTargetLocation,
-    FHitResult* OutAimHitResult) const
-{
-    if (OutAimHitResult)
-    {
-        *OutAimHitResult = FHitResult();
-    }
-
-    const FVector SafeViewDirection = ViewDirection.GetSafeNormal();
-    if (SafeViewDirection.IsNearlyZero() || TraceRange <= 0.0f)
-    {
-        return false;
-    }
-
-    const float CameraToLaunchDistance = FVector::Distance(ViewLocation, LaunchStartLocation);
-    const FVector AimTraceEnd = ViewLocation + SafeViewDirection * (CameraToLaunchDistance + TraceRange);
-    FVector AimTraceStart = ViewLocation;
-    TArray<AActor*> AimActorsToIgnore = ActorsToIgnore;
-
-    constexpr int32 MaxSkippedAimObstructions = 16;
-    constexpr float AimTraceAdvanceDistance = 2.0f;
-    for (int32 AttemptIndex = 0; AttemptIndex < MaxSkippedAimObstructions; ++AttemptIndex)
-    {
-        FHitResult HitResult;
-        const bool bHit = UKismetSystemLibrary::LineTraceSingleForObjects(
-            this,
-            AimTraceStart,
-            AimTraceEnd,
-            ObjectTypes,
-            false,
-            AimActorsToIgnore,
-            DebugDrawType,
-            HitResult,
-            true,
-            FLinearColor::Red,
-            FLinearColor::Green,
-            5.0f);
-
-        if (!bHit)
-        {
-            OutTargetLocation = AimTraceEnd;
-            return true;
-        }
-
-        const FVector HitLocation = HitResult.Location;
-        const float HitForwardDistanceFromLaunch = FVector::DotProduct(HitLocation - LaunchStartLocation, SafeViewDirection);
-        const bool bHitIsBehindLaunchPlane = HitForwardDistanceFromLaunch <= AimTraceAdvanceDistance;
-        const bool bCharacterNonMeshHit = PdCharacterHitValidation::IsCharacterRelatedNonMeshHit(
-            HitResult.GetActor(),
-            HitResult.GetComponent());
-
-        if (!bHitIsBehindLaunchPlane && !bCharacterNonMeshHit)
-        {
-            OutTargetLocation = HitLocation;
-            if (OutAimHitResult)
-            {
-                *OutAimHitResult = HitResult;
-            }
-            return true;
-        }
-
-        if (bHitIsBehindLaunchPlane && IsValid(HitResult.GetActor()))
-        {
-            AimActorsToIgnore.AddUnique(HitResult.GetActor());
-        }
-
-        const float RemainingTraceDistance = FVector::DotProduct(AimTraceEnd - HitLocation, SafeViewDirection);
-        if (RemainingTraceDistance <= AimTraceAdvanceDistance)
-        {
-            break;
-        }
-
-        AimTraceStart = HitLocation + SafeViewDirection * AimTraceAdvanceDistance;
-    }
-
-    OutTargetLocation = AimTraceEnd;
-    return true;
-}
-
 float AWeaponBase::GetWeaponAttackSpeedPlayRate() const
 {
     const ACharacterBase* CharacterOwner = Cast<ACharacterBase>(GetOwner());
@@ -617,11 +285,6 @@ float AWeaponBase::GetWeaponAttackSpeedPlayRate() const
 UAnimMontage* AWeaponBase::GetConfiguredWeaponMontage() const
 {
     return nullptr;
-}
-
-FName AWeaponBase::GetConfiguredPrimaryAttackResumeWeaponMontageSectionName() const
-{
-    return NAME_None;
 }
 
 void AWeaponBase::MulticastStartSkillWeaponTrail_Implementation(UNiagaraSystem* TrailSystem)
@@ -700,65 +363,6 @@ bool AWeaponBase::ApplySkillWeaponTrailVisual(const bool bActivate)
     return true;
 }
 
-UNiagaraComponent* AWeaponBase::ResolveSkillTrailComponent() const
-{
-    TArray<UNiagaraComponent*> NiagaraComponents;
-    GetComponents(NiagaraComponents);
-
-    UNiagaraComponent* SingleNiagaraComponent = nullptr;
-    UNiagaraComponent* SingleNiagaraWithAsset = nullptr;
-    int32 NiagaraComponentCount = 0;
-    int32 NiagaraWithAssetCount = 0;
-
-    for (UNiagaraComponent* NiagaraComponent : NiagaraComponents)
-    {
-        if (!NiagaraComponent)
-        {
-            continue;
-        }
-
-        ++NiagaraComponentCount;
-        if (NiagaraComponentCount == 1)
-        {
-            SingleNiagaraComponent = NiagaraComponent;
-        }
-
-        if (NiagaraComponent->GetAsset())
-        {
-            ++NiagaraWithAssetCount;
-            if (NiagaraWithAssetCount == 1)
-            {
-                SingleNiagaraWithAsset = NiagaraComponent;
-            }
-        }
-
-        if (IsNamedSkillTrailComponent(NiagaraComponent))
-        {
-            return NiagaraComponent;
-        }
-    }
-
-    if (NiagaraWithAssetCount == 1)
-    {
-        return SingleNiagaraWithAsset;
-    }
-
-    return NiagaraComponentCount == 1 ? SingleNiagaraComponent : nullptr;
-}
-
-bool AWeaponBase::ApplyDamageFromAuthoritativeRangedTrace(const FHitResult& HitResult)
-{
-    if (!HasAuthority() || !IsCurrentWeaponForOwner())
-    {
-        return false;
-    }
-
-    ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(
-        HitResult.GetActor(),
-        HitResult.GetComponent());
-    return TargetCharacter && ApplyDamageToTarget(TargetCharacter);
-}
-
 bool AWeaponBase::ApplyDamageFromAuthoritativeProjectileImpact(
     AActor* HitActor,
     const UPrimitiveComponent* HitComponent,
@@ -797,4 +401,9 @@ bool AWeaponBase::ApplyDamageToTarget(AActor* TargetActor)
 
     UCombatComponent* CombatComponent = SourceCharacter->GetCombatComponent();
     return CombatComponent && CombatComponent->ApplyWeaponDamageToTarget(TargetCharacter);
+}
+
+UNiagaraComponent* AWeaponBase::ResolveSkillTrailComponent() const
+{
+    return Cast<UNiagaraComponent>(SkillTrailComponent.GetComponent(const_cast<AWeaponBase*>(this)));
 }

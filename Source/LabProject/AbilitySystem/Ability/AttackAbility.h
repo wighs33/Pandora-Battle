@@ -82,7 +82,7 @@ protected:
 
 	bool FaceCurrentAttackTarget(const TCHAR* Context) const;
 	void RequestAIChaseTarget(const TCHAR* Context) const;
-	void SetCurrentWeaponBeginOverlapEnabled(bool bEnabled, FName AttackSectionName = NAME_None) const;
+	void SetCurrentWeaponTraceEnabled(bool bEnabled, FName AttackSectionName = NAME_None) const;
 	void ResetAttackDamageHitTracking() const;
 	void SetCurrentComboDamageMultiplier(float DamageMultiplier) const;
 	float CalculateCurrentComboDamageMultiplier() const;

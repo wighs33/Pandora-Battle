@@ -13,6 +13,7 @@
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "Weapon/WeaponBase.h"
+#include "Weapon/MeleeWeapon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimeAuraActor)
 
@@ -160,7 +161,7 @@ void AAnimeAuraActor::StartSourcePlayerEffect()
 
 	if (bScaleWeaponTraceEndZ && WeaponTraceEndZMultiplier > 1.0f)
 	{
-		if (AWeaponBase* CurrentWeapon = ResolveCurrentWeapon(SourceCharacter))
+		if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(ResolveCurrentWeapon(SourceCharacter)))
 		{
 			CurrentWeapon->SetTemporaryAttackTraceEndZMultiplier(this, WeaponTraceEndZMultiplier);
 			ActiveTraceWeapon = CurrentWeapon;

@@ -19,6 +19,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Weapon/WeaponBase.h"
+#include "Weapon/MeleeWeapon.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AttackAbility)
 
 namespace
@@ -98,7 +99,7 @@ void UAttackAbility::CleanupAttackState()
 		WaitInputPressTask = nullptr;
 	}
 
-	SetCurrentWeaponBeginOverlapEnabled(false);
+	SetCurrentWeaponTraceEnabled(false);
 	SetCurrentComboDamageMultiplier(1.0f);
 	bAttackDamageWindowActive = false;
 	ActiveAttackDamageWindowSectionName = NAME_None;
@@ -245,7 +246,7 @@ void UAttackAbility::OnAttackDamageWindowOpened(FGameplayEventData Payload)
 	ActiveAttackDamageWindowSectionName = CurrentSectionName;
 	const float ComboDamageMultiplier = CalculateCurrentComboDamageMultiplier();
 	SetCurrentComboDamageMultiplier(ComboDamageMultiplier);
-	SetCurrentWeaponBeginOverlapEnabled(true, CurrentSectionName);
+	SetCurrentWeaponTraceEnabled(true, CurrentSectionName);
 }
 
 void UAttackAbility::OnAttackDamageWindowClosed(FGameplayEventData Payload)
@@ -288,7 +289,7 @@ void UAttackAbility::FinalizeAttackDamageWindowClose()
 
 	bAttackDamageWindowActive = false;
 	ActiveAttackDamageWindowSectionName = NAME_None;
-	SetCurrentWeaponBeginOverlapEnabled(false);
+	SetCurrentWeaponTraceEnabled(false);
 	SetCurrentComboDamageMultiplier(1.0f);
 }
 
@@ -712,20 +713,23 @@ void UAttackAbility::RequestAIChaseTarget(const TCHAR* Context) const
 
 }
 
-void UAttackAbility::SetCurrentWeaponBeginOverlapEnabled(
+void UAttackAbility::SetCurrentWeaponTraceEnabled(
 	const bool bEnabled,
 	const FName AttackSectionName) const
 {
 	AWeaponBase* CurrentWeapon = GetCurrentWeaponActor();
 	if (CurrentWeapon)
 	{
-		if (bEnabled)
+		if (AMeleeWeapon* MeleeWeapon = Cast<AMeleeWeapon>(CurrentWeapon))
 		{
-			CurrentWeapon->StartAttackTraceForSection(AttackSectionName);
-		}
-		else
-		{
-			CurrentWeapon->StopAttackTrace();
+			if (bEnabled)
+			{
+				MeleeWeapon->StartAttackTraceForSection(AttackSectionName);
+			}
+			else
+			{
+				MeleeWeapon->StopAttackTrace();
+			}
 		}
 		return;
 	}
@@ -747,7 +751,7 @@ void UAttackAbility::ResetAttackDamageHitTracking() const
 		return;
 	}
 
-	if (AWeaponBase* CurrentWeapon = GetCurrentWeaponActor())
+	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(GetCurrentWeaponActor()))
 	{
 		CurrentWeapon->ResetAttackHitTracking();
 	}

@@ -1,14 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Weapon/WeaponBase.h"
+#include "Weapon/RangedWeaponBase.h"
 #include "Gun.generated.h"
 
-class UAnimMontage;
 class UPrimitiveComponent;
 
 UCLASS(BlueprintType, Blueprintable)
-class LABPROJECT_API AGun : public AWeaponBase
+class LABPROJECT_API AGun : public ARangedWeaponBase
 {
 	GENERATED_BODY()
 
@@ -67,7 +66,6 @@ protected:
 	float GetGunTraceRange() const;
 	float GetGunTraceRadius() const;
 	FVector GetGunTraceStartLocation(const ACharacterBase* Character) const;
-	FVector GetAITargetAimLocation(const AActor* TargetActor) const;
 	bool SelectFirstValidGunImpact(const TArray<FHitResult>& HitResults, FHitResult& OutHitResult) const;
 	bool IsFriendlyDamageTargetActor(AActor* HitActor, const UPrimitiveComponent* HitComponent) const;
 	AActor* ResolveDamageTargetActor(AActor* HitActor, const UPrimitiveComponent* HitComponent) const;

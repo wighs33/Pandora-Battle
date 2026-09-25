@@ -26,6 +26,7 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Weapon/Gun.h"
 #include "Weapon/WeaponBase.h"
+#include "Weapon/RangedWeaponBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnemyCombatComponent)
 
@@ -508,8 +509,8 @@ bool UEnemyCombatComponent::IsUsingRangedWeapon() const
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
 	const UEquipmentComponent* Equipment =
 		Enemy ? Enemy->GetEquipmentComponent() : nullptr;
-	const AWeaponBase* Weapon =
-		Equipment ? Equipment->GetCurrentWeaponActor() : nullptr;
+	const ARangedWeaponBase* Weapon =
+		Equipment ? Cast<ARangedWeaponBase>(Equipment->GetCurrentWeaponActor()) : nullptr;
 	if (Weapon && Weapon->SupportsAimInput())
 	{
 		return true;

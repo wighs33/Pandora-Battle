@@ -1,24 +1,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Common/WeaponDefinitionData.h"
+#include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
-#include "GameplayEffectTypes.h"
-#include "GameplayTagContainer.h"
 #include "WeaponBase.generated.h"
 
 class AArrowProjectileBase;
 class ACharacterBase;
 class APdPlayer;
 class UAnimMontage;
-class UGameplayEffect;
 class UItemDefinition;
 class UNiagaraComponent;
 class UNiagaraSystem;
 class UPrimitiveComponent;
 class USceneComponent;
 class USkeletalMeshComponent;
-class UStatusEffectDefinition;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API AWeaponBase : public AActor
@@ -31,48 +27,6 @@ public:
 
     // Public API ------------------------------------------------------------------------------------------------------
     AWeaponBase();
-
-    // Optional melee hooks. AMeleeWeapon overrides these while generic callers stay weapon-agnostic.
-    UFUNCTION(BlueprintCallable, Category = "!Weapon|Collision")
-    void SetBeginOverlapEnabled(bool bEnabled);
-
-    UFUNCTION(BlueprintCallable, Category = "!Weapon|Collision")
-    virtual void StartAttackTrace();
-
-    virtual void StartAttackTraceForSection(FName AttackSectionName);
-    virtual void ResetAttackHitTracking();
-
-    UFUNCTION(BlueprintCallable, Category = "!Weapon|Collision")
-    virtual void StopAttackTrace();
-
-    virtual void ConfigureSkillSlash(
-        UNiagaraSystem* SlashSystem,
-        const FVector& SlashScale,
-        const FVector& SlashSpawnLocationOffset,
-        FName SlashSpawnSocketName,
-        const FRotator& SlashSpawnRotationOffset,
-        float AttackTraceEndMultiplier,
-        bool bEnableHitTrace,
-        TSubclassOf<UGameplayEffect> AdditionalDamageEffectClass = nullptr,
-        FGameplayTag AdditionalDamageDataTag = FGameplayTag(),
-        float AdditionalDamageMagnitude = 0.0f,
-        int32 AdditionalDamageLevel = 1,
-        UObject* AdditionalDamageSourceObject = nullptr,
-        const FGameplayEffectSpecHandle& DebuffEffectSpecHandle = FGameplayEffectSpecHandle(),
-        UStatusEffectDefinition* StatusEffectDefinition = nullptr,
-        float AdditionalDamageDelay = 0.12f);
-
-    virtual void PlaySkillSlashVisual();
-    virtual void ClearSkillSlash();
-
-    UFUNCTION(BlueprintCallable, Category = "!Weapon|Trace")
-    virtual void SetTemporaryAttackTraceEndZMultiplier(UObject* SourceObject, float Multiplier);
-
-    UFUNCTION(BlueprintCallable, Category = "!Weapon|Trace")
-    virtual void ClearTemporaryAttackTraceEndZMultiplier(UObject* SourceObject);
-
-    UFUNCTION(BlueprintPure, Category = "!Weapon|Trace")
-    virtual float GetTemporaryAttackTraceEndZMultiplier() const;
 
     bool PlayWeaponAttackMontage(FName StartingSection = NAME_None);
 
@@ -88,8 +42,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "!Weapon|VFX")
     bool StartSkillWeaponTrail(UNiagaraSystem* TrailSystem);
 
-    bool StartSkillWeaponTrail();
-
     UFUNCTION(BlueprintCallable, Category = "!Weapon|VFX")
     void StopSkillWeaponTrail();
 
@@ -97,10 +49,6 @@ public:
 
     void InitializeFromItemDefinition(const UItemDefinition* InItemDefinition);
 
-    bool SupportsAimInput() const;
-    bool CanUseRangedWeapon(const ACharacterBase* AttackingCharacter, bool bRequirePlayerAim) const;
-    FGameplayTag GetAimCrosshairWidgetTag() const;
-    const FWeaponAimCameraSettings& GetAimCameraSettings() const;
     virtual bool ShouldTriggerHitReactOnDamage() const;
     virtual bool SupportsAutomaticFire() const;
     virtual float GetAutomaticFireInterval() const;
@@ -115,8 +63,6 @@ protected:
 
 public:
     // Event Handlers --------------------------------------------------------------------------------------------------
-    virtual bool HandleAimStart(APdPlayer* PlayerCharacter);
-    virtual void HandleAimEnd(APdPlayer* PlayerCharacter);
     virtual bool HandlePrimaryAttack(APdPlayer* PlayerCharacter);
     virtual bool HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor);
     virtual bool HandleAIPrimaryAttackAtLocation(
@@ -130,42 +76,18 @@ protected:
     // Internal Helpers ------------------------------------------------------------------------------------------------
     const UItemDefinition* GetSourceItemDefinition() const;
 
-    bool CanServerUseRangedWeapon(
-        const ACharacterBase* AttackingCharacter,
-        bool bRequirePlayerAim) const;
-
     bool TryGetOwnerMeshSocketLocation(
         const ACharacterBase* Character,
         FName SocketName,
         FVector& OutLocation) const;
 
-    bool ResolveServerAimViewPoint(
-        const APdPlayer* PlayerCharacter,
-        const FVector& RequestedViewLocation,
-        const FVector& RequestedViewDirection,
-        FVector& OutViewLocation,
-        FVector& OutViewDirection) const;
-
-    bool ResolveAimTargetBeyondLaunchPoint(
-        const FVector& ViewLocation,
-        const FVector& ViewDirection,
-        const FVector& LaunchStartLocation,
-        float TraceRange,
-        const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
-        const TArray<AActor*>& ActorsToIgnore,
-        EDrawDebugTrace::Type DebugDrawType,
-        FVector& OutTargetLocation,
-        FHitResult* OutAimHitResult = nullptr) const;
-
     float GetWeaponAttackSpeedPlayRate() const;
     virtual UAnimMontage* GetConfiguredWeaponMontage() const;
-    virtual FName GetConfiguredPrimaryAttackResumeWeaponMontageSectionName() const;
 
     ACharacterBase* GetOwningCharacter() const;
     bool IsCurrentWeaponForOwner() const;
     bool IsAttackDebugVisualizationEnabled() const;
     bool PlayConfiguredWeaponMontage(FName StartingSection, float PlayRate);
-    bool ApplyDamageFromAuthoritativeRangedTrace(const FHitResult& HitResult);
     virtual bool ApplyDamageToTarget(AActor* TargetActor);
     bool ApplySkillWeaponTrailVisual(bool bActivate);
     UNiagaraComponent* ResolveSkillTrailComponent() const;
@@ -187,6 +109,10 @@ private:
     friend class AArrowProjectileBase;
 
 protected:
+    // Blueprint에서 사용할 Trail 컴포넌트를 명시적으로 지정한다. 이름/태그로 추측하지 않는다.
+    UPROPERTY(EditDefaultsOnly, Category = "!Weapon|VFX", meta = (UseComponentPicker, AllowedClasses = "/Script/Niagara.NiagaraComponent"))
+    FComponentReference SkillTrailComponent;
+
     UPROPERTY(Replicated, Transient)
     TObjectPtr<UItemDefinition> SourceItemDefinition;
 
