@@ -464,6 +464,6 @@ void UGameResultWidget::ShowResultScreen()
     FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
     Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
     // 퇴장과 서버 Travel은 기존 종료 버튼에서만 실행한다.
-    Screen->SetContent(this, Config, Btn_Exit, FSimpleDelegate::CreateLambda([]() {}));
+    Screen->SetContent(this, Config, EPdGameplayInputPolicy::Block, Btn_Exit, FSimpleDelegate::CreateLambda([]() {}));
     Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
 }

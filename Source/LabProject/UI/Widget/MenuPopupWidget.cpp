@@ -332,7 +332,7 @@ void UMenuPopupWidget::OpenGuide()
 	UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
 	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-	Screen->SetContent(ActiveGuideWidget, Config, ActiveGuideWidget,
+	Screen->SetContent(ActiveGuideWidget, Config, EPdGameplayInputPolicy::Block, ActiveGuideWidget,
 		FSimpleDelegate::CreateUObject(ActiveGuideWidget, &UGuideWidget::CloseGuide));
 	GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen);
 	ActiveGuideWidget->RefreshGuide();

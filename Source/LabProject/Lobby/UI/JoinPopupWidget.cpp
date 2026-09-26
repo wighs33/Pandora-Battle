@@ -61,7 +61,7 @@ void UJoinPopupWidget::HandleJoinClicked()
 			UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
 			FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 			Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-			Screen->SetContent(ConnectingPopupWidget, Config, ConnectingPopupWidget, FSimpleDelegate::CreateLambda([]() {}));
+			Screen->SetContent(ConnectingPopupWidget, Config, EPdGameplayInputPolicy::Block, ConnectingPopupWidget, FSimpleDelegate::CreateLambda([]() {}));
 			GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
 		}
 

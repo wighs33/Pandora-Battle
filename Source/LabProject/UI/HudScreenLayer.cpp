@@ -133,7 +133,7 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 		InfoScreen = CreateWidget<UUiScreen>(Controller);
 		FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
 		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		InfoScreen->SetContent(Hud->CachedInfoUI, Config, Hud->CachedInfoUI,
+		InfoScreen->SetContent(Hud->CachedInfoUI, Config, EPdGameplayInputPolicy::Block, Hud->CachedInfoUI,
 			FSimpleDelegate::CreateWeakLambda(this, [this]()
 			{
 				if (IsPandoraTreeOpen()) ClosePandoraTree();

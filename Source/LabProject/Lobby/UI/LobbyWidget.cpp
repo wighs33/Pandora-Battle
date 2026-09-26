@@ -528,7 +528,7 @@ void ULobbyWidget::HandleGameConfigClicked()
     UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
     FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
     Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-    Screen->SetContent(ActiveGameConfigWidget, Config, ActiveGameConfigWidget,
+    Screen->SetContent(ActiveGameConfigWidget, Config, EPdGameplayInputPolicy::Block, ActiveGameConfigWidget,
         FSimpleDelegate::CreateUObject(ActiveGameConfigWidget, &UGameConfigWidget::HandleBackClicked));
     GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Modal);
 	ActiveGameConfigWidget->SetVisibility(ESlateVisibility::Visible);

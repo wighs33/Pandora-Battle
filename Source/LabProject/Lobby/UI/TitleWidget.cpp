@@ -416,7 +416,7 @@ const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass(
 		UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
 		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		Screen->SetContent(ShopWidget, Config, ShopWidget, FSimpleDelegate());
+		Screen->SetContent(ShopWidget, Config, EPdGameplayInputPolicy::Block, ShopWidget, FSimpleDelegate());
 		GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
 	}
 
@@ -476,7 +476,7 @@ void UTitleWidget::OpenGuide()
 		UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
 		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		Screen->SetContent(GuideWidget, Config, GuideWidget, FSimpleDelegate::CreateWeakLambda(this, [this]()
+		Screen->SetContent(GuideWidget, Config, EPdGameplayInputPolicy::Block, GuideWidget, FSimpleDelegate::CreateWeakLambda(this, [this]()
 		{
 			if (UGuideWidget* Guide = Cast<UGuideWidget>(GuideWidget)) Guide->CloseGuide();
 		}));
@@ -534,7 +534,8 @@ void UTitleWidget::OpenRecord()
 		UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
 		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		Screen->SetContent(RecordWidget, Config, RecordWidget, FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRecordCloseClicked));
+		Screen->SetContent(RecordWidget, Config, EPdGameplayInputPolicy::Block,
+			RecordWidget, FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRecordCloseClicked));
 		GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
 	}
 

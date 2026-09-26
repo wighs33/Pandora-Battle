@@ -120,7 +120,7 @@ void ULocalizedMenuWidget::OpenGameSettings()
 		UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
 		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		Screen->SetContent(ActiveGameSettings, Config, ActiveGameSettings->GetInitialFocusTarget(),
+		Screen->SetContent(ActiveGameSettings, Config, EPdGameplayInputPolicy::Block, ActiveGameSettings->GetInitialFocusTarget(),
 			FSimpleDelegate::CreateUObject(ActiveGameSettings, &UGameSettingsWidget::CloseSettings));
 		GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
 	}

@@ -1,29 +1,16 @@
 #include "UI/HudScoreboardLayer.h"
 #include "UI/HudUiRouter.h"
 
-#include "Blueprint/UserWidget.h"
-#include "Camera/PlayerCameraManager.h"
-#include "Character/PdPlayer.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
-#include "Kismet/GameplayStatics.h"
 #include "Lobby/UI/GameResultWidget.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "TimerManager.h"
-#include "UI/Presenter/InfoUiPresenter.h"
 #include "UI/UiScreen.h"
 #include "UI/UiSubsystem.h"
-#include "UI/Widget/InfoWidget.h"
-#include "UI/Widget/MenuPopupWidget.h"
-#include "UI/Widget/PandoraTreeWidget.h"
-#include "UI/Widget/PlayerHudWidget.h"
-#include "UI/Widget/RightNotificationsWidget.h"
-#include "UI/Widget/RightStatusWidget.h"
-#include "UI/Widget/SelectPandoraWidget.h"
-#include "UI/Widget/TrainingRoomMenuPopupWidget.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudScoreboardLayer)
@@ -102,7 +89,7 @@ void UHudScoreboardLayer::Show()
         ScoreboardScreen = CreateWidget<UUiScreen>(Controller);
         FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
         Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-        ScoreboardScreen->SetContent(ScoreboardWidget, Config, nullptr, FSimpleDelegate::CreateUObject(this, &ThisClass::Hide));
+        ScoreboardScreen->SetContent(ScoreboardWidget, Config, EPdGameplayInputPolicy::Block, nullptr, FSimpleDelegate::CreateUObject(this, &ThisClass::Hide));
         Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(ScoreboardScreen, EUiScreenLayer::Overlay);
     }
 

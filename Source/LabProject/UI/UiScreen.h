@@ -19,7 +19,8 @@ public:
 
     // Public API ------------------------------------------------------------------------------------------------------
     UUiScreen(const FObjectInitializer& ObjectInitializer);
-    void SetContent(UUserWidget* Panel, const FUIInputConfig& InputConfig, UWidget* FocusTarget, FSimpleDelegate BackAction);
+    void SetContent(UUserWidget* Panel, const FUIInputConfig& InputConfig, EPdGameplayInputPolicy GameplayPolicy,
+        UWidget* FocusTarget, FSimpleDelegate BackAction);
 
     EPdGameplayInputPolicy GameplayInputPolicy = EPdGameplayInputPolicy::Block;
 

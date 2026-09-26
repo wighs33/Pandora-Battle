@@ -70,9 +70,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void TogglePandoraTreeUi();
 
-	UFUNCTION()
-	virtual bool IsGameplayInputBlockedByUi() const;
-
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void OpenSelectPandoraUi();
 

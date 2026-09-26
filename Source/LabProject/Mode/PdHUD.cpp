@@ -162,7 +162,7 @@ void APdHUD::OpenInfoUiFocused(const EInfoUiSection Section)
 
 	const bool bWasInfoReadyForSectionChange =
 		CachedInfoUI
-		&& (UiRouter && UiRouter->IsInfoOpen())
+		&& Router->IsInfoOpen()
 		&& !Router->IsInfoClosing()
 		&& !Router->IsSettingsMenuOpen();
 	if (bWasInfoReadyForSectionChange
@@ -239,14 +239,6 @@ void APdHUD::TogglePandoraTreeUi()
 	}
 }
 
-bool APdHUD::IsGameplayInputBlockedByUi() const
-{
-    const APlayerController* Controller = GetOwningPlayerController();
-    const ULocalPlayer* Player = Controller ? Controller->GetLocalPlayer() : nullptr;
-    const UPdUIActionRouter* Router = Player ? Player->GetSubsystem<UPdUIActionRouter>() : nullptr;
-    return Router && Router->IsGameplayInputBlocked();
-}
-
 bool APdHUD::IsPlayerHudSuppressedByUi() const
 {
 	return (UiRouter && UiRouter->ShouldScreenLayerSuppressPlayerHud())
@@ -276,7 +268,7 @@ void APdHUD::OpenSelectPandoraUi()
     SelectPandoraScreen = CreateWidget<UUiScreen>(GetOwningPlayerController());
     FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
     Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-    SelectPandoraScreen->SetContent(CachedSelectPandoraUI, Config, CachedSelectPandoraUI,
+    SelectPandoraScreen->SetContent(CachedSelectPandoraUI, Config, EPdGameplayInputPolicy::Block, CachedSelectPandoraUI,
         FSimpleDelegate::CreateWeakLambda(this, [this]() { CloseSelectPandoraUiInternal(false); }));
     GetOwningPlayerController()->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(SelectPandoraScreen, EUiScreenLayer::Overlay);
     int32 Width = 0, Height = 0;

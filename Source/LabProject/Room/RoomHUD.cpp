@@ -33,7 +33,7 @@ void ARoomHUD::BeginPlay()
 	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
 	// 타이틀/방 목록의 종료는 기존 버튼이 담당한다.
-	Screen->SetContent(RoomListWidget, Config, RoomListWidget, FSimpleDelegate::CreateLambda([]() {}));
+	Screen->SetContent(RoomListWidget, Config, EPdGameplayInputPolicy::Block, RoomListWidget, FSimpleDelegate::CreateLambda([]() {}));
 	PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Screen);
 	UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, PlayerController);
 }

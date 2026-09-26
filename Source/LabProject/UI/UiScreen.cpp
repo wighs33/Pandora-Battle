@@ -12,9 +12,11 @@ UUiScreen::UUiScreen(const FObjectInitializer& ObjectInitializer) : Super(Object
     bAutoRestoreFocus = true;
 }
 
-void UUiScreen::SetContent(UUserWidget* Panel, const FUIInputConfig& InputConfig, UWidget* FocusTarget, FSimpleDelegate BackAction)
+void UUiScreen::SetContent(UUserWidget* Panel, const FUIInputConfig& InputConfig, EPdGameplayInputPolicy GameplayPolicy,
+    UWidget* FocusTarget, FSimpleDelegate BackAction)
 {
     Config = InputConfig;
+    GameplayInputPolicy = GameplayPolicy;
     DefaultFocus = FocusTarget ? FocusTarget : Panel;
     OnBack = MoveTemp(BackAction);
     UOverlay* Content = WidgetTree->ConstructWidget<UOverlay>();

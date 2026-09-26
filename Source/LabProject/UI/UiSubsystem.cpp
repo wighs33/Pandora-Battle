@@ -583,7 +583,7 @@ UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCanc
         ConnectingScreen = CreateWidget<UUiScreen>(PlayerController);
         FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
         Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-        ConnectingScreen->SetContent(ActiveConnectingPopupWidget, Config, ActiveConnectingPopupWidget,
+        ConnectingScreen->SetContent(ActiveConnectingPopupWidget, Config, EPdGameplayInputPolicy::Block, ActiveConnectingPopupWidget,
             FSimpleDelegate::CreateUObject(ActiveConnectingPopupWidget, &UConnectingPopupWidget::HandleCancelClicked));
         PushScreen(ConnectingScreen, EUiScreenLayer::Modal);
     }

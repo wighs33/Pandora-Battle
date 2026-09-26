@@ -277,7 +277,7 @@ void URoomListWidget::HandleCreateGameClicked()
 		UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
 		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		Screen->SetContent(PopupWidget, Config, PopupWidget, FSimpleDelegate());
+		Screen->SetContent(PopupWidget, Config, EPdGameplayInputPolicy::Block, PopupWidget, FSimpleDelegate());
 		GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
 	}
 }
