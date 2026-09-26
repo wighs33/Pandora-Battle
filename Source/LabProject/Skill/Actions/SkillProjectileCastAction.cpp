@@ -2,7 +2,6 @@
 
 #include "AbilitySystem/Ability/SkillAbility.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/GameplayAbilityTargetActor_SingleLineTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
@@ -190,7 +189,7 @@ void USkillProjectileCastAction::StartProjectileCast()
     }
 
     GetAbility()->LockAvatarMovementForAbility();
-    GetAbility()->GetPresentationManager().SpawnConfiguredCharacterDecal(*GetAbility());
+    GetAbility()->SpawnConfiguredCharacterDecal();
 
     if (Settings.FireMode == EProjectileFireMode::Immediate)
     {

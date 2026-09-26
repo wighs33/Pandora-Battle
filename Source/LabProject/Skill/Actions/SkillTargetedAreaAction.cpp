@@ -1,6 +1,5 @@
 #include "Skill/Actions/SkillTargetedAreaAction.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/GameplayAbilityTargetActor_GroundTrace.h"
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
@@ -1121,7 +1120,7 @@ void USkillTargetedAreaAction::HandleMontageTriggerEvent(FGameplayEventData Payl
 		return;
 	}
 
-	GetAbility()->GetPresentationManager().SpawnConfiguredCharacterDecal(*GetAbility());
+	GetAbility()->SpawnConfiguredCharacterDecal();
 	FGameplayCueParameters LightningCueParams;
 	LightningCueParams.Location = ConfirmedAOELocation;
 	LightningCueParams.Instigator = GetAbility()->GetAvatarActorFromActorInfo();

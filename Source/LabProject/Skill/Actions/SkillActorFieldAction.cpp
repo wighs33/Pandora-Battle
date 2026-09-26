@@ -1,6 +1,5 @@
 #include "Skill/Actions/SkillActorFieldAction.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Skill/Actors/SkillEffectArea.h"
@@ -263,7 +262,7 @@ void USkillActorFieldAction::TryCommitAndStartStatic()
     AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
     if (!AvatarActor || !AvatarActor->HasAuthority())
     {
-       GetAbility()->GetPresentationManager().StartConfiguredDefaultFX(*GetAbility());
+       GetAbility()->StartConfiguredDefaultFX();
        if (!GetAbility()->HasDurationDeadline() && !StaticEndTimerHandle.IsValid() && !GetResolvedStaticMontage())
        {
           Finish();
@@ -278,8 +277,8 @@ void USkillActorFieldAction::TryCommitAndStartStatic()
     }
 
     ApplyStaticMovementSpeedIncrease();
-    GetAbility()->GetPresentationManager().StartConfiguredDefaultFX(*GetAbility());
-    GetAbility()->GetPresentationManager().SpawnConfiguredCharacterDecal(*GetAbility());
+    GetAbility()->StartConfiguredDefaultFX();
+    GetAbility()->SpawnConfiguredCharacterDecal();
     StartStaticDurationMovementLockIfAllowed();
     StartStaticSpawnSequence();
     if (IsRunning())

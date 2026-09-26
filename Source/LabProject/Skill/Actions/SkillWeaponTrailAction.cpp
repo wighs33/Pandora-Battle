@@ -1,6 +1,5 @@
 #include "Skill/Actions/SkillWeaponTrailAction.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
@@ -104,7 +103,7 @@ void USkillWeaponTrailAction::OnStart()
 		return;
 	}
 	bStartedWeaponTrail = bHasTrailSystem;
-	GetAbility()->GetPresentationManager().SpawnConfiguredCharacterDecal(*GetAbility());
+	GetAbility()->SpawnConfiguredCharacterDecal();
 
 	if (bUsesSlashHitTrace)
 	{

@@ -1,11 +1,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ActiveGameplayEffectHandle.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
+#include "Engine/OverlapResult.h"
+#include "UObject/ObjectKey.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "Skill/Actions/SkillAction.h"
 #include "SkillAbility.generated.h"
 
 class UPandoraSkillSource;
+class AWeaponBase;
+class AMeleeWeapon;
+class ASkillVisualActor;
+class UCharacterPresentationComponent;
+class UCombatComponent;
+class UNiagaraSystem;
+enum class ESkillPresentationFlags : uint8;
 class USkillDefinition;
 
 /**
@@ -20,6 +31,11 @@ class LABPROJECT_API USkillAbility : public UPdGameplayAbility
 	GENERATED_BODY()
 
 public:
+	using Super::GetCooldownTimeRemaining;
+	float GetCooldownTimeRemaining(const FGameplayAbilityActorInfo* ActorInfo) const override;
+	void GetCooldownTimeRemainingAndDuration(
+		FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, float& TimeRemaining, float& CooldownDuration) const override;
+
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual bool CanActivateAbility(
 		FGameplayAbilitySpecHandle Handle,
@@ -40,6 +56,14 @@ public:
 		FGameplayAbilityActivationInfo ActivationInfo) override;
 
 protected:
+	virtual bool CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, FGameplayTagContainer* OptionalRelevantTags = nullptr) override;
+	virtual const FGameplayTagContainer* GetCooldownTags() const override;
+	virtual bool CheckCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+	virtual void GetResourceCosts(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		float& ManaCost, float& StaminaCost) const override;
+
 	virtual void PreActivate(
 		FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
@@ -59,6 +83,7 @@ public:
 		const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual bool ShouldConfirmTargetingOnInputRelease() const override;
+	virtual bool UsesInputRelease(const FGameplayAbilitySpec& Spec) const override;
 
 	// SkillAction이 사용할 피해 EffectSpec을 현재 스킬의 피해 보정값으로 생성한다.
 	FGameplayEffectSpecHandle MakeActionDamageSpec(
@@ -85,6 +110,33 @@ public:
 	// 준비·조준·몽타주 시간을 포함한 전체 지속시간 중 남은 시간을 반환한다.
 	float GetRemainingDuration() const;
 
+	USkillDefinition* GetSourceSkillDataAsset() const;
+	AWeaponBase* GetCurrentWeaponActorFromAvatar() const;
+	bool HasCurrentWeaponSkillTrail() const;
+	bool StartCurrentWeaponSkillTrail(UNiagaraSystem* TrailSystem) const;
+	void StopCurrentWeaponSkillTrail() const;
+	FGameplayEffectSpecHandle MakeConfiguredDamageEffectSpec(
+		const FSkillGameplayEffectConfig& DamageConfig, float DamageMagnitude, UObject* SourceObject = nullptr) const;
+	FGameplayEffectSpecHandle MakeConfiguredStatusEffectSpec(const USkillDefinition* SkillDataAsset,
+		TSubclassOf<UGameplayEffect> FallbackStatusEffectClass = nullptr, float FallbackStatusEffectLevel = 1.0f) const;
+	FActiveGameplayEffectHandle ApplyConfiguredStatusEffectToTarget(const USkillDefinition* SkillDataAsset,
+		UAbilitySystemComponent* TargetAbilitySystemComponent, TSubclassOf<UGameplayEffect> FallbackStatusEffectClass = nullptr,
+		float FallbackStatusEffectLevel = 1.0f) const;
+	void LockAvatarMovementForAbility();
+	void RestoreAvatarMovementForAbility();
+	void StartDurationMovementLock();
+	void StartMovementContactDamage();
+	void StartConfiguredDefaultFX();
+	void StartConfiguredGroundFX();
+	void StartConfiguredCharacterOverlay();
+	void StartConfiguredMissilePresentation();
+	void SetMissileTargeting(FName AimParameter, FName TargetSocket);
+	void UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors);
+	void StopConfiguredMissilePresentation();
+	void DestroyActiveSkillPresentationActor();
+	void SpawnConfiguredCharacterDecal();
+	FVector ResolveConfiguredCharacterDecalLocation(const ACharacterBase* Character) const;
+
 	using UGameplayAbility::ApplyGameplayEffectSpecToOwner;
 	using UGameplayAbility::BP_ApplyGameplayEffectToOwner;
 	using UGameplayAbility::K2_AddGameplayCueWithParams;
@@ -93,22 +145,6 @@ public:
 	using UGameplayAbility::MakeTargetLocationInfoFromOwnerActor;
 	using UGameplayAbility::MakeTargetLocationInfoFromOwnerSkeletalMeshComponent;
 
-	using UPdGameplayAbility::ApplyConfiguredStatusEffectToTarget;
-	using UPdGameplayAbility::BeginSpawningTargetDataActor;
-	using UPdGameplayAbility::CreateDefaultMontageAndWaitTask;
-	using UPdGameplayAbility::CreateWaitGameplayEventTask;
-	using UPdGameplayAbility::FinishSpawningTargetDataActor;
-	using UPdGameplayAbility::GetCurrentWeaponActorFromAvatar;
-	using UPdGameplayAbility::GetPresentationManager;
-	using UPdGameplayAbility::HasCurrentWeaponSkillTrail;
-	using UPdGameplayAbility::LockAvatarMovementForAbility;
-	using UPdGameplayAbility::MakeConfiguredDamageEffectSpec;
-	using UPdGameplayAbility::MakeConfiguredStatusEffectSpec;
-	using UPdGameplayAbility::RestoreAvatarMovementForAbility;
-	using UPdGameplayAbility::StartCurrentWeaponSkillTrail;
-	using UPdGameplayAbility::StartDurationMovementLock;
-	using UPdGameplayAbility::StartMovementContactDamage;
-	using UPdGameplayAbility::StopCurrentWeaponSkillTrail;
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -137,6 +173,69 @@ private:
 		const FGameplayAbilityActorInfo* ActorInfo);
 
 private:
+	static const USkillDefinition* ResolveSourceSkillDataAsset(UObject* SourceObject);
+	void FinishAbilityFromDuration();
+	bool CanExecuteSkillPayload() const;
+	void StartConfiguredSelfBuff(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo);
+	void StopConfiguredSelfBuff();
+	void StopAvatarMovementForSkillActivation();
+	void StopDurationMovementLock();
+	void StopMovementContactDamage();
+	void HandleMovementContactDamageTick();
+	void ApplyMovementContactDamageToActor(AActor* HitActor);
+	ASkillVisualActor* GetOrCreatePresentationActor();
+	void SetConfiguredPresentationEnabled(
+		const ESkillPresentationFlags PresentationFlag, const bool bEnabled);
+	void ApplySkillCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo& ActivationInfo) const;
+
+	// 시전 도중 장비나 Avatar가 바뀌어도 처음 적용한 대상의 변경분만 복구한다.
+	FActiveGameplayEffectHandle ActiveSelfBuffEffectHandle;
+	TWeakObjectPtr<UAbilitySystemComponent> SelfBuffAbilitySystemComponent;
+	TWeakObjectPtr<UCombatComponent> SelfBuffCombatComponent;
+	TWeakObjectPtr<AMeleeWeapon> SelfBuffTraceEndZWeapon;
+	TWeakObjectPtr<UCharacterPresentationComponent> SelfBuffScaleOwner;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ASkillVisualActor> ActiveSkillPresentationActor;
+
+	UPROPERTY(Transient)
+	uint8 CachedAbilityMovementMode = 0;
+
+	UPROPERTY(Transient)
+	uint8 CachedAbilityCustomMovementMode = 0;
+
+	UPROPERTY(Transient)
+	bool bCachedAbilityOrientRotationToMovement = true;
+
+	UPROPERTY(Transient)
+	bool bCachedAbilityUseControllerDesiredRotation = false;
+
+	UPROPERTY(Transient)
+	bool bCachedAbilityUseControllerRotationYaw = false;
+
+	UPROPERTY(Transient)
+	FRotator CachedAbilityRotationRate = FRotator::ZeroRotator;
+
+	UPROPERTY(Transient)
+	bool bAbilityMovementLocked = false;
+
+	UPROPERTY(Transient)
+	bool bDurationMovementLockActive = false;
+
+	UPROPERTY(Transient)
+	bool bMovementContactDamageActive = false;
+
+	UPROPERTY(Transient)
+	FVector MovementContactDamagePreviousLocation = FVector::ZeroVector;
+
+	FTimerHandle MovementContactDamageTimerHandle;
+	TSet<FObjectKey> MovementContactOverlappingActors;
+	TSet<FObjectKey> MovementContactCurrentActors;
+	TArray<FHitResult> MovementContactSweepHits;
+	TArray<FOverlapResult> MovementContactOverlapResults;
+
 	UPROPERTY(Transient)
 	TObjectPtr<USkillAction> ActiveAction;
 

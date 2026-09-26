@@ -1,37 +1,25 @@
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
-
 #include "Abilities/GameplayAbilityTargetActor.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Definition/Common/ProjectTagConfig.h"
-#include "Interface/TargetingInterface.h"
+#include "AbilitySystemGlobals.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
-#include "Component/AbilitySystem/Ability/AbilityMovementManager.h"
-#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
-#include "Component/AbilitySystem/Ability/AbilityCostAndCooldownManager.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Pandora/PandoraSkillSource.h"
-#include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Component/Player/EquipmentComponent.h"
-#include "Component/Player/CombatComponent.h"
-#include "Weapon/WeaponBase.h"
-#include "Weapon/MeleeWeapon.h"
-#include "Definition/AbilitySystem/StatusEffectDefinition.h"
+#include "Definition/AbilitySystem/SkillGameplayEffectConfig.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
+#include "Interface/TargetingInterface.h"
 #include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdGameplayAbility)
 
-// 생성 및 GAS 시작·종료
-
-// 캐릭터별 능력 인스턴스와 서버 시작 실행을 기본 정책으로 설정하고, 사망 중 시전을 차단한다.
-// 각 능력이 사용할 비용·쿨다운, 이동, 연출 관리 객체와 사망 시 쿨다운 제거 정책을 준비한다.
 UPdGameplayAbility::UPdGameplayAbility(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
@@ -40,57 +28,8 @@ UPdGameplayAbility::UPdGameplayAbility(const FObjectInitializer& ObjectInitializ
 	ActivationBlockedTags.AddTag(LabGameplayTags::State_Dead);
 	CooldownRemovalPolicyTags.AddTag(LabGameplayTags::Effect_Policy_RemoveOnDeath);
 
-	CostAndCooldownManager = ObjectInitializer.CreateDefaultSubobject<UAbilityCostAndCooldownManager>(this, TEXT("CostAndCooldownManager"));
-	MovementManager = ObjectInitializer.CreateDefaultSubobject<UAbilityMovementManager>(this, TEXT("MovementManager"));
-	PresentationManager = ObjectInitializer.CreateDefaultSubobject<UAbilityPresentationManager>(this, TEXT("PresentationManager"));
-	// 이 세 객체는 모든 능력이 소유하는 필수 구성이다.
-	check(CostAndCooldownManager && MovementManager && PresentationManager);
 }
 
-// 새 시전이 시작되기 전에 이전 시전에서 남은 연출 액터를 정리한다.
-void UPdGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate,
-	const FGameplayEventData* TriggerEventData)
-{
-	Super::PreActivate(Handle, ActorInfo, ActivationInfo, OnGameplayAbilityEndedDelegate, TriggerEventData);
-	DestroyActiveSkillPresentationActor();
-}
-
-// GAS의 시전 확정과 비용 처리가 성공하면 설정에 따라 이동을 멈추고 자기 버프를 적용한다.
-// 피격 취소를 허용하지 않는 스킬은 이때 일반 취소를 막고, 사망·리셋 취소는 ASC가 별도로 처리한다.
-bool UPdGameplayAbility::CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo, FGameplayTagContainer* OptionalRelevantTags)
-{
-	if (!Super::CommitAbility(Handle, ActorInfo, ActivationInfo, OptionalRelevantTags))
-	{
-		return false;
-	}
-
-	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ?
-		ActorInfo->AbilitySystemComponent.Get() : nullptr;
-
-	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent && Handle.IsValid() ?
-		AbilitySystemComponent->FindAbilitySpecFromHandle(Handle) : GetCurrentAbilitySpec();
-
-	const USkillDefinition* SkillDefinition = ResolveSourceSkillDataAsset(AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr);
-	if (SkillDefinition)
-	{
-		MovementManager->StopAvatarMovementForSkillActivation(*this);
-
-		// 비용을 지불한 보호 스킬은 일반 취소로 끊지 않는다. 사망·리셋은 별도로 취소 가능 상태를 복구한다.
-		if (!SkillDefinition->bCancelOnHit)
-		{
-			SetCanBeCanceled(false);
-		}
-	}
-
-	StartConfiguredSelfBuff(Handle, ActorInfo, ActivationInfo);
-	return true;
-}
-
-// 정상 종료·취소 시 파생 스킬 정리, 연출·자기 버프·접촉 피해·이동 잠금 해제를 순서대로 수행한다.
-// 정상 종료 시 파생 능력의 쿨다운을 적용한 뒤 GAS 종료를 알리고, 필요한 장비 전환과 회전 정책을 복구한다.
-// 중복 종료와 잠금 중 종료를 제어해 같은 시전의 정리가 겹쳐 실행되지 않게 한다.
 void UPdGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const bool bReplicateEndAbility, const bool bWasCancelled)
 {
@@ -112,14 +51,9 @@ void UPdGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, con
 	const bool bEquipmentTransitionAbility =
 		GetAssetTags().HasTagExact(LabGameplayTags::Action_Equip) || GetAssetTags().HasTagExact(LabGameplayTags::Action_Unequip);
 
-	DestroyActiveSkillPresentationActor();
-	StopConfiguredSelfBuff();
-	MovementManager->StopMovementContactDamage(*this);
-	MovementManager->StopDurationMovementLock(*this);
-	RestoreAvatarMovementForAbility();
 
 	// 사망 정리 중 정상 종료 알림이 들어와도 새 쿨다운을 적용하지 않는다.
-	if (!bWasCancelled && CanExecuteSkillPayload())
+	if (!bWasCancelled)
 	{
 		ApplyCooldownOnEnd(Handle, ActorInfo, ActivationInfo);
 	}
@@ -157,148 +91,188 @@ void UPdGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, con
 	Character->ReapplyCurrentRotationPolicy();
 }
 
-// GAS가 능력을 비활성화하기 전에 파생 스킬이 전용 타이머·타기팅·공격 상태를 정리하는 확장 지점이다.
-// 공통 정리는 EndAbility가 담당하므로 기본 구현은 비워 둔다.
 void UPdGameplayAbility::OnAbilityEnding() {}
 
-// 종료 시 쿨다운이 필요한 파생 능력만 구현한다. 일반 능력은 GAS의 시전 확정 시점을 따른다.
+void UPdGameplayAbility::OnAbilityEnded(bool bWasCancelled) {}
+
 void UPdGameplayAbility::ApplyCooldownOnEnd(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) {}
 
-// GAS 종료 후 파생 스킬이 대기 입력이나 다음 행동을 이어 가는 확장 지점이다.
-// 이미 같은 인스턴스가 다시 활성화된 경우에는 EndAbility에서 이 호출을 생략한다.
-void UPdGameplayAbility::OnAbilityEnded(bool bWasCancelled) {}
-
-// 오라처럼 지속시간이 끝난 스킬을 정상 종료해 종료 시점부터 쿨다운을 시작한다.
-// 서버에서 끝낼 때는 종료 사실을 클라이언트에도 전달한다.
-void UPdGameplayAbility::FinishAbilityFromDuration()
+bool UPdGameplayAbility::CheckCost(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags) const
 {
-	if (!IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))
+	if (!Super::CheckCost(Handle, ActorInfo, OptionalRelevantTags)) return false;
+
+	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	float ManaCost = 0.0f;
+	float StaminaCost = 0.0f;
+	GetResourceCosts(Handle, ActorInfo, ManaCost, StaminaCost);
+	if (ManaCost <= 0.0f && StaminaCost <= 0.0f)
+	{
+		return true;
+	}
+
+	const UBasicAttributeSet* BasicAttributeSet = AbilitySystemComponent ? AbilitySystemComponent->GetSet<UBasicAttributeSet>() : nullptr;
+	if (BasicAttributeSet && GetCostGameplayEffectClass(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
+	{
+		const bool bHasEnoughMana = BasicAttributeSet->GetMana() + UE_SMALL_NUMBER >= ManaCost;
+		const bool bHasEnoughStamina = BasicAttributeSet->GetStamina() + UE_SMALL_NUMBER >= StaminaCost;
+		if (bHasEnoughMana && bHasEnoughStamina)
+		{
+			return true;
+		}
+	}
+
+	const FGameplayTag& FailCostTag = UAbilitySystemGlobals::Get().ActivateFailCostTag;
+	if (OptionalRelevantTags && FailCostTag.IsValid())
+	{
+		OptionalRelevantTags->AddTag(FailCostTag);
+	}
+	return false;
+}
+
+void UPdGameplayAbility::ApplyCost(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	Super::ApplyCost(Handle, ActorInfo, ActivationInfo);
+
+	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	if (!AbilitySystemComponent || !HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
 	{
 		return;
 	}
 
-	const bool bReplicateEndAbility = CurrentActorInfo && CurrentActorInfo->IsNetAuthority();
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, bReplicateEndAbility, false);
+	float ManaCost = 0.0f;
+	float StaminaCost = 0.0f;
+	GetResourceCosts(Handle, ActorInfo, ManaCost, StaminaCost);
+	const UBasicAttributeSet* BasicAttributeSet = AbilitySystemComponent->GetSet<UBasicAttributeSet>();
+	if ((ManaCost <= 0.0f && StaminaCost <= 0.0f) || !BasicAttributeSet)
+	{
+		return;
+	}
+
+	const float AppliedManaCost = FMath::Min(FMath::Max(BasicAttributeSet->GetMana(), 0.0f), ManaCost);
+	const float AppliedStaminaCost = FMath::Min(FMath::Max(BasicAttributeSet->GetStamina(), 0.0f), StaminaCost);
+	const TSubclassOf<UGameplayEffect> CostEffectClass = GetCostGameplayEffectClass(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr);
+	if (!CostEffectClass)
+	{
+		return;
+	}
+
+	FGameplayEffectSpecHandle CostSpecHandle =
+		MakeOutgoingGameplayEffectSpec(Handle, ActorInfo, ActivationInfo, CostEffectClass, 1.0f);
+	if (!SetCostEffectMagnitudes(CostSpecHandle, AppliedManaCost, AppliedStaminaCost))
+	{
+		return;
+	}
+
+	ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, CostSpecHandle);
 }
 
-// 스킬 효과 실행과 종료 쿨다운에 공통으로 사용하는 시전자 생존 조건이다.
-// 사망 통지가 태그·체력 복제보다 먼저 도착해도 이미 시작된 사망 처리를 확인한다.
-bool UPdGameplayAbility::CanExecuteSkillPayload() const
+void UPdGameplayAbility::GetResourceCosts(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, float& ManaCost, float& StaminaCost) const
 {
-	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!IsValid(AvatarActor))
+	ManaCost = 0.0f;
+	StaminaCost = 0.0f;
+	const APawn* AvatarPawn = ActorInfo ? Cast<APawn>(ActorInfo->AvatarActor.Get()) : nullptr;
+	if (!AvatarPawn || !AvatarPawn->IsPlayerControlled()) return;
+
+	const UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	const FGameplayAbilitySpec* Spec = ASC && Handle.IsValid() ? ASC->FindAbilitySpecFromHandle(Handle) : GetCurrentAbilitySpec();
+	const UGameplayAbility* GrantedAbility = Spec ? Spec->Ability.Get() : nullptr;
+	if (GrantedAbility && GrantedAbility->GetAssetTags().HasTagExact(LabGameplayTags::Action_Punch))
+	{
+		StaminaCost = GetDefaultActionStaminaCost(AvatarPawn);
+	}
+	else if (GrantedAbility && GrantedAbility->GetAssetTags().HasTagExact(LabGameplayTags::Action_Attack))
+	{
+		StaminaCost = GetWeaponAttackStaminaCost(AvatarPawn);
+	}
+}
+
+TSubclassOf<UGameplayEffect> UPdGameplayAbility::GetCostGameplayEffectClass(const UObject* WorldContextObject)
+{
+	const UGameSettingDefinition* Settings = UGameSettingsSubsystem::ResolveGameSettingDefinition(WorldContextObject);
+	return Settings ? Settings->AbilityCostGameplayEffectClass : nullptr;
+}
+
+float UPdGameplayAbility::GetWeaponAttackStaminaCost(const APawn* AvatarPawn)
+{
+	const ACharacterBase* Character = Cast<ACharacterBase>(AvatarPawn);
+	const UEquipmentComponent* Equipment = Character ? Character->GetEquipmentComponent() : nullptr;
+	const UItemDefinition* WeaponDefinition = Equipment ? Equipment->GetCurrentWeaponDefinition() : nullptr;
+	return WeaponDefinition ? WeaponDefinition->GetSafeAttackStaminaCost() : GetDefaultActionStaminaCost(AvatarPawn);
+}
+
+bool UPdGameplayAbility::SetCostEffectMagnitudes(
+	FGameplayEffectSpecHandle& SpecHandle, const float ManaCost, const float StaminaCost)
+{
+	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
 	{
 		return false;
 	}
-	if (const ACharacterBase* Character = Cast<ACharacterBase>(AvatarActor);
-		Character && (Character->IsDead() || Character->IsDeathHandled()))
-	{
-		return false;
-	}
-
-	const UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
-	const UBasicAttributeSet* BasicAttributeSet = AbilitySystemComponent ?
-		AbilitySystemComponent->GetSet<UBasicAttributeSet>() : nullptr;
-
-	if (BasicAttributeSet && BasicAttributeSet->GetHealth() <= 0.0f)
-	{
-		return false;
-	}
-
+	SpecHandle.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_ManaCost, -FMath::Max(ManaCost, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_StaminaCost, -FMath::Max(StaminaCost, 0.0f));
 	return true;
 }
 
-// 비용과 쿨다운
-
-// 양수 쿨다운이 설정된 스킬에는 공통 태그를 제공하고, 일반 능력은 부모 GAS 설정을 따른다.
-const FGameplayTagContainer* UPdGameplayAbility::GetCooldownTags() const
+float UPdGameplayAbility::GetDefaultActionStaminaCost(const UObject* WorldContextObject)
 {
-	const USkillDefinition* SkillDefinition = IsInstantiated() ? GetSourceSkillDataAsset() : nullptr;
-	if (!SkillDefinition)
+	const UGameSettingDefinition* Settings = UGameSettingsSubsystem::ResolveGameSettingDefinition(WorldContextObject);
+	return Settings ? FMath::Max(Settings->ActionStaminaCost, 0.0f) : 0.0f;
+}
+
+bool UPdGameplayAbility::TryCommitAdditionalActionStaminaCost() const
+{
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	const APawn* AvatarPawn = ActorInfo ? Cast<APawn>(ActorInfo->AvatarActor.Get()) : nullptr;
+	if (!AvatarPawn || !AvatarPawn->IsPlayerControlled())
 	{
-		const FGameplayTagContainer* ParentCooldownTags = Super::GetCooldownTags();
-		return ParentCooldownTags && !ParentCooldownTags->IsEmpty() ? ParentCooldownTags : nullptr;
+		return true;
 	}
 
-	const float BaseDuration = static_cast<float>(FMath::Max(SkillDefinition->Time.CooldownDuration, 0.0));
-	static const FGameplayTagContainer SkillCooldownTags(LabGameplayTags::Cooldown);
-	return BaseDuration > 0.0f ? &SkillCooldownTags : nullptr;
-}
-
-// 시전 전에 기본 GAS 비용과 프로젝트의 마나·스태미나 요구량을 검사하고, 부족하면 실패 태그를 남긴다.
-// 자원을 차감하는 단계는 ApplyCost다.
-bool UPdGameplayAbility::CheckCost(
-	const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags) const
-{
-	return Super::CheckCost(Handle, ActorInfo, OptionalRelevantTags)
-		&& CostAndCooldownManager->CheckCost(*this, Handle, ActorInfo, OptionalRelevantTags);
-}
-
-// 시전 확정 시 기본 GAS 비용과 스킬·행동에 설정된 마나·스태미나 비용을 GameplayEffect로 적용한다.
-// 프로젝트 비용의 권한·예측 처리와 현재 자원 범위 내 차감은 비용 관리 객체가 담당한다.
-void UPdGameplayAbility::ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo) const
-{
-	Super::ApplyCost(Handle, ActorInfo, ActivationInfo);
-	CostAndCooldownManager->ApplyCost(*this, Handle, ActorInfo, ActivationInfo);
-}
-
-// 다시 시전할 수 있는지 확인하며, 판도라 스킬은 부여된 출처별 쿨다운을 조회해 다른 판도라와 구분한다.
-// 스킬 정의가 없는 능력은 GAS의 기본 쿨다운 검사를 사용한다.
-bool UPdGameplayAbility::CheckCooldown(
-	const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags) const
-{
-	bool bHandled = false;
-	const bool bAvailable =
-		CostAndCooldownManager->CheckConfiguredCooldown(*this, Handle, ActorInfo, Super::GetCooldownTags(), OptionalRelevantTags, bHandled);
-	return bHandled ? bAvailable : Super::CheckCooldown(Handle, ActorInfo, OptionalRelevantTags);
-}
-
-// 어트리뷰트가 계산한 스킬 쿨다운을 적용하고, 스킬 정의가 없으면 부모 GAS 설정을 적용한다.
-void UPdGameplayAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo) const
-{
-	const bool bHandled = CostAndCooldownManager->ApplyConfiguredCooldown(*this, Handle, ActorInfo, ActivationInfo);
-	if (!bHandled)
+	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	const UBasicAttributeSet* BasicAttributeSet = AbilitySystemComponent ? AbilitySystemComponent->GetSet<UBasicAttributeSet>() : nullptr;
+	if (!AbilitySystemComponent || !BasicAttributeSet)
 	{
-		Super::ApplyCooldown(Handle, ActorInfo, ActivationInfo);
+		return false;
 	}
-}
 
-// GAS나 호출자가 현재 능력의 재사용 대기 시간을 한 값으로 요구할 때 남은 초를 반환한다.
-float UPdGameplayAbility::GetCooldownTimeRemaining(const FGameplayAbilityActorInfo* ActorInfo) const
-{
-	float Remaining = 0.0f;
-	float Duration = 0.0f;
-	GetCooldownTimeRemainingAndDuration(GetCurrentAbilitySpecHandle(), ActorInfo, Remaining, Duration);
-	return Remaining;
-}
-
-// 스킬바의 쿨다운 숫자와 진행률에 필요한 남은 시간·전체 시간을 실제 GameplayEffect에서 조회한다.
-// 판도라 출처가 아직 복제되지 않았으면 다른 출처의 쿨다운을 대신 표시하지 않고 두 값을 0으로 반환한다.
-void UPdGameplayAbility::GetCooldownTimeRemainingAndDuration(
-	FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, float& TimeRemaining, float& CooldownDuration) const
-{
-	const UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const FGameplayAbilitySpec* Spec = ASC ? ASC->FindAbilitySpecFromHandle(Handle) : nullptr;
-	const UPandoraSkillSource* Source = Spec ? Cast<UPandoraSkillSource>(Spec->SourceObject.Get()) : nullptr;
-	if (Source)
+	const float ActionStaminaCost = GetWeaponAttackStaminaCost(AvatarPawn);
+	if (ActionStaminaCost <= 0.0f)
 	{
-		Source->GetCooldownTimeRemainingAndDuration(TimeRemaining, CooldownDuration);
-		return;
+		return true;
 	}
-	if (Spec && Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora))
+
+	if (BasicAttributeSet->GetStamina() + UE_SMALL_NUMBER < ActionStaminaCost)
 	{
-		TimeRemaining = 0.0f;
-		CooldownDuration = 0.0f;
-		return;
+		return false;
 	}
-	Super::GetCooldownTimeRemainingAndDuration(Handle, ActorInfo, TimeRemaining, CooldownDuration);
+
+	// Autonomous proxies only validate replicated stamina; the server spends it.
+	if (!ActorInfo->IsNetAuthority())
+	{
+		return true;
+	}
+
+	const TSubclassOf<UGameplayEffect> CostEffectClass = GetCostGameplayEffectClass(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr);
+	if (!CostEffectClass)
+	{
+		return false;
+	}
+
+	FGameplayEffectSpecHandle CostSpecHandle = MakeOutgoingGameplayEffectSpec(
+		GetCurrentAbilitySpecHandle(), ActorInfo, GetCurrentActivationInfo(), CostEffectClass, 1.0f);
+	if (!SetCostEffectMagnitudes(CostSpecHandle, 0.0f, ActionStaminaCost))
+	{
+		return false;
+	}
+
+	return ApplyGameplayEffectSpecToOwner(
+			GetCurrentAbilitySpecHandle(), ActorInfo, GetCurrentActivationInfo(), CostSpecHandle)
+		.WasSuccessfullyApplied();
 }
 
-// 판도라 스킬·무기 장착·그래플 등이 지정한 시간과 태그로 프로젝트 공통 쿨다운 효과를 자신에게 적용한다.
-// 효과에는 시전 출처와 제거 정책도 함께 담긴다.
 bool UPdGameplayAbility::ApplySharedCooldownEffect(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const float CooldownDuration, const FGameplayTagContainer& CooldownTags) const
 {
@@ -330,60 +304,26 @@ bool UPdGameplayAbility::ApplySharedCooldownEffect(const FGameplayAbilitySpecHan
 	return ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, CooldownSpec).WasSuccessfullyApplied();
 }
 
-// 기본 공격의 다음 콤보 동작을 이어 가기 전에 추가 스태미나 비용을 확인하고, 서버에서 실제로 차감한다.
-// 플레이어가 조종하지 않는 캐릭터는 이 추가 비용 검사를 통과한다.
-bool UPdGameplayAbility::TryCommitAdditionalActionStaminaCost() const
-{
-	return CostAndCooldownManager->TryCommitAdditionalActionStaminaCost(*this);
-}
-
-// 능력 출처와 실행 대상
-
-// 능력을 실제로 수행하는 Avatar 캐릭터를 가져와 이동·무기·외형 같은 캐릭터 기능에 접근하게 한다.
 ACharacterBase* UPdGameplayAbility::GetPdCharacterFromActorInfo() const
 {
 	return Cast<ACharacterBase>(GetAvatarActorFromActorInfo());
 }
 
-// 현재 시전이 연결된 프로젝트 ASC를 가져와 스탯·능력 조회와 리셋 상태 확인 등에 사용한다.
 UPdAbilitySystemComponent* UPdGameplayAbility::GetPdAbilitySystemComponentFromActorInfo() const
 {
 	return Cast<UPdAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
 }
 
-// 부여된 SourceObject가 스킬 정의 자체인지 판도라 스킬 출처인지 구분해 원래 스킬 설정을 찾는다.
-// 현재 선택한 판도라로 추정하지 않아, 판도라 교체 뒤에도 기존 능력의 설정이 바뀌지 않게 한다.
-const USkillDefinition* UPdGameplayAbility::ResolveSourceSkillDataAsset(UObject* SourceObject)
-{
-	if (USkillDefinition* SkillDefinition = Cast<USkillDefinition>(SourceObject))
-	{
-		return SkillDefinition;
-	}
-	const UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(SourceObject);
-	return Source ? Source->GetSkillDataAsset() : nullptr;
-}
-
-// 현재 시전의 출처에서 스킬 정의를 가져와 피해량·시간·비용·이동·연출 설정을 읽게 한다.
-USkillDefinition* UPdGameplayAbility::GetSourceSkillDataAsset() const
-{
-	return const_cast<USkillDefinition*>(ResolveSourceSkillDataAsset(GetCurrentSourceObject()));
-}
-
-// Press 스킬은 입력 해제가 필요하다. 그래플처럼 별도 해제 동작이 있는 능력은 이 정책을 재정의한다.
 bool UPdGameplayAbility::UsesInputRelease(const FGameplayAbilitySpec& Spec) const
 {
-	const USkillDefinition* Skill = ResolveSourceSkillDataAsset(Spec.SourceObject.Get());
-	return Skill && Skill->SkillType == ESkillType::Press;
+	return false;
 }
 
-// Press 스킬은 기본적으로 키 해제로 확정하고, SkillAbility는 데이터 애셋의 확정 정책도 반영한다.
 bool UPdGameplayAbility::ShouldConfirmTargetingOnInputRelease() const
 {
-	const USkillDefinition* Skill = GetSourceSkillDataAsset();
-	return Skill && Skill->SkillType == ESkillType::Press;
+	return false;
 }
 
-// 플레이어 조작과 AI 실행을 구분해, 공격 입력·콤보 진행·타기팅 확정 방식을 선택하게 한다.
 bool UPdGameplayAbility::HasPlayerController() const
 {
 	const APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
@@ -391,7 +331,6 @@ bool UPdGameplayAbility::HasPlayerController() const
 	return Controller && Controller->IsPlayerController();
 }
 
-// AI 공격이나 자동 조준에서 Avatar의 타기팅 인터페이스가 정한 대상을 조회하고, 사망한 캐릭터는 제외한다.
 AActor* UPdGameplayAbility::GetAttackTargetFromAvatar() const
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
@@ -405,8 +344,6 @@ AActor* UPdGameplayAbility::GetAttackTargetFromAvatar() const
 	return TargetCharacter && TargetCharacter->IsDead() ? nullptr : AttackTarget;
 }
 
-// 모든 공격 Ability의 기본 피해 보정으로 시전자의 지능을 사용한다.
-// Pandora 등 추가 보정은 파생 Ability에서 이 함수를 재정의해 더한다.
 float UPdGameplayAbility::GetDamageBonusPercent() const
 {
 	const UAbilitySystemComponent* ASC =
@@ -420,8 +357,6 @@ float UPdGameplayAbility::GetDamageBonusPercent() const
 		: 0.0f;
 }
 
-// 기본 피해량에 이 Ability가 제공하는 피해 보정률을 적용한다.
-// 기본 구현은 지능을 사용하며, 스킬처럼 추가 보정이 필요한 파생 능력은 GetDamageBonusPercent()를 재정의한다.
 float UPdGameplayAbility::CalculateDamageMagnitude(
 	const FSkillGameplayEffectConfig& DamageConfig) const
 {
@@ -437,134 +372,6 @@ float UPdGameplayAbility::CalculateDamageMagnitude(
 			+ static_cast<double>(DamageBonusPercent) * 0.01));
 }
 
-// 공격자·출처·능력 레벨과 계산된 피해량을 담은 GameplayEffectSpec을 만들어 적중 처리에 넘긴다.
-// 이 단계는 효과 생성만 하며, 대상에게 실제 피해를 적용하는 것은 호출부가 담당한다.
-FGameplayEffectSpecHandle UPdGameplayAbility::MakeConfiguredDamageEffectSpec(
-	const FSkillGameplayEffectConfig& DamageConfig, const float DamageMagnitude, UObject* SourceObject) const
-{
-	UPdAbilitySystemComponent* SourceAbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
-	if (!SourceAbilitySystemComponent || !DamageConfig.GameplayEffectClass)
-	{
-		return FGameplayEffectSpecHandle();
-	}
-
-	FGameplayEffectContextHandle EffectContext = SourceAbilitySystemComponent->MakeEffectContext();
-	EffectContext.AddInstigator(GetAvatarActorFromActorInfo(), GetAvatarActorFromActorInfo());
-	if (SourceObject)
-	{
-		EffectContext.AddSourceObject(SourceObject);
-	}
-	else
-	{
-		EffectContext.AddSourceObject(GetCurrentSourceObject());
-	}
-
-	FGameplayEffectSpecHandle DamageSpecHandle =
-		SourceAbilitySystemComponent->MakeOutgoingSpec(DamageConfig.GameplayEffectClass, FMath::Max(GetAbilityLevel(), 1), EffectContext);
-	if (!DamageSpecHandle.IsValid())
-	{
-		return FGameplayEffectSpecHandle();
-	}
-
-	FGameplayTag DamageDataTag = DamageConfig.MagnitudeDataTag;
-	if (!DamageDataTag.IsValid())
-	{
-		DamageDataTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
-	}
-
-	if (DamageDataTag.IsValid())
-	{
-		DamageSpecHandle.Data->SetSetByCallerMagnitude(DamageDataTag, DamageMagnitude);
-	}
-
-	return DamageSpecHandle;
-}
-
-// 상태 이상 정의 또는 호출자가 지정한 대체 효과로 레벨·중첩 수·지속시간을 담은 효과 Spec을 만든다.
-// 상태 이상 정의가 있으면 중첩 한도와 공통 중첩 수명 규칙도 반영한다.
-FGameplayEffectSpecHandle UPdGameplayAbility::MakeConfiguredStatusEffectSpec(const USkillDefinition* SkillDataAsset,
-	const TSubclassOf<UGameplayEffect> FallbackStatusEffectClass, const float FallbackStatusEffectLevel) const
-{
-	UPdAbilitySystemComponent* SourceAbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
-	const UStatusEffectDefinition* StatusEffectDefinition = SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
-	if (StatusEffectDefinition)
-	{
-		StatusEffectDefinition->SynchronizeStackEffectStackLimit();
-	}
-	const TSubclassOf<UGameplayEffect> DebuffGameplayEffectClass =
-		StatusEffectDefinition ? StatusEffectDefinition->StackGameplayEffectClass : FallbackStatusEffectClass;
-	if (!SourceAbilitySystemComponent || !DebuffGameplayEffectClass)
-	{
-		return FGameplayEffectSpecHandle();
-	}
-
-	FGameplayEffectContextHandle EffectContext = SourceAbilitySystemComponent->MakeEffectContext();
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	EffectContext.AddInstigator(AvatarActor, AvatarActor);
-	EffectContext.AddSourceObject(GetCurrentSourceObject());
-
-	const float StatusEffectLevel = StatusEffectDefinition && SkillDataAsset ? FMath::Max(SkillDataAsset->StatusEffectLevel, 1.0f)
-																			 : FMath::Max(FallbackStatusEffectLevel, 1.0f);
-	FGameplayEffectSpecHandle StatusEffectSpecHandle =
-		SourceAbilitySystemComponent->MakeOutgoingSpec(DebuffGameplayEffectClass, StatusEffectLevel, EffectContext);
-	if (!StatusEffectSpecHandle.IsValid())
-	{
-		return FGameplayEffectSpecHandle();
-	}
-	if (SkillDataAsset)
-	{
-		StatusEffectSpecHandle.Data->SetStackCount(FMath::Max(SkillDataAsset->StackCount, 1));
-	}
-
-	if (!StatusEffectDefinition)
-	{
-		return StatusEffectSpecHandle;
-	}
-	StatusEffectSpecHandle.Data->SetDuration(
-		StatusEffectTiming::FullStackLifetimeSeconds, true);
-
-	return StatusEffectSpecHandle;
-}
-
-// 대상에게 상태 이상을 누적할 수 있는지 확인한 뒤 효과를 적용하고, 성공한 효과를 상태 이상 복제 컴포넌트에 등록한다.
-FActiveGameplayEffectHandle UPdGameplayAbility::ApplyConfiguredStatusEffectToTarget(const USkillDefinition* SkillDataAsset,
-	UAbilitySystemComponent* TargetAbilitySystemComponent, const TSubclassOf<UGameplayEffect> FallbackStatusEffectClass,
-	const float FallbackStatusEffectLevel) const
-{
-	UPdAbilitySystemComponent* SourceAbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
-	if (!SourceAbilitySystemComponent || !TargetAbilitySystemComponent)
-	{
-		return FActiveGameplayEffectHandle();
-	}
-	const UStatusEffectDefinition* StatusEffectDefinition = SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
-	if (StatusEffectDefinition && !StatusEffectDefinition->CanStack(TargetAbilitySystemComponent))
-	{
-		return FActiveGameplayEffectHandle();
-	}
-
-	const FGameplayEffectSpecHandle StatusEffectSpecHandle =
-		MakeConfiguredStatusEffectSpec(SkillDataAsset, FallbackStatusEffectClass, FallbackStatusEffectLevel);
-	if (!StatusEffectSpecHandle.IsValid())
-	{
-		return FActiveGameplayEffectHandle();
-	}
-
-	const FActiveGameplayEffectHandle AppliedHandle =
-		SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(*StatusEffectSpecHandle.Data.Get(), TargetAbilitySystemComponent);
-	AActor* TargetActor = TargetAbilitySystemComponent->GetAvatarActor();
-	if (AppliedHandle.WasSuccessfullyApplied() && StatusEffectDefinition && TargetActor)
-	{
-		if (UStatusEffectReplicationComponent* ReplicationComponent =
-				TargetActor->FindComponentByClass<UStatusEffectReplicationComponent>())
-		{
-			ReplicationComponent->TrackAppliedStatusEffect(StatusEffectDefinition, AppliedHandle);
-		}
-	}
-
-	return AppliedHandle;
-}
-
-// 공격 중 상태처럼 자기 자신에게 효과를 적용하고, 적용 성공 여부만 필요한 파생 능력에 결과를 반환한다.
 bool UPdGameplayAbility::ApplyGameplayEffect(
 	TSubclassOf<UGameplayEffect> GameplayEffectClass, const float EffectLevel, const int32 StackCount)
 {
@@ -585,7 +392,6 @@ bool UPdGameplayAbility::ApplyGameplayEffect(
 	return ApplyGameplayEffectSpecToOwner(CurrentSpecHandle, ActorInfo, CurrentActivationInfo, SpecHandle).WasSuccessfullyApplied();
 }
 
-// 현재 자신에게 지정한 효과 클래스가 적용 중인지 확인해 공격 상태 효과 등의 중복 적용을 방지한다.
 bool UPdGameplayAbility::HasActiveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass) const
 {
 	const UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
@@ -599,7 +405,6 @@ bool UPdGameplayAbility::HasActiveGameplayEffect(TSubclassOf<UGameplayEffect> Ga
 	return !AbilitySystemComponent->GetActiveEffects(Query).IsEmpty();
 }
 
-// 서버에서 자신에게 적용된 지정 클래스의 효과들을 제거하고, 실제로 제거한 효과가 있는지 반환한다.
 bool UPdGameplayAbility::RemoveGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffectClass)
 {
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
@@ -614,7 +419,6 @@ bool UPdGameplayAbility::RemoveGameplayEffect(TSubclassOf<UGameplayEffect> Gamep
 	return AbilitySystemComponent->RemoveActiveEffects(Query) > 0;
 }
 
-// 무기 해제처럼 특정 상태를 일괄 해제할 때, 서버에서 지정 태그를 부여하는 자기 효과들을 제거하고 개수를 반환한다.
 int32 UPdGameplayAbility::RemoveGameplayEffectsWithGrantedTags(const FGameplayTagContainer& GrantedTags)
 {
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
@@ -627,169 +431,6 @@ int32 UPdGameplayAbility::RemoveGameplayEffectsWithGrantedTags(const FGameplayTa
 	return AbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(GrantedTags);
 }
 
-// 이동·무기·시각효과
-
-// 타기팅·스킬 실행 중 이동을 제한하고, 잠금 전 이동·회전 설정을 매니저에 저장해 나중에 복구할 수 있게 한다.
-void UPdGameplayAbility::LockAvatarMovementForAbility()
-{
-	MovementManager->LockAvatarMovementForAbility(*this);
-}
-
-// 타기팅 종료·스킬 종료 시 이 능력의 이동 잠금을 해제하고, 사망·빙결과 현재 조준 정책을 고려해 이동·회전을 복구한다.
-void UPdGameplayAbility::RestoreAvatarMovementForAbility()
-{
-	MovementManager->RestoreAvatarMovementForAbility(*this);
-}
-
-// 이동 잠금이 설정된 Duration 스킬이 지속되는 동안 이동을 제한한다. 공통 EndAbility가 종료 시 잠금을 해제한다.
-void UPdGameplayAbility::StartDurationMovementLock()
-{
-	MovementManager->StartDurationMovementLock(*this);
-}
-
-// 접촉 피해가 설정된 돌진·오라 등의 스킬에서 서버의 충돌 검사를 시작해, 이동 중 닿은 적에게 피해를 적용한다.
-// 검사 타이머와 접촉 기록은 매니저가 보관하고 공통 EndAbility에서 정리한다.
-void UPdGameplayAbility::StartMovementContactDamage()
-{
-	MovementManager->StartMovementContactDamage(*this);
-}
-
-// 시전 캐릭터의 장비 컴포넌트에서 현재 무기 액터를 가져와 궤적 연출과 자기 버프의 무기 판정 범위 조정에 사용한다.
-AWeaponBase* UPdGameplayAbility::GetCurrentWeaponActorFromAvatar() const
-{
-	const ACharacterBase* Character = GetPdCharacterFromActorInfo();
-	const UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
-	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
-}
-
-// 무기 궤적 스킬을 실행하기 전에 현재 무기에 궤적용 Niagara 컴포넌트가 있는지 확인한다.
-bool UPdGameplayAbility::HasCurrentWeaponSkillTrail() const
-{
-	const AWeaponBase* CurrentWeapon = GetCurrentWeaponActorFromAvatar();
-	return CurrentWeapon && CurrentWeapon->HasSkillWeaponTrailComponent();
-}
-
-// Trail 스킬이 현재 무기의 Niagara 궤적 연출을 시작하도록 요청하고, 시작 성공 여부를 반환한다.
-bool UPdGameplayAbility::StartCurrentWeaponSkillTrail(UNiagaraSystem* TrailSystem) const
-{
-	AWeaponBase* CurrentWeapon = GetCurrentWeaponActorFromAvatar();
-	return CurrentWeapon ? CurrentWeapon->StartSkillWeaponTrail(TrailSystem) : false;
-}
-
-// Trail 스킬 종료 시 현재 무기의 궤적 연출을 중단해 공격 효과가 남지 않게 한다.
-void UPdGameplayAbility::StopCurrentWeaponSkillTrail() const
-{
-	if (AWeaponBase* CurrentWeapon = GetCurrentWeaponActorFromAvatar())
-	{
-		CurrentWeapon->StopSkillWeaponTrail();
-	}
-}
-
-// 파생 스킬이 자기 능력의 연출 관리 객체에 이펙트·데칼·오버레이·미사일 연출의 시작·갱신·중단을 요청하게 한다.
-UAbilityPresentationManager& UPdGameplayAbility::GetPresentationManager()
-{
-	return *PresentationManager;
-}
-
-// 상태를 변경하지 않는 문맥에서 이 능력의 연출 관리 객체를 조회해 데칼 위치·지속시간 같은 연출 정보를 계산하게 한다.
-const UAbilityPresentationManager& UPdGameplayAbility::GetPresentationManager() const
-{
-	return *PresentationManager;
-}
-
-// 재시전·능력 종료·ASC의 강제 정리 때 이 능력의 활성 연출 액터를 서버에서 제거하고 보관 참조를 비운다.
-void UPdGameplayAbility::DestroyActiveSkillPresentationActor()
-{
-	PresentationManager->DestroyActiveSkillPresentationActor();
-}
-
-// 자기 버프 적용과 해제
-
-// 시전 확정 후 자기 버프 설정에 따라 캐릭터 확대·무기 판정 범위 증가를 요청하고, 서버에서 무기 피해 보너스·효과를 적용한다.
-// 되돌릴 대상과 종료 시 제거할 효과 핸들을 저장해 다른 능력의 버프와 구분한다.
-void UPdGameplayAbility::StartConfiguredSelfBuff(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo)
-{
-	StopConfiguredSelfBuff();
-	const USkillDefinition* SkillDefinition = GetSourceSkillDataAsset();
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	ACharacterBase* Character = GetPdCharacterFromActorInfo();
-	if (!SkillDefinition || !SkillDefinition->SelfBuff.bEnabled || !ASC || !GetAvatarActorFromActorInfo())
-	{
-		return;
-	}
-	const FSkillSelfBuffSettings& Settings = SkillDefinition->SelfBuff;
-	PresentationManager->ApplySelfBuffCharacterScale(*this, Settings);
-	if (Settings.WeaponTraceEndZMultiplier > 1.0)
-	{
-		if (AMeleeWeapon* Weapon = Cast<AMeleeWeapon>(GetCurrentWeaponActorFromAvatar()))
-		{
-			Weapon->SetTemporaryAttackTraceEndZMultiplier(this, static_cast<float>(Settings.WeaponTraceEndZMultiplier));
-			SelfBuffTraceEndZWeapon = Weapon;
-		}
-	}
-	// 버프 수치는 서버가 확정한다. 외형과 무기 검사 범위의 로컬 처리는 기존 방식대로 유지한다.
-	if (!ASC->IsOwnerActorAuthoritative())
-	{
-		return;
-	}
-	if (UCombatComponent* Combat = Character ? Character->GetCombatComponent() : nullptr; Combat && Settings.WeaponDamageBonus > 0.0)
-	{
-		Combat->SetTemporaryWeaponDamageBonus(this, static_cast<float>(Settings.WeaponDamageBonus));
-		SelfBuffCombatComponent = Combat;
-	}
-	if (!Settings.GameplayEffectClass)
-	{
-		return;
-	}
-	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
-	Context.AddInstigator(GetAvatarActorFromActorInfo(), GetAvatarActorFromActorInfo());
-	Context.AddSourceObject(SkillDefinition);
-	FGameplayEffectSpecHandle Spec =
-		ASC->MakeOutgoingSpec(Settings.GameplayEffectClass, FMath::Max(GetAbilityLevel(Handle, ActorInfo), 1), Context);
-	if (!Spec.IsValid())
-	{
-		return;
-	}
-	if (Settings.MagnitudeDataTag.IsValid())
-	{
-		Spec.Data->SetSetByCallerMagnitude(Settings.MagnitudeDataTag, static_cast<float>(Settings.Magnitude));
-	}
-	const FActiveGameplayEffectHandle AppliedHandle = ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, Spec);
-	if (AppliedHandle.IsValid() && Settings.bRemoveOnAbilityEnd)
-	{
-		ActiveSelfBuffEffectHandle = AppliedHandle;
-		SelfBuffAbilitySystemComponent = ASC;
-	}
-}
-
-// 자기 버프가 실제로 적용되었던 캐릭터·무기·전투 컴포넌트에서 이 능력의 변경분과 종료 시 제거 대상 효과를 해제한다.
-// 시전 도중 장비나 Avatar가 바뀌어도 현재 대상이 아닌 저장된 적용 대상을 정리한다.
-void UPdGameplayAbility::StopConfiguredSelfBuff()
-{
-	PresentationManager->RestoreSelfBuffCharacterScale(*this);
-	if (AMeleeWeapon* Weapon = SelfBuffTraceEndZWeapon.Get())
-	{
-		Weapon->ClearTemporaryAttackTraceEndZMultiplier(this);
-	}
-	SelfBuffTraceEndZWeapon.Reset();
-	if (UCombatComponent* Combat = SelfBuffCombatComponent.Get())
-	{
-		Combat->ClearTemporaryWeaponDamageBonus(this);
-	}
-	SelfBuffCombatComponent.Reset();
-	if (UAbilitySystemComponent* ASC = SelfBuffAbilitySystemComponent.Get(); ASC && ASC->IsOwnerActorAuthoritative())
-	{
-		ASC->RemoveActiveGameplayEffect(ActiveSelfBuffEffectHandle);
-	}
-	ActiveSelfBuffEffectHandle.Invalidate();
-	SelfBuffAbilitySystemComponent.Reset();
-}
-
-// 몽타주·이벤트·타기팅 태스크
-
-// 공격·시전 몽타주를 재생하고 완료·중단을 기다릴 태스크를 만들며, 능력 종료 시 몽타주도 멈추도록 설정한다.
-// 호출부가 완료·중단 콜백을 연결하고 ReadyForActivation을 호출해 재생을 시작한다.
 UAbilityTask_PlayMontageAndWait* UPdGameplayAbility::CreateDefaultMontageAndWaitTask(UAnimMontage* MontageToPlay)
 {
 	if (!MontageToPlay)
@@ -801,8 +442,6 @@ UAbilityTask_PlayMontageAndWait* UPdGameplayAbility::CreateDefaultMontageAndWait
 		this, NAME_None, MontageToPlay, 1.0f, NAME_None, true, 1.0f, 0.0f, true);
 }
 
-// 몽타주 노티파이의 발사·타격·장착 확정 신호 등을 기다리는 GameplayEvent 태스크를 만든다.
-// 호출부가 처리 함수를 연결하고 활성화하며, 한 번만 받을지와 정확한 태그만 받을지는 인자로 정한다.
 UAbilityTask_WaitGameplayEvent* UPdGameplayAbility::CreateWaitGameplayEventTask(
 	const FGameplayTag& EventTag, const bool bOnlyTriggerOnce, const bool bOnlyMatchExact)
 {
@@ -814,7 +453,6 @@ UAbilityTask_WaitGameplayEvent* UPdGameplayAbility::CreateWaitGameplayEventTask(
 	return UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, EventTag, nullptr, bOnlyTriggerOnce, bOnlyMatchExact);
 }
 
-// 범위·발사 위치 등을 선택할 타기팅 액터의 지연 생성을 시작하고, 스킬이 설정을 채울 수 있도록 액터를 반환한다.
 AGameplayAbilityTargetActor* UPdGameplayAbility::BeginSpawningTargetDataActor(
 	UAbilityTask_WaitTargetData* TargetDataTask, const TSubclassOf<AGameplayAbilityTargetActor> TargetActorClass)
 {
@@ -827,7 +465,6 @@ AGameplayAbilityTargetActor* UPdGameplayAbility::BeginSpawningTargetDataActor(
 	return TargetDataTask->BeginSpawningActor(this, TargetActorClass, SpawnedActor) ? SpawnedActor : nullptr;
 }
 
-// 파생 스킬이 범위·위치 등의 설정을 채운 타기팅 액터의 생성을 완료하고, WaitTargetData 태스크의 타기팅 시작 단계로 넘긴다.
 void UPdGameplayAbility::FinishSpawningTargetDataActor(
 	UAbilityTask_WaitTargetData* TargetDataTask, AGameplayAbilityTargetActor* SpawnedActor)
 {

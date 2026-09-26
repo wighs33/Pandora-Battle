@@ -1,27 +1,22 @@
-#include "Component/AbilitySystem/Ability/AbilityMovementManager.h"
+#include "AbilitySystem/Ability/SkillAbility.h"
 
-#include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Character/CharacterBase.h"
 #include "Components/CapsuleComponent.h"
-#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
-
-#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityMovementManager)
 
 namespace
 {
 constexpr float MovementContactDamageTickInterval = 1.0f / 30.0f;
 constexpr float MovementContactDamageCapsuleInflation = 15.0f;
-} // namespace
+}
 
-// 시전 확정 시 이동 요청·입력·속도를 비워 이전 이동이 스킬 실행에 남지 않게 한다.
-void UAbilityMovementManager::StopAvatarMovementForSkillActivation(UPdGameplayAbility& Ability)
+void USkillAbility::StopAvatarMovementForSkillActivation()
 {
-	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	UCharacterMovementComponent* MovementComponent = Character ? Character->GetCharacterMovement() : nullptr;
 	if (!Character || !MovementComponent)
 	{
@@ -37,15 +32,14 @@ void UAbilityMovementManager::StopAvatarMovementForSkillActivation(UPdGameplayAb
 	MovementComponent->StopMovementImmediately();
 }
 
-// 현재 이동·회전 설정을 저장하고 입력을 잠근다. 빙결 중에는 회전도 정지한다.
-void UAbilityMovementManager::LockAvatarMovementForAbility(UPdGameplayAbility& Ability)
+void USkillAbility::LockAvatarMovementForAbility()
 {
 	if (bAbilityMovementLocked)
 	{
 		return;
 	}
 
-	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	UCharacterMovementComponent* MovementComponent = Character ? Character->GetCharacterMovement() : nullptr;
 	if (!MovementComponent)
 	{
@@ -83,8 +77,7 @@ void UAbilityMovementManager::LockAvatarMovementForAbility(UPdGameplayAbility& A
 	Character->bUseControllerRotationYaw = false;
 }
 
-// 이 능력의 입력 잠금을 해제한다. 사망·빙결을 우선하고 살아 있는 캐릭터의 현재 조준 정책을 복구한다.
-void UAbilityMovementManager::RestoreAvatarMovementForAbility(UPdGameplayAbility& Ability)
+void USkillAbility::RestoreAvatarMovementForAbility()
 {
 	if (!bAbilityMovementLocked)
 	{
@@ -93,7 +86,7 @@ void UAbilityMovementManager::RestoreAvatarMovementForAbility(UPdGameplayAbility
 
 	bAbilityMovementLocked = false;
 
-	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	UCharacterMovementComponent* MovementComponent = Character ? Character->GetCharacterMovement() : nullptr;
 	if (!MovementComponent)
 	{
@@ -141,15 +134,14 @@ void UAbilityMovementManager::RestoreAvatarMovementForAbility(UPdGameplayAbility
 	Character->ReapplyCurrentRotationPolicy();
 }
 
-// 지속시간 동안 잠금이 필요한 스킬만 잠근다. 이미 다른 단계에서 잡은 잠금은 소유하지 않는다.
-void UAbilityMovementManager::StartDurationMovementLock(UPdGameplayAbility& Ability)
+void USkillAbility::StartDurationMovementLock()
 {
 	if (bDurationMovementLockActive)
 	{
 		return;
 	}
 
-	const USkillDefinition* SkillDataAsset = Ability.GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	if (!SkillDataAsset || !SkillDataAsset->Movement.bLockMovementDuringDuration || SkillDataAsset->SkillType != ESkillType::Duration
 		|| SkillDataAsset->Time.Duration <= 0.0)
 	{
@@ -157,12 +149,11 @@ void UAbilityMovementManager::StartDurationMovementLock(UPdGameplayAbility& Abil
 	}
 
 	const bool bWasAlreadyLocked = bAbilityMovementLocked;
-	LockAvatarMovementForAbility(Ability);
+	LockAvatarMovementForAbility();
 	bDurationMovementLockActive = !bWasAlreadyLocked && bAbilityMovementLocked;
 }
 
-// 지속시간 단계에서 직접 잡았던 잠금만 해제한다.
-void UAbilityMovementManager::StopDurationMovementLock(UPdGameplayAbility& Ability)
+void USkillAbility::StopDurationMovementLock()
 {
 	if (!bDurationMovementLockActive)
 	{
@@ -170,18 +161,17 @@ void UAbilityMovementManager::StopDurationMovementLock(UPdGameplayAbility& Abili
 	}
 
 	bDurationMovementLockActive = false;
-	RestoreAvatarMovementForAbility(Ability);
+	RestoreAvatarMovementForAbility();
 }
 
-// 서버에서 접촉 피해 조건을 확인하고 최초 검사 후 반복 타이머를 등록한다.
-void UAbilityMovementManager::StartMovementContactDamage(UPdGameplayAbility& Ability)
+void USkillAbility::StartMovementContactDamage()
 {
-	StopMovementContactDamage(Ability);
+	StopMovementContactDamage();
 
-	const USkillDefinition* SkillDataAsset = Ability.GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	const FSkillMovementSettings* MovementSettings = SkillDataAsset ? &SkillDataAsset->Movement : nullptr;
-	AActor* AvatarActor = Ability.GetAvatarActorFromActorInfo();
-	ACharacterBase* Character = Ability.GetPdCharacterFromActorInfo();
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!SkillDataAsset || !MovementSettings || !MovementSettings->bDamageEnemiesOnContact || !AvatarActor || !AvatarActor->HasAuthority()
 		|| !Character || !Character->GetCapsuleComponent())
 	{
@@ -190,7 +180,7 @@ void UAbilityMovementManager::StartMovementContactDamage(UPdGameplayAbility& Abi
 
 	const FSkillGameplayEffectConfig DamageConfig = SkillDataAsset->GetResolvedDamageConfig();
 	if (!DamageConfig.GameplayEffectClass
-		|| Ability.CalculateDamageMagnitude(DamageConfig) <= 0.0f)
+		|| CalculateDamageMagnitude(DamageConfig) <= 0.0f)
 	{
 		return;
 	}
@@ -205,17 +195,16 @@ void UAbilityMovementManager::StartMovementContactDamage(UPdGameplayAbility& Abi
 		return;
 	}
 
-	if (UWorld* World = Ability.GetWorld())
+	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(
 			MovementContactDamageTimerHandle, this, &ThisClass::HandleMovementContactDamageTick, MovementContactDamageTickInterval, true);
 	}
 }
 
-// 접촉 피해 타이머와 이전 위치·대상 기록을 함께 비워 다음 시전에 남지 않게 한다.
-void UAbilityMovementManager::StopMovementContactDamage(UPdGameplayAbility& Ability)
+void USkillAbility::StopMovementContactDamage()
 {
-	if (UWorld* World = Ability.GetWorld())
+	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(MovementContactDamageTimerHandle);
 	}
@@ -229,27 +218,20 @@ void UAbilityMovementManager::StopMovementContactDamage(UPdGameplayAbility& Abil
 	MovementContactOverlapResults.Reset();
 }
 
-// 이동 경로와 현재 캡슐을 검사해 새로 접촉한 대상을 모은 뒤 피해를 적용한다. 계속 접촉 중인 대상은 재타격하지 않는다.
-void UAbilityMovementManager::HandleMovementContactDamageTick()
+void USkillAbility::HandleMovementContactDamageTick()
 {
 	if (!bMovementContactDamageActive)
 	{
 		return;
 	}
 
-	UPdGameplayAbility* Ability = GetTypedOuter<UPdGameplayAbility>();
-	if (!Ability)
-	{
-		bMovementContactDamageActive = false;
-		return;
-	}
 
-	ACharacterBase* Character = Ability->GetPdCharacterFromActorInfo();
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	UCapsuleComponent* CapsuleComponent = Character ? Character->GetCapsuleComponent() : nullptr;
 	UWorld* World = Character ? Character->GetWorld() : nullptr;
 	if (!Character || !CapsuleComponent || !World)
 	{
-		StopMovementContactDamage(*Ability);
+		StopMovementContactDamage();
 		return;
 	}
 
@@ -320,15 +302,14 @@ void UAbilityMovementManager::HandleMovementContactDamageTick()
 
 		if (AActor* ContactActor = ContactActorPtr.Get())
 		{
-			ApplyMovementContactDamageToActor(*Ability, ContactActor);
+			ApplyMovementContactDamageToActor(ContactActor);
 		}
 	}
 }
 
-// 살아 있는 적에게 스킬 피해를 적용하고, 성공한 경우 설정된 상태 효과를 이어서 적용한다.
-void UAbilityMovementManager::ApplyMovementContactDamageToActor(UPdGameplayAbility& Ability, AActor* HitActor)
+void USkillAbility::ApplyMovementContactDamageToActor(AActor* HitActor)
 {
-	AActor* SourceActor = Ability.GetAvatarActorFromActorInfo();
+	AActor* SourceActor = GetAvatarActorFromActorInfo();
 	if (!bMovementContactDamageActive || !IsValid(HitActor) || HitActor == SourceActor)
 	{
 		return;
@@ -353,18 +334,18 @@ void UAbilityMovementManager::ApplyMovementContactDamageToActor(UPdGameplayAbili
 		return;
 	}
 
-	const USkillDefinition* SkillDataAsset = Ability.GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
 		return;
 	}
 	const FSkillGameplayEffectConfig DamageConfig = SkillDataAsset->GetResolvedDamageConfig();
-	const float DamageMagnitude = Ability.CalculateDamageMagnitude(DamageConfig);
+	const float DamageMagnitude = CalculateDamageMagnitude(DamageConfig);
 	if (!DamageConfig.GameplayEffectClass || DamageMagnitude <= 0.0f)
 	{
 		return;
 	}
-	FGameplayEffectSpecHandle DamageSpecHandle = Ability.MakeConfiguredDamageEffectSpec(DamageConfig, DamageMagnitude);
+	FGameplayEffectSpecHandle DamageSpecHandle = MakeConfiguredDamageEffectSpec(DamageConfig, DamageMagnitude);
 	if (!DamageSpecHandle.IsValid() || !DamageSpecHandle.Data.IsValid())
 	{
 		return;
@@ -374,6 +355,6 @@ void UAbilityMovementManager::ApplyMovementContactDamageToActor(UPdGameplayAbili
 		SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), TargetAbilitySystemComponent);
 	if (AppliedHandle.WasSuccessfullyApplied())
 	{
-		Ability.ApplyConfiguredStatusEffectToTarget(Ability.GetSourceSkillDataAsset(), TargetAbilitySystemComponent);
+		ApplyConfiguredStatusEffectToTarget(GetSourceSkillDataAsset(), TargetAbilitySystemComponent);
 	}
 }

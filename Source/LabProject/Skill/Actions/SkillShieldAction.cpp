@@ -1,6 +1,5 @@
 #include "Skill/Actions/SkillShieldAction.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
@@ -132,7 +131,7 @@ void USkillShieldAction::ApplyShieldFromMontageTrigger()
 		return;
 	}
 
-	GetAbility()->GetPresentationManager().SpawnConfiguredCharacterDecal(*GetAbility());
+	GetAbility()->SpawnConfiguredCharacterDecal();
 	const FActiveGameplayEffectHandle EffectHandle =
 		GetAbility()->BP_ApplyGameplayEffectToOwner(ResolvedShieldGameplayEffectClass, FMath::Max(GetAbility()->GetAbilityLevel(), 1), 1);
 	if (GetAbility()->K2_HasAuthority() && !EffectHandle.WasSuccessfullyApplied())

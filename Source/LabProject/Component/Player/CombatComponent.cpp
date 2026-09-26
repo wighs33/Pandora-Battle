@@ -2,7 +2,7 @@
 
 #include "AbilitySystem/Ability/AttackAbility.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/AbilitySystem/Ability/AbilityCostAndCooldownManager.h"
+#include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Abilities/GameplayAbility.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -538,7 +538,7 @@ bool UCombatComponent::CanAffordRangedWeaponAttackStamina() const
 		return true;
 	}
 
-	const float StaminaCost = UAbilityCostAndCooldownManager::GetWeaponAttackStaminaCost(CharacterOwner);
+	const float StaminaCost = UPdGameplayAbility::GetWeaponAttackStaminaCost(CharacterOwner);
 	if (StaminaCost <= 0.0f)
 	{
 		return true;
@@ -575,7 +575,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 		return true;
 	}
 
-	const float StaminaCost = UAbilityCostAndCooldownManager::GetWeaponAttackStaminaCost(CharacterOwner);
+	const float StaminaCost = UPdGameplayAbility::GetWeaponAttackStaminaCost(CharacterOwner);
 	if (StaminaCost <= 0.0f)
 	{
 		return true;
@@ -591,7 +591,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 		return false;
 	}
 
-	const TSubclassOf<UGameplayEffect> CostEffectClass = UAbilityCostAndCooldownManager::GetCostGameplayEffectClass(this);
+	const TSubclassOf<UGameplayEffect> CostEffectClass = UPdGameplayAbility::GetCostGameplayEffectClass(this);
 	if (!CostEffectClass)
 	{
 		return false;
@@ -605,7 +605,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 			CostEffectClass,
 			1.0f,
 			EffectContext);
-	if (!UAbilityCostAndCooldownManager::SetCostEffectMagnitudes(CostSpecHandle, 0.0f, StaminaCost))
+	if (!UPdGameplayAbility::SetCostEffectMagnitudes(CostSpecHandle, 0.0f, StaminaCost))
 	{
 		return false;
 	}

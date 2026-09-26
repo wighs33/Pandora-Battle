@@ -1,4 +1,4 @@
-#include "Chat/ChatEntryWidget.h"
+#include "UI/Chat/ChatEntryWidget.h"
 
 #include "Components/TextBlock.h"
 #include "UI/WidgetLookup.h"

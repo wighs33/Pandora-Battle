@@ -4,9 +4,10 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
-#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Mode/PdPlayerState.h"
 #include "Pandora/PandoraSkillSource.h"
 #include "TimerManager.h"
@@ -25,8 +26,6 @@ USkillAbility::USkillAbility(const FObjectInitializer& ObjectInitializer)
 	SetAssetTags(Tags);
 }
 
-// Spec의 SourceObject에서 실제 실행할 SkillDefinition을 찾는다.
-// 일반 스킬은 SkillDefinition을 직접 사용하고, Pandora 스킬은 PandoraSkillSource가 SkillDefinition을 보관한다.
 const USkillDefinition* USkillAbility::ResolveSkill(
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo)
@@ -35,16 +34,9 @@ const USkillDefinition* USkillAbility::ResolveSkill(
 	const FGameplayAbilitySpec* Spec = ASC ? ASC->FindAbilitySpecFromHandle(Handle) : nullptr;
 	UObject* SourceObject = Spec ? Spec->SourceObject.Get() : nullptr;
 
-	if (const USkillDefinition* SkillDefinition = Cast<USkillDefinition>(SourceObject))
-	{
-		return SkillDefinition;
-	}
-
-	const UPandoraSkillSource* PandoraSource = Cast<UPandoraSkillSource>(SourceObject);
-	return PandoraSource ? PandoraSource->GetSkillDataAsset() : nullptr;
+	return ResolveSourceSkillDataAsset(SourceObject);
 }
 
-// 현재 실행 중인 스킬이 Pandora에서 부여된 경우 그 출처를 반환한다.
 const UPandoraSkillSource* USkillAbility::GetPandoraSkillSource() const
 {
 	return Cast<UPandoraSkillSource>(GetCurrentSourceObject());
@@ -127,6 +119,7 @@ void USkillAbility::PreActivate(
 	DurationEndTime = -1.0;
 
 	Super::PreActivate(Handle, ActorInfo, ActivationInfo, EndedDelegate, TriggerEventData);
+	DestroyActiveSkillPresentationActor();
 }
 
 bool USkillAbility::ShouldConfirmTargetingOnInputRelease() const
@@ -339,10 +332,13 @@ void USkillAbility::OnAbilityEnding()
 	}
 
 	Super::OnAbilityEnding();
+	DestroyActiveSkillPresentationActor();
+	StopConfiguredSelfBuff();
+	StopMovementContactDamage();
+	StopDurationMovementLock();
+	RestoreAvatarMovementForAbility();
 }
 
-// GAS의 CommitAbility는 기본적으로 쿨다운 적용도 요청한다.
-// 스킬은 종료 시점부터 쿨다운을 시작하므로 여기서는 적용하지 않는다.
 void USkillAbility::ApplyCooldown(
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -355,16 +351,15 @@ void USkillAbility::ApplyCooldownOnEnd(
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo)
 {
-	if (!bSkillCommitted || UsesSinceCooldown != 0
+	if (!CanExecuteSkillPayload() || !bSkillCommitted || UsesSinceCooldown != 0
 		|| UAbilitySystemGlobals::Get().ShouldIgnoreCooldowns())
 	{
 		return;
 	}
 
-	Super::ApplyCooldown(Handle, ActorInfo, ActivationInfo);
+	ApplySkillCooldown(Handle, ActorInfo, ActivationInfo);
 }
 
-// 부모의 Intelligence 보정에 현재 Pandora 슬롯 능력치를 추가한다.
 float USkillAbility::GetDamageBonusPercent() const
 {
 	float DamageBonusPercent = Super::GetDamageBonusPercent();
@@ -408,4 +403,91 @@ FGameplayEffectSpecHandle USkillAbility::MakeActionDamageSpec(
 FGameplayEffectSpecHandle USkillAbility::MakeActionStatusSpec() const
 {
 	return MakeConfiguredStatusEffectSpec(ResolveSkill(CurrentSpecHandle, CurrentActorInfo));
+}
+
+bool USkillAbility::CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo, FGameplayTagContainer* OptionalRelevantTags)
+{
+	if (!Super::CommitAbility(Handle, ActorInfo, ActivationInfo, OptionalRelevantTags))
+	{
+		return false;
+	}
+
+	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ?
+		ActorInfo->AbilitySystemComponent.Get() : nullptr;
+
+	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent && Handle.IsValid() ?
+		AbilitySystemComponent->FindAbilitySpecFromHandle(Handle) : GetCurrentAbilitySpec();
+
+	const USkillDefinition* SkillDefinition = ResolveSourceSkillDataAsset(AbilitySpec ? AbilitySpec->SourceObject.Get() : nullptr);
+	if (SkillDefinition)
+	{
+		StopAvatarMovementForSkillActivation();
+
+		// 비용을 지불한 보호 스킬은 일반 취소로 끊지 않는다. 사망·리셋은 별도로 취소 가능 상태를 복구한다.
+		if (!SkillDefinition->bCancelOnHit)
+		{
+			SetCanBeCanceled(false);
+		}
+	}
+
+	StartConfiguredSelfBuff(Handle, ActorInfo, ActivationInfo);
+	return true;
+}
+
+bool USkillAbility::UsesInputRelease(const FGameplayAbilitySpec& Spec) const
+{
+	const USkillDefinition* Skill = ResolveSourceSkillDataAsset(Spec.SourceObject.Get());
+	return Skill && Skill->SkillType == ESkillType::Press;
+}
+
+void USkillAbility::FinishAbilityFromDuration()
+{
+	if (!IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))
+	{
+		return;
+	}
+
+	const bool bReplicateEndAbility = CurrentActorInfo && CurrentActorInfo->IsNetAuthority();
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, bReplicateEndAbility, false);
+}
+
+bool USkillAbility::CanExecuteSkillPayload() const
+{
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor))
+	{
+		return false;
+	}
+	if (const ACharacterBase* Character = Cast<ACharacterBase>(AvatarActor);
+		Character && (Character->IsDead() || Character->IsDeathHandled()))
+	{
+		return false;
+	}
+
+	const UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
+	const UBasicAttributeSet* BasicAttributeSet = AbilitySystemComponent ?
+		AbilitySystemComponent->GetSet<UBasicAttributeSet>() : nullptr;
+
+	if (BasicAttributeSet && BasicAttributeSet->GetHealth() <= 0.0f)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+const USkillDefinition* USkillAbility::ResolveSourceSkillDataAsset(UObject* SourceObject)
+{
+	if (USkillDefinition* SkillDefinition = Cast<USkillDefinition>(SourceObject))
+	{
+		return SkillDefinition;
+	}
+	const UPandoraSkillSource* Source = Cast<UPandoraSkillSource>(SourceObject);
+	return Source ? Source->GetSkillDataAsset() : nullptr;
+}
+
+USkillDefinition* USkillAbility::GetSourceSkillDataAsset() const
+{
+	return const_cast<USkillDefinition*>(ResolveSourceSkillDataAsset(GetCurrentSourceObject()));
 }

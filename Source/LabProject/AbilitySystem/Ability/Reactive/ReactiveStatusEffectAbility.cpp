@@ -1,4 +1,5 @@
 #include "AbilitySystem/Ability/Reactive/ReactiveStatusEffectAbility.h"
+#include "Definition/AbilitySystem/SkillGameplayEffectConfig.h"
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"

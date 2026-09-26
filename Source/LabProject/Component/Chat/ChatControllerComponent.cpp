@@ -1,8 +1,8 @@
 #include "Component/Chat/ChatControllerComponent.h"
 
 #include "Blueprint/WidgetTree.h"
-#include "Chat/ChatBoxWidget.h"
-#include "Chat/ChatEntryWidget.h"
+#include "UI/Chat/ChatBoxWidget.h"
+#include "UI/Chat/ChatEntryWidget.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"

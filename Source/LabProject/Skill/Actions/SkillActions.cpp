@@ -17,7 +17,6 @@
 #include "Kismet/GameplayStatics.h"
 #include "Pandora/PandoraSkillSource.h"
 #include "TimerManager.h"
-#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Common/CollisionChannels.h"
 
 void USkillWaitAction::OnStart()
@@ -117,7 +116,7 @@ void USkillDashAction::OnStart()
 	Task = CreateTask(GetAbility(), Direction.GetSafeNormal2D(), Speed, Duration,
 		Character->GetCharacterMovement()->GetMaxSpeed(), bEnableGravity);
 	if (!Task) { Finish(false); return; }
-	GetAbility()->GetPresentationManager().SpawnConfiguredCharacterDecal(*GetAbility());
+	GetAbility()->SpawnConfiguredCharacterDecal();
 	GetAbility()->StartMovementContactDamage();
 	if (const auto* Skill = GetAbility()->GetSourceSkillDataAsset(); Skill && Skill->Niagara.GameplayCueTag.IsValid())
 	{

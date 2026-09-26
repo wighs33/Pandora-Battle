@@ -1,4 +1,5 @@
 #include "AbilitySystem/Ability/HitReactAbility.h"
+#include "AbilitySystem/Ability/SkillAbility.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystemComponent.h"
@@ -27,7 +28,7 @@ const USkillDefinition* ResolveSkillDataAssetFromSpec(const FGameplayAbilitySpec
 		return SkillDataAsset;
 	}
 
-	if (const UPdGameplayAbility* AbilityInstance = Cast<UPdGameplayAbility>(AbilitySpec.GetPrimaryInstance()))
+	if (const USkillAbility* AbilityInstance = Cast<USkillAbility>(AbilitySpec.GetPrimaryInstance()))
 	{
 		return AbilityInstance->GetSourceSkillDataAsset();
 	}

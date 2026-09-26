@@ -1,7 +1,6 @@
 #include "Skill/Actions/SkillMissileAction.h"
 
 #include "AbilitySystem/Ability/SkillAbility.h"
-#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
@@ -160,9 +159,9 @@ void USkillMissileAction::LaunchMissile()
 		return;
 	}
 
-	GetAbility()->GetPresentationManager().SpawnConfiguredCharacterDecal(*GetAbility());
+	GetAbility()->SpawnConfiguredCharacterDecal();
 	GetAbility()->StartDurationMovementLock();
-	GetAbility()->GetPresentationManager().StartConfiguredGroundFX(*GetAbility());
+	GetAbility()->StartConfiguredGroundFX();
 	StartMissilePresentation();
 	StartMissileTargetTracking();
 	StartMissileDurationTimer();
@@ -178,8 +177,8 @@ void USkillMissileAction::StartMissilePresentation()
 		return;
 	}
 
-	GetAbility()->GetPresentationManager().StartConfiguredMissilePresentation(*GetAbility());
-	GetAbility()->GetPresentationManager().SetMissileTargeting(Settings.AimPositionParameterName,
+	GetAbility()->StartConfiguredMissilePresentation();
+	GetAbility()->SetMissileTargeting(Settings.AimPositionParameterName,
 	                                                           Settings.TargetSocketName);
 }
 
@@ -226,7 +225,7 @@ void USkillMissileAction::HandleMissileDurationFinished()
 
 	StopMissileTargetTracking();
 	ActiveMissileTargetActors.Reset();
-	GetAbility()->GetPresentationManager().StopConfiguredMissilePresentation(*GetAbility());
+	GetAbility()->StopConfiguredMissilePresentation();
 
 	TryFinishAfterWork();
 }
@@ -364,7 +363,7 @@ void USkillMissileAction::RefreshMissileTargets()
 		}
 	}
 
-	GetAbility()->GetPresentationManager().UpdateConfiguredMissilePresentationTargets(PresentationTargets);
+	GetAbility()->UpdateConfiguredMissilePresentationTargets(PresentationTargets);
 }
 
 void USkillMissileAction::StartDamageSequence()

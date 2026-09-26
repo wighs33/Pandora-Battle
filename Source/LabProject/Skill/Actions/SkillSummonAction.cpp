@@ -1,6 +1,5 @@
 #include "Skill/Actions/SkillSummonAction.h"
 
-#include "Component/AbilitySystem/Ability/AbilityPresentationManager.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
@@ -204,8 +203,8 @@ void USkillSummonAction::TryCommitAndStartSummon()
 	if (!AvatarActor || !AvatarActor->HasAuthority())
 	{
 
-		GetAbility()->GetPresentationManager().StartConfiguredCharacterOverlay(*GetAbility());
-		GetAbility()->GetPresentationManager().StartConfiguredDefaultFX(*GetAbility());
+		GetAbility()->StartConfiguredCharacterOverlay();
+		GetAbility()->StartConfiguredDefaultFX();
 		if (!GetResolvedSummonMontage())
 		{
 			Finish();
@@ -219,15 +218,15 @@ void USkillSummonAction::TryCommitAndStartSummon()
 		return;
 	}
 
-	GetAbility()->GetPresentationManager().StartConfiguredCharacterOverlay(*GetAbility());
-	GetAbility()->GetPresentationManager().StartConfiguredDefaultFX(*GetAbility());
+	GetAbility()->StartConfiguredCharacterOverlay();
+	GetAbility()->StartConfiguredDefaultFX();
 	if (!SpawnSummonedActor())
 	{
 		Finish(false);
 		return;
 	}
 
-	GetAbility()->GetPresentationManager().SpawnConfiguredCharacterDecal(*GetAbility());
+	GetAbility()->SpawnConfiguredCharacterDecal();
 	GetAbility()->StartDurationMovementLock();
 	StartSummonRise();
 }

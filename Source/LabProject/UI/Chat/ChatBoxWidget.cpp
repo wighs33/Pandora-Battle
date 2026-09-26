@@ -1,7 +1,7 @@
-#include "Chat/ChatBoxWidget.h"
+#include "UI/Chat/ChatBoxWidget.h"
 
 #include "Component/Chat/ChatControllerComponent.h"
-#include "Chat/ChatEntryWidget.h"
+#include "UI/Chat/ChatEntryWidget.h"
 #include "Components/EditableText.h"
 #include "Components/ScrollBox.h"
 #include "Engine/LocalPlayer.h"
