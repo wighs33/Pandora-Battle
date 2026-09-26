@@ -1,4 +1,9 @@
 #include "UI/UiSubsystem.h"
+#include "UI/PdUIActionRouter.h"
+#include "UI/UiLayerRoot.h"
+#include "UI/UiScreen.h"
+#include "CommonActivatableWidget.h"
+#include "Widgets/CommonActivatableWidgetContainer.h"
 
 #include "AbilitySystemComponent.h"
 #include "Blueprint/UserWidget.h"
@@ -83,6 +88,8 @@ void UUiSubsystem::Deinitialize()
 	bTravelLoadingScreenCancelEnabled = false;
 	HideConnectingPopup();
 	ReleaseConfiguredWidgetDefinitionPreload();
+	if (ScreenRoot) ScreenRoot->RemoveFromParent();
+	ScreenRoot = nullptr;
 	ModalInputStack.Reset();
 	InputStateBeforeModals.Reset();
 	RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
@@ -679,8 +686,6 @@ UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCanc
 
 	if (ActiveConnectingPopupWidget && !IsValid(ActiveConnectingPopupWidget))
 	{
-		ReleaseModalInputInternal(nullptr, ConnectingPopupModalToken, false);
-		ConnectingPopupModalToken.Invalidate();
 		ActiveConnectingPopupWidget = nullptr;
 	}
 
@@ -705,24 +710,15 @@ UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCanc
 	ActiveConnectingPopupWidget->OnCanceled.AddUniqueDynamic(this, &ThisClass::HandleConnectingPopupCanceled);
 	ActiveConnectingPopupWidget->SetCancelButtonEnabled(bEnableCancelButton);
 
-	if (!ActiveConnectingPopupWidget->IsInViewport())
-	{
-		ActiveConnectingPopupWidget->AddToViewport(1000);
-	}
-
-	const FUiModalInputConfig InputConfig;
-	if (!UpdateModalInput(
-			ActiveConnectingPopupWidget,
-			ConnectingPopupModalToken,
-			ActiveConnectingPopupWidget,
-			InputConfig))
-	{
-		ReleaseModalInputInternal(nullptr, ConnectingPopupModalToken, false);
-		ConnectingPopupModalToken = AcquireModalInput(
-			ActiveConnectingPopupWidget,
-			ActiveConnectingPopupWidget,
-			InputConfig);
-	}
+    if (!ConnectingScreen)
+    {
+        ConnectingScreen = CreateWidget<UUiScreen>(PlayerController);
+        FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+        Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+        ConnectingScreen->SetContent(ActiveConnectingPopupWidget, Config, ActiveConnectingPopupWidget,
+            FSimpleDelegate::CreateUObject(ActiveConnectingPopupWidget, &UConnectingPopupWidget::HandleCancelClicked));
+        PushScreen(ConnectingScreen, EUiScreenLayer::Modal);
+    }
 
 	return ActiveConnectingPopupWidget;
 }
@@ -737,8 +733,12 @@ void UUiSubsystem::HideConnectingPopup()
 		PopupWidget->RemoveFromParent();
 	}
 
-	ReleaseModalInputInternal(nullptr, ConnectingPopupModalToken, false);
-	ConnectingPopupModalToken.Invalidate();
+    if (ConnectingScreen)
+    {
+        ConnectingScreen->DeactivateWidget();
+        ConnectingScreen->RemoveFromParent();
+        ConnectingScreen = nullptr;
+    }
 	ActiveConnectingPopupWidget = nullptr;
 }
 
@@ -842,199 +842,47 @@ APlayerController* UUiSubsystem::GetLocalPlayerController() const
 	return LocalPlayer ? LocalPlayer->GetPlayerController(GetWorld()) : nullptr;
 }
 
-bool UUiSubsystem::CaptureInputState(
-	APlayerController* PlayerController,
-	FInputStateSnapshot& OutSnapshot) const
+bool UUiSubsystem::CaptureInputState(APlayerController* Controller, FInputStateSnapshot& OutSnapshot) const
 {
-	OutSnapshot.Reset();
-	if (!IsValid(PlayerController))
-	{
-		return false;
-	}
-
-	OutSnapshot.PlayerController = PlayerController;
-	OutSnapshot.World = PlayerController->GetWorld();
-	OutSnapshot.bShowMouseCursor = PlayerController->bShowMouseCursor;
-	OutSnapshot.bEnableClickEvents = PlayerController->bEnableClickEvents;
-	OutSnapshot.bEnableMouseOverEvents = PlayerController->bEnableMouseOverEvents;
-
-	if (UGameViewportClient* GameViewport =
-		PlayerController->GetWorld() ? PlayerController->GetWorld()->GetGameViewport() : nullptr)
-	{
-		OutSnapshot.MouseCaptureMode = GameViewport->GetMouseCaptureMode();
-		OutSnapshot.MouseLockMode = GameViewport->GetMouseLockMode();
-		OutSnapshot.bIgnoreViewportInput = GameViewport->IgnoreInput();
-		OutSnapshot.bHideCursorDuringCapture = GameViewport->HideCursorDuringCapture();
-
-		if (OutSnapshot.bIgnoreViewportInput)
-		{
-			OutSnapshot.InputMode = EUiInputMode::UIOnly;
-		}
-		else if (OutSnapshot.MouseCaptureMode == EMouseCaptureMode::CapturePermanently
-			|| OutSnapshot.MouseCaptureMode == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown)
-		{
-			OutSnapshot.InputMode = EUiInputMode::GameOnly;
-		}
-		else
-		{
-			OutSnapshot.InputMode = EUiInputMode::GameAndUI;
-		}
-	}
-	else
-	{
-		OutSnapshot.InputMode =
-			OutSnapshot.bShowMouseCursor ? EUiInputMode::GameAndUI : EUiInputMode::GameOnly;
-	}
-
-	if (const ULocalPlayer* LocalPlayer = GetLocalPlayer())
-	{
-		if (const TSharedPtr<const FSlateUser> SlateUser = LocalPlayer->GetSlateUser())
-		{
-			OutSnapshot.FocusedSlateWidget = SlateUser->GetFocusedWidget();
-		}
-	}
-
-	OutSnapshot.bValid = true;
-	return true;
+    if (!Controller) return false;
+    OutSnapshot = BaseInputState;
+    OutSnapshot.PlayerController = Controller;
+    OutSnapshot.World = Controller->GetWorld();
+    OutSnapshot.bValid = true;
+    if (const TSharedPtr<const FSlateUser> SlateUser = GetLocalPlayer()->GetSlateUser())
+    {
+        OutSnapshot.FocusedSlateWidget = SlateUser->GetFocusedWidget();
+    }
+    return true;
 }
 
 bool UUiSubsystem::ApplyInputState(const FInputStateSnapshot& Snapshot) const
 {
-	APlayerController* PlayerController = GetLocalPlayerController();
-	if (!Snapshot.bValid
-		|| !IsValid(PlayerController)
-		|| Snapshot.PlayerController.Get() != PlayerController
-		|| Snapshot.World.Get() != PlayerController->GetWorld())
-	{
-		return false;
-	}
-
-	const TSharedPtr<SWidget> FocusedSlateWidget = Snapshot.FocusedSlateWidget.Pin();
-	switch (Snapshot.InputMode)
-	{
-	case EUiInputMode::UIOnly:
-		{
-			FInputModeUIOnly InputMode;
-			InputMode.SetWidgetToFocus(FocusedSlateWidget);
-			InputMode.SetLockMouseToViewportBehavior(Snapshot.MouseLockMode);
-			PlayerController->SetInputMode(InputMode);
-			break;
-		}
-
-	case EUiInputMode::GameAndUI:
-		{
-			FInputModeGameAndUI InputMode;
-			InputMode.SetWidgetToFocus(FocusedSlateWidget);
-			InputMode.SetLockMouseToViewportBehavior(Snapshot.MouseLockMode);
-			InputMode.SetHideCursorDuringCapture(Snapshot.bHideCursorDuringCapture);
-			PlayerController->SetInputMode(InputMode);
-			break;
-		}
-
-	case EUiInputMode::GameOnly:
-	default:
-		{
-			FInputModeGameOnly InputMode;
-			InputMode.SetConsumeCaptureMouseDown(
-				Snapshot.MouseCaptureMode !=
-				EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
-			PlayerController->SetInputMode(InputMode);
-			break;
-		}
-	}
-
-	if (UGameViewportClient* GameViewport =
-		PlayerController->GetWorld() ? PlayerController->GetWorld()->GetGameViewport() : nullptr)
-	{
-		GameViewport->SetIgnoreInput(Snapshot.bIgnoreViewportInput);
-		GameViewport->SetMouseCaptureMode(Snapshot.MouseCaptureMode);
-		GameViewport->SetMouseLockMode(Snapshot.MouseLockMode);
-		GameViewport->SetHideCursorDuringCapture(Snapshot.bHideCursorDuringCapture);
-	}
-
-	PlayerController->bShowMouseCursor = Snapshot.bShowMouseCursor;
-	PlayerController->bEnableClickEvents = Snapshot.bEnableClickEvents;
-	PlayerController->bEnableMouseOverEvents = Snapshot.bEnableMouseOverEvents;
-
-	if (Snapshot.InputMode != EUiInputMode::GameOnly && !FocusedSlateWidget.IsValid())
-	{
-		if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
-		{
-			if (const TSharedPtr<FSlateUser> SlateUser = LocalPlayer->GetSlateUser())
-			{
-				SlateUser->ClearFocus();
-			}
-		}
-	}
-
-	return true;
+    APlayerController* Controller = GetLocalPlayerController();
+    if (!Snapshot.bValid || !Controller || Snapshot.PlayerController != Controller || Snapshot.World != Controller->GetWorld()) return false;
+    UPdUIActionRouter* Router = GetLocalPlayer()->GetSubsystem<UPdUIActionRouter>();
+    if (!Router) return false;
+    const ECommonInputMode Mode = Snapshot.InputMode == EUiInputMode::UIOnly ? ECommonInputMode::Menu
+        : Snapshot.InputMode == EUiInputMode::GameOnly ? ECommonInputMode::Game : ECommonInputMode::All;
+    FUIInputConfig Config(Mode, Snapshot.MouseCaptureMode, Snapshot.MouseLockMode, Snapshot.bHideCursorDuringCapture);
+    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = Mode != ECommonInputMode::Game;
+    Router->SetFallbackInput(Config, Snapshot.FocusedSlateWidget.Pin(), Snapshot.bShowMouseCursor);
+    return true;
 }
 
-bool UUiSubsystem::ApplyModalInput(
-	APlayerController* PlayerController,
-	UWidget* FocusWidget,
-	const FUiModalInputConfig& InputConfig) const
+bool UUiSubsystem::ApplyModalInput(APlayerController* PlayerController, UWidget* FocusWidget, const FUiModalInputConfig& InputConfig) const
 {
-	if (!IsValid(PlayerController))
-	{
-		return false;
-	}
-
-	TSharedPtr<SWidget> SlateWidget;
-	if (IsValid(FocusWidget))
-	{
-		SlateWidget = FocusWidget->TakeWidget();
-	}
-	if (InputConfig.bApplyInputMode)
-	{
-		switch (InputConfig.InputMode)
-		{
-		case EUiInputMode::UIOnly:
-			{
-				FInputModeUIOnly InputMode;
-				InputMode.SetWidgetToFocus(SlateWidget);
-				InputMode.SetLockMouseToViewportBehavior(InputConfig.MouseLockMode);
-				PlayerController->SetInputMode(InputMode);
-				break;
-			}
-
-		case EUiInputMode::GameOnly:
-			{
-				FInputModeGameOnly InputMode;
-				PlayerController->SetInputMode(InputMode);
-				break;
-			}
-
-		case EUiInputMode::GameAndUI:
-		default:
-			{
-				FInputModeGameAndUI InputMode;
-				InputMode.SetWidgetToFocus(SlateWidget);
-				InputMode.SetLockMouseToViewportBehavior(InputConfig.MouseLockMode);
-				InputMode.SetHideCursorDuringCapture(InputConfig.bHideCursorDuringCapture);
-				PlayerController->SetInputMode(InputMode);
-				break;
-			}
-		}
-	}
-
-	PlayerController->bShowMouseCursor = InputConfig.bShowMouseCursor;
-	PlayerController->bEnableClickEvents = InputConfig.bEnableClickEvents;
-	PlayerController->bEnableMouseOverEvents = InputConfig.bEnableMouseOverEvents;
-
-	if (InputConfig.bApplyInputMode
-		&& IsValid(FocusWidget)
-		&& InputConfig.InputMode != EUiInputMode::GameOnly)
-	{
-		FocusWidget->SetUserFocus(PlayerController);
-	}
-
-	if (InputConfig.bFlushInput)
-	{
-		PlayerController->FlushPressedKeys();
-	}
-
-	return true;
+    if (!PlayerController) return false;
+    UPdUIActionRouter* Router = GetLocalPlayer()->GetSubsystem<UPdUIActionRouter>();
+    if (!Router) return false;
+    const ECommonInputMode Mode = InputConfig.InputMode == EUiInputMode::UIOnly ? ECommonInputMode::Menu
+        : InputConfig.InputMode == EUiInputMode::GameOnly && InputConfig.bApplyInputMode ? ECommonInputMode::Game : ECommonInputMode::All;
+    FUIInputConfig Config(Mode, InputConfig.bShowMouseCursor ? EMouseCaptureMode::NoCapture : EMouseCaptureMode::CapturePermanently,
+        InputConfig.MouseLockMode, !InputConfig.bShowMouseCursor);
+    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = Mode != ECommonInputMode::Game;
+    const TSharedPtr<SWidget> Focus = FocusWidget ? FocusWidget->TakeWidget() : TSharedPtr<SWidget>();
+    Router->SetFallbackInput(Config, Focus, InputConfig.bShowMouseCursor);
+    return true;
 }
 
 bool UUiSubsystem::ApplyGameplayInput(APlayerController* PlayerController) const
@@ -1248,7 +1096,61 @@ void UUiSubsystem::HandleConnectingPopupCanceled()
 			this,
 			&ThisClass::HandleConnectingPopupCanceled);
 	}
-	ReleaseModalInputInternal(nullptr, ConnectingPopupModalToken, false);
-	ConnectingPopupModalToken.Invalidate();
+    if (ConnectingScreen)
+    {
+        ConnectingScreen->DeactivateWidget();
+        ConnectingScreen->RemoveFromParent();
+        ConnectingScreen = nullptr;
+    }
 	ActiveConnectingPopupWidget = nullptr;
+}
+
+void UUiSubsystem::PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer Layer)
+{
+    APlayerController* Controller = GetLocalPlayerController();
+    if (!Controller || !Screen || bIsDeinitializing) return;
+    if (!ScreenRoot || ScreenRoot->GetWorld() != Controller->GetWorld())
+    {
+        if (ScreenRoot) ScreenRoot->RemoveFromParent();
+        ScreenRoot = CreateWidget<UUiLayerRoot>(Controller);
+        ScreenRoot->AddToPlayerScreen(1000);
+    }
+    UCommonActivatableWidgetStack* Stack = Layer == EUiScreenLayer::Menu ? ScreenRoot->MenuStack : ScreenRoot->ModalStack;
+    Stack->AddWidgetInstance(*Screen);
+}
+
+void UUiSubsystem::SetBaseInputMode(APlayerController* Controller, EUiInputMode Mode, UWidget* FocusWidget)
+{
+    if (!Controller || !Controller->IsLocalController() || !Controller->GetLocalPlayer()) return;
+    UUiSubsystem* Ui = Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>();
+    if (!Ui || Ui->bIsDeinitializing) return;
+    FInputStateSnapshot& State = Ui->BaseInputState;
+    State.PlayerController = Controller;
+    State.World = Controller->GetWorld();
+    State.InputMode = Mode;
+    State.bShowMouseCursor = Mode != EUiInputMode::GameOnly;
+    State.MouseCaptureMode = State.bShowMouseCursor ? EMouseCaptureMode::NoCapture : EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown;
+    State.MouseLockMode = State.bShowMouseCursor ? EMouseLockMode::DoNotLock : EMouseLockMode::LockOnCapture;
+    State.bHideCursorDuringCapture = !State.bShowMouseCursor;
+    State.FocusedSlateWidget = FocusWidget ? FocusWidget->TakeWidget() : TSharedPtr<SWidget>();
+    State.bValid = true;
+    Ui->PruneInvalidModalInputs();
+    if (Ui->ModalInputStack.IsEmpty()) Ui->ApplyInputState(State);
+}
+
+void UUiSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController)
+{
+    Super::PlayerControllerChanged(NewPlayerController);
+    HideConnectingPopup();
+    if (ScreenRoot) ScreenRoot->RemoveFromParent();
+    ScreenRoot = nullptr;
+    ModalInputStack.Reset();
+    InputStateBeforeModals.Reset();
+    BaseInputState.Reset();
+    RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
+    if (NewPlayerController)
+    {
+        SetBaseInputMode(NewPlayerController, EUiInputMode::GameOnly);
+        if (bTravelLoadingScreenActive) ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
+    }
 }

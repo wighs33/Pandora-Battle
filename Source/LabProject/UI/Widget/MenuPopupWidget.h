@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "CommonActivatableWidget.h"
 #include "MenuPopupWidget.generated.h"
 
 class UButton;
@@ -14,7 +14,7 @@ class USlider;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMenuPopupClosedSignature, UMenuPopupWidget*, MenuPopupWidget);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UMenuPopupWidget : public UUserWidget
+class LABPROJECT_API UMenuPopupWidget : public UCommonActivatableWidget
 {
 	GENERATED_BODY()
 
@@ -22,6 +22,9 @@ public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
+	virtual UWidget* NativeGetDesiredFocusTarget() const override;
+	virtual bool NativeOnHandleBackAction() override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	UMenuPopupWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
@@ -32,10 +35,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Menu")
 	virtual void ExitToTitleMap();
 
-	UFUNCTION(BlueprintCallable, Category = "!Menu|Input")
-	void SetRestoreGameInputOnClose(bool bInRestoreGameInputOnClose);
-
-	void SetInputModeManagedExternally(bool bManagedExternally);
 	bool CloseGuide();
 	UWidget* GetActiveGuideWidget() const;
 
@@ -58,9 +57,6 @@ protected:
 	void HandleDestroySessionForExit(bool bWasSuccessful);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void ApplyMenuInputMode();
-	void ReleaseMenuInputMode();
-	void RestoreGameInputMode() const;
 	void SetRequestedPause(bool bPaused);
 	FString GetResolvedTitleTravelMapName() const;
 	void TravelToTitleMap();
@@ -105,9 +101,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Menu|Pause", meta = (EditCondition = "bPauseGameWhenOpened"))
 	bool bAllowNetworkPause = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Menu|Input")
-	bool bRestoreGameInputOnClose = true;
-
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioVolumeControl> AudioVolumeControl;
@@ -122,7 +115,5 @@ private:
 	TObjectPtr<UAudioVolumeSlider> AudioMouseSlider;
 
 	FDelegateHandle DestroySessionCompleteHandle;
-	FGuid MenuModalInputToken;
 	bool bAppliedPause = false;
-	bool bInputModeManagedExternally = false;
 };

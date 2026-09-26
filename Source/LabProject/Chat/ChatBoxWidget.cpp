@@ -81,20 +81,7 @@ void UChatBoxWidget::FocusChat()
 	SetChatInputEnabled(true);
 	bChatFocused = true;
 
-	if (!ApplyRoutedChatInput(ChatInputText))
-	{
-		FInputModeGameAndUI InputMode;
-		InputMode.SetWidgetToFocus(ChatInputText->TakeWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		InputMode.SetHideCursorDuringCapture(true);
-		PlayerController->SetInputMode(InputMode);
-		PlayerController->bShowMouseCursor = false;
-		PlayerController->bEnableClickEvents = false;
-		PlayerController->bEnableMouseOverEvents = false;
-	}
-
-	ChatInputText->SetUserFocus(PlayerController);
-	ChatInputText->SetKeyboardFocus();
+	ApplyRoutedChatInput(ChatInputText);
 }
 
 void UChatBoxWidget::ExitChat()
@@ -239,17 +226,7 @@ bool UChatBoxWidget::ReleaseRoutedChatInput()
 
 void UChatBoxWidget::RestoreGameInputFallback() const
 {
-	APlayerController* PlayerController = GetOwningPlayer();
-	if (!PlayerController)
-	{
-		return;
-	}
-
-	FInputModeGameOnly InputMode;
-	PlayerController->SetInputMode(InputMode);
-	PlayerController->bShowMouseCursor = false;
-	PlayerController->bEnableClickEvents = false;
-	PlayerController->bEnableMouseOverEvents = false;
+    UUiSubsystem::SetBaseInputMode(GetOwningPlayer(), EUiInputMode::GameOnly);
 }
 
 void UChatBoxWidget::OnMenuLanguageChanged()

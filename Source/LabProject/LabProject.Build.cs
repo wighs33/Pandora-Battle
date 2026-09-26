@@ -19,6 +19,8 @@ public class LabProject : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
+			"CommonUI",
+			"CommonInput",
 			"IrisCore",
 			"ModularGameplay",
 			"GameFeatures",

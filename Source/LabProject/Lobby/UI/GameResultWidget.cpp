@@ -1,4 +1,8 @@
 #include "Lobby/UI/GameResultWidget.h"
+#include "UI/UiSubsystem.h"
+#include "UI/UiScreen.h"
+#include "Input/CommonUIActionRouterBase.h"
+#include "Engine/LocalPlayer.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Blueprint/WidgetTree.h"
@@ -201,19 +205,15 @@ void UGameResultWidget::RefreshUI()
 void UGameResultWidget::HandleExitClicked()
 {
 	APlayerController* PlayerController = GetOwningPlayer();
-	if (PlayerController)
-	{
-		PlayerController->bShowMouseCursor = false;
-	}
 
 	if (bCloseOnlyOnExit)
 	{
-		RemoveFromParent();
+        if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+            Screen->DeactivateWidget();
+        RemoveFromParent();
 		if (PlayerController)
 		{
-			UWidgetBlueprintLibrary::SetInputMode_GameOnly(PlayerController);
-			PlayerController->bEnableClickEvents = false;
-			PlayerController->bEnableMouseOverEvents = false;
+			UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::GameOnly, nullptr);
 		}
 		return;
 	}
@@ -249,19 +249,18 @@ void UGameResultWidget::HandleExitClicked()
 		return;
 	}
 
-	RemoveFromParent();
+    if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+        Screen->DeactivateWidget();
+    RemoveFromParent();
 	if (PlayerController)
 	{
 		if (bExitToLobbyEnabled)
 		{
-			UWidgetBlueprintLibrary::SetInputMode_GameOnly(PlayerController);
+			UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::GameOnly, nullptr);
 			return;
 		}
 
-		UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(PlayerController, nullptr, EMouseLockMode::DoNotLock, false);
-		PlayerController->bShowMouseCursor = true;
-		PlayerController->bEnableClickEvents = true;
-		PlayerController->bEnableMouseOverEvents = true;
+		UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::UIOnly, nullptr);
 	}
 }
 
@@ -323,14 +322,7 @@ void UGameResultWidget::HandleEndSessionForExit(const bool bWasSuccessful)
 		}
 		if (APlayerController* PlayerController = GetOwningPlayer())
 		{
-			UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(
-				PlayerController,
-				this,
-				EMouseLockMode::DoNotLock,
-				false);
-			PlayerController->bShowMouseCursor = true;
-			PlayerController->bEnableClickEvents = true;
-			PlayerController->bEnableMouseOverEvents = true;
+			UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::UIOnly, this);
 		}
 		return;
 	}
@@ -479,4 +471,16 @@ void UGameResultWidget::SetWidgetVisibleForDisplayMode(UWidget* Widget, const bo
 	}
 
 	Widget->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+}
+
+void UGameResultWidget::ShowResultScreen()
+{
+    APlayerController* Controller = GetOwningPlayer();
+    if (!Controller || !Controller->GetLocalPlayer()) return;
+    UUiScreen* Screen = CreateWidget<UUiScreen>(Controller);
+    FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+    // 퇴장과 서버 Travel은 기존 종료 버튼에서만 실행한다.
+    Screen->SetContent(this, Config, Btn_Exit, FSimpleDelegate::CreateLambda([]() {}));
+    Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
 }

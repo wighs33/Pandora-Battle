@@ -21,6 +21,7 @@ class UHudMenuLayer;
 class UHudScreenLayer;
 class UHudScoreboardLayer;
 class UHudUiRouter;
+class UUiScreen;
 class URespawnDelayWidget;
 class URightNotificationsWidget;
 class USelectPandoraWidget;
@@ -68,9 +69,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void TogglePandoraTreeUi();
-
-	UFUNCTION(BlueprintCallable, Category = "!UI")
-	void ToggleUiMode(bool bOn);
 
 	UFUNCTION()
 	virtual bool IsGameplayInputBlockedByUi() const;
@@ -120,7 +118,6 @@ public:
 private:
 	void RetryApplyStatusViewModelToPlayerHud();
 	void HandleSettingsMenuLayerClosed();
-	void RestoreInfoUiInputMode();
 
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -207,6 +204,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<USelectPandoraWidget> CachedSelectPandoraUI = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUiScreen> SelectPandoraScreen;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraTreeWidget> CachedPandoraTreeUI = nullptr;

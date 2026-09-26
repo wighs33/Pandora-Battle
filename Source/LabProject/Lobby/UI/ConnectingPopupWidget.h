@@ -25,11 +25,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|Connecting")
 	void SetCancelButtonEnabled(bool bEnabled);
 
-protected:
+public:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleCancelClicked();
 
+protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyCancelButtonState() const;
 	void PlayWaitAnimation();

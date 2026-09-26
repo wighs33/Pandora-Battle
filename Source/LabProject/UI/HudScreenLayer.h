@@ -9,6 +9,7 @@
 class APdHUD;
 class UPandoraTreeWidget;
 class UHudUiRouter;
+class UUiScreen;
 class UUserWidget;
 class FWidgetContentBundleLease;
 enum class EInfoUiSection : uint8;
@@ -45,7 +46,7 @@ public:
 	bool IsPandoraTreeOpen() const;
 	bool IsInfoClosing() const { return bInfoClosing; }
 	bool IsPandoraTreeClosing() const { return bPandoraTreeClosing; }
-	bool IsBlockingGameplayInput() const;
+	bool ShouldSuppressPlayerHud() const;
 
 	void RefreshTrainingRoomPause(const UUserWidget* IgnoredWidget = nullptr);
 	void ScheduleTrainingRoomPause(float DelaySeconds);
@@ -63,8 +64,6 @@ private:
 	void ClearTrainingRoomPauseTimer();
 	bool IsTrainingRoomPauseUiOpen(const UUserWidget* IgnoredWidget) const;
 	void SetTrainingRoomPaused(bool bPaused);
-	void ApplyInfoInputLock();
-	void RestoreInfoInputLock();
 	bool EnsureInfoContentReady(EPendingScreenRequest Request);
 	void ContinuePendingScreenOpen();
 	void ReleaseInfoContentIfUnused();
@@ -74,6 +73,9 @@ private:
 	TWeakObjectPtr<APdHUD> OwnerHud;
 	TWeakObjectPtr<UHudUiRouter> Router;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UUiScreen> InfoScreen;
+
 	FTimerHandle InfoCloseTimerHandle;
 	FTimerHandle TrainingRoomPauseTimerHandle;
 	TSharedPtr<FWidgetContentBundleLease> InfoContentBundleLease;
@@ -82,8 +84,5 @@ private:
 	bool bAppliedTrainingRoomPause = false;
 	bool bInfoClosing = false;
 	bool bPandoraTreeClosing = false;
-	bool bInfoInputLockApplied = false;
-	bool bPreviousLookInputIgnored = false;
-	bool bPreviousMoveInputIgnored = false;
 	bool bScreenHandoffInProgress = false;
 };

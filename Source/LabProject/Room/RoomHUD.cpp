@@ -1,4 +1,5 @@
 #include "Room/RoomHUD.h"
+#include "UI/UiSubsystem.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Room/RoomListWidget.h"
@@ -28,10 +29,7 @@ void ARoomHUD::BeginPlay()
 	}
 
 	RoomListWidget->AddToViewport();
-	UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(PlayerController, nullptr, EMouseLockMode::DoNotLock, false);
-	PlayerController->bShowMouseCursor = true;
-	PlayerController->bEnableClickEvents = true;
-	PlayerController->bEnableMouseOverEvents = true;
+	UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::UIOnly, nullptr);
 	UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, PlayerController);
 }
 

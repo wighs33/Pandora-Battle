@@ -49,17 +49,8 @@ bool UHudMenuLayer::Open()
 
 	if (IsOpen())
 	{
-		Hud->ToggleUiMode(true);
+		ActiveWidget->RequestRefreshFocus();
 		return true;
-	}
-
-	if (Hud->CachedInfoUI && Hud->CachedInfoUI->IsInViewport())
-	{
-		Hud->CloseInfoUiInternal(false, true);
-	}
-	if (Hud->CachedPandoraTreeUI && Hud->CachedPandoraTreeUI->IsInViewport())
-	{
-		Hud->ClosePandoraTreeUiInternal(false, true);
 	}
 
 	TSubclassOf<UMenuPopupWidget> MenuPopupClass;
@@ -89,11 +80,9 @@ bool UHudMenuLayer::Open()
 		return false;
 	}
 
-	ActiveWidget->SetInputModeManagedExternally(true);
-	ActiveWidget->SetRestoreGameInputOnClose(false);
 	ActiveWidget->OnMenuClosed.AddUniqueDynamic(this, &ThisClass::HandleMenuClosed);
-	ActiveWidget->AddToViewport(100);
-	Hud->ToggleUiMode(true);
+	Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(ActiveWidget);
+	Hud->RefreshPlayerHudVisibility();
 	Hud->RefreshTrainingRoomUiPause();
 	return true;
 }
@@ -111,7 +100,7 @@ bool UHudMenuLayer::Close()
 	}
 
 	UMenuPopupWidget* MenuWidget = ActiveWidget.Get();
-	if (!MenuWidget->IsInViewport())
+	if (!IsOpen())
 	{
 		ActiveWidget = nullptr;
 		if (APdHUD* Hud = OwnerHud.Get())
@@ -121,14 +110,13 @@ bool UHudMenuLayer::Close()
 		return false;
 	}
 
-	MenuWidget->SetRestoreGameInputOnClose(false);
 	MenuWidget->CloseMenu();
 	return true;
 }
 
 bool UHudMenuLayer::IsOpen() const
 {
-	return IsValid(ActiveWidget) && ActiveWidget->IsInViewport();
+	return IsValid(ActiveWidget) && (ActiveWidget->IsActivated() || ActiveWidget->GetActiveGuideWidget());
 }
 
 void UHudMenuLayer::Shutdown()
@@ -136,7 +124,7 @@ void UHudMenuLayer::Shutdown()
 	if (IsValid(ActiveWidget))
 	{
 		ActiveWidget->OnMenuClosed.RemoveDynamic(this, &ThisClass::HandleMenuClosed);
-		ActiveWidget->RemoveFromParent();
+		ActiveWidget->CloseMenu();
 	}
 	ActiveWidget = nullptr;
 }

@@ -535,7 +535,6 @@ void UInfoWidget::ShowInfoUi()
 
 	SetIsFocusable(true);
 	SetVisibility(ESlateVisibility::Visible);
-	SetFocus();
 	MapController->RefreshButtonEnabledState();
 	MapController->EnsureTotalMapWidget();
 	MapController->HideImmediately();

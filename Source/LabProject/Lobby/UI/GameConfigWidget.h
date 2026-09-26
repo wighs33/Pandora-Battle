@@ -37,8 +37,11 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "!Lobby|Config")
 	void BP_OnSelectedMapChanged(FName SelectedMapKey);
 
+public:
 	UFUNCTION()
 	void HandleBackClicked();
+
+protected:
 
 	UFUNCTION()
 	void HandleMapSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);

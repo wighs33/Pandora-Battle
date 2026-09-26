@@ -1,4 +1,5 @@
 #include "Mode/PdHUD.h"
+#include "UI/PdUIActionRouter.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
@@ -12,6 +13,7 @@
 #include "UI/Presenter/InfoUiPresenter.h"
 #include "UI/HudUiRouter.h"
 #include "UI/UiSubsystem.h"
+#include "UI/UiScreen.h"
 #include "UI/Widget/DamageScreenEffectWidget.h"
 #include "UI/Widget/GoldenKillAnnouncementWidget.h"
 #include "UI/Widget/HudTimerWidget.h"
@@ -160,7 +162,7 @@ void APdHUD::OpenInfoUiFocused(const EInfoUiSection Section)
 
 	const bool bWasInfoReadyForSectionChange =
 		CachedInfoUI
-		&& CachedInfoUI->IsInViewport()
+		&& (UiRouter && UiRouter->IsInfoOpen())
 		&& !Router->IsInfoClosing()
 		&& !Router->IsSettingsMenuOpen();
 	if (bWasInfoReadyForSectionChange
@@ -175,7 +177,7 @@ void APdHUD::OpenInfoUiFocused(const EInfoUiSection Section)
 		Router->OpenInfo(Section);
 	}
 
-	if (CachedInfoUI && CachedInfoUI->IsInViewport())
+	if (CachedInfoUI && (UiRouter && UiRouter->IsInfoOpen()))
 	{
 		CachedInfoUI->FocusSection(Section, bWasInfoReadyForSectionChange);
 	}
@@ -237,77 +239,25 @@ void APdHUD::TogglePandoraTreeUi()
 	}
 }
 
-void APdHUD::ToggleUiMode(bool bOn)
-{
-	UHudUiRouter* Router = EnsureUiRouter();
-	if (!Router)
-	{
-		return;
-	}
-
-	RefreshPlayerHudVisibility();
-
-	if (bOn)
-	{
-		UWidget* WidgetToFocus = nullptr;
-		bool bPreserveGameplayInputMode = false;
-		if (UMenuPopupWidget* SettingsMenuWidget = GetActiveSettingsMenuWidget())
-		{
-			if (UWidget* GuideWidget = SettingsMenuWidget->GetActiveGuideWidget())
-			{
-				WidgetToFocus = GuideWidget;
-			}
-			else if (SettingsMenuWidget->IsInViewport())
-			{
-				WidgetToFocus = SettingsMenuWidget;
-			}
-		}
-		else if (CachedSelectPandoraUI && CachedSelectPandoraUI->IsInViewport())
-		{
-			WidgetToFocus = CachedSelectPandoraUI;
-			bPreserveGameplayInputMode = true;
-		}
-		else if (CachedInfoUI && !Router->IsInfoClosing() && CachedInfoUI->IsInViewport())
-		{
-			WidgetToFocus = CachedInfoUI;
-		}
-		else if (CachedPandoraTreeUI && !Router->IsPandoraTreeClosing() && CachedPandoraTreeUI->IsPandoraTreeShown())
-		{
-			WidgetToFocus = CachedPandoraTreeUI;
-		}
-
-		Router->RouteInput(
-			WidgetToFocus,
-			bPreserveGameplayInputMode,
-			WidgetToFocus != CachedInfoUI.Get());
-		return;
-	}
-
-	if (IsGameplayInputBlockedByUi())
-	{
-		ToggleUiMode(true);
-		return;
-	}
-
-	Router->ReleaseInput();
-}
-
 bool APdHUD::IsGameplayInputBlockedByUi() const
 {
-	return IsPlayerHudSuppressedByUi();
+    const APlayerController* Controller = GetOwningPlayerController();
+    const ULocalPlayer* Player = Controller ? Controller->GetLocalPlayer() : nullptr;
+    const UPdUIActionRouter* Router = Player ? Player->GetSubsystem<UPdUIActionRouter>() : nullptr;
+    return Router && Router->IsGameplayInputBlocked();
 }
 
 bool APdHUD::IsPlayerHudSuppressedByUi() const
 {
-	return (UiRouter && UiRouter->IsScreenLayerBlockingGameplayInput())
-		|| (CachedSelectPandoraUI && CachedSelectPandoraUI->IsInViewport())
+	return (UiRouter && UiRouter->ShouldScreenLayerSuppressPlayerHud())
+		|| (SelectPandoraScreen && SelectPandoraScreen->IsActivated())
 		|| (UiRouter && UiRouter->IsSettingsMenuOpen())
 		|| (UiRouter && UiRouter->IsScoreboardOpen());
 }
 
 bool APdHUD::IsSelectPandoraUiOpen() const
 {
-	return CachedSelectPandoraUI && CachedSelectPandoraUI->IsInViewport();
+	return SelectPandoraScreen && SelectPandoraScreen->IsActivated();
 }
 
 void APdHUD::OpenSelectPandoraUi()
@@ -322,11 +272,19 @@ void APdHUD::OpenSelectPandoraUi()
 		return;
 	}
 
-	CachedSelectPandoraUI->AddToViewport();
-	SetActorTickEnabled(true);
-	// The router changes cursor state without changing Enhanced Input mode, so
-	// the held selection action does not complete on the following frame.
-	ToggleUiMode(true);
+    if (IsSelectPandoraUiOpen()) return;
+    SelectPandoraScreen = CreateWidget<UUiScreen>(GetOwningPlayerController());
+    FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
+    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+    SelectPandoraScreen->SetContent(CachedSelectPandoraUI, Config, CachedSelectPandoraUI,
+        FSimpleDelegate::CreateWeakLambda(this, [this]() { CloseSelectPandoraUiInternal(false); }));
+    SelectPandoraScreen->AddToPlayerScreen();
+    SelectPandoraScreen->ActivateWidget();
+    int32 Width = 0, Height = 0;
+    GetOwningPlayerController()->GetViewportSize(Width, Height);
+    GetOwningPlayerController()->SetMouseLocation(Width / 2, Height / 2);
+    SetActorTickEnabled(true);
+    RefreshPlayerHudVisibility();
 }
 
 bool APdHUD::CloseSelectPandoraUi()
@@ -336,6 +294,7 @@ bool APdHUD::CloseSelectPandoraUi()
 
 bool APdHUD::CloseSelectPandoraUiInternal(const bool bCommitSelection)
 {
+	if (!IsSelectPandoraUiOpen()) return false;
 	bool bSelectionWouldChangeLoadout = false;
 	if (CachedSelectPandoraUI)
 	{
@@ -352,15 +311,21 @@ bool APdHUD::CloseSelectPandoraUiInternal(const bool bCommitSelection)
 		CachedSelectPandoraUI->RemoveFromParent();
 	}
 
-	SetActorTickEnabled(false);
-	ToggleUiMode(false);
+    if (SelectPandoraScreen)
+    {
+        SelectPandoraScreen->DeactivateWidget();
+        SelectPandoraScreen->RemoveFromParent();
+        SelectPandoraScreen = nullptr;
+    }
+    SetActorTickEnabled(false);
+    RefreshPlayerHudVisibility();
 	return bSelectionWouldChangeLoadout;
 }
 
 void APdHUD::UpdateSelectPandoraDirectionFromMouse()
 {
 	APdPlayerController* Controller = GetPdController();
-	if (!Controller || !CachedSelectPandoraUI || !CachedSelectPandoraUI->IsInViewport() || !WidgetClassDefinition)
+	if (!Controller || !CachedSelectPandoraUI || !IsSelectPandoraUiOpen() || !WidgetClassDefinition)
 	{
 		return;
 	}
@@ -585,7 +550,7 @@ bool APdHUD::HandleEscapeInput()
 		return true;
 	}
 
-	if (CachedSelectPandoraUI && CachedSelectPandoraUI->IsInViewport())
+	if (SelectPandoraScreen && SelectPandoraScreen->IsActivated())
 	{
 		CloseSelectPandoraUiInternal(false);
 		return true;
@@ -600,7 +565,7 @@ bool APdHUD::HandleEscapeInput()
 		return true;
 	}
 
-	if (CachedInfoUI && CachedInfoUI->IsInViewport())
+	if (CachedInfoUI && (UiRouter && UiRouter->IsInfoOpen()))
 	{
 		if (!UiRouter || !UiRouter->IsInfoClosing())
 		{
@@ -1048,14 +1013,6 @@ void APdHUD::HandleSettingsMenuLayerClosed()
 	RefreshTrainingRoomUiPause();
 	RefreshPlayerHudVisibility();
 
-	if (CachedInfoUI && (!UiRouter || !UiRouter->IsInfoClosing()) && CachedInfoUI->IsInViewport())
-	{
-		RestoreInfoUiInputMode();
-		GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::RestoreInfoUiInputMode);
-		return;
-	}
-
-	ToggleUiMode(false);
 }
 
 void APdHUD::CloseActiveSettingsMenuPopup()
@@ -1069,16 +1026,6 @@ void APdHUD::CloseActiveSettingsMenuPopup()
 UMenuPopupWidget* APdHUD::GetActiveSettingsMenuWidget() const
 {
 	return UiRouter ? UiRouter->GetSettingsMenuWidget() : nullptr;
-}
-
-void APdHUD::RestoreInfoUiInputMode()
-{
-	if (!CachedInfoUI || (UiRouter && UiRouter->IsInfoClosing()) || !CachedInfoUI->IsInViewport())
-	{
-		return;
-	}
-
-	ToggleUiMode(true);
 }
 
 void APdHUD::ApplyInventoryWidgetSettings()

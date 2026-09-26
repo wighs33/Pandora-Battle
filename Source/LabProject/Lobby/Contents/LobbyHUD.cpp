@@ -1,4 +1,6 @@
 #include "Lobby/Contents/LobbyHUD.h"
+#include "UI/UiSubsystem.h"
+#include "UI/UiScreen.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Lobby/UI/LobbyWidget.h"
@@ -38,18 +40,24 @@ void ALobbyHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		LobbyWidget = nullptr;
 	}
 
-	Super::EndPlay(EndPlayReason);
+    if (LobbyScreen)
+    {
+        LobbyScreen->DeactivateWidget();
+        LobbyScreen->RemoveFromParent();
+        LobbyScreen = nullptr;
+    }
+    Super::EndPlay(EndPlayReason);
 }
 
 bool ALobbyHUD::IsPlayerHudSuppressedByUi() const
 {
 	return Super::IsPlayerHudSuppressedByUi()
-		|| (LobbyWidget && LobbyWidget->IsInViewport());
+		|| (LobbyScreen && LobbyScreen->IsActivated());
 }
 
 bool ALobbyHUD::HandleEscapeInput()
 {
-	if (LobbyWidget && LobbyWidget->IsInViewport())
+	if (LobbyScreen && LobbyScreen->IsActivated())
 	{
 		if (LobbyWidget->CloseTopmostUiForEscape())
 		{
@@ -89,10 +97,16 @@ ULobbyWidget* ALobbyHUD::CreateLobbyUI()
 		return nullptr;
 	}
 
-	if (!LobbyWidget->IsInViewport())
-	{
-		LobbyWidget->AddToViewport();
-	}
+    if (!LobbyScreen)
+    {
+        LobbyScreen = CreateWidget<UUiScreen>(PlayerController);
+        FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+        Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+        LobbyScreen->SetContent(LobbyWidget, Config, LobbyWidget,
+            FSimpleDelegate::CreateWeakLambda(this, [this]() { HandleEscapeInput(); }));
+        LobbyScreen->AddToPlayerScreen();
+        LobbyScreen->ActivateWidget();
+    }
 
 	LobbyWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	LobbyWidget->SetIsEnabled(true);
@@ -131,48 +145,20 @@ void ALobbyHUD::RefreshLobbyUI()
 
 void ALobbyHUD::NotifyLobbyWidgetOpened()
 {
-	RefreshPlayerHudVisibility();
-	ApplyLobbyWidgetInputMode();
+    RefreshPlayerHudVisibility();
+    if (LobbyScreen) LobbyScreen->RequestRefreshFocus();
 }
 
 void ALobbyHUD::NotifyLobbyWidgetClosed()
 {
-	RefreshPlayerHudVisibility();
-	RestoreGameInputModeIfPossible();
-}
-
-void ALobbyHUD::ApplyLobbyWidgetInputMode()
-{
-	APlayerController* PlayerController = GetOwningPlayerController();
-	if (!PlayerController || !PlayerController->IsLocalController())
-	{
-		return;
-	}
-
-	UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(PlayerController, LobbyWidget, EMouseLockMode::DoNotLock, false);
-	PlayerController->bShowMouseCursor = true;
-	PlayerController->bEnableClickEvents = true;
-	PlayerController->bEnableMouseOverEvents = true;
-	if (LobbyWidget)
-	{
-		LobbyWidget->SetIsFocusable(true);
-		LobbyWidget->SetUserFocus(PlayerController);
-		LobbyWidget->SetFocus();
-	}
-}
-
-void ALobbyHUD::RestoreGameInputModeIfPossible()
-{
-	APlayerController* PlayerController = GetOwningPlayerController();
-	if (!PlayerController || !PlayerController->IsLocalController() || Super::IsGameplayInputBlockedByUi())
-	{
-		return;
-	}
-
-	UWidgetBlueprintLibrary::SetInputMode_GameOnly(PlayerController, false);
-	PlayerController->bShowMouseCursor = false;
-	PlayerController->bEnableClickEvents = false;
-	PlayerController->bEnableMouseOverEvents = false;
+    if (LobbyScreen)
+    {
+        LobbyScreen->DeactivateWidget();
+        LobbyScreen->RemoveFromParent();
+        LobbyScreen = nullptr;
+    }
+    UUiSubsystem::SetBaseInputMode(GetOwningPlayerController(), EUiInputMode::GameOnly);
+    RefreshPlayerHudVisibility();
 }
 
 // HUD와 GameState가 어느 순서로 생성되든 현재 로비를 구독하고 최초 상태를 표시한다.

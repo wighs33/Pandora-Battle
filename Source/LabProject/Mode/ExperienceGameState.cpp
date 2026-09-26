@@ -1,4 +1,5 @@
 #include "Mode/ExperienceGameState.h"
+#include "UI/UiSubsystem.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Component/Experience/ExperienceManagerComponent.h"
@@ -157,12 +158,7 @@ void AExperienceGameState::Multicast_ShowGameResult_Implementation(
 
 	GameResultWidget->SetInfo(WinnerTitle, WinnerTeamColorIndex, MaxKillerName, MaxKillCount, PlayerStats);
 	GameResultWidget->SetCloseOnlyOnExit(true);
-	GameResultWidget->AddToViewport(100);
-
-UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(LocalPlayerController, GameResultWidget, EMouseLockMode::DoNotLock, false, false);
-	LocalPlayerController->bShowMouseCursor = true;
-	LocalPlayerController->bEnableClickEvents = true;
-	LocalPlayerController->bEnableMouseOverEvents = true;
+	GameResultWidget->ShowResultScreen();
 }
 
 void AExperienceGameState::SaveLocalMatchRecord(

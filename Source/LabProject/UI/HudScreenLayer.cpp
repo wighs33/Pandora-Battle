@@ -1,4 +1,5 @@
 #include "UI/HudScreenLayer.h"
+#include "UI/UiScreen.h"
 #include "UI/HudUiRouter.h"
 
 #include "Blueprint/UserWidget.h"
@@ -47,7 +48,6 @@ void UHudScreenLayer::Shutdown()
 	ClearInfoCloseTimer();
 	ClearTrainingRoomPauseTimer();
 	SetTrainingRoomPaused(false);
-	RestoreInfoInputLock();
 	PendingScreenRequest = EPendingScreenRequest::None;
 	bScreenHandoffInProgress = false;
 
@@ -60,6 +60,12 @@ void UHudScreenLayer::Shutdown()
 
 	bInfoClosing = false;
 	bPandoraTreeClosing = false;
+	if (InfoScreen)
+	{
+		InfoScreen->DeactivateWidget();
+		InfoScreen->RemoveFromParent();
+		InfoScreen = nullptr;
+	}
 	ReleaseInfoContent();
 }
 
@@ -123,13 +129,21 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 	Hud->ApplyStatusViewModelToWidgetTree(Hud->CachedInfoUI);
 	Hud->ApplyInventoryWidgetSettings();
 
-	if (!Hud->CachedInfoUI->IsInViewport())
+	if (!InfoScreen)
 	{
-		Hud->CachedInfoUI->AddToViewport();
+		InfoScreen = CreateWidget<UUiScreen>(Controller);
+		FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
+		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+		InfoScreen->SetContent(Hud->CachedInfoUI, Config, Hud->CachedInfoUI,
+			FSimpleDelegate::CreateWeakLambda(this, [this]()
+			{
+				if (IsPandoraTreeOpen()) ClosePandoraTree();
+				else if (!bInfoClosing) CloseInfo();
+			}));
 	}
-
-	Hud->ToggleUiMode(true);
-	ApplyInfoInputLock();
+	if (!InfoScreen->IsInViewport()) InfoScreen->AddToPlayerScreen();
+	InfoScreen->ActivateWidget();
+	Hud->RefreshPlayerHudVisibility();
 	Hud->CachedInfoUI->ShowInfoUi();
 	ScheduleTrainingRoomPause(InfoUiTrainingRoomPauseDelaySeconds);
 
@@ -169,8 +183,6 @@ void UHudScreenLayer::CloseInfo(
 	{
 		Hud->RefreshPlayerHudVisibility();
 		RefreshTrainingRoomPause();
-		RestoreInfoInputLock();
-		Hud->ToggleUiMode(false);
 		ReleaseInfoContentIfUnused();
 		return;
 	}
@@ -251,7 +263,7 @@ void UHudScreenLayer::OpenPandoraTree()
 	}
 	TGuardValue<bool> ScreenHandoffGuard(bScreenHandoffInProgress, true);
 	if (!IsInfoOpen() || bInfoClosing) OpenInfo(EInfoUiSection::Pandora);
-	if (!Hud->CachedInfoUI || !Hud->CachedInfoUI->IsInViewport()) return;
+	if (!Hud->CachedInfoUI || !IsInfoOpen()) return;
 	if (Hud->CachedInfoUI->GetFocusedSection() != EInfoUiSection::Pandora)
 		Hud->CachedInfoUI->FocusSection(EInfoUiSection::Pandora, false);
 	if (IsPandoraTreeOpen() && !bPandoraTreeClosing) return;
@@ -262,7 +274,7 @@ void UHudScreenLayer::OpenPandoraTree()
 	Hud->CachedPandoraTreeUI->OnPandoraTreeClosed.AddUniqueDynamic(this, &ThisClass::HandlePandoraTreeClosed);
 	if (!Hud->CachedInfoUI->AttachPandoraTree(Hud->CachedPandoraTreeUI)) return;
 	Hud->CachedPandoraTreeUI->ShowPandoraTree();
-	Hud->ToggleUiMode(true);
+	Hud->RefreshPlayerHudVisibility();
 	ScheduleTrainingRoomPause(InfoUiTrainingRoomPauseDelaySeconds);
 }
 
@@ -315,8 +327,7 @@ void UHudScreenLayer::TogglePandoraTree()
 
 bool UHudScreenLayer::IsInfoOpen() const
 {
-	const APdHUD* Hud = OwnerHud.Get();
-	return Hud && Hud->CachedInfoUI && Hud->CachedInfoUI->IsInViewport();
+	return InfoScreen && InfoScreen->IsActivated();
 }
 
 bool UHudScreenLayer::IsPandoraTreeOpen() const
@@ -325,7 +336,7 @@ bool UHudScreenLayer::IsPandoraTreeOpen() const
 	return Hud && Hud->CachedPandoraTreeUI && Hud->CachedPandoraTreeUI->IsPandoraTreeShown();
 }
 
-bool UHudScreenLayer::IsBlockingGameplayInput() const
+bool UHudScreenLayer::ShouldSuppressPlayerHud() const
 {
 	return (!bInfoClosing && IsInfoOpen())
 		|| (!bPandoraTreeClosing && IsPandoraTreeOpen());
@@ -376,7 +387,7 @@ void UHudScreenLayer::HandlePandoraTreeClosed(UPandoraTreeWidget* ClosedWidget)
 	if (Hud->CachedInfoUI) Hud->CachedInfoUI->OnPandoraDrawerClosed();
 	RefreshTrainingRoomPause();
 	Hud->RefreshPlayerHudVisibility();
-	Hud->ToggleUiMode(false);
+	Hud->RefreshPlayerHudVisibility();
 	ReleaseInfoContentIfUnused();
 }
 
@@ -394,12 +405,17 @@ void UHudScreenLayer::FinishCloseInfo()
 		Hud->CachedInfoUI->RemoveFromParent();
 		Hud->CachedInfoUI->SetReturnCameraOnHide(true);
 	}
+	if (InfoScreen)
+	{
+		InfoScreen->DeactivateWidget();
+		InfoScreen->RemoveFromParent();
+		InfoScreen = nullptr;
+	}
 	bInfoClosing = false;
 
 	Hud->RefreshPlayerHudVisibility();
 	RefreshTrainingRoomPause();
-	RestoreInfoInputLock();
-	Hud->ToggleUiMode(false);
+	Hud->RefreshPlayerHudVisibility();
 	ReleaseInfoContentIfUnused();
 }
 
@@ -542,8 +558,8 @@ bool UHudScreenLayer::IsTrainingRoomPauseUiOpen(const UUserWidget* IgnoredWidget
 			&& Widget->GetVisibility() != ESlateVisibility::Hidden;
 	};
 
-	return (!bInfoClosing && IsPauseWidgetOpen(Hud->CachedInfoUI))
-		|| IsPauseWidgetOpen(UiRouter ? UiRouter->GetSettingsMenuWidget() : nullptr)
+	return (!bInfoClosing && Hud->CachedInfoUI != IgnoredWidget && IsInfoOpen())
+		|| (UiRouter && UiRouter->IsSettingsMenuOpen())
 		|| (!bPandoraTreeClosing && IsPauseWidgetOpen(Hud->CachedPandoraTreeUI));
 }
 
@@ -576,36 +592,4 @@ void UHudScreenLayer::SetTrainingRoomPaused(const bool bPaused)
 		UGameplayStatics::SetGamePaused(Hud, false);
 		bAppliedTrainingRoomPause = false;
 	}
-}
-
-void UHudScreenLayer::ApplyInfoInputLock()
-{
-	APdHUD* Hud = OwnerHud.Get();
-	APdPlayerController* Controller = Hud ? Hud->GetPdController() : nullptr;
-	if (!Controller || bInfoInputLockApplied)
-	{
-		return;
-	}
-
-	bPreviousLookInputIgnored = Controller->IsLookInputIgnored();
-	bPreviousMoveInputIgnored = Controller->IsMoveInputIgnored();
-	bInfoInputLockApplied = true;
-	Controller->SetIgnoreLookInput(true);
-	Controller->SetIgnoreMoveInput(true);
-}
-
-void UHudScreenLayer::RestoreInfoInputLock()
-{
-	APdHUD* Hud = OwnerHud.Get();
-	APdPlayerController* Controller = Hud ? Hud->GetPdController() : nullptr;
-	if (!Controller || !bInfoInputLockApplied)
-	{
-		return;
-	}
-
-	Controller->SetIgnoreLookInput(bPreviousLookInputIgnored);
-	Controller->SetIgnoreMoveInput(bPreviousMoveInputIgnored);
-	bInfoInputLockApplied = false;
-	bPreviousLookInputIgnored = false;
-	bPreviousMoveInputIgnored = false;
 }

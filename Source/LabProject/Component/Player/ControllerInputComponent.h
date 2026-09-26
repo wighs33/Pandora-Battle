@@ -32,6 +32,8 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UControllerInputComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	void ReleaseGameplayInput();
+	void ReleaseHeldUiInput();
 	void RefreshInputDefinition();
 	void SetInputDefinition(const TSoftObjectPtr<UControllerInputDefinition>& NewInputDefinition);
 	const TSoftObjectPtr<UControllerInputDefinition>& GetInputDefinition() const { return ActiveInputDefinition; }

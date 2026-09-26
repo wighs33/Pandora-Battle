@@ -1,4 +1,6 @@
 #include "UI/Widget/GameSettingsWidget.h"
+#include "Input/CommonUIActionRouterBase.h"
+#include "CommonActivatableWidget.h"
 #include "Settings/MenuLocalizationSubsystem.h"
 #include "Settings/AudioSettingsSubsystem.h"
 #include "UI/UiSubsystem.h"
@@ -30,13 +32,7 @@ void UGameSettingsWidget::NativeConstruct()
 		RefreshVolume(Audio->GetMasterVolumePercent());
 	}
 	OnMenuLanguageChanged();
-	if (ULocalPlayer* Player = GetOwningLocalPlayer())
-	{
-		FUiModalInputConfig Config;
-		Config.InputMode = EUiInputMode::UIOnly;
-		ModalInputToken = Player->GetSubsystem<UUiSubsystem>()->AcquireModalInput(this, CB_SettingsLanguage, Config);
-	}
-	CB_SettingsLanguage->SetFocus();
+
 }
 
 void UGameSettingsWidget::NativeDestruct()
@@ -50,8 +46,6 @@ void UGameSettingsWidget::NativeDestruct()
 		Audio->OnMasterVolumeChanged.Remove(VolumeChangedHandle);
 		Audio->SaveMasterVolumeSettings();
 	}
-	if (ULocalPlayer* Player = GetOwningLocalPlayer())
-		Player->GetSubsystem<UUiSubsystem>()->ReleaseModalInput(this, ModalInputToken);
 	Super::NativeDestruct();
 }
 
@@ -109,10 +103,9 @@ void UGameSettingsWidget::RefreshVolume(int32 Percent)
 	Txt_VolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), Percent)));
 }
 
-void UGameSettingsWidget::CloseSettings() { RemoveFromParent(); }
-
-FReply UGameSettingsWidget::NativeOnKeyDown(const FGeometry& Geometry, const FKeyEvent& Event)
+void UGameSettingsWidget::CloseSettings()
 {
-	if (Event.GetKey() == EKeys::Escape) { CloseSettings(); return FReply::Handled(); }
-	return Super::NativeOnKeyDown(Geometry, Event);
+    if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+        Screen->DeactivateWidget();
+    RemoveFromParent();
 }

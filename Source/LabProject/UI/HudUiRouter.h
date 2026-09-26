@@ -20,8 +20,7 @@ enum class EInfoUiSection : uint8;
  * Per-HUD UI composition router.
  *
  * GameFeature definitions enter through one request stack, core widget layers
- * are created here, and one modal token is used to route HUD input through the
- * LocalPlayer UI subsystem.
+ * are created here. Input and focus belong to the active CommonUI screen.
  */
 UCLASS()
 class LABPROJECT_API UHudUiRouter : public UObject
@@ -41,9 +40,6 @@ public:
 	void EnsureInfoLayers();
 	void ReleaseInfoLayers();
 	void ResetLayers();
-
-	void RouteInput(UWidget* FocusWidget, bool bPreserveGameplayInputMode, bool bCenterCursor);
-	void ReleaseInput();
 
 	bool OpenSettingsMenu();
 	bool ToggleSettingsMenu();
@@ -66,9 +62,10 @@ public:
 	void OpenPandoraTree();
 	void ClosePandoraTree(bool bSuppressCameraReturn = false, bool bImmediate = false);
 	void TogglePandoraTree();
+	bool IsInfoOpen() const;
 	bool IsInfoClosing() const;
 	bool IsPandoraTreeClosing() const;
-	bool IsScreenLayerBlockingGameplayInput() const;
+	bool ShouldScreenLayerSuppressPlayerHud() const;
 	void RefreshTrainingRoomPause(const UUserWidget* IgnoredWidget = nullptr);
 	void ScheduleTrainingRoomPause(float DelaySeconds);
 
@@ -98,7 +95,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UHudScoreboardLayer> ScoreboardLayer;
 
-	FGuid ModalInputToken;
 	bool bEnsuringCoreLayers = false;
 	bool bEnsuringInfoLayers = false;
 };

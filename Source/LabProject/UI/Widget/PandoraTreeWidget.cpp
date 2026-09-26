@@ -270,24 +270,7 @@ void UPandoraTreeWidget::ShowPandoraTree()
 		return;
 	}
 
-	if (ApplyRoutedPandoraInput())
-	{
-		return;
-	}
-
-	if (APlayerController* PlayerController = GetOwningPlayer())
-	{
-		FInputModeGameAndUI InputMode;
-		InputMode.SetWidgetToFocus(TakeWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		InputMode.SetHideCursorDuringCapture(false);
-		PlayerController->SetInputMode(InputMode);
-		PlayerController->bShowMouseCursor = true;
-		PlayerController->bEnableClickEvents = true;
-		PlayerController->bEnableMouseOverEvents = true;
-		SetUserFocus(PlayerController);
-		SetFocus();
-	}
+	ApplyRoutedPandoraInput();
 }
 
 void UPandoraTreeWidget::SetInputModeManagedExternally(const bool bManagedExternally)
@@ -364,11 +347,7 @@ void UPandoraTreeWidget::PrepareToHidePandoraTree()
 			&& GetOwningPlayer())
 		{
 			APlayerController* PlayerController = GetOwningPlayer();
-			FInputModeGameOnly InputMode;
-			PlayerController->SetInputMode(InputMode);
-			PlayerController->bShowMouseCursor = false;
-			PlayerController->bEnableClickEvents = false;
-			PlayerController->bEnableMouseOverEvents = false;
+			UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::GameOnly);
 		}
 	}
 }

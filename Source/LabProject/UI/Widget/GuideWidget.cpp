@@ -1,4 +1,6 @@
 #include "UI/Widget/GuideWidget.h"
+#include "Input/CommonUIActionRouterBase.h"
+#include "CommonActivatableWidget.h"
 
 #include "Components/Border.h"
 #include "Components/Button.h"
@@ -70,7 +72,6 @@ void UGuideWidget::NativeConstruct()
 		Btn_Close->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCloseClicked);
 	}
 
-
 	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
 		BgmSubsystem->PlayBgmForContext(EBgmContext::Guide);
@@ -89,7 +90,6 @@ void UGuideWidget::NativeDestruct()
 	{
 		Btn_Close->OnClicked.RemoveDynamic(this, &ThisClass::HandleCloseClicked);
 	}
-
 
 	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
@@ -141,7 +141,6 @@ void UGuideWidget::BeginPageImagePreload(const int32 PreloadGeneration)
 		RefreshGuide();
 		return;
 	}
-
 
 	TArray<FSoftObjectPath> ImagePaths;
 	for (const FGuidePageEntry& Page : LoadedGuideData->Pages)
@@ -227,6 +226,8 @@ void UGuideWidget::CloseGuide()
 	}
 
 	bIsClosing = true;
+	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+		Screen->DeactivateWidget();
 	RemoveFromParent();
 	OnGuideClosed.Broadcast(this);
 }
@@ -240,6 +241,8 @@ void UGuideWidget::SetOpenedFromGameplayMenu(const bool bInOpenedFromGameplayMen
 
 FReply UGuideWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
+	if (UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
 		if (APlayerController* PlayerController = GetOwningPlayer())
@@ -302,7 +305,6 @@ void UGuideWidget::ResolveWidgets()
 	{
 		Btn_Close = Cast<UButton>(GetWidgetFromName(TEXT("Btn_Close")));
 	}
-
 
 	if (!Img_BackgroundPattern)
 	{

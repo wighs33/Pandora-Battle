@@ -1,4 +1,5 @@
 #include "Lobby/Contents/TitleHUD.h"
+#include "UI/UiSubsystem.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Lobby/UI/GameResultWidget.h"
@@ -32,10 +33,7 @@ void ATitleHUD::BeginPlay()
 	}
 
 	TitleWidget->AddToViewport();
-	UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(PlayerController, nullptr, EMouseLockMode::DoNotLock, false);
-	PlayerController->bShowMouseCursor = true;
-	PlayerController->bEnableClickEvents = true;
-	PlayerController->bEnableMouseOverEvents = true;
+	UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::UIOnly, nullptr);
 	UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, PlayerController);
 
 	ShowPendingGameResult();
@@ -100,10 +98,5 @@ void ATitleHUD::ShowPendingGameResult()
 		GameResultData.PlayerStats);
 	GameResultWidget->SetExitToLobbyEnabled(GameResultData.bAllowLobbyTravelOnExit);
 	GameResultWidget->SetShowRewards(GameResultData.bShowRewards);
-	GameResultWidget->AddToViewport(100);
-
-	UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(PlayerController, GameResultWidget, EMouseLockMode::DoNotLock, false);
-	PlayerController->bShowMouseCursor = true;
-	PlayerController->bEnableClickEvents = true;
-	PlayerController->bEnableMouseOverEvents = true;
+	GameResultWidget->ShowResultScreen();
 }

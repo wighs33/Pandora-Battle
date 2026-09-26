@@ -15,6 +15,7 @@
 #include "Online/OnlineSessionsSubsystem.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "UI/UiSubsystem.h"
+#include "UI/UiScreen.h"
 #include "UI/Widget/AudioVolumeControl.h"
 #include "UI/Widget/GuideWidget.h"
 
@@ -24,6 +25,8 @@ UMenuPopupWidget::UMenuPopupWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	SetIsFocusable(true);
+	bIsBackHandler = true;
+	bAutoRestoreFocus = true;
 }
 
 void UMenuPopupWidget::NativeConstruct()
@@ -63,11 +66,6 @@ void UMenuPopupWidget::NativeConstruct()
 
 	InitializeMouseSensitivitySlider();
 
-	if (!bInputModeManagedExternally)
-	{
-		ApplyMenuInputMode();
-	}
-
 	if (bPauseGameWhenOpened)
 	{
 		SetRequestedPause(true);
@@ -106,54 +104,20 @@ void UMenuPopupWidget::NativeDestruct()
 		SetRequestedPause(false);
 	}
 
-	ReleaseMenuInputMode();
 	Super::NativeDestruct();
 }
 
 void UMenuPopupWidget::CloseMenu()
 {
-	if (bAppliedPause)
-	{
-		SetRequestedPause(false);
-	}
-
-	const bool bWasUsingModalInputRouter = MenuModalInputToken.IsValid();
-	RemoveFromParent();
-	ReleaseMenuInputMode();
-	OnMenuClosed.Broadcast(this);
-
-	if (!bInputModeManagedExternally && !bWasUsingModalInputRouter && bRestoreGameInputOnClose)
-	{
-		RestoreGameInputMode();
-	}
-}
-
-void UMenuPopupWidget::SetRestoreGameInputOnClose(const bool bInRestoreGameInputOnClose)
-{
-	bRestoreGameInputOnClose = bInRestoreGameInputOnClose;
-}
-
-void UMenuPopupWidget::SetInputModeManagedExternally(const bool bManagedExternally)
-{
-	if (bInputModeManagedExternally == bManagedExternally)
-	{
-		return;
-	}
-
-	bInputModeManagedExternally = bManagedExternally;
-	if (bInputModeManagedExternally)
-	{
-		ReleaseMenuInputMode();
-	}
-	else if (IsInViewport())
-	{
-		ApplyMenuInputMode();
-	}
+    CloseGuide();
+    if (bAppliedPause) SetRequestedPause(false);
+    DeactivateWidget();
+    OnMenuClosed.Broadcast(this);
 }
 
 bool UMenuPopupWidget::CloseGuide()
 {
-	if (!IsValid(ActiveGuideWidget) || !ActiveGuideWidget->IsInViewport())
+	if (!IsValid(ActiveGuideWidget) || ActiveGuideWidget->GetParent() == nullptr)
 	{
 		ActiveGuideWidget = nullptr;
 		return false;
@@ -165,7 +129,7 @@ bool UMenuPopupWidget::CloseGuide()
 
 UWidget* UMenuPopupWidget::GetActiveGuideWidget() const
 {
-	return IsValid(ActiveGuideWidget) && ActiveGuideWidget->IsInViewport()
+	return IsValid(ActiveGuideWidget) && ActiveGuideWidget->GetParent() != nullptr
 		? ActiveGuideWidget.Get()
 		: nullptr;
 }
@@ -366,18 +330,13 @@ void UMenuPopupWidget::OpenGuide()
 	ActiveGuideWidget->SetOpenedFromGameplayMenu(true);
 	ActiveGuideWidget->OnGuideClosed.RemoveDynamic(this, &ThisClass::HandleGuideClosed);
 	ActiveGuideWidget->OnGuideClosed.AddUniqueDynamic(this, &ThisClass::HandleGuideClosed);
-	SetVisibility(ESlateVisibility::Collapsed);
-	ActiveGuideWidget->SetVisibility(ESlateVisibility::Visible);
-	if (!ActiveGuideWidget->IsInViewport())
-	{
-		ActiveGuideWidget->AddToViewport(110);
-	}
+	UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
+	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+	Screen->SetContent(ActiveGuideWidget, Config, ActiveGuideWidget,
+		FSimpleDelegate::CreateUObject(ActiveGuideWidget, &UGuideWidget::CloseGuide));
+	GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen);
 	ActiveGuideWidget->RefreshGuide();
-
-	if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
-	{
-		Hud->ToggleUiMode(true);
-	}
 }
 
 void UMenuPopupWidget::DiscardGuideWidget()
@@ -385,106 +344,14 @@ void UMenuPopupWidget::DiscardGuideWidget()
 	if (IsValid(ActiveGuideWidget))
 	{
 		ActiveGuideWidget->OnGuideClosed.RemoveDynamic(this, &ThisClass::HandleGuideClosed);
-		ActiveGuideWidget->RemoveFromParent();
+		ActiveGuideWidget->CloseGuide();
 	}
 	ActiveGuideWidget = nullptr;
 }
 
 void UMenuPopupWidget::RestoreMenuAfterGuide()
 {
-	if (!IsInViewport())
-	{
-		return;
-	}
-
-	SetVisibility(ESlateVisibility::Visible);
-	if (APlayerController* PlayerController = GetOwningPlayer())
-	{
-		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
-		{
-			Hud->ToggleUiMode(true);
-		}
-	}
-}
-
-void UMenuPopupWidget::ApplyMenuInputMode()
-{
-	APlayerController* PlayerController = GetOwningPlayer();
-	if (!PlayerController)
-	{
-		return;
-	}
-
-	if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
-	{
-		if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>())
-		{
-			FUiModalInputConfig InputConfig;
-			InputConfig.RestorePolicy = bRestoreGameInputOnClose
-				? EUiInputRestorePolicy::Gameplay
-				: EUiInputRestorePolicy::PreviousState;
-			if (UiSubsystem->UpdateModalInput(
-				this,
-				MenuModalInputToken,
-				this,
-				InputConfig))
-			{
-				return;
-			}
-
-			MenuModalInputToken.Invalidate();
-			MenuModalInputToken = UiSubsystem->AcquireModalInput(this, this, InputConfig);
-			if (MenuModalInputToken.IsValid())
-			{
-				return;
-			}
-		}
-	}
-
-	UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(
-		PlayerController,
-		this,
-		EMouseLockMode::DoNotLock,
-		false,
-		false);
-	PlayerController->bShowMouseCursor = true;
-	PlayerController->bEnableClickEvents = true;
-	PlayerController->bEnableMouseOverEvents = true;
-	SetIsFocusable(true);
-	SetUserFocus(PlayerController);
-	SetFocus();
-}
-
-void UMenuPopupWidget::ReleaseMenuInputMode()
-{
-	if (!MenuModalInputToken.IsValid())
-	{
-		return;
-	}
-
-	if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
-	{
-		if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>())
-		{
-			UiSubsystem->ReleaseModalInput(this, MenuModalInputToken);
-		}
-	}
-
-	MenuModalInputToken.Invalidate();
-}
-
-void UMenuPopupWidget::RestoreGameInputMode() const
-{
-	APlayerController* PlayerController = GetOwningPlayer();
-	if (!PlayerController)
-	{
-		return;
-	}
-
-	UWidgetBlueprintLibrary::SetInputMode_GameOnly(PlayerController, false);
-	PlayerController->bShowMouseCursor = false;
-	PlayerController->bEnableClickEvents = false;
-	PlayerController->bEnableMouseOverEvents = false;
+	RequestRefreshFocus();
 }
 
 void UMenuPopupWidget::SetRequestedPause(const bool bPaused)
@@ -552,4 +419,22 @@ void UMenuPopupWidget::HandleDestroySessionForExit(const bool bWasSuccessful)
 
 ClearDestroySessionDelegate();
 	TravelToTitleMap();
+}
+
+TOptional<FUIInputConfig> UMenuPopupWidget::GetDesiredInputConfig() const
+{
+    FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+    return Config;
+}
+
+UWidget* UMenuPopupWidget::NativeGetDesiredFocusTarget() const
+{
+    return Btn_Resume ? Btn_Resume.Get() : Super::NativeGetDesiredFocusTarget();
+}
+
+bool UMenuPopupWidget::NativeOnHandleBackAction()
+{
+    if (!CloseGuide()) CloseMenu();
+    return true;
 }

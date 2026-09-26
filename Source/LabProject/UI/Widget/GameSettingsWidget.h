@@ -18,7 +18,9 @@ public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual FReply NativeOnKeyDown(const FGeometry& Geometry, const FKeyEvent& Event) override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	UWidget* GetInitialFocusTarget() const { return CB_SettingsLanguage; }
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category="UI|Settings") void CloseSettings();
@@ -40,7 +42,6 @@ protected:
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UTextBlock> Txt_SettingsHint;
 
 private:
-	FGuid ModalInputToken;
 	FDelegateHandle VolumeChangedHandle;
 	bool bSynchronizing = false;
 	bool bLanguageSaveFailed = false;

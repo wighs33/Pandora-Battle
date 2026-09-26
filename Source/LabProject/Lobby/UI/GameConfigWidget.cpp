@@ -1,4 +1,6 @@
 #include "Lobby/UI/GameConfigWidget.h"
+#include "Input/CommonUIActionRouterBase.h"
+#include "CommonActivatableWidget.h"
 
 #include "Common/GameSessionConstants.h"
 #include "Components/Button.h"
@@ -73,7 +75,7 @@ void UGameConfigWidget::NativeConstruct()
 
 FReply UGameConfigWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (InKeyEvent.GetKey() != EKeys::Escape)
+	if (UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()) || InKeyEvent.GetKey() != EKeys::Escape)
 	{
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 	}
@@ -147,7 +149,9 @@ FName UGameConfigWidget::GetSelectedMapKey() const
 
 void UGameConfigWidget::HandleBackClicked()
 {
-	SaveConfig();
+    SaveConfig();
+    if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+        Screen->DeactivateWidget();
 	RemoveFromParent();
 }
 

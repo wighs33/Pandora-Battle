@@ -47,8 +47,6 @@ private:
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual bool IsPlayerHudSuppressedByUi() const override;
-	void ApplyLobbyWidgetInputMode();
-	void RestoreGameInputModeIfPossible();
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Lobby|UI")
@@ -58,6 +56,9 @@ protected:
 	TObjectPtr<ULobbyWidget> LobbyWidget;
 
 private:
+	UPROPERTY(Transient)
+	TObjectPtr<UUiScreen> LobbyScreen;
+
 	TWeakObjectPtr<ALobbyGameState> ObservedLobbyGameState;
 	FTimerHandle LobbyUIRefreshTimerHandle;
 };

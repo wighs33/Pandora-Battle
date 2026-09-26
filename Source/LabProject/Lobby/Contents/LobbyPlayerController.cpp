@@ -33,10 +33,7 @@ void ALobbyPlayerController::BeginPlay()
 
 	if (IsLocalController())
 	{
-		UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(this, nullptr, EMouseLockMode::DoNotLock, false, false);
-		bShowMouseCursor = true;
-		bEnableClickEvents = true;
-		bEnableMouseOverEvents = true;
+		UUiSubsystem::SetBaseInputMode(this, EUiInputMode::GameAndUI, nullptr);
 		UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, this);
 		if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 		{
@@ -143,7 +140,7 @@ void ALobbyPlayerController::Client_StartGameCountdown_Implementation(const floa
 {
 	ALobbyHUD* LobbyHUD = GetHUD<ALobbyHUD>();
 	if (LobbyHUD
-		&& (!IsValid(LobbyHUD->GetLobbyWidget()) || !LobbyHUD->GetLobbyWidget()->IsInViewport()))
+		&& (!IsValid(LobbyHUD->GetLobbyWidget()) || !LobbyHUD->GetLobbyWidget()->GetParent()))
 	{
 		LobbyHUD->CreateLobbyUI();
 	}

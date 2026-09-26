@@ -1,5 +1,9 @@
 #include "UI/Widget/LocalizedMenuWidget.h"
 #include "UI/Widget/GameSettingsWidget.h"
+#include "UI/UiScreen.h"
+#include "Input/CommonUIActionRouterBase.h"
+#include "UI/UiSubsystem.h"
+#include "Engine/LocalPlayer.h"
 #include "UI/Tooltip/GameTooltipPlacement.h"
 #include "Settings/MenuLocalizationSubsystem.h"
 #include "Settings/MenuLocalizationSettings.h"
@@ -102,20 +106,29 @@ void ULocalizedMenuWidget::ApplyLocalizedBindings()
 
 void ULocalizedMenuWidget::OpenGameSettings()
 {
-	if (ActiveGameSettings && ActiveGameSettings->IsInViewport())
+	if (ActiveGameSettings && ActiveGameSettings->GetParent() != nullptr)
 	{
-		ActiveGameSettings->SetFocus();
+		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(ActiveGameSettings->GetCachedWidget(), GetOwningLocalPlayer()))
+			Screen->RequestRefreshFocus();
 		return;
 	}
 	const TSubclassOf<UGameSettingsWidget> SettingsClass = GetDefault<UMenuLocalizationSettings>()->SettingsWidgetClass.LoadSynchronous();
 	if (!SettingsClass || !GetOwningPlayer()) return;
 	ActiveGameSettings = CreateWidget<UGameSettingsWidget>(GetOwningPlayer(), SettingsClass);
-	if (ActiveGameSettings) ActiveGameSettings->AddToViewport(1000);
+	if (ActiveGameSettings)
+	{
+		UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
+		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+		Screen->SetContent(ActiveGameSettings, Config, ActiveGameSettings->GetInitialFocusTarget(),
+			FSimpleDelegate::CreateUObject(ActiveGameSettings, &UGameSettingsWidget::CloseSettings));
+		GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
+	}
 }
 
 bool ULocalizedMenuWidget::CloseGameSettings()
 {
-	if (!ActiveGameSettings || !ActiveGameSettings->IsInViewport()) return false;
+	if (!ActiveGameSettings || ActiveGameSettings->GetParent() == nullptr) return false;
 	ActiveGameSettings->CloseSettings();
 	ActiveGameSettings = nullptr;
 	return true;

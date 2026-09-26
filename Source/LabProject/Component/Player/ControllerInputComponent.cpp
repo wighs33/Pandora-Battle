@@ -28,6 +28,8 @@
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
 #include "UI/InfoUiTypes.h"
+#include "UI/PdUIActionRouter.h"
+#include "Engine/LocalPlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerInputComponent)
 
@@ -1109,8 +1111,10 @@ UCombatComponent* UControllerInputComponent::GetPlayerCombatComponent() const
 
 bool UControllerInputComponent::IsGameplayInputBlockedByUi() const
 {
-	const APdHUD* HUD = GetPdHUD();
-	return HUD && HUD->IsGameplayInputBlockedByUi();
+    const APlayerController* Controller = GetPdController();
+    const ULocalPlayer* Player = Controller ? Controller->GetLocalPlayer() : nullptr;
+    const UPdUIActionRouter* Router = Player ? Player->GetSubsystem<UPdUIActionRouter>() : nullptr;
+    return Router && Router->IsGameplayInputBlocked();
 }
 
 bool UControllerInputComponent::IsOpenLobbyInputAllowed() const
@@ -1126,4 +1130,35 @@ bool UControllerInputComponent::IsOpenLobbyInputAllowed() const
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
 	return Levels
 		&& Levels->IsLobbyMapName(CurrentLevelName);
+}
+
+void UControllerInputComponent::ReleaseGameplayInput()
+{
+    if (UCombatComponent* Combat = GetPlayerCombatComponent())
+    {
+        Combat->StopPrimaryAttack();
+        Combat->StopAim();
+    }
+    if (APdPlayer* Character = GetPlayerCharacter())
+    {
+        Character->StopJumping();
+        Character->UnCrouch();
+        Character->ConsumeMovementInputVector();
+        if (UPdAbilitySystemComponent* AbilitySystem = Character->GetPdAbilitySystemComponent())
+        {
+            const FGameplayTag InputTags[] = {LabGameplayTags::Input_Ability_Movement_Grapple,
+                LabGameplayTags::Input_Ability_Skill1, LabGameplayTags::Input_Ability_Skill2,
+                LabGameplayTags::Input_Ability_Skill3, LabGameplayTags::Input_Ability_Skill4};
+            for (const FGameplayTag Tag : InputTags)
+            {
+                AbilitySystem->HandleAbilityInputReleased(Tag);
+            }
+        }
+    }
+}
+
+void UControllerInputComponent::ReleaseHeldUiInput()
+{
+    HandleSelectPandoraInputEnded(FInputActionValue());
+    HandleScoreboardInputEnded(FInputActionValue());
 }

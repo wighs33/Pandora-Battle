@@ -227,10 +227,7 @@ void UControllerPresentationComponent::RestoreGameplayInputMode() const
 		return;
 	}
 
-	UWidgetBlueprintLibrary::SetInputMode_GameOnly(Controller);
-	Controller->bShowMouseCursor = false;
-	Controller->bEnableClickEvents = false;
-	Controller->bEnableMouseOverEvents = false;
+	UUiSubsystem::SetBaseInputMode(Controller, EUiInputMode::GameOnly, nullptr);
 }
 
 // 맵 이동 로딩 화면을 유지하고 필요한 경우 훈련실 진행을 일시정지한다.

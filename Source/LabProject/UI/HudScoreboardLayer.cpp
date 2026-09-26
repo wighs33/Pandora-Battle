@@ -14,7 +14,7 @@
 #include "Mode/PdPlayerState.h"
 #include "TimerManager.h"
 #include "UI/Presenter/InfoUiPresenter.h"
-#include "UI/UiSubsystem.h"
+#include "UI/UiScreen.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/MenuPopupWidget.h"
 #include "UI/Widget/PandoraTreeWidget.h"
@@ -96,10 +96,15 @@ void UHudScoreboardLayer::Show()
 	}
 
 	Refresh();
-	if (!ScoreboardWidget->IsInViewport())
-	{
-		ScoreboardWidget->AddToViewport(80);
-	}
+	if (!ScoreboardScreen)
+    {
+        ScoreboardScreen = CreateWidget<UUiScreen>(Controller);
+        FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+        Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+        ScoreboardScreen->SetContent(ScoreboardWidget, Config, nullptr, FSimpleDelegate::CreateUObject(this, &ThisClass::Hide));
+        ScoreboardScreen->AddToPlayerScreen(80);
+        ScoreboardScreen->ActivateWidget();
+    }
 
 	if (UWorld* World = Hud->GetWorld())
 	{
@@ -117,6 +122,13 @@ void UHudScoreboardLayer::Show()
 
 void UHudScoreboardLayer::Hide()
 {
+    if (ScoreboardScreen)
+    {
+        ScoreboardScreen->DeactivateWidget();
+        ScoreboardScreen->RemoveFromParent();
+        ScoreboardScreen = nullptr;
+    }
+
 	if (APdHUD* Hud = OwnerHud.Get())
 	{
 		Hud->GetWorldTimerManager().ClearTimer(RefreshTimerHandle);
@@ -136,7 +148,7 @@ void UHudScoreboardLayer::Hide()
 
 bool UHudScoreboardLayer::IsOpen() const
 {
-	return ScoreboardWidget && ScoreboardWidget->IsInViewport();
+	return ScoreboardScreen && ScoreboardScreen->IsActivated();
 }
 
 void UHudScoreboardLayer::Refresh()

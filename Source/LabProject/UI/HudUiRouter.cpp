@@ -293,7 +293,6 @@ void UHudUiRouter::ReleaseInfoLayers()
 
 void UHudUiRouter::ResetLayers()
 {
-	ReleaseInput();
 	if (ScreenLayer)
 	{
 		ScreenLayer->Shutdown();
@@ -313,6 +312,7 @@ void UHudUiRouter::ResetLayers()
 		return;
 	}
 
+	Hud->CloseSelectPandoraUiInternal(false);
 	HideAimCrosshair();
 	Hud->AimCrosshairWidget = nullptr;
 
@@ -338,58 +338,6 @@ void UHudUiRouter::ResetLayers()
 		Hud->CachedRightNotificationsUI->RemoveFromParent();
 		Hud->CachedRightNotificationsUI = nullptr;
 	}
-}
-
-void UHudUiRouter::RouteInput(
-	UWidget* FocusWidget,
-	const bool bPreserveGameplayInputMode,
-	const bool bCenterCursor)
-{
-	UUiSubsystem* UiSubsystem = ResolveUiSubsystem();
-	APdPlayerController* Controller = ResolvePlayerController();
-	if (!UiSubsystem || !Controller)
-	{
-		return;
-	}
-
-	FUiModalInputConfig InputConfig;
-	InputConfig.RestorePolicy = EUiInputRestorePolicy::Gameplay;
-	if (bPreserveGameplayInputMode)
-	{
-		InputConfig.InputMode = EUiInputMode::GameOnly;
-		InputConfig.bApplyInputMode = false;
-	}
-
-	if (!UiSubsystem->UpdateModalInput(this, ModalInputToken, FocusWidget, InputConfig))
-	{
-		ModalInputToken.Invalidate();
-		ModalInputToken = UiSubsystem->AcquireModalInput(this, FocusWidget, InputConfig);
-	}
-	if (!ModalInputToken.IsValid())
-	{
-		UE_LOG(LogHudUiRouter, Error, TEXT("Failed to acquire the HUD modal input route."));
-		return;
-	}
-
-	if (bCenterCursor)
-	{
-		int32 ViewportSizeX = 0;
-		int32 ViewportSizeY = 0;
-		Controller->GetViewportSize(ViewportSizeX, ViewportSizeY);
-		Controller->SetMouseLocation(ViewportSizeX / 2, ViewportSizeY / 2);
-	}
-}
-
-void UHudUiRouter::ReleaseInput()
-{
-	if (ModalInputToken.IsValid())
-	{
-		if (UUiSubsystem* UiSubsystem = ResolveUiSubsystem())
-		{
-			UiSubsystem->ReleaseModalInput(this, ModalInputToken);
-		}
-	}
-	ModalInputToken.Invalidate();
 }
 
 bool UHudUiRouter::OpenSettingsMenu()
@@ -558,9 +506,9 @@ bool UHudUiRouter::IsPandoraTreeClosing() const
 	return ScreenLayer && ScreenLayer->IsPandoraTreeClosing();
 }
 
-bool UHudUiRouter::IsScreenLayerBlockingGameplayInput() const
+bool UHudUiRouter::ShouldScreenLayerSuppressPlayerHud() const
 {
-	return ScreenLayer && ScreenLayer->IsBlockingGameplayInput();
+	return ScreenLayer && ScreenLayer->ShouldSuppressPlayerHud();
 }
 
 void UHudUiRouter::RefreshTrainingRoomPause(const UUserWidget* IgnoredWidget)
@@ -613,4 +561,9 @@ APdPlayerController* UHudUiRouter::ResolvePlayerController() const
 {
 	const APdHUD* Hud = OwnerHud.Get();
 	return Hud ? Cast<APdPlayerController>(Hud->GetOwningPlayerController()) : nullptr;
+}
+
+bool UHudUiRouter::IsInfoOpen() const
+{
+	return ScreenLayer && ScreenLayer->IsInfoOpen();
 }

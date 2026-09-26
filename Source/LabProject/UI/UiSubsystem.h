@@ -8,6 +8,12 @@
 #include "Templates/SubclassOf.h"
 #include "UiSubsystem.generated.h"
 
+class UUiLayerRoot;
+class UUiScreen;
+enum class EUiScreenLayer : uint8 { Menu, Modal };
+
+class UCommonActivatableWidget;
+class UCommonActivatableWidgetStack;
 class UAbilitySystemComponent;
 class APlayerController;
 class UConnectingPopupWidget;
@@ -106,11 +112,8 @@ private:
 		EUiInputMode InputMode = EUiInputMode::GameOnly;
 		EMouseCaptureMode MouseCaptureMode = EMouseCaptureMode::CapturePermanently;
 		EMouseLockMode MouseLockMode = EMouseLockMode::LockOnCapture;
-		bool bIgnoreViewportInput = false;
 		bool bHideCursorDuringCapture = false;
 		bool bShowMouseCursor = false;
-		bool bEnableClickEvents = false;
-		bool bEnableMouseOverEvents = false;
 		bool bValid = false;
 
 		// Public API --------------------------------------------------------------------------------------------------
@@ -124,6 +127,7 @@ public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!ViewModel")
@@ -186,6 +190,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Input")
 	void ReleaseModalInputsForOwner(UObject* Owner);
+
+	void PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer Layer = EUiScreenLayer::Menu);
+	static void SetBaseInputMode(APlayerController* Controller, EUiInputMode Mode, UWidget* FocusWidget = nullptr);
 
 	/** Prunes stale world-scoped entries before gameplay decides its final input mode. */
 	bool HasActiveModalInput();
@@ -274,7 +281,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UStatusViewModel> StatusViewModel;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UUiLayerRoot> ScreenRoot;
+
 	TArray<FModalInputEntry> ModalInputStack;
+	FInputStateSnapshot BaseInputState;
 	FInputStateSnapshot InputStateBeforeModals;
 	EUiInputRestorePolicy RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
 	bool bIsDeinitializing = false;
@@ -285,7 +296,8 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UConnectingPopupWidget> ActiveConnectingPopupWidget;
 
-	FGuid ConnectingPopupModalToken;
+	UPROPERTY(Transient)
+	TObjectPtr<UUiScreen> ConnectingScreen;
 
 	UPROPERTY(Transient)
 	bool bTravelLoadingScreenActive = false;

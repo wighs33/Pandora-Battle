@@ -30,6 +30,8 @@
 #include "OnlineSubsystemUtils.h"
 #include "TimerManager.h"
 #include "UI/UiSubsystem.h"
+#include "UI/UiScreen.h"
+#include "Input/CommonUIActionRouterBase.h"
 #include "UI/Widget/AudioVolumeControl.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
@@ -41,7 +43,6 @@ void ULobbyWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	SetIsFocusable(true);
-	SetFocus();
 
 	ApplyWidgetDefinitionSettings();
 	if (const UTextBlock* WarningText = FindTeamBalanceWarningText())
@@ -119,7 +120,7 @@ void ULobbyWidget::NativeConstruct()
 
 FReply ULobbyWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (InKeyEvent.GetKey() != EKeys::Escape)
+	if (UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()) || InKeyEvent.GetKey() != EKeys::Escape)
 	{
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 	}
@@ -149,13 +150,12 @@ bool ULobbyWidget::CloseTopmostUiForEscape()
 		return true;
 	}
 
-	if (!ActiveGameConfigWidget || !ActiveGameConfigWidget->IsInViewport())
+	if (!ActiveGameConfigWidget || !ActiveGameConfigWidget->GetParent())
 	{
 		return false;
 	}
 
-	ActiveGameConfigWidget->SaveConfig();
-	ActiveGameConfigWidget->RemoveFromParent();
+	ActiveGameConfigWidget->HandleBackClicked();
 
 	if (APlayerController* PlayerController = GetOwningPlayer())
 	{
@@ -163,8 +163,6 @@ bool ULobbyWidget::CloseTopmostUiForEscape()
 		{
 			LobbyHUD->NotifyLobbyWidgetOpened();
 		}
-		SetUserFocus(PlayerController);
-		SetFocus();
 	}
 
 	return true;
@@ -226,7 +224,9 @@ void ULobbyWidget::NativeDestruct()
 
 	if (ActiveGameConfigWidget)
 	{
-		ActiveGameConfigWidget->RemoveFromParent();
+        if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(ActiveGameConfigWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+            Screen->DeactivateWidget();
+        ActiveGameConfigWidget->RemoveFromParent();
 		ActiveGameConfigWidget = nullptr;
 	}
 
@@ -404,30 +404,12 @@ void ULobbyWidget::RefreshUI()
 
 void ULobbyWidget::StartGameCountdown(const float DelaySeconds)
 {
-	static_cast<void>(DelaySeconds);
-
-	if (!IsInViewport())
-	{
-		AddToViewport();
-	}
-	ApplyLobbyInputPassthroughVisibility();
-
-	if (APlayerController* PlayerController = GetOwningPlayer())
-	{
-		if (ALobbyHUD* LobbyHUD = PlayerController->GetHUD<ALobbyHUD>())
-		{
-			LobbyHUD->NotifyLobbyWidgetOpened();
-		}
-
-		UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(PlayerController, this, EMouseLockMode::DoNotLock, false);
-		PlayerController->bShowMouseCursor = true;
-		PlayerController->bEnableClickEvents = true;
-		PlayerController->bEnableMouseOverEvents = true;
-		SetUserFocus(PlayerController);
-		SetFocus();
-	}
-
-	RefreshUI();
+    if (APlayerController* Controller = GetOwningPlayer())
+    {
+        if (ALobbyHUD* Hud = Controller->GetHUD<ALobbyHUD>()) Hud->CreateLobbyUI();
+    }
+    ApplyLobbyInputPassthroughVisibility();
+    RefreshUI();
 }
 
 void ULobbyWidget::HideGameCountdown()
@@ -542,8 +524,13 @@ void ULobbyWidget::HandleGameConfigClicked()
 		return;
 	}
 
-	ActiveGameConfigWidget->RemoveFromParent();
-	ActiveGameConfigWidget->AddToViewport(100);
+    if (ActiveGameConfigWidget->GetParent()) return;
+    UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
+    FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+    Screen->SetContent(ActiveGameConfigWidget, Config, ActiveGameConfigWidget,
+        FSimpleDelegate::CreateUObject(ActiveGameConfigWidget, &UGameConfigWidget::HandleBackClicked));
+    GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Modal);
 	ActiveGameConfigWidget->SetVisibility(ESlateVisibility::Visible);
 	ActiveGameConfigWidget->SetIsEnabled(true);
 	ActiveGameConfigWidget->SetRenderOpacity(1.0f);
@@ -556,16 +543,6 @@ void ULobbyWidget::HandleGameConfigClicked()
 	}
 
 	ActiveGameConfigWidget->ForceLayoutPrepass();
-
-	if (APlayerController* PlayerController = GetOwningPlayer())
-	{
-		UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(PlayerController, ActiveGameConfigWidget, EMouseLockMode::DoNotLock, false);
-		PlayerController->bShowMouseCursor = true;
-		PlayerController->bEnableClickEvents = true;
-		PlayerController->bEnableMouseOverEvents = true;
-	}
-
-	const UWidget* RootWidget = ActiveGameConfigWidget->GetRootWidget();
 
 }
 
@@ -591,7 +568,9 @@ void ULobbyWidget::HandleEnterClicked()
 {
 	if (ActiveGameConfigWidget)
 	{
-		ActiveGameConfigWidget->RemoveFromParent();
+        if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(ActiveGameConfigWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+            Screen->DeactivateWidget();
+        ActiveGameConfigWidget->RemoveFromParent();
 		ActiveGameConfigWidget = nullptr;
 	}
 
@@ -604,10 +583,7 @@ void ULobbyWidget::HandleEnterClicked()
 			LobbyHUD->NotifyLobbyWidgetClosed();
 		}
 
-		UWidgetBlueprintLibrary::SetInputMode_GameOnly(PlayerController, false);
-		PlayerController->bShowMouseCursor = false;
-		PlayerController->bEnableClickEvents = false;
-		PlayerController->bEnableMouseOverEvents = false;
+		UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::GameOnly, nullptr);
 	}
 }
 
