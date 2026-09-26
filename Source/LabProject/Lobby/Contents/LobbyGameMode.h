@@ -2,15 +2,17 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "UObject/PrimaryAssetId.h"
 #include "LobbyGameMode.generated.h"
 
 class APdPlayerState;
 class ULobbyConfigurationComponent;
-class ULobbyExperienceComponent;
+class UExperienceManagerComponent;
+class UExperienceDefinition;
 class ULobbyMatchCoordinator;
-class ULobbyPlayerCoordinatorComponent;
+class ULobbyPlayerSetupComponent;
 class UDefaultPlayerProvisioner;
-class ULobbyRespawnComponent;
+class UPlayerSpawnComponent;
 class ULobbyTravelCoordinator;
 
 /**
@@ -30,6 +32,8 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void InitGameState() override;
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* Player, const FTransform& Transform) override;
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 	virtual void GenericPlayerInitialization(AController* Controller) override;
 	virtual void Logout(AController* Exiting) override;
@@ -40,26 +44,30 @@ public:
 	ALobbyGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// 외부에서는 로비 명령과 시작 조건만 사용하고, 담당 컴포넌트 선택은 GameMode에 맡긴다.
-	void SaveConfig(FName MapKey, int32 InMaxPlayerCount, int32 InMaxBotCount);
+	void SaveConfig(FName MapKey, int32 InMaxBotCount);
+	void SelectLobbyMapByOffset(int32 Offset);
 	void TryStartGame();
 	bool CanHostStartGame() const;
 	void NotifyLobbyTeamChanged();
 	void KickPlayer(APdPlayerState* TargetPlayerState);
-	void RequestLobbyPlayerRespawn(AController* PlayerController, APawn* DeadPawn);
 
 	void ProvisionLobbyPlayer(APlayerController* PlayerController);
 	bool IsReadyForPlayerStart() const;
 
 	ULobbyConfigurationComponent* GetLobbyConfigurationComponent() const { return LobbyConfigurationComponent.Get(); }
-	ULobbyExperienceComponent* GetLobbyExperienceComponent() const { return LobbyExperienceComponent.Get(); }
-	ULobbyPlayerCoordinatorComponent* GetLobbyPlayerCoordinatorComponent() const { return LobbyPlayerCoordinatorComponent.Get(); }
-	ULobbyRespawnComponent* GetLobbyRespawnComponent() const { return LobbyRespawnComponent.Get(); }
+	UPlayerSpawnComponent* GetSpawnComponent() const { return SpawnComponent; }
 	ULobbyMatchCoordinator* GetMatchCoordinator() const { return MatchCoordinator.Get(); }
 	ULobbyTravelCoordinator* GetTravelCoordinator() const { return TravelCoordinator.Get(); }
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void ResumeWaitingPlayers();
+	void HandleExperienceLoaded(const UExperienceDefinition* Experience);
+	void HandleExperienceLoadFailed(FPrimaryAssetId ExperienceId, const FString& FailureMessage);
+	void HandlePlayerRespawned(APlayerController* Player, bool bCreatedPawn);
+	void StartExperienceLoad();
+	FPrimaryAssetId GetConfiguredExperienceId() const;
+	UExperienceManagerComponent* GetExperienceManager() const;
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void EnsureLobbyFrameworkClasses();
@@ -69,13 +77,10 @@ private:
 	TObjectPtr<ULobbyConfigurationComponent> LobbyConfigurationComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<ULobbyExperienceComponent> LobbyExperienceComponent;
+	TObjectPtr<ULobbyPlayerSetupComponent> LobbyPlayerSetupComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<ULobbyPlayerCoordinatorComponent> LobbyPlayerCoordinatorComponent;
-
-	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<ULobbyRespawnComponent> LobbyRespawnComponent;
+	TObjectPtr<UPlayerSpawnComponent> SpawnComponent;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ULobbyMatchCoordinator> MatchCoordinator;

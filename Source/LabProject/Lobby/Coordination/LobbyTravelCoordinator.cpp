@@ -1,6 +1,5 @@
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
 
-#include "Component/Lobby/LobbyPlayerCoordinatorComponent.h"
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Character/PdPlayer.h"
 #include "Common/Enum_Direction.h"
@@ -214,7 +213,14 @@ void ULobbyTravelCoordinator::CacheLobbyPlayerTravelState(
 		LobbyPlayerState, LobbyPlayerState->GetPlayerMatchComponent()->GetPlayerMatchIdentity());
 
 	const APlayerController* LobbyPlayerController =
-		GameMode->GetLobbyPlayerCoordinatorComponent()->ResolvePlayerControllerForPlayerState(LobbyPlayerState);
+		LobbyPlayerState->GetPlayerController();
+	if (!LobbyPlayerController)
+	{
+		for (FConstPlayerControllerIterator It = GameMode->GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			if (It->Get() && It->Get()->PlayerState == LobbyPlayerState) { LobbyPlayerController = It->Get(); break; }
+		}
+	}
 	LobbySubsystem->CacheLobbyEquippedSkinSlotsForPlayerState(LobbyPlayerState, BuildEquippedSkinNamesBySlot(LobbyPlayerController));
 
 	TMap<EEnum_Direction, FName> PandoraNamesByDirection;

@@ -29,9 +29,6 @@ struct LABPROJECT_API FLobbyMatchMapOption
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ingame Level")
 	TSoftObjectPtr<UWorld> Map;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ingame Level")
-	FString TravelMapName;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ingame Level", meta = (ClampMin = "1"))
 	int32 MaxPlayerCount = LabGameSession::MaxPlayerCount;
 

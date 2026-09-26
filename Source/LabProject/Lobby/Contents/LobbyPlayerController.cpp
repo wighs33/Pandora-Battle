@@ -94,7 +94,7 @@ void ALobbyPlayerController::Server_HandleChangeTeamColor_Implementation(const i
 	}
 
 	const ALobbyGameMode* LobbyGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALobbyGameMode>() : nullptr;
-	const int32 MaxPlayerCount = LobbyGameMode ? LobbyGameMode->GetLobbyConfigurationComponent()->GetSelectedLobbyMaxPlayerCount() : LabGameSession::MaxPlayerCount;
+	const int32 MaxPlayerCount = LobbyGameMode ? LobbyGameMode->GetLobbyConfigurationComponent()->GetConfiguredMaxPlayerCount() : LabGameSession::MaxPlayerCount;
 	const int32 TeamColorIndex = FMath::Clamp(InTeamColorIndex, 0, FMath::Max(MaxPlayerCount, 1) - 1);
 	if (LobbyPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex() == TeamColorIndex)
 	{

@@ -93,7 +93,6 @@ void ALobbyGameState::SetSelectedMapOption(const FLobbyMatchMapOption& InMapOpti
 	if (SelectedMapOption.MapKey == InMapOption.MapKey
 		&& SelectedMapOption.DisplayName.EqualTo(InMapOption.DisplayName)
 		&& SelectedMapOption.Map.ToSoftObjectPath() == InMapOption.Map.ToSoftObjectPath()
-		&& SelectedMapOption.TravelMapName == InMapOption.TravelMapName
 		&& SelectedMapOption.MaxPlayerCount == InMapOption.MaxPlayerCount
 		&& SelectedMapOption.Thumbnail.Get() == InMapOption.Thumbnail.Get())
 	{

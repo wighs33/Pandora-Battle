@@ -1,13 +1,11 @@
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 
-#include "Common/GameSessionConstants.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyGameState.h"
-#include "Lobby/Coordination/LobbyMatchCoordinator.h"
 #include "Engine/GameInstance.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 
@@ -63,7 +61,7 @@ void ULobbyConfigurationComponent::InitializeRuntime(FSimpleDelegate OnReady)
 			DependencyPaths,
 			FStreamableDelegate::CreateUObject(
 				this,
-				&ThisClass::HandleLobbyDependenciesPreloadComplete,
+				&ThisClass::FinishRuntimeInitialization,
 				RequestGeneration));
 	if (!LobbyDependenciesPreloadHandle.IsValid())
 	{
@@ -73,188 +71,19 @@ void ULobbyConfigurationComponent::InitializeRuntime(FSimpleDelegate OnReady)
 
 void ULobbyConfigurationComponent::ApplyDefaultLobbyConfigIfNeeded()
 {
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	ULobbyRuntimeSubsystem* LobbySubsystem = GameMode
-		? UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance())
-		: nullptr;
-	if (!GameMode || !LobbySubsystem)
-	{
-		return;
-	}
-
-	if (!LobbySubsystem->GetLobbySelectedMapKey().IsNone())
-	{
-		const FName ResolvedMapKey = ResolveConfiguredMapKey(
-			LobbySubsystem->GetLobbySelectedMapKey());
-		FLobbyMatchMapOption SelectedMapOption;
-		if (FindConfiguredMapOption(
-			ResolvedMapKey,
-			SelectedMapOption))
-		{
-			const FString TravelMapName =
-				ResolveTravelMapName(
-					SelectedMapOption.MapKey);
-			if (!TravelMapName.IsEmpty())
-			{
-				SelectedMapOption.MaxPlayerCount =
-					FMath::Max(
-						SelectedMapOption.MaxPlayerCount,
-						1);
-				LobbySubsystem->SetLobbyGameConfig(
-					SelectedMapOption.MapKey,
-					TravelMapName,
-					SelectedMapOption.MaxPlayerCount,
-					FMath::Clamp(
-						LobbySubsystem->GetLobbyMaxBotCount(),
-						0,
-						100));
-
-				if (ALobbyGameState* LobbyGameState =
-					GameMode->GetGameState<
-						ALobbyGameState>())
-				{
-					LobbyGameState->SetSelectedMapOption(
-						SelectedMapOption);
-				}
-				return;
-			}
-		}
-	}
-
-	const FName FirstMapKey = GetFirstMapKey();
-	const FString FirstTravelMapName =
-		ResolveTravelMapName(FirstMapKey);
-	const int32 FirstMaxPlayerCount =
-		GetConfiguredMaxPlayerCount();
-	const int32 FirstMaxBotCount =
-		GetConfiguredMaxBotCount(FirstMapKey);
-	LobbySubsystem->SetLobbyGameConfig(
-		FirstMapKey,
-		FirstTravelMapName,
-		FirstMaxPlayerCount,
-		FirstMaxBotCount);
-
-	FLobbyMatchMapOption FirstMapOption;
-	if (FindConfiguredMapOption(
-		FirstMapKey,
-		FirstMapOption))
-	{
-		FirstMapOption.MaxPlayerCount =
-			FirstMaxPlayerCount;
-		if (ALobbyGameState* LobbyGameState =
-			GameMode->GetGameState<ALobbyGameState>())
-		{
-			LobbyGameState->SetSelectedMapOption(
-				FirstMapOption);
-		}
-	}
+	ULobbyRuntimeSubsystem* Runtime = GetWorld()->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>();
+	const FName Key = Runtime->GetLobbySelectedMapKey();
+	SaveConfig(Key.IsNone() ? GetFirstMapKey() : Key, Runtime->GetLobbyMaxBotCount());
 }
 
-void ULobbyConfigurationComponent::
-SyncSelectedLobbyConfigToRuntime()
+void ULobbyConfigurationComponent::SaveConfig(FName MapKey, int32 InMaxBotCount)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode)
-	{
-		return;
-	}
-
-	FLobbyMatchMapOption SelectedMapOption;
-	if (!FindConfiguredMapOption(
-		GetSelectedLobbyMapKey(),
-		SelectedMapOption))
-	{
-		return;
-	}
-
-	SelectedMapOption.MaxPlayerCount =
-		GetConfiguredMaxPlayerCount();
-	const int32 MaxBotCount =
-		GetConfiguredMaxBotCount(
-			SelectedMapOption.MapKey);
-	if (ULobbyRuntimeSubsystem* LobbySubsystem =
-		UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance()))
-	{
-		LobbySubsystem->SetLobbyGameConfig(
-			SelectedMapOption.MapKey,
-			ResolveTravelMapName(
-				SelectedMapOption.MapKey),
-			SelectedMapOption.MaxPlayerCount,
-			MaxBotCount);
-	}
-
-	if (ALobbyGameState* LobbyGameState =
-		GameMode->GetGameState<ALobbyGameState>())
-	{
-		LobbyGameState->SetSelectedMapOption(
-			SelectedMapOption);
-	}
-}
-
-void ULobbyConfigurationComponent::SaveConfig(
-	const FName MapKey,
-	const int32 InMaxPlayerCount,
-	const int32 InMaxBotCount)
-{
-	static_cast<void>(InMaxPlayerCount);
-
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	ULobbyRuntimeSubsystem* LobbySubsystem = GameMode
-		? UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance())
-		: nullptr;
-	if (!GameMode || !LobbySubsystem)
-	{
-		return;
-	}
-
-	const FName ResolvedMapKey =
-		ResolveConfiguredMapKey(MapKey);
-	const FString TravelMapName =
-		ResolveTravelMapName(ResolvedMapKey);
-	FLobbyMatchMapOption SelectedMapOption;
-	const bool bHasSelectedMapOption =
-		FindConfiguredMapOption(
-			ResolvedMapKey,
-			SelectedMapOption);
-	const int32 MaxPlayerCount =
-		bHasSelectedMapOption
-			? FMath::Max(
-				SelectedMapOption.MaxPlayerCount,
-				1)
-			: LabGameSession::MaxPlayerCount;
-
-	ULobbyMatchCoordinator* MatchCoordinator =
-		GameMode->GetMatchCoordinator();
-
-	const int32 MaxBotCount = FMath::Clamp(
-		InMaxBotCount,
-		0,
-		100);
-	LobbySubsystem->SetLobbyGameConfig(
-		ResolvedMapKey,
-		TravelMapName,
-		MaxPlayerCount,
-		MaxBotCount);
-
-	if (bHasSelectedMapOption)
-	{
-		SelectedMapOption.MaxPlayerCount =
-			MaxPlayerCount;
-		if (ALobbyGameState* LobbyGameState =
-			GameMode->GetGameState<ALobbyGameState>())
-		{
-			LobbyGameState->SetSelectedMapOption(
-				SelectedMapOption);
-		}
-	}
-
-	if (MatchCoordinator)
-	{
-		MatchCoordinator
-			->UpdateAdvertisedSessionSettings(
-				ResolvedMapKey,
-				MaxPlayerCount);
-	}
+	ULobbyRuntimeSubsystem* Runtime = GameMode->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>();
+	FLobbyMatchMapOption Option;
+	if (!FindConfiguredMapOption(MapKey, Option)) { return; }
+	Runtime->SetLobbyGameConfig(Option.MapKey, Option.Map.ToSoftObjectPath().GetLongPackageName(), Option.MaxPlayerCount, FMath::Clamp(InMaxBotCount, 0, 100));
+	if (ALobbyGameState* State = GameMode->GetGameState<ALobbyGameState>()) { State->SetSelectedMapOption(Option); }
 }
 
 FString ULobbyConfigurationComponent::GetRoomTravelMapName()
@@ -268,15 +97,10 @@ FString ULobbyConfigurationComponent::GetRoomTravelMapName()
 	return Definition->GetRoomTravelMapName();
 }
 
-FString ULobbyConfigurationComponent::ResolveTravelMapName(
-	const FName MapKey)
+FString ULobbyConfigurationComponent::ResolveTravelMapName(FName MapKey)
 {
-	FLobbyMatchMapOption MapOption;
-	return FindConfiguredMapOption(MapKey, MapOption)
-		? ResolveSoftMapPath(
-			MapOption.Map,
-			MapOption.TravelMapName)
-		: FString();
+	FLobbyMatchMapOption Option;
+	return FindConfiguredMapOption(MapKey, Option) ? Option.Map.ToSoftObjectPath().GetLongPackageName() : FString();
 }
 
 FName ULobbyConfigurationComponent::GetFirstMapKey()
@@ -338,73 +162,13 @@ FName ULobbyConfigurationComponent::GetSelectedLobbyMapKey()
 	return GetFirstMapKey();
 }
 
-int32 ULobbyConfigurationComponent::
-GetSelectedLobbyMaxPlayerCount()
-{
-	return GetConfiguredMaxPlayerCount();
-}
-
-void ULobbyConfigurationComponent::SelectLobbyMapByOffset(
-	const int32 Offset)
-{
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	const int32 OptionCount = GetLobbyMapOptionCount();
-	if (!GameMode
-		|| !GameMode->HasAuthority()
-		|| Offset == 0
-		|| OptionCount <= 0)
-	{
-		return;
-	}
-
-	const FName CurrentMapKey =
-		GetSelectedLobbyMapKey();
-	int32 CurrentIndex = 0;
-	for (int32 Index = 0; Index < OptionCount; ++Index)
-	{
-		FLobbyMatchMapOption MapOption;
-		if (GetLobbyMapOptionAtIndex(
-			Index,
-			MapOption)
-			&& MapOption.MapKey == CurrentMapKey)
-		{
-			CurrentIndex = Index;
-			break;
-		}
-	}
-
-	const int32 WrappedIndex =
-		(CurrentIndex + Offset % OptionCount + OptionCount)
-		% OptionCount;
-	FLobbyMatchMapOption NewMapOption;
-	if (!GetLobbyMapOptionAtIndex(
-		WrappedIndex,
-		NewMapOption))
-	{
-		return;
-	}
-
-	ULobbyMatchCoordinator* MatchCoordinator =
-		GameMode->GetMatchCoordinator();
-	if (MatchCoordinator
-		&& MatchCoordinator->IsGameStartRequested())
-	{
-		MatchCoordinator->CancelPendingGameStart();
-	}
-
-	SaveConfig(
-		NewMapOption.MapKey,
-		NewMapOption.MaxPlayerCount,
-		GetConfiguredMaxBotCount(NewMapOption.MapKey));
-}
-
 FName ULobbyConfigurationComponent::ResolveConfiguredMapKey(
 	const FName MapKey)
 {
 	const ULevelDefinition* Levels = GetLevelDefinition();
 	return Levels
 		? Levels->ResolveIngameLevelKey(MapKey)
-		: MapKey;
+		: NAME_None;
 }
 
 bool ULobbyConfigurationComponent::FindConfiguredMapOption(
@@ -418,136 +182,37 @@ bool ULobbyConfigurationComponent::FindConfiguredMapOption(
 			OutMapOption);
 }
 
-int32 ULobbyConfigurationComponent::
-GetConfiguredMaxPlayerCount()
+int32 ULobbyConfigurationComponent::GetConfiguredMaxPlayerCount()
 {
-	const ALobbyGameMode* GameMode = GetLobbyGameMode();
-	const ULobbyRuntimeSubsystem* LobbySubsystem = GameMode
-		? UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance())
-		: nullptr;
-	const FName SelectedMapKey =
-		LobbySubsystem
-			&& !LobbySubsystem
-				->GetLobbySelectedMapKey().IsNone()
-			? LobbySubsystem->GetLobbySelectedMapKey()
-			: GetFirstMapKey();
-
-	FLobbyMatchMapOption MapOption;
-	if (FindConfiguredMapOption(
-		SelectedMapKey,
-		MapOption))
-	{
-		return FMath::Max(
-			MapOption.MaxPlayerCount,
-			1);
-	}
-
-	return FMath::Max(
-		LobbySubsystem
-			? LobbySubsystem->GetLobbyMaxPlayerCount()
-			: LabGameSession::MaxPlayerCount,
-		1);
+	FLobbyMatchMapOption Option;
+	return GetSelectedLobbyMapOption(Option) ? Option.MaxPlayerCount : 0;
 }
 
-int32 ULobbyConfigurationComponent::GetConfiguredMaxBotCount(
-	const FName MapKey)
+int32 ULobbyConfigurationComponent::GetConfiguredMaxBotCount()
 {
-	static_cast<void>(MapKey);
-
-	const ALobbyGameMode* GameMode = GetLobbyGameMode();
-	const ULobbyRuntimeSubsystem* LobbySubsystem = GameMode
-		? UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance())
-		: nullptr;
-	return FMath::Clamp(
-		LobbySubsystem
-			? LobbySubsystem->GetLobbyMaxBotCount()
-			: 10,
-		0,
-		100);
+	return GetWorld()->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>()->GetLobbyMaxBotCount();
 }
 
-const ULevelDefinition*
-ULobbyConfigurationComponent::GetLevelDefinition()
+const ULevelDefinition* ULobbyConfigurationComponent::GetLevelDefinition()
 {
-	if (LoadedLevelDefinition)
-	{
-		return LoadedLevelDefinition;
-	}
-
-	LoadedLevelDefinition =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-			.LevelDefinition.Get();
-	if (!LoadedLevelDefinition)
-	{
-		if (!bLoggedMissingLevelDefinition)
-		{
-			bLoggedMissingLevelDefinition = true;
-			UE_LOG(
-				LogLobbyConfiguration,
-				Error,
-				TEXT("Required LevelDefinition is missing; using native defaults."));
-		}
-		LoadedLevelDefinition = GetMutableDefault<ULevelDefinition>();
-	}
-
 	return LoadedLevelDefinition;
 }
 
-const UMatchRuleDefinition*
-ULobbyConfigurationComponent::GetMatchRuleDefinition()
+const UMatchRuleDefinition* ULobbyConfigurationComponent::GetMatchRuleDefinition()
 {
-	if (LoadedMatchRuleDefinition)
-	{
-		return LoadedMatchRuleDefinition;
-	}
-
-	LoadedMatchRuleDefinition =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-			.MatchRule.Get();
-	if (!LoadedMatchRuleDefinition)
-	{
-		if (!bLoggedMissingMatchRuleDefinition)
-		{
-			bLoggedMissingMatchRuleDefinition = true;
-			UE_LOG(
-				LogLobbyConfiguration,
-				Error,
-				TEXT("Required lobby MatchRuleDefinition is missing; using native defaults."));
-		}
-		LoadedMatchRuleDefinition =
-			GetMutableDefault<UMatchRuleDefinition>();
-	}
-
 	return LoadedMatchRuleDefinition;
 }
 
 const UDefaultProvisionDefinition*
 ULobbyConfigurationComponent::GetDefaultProvisionDefinition() const
 {
-	return IsRuntimeReady() ? LoadedDefaultProvisionDefinition.Get() : nullptr;
+	return LoadedDefaultProvisionDefinition;
 }
 
 ALobbyGameMode*
 ULobbyConfigurationComponent::GetLobbyGameMode() const
 {
 	return Cast<ALobbyGameMode>(GetOwner());
-}
-
-FString ULobbyConfigurationComponent::ResolveSoftMapPath(
-	const TSoftObjectPtr<UWorld>& Map,
-	const FString& FallbackTravelMapName) const
-{
-	const FString LongPackageName =
-		Map.ToSoftObjectPath().GetLongPackageName();
-	return LongPackageName.IsEmpty()
-		? FallbackTravelMapName
-		: LongPackageName;
-}
-
-void ULobbyConfigurationComponent::HandleLobbyDependenciesPreloadComplete(
-	const uint32 RequestGeneration)
-{
-	FinishRuntimeInitialization(RequestGeneration);
 }
 
 void ULobbyConfigurationComponent::FinishRuntimeInitialization(
@@ -563,22 +228,19 @@ void ULobbyConfigurationComponent::FinishRuntimeInitialization(
 	LoadedLevelDefinition = DefinitionReferences.LevelDefinition.Get();
 	LoadedMatchRuleDefinition = DefinitionReferences.MatchRule.Get();
 	LoadedDefaultProvisionDefinition = DefinitionReferences.DefaultProvision.Get();
-	if (!LoadedDefaultProvisionDefinition)
+	ULobbyRuntimeSubsystem* Runtime = GetWorld()->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>();
+	FLobbyMatchMapOption Option;
+	const FName Key = Runtime ? Runtime->GetLobbySelectedMapKey() : NAME_None;
+	const bool bHasMap = LoadedLevelDefinition && (Key.IsNone()
+		? LoadedLevelDefinition->GetIngameLevelAtIndex(0, Option)
+		: LoadedLevelDefinition->FindIngameLevel(Key, Option));
+	if (!LoadedLevelDefinition || !LoadedMatchRuleDefinition || !LoadedDefaultProvisionDefinition || !Runtime
+		|| !bHasMap || Option.Map.IsNull() || Option.MaxPlayerCount < 1)
 	{
 		RuntimeState = ERuntimeState::Failed;
 		RuntimeReadyDelegate.Unbind();
-		UE_LOG(LogLobbyConfiguration, Error,
-			TEXT("Required DA_DefaultProvision failed to load: %s. Lobby player start is blocked."),
-			*DefinitionReferences.DefaultProvision.ToSoftObjectPath().ToString());
+		UE_LOG(LogLobbyConfiguration, Error, TEXT("Required lobby definitions or selected map failed to initialize. Player start is blocked."));
 		return;
-	}
-	if (!LoadedLevelDefinition)
-	{
-		LoadedLevelDefinition = GetMutableDefault<ULevelDefinition>();
-	}
-	if (!LoadedMatchRuleDefinition)
-	{
-		LoadedMatchRuleDefinition = GetMutableDefault<UMatchRuleDefinition>();
 	}
 
 	RuntimeState = ERuntimeState::Ready;
@@ -591,6 +253,8 @@ void ULobbyConfigurationComponent::ReleaseRuntimePreloads()
 {
 	RuntimeState = ERuntimeState::NotStarted;
 	LoadedDefaultProvisionDefinition = nullptr;
+	LoadedLevelDefinition = nullptr;
+	LoadedMatchRuleDefinition = nullptr;
 	++RuntimePreloadRequestGeneration;
 	RuntimeReadyDelegate.Unbind();
 	if (LobbyDependenciesPreloadHandle.IsValid())

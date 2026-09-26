@@ -3,6 +3,7 @@
 #include "CommonActivatableWidget.h"
 
 #include "Common/GameSessionConstants.h"
+#include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Components/Button.h"
 #include "Components/ComboBoxString.h"
 #include "Components/EditableTextBox.h"
@@ -41,6 +42,7 @@ void UGameConfigWidget::NativeConstruct()
 	{
 		if (Editable_MaxPlayerCount)
 		{
+			Editable_MaxPlayerCount->SetIsReadOnly(true);
 			Editable_MaxPlayerCount->SetText(FText::AsNumber(LobbySubsystem->GetLobbyMaxPlayerCount()));
 		}
 
@@ -110,6 +112,12 @@ void UGameConfigWidget::NativeDestruct()
 void UGameConfigWidget::RefreshUI()
 {
 	ApplySelectedMapThumbnail(GetSelectedMapKey());
+	const ALobbyGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALobbyGameMode>() : nullptr;
+	FLobbyMatchMapOption Option;
+	if (Editable_MaxPlayerCount && GameMode && GameMode->GetLobbyConfigurationComponent()->FindConfiguredMapOption(GetSelectedMapKey(), Option))
+	{
+		Editable_MaxPlayerCount->SetText(FText::AsNumber(Option.MaxPlayerCount));
+	}
 }
 
 void UGameConfigWidget::SaveConfig()
@@ -121,12 +129,10 @@ void UGameConfigWidget::SaveConfig()
 	}
 
 	const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GetGameInstance());
-	const int32 DefaultMaxPlayers = LobbySubsystem ? LobbySubsystem->GetLobbyMaxPlayerCount() : LabGameSession::MaxPlayerCount;
 	const int32 DefaultMaxBots = LobbySubsystem ? LobbySubsystem->GetLobbyMaxBotCount() : 10;
 
 	LobbyGameMode->SaveConfig(
 		GetSelectedMapKey(),
-		ParseClampedInt(Editable_MaxPlayerCount, DefaultMaxPlayers, 1, LabGameSession::MaxPlayerCount),
 		ParseClampedInt(Editable_MaxBotCount, DefaultMaxBots, 0, 100));
 }
 

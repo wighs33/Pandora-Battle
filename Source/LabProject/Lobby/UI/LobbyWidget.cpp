@@ -618,7 +618,7 @@ void ULobbyWidget::HandleMapPreviousClicked()
 		return;
 	}
 
-	LobbyGameMode->GetLobbyConfigurationComponent()->SelectLobbyMapByOffset(-1);
+	LobbyGameMode->SelectLobbyMapByOffset(-1);
 	RefreshUI();
 }
 
@@ -630,7 +630,7 @@ void ULobbyWidget::HandleMapNextClicked()
 		return;
 	}
 
-	LobbyGameMode->GetLobbyConfigurationComponent()->SelectLobbyMapByOffset(1);
+	LobbyGameMode->SelectLobbyMapByOffset(1);
 	RefreshUI();
 }
 

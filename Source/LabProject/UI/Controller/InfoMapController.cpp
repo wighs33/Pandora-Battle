@@ -44,39 +44,14 @@ const ULevelDefinition* ResolveLoadedMapUiLevelDefinition()
 	return GetDefaultMapUiLevelDefinition().Get();
 }
 
-FString StripTravelOptions(const FString& TravelMapName)
-{
-	FString CleanMapName = TravelMapName;
-	int32 OptionsIndex = INDEX_NONE;
-	if (CleanMapName.FindChar(TEXT('?'), OptionsIndex))
-	{
-		CleanMapName.LeftInline(OptionsIndex, EAllowShrinking::No);
-	}
-	return CleanMapName;
-}
-
 bool DoesMapOptionMatchCurrentLevel(
 	const FLobbyMatchMapOption& MapOption,
 	const FString& CurrentPackageName,
 	const FString& CurrentLevelName)
 {
-	const FString MapPackageName = MapOption.Map.ToSoftObjectPath().GetLongPackageName();
-	if (!MapPackageName.IsEmpty()
-		&& (MapPackageName.Equals(CurrentPackageName, ESearchCase::IgnoreCase)
-			|| FPackageName::GetShortName(MapPackageName).Equals(
-				CurrentLevelName,
-				ESearchCase::IgnoreCase)))
-	{
-		return true;
-	}
-
-	const FString TravelMapName = StripTravelOptions(MapOption.TravelMapName);
-	return !TravelMapName.IsEmpty()
-		&& (TravelMapName.Equals(CurrentPackageName, ESearchCase::IgnoreCase)
-			|| FPackageName::GetShortName(TravelMapName).Equals(
-				CurrentLevelName,
-				ESearchCase::IgnoreCase)
-			|| TravelMapName.Equals(CurrentLevelName, ESearchCase::IgnoreCase));
+	const FString Package = MapOption.Map.ToSoftObjectPath().GetLongPackageName();
+	return !Package.IsEmpty() && (Package.Equals(CurrentPackageName, ESearchCase::IgnoreCase)
+		|| FPackageName::GetShortName(Package).Equals(CurrentLevelName, ESearchCase::IgnoreCase));
 }
 
 bool FindMapOptionForCurrentMap(const UInfoWidget* Widget, FLobbyMatchMapOption& OutMapOption)

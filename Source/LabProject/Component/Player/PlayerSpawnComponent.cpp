@@ -1,38 +1,29 @@
-#include "Component/Match/MatchSpawnComponent.h"
+#include "Component/Player/PlayerSpawnComponent.h"
 
 #include "Character/CharacterBase.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/Match/MatchFlowComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
-#include "Mode/ExperienceGameMode.h"
+#include "GameFramework/GameModeBase.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(MatchSpawnComponent)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerSpawnComponent)
 
-UMatchSpawnComponent::UMatchSpawnComponent()
+UPlayerSpawnComponent::UPlayerSpawnComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UMatchSpawnComponent::EndPlay(
+void UPlayerSpawnComponent::EndPlay(
 	const EEndPlayReason::Type EndPlayReason)
 {
-	if (UWorld* World = GetWorld())
-	{
-		for (TPair<TObjectKey<AController>, FTimerHandle>& Pair :
-			PendingPlayerRespawnTimers)
-		{
-			World->GetTimerManager().ClearTimer(Pair.Value);
-		}
-	}
-
-	PendingPlayerRespawnTimers.Reset();
+	StopRespawning();
+	OnPlayerRespawned.Clear();
 	UsedPlayerStarts.Reset();
 	AssignedPlayerStartsByController.Reset();
 	InitialPlayerSpawnTransforms.Reset();
@@ -41,33 +32,16 @@ void UMatchSpawnComponent::EndPlay(
 	Super::EndPlay(EndPlayReason);
 }
 
-AExperienceGameMode*
-UMatchSpawnComponent::GetExperienceGameMode() const
+AActor* UPlayerSpawnComponent::ChooseConfiguredPlayerStart(
+	AController* Player, FName SpawnIndexTagPrefix)
 {
-	return Cast<AExperienceGameMode>(GetOwner());
-}
-
-const AExperienceGameMode*
-UMatchSpawnComponent::GetExperienceGameModeConst() const
-{
-	return Cast<AExperienceGameMode>(GetOwner());
-}
-
-AActor* UMatchSpawnComponent::ChooseConfiguredPlayerStart(
-	AController* Player)
-{
-	if (!Settings.bUseLobbySpawnIndexPlayerStarts)
-	{
-		return nullptr;
-	}
-
 	const APdPlayerState* PlayerState = Player ? Player->GetPlayerState<APdPlayerState>() : nullptr;
 	const UPlayerMatchComponent* MatchComponent = PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
 	const int32 SpawnIndex = MatchComponent ? MatchComponent->GetMatchSpawnIndex() : INDEX_NONE;
 	if (AActor* TaggedPlayerStart =
 		FindPlayerStartByMatchSpawnIndex(
 			SpawnIndex,
-			Settings.LobbySpawnPlayerStartTagPrefix))
+			SpawnIndexTagPrefix))
 	{
 		MarkPlayerStartUsed(Player, TaggedPlayerStart);
 		return TaggedPlayerStart;
@@ -82,7 +56,7 @@ AActor* UMatchSpawnComponent::ChooseConfiguredPlayerStart(
 	return nullptr;
 }
 
-void UMatchSpawnComponent::MarkPlayerStartUsed(
+void UPlayerSpawnComponent::MarkPlayerStartUsed(
 	AController* Player,
 	AActor* PlayerStart)
 {
@@ -98,12 +72,13 @@ void UMatchSpawnComponent::MarkPlayerStartUsed(
 
 	if (Player)
 	{
-		AssignedPlayerStartsByController.FindOrAdd(
-			TObjectKey<AController>(Player)) = PlayerStart;
+		TWeakObjectPtr<AActor>& Previous = AssignedPlayerStartsByController.FindOrAdd(TObjectKey<AController>(Player));
+		if (Previous.IsValid() && Previous.Get() != PlayerStart) { UsedPlayerStarts.Remove(Previous.Get()); }
+		Previous = PlayerStart;
 	}
 }
 
-void UMatchSpawnComponent::RecordInitialSpawn(AController* PlayerController, const FTransform& InitialSpawnTransform)
+void UPlayerSpawnComponent::RecordInitialSpawn(AController* PlayerController, const FTransform& InitialSpawnTransform)
 {
 	if (PlayerController)
 	{
@@ -112,11 +87,11 @@ void UMatchSpawnComponent::RecordInitialSpawn(AController* PlayerController, con
 	}
 }
 
-void UMatchSpawnComponent::RequestPlayerRespawn(
+void UPlayerSpawnComponent::RequestPlayerRespawn(
 	AController* PlayerController,
 	APawn* DeadPawn)
 {
-	AExperienceGameMode* GameMode = GetExperienceGameMode();
+	AGameModeBase* GameMode = Cast<AGameModeBase>(GetOwner());
 	if (!GameMode
 		|| !GameMode->HasAuthority()
 		|| !PlayerController
@@ -125,9 +100,7 @@ void UMatchSpawnComponent::RequestPlayerRespawn(
 		return;
 	}
 
-	const UMatchFlowComponent* MatchFlow =
-		GameMode->GetMatchFlowComponent();
-	if (MatchFlow && MatchFlow->IsGameResultShown())
+	if (!bRespawningEnabled || !MatchRules)
 	{
 		return;
 	}
@@ -140,7 +113,7 @@ void UMatchSpawnComponent::RequestPlayerRespawn(
 
 	TWeakObjectPtr<AController> WeakPlayerController(PlayerController);
 	TWeakObjectPtr<APawn> WeakDeadPawn(DeadPawn);
-	const float RespawnDelay = GetPlayerRespawnDelay();
+	const float RespawnDelay = FMath::Max(MatchRules->PlayerRespawnDelay, 0.0f);
 	if (ACharacterBase* DeadCharacter = Cast<ACharacterBase>(DeadPawn))
 	{
 		DeadCharacter->ClearCharacterOverlayMaterial();
@@ -188,7 +161,7 @@ void UMatchSpawnComponent::RequestPlayerRespawn(
 		RespawnTimerHandle);
 }
 
-bool UMatchSpawnComponent::TryGetPlayerInitialSpawnTransform(
+bool UPlayerSpawnComponent::TryGetPlayerInitialSpawnTransform(
 	AController* PlayerController,
 	FTransform& OutSpawnTransform) const
 {
@@ -217,13 +190,12 @@ bool UMatchSpawnComponent::TryGetPlayerInitialSpawnTransform(
 	return false;
 }
 
-TArray<APlayerController*> UMatchSpawnComponent::ForceMovePlayersToInitialSpawns()
+TArray<APlayerController*> UPlayerSpawnComponent::MovePlayersToInitialSpawns()
 {
 	TArray<APlayerController*> MovedPlayers;
-	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+	const AGameModeBase* GameMode = Cast<AGameModeBase>(GetOwner());
 	UWorld* World = GetWorld();
-	if (!GameMode || !World)
+	if (!GameMode || !GameMode->HasAuthority() || !World)
 	{
 		return MovedPlayers;
 	}
@@ -261,7 +233,7 @@ TArray<APlayerController*> UMatchSpawnComponent::ForceMovePlayersToInitialSpawns
 	return MovedPlayers;
 }
 
-void UMatchSpawnComponent::ClearRuntimeStateForController(
+void UPlayerSpawnComponent::ClearRuntimeStateForController(
 	AController* Controller)
 {
 	if (!Controller)
@@ -294,7 +266,7 @@ void UMatchSpawnComponent::ClearRuntimeStateForController(
 	AssignedPlayerStartsByController.Remove(ControllerKey);
 }
 
-AActor* UMatchSpawnComponent::FindPlayerStartByMatchSpawnIndex(
+AActor* UPlayerSpawnComponent::FindPlayerStartByMatchSpawnIndex(
 	const int32 SpawnIndex,
 	const FName PlayerStartTagPrefix) const
 {
@@ -303,9 +275,7 @@ AActor* UMatchSpawnComponent::FindPlayerStartByMatchSpawnIndex(
 		return nullptr;
 	}
 
-	const FString Prefix = PlayerStartTagPrefix.IsNone()
-		? FString(TEXT("Spawn_"))
-		: PlayerStartTagPrefix.ToString();
+	const FString Prefix = PlayerStartTagPrefix.ToString();
 	const FName DesiredPlayerStartTag(
 		*FString::Printf(TEXT("%s%d"), *Prefix, SpawnIndex));
 
@@ -335,7 +305,7 @@ AActor* UMatchSpawnComponent::FindPlayerStartByMatchSpawnIndex(
 	return nullptr;
 }
 
-AActor* UMatchSpawnComponent::FindFirstUnusedPlayerStart() const
+AActor* UPlayerSpawnComponent::FindFirstUnusedPlayerStart() const
 {
 	TArray<AActor*> PlayerStarts;
 	UGameplayStatics::GetAllActorsOfClass(
@@ -359,7 +329,7 @@ AActor* UMatchSpawnComponent::FindFirstUnusedPlayerStart() const
 	return nullptr;
 }
 
-bool UMatchSpawnComponent::IsPlayerStartUsed(
+bool UPlayerSpawnComponent::IsPlayerStartUsed(
 	const AActor* PlayerStart) const
 {
 	return PlayerStart
@@ -370,191 +340,88 @@ bool UMatchSpawnComponent::IsPlayerStartUsed(
 			});
 }
 
-void UMatchSpawnComponent::FinishPlayerRespawn(
-	TWeakObjectPtr<AController> WeakPlayerController,
-	TWeakObjectPtr<APawn> WeakDeadPawn)
+void UPlayerSpawnComponent::FinishPlayerRespawn(TWeakObjectPtr<AController> WeakPlayerController, TWeakObjectPtr<APawn> WeakDeadPawn)
 {
-	AExperienceGameMode* GameMode = GetExperienceGameMode();
-	if (!GameMode || !GameMode->HasAuthority())
+	AGameModeBase* GameMode = Cast<AGameModeBase>(GetOwner());
+	AController* Controller = WeakPlayerController.Get();
+	if (!GameMode || !GameMode->HasAuthority() || !Controller || !bRespawningEnabled)
 	{
 		return;
 	}
-
-	AController* PlayerController = WeakPlayerController.Get();
-	if (!PlayerController)
+	PendingPlayerRespawnTimers.Remove(TObjectKey<AController>(Controller));
+	APdPlayerController* PdController = Cast<APdPlayerController>(Controller);
+	FTransform Transform;
+	if (!TryGetPlayerRespawnTransform(Controller, Transform))
 	{
+		UE_LOG(LogTemp, Error, TEXT("No respawn PlayerStart for %s."), *GetNameSafe(Controller));
+		if (PdController) { PdController->Client_HideRespawnDelayCountdown(); }
 		return;
 	}
 
-	PendingPlayerRespawnTimers.Remove(
-		TObjectKey<AController>(PlayerController));
-
-	const UMatchFlowComponent* MatchFlow =
-		GameMode->GetMatchFlowComponent();
-	if (MatchFlow && MatchFlow->IsGameResultShown())
+	if (APdPlayerState* State = Controller->GetPlayerState<APdPlayerState>())
 	{
-		if (APdPlayerController* PdPlayerController =
-			Cast<APdPlayerController>(PlayerController))
+		if (UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(State->GetAbilitySystemComponent()))
 		{
-			PdPlayerController->Client_HideRespawnDelayCountdown();
-		}
-		return;
-	}
-
-	APawn* CurrentPawn = PlayerController->GetPawn();
-	APawn* DeadPawn = WeakDeadPawn.Get();
-	if (!DeadPawn)
-	{
-		DeadPawn = CurrentPawn;
-	}
-
-	if (APdPlayerState* PlayerState = PlayerController->GetPlayerState<APdPlayerState>())
-	{
-		if (UPdAbilitySystemComponent* AbilitySystem = Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent()))
-		{
-			AbilitySystem->ResetRuntimeStateForRespawn();
+			ASC->ResetRuntimeStateForRespawn();
 		}
 	}
-
-	FTransform RespawnTransform;
-	if (TryGetPlayerRespawnTransform(
-		PlayerController,
-		RespawnTransform))
+	APawn* Pawn = Controller->GetPawn();
+	if (!IsValid(Pawn))
 	{
-		APawn* RespawnPawn = CurrentPawn ? CurrentPawn : DeadPawn;
-		if (!CurrentPawn && IsValid(RespawnPawn))
-		{
-			PlayerController->Possess(RespawnPawn);
-		}
-
-		if (IsValid(RespawnPawn))
-		{
-			if (ACharacterBase* RespawnedCharacter = Cast<ACharacterBase>(RespawnPawn))
-			{
-				RespawnedCharacter->ResetDeathStateForRespawnAtTransform(RespawnTransform);
-			}
-			else
-			{
-				RespawnPawn->SetActorTransform(RespawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
-				RespawnPawn->ForceNetUpdate();
-			}
-			PlayerController->SetControlRotation(RespawnTransform.GetRotation().Rotator());
-			if (APdPlayerController* PdPlayerController =
-				Cast<APdPlayerController>(PlayerController))
-			{
-				PdPlayerController
-					->Client_ResetRespawnedPawnStateAtTransform(RespawnPawn, RespawnTransform);
-				PdPlayerController
-					->Client_HideRespawnDelayCountdown();
-			}
-			return;
-		}
-
-		GameMode->RestartPlayerAtTransform(
-			PlayerController,
-			RespawnTransform);
-		PlayerController->SetControlRotation(
-			RespawnTransform.GetRotation().Rotator());
-		if (ACharacterBase* RespawnedCharacter =
-			Cast<ACharacterBase>(PlayerController->GetPawn()))
-		{
-			RespawnedCharacter->ResetDeathStateForRespawnAtTransform(RespawnTransform);
-		}
-		if (APdPlayerController* PdPlayerController =
-			Cast<APdPlayerController>(PlayerController))
-		{
-			PdPlayerController
-				->Client_ResetRespawnedPawnStateAtTransform(PlayerController->GetPawn(), RespawnTransform);
-			PdPlayerController->Client_HideRespawnDelayCountdown();
-		}
-		return;
+		Pawn = WeakDeadPawn.Get();
+		if (IsValid(Pawn)) { Controller->Possess(Pawn); }
 	}
-
-	APawn* FallbackRespawnPawn = CurrentPawn ? CurrentPawn : DeadPawn;
-	if (!CurrentPawn && IsValid(FallbackRespawnPawn))
+	const bool bCreatedPawn = !IsValid(Pawn);
+	if (bCreatedPawn)
 	{
-		PlayerController->Possess(FallbackRespawnPawn);
+		GameMode->RestartPlayerAtTransform(Controller, Transform);
+		Pawn = Controller->GetPawn();
 	}
-
-	if (IsValid(FallbackRespawnPawn))
+	if (IsValid(Pawn))
 	{
-		const FTransform FallbackRespawnTransform =
-			FallbackRespawnPawn->GetActorTransform();
-		PlayerController->SetControlRotation(
-			FallbackRespawnTransform.GetRotation().Rotator());
-		if (ACharacterBase* RespawnedCharacter =
-			Cast<ACharacterBase>(FallbackRespawnPawn))
+		if (ACharacterBase* Character = Cast<ACharacterBase>(Pawn))
 		{
-			RespawnedCharacter->ResetDeathStateForRespawnAtTransform(FallbackRespawnTransform);
+			Character->ResetDeathStateForRespawnAtTransform(Transform);
 		}
 		else
 		{
-			FallbackRespawnPawn->ForceNetUpdate();
+			Pawn->SetActorTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
+			Pawn->ForceNetUpdate();
 		}
-		if (APdPlayerController* PdPlayerController =
-			Cast<APdPlayerController>(PlayerController))
-		{
-			PdPlayerController
-				->Client_ResetRespawnedPawnStateAtTransform(FallbackRespawnPawn, FallbackRespawnTransform);
-			PdPlayerController->Client_HideRespawnDelayCountdown();
-		}
-		return;
+		Controller->SetControlRotation(Transform.GetRotation().Rotator());
+		if (PdController) { PdController->Client_ResetRespawnedPawnStateAtTransform(Pawn, Transform); }
 	}
-
-	if (APdPlayerController* PdPlayerController =
-		Cast<APdPlayerController>(PlayerController))
-	{
-		PdPlayerController->Client_HideRespawnDelayCountdown();
-	}
+	if (PdController) { PdController->Client_HideRespawnDelayCountdown(); }
+	if (IsValid(Pawn)) { OnPlayerRespawned.Broadcast(Cast<APlayerController>(Controller), bCreatedPawn); }
 }
 
-bool UMatchSpawnComponent::TryGetPlayerRespawnTransform(
-	AController* PlayerController,
-	FTransform& OutRespawnTransform)
+bool UPlayerSpawnComponent::TryGetPlayerRespawnTransform(AController* Controller, FTransform& OutTransform)
 {
-	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
-	const UMatchFlowComponent* MatchFlow =
-		GameMode ? GameMode->GetMatchFlowComponent() : nullptr;
-	if (MatchFlow && MatchFlow->IsGoldenKillActive())
+	if (RespawnLocation == EPlayerRespawnLocation::InitialSpawn)
 	{
-		return TryGetPlayerInitialSpawnTransform(
-			PlayerController,
-			OutRespawnTransform);
+		return TryGetPlayerInitialSpawnTransform(Controller, OutTransform);
 	}
-
-	const UMatchRuleDefinition* MatchRules =
-		MatchFlow ? MatchFlow->GetMatchRuleDefinition() : nullptr;
-	if (MatchRules && MatchRules->bUseRandomPlayerStartRespawns)
+	AActor* Start = nullptr;
+	if (RespawnLocation == EPlayerRespawnLocation::RandomPlayerStart)
 	{
-		if (AActor* RespawnPlayerStart =
-			FindRandomRespawnPlayerStart(
-				PlayerController,
-				*MatchRules))
-		{
-			OutRespawnTransform =
-				RespawnPlayerStart->GetActorTransform();
-			if (PlayerController)
-			{
-				LastRandomRespawnPlayerStartNames.FindOrAdd(
-					TObjectKey<AController>(PlayerController)) =
-					RespawnPlayerStart->GetFName();
-			}
-			return true;
-		}
+		Start = FindRandomRespawnPlayerStart(Controller, *MatchRules);
+		if (Start) { LastRandomRespawnPlayerStartNames.FindOrAdd(TObjectKey<AController>(Controller)) = Start->GetFName(); }
 	}
-
-	return TryGetPlayerInitialSpawnTransform(
-		PlayerController,
-		OutRespawnTransform);
+	else if (AGameModeBase* GameMode = Cast<AGameModeBase>(GetOwner()))
+	{
+		Start = GameMode->ChoosePlayerStart(Controller);
+	}
+	if (!Start) { return false; }
+	OutTransform = Start->GetActorTransform();
+	return true;
 }
 
-AActor* UMatchSpawnComponent::FindRandomRespawnPlayerStart(
+AActor* UPlayerSpawnComponent::FindRandomRespawnPlayerStart(
 	AController* PlayerController,
-	const UMatchRuleDefinition& MatchRules) const
+	const UMatchRuleDefinition& Rules) const
 {
 	UWorld* World = GetWorld();
-	if (!World || MatchRules.RandomRespawnPlayerStartTags.IsEmpty())
+	if (!World || Rules.RandomRespawnPlayerStartTags.IsEmpty())
 	{
 		return nullptr;
 	}
@@ -578,7 +445,7 @@ AActor* UMatchSpawnComponent::FindRandomRespawnPlayerStart(
 		if (PlayerStart
 			&& DoesPlayerStartMatchRandomRespawnTags(
 				PlayerStart,
-				MatchRules))
+				Rules))
 		{
 			Candidates.Add(PlayerStartActor);
 		}
@@ -589,7 +456,7 @@ AActor* UMatchSpawnComponent::FindRandomRespawnPlayerStart(
 		return nullptr;
 	}
 
-	if (MatchRules.bAvoidLastRandomRespawnPlayerStart
+	if (Rules.bAvoidLastRandomRespawnPlayerStart
 		&& Candidates.Num() > 1
 		&& PlayerController)
 	{
@@ -612,9 +479,9 @@ AActor* UMatchSpawnComponent::FindRandomRespawnPlayerStart(
 		: Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
 }
 
-bool UMatchSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(
+bool UPlayerSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(
 	const APlayerStart* PlayerStart,
-	const UMatchRuleDefinition& MatchRules) const
+	const UMatchRuleDefinition& Rules) const
 {
 	if (!PlayerStart)
 	{
@@ -622,7 +489,7 @@ bool UMatchSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(
 	}
 
 	for (const FName& RespawnTag :
-		MatchRules.RandomRespawnPlayerStartTags)
+		Rules.RandomRespawnPlayerStartTags)
 	{
 		if (!RespawnTag.IsNone()
 			&& (PlayerStart->PlayerStartTag == RespawnTag
@@ -635,17 +502,26 @@ bool UMatchSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(
 	return false;
 }
 
-
-
-float UMatchSpawnComponent::GetPlayerRespawnDelay() const
+void UPlayerSpawnComponent::Initialize(const UMatchRuleDefinition* InMatchRules, EPlayerRespawnLocation InRespawnLocation)
 {
-	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
-	const UMatchFlowComponent* MatchFlow =
-		GameMode ? GameMode->GetMatchFlowComponent() : nullptr;
-	const UMatchRuleDefinition* MatchRules =
-		MatchFlow ? MatchFlow->GetMatchRuleDefinition() : nullptr;
-	return MatchRules
-		? FMath::Max(MatchRules->PlayerRespawnDelay, 0.0f)
-		: 0.0f;
+	MatchRules = InMatchRules;
+	RespawnLocation = InRespawnLocation;
+	bRespawningEnabled = MatchRules != nullptr;
+}
+
+void UPlayerSpawnComponent::StopRespawning()
+{
+	bRespawningEnabled = false;
+	if (UWorld* World = GetWorld())
+	{
+		for (auto& Pair : PendingPlayerRespawnTimers)
+		{
+			World->GetTimerManager().ClearTimer(Pair.Value);
+			if (APdPlayerController* Controller = Cast<APdPlayerController>(Pair.Key.ResolveObjectPtr()))
+			{
+				Controller->Client_HideRespawnDelayCountdown();
+			}
+		}
+	}
+	PendingPlayerRespawnTimers.Reset();
 }

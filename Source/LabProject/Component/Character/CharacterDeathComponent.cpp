@@ -14,9 +14,9 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/PlayerController.h"
-#include "Lobby/Contents/LobbyGameMode.h"
+#include "Component/Player/PlayerSpawnComponent.h"
+#include "GameFramework/GameModeBase.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Mode/ExperienceGameMode.h"
 #include "Mode/PdHUD.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterDeathComponent)
@@ -116,24 +116,9 @@ void UCharacterDeathComponent::HandleDeadTagChanged(
 		return;
 	}
 
-	if (AExperienceGameMode* ExperienceGameMode =
-		Character->GetWorld()
-			? Character->GetWorld()->GetAuthGameMode<AExperienceGameMode>()
-			: nullptr)
-	{
-		ExperienceGameMode->RequestPlayerRespawn(
-			DeathController,
-			Character);
-	}
-	else if (ALobbyGameMode* LobbyGameMode =
-		Character->GetWorld()
-			? Character->GetWorld()->GetAuthGameMode<ALobbyGameMode>()
-			: nullptr)
-	{
-		LobbyGameMode->RequestLobbyPlayerRespawn(
-			DeathController,
-			Character);
-	}
+	AGameModeBase* GameMode = Character->GetWorld() ? Character->GetWorld()->GetAuthGameMode() : nullptr;
+	UPlayerSpawnComponent* Spawn = GameMode ? GameMode->FindComponentByClass<UPlayerSpawnComponent>() : nullptr;
+	if (Spawn) { Spawn->RequestPlayerRespawn(DeathController, Character); }
 }
 
 void UCharacterDeathComponent::HandleRemoteDeath()

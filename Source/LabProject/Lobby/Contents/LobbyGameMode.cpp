@@ -2,9 +2,13 @@
 
 #include "Character/PdPlayer.h"
 #include "Component/Lobby/LobbyConfigurationComponent.h"
-#include "Component/Lobby/LobbyExperienceComponent.h"
-#include "Component/Lobby/LobbyPlayerCoordinatorComponent.h"
-#include "Component/Lobby/LobbyRespawnComponent.h"
+#include "Component/Experience/ExperienceManagerComponent.h"
+#include "Definition/Experience/ExperienceDefinition.h"
+#include "Experience/PdWorldSettings.h"
+#include "Component/Lobby/LobbyPlayerStateComponent.h"
+#include "GameFramework/GameSession.h"
+#include "Component/Lobby/LobbyPlayerSetupComponent.h"
+#include "Component/Player/PlayerSpawnComponent.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
@@ -22,9 +26,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogLobbyGameMode, Log, All);
 ALobbyGameMode::ALobbyGameMode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	LobbyConfigurationComponent = CreateDefaultSubobject<ULobbyConfigurationComponent>(TEXT("LobbyConfigurationComponent"));
-	LobbyExperienceComponent = CreateDefaultSubobject<ULobbyExperienceComponent>(TEXT("LobbyExperienceComponent"));
-	LobbyPlayerCoordinatorComponent = CreateDefaultSubobject<ULobbyPlayerCoordinatorComponent>(TEXT("LobbyPlayerCoordinatorComponent"));
-	LobbyRespawnComponent = CreateDefaultSubobject<ULobbyRespawnComponent>(TEXT("LobbyRespawnComponent"));
+	LobbyPlayerSetupComponent = CreateDefaultSubobject<ULobbyPlayerSetupComponent>(TEXT("LobbyPlayerCoordinatorComponent"));
+	SpawnComponent = CreateDefaultSubobject<UPlayerSpawnComponent>(TEXT("LobbyRespawnComponent"));
 	MatchCoordinator = CreateDefaultSubobject<ULobbyMatchCoordinator>(TEXT("LobbyMatchCoordinator"));
 	DefaultPlayerProvisioner = CreateDefaultSubobject<UDefaultPlayerProvisioner>(TEXT("DefaultPlayerProvisioner"));
 	TravelCoordinator = CreateDefaultSubobject<ULobbyTravelCoordinator>(TEXT("LobbyTravelCoordinator"));
@@ -48,6 +51,7 @@ void ALobbyGameMode::PreInitializeComponents()
 void ALobbyGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+	SpawnComponent->OnPlayerRespawned.AddUObject(this, &ThisClass::HandlePlayerRespawned);
 	LobbyConfigurationComponent->InitializeRuntime(FSimpleDelegate::CreateWeakLambda(this, [this]()
 	{
 		if (!DefaultPlayerProvisioner->Initialize(
@@ -56,7 +60,7 @@ void ALobbyGameMode::BeginPlay()
 			return;
 		}
 		LobbyConfigurationComponent->ApplyDefaultLobbyConfigIfNeeded();
-		LobbyConfigurationComponent->SyncSelectedLobbyConfigToRuntime();
+		SpawnComponent->Initialize(LobbyConfigurationComponent->GetMatchRuleDefinition(), EPlayerRespawnLocation::PlayerStart);
 		MatchCoordinator->UpdateAdvertisedSessionSettingsFromLobbyConfig();
 		// Experience와 로비 설정 중 어느 쪽이 먼저 로딩되어도 두 준비가 끝난 뒤 플레이어를 시작한다.
 		ResumeWaitingPlayers();
@@ -69,7 +73,7 @@ void ALobbyGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	MatchCoordinator->Shutdown();
 	TravelCoordinator->Shutdown();
 	DefaultPlayerProvisioner->Shutdown();
-	LobbyExperienceComponent->OnExperienceReady.RemoveAll(this);
+	SpawnComponent->OnPlayerRespawned.RemoveAll(this);
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -77,8 +81,7 @@ void ALobbyGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ALobbyGameMode::InitGameState()
 {
 	Super::InitGameState();
-	LobbyExperienceComponent->OnExperienceReady.AddUObject(this, &ThisClass::ResumeWaitingPlayers);
-	LobbyExperienceComponent->StartExperienceLoad();
+	StartExperienceLoad();
 }
 
 // 엔진의 접속 승인을 유지하면서 현재 로비 설정의 인원 제한을 적용한다.
@@ -86,7 +89,7 @@ void ALobbyGameMode::PreLogin(
 	const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
 {
 	Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
-	if (ErrorMessage.IsEmpty() && GameState && GameState->PlayerArray.Num() >= LobbyConfigurationComponent->GetConfiguredMaxPlayerCount())
+	if (ErrorMessage.IsEmpty() && LobbyConfigurationComponent->IsRuntimeReady() && GameState && GameState->PlayerArray.Num() >= LobbyConfigurationComponent->GetConfiguredMaxPlayerCount())
 	{
 		ErrorMessage = TEXT("Server is full.");
 	}
@@ -103,7 +106,8 @@ void ALobbyGameMode::GenericPlayerInitialization(AController* Controller)
 		return;
 	}
 
-	LobbyPlayerCoordinatorComponent->InitializeLobbyPlayerState(PlayerController, LobbyPlayerState);
+	SpawnComponent->ClearRuntimeStateForController(Controller);
+	LobbyPlayerSetupComponent->InitializeLobbyPlayerState(PlayerController, LobbyPlayerState);
 	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(PlayerController))
 	{
 		PdPlayerController->Client_RequestLocalCosmeticProfileSync();
@@ -118,6 +122,7 @@ void ALobbyGameMode::HandleStartingNewPlayer_Implementation(APlayerController* N
 		return;
 	}
 
+	MatchCoordinator->AssignLobbyTeamColorIfNeeded(NewPlayer ? NewPlayer->GetPlayerState<APdPlayerState>() : nullptr);
 	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 	ProvisionLobbyPlayer(NewPlayer);
 	const ALobbyGameState* LobbyGameState = GetGameState<ALobbyGameState>();
@@ -134,9 +139,10 @@ UClass* ALobbyGameMode::GetDefaultPawnClassForController_Implementation(AControl
 	{
 		return nullptr;
 	}
-	if (UClass* ExperiencePawnClass = LobbyExperienceComponent->ResolveExperiencePawnClass())
+	if (GetConfiguredExperienceId().IsValid())
 	{
-		return ExperiencePawnClass;
+		const UExperienceDefinition* Experience = GetExperienceManager()->GetCurrentExperienceChecked();
+		if (Experience->DefaultPawnClass) { return Experience->DefaultPawnClass; }
 	}
 	return Super::GetDefaultPawnClassForController_Implementation(InController);
 }
@@ -145,13 +151,19 @@ UClass* ALobbyGameMode::GetDefaultPawnClassForController_Implementation(AControl
 void ALobbyGameMode::Logout(AController* Exiting)
 {
 	DefaultPlayerProvisioner->ClearRuntimeStateForController(Exiting, Exiting ? Exiting->PlayerState : nullptr);
+	SpawnComponent->ClearRuntimeStateForController(Exiting);
 	Super::Logout(Exiting);
 }
 
 // 호스트가 확정한 로비 설정을 적용한다.
-void ALobbyGameMode::SaveConfig(const FName MapKey, const int32 InMaxPlayerCount, const int32 InMaxBotCount)
+void ALobbyGameMode::SaveConfig(FName MapKey, int32 InMaxBotCount)
 {
-	LobbyConfigurationComponent->SaveConfig(MapKey, InMaxPlayerCount, InMaxBotCount);
+	if (!LobbyConfigurationComponent->IsRuntimeReady()) { return; }
+	FLobbyMatchMapOption Option;
+	if (!LobbyConfigurationComponent->FindConfiguredMapOption(MapKey, Option)) { return; }
+	if (MatchCoordinator->IsGameStartRequested()) { MatchCoordinator->CancelPendingGameStart(); }
+	LobbyConfigurationComponent->SaveConfig(MapKey, InMaxBotCount);
+	MatchCoordinator->UpdateAdvertisedSessionSettingsFromLobbyConfig();
 }
 
 // 호스트의 시작 요청을 인원과 팀 조건을 검증하는 담당 객체에 전달한다.
@@ -175,13 +187,19 @@ void ALobbyGameMode::NotifyLobbyTeamChanged()
 // 호스트가 지정한 플레이어의 강퇴를 처리한다.
 void ALobbyGameMode::KickPlayer(APdPlayerState* TargetPlayerState)
 {
-	LobbyPlayerCoordinatorComponent->KickPlayer(TargetPlayerState);
-}
-
-// 로비에서 사망한 플레이어의 부활을 요청한다.
-void ALobbyGameMode::RequestLobbyPlayerRespawn(AController* PlayerController, APawn* DeadPawn)
-{
-	LobbyRespawnComponent->RequestLobbyPlayerRespawn(PlayerController, DeadPawn);
+	if (!HasAuthority() || !TargetPlayerState || !GameSession) { return; }
+	APlayerController* Controller = TargetPlayerState->GetPlayerController();
+	if (!Controller)
+	{
+		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			if (It->Get() && It->Get()->PlayerState == TargetPlayerState) { Controller = It->Get(); break; }
+		}
+	}
+	if (!Controller) { return; }
+	if (MatchCoordinator->IsGameStartRequested()) { MatchCoordinator->CancelPendingGameStart(); }
+	TargetPlayerState->GetLobbyPlayerStateComponent()->SetLeavingLobby(true);
+	GameSession->KickPlayer(Controller, NSLOCTEXT("Lobby", "KickedByHost", "Kicked by host"));
 }
 
 // Pawn이 준비된 플레이어에게 로비 장비와 기본 상태를 지급한다. 반복 요청의 중복 방지는 지급기가 담당한다.
@@ -198,7 +216,7 @@ bool ALobbyGameMode::IsReadyForPlayerStart() const
 {
 	return LobbyConfigurationComponent->IsRuntimeReady()
 		&& DefaultPlayerProvisioner->IsInitialized()
-		&& LobbyExperienceComponent->IsExperienceLoaded();
+		&& (!GetConfiguredExperienceId().IsValid() || (GetExperienceManager() && GetExperienceManager()->IsExperienceLoaded()));
 }
 
 void ALobbyGameMode::ResumeWaitingPlayers()
@@ -250,5 +268,80 @@ void ALobbyGameMode::EnsureLobbyFrameworkClasses()
 		UE_LOG(LogLobbyGameMode, Warning, TEXT("DefaultPawnClass '%s' is not a APdPlayer; using the native lobby default."),
 			*GetNameSafe(DefaultPawnClass.Get()));
 		DefaultPawnClass = APdPlayer::StaticClass();
+	}
+}
+
+AActor* ALobbyGameMode::ChoosePlayerStart_Implementation(AController* Player)
+{
+	AActor* Start = Super::ChoosePlayerStart_Implementation(Player);
+	SpawnComponent->MarkPlayerStartUsed(Player, Start);
+	return Start;
+}
+
+APawn* ALobbyGameMode::SpawnDefaultPawnAtTransform_Implementation(AController* Player, const FTransform& Transform)
+{
+	APawn* Pawn = Super::SpawnDefaultPawnAtTransform_Implementation(Player, Transform);
+	if (Pawn) { SpawnComponent->RecordInitialSpawn(Player, Pawn->GetActorTransform()); }
+	return Pawn;
+}
+
+void ALobbyGameMode::HandlePlayerRespawned(APlayerController* Player, bool bCreatedPawn)
+{
+	// 재사용한 Pawn의 지급 상태는 보존하며 새 Pawn에만 기존 로비 지급을 실행한다.
+	if (bCreatedPawn) { ProvisionLobbyPlayer(Player); }
+}
+
+FPrimaryAssetId ALobbyGameMode::GetConfiguredExperienceId() const
+{
+	const APdWorldSettings* Settings = GetWorld() ? Cast<APdWorldSettings>(GetWorld()->GetWorldSettings()) : nullptr;
+	return Settings ? Settings->GetDefaultExperienceId() : FPrimaryAssetId();
+}
+
+UExperienceManagerComponent* ALobbyGameMode::GetExperienceManager() const
+{
+	const ALobbyGameState* State = GetGameState<ALobbyGameState>();
+	return State ? State->GetExperienceManagerComponent() : nullptr;
+}
+
+void ALobbyGameMode::StartExperienceLoad()
+{
+	const FPrimaryAssetId Id = GetConfiguredExperienceId();
+	if (!Id.IsValid()) { return; }
+	UExperienceManagerComponent* Manager = GetExperienceManager();
+	if (!Manager)
+	{
+		HandleExperienceLoadFailed(Id, TEXT("LobbyGameState or ExperienceManagerComponent is missing."));
+		return;
+	}
+	Manager->CallOrRegister_OnExperienceLoaded(FOnPdExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoaded));
+	Manager->CallOrRegister_OnExperienceLoadFailed(FOnPdExperienceLoadFailed::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoadFailed));
+	if (Manager->GetLoadState() == EExperienceLoadState::Unloaded) { Manager->SetCurrentExperienceAuth(Id); }
+}
+
+void ALobbyGameMode::HandleExperienceLoaded(const UExperienceDefinition* Experience)
+{
+	GetGameState<ALobbyGameState>()->SetExperienceLoadFailed(false);
+	ResumeWaitingPlayers();
+}
+
+void ALobbyGameMode::HandleExperienceLoadFailed(FPrimaryAssetId Id, const FString& Message)
+{
+	UE_LOG(LogLobbyGameMode, Error, TEXT("Lobby experience load failed: %s %s"), *Id.ToString(), *Message);
+	if (ALobbyGameState* State = GetGameState<ALobbyGameState>()) { State->SetExperienceLoadFailed(true); }
+}
+
+void ALobbyGameMode::SelectLobbyMapByOffset(int32 Offset)
+{
+	if (!HasAuthority() || !LobbyConfigurationComponent->IsRuntimeReady() || Offset == 0) { return; }
+	const int32 Count = LobbyConfigurationComponent->GetLobbyMapOptionCount();
+	const FName Key = LobbyConfigurationComponent->GetSelectedLobbyMapKey();
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		FLobbyMatchMapOption Option;
+		LobbyConfigurationComponent->GetLobbyMapOptionAtIndex(Index, Option);
+		if (Option.MapKey != Key) { continue; }
+		LobbyConfigurationComponent->GetLobbyMapOptionAtIndex(((Index + Offset) % Count + Count) % Count, Option);
+		SaveConfig(Option.MapKey, LobbyConfigurationComponent->GetConfiguredMaxBotCount());
+		return;
 	}
 }

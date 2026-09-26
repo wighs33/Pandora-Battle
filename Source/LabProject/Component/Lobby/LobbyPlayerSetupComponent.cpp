@@ -1,26 +1,23 @@
-#include "Component/Lobby/LobbyPlayerCoordinatorComponent.h"
+#include "Component/Lobby/LobbyPlayerSetupComponent.h"
 #include "Component/Lobby/LobbyPlayerStateComponent.h"
 
-#include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Engine/World.h"
-#include "GameFramework/GameSession.h"
 #include "GameFramework/GameStateBase.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Mode/PdPlayerState.h"
-#include "Lobby/Coordination/LobbyMatchCoordinator.h"
 #include "Engine/GameInstance.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyPlayerCoordinatorComponent)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyPlayerSetupComponent)
 
-ULobbyPlayerCoordinatorComponent::
-ULobbyPlayerCoordinatorComponent()
+ULobbyPlayerSetupComponent::
+ULobbyPlayerSetupComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void ULobbyPlayerCoordinatorComponent::
+void ULobbyPlayerSetupComponent::
 InitializeLobbyPlayerState(
 	APlayerController* PlayerController,
 	APdPlayerState* LobbyPlayerState)
@@ -60,97 +57,20 @@ InitializeLobbyPlayerState(
 	}
 
 	AssignLobbySpawnIndexIfNeeded(LobbyPlayerState);
-	if (ULobbyMatchCoordinator* MatchCoordinator =
-		GameMode->GetMatchCoordinator())
-	{
-		MatchCoordinator
-			->AssignLobbyTeamColorIfNeeded(
-				LobbyPlayerState);
-	}
+
 }
 
-void ULobbyPlayerCoordinatorComponent::KickPlayer(
-	APdPlayerState* TargetPlayerState)
-{
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode
-		|| !GameMode->HasAuthority()
-		|| !TargetPlayerState)
-	{
-		return;
-	}
 
-	APlayerController* TargetPlayerController =
-		ResolvePlayerControllerForPlayerState(
-			TargetPlayerState);
-	if (!TargetPlayerController)
-	{
-		return;
-	}
 
-	ULobbyMatchCoordinator* MatchCoordinator =
-		GameMode->GetMatchCoordinator();
-	if (MatchCoordinator
-		&& MatchCoordinator->IsGameStartRequested())
-	{
-		MatchCoordinator->CancelPendingGameStart();
-	}
 
-	TargetPlayerState->GetLobbyPlayerStateComponent()->SetLeavingLobby(true);
-
-	ForceKickPlayer(TargetPlayerController);
-}
-
-APlayerController* ULobbyPlayerCoordinatorComponent::
-ResolvePlayerControllerForPlayerState(
-	const APlayerState* PlayerState) const
-{
-	if (!PlayerState)
-	{
-		return nullptr;
-	}
-
-	if (APlayerController* PlayerController =
-		Cast<APlayerController>(
-			PlayerState->GetOwner()))
-	{
-		return PlayerController;
-	}
-
-	const ALobbyGameMode* GameMode =
-		GetLobbyGameMode();
-	const UWorld* World = GameMode
-		? GameMode->GetWorld()
-		: nullptr;
-	if (!World)
-	{
-		return nullptr;
-	}
-
-	for (FConstPlayerControllerIterator Iterator =
-		World->GetPlayerControllerIterator();
-		Iterator;
-		++Iterator)
-	{
-		APlayerController* Candidate =
-			Iterator->Get();
-		if (Candidate
-			&& Candidate->PlayerState == PlayerState)
-		{
-			return Candidate;
-		}
-	}
-
-	return nullptr;
-}
 
 ALobbyGameMode*
-ULobbyPlayerCoordinatorComponent::GetLobbyGameMode() const
+ULobbyPlayerSetupComponent::GetLobbyGameMode() const
 {
 	return Cast<ALobbyGameMode>(GetOwner());
 }
 
-void ULobbyPlayerCoordinatorComponent::
+void ULobbyPlayerSetupComponent::
 AssignLobbySpawnIndexIfNeeded(
 	APdPlayerState* LobbyPlayerState) const
 {
@@ -167,7 +87,7 @@ AssignLobbySpawnIndexIfNeeded(
 				LobbyPlayerState));
 }
 
-int32 ULobbyPlayerCoordinatorComponent::
+int32 ULobbyPlayerSetupComponent::
 FindAvailableLobbySpawnIndex(
 	const APdPlayerState* IgnoredPlayerState) const
 {
@@ -199,12 +119,7 @@ FindAvailableLobbySpawnIndex(
 		}
 	}
 
-	const int32 SearchLimit = FMath::Max(
-		GameMode
-			? GameMode
-				->GetLobbyConfigurationComponent()->GetSelectedLobbyMaxPlayerCount()
-			: 1,
-		1);
+	const int32 SearchLimit = UsedSpawnIndices.Num() + 1;
 	for (int32 SpawnIndex = 0;
 		SpawnIndex < SearchLimit;
 		++SpawnIndex)
@@ -216,24 +131,4 @@ FindAvailableLobbySpawnIndex(
 	}
 
 	return UsedSpawnIndices.Num();
-}
-
-void ULobbyPlayerCoordinatorComponent::ForceKickPlayer(
-	APlayerController* TargetPlayerController)
-{
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode
-		|| !GameMode->HasAuthority()
-		|| !TargetPlayerController
-		|| !GameMode->GameSession)
-	{
-		return;
-	}
-
-	GameMode->GameSession->KickPlayer(
-		TargetPlayerController,
-		NSLOCTEXT(
-			"Lobby",
-			"KickedByHost",
-			"Kicked by host"));
 }

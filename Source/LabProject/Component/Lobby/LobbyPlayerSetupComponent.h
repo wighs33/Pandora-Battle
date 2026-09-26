@@ -2,7 +2,7 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
-#include "LobbyPlayerCoordinatorComponent.generated.h"
+#include "LobbyPlayerSetupComponent.generated.h"
 
 class AController;
 class ALobbyGameMode;
@@ -11,23 +11,20 @@ class APlayerController;
 class APlayerState;
 
 /**
- * 로비 참가자의 기본 이름·입장 슬롯을 배정하고 호스트의 강퇴 요청을 처리한다.
+ * 로비 참가자의 기본 이름과 입장 슬롯을 준비한다.
  */
 UCLASS(ClassGroup = (Lobby))
-class LABPROJECT_API ULobbyPlayerCoordinatorComponent : public UActorComponent
+class LABPROJECT_API ULobbyPlayerSetupComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	ULobbyPlayerCoordinatorComponent();
+	ULobbyPlayerSetupComponent();
 
 	void InitializeLobbyPlayerState(
 		APlayerController* PlayerController,
 		APdPlayerState* LobbyPlayerState);
-	void KickPlayer(APdPlayerState* TargetPlayerState);
-	APlayerController* ResolvePlayerControllerForPlayerState(
-		const APlayerState* PlayerState) const;
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -36,8 +33,6 @@ private:
 		APdPlayerState* LobbyPlayerState) const;
 	int32 FindAvailableLobbySpawnIndex(
 		const APdPlayerState* IgnoredPlayerState) const;
-	void ForceKickPlayer(
-		APlayerController* TargetPlayerController);
 
 private:
 	int32 NicknameIndex = 0;

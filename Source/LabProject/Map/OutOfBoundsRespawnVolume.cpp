@@ -11,9 +11,8 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "Item/ArrowProjectileBase.h"
-#include "Lobby/Contents/LobbyGameMode.h"
+#include "Component/Player/PlayerSpawnComponent.h"
 #include "Map/TransientActorRegistrySubsystem.h"
-#include "Mode/ExperienceGameMode.h"
 #include "UI/DamageIndicatorActor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OutOfBoundsRespawnVolume)
@@ -108,19 +107,11 @@ bool AOutOfBoundsRespawnVolume::TryRespawnPlayer(ACharacterBase* PlayerCharacter
 		? CleanupTransientActors(PlayerCharacter)
 		: 0;
 
-	AExperienceGameMode* ExperienceGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AExperienceGameMode>() : nullptr;
-	if (ExperienceGameMode)
+	AGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode() : nullptr;
+	UPlayerSpawnComponent* Spawn = GameMode ? GameMode->FindComponentByClass<UPlayerSpawnComponent>() : nullptr;
+	if (Spawn)
 	{
-		ExperienceGameMode->RequestPlayerRespawn(Controller, PlayerCharacter);
-
-		return true;
-	}
-
-	ALobbyGameMode* LobbyGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALobbyGameMode>() : nullptr;
-	if (LobbyGameMode)
-	{
-		LobbyGameMode->RequestLobbyPlayerRespawn(Controller, PlayerCharacter);
-
+		Spawn->RequestPlayerRespawn(Controller, PlayerCharacter);
 		return true;
 	}
 

@@ -12,6 +12,7 @@
 #include "Component/Character/CharacterHealthBarComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/EquipmentComponent.h"
+#include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
@@ -152,6 +153,16 @@ void UAbilityStateComponent::QueueAbilitySystemActorInfoInitializationRetry()
 				bActorInfoInitializationQueued = false;
 				ActorInfoInitializationRetryTimerHandle.Invalidate();
 				TryInitializeAbilitySystemActorInfo();
+				// 캐릭터 초기화 이후 ASC 연결만 늦어진 경우에도 보관된 최신 선택을 적용한다.
+				ACharacterBase* Character = GetCharacterOwner();
+				if (Character && Character->HasAuthority() && BoundAbilitySystemComponent.IsValid()
+					&& BoundAbilitySystemComponent->GetAvatarActor() == Character)
+				{
+					if (APdPlayerState* PlayerState = Character->GetPlayerState<APdPlayerState>())
+					{
+						PlayerState->GetSelectingPandoraAndWeaponComponent()->ApplySelectedPandoraAndWeapon();
+					}
+				}
 			}),
 		ActorInfoRetryInterval, false);
 }

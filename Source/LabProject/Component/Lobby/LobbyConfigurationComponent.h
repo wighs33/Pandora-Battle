@@ -32,10 +32,8 @@ public:
 	bool IsRuntimeReady() const { return RuntimeState == ERuntimeState::Ready; }
 	bool HasRuntimeInitializationFailed() const { return RuntimeState == ERuntimeState::Failed; }
 	void ApplyDefaultLobbyConfigIfNeeded();
-	void SyncSelectedLobbyConfigToRuntime();
 	void SaveConfig(
 		FName MapKey,
-		int32 InMaxPlayerCount,
 		int32 InMaxBotCount);
 
 	FString GetRoomTravelMapName();
@@ -48,15 +46,13 @@ public:
 	bool GetSelectedLobbyMapOption(
 		FLobbyMatchMapOption& OutMapOption);
 	FName GetSelectedLobbyMapKey();
-	int32 GetSelectedLobbyMaxPlayerCount();
-	void SelectLobbyMapByOffset(int32 Offset);
 
 	FName ResolveConfiguredMapKey(FName MapKey);
 	bool FindConfiguredMapOption(
 		FName MapKey,
 		FLobbyMatchMapOption& OutMapOption);
 	int32 GetConfiguredMaxPlayerCount();
-	int32 GetConfiguredMaxBotCount(FName MapKey);
+	int32 GetConfiguredMaxBotCount();
 
 	const ULevelDefinition* GetLevelDefinition();
 	const UMatchRuleDefinition* GetMatchRuleDefinition();
@@ -64,13 +60,9 @@ public:
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandleLobbyDependenciesPreloadComplete(uint32 RequestGeneration);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ALobbyGameMode* GetLobbyGameMode() const;
-	FString ResolveSoftMapPath(
-		const TSoftObjectPtr<UWorld>& Map,
-		const FString& FallbackTravelMapName) const;
 	void FinishRuntimeInitialization(uint32 RequestGeneration);
 	void ReleaseRuntimePreloads();
 
@@ -87,8 +79,6 @@ private:
 	TObjectPtr<UDefaultProvisionDefinition>
 		LoadedDefaultProvisionDefinition;
 
-	bool bLoggedMissingLevelDefinition = false;
-	bool bLoggedMissingMatchRuleDefinition = false;
 	ERuntimeState RuntimeState = ERuntimeState::NotStarted;
 	TSharedPtr<FStreamableHandle> LobbyDependenciesPreloadHandle;
 	FSimpleDelegate RuntimeReadyDelegate;

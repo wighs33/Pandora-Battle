@@ -9,7 +9,7 @@ class UExperienceDefinition;
 class UExperienceManagerComponent;
 class UMatchFlowComponent;
 class UMatchPlayerSetupComponent;
-class UMatchSpawnComponent;
+class UPlayerSpawnComponent;
 class UMatchRuleDefinition;
 class URewardDefinition;
 class UWorld;
@@ -48,13 +48,11 @@ public:
 	AExperienceGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UMatchFlowComponent* GetMatchFlowComponent() const { return MatchFlowComponent; }
-	UMatchSpawnComponent* GetSpawnComponent() const { return SpawnComponent; }
+	UPlayerSpawnComponent* GetSpawnComponent() const { return SpawnComponent; }
 	UMatchPlayerSetupComponent* GetPlayerSetupComponent() const { return PlayerSetupComponent; }
 
 	void NotifyPlayerKillScored(APlayerState* KillerPlayerState, APlayerState* VictimPlayerState);
 	bool RequestAbortMatchToTitle(APlayerController* RequestingPlayer);
-	void RequestPlayerRespawn(AController* PlayerController, APawn* DeadPawn);
-	bool TryGetPlayerInitialSpawnTransform(AController* PlayerController, FTransform& OutSpawnTransform) const;
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -73,21 +71,14 @@ protected:
 private:
 	UExperienceManagerComponent* GetExperienceManager() const;
 	void ResumeStartingPlayers();
-	void ApplyRuntimeComponentSettings();
+	void HandleRuntimeContentReady();
 
 protected:
-	// Experience 미지정과 로딩 실패는 구분한다. 선택 기능인 맵만 실패 후 기본 Pawn 실행을 허용한다.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Experience")
-	bool bAllowNativePawnOnExperienceLoadFailure = false;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Spawn")
 	bool bUseLobbySpawnIndexPlayerStarts = true;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Spawn")
 	FName LobbySpawnPlayerStartTagPrefix = TEXT("Spawn_");
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Gold")
-	TSoftObjectPtr<URewardDefinition> GameVictoryRewardDefinition;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Gold", meta = (ClampMin = "0"))
 	int32 VictoryGoldPerKill = 100;
@@ -102,9 +93,6 @@ protected:
 		meta = (ToolTip = "Reward definition that controls how many placed reward chests stay active at match start. If unset, the first placed chest with a RewardDefinition is used."))
 	TSoftObjectPtr<URewardDefinition> ChestSpawnRewardDefinition;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Match Rules")
-	TSoftObjectPtr<UMatchRuleDefinition> MatchRuleDefinition;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Team")
 	bool bAssignDefaultTeamWhenLobbyTeamMissing = true;
 
@@ -112,13 +100,14 @@ protected:
 	int32 DefaultLobbyTeamColorIndex = 0;
 
 private:
-	bool bExperienceLoadFailed = false;
+	friend class UMatchFlowComponent;
+	friend class UMatchPlayerSetupComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Match|Runtime")
 	TObjectPtr<UMatchFlowComponent> MatchFlowComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Match|Runtime")
-	TObjectPtr<UMatchSpawnComponent> SpawnComponent;
+	TObjectPtr<UPlayerSpawnComponent> SpawnComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Match|Runtime")
 	TObjectPtr<UMatchPlayerSetupComponent> PlayerSetupComponent;

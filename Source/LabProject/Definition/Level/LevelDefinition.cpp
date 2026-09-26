@@ -93,10 +93,10 @@ namespace
 					LevelLabel));
 			}
 
-			if (Level.Map.IsNull() && Level.TravelMapName.TrimStartAndEnd().IsEmpty())
+			if (Level.Map.IsNull())
 			{
 				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("LevelDefinition", "MissingTravelDestination", "{0} must set Map or TravelMapName."),
+					NSLOCTEXT("LevelDefinition", "MissingTravelDestination", "{0} must set Map."),
 					LevelLabel));
 			}
 			if (!Level.Thumbnail)
@@ -182,23 +182,13 @@ bool ULevelDefinition::FindIngameLevel(
 	return false;
 }
 
-FName ULevelDefinition::ResolveIngameLevelKey(const FName LevelKey) const
+FName ULevelDefinition::ResolveIngameLevelKey(FName LevelKey) const
 {
-	if (IngameLevels.IsEmpty())
+	for (const FLobbyMatchMapOption& Level : IngameLevels)
 	{
-		return LevelKey;
+		if (!LevelKey.IsNone() && Level.MapKey == LevelKey) { return LevelKey; }
 	}
-	if (!LevelKey.IsNone())
-	{
-		for (const FLobbyMatchMapOption& Level : IngameLevels)
-		{
-			if (Level.MapKey == LevelKey)
-			{
-				return LevelKey;
-			}
-		}
-	}
-	return IngameLevels[0].MapKey;
+	return NAME_None;
 }
 
 FString ULevelDefinition::GetTitleTravelMapName() const

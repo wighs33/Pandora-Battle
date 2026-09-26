@@ -5,11 +5,12 @@
 #include "Component/Experience/ExperienceManagerComponent.h"
 #include "Component/Match/MatchFlowComponent.h"
 #include "Component/Match/MatchPlayerSetupComponent.h"
-#include "Component/Match/MatchSpawnComponent.h"
+#include "Component/Player/PlayerSpawnComponent.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Experience/ExperienceDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
+#include "Definition/Match/MatchRuleDefinition.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Engine/World.h"
@@ -38,7 +39,7 @@ AExperienceGameMode::AExperienceGameMode(const FObjectInitializer& ObjectInitial
 
 	// 기존 Blueprint의 컴포넌트 기본값 연결을 보존하기 위해 직렬화된 서브오브젝트 이름은 유지한다.
 	MatchFlowComponent = CreateDefaultSubobject<UMatchFlowComponent>(TEXT("ExperienceMatchFlow"));
-	SpawnComponent = CreateDefaultSubobject<UMatchSpawnComponent>(TEXT("ExperienceSpawn"));
+	SpawnComponent = CreateDefaultSubobject<UPlayerSpawnComponent>(TEXT("ExperienceSpawn"));
 	PlayerSetupComponent = CreateDefaultSubobject<UMatchPlayerSetupComponent>(TEXT("ExperiencePlayerProvisioning"));
 	check(MatchFlowComponent && SpawnComponent && PlayerSetupComponent);
 }
@@ -47,9 +48,9 @@ AExperienceGameMode::AExperienceGameMode(const FObjectInitializer& ObjectInitial
 void AExperienceGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
-	MatchFlowComponent->OnRuntimeContentReady.AddUObject(this, &ThisClass::TryStartServerMatch);
+	MatchFlowComponent->OnRuntimeContentReady.AddUObject(this, &ThisClass::HandleRuntimeContentReady);
 	PlayerSetupComponent->OnPlayerGameplayReady.AddUObject(this, &ThisClass::TryStartServerMatch);
-	ApplyRuntimeComponentSettings();
+	MatchFlowComponent->InitializeRuntime();
 	MatchFlowComponent->InitializeTravelOptions(Options);
 }
 
@@ -177,7 +178,8 @@ void AExperienceGameMode::HandleStartingNewPlayer_Implementation(APlayerControll
 // 로비에서 배정받은 스폰 위치를 우선 사용하고, 없으면 엔진의 기본 선택을 따른다.
 AActor* AExperienceGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
-	if (AActor* ConfiguredPlayerStart = SpawnComponent->ChooseConfiguredPlayerStart(Player))
+	if (AActor* ConfiguredPlayerStart = bUseLobbySpawnIndexPlayerStarts
+		? SpawnComponent->ChooseConfiguredPlayerStart(Player, LobbySpawnPlayerStartTagPrefix) : nullptr)
 	{
 		return ConfiguredPlayerStart;
 	}
@@ -235,29 +237,17 @@ bool AExperienceGameMode::RequestAbortMatchToTitle(APlayerController* Requesting
 	return MatchFlowComponent->RequestAbortMatchToTitle(RequestingPlayer);
 }
 
-// 사망한 플레이어의 Pawn 교체와 재배치를 스폰 컴포넌트에 요청한다.
-void AExperienceGameMode::RequestPlayerRespawn(AController* PlayerController, APawn* DeadPawn)
-{
-	SpawnComponent->RequestPlayerRespawn(PlayerController, DeadPawn);
-}
-
-// 플레이어에게 기록된 이번 경기의 최초 스폰 위치를 조회한다.
-bool AExperienceGameMode::TryGetPlayerInitialSpawnTransform(AController* PlayerController, FTransform& OutSpawnTransform) const
-{
-	return SpawnComponent->TryGetPlayerInitialSpawnTransform(PlayerController, OutSpawnTransform);
-}
-
-// Experience 미지정은 정상 기본 실행이며, 지정된 Experience의 실패는 명시적으로 허용해야 진행한다.
+// 필수 경기 콘텐츠와 지정된 Experience가 모두 준비된 뒤 입장을 허용한다.
 bool AExperienceGameMode::CanStartGameplay() const
 {
+	if (!MatchFlowComponent->IsRuntimeContentReady()) { return false; }
 	if (!GetConfiguredExperienceId().IsValid())
 	{
 		return true;
 	}
 
 	const UExperienceManagerComponent* ExperienceManager = GetExperienceManager();
-	return (ExperienceManager && ExperienceManager->IsExperienceLoaded())
-		|| (bExperienceLoadFailed && bAllowNativePawnOnExperienceLoadFailure);
+	return ExperienceManager && ExperienceManager->IsExperienceLoaded();
 }
 
 // 맵에서 지정한 Experience를 로드하고 성공·실패의 후속 입장 처리를 연결한다.
@@ -292,17 +282,10 @@ void AExperienceGameMode::HandleExperienceLoaded(const UExperienceDefinition* Ex
 	ResumeStartingPlayers();
 }
 
-// 필수 Experience 실패 시 경기를 멈추고, 선택적으로 허용한 맵에서만 기본 Pawn으로 진행한다.
-void AExperienceGameMode::HandleExperienceLoadFailed(const FPrimaryAssetId ExperienceId, const FString& FailureMessage)
+// 필수 Experience 실패 시 입장과 경기 시작을 중단한다.
+void AExperienceGameMode::HandleExperienceLoadFailed(FPrimaryAssetId ExperienceId, const FString& FailureMessage)
 {
-	bExperienceLoadFailed = true;
-	UE_LOG(PdExperienceGameModeLog, Error, TEXT("Experience load failed. Experience=%s Reason=%s NativePawnFallback=%s"),
-		*ExperienceId.ToString(), *FailureMessage, bAllowNativePawnOnExperienceLoadFailure ? TEXT("Allowed") : TEXT("Disabled"));
-
-	if (bAllowNativePawnOnExperienceLoadFailure)
-	{
-		ResumeStartingPlayers();
-	}
+	UE_LOG(PdExperienceGameModeLog, Error, TEXT("Experience load failed. Experience=%s Reason=%s"), *ExperienceId.ToString(), *FailureMessage);
 }
 
 // 현재 맵이 사용할 Experience 식별자를 월드 설정에서 읽는다.
@@ -313,40 +296,14 @@ FPrimaryAssetId AExperienceGameMode::GetConfiguredExperienceId() const
 	return Settings ? Settings->GetDefaultExperienceId() : FPrimaryAssetId();
 }
 
-// 기존 Blueprint 설정값을 유지하면서 실행 책임별 컴포넌트에 필요한 설정만 전달한다.
-void AExperienceGameMode::ApplyRuntimeComponentSettings()
+// 콘텐츠 준비가 끝나면 각 실행 객체를 초기화하고 대기 중인 입장을 재개한다.
+void AExperienceGameMode::HandleRuntimeContentReady()
 {
-	const TSoftObjectPtr<ULevelDefinition> LevelDefinition =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().LevelDefinition;
-
-	FMatchSpawnSettings SpawnSettings;
-	SpawnSettings.bUseLobbySpawnIndexPlayerStarts = bUseLobbySpawnIndexPlayerStarts;
-	SpawnSettings.LobbySpawnPlayerStartTagPrefix = LobbySpawnPlayerStartTagPrefix;
-	SpawnComponent->ApplySettings(SpawnSettings);
-
-	FMatchFlowSettings MatchFlowSettings;
-	MatchFlowSettings.GameVictoryRewardDefinition = GameVictoryRewardDefinition;
-	MatchFlowSettings.VictoryGoldPerKill = VictoryGoldPerKill;
-	MatchFlowSettings.VictoryGoldPenaltyPerDeath = VictoryGoldPenaltyPerDeath;
-	MatchFlowSettings.VictoryGoldPerWinningTeamMember = VictoryGoldPerWinningTeamMember;
-	MatchFlowSettings.ChestSpawnRewardDefinition = ChestSpawnRewardDefinition;
-	MatchFlowSettings.MatchRuleDefinition = MatchRuleDefinition;
-	MatchFlowSettings.LevelDefinition = LevelDefinition;
-	MatchFlowComponent->ApplySettings(MatchFlowSettings);
-
-	FMatchPlayerSetupSettings ProvisioningSettings;
-	ProvisioningSettings.DefaultProvisionDefinition =
-		const_cast<UDefaultProvisionDefinition*>(UDefaultProvisionDefinition::ResolveDefaultDefinition());
-	if (!ProvisioningSettings.DefaultProvisionDefinition)
-	{
-		UE_LOG(PdExperienceGameModeLog, Error,
-			TEXT("Required DA_DefaultProvision failed to load: %s. Player gameplay readiness is blocked."),
-			*UDefaultProvisionDefinition::GetDefaultDefinitionPath().ToString());
-	}
-	ProvisioningSettings.LevelDefinition = LevelDefinition;
-	ProvisioningSettings.bAssignDefaultTeamWhenLobbyTeamMissing = bAssignDefaultTeamWhenLobbyTeamMissing;
-	ProvisioningSettings.DefaultLobbyTeamColorIndex = DefaultLobbyTeamColorIndex;
-	PlayerSetupComponent->ApplySettings(ProvisioningSettings);
+	const UMatchRuleDefinition* Rules = MatchFlowComponent->GetMatchRuleDefinition();
+	SpawnComponent->Initialize(Rules, Rules->bUseRandomPlayerStartRespawns
+		? EPlayerRespawnLocation::RandomPlayerStart : EPlayerRespawnLocation::InitialSpawn);
+	PlayerSetupComponent->InitializeRuntime();
+	ResumeStartingPlayers();
 }
 
 // GameState가 소유한 Experience 로딩 상태를 조회한다.

@@ -3,7 +3,9 @@
 #include "Common/GameSessionConstants.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Match/MatchPlayerSetupComponent.h"
-#include "Component/Match/MatchSpawnComponent.h"
+#include "Component/Player/PlayerSpawnComponent.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Item/RewardDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
@@ -35,63 +37,14 @@ namespace
 {
 constexpr float GameResultLobbyReturnDelaySeconds = 5.0f;
 
-FString StripTravelOptions(const FString& TravelMapName)
-{
-	FString CleanMapName = TravelMapName;
-	int32 OptionsIndex = INDEX_NONE;
-	if (CleanMapName.FindChar(TEXT('?'), OptionsIndex))
-	{
-		CleanMapName.LeftInline(OptionsIndex, EAllowShrinking::No);
-	}
-	return CleanMapName;
-}
-
 bool DoesMapOptionMatchWorld(
 	const FLobbyMatchMapOption& MapOption,
 	const FString& CurrentPackageName,
 	const FString& CurrentLevelName)
 {
-	const FString MapPackageName =
-		MapOption.Map.ToSoftObjectPath().GetLongPackageName();
-	if (!MapPackageName.IsEmpty()
-		&& (MapPackageName.Equals(
-				CurrentPackageName,
-				ESearchCase::IgnoreCase)
-			|| FPackageName::GetShortName(MapPackageName).Equals(
-				CurrentLevelName,
-				ESearchCase::IgnoreCase)))
-	{
-		return true;
-	}
-
-	const FString TravelMapName =
-		StripTravelOptions(MapOption.TravelMapName);
-	if (!TravelMapName.IsEmpty()
-		&& (TravelMapName.Equals(
-				CurrentPackageName,
-				ESearchCase::IgnoreCase)
-			|| FPackageName::GetShortName(TravelMapName).Equals(
-				CurrentLevelName,
-				ESearchCase::IgnoreCase)
-			|| TravelMapName.Equals(
-				CurrentLevelName,
-				ESearchCase::IgnoreCase)))
-	{
-		return true;
-	}
-
-	if (!MapOption.MapKey.IsNone())
-	{
-		const FString MapKeyString = MapOption.MapKey.ToString();
-		return MapKeyString.Equals(
-				CurrentLevelName,
-				ESearchCase::IgnoreCase)
-			|| MapKeyString.Equals(
-				FPackageName::GetShortName(CurrentPackageName),
-				ESearchCase::IgnoreCase);
-	}
-
-	return false;
+	const FString Package = MapOption.Map.ToSoftObjectPath().GetLongPackageName();
+	return !Package.IsEmpty() && (Package.Equals(CurrentPackageName, ESearchCase::IgnoreCase)
+		|| FPackageName::GetShortName(Package).Equals(CurrentLevelName, ESearchCase::IgnoreCase));
 }
 
 bool IsEnabledTravelOption(
@@ -118,11 +71,9 @@ UMatchFlowComponent::UMatchFlowComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UMatchFlowComponent::ApplySettings(
-	const FMatchFlowSettings& InSettings)
+void UMatchFlowComponent::InitializeRuntime()
 {
 	ReleaseRuntimeContentPreload();
-	Settings = InSettings;
 	BeginRuntimeContentPreload();
 }
 
@@ -165,7 +116,7 @@ void UMatchFlowComponent::InitializeTravelOptions(
 
 void UMatchFlowComponent::InitializeGameState()
 {
-	if (bRuntimeContentLoadPending)
+	if (!bRuntimeContentReady)
 	{
 		bInitializeGameStateRequested = true;
 		return;
@@ -192,7 +143,7 @@ void UMatchFlowComponent::InitializeGameState()
 // GameMode의 준비 판정 이후 한 번만 시작한다. 중복 요청이나 늦은 입장으로 종료 시각을 갱신하지 않는다.
 void UMatchFlowComponent::StartServerMatchTimerIfNeeded()
 {
-	if (bRuntimeContentLoadPending || bServerMatchTimerStarted || bGameResultShown)
+	if (!bRuntimeContentReady || bServerMatchTimerStarted || bGameResultShown)
 	{
 		return;
 	}
@@ -213,7 +164,7 @@ void UMatchFlowComponent::StartServerMatchTimerIfNeeded()
 	}
 
 	const UMatchRuleDefinition* MatchRules = GetMatchRuleDefinition();
-	const float MatchTimerSeconds = MatchRules ? MatchRules->MatchTimerSeconds : GetDefault<UMatchRuleDefinition>()->MatchTimerSeconds;
+	const float MatchTimerSeconds = MatchRules->MatchTimerSeconds;
 	if (MatchTimerSeconds <= 0.0f)
 	{
 		HandleMatchTimerExpired();
@@ -227,7 +178,8 @@ void UMatchFlowComponent::StartServerMatchTimerIfNeeded()
 
 void UMatchFlowComponent::ConfigureRewardChestSpawns()
 {
-	if (bRuntimeContentLoadPending)
+	if (bGameResultShown) { return; }
+	if (!bRuntimeContentReady)
 	{
 		bConfigureRewardChestsRequested = true;
 		return;
@@ -256,7 +208,7 @@ void UMatchFlowComponent::ConfigureRewardChestSpawns()
 			return A.GetName() < B.GetName();
 		});
 
-	if (Settings.ChestSpawnRewardDefinition.IsNull())
+	if (GetExperienceGameMode()->ChestSpawnRewardDefinition.IsNull())
 	{
 		for (const ARewardChest* RewardChest : RewardChests)
 		{
@@ -441,13 +393,7 @@ bool UMatchFlowComponent::ShowGameResultForWinner(
 		return false;
 	}
 
-	bGameResultShown = true;
-	bGoldenKillActive = false;
-	GoldenKillVictoryScore = 0;
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(MatchTimerHandle);
-	}
+	FinishMatchRuntime();
 	ExperienceGameState->SetMatchTimerState(
 		EMatchTimerPhase::Expired);
 
@@ -592,13 +538,7 @@ bool UMatchFlowComponent::AbortMatchToTitleForPlayerExit(
 		return false;
 	}
 
-	bGameResultShown = true;
-	bGoldenKillActive = false;
-	GoldenKillVictoryScore = 0;
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(MatchTimerHandle);
-	}
+	FinishMatchRuntime();
 	if (AExperienceGameState* ExperienceGameState =
 		GameMode->GetGameState<AExperienceGameState>())
 	{
@@ -654,34 +594,14 @@ bool UMatchFlowComponent::AbortMatchToTitleForPlayerExit(
 	return true;
 }
 
-const UMatchRuleDefinition*
-UMatchFlowComponent::GetMatchRuleDefinition() const
+const UMatchRuleDefinition* UMatchFlowComponent::GetMatchRuleDefinition() const
 {
-	if (!Settings.MatchRuleDefinition.IsNull())
-	{
-		if (const UMatchRuleDefinition* LoadedMatchRules =
-			Settings.MatchRuleDefinition.Get())
-		{
-			return LoadedMatchRules;
-		}
-	}
-
-	return GetDefault<UMatchRuleDefinition>();
+	return LoadedMatchRules;
 }
 
-const ULevelDefinition*
-UMatchFlowComponent::GetLevelDefinition() const
+const ULevelDefinition* UMatchFlowComponent::GetLevelDefinition() const
 {
-	if (!Settings.LevelDefinition.IsNull())
-	{
-		if (const ULevelDefinition* LoadedLevels =
-			Settings.LevelDefinition.Get())
-		{
-			return LoadedLevels;
-		}
-	}
-
-	return GetDefault<ULevelDefinition>();
+	return LoadedLevels;
 }
 
 bool UMatchFlowComponent::FindCurrentMatchMapOption(
@@ -749,14 +669,14 @@ int32 UMatchFlowComponent::CalculateVictoryGoldReward(
 {
 	const int32 RawReward =
 		FMath::Max(KillCount, 0)
-			* FMath::Max(Settings.VictoryGoldPerKill, 0)
+			* FMath::Max(GetExperienceGameMode()->VictoryGoldPerKill, 0)
 		- FMath::Max(DeathCount, 0)
 			* FMath::Max(
-				Settings.VictoryGoldPenaltyPerDeath,
+				GetExperienceGameMode()->VictoryGoldPenaltyPerDeath,
 				0)
 		+ FMath::Max(WinningTeamMemberCount, 1)
 			* FMath::Max(
-				Settings.VictoryGoldPerWinningTeamMember,
+				GetExperienceGameMode()->VictoryGoldPerWinningTeamMember,
 				0);
 	return FMath::Max(RawReward, 0);
 }
@@ -1001,6 +921,7 @@ bool UMatchFlowComponent::ShouldAbortMatchForPlayerExit(
 		|| !GameMode->HasAuthority()
 		|| bGameResultShown
 		|| !ExitingPlayerState
+		|| !bRuntimeContentReady
 		|| (Provisioning && Provisioning->IsTrainingRoomMap()))
 	{
 		return false;
@@ -1038,14 +959,14 @@ void UMatchFlowComponent::ReturnToLobbyAfterGameResult()
 FString UMatchFlowComponent::GetResolvedTitleTravelMapName() const
 {
 	const ULevelDefinition* Definition =
-		ULevelDefinition::ResolveDefaultDefinition();
+		GetLevelDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 
 FString UMatchFlowComponent::GetResolvedLobbyTravelMapName() const
 {
 	const ULevelDefinition* Definition =
-		ULevelDefinition::ResolveDefaultDefinition();
+		GetLevelDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 
@@ -1444,10 +1365,10 @@ void UMatchFlowComponent::ForceMovePlayersForGoldenKill()
 		GetExperienceGameModeConst();
 	if (GameMode)
 	{
-		if (UMatchSpawnComponent* SpawnComponent =
+		if (UPlayerSpawnComponent* SpawnComponent =
 			GameMode->GetSpawnComponent())
 		{
-			for (APlayerController* Player : SpawnComponent->ForceMovePlayersToInitialSpawns())
+			for (APlayerController* Player : SpawnComponent->MovePlayersToInitialSpawns())
 			{
 				if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(Player))
 				{
@@ -1493,6 +1414,7 @@ void UMatchFlowComponent::StartGoldenKill(
 		GoldenKillVictoryScore =
 			CalculateGoldenKillVictoryScore(TopKillCount);
 		bGoldenKillActive = true;
+		GameMode->GetSpawnComponent()->SetRespawnLocation(EPlayerRespawnLocation::InitialSpawn);
 		RestorePlayerResourcesForGoldenKill();
 	}
 }
@@ -1526,10 +1448,10 @@ const URewardDefinition*
 UMatchFlowComponent::ResolveRewardDefinitionForChestSpawns(
 	const TArray<ARewardChest*>& RewardChests) const
 {
-	if (!Settings.ChestSpawnRewardDefinition.IsNull())
+	if (!GetExperienceGameMode()->ChestSpawnRewardDefinition.IsNull())
 	{
 		if (const URewardDefinition* RewardDefinition =
-			Settings.ChestSpawnRewardDefinition.Get())
+			GetExperienceGameMode()->ChestSpawnRewardDefinition.Get())
 		{
 			return RewardDefinition;
 		}
@@ -1568,19 +1490,18 @@ void UMatchFlowComponent::BeginRuntimeContentPreload()
 		}
 	};
 
-	AddSoftPath(Settings.GameVictoryRewardDefinition);
-	AddSoftPath(Settings.ChestSpawnRewardDefinition);
-	AddSoftPath(Settings.MatchRuleDefinition);
-	AddSoftPath(Settings.LevelDefinition);
+	const FProjectDefinitionReferences& Definitions = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+	AddSoftPath(Definitions.DefaultProvision);
+	AddSoftPath(GetExperienceGameMode()->ChestSpawnRewardDefinition);
+	AddSoftPath(Definitions.MatchRule);
+	AddSoftPath(Definitions.LevelDefinition);
 
 	if (AssetPaths.IsEmpty())
 	{
-		bRuntimeContentLoadPending = false;
-		ResumePendingInitialization();
+		HandleRuntimeContentPreloadComplete(RuntimeContentRequestGeneration);
 		return;
 	}
 
-	bRuntimeContentLoadPending = true;
 	const uint32 RequestGeneration = RuntimeContentRequestGeneration;
 	RuntimeContentPreloadHandle =
 		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
@@ -1596,8 +1517,7 @@ void UMatchFlowComponent::BeginRuntimeContentPreload()
 			Error,
 			TEXT("Experience match-flow content preload could not be started for '%s'."),
 			*GetPathNameSafe(GetOwner()));
-		bRuntimeContentLoadPending = false;
-		ResumePendingInitialization();
+		HandleRuntimeContentPreloadComplete(RequestGeneration);
 	}
 }
 
@@ -1609,14 +1529,26 @@ void UMatchFlowComponent::HandleRuntimeContentPreloadComplete(
 		return;
 	}
 
-	bRuntimeContentLoadPending = false;
+	const FProjectDefinitionReferences& Definitions = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+	LoadedMatchRules = Definitions.MatchRule.Get();
+	LoadedLevels = Definitions.LevelDefinition.Get();
+	LoadedDefaultProvision = Definitions.DefaultProvision.Get();
+	if (!LoadedMatchRules || !LoadedLevels || !LoadedDefaultProvision)
+	{
+		UE_LOG(LogExperienceMatchFlowContent, Error, TEXT("Required match definitions failed to load. Player and match start are blocked."));
+		return;
+	}
+	bRuntimeContentReady = true;
 	ResumePendingInitialization();
 }
 
 void UMatchFlowComponent::ReleaseRuntimeContentPreload()
 {
 	++RuntimeContentRequestGeneration;
-	bRuntimeContentLoadPending = false;
+	bRuntimeContentReady = false;
+	LoadedMatchRules = nullptr;
+	LoadedLevels = nullptr;
+	LoadedDefaultProvision = nullptr;
 	if (RuntimeContentPreloadHandle.IsValid())
 	{
 		RuntimeContentPreloadHandle->CancelHandle();
@@ -1643,4 +1575,18 @@ void UMatchFlowComponent::ResumePendingInitialization()
 
 	// 콘텐츠 로딩만으로 타이머를 시작하지 않고, GameMode에서 플레이어 준비까지 확인한다.
 	OnRuntimeContentReady.Broadcast();
+}
+
+void UMatchFlowComponent::FinishMatchRuntime()
+{
+	bGameResultShown = true;
+	bGoldenKillActive = false;
+	GoldenKillVictoryScore = 0;
+	GetExperienceGameMode()->GetSpawnComponent()->StopRespawning();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(MatchTimerHandle);
+		World->GetTimerManager().ClearTimer(ChestConfigurationRetryTimerHandle);
+	}
+	bConfigureRewardChestsRequested = false;
 }

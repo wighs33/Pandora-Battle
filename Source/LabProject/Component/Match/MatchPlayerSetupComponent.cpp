@@ -1,6 +1,9 @@
 #include "Component/Match/MatchPlayerSetupComponent.h"
 
 #include "Data/ContentDataSubsystem.h"
+#include "Component/Match/MatchFlowComponent.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
@@ -31,15 +34,9 @@ UMatchPlayerSetupComponent::UMatchPlayerSetupComponent()
 		CreateDefaultSubobject<UDefaultPlayerProvisioner>(
 			TEXT("DefaultPlayerProvisioner"));
 
-	// GameMode 외부에서 생성해도 동일한 기본 설정을 사용한다.
-	ApplySettings(FMatchPlayerSetupSettings());
 }
 
-void UMatchPlayerSetupComponent::BeginPlay()
-{
-	Super::BeginPlay();
-	BeginSkinContentPreload();
-}
+
 
 void UMatchPlayerSetupComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
@@ -53,14 +50,12 @@ void UMatchPlayerSetupComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 	Super::EndPlay(EndPlayReason);
 }
 
-void UMatchPlayerSetupComponent::ApplySettings(
-	const FMatchPlayerSetupSettings& InSettings)
+void UMatchPlayerSetupComponent::InitializeRuntime()
 {
-	CachedSettings = InSettings;
-	if (DefaultPlayerProvisioner && InSettings.DefaultProvisionDefinition)
+	const UDefaultProvisionDefinition* Definition = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().DefaultProvision.Get();
+	if (DefaultPlayerProvisioner->Initialize(Definition, IsTrainingRoomMap() ? EDefaultProvisionMode::TrainingRoom : EDefaultProvisionMode::Gameplay))
 	{
-		DefaultPlayerProvisioner->Initialize(InSettings.DefaultProvisionDefinition,
-			IsTrainingRoomMap() ? EDefaultProvisionMode::TrainingRoom : EDefaultProvisionMode::Gameplay);
+		BeginSkinContentPreload();
 	}
 }
 
@@ -126,11 +121,11 @@ void UMatchPlayerSetupComponent::InitializeMatchIdentity(APlayerController* NewP
 		PlayerMatchComponent->SetMatchDisplayName(DefaultNickname);
 	}
 
-	if (CachedSettings.bAssignDefaultTeamWhenLobbyTeamMissing
+	if (GameMode->bAssignDefaultTeamWhenLobbyTeamMissing
 		&& PlayerMatchComponent->GetMatchTeamColorIndex() == INDEX_NONE)
 	{
 		PlayerMatchComponent->SetMatchTeamColorIndex(
-			CachedSettings.DefaultLobbyTeamColorIndex);
+			GameMode->DefaultLobbyTeamColorIndex);
 	}
 }
 
@@ -219,8 +214,7 @@ void UMatchPlayerSetupComponent::BeginSkinContentPreload()
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentSubsystem)
 	{
-		bSkinContentReady = true;
-		FlushPendingGameplayProvisions();
+		UE_LOG(LogTemp, Error, TEXT("ContentDataSubsystem is required for match player setup."));
 		return;
 	}
 
@@ -277,25 +271,10 @@ void UMatchPlayerSetupComponent::FlushPendingGameplayProvisions()
 
 bool UMatchPlayerSetupComponent::IsTrainingRoomMap() const
 {
-	const UWorld* World = GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-
-	const ULevelDefinition* Levels =
-		CachedSettings.LevelDefinition.Get();
-	if (!Levels && !CachedSettings.LevelDefinition.IsNull())
-	{
-		Levels = CachedSettings.LevelDefinition.LoadSynchronous();
-	}
-	if (!Levels)
-	{
-		Levels = ULevelDefinition::ResolveDefaultDefinition();
-	}
-	return Levels
-		&& Levels->IsTrainingRoomMapName(
-			UGameplayStatics::GetCurrentLevelName(World, true));
+	const AExperienceGameMode* GameMode = CastChecked<AExperienceGameMode>(GetOwner());
+	const ULevelDefinition* Levels = GameMode->GetMatchFlowComponent()->GetLevelDefinition();
+	// 로딩 UI는 콘텐츠 준비 전에도 조회하고 다음 준비 확인 틱에 다시 시도한다.
+	return Levels && Levels->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 }
 
 

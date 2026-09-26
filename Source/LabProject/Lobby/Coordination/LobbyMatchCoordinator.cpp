@@ -106,7 +106,7 @@ float ULobbyMatchCoordinator::GetStartCountdownSeconds(const int32 ActivePlayerC
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	const UMatchRuleDefinition* MatchRules = GameMode ? GameMode->GetLobbyConfigurationComponent()->GetMatchRuleDefinition() : nullptr;
 	const float CountdownSeconds =
-		MatchRules ? MatchRules->LobbyStartCountdownSeconds : GetDefault<UMatchRuleDefinition>()->LobbyStartCountdownSeconds;
+		MatchRules->LobbyStartCountdownSeconds;
 	return ActivePlayerCount == 1 ? 0.0f : FMath::Max(CountdownSeconds, 0.0f);
 }
 

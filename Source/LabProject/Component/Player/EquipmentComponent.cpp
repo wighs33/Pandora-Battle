@@ -548,7 +548,9 @@ void UEquipmentComponent::RefreshPandoraForWeaponChange() const
 bool UEquipmentComponent::TryActivateSingleAbilityTag(const FGameplayTag& AbilityTag) const
 {
 	UPdAbilitySystemComponent* ASC = CachedASC.Get();
-	if (!ASC || !AbilityTag.IsValid())
+	// Pawn이 존재해도 비동기 초기화나 빙의 전환 중에는 ASC의 Avatar가 아직 연결되지 않을 수 있다.
+	// 대기 중인 무기 선택은 유지하고 현재 캐릭터가 연결된 뒤 다시 적용한다.
+	if (!ASC || !AbilityTag.IsValid() || !IsValid(CachedOwner.Get()) || ASC->GetAvatarActor() != CachedOwner.Get())
 	{
 		return false;
 	}

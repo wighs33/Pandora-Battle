@@ -2,7 +2,6 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
-#include "Definition/Match/MatchRuntimeSettings.h"
 #include "TimerManager.h"
 #include "UI/GameResultTypes.h"
 #include "MatchFlowComponent.generated.h"
@@ -31,9 +30,9 @@ public:
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	UMatchFlowComponent();
-	bool IsRuntimeContentReady() const { return !bRuntimeContentLoadPending; }
+	bool IsRuntimeContentReady() const { return bRuntimeContentReady; }
 
-	void ApplySettings(const FMatchFlowSettings& InSettings);
+	void InitializeRuntime();
 
 	void InitializeTravelOptions(const FString& Options);
 	void InitializeGameState();
@@ -146,13 +145,19 @@ private:
 	void BeginRuntimeContentPreload();
 	void ReleaseRuntimeContentPreload();
 	void ResumePendingInitialization();
+	void FinishMatchRuntime();
 
 public:
 	FSimpleMulticastDelegate OnRuntimeContentReady;
 
 private:
 	UPROPERTY(Transient)
-	FMatchFlowSettings Settings;
+	TObjectPtr<UMatchRuleDefinition> LoadedMatchRules;
+	UPROPERTY(Transient)
+	TObjectPtr<ULevelDefinition> LoadedLevels;
+	UPROPERTY(Transient)
+	TObjectPtr<class UDefaultProvisionDefinition> LoadedDefaultProvision;
+	bool bRuntimeContentReady = false;
 
 	bool bServerMatchTimerStarted = false;
 	bool bMatchTimerExpired = false;
@@ -165,7 +170,6 @@ private:
 	FTimerHandle GameResultLobbyReturnTimerHandle;
 	TSharedPtr<FStreamableHandle> RuntimeContentPreloadHandle;
 	uint32 RuntimeContentRequestGeneration = 0;
-	bool bRuntimeContentLoadPending = false;
 	bool bInitializeGameStateRequested = false;
 	bool bConfigureRewardChestsRequested = false;
 };

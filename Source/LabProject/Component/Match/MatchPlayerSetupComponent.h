@@ -2,7 +2,6 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
-#include "Definition/Match/MatchRuntimeSettings.h"
 #include "UObject/ObjectKey.h"
 #include "MatchPlayerSetupComponent.generated.h"
 
@@ -24,15 +23,13 @@ class LABPROJECT_API UMatchPlayerSetupComponent
 
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
-	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	UMatchPlayerSetupComponent();
 	bool IsPlayerReadyForGameplay(APlayerController* PlayerController) const;
 
-	void ApplySettings(
-		const FMatchPlayerSetupSettings& InSettings);
+	void InitializeRuntime();
 	void InitializeLoggedInPlayer(APlayerController* NewPlayer);
 	void InitializeMatchIdentity(APlayerController* NewPlayer);
 	void PreparePlayerForGameplay(APlayerController* NewPlayer);
@@ -61,7 +58,6 @@ private:
 	TObjectPtr<UDefaultPlayerProvisioner>
 		DefaultPlayerProvisioner;
 
-	FMatchPlayerSetupSettings CachedSettings;
 	TArray<TWeakObjectPtr<APlayerController>> PendingGameplayPlayers;
 	TMap<TObjectKey<APlayerController>, TWeakObjectPtr<APawn>> ReadyGameplayPawns;
 	TSharedPtr<FStreamableHandle> SkinContentLoadHandle;
