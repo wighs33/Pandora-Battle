@@ -3,8 +3,8 @@
 #include "UI/UiScreen.h"
 #include "Engine/LocalPlayer.h"
 
-#include "Lobby/UI/GameResultWidget.h"
-#include "Lobby/UI/TitleWidget.h"
+#include "UI/Match/GameResultWidget.h"
+#include "UI/Title/TitleWidget.h"
 #include "Engine/GameInstance.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Settings/CursorSettingsLibrary.h"

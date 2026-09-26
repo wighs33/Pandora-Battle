@@ -15,7 +15,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/StreamableManager.h"
 #include "GameFramework/PlayerController.h"
-#include "Lobby/UI/ConnectingPopupWidget.h"
+#include "UI/Widget/ConnectingPopupWidget.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerState.h"
 #include "ShaderPipelineCache.h"

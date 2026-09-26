@@ -1,4 +1,4 @@
-#include "Lobby/UI/JoinPopupWidget.h"
+#include "UI/Room/JoinPopupWidget.h"
 
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"

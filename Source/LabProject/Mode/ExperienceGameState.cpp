@@ -6,7 +6,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "Lobby/UI/GameResultWidget.h"
+#include "UI/Match/GameResultWidget.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Mode/PdHUD.h"
 #include "Engine/GameInstance.h"

@@ -1,4 +1,4 @@
-#include "Lobby/UI/TitleWidget.h"
+#include "UI/Title/TitleWidget.h"
 
 #include "AudioSlider.h"
 #include "Components/Button.h"
@@ -10,7 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "Lobby/UI/ConnectingPopupWidget.h"
+#include "UI/Widget/ConnectingPopupWidget.h"
 #include "Engine/GameInstance.h"
 #include "SavedGameData/PlayerProfileSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"

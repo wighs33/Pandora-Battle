@@ -1,9 +1,9 @@
-#include "Room/RoomItemWidget.h"
+#include "UI/Room/RoomItemWidget.h"
 
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Engine/LocalPlayer.h"
-#include "Lobby/UI/ConnectingPopupWidget.h"
+#include "UI/Widget/ConnectingPopupWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/UiSubsystem.h"
 

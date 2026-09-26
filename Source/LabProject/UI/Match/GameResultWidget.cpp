@@ -1,4 +1,4 @@
-#include "Lobby/UI/GameResultWidget.h"
+#include "UI/Match/GameResultWidget.h"
 #include "UI/UiSubsystem.h"
 #include "UI/UiScreen.h"
 #include "Input/CommonUIActionRouterBase.h"
@@ -11,7 +11,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Definition/Level/LevelDefinition.h"
-#include "Lobby/UI/GameResultPlayerStatEntryWidget.h"
+#include "UI/Match/GameResultPlayerStatEntryWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/TeamColorUtils.h"
 

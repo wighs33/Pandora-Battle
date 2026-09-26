@@ -13,7 +13,7 @@
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Mode/PdPlayerState.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "Lobby/UI/LobbyWidget.h"
+#include "UI/Lobby/LobbyWidget.h"
 #include "Engine/GameInstance.h"
 #include "Settings/BgmSubsystem.h"
 #include "Settings/CursorSettingsLibrary.h"

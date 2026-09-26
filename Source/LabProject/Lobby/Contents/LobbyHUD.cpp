@@ -2,7 +2,7 @@
 #include "UI/UiSubsystem.h"
 #include "UI/UiScreen.h"
 
-#include "Lobby/UI/LobbyWidget.h"
+#include "UI/Lobby/LobbyWidget.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"

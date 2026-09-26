@@ -3,7 +3,7 @@
 #include "UI/UiScreen.h"
 #include "Engine/LocalPlayer.h"
 
-#include "Room/RoomListWidget.h"
+#include "UI/Room/RoomListWidget.h"
 #include "Settings/CursorSettingsLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RoomHUD)

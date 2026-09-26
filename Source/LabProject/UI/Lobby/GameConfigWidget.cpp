@@ -1,4 +1,4 @@
-#include "Lobby/UI/GameConfigWidget.h"
+#include "UI/Lobby/GameConfigWidget.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "CommonActivatableWidget.h"
 

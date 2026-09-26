@@ -1,4 +1,4 @@
-#include "Lobby/UI/GameResultPlayerStatEntryWidget.h"
+#include "UI/Match/GameResultPlayerStatEntryWidget.h"
 
 #include "Components/Border.h"
 #include "Components/Image.h"

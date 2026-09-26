@@ -1,4 +1,4 @@
-#include "Room/CreateRoomPopupWidget.h"
+#include "UI/Room/CreateRoomPopupWidget.h"
 #include "CommonActivatableWidget.h"
 #include "Input/CommonUIActionRouterBase.h"
 
@@ -8,7 +8,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
-#include "Lobby/UI/ConnectingPopupWidget.h"
+#include "UI/Widget/ConnectingPopupWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/UiSubsystem.h"
 #include "Definition/UI/WidgetClassDefinition.h"

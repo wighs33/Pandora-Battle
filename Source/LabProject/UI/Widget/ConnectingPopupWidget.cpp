@@ -1,4 +1,4 @@
-#include "Lobby/UI/ConnectingPopupWidget.h"
+#include "UI/Widget/ConnectingPopupWidget.h"
 
 #include "Components/Button.h"
 

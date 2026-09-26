@@ -1,4 +1,4 @@
-#include "Lobby/UI/LobbyWidget.h"
+#include "UI/Lobby/LobbyWidget.h"
 #include "Component/Lobby/LobbyPlayerStateComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 
@@ -23,9 +23,9 @@
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Mode/PdPlayerState.h"
-#include "Lobby/UI/ConnectingPopupWidget.h"
-#include "Lobby/UI/GameConfigWidget.h"
-#include "Lobby/UI/LobbyUserWidget.h"
+#include "UI/Widget/ConnectingPopupWidget.h"
+#include "UI/Lobby/GameConfigWidget.h"
+#include "UI/Lobby/LobbyUserWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "TimerManager.h"

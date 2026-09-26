@@ -11,7 +11,7 @@
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/TitleHUD.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "Lobby/UI/LobbyWidget.h"
+#include "UI/Lobby/LobbyWidget.h"
 #include "Mode/ExperienceGameMode.h"
 #include "Engine/GameInstance.h"
 #include "Settings/BgmSubsystem.h"
