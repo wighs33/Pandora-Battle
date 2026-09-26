@@ -30,6 +30,7 @@ URecordWidget::URecordWidget(const FObjectInitializer& ObjectInitializer)
 void URecordWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
 	ApplyWidgetDefinitionSettings();
 	ResolveWidgets();
 	BindWidgets();

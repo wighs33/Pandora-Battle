@@ -35,6 +35,7 @@ namespace
 void UCreateRoomPopupWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
 
 	ApplyWidgetDefinitionSettings();
 

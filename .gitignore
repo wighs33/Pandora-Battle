@@ -20,6 +20,11 @@ Content/**
 !Content/**/IA_*.uasset
 !Content/**/IMC_*.uasset
 
+# Project status cue Blueprints use the existing GC_ names.
+!Content/GAS/Cue/GC_Burning.uasset
+!Content/GAS/Cue/GC_Frozen.uasset
+!Content/GAS/Cue/GC_Shocked.uasset
+
 # Project-owned title-screen artwork and editable vector sources.
 !Content/UI/Asset/TitleStyle/*.uasset
 !Content/UI/Asset/TitleStyle/SourceArt/*.png

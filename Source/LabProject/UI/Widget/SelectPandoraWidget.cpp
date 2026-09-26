@@ -12,6 +12,7 @@
 void USelectPandoraWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
 
 	CacheDefaultImageBrushes();
 	RefreshSelectedLoadoutNumber();

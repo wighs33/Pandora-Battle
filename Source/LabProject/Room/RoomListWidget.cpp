@@ -26,6 +26,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogRoomListWidget, Log, All);
 void URoomListWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
 
 	ApplyWidgetDefinitionSettings();
 

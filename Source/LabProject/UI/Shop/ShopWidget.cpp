@@ -27,6 +27,7 @@
 void UShopWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
 
 	ResolveWidgets();
 	BindWidgets();
