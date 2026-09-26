@@ -18,7 +18,8 @@ class LABPROJECT_API UPdAnimInstance : public UAnimInstance
 	GENERATED_BODY()
 
 protected:
-	// Game-thread snapshot
+	// 게임 스레드에서 수집한 스냅샷
+
 
 	struct FGameThreadSnapshot
 	{

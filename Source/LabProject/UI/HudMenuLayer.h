@@ -9,7 +9,7 @@ class APdHUD;
 class UMenuPopupWidget;
 class UHudUiRouter;
 
-/** Owns settings-menu widget lifetime and reports close events back to the HUD facade. */
+/** 설정 메뉴 위젯의 수명을 관리하고 닫힘 이벤트를 HUD에 알린다. */
 UCLASS()
 class LABPROJECT_API UHudMenuLayer : public UObject
 {

@@ -46,7 +46,7 @@ struct LABPROJECT_API FLobbyMatchMapOption
 	EPlayerMapRegion InitialPlayerMapRegion = EPlayerMapRegion::Dome;
 };
 
-/** Central catalog for playable, travel, and training levels. */
+/** 플레이·이동·훈련에 사용하는 레벨의 공통 목록을 제공한다. */
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API ULevelDefinition : public UPrimaryDataAsset
 {

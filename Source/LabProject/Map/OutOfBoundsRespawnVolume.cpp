@@ -1,7 +1,7 @@
 #include "Map/OutOfBoundsRespawnVolume.h"
 
-#include "AbilitySystem/EffectActors/EffectAreaBase.h"
-#include "AbilitySystem/Projectiles/ProjectileBase.h"
+#include "Skill/Actors/SkillEffectArea.h"
+#include "Skill/Actors/SkillProjectile.h"
 #include "Character/CharacterBase.h"
 #include "Common/CollisionChannels.h"
 #include "Components/SphereComponent.h"
@@ -31,9 +31,9 @@ AOutOfBoundsRespawnVolume::AOutOfBoundsRespawnVolume(const FObjectInitializer& O
 	BoundarySphere->InitSphereRadius(10000.0f);
 	ConfigureBoundaryCollision();
 
-	CleanupActorClasses.Add(AProjectileBase::StaticClass());
+	CleanupActorClasses.Add(ASkillProjectile::StaticClass());
 	CleanupActorClasses.Add(AArrowProjectileBase::StaticClass());
-	CleanupActorClasses.Add(AEffectAreaBase::StaticClass());
+	CleanupActorClasses.Add(ASkillEffectArea::StaticClass());
 	CleanupActorClasses.Add(ADamageIndicatorActor::StaticClass());
 }
 

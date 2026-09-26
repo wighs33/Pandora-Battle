@@ -7,10 +7,10 @@
 class AMonsterCharacter;
 
 /**
- * Server-owned runtime implementation for level-authored monster spawners.
+ * 레벨에 배치된 몬스터 스포너의 서버 실행을 담당한다.
  *
- * Blueprint children only provide defaults. Spawning, respawning, delegate
- * cleanup, and World Partition unload cleanup are all handled here.
+ * 블루프린트 자식 클래스는 기본값만 제공한다. 생성·리스폰·델리게이트 정리와
+ * 월드 파티션 언로드 시 정리는 이 클래스에서 처리한다.
  */
 UCLASS(Abstract, Blueprintable)
 class LABPROJECT_API AServerOnlyMonsterSpawner : public AActor

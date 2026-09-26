@@ -9,9 +9,9 @@ class APlayerController;
 struct FExperiencePlayerProvisioningSettings;
 
 /**
- * Applies persisted lobby identity and cosmetic selections to a player.
+ * 저장된 로비 식별 정보와 외형 선택을 플레이어에게 적용한다.
  *
- * This is a profile/session service, not a DA_DefaultProvision grant path.
+ * 프로필·세션 처리를 담당하며, DA_DefaultProvision의 기본 지급 경로와는 별개다.
  */
 UCLASS(Transient)
 class LABPROJECT_API UExperiencePlayerProfileService : public UObject

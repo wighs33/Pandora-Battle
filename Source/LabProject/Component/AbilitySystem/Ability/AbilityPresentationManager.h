@@ -8,7 +8,7 @@
 enum class ESkillPresentationFlags : uint8;
 
 class ACharacterBase;
-class ASkillPresentationActor;
+class ASkillVisualActor;
 class UCharacterPresentationComponent;
 class USkillDefinition;
 class UPdGameplayAbility;
@@ -42,12 +42,12 @@ public:
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	ASkillPresentationActor* GetOrCreatePresentationActor(UPdGameplayAbility& Ability);
+	ASkillVisualActor* GetOrCreatePresentationActor(UPdGameplayAbility& Ability);
 	void SetConfiguredPresentationEnabled(UPdGameplayAbility& Ability, ESkillPresentationFlags PresentationFlag, bool bEnabled);
 
 private:
 	UPROPERTY(Transient)
-	TObjectPtr<ASkillPresentationActor> ActiveSkillPresentationActor;
+	TObjectPtr<ASkillVisualActor> ActiveSkillPresentationActor;
 
 	TWeakObjectPtr<UCharacterPresentationComponent> SelfBuffScaleOwner;
 };

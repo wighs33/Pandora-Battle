@@ -18,7 +18,7 @@ struct FLobbyMatchMapOption;
 struct FStreamableHandle;
 
 /**
- * Authoritative match timer, victory, reward, result, and exit coordinator.
+ * 서버 권한으로 경기 타이머·승리·보상·결과·퇴장 흐름을 조율한다.
  */
 UCLASS(ClassGroup = (Experience))
 class LABPROJECT_API UExperienceMatchFlowComponent : public UActorComponent

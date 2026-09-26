@@ -11,8 +11,8 @@ struct FStreamableHandle;
 struct FAttackData;
 
 /**
- * Owns enemy targeting, stat bootstrapping, equipment defaults, and
- * attack scheduling. AEnemyBase remains the stable Blueprint/StateTree facade.
+ * 적의 대상 지정·능력치 초기화·기본 장비·공격 예약을 관리한다.
+ * AEnemyBase는 기존 블루프린트와 StateTree의 진입점으로 유지한다.
  */
 UCLASS(ClassGroup = (Character), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UEnemyCombatComponent : public UActorComponent

@@ -8,7 +8,7 @@ class APdPlayerController;
 class APdPlayerState;
 class UInfoWidget;
 
-/** Shared lifetime and view context for the presenters owned by UInfoUiPresenter. */
+/** UInfoUiPresenter가 소유한 프레젠터의 공통 수명과 뷰 컨텍스트를 제공한다. */
 UCLASS(Abstract)
 class LABPROJECT_API UInfoTabPresenterBase : public UObject
 {

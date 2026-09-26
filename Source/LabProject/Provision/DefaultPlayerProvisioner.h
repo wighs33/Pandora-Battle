@@ -20,10 +20,10 @@ struct FStreamableHandle;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDefaultPlayerProvisioned, APlayerController*);
 
 /**
- * Applies DA_DefaultProvision to a player.
+ * 플레이어에게 DA_DefaultProvision의 기본 지급 설정을 적용한다.
  *
- * The owner loads the definition and initializes one provisioner per play space.
- * Definition and mode remain fixed until Shutdown; repeated initialization never resets grants.
+ * 소유자가 정의 에셋을 로드하고 플레이 공간마다 지급 처리 객체 하나를 초기화한다.
+ * 정의와 모드는 Shutdown까지 고정하며, 반복 초기화로 기존 지급 상태를 초기화하지 않는다.
  */
 UCLASS(Transient)
 class LABPROJECT_API UDefaultPlayerProvisioner : public UObject

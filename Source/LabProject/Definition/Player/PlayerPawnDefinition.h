@@ -76,10 +76,10 @@ struct LABPROJECT_API FPlayerActionPolicySettings
 };
 
 /**
- * Data-driven composition settings for APdPlayer.
+ * APdPlayer의 데이터 기반 구성 설정을 제공한다.
  *
- * Components consume their own fragment and APdPlayer remains a compatibility
- * facade for existing Blueprint and native call sites.
+ * 각 컴포넌트는 자신에게 필요한 설정 묶음을 사용하며, APdPlayer는 기존 블루프린트와
+ * 네이티브 호출부의 호환 진입점으로 유지한다.
  */
 UCLASS(BlueprintType, Const)
 class LABPROJECT_API UPlayerPawnDefinition : public UPrimaryDataAsset

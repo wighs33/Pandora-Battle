@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
-#include "AbilitySystem/Skill/SkillAction.h"
+#include "Skill/Actions/SkillAction.h"
 #include "SkillAbility.generated.h"
 
 class UPandoraSkillSource;

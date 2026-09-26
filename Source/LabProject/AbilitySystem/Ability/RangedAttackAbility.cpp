@@ -13,7 +13,7 @@
 #include "GameFramework/Controller.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Component/Player/EquipmentComponent.h"
-#include "AbilitySystem/Interfaces/TargetingInterface.h"
+#include "Interface/TargetingInterface.h"
 #include "Weapon/WeaponBase.h"
 #include "Weapon/RangedWeaponBase.h"
 #include "Weapon/MeleeWeapon.h"

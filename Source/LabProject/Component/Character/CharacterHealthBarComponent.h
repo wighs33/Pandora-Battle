@@ -10,8 +10,8 @@ class UHealthBarViewModel;
 class UUserWidget;
 
 /**
- * Owns the world health-bar widget, its view model, local visibility policy,
- * and bounded initialization retries for every ACharacterBase archetype.
+ * 모든 ACharacterBase 유형의 월드 체력바 위젯·뷰 모델·로컬 표시 정책과
+ * 횟수가 제한된 초기화 재시도를 관리한다.
  */
 UCLASS(ClassGroup = (Character), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UCharacterHealthBarComponent : public UWidgetComponent

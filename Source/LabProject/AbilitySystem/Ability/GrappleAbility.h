@@ -5,7 +5,7 @@
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "GrappleAbility.generated.h"
 
-class ATargetActor_GrappleTrace;
+class AGrappleTargetActor;
 class UAbilityTask_WaitInputRelease;
 class UAbilityTask_WaitTargetData;
 class UCharacterActionDefinition;
@@ -13,8 +13,8 @@ class UGrappleComponent;
 struct FStreamableHandle;
 
 /**
- * Hold the grapple input to aim, then release it to submit GAS target data.
- * Only the server-authoritative retrace is allowed to start grapple movement.
+ * 그래플 입력을 누르는 동안 조준하고, 놓으면 GAS 대상 데이터를 제출한다.
+ * 그래플 이동은 서버 권한으로 다시 수행한 트레이스가 승인한 경우에만 시작한다.
  */
 UCLASS()
 class LABPROJECT_API UGrappleAbility : public UPdGameplayAbility
@@ -82,7 +82,7 @@ private:
 	TObjectPtr<UAbilityTask_WaitInputRelease> WaitInputReleaseTask;
 
 	UPROPERTY()
-	TObjectPtr<ATargetActor_GrappleTrace> SpawnedTargetActor;
+	TObjectPtr<AGrappleTargetActor> SpawnedTargetActor;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCharacterActionDefinition> LoadedCharacterActionDefinition;

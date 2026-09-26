@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "SkillAuraSettings.generated.h"
 
-class AEffectAreaBase;
+class ASkillEffectArea;
 
 /** 오라 액션의 장판 생성 설정. 회복 설정은 같은 액션의 Healing에서 읽는다. */
 USTRUCT(BlueprintType)
@@ -17,7 +17,7 @@ struct LABPROJECT_API FAuraSkillConfig
 
 	/** 오라가 생성할 장판 액터 클래스. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Aura|Effect Area", meta = (EditCondition = "bSpawnEffectArea"))
-	TSubclassOf<AEffectAreaBase> EffectAreaClass;
+	TSubclassOf<ASkillEffectArea> EffectAreaClass;
 
 	/** 생성한 장판 액터의 수명(초). 0이면 수명을 별도로 지정하지 않는다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Aura|Effect Area", meta = (EditCondition = "bSpawnEffectArea", ClampMin = "0.0", ForceUnits = "s"))

@@ -9,12 +9,11 @@ class UWidgetClassDefinition;
 struct FStreamableHandle;
 
 /**
- * One screen-lifetime hold on a DA_Widget content bundle.
+ * 화면이 열려 있는 동안 DA_Widget 콘텐츠 번들의 로드를 유지한다.
  *
- * FStreamableHandle already provides shared residency semantics, so each
- * consumer only keeps this lease while its screen needs the bundle. Dropping
- * the last lease releases the corresponding streamable handle without a
- * second token/reference-count registry.
+ * FStreamableHandle이 공유 로드 수명을 관리하므로 각 사용자는 화면에서 번들이 필요한 동안만
+ * 이 참조를 유지한다. 마지막 참조가 해제되면 별도 토큰·참조 횟수 관리 없이
+ * 해당 스트리밍 핸들이 해제된다.
  */
 class LABPROJECT_API FWidgetContentBundleLease final
 	: public TSharedFromThis<FWidgetContentBundleLease>

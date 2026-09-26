@@ -7,7 +7,7 @@
 class AActor;
 class UInfoWidget;
 
-/** Manages the temporary character-preview view target used by the Info screen. */
+/** Info 화면에서 사용하는 임시 캐릭터 미리보기 시점을 관리한다. */
 UCLASS()
 class LABPROJECT_API UInfoCharacterPreviewController : public UObject
 {

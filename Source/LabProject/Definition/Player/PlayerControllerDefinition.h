@@ -33,10 +33,10 @@ struct LABPROJECT_API FControllerPresentationSettings
 };
 
 /**
- * Data-driven composition settings for APdPlayerController.
+ * APdPlayerController의 데이터 기반 구성 설정을 제공한다.
  *
- * Presentation settings for APdPlayerController. Input comes from DA_GameInstance,
- * while profile synchronization uses a fixed runtime policy.
+ * 컨트롤러의 표시 설정을 정의한다. 입력 설정은 DA_GameInstance에서 가져오며,
+ * 프로필 동기화는 고정된 실행 정책을 따른다.
  */
 UCLASS(BlueprintType, Const)
 class LABPROJECT_API UPlayerControllerDefinition : public UPrimaryDataAsset

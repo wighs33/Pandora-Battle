@@ -6,9 +6,9 @@
 class UButton;
 
 /**
- * Keeps filter button selection visuals in sync.
- * The selected background and button-style outline borrow hue/saturation from the accent
- * color while preserving their original HSV value and alpha.
+ * 필터 버튼의 선택 표시를 동기화한다.
+ * 선택 배경과 버튼 테두리는 강조 색상의 색조·채도를 사용하며,
+ * 기존 HSV 명도와 알파는 유지한다.
  */
 class FFilterButtonHighlightState
 {

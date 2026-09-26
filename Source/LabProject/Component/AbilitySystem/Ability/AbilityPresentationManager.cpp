@@ -2,7 +2,7 @@
 #include "AbilitySystem/Ability/SkillAbility.h"
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
-#include "AbilitySystem/Presentation/SkillPresentationActor.h"
+#include "Skill/Actors/SkillVisualActor.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/Character/CharacterPresentationComponent.h"
@@ -78,14 +78,14 @@ void UAbilityPresentationManager::StartConfiguredMissilePresentation(UPdGameplay
 
 void UAbilityPresentationManager::SetMissileTargeting(FName AimParameter, FName TargetSocket)
 {
-	if (ASkillPresentationActor* PresentationActor = ActiveSkillPresentationActor.Get())
+	if (ASkillVisualActor* PresentationActor = ActiveSkillPresentationActor.Get())
 		PresentationActor->SetMissileTargeting(AimParameter, TargetSocket);
 }
 
 // 활성 미사일 연출에 현재 추적할 대상 목록을 전달한다.
 void UAbilityPresentationManager::UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors)
 {
-	if (ASkillPresentationActor* PresentationActor = ActiveSkillPresentationActor.Get())
+	if (ASkillVisualActor* PresentationActor = ActiveSkillPresentationActor.Get())
 	{
 		PresentationActor->SetMissileTargetActors(TargetActors);
 	}
@@ -94,7 +94,7 @@ void UAbilityPresentationManager::UpdateConfiguredMissilePresentationTargets(con
 // 미사일 추적 대상을 비우고 미사일 연출만 중단한다.
 void UAbilityPresentationManager::StopConfiguredMissilePresentation(UPdGameplayAbility& Ability)
 {
-	if (ASkillPresentationActor* PresentationActor = ActiveSkillPresentationActor.Get())
+	if (ASkillVisualActor* PresentationActor = ActiveSkillPresentationActor.Get())
 	{
 		PresentationActor->SetMissileTargetActors({});
 	}
@@ -105,7 +105,7 @@ void UAbilityPresentationManager::StopConfiguredMissilePresentation(UPdGameplayA
 // 능력 종료·강제 정리 시 서버의 연출 액터를 제거하고 보관 참조를 비운다.
 void UAbilityPresentationManager::DestroyActiveSkillPresentationActor()
 {
-	ASkillPresentationActor* PresentationActor = ActiveSkillPresentationActor.Get();
+	ASkillVisualActor* PresentationActor = ActiveSkillPresentationActor.Get();
 	ActiveSkillPresentationActor = nullptr;
 
 	if (IsValid(PresentationActor) && PresentationActor->HasAuthority())
@@ -212,7 +212,7 @@ FVector UAbilityPresentationManager::ResolveConfiguredCharacterDecalLocation(con
 }
 
 // 이 능력의 연출 액터를 재사용하거나 서버에서 생성·초기화한다.
-ASkillPresentationActor* UAbilityPresentationManager::GetOrCreatePresentationActor(UPdGameplayAbility& Ability)
+ASkillVisualActor* UAbilityPresentationManager::GetOrCreatePresentationActor(UPdGameplayAbility& Ability)
 {
 	if (IsValid(ActiveSkillPresentationActor))
 	{
@@ -228,7 +228,7 @@ ASkillPresentationActor* UAbilityPresentationManager::GetOrCreatePresentationAct
 	}
 
 	const FTransform SpawnTransform(Character->GetActorRotation(), Character->GetActorLocation());
-	ASkillPresentationActor* PresentationActor = World->SpawnActorDeferred<ASkillPresentationActor>(ASkillPresentationActor::StaticClass(),
+	ASkillVisualActor* PresentationActor = World->SpawnActorDeferred<ASkillVisualActor>(ASkillVisualActor::StaticClass(),
 		SpawnTransform, Character, Cast<APawn>(Character), ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	if (!PresentationActor)
 	{
@@ -245,7 +245,7 @@ ASkillPresentationActor* UAbilityPresentationManager::GetOrCreatePresentationAct
 void UAbilityPresentationManager::SetConfiguredPresentationEnabled(
 	UPdGameplayAbility& Ability, const ESkillPresentationFlags PresentationFlag, const bool bEnabled)
 {
-	ASkillPresentationActor* PresentationActor = ActiveSkillPresentationActor.Get();
+	ASkillVisualActor* PresentationActor = ActiveSkillPresentationActor.Get();
 	if (bEnabled && !PresentationActor)
 	{
 		PresentationActor = GetOrCreatePresentationActor(Ability);

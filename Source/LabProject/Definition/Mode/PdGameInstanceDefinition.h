@@ -95,7 +95,7 @@ struct LABPROJECT_API FProjectDefinitionReferences
 };
 
 /**
- * Data-driven fragments consumed by GameInstance-lifetime subsystems.
+ * GameInstance 수명의 서브시스템에서 사용하는 데이터 기반 설정 묶음을 제공한다.
  */
 UCLASS(BlueprintType, Const)
 class LABPROJECT_API UPdGameInstanceDefinition : public UPrimaryDataAsset

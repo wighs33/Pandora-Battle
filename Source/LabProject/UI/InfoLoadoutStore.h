@@ -26,10 +26,10 @@ enum class EInfoLoadoutStateChange : uint8
 DECLARE_MULTICAST_DELEGATE_OneParam(FInfoLoadoutStateChanged, EInfoLoadoutStateChange);
 
 /**
- * Shared read model and command boundary for the Info screen's item/Pandora loadout.
+ * Info 화면의 아이템·판도라 로드아웃에 대한 공통 조회 모델과 명령 진입점을 제공한다.
  *
- * Views issue commands through this object and only render state that has flowed back
- * through OnStateChanged. This keeps the item and Pandora presenters independent.
+ * 뷰는 이 객체를 통해 명령을 보내고 OnStateChanged로 전달받은 상태만 표시한다.
+ * 아이템과 판도라 프레젠터는 서로 독립적으로 동작한다.
  */
 UCLASS()
 class LABPROJECT_API UInfoLoadoutStore : public UObject

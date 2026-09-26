@@ -11,7 +11,7 @@ class UPaintCanvasWidget;
 class APdPlayer;
 class UInfoPaintPreview;
 
-/** Connects the Info screen's paint-canvas widget to the player's shared paint render target. */
+/** Info 화면의 페인트 캔버스 위젯을 플레이어의 공용 페인트 렌더 타깃에 연결한다. */
 UCLASS()
 class LABPROJECT_API UInfoPaintCanvasController : public UObject
 {

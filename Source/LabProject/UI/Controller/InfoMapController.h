@@ -15,7 +15,7 @@ class UWidgetTree;
 class FWidgetContentBundleLease;
 struct FStreamableHandle;
 
-/** Owns map content loading, map widget creation, and map-overlay transitions. */
+/** 맵 콘텐츠 로딩·맵 위젯 생성·맵 오버레이 전환을 관리한다. */
 UCLASS()
 class LABPROJECT_API UInfoMapController : public UObject
 {

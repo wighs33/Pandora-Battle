@@ -14,7 +14,7 @@ class UUserWidget;
 class FWidgetContentBundleLease;
 enum class EInfoUiSection : uint8;
 
-/** Coordinates full-screen Info/Pandora layers, camera-return policy and training-room pause. */
+/** 전체 화면 Info·Pandora 계층과 카메라 복귀 정책, 훈련장 일시정지를 조율한다. */
 UCLASS()
 class LABPROJECT_API UHudScreenLayer : public UObject
 {

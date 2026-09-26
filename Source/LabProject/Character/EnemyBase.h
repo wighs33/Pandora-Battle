@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AbilitySystem/Interfaces/TargetingInterface.h"
+#include "Interface/TargetingInterface.h"
 #include "Character/CharacterBase.h"
 #include "EnemyBase.generated.h"
 
@@ -17,12 +17,11 @@ struct FEnemyCombatSettings;
 struct FEnemyTrainingBotSettings;
 
 /**
- * Stable enemy facade.
+ * 적 캐릭터의 공통 진입점을 제공한다.
  *
- * Targeting, combat bootstrapping, and attack state live in
- * UEnemyCombatComponent. Training-bot hit reaction, weapon swapping, and
- * respawn state live in UEnemyTrainingBotComponent. This actor keeps the
- * existing Blueprint, StateTree, GAS, and network surface intact.
+ * 대상 지정·전투 초기화·공격 상태는 UEnemyCombatComponent가 담당한다.
+ * 훈련 봇의 피격 반응·무기 교체·리스폰 상태는 UEnemyTrainingBotComponent가 담당한다.
+ * 기존 블루프린트·StateTree·GAS·네트워크 연동은 이 액터에서 유지한다.
  */
 UCLASS(Blueprintable)
 class LABPROJECT_API AEnemyBase

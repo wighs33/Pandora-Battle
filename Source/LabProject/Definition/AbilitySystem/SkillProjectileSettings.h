@@ -6,7 +6,7 @@
 #include "SkillProjectileSettings.generated.h"
 
 class AGameplayAbilityTargetActor;
-class AProjectileBase;
+class ASkillProjectile;
 class UGameplayEffect;
 class UMaterialInterface;
 class UNiagaraSystem;
@@ -81,7 +81,7 @@ public:
 
 	/** 생성하고 발사할 투사체 액터 클래스. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Projectile")
-	TSubclassOf<AProjectileBase> ProjectileActorClass;
+	TSubclassOf<ASkillProjectile> ProjectileActorClass;
 
 	/** 투사체의 이동 속도(cm/s). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Projectile", meta = (ClampMin = "0.0", ForceUnits = "cm/s"))

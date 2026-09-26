@@ -1,6 +1,6 @@
 #include "AbilitySystem/TargetValidator.h"
 
-#include "AbilitySystem/SkillGroundProjection.h"
+#include "Skill/SkillGroundProjection.h"
 #include "CollisionQueryParams.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/World.h"

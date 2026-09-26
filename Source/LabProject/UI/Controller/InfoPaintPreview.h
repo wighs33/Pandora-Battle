@@ -14,7 +14,7 @@ class UTextureRenderTarget2D;
 class UImage;
 struct FSkinWidgetSettings;
 
-/** Local display-only copy. Never applies cosmetics, saves data or sends gameplay RPCs. */
+/** 로컬 표시 전용 복사본이다. 외형 적용·데이터 저장·게임플레이 RPC 전송은 수행하지 않는다. */
 UCLASS()
 class LABPROJECT_API UInfoPaintPreview : public UObject
 {

@@ -4,7 +4,7 @@
 
 #include "WidgetDefinitionFragments.generated.h"
 
-/** Per-widget construction, presentation and behavior settings. */
+/** 위젯별 생성·표시·동작 설정을 정의한다. */
 UCLASS(BlueprintType, meta = (DisplayName = "Widget Style Definition"))
 class LABPROJECT_API UWidgetStyleDefinition : public UPrimaryDataAsset
 {
@@ -64,7 +64,7 @@ public:
 	FSkinWidgetSettings SkinWidgetSettings;
 };
 
-/** Input actions and their visual key/icon configuration. */
+/** 입력 액션과 화면에 표시할 키·아이콘 설정을 정의한다. */
 UCLASS(BlueprintType, meta = (DisplayName = "Widget Input Icons Definition"))
 class LABPROJECT_API UWidgetInputIconsDefinition : public UPrimaryDataAsset
 {
@@ -88,7 +88,7 @@ public:
 	TSoftObjectPtr<UInputAction> TogglePandoraTreeInputAction;
 };
 
-/** Total-map images, marker presentation and world-to-map projection settings. */
+/** 전체 맵 이미지·마커 표시·월드 좌표의 맵 투영 설정을 정의한다. */
 UCLASS(BlueprintType, meta = (DisplayName = "Widget Map UI Definition"))
 class LABPROJECT_API UWidgetMapUIDefinition : public UPrimaryDataAsset
 {

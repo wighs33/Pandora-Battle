@@ -11,9 +11,8 @@ class UCharacterMovementComponent;
 struct FPlayerAimSettings;
 
 /**
- * Owns replicated weapon-aim state, compressed animation aim offsets, and
- * the authoritative sampling timer. Camera presentation stays in
- * UPlayerCameraComponent.
+ * 복제되는 무기 조준 상태·압축된 애니메이션 조준 오프셋·서버 권한의 샘플링 타이머를 관리한다.
+ * 카메라 연출은 UPlayerCameraComponent가 담당한다.
  */
 UCLASS(ClassGroup = (Player), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UPlayerAimComponent : public UActorComponent

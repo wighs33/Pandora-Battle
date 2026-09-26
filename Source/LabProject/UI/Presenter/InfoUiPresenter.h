@@ -18,8 +18,8 @@ struct FStreamableHandle;
 enum class EInfoLoadoutStateChange : uint8;
 
 /**
- * Stable top-level presenter facade used by the HUD and Blueprint configuration.
- * Tab-specific behavior lives in the four presenters owned by this object.
+ * HUD와 블루프린트 설정이 사용하는 최상위 프레젠터 진입점을 제공한다.
+ * 탭별 동작은 이 객체가 소유한 네 개의 프레젠터에서 처리한다.
  */
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UInfoUiPresenter : public UObject

@@ -13,8 +13,8 @@ class UMeshComponent;
 class USpringArmComponent;
 
 /**
- * Local presentation policy for APdPlayer camera interpolation and
- * near-camera material occlusion. Network aim ownership remains on APdPlayer.
+ * APdPlayer의 로컬 카메라 보간과 카메라 근처 머티리얼 가림 처리를 담당한다.
+ * 네트워크 조준 상태의 소유권은 APdPlayer에 유지한다.
  */
 UCLASS(ClassGroup = (Player), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UPlayerCameraComponent : public UActorComponent

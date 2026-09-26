@@ -10,7 +10,7 @@ class UFont;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMenuLanguageChanged);
 
-/** Owns local language selection, persistence and text lookup, independently of any screen. */
+/** 화면과 독립적으로 로컬 언어 선택·저장·텍스트 조회를 관리한다. */
 UCLASS()
 class LABPROJECT_API UMenuLocalizationSubsystem : public UGameInstanceSubsystem
 {

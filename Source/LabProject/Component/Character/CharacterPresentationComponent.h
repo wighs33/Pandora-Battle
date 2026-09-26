@@ -16,8 +16,8 @@ class UNiagaraSystem;
 class USkeletalMeshComponent;
 
 /**
- * Shared visual state for characters: animation layers, aim-offset data,
- * team/skill overlays, body auras, and dash cues.
+ * 캐릭터의 공통 시각 상태를 관리한다.
+ * 애니메이션 레이어·조준 오프셋·팀 및 스킬 오버레이·몸체 오라·대시 큐를 담당한다.
  */
 UCLASS(ClassGroup = (Character), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UCharacterPresentationComponent : public UActorComponent

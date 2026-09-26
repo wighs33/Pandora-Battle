@@ -8,7 +8,7 @@ class IWidgetCompilerLog;
 class UImage;
 class UWidgetTree;
 
-/** Explicit widget contract for the paint surface embedded in the Info screen. */
+/** Info 화면에 포함된 페인트 영역의 위젯 구성 규약을 정의한다. */
 UCLASS(Abstract, Blueprintable, BlueprintType)
 class LABPROJECT_API UPaintCanvasWidget : public ULocalizedMenuWidget
 {

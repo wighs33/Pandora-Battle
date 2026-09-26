@@ -17,10 +17,10 @@ class UWidgetClassDefinition;
 enum class EInfoUiSection : uint8;
 
 /**
- * Per-HUD UI composition router.
+ * HUD별 UI 구성을 조율한다.
  *
- * GameFeature definitions enter through one request stack, core widget layers
- * are created here. Input and focus belong to the active CommonUI screen.
+ * GameFeature 정의는 하나의 요청 스택으로 받고, 핵심 위젯 계층을 생성한다.
+ * 입력과 포커스는 활성 CommonUI 화면이 담당한다.
  */
 UCLASS()
 class LABPROJECT_API UHudUiRouter : public UObject

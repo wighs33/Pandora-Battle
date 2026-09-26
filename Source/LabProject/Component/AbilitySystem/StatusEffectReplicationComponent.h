@@ -72,11 +72,11 @@ struct TStructOpsTypeTraits<FReplicatedStatusEffectStackList>
 };
 
 /**
- * Replicates only the compact status-stack data required by presentation.
+ * 연출에 필요한 최소한의 상태이상 중첩 데이터만 복제한다.
  *
- * Enemy ability systems use Minimal gameplay-effect replication, so remote UI
- * cannot inspect their ActiveGameplayEffects FastArray. The server mirrors
- * relevant aggregate stack counts here while gameplay authority remains in GAS.
+ * 적의 능력 시스템은 GameplayEffect의 Minimal 복제를 사용하므로 원격 UI에서
+ * ActiveGameplayEffects FastArray를 조회할 수 없다. 서버는 필요한 중첩 합계를 이곳에 복제하며,
+ * 게임플레이 판정 권한은 GAS에 유지한다.
  */
 UCLASS(ClassGroup=(AbilitySystem), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UStatusEffectReplicationComponent : public UActorComponent

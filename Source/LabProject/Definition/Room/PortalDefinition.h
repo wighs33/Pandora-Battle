@@ -15,8 +15,8 @@ class UNiagaraSystem;
 class UStaticMesh;
 
 /**
- * Cookable visual assets and capture-budget settings shared by a portal pair.
- * Asset references stay outside native code so content can be renamed safely.
+ * 한 쌍의 포털이 공유하는 쿠킹 가능한 시각 에셋과 캡처 예산 설정을 정의한다.
+ * 콘텐츠 이름을 안전하게 바꿀 수 있도록 에셋 참조는 네이티브 코드 밖에 둔다.
  */
 UCLASS(BlueprintType, Const)
 class LABPROJECT_API UPortalDefinition : public UPrimaryDataAsset

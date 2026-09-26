@@ -22,14 +22,15 @@ struct FGameFeatureActorExtensionHandles
 };
 
 /**
- * GameFeature action order:
- * 1. Set Project Tag Config
- * 2. Add Components
- * 3. Add Attributes
- * 4. Add Abilities
- * 5. Add Actor Extension
+ * GameFeature 액션 실행 순서:
+ * 1. 프로젝트 태그 설정
+ * 2. 컴포넌트 추가
+ * 3. 속성 추가
+ * 4. 능력 추가
+ * 5. 액터 확장 추가
  *
- * Add Actor Extension should usually run last because NetworkReady, HasInputComponent, BindInput, and InitAbilitySystem depend on earlier setup.
+ * NetworkReady·HasInputComponent·BindInput·InitAbilitySystem은 앞선 설정에 의존하므로
+ * 액터 확장 추가는 일반적으로 마지막에 실행한다.
  */
 UCLASS(meta = (DisplayName = "Add Actor Extension"))
 class LABPROJECT_API UGameFeatureAction_AddActorExtension : public UGameFeatureAction_WorldNetworkBase

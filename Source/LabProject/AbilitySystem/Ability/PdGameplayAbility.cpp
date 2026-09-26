@@ -6,7 +6,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Definition/Common/ProjectTagConfig.h"
-#include "AbilitySystem/Interfaces/TargetingInterface.h"
+#include "Interface/TargetingInterface.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/Ability/AbilityMovementManager.h"

@@ -13,7 +13,7 @@ class UPandoraDefinition;
 class USkinDefinition;
 class UWidget;
 
-/** Owns hover-detail widgets and their viewport positioning for the Info screen. */
+/** Info 화면의 마우스 오버 상세 위젯과 뷰포트 내 배치를 관리한다. */
 UCLASS()
 class LABPROJECT_API UInfoDetailController : public UObject
 {

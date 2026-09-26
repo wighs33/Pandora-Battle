@@ -11,7 +11,7 @@ class UDefaultProvisionDefinition;
 struct FStreamableHandle;
 
 /**
- * Data resolution and selected-map policy for ALobbyGameMode.
+ * ALobbyGameMode의 데이터 조회와 선택된 맵에 대한 정책을 담당한다.
  */
 UCLASS(ClassGroup = (Lobby))
 class LABPROJECT_API ULobbyConfigurationComponent : public UActorComponent

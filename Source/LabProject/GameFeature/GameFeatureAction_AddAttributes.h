@@ -24,14 +24,14 @@ struct FGameFeatureAttributeHandles
 };
 
 /**
- * GameFeature action order:
- * 1. Set Project Tag Config
- * 2. Add Components
- * 3. Add Attributes
- * 4. Add Abilities
- * 5. Add Actor Extension
+ * GameFeature 액션 실행 순서:
+ * 1. 프로젝트 태그 설정
+ * 2. 컴포넌트 추가
+ * 3. 속성 추가
+ * 4. 능력 추가
+ * 5. 액터 확장 추가
  *
- * Add Attributes should run after required feature components exist and before Actor Extension checks RequiredAttributeSets.
+ * 속성 추가는 필요한 기능 컴포넌트가 생성된 후, 액터 확장에서 RequiredAttributeSets를 확인하기 전에 실행한다.
  */
 UCLASS(meta = (DisplayName = "Add Attributes"))
 class LABPROJECT_API UGameFeatureAction_AddAttributes : public UGameFeatureAction_WorldNetworkBase

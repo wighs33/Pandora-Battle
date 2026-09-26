@@ -10,8 +10,8 @@ class UAnimMontage;
 class UItemDefinition;
 
 /**
- * Owns training-bot-only hit reaction, temporary movement lock, weapon swap,
- * and in-place respawn state. It stays inert for regular monsters.
+ * 훈련 봇 전용 피격 반응·일시적 이동 잠금·무기 교체·제자리 리스폰 상태를 관리한다.
+ * 일반 몬스터에서는 동작하지 않는다.
  */
 UCLASS(ClassGroup = (Character), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UEnemyTrainingBotComponent : public UActorComponent

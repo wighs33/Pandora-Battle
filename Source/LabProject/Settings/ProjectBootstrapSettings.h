@@ -8,8 +8,8 @@
 class UPdGameInstanceDefinition;
 
 /**
- * Selects the project bootstrap asset and owns the game-entry preload manifest
- * without embedding content names in native code.
+ * 네이티브 코드에 콘텐츠 이름을 넣지 않고 프로젝트 초기화 에셋을 선택하며,
+ * 게임 진입 시 미리 로드할 콘텐츠 목록을 관리한다.
  */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Project Bootstrap"))
 class LABPROJECT_API UProjectBootstrapSettings : public UDeveloperSettings

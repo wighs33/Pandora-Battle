@@ -40,14 +40,14 @@ struct FGameFeatureAbilityGrantHandles
 };
 
 /**
- * GameFeature action order:
- * 1. Set Project Tag Config
- * 2. Add Components
- * 3. Add Attributes
- * 4. Add Abilities
- * 5. Add Actor Extension
+ * GameFeature 액션 실행 순서:
+ * 1. 프로젝트 태그 설정
+ * 2. 컴포넌트 추가
+ * 3. 속성 추가
+ * 4. 능력 추가
+ * 5. 액터 확장 추가
  *
- * Add Abilities should run after ASC and attributes are ready, before input binding can activate those abilities.
+ * 능력 추가는 ASC와 속성 준비 후, 입력 바인딩으로 능력을 활성화하기 전에 실행한다.
  */
 UCLASS(meta = (DisplayName = "Add Abilities"))
 class LABPROJECT_API UGameFeatureAction_AddAbilities : public UGameFeatureAction_WorldNetworkBase

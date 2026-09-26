@@ -11,9 +11,8 @@ class UMaterialInstanceDynamic;
 class USkeletalMeshComponent;
 
 /**
- * Owns common character death, damage presentation, ragdoll, dissolve, and
- * respawn restoration state. Game-specific death overrides remain on the
- * owning character and call into this component through ACharacterBase.
+ * 캐릭터 공통 사망·피해 연출·래그돌·디졸브·리스폰 복구 상태를 관리한다.
+ * 게임별 사망 재정의는 소유 캐릭터에 유지하고, ACharacterBase를 통해 이 컴포넌트를 호출한다.
  */
 UCLASS(ClassGroup = (Character), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UCharacterDeathComponent : public UActorComponent

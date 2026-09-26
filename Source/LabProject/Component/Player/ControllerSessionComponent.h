@@ -8,10 +8,10 @@ class APdPlayerController;
 struct FGameResultPresentationData;
 
 /**
- * Client/server match-exit and title-travel coordinator.
+ * 클라이언트·서버의 경기 퇴장과 타이틀 이동을 조율한다.
  *
- * Authoritative match decisions stay in AExperienceGameMode; this component
- * only bridges the controller RPC boundary and local online-session cleanup.
+ * 서버 권한의 경기 판단은 AExperienceGameMode가 담당하며, 이 컴포넌트는
+ * 컨트롤러 RPC와 로컬 온라인 세션 정리를 연결한다.
  */
 UCLASS(ClassGroup = (PlayerController))
 class LABPROJECT_API UControllerSessionComponent : public UActorComponent

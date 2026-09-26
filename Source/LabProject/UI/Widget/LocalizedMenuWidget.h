@@ -8,7 +8,7 @@ class UButton;
 class UGameSettingsWidget;
 class UMenuLocalizationSubsystem;
 
-/** Screen assets bind widget names to text keys; the base handles lifetime and live updates. */
+/** 화면 에셋은 위젯 이름을 텍스트 키에 연결하고, 기반 클래스는 수명과 실시간 갱신을 처리한다. */
 UCLASS(Abstract)
 class LABPROJECT_API ULocalizedMenuWidget : public UUserWidget
 {

@@ -2,7 +2,7 @@
 
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
-#include "AbilitySystem/TargetingActors/TargetActor_GrappleTrace.h"
+#include "AbilitySystem/TargetingActors/GrappleTargetActor.h"
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
 #include "GameFramework/PlayerController.h"
@@ -168,7 +168,7 @@ void UGrappleAbility::StartTargetDataTask()
 		this,
 		TEXT("GrappleTargetData"),
 		EGameplayTargetingConfirmation::Custom,
-		ATargetActor_GrappleTrace::StaticClass());
+		AGrappleTargetActor::StaticClass());
 	if (!WaitTargetDataTask)
 	{
 		return;
@@ -179,8 +179,8 @@ void UGrappleAbility::StartTargetDataTask()
 
 	AGameplayAbilityTargetActor* TargetActor = BeginSpawningTargetDataActor(
 		WaitTargetDataTask,
-		ATargetActor_GrappleTrace::StaticClass());
-	SpawnedTargetActor = Cast<ATargetActor_GrappleTrace>(TargetActor);
+		AGrappleTargetActor::StaticClass());
+	SpawnedTargetActor = Cast<AGrappleTargetActor>(TargetActor);
 	if (TargetActor)
 	{
 		FinishSpawningTargetDataActor(WaitTargetDataTask, TargetActor);

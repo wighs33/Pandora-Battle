@@ -8,11 +8,10 @@
 class APdPlayerController;
 
 /**
- * Bridges a local cosmetic profile with authoritative player-state components.
+ * 로컬 외형 프로필을 서버 권한의 플레이어 상태 컴포넌트와 연결한다.
  *
- * Remote profile data is intentionally treated as an unverified cosmetic
- * preference for this unranked listen-server project. Submitted names are
- * resolved only against canonical skin definitions on the server.
+ * 비랭크 리슨 서버 환경이므로 원격 프로필 데이터는 검증되지 않은 외형 선호 정보로 취급한다.
+ * 제출된 이름은 서버의 정식 스킨 정의를 기준으로만 조회한다.
  */
 UCLASS(ClassGroup = (PlayerController))
 class LABPROJECT_API UControllerProfileSyncComponent : public UActorComponent

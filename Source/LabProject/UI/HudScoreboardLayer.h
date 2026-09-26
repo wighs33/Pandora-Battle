@@ -12,7 +12,7 @@ class UUiScreen;
 class UHudUiRouter;
 struct FGameResultPlayerStat;
 
-/** Owns scoreboard creation, refresh scheduling and stat presentation. */
+/** 점수판 생성·갱신 예약·능력치 표시를 관리한다. */
 UCLASS()
 class LABPROJECT_API UHudScoreboardLayer : public UObject
 {

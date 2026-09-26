@@ -89,8 +89,8 @@ public:
 };
 
 /**
- * Disk-only wrapper that keeps the runtime profile object and all gameplay APIs unchanged.
- * This is intentionally lightweight obfuscation, not a security boundary.
+ * 실행 중인 프로필 객체와 게임플레이 API를 유지하는 디스크 저장용 래퍼다.
+ * 가벼운 난독화만 제공하며 보안을 보장하지 않는다.
  */
 UCLASS()
 class LABPROJECT_API UProfileSaveEnvelope : public USaveGame

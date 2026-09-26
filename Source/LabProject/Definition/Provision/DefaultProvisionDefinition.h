@@ -162,7 +162,7 @@ public:
 	int32 GestureSlotIndex = 0;
 };
 
-/** Common default grants and mode values for lobby, training, and gameplay. */
+/** 로비·훈련·게임플레이에서 사용하는 공통 기본 지급 항목과 모드 값을 정의한다. */
 UCLASS(BlueprintType, Const)
 class LABPROJECT_API UDefaultProvisionDefinition : public UPrimaryDataAsset
 {

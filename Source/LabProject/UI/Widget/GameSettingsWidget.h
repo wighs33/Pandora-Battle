@@ -8,7 +8,7 @@
 class USlider;
 class UTextBlock;
 
-/** Personal settings only. Lobby match configuration remains host-owned. */
+/** 개인 설정만 담당한다. 로비 경기 설정은 호스트가 관리한다. */
 UCLASS()
 class LABPROJECT_API UGameSettingsWidget : public ULocalizedMenuWidget
 {
