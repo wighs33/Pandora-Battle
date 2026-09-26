@@ -28,10 +28,12 @@ class LABPROJECT_API ALobbyGameMode : public AGameModeBase
 
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
-	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void InitGameState() override;
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* Player, const FTransform& Transform) override;
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
@@ -68,9 +70,6 @@ private:
 	void StartExperienceLoad();
 	FPrimaryAssetId GetConfiguredExperienceId() const;
 	UExperienceManagerComponent* GetExperienceManager() const;
-
-	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void EnsureLobbyFrameworkClasses();
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components", meta = (AllowPrivateAccess = "true"))

@@ -17,10 +17,35 @@
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
 #include "Mode/PdPlayerController.h"
 #include "Provision/DefaultPlayerProvisioner.h"
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyGameMode)
 
 DEFINE_LOG_CATEGORY_STATIC(LogLobbyGameMode, Log, All);
+
+#if WITH_EDITOR
+EDataValidationResult ALobbyGameMode::IsDataValid(FDataValidationContext& Context) const
+{
+	EDataValidationResult Result = Super::IsDataValid(Context);
+	const auto ValidateClass = [&Context, &Result](const UClass* Class, const UClass* RequiredClass, const TCHAR* PropertyName)
+	{
+		if (!Class || !Class->IsChildOf(RequiredClass))
+		{
+			Context.AddError(FText::Format(NSLOCTEXT("LobbyGameMode", "InvalidFrameworkClass", "{0} must inherit from {1}."),
+				FText::FromString(PropertyName), FText::FromString(RequiredClass->GetName())));
+			Result = EDataValidationResult::Invalid;
+		}
+	};
+	ValidateClass(PlayerControllerClass, ALobbyPlayerController::StaticClass(), TEXT("PlayerControllerClass"));
+	ValidateClass(GameStateClass, ALobbyGameState::StaticClass(), TEXT("GameStateClass"));
+	ValidateClass(PlayerStateClass, APdPlayerState::StaticClass(), TEXT("PlayerStateClass"));
+	ValidateClass(HUDClass, ALobbyHUD::StaticClass(), TEXT("HUDClass"));
+	ValidateClass(DefaultPawnClass, APdPlayer::StaticClass(), TEXT("DefaultPawnClass"));
+	return Result == EDataValidationResult::Invalid ? Result : EDataValidationResult::Valid;
+}
+#endif
 
 // 로비의 필수 처리 객체와 기본 프레임워크 클래스를 구성한다.
 ALobbyGameMode::ALobbyGameMode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -40,13 +65,6 @@ ALobbyGameMode::ALobbyGameMode(const FObjectInitializer& ObjectInitializer) : Su
 	bUseSeamlessTravel = true;
 }
 
-// GameState와 플레이어 객체가 만들어지기 전에 잘못된 클래스 설정을 확인한다.
-void ALobbyGameMode::PreInitializeComponents()
-{
-	EnsureLobbyFrameworkClasses();
-	Super::PreInitializeComponents();
-}
-
 // 로비 설정을 준비한 뒤 선택한 맵과 서버의 세션 광고 정보를 맞춘다.
 void ALobbyGameMode::BeginPlay()
 {
@@ -60,7 +78,7 @@ void ALobbyGameMode::BeginPlay()
 			return;
 		}
 		LobbyConfigurationComponent->ApplyDefaultLobbyConfigIfNeeded();
-		SpawnComponent->Initialize(LobbyConfigurationComponent->GetMatchRuleDefinition(), EPlayerRespawnLocation::PlayerStart);
+		SpawnComponent->Initialize(LobbyConfigurationComponent->GetMatchRuleDefinition());
 		MatchCoordinator->UpdateAdvertisedSessionSettingsFromLobbyConfig();
 		// Experience와 로비 설정 중 어느 쪽이 먼저 로딩되어도 두 준비가 끝난 뒤 플레이어를 시작한다.
 		ResumeWaitingPlayers();
@@ -236,43 +254,9 @@ void ALobbyGameMode::ResumeWaitingPlayers()
 	}
 }
 
-// 유효한 파생 BP 클래스는 유지하고, 로비 계약을 어긴 설정만 생성 전에 경고와 함께 보정한다.
-void ALobbyGameMode::EnsureLobbyFrameworkClasses()
-{
-	if (!PlayerControllerClass || !PlayerControllerClass->IsChildOf(ALobbyPlayerController::StaticClass()))
-	{
-		UE_LOG(LogLobbyGameMode, Warning, TEXT("PlayerControllerClass '%s' is not a ALobbyPlayerController; using the native lobby default."),
-			*GetNameSafe(PlayerControllerClass.Get()));
-		PlayerControllerClass = ALobbyPlayerController::StaticClass();
-	}
-	if (!GameStateClass || !GameStateClass->IsChildOf(ALobbyGameState::StaticClass()))
-	{
-		UE_LOG(LogLobbyGameMode, Warning, TEXT("GameStateClass '%s' is not a ALobbyGameState; using the native lobby default."),
-			*GetNameSafe(GameStateClass.Get()));
-		GameStateClass = ALobbyGameState::StaticClass();
-	}
-	if (!PlayerStateClass || !PlayerStateClass->IsChildOf(APdPlayerState::StaticClass()))
-	{
-		UE_LOG(LogLobbyGameMode, Warning, TEXT("PlayerStateClass '%s' is not an APdPlayerState; using the native lobby default."),
-			*GetNameSafe(PlayerStateClass.Get()));
-		PlayerStateClass = APdPlayerState::StaticClass();
-	}
-	if (!HUDClass || !HUDClass->IsChildOf(ALobbyHUD::StaticClass()))
-	{
-		UE_LOG(LogLobbyGameMode, Warning, TEXT("HUDClass '%s' is not a ALobbyHUD; using the native lobby default."),
-			*GetNameSafe(HUDClass.Get()));
-		HUDClass = ALobbyHUD::StaticClass();
-	}
-	if (!DefaultPawnClass || !DefaultPawnClass->IsChildOf(APdPlayer::StaticClass()))
-	{
-		UE_LOG(LogLobbyGameMode, Warning, TEXT("DefaultPawnClass '%s' is not a APdPlayer; using the native lobby default."),
-			*GetNameSafe(DefaultPawnClass.Get()));
-		DefaultPawnClass = APdPlayer::StaticClass();
-	}
-}
-
 AActor* ALobbyGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
+	if (AActor* Start = SpawnComponent->ChooseConfiguredPlayerStart(Player, TEXT("Spawn_"))) { return Start; }
 	AActor* Start = Super::ChoosePlayerStart_Implementation(Player);
 	SpawnComponent->MarkPlayerStartUsed(Player, Start);
 	return Start;

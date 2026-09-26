@@ -14,6 +14,8 @@
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Engine/World.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "Experience/PdWorldSettings.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
@@ -48,25 +50,22 @@ AExperienceGameMode::AExperienceGameMode(const FObjectInitializer& ObjectInitial
 void AExperienceGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
-	MatchFlowComponent->OnRuntimeContentReady.AddUObject(this, &ThisClass::HandleRuntimeContentReady);
 	PlayerSetupComponent->OnPlayerGameplayReady.AddUObject(this, &ThisClass::TryStartServerMatch);
-	MatchFlowComponent->InitializeRuntime();
 	MatchFlowComponent->InitializeTravelOptions(Options);
+	BeginRuntimeContentPreload();
 }
 
-// 액터의 BeginPlay가 모두 끝난 다음 경기 시작과 보상 상자 배치를 확인한다.
+// 액터의 BeginPlay가 모두 끝난 다음 경기 시작 조건을 확인한다.
 void AExperienceGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 	GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::TryStartServerMatch);
-	GetWorldTimerManager().SetTimerForNextTick(
-		MatchFlowComponent.Get(), &UMatchFlowComponent::ConfigureRewardChestSpawns);
 }
 
 // 맵을 떠난 뒤 준비 완료 콜백이 경기를 시작하지 않도록 연결을 정리한다.
 void AExperienceGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	MatchFlowComponent->OnRuntimeContentReady.RemoveAll(this);
+	ReleaseRuntimeContentPreload();
 	PlayerSetupComponent->OnPlayerGameplayReady.RemoveAll(this);
 	GetWorldTimerManager().ClearAllTimersForObject(this);
 	Super::EndPlay(EndPlayReason);
@@ -76,7 +75,7 @@ void AExperienceGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AExperienceGameMode::InitGameState()
 {
 	Super::InitGameState();
-	MatchFlowComponent->InitializeGameState();
+	if (IsRuntimeContentReady()) { MatchFlowComponent->InitializeGameState(); }
 	StartExperienceLoad();
 }
 
@@ -240,7 +239,7 @@ bool AExperienceGameMode::RequestAbortMatchToTitle(APlayerController* Requesting
 // 필수 경기 콘텐츠와 지정된 Experience가 모두 준비된 뒤 입장을 허용한다.
 bool AExperienceGameMode::CanStartGameplay() const
 {
-	if (!MatchFlowComponent->IsRuntimeContentReady()) { return false; }
+	if (!IsRuntimeContentReady()) { return false; }
 	if (!GetConfiguredExperienceId().IsValid())
 	{
 		return true;
@@ -296,14 +295,59 @@ FPrimaryAssetId AExperienceGameMode::GetConfiguredExperienceId() const
 	return Settings ? Settings->GetDefaultExperienceId() : FPrimaryAssetId();
 }
 
-// 콘텐츠 준비가 끝나면 각 실행 객체를 초기화하고 대기 중인 입장을 재개한다.
-void AExperienceGameMode::HandleRuntimeContentReady()
+// 경기에서 공유하는 필수 Definition을 한 번 로드하고 맵 수명 동안 소유한다.
+void AExperienceGameMode::BeginRuntimeContentPreload()
 {
-	const UMatchRuleDefinition* Rules = MatchFlowComponent->GetMatchRuleDefinition();
-	SpawnComponent->Initialize(Rules, Rules->bUseRandomPlayerStartRespawns
-		? EPlayerRespawnLocation::RandomPlayerStart : EPlayerRespawnLocation::InitialSpawn);
+	ReleaseRuntimeContentPreload();
+	const FProjectDefinitionReferences& Definitions = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+	TArray<FSoftObjectPath> Paths;
+	for (const FSoftObjectPath& Path : {Definitions.MatchRule.ToSoftObjectPath(),
+		Definitions.LevelDefinition.ToSoftObjectPath(), Definitions.DefaultProvision.ToSoftObjectPath()})
+	{
+		if (!Path.IsNull()) { Paths.AddUnique(Path); }
+	}
+	const uint32 Generation = RuntimeContentRequestGeneration;
+	if (Paths.IsEmpty())
+	{
+		HandleRuntimeContentPreloadComplete(Generation);
+		return;
+	}
+	RuntimeContentPreloadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(Paths,
+		FStreamableDelegate::CreateUObject(this, &ThisClass::HandleRuntimeContentPreloadComplete, Generation));
+	if (!RuntimeContentPreloadHandle.IsValid()) { HandleRuntimeContentPreloadComplete(Generation); }
+}
+
+void AExperienceGameMode::HandleRuntimeContentPreloadComplete(uint32 RequestGeneration)
+{
+	if (RequestGeneration != RuntimeContentRequestGeneration) { return; }
+	const FProjectDefinitionReferences& Definitions = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+	LoadedMatchRuleDefinition = Definitions.MatchRule.Get();
+	LoadedLevelDefinition = Definitions.LevelDefinition.Get();
+	LoadedDefaultProvisionDefinition = Definitions.DefaultProvision.Get();
+	if (!IsRuntimeContentReady())
+	{
+		UE_LOG(PdExperienceGameModeLog, Error, TEXT("Required match definitions failed to load. Player and match start are blocked."));
+		return;
+	}
+	SpawnComponent->Initialize(LoadedMatchRuleDefinition);
+	MatchFlowComponent->InitializeGameState();
 	PlayerSetupComponent->InitializeRuntime();
+	MatchFlowComponent->PreloadRewardContent();
 	ResumeStartingPlayers();
+}
+
+void AExperienceGameMode::ReleaseRuntimeContentPreload()
+{
+	++RuntimeContentRequestGeneration;
+	if (RuntimeContentPreloadHandle.IsValid())
+	{
+		RuntimeContentPreloadHandle->CancelHandle();
+		RuntimeContentPreloadHandle->ReleaseHandle();
+		RuntimeContentPreloadHandle.Reset();
+	}
+	LoadedMatchRuleDefinition = nullptr;
+	LoadedLevelDefinition = nullptr;
+	LoadedDefaultProvisionDefinition = nullptr;
 }
 
 // GameState가 소유한 Experience 로딩 상태를 조회한다.
@@ -336,7 +380,7 @@ void AExperienceGameMode::ResumeStartingPlayers()
 void AExperienceGameMode::TryStartServerMatch()
 {
 	if (!HasActorBegunPlay() || !CanStartGameplay()
-		|| !MatchFlowComponent->IsRuntimeContentReady() || MatchFlowComponent->IsGameResultShown())
+		|| MatchFlowComponent->IsGameResultShown())
 	{
 		return;
 	}

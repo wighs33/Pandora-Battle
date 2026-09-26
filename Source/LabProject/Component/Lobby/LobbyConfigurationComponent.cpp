@@ -86,23 +86,6 @@ void ULobbyConfigurationComponent::SaveConfig(FName MapKey, int32 InMaxBotCount)
 	if (ALobbyGameState* State = GameMode->GetGameState<ALobbyGameState>()) { State->SetSelectedMapOption(Option); }
 }
 
-FString ULobbyConfigurationComponent::GetRoomTravelMapName()
-{
-	const ULevelDefinition* Definition = GetLevelDefinition();
-	if (!Definition)
-	{
-		return FString();
-	}
-
-	return Definition->GetRoomTravelMapName();
-}
-
-FString ULobbyConfigurationComponent::ResolveTravelMapName(FName MapKey)
-{
-	FLobbyMatchMapOption Option;
-	return FindConfiguredMapOption(MapKey, Option) ? Option.Map.ToSoftObjectPath().GetLongPackageName() : FString();
-}
-
 FName ULobbyConfigurationComponent::GetFirstMapKey()
 {
 	if (const ULevelDefinition* Levels = GetLevelDefinition())
@@ -148,27 +131,8 @@ GetSelectedLobbyMapOption(
 
 FName ULobbyConfigurationComponent::GetSelectedLobbyMapKey()
 {
-	const ALobbyGameMode* GameMode = GetLobbyGameMode();
-	const ULobbyRuntimeSubsystem* LobbySubsystem = GameMode
-		? UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance())
-		: nullptr;
-	if (LobbySubsystem
-		&& !LobbySubsystem->GetLobbySelectedMapKey().IsNone())
-	{
-		return ResolveConfiguredMapKey(
-			LobbySubsystem->GetLobbySelectedMapKey());
-	}
-
-	return GetFirstMapKey();
-}
-
-FName ULobbyConfigurationComponent::ResolveConfiguredMapKey(
-	const FName MapKey)
-{
-	const ULevelDefinition* Levels = GetLevelDefinition();
-	return Levels
-		? Levels->ResolveIngameLevelKey(MapKey)
-		: NAME_None;
+	const ALobbyGameState* State = GetLobbyGameMode()->GetGameState<ALobbyGameState>();
+	return State ? State->GetSelectedMapKey() : NAME_None;
 }
 
 bool ULobbyConfigurationComponent::FindConfiguredMapOption(
@@ -235,7 +199,7 @@ void ULobbyConfigurationComponent::FinishRuntimeInitialization(
 		? LoadedLevelDefinition->GetIngameLevelAtIndex(0, Option)
 		: LoadedLevelDefinition->FindIngameLevel(Key, Option));
 	if (!LoadedLevelDefinition || !LoadedMatchRuleDefinition || !LoadedDefaultProvisionDefinition || !Runtime
-		|| !bHasMap || Option.Map.IsNull() || Option.MaxPlayerCount < 1)
+		|| !bHasMap)
 	{
 		RuntimeState = ERuntimeState::Failed;
 		RuntimeReadyDelegate.Unbind();

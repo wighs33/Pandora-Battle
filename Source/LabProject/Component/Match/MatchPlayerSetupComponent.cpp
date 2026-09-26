@@ -1,8 +1,6 @@
 #include "Component/Match/MatchPlayerSetupComponent.h"
 
 #include "Data/ContentDataSubsystem.h"
-#include "Component/Match/MatchFlowComponent.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/GameInstance.h"
@@ -52,7 +50,7 @@ void UMatchPlayerSetupComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 
 void UMatchPlayerSetupComponent::InitializeRuntime()
 {
-	const UDefaultProvisionDefinition* Definition = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().DefaultProvision.Get();
+	const UDefaultProvisionDefinition* Definition = CastChecked<AExperienceGameMode>(GetOwner())->GetDefaultProvisionDefinition();
 	if (DefaultPlayerProvisioner->Initialize(Definition, IsTrainingRoomMap() ? EDefaultProvisionMode::TrainingRoom : EDefaultProvisionMode::Gameplay))
 	{
 		BeginSkinContentPreload();
@@ -272,7 +270,7 @@ void UMatchPlayerSetupComponent::FlushPendingGameplayProvisions()
 bool UMatchPlayerSetupComponent::IsTrainingRoomMap() const
 {
 	const AExperienceGameMode* GameMode = CastChecked<AExperienceGameMode>(GetOwner());
-	const ULevelDefinition* Levels = GameMode->GetMatchFlowComponent()->GetLevelDefinition();
+	const ULevelDefinition* Levels = GameMode->GetLevelDefinition();
 	// 로딩 UI는 콘텐츠 준비 전에도 조회하고 다음 준비 확인 틱에 다시 시도한다.
 	return Levels && Levels->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 }

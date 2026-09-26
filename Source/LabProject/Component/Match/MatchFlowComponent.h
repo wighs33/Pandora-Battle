@@ -10,8 +10,6 @@ class AExperienceGameMode;
 class APdPlayerState;
 class APlayerState;
 class ARewardChest;
-class ULevelDefinition;
-class UMatchRuleDefinition;
 class URewardDefinition;
 struct FLobbyMatchMapOption;
 struct FStreamableHandle;
@@ -30,9 +28,8 @@ public:
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	UMatchFlowComponent();
-	bool IsRuntimeContentReady() const { return bRuntimeContentReady; }
 
-	void InitializeRuntime();
+	void PreloadRewardContent();
 
 	void InitializeTravelOptions(const FString& Options);
 	void InitializeGameState();
@@ -47,8 +44,6 @@ public:
 		APlayerState* VictimPlayerState);
 	bool RequestAbortMatchToTitle(APlayerController* RequestingPlayer);
 
-	const UMatchRuleDefinition* GetMatchRuleDefinition() const;
-	const ULevelDefinition* GetLevelDefinition() const;
 	bool FindCurrentMatchMapOption(
 		FLobbyMatchMapOption& OutMapOption) const;
 	bool IsGameResultShown() const { return bGameResultShown; }
@@ -76,11 +71,10 @@ public:
 
 private:
 	void ReturnToLobbyAfterGameResult();
-	void HandleRuntimeContentPreloadComplete(uint32 RequestGeneration);
+	void HandleRewardContentLoaded();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	AExperienceGameMode* GetExperienceGameMode() const;
-	const AExperienceGameMode* GetExperienceGameModeConst() const;
 
 	bool ShouldSuppressServerMatchTimerForCurrentMap() const;
 	bool ShouldSuppressServerMatchTimer() const;
@@ -142,23 +136,9 @@ private:
 	void RestorePlayerResourcesForGoldenKill() const;
 	const URewardDefinition* ResolveRewardDefinitionForChestSpawns(
 		const TArray<ARewardChest*>& RewardChests) const;
-	void BeginRuntimeContentPreload();
-	void ReleaseRuntimeContentPreload();
-	void ResumePendingInitialization();
 	void FinishMatchRuntime();
 
-public:
-	FSimpleMulticastDelegate OnRuntimeContentReady;
-
 private:
-	UPROPERTY(Transient)
-	TObjectPtr<UMatchRuleDefinition> LoadedMatchRules;
-	UPROPERTY(Transient)
-	TObjectPtr<ULevelDefinition> LoadedLevels;
-	UPROPERTY(Transient)
-	TObjectPtr<class UDefaultProvisionDefinition> LoadedDefaultProvision;
-	bool bRuntimeContentReady = false;
-
 	bool bServerMatchTimerStarted = false;
 	bool bMatchTimerExpired = false;
 	bool bGoldenKillActive = false;
@@ -168,8 +148,5 @@ private:
 	FTimerHandle MatchTimerHandle;
 	FTimerHandle ChestConfigurationRetryTimerHandle;
 	FTimerHandle GameResultLobbyReturnTimerHandle;
-	TSharedPtr<FStreamableHandle> RuntimeContentPreloadHandle;
-	uint32 RuntimeContentRequestGeneration = 0;
-	bool bInitializeGameStateRequested = false;
-	bool bConfigureRewardChestsRequested = false;
+	TSharedPtr<FStreamableHandle> RewardContentPreloadHandle;
 };

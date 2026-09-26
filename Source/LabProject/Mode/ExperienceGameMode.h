@@ -11,6 +11,9 @@ class UMatchFlowComponent;
 class UMatchPlayerSetupComponent;
 class UPlayerSpawnComponent;
 class UMatchRuleDefinition;
+class ULevelDefinition;
+class UDefaultProvisionDefinition;
+struct FStreamableHandle;
 class URewardDefinition;
 class UWorld;
 class APawn;
@@ -51,6 +54,11 @@ public:
 	UPlayerSpawnComponent* GetSpawnComponent() const { return SpawnComponent; }
 	UMatchPlayerSetupComponent* GetPlayerSetupComponent() const { return PlayerSetupComponent; }
 
+	const UMatchRuleDefinition* GetMatchRuleDefinition() const { return LoadedMatchRuleDefinition; }
+	const ULevelDefinition* GetLevelDefinition() const { return LoadedLevelDefinition; }
+	const UDefaultProvisionDefinition* GetDefaultProvisionDefinition() const { return LoadedDefaultProvisionDefinition; }
+	bool IsRuntimeContentReady() const { return LoadedMatchRuleDefinition && LoadedLevelDefinition && LoadedDefaultProvisionDefinition; }
+
 	void NotifyPlayerKillScored(APlayerState* KillerPlayerState, APlayerState* VictimPlayerState);
 	bool RequestAbortMatchToTitle(APlayerController* RequestingPlayer);
 
@@ -71,7 +79,9 @@ protected:
 private:
 	UExperienceManagerComponent* GetExperienceManager() const;
 	void ResumeStartingPlayers();
-	void HandleRuntimeContentReady();
+	void BeginRuntimeContentPreload();
+	void HandleRuntimeContentPreloadComplete(uint32 RequestGeneration);
+	void ReleaseRuntimeContentPreload();
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Spawn")
@@ -100,6 +110,15 @@ protected:
 	int32 DefaultLobbyTeamColorIndex = 0;
 
 private:
+	UPROPERTY(Transient)
+	TObjectPtr<UMatchRuleDefinition> LoadedMatchRuleDefinition;
+	UPROPERTY(Transient)
+	TObjectPtr<ULevelDefinition> LoadedLevelDefinition;
+	UPROPERTY(Transient)
+	TObjectPtr<UDefaultProvisionDefinition> LoadedDefaultProvisionDefinition;
+	TSharedPtr<FStreamableHandle> RuntimeContentPreloadHandle;
+	uint32 RuntimeContentRequestGeneration = 0;
+
 	friend class UMatchFlowComponent;
 	friend class UMatchPlayerSetupComponent;
 

@@ -109,7 +109,7 @@ void ULobbyTravelCoordinator::PrepareMatchTravel()
 	PreloadContentAndScheduleTravel(BuildGameTravelUrl(TravelMapName));
 }
 
-// GameState의 선택 맵을 우선하고 저장된 로비 설정을 보완값으로 사용해, 실제 이동할 맵 경로와 정원 설정을 찾는다.
+// 서버 GameState가 확정한 선택 맵에서 이동 경로와 정원 설정을 찾는다.
 bool ULobbyTravelCoordinator::ResolveSelectedMatchMap(FString& OutTravelMapName, FLobbyMatchMapOption& OutSelectedMapOption) const
 {
 	OutTravelMapName.Reset();
@@ -121,24 +121,13 @@ bool ULobbyTravelCoordinator::ResolveSelectedMatchMap(FString& OutTravelMapName,
 		return false;
 	}
 
-	const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance());
-	FName SelectedMapKey = NAME_None;
-	if (const ALobbyGameState* LobbyGameState = GameMode->GetGameState<ALobbyGameState>())
-	{
-		SelectedMapKey = LobbyGameState->GetSelectedMapKey();
-	}
-	if (SelectedMapKey.IsNone() && LobbySubsystem)
-	{
-		SelectedMapKey = LobbySubsystem->GetLobbySelectedMapKey();
-	}
-
-	const FName ResolvedMapKey = GameMode->GetLobbyConfigurationComponent()->ResolveConfiguredMapKey(SelectedMapKey);
-	if (!GameMode->GetLobbyConfigurationComponent()->FindConfiguredMapOption(ResolvedMapKey, OutSelectedMapOption))
+	const ALobbyGameState* State = GameMode->GetGameState<ALobbyGameState>();
+	if (!State || !GameMode->GetLobbyConfigurationComponent()->FindConfiguredMapOption(State->GetSelectedMapKey(), OutSelectedMapOption))
 	{
 		return false;
 	}
 
-	OutTravelMapName = GameMode->GetLobbyConfigurationComponent()->ResolveTravelMapName(OutSelectedMapOption.MapKey);
+	OutTravelMapName = OutSelectedMapOption.Map.ToSoftObjectPath().GetLongPackageName();
 	return !OutTravelMapName.IsEmpty();
 }
 
@@ -166,14 +155,12 @@ void ULobbyTravelCoordinator::PersistSelectedGameConfig(const FLobbyMatchMapOpti
 		return;
 	}
 
-	FLobbyMatchMapOption RuntimeMapOption = SelectedMapOption;
-	RuntimeMapOption.MaxPlayerCount = FMath::Max(RuntimeMapOption.MaxPlayerCount, 1);
-	LobbySubsystem->SetLobbyGameConfig(RuntimeMapOption.MapKey, TravelMapName, RuntimeMapOption.MaxPlayerCount,
+	LobbySubsystem->SetLobbyGameConfig(SelectedMapOption.MapKey, TravelMapName, SelectedMapOption.MaxPlayerCount,
 		FMath::Clamp(LobbySubsystem->GetLobbyMaxBotCount(), 0, 100));
 
 	if (ALobbyGameState* LobbyGameState = GameMode->GetGameState<ALobbyGameState>())
 	{
-		LobbyGameState->SetSelectedMapOption(RuntimeMapOption);
+		LobbyGameState->SetSelectedMapOption(SelectedMapOption);
 	}
 }
 

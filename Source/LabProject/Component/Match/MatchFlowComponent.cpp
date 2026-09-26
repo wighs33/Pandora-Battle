@@ -4,8 +4,6 @@
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Match/MatchPlayerSetupComponent.h"
 #include "Component/Player/PlayerSpawnComponent.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
-#include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Item/RewardDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
@@ -31,7 +29,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MatchFlowComponent)
 
-DEFINE_LOG_CATEGORY_STATIC(LogExperienceMatchFlowContent, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogMatchFlowContent, Log, All);
 
 namespace
 {
@@ -71,10 +69,17 @@ UMatchFlowComponent::UMatchFlowComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UMatchFlowComponent::InitializeRuntime()
+void UMatchFlowComponent::PreloadRewardContent()
 {
-	ReleaseRuntimeContentPreload();
-	BeginRuntimeContentPreload();
+	const TSoftObjectPtr<URewardDefinition>& Reward = GetExperienceGameMode()->ChestSpawnRewardDefinition;
+	if (Reward.IsNull())
+	{
+		HandleRewardContentLoaded();
+		return;
+	}
+	RewardContentPreloadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(Reward.ToSoftObjectPath(),
+		FStreamableDelegate::CreateUObject(this, &ThisClass::HandleRewardContentLoaded));
+	if (!RewardContentPreloadHandle.IsValid()) { HandleRewardContentLoaded(); }
 }
 
 void UMatchFlowComponent::EndPlay(
@@ -88,20 +93,18 @@ void UMatchFlowComponent::EndPlay(
 	MatchTimerHandle.Invalidate();
 	ChestConfigurationRetryTimerHandle.Invalidate();
 	GameResultLobbyReturnTimerHandle.Invalidate();
-	ReleaseRuntimeContentPreload();
-	OnRuntimeContentReady.Clear();
+	if (RewardContentPreloadHandle.IsValid())
+	{
+		RewardContentPreloadHandle->CancelHandle();
+		RewardContentPreloadHandle->ReleaseHandle();
+		RewardContentPreloadHandle.Reset();
+	}
 
 	Super::EndPlay(EndPlayReason);
 }
 
 AExperienceGameMode*
 UMatchFlowComponent::GetExperienceGameMode() const
-{
-	return Cast<AExperienceGameMode>(GetOwner());
-}
-
-const AExperienceGameMode*
-UMatchFlowComponent::GetExperienceGameModeConst() const
 {
 	return Cast<AExperienceGameMode>(GetOwner());
 }
@@ -116,13 +119,6 @@ void UMatchFlowComponent::InitializeTravelOptions(
 
 void UMatchFlowComponent::InitializeGameState()
 {
-	if (!bRuntimeContentReady)
-	{
-		bInitializeGameStateRequested = true;
-		return;
-	}
-	bInitializeGameStateRequested = false;
-
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
 	AExperienceGameState* ExperienceGameState = GameMode
 		? GameMode->GetGameState<AExperienceGameState>()
@@ -133,7 +129,7 @@ void UMatchFlowComponent::InitializeGameState()
 	}
 
 	ExperienceGameState->SetMatchRuleDefinition(
-		const_cast<UMatchRuleDefinition*>(GetMatchRuleDefinition()));
+		const_cast<UMatchRuleDefinition*>(GetExperienceGameMode()->GetMatchRuleDefinition()));
 	ExperienceGameState->SetMatchTimerState(
 		ShouldSuppressServerMatchTimer()
 			? EMatchTimerPhase::Suppressed
@@ -143,7 +139,7 @@ void UMatchFlowComponent::InitializeGameState()
 // GameMode의 준비 판정 이후 한 번만 시작한다. 중복 요청이나 늦은 입장으로 종료 시각을 갱신하지 않는다.
 void UMatchFlowComponent::StartServerMatchTimerIfNeeded()
 {
-	if (!bRuntimeContentReady || bServerMatchTimerStarted || bGameResultShown)
+	if (!GetExperienceGameMode()->IsRuntimeContentReady() || bServerMatchTimerStarted || bGameResultShown)
 	{
 		return;
 	}
@@ -163,7 +159,7 @@ void UMatchFlowComponent::StartServerMatchTimerIfNeeded()
 		return;
 	}
 
-	const UMatchRuleDefinition* MatchRules = GetMatchRuleDefinition();
+	const UMatchRuleDefinition* MatchRules = GetExperienceGameMode()->GetMatchRuleDefinition();
 	const float MatchTimerSeconds = MatchRules->MatchTimerSeconds;
 	if (MatchTimerSeconds <= 0.0f)
 	{
@@ -179,13 +175,6 @@ void UMatchFlowComponent::StartServerMatchTimerIfNeeded()
 void UMatchFlowComponent::ConfigureRewardChestSpawns()
 {
 	if (bGameResultShown) { return; }
-	if (!bRuntimeContentReady)
-	{
-		bConfigureRewardChestsRequested = true;
-		return;
-	}
-	bConfigureRewardChestsRequested = false;
-
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
 	UWorld* World = GetWorld();
 	if (!GameMode || !GameMode->HasAuthority() || !World)
@@ -367,7 +356,7 @@ void UMatchFlowComponent::HandleMatchTimerExpired()
 	}
 
 	const UMatchRuleDefinition* MatchRules =
-		GetMatchRuleDefinition();
+		GetExperienceGameMode()->GetMatchRuleDefinition();
 	if (bTopKillCountTied
 		&& MatchRules
 		&& MatchRules->bGoldenKillEnabled)
@@ -489,7 +478,7 @@ bool UMatchFlowComponent::RequestAbortMatchToTitle(
 	APlayerController* RequestingPlayer)
 {
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	if (!GameMode
 		|| !GameMode->HasAuthority()
 		|| !RequestingPlayer
@@ -522,7 +511,7 @@ bool UMatchFlowComponent::HandlePlayerLogout(
 	const APlayerState* ExitingPlayerState)
 {
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	return GameMode
 		&& GameMode->HasAuthority()
 		&& ExitingPlayerState
@@ -594,20 +583,10 @@ bool UMatchFlowComponent::AbortMatchToTitleForPlayerExit(
 	return true;
 }
 
-const UMatchRuleDefinition* UMatchFlowComponent::GetMatchRuleDefinition() const
-{
-	return LoadedMatchRules;
-}
-
-const ULevelDefinition* UMatchFlowComponent::GetLevelDefinition() const
-{
-	return LoadedLevels;
-}
-
 bool UMatchFlowComponent::FindCurrentMatchMapOption(
 	FLobbyMatchMapOption& OutMapOption) const
 {
-	const ULevelDefinition* Levels = GetLevelDefinition();
+	const ULevelDefinition* Levels = GetExperienceGameMode()->GetLevelDefinition();
 	if (!Levels || Levels->IngameLevels.IsEmpty())
 	{
 		return false;
@@ -624,7 +603,7 @@ bool UMatchFlowComponent::FindCurrentMatchMapOption(
 		!CurrentPackageName.IsEmpty() || !CurrentLevelName.IsEmpty();
 
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	const ULobbyRuntimeSubsystem* LobbySubsystem = GameMode
 		? UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance())
 		: nullptr;
@@ -726,7 +705,7 @@ bool UMatchFlowComponent::
 ShouldSuppressServerMatchTimerForCurrentMap() const
 {
 	const UMatchRuleDefinition* MatchRules =
-		GetMatchRuleDefinition();
+		GetExperienceGameMode()->GetMatchRuleDefinition();
 	if (!MatchRules || MatchRules->MapsWithoutMatchTimer.IsEmpty())
 	{
 		return false;
@@ -755,7 +734,7 @@ bool UMatchFlowComponent::TryFindUniqueKillLeader(
 	bOutTie = false;
 
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	const AGameStateBase* CurrentGameState =
 		GameMode
 			? GameMode->GetGameState<AGameStateBase>()
@@ -814,7 +793,7 @@ bool UMatchFlowComponent::TryFindSharedLeadingTeamWinner(
 	OutWinnerPlayerState = nullptr;
 
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	const AGameStateBase* CurrentGameState =
 		GameMode
 			? GameMode->GetGameState<AGameStateBase>()
@@ -869,7 +848,7 @@ bool UMatchFlowComponent::FindTopKiller(
 	OutTopKillCount = 0;
 
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	const AGameStateBase* CurrentGameState =
 		GameMode
 			? GameMode->GetGameState<AGameStateBase>()
@@ -912,7 +891,7 @@ bool UMatchFlowComponent::ShouldAbortMatchForPlayerExit(
 	const APlayerState* ExitingPlayerState) const
 {
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	const UMatchPlayerSetupComponent* Provisioning =
 		GameMode
 			? GameMode->GetPlayerSetupComponent()
@@ -921,7 +900,7 @@ bool UMatchFlowComponent::ShouldAbortMatchForPlayerExit(
 		|| !GameMode->HasAuthority()
 		|| bGameResultShown
 		|| !ExitingPlayerState
-		|| !bRuntimeContentReady
+		|| !GameMode->IsRuntimeContentReady()
 		|| (Provisioning && Provisioning->IsTrainingRoomMap()))
 	{
 		return false;
@@ -959,14 +938,14 @@ void UMatchFlowComponent::ReturnToLobbyAfterGameResult()
 FString UMatchFlowComponent::GetResolvedTitleTravelMapName() const
 {
 	const ULevelDefinition* Definition =
-		GetLevelDefinition();
+		GetExperienceGameMode()->GetLevelDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 
 FString UMatchFlowComponent::GetResolvedLobbyTravelMapName() const
 {
 	const ULevelDefinition* Definition =
-		GetLevelDefinition();
+		GetExperienceGameMode()->GetLevelDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 
@@ -1086,7 +1065,7 @@ int32 UMatchFlowComponent::CountPlayersOnTeam(
 	}
 
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	const AGameStateBase* CurrentGameState =
 		GameMode
 			? GameMode->GetGameState<AGameStateBase>()
@@ -1310,7 +1289,7 @@ void UMatchFlowComponent::BuildGameResultPlayerStats(
 	OutPlayerStats.Reset();
 
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	const AGameStateBase* CurrentGameState =
 		GameMode
 			? GameMode->GetGameState<AGameStateBase>()
@@ -1362,7 +1341,7 @@ void UMatchFlowComponent::BuildGameResultPlayerStats(
 void UMatchFlowComponent::ForceMovePlayersForGoldenKill()
 {
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	if (GameMode)
 	{
 		if (UPlayerSpawnComponent* SpawnComponent =
@@ -1406,7 +1385,7 @@ void UMatchFlowComponent::StartGoldenKill(
 	const int32 TopKillCount)
 {
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	if (GameMode
 		&& GameMode->HasAuthority()
 		&& !bGameResultShown)
@@ -1422,7 +1401,7 @@ void UMatchFlowComponent::StartGoldenKill(
 void UMatchFlowComponent::RestorePlayerResourcesForGoldenKill() const
 {
 	const AExperienceGameMode* GameMode =
-		GetExperienceGameModeConst();
+		GetExperienceGameMode();
 	const AGameStateBase* CurrentGameState = GameMode
 		? GameMode->GetGameState<AGameStateBase>()
 		: nullptr;
@@ -1479,104 +1458,6 @@ UMatchFlowComponent::ResolveRewardDefinitionForChestSpawns(
 	return nullptr;
 }
 
-void UMatchFlowComponent::BeginRuntimeContentPreload()
-{
-	TSet<FSoftObjectPath> AssetPaths;
-	const auto AddSoftPath = [&AssetPaths](const auto& SoftObject)
-	{
-		if (!SoftObject.IsNull())
-		{
-			AssetPaths.Add(SoftObject.ToSoftObjectPath());
-		}
-	};
-
-	const FProjectDefinitionReferences& Definitions = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
-	AddSoftPath(Definitions.DefaultProvision);
-	AddSoftPath(GetExperienceGameMode()->ChestSpawnRewardDefinition);
-	AddSoftPath(Definitions.MatchRule);
-	AddSoftPath(Definitions.LevelDefinition);
-
-	if (AssetPaths.IsEmpty())
-	{
-		HandleRuntimeContentPreloadComplete(RuntimeContentRequestGeneration);
-		return;
-	}
-
-	const uint32 RequestGeneration = RuntimeContentRequestGeneration;
-	RuntimeContentPreloadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			AssetPaths.Array(),
-			FStreamableDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleRuntimeContentPreloadComplete,
-				RequestGeneration));
-	if (!RuntimeContentPreloadHandle.IsValid())
-	{
-		UE_LOG(
-			LogExperienceMatchFlowContent,
-			Error,
-			TEXT("Experience match-flow content preload could not be started for '%s'."),
-			*GetPathNameSafe(GetOwner()));
-		HandleRuntimeContentPreloadComplete(RequestGeneration);
-	}
-}
-
-void UMatchFlowComponent::HandleRuntimeContentPreloadComplete(
-	const uint32 RequestGeneration)
-{
-	if (RequestGeneration != RuntimeContentRequestGeneration)
-	{
-		return;
-	}
-
-	const FProjectDefinitionReferences& Definitions = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
-	LoadedMatchRules = Definitions.MatchRule.Get();
-	LoadedLevels = Definitions.LevelDefinition.Get();
-	LoadedDefaultProvision = Definitions.DefaultProvision.Get();
-	if (!LoadedMatchRules || !LoadedLevels || !LoadedDefaultProvision)
-	{
-		UE_LOG(LogExperienceMatchFlowContent, Error, TEXT("Required match definitions failed to load. Player and match start are blocked."));
-		return;
-	}
-	bRuntimeContentReady = true;
-	ResumePendingInitialization();
-}
-
-void UMatchFlowComponent::ReleaseRuntimeContentPreload()
-{
-	++RuntimeContentRequestGeneration;
-	bRuntimeContentReady = false;
-	LoadedMatchRules = nullptr;
-	LoadedLevels = nullptr;
-	LoadedDefaultProvision = nullptr;
-	if (RuntimeContentPreloadHandle.IsValid())
-	{
-		RuntimeContentPreloadHandle->CancelHandle();
-		RuntimeContentPreloadHandle->ReleaseHandle();
-		RuntimeContentPreloadHandle.Reset();
-	}
-}
-
-void UMatchFlowComponent::ResumePendingInitialization()
-{
-	const bool bShouldInitializeGameState = bInitializeGameStateRequested;
-	const bool bShouldConfigureRewardChests = bConfigureRewardChestsRequested;
-	bInitializeGameStateRequested = false;
-	bConfigureRewardChestsRequested = false;
-
-	if (bShouldInitializeGameState)
-	{
-		InitializeGameState();
-	}
-	if (bShouldConfigureRewardChests)
-	{
-		ConfigureRewardChestSpawns();
-	}
-
-	// 콘텐츠 로딩만으로 타이머를 시작하지 않고, GameMode에서 플레이어 준비까지 확인한다.
-	OnRuntimeContentReady.Broadcast();
-}
-
 void UMatchFlowComponent::FinishMatchRuntime()
 {
 	bGameResultShown = true;
@@ -1588,5 +1469,17 @@ void UMatchFlowComponent::FinishMatchRuntime()
 		World->GetTimerManager().ClearTimer(MatchTimerHandle);
 		World->GetTimerManager().ClearTimer(ChestConfigurationRetryTimerHandle);
 	}
-	bConfigureRewardChestsRequested = false;
+}
+
+// 선택적 상자 설정만 로드하고, 액터 BeginPlay가 끝난 다음 배치를 적용한다.
+void UMatchFlowComponent::HandleRewardContentLoaded()
+{
+	if (bGameResultShown) { return; }
+	const TSoftObjectPtr<URewardDefinition>& Reward = GetExperienceGameMode()->ChestSpawnRewardDefinition;
+	if (!Reward.IsNull() && !Reward.IsValid())
+	{
+		UE_LOG(LogMatchFlowContent, Error, TEXT("Chest spawn reward definition failed to load: %s"), *Reward.ToString());
+		return;
+	}
+	ChestConfigurationRetryTimerHandle = GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ThisClass::ConfigureRewardChestSpawns);
 }

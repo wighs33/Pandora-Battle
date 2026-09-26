@@ -35,11 +35,19 @@ void UPlayerSpawnComponent::EndPlay(
 AActor* UPlayerSpawnComponent::ChooseConfiguredPlayerStart(
 	AController* Player, FName SpawnIndexTagPrefix)
 {
+	if (Player)
+	{
+		if (const TWeakObjectPtr<AActor>* AssignedStart = AssignedPlayerStartsByController.Find(TObjectKey<AController>(Player));
+			AssignedStart && AssignedStart->IsValid())
+		{
+			return AssignedStart->Get();
+		}
+	}
 	const APdPlayerState* PlayerState = Player ? Player->GetPlayerState<APdPlayerState>() : nullptr;
 	const UPlayerMatchComponent* MatchComponent = PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
 	const int32 SpawnIndex = MatchComponent ? MatchComponent->GetMatchSpawnIndex() : INDEX_NONE;
 	if (AActor* TaggedPlayerStart =
-		FindPlayerStartByMatchSpawnIndex(
+		FindPlayerStartBySpawnIndex(
 			SpawnIndex,
 			SpawnIndexTagPrefix))
 	{
@@ -100,7 +108,7 @@ void UPlayerSpawnComponent::RequestPlayerRespawn(
 		return;
 	}
 
-	if (!bRespawningEnabled || !MatchRules)
+	if (!bRespawningEnabled)
 	{
 		return;
 	}
@@ -266,7 +274,7 @@ void UPlayerSpawnComponent::ClearRuntimeStateForController(
 	AssignedPlayerStartsByController.Remove(ControllerKey);
 }
 
-AActor* UPlayerSpawnComponent::FindPlayerStartByMatchSpawnIndex(
+AActor* UPlayerSpawnComponent::FindPlayerStartBySpawnIndex(
 	const int32 SpawnIndex,
 	const FName PlayerStartTagPrefix) const
 {
@@ -407,10 +415,6 @@ bool UPlayerSpawnComponent::TryGetPlayerRespawnTransform(AController* Controller
 		Start = FindRandomRespawnPlayerStart(Controller, *MatchRules);
 		if (Start) { LastRandomRespawnPlayerStartNames.FindOrAdd(TObjectKey<AController>(Controller)) = Start->GetFName(); }
 	}
-	else if (AGameModeBase* GameMode = Cast<AGameModeBase>(GetOwner()))
-	{
-		Start = GameMode->ChoosePlayerStart(Controller);
-	}
 	if (!Start) { return false; }
 	OutTransform = Start->GetActorTransform();
 	return true;
@@ -502,11 +506,13 @@ bool UPlayerSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(
 	return false;
 }
 
-void UPlayerSpawnComponent::Initialize(const UMatchRuleDefinition* InMatchRules, EPlayerRespawnLocation InRespawnLocation)
+void UPlayerSpawnComponent::Initialize(const UMatchRuleDefinition* InMatchRules)
 {
+	check(InMatchRules);
 	MatchRules = InMatchRules;
-	RespawnLocation = InRespawnLocation;
-	bRespawningEnabled = MatchRules != nullptr;
+	RespawnLocation = MatchRules->bUseRandomPlayerStartRespawns
+		? EPlayerRespawnLocation::RandomPlayerStart : EPlayerRespawnLocation::InitialSpawn;
+	bRespawningEnabled = true;
 }
 
 void UPlayerSpawnComponent::StopRespawning()

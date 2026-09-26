@@ -36,8 +36,6 @@ public:
 		FName MapKey,
 		int32 InMaxBotCount);
 
-	FString GetRoomTravelMapName();
-	FString ResolveTravelMapName(FName MapKey);
 	FName GetFirstMapKey();
 	int32 GetLobbyMapOptionCount();
 	bool GetLobbyMapOptionAtIndex(
@@ -47,7 +45,6 @@ public:
 		FLobbyMatchMapOption& OutMapOption);
 	FName GetSelectedLobbyMapKey();
 
-	FName ResolveConfiguredMapKey(FName MapKey);
 	bool FindConfiguredMapOption(
 		FName MapKey,
 		FLobbyMatchMapOption& OutMapOption);
