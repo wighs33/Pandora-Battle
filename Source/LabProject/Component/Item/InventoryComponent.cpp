@@ -2,7 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "GameFramework/Actor.h"
@@ -65,7 +65,7 @@ void UInventoryComponent::BeginPlay()
 	EnsureConsumableQuickSlotArray();
 	EnsureWeaponLoadoutSlotCount();
 
-	UProjectTagConfig::Get(this)->GetItemFilterTypeTags(FilterTypeTags);
+	UProjectTagDefinition::Get(this)->GetItemFilterTypeTags(FilterTypeTags);
 	// =================================================================================================================
 	if (HasInventoryAuthority())
 	{
@@ -134,7 +134,7 @@ void UInventoryComponent::AddItemsByPrimaryAssetIdsWithCompletion(const TArray<F
 				++InventoryUpdateDepth;
 				ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
 				UAssetManager& AssetManager = UAssetManager::Get();
-				const FGameplayTag ConsumableTypeTag = UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
+				const FGameplayTag ConsumableTypeTag = UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
 				for (const FPrimaryAssetId& DefinitionId : ItemDefinitions)
 				{
 					const UItemDefinition* Definition = Cast<UItemDefinition>(AssetManager.GetPrimaryAssetObject(DefinitionId));
@@ -822,9 +822,9 @@ bool UInventoryComponent::MergeUpgradeableItems(
 	return RemoveReplicatedItemById(ConsumedItemId);
 }
 
-void UInventoryComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig)
+void UInventoryComponent::ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig)
 {
-	const UProjectTagConfig* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagConfig::GetDefaultConfig();
+	const UProjectTagDefinition* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagDefinition::GetDefaultConfig();
 	EffectiveConfig->GetItemFilterTypeTags(FilterTypeTags);
 
 	RebuildFilteredItemMap();
@@ -840,7 +840,7 @@ bool UInventoryComponent::HasInventoryAuthority() const
 bool UInventoryComponent::IsConsumableItem(const UItemInstance* ItemInstance) const
 {
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
-	const FGameplayTag ConsumableTypeTag = UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
+	const FGameplayTag ConsumableTypeTag = UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
 	return ItemDefinition
 		&& ItemDefinition->IsConsumableDefinition(ConsumableTypeTag);
 }
@@ -848,7 +848,7 @@ bool UInventoryComponent::IsConsumableItem(const UItemInstance* ItemInstance) co
 bool UInventoryComponent::IsWeaponItem(const UItemInstance* ItemInstance) const
 {
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
-	const FGameplayTag WeaponTypeTag = UProjectTagConfig::Get(this)->GetItemWeaponTypeTag();
+	const FGameplayTag WeaponTypeTag = UProjectTagDefinition::Get(this)->GetItemWeaponTypeTag();
 	return ItemDefinition
 		&& WeaponTypeTag.IsValid()
 		&& ItemDefinition->IdTag.IsValid()
@@ -865,7 +865,7 @@ bool UInventoryComponent::IsUpgradeableItem(const UItemInstance* ItemInstance) c
 		return false;
 	}
 
-	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	const FGameplayTag WeaponTypeTag = TagConfig->GetItemWeaponTypeTag();
 	const FGameplayTag EquipmentTypeTag = TagConfig->GetItemEquipmentTypeTag();
 	return ItemDefinition->IsWeaponDefinition(WeaponTypeTag)

@@ -4,10 +4,10 @@
 #include "Common/LabGameplayTags.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "ProjectTagConfig.generated.h"
+#include "ProjectTagDefinition.generated.h"
 
-UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "Project Tag Config"))
-class LABPROJECT_API UProjectTagConfig : public UPrimaryDataAsset
+UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "Project Tag Definition"))
+class LABPROJECT_API UProjectTagDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
@@ -20,10 +20,10 @@ public:
 #endif
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UProjectTagConfig();
+	UProjectTagDefinition();
 
-	static const UProjectTagConfig* Get(const UObject* WorldContextObject);
-	static const UProjectTagConfig* GetDefaultConfig();
+	static const UProjectTagDefinition* Get(const UObject* WorldContextObject);
+	static const UProjectTagDefinition* GetDefaultConfig();
 	static const FPrimaryAssetType& GetConfigPrimaryAssetType();
 	static const FPrimaryAssetId& GetPreferredPrimaryAssetId();
 

@@ -2,14 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Map/PdMapTypes.h"
-#include "MapLayerTrigger.generated.h"
+#include "Map/PlayerMapRegion.h"
+#include "PlayerMapRegionTrigger.generated.h"
 
 class UBoxComponent;
 class UPrimitiveComponent;
 
 UCLASS(Blueprintable)
-class LABPROJECT_API AMapLayerTrigger : public AActor
+class LABPROJECT_API APlayerMapRegionTrigger : public AActor
 {
 	GENERATED_BODY()
 
@@ -19,7 +19,7 @@ protected:
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	AMapLayerTrigger(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	APlayerMapRegionTrigger(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------

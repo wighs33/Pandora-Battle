@@ -1,6 +1,6 @@
 #include "Component/Skin/SkinComponent.h"
 
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -57,7 +57,7 @@ void USkinComponent::BeginPlay()
 
 	ReplicatedEntries.Owner = this;
 
-	UProjectTagConfig::Get(this)->GetSkinFilterTypeTags(FilterTypeTags);
+	UProjectTagDefinition::Get(this)->GetSkinFilterTypeTags(FilterTypeTags);
 	if (HasSkinAuthority())
 	{
 		RebuildFilteredSkinMap();
@@ -183,9 +183,9 @@ void USkinComponent::FilterSkin(const USkinDefinition* SkinDefinition)
 	}
 }
 
-void USkinComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig)
+void USkinComponent::ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig)
 {
-	const UProjectTagConfig* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagConfig::GetDefaultConfig();
+	const UProjectTagDefinition* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagDefinition::GetDefaultConfig();
 	EffectiveConfig->GetSkinFilterTypeTags(FilterTypeTags);
 
 	RebuildFilteredSkinMap();

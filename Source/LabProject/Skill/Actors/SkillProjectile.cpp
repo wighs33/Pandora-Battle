@@ -14,7 +14,6 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameplayCueFunctionLibrary.h"
 #include "GameplayEffect.h"
-#include "Map/TransientActorRegistrySubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
@@ -321,15 +320,6 @@ void ASkillProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UWorld* World = GetWorld())
-	{
-		if (UTransientActorRegistrySubsystem* Registry =
-			World->GetSubsystem<UTransientActorRegistrySubsystem>())
-		{
-			Registry->RegisterTransientActor(this, GetOwner());
-		}
-	}
-
 	if (SphereCollision)
 	{
 		if (bCosmeticOnly)
@@ -362,20 +352,6 @@ void ASkillProjectile::BeginPlay()
 		ApplyProjectileLoopVisual();
 		ExecuteSpawnGameplayCue();
 	}
-}
-
-void ASkillProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	if (UWorld* World = GetWorld())
-	{
-		if (UTransientActorRegistrySubsystem* Registry =
-			World->GetSubsystem<UTransientActorRegistrySubsystem>())
-		{
-			Registry->UnregisterTransientActor(this);
-		}
-	}
-
-	Super::EndPlay(EndPlayReason);
 }
 
 void ASkillProjectile::Destroyed()

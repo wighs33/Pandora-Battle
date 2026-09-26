@@ -3,7 +3,7 @@
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/Player/PaintCanvas/PaintCanvasComponent.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
 #include "GameFramework/PlayerController.h"
 #include "Definition/Skin/SkinDefinition.h"
@@ -322,52 +322,52 @@ FGameplayTag ULeftSkinWidget::ResolveSkinEquipTypeTagForSlot(const USkinEquipSlo
 
 	if (SkinEquipSlot == HatSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinHatEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetSkinHatEquipTypeTag();
 	}
 
 	if (SkinEquipSlot == TopSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinTopEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetSkinTopEquipTypeTag();
 	}
 
 	if (SkinEquipSlot == BottomSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinBottomEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetSkinBottomEquipTypeTag();
 	}
 
 	if (SkinEquipSlot == ShoesSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinShoesEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetSkinShoesEquipTypeTag();
 	}
 
 	if (SkinEquipSlot == HeadSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinHeadEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetSkinHeadEquipTypeTag();
 	}
 
 	if (SkinEquipSlot == SkinColorSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinColorEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetSkinColorEquipTypeTag();
 	}
 
 	if (SkinEquipSlot == BackSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinBackEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetSkinBackEquipTypeTag();
 	}
 
 	if (SkinEquipSlot == AuraSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinAuraEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetSkinAuraEquipTypeTag();
 	}
 
 	if (SkinEquipSlot == RidingSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinRidingTypeTag();
+		return UProjectTagDefinition::Get(this)->GetSkinRidingTypeTag();
 	}
 
 	if (SkinEquipSlot == PetSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetSkinPetTypeTag();
+		return UProjectTagDefinition::Get(this)->GetSkinPetTypeTag();
 	}
 
 	return FGameplayTag();

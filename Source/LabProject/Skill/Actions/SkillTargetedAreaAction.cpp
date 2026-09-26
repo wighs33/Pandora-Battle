@@ -23,8 +23,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
-#include "Map/MapLayerTrigger.h"
-#include "Map/OutOfBoundsRespawnVolume.h"
+#include "Map/PlayerMapRegionTrigger.h"
+#include "Map/OutOfBoundsVolume.h"
 #include "Materials/MaterialInterface.h"
 #include "DrawDebugHelpers.h"
 
@@ -39,8 +39,8 @@ namespace
 	bool IsIgnoredAOEGroundActor(const AActor* Actor)
 	{
 		return Actor
-			&& (Actor->IsA<AOutOfBoundsRespawnVolume>()
-				|| Actor->IsA<AMapLayerTrigger>());
+			&& (Actor->IsA<AOutOfBoundsVolume>()
+				|| Actor->IsA<APlayerMapRegionTrigger>());
 	}
 
 	bool IsValidAOEGroundHit(const FHitResult& Hit)

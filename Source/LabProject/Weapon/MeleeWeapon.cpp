@@ -10,7 +10,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -571,7 +571,7 @@ void AMeleeWeapon::ApplySkillAdditionalDamageToTarget(
 
     if (!DamageDataTag.IsValid())
     {
-        DamageDataTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
+        DamageDataTag = UProjectTagDefinition::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
     }
     if (!DamageDataTag.IsValid())
     {

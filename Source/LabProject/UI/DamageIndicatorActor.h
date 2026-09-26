@@ -37,7 +37,6 @@ class LABPROJECT_API ADamageIndicatorActor : public AActor
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------

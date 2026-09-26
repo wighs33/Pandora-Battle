@@ -7,8 +7,8 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
-#include "Map/MapLayerTrigger.h"
-#include "Map/OutOfBoundsRespawnVolume.h"
+#include "Map/PlayerMapRegionTrigger.h"
+#include "Map/OutOfBoundsVolume.h"
 #include "Materials/MaterialInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GroundTargetActor)
@@ -22,8 +22,8 @@ namespace
 	bool IsIgnoredTargetingGroundActor(const AActor* Actor)
 	{
 		return Actor
-			&& (Actor->IsA<AOutOfBoundsRespawnVolume>()
-				|| Actor->IsA<AMapLayerTrigger>());
+			&& (Actor->IsA<AOutOfBoundsVolume>()
+				|| Actor->IsA<APlayerMapRegionTrigger>());
 	}
 
 	bool IsGroundTraceActorOwnedBy(const AActor* Actor, const AActor* OwnerCandidate)

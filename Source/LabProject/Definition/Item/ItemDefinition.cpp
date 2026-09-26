@@ -1,7 +1,7 @@
 #include "Definition/Item/ItemDefinition.h"
 
 #include "Common/LabGameplayTags.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "GameplayEffect.h"
 
 #if WITH_EDITOR
@@ -94,7 +94,7 @@ namespace
 
 	bool MatchesAnyKnownItemType(const UItemDefinition& ItemDefinition)
 	{
-		const UProjectTagConfig* ProjectTagConfig = UProjectTagConfig::GetDefaultConfig();
+		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultConfig();
 		if (!ProjectTagConfig)
 		{
 			return false;
@@ -167,7 +167,7 @@ namespace
 
 	void ValidateConsumableData(FDataValidationContext& Context, EDataValidationResult& Result, const UItemDefinition& ItemDefinition)
 	{
-		const UProjectTagConfig* ProjectTagConfig = UProjectTagConfig::GetDefaultConfig();
+		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultConfig();
 		const FGameplayTag ConsumableTypeTag = ProjectTagConfig
 			? ProjectTagConfig->GetItemConsumableTypeTag()
 			: LabGameplayTags::Item_Consumable;
@@ -240,7 +240,7 @@ namespace
 
 	void ValidateWeaponData(FDataValidationContext& Context, EDataValidationResult& Result, const UItemDefinition& ItemDefinition)
 	{
-		const UProjectTagConfig* ProjectTagConfig = UProjectTagConfig::GetDefaultConfig();
+		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultConfig();
 		const FGameplayTag WeaponTypeTag = ProjectTagConfig
 			? ProjectTagConfig->GetItemWeaponTypeTag()
 			: LabGameplayTags::Item_Weapon;

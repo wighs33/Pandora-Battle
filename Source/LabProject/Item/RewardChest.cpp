@@ -12,7 +12,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Definition/Item/ItemDefinition.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/RewardDefinition.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -494,7 +494,7 @@ int32 ARewardChest::SelectWeightedItemIndex(const TArray<float>& Weights, const 
 bool ARewardChest::IsWeaponItemDefinition(
 	const UItemDefinition* ItemDefinition) const
 {
-	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	return ItemDefinition
 		&& (ItemDefinition->HasWeaponData()
 			|| ItemDefinition->MatchesItemType(

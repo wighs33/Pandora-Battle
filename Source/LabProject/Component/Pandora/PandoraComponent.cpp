@@ -4,7 +4,7 @@
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Data/ContentDataSubsystem.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
@@ -77,7 +77,7 @@ void UPandoraComponent::BeginPlay()
 
 	ReplicatedEntries.Owner = this;
 
-	UProjectTagConfig::Get(this)->GetPandoraFilterTypeTags(FilterTypeTags);
+	UProjectTagDefinition::Get(this)->GetPandoraFilterTypeTags(FilterTypeTags);
 	if (HasPandoraAuthority())
 	{
 		RebuildFilteredPandoraMap();
@@ -537,9 +537,9 @@ const UPandoraDefinition* UPandoraComponent::GetPandoraLoadoutDefinition(const E
 	return Slot ? Slot->PandoraDefinition.Get() : nullptr;
 }
 
-void UPandoraComponent::ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig)
+void UPandoraComponent::ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig)
 {
-	const UProjectTagConfig* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagConfig::GetDefaultConfig();
+	const UProjectTagDefinition* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagDefinition::GetDefaultConfig();
 	EffectiveConfig->GetPandoraFilterTypeTags(FilterTypeTags);
 
 	RebuildFilteredPandoraMap();

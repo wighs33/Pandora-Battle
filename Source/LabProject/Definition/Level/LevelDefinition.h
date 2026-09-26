@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
 #include "Engine/DataAsset.h"
-#include "Map/PdMapTypes.h"
+#include "Map/PlayerMapRegion.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"

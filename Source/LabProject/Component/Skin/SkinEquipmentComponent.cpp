@@ -2,7 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
@@ -48,8 +48,8 @@ bool IsPetSkinDefinition(const USkinDefinition* SkinDefinition, const FGameplayT
 {
 	return SkinDefinition
 		&& (!SkinDefinition->PetActorClass.IsNull()
-			|| SkinDefinition->IdTag.MatchesTag(UProjectTagConfig::GetDefaultConfig()->GetSkinPetTypeTag())
-			|| SlotTag == UProjectTagConfig::GetDefaultConfig()->GetSkinPetTypeTag());
+			|| SkinDefinition->IdTag.MatchesTag(UProjectTagDefinition::GetDefaultConfig()->GetSkinPetTypeTag())
+			|| SlotTag == UProjectTagDefinition::GetDefaultConfig()->GetSkinPetTypeTag());
 }
 }
 
@@ -278,7 +278,7 @@ bool USkinEquipmentComponent::CanEquipSkinDefinition(const USkinDefinition* Skin
 	}
 
 	const FGameplayTag RequiredSkinTag = SlotTag.MatchesTag(LabGameplayTags::Skin_Gesture)
-		? UProjectTagConfig::Get(this)->GetSkinGestureTypeTag()
+		? UProjectTagDefinition::Get(this)->GetSkinGestureTypeTag()
 		: SlotTag;
 	if (!SkinDefinition->IdTag.MatchesTag(RequiredSkinTag))
 	{
@@ -730,6 +730,6 @@ bool USkinEquipmentComponent::CanPlayGesture() const
 bool USkinEquipmentComponent::IsSupportedSkinSlot(const FGameplayTag SlotTag) const
 {
 	TArray<FGameplayTag> SupportedSlots;
-	UProjectTagConfig::Get(this)->GetSkinEquipmentSlotTags(SupportedSlots);
+	UProjectTagDefinition::Get(this)->GetSkinEquipmentSlotTags(SupportedSlots);
 	return SupportedSlots.Contains(SlotTag);
 }

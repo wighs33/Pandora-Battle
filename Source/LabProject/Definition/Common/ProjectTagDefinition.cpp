@@ -1,4 +1,4 @@
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
@@ -8,7 +8,7 @@
 #include "Misc/DataValidation.h"
 #endif
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ProjectTagConfig)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProjectTagDefinition)
 
 DEFINE_LOG_CATEGORY_STATIC(LogProjectTagConfig, Log, All);
 
@@ -19,7 +19,7 @@ namespace
 	FLogRateLimiter LoadFailedConfigLogLimiter;
 	TSharedPtr<FStreamableHandle> PendingConfigLoadHandle;
 
-	const UProjectTagConfig* LoadProjectTagConfigPrimaryAsset()
+	const UProjectTagDefinition* LoadProjectTagConfigPrimaryAsset()
 	{
 		UAssetManager* AssetManager = UAssetManager::GetIfInitialized();
 		if (!AssetManager)
@@ -34,7 +34,7 @@ namespace
 			|| !AssetManager->GetPrimaryAssetPath(ResolvedConfigId).IsValid())
 		{
 			TArray<FPrimaryAssetId> ConfigIds;
-			AssetManager->GetPrimaryAssetIdList(UProjectTagConfig::GetConfigPrimaryAssetType(), ConfigIds);
+			AssetManager->GetPrimaryAssetIdList(UProjectTagDefinition::GetConfigPrimaryAssetType(), ConfigIds);
 
 			if (ConfigIds.IsEmpty())
 			{
@@ -48,13 +48,13 @@ namespace
 						Error,
 						TEXT("No ProjectTagConfig PrimaryAsset is registered. Expected %s. "
 							"SuppressedSinceLast=%u"),
-						*UProjectTagConfig::GetPreferredPrimaryAssetId().ToString(),
+						*UProjectTagDefinition::GetPreferredPrimaryAssetId().ToString(),
 						SuppressedCount);
 				}
 				return nullptr;
 			}
 
-			const FPrimaryAssetId PreferredId = UProjectTagConfig::GetPreferredPrimaryAssetId();
+			const FPrimaryAssetId PreferredId = UProjectTagDefinition::GetPreferredPrimaryAssetId();
 			const FPrimaryAssetId* PreferredConfig = ConfigIds.FindByPredicate(
 				[&PreferredId](const FPrimaryAssetId& ConfigId)
 				{
@@ -87,8 +87,8 @@ namespace
 			}
 		}
 
-		if (const UProjectTagConfig* LoadedConfig =
-			AssetManager->GetPrimaryAssetObject<UProjectTagConfig>(ResolvedConfigId))
+		if (const UProjectTagDefinition* LoadedConfig =
+			AssetManager->GetPrimaryAssetObject<UProjectTagDefinition>(ResolvedConfigId))
 		{
 			return LoadedConfig;
 		}
@@ -100,8 +100,8 @@ namespace
 				AssetManager->LoadPrimaryAsset(ResolvedConfigId);
 		}
 
-		const UProjectTagConfig* LoadedConfig =
-			AssetManager->GetPrimaryAssetObject<UProjectTagConfig>(ResolvedConfigId);
+		const UProjectTagDefinition* LoadedConfig =
+			AssetManager->GetPrimaryAssetObject<UProjectTagDefinition>(ResolvedConfigId);
 		if (!LoadedConfig
 			&& (!PendingConfigLoadHandle.IsValid()
 				|| PendingConfigLoadHandle->HasLoadCompleted()))
@@ -126,7 +126,7 @@ namespace
 	}
 }
 
-UProjectTagConfig::UProjectTagConfig()
+UProjectTagDefinition::UProjectTagDefinition()
 {
 	ItemWeaponTypeTag = LabGameplayTags::Item_Weapon;
 	ItemEquipmentTypeTag = LabGameplayTags::Item_Equipment;
@@ -201,40 +201,40 @@ UProjectTagConfig::UProjectTagConfig()
 	EquipmentUnequipAbilityTag = LabGameplayTags::Action_Unequip;
 }
 
-FPrimaryAssetId UProjectTagConfig::GetPrimaryAssetId() const
+FPrimaryAssetId UProjectTagDefinition::GetPrimaryAssetId() const
 {
 	return FPrimaryAssetId(GetConfigPrimaryAssetType(), GetFName());
 }
 
-const UProjectTagConfig* UProjectTagConfig::Get(const UObject*)
+const UProjectTagDefinition* UProjectTagDefinition::Get(const UObject*)
 {
 	return GetDefaultConfig();
 }
 
-const UProjectTagConfig* UProjectTagConfig::GetDefaultConfig()
+const UProjectTagDefinition* UProjectTagDefinition::GetDefaultConfig()
 {
-	if (const UProjectTagConfig* PrimaryConfig = LoadProjectTagConfigPrimaryAsset())
+	if (const UProjectTagDefinition* PrimaryConfig = LoadProjectTagConfigPrimaryAsset())
 	{
 		return PrimaryConfig;
 	}
 
-	return GetDefault<UProjectTagConfig>();
+	return GetDefault<UProjectTagDefinition>();
 }
 
-const FPrimaryAssetType& UProjectTagConfig::GetConfigPrimaryAssetType()
+const FPrimaryAssetType& UProjectTagDefinition::GetConfigPrimaryAssetType()
 {
 	static const FPrimaryAssetType AssetType(TEXT("ProjectTagConfig"));
 	return AssetType;
 }
 
-const FPrimaryAssetId& UProjectTagConfig::GetPreferredPrimaryAssetId()
+const FPrimaryAssetId& UProjectTagDefinition::GetPreferredPrimaryAssetId()
 {
 	static const FPrimaryAssetId AssetId(GetConfigPrimaryAssetType(), TEXT("DA_ProjectTag"));
 	return AssetId;
 }
 
 #if WITH_EDITOR
-EDataValidationResult UProjectTagConfig::IsDataValid(FDataValidationContext& Context) const
+EDataValidationResult UProjectTagDefinition::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 	if (Result == EDataValidationResult::NotValidated)
@@ -262,7 +262,7 @@ EDataValidationResult UProjectTagConfig::IsDataValid(FDataValidationContext& Con
 }
 #endif
 
-void UProjectTagConfig::GetItemEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const
+void UProjectTagDefinition::GetItemEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const
 {
 	OutTags.Reset();
 	AddValidTag(OutTags, GetItemHatEquipTypeTag());
@@ -275,7 +275,7 @@ void UProjectTagConfig::GetItemEquipmentSlotTags(TArray<FGameplayTag>& OutTags) 
 	AddValidTag(OutTags, GetItemRuneEquipTypeTag());
 }
 
-void UProjectTagConfig::GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) const
+void UProjectTagDefinition::GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) const
 {
 	OutTags.Reset();
 	AddValidTag(OutTags, GetItemWeaponTypeTag());
@@ -290,7 +290,7 @@ void UProjectTagConfig::GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) con
 	AddValidTag(OutTags, GetItemValuableTypeTag());
 }
 
-void UProjectTagConfig::GetPandoraFilterTypeTags(TArray<FGameplayTag>& OutTags) const
+void UProjectTagDefinition::GetPandoraFilterTypeTags(TArray<FGameplayTag>& OutTags) const
 {
 	OutTags.Reset();
 	AddValidTag(OutTags, GetPandoraOffensiveTypeTag());
@@ -300,7 +300,7 @@ void UProjectTagConfig::GetPandoraFilterTypeTags(TArray<FGameplayTag>& OutTags) 
 }
 
 // 분류용 상위 태그와 실제 장착 슬롯을 구분해 서버가 허용하는 슬롯만 나열한다.
-void UProjectTagConfig::GetSkinEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const
+void UProjectTagDefinition::GetSkinEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const
 {
 	OutTags.Reset();
 	AddValidTag(OutTags, GetSkinHatEquipTypeTag());
@@ -319,7 +319,7 @@ void UProjectTagConfig::GetSkinEquipmentSlotTags(TArray<FGameplayTag>& OutTags) 
 	AddValidTag(OutTags, LabGameplayTags::Skin_Gesture_Slot4);
 }
 
-void UProjectTagConfig::GetSkinFilterTypeTags(TArray<FGameplayTag>& OutTags) const
+void UProjectTagDefinition::GetSkinFilterTypeTags(TArray<FGameplayTag>& OutTags) const
 {
 	OutTags.Reset();
 	AddValidTag(OutTags, GetSkinPandoraTypeTag());
@@ -337,12 +337,12 @@ void UProjectTagConfig::GetSkinFilterTypeTags(TArray<FGameplayTag>& OutTags) con
 	AddValidTag(OutTags, GetSkinPetTypeTag());
 }
 
-const FGameplayTag& UProjectTagConfig::ResolveTag(const FGameplayTag& ConfiguredTag, const FGameplayTag& DefaultTag)
+const FGameplayTag& UProjectTagDefinition::ResolveTag(const FGameplayTag& ConfiguredTag, const FGameplayTag& DefaultTag)
 {
 	return ConfiguredTag.IsValid() ? ConfiguredTag : DefaultTag;
 }
 
-void UProjectTagConfig::AddValidTag(TArray<FGameplayTag>& OutTags, const FGameplayTag& Tag)
+void UProjectTagDefinition::AddValidTag(TArray<FGameplayTag>& OutTags, const FGameplayTag& Tag)
 {
 	if (Tag.IsValid())
 	{

@@ -1,6 +1,6 @@
 #include "UI/Widget/RightStatusWidget.h"
 
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RightStatusWidget)
@@ -418,92 +418,92 @@ void URightStatusWidget::UnbindButtonCallbacks()
 
 FGameplayTag URightStatusWidget::GetStrengthStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusStrengthTag();
+	return UProjectTagDefinition::Get(this)->GetStatusStrengthTag();
 }
 
 FGameplayTag URightStatusWidget::GetIntelligenceStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusIntelligenceTag();
+	return UProjectTagDefinition::Get(this)->GetStatusIntelligenceTag();
 }
 
 FGameplayTag URightStatusWidget::GetArcaneStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusArcaneTag();
+	return UProjectTagDefinition::Get(this)->GetStatusArcaneTag();
 }
 
 FGameplayTag URightStatusWidget::GetArmorStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusArmorTag();
+	return UProjectTagDefinition::Get(this)->GetStatusArmorTag();
 }
 
 FGameplayTag URightStatusWidget::GetRecoveryStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusRecoveryTag();
+	return UProjectTagDefinition::Get(this)->GetStatusRecoveryTag();
 }
 
 FGameplayTag URightStatusWidget::GetMaxShieldStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusMaxShieldTag();
+	return UProjectTagDefinition::Get(this)->GetStatusMaxShieldTag();
 }
 
 FGameplayTag URightStatusWidget::GetFrostbiteStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusFrostbiteTag();
+	return UProjectTagDefinition::Get(this)->GetStatusFrostbiteTag();
 }
 
 FGameplayTag URightStatusWidget::GetBurnStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusBurnTag();
+	return UProjectTagDefinition::Get(this)->GetStatusBurnTag();
 }
 
 FGameplayTag URightStatusWidget::GetElectricShockStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusElectricShockTag();
+	return UProjectTagDefinition::Get(this)->GetStatusElectricShockTag();
 }
 
 FGameplayTag URightStatusWidget::GetFirstPandoraStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusFirstPandoraTag();
+	return UProjectTagDefinition::Get(this)->GetStatusFirstPandoraTag();
 }
 
 FGameplayTag URightStatusWidget::GetSecondPandoraStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusSecondPandoraTag();
+	return UProjectTagDefinition::Get(this)->GetStatusSecondPandoraTag();
 }
 
 FGameplayTag URightStatusWidget::GetThirdPandoraStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusThirdPandoraTag();
+	return UProjectTagDefinition::Get(this)->GetStatusThirdPandoraTag();
 }
 
 FGameplayTag URightStatusWidget::GetMaxHealthStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusMaxHealthTag();
+	return UProjectTagDefinition::Get(this)->GetStatusMaxHealthTag();
 }
 
 FGameplayTag URightStatusWidget::GetMaxManaStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusMaxManaTag();
+	return UProjectTagDefinition::Get(this)->GetStatusMaxManaTag();
 }
 
 FGameplayTag URightStatusWidget::GetMaxStaminaStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusMaxStaminaTag();
+	return UProjectTagDefinition::Get(this)->GetStatusMaxStaminaTag();
 }
 
 FGameplayTag URightStatusWidget::GetAttackSpeedStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusAttackSpeedTag();
+	return UProjectTagDefinition::Get(this)->GetStatusAttackSpeedTag();
 }
 
 FGameplayTag URightStatusWidget::GetMovementSpeedStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusMovementSpeedTag();
+	return UProjectTagDefinition::Get(this)->GetStatusMovementSpeedTag();
 }
 
 FGameplayTag URightStatusWidget::GetCriticalStatTag() const
 {
-	return UProjectTagConfig::Get(this)->GetStatusCriticalTag();
+	return UProjectTagDefinition::Get(this)->GetStatusCriticalTag();
 }
 
 UButton* URightStatusWidget::GetCriticalUpButton() const

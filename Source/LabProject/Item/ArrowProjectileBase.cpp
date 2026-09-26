@@ -11,7 +11,6 @@
 #include "Component/Player/EquipmentComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "Map/TransientActorRegistrySubsystem.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
@@ -85,15 +84,6 @@ void AArrowProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UWorld* World = GetWorld())
-	{
-		if (UTransientActorRegistrySubsystem* Registry =
-			World->GetSubsystem<UTransientActorRegistrySubsystem>())
-		{
-			Registry->RegisterTransientActor(this, GetOwningCharacter());
-		}
-	}
-
 	bHasImpacted = false;
 	bImpactTraceActive = false;
 	PreviousImpactTraceLocation = GetActorLocation();
@@ -120,20 +110,6 @@ void AArrowProjectileBase::BeginPlay()
 		ArrowMesh->SetHiddenInGame(false);
 		ArrowMesh->SetVisibility(true, true);
 	}
-}
-
-void AArrowProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	if (UWorld* World = GetWorld())
-	{
-		if (UTransientActorRegistrySubsystem* Registry =
-			World->GetSubsystem<UTransientActorRegistrySubsystem>())
-		{
-			Registry->UnregisterTransientActor(this);
-		}
-	}
-
-	Super::EndPlay(EndPlayReason);
 }
 
 bool AArrowProjectileBase::LaunchArrowActor(const FVector& Direction)

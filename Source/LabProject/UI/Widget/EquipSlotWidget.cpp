@@ -1,6 +1,6 @@
 #include "UI/Widget/EquipSlotWidget.h"
 
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -452,7 +452,7 @@ bool UEquipSlotWidget::CanAcceptDroppedItem(UItemInstance* DroppedItem) const
 bool UEquipSlotWidget::IsCurrentItemConsumable() const
 {
 	const UItemDefinition* ItemDefinition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr;
-	const FGameplayTag ConsumableTypeTag = UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
+	const FGameplayTag ConsumableTypeTag = UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
 	return ItemDefinition
 		&& ItemDefinition->IsConsumableDefinition(ConsumableTypeTag);
 }

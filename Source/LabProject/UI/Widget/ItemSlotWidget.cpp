@@ -1,7 +1,7 @@
 #include "UI/Widget/ItemSlotWidget.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
@@ -390,7 +390,7 @@ FLinearColor UItemSlotWidget::ResolveBackgroundColor(const bool bAssigned) const
 bool UItemSlotWidget::IsItemConsumable(const UItemInstance* ItemInstance) const
 {
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
-	const FGameplayTag ConsumableTypeTag = UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
+	const FGameplayTag ConsumableTypeTag = UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
 	return ItemDefinition
 		&& ItemDefinition->IsConsumableDefinition(ConsumableTypeTag);
 }
@@ -410,7 +410,7 @@ bool UItemSlotWidget::IsItemUpgradeable(const UItemInstance* ItemInstance) const
 		return false;
 	}
 
-	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	return ItemDefinition->IsWeaponDefinition(TagConfig->GetItemWeaponTypeTag())
 		|| ItemDefinition->MatchesItemType(TagConfig->GetItemEquipmentTypeTag());
 }

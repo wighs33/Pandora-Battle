@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "OutOfBoundsRespawnVolume.generated.h"
+#include "OutOfBoundsVolume.generated.h"
 
 class AActor;
 class ACharacterBase;
@@ -10,7 +10,7 @@ class UPrimitiveComponent;
 class USphereComponent;
 
 UCLASS(Blueprintable)
-class LABPROJECT_API AOutOfBoundsRespawnVolume : public AActor
+class LABPROJECT_API AOutOfBoundsVolume : public AActor
 {
 	GENERATED_BODY()
 
@@ -21,7 +21,7 @@ protected:
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	AOutOfBoundsRespawnVolume(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AOutOfBoundsVolume(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -39,9 +39,6 @@ private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool TryRespawnPlayer(ACharacterBase* PlayerCharacter);
 	bool TryDestroyNonPlayerActor(AActor* Actor) const;
-	int32 CleanupTransientActors(ACharacterBase* TriggeringPlayer) const;
-	bool CanCleanupActor(const AActor* Actor, const ACharacterBase* TriggeringPlayer) const;
-	bool IsConfiguredCleanupClass(const AActor* Actor) const;
 	bool ShouldIgnoreEndOverlap(const AActor* OtherActor) const;
 	void ConfigureBoundaryCollision() const;
 
@@ -54,15 +51,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!OutOfBounds")
 	bool bDestroyNonPlayerActorsOnEndOverlap = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!OutOfBounds")
-	bool bCleanupTransientActorsOnPlayerExit = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!OutOfBounds")
-	bool bAllowCleanupOfNetStartupActors = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!OutOfBounds", meta = (EditCondition = "bCleanupTransientActorsOnPlayerExit"))
-	TArray<TSubclassOf<AActor>> CleanupActorClasses;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!OutOfBounds")
 	bool bLogOutOfBoundsRespawn = true;

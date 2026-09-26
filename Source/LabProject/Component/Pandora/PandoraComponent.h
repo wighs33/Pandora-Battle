@@ -14,7 +14,7 @@ class UPandoraComponent;
 class UPandoraDefinition;
 class UPandoraSkillSource;
 class UPdAbilitySystemComponent;
-class UProjectTagConfig;
+class UProjectTagDefinition;
 class UItemDefinition;
 class ACharacterBase;
 struct FStreamableHandle;
@@ -164,7 +164,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Weapon")
 	bool IsPandoraCompatibleWithCurrentWeapon(const UPandoraDefinition* PandoraDefinition) const;
 
-	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
+	void ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig);
 
 	// 능력 부여 전에 출처를 초기화하고, 컴포넌트가 보관과 복제 수명을 맡는다.
 	UPandoraSkillSource* CreateSkillSource(const UPandoraDefinition* Definition, int32 SkillIndex,

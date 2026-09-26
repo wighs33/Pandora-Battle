@@ -2,7 +2,7 @@
 
 #include "Components/TileView.h"
 #include "Component/Item/InventoryComponent.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 #include "UI/InfoLoadoutStore.h"
@@ -212,7 +212,7 @@ void UInfoItemTabPresenter::RefreshEquipmentSlots() const
 		Store ? Store->GetSelectedPandoraDefinition(EEnum_Direction::Right) : nullptr);
 
 	const UInventoryComponent* Inventory = Store ? Store->GetInventoryComponent() : nullptr;
-	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	TArray<FGameplayTag> EquipmentSlotTags;
 	TagConfig->GetItemEquipmentSlotTags(EquipmentSlotTags);
 	for (const FGameplayTag& EquipmentSlotTag : EquipmentSlotTags)
@@ -860,7 +860,7 @@ void UInfoItemTabPresenter::CollectAssignedItemIds(TSet<FGuid>& OutAssignedItemI
 
 	if (Inventory)
 	{
-		const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+		const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 		TArray<FGameplayTag> EquipmentSlotTags;
 		TagConfig->GetItemEquipmentSlotTags(EquipmentSlotTags);
 		for (const FGameplayTag& EquipmentSlotTag : EquipmentSlotTags)
@@ -894,15 +894,15 @@ void UInfoItemTabPresenter::CollectAssignedItemIds(TSet<FGuid>& OutAssignedItemI
 
 FGameplayTag UInfoItemTabPresenter::GetEquipmentItemTypeTag() const
 {
-	return UProjectTagConfig::Get(this)->GetItemEquipmentTypeTag();
+	return UProjectTagDefinition::Get(this)->GetItemEquipmentTypeTag();
 }
 
 FGameplayTag UInfoItemTabPresenter::GetWeaponItemTypeTag() const
 {
-	return UProjectTagConfig::Get(this)->GetItemWeaponTypeTag();
+	return UProjectTagDefinition::Get(this)->GetItemWeaponTypeTag();
 }
 
 FGameplayTag UInfoItemTabPresenter::GetConsumableItemTypeTag() const
 {
-	return UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
+	return UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
 }

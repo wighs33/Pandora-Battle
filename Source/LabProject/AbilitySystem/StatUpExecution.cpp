@@ -2,7 +2,7 @@
 
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatUpExecution)
 
@@ -44,7 +44,7 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 // =================================================================================================================
 
-	const FGameplayTag OperationSetByCallerTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerStatUpOperationTag();
+	const FGameplayTag OperationSetByCallerTag = UProjectTagDefinition::GetDefaultConfig()->GetSetByCallerStatUpOperationTag();
 	if (!OperationSetByCallerTag.IsValid())
 	{
 

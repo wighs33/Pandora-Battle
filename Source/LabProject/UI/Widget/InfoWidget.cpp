@@ -3,7 +3,7 @@
 #include "Animation/WidgetAnimation.h"
 #include "Blueprint/WidgetTree.h"
 #include "Containers/Ticker.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -1016,40 +1016,40 @@ bool UInfoWidget::IsScreenPositionInsideCharacterDropPanel(const FVector2D& Scre
 
 FGameplayTag UInfoWidget::GetProfileLeftUiTag() const
 {
-	return UProjectTagConfig::Get(this)->GetUiProfileLeftTag();
+	return UProjectTagDefinition::Get(this)->GetUiProfileLeftTag();
 }
 
 FGameplayTag UInfoWidget::GetProfileRightUiTag() const
 {
-	return UProjectTagConfig::Get(this)->GetUiStatusRightTag();
+	return UProjectTagDefinition::Get(this)->GetUiStatusRightTag();
 }
 
 FGameplayTag UInfoWidget::GetItemLeftUiTag() const
 {
-	return UProjectTagConfig::Get(this)->GetUiEquipmentLeftTag();
+	return UProjectTagDefinition::Get(this)->GetUiEquipmentLeftTag();
 }
 
 FGameplayTag UInfoWidget::GetItemRightUiTag() const
 {
-	return UProjectTagConfig::Get(this)->GetUiInventoryRightTag();
+	return UProjectTagDefinition::Get(this)->GetUiInventoryRightTag();
 }
 
 FGameplayTag UInfoWidget::GetSkinLeftUiTag() const
 {
-	return UProjectTagConfig::Get(this)->GetUiSkinEquipmentLeftTag();
+	return UProjectTagDefinition::Get(this)->GetUiSkinEquipmentLeftTag();
 }
 
 FGameplayTag UInfoWidget::GetSkinRightUiTag() const
 {
-	return UProjectTagConfig::Get(this)->GetUiSkinInventoryRightTag();
+	return UProjectTagDefinition::Get(this)->GetUiSkinInventoryRightTag();
 }
 
 FGameplayTag UInfoWidget::GetPandoraLeftUiTag() const
 {
-	return UProjectTagConfig::Get(this)->GetUiPandoraEquipmentLeftTag();
+	return UProjectTagDefinition::Get(this)->GetUiPandoraEquipmentLeftTag();
 }
 
 FGameplayTag UInfoWidget::GetPandoraRightUiTag() const
 {
-	return UProjectTagConfig::Get(this)->GetUiPandoraInventoryRightTag();
+	return UProjectTagDefinition::Get(this)->GetUiPandoraInventoryRightTag();
 }

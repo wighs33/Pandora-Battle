@@ -2,7 +2,7 @@
 
 #include "Component/Item/InventoryComponent.h"
 #include "Data/ContentDataSubsystem.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
@@ -178,7 +178,7 @@ void UInfoUiPresenter::EnsureTabPresenters()
 void UInfoUiPresenter::SetActiveTab(const FGameplayTag LeftUiTag)
 {
 	EnsureTabPresenters();
-	const UProjectTagConfig* Tags = UProjectTagConfig::Get(this);
+	const UProjectTagDefinition* Tags = UProjectTagDefinition::Get(this);
 	const bool bItemTab = Tags && LeftUiTag == Tags->GetUiEquipmentLeftTag();
 	const bool bPandoraTab = Tags && LeftUiTag == Tags->GetUiPandoraEquipmentLeftTag();
 	ItemPresenter->SetActive(bItemTab);

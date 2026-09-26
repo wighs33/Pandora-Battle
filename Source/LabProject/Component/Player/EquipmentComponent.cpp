@@ -8,7 +8,7 @@
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Item/ItemInstance.h"
@@ -572,12 +572,12 @@ bool UEquipmentComponent::HasActiveAbilityWithTags(const FGameplayTagContainer& 
 
 FGameplayTag UEquipmentComponent::GetEquipAbilityTag() const
 {
-	return UProjectTagConfig::Get(this)->GetEquipmentEquipAbilityTag();
+	return UProjectTagDefinition::Get(this)->GetEquipmentEquipAbilityTag();
 }
 
 FGameplayTag UEquipmentComponent::GetUnequipAbilityTag() const
 {
-	return UProjectTagConfig::Get(this)->GetEquipmentUnequipAbilityTag();
+	return UProjectTagDefinition::Get(this)->GetEquipmentUnequipAbilityTag();
 }
 
 void UEquipmentComponent::CommitCurrentWeaponState(

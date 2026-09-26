@@ -8,7 +8,6 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
-#include "Map/TransientActorRegistrySubsystem.h"
 #include "UObject/UnrealType.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageIndicatorActor)
 
@@ -95,15 +94,6 @@ void ADamageIndicatorActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UWorld* World = GetWorld())
-	{
-		if (UTransientActorRegistrySubsystem* Registry =
-			World->GetSubsystem<UTransientActorRegistrySubsystem>())
-		{
-			Registry->RegisterTransientActor(this, GetOwner());
-		}
-	}
-
 	if (DamageWidget)
 	{
 		DamageWidget->InitWidget();
@@ -115,20 +105,6 @@ void ADamageIndicatorActor::BeginPlay()
 		ReceiveDamageIndicatorInitialized(Payload);
 		StartMovement();
 	}
-}
-
-void ADamageIndicatorActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	if (UWorld* World = GetWorld())
-	{
-		if (UTransientActorRegistrySubsystem* Registry =
-			World->GetSubsystem<UTransientActorRegistrySubsystem>())
-		{
-			Registry->UnregisterTransientActor(this);
-		}
-	}
-
-	Super::EndPlay(EndPlayReason);
 }
 
 void ADamageIndicatorActor::Tick(float DeltaSeconds)

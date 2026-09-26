@@ -1,7 +1,7 @@
 #include "UI/Widget/RightPandoraWidget.h"
 #include "Settings/MenuLocalizationSubsystem.h"
 
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/TileView.h"
@@ -287,26 +287,26 @@ FGameplayTag URightPandoraWidget::GetOffensiveTypeTag() const
 {
 	return OffensiveTypeTagOverride.IsValid()
 		? OffensiveTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetPandoraOffensiveTypeTag();
+		: UProjectTagDefinition::Get(this)->GetPandoraOffensiveTypeTag();
 }
 
 FGameplayTag URightPandoraWidget::GetDefensiveTypeTag() const
 {
 	return DefensiveTypeTagOverride.IsValid()
 		? DefensiveTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetPandoraDefensiveTypeTag();
+		: UProjectTagDefinition::Get(this)->GetPandoraDefensiveTypeTag();
 }
 
 FGameplayTag URightPandoraWidget::GetSupportTypeTag() const
 {
 	return SupportTypeTagOverride.IsValid()
 		? SupportTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetPandoraSupportTypeTag();
+		: UProjectTagDefinition::Get(this)->GetPandoraSupportTypeTag();
 }
 
 FGameplayTag URightPandoraWidget::GetSpecialTypeTag() const
 {
 	return SpecialTypeTagOverride.IsValid()
 		? SpecialTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetPandoraSpecialTypeTag();
+		: UProjectTagDefinition::Get(this)->GetPandoraSpecialTypeTag();
 }

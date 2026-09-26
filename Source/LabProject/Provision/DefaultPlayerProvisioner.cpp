@@ -8,7 +8,7 @@
 #include "Component/Player/StatUpgradeComponent.h"
 #include "Component/Skin/SkinComponent.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
@@ -391,8 +391,8 @@ bool UDefaultPlayerProvisioner::ApplyItems(APdPlayerState* PlayerState)
 			}
 		}
 
-		const UProjectTagConfig* TagConfig =
-			UProjectTagConfig::GetDefaultConfig();
+		const UProjectTagDefinition* TagConfig =
+			UProjectTagDefinition::GetDefaultConfig();
 		const FGameplayTag WeaponTypeTag = TagConfig
 			? TagConfig->GetItemWeaponTypeTag()
 			: LabGameplayTags::Item_Weapon;

@@ -1,13 +1,13 @@
-#include "Map/MapLayerTrigger.h"
+#include "Map/PlayerMapRegionTrigger.h"
 
 #include "Components/BoxComponent.h"
 #include "Common/CollisionChannels.h"
 #include "GameFramework/Pawn.h"
 #include "Mode/PdPlayerState.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(MapLayerTrigger)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerMapRegionTrigger)
 
-AMapLayerTrigger::AMapLayerTrigger(const FObjectInitializer& ObjectInitializer)
+APlayerMapRegionTrigger::APlayerMapRegionTrigger(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -22,14 +22,14 @@ AMapLayerTrigger::AMapLayerTrigger(const FObjectInitializer& ObjectInitializer)
 	TriggerBox->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::HandleTriggerBeginOverlap);
 }
 
-void AMapLayerTrigger::BeginPlay()
+void APlayerMapRegionTrigger::BeginPlay()
 {
 	Super::BeginPlay();
 
 	ConfigureTriggerCollision();
 }
 
-void AMapLayerTrigger::HandleTriggerBeginOverlap(
+void APlayerMapRegionTrigger::HandleTriggerBeginOverlap(
 	UPrimitiveComponent* OverlappedComponent,
 	AActor* OtherActor,
 	UPrimitiveComponent* OtherComp,
@@ -57,13 +57,8 @@ void AMapLayerTrigger::HandleTriggerBeginOverlap(
 	PdPlayerState->GetPlayerMatchComponent()->SetPlayerMapRegion(TargetMapRegion);
 }
 
-void AMapLayerTrigger::ConfigureTriggerCollision() const
+void APlayerMapRegionTrigger::ConfigureTriggerCollision() const
 {
-	if (!TriggerBox)
-	{
-		return;
-	}
-
 	TriggerBox->SetCollisionProfileName(TEXT("Custom"));
 	TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	TriggerBox->SetCollisionObjectType(LabCollisionChannels::OverlapBox());

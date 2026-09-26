@@ -4,7 +4,7 @@
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/AbilityGrantAndInputManager.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Player/StatUpgradeDefinition.h"
 #include "GameFramework/Actor.h"
 #include "GameplayEffect.h"
@@ -236,7 +236,7 @@ bool UPdAbilitySystemComponent::ApplyStatUpEffectByTags(
 	}
 
 	SpecHandle.Data->SetSetByCallerMagnitude(
-		UProjectTagConfig::GetDefaultConfig()->GetSetByCallerStatUpOperationTag(),
+		UProjectTagDefinition::GetDefaultConfig()->GetSetByCallerStatUpOperationTag(),
 		static_cast<float>(Operation));
 
 	return ApplyGameplayEffectSpecToSelf(*SpecHandle.Data).WasSuccessfullyApplied();

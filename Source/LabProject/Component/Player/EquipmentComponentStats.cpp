@@ -6,7 +6,7 @@
 #include "Character/CharacterBase.h"
 #include "Common/Enum_Operation.h"
 #include "Common/LabGameplayTags.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/AssetManager.h"
@@ -317,7 +317,7 @@ bool UEquipmentComponent::BuildEquippedItemsStatSnapshot(
 		return false;
 	}
 
-	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	TArray<FGameplayTag> EquipmentSlotTags;
 	TagConfig->GetItemEquipmentSlotTags(EquipmentSlotTags);
 

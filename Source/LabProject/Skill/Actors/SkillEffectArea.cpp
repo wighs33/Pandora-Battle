@@ -8,7 +8,6 @@
 #include "Components/SphereComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
-#include "Map/TransientActorRegistrySubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillEffectArea)
 
@@ -68,18 +67,6 @@ void ASkillEffectArea::SetSourceActor(AActor* InSourceActor)
 			SetInstigator(SourcePawn);
 		}
 	}
-
-	if (HasActorBegunPlay())
-	{
-		if (UWorld* World = GetWorld())
-		{
-			if (UTransientActorRegistrySubsystem* Registry =
-				World->GetSubsystem<UTransientActorRegistrySubsystem>())
-			{
-				Registry->RegisterTransientActor(this, InSourceActor);
-			}
-		}
-	}
 }
 
 void ASkillEffectArea::SetSourcePandoraLoadoutDirection(const EEnum_Direction InLoadoutDirection)
@@ -101,15 +88,6 @@ void ASkillEffectArea::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UWorld* World = GetWorld())
-	{
-		if (UTransientActorRegistrySubsystem* Registry =
-			World->GetSubsystem<UTransientActorRegistrySubsystem>())
-		{
-			Registry->RegisterTransientActor(this, ResolveSourceActor());
-		}
-	}
-
 	if (AreaCollision)
 	{
 		AreaCollision->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleAreaBeginOverlap);
@@ -128,15 +106,6 @@ void ASkillEffectArea::BeginPlay()
 
 void ASkillEffectArea::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (UWorld* World = GetWorld())
-	{
-		if (UTransientActorRegistrySubsystem* Registry =
-			World->GetSubsystem<UTransientActorRegistrySubsystem>())
-		{
-			Registry->UnregisterTransientActor(this);
-		}
-	}
-
 	TArray<TWeakObjectPtr<AActor>> Actors;
 	ActiveEffectHandles.GetKeys(Actors);
 

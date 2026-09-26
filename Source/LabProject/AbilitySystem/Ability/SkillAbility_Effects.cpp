@@ -8,7 +8,7 @@
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "GameplayEffect.h"
 #include "Weapon/WeaponBase.h"
 #include "Weapon/MeleeWeapon.h"
@@ -43,7 +43,7 @@ FGameplayEffectSpecHandle USkillAbility::MakeConfiguredDamageEffectSpec(
 	FGameplayTag DamageDataTag = DamageConfig.MagnitudeDataTag;
 	if (!DamageDataTag.IsValid())
 	{
-		DamageDataTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
+		DamageDataTag = UProjectTagDefinition::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
 	}
 
 	if (DamageDataTag.IsValid())

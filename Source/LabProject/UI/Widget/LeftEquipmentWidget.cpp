@@ -2,7 +2,7 @@
 
 #include "Common/LabGameplayTags.h"
 #include "Data/ContentDataSubsystem.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/Texture2D.h"
@@ -247,7 +247,7 @@ void ULeftEquipmentWidget::SetEquipmentSlotData(
 	const FGameplayTag EquipTypeTag,
 	UItemInstance* ItemInstance)
 {
-	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	UEquipSlotWidget* TargetSlot = nullptr;
 	if (EquipTypeTag == TagConfig->GetItemHatEquipTypeTag())
 	{
@@ -551,57 +551,57 @@ FGameplayTag ULeftEquipmentWidget::ResolveEquipTypeTagForSlot(const UEquipSlotWi
 
 	if (ItemSlot == HatSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetItemHatEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemHatEquipTypeTag();
 	}
 
 	if (ItemSlot == TopSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetItemTopEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemTopEquipTypeTag();
 	}
 
 	if (ItemSlot == BottomSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetItemBottomEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemBottomEquipTypeTag();
 	}
 
 	if (ItemSlot == ShoesSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetItemShoesEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemShoesEquipTypeTag();
 	}
 
 	if (ItemSlot == EarringSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetItemEarringEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemEarringEquipTypeTag();
 	}
 
 	if (ItemSlot == NecklaceSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetItemNecklaceEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemNecklaceEquipTypeTag();
 	}
 
 	if (ItemSlot == RingSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetItemRingEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemRingEquipTypeTag();
 	}
 
 	if (ItemSlot == RuneSlot)
 	{
-		return UProjectTagConfig::Get(this)->GetItemRuneEquipTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemRuneEquipTypeTag();
 	}
 
 	if (ItemSlot == QuickSlot1 || ItemSlot == QuickSlot2 || ItemSlot == QuickSlot3 || ItemSlot == QuickSlot4)
 	{
-		return UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
 	}
 
 	if (ItemSlot == ToolSlot1 || ItemSlot == ToolSlot2 || ItemSlot == ToolSlot3 || ItemSlot == ToolSlot4)
 	{
-		return UProjectTagConfig::Get(this)->GetItemValuableTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemValuableTypeTag();
 	}
 
 	if (ItemSlot == Weapon1 || ItemSlot == Weapon2 || ItemSlot == Weapon3)
 	{
-		return UProjectTagConfig::Get(this)->GetItemWeaponTypeTag();
+		return UProjectTagDefinition::Get(this)->GetItemWeaponTypeTag();
 	}
 
 	return FGameplayTag();

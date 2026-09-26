@@ -12,7 +12,7 @@
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
 #include "Common/EquipmentAbilityData.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -320,22 +320,22 @@ UAbilitySystemComponent* UCombatComponent::GetPlayerAbilitySystemComponent() con
 
 FGameplayTag UCombatComponent::GetAttackAbilityTag() const
 {
-	return UProjectTagConfig::Get(this)->GetCombatAttackAbilityTag();
+	return UProjectTagDefinition::Get(this)->GetCombatAttackAbilityTag();
 }
 
 FGameplayTag UCombatComponent::GetPunchAbilityTag() const
 {
-	return UProjectTagConfig::Get(this)->GetCombatPunchAbilityTag();
+	return UProjectTagDefinition::Get(this)->GetCombatPunchAbilityTag();
 }
 
 FGameplayTag UCombatComponent::GetRangedAttackAbilityTag() const
 {
-	return UProjectTagConfig::Get(this)->GetCombatRangedAttackAbilityTag();
+	return UProjectTagDefinition::Get(this)->GetCombatRangedAttackAbilityTag();
 }
 
 FGameplayTag UCombatComponent::GetWeaponDamageSourceTag() const
 {
-	return UProjectTagConfig::Get(this)->GetCombatWeaponDamageSourceTag();
+	return UProjectTagDefinition::Get(this)->GetCombatWeaponDamageSourceTag();
 }
 
 UAttackAbility* UCombatComponent::ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent,
@@ -1118,7 +1118,7 @@ bool UCombatComponent::ApplyDamageEffect(UPdAbilitySystemComponent* SourceASC, U
 	TSubclassOf<UGameplayEffect> DamageEffectClass, float Magnitude, UObject* SourceObject,
 	AActor* InstigatorActor, AActor* EffectCauserActor) const
 {
-	const FGameplayTag DamageMagnitudeSetByCallerTag = UProjectTagConfig::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
+	const FGameplayTag DamageMagnitudeSetByCallerTag = UProjectTagDefinition::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
 	if (!HasCombatAuthority() || !SourceASC || !TargetASC || !DamageEffectClass || !FMath::IsFinite(Magnitude) || Magnitude <= 0.0f
 		|| !DamageMagnitudeSetByCallerTag.IsValid())
 	{

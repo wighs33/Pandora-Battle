@@ -7,7 +7,7 @@
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/LevelingComponent.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Player/StatUpgradeDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatusViewModel)
@@ -508,7 +508,7 @@ void UStatusViewModel::UpdateEquipmentDerivedData()
 			EquipmentBonusMagnitudes);
 	}
 
-	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	if (UAbilitySystemComponent* ASCPtr = ASC.Get())
 	{
 		const UStatUpgradeDefinition* StatDefinition =

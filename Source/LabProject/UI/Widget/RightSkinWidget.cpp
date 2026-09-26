@@ -2,7 +2,7 @@
 
 #include "Character/CharacterBase.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/TileView.h"
@@ -387,33 +387,33 @@ FGameplayTag URightSkinWidget::GetPandoraTypeTag() const
 {
 	return PandoraTypeTagOverride.IsValid()
 		? PandoraTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetSkinPandoraTypeTag();
+		: UProjectTagDefinition::Get(this)->GetSkinPandoraTypeTag();
 }
 
 FGameplayTag URightSkinWidget::GetCosmeticsTypeTag() const
 {
 	return CosmeticsTypeTagOverride.IsValid()
 		? CosmeticsTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetSkinCosmeticsTypeTag();
+		: UProjectTagDefinition::Get(this)->GetSkinCosmeticsTypeTag();
 }
 
 FGameplayTag URightSkinWidget::GetGestureTypeTag() const
 {
 	return GestureTypeTagOverride.IsValid()
 		? GestureTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetSkinGestureTypeTag();
+		: UProjectTagDefinition::Get(this)->GetSkinGestureTypeTag();
 }
 
 FGameplayTag URightSkinWidget::GetRidingTypeTag() const
 {
 	return RidingTypeTagOverride.IsValid()
 		? RidingTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetSkinRidingTypeTag();
+		: UProjectTagDefinition::Get(this)->GetSkinRidingTypeTag();
 }
 
 FGameplayTag URightSkinWidget::GetPetTypeTag() const
 {
 	return PetTypeTagOverride.IsValid()
 		? PetTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetSkinPetTypeTag();
+		: UProjectTagDefinition::Get(this)->GetSkinPetTypeTag();
 }

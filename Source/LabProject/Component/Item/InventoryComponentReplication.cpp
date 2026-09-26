@@ -3,7 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "GameFramework/Actor.h"
@@ -468,7 +468,7 @@ FGameplayTag UInventoryComponent::ResolveEquipmentSlotTag(
 		return FGameplayTag();
 	}
 
-	const UProjectTagConfig* TagConfig = UProjectTagConfig::Get(this);
+	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	TArray<FGameplayTag> EquipmentSlotTags;
 	TagConfig->GetItemEquipmentSlotTags(EquipmentSlotTags);
 

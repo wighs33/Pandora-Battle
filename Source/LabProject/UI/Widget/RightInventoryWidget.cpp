@@ -1,6 +1,6 @@
 #include "UI/Widget/RightInventoryWidget.h"
 
-#include "Definition/Common/ProjectTagConfig.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
@@ -425,26 +425,26 @@ FGameplayTag URightInventoryWidget::GetWeaponTypeTag() const
 {
 	return WeaponTypeTagOverride.IsValid()
 		? WeaponTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetItemWeaponTypeTag();
+		: UProjectTagDefinition::Get(this)->GetItemWeaponTypeTag();
 }
 
 FGameplayTag URightInventoryWidget::GetEquipmentTypeTag() const
 {
 	return EquipmentTypeTagOverride.IsValid()
 		? EquipmentTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetItemEquipmentTypeTag();
+		: UProjectTagDefinition::Get(this)->GetItemEquipmentTypeTag();
 }
 
 FGameplayTag URightInventoryWidget::GetValuableTypeTag() const
 {
 	return ValuableTypeTagOverride.IsValid()
 		? ValuableTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetItemValuableTypeTag();
+		: UProjectTagDefinition::Get(this)->GetItemValuableTypeTag();
 }
 
 FGameplayTag URightInventoryWidget::GetConsumableTypeTag() const
 {
 	return ConsumableTypeTagOverride.IsValid()
 		? ConsumableTypeTagOverride
-		: UProjectTagConfig::Get(this)->GetItemConsumableTypeTag();
+		: UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
 }

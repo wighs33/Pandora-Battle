@@ -11,7 +11,7 @@
 class UInventoryComponent;
 class UItemDefinition;
 class UItemInstance;
-class UProjectTagConfig;
+class UProjectTagDefinition;
 struct FStreamableHandle;
 
 DECLARE_LOG_CATEGORY_EXTERN(InventoryComponentLog, Log, All);
@@ -205,7 +205,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Inventory|Upgrade")
 	bool MergeUpgradeableItems(FGuid SourceItemId, FGuid TargetItemId);
 
-	void ApplyProjectTagConfig(const UProjectTagConfig* ProjectTagConfig);
+	void ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig);
 
 protected:
 	// Network RPCs ----------------------------------------------------------------------------------------------------

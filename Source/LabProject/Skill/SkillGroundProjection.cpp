@@ -4,8 +4,8 @@
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
-#include "Map/MapLayerTrigger.h"
-#include "Map/OutOfBoundsRespawnVolume.h"
+#include "Map/PlayerMapRegionTrigger.h"
+#include "Map/OutOfBoundsVolume.h"
 
 namespace
 {
@@ -35,8 +35,8 @@ namespace
 		return Actor
 			&& (Actor->IsA<APawn>()
 				|| Actor->IsA<ASkillEffectArea>()
-				|| Actor->IsA<AOutOfBoundsRespawnVolume>()
-				|| Actor->IsA<AMapLayerTrigger>());
+				|| Actor->IsA<AOutOfBoundsVolume>()
+				|| Actor->IsA<APlayerMapRegionTrigger>());
 	}
 
 	bool IsRelatedToIgnoredActor(const AActor* Actor, const TArray<AActor*>& ActorsToIgnore)
