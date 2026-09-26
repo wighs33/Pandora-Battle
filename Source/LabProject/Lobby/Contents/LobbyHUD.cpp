@@ -2,10 +2,10 @@
 #include "UI/UiSubsystem.h"
 #include "UI/UiScreen.h"
 
-#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Lobby/UI/LobbyWidget.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Engine/World.h"
+#include "Engine/LocalPlayer.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyHUD)
@@ -43,7 +43,6 @@ void ALobbyHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
     if (LobbyScreen)
     {
         LobbyScreen->DeactivateWidget();
-        LobbyScreen->RemoveFromParent();
         LobbyScreen = nullptr;
     }
     Super::EndPlay(EndPlayReason);
@@ -104,8 +103,7 @@ ULobbyWidget* ALobbyHUD::CreateLobbyUI()
         Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
         LobbyScreen->SetContent(LobbyWidget, Config, LobbyWidget,
             FSimpleDelegate::CreateWeakLambda(this, [this]() { HandleEscapeInput(); }));
-        LobbyScreen->AddToPlayerScreen();
-        LobbyScreen->ActivateWidget();
+        PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(LobbyScreen, EUiScreenLayer::Screen);
     }
 
 	LobbyWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
@@ -154,10 +152,8 @@ void ALobbyHUD::NotifyLobbyWidgetClosed()
     if (LobbyScreen)
     {
         LobbyScreen->DeactivateWidget();
-        LobbyScreen->RemoveFromParent();
         LobbyScreen = nullptr;
     }
-    UUiSubsystem::SetBaseInputMode(GetOwningPlayerController(), EUiInputMode::GameOnly);
     RefreshPlayerHudVisibility();
 }
 

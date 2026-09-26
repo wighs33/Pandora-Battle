@@ -54,7 +54,6 @@ private:
 	APdPlayerController* GetPdController() const;
 	void Shutdown();
 
-	void RestoreGameplayInputMode() const;
 	void RefreshTravelLoadingScreen();
 	void ScheduleHideTravelLoadingScreenWhenReady();
 	void UpdateTravelLoadingReadyTicker();

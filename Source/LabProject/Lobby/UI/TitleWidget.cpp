@@ -21,6 +21,7 @@
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Shop/ShopWidget.h"
 #include "UI/UiSubsystem.h"
+#include "UI/UiScreen.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -68,6 +69,7 @@ UTitleWidget::UTitleWidget(const FObjectInitializer& ObjectInitializer)
 void UTitleWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
 
 	ApplyWidgetDefinitionSettings();
 	ResolveWidgets();
@@ -186,17 +188,23 @@ void UTitleWidget::NativeDestruct()
 	ClearQuickMatchDelegates();
 	if (ShopWidget)
 	{
+		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(ShopWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+			Screen->DeactivateWidget();
 		ShopWidget->RemoveFromParent();
 		ShopWidget = nullptr;
 	}
 	if (IsValid(GuideWidget))
 	{
+		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GuideWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+			Screen->DeactivateWidget();
 		GuideWidget->RemoveFromParent();
 	}
 	GuideWidget = nullptr;
 	if (IsValid(RecordWidget))
 	{
 		UnbindRecordCloseButton();
+		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(RecordWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+			Screen->DeactivateWidget();
 		RecordWidget->RemoveFromParent();
 	}
 	RecordWidget = nullptr;
@@ -269,6 +277,8 @@ void UTitleWidget::HandleRecordCloseClicked()
 	}
 
 	UnbindRecordCloseButton();
+	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(RecordWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+		Screen->DeactivateWidget();
 	RecordWidget->RemoveFromParent();
 }
 
@@ -383,6 +393,8 @@ const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass(
 	{
 		if (ShopWidget)
 		{
+			if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(ShopWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+				Screen->DeactivateWidget();
 			ShopWidget->RemoveFromParent();
 			ShopWidget = nullptr;
 		}
@@ -398,9 +410,14 @@ const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass(
 
 	ShopWidget->RefreshUI();
 	ShopWidget->SetVisibility(ESlateVisibility::Visible);
-	if (!ShopWidget->IsInViewport())
+	UCommonActivatableWidget* ExistingScreen = UCommonUIActionRouterBase::FindOwningActivatable(ShopWidget->GetCachedWidget(), GetOwningLocalPlayer());
+	if (!ExistingScreen || !ExistingScreen->IsActivated())
 	{
-		ShopWidget->AddToViewport(50);
+		UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
+		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+		Screen->SetContent(ShopWidget, Config, ShopWidget, FSimpleDelegate());
+		GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
 	}
 
 }
@@ -432,6 +449,8 @@ void UTitleWidget::OpenGuide()
 	{
 		if (GuideWidget)
 		{
+			if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GuideWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+				Screen->DeactivateWidget();
 			GuideWidget->RemoveFromParent();
 			GuideWidget = nullptr;
 		}
@@ -451,9 +470,17 @@ void UTitleWidget::OpenGuide()
 	}
 
 	GuideWidget->SetVisibility(ESlateVisibility::Visible);
-	if (!GuideWidget->IsInViewport())
+	UCommonActivatableWidget* ExistingScreen = UCommonUIActionRouterBase::FindOwningActivatable(GuideWidget->GetCachedWidget(), GetOwningLocalPlayer());
+	if (!ExistingScreen || !ExistingScreen->IsActivated())
 	{
-		GuideWidget->AddToViewport(60);
+		UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
+		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+		Screen->SetContent(GuideWidget, Config, GuideWidget, FSimpleDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (UGuideWidget* Guide = Cast<UGuideWidget>(GuideWidget)) Guide->CloseGuide();
+		}));
+		GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
 	}
 }
 
@@ -485,6 +512,8 @@ void UTitleWidget::OpenRecord()
 		if (RecordWidget)
 		{
 			UnbindRecordCloseButton();
+			if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(RecordWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+				Screen->DeactivateWidget();
 			RecordWidget->RemoveFromParent();
 			RecordWidget = nullptr;
 		}
@@ -499,9 +528,14 @@ void UTitleWidget::OpenRecord()
 	}
 
 	RecordWidget->SetVisibility(ESlateVisibility::Visible);
-	if (!RecordWidget->IsInViewport())
+	UCommonActivatableWidget* ExistingScreen = UCommonUIActionRouterBase::FindOwningActivatable(RecordWidget->GetCachedWidget(), GetOwningLocalPlayer());
+	if (!ExistingScreen || !ExistingScreen->IsActivated())
 	{
-		RecordWidget->AddToViewport(60);
+		UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
+		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+		Screen->SetContent(RecordWidget, Config, RecordWidget, FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRecordCloseClicked));
+		GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
 	}
 
 	if (URecordWidget* TypedRecordWidget = Cast<URecordWidget>(RecordWidget))
@@ -713,7 +747,9 @@ void UTitleWidget::TryStartQuickMatchAfterLoadingScreen()
 	}
 
 	CancelQuickMatchStartTimer();
-	if (!IsValid(LoadingScreen) || !LoadingScreen->IsInViewport())
+	UCommonActivatableWidget* LoadingHost = IsValid(LoadingScreen)
+        ? UCommonUIActionRouterBase::FindOwningActivatable(LoadingScreen->GetCachedWidget(), GetOwningLocalPlayer()) : nullptr;
+	if (!LoadingHost || !LoadingHost->IsActivated())
 	{
 		World->GetTimerManager().SetTimer(
 			QuickMatchStartTimerHandle,

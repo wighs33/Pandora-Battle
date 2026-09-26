@@ -1,5 +1,4 @@
 #include "UI/UiSubsystem.h"
-#include "UI/PdUIActionRouter.h"
 #include "UI/UiLayerRoot.h"
 #include "UI/UiScreen.h"
 #include "CommonActivatableWidget.h"
@@ -9,12 +8,12 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Widget.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Data/ContentDataSubsystem.h"
-#include "Engine/GameViewportClient.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/StreamableManager.h"
-#include "Framework/Application/SlateUser.h"
 #include "GameFramework/PlayerController.h"
 #include "Lobby/UI/ConnectingPopupWidget.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
@@ -90,9 +89,6 @@ void UUiSubsystem::Deinitialize()
 	ReleaseConfiguredWidgetDefinitionPreload();
 	if (ScreenRoot) ScreenRoot->RemoveFromParent();
 	ScreenRoot = nullptr;
-	ModalInputStack.Reset();
-	InputStateBeforeModals.Reset();
-	RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
 	StatusViewModel = nullptr;
 	WidgetClassDefinition = nullptr;
 	ConfiguredWidgetClassDefinition = nullptr;
@@ -540,134 +536,6 @@ bool UUiSubsystem::BindStatusViewModelToWidget(UUserWidget* InWidget)
 			StatusViewModel);
 }
 
-FGuid UUiSubsystem::AcquireModalInput(
-	UObject* Owner,
-	UWidget* FocusWidget,
-	const FUiModalInputConfig& InputConfig)
-{
-	if (bIsDeinitializing || !IsValid(Owner))
-	{
-		return FGuid();
-	}
-
-	PruneInvalidModalInputs();
-
-	if (ModalInputStack.IsEmpty())
-	{
-		APlayerController* PlayerController = GetLocalPlayerController();
-		if (!CaptureInputState(PlayerController, InputStateBeforeModals))
-		{
-			return FGuid();
-		}
-		RestorePolicyAfterModals = InputConfig.RestorePolicy;
-	}
-
-	FModalInputEntry& Entry = ModalInputStack.AddDefaulted_GetRef();
-	Entry.Token = FGuid::NewGuid();
-	Entry.Owner = Owner;
-	Entry.FocusWidget = IsValid(FocusWidget) ? FocusWidget : nullptr;
-	const APlayerController* PlayerController = GetLocalPlayerController();
-	Entry.World = PlayerController ? PlayerController->GetWorld() : nullptr;
-	Entry.InputConfig = InputConfig;
-	Entry.bTracksFocusWidgetLifetime = IsValid(FocusWidget);
-
-	ApplyTopModalInput();
-	return Entry.Token;
-}
-
-bool UUiSubsystem::UpdateModalInput(
-	UObject* Owner,
-	const FGuid Token,
-	UWidget* FocusWidget,
-	const FUiModalInputConfig& InputConfig)
-{
-	if (!IsValid(Owner) || !Token.IsValid())
-	{
-		return false;
-	}
-
-	PruneInvalidModalInputs();
-
-	const int32 EntryIndex = ModalInputStack.IndexOfByPredicate(
-		[Owner, &Token](const FModalInputEntry& Entry)
-		{
-			return Entry.Token == Token && Entry.Owner.Get() == Owner;
-		});
-	if (EntryIndex == INDEX_NONE)
-	{
-		return false;
-	}
-
-	FModalInputEntry& Entry = ModalInputStack[EntryIndex];
-	Entry.FocusWidget = IsValid(FocusWidget) ? FocusWidget : nullptr;
-	Entry.InputConfig = InputConfig;
-	Entry.bTracksFocusWidgetLifetime = IsValid(FocusWidget);
-
-	if (EntryIndex == 0)
-	{
-		RestorePolicyAfterModals = InputConfig.RestorePolicy;
-	}
-
-	if (EntryIndex == ModalInputStack.Num() - 1)
-	{
-		ApplyTopModalInput();
-	}
-
-	return true;
-}
-
-bool UUiSubsystem::ReleaseModalInput(UObject* Owner, const FGuid Token)
-{
-	if (!Owner || !Token.IsValid())
-	{
-		return false;
-	}
-
-	PruneInvalidModalInputs();
-	return ReleaseModalInputInternal(Owner, Token, true);
-}
-
-void UUiSubsystem::ReleaseModalInputsForOwner(UObject* Owner)
-{
-	if (!Owner)
-	{
-		return;
-	}
-
-	PruneInvalidModalInputs();
-
-	const FGuid PreviousTopToken =
-		ModalInputStack.IsEmpty() ? FGuid() : ModalInputStack.Last().Token;
-	const int32 RemovedCount = ModalInputStack.RemoveAll(
-		[Owner](const FModalInputEntry& Entry)
-		{
-			return Entry.Owner.Get() == Owner;
-		});
-	if (RemovedCount == 0)
-	{
-		return;
-	}
-
-	if (ModalInputStack.IsEmpty())
-	{
-		RestoreInputStateAfterLastModal();
-	}
-	else
-	{
-		RefreshRestorePolicyFromBottomModal();
-		if (ModalInputStack.Last().Token != PreviousTopToken)
-		{
-			ApplyTopModalInput();
-		}
-	}
-}
-
-bool UUiSubsystem::HasActiveModalInput()
-{
-	PruneInvalidModalInputs();
-	return !ModalInputStack.IsEmpty();
-}
-
 UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCancelButton)
 {
 	APlayerController* PlayerController = GetLocalPlayerController();
@@ -736,7 +604,6 @@ void UUiSubsystem::HideConnectingPopup()
     if (ConnectingScreen)
     {
         ConnectingScreen->DeactivateWidget();
-        ConnectingScreen->RemoveFromParent();
         ConnectingScreen = nullptr;
     }
 	ActiveConnectingPopupWidget = nullptr;
@@ -842,235 +709,6 @@ APlayerController* UUiSubsystem::GetLocalPlayerController() const
 	return LocalPlayer ? LocalPlayer->GetPlayerController(GetWorld()) : nullptr;
 }
 
-bool UUiSubsystem::CaptureInputState(APlayerController* Controller, FInputStateSnapshot& OutSnapshot) const
-{
-    if (!Controller) return false;
-    OutSnapshot = BaseInputState;
-    OutSnapshot.PlayerController = Controller;
-    OutSnapshot.World = Controller->GetWorld();
-    OutSnapshot.bValid = true;
-    if (const TSharedPtr<const FSlateUser> SlateUser = GetLocalPlayer()->GetSlateUser())
-    {
-        OutSnapshot.FocusedSlateWidget = SlateUser->GetFocusedWidget();
-    }
-    return true;
-}
-
-bool UUiSubsystem::ApplyInputState(const FInputStateSnapshot& Snapshot) const
-{
-    APlayerController* Controller = GetLocalPlayerController();
-    if (!Snapshot.bValid || !Controller || Snapshot.PlayerController != Controller || Snapshot.World != Controller->GetWorld()) return false;
-    UPdUIActionRouter* Router = GetLocalPlayer()->GetSubsystem<UPdUIActionRouter>();
-    if (!Router) return false;
-    const ECommonInputMode Mode = Snapshot.InputMode == EUiInputMode::UIOnly ? ECommonInputMode::Menu
-        : Snapshot.InputMode == EUiInputMode::GameOnly ? ECommonInputMode::Game : ECommonInputMode::All;
-    FUIInputConfig Config(Mode, Snapshot.MouseCaptureMode, Snapshot.MouseLockMode, Snapshot.bHideCursorDuringCapture);
-    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = Mode != ECommonInputMode::Game;
-    Router->SetFallbackInput(Config, Snapshot.FocusedSlateWidget.Pin(), Snapshot.bShowMouseCursor);
-    return true;
-}
-
-bool UUiSubsystem::ApplyModalInput(APlayerController* PlayerController, UWidget* FocusWidget, const FUiModalInputConfig& InputConfig) const
-{
-    if (!PlayerController) return false;
-    UPdUIActionRouter* Router = GetLocalPlayer()->GetSubsystem<UPdUIActionRouter>();
-    if (!Router) return false;
-    const ECommonInputMode Mode = InputConfig.InputMode == EUiInputMode::UIOnly ? ECommonInputMode::Menu
-        : InputConfig.InputMode == EUiInputMode::GameOnly && InputConfig.bApplyInputMode ? ECommonInputMode::Game : ECommonInputMode::All;
-    FUIInputConfig Config(Mode, InputConfig.bShowMouseCursor ? EMouseCaptureMode::NoCapture : EMouseCaptureMode::CapturePermanently,
-        InputConfig.MouseLockMode, !InputConfig.bShowMouseCursor);
-    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = Mode != ECommonInputMode::Game;
-    const TSharedPtr<SWidget> Focus = FocusWidget ? FocusWidget->TakeWidget() : TSharedPtr<SWidget>();
-    Router->SetFallbackInput(Config, Focus, InputConfig.bShowMouseCursor);
-    return true;
-}
-
-bool UUiSubsystem::ApplyGameplayInput(APlayerController* PlayerController) const
-{
-	FUiModalInputConfig GameplayInputConfig;
-	GameplayInputConfig.InputMode = EUiInputMode::GameOnly;
-	GameplayInputConfig.bShowMouseCursor = false;
-	GameplayInputConfig.bEnableClickEvents = false;
-	GameplayInputConfig.bEnableMouseOverEvents = false;
-	return ApplyModalInput(PlayerController, nullptr, GameplayInputConfig);
-}
-
-void UUiSubsystem::ApplyTopModalInput()
-{
-	if (bIsDeinitializing || ModalInputStack.IsEmpty())
-	{
-		return;
-	}
-
-	APlayerController* PlayerController = GetLocalPlayerController();
-	if (!IsValid(PlayerController))
-	{
-		return;
-	}
-
-	if (!InputStateBeforeModals.bValid
-		|| InputStateBeforeModals.PlayerController.Get() != PlayerController
-		|| InputStateBeforeModals.World.Get() != PlayerController->GetWorld())
-	{
-		CaptureInputState(PlayerController, InputStateBeforeModals);
-	}
-
-	const FModalInputEntry& TopEntry = ModalInputStack.Last();
-	ApplyModalInput(PlayerController, TopEntry.FocusWidget.Get(), TopEntry.InputConfig);
-}
-
-void UUiSubsystem::RestoreInputStateAfterLastModal()
-{
-	if (!bIsDeinitializing)
-	{
-		APlayerController* PlayerController = GetLocalPlayerController();
-		const bool bSameInputContext =
-			InputStateBeforeModals.bValid
-			&& IsValid(PlayerController)
-			&& InputStateBeforeModals.PlayerController.Get() == PlayerController
-			&& InputStateBeforeModals.World.Get() == PlayerController->GetWorld();
-
-		if (bSameInputContext
-			&& RestorePolicyAfterModals == EUiInputRestorePolicy::Gameplay)
-		{
-			ApplyGameplayInput(PlayerController);
-		}
-		else
-		{
-			ApplyInputState(InputStateBeforeModals);
-		}
-	}
-	InputStateBeforeModals.Reset();
-	RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
-}
-
-void UUiSubsystem::RefreshRestorePolicyFromBottomModal()
-{
-	if (!ModalInputStack.IsEmpty())
-	{
-		RestorePolicyAfterModals = ModalInputStack[0].InputConfig.RestorePolicy;
-	}
-}
-
-bool UUiSubsystem::IsModalInputEntryValid(const FModalInputEntry& Entry) const
-{
-	if (!Entry.Token.IsValid() || !Entry.Owner.IsValid())
-	{
-		return false;
-	}
-
-	const APlayerController* PlayerController = GetLocalPlayerController();
-	const UWorld* CurrentWorld = PlayerController ? PlayerController->GetWorld() : nullptr;
-	if (CurrentWorld && Entry.World.Get() != CurrentWorld)
-	{
-		return false;
-	}
-
-	if (!Entry.bTracksFocusWidgetLifetime)
-	{
-		return true;
-	}
-
-	const UWidget* FocusWidget = Entry.FocusWidget.Get();
-	if (!IsValid(FocusWidget))
-	{
-		return false;
-	}
-
-	return !CurrentWorld
-		|| FocusWidget->GetWorld() == CurrentWorld;
-}
-
-void UUiSubsystem::PruneInvalidModalInputs()
-{
-	if (ModalInputStack.IsEmpty())
-	{
-		return;
-	}
-
-	const FGuid PreviousTopToken = ModalInputStack.Last().Token;
-	const int32 RemovedCount = ModalInputStack.RemoveAll(
-		[this](const FModalInputEntry& Entry)
-		{
-			return !IsModalInputEntryValid(Entry);
-		});
-	if (RemovedCount == 0)
-	{
-		return;
-	}
-
-	if (ModalInputStack.IsEmpty())
-	{
-		RestoreInputStateAfterLastModal();
-	}
-	else
-	{
-		RefreshRestorePolicyFromBottomModal();
-		if (ModalInputStack.Last().Token != PreviousTopToken)
-		{
-			ApplyTopModalInput();
-		}
-	}
-}
-
-bool UUiSubsystem::ReleaseModalInputInternal(
-	const UObject* Owner,
-	const FGuid& Token,
-	const bool bRequireOwnerMatch)
-{
-	if (!Token.IsValid())
-	{
-		return false;
-	}
-
-	const int32 EntryIndex = ModalInputStack.IndexOfByPredicate(
-		[&Token](const FModalInputEntry& Entry)
-		{
-			return Entry.Token == Token;
-		});
-	if (EntryIndex == INDEX_NONE)
-	{
-		return false;
-	}
-
-	if (bRequireOwnerMatch && ModalInputStack[EntryIndex].Owner.Get() != Owner)
-	{
-		UE_LOG(
-			PdUiSubsystemLog,
-			Warning,
-			TEXT("Rejected modal input release because token owner did not match."));
-		return false;
-	}
-
-	const FGuid PreviousTopToken = ModalInputStack.Last().Token;
-	ModalInputStack.RemoveAt(EntryIndex);
-	ModalInputStack.RemoveAll(
-		[this](const FModalInputEntry& Entry)
-		{
-			return !IsModalInputEntryValid(Entry);
-		});
-
-	const FGuid NewTopToken =
-		ModalInputStack.IsEmpty() ? FGuid() : ModalInputStack.Last().Token;
-	if (!ModalInputStack.IsEmpty())
-	{
-		RefreshRestorePolicyFromBottomModal();
-	}
-	if (NewTopToken != PreviousTopToken)
-	{
-		if (ModalInputStack.IsEmpty())
-		{
-			RestoreInputStateAfterLastModal();
-		}
-		else
-		{
-			ApplyTopModalInput();
-		}
-	}
-
-	return true;
-}
-
 TSubclassOf<UConnectingPopupWidget> UUiSubsystem::ResolveConnectingPopupWidgetClass()
 {
 	if (ConnectingPopupWidgetClass)
@@ -1099,7 +737,6 @@ void UUiSubsystem::HandleConnectingPopupCanceled()
     if (ConnectingScreen)
     {
         ConnectingScreen->DeactivateWidget();
-        ConnectingScreen->RemoveFromParent();
         ConnectingScreen = nullptr;
     }
 	ActiveConnectingPopupWidget = nullptr;
@@ -1113,29 +750,22 @@ void UUiSubsystem::PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer L
     {
         if (ScreenRoot) ScreenRoot->RemoveFromParent();
         ScreenRoot = CreateWidget<UUiLayerRoot>(Controller);
-        ScreenRoot->AddToPlayerScreen(1000);
+        ScreenRoot->AddToPlayerScreen(UUiLayerRoot::ViewportZOrder);
     }
-    UCommonActivatableWidgetStack* Stack = Layer == EUiScreenLayer::Menu ? ScreenRoot->MenuStack : ScreenRoot->ModalStack;
-    Stack->AddWidgetInstance(*Screen);
-}
-
-void UUiSubsystem::SetBaseInputMode(APlayerController* Controller, EUiInputMode Mode, UWidget* FocusWidget)
-{
-    if (!Controller || !Controller->IsLocalController() || !Controller->GetLocalPlayer()) return;
-    UUiSubsystem* Ui = Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>();
-    if (!Ui || Ui->bIsDeinitializing) return;
-    FInputStateSnapshot& State = Ui->BaseInputState;
-    State.PlayerController = Controller;
-    State.World = Controller->GetWorld();
-    State.InputMode = Mode;
-    State.bShowMouseCursor = Mode != EUiInputMode::GameOnly;
-    State.MouseCaptureMode = State.bShowMouseCursor ? EMouseCaptureMode::NoCapture : EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown;
-    State.MouseLockMode = State.bShowMouseCursor ? EMouseLockMode::DoNotLock : EMouseLockMode::LockOnCapture;
-    State.bHideCursorDuringCapture = !State.bShowMouseCursor;
-    State.FocusedSlateWidget = FocusWidget ? FocusWidget->TakeWidget() : TSharedPtr<SWidget>();
-    State.bValid = true;
-    Ui->PruneInvalidModalInputs();
-    if (Ui->ModalInputStack.IsEmpty()) Ui->ApplyInputState(State);
+    switch (Layer)
+    {
+    case EUiScreenLayer::Screen: ScreenRoot->ScreenStack->AddWidgetInstance(*Screen); break;
+    case EUiScreenLayer::Menu: ScreenRoot->MenuStack->AddWidgetInstance(*Screen); break;
+    case EUiScreenLayer::Modal: ScreenRoot->ModalStack->AddWidgetInstance(*Screen); break;
+    case EUiScreenLayer::Overlay:
+        // 선택창과 점수판을 겹쳐 표시한다. 입력 우선순위는 CommonUI가 결정한다.
+        UOverlaySlot* Slot = ScreenRoot->OverlayLayer->AddChildToOverlay(Screen);
+        Slot->SetHorizontalAlignment(HAlign_Fill);
+        Slot->SetVerticalAlignment(VAlign_Fill);
+        Screen->OnDeactivated().AddWeakLambda(Screen, [Screen]() { Screen->RemoveFromParent(); });
+        Screen->ActivateWidget();
+        break;
+    }
 }
 
 void UUiSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController)
@@ -1144,13 +774,5 @@ void UUiSubsystem::PlayerControllerChanged(APlayerController* NewPlayerControlle
     HideConnectingPopup();
     if (ScreenRoot) ScreenRoot->RemoveFromParent();
     ScreenRoot = nullptr;
-    ModalInputStack.Reset();
-    InputStateBeforeModals.Reset();
-    BaseInputState.Reset();
-    RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
-    if (NewPlayerController)
-    {
-        SetBaseInputMode(NewPlayerController, EUiInputMode::GameOnly);
-        if (bTravelLoadingScreenActive) ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
-    }
+    if (NewPlayerController && bTravelLoadingScreenActive) ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
 }

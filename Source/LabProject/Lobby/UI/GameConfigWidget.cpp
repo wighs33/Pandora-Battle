@@ -24,7 +24,6 @@ void UGameConfigWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	SetIsFocusable(true);
-	SetFocus();
 
 	if (Btn_Back)
 	{

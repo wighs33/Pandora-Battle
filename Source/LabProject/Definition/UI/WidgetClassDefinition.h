@@ -237,9 +237,6 @@ struct LABPROJECT_API FPandoraTreeWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget|Input")
 	bool bCloseOnToggleKey = true;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget")
-	bool bSetInputModeOnShowHide = true;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget|Animation", meta = (ClampMin = "0.0"))
 	float HideAnimationDelay = 0.2f;
 

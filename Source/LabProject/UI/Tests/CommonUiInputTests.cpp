@@ -4,12 +4,14 @@
 #include "Tests/AutomationCommon.h"
 #include "Tests/AutomationEditorCommon.h"
 #include "Editor.h"
+#include "Settings/LevelEditorPlaySettings.h"
 #include "Engine/Blueprint.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "UObject/UnrealType.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SViewport.h"
@@ -20,6 +22,7 @@
 #include "UI/PdUIActionRouter.h"
 #include "UI/UiSubsystem.h"
 #include "UI/UiScreen.h"
+#include "Chat/ChatBoxWidget.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/MenuPopupWidget.h"
 #include "UI/Widget/GuideWidget.h"
@@ -35,8 +38,8 @@ IMPLEMENT_COMPLEX_AUTOMATION_TEST(FPdCommonUiMenuTest, "Pandora.UI.CommonUI",
 
 void FPdCommonUiMenuTest::GetTests(TArray<FString>& Names, TArray<FString>& Commands) const
 {
-    Names.Add(TEXT("SettingsOverLegacyInfo"));
-    Commands.Add(TEXT("Legacy"));
+    Names.Add(TEXT("SettingsOverChat"));
+    Commands.Add(TEXT("Chat"));
     Names.Add(TEXT("SettingsOverCommonInfo"));
     Commands.Add(TEXT("Common"));
 }
@@ -51,10 +54,9 @@ bool FPdCommonUiMenuTest::RunTest(const FString& Parameters)
 
     struct FState
     {
-        TStrongObjectPtr<UInfoWidget> Info;
+        TStrongObjectPtr<UUserWidget> Info;
         TStrongObjectPtr<UUiScreen> InfoScreen;
         TStrongObjectPtr<UMenuPopupWidget> Menu;
-        FGuid LegacyToken;
         UPdUIActionRouter* Router = nullptr;
         UUiSubsystem* Ui = nullptr;
         APlayerController* Controller = nullptr;
@@ -74,30 +76,29 @@ bool FPdCommonUiMenuTest::RunTest(const FString& Parameters)
         State->Ui->HideTravelLoadingScreen();
         // An automated PIE restart must focus this client's viewport, just like a user click.
         FSlateApplication::Get().SetUserFocus(State->Router->GetLocalPlayerIndex(), Player->ViewportClient->GetGameViewportWidget());
-        State->Router->SetFallbackInput(FUIInputConfig(ECommonInputMode::Game, EMouseCaptureMode::CapturePermanently), nullptr, false);
+        State->Router->SetActiveUIInputConfig(FUIInputConfig(ECommonInputMode::Game, EMouseCaptureMode::CapturePermanently));
         TestFalse(TEXT("Normal gameplay allows input"), State->Router->IsGameplayInputBlocked());
         State->Router->ProcessInput(EKeys::W, IE_Pressed);
 
-        UClass* InfoClass = LoadClass<UInfoWidget>(nullptr, TEXT("/Game/UI/Widget/WBP_Info.WBP_Info_C"));
+        UClass* InfoClass = bCommonInfo
+            ? LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/Widget/WBP_Info.WBP_Info_C"))
+            : LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/Widget/HUD/WBP_ChatBox.WBP_ChatBox_C"));
         UClass* MenuClass = LoadClass<UMenuPopupWidget>(nullptr, TEXT("/Game/UI/Widget/Game/WBP_MenuPopup.WBP_MenuPopup_C"));
         if (!TestNotNull(TEXT("Info Blueprint"), InfoClass) || !TestNotNull(TEXT("Menu Blueprint"), MenuClass)) return true;
-        State->Info.Reset(CreateWidget<UInfoWidget>(State->Controller, InfoClass));
+        State->Info.Reset(CreateWidget<UUserWidget>(State->Controller, InfoClass));
         if (bCommonInfo)
         {
             State->InfoScreen.Reset(CreateWidget<UUiScreen>(State->Controller));
             FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
             Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
             State->InfoScreen->SetContent(State->Info.Get(), Config, State->Info.Get(), FSimpleDelegate());
-            State->InfoScreen->AddToPlayerScreen();
-            State->InfoScreen->ActivateWidget();
+            State->Ui->PushScreen(State->InfoScreen.Get(), EUiScreenLayer::Screen);
         }
         else
         {
             State->Info->AddToPlayerScreen();
-            FUiModalInputConfig LegacyConfig;
-            LegacyConfig.RestorePolicy = EUiInputRestorePolicy::Gameplay;
-            State->LegacyToken = State->Ui->AcquireModalInput(State->Info.Get(), State->Info.Get(), LegacyConfig);
-            TestTrue(TEXT("Legacy Info blocks gameplay"), State->Router->IsGameplayInputBlocked());
+            CastChecked<UChatBoxWidget>(State->Info.Get())->FocusChat();
+            TestTrue(TEXT("Chat blocks gameplay"), State->Router->IsGameplayInputBlocked());
         }
         State->Menu.Reset(CreateWidget<UMenuPopupWidget>(State->Controller, MenuClass));
         State->Ui->PushScreen(State->Menu.Get());
@@ -131,7 +132,7 @@ bool FPdCommonUiMenuTest::RunTest(const FString& Parameters)
         if (!State->Menu.IsValid()) return true;
         TestFalse(TEXT("Settings deactivated"), State->Menu->IsActivated());
         TestTrue(TEXT("Info still blocks gameplay after settings"), State->Router->IsGameplayInputBlocked());
-        TestEqual(TEXT("Legacy Info policy restored"), State->Router->GetActiveInputMode(), ECommonInputMode::All);
+        TestEqual(TEXT("Underlying All policy restored"), State->Router->GetActiveInputMode(), ECommonInputMode::All);
         if (State->InfoScreen.IsValid())
         {
             TestEqual(TEXT("Info regains the active leaf"), State->Router->GetLeafmostActivatableWidget(), static_cast<UCommonActivatableWidget*>(State->InfoScreen.Get()));
@@ -146,12 +147,13 @@ bool FPdCommonUiMenuTest::RunTest(const FString& Parameters)
     {
         if (!State->Menu.IsValid()) return true;
         TestTrue(TEXT("Held key reached PlayerInput during All mode"), State->Controller->IsInputKeyDown(EKeys::W));
+        for (const FKey Key : {EKeys::LeftMouseButton, EKeys::RightMouseButton, EKeys::Q}) State->Router->ProcessInput(Key, IE_Pressed);
         if (State->InfoScreen.IsValid())
         {
             State->InfoScreen->DeactivateWidget();
             State->InfoScreen->RemoveFromParent();
         }
-        else State->Ui->ReleaseModalInput(State->Info.Get(), State->LegacyToken);
+        else CastChecked<UChatBoxWidget>(State->Info.Get())->ExitChat();
         State->Info->RemoveFromParent();
         return true;
     }));
@@ -168,9 +170,72 @@ bool FPdCommonUiMenuTest::RunTest(const FString& Parameters)
         State->Router->ProcessInput(EKeys::W, IE_Released);
         TestEqual(TEXT("New movement press is delivered"), State->Router->ProcessInput(EKeys::W, IE_Pressed), ERouteUIInputResult::Unhandled);
         State->Router->ProcessInput(EKeys::W, IE_Released);
+        for (const FKey Key : {EKeys::LeftMouseButton, EKeys::RightMouseButton, EKeys::Q})
+        {
+            TestEqual(TEXT("Attack/aim/skill waits for physical release"), State->Router->ProcessInput(Key, IE_Repeat), ERouteUIInputResult::BlockGameInput);
+            State->Router->ProcessInput(Key, IE_Released);
+            TestEqual(TEXT("Fresh attack/aim/skill press is delivered"), State->Router->ProcessInput(Key, IE_Pressed), ERouteUIInputResult::Unhandled);
+            State->Router->ProcessInput(Key, IE_Released);
+        }
+        for (const FKey Key : {EKeys::W, EKeys::LeftMouseButton, EKeys::RightMouseButton, EKeys::Q})
+        {
+            State->Router->ProcessInput(Key, IE_Pressed);
+            State->Controller->InputKey(FInputKeyEventArgs::CreateSimulated(Key, IE_Pressed, 1.0f));
+        }
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(0.25f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        State->Router->RefreshUIInputConfig();
+        for (const FKey Key : {EKeys::W, EKeys::LeftMouseButton, EKeys::RightMouseButton, EKeys::Q})
+        {
+            TestTrue(TEXT("Game Allow refresh preserves held input"), State->Controller->IsInputKeyDown(Key));
+            TestEqual(TEXT("Game Allow refresh does not suppress held key"), State->Router->ProcessInput(Key, IE_Repeat), ERouteUIInputResult::Unhandled);
+            State->Router->ProcessInput(Key, IE_Released);
+            State->Controller->InputKey(FInputKeyEventArgs::CreateSimulated(Key, IE_Released, 0.0f));
+        }
         State->Menu.Reset();
         State->Info.Reset();
         State->InfoScreen.Reset();
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FEndPlayMapCommand());
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdCommonUiChatTeardownTest, "Pandora.UI.CommonUI.ChatAfterSubsystemShutdown",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPdCommonUiChatTeardownTest::RunTest(const FString& Parameters)
+{
+    UWorld* Map = FAutomationEditorCommonUtils::CreateNewMap();
+    Map->GetWorldSettings()->DefaultGameMode = AGameModeBase::StaticClass();
+    ADD_LATENT_AUTOMATION_COMMAND(FStartPIECommand(false));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(1.0f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this]()
+    {
+        APlayerController* Controller = GEditor->PlayWorld->GetFirstPlayerController();
+        TStrongObjectPtr<ULocalPlayer> Player(Controller->GetLocalPlayer());
+        Player->GetSubsystem<UUiSubsystem>()->HideTravelLoadingScreen();
+        UClass* ChatClass = LoadClass<UChatBoxWidget>(nullptr, TEXT("/Game/UI/Widget/HUD/WBP_ChatBox.WBP_ChatBox_C"));
+        if (!TestNotNull(TEXT("Chat Blueprint"), ChatClass)) return true;
+        TStrongObjectPtr<UChatBoxWidget> Chat(CreateWidget<UChatBoxWidget>(Controller, ChatClass));
+        Chat->AddToPlayerScreen();
+        // Slate와 위젯이 서브시스템보다 늦게 정리되는 실제 종료 순서를 재현한다.
+        TSharedPtr<SWidget> RetainedSlateWidget = Chat->TakeWidget();
+        TestNotNull(TEXT("Router exists before player removal"), Player->GetSubsystem<UPdUIActionRouter>());
+        Player->PlayerRemoved();
+        TestNotNull(TEXT("Widget still has its LocalPlayer"), Chat->GetOwningLocalPlayer());
+        TestNull(TEXT("Router is already gone"), Player->GetSubsystem<UPdUIActionRouter>());
+        Chat->ExitChat();
+        Chat->FocusChat();
+        TestFalse(TEXT("Removed player cannot start chat input"), Chat->IsChatFocused());
+        Chat->NativeDestruct();
+        TestFalse(TEXT("Late destruction clears chat state"), Chat->IsChatFocused());
+        TestTrue(TEXT("LocalPlayer removed"), GEditor->PlayWorld->GetGameInstance()->RemoveLocalPlayer(Player.Get()));
+        Chat->RemoveFromParent();
+        RetainedSlateWidget.Reset();
         return true;
     }));
     ADD_LATENT_AUTOMATION_COMMAND(FEndPlayMapCommand());
@@ -206,7 +271,7 @@ bool FPdCommonUiLayersTest::RunTest(const FString& Parameters)
         State->Router = Player->GetSubsystem<UPdUIActionRouter>();
         State->Ui->HideTravelLoadingScreen();
         FSlateApplication::Get().SetUserFocus(State->Router->GetLocalPlayerIndex(), Player->ViewportClient->GetGameViewportWidget());
-        UUiSubsystem::SetBaseInputMode(State->Controller, EUiInputMode::GameOnly);
+        State->Router->SetActiveUIInputConfig(FUIInputConfig(ECommonInputMode::Game, EMouseCaptureMode::CapturePermanently));
         UWidgetClassDefinition* Definition = UUiSubsystem::LoadConfiguredEditorWidgetClassDefinition();
         TestNotNull(TEXT("Configured UI definition"), Definition);
         State->Ui->SetWidgetClassDefinition(Definition);
@@ -324,6 +389,187 @@ bool FPdCommonUiLayersTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdCommonUiPolicyTest, "Pandora.UI.CommonUI.PolicyAndLifecycle",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPdCommonUiPolicyTest::RunTest(const FString& Parameters)
+{
+    UWorld* Map = FAutomationEditorCommonUtils::CreateNewMap();
+    Map->GetWorldSettings()->DefaultGameMode = AGameModeBase::StaticClass();
+    ADD_LATENT_AUTOMATION_COMMAND(FStartPIECommand(false));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(1.0f));
+    struct FState
+    {
+        TStrongObjectPtr<UUiScreen> Info;
+        TStrongObjectPtr<UUiScreen> Select;
+        TStrongObjectPtr<UUiScreen> Scoreboard;
+        APlayerController* OriginalController = nullptr;
+        APlayerController* ReplacementController = nullptr;
+        ULocalPlayer* Player = nullptr;
+        UUiSubsystem* Ui = nullptr;
+        UPdUIActionRouter* Router = nullptr;
+    };
+    const TSharedRef<FState> State = MakeShared<FState>();
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        State->OriginalController = GEditor->PlayWorld->GetFirstPlayerController();
+        State->Player = State->OriginalController->GetLocalPlayer();
+        State->Ui = State->Player->GetSubsystem<UUiSubsystem>();
+        State->Router = State->Player->GetSubsystem<UPdUIActionRouter>();
+        State->Ui->HideTravelLoadingScreen();
+        FSlateApplication::Get().SetUserFocus(State->Router->GetLocalPlayerIndex(), State->Player->ViewportClient->GetGameViewportWidget());
+        UClass* InfoClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/Widget/WBP_Info.WBP_Info_C"));
+        if (!TestNotNull(TEXT("Info fixture class"), InfoClass)) return true;
+        State->Info.Reset(CreateWidget<UUiScreen>(State->OriginalController));
+        FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
+        Config.bIgnoreMoveInput = true;
+        Config.bIgnoreLookInput = false;
+        State->Info->GameplayInputPolicy = EPdGameplayInputPolicy::Allow;
+        State->Info->SetContent(CreateWidget<UUserWidget>(State->OriginalController, InfoClass), Config, nullptr, FSimpleDelegate());
+        State->Ui->PushScreen(State->Info.Get(), EUiScreenLayer::Screen);
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(0.5f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        TestFalse(TEXT("Move restriction does not imply action Block"), State->Router->IsGameplayInputBlocked());
+        TestTrue(TEXT("Move policy remains restricted"), State->OriginalController->IsMoveInputIgnored());
+        TestFalse(TEXT("Look policy remains allowed"), State->OriginalController->IsLookInputIgnored());
+        UClass* SelectClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/Widget/WBP_SelectPandora.WBP_SelectPandora_C"));
+        State->Select.Reset(CreateWidget<UUiScreen>(State->OriginalController));
+        FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
+        Config.bIgnoreMoveInput = Config.bIgnoreLookInput = false;
+        State->Select->SetContent(CreateWidget<UUserWidget>(State->OriginalController, SelectClass), Config, nullptr, FSimpleDelegate());
+        State->Ui->PushScreen(State->Select.Get(), EUiScreenLayer::Overlay);
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(0.5f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        TestTrue(TEXT("Action Block is independent of Move/Look"), State->Router->IsGameplayInputBlocked());
+        TestFalse(TEXT("Action Block does not add movement restriction"), State->OriginalController->IsMoveInputIgnored());
+        UClass* ScoreClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/Widget/Game/WBP_GameResultPopup.WBP_GameResultPopup_C"));
+        State->Scoreboard.Reset(CreateWidget<UUiScreen>(State->OriginalController));
+        FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::CapturePermanently);
+        Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+        State->Scoreboard->SetContent(CreateWidget<UUserWidget>(State->OriginalController, ScoreClass), Config, nullptr, FSimpleDelegate());
+        State->Ui->PushScreen(State->Scoreboard.Get(), EUiScreenLayer::Overlay);
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(0.5f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        TestTrue(TEXT("Select remains active under scoreboard"), State->Select->IsActivated());
+        TestTrue(TEXT("Info remains active under overlays"), State->Info->IsActivated());
+        TestEqual(TEXT("CommonUI selects scoreboard"), State->Router->GetLeafmostActivatableWidget(), static_cast<UCommonActivatableWidget*>(State->Scoreboard.Get()));
+        State->Scoreboard->DeactivateWidget();
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(0.5f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        TestEqual(TEXT("Closing scoreboard returns to select"), State->Router->GetLeafmostActivatableWidget(), static_cast<UCommonActivatableWidget*>(State->Select.Get()));
+        State->ReplacementController = GEditor->PlayWorld->SpawnActor<APlayerController>();
+        State->ReplacementController->SetPlayer(State->Player);
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(0.5f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        TestNull(TEXT("Controller replacement removes old screen tree"), State->Router->GetLeafmostActivatableWidget());
+        TestFalse(TEXT("Controller replacement restores gameplay"), State->Router->IsGameplayInputBlocked());
+        TestFalse(TEXT("Replacement has no UI movement lock"), State->ReplacementController->IsMoveInputIgnored());
+        TestFalse(TEXT("Replacement has no UI look lock"), State->ReplacementController->IsLookInputIgnored());
+        TestFalse(TEXT("Replacement hides cursor"), State->ReplacementController->bShowMouseCursor);
+        State->OriginalController->SetPlayer(State->Player);
+        State->ReplacementController->Destroy();
+        State->Info.Reset();
+        State->Select.Reset();
+        State->Scoreboard.Reset();
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FEndPlayMapCommand());
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdCommonUiNetworkTest, "Pandora.UI.CommonUI.ListenServerIsolation",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPdCommonUiNetworkTest::RunTest(const FString& Parameters)
+{
+    UWorld* Map = FAutomationEditorCommonUtils::CreateNewMap();
+    Map->GetWorldSettings()->DefaultGameMode = AGameModeBase::StaticClass();
+    struct FState
+    {
+        TStrongObjectPtr<ULevelEditorPlaySettings> Settings;
+        TStrongObjectPtr<UMenuPopupWidget> HostMenu;
+        TStrongObjectPtr<UMenuPopupWidget> ClientMenu;
+        ULocalPlayer* Host = nullptr;
+        ULocalPlayer* Client = nullptr;
+    };
+    const TSharedRef<FState> State = MakeShared<FState>();
+    State->Settings.Reset(DuplicateObject(GetDefault<ULevelEditorPlaySettings>(), GetTransientPackage()));
+    State->Settings->SetPlayNetMode(PIE_ListenServer);
+    State->Settings->SetPlayNumberOfClients(2);
+    State->Settings->SetRunUnderOneProcess(true);
+    FRequestPlaySessionParams Params;
+    Params.EditorPlaySettings = State->Settings.Get();
+    GEditor->RequestPlaySession(Params);
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(5.0f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        for (const FWorldContext& Context : GEngine->GetWorldContexts())
+        {
+            UWorld* World = Context.World();
+            if (Context.WorldType != EWorldType::PIE || !World) continue;
+            ULocalPlayer* Player = World->GetFirstLocalPlayerFromController();
+            if (World->GetNetMode() == NM_ListenServer) State->Host = Player;
+            if (World->GetNetMode() == NM_Client) State->Client = Player;
+        }
+        if (!TestNotNull(TEXT("Listen host LocalPlayer"), State->Host) || !TestNotNull(TEXT("Client LocalPlayer"), State->Client)) return true;
+        State->Host->GetSubsystem<UUiSubsystem>()->HideTravelLoadingScreen();
+        State->Client->GetSubsystem<UUiSubsystem>()->HideTravelLoadingScreen();
+        UClass* MenuClass = LoadClass<UMenuPopupWidget>(nullptr, TEXT("/Game/UI/Widget/Game/WBP_MenuPopup.WBP_MenuPopup_C"));
+        State->HostMenu.Reset(CreateWidget<UMenuPopupWidget>(State->Host->PlayerController, MenuClass));
+        State->ClientMenu.Reset(CreateWidget<UMenuPopupWidget>(State->Client->PlayerController, MenuClass));
+        FSlateApplication::Get().SetUserFocus(State->Host->GetSubsystem<UPdUIActionRouter>()->GetLocalPlayerIndex(), State->Host->ViewportClient->GetGameViewportWidget());
+        State->Host->GetSubsystem<UUiSubsystem>()->PushScreen(State->HostMenu.Get());
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(1.0f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        if (!State->HostMenu.IsValid()) return true;
+        TestTrue(TEXT("Host menu blocks host"), State->Host->GetSubsystem<UPdUIActionRouter>()->IsGameplayInputBlocked());
+        TestFalse(TEXT("Host menu does not block client"), State->Client->GetSubsystem<UPdUIActionRouter>()->IsGameplayInputBlocked());
+        State->HostMenu->CloseMenu();
+        FSlateApplication::Get().SetUserFocus(State->Client->GetSubsystem<UPdUIActionRouter>()->GetLocalPlayerIndex(), State->Client->ViewportClient->GetGameViewportWidget());
+        State->Client->GetSubsystem<UUiSubsystem>()->PushScreen(State->ClientMenu.Get());
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(1.0f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        if (!State->ClientMenu.IsValid()) return true;
+        TestFalse(TEXT("Client menu does not block host"), State->Host->GetSubsystem<UPdUIActionRouter>()->IsGameplayInputBlocked());
+        TestTrue(TEXT("Client menu blocks client"), State->Client->GetSubsystem<UPdUIActionRouter>()->IsGameplayInputBlocked());
+        State->ClientMenu->CloseMenu();
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(0.5f));
+    ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
+    {
+        if (!State->ClientMenu.IsValid()) return true;
+        TestFalse(TEXT("Host input restored"), State->Host->GetSubsystem<UPdUIActionRouter>()->IsGameplayInputBlocked());
+        TestFalse(TEXT("Client input restored"), State->Client->GetSubsystem<UPdUIActionRouter>()->IsGameplayInputBlocked());
+        State->HostMenu.Reset();
+        State->ClientMenu.Reset();
+        return true;
+    }));
+    ADD_LATENT_AUTOMATION_COMMAND(FEndPlayMapCommand());
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdCommonUiAssetTest, "Pandora.UI.CommonUI.BlueprintContracts",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
@@ -341,7 +587,16 @@ bool FPdCommonUiAssetTest::RunTest(const FString& Parameters)
         TEXT("/Game/UI/Widget/Lobby/WBP_Lobby.WBP_Lobby"),
         TEXT("/Game/UI/Widget/Lobby/WBP_GameConfigPopup.WBP_GameConfigPopup"),
         TEXT("/Game/UI/Widget/Game/WBP_ConnectingPopup.WBP_ConnectingPopup"),
-        TEXT("/Game/Mode/BP_LobbyHUD.BP_LobbyHUD")
+        TEXT("/Game/Mode/BP_LobbyHUD.BP_LobbyHUD"),
+        TEXT("/Game/UI/Widget/HUD/WBP_ChatBox.WBP_ChatBox"),
+        TEXT("/Game/UI/Widget/Title/WBP_Title.WBP_Title"),
+        TEXT("/Game/UI/Widget/Title/WBP_JoinPopup.WBP_JoinPopup"),
+        TEXT("/Game/UI/Widget/Room/WBP_RoomList.WBP_RoomList"),
+        TEXT("/Game/UI/Widget/Room/WBP_CreateRoomPopup.WBP_CreateRoomPopup"),
+        TEXT("/Game/UI/Widget/Shop/WBP_Shop.WBP_Shop"),
+        TEXT("/Game/UI/Widget/WBP_Record.WBP_Record"),
+        TEXT("/Game/Mode/BP_TitleHUD.BP_TitleHUD"),
+        TEXT("/Game/Mode/BP_RoomHUD.BP_RoomHUD")
     };
     for (const TCHAR* Path : Assets)
     {
@@ -362,7 +617,9 @@ bool FPdCommonUiAssetTest::RunTest(const FString& Parameters)
                     FString Reference;
                     Property->ExportText_InContainer(0, Reference, Node, nullptr, nullptr, PPF_None);
                     TestFalse(FString::Printf(TEXT("No removed input API: %s %s"), Path, *Node->GetName()),
-                        Reference.Contains(TEXT("ToggleUiMode")) || Reference.Contains(TEXT("RestoreInfoUiInputMode"))
+                        Reference.Contains(TEXT("AcquireModalInput")) || Reference.Contains(TEXT("UpdateModalInput"))
+                        || Reference.Contains(TEXT("ReleaseModalInput")) || Reference.Contains(TEXT("HasActiveModalInput"))
+                        || Reference.Contains(TEXT("bSetInputModeOnShowHide")) || Reference.Contains(TEXT("ToggleUiMode")) || Reference.Contains(TEXT("RestoreInfoUiInputMode"))
                         || Reference.Contains(TEXT("SetRestoreGameInputOnClose")) || Reference.Contains(TEXT("bRestoreGameInputOnClose")));
                     if (Reference.Contains(TEXT("IsInViewport")) || Reference.Contains(TEXT("SetInputMode"))
                         || Reference.Contains(TEXT("SetUserFocus")) || Reference.Contains(TEXT("SetKeyboardFocus")))

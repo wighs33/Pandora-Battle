@@ -3,6 +3,9 @@
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "TimerManager.h"
+#include "Engine/LocalPlayer.h"
+#include "UI/UiScreen.h"
+#include "UI/UiSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JoinPopupWidget)
 
@@ -55,7 +58,11 @@ void UJoinPopupWidget::HandleJoinClicked()
 		ConnectingPopupWidget = CreateWidget<UUserWidget>(GetOwningPlayer(), ConnectingPopupWidgetClass);
 		if (ConnectingPopupWidget)
 		{
-			ConnectingPopupWidget->AddToViewport(20);
+			UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
+			FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+			Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+			Screen->SetContent(ConnectingPopupWidget, Config, ConnectingPopupWidget, FSimpleDelegate::CreateLambda([]() {}));
+			GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
 		}
 
 		if (UWorld* World = GetWorld(); World && ConnectingPopupLifetime > 0.0f)
@@ -84,6 +91,8 @@ void UJoinPopupWidget::RemoveConnectingPopup()
 {
 	if (ConnectingPopupWidget)
 	{
+		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(ConnectingPopupWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+			Screen->DeactivateWidget();
 		ConnectingPopupWidget->RemoveFromParent();
 		ConnectingPopupWidget = nullptr;
 	}

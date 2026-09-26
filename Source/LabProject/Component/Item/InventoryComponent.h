@@ -134,9 +134,9 @@ public:
 	void AddItemsByPrimaryAssetIdsWithCompletion(const TArray<FPrimaryAssetId>& ItemDefinitions, FOnPdItemsAdded OnComplete);
 
 	/**
-	 * Includes requests whose Asset Manager completion delegate is queued even
-	 * when no streamable handle was returned (for example, an already-loaded
-	 * primary asset). This is intentionally a native-only readiness query.
+	 * 스트리머블 핸들이 반환되지 않은 경우에도 Asset Manager의 완료 델리게이트가 큐에 등록된 요청을 포함한다. (예: 이미 로드된 Primary Asset)
+	 *
+	 * 이 함수는 의도적으로 네이티브 코드 전용의 준비 상태 확인 함수다.
 	 */
 	bool HasPendingItemLoads();
 

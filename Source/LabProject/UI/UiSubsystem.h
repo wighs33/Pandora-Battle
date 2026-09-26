@@ -3,17 +3,15 @@
 #include "Containers/Ticker.h"
 #include "CoreMinimal.h"
 #include "Definition/UI/WidgetContentBundle.h"
-#include "Engine/EngineBaseTypes.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "Templates/SubclassOf.h"
 #include "UiSubsystem.generated.h"
 
 class UUiLayerRoot;
 class UUiScreen;
-enum class EUiScreenLayer : uint8 { Menu, Modal };
+enum class EUiScreenLayer : uint8 { Screen, Overlay, Menu, Modal };
 
 class UCommonActivatableWidget;
-class UCommonActivatableWidgetStack;
 class UAbilitySystemComponent;
 class APlayerController;
 class UConnectingPopupWidget;
@@ -23,105 +21,14 @@ class UUserWidget;
 class UWidget;
 class UWidgetClassDefinition;
 class UWorld;
-class SWidget;
 class FWidgetContentBundleLease;
 
 DECLARE_LOG_CATEGORY_EXTERN(PdUiSubsystemLog, Log, All);
-
-UENUM(BlueprintType)
-enum class EUiInputMode : uint8
-{
-	GameOnly,
-	GameAndUI,
-	UIOnly
-};
-
-/**
- * Selects the state to apply after the last modal owner leaves the stack.
- *
- * PreviousState is appropriate for temporary popups that can be shown over
- * either a menu or gameplay. Gameplay is deterministic and does not infer the
- * previous mode from viewport mouse-capture settings, which differ between PIE
- * and packaged builds.
- */
-UENUM(BlueprintType)
-enum class EUiInputRestorePolicy : uint8
-{
-	PreviousState,
-	Gameplay
-};
-
-USTRUCT(BlueprintType)
-struct LABPROJECT_API FUiModalInputConfig
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	EUiInputMode InputMode = EUiInputMode::GameAndUI;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	EMouseLockMode MouseLockMode = EMouseLockMode::DoNotLock;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	bool bHideCursorDuringCapture = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	bool bShowMouseCursor = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	bool bEnableClickEvents = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	bool bEnableMouseOverEvents = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	bool bFlushInput = false;
-
-	/** Keeps the current Enhanced Input mode while still routing cursor state through the modal stack. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	bool bApplyInputMode = true;
-
-	/** The bottom modal entry owns the state restored when the stack becomes empty. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Input")
-	EUiInputRestorePolicy RestorePolicy = EUiInputRestorePolicy::PreviousState;
-};
 
 UCLASS(Config = Game)
 class LABPROJECT_API UUiSubsystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
-
-private:
-	struct FModalInputEntry
-	{
-		FGuid Token;
-		TWeakObjectPtr<UObject> Owner;
-		TWeakObjectPtr<UWidget> FocusWidget;
-		TWeakObjectPtr<UWorld> World;
-		FUiModalInputConfig InputConfig;
-		bool bTracksFocusWidgetLifetime = false;
-	};
-
-	struct FInputStateSnapshot
-	{
-
-	public:
-		TWeakObjectPtr<APlayerController> PlayerController;
-		TWeakObjectPtr<UWorld> World;
-		TWeakPtr<SWidget> FocusedSlateWidget;
-		EUiInputMode InputMode = EUiInputMode::GameOnly;
-		EMouseCaptureMode MouseCaptureMode = EMouseCaptureMode::CapturePermanently;
-		EMouseLockMode MouseLockMode = EMouseLockMode::LockOnCapture;
-		bool bHideCursorDuringCapture = false;
-		bool bShowMouseCursor = false;
-		bool bValid = false;
-
-		// Public API --------------------------------------------------------------------------------------------------
-		void Reset()
-		{
-			*this = FInputStateSnapshot();
-		}
-	};
 
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
@@ -168,35 +75,7 @@ public:
 	static UWidgetClassDefinition* LoadConfiguredEditorWidgetClassDefinition();
 #endif
 
-	/**
-	 * Adds a modal input owner to the stack and returns the token required to update or release it.
-	 * The first modal snapshots the current input/focus state; only the top modal controls input.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "!UI|Input")
-	FGuid AcquireModalInput(
-		UObject* Owner,
-		UWidget* FocusWidget,
-		const FUiModalInputConfig& InputConfig);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Input")
-	bool UpdateModalInput(
-		UObject* Owner,
-		FGuid Token,
-		UWidget* FocusWidget,
-		const FUiModalInputConfig& InputConfig);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Input")
-	bool ReleaseModalInput(UObject* Owner, FGuid Token);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Input")
-	void ReleaseModalInputsForOwner(UObject* Owner);
-
 	void PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer Layer = EUiScreenLayer::Menu);
-	static void SetBaseInputMode(APlayerController* Controller, EUiInputMode Mode, UWidget* FocusWidget = nullptr);
-
-	/** Prunes stale world-scoped entries before gameplay decides its final input mode. */
-	bool HasActiveModalInput();
-
 	UFUNCTION(BlueprintCallable, Category = "!UI|Connecting")
 	UConnectingPopupWidget* ShowConnectingPopup(bool bEnableCancelButton = true);
 
@@ -232,20 +111,6 @@ private:
 	FName ResolveStatusViewModelSourceName(const UUserWidget* InWidget) const;
 
 	APlayerController* GetLocalPlayerController() const;
-
-	bool CaptureInputState(APlayerController* PlayerController, FInputStateSnapshot& OutSnapshot) const;
-	bool ApplyInputState(const FInputStateSnapshot& Snapshot) const;
-	bool ApplyModalInput(
-		APlayerController* PlayerController,
-		UWidget* FocusWidget,
-		const FUiModalInputConfig& InputConfig) const;
-	bool ApplyGameplayInput(APlayerController* PlayerController) const;
-	void ApplyTopModalInput();
-	void RestoreInputStateAfterLastModal();
-	void RefreshRestorePolicyFromBottomModal();
-	bool IsModalInputEntryValid(const FModalInputEntry& Entry) const;
-	void PruneInvalidModalInputs();
-	bool ReleaseModalInputInternal(const UObject* Owner, const FGuid& Token, bool bRequireOwnerMatch);
 
 	void BeginConfiguredWidgetDefinitionPreload();
 	void ReleaseConfiguredWidgetDefinitionPreload();
@@ -284,10 +149,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UUiLayerRoot> ScreenRoot;
 
-	TArray<FModalInputEntry> ModalInputStack;
-	FInputStateSnapshot BaseInputState;
-	FInputStateSnapshot InputStateBeforeModals;
-	EUiInputRestorePolicy RestorePolicyAfterModals = EUiInputRestorePolicy::PreviousState;
 	bool bIsDeinitializing = false;
 
 	UPROPERTY(Transient)

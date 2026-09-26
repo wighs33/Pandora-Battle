@@ -1,6 +1,7 @@
 #include "UI/PdUIActionRouter.h"
 
 #include "Component/Player/ControllerInputComponent.h"
+#include "UI/UiScreen.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
@@ -12,19 +13,23 @@ void UPdUIActionRouter::PlayerControllerChanged(APlayerController* NewPlayerCont
     Super::PlayerControllerChanged(NewPlayerController);
     PressedKeys.Reset();
     KeysAwaitingRelease.Reset();
-    FallbackFocus.Reset();
-    FallbackInput = FUIInputConfig(ECommonInputMode::Game, EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
-    bFallbackShowCursor = false;
+    ChatInputWidget.Reset();
+    AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
     ActiveInputConfig.Reset();
-    if (NewPlayerController) ApplyFallbackInput();
+    if (NewPlayerController) ApplyDefaultInput();
 }
 
-void UPdUIActionRouter::SetFallbackInput(const FUIInputConfig& Config, TSharedPtr<SWidget> FocusWidget, bool bShowCursor)
+void UPdUIActionRouter::BeginChatInput(UWidget* InputWidget)
 {
-    FallbackInput = Config;
-    FallbackFocus = FocusWidget;
-    bFallbackShowCursor = bShowCursor;
-    if (!GetActiveRoot().IsValid()) ApplyFallbackInput();
+    ChatInputWidget = InputWidget;
+    if (!GetActiveRoot().IsValid()) ApplyDefaultInput();
+}
+
+void UPdUIActionRouter::EndChatInput(const UWidget* InputWidget)
+{
+    if (ChatInputWidget.Get() != InputWidget) return;
+    ChatInputWidget.Reset();
+    if (!GetActiveRoot().IsValid()) ApplyDefaultInput();
 }
 
 void UPdUIActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
@@ -36,38 +41,41 @@ void UPdUIActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
         // 그 정리가 끝난 다음 기본 정책을 복원한다. Core ticker는 일시정지 중에도 실행된다.
         FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float)
         {
-            if (!GetActiveRoot().IsValid()) ApplyFallbackInput();
+            if (!GetActiveRoot().IsValid()) ApplyDefaultInput();
             return false;
         }));
     }
 }
 
-void UPdUIActionRouter::ApplyFallbackInput()
+void UPdUIActionRouter::ApplyDefaultInput()
 {
-    ApplyUIInputConfig(FallbackInput, true);
-    if (TSharedPtr<SWidget> Focus = FallbackFocus.Pin())
-    {
-        GetLocalPlayerChecked()->GetSlateOperations().SetUserFocus(Focus.ToSharedRef());
-    }
+    UWidget* ChatInput = ChatInputWidget.Get();
+    FUIInputConfig Config(ChatInput ? ECommonInputMode::All : ECommonInputMode::Game,
+        EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = ChatInput != nullptr;
+    ApplyUIInputConfig(Config, true);
+    if (ChatInput) GetLocalPlayerChecked()->GetSlateOperations().SetUserFocus(ChatInput->TakeWidget());
 }
 
 bool UPdUIActionRouter::IsGameplayInputBlocked() const
 {
-    const FUIInputConfig& Config = ActiveInputConfig.IsSet() ? ActiveInputConfig.GetValue() : FallbackInput;
-    return Config.GetInputMode() == ECommonInputMode::Menu || Config.bIgnoreMoveInput || Config.bIgnoreLookInput;
+    return AppliedGameplayPolicy == EPdGameplayInputPolicy::Block;
 }
 
 void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh)
 {
     const bool bWasBlocked = IsGameplayInputBlocked();
-    const bool bWillBlock = NewConfig.GetInputMode() == ECommonInputMode::Menu
-        || NewConfig.bIgnoreMoveInput || NewConfig.bIgnoreLookInput;
+    const UCommonActivatableWidget* ActiveScreen = GetLeafmostActivatableWidget();
+    const UUiScreen* Adapter = Cast<UUiScreen>(ActiveScreen);
+    // 직접 전환한 메뉴는 Block, 기존 위젯 어댑터는 선언된 게임플레이 정책을 사용한다.
+    AppliedGameplayPolicy = Adapter ? Adapter->GameplayInputPolicy
+        : ActiveScreen || ChatInputWidget.IsValid() ? EPdGameplayInputPolicy::Block : EPdGameplayInputPolicy::Allow;
+    const bool bWillBlock = IsGameplayInputBlocked();
     APlayerController* Controller = GetLocalPlayerChecked()->GetPlayerController(GetWorld());
     if (bWasBlocked != bWillBlock) KeysAwaitingRelease.Append(PressedKeys);
-    if (!bWillBlock && Controller)
+    if (bWasBlocked && !bWillBlock && Controller)
     {
-        // Slate root가 해제되면 이전 Config가 사라질 수 있다. 게임 복원 시 Held 값은 항상 비운다.
-        KeysAwaitingRelease.Append(PressedKeys);
+        // 차단 해제 때만 정리한다. Allow 정책 재적용은 누른 입력을 유지한다.
         Controller->FlushPressedKeys();
     }
     if (!bWasBlocked && bWillBlock && Controller)
@@ -87,7 +95,7 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
     {
         // CommonUI가 입력을 분배하므로 이전 UIOnly의 전역 Viewport 차단은 사용하지 않는다.
         if (UGameViewportClient* Viewport = GetLocalPlayerChecked()->ViewportClient) Viewport->SetIgnoreInput(false);
-        const bool bShowCursor = GetActiveRoot().IsValid() ? NewConfig.GetMouseCaptureMode() == EMouseCaptureMode::NoCapture : bFallbackShowCursor;
+        const bool bShowCursor = NewConfig.GetMouseCaptureMode() == EMouseCaptureMode::NoCapture;
         Controller->SetShowMouseCursor(bShowCursor);
         Controller->bEnableClickEvents = bShowCursor;
         Controller->bEnableMouseOverEvents = bShowCursor;

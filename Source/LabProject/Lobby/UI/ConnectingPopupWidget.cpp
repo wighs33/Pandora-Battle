@@ -1,8 +1,6 @@
 #include "Lobby/UI/ConnectingPopupWidget.h"
 
 #include "Components/Button.h"
-#include "Engine/LocalPlayer.h"
-#include "UI/UiSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConnectingPopupWidget)
 
@@ -34,13 +32,6 @@ void UConnectingPopupWidget::NativeDestruct()
 	}
 
 	OnCanceled.Clear();
-	if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
-	{
-		if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>())
-		{
-			UiSubsystem->ReleaseModalInputsForOwner(this);
-		}
-	}
 
 	StopWaitAnimation();
 	Super::NativeDestruct();

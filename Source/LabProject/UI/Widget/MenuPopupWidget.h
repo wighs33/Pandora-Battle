@@ -65,7 +65,6 @@ protected:
 private:
 	void OpenGuide();
 	void DiscardGuideWidget();
-	void RestoreMenuAfterGuide();
 	void InitializeMouseSensitivitySlider();
 	void ShutdownMouseSensitivitySlider();
 

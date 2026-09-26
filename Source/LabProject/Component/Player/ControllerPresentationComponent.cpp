@@ -1,6 +1,5 @@
 #include "Component/Player/ControllerPresentationComponent.h"
 
-#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
 #include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
@@ -69,7 +68,6 @@ void UControllerPresentationComponent::InitializeLocalPresentation()
 		return;
 	}
 
-	RestoreGameplayInputMode();
 	if (ULocalPlayerSettingsSubsystem* LocalPlayerSettings = ULocalPlayerSettingsSubsystem::Get(Controller))
 	{
 		LocalPlayerSettings->ApplyLocalPlayerSettings(Controller);
@@ -105,15 +103,6 @@ void UControllerPresentationComponent::RefreshAfterPossession(APawn* PossessedPa
 	ApplyCameraViewPitchClamp();
 	RefreshTravelLoadingScreen();
 	ScheduleHideTravelLoadingScreenWhenReady();
-	ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer();
-	UUiSubsystem* UiSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-	if ((!UiSubsystem
-			|| (!UiSubsystem->IsTravelLoadingScreenActive()
-				&& !UiSubsystem->HasActiveModalInput()))
-		&& !Controller->UsesLobbyPresentation())
-	{
-		RestoreGameplayInputMode();
-	}
 	StartHealthBarVisibilityManagement();
 
 	if (!Controller->UsesLobbyPresentation())
@@ -216,18 +205,6 @@ void UControllerPresentationComponent::HideRespawnDelayCountdown() const
 APdPlayerController* UControllerPresentationComponent::GetPdController() const
 {
 	return Cast<APdPlayerController>(GetOwner());
-}
-
-// 모달 화면이 없는 플레이 상태로 입력 모드와 마우스 커서를 복원한다.
-void UControllerPresentationComponent::RestoreGameplayInputMode() const
-{
-	APdPlayerController* Controller = GetPdController();
-	if (!Controller || !Controller->IsLocalController())
-	{
-		return;
-	}
-
-	UUiSubsystem::SetBaseInputMode(Controller, EUiInputMode::GameOnly, nullptr);
 }
 
 // 맵 이동 로딩 화면을 유지하고 필요한 경우 훈련실 진행을 일시정지한다.
@@ -380,25 +357,6 @@ bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 				LobbyRuntimeSubsystem->ReleaseLobbyEntryContentPreload();
 			}
 		}
-	}
-	if (bIsLobbyController)
-	{
-		if (ALobbyHUD* LobbyHUD = Controller->GetHUD<ALobbyHUD>())
-		{
-			const ULobbyWidget* LobbyWidget = LobbyHUD->GetLobbyWidget();
-			if (IsValid(LobbyWidget) && LobbyWidget->IsInViewport())
-			{
-				LobbyHUD->NotifyLobbyWidgetOpened();
-			}
-			else
-			{
-				LobbyHUD->NotifyLobbyWidgetClosed();
-			}
-		}
-	}
-	else
-	{
-		RestoreGameplayInputMode();
 	}
 	TravelLoadingHideRetryCount = 0;
 	TravelLoadingReadyTickerHandle.Reset();

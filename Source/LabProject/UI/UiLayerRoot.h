@@ -5,16 +5,26 @@
 #include "UiLayerRoot.generated.h"
 
 class UCommonActivatableWidgetStack;
+class UOverlay;
 
-/** 메뉴↔가이드는 교체하고, 개인 설정 등 모달은 그 위에 겹쳐 표시한다. */
+/** 화면 계층을 소유한다. Overlay 화면들은 동시에 표시할 수 있다. */
 UCLASS()
 class LABPROJECT_API UUiLayerRoot : public UUserWidget
 {
     GENERATED_BODY()
 
 public:
+    static constexpr int32 ViewportZOrder = 1000;
+    static constexpr int32 TooltipZOrder = 1100;
+
     // Engine Overrides ------------------------------------------------------------------------------------------------
     virtual TSharedRef<SWidget> RebuildWidget() override;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UCommonActivatableWidgetStack> ScreenStack;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UOverlay> OverlayLayer;
 
     UPROPERTY(Transient)
     TObjectPtr<UCommonActivatableWidgetStack> MenuStack;

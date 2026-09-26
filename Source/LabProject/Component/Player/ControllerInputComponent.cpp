@@ -471,7 +471,7 @@ void UControllerInputComponent::HandleMoveInput(const FInputActionValue& InputVa
 		return;
 	}
 
-	if (IsGameplayInputBlockedByUi())
+	if (Controller->IsMoveInputIgnored())
 	{
 		return;
 	}
@@ -523,7 +523,7 @@ void UControllerInputComponent::HandleLookInput(const FInputActionValue& InputVa
 		return;
 	}
 
-	if (IsGameplayInputBlockedByUi())
+	if (Controller->IsLookInputIgnored())
 	{
 		return;
 	}

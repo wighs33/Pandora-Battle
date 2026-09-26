@@ -1,4 +1,6 @@
 #include "UI/Shop/ShopWidget.h"
+#include "CommonActivatableWidget.h"
+#include "Input/CommonUIActionRouterBase.h"
 
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -348,6 +350,8 @@ RefreshUI();
 
 void UShopWidget::HandleCloseClicked()
 {
+	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+		Screen->DeactivateWidget();
 	RemoveFromParent();
 }
 

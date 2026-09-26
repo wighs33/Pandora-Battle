@@ -53,9 +53,6 @@ private:
 	void HandleChatTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	bool ApplyRoutedChatInput(UEditableText* ChatInputText);
-	bool ReleaseRoutedChatInput();
-	void RestoreGameInputFallback() const;
 	void SetChatInputEnabled(bool bEnabled) const;
 	FString GetChatInputText() const;
 	void SetChatInputText(const FText& Text) const;
@@ -79,6 +76,5 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UChatControllerComponent> ChatControllerComponent;
 
-	FGuid ChatModalInputToken;
 	bool bChatFocused = false;
 };

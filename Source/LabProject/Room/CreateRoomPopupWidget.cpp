@@ -1,4 +1,6 @@
 #include "Room/CreateRoomPopupWidget.h"
+#include "CommonActivatableWidget.h"
+#include "Input/CommonUIActionRouterBase.h"
 
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
@@ -139,6 +141,8 @@ UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 
 void UCreateRoomPopupWidget::HandleCancelClicked()
 {
+	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+		Screen->DeactivateWidget();
 	RemoveFromParent();
 }
 

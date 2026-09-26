@@ -204,17 +204,11 @@ void UGameResultWidget::RefreshUI()
 
 void UGameResultWidget::HandleExitClicked()
 {
-	APlayerController* PlayerController = GetOwningPlayer();
-
 	if (bCloseOnlyOnExit)
 	{
         if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
             Screen->DeactivateWidget();
         RemoveFromParent();
-		if (PlayerController)
-		{
-			UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::GameOnly, nullptr);
-		}
 		return;
 	}
 
@@ -252,16 +246,7 @@ void UGameResultWidget::HandleExitClicked()
     if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
         Screen->DeactivateWidget();
     RemoveFromParent();
-	if (PlayerController)
-	{
-		if (bExitToLobbyEnabled)
-		{
-			UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::GameOnly, nullptr);
-			return;
-		}
 
-		UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::UIOnly, nullptr);
-	}
 }
 
 FString UGameResultWidget::GetResolvedLobbyTravelMapName() const
@@ -320,10 +305,8 @@ void UGameResultWidget::HandleEndSessionForExit(const bool bWasSuccessful)
 		{
 			Btn_Exit->SetIsEnabled(true);
 		}
-		if (APlayerController* PlayerController = GetOwningPlayer())
-		{
-			UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::UIOnly, this);
-		}
+		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+			Screen->RequestRefreshFocus();
 		return;
 	}
 

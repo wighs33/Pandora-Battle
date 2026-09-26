@@ -444,7 +444,7 @@ void UInfoItemTabPresenter::RefreshInventoryTileView()
 	URightInventoryWidget* RightInventoryWidget = InfoWidget
 		? InfoWidget->GetRightInventoryWidget()
 		: nullptr;
-	if (!RightInventoryWidget || !InfoWidget->IsInViewport())
+	if (!RightInventoryWidget)
 	{
 		return;
 	}

@@ -1,4 +1,5 @@
 #include "UI/Widget/PandoraTreeWidget.h"
+#include "UI/UiLayerRoot.h"
 
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Animation/WidgetAnimation.h"
@@ -20,7 +21,6 @@
 #include "Mode/PdPlayerState.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
-#include "UI/UiSubsystem.h"
 #include "UI/WidgetLookup.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Widget/PandoraDescriptionWidget.h"
@@ -140,7 +140,6 @@ void UPandoraTreeWidget::NativeDestruct()
 		PandoraTreeViewModel->UninitializeViewModel();
 	}
 
-	ReleaseRoutedPandoraInput();
 	Super::NativeDestruct();
 }
 
@@ -265,32 +264,6 @@ void UPandoraTreeWidget::ShowPandoraTree()
 		SpawnCharacterPreview();
 	}
 
-	if (!ShouldManageInputModeInternally())
-	{
-		return;
-	}
-
-	ApplyRoutedPandoraInput();
-}
-
-void UPandoraTreeWidget::SetInputModeManagedExternally(const bool bManagedExternally)
-{
-	if (bInputModeManagedExternally == bManagedExternally)
-	{
-		return;
-	}
-
-	bInputModeManagedExternally = bManagedExternally;
-	if (bInputModeManagedExternally)
-	{
-		ReleaseRoutedPandoraInput();
-	}
-	else if (ShouldManageInputModeInternally()
-		&& IsInViewport()
-		&& GetVisibility() != ESlateVisibility::Collapsed)
-	{
-		ApplyRoutedPandoraInput();
-	}
 }
 
 void UPandoraTreeWidget::HidePandoraTree()
@@ -337,19 +310,6 @@ void UPandoraTreeWidget::PrepareToHidePandoraTree()
 		ReturnCameraToPawn(PreviewCameraHideBlendTime);
 	}
 
-	if (ShouldManageInputModeInternally() && !ReleaseRoutedPandoraInput())
-	{
-		const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-		UUiSubsystem* UiSubsystem = LocalPlayer
-			? LocalPlayer->GetSubsystem<UUiSubsystem>()
-			: nullptr;
-		if ((!UiSubsystem || !UiSubsystem->HasActiveModalInput())
-			&& GetOwningPlayer())
-		{
-			APlayerController* PlayerController = GetOwningPlayer();
-			UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::GameOnly);
-		}
-	}
 }
 
 void UPandoraTreeWidget::ResetPandora()
@@ -564,7 +524,6 @@ void UPandoraTreeWidget::ApplyWidgetDefinitionSettings()
 		const FPandoraTreeWidgetSettings& Settings = WidgetDefinition->GetPandoraTreeWidgetSettings();
 		PandoraPointsFormat = Settings.PandoraPointsFormat;
 		bCloseOnToggleKey = Settings.bCloseOnToggleKey;
-		bSetInputModeOnShowHide = Settings.bSetInputModeOnShowHide;
 		HideAnimationDelay = Settings.HideAnimationDelay;
 		bUseCharacterPreviewCamera = Settings.bUseCharacterPreviewCamera;
 		PreviewCameraShowBlendTime = Settings.PreviewCameraShowBlendTime;
@@ -927,7 +886,7 @@ UPandoraDescriptionWidget* UPandoraTreeWidget::GetOrCreatePandoraDescriptionWidg
 	PandoraDescriptionWidget = CreateWidget<UPandoraDescriptionWidget>(GetOwningPlayer(), DescriptionWidgetClass);
 	if (PandoraDescriptionWidget)
 	{
-		PandoraDescriptionWidget->AddToViewport(100);
+		PandoraDescriptionWidget->AddToViewport(UUiLayerRoot::TooltipZOrder);
 		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
@@ -966,64 +925,6 @@ void UPandoraTreeWidget::PositionPandoraDescriptionWidget(const UWidget* AnchorW
 	}
 
 	PandoraDescriptionWidget->SetPositionInViewport(PopupPosition, false);
-}
-
-bool UPandoraTreeWidget::ShouldManageInputModeInternally() const
-{
-	return bSetInputModeOnShowHide && !bInputModeManagedExternally;
-}
-
-bool UPandoraTreeWidget::ApplyRoutedPandoraInput()
-{
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	UUiSubsystem* UiSubsystem = LocalPlayer
-		? LocalPlayer->GetSubsystem<UUiSubsystem>()
-		: nullptr;
-	if (!UiSubsystem)
-	{
-		return false;
-	}
-
-	FUiModalInputConfig InputConfig;
-	InputConfig.InputMode = EUiInputMode::GameAndUI;
-	InputConfig.bHideCursorDuringCapture = false;
-	InputConfig.bShowMouseCursor = true;
-	InputConfig.bEnableClickEvents = true;
-	InputConfig.bEnableMouseOverEvents = true;
-	InputConfig.RestorePolicy = EUiInputRestorePolicy::Gameplay;
-
-	if (UiSubsystem->UpdateModalInput(
-		this,
-		PandoraModalInputToken,
-		this,
-		InputConfig))
-	{
-		return true;
-	}
-
-	PandoraModalInputToken.Invalidate();
-	PandoraModalInputToken = UiSubsystem->AcquireModalInput(this, this, InputConfig);
-	return PandoraModalInputToken.IsValid();
-}
-
-bool UPandoraTreeWidget::ReleaseRoutedPandoraInput()
-{
-	if (!PandoraModalInputToken.IsValid())
-	{
-		return false;
-	}
-
-	bool bReleased = false;
-	if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
-	{
-		if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>())
-		{
-			bReleased = UiSubsystem->ReleaseModalInput(this, PandoraModalInputToken);
-		}
-	}
-
-	PandoraModalInputToken.Invalidate();
-	return bReleased;
 }
 
 void UPandoraTreeWidget::FinishHidePandoraTree()

@@ -15,6 +15,7 @@
 #include "Room/RoomItemWidget.h"
 #include "TimerManager.h"
 #include "UI/UiSubsystem.h"
+#include "UI/UiScreen.h"
 #include "UI/Widget/AudioVolumeControl.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
@@ -273,7 +274,11 @@ void URoomListWidget::HandleCreateGameClicked()
 
 	if (UCreateRoomPopupWidget* PopupWidget = CreateWidget<UCreateRoomPopupWidget>(GetOwningPlayer(), CreateRoomPopupWidgetClass))
 	{
-		PopupWidget->AddToViewport(20);
+		UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
+		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+		Screen->SetContent(PopupWidget, Config, PopupWidget, FSimpleDelegate());
+		GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
 	}
 }
 

@@ -223,7 +223,6 @@ void UMenuPopupWidget::HandleGuideClosed(UGuideWidget* ClosedGuideWidget)
 
 	ActiveGuideWidget->OnGuideClosed.RemoveDynamic(this, &ThisClass::HandleGuideClosed);
 	ActiveGuideWidget = nullptr;
-	RestoreMenuAfterGuide();
 }
 
 void UMenuPopupWidget::HandleMouseSensitivityChanged(const float NormalizedValue)
@@ -347,11 +346,6 @@ void UMenuPopupWidget::DiscardGuideWidget()
 		ActiveGuideWidget->CloseGuide();
 	}
 	ActiveGuideWidget = nullptr;
-}
-
-void UMenuPopupWidget::RestoreMenuAfterGuide()
-{
-	RequestRefreshFocus();
 }
 
 void UMenuPopupWidget::SetRequestedPause(const bool bPaused)

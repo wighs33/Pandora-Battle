@@ -63,7 +63,6 @@ void UHudScreenLayer::Shutdown()
 	if (InfoScreen)
 	{
 		InfoScreen->DeactivateWidget();
-		InfoScreen->RemoveFromParent();
 		InfoScreen = nullptr;
 	}
 	ReleaseInfoContent();
@@ -141,8 +140,8 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 				else if (!bInfoClosing) CloseInfo();
 			}));
 	}
-	if (!InfoScreen->IsInViewport()) InfoScreen->AddToPlayerScreen();
-	InfoScreen->ActivateWidget();
+	if (!InfoScreen->IsActivated())
+		Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(InfoScreen, EUiScreenLayer::Screen);
 	Hud->RefreshPlayerHudVisibility();
 	Hud->CachedInfoUI->ShowInfoUi();
 	ScheduleTrainingRoomPause(InfoUiTrainingRoomPauseDelaySeconds);
@@ -387,7 +386,6 @@ void UHudScreenLayer::HandlePandoraTreeClosed(UPandoraTreeWidget* ClosedWidget)
 	if (Hud->CachedInfoUI) Hud->CachedInfoUI->OnPandoraDrawerClosed();
 	RefreshTrainingRoomPause();
 	Hud->RefreshPlayerHudVisibility();
-	Hud->RefreshPlayerHudVisibility();
 	ReleaseInfoContentIfUnused();
 }
 
@@ -408,12 +406,10 @@ void UHudScreenLayer::FinishCloseInfo()
 	if (InfoScreen)
 	{
 		InfoScreen->DeactivateWidget();
-		InfoScreen->RemoveFromParent();
 		InfoScreen = nullptr;
 	}
 	bInfoClosing = false;
 
-	Hud->RefreshPlayerHudVisibility();
 	RefreshTrainingRoomPause();
 	Hud->RefreshPlayerHudVisibility();
 	ReleaseInfoContentIfUnused();
@@ -549,18 +545,10 @@ bool UHudScreenLayer::IsTrainingRoomPauseUiOpen(const UUserWidget* IgnoredWidget
 		return false;
 	}
 
-	const auto IsPauseWidgetOpen = [IgnoredWidget](const UUserWidget* Widget)
-	{
-		return Widget
-			&& Widget != IgnoredWidget
-			&& Widget->IsInViewport()
-			&& Widget->GetVisibility() != ESlateVisibility::Collapsed
-			&& Widget->GetVisibility() != ESlateVisibility::Hidden;
-	};
 
 	return (!bInfoClosing && Hud->CachedInfoUI != IgnoredWidget && IsInfoOpen())
 		|| (UiRouter && UiRouter->IsSettingsMenuOpen())
-		|| (!bPandoraTreeClosing && IsPauseWidgetOpen(Hud->CachedPandoraTreeUI));
+		|| (!bPandoraTreeClosing && Hud->CachedPandoraTreeUI != IgnoredWidget && IsPandoraTreeOpen());
 }
 
 void UHudScreenLayer::SetTrainingRoomPaused(const bool bPaused)

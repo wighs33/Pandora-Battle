@@ -11,15 +11,19 @@ TSharedRef<SWidget> UUiLayerRoot::RebuildWidget()
 {
     if (!MenuStack)
     {
+        ScreenStack = WidgetTree->ConstructWidget<UCommonActivatableWidgetStack>();
+        ScreenStack->SetTransitionDuration(0.0f);
+        OverlayLayer = WidgetTree->ConstructWidget<UOverlay>();
         MenuStack = WidgetTree->ConstructWidget<UCommonActivatableWidgetStack>();
         MenuStack->SetTransitionDuration(0.0f);
         ModalStack = WidgetTree->ConstructWidget<UCommonActivatableWidgetStack>();
         ModalStack->SetTransitionDuration(0.0f);
         UOverlay* Layers = WidgetTree->ConstructWidget<UOverlay>();
         WidgetTree->RootWidget = Layers;
-        for (UCommonActivatableWidgetStack* Stack : {MenuStack.Get(), ModalStack.Get()})
+        for (UWidget* Layer : {static_cast<UWidget*>(ScreenStack), static_cast<UWidget*>(OverlayLayer),
+            static_cast<UWidget*>(MenuStack), static_cast<UWidget*>(ModalStack)})
         {
-            UOverlaySlot* LayerSlot = Layers->AddChildToOverlay(Stack);
+            UOverlaySlot* LayerSlot = Layers->AddChildToOverlay(Layer);
             LayerSlot->SetHorizontalAlignment(HAlign_Fill);
             LayerSlot->SetVerticalAlignment(VAlign_Fill);
         }

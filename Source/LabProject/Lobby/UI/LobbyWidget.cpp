@@ -583,7 +583,6 @@ void ULobbyWidget::HandleEnterClicked()
 			LobbyHUD->NotifyLobbyWidgetClosed();
 		}
 
-		UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::GameOnly, nullptr);
 	}
 }
 

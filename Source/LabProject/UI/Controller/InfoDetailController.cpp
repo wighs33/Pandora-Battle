@@ -1,4 +1,5 @@
 #include "UI/Controller/InfoDetailController.h"
+#include "UI/UiLayerRoot.h"
 
 #include "Blueprint/SlateBlueprintLibrary.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
@@ -188,7 +189,7 @@ UItemDetailWidget* UInfoDetailController::GetOrCreateItemDetailWidget()
 		ItemDetailWidgetClass);
 	if (ItemDetailWidget)
 	{
-		ItemDetailWidget->AddToViewport(100);
+		ItemDetailWidget->AddToViewport(UUiLayerRoot::TooltipZOrder);
 		ItemDetailWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	return ItemDetailWidget;
@@ -221,7 +222,7 @@ UPandoraDescriptionWidget* UInfoDetailController::GetOrCreatePandoraDescriptionW
 		PandoraDescriptionWidgetClass);
 	if (PandoraDescriptionWidget)
 	{
-		PandoraDescriptionWidget->AddToViewport(100);
+		PandoraDescriptionWidget->AddToViewport(UUiLayerRoot::TooltipZOrder);
 		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	return PandoraDescriptionWidget;

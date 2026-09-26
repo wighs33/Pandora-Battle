@@ -7,6 +7,8 @@
 class UTitleWidget;
 class UGameResultWidget;
 
+class UUiScreen;
+
 UCLASS()
 class LABPROJECT_API ATitleHUD : public AHUD
 {
@@ -22,6 +24,9 @@ protected:
 	void ShowPendingGameResult();
 
 protected:
+	UPROPERTY(Transient)
+	TObjectPtr<UUiScreen> Screen;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Title|UI")
 	TSubclassOf<UTitleWidget> TitleWidgetClass;
 

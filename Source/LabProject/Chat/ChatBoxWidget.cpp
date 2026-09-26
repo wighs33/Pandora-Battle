@@ -7,7 +7,7 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
-#include "UI/UiSubsystem.h"
+#include "UI/PdUIActionRouter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChatBoxWidget)
 
@@ -36,7 +36,11 @@ void UChatBoxWidget::NativeDestruct()
 			&ThisClass::HandleChatTextCommitted);
 	}
 
-	ReleaseRoutedChatInput();
+	// LocalPlayer가 남아 있어도 종료 중에는 서브시스템이 먼저 해제될 수 있다.
+	if (UPdUIActionRouter* Router = ULocalPlayer::GetSubsystem<UPdUIActionRouter>(GetOwningLocalPlayer()))
+	{
+		Router->EndChatInput(GetChatInputWidget());
+	}
 	bChatFocused = false;
 	Super::NativeDestruct();
 }
@@ -72,7 +76,8 @@ void UChatBoxWidget::FocusChat()
 {
 	APlayerController* PlayerController = GetOwningPlayer();
 	UEditableText* ChatInputText = GetChatInputWidget();
-	if (!PlayerController || !ChatInputText)
+	UPdUIActionRouter* Router = ULocalPlayer::GetSubsystem<UPdUIActionRouter>(GetOwningLocalPlayer());
+	if (!PlayerController || !ChatInputText || !Router)
 	{
 
 		return;
@@ -81,7 +86,7 @@ void UChatBoxWidget::FocusChat()
 	SetChatInputEnabled(true);
 	bChatFocused = true;
 
-	ApplyRoutedChatInput(ChatInputText);
+	Router->BeginChatInput(ChatInputText);
 }
 
 void UChatBoxWidget::ExitChat()
@@ -90,18 +95,9 @@ void UChatBoxWidget::ExitChat()
 	SetChatInputText(FText::GetEmpty());
 	SetChatInputEnabled(false);
 
-	if (ReleaseRoutedChatInput())
+	if (UPdUIActionRouter* Router = ULocalPlayer::GetSubsystem<UPdUIActionRouter>(GetOwningLocalPlayer()))
 	{
-		return;
-	}
-
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	UUiSubsystem* UiSubsystem = LocalPlayer
-		? LocalPlayer->GetSubsystem<UUiSubsystem>()
-		: nullptr;
-	if (!UiSubsystem || !UiSubsystem->HasActiveModalInput())
-	{
-		RestoreGameInputFallback();
+		Router->EndChatInput(GetChatInputWidget());
 	}
 }
 
@@ -164,69 +160,6 @@ void UChatBoxWidget::HandleChatTextCommitted(const FText& Text, const ETextCommi
 	{
 		SubmitChatInput();
 	}
-}
-
-bool UChatBoxWidget::ApplyRoutedChatInput(UEditableText* ChatInputText)
-{
-	if (!IsValid(ChatInputText))
-	{
-		return false;
-	}
-
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	UUiSubsystem* UiSubsystem = LocalPlayer
-		? LocalPlayer->GetSubsystem<UUiSubsystem>()
-		: nullptr;
-	if (!UiSubsystem)
-	{
-		return false;
-	}
-
-	FUiModalInputConfig InputConfig;
-	InputConfig.InputMode = EUiInputMode::GameAndUI;
-	InputConfig.bHideCursorDuringCapture = true;
-	InputConfig.bShowMouseCursor = false;
-	InputConfig.bEnableClickEvents = false;
-	InputConfig.bEnableMouseOverEvents = false;
-	InputConfig.RestorePolicy = EUiInputRestorePolicy::Gameplay;
-
-	if (UiSubsystem->UpdateModalInput(
-		this,
-		ChatModalInputToken,
-		ChatInputText,
-		InputConfig))
-	{
-		return true;
-	}
-
-	ChatModalInputToken.Invalidate();
-	ChatModalInputToken = UiSubsystem->AcquireModalInput(this, ChatInputText, InputConfig);
-	return ChatModalInputToken.IsValid();
-}
-
-bool UChatBoxWidget::ReleaseRoutedChatInput()
-{
-	if (!ChatModalInputToken.IsValid())
-	{
-		return false;
-	}
-
-	bool bReleased = false;
-	if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
-	{
-		if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>())
-		{
-			bReleased = UiSubsystem->ReleaseModalInput(this, ChatModalInputToken);
-		}
-	}
-
-	ChatModalInputToken.Invalidate();
-	return bReleased;
-}
-
-void UChatBoxWidget::RestoreGameInputFallback() const
-{
-    UUiSubsystem::SetBaseInputMode(GetOwningPlayer(), EUiInputMode::GameOnly);
 }
 
 void UChatBoxWidget::OnMenuLanguageChanged()

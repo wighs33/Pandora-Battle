@@ -52,7 +52,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void ShowPandoraTree();
-	void SetInputModeManagedExternally(bool bManagedExternally);
 	void SetDockedInInfo(bool bDocked) { bDockedInInfo = bDocked; }
 	UFUNCTION(BlueprintPure, Category="!UI|Pandora")
 	bool IsPandoraTreeShown() const { return IsInViewport() || (bDockedInInfo && GetParent() != nullptr); }
@@ -127,9 +126,6 @@ private:
 	void DestroyCharacterPreview();
 	UPandoraDescriptionWidget* GetOrCreatePandoraDescriptionWidget();
 	void PositionPandoraDescriptionWidget(const UWidget* AnchorWidget) const;
-	bool ShouldManageInputModeInternally() const;
-	bool ApplyRoutedPandoraInput();
-	bool ReleaseRoutedPandoraInput();
 	void PrepareToHidePandoraTree();
 	void ClearHideTimer();
 
@@ -160,9 +156,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora|Input")
 	bool bCloseOnToggleKey = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora")
-	bool bSetInputModeOnShowHide = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora|Animation", meta = (ClampMin = "0.0"))
 	float HideAnimationDelay = 0.2f;
@@ -205,7 +198,5 @@ private:
 	TWeakObjectPtr<UWidget> ActivePandoraDescriptionAnchor;
 	TWeakObjectPtr<UPandoraDefinition> ActivePandoraDescriptionDefinition;
 	TArray<TWeakObjectPtr<UPandoraWidget>> PandoraDescriptionRequestStack;
-	FGuid PandoraModalInputToken;
-	bool bInputModeManagedExternally = false;
 	bool bPandoraDescriptionDirty = false;
 };

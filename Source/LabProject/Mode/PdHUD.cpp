@@ -278,8 +278,7 @@ void APdHUD::OpenSelectPandoraUi()
     Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
     SelectPandoraScreen->SetContent(CachedSelectPandoraUI, Config, CachedSelectPandoraUI,
         FSimpleDelegate::CreateWeakLambda(this, [this]() { CloseSelectPandoraUiInternal(false); }));
-    SelectPandoraScreen->AddToPlayerScreen();
-    SelectPandoraScreen->ActivateWidget();
+    GetOwningPlayerController()->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(SelectPandoraScreen, EUiScreenLayer::Overlay);
     int32 Width = 0, Height = 0;
     GetOwningPlayerController()->GetViewportSize(Width, Height);
     GetOwningPlayerController()->SetMouseLocation(Width / 2, Height / 2);
@@ -314,7 +313,6 @@ bool APdHUD::CloseSelectPandoraUiInternal(const bool bCommitSelection)
     if (SelectPandoraScreen)
     {
         SelectPandoraScreen->DeactivateWidget();
-        SelectPandoraScreen->RemoveFromParent();
         SelectPandoraScreen = nullptr;
     }
     SetActorTickEnabled(false);

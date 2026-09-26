@@ -15,6 +15,7 @@
 #include "TimerManager.h"
 #include "UI/Presenter/InfoUiPresenter.h"
 #include "UI/UiScreen.h"
+#include "UI/UiSubsystem.h"
 #include "UI/Widget/InfoWidget.h"
 #include "UI/Widget/MenuPopupWidget.h"
 #include "UI/Widget/PandoraTreeWidget.h"
@@ -102,8 +103,7 @@ void UHudScoreboardLayer::Show()
         FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
         Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
         ScoreboardScreen->SetContent(ScoreboardWidget, Config, nullptr, FSimpleDelegate::CreateUObject(this, &ThisClass::Hide));
-        ScoreboardScreen->AddToPlayerScreen(80);
-        ScoreboardScreen->ActivateWidget();
+        Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(ScoreboardScreen, EUiScreenLayer::Overlay);
     }
 
 	if (UWorld* World = Hud->GetWorld())
@@ -125,7 +125,6 @@ void UHudScoreboardLayer::Hide()
     if (ScoreboardScreen)
     {
         ScoreboardScreen->DeactivateWidget();
-        ScoreboardScreen->RemoveFromParent();
         ScoreboardScreen = nullptr;
     }
 

@@ -230,10 +230,6 @@ void UHudUiRouter::EnsureInfoLayers()
 		{
 			Hud->CachedPandoraTreeUI =
 				CreateWidget<UPandoraTreeWidget>(Controller, WidgetClass);
-			if (Hud->CachedPandoraTreeUI)
-			{
-				Hud->CachedPandoraTreeUI->SetInputModeManagedExternally(true);
-			}
 		}
 	}
 

@@ -3,7 +3,6 @@
 #include "Component/Player/PlayerMatchComponent.h"
 
 #include "Component/Lobby/LobbyConfigurationComponent.h"
-#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Common/GameSessionConstants.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/GameStateBase.h"
@@ -33,7 +32,6 @@ void ALobbyPlayerController::BeginPlay()
 
 	if (IsLocalController())
 	{
-		UUiSubsystem::SetBaseInputMode(this, EUiInputMode::GameAndUI, nullptr);
 		UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, this);
 		if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 		{

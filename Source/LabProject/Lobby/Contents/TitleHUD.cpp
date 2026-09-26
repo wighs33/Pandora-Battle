@@ -1,7 +1,8 @@
 #include "Lobby/Contents/TitleHUD.h"
 #include "UI/UiSubsystem.h"
+#include "UI/UiScreen.h"
+#include "Engine/LocalPlayer.h"
 
-#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Lobby/UI/GameResultWidget.h"
 #include "Lobby/UI/TitleWidget.h"
 #include "Engine/GameInstance.h"
@@ -32,8 +33,12 @@ void ATitleHUD::BeginPlay()
 		return;
 	}
 
-	TitleWidget->AddToViewport();
-	UUiSubsystem::SetBaseInputMode(PlayerController, EUiInputMode::UIOnly, nullptr);
+	Screen = CreateWidget<UUiScreen>(PlayerController);
+	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+	// 타이틀/방 목록의 종료는 기존 버튼이 담당한다.
+	Screen->SetContent(TitleWidget, Config, TitleWidget, FSimpleDelegate::CreateLambda([]() {}));
+	PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Screen);
 	UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, PlayerController);
 
 	ShowPendingGameResult();
@@ -41,6 +46,8 @@ void ATitleHUD::BeginPlay()
 
 void ATitleHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (Screen) Screen->DeactivateWidget();
+	Screen = nullptr;
 	if (GameResultWidget)
 	{
 		GameResultWidget->RemoveFromParent();
