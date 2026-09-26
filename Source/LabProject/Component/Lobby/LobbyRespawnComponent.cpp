@@ -1,12 +1,9 @@
 #include "Component/Lobby/LobbyRespawnComponent.h"
 
 #include "Component/Lobby/LobbyConfigurationComponent.h"
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/Match/MatchRuleDefinition.h"
-#include "GameplayEffect.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
@@ -126,8 +123,13 @@ void ULobbyRespawnComponent::FinishLobbyPlayerRespawn(
 		return;
 	}
 
-	ResetLobbyPlayerStateForRespawn(
-		PlayerController);
+	if (APdPlayerState* PlayerState = PlayerController->GetPlayerState<APdPlayerState>())
+	{
+		if (UPdAbilitySystemComponent* AbilitySystem = Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent()))
+		{
+			AbilitySystem->ResetRuntimeStateForRespawn();
+		}
+	}
 
 	FTransform RespawnTransform;
 	const bool bHasRespawnTransform =
@@ -269,59 +271,4 @@ TryGetLobbyPlayerRespawnTransform(
 	}
 
 	return false;
-}
-
-void ULobbyRespawnComponent::
-ResetLobbyPlayerStateForRespawn(
-	AController* PlayerController) const
-{
-	APdPlayerState* PlayerState = PlayerController
-		? PlayerController->GetPlayerState<APdPlayerState>()
-		: nullptr;
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		PlayerState
-			? Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent())
-			: nullptr;
-	if (!AbilitySystemComponent
-		|| !AbilitySystemComponent->IsRegistered()
-		|| !AbilitySystemComponent->GetAttributeSet(
-			UBasicAttributeSet::StaticClass()))
-	{
-		return;
-	}
-
-	const float MaxHealth =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetMaxHealthAttribute());
-	const float MaxStamina =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetMaxStaminaAttribute());
-	const float MaxMana =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetMaxManaAttribute());
-
-	AbilitySystemComponent
-		->ClearStatusEffectsForRespawn();
-
-	FGameplayTagContainer DeadTags;
-	DeadTags.AddTag(LabGameplayTags::State_Dead);
-	AbilitySystemComponent
-		->RemoveActiveEffectsWithGrantedTags(DeadTags);
-	AbilitySystemComponent->RemoveActiveEffects(
-		FGameplayEffectQuery
-			::MakeQuery_MatchAnyOwningTags(DeadTags));
-
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UBasicAttributeSet::GetHealthAttribute(),
-		FMath::Max(MaxHealth, 1.0f));
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UBasicAttributeSet::GetShieldAttribute(),
-		0.0f);
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UBasicAttributeSet::GetStaminaAttribute(),
-		FMath::Max(MaxStamina, 0.0f));
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UBasicAttributeSet::GetManaAttribute(),
-		FMath::Max(MaxMana, 0.0f));
-	AbilitySystemComponent->ForceReplication();
 }

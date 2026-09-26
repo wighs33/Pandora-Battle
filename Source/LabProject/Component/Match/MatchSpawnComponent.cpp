@@ -1,10 +1,8 @@
-#include "Component/Experience/ExperienceSpawnComponent.h"
+#include "Component/Match/MatchSpawnComponent.h"
 
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/Experience/ExperienceMatchFlowComponent.h"
+#include "Component/Match/MatchFlowComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Engine/World.h"
@@ -15,14 +13,14 @@
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ExperienceSpawnComponent)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MatchSpawnComponent)
 
-UExperienceSpawnComponent::UExperienceSpawnComponent()
+UMatchSpawnComponent::UMatchSpawnComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UExperienceSpawnComponent::EndPlay(
+void UMatchSpawnComponent::EndPlay(
 	const EEndPlayReason::Type EndPlayReason)
 {
 	if (UWorld* World = GetWorld())
@@ -44,18 +42,18 @@ void UExperienceSpawnComponent::EndPlay(
 }
 
 AExperienceGameMode*
-UExperienceSpawnComponent::GetExperienceGameMode() const
+UMatchSpawnComponent::GetExperienceGameMode() const
 {
 	return Cast<AExperienceGameMode>(GetOwner());
 }
 
 const AExperienceGameMode*
-UExperienceSpawnComponent::GetExperienceGameModeConst() const
+UMatchSpawnComponent::GetExperienceGameModeConst() const
 {
 	return Cast<AExperienceGameMode>(GetOwner());
 }
 
-AActor* UExperienceSpawnComponent::ChooseConfiguredPlayerStart(
+AActor* UMatchSpawnComponent::ChooseConfiguredPlayerStart(
 	AController* Player)
 {
 	if (!Settings.bUseLobbySpawnIndexPlayerStarts)
@@ -84,7 +82,7 @@ AActor* UExperienceSpawnComponent::ChooseConfiguredPlayerStart(
 	return nullptr;
 }
 
-void UExperienceSpawnComponent::MarkPlayerStartUsed(
+void UMatchSpawnComponent::MarkPlayerStartUsed(
 	AController* Player,
 	AActor* PlayerStart)
 {
@@ -105,7 +103,7 @@ void UExperienceSpawnComponent::MarkPlayerStartUsed(
 	}
 }
 
-void UExperienceSpawnComponent::RecordInitialSpawn(AController* PlayerController, const FTransform& InitialSpawnTransform)
+void UMatchSpawnComponent::RecordInitialSpawn(AController* PlayerController, const FTransform& InitialSpawnTransform)
 {
 	if (PlayerController)
 	{
@@ -114,7 +112,7 @@ void UExperienceSpawnComponent::RecordInitialSpawn(AController* PlayerController
 	}
 }
 
-void UExperienceSpawnComponent::RequestPlayerRespawn(
+void UMatchSpawnComponent::RequestPlayerRespawn(
 	AController* PlayerController,
 	APawn* DeadPawn)
 {
@@ -127,7 +125,7 @@ void UExperienceSpawnComponent::RequestPlayerRespawn(
 		return;
 	}
 
-	const UExperienceMatchFlowComponent* MatchFlow =
+	const UMatchFlowComponent* MatchFlow =
 		GameMode->GetMatchFlowComponent();
 	if (MatchFlow && MatchFlow->IsGameResultShown())
 	{
@@ -190,7 +188,7 @@ void UExperienceSpawnComponent::RequestPlayerRespawn(
 		RespawnTimerHandle);
 }
 
-bool UExperienceSpawnComponent::TryGetPlayerInitialSpawnTransform(
+bool UMatchSpawnComponent::TryGetPlayerInitialSpawnTransform(
 	AController* PlayerController,
 	FTransform& OutSpawnTransform) const
 {
@@ -219,14 +217,15 @@ bool UExperienceSpawnComponent::TryGetPlayerInitialSpawnTransform(
 	return false;
 }
 
-void UExperienceSpawnComponent::ForceMovePlayersToInitialSpawns()
+TArray<APlayerController*> UMatchSpawnComponent::ForceMovePlayersToInitialSpawns()
 {
+	TArray<APlayerController*> MovedPlayers;
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameModeConst();
 	UWorld* World = GetWorld();
 	if (!GameMode || !World)
 	{
-		return;
+		return MovedPlayers;
 	}
 
 	for (FConstPlayerControllerIterator Iterator =
@@ -257,19 +256,12 @@ void UExperienceSpawnComponent::ForceMovePlayersToInitialSpawns()
 			ETeleportType::TeleportPhysics);
 		PlayerController->SetControlRotation(
 			InitialSpawnTransform.GetRotation().Rotator());
-		if (APdPlayerController* PdPlayerController =
-			Cast<APdPlayerController>(PlayerController))
-		{
-			PdPlayerController->Client_ShowGoldenKillAnnouncement(
-				NSLOCTEXT(
-					"GoldenKill",
-					"GoldenKillAnnouncement",
-					"GOLDEN KILL"));
-		}
+		MovedPlayers.Add(PlayerController);
 	}
+	return MovedPlayers;
 }
 
-void UExperienceSpawnComponent::ClearRuntimeStateForController(
+void UMatchSpawnComponent::ClearRuntimeStateForController(
 	AController* Controller)
 {
 	if (!Controller)
@@ -302,7 +294,7 @@ void UExperienceSpawnComponent::ClearRuntimeStateForController(
 	AssignedPlayerStartsByController.Remove(ControllerKey);
 }
 
-AActor* UExperienceSpawnComponent::FindPlayerStartByMatchSpawnIndex(
+AActor* UMatchSpawnComponent::FindPlayerStartByMatchSpawnIndex(
 	const int32 SpawnIndex,
 	const FName PlayerStartTagPrefix) const
 {
@@ -343,7 +335,7 @@ AActor* UExperienceSpawnComponent::FindPlayerStartByMatchSpawnIndex(
 	return nullptr;
 }
 
-AActor* UExperienceSpawnComponent::FindFirstUnusedPlayerStart() const
+AActor* UMatchSpawnComponent::FindFirstUnusedPlayerStart() const
 {
 	TArray<AActor*> PlayerStarts;
 	UGameplayStatics::GetAllActorsOfClass(
@@ -367,7 +359,7 @@ AActor* UExperienceSpawnComponent::FindFirstUnusedPlayerStart() const
 	return nullptr;
 }
 
-bool UExperienceSpawnComponent::IsPlayerStartUsed(
+bool UMatchSpawnComponent::IsPlayerStartUsed(
 	const AActor* PlayerStart) const
 {
 	return PlayerStart
@@ -378,7 +370,7 @@ bool UExperienceSpawnComponent::IsPlayerStartUsed(
 			});
 }
 
-void UExperienceSpawnComponent::FinishPlayerRespawn(
+void UMatchSpawnComponent::FinishPlayerRespawn(
 	TWeakObjectPtr<AController> WeakPlayerController,
 	TWeakObjectPtr<APawn> WeakDeadPawn)
 {
@@ -397,7 +389,7 @@ void UExperienceSpawnComponent::FinishPlayerRespawn(
 	PendingPlayerRespawnTimers.Remove(
 		TObjectKey<AController>(PlayerController));
 
-	const UExperienceMatchFlowComponent* MatchFlow =
+	const UMatchFlowComponent* MatchFlow =
 		GameMode->GetMatchFlowComponent();
 	if (MatchFlow && MatchFlow->IsGameResultShown())
 	{
@@ -416,7 +408,13 @@ void UExperienceSpawnComponent::FinishPlayerRespawn(
 		DeadPawn = CurrentPawn;
 	}
 
-	ResetPlayerStateForRespawn(PlayerController);
+	if (APdPlayerState* PlayerState = PlayerController->GetPlayerState<APdPlayerState>())
+	{
+		if (UPdAbilitySystemComponent* AbilitySystem = Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent()))
+		{
+			AbilitySystem->ResetRuntimeStateForRespawn();
+		}
+	}
 
 	FTransform RespawnTransform;
 	if (TryGetPlayerRespawnTransform(
@@ -510,13 +508,13 @@ void UExperienceSpawnComponent::FinishPlayerRespawn(
 	}
 }
 
-bool UExperienceSpawnComponent::TryGetPlayerRespawnTransform(
+bool UMatchSpawnComponent::TryGetPlayerRespawnTransform(
 	AController* PlayerController,
 	FTransform& OutRespawnTransform)
 {
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameModeConst();
-	const UExperienceMatchFlowComponent* MatchFlow =
+	const UMatchFlowComponent* MatchFlow =
 		GameMode ? GameMode->GetMatchFlowComponent() : nullptr;
 	if (MatchFlow && MatchFlow->IsGoldenKillActive())
 	{
@@ -551,7 +549,7 @@ bool UExperienceSpawnComponent::TryGetPlayerRespawnTransform(
 		OutRespawnTransform);
 }
 
-AActor* UExperienceSpawnComponent::FindRandomRespawnPlayerStart(
+AActor* UMatchSpawnComponent::FindRandomRespawnPlayerStart(
 	AController* PlayerController,
 	const UMatchRuleDefinition& MatchRules) const
 {
@@ -614,7 +612,7 @@ AActor* UExperienceSpawnComponent::FindRandomRespawnPlayerStart(
 		: Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
 }
 
-bool UExperienceSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(
+bool UMatchSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(
 	const APlayerStart* PlayerStart,
 	const UMatchRuleDefinition& MatchRules) const
 {
@@ -637,62 +635,13 @@ bool UExperienceSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(
 	return false;
 }
 
-void UExperienceSpawnComponent::ResetPlayerStateForRespawn(
-	AController* PlayerController) const
-{
-	APdPlayerState* PlayerState = PlayerController
-		? PlayerController->GetPlayerState<APdPlayerState>()
-		: nullptr;
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		PlayerState
-			? Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent())
-			: nullptr;
-	if (!AbilitySystemComponent
-		|| !AbilitySystemComponent->IsRegistered()
-		|| !AbilitySystemComponent->GetAttributeSet(
-			UBasicAttributeSet::StaticClass()))
-	{
-		return;
-	}
 
-	const float MaxHealth =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetMaxHealthAttribute());
-	const float MaxStamina =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetMaxStaminaAttribute());
-	const float MaxMana =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetMaxManaAttribute());
 
-	AbilitySystemComponent->ClearStatusEffectsForRespawn();
-
-	FGameplayTagContainer DeadTags;
-	DeadTags.AddTag(LabGameplayTags::State_Dead);
-	AbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(DeadTags);
-	AbilitySystemComponent->RemoveActiveEffects(
-		FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(DeadTags));
-
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UBasicAttributeSet::GetHealthAttribute(),
-		FMath::Max(MaxHealth, 1.0f));
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UBasicAttributeSet::GetShieldAttribute(),
-		0.0f);
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UBasicAttributeSet::GetStaminaAttribute(),
-		FMath::Max(MaxStamina, 0.0f));
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UBasicAttributeSet::GetManaAttribute(),
-		FMath::Max(MaxMana, 0.0f));
-	AbilitySystemComponent->ForceReplication();
-}
-
-float UExperienceSpawnComponent::GetPlayerRespawnDelay() const
+float UMatchSpawnComponent::GetPlayerRespawnDelay() const
 {
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameModeConst();
-	const UExperienceMatchFlowComponent* MatchFlow =
+	const UMatchFlowComponent* MatchFlow =
 		GameMode ? GameMode->GetMatchFlowComponent() : nullptr;
 	const UMatchRuleDefinition* MatchRules =
 		MatchFlow ? MatchFlow->GetMatchRuleDefinition() : nullptr;

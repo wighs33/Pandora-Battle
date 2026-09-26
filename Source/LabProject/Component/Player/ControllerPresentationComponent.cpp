@@ -2,7 +2,7 @@
 
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
-#include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
+#include "Component/Match/MatchPlayerSetupComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -382,9 +382,9 @@ void UControllerPresentationComponent::SetTrainingRoomLoadingPaused(
 	{
 		const AExperienceGameMode* ExperienceGameMode =
 			World->GetAuthGameMode<AExperienceGameMode>();
-		const UExperiencePlayerProvisioningComponent* Provisioning =
+		const UMatchPlayerSetupComponent* Provisioning =
 			ExperienceGameMode
-				? ExperienceGameMode->GetPlayerProvisioningComponent()
+				? ExperienceGameMode->GetPlayerSetupComponent()
 				: nullptr;
 		if (bAppliedTrainingRoomLoadingPause
 			|| !Provisioning

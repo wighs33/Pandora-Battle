@@ -390,3 +390,42 @@ void UPdAbilitySystemComponent::ApplyAbilityBlockAndCancelTags(
 		}
 	}
 }
+
+void UPdAbilitySystemComponent::ResetRuntimeStateForRespawn()
+{
+	if (!IsRegistered() || !GetAttributeSet(UBasicAttributeSet::StaticClass()))
+	{
+		return;
+	}
+
+	// 기존 리스폰과 동일하게 효과 제거 전 최대 자원값을 복구 기준으로 사용한다.
+	const float MaxHealth = GetNumericAttribute(UBasicAttributeSet::GetMaxHealthAttribute());
+	const float MaxStamina = GetNumericAttribute(UBasicAttributeSet::GetMaxStaminaAttribute());
+	const float MaxMana = GetNumericAttribute(UBasicAttributeSet::GetMaxManaAttribute());
+
+	ClearStatusEffectsForRespawn();
+
+	FGameplayTagContainer DeadTags;
+	DeadTags.AddTag(LabGameplayTags::State_Dead);
+	RemoveActiveEffectsWithGrantedTags(DeadTags);
+	RemoveActiveEffects(FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(DeadTags));
+
+	SetNumericAttributeBase(UBasicAttributeSet::GetHealthAttribute(), FMath::Max(MaxHealth, 1.0f));
+	SetNumericAttributeBase(UBasicAttributeSet::GetShieldAttribute(), 0.0f);
+	SetNumericAttributeBase(UBasicAttributeSet::GetStaminaAttribute(), FMath::Max(MaxStamina, 0.0f));
+	SetNumericAttributeBase(UBasicAttributeSet::GetManaAttribute(), FMath::Max(MaxMana, 0.0f));
+	ForceReplication();
+}
+
+void UPdAbilitySystemComponent::RestoreResourcesToMaximum()
+{
+	if (!GetAttributeSet(UBasicAttributeSet::StaticClass()))
+	{
+		return;
+	}
+
+	SetNumericAttributeBase(UBasicAttributeSet::GetHealthAttribute(), GetNumericAttribute(UBasicAttributeSet::GetMaxHealthAttribute()));
+	SetNumericAttributeBase(UBasicAttributeSet::GetManaAttribute(), GetNumericAttribute(UBasicAttributeSet::GetMaxManaAttribute()));
+	SetNumericAttributeBase(UBasicAttributeSet::GetStaminaAttribute(), GetNumericAttribute(UBasicAttributeSet::GetMaxStaminaAttribute()));
+	ForceReplication();
+}

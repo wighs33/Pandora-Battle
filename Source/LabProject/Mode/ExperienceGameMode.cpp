@@ -3,9 +3,9 @@
 #include "Character/PdPlayer.h"
 #include "Common/GameSessionConstants.h"
 #include "Component/Experience/ExperienceManagerComponent.h"
-#include "Component/Experience/ExperienceMatchFlowComponent.h"
-#include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
-#include "Component/Experience/ExperienceSpawnComponent.h"
+#include "Component/Match/MatchFlowComponent.h"
+#include "Component/Match/MatchPlayerSetupComponent.h"
+#include "Component/Match/MatchSpawnComponent.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Experience/ExperienceDefinition.h"
@@ -36,10 +36,11 @@ AExperienceGameMode::AExperienceGameMode(const FObjectInitializer& ObjectInitial
 	HUDClass = APdHUD::StaticClass();
 	bUseSeamlessTravel = true;
 
-	MatchFlowComponent = CreateDefaultSubobject<UExperienceMatchFlowComponent>(TEXT("ExperienceMatchFlow"));
-	SpawnComponent = CreateDefaultSubobject<UExperienceSpawnComponent>(TEXT("ExperienceSpawn"));
-	PlayerProvisioningComponent = CreateDefaultSubobject<UExperiencePlayerProvisioningComponent>(TEXT("ExperiencePlayerProvisioning"));
-	check(MatchFlowComponent && SpawnComponent && PlayerProvisioningComponent);
+	// 기존 Blueprint의 컴포넌트 기본값 연결을 보존하기 위해 직렬화된 서브오브젝트 이름은 유지한다.
+	MatchFlowComponent = CreateDefaultSubobject<UMatchFlowComponent>(TEXT("ExperienceMatchFlow"));
+	SpawnComponent = CreateDefaultSubobject<UMatchSpawnComponent>(TEXT("ExperienceSpawn"));
+	PlayerSetupComponent = CreateDefaultSubobject<UMatchPlayerSetupComponent>(TEXT("ExperiencePlayerProvisioning"));
+	check(MatchFlowComponent && SpawnComponent && PlayerSetupComponent);
 }
 
 // 맵 설정을 전달하고, 비동기 준비가 끝날 때마다 경기 시작 조건을 다시 확인한다.
@@ -47,7 +48,7 @@ void AExperienceGameMode::InitGame(const FString& MapName, const FString& Option
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
 	MatchFlowComponent->OnRuntimeContentReady.AddUObject(this, &ThisClass::TryStartServerMatch);
-	PlayerProvisioningComponent->OnPlayerGameplayReady.AddUObject(this, &ThisClass::TryStartServerMatch);
+	PlayerSetupComponent->OnPlayerGameplayReady.AddUObject(this, &ThisClass::TryStartServerMatch);
 	ApplyRuntimeComponentSettings();
 	MatchFlowComponent->InitializeTravelOptions(Options);
 }
@@ -58,14 +59,14 @@ void AExperienceGameMode::BeginPlay()
 	Super::BeginPlay();
 	GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::TryStartServerMatch);
 	GetWorldTimerManager().SetTimerForNextTick(
-		MatchFlowComponent.Get(), &UExperienceMatchFlowComponent::ConfigureRewardChestSpawns);
+		MatchFlowComponent.Get(), &UMatchFlowComponent::ConfigureRewardChestSpawns);
 }
 
 // 맵을 떠난 뒤 준비 완료 콜백이 경기를 시작하지 않도록 연결을 정리한다.
 void AExperienceGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	MatchFlowComponent->OnRuntimeContentReady.RemoveAll(this);
-	PlayerProvisioningComponent->OnPlayerGameplayReady.RemoveAll(this);
+	PlayerSetupComponent->OnPlayerGameplayReady.RemoveAll(this);
 	GetWorldTimerManager().ClearAllTimersForObject(this);
 	Super::EndPlay(EndPlayReason);
 }
@@ -114,7 +115,7 @@ void AExperienceGameMode::GenericPlayerInitialization(AController* Controller)
 	// 같은 경기의 리스폰에서는 이 초기화를 반복하지 않는다.
 	PlayerState->SetNetUpdateFrequency(100.0f);
 	SpawnComponent->ClearRuntimeStateForController(Controller);
-	PlayerProvisioningComponent->InitializeMatchIdentity(Cast<APlayerController>(Controller));
+	PlayerSetupComponent->InitializeMatchIdentity(Cast<APlayerController>(Controller));
 
 	EPlayerMapRegion InitialMapRegion = EPlayerMapRegion::Dome;
 	FLobbyMatchMapOption MapOption;
@@ -137,7 +138,7 @@ void AExperienceGameMode::GenericPlayerInitialization(AController* Controller)
 // 최초 접속의 프로필 복원을 스폰 전에 요청한다. 심리스 이동에서는 인계된 상태를 사용한다.
 void AExperienceGameMode::OnPostLogin(AController* NewPlayer)
 {
-	PlayerProvisioningComponent->InitializeLoggedInPlayer(Cast<APlayerController>(NewPlayer));
+	PlayerSetupComponent->InitializeLoggedInPlayer(Cast<APlayerController>(NewPlayer));
 	Super::OnPostLogin(NewPlayer);
 }
 
@@ -147,7 +148,7 @@ void AExperienceGameMode::Logout(AController* Exiting)
 	APlayerState* ExitingPlayerState = Exiting ? Exiting->PlayerState : nullptr;
 	MatchFlowComponent->HandlePlayerLogout(ExitingPlayerState);
 	SpawnComponent->ClearRuntimeStateForController(Exiting);
-	PlayerProvisioningComponent->ClearRuntimeStateForController(Exiting, ExitingPlayerState);
+	PlayerSetupComponent->ClearRuntimeStateForController(Exiting, ExitingPlayerState);
 	Super::Logout(Exiting);
 
 	// 엔진의 컨트롤러 목록에서도 퇴장자가 제거된 뒤 남은 참가자의 준비를 확인한다.
@@ -168,7 +169,7 @@ void AExperienceGameMode::HandleStartingNewPlayer_Implementation(APlayerControll
 	}
 	if (NewPlayer->GetPawn() && !MustSpectate(NewPlayer))
 	{
-		PlayerProvisioningComponent->PreparePlayerForGameplay(NewPlayer);
+		PlayerSetupComponent->PreparePlayerForGameplay(NewPlayer);
 	}
 	TryStartServerMatch();
 }
@@ -318,12 +319,12 @@ void AExperienceGameMode::ApplyRuntimeComponentSettings()
 	const TSoftObjectPtr<ULevelDefinition> LevelDefinition =
 		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().LevelDefinition;
 
-	FExperienceSpawnSettings SpawnSettings;
+	FMatchSpawnSettings SpawnSettings;
 	SpawnSettings.bUseLobbySpawnIndexPlayerStarts = bUseLobbySpawnIndexPlayerStarts;
 	SpawnSettings.LobbySpawnPlayerStartTagPrefix = LobbySpawnPlayerStartTagPrefix;
 	SpawnComponent->ApplySettings(SpawnSettings);
 
-	FExperienceMatchFlowSettings MatchFlowSettings;
+	FMatchFlowSettings MatchFlowSettings;
 	MatchFlowSettings.GameVictoryRewardDefinition = GameVictoryRewardDefinition;
 	MatchFlowSettings.VictoryGoldPerKill = VictoryGoldPerKill;
 	MatchFlowSettings.VictoryGoldPenaltyPerDeath = VictoryGoldPenaltyPerDeath;
@@ -333,7 +334,7 @@ void AExperienceGameMode::ApplyRuntimeComponentSettings()
 	MatchFlowSettings.LevelDefinition = LevelDefinition;
 	MatchFlowComponent->ApplySettings(MatchFlowSettings);
 
-	FExperiencePlayerProvisioningSettings ProvisioningSettings;
+	FMatchPlayerSetupSettings ProvisioningSettings;
 	ProvisioningSettings.DefaultProvisionDefinition =
 		const_cast<UDefaultProvisionDefinition*>(UDefaultProvisionDefinition::ResolveDefaultDefinition());
 	if (!ProvisioningSettings.DefaultProvisionDefinition)
@@ -345,7 +346,7 @@ void AExperienceGameMode::ApplyRuntimeComponentSettings()
 	ProvisioningSettings.LevelDefinition = LevelDefinition;
 	ProvisioningSettings.bAssignDefaultTeamWhenLobbyTeamMissing = bAssignDefaultTeamWhenLobbyTeamMissing;
 	ProvisioningSettings.DefaultLobbyTeamColorIndex = DefaultLobbyTeamColorIndex;
-	PlayerProvisioningComponent->ApplySettings(ProvisioningSettings);
+	PlayerSetupComponent->ApplySettings(ProvisioningSettings);
 }
 
 // GameState가 소유한 Experience 로딩 상태를 조회한다.
@@ -393,7 +394,7 @@ void AExperienceGameMode::TryStartServerMatch()
 		}
 
 		bHasParticipant = true;
-		if (!PlayerProvisioningComponent->IsPlayerReadyForGameplay(Player))
+		if (!PlayerSetupComponent->IsPlayerReadyForGameplay(Player))
 		{
 			return;
 		}

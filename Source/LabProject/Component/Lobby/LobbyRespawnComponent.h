@@ -14,7 +14,7 @@ class APawn;
  * 로비 전용 리스폰 처리를 담당한다.
  *
  * 로비는 미리보기 Pawn을 재사용하고 게임의 무작위 스폰 정책을 사용하지 않으므로
- * UExperienceSpawnComponent와 분리한다.
+ * UMatchSpawnComponent와 분리한다.
  */
 UCLASS(ClassGroup = (Lobby))
 class LABPROJECT_API ULobbyRespawnComponent : public UActorComponent
@@ -39,8 +39,6 @@ private:
 	bool TryGetLobbyPlayerRespawnTransform(
 		AController* PlayerController,
 		FTransform& OutRespawnTransform);
-	void ResetLobbyPlayerStateForRespawn(
-		AController* PlayerController) const;
 
 private:
 	TMap<TObjectKey<AController>, FTimerHandle>

@@ -2,23 +2,22 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
-#include "Definition/Experience/ExperienceGameModeSettings.h"
+#include "Definition/Match/MatchRuntimeSettings.h"
 #include "UObject/ObjectKey.h"
-#include "ExperiencePlayerProvisioningComponent.generated.h"
+#include "MatchPlayerSetupComponent.generated.h"
 
 class APlayerController;
 class APawn;
 class UDefaultPlayerProvisioner;
-class UExperiencePlayerProfileService;
 struct FStreamableHandle;
 
 /**
  * 서버에서 저장 데이터 복원과 기본 지급의 순서를 연결한다.
  *
- * 프로필 복원과 기본 지급은 기존 전용 객체가 담당하며, 현재 Pawn의 지급 완료를 GameMode에 알린다.
+ * 프로필·로비 외형을 직접 복원하고 기본 지급은 Provisioner에 맡긴 뒤 현재 Pawn의 준비 완료를 알린다.
  */
-UCLASS(ClassGroup = (Experience))
-class LABPROJECT_API UExperiencePlayerProvisioningComponent
+UCLASS(ClassGroup = (Match))
+class LABPROJECT_API UMatchPlayerSetupComponent
 	: public UActorComponent
 {
 	GENERATED_BODY()
@@ -29,11 +28,11 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UExperiencePlayerProvisioningComponent();
+	UMatchPlayerSetupComponent();
 	bool IsPlayerReadyForGameplay(APlayerController* PlayerController) const;
 
 	void ApplySettings(
-		const FExperiencePlayerProvisioningSettings& InSettings);
+		const FMatchPlayerSetupSettings& InSettings);
 	void InitializeLoggedInPlayer(APlayerController* NewPlayer);
 	void InitializeMatchIdentity(APlayerController* NewPlayer);
 	void PreparePlayerForGameplay(APlayerController* NewPlayer);
@@ -44,31 +43,28 @@ public:
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandleProvisioningContentPreloaded();
+	void HandleSkinContentPreloaded();
 	void HandlePlayerProvisioned(APlayerController* PlayerController);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void BeginProvisioningContentPreload();
-	void ReleaseProvisioningContentPreload();
+	void BeginSkinContentPreload();
+	void ReleaseSkinContentPreload();
 	void FlushPendingGameplayProvisions();
 	void PreparePlayerForGameplayInternal(APlayerController* NewPlayer);
+	void ApplyCachedLobbySkinEquipment(APlayerController* NewPlayer) const;
 
 public:
 	FSimpleMulticastDelegate OnPlayerGameplayReady;
 
 private:
 	UPROPERTY(Transient)
-	TObjectPtr<UExperiencePlayerProfileService>
-		PlayerProfileService;
-
-	UPROPERTY(Transient)
 	TObjectPtr<UDefaultPlayerProvisioner>
 		DefaultPlayerProvisioner;
 
-	FExperiencePlayerProvisioningSettings CachedSettings;
+	FMatchPlayerSetupSettings CachedSettings;
 	TArray<TWeakObjectPtr<APlayerController>> PendingGameplayPlayers;
 	TMap<TObjectKey<APlayerController>, TWeakObjectPtr<APawn>> ReadyGameplayPawns;
-	TSharedPtr<FStreamableHandle> ProvisioningContentLoadHandle;
-	bool bProvisioningContentLoadPending = false;
-	bool bProvisioningContentReady = false;
+	TSharedPtr<FStreamableHandle> SkinContentLoadHandle;
+	bool bSkinContentLoadPending = false;
+	bool bSkinContentReady = false;
 };

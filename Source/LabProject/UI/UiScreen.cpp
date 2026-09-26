@@ -17,7 +17,8 @@ void UUiScreen::SetContent(UUserWidget* Panel, const FUIInputConfig& InputConfig
 {
     Config = InputConfig;
     GameplayInputPolicy = GameplayPolicy;
-    DefaultFocus = FocusTarget ? FocusTarget : Panel;
+    DefaultFocus = FocusTarget;
+    bAutoRestoreFocus = FocusTarget != nullptr;
     OnBack = MoveTemp(BackAction);
     UOverlay* Content = WidgetTree->ConstructWidget<UOverlay>();
     WidgetTree->RootWidget = Content;

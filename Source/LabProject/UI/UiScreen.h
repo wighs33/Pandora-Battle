@@ -19,6 +19,7 @@ public:
 
     // Public API ------------------------------------------------------------------------------------------------------
     UUiScreen(const FObjectInitializer& ObjectInitializer);
+    // FocusTarget이 없으면 CommonUI가 뷰포트에 포커스를 유지하여 홀드 입력을 보존한다.
     void SetContent(UUserWidget* Panel, const FUIInputConfig& InputConfig, EPdGameplayInputPolicy GameplayPolicy,
         UWidget* FocusTarget, FSimpleDelegate BackAction);
 

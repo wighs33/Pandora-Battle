@@ -72,6 +72,9 @@ public:
 	// 캐릭터의 사망 처리가 시작된 뒤 활성 능력과 사망 시 제거할 효과를 정리한다.
 	void ResetAbilityRuntimeStateForDeath();
 	int32 ClearStatusEffectsForRespawn();
+	// 리스폰은 사망·상태이상·보호막까지 초기화하고, 자원 복구는 기존 효과를 유지한다.
+	void ResetRuntimeStateForRespawn();
+	void RestoreResourcesToMaximum();
 	void ReactivateAutoActivatedAbilities();
 
 	// Event Handlers --------------------------------------------------------------------------------------------------

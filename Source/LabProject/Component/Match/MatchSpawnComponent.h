@@ -2,10 +2,10 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
-#include "Definition/Experience/ExperienceGameModeSettings.h"
+#include "Definition/Match/MatchRuntimeSettings.h"
 #include "TimerManager.h"
 #include "UObject/ObjectKey.h"
-#include "ExperienceSpawnComponent.generated.h"
+#include "MatchSpawnComponent.generated.h"
 
 class AExperienceGameMode;
 class APlayerStart;
@@ -17,8 +17,8 @@ class UMatchRuleDefinition;
  * 현재 경기의 초기 스폰 위치와 예약된 리스폰을 소유한다.
  * 로비에서 전달받은 스폰 순서 등의 식별 정보는 PlayerState의 경기 컴포넌트에 남긴다.
  */
-UCLASS(ClassGroup = (Experience))
-class LABPROJECT_API UExperienceSpawnComponent : public UActorComponent
+UCLASS(ClassGroup = (Match))
+class LABPROJECT_API UMatchSpawnComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
@@ -27,9 +27,9 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UExperienceSpawnComponent();
+	UMatchSpawnComponent();
 
-	void ApplySettings(const FExperienceSpawnSettings& InSettings)
+	void ApplySettings(const FMatchSpawnSettings& InSettings)
 	{
 		Settings = InSettings;
 	}
@@ -46,7 +46,7 @@ public:
 	bool TryGetPlayerInitialSpawnTransform(
 		AController* PlayerController,
 		FTransform& OutSpawnTransform) const;
-	void ForceMovePlayersToInitialSpawns();
+	TArray<APlayerController*> ForceMovePlayersToInitialSpawns();
 	void ClearRuntimeStateForController(AController* Controller);
 
 	int32 GetPendingRespawnCount() const
@@ -77,12 +77,11 @@ private:
 	bool DoesPlayerStartMatchRandomRespawnTags(
 		const APlayerStart* PlayerStart,
 		const UMatchRuleDefinition& MatchRules) const;
-	void ResetPlayerStateForRespawn(AController* PlayerController) const;
 	float GetPlayerRespawnDelay() const;
 
 private:
 	UPROPERTY(Transient)
-	FExperienceSpawnSettings Settings;
+	FMatchSpawnSettings Settings;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AActor>> UsedPlayerStarts;

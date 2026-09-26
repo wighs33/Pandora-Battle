@@ -7,9 +7,9 @@
 
 class UExperienceDefinition;
 class UExperienceManagerComponent;
-class UExperienceMatchFlowComponent;
-class UExperiencePlayerProvisioningComponent;
-class UExperienceSpawnComponent;
+class UMatchFlowComponent;
+class UMatchPlayerSetupComponent;
+class UMatchSpawnComponent;
 class UMatchRuleDefinition;
 class URewardDefinition;
 class UWorld;
@@ -47,9 +47,9 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	AExperienceGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UExperienceMatchFlowComponent* GetMatchFlowComponent() const { return MatchFlowComponent; }
-	UExperienceSpawnComponent* GetSpawnComponent() const { return SpawnComponent; }
-	UExperiencePlayerProvisioningComponent* GetPlayerProvisioningComponent() const { return PlayerProvisioningComponent; }
+	UMatchFlowComponent* GetMatchFlowComponent() const { return MatchFlowComponent; }
+	UMatchSpawnComponent* GetSpawnComponent() const { return SpawnComponent; }
+	UMatchPlayerSetupComponent* GetPlayerSetupComponent() const { return PlayerSetupComponent; }
 
 	void NotifyPlayerKillScored(APlayerState* KillerPlayerState, APlayerState* VictimPlayerState);
 	bool RequestAbortMatchToTitle(APlayerController* RequestingPlayer);
@@ -114,12 +114,12 @@ protected:
 private:
 	bool bExperienceLoadFailed = false;
 
-	UPROPERTY(VisibleAnywhere, Category = "!Experience|Runtime")
-	TObjectPtr<UExperienceMatchFlowComponent> MatchFlowComponent;
+	UPROPERTY(VisibleAnywhere, Category = "!Match|Runtime")
+	TObjectPtr<UMatchFlowComponent> MatchFlowComponent;
 
-	UPROPERTY(VisibleAnywhere, Category = "!Experience|Runtime")
-	TObjectPtr<UExperienceSpawnComponent> SpawnComponent;
+	UPROPERTY(VisibleAnywhere, Category = "!Match|Runtime")
+	TObjectPtr<UMatchSpawnComponent> SpawnComponent;
 
-	UPROPERTY(VisibleAnywhere, Category = "!Experience|Runtime")
-	TObjectPtr<UExperiencePlayerProvisioningComponent> PlayerProvisioningComponent;
+	UPROPERTY(VisibleAnywhere, Category = "!Match|Runtime")
+	TObjectPtr<UMatchPlayerSetupComponent> PlayerSetupComponent;
 };

@@ -2,10 +2,10 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
-#include "Definition/Experience/ExperienceGameModeSettings.h"
+#include "Definition/Match/MatchRuntimeSettings.h"
 #include "TimerManager.h"
 #include "UI/GameResultTypes.h"
-#include "ExperienceMatchFlowComponent.generated.h"
+#include "MatchFlowComponent.generated.h"
 
 class AExperienceGameMode;
 class APdPlayerState;
@@ -20,8 +20,8 @@ struct FStreamableHandle;
 /**
  * 서버 권한으로 경기 타이머·승리·보상·결과·퇴장 흐름을 조율한다.
  */
-UCLASS(ClassGroup = (Experience))
-class LABPROJECT_API UExperienceMatchFlowComponent : public UActorComponent
+UCLASS(ClassGroup = (Match))
+class LABPROJECT_API UMatchFlowComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
@@ -30,10 +30,10 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UExperienceMatchFlowComponent();
+	UMatchFlowComponent();
 	bool IsRuntimeContentReady() const { return !bRuntimeContentLoadPending; }
 
-	void ApplySettings(const FExperienceMatchFlowSettings& InSettings);
+	void ApplySettings(const FMatchFlowSettings& InSettings);
 
 	void InitializeTravelOptions(const FString& Options);
 	void InitializeGameState();
@@ -152,7 +152,7 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	FExperienceMatchFlowSettings Settings;
+	FMatchFlowSettings Settings;
 
 	bool bServerMatchTimerStarted = false;
 	bool bMatchTimerExpired = false;

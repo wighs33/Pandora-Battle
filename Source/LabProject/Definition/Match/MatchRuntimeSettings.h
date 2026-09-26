@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "UObject/PrimaryAssetId.h"
-#include "ExperienceGameModeSettings.generated.h"
+#include "MatchRuntimeSettings.generated.h"
 
 class ULevelDefinition;
 class UMatchRuleDefinition;
@@ -11,9 +11,9 @@ class URewardDefinition;
 class UDefaultProvisionDefinition;
 class UWorld;
 
-/** Player-start policy consumed by UExperienceSpawnComponent. */
+/** 경기의 PlayerStart 선택 규칙. */
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FExperienceSpawnSettings
+struct LABPROJECT_API FMatchSpawnSettings
 {
 	GENERATED_BODY()
 
@@ -24,12 +24,9 @@ struct LABPROJECT_API FExperienceSpawnSettings
 	FName LobbySpawnPlayerStartTagPrefix = TEXT("Spawn_");
 };
 
-/**
- * Match timer, result, reward, and exit policy consumed by
- * UExperienceMatchFlowComponent.
- */
+/** 경기 타이머·결과·보상·퇴장 설정. */
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FExperienceMatchFlowSettings
+struct LABPROJECT_API FMatchFlowSettings
 {
 	GENERATED_BODY()
 
@@ -72,11 +69,9 @@ struct LABPROJECT_API FExperienceMatchFlowSettings
 	TSoftObjectPtr<ULevelDefinition> LevelDefinition;
 };
 
-/**
- * Experience-only policy used alongside the shared DA_DefaultProvision.
- */
+/** 공통 기본 지급과 함께 사용하는 경기 플레이어 준비 설정. */
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FExperiencePlayerProvisioningSettings
+struct LABPROJECT_API FMatchPlayerSetupSettings
 {
 	GENERATED_BODY()
 

@@ -1,10 +1,9 @@
-#include "Component/Experience/ExperienceMatchFlowComponent.h"
+#include "Component/Match/MatchFlowComponent.h"
 
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Common/GameSessionConstants.h"
-#include "AbilitySystemComponent.h"
-#include "Component/Experience/ExperiencePlayerProvisioningComponent.h"
-#include "Component/Experience/ExperienceSpawnComponent.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/Match/MatchPlayerSetupComponent.h"
+#include "Component/Match/MatchSpawnComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Item/RewardDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
@@ -28,7 +27,7 @@
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ExperienceMatchFlowComponent)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MatchFlowComponent)
 
 DEFINE_LOG_CATEGORY_STATIC(LogExperienceMatchFlowContent, Log, All);
 
@@ -114,20 +113,20 @@ bool IsEnabledTravelOption(
 }
 }
 
-UExperienceMatchFlowComponent::UExperienceMatchFlowComponent()
+UMatchFlowComponent::UMatchFlowComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UExperienceMatchFlowComponent::ApplySettings(
-	const FExperienceMatchFlowSettings& InSettings)
+void UMatchFlowComponent::ApplySettings(
+	const FMatchFlowSettings& InSettings)
 {
 	ReleaseRuntimeContentPreload();
 	Settings = InSettings;
 	BeginRuntimeContentPreload();
 }
 
-void UExperienceMatchFlowComponent::EndPlay(
+void UMatchFlowComponent::EndPlay(
 	const EEndPlayReason::Type EndPlayReason)
 {
 	if (UWorld* World = GetWorld())
@@ -145,18 +144,18 @@ void UExperienceMatchFlowComponent::EndPlay(
 }
 
 AExperienceGameMode*
-UExperienceMatchFlowComponent::GetExperienceGameMode() const
+UMatchFlowComponent::GetExperienceGameMode() const
 {
 	return Cast<AExperienceGameMode>(GetOwner());
 }
 
 const AExperienceGameMode*
-UExperienceMatchFlowComponent::GetExperienceGameModeConst() const
+UMatchFlowComponent::GetExperienceGameModeConst() const
 {
 	return Cast<AExperienceGameMode>(GetOwner());
 }
 
-void UExperienceMatchFlowComponent::InitializeTravelOptions(
+void UMatchFlowComponent::InitializeTravelOptions(
 	const FString& Options)
 {
 	bMatchTimerSuppressedByTravelOption = IsEnabledTravelOption(
@@ -164,7 +163,7 @@ void UExperienceMatchFlowComponent::InitializeTravelOptions(
 		LabGameSession::NoMatchTimerOption);
 }
 
-void UExperienceMatchFlowComponent::InitializeGameState()
+void UMatchFlowComponent::InitializeGameState()
 {
 	if (bRuntimeContentLoadPending)
 	{
@@ -191,7 +190,7 @@ void UExperienceMatchFlowComponent::InitializeGameState()
 }
 
 // GameMode의 준비 판정 이후 한 번만 시작한다. 중복 요청이나 늦은 입장으로 종료 시각을 갱신하지 않는다.
-void UExperienceMatchFlowComponent::StartServerMatchTimerIfNeeded()
+void UMatchFlowComponent::StartServerMatchTimerIfNeeded()
 {
 	if (bRuntimeContentLoadPending || bServerMatchTimerStarted || bGameResultShown)
 	{
@@ -226,7 +225,7 @@ void UExperienceMatchFlowComponent::StartServerMatchTimerIfNeeded()
 	World->GetTimerManager().SetTimer(MatchTimerHandle, this, &ThisClass::HandleMatchTimerExpired, MatchTimerSeconds, false);
 }
 
-void UExperienceMatchFlowComponent::ConfigureRewardChestSpawns()
+void UMatchFlowComponent::ConfigureRewardChestSpawns()
 {
 	if (bRuntimeContentLoadPending)
 	{
@@ -321,7 +320,7 @@ void UExperienceMatchFlowComponent::ConfigureRewardChestSpawns()
 	}
 }
 
-int32 UExperienceMatchFlowComponent::GrantGameVictoryGoldReward(
+int32 UMatchFlowComponent::GrantGameVictoryGoldReward(
 	AController* WinnerController,
 	const int32 WinningTeamMemberCount)
 {
@@ -371,7 +370,7 @@ int32 UExperienceMatchFlowComponent::GrantGameVictoryGoldReward(
 	return NewGold;
 }
 
-void UExperienceMatchFlowComponent::HandleMatchTimerExpired()
+void UMatchFlowComponent::HandleMatchTimerExpired()
 {
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
 	if (!GameMode
@@ -426,7 +425,7 @@ void UExperienceMatchFlowComponent::HandleMatchTimerExpired()
 	}
 }
 
-bool UExperienceMatchFlowComponent::ShowGameResultForWinner(
+bool UMatchFlowComponent::ShowGameResultForWinner(
 	APlayerState* WinnerPlayerState)
 {
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
@@ -506,7 +505,7 @@ bool UExperienceMatchFlowComponent::ShowGameResultForWinner(
 	return true;
 }
 
-void UExperienceMatchFlowComponent::NotifyPlayerKillScored(
+void UMatchFlowComponent::NotifyPlayerKillScored(
 	APlayerState* KillerPlayerState,
 	APlayerState* VictimPlayerState)
 {
@@ -540,7 +539,7 @@ void UExperienceMatchFlowComponent::NotifyPlayerKillScored(
 	}
 }
 
-bool UExperienceMatchFlowComponent::RequestAbortMatchToTitle(
+bool UMatchFlowComponent::RequestAbortMatchToTitle(
 	APlayerController* RequestingPlayer)
 {
 	const AExperienceGameMode* GameMode =
@@ -573,7 +572,7 @@ bool UExperienceMatchFlowComponent::RequestAbortMatchToTitle(
 	return true;
 }
 
-bool UExperienceMatchFlowComponent::HandlePlayerLogout(
+bool UMatchFlowComponent::HandlePlayerLogout(
 	const APlayerState* ExitingPlayerState)
 {
 	const AExperienceGameMode* GameMode =
@@ -584,7 +583,7 @@ bool UExperienceMatchFlowComponent::HandlePlayerLogout(
 		&& AbortMatchToTitleForPlayerExit(ExitingPlayerState);
 }
 
-bool UExperienceMatchFlowComponent::AbortMatchToTitleForPlayerExit(
+bool UMatchFlowComponent::AbortMatchToTitleForPlayerExit(
 	const APlayerState* ExitingPlayerState)
 {
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
@@ -656,7 +655,7 @@ bool UExperienceMatchFlowComponent::AbortMatchToTitleForPlayerExit(
 }
 
 const UMatchRuleDefinition*
-UExperienceMatchFlowComponent::GetMatchRuleDefinition() const
+UMatchFlowComponent::GetMatchRuleDefinition() const
 {
 	if (!Settings.MatchRuleDefinition.IsNull())
 	{
@@ -671,7 +670,7 @@ UExperienceMatchFlowComponent::GetMatchRuleDefinition() const
 }
 
 const ULevelDefinition*
-UExperienceMatchFlowComponent::GetLevelDefinition() const
+UMatchFlowComponent::GetLevelDefinition() const
 {
 	if (!Settings.LevelDefinition.IsNull())
 	{
@@ -685,7 +684,7 @@ UExperienceMatchFlowComponent::GetLevelDefinition() const
 	return GetDefault<ULevelDefinition>();
 }
 
-bool UExperienceMatchFlowComponent::FindCurrentMatchMapOption(
+bool UMatchFlowComponent::FindCurrentMatchMapOption(
 	FLobbyMatchMapOption& OutMapOption) const
 {
 	const ULevelDefinition* Levels = GetLevelDefinition();
@@ -743,7 +742,7 @@ bool UExperienceMatchFlowComponent::FindCurrentMatchMapOption(
 	return false;
 }
 
-int32 UExperienceMatchFlowComponent::CalculateVictoryGoldReward(
+int32 UMatchFlowComponent::CalculateVictoryGoldReward(
 	const int32 KillCount,
 	const int32 DeathCount,
 	const int32 WinningTeamMemberCount) const
@@ -762,13 +761,13 @@ int32 UExperienceMatchFlowComponent::CalculateVictoryGoldReward(
 	return FMath::Max(RawReward, 0);
 }
 
-int32 UExperienceMatchFlowComponent::CalculateGoldenKillVictoryScore(
+int32 UMatchFlowComponent::CalculateGoldenKillVictoryScore(
 	const int32 TopKillCount)
 {
 	return FMath::Max(TopKillCount, 0) + 1;
 }
 
-bool UExperienceMatchFlowComponent::HasReachedGoldenKillVictoryScore(
+bool UMatchFlowComponent::HasReachedGoldenKillVictoryScore(
 	const int32 KillCount,
 	const int32 VictoryScore)
 {
@@ -776,7 +775,7 @@ bool UExperienceMatchFlowComponent::HasReachedGoldenKillVictoryScore(
 		&& FMath::Max(KillCount, 0) >= VictoryScore;
 }
 
-bool UExperienceMatchFlowComponent::ShouldEnterGoldenKillForLeaderTeams(
+bool UMatchFlowComponent::ShouldEnterGoldenKillForLeaderTeams(
 	const TArray<int32>& LeaderTeamColorIndices)
 {
 	if (LeaderTeamColorIndices.Num() < 2)
@@ -803,7 +802,7 @@ bool UExperienceMatchFlowComponent::ShouldEnterGoldenKillForLeaderTeams(
 	return false;
 }
 
-bool UExperienceMatchFlowComponent::
+bool UMatchFlowComponent::
 ShouldSuppressServerMatchTimerForCurrentMap() const
 {
 	const UMatchRuleDefinition* MatchRules =
@@ -819,13 +818,13 @@ ShouldSuppressServerMatchTimerForCurrentMap() const
 		FName(*CurrentLevelName));
 }
 
-bool UExperienceMatchFlowComponent::ShouldSuppressServerMatchTimer() const
+bool UMatchFlowComponent::ShouldSuppressServerMatchTimer() const
 {
 	return bMatchTimerSuppressedByTravelOption
 		|| ShouldSuppressServerMatchTimerForCurrentMap();
 }
 
-bool UExperienceMatchFlowComponent::TryFindUniqueKillLeader(
+bool UMatchFlowComponent::TryFindUniqueKillLeader(
 	APdPlayerState*& OutWinnerPlayerState,
 	int32& OutTopKillCount,
 	bool& bOutTie,
@@ -887,7 +886,7 @@ bool UExperienceMatchFlowComponent::TryFindUniqueKillLeader(
 	return !bOutTie;
 }
 
-bool UExperienceMatchFlowComponent::TryFindSharedLeadingTeamWinner(
+bool UMatchFlowComponent::TryFindSharedLeadingTeamWinner(
 	APdPlayerState*& OutWinnerPlayerState,
 	const int32 TopKillCount,
 	const APlayerState* ExcludedPlayerState) const
@@ -942,7 +941,7 @@ bool UExperienceMatchFlowComponent::TryFindSharedLeadingTeamWinner(
 	return LeaderTeamColorIndices.Num() >= 2;
 }
 
-bool UExperienceMatchFlowComponent::FindTopKiller(
+bool UMatchFlowComponent::FindTopKiller(
 	APdPlayerState*& OutTopKillerPlayerState,
 	int32& OutTopKillCount) const
 {
@@ -989,14 +988,14 @@ bool UExperienceMatchFlowComponent::FindTopKiller(
 	return true;
 }
 
-bool UExperienceMatchFlowComponent::ShouldAbortMatchForPlayerExit(
+bool UMatchFlowComponent::ShouldAbortMatchForPlayerExit(
 	const APlayerState* ExitingPlayerState) const
 {
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameModeConst();
-	const UExperiencePlayerProvisioningComponent* Provisioning =
+	const UMatchPlayerSetupComponent* Provisioning =
 		GameMode
-			? GameMode->GetPlayerProvisioningComponent()
+			? GameMode->GetPlayerSetupComponent()
 			: nullptr;
 	if (!GameMode
 		|| !GameMode->HasAuthority()
@@ -1016,7 +1015,7 @@ bool UExperienceMatchFlowComponent::ShouldAbortMatchForPlayerExit(
 		&& CurrentGameState->PlayerArray.Num() > 1;
 }
 
-void UExperienceMatchFlowComponent::ReturnToLobbyAfterGameResult()
+void UMatchFlowComponent::ReturnToLobbyAfterGameResult()
 {
 	GameResultLobbyReturnTimerHandle.Invalidate();
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
@@ -1036,14 +1035,14 @@ void UExperienceMatchFlowComponent::ReturnToLobbyAfterGameResult()
 	}
 }
 
-FString UExperienceMatchFlowComponent::GetResolvedTitleTravelMapName() const
+FString UMatchFlowComponent::GetResolvedTitleTravelMapName() const
 {
 	const ULevelDefinition* Definition =
 		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 
-FString UExperienceMatchFlowComponent::GetResolvedLobbyTravelMapName() const
+FString UMatchFlowComponent::GetResolvedLobbyTravelMapName() const
 {
 	const ULevelDefinition* Definition =
 		ULevelDefinition::ResolveDefaultDefinition();
@@ -1051,7 +1050,7 @@ FString UExperienceMatchFlowComponent::GetResolvedLobbyTravelMapName() const
 }
 
 FGameResultPresentationData
-UExperienceMatchFlowComponent::BuildPlayerExitGameResult(
+UMatchFlowComponent::BuildPlayerExitGameResult(
 	const APlayerState* ExitingPlayerState,
 	const APlayerState* WinnerPlayerState,
 	const int32 WinnerTeamColorIndex,
@@ -1093,7 +1092,7 @@ UExperienceMatchFlowComponent::BuildPlayerExitGameResult(
 	return GameResultData;
 }
 
-void UExperienceMatchFlowComponent::SendPlayerExitGameResultToTitle(
+void UMatchFlowComponent::SendPlayerExitGameResultToTitle(
 	const FGameResultPresentationData& GameResultData,
 	const APlayerState* ExitingPlayerState)
 {
@@ -1132,7 +1131,7 @@ void UExperienceMatchFlowComponent::SendPlayerExitGameResultToTitle(
 	}
 }
 
-AController* UExperienceMatchFlowComponent::FindControllerForPlayerState(
+AController* UMatchFlowComponent::FindControllerForPlayerState(
 	const APlayerState* PlayerState) const
 {
 	UWorld* World = GetWorld();
@@ -1156,7 +1155,7 @@ AController* UExperienceMatchFlowComponent::FindControllerForPlayerState(
 	return nullptr;
 }
 
-int32 UExperienceMatchFlowComponent::CountPlayersOnTeam(
+int32 UMatchFlowComponent::CountPlayersOnTeam(
 	const int32 TeamColorIndex,
 	const APlayerState* ExcludedPlayerState) const
 {
@@ -1197,7 +1196,7 @@ int32 UExperienceMatchFlowComponent::CountPlayersOnTeam(
 	return FMath::Max(TeamMemberCount, 1);
 }
 
-int32 UExperienceMatchFlowComponent::GrantVictoryRewardsForWinner(
+int32 UMatchFlowComponent::GrantVictoryRewardsForWinner(
 	APlayerState* WinnerPlayerState,
 	const int32 WinnerTeamColorIndex,
 	const int32 WinnerTeamMemberCount,
@@ -1260,7 +1259,7 @@ int32 UExperienceMatchFlowComponent::GrantVictoryRewardsForWinner(
 	return RewardedWinnerCount;
 }
 
-void UExperienceMatchFlowComponent::ApplyVictoryRewardEligibility(
+void UMatchFlowComponent::ApplyVictoryRewardEligibility(
 	TArray<FGameResultPlayerStat>& PlayerStats,
 	const APlayerState* WinnerPlayerState,
 	const int32 WinnerTeamColorIndex,
@@ -1299,7 +1298,7 @@ void UExperienceMatchFlowComponent::ApplyVictoryRewardEligibility(
 	}
 }
 
-int32 UExperienceMatchFlowComponent::CalculateVictoryGoldReward(
+int32 UMatchFlowComponent::CalculateVictoryGoldReward(
 	const APdPlayerState* PlayerState,
 	const int32 WinningTeamMemberCount) const
 {
@@ -1311,7 +1310,7 @@ int32 UExperienceMatchFlowComponent::CalculateVictoryGoldReward(
 		: 0;
 }
 
-FText UExperienceMatchFlowComponent::ResolveResultPlayerName(
+FText UMatchFlowComponent::ResolveResultPlayerName(
 	const APlayerState* PlayerState) const
 {
 	if (!PlayerState)
@@ -1341,7 +1340,7 @@ FText UExperienceMatchFlowComponent::ResolveResultPlayerName(
 			: PlayerName);
 }
 
-FText UExperienceMatchFlowComponent::ResolveResultTeamName(
+FText UMatchFlowComponent::ResolveResultTeamName(
 	const int32 TeamColorIndex) const
 {
 	switch (TeamColorIndex)
@@ -1363,7 +1362,7 @@ FText UExperienceMatchFlowComponent::ResolveResultTeamName(
 	}
 }
 
-FText UExperienceMatchFlowComponent::ResolveWinnerTeamTitle(
+FText UMatchFlowComponent::ResolveWinnerTeamTitle(
 	const APlayerState* WinnerPlayerState) const
 {
 	const APdPlayerState* WinnerPdPlayerState =
@@ -1384,7 +1383,7 @@ FText UExperienceMatchFlowComponent::ResolveWinnerTeamTitle(
 		TeamName);
 }
 
-void UExperienceMatchFlowComponent::BuildGameResultPlayerStats(
+void UMatchFlowComponent::BuildGameResultPlayerStats(
 	TArray<FGameResultPlayerStat>& OutPlayerStats) const
 {
 	OutPlayerStats.Reset();
@@ -1439,22 +1438,29 @@ void UExperienceMatchFlowComponent::BuildGameResultPlayerStats(
 		});
 }
 
-void UExperienceMatchFlowComponent::ForceMovePlayersForGoldenKill()
+void UMatchFlowComponent::ForceMovePlayersForGoldenKill()
 {
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameModeConst();
 	if (GameMode)
 	{
-		if (UExperienceSpawnComponent* SpawnComponent =
+		if (UMatchSpawnComponent* SpawnComponent =
 			GameMode->GetSpawnComponent())
 		{
-			SpawnComponent->ForceMovePlayersToInitialSpawns();
+			for (APlayerController* Player : SpawnComponent->ForceMovePlayersToInitialSpawns())
+			{
+				if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(Player))
+				{
+					PdPlayerController->Client_ShowGoldenKillAnnouncement(
+						NSLOCTEXT("GoldenKill", "GoldenKillAnnouncement", "GOLDEN KILL"));
+				}
+			}
 		}
 	}
 	RaiseForceMoveGatesForGoldenKill();
 }
 
-void UExperienceMatchFlowComponent::RaiseForceMoveGatesForGoldenKill()
+void UMatchFlowComponent::RaiseForceMoveGatesForGoldenKill()
 {
 	UWorld* World = GetWorld();
 	if (!World)
@@ -1475,7 +1481,7 @@ void UExperienceMatchFlowComponent::RaiseForceMoveGatesForGoldenKill()
 	}
 }
 
-void UExperienceMatchFlowComponent::StartGoldenKill(
+void UMatchFlowComponent::StartGoldenKill(
 	const int32 TopKillCount)
 {
 	const AExperienceGameMode* GameMode =
@@ -1491,7 +1497,7 @@ void UExperienceMatchFlowComponent::StartGoldenKill(
 	}
 }
 
-void UExperienceMatchFlowComponent::RestorePlayerResourcesForGoldenKill() const
+void UMatchFlowComponent::RestorePlayerResourcesForGoldenKill() const
 {
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameModeConst();
@@ -1507,35 +1513,17 @@ void UExperienceMatchFlowComponent::RestorePlayerResourcesForGoldenKill() const
 	{
 		const APdPlayerState* PdPlayerState =
 			Cast<APdPlayerState>(PlayerState);
-		UAbilitySystemComponent* AbilitySystemComponent =
-			PdPlayerState
-				? PdPlayerState->GetAbilitySystemComponent()
-				: nullptr;
-		if (!AbilitySystemComponent
-			|| !AbilitySystemComponent->GetAttributeSet(
-				UBasicAttributeSet::StaticClass()))
+		UPdAbilitySystemComponent* AbilitySystem = PdPlayerState
+			? Cast<UPdAbilitySystemComponent>(PdPlayerState->GetAbilitySystemComponent()) : nullptr;
+		if (AbilitySystem)
 		{
-			continue;
+			AbilitySystem->RestoreResourcesToMaximum();
 		}
-
-		AbilitySystemComponent->SetNumericAttributeBase(
-			UBasicAttributeSet::GetHealthAttribute(),
-			AbilitySystemComponent->GetNumericAttribute(
-				UBasicAttributeSet::GetMaxHealthAttribute()));
-		AbilitySystemComponent->SetNumericAttributeBase(
-			UBasicAttributeSet::GetManaAttribute(),
-			AbilitySystemComponent->GetNumericAttribute(
-				UBasicAttributeSet::GetMaxManaAttribute()));
-		AbilitySystemComponent->SetNumericAttributeBase(
-			UBasicAttributeSet::GetStaminaAttribute(),
-			AbilitySystemComponent->GetNumericAttribute(
-				UBasicAttributeSet::GetMaxStaminaAttribute()));
-		AbilitySystemComponent->ForceReplication();
 	}
 }
 
 const URewardDefinition*
-UExperienceMatchFlowComponent::ResolveRewardDefinitionForChestSpawns(
+UMatchFlowComponent::ResolveRewardDefinitionForChestSpawns(
 	const TArray<ARewardChest*>& RewardChests) const
 {
 	if (!Settings.ChestSpawnRewardDefinition.IsNull())
@@ -1569,7 +1557,7 @@ UExperienceMatchFlowComponent::ResolveRewardDefinitionForChestSpawns(
 	return nullptr;
 }
 
-void UExperienceMatchFlowComponent::BeginRuntimeContentPreload()
+void UMatchFlowComponent::BeginRuntimeContentPreload()
 {
 	TSet<FSoftObjectPath> AssetPaths;
 	const auto AddSoftPath = [&AssetPaths](const auto& SoftObject)
@@ -1613,7 +1601,7 @@ void UExperienceMatchFlowComponent::BeginRuntimeContentPreload()
 	}
 }
 
-void UExperienceMatchFlowComponent::HandleRuntimeContentPreloadComplete(
+void UMatchFlowComponent::HandleRuntimeContentPreloadComplete(
 	const uint32 RequestGeneration)
 {
 	if (RequestGeneration != RuntimeContentRequestGeneration)
@@ -1625,7 +1613,7 @@ void UExperienceMatchFlowComponent::HandleRuntimeContentPreloadComplete(
 	ResumePendingInitialization();
 }
 
-void UExperienceMatchFlowComponent::ReleaseRuntimeContentPreload()
+void UMatchFlowComponent::ReleaseRuntimeContentPreload()
 {
 	++RuntimeContentRequestGeneration;
 	bRuntimeContentLoadPending = false;
@@ -1637,7 +1625,7 @@ void UExperienceMatchFlowComponent::ReleaseRuntimeContentPreload()
 	}
 }
 
-void UExperienceMatchFlowComponent::ResumePendingInitialization()
+void UMatchFlowComponent::ResumePendingInitialization()
 {
 	const bool bShouldInitializeGameState = bInitializeGameStateRequested;
 	const bool bShouldConfigureRewardChests = bConfigureRewardChestsRequested;
