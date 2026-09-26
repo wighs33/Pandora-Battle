@@ -13,7 +13,10 @@
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
 #include "Mode/PdPlayerState.h"
-#include "Lobby/Coordination/LobbyMatchCoordinator.h"
+#include "Component/Player/PlayerMatchComponent.h"
+#include "Online/OnlineSessionsSubsystem.h"
+#include "Engine/GameInstance.h"
+#include "TimerManager.h"
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
 #include "Mode/PdPlayerController.h"
 #include "Provision/DefaultPlayerProvisioner.h"
@@ -53,7 +56,6 @@ ALobbyGameMode::ALobbyGameMode(const FObjectInitializer& ObjectInitializer) : Su
 	LobbyConfigurationComponent = CreateDefaultSubobject<ULobbyConfigurationComponent>(TEXT("LobbyConfigurationComponent"));
 	LobbyPlayerSetupComponent = CreateDefaultSubobject<ULobbyPlayerSetupComponent>(TEXT("LobbyPlayerCoordinatorComponent"));
 	SpawnComponent = CreateDefaultSubobject<UPlayerSpawnComponent>(TEXT("LobbyRespawnComponent"));
-	MatchCoordinator = CreateDefaultSubobject<ULobbyMatchCoordinator>(TEXT("LobbyMatchCoordinator"));
 	DefaultPlayerProvisioner = CreateDefaultSubobject<UDefaultPlayerProvisioner>(TEXT("DefaultPlayerProvisioner"));
 	TravelCoordinator = CreateDefaultSubobject<ULobbyTravelCoordinator>(TEXT("LobbyTravelCoordinator"));
 
@@ -79,7 +81,7 @@ void ALobbyGameMode::BeginPlay()
 		}
 		LobbyConfigurationComponent->ApplyDefaultLobbyConfigIfNeeded();
 		SpawnComponent->Initialize(LobbyConfigurationComponent->GetMatchRuleDefinition());
-		MatchCoordinator->UpdateAdvertisedSessionSettingsFromLobbyConfig();
+		UpdateAdvertisedSessionSettings();
 		// Experience와 로비 설정 중 어느 쪽이 먼저 로딩되어도 두 준비가 끝난 뒤 플레이어를 시작한다.
 		ResumeWaitingPlayers();
 	}));
@@ -88,8 +90,9 @@ void ALobbyGameMode::BeginPlay()
 // 로비가 종료되면 조정 객체가 보유한 타이머와 비동기 요청을 정리한다.
 void ALobbyGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	MatchCoordinator->Shutdown();
-	TravelCoordinator->Shutdown();
+	GetWorldTimerManager().ClearTimer(StartCountdownTimerHandle);
+	bGameStartRequested = false;
+	TravelCoordinator->CancelPendingTravel();
 	DefaultPlayerProvisioner->Shutdown();
 	SpawnComponent->OnPlayerRespawned.RemoveAll(this);
 	Super::EndPlay(EndPlayReason);
@@ -140,7 +143,7 @@ void ALobbyGameMode::HandleStartingNewPlayer_Implementation(APlayerController* N
 		return;
 	}
 
-	MatchCoordinator->AssignLobbyTeamColorIfNeeded(NewPlayer ? NewPlayer->GetPlayerState<APdPlayerState>() : nullptr);
+	AssignLobbyTeamColorIfNeeded(NewPlayer ? NewPlayer->GetPlayerState<APdPlayerState>() : nullptr);
 	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 	ProvisionLobbyPlayer(NewPlayer);
 	const ALobbyGameState* LobbyGameState = GetGameState<ALobbyGameState>();
@@ -179,27 +182,43 @@ void ALobbyGameMode::SaveConfig(FName MapKey, int32 InMaxBotCount)
 	if (!LobbyConfigurationComponent->IsRuntimeReady()) { return; }
 	FLobbyMatchMapOption Option;
 	if (!LobbyConfigurationComponent->FindConfiguredMapOption(MapKey, Option)) { return; }
-	if (MatchCoordinator->IsGameStartRequested()) { MatchCoordinator->CancelPendingGameStart(); }
+	if (bGameStartRequested) { CancelPendingGameStart(); }
 	LobbyConfigurationComponent->SaveConfig(MapKey, InMaxBotCount);
-	MatchCoordinator->UpdateAdvertisedSessionSettingsFromLobbyConfig();
+	UpdateAdvertisedSessionSettings();
 }
 
-// 호스트의 시작 요청을 인원과 팀 조건을 검증하는 담당 객체에 전달한다.
+// 시작 조건을 확인하고 Pawn을 잠근다. 혼자이면 즉시 이동하고 여러 명이면 카운트다운한다.
 void ALobbyGameMode::TryStartGame()
 {
-	MatchCoordinator->TryStartGame();
+	if (!CanHostStartGame()) { return; }
+	bGameStartRequested = true;
+	GetWorldTimerManager().ClearTimer(StartCountdownTimerHandle);
+	const float CountdownSeconds = GetStartCountdownSeconds();
+	if (ALobbyGameState* State = GetGameState<ALobbyGameState>())
+	{
+		State->SetGameStartPending(true, State->GetServerWorldTimeSeconds() + CountdownSeconds);
+	}
+	TravelCoordinator->SetAllLobbyPawnsTravelLocked(true);
+	if (CountdownSeconds > 0.0f)
+	{
+		GetWorldTimerManager().SetTimer(StartCountdownTimerHandle, this, &ThisClass::HandleStartCountdownElapsed, CountdownSeconds, false);
+	}
+	else
+	{
+		HandleStartCountdownElapsed();
+	}
 }
 
 // 호스트의 시작 버튼이 현재 콘텐츠와 로비 조건을 만족하는지 조회한다.
 bool ALobbyGameMode::CanHostStartGame() const
 {
-	return MatchCoordinator->CanHostStartGame();
+	return !bGameStartRequested && AreMatchStartConditionsMet();
 }
 
 // 팀 변경 시 진행 중인 시작 카운트다운을 취소하게 한다.
 void ALobbyGameMode::NotifyLobbyTeamChanged()
 {
-	MatchCoordinator->NotifyLobbyTeamChanged();
+	if (bGameStartRequested) { CancelPendingGameStart(); }
 }
 
 // 호스트가 지정한 플레이어의 강퇴를 처리한다.
@@ -215,7 +234,7 @@ void ALobbyGameMode::KickPlayer(APdPlayerState* TargetPlayerState)
 		}
 	}
 	if (!Controller) { return; }
-	if (MatchCoordinator->IsGameStartRequested()) { MatchCoordinator->CancelPendingGameStart(); }
+	if (bGameStartRequested) { CancelPendingGameStart(); }
 	TargetPlayerState->GetLobbyPlayerStateComponent()->SetLeavingLobby(true);
 	GameSession->KickPlayer(Controller, NSLOCTEXT("Lobby", "KickedByHost", "Kicked by host"));
 }
@@ -328,4 +347,175 @@ void ALobbyGameMode::SelectLobbyMapByOffset(int32 Offset)
 		SaveConfig(Option.MapKey, LobbyConfigurationComponent->GetConfiguredMaxBotCount());
 		return;
 	}
+}
+
+bool ALobbyGameMode::AreMatchStartConditionsMet() const
+{
+	if (!HasAuthority() || !IsReadyForPlayerStart())
+	{
+		return false;
+	}
+
+	const int32 ActivePlayerCount = GetActiveLobbyPlayerCount();
+	const int32 MaxPlayerCount = LobbyConfigurationComponent->GetConfiguredMaxPlayerCount();
+	return ActivePlayerCount > 0 && ActivePlayerCount <= MaxPlayerCount && AreLobbyTeamsBalanced();
+}
+
+int32 ALobbyGameMode::GetActiveLobbyPlayerCount() const
+{
+	if (!GameState)
+	{
+		return 0;
+	}
+
+	int32 ActivePlayerCount = 0;
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState);
+		if (LobbyPlayerState && !LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
+		{
+			++ActivePlayerCount;
+		}
+	}
+
+	return ActivePlayerCount;
+}
+
+bool ALobbyGameMode::AreLobbyTeamsBalanced() const
+{
+	if (!GameState)
+	{
+		return false;
+	}
+
+	int32 ActivePlayerCount = 0;
+	TMap<int32, int32> PlayerCountsByTeamColor;
+	bool bHasUnassignedTeam = false;
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState);
+		if (!LobbyPlayerState || LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
+		{
+			continue;
+		}
+
+		++ActivePlayerCount;
+		const int32 TeamColorIndex = LobbyPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex();
+		if (TeamColorIndex == INDEX_NONE)
+		{
+			bHasUnassignedTeam = true;
+		}
+		else
+		{
+			++PlayerCountsByTeamColor.FindOrAdd(TeamColorIndex);
+		}
+	}
+
+	// 혼자 입장할 때에는 팀 지정 여부와 관계없이 연습 경기를 허용한다.
+	if (ActivePlayerCount == 1)
+	{
+		return true;
+	}
+	if (ActivePlayerCount < 2 || PlayerCountsByTeamColor.Num() < 2 || bHasUnassignedTeam)
+	{
+		return false;
+	}
+
+	const int32 PlayersPerTeam = ActivePlayerCount / PlayerCountsByTeamColor.Num();
+	for (const TPair<int32, int32>& TeamPlayerCount : PlayerCountsByTeamColor)
+	{
+		if (TeamPlayerCount.Value != PlayersPerTeam)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+void ALobbyGameMode::AssignLobbyTeamColorIfNeeded(APdPlayerState* LobbyPlayerState) const
+{
+	if (!LobbyPlayerState || LobbyPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex() != INDEX_NONE)
+	{
+		return;
+	}
+
+	int32 TeamColorIndex = LobbyPlayerState->GetPlayerMatchComponent()->GetMatchSpawnIndex();
+	if (TeamColorIndex == INDEX_NONE)
+	{
+		TeamColorIndex = FindAvailableLobbyTeamColorIndex(LobbyPlayerState);
+	}
+
+	TeamColorIndex = FMath::Clamp(TeamColorIndex, 0, LobbyConfigurationComponent->GetConfiguredMaxPlayerCount() - 1);
+	LobbyPlayerState->GetPlayerMatchComponent()->SetMatchTeamColorIndex(TeamColorIndex);
+}
+
+int32 ALobbyGameMode::FindAvailableLobbyTeamColorIndex(const APdPlayerState* IgnoredPlayerState) const
+{
+	TSet<int32> UsedTeamColorIndices;
+	if (GameState)
+	{
+		for (APlayerState* PlayerState : GameState->PlayerArray)
+		{
+			const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState);
+			if (!LobbyPlayerState || LobbyPlayerState == IgnoredPlayerState
+				|| LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
+			{
+				continue;
+			}
+
+			const int32 TeamColorIndex = LobbyPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex();
+			if (TeamColorIndex != INDEX_NONE)
+			{
+				UsedTeamColorIndices.Add(TeamColorIndex);
+			}
+		}
+	}
+
+	for (int32 TeamColorIndex = 0; TeamColorIndex < LobbyConfigurationComponent->GetConfiguredMaxPlayerCount();
+		++TeamColorIndex)
+	{
+		if (!UsedTeamColorIndices.Contains(TeamColorIndex))
+		{
+			return TeamColorIndex;
+		}
+	}
+
+	return 0;
+}
+
+void ALobbyGameMode::HandleStartCountdownElapsed()
+{
+	if (!bGameStartRequested) { return; }
+	if (!AreMatchStartConditionsMet())
+	{
+		CancelPendingGameStart();
+		return;
+	}
+	TravelCoordinator->StartSessionAndTravel(GetActiveLobbyPlayerCount() == 1);
+}
+
+float ALobbyGameMode::GetStartCountdownSeconds() const
+{
+	return GetActiveLobbyPlayerCount() == 1 ? 0.0f
+		: FMath::Max(LobbyConfigurationComponent->GetMatchRuleDefinition()->LobbyStartCountdownSeconds, 0.0f);
+}
+
+// 시작 상태는 GameMode에서 끝내고, 비동기 이동과 화면·잠금 정리는 이동 객체에 맡긴다.
+void ALobbyGameMode::CancelPendingGameStart()
+{
+	if (!HasAuthority()) { return; }
+	if (UWorld* World = GetWorld()) { World->GetTimerManager().ClearTimer(StartCountdownTimerHandle); }
+	bGameStartRequested = false;
+	if (ALobbyGameState* State = GetGameState<ALobbyGameState>()) { State->SetGameStartPending(false, 0.0); }
+	TravelCoordinator->CancelPendingTravel();
+}
+
+void ALobbyGameMode::UpdateAdvertisedSessionSettings() const
+{
+	if (!HasAuthority()) { return; }
+	UOnlineSessionsSubsystem* Sessions = GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>();
+	if (!Sessions || !Sessions->HasNamedSession()) { return; }
+	FLobbyMatchMapOption Option;
+	if (!LobbyConfigurationComponent->GetSelectedLobbyMapOption(Option)) { return; }
+	Sessions->UpdateSessionSettings(Option.MapKey.ToString(), Option.MaxPlayerCount, true);
 }

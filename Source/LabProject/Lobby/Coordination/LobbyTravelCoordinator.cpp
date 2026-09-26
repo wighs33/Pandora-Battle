@@ -15,7 +15,6 @@
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
 #include "Mode/PdPlayerState.h"
-#include "Lobby/Coordination/LobbyMatchCoordinator.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -26,87 +25,52 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLobbyTravelCoordinator, Log, All);
 
-// 카운트다운 종료 시 인원·팀·콘텐츠 준비를 다시 확인하고 온라인 세션을 시작한다. 완료 콜백에서 전장 이동 준비를 이어 간다.
-void ULobbyTravelCoordinator::StartSessionAndTravel()
+// GameMode가 확정한 경기 옵션으로 온라인 세션을 시작하고 완료 콜백에서 전장 이동을 준비한다.
+void ULobbyTravelCoordinator::StartSessionAndTravel(bool bSuppressMatchTimer)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !GameMode->HasAuthority())
+	if (!GameMode || !GameMode->HasAuthority()) { return; }
+	UOnlineSessionsSubsystem* Sessions = GameMode->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>();
+	if (!Sessions)
 	{
+		PrepareMatchTravel(bSuppressMatchTimer);
 		return;
 	}
-
-	ULobbyMatchCoordinator* MatchCoordinator = GameMode->GetMatchCoordinator();
-	if (!MatchCoordinator)
-	{
-		return;
-	}
-	if (!MatchCoordinator->AreMatchStartConditionsMet())
-	{
-		MatchCoordinator->CancelPendingGameStart();
-		return;
-	}
-
-	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = UGameInstance::GetSubsystem<UOnlineSessionsSubsystem>(GameMode->GetGameInstance());
-	if (!OnlineSessionsSubsystem)
-	{
-		PrepareMatchTravel();
-		return;
-	}
-
 	ClearStartSessionDelegate();
-	StartSessionCompleteHandle = OnlineSessionsSubsystem->OnStartSessionComplete.AddUObject(this, &ThisClass::HandleStartSessionComplete);
-	OnlineSessionsSubsystem->StartSession();
+	StartSessionCompleteHandle = Sessions->OnStartSessionComplete.AddUObject(this, &ThisClass::HandleStartSessionComplete, bSuppressMatchTimer);
+	Sessions->StartSession();
 }
 
 // 온라인 세션 시작 구독을 해제한 뒤 성공하면 전장 준비를 계속하고, 실패하면 카운트다운과 이동 잠금을 되돌린다.
-void ULobbyTravelCoordinator::HandleStartSessionComplete(const bool bWasSuccessful)
+void ULobbyTravelCoordinator::HandleStartSessionComplete(bool bWasSuccessful, bool bSuppressMatchTimer)
 {
 	ClearStartSessionDelegate();
 	if (!bWasSuccessful)
 	{
-		if (ALobbyGameMode* GameMode = GetLobbyGameMode(); GameMode && GameMode->GetMatchCoordinator())
-		{
-			GameMode->GetMatchCoordinator()->CancelPendingGameStart();
-		}
+		if (ALobbyGameMode* GameMode = GetLobbyGameMode()) { GameMode->CancelPendingGameStart(); }
 		return;
 	}
-
-	PrepareMatchTravel();
+	PrepareMatchTravel(bSuppressMatchTimer);
 }
 
 // 세션 시작을 기다리는 동안 바뀐 로비 조건을 재검사하고, 선택 맵과 플레이어 정보를 보존한 뒤 접속 팝업과 콘텐츠 로딩을 시작한다.
-void ULobbyTravelCoordinator::PrepareMatchTravel()
+void ULobbyTravelCoordinator::PrepareMatchTravel(bool bSuppressMatchTimer)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !GameMode->HasAuthority())
-	{
-		return;
-	}
-
-	ULobbyMatchCoordinator* MatchCoordinator = GameMode->GetMatchCoordinator();
-	if (!MatchCoordinator)
-	{
-		return;
-	}
-	if (!MatchCoordinator->AreMatchStartConditionsMet())
-	{
-		MatchCoordinator->CancelPendingGameStart();
-		return;
-	}
-
+	if (!GameMode || !GameMode->HasAuthority()) { return; }
 	FLobbyMatchMapOption SelectedMapOption;
-	FString TravelMapName;
-	if (!ResolveSelectedMatchMap(TravelMapName, SelectedMapOption))
+	FString TravelUrl;
+	if (!GameMode->bGameStartRequested || !GameMode->AreMatchStartConditionsMet()
+		|| !ResolveSelectedMatchMap(TravelUrl, SelectedMapOption))
 	{
-		MatchCoordinator->CancelPendingGameStart();
+		GameMode->CancelPendingGameStart();
 		return;
 	}
-
-	PersistSelectedGameConfig(SelectedMapOption, TravelMapName);
-	CacheLobbyTravelState(UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance()));
-	SetAllLobbyPawnsTravelLocked(true);
+	CacheSelectedGameConfigForTravel(SelectedMapOption, TravelUrl);
+	CacheLobbyTravelState(GameMode->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>());
 	SetGameStartConnectingPopupVisible(true);
-	PreloadContentAndScheduleTravel(BuildGameTravelUrl(TravelMapName));
+	if (bSuppressMatchTimer) { TravelUrl += FString::Printf(TEXT("?%s=1"), LabGameSession::NoMatchTimerOption); }
+	PreloadContentAndScheduleTravel(TravelUrl);
 }
 
 // 서버 GameState가 확정한 선택 맵에서 이동 경로와 정원 설정을 찾는다.
@@ -131,21 +95,8 @@ bool ULobbyTravelCoordinator::ResolveSelectedMatchMap(FString& OutTravelMapName,
 	return !OutTravelMapName.IsEmpty();
 }
 
-// 선택 맵으로 이동할 URL을 만든다. 혼자 입장하면 경기 시간 제한을 끄는 옵션을 붙인다.
-FString ULobbyTravelCoordinator::BuildGameTravelUrl(const FString& TravelMapName) const
-{
-	FString TravelUrl = TravelMapName;
-	const ALobbyGameMode* GameMode = GetLobbyGameMode();
-	const ULobbyMatchCoordinator* MatchCoordinator = GameMode ? GameMode->GetMatchCoordinator() : nullptr;
-	if (MatchCoordinator && MatchCoordinator->GetActiveLobbyPlayerCount() == 1)
-	{
-		TravelUrl += FString::Printf(TEXT("?%s=1"), LabGameSession::NoMatchTimerOption);
-	}
-	return TravelUrl;
-}
-
-// 맵 이동 뒤에도 선택 맵·정원·봇 설정을 복구할 수 있도록 GameInstance의 로비 서브시스템에 저장하고 GameState에도 반영한다.
-void ULobbyTravelCoordinator::PersistSelectedGameConfig(const FLobbyMatchMapOption& SelectedMapOption, const FString& TravelMapName) const
+// 맵 이동 뒤에도 선택 맵·정원·봇 설정을 복구할 수 있도록 GameInstance의 로비 서브시스템에 보관한다.
+void ULobbyTravelCoordinator::CacheSelectedGameConfigForTravel(const FLobbyMatchMapOption& SelectedMapOption, const FString& TravelMapName) const
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
 	ULobbyRuntimeSubsystem* LobbySubsystem =
@@ -156,12 +107,8 @@ void ULobbyTravelCoordinator::PersistSelectedGameConfig(const FLobbyMatchMapOpti
 	}
 
 	LobbySubsystem->SetLobbyGameConfig(SelectedMapOption.MapKey, TravelMapName, SelectedMapOption.MaxPlayerCount,
-		FMath::Clamp(LobbySubsystem->GetLobbyMaxBotCount(), 0, 100));
+		LobbySubsystem->GetLobbyMaxBotCount());
 
-	if (ALobbyGameState* LobbyGameState = GameMode->GetGameState<ALobbyGameState>())
-	{
-		LobbyGameState->SetSelectedMapOption(SelectedMapOption);
-	}
 }
 
 // 이전 경기에서 남은 캐시를 비운 후, 현재 참가자들의 매치 식별 정보·스킨·판도라 슬롯을 맵 이동용으로 보관한다.
@@ -252,8 +199,10 @@ TMap<FGameplayTag, FName> ULobbyTravelCoordinator::BuildEquippedSkinNamesBySlot(
 void ULobbyTravelCoordinator::PreloadContentAndScheduleTravel(const FString& TravelUrl)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !GameMode->GetWorld() || TravelUrl.IsEmpty())
+	if (!GameMode) { return; }
+	if (!GameMode->GetWorld() || TravelUrl.IsEmpty())
 	{
+		GameMode->CancelPendingGameStart();
 		return;
 	}
 
@@ -273,7 +222,8 @@ void ULobbyTravelCoordinator::CheckContentPreloadAndScheduleTravel()
 	UWorld* World = GameMode ? GameMode->GetWorld() : nullptr;
 	if (!World || PendingTravelUrl.IsEmpty())
 	{
-		CancelPendingTravel();
+		if (GameMode) { GameMode->CancelPendingGameStart(); }
+		else { CancelPendingTravel(); }
 		return;
 	}
 
@@ -308,24 +258,8 @@ void ULobbyTravelCoordinator::HandleGameEntryContentPreloadFailure(const ELobbyC
 {
 	UE_LOG(LogLobbyTravelCoordinator, Error, TEXT("Game travel was canceled because required content preload ended with result '%s'."),
 		*UEnum::GetValueAsString(Result));
-
-	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode)
-	{
-		CancelPendingTravel();
-		return;
-	}
-
-	if (GameMode->GetMatchCoordinator())
-	{
-		GameMode->GetMatchCoordinator()->CancelPendingGameStart();
-	}
-	else
-	{
-		CancelPendingTravel();
-		SetAllLobbyPawnsTravelLocked(false);
-	}
-	SetGameStartConnectingPopupVisible(false);
+	if (ALobbyGameMode* GameMode = GetLobbyGameMode()) { GameMode->CancelPendingGameStart(); }
+	else { CancelPendingTravel(); }
 }
 
 // 접속 팝업 RPC를 보낼 짧은 여유를 둔 뒤 서버와 접속 중인 플레이어들을 전장으로 이동시킨다. 로비 객체가 사라지면 실행하지 않는다.
@@ -335,6 +269,7 @@ void ULobbyTravelCoordinator::ScheduleServerTravel(const FString& TravelUrl)
 	UWorld* World = GameMode ? GameMode->GetWorld() : nullptr;
 	if (!World || TravelUrl.IsEmpty())
 	{
+		if (GameMode) { GameMode->CancelPendingGameStart(); }
 		return;
 	}
 
@@ -342,32 +277,30 @@ void ULobbyTravelCoordinator::ScheduleServerTravel(const FString& TravelUrl)
 	World->GetTimerManager().SetTimer(TravelDelayTimerHandle,
 		FTimerDelegate::CreateWeakLambda(this,
 			[this, TravelUrl]() {
-				const ALobbyGameMode* LobbyGameMode = GetLobbyGameMode();
-				UWorld* TravelWorld = LobbyGameMode ? LobbyGameMode->GetWorld() : nullptr;
-				if (TravelWorld)
+				ALobbyGameMode* LobbyGameMode = GetLobbyGameMode();
+				if (!LobbyGameMode) { return; }
+				UWorld* TravelWorld = LobbyGameMode->GetWorld();
+				if (!TravelWorld || !LobbyGameMode->bGameStartRequested || !LobbyGameMode->AreMatchStartConditionsMet()
+					|| !TravelWorld->ServerTravel(TravelUrl))
 				{
-					TravelWorld->ServerTravel(TravelUrl);
+					LobbyGameMode->CancelPendingGameStart();
 				}
 			}),
 		0.15f, false);
 }
 
-// 취소된 시작 요청이 나중에 맵을 이동시키지 않도록 세션 완료 구독·콘텐츠 확인·이동 타이머와 대기 URL을 해제한다.
+// 세션 구독·이동 타이머·대기 URL을 취소하고 접속 팝업과 모든 Pawn의 이동 잠금을 해제한다.
 void ULobbyTravelCoordinator::CancelPendingTravel()
 {
 	ClearStartSessionDelegate();
-	if (ALobbyGameMode* GameMode = GetLobbyGameMode())
+	if (ALobbyGameMode* GameMode = GetLobbyGameMode(); GameMode && GameMode->GetWorld())
 	{
 		GameMode->GetWorldTimerManager().ClearTimer(GameEntryContentPreloadPollTimerHandle);
 		GameMode->GetWorldTimerManager().ClearTimer(TravelDelayTimerHandle);
 	}
 	PendingTravelUrl.Reset();
-}
-
-// 로비 종료 시 아직 남아 있는 전장 이동 준비를 정리한다.
-void ULobbyTravelCoordinator::Shutdown()
-{
-	CancelPendingTravel();
+	SetGameStartConnectingPopupVisible(false);
+	SetAllLobbyPawnsTravelLocked(false);
 }
 
 // 온라인 세션의 늦은 완료 알림이 취소되거나 종료된 로비의 이동 절차를 다시 실행하지 않도록 구독을 해제한다.

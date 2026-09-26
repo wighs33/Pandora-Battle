@@ -9,17 +9,14 @@ class APdPlayerState;
 class ULobbyConfigurationComponent;
 class UExperienceManagerComponent;
 class UExperienceDefinition;
-class ULobbyMatchCoordinator;
 class ULobbyPlayerSetupComponent;
 class UDefaultPlayerProvisioner;
 class UPlayerSpawnComponent;
 class ULobbyTravelCoordinator;
 
 /**
- * 서버에서 로비 입장, 플레이어 시작과 게임 전환을 연결한다.
- *
- * 설정 조회와 세부 처리는 담당 컴포넌트 및 조정 객체가 맡고,
- * 엔진 초기화 순서와 로비의 주요 실행 명령은 여기서 관리한다.
+ * 로비 입장·팀 배정·경기 시작 조건과 카운트다운을 소유한다.
+ * 설정·플레이어 준비·스폰은 각 컴포넌트, 비동기 전장 이동은 TravelCoordinator가 담당한다.
  */
 UCLASS()
 class LABPROJECT_API ALobbyGameMode : public AGameModeBase
@@ -51,6 +48,7 @@ public:
 	void TryStartGame();
 	bool CanHostStartGame() const;
 	void NotifyLobbyTeamChanged();
+	void CancelPendingGameStart();
 	void KickPlayer(APdPlayerState* TargetPlayerState);
 
 	void ProvisionLobbyPlayer(APlayerController* PlayerController);
@@ -58,11 +56,10 @@ public:
 
 	ULobbyConfigurationComponent* GetLobbyConfigurationComponent() const { return LobbyConfigurationComponent.Get(); }
 	UPlayerSpawnComponent* GetSpawnComponent() const { return SpawnComponent; }
-	ULobbyMatchCoordinator* GetMatchCoordinator() const { return MatchCoordinator.Get(); }
-	ULobbyTravelCoordinator* GetTravelCoordinator() const { return TravelCoordinator.Get(); }
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleStartCountdownElapsed();
 	void ResumeWaitingPlayers();
 	void HandleExperienceLoaded(const UExperienceDefinition* Experience);
 	void HandleExperienceLoadFailed(FPrimaryAssetId ExperienceId, const FString& FailureMessage);
@@ -72,6 +69,20 @@ private:
 	UExperienceManagerComponent* GetExperienceManager() const;
 
 private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool AreMatchStartConditionsMet() const;
+	int32 GetActiveLobbyPlayerCount() const;
+	bool AreLobbyTeamsBalanced() const;
+	float GetStartCountdownSeconds() const;
+	void AssignLobbyTeamColorIfNeeded(APdPlayerState* PlayerState) const;
+	int32 FindAvailableLobbyTeamColorIndex(const APdPlayerState* IgnoredPlayerState) const;
+	void UpdateAdvertisedSessionSettings() const;
+
+	// 비동기 이동 직전에도 GameMode의 시작 조건으로 재검증한다.
+	friend class ULobbyTravelCoordinator;
+	FTimerHandle StartCountdownTimerHandle;
+	bool bGameStartRequested = false;
+
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ULobbyConfigurationComponent> LobbyConfigurationComponent;
 
@@ -80,9 +91,6 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPlayerSpawnComponent> SpawnComponent;
-
-	UPROPERTY(Transient)
-	TObjectPtr<ULobbyMatchCoordinator> MatchCoordinator;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UDefaultPlayerProvisioner> DefaultPlayerProvisioner;

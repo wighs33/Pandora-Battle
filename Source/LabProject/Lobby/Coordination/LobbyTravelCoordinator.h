@@ -12,6 +12,7 @@ class ULobbyRuntimeSubsystem;
 enum class ELobbyContentPreloadResult : uint8;
 struct FLobbyMatchMapOption;
 
+/** 온라인 세션 시작, 이동 데이터 보관과 콘텐츠 준비를 거쳐 Lobby에서 Match로 비동기 이동한다. */
 UCLASS(Transient)
 class LABPROJECT_API ULobbyTravelCoordinator : public UObject
 {
@@ -19,16 +20,15 @@ class LABPROJECT_API ULobbyTravelCoordinator : public UObject
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	void StartSessionAndTravel();
+	void StartSessionAndTravel(bool bSuppressMatchTimer);
 	void CancelPendingTravel();
-	void Shutdown();
 
 	void SetAllLobbyPawnsTravelLocked(bool bLocked) const;
 	void SetLobbyPawnTravelLocked(APlayerController* PlayerController, bool bLocked) const;
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandleStartSessionComplete(bool bWasSuccessful);
+	void HandleStartSessionComplete(bool bWasSuccessful, bool bSuppressMatchTimer);
 	void CheckContentPreloadAndScheduleTravel();
 	void HandleGameEntryContentPreloadFailure(ELobbyContentPreloadResult Result);
 
@@ -37,10 +37,9 @@ private:
 	void ClearStartSessionDelegate();
 
 	// 다음 전장에 전달할 맵·경기 옵션·플레이어 정보.
-	void PrepareMatchTravel();
+	void PrepareMatchTravel(bool bSuppressMatchTimer);
 	bool ResolveSelectedMatchMap(FString& OutTravelMapName, FLobbyMatchMapOption& OutSelectedMapOption) const;
-	FString BuildGameTravelUrl(const FString& TravelMapName) const;
-	void PersistSelectedGameConfig(const FLobbyMatchMapOption& SelectedMapOption, const FString& TravelMapName) const;
+	void CacheSelectedGameConfigForTravel(const FLobbyMatchMapOption& SelectedMapOption, const FString& TravelMapName) const;
 	void CacheLobbyTravelState(ULobbyRuntimeSubsystem* LobbySubsystem) const;
 	void CacheLobbyPlayerTravelState(ULobbyRuntimeSubsystem* LobbySubsystem, const APdPlayerState* LobbyPlayerState) const;
 	TMap<FGameplayTag, FName> BuildEquippedSkinNamesBySlot(const APlayerController* PlayerController) const;
