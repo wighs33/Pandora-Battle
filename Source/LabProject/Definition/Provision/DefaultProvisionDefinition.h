@@ -180,6 +180,7 @@ public:
 
 	const FDefaultProvisionModeValues& GetStatusPointValues() const { return StatusPointValues; }
 	const FDefaultProvisionModeCounts& GetSoulDustValues() const { return SoulDustValues; }
+	const FDefaultProvisionModeFlags& GetGrantAllItems() const { return GrantAllItems; }
 	const FDefaultProvisionModeFlags& GetGrantAllWeapons() const { return GrantAllWeapons; }
 	const FDefaultProvisionModeFlags& GetGrantAllEquipment() const { return GrantAllEquipment; }
 	const TArray<FDefaultProvisionPandoraGrant>& GetPandoraGrants() const { return PandoraGrants; }
@@ -197,6 +198,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Default Provision|Values|Soul Dust",
 		meta = (AllowPrivateAccess = "true"))
 	FDefaultProvisionModeCounts SoulDustValues;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "!Default Provision|Inventory Policy|All Items",
+		meta = (AllowPrivateAccess = "true",
+			ToolTip = "Grants one of every ItemDefinition. Explicit ItemGrants quantities and quick slots take precedence."))
+	FDefaultProvisionModeFlags GrantAllItems;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
 		Category = "!Default Provision|Inventory Policy|All Weapons",

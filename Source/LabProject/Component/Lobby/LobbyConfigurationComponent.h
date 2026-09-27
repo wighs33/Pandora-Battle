@@ -30,13 +30,11 @@ public:
 
 	void InitializeRuntime(FSimpleDelegate OnReady = FSimpleDelegate());
 	bool IsRuntimeReady() const { return RuntimeState == ERuntimeState::Ready; }
-	bool HasRuntimeInitializationFailed() const { return RuntimeState == ERuntimeState::Failed; }
 	void ApplyDefaultLobbyConfigIfNeeded();
 	void SaveConfig(
 		FName MapKey,
 		int32 InMaxBotCount);
 
-	FName GetFirstMapKey();
 	int32 GetLobbyMapOptionCount();
 	bool GetLobbyMapOptionAtIndex(
 		int32 Index,
@@ -56,9 +54,8 @@ public:
 	const UDefaultProvisionDefinition* GetDefaultProvisionDefinition() const;
 
 private:
-	// Event Handlers --------------------------------------------------------------------------------------------------
-
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	FName GetFirstMapKey();
 	ALobbyGameMode* GetLobbyGameMode() const;
 	void FinishRuntimeInitialization(uint32 RequestGeneration);
 	void ReleaseRuntimePreloads();

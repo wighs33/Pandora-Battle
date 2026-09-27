@@ -56,12 +56,7 @@ public:
 	{
 		return GameEntryContentPreloadResult;
 	}
-	const TArray<FPrimaryAssetId>& GetMissingGameEntryPrimaryAssetIds() const
-	{
-		return MissingGameEntryPrimaryAssetIds;
-	}
-	static void GetGameEntryPrimaryAssetIds(
-		TArray<FPrimaryAssetId>& OutAssetIds);
+
 	const ULevelDefinition* GetLoadedLevelDefinition() const
 	{
 		return bLevelDefinitionReady ? LoadedLevelDefinition.Get() : nullptr;
@@ -69,11 +64,7 @@ public:
 	const UMatchRuleDefinition* GetLoadedLobbyMatchRuleDefinition() const;
 
 	void SetLobbyGameConfig(FName MapKey, const FString& TravelMapName, int32 MaxPlayerCount, int32 MaxBotCount);
-	void SetLobbyRuntimeConfig(const FLobbyRuntimeConfig& InLobbyRuntimeConfig);
-
-	const FLobbyRuntimeConfig& GetLobbyRuntimeConfig() const { return LobbyRuntimeConfig; }
 	FName GetLobbySelectedMapKey() const { return LobbyRuntimeConfig.SelectedMapKey; }
-	FString GetLobbyTravelMapName() const { return LobbyRuntimeConfig.TravelMapName; }
 	int32 GetLobbyMaxPlayerCount() const { return LobbyRuntimeConfig.MaxPlayerCount; }
 	int32 GetLobbyMaxBotCount() const { return LobbyRuntimeConfig.MaxBotCount; }
 
@@ -120,10 +111,10 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleLevelDefinitionPreloadComplete();
-	void HandleLobbyDataAssetsPreloadComplete();
 	void HandleGameEntryContentPreloadComplete(uint32 RequestGeneration);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	static void GetGameEntryPrimaryAssetIds(TArray<FPrimaryAssetId>& OutAssetIds);
 	void ReleaseGameEntryContentPreload();
 	void SetGameEntryContentPreloadResult(
 		ELobbyContentPreloadResult Result,
@@ -142,19 +133,15 @@ private:
 	TObjectPtr<ULevelDefinition> LoadedLevelDefinition;
 
 	TSharedPtr<FStreamableHandle> LevelDefinitionPreloadHandle;
-	TSharedPtr<FStreamableHandle> LobbyDataAssetsPreloadHandle;
 	TMap<TWeakObjectPtr<UUiSubsystem>, TSharedPtr<FContentLease>>
 		LobbyContentLeases;
 	bool bLevelDefinitionPreloadPending = false;
 	bool bLevelDefinitionReady = false;
-	bool bLobbyDataAssetsPreloadPending = false;
-	bool bLobbyDataAssetsReady = false;
 
 	TSharedPtr<FStreamableHandle> GameEntryContentPreloadHandle;
 	uint32 GameEntryContentRequestGeneration = 0;
 	ELobbyContentPreloadResult GameEntryContentPreloadResult =
 		ELobbyContentPreloadResult::NotStarted;
-	TArray<FPrimaryAssetId> MissingGameEntryPrimaryAssetIds;
 
 	UPROPERTY(Transient)
 	FLobbyRuntimeConfig LobbyRuntimeConfig;

@@ -35,10 +35,6 @@ public:
 	void InitializeGameState();
 	void StartServerMatchTimerIfNeeded();
 
-	int32 GrantGameVictoryGoldReward(
-		AController* WinnerController,
-		int32 WinningTeamMemberCount);
-	bool ShowGameResultForWinner(APlayerState* WinnerPlayerState);
 	void NotifyPlayerKillScored(
 		APlayerState* KillerPlayerState,
 		APlayerState* VictimPlayerState);
@@ -47,29 +43,15 @@ public:
 	bool FindCurrentMatchMapOption(
 		FLobbyMatchMapOption& OutMapOption) const;
 	bool IsGameResultShown() const { return bGameResultShown; }
-	bool IsGoldenKillActive() const { return bGoldenKillActive; }
-	int32 GetGoldenKillVictoryScore() const
-	{
-		return GoldenKillVictoryScore;
-	}
-	static int32 CalculateGoldenKillVictoryScore(int32 TopKillCount);
-	static bool HasReachedGoldenKillVictoryScore(
-		int32 KillCount,
-		int32 VictoryScore);
-	static bool ShouldEnterGoldenKillForLeaderTeams(
-		const TArray<int32>& LeaderTeamColorIndices);
-
-	int32 CalculateVictoryGoldReward(
-		int32 KillCount,
-		int32 DeathCount,
-		int32 WinningTeamMemberCount) const;
-
-	// Event Handlers --------------------------------------------------------------------------------------------------
-	void ConfigureRewardChestSpawns();
-	void HandleMatchTimerExpired();
 	bool HandlePlayerLogout(const APlayerState* ExitingPlayerState);
 
 private:
+	int32 GrantGameVictoryGoldReward(AController* WinnerController, int32 WinningTeamMemberCount);
+	bool ShowGameResultForWinner(APlayerState* WinnerPlayerState);
+	static bool ShouldEnterGoldenKillForLeaderTeams(const TArray<int32>& LeaderTeamColorIndices);
+	int32 CalculateVictoryGoldReward(int32 KillCount, int32 DeathCount, int32 WinningTeamMemberCount) const;
+	void ConfigureRewardChestSpawns();
+	void HandleMatchTimerExpired();
 	void ReturnToLobbyAfterGameResult();
 	void HandleRewardContentLoaded();
 
@@ -132,7 +114,7 @@ private:
 		TArray<FGameResultPlayerStat>& OutPlayerStats) const;
 	void ForceMovePlayersForGoldenKill();
 	void RaiseForceMoveGatesForGoldenKill();
-	void StartGoldenKill(int32 TopKillCount);
+	void StartGoldenKill();
 	void RestorePlayerResourcesForGoldenKill() const;
 	const URewardDefinition* ResolveRewardDefinitionForChestSpawns(
 		const TArray<ARewardChest*>& RewardChests) const;
@@ -142,7 +124,6 @@ private:
 	bool bServerMatchTimerStarted = false;
 	bool bMatchTimerExpired = false;
 	bool bGoldenKillActive = false;
-	int32 GoldenKillVictoryScore = 0;
 	bool bGameResultShown = false;
 	bool bMatchTimerSuppressedByTravelOption = false;
 	FTimerHandle MatchTimerHandle;

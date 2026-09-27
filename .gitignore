@@ -20,6 +20,9 @@ Content/**
 !Content/**/IA_*.uasset
 !Content/**/IMC_*.uasset
 
+# Training bot navigation requires this map's RecastNavMesh load settings.
+!Content/Map/LV_TrainingRoom.umap
+
 # Project status cue Blueprints use the existing GC_ names.
 !Content/GAS/Cue/GC_Burning.uasset
 !Content/GAS/Cue/GC_Frozen.uasset

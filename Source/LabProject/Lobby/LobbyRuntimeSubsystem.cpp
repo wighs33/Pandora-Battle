@@ -60,7 +60,6 @@ void ULobbyRuntimeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	bLevelDefinitionPreloadPending = false;
 	bLevelDefinitionReady = false;
 	GameEntryContentPreloadResult = ELobbyContentPreloadResult::NotStarted;
-	MissingGameEntryPrimaryAssetIds.Reset();
 }
 
 void ULobbyRuntimeSubsystem::Deinitialize()
@@ -342,7 +341,6 @@ void ULobbyRuntimeSubsystem::ReleaseGameEntryContentPreload()
 {
 	++GameEntryContentRequestGeneration;
 	GameEntryContentPreloadResult = ELobbyContentPreloadResult::NotStarted;
-	MissingGameEntryPrimaryAssetIds.Reset();
 	if (GameEntryContentPreloadHandle.IsValid())
 	{
 		GameEntryContentPreloadHandle->CancelHandle();
@@ -356,10 +354,9 @@ void ULobbyRuntimeSubsystem::SetGameEntryContentPreloadResult(
 	TArray<FPrimaryAssetId> MissingAssetIds)
 {
 	GameEntryContentPreloadResult = Result;
-	MissingGameEntryPrimaryAssetIds = MoveTemp(MissingAssetIds);
 
 	for (const FPrimaryAssetId& MissingAssetId :
-		MissingGameEntryPrimaryAssetIds)
+		MissingAssetIds)
 	{
 		UE_LOG(
 			LogLobbyRuntimeSubsystem,
@@ -491,15 +488,6 @@ void ULobbyRuntimeSubsystem::SetLobbyGameConfig(
 	LobbyRuntimeConfig.TravelMapName = TravelMapName;
 	LobbyRuntimeConfig.MaxPlayerCount = FMath::Max(MaxPlayerCount, 1);
 	LobbyRuntimeConfig.MaxBotCount = FMath::Clamp(MaxBotCount, 0, 100);
-}
-
-void ULobbyRuntimeSubsystem::SetLobbyRuntimeConfig(const FLobbyRuntimeConfig& InLobbyRuntimeConfig)
-{
-	SetLobbyGameConfig(
-		InLobbyRuntimeConfig.SelectedMapKey,
-		InLobbyRuntimeConfig.TravelMapName,
-		InLobbyRuntimeConfig.MaxPlayerCount,
-		InLobbyRuntimeConfig.MaxBotCount);
 }
 
 void ULobbyRuntimeSubsystem::ResetCachedPlayerMatchIdentities()

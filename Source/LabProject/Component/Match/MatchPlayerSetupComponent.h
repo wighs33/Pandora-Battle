@@ -54,7 +54,8 @@ public:
 	FSimpleMulticastDelegate OnPlayerGameplayReady;
 
 private:
-	UPROPERTY(Transient)
+	// Blueprint component instances must not share the template's mutable provision state.
+	UPROPERTY(Transient, Instanced)
 	TObjectPtr<UDefaultPlayerProvisioner>
 		DefaultPlayerProvisioner;
 

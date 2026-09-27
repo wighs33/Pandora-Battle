@@ -92,9 +92,9 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPlayerSpawnComponent> SpawnComponent;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, Instanced)
 	TObjectPtr<UDefaultPlayerProvisioner> DefaultPlayerProvisioner;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, Instanced)
 	TObjectPtr<ULobbyTravelCoordinator> TravelCoordinator;
 };

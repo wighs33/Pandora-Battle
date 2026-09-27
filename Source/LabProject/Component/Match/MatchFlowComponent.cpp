@@ -87,7 +87,7 @@ void UMatchFlowComponent::EndPlay(
 {
 	if (UWorld* World = GetWorld())
 	{
-		// GameMode가 이 컴포넌트에 예약한 다음 틱 작업도 함께 취소한다.
+		// 상자 준비를 위해 예약한 다음 틱 작업도 함께 취소한다.
 		World->GetTimerManager().ClearAllTimersForObject(this);
 	}
 	MatchTimerHandle.Invalidate();
@@ -356,7 +356,7 @@ void UMatchFlowComponent::HandleMatchTimerExpired()
 		&& MatchRules
 		&& MatchRules->bGoldenKillEnabled)
 	{
-		StartGoldenKill(TopKillCount);
+		StartGoldenKill();
 		ForceMovePlayersForGoldenKill();
 	}
 }
@@ -462,11 +462,7 @@ void UMatchFlowComponent::NotifyPlayerKillScored(
 		return;
 	}
 
-	if (ShowGameResultForWinner(UniqueLeaderPlayerState))
-	{
-		bGoldenKillActive = false;
-		GoldenKillVictoryScore = 0;
-	}
+	ShowGameResultForWinner(UniqueLeaderPlayerState);
 }
 
 bool UMatchFlowComponent::RequestAbortMatchToTitle(
@@ -653,20 +649,6 @@ int32 UMatchFlowComponent::CalculateVictoryGoldReward(
 				GetExperienceGameMode()->VictoryGoldPerWinningTeamMember,
 				0);
 	return FMath::Max(RawReward, 0);
-}
-
-int32 UMatchFlowComponent::CalculateGoldenKillVictoryScore(
-	const int32 TopKillCount)
-{
-	return FMath::Max(TopKillCount, 0) + 1;
-}
-
-bool UMatchFlowComponent::HasReachedGoldenKillVictoryScore(
-	const int32 KillCount,
-	const int32 VictoryScore)
-{
-	return VictoryScore > 0
-		&& FMath::Max(KillCount, 0) >= VictoryScore;
 }
 
 bool UMatchFlowComponent::ShouldEnterGoldenKillForLeaderTeams(
@@ -1376,8 +1358,7 @@ void UMatchFlowComponent::RaiseForceMoveGatesForGoldenKill()
 	}
 }
 
-void UMatchFlowComponent::StartGoldenKill(
-	const int32 TopKillCount)
+void UMatchFlowComponent::StartGoldenKill()
 {
 	const AExperienceGameMode* GameMode =
 		GetExperienceGameMode();
@@ -1385,8 +1366,6 @@ void UMatchFlowComponent::StartGoldenKill(
 		&& GameMode->HasAuthority()
 		&& !bGameResultShown)
 	{
-		GoldenKillVictoryScore =
-			CalculateGoldenKillVictoryScore(TopKillCount);
 		bGoldenKillActive = true;
 		GameMode->GetSpawnComponent()->SetRespawnLocation(EPlayerRespawnLocation::InitialSpawn);
 		RestorePlayerResourcesForGoldenKill();
@@ -1457,7 +1436,6 @@ void UMatchFlowComponent::FinishMatchRuntime()
 {
 	bGameResultShown = true;
 	bGoldenKillActive = false;
-	GoldenKillVictoryScore = 0;
 	GetExperienceGameMode()->GetSpawnComponent()->StopRespawning();
 	if (UWorld* World = GetWorld())
 	{

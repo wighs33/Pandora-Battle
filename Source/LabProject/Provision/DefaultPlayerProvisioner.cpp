@@ -148,7 +148,8 @@ bool UDefaultPlayerProvisioner::EnsureContentLoaded(APlayerController* PlayerCon
 			RequiredContentIds.AddUnique(Grant.SkinDefinitionId);
 		}
 	}
-	if (Definition->GetGrantAllWeapons().IsEnabled(Mode)
+	if (Definition->GetGrantAllItems().IsEnabled(Mode)
+		|| Definition->GetGrantAllWeapons().IsEnabled(Mode)
 		|| Definition->GetGrantAllEquipment().IsEnabled(Mode))
 	{
 		TArray<FPrimaryAssetId> ItemDefinitionIds;
@@ -287,12 +288,15 @@ bool UDefaultPlayerProvisioner::ApplyItems(APdPlayerState* PlayerState)
 				return Grant.ItemDefinitionId.IsValid()
 					&& Grant.Counts.GetCount(Mode) > 0;
 			});
+	const bool bGrantAllItems =
+		Definition->GetGrantAllItems().IsEnabled(Mode);
 	const bool bGrantAllWeapons =
 		Definition->GetGrantAllWeapons().IsEnabled(Mode);
 	const bool bGrantAllEquipment =
 		Definition->GetGrantAllEquipment().IsEnabled(Mode);
 	if (Mode == EDefaultProvisionMode::Lobby
 		&& !bHasConfiguredItems
+		&& !bGrantAllItems
 		&& !bGrantAllWeapons
 		&& !bGrantAllEquipment)
 	{
@@ -376,7 +380,7 @@ bool UDefaultPlayerProvisioner::ApplyItems(APdPlayerState* PlayerState)
 		}
 	}
 
-	if (bGrantAllWeapons || bGrantAllEquipment)
+	if (bGrantAllItems || bGrantAllWeapons || bGrantAllEquipment)
 	{
 		TSet<FPrimaryAssetId> ExistingItemIds;
 		for (const UItemInstance* ItemInstance
@@ -434,7 +438,7 @@ bool UDefaultPlayerProvisioner::ApplyItems(APdPlayerState* PlayerState)
 				&& ItemDefinition->IsWeaponDefinition(WeaponTypeTag);
 			const bool bMatchesEquipment = bGrantAllEquipment
 				&& ItemDefinition->MatchesItemType(EquipmentTypeTag);
-			if (bMatchesWeapon || bMatchesEquipment)
+			if (bGrantAllItems || bMatchesWeapon || bMatchesEquipment)
 			{
 				MissingPolicyItemIds.Add(ItemDefinitionId);
 			}
