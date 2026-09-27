@@ -17,7 +17,6 @@ void UGameSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Collection.InitializeDependency<UContentDataSubsystem>();
 	GameSettingDefinition = TSoftObjectPtr<UGameSettingDefinition>(
 		GetDefaultGameSettingDefinitionPath());
-	bGameSettingDefinitionReady = false;
 	bRuntimeContentReady = false;
 	bRuntimeContentPreloadPending = false;
 	CachedGameSettingDefinition = nullptr;
@@ -28,7 +27,6 @@ void UGameSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UGameSettingsSubsystem::Deinitialize()
 {
 	bRuntimeContentPreloadPending = false;
-	bGameSettingDefinitionReady = false;
 	bRuntimeContentReady = false;
 	CachedGameSettingDefinition = nullptr;
 	PendingRuntimeContentCallbacks.Reset();
@@ -193,7 +191,6 @@ void UGameSettingsSubsystem::HandleDefinitionPreloadComplete()
 		return;
 	}
 
-	bGameSettingDefinitionReady = true;
 
 	TArray<FSoftObjectPath> RuntimeAssetPaths;
 	CachedGameSettingDefinition->GetRuntimePreloadAssetPaths(RuntimeAssetPaths);

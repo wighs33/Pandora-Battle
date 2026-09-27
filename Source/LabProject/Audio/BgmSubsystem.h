@@ -6,7 +6,6 @@
 #include "BgmSubsystem.generated.h"
 
 class UAudioComponent;
-class UGameSettingDefinition;
 class UWorld;
 struct FStreamableHandle;
 
@@ -21,13 +20,10 @@ public:
 	virtual void Deinitialize() override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintCallable, Category = "!Audio")
 	void PlayBgmForContext(EBgmContext BgmContext);
 
-	UFUNCTION(BlueprintCallable, Category = "!Audio")
 	void RestoreWorldBgm();
 
-	UFUNCTION(BlueprintCallable, Category = "!Audio")
 	void StopBgm();
 
 private:
@@ -53,14 +49,12 @@ private:
 
 private:
 	UPROPERTY(Transient)
-	TObjectPtr<UAudioComponent> StartupBgmAudioComponent;
+	TObjectPtr<UAudioComponent> ActiveBgmAudioComponent;
 
 	EBgmContext ActiveBgmContext = EBgmContext::Startup;
 	FSoftObjectPath ActiveBgmSoundPath;
 	FDelegateHandle PostLoadMapWithWorldHandle;
-	float ActiveBgmBaseVolume = 1.0f;
 	uint64 BgmLoadGeneration = 0;
-	bool bSettingsLoadPending = false;
 	bool bSoundLoadPending = false;
 	TSharedPtr<FStreamableHandle> PendingSoundLoadHandle;
 };

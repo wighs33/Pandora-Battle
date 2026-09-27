@@ -10,7 +10,7 @@
 #include "Components/Overlay.h"
 #include "Components/TextBlock.h"
 #include "Blueprint/WidgetTree.h"
-#include "Settings/MenuLocalizationSubsystem.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "Engine/Font.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"

@@ -4,7 +4,7 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "UI/Shop/ShopEntryViewData.h"
-#include "Settings/MenuLocalizationSubsystem.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "UI/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopPreviewPanelWidget)

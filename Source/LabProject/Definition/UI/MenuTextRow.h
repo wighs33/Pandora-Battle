@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
-#include "Settings/UiLanguage.h"
+#include "Localization/UiLanguage.h"
 #include "MenuTextRow.generated.h"
 
 /** One stable UI key per row; one editable spreadsheet column per supported language. */

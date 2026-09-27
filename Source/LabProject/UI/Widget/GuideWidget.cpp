@@ -15,8 +15,8 @@
 #include "InputCoreTypes.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Mode/PdHUD.h"
-#include "Settings/BgmSubsystem.h"
-#include "Settings/MenuLocalizationSubsystem.h"
+#include "Audio/BgmSubsystem.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GuideWidget)
 

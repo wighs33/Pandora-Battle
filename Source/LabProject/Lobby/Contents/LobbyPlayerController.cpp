@@ -15,8 +15,6 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "UI/Lobby/LobbyWidget.h"
 #include "Engine/GameInstance.h"
-#include "Settings/BgmSubsystem.h"
-#include "Settings/CursorSettingsLibrary.h"
 #include "UI/UiSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyPlayerController)
@@ -32,11 +30,6 @@ void ALobbyPlayerController::BeginPlay()
 
 	if (IsLocalController())
 	{
-		UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, this);
-		if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
-		{
-			BgmSubsystem->PlayBgmForContext(EBgmContext::Lobby);
-		}
 		if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
 		{
 			if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>();

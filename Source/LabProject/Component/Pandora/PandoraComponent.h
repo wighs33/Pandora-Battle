@@ -14,7 +14,7 @@ class UPandoraDefinition;
 class UPandoraSkillSource;
 class UPdAbilitySystemComponent;
 class UItemDefinition;
-class ACharacterBase;
+class UEquipmentComponent;
 struct FStreamableHandle;
 struct FGameplayAbilitySpec;
 
@@ -98,14 +98,12 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UPandoraComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UFUNCTION(BlueprintCallable, Category = "!Inventory")
-	void ActivatePandoras(const TArray<FPrimaryAssetId>& PandoraDefinitions);
+	void GrantPandorasByPrimaryAssetIds(const TArray<FPrimaryAssetId>& PandoraDefinitions);
 
-	void ActivatePandorasWithLoadout(
+	void GrantPandorasWithLoadout(
 		const TArray<FPrimaryAssetId>& PandoraDefinitions,
 		const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection);
 
-	UFUNCTION()
 	void ClearAllPandoras();
 
 	bool GrantPandoraDefinition(const UPandoraDefinition* PandoraDefinition);
@@ -133,7 +131,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	EEnum_Direction GetCurrentPandoraLoadoutDirection() const { return CurrentPandoraLoadoutDirection; }
 
-	UFUNCTION(BlueprintCallable, Category = "!Pandora|Skill")
 	void RefreshCurrentPandoraSkills();
 
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Weapon")
@@ -150,8 +147,8 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerAutoSetPandoraLoadoutSlot(FPrimaryAssetId PandoraDefinitionId);
 
+private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-
 	UFUNCTION()
 	void OnRep_CurrentPandoraDefinition();
 
@@ -161,24 +158,19 @@ protected:
 	UFUNCTION()
 	void OnRep_PandoraLoadoutSlots();
 
-private:
 	void HandleGrantedAbilityRemoved(const FGameplayAbilitySpec& Spec);
 	void HandleSkillSourceReplicated(UPandoraSkillSource* Source);
 	void HandleSkillSourceDestroyed(UPandoraSkillSource* Source);
 
-private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	bool AddPandoraDefinition(const UPandoraDefinition* PandoraDefinition);
-	void LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& PandoraDefinitions,
-		const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection);
+	bool AddOwnedPandoraEntry(const UPandoraDefinition* PandoraDefinition);
 	void CancelPendingPandoraLoads();
 	bool SelectPandoraByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId, EEnum_Direction RequestedDirection = EEnum_Direction::Center);
 	void ClearGrantedPandoraContent();
 	bool HasPandoraAuthority() const;
 	int32 ResolveSelectedPandoraRuntimeLevel(const UPandoraDefinition* PandoraDefinition) const;
 	EEnum_Direction ResolvePandoraSelectionDirection(const UPandoraDefinition* PandoraDefinition, EEnum_Direction RequestedDirection) const;
-	const ACharacterBase* ResolveCurrentCharacterOwner() const;
-	const class UEquipmentComponent* GetCurrentEquipmentComponent() const;
+	const UEquipmentComponent* GetCurrentEquipmentComponent() const;
 	const UItemDefinition* GetCurrentWeaponDefinition() const;
 	EEnum_Direction GetCurrentWeaponLoadoutDirection() const;
 	const UPandoraDefinition* FindOwnedPandoraDefinitionByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId) const;
@@ -190,10 +182,9 @@ private:
 	void NotifyPandoraLoadoutChanged();
 	bool ResolveAutoPandoraLoadoutDirection(const UPandoraDefinition* PandoraDefinition, EEnum_Direction& OutDirection) const;
 	bool ResolvePreferredAutoPandoraLoadoutDirection(const UPandoraDefinition* PandoraDefinition, EEnum_Direction& OutDirection) const;
-	bool SetPandoraLoadoutSlotInternal(EEnum_Direction Direction, const UPandoraDefinition* PandoraDefinition, bool bRequireOwnedPandora);
+	bool SetPandoraLoadoutSlotInternal(EEnum_Direction Direction, const UPandoraDefinition* PandoraDefinition);
 	void LogRejectedServerRequest(const TCHAR* RequestName, const FString& Reason);
 
-private:
 	// 능력 부여 전에 출처를 초기화하고, 컴포넌트가 보관과 복제 수명을 맡는다.
 	UPandoraSkillSource* CreateSkillSource(const UPandoraDefinition* Definition, int32 SkillIndex,
 		EEnum_Direction LoadoutDirection);

@@ -10,7 +10,7 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Blueprint/WidgetTree.h"
-#include "Settings/MenuLocalizationSubsystem.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "Engine/Font.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyGameMode.h"

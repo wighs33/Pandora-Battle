@@ -10,7 +10,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Engine/GameInstance.h"
-#include "Settings/BgmSubsystem.h"
+#include "Audio/BgmSubsystem.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Definition/Pandora/PandoraDefinition.h"

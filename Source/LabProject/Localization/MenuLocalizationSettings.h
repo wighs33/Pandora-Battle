@@ -2,12 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
-#include "Settings/UiLanguage.h"
+#include "Localization/UiLanguage.h"
 #include "MenuLocalizationSettings.generated.h"
 
 class UDataTable;
 class UFont;
-class UGameSettingsWidget;
 
 UCLASS(Config=Game, DefaultConfig, meta=(DisplayName="Menu Localization"))
 class LABPROJECT_API UMenuLocalizationSettings : public UDeveloperSettings
@@ -25,7 +24,4 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category="Localization")
 	TSoftObjectPtr<UFont> LatinFont;
-
-	UPROPERTY(Config, EditAnywhere, Category="Settings")
-	TSoftClassPtr<UGameSettingsWidget> SettingsWidgetClass;
 };

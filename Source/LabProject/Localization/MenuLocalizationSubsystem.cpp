@@ -1,6 +1,6 @@
-#include "Settings/MenuLocalizationSubsystem.h"
-#include "Settings/MenuLocalizationSettings.h"
-#include "Settings/UiSettingsSaveGame.h"
+#include "Localization/MenuLocalizationSubsystem.h"
+#include "Localization/MenuLocalizationSettings.h"
+#include "Localization/UiSettingsSaveGame.h"
 #include "Definition/UI/MenuTextRow.h"
 #include "Engine/DataTable.h"
 #include "Engine/Font.h"
@@ -29,19 +29,15 @@ void UMenuLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collection
 	}
 }
 
-bool UMenuLocalizationSubsystem::SetLanguage(EGuideLanguage NewLanguage, bool bSaveImmediately)
+bool UMenuLocalizationSubsystem::SetLanguage(EGuideLanguage NewLanguage)
 {
 	if (!UiLanguage::IsSupported(NewLanguage)) return false;
 	const bool bChanged = Language != NewLanguage;
 	Language = NewLanguage;
-	bool bSaved = true;
-	if (bSaveImmediately)
-	{
-		UUiSettingsSaveGame* Saved = Cast<UUiSettingsSaveGame>(UGameplayStatics::CreateSaveGameObject(UUiSettingsSaveGame::StaticClass()));
-		Saved->Language = Language;
-		bSaved = UGameplayStatics::SaveGameToSlot(Saved, SettingsSlot, 0);
-		if (!bSaved) UE_LOG(LogTemp, Warning, TEXT("Menu Localization: could not save language selection."));
-	}
+	UUiSettingsSaveGame* Saved = Cast<UUiSettingsSaveGame>(UGameplayStatics::CreateSaveGameObject(UUiSettingsSaveGame::StaticClass()));
+	Saved->Language = Language;
+	const bool bSaved = UGameplayStatics::SaveGameToSlot(Saved, SettingsSlot, 0);
+	if (!bSaved) UE_LOG(LogTemp, Warning, TEXT("Menu Localization: could not save language selection."));
 	if (bChanged) OnLanguageChanged.Broadcast();
 	return bSaved;
 }

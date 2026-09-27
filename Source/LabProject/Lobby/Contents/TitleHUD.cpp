@@ -2,12 +2,12 @@
 #include "UI/UiSubsystem.h"
 #include "UI/UiScreen.h"
 #include "Engine/LocalPlayer.h"
+#include "Settings/LocalPlayerSettingsSubsystem.h"
 
 #include "UI/Match/GameResultWidget.h"
 #include "UI/Title/TitleWidget.h"
 #include "Engine/GameInstance.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "Settings/CursorSettingsLibrary.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TitleHUD)
@@ -39,7 +39,8 @@ void ATitleHUD::BeginPlay()
 	// 타이틀/방 목록의 종료는 기존 버튼이 담당한다.
 	Screen->SetContent(TitleWidget, Config, EPdGameplayInputPolicy::Block, TitleWidget, FSimpleDelegate::CreateLambda([]() {}));
 	PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Screen);
-	UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, PlayerController);
+	// 엔진 기본 PlayerController를 사용하므로 로컬 설정을 여기서 적용한다.
+	PlayerController->GetLocalPlayer()->GetSubsystem<ULocalPlayerSettingsSubsystem>()->ApplyLocalPlayerSettings(PlayerController);
 
 	ShowPendingGameResult();
 }

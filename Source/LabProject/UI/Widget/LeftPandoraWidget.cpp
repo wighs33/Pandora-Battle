@@ -10,7 +10,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerState.h"
-#include "Settings/MenuLocalizationSubsystem.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftPandoraWidget)
 

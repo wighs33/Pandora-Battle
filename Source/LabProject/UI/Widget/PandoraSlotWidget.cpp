@@ -9,7 +9,7 @@
 #include "Mode/PdPlayerState.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "UI/Widget/InfoWidget.h"
-#include "Settings/MenuLocalizationSubsystem.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraSlotWidget)
 

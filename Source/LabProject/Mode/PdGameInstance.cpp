@@ -1,6 +1,6 @@
 #include "Mode/PdGameInstance.h"
 
-#include "Settings/BgmSubsystem.h"
+#include "Audio/BgmSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdGameInstance)
 

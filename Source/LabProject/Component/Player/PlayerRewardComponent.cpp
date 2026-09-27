@@ -225,7 +225,7 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 
 	if (UPandoraComponent* PandoraComponent = PlayerState->GetPandoraComponent())
 	{
-		PandoraComponent->ActivatePandoras(RewardPandoraDefinitions);
+		PandoraComponent->GrantPandorasByPrimaryAssetIds(RewardPandoraDefinitions);
 	}
 
 	if (APdPlayerController* Controller = Cast<APdPlayerController>(PlayerState->GetPlayerController()))

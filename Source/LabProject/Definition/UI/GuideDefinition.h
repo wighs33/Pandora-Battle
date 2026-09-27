@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Settings/UiLanguage.h"
+#include "Localization/UiLanguage.h"
 #include "GuideDefinition.generated.h"
 
 class UFont;

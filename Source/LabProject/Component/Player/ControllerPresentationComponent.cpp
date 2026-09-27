@@ -14,7 +14,6 @@
 #include "UI/Lobby/LobbyWidget.h"
 #include "Mode/ExperienceGameMode.h"
 #include "Engine/GameInstance.h"
-#include "Settings/BgmSubsystem.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
@@ -59,7 +58,7 @@ void UControllerPresentationComponent::ApplySettings(const FControllerPresentati
 	}
 }
 
-// 로컬 입력 모드·카메라 설정·배경음악을 적용하고 로딩 화면과 체력바 갱신을 시작한다.
+// 로컬 설정을 적용하고 로딩 화면과 체력바 갱신을 시작한다.
 void UControllerPresentationComponent::InitializeLocalPresentation()
 {
 	APdPlayerController* Controller = GetPdController();
@@ -71,10 +70,6 @@ void UControllerPresentationComponent::InitializeLocalPresentation()
 	if (ULocalPlayerSettingsSubsystem* LocalPlayerSettings = ULocalPlayerSettingsSubsystem::Get(Controller))
 	{
 		LocalPlayerSettings->ApplyLocalPlayerSettings(Controller);
-	}
-	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(Controller->GetGameInstance()))
-	{
-		BgmSubsystem->RestoreWorldBgm();
 	}
 	if (Controller->UsesLobbyPresentation())
 	{

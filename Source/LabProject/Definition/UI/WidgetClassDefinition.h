@@ -21,6 +21,7 @@ class UConnectingPopupWidget;
 class UCreateRoomPopupWidget;
 class UGameResultWidget;
 class UGameConfigWidget;
+class UGameSettingsWidget;
 class UGuideWidget;
 class UInputAction;
 class UKillBoxWidget;
@@ -677,6 +678,9 @@ public:
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Settings", meta = (AssetBundles = "Client"))
+	TSoftClassPtr<UGameSettingsWidget> SettingsWidgetClass;
+
 	static const UWidgetClassDefinition* ResolveWidgetClassDefinition(const UObject* WorldContextObject);
 
 	/** Collects the effective soft assets for one screen-lifetime bundle. */

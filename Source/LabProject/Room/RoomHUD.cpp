@@ -2,9 +2,9 @@
 #include "UI/UiSubsystem.h"
 #include "UI/UiScreen.h"
 #include "Engine/LocalPlayer.h"
+#include "Settings/LocalPlayerSettingsSubsystem.h"
 
 #include "UI/Room/RoomListWidget.h"
-#include "Settings/CursorSettingsLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RoomHUD)
 
@@ -35,7 +35,8 @@ void ARoomHUD::BeginPlay()
 	// 타이틀/방 목록의 종료는 기존 버튼이 담당한다.
 	Screen->SetContent(RoomListWidget, Config, EPdGameplayInputPolicy::Block, RoomListWidget, FSimpleDelegate::CreateLambda([]() {}));
 	PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Screen);
-	UCursorSettingsLibrary::ApplyConfiguredMouseCursor(this, PlayerController);
+	// 엔진 기본 PlayerController를 사용하므로 로컬 설정을 여기서 적용한다.
+	PlayerController->GetLocalPlayer()->GetSubsystem<ULocalPlayerSettingsSubsystem>()->ApplyLocalPlayerSettings(PlayerController);
 }
 
 void ARoomHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)

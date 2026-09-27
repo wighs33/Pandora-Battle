@@ -11,7 +11,6 @@
 #include "Net/UnrealNetwork.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraLoadoutTypes.h"
-#include "Pandora/PandoraSkillSource.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraComponent)
@@ -127,43 +126,13 @@ void UPandoraComponent::LogRejectedServerRequest(
 		SuppressedCount);
 }
 
-void UPandoraComponent::ActivatePandoras(const TArray<FPrimaryAssetId>& PandoraDefinitions)
+void UPandoraComponent::GrantPandorasByPrimaryAssetIds(const TArray<FPrimaryAssetId>& PandoraDefinitions)
 {
-	ActivatePandorasWithLoadout(PandoraDefinitions, {});
+	GrantPandorasWithLoadout(PandoraDefinitions, {});
 }
 
-void UPandoraComponent::ActivatePandorasWithLoadout(
+void UPandoraComponent::GrantPandorasWithLoadout(
 	const TArray<FPrimaryAssetId>& PandoraDefinitions,
-	const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection)
-{
-	LoadPandoraDefinitions(PandoraDefinitions, PandoraLoadoutByDirection);
-}
-
-// 이미 로드된 판도라를 지급할 때도 보유 상태와 복제 항목을 같은 경로로 변경한다.
-bool UPandoraComponent::GrantPandoraDefinition(const UPandoraDefinition* PandoraDefinition)
-{
-	if (!HasPandoraAuthority() || !IsValid(PandoraDefinition))
-	{
-		return false;
-	}
-	if (AddPandoraDefinition(PandoraDefinition))
-	{
-		OnPandoraInventoryChanged.Broadcast();
-	}
-	return true;
-}
-
-bool UPandoraComponent::HasPandoraDefinition(const UPandoraDefinition* PandoraDefinition) const
-{
-	if (!IsValid(PandoraDefinition))
-	{
-		return false;
-	}
-	const FReplicatedPandoraEntry* Entry = FindReplicatedEntryByDefinition(PandoraDefinition);
-	return Entry != nullptr;
-}
-
-void UPandoraComponent::LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& PandoraDefinitions,
 	const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection)
 {
 	if (!HasPandoraAuthority() || PandoraDefinitions.IsEmpty())
@@ -204,7 +173,7 @@ void UPandoraComponent::LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& Pa
 					UE_LOG(PandoraComponentLog, Error, TEXT("Failed to load Pandora definition '%s'."), *DefinitionId.ToString());
 					continue;
 				}
-				bChanged |= AddPandoraDefinition(Definition);
+				bChanged |= AddOwnedPandoraEntry(Definition);
 			}
 
 			for (const TPair<EEnum_Direction, FPrimaryAssetId>& Pair : PandoraLoadoutByDirection)
@@ -217,7 +186,7 @@ void UPandoraComponent::LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& Pa
 				const UPandoraDefinition* Definition = Cast<UPandoraDefinition>(AssetManager.GetPrimaryAssetObject(Pair.Value));
 				if (IsValid(Definition))
 				{
-					SetPandoraLoadoutSlotInternal(Pair.Key, Definition, true);
+					SetPandoraLoadoutSlotInternal(Pair.Key, Definition);
 				}
 			}
 			if (bChanged && RequestGeneration == PandoraLoadGeneration)
@@ -229,6 +198,30 @@ void UPandoraComponent::LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& Pa
 	{
 		PendingPandoraLoadHandles.Add(LoadHandle);
 	}
+}
+
+// 이미 로드된 판도라를 지급할 때도 보유 상태와 복제 항목을 같은 경로로 변경한다.
+bool UPandoraComponent::GrantPandoraDefinition(const UPandoraDefinition* PandoraDefinition)
+{
+	if (!HasPandoraAuthority() || !IsValid(PandoraDefinition))
+	{
+		return false;
+	}
+	if (AddOwnedPandoraEntry(PandoraDefinition))
+	{
+		OnPandoraInventoryChanged.Broadcast();
+	}
+	return true;
+}
+
+bool UPandoraComponent::HasPandoraDefinition(const UPandoraDefinition* PandoraDefinition) const
+{
+	if (!IsValid(PandoraDefinition))
+	{
+		return false;
+	}
+	const FReplicatedPandoraEntry* Entry = FindReplicatedEntryByDefinition(PandoraDefinition);
+	return Entry != nullptr;
 }
 
 void UPandoraComponent::CancelPendingPandoraLoads()
@@ -363,7 +356,7 @@ bool UPandoraComponent::RequestSetPandoraLoadoutSlot(
 		return true;
 	}
 
-	return SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition, true);
+	return SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition);
 }
 
 bool UPandoraComponent::RequestAutoSetPandoraLoadoutSlot(const UPandoraDefinition* PandoraDefinition)
@@ -393,7 +386,7 @@ bool UPandoraComponent::RequestAutoSetPandoraLoadoutSlot(const UPandoraDefinitio
 		return false;
 	}
 
-	return SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition, true);
+	return SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition);
 }
 
 void UPandoraComponent::ServerSetPandoraLoadoutSlot_Implementation(
@@ -425,7 +418,7 @@ void UPandoraComponent::ServerSetPandoraLoadoutSlot_Implementation(
 		}
 	}
 
-	if (!SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition, true))
+	if (!SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition))
 	{
 		LogRejectedServerRequest(
 			TEXT("SetLoadoutSlot"),
@@ -468,7 +461,7 @@ void UPandoraComponent::ServerAutoSetPandoraLoadoutSlot_Implementation(FPrimaryA
 		return;
 	}
 
-	if (!SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition, true))
+	if (!SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition))
 	{
 		LogRejectedServerRequest(
 			TEXT("AutoSetLoadoutSlot"),
@@ -485,7 +478,7 @@ const UPandoraDefinition* UPandoraComponent::GetPandoraLoadoutDefinition(const E
 	return Slot ? Slot->PandoraDefinition.Get() : nullptr;
 }
 
-bool UPandoraComponent::AddPandoraDefinition(const UPandoraDefinition* PandoraDefinition)
+bool UPandoraComponent::AddOwnedPandoraEntry(const UPandoraDefinition* PandoraDefinition)
 {
 	if (FindReplicatedEntryByDefinition(PandoraDefinition))
 	{
@@ -654,15 +647,10 @@ EEnum_Direction UPandoraComponent::ResolvePandoraSelectionDirection(
 	return EEnum_Direction::Center;
 }
 
-const ACharacterBase* UPandoraComponent::ResolveCurrentCharacterOwner() const
-{
-	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	return PlayerState ? Cast<ACharacterBase>(PlayerState->GetPawn()) : nullptr;
-}
-
 const UEquipmentComponent* UPandoraComponent::GetCurrentEquipmentComponent() const
 {
-	const ACharacterBase* CharacterOwner = ResolveCurrentCharacterOwner();
+	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
+	const ACharacterBase* CharacterOwner = PlayerState ? Cast<ACharacterBase>(PlayerState->GetPawn()) : nullptr;
 	return CharacterOwner ? CharacterOwner->GetEquipmentComponent() : nullptr;
 }
 
@@ -771,8 +759,7 @@ bool UPandoraComponent::ResolvePreferredAutoPandoraLoadoutDirection(
 
 bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 	const EEnum_Direction Direction,
-	const UPandoraDefinition* PandoraDefinition,
-	const bool bRequireOwnedPandora)
+	const UPandoraDefinition* PandoraDefinition)
 {
 	if (!HasPandoraAuthority() || !PandoraLoadout::IsLoadoutDirection(Direction))
 	{
@@ -787,15 +774,12 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 		: EEnum_Direction::Center;
 	const bool bUpdatesSelectedLoadout = SelectedDirection == Direction;
 
-	if (PandoraDefinition && bRequireOwnedPandora)
+	if (PandoraDefinition && !HasPandoraDefinition(PandoraDefinition))
 	{
-		if (!HasPandoraDefinition(PandoraDefinition))
-		{
-
-			return false;
-		}
+		return false;
 	}
 
+	bool bLoadoutChanged = false;
 	if (!PandoraDefinition)
 	{
 		for (int32 Index = PandoraLoadoutSlots.Num() - 1; Index >= 0; --Index)
@@ -803,51 +787,36 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 			if (PandoraLoadoutSlots[Index].Direction == Direction)
 			{
 				PandoraLoadoutSlots.RemoveAt(Index);
-				MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, PandoraLoadoutSlots, this);
-				NotifyPandoraLoadoutChanged();
-				if (PandoraAndWeaponComponent && bUpdatesSelectedLoadout)
-				{
-					PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
-				}
-				return true;
+				bLoadoutChanged = true;
+				break;
 			}
 		}
-
-		if (PandoraAndWeaponComponent && bUpdatesSelectedLoadout)
-		{
-			PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
-		}
-		return true;
 	}
-
-	if (FPandoraLoadoutSlot* ExistingSlot = PandoraLoadout::FindSlot(PandoraLoadoutSlots, Direction))
+	else if (FPandoraLoadoutSlot* ExistingSlot = PandoraLoadout::FindSlot(PandoraLoadoutSlots, Direction))
 	{
-		if (ExistingSlot->PandoraDefinition == PandoraDefinition)
+		if (ExistingSlot->PandoraDefinition != PandoraDefinition)
 		{
-			if (PandoraAndWeaponComponent && bUpdatesSelectedLoadout)
-			{
-				PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
-			}
-			return true;
+			ExistingSlot->PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
+			bLoadoutChanged = true;
 		}
-
-		ExistingSlot->PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
 	}
 	else
 	{
 		FPandoraLoadoutSlot& NewSlot = PandoraLoadoutSlots.AddDefaulted_GetRef();
 		NewSlot.Direction = Direction;
 		NewSlot.PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
-
+		bLoadoutChanged = true;
 	}
 
-	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, PandoraLoadoutSlots, this);
-	NotifyPandoraLoadoutChanged();
+	if (bLoadoutChanged)
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, PandoraLoadoutSlots, this);
+		NotifyPandoraLoadoutChanged();
+	}
 	if (PandoraAndWeaponComponent && bUpdatesSelectedLoadout)
 	{
 		PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
 	}
-
 	return true;
 }
 

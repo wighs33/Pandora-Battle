@@ -1,5 +1,5 @@
 #include "UI/Widget/RightPandoraWidget.h"
-#include "Settings/MenuLocalizationSubsystem.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"

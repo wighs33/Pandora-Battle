@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "Settings/UiLanguage.h"
+#include "Localization/UiLanguage.h"
 #include "MenuLocalizationSubsystem.generated.h"
 
 class UDataTable;
@@ -21,23 +21,17 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintPure, Category="UI|Localization")
 	EGuideLanguage GetLanguage() const { return Language; }
 
-	UFUNCTION(BlueprintCallable, Category="UI|Localization")
-	bool SetLanguage(EGuideLanguage NewLanguage, bool bSaveImmediately = true);
+	bool SetLanguage(EGuideLanguage NewLanguage);
 
-	UFUNCTION(BlueprintPure, Category="UI|Localization")
 	FText GetText(FName Key) const;
 
-	UFUNCTION(BlueprintPure, Category="UI|Localization")
 	FText GetTextOrFallback(FName Key, const FText& Fallback) const;
 
 	/** Stable product identity resolves text only; icons and gameplay data remain asset-owned. */
-	UFUNCTION(BlueprintPure, Category="UI|Localization")
 	FText GetProductText(const UObject* Product, FName Field, const FText& Fallback) const;
 
-	UFUNCTION(BlueprintPure, Category="UI|Localization")
 	UFont* GetFontForLanguage(EGuideLanguage FontLanguage) const;
 
 public:

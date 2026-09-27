@@ -1,4 +1,4 @@
-#include "Settings/BgmSubsystem.h"
+#include "Audio/BgmSubsystem.h"
 
 #include "Components/AudioComponent.h"
 #include "Data/ContentDataSubsystem.h"
@@ -134,19 +134,19 @@ void UBgmSubsystem::StopBgm()
 
 void UBgmSubsystem::StopActiveBgmAudio()
 {
-	if (IsValid(StartupBgmAudioComponent))
+	if (IsValid(ActiveBgmAudioComponent))
 	{
-		StartupBgmAudioComponent->OnAudioFinished.RemoveDynamic(this, &ThisClass::HandleBgmAudioFinished);
-		StartupBgmAudioComponent->Stop();
-		StartupBgmAudioComponent = nullptr;
+		ActiveBgmAudioComponent->OnAudioFinished.RemoveDynamic(this, &ThisClass::HandleBgmAudioFinished);
+		ActiveBgmAudioComponent->Stop();
+		ActiveBgmAudioComponent = nullptr;
 	}
 	ActiveBgmSoundPath.Reset();
-	ActiveBgmBaseVolume = 1.0f;
 }
 
 void UBgmSubsystem::PlayBgmForContext(const EBgmContext BgmContext, UWorld* World)
 {
-	if (!World || !World->IsGameWorld() || World->GetNetMode() == NM_DedicatedServer)
+	if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance()
+		|| World->GetNetMode() == NM_DedicatedServer)
 	{
 		return;
 	}
@@ -164,7 +164,6 @@ void UBgmSubsystem::PlayBgmForContext(const EBgmContext BgmContext, UWorld* Worl
 	}
 
 	const TWeakObjectPtr<UWorld> WeakWorld(World);
-	bSettingsLoadPending = true;
 	SettingsSubsystem->PreloadRuntimeContentAsync(
 		FSimpleDelegate::CreateWeakLambda(
 			this,
@@ -175,7 +174,6 @@ void UBgmSubsystem::PlayBgmForContext(const EBgmContext BgmContext, UWorld* Worl
 					return;
 				}
 
-				bSettingsLoadPending = false;
 				BeginBgmSoundPreload(
 					LoadGeneration,
 					BgmContext,
@@ -222,13 +220,13 @@ void UBgmSubsystem::BeginBgmSoundPreload(
 	}
 
 	const FSoftObjectPath RequestedSoundPath = BgmSettings.Sound.ToSoftObjectPath();
-	if (IsValid(StartupBgmAudioComponent)
-		&& StartupBgmAudioComponent->IsPlaying()
+	if (IsValid(ActiveBgmAudioComponent)
+		&& ActiveBgmAudioComponent->IsPlaying()
 		&& ActiveBgmContext == BgmContext
 		&& ActiveBgmSoundPath == RequestedSoundPath)
 	{
-		ActiveBgmBaseVolume = FMath::Max(BgmSettings.Volume, 0.0f);
-		StartupBgmAudioComponent->SetVolumeMultiplier(ActiveBgmBaseVolume);
+		const float BgmBaseVolume = FMath::Max(BgmSettings.Volume, 0.0f);
+		ActiveBgmAudioComponent->SetVolumeMultiplier(BgmBaseVolume);
 		return;
 	}
 
@@ -311,19 +309,19 @@ void UBgmSubsystem::CompleteBgmSoundPreload(
 	}
 
 	StopActiveBgmAudio();
-	ActiveBgmBaseVolume = FMath::Max(BgmSettings.Volume, 0.0f);
-	StartupBgmAudioComponent = UGameplayStatics::SpawnSound2D(
+	const float BgmBaseVolume = FMath::Max(BgmSettings.Volume, 0.0f);
+	ActiveBgmAudioComponent = UGameplayStatics::SpawnSound2D(
 		ResolvedWorld,
 		LoadedBgm,
-		ActiveBgmBaseVolume,
+		BgmBaseVolume,
 		BgmSettings.Pitch,
 		0.0f,
 		nullptr,
 		BgmSettings.bPersistAcrossLevelTransition,
 		true);
-	if (IsValid(StartupBgmAudioComponent))
+	if (IsValid(ActiveBgmAudioComponent))
 	{
-		StartupBgmAudioComponent->OnAudioFinished.AddUniqueDynamic(this, &ThisClass::HandleBgmAudioFinished);
+		ActiveBgmAudioComponent->OnAudioFinished.AddUniqueDynamic(this, &ThisClass::HandleBgmAudioFinished);
 	}
 	ActiveBgmContext = BgmContext;
 	ActiveBgmSoundPath = BgmSettings.Sound.ToSoftObjectPath();
@@ -337,20 +335,14 @@ void UBgmSubsystem::CompleteBgmSoundPreload(
 void UBgmSubsystem::CancelPendingBgmLoads()
 {
 	++BgmLoadGeneration;
-	bSettingsLoadPending = false;
 	bSoundLoadPending = false;
 
-	auto CancelHandle = [](TSharedPtr<FStreamableHandle>& Handle)
+	if (PendingSoundLoadHandle.IsValid())
 	{
-		if (Handle.IsValid())
-		{
-			Handle->CancelHandle();
-			Handle->ReleaseHandle();
-			Handle.Reset();
-		}
-	};
-
-	CancelHandle(PendingSoundLoadHandle);
+		PendingSoundLoadHandle->CancelHandle();
+		PendingSoundLoadHandle->ReleaseHandle();
+		PendingSoundLoadHandle.Reset();
+	}
 }
 
 EBgmContext UBgmSubsystem::ResolveWorldBgmContext(UWorld* World) const
@@ -406,6 +398,6 @@ void UBgmSubsystem::HandleBgmAudioFinished()
 		return;
 	}
 
-	StartupBgmAudioComponent = nullptr;
+	ActiveBgmAudioComponent = nullptr;
 	PlayBgmForContext(ActiveBgmContext, GetWorld());
 }

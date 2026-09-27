@@ -5,8 +5,8 @@
 #include "UI/UiSubsystem.h"
 #include "Engine/LocalPlayer.h"
 #include "UI/Tooltip/GameTooltipPlacement.h"
-#include "Settings/MenuLocalizationSubsystem.h"
-#include "Settings/MenuLocalizationSettings.h"
+#include "Localization/MenuLocalizationSubsystem.h"
+#include "Definition/UI/WidgetClassDefinition.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
 #include "Components/ComboBoxString.h"
@@ -112,7 +112,9 @@ void ULocalizedMenuWidget::OpenGameSettings()
 			Screen->RequestRefreshFocus();
 		return;
 	}
-	const TSubclassOf<UGameSettingsWidget> SettingsClass = GetDefault<UMenuLocalizationSettings>()->SettingsWidgetClass.LoadSynchronous();
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	if (!WidgetDefinition) return;
+	const TSubclassOf<UGameSettingsWidget> SettingsClass = WidgetDefinition->SettingsWidgetClass.LoadSynchronous();
 	if (!SettingsClass || !GetOwningPlayer()) return;
 	ActiveGameSettings = CreateWidget<UGameSettingsWidget>(GetOwningPlayer(), SettingsClass);
 	if (ActiveGameSettings)

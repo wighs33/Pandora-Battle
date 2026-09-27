@@ -20,19 +20,14 @@ public:
 	virtual void Deinitialize() override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintPure, Category = "!Audio|Volume")
 	int32 GetMasterVolumePercent() const;
 
-	UFUNCTION(BlueprintPure, Category = "!Audio|Volume")
 	bool IsMasterMuted() const;
 
-	UFUNCTION(BlueprintCallable, Category = "!Audio|Volume")
 	void SetMasterVolumePercent(int32 NewVolumePercent, bool bSaveImmediately = false);
 
-	UFUNCTION(BlueprintCallable, Category = "!Audio|Volume")
 	void ToggleMasterMute();
 
-	UFUNCTION(BlueprintCallable, Category = "!Audio|Volume")
 	void SaveMasterVolumeSettings();
 
 private:

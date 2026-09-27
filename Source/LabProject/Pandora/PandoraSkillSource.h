@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Common/Enum_Direction.h"
 #include "UObject/Object.h"
 #include "PandoraSkillSource.generated.h"
@@ -21,6 +20,7 @@ public:
 	virtual void PreDestroyFromReplication() override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
+	// 새 Source 생성 시 한 번만 호출한다. 이후 방향 변경은 SetLoadoutDirection으로 처리한다.
 	void Initialize(
 		const UPandoraDefinition* InPandoraDefinition,
 		int32 InSkillIndex,
@@ -28,16 +28,12 @@ public:
 
 	void SetLoadoutDirection(EEnum_Direction Direction);
 
-	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	const UPandoraDefinition* GetPandoraDefinition() const { return PandoraDefinition.Get(); }
 
-	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	const USkillDefinition* GetSkillDataAsset() const;
 
-	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	int32 GetSkillIndex() const { return SkillIndex; }
 
-	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	EEnum_Direction GetLoadoutDirection() const { return LoadoutDirection; }
 
 private:

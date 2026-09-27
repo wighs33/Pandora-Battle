@@ -3,7 +3,7 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
-#include "Settings/MenuLocalizationSubsystem.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopEntryViewData)
 

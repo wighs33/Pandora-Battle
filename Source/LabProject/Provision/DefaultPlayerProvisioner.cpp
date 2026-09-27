@@ -570,7 +570,6 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(APdPlayerState* PlayerState)
 	}
 
 	PandoraComponent->ClearAllPandoras();
-	// 전체 초기화는 이전 목록 로딩도 취소하므로 잠긴 항목을 명시적으로 다시 채운다.
 	const int32 ConfiguredSoulDust =
 		Definition->GetSoulDustValues().GetCount(Mode);
 	PandoraTreeComponent->InitializeFromDefaultProvision(
@@ -611,7 +610,7 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(APdPlayerState* PlayerState)
 			}
 		}
 	}
-	PandoraComponent->ActivatePandorasWithLoadout(
+	PandoraComponent->GrantPandorasWithLoadout(
 		UnlockedPandoraIds,
 		LoadoutByDirection);
 

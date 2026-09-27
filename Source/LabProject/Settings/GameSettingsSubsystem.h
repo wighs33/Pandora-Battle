@@ -7,7 +7,7 @@
 class UGameSettingDefinition;
 struct FStreamableHandle;
 
-UCLASS(Config=Game, DefaultConfig)
+UCLASS()
 class LABPROJECT_API UGameSettingsSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
@@ -21,18 +21,12 @@ public:
 	static UGameSettingDefinition* ResolveGameSettingDefinition(const UObject* WorldContextObject);
 	static UGameSettingDefinition* ResolveLoadedGameSettingDefinition(
 		const UObject* WorldContextObject);
-	static FSoftObjectPath GetDefaultGameSettingDefinitionPath();
 
-	UFUNCTION(BlueprintCallable, Category = "!Setting")
 	UGameSettingDefinition* GetGameSettingDefinition();
 
 	UGameSettingDefinition* GetLoadedGameSettingDefinition() const;
 	void PreloadRuntimeContentAsync(
 		FSimpleDelegate OnComplete = FSimpleDelegate());
-	bool IsGameSettingDefinitionReady() const
-	{
-		return bGameSettingDefinitionReady && CachedGameSettingDefinition != nullptr;
-	}
 	bool IsRuntimeContentReady() const { return bRuntimeContentReady; }
 
 private:
@@ -42,6 +36,7 @@ private:
 		TArray<FSoftObjectPath> ExpectedAssetPaths);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	static FSoftObjectPath GetDefaultGameSettingDefinitionPath();
 	void FinishRuntimeContentPreload(bool bSucceeded);
 	void ReleaseRuntimeContentPreloadHandles();
 
@@ -56,6 +51,5 @@ private:
 	TSharedPtr<FStreamableHandle> DefinitionPreloadHandle;
 	TSharedPtr<FStreamableHandle> RuntimeContentPreloadHandle;
 	bool bRuntimeContentPreloadPending = false;
-	bool bGameSettingDefinitionReady = false;
 	bool bRuntimeContentReady = false;
 };

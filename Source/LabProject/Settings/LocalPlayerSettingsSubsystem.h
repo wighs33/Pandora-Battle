@@ -23,28 +23,14 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	static ULocalPlayerSettingsSubsystem* Get(const APlayerController* PlayerController);
 
-	UFUNCTION(BlueprintCallable, Category = "!Setting|Local Player")
 	void ApplyLocalPlayerSettings(APlayerController* PlayerController);
 
-	UFUNCTION(BlueprintCallable, Category = "!Setting|Mouse Cursor")
-	bool ApplyConfiguredMouseCursor(APlayerController* PlayerController);
-
-	UFUNCTION(BlueprintCallable, Category = "!Setting|Camera")
 	void ApplyCameraViewPitchClamp(APlayerController* PlayerController);
 
-	UFUNCTION(BlueprintPure, Category = "!Setting|Mouse Sensitivity")
-	int32 GetMouseSensitivityPercent() const;
-
-	UFUNCTION(BlueprintPure, Category = "!Setting|Mouse Sensitivity")
-	float GetMouseSensitivityMultiplier() const;
-
-	UFUNCTION(BlueprintPure, Category = "!Setting|Mouse Sensitivity")
 	float GetMouseSensitivitySliderValue() const;
 
-	UFUNCTION(BlueprintCallable, Category = "!Setting|Mouse Sensitivity")
 	void SetMouseSensitivitySliderValue(float NormalizedValue);
 
-	UFUNCTION(BlueprintCallable, Category = "!Setting|Mouse Sensitivity")
 	void SaveInputSettings();
 
 	bool AddInputMappingContext(UInputMappingContext* InputMappingContext, int32 Priority) const;
@@ -53,6 +39,9 @@ public:
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool ApplyConfiguredMouseCursor(APlayerController* PlayerController);
+	int32 GetMouseSensitivityPercent() const;
+	float GetMouseSensitivityMultiplier() const;
 	void LoadInputSettings();
 	void ApplyMouseSensitivity(APlayerController* PlayerController) const;
 	bool ApplyLoadedConfiguredMouseCursor(

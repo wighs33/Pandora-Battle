@@ -147,6 +147,7 @@ void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
 	switch (Bundle)
 	{
 	case EWidgetContentBundle::Core:
+		Collector.CollectSoftPath(SettingsWidgetClass.ToSoftObjectPath());
 		CollectSettings(GetConnectingPopupWidgetSettings());
 		CollectSettings(GetTitleAuxiliaryWidgetSettings());
 		break;

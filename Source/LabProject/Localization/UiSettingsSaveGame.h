@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
-#include "Settings/UiLanguage.h"
+#include "Localization/UiLanguage.h"
 #include "UiSettingsSaveGame.generated.h"
 
 UCLASS()
