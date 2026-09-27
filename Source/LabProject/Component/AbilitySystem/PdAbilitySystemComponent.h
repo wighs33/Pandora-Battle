@@ -51,7 +51,6 @@ public:
 
 	const FGameplayAbilitySpec* FindActiveAbilitySpecByTags(const FGameplayTagContainer& AbilityTags) const;
 	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
-	bool HasActiveAbilityOfClass(TSubclassOf<UGameplayAbility> AbilityClass, bool bIncludeChildClasses = true) const;
 	bool HasActiveAbilityOfAnyClass(const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, bool bIncludeChildClasses = true) const;
 
 	// 기본 능력치 초기화와 스탯 변경 (서버 전용)

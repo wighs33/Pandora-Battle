@@ -35,9 +35,6 @@ public:
 	const FGameplayAbilitySpec* FindActiveAbilitySpecByTags(
 		const UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
 
-	bool HasActiveAbilityOfClass(const UPdAbilitySystemComponent& AbilitySystemComponent, TSubclassOf<UGameplayAbility> AbilityClass,
-		bool bIncludeChildClasses) const;
-
 	bool HasActiveAbilityOfAnyClass(const UPdAbilitySystemComponent& AbilitySystemComponent,
 		const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, bool bIncludeChildClasses) const;
 
@@ -57,6 +54,9 @@ public:
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool HasActiveAbilityOfClass(const UPdAbilitySystemComponent& AbilitySystemComponent, TSubclassOf<UGameplayAbility> AbilityClass,
+		bool bIncludeChildClasses) const;
+
 	void SendInputToActiveAbility(UPdAbilitySystemComponent& AbilitySystemComponent, FGameplayAbilitySpecHandle Handle, bool bPressed);
 
 private:

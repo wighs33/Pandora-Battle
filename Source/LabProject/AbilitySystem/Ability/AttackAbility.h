@@ -31,7 +31,6 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UAttackAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	const FGameplayTag& GetJumpSectionEventTag() const { return JumpSectionEventTag; }
 	FName GetNextAttackSectionName() const;
 	bool RequestNextComboInput();
 	bool TryConsumeLateComboInput();

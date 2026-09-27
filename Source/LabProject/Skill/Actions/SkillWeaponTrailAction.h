@@ -1,13 +1,13 @@
 #pragma once
 
 #include "Skill/Actions/SkillAction.h"
-#include "AbilitySystem/Ability/SkillAbility.h"
 #include "Definition/AbilitySystem/SkillPresentationSettings.h"
 #include "SkillWeaponTrailAction.generated.h"
 
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitGameplayEvent;
 class UAbilityTask_WaitDelay;
+class AWeaponBase;
 
 /** 무기의 궤적과 검기 타격을 몽타주 이벤트에 연결한다. */
 UCLASS(meta = (DisplayName = "Weapon Trail"))
@@ -28,10 +28,7 @@ protected:
 
 private:
 	UFUNCTION()
-	void HandleTrailMontageCompleted();
-
-	UFUNCTION()
-	void HandleTrailMontageInterrupted();
+	void HandleTrailMontageFinished();
 
 	UFUNCTION()
 	void HandleTrailDurationFinished();
@@ -55,6 +52,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_WaitGameplayEvent> TrailAttackTraceEndTask;
 
-	UPROPERTY(Transient)
 	bool bStartedWeaponTrail = false;
+	TWeakObjectPtr<AWeaponBase> TrailWeapon;
 };

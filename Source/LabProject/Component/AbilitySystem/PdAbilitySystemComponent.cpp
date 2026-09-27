@@ -194,14 +194,6 @@ bool UPdAbilitySystemComponent::HasActiveAbilityWithTags(
 	return FindActiveAbilitySpecByTags(AbilityTags) != nullptr;
 }
 
-// 특정 스킬 클래스의 동작이 진행 중인지 확인한다. 파생 스킬까지 같은 동작으로 볼지는 호출자가 선택한다.
-bool UPdAbilitySystemComponent::HasActiveAbilityOfClass(
-	const TSubclassOf<UGameplayAbility> AbilityClass,
-	const bool bIncludeChildClasses) const
-{
-	return AbilityGrantAndInputManager->HasActiveAbilityOfClass(*this, AbilityClass, bIncludeChildClasses);
-}
-
 // 여러 스킬을 하나의 동작 범주로 묶어 실행 여부를 확인한다. 적 AI는 근접·원거리·주먹 공격 중 하나라도 진행 중인지 판단한다.
 bool UPdAbilitySystemComponent::HasActiveAbilityOfAnyClass(
 	const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,

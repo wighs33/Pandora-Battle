@@ -10,15 +10,11 @@
 
 void USkillShieldAction::OnStart()
 {
-	const auto Handle = GetAbility()->GetCurrentAbilitySpecHandle();
 	const auto* ActorInfo = GetAbility()->GetCurrentActorInfo();
-	const auto ActivationInfo = GetAbility()->GetCurrentActivationInfo();
-	const auto* TriggerEventData = &GetContext().EventData;
-	static_cast<void>(TriggerEventData);
 
 	if (!ActorInfo || !ActorInfo->AvatarActor.IsValid())
 	{
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
@@ -32,14 +28,14 @@ void USkillShieldAction::OnStart()
 		ApplyShieldFromMontageTrigger();
 		if (IsRunning())
 		{
-			Finish(!(false));
+			Finish();
 		}
 		return;
 	}
 
 	if (!StartShieldMontageTask())
 	{
-		Finish(!(true));
+		Finish(false);
 	}
 }
 

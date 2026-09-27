@@ -320,6 +320,11 @@ void ASkillProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (ProjectileMovement)
+	{
+		ProjectileMovement->OnProjectileStop.AddUniqueDynamic(this, &ThisClass::HandleProjectileStopped);
+	}
+
 	if (SphereCollision)
 	{
 		if (bCosmeticOnly)
@@ -455,6 +460,25 @@ void ASkillProjectile::HandleSphereHit(
 	static_cast<void>(NormalImpulse);
 
 	HandleImpact(OtherActor, OtherComp, Hit);
+}
+
+void ASkillProjectile::HandleProjectileStopped(const FHitResult& Hit)
+{
+	AActor* OtherActor = Hit.GetActor();
+	UPrimitiveComponent* OtherComponent = Hit.GetComponent();
+	if (!bCosmeticOnly && !bHasImpacted && SphereCollision && IsValid(OtherComponent)
+		&& (IsIgnoredImpactActor(OtherActor)
+			|| PdCharacterHitValidation::IsCharacterRelatedNonMeshHit(OtherActor, OtherComponent)))
+	{
+		// Ignoring damage alone does not prevent ProjectileMovement from stopping on a blocker.
+		SphereCollision->IgnoreComponentWhenMoving(OtherComponent, true);
+		StartProjectileMovement();
+		return;
+	}
+
+	// Initial penetration can stop projectile movement without a component hit notification.
+	// HandleImpact guards against processing an already reported hit twice.
+	HandleImpact(OtherActor, OtherComponent, Hit);
 }
 
 void ASkillProjectile::StartProjectileMovement() const

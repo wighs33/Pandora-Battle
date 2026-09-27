@@ -15,7 +15,6 @@ class AMeleeWeapon;
 class ASkillVisualActor;
 class UCharacterPresentationComponent;
 class UCombatComponent;
-class UNiagaraSystem;
 enum class ESkillPresentationFlags : uint8;
 class USkillDefinition;
 
@@ -111,10 +110,6 @@ public:
 	float GetRemainingDuration() const;
 
 	USkillDefinition* GetSourceSkillDataAsset() const;
-	AWeaponBase* GetCurrentWeaponActorFromAvatar() const;
-	bool HasCurrentWeaponSkillTrail() const;
-	bool StartCurrentWeaponSkillTrail(UNiagaraSystem* TrailSystem) const;
-	void StopCurrentWeaponSkillTrail() const;
 	FGameplayEffectSpecHandle MakeConfiguredDamageEffectSpec(
 		const FSkillGameplayEffectConfig& DamageConfig, float DamageMagnitude, UObject* SourceObject = nullptr) const;
 	FGameplayEffectSpecHandle MakeConfiguredStatusEffectSpec(const USkillDefinition* SkillDataAsset,
@@ -133,7 +128,6 @@ public:
 	void SetMissileTargeting(FName AimParameter, FName TargetSocket);
 	void UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors);
 	void StopConfiguredMissilePresentation();
-	void DestroyActiveSkillPresentationActor();
 	void SpawnConfiguredCharacterDecal();
 	FVector ResolveConfiguredCharacterDecalLocation(const ACharacterBase* Character) const;
 
@@ -152,7 +146,6 @@ protected:
 
 private:
 	void ActionFinished(USkillAction* Action, bool bSucceeded);
-	void DurationFinished();
 
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -174,7 +167,9 @@ private:
 
 private:
 	static const USkillDefinition* ResolveSourceSkillDataAsset(UObject* SourceObject);
-	void FinishAbilityFromDuration();
+	AWeaponBase* GetCurrentWeaponActorFromAvatar() const;
+	void DestroyActiveSkillPresentationActor();
+	void FinishSkill();
 	bool CanExecuteSkillPayload() const;
 	void StartConfiguredSelfBuff(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo);

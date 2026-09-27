@@ -142,26 +142,6 @@ AWeaponBase* USkillAbility::GetCurrentWeaponActorFromAvatar() const
 	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
 }
 
-bool USkillAbility::HasCurrentWeaponSkillTrail() const
-{
-	const AWeaponBase* CurrentWeapon = GetCurrentWeaponActorFromAvatar();
-	return CurrentWeapon && CurrentWeapon->HasSkillWeaponTrailComponent();
-}
-
-bool USkillAbility::StartCurrentWeaponSkillTrail(UNiagaraSystem* TrailSystem) const
-{
-	AWeaponBase* CurrentWeapon = GetCurrentWeaponActorFromAvatar();
-	return CurrentWeapon ? CurrentWeapon->StartSkillWeaponTrail(TrailSystem) : false;
-}
-
-void USkillAbility::StopCurrentWeaponSkillTrail() const
-{
-	if (AWeaponBase* CurrentWeapon = GetCurrentWeaponActorFromAvatar())
-	{
-		CurrentWeapon->StopSkillWeaponTrail();
-	}
-}
-
 void USkillAbility::StartConfiguredSelfBuff(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo)
 {

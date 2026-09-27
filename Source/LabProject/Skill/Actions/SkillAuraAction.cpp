@@ -79,12 +79,6 @@ USkillAuraAction::USkillAuraAction()
 
 void USkillAuraAction::OnStart()
 {
-	const auto Handle = GetAbility()->GetCurrentAbilitySpecHandle();
-	const auto* ActorInfo = GetAbility()->GetCurrentActorInfo();
-	const auto ActivationInfo = GetAbility()->GetCurrentActivationInfo();
-	const auto* TriggerEventData = &GetContext().EventData;
-	static_cast<void>(TriggerEventData);
-
 	ActiveAuraSkillDataAsset = nullptr;
 	ActiveAuraSourceCharacter.Reset();
 	MovementSpeedEffectHandle.Invalidate();
@@ -97,14 +91,14 @@ void USkillAuraAction::OnStart()
 	if (!SkillDataAsset)
 	{
 
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
 	if (!GetAbility()->CommitSkill())
 	{
 
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 

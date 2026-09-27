@@ -40,11 +40,7 @@ bool ShouldRepeatSummonTriggerDamage(const USkillDefinition* SkillDataAsset)
 
 void USkillSummonAction::OnStart()
 {
-	const auto Handle = GetAbility()->GetCurrentAbilitySpecHandle();
 	const auto* ActorInfo = GetAbility()->GetCurrentActorInfo();
-	const auto ActivationInfo = GetAbility()->GetCurrentActivationInfo();
-	const auto* TriggerEventData = &GetContext().EventData;
-	static_cast<void>(TriggerEventData);
 
 	SummonMontageTask = nullptr;
 	WaitSummonMontageTriggerTask = nullptr;
@@ -65,13 +61,13 @@ void USkillSummonAction::OnStart()
 	const FSkillSummonSettings* SummonConfig = GetSummonConfig();
 	if (!ActorInfo || !ActorInfo->AvatarActor.IsValid() || !SkillDataAsset || !SummonConfig)
 	{
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 
 	if (!SummonConfig->SummonedActorClass)
 	{
-		Finish(!(true));
+		Finish(false);
 		return;
 	}
 

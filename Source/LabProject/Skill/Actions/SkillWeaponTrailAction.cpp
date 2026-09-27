@@ -1,4 +1,7 @@
 #include "Skill/Actions/SkillWeaponTrailAction.h"
+#include "AbilitySystem/Ability/SkillAbility.h"
+#include "Character/CharacterBase.h"
+#include "Component/Player/EquipmentComponent.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
@@ -43,7 +46,9 @@ void USkillWeaponTrailAction::OnStart()
 		return;
 	}
 
-	AWeaponBase* CurrentWeapon = GetAbility()->GetCurrentWeaponActorFromAvatar();
+	const ACharacterBase* Character = GetAbility()->GetPdCharacterFromActorInfo();
+	const UEquipmentComponent* Equipment = Character ? Character->GetEquipmentComponent() : nullptr;
+	AWeaponBase* CurrentWeapon = Equipment ? Equipment->GetCurrentWeaponActor() : nullptr;
 	if (!CurrentWeapon)
 	{
 
@@ -51,7 +56,7 @@ void USkillWeaponTrailAction::OnStart()
 		return;
 	}
 
-	if (bHasTrailSystem && !GetAbility()->HasCurrentWeaponSkillTrail())
+	if (bHasTrailSystem && !CurrentWeapon->HasSkillWeaponTrailComponent())
 	{
 
 		Finish(false);
@@ -64,6 +69,7 @@ void USkillWeaponTrailAction::OnStart()
 		return;
 	}
 	GetAbility()->StartDurationMovementLock();
+	TrailWeapon = CurrentWeapon;
 
 	const FSkillGameplayEffectConfig AdditionalDamageConfig = SkillDataAsset->GetResolvedDamageConfig();
 	const float AdditionalDamageMagnitude = AdditionalDamageConfig.GameplayEffectClass
@@ -92,7 +98,7 @@ void USkillWeaponTrailAction::OnStart()
 			SkillDataAsset->StatusEffectDataAsset.Get());
 	}
 
-	if (bHasTrailSystem && !GetAbility()->StartCurrentWeaponSkillTrail(Settings.TrailNiagaraSystem))
+	if (bHasTrailSystem && !CurrentWeapon->StartSkillWeaponTrail(Settings.TrailNiagaraSystem))
 	{
 
 		if (MeleeWeapon)
@@ -156,10 +162,10 @@ void USkillWeaponTrailAction::OnStart()
 		TrailMontageTask = GetAbility()->CreateDefaultMontageAndWaitTask(TrailMontage);
 		if (TrailMontageTask)
 		{
-			TrailMontageTask->OnCompleted.AddDynamic(this, &ThisClass::HandleTrailMontageCompleted);
-			TrailMontageTask->OnBlendOut.AddDynamic(this, &ThisClass::HandleTrailMontageCompleted);
-			TrailMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::HandleTrailMontageInterrupted);
-			TrailMontageTask->OnCancelled.AddDynamic(this, &ThisClass::HandleTrailMontageInterrupted);
+			TrailMontageTask->OnCompleted.AddDynamic(this, &ThisClass::HandleTrailMontageFinished);
+			TrailMontageTask->OnBlendOut.AddDynamic(this, &ThisClass::HandleTrailMontageFinished);
+			TrailMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::HandleTrailMontageFinished);
+			TrailMontageTask->OnCancelled.AddDynamic(this, &ThisClass::HandleTrailMontageFinished);
 			TrailMontageTask->ReadyForActivation();
 			return;
 		}
@@ -196,16 +202,20 @@ void USkillWeaponTrailAction::OnStop()
 
 	if (bStartedWeaponTrail)
 	{
-		GetAbility()->StopCurrentWeaponSkillTrail();
+		if (AWeaponBase* Weapon = TrailWeapon.Get())
+		{
+			Weapon->StopSkillWeaponTrail();
+		}
 		bStartedWeaponTrail = false;
 	}
-	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(GetAbility()->GetCurrentWeaponActorFromAvatar()))
+	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(TrailWeapon.Get()))
 	{
 		CurrentWeapon->ClearSkillSlash();
 	}
+	TrailWeapon.Reset();
 }
 
-void USkillWeaponTrailAction::HandleTrailMontageCompleted()
+void USkillWeaponTrailAction::HandleTrailMontageFinished()
 {
 
 	TrailMontageTask = nullptr;
@@ -214,20 +224,6 @@ void USkillWeaponTrailAction::HandleTrailMontageCompleted()
 		return;
 	}
 
-	if (IsRunning())
-	{
-		Finish(true);
-	}
-}
-
-void USkillWeaponTrailAction::HandleTrailMontageInterrupted()
-{
-
-	TrailMontageTask = nullptr;
-	if (GetAbility()->HasDurationDeadline() || TrailDurationTask)
-	{
-		return;
-	}
 	if (IsRunning())
 	{
 		Finish(true);
@@ -243,7 +239,7 @@ void USkillWeaponTrailAction::HandleTrailDurationFinished()
 
 void USkillWeaponTrailAction::HandleTrailAttackTraceStart(FGameplayEventData)
 {
-	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(GetAbility()->GetCurrentWeaponActorFromAvatar()))
+	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(TrailWeapon.Get()))
 	{
 
 		CurrentWeapon->StartAttackTrace();
@@ -252,7 +248,7 @@ void USkillWeaponTrailAction::HandleTrailAttackTraceStart(FGameplayEventData)
 
 void USkillWeaponTrailAction::HandleTrailAttackTraceEnd(FGameplayEventData)
 {
-	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(GetAbility()->GetCurrentWeaponActorFromAvatar()))
+	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(TrailWeapon.Get()))
 	{
 
 		CurrentWeapon->StopAttackTrace();

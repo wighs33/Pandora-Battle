@@ -25,6 +25,9 @@ Content/**
 !Content/GAS/Cue/GC_Frozen.uasset
 !Content/GAS/Cue/GC_Shocked.uasset
 
+# Skill fire presentation has project-skeleton sampling configuration.
+!Content/Niagara/NS_Fire.uasset
+
 # Project-owned title-screen artwork and editable vector sources.
 !Content/UI/Asset/TitleStyle/*.uasset
 !Content/UI/Asset/TitleStyle/SourceArt/*.png

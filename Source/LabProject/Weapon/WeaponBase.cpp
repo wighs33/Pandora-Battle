@@ -348,7 +348,6 @@ bool AWeaponBase::ApplySkillWeaponTrailVisual(const bool bActivate)
     if (bActivate)
     {
         TrailComponent->SetAsset(ActiveSkillTrailSystem, false);
-        TrailComponent->SetAutoActivate(true);
         TrailComponent->SetVisibility(true, true);
         TrailComponent->Activate(true);
     }
@@ -356,7 +355,6 @@ bool AWeaponBase::ApplySkillWeaponTrailVisual(const bool bActivate)
     {
         TrailComponent->Deactivate();
         TrailComponent->SetVisibility(false, true);
-        TrailComponent->SetAutoActivate(false);
         ActiveSkillTrailSystem = nullptr;
     }
 

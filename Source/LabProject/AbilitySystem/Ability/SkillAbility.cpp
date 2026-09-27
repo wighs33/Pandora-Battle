@@ -241,12 +241,12 @@ void USkillAbility::ActivateAbility(
 		const float Remaining = GetRemainingDuration();
 		if (Remaining <= 0.0f)
 		{
-			DurationFinished();
+			FinishSkill();
 			return;
 		}
 
 		GetWorld()->GetTimerManager().SetTimer(
-			DurationTimer, this, &ThisClass::DurationFinished, Remaining, false);
+			DurationTimer, this, &ThisClass::FinishSkill, Remaining, false);
 	}
 
 	ActiveAction = DuplicateObject<USkillAction>(Definition->Action, this);
@@ -259,7 +259,7 @@ void USkillAbility::ActionFinished(USkillAction* Action, const bool bSucceeded)
 	// 같은 프레임에 Action 완료와 Duration 만료가 겹쳐도 Duration 만료를 정상 종료로 우선 처리한다.
 	if (HasDurationDeadline() && GetRemainingDuration() <= 0.0f)
 	{
-		DurationFinished();
+		FinishSkill();
 		return;
 	}
 
@@ -281,7 +281,7 @@ void USkillAbility::ActionFinished(USkillAction* Action, const bool bSucceeded)
 		return;
 	}
 
-	FinishAbilityFromDuration();
+	FinishSkill();
 }
 
 void USkillAbility::InputReleased(
@@ -300,18 +300,13 @@ void USkillAbility::InputReleased(
 
 	if (Remaining <= 0.0f)
 	{
-		FinishAbilityFromDuration();
+		FinishSkill();
 	}
 	else
 	{
 		GetWorld()->GetTimerManager().SetTimer(
-			DurationTimer, this, &ThisClass::DurationFinished, Remaining, false);
+			DurationTimer, this, &ThisClass::FinishSkill, Remaining, false);
 	}
-}
-
-void USkillAbility::DurationFinished()
-{
-	FinishAbilityFromDuration();
 }
 
 void USkillAbility::OnAbilityEnding()
@@ -438,7 +433,7 @@ bool USkillAbility::UsesInputRelease(const FGameplayAbilitySpec& Spec) const
 	return Skill && Skill->SkillType == ESkillType::Press;
 }
 
-void USkillAbility::FinishAbilityFromDuration()
+void USkillAbility::FinishSkill()
 {
 	if (!IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))
 	{

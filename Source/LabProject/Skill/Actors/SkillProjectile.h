@@ -39,15 +39,12 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	ASkillProjectile();
 
-	UFUNCTION(BlueprintCallable, Category = "!Projectile")
 	void InitializeProjectile(const FVector& InTargetLocation, float InSpeed, const FGameplayEffectSpecHandle& InDamageEffectSpecHandle);
 
-	UFUNCTION(BlueprintCallable, Category = "!Projectile")
 	void PrepareProjectile(const FGameplayEffectSpecHandle& InDamageEffectSpecHandle);
 
 	void PrepareCosmeticReadiedProjectile(float InLifeSpan = 0.0f);
 
-	UFUNCTION(BlueprintCallable, Category = "!Projectile|Readied")
 	void StartReadiedScaleGrowth(
 		FVector InStartScale,
 		FVector InTargetScale,
@@ -56,26 +53,20 @@ public:
 		FVector2D InNiagaraStartSize,
 		FVector2D InNiagaraTargetSize);
 
-	UFUNCTION(BlueprintCallable, Category = "!Projectile|Readied")
 	float GetReadiedScaleGrowthAlpha() const;
 
-	UFUNCTION(BlueprintCallable, Category = "!Projectile")
 	void LaunchProjectile(const FVector& InTargetLocation, float InSpeed, const FGameplayEffectSpecHandle& InDamageEffectSpecHandle);
 
-	UFUNCTION(BlueprintCallable, Category = "!Projectile|Trajectory")
 	void ConfigureArcTrajectory(bool bInUseArcTrajectory, float InArcHeight, float InArcGravityScale);
 
-	UFUNCTION(BlueprintCallable, Category = "!Projectile|Debuff")
 	void SetDebuffEffectSpecHandle(
 		const FGameplayEffectSpecHandle& InDebuffEffectSpecHandle,
 		UStatusEffectDefinition* InStatusEffectDefinition);
 
 	void SetImpactAreaDamageRadius(float InImpactAreaDamageRadius);
 
-	UFUNCTION(BlueprintCallable, Category = "!Projectile|Impact")
 	void ConfigureImpactPersistence(bool bInStickOnImpact, float InPostImpactLifeSpan);
 
-	UFUNCTION(BlueprintCallable, Category = "!Projectile|VFX")
 	void ConfigureProjectileVisuals(
 		UNiagaraSystem* InMuzzleFX,
 		UNiagaraSystem* InProjectileFX,
@@ -83,8 +74,6 @@ public:
 		bool bInSpawnHitNiagaraOnGround,
 		FGameplayTag InSpawnGameplayCueTag,
 		FGameplayTag InImpactGameplayCueTag);
-
-	UNiagaraComponent* GetProjectileEffectComponent() const { return ProjectileEffect; }
 
 protected:
 	// Network RPCs ----------------------------------------------------------------------------------------------------
@@ -127,6 +116,10 @@ protected:
 		UPrimitiveComponent* OtherComp,
 		FVector NormalImpulse,
 		const FHitResult& Hit);
+
+	UFUNCTION()
+	void HandleProjectileStopped(const FHitResult& Hit);
+
 	void HandleImpact(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FHitResult& Hit);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
