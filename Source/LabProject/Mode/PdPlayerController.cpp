@@ -109,15 +109,6 @@ void APdPlayerController::AcknowledgePossession(APawn* P)
 	}
 }
 
-// 로컬 설정에 맞게 카메라의 위아래 회전 범위를 제한한다.
-void APdPlayerController::ApplyCameraViewPitchClamp()
-{
-	if (ControllerPresentationComponent)
-	{
-		ControllerPresentationComponent->ApplyCameraViewPitchClamp();
-	}
-}
-
 // 소유 클라이언트에서 보상 표시용 에셋을 준비하도록 알림 컴포넌트에 전달한다.
 void APdPlayerController::Client_ShowRewardNotifications_Implementation(const TArray<FPdRewardNotification>& Rewards)
 {

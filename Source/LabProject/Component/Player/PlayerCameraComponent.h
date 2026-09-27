@@ -14,7 +14,7 @@ class USpringArmComponent;
 
 /**
  * APdPlayer의 로컬 카메라 보간과 카메라 근처 머티리얼 가림 처리를 담당한다.
- * 네트워크 조준 상태의 소유권은 APdPlayer에 유지한다.
+ * 네트워크 조준 상태는 PlayerAimComponent가 소유한다.
  */
 UCLASS(ClassGroup = (Player), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UPlayerCameraComponent : public UActorComponent
@@ -39,16 +39,6 @@ public:
 		const FWeaponAimCameraSettings& Settings,
 		float Duration);
 	bool GetAimViewPoint(FVector& OutLocation, FVector& OutDirection) const;
-
-	bool IsWeaponAimCameraActive() const { return bWeaponAimCameraActive; }
-	bool IsAbilityCameraOverrideActive() const { return bAbilityCameraOverrideActive; }
-	const FWeaponAimCameraSettings& GetActiveWeaponAimSettings() const { return ActiveWeaponAimCameraSettings; }
-	const FWeaponAimCameraSettings& GetActiveAbilityOverrideSettings() const { return ActiveAbilityCameraOverrideSettings; }
-
-	bool HasCachedDefaults() const { return bHasCachedDefaults; }
-	float GetDefaultFOV() const { return DefaultCameraFOV; }
-	FVector GetDefaultBoomSocketOffset() const { return DefaultCameraBoomSocketOffset; }
-	FRotator GetDefaultCameraRelativeRotation() const { return DefaultFollowCameraRelativeRotation; }
 
 	static FWeaponAimCameraSettings SanitizeAimCameraSettings(FWeaponAimCameraSettings Settings);
 

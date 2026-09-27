@@ -35,7 +35,6 @@ public:
 	void InitializeLocalPresentation();
 	void RefreshAfterPossession(APawn* PossessedPawn);
 
-	void ApplyCameraViewPitchClamp() const;
 	void ShowRightNotification(const FPdNotificationData& NotificationData) const;
 	void AddKillLogEntry(const FKillLogEntry& KillLogEntry) const;
 	void ShowGoldenKillAnnouncement(const FText& AnnouncementText) const;
@@ -46,20 +45,19 @@ public:
 	void HideInGameScoreboard();
 
 private:
+	void ApplyCameraViewPitchClamp() const;
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	bool TickTravelLoadingScreenReady(float DeltaTime);
 	void UpdateManagedHealthBarVisibility();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetPdController() const;
-	void Shutdown();
 
 	void RefreshTravelLoadingScreen();
 	void ScheduleHideTravelLoadingScreenWhenReady();
 	void UpdateTravelLoadingReadyTicker();
 	void SetTrainingRoomLoadingPaused(bool bPaused);
 	void StartHealthBarVisibilityManagement();
-	void StopHealthBarVisibilityManagement();
 	bool ShouldManageHealthBarForTarget(const ACharacterBase* TargetCharacter) const;
 
 private:

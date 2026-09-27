@@ -23,6 +23,8 @@
 #include "Component/Player/ControllerPresentationComponent.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Component/Player/EquipmentComponent.h"
+#include "Component/Player/PlayerActionComponent.h"
+#include "Component/Player/PlayerInteractionComponent.h"
 #include "Component/Player/PlayerRewardComponent.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
@@ -87,7 +89,6 @@ void UControllerInputComponent::SetInputDefinition(const TSoftObjectPtr<UControl
 	RemoveAppliedInputDefinition();
 	ActiveInputDefinition = NewInputDefinition;
 	LoadedInputDefinition = nullptr;
-	LoadedCharacterActionDefinition = nullptr;
 	RefreshInputDefinition();
 }
 
@@ -227,13 +228,12 @@ bool UControllerInputComponent::ApplyInputDefinition()
 		if (LocalPlayerSettings->AddInputMappingContext(InputMapping, LoadedDefinition->GetPriority()))
 		{
 			AppliedInputMapping = InputMapping;
-			bAddedInputMapping = true;
 		}
 	}
 
 	BindNativeInputActions(*EnhancedInputComponent, *LoadedDefinition);
 
-	bAppliedInputDefinition = bAddedInputMapping || !BindingHandles.IsEmpty();
+	bAppliedInputDefinition = AppliedInputMapping || !BindingHandles.IsEmpty();
 
 	return bAppliedInputDefinition;
 }
@@ -250,10 +250,9 @@ void UControllerInputComponent::RemoveAppliedInputDefinition()
 		}
 	}
 
-	if (!bAppliedInputDefinition && !bAddedInputMapping && BindingHandles.IsEmpty())
+	if (!bAppliedInputDefinition && !AppliedInputMapping && BindingHandles.IsEmpty())
 	{
 		LoadedInputActions.Reset();
-		LoadedCharacterActionDefinition = nullptr;
 		return;
 	}
 
@@ -267,24 +266,19 @@ void UControllerInputComponent::RemoveAppliedInputDefinition()
 			}
 		}
 
-		if (Controller->IsLocalController() && bAddedInputMapping)
+		if (Controller->IsLocalController() && AppliedInputMapping)
 		{
 			if (ULocalPlayerSettingsSubsystem* LocalPlayerSettings = ULocalPlayerSettingsSubsystem::Get(Controller))
 			{
-				if (AppliedInputMapping)
-				{
-					LocalPlayerSettings->RemoveInputMappingContext(AppliedInputMapping);
-				}
+				LocalPlayerSettings->RemoveInputMappingContext(AppliedInputMapping);
 			}
 		}
 	}
 
 	BindingHandles.Reset();
 	LoadedInputActions.Reset();
-	LoadedCharacterActionDefinition = nullptr;
 	AppliedInputMapping = nullptr;
 	bAppliedInputDefinition = false;
-	bAddedInputMapping = false;
 	bSelectPandoraActionOpened = false;
 }
 
@@ -312,53 +306,17 @@ UInputAction* UControllerInputComponent::LoadInputAction(const TSoftObjectPtr<UI
 	return LoadedInputAction;
 }
 
-const UCharacterActionDefinition* UControllerInputComponent::LoadCharacterActionDefinition()
-{
-	if (LoadedCharacterActionDefinition)
-	{
-		return LoadedCharacterActionDefinition;
-	}
-
-	UControllerInputDefinition* Definition = LoadedInputDefinition.Get();
-	if (!Definition)
-	{
-		Definition = GetLoadedInputDefinition();
-	}
-	if (!Definition)
-	{
-		return nullptr;
-	}
-
-	const TSoftObjectPtr<UCharacterActionDefinition> ActionDefinition =
-		Definition->GetEffectiveCharacterActionDefinition();
-	LoadedCharacterActionDefinition = ActionDefinition.IsNull() ? nullptr : ActionDefinition.Get();
-	return LoadedCharacterActionDefinition;
-}
-
-bool UControllerInputComponent::IsCharacterActionAvailable(APdPlayer* PlayerCharacter, const ECharacterActionType ActionType) const
+bool UControllerInputComponent::CanSwapPandoraAndWeapon(APdPlayer* PlayerCharacter) const
 {
 	if (!PlayerCharacter)
 	{
 		return true;
 	}
 
-	FGameplayTag CooldownTag;
-	switch (ActionType)
-	{
-	case ECharacterActionType::PandoraWeaponSwap:
-		CooldownTag = LabGameplayTags::Cooldown_EquipWeapon;
-		break;
-	case ECharacterActionType::GrappleHook:
-		CooldownTag = LabGameplayTags::Cooldown_Grapple;
-		break;
-	default:
-		return true;
-	}
-
 	const UAbilitySystemComponent* AbilitySystemComponent =
 		PlayerCharacter->GetAbilitySystemComponent();
 	return !AbilitySystemComponent
-		|| !AbilitySystemComponent->HasMatchingGameplayTag(CooldownTag);
+		|| !AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon);
 }
 
 void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& EnhancedInputComponent,
@@ -479,7 +437,7 @@ void UControllerInputComponent::HandleMoveInput(const FInputActionValue& InputVa
 	APdPlayer* PlayerCharacter = Cast<APdPlayer>(ControlledPawn);
 	const UEquipmentComponent* EquipmentComponent = PlayerCharacter ? PlayerCharacter->GetEquipmentComponent() : nullptr;
 	UAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetAbilitySystemComponent() : nullptr;
-	const bool bCancelledHitReactForMovement = PlayerCharacter && PlayerCharacter->RequestCancelHitReactForMovement();
+	const bool bCancelledHitReactForMovement = PlayerCharacter && PlayerCharacter->GetPlayerActionComponent()->RequestCancelHitReactForMovement(0.08f);
 	const FGameplayTag MovementBlockStateTag = LoadedInputDefinition ? LoadedInputDefinition->GetMovementBlockStateTag() : FGameplayTag();
 	if (!bCancelledHitReactForMovement
 		&& AbilitySystemComponent
@@ -606,13 +564,14 @@ void UControllerInputComponent::HandleInteractInput(const FInputActionValue& Inp
 		return;
 	}
 
-	AActor* InteractableActor = PlayerCharacter->GetCurrentInteractActor();
+	UPlayerInteractionComponent* Interaction = PlayerCharacter->GetPlayerInteractionComponent();
+	AActor* InteractableActor = Interaction->GetCurrentInteractActor();
 	if (!IsValid(InteractableActor))
 	{
 		return;
 	}
 
-	if (PlayerCharacter->InteractWithCurrentTarget())
+	if (Interaction->InteractWithCurrentTarget())
 	{
 		return;
 	}
@@ -732,7 +691,7 @@ void UControllerInputComponent::HandleSelectPandoraInputStarted(const FInputActi
 	static_cast<void>(InputValue);
 
 	APdPlayer* PlayerCharacter = GetPlayerCharacter();
-	if (!IsCharacterActionAvailable(PlayerCharacter, ECharacterActionType::PandoraWeaponSwap))
+	if (!CanSwapPandoraAndWeapon(PlayerCharacter))
 	{
 		return;
 	}

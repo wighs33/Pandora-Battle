@@ -35,7 +35,18 @@ UControllerPresentationComponent::UControllerPresentationComponent()
 // 컨트롤러가 종료되면 화면 갱신 타이머와 로딩 중 일시정지를 해제한다.
 void UControllerPresentationComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	Shutdown();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(HealthBarVisibilityManagementTimerHandle);
+	}
+	if (TravelLoadingReadyTickerHandle.IsValid())
+	{
+		FTSTicker::RemoveTicker(TravelLoadingReadyTickerHandle);
+		TravelLoadingReadyTickerHandle.Reset();
+	}
+	SetTrainingRoomLoadingPaused(false);
+
+	TravelLoadingHideRetryCount = 0;
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -107,20 +118,6 @@ void UControllerPresentationComponent::RefreshAfterPossession(APawn* PossessedPa
 			PlayerCharacter->RestoreCachedLobbyPaintCanvasFaceDecal();
 		}
 	}
-}
-
-// 화면 처리에 등록한 타이머와 티커를 해제하고 이 컴포넌트가 건 일시정지만 되돌린다.
-void UControllerPresentationComponent::Shutdown()
-{
-	StopHealthBarVisibilityManagement();
-	if (TravelLoadingReadyTickerHandle.IsValid())
-	{
-		FTSTicker::RemoveTicker(TravelLoadingReadyTickerHandle);
-		TravelLoadingReadyTickerHandle.Reset();
-	}
-	SetTrainingRoomLoadingPaused(false);
-
-	TravelLoadingHideRetryCount = 0;
 }
 
 // 플레이어 설정에 맞춰 카메라의 상하 회전 범위를 적용한다.
@@ -421,15 +418,6 @@ void UControllerPresentationComponent::StartHealthBarVisibilityManagement()
 		&ThisClass::UpdateManagedHealthBarVisibility,
 		FMath::Max(Settings.HealthBarVisibilityUpdateInterval, 0.01f),
 		true);
-}
-
-// 컨트롤러 종료 시 체력바 주기 갱신을 중단한다.
-void UControllerPresentationComponent::StopHealthBarVisibilityManagement()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(HealthBarVisibilityManagementTimerHandle);
-	}
 }
 
 // 관찰자의 위치·시선·팀 관계에 맞춰 각 캐릭터의 체력바 가시성을 갱신한다.

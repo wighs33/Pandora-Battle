@@ -9,8 +9,7 @@
 class UPlayerPawnDefinition;
 
 /**
- * 로컬 쿨다운 상태와 서버 권한의 피격 반응 취소 요청 등
- * 플레이어의 단기 행동 정책을 관리한다.
+ * 이동 입력에 따른 피격 반응 취소를 로컬에서 예측하고 서버에 요청한다.
  */
 UCLASS(ClassGroup = (Player), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UPlayerActionComponent : public UActorComponent

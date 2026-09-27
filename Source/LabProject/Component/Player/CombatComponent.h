@@ -53,7 +53,6 @@ public:
 	void StopPrimaryAttack();
 	void StartAim();
 	void StopAim();
-	void StopAutomaticFire();
 
 	UFUNCTION(BlueprintPure, Category = "!Combat")
 	float GetWeaponDamageSourceMagnitude() const;
@@ -71,7 +70,6 @@ public:
 
 	void SetTemporaryWeaponDamageBonus(UObject* SourceObject, float DamageBonus);
 	void ClearTemporaryWeaponDamageBonus(UObject* SourceObject);
-	float GetTemporaryWeaponDamageBonus() const;
 
 	bool GetUnarmedAttackData(FAttackData& OutAttackData) const;
 	void PlayUnarmedComboWindowStartEffect() const;
@@ -82,6 +80,8 @@ public:
 	void RefreshCachedReferences();
 
 private:
+	float GetTemporaryWeaponDamageBonus() const;
+	void StopAutomaticFire();
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerRequestNextComboInput(FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey ActivationKey, FName ClientExpectedSectionName);

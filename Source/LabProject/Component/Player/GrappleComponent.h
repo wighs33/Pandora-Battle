@@ -45,9 +45,8 @@ public:
 
 	bool IsGrappling() const { return bIsGrappling; }
 
-	void ConfigureHookComponent();
-
 private:
+	void ConfigureHookComponent();
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Client, Reliable)
 	void ClientCorrectGrappleEnd(
@@ -56,10 +55,8 @@ private:
 		uint8 ServerCustomMovementMode);
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	UFUNCTION()
 	void AttachGrappleHookToTarget();
 
-	UFUNCTION()
 	void StartGrappleMove();
 
 	UFUNCTION()
@@ -67,10 +64,6 @@ private:
 
 	UFUNCTION()
 	void OnRep_GrappleTarget();
-
-	// Internal Helpers ------------------------------------------------------------------------------------------------
-	UFUNCTION()
-	void FinishGrapple();
 
 	APdPlayer* GetPlayerOwner() const;
 	void SetGrappleState(bool bNewIsGrappling);

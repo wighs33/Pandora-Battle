@@ -4,7 +4,6 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
-#include "Definition/Player/CharacterActionDefinition.h"
 #include "ControllerInputComponent.generated.h"
 
 class APdPlayer;
@@ -108,8 +107,7 @@ private:
 	void RemoveAppliedInputDefinition();
 	void AddInputBindingHandle(uint32 BindingHandle);
 	UInputAction* LoadInputAction(const TSoftObjectPtr<UInputAction>& InputAction);
-	const UCharacterActionDefinition* LoadCharacterActionDefinition();
-	bool IsCharacterActionAvailable(APdPlayer* PlayerCharacter, ECharacterActionType ActionType) const;
+	bool CanSwapPandoraAndWeapon(APdPlayer* PlayerCharacter) const;
 	void BindNativeInputActions(UEnhancedInputComponent& EnhancedInputComponent, const UControllerInputDefinition& Definition);
 
 private:
@@ -117,9 +115,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UControllerInputDefinition> LoadedInputDefinition;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UCharacterActionDefinition> LoadedCharacterActionDefinition;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> AppliedInputMapping;
@@ -133,6 +128,5 @@ private:
 	uint32 InputPreloadRequestGeneration = 0;
 	bool bInputPreloadPending = false;
 	bool bAppliedInputDefinition = false;
-	bool bAddedInputMapping = false;
 	bool bSelectPandoraActionOpened = false;
 };

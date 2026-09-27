@@ -41,9 +41,6 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	APdPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UFUNCTION(BlueprintCallable, Category = "!Camera|Clamp")
-	void ApplyCameraViewPitchClamp();
-
 	void RequestLocalCosmeticProfileSync();
 
 	UFUNCTION(BlueprintPure, Category = "!Input")
@@ -53,22 +50,9 @@ public:
 
 	UPlayerNotificationComponent* GetPlayerNotificationComponent() const { return NotificationComponent.Get(); }
 
-	UFUNCTION(BlueprintPure, Category = "!Components")
 	UControllerPresentationComponent* GetControllerPresentationComponent() const
 	{
 		return ControllerPresentationComponent;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "!Components")
-	UControllerProfileSyncComponent* GetControllerProfileSyncComponent() const
-	{
-		return ControllerProfileSyncComponent;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "!Components")
-	UControllerSessionComponent* GetControllerSessionComponent() const
-	{
-		return ControllerSessionComponent;
 	}
 
 	// 로비의 입력 모드와 로딩 화면 정책은 구체적인 자식 타입 대신 이 정책으로 구분한다.

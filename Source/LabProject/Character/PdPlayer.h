@@ -49,12 +49,6 @@ public:
 	APdPlayer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	virtual void ResetDeathStateForRespawn() override;
 
-	UFUNCTION(BlueprintPure, Category = "!Interaction")
-	AActor* GetCurrentInteractActor() const;
-
-	UFUNCTION(BlueprintCallable, Category = "!Interaction")
-	bool InteractWithCurrentTarget();
-
 	UFUNCTION(BlueprintCallable, Category = "!Weapon|Aim")
 	void SetWeaponAimActive(bool bEnabled, const FWeaponAimCameraSettings& AimCameraSettings);
 
@@ -65,8 +59,6 @@ public:
 	UPlayerAimComponent* GetPlayerAimComponent() const { return PlayerAimComponent; }
 	UPlayerCameraComponent* GetPlayerCameraComponent() const { return PlayerCameraComponent; }
 	UPlayerInteractionComponent* GetPlayerInteractionComponent() const { return PlayerInteractionComponent; }
-
-	bool RequestCancelHitReactForMovement(float BlendOutTime = 0.08f);
 
 	void HidePaintCanvas();
 

@@ -35,7 +35,6 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void PushLocalCosmeticProfileToServer();
-	void HandleSteamAchievementStateChanged();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetPdController() const;

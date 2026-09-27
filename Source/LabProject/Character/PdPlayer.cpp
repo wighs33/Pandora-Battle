@@ -372,13 +372,6 @@ bool APdPlayer::IsGrappling() const
 	return GrappleComponent && GrappleComponent->IsGrappling();
 }
 
-// 이동을 재개할 때 진행 중인 피격 반응 능력과 몽타주를 해제하도록 행동 컴포넌트에 요청한다.
-bool APdPlayer::RequestCancelHitReactForMovement(const float BlendOutTime)
-{
-	return PlayerActionComponent
-		&& PlayerActionComponent->RequestCancelHitReactForMovement(BlendOutTime);
-}
-
 // 그림 입력 화면의 사용 상태를 종료하도록 페인트 컴포넌트에 요청한다. 이미 표시한 말풍선은 별도로 유지된다.
 void APdPlayer::HidePaintCanvas()
 {
@@ -443,21 +436,6 @@ void APdPlayer::StopInteractionMontage(float BlendOutTime)
 	{
 		PlayerInteractionComponent->StopInteractionMontage(BlendOutTime);
 	}
-}
-
-// 주변에 추적 중인 대상 가운데 센서 겹침 또는 허용 거리 조건을 만족하는 첫 대상을 찾는다.
-AActor* APdPlayer::GetCurrentInteractActor() const
-{
-	return PlayerInteractionComponent
-		? PlayerInteractionComponent->GetCurrentInteractActor()
-		: nullptr;
-}
-
-// 현재 대상이 상호작용을 허용하면 대상의 상호작용 기능을 실행하도록 요청한다.
-bool APdPlayer::InteractWithCurrentTarget()
-{
-	return PlayerInteractionComponent
-		&& PlayerInteractionComponent->InteractWithCurrentTarget();
 }
 
 // 무기 조준의 시작·종료를 조준 컴포넌트에 전달해 자세·회전 방식과 조준용 카메라를 전환한다.

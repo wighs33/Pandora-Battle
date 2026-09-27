@@ -35,9 +35,9 @@ public:
 
 	void PlayInteractionMontage(UAnimMontage* Montage, float PlayRate);
 	void StopInteractionMontage(float BlendOutTime);
-	bool IsInteractionMontagePlaying() const;
 
 private:
+	bool IsInteractionMontagePlaying() const;
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayInteractionMontage(UAnimMontage* Montage, float PlayRate);

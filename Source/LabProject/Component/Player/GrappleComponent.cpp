@@ -94,7 +94,7 @@ void UGrappleComponent::TickComponent(
 	const bool bBlocked = MoveHit.bStartPenetrating || MoveHit.IsValidBlockingHit();
 	if (bBlocked || MoveAlpha >= 1.0)
 	{
-		FinishGrapple();
+		StopGrapple();
 	}
 }
 
@@ -315,11 +315,6 @@ void UGrappleComponent::ResetForRespawn()
 	{
 		PlayerOwner->ForceNetUpdate();
 	}
-}
-
-void UGrappleComponent::FinishGrapple()
-{
-	StopGrapple();
 }
 
 void UGrappleComponent::AttachGrappleHookToTarget()

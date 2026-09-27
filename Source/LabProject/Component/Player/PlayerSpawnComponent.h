@@ -29,15 +29,14 @@ public:
 	void MarkPlayerStartUsed(AController* Player, AActor* PlayerStart);
 	void RecordInitialSpawn(AController* PlayerController, const FTransform& InitialSpawnTransform);
 	void RequestPlayerRespawn(AController* PlayerController, APawn* DeadPawn);
-	bool TryGetPlayerInitialSpawnTransform(AController* PlayerController, FTransform& OutSpawnTransform) const;
 	TArray<APlayerController*> MovePlayersToInitialSpawns();
 	void ClearRuntimeStateForController(AController* Controller);
 	void StopRespawning();
 	void SetRespawnLocation(EPlayerRespawnLocation Location) { RespawnLocation = Location; }
-	int32 GetPendingRespawnCount() const { return PendingPlayerRespawnTimers.Num(); }
 	FOnPlayerRespawned OnPlayerRespawned;
 
 private:
+	bool TryGetPlayerInitialSpawnTransform(AController* PlayerController, FTransform& OutSpawnTransform) const;
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	AActor* FindPlayerStartBySpawnIndex(int32 SpawnIndex, FName PlayerStartTagPrefix) const;
 	AActor* FindFirstUnusedPlayerStart() const;

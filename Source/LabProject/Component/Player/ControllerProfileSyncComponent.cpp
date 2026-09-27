@@ -398,7 +398,7 @@ void UControllerProfileSyncComponent::BindSteamAchievementStateChanged()
 	SteamAchievementStateChangedHandle =
 		AchievementSubsystem->OnSteamAchievementStateChanged().AddUObject(
 			this,
-			&ThisClass::HandleSteamAchievementStateChanged);
+			&ThisClass::ScheduleLocalCosmeticProfileSync);
 }
 
 void UControllerProfileSyncComponent::UnbindSteamAchievementStateChanged()
@@ -415,11 +415,6 @@ void UControllerProfileSyncComponent::UnbindSteamAchievementStateChanged()
 			SteamAchievementStateChangedHandle);
 	}
 	SteamAchievementStateChangedHandle.Reset();
-}
-
-void UControllerProfileSyncComponent::HandleSteamAchievementStateChanged()
-{
-	ScheduleLocalCosmeticProfileSync();
 }
 
 bool UControllerProfileSyncComponent::TryConsumeRemoteSkinSyncRequest()

@@ -130,10 +130,8 @@ public:
 	void ClearBodyAuraNiagaraIfMatching(FName ComponentName, const UNiagaraSystem* ExpectedNiagaraSystem);
 
 	// 경기 팀과 진영, 빙결·사망 상태.
-	UFUNCTION()
 	int32 GetMatchTeamColorIndex() const;
 
-	UFUNCTION()
 	bool IsSameTeam(const ACharacterBase* OtherCharacter) const;
 
 	UFUNCTION(BlueprintPure, Category = "!Team")
