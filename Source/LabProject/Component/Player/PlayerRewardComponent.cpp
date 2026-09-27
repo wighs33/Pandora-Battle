@@ -148,7 +148,6 @@ void UPlayerRewardComponent::GrantPlayerKillReward()
 
 void UPlayerRewardComponent::ApplyInteractRewards_Implementation(AActor* InteractableActor)
 {
-
 	ApplyInteractRewardsInternal(InteractableActor);
 }
 
@@ -157,13 +156,11 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 	APdPlayerState* PlayerState = GetPdPlayerState();
 	if (!PlayerState || !PlayerState->HasAuthority())
 	{
-
 		return false;
 	}
 
 	if (!IsValid(InteractableActor) || !InteractableActor->GetClass()->ImplementsInterface(UInteractableInterface::StaticClass()))
 	{
-
 		return false;
 	}
 
@@ -171,14 +168,12 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 	{
 		if (!PlayerPawn->CanInteractWithActor(InteractableActor))
 		{
-
 			return false;
 		}
 	}
 
 	if (!IInteractableInterface::Execute_CanInteract(InteractableActor, PlayerState->GetPawn()))
 	{
-
 		return false;
 	}
 
@@ -204,19 +199,9 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 
 	if (InventoryComponent)
 	{
-
 		InventoryComponent->AddItemsByPrimaryAssetIds(RewardItemDefinitions);
 		if (!RewardItemDefinitions.IsEmpty())
 		{
-			FString PlayerId;
-			if (const FUniqueNetIdRepl& UniqueId = PlayerState->GetUniqueId(); UniqueId.IsValid())
-			{
-				if (const FUniqueNetIdPtr UniqueNetId = UniqueId.GetUniqueNetId(); UniqueNetId.IsValid())
-				{
-					PlayerId = UniqueNetId->ToString();
-				}
-			}
-
 			APdPlayerController* PlayerController = Cast<APdPlayerController>(PlayerState->GetOwner());
 			if (!PlayerController)
 			{
@@ -228,20 +213,18 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 
 			if (PlayerController)
 			{
-				PlayerController->Client_AddCollectedItemCount(PlayerId, RewardItemDefinitions.Num());
+				PlayerController->Client_AddCollectedItemCount(RewardItemDefinitions.Num());
 			}
 		}
 	}
 
 	if (USkinComponent* SkinComponent = PlayerState->GetSkinComponent())
 	{
-
 		SkinComponent->AddSkinsByPrimaryAssetIds(RewardSkinDefinitions);
 	}
 
 	if (UPandoraComponent* PandoraComponent = PlayerState->GetPandoraComponent())
 	{
-
 		PandoraComponent->ActivatePandoras(RewardPandoraDefinitions);
 	}
 

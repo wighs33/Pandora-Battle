@@ -16,7 +16,7 @@
 #include "InputCoreTypes.h"
 #include "Item/ItemInstance.h"
 #include "Engine/GameInstance.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdHUD.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
@@ -288,7 +288,6 @@ bool UInfoWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 		UItemInstance* DroppedItem = ItemDragOperation->GetItemInstance();
 		if (DroppedItem)
 		{
-
 			OnDroppedItemToCharacterPanel.Broadcast(DroppedItem);
 			return true;
 		}
@@ -299,7 +298,6 @@ bool UInfoWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 		const USkinDefinition* DroppedSkin = SkinDragOperation->GetSkinDefinition();
 		if (DroppedSkin)
 		{
-
 			OnDroppedSkinToCharacterPanel.Broadcast(DroppedSkin);
 			return true;
 		}
@@ -753,18 +751,12 @@ void UInfoWidget::OnDebugButtonClicked()
 		return;
 	}
 
-	const FString PlayerId = ProfileSubsystem->GetLocalClientSavePlayerId();
-	if (PlayerId.IsEmpty())
-	{
-		return;
-	}
-
 	constexpr int32 DebugVictoryGold = 123;
 	FMatchRecord VictoryRecord;
 	VictoryRecord.bWin = true;
 	VictoryRecord.Reward = DebugVictoryGold;
-	ProfileSubsystem->AddMatchRecord(PlayerId, VictoryRecord, false);
-	ProfileSubsystem->AddGold(PlayerId, DebugVictoryGold, true);
+	ProfileSubsystem->AddMatchRecord(VictoryRecord, false);
+	ProfileSubsystem->AddGold(DebugVictoryGold, true);
 
 	if (WB_LeftProfile)
 	{

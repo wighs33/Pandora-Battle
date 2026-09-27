@@ -22,7 +22,7 @@
 #include "Mode/ExperienceGameMode.h"
 #include "Mode/ExperienceGameState.h"
 #include "Engine/GameInstance.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
@@ -280,9 +280,6 @@ int32 UMatchFlowComponent::GrantGameVictoryGoldReward(
 
 	const APlayerController* WinnerPlayerController =
 		Cast<APlayerController>(WinnerController);
-	const FString PlayerId = ProfileSubsystem->ResolveSavePlayerId(
-		WinnerPlayerController,
-		WinnerController->PlayerState);
 	const bool bWinnerLocal =
 		WinnerPlayerController
 		&& WinnerPlayerController->IsLocalController();
@@ -294,18 +291,16 @@ int32 UMatchFlowComponent::GrantGameVictoryGoldReward(
 	int32 NewGold = 0;
 	if (GoldReward > 0 && bWinnerLocal)
 	{
-		NewGold = ProfileSubsystem->AddGold(PlayerId, GoldReward, false);
-		ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
-		ProfileSubsystem->SaveGame(PlayerId);
+		NewGold = ProfileSubsystem->AddGold(GoldReward, false);
+
+		ProfileSubsystem->SaveProfile();
 	}
 
 	if (APdPlayerController* WinnerPdPlayerController =
 		Cast<APdPlayerController>(WinnerController);
 		WinnerPdPlayerController && !bWinnerLocal && GoldReward > 0)
 	{
-		WinnerPdPlayerController->Client_AddGameVictoryGoldReward(
-			PlayerId,
-			GoldReward);
+		WinnerPdPlayerController->Client_AddGameVictoryGoldReward(GoldReward);
 	}
 
 	return NewGold;

@@ -12,8 +12,7 @@
 #include "Engine/StreamableManager.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
-#include "GameFramework/PlayerState.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/UI/RecordDefinition.h"
 #include "UI/WidgetLookup.h"
@@ -134,23 +133,14 @@ void URecordWidget::RefreshRecords()
 	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
 	if (!ProfileSubsystem)
 	{
-
 		return;
 	}
 
-	const FString PlayerId = ResolveRecordPlayerId();
-	if (PlayerId.IsEmpty())
-	{
-
-		return;
-	}
-
-	ApplyWinCountUI(PlayerId);
-	ApplyTierImage(PlayerId);
+	ApplyWinCountUI();
+	ApplyTierImage();
 
 	if (!RecordScrollBox)
 	{
-
 		return;
 	}
 
@@ -159,11 +149,10 @@ void URecordWidget::RefreshRecords()
 	const TSubclassOf<URecordEntryWidget> ResolvedEntryClass = ResolveRecordEntryWidgetClass();
 	if (!ResolvedEntryClass)
 	{
-
 		return;
 	}
 
-	const TArray<FMatchRecord> MatchRecords = ProfileSubsystem->GetMatchRecords(PlayerId);
+	const TArray<FMatchRecord> MatchRecords = ProfileSubsystem->GetMatchRecords();
 	const int32 VisibleCount = FMath::Min(MatchRecords.Num(), MaxVisibleRecordEntries);
 	if (Txt_EmptyRecords)
 		Txt_EmptyRecords->SetVisibility(VisibleCount == 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
@@ -198,9 +187,9 @@ void URecordWidget::HandleCloseClicked()
 void URecordWidget::OnMenuLanguageChanged()
 {
 	// Entries subscribe independently. Keep the existing rows and scroll position alive.
-	const FString PlayerId = ResolveRecordPlayerId();
-	ApplyWinCountUI(PlayerId);
-	ApplyTierImage(PlayerId);
+
+	ApplyWinCountUI();
+	ApplyTierImage();
 }
 
 void URecordWidget::ResolveWidgets()
@@ -296,37 +285,6 @@ void URecordWidget::ApplyWidgetDefinitionSettings()
 	}
 }
 
-FString URecordWidget::ResolveRecordPlayerId() const
-{
-	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
-	if (!ProfileSubsystem)
-	{
-		return FString();
-	}
-
-	FString PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
-	PlayerId.TrimStartAndEndInline();
-	if (!PlayerId.IsEmpty())
-	{
-		return PlayerId;
-	}
-
-	const APlayerController* PlayerController = GetOwningPlayer();
-	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
-	PlayerId = ProfileSubsystem->ResolveSavePlayerId(
-		PlayerController,
-		PlayerState);
-	PlayerId.TrimStartAndEndInline();
-	if (!PlayerId.IsEmpty())
-	{
-		return PlayerId;
-	}
-
-	PlayerId = ProfileSubsystem->GetLocalClientSavePlayerId();
-	PlayerId.TrimStartAndEndInline();
-	return PlayerId;
-}
-
 TSubclassOf<URecordEntryWidget> URecordWidget::ResolveRecordEntryWidgetClass() const
 {
 	if (RecordEntryWidgetClass)
@@ -347,7 +305,7 @@ const URecordDefinition* URecordWidget::ResolveRecordDefinition()
 	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Record.Get();
 }
 
-void URecordWidget::ApplyTierImage(const FString& PlayerId)
+void URecordWidget::ApplyTierImage()
 {
 	if (!Img_MyTier)
 	{
@@ -362,7 +320,7 @@ void URecordWidget::ApplyTierImage(const FString& PlayerId)
 		return;
 	}
 
-	const int32 WinCount = ProfileSubsystem->GetWinCount(PlayerId);
+	const int32 WinCount = ProfileSubsystem->GetWinCount();
 	const FRecordTierEntry TierEntry = LoadedRecordData->ResolveTierForWinCount(WinCount);
 	if (Txt_TierName)
 		Txt_TierName->SetText(FText::Format(MenuText(TEXT("Record.Tier")), FText::AsNumber(TierEntry.RankOrder + 1)));
@@ -377,10 +335,10 @@ void URecordWidget::ApplyTierImage(const FString& PlayerId)
 	Img_MyTier->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
-void URecordWidget::ApplyWinCountUI(const FString& PlayerId)
+void URecordWidget::ApplyWinCountUI()
 {
 	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
-	const int32 WinCount = ProfileSubsystem ? ProfileSubsystem->GetWinCount(PlayerId) : 0;
+	const int32 WinCount = ProfileSubsystem ? ProfileSubsystem->GetWinCount() : 0;
 
 	if (Txt_WinCount)
 	{

@@ -1,9 +1,7 @@
-#include "SavedGameData/PlayerProfileSubsystem.h"
-#include "SavedGameData/PlayerProfilePolicy.h"
+#include "Profile/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSaveGame.h"
 
 #include "Engine/AssetManager.h"
-#include "Definition/Item/RewardDefinition.h"
-#include "Kismet/GameplayStatics.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
@@ -11,10 +9,56 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerProfileSubsystem)
 
-using namespace PlayerProfilePolicy;
-
 namespace
 {
+	const FPrimaryAssetType& GetSkinDefinitionAssetType()
+	{
+		static const FPrimaryAssetType AssetType(TEXT("SkinDefinition"));
+		return AssetType;
+	}
+
+	FPrimaryAssetId ResolveRedirectedAssetId(const FPrimaryAssetId& AssetId)
+	{
+		if (!AssetId.IsValid())
+		{
+			return FPrimaryAssetId();
+		}
+
+		if (const UAssetManager* AssetManager = UAssetManager::GetIfInitialized())
+		{
+			const FPrimaryAssetId RedirectedId = AssetManager->GetRedirectedPrimaryAssetId(AssetId);
+			if (RedirectedId.IsValid())
+			{
+				return RedirectedId;
+			}
+		}
+
+		return AssetId;
+	}
+
+	FPrimaryAssetId MakeDefinitionAssetId(
+		const FPrimaryAssetType& AssetType,
+		const FName AssetName)
+	{
+		return AssetName.IsNone()
+			? FPrimaryAssetId()
+			: ResolveRedirectedAssetId(FPrimaryAssetId(AssetType, AssetName));
+	}
+
+	FPrimaryAssetId ResolvePandoraSaveId(const UPandoraDefinition* PandoraDefinition)
+	{
+		return PandoraDefinition
+			? ResolveRedirectedAssetId(PandoraDefinition->GetPrimaryAssetId())
+			: FPrimaryAssetId();
+	}
+
+	FPrimaryAssetId ResolveSkinSaveId(const USkinDefinition* SkinDefinition)
+	{
+		return SkinDefinition
+			? ResolveRedirectedAssetId(SkinDefinition->GetPrimaryAssetId())
+			: FPrimaryAssetId();
+	}
+
 	int32 AddNonNegativeSaturated(const int32 CurrentValue, const int32 Amount)
 	{
 		return static_cast<int32>(FMath::Min<int64>(
@@ -24,19 +68,10 @@ namespace
 	}
 }
 
-void UPlayerProfileSubsystem::AddMatchRecord(
-	const FString& PlayerId,
-	const FMatchRecord& MatchRecord,
+void UPlayerProfileSubsystem::AddMatchRecord(const FMatchRecord& MatchRecord,
 	const bool bSaveImmediately)
 {
-	FString TrimmedPlayerId = PlayerId;
-	TrimmedPlayerId.TrimStartAndEndInline();
-	if (TrimmedPlayerId.IsEmpty())
-	{
-		return;
-	}
-
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(TrimmedPlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return;
@@ -62,68 +97,43 @@ void UPlayerProfileSubsystem::AddMatchRecord(
 			AddNonNegativeSaturated(SaveGameObject->WinCount, 1);
 	}
 
-	while (SaveGameObject->MatchRecords.Num() > MaxSavedMatchRecordCount)
+	while (SaveGameObject->MatchRecords.Num() > PlayerProfileDataVersion::MaxMatchRecordCount)
 	{
 		SaveGameObject->MatchRecords.RemoveAt(0);
 	}
 
-	RequestProfileSave(TrimmedPlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 
-	NotifyProfileProgressChanged(TrimmedPlayerId);
+	ProfileProgressChanged.Broadcast();
 }
 
-TArray<FMatchRecord> UPlayerProfileSubsystem::GetMatchRecords(const FString& PlayerId)
+TArray<FMatchRecord> UPlayerProfileSubsystem::GetMatchRecords()
 {
-	FString TrimmedPlayerId = PlayerId;
-	TrimmedPlayerId.TrimStartAndEndInline();
-	if (TrimmedPlayerId.IsEmpty())
-	{
-		return {};
-	}
-
-	const UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(TrimmedPlayerId);
+	const UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	return IsValid(SaveGameObject) ? SaveGameObject->MatchRecords : TArray<FMatchRecord>();
 }
 
-int32 UPlayerProfileSubsystem::GetWinCount(const FString& PlayerId)
+int32 UPlayerProfileSubsystem::GetWinCount()
 {
-	FString TrimmedPlayerId = PlayerId;
-	TrimmedPlayerId.TrimStartAndEndInline();
-	if (TrimmedPlayerId.IsEmpty())
-	{
-		return 0;
-	}
-
-	const UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(TrimmedPlayerId);
+	const UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	return IsValid(SaveGameObject) ? FMath::Max(SaveGameObject->WinCount, 0) : 0;
 }
 
-int32 UPlayerProfileSubsystem::GetItemCollectedCount(const FString& PlayerId)
+int32 UPlayerProfileSubsystem::GetItemCollectedCount()
 {
-	FString TrimmedPlayerId = PlayerId;
-	TrimmedPlayerId.TrimStartAndEndInline();
-	if (TrimmedPlayerId.IsEmpty())
-	{
-		return 0;
-	}
-
-	const UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(TrimmedPlayerId);
+	const UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	return IsValid(SaveGameObject) ? FMath::Max(SaveGameObject->ItemCollectedCount, 0) : 0;
 }
 
-int32 UPlayerProfileSubsystem::AddItemCollectedCount(
-	const FString& PlayerId,
-	const int32 Amount,
+int32 UPlayerProfileSubsystem::AddItemCollectedCount(const int32 Amount,
 	const bool bSaveImmediately)
 {
-	FString TrimmedPlayerId = PlayerId;
-	TrimmedPlayerId.TrimStartAndEndInline();
-	if (TrimmedPlayerId.IsEmpty() || Amount <= 0)
+	if (Amount <= 0)
 	{
-		return GetItemCollectedCount(TrimmedPlayerId);
+		return GetItemCollectedCount();
 	}
 
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(TrimmedPlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return 0;
@@ -132,38 +142,22 @@ int32 UPlayerProfileSubsystem::AddItemCollectedCount(
 	SaveGameObject->ItemCollectedCount =
 		AddNonNegativeSaturated(SaveGameObject->ItemCollectedCount, Amount);
 
-	RequestProfileSave(TrimmedPlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 
-	NotifyProfileProgressChanged(TrimmedPlayerId);
+	ProfileProgressChanged.Broadcast();
 	return SaveGameObject->ItemCollectedCount;
 }
 
-FName UPlayerProfileSubsystem::GetSelectedAchievementId(const FString& PlayerId)
+FName UPlayerProfileSubsystem::GetSelectedAchievementId()
 {
-	FString TrimmedPlayerId = PlayerId;
-	TrimmedPlayerId.TrimStartAndEndInline();
-	if (TrimmedPlayerId.IsEmpty())
-	{
-		return NAME_None;
-	}
-
-	const UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(TrimmedPlayerId);
+	const UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	return IsValid(SaveGameObject) ? SaveGameObject->SelectedAchievementId : NAME_None;
 }
 
-bool UPlayerProfileSubsystem::SetSelectedAchievementId(
-	const FString& PlayerId,
-	const FName AchievementId,
+bool UPlayerProfileSubsystem::SetSelectedAchievementId(const FName AchievementId,
 	const bool bSaveImmediately)
 {
-	FString TrimmedPlayerId = PlayerId;
-	TrimmedPlayerId.TrimStartAndEndInline();
-	if (TrimmedPlayerId.IsEmpty())
-	{
-		return false;
-	}
-
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(TrimmedPlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return false;
@@ -175,103 +169,74 @@ bool UPlayerProfileSubsystem::SetSelectedAchievementId(
 	}
 
 	SaveGameObject->SelectedAchievementId = AchievementId;
-	RequestProfileSave(TrimmedPlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 	return true;
 }
 
-int32 UPlayerProfileSubsystem::GetGold(const FString& PlayerId)
+int32 UPlayerProfileSubsystem::GetGold()
 {
-	if (PlayerId.IsEmpty())
-	{
-		return 0;
-	}
-
-	const UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	const UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	return IsValid(SaveGameObject) ? SaveGameObject->Gold : 0;
 }
 
-int32 UPlayerProfileSubsystem::SetGold(const FString& PlayerId, const int32 NewGold, const bool bSaveImmediately)
+int32 UPlayerProfileSubsystem::SetGold(const int32 NewGold, const bool bSaveImmediately)
 {
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return 0;
 	}
 
 	SaveGameObject->Gold = FMath::Max(0, NewGold);
-	RequestProfileSave(PlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 
-	NotifyProfileProgressChanged(PlayerId);
+	ProfileProgressChanged.Broadcast();
 	return SaveGameObject->Gold;
 }
 
-int32 UPlayerProfileSubsystem::AddGold(const FString& PlayerId, const int32 Amount, const bool bSaveImmediately)
+int32 UPlayerProfileSubsystem::AddGold(const int32 Amount, const bool bSaveImmediately)
 {
 	if (Amount <= 0)
 	{
-		return GetGold(PlayerId);
+		return GetGold();
 	}
 
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return 0;
 	}
 
 	SaveGameObject->Gold = AddNonNegativeSaturated(SaveGameObject->Gold, Amount);
-	RequestProfileSave(PlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 
-	NotifyProfileProgressChanged(PlayerId);
+	ProfileProgressChanged.Broadcast();
 	return SaveGameObject->Gold;
 }
 
-bool UPlayerProfileSubsystem::SpendGold(const FString& PlayerId, const int32 Amount, const bool bSaveImmediately)
+bool UPlayerProfileSubsystem::SpendGold(const int32 Amount, const bool bSaveImmediately)
 {
 	if (Amount <= 0)
 	{
 		return true;
 	}
 
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject) || SaveGameObject->Gold < Amount)
 	{
 		return false;
 	}
 
 	SaveGameObject->Gold -= Amount;
-	RequestProfileSave(PlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 
-	NotifyProfileProgressChanged(PlayerId);
+	ProfileProgressChanged.Broadcast();
 	return true;
 }
 
-int32 UPlayerProfileSubsystem::GrantGameVictoryGoldReward(
-	const FString& PlayerId,
-	URewardDefinition* RewardDefinition,
-	const bool bSaveImmediately)
+bool UPlayerProfileSubsystem::ResetPurchasedProgress(const bool bSaveImmediately)
 {
-	if (!RewardDefinition)
-	{
-		return GetGold(PlayerId);
-	}
-
-	const int32 GoldReward = RewardDefinition->RollGameVictoryGoldReward();
-	if (GoldReward <= 0)
-	{
-		return GetGold(PlayerId);
-	}
-
-	return AddGold(PlayerId, GoldReward, bSaveImmediately);
-}
-
-bool UPlayerProfileSubsystem::ResetShopSaveData(const FString& PlayerId, const bool bSaveImmediately)
-{
-	if (PlayerId.IsEmpty())
-	{
-		return false;
-	}
-
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return false;
@@ -279,18 +244,16 @@ bool UPlayerProfileSubsystem::ResetShopSaveData(const FString& PlayerId, const b
 
 	SaveGameObject->Gold = 0;
 	SaveGameObject->PlayerPandoraData.GrantedPandorasById.Reset();
-	SaveGameObject->PlayerPandoraData.SelectedPandoraId = FPrimaryAssetId();
-	SaveGameObject->PlayerPandoraData.PandoraLoadoutByDirectionId.Reset();
 	SaveGameObject->PlayerSkinData.GrantedSkinsById.Reset();
 	EnsureDefaultUnlockedSkins(*SaveGameObject);
 
-	RequestProfileSave(PlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 
-	NotifyProfileProgressChanged(PlayerId);
+	ProfileProgressChanged.Broadcast();
 	return true;
 }
 
-bool UPlayerProfileSubsystem::IsPandoraGranted(const FString& PlayerId, UPandoraDefinition* PandoraDefinition)
+bool UPlayerProfileSubsystem::IsPandoraGranted(UPandoraDefinition* PandoraDefinition)
 {
 	if (!PandoraDefinition)
 	{
@@ -305,12 +268,7 @@ bool UPlayerProfileSubsystem::IsPandoraGranted(const FString& PlayerId, UPandora
 		return true;
 	}
 
-	if (PlayerId.IsEmpty())
-	{
-		return false;
-	}
-
-	const UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	const UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return false;
@@ -319,7 +277,7 @@ bool UPlayerProfileSubsystem::IsPandoraGranted(const FString& PlayerId, UPandora
 	return SaveGameObject->PlayerPandoraData.GrantedPandorasById.Contains(PandoraId);
 }
 
-int32 UPlayerProfileSubsystem::GetGrantedPandoraLevel(const FString& PlayerId, UPandoraDefinition* PandoraDefinition)
+int32 UPlayerProfileSubsystem::GetGrantedPandoraLevel(UPandoraDefinition* PandoraDefinition)
 {
 	if (!PandoraDefinition)
 	{
@@ -334,12 +292,7 @@ int32 UPlayerProfileSubsystem::GetGrantedPandoraLevel(const FString& PlayerId, U
 		return 0;
 	}
 
-	if (PlayerId.IsEmpty())
-	{
-		return 0;
-	}
-
-	const UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	const UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return 0;
@@ -350,18 +303,16 @@ int32 UPlayerProfileSubsystem::GetGrantedPandoraLevel(const FString& PlayerId, U
 	return SavedLevel ? FMath::Max(*SavedLevel, 1) : 0;
 }
 
-bool UPlayerProfileSubsystem::GrantPandoraToSave(
-	const FString& PlayerId,
-	UPandoraDefinition* PandoraDefinition,
+bool UPlayerProfileSubsystem::GrantPandora(UPandoraDefinition* PandoraDefinition,
 	const int32 StartingLevel,
 	const bool bSaveImmediately)
 {
-	if (PlayerId.IsEmpty() || !PandoraDefinition)
+	if (!PandoraDefinition)
 	{
 		return false;
 	}
 
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return false;
@@ -379,27 +330,25 @@ bool UPlayerProfileSubsystem::GrantPandoraToSave(
 	int32& GrantedLevel = SaveGameObject->PlayerPandoraData.GrantedPandorasById.FindOrAdd(PandoraId);
 	GrantedLevel = FMath::Max(GrantedLevel, FMath::Max(StartingLevel, 1));
 
-	RequestProfileSave(PlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 
-	NotifyProfileProgressChanged(PlayerId);
+	ProfileProgressChanged.Broadcast();
 	return true;
 }
 
-bool UPlayerProfileSubsystem::TryPurchasePandoraWithGold(
-	const FString& PlayerId,
-	UPandoraDefinition* PandoraDefinition,
+bool UPlayerProfileSubsystem::TryPurchasePandoraWithGold(UPandoraDefinition* PandoraDefinition,
 	const int32 GoldCost,
 	const int32 StartingLevel,
 	int32& OutRemainingGold,
 	const bool bSaveImmediately)
 {
-	OutRemainingGold = GetGold(PlayerId);
-	if (PlayerId.IsEmpty() || !PandoraDefinition)
+	OutRemainingGold = GetGold();
+	if (!PandoraDefinition)
 	{
 		return false;
 	}
 
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return false;
@@ -431,13 +380,13 @@ bool UPlayerProfileSubsystem::TryPurchasePandoraWithGold(
 		FMath::Max(StartingLevel, 1));
 	OutRemainingGold = SaveGameObject->Gold;
 
-	RequestProfileSave(PlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 
-	NotifyProfileProgressChanged(PlayerId);
+	ProfileProgressChanged.Broadcast();
 	return true;
 }
 
-bool UPlayerProfileSubsystem::IsSkinGranted(const FString& PlayerId, USkinDefinition* SkinDefinition)
+bool UPlayerProfileSubsystem::IsSkinGranted(USkinDefinition* SkinDefinition)
 {
 	if (!SkinDefinition)
 	{
@@ -450,12 +399,7 @@ bool UPlayerProfileSubsystem::IsSkinGranted(const FString& PlayerId, USkinDefini
 		return true;
 	}
 
-	if (PlayerId.IsEmpty())
-	{
-		return false;
-	}
-
-	const UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	const UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return false;
@@ -464,17 +408,15 @@ bool UPlayerProfileSubsystem::IsSkinGranted(const FString& PlayerId, USkinDefini
 	return SaveGameObject->PlayerSkinData.GrantedSkinsById.Contains(SkinId);
 }
 
-bool UPlayerProfileSubsystem::GrantSkinToSave(
-	const FString& PlayerId,
-	USkinDefinition* SkinDefinition,
+bool UPlayerProfileSubsystem::GrantSkin(USkinDefinition* SkinDefinition,
 	const bool bSaveImmediately)
 {
-	if (PlayerId.IsEmpty() || !SkinDefinition)
+	if (!SkinDefinition)
 	{
 		return false;
 	}
 
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return false;
@@ -489,26 +431,24 @@ bool UPlayerProfileSubsystem::GrantSkinToSave(
 
 	SaveGameObject->PlayerSkinData.GrantedSkinsById.FindOrAdd(SkinId) = 1;
 
-	RequestProfileSave(PlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 
-	NotifyProfileProgressChanged(PlayerId);
+	ProfileProgressChanged.Broadcast();
 	return true;
 }
 
-bool UPlayerProfileSubsystem::TryPurchaseSkinWithGold(
-	const FString& PlayerId,
-	USkinDefinition* SkinDefinition,
+bool UPlayerProfileSubsystem::TryPurchaseSkinWithGold(USkinDefinition* SkinDefinition,
 	const int32 GoldCost,
 	int32& OutRemainingGold,
 	const bool bSaveImmediately)
 {
-	OutRemainingGold = GetGold(PlayerId);
-	if (PlayerId.IsEmpty() || !SkinDefinition)
+	OutRemainingGold = GetGold();
+	if (!SkinDefinition)
 	{
 		return false;
 	}
 
-	UPdSaveGame* SaveGameObject = GetOrCreateSaveGame(PlayerId);
+	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
 	{
 		return false;
@@ -532,31 +472,65 @@ bool UPlayerProfileSubsystem::TryPurchaseSkinWithGold(
 	SaveGameObject->PlayerSkinData.GrantedSkinsById.Add(SkinId, 1);
 	OutRemainingGold = SaveGameObject->Gold;
 
-	RequestProfileSave(PlayerId, bSaveImmediately);
+	RequestProfileSave(bSaveImmediately);
 
-	NotifyProfileProgressChanged(PlayerId);
+	ProfileProgressChanged.Broadcast();
 	return true;
 }
 
-void UPlayerProfileSubsystem::NotifyProfileProgressChanged(const FString& PlayerId)
+bool UPlayerProfileSubsystem::EnsureDefaultUnlockedSkins(UPdSaveGame& SaveGame)
 {
-	const FString NormalizedPlayerId = NormalizeProfilePlayerId(PlayerId);
-	if (!NormalizedPlayerId.IsEmpty())
+	bool bChanged = false;
+	for (const FName DefaultSkinName : SkinDefaultUnlockPolicy::GetDefaultUnlockedSkinNames())
 	{
-		ProfileProgressChanged.Broadcast(NormalizedPlayerId);
+		if (DefaultSkinName.IsNone())
+		{
+			continue;
+		}
+
+		const FPrimaryAssetId DefaultSkinId =
+			MakeDefinitionAssetId(GetSkinDefinitionAssetType(), DefaultSkinName);
+		if (!DefaultSkinId.IsValid())
+		{
+			continue;
+		}
+
+		int32& GrantedValue = SaveGame.PlayerSkinData.GrantedSkinsById.FindOrAdd(DefaultSkinId);
+		if (GrantedValue < 1)
+		{
+			GrantedValue = 1;
+			bChanged = true;
+		}
 	}
+	return bChanged;
 }
 
-UPdSaveGame* UPlayerProfileSubsystem::CreateConfiguredSaveGameObject() const
+FPlayerProfileProgressSnapshot UPlayerProfileSubsystem::GetProgressSnapshot()
 {
-	UPdSaveGame* SaveGameObject =
-		Cast<UPdSaveGame>(UGameplayStatics::CreateSaveGameObject(
-			UPdSaveGame::StaticClass()));
-	if (SaveGameObject)
+	FPlayerProfileProgressSnapshot Result;
+	if (const UPdSaveGame* Profile = GetOrCreateProfile())
 	{
-		SaveGameObject->ProfileDataVersion = PdProfileSaveData::Current;
-		SaveGameObject->SaveId = FGuid::NewGuid();
-		SaveGameObject->SaveRevision = 0;
+		Result.MatchRecords = Profile->MatchRecords;
+		Result.Gold = Profile->Gold;
+		Result.MatchPlayedCount = Profile->MatchPlayedCount;
+		Result.WinCount = Profile->WinCount;
+		Result.TotalKillCount = Profile->TotalKillCount;
+		Result.TotalDeathCount = Profile->TotalDeathCount;
+		Result.TotalRewardGold = Profile->TotalRewardGold;
+		Result.ItemCollectedCount = Profile->ItemCollectedCount;
+		Result.GrantedPandoraCount = Profile->PlayerPandoraData.GrantedPandorasById.Num();
+		Result.GrantedSkinCount = Profile->PlayerSkinData.GrantedSkinsById.Num();
 	}
-	return SaveGameObject;
+	return Result;
+}
+
+TArray<FPrimaryAssetId> UPlayerProfileSubsystem::GetOwnedSkinAssetIds()
+{
+	TArray<FPrimaryAssetId> Result;
+	if (const UPdSaveGame* Profile = GetOrCreateProfile())
+	{
+		for (const auto& Skin : Profile->PlayerSkinData.GrantedSkinsById)
+			if (Skin.Value > 0) Result.Add(Skin.Key);
+	}
+	return Result;
 }

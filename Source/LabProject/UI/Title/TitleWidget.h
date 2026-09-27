@@ -74,12 +74,12 @@ private:
 	void BindRecordCloseButton();
 	void UnbindRecordCloseButton();
 	UButton* FindRecordCloseButton() const;
-	FString ResolveTitleSavePlayerId() const;
+
 	void ResolveWidgets();
 	TSubclassOf<UShopWidget> ResolveShopWidgetClass() const;
 	TSubclassOf<UUserWidget> ResolveGuideWidgetClass() const;
 	TSubclassOf<UUserWidget> ResolveRecordWidgetClass() const;
-	void EnsurePreferredSaveGameLoaded() const;
+	void LoadLocalProfile() const;
 	void StartQuickMatch();
 	void CancelQuickMatchStartTimer();
 	void OpenLobbyAsListenServer() const;

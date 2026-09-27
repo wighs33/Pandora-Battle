@@ -5,11 +5,10 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Online/AchievementSubsystem.h"
-#include "SavedGameData/PdSaveGame.h"
 #include "Skin/SkinDefaultUnlockPolicy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerProfileSyncComponent)
@@ -106,9 +105,7 @@ void UControllerProfileSyncComponent::ScheduleLocalCosmeticProfileSync()
 	}
 }
 
-void UControllerProfileSyncComponent::ApplyGameVictoryGoldReward(
-	const FString& PlayerId,
-	const int32 GoldReward) const
+void UControllerProfileSyncComponent::ApplyGameVictoryGoldReward(const int32 GoldReward) const
 {
 	if (GoldReward <= 0)
 	{
@@ -118,25 +115,17 @@ void UControllerProfileSyncComponent::ApplyGameVictoryGoldReward(
 	APdPlayerController* Controller = GetPdController();
 	UPlayerProfileSubsystem* ProfileSubsystem =
 		Controller ? UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(Controller->GetGameInstance()) : nullptr;
-	if (!ProfileSubsystem)
+	if (!Controller || !Controller->IsLocalController() || !ProfileSubsystem)
 	{
 		return;
 	}
 
-	const FString RewardPlayerId = ResolveRewardPlayerId(PlayerId);
-	if (RewardPlayerId.IsEmpty())
-	{
-		return;
-	}
+	ProfileSubsystem->AddGold(GoldReward, false);
 
-	ProfileSubsystem->AddGold(RewardPlayerId, GoldReward, false);
-	ProfileSubsystem->SetPreferredSavePlayerId(RewardPlayerId);
-	ProfileSubsystem->SaveGame(RewardPlayerId);
+	ProfileSubsystem->SaveProfile();
 }
 
-void UControllerProfileSyncComponent::ApplyCollectedItemCount(
-	const FString& PlayerId,
-	const int32 ItemCount) const
+void UControllerProfileSyncComponent::ApplyCollectedItemCount(const int32 ItemCount) const
 {
 	if (ItemCount <= 0)
 	{
@@ -146,20 +135,14 @@ void UControllerProfileSyncComponent::ApplyCollectedItemCount(
 	APdPlayerController* Controller = GetPdController();
 	UPlayerProfileSubsystem* ProfileSubsystem =
 		Controller ? UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(Controller->GetGameInstance()) : nullptr;
-	if (!ProfileSubsystem)
+	if (!Controller || !Controller->IsLocalController() || !ProfileSubsystem)
 	{
 		return;
 	}
 
-	const FString RewardPlayerId = ResolveRewardPlayerId(PlayerId);
-	if (RewardPlayerId.IsEmpty())
-	{
-		return;
-	}
+	ProfileSubsystem->AddItemCollectedCount(ItemCount, false);
 
-	ProfileSubsystem->AddItemCollectedCount(RewardPlayerId, ItemCount, false);
-	ProfileSubsystem->SetPreferredSavePlayerId(RewardPlayerId);
-	ProfileSubsystem->SaveGame(RewardPlayerId);
+	ProfileSubsystem->SaveProfile();
 }
 
 void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer(
@@ -252,34 +235,6 @@ APdPlayerController* UControllerProfileSyncComponent::GetPdController() const
 	return Cast<APdPlayerController>(GetOwner());
 }
 
-FString UControllerProfileSyncComponent::ResolveRewardPlayerId(
-	const FString& FallbackPlayerId) const
-{
-	APdPlayerController* Controller = GetPdController();
-	UPlayerProfileSubsystem* ProfileSubsystem =
-		Controller ? UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(Controller->GetGameInstance()) : nullptr;
-	if (!Controller || !ProfileSubsystem)
-	{
-		return FString();
-	}
-
-	FString RewardPlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
-	RewardPlayerId.TrimStartAndEndInline();
-	if (RewardPlayerId.IsEmpty())
-	{
-		RewardPlayerId = ProfileSubsystem->ResolveSavePlayerId(
-			Controller,
-			Controller->GetPlayerState<APdPlayerState>());
-	}
-	if (RewardPlayerId.IsEmpty())
-	{
-		RewardPlayerId = FallbackPlayerId;
-		RewardPlayerId.TrimStartAndEndInline();
-	}
-
-	return RewardPlayerId;
-}
-
 void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 {
 	APdPlayerController* Controller = GetPdController();
@@ -308,25 +263,13 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 		return;
 	}
 
-	const FString PlayerId = ProfileSubsystem->ResolveSavePlayerId(
-		Controller,
-		Controller->GetPlayerState<APdPlayerState>());
-	UPdSaveGame* SaveGame = ProfileSubsystem->GetOrCreateSaveGame(PlayerId);
-	if (!SaveGame)
-	{
-		CompleteLocalCosmeticProfileSyncAttempt();
-		return;
-	}
-
 	TArray<FName> OwnedSkinNames;
-	for (const TPair<FPrimaryAssetId, int32>& SkinPair :
-		SaveGame->PlayerSkinData.GrantedSkinsById)
+	for (const FPrimaryAssetId& SkinId : ProfileSubsystem->GetOwnedSkinAssetIds())
 	{
-		if (SkinPair.Key.IsValid()
-			&& SkinPair.Key.PrimaryAssetType == SkinDefinitionAssetType
-			&& SkinPair.Value > 0)
+		if (SkinId.IsValid()
+			&& SkinId.PrimaryAssetType == SkinDefinitionAssetType)
 		{
-			OwnedSkinNames.AddUnique(SkinPair.Key.PrimaryAssetName);
+			OwnedSkinNames.AddUnique(SkinId.PrimaryAssetName);
 		}
 	}
 	OwnedSkinNames.Sort([](const FName Left, const FName Right)
@@ -341,6 +284,7 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 			EAllowShrinking::No);
 	}
 
+	const FName SelectedAchievementId = ProfileSubsystem->GetSelectedAchievementId();
 	FName SteamValidatedAchievementId = NAME_None;
 	UAchievementSubsystem* AchievementSubsystem =
 		UGameInstance::GetSubsystem<UAchievementSubsystem>(Controller->GetGameInstance());
@@ -350,21 +294,21 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 		AchievementSubsystem->RequestSteamAchievementQuery();
 	}
 
-	if (!SaveGame->SelectedAchievementId.IsNone()
+	if (!SelectedAchievementId.IsNone()
 		&& AchievementSubsystem
 		&& AchievementSubsystem->HasSteamAchievementData()
 		&& AchievementSubsystem->IsSteamAchievementKnown(
-			SaveGame->SelectedAchievementId.ToString())
+			SelectedAchievementId.ToString())
 		&& AchievementSubsystem->IsSteamAchievementUnlocked(
-			SaveGame->SelectedAchievementId.ToString()))
+			SelectedAchievementId.ToString()))
 	{
-		SteamValidatedAchievementId = SaveGame->SelectedAchievementId;
+		SteamValidatedAchievementId = SelectedAchievementId;
 	}
-	else if (!SaveGame->SelectedAchievementId.IsNone()
+	else if (!SelectedAchievementId.IsNone()
 		&& AchievementSubsystem
 		&& AchievementSubsystem->HasSteamAchievementData())
 	{
-		ProfileSubsystem->SetSelectedAchievementId(PlayerId, NAME_None, true);
+		ProfileSubsystem->SetSelectedAchievementId(NAME_None, true);
 	}
 
 	if (Controller->HasAuthority())

@@ -14,7 +14,7 @@
 #include "InputMappingContext.h"
 #include "Kismet/GameplayStatics.h"
 #include "Definition/Settings/GameSettingDefinition.h"
-#include "SavedGameData/InputSettingsSaveGame.h"
+#include "Settings/InputSettingsSaveGame.h"
 #include "Settings/GameSettingsSubsystem.h"
 #include "UI/Cursor/MouseCursorWidget.h"
 #include "Widgets/SWidget.h"

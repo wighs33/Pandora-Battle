@@ -13,7 +13,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Mode/PdHUD.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
@@ -167,17 +167,7 @@ void ULeftProfileWidget::RefreshTierImage()
 		return;
 	}
 
-	const FString PlayerId = ResolveProfileSavePlayerId();
-	if (PlayerId.IsEmpty())
-	{
-		if (Img_Tier)
-		{
-			Img_Tier->SetVisibility(ESlateVisibility::Collapsed);
-		}
-		return;
-	}
-
-	const int32 WinCount = ProfileSubsystem->GetWinCount(PlayerId);
+	const int32 WinCount = ProfileSubsystem->GetWinCount();
 	if (Txt_WinCount)
 	{
 		Txt_WinCount->SetText(FText::AsNumber(WinCount));
@@ -586,11 +576,9 @@ void ULeftProfileWidget::ApplyAchievementIcon(const int32 AchievementIndex)
 	}
 
 	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
-	const FString PlayerId = ResolveProfileSavePlayerId();
+
 	if (!ProfileSubsystem
-		|| !ProfileSubsystem->SetSelectedAchievementId(
-			PlayerId,
-			FName(*AchievementId),
+		|| !ProfileSubsystem->SetSelectedAchievementId(FName(*AchievementId),
 			true))
 	{
 		return;
@@ -618,7 +606,7 @@ void ULeftProfileWidget::RefreshSelectedAchievementIcon()
 	}
 
 	const FName SelectedAchievementId =
-		ProfileSubsystem->GetSelectedAchievementId(ResolveProfileSavePlayerId());
+		ProfileSubsystem->GetSelectedAchievementId();
 	if (SelectedAchievementId.IsNone())
 	{
 		return;
@@ -638,8 +626,7 @@ void ULeftProfileWidget::RefreshSelectedAchievementIcon()
 		return;
 	}
 
-	const FString PlayerId = ResolveProfileSavePlayerId();
-	if (ProfileSubsystem->SetSelectedAchievementId(PlayerId, NAME_None, true))
+	if (ProfileSubsystem->SetSelectedAchievementId(NAME_None, true))
 	{
 		if (APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
 		{
@@ -840,37 +827,6 @@ UImage* ULeftProfileWidget::FindImageInWidget(UWidget* RootWidget, const FName I
 	}
 
 	return nullptr;
-}
-
-FString ULeftProfileWidget::ResolveProfileSavePlayerId() const
-{
-	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
-	if (!ProfileSubsystem)
-	{
-		return FString();
-	}
-
-	FString PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
-	PlayerId.TrimStartAndEndInline();
-	if (!PlayerId.IsEmpty())
-	{
-		return PlayerId;
-	}
-
-	const APlayerController* PlayerController = GetOwningPlayer();
-	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
-	PlayerId = ProfileSubsystem->ResolveSavePlayerId(
-		PlayerController,
-		PlayerState);
-	PlayerId.TrimStartAndEndInline();
-	if (!PlayerId.IsEmpty())
-	{
-		return PlayerId;
-	}
-
-	PlayerId = ProfileSubsystem->GetLocalClientSavePlayerId();
-	PlayerId.TrimStartAndEndInline();
-	return PlayerId;
 }
 
 const URecordDefinition* ULeftProfileWidget::ResolveRecordDefinition()

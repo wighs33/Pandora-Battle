@@ -4,7 +4,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
-#include "SavedGameData/AudioSettingsSaveGame.h"
+#include "Settings/AudioSettingsSaveGame.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Settings/GameSettingsSubsystem.h"
 
@@ -132,6 +132,9 @@ void UAudioSettingsSubsystem::SaveMasterVolumeSettings()
 	}
 
 	AudioSettingsSaveGame->bHasMasterVolumeSetting = true;
+	AudioSettingsSaveGame->bHasBgmVolumeSetting = false;
+	AudioSettingsSaveGame->BgmVolumePercent = 0;
+	AudioSettingsSaveGame->LastAudibleBgmVolumePercent = 0;
 	AudioSettingsSaveGame->MasterVolumePercent = GetMasterVolumePercent();
 	AudioSettingsSaveGame->LastAudibleMasterVolumePercent = FMath::Clamp(
 		LastAudibleMasterVolumePercent,

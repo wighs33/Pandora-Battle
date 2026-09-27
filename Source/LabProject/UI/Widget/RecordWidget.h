@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UI/Widget/LocalizedMenuWidget.h"
-#include "SavedGameData/PdSaveGame.h"
+#include "Profile/PlayerProfileSaveData.h"
 #include "RecordWidget.generated.h"
 
 class UButton;
@@ -46,11 +46,11 @@ private:
 	void BeginTierImagePreload(int32 PreloadGeneration);
 	void ReleaseContentPreloads();
 	void ApplyWidgetDefinitionSettings();
-	FString ResolveRecordPlayerId() const;
+
 	TSubclassOf<URecordEntryWidget> ResolveRecordEntryWidgetClass() const;
 	const URecordDefinition* ResolveRecordDefinition();
-	void ApplyTierImage(const FString& PlayerId);
-	void ApplyWinCountUI(const FString& PlayerId);
+	void ApplyTierImage();
+	void ApplyWinCountUI();
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Record|Bind")

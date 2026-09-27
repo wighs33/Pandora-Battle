@@ -7,7 +7,6 @@
 #include "AchievementSubsystem.generated.h"
 
 class IOnlineSubsystem;
-class UPdSaveGame;
 struct FStreamableHandle;
 
 DECLARE_MULTICAST_DELEGATE(FOnSteamAchievementStateChanged);
@@ -23,8 +22,8 @@ public:
 	virtual void Deinitialize() override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	void EvaluateAndUnlockAchievementsForPlayerId(const FString& PlayerId);
-	int32 CalculateAchievementProgressValue(const FString& PlayerId, const FAchievementEntry& Achievement) const;
+	void EvaluateAndUnlockAchievements();
+	int32 CalculateAchievementProgressValue(const FAchievementEntry& Achievement) const;
 	const UAchievementDefinition* GetAchievementDefinition();
 	bool RequestSteamAchievementQuery();
 	bool IsSteamAchievementQueryComplete() const { return bAchievementQueryCompleted; }
@@ -41,7 +40,7 @@ public:
 
 private:
 	void HandleAchievementDefinitionContentReady();
-	void HandleProfileProgressChanged(const FString& PlayerId);
+
 	void HandleAchievementsQueried(const FUniqueNetId& PlayerId, bool bWasSuccessful);
 	void HandleAchievementWritten(const FUniqueNetId& PlayerId, bool bWasSuccessful, FString AchievementId);
 
@@ -49,7 +48,7 @@ private:
 	const UAchievementDefinition* ResolveAchievementDefinition();
 	void BeginAchievementDefinitionPreload();
 	void BeginAchievementPresentationPreload();
-	UPdSaveGame* ResolveSaveGame(const FString& PlayerId) const;
+
 	IOnlineSubsystem* ResolveOnlineSubsystem() const;
 
 	bool IsSteamSubsystemActive() const;
@@ -68,7 +67,7 @@ private:
 
 private:
 	TSet<FString> PendingAchievementIds;
-	TSet<FString> PendingEvaluationPlayerIds;
+	bool bEvaluationPending = false;
 	TSet<FString> InFlightAchievementIds;
 	TSet<FString> LocallyUnlockedAchievementIds;
 	TMap<FString, FOnlineAchievementsWritePtr> InFlightWriteObjects;

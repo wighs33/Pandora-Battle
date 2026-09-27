@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UI/Widget/LocalizedMenuWidget.h"
-#include "SavedGameData/PdSaveGame.h"
+#include "Profile/PlayerProfileSaveData.h"
 #include "RecordEntryWidget.generated.h"
 
 class UTextBlock;

@@ -6,7 +6,7 @@
 #include "Component/Pandora/PandoraComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameInstance.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerState.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
@@ -141,7 +141,6 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 	return ViewData;
 }
 
-
 UPandoraDefinition* FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(const UPandoraTreeComponent* PandoraTreeComponent)
 {
 	const APdPlayerState* PlayerState = PandoraTreeComponent ? PandoraTreeComponent->GetPlayerState<APdPlayerState>() : nullptr;
@@ -159,14 +158,7 @@ bool FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(const UUserWidget* W
 		return false;
 	}
 
-	const APlayerController* PlayerController = Widget->GetOwningPlayer();
-	FString PlayerId =
-		ProfileSubsystem->ResolveSavePlayerId(PlayerController, PlayerController ? PlayerController->PlayerState.Get() : nullptr);
-	if (PlayerId.IsEmpty())
-	{
-		PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
-	}
-	return ProfileSubsystem->IsPandoraGranted(PlayerId, PandoraDefinition);
+	return ProfileSubsystem->IsPandoraGranted(PandoraDefinition);
 }
 
 FText FPandoraWidgetViewDataBuilder::MakeLevelText(

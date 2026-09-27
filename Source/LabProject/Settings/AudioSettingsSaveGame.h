@@ -19,8 +19,7 @@ public:
 	UPROPERTY()
 	int32 LastAudibleMasterVolumePercent = 0;
 
-	// Legacy fields kept so an AudioSettings save created by the previous BGM-only
-	// implementation can be migrated to the master-volume setting.
+	// BGM 전용 구버전 파일을 읽는 이관 필드. 새 저장에서는 Master 설정만 사용한다.
 	UPROPERTY()
 	bool bHasBgmVolumeSetting = false;
 

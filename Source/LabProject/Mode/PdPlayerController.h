@@ -85,10 +85,10 @@ public:
 	void Client_ShowGoldenKillAnnouncement(const FText& AnnouncementText);
 
 	UFUNCTION(Client, Reliable, Category = "!Reward|Gold")
-	void Client_AddGameVictoryGoldReward(const FString& PlayerId, int32 GoldReward);
+	void Client_AddGameVictoryGoldReward(int32 GoldReward);
 
 	UFUNCTION(Client, Reliable, Category = "!Achievement")
-	void Client_AddCollectedItemCount(const FString& PlayerId, int32 ItemCount);
+	void Client_AddCollectedItemCount(int32 ItemCount);
 
 	UFUNCTION(Client, Reliable, Category = "!Match")
 	void Client_TravelToTitleWithGameResult(

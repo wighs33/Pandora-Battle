@@ -8,14 +8,12 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/StreamableManager.h"
 #include "GameFramework/PlayerController.h"
-#include "GameFramework/PlayerState.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Settings/BgmSubsystem.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "SavedGameData/PdSaveGame.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Definition/UI/ShopCatalogDefinition.h"
 #include "UI/Shop/ShopEntryViewData.h"
@@ -238,7 +236,6 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 	const EShopProductType ProductType = SelectedEntryData->GetProductType();
 
 	const int32 GoldPrice = SelectedEntryData->GetGoldPrice();
-	const FString PlayerId = GetResolvedPlayerId();
 
 	if (IsPandoraComingSoonProduct(ProductObject, ProductType))
 	{
@@ -263,7 +260,6 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
 	if (!ProfileSubsystem)
 	{
-
 		return false;
 	}
 
@@ -281,7 +277,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 				return false;
 			}
 
-			if (ProfileSubsystem->IsPandoraGranted(PlayerId, PandoraDefinition))
+			if (ProfileSubsystem->IsPandoraGranted(PandoraDefinition))
 			{
 				SetMessage(TEXT("Shop.AlreadyOwned"), AlreadyOwnedText);
 				RefreshUI();
@@ -289,9 +285,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 				return false;
 			}
 
-			bPurchased = ProfileSubsystem->TryPurchasePandoraWithGold(
-				PlayerId,
-				PandoraDefinition,
+			bPurchased = ProfileSubsystem->TryPurchasePandoraWithGold(PandoraDefinition,
 				GoldPrice,
 				PurchasedPandoraStartingLevel,
 				RemainingGold,
@@ -307,7 +301,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 				return false;
 			}
 
-			if (ProfileSubsystem->IsSkinGranted(PlayerId, SkinDefinition))
+			if (ProfileSubsystem->IsSkinGranted(SkinDefinition))
 			{
 				SetMessage(TEXT("Shop.AlreadyOwned"), AlreadyOwnedText);
 				RefreshUI();
@@ -315,9 +309,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 				return false;
 			}
 
-			bPurchased = ProfileSubsystem->TryPurchaseSkinWithGold(
-				PlayerId,
-				SkinDefinition,
+			bPurchased = ProfileSubsystem->TryPurchaseSkinWithGold(SkinDefinition,
 				GoldPrice,
 				RemainingGold,
 				false);
@@ -337,8 +329,8 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 	}
 
 	SetMessage(TEXT("Shop.Purchased"), PurchaseSucceededTextFormat, ProductObject);
-	ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
-	ProfileSubsystem->SaveGame(PlayerId);
+
+	ProfileSubsystem->SaveProfile();
 	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
 	{
 		PdPlayerController->RequestLocalCosmeticProfileSync();
@@ -377,25 +369,16 @@ void UShopWidget::HandleResetShopSaveClicked()
 	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
 	if (!ProfileSubsystem)
 	{
-
-		return;
-	}
-
-	const FString PlayerId = GetResolvedPlayerId();
-	if (PlayerId.IsEmpty())
-	{
-
 		return;
 	}
 
 	UObject* SelectedProductObject = SelectedEntryData ? SelectedEntryData->GetProductObject() : nullptr;
 	const EShopProductType SelectedProductType = SelectedEntryData ? SelectedEntryData->GetProductType() : ActiveCategory;
 
-	ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
-	const bool bReset = ProfileSubsystem->ResetShopSaveData(PlayerId, false);
+	const bool bReset = ProfileSubsystem->ResetPurchasedProgress(false);
 	if (bReset)
 	{
-		ProfileSubsystem->SaveGame(PlayerId);
+		ProfileSubsystem->SaveProfile();
 	}
 
 RefreshUI();
@@ -892,35 +875,10 @@ FShopProductDefinitionData UShopWidget::ResolveShopData(UObject* ProductObject, 
 	return FShopProductDefinitionData();
 }
 
-FString UShopWidget::GetResolvedPlayerId() const
-{
-	const APlayerController* PlayerController = GetOwningPlayer();
-	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
-
-	if (const UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance()))
-	{
-		const FString ResolvedPlayerId = ProfileSubsystem->ResolveSavePlayerId(PlayerController, PlayerState);
-		if (!ResolvedPlayerId.IsEmpty())
-		{
-			return ResolvedPlayerId;
-		}
-
-		const FString PreferredPlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
-		if (!PreferredPlayerId.IsEmpty())
-		{
-			return PreferredPlayerId;
-		}
-
-		return ProfileSubsystem->GetLocalClientSavePlayerId();
-	}
-
-	return TEXT("LocalProfile");
-}
-
 int32 UShopWidget::GetCurrentGold() const
 {
 	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
-	return ProfileSubsystem ? ProfileSubsystem->GetGold(GetResolvedPlayerId()) : 0;
+	return ProfileSubsystem ? ProfileSubsystem->GetGold() : 0;
 }
 
 bool UShopWidget::IsProductOwned(UShopEntryViewData* EntryData) const
@@ -939,9 +897,9 @@ bool UShopWidget::IsProductOwned(UObject* ProductObject, const EShopProductType 
 	switch (ProductType)
 	{
 	case EShopProductType::Pandora:
-		return ProfileSubsystem->IsPandoraGranted(GetResolvedPlayerId(), Cast<UPandoraDefinition>(ProductObject));
+		return ProfileSubsystem->IsPandoraGranted(Cast<UPandoraDefinition>(ProductObject));
 	case EShopProductType::Skin:
-		return ProfileSubsystem->IsSkinGranted(GetResolvedPlayerId(), Cast<USkinDefinition>(ProductObject));
+		return ProfileSubsystem->IsSkinGranted(Cast<USkinDefinition>(ProductObject));
 	case EShopProductType::Item:
 	default:
 		return false;
@@ -1005,16 +963,7 @@ void UShopWidget::EnsurePlayerSaveLoaded() const
 		return;
 	}
 
-	const FString PlayerId = GetResolvedPlayerId();
-	if (PlayerId.IsEmpty())
-	{
-		return;
-	}
-
-	ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
-	ProfileSubsystem->LoadGame(PlayerId);
-
-	const UPdSaveGame* SaveGame = ProfileSubsystem->GetOrCreateSaveGame(PlayerId);
+	ProfileSubsystem->LoadProfile();
 
 }
 

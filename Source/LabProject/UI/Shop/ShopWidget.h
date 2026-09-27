@@ -75,7 +75,7 @@ private:
 	UObject* ResolveProductObject(const FShopCatalogEntry& CatalogEntry) const;
 	UObject* ResolveProductObject(const FShopCatalogProductReference& ProductReference) const;
 	FShopProductDefinitionData ResolveShopData(UObject* ProductObject, EShopProductType ProductType) const;
-	FString GetResolvedPlayerId() const;
+
 	int32 GetCurrentGold() const;
 	bool IsProductOwned(UShopEntryViewData* EntryData) const;
 	bool IsProductOwned(UObject* ProductObject, EShopProductType ProductType) const;

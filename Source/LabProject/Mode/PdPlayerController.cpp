@@ -148,24 +148,20 @@ void APdPlayerController::Client_ShowGoldenKillAnnouncement_Implementation(
 }
 
 // 서버가 지급한 승리 골드를 로컬 저장 데이터에 반영한다.
-void APdPlayerController::Client_AddGameVictoryGoldReward_Implementation(
-	const FString& PlayerId,
-	const int32 GoldReward)
+void APdPlayerController::Client_AddGameVictoryGoldReward_Implementation(const int32 GoldReward)
 {
 	if (ControllerProfileSyncComponent)
 	{
-		ControllerProfileSyncComponent->ApplyGameVictoryGoldReward(PlayerId, GoldReward);
+		ControllerProfileSyncComponent->ApplyGameVictoryGoldReward(GoldReward);
 	}
 }
 
 // 서버가 집계한 아이템 획득 수를 로컬 기록에 반영한다.
-void APdPlayerController::Client_AddCollectedItemCount_Implementation(
-	const FString& PlayerId,
-	const int32 ItemCount)
+void APdPlayerController::Client_AddCollectedItemCount_Implementation(const int32 ItemCount)
 {
 	if (ControllerProfileSyncComponent)
 	{
-		ControllerProfileSyncComponent->ApplyCollectedItemCount(PlayerId, ItemCount);
+		ControllerProfileSyncComponent->ApplyCollectedItemCount(ItemCount);
 	}
 }
 

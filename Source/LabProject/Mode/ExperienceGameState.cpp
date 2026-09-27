@@ -10,7 +10,7 @@
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Mode/PdHUD.h"
 #include "Engine/GameInstance.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Definition/UI/WidgetClassDefinition.h"
@@ -152,7 +152,6 @@ void AExperienceGameState::Multicast_ShowGameResult_Implementation(
 	UGameResultWidget* GameResultWidget = CreateWidget<UGameResultWidget>(LocalPlayerController, GameResultWidgetClass);
 	if (!GameResultWidget)
 	{
-
 		return;
 	}
 
@@ -180,33 +179,12 @@ void AExperienceGameState::SaveLocalMatchRecord(
 
 	if (!LocalPlayerStat)
 	{
-
 		return;
 	}
 
 	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
 	if (!ProfileSubsystem)
 	{
-
-		return;
-	}
-
-	FString PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
-	PlayerId.TrimStartAndEndInline();
-	if (PlayerId.IsEmpty())
-	{
-		PlayerId = ProfileSubsystem->ResolveSavePlayerId(
-			LocalPlayerController,
-			LocalPlayerState);
-	}
-	if (PlayerId.IsEmpty())
-	{
-		PlayerId = ProfileSubsystem->GetLocalClientSavePlayerId();
-	}
-	PlayerId.TrimStartAndEndInline();
-	if (PlayerId.IsEmpty())
-	{
-
 		return;
 	}
 
@@ -216,7 +194,6 @@ void AExperienceGameState::SaveLocalMatchRecord(
 	MatchRecord.DeathCount = LocalPlayerStat->DeathCount;
 	MatchRecord.Reward = LocalPlayerStat->GoldReward;
 
-	ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
-	ProfileSubsystem->AddMatchRecord(PlayerId, MatchRecord, true);
+	ProfileSubsystem->AddMatchRecord(MatchRecord, true);
 
 }

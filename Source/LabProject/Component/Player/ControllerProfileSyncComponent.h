@@ -26,8 +26,8 @@ public:
 	UControllerProfileSyncComponent();
 
 	void ScheduleLocalCosmeticProfileSync();
-	void ApplyGameVictoryGoldReward(const FString& PlayerId, int32 GoldReward) const;
-	void ApplyCollectedItemCount(const FString& PlayerId, int32 ItemCount) const;
+	void ApplyGameVictoryGoldReward(int32 GoldReward) const;
+	void ApplyCollectedItemCount(int32 ItemCount) const;
 	void ApplySubmittedLocalCosmeticProfileOnServer(
 		const TArray<FName>& OwnedSkinNames,
 		FName SelectedAchievementId);
@@ -39,7 +39,7 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetPdController() const;
-	FString ResolveRewardPlayerId(const FString& FallbackPlayerId) const;
+
 	void GrantDefaultSkinEntitlementsOnServer() const;
 	void CompleteLocalCosmeticProfileSyncAttempt();
 	bool TryConsumeRemoteSkinSyncRequest();

@@ -17,7 +17,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyHUD.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerState.h"
 #include "Online/AchievementSubsystem.h"
 #include "UI/TeamColorUtils.h"
@@ -146,27 +146,8 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 		return false;
 	}
 
-	FString PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
-	PlayerId.TrimStartAndEndInline();
-	if (PlayerId.IsEmpty())
-	{
-		PlayerId = ProfileSubsystem->ResolveSavePlayerId(
-			PlayerController,
-			PlayerController->PlayerState);
-		PlayerId.TrimStartAndEndInline();
-	}
-	if (PlayerId.IsEmpty())
-	{
-		PlayerId = ProfileSubsystem->GetLocalClientSavePlayerId();
-		PlayerId.TrimStartAndEndInline();
-	}
-	if (PlayerId.IsEmpty())
-	{
-		return false;
-	}
-
 	const FName SelectedAchievementId =
-		ProfileSubsystem->GetSelectedAchievementId(PlayerId);
+		ProfileSubsystem->GetSelectedAchievementId();
 	if (SelectedAchievementId.IsNone())
 	{
 		return true;

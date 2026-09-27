@@ -17,7 +17,7 @@
 #include "Definition/Skin/SkinDefinition.h"
 #include "GameFramework/GameStateBase.h"
 #include "Mode/ExperienceGameMode.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
@@ -33,8 +33,6 @@ UMatchPlayerSetupComponent::UMatchPlayerSetupComponent()
 			TEXT("DefaultPlayerProvisioner"));
 
 }
-
-
 
 void UMatchPlayerSetupComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
@@ -69,13 +67,9 @@ void UMatchPlayerSetupComponent::InitializeLoggedInPlayer(
 	if (UPlayerProfileSubsystem* ProfileSubsystem =
 		UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GameMode->GetGameInstance()))
 	{
-		const APlayerState* NewPlayerState = NewPlayer->PlayerState;
-		const FString PlayerId = ProfileSubsystem->ResolveSavePlayerId(
-			NewPlayer,
-			NewPlayerState);
-		if (NewPlayer->IsLocalController() && !PlayerId.IsEmpty())
+		if (NewPlayer->IsLocalController())
 		{
-			ProfileSubsystem->LoadGame(PlayerId);
+			ProfileSubsystem->LoadProfile();
 		}
 	}
 	if (APdPlayerController* PdPlayerController =
@@ -274,7 +268,6 @@ bool UMatchPlayerSetupComponent::IsTrainingRoomMap() const
 	// 로딩 UI는 콘텐츠 준비 전에도 조회하고 다음 준비 확인 틱에 다시 시도한다.
 	return Levels && Levels->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 }
-
 
 void UMatchPlayerSetupComponent::ApplyCachedLobbySkinEquipment(
 	APlayerController* NewPlayer) const

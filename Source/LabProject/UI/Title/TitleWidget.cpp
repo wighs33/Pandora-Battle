@@ -6,13 +6,12 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
-#include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "UI/Widget/ConnectingPopupWidget.h"
 #include "Engine/GameInstance.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "TimerManager.h"
 #include "UI/Widget/GuideWidget.h"
@@ -78,7 +77,7 @@ void UTitleWidget::NativeConstruct()
 	{
 		HideConnectingPopup();
 	}
-	EnsurePreferredSaveGameLoaded();
+	LoadLocalProfile();
 
 	AudioVolumeControl = NewObject<UAudioVolumeControl>(this);
 	AudioVolumeControl->Initialize(this, AudioVolumeSlider_, Btn_Sound);
@@ -254,7 +253,6 @@ void UTitleWidget::HandleTrainingModeClicked()
 
 void UTitleWidget::HandlePandoraShopClicked()
 {
-
 	OpenShop();
 }
 
@@ -284,7 +282,6 @@ void UTitleWidget::HandleRecordCloseClicked()
 
 void UTitleWidget::HandleExitClicked()
 {
-
 	UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, true);
 }
 
@@ -337,7 +334,6 @@ void UTitleWidget::OpenRoomList()
 	const FString RoomMapName = GetResolvedRoomTravelMapName();
 	if (RoomMapName.IsEmpty())
 	{
-
 		return;
 	}
 
@@ -350,7 +346,6 @@ void UTitleWidget::OpenTrainingRoom()
 	const FString TrainingRoomMapName = GetResolvedTrainingRoomTravelMapName();
 	if (TrainingRoomMapName.IsEmpty())
 	{
-
 		return;
 	}
 
@@ -372,20 +367,18 @@ void UTitleWidget::OpenTrainingRoom()
 
 void UTitleWidget::OpenShop()
 {
-	EnsurePreferredSaveGameLoaded();
+	LoadLocalProfile();
 	ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenShop"));
 
 const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass();
 	if (!ResolvedShopWidgetClass)
 	{
-
 		return;
 	}
 
 	APlayerController* PlayerController = GetOwningPlayer();
 	if (!PlayerController)
 	{
-
 		return;
 	}
 
@@ -404,7 +397,6 @@ const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass(
 
 	if (!ShopWidget)
 	{
-
 		return;
 	}
 
@@ -429,14 +421,12 @@ void UTitleWidget::OpenGuide()
 	APlayerController* PlayerController = GetOwningPlayer();
 	if (!PlayerController)
 	{
-
 		return;
 	}
 
 	const TSubclassOf<UUserWidget> ResolvedGuideWidgetClass = ResolveGuideWidgetClass();
 	if (!ResolvedGuideWidgetClass)
 	{
-
 		return;
 	}
 
@@ -460,7 +450,6 @@ void UTitleWidget::OpenGuide()
 
 	if (!GuideWidget)
 	{
-
 		return;
 	}
 
@@ -491,14 +480,12 @@ void UTitleWidget::OpenRecord()
 	APlayerController* PlayerController = GetOwningPlayer();
 	if (!PlayerController)
 	{
-
 		return;
 	}
 
 	const TSubclassOf<UUserWidget> ResolvedRecordWidgetClass = ResolveRecordWidgetClass();
 	if (!ResolvedRecordWidgetClass)
 	{
-
 		return;
 	}
 
@@ -523,7 +510,6 @@ void UTitleWidget::OpenRecord()
 
 	if (!RecordWidget)
 	{
-
 		return;
 	}
 
@@ -554,7 +540,6 @@ void UTitleWidget::BindRecordCloseButton()
 	UButton* RecordCloseButton = FindRecordCloseButton();
 	if (!RecordCloseButton)
 	{
-
 		return;
 	}
 
@@ -573,33 +558,6 @@ void UTitleWidget::UnbindRecordCloseButton()
 UButton* UTitleWidget::FindRecordCloseButton() const
 {
 	return IsValid(RecordWidget) ? Cast<UButton>(RecordWidget->GetWidgetFromName(TEXT("Btn_Close"))) : nullptr;
-}
-
-FString UTitleWidget::ResolveTitleSavePlayerId() const
-{
-	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
-	if (!ProfileSubsystem)
-	{
-		return FString();
-	}
-
-	FString PlayerId = ProfileSubsystem->GetPreferredSavePlayerId();
-	PlayerId.TrimStartAndEndInline();
-	if (!PlayerId.IsEmpty())
-	{
-		return PlayerId;
-	}
-
-	const APlayerController* PlayerController = GetOwningPlayer();
-	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
-	PlayerId = ProfileSubsystem->ResolveSavePlayerId(PlayerController, PlayerState);
-	PlayerId.TrimStartAndEndInline();
-	if (!PlayerId.IsEmpty())
-	{
-		ProfileSubsystem->SetPreferredSavePlayerId(PlayerId);
-	}
-
-	return PlayerId;
 }
 
 void UTitleWidget::ResolveWidgets()
@@ -700,7 +658,7 @@ TSubclassOf<UUserWidget> UTitleWidget::ResolveRecordWidgetClass() const
 	return nullptr;
 }
 
-void UTitleWidget::EnsurePreferredSaveGameLoaded() const
+void UTitleWidget::LoadLocalProfile() const
 {
 	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
 	if (!ProfileSubsystem)
@@ -708,13 +666,7 @@ void UTitleWidget::EnsurePreferredSaveGameLoaded() const
 		return;
 	}
 
-	const FString PlayerId = ResolveTitleSavePlayerId();
-	if (PlayerId.IsEmpty())
-	{
-		return;
-	}
-
-	ProfileSubsystem->LoadGame(PlayerId);
+	ProfileSubsystem->LoadProfile();
 
 }
 
@@ -827,7 +779,6 @@ void UTitleWidget::OpenLobbyAsListenServer() const
 	const FString LobbyMapName = GetResolvedLobbyTravelMapName();
 	if (LobbyMapName.IsEmpty())
 	{
-
 		return;
 	}
 

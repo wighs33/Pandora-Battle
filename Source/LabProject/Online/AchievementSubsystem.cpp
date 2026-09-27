@@ -9,8 +9,7 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Engine/StreamableManager.h"
-#include "SavedGameData/PdSaveGame.h"
-#include "SavedGameData/PlayerProfileSubsystem.h"
+#include "Profile/PlayerProfileSubsystem.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "steam/steam_api.h"
@@ -29,7 +28,7 @@ void UAchievementSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		ProfileProgressChangedHandle = ProfileSubsystem->OnProfileProgressChanged().AddUObject(
 			this,
-			&ThisClass::HandleProfileProgressChanged);
+			&ThisClass::EvaluateAndUnlockAchievements);
 	}
 	BeginAchievementDefinitionPreload();
 }
@@ -50,7 +49,7 @@ void UAchievementSubsystem::Deinitialize()
 	}
 
 	PendingAchievementIds.Reset();
-	PendingEvaluationPlayerIds.Reset();
+	bEvaluationPending = false;
 	InFlightAchievementIds.Reset();
 	LocallyUnlockedAchievementIds.Reset();
 	InFlightWriteObjects.Reset();
@@ -76,28 +75,18 @@ void UAchievementSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UAchievementSubsystem::HandleProfileProgressChanged(const FString& PlayerId)
+void UAchievementSubsystem::EvaluateAndUnlockAchievements()
 {
-	EvaluateAndUnlockAchievementsForPlayerId(PlayerId);
-}
-
-void UAchievementSubsystem::EvaluateAndUnlockAchievementsForPlayerId(const FString& PlayerId)
-{
-	FString TrimmedPlayerId = PlayerId;
-	TrimmedPlayerId.TrimStartAndEndInline();
-	if (TrimmedPlayerId.IsEmpty())
-	{
-		return;
-	}
+	if (GetGameInstance()->IsDedicatedServerInstance()) return;
 
 	const UAchievementDefinition* AchievementDefinition = ResolveAchievementDefinition();
 	if (!AchievementDefinition)
 	{
-		PendingEvaluationPlayerIds.Add(TrimmedPlayerId);
+		bEvaluationPending = true;
 		BeginAchievementDefinitionPreload();
 		return;
 	}
-	PendingEvaluationPlayerIds.Remove(TrimmedPlayerId);
+	bEvaluationPending = false;
 
 	for (const FAchievementEntry& Achievement : AchievementDefinition->Achievements)
 	{
@@ -113,7 +102,7 @@ void UAchievementSubsystem::EvaluateAndUnlockAchievementsForPlayerId(const FStri
 		}
 
 		const int32 RequiredValue = FMath::Max(Achievement.RequiredValue, 1);
-		if (CalculateAchievementProgressValue(TrimmedPlayerId, Achievement) >= RequiredValue)
+		if (CalculateAchievementProgressValue(Achievement) >= RequiredValue)
 		{
 			QueueUnlockAchievement(AchievementId);
 		}
@@ -123,21 +112,20 @@ void UAchievementSubsystem::EvaluateAndUnlockAchievementsForPlayerId(const FStri
 	FlushPendingAchievementUnlocks();
 }
 
-int32 UAchievementSubsystem::CalculateAchievementProgressValue(
-	const FString& PlayerId,
-	const FAchievementEntry& Achievement) const
+int32 UAchievementSubsystem::CalculateAchievementProgressValue(const FAchievementEntry& Achievement) const
 {
-	const UPdSaveGame* SaveGame = ResolveSaveGame(PlayerId);
-	if (!SaveGame)
+	UPlayerProfileSubsystem* ProfileSubsystem = GetGameInstance()->GetSubsystem<UPlayerProfileSubsystem>();
+	if (!ProfileSubsystem)
 	{
 		return 0;
 	}
 
+	const FPlayerProfileProgressSnapshot Profile = ProfileSubsystem->GetProgressSnapshot();
 	int32 MatchRecordKillCount = 0;
 	int32 MatchRecordDeathCount = 0;
 	int32 MatchRecordRewardGold = 0;
 	int32 MatchRecordWinCount = 0;
-	for (const FMatchRecord& MatchRecord : SaveGame->MatchRecords)
+	for (const FMatchRecord& MatchRecord : Profile.MatchRecords)
 	{
 		MatchRecordKillCount += FMath::Max(MatchRecord.KillCount, 0);
 		MatchRecordDeathCount += FMath::Max(MatchRecord.DeathCount, 0);
@@ -153,24 +141,24 @@ int32 UAchievementSubsystem::CalculateAchievementProgressValue(
 	case EAchievementTrigger::FirstLogin:
 		return 1;
 	case EAchievementTrigger::MatchPlayed:
-		return FMath::Max(SaveGame->MatchPlayedCount, SaveGame->MatchRecords.Num());
+		return FMath::Max(Profile.MatchPlayedCount, Profile.MatchRecords.Num());
 	case EAchievementTrigger::WinCount:
-		return FMath::Max(SaveGame->WinCount, MatchRecordWinCount);
+		return FMath::Max(Profile.WinCount, MatchRecordWinCount);
 	case EAchievementTrigger::KillCount:
-		return FMath::Max(SaveGame->TotalKillCount, MatchRecordKillCount);
+		return FMath::Max(Profile.TotalKillCount, MatchRecordKillCount);
 	case EAchievementTrigger::DeathCount:
-		return FMath::Max(SaveGame->TotalDeathCount, MatchRecordDeathCount);
+		return FMath::Max(Profile.TotalDeathCount, MatchRecordDeathCount);
 	case EAchievementTrigger::RewardGold:
 		return FMath::Max3(
-			SaveGame->TotalRewardGold,
-			FMath::Max(SaveGame->Gold, 0),
+			Profile.TotalRewardGold,
+			FMath::Max(Profile.Gold, 0),
 			MatchRecordRewardGold);
 	case EAchievementTrigger::PandoraUnlocked:
-		return SaveGame->PlayerPandoraData.GrantedPandorasById.Num();
+		return Profile.GrantedPandoraCount;
 	case EAchievementTrigger::SkinUnlocked:
-		return SaveGame->PlayerSkinData.GrantedSkinsById.Num();
+		return Profile.GrantedSkinCount;
 	case EAchievementTrigger::ItemCollected:
-		return FMath::Max(SaveGame->ItemCollectedCount, 0);
+		return FMath::Max(Profile.ItemCollectedCount, 0);
 	default:
 		return 0;
 	}
@@ -322,32 +310,7 @@ void UAchievementSubsystem::HandleAchievementDefinitionContentReady()
 	}
 	BeginAchievementPresentationPreload();
 
-	TArray<FString> PlayerIdsToEvaluate = PendingEvaluationPlayerIds.Array();
-	PendingEvaluationPlayerIds.Reset();
-	for (const FString& PlayerId : PlayerIdsToEvaluate)
-	{
-		EvaluateAndUnlockAchievementsForPlayerId(PlayerId);
-	}
-}
-
-UPdSaveGame* UAchievementSubsystem::ResolveSaveGame(const FString& PlayerId) const
-{
-	FString TrimmedPlayerId = PlayerId;
-	TrimmedPlayerId.TrimStartAndEndInline();
-	if (TrimmedPlayerId.IsEmpty())
-	{
-		return nullptr;
-	}
-
-	if (const UGameInstance* GameInstance = GetGameInstance())
-	{
-		if (UPlayerProfileSubsystem* ProfileSubsystem = GameInstance->GetSubsystem<UPlayerProfileSubsystem>())
-		{
-			return ProfileSubsystem->GetOrCreateSaveGame(TrimmedPlayerId);
-		}
-	}
-
-	return nullptr;
+	if (bEvaluationPending) EvaluateAndUnlockAchievements();
 }
 
 IOnlineSubsystem* UAchievementSubsystem::ResolveOnlineSubsystem() const

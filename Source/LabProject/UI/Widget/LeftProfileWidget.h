@@ -87,7 +87,7 @@ private:
 	UImage* FindHudPlayerAvatarImage() const;
 	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
 	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
-	FString ResolveProfileSavePlayerId() const;
+
 	const URecordDefinition* ResolveRecordDefinition();
 	const UAchievementDefinition* ResolveAchievementDefinition() const;
 

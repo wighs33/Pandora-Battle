@@ -2,39 +2,21 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
-#include "SavedGameData/PlayerPandoraData.h"
-#include "SavedGameData/PlayerSkinData.h"
-#include "PdSaveGame.generated.h"
+#include "Profile/PlayerProfileSaveData.h"
+#include "PlayerProfileSaveGame.generated.h"
 
-namespace PdProfileSaveData
+namespace PlayerProfileDataVersion
 {
-	inline constexpr int32 Current = 1;
+	inline constexpr int32 Current = 2;
 	inline constexpr int32 MaxMatchRecordCount = 5;
 }
 
-namespace PdProfileSaveStorage
+namespace PlayerProfileStorageVersion
 {
 	inline constexpr int32 Current = 2;
 }
 
-USTRUCT(BlueprintType)
-struct LABPROJECT_API FMatchRecord
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record")
-	bool bWin = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record", meta = (ClampMin = "0", UIMin = "0"))
-	int32 KillCount = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record", meta = (ClampMin = "0", UIMin = "0"))
-	int32 DeathCount = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record", meta = (ClampMin = "0", UIMin = "0"))
-	int32 Reward = 0;
-};
-
+// 기존 .sav의 클래스 경로를 유지하는 로컬 프로필 저장 데이터다.
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UPdSaveGame : public USaveGame
 {
@@ -42,12 +24,12 @@ class LABPROJECT_API UPdSaveGame : public USaveGame
 
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Save")
-	int32 ProfileDataVersion = PdProfileSaveData::Current;
+	int32 ProfileDataVersion = PlayerProfileDataVersion::Current;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Save")
 	FGuid SaveId;
 
-	// Monotonic revision used to select the newest valid primary/backup/shutdown snapshot.
+	// primary/backup/shutdown 중 가장 최근의 유효한 저장을 선택하는 증가 번호다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Save")
 	int64 SaveRevision = 0;
 
@@ -89,7 +71,7 @@ public:
 };
 
 /**
- * 실행 중인 프로필 객체와 게임플레이 API를 유지하는 디스크 저장용 래퍼다.
+ * 프로필 직렬화 데이터에 CRC와 저장 헤더를 붙이는 디스크 저장 형식이다.
  * 가벼운 난독화만 제공하며 보안을 보장하지 않는다.
  */
 UCLASS()
@@ -99,21 +81,13 @@ class LABPROJECT_API UProfileSaveEnvelope : public USaveGame
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	static UProfileSaveEnvelope* CreateFromProfile(
-		UPdSaveGame* Profile,
-		const FString& PlayerId,
-		UObject* Outer = nullptr);
+	static UProfileSaveEnvelope* CreateFromProfile(UPdSaveGame* Profile, UObject* Outer = nullptr);
 
-	UPdSaveGame* DecodeProfile(const FString& PlayerId) const;
-
-	int32 GetStorageFormatVersion() const { return StorageFormatVersion; }
-	int32 GetObfuscatedPayloadSize() const { return ObfuscatedPayload.Num(); }
-	const FGuid& GetProfileSaveId() const { return ProfileSaveId; }
-	int64 GetProfileRevision() const { return ProfileRevision; }
+	UPdSaveGame* DecodeProfile() const;
 
 private:
 	UPROPERTY()
-	int32 StorageFormatVersion = PdProfileSaveStorage::Current;
+	int32 StorageFormatVersion = PlayerProfileStorageVersion::Current;
 
 	UPROPERTY()
 	uint32 ObfuscationNonce = 0;
