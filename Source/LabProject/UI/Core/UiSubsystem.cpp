@@ -16,13 +16,14 @@
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/StreamableManager.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "UI/Core/ConnectingPopupWidget.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerState.h"
 #include "ShaderPipelineCache.h"
 #include "Definition/UI/WidgetClassDefinition.h"
-#include "UI/Core/WidgetContentBundleLease.h"
+#include "Data/ContentLease.h"
 #include "View/MVVMView.h"
 #include "View/MVVMViewClass.h"
 #include "ViewModel/StatusViewModel.h"
@@ -55,8 +56,8 @@ void UUiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	bStartupLoadingScreenPending = false;
 	ConfiguredWidgetClassDefinition = nullptr;
 	WidgetClassDefinition = nullptr;
-	PendingConfiguredWidgetContentBundleLeases.Reset();
-	ConfiguredCoreBundleLease.Reset();
+	PendingConfiguredUiContent.Reset();
+	ConfiguredCoreContentLease.Reset();
 	StatusViewModel = NewObject<UStatusViewModel>(this);
 	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
@@ -65,9 +66,8 @@ void UUiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		ContentSubsystem->EnsureSkillDataAssetsPreload();
 	}
-	BeginConfiguredWidgetDefinitionPreload();
-	ConfiguredCoreBundleLease = AcquireConfiguredWidgetContentBundle(
-		EWidgetContentBundle::Core,
+	ConfiguredCoreContentLease = AcquireConfiguredUiContent(
+		EUiContentGroup::Core,
 		FSimpleDelegate::CreateUObject(
 			this,
 			&ThisClass::RefreshConfiguredWidgetContentState));
@@ -147,43 +147,48 @@ bool UUiSubsystem::IsStartupContentReady() const
 		&& ContentSubsystem->IsSkillDataAssetsReady();
 }
 
-TSharedPtr<FWidgetContentBundleLease> UUiSubsystem::AcquireWidgetContentBundle(
+TSharedPtr<FContentLease> UUiSubsystem::AcquireUiContent(
 	UWidgetClassDefinition* Definition,
-	const EWidgetContentBundle Bundle,
+	const EUiContentGroup Group,
 	FSimpleDelegate OnComplete)
 {
 	if (!IsValid(Definition) || bIsDeinitializing)
 	{
 		return nullptr;
 	}
-
-	TSharedPtr<FWidgetContentBundleLease> Lease = MakeShareable(
-		new FWidgetContentBundleLease(Bundle, MoveTemp(OnComplete)));
-	StartWidgetContentBundleLease(Lease, Definition);
-	return Lease;
+	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		UE_LOG(PdUiSubsystemLog, Error, TEXT("UI content preload could not start: ContentDataSubsystem is unavailable."));
+		TSharedPtr<FContentLease> Lease = MakeShared<FContentLease>(MoveTemp(OnComplete));
+		Lease->MarkFailed();
+		return Lease;
+	}
+	TArray<FSoftObjectPath> AssetPaths;
+	Definition->GetRuntimePreloadAssetPaths(Group, AssetPaths);
+	return ContentSubsystem->AcquireContent(AssetPaths, MoveTemp(OnComplete));
 }
 
-TSharedPtr<FWidgetContentBundleLease>
-UUiSubsystem::AcquireConfiguredWidgetContentBundle(
-	const EWidgetContentBundle Bundle,
+TSharedPtr<FContentLease> UUiSubsystem::AcquireConfiguredUiContent(
+	const EUiContentGroup Group,
 	FSimpleDelegate OnComplete)
 {
 	if (bIsDeinitializing)
 	{
 		return nullptr;
 	}
-
-	TSharedPtr<FWidgetContentBundleLease> Lease = MakeShareable(
-		new FWidgetContentBundleLease(Bundle, MoveTemp(OnComplete)));
 	if (ConfiguredWidgetClassDefinition)
 	{
-		StartWidgetContentBundleLease(Lease, ConfiguredWidgetClassDefinition);
+		return AcquireUiContent(ConfiguredWidgetClassDefinition, Group, MoveTemp(OnComplete));
 	}
-	else
-	{
-		PendingConfiguredWidgetContentBundleLeases.Add(Lease);
-		BeginConfiguredWidgetDefinitionPreload();
-	}
+
+	// Definition을 기다리는 그룹 정보는 UI가 보유하고, lease에는 확정된 경로만 전달한다.
+	TSharedPtr<FContentLease> Lease = MakeShared<FContentLease>(MoveTemp(OnComplete));
+	PendingConfiguredUiContent.Emplace(Group, Lease);
+	BeginConfiguredWidgetDefinitionPreload();
 	return Lease;
 }
 
@@ -191,16 +196,15 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 {
 	if (ConfiguredWidgetClassDefinition)
 	{
-		if (ConfiguredCoreBundleLease.IsValid()
-			&& ConfiguredCoreBundleLease->GetState()
-				== EWidgetContentBundleState::Failed)
+		if (ConfiguredCoreContentLease.IsValid()
+			&& ConfiguredCoreContentLease->HasFailed())
 		{
-			ConfiguredCoreBundleLease.Reset();
+			ConfiguredCoreContentLease.Reset();
 		}
-		if (!ConfiguredCoreBundleLease.IsValid())
+		if (!ConfiguredCoreContentLease.IsValid())
 		{
-			ConfiguredCoreBundleLease = AcquireConfiguredWidgetContentBundle(
-				EWidgetContentBundle::Core,
+			ConfiguredCoreContentLease = AcquireConfiguredUiContent(
+				EUiContentGroup::Core,
 				FSimpleDelegate::CreateUObject(
 					this,
 					&ThisClass::RefreshConfiguredWidgetContentState));
@@ -218,7 +222,7 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 	if (DefaultWidgetClassDefinition.IsNull())
 	{
 		bConfiguredWidgetContentReady = false;
-		FailPendingConfiguredWidgetContentBundleLeases();
+		FailPendingConfiguredUiContent();
 		UE_LOG(
 			PdUiSubsystemLog,
 			Error,
@@ -240,7 +244,7 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 			Error,
 			TEXT("Default WidgetClassDefinition preload could not start because ContentDataSubsystem is unavailable."));
 		bConfiguredWidgetContentPreloadPending = false;
-		FailPendingConfiguredWidgetContentBundleLeases();
+		FailPendingConfiguredUiContent();
 		return;
 	}
 
@@ -270,7 +274,7 @@ void UUiSubsystem::HandleConfiguredWidgetDefinitionLoaded()
 	if (!ConfiguredWidgetClassDefinition)
 	{
 		bConfiguredWidgetContentPreloadPending = false;
-		FailPendingConfiguredWidgetContentBundleLeases();
+		FailPendingConfiguredUiContent();
 		UE_LOG(
 			PdUiSubsystemLog,
 			Error,
@@ -293,48 +297,13 @@ void UUiSubsystem::HandleConfiguredWidgetDefinitionLoaded()
 		ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
 	}
 
-	BindPendingConfiguredWidgetContentBundleLeases();
+	BindPendingConfiguredUiContent();
 	RefreshConfiguredWidgetContentState();
 }
 
-void UUiSubsystem::BindPendingConfiguredWidgetContentBundleLeases()
+void UUiSubsystem::BindPendingConfiguredUiContent()
 {
 	if (!ConfiguredWidgetClassDefinition)
-	{
-		return;
-	}
-
-	TArray<TWeakPtr<FWidgetContentBundleLease>> PendingLeases =
-		MoveTemp(PendingConfiguredWidgetContentBundleLeases);
-	PendingConfiguredWidgetContentBundleLeases.Reset();
-	for (const TWeakPtr<FWidgetContentBundleLease>& WeakLease : PendingLeases)
-	{
-		if (const TSharedPtr<FWidgetContentBundleLease> Lease = WeakLease.Pin())
-		{
-			StartWidgetContentBundleLease(Lease, ConfiguredWidgetClassDefinition);
-		}
-	}
-}
-
-void UUiSubsystem::FailPendingConfiguredWidgetContentBundleLeases()
-{
-	TArray<TWeakPtr<FWidgetContentBundleLease>> PendingLeases =
-		MoveTemp(PendingConfiguredWidgetContentBundleLeases);
-	PendingConfiguredWidgetContentBundleLeases.Reset();
-	for (const TWeakPtr<FWidgetContentBundleLease>& WeakLease : PendingLeases)
-	{
-		if (const TSharedPtr<FWidgetContentBundleLease> Lease = WeakLease.Pin())
-		{
-			Lease->MarkFailed();
-		}
-	}
-}
-
-void UUiSubsystem::StartWidgetContentBundleLease(
-	const TSharedPtr<FWidgetContentBundleLease>& Lease,
-	UWidgetClassDefinition* Definition)
-{
-	if (!Lease.IsValid())
 	{
 		return;
 	}
@@ -342,7 +311,30 @@ void UUiSubsystem::StartWidgetContentBundleLease(
 	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
 	UContentDataSubsystem* ContentSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	Lease->Start(Definition, ContentSubsystem);
+	auto PendingRequests = MoveTemp(PendingConfiguredUiContent);
+	PendingConfiguredUiContent.Reset();
+	for (const auto& Request : PendingRequests)
+	{
+		if (const TSharedPtr<FContentLease> Lease = Request.Value.Pin())
+		{
+			TArray<FSoftObjectPath> AssetPaths;
+			ConfiguredWidgetClassDefinition->GetRuntimePreloadAssetPaths(Request.Key, AssetPaths);
+			Lease->Start(AssetPaths, ContentSubsystem);
+		}
+	}
+}
+
+void UUiSubsystem::FailPendingConfiguredUiContent()
+{
+	auto PendingRequests = MoveTemp(PendingConfiguredUiContent);
+	PendingConfiguredUiContent.Reset();
+	for (const auto& Request : PendingRequests)
+	{
+		if (const TSharedPtr<FContentLease> Lease = Request.Value.Pin())
+		{
+			Lease->MarkFailed();
+		}
+	}
 }
 
 void UUiSubsystem::RefreshConfiguredWidgetContentState()
@@ -352,12 +344,10 @@ void UUiSubsystem::RefreshConfiguredWidgetContentState()
 		bConfiguredWidgetContentReady = false;
 		return;
 	}
-	const EWidgetContentBundleState CoreState = ConfiguredCoreBundleLease.IsValid()
-		? ConfiguredCoreBundleLease->GetState()
-		: EWidgetContentBundleState::Unloaded;
-	bConfiguredWidgetContentReady = CoreState == EWidgetContentBundleState::Ready;
-	bConfiguredWidgetContentPreloadPending = !bConfiguredWidgetContentReady
-		&& CoreState == EWidgetContentBundleState::Loading;
+	bConfiguredWidgetContentReady = ConfiguredCoreContentLease.IsValid()
+		&& ConfiguredCoreContentLease->IsReady();
+	bConfiguredWidgetContentPreloadPending = ConfiguredCoreContentLease.IsValid()
+		&& ConfiguredCoreContentLease->IsLoading();
 	if (bConfiguredWidgetContentReady && bTravelLoadingScreenActive)
 	{
 		ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
@@ -425,16 +415,15 @@ void UUiSubsystem::ReleaseConfiguredWidgetDefinitionPreload()
 {
 	bConfiguredWidgetContentPreloadPending = false;
 	bConfiguredWidgetContentReady = false;
-	ConfiguredCoreBundleLease.Reset();
-	for (const TWeakPtr<FWidgetContentBundleLease>& WeakLease :
-		PendingConfiguredWidgetContentBundleLeases)
+	ConfiguredCoreContentLease.Reset();
+	for (const auto& Request : PendingConfiguredUiContent)
 	{
-		if (const TSharedPtr<FWidgetContentBundleLease> Lease = WeakLease.Pin())
+		if (const TSharedPtr<FContentLease> Lease = Request.Value.Pin())
 		{
 			Lease->Release();
 		}
 	}
-	PendingConfiguredWidgetContentBundleLeases.Reset();
+	PendingConfiguredUiContent.Reset();
 	ReleaseUiStreamableHandle(ConfiguredDefinitionLoadHandle);
 }
 
@@ -542,9 +531,9 @@ bool UUiSubsystem::BindStatusViewModelToWidget(UUserWidget* InWidget)
 UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCancelButton)
 {
 	APlayerController* PlayerController = GetLocalPlayerController();
-	if (!PlayerController)
+	UWorld* World = IsValid(PlayerController) ? PlayerController->GetWorld() : nullptr;
+	if (bIsDeinitializing || !World || World->bIsTearingDown)
 	{
-
 		return nullptr;
 	}
 

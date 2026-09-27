@@ -1,4 +1,5 @@
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 
 #include "AssetRegistry/AssetData.h"
 #include "Definition/Pandora/PandoraDefinition.h"
@@ -221,6 +222,15 @@ TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSkinDataAssetsAsync(
 	TArray<FPrimaryAssetId> AssetIds;
 	GetSkinDefinitionIds(AssetIds);
 	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), true);
+}
+
+TSharedPtr<FContentLease> UContentDataSubsystem::AcquireContent(
+	const TArray<FSoftObjectPath>& AssetPaths,
+	FSimpleDelegate OnComplete)
+{
+	TSharedPtr<FContentLease> Lease = MakeShared<FContentLease>(MoveTemp(OnComplete));
+	Lease->Start(AssetPaths, this);
+	return Lease;
 }
 
 TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSoftObjectPathsAsync(

@@ -12,7 +12,7 @@ class UMapWidget;
 class UOverlay;
 class UWidgetAnimation;
 class UWidgetTree;
-class FWidgetContentBundleLease;
+class FContentLease;
 struct FStreamableHandle;
 
 /** 맵 콘텐츠 로딩·맵 위젯 생성·맵 오버레이 전환을 관리한다. */
@@ -50,7 +50,7 @@ public:
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandleWidgetBundleCompletion(int32 PreloadGeneration);
+	void HandleUiContentCompletion(int32 PreloadGeneration);
 	void TickSlideAnimation();
 	void FinishSlideOutAnimation();
 
@@ -92,7 +92,7 @@ private:
 	bool bContentPreloadRequested = false;
 	bool bOpenRequested = false;
 	int32 ContentPreloadGeneration = 0;
-	TSharedPtr<FWidgetContentBundleLease> MapContentBundleLease;
+	TSharedPtr<FContentLease> MapContentLease;
 	TSharedPtr<FStreamableHandle> MapRulePreloadHandle;
 	TSharedPtr<FStreamableHandle> MapWidgetClassPreloadHandle;
 };

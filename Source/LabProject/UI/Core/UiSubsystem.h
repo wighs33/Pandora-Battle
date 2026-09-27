@@ -2,7 +2,7 @@
 
 #include "Containers/Ticker.h"
 #include "CoreMinimal.h"
-#include "Definition/UI/WidgetContentBundle.h"
+#include "Definition/UI/UiContentGroup.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "Templates/SubclassOf.h"
 #include "UiSubsystem.generated.h"
@@ -22,7 +22,7 @@ class UUserWidget;
 class UWidget;
 class UWidgetClassDefinition;
 class UWorld;
-class FWidgetContentBundleLease;
+class FContentLease;
 
 DECLARE_LOG_CATEGORY_EXTERN(PdUiSubsystemLog, Log, All);
 
@@ -62,15 +62,15 @@ public:
 	/** True after the always-needed UI and all skill definitions are resident. */
 	bool IsStartupContentReady() const;
 
-	/** Keeps one explicit-definition bundle resident for the lease lifetime. */
-	TSharedPtr<FWidgetContentBundleLease> AcquireWidgetContentBundle(
+	/** Keeps one explicit-definition UI group resident for the lease lifetime. */
+	TSharedPtr<FContentLease> AcquireUiContent(
 		UWidgetClassDefinition* Definition,
-		EWidgetContentBundle Bundle,
+		EUiContentGroup Group,
 		FSimpleDelegate OnComplete = FSimpleDelegate());
 
 	/** Queues the request while the configured DA_Widget root is still loading. */
-	TSharedPtr<FWidgetContentBundleLease> AcquireConfiguredWidgetContentBundle(
-		EWidgetContentBundle Bundle,
+	TSharedPtr<FContentLease> AcquireConfiguredUiContent(
+		EUiContentGroup Group,
 		FSimpleDelegate OnComplete = FSimpleDelegate());
 #if WITH_EDITOR
 	static UWidgetClassDefinition* LoadConfiguredEditorWidgetClassDefinition();
@@ -118,11 +118,9 @@ private:
 	void BeginConfiguredWidgetDefinitionPreload();
 	void ReleaseConfiguredWidgetDefinitionPreload();
 
-	void BindPendingConfiguredWidgetContentBundleLeases();
-	void FailPendingConfiguredWidgetContentBundleLeases();
-	void StartWidgetContentBundleLease(
-		const TSharedPtr<FWidgetContentBundleLease>& Lease,
-		UWidgetClassDefinition* Definition);
+	void BindPendingConfiguredUiContent();
+	void FailPendingConfiguredUiContent();
+
 	void BeginStartupLoadingScreen();
 	void CancelStartupLoadingScreenReadyCheck();
 
@@ -139,9 +137,8 @@ private:
 	TObjectPtr<UWidgetClassDefinition> WidgetClassDefinition;
 
 	TSharedPtr<FStreamableHandle> ConfiguredDefinitionLoadHandle;
-	TSharedPtr<FWidgetContentBundleLease> ConfiguredCoreBundleLease;
-	TArray<TWeakPtr<FWidgetContentBundleLease>>
-		PendingConfiguredWidgetContentBundleLeases;
+	TSharedPtr<FContentLease> ConfiguredCoreContentLease;
+	TArray<TPair<EUiContentGroup, TWeakPtr<FContentLease>>> PendingConfiguredUiContent;
 	bool bHasExternalWidgetClassDefinition = false;
 	bool bConfiguredWidgetContentPreloadPending = false;
 	bool bConfiguredWidgetContentReady = false;

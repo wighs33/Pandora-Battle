@@ -11,7 +11,8 @@ class UPandoraTreeWidget;
 class UHudUiRouter;
 class UUiScreen;
 class UUserWidget;
-class FWidgetContentBundleLease;
+class FContentLease;
+class UWidgetClassDefinition;
 enum class EInfoUiSection : uint8;
 
 /** 전체 화면 Info·Pandora 계층과 카메라 복귀 정책, 훈련장 일시정지를 조율한다. */
@@ -78,7 +79,8 @@ private:
 
 	FTimerHandle InfoCloseTimerHandle;
 	FTimerHandle TrainingRoomPauseTimerHandle;
-	TSharedPtr<FWidgetContentBundleLease> InfoContentBundleLease;
+	TSharedPtr<FContentLease> InfoContentLease;
+	TWeakObjectPtr<UWidgetClassDefinition> InfoContentDefinition;
 	EPendingScreenRequest PendingScreenRequest = EPendingScreenRequest::None;
 	EInfoUiSection PendingInfoSection;
 	bool bAppliedTrainingRoomPause = false;

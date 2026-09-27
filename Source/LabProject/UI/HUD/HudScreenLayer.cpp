@@ -16,7 +16,7 @@
 #include "TimerManager.h"
 #include "UI/Info/Presenter/InfoUiPresenter.h"
 #include "UI/Core/UiSubsystem.h"
-#include "UI/Core/WidgetContentBundleLease.h"
+#include "Data/ContentLease.h"
 #include "UI/Info/InfoWidget.h"
 #include "UI/HUD/Menu/MenuPopupWidget.h"
 #include "UI/Pandora/PandoraTreeWidget.h"
@@ -428,16 +428,17 @@ bool UHudScreenLayer::EnsureInfoContentReady(
 	}
 
 	PendingScreenRequest = Request;
-	if (InfoContentBundleLease.IsValid()
-		&& InfoContentBundleLease->GetDefinition() != Definition)
+	if (InfoContentLease.IsValid()
+		&& InfoContentDefinition.Get() != Definition)
 	{
 		ReleaseInfoContent();
 	}
-	if (!InfoContentBundleLease.IsValid())
+	if (!InfoContentLease.IsValid())
 	{
-		InfoContentBundleLease = UiSubsystem->AcquireWidgetContentBundle(
+		InfoContentDefinition = Definition;
+		InfoContentLease = UiSubsystem->AcquireUiContent(
 			Definition,
-			EWidgetContentBundle::Info,
+			EUiContentGroup::Info,
 			FSimpleDelegate::CreateWeakLambda(
 				this,
 				[this]()
@@ -445,12 +446,12 @@ bool UHudScreenLayer::EnsureInfoContentReady(
 					ContinuePendingScreenOpen();
 				}));
 	}
-	if (!InfoContentBundleLease.IsValid())
+	if (!InfoContentLease.IsValid())
 	{
 		PendingScreenRequest = EPendingScreenRequest::None;
 		return false;
 	}
-	return InfoContentBundleLease->IsReady();
+	return InfoContentLease->IsReady();
 }
 
 void UHudScreenLayer::ContinuePendingScreenOpen()
@@ -463,9 +464,10 @@ void UHudScreenLayer::ContinuePendingScreenOpen()
 	UHudUiRouter* UiRouter = Router.Get();
 	UWidgetClassDefinition* Definition =
 		UiRouter ? UiRouter->GetActiveDefinition() : nullptr;
-	if (!InfoContentBundleLease.IsValid()
-		|| !InfoContentBundleLease->IsReady()
-		|| InfoContentBundleLease->GetDefinition() != Definition)
+	if (!InfoContentLease.IsValid()
+		|| !InfoContentLease->IsReady()
+		|| !IsValid(Definition)
+		|| InfoContentDefinition.Get() != Definition)
 	{
 		PendingScreenRequest = EPendingScreenRequest::None;
 		ReleaseInfoContent();
@@ -509,7 +511,8 @@ void UHudScreenLayer::ReleaseInfoContent()
 	{
 		UiRouter->ReleaseInfoLayers();
 	}
-	InfoContentBundleLease.Reset();
+	InfoContentLease.Reset();
+	InfoContentDefinition.Reset();
 }
 
 void UHudScreenLayer::ClearInfoCloseTimer()

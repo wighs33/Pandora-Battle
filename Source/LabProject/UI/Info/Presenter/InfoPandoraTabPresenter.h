@@ -61,8 +61,7 @@ private:
 	class USelectPandoraWidget* GetSelectPandoraWidget() const;
 	UItemInstance* GetSelectedWeapon(EEnum_Direction Direction) const;
 	void RefreshLeftPandoraSlots() const;
-	void RefreshSelectPandoraImages() const;
-	void RefreshSelectPandoraCompatibility() const;
+	void RefreshSelectPandoraLoadout() const;
 	bool IsPandoraOwned(const UPandoraDefinition* PandoraDefinition) const;
 	void BuildPandoraTileViewItems(
 		TArray<UObject*>& OutListItems,

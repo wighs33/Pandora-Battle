@@ -131,7 +131,7 @@ namespace
 }
 
 void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
-	const EWidgetContentBundle Bundle,
+	const EUiContentGroup Group,
 	TArray<FSoftObjectPath>& OutAssetPaths) const
 {
 	TSet<FSoftObjectPath> UniquePaths;
@@ -144,21 +144,21 @@ void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
 		Collector.CollectStructValue(FSettingsType::StaticStruct(), &Settings);
 	};
 
-	switch (Bundle)
+	switch (Group)
 	{
-	case EWidgetContentBundle::Core:
+	case EUiContentGroup::Core:
 		Collector.CollectSoftPath(SettingsWidgetClass.ToSoftObjectPath());
 		CollectSettings(GetConnectingPopupWidgetSettings());
 		CollectSettings(GetTitleAuxiliaryWidgetSettings());
 		break;
 
-	case EWidgetContentBundle::Lobby:
+	case EUiContentGroup::Lobby:
 		CollectSettings(GetRecordWidgetSettings());
 		CollectSettings(GetRoomListWidgetSettings());
 		CollectSettings(GetLobbyWidgetSettings());
 		break;
 
-	case EWidgetContentBundle::InGame:
+	case EUiContentGroup::InGame:
 		CollectSettings(GetPlayerHudWidgetSettings());
 		CollectSettings(GetKillBoxWidgetSettings());
 		CollectSettings(GetSelectPandoraWidgetSettings());
@@ -178,7 +178,7 @@ void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
 		Collector.CollectSoftPath(GetTogglePandoraTreeInputAction().ToSoftObjectPath());
 		break;
 
-	case EWidgetContentBundle::Info:
+	case EUiContentGroup::Info:
 		CollectSettings(GetInfoWidgetSettings());
 		CollectSettings(GetPandoraTreeWidgetSettings());
 		CollectSettings(GetPandoraWidgetSettings());
@@ -189,7 +189,7 @@ void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
 		CollectSettings(GetPandoraDescriptionEffectIconSettings());
 		break;
 
-	case EWidgetContentBundle::Map:
+	case EUiContentGroup::Map:
 		CollectSettings(GetMapWidgetSettings());
 		break;
 

@@ -10,7 +10,7 @@
 #include "TimerManager.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Core/UiSubsystem.h"
-#include "UI/Core/WidgetContentBundleLease.h"
+#include "Data/ContentLease.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -215,14 +215,14 @@ void UGameFeatureAction_AddWidgets::AddWidgetsToActor(
 			}
 		});
 
-	TArray<TSharedPtr<FWidgetContentBundleLease>> BundleLeases;
-	for (const EWidgetContentBundle Bundle :
-		{EWidgetContentBundle::Core, EWidgetContentBundle::InGame})
+	TArray<TSharedPtr<FContentLease>> ContentLeases;
+	for (const EUiContentGroup Group :
+		{EUiContentGroup::Core, EUiContentGroup::InGame})
 	{
-		TSharedPtr<FWidgetContentBundleLease> Lease =
-			UiSubsystem->AcquireWidgetContentBundle(
+		TSharedPtr<FContentLease> Lease =
+			UiSubsystem->AcquireUiContent(
 				LoadedWidgetClassDefinition,
-				Bundle,
+				Group,
 				CompletionDelegate);
 		if (!Lease.IsValid())
 		{
@@ -230,13 +230,13 @@ void UGameFeatureAction_AddWidgets::AddWidgetsToActor(
 			UE_LOG(
 				PdGameFeatureAction_AddWidgetsLog,
 				Error,
-				TEXT("AddWidgets skipped '%s': UI bundle lease acquisition failed."),
+				TEXT("AddWidgets skipped '%s': UI content group lease acquisition failed."),
 				*GetNameSafe(Actor));
 			return;
 		}
-		BundleLeases.Add(MoveTemp(Lease));
+		ContentLeases.Add(MoveTemp(Lease));
 	}
-	Handles->WidgetContentLeasesByActor.Add(Actor, MoveTemp(BundleLeases));
+	Handles->WidgetContentLeasesByActor.Add(Actor, MoveTemp(ContentLeases));
 	CompleteAddWidgetsToActor(Actor, ChangeContext, LoadedWidgetClassDefinition);
 }
 
@@ -254,25 +254,24 @@ void UGameFeatureAction_AddWidgets::CompleteAddWidgetsToActor(
 
 	const TWeakObjectPtr<UWidgetClassDefinition>* PendingDefinition =
 		Handles->PendingWidgetDefinitionsByActor.Find(Actor);
-	const TArray<TSharedPtr<FWidgetContentBundleLease>>* BundleLeases =
+	const TArray<TSharedPtr<FContentLease>>* ContentLeases =
 		Handles->WidgetContentLeasesByActor.Find(Actor);
 	if (!PendingDefinition
 		|| PendingDefinition->Get() != ExpectedWidgetClassDefinition
-		|| !BundleLeases)
+		|| !ContentLeases)
 	{
 		return;
 	}
 
-	for (const TSharedPtr<FWidgetContentBundleLease>& Lease : *BundleLeases)
+	for (const TSharedPtr<FContentLease>& Lease : *ContentLeases)
 	{
 		if (!Lease.IsValid()
-			|| Lease->GetDefinition() != ExpectedWidgetClassDefinition
-			|| Lease->GetState() == EWidgetContentBundleState::Failed)
+			|| Lease->HasFailed())
 		{
 			UE_LOG(
 				PdGameFeatureAction_AddWidgetsLog,
 				Error,
-				TEXT("HUD initialization was canceled because a Core/InGame UI bundle for '%s' failed."),
+				TEXT("HUD initialization was canceled because a Core/InGame UI content group for '%s' failed."),
 				*GetNameSafe(ExpectedWidgetClassDefinition));
 			Handles->PendingWidgetDefinitionsByActor.Remove(Actor);
 			Handles->WidgetContentLeasesByActor.Remove(Actor);

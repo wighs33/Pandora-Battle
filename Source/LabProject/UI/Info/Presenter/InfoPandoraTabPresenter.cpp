@@ -14,7 +14,6 @@
 #include "Mode/PdPlayerState.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 #include "UI/Info/InfoLoadoutStore.h"
-#include "UI/Pandora/PandoraLoadoutUiModel.h"
 #include "UI/Info/InfoWidget.h"
 #include "UI/Info/Pandora/LeftPandoraWidget.h"
 #include "UI/Info/Pandora/PandoraEquipSlotWidget.h"
@@ -119,8 +118,7 @@ void UInfoPandoraTabPresenter::HandlePresentationAssetsReady()
 void UInfoPandoraTabPresenter::RefreshLoadoutPresentation() const
 {
 	RefreshLeftPandoraSlots();
-	RefreshSelectPandoraImages();
-	RefreshSelectPandoraCompatibility();
+	RefreshSelectPandoraLoadout();
 }
 
 void UInfoPandoraTabPresenter::HandlePandoraSlotClicked(UObject* Item)
@@ -327,42 +325,7 @@ void UInfoPandoraTabPresenter::RefreshLeftPandoraSlots() const
 	LeftPandoraWidget->SetWeaponImage(3, ResolveWeaponIcon(GetSelectedWeapon(EEnum_Direction::Right)));
 }
 
-void UInfoPandoraTabPresenter::RefreshSelectPandoraImages() const
-{
-	USelectPandoraWidget* SelectPandoraWidget = GetSelectPandoraWidget();
-	if (!SelectPandoraWidget)
-	{
-		return;
-	}
-
-	const UInfoLoadoutStore* Store = LoadoutStore.Get();
-	const UPandoraComponent* PandoraComponent = Store ? Store->GetPandoraComponent() : nullptr;
-	const UItemInstance* LeftWeapon = GetSelectedWeapon(EEnum_Direction::Left);
-	const UItemInstance* UpWeapon = GetSelectedWeapon(EEnum_Direction::Up);
-	const UItemInstance* RightWeapon = GetSelectedWeapon(EEnum_Direction::Right);
-	const TArray<FPandoraSelectSlotUiData> Slots = FPandoraLoadoutUiModel::BuildSelectSlots(
-		PandoraComponent,
-		LeftWeapon,
-		UpWeapon,
-		RightWeapon);
-	for (const FPandoraSelectSlotUiData& Slot : Slots)
-	{
-		SelectPandoraWidget->SetPandoraImage(Slot.SlotNumber, Slot.IconTexture);
-	}
-
-	const auto ResolveWeaponIcon = [](const UItemInstance* WeaponInstance) -> UTexture2D*
-	{
-		const UItemDefinition* WeaponDefinition = IsValid(WeaponInstance)
-			? WeaponInstance->ItemDefinition.Get()
-			: nullptr;
-		return WeaponDefinition ? WeaponDefinition->IconTexture.Get() : nullptr;
-	};
-	SelectPandoraWidget->SetWeaponImage(1, ResolveWeaponIcon(LeftWeapon));
-	SelectPandoraWidget->SetWeaponImage(2, ResolveWeaponIcon(UpWeapon));
-	SelectPandoraWidget->SetWeaponImage(3, ResolveWeaponIcon(RightWeapon));
-}
-
-void UInfoPandoraTabPresenter::RefreshSelectPandoraCompatibility() const
+void UInfoPandoraTabPresenter::RefreshSelectPandoraLoadout() const
 {
 	USelectPandoraWidget* SelectPandoraWidget = GetSelectPandoraWidget();
 	if (!SelectPandoraWidget)
@@ -371,14 +334,20 @@ void UInfoPandoraTabPresenter::RefreshSelectPandoraCompatibility() const
 	}
 	const UInfoLoadoutStore* Store = LoadoutStore.Get();
 	const UPandoraComponent* PandoraComponent = Store ? Store->GetPandoraComponent() : nullptr;
-	const TArray<FPandoraSelectSlotUiData> Slots = FPandoraLoadoutUiModel::BuildSelectSlots(
-		PandoraComponent,
-		GetSelectedWeapon(EEnum_Direction::Left),
-		GetSelectedWeapon(EEnum_Direction::Up),
-		GetSelectedWeapon(EEnum_Direction::Right));
-	for (const FPandoraSelectSlotUiData& Slot : Slots)
+	for (const EEnum_Direction Direction :
+		{EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right})
 	{
-		SelectPandoraWidget->SetPandoraEnabled(Slot.SlotNumber, Slot.bCompatibleWithWeapon);
+		const int32 SlotNumber = PandoraLoadout::GetLoadoutNumberFromDirection(Direction);
+		const UPandoraDefinition* PandoraDefinition = PandoraComponent
+			? PandoraComponent->GetPandoraLoadoutDefinition(Direction) : nullptr;
+		const UItemInstance* Weapon = GetSelectedWeapon(Direction);
+		const UItemDefinition* WeaponDefinition = IsValid(Weapon) ? Weapon->ItemDefinition.Get() : nullptr;
+		SelectPandoraWidget->SetPandoraImage(
+			SlotNumber, PandoraDefinition ? PandoraDefinition->GetIconTexture() : nullptr);
+		SelectPandoraWidget->SetWeaponImage(
+			SlotNumber, WeaponDefinition ? WeaponDefinition->IconTexture.Get() : nullptr);
+		SelectPandoraWidget->SetPandoraEnabled(
+			SlotNumber, !PandoraDefinition || PandoraDefinition->IsCompatibleWithWeaponDefinition(WeaponDefinition));
 	}
 }
 

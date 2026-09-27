@@ -17,7 +17,7 @@
 #include "Settings/GameSettingsSubsystem.h"
 #include "Settings/ProjectBootstrapSettings.h"
 #include "UI/Core/UiSubsystem.h"
-#include "UI/Core/WidgetContentBundleLease.h"
+#include "Data/ContentLease.h"
 #include "UObject/UObjectGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyRuntimeSubsystem)
@@ -79,8 +79,8 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 	{
 		TArray<TWeakObjectPtr<UUiSubsystem>> InvalidUiSubsystems;
 		for (const TPair<TWeakObjectPtr<UUiSubsystem>,
-			TSharedPtr<FWidgetContentBundleLease>>& LeasePair :
-			LobbyWidgetBundleLeases)
+			TSharedPtr<FContentLease>>& LeasePair :
+			LobbyContentLeases)
 		{
 			if (!LeasePair.Key.IsValid())
 			{
@@ -90,7 +90,7 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 		for (const TWeakObjectPtr<UUiSubsystem>& InvalidUiSubsystem :
 			InvalidUiSubsystems)
 		{
-			LobbyWidgetBundleLeases.Remove(InvalidUiSubsystem);
+			LobbyContentLeases.Remove(InvalidUiSubsystem);
 		}
 
 		for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
@@ -99,17 +99,17 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 				LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr)
 			{
 				UiSubsystem->EnsureConfiguredWidgetContentPreload();
-				TSharedPtr<FWidgetContentBundleLease>& BundleLease =
-					LobbyWidgetBundleLeases.FindOrAdd(UiSubsystem);
-				if (BundleLease.IsValid()
-					&& BundleLease->GetState() == EWidgetContentBundleState::Failed)
+				TSharedPtr<FContentLease>& ContentLease =
+					LobbyContentLeases.FindOrAdd(UiSubsystem);
+				if (ContentLease.IsValid()
+					&& ContentLease->HasFailed())
 				{
-					BundleLease.Reset();
+					ContentLease.Reset();
 				}
-				if (!BundleLease.IsValid())
+				if (!ContentLease.IsValid())
 				{
-					BundleLease = UiSubsystem->AcquireConfiguredWidgetContentBundle(
-						EWidgetContentBundle::Lobby);
+					ContentLease = UiSubsystem->AcquireConfiguredUiContent(
+						EUiContentGroup::Lobby);
 				}
 			}
 		}
@@ -416,13 +416,13 @@ bool ULobbyRuntimeSubsystem::IsLocalPlayerWidgetContentReady() const
 	{
 		UUiSubsystem* UiSubsystem =
 			LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-		const TSharedPtr<FWidgetContentBundleLease>* BundleLease =
-			UiSubsystem ? LobbyWidgetBundleLeases.Find(UiSubsystem) : nullptr;
+		const TSharedPtr<FContentLease>* ContentLease =
+			UiSubsystem ? LobbyContentLeases.Find(UiSubsystem) : nullptr;
 		if (!UiSubsystem
 			|| !UiSubsystem->IsConfiguredWidgetContentReady()
-			|| !BundleLease
-			|| !BundleLease->IsValid()
-			|| !(*BundleLease)->IsReady())
+			|| !ContentLease
+			|| !ContentLease->IsValid()
+			|| !(*ContentLease)->IsReady())
 		{
 			return false;
 		}
@@ -468,7 +468,7 @@ void ULobbyRuntimeSubsystem::HandleLevelDefinitionPreloadComplete()
 
 void ULobbyRuntimeSubsystem::ReleaseLobbyEntryContentPreload()
 {
-	LobbyWidgetBundleLeases.Reset();
+	LobbyContentLeases.Reset();
 
 	if (LevelDefinitionPreloadHandle.IsValid())
 	{

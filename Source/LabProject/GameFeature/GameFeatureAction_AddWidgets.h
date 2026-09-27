@@ -7,7 +7,7 @@
 class AActor;
 class APdHUD;
 class FActorExtensionHandle;
-class FWidgetContentBundleLease;
+class FContentLease;
 class UWidgetClassDefinition;
 class UWorld;
 struct FAssetBundleData;
@@ -22,7 +22,7 @@ struct FGameFeatureWidgetHandles
 	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;
 	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<UWidgetClassDefinition>> WidgetDefinitionsByActor;
 	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<UWidgetClassDefinition>> PendingWidgetDefinitionsByActor;
-	TMap<TWeakObjectPtr<AActor>, TArray<TSharedPtr<FWidgetContentBundleLease>>>
+	TMap<TWeakObjectPtr<AActor>, TArray<TSharedPtr<FContentLease>>>
 		WidgetContentLeasesByActor;
 };
 

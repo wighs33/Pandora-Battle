@@ -20,7 +20,7 @@
 #include "UI/Info/InfoWidget.h"
 #include "UI/Info/Map/MapWidget.h"
 #include "UI/Core/UiSubsystem.h"
-#include "UI/Core/WidgetContentBundleLease.h"
+#include "Data/ContentLease.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InfoMapPanel)
 
@@ -160,16 +160,16 @@ void UInfoMapPanel::BeginContentPreload()
 		return;
 	}
 
-	MapContentBundleLease = UiSubsystem->AcquireWidgetContentBundle(
+	MapContentLease = UiSubsystem->AcquireUiContent(
 		WidgetDefinition,
-		EWidgetContentBundle::Map,
+		EUiContentGroup::Map,
 		FSimpleDelegate::CreateWeakLambda(
 			this,
 			[this, PreloadGeneration]()
 			{
-				HandleWidgetBundleCompletion(PreloadGeneration);
+				HandleUiContentCompletion(PreloadGeneration);
 			}));
-	if (!MapContentBundleLease.IsValid())
+	if (!MapContentLease.IsValid())
 	{
 		FailContentPreload(PreloadGeneration);
 		return;
@@ -177,15 +177,15 @@ void UInfoMapPanel::BeginContentPreload()
 	RefreshButtonEnabledState();
 }
 
-void UInfoMapPanel::HandleWidgetBundleCompletion(
+void UInfoMapPanel::HandleUiContentCompletion(
 	const int32 PreloadGeneration)
 {
 	if (PreloadGeneration != ContentPreloadGeneration)
 	{
 		return;
 	}
-	if (!MapContentBundleLease.IsValid()
-		|| !MapContentBundleLease->IsReady())
+	if (!MapContentLease.IsValid()
+		|| !MapContentLease->IsReady())
 	{
 		FailContentPreload(PreloadGeneration);
 		return;
@@ -511,7 +511,7 @@ void UInfoMapPanel::ReleaseContentPreloads()
 	};
 	ReleaseHandle(MapWidgetClassPreloadHandle);
 	ReleaseHandle(MapRulePreloadHandle);
-	MapContentBundleLease.Reset();
+	MapContentLease.Reset();
 	bContentPreloadRequested = false;
 	bContentReady = false;
 	ReleaseTotalMapWidget();

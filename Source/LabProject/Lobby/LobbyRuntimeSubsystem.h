@@ -17,7 +17,7 @@ class ULevelDefinition;
 class UMatchRuleDefinition;
 class UTexture2D;
 class UUiSubsystem;
-class FWidgetContentBundleLease;
+class FContentLease;
 struct FStreamableHandle;
 
 UENUM(BlueprintType)
@@ -143,8 +143,8 @@ private:
 
 	TSharedPtr<FStreamableHandle> LevelDefinitionPreloadHandle;
 	TSharedPtr<FStreamableHandle> LobbyDataAssetsPreloadHandle;
-	TMap<TWeakObjectPtr<UUiSubsystem>, TSharedPtr<FWidgetContentBundleLease>>
-		LobbyWidgetBundleLeases;
+	TMap<TWeakObjectPtr<UUiSubsystem>, TSharedPtr<FContentLease>>
+		LobbyContentLeases;
 	bool bLevelDefinitionPreloadPending = false;
 	bool bLevelDefinitionReady = false;
 	bool bLobbyDataAssetsPreloadPending = false;

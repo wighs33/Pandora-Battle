@@ -7,7 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "Layout/Margin.h"
 #include "Definition/Match/MatchRuleDefinition.h"
-#include "Definition/UI/WidgetContentBundle.h"
+#include "Definition/UI/UiContentGroup.h"
 #include "UObject/SoftObjectPath.h"
 
 #include "WidgetClassDefinition.generated.h"
@@ -683,9 +683,9 @@ public:
 
 	static const UWidgetClassDefinition* ResolveWidgetClassDefinition(const UObject* WorldContextObject);
 
-	/** Collects the effective soft assets for one screen-lifetime bundle. */
+	/** 화면 수명에 맞는 UI 콘텐츠 그룹의 soft asset 경로를 수집한다. */
 	void GetRuntimePreloadAssetPaths(
-		EWidgetContentBundle Bundle,
+		EUiContentGroup Group,
 		TArray<FSoftObjectPath>& OutAssetPaths) const;
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Widget")
