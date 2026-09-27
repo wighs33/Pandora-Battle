@@ -93,7 +93,6 @@ public:
 	const FGameplayTag& GetCombatPunchAbilityTag() const { return ResolveTag(CombatPunchAbilityTag, LabGameplayTags::Action_Punch); }
 	const FGameplayTag& GetCombatRangedAttackAbilityTag() const { return ResolveTag(CombatRangedAttackAbilityTag, LabGameplayTags::Action_RangedAttack); }
 	const FGameplayTag& GetCombatWeaponDamageSourceTag() const { return ResolveTag(CombatWeaponDamageSourceTag, LabGameplayTags::Status_Offense_Strength); }
-	const FGameplayTag& GetCombatHitReactAbilityTag() const { return ResolveTag(CombatHitReactAbilityTag, LabGameplayTags::Action_HitReact); }
 
 	const FGameplayTag& GetSetByCallerDamageMagnitudeTag() const { return ResolveTag(SetByCallerDamageMagnitudeTag, LabGameplayTags::Data_Damage); }
 	const FGameplayTag& GetSetByCallerStatUpOperationTag() const { return ResolveTag(SetByCallerStatUpOperationTag, LabGameplayTags::Data_StatUp); }
