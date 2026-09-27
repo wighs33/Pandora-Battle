@@ -44,5 +44,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Auto Attack", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float AutoAttackInterval = 1.0f;
-double LastAutoAttackTime = -1000000.0;
+private:
+	double LastAutoAttackTime = -1000000.0;
 };

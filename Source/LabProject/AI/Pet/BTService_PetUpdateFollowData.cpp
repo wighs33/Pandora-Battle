@@ -1,4 +1,4 @@
-#include "AI/BTService_PetUpdateFollowData.h"
+#include "AI/Pet/BTService_PetUpdateFollowData.h"
 
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -43,7 +43,8 @@ void UBTService_PetUpdateFollowData::TickNode(UBehaviorTreeComponent& OwnerComp,
 		return;
 	}
 
-	AActor* FollowTarget = ResolveFollowTarget(Pawn, BlackboardComponent);
+	const APetCharacter* Pet = Cast<APetCharacter>(Pawn);
+	AActor* FollowTarget = Pet ? Pet->GetFollowTargetActor() : nullptr;
 	if (FollowTarget)
 	{
 		BlackboardComponent->SetValueAsObject(FollowTargetActorKey.SelectedKeyName, FollowTarget);
@@ -56,32 +57,4 @@ void UBTService_PetUpdateFollowData::TickNode(UBehaviorTreeComponent& OwnerComp,
 		BlackboardComponent->ClearValue(FollowTargetActorKey.SelectedKeyName);
 		BlackboardComponent->SetValueAsFloat(DistanceToOwnerKey.SelectedKeyName, 0.0f);
 	}
-}
-
-AActor* UBTService_PetUpdateFollowData::ResolveFollowTarget(const APawn* Pawn, UBlackboardComponent* BlackboardComponent) const
-{
-	if (!Pawn)
-	{
-		return nullptr;
-	}
-
-	if (BlackboardComponent)
-	{
-		if (AActor* BlackboardTarget = Cast<AActor>(BlackboardComponent->GetValueAsObject(FollowTargetActorKey.SelectedKeyName)))
-		{
-			return BlackboardTarget;
-		}
-	}
-
-	if (const APetCharacter* PetCharacter = Cast<APetCharacter>(Pawn))
-	{
-		if (AActor* FollowTarget = PetCharacter->GetFollowTargetActor())
-		{
-			return FollowTarget;
-		}
-
-		return PetCharacter->GetOwner();
-	}
-
-	return Pawn->GetOwner();
 }

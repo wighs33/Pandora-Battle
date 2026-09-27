@@ -1,6 +1,6 @@
-#include "AI/StateTree_PdUtilityTasks.h"
+#include "AI/StateTree/StateTree_PdUtilityTasks.h"
 
-#include "AI/MonsterAIController.h"
+#include "AI/Monster/MonsterAIController.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"

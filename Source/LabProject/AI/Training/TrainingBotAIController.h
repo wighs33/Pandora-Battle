@@ -18,17 +18,13 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	ATrainingBotAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UFUNCTION(BlueprintCallable, Category = "!AI|Training Bot")
-	void SetBlackboardTarget(AActor* InTarget);
-
-	UFUNCTION(BlueprintCallable, Category = "!AI|Training Bot")
-	void ClearBlackboardTarget();
-
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintCallable, Category = "!AI|Training Bot")
 	void RefreshTargetFromPlayers();
 
-protected:
+private:
+	void SetBlackboardTarget(AActor* InTarget);
+	void ClearBlackboardTarget();
+
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void InitializeBlackboardValues(APawn* InPawn);
 	AActor* FindBestPlayerTarget() const;

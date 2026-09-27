@@ -1,6 +1,6 @@
-#include "AI/ServerOnlyMonsterSpawner.h"
+#include "AI/Monster/ServerOnlyMonsterSpawner.h"
 
-#include "AI/MonsterCharacter.h"
+#include "AI/Monster/MonsterCharacter.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/World.h"

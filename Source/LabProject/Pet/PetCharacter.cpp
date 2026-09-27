@@ -1,6 +1,6 @@
 #include "Pet/PetCharacter.h"
 
-#include "AI/PetAIController.h"
+#include "AI/Pet/PetAIController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -37,18 +37,14 @@ void APetCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 
 void APetCharacter::SetFollowTargetActor(AActor* InFollowTargetActor)
 {
-	if (FollowTargetActor == InFollowTargetActor)
+	if (!HasAuthority())
 	{
-		if (APetAIController* PetController = Cast<APetAIController>(GetController()))
-		{
-			PetController->RefreshFollowTarget();
-		}
 		return;
 	}
 
-	FollowTargetActor = InFollowTargetActor;
-	if (HasAuthority())
+	if (FollowTargetActor != InFollowTargetActor)
 	{
+		FollowTargetActor = InFollowTargetActor;
 		MARK_PROPERTY_DIRTY_FROM_NAME(APetCharacter, FollowTargetActor, this);
 	}
 

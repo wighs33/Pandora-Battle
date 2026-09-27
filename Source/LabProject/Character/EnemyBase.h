@@ -94,10 +94,6 @@ public:
 	void InitializeBehaviorTreeCombat();
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!AI|Combat")
-	bool EquipEnemyWeaponDefinition(
-		const UItemDefinition* WeaponDefinition);
-
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!AI|Combat")
 	bool RequestTrainingBotWeaponChange(
 		const UItemDefinition* WeaponDefinition);
 

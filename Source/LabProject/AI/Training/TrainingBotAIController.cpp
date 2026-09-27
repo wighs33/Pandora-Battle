@@ -1,4 +1,4 @@
-#include "AI/TrainingBotAIController.h"
+#include "AI/Training/TrainingBotAIController.h"
 
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"

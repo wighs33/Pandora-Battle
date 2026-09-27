@@ -1,4 +1,4 @@
-#include "AI/BTTask_MoveAroundTarget.h"
+#include "AI/Training/BTTask_MoveAroundTarget.h"
 
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -39,6 +39,7 @@ UBTTask_MoveAroundTarget::UBTTask_MoveAroundTarget()
 {
 	NodeName = TEXT("Pd Move Around Target");
 	bNotifyTick = true;
+	bNotifyTaskFinished = true;
 
 	BlackboardKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(ThisClass, BlackboardKey), AActor::StaticClass());
 }
@@ -392,7 +393,7 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::TickAttackWindow(UBehaviorTreeComp
 	if (MaxComboAttackWaitTime > 0.0f && Memory->ElapsedTime >= MaxComboAttackWaitTime)
 	{
 
-RestoreMovementSettings(Pawn, NodeMemory, !bKeepFacingTargetAfterMove);
+		RestoreMovementSettings(Pawn, NodeMemory, !bKeepFacingTargetAfterMove);
 		return EBTNodeResult::Succeeded;
 	}
 

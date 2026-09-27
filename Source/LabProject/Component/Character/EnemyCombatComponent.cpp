@@ -22,7 +22,6 @@
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
-#include "Kismet/GameplayStatics.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Weapon/Gun.h"
 #include "Weapon/WeaponBase.h"
@@ -460,15 +459,7 @@ AActor* UEnemyCombatComponent::ResolveAttackTarget() const
 		}
 	}
 
-	if (BestTarget)
-	{
-		return BestTarget;
-	}
-
-	AActor* PlayerCharacter = UGameplayStatics::GetPlayerCharacter(Enemy, 0);
-	return IsActorValidAttackTarget(PlayerCharacter)
-		? PlayerCharacter
-		: nullptr;
+	return BestTarget;
 }
 
 float UEnemyCombatComponent::GetAttackDistanceToActor(

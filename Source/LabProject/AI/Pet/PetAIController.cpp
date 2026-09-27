@@ -1,4 +1,4 @@
-#include "AI/PetAIController.h"
+#include "AI/Pet/PetAIController.h"
 
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -44,7 +44,9 @@ void APetAIController::OnPossess(APawn* InPawn)
 		if (BehaviorTreeAsset->BlackboardAsset
 			&& UseBlackboard(BehaviorTreeAsset->BlackboardAsset, LocalBlackboard))
 		{
-			InitializeBlackboardValues(InPawn);
+			const APetCharacter* Pet = Cast<APetCharacter>(InPawn);
+			LocalBlackboard->SetValueAsObject(
+				FollowTargetActorKeyName, Pet ? Pet->GetFollowTargetActor() : nullptr);
 			bBehaviorTreeRunning = RunBehaviorTree(BehaviorTreeAsset);
 		}
 	}
@@ -71,7 +73,8 @@ void APetAIController::OnUnPossess()
 
 void APetAIController::RefreshFollowTarget()
 {
-	AActor* FollowTarget = ResolveFollowTarget();
+	const APetCharacter* Pet = Cast<APetCharacter>(GetPawn());
+	AActor* FollowTarget = Pet ? Pet->GetFollowTargetActor() : nullptr;
 	UBlackboardComponent* LocalBlackboard = GetBlackboardComponent();
 	if (LocalBlackboard)
 	{
@@ -110,47 +113,18 @@ void APetAIController::RefreshFollowTarget()
 	{
 		bDirectFollowFallbackActive = false;
 		SetActorTickEnabled(false);
+		if (!FollowTarget)
+		{
+			StopMovement();
+		}
 	}
-}
-
-void APetAIController::InitializeBlackboardValues(APawn* InPawn)
-{
-	UBlackboardComponent* LocalBlackboard = GetBlackboardComponent();
-	if (!LocalBlackboard)
-	{
-		return;
-	}
-
-	if (AActor* FollowTarget = ResolveFollowTarget())
-	{
-		LocalBlackboard->SetValueAsObject(FollowTargetActorKeyName, FollowTarget);
-	}
-	else
-	{
-		LocalBlackboard->ClearValue(FollowTargetActorKeyName);
-	}
-}
-
-AActor* APetAIController::ResolveFollowTarget() const
-{
-	const APetCharacter* PetCharacter = Cast<APetCharacter>(GetPawn());
-	if (!PetCharacter)
-	{
-		return nullptr;
-	}
-
-	if (AActor* FollowTarget = PetCharacter->GetFollowTargetActor())
-	{
-		return FollowTarget;
-	}
-
-	return PetCharacter->GetInstigator();
 }
 
 void APetAIController::UpdateDirectFollowFallback(const float DeltaSeconds)
 {
 	APawn* ControlledPawn = GetPawn();
-	AActor* FollowTarget = ResolveFollowTarget();
+	const APetCharacter* Pet = Cast<APetCharacter>(GetPawn());
+	AActor* FollowTarget = Pet ? Pet->GetFollowTargetActor() : nullptr;
 	if (!ControlledPawn || !FollowTarget || DeltaSeconds <= 0.0f)
 	{
 		return;

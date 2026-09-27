@@ -1,6 +1,6 @@
-#include "AI/StateTree_PdForgetPerceptionTask.h"
+#include "AI/StateTree/StateTree_PdForgetPerceptionTask.h"
 
-#include "AI/MonsterAIController.h"
+#include "AI/Monster/MonsterAIController.h"
 #include "AIController.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "StateTreeExecutionContext.h"

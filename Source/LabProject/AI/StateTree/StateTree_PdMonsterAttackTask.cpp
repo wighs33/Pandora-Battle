@@ -1,7 +1,7 @@
-#include "AI/StateTree_PdMonsterAttackTask.h"
+#include "AI/StateTree/StateTree_PdMonsterAttackTask.h"
 
 #include "AIController.h"
-#include "AI/MonsterCharacter.h"
+#include "AI/Monster/MonsterCharacter.h"
 #include "Character/EnemyBase.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "StateTreeExecutionContext.h"

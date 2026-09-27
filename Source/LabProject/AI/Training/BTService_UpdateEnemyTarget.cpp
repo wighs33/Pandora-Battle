@@ -1,7 +1,7 @@
-#include "AI/BTService_UpdateEnemyTarget.h"
+#include "AI/Training/BTService_UpdateEnemyTarget.h"
 
 #include "AIController.h"
-#include "AI/TrainingBotAIController.h"
+#include "AI/Training/TrainingBotAIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Float.h"

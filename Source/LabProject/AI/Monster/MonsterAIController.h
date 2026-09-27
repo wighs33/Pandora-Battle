@@ -41,12 +41,6 @@ public:
 	AMonsterAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintPure, Category = "!AI|Monster")
-	UStateTreeAIComponent* GetStateTreeAI() const { return NativeStateTreeAI; }
-
-	UFUNCTION(BlueprintPure, Category = "!AI|Monster")
-	UAIPerceptionComponent* GetMonsterPerceptionComponent() const { return AIPerception; }
-
-	UFUNCTION(BlueprintPure, Category = "!AI|Monster")
 	APawn* GetPerceivedPlayerPawn() const;
 
 	/** 현재 표적을 유지할 수 없을 때 감지된 플레이어 중 다음 표적을 선택한다. */

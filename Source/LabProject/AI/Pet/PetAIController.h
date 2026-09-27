@@ -21,13 +21,9 @@ public:
 	APetAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintCallable, Category = "!AI|Pet")
 	void RefreshFollowTarget();
 
-protected:
-	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void InitializeBlackboardValues(APawn* InPawn);
-	AActor* ResolveFollowTarget() const;
+private:
 	void UpdateDirectFollowFallback(float DeltaSeconds);
 	void StartFollowTargetRefreshTimer();
 	void StopFollowTargetRefreshTimer();

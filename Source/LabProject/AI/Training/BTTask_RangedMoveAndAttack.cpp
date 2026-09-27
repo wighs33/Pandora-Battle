@@ -1,4 +1,4 @@
-#include "AI/BTTask_RangedMoveAndAttack.h"
+#include "AI/Training/BTTask_RangedMoveAndAttack.h"
 
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -10,19 +10,12 @@
 
 namespace
 {
-	enum class ERangedMoveAndAttackPhase : uint8
-	{
-		Move
-	};
-
 	struct FRangedMoveAndAttackMemory
 	{
 		FVector Destination = FVector::ZeroVector;
 		float ElapsedTime = 0.0f;
 		float NextAttackRequestTime = 0.0f;
 		float NextRetreatMoveRequestTime = 0.0f;
-		ERangedMoveAndAttackPhase Phase = ERangedMoveAndAttackPhase::Move;
-		uint8 bRetreating : 1;
 	};
 }
 
@@ -133,8 +126,6 @@ EBTNodeResult::Type UBTTask_RangedMoveAndAttack::RequestMove(UBehaviorTreeCompon
 	Memory->ElapsedTime = 0.0f;
 	Memory->NextAttackRequestTime = 0.0f;
 	Memory->NextRetreatMoveRequestTime = FMath::Max(RetreatRepathInterval, 0.05f);
-	Memory->Phase = ERangedMoveAndAttackPhase::Move;
-	Memory->bRetreating = false;
 
 	FVector Destination = FVector::ZeroVector;
 	const bool bShouldRetreat = Enemy->GetAttackDistanceToActor(TargetActor) <= RetreatDistance;
@@ -147,7 +138,6 @@ EBTNodeResult::Type UBTTask_RangedMoveAndAttack::RequestMove(UBehaviorTreeCompon
 	}
 
 	Memory->Destination = Destination;
-	Memory->bRetreating = bShouldRetreat;
 	UpdateFacing(AIController, Pawn, TargetActor, 0.0f);
 	if (!Enemy->IsStatusFrozen())
 	{
@@ -240,7 +230,6 @@ bool UBTTask_RangedMoveAndAttack::RequestRetreatMove(UBehaviorTreeComponent& Own
 	}
 
 	Memory->Destination = RetreatDestination;
-	Memory->bRetreating = true;
 	if (!Enemy->IsStatusFrozen())
 	{
 		AIController->SetFocus(TargetActor, EAIFocusPriority::Gameplay);

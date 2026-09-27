@@ -22,10 +22,6 @@ public:
 	UBTService_PetUpdateFollowData();
 
 protected:
-	// Internal Helpers ------------------------------------------------------------------------------------------------
-	AActor* ResolveFollowTarget(const APawn* Pawn, UBlackboardComponent* BlackboardComponent) const;
-
-protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Pet|Blackboard")
 	FBlackboardKeySelector FollowTargetActorKey;
 

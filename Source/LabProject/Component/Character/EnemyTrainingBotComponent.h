@@ -23,7 +23,6 @@ public:
 	UEnemyTrainingBotComponent();
 
 	void ApplySettings(const FEnemyTrainingBotSettings& InSettings);
-	const FEnemyTrainingBotSettings& GetSettings() const { return Settings; }
 
 	void InitializeRuntime();
 	void ShutdownRuntime();
@@ -51,7 +50,6 @@ public:
 	void HandleDeathAfterBase();
 	void HandleDamageTaken(
 		float DamageAmount,
-		bool bCriticalHit,
 		bool bAllowHitReact);
 
 private:
@@ -62,7 +60,7 @@ private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	AEnemyBase* GetEnemyOwner() const;
 	const AEnemyBase* GetEnemyOwnerConst() const;
-	void TriggerHitReaction(float DamageAmount, bool bCriticalHit);
+	void TriggerHitReaction();
 	void StartHitStun();
 	bool TryActivateHitReactAbility();
 	UAnimMontage* ResolveHitReactMontage() const;

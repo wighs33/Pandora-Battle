@@ -351,14 +351,6 @@ bool AEnemyBase::IsUsingGunWeapon() const
 		&& EnemyCombatComponent->IsUsingGunWeapon();
 }
 
-bool AEnemyBase::EquipEnemyWeaponDefinition(
-	const UItemDefinition* WeaponDefinition)
-{
-	return EnemyCombatComponent
-		&& EnemyCombatComponent->EquipEnemyWeaponDefinition(
-			WeaponDefinition);
-}
-
 bool AEnemyBase::RequestTrainingBotWeaponChange(
 	const UItemDefinition* WeaponDefinition)
 {
@@ -407,7 +399,6 @@ void AEnemyBase::HandleDamageTaken(
 	{
 		EnemyTrainingBotComponent->HandleDamageTaken(
 			DamageAmount,
-			bCriticalHit,
 			bAllowHitReact);
 	}
 }

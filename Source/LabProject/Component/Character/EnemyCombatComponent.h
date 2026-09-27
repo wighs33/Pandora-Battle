@@ -8,7 +8,6 @@
 class AEnemyBase;
 class UItemDefinition;
 struct FStreamableHandle;
-struct FAttackData;
 
 /**
  * 적의 대상 지정·능력치 초기화·기본 장비·공격 예약을 관리한다.
@@ -35,10 +34,6 @@ public:
 	bool IsActorValidAttackTarget(const AActor* InActor) const;
 
 	void SetUseNearestPlayerWhenTargetUnset(bool bInUseNearestPlayer);
-	bool GetUseNearestPlayerWhenTargetUnset() const
-	{
-		return Settings.bUseNearestPlayerWhenTargetUnset;
-	}
 
 	void Attack();
 	void SetAttackEnabled(bool bInAttackEnabled);
@@ -53,11 +48,8 @@ public:
 	bool IsUsingRangedWeapon() const;
 	bool IsUsingGunWeapon() const;
 
-	void EnsureDefaultAttributeSetup();
 	// 실제 기본 속성 집합이 ASC에 준비되었는지 확인한다.
 	bool IsDefaultAttributeSetupComplete() const;
-	bool ApplyDefaultStatDefinition();
-	bool EquipStartingWeapon();
 	bool EquipEnemyWeaponDefinition(const UItemDefinition* WeaponDefinition);
 	const UItemDefinition* GetCurrentOrStartingEnemyWeaponDefinition() const;
 	void ClearStartingWeaponDefinition();
@@ -67,6 +59,9 @@ public:
 	void HandlePossessed();
 
 private:
+	void EnsureDefaultAttributeSetup();
+	bool ApplyDefaultStatDefinition();
+	bool EquipStartingWeapon();
 	void HandleInitialCombatDelayElapsed();
 	void HandleRuntimeContentPreloaded(uint32 RequestGeneration);
 

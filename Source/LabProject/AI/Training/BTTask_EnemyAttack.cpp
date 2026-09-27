@@ -1,4 +1,4 @@
-#include "AI/BTTask_EnemyAttack.h"
+#include "AI/Training/BTTask_EnemyAttack.h"
 
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"

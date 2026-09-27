@@ -1,6 +1,6 @@
-#include "AI/MonsterCharacter.h"
+#include "AI/Monster/MonsterCharacter.h"
 
-#include "AI/MonsterAIController.h"
+#include "AI/Monster/MonsterAIController.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Animation/AnimInstance.h"

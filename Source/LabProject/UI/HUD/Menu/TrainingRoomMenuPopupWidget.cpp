@@ -1,6 +1,6 @@
 #include "UI/HUD/Menu/TrainingRoomMenuPopupWidget.h"
 
-#include "AI/TrainingBotAIController.h"
+#include "AI/Training/TrainingBotAIController.h"
 #include "Character/EnemyBase.h"
 #include "Components/Button.h"
 #include "Components/CheckBox.h"

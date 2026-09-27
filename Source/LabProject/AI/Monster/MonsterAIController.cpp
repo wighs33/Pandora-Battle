@@ -1,9 +1,9 @@
-#include "AI/MonsterAIController.h"
+#include "AI/Monster/MonsterAIController.h"
 
 #include "Component/Experience/ExperienceManagerComponent.h"
 #include "Components/StateTreeAIComponent.h"
 #include "Character/EnemyBase.h"
-#include "AI/MonsterCharacter.h"
+#include "AI/Monster/MonsterCharacter.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Definition/Character/EnemyBaseDefinition.h"

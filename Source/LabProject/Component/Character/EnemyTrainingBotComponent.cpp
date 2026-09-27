@@ -2,7 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "AI/TrainingBotAIController.h"
+#include "AI/Training/TrainingBotAIController.h"
 #include "AIController.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
@@ -132,7 +132,6 @@ void UEnemyTrainingBotComponent::HandleDeathAfterBase()
 
 void UEnemyTrainingBotComponent::HandleDamageTaken(
 	const float DamageAmount,
-	const bool bCriticalHit,
 	const bool bAllowHitReact)
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
@@ -161,16 +160,11 @@ void UEnemyTrainingBotComponent::HandleDamageTaken(
 		return;
 	}
 
-	TriggerHitReaction(DamageAmount, bCriticalHit);
+	TriggerHitReaction();
 }
 
-void UEnemyTrainingBotComponent::TriggerHitReaction(
-	const float DamageAmount,
-	const bool bCriticalHit)
+void UEnemyTrainingBotComponent::TriggerHitReaction()
 {
-	static_cast<void>(DamageAmount);
-	static_cast<void>(bCriticalHit);
-
 	AEnemyBase* Enemy = GetEnemyOwner();
 	if (!Enemy)
 	{
