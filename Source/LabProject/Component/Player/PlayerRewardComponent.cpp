@@ -5,7 +5,6 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Actor.h"
 #include "Interface/InteractableInterface.h"
-#include "Item/RewardChest.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Mode/PdPlayerController.h"
@@ -182,18 +181,7 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 	TArray<FPrimaryAssetId> RewardPandoraDefinitions;
 	UInventoryComponent* InventoryComponent =
 		PlayerState->GetInventoryComponent();
-	if (ARewardChest* RewardChest = Cast<ARewardChest>(InteractableActor))
-	{
-		RewardChest->GetRewardItemsForInventory(
-			InventoryComponent,
-			RewardItemDefinitions);
-	}
-	else
-	{
-		IInteractableInterface::Execute_GetRewardItems(
-			InteractableActor,
-			RewardItemDefinitions);
-	}
+	IInteractableInterface::Execute_GetRewardItems(InteractableActor, RewardItemDefinitions);
 	IInteractableInterface::Execute_GetRewardSkins(InteractableActor, RewardSkinDefinitions);
 	IInteractableInterface::Execute_GetRewardPandoras(InteractableActor, RewardPandoraDefinitions);
 

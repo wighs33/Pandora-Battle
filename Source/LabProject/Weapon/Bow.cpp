@@ -343,7 +343,7 @@ bool ABow::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* Tar
 	return LaunchArrowAtTargetOnServer(AttackingCharacter, TargetActor);
 }
 
-bool ABow::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
+bool ABow::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* /*TargetActor*/, const FVector& TargetLocation)
 {
 	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
 		|| TargetLocation.IsNearlyZero())
@@ -352,7 +352,7 @@ bool ABow::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, A
 		return false;
 	}
 
-	return LaunchArrowAtLocationOnServer(AttackingCharacter, TargetActor, TargetLocation);
+	return LaunchArrowAtLocationOnServer(AttackingCharacter, TargetLocation);
 }
 
 bool ABow::OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter)
@@ -501,10 +501,10 @@ bool ABow::LaunchArrowAtTargetOnServer(ACharacterBase* AttackingCharacter, AActo
 		return false;
 	}
 
-	return LaunchArrowAtLocationOnServer(AttackingCharacter, TargetActor, GetAITargetAimLocation(TargetActor));
+	return LaunchArrowAtLocationOnServer(AttackingCharacter, GetAITargetAimLocation(TargetActor));
 }
 
-bool ABow::LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
+bool ABow::LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, const FVector& TargetLocation)
 {
 	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
 		|| !IsServerFireCadenceReady()

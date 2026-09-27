@@ -4,8 +4,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ItemInstance)
 
-DEFINE_LOG_CATEGORY(ItemInstanceLog);
-
 FGuid UItemInstance::GetOrCreateItemId()
 {
 	EnsureItemId();

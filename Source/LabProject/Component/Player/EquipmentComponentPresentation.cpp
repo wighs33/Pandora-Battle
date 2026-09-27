@@ -9,12 +9,6 @@
 #include "Engine/World.h"
 #include "Weapon/WeaponBase.h"
 
-// 로딩은 StreamableHandle이 맡고, 준비된 참조는 Soft Pointer에서 바로 읽는다.
-UAnimMontage* UEquipmentComponent::GetLoadedEquipMontage(const UItemDefinition* ItemDefinition) const
-{
-	return ItemDefinition ? ItemDefinition->WeaponData.Equip.EquipMontage.Get() : nullptr;
-}
-
 TSubclassOf<UAnimInstance> UEquipmentComponent::GetLoadedEquipAnimLayer(const UItemDefinition* ItemDefinition) const
 {
 	return ItemDefinition ? ItemDefinition->WeaponData.Equip.AnimLayer.Get() : nullptr;
@@ -223,26 +217,6 @@ void UEquipmentComponent::ReleaseWeaponPresentationLoads()
 		}
 	}
 	WeaponPresentationLoadHandles.Reset();
-}
-
-UAnimMontage* UEquipmentComponent::GetLoadedUnequipMontage(const UItemDefinition* ItemDefinition) const
-{
-	return ItemDefinition ? ItemDefinition->WeaponData.Equip.UnequipMontage.Get() : nullptr;
-}
-
-UAnimMontage* UEquipmentComponent::GetLoadedAttackMontage(const UItemDefinition* ItemDefinition) const
-{
-	return ItemDefinition ? ItemDefinition->WeaponData.Attack.AttackMontage.Get() : nullptr;
-}
-
-UAnimMontage* UEquipmentComponent::GetLoadedHitReactMontage(const UItemDefinition* ItemDefinition) const
-{
-	return ItemDefinition ? ItemDefinition->WeaponData.HitReact.HitReactMontage.Get() : nullptr;
-}
-
-TSubclassOf<AWeaponBase> UEquipmentComponent::GetLoadedWeaponActorClass(const UItemDefinition* ItemDefinition) const
-{
-	return ItemDefinition ? ItemDefinition->WeaponData.Equip.ActorClass.Get() : nullptr;
 }
 
 AWeaponBase* UEquipmentComponent::SpawnAndAttachWeaponActor(TSubclassOf<AWeaponBase> WeaponClass, const UItemDefinition* ItemDefinition) const

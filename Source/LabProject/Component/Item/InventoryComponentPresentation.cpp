@@ -1,18 +1,9 @@
 #include "Component/Item/InventoryComponent.h"
 
-#include "AbilitySystemComponent.h"
-#include "AbilitySystemInterface.h"
-#include "Definition/Common/ProjectTagDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
-#include "GameFramework/Actor.h"
-#include "GameplayEffect.h"
-#include "GameplayEffectTypes.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
-#include "Mode/PdPlayerState.h"
-#include "Net/Core/PushModel/PushModel.h"
-#include "Net/UnrealNetwork.h"
 
 bool UInventoryComponent::HasPendingItemLoads()
 {
@@ -84,19 +75,16 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 		}
 	}
 
-	for (auto HandleIt = PandoraWeaponPresentationLoadHandles.CreateIterator(); HandleIt; ++HandleIt)
+	for (auto HandleIt = WeaponLoadoutPresentationHandles.CreateIterator(); HandleIt; ++HandleIt)
 	{
 		if (DesiredItemDefinitions.Contains(HandleIt.Key()))
 		{
 			continue;
 		}
 
-		for (const TSharedPtr<FStreamableHandle>& LoadHandle : HandleIt.Value())
+		if (HandleIt.Value().IsValid())
 		{
-			if (LoadHandle.IsValid())
-			{
-				LoadHandle->ReleaseHandle();
-			}
+			HandleIt.Value()->ReleaseHandle();
 		}
 		HandleIt.RemoveCurrent();
 	}
@@ -107,16 +95,13 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 		: DesiredItemDefinitions)
 	{
 		const FPrimaryAssetId& AssetId = DesiredPair.Key;
-		if (PandoraWeaponPresentationLoadHandles.Contains(AssetId))
+		if (WeaponLoadoutPresentationHandles.Contains(AssetId))
 		{
 			continue;
 		}
 
-		// Resolve the serialized bundle to concrete soft paths, then own a
-		// streamable handle per inventory. UAssetManager bundle state is global
-		// and LoadPrimaryAsset legitimately returns no handle when that state is
-		// already active; treating that no-op as a failure produced the
-		// DA_Greatsword error and also made per-player release semantics unclear.
+		// AssetManager bundle state is global; each inventory retains its own
+		// handle for the lifetime of its loadout references.
 		TArray<FSoftObjectPath> PresentationAssetPaths;
 		const FAssetBundleEntry BundleEntry =
 			AssetManager.GetAssetBundleEntry(
@@ -156,7 +141,7 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 		// preload. Record an empty sentinel so subsequent refreshes stay cheap.
 		if (PresentationAssetPaths.IsEmpty())
 		{
-			PandoraWeaponPresentationLoadHandles.Add(AssetId, {});
+			WeaponLoadoutPresentationHandles.Add(AssetId, nullptr);
 			continue;
 		}
 
@@ -191,26 +176,19 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 					}
 				}));
 
-		TArray<TSharedPtr<FStreamableHandle>> LoadHandles;
-		LoadHandles.Add(MoveTemp(LoadHandle));
-		PandoraWeaponPresentationLoadHandles.Add(
-			AssetId,
-			MoveTemp(LoadHandles));
+		WeaponLoadoutPresentationHandles.Add(AssetId, MoveTemp(LoadHandle));
 	}
 }
 
 void UInventoryComponent::ReleaseWeaponLoadoutPresentationAssets()
 {
-	for (TPair<FPrimaryAssetId, TArray<TSharedPtr<FStreamableHandle>>>& HandlePair :
-		PandoraWeaponPresentationLoadHandles)
+	for (TPair<FPrimaryAssetId, TSharedPtr<FStreamableHandle>>& HandlePair :
+		WeaponLoadoutPresentationHandles)
 	{
-		for (const TSharedPtr<FStreamableHandle>& LoadHandle : HandlePair.Value)
+		if (HandlePair.Value.IsValid())
 		{
-			if (LoadHandle.IsValid())
-			{
-				LoadHandle->ReleaseHandle();
-			}
+			HandlePair.Value->ReleaseHandle();
 		}
 	}
-	PandoraWeaponPresentationLoadHandles.Reset();
+	WeaponLoadoutPresentationHandles.Reset();
 }

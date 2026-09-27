@@ -1,9 +1,11 @@
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 
+#include "Character/CharacterBase.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "GameFramework/Pawn.h"
+#include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Pandora/PandoraLoadoutTypes.h"
@@ -52,7 +54,7 @@ void USelectingPandoraAndWeaponComponent::ServerSelectPandoraAndWeapon_Implement
 // 서버에서 선택 슬롯의 무기와 판도라를 준비된 컴포넌트에 적용하며, Pawn이나 슬롯 내용이 바뀌면 다시 적용할 수 있다.
 void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 {
-	APlayerState* PlayerState = GetPlayerState<APlayerState>();
+	APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>();
 	if (!PlayerState || !HasAuthority())
 	{
 		return;
@@ -67,9 +69,10 @@ void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 	}
 
 	// 무기 장착 처리
-	if (UEquipmentComponent* Equipment = Pawn->FindComponentByClass<UEquipmentComponent>())
+	const ACharacterBase* Character = Cast<ACharacterBase>(Pawn);
+	if (UEquipmentComponent* Equipment = Character ? Character->GetEquipmentComponent() : nullptr)
 	{
-		const UInventoryComponent* Inventory = PlayerState->FindComponentByClass<UInventoryComponent>();
+		const UInventoryComponent* Inventory = PlayerState->GetInventoryComponent();
 		if (UItemInstance* SelectedWeapon = Inventory ? Inventory->FindWeaponForLoadoutSlot(SelectedDirection) : nullptr)
 		{
 			Equipment->RequestWeaponSelectionForDirection(SelectedDirection, SelectedWeapon);
@@ -81,7 +84,7 @@ void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 	}
 
 	// 판도라 장착 처리
-	if (UPandoraComponent* PandoraComponent = PlayerState->FindComponentByClass<UPandoraComponent>())
+	if (UPandoraComponent* PandoraComponent = PlayerState->GetPandoraComponent())
 	{
 		const UPandoraDefinition* PandoraDefinition =
 			PandoraComponent->GetPandoraLoadoutDefinition(SelectedDirection);

@@ -65,7 +65,7 @@ protected:
 	void DestroyDrawnArrow();
 	bool TryGetArrowLaunchStartLocation(const ACharacterBase* Character, FVector& OutLocation) const;
 	bool LaunchArrowAtTargetOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor);
-	bool LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation);
+	bool LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, const FVector& TargetLocation);
 	bool LaunchArrowOnServer(
 		APdPlayer* PlayerCharacter,
 		const FVector& RequestedViewLocation,

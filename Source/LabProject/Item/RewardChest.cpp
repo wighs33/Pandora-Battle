@@ -143,14 +143,6 @@ FText ARewardChest::GetInteractText_Implementation(AActor* InteractingActor)
 }
 
 void ARewardChest::GetRewardItems_Implementation(TArray<FPrimaryAssetId>& OutItemDefinitionList)
-
-{
-	GetRewardItemsForInventory(nullptr, OutItemDefinitionList);
-}
-
-void ARewardChest::GetRewardItemsForInventory(
-	const UInventoryComponent*,
-	TArray<FPrimaryAssetId>& OutItemDefinitionList)
 {
 	OutItemDefinitionList.Reset();
 	if (ChestState != ERewardChestState::Closed

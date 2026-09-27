@@ -6,7 +6,6 @@
 #include "ItemInstance.generated.h"
 
 class UItemDefinition;
-DECLARE_LOG_CATEGORY_EXTERN(ItemInstanceLog, Log, All);
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UItemInstance : public UObject
@@ -17,7 +16,6 @@ public:
 	static constexpr float UpgradeStatBonusRatePerLevel = 0.5f;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintCallable, Category = "!Item")
 	FGuid GetOrCreateItemId();
 
 	UFUNCTION(BlueprintPure, Category = "!Item")

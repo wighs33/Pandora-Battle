@@ -1,20 +1,13 @@
 #include "Component/Item/InventoryComponent.h"
 
-#include "AbilitySystemComponent.h"
-#include "AbilitySystemInterface.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Definition/Common/ProjectTagDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
 #include "GameFramework/Actor.h"
-#include "GameplayEffect.h"
-#include "GameplayEffectTypes.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Misc/ScopeExit.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
-#include "Net/UnrealNetwork.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 
 void FReplicatedInventoryList::PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters)

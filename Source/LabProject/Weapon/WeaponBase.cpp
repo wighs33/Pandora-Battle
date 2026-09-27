@@ -191,7 +191,7 @@ void AWeaponBase::PlayComboWindowStartEffect(UNiagaraSystem* EffectSystem)
 
 void AWeaponBase::InitializeFromItemDefinition(const UItemDefinition* InItemDefinition)
 {
-    SourceItemDefinition = const_cast<UItemDefinition*>(InItemDefinition);
+    SourceItemDefinition = InItemDefinition;
     if (HasAuthority())
     {
         MARK_PROPERTY_DIRTY_FROM_NAME(AWeaponBase, SourceItemDefinition, this);

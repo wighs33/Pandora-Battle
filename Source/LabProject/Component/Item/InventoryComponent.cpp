@@ -403,11 +403,6 @@ void UInventoryComponent::FilterItem(UItemInstance* ItemInstance)
 
 }
 
-FGuid UInventoryComponent::GetOrCreateItemId(UItemInstance* ItemInstance)
-{
-	return IsValid(ItemInstance) ? ItemInstance->GetOrCreateItemId() : FGuid();
-}
-
 UItemInstance* UInventoryComponent::FindItemInstanceById(FGuid ItemId) const
 {
 	if (!ItemId.IsValid())
@@ -820,15 +815,6 @@ bool UInventoryComponent::MergeUpgradeableItems(
 	ReplicatedEntries.MarkEntryDirty(*TargetEntry);
 
 	return RemoveReplicatedItemById(ConsumedItemId);
-}
-
-void UInventoryComponent::ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig)
-{
-	const UProjectTagDefinition* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagDefinition::GetDefaultDefinition();
-	EffectiveConfig->GetItemFilterTypeTags(FilterTypeTags);
-
-	RebuildFilteredItemMap();
-	NotifyInventoryChanged();
 }
 
 bool UInventoryComponent::HasInventoryAuthority() const

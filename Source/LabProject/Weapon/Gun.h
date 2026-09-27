@@ -39,8 +39,7 @@ protected:
 		APdPlayer* PlayerCharacter,
 		const FVector& RequestedViewLocation,
 		const FVector& RequestedViewDirection);
-	bool HandleAIPrimaryAttackOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor);
-	bool HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation);
+	bool HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, const FVector& TargetLocation);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ExecuteMuzzleFlashCue(ACharacterBase* Character) const;

@@ -58,10 +58,10 @@ bool AGun::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* Tar
 		return false;
 	}
 
-	return HandleAIPrimaryAttackOnServer(AttackingCharacter, TargetActor);
+	return HandleAIPrimaryAttackAtLocationOnServer(AttackingCharacter, GetAITargetAimLocation(TargetActor));
 }
 
-bool AGun::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
+bool AGun::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* /*TargetActor*/, const FVector& TargetLocation)
 {
 	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
 		|| TargetLocation.IsNearlyZero())
@@ -70,7 +70,7 @@ bool AGun::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, A
 		return false;
 	}
 
-	return HandleAIPrimaryAttackAtLocationOnServer(AttackingCharacter, TargetActor, TargetLocation);
+	return HandleAIPrimaryAttackAtLocationOnServer(AttackingCharacter, TargetLocation);
 }
 
 bool AGun::HandlePrimaryAttackOnServer(
@@ -125,18 +125,7 @@ bool AGun::HandlePrimaryAttackOnServer(
 	return true;
 }
 
-bool AGun::HandleAIPrimaryAttackOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor)
-{
-	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
-		|| !IsValid(TargetActor))
-	{
-		return false;
-	}
-
-	return HandleAIPrimaryAttackAtLocationOnServer(AttackingCharacter, TargetActor, GetAITargetAimLocation(TargetActor));
-}
-
-bool AGun::HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor, const FVector& TargetLocation)
+bool AGun::HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, const FVector& TargetLocation)
 {
 	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
 		|| TargetLocation.IsNearlyZero())

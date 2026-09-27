@@ -11,7 +11,6 @@
 class UInventoryComponent;
 class UItemDefinition;
 class UItemInstance;
-class UProjectTagDefinition;
 struct FStreamableHandle;
 
 DECLARE_LOG_CATEGORY_EXTERN(InventoryComponentLog, Log, All);
@@ -149,11 +148,7 @@ public:
 		int32 Quantity,
 		int32 SlotIndex);
 
-	UFUNCTION()
 	void ClearAllItems();
-
-	UFUNCTION(BlueprintCallable, Category = "!Inventory")
-	FGuid GetOrCreateItemId(UItemInstance* ItemInstance);
 
 	UFUNCTION(BlueprintPure, Category = "!Inventory")
 	UItemInstance* FindItemInstanceById(FGuid ItemId) const;
@@ -205,8 +200,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Inventory|Upgrade")
 	bool MergeUpgradeableItems(FGuid SourceItemId, FGuid TargetItemId);
 
-	void ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig);
-
 protected:
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
@@ -233,6 +226,7 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerMergeUpgradeableItems(FGuid SourceItemId, FGuid TargetItemId);
 
+private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry);
 
@@ -316,7 +310,6 @@ private:
 	int32 InventoryUpdateDepth = 0;
 	bool bInventoryChangePending = false;
 
-protected:
 	UPROPERTY(Replicated)
 	FReplicatedInventoryList ReplicatedEntries;
 
@@ -332,5 +325,5 @@ protected:
 	uint64 ItemLoadGeneration = 0;
 	int32 PendingItemLoadRequestCount = 0;
 	TArray<TSharedPtr<FStreamableHandle>> PendingItemLoadHandles;
-	TMap<FPrimaryAssetId, TArray<TSharedPtr<FStreamableHandle>>> PandoraWeaponPresentationLoadHandles;
+	TMap<FPrimaryAssetId, TSharedPtr<FStreamableHandle>> WeaponLoadoutPresentationHandles;
 };

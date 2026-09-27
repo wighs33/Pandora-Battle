@@ -8,7 +8,6 @@
 
 class UAnimationAsset;
 class UAnimMontage;
-class UInventoryComponent;
 class UItemDefinition;
 class UMaterialBillboardComponent;
 class UNiagaraComponent;
@@ -75,10 +74,6 @@ public:
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	ARewardChest(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	/** Inventory ownership does not exclude weapon or equipment candidates; duplicate instances are allowed. */
-	void GetRewardItemsForInventory(
-		const UInventoryComponent* InventoryComponent,
-		TArray<FPrimaryAssetId>& OutItemDefinitionList);
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Reward Chest")
 	void MarkOpened(AActor* RewardReceiver);

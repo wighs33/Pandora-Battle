@@ -1,6 +1,7 @@
 #include "Component/Player/EquipmentComponent.h"
 
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
@@ -285,7 +286,7 @@ bool UEquipmentComponent::GetEquipData(FEquipData& OutEquipData) const
 	UAnimMontage* EquipMontage = nullptr;
 	if (!ShouldEquipWeaponsWithoutAnimation())
 	{
-		EquipMontage = GetLoadedEquipMontage(ItemDefinition);
+		EquipMontage = ItemDefinition->WeaponData.Equip.EquipMontage.Get();
 		if (!EquipMontage)
 		{
 			return false;
@@ -308,7 +309,7 @@ bool UEquipmentComponent::GetUnequipData(FUnequipData& OutUnequipData) const
 		return false;
 	}
 
-	UAnimMontage* UnequipMontage = GetLoadedUnequipMontage(ItemDefinition);
+	UAnimMontage* UnequipMontage = ItemDefinition->WeaponData.Equip.UnequipMontage.Get();
 	if (!UnequipMontage)
 	{
 		return false;
@@ -472,7 +473,7 @@ bool UEquipmentComponent::ResolveWeaponIdFromInstance(UItemInstance* WeaponInsta
 		return false;
 	}
 
-	const FGuid WeaponId = InventoryComponent->GetOrCreateItemId(WeaponInstance);
+	const FGuid WeaponId = WeaponInstance->GetOrCreateItemId();
 	if (!WeaponId.IsValid())
 	{
 		return false;
@@ -704,7 +705,7 @@ bool UEquipmentComponent::GetAttackData(FAttackData& OutAttackData) const
 		return false;
 	}
 
-	UAnimMontage* AttackMontage = GetLoadedAttackMontage(ItemDefinition);
+	UAnimMontage* AttackMontage = ItemDefinition->WeaponData.Attack.AttackMontage.Get();
 	if (!AttackMontage)
 	{
 		return false;
@@ -731,7 +732,7 @@ bool UEquipmentComponent::GetHitReactData(FHitReactData& OutHitReactData) const
 		return false;
 	}
 
-	UAnimMontage* HitReactMontage = GetLoadedHitReactMontage(ItemDefinition);
+	UAnimMontage* HitReactMontage = ItemDefinition->WeaponData.HitReact.HitReactMontage.Get();
 	if (!HitReactMontage)
 	{
 		return false;
@@ -754,7 +755,7 @@ void UEquipmentComponent::ClearRequestedWeaponInstance()
 bool UEquipmentComponent::ReplaceWeapon(const UItemDefinition* Definition, const FGuid WeaponId,
 	const EEnum_Direction Direction, const FEquippedItemStatSnapshot& StatSnapshot)
 {
-	const TSubclassOf<AWeaponBase> WeaponClass = GetLoadedWeaponActorClass(Definition);
+	const TSubclassOf<AWeaponBase> WeaponClass = Definition ? Definition->WeaponData.Equip.ActorClass.Get() : nullptr;
 	if (bEndingPlay || !HasEquipmentAuthority() || !WeaponClass)
 	{
 		return false;

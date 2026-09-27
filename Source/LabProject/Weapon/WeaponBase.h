@@ -30,19 +30,14 @@ public:
 
     bool PlayWeaponAttackMontage(FName StartingSection = NAME_None);
 
-    UFUNCTION(BlueprintCallable, Category = "!Weapon|Animation")
     bool JumpToWeaponMontageSectionAndResume(FName SectionName);
 
-    UFUNCTION(BlueprintCallable, Category = "!Weapon|Animation")
     void StopWeaponMontage(float BlendOutTime = 0.1f);
 
-    UFUNCTION(BlueprintCallable, Category = "!Weapon|VFX")
     bool HasSkillWeaponTrailComponent() const;
 
-    UFUNCTION(BlueprintCallable, Category = "!Weapon|VFX")
     bool StartSkillWeaponTrail(UNiagaraSystem* TrailSystem);
 
-    UFUNCTION(BlueprintCallable, Category = "!Weapon|VFX")
     void StopSkillWeaponTrail();
 
     void PlayComboWindowStartEffect(UNiagaraSystem* EffectSystem);
@@ -114,7 +109,7 @@ protected:
     FComponentReference SkillTrailComponent;
 
     UPROPERTY(Replicated, Transient)
-    TObjectPtr<UItemDefinition> SourceItemDefinition;
+    TObjectPtr<const UItemDefinition> SourceItemDefinition;
 
     UPROPERTY(Transient)
     TObjectPtr<UNiagaraSystem> ActiveSkillTrailSystem;

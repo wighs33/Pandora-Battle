@@ -87,7 +87,6 @@ public:
 
 	bool GetUnequipData(FUnequipData& OutUnequipData) const;
 
-	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	bool ShouldEquipWeaponsWithoutAnimation() const;
 
 	bool GetAttackData(FAttackData& OutAttackData) const;
@@ -99,7 +98,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	AWeaponBase* GetCurrentWeaponActor() const { return CurrentWeaponActor; }
 
-	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	FGuid GetCurrentWeaponId() const { return CurrentWeaponId; }
 
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
@@ -115,26 +113,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	EEnum_Direction GetCurrentWeaponLoadoutDirection() const { return CurrentWeaponLoadoutDirection; }
 
-	UFUNCTION(BlueprintCallable, Category = "!Equipment")
 	void ClearRequestedWeaponInstance();
 
 	bool RequestWeaponSelectionForDirection(EEnum_Direction Direction, UItemInstance* WeaponInstance);
 
 	bool RequestWeaponUnequip();
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Equipment")
 	bool EquipWeapon();
 
 	bool CompletePendingWeaponSelectionWithoutAnimation();
 	bool TryResumePendingWeaponSelection();
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Equipment")
 	bool EquipWeaponDefinition(const UItemDefinition* WeaponDefinition);
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Equipment")
 	bool UnequipCurrentWeapon();
 
-protected:
+private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleWeaponPresentationLoaded(FPrimaryAssetId ItemDefinitionId);
 
@@ -164,13 +158,8 @@ protected:
 	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
 	FGameplayTag GetEquipAbilityTag() const;
 	FGameplayTag GetUnequipAbilityTag() const;
-	UAnimMontage* GetLoadedEquipMontage(const UItemDefinition* ItemDefinition) const;
 	TSubclassOf<UAnimInstance> GetLoadedEquipAnimLayer(const UItemDefinition* ItemDefinition) const;
-	UAnimMontage* GetLoadedUnequipMontage(const UItemDefinition* ItemDefinition) const;
-	UAnimMontage* GetLoadedAttackMontage(const UItemDefinition* ItemDefinition) const;
-	UAnimMontage* GetLoadedHitReactMontage(const UItemDefinition* ItemDefinition) const;
 
-	TSubclassOf<AWeaponBase> GetLoadedWeaponActorClass(const UItemDefinition* ItemDefinition) const;
 	bool IsWeaponPresentationLoaded(const UItemDefinition* ItemDefinition) const;
 	bool RequestWeaponPresentationLoad(const UItemDefinition* ItemDefinition, FSimpleDelegate OnLoaded);
 	void RefreshCurrentWeaponPresentation();
