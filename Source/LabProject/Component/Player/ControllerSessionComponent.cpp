@@ -7,7 +7,7 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Online/OnlineSessionsSubsystem.h"
-#include "UI/GameResultTypes.h"
+#include "UI/Match/GameResultTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerSessionComponent)
 

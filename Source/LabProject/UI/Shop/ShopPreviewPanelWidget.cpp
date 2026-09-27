@@ -5,7 +5,6 @@
 #include "Components/TextBlock.h"
 #include "UI/Shop/ShopEntryViewData.h"
 #include "Localization/MenuLocalizationSubsystem.h"
-#include "UI/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopPreviewPanelWidget)
 
@@ -74,80 +73,15 @@ void UShopPreviewPanelWidget::HandleBuyClicked()
 
 void UShopPreviewPanelWidget::ResolveWidgets()
 {
-	if (!Txt_Name)
-	{
-		Txt_Name = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("Txt_Name"),
-			TEXT("Txt_ItemName"),
-			TEXT("Txt_PandoraName"),
-			TEXT("Txt_DisplayName"),
-			TEXT("Txt_Title")
-		});
-	}
 	CaptureDefaultNameColor();
 
-	if (!Txt_Description)
-	{
-		Txt_Description = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("Desc"),
-			TEXT("Description"),
-			TEXT("Txt_Description"),
-			TEXT("Txt_ItemDescription"),
-			TEXT("Txt_PandoraDescription"),
-			TEXT("Txt_Desc"),
-			TEXT("Txt_PreviewDescription")
-		});
-	}
 	ConfigureDescriptionTextBlock();
 
-	if (!Txt_Price)
-	{
-		Txt_Price = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("Txt_Price"),
-			TEXT("Txt_GoldPrice"),
-			TEXT("Txt_Cost")
-		});
-	}
 	CaptureDefaultPriceColor();
 
-	if (!Txt_State)
-	{
-		Txt_State = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("Txt_State"),
-			TEXT("Txt_Status"),
-			TEXT("Txt_Owned")
-		});
-	}
 
-	if (!Txt_Message)
-	{
-		Txt_Message = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("Txt_Message"),
-			TEXT("Txt_StatusMessage"),
-			TEXT("Txt_ResultMessage"),
-			TEXT("Txt_Warning")
-		});
-	}
 
-	if (!Img_Icon)
-	{
-		Img_Icon = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
-			TEXT("Img_Icon"),
-			TEXT("Img_ItemIcon"),
-			TEXT("Img_PandoraIcon"),
-			TEXT("Img_PreviewIcon"),
-			TEXT("Img_Preview")
-		});
-	}
 
-	if (!Btn_Buy)
-	{
-		Btn_Buy = PdWidgetLookup::FindWidgetByNames<UButton>(this, {
-			TEXT("Btn_Buy"),
-			TEXT("Btn_Purchase"),
-			TEXT("Btn_Unlock")
-		});
-	}
 }
 
 void UShopPreviewPanelWidget::ConfigureDescriptionTextBlock()

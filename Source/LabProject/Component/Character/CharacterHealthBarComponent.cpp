@@ -8,9 +8,9 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "GameFramework/PlayerController.h"
-#include "UI/Widget/EnemyAvatarWidget.h"
-#include "UI/Widget/EnemyHealthBarWidget.h"
-#include "UI/Widget/EnemyShieldBarWidget.h"
+#include "UI/HUD/Combat/EnemyAvatarWidget.h"
+#include "UI/HUD/Combat/EnemyHealthBarWidget.h"
+#include "UI/HUD/Combat/EnemyShieldBarWidget.h"
 #include "View/MVVMView.h"
 #include "ViewModel/HealthBarViewModel.h"
 

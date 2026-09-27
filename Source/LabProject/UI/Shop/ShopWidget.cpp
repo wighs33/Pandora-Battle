@@ -18,7 +18,7 @@
 #include "Definition/UI/ShopCatalogDefinition.h"
 #include "UI/Shop/ShopEntryViewData.h"
 #include "UI/Shop/ShopPreviewPanelWidget.h"
-#include "UI/WidgetLookup.h"
+#include "UI/Common/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopWidget)
 
@@ -395,64 +395,11 @@ RefreshUI();
 
 void UShopWidget::ResolveWidgets()
 {
-	if (!TileView)
-	{
-		TileView = PdWidgetLookup::FindWidgetByNames<UTileView>(this, {
-			TEXT("TileView"),
-			TEXT("ShopList"),
-			TEXT("TileView_Shop"),
-			TEXT("TileView_Entries"),
-			TEXT("TileView_Pandoras"),
-			TEXT("ShopTileView")
-		});
-	}
 
-	if (!WBP_ShopPreviewPanel)
-	{
-		WBP_ShopPreviewPanel = PdWidgetLookup::FindWidgetByNames<UShopPreviewPanelWidget>(this, {
-			TEXT("WBP_ShopPreviewPanel"),
-			TEXT("ShopPreviewPanel"),
-			TEXT("PreviewPanel")
-		});
-	}
 
-	if (!Txt_Gold)
-	{
-		Txt_Gold = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("Txt_Gold"),
-			TEXT("Txt_PlayerGold"),
-			TEXT("Txt_GoldAmount")
-		});
-	}
 
-	if (!Btn_Close)
-	{
-		Btn_Close = PdWidgetLookup::FindWidgetByNames<UButton>(this, {
-			TEXT("Btn_Close"),
-			TEXT("Btn_Exit"),
-			TEXT("Btn_Back")
-		});
-	}
 
-	if (!PandoraCategoryButton)
-	{
-		PandoraCategoryButton = PdWidgetLookup::FindWidgetByNames<UButton>(this, {
-			TEXT("PandoraCategoryButton"),
-			TEXT("Btn_PandoraCategory"),
-			TEXT("Btn_Pandora"),
-			TEXT("Btn_PandoraShop")
-		});
-	}
 
-	if (!SkinCategoryButton)
-	{
-		SkinCategoryButton = PdWidgetLookup::FindWidgetByNames<UButton>(this, {
-			TEXT("SkinCategoryButton"),
-			TEXT("Btn_SkinCategory"),
-			TEXT("Btn_Skin"),
-			TEXT("Btn_SkinShop")
-		});
-	}
 
 	if (!Btn_ResetShopSave)
 	{

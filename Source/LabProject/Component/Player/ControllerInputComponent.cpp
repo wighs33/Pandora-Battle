@@ -27,8 +27,8 @@
 #include "Definition/Level/LevelDefinition.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
-#include "UI/InfoUiTypes.h"
-#include "UI/PdUIActionRouter.h"
+#include "UI/Info/InfoUiTypes.h"
+#include "UI/Core/PdUIActionRouter.h"
 #include "Engine/LocalPlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerInputComponent)

@@ -15,7 +15,7 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "UI/Lobby/LobbyWidget.h"
 #include "Engine/GameInstance.h"
-#include "UI/UiSubsystem.h"
+#include "UI/Core/UiSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyPlayerController)
 

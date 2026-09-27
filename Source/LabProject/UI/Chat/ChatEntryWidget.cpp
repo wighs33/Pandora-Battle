@@ -1,7 +1,7 @@
 #include "UI/Chat/ChatEntryWidget.h"
 
 #include "Components/TextBlock.h"
-#include "UI/WidgetLookup.h"
+#include "UI/Common/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChatEntryWidget)
 

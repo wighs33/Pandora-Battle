@@ -3,7 +3,7 @@
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "UI/TeamColorUtils.h"
+#include "UI/Common/TeamColorUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameResultPlayerStatEntryWidget)
 

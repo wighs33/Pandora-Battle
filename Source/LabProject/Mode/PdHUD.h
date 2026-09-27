@@ -4,9 +4,9 @@
 #include "GameFramework/HUD.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
-#include "UI/InfoUiTypes.h"
-#include "UI/KillLogTypes.h"
-#include "UI/NotificationData.h"
+#include "UI/Info/InfoUiTypes.h"
+#include "UI/HUD/Match/KillLogTypes.h"
+#include "UI/HUD/Notification/NotificationData.h"
 #include "PdHUD.generated.h"
 
 class APdPlayerController;

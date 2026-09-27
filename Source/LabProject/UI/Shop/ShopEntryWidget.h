@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Blueprint/IUserObjectListEntry.h"
-#include "UI/Widget/LocalizedMenuWidget.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 #include "CoreMinimal.h"
 #include "ShopEntryWidget.generated.h"
 

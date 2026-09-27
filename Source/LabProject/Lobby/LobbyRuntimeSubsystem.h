@@ -6,7 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "Mode/PdLobbyRuntimeTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "UI/GameResultTypes.h"
+#include "UI/Match/GameResultTypes.h"
 #include "UObject/PrimaryAssetId.h"
 #include "LobbyRuntimeSubsystem.generated.h"
 

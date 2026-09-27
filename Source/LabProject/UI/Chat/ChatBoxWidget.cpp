@@ -7,7 +7,7 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
-#include "UI/PdUIActionRouter.h"
+#include "UI/Core/PdUIActionRouter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChatBoxWidget)
 

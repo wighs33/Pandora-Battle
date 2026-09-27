@@ -1,6 +1,6 @@
 #include "UI/Match/GameResultWidget.h"
-#include "UI/UiSubsystem.h"
-#include "UI/UiScreen.h"
+#include "UI/Core/UiSubsystem.h"
+#include "UI/Core/UiScreen.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "Engine/LocalPlayer.h"
 
@@ -13,7 +13,7 @@
 #include "Definition/Level/LevelDefinition.h"
 #include "UI/Match/GameResultPlayerStatEntryWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
-#include "UI/TeamColorUtils.h"
+#include "UI/Common/TeamColorUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameResultWidget)
 

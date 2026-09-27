@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/Widget/LocalizedMenuWidget.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 #include "Types/SlateEnums.h"
 #include "ChatBoxWidget.generated.h"
 

@@ -5,7 +5,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
-#include "UI/DamageIndicatorActor.h"
+#include "UI/HUD/Combat/DamageIndicatorActor.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageIndicatorComponent)
 
 UDamageIndicatorComponent::UDamageIndicatorComponent(const FObjectInitializer& ObjectInitializer)

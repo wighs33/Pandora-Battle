@@ -4,7 +4,7 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "UI/Shop/ShopEntryViewData.h"
-#include "UI/WidgetLookup.h"
+#include "UI/Common/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopEntryWidget)
 
@@ -72,64 +72,15 @@ void UShopEntryWidget::HandleSelectClicked()
 
 void UShopEntryWidget::ResolveWidgets()
 {
-	if (!Txt_Name)
-	{
-		Txt_Name = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("Txt_Name"),
-			TEXT("Txt_ItemName"),
-			TEXT("Txt_ShopName"),
-			TEXT("Txt_PandoraName"),
-			TEXT("Txt_DisplayName")
-		});
-	}
 
-	if (!Txt_Price)
-	{
-		Txt_Price = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("Txt_Price"),
-			TEXT("Txt_GoldPrice"),
-			TEXT("Txt_Cost")
-		});
-	}
 
-	if (!Txt_State)
-	{
-		Txt_State = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("Txt_State"),
-			TEXT("Txt_Status"),
-			TEXT("Txt_Owned")
-		});
-	}
 
 	if (!Img_Icon)
 	{
-		Img_Icon = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
-			TEXT("Img_Icon"),
-			TEXT("IconImage"),
-			TEXT("Img_ItemIcon"),
-			TEXT("Img_PandoraIcon"),
-			TEXT("Img_ShopIcon")
-		});
+		Img_Icon = PdWidgetLookup::FindWidgetByNames<UImage>(this, { TEXT("IconImage") });
 	}
 
-	if (!SelectionBorderImage)
-	{
-		SelectionBorderImage = PdWidgetLookup::FindWidgetByNames<UImage>(this, {
-			TEXT("SelectionBorderImage"),
-			TEXT("Img_SelectionBorder"),
-			TEXT("Img_Selected")
-		});
-	}
 
-	if (!Btn_Select)
-	{
-		Btn_Select = PdWidgetLookup::FindWidgetByNames<UButton>(this, {
-			TEXT("Btn_Select"),
-			TEXT("Btn_Click"),
-			TEXT("Btn_Entry"),
-			TEXT("Btn_ShopEntry")
-		});
-	}
 }
 
 void UShopEntryWidget::RefreshUI()

@@ -9,8 +9,8 @@
 #include "Mode/PdHUD.h"
 #include "TimerManager.h"
 #include "Definition/UI/WidgetClassDefinition.h"
-#include "UI/UiSubsystem.h"
-#include "UI/WidgetContentBundleLease.h"
+#include "UI/Core/UiSubsystem.h"
+#include "UI/Core/WidgetContentBundleLease.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"

@@ -11,7 +11,7 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerState.h"
-#include "UI/WidgetLookup.h"
+#include "UI/Common/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChatControllerComponent)
 

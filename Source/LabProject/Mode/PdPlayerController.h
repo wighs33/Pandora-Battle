@@ -2,9 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "UI/GameResultTypes.h"
-#include "UI/KillLogTypes.h"
-#include "UI/NotificationData.h"
+#include "UI/Match/GameResultTypes.h"
+#include "UI/HUD/Match/KillLogTypes.h"
+#include "UI/HUD/Notification/NotificationData.h"
 #include "PdPlayerController.generated.h"
 
 class UChatControllerComponent;

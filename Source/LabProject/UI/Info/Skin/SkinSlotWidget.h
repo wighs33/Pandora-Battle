@@ -1,0 +1,99 @@
+#pragma once
+
+#include "Blueprint/IUserObjectListEntry.h"
+#include "UI/Common/LocalizedMenuWidget.h"
+#include "SkinSlotWidget.generated.h"
+
+class USkinDefinition;
+class UImage;
+class USkinSlotViewData;
+class UTextBlock;
+class UDragItemVisualWidget;
+class UDragDropOperation;
+class UWidget;
+
+UCLASS(Blueprintable, BlueprintType)
+class LABPROJECT_API USkinSlotWidget : public ULocalizedMenuWidget, public IUserObjectListEntry
+{
+	GENERATED_BODY()
+
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativePreConstruct() override;
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
+
+	// Interface Implementations ---------------------------------------------------------------------------------------
+	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+	virtual void NativeOnItemSelectionChanged(bool bIsSelected) override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
+	void SetData(const USkinDefinition* Target);
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
+	void SetSlotData(USkinSlotViewData* Target);
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Skin")
+	void SetSelected(bool bInSelected);
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
+	bool IsSelected() const { return bIsSelected; }
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
+	const USkinDefinition* GetCachedData() const { return CachedData; }
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
+	USkinSlotViewData* GetCachedSlotData() const { return CachedSlotData; }
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplySkinVisual(const USkinDefinition* Target);
+	void CacheOptionalWidgets();
+	void ApplySelectionVisual();
+	FLinearColor ResolveAssignedBackgroundColor() const;
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|Style")
+	FLinearColor SelectionBorderDefaultColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.35f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|Style")
+	FLinearColor SelectionBorderSelectedColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
+
+protected:
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
+	TObjectPtr<UTextBlock> Txt_Assigned;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
+	TObjectPtr<UWidget> AssignedBadgeRoot;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
+	TObjectPtr<UImage> Img_Back;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
+	TObjectPtr<UImage> IconImage;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")
+	TObjectPtr<UImage> SelectionBorderImage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|DragDrop")
+	TSubclassOf<UDragItemVisualWidget> DragVisualWidgetClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Skin|DragDrop")
+	FVector2D DragIconSize = FVector2D(96.0f, 96.0f);
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin")
+	TObjectPtr<const USkinDefinition> CachedData;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin")
+	TObjectPtr<USkinSlotViewData> CachedSlotData;
+
+private:
+	FLinearColor DefaultBackgroundColor = FLinearColor::White;
+	bool bDefaultBackgroundColorCached = false;
+
+	bool bIsSelected = false;
+};

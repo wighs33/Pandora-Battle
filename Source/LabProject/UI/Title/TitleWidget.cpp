@@ -9,18 +9,18 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "UI/Widget/ConnectingPopupWidget.h"
+#include "UI/Core/ConnectingPopupWidget.h"
 #include "Engine/GameInstance.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "TimerManager.h"
-#include "UI/Widget/GuideWidget.h"
-#include "UI/Widget/AudioVolumeControl.h"
-#include "UI/Widget/RecordWidget.h"
+#include "UI/Guide/GuideWidget.h"
+#include "UI/Settings/AudioVolumeControl.h"
+#include "UI/Record/RecordWidget.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Shop/ShopWidget.h"
-#include "UI/UiSubsystem.h"
-#include "UI/UiScreen.h"
+#include "UI/Core/UiSubsystem.h"
+#include "UI/Core/UiScreen.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -71,7 +71,7 @@ void UTitleWidget::NativeConstruct()
 	SetIsFocusable(true);
 
 	ApplyWidgetDefinitionSettings();
-	ResolveWidgets();
+
 	if (const UUiSubsystem* UiSubsystem = GetUiSubsystem();
 		!UiSubsystem || !UiSubsystem->IsTravelLoadingScreenActive())
 	{
@@ -558,59 +558,6 @@ void UTitleWidget::UnbindRecordCloseButton()
 UButton* UTitleWidget::FindRecordCloseButton() const
 {
 	return IsValid(RecordWidget) ? Cast<UButton>(RecordWidget->GetWidgetFromName(TEXT("Btn_Close"))) : nullptr;
-}
-
-void UTitleWidget::ResolveWidgets()
-{
-	if (!Btn_RoomList)
-	{
-		Btn_RoomList = Cast<UButton>(GetWidgetFromName(TEXT("Btn_RoomList")));
-	}
-
-	if (!Btn_QuickMatch)
-	{
-		Btn_QuickMatch = Cast<UButton>(GetWidgetFromName(TEXT("Btn_QuickMatch")));
-	}
-
-	if (!Btn_TrainingMode)
-	{
-		Btn_TrainingMode = Cast<UButton>(GetWidgetFromName(TEXT("Btn_TrainingMode")));
-	}
-
-	if (!Btn_PandoraShop)
-	{
-		Btn_PandoraShop = Cast<UButton>(GetWidgetFromName(TEXT("Btn_PandoraShop")));
-	}
-
-	if (!Btn_Guide)
-	{
-		Btn_Guide = Cast<UButton>(GetWidgetFromName(TEXT("Btn_Guide")));
-	}
-
-	if (!Btn_Record)
-	{
-		Btn_Record = Cast<UButton>(GetWidgetFromName(TEXT("Btn_Record")));
-	}
-
-	if (!Btn_Exit)
-	{
-		Btn_Exit = Cast<UButton>(GetWidgetFromName(TEXT("Btn_Exit")));
-	}
-
-	if (!Btn_Tutorial)
-	{
-		Btn_Tutorial = Cast<UButton>(GetWidgetFromName(TEXT("Btn_Tutorial")));
-	}
-
-	if (!AudioVolumeSlider_)
-	{
-		AudioVolumeSlider_ = Cast<UAudioVolumeSlider>(GetWidgetFromName(TEXT("AudioVolumeSlider_")));
-	}
-
-	if (!Btn_Sound)
-	{
-		Btn_Sound = Cast<UButton>(GetWidgetFromName(TEXT("Btn_Sound")));
-	}
 }
 
 TSubclassOf<UShopWidget> UTitleWidget::ResolveShopWidgetClass() const

@@ -1,6 +1,6 @@
 #include "Lobby/Contents/LobbyHUD.h"
-#include "UI/UiSubsystem.h"
-#include "UI/UiScreen.h"
+#include "UI/Core/UiSubsystem.h"
+#include "UI/Core/UiScreen.h"
 
 #include "UI/Lobby/LobbyWidget.h"
 #include "Lobby/Contents/LobbyGameState.h"

@@ -2,7 +2,7 @@
 
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Misc/PackageName.h"
-#include "UI/Widget/MapWidget.h"
+#include "UI/Info/Map/MapWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelDefinition)
 

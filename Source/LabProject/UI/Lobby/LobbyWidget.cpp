@@ -23,16 +23,16 @@
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Mode/PdPlayerState.h"
-#include "UI/Widget/ConnectingPopupWidget.h"
+#include "UI/Core/ConnectingPopupWidget.h"
 #include "UI/Lobby/GameConfigWidget.h"
 #include "UI/Lobby/LobbyUserWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "TimerManager.h"
-#include "UI/UiSubsystem.h"
-#include "UI/UiScreen.h"
+#include "UI/Core/UiSubsystem.h"
+#include "UI/Core/UiScreen.h"
 #include "Input/CommonUIActionRouterBase.h"
-#include "UI/Widget/AudioVolumeControl.h"
+#include "UI/Settings/AudioVolumeControl.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyWidget)
@@ -59,14 +59,6 @@ void ULobbyWidget::NativeConstruct()
 		}
 	}
 
-	if (!AudioVolumeSlider_)
-	{
-		AudioVolumeSlider_ = Cast<UAudioVolumeSlider>(GetWidgetFromName(TEXT("AudioVolumeSlider_")));
-	}
-	if (!Btn_Sound)
-	{
-		Btn_Sound = Cast<UButton>(GetWidgetFromName(TEXT("Btn_Sound")));
-	}
 	AudioVolumeControl = NewObject<UAudioVolumeControl>(this);
 	AudioVolumeControl->Initialize(this, AudioVolumeSlider_, Btn_Sound);
 

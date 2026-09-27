@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
-#include "UI/Widget/LocalizedMenuWidget.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 #include "FindSessionsCallbackProxy.h"
 #include "TitleWidget.generated.h"
 
@@ -75,7 +75,6 @@ private:
 	void UnbindRecordCloseButton();
 	UButton* FindRecordCloseButton() const;
 
-	void ResolveWidgets();
 	TSubclassOf<UShopWidget> ResolveShopWidgetClass() const;
 	TSubclassOf<UUserWidget> ResolveGuideWidgetClass() const;
 	TSubclassOf<UUserWidget> ResolveRecordWidgetClass() const;

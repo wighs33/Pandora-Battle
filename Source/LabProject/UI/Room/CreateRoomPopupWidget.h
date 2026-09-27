@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
-#include "UI/Widget/LocalizedMenuWidget.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 #include "CreateRoomPopupWidget.generated.h"
 
 class UButton;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "UI/Widget/LocalizedMenuWidget.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 #include "CoreMinimal.h"
 #include "ShopPreviewPanelWidget.generated.h"
 

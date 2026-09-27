@@ -1,6 +1,6 @@
 #include "Lobby/Contents/TitleHUD.h"
-#include "UI/UiSubsystem.h"
-#include "UI/UiScreen.h"
+#include "UI/Core/UiSubsystem.h"
+#include "UI/Core/UiScreen.h"
 #include "Engine/LocalPlayer.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 

@@ -1,0 +1,134 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UI/Common/LocalizedMenuWidget.h"
+#include "GameplayTagContainer.h"
+#include "UI/Info/FilterButtonHighlight.h"
+#include "RightPandoraWidget.generated.h"
+
+class UButton;
+class UEditableTextBox;
+class UPandoraDefinition;
+class UTileView;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedPandoraFilterAllButton);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedPandoraFilterTypeButton, FGameplayTag, TypeTag);
+
+UCLASS(Blueprintable, BlueprintType)
+class LABPROJECT_API URightPandoraWidget : public ULocalizedMenuWidget
+{
+	GENERATED_BODY()
+
+protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+public:
+	// Public API ------------------------------------------------------------------------------------------------------
+	URightPandoraWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
+	void SelectAllFilter();
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora", meta = (Categories = "Pandora"))
+	void SelectTypeFilter(FGameplayTag TypeTag);
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
+	void ToggleActiveFiliterButtons(bool bActive);
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
+	void ResetFilterHighlightToAll();
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
+	void SetTileViewAndShowLockState(const TArray<UObject*>& InListItems);
+
+	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
+	void ClearTileViewItemClicked();
+
+	UFUNCTION(BlueprintPure, Category = "!UI|Pandora")
+	UTileView* GetTileView() const { return TileView; }
+
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	void OnAllButtonClicked();
+
+	UFUNCTION()
+	void OnOffensiveButtonClicked();
+
+	UFUNCTION()
+	void OnDefensiveButtonClicked();
+
+	UFUNCTION()
+	void OnSupportButtonClicked();
+
+	UFUNCTION()
+	void OnSpecialButtonClicked();
+
+	UFUNCTION()
+	void OnSearchButtonClicked();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void RebuildFilterButtonList();
+	void RebuildTileViewFromCachedSourceItems();
+	bool DoesPandoraMatchSearch(const UPandoraDefinition* PandoraDefinition, const FString& SearchText) const;
+	void ApplyWidgetDefinitionSettings();
+	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
+	FGameplayTag GetOffensiveTypeTag() const;
+	FGameplayTag GetDefensiveTypeTag() const;
+	FGameplayTag GetSupportTypeTag() const;
+	FGameplayTag GetSpecialTypeTag() const;
+
+public:
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
+	FPdOnClickedPandoraFilterAllButton OnClicked_PandoraFilterAllButton;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
+	FPdOnClickedPandoraFilterTypeButton OnClicked_PandoraFilterTypeButton;
+
+protected:
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora", meta = (BindWidget))
+	TObjectPtr<UButton> AllButton;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora", meta = (BindWidget))
+	TObjectPtr<UButton> OffensiveButton;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora", meta = (BindWidget))
+	TObjectPtr<UButton> DefensiveButton;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora", meta = (BindWidget))
+	TObjectPtr<UButton> SupportButton;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora", meta = (BindWidget))
+	TObjectPtr<UButton> SpecialButton;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Pandora")
+	TArray<TObjectPtr<UButton>> FilterButtonList;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora|Filter")
+	FLinearColor SelectedFilterAccentColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora", meta = (BindWidget))
+	TObjectPtr<UTileView> TileView;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora|Search", meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Btn_Search;
+
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Pandora|Search", meta = (BindWidgetOptional))
+	TObjectPtr<UEditableTextBox> SearchBox;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UObject>> CachedSourceListItems;
+
+	UPROPERTY(Transient)
+	FString ActiveSearchText;
+
+private:
+	FGameplayTag OffensiveTypeTagOverride;
+	FGameplayTag DefensiveTypeTagOverride;
+	FGameplayTag SupportTypeTagOverride;
+	FGameplayTag SpecialTypeTagOverride;
+
+	FFilterButtonHighlightState FilterButtonHighlightState;
+};

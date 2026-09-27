@@ -1,0 +1,117 @@
+#pragma once
+
+#include "Common/Enum_Direction.h"
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#include "UObject/Object.h"
+#include "InfoLoadoutStore.generated.h"
+
+class APdPlayerController;
+class UEquipmentComponent;
+class UInventoryComponent;
+class UItemInstance;
+class UPandoraComponent;
+class UPandoraDefinition;
+
+/** A single state transition emitted after the store has refreshed its cached read model. */
+enum class EInfoLoadoutStateChange : uint8
+{
+	Bindings,
+	Inventory,
+	WeaponLoadout,
+	PandoraLoadout,
+	PresentationAssets
+};
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FInfoLoadoutStateChanged, EInfoLoadoutStateChange);
+
+/**
+ * Info 화면의 아이템·판도라 로드아웃에 대한 공통 조회 모델과 명령 진입점을 제공한다.
+ *
+ * 뷰는 이 객체를 통해 명령을 보내고 OnStateChanged로 전달받은 상태만 표시한다.
+ * 아이템과 판도라 프레젠터는 서로 독립적으로 동작한다.
+ */
+UCLASS()
+class LABPROJECT_API UInfoLoadoutStore : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual UWorld* GetWorld() const override;
+
+	// Public API ------------------------------------------------------------------------------------------------------
+	void Initialize(APdPlayerController* InController);
+	void Deinitialize();
+	void RefreshBindings();
+
+	UInventoryComponent* GetInventoryComponent() const;
+	UPandoraComponent* GetPandoraComponent() const;
+
+	UItemInstance* GetSelectedWeapon(EEnum_Direction Direction) const;
+	const UPandoraDefinition* GetSelectedPandoraDefinition(EEnum_Direction Direction) const;
+	bool WouldSelectedDirectionChangeLoadout(EEnum_Direction Direction) const;
+
+	bool RequestSetConsumableQuickSlot(int32 SlotIndex, UItemInstance* ItemInstance);
+	bool RequestClearConsumableQuickSlot(int32 SlotIndex);
+	bool RequestSetEquipmentSlot(FGameplayTag SlotTag, UItemInstance* ItemInstance);
+	bool RequestClearEquipmentSlot(FGameplayTag SlotTag);
+	bool RequestSetWeaponLoadoutSlot(EEnum_Direction Direction, UItemInstance* ItemInstance);
+	bool RequestClearWeaponLoadoutSlot(EEnum_Direction Direction);
+	bool RequestSetPandoraLoadoutSlot(
+		EEnum_Direction Direction,
+		const UPandoraDefinition* PandoraDefinition);
+	bool RequestSelectLoadoutDirection(EEnum_Direction Direction);
+
+	void NotifyPresentationAssetsReady();
+
+private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleInventoryChanged();
+	void HandleWeaponLoadoutChanged();
+
+	UFUNCTION()
+	void HandlePandoraLoadoutChanged();
+
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	UEquipmentComponent* GetEquipmentComponent() const;
+	void UnbindInventoryComponent();
+	void UnbindPandoraComponent();
+	void RebuildLoadoutState();
+	void PublishStateChange(EInfoLoadoutStateChange Change);
+	bool PublishRejectedCommand(EInfoLoadoutStateChange Change);
+
+public:
+	FInfoLoadoutStateChanged OnStateChanged;
+
+private:
+	UPROPERTY(Transient)
+	TObjectPtr<APdPlayerController> OwningController;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInventoryComponent> BoundInventoryComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPandoraComponent> BoundPandoraComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UItemInstance> LeftWeapon;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UItemInstance> UpWeapon;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UItemInstance> RightWeapon;
+
+	UPROPERTY(Transient)
+	TObjectPtr<const UPandoraDefinition> LeftPandoraDefinition;
+
+	UPROPERTY(Transient)
+	TObjectPtr<const UPandoraDefinition> UpPandoraDefinition;
+
+	UPROPERTY(Transient)
+	TObjectPtr<const UPandoraDefinition> RightPandoraDefinition;
+
+	FDelegateHandle InventoryChangedDelegateHandle;
+	FDelegateHandle WeaponLoadoutChangedDelegateHandle;
+};

@@ -3,7 +3,7 @@
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 #include "TimerManager.h"
-#include "UI/GameResultTypes.h"
+#include "UI/Match/GameResultTypes.h"
 #include "MatchFlowComponent.generated.h"
 
 class AExperienceGameMode;

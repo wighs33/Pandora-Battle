@@ -1,0 +1,290 @@
+#include "UI/Info/InfoDetailPopup.h"
+#include "UI/Core/UiLayerRoot.h"
+
+#include "Blueprint/SlateBlueprintLibrary.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
+#include "Definition/Pandora/PandoraDefinition.h"
+#include "Definition/UI/WidgetClassDefinition.h"
+#include "GameFramework/PlayerController.h"
+#include "Item/ItemInstance.h"
+#include "Definition/Skin/SkinDefinition.h"
+#include "UI/Info/Item/EquipSlotWidget.h"
+#include "UI/Info/InfoWidget.h"
+#include "UI/Info/Item/ItemDetailWidget.h"
+#include "UI/Info/Item/LeftEquipmentWidget.h"
+#include "UI/Pandora/PandoraDescriptionWidget.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InfoDetailPopup)
+
+void UInfoDetailPopup::Initialize(
+	UInfoWidget* InOwnerWidget,
+	ULeftEquipmentWidget* InEquipmentWidget,
+	TSubclassOf<UItemDetailWidget> InItemDetailWidgetClass,
+	TSubclassOf<UPandoraDescriptionWidget> InPandoraDescriptionWidgetClass,
+	const FVector2D InPopupOffset)
+{
+	OwnerWidget = InOwnerWidget;
+	EquipmentWidget = InEquipmentWidget;
+	ItemDetailWidgetClass = InItemDetailWidgetClass;
+	PandoraDescriptionWidgetClass = InPandoraDescriptionWidgetClass;
+	PopupOffset = InPopupOffset;
+}
+
+void UInfoDetailPopup::Shutdown()
+{
+	HideAll();
+	if (ItemDetailWidget)
+	{
+		ItemDetailWidget->RemoveFromParent();
+	}
+	if (PandoraDescriptionWidget)
+	{
+		PandoraDescriptionWidget->RemoveFromParent();
+	}
+	ItemDetailWidget = nullptr;
+	PandoraDescriptionWidget = nullptr;
+	EquipmentWidget = nullptr;
+	OwnerWidget = nullptr;
+}
+
+void UInfoDetailPopup::ShowItem(
+	UItemInstance* ItemInstance,
+	UWidget* AnchorWidget,
+	const bool bPlaceLeftOfWidget)
+{
+	if (!ItemInstance || !AnchorWidget)
+	{
+		HideAll();
+		return;
+	}
+	UItemDetailWidget* DetailWidget = GetOrCreateItemDetailWidget();
+	if (!DetailWidget)
+	{
+		return;
+	}
+	if (PandoraDescriptionWidget)
+	{
+		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	ActivePandoraAnchor.Reset();
+	ActivePandoraDefinition.Reset();
+	DetailWidget->SetItem(ItemInstance, ResolveEquippedItemForComparison(ItemInstance));
+	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
+}
+
+void UInfoDetailPopup::ShowSkinDefinition(
+	const USkinDefinition* SkinDefinition,
+	UWidget* AnchorWidget,
+	const bool bPlaceLeftOfWidget)
+{
+	if (!SkinDefinition || !AnchorWidget)
+	{
+		HideAll();
+		return;
+	}
+	UItemDetailWidget* DetailWidget = GetOrCreateItemDetailWidget();
+	if (!DetailWidget)
+	{
+		return;
+	}
+	if (PandoraDescriptionWidget)
+	{
+		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	ActivePandoraAnchor.Reset();
+	ActivePandoraDefinition.Reset();
+	DetailWidget->SetSkinDefinition(SkinDefinition);
+	DetailWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
+}
+
+void UInfoDetailPopup::ShowPandora(
+	const UPandoraDefinition* PandoraDefinition,
+	UWidget* AnchorWidget,
+	const bool bPlaceLeftOfWidget,
+	const bool bPlayShowAnimation)
+{
+	const APlayerController* PlayerController = OwnerWidget ? OwnerWidget->GetOwningPlayer() : nullptr;
+	if (!PlayerController || !PlayerController->IsLocalController())
+	{
+		return;
+	}
+	if (!PandoraDefinition || !AnchorWidget)
+	{
+		HideAll();
+		return;
+	}
+	UPandoraDescriptionWidget* DetailWidget = GetOrCreatePandoraDescriptionWidget();
+	if (!DetailWidget)
+	{
+		return;
+	}
+	if (ActivePandoraAnchor.Get() == AnchorWidget
+		&& ActivePandoraDefinition.Get() == PandoraDefinition
+		&& DetailWidget->GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		return;
+	}
+	if (ItemDetailWidget)
+	{
+		ItemDetailWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	ActivePandoraAnchor = AnchorWidget;
+	ActivePandoraDefinition = PandoraDefinition;
+	DetailWidget->SetPandoraDefinition(const_cast<UPandoraDefinition*>(PandoraDefinition));
+	DetailWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
+	if (bPlayShowAnimation)
+	{
+		DetailWidget->PlayShowAnimation();
+	}
+	else
+	{
+		DetailWidget->ShowWithoutAnimation();
+	}
+}
+
+void UInfoDetailPopup::HideAll()
+{
+	if (ItemDetailWidget)
+	{
+		ItemDetailWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (PandoraDescriptionWidget)
+	{
+		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	ActivePandoraAnchor.Reset();
+	ActivePandoraDefinition.Reset();
+}
+
+void UInfoDetailPopup::HidePandoraForAnchor(const UWidget* AnchorWidget)
+{
+	if (AnchorWidget && ActivePandoraAnchor.Get() != AnchorWidget)
+	{
+		return;
+	}
+	if (PandoraDescriptionWidget)
+	{
+		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	ActivePandoraAnchor.Reset();
+	ActivePandoraDefinition.Reset();
+}
+
+UItemDetailWidget* UInfoDetailPopup::GetOrCreateItemDetailWidget()
+{
+	if (ItemDetailWidget)
+	{
+		return ItemDetailWidget;
+	}
+	if (!OwnerWidget || !ItemDetailWidgetClass)
+	{
+		return nullptr;
+	}
+	ItemDetailWidget = CreateWidget<UItemDetailWidget>(
+		OwnerWidget->GetOwningPlayer(),
+		ItemDetailWidgetClass);
+	if (ItemDetailWidget)
+	{
+		ItemDetailWidget->AddToViewport(UUiLayerRoot::TooltipZOrder);
+		ItemDetailWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	return ItemDetailWidget;
+}
+
+UPandoraDescriptionWidget* UInfoDetailPopup::GetOrCreatePandoraDescriptionWidget()
+{
+	if (PandoraDescriptionWidget)
+	{
+		return PandoraDescriptionWidget;
+	}
+	if (!OwnerWidget)
+	{
+		return nullptr;
+	}
+	if (!PandoraDescriptionWidgetClass)
+	{
+		if (const UWidgetClassDefinition* WidgetDefinition =
+			UWidgetClassDefinition::ResolveWidgetClassDefinition(OwnerWidget))
+		{
+			PandoraDescriptionWidgetClass = WidgetDefinition->GetPandoraDescriptionWidgetClass();
+		}
+	}
+	if (!PandoraDescriptionWidgetClass)
+	{
+		return nullptr;
+	}
+	PandoraDescriptionWidget = CreateWidget<UPandoraDescriptionWidget>(
+		OwnerWidget->GetOwningPlayer(),
+		PandoraDescriptionWidgetClass);
+	if (PandoraDescriptionWidget)
+	{
+		PandoraDescriptionWidget->AddToViewport(UUiLayerRoot::TooltipZOrder);
+		PandoraDescriptionWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	return PandoraDescriptionWidget;
+}
+
+void UInfoDetailPopup::PositionAdjacent(
+	UUserWidget* DetailWidget,
+	const UWidget* AnchorWidget,
+	const bool bPlaceLeftOfWidget) const
+{
+	if (!OwnerWidget || !DetailWidget || !AnchorWidget)
+	{
+		return;
+	}
+	const FGeometry& AnchorGeometry = AnchorWidget->GetCachedGeometry();
+	FVector2D PixelPosition;
+	FVector2D ViewportPosition;
+	USlateBlueprintLibrary::LocalToViewport(
+		OwnerWidget,
+		AnchorGeometry,
+		bPlaceLeftOfWidget
+			? FVector2D::ZeroVector
+			: FVector2D(AnchorGeometry.GetLocalSize().X, 0.0f),
+		PixelPosition,
+		ViewportPosition);
+
+	DetailWidget->ForceLayoutPrepass();
+	const FVector2D DesiredSize = DetailWidget->GetDesiredSize();
+	const FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(OwnerWidget);
+	FVector2D PopupPosition = bPlaceLeftOfWidget
+		? FVector2D(
+			ViewportPosition.X - DesiredSize.X - PopupOffset.X,
+			ViewportPosition.Y + PopupOffset.Y)
+		: FVector2D(
+			ViewportPosition.X + PopupOffset.X,
+			ViewportPosition.Y + PopupOffset.Y);
+	if (ViewportSize.X > 0.0f && DesiredSize.X > 0.0f)
+	{
+		PopupPosition.X = FMath::Clamp(
+			PopupPosition.X,
+			0.0f,
+			FMath::Max(ViewportSize.X - DesiredSize.X, 0.0f));
+	}
+	if (ViewportSize.Y > 0.0f && DesiredSize.Y > 0.0f)
+	{
+		PopupPosition.Y = FMath::Clamp(
+			PopupPosition.Y,
+			0.0f,
+			FMath::Max(ViewportSize.Y - DesiredSize.Y, 0.0f));
+	}
+	DetailWidget->SetPositionInViewport(PopupPosition, false);
+}
+
+UItemInstance* UInfoDetailPopup::ResolveEquippedItemForComparison(
+	UItemInstance* HoveredItem) const
+{
+	if (!HoveredItem || !EquipmentWidget)
+	{
+		return nullptr;
+	}
+	const UEquipSlotWidget* EquippedSlot =
+		EquipmentWidget->FindFirstEquippedCompatibleEquipSlot(HoveredItem);
+	UItemInstance* EquippedItem = EquippedSlot ? EquippedSlot->GetItemInstance() : nullptr;
+	return EquippedItem != HoveredItem ? EquippedItem : nullptr;
+}

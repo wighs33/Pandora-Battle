@@ -14,7 +14,7 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/PlayerRewardComponent.h"
-#include "UI/KillLogTypes.h"
+#include "UI/HUD/Match/KillLogTypes.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BasicAttributeSet)
 
 namespace

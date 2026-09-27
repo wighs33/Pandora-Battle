@@ -16,8 +16,8 @@
 #include "Pandora/PandoraLoadoutTypes.h"
 #include "Settings/GameSettingsSubsystem.h"
 #include "Settings/ProjectBootstrapSettings.h"
-#include "UI/UiSubsystem.h"
-#include "UI/WidgetContentBundleLease.h"
+#include "UI/Core/UiSubsystem.h"
+#include "UI/Core/WidgetContentBundleLease.h"
 #include "UObject/UObjectGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyRuntimeSubsystem)

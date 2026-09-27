@@ -1,0 +1,449 @@
+#include "UI/Info/Presenter/InfoSkinTabPresenter.h"
+
+#include "Character/PdPlayer.h"
+#include "Common/LabGameplayTags.h"
+#include "Components/TileView.h"
+#include "Component/Skin/SkinComponent.h"
+#include "Component/Skin/SkinEquipmentComponent.h"
+#include "Definition/Skin/SkinDefinition.h"
+#include "Mode/PdPlayerController.h"
+#include "Mode/PdPlayerState.h"
+#include "UI/Info/InfoWidget.h"
+#include "UI/Info/Skin/LeftSkinWidget.h"
+#include "UI/Info/Skin/RightSkinWidget.h"
+#include "UI/Info/Skin/SkinEquipSlotWidget.h"
+#include "UI/Info/Skin/SkinSlotViewData.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InfoSkinTabPresenter)
+
+namespace
+{
+void AppendSkinListAsObjects(const FSkinList& SkinList, TArray<UObject*>& OutListItems)
+{
+	OutListItems.Reserve(OutListItems.Num() + SkinList.Skins.Num());
+	for (const TObjectPtr<const USkinDefinition>& Skin : SkinList.Skins)
+	{
+		if (const USkinDefinition* SkinDefinition = Skin.Get())
+		{
+			// UMG 목록의 UObject* 인터페이스에 전달하며 정의 데이터는 수정하지 않는다.
+			OutListItems.Add(const_cast<USkinDefinition*>(SkinDefinition));
+		}
+	}
+}
+
+FGameplayTag ResolveSkinDefinitionMatchTag(const FGameplayTag SlotOrFilterTag)
+{
+	return SlotOrFilterTag.MatchesTag(LabGameplayTags::Skin_Gesture)
+		? LabGameplayTags::Skin_Gesture
+		: SlotOrFilterTag;
+}
+}
+
+void UInfoSkinTabPresenter::BindInfoUi(UInfoWidget* InInfoWidget)
+{
+	if (GetInfoWidget() != InInfoWidget)
+	{
+		UnbindEvents();
+	}
+
+	Super::BindInfoUi(InInfoWidget);
+	BindEvents();
+}
+
+void UInfoSkinTabPresenter::Deinitialize()
+{
+	UnbindEvents();
+	SelectedEquipSlot = nullptr;
+	SelectedEquipTypeTag = FGameplayTag();
+	CurrentFilterTag = FGameplayTag();
+	Super::Deinitialize();
+}
+
+void UInfoSkinTabPresenter::Activate()
+{
+	CurrentFilterTag = FGameplayTag();
+	SelectedEquipSlot = nullptr;
+	SelectedEquipTypeTag = FGameplayTag();
+	BindEvents();
+	PopulateAllSkins();
+
+	if (UInfoWidget* InfoWidget = GetInfoWidget())
+	{
+		if (URightSkinWidget* RightSkinWidget = InfoWidget->GetRightSkinWidget())
+		{
+			RightSkinWidget->ToggleActiveFiliterButtons(true);
+		}
+
+		if (ULeftSkinWidget* LeftSkinWidget = InfoWidget->GetLeftSkinWidget())
+		{
+			LeftSkinWidget->InitialzeEquipSlots();
+		}
+	}
+
+	RefreshEquippedSlots();
+}
+
+void UInfoSkinTabPresenter::HandleInfoUiOpened()
+{
+	BindEvents();
+	HandleSkinsChanged();
+	if (UInfoWidget* InfoWidget = GetInfoWidget())
+	{
+		if (ULeftSkinWidget* LeftSkinWidget = InfoWidget->GetLeftSkinWidget())
+		{
+			LeftSkinWidget->InitialzeEquipSlots();
+		}
+	}
+	RefreshEquippedSlots();
+}
+
+void UInfoSkinTabPresenter::RefreshEquippedSlots() const
+{
+	UInfoWidget* InfoWidget = GetInfoWidget();
+	ULeftSkinWidget* LeftSkinWidget = InfoWidget ? InfoWidget->GetLeftSkinWidget() : nullptr;
+	if (!LeftSkinWidget)
+	{
+		return;
+	}
+
+	const APdPlayerController* Controller = GetController();
+	const APdPlayer* Player = Controller ? Cast<APdPlayer>(Controller->GetPawn()) : nullptr;
+	const USkinEquipmentComponent* SkinEquipment = Player ? Player->GetSkinEquipmentComponent() : nullptr;
+	LeftSkinWidget->RefreshEquippedSkinSlots(SkinEquipment);
+}
+
+void UInfoSkinTabPresenter::HandleSkinSlotClicked(UObject* Item)
+{
+	USkinSlotViewData* SlotViewData = Cast<USkinSlotViewData>(Item);
+	const USkinDefinition* SkinDefinition = Cast<USkinDefinition>(Item);
+	if (!SkinDefinition && SlotViewData)
+	{
+		SkinDefinition = SlotViewData->GetSkinDefinition();
+	}
+
+	EquipSkinDefinition(SkinDefinition);
+}
+
+void UInfoSkinTabPresenter::EquipSkinDefinition(const USkinDefinition* SkinDefinition)
+{
+	if (!GetController()
+		|| !SkinDefinition
+		|| !SkinDefinition->IdTag.IsValid()
+		|| !SelectedEquipSlot
+		|| !SelectedEquipTypeTag.IsValid())
+	{
+		return;
+	}
+
+	const FGameplayTag RequiredSkinTag = ResolveSkinDefinitionMatchTag(SelectedEquipTypeTag);
+	if (!SkinDefinition->IdTag.MatchesTag(RequiredSkinTag))
+	{
+		return;
+	}
+
+	SelectedEquipSlot->SetSkinDefinition(SkinDefinition);
+	ClearTileItemClicked();
+
+	APdPlayer* Player = Cast<APdPlayer>(GetController()->GetPawn());
+	USkinEquipmentComponent* SkinEquipment = Player ? Player->GetSkinEquipmentComponent() : nullptr;
+	if (SkinEquipment)
+	{
+		const bool bRequested = SkinEquipment->RequestEquipSkinDefinition(SkinDefinition, SelectedEquipTypeTag);
+		if (!bRequested || (SkinEquipment->GetOwner() && SkinEquipment->GetOwner()->HasAuthority()))
+		{
+			RefreshEquippedSlots();
+		}
+	}
+}
+
+void UInfoSkinTabPresenter::HandleSkinEquipSlotClicked(
+	FGameplayTag EquipTypeTag,
+	USkinEquipSlotWidget* InSelectedEquipSlot,
+	const bool bIsSelectedAnyButton)
+{
+	static_cast<void>(bIsSelectedAnyButton);
+	if (!GetController())
+	{
+		return;
+	}
+
+	ClearTileItemClicked();
+	SelectedEquipSlot = nullptr;
+	SelectedEquipTypeTag = FGameplayTag();
+	if (!InSelectedEquipSlot || !EquipTypeTag.IsValid())
+	{
+		return;
+	}
+
+	if (InSelectedEquipSlot->HasEquippedSkin())
+	{
+		ClearSkinEquipSlot(InSelectedEquipSlot, EquipTypeTag);
+		return;
+	}
+
+	SelectedEquipSlot = InSelectedEquipSlot;
+	SelectedEquipTypeTag = EquipTypeTag;
+	HandleSkinFilterTypeClicked(ResolveSkinDefinitionMatchTag(EquipTypeTag));
+	BindTileItemClicked();
+}
+
+void UInfoSkinTabPresenter::HandleSkinEquipSlotDropped(
+	const FGameplayTag EquipTypeTag,
+	USkinEquipSlotWidget* TargetSkinEquipSlot,
+	const USkinDefinition* SkinDefinition)
+{
+	SelectedEquipSlot = TargetSkinEquipSlot;
+	SelectedEquipTypeTag = EquipTypeTag;
+	EquipSkinDefinition(SkinDefinition);
+}
+
+void UInfoSkinTabPresenter::HandleSkinDroppedToCharacter(const USkinDefinition* SkinDefinition)
+{
+	UInfoWidget* InfoWidget = GetInfoWidget();
+	ULeftSkinWidget* LeftSkinWidget = InfoWidget ? InfoWidget->GetLeftSkinWidget() : nullptr;
+	USkinEquipSlotWidget* TargetSlot = LeftSkinWidget
+		? LeftSkinWidget->FindFirstCompatibleSkinEquipSlot(SkinDefinition)
+		: nullptr;
+	if (!TargetSlot)
+	{
+		return;
+	}
+
+	SelectedEquipSlot = TargetSlot;
+	SelectedEquipTypeTag = TargetSlot->GetAcceptedEquipTypeTag();
+	EquipSkinDefinition(SkinDefinition);
+}
+
+void UInfoSkinTabPresenter::HandleSkinFilterTypeClicked(FGameplayTag TypeTag)
+{
+	TypeTag = ResolveSkinDefinitionMatchTag(TypeTag);
+	CurrentFilterTag = TypeTag;
+	if (!GetController())
+	{
+		return;
+	}
+
+	TArray<UObject*> CurrentSkinList;
+	const APdPlayerState* PlayerState = GetPlayerState();
+	const USkinComponent* SkinComponent = PlayerState ? PlayerState->GetSkinComponent() : nullptr;
+	if (SkinComponent)
+	{
+		if (const FSkinList* FoundSkinList = SkinComponent->GetFilteredSkinMap().Find(TypeTag))
+		{
+			AppendSkinListAsObjects(*FoundSkinList, CurrentSkinList);
+		}
+		else if (TypeTag.IsValid())
+		{
+			for (const USkinDefinition* SkinDefinition : SkinComponent->GetAllSkins().Skins)
+			{
+				if (SkinDefinition && SkinDefinition->IdTag.MatchesTag(TypeTag))
+				{
+					CurrentSkinList.Add(const_cast<USkinDefinition*>(SkinDefinition));
+				}
+			}
+		}
+	}
+
+	UInfoWidget* InfoWidget = GetInfoWidget();
+	if (URightSkinWidget* RightSkinWidget = InfoWidget ? InfoWidget->GetRightSkinWidget() : nullptr)
+	{
+		RightSkinWidget->SetTileView(CurrentSkinList);
+	}
+}
+
+void UInfoSkinTabPresenter::HandleSkinFilterAllClicked()
+{
+	CurrentFilterTag = FGameplayTag();
+	PopulateAllSkins();
+}
+
+void UInfoSkinTabPresenter::HandleSkinsChanged()
+{
+	// 획득 알림이 와도 사용자가 보고 있던 분류와 장착 대상을 유지한다.
+	if (CurrentFilterTag.IsValid())
+	{
+		HandleSkinFilterTypeClicked(CurrentFilterTag);
+	}
+	else
+	{
+		PopulateAllSkins();
+	}
+}
+
+void UInfoSkinTabPresenter::BindEvents()
+{
+	const APdPlayerState* PlayerState = GetPlayerState();
+	USkinComponent* SkinComponent = PlayerState ? PlayerState->GetSkinComponent() : nullptr;
+	if (BoundSkinComponent.Get() != SkinComponent)
+	{
+		if (BoundSkinComponent.IsValid())
+		{
+			BoundSkinComponent->OnSkinsChanged.RemoveDynamic(this, &ThisClass::HandleSkinsChanged);
+		}
+		BoundSkinComponent = SkinComponent;
+	}
+	if (SkinComponent)
+	{
+		SkinComponent->OnSkinsChanged.AddUniqueDynamic(this, &ThisClass::HandleSkinsChanged);
+	}
+	UInfoWidget* InfoWidget = GetInfoWidget();
+	if (!InfoWidget)
+	{
+		return;
+	}
+
+	InfoWidget->OnDroppedSkinToCharacterPanel.RemoveDynamic(
+		this,
+		&ThisClass::HandleSkinDroppedToCharacter);
+	InfoWidget->OnDroppedSkinToCharacterPanel.AddUniqueDynamic(
+		this,
+		&ThisClass::HandleSkinDroppedToCharacter);
+
+	if (ULeftSkinWidget* LeftSkinWidget = InfoWidget->GetLeftSkinWidget())
+	{
+		LeftSkinWidget->OnClicked_SkinEquipTypeSlot.RemoveDynamic(
+			this,
+			&ThisClass::HandleSkinEquipSlotClicked);
+		LeftSkinWidget->OnClicked_SkinEquipTypeSlot.AddUniqueDynamic(
+			this,
+			&ThisClass::HandleSkinEquipSlotClicked);
+		LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.RemoveDynamic(
+			this,
+			&ThisClass::HandleSkinEquipSlotDropped);
+		LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.AddUniqueDynamic(
+			this,
+			&ThisClass::HandleSkinEquipSlotDropped);
+	}
+
+	if (URightSkinWidget* RightSkinWidget = InfoWidget->GetRightSkinWidget())
+	{
+		RightSkinWidget->OnClicked_SkinFilterAllButton.RemoveDynamic(
+			this,
+			&ThisClass::HandleSkinFilterAllClicked);
+		RightSkinWidget->OnClicked_SkinFilterAllButton.AddUniqueDynamic(
+			this,
+			&ThisClass::HandleSkinFilterAllClicked);
+		RightSkinWidget->OnClicked_SkinFilterTypeButton.RemoveDynamic(
+			this,
+			&ThisClass::HandleSkinFilterTypeClicked);
+		RightSkinWidget->OnClicked_SkinFilterTypeButton.AddUniqueDynamic(
+			this,
+			&ThisClass::HandleSkinFilterTypeClicked);
+	}
+}
+
+void UInfoSkinTabPresenter::UnbindEvents()
+{
+	if (BoundSkinComponent.IsValid())
+	{
+		BoundSkinComponent->OnSkinsChanged.RemoveDynamic(this, &ThisClass::HandleSkinsChanged);
+	}
+	BoundSkinComponent.Reset();
+	ClearTileItemClicked();
+	UInfoWidget* InfoWidget = GetInfoWidget();
+	if (!InfoWidget)
+	{
+		return;
+	}
+
+	InfoWidget->OnDroppedSkinToCharacterPanel.RemoveDynamic(
+		this,
+		&ThisClass::HandleSkinDroppedToCharacter);
+	if (ULeftSkinWidget* LeftSkinWidget = InfoWidget->GetLeftSkinWidget())
+	{
+		LeftSkinWidget->OnClicked_SkinEquipTypeSlot.RemoveDynamic(
+			this,
+			&ThisClass::HandleSkinEquipSlotClicked);
+		LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.RemoveDynamic(
+			this,
+			&ThisClass::HandleSkinEquipSlotDropped);
+	}
+	if (URightSkinWidget* RightSkinWidget = InfoWidget->GetRightSkinWidget())
+	{
+		RightSkinWidget->OnClicked_SkinFilterAllButton.RemoveDynamic(
+			this,
+			&ThisClass::HandleSkinFilterAllClicked);
+		RightSkinWidget->OnClicked_SkinFilterTypeButton.RemoveDynamic(
+			this,
+			&ThisClass::HandleSkinFilterTypeClicked);
+	}
+}
+
+void UInfoSkinTabPresenter::BindTileItemClicked()
+{
+	UInfoWidget* InfoWidget = GetInfoWidget();
+	URightSkinWidget* RightSkinWidget = InfoWidget ? InfoWidget->GetRightSkinWidget() : nullptr;
+	if (UTileView* TileView = RightSkinWidget ? RightSkinWidget->GetTileView() : nullptr)
+	{
+		TileView->OnItemClicked().RemoveAll(this);
+		TileView->OnItemClicked().AddUObject(this, &ThisClass::HandleSkinSlotClicked);
+	}
+}
+
+void UInfoSkinTabPresenter::ClearTileItemClicked() const
+{
+	UInfoWidget* InfoWidget = GetInfoWidget();
+	URightSkinWidget* RightSkinWidget = InfoWidget ? InfoWidget->GetRightSkinWidget() : nullptr;
+	if (UTileView* TileView = RightSkinWidget ? RightSkinWidget->GetTileView() : nullptr)
+	{
+		TileView->OnItemClicked().RemoveAll(this);
+	}
+}
+
+void UInfoSkinTabPresenter::ClearSkinEquipSlot(
+	USkinEquipSlotWidget* TargetSkinEquipSlot,
+	FGameplayTag EquipTypeTag)
+{
+	if (!TargetSkinEquipSlot)
+	{
+		return;
+	}
+
+	if (!EquipTypeTag.IsValid())
+	{
+		EquipTypeTag = TargetSkinEquipSlot->GetAcceptedEquipTypeTag();
+	}
+
+	TargetSkinEquipSlot->SetSkinDefinition(nullptr);
+	if (SelectedEquipSlot == TargetSkinEquipSlot)
+	{
+		SelectedEquipSlot = nullptr;
+		SelectedEquipTypeTag = FGameplayTag();
+	}
+
+	APdPlayer* Player = GetController() ? Cast<APdPlayer>(GetController()->GetPawn()) : nullptr;
+	USkinEquipmentComponent* SkinEquipment = Player ? Player->GetSkinEquipmentComponent() : nullptr;
+	if (!SkinEquipment || !EquipTypeTag.IsValid())
+	{
+		return;
+	}
+
+	const bool bRequested = SkinEquipment->RequestUnequipSkinSlot(EquipTypeTag);
+	const bool bAuthority = SkinEquipment->GetOwner() && SkinEquipment->GetOwner()->HasAuthority();
+	if (!bRequested || bAuthority)
+	{
+		RefreshEquippedSlots();
+	}
+}
+
+void UInfoSkinTabPresenter::PopulateAllSkins() const
+{
+	if (!GetController())
+	{
+		return;
+	}
+
+	TArray<UObject*> CurrentSkinList;
+	const APdPlayerState* PlayerState = GetPlayerState();
+	const USkinComponent* SkinComponent = PlayerState ? PlayerState->GetSkinComponent() : nullptr;
+	if (SkinComponent)
+	{
+		AppendSkinListAsObjects(SkinComponent->GetAllSkins(), CurrentSkinList);
+	}
+
+	UInfoWidget* InfoWidget = GetInfoWidget();
+	if (URightSkinWidget* RightSkinWidget = InfoWidget ? InfoWidget->GetRightSkinWidget() : nullptr)
+	{
+		RightSkinWidget->SetTileView(CurrentSkinList);
+	}
+}

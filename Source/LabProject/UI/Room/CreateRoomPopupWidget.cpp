@@ -8,9 +8,9 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
-#include "UI/Widget/ConnectingPopupWidget.h"
+#include "UI/Core/ConnectingPopupWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
-#include "UI/UiSubsystem.h"
+#include "UI/Core/UiSubsystem.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CreateRoomPopupWidget)

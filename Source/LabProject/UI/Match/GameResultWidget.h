@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "UI/GameResultTypes.h"
+#include "UI/Match/GameResultTypes.h"
 #include "GameResultWidget.generated.h"
 
 class UButton;

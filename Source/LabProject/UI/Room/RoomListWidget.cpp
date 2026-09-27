@@ -7,16 +7,16 @@
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
-#include "UI/Widget/ConnectingPopupWidget.h"
+#include "UI/Core/ConnectingPopupWidget.h"
 #include "Engine/GameInstance.h"
 #include "Audio/BgmSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/Room/CreateRoomPopupWidget.h"
 #include "UI/Room/RoomItemWidget.h"
 #include "TimerManager.h"
-#include "UI/UiSubsystem.h"
-#include "UI/UiScreen.h"
-#include "UI/Widget/AudioVolumeControl.h"
+#include "UI/Core/UiSubsystem.h"
+#include "UI/Core/UiScreen.h"
+#include "UI/Settings/AudioVolumeControl.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RoomListWidget)
@@ -30,14 +30,6 @@ void URoomListWidget::NativeConstruct()
 
 	ApplyWidgetDefinitionSettings();
 
-	if (!AudioVolumeSlider_)
-	{
-		AudioVolumeSlider_ = Cast<UAudioVolumeSlider>(GetWidgetFromName(TEXT("AudioVolumeSlider_")));
-	}
-	if (!Btn_Sound)
-	{
-		Btn_Sound = Cast<UButton>(GetWidgetFromName(TEXT("Btn_Sound")));
-	}
 	AudioVolumeControl = NewObject<UAudioVolumeControl>(this);
 	AudioVolumeControl->Initialize(this, AudioVolumeSlider_, Btn_Sound);
 

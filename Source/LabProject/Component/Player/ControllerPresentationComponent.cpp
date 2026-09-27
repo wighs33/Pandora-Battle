@@ -19,9 +19,9 @@
 #include "Mode/PdPlayerState.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "ShaderPipelineCache.h"
-#include "UI/KillLogTypes.h"
-#include "UI/NotificationData.h"
-#include "UI/UiSubsystem.h"
+#include "UI/HUD/Match/KillLogTypes.h"
+#include "UI/HUD/Notification/NotificationData.h"
+#include "UI/Core/UiSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerPresentationComponent)
 
