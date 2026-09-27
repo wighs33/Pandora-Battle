@@ -2,7 +2,7 @@
 
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Common/Enum_Operation.h"
+#include "AbilitySystem/Enum_Operation.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "GameplayEffect.h"
 

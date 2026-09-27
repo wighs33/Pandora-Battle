@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Common/WeaponDefinitionData.h"
+#include "Definition/Item/WeaponDefinitionData.h"
 #include "Engine/EngineTypes.h"
 #include "GameplayTagContainer.h"
 #include "SkillAreaSettings.generated.h"

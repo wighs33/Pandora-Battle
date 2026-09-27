@@ -4,7 +4,7 @@
 #include "Character/CharacterBase.h"
 #include "Character/CharacterHitValidation.h"
 #include "Common/CollisionChannels.h"
-#include "Common/WeaponAnimNotifyNames.h"
+#include "Weapon/WeaponAnimNotifyNames.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Components/SceneComponent.h"

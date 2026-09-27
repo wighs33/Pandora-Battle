@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
-#include "Common/Enum_Operation.h"
+#include "AbilitySystem/Enum_Operation.h"
 #include "GameplayAbilitySpec.h"
 #include "GameplayTagContainer.h"
 #include "PdAbilitySystemComponent.generated.h"

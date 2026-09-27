@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Common/WeaponDefinitionData.h"
+#include "Definition/Item/WeaponDefinitionData.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "UI/Shop/ShopTypes.h"

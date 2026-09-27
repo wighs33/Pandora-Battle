@@ -173,11 +173,6 @@ int32 URewardDefinition::RollPlayerKillExperienceReward() const
 	return PlayerKillReward.Experience.RollReward(this, TEXT("PlayerKill"));
 }
 
-int32 URewardDefinition::RollGameVictoryGoldReward() const
-{
-	return GameVictoryReward.Gold.RollReward(this, TEXT("GameVictory"));
-}
-
 int32 URewardDefinition::ResolveActiveRewardChestCount(const int32 TotalChestCount) const
 {
 	const int32 ActiveCount = ChestSpawn.ResolveActiveChestCount(TotalChestCount);

@@ -41,9 +41,6 @@ public:
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
-	// Public API ------------------------------------------------------------------------------------------------------
-	static FSoftObjectPath GetDefaultInputDefinitionPath();
-
 	const TSoftObjectPtr<UInputMappingContext>& GetInputMapping() const { return InputMapping; }
 	int32 GetPriority() const { return Priority; }
 	const TSoftObjectPtr<UInputAction>& GetMoveInputAction() const { return MoveInputAction; }
@@ -82,7 +79,6 @@ public:
 	const TSoftObjectPtr<UInputAction>& GetChatScrollInputAction() const { return ChatScrollInputAction; }
 	UInputAction* GetLoadedSkillInputAction(int32 SkillSlotIndex) const;
 	UInputAction* GetLoadedQuickSlotInputAction(int32 QuickSlotIndex) const;
-	const TSoftObjectPtr<UCharacterActionDefinition>& GetCharacterActionDefinition() const { return CharacterActionDefinition; }
 	TSoftObjectPtr<UCharacterActionDefinition> GetEffectiveCharacterActionDefinition() const;
 	const TArray<FInputActionIconMapping>& GetInputActionIconMappings() const { return InputActionIconMappings; }
 	UObject* ResolveInputActionIconObject(const UInputAction* InputAction) const;

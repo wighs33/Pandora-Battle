@@ -186,9 +186,6 @@ public:
 	const TArray<FDefaultProvisionItemStackGrant>& GetItemGrants() const { return ItemGrants; }
 	const TArray<FDefaultProvisionGestureSlotGrant>& GetGestureGrants() const { return GestureGrants; }
 
-	void GetPandoraKeys(
-		EDefaultProvisionMode Mode,
-		TArray<FName>& OutPandoraKeys) const;
 	bool HasPandoraGrants(EDefaultProvisionMode Mode) const;
 	bool IsPandoraKeyGranted(FName PandoraKeyName, EDefaultProvisionMode Mode) const;
 

@@ -4,7 +4,7 @@
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/AbilityStateComponent.h"
 #include "Character/CharacterBase.h"
-#include "Common/Enum_Operation.h"
+#include "AbilitySystem/Enum_Operation.h"
 #include "Common/LabGameplayTags.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Animation/AnimInstance.h"

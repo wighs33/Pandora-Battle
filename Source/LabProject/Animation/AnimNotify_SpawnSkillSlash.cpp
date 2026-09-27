@@ -1,6 +1,6 @@
 #include "Animation/AnimNotify_SpawnSkillSlash.h"
 
-#include "Common/WeaponAnimNotifyNames.h"
+#include "Weapon/WeaponAnimNotifyNames.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_SpawnSkillSlash)
 
 UAnimNotify_SpawnSkillSlash::UAnimNotify_SpawnSkillSlash()

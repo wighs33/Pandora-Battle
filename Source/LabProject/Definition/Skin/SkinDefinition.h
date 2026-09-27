@@ -11,8 +11,6 @@ class UTexture2D;
 class UAnimMontage;
 class AActor;
 
-DECLARE_LOG_CATEGORY_EXTERN(SkinDefinitionLog, Log, All);
-
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API USkinDefinition : public UPrimaryDataAsset
 {

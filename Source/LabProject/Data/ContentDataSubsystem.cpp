@@ -3,7 +3,6 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
@@ -77,67 +76,28 @@ void UContentDataSubsystem::Deinitialize()
 	}
 	PendingOnDemandLoadHandles.Reset();
 
-	SkillDataAssetIdsByName.Reset();
 	PandoraDefinitionIdsByName.Reset();
 	SkinDefinitionIdsByName.Reset();
-	SkillDataAssetPathsByName.Reset();
 	PandoraDefinitionPathsByName.Reset();
 	SkinDefinitionPathsByName.Reset();
-	InvalidSkillNames.Reset();
 	InvalidPandoraNames.Reset();
 	InvalidSkinNames.Reset();
 
 	Super::Deinitialize();
 }
 
-void UContentDataSubsystem::LoadSkillDataAssetsToMemory()
-{
-	LoadSkillDataAssetsAsync();
-}
-
-void UContentDataSubsystem::LoadPandoraDataAssetsToMemory()
-{
-	LoadPandoraDataAssetsAsync();
-}
-
-void UContentDataSubsystem::LoadSkinDataAssetsToMemory()
-{
-	LoadSkinDataAssetsAsync();
-}
-
-TSharedPtr<FStreamableHandle> UContentDataSubsystem::LoadSkillDataAssetsAsync(FSimpleDelegate OnComplete)
-{
-	TArray<FPrimaryAssetId> AssetIds;
-	GetSkillDataAssetIds(AssetIds);
-	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), false);
-}
-
-TSharedPtr<FStreamableHandle> UContentDataSubsystem::LoadPandoraDataAssetsAsync(FSimpleDelegate OnComplete)
-{
-	TArray<FPrimaryAssetId> AssetIds;
-	GetPandoraDefinitionIds(AssetIds);
-	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), false);
-}
-
-TSharedPtr<FStreamableHandle> UContentDataSubsystem::LoadSkinDataAssetsAsync(FSimpleDelegate OnComplete)
-{
-	TArray<FPrimaryAssetId> AssetIds;
-	GetSkinDefinitionIds(AssetIds);
-	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), false);
-}
-
 TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSkillDataAssetsAsync(FSimpleDelegate OnComplete)
 {
 	TArray<FPrimaryAssetId> AssetIds;
 	UAssetManager::Get().GetPrimaryAssetIdList(SkillAssetType, AssetIds);
-	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), true);
+	return PreloadPrimaryAssetsAsync(AssetIds, MoveTemp(OnComplete));
 }
 
 TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadPandoraDataAssetsAsync(FSimpleDelegate OnComplete)
 {
 	TArray<FPrimaryAssetId> AssetIds;
 	GetPandoraDefinitionIds(AssetIds);
-	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), true);
+	return PreloadPrimaryAssetsAsync(AssetIds, MoveTemp(OnComplete));
 }
 
 void UContentDataSubsystem::EnsureSkillDataAssetsPreload()
@@ -221,7 +181,7 @@ TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSkinDataAssetsAsync(
 {
 	TArray<FPrimaryAssetId> AssetIds;
 	GetSkinDefinitionIds(AssetIds);
-	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), true);
+	return PreloadPrimaryAssetsAsync(AssetIds, MoveTemp(OnComplete));
 }
 
 TSharedPtr<FContentLease> UContentDataSubsystem::AcquireContent(
@@ -281,18 +241,6 @@ TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSoftObjectPathsAsync
 	return Handle;
 }
 
-TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadPrimaryAssetsAsync(
-	const TArray<FPrimaryAssetId>& AssetIds,
-	FSimpleDelegate OnComplete)
-{
-	return LoadPrimaryAssetTypeAsync(AssetIds, MoveTemp(OnComplete), true);
-}
-
-USkillDefinition* UContentDataSubsystem::GetSkillDataAssetByName(const FName SkillName) const
-{
-	return Cast<USkillDefinition>(LoadPrimaryAssetOnDemand(GetSkillDataAssetIdByName(SkillName)));
-}
-
 UPandoraDefinition* UContentDataSubsystem::GetPandoraDefinitionByName(const FName PandoraName) const
 {
 	return Cast<UPandoraDefinition>(LoadPrimaryAssetOnDemand(GetPandoraDefinitionIdByName(PandoraName)));
@@ -301,11 +249,6 @@ UPandoraDefinition* UContentDataSubsystem::GetPandoraDefinitionByName(const FNam
 USkinDefinition* UContentDataSubsystem::GetSkinDefinitionByName(const FName SkinName) const
 {
 	return Cast<USkinDefinition>(LoadPrimaryAssetOnDemand(GetSkinDefinitionIdByName(SkinName)));
-}
-
-FPrimaryAssetId UContentDataSubsystem::GetSkillDataAssetIdByName(const FName SkillName) const
-{
-	return InvalidSkillNames.Contains(SkillName) ? FPrimaryAssetId() : SkillDataAssetIdsByName.FindRef(SkillName);
 }
 
 FPrimaryAssetId UContentDataSubsystem::GetPandoraDefinitionIdByName(const FName PandoraName) const
@@ -318,11 +261,6 @@ FPrimaryAssetId UContentDataSubsystem::GetSkinDefinitionIdByName(const FName Ski
 	return InvalidSkinNames.Contains(SkinName) ? FPrimaryAssetId() : SkinDefinitionIdsByName.FindRef(SkinName);
 }
 
-void UContentDataSubsystem::GetSkillDataAssetIds(TArray<FPrimaryAssetId>& OutAssetIds) const
-{
-	GatherUniqueSortedAssetIds(SkillDataAssetIdsByName, OutAssetIds);
-}
-
 void UContentDataSubsystem::GetPandoraDefinitionIds(TArray<FPrimaryAssetId>& OutAssetIds) const
 {
 	GatherUniqueSortedAssetIds(PandoraDefinitionIdsByName, OutAssetIds);
@@ -331,12 +269,6 @@ void UContentDataSubsystem::GetPandoraDefinitionIds(TArray<FPrimaryAssetId>& Out
 void UContentDataSubsystem::GetSkinDefinitionIds(TArray<FPrimaryAssetId>& OutAssetIds) const
 {
 	GatherUniqueSortedAssetIds(SkinDefinitionIdsByName, OutAssetIds);
-}
-
-void UContentDataSubsystem::GetLoadedSkillDataAssetsByName(
-	TMap<FName, TObjectPtr<USkillDefinition>>& OutAssets) const
-{
-	GatherLoadedAssets(SkillDataAssetIdsByName, OutAssets);
 }
 
 void UContentDataSubsystem::GetLoadedPandoraDefinitionsByName(
@@ -351,60 +283,15 @@ void UContentDataSubsystem::GetLoadedSkinDefinitionsByName(
 	GatherLoadedAssets(SkinDefinitionIdsByName, OutAssets);
 }
 
-void UContentDataSubsystem::BuildGrantedPandorasFromNames(
-	const TMap<FName, int32>& GrantedPandorasByName,
-	TArray<FGrantedPandora>& OutGrantedPandoras) const
-{
-	OutGrantedPandoras.Reset();
-	const UDefaultProvisionDefinition* DefaultProvision = UDefaultProvisionDefinition::ResolveDefaultDefinition();
-
-	for (const TPair<FName, int32>& PandoraPair : GrantedPandorasByName)
-	{
-		if (DefaultProvision && DefaultProvision->IsPandoraKeyGranted(PandoraPair.Key, EDefaultProvisionMode::Gameplay))
-		{
-			continue;
-		}
-
-		if (UPandoraDefinition* PandoraDefinition = GetPandoraDefinitionByName(PandoraPair.Key))
-		{
-			OutGrantedPandoras.AddUnique(
-				FGrantedPandora(PandoraDefinition, FMath::Max(PandoraPair.Value, 1)));
-		}
-	}
-}
-
-void UContentDataSubsystem::BuildGrantedSkinDefinitionsFromNames(
-	const TMap<FName, int32>& GrantedSkinsByName,
-	TArray<USkinDefinition*>& OutSkinDefinitions) const
-{
-	OutSkinDefinitions.Reset();
-
-	for (const TPair<FName, int32>& SkinPair : GrantedSkinsByName)
-	{
-		if (USkinDefinition* SkinDefinition = GetSkinDefinitionByName(SkinPair.Key))
-		{
-			OutSkinDefinitions.AddUnique(SkinDefinition);
-		}
-	}
-}
-
 void UContentDataSubsystem::BuildPrimaryAssetIndexes()
 {
 	BuildPrimaryAssetIndex(
-		SkillAssetType,
-		GET_MEMBER_NAME_CHECKED(USkillDefinition, Name),
-		SkillDataAssetIdsByName,
-		SkillDataAssetPathsByName,
-		InvalidSkillNames);
-	BuildPrimaryAssetIndex(
 		PandoraAssetType,
-		NAME_None,
 		PandoraDefinitionIdsByName,
 		PandoraDefinitionPathsByName,
 		InvalidPandoraNames);
 	BuildPrimaryAssetIndex(
 		SkinAssetType,
-		NAME_None,
 		SkinDefinitionIdsByName,
 		SkinDefinitionPathsByName,
 		InvalidSkinNames);
@@ -412,7 +299,6 @@ void UContentDataSubsystem::BuildPrimaryAssetIndexes()
 
 void UContentDataSubsystem::BuildPrimaryAssetIndex(
 	const FPrimaryAssetType AssetType,
-	const FName OptionalLogicalNameTag,
 	TMap<FName, FPrimaryAssetId>& OutAssetIdsByName,
 	TMap<FName, FSoftObjectPath>& OutAssetPathsByName,
 	TSet<FName>& OutInvalidNames)
@@ -448,22 +334,6 @@ void UContentDataSubsystem::BuildPrimaryAssetIndex(
 			OutAssetIdsByName,
 			OutAssetPathsByName,
 			OutInvalidNames);
-
-		if (!OptionalLogicalNameTag.IsNone())
-		{
-			FName LogicalName = NAME_None;
-			if (AssetData.GetTagValue(OptionalLogicalNameTag, LogicalName) && !LogicalName.IsNone())
-			{
-				AddIndexedName(
-					AssetType,
-					LogicalName,
-					AssetId,
-					AssetPath,
-					OutAssetIdsByName,
-					OutAssetPathsByName,
-					OutInvalidNames);
-			}
-		}
 	}
 }
 
@@ -520,10 +390,9 @@ TArray<FName> UContentDataSubsystem::GetRuntimeBundles() const
 	return Bundles;
 }
 
-TSharedPtr<FStreamableHandle> UContentDataSubsystem::LoadPrimaryAssetTypeAsync(
+TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadPrimaryAssetsAsync(
 	const TArray<FPrimaryAssetId>& AssetIds,
-	FSimpleDelegate OnComplete,
-	const bool bPreload)
+	FSimpleDelegate OnComplete)
 {
 	TSet<FPrimaryAssetId> UniqueAssetIds;
 	for (const FPrimaryAssetId& AssetId : AssetIds)
@@ -556,30 +425,18 @@ TSharedPtr<FStreamableHandle> UContentDataSubsystem::LoadPrimaryAssetTypeAsync(
 				CompletionDelegate.ExecuteIfBound();
 			});
 
-	TSharedPtr<FStreamableHandle> Handle;
-	if (bPreload)
-	{
-		Handle = AssetManager.PreloadPrimaryAssets(
-			AssetIdsToLoad,
-			GetRuntimeBundles(),
-			false,
-			StreamableCompletion);
-	}
-	else
-	{
-		Handle = AssetManager.LoadPrimaryAssets(
-			AssetIdsToLoad,
-			GetRuntimeBundles(),
-			StreamableCompletion);
-	}
+	TSharedPtr<FStreamableHandle> Handle = AssetManager.PreloadPrimaryAssets(
+		AssetIdsToLoad,
+		GetRuntimeBundles(),
+		false,
+		StreamableCompletion);
 
 	if (!Handle.IsValid())
 	{
 		UE_LOG(
 			ContentDataSubsystemLog,
 			Error,
-			TEXT("Failed to start an asynchronous %s for %d primary asset(s)."),
-			bPreload ? TEXT("preload") : TEXT("load"),
+			TEXT("Failed to start an asynchronous preload for %d primary asset(s)."),
 			AssetIdsToLoad.Num());
 		CompletionDelegate.ExecuteIfBound();
 	}

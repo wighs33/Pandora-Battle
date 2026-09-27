@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Character/CharacterBase.h"
-#include "Common/WeaponDefinitionData.h"
+#include "Definition/Item/WeaponDefinitionData.h"
 #include "PdPlayer.generated.h"
 
 class UBoxComponent;

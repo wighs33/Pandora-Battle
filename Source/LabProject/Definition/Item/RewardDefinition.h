@@ -199,9 +199,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Reward|Player Kill")
 	int32 RollPlayerKillExperienceReward() const;
 
-	UFUNCTION(BlueprintCallable, Category = "!Reward|Game Victory")
-	int32 RollGameVictoryGoldReward() const;
-
 	UFUNCTION(BlueprintCallable, Category = "!Reward|Chest Spawn")
 	int32 ResolveActiveRewardChestCount(int32 TotalChestCount) const;
 

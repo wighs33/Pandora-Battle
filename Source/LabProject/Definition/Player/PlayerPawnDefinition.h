@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common/WeaponDefinitionData.h"
+#include "Definition/Item/WeaponDefinitionData.h"
 #include "CoreMinimal.h"
 #include "Definition/Common/CombatSettings.h"
 #include "Engine/DataAsset.h"

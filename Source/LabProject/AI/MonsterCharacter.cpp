@@ -6,7 +6,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/PdPlayer.h"
-#include "Common/EquipmentAbilityData.h"
+#include "AbilitySystem/Ability/EquipmentAbilityData.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/PlayerRewardComponent.h"

@@ -118,22 +118,6 @@ const UDefaultProvisionDefinition* UDefaultProvisionDefinition::ResolveDefaultDe
 	return Cast<UDefaultProvisionDefinition>(DefinitionPath.TryLoad());
 }
 
-void UDefaultProvisionDefinition::GetPandoraKeys(
-	const EDefaultProvisionMode Mode,
-	TArray<FName>& OutPandoraKeys) const
-{
-	OutPandoraKeys.Reset();
-	for (const FDefaultProvisionPandoraGrant& PandoraGrant : PandoraGrants)
-	{
-		if (PandoraGrant.PandoraDefinitionId.IsValid()
-			&& PandoraGrant.Levels.GetLevel(Mode) >= 0)
-		{
-			OutPandoraKeys.AddUnique(
-				PandoraGrant.PandoraDefinitionId.PrimaryAssetName);
-		}
-	}
-}
-
 bool UDefaultProvisionDefinition::HasPandoraGrants(
 	const EDefaultProvisionMode Mode) const
 {

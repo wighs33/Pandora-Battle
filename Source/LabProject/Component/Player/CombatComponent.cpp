@@ -11,7 +11,7 @@
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
-#include "Common/EquipmentAbilityData.h"
+#include "AbilitySystem/Ability/EquipmentAbilityData.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Components/SceneComponent.h"

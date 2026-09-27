@@ -111,10 +111,6 @@ public:
 
 	static FSoftObjectPath GetDefaultDefinitionPath();
 
-	const TArray<FStatUpgradeRule>& GetUpgradeRules() const { return UpgradeRules; }
-	const TArray<FPairedResourceStatTag>& GetPairedResourceStatTags() const { return PairedResourceStatTags; }
-	const TArray<FStatAttributeDefaultValue>& GetAttributeDefaultValues() const { return AttributeDefaultValues; }
-
 	// 기본값과 시작 투자분을 계산해 현재 자원이 마지막에 오도록 반환한다.
 	// 별도 초기값이 없는 자원은 ASC가 실제 최대값으로 채우도록 따로 반환한다. 실패 시 출력은 비운다.
 	bool CalculateInitialAttributeValues(TArray<TPair<FGameplayTag, float>>& OutValues,
@@ -122,17 +118,16 @@ public:
 
 	float GetMaxInvestedLevel() const;
 	const FStatUpgradeRule* FindUpgradeRuleForStat(const FGameplayTag& StatTag) const;
-	bool TryGetAttributeValuePerUpgrade(const FGameplayTag& StatTag, float& OutValue) const;
-	float GetAttributeValuePerUpgrade(const FGameplayTag& StatTag) const;
 	bool TryGetExactAttributeDefaultValue(const FGameplayTag& StatTag, float& OutValue) const;
-	static TConstArrayView<FStatUpgradeBinding> GetStatBindings();
 	static const FStatUpgradeBinding* FindStatBinding(const FGameplayTag& StatTag);
 	bool TryGetUpgradeMagnitude(const FStatUpgradeBinding& Binding, float& OutMagnitude) const;
 	bool TryGetResourceBaseValue(const FStatUpgradeBinding& Binding, float& OutValue) const;
 	static float CalculateInvestmentValue(float Magnitude, float InvestmentLevel, bool bCompounded);
-	static bool TryResolveDefaultStatLevelTag(const FGameplayTag& StatTag, FGameplayTag& OutLevelTag);
 
 private:
+	bool TryGetAttributeValuePerUpgrade(const FGameplayTag& StatTag, float& OutValue) const;
+	static TConstArrayView<FStatUpgradeBinding> GetStatBindings();
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Stat Upgrade|Rules", meta = (AllowPrivateAccess = "true", ClampMin = "1.0", ClampMax = "100.0", UIMin = "1.0", UIMax = "100.0"))
 	float MaxInvestedLevel = 100.f;
 

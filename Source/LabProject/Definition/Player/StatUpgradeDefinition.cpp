@@ -314,14 +314,6 @@ const FStatUpgradeBinding* UStatUpgradeDefinition::FindStatBinding(const FGamepl
     return nullptr;
 }
 
-// 실제 능력치 태그를 대응하는 '투자 레벨' 태그로 변환해 UI나 업그레이드 시스템이 현재 투자 단계를 조회할 수 있게 한다.
-bool UStatUpgradeDefinition::TryResolveDefaultStatLevelTag(const FGameplayTag& StatTag, FGameplayTag& OutLevelTag)
-{
-    const FStatUpgradeBinding* Binding = FindStatBinding(StatTag);
-    OutLevelTag = Binding ? Binding->LevelTag : FGameplayTag();
-    return Binding != nullptr;
-}
-
 // 해당 스탯에 1레벨 투자할 때 실제로 얼마나 증가하는지 설정값에서 가져온다.
 bool UStatUpgradeDefinition::TryGetUpgradeMagnitude(const FStatUpgradeBinding& Binding, float& OutMagnitude) const
 {
@@ -380,25 +372,6 @@ bool UStatUpgradeDefinition::TryGetAttributeValuePerUpgrade(const FGameplayTag& 
     }
 
     return false;
-}
-
-// 스탯 강화 계산에서 사용할 1레벨당 증가량을 반환하고, 설정 누락 시 로그를 남긴 뒤 안전한 기본값을 사용한다.
-float UStatUpgradeDefinition::GetAttributeValuePerUpgrade(const FGameplayTag& StatTag) const
-{
-    float Value = 1.f;
-    if (TryGetAttributeValuePerUpgrade(StatTag, Value))
-    {
-       return Value;
-    }
-
-    UE_LOG(
-       StatUpgradeDefinitionLog,
-       Error,
-       TEXT("[StatUpgrade] Missing ValuePerUpgrade for stat '%s' in '%s'. Falling back to 1."),
-       *StatTag.ToString(),
-       *GetPathName());
-
-    return 1.f;
 }
 
 // 특정 스탯에 직접 지정된 시작 기본값만 가져온다. 상위 카테고리의 공통값은 사용하지 않는다.

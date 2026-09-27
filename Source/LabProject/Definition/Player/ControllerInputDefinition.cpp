@@ -60,12 +60,6 @@ FPrimaryAssetId UControllerInputDefinition::GetPrimaryAssetId() const
 	return FPrimaryAssetId(TEXT("ControllerInputDefinition"), GetFName());
 }
 
-FSoftObjectPath UControllerInputDefinition::GetDefaultInputDefinitionPath()
-{
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.ControllerInput.ToSoftObjectPath();
-}
-
 TSoftObjectPtr<UCharacterActionDefinition>
 UControllerInputDefinition::GetEffectiveCharacterActionDefinition() const
 {

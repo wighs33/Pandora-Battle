@@ -36,11 +36,6 @@ int32 UPandoraDefinition::GetRequiredPointsForLevel(const int32 Level) const
 		: 1;
 }
 
-bool UPandoraDefinition::MatchesPandoraType(const FGameplayTag PandoraTypeTag) const
-{
-	return IdTag.IsValid() && PandoraTypeTag.IsValid() && IdTag.MatchesTag(PandoraTypeTag);
-}
-
 const USkillDefinition* UPandoraDefinition::GetSkillDefinition(const int32 SkillSlotIndex) const
 {
 	return Skills.IsValidIndex(SkillSlotIndex) ? Skills[SkillSlotIndex].Get() : nullptr;

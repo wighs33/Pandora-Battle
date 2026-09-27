@@ -1,7 +1,7 @@
 #include "Animation/PdAnimInstance.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
-#include "Common/WeaponAnimNotifyNames.h"
+#include "Weapon/WeaponAnimNotifyNames.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "KismetAnimationLibrary.h"

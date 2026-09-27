@@ -5,7 +5,7 @@
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
-#include "Common/WeaponAnimNotifyNames.h"
+#include "Weapon/WeaponAnimNotifyNames.h"
 #include "Component/Player/CombatComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"

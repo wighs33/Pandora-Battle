@@ -722,26 +722,19 @@ public:
 	TSoftClassPtr<UActionSlotEntryWidget> GetActionSlotEntryWidgetClass() const;
 	TSoftObjectPtr<UInputAction> GetTogglePandoraTreeInputAction() const;
 	int32 GetInventoryItemCountLimit(bool bTrainingRoom) const;
-	const FPlayerHudWidgetSettings& GetPlayerHudWidgetSettings() const { return PlayerHudWidgetSettings; }
 	const FKillBoxWidgetSettings& GetKillBoxWidgetSettings() const;
 	const FInfoWidgetSettings& GetInfoWidgetSettings() const;
 	const FSelectPandoraWidgetSettings& GetSelectPandoraWidgetSettings() const;
-	const FAimCrosshairWidgetSettings& GetAimCrosshairWidgetSettings() const { return AimCrosshairWidgetSettings; }
 	const FPandoraTreeWidgetSettings& GetPandoraTreeWidgetSettings() const;
 	const FPandoraWidgetSettings& GetPandoraWidgetSettings() const;
 	const FRightPandoraWidgetSettings& GetRightPandoraWidgetSettings() const;
 	const FRightNotificationsWidgetSettings& GetRightNotificationsWidgetSettings() const;
-	const FMenuPopupWidgetSettings& GetMenuPopupWidgetSettings() const { return MenuPopupWidgetSettings; }
-	const FConnectingPopupWidgetSettings& GetConnectingPopupWidgetSettings() const { return ConnectingPopupWidgetSettings; }
 	const FTitleAuxiliaryWidgetSettings& GetTitleAuxiliaryWidgetSettings() const;
-	const FInfoAuxiliaryWidgetSettings& GetInfoAuxiliaryWidgetSettings() const { return InfoAuxiliaryWidgetSettings; }
 	const FMapWidgetSettings& GetMapWidgetSettings() const;
 	const FRecordWidgetSettings& GetRecordWidgetSettings() const;
 	const FStatusEffectsBarWidgetSettings& GetStatusEffectsBarWidgetSettings() const;
 	const FRoomListWidgetSettings& GetRoomListWidgetSettings() const;
 	const FLobbyWidgetSettings& GetLobbyWidgetSettings() const;
-	const FGameResultWidgetSettings& GetGameResultWidgetSettings() const { return GameResultWidgetSettings; }
-	const FCharacterWidgetSettings& GetCharacterWidgetSettings() const { return CharacterWidgetSettings; }
 	const FInventoryWidgetSettings& GetInventoryWidgetSettings() const;
 	const FSkinWidgetSettings& GetSkinWidgetSettings() const;
 	const FAbilitySlotWidgetSettings& GetAbilitySlotWidgetSettings() const;
@@ -751,6 +744,14 @@ public:
 	const FActionSlotWidgetSettings& GetActionSlotWidgetSettings() const;
 
 private:
+	const FPlayerHudWidgetSettings& GetPlayerHudWidgetSettings() const { return PlayerHudWidgetSettings; }
+	const FAimCrosshairWidgetSettings& GetAimCrosshairWidgetSettings() const { return AimCrosshairWidgetSettings; }
+	const FMenuPopupWidgetSettings& GetMenuPopupWidgetSettings() const { return MenuPopupWidgetSettings; }
+	const FConnectingPopupWidgetSettings& GetConnectingPopupWidgetSettings() const { return ConnectingPopupWidgetSettings; }
+	const FInfoAuxiliaryWidgetSettings& GetInfoAuxiliaryWidgetSettings() const { return InfoAuxiliaryWidgetSettings; }
+	const FGameResultWidgetSettings& GetGameResultWidgetSettings() const { return GameResultWidgetSettings; }
+	const FCharacterWidgetSettings& GetCharacterWidgetSettings() const { return CharacterWidgetSettings; }
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Fragments", meta = (AllowPrivateAccess = "true", IncludeAssetBundles))
 	TObjectPtr<UWidgetStyleDefinition> Style;
 

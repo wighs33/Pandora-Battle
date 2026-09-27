@@ -2,7 +2,7 @@
 
 #include "Animation/AnimMontage.h"
 #include "Character/PdPlayer.h"
-#include "Common/WeaponAnimNotifyNames.h"
+#include "Weapon/WeaponAnimNotifyNames.h"
 #include "Weapon/WeaponBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WeaponAnimInstance)
 

@@ -5,7 +5,7 @@
 #include "Component/Character/EnemyCombatComponent.h"
 #include "Component/Character/EnemyTrainingBotComponent.h"
 #include "Component/Player/CombatComponent.h"
-#include "Common/EquipmentAbilityData.h"
+#include "AbilitySystem/Ability/EquipmentAbilityData.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Definition/Player/PlayerPawnDefinition.h"

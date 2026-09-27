@@ -60,8 +60,6 @@ public:
 
 	const FShopProductDefinitionData& GetShopData() const { return ShopData; }
 
-	bool MatchesPandoraType(FGameplayTag PandoraTypeTag) const;
-
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	bool IsSkillSlotUnlocked(int32 SkillSlotIndex, int32 PandoraLevel) const;
 

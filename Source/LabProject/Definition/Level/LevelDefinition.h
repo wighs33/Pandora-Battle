@@ -67,15 +67,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Ingame Level")
 	bool FindIngameLevel(FName LevelKey, FLobbyMatchMapOption& OutLevel) const;
 
-	UFUNCTION(BlueprintPure, Category = "!Ingame Level")
-	FName ResolveIngameLevelKey(FName LevelKey) const;
-
 	FString GetTitleTravelMapName() const;
 	FString GetLobbyTravelMapName() const;
 	FString GetRoomTravelMapName() const;
 	FString GetTrainingRoomTravelMapName() const;
 	bool IsLobbyMapName(const FString& LevelName) const;
 	bool IsTrainingRoomMapName(const FString& LevelName) const;
+
+private:
+	FName ResolveIngameLevelKey(FName LevelKey) const;
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ingame Level",

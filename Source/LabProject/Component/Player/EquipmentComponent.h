@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "ActiveGameplayEffectHandle.h"
-#include "Common/EquipmentAbilityData.h"
+#include "AbilitySystem/Ability/EquipmentAbilityData.h"
 #include "Common/Enum_Direction.h"
 #include "GameplayTagContainer.h"
 #include "Components/ActorComponent.h"
