@@ -48,8 +48,8 @@ bool IsPetSkinDefinition(const USkinDefinition* SkinDefinition, const FGameplayT
 {
 	return SkinDefinition
 		&& (!SkinDefinition->PetActorClass.IsNull()
-			|| SkinDefinition->IdTag.MatchesTag(UProjectTagDefinition::GetDefaultConfig()->GetSkinPetTypeTag())
-			|| SlotTag == UProjectTagDefinition::GetDefaultConfig()->GetSkinPetTypeTag());
+			|| SkinDefinition->IdTag.MatchesTag(UProjectTagDefinition::GetDefaultDefinition()->GetSkinPetTypeTag())
+			|| SlotTag == UProjectTagDefinition::GetDefaultDefinition()->GetSkinPetTypeTag());
 }
 }
 

@@ -43,7 +43,7 @@ FGameplayEffectSpecHandle USkillAbility::MakeConfiguredDamageEffectSpec(
 	FGameplayTag DamageDataTag = DamageConfig.MagnitudeDataTag;
 	if (!DamageDataTag.IsValid())
 	{
-		DamageDataTag = UProjectTagDefinition::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
+		DamageDataTag = UProjectTagDefinition::GetDefaultDefinition()->GetSetByCallerDamageMagnitudeTag();
 	}
 
 	if (DamageDataTag.IsValid())

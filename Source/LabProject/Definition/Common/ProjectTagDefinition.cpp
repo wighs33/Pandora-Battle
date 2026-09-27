@@ -10,43 +10,43 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ProjectTagDefinition)
 
-DEFINE_LOG_CATEGORY_STATIC(LogProjectTagConfig, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogProjectTagDefinition, Log, All);
 
 namespace
 {
-	constexpr double RequiredConfigLogIntervalSeconds = 30.0;
-	FLogRateLimiter MissingConfigLogLimiter;
-	FLogRateLimiter LoadFailedConfigLogLimiter;
-	TSharedPtr<FStreamableHandle> PendingConfigLoadHandle;
+	constexpr double RequiredDefinitionLogIntervalSeconds = 30.0;
+	FLogRateLimiter MissingDefinitionLogLimiter;
+	FLogRateLimiter LoadFailedDefinitionLogLimiter;
+	TSharedPtr<FStreamableHandle> PendingDefinitionLoadHandle;
 
-	const UProjectTagDefinition* LoadProjectTagConfigPrimaryAsset()
+	const UProjectTagDefinition* LoadProjectTagDefinitionPrimaryAsset()
 	{
 		UAssetManager* AssetManager = UAssetManager::GetIfInitialized();
 		if (!AssetManager)
 		{
 			// Very early editor/CDO code can run before AssetManager initialization.
-			// GetDefaultConfig() provides native defaults until PrimaryAssets are available.
+			// GetDefaultDefinition() provides native defaults until PrimaryAssets are available.
 			return nullptr;
 		}
 
-		static FPrimaryAssetId ResolvedConfigId;
-		if (!ResolvedConfigId.IsValid()
-			|| !AssetManager->GetPrimaryAssetPath(ResolvedConfigId).IsValid())
+		static FPrimaryAssetId ResolvedDefinitionId;
+		if (!ResolvedDefinitionId.IsValid()
+			|| !AssetManager->GetPrimaryAssetPath(ResolvedDefinitionId).IsValid())
 		{
-			TArray<FPrimaryAssetId> ConfigIds;
-			AssetManager->GetPrimaryAssetIdList(UProjectTagDefinition::GetConfigPrimaryAssetType(), ConfigIds);
+			TArray<FPrimaryAssetId> DefinitionIds;
+			AssetManager->GetPrimaryAssetIdList(UProjectTagDefinition::GetDefinitionPrimaryAssetType(), DefinitionIds);
 
-			if (ConfigIds.IsEmpty())
+			if (DefinitionIds.IsEmpty())
 			{
 				uint32 SuppressedCount = 0;
-				if (MissingConfigLogLimiter.TryAcquire(
-					RequiredConfigLogIntervalSeconds,
+				if (MissingDefinitionLogLimiter.TryAcquire(
+					RequiredDefinitionLogIntervalSeconds,
 					SuppressedCount))
 				{
 					UE_LOG(
-						LogProjectTagConfig,
+						LogProjectTagDefinition,
 						Error,
-						TEXT("No ProjectTagConfig PrimaryAsset is registered. Expected %s. "
+						TEXT("No ProjectTagDefinition PrimaryAsset is registered. Expected %s. "
 							"SuppressedSinceLast=%u"),
 						*UProjectTagDefinition::GetPreferredPrimaryAssetId().ToString(),
 						SuppressedCount);
@@ -55,31 +55,31 @@ namespace
 			}
 
 			const FPrimaryAssetId PreferredId = UProjectTagDefinition::GetPreferredPrimaryAssetId();
-			const FPrimaryAssetId* PreferredConfig = ConfigIds.FindByPredicate(
-				[&PreferredId](const FPrimaryAssetId& ConfigId)
+			const FPrimaryAssetId* PreferredDefinition = DefinitionIds.FindByPredicate(
+				[&PreferredId](const FPrimaryAssetId& DefinitionId)
 				{
-					return ConfigId == PreferredId;
+					return DefinitionId == PreferredId;
 				});
 
-			if (ConfigIds.Num() > 1)
+			if (DefinitionIds.Num() > 1)
 			{
 				UE_LOG(
-					LogProjectTagConfig,
+					LogProjectTagDefinition,
 					Error,
-					TEXT("Multiple ProjectTagConfig PrimaryAssets are registered (%d). "
+					TEXT("Multiple ProjectTagDefinition PrimaryAssets are registered (%d). "
 						"Keep exactly one. %s will be used when available."),
-					ConfigIds.Num(),
+					DefinitionIds.Num(),
 					*PreferredId.ToString());
 			}
 
-			if (PreferredConfig)
+			if (PreferredDefinition)
 			{
-				ResolvedConfigId = *PreferredConfig;
+				ResolvedDefinitionId = *PreferredDefinition;
 			}
-			else if (ConfigIds.Num() == 1)
+			else if (DefinitionIds.Num() == 1)
 			{
 				// Supports safely renaming the sole config asset.
-				ResolvedConfigId = ConfigIds[0];
+				ResolvedDefinitionId = DefinitionIds[0];
 			}
 			else
 			{
@@ -87,42 +87,42 @@ namespace
 			}
 		}
 
-		if (const UProjectTagDefinition* LoadedConfig =
-			AssetManager->GetPrimaryAssetObject<UProjectTagDefinition>(ResolvedConfigId))
+		if (const UProjectTagDefinition* LoadedDefinition =
+			AssetManager->GetPrimaryAssetObject<UProjectTagDefinition>(ResolvedDefinitionId))
 		{
-			return LoadedConfig;
+			return LoadedDefinition;
 		}
 
-		if (!PendingConfigLoadHandle.IsValid()
-			|| PendingConfigLoadHandle->HasLoadCompleted())
+		if (!PendingDefinitionLoadHandle.IsValid()
+			|| PendingDefinitionLoadHandle->HasLoadCompleted())
 		{
-			PendingConfigLoadHandle =
-				AssetManager->LoadPrimaryAsset(ResolvedConfigId);
+			PendingDefinitionLoadHandle =
+				AssetManager->LoadPrimaryAsset(ResolvedDefinitionId);
 		}
 
-		const UProjectTagDefinition* LoadedConfig =
-			AssetManager->GetPrimaryAssetObject<UProjectTagDefinition>(ResolvedConfigId);
-		if (!LoadedConfig
-			&& (!PendingConfigLoadHandle.IsValid()
-				|| PendingConfigLoadHandle->HasLoadCompleted()))
+		const UProjectTagDefinition* LoadedDefinition =
+			AssetManager->GetPrimaryAssetObject<UProjectTagDefinition>(ResolvedDefinitionId);
+		if (!LoadedDefinition
+			&& (!PendingDefinitionLoadHandle.IsValid()
+				|| PendingDefinitionLoadHandle->HasLoadCompleted()))
 		{
 			uint32 SuppressedCount = 0;
-			if (LoadFailedConfigLogLimiter.TryAcquire(
-				RequiredConfigLogIntervalSeconds,
+			if (LoadFailedDefinitionLogLimiter.TryAcquire(
+				RequiredDefinitionLogIntervalSeconds,
 				SuppressedCount))
 			{
 				UE_LOG(
-					LogProjectTagConfig,
+					LogProjectTagDefinition,
 					Error,
-					TEXT("Failed to load ProjectTagConfig PrimaryAsset %s at %s. "
+					TEXT("Failed to load ProjectTagDefinition PrimaryAsset %s at %s. "
 						"SuppressedSinceLast=%u"),
-					*ResolvedConfigId.ToString(),
-					*AssetManager->GetPrimaryAssetPath(ResolvedConfigId).ToString(),
+					*ResolvedDefinitionId.ToString(),
+					*AssetManager->GetPrimaryAssetPath(ResolvedDefinitionId).ToString(),
 					SuppressedCount);
 			}
 		}
 
-		return LoadedConfig;
+		return LoadedDefinition;
 	}
 }
 
@@ -203,25 +203,25 @@ UProjectTagDefinition::UProjectTagDefinition()
 
 FPrimaryAssetId UProjectTagDefinition::GetPrimaryAssetId() const
 {
-	return FPrimaryAssetId(GetConfigPrimaryAssetType(), GetFName());
+	return FPrimaryAssetId(GetDefinitionPrimaryAssetType(), GetFName());
 }
 
 const UProjectTagDefinition* UProjectTagDefinition::Get(const UObject*)
 {
-	return GetDefaultConfig();
+	return GetDefaultDefinition();
 }
 
-const UProjectTagDefinition* UProjectTagDefinition::GetDefaultConfig()
+const UProjectTagDefinition* UProjectTagDefinition::GetDefaultDefinition()
 {
-	if (const UProjectTagDefinition* PrimaryConfig = LoadProjectTagConfigPrimaryAsset())
+	if (const UProjectTagDefinition* PrimaryDefinition = LoadProjectTagDefinitionPrimaryAsset())
 	{
-		return PrimaryConfig;
+		return PrimaryDefinition;
 	}
 
 	return GetDefault<UProjectTagDefinition>();
 }
 
-const FPrimaryAssetType& UProjectTagDefinition::GetConfigPrimaryAssetType()
+const FPrimaryAssetType& UProjectTagDefinition::GetDefinitionPrimaryAssetType()
 {
 	static const FPrimaryAssetType AssetType(TEXT("ProjectTagConfig"));
 	return AssetType;
@@ -229,7 +229,7 @@ const FPrimaryAssetType& UProjectTagDefinition::GetConfigPrimaryAssetType()
 
 const FPrimaryAssetId& UProjectTagDefinition::GetPreferredPrimaryAssetId()
 {
-	static const FPrimaryAssetId AssetId(GetConfigPrimaryAssetType(), TEXT("DA_ProjectTag"));
+	static const FPrimaryAssetId AssetId(GetDefinitionPrimaryAssetType(), TEXT("DA_ProjectTag"));
 	return AssetId;
 }
 
@@ -244,16 +244,16 @@ EDataValidationResult UProjectTagDefinition::IsDataValid(FDataValidationContext&
 
 	if (const UAssetManager* AssetManager = UAssetManager::GetIfInitialized())
 	{
-		TArray<FPrimaryAssetId> ConfigIds;
-		AssetManager->GetPrimaryAssetIdList(GetConfigPrimaryAssetType(), ConfigIds);
-		if (ConfigIds.Num() != 1)
+		TArray<FPrimaryAssetId> DefinitionIds;
+		AssetManager->GetPrimaryAssetIdList(GetDefinitionPrimaryAssetType(), DefinitionIds);
+		if (DefinitionIds.Num() != 1)
 		{
 			Context.AddError(FText::Format(
 				NSLOCTEXT(
-					"ProjectTagConfig",
+					"ProjectTagDefinition",
 					"SinglePrimaryAssetRequired",
-					"Exactly one ProjectTagConfig PrimaryAsset must be registered, but {0} were found."),
-				FText::AsNumber(ConfigIds.Num())));
+					"Exactly one ProjectTagDefinition PrimaryAsset must be registered, but {0} were found."),
+				FText::AsNumber(DefinitionIds.Num())));
 			Result = EDataValidationResult::Invalid;
 		}
 	}
@@ -288,15 +288,6 @@ void UProjectTagDefinition::GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags)
 	}
 	AddValidTag(OutTags, GetItemConsumableTypeTag());
 	AddValidTag(OutTags, GetItemValuableTypeTag());
-}
-
-void UProjectTagDefinition::GetPandoraFilterTypeTags(TArray<FGameplayTag>& OutTags) const
-{
-	OutTags.Reset();
-	AddValidTag(OutTags, GetPandoraOffensiveTypeTag());
-	AddValidTag(OutTags, GetPandoraDefensiveTypeTag());
-	AddValidTag(OutTags, GetPandoraSupportTypeTag());
-	AddValidTag(OutTags, GetPandoraSpecialTypeTag());
 }
 
 // 분류용 상위 태그와 실제 장착 슬롯을 구분해 서버가 허용하는 슬롯만 나열한다.

@@ -236,7 +236,7 @@ bool UPdAbilitySystemComponent::ApplyStatUpEffectByTags(
 	}
 
 	SpecHandle.Data->SetSetByCallerMagnitude(
-		UProjectTagDefinition::GetDefaultConfig()->GetSetByCallerStatUpOperationTag(),
+		UProjectTagDefinition::GetDefaultDefinition()->GetSetByCallerStatUpOperationTag(),
 		static_cast<float>(Operation));
 
 	return ApplyGameplayEffectSpecToSelf(*SpecHandle.Data).WasSuccessfullyApplied();

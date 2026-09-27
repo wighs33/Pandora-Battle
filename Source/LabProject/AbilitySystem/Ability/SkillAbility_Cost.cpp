@@ -37,7 +37,31 @@ void USkillAbility::GetCooldownTimeRemainingAndDuration(
 	const UPandoraSkillSource* Source = Spec ? Cast<UPandoraSkillSource>(Spec->SourceObject.Get()) : nullptr;
 	if (Source)
 	{
-		Source->GetCooldownTimeRemainingAndDuration(TimeRemaining, CooldownDuration);
+		TimeRemaining = 0.0f;
+		CooldownDuration = 0.0f;
+		if (!ASC->GetWorld())
+		{
+			return;
+		}
+		// 선택 변경 후에도 같은 출처를 유지하므로, 현재 슬롯 대신 이 객체로 효과를 구분한다.
+		FGameplayEffectQuery Query;
+		Query.EffectSource = Source;
+		// 기존 추가 알림과 동일하게, Cooldown을 부여하는 효과만 조회한다.
+		Query.CustomMatchDelegate.BindLambda([](const FActiveGameplayEffect& Effect)
+		{
+			FGameplayTagContainer GrantedTags;
+			Effect.Spec.GetAllGrantedTags(GrantedTags);
+			return GrantedTags.HasTag(LabGameplayTags::Cooldown);
+		});
+		for (const TPair<float, float>& Time : ASC->GetActiveEffectsTimeRemainingAndDuration(Query))
+		{
+			if (Time.Key > TimeRemaining)
+			{
+				TimeRemaining = Time.Key;
+				CooldownDuration = Time.Value;
+			}
+		}
+
 		return;
 	}
 	if (Spec && Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora))
@@ -74,7 +98,7 @@ bool USkillAbility::CheckCooldown(const FGameplayAbilitySpecHandle Handle,
 	{
 		float Remaining = 0.0f;
 		float Duration = 0.0f;
-		Source->GetCooldownTimeRemainingAndDuration(Remaining, Duration);
+		GetCooldownTimeRemainingAndDuration(AbilitySpec->Handle, ActorInfo, Remaining, Duration);
 		bOnCooldown = Remaining > 0.0f;
 	}
 	else

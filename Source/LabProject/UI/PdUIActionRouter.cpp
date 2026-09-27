@@ -1,6 +1,7 @@
 #include "UI/PdUIActionRouter.h"
 
 #include "Component/Player/ControllerInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 #include "UI/UiScreen.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
@@ -10,6 +11,8 @@
 
 void UPdUIActionRouter::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
+    FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
+    PendingInputConfigTickerHandle.Reset();
     Super::PlayerControllerChanged(NewPlayerController);
     PressedKeys.Reset();
     KeysAwaitingRelease.Reset();
@@ -17,6 +20,13 @@ void UPdUIActionRouter::PlayerControllerChanged(APlayerController* NewPlayerCont
     AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
     ActiveInputConfig.Reset();
     if (NewPlayerController) ApplyDefaultInput();
+}
+
+void UPdUIActionRouter::Deinitialize()
+{
+    FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
+    PendingInputConfigTickerHandle.Reset();
+    Super::Deinitialize();
 }
 
 void UPdUIActionRouter::BeginChatInput(UWidget* InputWidget)
@@ -64,6 +74,35 @@ bool UPdUIActionRouter::IsGameplayInputBlocked() const
 
 void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh)
 {
+    FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
+    PendingInputConfigTickerHandle.Reset();
+
+    APlayerController* Controller = GetLocalPlayerChecked()->GetPlayerController(GetWorld());
+    if (!IsValid(Controller) || Controller->IsActorBeingDestroyed()) return;
+
+    UEnhancedInputLocalPlayerSubsystem* InputSubsystem = GetLocalPlayerChecked()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+    if (InputSubsystem && !InputSubsystem->GetPlayerInput())
+    {
+        // 접속/Travel 중에는 Controller가 먼저 연결된다. 입력 객체가 준비되면 최신 요청만 적용한다.
+        const TWeakObjectPtr<APlayerController> PendingController = Controller;
+        PendingInputConfigTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+            FTickerDelegate::CreateWeakLambda(this, [this, PendingController, NewConfig](float)
+        {
+            APlayerController* CurrentController = GetLocalPlayerChecked()->GetPlayerController(GetWorld());
+            if (PendingController.IsValid() && PendingController.Get() == CurrentController && !CurrentController->IsActorBeingDestroyed())
+            {
+                const UEnhancedInputLocalPlayerSubsystem* Input = GetLocalPlayerChecked()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+                if (Input && !Input->GetPlayerInput()) return true;
+
+                PendingInputConfigTickerHandle.Reset();
+                ApplyUIInputConfig(NewConfig, true);
+            }
+            PendingInputConfigTickerHandle.Reset();
+            return false;
+        }));
+        return;
+    }
+
     const bool bWasBlocked = IsGameplayInputBlocked();
     const UCommonActivatableWidget* ActiveScreen = GetLeafmostActivatableWidget();
     const UUiScreen* Adapter = Cast<UUiScreen>(ActiveScreen);
@@ -71,7 +110,6 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
     AppliedGameplayPolicy = Adapter ? Adapter->GameplayInputPolicy
         : ActiveScreen || ChatInputWidget.IsValid() ? EPdGameplayInputPolicy::Block : EPdGameplayInputPolicy::Allow;
     const bool bWillBlock = IsGameplayInputBlocked();
-    APlayerController* Controller = GetLocalPlayerChecked()->GetPlayerController(GetWorld());
     if (bWasBlocked != bWillBlock) KeysAwaitingRelease.Append(PressedKeys);
     if (bWasBlocked && !bWillBlock && Controller)
     {

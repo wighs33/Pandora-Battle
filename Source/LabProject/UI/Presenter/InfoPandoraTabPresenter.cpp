@@ -1,6 +1,9 @@
 #include "UI/Presenter/InfoPandoraTabPresenter.h"
 
 #include "Components/TileView.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Engine/GameInstance.h"
+#include "Engine/StreamableManager.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
@@ -33,6 +36,12 @@ void UInfoPandoraTabPresenter::BindInfoUi(UInfoWidget* InInfoWidget)
 
 void UInfoPandoraTabPresenter::Deinitialize()
 {
+	if (PandoraCatalogPreload.IsValid())
+	{
+		PandoraCatalogPreload->CancelHandle();
+		PandoraCatalogPreload->ReleaseHandle();
+		PandoraCatalogPreload.Reset();
+	}
 	UnbindEvents();
 	SelectedEquipSlot = nullptr;
 	CurrentFilterTag = FGameplayTag();
@@ -61,6 +70,15 @@ void UInfoPandoraTabPresenter::SetActive(const bool bInActive)
 
 void UInfoPandoraTabPresenter::Activate()
 {
+	if (!PandoraCatalogPreload.IsValid())
+	{
+		const APdPlayerController* Controller = GetController();
+		const UGameInstance* GameInstance = Controller ? Controller->GetGameInstance() : nullptr;
+		if (UContentDataSubsystem* Content = GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr)
+		{
+			PandoraCatalogPreload = Content->PreloadPandoraDataAssetsAsync(FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshPandoraTileView));
+		}
+	}
 	bActive = true;
 	SelectedEquipSlot = nullptr;
 	bShowOnlyOwnedForEquipSlot = false;
@@ -372,36 +390,31 @@ bool UInfoPandoraTabPresenter::IsPandoraOwned(const UPandoraDefinition* PandoraD
 }
 
 void UInfoPandoraTabPresenter::BuildPandoraTileViewItems(
-	TArray<UObject*>& OutListItems,
-	const FGameplayTag TypeTag,
-	const bool bOwnedOnly) const
+	TArray<UObject*>& OutListItems, const FGameplayTag TypeTag, const bool bOwnedOnly) const
 {
 	OutListItems.Reset();
-	const UInfoLoadoutStore* Store = LoadoutStore.Get();
-	const UPandoraComponent* PandoraComponent = Store ? Store->GetPandoraComponent() : nullptr;
-	if (!PandoraComponent)
+	const APdPlayerController* Controller = GetController();
+	const UGameInstance* GameInstance = Controller ? Controller->GetGameInstance() : nullptr;
+	const UContentDataSubsystem* Content = GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!Content)
 	{
 		return;
 	}
-
-	const FPandoraList* SourceList = TypeTag.IsValid()
-		? PandoraComponent->GetFilteredPandoraMap().Find(TypeTag)
-		: &PandoraComponent->GetAllPandoras();
-	if (!SourceList)
+	TMap<FName, TObjectPtr<UPandoraDefinition>> Catalog;
+	Content->GetLoadedPandoraDefinitionsByName(Catalog);
+	for (const auto& Pair : Catalog)
 	{
-		return;
-	}
-
-	OutListItems.Reserve(SourceList->Pandoras.Num());
-	for (const TObjectPtr<const UPandoraDefinition>& Pandora : SourceList->Pandoras)
-	{
-		const UPandoraDefinition* PandoraDefinition = Pandora.Get();
-		if (IsValid(PandoraDefinition) && (!bOwnedOnly || IsPandoraOwned(PandoraDefinition)))
+		UPandoraDefinition* Definition = Pair.Value;
+		if (IsValid(Definition) && (!TypeTag.IsValid() || Definition->GetIdTag().MatchesTag(TypeTag))
+			&& (!bOwnedOnly || IsPandoraOwned(Definition)))
 		{
-			// UMG 목록은 UObject*를 받지만 데이터 애셋은 읽기 전용으로 사용한다.
-			OutListItems.Add(const_cast<UPandoraDefinition*>(PandoraDefinition));
+			OutListItems.Add(Definition);
 		}
 	}
+	OutListItems.Sort([](const UObject& Left, const UObject& Right)
+	{
+		return Left.GetName() < Right.GetName();
+	});
 }
 
 void UInfoPandoraTabPresenter::RefreshPandoraTileView() const

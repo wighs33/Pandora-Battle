@@ -185,7 +185,7 @@ void USkinComponent::FilterSkin(const USkinDefinition* SkinDefinition)
 
 void USkinComponent::ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig)
 {
-	const UProjectTagDefinition* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagDefinition::GetDefaultConfig();
+	const UProjectTagDefinition* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagDefinition::GetDefaultDefinition();
 	EffectiveConfig->GetSkinFilterTypeTags(FilterTypeTags);
 
 	RebuildFilteredSkinMap();

@@ -367,7 +367,7 @@ bool UPandoraTreeComponent::ApplyPandoraInvestment(UPandoraDefinition* Pandora, 
 	}
 	if (PandoraComponent->GetCurrentPandoraDefinition() == Pandora)
 	{
-		PandoraComponent->RefreshCurrentPandoraForWeaponChange();
+		PandoraComponent->RefreshCurrentPandoraSkills();
 	}
 	OnPandorasChanged.Broadcast();
 	if (Cost > 0)
@@ -408,7 +408,7 @@ void UPandoraTreeComponent::RestoreInitialPandoras(int32 NewPointsAvailable)
 		}
 		if (bPandorasChanged)
 		{
-			PandoraComponent->RefreshCurrentPandoraForWeaponChange();
+			PandoraComponent->RefreshCurrentPandoraSkills();
 		}
 	}
 	if (bPandorasChanged)

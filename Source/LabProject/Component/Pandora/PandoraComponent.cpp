@@ -3,20 +3,14 @@
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
-#include "Data/ContentDataSubsystem.h"
-#include "Definition/Common/ProjectTagDefinition.h"
 #include "Engine/AssetManager.h"
-#include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
-#include "EngineUtils.h"
-#include "GameFramework/Controller.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraLoadoutTypes.h"
-#include "Pandora/PandoraSkillBinder.h"
 #include "Pandora/PandoraSkillSource.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
@@ -33,7 +27,7 @@ void FReplicatedPandoraEntry::PostReplicatedAdd(const FReplicatedPandoraList& In
 {
 	if (InArraySerializer.Owner)
 	{
-		InArraySerializer.Owner->HandleReplicatedEntryAddedOrChanged(*this);
+		InArraySerializer.Owner->bReplicatedInventoryChanged = true;
 	}
 }
 
@@ -41,7 +35,7 @@ void FReplicatedPandoraEntry::PostReplicatedChange(const FReplicatedPandoraList&
 {
 	if (InArraySerializer.Owner)
 	{
-		InArraySerializer.Owner->HandleReplicatedEntryAddedOrChanged(*this);
+		InArraySerializer.Owner->bReplicatedInventoryChanged = true;
 	}
 }
 
@@ -49,7 +43,7 @@ void FReplicatedPandoraEntry::PreReplicatedRemove(const FReplicatedPandoraList& 
 {
 	if (InArraySerializer.Owner)
 	{
-		InArraySerializer.Owner->HandleReplicatedEntryRemoved(PandoraDefinition);
+		InArraySerializer.Owner->bReplicatedInventoryChanged = true;
 	}
 }
 
@@ -74,21 +68,7 @@ UPandoraComponent::UPandoraComponent(const FObjectInitializer& ObjectInitializer
 void UPandoraComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
 	ReplicatedEntries.Owner = this;
-
-	UProjectTagDefinition::Get(this)->GetPandoraFilterTypeTags(FilterTypeTags);
-	if (HasPandoraAuthority())
-	{
-		RebuildFilteredPandoraMap();
-		AddPandorasByPrimaryAssetIds(AllPandroaDefinition);
-	}
-	else
-	{
-		RebuildPandoraListsFromReplicatedEntries();
-	}
-
-	RefreshPlacedPandoraSkillPreloads();
 }
 
 void UPandoraComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -100,9 +80,7 @@ void UPandoraComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	ReleaseSkillSourcesForEndPlay();
 
-	CachedCharacterOwner.Reset();
 	ReplicatedEntries.Owner = nullptr;
-	ReleasePlacedPandoraSkillPreloads();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -149,12 +127,6 @@ void UPandoraComponent::LogRejectedServerRequest(
 		SuppressedCount);
 }
 
-// 잠긴 항목을 포함한 목록을 채우되, 이미 보유한 판도라는 잠그지 않는다.
-void UPandoraComponent::AddPandorasByPrimaryAssetIds(const TArray<FPrimaryAssetId>& PandoraDefinitions)
-{
-	LoadPandoraDefinitions(PandoraDefinitions, {}, false);
-}
-
 void UPandoraComponent::ActivatePandoras(const TArray<FPrimaryAssetId>& PandoraDefinitions)
 {
 	ActivatePandorasWithLoadout(PandoraDefinitions, {});
@@ -164,7 +136,7 @@ void UPandoraComponent::ActivatePandorasWithLoadout(
 	const TArray<FPrimaryAssetId>& PandoraDefinitions,
 	const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection)
 {
-	LoadPandoraDefinitions(PandoraDefinitions, PandoraLoadoutByDirection, true);
+	LoadPandoraDefinitions(PandoraDefinitions, PandoraLoadoutByDirection);
 }
 
 // 이미 로드된 판도라를 지급할 때도 보유 상태와 복제 항목을 같은 경로로 변경한다.
@@ -174,7 +146,7 @@ bool UPandoraComponent::GrantPandoraDefinition(const UPandoraDefinition* Pandora
 	{
 		return false;
 	}
-	if (AddPandoraDefinition(PandoraDefinition, true))
+	if (AddPandoraDefinition(PandoraDefinition))
 	{
 		OnPandoraInventoryChanged.Broadcast();
 	}
@@ -188,11 +160,11 @@ bool UPandoraComponent::HasPandoraDefinition(const UPandoraDefinition* PandoraDe
 		return false;
 	}
 	const FReplicatedPandoraEntry* Entry = FindReplicatedEntryByDefinition(PandoraDefinition);
-	return Entry && Entry->IsOwned;
+	return Entry != nullptr;
 }
 
 void UPandoraComponent::LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& PandoraDefinitions,
-	const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection, const bool bOwned)
+	const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection)
 {
 	if (!HasPandoraAuthority() || PandoraDefinitions.IsEmpty())
 	{
@@ -215,7 +187,7 @@ void UPandoraComponent::LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& Pa
 	const uint64 RequestGeneration = PandoraLoadGeneration;
 	TSharedPtr<FStreamableHandle> LoadHandle = UAssetManager::Get().LoadPrimaryAssets(
 		DefinitionIdsToLoad, {}, FStreamableDelegate::CreateWeakLambda(this,
-		[this, PandoraDefinitions, PandoraLoadoutByDirection, bOwned, RequestGeneration]()
+		[this, PandoraDefinitions, PandoraLoadoutByDirection, RequestGeneration]()
 		{
 			if (RequestGeneration != PandoraLoadGeneration || !HasPandoraAuthority())
 			{
@@ -232,7 +204,7 @@ void UPandoraComponent::LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& Pa
 					UE_LOG(PandoraComponentLog, Error, TEXT("Failed to load Pandora definition '%s'."), *DefinitionId.ToString());
 					continue;
 				}
-				bChanged |= AddPandoraDefinition(Definition, bOwned);
+				bChanged |= AddPandoraDefinition(Definition);
 			}
 
 			for (const TPair<EEnum_Direction, FPrimaryAssetId>& Pair : PandoraLoadoutByDirection)
@@ -282,7 +254,7 @@ void UPandoraComponent::ClearAllPandoras()
 
 	CancelPendingPandoraLoads();
 
-	const bool bHadPandoras = !AllPandoraList.Pandoras.IsEmpty() || !ReplicatedEntries.Entries.IsEmpty();
+	const bool bHadPandoras = !ReplicatedEntries.Entries.IsEmpty();
 	const bool bHadSelection = CurrentPandoraDefinition != nullptr
 		|| CurrentPandoraLoadoutDirection != EEnum_Direction::Center
 		|| !GrantedPandoraAbilityHandles.IsEmpty();
@@ -292,8 +264,6 @@ void UPandoraComponent::ClearAllPandoras()
 	CurrentPandoraDefinition = nullptr;
 	CurrentPandoraLoadoutDirection = EEnum_Direction::Center;
 	PandoraLoadoutSlots.Reset();
-	AllPandoraList.Pandoras.Reset();
-	Map_Type_PandoraList.Reset();
 	ReplicatedEntries.Entries.Reset();
 	ReplicatedEntries.MarkArrayDirty();
 
@@ -315,28 +285,6 @@ void UPandoraComponent::ClearAllPandoras()
 	if (bHadPandoras)
 	{
 		OnPandoraInventoryChanged.Broadcast();
-	}
-}
-
-void UPandoraComponent::FilterPandoras(const UPandoraDefinition* PandoraDefinition)
-{
-	if (!IsValid(PandoraDefinition))
-	{
-		return;
-	}
-
-	if (!PandoraDefinition->GetIdTag().IsValid())
-	{
-
-		return;
-	}
-
-	for (const FGameplayTag& TypeTag : FilterTypeTags)
-	{
-		if (PandoraDefinition->GetIdTag().MatchesTag(TypeTag))
-		{
-			Map_Type_PandoraList.FindOrAdd(TypeTag).Pandoras.AddUnique(PandoraDefinition);
-		}
 	}
 }
 
@@ -533,104 +481,21 @@ void UPandoraComponent::ServerAutoSetPandoraLoadoutSlot_Implementation(FPrimaryA
 
 const UPandoraDefinition* UPandoraComponent::GetPandoraLoadoutDefinition(const EEnum_Direction Direction) const
 {
-	const FPandoraLoadoutSlot* Slot = FindPandoraLoadoutSlot(Direction);
+	const FPandoraLoadoutSlot* Slot = PandoraLoadout::FindSlot(PandoraLoadoutSlots, Direction);
 	return Slot ? Slot->PandoraDefinition.Get() : nullptr;
 }
 
-void UPandoraComponent::ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig)
+bool UPandoraComponent::AddPandoraDefinition(const UPandoraDefinition* PandoraDefinition)
 {
-	const UProjectTagDefinition* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagDefinition::GetDefaultConfig();
-	EffectiveConfig->GetPandoraFilterTypeTags(FilterTypeTags);
-
-	RebuildFilteredPandoraMap();
-	OnPandoraInventoryChanged.Broadcast();
-}
-
-void UPandoraComponent::RebuildPandoraListsFromReplicatedEntries()
-{
-	AllPandoraList.Pandoras.Reset();
-
-	for (const FReplicatedPandoraEntry& Entry : ReplicatedEntries.Entries)
+	if (FindReplicatedEntryByDefinition(PandoraDefinition))
 	{
-		if (!IsValid(Entry.PandoraDefinition))
-		{
-			continue;
-		}
-
-		AllPandoraList.Pandoras.AddUnique(Entry.PandoraDefinition);
+		return false;
 	}
-
-	RebuildFilteredPandoraMap();
-	OnPandoraInventoryChanged.Broadcast();
-}
-
-void UPandoraComponent::RebuildFilteredPandoraMap()
-{
-	Map_Type_PandoraList.Reset();
-
-	for (const UPandoraDefinition* PandoraDefinition : AllPandoraList.Pandoras)
-	{
-		FilterPandoras(PandoraDefinition);
-	}
-}
-
-void UPandoraComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedPandoraEntry& Entry)
-{
-	if (!IsValid(Entry.PandoraDefinition))
-	{
-		return;
-	}
-
-	if (!AllPandoraList.Pandoras.Contains(Entry.PandoraDefinition))
-	{
-		AllPandoraList.Pandoras.Add(Entry.PandoraDefinition);
-		FilterPandoras(Entry.PandoraDefinition);
-	}
-
-	bReplicatedInventoryChanged = true;
-}
-
-void UPandoraComponent::HandleReplicatedEntryRemoved(const UPandoraDefinition* PandoraDefinition)
-{
-	if (!IsValid(PandoraDefinition))
-	{
-		return;
-	}
-
-	AllPandoraList.Pandoras.Remove(PandoraDefinition);
-
-	RebuildFilteredPandoraMap();
-	bReplicatedInventoryChanged = true;
-}
-
-bool UPandoraComponent::AddPandoraDefinition(const UPandoraDefinition* PandoraDefinition, const bool bOwned)
-{
-	FReplicatedPandoraEntry* Entry = FindReplicatedEntryByDefinition(PandoraDefinition);
-	bool bChanged = false;
-	if (!Entry)
-	{
-		Entry = &ReplicatedEntries.Entries.AddDefaulted_GetRef();
-		Entry->PandoraDefinition = PandoraDefinition;
-		bChanged = true;
-	}
-	if (bOwned && !Entry->IsOwned)
-	{
-		Entry->IsOwned = true;
-		bChanged = true;
-	}
-	if (bChanged)
-	{
-		ReplicatedEntries.MarkEntryDirty(*Entry);
-		MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, ReplicatedEntries, this);
-	}
-
-	if (!AllPandoraList.Pandoras.Contains(PandoraDefinition))
-	{
-		AllPandoraList.Pandoras.Add(PandoraDefinition);
-		FilterPandoras(PandoraDefinition);
-		bChanged = true;
-	}
-	return bChanged;
+	FReplicatedPandoraEntry& Entry = ReplicatedEntries.Entries.AddDefaulted_GetRef();
+	Entry.PandoraDefinition = PandoraDefinition;
+	ReplicatedEntries.MarkEntryDirty(Entry);
+	MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, ReplicatedEntries, this);
+	return true;
 }
 
 bool UPandoraComponent::SelectPandoraByPrimaryAssetId(
@@ -666,7 +531,7 @@ bool UPandoraComponent::SelectPandoraByPrimaryAssetId(
 			MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, CurrentPandoraLoadoutDirection, this);
 		}
 
-		RefreshSelectedPandoraAbilityBindings(ASC);
+		RefreshPandoraSkillInputBindings(ASC);
 		NotifyPandoraSelectionChanged();
 		return true;
 	}
@@ -692,12 +557,12 @@ bool UPandoraComponent::SelectPandoraByPrimaryAssetId(
 		MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, CurrentPandoraLoadoutDirection, this);
 	}
 
-	RefreshCurrentPandoraForWeaponChange();
+	RefreshCurrentPandoraSkills();
 
 	return true;
 }
 
-void UPandoraComponent::RefreshCurrentPandoraForWeaponChange()
+void UPandoraComponent::RefreshCurrentPandoraSkills()
 {
 	if (!HasPandoraAuthority())
 	{
@@ -721,39 +586,19 @@ void UPandoraComponent::RefreshCurrentPandoraForWeaponChange()
 		CurrentPandoraLoadoutDirection = EffectiveLoadoutDirection;
 		MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, CurrentPandoraLoadoutDirection, this);
 	}
-	if (ASC && CurrentPandoraDefinition && bApplyPandoraContentOnSelection && bCompatibleWithCurrentWeapon)
+	if (ASC && CurrentPandoraDefinition && bCompatibleWithCurrentWeapon)
 	{
-		GrantedPandoraAbilityHandles.Append(FPandoraSkillBinder::GrantPandoraContent(
-			this, ASC, CurrentPandoraDefinition, RuntimeLevel, EffectiveLoadoutDirection));
+		GrantPandoraSkills(ASC, CurrentPandoraDefinition, RuntimeLevel, EffectiveLoadoutDirection);
 
 	}
 
-	RefreshSelectedPandoraAbilityBindings(ASC);
+	RefreshPandoraSkillInputBindings(ASC);
 	NotifyPandoraSelectionChanged();
 }
 
 bool UPandoraComponent::IsPandoraCompatibleWithCurrentWeapon(const UPandoraDefinition* PandoraDefinition) const
 {
 	return !PandoraDefinition || PandoraDefinition->IsCompatibleWithWeaponDefinition(GetCurrentWeaponDefinition());
-}
-
-void UPandoraComponent::ClearGrantedPandoraContent()
-{
-	APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
-	if (UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(
-		PlayerStateOwner ? PlayerStateOwner->GetAbilitySystemComponent() : nullptr))
-	{
-		FPandoraSkillBinder::RemoveGrantedContent(ASC, GrantedPandoraAbilityHandles);
-	}
-
-	GrantedPandoraAbilityHandles.Reset();
-	// 부여 실패나 GAS의 대기 중 추가 취소로 회수 콜백이 없었던 출처도 정리한다.
-	// 목록 잠금으로 회수가 보류된 능력의 출처는 실제 회수 이벤트까지 유지한다.
-	const TArray<TObjectPtr<UPandoraSkillSource>> Sources = OwnedSkillSources;
-	for (UPandoraSkillSource* Source : Sources)
-	{
-		ReleaseSkillSourceIfUnused(Source);
-	}
 }
 
 int32 UPandoraComponent::ResolveSelectedPandoraRuntimeLevel(const UPandoraDefinition* PandoraDefinition) const
@@ -811,55 +656,8 @@ EEnum_Direction UPandoraComponent::ResolvePandoraSelectionDirection(
 
 const ACharacterBase* UPandoraComponent::ResolveCurrentCharacterOwner() const
 {
-	const APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
-	if (!PlayerStateOwner)
-	{
-		CachedCharacterOwner.Reset();
-		return nullptr;
-	}
-
-	if (const ACharacterBase* CachedCharacter = CachedCharacterOwner.Get())
-	{
-		if (CachedCharacter->GetPlayerState() == PlayerStateOwner)
-		{
-			return CachedCharacter;
-		}
-
-		CachedCharacterOwner.Reset();
-	}
-
-	if (ACharacterBase* CharacterOwner = Cast<ACharacterBase>(PlayerStateOwner->GetPawn()))
-	{
-		CachedCharacterOwner = CharacterOwner;
-		return CharacterOwner;
-	}
-
-	if (const AController* ControllerOwner = Cast<AController>(PlayerStateOwner->GetOwner()))
-	{
-		if (ACharacterBase* CharacterOwner = Cast<ACharacterBase>(ControllerOwner->GetPawn()))
-		{
-			if (CharacterOwner->GetPlayerState() == PlayerStateOwner)
-			{
-				CachedCharacterOwner = CharacterOwner;
-				return CharacterOwner;
-			}
-		}
-	}
-
-	if (UWorld* World = GetWorld())
-	{
-		for (TActorIterator<ACharacterBase> It(World); It; ++It)
-		{
-			ACharacterBase* Candidate = *It;
-			if (Candidate && Candidate->GetPlayerState() == PlayerStateOwner)
-			{
-				CachedCharacterOwner = Candidate;
-				return Candidate;
-			}
-		}
-	}
-
-	return nullptr;
+	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
+	return PlayerState ? Cast<ACharacterBase>(PlayerState->GetPawn()) : nullptr;
 }
 
 const UEquipmentComponent* UPandoraComponent::GetCurrentEquipmentComponent() const
@@ -878,33 +676,6 @@ EEnum_Direction UPandoraComponent::GetCurrentWeaponLoadoutDirection() const
 {
 	const UEquipmentComponent* EquipmentComponent = GetCurrentEquipmentComponent();
 	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponLoadoutDirection() : EEnum_Direction::Center;
-}
-
-void UPandoraComponent::RefreshSelectedPandoraAbilityBindings(UPdAbilitySystemComponent* AbilitySystemComponent) const
-{
-	if (!HasPandoraAuthority())
-	{
-		return;
-	}
-
-	if (!AbilitySystemComponent)
-	{
-		const APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
-		AbilitySystemComponent = PlayerStateOwner
-			? Cast<UPdAbilitySystemComponent>(PlayerStateOwner->GetAbilitySystemComponent())
-			: nullptr;
-	}
-
-	if (!AbilitySystemComponent)
-	{
-		return;
-	}
-
-	FPandoraSkillBinder::RefreshInputBindings(
-		AbilitySystemComponent,
-		CurrentPandoraDefinition,
-		ResolveSelectedPandoraRuntimeLevel(CurrentPandoraDefinition),
-		bApplyPandoraContentOnSelection && CurrentPandoraDefinition && IsPandoraCompatibleWithCurrentWeapon(CurrentPandoraDefinition));
 }
 
 void UPandoraComponent::OnRep_CurrentPandoraDefinition()
@@ -937,98 +708,7 @@ void UPandoraComponent::NotifyPandoraSelectionChanged()
 
 void UPandoraComponent::NotifyPandoraLoadoutChanged()
 {
-	RefreshPlacedPandoraSkillPreloads();
 	OnPandoraLoadoutChanged.Broadcast();
-}
-
-void UPandoraComponent::RefreshPlacedPandoraSkillPreloads()
-{
-	TSet<FPrimaryAssetId> DesiredSkillDefinitionIds;
-	for (const EEnum_Direction Direction :
-		{ EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
-	{
-		const UPandoraDefinition* PandoraDefinition =
-			GetPandoraLoadoutDefinition(Direction);
-		if (!PandoraDefinition)
-		{
-			continue;
-		}
-
-		const int32 SkillCount = FMath::Min(
-			PandoraDefinition->GetSkillCount(),
-			UPandoraDefinition::GetFixedMaxLevel());
-		for (int32 SkillIndex = 0; SkillIndex < SkillCount; ++SkillIndex)
-		{
-			const USkillDefinition* SkillDefinition =
-				PandoraDefinition->GetSkillDefinition(SkillIndex);
-			if (SkillDefinition)
-			{
-				DesiredSkillDefinitionIds.Add(
-					SkillDefinition->GetPrimaryAssetId());
-			}
-		}
-	}
-
-	for (auto HandleIt = PlacedPandoraSkillPreloadHandles.CreateIterator();
-		HandleIt;
-		++HandleIt)
-	{
-		if (DesiredSkillDefinitionIds.Contains(HandleIt.Key()))
-		{
-			continue;
-		}
-
-		if (HandleIt.Value().IsValid())
-		{
-			HandleIt.Value()->CancelHandle();
-			HandleIt.Value()->ReleaseHandle();
-		}
-		HandleIt.RemoveCurrent();
-	}
-
-	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	UContentDataSubsystem* ContentSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	if (!ContentSubsystem)
-	{
-		if (!DesiredSkillDefinitionIds.IsEmpty())
-		{
-			UE_LOG(
-				PandoraComponentLog,
-				Error,
-				TEXT("Placed Pandora skill preload could not start because ContentDataSubsystem is unavailable. Owner=%s"),
-				*GetPathNameSafe(GetOwner()));
-		}
-		return;
-	}
-
-	for (const FPrimaryAssetId& SkillDefinitionId : DesiredSkillDefinitionIds)
-	{
-		if (PlacedPandoraSkillPreloadHandles.Contains(SkillDefinitionId))
-		{
-			continue;
-		}
-
-		TSharedPtr<FStreamableHandle> PreloadHandle =
-			ContentSubsystem->PreloadPrimaryAssetsAsync({ SkillDefinitionId });
-		PlacedPandoraSkillPreloadHandles.Add(
-			SkillDefinitionId,
-			MoveTemp(PreloadHandle));
-	}
-}
-
-void UPandoraComponent::ReleasePlacedPandoraSkillPreloads()
-{
-	for (TPair<FPrimaryAssetId, TSharedPtr<FStreamableHandle>>& HandlePair :
-		PlacedPandoraSkillPreloadHandles)
-	{
-		if (HandlePair.Value.IsValid())
-		{
-			HandlePair.Value->CancelHandle();
-			HandlePair.Value->ReleaseHandle();
-		}
-	}
-	PlacedPandoraSkillPreloadHandles.Reset();
 }
 
 bool UPandoraComponent::ResolveAutoPandoraLoadoutDirection(
@@ -1140,7 +820,7 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 		return true;
 	}
 
-	if (FPandoraLoadoutSlot* ExistingSlot = FindPandoraLoadoutSlot(Direction))
+	if (FPandoraLoadoutSlot* ExistingSlot = PandoraLoadout::FindSlot(PandoraLoadoutSlots, Direction))
 	{
 		if (ExistingSlot->PandoraDefinition == PandoraDefinition)
 		{
@@ -1171,16 +851,6 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 	return true;
 }
 
-FPandoraLoadoutSlot* UPandoraComponent::FindPandoraLoadoutSlot(const EEnum_Direction Direction)
-{
-	return PandoraLoadout::FindSlot(PandoraLoadoutSlots, Direction);
-}
-
-const FPandoraLoadoutSlot* UPandoraComponent::FindPandoraLoadoutSlot(const EEnum_Direction Direction) const
-{
-	return PandoraLoadout::FindSlot(PandoraLoadoutSlots, Direction);
-}
-
 const UPandoraDefinition* UPandoraComponent::FindOwnedPandoraDefinitionByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId) const
 {
 	if (!PandoraDefinitionId.IsValid())
@@ -1191,7 +861,7 @@ const UPandoraDefinition* UPandoraComponent::FindOwnedPandoraDefinitionByPrimary
 	for (const FReplicatedPandoraEntry& Entry : ReplicatedEntries.Entries)
 	{
 		const UPandoraDefinition* PandoraDefinition = Entry.PandoraDefinition;
-		if (Entry.IsOwned && IsValid(PandoraDefinition) && PandoraDefinition->GetPrimaryAssetId() == PandoraDefinitionId)
+		if (IsValid(PandoraDefinition) && PandoraDefinition->GetPrimaryAssetId() == PandoraDefinitionId)
 		{
 			return PandoraDefinition;
 		}
@@ -1230,132 +900,4 @@ const FReplicatedPandoraEntry* UPandoraComponent::FindReplicatedEntryByDefinitio
 	return EntryIndex != INDEX_NONE ? &ReplicatedEntries.Entries[EntryIndex] : nullptr;
 }
 
-
 // ----------------------------------------------------------------------------------------------------------------------
-
-void UPandoraComponent::BindAbilityRemoval()
-{
-	if (AbilityRemovedHandle.IsValid())
-	{
-		return;
-	}
-	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	UPdAbilitySystemComponent* ASC = PlayerState
-		? Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent()) : nullptr;
-	if (ASC && HasPandoraAuthority())
-	{
-		SourceAbilitySystemComponent = ASC;
-		AbilityRemovedHandle = ASC->OnAbilityRemovedNative.AddUObject(this, &ThisClass::HandleGrantedAbilityRemoved);
-	}
-}
-
-UPandoraSkillSource* UPandoraComponent::CreateSkillSource(const UPandoraDefinition* Definition,
-	const int32 SkillIndex, const EEnum_Direction LoadoutDirection)
-{
-	if (!HasPandoraAuthority() || !Definition || !Definition->GetSkillDefinition(SkillIndex))
-	{
-		return nullptr;
-	}
-	BindAbilityRemoval();
-	if (!SourceAbilitySystemComponent.IsValid())
-	{
-		return nullptr;
-	}
-
-	UPandoraSkillSource* Source = NewObject<UPandoraSkillSource>(this);
-	Source->Initialize(Definition, SkillIndex, LoadoutDirection);
-	OwnedSkillSources.Add(Source);
-	if (IsReadyForReplication())
-	{
-		AddReplicatedSubObject(Source);
-	}
-	return Source;
-}
-
-void UPandoraComponent::ReadyForReplication()
-{
-	Super::ReadyForReplication();
-	if (!HasPandoraAuthority())
-	{
-		return;
-	}
-	BindAbilityRemoval();
-	// 능력 부여 여부와 무관하게, 복제 준비 전에 생성된 출처도 등록한다.
-	for (UPandoraSkillSource* Source : OwnedSkillSources)
-	{
-		if (IsValid(Source))
-		{
-			AddReplicatedSubObject(Source);
-		}
-	}
-}
-
-void UPandoraComponent::HandleGrantedAbilityRemoved(const FGameplayAbilitySpec& Spec)
-{
-	ReleaseSkillSourceIfUnused(Cast<UPandoraSkillSource>(Spec.SourceObject.Get()), Spec.Handle);
-}
-
-void UPandoraComponent::ReleaseSkillSourceIfUnused(UPandoraSkillSource* Source, const FGameplayAbilitySpecHandle RemovedHandle)
-{
-	if (!HasPandoraAuthority() || !IsValid(Source) || Source->GetOuter() != this
-		|| !OwnedSkillSources.Contains(Source))
-	{
-		return;
-	}
-	if (const UPdAbilitySystemComponent* ASC = SourceAbilitySystemComponent.Get())
-	{
-		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
-		{
-			// 회수 콜백은 Spec이 목록에서 삭제되기 전에 실행된다.
-			if (Spec.Handle != RemovedHandle && Spec.SourceObject.Get() == Source)
-			{
-				return;
-			}
-		}
-	}
-	DestroyReplicatedSubObjectOnRemotePeers(Source);
-	OwnedSkillSources.Remove(Source);
-}
-
-void UPandoraComponent::HandleSkillSourceReplicated(UPandoraSkillSource* Source)
-{
-	if (!IsValid(Source) || Source->GetOuter() != this)
-	{
-		return;
-	}
-	// 클라이언트에서는 SourceObject의 약한 참조와 별개로 출처를 보관한다.
-	OwnedSkillSources.AddUnique(Source);
-	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	if (UPdAbilitySystemComponent* ASC = PlayerState
-		? Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent()) : nullptr)
-	{
-		// LocalPredicted 시전의 성공 응답은 GAS가 확인만 한다. 출처 수신은 UI 준비 상태만 갱신한다.
-		ASC->OnAbilitiesChangedNative.Broadcast();
-	}
-}
-
-void UPandoraComponent::HandleSkillSourceDestroyed(UPandoraSkillSource* Source)
-{
-	OwnedSkillSources.Remove(Source);
-}
-
-void UPandoraComponent::ReleaseSkillSourcesForEndPlay()
-{
-	if (UPdAbilitySystemComponent* ASC = SourceAbilitySystemComponent.Get())
-	{
-		ASC->OnAbilityRemovedNative.Remove(AbilityRemovedHandle);
-	}
-	AbilityRemovedHandle.Reset();
-	SourceAbilitySystemComponent.Reset();
-	if (HasPandoraAuthority())
-	{
-		for (UPandoraSkillSource* Source : OwnedSkillSources)
-		{
-			if (IsValid(Source))
-			{
-				DestroyReplicatedSubObjectOnRemotePeers(Source);
-			}
-		}
-	}
-	OwnedSkillSources.Reset();
-}

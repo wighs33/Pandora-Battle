@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "PdUIActionRouter.generated.h"
 
@@ -15,6 +16,7 @@ class LABPROJECT_API UPdUIActionRouter : public UCommonUIActionRouterBase
 public:
     // Engine Overrides ------------------------------------------------------------------------------------------------
     virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
+    virtual void Deinitialize() override;
     virtual ERouteUIInputResult ProcessInput(FKey Key, EInputEvent InputEvent) const override;
 
     // Public API ------------------------------------------------------------------------------------------------------
@@ -29,6 +31,7 @@ protected:
     void ApplyDefaultInput();
 
 private:
+    FTSTicker::FDelegateHandle PendingInputConfigTickerHandle;
     TWeakObjectPtr<UWidget> ChatInputWidget;
     EPdGameplayInputPolicy AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
     mutable TSet<FKey> PressedKeys;

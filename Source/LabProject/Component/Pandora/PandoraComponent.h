@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
 #include "Iris/ReplicationState/IrisFastArraySerializer.h"
 #include "Logging/LogRateLimiter.h"
 #include "UObject/PrimaryAssetId.h"
@@ -14,7 +13,6 @@ class UPandoraComponent;
 class UPandoraDefinition;
 class UPandoraSkillSource;
 class UPdAbilitySystemComponent;
-class UProjectTagDefinition;
 class UItemDefinition;
 class ACharacterBase;
 struct FStreamableHandle;
@@ -24,17 +22,6 @@ DECLARE_LOG_CATEGORY_EXTERN(PandoraComponentLog, Log, All);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdPandoraSelectionChangedDelegate, UPandoraDefinition*, PandoraDefinition);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraLoadoutChangedDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraInventoryChangedDelegate);
-
-USTRUCT(BlueprintType, Blueprintable)
-struct FPandoraList
-{
-	GENERATED_BODY()
-
-public:
-	// 표시할 판도라 정의 목록. 보유 여부는 PandoraComponent에서 조회한다.
-	UPROPERTY(BlueprintReadOnly, Category = "!Inventory")
-	TArray<TObjectPtr<const UPandoraDefinition>> Pandoras;
-};
 
 USTRUCT()
 struct LABPROJECT_API FReplicatedPandoraEntry : public FFastArraySerializerItem
@@ -50,9 +37,6 @@ public:
 public:
 	UPROPERTY()
 	TObjectPtr<const UPandoraDefinition> PandoraDefinition = nullptr;
-
-	UPROPERTY()
-	bool IsOwned = false;
 };
 
 USTRUCT()
@@ -115,9 +99,6 @@ public:
 	UPandoraComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!Inventory")
-	void AddPandorasByPrimaryAssetIds(const TArray<FPrimaryAssetId>& PandoraDefinitions);
-
-	UFUNCTION(BlueprintCallable, Category = "!Inventory")
 	void ActivatePandoras(const TArray<FPrimaryAssetId>& PandoraDefinitions);
 
 	void ActivatePandorasWithLoadout(
@@ -131,9 +112,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!Pandora")
 	bool HasPandoraDefinition(const UPandoraDefinition* PandoraDefinition) const;
-
-	const FPandoraList& GetAllPandoras() const { return AllPandoraList; }
-	const TMap<FGameplayTag, FPandoraList>& GetFilteredPandoraMap() const { return Map_Type_PandoraList; }
 
 	UFUNCTION(BlueprintCallable, Category = "!Pandora|Skill")
 	bool RequestPandoraSelection(const UPandoraDefinition* PandoraDefinition);
@@ -155,22 +133,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	EEnum_Direction GetCurrentPandoraLoadoutDirection() const { return CurrentPandoraLoadoutDirection; }
 
-	UFUNCTION(BlueprintCallable, Category = "!Pandora")
-	void RefreshSelectedPandoraAbilityBindings(class UPdAbilitySystemComponent* AbilitySystemComponent = nullptr) const;
-
 	UFUNCTION(BlueprintCallable, Category = "!Pandora|Skill")
-	void RefreshCurrentPandoraForWeaponChange();
+	void RefreshCurrentPandoraSkills();
 
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Weapon")
 	bool IsPandoraCompatibleWithCurrentWeapon(const UPandoraDefinition* PandoraDefinition) const;
-
-	void ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig);
-
-	// 능력 부여 전에 출처를 초기화하고, 컴포넌트가 보관과 복제 수명을 맡는다.
-	UPandoraSkillSource* CreateSkillSource(const UPandoraDefinition* Definition, int32 SkillIndex,
-		EEnum_Direction LoadoutDirection);
-	void ReleaseSkillSourceIfUnused(UPandoraSkillSource* Source,
-		FGameplayAbilitySpecHandle RemovedHandle = FGameplayAbilitySpecHandle());
 
 protected:
 	// Network RPCs ----------------------------------------------------------------------------------------------------
@@ -184,8 +151,6 @@ protected:
 	void ServerAutoSetPandoraLoadoutSlot(FPrimaryAssetId PandoraDefinitionId);
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandleReplicatedEntryAddedOrChanged(const FReplicatedPandoraEntry& Entry);
-	void HandleReplicatedEntryRemoved(const UPandoraDefinition* PandoraDefinition);
 
 	UFUNCTION()
 	void OnRep_CurrentPandoraDefinition();
@@ -201,14 +166,11 @@ private:
 	void HandleSkillSourceReplicated(UPandoraSkillSource* Source);
 	void HandleSkillSourceDestroyed(UPandoraSkillSource* Source);
 
-protected:
+private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void RebuildPandoraListsFromReplicatedEntries();
-	void RebuildFilteredPandoraMap();
-	void FilterPandoras(const UPandoraDefinition* PandoraDefinition);
-	bool AddPandoraDefinition(const UPandoraDefinition* PandoraDefinition, bool bOwned);
+	bool AddPandoraDefinition(const UPandoraDefinition* PandoraDefinition);
 	void LoadPandoraDefinitions(const TArray<FPrimaryAssetId>& PandoraDefinitions,
-		const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection, bool bOwned);
+		const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection);
 	void CancelPendingPandoraLoads();
 	bool SelectPandoraByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId, EEnum_Direction RequestedDirection = EEnum_Direction::Center);
 	void ClearGrantedPandoraContent();
@@ -226,16 +188,21 @@ protected:
 
 	void NotifyPandoraSelectionChanged();
 	void NotifyPandoraLoadoutChanged();
-	void RefreshPlacedPandoraSkillPreloads();
-	void ReleasePlacedPandoraSkillPreloads();
 	bool ResolveAutoPandoraLoadoutDirection(const UPandoraDefinition* PandoraDefinition, EEnum_Direction& OutDirection) const;
 	bool ResolvePreferredAutoPandoraLoadoutDirection(const UPandoraDefinition* PandoraDefinition, EEnum_Direction& OutDirection) const;
 	bool SetPandoraLoadoutSlotInternal(EEnum_Direction Direction, const UPandoraDefinition* PandoraDefinition, bool bRequireOwnedPandora);
-	FPandoraLoadoutSlot* FindPandoraLoadoutSlot(EEnum_Direction Direction);
-	const FPandoraLoadoutSlot* FindPandoraLoadoutSlot(EEnum_Direction Direction) const;
 	void LogRejectedServerRequest(const TCHAR* RequestName, const FString& Reason);
 
 private:
+	// 능력 부여 전에 출처를 초기화하고, 컴포넌트가 보관과 복제 수명을 맡는다.
+	UPandoraSkillSource* CreateSkillSource(const UPandoraDefinition* Definition, int32 SkillIndex,
+		EEnum_Direction LoadoutDirection);
+	void ReleaseSkillSourceIfUnused(UPandoraSkillSource* Source,
+		FGameplayAbilitySpecHandle RemovedHandle = FGameplayAbilitySpecHandle());
+
+	void GrantPandoraSkills(UPdAbilitySystemComponent* ASC, const UPandoraDefinition* Definition, int32 PandoraLevel, EEnum_Direction LoadoutDirection);
+	void RemoveGrantedPandoraSkills(UPdAbilitySystemComponent* ASC, const TArray<FGameplayAbilitySpecHandle>& AbilityHandles);
+	void RefreshPandoraSkillInputBindings(UPdAbilitySystemComponent* ASC) const;
 	void BindAbilityRemoval();
 	void ReleaseSkillSourcesForEndPlay();
 
@@ -249,32 +216,17 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "!Pandora|Loadout")
 	FPdPandoraLoadoutChangedDelegate OnPandoraLoadoutChanged;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Default", meta = (DisplayName = "All Pandroa Definition"))
-	TArray<FPrimaryAssetId> AllPandroaDefinition;
-
 private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPandoraSkillSource>> OwnedSkillSources;
 	TWeakObjectPtr<UPdAbilitySystemComponent> SourceAbilitySystemComponent;
 	FDelegateHandle AbilityRemovedHandle;
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (AllowPrivateAccess = "true"))
-	TArray<FGameplayTag> FilterTypeTags;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory", meta = (AllowPrivateAccess = "true"))
-	FPandoraList AllPandoraList;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory", meta = (AllowPrivateAccess = "true"))
-	TMap<FGameplayTag, FPandoraList> Map_Type_PandoraList;
-
 	uint64 PandoraLoadGeneration = 0;
 	bool bReplicatedInventoryChanged = false;
 	TArray<TSharedPtr<FStreamableHandle>> PendingPandoraLoadHandles;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "!Pandora|Selection")
-	bool bApplyPandoraContentOnSelection = true;
-
 	UPROPERTY(Replicated)
 	FReplicatedPandoraList ReplicatedEntries;
 
@@ -291,7 +243,5 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_PandoraLoadoutSlots)
 	TArray<FPandoraLoadoutSlot> PandoraLoadoutSlots;
 
-	mutable TWeakObjectPtr<ACharacterBase> CachedCharacterOwner;
-	TMap<FPrimaryAssetId, TSharedPtr<FStreamableHandle>> PlacedPandoraSkillPreloadHandles;
 	FLogRateLimiter ServerValidationLogLimiter;
 };

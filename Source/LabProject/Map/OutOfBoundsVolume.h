@@ -52,9 +52,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!OutOfBounds")
 	bool bDestroyNonPlayerActorsOnEndOverlap = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!OutOfBounds")
-	bool bLogOutOfBoundsRespawn = true;
-
 private:
 	bool bEndingPlay = false;
 };

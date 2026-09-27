@@ -526,7 +526,7 @@ bool AMonsterCharacter::ApplyMonsterDamageToCharacter(ACharacterBase* TargetChar
 	FGameplayTag DamageTag = ContactDamageDataTag;
 	if (!DamageTag.IsValid())
 	{
-		DamageTag = UProjectTagDefinition::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
+		DamageTag = UProjectTagDefinition::GetDefaultDefinition()->GetSetByCallerDamageMagnitudeTag();
 	}
 	if (!Spec.IsValid() || !DamageTag.IsValid())
 	{

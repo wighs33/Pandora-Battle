@@ -824,7 +824,7 @@ bool UInventoryComponent::MergeUpgradeableItems(
 
 void UInventoryComponent::ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig)
 {
-	const UProjectTagDefinition* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagDefinition::GetDefaultConfig();
+	const UProjectTagDefinition* EffectiveConfig = ProjectTagConfig ? ProjectTagConfig : UProjectTagDefinition::GetDefaultDefinition();
 	EffectiveConfig->GetItemFilterTypeTags(FilterTypeTags);
 
 	RebuildFilteredItemMap();

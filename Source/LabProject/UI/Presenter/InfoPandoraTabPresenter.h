@@ -12,6 +12,7 @@ class UPandoraComponent;
 class UPandoraDefinition;
 class UPandoraEquipSlotWidget;
 class UTileView;
+struct FStreamableHandle;
 
 UCLASS()
 class LABPROJECT_API UInfoPandoraTabPresenter : public UInfoTabPresenterBase
@@ -89,6 +90,7 @@ private:
 	TWeakObjectPtr<UPandoraComponent> BoundPandoraComponent;
 	TWeakObjectPtr<UTileView> BoundTileView;
 	FDelegateHandle TileItemClickedDelegateHandle;
+	TSharedPtr<FStreamableHandle> PandoraCatalogPreload;
 	bool bUseTypeFilter = false;
 	bool bShowOnlyOwnedForEquipSlot = false;
 	bool bActive = false;

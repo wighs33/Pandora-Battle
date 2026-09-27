@@ -56,7 +56,7 @@ bool USkillAbility::CanActivateAbility(
 	if (Spec && Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora))
 	{
 		const UPandoraSkillSource* PandoraSource = Cast<UPandoraSkillSource>(Spec->SourceObject.Get());
-		if (!PandoraSource || !PandoraSource->IsSourceReady())
+		if (!PandoraSource || !PandoraSource->GetSkillDataAsset())
 		{
 			return false;
 		}
@@ -97,10 +97,7 @@ void USkillAbility::PreActivate(
 
 			if (Pandora && PandoraSource->GetPandoraDefinition() == Pandora->GetCurrentPandoraDefinition())
 			{
-				PandoraSource->Initialize(
-					PandoraSource->GetPandoraDefinition(),
-					PandoraSource->GetSkillIndex(),
-					Pandora->GetCurrentPandoraLoadoutDirection());
+				PandoraSource->SetLoadoutDirection(Pandora->GetCurrentPandoraLoadoutDirection());
 			}
 		}
 	}

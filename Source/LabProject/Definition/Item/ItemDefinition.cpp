@@ -94,7 +94,7 @@ namespace
 
 	bool MatchesAnyKnownItemType(const UItemDefinition& ItemDefinition)
 	{
-		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultConfig();
+		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultDefinition();
 		if (!ProjectTagConfig)
 		{
 			return false;
@@ -167,7 +167,7 @@ namespace
 
 	void ValidateConsumableData(FDataValidationContext& Context, EDataValidationResult& Result, const UItemDefinition& ItemDefinition)
 	{
-		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultConfig();
+		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultDefinition();
 		const FGameplayTag ConsumableTypeTag = ProjectTagConfig
 			? ProjectTagConfig->GetItemConsumableTypeTag()
 			: LabGameplayTags::Item_Consumable;
@@ -240,7 +240,7 @@ namespace
 
 	void ValidateWeaponData(FDataValidationContext& Context, EDataValidationResult& Result, const UItemDefinition& ItemDefinition)
 	{
-		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultConfig();
+		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultDefinition();
 		const FGameplayTag WeaponTypeTag = ProjectTagConfig
 			? ProjectTagConfig->GetItemWeaponTypeTag()
 			: LabGameplayTags::Item_Weapon;

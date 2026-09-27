@@ -26,10 +26,7 @@ public:
 		int32 InSkillIndex,
 		EEnum_Direction InLoadoutDirection = EEnum_Direction::Center);
 
-	bool IsSourceReady() const { return GetSkillDataAsset() != nullptr; }
-
-	// ASC에서 이 출처의 활성 쿨다운 효과를 조회한다. 시간이나 효과 핸들은 별도로 보관하지 않는다.
-	void GetCooldownTimeRemainingAndDuration(float& OutRemaining, float& OutDuration) const;
+	void SetLoadoutDirection(EEnum_Direction Direction);
 
 	UFUNCTION(BlueprintPure, Category = "!Pandora|Skill")
 	const UPandoraDefinition* GetPandoraDefinition() const { return PandoraDefinition.Get(); }

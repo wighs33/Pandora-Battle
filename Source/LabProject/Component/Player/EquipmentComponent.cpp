@@ -541,7 +541,7 @@ void UEquipmentComponent::RefreshPandoraForWeaponChange() const
 	const APdPlayerState* PlayerStateOwner = CharacterOwner ? Cast<APdPlayerState>(CharacterOwner->GetPlayerState()) : nullptr;
 	if (UPandoraComponent* PandoraComponent = PlayerStateOwner ? PlayerStateOwner->GetPandoraComponent() : nullptr)
 	{
-		PandoraComponent->RefreshCurrentPandoraForWeaponChange();
+		PandoraComponent->RefreshCurrentPandoraSkills();
 	}
 }
 

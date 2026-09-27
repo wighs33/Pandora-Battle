@@ -392,7 +392,7 @@ bool UDefaultPlayerProvisioner::ApplyItems(APdPlayerState* PlayerState)
 		}
 
 		const UProjectTagDefinition* TagConfig =
-			UProjectTagDefinition::GetDefaultConfig();
+			UProjectTagDefinition::GetDefaultDefinition();
 		const FGameplayTag WeaponTypeTag = TagConfig
 			? TagConfig->GetItemWeaponTypeTag()
 			: LabGameplayTags::Item_Weapon;
@@ -571,7 +571,6 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(APdPlayerState* PlayerState)
 
 	PandoraComponent->ClearAllPandoras();
 	// 전체 초기화는 이전 목록 로딩도 취소하므로 잠긴 항목을 명시적으로 다시 채운다.
-	PandoraComponent->AddPandorasByPrimaryAssetIds(PandoraComponent->AllPandroaDefinition);
 	const int32 ConfiguredSoulDust =
 		Definition->GetSoulDustValues().GetCount(Mode);
 	PandoraTreeComponent->InitializeFromDefaultProvision(

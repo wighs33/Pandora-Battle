@@ -571,7 +571,7 @@ void AMeleeWeapon::ApplySkillAdditionalDamageToTarget(
 
     if (!DamageDataTag.IsValid())
     {
-        DamageDataTag = UProjectTagDefinition::GetDefaultConfig()->GetSetByCallerDamageMagnitudeTag();
+        DamageDataTag = UProjectTagDefinition::GetDefaultDefinition()->GetSetByCallerDamageMagnitudeTag();
     }
     if (!DamageDataTag.IsValid())
     {

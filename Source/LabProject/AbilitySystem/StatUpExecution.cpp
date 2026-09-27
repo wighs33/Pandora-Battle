@@ -44,7 +44,7 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 // =================================================================================================================
 
-	const FGameplayTag OperationSetByCallerTag = UProjectTagDefinition::GetDefaultConfig()->GetSetByCallerStatUpOperationTag();
+	const FGameplayTag OperationSetByCallerTag = UProjectTagDefinition::GetDefaultDefinition()->GetSetByCallerStatUpOperationTag();
 	if (!OperationSetByCallerTag.IsValid())
 	{
 

@@ -23,8 +23,8 @@ public:
 	UProjectTagDefinition();
 
 	static const UProjectTagDefinition* Get(const UObject* WorldContextObject);
-	static const UProjectTagDefinition* GetDefaultConfig();
-	static const FPrimaryAssetType& GetConfigPrimaryAssetType();
+	static const UProjectTagDefinition* GetDefaultDefinition();
+	static const FPrimaryAssetType& GetDefinitionPrimaryAssetType();
 	static const FPrimaryAssetId& GetPreferredPrimaryAssetId();
 
 	const FGameplayTag& GetItemWeaponTypeTag() const { return ResolveTag(ItemWeaponTypeTag, LabGameplayTags::Item_Weapon); }
@@ -103,7 +103,6 @@ public:
 
 	void GetItemEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const;
 	void GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) const;
-	void GetPandoraFilterTypeTags(TArray<FGameplayTag>& OutTags) const;
 	void GetSkinEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const;
 	void GetSkinFilterTypeTags(TArray<FGameplayTag>& OutTags) const;
 
