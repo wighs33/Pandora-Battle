@@ -9,7 +9,6 @@
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Online/AchievementSubsystem.h"
-#include "Skin/SkinDefaultUnlockPolicy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerProfileSyncComponent)
 
@@ -346,17 +345,7 @@ void UControllerProfileSyncComponent::GrantDefaultSkinEntitlementsOnServer() con
 	}
 
 	TArray<FPrimaryAssetId> DefaultSkinDefinitionIds;
-	for (const FName DefaultSkinName :
-		SkinDefaultUnlockPolicy::GetDefaultUnlockedSkinNames())
-	{
-		const FPrimaryAssetId SkinDefinitionId =
-			ContentDataSubsystem->GetSkinDefinitionIdByName(DefaultSkinName);
-		if (SkinDefinitionId.IsValid()
-			&& SkinDefinitionId.PrimaryAssetType == SkinDefinitionAssetType)
-		{
-			DefaultSkinDefinitionIds.AddUnique(SkinDefinitionId);
-		}
-	}
+	ContentDataSubsystem->GetDefaultSkinDefinitionIds(DefaultSkinDefinitionIds);
 
 	if (!DefaultSkinDefinitionIds.IsEmpty())
 	{

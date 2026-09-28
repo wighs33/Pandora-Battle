@@ -34,8 +34,6 @@ public:
 		const FRotator& CameraRotation,
 		float MaxDistanceSquared);
 
-	UHealthBarViewModel* GetHealthBarViewModel() const { return HealthBarViewModel.Get(); }
-
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void RetryRefreshViewModel();

@@ -13,7 +13,6 @@ void UShopEntryViewData::Initialize(
 	const int32 InPlayerGold,
 	const bool bInOwned)
 {
-	CatalogEntry = InCatalogEntry;
 	ProductObject = InProductObject;
 
 	UiData = FShopEntryUiData();

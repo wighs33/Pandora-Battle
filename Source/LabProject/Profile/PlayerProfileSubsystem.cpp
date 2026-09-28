@@ -5,18 +5,13 @@
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
-#include "Skin/SkinDefaultUnlockPolicy.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Engine/GameInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerProfileSubsystem)
 
 namespace
 {
-	const FPrimaryAssetType& GetSkinDefinitionAssetType()
-	{
-		static const FPrimaryAssetType AssetType(TEXT("SkinDefinition"));
-		return AssetType;
-	}
-
 	FPrimaryAssetId ResolveRedirectedAssetId(const FPrimaryAssetId& AssetId)
 	{
 		if (!AssetId.IsValid())
@@ -34,15 +29,6 @@ namespace
 		}
 
 		return AssetId;
-	}
-
-	FPrimaryAssetId MakeDefinitionAssetId(
-		const FPrimaryAssetType& AssetType,
-		const FName AssetName)
-	{
-		return AssetName.IsNone()
-			? FPrimaryAssetId()
-			: ResolveRedirectedAssetId(FPrimaryAssetId(AssetType, AssetName));
 	}
 
 	FPrimaryAssetId ResolvePandoraSaveId(const UPandoraDefinition* PandoraDefinition)
@@ -394,7 +380,7 @@ bool UPlayerProfileSubsystem::IsSkinGranted(USkinDefinition* SkinDefinition)
 	}
 
 	const FPrimaryAssetId SkinId = ResolveSkinSaveId(SkinDefinition);
-	if (SkinDefaultUnlockPolicy::IsDefaultUnlockedSkinDefinition(SkinDefinition))
+	if (SkinDefinition->IsDefaultProfileSkin())
 	{
 		return true;
 	}
@@ -424,7 +410,7 @@ bool UPlayerProfileSubsystem::GrantSkin(USkinDefinition* SkinDefinition,
 
 	const FPrimaryAssetId SkinId = ResolveSkinSaveId(SkinDefinition);
 	if (!SkinId.IsValid()
-		|| SkinDefaultUnlockPolicy::IsDefaultUnlockedSkinDefinition(SkinDefinition))
+		|| SkinDefinition->IsDefaultProfileSkin())
 	{
 		return false;
 	}
@@ -456,7 +442,7 @@ bool UPlayerProfileSubsystem::TryPurchaseSkinWithGold(USkinDefinition* SkinDefin
 
 	const FPrimaryAssetId SkinId = ResolveSkinSaveId(SkinDefinition);
 	if (!SkinId.IsValid()
-		|| SkinDefaultUnlockPolicy::IsDefaultUnlockedSkinDefinition(SkinDefinition)
+		|| SkinDefinition->IsDefaultProfileSkin()
 		|| SaveGameObject->PlayerSkinData.GrantedSkinsById.Contains(SkinId))
 	{
 		return false;
@@ -481,15 +467,11 @@ bool UPlayerProfileSubsystem::TryPurchaseSkinWithGold(USkinDefinition* SkinDefin
 bool UPlayerProfileSubsystem::EnsureDefaultUnlockedSkins(UPdSaveGame& SaveGame)
 {
 	bool bChanged = false;
-	for (const FName DefaultSkinName : SkinDefaultUnlockPolicy::GetDefaultUnlockedSkinNames())
+	TArray<FPrimaryAssetId> DefaultSkinIds;
+	GetGameInstance()->GetSubsystem<UContentDataSubsystem>()->GetDefaultSkinDefinitionIds(DefaultSkinIds);
+	for (const FPrimaryAssetId& SkinId : DefaultSkinIds)
 	{
-		if (DefaultSkinName.IsNone())
-		{
-			continue;
-		}
-
-		const FPrimaryAssetId DefaultSkinId =
-			MakeDefinitionAssetId(GetSkinDefinitionAssetType(), DefaultSkinName);
+		const FPrimaryAssetId DefaultSkinId = ResolveRedirectedAssetId(SkinId);
 		if (!DefaultSkinId.IsValid())
 		{
 			continue;

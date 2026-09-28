@@ -38,10 +38,8 @@ public:
 	bool HasWeaponData() const;
 	bool IsWeaponDefinition(FGameplayTag WeaponTypeTag) const;
 
-	UFUNCTION(BlueprintPure, Category = "!Item|Weapon")
 	float GetSafeAttackStaminaCost() const;
 
-	UFUNCTION(BlueprintPure, Category = "!Item|Weapon")
 	float GetEquippedMovementSpeedMultiplier() const;
 
 	bool IsConsumableDefinition(FGameplayTag ConsumableTypeTag) const;

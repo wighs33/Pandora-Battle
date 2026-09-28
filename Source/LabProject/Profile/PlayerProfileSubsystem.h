@@ -75,7 +75,7 @@ private:
 	UPdSaveGame* GetOrCreateProfile();
 	UPdSaveGame* CreateConfiguredSaveGameObject() const;
 	UPdSaveGame* LoadBestAvailableSaveGame(bool& bOutRecoveredFromFallback) const;
-	static bool EnsureDefaultUnlockedSkins(UPdSaveGame& Profile);
+	bool EnsureDefaultUnlockedSkins(UPdSaveGame& Profile);
 	void RequestProfileSave(bool bSaveImmediately);
 	void EnsureSaveTicker();
 	void BeginAsyncSave();

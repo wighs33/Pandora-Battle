@@ -1,152 +1,120 @@
 # PandoraBattle
 
-Unreal Engine 기반 멀티플레이 액션 게임의 기술 포트폴리오입니다.
-
-![PandoraBattle의 전투 중 무기와 판도라 선택 화면](Docs/images/pandora-battle-loadout.jpg)
+Unreal Engine 기반 멀티플레이 액션 게임의 기술 포트폴리오입니다. 무기와 Pandora의 조합으로 전투하고, 로비에서 선택한 구성을 경기로 이어갑니다.
 
 | 항목 | 내용 |
 | --- | --- |
-| 엔진 | Unreal Engine 5.7 |
+| 엔진 | Unreal Engine 5.8 |
 | 개발 언어 | C++, Blueprint |
-| 주요 기술 | Gameplay Ability System, Game Features, Iris, Push Model, MVVM, Online Subsystem |
+| 핵심 기술 | GAS, Enhanced Input, Experience / Game Features, Iris / Push Model / Fast Array, CommonUI, MVVM, Online Subsystem |
 
 ## 시스템 구성
 
-### 기능 초기화부터 전투·UI까지
+### 콘텐츠 준비와 플레이어 수명
 
-Experience가 Game Feature를 활성화하고, 각 Action이 능력·속성·입력·위젯을 구성합니다. 플레이어의 ASC는 `PdPlayerState`가 소유하며, 입력 태그와 판도라 스킬 바인딩이 이 ASC로 연결됩니다. 실선은 주요 처리 흐름, 점선은 구성·소유 관계를 나타냅니다.
-
-```mermaid
-flowchart TD
-    Experience["ExperienceDefinition"] --> Manager["ExperienceManagerComponent"]
-    Manager -->|로드 및 활성화| Features["Game Features / GF_Pandoras"]
-    Features --> Actions["Game Feature Actions"]
-
-    Actions -.->|AddAbilities / AddAttributes| ASC["PdAbilitySystemComponent"]
-    Actions -.->|Actor Extension · 입력 바인딩| Input["Enhanced Input<br/>ControllerInputComponent"]
-    Actions -.->|AddWidgets| UI["UMG Widgets<br/>HUD / 상태 UI"]
-
-    Definition["PandoraDefinition<br/>스킬 설정"] --> Binder["PandoraSkillBinder<br/>SkillRuntimeContext"]
-    Binder -->|능력 부여 및 SourceObject 연결| ASC
-    Input -->|Gameplay Tag 입력| ASC
-    PlayerState["PdPlayerState"] -.->|소유| ASC
-
-    ASC -->|능력 활성화| Ability["PdGameplayAbility<br/>공격 / 대시 / 그래플 / 소환"]
-    Ability --> Montage["Animation Montage<br/>Ability Tasks / Gameplay Events"]
-    Ability --> Effect["Gameplay Effect<br/>피해 / 버프 / 비용 / 쿨다운"]
-    Ability --> Cue["Gameplay Cue<br/>전투 효과 연출"]
-    Effect -->|속성 변경| Attributes["BasicAttributeSet"]
-    Attributes --> Delegate["ASC Attribute Change Delegate"]
-    Delegate --> VM["HealthBarViewModel<br/>StatusViewModel"]
-    VM -->|MVVM Field Notification| UI
-
-    classDef data fill:#263547,stroke:#7da7d9,color:#ffffff
-    classDef runtime fill:#30353d,stroke:#929eae,color:#ffffff
-    classDef combat fill:#443321,stroke:#dba65b,color:#ffffff
-    classDef view fill:#233e38,stroke:#73b7a3,color:#ffffff
-    class Experience,Definition data
-    class Manager,Features,Actions,Input,Binder,PlayerState,ASC runtime
-    class Ability,Montage,Effect,Cue,Attributes combat
-    class Delegate,VM,UI view
-```
-
-관련 코드: [Experience 로딩](Source/LabProject/Component/Experience/ExperienceManagerComponent.cpp) · [PlayerState의 ASC 소유](Source/LabProject/Mode/PdPlayerState.cpp) · [입력 태그 전달](Source/LabProject/Component/Player/ControllerInputComponent.cpp) · [속성 변경과 ViewModel 연결](Source/LabProject/ViewModel/HealthBarViewModel.cpp)
-
-### 멀티플레이 요청과 상태 복제
-
-Steam 세션이 연결과 참가를 담당하고, 게임 안의 로드아웃·공유 페인트 변경 요청은 서버 RPC로 처리합니다. 아래는 해당 기능의 요청·복제 흐름입니다. GAS 능력 실행은 위 그림의 ASC 흐름을 따릅니다.
+`ExperienceDefinition`은 현재 World의 콘텐츠와 Game Feature를 정의합니다. `ExperienceManagerComponent`는 로드·활성화·해제를 관리하고, Game Feature Action은 Ability·Attribute·입력·Widget 구성을 적용합니다. Definition은 정적 설정이고, 실행 상태와 정리 책임은 runtime 객체에 있습니다.
 
 ```mermaid
-flowchart TD
-    Session["OnlineSessionsSubsystem<br/>Steam 세션 생성 / 검색 / 참가"]
-    Session --> Lobby["로비 / 매치 진입"]
-    Lobby --> Client["클라이언트<br/>로드아웃 선택 / 페인트 입력"]
-    Client -->|Server RPC| Server["서버<br/>요청 검증 및 권한 있는 상태 변경"]
-
-    Server --> Loadout["SelectingPandoraAndWeaponComponent<br/>선택 상태"]
-    Server --> Inventory["InventoryComponent<br/>Iris Fast Array"]
-    Server --> Paint["PaintCanvasComponent<br/>Fast Array · 시퀀스 / 리비전 / 체크섬"]
-
-    Loadout --> Replication["프로퍼티 / 배열 변경 복제<br/>Iris · Push Model"]
-    Inventory --> Replication
-    Paint --> Replication
-    Replication --> LocalState["클라이언트 상태 반영<br/>OnRep / 복제 콜백"]
-    LocalState --> Presentation["장비·인벤토리 UI / 공유 캔버스 갱신"]
-
-    classDef online fill:#263547,stroke:#7da7d9,color:#ffffff
-    classDef authority fill:#443321,stroke:#dba65b,color:#ffffff
-    classDef state fill:#30353d,stroke:#929eae,color:#ffffff
-    classDef client fill:#233e38,stroke:#73b7a3,color:#ffffff
-    class Session,Lobby online
-    class Server authority
-    class Loadout,Inventory,Paint,Replication state
-    class Client,LocalState,Presentation client
+flowchart LR
+    D[ExperienceDefinition] --> E[ExperienceManagerComponent]
+    E --> F[Game Feature Actions]
+    F --> G[Ability / Attribute / Input / UI]
+    PS[PdPlayerState] --> ASC[PdAbilitySystemComponent]
+    PC[PdPlayerController] --> INPUT[ControllerInputComponent]
+    INPUT --> ASC
+    ASC --> PAWN[CharacterBase / PdPlayer]
 ```
 
-관련 코드: [세션 요청](Source/LabProject/Online/OnlineSessionsSubsystem.h) · [로드아웃 서버 처리](Source/LabProject/Component/Player/SelectingPandoraAndWeaponComponent.cpp) · [인벤토리 복제](Source/LabProject/Component/Item/InventoryComponentReplication.cpp) · [공유 캔버스 동기화](Source/LabProject/Component/Player/PaintCanvasComponent.cpp)
+| 계층 | 책임 |
+| --- | --- |
+| `APdPlayerController` | 로컬 명령, possession, 입력·presentation·profile sync·session Component 연결 |
+| `APdPlayerState` | Pawn 교체 후 유지되는 플레이어 상태, GAS owner, Inventory·Pandora·Skin ownership |
+| `ACharacterBase` / `APdPlayer` | 현재 Pawn의 이동·충돌·장비 표현과 플레이어 전용 Component 구성 |
+| `Definition/<Domain>` | DataAsset 기반 전투·지급·맵·UI·입력 설정 |
+| `UContentDataSubsystem` / `FContentLease` | 콘텐츠 조회·비동기 로딩 / consumer 수명 동안의 리소스 보유 |
 
-## 핵심 구현
+관련 코드: [Experience](Source/LabProject/Component/Experience) · [Game Feature](Source/LabProject/GameFeature) · [PlayerState](Source/LabProject/Mode/PdPlayerState.h)
 
-### 데이터 기반 전투 구성
+### 전투와 GAS
 
-GAS의 Ability, Attribute, Gameplay Effect를 기반으로 전투를 구현합니다. 판도라와 스킬 정의를 런타임 객체에 연결하고, 능력 실행에 필요한 리소스·이동·연출·소스 처리를 나누어 관리합니다.
+입력은 ASC와 `AbilityGrantAndInputManager`를 거쳐 Ability에 전달됩니다. `SkillAbility`는 한 번의 시전과 비용·쿨다운·종료를 관리하고, `SkillAction`은 Definition에 구성된 기능을 실행합니다. Skill Actor는 월드 runtime, GameplayCue는 표현, AnimNotify는 timing signal을 담당합니다.
 
-- [Ability 구현](Source/LabProject/AbilitySystem/Ability)
-- [Ability 런타임 구성](Source/LabProject/Component/AbilitySystem/Ability)
-- [판도라 스킬 바인딩](Source/LabProject/Pandora/PandoraSkillBinder.cpp)
+`PandoraComponent`는 Pandora 보유·선택·loadout을 관리합니다. `PandoraSkillSource`는 Ability Spec의 SourceObject로 연결되며 스킬 identity와 activation context를 전달합니다.
 
-### Experience와 Game Features
+```text
+Input → ASC / AbilityGrantAndInputManager → GameplayAbility
+                                        → SkillAbility → SkillAction → Effect / Actor
+Animation → AnimNotify / GameplayEvent → Ability / Equipment / Weapon
+```
 
-Experience 정의에 따라 콘텐츠를 로드하고 Game Feature 플러그인을 활성화합니다. 로딩·완료·실패·비활성화 상태를 관리하며, Game Feature Action을 통해 Ability, Attribute, Widget과 Actor Extension을 적용합니다.
+관련 코드: [Ability](Source/LabProject/AbilitySystem/Ability) · [SkillAction](Source/LabProject/Skill/Actions) · [Pandora](Source/LabProject/Component/Pandora)
 
-- [ExperienceManagerComponent](Source/LabProject/Component/Experience/ExperienceManagerComponent.h)
-- [Game Feature Actions](Source/LabProject/GameFeature)
-- [GF_Pandoras 플러그인](Plugins/GameFeatures/GF_Pandoras)
+### Inventory와 Equipment
 
-### 서버 권한과 네트워크 동기화
+- `ItemDefinition`은 정적 콘텐츠, `ItemInstance`는 수량·강화값·ID를 가진 보유 아이템입니다.
+- `InventoryComponent`는 ownership과 Quick Slot·장비 슬롯·무기 loadout 참조를 복제합니다.
+- `SelectingPandoraAndWeaponComponent`는 현재 선택 슬롯을 유지하고 Weapon/Pandora 적용을 조율합니다.
+- `EquipmentComponent`는 equip/unequip transaction, 현재 Weapon Actor, 장비 능력치와 Ability/Effect를 관리합니다.
+- `WeaponBase`와 파생 Actor는 현재 Pawn의 무기 실행·표현 객체입니다.
 
-Iris와 Push Model을 사용하며, 인벤토리와 공유 페인트 데이터에는 Fast Array 기반 복제를 적용합니다. 로드아웃 변경은 서버 RPC로 처리하고, 페인트 동기화에는 시퀀스·리비전·체크섬을 사용합니다.
+기본 지급의 원본은 `DA_DefaultProvision`입니다. `ItemGrants`의 명시적 수량·Quick Slot 설정이 우선하며, `GrantAllItems.TrainingRoom`은 훈련방에서 전체 ItemDefinition을 추가 지급합니다. Pandora·상태 포인트·Gesture 지급도 이 DataAsset을 사용합니다.
 
-- [인벤토리 복제](Source/LabProject/Component/Item/InventoryComponentReplication.cpp)
-- [로드아웃 변경](Source/LabProject/Component/Player/SelectingPandoraAndWeaponComponent.cpp)
-- [페인트 캔버스 동기화](Source/LabProject/Component/Player/PaintCanvasComponent.cpp)
+관련 코드: [Inventory](Source/LabProject/Component/Item) · [Equipment](Source/LabProject/Component/Player/EquipmentComponent.h) · [Provision](Source/LabProject/Provision)
 
-### 온라인 세션과 UI
+### 멀티플레이와 Lobby / Match / Online
 
-Online Subsystem 기반의 세션 요청에 요청 ID와 취소 처리를 두고, 로비 흐름을 별도 구성 요소로 관리합니다. UI는 Widget, Controller, ViewModel을 나누고 MVVM을 활용해 상태를 표시합니다.
+클라이언트의 gameplay 요청은 서버에서 검증하고, 서버가 변경한 상태를 Iris·Push Model·Fast Array 및 OnRep로 전달합니다. 로컬 UI·카메라와 gameplay authority를 분리합니다.
 
-- [OnlineSessionsSubsystem](Source/LabProject/Online/OnlineSessionsSubsystem.h)
-- [로비 구성](Source/LabProject/Lobby)
-- [ViewModel](Source/LabProject/ViewModel)
-- [UI 구성](Source/LabProject/UI)
+| 시스템 | 책임 |
+| --- | --- |
+| Lobby GameMode/GameState와 Component | 참가자·팀·경기 설정·시작 조건 및 복제 |
+| `LobbyTravelCoordinator` | Lobby → Match travel transaction |
+| `LobbyRuntimeSubsystem` | World를 넘어 필요한 loadout·paint·결과 cache와 preload |
+| `MatchFlowComponent` | 경기 진행·timer·승패·Golden Kill·보상·결과 |
+| Lobby/Match PlayerSetup Component | 플레이어 콘텐츠 준비와 기본 지급 순서 |
+| `OnlineSessionsSubsystem` | Steam/Online Subsystem 기반 Create·Find·Join·Start·End·Destroy 비동기 lifecycle |
+
+관련 코드: [Lobby](Source/LabProject/Lobby) · [Match](Source/LabProject/Component/Match) · [Online](Source/LabProject/Online)
+
+### AI와 Character 표현
+
+Monster는 StateTree, Training Bot은 BehaviorTree를 사용합니다. Controller는 감지·판단·AI graph 수명, `EnemyCombatComponent`는 공통 전투, `EnemyTrainingBotComponent`는 훈련용 무기 교체·피격·respawn을 담당합니다. Pet은 replicated follow target을 기준으로 BehaviorTree 또는 direct follow fallback을 수행합니다.
+
+`CharacterPresentationComponent`는 공통 시각 상태, `PlayerAimComponent`는 replicated aim과 이동 상태, `PlayerCameraComponent`는 로컬 카메라 연출을 담당합니다. Grapple의 trace·서버 검증·이동 복원은 `GrappleComponent`에 있습니다. Paint는 Component가 데이터·RenderTarget·네트워크를, Display가 말풍선·얼굴 decal을 소유합니다.
+
+관련 코드: [AI](Source/LabProject/AI) · [Character Component](Source/LabProject/Component/Character) · [Paint](Source/LabProject/Component/Player/PaintCanvas)
+
+### UI와 저장
+
+CommonUI 기반 `UUiSubsystem` / `UUiScreen`과 `UPdUIActionRouter`가 화면·입력 수명을 관리합니다. HUD Router/Layer는 메뉴·Info·scoreboard를 구성하고, Info는 Widget·Presenter·LoadoutStore로 역할을 나눕니다. UI 폴더는 HUD·Info·Pandora·Shop 등 기능별로 배치되어 있습니다. 일부 상태 UI는 MVVM ViewModel을 사용합니다.
+
+`PlayerProfileSubsystem`은 단일 로컬 profile의 progression과 저장을 담당합니다. `LocalProfile`, backup, shutdown snapshot 중 유효한 최신 revision을 복구하며, 저장 Envelope는 CRC와 경량 난독화를 담당합니다. Audio·Input·Language 설정은 별도 slot입니다. 저장 호환성을 위해 profile SaveGame의 기존 reflected class 이름은 유지합니다.
+
+Skin은 PlayerState의 `SkinComponent`가 보유 목록을, Pawn의 `SkinEquipmentComponent`가 장착 외형·Pet·Gesture를 관리합니다. 비 Gesture Skin의 `bGrantedByDefault`는 기본 profile ownership을 결정하며, Gesture 기본 지급·슬롯 배치는 `DA_DefaultProvision.GestureGrants`가 결정합니다.
+
+관련 코드: [UI](Source/LabProject/UI) · [Profile](Source/LabProject/Profile) · [Skin](Source/LabProject/Component/Skin)
 
 ## 프로젝트 구조
 
 ```text
-LabProject.uproject
-Source/
-├── LabProject/
-│   ├── AbilitySystem/       # 전투 능력, 효과, 투사체, 타기팅
-│   ├── Component/           # 플레이어, 인벤토리, GAS, Experience 구성
-│   ├── Definition/          # Primary Data Asset 기반 콘텐츠 정의
-│   ├── GameFeature/         # 기능 주입과 Actor Extension
-│   ├── Lobby/               # 로비 및 매치 조정
-│   ├── Online/              # 세션 및 업적
-│   ├── Pandora/             # 판도라 인스턴스와 스킬 바인딩
-│   ├── SavedGameData/       # 프로필 저장과 로드
-│   ├── UI/                  # 위젯과 UI 컨트롤러
-│   └── ViewModel/           # MVVM 상태 표현
-└── LabProjectEditor/        # 에디터 모듈
-Plugins/
-└── GameFeatures/GF_Pandoras/
-Content/                    # 공개 대상 Blueprint·Data Asset 등
-Config/                     # 엔진, 입력, 태그 및 패키징 설정
-Docs/                       # 구현 참고 문서와 이미지
+Source/LabProject/
+├─ AbilitySystem/ · Skill/ · Animation/   # GAS와 스킬 실행, animation signal
+├─ Character/ · AI/ · Pet/ · Weapon/     # 월드 Actor
+├─ Component/                           # owner별 gameplay/runtime 기능
+├─ Definition/ · Data/                  # 정적 설정 / 콘텐츠 로딩·조회
+├─ Experience/ · GameFeature/           # World 구성과 runtime 확장
+├─ Mode/ · Lobby/ · Room/ · Online/      # 게임 흐름과 session
+├─ Provision/ · Profile/                # 기본 지급 / 로컬 progression 저장
+├─ Audio/ · Localization/ · Settings/   # 오디오·언어·로컬 설정
+└─ UI/ · ViewModel/                     # 기능별 화면과 표시 상태
+Source/LabProjectEditor/                # Editor 모듈
+Plugins/GameFeatures/GF_Pandoras/       # Experience가 사용하는 Game Feature
+Content/                               # Blueprint·DataAsset·맵·표현 리소스
+Config/                                # 프로젝트 설정과 호환 redirect
 ```
 
-## 테스트 코드
+## 빌드와 실행
 
-Ability System과 플레이어 구성·로드아웃 동작을 검증하는 Unreal Automation Test 코드입니다.
+Unreal Engine 5.8 및 Win64 C++ 개발 도구가 필요합니다. `LabProject.uproject`에서 프로젝트 파일을 생성하고 `LabProjectEditor / Development Editor`를 빌드해 에디터를 실행합니다. 게임 target은 `LabProject / Win64 Development`입니다.
 
-- [Ability System 테스트](Source/LabProject/Component/AbilitySystem/Tests)
-- [플레이어·로드아웃 테스트](Source/LabProject/Component/Player/Tests)
+PIE에서 Title의 훈련방 또는 로비 진입 경로를 사용합니다. 멀티플레이는 Listen Server와 Client로 확인할 수 있으며, 실제 Steam session 연결은 별도 계정·네트워크 환경이 필요합니다. 빌드 성공과 gameplay/network 기능 검증은 별개입니다.

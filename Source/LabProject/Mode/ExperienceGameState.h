@@ -58,7 +58,6 @@ public:
 
 	void SetMatchTimerState(EMatchTimerPhase InPhase, float InEndServerTimeSeconds = 0.0f);
 	EMatchTimerPhase GetMatchTimerPhase() const { return MatchTimerState.Phase; }
-	bool IsMatchTimerSuppressed() const { return MatchTimerState.Phase == EMatchTimerPhase::Suppressed; }
 	bool TryGetMatchTimerRemainingSeconds(float& OutRemainingSeconds) const;
 
 	// Network RPCs ----------------------------------------------------------------------------------------------------

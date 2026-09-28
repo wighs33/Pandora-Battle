@@ -271,6 +271,21 @@ void UContentDataSubsystem::GetSkinDefinitionIds(TArray<FPrimaryAssetId>& OutAss
 	GatherUniqueSortedAssetIds(SkinDefinitionIdsByName, OutAssetIds);
 }
 
+void UContentDataSubsystem::GetDefaultSkinDefinitionIds(TArray<FPrimaryAssetId>& OutAssetIds) const
+{
+	GetSkinDefinitionIds(OutAssetIds);
+	UAssetManager& AssetManager = UAssetManager::Get();
+	OutAssetIds.RemoveAll([&AssetManager](const FPrimaryAssetId& AssetId)
+	{
+		const USkinDefinition* Definition = Cast<USkinDefinition>(AssetManager.GetPrimaryAssetObject(AssetId));
+		if (!Definition)
+		{
+			Definition = Cast<USkinDefinition>(AssetManager.GetPrimaryAssetPath(AssetId).TryLoad());
+		}
+		return !IsValid(Definition) || !Definition->IsDefaultProfileSkin();
+	});
+}
+
 void UContentDataSubsystem::GetLoadedPandoraDefinitionsByName(
 	TMap<FName, TObjectPtr<UPandoraDefinition>>& OutAssets) const
 {

@@ -1,5 +1,6 @@
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Profile/PlayerProfileSaveGame.h"
+#include "Data/ContentDataSubsystem.h"
 
 #include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
@@ -20,6 +21,7 @@ namespace
 void UPlayerProfileSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	Collection.InitializeDependency<UContentDataSubsystem>();
 	bIsDeinitializing = false;
 }
 

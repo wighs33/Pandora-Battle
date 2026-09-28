@@ -191,14 +191,6 @@ void APdHUD::CloseInfoUi()
 	}
 }
 
-void APdHUD::CloseInfoUiInternal(const bool bSuppressCameraReturn, const bool bImmediate)
-{
-	if (UiRouter)
-	{
-		UiRouter->CloseInfo(bSuppressCameraReturn, bImmediate);
-	}
-}
-
 void APdHUD::ToggleInfoUi()
 {
 	if (UHudUiRouter* Router = EnsureUiRouter())
@@ -220,14 +212,6 @@ void APdHUD::ClosePandoraTreeUi()
 	if (UiRouter)
 	{
 		UiRouter->ClosePandoraTree();
-	}
-}
-
-void APdHUD::ClosePandoraTreeUiInternal(const bool bSuppressCameraReturn, const bool bImmediate)
-{
-	if (UiRouter)
-	{
-		UiRouter->ClosePandoraTree(bSuppressCameraReturn, bImmediate);
 	}
 }
 
@@ -499,14 +483,6 @@ void APdHUD::HideInGameScoreboard()
 	if (UiRouter)
 	{
 		UiRouter->HideScoreboard();
-	}
-}
-
-void APdHUD::RefreshInGameScoreboard()
-{
-	if (UiRouter)
-	{
-		UiRouter->RefreshScoreboard();
 	}
 }
 

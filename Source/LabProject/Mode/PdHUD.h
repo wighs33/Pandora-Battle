@@ -87,7 +87,6 @@ public:
 	void HideRespawnDelay();
 	void ShowInGameScoreboard();
 	void HideInGameScoreboard();
-	void RefreshInGameScoreboard();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
 	void ToggleSettingsMenu();
@@ -148,8 +147,6 @@ private:
 	void CloseActiveSettingsMenuPopup();
 	UMenuPopupWidget* GetActiveSettingsMenuWidget() const;
 	bool CloseSelectPandoraUiInternal(bool bCommitSelection);
-	void ClosePandoraTreeUiInternal(bool bSuppressCameraReturn, bool bImmediate = false);
-	void CloseInfoUiInternal(bool bSuppressCameraReturn, bool bImmediate = false);
 	void ApplyInventoryWidgetSettings();
 	void RemoveAllUiWidgets();
 

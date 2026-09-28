@@ -19,7 +19,6 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(const FShopCatalogEntry& InCatalogEntry, UObject* InProductObject, int32 InPlayerGold, bool bInOwned);
 
-	const FShopCatalogEntry& GetCatalogEntry() const { return CatalogEntry; }
 	UObject* GetProductObject() const { return ProductObject.Get(); }
 	UPandoraDefinition* GetPandoraDefinition() const;
 	const FShopEntryUiData& GetUiData() const { return UiData; }
@@ -62,9 +61,6 @@ public:
 	FShopEntryViewDataClickedDelegate OnClicked;
 
 private:
-	UPROPERTY(Transient)
-	FShopCatalogEntry CatalogEntry;
-
 	UPROPERTY(Transient)
 	TObjectPtr<UObject> ProductObject = nullptr;
 

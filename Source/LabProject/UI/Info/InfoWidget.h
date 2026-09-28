@@ -177,8 +177,6 @@ private:
 	void HandlePaintCanvasGroupVisibilityChanged(bool bVisible);
 
 protected:
-	// Internal Helpers ------------------------------------------------------------------------------------------------
-	UWidget* GetCenterPreviewPanel() const { return CenterPreviewPanel; }
 
 private:
 	void EnsureInfoViews();

@@ -21,7 +21,8 @@ public:
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	bool IsGrantedByDefault() const { return bGrantedByDefault; }
+	/** 제스처의 소유권과 슬롯 배정은 DefaultProvisionDefinition.GestureGrants에서 가져옵니다. */
+	bool IsDefaultProfileSkin() const { return bGrantedByDefault && !GestureMontage; }
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin")
@@ -51,7 +52,7 @@ public:
 UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin")
 	FGameplayTag IdTag;
 
-	/** Makes this cosmetic or gesture permanently available in lobby and gameplay profiles. */
+	/** 제스처가 아닌 코스메틱을 로컬 프로필에서 영구적으로 사용할 수 있게 합니다. 제스처는 GestureGrants를 사용합니다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin|Default Grant",
 		meta = (DisplayName = "Granted By Default"))
 	bool bGrantedByDefault = false;

@@ -60,6 +60,8 @@ public:
 	FPrimaryAssetId GetSkinDefinitionIdByName(FName SkinName) const;
 
 	void GetSkinDefinitionIds(TArray<FPrimaryAssetId>& OutAssetIds) const;
+	// Profile bootstrap needs these entitlements immediately, including before UI preload.
+	void GetDefaultSkinDefinitionIds(TArray<FPrimaryAssetId>& OutAssetIds) const;
 
 	void GetLoadedPandoraDefinitionsByName(TMap<FName, TObjectPtr<UPandoraDefinition>>& OutAssets) const;
 	void GetLoadedSkinDefinitionsByName(TMap<FName, TObjectPtr<USkinDefinition>>& OutAssets) const;
