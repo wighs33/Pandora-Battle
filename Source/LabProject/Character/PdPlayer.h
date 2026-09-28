@@ -73,8 +73,6 @@ public:
 		FVector FaceDecalSize,
 		FName TextureParameterName);
 
-	void RestoreCachedLobbyPaintCanvasFaceDecal();
-
 	UPaintCanvasComponent* GetPaintCanvasComponent() const { return PaintCanvasComponent; }
 
 	UFUNCTION(BlueprintCallable, Category = "!Ability|Camera")

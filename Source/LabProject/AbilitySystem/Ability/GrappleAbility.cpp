@@ -85,8 +85,6 @@ void UGrappleAbility::ActivateAbility(
 		return;
 	}
 
-	bCommittedGrapple = false;
-	bStartedGrapple = false;
 	GrappleFinishedDelegateHandle = GrappleComponent->OnGrappleFinished.AddUObject(
 		this,
 		&ThisClass::HandleGrappleFinished);
@@ -136,8 +134,6 @@ void UGrappleAbility::OnAbilityEnding()
 	}
 
 	GrappleFinishedDelegateHandle.Reset();
-	bCommittedGrapple = false;
-	bStartedGrapple = false;
 }
 
 const FGameplayTagContainer* UGrappleAbility::GetCooldownTags() const
@@ -317,7 +313,7 @@ void UGrappleAbility::HandleTargetDataValid(const FGameplayAbilityTargetDataHand
 
 	if (!CurrentActorInfo || !CurrentActorInfo->IsNetAuthority())
 	{
-		bCommittedGrapple = CommitAbility(
+		const bool bCommittedGrapple = CommitAbility(
 			CurrentSpecHandle,
 			CurrentActorInfo,
 			CurrentActivationInfo);
@@ -336,9 +332,7 @@ void UGrappleAbility::HandleTargetDataValid(const FGameplayAbilityTargetDataHand
 		return;
 	}
 
-	bCommittedGrapple = true;
-	bStartedGrapple = GrappleComponent->StartGrappleFromValidatedHit(ServerHitResult);
-	if (!bStartedGrapple)
+	if (!GrappleComponent->StartGrappleFromValidatedHit(ServerHitResult))
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 	}

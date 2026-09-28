@@ -5,15 +5,9 @@
 
 namespace
 {
-	struct FDefaultSkinGrantCatalogEntry
+	const TArray<FName>& GetDefaultSkinGrantCatalog()
 	{
-		FName SkinName = NAME_None;
-	};
-
-	const TArray<FDefaultSkinGrantCatalogEntry>&
-	GetDefaultSkinGrantCatalog()
-	{
-		static TArray<FDefaultSkinGrantCatalogEntry> Catalog;
+		static TArray<FName> Catalog;
 		static bool bCatalogInitialized = false;
 		if (bCatalogInitialized)
 		{
@@ -51,13 +45,9 @@ namespace
 						SkinDefinitionId).TryLoad());
 			}
 
-			if (IsValid(SkinDefinition)
-				&& SkinDefinition->IsGrantedByDefault()
-				&& !SkinDefinition->GestureMontage)
+			if (SkinDefaultUnlockPolicy::IsDefaultUnlockedSkinDefinition(SkinDefinition))
 			{
-				FDefaultSkinGrantCatalogEntry& Entry =
-					Catalog.AddDefaulted_GetRef();
-				Entry.SkinName = SkinDefinition->GetFName();
+				Catalog.AddUnique(SkinDefinition->GetFName());
 			}
 		}
 		bCatalogInitialized = true;
@@ -68,35 +58,7 @@ namespace
 
 const TArray<FName>& SkinDefaultUnlockPolicy::GetDefaultUnlockedSkinNames()
 {
-	static TArray<FName> DefaultSkinNames;
-	DefaultSkinNames.Reset();
-
-	const TArray<FDefaultSkinGrantCatalogEntry>& Catalog =
-		GetDefaultSkinGrantCatalog();
-	DefaultSkinNames.Reserve(Catalog.Num());
-	for (const FDefaultSkinGrantCatalogEntry& Entry : Catalog)
-	{
-		DefaultSkinNames.AddUnique(Entry.SkinName);
-	}
-	return DefaultSkinNames;
-}
-
-bool SkinDefaultUnlockPolicy::IsDefaultUnlockedSkinName(const FName SkinName)
-{
-	if (SkinName.IsNone())
-	{
-		return false;
-	}
-
-	for (const FName DefaultSkinName : GetDefaultUnlockedSkinNames())
-	{
-		if (SkinName.IsEqual(DefaultSkinName, ENameCase::IgnoreCase))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return GetDefaultSkinGrantCatalog();
 }
 
 bool SkinDefaultUnlockPolicy::IsDefaultUnlockedSkinDefinition(const USkinDefinition* SkinDefinition)

@@ -71,9 +71,6 @@ private:
     UFUNCTION(NetMulticast, Reliable)
     void MulticastApplyPaintCanvasFaceDecal(const TArray<FPaintCanvasStroke>& Strokes, UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, FTransform FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
 
-    // Event Handlers --------------------------------------------------------------------------------------------------
-    void HandlePaintCanvasExportExpired();
-
     // Internal Helpers ------------------------------------------------------------------------------------------------
     APdPlayer* GetPlayerOwner() const;
     UPaintCanvasDisplay* GetOrCreatePresentation();

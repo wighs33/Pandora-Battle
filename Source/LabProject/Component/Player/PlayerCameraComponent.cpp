@@ -52,6 +52,12 @@ void UPlayerCameraComponent::ShutdownCamera()
 	ResetOcclusionMaterialState();
 	bWeaponAimCameraActive = false;
 	bAbilityCameraOverrideActive = false;
+	if (bHasCachedDefaults && FollowCamera && CameraBoom)
+	{
+		FollowCamera->SetFieldOfView(DefaultCameraFOV);
+		CameraBoom->SocketOffset = DefaultCameraBoomSocketOffset;
+		FollowCamera->SetRelativeRotation(DefaultFollowCameraRelativeRotation);
+	}
 }
 
 void UPlayerCameraComponent::TickPresentation(const float DeltaSeconds)
@@ -435,4 +441,5 @@ void UPlayerCameraComponent::ResetOcclusionMaterialState()
 	}
 
 	OcclusionDisabledMeshComponents.Reset();
+	OcclusionMaterialInstances.Reset();
 }

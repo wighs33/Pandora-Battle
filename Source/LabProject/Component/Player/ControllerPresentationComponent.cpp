@@ -2,6 +2,7 @@
 
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
+#include "Component/Player/PaintCanvas/PaintCanvasComponent.h"
 #include "Component/Match/MatchPlayerSetupComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -115,7 +116,10 @@ void UControllerPresentationComponent::RefreshAfterPossession(APawn* PossessedPa
 	{
 		if (APdPlayer* PlayerCharacter = Cast<APdPlayer>(PossessedPawn))
 		{
-			PlayerCharacter->RestoreCachedLobbyPaintCanvasFaceDecal();
+			if (UPaintCanvasComponent* PaintCanvas = PlayerCharacter->GetPaintCanvasComponent())
+			{
+				PaintCanvas->RestoreCachedLobbyPaintCanvasFaceDecal();
+			}
 		}
 	}
 }

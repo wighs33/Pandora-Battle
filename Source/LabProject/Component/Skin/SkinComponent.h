@@ -9,7 +9,6 @@
 
 class USkinComponent;
 class USkinDefinition;
-class UProjectTagDefinition;
 struct FStreamableHandle;
 
 DECLARE_LOG_CATEGORY_EXTERN(SkinComponentLog, Log, All);
@@ -104,8 +103,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Inventory")
 	void AddSkinDefinitions(const TArray<USkinDefinition*>& SkinDefinitions);
-
-	void ApplyProjectTagConfig(const UProjectTagDefinition* ProjectTagConfig);
 
 	UFUNCTION(BlueprintPure, Category = "!Inventory")
 	bool HasSkinDefinition(const USkinDefinition* SkinDefinition) const;

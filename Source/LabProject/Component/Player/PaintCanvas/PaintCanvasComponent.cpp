@@ -50,7 +50,6 @@ UPaintCanvasComponent::UPaintCanvasComponent(const FObjectInitializer& ObjectIni
 void UPaintCanvasComponent::BeginPlay()
 {
     Super::BeginPlay();
-    GetOrCreatePresentation();
     HidePaintSpeechBubble();
 }
 
@@ -296,11 +295,6 @@ bool UPaintCanvasComponent::ExportActivePaintCanvasToSpeechBubble()
     return true;
 }
 
-void UPaintCanvasComponent::HandlePaintCanvasExportExpired()
-{
-    CancelPaintCanvasExport();
-}
-
 bool UPaintCanvasComponent::StartLocalPaintCanvasExport()
 {
     if (!EnsurePaintCanvasRenderResources())
@@ -321,7 +315,7 @@ bool UPaintCanvasComponent::StartLocalPaintCanvasExport()
        World->GetTimerManager().SetTimer(
           PaintCanvasExportTimerHandle,
           this,
-          &ThisClass::HandlePaintCanvasExportExpired,
+          &ThisClass::CancelPaintCanvasExport,
           static_cast<float>(FMath::Max(PaintCanvasExportDuration, 0.1)),
           false);
     }

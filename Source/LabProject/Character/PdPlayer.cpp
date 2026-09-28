@@ -205,7 +205,7 @@ void APdPlayer::BeginPlayerPawnDefinitionPreload()
 	}
 }
 
-// 최신 로딩 결과의 플레이어 설정을 적용하고 공통 초기화를 이어 간다. 로딩 실패 시에는 기본값을 사용한다.
+// 최신 로딩 결과의 플레이어 설정을 적용하고 공통 초기화를 이어 간다.
 void APdPlayer::HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPath, uint32 RequestGeneration)
 {
 	if (RequestGeneration != PlayerPawnDefinitionLoadGeneration)
@@ -216,8 +216,9 @@ void APdPlayer::HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPa
 	PlayerPawnDefinition = Cast<UPlayerPawnDefinition>(DefinitionPath.ResolveObject());
 	if (!PlayerPawnDefinition)
 	{
-		UE_LOG(LogPdPlayer, Error, TEXT("Player pawn definition '%s' could not be loaded; native defaults will be used."),
-			*UPlayerPawnDefinition::GetDefaultPrimaryAssetId().ToString());
+		UE_LOG(LogPdPlayer, Error, TEXT("Player pawn definition '%s' could not be loaded; player runtime initialization cannot continue."),
+			*DefinitionPath.ToString());
+		return;
 	}
 	ApplyPlayerPawnDefinition();
 	bPlayerPawnDefinitionReady = true;
@@ -409,15 +410,6 @@ bool APdPlayer::ApplyActivePaintCanvasToFaceDecal(
 			FaceDecalTransformOffset,
 			FaceDecalSize,
 			TextureParameterName);
-}
-
-// 로비에서 저장한 얼굴 그림을 현재 플레이어 캐릭터에 다시 적용하도록 요청한다.
-void APdPlayer::RestoreCachedLobbyPaintCanvasFaceDecal()
-{
-	if (PaintCanvasComponent)
-	{
-		PaintCanvasComponent->RestoreCachedLobbyPaintCanvasFaceDecal();
-	}
 }
 
 // 상자 열기 등 상호작용에 사용할 몽타주를 재생하고 필요한 네트워크 처리를 상호작용 컴포넌트에 맡긴다.

@@ -25,11 +25,12 @@ public:
     void HideSpeechBubble();
 
     bool ApplyFaceDecal(UTextureRenderTarget2D* PaintSnapshot, UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
-    void ClearFaceDecal();
 
     void Reset();
 
 private:
+    void ClearFaceDecal();
+
     UPROPERTY(Transient)
     TWeakObjectPtr<APdPlayer> PlayerOwner;
 

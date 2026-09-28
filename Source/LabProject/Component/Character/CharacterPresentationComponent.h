@@ -38,7 +38,6 @@ public:
 
 	void ResetAnimationToDefault();
 	void SetCurrentAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass);
-	void LinkAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass) const;
 	void UpdateAimOffset();
 	void SetAimOffset(float AimYaw, float AimPitch);
 	float GetAimYaw() const { return AimYaw; }
@@ -57,7 +56,6 @@ public:
 	void SetTemporaryMeshScaleMultiplier(UObject* SourceObject, float ScaleMultiplier);
 	void ClearTemporaryMeshScaleMultiplier(UObject* SourceObject);
 
-	UNiagaraComponent* FindBodyAuraNiagaraComponent(FName ComponentName) const;
 	void ApplyBodyAuraNiagaraWithOffset(
 		FName ComponentName,
 		UNiagaraSystem* NiagaraSystem,
@@ -81,6 +79,8 @@ private:
 	void HandleMatchTeamColorChanged(int32 NewTeamColorIndex);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void LinkAnimLayer(TSubclassOf<UAnimInstance> AnimLayerClass) const;
+	UNiagaraComponent* FindBodyAuraNiagaraComponent(FName ComponentName) const;
 	void RefreshTemporaryMeshScale();
 	UMaterialInterface* GetPreferredSkillOverlayMaterial();
 	const UMatchRuleDefinition* GetTeamOverlayMatchRuleDefinition() const;

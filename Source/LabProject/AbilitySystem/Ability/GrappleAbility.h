@@ -91,6 +91,4 @@ private:
 
 	mutable FGameplayTagContainer GrappleCooldownTags;
 	FDelegateHandle GrappleFinishedDelegateHandle;
-	bool bCommittedGrapple = false;
-	bool bStartedGrapple = false;
 };
