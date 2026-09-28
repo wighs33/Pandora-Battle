@@ -76,9 +76,6 @@ public:
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Input", meta = (AssetBundles = "Client"))
-	FSkillTipWidgetSettings SkillTipEffectIconSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Input", meta = (AssetBundles = "Client"))
 	FSkillTipWidgetSettings PandoraDescriptionEffectIconSettings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Input", meta = (AssetBundles = "Client"))

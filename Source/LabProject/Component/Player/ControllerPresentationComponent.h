@@ -53,8 +53,6 @@ private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetPdController() const;
 
-	void RefreshTravelLoadingScreen();
-	void ScheduleHideTravelLoadingScreenWhenReady();
 	void UpdateTravelLoadingReadyTicker();
 	void SetTrainingRoomLoadingPaused(bool bPaused);
 	void StartHealthBarVisibilityManagement();
@@ -66,6 +64,5 @@ private:
 
 	FTimerHandle HealthBarVisibilityManagementTimerHandle;
 	FTSTicker::FDelegateHandle TravelLoadingReadyTickerHandle;
-	int32 TravelLoadingHideRetryCount = 0;
 	bool bAppliedTrainingRoomLoadingPause = false;
 };

@@ -370,7 +370,7 @@ void UInfoWidget::ShowPandoraDescriptionDetailAtWidget(const UPandoraDefinition*
 {
 	EnsureInfoViews();
 	ConfigureInfoViews();
-	DetailPopup->ShowPandora(PandoraDefinition, AnchorWidget, bPlaceLeftOfWidget, true);
+	DetailPopup->ShowPandora(PandoraDefinition, AnchorWidget, bPlaceLeftOfWidget);
 }
 
 void UInfoWidget::ShowPandoraDescriptionDetailImmediatelyAtWidget(
@@ -380,7 +380,7 @@ void UInfoWidget::ShowPandoraDescriptionDetailImmediatelyAtWidget(
 {
 	EnsureInfoViews();
 	ConfigureInfoViews();
-	DetailPopup->ShowPandora(PandoraDefinition, AnchorWidget, bPlaceLeftOfWidget, false);
+	DetailPopup->ShowPandora(PandoraDefinition, AnchorWidget, bPlaceLeftOfWidget);
 }
 
 void UInfoWidget::HideDetailWidgets()

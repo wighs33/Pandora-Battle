@@ -24,23 +24,6 @@ ALobbyPlayerController::ALobbyPlayerController(const FObjectInitializer& ObjectI
 {
 }
 
-void ALobbyPlayerController::BeginPlay()
-{
-	Super::BeginPlay();
-
-	if (IsLocalController())
-	{
-		if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
-		{
-			if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>();
-				UiSubsystem && UiSubsystem->IsTravelLoadingScreenActive())
-			{
-				UiSubsystem->ShowTravelLoadingScreen();
-			}
-		}
-	}
-}
-
 void ALobbyPlayerController::AcknowledgePossession(APawn* P)
 {
 	Super::AcknowledgePossession(P);
@@ -175,7 +158,7 @@ void ALobbyPlayerController::Client_ShowGameStartConnectingPopup_Implementation(
 		return;
 	}
 
-	UiSubsystem->ShowTravelLoadingScreen();
+	UiSubsystem->SetGameStartPreparationPending(true);
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
 		if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
@@ -193,7 +176,7 @@ void ALobbyPlayerController::Client_HideGameStartConnectingPopup_Implementation(
 	if (UUiSubsystem* UiSubsystem =
 		LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr)
 	{
-		UiSubsystem->HideTravelLoadingScreen();
+		UiSubsystem->SetGameStartPreparationPending(false);
 	}
 
 }

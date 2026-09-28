@@ -8,6 +8,10 @@ class UInputAction;
 
 namespace PdInputKeyIconResolver
 {
+	FText ResolveInputDefinitionKeyText(
+		APlayerController* PlayerController,
+		const UInputAction* InputAction);
+
 	UObject* ResolveInputDefinitionIconObject(
 		APlayerController* PlayerController,
 		const UInputAction* InputAction);

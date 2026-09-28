@@ -132,6 +132,20 @@ void UActionSlotEntryWidget::ApplyActionVisual()
 
 void UActionSlotEntryWidget::ApplyInputKeyIcon()
 {
+	if (KeyText && InputKeyOverlay)
+	{
+		if (KeyIcon)
+		{
+			KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		const FText Caption = IsDesignTime() ? KeyText->GetText()
+			: PdInputKeyIconResolver::ResolveInputDefinitionKeyText(GetOwningPlayer(), ResolveInputAction());
+		KeyText->SetText(Caption);
+		InputKeyOverlay->SetVisibility(bHideInputKeyIcon || Caption.IsEmpty()
+			? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		return;
+	}
+
 	if (!InputKeyOverlay || !KeyIcon)
 	{
 		if (InputKeyOverlay)

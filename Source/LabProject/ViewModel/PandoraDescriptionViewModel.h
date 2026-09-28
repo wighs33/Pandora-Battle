@@ -30,7 +30,7 @@ public:
 	void SetPointsRequiredVisibility(ESlateVisibility InVisibility);
 	void SetPointsRequiredText(const FText& InPointsRequiredText);
 	void SetSkillSectionVisibility(ESlateVisibility InVisibility);
-	void SetSkillSlot(int32 SlotIndex, UObject* InIconResource, const FText& InNameText, const FText& InDescriptionText);
+	void SetSkillSlot(int32 SlotIndex, UObject* InIconResource, const FText& InNameText, const FText& InDescriptionText, const FText& InManaText, const FText& InCooldownText);
 
 public:
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
@@ -85,6 +85,12 @@ public:
 	FText SkillDescriptionText1;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillManaText1;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillCooldownText1;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
 	ESlateVisibility SkillIconVisibility1 = ESlateVisibility::Collapsed;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
@@ -95,6 +101,12 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
 	FText SkillDescriptionText2;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillManaText2;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillCooldownText2;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
 	ESlateVisibility SkillIconVisibility2 = ESlateVisibility::Collapsed;
@@ -109,6 +121,12 @@ public:
 	FText SkillDescriptionText3;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillManaText3;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillCooldownText3;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
 	ESlateVisibility SkillIconVisibility3 = ESlateVisibility::Collapsed;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
@@ -119,6 +137,12 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
 	FText SkillDescriptionText4;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillManaText4;
+
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
+	FText SkillCooldownText4;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
 	ESlateVisibility SkillIconVisibility4 = ESlateVisibility::Collapsed;

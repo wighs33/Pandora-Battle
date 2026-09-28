@@ -1,4 +1,5 @@
 #include "UI/Info/Item/RightInventoryWidget.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
@@ -361,7 +362,7 @@ bool URightInventoryWidget::DoesItemMatchSearch(const UItemInstance* ItemInstanc
 		return false;
 	}
 
-	const FString DisplayName = ItemDefinition->DisplayName.ToString();
+	const FString DisplayName = (GetLocalization() ? GetLocalization()->GetProductText(ItemDefinition, TEXT("Name"), ItemDefinition->DisplayName) : ItemDefinition->DisplayName).ToString();
 	if (DisplayName.Contains(SearchText, ESearchCase::IgnoreCase))
 	{
 		return true;

@@ -28,6 +28,7 @@ public:
 	void PreloadRuntimeContentAsync(
 		FSimpleDelegate OnComplete = FSimpleDelegate());
 	bool IsRuntimeContentReady() const { return bRuntimeContentReady; }
+	bool IsRuntimeContentLoading() const { return bRuntimeContentPreloadPending; }
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------

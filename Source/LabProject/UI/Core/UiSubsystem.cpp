@@ -14,6 +14,18 @@
 #include "Components/OverlaySlot.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/GameInstance.h"
+#include "Engine/Engine.h"
+#include "Online/OnlineSessionsSubsystem.h"
+#include "Settings/GameSettingsSubsystem.h"
+#include "Lobby/Contents/LobbyGameState.h"
+#include "Lobby/Contents/LobbyHUD.h"
+#include "UI/Lobby/LobbyWidget.h"
+#include "Mode/PdHUD.h"
+#include "Mode/ExperienceGameState.h"
+#include "Character/CharacterBase.h"
+#include "Component/Experience/ExperienceManagerComponent.h"
+#include "Misc/PackageName.h"
+#include "UObject/UObjectGlobals.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
@@ -51,9 +63,6 @@ void UUiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	bHasExternalWidgetClassDefinition = false;
 	bConfiguredWidgetContentPreloadPending = false;
 	bConfiguredWidgetContentReady = false;
-	bTravelLoadingScreenActive = false;
-	bTravelLoadingScreenCancelEnabled = false;
-	bStartupLoadingScreenPending = false;
 	ConfiguredWidgetClassDefinition = nullptr;
 	WidgetClassDefinition = nullptr;
 	PendingConfiguredUiContent.Reset();
@@ -72,22 +81,43 @@ void UUiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			this,
 			&ThisClass::RefreshConfiguredWidgetContentState));
 	RefreshConfiguredWidgetContentState();
-	BeginStartupLoadingScreen();
+	if (GameInstance)
+		PreClientTravelHandle = GameInstance->OnNotifyPreClientTravel().AddUObject(this, &ThisClass::HandlePreClientTravel);
+	PreLoadMapHandle = FCoreUObjectDelegates::PreLoadMapWithContext.AddUObject(this, &ThisClass::HandlePreLoadMap);
+	SeamlessTravelHandle = FWorldDelegates::OnSeamlessTravelStart.AddUObject(this, &ThisClass::HandleSeamlessTravelStart);
+	if (GEngine)
+	{
+		TravelFailureHandle = GEngine->OnTravelFailure().AddUObject(this, &ThisClass::HandleTravelFailure);
+		NetworkFailureHandle = GEngine->OnNetworkFailure().AddUObject(this, &ThisClass::HandleNetworkFailure);
+	}
+	if (FShaderPipelineCache::NumPrecompilesRemaining() > 0)
+		ActiveWaitReasons.Add(EWaitReason::PipelineCompile);
+	LoadingWorkTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &ThisClass::TickLoadingWork), 0.05f);
+	RefreshLoadingScreen();
 }
 
 void UUiSubsystem::Deinitialize()
 {
 	bIsDeinitializing = true;
 	CloseGameSettings();
-	CancelStartupLoadingScreenReadyCheck();
+	FTSTicker::RemoveTicker(LoadingWorkTickerHandle);
+	LoadingWorkTickerHandle.Reset();
+	if (UGameInstance* GI = GetLocalPlayer()->GetGameInstance())
+		GI->OnNotifyPreClientTravel().Remove(PreClientTravelHandle);
+	FCoreUObjectDelegates::PreLoadMapWithContext.Remove(PreLoadMapHandle);
+	FWorldDelegates::OnSeamlessTravelStart.Remove(SeamlessTravelHandle);
+	if (GEngine)
+	{
+		GEngine->OnTravelFailure().Remove(TravelFailureHandle);
+		GEngine->OnNetworkFailure().Remove(NetworkFailureHandle);
+	}
 
 	if (StatusViewModel && StatusViewModel->IsViewModelInitialized())
 	{
 		StatusViewModel->UninitializeViewModel();
 	}
 
-	bTravelLoadingScreenActive = false;
-	bTravelLoadingScreenCancelEnabled = false;
 	HideConnectingPopup();
 	ReleaseConfiguredWidgetDefinitionPreload();
 	if (ScreenRoot) ScreenRoot->RemoveFromParent();
@@ -106,10 +136,7 @@ void UUiSubsystem::SetWidgetClassDefinition(UWidgetClassDefinition* InWidgetClas
 		bHasExternalWidgetClassDefinition = true;
 		WidgetClassDefinition = InWidgetClassDefinition;
 		ConnectingPopupWidgetClass = WidgetClassDefinition->GetConnectingPopupWidgetClass();
-		if (bTravelLoadingScreenActive)
-		{
-			ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
-		}
+		RefreshLoadingScreen();
 	}
 }
 
@@ -123,28 +150,13 @@ void UUiSubsystem::ClearWidgetClassDefinition(
 		ConnectingPopupWidgetClass = WidgetClassDefinition
 			? WidgetClassDefinition->GetConnectingPopupWidgetClass()
 			: nullptr;
-		if (bTravelLoadingScreenActive)
-		{
-			ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
-		}
+		RefreshLoadingScreen();
 	}
 }
 
 void UUiSubsystem::EnsureConfiguredWidgetContentPreload()
 {
 	BeginConfiguredWidgetDefinitionPreload();
-}
-
-bool UUiSubsystem::IsStartupContentReady() const
-{
-	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	const UGameInstance* GameInstance =
-		LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
-	const UContentDataSubsystem* ContentSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	return bConfiguredWidgetContentReady
-		&& ContentSubsystem
-		&& ContentSubsystem->IsSkillDataAssetsReady();
 }
 
 TSharedPtr<FContentLease> UUiSubsystem::AcquireUiContent(
@@ -292,10 +304,7 @@ void UUiSubsystem::HandleConfiguredWidgetDefinitionLoaded()
 			ConfiguredWidgetClassDefinition->GetConnectingPopupWidgetClass();
 	}
 
-	if (bTravelLoadingScreenActive)
-	{
-		ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
-	}
+	RefreshLoadingScreen();
 
 	BindPendingConfiguredUiContent();
 	RefreshConfiguredWidgetContentState();
@@ -348,67 +357,7 @@ void UUiSubsystem::RefreshConfiguredWidgetContentState()
 		&& ConfiguredCoreContentLease->IsReady();
 	bConfiguredWidgetContentPreloadPending = ConfiguredCoreContentLease.IsValid()
 		&& ConfiguredCoreContentLease->IsLoading();
-	if (bConfiguredWidgetContentReady && bTravelLoadingScreenActive)
-	{
-		ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
-	}
-}
-
-void UUiSubsystem::BeginStartupLoadingScreen()
-{
-	bStartupLoadingScreenPending = true;
-	bTravelLoadingScreenActive = true;
-	bTravelLoadingScreenCancelEnabled = false;
-	ShowConnectingPopup(false);
-
-	if (!StartupLoadingScreenReadyTickerHandle.IsValid())
-	{
-		StartupLoadingScreenReadyTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
-			FTickerDelegate::CreateUObject(
-				this,
-				&ThisClass::TickStartupLoadingScreenReady),
-			0.05f);
-	}
-}
-
-void UUiSubsystem::CancelStartupLoadingScreenReadyCheck()
-{
-	bStartupLoadingScreenPending = false;
-	if (StartupLoadingScreenReadyTickerHandle.IsValid())
-	{
-		FTSTicker::RemoveTicker(StartupLoadingScreenReadyTickerHandle);
-		StartupLoadingScreenReadyTickerHandle.Reset();
-	}
-}
-
-bool UUiSubsystem::TickStartupLoadingScreenReady(float)
-{
-	if (bIsDeinitializing || !bStartupLoadingScreenPending)
-	{
-		StartupLoadingScreenReadyTickerHandle.Reset();
-		return false;
-	}
-
-	if (!IsValid(ActiveConnectingPopupWidget))
-	{
-		ShowConnectingPopup(false);
-	}
-
-	if (!IsStartupContentReady())
-	{
-		return true;
-	}
-
-	// 시작 콘텐츠에서 요청한 PSO가 준비될 때까지 기존 티커로 확인한다.
-	if (FShaderPipelineCache::NumPrecompilesRemaining() > 0)
-	{
-		return true;
-	}
-
-	bStartupLoadingScreenPending = false;
-	StartupLoadingScreenReadyTickerHandle.Reset();
-	HideTravelLoadingScreen();
-	return false;
+	RefreshLoadingScreen();
 }
 
 void UUiSubsystem::ReleaseConfiguredWidgetDefinitionPreload()
@@ -532,7 +481,7 @@ UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCanc
 {
 	APlayerController* PlayerController = GetLocalPlayerController();
 	UWorld* World = IsValid(PlayerController) ? PlayerController->GetWorld() : nullptr;
-	if (bIsDeinitializing || !World || World->bIsTearingDown)
+	if (bIsDeinitializing || ActiveWaitReasons.IsEmpty() || !World || World->bIsTearingDown)
 	{
 		return nullptr;
 	}
@@ -599,39 +548,6 @@ void UUiSubsystem::HideConnectingPopup()
         ConnectingScreen = nullptr;
     }
 	ActiveConnectingPopupWidget = nullptr;
-}
-
-UConnectingPopupWidget* UUiSubsystem::ShowTravelLoadingScreen(
-	const bool bEnableCancelButton)
-{
-	CancelStartupLoadingScreenReadyCheck();
-	bTravelLoadingScreenActive = true;
-	bTravelLoadingScreenCancelEnabled = bEnableCancelButton;
-	return ShowConnectingPopup(bEnableCancelButton);
-}
-
-UConnectingPopupWidget* UUiSubsystem::ShowLobbyEntryLoadingScreen(
-	const bool bEnableCancelButton)
-{
-	EnsureConfiguredWidgetContentPreload();
-	UConnectingPopupWidget* LoadingScreen =
-		ShowTravelLoadingScreen(bEnableCancelButton);
-	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
-	if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>() : nullptr)
-	{
-		LobbyRuntimeSubsystem->BeginLobbyEntryContentPreload();
-	}
-	return LoadingScreen;
-}
-
-void UUiSubsystem::HideTravelLoadingScreen()
-{
-	CancelStartupLoadingScreenReadyCheck();
-	bTravelLoadingScreenActive = false;
-	bTravelLoadingScreenCancelEnabled = false;
-	HideConnectingPopup();
 }
 
 UAbilitySystemComponent* UUiSubsystem::ResolveAbilitySystemComponent() const
@@ -718,20 +634,16 @@ TSubclassOf<UConnectingPopupWidget> UUiSubsystem::ResolveConnectingPopupWidgetCl
 
 void UUiSubsystem::HandleConnectingPopupCanceled()
 {
-	bTravelLoadingScreenActive = false;
-	bTravelLoadingScreenCancelEnabled = false;
-	if (IsValid(ActiveConnectingPopupWidget))
+	const uint64 RequestId = CancelableSessionRequestId;
+	CancelableSessionRequestId = 0;
+	if (UOnlineSessionsSubsystem* Online = GetLocalPlayer()->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>())
 	{
-		ActiveConnectingPopupWidget->OnCanceled.RemoveDynamic(
-			this,
-			&ThisClass::HandleConnectingPopupCanceled);
+		// Recheck the request identity: a delayed click must never cancel a later operation.
+		if (RequestId && Online->GetPendingUserRequestId(GetLocalPlayer()) == RequestId
+			&& Online->IsUserRequestCancelable(RequestId))
+			Online->CancelSessionRequest(RequestId);
 	}
-    if (ConnectingScreen)
-    {
-        ConnectingScreen->DeactivateWidget();
-        ConnectingScreen = nullptr;
-    }
-	ActiveConnectingPopupWidget = nullptr;
+	RefreshLoadingScreen();
 }
 
 void UUiSubsystem::PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer Layer)
@@ -767,7 +679,7 @@ void UUiSubsystem::PlayerControllerChanged(APlayerController* NewPlayerControlle
     HideConnectingPopup();
     if (ScreenRoot) ScreenRoot->RemoveFromParent();
     ScreenRoot = nullptr;
-    if (NewPlayerController && bTravelLoadingScreenActive) ShowConnectingPopup(bTravelLoadingScreenCancelEnabled);
+    RefreshLoadingScreen();
 }
 
 void UUiSubsystem::OpenGameSettings(UUserWidget* OwnerMenu)
@@ -806,4 +718,154 @@ bool UUiSubsystem::CloseGameSettings(const UUserWidget* ExpectedOwner)
 	if (!IsValid(Settings) || !Settings->GetParent()) return false;
 	Settings->CloseSettings();
 	return true;
+}
+
+bool UUiSubsystem::TickLoadingWork(float)
+{
+	if (bIsDeinitializing) return false;
+	RefreshLoadingScreen();
+	return true;
+}
+
+void UUiSubsystem::RefreshLoadingScreen()
+{
+	if (bIsDeinitializing) return;
+	const UGameInstance* GI = GetLocalPlayer()->GetGameInstance();
+	const UContentDataSubsystem* Content = GI ? GI->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	const UGameSettingsSubsystem* Settings = GI ? GI->GetSubsystem<UGameSettingsSubsystem>() : nullptr;
+	const ULobbyRuntimeSubsystem* Runtime = GI ? GI->GetSubsystem<ULobbyRuntimeSubsystem>() : nullptr;
+	const UOnlineSessionsSubsystem* Online = GI ? GI->GetSubsystem<UOnlineSessionsSubsystem>() : nullptr;
+	const bool bFinishingContentPSO = ActiveWaitReasons.Contains(EWaitReason::PipelineCompile);
+	ActiveWaitReasons.Reset();
+	CancelableSessionRequestId = 0;
+	if (bConfiguredWidgetContentPreloadPending || (Content && Content->IsSkillDataAssetsLoading()))
+		ActiveWaitReasons.Add(EWaitReason::StartupContent);
+	if (Runtime && Runtime->IsLobbyEntryContentLoading())
+		ActiveWaitReasons.Add(EWaitReason::LobbyEntryContent);
+	if (Settings && Settings->IsRuntimeContentLoading())
+		ActiveWaitReasons.Add(EWaitReason::StartupContent);
+	if (Runtime && Runtime->GetGameEntryContentPreloadResult() == ELobbyContentPreloadResult::Loading)
+		ActiveWaitReasons.Add(EWaitReason::GameEntryContent);
+	if ((bTravelPending || bGameStartPreparationPending || !ActiveWaitReasons.IsEmpty() || bFinishingContentPSO)
+		&& FShaderPipelineCache::NumPrecompilesRemaining() > 0)
+		ActiveWaitReasons.Add(EWaitReason::PipelineCompile);
+	if (Online)
+	{
+		const uint64 RequestId = Online->GetPendingUserRequestId(GetLocalPlayer());
+		if (RequestId)
+		{
+			ActiveWaitReasons.Add(EWaitReason::SessionRequest);
+			if (Online->IsUserRequestCancelable(RequestId)) CancelableSessionRequestId = RequestId;
+		}
+		if (Online->IsSessionLifecyclePending()) ActiveWaitReasons.Add(EWaitReason::SessionLifecycle);
+	}
+	if (bGameStartPreparationPending) ActiveWaitReasons.Add(EWaitReason::GameStartPreparation);
+	if (bTravelPending)
+	{
+		// Content completion cannot finish a travel while still in its source world.
+		if (IsDestinationPresentationReady()
+			&& !ActiveWaitReasons.Contains(EWaitReason::StartupContent)
+			&& !ActiveWaitReasons.Contains(EWaitReason::LobbyEntryContent)
+			&& !ActiveWaitReasons.Contains(EWaitReason::GameEntryContent)
+			&& !ActiveWaitReasons.Contains(EWaitReason::PipelineCompile))
+		{
+			bTravelPending = false;
+			TravelSourceWorld.Reset();
+			TravelDestinationMap.Reset();
+			if (Runtime && GetWorld() && !GetWorld()->GetGameState<ALobbyGameState>())
+				GI->GetSubsystem<ULobbyRuntimeSubsystem>()->ReleaseLobbyEntryContentPreload();
+		}
+		else ActiveWaitReasons.Add(EWaitReason::Travel);
+	}
+	if (ActiveWaitReasons.IsEmpty()) HideConnectingPopup();
+	else ShowConnectingPopup(CancelableSessionRequestId != 0
+		&& !bTravelPending && !bGameStartPreparationPending);
+}
+
+void UUiSubsystem::SetGameStartPreparationPending(const bool bPending)
+{
+	bGameStartPreparationPending = bPending;
+	RefreshLoadingScreen();
+}
+
+void UUiSubsystem::BeginTravel(UWorld* SourceWorld, const FString& URL)
+{
+	if (!bTravelPending)
+	{
+		TravelSourceWorld = SourceWorld;
+		TravelDestinationMap = URL.Left(URL.Find(TEXT("?")) == INDEX_NONE ? URL.Len() : URL.Find(TEXT("?")));
+		// Remote addresses do not identify a map; destination readiness still requires a new world.
+		if (!TravelDestinationMap.StartsWith(TEXT("/Game/"))) TravelDestinationMap.Reset();
+		bTravelPending = true;
+	}
+	// The host's preparation transaction now belongs to actual engine travel.
+	bGameStartPreparationPending = false;
+	RefreshLoadingScreen();
+}
+
+void UUiSubsystem::HandlePreClientTravel(const FString& URL, ETravelType, bool)
+{
+	BeginTravel(GetWorld(), URL);
+}
+
+void UUiSubsystem::HandlePreLoadMap(const FWorldContext& Context, const FString& MapName)
+{
+	if (Context.OwningGameInstance == GetLocalPlayer()->GetGameInstance())
+		BeginTravel(Context.World(), MapName);
+}
+
+void UUiSubsystem::HandleSeamlessTravelStart(UWorld* World, const FString& URL)
+{
+	if (World && World->GetGameInstance() == GetLocalPlayer()->GetGameInstance())
+		BeginTravel(World, URL);
+}
+
+void UUiSubsystem::AbortTravel()
+{
+	bTravelPending = false;
+	bGameStartPreparationPending = false;
+	TravelSourceWorld.Reset();
+	TravelDestinationMap.Reset();
+	if (ULobbyRuntimeSubsystem* Runtime = GetLocalPlayer()->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>())
+		Runtime->CancelGameEntryContentPreload();
+	RefreshLoadingScreen();
+}
+
+void UUiSubsystem::HandleTravelFailure(UWorld* World, ETravelFailure::Type, const FString&)
+{
+	if (World && World->GetGameInstance() == GetLocalPlayer()->GetGameInstance()) AbortTravel();
+}
+
+void UUiSubsystem::HandleNetworkFailure(UWorld* World, UNetDriver*, ENetworkFailure::Type, const FString&)
+{
+	if (World && World->GetGameInstance() == GetLocalPlayer()->GetGameInstance()) AbortTravel();
+}
+
+bool UUiSubsystem::IsDestinationPresentationReady() const
+{
+	APlayerController* PC = GetLocalPlayerController();
+	UWorld* World = PC ? PC->GetWorld() : nullptr;
+	if (!World || World == TravelSourceWorld.Get() || World->bIsTearingDown
+		|| !World->HasBegunPlay() || World->IsInSeamlessTravel()) return false;
+	if (!TravelDestinationMap.IsEmpty()
+		&& !World->GetMapName().EndsWith(FPackageName::GetShortName(TravelDestinationMap))) return false;
+	// A failed Experience is terminal too: leave its existing error UI accessible.
+	if (const ALobbyGameState* Lobby = World->GetGameState<ALobbyGameState>())
+	{
+		if (Lobby->HasExperienceLoadFailed()) return true;
+		const ALobbyHUD* HUD = PC->GetHUD<ALobbyHUD>();
+		return HUD && IsValid(HUD->GetLobbyWidget()) && HUD->GetLobbyWidget()->GetParent()
+			&& Lobby->IsSelectedMapImageReady() && Lobby->GetExperienceManagerComponent()->IsExperienceLoaded();
+	}
+	if (const AExperienceGameState* GameState = World->GetGameState<AExperienceGameState>())
+	{
+		const UExperienceManagerComponent* Experience = GameState->GetExperienceManagerComponent();
+		if (Experience->HasExperienceLoadFailed()) return true;
+		const APdHUD* HUD = PC->GetHUD<APdHUD>();
+		return Experience->IsExperienceLoaded() && Cast<ACharacterBase>(PC->GetPawn())
+			&& PC->GetPlayerState<APdPlayerState>() && HUD && HUD->GetPlayerHudWidget();
+	}
+	// Title and Room List do not require a character pawn. Their real CommonUI screen must exist.
+	return ScreenRoot && ScreenRoot->GetWorld() == World && ScreenRoot->ScreenStack
+		&& ScreenRoot->ScreenStack->GetActiveWidget();
 }

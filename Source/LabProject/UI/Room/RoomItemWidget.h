@@ -6,9 +6,7 @@
 #include "RoomItemWidget.generated.h"
 
 class UButton;
-class UConnectingPopupWidget;
 class UTextBlock;
-class UUiSubsystem;
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API URoomItemWidget : public ULocalizedMenuWidget
@@ -34,16 +32,10 @@ protected:
 	UFUNCTION()
 	void HandleJoinClicked();
 
-	UFUNCTION()
-	void HandleJoinCancel();
-
 	void HandleJoinSessionComplete(uint64 RequestId, bool bWasSuccessful);
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	UUiSubsystem* GetUiSubsystem() const;
-	UConnectingPopupWidget* ShowConnectingPopup(bool bShowCancelButton);
-	void HideConnectingPopup() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Room|Bind")

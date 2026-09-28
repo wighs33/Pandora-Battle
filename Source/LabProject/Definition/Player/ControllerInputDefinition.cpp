@@ -116,6 +116,18 @@ UInputAction* UControllerInputDefinition::GetLoadedQuickSlotInputAction(
 	}
 }
 
+FText UControllerInputDefinition::ResolveInputActionKeyText(const UInputAction* InputAction) const
+{
+	for (const FInputActionIconMapping& Mapping : InputActionIconMappings)
+	{
+		if (DoesMappingMatchInputAction(Mapping, InputAction))
+		{
+			return Mapping.KeyText;
+		}
+	}
+	return FText::GetEmpty();
+}
+
 UObject* UControllerInputDefinition::ResolveInputActionIconObject(const UInputAction* InputAction) const
 {
 	for (const FInputActionIconMapping& Mapping : InputActionIconMappings)

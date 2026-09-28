@@ -7,6 +7,7 @@
 
 class UImage;
 class UItemInstance;
+class UMenuLocalizationSubsystem;
 class UPanelWidget;
 class USkinDefinition;
 class UTextBlock;
@@ -19,7 +20,8 @@ class LABPROJECT_API UItemDetailWidget : public UUserWidget
 
 protected:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
-	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
@@ -36,6 +38,13 @@ public:
 	void ClearDetails();
 
 private:
+	UFUNCTION()
+	void RefreshLocalizedDetails();
+	UMenuLocalizationSubsystem* GetLocalization() const;
+	void ApplyLocalizedFont() const;
+	TWeakObjectPtr<UItemInstance> DisplayedItem;
+	TWeakObjectPtr<const USkinDefinition> DisplayedSkin;
+
 	void SetIconResource(UObject* IconResource) const;
 	void SetHeader(const FItemViewData& ViewData) const;
 	void PopulateStats(

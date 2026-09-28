@@ -158,26 +158,12 @@ void UMenuPopupWidget::ExitToTitleMap()
 			}
 		}
 	}
-	if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
-	{
-		if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>())
-		{
-			UiSubsystem->HideConnectingPopup();
-		}
-	}
 
 	const bool bNeedsSessionDestroy = bDestroySessionOnExit
 		&& OnlineSessionsSubsystem
 		&& OnlineSessionsSubsystem->HasNamedSession();
 	if (bNeedsSessionDestroy)
 	{
-		if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
-		{
-			if (UUiSubsystem* UiSubsystem = LocalPlayer->GetSubsystem<UUiSubsystem>())
-			{
-				UiSubsystem->ShowConnectingPopup(false);
-			}
-		}
 
 		ClearDestroySessionDelegate();
 		DestroySessionCompleteHandle = OnlineSessionsSubsystem->OnDestroySessionComplete.AddUObject(

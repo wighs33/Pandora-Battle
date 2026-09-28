@@ -6,9 +6,7 @@
 #include "CreateRoomPopupWidget.generated.h"
 
 class UButton;
-class UConnectingPopupWidget;
 class UEditableTextBox;
-class UUiSubsystem;
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UCreateRoomPopupWidget : public ULocalizedMenuWidget
@@ -28,9 +26,6 @@ protected:
 	UFUNCTION()
 	void HandleCancelClicked();
 
-	UFUNCTION()
-	void HandleCreateLoadingCancel();
-
 	void HandleCreateSessionComplete(uint64 RequestId, bool bWasSuccessful);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -42,9 +37,6 @@ private:
 	UButton* GetCreateButton() const;
 	UEditableTextBox* GetRoomNameTextBox() const;
 	FString GetResolvedLobbyTravelMapName() const;
-	UUiSubsystem* GetUiSubsystem() const;
-	UConnectingPopupWidget* ShowConnectingPopup(bool bShowCancelButton);
-	void HideConnectingPopup() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Room|Bind")

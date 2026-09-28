@@ -74,6 +74,8 @@ Animation → AnimNotify / GameplayEvent → Ability / Equipment / Weapon
 | Lobby/Match PlayerSetup Component | 플레이어 콘텐츠 준비와 기본 지급 순서 |
 | `OnlineSessionsSubsystem` | Steam/Online Subsystem 기반 Create·Find·Join·Start·End·Destroy 비동기 lifecycle |
 
+로비의 맵 목록과 기본 선택은 `DA_Level`을 사용하며, 기본 경기장은 콜로세움입니다. 이전·다음 버튼으로 맵을 선택하고, 선택한 설정을 경기 진입 시 전달합니다.
+
 관련 코드: [Lobby](Source/LabProject/Lobby) · [Match](Source/LabProject/Component/Match) · [Online](Source/LabProject/Online)
 
 ### AI와 Character 표현
@@ -87,6 +89,12 @@ Monster는 StateTree, Training Bot은 BehaviorTree를 사용합니다. Controlle
 ### UI와 저장
 
 CommonUI 기반 `UUiSubsystem` / `UUiScreen`과 `UPdUIActionRouter`가 화면·입력 수명을 관리합니다. HUD Router/Layer는 메뉴·Info·scoreboard를 구성하고, Info는 Widget·Presenter·LoadoutStore로 역할을 나눕니다. UI 폴더는 HUD·Info·Pandora·Shop 등 기능별로 배치되어 있습니다. 일부 상태 UI는 MVVM ViewModel을 사용합니다.
+
+`WBP_ConnectingPopup`은 실제 대기 작업의 표시만 담당합니다. `UUiSubsystem`이 콘텐츠 preload·세션 요청·게임 진입 준비·Travel·관련 PSO 대기를 함께 집계하며, 모든 대기가 끝나야 팝업을 닫습니다. Controller나 HUD 재생성은 새 대기를 만들지 않습니다. Travel은 엔진의 실제 이동 이벤트에서 시작해 목적지 콘텐츠와 화면 준비가 끝날 때 종료됩니다. 세션 취소는 요청 ID로 해당 작업에만 전달합니다.
+
+HUD의 체력·전투 기술·Pandora 스킬·퀵슬롯과 Paint 작업실은 기준 디자인 공간을 `ScaleBox`로 감싸 외부 크기에 맞춰 비율을 유지합니다. 입력키 표시는 입력 Definition의 텍스트 설정을 사용합니다.
+
+`UMenuLocalizationSubsystem`과 `DT_MenuText`가 메뉴 및 Item·Skin·Pandora·Skill 표시 문구를 제공합니다. `Product.<AssetPath>.Name/Description` 키로 조회하고 기존 DataAsset 텍스트를 fallback으로 유지합니다. 열린 상세 UI는 언어 변경 시 갱신하며, 스킬의 마나·쿨다운 수치는 `SkillDefinition`에서 읽어 지역화된 형식에 넣고 MVVM으로 표시합니다. 번역 원본 CSV는 `Content/UI/Localization/Source/DT_MenuText.csv`에 있습니다.
 
 `PlayerProfileSubsystem`은 단일 로컬 profile의 progression과 저장을 담당합니다. `LocalProfile`, backup, shutdown snapshot 중 유효한 최신 revision을 복구하며, 저장 Envelope는 CRC와 경량 난독화를 담당합니다. Audio·Input·Language 설정은 별도 slot입니다. 저장 호환성을 위해 profile SaveGame의 기존 reflected class 이름은 유지합니다.
 

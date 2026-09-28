@@ -20,7 +20,6 @@ class UCharacterActionDefinition;
 class UConnectingPopupWidget;
 class UCreateRoomPopupWidget;
 class UGameResultWidget;
-class UGameConfigWidget;
 class UGameSettingsWidget;
 class UGuideWidget;
 class UInputAction;
@@ -553,9 +552,6 @@ struct LABPROJECT_API FLobbyWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby")
 	TSubclassOf<ULobbyUserWidget> LobbyUserWidgetClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby")
-	TSubclassOf<UGameConfigWidget> GameConfigWidgetClass;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby|UI", meta = (ClampMin = "1"))
 	int32 MaxLobbySlots = LabGameSession::MaxPlayerCount;
 
@@ -711,7 +707,6 @@ public:
 	TSubclassOf<URoomItemWidget> GetRoomItemWidgetClass() const;
 	TSubclassOf<UCreateRoomPopupWidget> GetCreateRoomPopupWidgetClass() const;
 	TSubclassOf<ULobbyUserWidget> GetLobbyUserWidgetClass() const;
-	TSubclassOf<UGameConfigWidget> GetGameConfigWidgetClass() const;
 	TSubclassOf<UGameResultWidget> GetGameResultWidgetClass() const;
 	TSubclassOf<UUserWidget> GetHealthBarWidgetClass() const;
 	TSubclassOf<UUserWidget> GetEnemyAvatarWidgetClass() const;
@@ -738,7 +733,6 @@ public:
 	const FInventoryWidgetSettings& GetInventoryWidgetSettings() const;
 	const FSkinWidgetSettings& GetSkinWidgetSettings() const;
 	const FAbilitySlotWidgetSettings& GetAbilitySlotWidgetSettings() const;
-	const FSkillTipWidgetSettings& GetSkillTipEffectIconSettings() const;
 	const FSkillTipWidgetSettings& GetPandoraDescriptionEffectIconSettings() const;
 	const FQuickSlotWidgetSettings& GetQuickSlotWidgetSettings() const;
 	const FActionSlotWidgetSettings& GetActionSlotWidgetSettings() const;

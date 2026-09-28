@@ -23,6 +23,10 @@ struct LABPROJECT_API FInputActionIconMapping
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Icon", meta = (AssetBundles = "Client"))
 	TSoftObjectPtr<UInputAction> InputAction;
 
+	// HUD key captions are authored here; they do not change the actual input binding.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Display")
+	FText KeyText;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Icon",
 		meta = (AssetBundles = "Client", AllowedClasses = "/Script/Engine.Texture2D,/Script/Engine.MaterialInterface"))
 	TSoftObjectPtr<UObject> Icon;
@@ -82,6 +86,7 @@ public:
 	TSoftObjectPtr<UCharacterActionDefinition> GetEffectiveCharacterActionDefinition() const;
 	const TArray<FInputActionIconMapping>& GetInputActionIconMappings() const { return InputActionIconMappings; }
 	UObject* ResolveInputActionIconObject(const UInputAction* InputAction) const;
+	FText ResolveInputActionKeyText(const UInputAction* InputAction) const;
 	void GetRuntimePreloadAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const;
 	const FGameplayTag& GetMovementBlockStateTag() const { return MovementBlockStateTag; }
 
@@ -198,7 +203,8 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Character Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UCharacterActionDefinition> CharacterActionDefinition;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Icons", meta = (TitleProperty = "InputAction", AllowPrivateAccess = "true"))
+	// Preserve the serialized name and icon fields for screens that still use input images.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Display", meta = (DisplayName = "Input Action Displays", TitleProperty = "InputAction", AllowPrivateAccess = "true"))
 	TArray<FInputActionIconMapping> InputActionIconMappings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Block State", meta = (Categories = "State", AllowPrivateAccess = "true"))

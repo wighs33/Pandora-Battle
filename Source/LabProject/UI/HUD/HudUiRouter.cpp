@@ -128,17 +128,6 @@ void UHudUiRouter::EnsureCoreLayers()
 	TGuardValue<bool> EnsureCoreLayersGuard(bEnsuringCoreLayers, true);
 
 	Hud->RefreshUiBindings();
-	if (UUiSubsystem* UiSubsystem = ResolveUiSubsystem())
-	{
-		if (UiSubsystem->IsTravelLoadingScreenActive())
-		{
-			UiSubsystem->ShowTravelLoadingScreen();
-		}
-		else
-		{
-			UiSubsystem->HideConnectingPopup();
-		}
-	}
 
 	if (!Hud->CachedPlayerHUD)
 	{

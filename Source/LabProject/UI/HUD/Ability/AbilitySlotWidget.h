@@ -171,6 +171,9 @@ private:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UImage> KeyIcon;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> KeyText;
+
 	TWeakObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
 	FGameplayTag BoundCooldownTag;
 	FDelegateHandle CooldownTagChangedHandle;

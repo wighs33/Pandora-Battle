@@ -5,6 +5,7 @@
 #include "ItemViewData.generated.h"
 
 class UItemInstance;
+class UMenuLocalizationSubsystem;
 class UObject;
 class USkinDefinition;
 
@@ -59,8 +60,8 @@ class LABPROJECT_API FItemViewDataBuilder
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	static FItemViewData FromItemInstance(const UItemInstance* ItemInstance, bool bOwned = true, bool bActive = true);
-	static FItemViewData FromSkinDefinition(const USkinDefinition* SkinDefinition, bool bOwned = true, bool bActive = true);
+	static FItemViewData FromItemInstance(const UItemInstance* ItemInstance, const UMenuLocalizationSubsystem* Localization = nullptr, bool bOwned = true, bool bActive = true);
+	static FItemViewData FromSkinDefinition(const USkinDefinition* SkinDefinition, const UMenuLocalizationSubsystem* Localization = nullptr, bool bOwned = true, bool bActive = true);
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------

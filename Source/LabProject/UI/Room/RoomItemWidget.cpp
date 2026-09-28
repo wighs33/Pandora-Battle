@@ -2,10 +2,7 @@
 
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
-#include "Engine/LocalPlayer.h"
-#include "UI/Core/ConnectingPopupWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
-#include "UI/Core/UiSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RoomItemWidget)
 
@@ -97,7 +94,7 @@ void URoomItemWidget::RefreshUI()
 void URoomItemWidget::HandleJoinClicked()
 {
 
-UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
+	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr;
 	if (!OnlineSessionsSubsystem)
@@ -109,7 +106,6 @@ UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 	{
 		Btn_Join->SetIsEnabled(false);
 	}
-	ShowConnectingPopup(true);
 
 	if (JoinSessionCompleteHandle.IsValid())
 	{
@@ -131,36 +127,8 @@ UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		{
 			Btn_Join->SetIsEnabled(true);
 		}
-		HideConnectingPopup();
-	}
-}
 
-void URoomItemWidget::HandleJoinCancel()
-{
-	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr)
-	{
-		const uint64 RequestId = ActiveJoinRequestId;
-		ActiveJoinRequestId = 0;
-		if (JoinSessionCompleteHandle.IsValid())
-		{
-			OnlineSessionsSubsystem->OnJoinRoomRequestComplete.Remove(
-				JoinSessionCompleteHandle);
-			JoinSessionCompleteHandle.Reset();
-		}
-		if (RequestId != 0)
-		{
-			OnlineSessionsSubsystem->CancelSessionRequest(RequestId);
-		}
 	}
-
-	if (Btn_Join)
-	{
-		Btn_Join->SetIsEnabled(true);
-	}
-	HideConnectingPopup();
-
 }
 
 void URoomItemWidget::HandleJoinSessionComplete(
@@ -188,41 +156,6 @@ void URoomItemWidget::HandleJoinSessionComplete(
 	if (!bWasSuccessful && Btn_Join)
 	{
 		Btn_Join->SetIsEnabled(true);
-		HideConnectingPopup();
-	}
-}
 
-UUiSubsystem* URoomItemWidget::GetUiSubsystem() const
-{
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	return LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-}
-
-UConnectingPopupWidget* URoomItemWidget::ShowConnectingPopup(const bool bShowCancelButton)
-{
-	UUiSubsystem* UiSubsystem = GetUiSubsystem();
-	if (!UiSubsystem)
-	{
-		return nullptr;
-	}
-
-	UConnectingPopupWidget* PopupWidget = UiSubsystem->ShowConnectingPopup(bShowCancelButton);
-	if (PopupWidget)
-	{
-		PopupWidget->OnCanceled.RemoveDynamic(this, &ThisClass::HandleJoinCancel);
-		if (bShowCancelButton)
-		{
-			PopupWidget->OnCanceled.AddUniqueDynamic(this, &ThisClass::HandleJoinCancel);
-		}
-	}
-
-	return PopupWidget;
-}
-
-void URoomItemWidget::HideConnectingPopup() const
-{
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
-	{
-		UiSubsystem->HideConnectingPopup();
 	}
 }

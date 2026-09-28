@@ -7,7 +7,6 @@
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
-#include "UI/Core/ConnectingPopupWidget.h"
 #include "Engine/GameInstance.h"
 #include "Audio/BgmSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
@@ -61,7 +60,6 @@ void URoomListWidget::NativeConstruct()
 		}
 	}
 
-	HideConnectingPopup();
 	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
 	{
 		BgmSubsystem->PlayBgmForContext(EBgmContext::RoomList);
@@ -227,7 +225,6 @@ void URoomListWidget::HandleRefreshClicked()
 
 	SessionInfos.Reset();
 	RefreshUI();
-	ShowConnectingPopup(true);
 
 	if (Btn_Refresh)
 	{
@@ -245,7 +242,7 @@ void URoomListWidget::HandleRefreshClicked()
 		{
 			Btn_Refresh->SetIsEnabled(true);
 		}
-		HideConnectingPopup();
+
 	}
 }
 
@@ -275,28 +272,6 @@ void URoomListWidget::HandleCreateGameClicked()
 	}
 }
 
-void URoomListWidget::HandleRefreshCancel()
-{
-	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr)
-	{
-		const uint64 RequestId = ActiveFindRequestId;
-		ActiveFindRequestId = 0;
-		if (RequestId != 0)
-		{
-			OnlineSessionsSubsystem->CancelSessionRequest(RequestId);
-		}
-	}
-
-	if (Btn_Refresh)
-	{
-		Btn_Refresh->SetIsEnabled(true);
-	}
-	HideConnectingPopup();
-
-}
-
 void URoomListWidget::HandleCloseClicked()
 {
 	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
@@ -311,12 +286,10 @@ void URoomListWidget::HandleCloseClicked()
 
 	if (!OnlineSessionsSubsystem || !OnlineSessionsSubsystem->HasNamedSession())
 	{
-		HideConnectingPopup();
+
 		OpenTitleMap();
 		return;
 	}
-
-	ShowConnectingPopup(false);
 
 	if (DestroySessionCompleteHandle.IsValid())
 	{
@@ -335,7 +308,7 @@ void URoomListWidget::HandleCloseClicked()
 	if (ActiveDestroyRequestId == 0)
 	{
 		bPendingCloseAfterDestroy = false;
-		HideConnectingPopup();
+
 	}
 }
 
@@ -355,7 +328,6 @@ void URoomListWidget::HandleFindSessionsComplete(
 		Btn_Refresh->SetIsEnabled(true);
 	}
 
-	HideConnectingPopup();
 	SessionInfos = bWasSuccessful ? Results : TArray<FBlueprintSessionResult>();
 	RefreshUI();
 }
@@ -419,39 +391,4 @@ FString URoomListWidget::GetResolvedTitleTravelMapName() const
 	const ULevelDefinition* Definition =
 		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
-}
-
-UUiSubsystem* URoomListWidget::GetUiSubsystem() const
-{
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	return LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-}
-
-UConnectingPopupWidget* URoomListWidget::ShowConnectingPopup(const bool bShowCancelButton)
-{
-	UUiSubsystem* UiSubsystem = GetUiSubsystem();
-	if (!UiSubsystem)
-	{
-		return nullptr;
-	}
-
-	UConnectingPopupWidget* PopupWidget = UiSubsystem->ShowConnectingPopup(bShowCancelButton);
-	if (PopupWidget)
-	{
-		PopupWidget->OnCanceled.RemoveDynamic(this, &ThisClass::HandleRefreshCancel);
-		if (bShowCancelButton)
-		{
-			PopupWidget->OnCanceled.AddUniqueDynamic(this, &ThisClass::HandleRefreshCancel);
-		}
-	}
-
-	return PopupWidget;
-}
-
-void URoomListWidget::HideConnectingPopup() const
-{
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
-	{
-		UiSubsystem->HideConnectingPopup();
-	}
 }

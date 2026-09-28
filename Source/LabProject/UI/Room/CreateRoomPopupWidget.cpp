@@ -5,12 +5,9 @@
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Definition/Level/LevelDefinition.h"
-#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
-#include "UI/Core/ConnectingPopupWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
-#include "UI/Core/UiSubsystem.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CreateRoomPopupWidget)
@@ -99,7 +96,7 @@ void UCreateRoomPopupWidget::HandleCreateClicked()
 {
 	const FString InitialSessionMapName = TEXT("Lobby");
 
-UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
+	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr;
 	if (!OnlineSessionsSubsystem)
@@ -111,7 +108,6 @@ UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 	{
 		CreateButton->SetIsEnabled(false);
 	}
-	ShowConnectingPopup(true);
 
 	if (CreateSessionCompleteHandle.IsValid())
 	{
@@ -136,7 +132,7 @@ UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		{
 			CreateButton->SetIsEnabled(true);
 		}
-		HideConnectingPopup();
+
 	}
 }
 
@@ -145,28 +141,6 @@ void UCreateRoomPopupWidget::HandleCancelClicked()
 	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
 		Screen->DeactivateWidget();
 	RemoveFromParent();
-}
-
-void UCreateRoomPopupWidget::HandleCreateLoadingCancel()
-{
-	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr)
-	{
-		const uint64 RequestId = ActiveCreateRequestId;
-		ActiveCreateRequestId = 0;
-		if (RequestId != 0)
-		{
-			OnlineSessionsSubsystem->CancelSessionRequest(RequestId);
-		}
-	}
-
-	if (UButton* CreateButton = GetCreateButton())
-	{
-		CreateButton->SetIsEnabled(true);
-	}
-	HideConnectingPopup();
-
 }
 
 void UCreateRoomPopupWidget::HandleCreateSessionComplete(
@@ -201,7 +175,7 @@ void UCreateRoomPopupWidget::HandleCreateSessionComplete(
 	{
 		CreateButton->SetIsEnabled(true);
 	}
-	HideConnectingPopup();
+
 }
 
 void UCreateRoomPopupWidget::OpenLobbyAsListenServer() const
@@ -245,39 +219,4 @@ FString UCreateRoomPopupWidget::GetResolvedLobbyTravelMapName() const
 	const ULevelDefinition* Definition =
 		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
-}
-
-UUiSubsystem* UCreateRoomPopupWidget::GetUiSubsystem() const
-{
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	return LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-}
-
-UConnectingPopupWidget* UCreateRoomPopupWidget::ShowConnectingPopup(const bool bShowCancelButton)
-{
-	UUiSubsystem* UiSubsystem = GetUiSubsystem();
-	if (!UiSubsystem)
-	{
-		return nullptr;
-	}
-
-	UConnectingPopupWidget* PopupWidget = UiSubsystem->ShowConnectingPopup(bShowCancelButton);
-	if (PopupWidget)
-	{
-		PopupWidget->OnCanceled.RemoveDynamic(this, &ThisClass::HandleCreateLoadingCancel);
-		if (bShowCancelButton)
-		{
-			PopupWidget->OnCanceled.AddUniqueDynamic(this, &ThisClass::HandleCreateLoadingCancel);
-		}
-	}
-
-	return PopupWidget;
-}
-
-void UCreateRoomPopupWidget::HideConnectingPopup() const
-{
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
-	{
-		UiSubsystem->HideConnectingPopup();
-	}
 }

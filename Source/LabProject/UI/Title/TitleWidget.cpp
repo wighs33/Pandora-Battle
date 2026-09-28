@@ -9,7 +9,6 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "UI/Core/ConnectingPopupWidget.h"
 #include "Engine/GameInstance.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
@@ -72,11 +71,6 @@ void UTitleWidget::NativeConstruct()
 
 	ApplyWidgetDefinitionSettings();
 
-	if (const UUiSubsystem* UiSubsystem = GetUiSubsystem();
-		!UiSubsystem || !UiSubsystem->IsTravelLoadingScreenActive())
-	{
-		HideConnectingPopup();
-	}
 	LoadLocalProfile();
 
 	AudioVolumeControl = NewObject<UAudioVolumeControl>(this);
@@ -285,27 +279,6 @@ void UTitleWidget::HandleExitClicked()
 	UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, true);
 }
 
-void UTitleWidget::HandleQuickMatchCancel()
-{
-	bQuickMatchStartPending = false;
-	CancelQuickMatchStartTimer();
-	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr)
-	{
-		const uint64 RequestId = ActiveQuickMatchRequestId;
-		ActiveQuickMatchRequestId = 0;
-		if (RequestId != 0)
-		{
-			OnlineSessionsSubsystem->CancelSessionRequest(RequestId);
-		}
-	}
-
-	SetQuickMatchEnabled(true);
-	HideQuickMatchLoadingScreen();
-
-}
-
 FString UTitleWidget::GetResolvedLobbyTravelMapName() const
 {
 	const ULevelDefinition* Definition =
@@ -349,10 +322,6 @@ void UTitleWidget::OpenTrainingRoom()
 		return;
 	}
 
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
-	{
-		UiSubsystem->ShowTravelLoadingScreen();
-	}
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
 		if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
@@ -619,69 +588,15 @@ void UTitleWidget::LoadLocalProfile() const
 
 void UTitleWidget::StartQuickMatch()
 {
-	if (bQuickMatchStartPending || ActiveQuickMatchRequestId != 0)
-	{
-		return;
-	}
-
+	if (ActiveQuickMatchRequestId != 0) return;
 	SetQuickMatchEnabled(false);
-	bQuickMatchStartPending = true;
-	TryStartQuickMatchAfterLoadingScreen();
-}
-
-void UTitleWidget::TryStartQuickMatchAfterLoadingScreen()
-{
-	if (!bQuickMatchStartPending)
-	{
-		return;
-	}
-
-	UConnectingPopupWidget* LoadingScreen = ShowQuickMatchLoadingScreen();
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		bQuickMatchStartPending = false;
-		SetQuickMatchEnabled(true);
-		HideQuickMatchLoadingScreen();
-		return;
-	}
-
-	CancelQuickMatchStartTimer();
-	UCommonActivatableWidget* LoadingHost = IsValid(LoadingScreen)
-        ? UCommonUIActionRouterBase::FindOwningActivatable(LoadingScreen->GetCachedWidget(), GetOwningLocalPlayer()) : nullptr;
-	if (!LoadingHost || !LoadingHost->IsActivated())
-	{
-		World->GetTimerManager().SetTimer(
-			QuickMatchStartTimerHandle,
-			this,
-			&ThisClass::TryStartQuickMatchAfterLoadingScreen,
-			0.05f,
-			false);
-		return;
-	}
-
-	// Let Slate paint the loading screen once before session discovery begins.
-	QuickMatchStartTimerHandle = World->GetTimerManager().SetTimerForNextTick(
-		this,
-		&ThisClass::BeginQuickMatchRequest);
-}
-
-void UTitleWidget::BeginQuickMatchRequest()
-{
-	CancelQuickMatchStartTimer();
-	if (!bQuickMatchStartPending)
-	{
-		return;
-	}
-
-	bQuickMatchStartPending = false;
 	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr;
 	if (!OnlineSessionsSubsystem)
 	{
 		SetQuickMatchEnabled(true);
-		HideQuickMatchLoadingScreen();
+
 		return;
 	}
 
@@ -704,21 +619,12 @@ void UTitleWidget::BeginQuickMatchRequest()
 	if (RequestId == 0)
 	{
 		SetQuickMatchEnabled(true);
-		HideQuickMatchLoadingScreen();
+
 	}
 	else
 	{
 		ActiveQuickMatchRequestId = RequestId;
 	}
-}
-
-void UTitleWidget::CancelQuickMatchStartTimer()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(QuickMatchStartTimerHandle);
-	}
-	QuickMatchStartTimerHandle.Invalidate();
 }
 
 void UTitleWidget::OpenLobbyAsListenServer() const
@@ -727,11 +633,6 @@ void UTitleWidget::OpenLobbyAsListenServer() const
 	if (LobbyMapName.IsEmpty())
 	{
 		return;
-	}
-
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
-	{
-		UiSubsystem->ShowLobbyEntryLoadingScreen();
 	}
 
 	ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenLobbyAsListenServer"));
@@ -748,8 +649,7 @@ void UTitleWidget::SetQuickMatchEnabled(const bool bEnabled) const
 
 void UTitleWidget::ClearQuickMatchDelegates()
 {
-	bQuickMatchStartPending = false;
-	CancelQuickMatchStartTimer();
+
 	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr;
@@ -781,41 +681,6 @@ UUiSubsystem* UTitleWidget::GetUiSubsystem() const
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 }
 
-UConnectingPopupWidget* UTitleWidget::ShowQuickMatchLoadingScreen()
-{
-	UUiSubsystem* UiSubsystem = GetUiSubsystem();
-	if (!UiSubsystem)
-	{
-		return nullptr;
-	}
-
-	UConnectingPopupWidget* PopupWidget =
-		UiSubsystem->ShowLobbyEntryLoadingScreen(true);
-	if (PopupWidget)
-	{
-		PopupWidget->OnCanceled.RemoveDynamic(this, &ThisClass::HandleQuickMatchCancel);
-		PopupWidget->OnCanceled.AddUniqueDynamic(this, &ThisClass::HandleQuickMatchCancel);
-	}
-
-	return PopupWidget;
-}
-
-void UTitleWidget::HideQuickMatchLoadingScreen() const
-{
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
-	{
-		UiSubsystem->HideTravelLoadingScreen();
-	}
-}
-
-void UTitleWidget::HideConnectingPopup() const
-{
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
-	{
-		UiSubsystem->HideConnectingPopup();
-	}
-}
-
 void UTitleWidget::HandleQuickMatchRequestComplete(
 	const uint64 RequestId,
 	const bool bWasSuccessful,
@@ -838,5 +703,5 @@ void UTitleWidget::HandleQuickMatchRequestComplete(
 	}
 
 	SetQuickMatchEnabled(true);
-	HideQuickMatchLoadingScreen();
+
 }

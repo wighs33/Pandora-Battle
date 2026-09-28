@@ -356,7 +356,6 @@ void UPandoraTreeWidget::ShowPandoraDescriptionAtWidget(
 	DescriptionWidget->SetPandoraTreeComponent(InPandoraTreeComponent);
 	DescriptionWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 	PositionPandoraDescriptionWidget(AnchorWidget);
-	DescriptionWidget->PlayShowAnimation();
 }
 
 void UPandoraTreeWidget::HidePandoraDescription(const UWidget* RequestingAnchorWidget)
@@ -884,14 +883,15 @@ void UPandoraTreeWidget::PositionPandoraDescriptionWidget(const UWidget* AnchorW
 	USlateBlueprintLibrary::LocalToViewport(
 		this,
 		AnchorGeometry,
-		FVector2D(AnchorGeometry.GetLocalSize().X, 0.0f),
+		FVector2D::ZeroVector,
 		PixelPosition,
 		ViewportPosition);
 
 	PandoraDescriptionWidget->ForceLayoutPrepass();
 	const FVector2D DesiredSize = PandoraDescriptionWidget->GetDesiredSize();
-	const FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(this);
-	FVector2D PopupPosition = ViewportPosition + FVector2D(16.0f, 0.0f);
+	const float ViewportScale = FMath::Max(UWidgetLayoutLibrary::GetViewportScale(this), UE_SMALL_NUMBER);
+	const FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(this) / ViewportScale;
+	FVector2D PopupPosition = ViewportPosition - FVector2D(DesiredSize.X + 16.0f, 0.0f);
 
 	if (ViewportSize.X > 0.0f && DesiredSize.X > 0.0f)
 	{

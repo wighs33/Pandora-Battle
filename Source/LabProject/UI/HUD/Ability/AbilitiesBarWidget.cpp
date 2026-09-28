@@ -12,6 +12,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
+#include "Components/TextBlock.h"
 #include "Character/CharacterBase.h"
 #include "GameFramework/Pawn.h"
 #include "Definition/Item/ItemDefinition.h"
@@ -350,6 +351,24 @@ void UAbilitiesBarWidget::ApplySkillSlotKeyIcon(UUserWidget* Widget, const int32
 	if (UAbilitySlotWidget* AbilitySlotWidget = Cast<UAbilitySlotWidget>(Widget))
 	{
 		AbilitySlotWidget->SetSkillSlotIndex(SkillSlotIndex);
+		return;
+	}
+
+	// Empty skill entries can be plain UserWidgets rather than UAbilitySlotWidget.
+	if (UTextBlock* KeyText = Cast<UTextBlock>(Widget->GetWidgetFromName(TEXT("KeyText"))))
+	{
+		const APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer());
+		const UControllerInputDefinition* InputDefinition = PlayerController
+			? PlayerController->GetLoadedInputDefinition() : nullptr;
+		const FText Caption = InputDefinition
+			? InputDefinition->ResolveInputActionKeyText(InputDefinition->GetLoadedSkillInputAction(SkillSlotIndex))
+			: FText::GetEmpty();
+		KeyText->SetText(Caption);
+		if (UWidget* KeyOverlay = Widget->GetWidgetFromName(TEXT("InputKeyOverlay")))
+		{
+			KeyOverlay->SetVisibility(Caption.IsEmpty()
+				? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		}
 		return;
 	}
 

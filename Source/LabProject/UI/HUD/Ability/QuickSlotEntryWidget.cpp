@@ -1,6 +1,7 @@
 #include "UI/HUD/Ability/QuickSlotEntryWidget.h"
 
 #include "Components/Image.h"
+#include "Components/Overlay.h"
 #include "Components/TextBlock.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "InputAction.h"
@@ -9,6 +10,8 @@
 #include "Definition/Skin/SkinDefinition.h"
 #include "UI/Common/InputKeyIconResolver.h"
 #include "UI/Info/Item/ItemViewData.h"
+#include "Engine/GameInstance.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(QuickSlotEntryWidget)
 
@@ -51,9 +54,10 @@ void UQuickSlotEntryWidget::RefreshVisual()
 
 void UQuickSlotEntryWidget::ApplyItemVisual()
 {
+	const UMenuLocalizationSubsystem* Localization = UGameInstance::GetSubsystem<UMenuLocalizationSubsystem>(GetGameInstance());
 	const FItemViewData ViewData = SkinDefinition
-		? FItemViewDataBuilder::FromSkinDefinition(SkinDefinition)
-		: FItemViewDataBuilder::FromItemInstance(ItemInstance);
+		? FItemViewDataBuilder::FromSkinDefinition(SkinDefinition, Localization)
+		: FItemViewDataBuilder::FromItemInstance(ItemInstance, Localization);
 
 	if (IconImage)
 	{
@@ -71,6 +75,20 @@ void UQuickSlotEntryWidget::ApplyItemVisual()
 
 void UQuickSlotEntryWidget::ApplyInputKeyIcon()
 {
+	if (KeyText && InputKeyOverlay)
+	{
+		if (KeyIcon)
+		{
+			KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		const FText Caption = IsDesignTime() ? KeyText->GetText()
+			: PdInputKeyIconResolver::ResolveInputDefinitionKeyText(GetOwningPlayer(), ResolveInputAction());
+		KeyText->SetText(Caption);
+		InputKeyOverlay->SetVisibility(bHideInputKeyIcon || Caption.IsEmpty()
+			? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		return;
+	}
+
 	if (!KeyIcon)
 	{
 		return;

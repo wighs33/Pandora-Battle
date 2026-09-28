@@ -47,8 +47,6 @@ void UConnectingPopupWidget::HandleCancelClicked()
 {
 	if (!bCancelButtonEnabled) return;
 	OnCanceled.Broadcast();
-	OnCanceled.Clear();
-	RemoveFromParent();
 }
 
 void UConnectingPopupWidget::ApplyCancelButtonState() const

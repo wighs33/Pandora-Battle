@@ -1,7 +1,6 @@
 #include "UI/Pandora/PandoraDescriptionWidget.h"
 
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
-#include "Animation/WidgetAnimation.h"
 #include "Components/Image.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -64,6 +63,11 @@ void UPandoraDescriptionWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+void UPandoraDescriptionWidget::OnMenuLanguageChanged()
+{
+	SetDetails();
+}
+
 void UPandoraDescriptionWidget::SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition)
 {
 	PandoraDefinition = InPandoraDefinition;
@@ -96,7 +100,8 @@ void UPandoraDescriptionWidget::SetDetails()
 
 	FPandoraDescriptionViewData ViewData = FPandoraDescriptionViewDataBuilder::Build(
 		PandoraDefinition.Get(),
-		PandoraTreeComponent.Get());
+		PandoraTreeComponent.Get(),
+		GetLocalization());
 	if (!PandoraTreeComponent && PandoraDefinition && !FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(this, PandoraDefinition))
 	{
 		ViewData.DescriptionText = NSLOCTEXT("PandoraDescriptionWidget", "UnownedPandoraDescription", "You do not own this Pandora.");
@@ -131,35 +136,10 @@ void UPandoraDescriptionWidget::SetDetails()
 			SkillSlotIndex,
 			SkillViewData ? SkillViewData->IconResource : nullptr,
 			SkillViewData ? SkillViewData->DisplayName : FText::GetEmpty(),
-			SkillViewData ? SkillViewData->Description : FText::GetEmpty());
+			SkillViewData ? SkillViewData->Description : FText::GetEmpty(),
+			SkillViewData ? SkillViewData->ManaText : FText::GetEmpty(),
+			SkillViewData ? SkillViewData->CooldownText : FText::GetEmpty());
 	}
-}
-
-void UPandoraDescriptionWidget::PlayShowAnimation()
-{
-	const APlayerController* OwningPlayer = GetOwningPlayer();
-	if (!OwningPlayer || !OwningPlayer->IsLocalController() || !ScaleUp)
-	{
-		return;
-	}
-
-	StopAnimation(ScaleUp);
-	PlayAnimation(ScaleUp, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
-}
-
-void UPandoraDescriptionWidget::ShowWithoutAnimation()
-{
-	const APlayerController* OwningPlayer = GetOwningPlayer();
-	if (!OwningPlayer || !OwningPlayer->IsLocalController() || !ScaleUp)
-	{
-		return;
-	}
-
-	// Apply the animation's completed state immediately and stop any transition already in progress.
-	StopAnimation(ScaleUp);
-	PlayAnimation(ScaleUp, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
-	SetAnimationCurrentTime(ScaleUp, ScaleUp->GetEndTime());
-	PauseAnimation(ScaleUp);
 }
 
 void UPandoraDescriptionWidget::ResolvePandoraTreeComponent()
@@ -193,8 +173,7 @@ void UPandoraDescriptionWidget::ApplyEffectIconResources()
 		PdSkillEffectIconResolver::ApplySkillEffectIcon(
 			this,
 			Skill,
-			EffectIconResources[SkillIndex],
-			ESkillEffectIconSet::PandoraDescription);
+			EffectIconResources[SkillIndex]);
 	}
 }
 

@@ -22,6 +22,11 @@ ALobbyGameState::ALobbyGameState(const FObjectInitializer& ObjectInitializer)
 void ALobbyGameState::BeginPlay()
 {
 	Super::BeginPlay();
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		if (ULobbyRuntimeSubsystem* Runtime = GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>())
+			Runtime->BeginLobbyEntryContentPreload();
+	}
 	ExperienceManagerComponent->CallOrRegister_OnExperienceLoaded(
 		FOnPdExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoaded));
 	ExperienceManagerComponent->CallOrRegister_OnExperienceLoadFailed(

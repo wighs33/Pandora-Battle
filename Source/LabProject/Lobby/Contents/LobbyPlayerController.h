@@ -14,7 +14,6 @@ class LABPROJECT_API ALobbyPlayerController : public APdPlayerController
 
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
-	virtual void BeginPlay() override;
 	virtual void AcknowledgePossession(APawn* P) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------

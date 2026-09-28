@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "Mode/PdHUD.h"
 #include "UI/Info/InfoWidget.h"
 #include "UI/Info/Item/ItemSlotDragDropOperation.h"
@@ -255,11 +256,21 @@ void UEquipSlotWidget::SetData(UItemInstance* Target)
 	}
 
 	bUseSelectedEmptyIcon = false;
-	SlotText = ItemDefinition->DisplayName;
+	SlotText = GetLocalization() ? GetLocalization()->GetProductText(ItemDefinition, TEXT("Name"), ItemDefinition->DisplayName) : ItemDefinition->DisplayName;
 	CurrentIconTexture = SlotIconTexture;
 	CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
 	CurrentItemIconTexture = ItemDefinition->IconTexture.Get();
 	ApplySlotVisual();
+}
+
+void UEquipSlotWidget::OnMenuLanguageChanged()
+{
+	Super::OnMenuLanguageChanged();
+	if (const UItemDefinition* Definition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr)
+	{
+		SlotText = GetLocalization() ? GetLocalization()->GetProductText(Definition, TEXT("Name"), Definition->DisplayName) : Definition->DisplayName;
+		ApplySlotVisual();
+	}
 }
 
 void UEquipSlotWidget::SetResolvedEquipTypeTag(const FGameplayTag InResolvedEquipTypeTag)

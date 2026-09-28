@@ -557,3 +557,16 @@ bool UOnlineSessionsSubsystem::IsHostConnectionLost(const ENetworkFailure::Type 
 	return ErrorString.Contains(TEXT("Host closed the connection"), ESearchCase::IgnoreCase)
 		|| ErrorString.Contains(TEXT("connection to the host has been lost"), ESearchCase::IgnoreCase);
 }
+
+uint64 UOnlineSessionsSubsystem::GetPendingUserRequestId(const ULocalPlayer* LocalPlayer) const
+{
+	return ActiveRequestLocalPlayer.Get() == LocalPlayer
+		&& !bActiveRequestCancelRequested && !bActiveRequestResultSent
+		? ActiveSessionRequestId : 0;
+}
+
+bool UOnlineSessionsSubsystem::IsUserRequestCancelable(const uint64 RequestId) const
+{
+	return IsSessionRequestActive(RequestId) && !bActiveRequestCancelRequested
+		&& !bActiveRequestResultSent && ActiveSessionRequestKind != ESessionRequestKind::DestroySession;
+}

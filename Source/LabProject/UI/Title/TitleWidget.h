@@ -9,7 +9,6 @@
 class UButton;
 class UAudioVolumeSlider;
 class UAudioVolumeControl;
-class UConnectingPopupWidget;
 class UGuideWidget;
 class UShopWidget;
 class UUiSubsystem;
@@ -50,12 +49,7 @@ protected:
 	UFUNCTION()
 	void HandleExitClicked();
 
-	UFUNCTION()
-	void HandleQuickMatchCancel();
-
 private:
-	void TryStartQuickMatchAfterLoadingScreen();
-	void BeginQuickMatchRequest();
 	void HandleQuickMatchRequestComplete(uint64 RequestId, bool bWasSuccessful, bool bCreatedRoom);
 
 	UFUNCTION()
@@ -80,15 +74,11 @@ private:
 	TSubclassOf<UUserWidget> ResolveRecordWidgetClass() const;
 	void LoadLocalProfile() const;
 	void StartQuickMatch();
-	void CancelQuickMatchStartTimer();
 	void OpenLobbyAsListenServer() const;
 	void SetQuickMatchEnabled(bool bEnabled) const;
 	void ClearQuickMatchDelegates();
 
 	UUiSubsystem* GetUiSubsystem() const;
-	UConnectingPopupWidget* ShowQuickMatchLoadingScreen();
-	void HideConnectingPopup() const;
-	void HideQuickMatchLoadingScreen() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
@@ -147,9 +137,7 @@ private:
 	bool bQuickMatchUseLobbies = true;
 
 	FDelegateHandle QuickMatchRequestCompleteHandle;
-	FTimerHandle QuickMatchStartTimerHandle;
 	uint64 ActiveQuickMatchRequestId = 0;
-	bool bQuickMatchStartPending = false;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UShopWidget> ShopWidget;

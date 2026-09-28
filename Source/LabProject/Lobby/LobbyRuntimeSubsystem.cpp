@@ -173,22 +173,6 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 	}
 }
 
-bool ULobbyRuntimeSubsystem::IsLobbyEntryContentReady() const
-{
-	const UGameInstance* GameInstance = GetGameInstance();
-	const UGameSettingsSubsystem* GameSettingsSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UGameSettingsSubsystem>() : nullptr;
-	const UContentDataSubsystem* ContentDataSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	return GameSettingsSubsystem
-		&& GameSettingsSubsystem->IsRuntimeContentReady()
-		&& ContentDataSubsystem
-		&& ContentDataSubsystem->IsSkillDataAssetsReady()
-		&& bLevelDefinitionReady
-		&& LoadedLevelDefinition != nullptr
-		&& IsLocalPlayerWidgetContentReady();
-}
-
 const UMatchRuleDefinition*
 ULobbyRuntimeSubsystem::GetLoadedLobbyMatchRuleDefinition() const
 {
@@ -401,32 +385,7 @@ void ULobbyRuntimeSubsystem::FindUnresolvedGameEntryAssets(
 	}
 }
 
-bool ULobbyRuntimeSubsystem::IsLocalPlayerWidgetContentReady() const
-{
-	const UGameInstance* GameInstance = GetGameInstance();
-	if (!GameInstance)
-	{
-		return false;
-	}
 
-	for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
-	{
-		UUiSubsystem* UiSubsystem =
-			LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-		const TSharedPtr<FContentLease>* ContentLease =
-			UiSubsystem ? LobbyContentLeases.Find(UiSubsystem) : nullptr;
-		if (!UiSubsystem
-			|| !UiSubsystem->IsConfiguredWidgetContentReady()
-			|| !ContentLease
-			|| !ContentLease->IsValid()
-			|| !(*ContentLease)->IsReady())
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
 
 void ULobbyRuntimeSubsystem::HandleLevelDefinitionPreloadComplete()
 {
@@ -815,4 +774,14 @@ TArray<FString> ULobbyRuntimeSubsystem::MakeLobbyPlayerCacheKeys(const APlayerSt
 	}
 
 	return Keys;
+}
+
+bool ULobbyRuntimeSubsystem::IsLobbyEntryContentLoading() const
+{
+	if (bLevelDefinitionPreloadPending) return true;
+	for (const auto& Entry : LobbyContentLeases)
+	{
+		if (Entry.Value.IsValid() && Entry.Value->IsLoading()) return true;
+	}
+	return false;
 }

@@ -3,6 +3,17 @@
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Mode/PdPlayerController.h"
 
+FText PdInputKeyIconResolver::ResolveInputDefinitionKeyText(
+	APlayerController* PlayerController,
+	const UInputAction* InputAction)
+{
+	const APdPlayerController* PdPlayerController = Cast<APdPlayerController>(PlayerController);
+	const UControllerInputDefinition* InputDefinition = PdPlayerController
+		? PdPlayerController->GetLoadedInputDefinition()
+		: nullptr;
+	return InputDefinition ? InputDefinition->ResolveInputActionKeyText(InputAction) : FText::GetEmpty();
+}
+
 UObject* PdInputKeyIconResolver::ResolveInputDefinitionIconObject(
 	APlayerController* PlayerController,
 	const UInputAction* InputAction)

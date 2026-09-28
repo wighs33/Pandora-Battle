@@ -1,5 +1,6 @@
 #include "Online/OnlineSessionsSubsystem.h"
 #include "Engine/LocalPlayer.h"
+#include "Containers/Ticker.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Online/OnlineSessionNames.h"
@@ -46,7 +47,17 @@ bool UOnlineSessionsSubsystem::StartCreateRoomPhase(const uint64 RequestId)
 	ClearSessionOperationDelegate(SessionOperationState);
 	SessionOperationState = ESessionOperationState::CreatingSession;
 	const FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate =
-		FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionCompleted, RequestId);
+		FOnCreateSessionCompleteDelegate::CreateWeakLambda(this,
+			[this, RequestId](FName SessionName, bool bSuccess)
+			{
+				// Backends may complete inline; the caller must receive its request ID first.
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
+					[this, RequestId, SessionName, bSuccess](float)
+					{
+						OnCreateSessionCompleted(SessionName, bSuccess, RequestId);
+						return false;
+					}));
+			});
 	CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
 
 	FOnlineSessionSettings Settings;
@@ -124,7 +135,17 @@ bool UOnlineSessionsSubsystem::StartFindRoomsPhase(const uint64 RequestId)
 	ClearSessionOperationDelegate(SessionOperationState);
 	SessionOperationState = ESessionOperationState::FindingSessions;
 	const FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate =
-		FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsCompleted, RequestId);
+		FOnFindSessionsCompleteDelegate::CreateWeakLambda(this,
+			[this, RequestId](bool bSuccess)
+			{
+				// Backends may complete inline; the caller must receive its request ID first.
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
+					[this, RequestId, bSuccess](float)
+					{
+						OnFindSessionsCompleted(bSuccess, RequestId);
+						return false;
+					}));
+			});
 	FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
 
 	ActiveSessionSearch = MakeShared<FOnlineSessionSearch>();
@@ -240,7 +261,17 @@ bool UOnlineSessionsSubsystem::StartJoinRoomPhase(const uint64 RequestId)
 	ClearSessionOperationDelegate(SessionOperationState);
 	SessionOperationState = ESessionOperationState::JoiningSession;
 	const FOnJoinSessionCompleteDelegate JoinSessionCompleteDelegate =
-		FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionCompleted, RequestId);
+		FOnJoinSessionCompleteDelegate::CreateWeakLambda(this,
+			[this, RequestId](FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+			{
+				// Backends may complete inline; the caller must receive its request ID first.
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
+					[this, RequestId, SessionName, Result](float)
+					{
+						OnJoinSessionCompleted(SessionName, Result, RequestId);
+						return false;
+					}));
+			});
 	JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
 
 	const bool bStarted = ActiveRequestLocalPlayerNetId.IsValid()
@@ -325,7 +356,17 @@ bool UOnlineSessionsSubsystem::StartDestroySessionPhase(const uint64 RequestId, 
 	SessionOperationState =
 		bCleanupCanceledSession ? ESessionOperationState::CleaningCanceledSession : ESessionOperationState::DestroyingExistingSession;
 	const FOnDestroySessionCompleteDelegate DestroySessionCompleteDelegate =
-		FOnDestroySessionCompleteDelegate::CreateUObject(this, &ThisClass::OnDestroySessionCompleted, RequestId);
+		FOnDestroySessionCompleteDelegate::CreateWeakLambda(this,
+			[this, RequestId](FName SessionName, bool bSuccess)
+			{
+				// Backends may complete inline; the caller must receive its request ID first.
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
+					[this, RequestId, SessionName, bSuccess](float)
+					{
+						OnDestroySessionCompleted(SessionName, bSuccess, RequestId);
+						return false;
+					}));
+			});
 	DestroySessionCompleteDelegateHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegate);
 	if (!SessionInterface->DestroySession(NAME_GameSession))
 	{

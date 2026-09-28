@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 
 #include "PandoraDescriptionWidget.generated.h"
 
@@ -8,10 +8,9 @@ class UPandoraTreeComponent;
 class UPandoraDefinition;
 class UPandoraDescriptionViewModel;
 class UImage;
-class UWidgetAnimation;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UPandoraDescriptionWidget : public UUserWidget
+class LABPROJECT_API UPandoraDescriptionWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -19,6 +18,7 @@ protected:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void OnMenuLanguageChanged() override;
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
@@ -31,12 +31,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetDetails();
 
-	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora|Animation")
-	void PlayShowAnimation();
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora|Animation")
-	void ShowWithoutAnimation();
-
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ResolvePandoraTreeComponent();
@@ -45,9 +39,6 @@ private:
 	void ApplyPandoraDescriptionViewModelToMvvmView();
 
 protected:
-	UPROPERTY(Transient, BlueprintReadOnly, meta = (BindWidgetAnimOptional), Category = "!UI|Pandora|Animation")
-	TObjectPtr<UWidgetAnimation> ScaleUp;
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Effect Icons")
 	TObjectPtr<UImage> EffectIconResource1;
 

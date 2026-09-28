@@ -1,4 +1,5 @@
 #include "UI/Info/Skin/RightSkinWidget.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 
 #include "Character/CharacterBase.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
@@ -26,11 +27,6 @@ void URightSkinWidget::NativeConstruct()
 	if (AllButton)
 	{
 		AllButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnAllButtonClicked);
-	}
-
-	if (PandoraButton)
-	{
-		PandoraButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnPandoraButtonClicked);
 	}
 
 	if (CosmeticsButton)
@@ -71,11 +67,6 @@ void URightSkinWidget::NativeDestruct()
 	if (AllButton)
 	{
 		AllButton->OnClicked.RemoveDynamic(this, &ThisClass::OnAllButtonClicked);
-	}
-
-	if (PandoraButton)
-	{
-		PandoraButton->OnClicked.RemoveDynamic(this, &ThisClass::OnPandoraButtonClicked);
 	}
 
 	if (CosmeticsButton)
@@ -164,11 +155,6 @@ void URightSkinWidget::OnAllButtonClicked()
 	SelectAllFilter();
 }
 
-void URightSkinWidget::OnPandoraButtonClicked()
-{
-	SelectTypeFilter(GetPandoraTypeTag());
-}
-
 void URightSkinWidget::OnCosmeticsButtonClicked()
 {
 	SelectTypeFilter(GetCosmeticsTypeTag());
@@ -198,10 +184,9 @@ void URightSkinWidget::OnSearchButtonClicked()
 void URightSkinWidget::RebuildFilterButtonList()
 {
 	FilterButtonList.Reset();
-	FilterButtonList.Reserve(6);
+	FilterButtonList.Reserve(5);
 
 	FilterButtonList.Add(AllButton);
-	FilterButtonList.Add(PandoraButton);
 	FilterButtonList.Add(CosmeticsButton);
 	FilterButtonList.Add(GestureButton);
 	FilterButtonList.Add(RidingButton);
@@ -325,7 +310,7 @@ bool URightSkinWidget::DoesSkinMatchSearch(const USkinDefinition* SkinDefinition
 		return false;
 	}
 
-	const FString DisplayName = SkinDefinition->DisplayName.ToString();
+	const FString DisplayName = (GetLocalization() ? GetLocalization()->GetProductText(SkinDefinition, TEXT("Name"), SkinDefinition->DisplayName) : SkinDefinition->DisplayName).ToString();
 	if (DisplayName.Contains(SearchText, ESearchCase::IgnoreCase))
 	{
 		return true;
@@ -340,7 +325,6 @@ void URightSkinWidget::ApplyWidgetDefinitionSettings()
 	{
 		const FSkinWidgetSettings& Settings = WidgetDefinition->GetSkinWidgetSettings();
 		SkinSlotCount = FMath::Max(Settings.SkinSlotCount, 0);
-		PandoraTypeTagOverride = Settings.PandoraTypeTag;
 		CosmeticsTypeTagOverride = Settings.CosmeticsTypeTag;
 		GestureTypeTagOverride = Settings.GestureTypeTag;
 		RidingTypeTagOverride = Settings.RidingTypeTag;
@@ -353,11 +337,6 @@ UButton* URightSkinWidget::ResolveFilterButton(const FGameplayTag TypeTag) const
 	if (!TypeTag.IsValid())
 	{
 		return nullptr;
-	}
-
-	if (TypeTag.MatchesTagExact(GetPandoraTypeTag()))
-	{
-		return PandoraButton;
 	}
 
 	if (TypeTag.MatchesTagExact(GetCosmeticsTypeTag()))
@@ -381,13 +360,6 @@ UButton* URightSkinWidget::ResolveFilterButton(const FGameplayTag TypeTag) const
 	}
 
 	return nullptr;
-}
-
-FGameplayTag URightSkinWidget::GetPandoraTypeTag() const
-{
-	return PandoraTypeTagOverride.IsValid()
-		? PandoraTypeTagOverride
-		: UProjectTagDefinition::Get(this)->GetSkinPandoraTypeTag();
 }
 
 FGameplayTag URightSkinWidget::GetCosmeticsTypeTag() const

@@ -10,6 +10,7 @@
 #include "Mode/PdPlayerState.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 
 namespace
 {
@@ -61,7 +62,7 @@ namespace
 	}
 
 	// 해금 판정은 게임플레이 컴포넌트가 맡고, 조건의 표시 문구만 UI에서 만든다.
-	FText MakePandoraUnlockRequirementsText(const UPandoraDefinition* Definition, const UPandoraTreeComponent* Tree)
+	FText MakePandoraUnlockRequirementsText(const UPandoraDefinition* Definition, const UPandoraTreeComponent* Tree, const UMenuLocalizationSubsystem* Localization)
 	{
 		TArray<FText> Lines;
 		for (const FPandoraUnlockRule& Rule : Definition->GetUnlockRules())
@@ -70,7 +71,8 @@ namespace
 			{
 				Lines.Add(FText::Format(
 					NSLOCTEXT("PandoraTreeComponent", "PandoraUnlockRequirementLine", "- {0} Lv. {1} ({2}/{1})"),
-					Rule.RequiredPandora->GetDisplayName(), FText::AsNumber(FMath::Max(Rule.RequiredLevel, 1)),
+					Localization ? Localization->GetProductText(Rule.RequiredPandora, TEXT("Name"), Rule.RequiredPandora->GetDisplayName()) : Rule.RequiredPandora->GetDisplayName(),
+					FText::AsNumber(FMath::Max(Rule.RequiredLevel, 1)),
 					FText::AsNumber(Tree->GetCurrentPandoraLevel(Rule.RequiredPandora))));
 			}
 		}
@@ -207,7 +209,8 @@ FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(
 
 FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 	UPandoraDefinition* PandoraDefinition,
-	const UPandoraTreeComponent* PandoraTreeComponent)
+	const UPandoraTreeComponent* PandoraTreeComponent,
+	const UMenuLocalizationSubsystem* Localization)
 {
 	FPandoraDescriptionViewData ViewData;
 	ViewData.SkillSlots.SetNum(UPandoraDefinition::GetFixedMaxLevel());
@@ -218,8 +221,8 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 		return ViewData;
 	}
 
-	ViewData.TitleText = PandoraDefinition->GetDisplayName();
-	ViewData.DescriptionText = PandoraDefinition->GetDescription();
+	ViewData.TitleText = Localization ? Localization->GetProductText(PandoraDefinition, TEXT("Name"), PandoraDefinition->GetDisplayName()) : PandoraDefinition->GetDisplayName();
+	ViewData.DescriptionText = Localization ? Localization->GetProductText(PandoraDefinition, TEXT("Description"), PandoraDefinition->GetDescription()) : PandoraDefinition->GetDescription();
 	ViewData.SkillSectionVisibility = ESlateVisibility::Visible;
 	ViewData.MaxLevel = FMath::Max(PandoraDefinition->GetMaxLevel(), 1);
 
@@ -232,6 +235,15 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 
 	ViewData.NextLevel = ViewData.CurrentLevel + 1 > ViewData.MaxLevel ? -1 : ViewData.CurrentLevel + 1;
 
+	FNumberFormattingOptions NumberFormat;
+	NumberFormat.SetMinimumFractionalDigits(0).SetMaximumFractionalDigits(1);
+	const FText ManaFormat = Localization
+		? Localization->GetTextOrFallback(TEXT("PandoraDescription.ManaFormat"), FText::GetEmpty())
+		: FText::GetEmpty();
+	const FText CooldownFormat = Localization
+		? Localization->GetTextOrFallback(TEXT("PandoraDescription.CooldownFormat"), FText::GetEmpty())
+		: FText::GetEmpty();
+
 	for (int32 SkillIndex = 0; SkillIndex < ViewData.SkillSlots.Num(); ++SkillIndex)
 	{
 		const USkillDefinition* Skill = PandoraDefinition->GetSkillDefinition(SkillIndex);
@@ -242,8 +254,10 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 
 		FPandoraSkillSlotViewData& SkillViewData = ViewData.SkillSlots[SkillIndex];
 		SkillViewData.IconResource = Skill->GetIconResource();
-		SkillViewData.DisplayName = Skill->GetDisplayName();
-		SkillViewData.Description = Skill->Description;
+		SkillViewData.DisplayName = Localization ? Localization->GetProductText(Skill, TEXT("Name"), Skill->GetDisplayName()) : Skill->GetDisplayName();
+		SkillViewData.Description = Localization ? Localization->GetProductText(Skill, TEXT("Description"), Skill->Description) : Skill->Description;
+		SkillViewData.ManaText = FText::Format(ManaFormat, FText::AsNumber(Skill->ManaCost, &NumberFormat));
+		SkillViewData.CooldownText = FText::Format(CooldownFormat, FText::AsNumber(Skill->Time.CooldownDuration, &NumberFormat));
 	}
 
 	ViewData.bLockedByPandoraRequirement = PandoraTreeComponent
@@ -255,7 +269,7 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 
 	if (ViewData.bLockedByPandoraRequirement)
 	{
-		FText RequirementText = MakePandoraUnlockRequirementsText(PandoraDefinition, PandoraTreeComponent);
+		FText RequirementText = MakePandoraUnlockRequirementsText(PandoraDefinition, PandoraTreeComponent, Localization);
 		if (RequirementText.IsEmpty())
 		{
 			RequirementText = NSLOCTEXT("PandoraDescriptionWidget", "LockedRequirementFallback", "Unlock requirements are not met.");

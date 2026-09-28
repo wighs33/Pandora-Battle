@@ -30,6 +30,7 @@ void ULobbyTravelCoordinator::StartSessionAndTravel(bool bSuppressMatchTimer)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
 	if (!GameMode || !GameMode->HasAuthority()) { return; }
+	SetGameStartConnectingPopupVisible(true);
 	UOnlineSessionsSubsystem* Sessions = GameMode->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>();
 	if (!Sessions)
 	{
@@ -68,7 +69,6 @@ void ULobbyTravelCoordinator::PrepareMatchTravel(bool bSuppressMatchTimer)
 	}
 	CacheSelectedGameConfigForTravel(SelectedMapOption, TravelUrl);
 	CacheLobbyTravelState(GameMode->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>());
-	SetGameStartConnectingPopupVisible(true);
 	if (bSuppressMatchTimer) { TravelUrl += FString::Printf(TEXT("?%s=1"), LabGameSession::NoMatchTimerOption); }
 	PreloadContentAndScheduleTravel(TravelUrl);
 }

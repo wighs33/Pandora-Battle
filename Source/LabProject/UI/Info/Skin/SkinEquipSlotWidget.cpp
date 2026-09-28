@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdHUD.h"
 #include "Definition/Skin/SkinDefinition.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "UI/Info/InfoWidget.h"
 #include "UI/Info/Skin/SkinSlotDragDropOperation.h"
 
@@ -200,11 +201,21 @@ void USkinEquipSlotWidget::SetSkinDefinition(const USkinDefinition* Target)
 	}
 
 	bUseSelectedEmptyIcon = false;
-	SlotText = SkinDefinition->DisplayName;
+	SlotText = GetLocalization() ? GetLocalization()->GetProductText(SkinDefinition, TEXT("Name"), SkinDefinition->DisplayName) : SkinDefinition->DisplayName;
 	CurrentIconTexture = SlotIconTexture;
 	CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
 	CurrentSkinIconTexture = SkinDefinition->IconTexture;
 	ApplySlotVisual();
+}
+
+void USkinEquipSlotWidget::OnMenuLanguageChanged()
+{
+	Super::OnMenuLanguageChanged();
+	if (SkinDefinition)
+	{
+		SlotText = GetLocalization() ? GetLocalization()->GetProductText(SkinDefinition, TEXT("Name"), SkinDefinition->DisplayName) : SkinDefinition->DisplayName;
+		ApplySlotVisual();
+	}
 }
 
 void USkinEquipSlotWidget::SetSelected(const bool bInSelected)

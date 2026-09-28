@@ -102,8 +102,7 @@ void UInfoDetailPopup::ShowSkinDefinition(
 void UInfoDetailPopup::ShowPandora(
 	const UPandoraDefinition* PandoraDefinition,
 	UWidget* AnchorWidget,
-	const bool bPlaceLeftOfWidget,
-	const bool bPlayShowAnimation)
+	const bool bPlaceLeftOfWidget)
 {
 	const APlayerController* PlayerController = OwnerWidget ? OwnerWidget->GetOwningPlayer() : nullptr;
 	if (!PlayerController || !PlayerController->IsLocalController())
@@ -136,14 +135,6 @@ void UInfoDetailPopup::ShowPandora(
 	DetailWidget->SetPandoraDefinition(const_cast<UPandoraDefinition*>(PandoraDefinition));
 	DetailWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
-	if (bPlayShowAnimation)
-	{
-		DetailWidget->PlayShowAnimation();
-	}
-	else
-	{
-		DetailWidget->ShowWithoutAnimation();
-	}
 }
 
 void UInfoDetailPopup::HideAll()

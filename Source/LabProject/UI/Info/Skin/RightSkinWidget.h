@@ -61,9 +61,6 @@ private:
 	void OnAllButtonClicked();
 
 	UFUNCTION()
-	void OnPandoraButtonClicked();
-
-	UFUNCTION()
 	void OnCosmeticsButtonClicked();
 
 	UFUNCTION()
@@ -89,7 +86,6 @@ private:
 	bool DoesSkinMatchSearch(const USkinDefinition* SkinDefinition, const FString& SearchText) const;
 	void ApplyWidgetDefinitionSettings();
 	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
-	FGameplayTag GetPandoraTypeTag() const;
 	FGameplayTag GetCosmeticsTypeTag() const;
 	FGameplayTag GetGestureTypeTag() const;
 	FGameplayTag GetRidingTypeTag() const;
@@ -105,9 +101,6 @@ public:
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
 	TObjectPtr<UButton> AllButton;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
-	TObjectPtr<UButton> PandoraButton;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Skin", meta = (BindWidget))
 	TObjectPtr<UButton> CosmeticsButton;
@@ -149,7 +142,6 @@ protected:
 	FString ActiveSearchText;
 
 private:
-	FGameplayTag PandoraTypeTagOverride;
 	FGameplayTag CosmeticsTypeTagOverride;
 	FGameplayTag GestureTypeTagOverride;
 	FGameplayTag RidingTypeTagOverride;

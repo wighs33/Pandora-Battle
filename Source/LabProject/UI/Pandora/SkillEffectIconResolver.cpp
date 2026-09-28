@@ -45,8 +45,7 @@ namespace
 
 	UTexture2D* ResolveConfiguredImage(
 		const UObject* WorldContextObject,
-		const ESkillEffectIconType EffectIconType,
-		const ESkillEffectIconSet IconSet)
+		const ESkillEffectIconType EffectIconType)
 	{
 		const UWidgetClassDefinition* WidgetDefinition =
 			UWidgetClassDefinition::ResolveWidgetClassDefinition(WorldContextObject);
@@ -56,9 +55,7 @@ namespace
 		}
 
 		const FSkillTipWidgetSettings& Settings =
-			IconSet == ESkillEffectIconSet::PandoraDescription
-				? WidgetDefinition->GetPandoraDescriptionEffectIconSettings()
-				: WidgetDefinition->GetSkillTipEffectIconSettings();
+			WidgetDefinition->GetPandoraDescriptionEffectIconSettings();
 		switch (EffectIconType)
 		{
 		case ESkillEffectIconType::Burn:
@@ -79,8 +76,7 @@ namespace
 void PdSkillEffectIconResolver::ApplySkillEffectIcon(
 	const UObject* WorldContextObject,
 	const USkillDefinition* Skill,
-	UImage* ImageWidget,
-	const ESkillEffectIconSet IconSet)
+	UImage* ImageWidget)
 {
 	if (!ImageWidget)
 	{
@@ -94,13 +90,10 @@ void PdSkillEffectIconResolver::ApplySkillEffectIcon(
 		return;
 	}
 
-	if (UTexture2D* Image = ResolveConfiguredImage(WorldContextObject, EffectIconType, IconSet))
+	if (UTexture2D* Image = ResolveConfiguredImage(WorldContextObject, EffectIconType))
 	{
 		ImageWidget->SetBrushFromTexture(Image, false);
 	}
 
-	ImageWidget->SetVisibility(
-		IconSet == ESkillEffectIconSet::SkillTip
-			? ESlateVisibility::Visible
-			: ESlateVisibility::SelfHitTestInvisible);
+	ImageWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }

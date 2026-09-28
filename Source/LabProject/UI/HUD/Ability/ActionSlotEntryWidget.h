@@ -134,6 +134,9 @@ private:
 	TObjectPtr<UImage> KeyIcon;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> KeyText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> ActionActiveFrame;
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;

@@ -5,6 +5,7 @@
 #include "GameplayTagContainer.h"
 
 class UUserWidget;
+class UMenuLocalizationSubsystem;
 class UPandoraDefinition;
 class UPandoraComponent;
 class UPandoraTreeComponent;
@@ -63,6 +64,8 @@ struct LABPROJECT_API FPandoraSkillSlotViewData
 	UObject* IconResource = nullptr;
 	FText DisplayName;
 	FText Description;
+	FText ManaText;
+	FText CooldownText;
 };
 
 struct LABPROJECT_API FPandoraDescriptionViewData
@@ -119,5 +122,6 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	static FPandoraDescriptionViewData Build(
 		UPandoraDefinition* PandoraDefinition,
-		const UPandoraTreeComponent* PandoraTreeComponent);
+		const UPandoraTreeComponent* PandoraTreeComponent,
+		const UMenuLocalizationSubsystem* Localization = nullptr);
 };

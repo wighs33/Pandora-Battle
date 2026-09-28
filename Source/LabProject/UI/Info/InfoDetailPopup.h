@@ -34,8 +34,7 @@ public:
 	void ShowPandora(
 		const UPandoraDefinition* PandoraDefinition,
 		UWidget* AnchorWidget,
-		bool bPlaceLeftOfWidget,
-		bool bPlayShowAnimation);
+		bool bPlaceLeftOfWidget);
 	void HideAll();
 	void HidePandoraForAnchor(const UWidget* AnchorWidget);
 

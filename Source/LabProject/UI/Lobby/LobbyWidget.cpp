@@ -4,7 +4,6 @@
 
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "AudioSlider.h"
-#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
 #include "Components/ComboBoxString.h"
@@ -14,7 +13,6 @@
 #include "Components/Widget.h"
 #include "Components/VerticalBox.h"
 #include "Definition/Level/LevelDefinition.h"
-#include "Engine/LocalPlayer.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
@@ -23,14 +21,10 @@
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyHUD.h"
 #include "Mode/PdPlayerState.h"
-#include "UI/Core/ConnectingPopupWidget.h"
-#include "UI/Lobby/GameConfigWidget.h"
 #include "UI/Lobby/LobbyUserWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "TimerManager.h"
-#include "UI/Core/UiSubsystem.h"
-#include "UI/Core/UiScreen.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "UI/Settings/AudioVolumeControl.h"
 #include "Definition/UI/WidgetClassDefinition.h"
@@ -67,11 +61,6 @@ void ULobbyWidget::NativeConstruct()
 		Btn_Close->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCloseClicked);
 	}
 
-	if (Btn_GameConfig)
-	{
-		Btn_GameConfig->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleGameConfigClicked);
-	}
-
 	if (Btn_GameStart)
 	{
 		Btn_GameStart->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleGameStartClicked);
@@ -97,15 +86,6 @@ void ULobbyWidget::NativeConstruct()
 		NextMapButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMapNextClicked);
 	}
 
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem();
-		UiSubsystem && UiSubsystem->IsTravelLoadingScreenActive())
-	{
-		UiSubsystem->ShowTravelLoadingScreen();
-	}
-	else
-	{
-		HideConnectingPopup();
-	}
 	ApplyReplicatedGameStartState();
 	SetInfo();
 }
@@ -136,28 +116,7 @@ FReply ULobbyWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEven
 
 bool ULobbyWidget::CloseTopmostUiForEscape()
 {
-	if (CloseGameSettings()) return true;
-	if (IsGameStartPending())
-	{
-		return true;
-	}
-
-	if (!ActiveGameConfigWidget || !ActiveGameConfigWidget->GetParent())
-	{
-		return false;
-	}
-
-	ActiveGameConfigWidget->HandleBackClicked();
-
-	if (APlayerController* PlayerController = GetOwningPlayer())
-	{
-		if (ALobbyHUD* LobbyHUD = PlayerController->GetHUD<ALobbyHUD>())
-		{
-			LobbyHUD->NotifyLobbyWidgetOpened();
-		}
-	}
-
-	return true;
+	return CloseGameSettings() || IsGameStartPending();
 }
 
 void ULobbyWidget::NativeDestruct()
@@ -182,11 +141,6 @@ void ULobbyWidget::NativeDestruct()
 	if (Btn_Close)
 	{
 		Btn_Close->OnClicked.RemoveDynamic(this, &ThisClass::HandleCloseClicked);
-	}
-
-	if (Btn_GameConfig)
-	{
-		Btn_GameConfig->OnClicked.RemoveDynamic(this, &ThisClass::HandleGameConfigClicked);
 	}
 
 	if (Btn_GameStart)
@@ -214,14 +168,6 @@ void ULobbyWidget::NativeDestruct()
 		NextMapButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleMapNextClicked);
 	}
 
-	if (ActiveGameConfigWidget)
-	{
-        if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(ActiveGameConfigWidget->GetCachedWidget(), GetOwningLocalPlayer()))
-            Screen->DeactivateWidget();
-        ActiveGameConfigWidget->RemoveFromParent();
-		ActiveGameConfigWidget = nullptr;
-	}
-
 	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr)
@@ -245,11 +191,6 @@ void ULobbyWidget::ApplyWidgetDefinitionSettings()
 			WidgetDefinition->GetLobbyUserWidgetClass())
 		{
 			LobbyUserWidgetClass = ResolvedLobbyUserWidgetClass;
-		}
-		if (const TSubclassOf<UGameConfigWidget> ResolvedGameConfigWidgetClass =
-			WidgetDefinition->GetGameConfigWidgetClass())
-		{
-			GameConfigWidgetClass = ResolvedGameConfigWidgetClass;
 		}
 		MaxLobbySlots = FMath::Max(Settings.MaxLobbySlots, 1);
 		GameStartCountdownFormatText = Settings.GameStartCountdownFormatText;
@@ -362,11 +303,6 @@ void ULobbyWidget::RefreshUI()
 	const bool bTeamsBalanced = AreLobbyTeamsBalancedForUI(LobbyPlayerStates);
 	const IOnlineExternalUIPtr ExternalUI = GetWorld() ? Online::GetExternalUIInterface(GetWorld()) : nullptr;
 	const bool bCanInvite = GetOwningPlayer() && GetOwningPlayer()->IsLocalController() && ExternalUI.IsValid();
-	if (Btn_GameConfig)
-	{
-		Btn_GameConfig->SetVisibility(bIsServer ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-	}
-
 	if (Btn_GameStart)
 	{
 		const bool bShowGameStartButton = bIsServer && !bStartPending;
@@ -446,7 +382,6 @@ void ULobbyWidget::HandleCloseClicked()
 
 		return;
 	}
-	ShowConnectingPopup(false);
 
 	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
@@ -483,61 +418,6 @@ void ULobbyWidget::HandleCloseClicked()
 	OnlineSessionsSubsystem->DestroySession();
 }
 
-void ULobbyWidget::HandleGameConfigClicked()
-{
-	if (!GetWorld() || !GetWorld()->GetAuthGameMode())
-	{
-
-		return;
-	}
-
-	if (!GameConfigWidgetClass)
-	{
-		if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
-		{
-			GameConfigWidgetClass = WidgetDefinition->GetGameConfigWidgetClass();
-		}
-	}
-
-	if (!GameConfigWidgetClass)
-	{
-		UE_LOG(LogLobbyWidget, Error, TEXT("[Lobby] GameConfigWidgetClass is not configured in widget or DA_Widget."));
-		return;
-	}
-
-	if (!ActiveGameConfigWidget)
-	{
-		ActiveGameConfigWidget = CreateWidget<UGameConfigWidget>(GetOwningPlayer(), GameConfigWidgetClass);
-	}
-
-	if (!ActiveGameConfigWidget)
-	{
-		UE_LOG(LogLobbyWidget, Error, TEXT("[Lobby] failed to create game config popup. class=%s"), *GetPathNameSafe(GameConfigWidgetClass));
-		return;
-	}
-
-    if (ActiveGameConfigWidget->GetParent()) return;
-    UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
-    FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-    Screen->SetContent(ActiveGameConfigWidget, Config, EPdGameplayInputPolicy::Block, ActiveGameConfigWidget,
-        FSimpleDelegate::CreateUObject(ActiveGameConfigWidget, &UGameConfigWidget::HandleBackClicked));
-    GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Modal);
-	ActiveGameConfigWidget->SetVisibility(ESlateVisibility::Visible);
-	ActiveGameConfigWidget->SetIsEnabled(true);
-	ActiveGameConfigWidget->SetRenderOpacity(1.0f);
-
-	if (UWidget* RootWidget = ActiveGameConfigWidget->GetRootWidget())
-	{
-		RootWidget->SetVisibility(ESlateVisibility::Visible);
-		RootWidget->SetIsEnabled(true);
-		RootWidget->SetRenderOpacity(1.0f);
-	}
-
-	ActiveGameConfigWidget->ForceLayoutPrepass();
-
-}
-
 void ULobbyWidget::HandleGameStartClicked()
 {
 	UWorld* World = GetWorld();
@@ -558,14 +438,6 @@ void ULobbyWidget::HandleGameStartClicked()
 
 void ULobbyWidget::HandleEnterClicked()
 {
-	if (ActiveGameConfigWidget)
-	{
-        if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(ActiveGameConfigWidget->GetCachedWidget(), GetOwningLocalPlayer()))
-            Screen->DeactivateWidget();
-        ActiveGameConfigWidget->RemoveFromParent();
-		ActiveGameConfigWidget = nullptr;
-	}
-
 	RemoveFromParent();
 
 	if (APlayerController* PlayerController = GetOwningPlayer())
@@ -631,12 +503,6 @@ FString ULobbyWidget::GetResolvedTitleTravelMapName() const
 	const ULevelDefinition* Definition =
 		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
-}
-
-UUiSubsystem* ULobbyWidget::GetUiSubsystem() const
-{
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	return LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 }
 
 UWidget* ULobbyWidget::FindGameStartCountdownRoot() const
@@ -1194,10 +1060,6 @@ void ULobbyWidget::SetLobbyInteractionsLocked(const bool bLocked)
 	};
 
 	DisableInteractiveWidgets(WidgetTree);
-	if (ActiveGameConfigWidget)
-	{
-		DisableInteractiveWidgets(ActiveGameConfigWidget->WidgetTree);
-	}
 }
 
 FText ULobbyWidget::FormatGameStartCountdownText() const
@@ -1233,22 +1095,6 @@ float ULobbyWidget::GetGameStartRemainingSeconds() const
 	return LobbyGameState
 		? LobbyGameState->GetGameStartRemainingSeconds()
 		: 0.0f;
-}
-
-void ULobbyWidget::ShowConnectingPopup(const bool bShowCancelButton) const
-{
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
-	{
-		UiSubsystem->ShowConnectingPopup(bShowCancelButton);
-	}
-}
-
-void ULobbyWidget::HideConnectingPopup() const
-{
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
-	{
-		UiSubsystem->HideConnectingPopup();
-	}
 }
 
 void ULobbyWidget::DestroySessionForClose()

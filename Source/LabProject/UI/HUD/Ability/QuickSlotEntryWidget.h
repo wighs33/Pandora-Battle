@@ -7,6 +7,7 @@
 class UImage;
 class UInputAction;
 class UItemInstance;
+class UOverlay;
 class USkinDefinition;
 class UTextBlock;
 
@@ -69,4 +70,10 @@ private:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UImage> KeyIcon;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> KeyText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> InputKeyOverlay;
 };

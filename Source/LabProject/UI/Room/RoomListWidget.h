@@ -8,10 +8,8 @@
 class UAudioVolumeSlider;
 class UAudioVolumeControl;
 class UButton;
-class UConnectingPopupWidget;
 class UCreateRoomPopupWidget;
 class URoomItemWidget;
-class UUiSubsystem;
 class UWrapBox;
 class UTextBlock;
 
@@ -43,9 +41,6 @@ protected:
 	UFUNCTION()
 	void HandleCloseClicked();
 
-	UFUNCTION()
-	void HandleRefreshCancel();
-
 	void HandleFindSessionsComplete(
 		uint64 RequestId,
 		const TArray<FBlueprintSessionResult>& Results,
@@ -58,9 +53,6 @@ protected:
 private:
 	void ApplyWidgetDefinitionSettings();
 	FString GetResolvedTitleTravelMapName() const;
-	UUiSubsystem* GetUiSubsystem() const;
-	UConnectingPopupWidget* ShowConnectingPopup(bool bShowCancelButton);
-	void HideConnectingPopup() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!Room|Bind")

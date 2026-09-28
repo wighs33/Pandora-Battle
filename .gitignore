@@ -47,6 +47,9 @@ Content/**
 !Content/UI/Asset/LeftProfileStyle/SourceArt/*.png
 !Content/UI/Asset/LeftProfileStyle/SourceArt/*-prompt.txt
 
+# Project-owned Player Vitals HUD artwork.
+!Content/UI/Asset/VitalsSigil/*.uasset
+
 # Shared menu translations and their editable import source.
 !Content/UI/Localization/*.uasset
 !Content/UI/Localization/Source/*.csv

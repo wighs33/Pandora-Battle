@@ -44,14 +44,10 @@ public:
 	void BeginLobbyEntryContentPreload();
 	/** Releases lobby-only UI/data after the game screen has taken ownership. */
 	void ReleaseLobbyEntryContentPreload();
-	bool IsLobbyEntryContentReady() const;
+	bool IsLobbyEntryContentLoading() const;
 	void BeginGameEntryContentPreload();
 	void CancelGameEntryContentPreload();
-	bool IsGameEntryContentReady() const
-	{
-		return GameEntryContentPreloadResult
-			== ELobbyContentPreloadResult::Success;
-	}
+
 	ELobbyContentPreloadResult GetGameEntryContentPreloadResult() const
 	{
 		return GameEntryContentPreloadResult;
@@ -125,7 +121,6 @@ private:
 	static void FindUnresolvedGameEntryAssets(
 		const TArray<FPrimaryAssetId>& AssetIds,
 		TArray<FPrimaryAssetId>& OutMissingAssetIds);
-	bool IsLocalPlayerWidgetContentReady() const;
 	TArray<FString> MakeLobbyPlayerCacheKeys(const APlayerState* PlayerState) const;
 
 private:

@@ -8,18 +8,12 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
-#include "Lobby/Contents/LobbyHUD.h"
-#include "Lobby/Contents/LobbyGameState.h"
-#include "Lobby/Contents/TitleHUD.h"
-#include "Lobby/LobbyRuntimeSubsystem.h"
-#include "UI/Lobby/LobbyWidget.h"
 #include "Mode/ExperienceGameMode.h"
 #include "Engine/GameInstance.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
-#include "ShaderPipelineCache.h"
 #include "UI/HUD/Match/KillLogTypes.h"
 #include "UI/HUD/Notification/NotificationData.h"
 #include "UI/Core/UiSubsystem.h"
@@ -47,7 +41,6 @@ void UControllerPresentationComponent::EndPlay(const EEndPlayReason::Type EndPla
 	}
 	SetTrainingRoomLoadingPaused(false);
 
-	TravelLoadingHideRetryCount = 0;
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -65,7 +58,7 @@ void UControllerPresentationComponent::ApplySettings(const FControllerPresentati
 	}
 	if (bTravelIntervalChanged && TravelLoadingReadyTickerHandle.IsValid())
 	{
-		// 설정 변경은 로딩 대기 횟수를 초기화하지 않고 실행 주기만 바꾼다.
+		// 로딩 중 훈련방 일시정지 상태를 확인하는 주기만 바꾼다.
 		UpdateTravelLoadingReadyTicker();
 	}
 }
@@ -83,18 +76,7 @@ void UControllerPresentationComponent::InitializeLocalPresentation()
 	{
 		LocalPlayerSettings->ApplyLocalPlayerSettings(Controller);
 	}
-	if (Controller->UsesLobbyPresentation())
-	{
-		ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer();
-		if (UUiSubsystem* UiSubsystem =
-			LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr)
-		{
-			UiSubsystem->ShowLobbyEntryLoadingScreen();
-		}
-	}
-
-	RefreshTravelLoadingScreen();
-	ScheduleHideTravelLoadingScreenWhenReady();
+	UpdateTravelLoadingReadyTicker();
 	StartHealthBarVisibilityManagement();
 }
 
@@ -108,8 +90,7 @@ void UControllerPresentationComponent::RefreshAfterPossession(APawn* PossessedPa
 	}
 
 	ApplyCameraViewPitchClamp();
-	RefreshTravelLoadingScreen();
-	ScheduleHideTravelLoadingScreenWhenReady();
+	UpdateTravelLoadingReadyTicker();
 	StartHealthBarVisibilityManagement();
 
 	if (!Controller->UsesLobbyPresentation())
@@ -204,43 +185,6 @@ APdPlayerController* UControllerPresentationComponent::GetPdController() const
 }
 
 // 맵 이동 로딩 화면을 유지하고 필요한 경우 훈련실 진행을 일시정지한다.
-void UControllerPresentationComponent::RefreshTravelLoadingScreen()
-{
-	APdPlayerController* Controller = GetPdController();
-	if (!Controller || !Controller->IsLocalController())
-	{
-		return;
-	}
-
-	ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer();
-	UUiSubsystem* UiSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-	if (UiSubsystem && UiSubsystem->IsTravelLoadingScreenActive())
-	{
-		UiSubsystem->ShowTravelLoadingScreen();
-		SetTrainingRoomLoadingPaused(true);
-	}
-}
-
-// 화면과 콘텐츠가 준비되면 로딩 화면을 닫도록 준비 상태 확인을 시작한다.
-void UControllerPresentationComponent::ScheduleHideTravelLoadingScreenWhenReady()
-{
-	APdPlayerController* Controller = GetPdController();
-	if (!Controller || !Controller->IsLocalController())
-	{
-		return;
-	}
-
-	ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer();
-	UUiSubsystem* UiSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-	if (!UiSubsystem || !UiSubsystem->IsTravelLoadingScreenActive())
-	{
-		return;
-	}
-
-	TravelLoadingHideRetryCount = 0;
-	SetTrainingRoomLoadingPaused(true);
-	UpdateTravelLoadingReadyTicker();
-}
 
 // 기존 준비 확인 티커를 현재 설정 주기로 교체한다.
 void UControllerPresentationComponent::UpdateTravelLoadingReadyTicker()
@@ -257,106 +201,16 @@ void UControllerPresentationComponent::UpdateTravelLoadingReadyTicker()
 		FMath::Max(Settings.TravelLoadingReadyCheckInterval, 0.01f));
 }
 
-// 화면·로비·진입 콘텐츠 준비를 확인한 뒤 로딩 화면을 닫고 입력과 게임 진행을 복원한다.
+// 실제 대기 작업이 끝나면 훈련실의 일시정지만 해제한다. 로딩 상태는 UI subsystem이 관찰한다.
 bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 {
-	APdPlayerController* Controller = GetPdController();
-	if (!Controller || !Controller->IsLocalController())
-	{
-		SetTrainingRoomLoadingPaused(false);
-		TravelLoadingReadyTickerHandle.Reset();
-		return false;
-	}
-
-	ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer();
-	UUiSubsystem* UiSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-	if (!UiSubsystem || !UiSubsystem->IsTravelLoadingScreenActive())
-	{
-		SetTrainingRoomLoadingPaused(false);
-		TravelLoadingReadyTickerHandle.Reset();
-		return false;
-	}
-	SetTrainingRoomLoadingPaused(true);
-
-	const bool bHasCharacterPawn = Cast<ACharacterBase>(Controller->GetPawn()) != nullptr;
-	const bool bHasPlayerState = Controller->GetPlayerState<APdPlayerState>() != nullptr;
-	const APdHUD* PdHUD = Controller->GetHUD<APdHUD>();
-	const bool bHasPlayerHudWidget = PdHUD && PdHUD->GetPlayerHudWidget();
-	const bool bIsTitleScreen = Controller->GetHUD<ATitleHUD>() != nullptr;
-	const bool bBasePresentationReady =
-		bIsTitleScreen
-		|| (bHasCharacterPawn && bHasPlayerState && bHasPlayerHudWidget);
-	const bool bStartupContentReady = UiSubsystem->IsStartupContentReady();
-
-	bool bLobbyContentReady = true;
-	bool bGameEntryContentReady = true;
-	const bool bIsLobbyController = Controller->UsesLobbyPresentation();
-	if (bIsLobbyController)
-	{
-		const UGameInstance* GameInstance = Controller->GetGameInstance();
-		const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
-			GameInstance
-				? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>()
-				: nullptr;
-		const ALobbyGameState* LobbyGameState =
-			GetWorld() ? GetWorld()->GetGameState<ALobbyGameState>() : nullptr;
-		bLobbyContentReady =
-			LobbyRuntimeSubsystem
-			&& LobbyRuntimeSubsystem->IsLobbyEntryContentReady()
-			&& LobbyGameState
-			&& LobbyGameState->IsSelectedMapImageReady();
-	}
-	else
-	{
-		const UGameInstance* GameInstance = Controller->GetGameInstance();
-		const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
-			GameInstance
-				? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>()
-				: nullptr;
-		if (LobbyRuntimeSubsystem
-			&& LobbyRuntimeSubsystem->GetGameEntryContentPreloadResult()
-				!= ELobbyContentPreloadResult::NotStarted)
-		{
-			bGameEntryContentReady =
-				LobbyRuntimeSubsystem->IsGameEntryContentReady();
-		}
-	}
-
-	const int32 MaxReadyCheckAttempts =
-		FMath::Max(Settings.TravelLoadingReadyCheckMaxAttempts, 0);
-	const bool bMayRetryBasePresentation =
-		TravelLoadingHideRetryCount < MaxReadyCheckAttempts;
-	if ((!bBasePresentationReady && (bIsLobbyController || bMayRetryBasePresentation))
-		|| !bStartupContentReady
-		|| !bLobbyContentReady
-		|| !bGameEntryContentReady)
-	{
-		++TravelLoadingHideRetryCount;
-		return true;
-	}
-
-	// 콘텐츠 로드가 끝나도 등록된 PSO의 비동기 컴파일이 남아 있으면 화면을 유지한다.
-	if (FShaderPipelineCache::NumPrecompilesRemaining() > 0)
-	{
-		return true;
-	}
-
-	UiSubsystem->HideTravelLoadingScreen();
-	SetTrainingRoomLoadingPaused(false);
-	if (!bIsLobbyController)
-	{
-		if (UGameInstance* GameInstance = Controller->GetGameInstance())
-		{
-			if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
-				GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>())
-			{
-				LobbyRuntimeSubsystem->ReleaseLobbyEntryContentPreload();
-			}
-		}
-	}
-	TravelLoadingHideRetryCount = 0;
-	TravelLoadingReadyTickerHandle.Reset();
-	return false;
+	const APdPlayerController* Controller = GetPdController();
+	const ULocalPlayer* LocalPlayer = Controller ? Controller->GetLocalPlayer() : nullptr;
+	const UUiSubsystem* Ui = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
+	const bool bWaiting = Ui && Ui->HasBlockingWait();
+	SetTrainingRoomLoadingPaused(bWaiting);
+	if (!bWaiting) TravelLoadingReadyTickerHandle.Reset();
+	return bWaiting;
 }
 
 // 혼자 실행하는 훈련실에서만 로딩 중 게임 진행을 멈추고 이후 재개한다.

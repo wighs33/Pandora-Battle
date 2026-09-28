@@ -6,6 +6,10 @@
 #include "Item/ItemInstance.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "UI/Info/Item/ItemViewData.h"
+#include "Blueprint/WidgetTree.h"
+#include "Engine/GameInstance.h"
+#include "Engine/Font.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ItemDetailWidget)
 
@@ -23,10 +27,58 @@ namespace
 	}
 }
 
-void UItemDetailWidget::NativePreConstruct()
+void UItemDetailWidget::NativeConstruct()
 {
-	Super::NativePreConstruct();
+	Super::NativeConstruct();
+	if (UMenuLocalizationSubsystem* Localization = GetLocalization())
+	{
+		Localization->OnLanguageChanged.AddUniqueDynamic(this, &ThisClass::RefreshLocalizedDetails);
+	}
+	RefreshLocalizedDetails();
+}
 
+void UItemDetailWidget::NativeDestruct()
+{
+	if (UMenuLocalizationSubsystem* Localization = GetLocalization())
+	{
+		Localization->OnLanguageChanged.RemoveDynamic(this, &ThisClass::RefreshLocalizedDetails);
+	}
+	Super::NativeDestruct();
+}
+
+UMenuLocalizationSubsystem* UItemDetailWidget::GetLocalization() const
+{
+	return GetGameInstance() ? GetGameInstance()->GetSubsystem<UMenuLocalizationSubsystem>() : nullptr;
+}
+
+void UItemDetailWidget::RefreshLocalizedDetails()
+{
+	if (DisplayedItem.IsValid())
+	{
+		SetItem(DisplayedItem.Get());
+	}
+	else if (DisplayedSkin.IsValid())
+	{
+		SetSkinDefinition(DisplayedSkin.Get());
+	}
+	ApplyLocalizedFont();
+}
+
+void UItemDetailWidget::ApplyLocalizedFont() const
+{
+	const UMenuLocalizationSubsystem* Localization = GetLocalization();
+	UFont* Font = Localization ? Localization->GetFontForLanguage(Localization->GetLanguage()) : nullptr;
+	if (!Font || !WidgetTree) return;
+	WidgetTree->ForEachWidget([Font](UWidget* Widget)
+	{
+		if (UTextBlock* Text = Cast<UTextBlock>(Widget))
+		{
+			FSlateFontInfo Info = Text->GetFont();
+			Info.FontObject = Font;
+			Info.TypefaceFontName = NAME_None;
+			Text->SetFont(Info);
+		}
+	});
 }
 
 void UItemDetailWidget::SetItem(UItemInstance* InItemInstance, UItemInstance* InCompareItemInstance)
@@ -34,13 +86,15 @@ void UItemDetailWidget::SetItem(UItemInstance* InItemInstance, UItemInstance* In
 
 	(void)InCompareItemInstance;
 
-	const FItemViewData ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance);
+	const FItemViewData ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance, GetLocalization());
 	SetItemViewData(ViewData);
+	DisplayedItem = InItemInstance;
 }
 
 void UItemDetailWidget::SetItemViewData(const FItemViewData& InViewData)
 {
-
+	DisplayedItem.Reset();
+	DisplayedSkin.Reset();
 	if (!InViewData.HasContent())
 	{
 		ClearDetails();
@@ -49,18 +103,21 @@ void UItemDetailWidget::SetItemViewData(const FItemViewData& InViewData)
 
 	SetHeader(InViewData);
 	PopulateStats(InViewData.Stats, InViewData.UpgradeBonusStats);
+	ApplyLocalizedFont();
 }
 
 void UItemDetailWidget::SetSkinDefinition(const USkinDefinition* SkinDefinition)
 {
 
-	const FItemViewData ViewData = FItemViewDataBuilder::FromSkinDefinition(SkinDefinition);
+	const FItemViewData ViewData = FItemViewDataBuilder::FromSkinDefinition(SkinDefinition, GetLocalization());
 	SetItemViewData(ViewData);
+	DisplayedSkin = SkinDefinition;
 }
 
 void UItemDetailWidget::ClearDetails()
 {
-
+	DisplayedItem.Reset();
+	DisplayedSkin.Reset();
 	SetHeader(FItemViewData());
 
 	if (StatsList)

@@ -13,6 +13,7 @@
 #include "Definition/Online/AchievementDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/Texture2D.h"
+#include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
@@ -143,6 +144,22 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 	}
 	if (!AchievementSubsystem->HasSteamAchievementData())
 	{
+#if WITH_EDITOR
+		// Temporary local HUD preview; does not unlock or select a profile achievement.
+		if (PlayerAvatarImage && GetWorld() && GetWorld()->IsPlayInEditor())
+		{
+			const UAchievementDefinition* PreviewDefinition = AchievementSubsystem->GetAchievementDefinition();
+			if (PreviewDefinition && !PreviewDefinition->Achievements.IsEmpty())
+			{
+				if (UTexture2D* PreviewTexture = PreviewDefinition->Achievements[0].UnlockedIcon.Get())
+				{
+					PlayerAvatarImage->SetBrushFromTexture(PreviewTexture, false);
+					PlayerAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+					return true;
+				}
+			}
+		}
+#endif
 		return false;
 	}
 

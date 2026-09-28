@@ -82,6 +82,10 @@ public:
 		const FString& MapName, bool bIsLAN, bool bUseLobbies);
 	bool CancelSessionRequest(uint64 RequestId);
 	bool IsSessionRequestActive(uint64 RequestId) const;
+	/** The originating local player owns the visible wait; canceled cleanup is not a user wait. */
+	uint64 GetPendingUserRequestId(const ULocalPlayer* LocalPlayer) const;
+	bool IsUserRequestCancelable(uint64 RequestId) const;
+	bool IsSessionLifecyclePending() const { return ActiveSessionLifecycleOperation != ESessionLifecycleOperation::None; }
 
 	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
 	void StartSession();

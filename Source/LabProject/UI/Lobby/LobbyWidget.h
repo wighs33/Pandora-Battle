@@ -11,12 +11,9 @@ class ALobbyGameState;
 class UAudioVolumeSlider;
 class UAudioVolumeControl;
 class UButton;
-class UConnectingPopupWidget;
-class UGameConfigWidget;
 class UImage;
 class ULobbyUserWidget;
 class UTextBlock;
-class UUiSubsystem;
 class UVerticalBox;
 class UWidget;
 
@@ -57,9 +54,6 @@ protected:
 	void HandleCloseClicked();
 
 	UFUNCTION()
-	void HandleGameConfigClicked();
-
-	UFUNCTION()
 	void HandleGameStartClicked();
 
 	UFUNCTION()
@@ -90,7 +84,6 @@ private:
 	bool RebuildPlayerSlots();
 	void ApplyWidgetDefinitionSettings();
 	FString GetResolvedTitleTravelMapName() const;
-	UUiSubsystem* GetUiSubsystem() const;
 	UWidget* FindGameStartCountdownRoot() const;
 	UTextBlock* FindGameStartCountdownText() const;
 	UWidget* FindTeamBalanceWarningRoot() const;
@@ -114,8 +107,6 @@ private:
 	const ALobbyGameState* GetLobbyGameState() const;
 	bool IsGameStartPending() const;
 	float GetGameStartRemainingSeconds() const;
-	void ShowConnectingPopup(bool bShowCancelButton) const;
-	void HideConnectingPopup() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
@@ -123,9 +114,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_Close;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
-	TObjectPtr<UButton> Btn_GameConfig;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_GameStart;
@@ -172,9 +160,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|UI")
 	TSubclassOf<ULobbyUserWidget> LobbyUserWidgetClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|UI")
-	TSubclassOf<UGameConfigWidget> GameConfigWidgetClass;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|UI", meta = (ClampMin = "1"))
 	int32 MaxLobbySlots = LabGameSession::MaxPlayerCount;
 
@@ -193,9 +178,6 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Lobby|UI")
 	TArray<TObjectPtr<ULobbyUserWidget>> LobbyUsers;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UGameConfigWidget> ActiveGameConfigWidget;
 
 private:
 	FDelegateHandle DestroySessionCompleteHandle;

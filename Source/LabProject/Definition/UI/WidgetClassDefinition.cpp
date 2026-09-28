@@ -7,7 +7,6 @@
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "UI/Core/ConnectingPopupWidget.h"
-#include "UI/Lobby/GameConfigWidget.h"
 #include "UI/Match/GameResultWidget.h"
 #include "UI/Lobby/LobbyUserWidget.h"
 #include "Definition/Player/CharacterActionDefinition.h"
@@ -169,7 +168,6 @@ void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
 		CollectSettings(GetGameResultWidgetSettings());
 		CollectSettings(GetCharacterWidgetSettings());
 		CollectSettings(GetAbilitySlotWidgetSettings());
-		CollectSettings(GetSkillTipEffectIconSettings());
 		CollectSettings(GetQuickSlotWidgetSettings());
 		CollectSettings(GetActionSlotWidgetSettings());
 		Collector.CollectSoftPath(GetKillBoxEntryWidgetClass().ToSoftObjectPath());
@@ -405,11 +403,6 @@ TSubclassOf<ULobbyUserWidget> UWidgetClassDefinition::GetLobbyUserWidgetClass() 
 	return GetLobbyWidgetSettings().LobbyUserWidgetClass;
 }
 
-TSubclassOf<UGameConfigWidget> UWidgetClassDefinition::GetGameConfigWidgetClass() const
-{
-	return GetLobbyWidgetSettings().GameConfigWidgetClass;
-}
-
 TSubclassOf<UGameResultWidget> UWidgetClassDefinition::GetGameResultWidgetClass() const
 {
 	return GetGameResultWidgetSettings().GameResultWidgetClass;
@@ -543,11 +536,6 @@ const FSkinWidgetSettings& UWidgetClassDefinition::GetSkinWidgetSettings() const
 const FAbilitySlotWidgetSettings& UWidgetClassDefinition::GetAbilitySlotWidgetSettings() const
 {
 	return Style->AbilitySlotWidgetSettings;
-}
-
-const FSkillTipWidgetSettings& UWidgetClassDefinition::GetSkillTipEffectIconSettings() const
-{
-	return InputIcons->SkillTipEffectIconSettings;
 }
 
 const FSkillTipWidgetSettings& UWidgetClassDefinition::GetPandoraDescriptionEffectIconSettings() const
