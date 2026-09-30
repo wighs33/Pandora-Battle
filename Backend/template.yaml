@@ -208,7 +208,7 @@ Resources:
 
 Outputs:
   ApiUrl:
-    Description: Put this in Config/DefaultGame.ini [/Script/LabProject.BackendSettings] ApiBaseUrl.
+    Description: Put this in Config/DefaultGame.ini [/Script/LabProject.BackendSettings] as ApiBaseUrl="<url>" (quotes required, unquoted // is a comment).
     Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
   TableName:
     Value: !Ref GameTable

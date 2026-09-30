@@ -41,10 +41,18 @@ def verify_steam_ticket(ticket_hex, api_key, app_id, identity, opener=urllib.req
     query = urllib.parse.urlencode(
         {"key": api_key, "appid": app_id, "ticket": ticket_hex, "identity": identity}
     )
+    # 요청 URL에는 API 키가 들어 있으므로 로그에는 상태 코드와 응답 본문만 남긴다.
     try:
         with opener(STEAM_AUTHENTICATE_URL + "?" + query, timeout=10) as response:
             payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        detail = error.read(300).decode("utf-8", "replace")
+        print("Steam AuthenticateUserTicket HTTP %d: %s" % (error.code, detail))
+        if error.code in (401, 403):
+            raise ApiError(502, "steam_key_rejected", "Steam rejected the Web API key.") from error
+        raise ApiError(502, "steam_unavailable", "Steam ticket verification failed.") from error
     except (urllib.error.URLError, TimeoutError, ValueError) as error:
+        print("Steam AuthenticateUserTicket failed: %s" % type(error).__name__)
         raise ApiError(502, "steam_unavailable", "Steam ticket verification failed.") from error
 
     params = (payload.get("response") or {}).get("params")

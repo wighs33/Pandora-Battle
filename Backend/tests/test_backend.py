@@ -87,6 +87,16 @@ class SteamTicketTests(unittest.TestCase):
                 verify_steam_ticket(ticket, "key", "4972140", "id", steam_opener(payload))
             self.assertEqual(context.exception.status, status)
 
+    def test_rejected_key_is_distinguished_from_outage(self):
+        import urllib.error
+
+        def forbidden(url, timeout):
+            raise urllib.error.HTTPError(url, 403, "Forbidden", {}, io.BytesIO(b"Access is denied."))
+
+        with self.assertRaises(ApiError) as context:
+            verify_steam_ticket("ABCDEF0123456789", "key", "4972140", "id", forbidden)
+        self.assertEqual(context.exception.code, "steam_key_rejected")
+
 
 def valid_report(**overrides):
     report = {
@@ -159,10 +169,11 @@ class FakeGameLift:
         class FleetCapacityExceededException(Exception):
             pass
 
-    def __init__(self, searchable, full_sessions=(), statuses=("ACTIVE",)):
+    def __init__(self, searchable, full_sessions=(), statuses=("ACTIVE",), active_unindexed=()):
         self.searchable = searchable
         self.full_sessions = set(full_sessions)
         self.statuses = list(statuses)
+        self.active_unindexed = list(active_unindexed)
         self.created = []
         self.player_sessions = []
 
@@ -180,7 +191,10 @@ class FakeGameLift:
         self.created.append(request)
         return {"GameSession": {"GameSessionId": "gsess-new"}}
 
-    def describe_game_sessions(self, GameSessionId):
+    def describe_game_sessions(self, GameSessionId=None, **request):
+        if GameSessionId is None:
+            # 검색 색인에는 아직 없지만 이미 ACTIVE인 세션(가득 찬 세션, 참가 차단 세션 포함)
+            return {"GameSessions": list(self.active_unindexed)}
         status = self.statuses.pop(0) if len(self.statuses) > 1 else self.statuses[0]
         return {"GameSessions": [{"GameSessionId": GameSessionId, "Status": status}]}
 
@@ -204,6 +218,19 @@ class MatchJoinTests(unittest.TestCase):
         self.assertEqual(info, {"ipAddress": "127.0.0.1", "dnsName": "", "port": 7777, "playerSessionId": "psess-gsess-new"})
         self.assertEqual(gamelift.created[0]["Location"], "custom-labproject-dev")
         self.assertEqual(gamelift.search_request["Location"], "custom-labproject-dev")
+
+    def test_joins_new_session_missing_from_search_index(self):
+        unindexed = [
+            {"GameSessionId": "gsess-full", "CurrentPlayerSessionCount": 4, "MaximumPlayerSessionCount": 4},
+            {"GameSessionId": "gsess-locked", "CurrentPlayerSessionCount": 1, "MaximumPlayerSessionCount": 4,
+             "PlayerSessionCreationPolicy": "DENY_ALL"},
+            {"GameSessionId": "gsess-fresh", "CurrentPlayerSessionCount": 1, "MaximumPlayerSessionCount": 4,
+             "PlayerSessionCreationPolicy": "ACCEPT_ALL"},
+        ]
+        gamelift = FakeGameLift([], active_unindexed=unindexed)
+        info = self.join(gamelift, location="custom-labproject-dev")
+        self.assertEqual(info["playerSessionId"], "psess-gsess-fresh")
+        self.assertEqual(gamelift.created, [])
 
     def test_failed_session_is_reported(self):
         with self.assertRaises(ApiError) as context:

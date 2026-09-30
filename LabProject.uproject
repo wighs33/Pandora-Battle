@@ -121,6 +121,11 @@
 		{
 			"Name": "CommonUI",
 			"Enabled": true
+		},
+		{
+			"Name": "GameLiftPlugin",
+			"Enabled": true,
+			"Optional": true
 		}
 	]
 }

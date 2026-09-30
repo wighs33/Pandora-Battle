@@ -14,6 +14,7 @@ import time
 
 TOKEN_TTL_SECONDS = 12 * 60 * 60
 DISPLAY_NAME_MAX_LENGTH = 32
+PARAMETER_CACHE_SECONDS = 5 * 60
 
 PROFILE_SK = "PROFILE"
 MATCH_RESULT_SK = "RESULT"
@@ -95,17 +96,20 @@ class ParameterMissing(Exception):
 
 
 def get_secure_parameter(name):
-    """SSM SecureString 값을 읽는다. 컨테이너가 재사용되는 동안 캐시한다."""
-    if name not in _parameter_cache:
-        import boto3
+    """SSM SecureString 값을 읽는다. 키를 바꾸면 재배포 없이 반영되도록 5분만 캐시한다."""
+    cached = _parameter_cache.get(name)
+    if cached and time.monotonic() - cached[1] < PARAMETER_CACHE_SECONDS:
+        return cached[0]
 
-        client = boto3.client("ssm")
-        try:
-            value = client.get_parameter(Name=name, WithDecryption=True)["Parameter"]["Value"]
-        except client.exceptions.ParameterNotFound as error:
-            raise ParameterMissing(name) from error
-        _parameter_cache[name] = value
-    return _parameter_cache[name]
+    import boto3
+
+    client = boto3.client("ssm")
+    try:
+        value = client.get_parameter(Name=name, WithDecryption=True)["Parameter"]["Value"].strip()
+    except client.exceptions.ParameterNotFound as error:
+        raise ParameterMissing(name) from error
+    _parameter_cache[name] = (value, time.monotonic())
+    return value
 
 
 def token_secret():

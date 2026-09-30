@@ -58,6 +58,16 @@ namespace
 			&& (FParse::Param(CommandLine, TEXT("glAnywhere")) || FParse::Param(CommandLine, TEXT("GameLift")));
 	}
 
+	// 엔진은 연결의 RequestURL을 "맵?옵션..." 형태로 다시 만들어 저장한다(NMT_Login). ParseOption은 '?'로 시작하는
+	// 문자열만 읽으므로 첫 '?'부터 넘긴다.
+	FString ParseConnectionOption(const UNetConnection& Connection, const TCHAR* Key)
+	{
+		const int32 OptionsStart = Connection.RequestURL.Find(TEXT("?"));
+		return OptionsStart == INDEX_NONE
+			? FString()
+			: UGameplayStatics::ParseOption(Connection.RequestURL.Mid(OptionsStart), Key);
+	}
+
 	// 로컬 시험용 PlayerId는 클라이언트가 보낸 값이므로 백엔드 ID 문자 집합만 남긴다.
 	FString SanitizeLocalPlayerId(const FString& PlayerId)
 	{
@@ -337,14 +347,19 @@ void UGameLiftServerSubsystem::HandlePostLogin(AGameModeBase* GameMode, APlayerC
 	if (!bSdkInitialized)
 	{
 		// GameLift 없이 로컬 전용 서버에서 전적 기록을 시험할 때만 클라이언트가 보낸 PlayerId를 쓴다.
-		PlayerState->SetBackendIdentity(FString(),
-			SanitizeLocalPlayerId(UGameplayStatics::ParseOption(Connection->RequestURL, TEXT("PlayerId"))));
+		const FString LocalPlayerId = SanitizeLocalPlayerId(ParseConnectionOption(*Connection, TEXT("PlayerId")));
+		PlayerState->SetBackendIdentity(FString(), LocalPlayerId);
+		if (!LocalPlayerId.IsEmpty())
+		{
+			UE_LOG(LogGameLiftServer, Log, TEXT("Local backend player ID for %s: %s"), *PlayerState->GetPlayerName(), *LocalPlayerId);
+		}
 		return;
 	}
 
-	const FString PlayerSessionId = UGameplayStatics::ParseOption(Connection->RequestURL, TEXT("PlayerSessionId"));
+	const FString PlayerSessionId = ParseConnectionOption(*Connection, TEXT("PlayerSessionId"));
 	if (PlayerSessionId.IsEmpty())
 	{
+		UE_LOG(LogGameLiftServer, Warning, TEXT("%s joined without a PlayerSessionId."), *PlayerState->GetPlayerName());
 		return;
 	}
 	PlayerState->SetBackendIdentity(PlayerSessionId, AcceptedPlayerIds.FindRef(PlayerSessionId));

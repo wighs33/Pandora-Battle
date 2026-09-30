@@ -8,6 +8,10 @@ if not defined LABPROJECT_UE_EDITOR (
     if not defined LABPROJECT_UE_ROOT (
         for /f "tokens=2,*" %%A in ('reg query "HKCU\SOFTWARE\Epic Games\Unreal Engine\Builds" /v !LABPROJECT_ENGINE_ASSOCIATION! 2^>nul') do set "LABPROJECT_UE_ROOT=%%B"
     )
+    rem Epic Games Launcher can install an engine without the registry key. Its install list keeps the path.
+    if not defined LABPROJECT_UE_ROOT (
+        for /f "usebackq delims=" %%L in (`powershell.exe -NoProfile -Command "$d = Join-Path $env:ProgramData 'Epic\UnrealEngineLauncher\LauncherInstalled.dat'; if (Test-Path $d) { ((Get-Content -Raw $d | ConvertFrom-Json).InstallationList | Where-Object AppName -eq 'UE_!LABPROJECT_ENGINE_ASSOCIATION!' | Select-Object -First 1).InstallLocation }"`) do set "LABPROJECT_UE_ROOT=%%L"
+    )
     if defined LABPROJECT_UE_ROOT set "LABPROJECT_UE_EDITOR=!LABPROJECT_UE_ROOT!\Engine\Binaries\Win64\UnrealEditor.exe"
 )
 

@@ -26,7 +26,20 @@ def search_joinable_sessions(gamelift, fleet_id, location):
     }
     if location:
         request["Location"] = location
-    return gamelift.search_game_sessions(**request).get("GameSessions", [])
+    sessions = gamelift.search_game_sessions(**request).get("GameSessions", [])
+    if sessions:
+        return sessions
+
+    # 검색 색인은 새 세션을 몇 초 늦게 반영한다. 방금 만든 세션을 놓치지 않도록 즉시 반영되는 조회로 한 번 더 찾는다.
+    describe = {"FleetId": fleet_id, "StatusFilter": "ACTIVE", "Limit": 20}
+    if location:
+        describe["Location"] = location
+    return [
+        session
+        for session in gamelift.describe_game_sessions(**describe).get("GameSessions", [])
+        if session.get("PlayerSessionCreationPolicy", "ACCEPT_ALL") == "ACCEPT_ALL"
+        and session.get("CurrentPlayerSessionCount", 0) < session.get("MaximumPlayerSessionCount", 0)
+    ]
 
 
 def try_create_player_session(gamelift, game_session_id, player_id, player_data):

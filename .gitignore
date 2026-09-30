@@ -76,6 +76,20 @@ Content/**/*.before_recover_*.uasset
 Content/IgniteStarterPack/**
 Content/SwordAndShield/**
 Content/MuzzleFlash/Demo/**
+Content/AdvancedVillagePack/**
+Content/Asian_Village/**
+Content/Environment/**
+Content/Fantastic_Dungeon_Pack/**
+Content/RamsterZ_FreeAnims_Volume1/**
+Content/Reference/**
+Content/StylizedProvencal/**
+Content/VFX/Environment/**
+
+# Decorative actor built only from StylizedProvencal meshes
+Content/Env/BP_Windmill.uasset
+
+# Third-party plugin installed locally from the Amazon GameLift release (see Docs/GameLift_Backend.md)
+/Plugins/GameLiftPlugin/
 
 # IDE and local tooling
 .idea/
@@ -87,6 +101,7 @@ Content/MuzzleFlash/Demo/**
 
 # Rider / Visual Studio user files
 *.sln
+*.slnx
 *.sln.DotSettings.user
 *.vcxproj.user
 *.VC.db
@@ -100,6 +115,16 @@ Content/MuzzleFlash/Demo/**
 # Logs and temporary files
 *.log
 *.tmp
+__pycache__/
+
+# Local tool output, scratch data and portfolio material (not project code)
+/.codex_tmp/
+/tmp/
+/output/
+/Exports/
+/Portfolio/
+/SourceArt/
+/LabProject.png
 
 # OS junk
 Thumbs.db

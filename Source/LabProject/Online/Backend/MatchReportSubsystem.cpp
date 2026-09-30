@@ -1,5 +1,6 @@
 #include "Online/Backend/MatchReportSubsystem.h"
 
+#include "Algo/Count.h"
 #include "Engine/GameInstance.h"
 #include "Online/Backend/AwsSigV4.h"
 #include "Online/Backend/BackendHttp.h"
@@ -68,6 +69,14 @@ void UMatchReportSubsystem::ReportMatch(const FMatchReport& Report)
 	{
 		UE_LOG(LogMatchReport, Warning, TEXT("No AWS credentials for the game server. Match %s is not reported."), *Report.MatchId);
 		return;
+	}
+
+	const int32 PlayersWithoutId = Algo::CountIf(Report.Players,
+		[](const FMatchReportPlayer& Player) { return Player.PlayerId.IsEmpty(); });
+	if (PlayersWithoutId > 0)
+	{
+		UE_LOG(LogMatchReport, Warning, TEXT("Match %s: %d of %d players have no backend player ID. Only the match record keeps them."),
+			*Report.MatchId, PlayersWithoutId, Report.Players.Num());
 	}
 
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = PdBackendHttp::CreateJsonRequest(
