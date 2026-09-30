@@ -51,7 +51,15 @@ public:
 	UPandoraComponent* GetPandoraComponent() const;
 	UPandoraTreeComponent* GetPandoraTreeComponent() const;
 
+	// 전용 서버가 GameLift player session과 백엔드 전적을 연결할 때만 쓰는 서버 전용 값이다. 복제하지 않는다.
+	void SetBackendIdentity(const FString& InPlayerSessionId, const FString& InPlayerId);
+	const FString& GetBackendPlayerSessionId() const { return BackendPlayerSessionId; }
+	const FString& GetBackendPlayerId() const { return BackendPlayerId; }
+
 private:
+	FString BackendPlayerSessionId;
+	FString BackendPlayerId;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Loadout", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USelectingPandoraAndWeaponComponent> SelectingPandoraAndWeaponComponent;
 

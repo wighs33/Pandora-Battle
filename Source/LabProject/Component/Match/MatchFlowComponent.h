@@ -54,6 +54,12 @@ private:
 	void HandleMatchTimerExpired();
 	void ReturnToLobbyAfterGameResult();
 	void HandleRewardContentLoaded();
+	void ReportMatchResultToBackend(
+		const APlayerState* WinnerPlayerState,
+		int32 WinnerTeamColorIndex,
+		const TCHAR* EndReason,
+		const APlayerState* ExitingPlayerState = nullptr) const;
+	void SendPlayersToTitleForSessionEnd() const;
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	AExperienceGameMode* GetExperienceGameMode() const;

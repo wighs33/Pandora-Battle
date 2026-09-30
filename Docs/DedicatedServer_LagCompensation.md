@@ -7,7 +7,7 @@
 
 GameLift·로그인·DB 연동은 이 두 단계가 검증된 뒤에 진행합니다([다음 단계](#다음-단계-aws)).
 
-> 이 변경은 이 저장소 환경에서 컴파일하거나 실행해 보지 못했습니다. 첫 빌드와 아래 검증 절차로 확인이 필요합니다.
+> UE 5.8.2 에디터 target 빌드(경고 없음)는 확인했습니다. 실행 동작은 아래 검증 절차로 확인이 필요합니다.
 
 ## Listen Server에 미치는 영향
 
@@ -196,18 +196,7 @@ sequenceDiagram
 
 ## 다음 단계 (AWS)
 
-아래 단계는 이 저장소에 아직 구현하지 않았습니다. 이번 변경으로 준비된 연결점만 정리합니다.
+GameLift 호스팅, Steam 로그인, DynamoDB 전적은 [GameLift 호스팅과 백엔드](GameLift_Backend.md)에 정리했습니다.
 
-- **GameLift (3단계)**
-  - 준비된 것:
-    - 서버 target
-    - IP 넷 드라이버
-    - 호스트 없는 로비 자동 시작
-    - 빈 서버의 로비 복귀
-  - 할 일:
-    - 플러그인의 서버 SDK 초기화와 `ProcessReady`를 `UPdGameInstance::Init`의 전용 서버 분기에서 호출합니다.
-    - `PlayerSessionId` 검증을 `ALobbyGameMode::PreLogin`에 추가합니다.
-    - 경기 종료 또는 빈 서버 시점(`ReturnEmptyDedicatedServerToLobby`)에서 `ProcessEnding`을 호출하고 프로세스를 종료합니다.
-- **로그인과 DB (4·5단계)**
-  - 전적은 전용 서버가 경기 종료 시 보고합니다. 연결 지점은 `MatchFlowComponent`의 결과 확정 지점입니다.
-  - 로컬 `PlayerProfileSubsystem`은 훈련장·오프라인용으로 유지합니다.
+- 로비는 GameLift 서버에서도 그대로 씁니다. 대신 한 게임 세션은 한 경기로 끝나며, 경기 후 로비로 돌아가지 않고 프로세스를 종료합니다.
+- 로컬 `PlayerProfileSubsystem`은 훈련장·오프라인용으로 유지합니다.

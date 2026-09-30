@@ -1,3 +1,5 @@
+using System.IO;
+using System.Linq;
 using UnrealBuildTool;
 
 public class LabProject : ModuleRules
@@ -48,7 +50,9 @@ public class LabProject : ModuleRules
 			"AssetRegistry",
 			"CableComponent",
 			"Slate",
-			"NavigationSystem"
+			"NavigationSystem",
+			"HTTP",
+			"Json"
 		});
 
 		if (Target.bBuildEditor)
@@ -64,5 +68,26 @@ public class LabProject : ModuleRules
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "Steamworks");
 
+		// GameLift 서버 SDK는 플러그인이 설치된 프로젝트의 Server target에서만 사용한다(플러그인 모듈이 Server 전용).
+		// 설치 전이나 Editor·Game target에서는 PD_WITH_GAMELIFT=0으로 빌드되어 GameLift 호출이 모두 빠진다.
+		bool bWithGameLift = Target.Type == TargetType.Server && HasGameLiftServerSdk(Target);
+		if (bWithGameLift)
+		{
+			PrivateDependencyModuleNames.Add("GameLiftServerSDK");
+			bEnableExceptions = true;
+		}
+		PrivateDefinitions.Add("PD_WITH_GAMELIFT=" + (bWithGameLift ? "1" : "0"));
+	}
+
+	private static bool HasGameLiftServerSdk(ReadOnlyTargetRules Target)
+	{
+		if (Target.ProjectFile == null)
+		{
+			return false;
+		}
+
+		string PluginsDirectory = Path.Combine(Target.ProjectFile.Directory.FullName, "Plugins");
+		return Directory.Exists(PluginsDirectory)
+			&& Directory.EnumerateFiles(PluginsDirectory, "GameLiftServerSDK.Build.cs", SearchOption.AllDirectories).Any();
 	}
 }

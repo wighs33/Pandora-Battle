@@ -23,6 +23,7 @@
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "Online/GameLift/GameLiftServerSubsystem.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ExperienceGameMode)
@@ -104,6 +105,10 @@ void AExperienceGameMode::PreLogin(
 	{
 		ErrorMessage = TEXT("Server is full.");
 	}
+	if (UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this))
+	{
+		GameLift->ValidatePlayerJoin(Options, ErrorMessage);
+	}
 }
 
 // 일반 접속과 심리스 이동에서 새 경기의 팀·기록·선택 슬롯을 초기화한다.
@@ -176,6 +181,13 @@ void AExperienceGameMode::ReturnEmptyDedicatedServerToLobby()
 {
 	UWorld* World = GetWorld();
 	if (!World || GetNetMode() != NM_DedicatedServer || GetNumPlayers() > 0)
+	{
+		return;
+	}
+
+	// GameLift 게임 세션은 한 경기만 진행하므로 로비로 돌아가지 않는다. 빈 세션은 GameLift 서브시스템이 종료한다.
+	const UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this);
+	if (GameLift && GameLift->IsGameLiftActive())
 	{
 		return;
 	}

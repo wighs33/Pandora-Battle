@@ -26,6 +26,8 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "Online/Backend/MatchReportSubsystem.h"
+#include "Online/GameLift/GameLiftServerSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MatchFlowComponent)
 
@@ -34,6 +36,20 @@ DEFINE_LOG_CATEGORY_STATIC(LogMatchFlowContent, Log, All);
 namespace
 {
 constexpr float GameResultLobbyReturnDelaySeconds = 5.0f;
+
+// 백엔드가 받는 맵 키 문자 집합([A-Za-z0-9_.-], 최대 64자)으로 맞춘다.
+FString ToReportMapKey(const FString& MapKey)
+{
+	FString Sanitized = MapKey.Left(64);
+	for (TCHAR& Character : Sanitized)
+	{
+		if (!FChar::IsAlnum(Character) && Character != TEXT('_') && Character != TEXT('.') && Character != TEXT('-'))
+		{
+			Character = TEXT('_');
+		}
+	}
+	return Sanitized;
+}
 
 bool DoesMapOptionMatchWorld(
 	const FLobbyMatchMapOption& MapOption,
@@ -412,6 +428,10 @@ bool UMatchFlowComponent::ShowGameResultForWinner(
 		WinnerPlayerState,
 		WinnerTeamColorIndex,
 		WinnerTeamMemberCount);
+	ReportMatchResultToBackend(
+		WinnerPlayerState,
+		WinnerTeamColorIndex,
+		TEXT("completed"));
 
 	ExperienceGameState->Multicast_ShowGameResult(
 		ResolveWinnerTeamTitle(WinnerPlayerState),
@@ -571,6 +591,17 @@ bool UMatchFlowComponent::AbortMatchToTitleForPlayerExit(
 			WinnerTeamColorIndex,
 			WinnerTeamMemberCount),
 		ExitingPlayerState);
+	ReportMatchResultToBackend(
+		WinnerPlayerState,
+		WinnerTeamColorIndex,
+		TEXT("player_exit"),
+		ExitingPlayerState);
+
+	// 남은 참가자는 타이틀로 이동했다. GameLift 게임 세션은 결과 보고와 퇴장이 끝나면 종료한다.
+	if (UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this))
+	{
+		GameLift->RequestSessionEnd(TEXT("Match ended by player exit"));
+	}
 	return true;
 }
 
@@ -905,10 +936,109 @@ void UMatchFlowComponent::ReturnToLobbyAfterGameResult()
 		return;
 	}
 
+	// GameLift 게임 세션은 한 경기로 끝난다. 참가자를 타이틀로 보내고, 결과 보고와 퇴장이 끝나면 프로세스를 종료한다.
+	UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this);
+	if (GameLift && GameLift->IsGameLiftActive())
+	{
+		SendPlayersToTitleForSessionEnd();
+		GameLift->RequestSessionEnd(TEXT("Match finished"));
+		return;
+	}
+
 	const FString LobbyMapName = GetResolvedLobbyTravelMapName();
 	if (!LobbyMapName.IsEmpty())
 	{
 		World->ServerTravel(LobbyMapName);
+	}
+}
+
+// 결과는 이미 화면에 표시했으므로 결과 없이 타이틀로 보낸다. 자발적 퇴장으로 처리되어 연결 오류 팝업이 뜨지 않는다.
+void UMatchFlowComponent::SendPlayersToTitleForSessionEnd() const
+{
+	UWorld* World = GetWorld();
+	const FString TitleMapName = GetResolvedTitleTravelMapName();
+	if (!World || TitleMapName.IsEmpty())
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	{
+		APlayerController* PlayerController = Iterator->Get();
+		if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(PlayerController))
+		{
+			PdPlayerController->Client_TravelToTitleWithoutGameResult(TitleMapName);
+		}
+		else if (PlayerController)
+		{
+			PlayerController->ClientTravel(TitleMapName, TRAVEL_Absolute);
+		}
+	}
+}
+
+// 전적은 신뢰할 수 있는 전용 서버만 보고한다(보고 서브시스템은 전용 서버에만 있다). 훈련장과 봇은 기록하지 않는다.
+void UMatchFlowComponent::ReportMatchResultToBackend(
+	const APlayerState* WinnerPlayerState,
+	const int32 WinnerTeamColorIndex,
+	const TCHAR* EndReason,
+	const APlayerState* ExitingPlayerState) const
+{
+	const AExperienceGameMode* GameMode = GetExperienceGameMode();
+	const UGameInstance* GameInstance = GameMode ? GameMode->GetGameInstance() : nullptr;
+	UMatchReportSubsystem* Reports = GameInstance ? GameInstance->GetSubsystem<UMatchReportSubsystem>() : nullptr;
+	const UMatchPlayerSetupComponent* Provisioning = GameMode ? GameMode->GetPlayerSetupComponent() : nullptr;
+	const AGameStateBase* CurrentGameState = GameMode ? GameMode->GetGameState<AGameStateBase>() : nullptr;
+	if (!Reports || !CurrentGameState || (Provisioning && Provisioning->IsTrainingRoomMap()))
+	{
+		return;
+	}
+
+	FMatchReport Report;
+	Report.MatchId = Reports->CreateMatchId();
+	Report.EndReason = EndReason;
+	Report.WinnerTeam = WinnerTeamColorIndex;
+	FLobbyMatchMapOption MapOption;
+	if (FindCurrentMatchMapOption(MapOption))
+	{
+		Report.MapKey = ToReportMapKey(MapOption.MapKey.ToString());
+	}
+
+	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
+	{
+		const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState);
+		if (!PdPlayerState || PdPlayerState->IsABot() || PdPlayerState->IsOnlyASpectator())
+		{
+			continue;
+		}
+
+		const UPlayerMatchComponent* MatchComponent = PdPlayerState->GetPlayerMatchComponent();
+		FMatchReportPlayer& Player = Report.Players.AddDefaulted_GetRef();
+		Player.PlayerId = PdPlayerState->GetBackendPlayerId();
+		Player.DisplayName = ResolveResultPlayerName(PdPlayerState).ToString();
+		Player.Team = MatchComponent->GetMatchTeamColorIndex();
+		Player.Kills = MatchComponent->GetKillCount();
+		Player.Deaths = MatchComponent->GetDeathCount();
+		if (PlayerState == ExitingPlayerState)
+		{
+			Player.Result = TEXT("lose");
+		}
+		else if (WinnerTeamColorIndex != INDEX_NONE)
+		{
+			Player.Result = Player.Team == WinnerTeamColorIndex ? TEXT("win") : TEXT("lose");
+		}
+		else if (WinnerPlayerState)
+		{
+			Player.Result = PlayerState == WinnerPlayerState ? TEXT("win") : TEXT("lose");
+		}
+		else
+		{
+			Player.Result = TEXT("draw");
+		}
+	}
+
+	if (!Report.Players.IsEmpty())
+	{
+		Reports->ReportMatch(Report);
 	}
 }
 

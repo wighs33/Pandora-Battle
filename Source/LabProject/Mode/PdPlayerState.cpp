@@ -70,11 +70,19 @@ void APdPlayerState::CopyProperties(APlayerState* NewPlayerState)
 		return;
 	}
 
+	TargetPlayerState->SetBackendIdentity(BackendPlayerSessionId, BackendPlayerId);
 	if (PlayerMatchComponent && TargetPlayerState->PlayerMatchComponent)
 	{
 		const FPlayerMatchIdentity Identity = PlayerMatchComponent->GetPlayerMatchIdentity();
 		TargetPlayerState->PlayerMatchComponent->SetPlayerMatchIdentity(Identity);
 	}
+}
+
+// 접속 시 확인한 식별 정보는 심리스 이동으로 새 PlayerState가 생겨도 CopyProperties로 이어진다.
+void APdPlayerState::SetBackendIdentity(const FString& InPlayerSessionId, const FString& InPlayerId)
+{
+	BackendPlayerSessionId = InPlayerSessionId;
+	BackendPlayerId = InPlayerId;
 }
 
 // GAS와 다른 게임 로직이 플레이어의 능력·속성을 관리하는 ASC에 접근할 수 있게 한다.

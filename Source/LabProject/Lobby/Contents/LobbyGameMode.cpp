@@ -15,6 +15,7 @@
 #include "Mode/PdPlayerState.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Online/OnlineSessionsSubsystem.h"
+#include "Online/GameLift/GameLiftServerSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
 #include "TimerManager.h"
@@ -112,6 +113,12 @@ void ALobbyGameMode::BeginPlay()
 			&ThisClass::UpdateDedicatedServerAutoStart,
 			DedicatedServerAutoStartCheckIntervalSeconds,
 			true);
+
+		// 로비가 열려 접속을 받을 수 있으면 GameLift에 게임 세션을 받을 준비가 됐다고 알린다.
+		if (UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this))
+		{
+			GameLift->NotifyServerReadyForSessions(GetWorld());
+		}
 	}
 }
 
@@ -134,7 +141,7 @@ void ALobbyGameMode::InitGameState()
 	StartExperienceLoad();
 }
 
-// 엔진의 접속 승인을 유지하면서 현재 로비 설정의 인원 제한을 적용한다.
+// 엔진의 접속 승인을 유지하면서 현재 로비 설정의 인원 제한을 적용한다. GameLift 서버는 마지막으로 player session을 검증한다.
 void ALobbyGameMode::PreLogin(
 	const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
 {
@@ -142,6 +149,10 @@ void ALobbyGameMode::PreLogin(
 	if (ErrorMessage.IsEmpty() && LobbyConfigurationComponent->IsRuntimeReady() && GameState && GameState->PlayerArray.Num() >= LobbyConfigurationComponent->GetConfiguredMaxPlayerCount())
 	{
 		ErrorMessage = TEXT("Server is full.");
+	}
+	if (UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this))
+	{
+		GameLift->ValidatePlayerJoin(Options, ErrorMessage);
 	}
 }
 
@@ -556,6 +567,11 @@ void ALobbyGameMode::HandleStartCountdownElapsed()
 		CancelPendingGameStart();
 		return;
 	}
+	// 경기 중인 게임 세션에는 새 player session을 만들지 않게 한다. 시작이 취소되면 CancelPendingGameStart가 다시 연다.
+	if (UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this))
+	{
+		GameLift->SetPlayerSessionCreationPolicy(false);
+	}
 	TravelCoordinator->StartSessionAndTravel(GetActiveLobbyPlayerCount() == 1);
 }
 
@@ -573,6 +589,10 @@ void ALobbyGameMode::CancelPendingGameStart()
 	bGameStartRequested = false;
 	if (ALobbyGameState* State = GetGameState<ALobbyGameState>()) { State->SetGameStartPending(false, 0.0); }
 	TravelCoordinator->CancelPendingTravel();
+	if (UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this))
+	{
+		GameLift->SetPlayerSessionCreationPolicy(true);
+	}
 }
 
 void ALobbyGameMode::UpdateAdvertisedSessionSettings() const

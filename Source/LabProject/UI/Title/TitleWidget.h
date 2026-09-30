@@ -12,6 +12,10 @@ class UAudioVolumeControl;
 class UGuideWidget;
 class UShopWidget;
 class UUiSubsystem;
+class UImage;
+class UMaterialInterface;
+class UTextBlock;
+class UWidget;
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UTitleWidget : public ULocalizedMenuWidget
@@ -20,13 +24,21 @@ class LABPROJECT_API UTitleWidget : public ULocalizedMenuWidget
 
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	UTitleWidget(const FObjectInitializer& ObjectInitializer);
+	void SetTitleCharacterMaterial(UMaterialInterface* Material);
+
+	/** Shows Luna's localized line above her head. HeadTopUV is a point in Img_TitleCharacter's texture space. */
+	bool ShowLunaSpeech(FName TextKey, const FVector2D& HeadTopUV);
+	void HideLunaSpeech();
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
+
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleRoomListClicked();
@@ -57,6 +69,7 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyWidgetDefinitionSettings();
+	void BuildLunaSpeechBubble();
 	FString GetResolvedLobbyTravelMapName() const;
 	FString GetResolvedRoomTravelMapName() const;
 	FString GetResolvedTrainingRoomTravelMapName() const;
@@ -81,6 +94,9 @@ private:
 	UUiSubsystem* GetUiSubsystem() const;
 
 protected:
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> Img_TitleCharacter;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_RoomList;
 
@@ -150,4 +166,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioVolumeControl> AudioVolumeControl;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> LunaSpeechBubble;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LunaSpeechText;
+
+	FName LunaSpeechKey;
 };

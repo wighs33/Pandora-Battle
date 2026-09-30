@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  LabProject backend - Steam login, GameLift game session placement, and match results in DynamoDB.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedPattern: '[a-z0-9-]+'
+  SteamAppId:
+    Type: String
+    Default: '4972140'
+  SteamTicketIdentity:
+    Type: String
+    Default: labproject-backend
+    Description: Must match the identity the client passes to GetAuthTicketForWebApi (BackendSettings.SteamWebApiIdentity).
+  AllowDevLogin:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Enables POST /auth/dev for testing several clients on one PC. Set false for any public stage.
+  GameLiftFleetId:
+    Type: String
+    Default: ''
+    Description: Fleet ID or ARN used by POST /match/join. Leave empty until a fleet exists.
+  GameLiftLocation:
+    Type: String
+    Default: ''
+    Description: Custom location for an Anywhere fleet (for example custom-labproject-dev). Empty for managed EC2 home Region.
+  MaxPlayersPerSession:
+    Type: Number
+    Default: 4
+    MinValue: 1
+    MaxValue: 16
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 10
+    Environment:
+      Variables:
+        STAGE: !Ref Stage
+        TABLE_NAME: !Ref GameTable
+        TOKEN_SECRET_PARAM: !Sub /labproject/${Stage}/token-signing-key
+
+Resources:
+  # Single table: player profile, per-player match history and match results, separated by PK/SK.
+  # On-demand billing keeps the idle cost near zero.
+  GameTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub labproject-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        EnableIamAuthorizer: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      # CodeUri stays on each function: 'aws cloudformation package' does not read SAM Globals.
+      CodeUri: src/
+      Handler: auth.handler
+      Environment:
+        Variables:
+          STEAM_APP_ID: !Ref SteamAppId
+          STEAM_TICKET_IDENTITY: !Ref SteamTicketIdentity
+          STEAM_KEY_PARAM: !Sub /labproject/${Stage}/steam-web-api-key
+          ALLOW_DEV_LOGIN: !Ref AllowDevLogin
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt GameTable.Arn
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource:
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/token-signing-key
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/steam-web-api-key
+      Events:
+        SteamLogin:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /auth/steam
+        DevLogin:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /auth/dev
+
+  MatchJoinFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: match_join.handler
+      Timeout: 29
+      Environment:
+        Variables:
+          GAMELIFT_FLEET_ID: !Ref GameLiftFleetId
+          GAMELIFT_LOCATION: !Ref GameLiftLocation
+          MAX_PLAYERS_PER_SESSION: !Ref MaxPlayersPerSession
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - gamelift:SearchGameSessions
+                - gamelift:CreateGameSession
+                - gamelift:DescribeGameSessions
+                - gamelift:CreatePlayerSession
+              Resource: '*'
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/token-signing-key
+      Events:
+        Join:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /match/join
+
+  PlayerProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: player.handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource: !GetAtt GameTable.Arn
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/token-signing-key
+      Events:
+        Me:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /player/me
+
+  # Game servers only. API Gateway verifies the SigV4 signature, so a client session token cannot call it.
+  MatchResultFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: match_result.handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt GameTable.Arn
+      Events:
+        Report:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /server/match-result
+            Auth:
+              Authorizer: AWS_IAM
+
+  # Instance role for a managed EC2 fleet. The game server gets temporary credentials for it
+  # through GetFleetRoleCredentials and signs the match-result request with them.
+  GameServerFleetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: gamelift.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ReportMatchResults
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: execute-api:Invoke
+                Resource: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/server/match-result
+
+Outputs:
+  ApiUrl:
+    Description: Put this in Config/DefaultGame.ini [/Script/LabProject.BackendSettings] ApiBaseUrl.
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
+  TableName:
+    Value: !Ref GameTable
+  GameServerFleetRoleArn:
+    Description: Use as the managed EC2 fleet InstanceRoleArn and pass it to the server with -FleetRoleArn=.
+    Value: !GetAtt GameServerFleetRole.Arn

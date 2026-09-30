@@ -110,7 +110,13 @@ void USkillDashAction::OnStart()
 	{
 		const auto* Data = GetContext().EventData.TargetData.Get(Index);
 		const auto* Hit = Data ? Data->GetHitResult() : nullptr;
-		if (Hit && !Hit->Location.IsNearlyZero()) { Direction = Hit->Location; break; }
+		if (Hit && !Hit->Location.IsNearlyZero())
+		{
+			// TargetData carries a world location; the dash needs the direction from the character to it.
+			const FVector ToTarget = (Hit->Location - Character->GetActorLocation()).GetSafeNormal2D();
+			if (!ToTarget.IsNearlyZero()) Direction = ToTarget;
+			break;
+		}
 	}
 	if (Direction.IsNearlyZero()) Direction = Character->GetActorForwardVector();
 	Task = CreateTask(GetAbility(), Direction.GetSafeNormal2D(), Speed, Duration,

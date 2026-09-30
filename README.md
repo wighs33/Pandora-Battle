@@ -89,7 +89,15 @@ Animation → AnimNotify / GameplayEvent → Ability / Equipment / Weapon
 
 실행·검증 방법은 [전용 서버와 지연 보상](Docs/DedicatedServer_LagCompensation.md)에 정리했습니다.
 
-관련 코드: [Lobby](Source/LabProject/Lobby) · [Match](Source/LabProject/Component/Match) · [Online](Source/LabProject/Online) · [LagCompensation](Source/LabProject/Character/LagCompensationSubsystem.h)
+전용 서버는 Amazon GameLift로 호스팅합니다. 서버리스 백엔드(API Gateway, Lambda, DynamoDB)가 로그인·매치 참가·전적을 맡습니다.
+
+- 클라이언트는 Steam Web API 티켓으로 로그인합니다. 백엔드가 잡아 준 게임 세션에 PlayerSessionId로 접속합니다.
+- 서버는 GameLift로 player session을 검증합니다. 경기가 끝나면 SigV4로 서명한 결과를 IAM 인증 경로에 보고합니다.
+- 결과는 DynamoDB 트랜잭션 하나로 경기 기록과 개인 전적에 반영됩니다. 같은 경기는 한 번만 기록됩니다.
+
+배포와 검증은 [GameLift 호스팅과 백엔드](Docs/GameLift_Backend.md)에 정리했습니다.
+
+관련 코드: [Lobby](Source/LabProject/Lobby) · [Match](Source/LabProject/Component/Match) · [Online](Source/LabProject/Online) · [LagCompensation](Source/LabProject/Character/LagCompensationSubsystem.h) · [Backend](Backend)
 
 ### AI와 Character 표현
 

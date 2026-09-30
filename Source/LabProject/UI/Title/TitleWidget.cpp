@@ -1,7 +1,15 @@
 #include "UI/Title/TitleWidget.h"
 
 #include "AudioSlider.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "Components/TextBlock.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -62,6 +70,60 @@ namespace
 UTitleWidget::UTitleWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+void UTitleWidget::SetTitleCharacterMaterial(UMaterialInterface* Material)
+{
+	if (Img_TitleCharacter)
+	{
+		Img_TitleCharacter->SetBrushFromMaterial(Material);
+		Img_TitleCharacter->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+bool UTitleWidget::ShowLunaSpeech(const FName TextKey, const FVector2D& HeadTopUV)
+{
+	UCanvasPanelSlot* BubbleSlot = LunaSpeechBubble ? Cast<UCanvasPanelSlot>(LunaSpeechBubble->Slot) : nullptr;
+	const UCanvasPanelSlot* PortraitSlot = Img_TitleCharacter ? Cast<UCanvasPanelSlot>(Img_TitleCharacter->Slot) : nullptr;
+	if (!BubbleSlot || !PortraitSlot || !LunaSpeechText)
+	{
+		return false;
+	}
+
+	LunaSpeechKey = TextKey;
+	LunaSpeechText->SetText(MenuText(TextKey));
+
+	// The bubble shares the portrait's anchors, so the portrait's layout maps the head point directly.
+	const FVector2D PortraitSize = PortraitSlot->GetSize();
+	const FVector2D PortraitTopLeft = PortraitSlot->GetPosition() - PortraitSlot->GetAlignment() * PortraitSize;
+	BubbleSlot->SetPosition(PortraitTopLeft + HeadTopUV * PortraitSize);
+	LunaSpeechBubble->SetVisibility(ESlateVisibility::HitTestInvisible);
+	return true;
+}
+
+void UTitleWidget::HideLunaSpeech()
+{
+	LunaSpeechKey = NAME_None;
+	if (LunaSpeechBubble)
+	{
+		LunaSpeechBubble->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UTitleWidget::OnMenuLanguageChanged()
+{
+	Super::OnMenuLanguageChanged();
+	if (LunaSpeechText && !LunaSpeechKey.IsNone())
+	{
+		LunaSpeechText->SetText(MenuText(LunaSpeechKey));
+	}
+}
+
+void UTitleWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	// Built before NativeConstruct so the localized font pass also covers the bubble text.
+	BuildLunaSpeechBubble();
 }
 
 void UTitleWidget::NativeConstruct()
@@ -228,6 +290,64 @@ void UTitleWidget::ApplyWidgetDefinitionSettings()
 		bQuickMatchLAN = Settings.bQuickMatchLAN;
 		bQuickMatchUseLobbies = Settings.bQuickMatchUseLobbies;
 	}
+}
+
+void UTitleWidget::BuildLunaSpeechBubble()
+{
+	// Same canvas as Luna's portrait, one layer above it, so the bubble follows the title's responsive scale.
+	UCanvasPanel* Canvas = Img_TitleCharacter ? Cast<UCanvasPanel>(Img_TitleCharacter->GetParent()) : nullptr;
+	const UCanvasPanelSlot* PortraitSlot = Img_TitleCharacter ? Cast<UCanvasPanelSlot>(Img_TitleCharacter->Slot) : nullptr;
+	if (!Canvas || !PortraitSlot || !WidgetTree || LunaSpeechBubble)
+	{
+		return;
+	}
+
+	// Colours follow the title menu: panel outline and hint text.
+	FSlateBrush TailBrush;
+	TailBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
+	TailBrush.TintColor = FSlateColor(FLinearColor(0.955f, 0.896f, 0.776f));
+	TailBrush.OutlineSettings.Color = FSlateColor(FLinearColor(0.701f, 0.474f, 0.195f));
+	TailBrush.OutlineSettings.Width = 2.f;
+	TailBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+	FSlateBrush BodyBrush = TailBrush;
+	BodyBrush.OutlineSettings.CornerRadii = FVector4(14.f, 14.f, 14.f, 14.f);
+
+	UOverlay* Bubble = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("LunaSpeechBubble"));
+
+	// A rotated square behind the body; only its lower half shows, as the tail pointing at Luna.
+	UImage* Tail = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("LunaSpeechTail"));
+	Tail->SetBrush(TailBrush);
+	Tail->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+	Tail->SetRenderTransformAngle(45.f);
+	UOverlaySlot* TailSlot = Bubble->AddChildToOverlay(Tail);
+	TailSlot->SetHorizontalAlignment(HAlign_Center);
+	TailSlot->SetVerticalAlignment(VAlign_Bottom);
+	TailSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+
+	UBorder* Body = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LunaSpeechBody"));
+	Body->SetBrush(BodyBrush);
+	Body->SetPadding(FMargin(22.f, 14.f));
+	UOverlaySlot* BodySlot = Bubble->AddChildToOverlay(Body);
+	BodySlot->SetHorizontalAlignment(HAlign_Fill);
+	BodySlot->SetVerticalAlignment(VAlign_Fill);
+	BodySlot->SetPadding(FMargin(0.f, 0.f, 0.f, 14.f));
+
+	LunaSpeechText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Txt_LunaSpeech"));
+	FSlateFontInfo Font = LunaSpeechText->GetFont();
+	Font.Size = 18;
+	LunaSpeechText->SetFont(Font);
+	LunaSpeechText->SetColorAndOpacity(FSlateColor(FLinearColor(0.130f, 0.056f, 0.021f)));
+	LunaSpeechText->SetWrapTextAt(420.f);
+	Body->SetContent(LunaSpeechText);
+
+	UCanvasPanelSlot* BubbleSlot = Canvas->AddChildToCanvas(Bubble);
+	BubbleSlot->SetAutoSize(true);
+	BubbleSlot->SetAnchors(PortraitSlot->GetAnchors());
+	BubbleSlot->SetAlignment(FVector2D(0.5f, 1.f)); // The tail tip is placed on the head point.
+	BubbleSlot->SetZOrder(PortraitSlot->GetZOrder() + 1);
+
+	Bubble->SetVisibility(ESlateVisibility::Collapsed);
+	LunaSpeechBubble = Bubble;
 }
 
 void UTitleWidget::HandleRoomListClicked()
