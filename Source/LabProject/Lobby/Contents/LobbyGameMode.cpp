@@ -16,6 +16,7 @@
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "Engine/GameInstance.h"
+#include "HAL/IConsoleManager.h"
 #include "TimerManager.h"
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
 #include "Mode/PdPlayerController.h"
@@ -27,6 +28,23 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyGameMode)
 
 DEFINE_LOG_CATEGORY_STATIC(LogLobbyGameMode, Log, All);
+
+namespace
+{
+	TAutoConsoleVariable<int32> CVarDedicatedServerMinPlayersToStart(
+		TEXT("pd.DedicatedServer.MinPlayersToStart"),
+		2,
+		TEXT("Minimum lobby players before a dedicated server starts the match automatically."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<float> CVarDedicatedServerAutoStartDelay(
+		TEXT("pd.DedicatedServer.AutoStartDelay"),
+		5.0f,
+		TEXT("Seconds the start conditions must hold before a dedicated server starts the lobby countdown."),
+		ECVF_Default);
+
+	constexpr float DedicatedServerAutoStartCheckIntervalSeconds = 1.0f;
+}
 
 #if WITH_EDITOR
 EDataValidationResult ALobbyGameMode::IsDataValid(FDataValidationContext& Context) const
@@ -85,12 +103,23 @@ void ALobbyGameMode::BeginPlay()
 		// Experience와 로비 설정 중 어느 쪽이 먼저 로딩되어도 두 준비가 끝난 뒤 플레이어를 시작한다.
 		ResumeWaitingPlayers();
 	}));
+
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		GetWorldTimerManager().SetTimer(
+			DedicatedServerAutoStartTimerHandle,
+			this,
+			&ThisClass::UpdateDedicatedServerAutoStart,
+			DedicatedServerAutoStartCheckIntervalSeconds,
+			true);
+	}
 }
 
 // 로비가 종료되면 조정 객체가 보유한 타이머와 비동기 요청을 정리한다.
 void ALobbyGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(StartCountdownTimerHandle);
+	GetWorldTimerManager().ClearTimer(DedicatedServerAutoStartTimerHandle);
 	bGameStartRequested = false;
 	TravelCoordinator->CancelPendingTravel();
 	DefaultPlayerProvisioner->Shutdown();
@@ -481,6 +510,42 @@ int32 ALobbyGameMode::FindAvailableLobbyTeamColorIndex(const APdPlayerState* Ign
 	}
 
 	return 0;
+}
+
+// 전용 서버에서 최소 인원과 팀 균형이 지정 시간 동안 유지되면 호스트 버튼과 같은 시작 흐름을 실행한다.
+void ALobbyGameMode::UpdateDedicatedServerAutoStart()
+{
+	const UWorld* World = GetWorld();
+	if (!World || GetNetMode() != NM_DedicatedServer || bGameStartRequested)
+	{
+		DedicatedServerAutoStartReadyTimeSeconds = -1.0;
+		return;
+	}
+
+	const int32 MinPlayersToStart = FMath::Max(1, CVarDedicatedServerMinPlayersToStart.GetValueOnGameThread());
+	if (GetActiveLobbyPlayerCount() < MinPlayersToStart || !CanHostStartGame())
+	{
+		DedicatedServerAutoStartReadyTimeSeconds = -1.0;
+		return;
+	}
+
+	const double NowSeconds = World->GetTimeSeconds();
+	if (DedicatedServerAutoStartReadyTimeSeconds < 0.0)
+	{
+		DedicatedServerAutoStartReadyTimeSeconds = NowSeconds;
+		UE_LOG(LogLobbyGameMode, Log, TEXT("Dedicated server lobby is ready with %d players. Auto start in %.1fs."),
+			GetActiveLobbyPlayerCount(),
+			CVarDedicatedServerAutoStartDelay.GetValueOnGameThread());
+	}
+
+	if (NowSeconds - DedicatedServerAutoStartReadyTimeSeconds
+		< FMath::Max(0.0f, CVarDedicatedServerAutoStartDelay.GetValueOnGameThread()))
+	{
+		return;
+	}
+
+	DedicatedServerAutoStartReadyTimeSeconds = -1.0;
+	TryStartGame();
 }
 
 void ALobbyGameMode::HandleStartCountdownElapsed()

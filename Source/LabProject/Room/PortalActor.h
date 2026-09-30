@@ -163,6 +163,8 @@ private:
 	void HandleDetectionEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	// 포털 화면(Scene Capture·Render Target·MID)은 보는 사람이 있는 인스턴스에서만 만든다. 순간 이동 판정은 항상 동작한다.
+	bool ShouldRenderPortalView() const;
 	bool EnsureRenderTargetSize();
 	FIntPoint GetDesiredRenderTargetSize() const;
 	bool ApplyPortalDefinition();

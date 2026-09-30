@@ -3,6 +3,7 @@
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Character/CharacterBase.h"
 #include "Character/CharacterHitValidation.h"
+#include "Character/LagCompensationSubsystem.h"
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
 #include "Common/CollisionChannels.h"
@@ -139,7 +140,8 @@ bool ARangedWeaponBase::ResolveAimTargetBeyondLaunchPoint(
     const TArray<AActor*>& ActorsToIgnore,
     EDrawDebugTrace::Type DebugDrawType,
     FVector& OutTargetLocation,
-    FHitResult* OutAimHitResult) const
+    FHitResult* OutAimHitResult,
+    const double RewindServerTime) const
 {
     if (OutAimHitResult)
     {
@@ -162,19 +164,14 @@ bool ARangedWeaponBase::ResolveAimTargetBeyondLaunchPoint(
     for (int32 AttemptIndex = 0; AttemptIndex < MaxSkippedAimObstructions; ++AttemptIndex)
     {
         FHitResult HitResult;
-        const bool bHit = UKismetSystemLibrary::LineTraceSingleForObjects(
-            this,
+        const bool bHit = LineTraceSingleForRangedAim(
+            RewindServerTime,
             AimTraceStart,
             AimTraceEnd,
             ObjectTypes,
-            false,
             AimActorsToIgnore,
             DebugDrawType,
-            HitResult,
-            true,
-            FLinearColor::Red,
-            FLinearColor::Green,
-            5.0f);
+            HitResult);
 
         if (!bHit)
         {
@@ -215,6 +212,87 @@ bool ARangedWeaponBase::ResolveAimTargetBeyondLaunchPoint(
 
     OutTargetLocation = AimTraceEnd;
     return true;
+}
+
+bool ARangedWeaponBase::LineTraceSingleForRangedAim(
+    const double RewindServerTime,
+    const FVector& Start,
+    const FVector& End,
+    const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
+    const TArray<AActor*>& ActorsToIgnore,
+    const EDrawDebugTrace::Type DebugDrawType,
+    FHitResult& OutHitResult) const
+{
+    if (RewindServerTime >= 0.0)
+    {
+        if (const ULagCompensationSubsystem* LagCompensationSubsystem = ULagCompensationSubsystem::Get(this))
+        {
+            return LagCompensationSubsystem->LineTraceSingleAtTime(
+                RewindServerTime,
+                Start,
+                End,
+                ObjectTypes,
+                ActorsToIgnore,
+                DebugDrawType,
+                OutHitResult);
+        }
+    }
+
+    return UKismetSystemLibrary::LineTraceSingleForObjects(
+        this,
+        Start,
+        End,
+        ObjectTypes,
+        false,
+        ActorsToIgnore,
+        DebugDrawType,
+        OutHitResult,
+        true,
+        FLinearColor::Red,
+        FLinearColor::Green,
+        5.0f);
+}
+
+bool ARangedWeaponBase::SphereTraceMultiForRangedShot(
+    const double RewindServerTime,
+    const FVector& Start,
+    const FVector& End,
+    const float Radius,
+    const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
+    const TArray<AActor*>& ActorsToIgnore,
+    const EDrawDebugTrace::Type DebugDrawType,
+    TArray<FHitResult>& OutHitResults) const
+{
+    if (RewindServerTime >= 0.0)
+    {
+        if (const ULagCompensationSubsystem* LagCompensationSubsystem = ULagCompensationSubsystem::Get(this))
+        {
+            return LagCompensationSubsystem->SphereTraceMultiAtTime(
+                RewindServerTime,
+                Start,
+                End,
+                Radius,
+                ObjectTypes,
+                ActorsToIgnore,
+                DebugDrawType,
+                OutHitResults);
+        }
+    }
+
+    return UKismetSystemLibrary::SphereTraceMultiForObjects(
+        this,
+        Start,
+        End,
+        Radius,
+        ObjectTypes,
+        false,
+        ActorsToIgnore,
+        DebugDrawType,
+        OutHitResults,
+        true,
+        FLinearColor::Red,
+        FLinearColor::Green,
+        5.0f);
 }
 
 FVector ARangedWeaponBase::GetAITargetAimLocation(const AActor* TargetActor) const

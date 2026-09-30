@@ -17,5 +17,10 @@ class LABPROJECT_API UPdGameInstance : public UGameInstance
 
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void Init() override;
 	virtual void OnStart() override;
+
+private:
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void UseIpNetDriverForDedicatedServer() const;
 };

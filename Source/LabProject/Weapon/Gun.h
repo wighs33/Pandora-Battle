@@ -5,6 +5,7 @@
 #include "Gun.generated.h"
 
 class UPrimitiveComponent;
+struct FPdRewindRequest;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API AGun : public ARangedWeaponBase
@@ -19,8 +20,12 @@ public:
 
 protected:
 	// Network RPCs ----------------------------------------------------------------------------------------------------
+	// ClientViewServerTime은 사격 순간 클라이언트 화면이 보여 주던 서버 시각이다. 서버가 되감기 판정에 사용한다.
 	UFUNCTION(Server, Reliable)
-	void ServerHandlePrimaryAttack(FVector_NetQuantize RequestedViewLocation, FVector_NetQuantizeNormal RequestedViewDirection);
+	void ServerHandlePrimaryAttack(
+		FVector_NetQuantize RequestedViewLocation,
+		FVector_NetQuantizeNormal RequestedViewDirection,
+		double ClientViewServerTime);
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastExecuteMuzzleFlashCue();
@@ -38,7 +43,8 @@ protected:
 	bool HandlePrimaryAttackOnServer(
 		APdPlayer* PlayerCharacter,
 		const FVector& RequestedViewLocation,
-		const FVector& RequestedViewDirection);
+		const FVector& RequestedViewDirection,
+		double ClientViewServerTime = -1.0);
 	bool HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, const FVector& TargetLocation);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -49,7 +55,18 @@ protected:
 		APdPlayer* PlayerCharacter,
 		const FVector& RequestedViewLocation,
 		const FVector& RequestedViewDirection,
-		FHitResult& OutHitResult) const;
+		FHitResult& OutHitResult,
+		double RewindServerTime = -1.0) const;
+	void RecordLagCompensatedShot(
+		APdPlayer* PlayerCharacter,
+		const FPdRewindRequest& RewindRequest,
+		const FVector& RequestedViewLocation,
+		const FVector& RequestedViewDirection,
+		const FHitResult* JudgedHitResult) const;
+	void RecordClientPerceivedShot(
+		APdPlayer* PlayerCharacter,
+		const FVector& ViewLocation,
+		const FVector& ViewDirection) const;
 	bool TraceAIGunShotAtLocation(
 		ACharacterBase* AttackingCharacter,
 		const FVector& TargetLocation,

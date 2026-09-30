@@ -76,7 +76,20 @@ Animation → AnimNotify / GameplayEvent → Ability / Equipment / Weapon
 
 로비의 맵 목록과 기본 선택은 `DA_Level`을 사용하며, 기본 경기장은 콜로세움입니다. 이전·다음 버튼으로 맵을 선택하고, 선택한 설정을 경기 진입 시 전달합니다.
 
-관련 코드: [Lobby](Source/LabProject/Lobby) · [Match](Source/LabProject/Component/Match) · [Online](Source/LabProject/Online)
+기본 플레이는 Listen Server입니다. 같은 코드를 전용 서버(`LabProjectServer` target)로도 실행할 수 있습니다. 전용 서버 전용 동작은 모두 `NM_DedicatedServer` 분기 안에 있습니다.
+
+- IP 넷 드라이버를 사용합니다.
+- 호스트 없이 로비가 자동으로 시작합니다.
+- 서버가 비면 로비로 돌아갑니다.
+
+원격 클라이언트의 총 사격은 서버 되감기로 판정합니다(지연 보상).
+
+- 클라이언트는 서버 시간을 동기화하고, 사격 시 화면에 보이던 서버 시각을 보냅니다.
+- 서버는 캐릭터 판정 메시의 최근 1초 기록으로 그 시각을 재현해 판정합니다. 되감기 한도는 최대 200ms이며, 측정 ping으로도 제한합니다.
+
+실행·검증 방법은 [전용 서버와 지연 보상](Docs/DedicatedServer_LagCompensation.md)에 정리했습니다.
+
+관련 코드: [Lobby](Source/LabProject/Lobby) · [Match](Source/LabProject/Component/Match) · [Online](Source/LabProject/Online) · [LagCompensation](Source/LabProject/Character/LagCompensationSubsystem.h)
 
 ### AI와 Character 표현
 
@@ -126,3 +139,5 @@ Config/                                # 프로젝트 설정과 호환 redirect
 Unreal Engine 5.8 및 Win64 C++ 개발 도구가 필요합니다. `LabProject.uproject`에서 프로젝트 파일을 생성하고 `LabProjectEditor / Development Editor`를 빌드해 에디터를 실행합니다. 게임 target은 `LabProject / Win64 Development`입니다.
 
 PIE에서 Title의 훈련방 또는 로비 진입 경로를 사용합니다. 멀티플레이는 Listen Server와 Client로 확인할 수 있으며, 실제 Steam session 연결은 별도 계정·네트워크 환경이 필요합니다. 빌드 성공과 gameplay/network 기능 검증은 별개입니다.
+
+전용 서버 target `LabProjectServer`는 소스로 빌드한 엔진이 필요합니다. 그 전에는 에디터 바이너리를 `-server`로 실행해 확인할 수 있습니다(`UnrealEditor.exe LabProject.uproject -server -log`). 자세한 내용은 [Docs/DedicatedServer_LagCompensation.md](Docs/DedicatedServer_LagCompensation.md)를 참고하세요.

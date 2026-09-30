@@ -69,6 +69,9 @@ protected:
 
 private:
 	void TryStartServerMatch();
+	void ReturnEmptyDedicatedServerToLobby();
+
+	FTimerHandle EmptyDedicatedServerLobbyReturnTimerHandle;
 
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 #include "Character/CharacterBase.h"
 
 #include "AbilitySystemComponent.h"
+#include "Character/LagCompensationSubsystem.h"
 #include "Common/CollisionChannels.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
@@ -90,10 +91,21 @@ void ACharacterBase::BeginPlay()
 
 	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
 	{
-		CharacterMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickMontagesAndRefreshBonesWhenPlayingMontages;
+		// 전용 서버에는 화면이 없어 보일 때만 포즈를 갱신하면 피격 판정 메시가 이전 포즈에 멈춘다.
+		CharacterMesh->VisibilityBasedAnimTickOption = GetNetMode() == NM_DedicatedServer
+			? EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones
+			: EVisibilityBasedAnimTickOption::OnlyTickMontagesAndRefreshBonesWhenPlayingMontages;
 	}
 	ApplyCameraCollisionIgnoreToCharacterComponents();
 	ApplySkillDamageCollisionToCharacterComponents();
+
+	if (HasAuthority())
+	{
+		if (ULagCompensationSubsystem* LagCompensationSubsystem = ULagCompensationSubsystem::Get(this))
+		{
+			LagCompensationSubsystem->RegisterCharacter(this);
+		}
+	}
 
 	TryInitializeCharacterRuntime();
 }
@@ -122,6 +134,11 @@ void ACharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (CharacterDeathComponent)
 	{
 		CharacterDeathComponent->ShutdownDeathRuntime();
+	}
+
+	if (ULagCompensationSubsystem* LagCompensationSubsystem = ULagCompensationSubsystem::Get(this))
+	{
+		LagCompensationSubsystem->UnregisterCharacter(this);
 	}
 
 	UGameFrameworkComponentManager::RemoveGameFrameworkComponentReceiver(this);

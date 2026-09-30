@@ -64,6 +64,7 @@ private:
 	void HandleExperienceLoaded(const UExperienceDefinition* Experience);
 	void HandleExperienceLoadFailed(FPrimaryAssetId ExperienceId, const FString& FailureMessage);
 	void HandlePlayerRespawned(APlayerController* Player, bool bCreatedPawn);
+	void UpdateDedicatedServerAutoStart();
 	void StartExperienceLoad();
 	FPrimaryAssetId GetConfiguredExperienceId() const;
 	UExperienceManagerComponent* GetExperienceManager() const;
@@ -82,6 +83,10 @@ private:
 	friend class ULobbyTravelCoordinator;
 	FTimerHandle StartCountdownTimerHandle;
 	bool bGameStartRequested = false;
+
+	// 전용 서버에는 시작 버튼을 누를 호스트가 없으므로 인원·팀 조건이 유지되면 자동으로 시작한다.
+	FTimerHandle DedicatedServerAutoStartTimerHandle;
+	double DedicatedServerAutoStartReadyTimeSeconds = -1.0;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Lobby|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ULobbyConfigurationComponent> LobbyConfigurationComponent;

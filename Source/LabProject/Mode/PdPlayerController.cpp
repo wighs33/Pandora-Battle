@@ -5,6 +5,7 @@
 
 #include "Component/Chat/ChatControllerComponent.h"
 #include "Component/Player/ControllerInputComponent.h"
+#include "Component/Player/ControllerLagCompensationComponent.h"
 #include "Component/Player/ControllerPresentationComponent.h"
 #include "Component/Player/ControllerProfileSyncComponent.h"
 #include "Component/Player/ControllerSessionComponent.h"
@@ -35,6 +36,8 @@ APdPlayerController::APdPlayerController(const FObjectInitializer& ObjectInitial
 		CreateDefaultSubobject<UControllerProfileSyncComponent>(TEXT("ControllerProfileSyncComponent"));
 	ControllerSessionComponent =
 		CreateDefaultSubobject<UControllerSessionComponent>(TEXT("ControllerSessionComponent"));
+	ControllerLagCompensationComponent =
+		CreateDefaultSubobject<UControllerLagCompensationComponent>(TEXT("ControllerLagCompensationComponent"));
 	NotificationComponent = CreateDefaultSubobject<UPlayerNotificationComponent>(TEXT("NotificationComponent"));
 	PlayerControllerDefinition = TSoftObjectPtr<UPlayerControllerDefinition>(
 		UPlayerControllerDefinition::GetDefaultDefinitionPath());

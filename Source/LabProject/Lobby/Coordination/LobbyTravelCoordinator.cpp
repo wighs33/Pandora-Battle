@@ -32,7 +32,8 @@ void ULobbyTravelCoordinator::StartSessionAndTravel(bool bSuppressMatchTimer)
 	if (!GameMode || !GameMode->HasAuthority()) { return; }
 	SetGameStartConnectingPopupVisible(true);
 	UOnlineSessionsSubsystem* Sessions = GameMode->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>();
-	if (!Sessions)
+	// 전용 서버는 Steam 방 세션을 광고하지 않는다(접속은 IP·매치메이킹). 세션 시작 없이 바로 전장 이동을 준비한다.
+	if (!Sessions || GameMode->GetNetMode() == NM_DedicatedServer)
 	{
 		PrepareMatchTravel(bSuppressMatchTimer);
 		return;

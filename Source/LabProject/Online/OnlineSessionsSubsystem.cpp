@@ -504,6 +504,11 @@ void UOnlineSessionsSubsystem::HandleNetworkFailure(
 	{
 		return;
 	}
+	// 전용 서버에는 돌아갈 타이틀 화면이 없다. 서버 쪽 연결 실패는 엔진과 GameMode의 Logout 처리에 맡긴다.
+	if (IsRunningDedicatedServer() || (World && World->GetNetMode() == NM_DedicatedServer))
+	{
+		return;
+	}
 	if (bVoluntaryMatchExitInProgress)
 	{
 		if (ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GetGameInstance()))

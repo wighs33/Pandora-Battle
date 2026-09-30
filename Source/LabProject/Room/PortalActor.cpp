@@ -220,7 +220,7 @@ void APortalActor::BeginPlay()
 	}
 
 	const bool bPortalDefinitionReady = LoadedPortalDefinition || ApplyPortalDefinition();
-	if (bPortalDefinitionReady)
+	if (bPortalDefinitionReady && ShouldRenderPortalView())
 	{
 		NativeTryInitPortalMaterial();
 
@@ -279,6 +279,11 @@ void APortalActor::Tick(float DeltaSeconds)
 	NativeTryTeleportOverlappingActor();
 }
 
+bool APortalActor::ShouldRenderPortalView() const
+{
+	return GetNetMode() != NM_DedicatedServer;
+}
+
 void APortalActor::NativeTryInitPortalMaterial()
 {
 	UStaticMeshComponent* ResolvedPortalPlane = GetPortalPlaneComponent();
@@ -326,7 +331,7 @@ void APortalActor::NativeTryInitPortalMaterial()
 
 void APortalActor::NativeUpdateSceneCapture()
 {
-	if (!IsCaptureRateLimitElapsed())
+	if (!ShouldRenderPortalView() || !IsCaptureRateLimitElapsed())
 	{
 		return;
 	}

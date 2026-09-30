@@ -29,6 +29,12 @@
 
 DEFINE_LOG_CATEGORY(PdExperienceGameModeLog);
 
+namespace
+{
+	// 심리스 이동 중인 참가자가 도착할 시간을 둔 뒤 빈 경기인지 다시 확인한다.
+	constexpr float EmptyDedicatedServerLobbyReturnDelaySeconds = 3.0f;
+}
+
 // 경기에서 사용할 기본 프레임워크 클래스와 필수 컴포넌트를 구성한다.
 AExperienceGameMode::AExperienceGameMode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -153,6 +159,36 @@ void AExperienceGameMode::Logout(AController* Exiting)
 
 	// 엔진의 컨트롤러 목록에서도 퇴장자가 제거된 뒤 남은 참가자의 준비를 확인한다.
 	GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::TryStartServerMatch);
+
+	// Listen Server는 호스트가 나가면 서버도 끝나지만, 전용 서버는 빈 경기장에 남으므로 로비로 되돌린다.
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		GetWorldTimerManager().SetTimer(
+			EmptyDedicatedServerLobbyReturnTimerHandle,
+			this,
+			&ThisClass::ReturnEmptyDedicatedServerToLobby,
+			EmptyDedicatedServerLobbyReturnDelaySeconds,
+			false);
+	}
+}
+
+void AExperienceGameMode::ReturnEmptyDedicatedServerToLobby()
+{
+	UWorld* World = GetWorld();
+	if (!World || GetNetMode() != NM_DedicatedServer || GetNumPlayers() > 0)
+	{
+		return;
+	}
+
+	const FString LobbyMapName = LoadedLevelDefinition ? LoadedLevelDefinition->GetLobbyTravelMapName() : FString();
+	if (LobbyMapName.IsEmpty())
+	{
+		UE_LOG(PdExperienceGameModeLog, Warning, TEXT("Empty dedicated server match could not resolve the lobby map."));
+		return;
+	}
+
+	UE_LOG(PdExperienceGameModeLog, Log, TEXT("All players left the dedicated server match. Returning to %s."), *LobbyMapName);
+	World->ServerTravel(LobbyMapName);
 }
 
 // 일반 접속과 심리스 이동 모두 Experience가 준비되면 스폰하고 기본 지급을 요청한다.
