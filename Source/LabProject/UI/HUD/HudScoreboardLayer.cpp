@@ -3,11 +3,10 @@
 
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/GameStateBase.h"
-#include "GameFramework/PlayerState.h"
+#include "Component/Match/MatchResultReport.h"
 #include "UI/Match/GameResultWidget.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
-#include "Mode/PdPlayerState.h"
 #include "TimerManager.h"
 #include "UI/Core/UiScreen.h"
 #include "UI/Core/UiSubsystem.h"
@@ -18,39 +17,6 @@
 namespace
 {
 	constexpr float ScoreboardRefreshIntervalSeconds = 0.20f;
-
-	FText ResolveScoreboardTeamName(const int32 TeamColorIndex)
-	{
-		switch (TeamColorIndex)
-		{
-		case 0: return NSLOCTEXT("GameResult", "TeamNameRed", "Red");
-		case 1: return NSLOCTEXT("GameResult", "TeamNameBlue", "Blue");
-		case 2: return NSLOCTEXT("GameResult", "TeamNameYellow", "Yellow");
-		case 3: return NSLOCTEXT("GameResult", "TeamNamePurple", "Purple");
-		case 4: return NSLOCTEXT("GameResult", "TeamNameGreen", "Green");
-		case 5: return NSLOCTEXT("GameResult", "TeamNameOrange", "Orange");
-		default: return NSLOCTEXT("GameResult", "TeamNameNone", "No Team");
-		}
-	}
-
-	FText ResolveScoreboardPlayerName(const APlayerState* PlayerState)
-	{
-		if (!PlayerState)
-		{
-			return NSLOCTEXT("GameResult", "UnknownPlayerName", "Unknown");
-		}
-
-		if (const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState))
-		{
-			if (!PdPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName().IsEmpty())
-			{
-				return PdPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName();
-			}
-		}
-
-		const FString PlayerName = PlayerState->GetPlayerName();
-		return FText::FromString(PlayerName.IsEmpty() ? GetNameSafe(PlayerState) : PlayerName);
-	}
 }
 
 void UHudScoreboardLayer::Initialize(APdHUD* InOwnerHud, UHudUiRouter* InRouter)
@@ -161,42 +127,8 @@ void UHudScoreboardLayer::BuildPlayerStats(TArray<FGameResultPlayerStat>& OutPla
 
 	const APdHUD* Hud = OwnerHud.Get();
 	const UWorld* World = Hud ? Hud->GetWorld() : nullptr;
-	const AGameStateBase* CurrentGameState = World ? World->GetGameState() : nullptr;
-	if (!CurrentGameState)
+	if (const AGameStateBase* CurrentGameState = World ? World->GetGameState() : nullptr)
 	{
-		return;
+		OutPlayerStats = MatchResultReport::BuildPlayerStats(*CurrentGameState);
 	}
-
-	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
-	{
-		const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState);
-		if (!PdPlayerState)
-		{
-			continue;
-		}
-
-		FGameResultPlayerStat PlayerStat;
-		PlayerStat.PlayerName = ResolveScoreboardPlayerName(PdPlayerState);
-		PlayerStat.TeamColorIndex = PdPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex();
-		PlayerStat.TeamName = ResolveScoreboardTeamName(PlayerStat.TeamColorIndex);
-		PlayerStat.PlayerStateId = PdPlayerState->GetPlayerId();
-		PlayerStat.KillCount = PdPlayerState->GetPlayerMatchComponent()->GetKillCount();
-		PlayerStat.DeathCount = PdPlayerState->GetPlayerMatchComponent()->GetDeathCount();
-		PlayerStat.GoldReward = 0;
-		PlayerStat.bVictoryRewardEligible = false;
-		OutPlayerStats.Add(PlayerStat);
-	}
-
-	OutPlayerStats.Sort([](const FGameResultPlayerStat& Left, const FGameResultPlayerStat& Right)
-	{
-		if (Left.KillCount != Right.KillCount)
-		{
-			return Left.KillCount > Right.KillCount;
-		}
-		if (Left.DeathCount != Right.DeathCount)
-		{
-			return Left.DeathCount < Right.DeathCount;
-		}
-		return Left.PlayerName.ToString() < Right.PlayerName.ToString();
-	});
 }

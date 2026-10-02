@@ -15,7 +15,7 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "UI/Lobby/LobbyWidget.h"
 #include "Engine/GameInstance.h"
-#include "UI/Core/UiSubsystem.h"
+#include "UI/Core/LoadingScreenSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyPlayerController)
 
@@ -111,13 +111,13 @@ void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(APdPlayerSta
 void ALobbyPlayerController::Client_ShowGameStartConnectingPopup_Implementation()
 {
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	UUiSubsystem* UiSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-	if (!UiSubsystem)
+	ULoadingScreenSubsystem* LoadingScreen = LocalPlayer ? LocalPlayer->GetSubsystem<ULoadingScreenSubsystem>() : nullptr;
+	if (!LoadingScreen)
 	{
 		return;
 	}
 
-	UiSubsystem->SetGameStartPreparationPending(true);
+	LoadingScreen->SetGameStartPreparationPending(true);
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
 		if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
@@ -131,10 +131,10 @@ void ALobbyPlayerController::Client_ShowGameStartConnectingPopup_Implementation(
 void ALobbyPlayerController::Client_HideGameStartConnectingPopup_Implementation()
 {
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	if (UUiSubsystem* UiSubsystem =
-		LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr)
+	if (ULoadingScreenSubsystem* LoadingScreen =
+		LocalPlayer ? LocalPlayer->GetSubsystem<ULoadingScreenSubsystem>() : nullptr)
 	{
-		UiSubsystem->SetGameStartPreparationPending(false);
+		LoadingScreen->SetGameStartPreparationPending(false);
 	}
 }
 

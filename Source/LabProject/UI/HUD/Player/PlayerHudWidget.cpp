@@ -185,28 +185,20 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 		return false;
 	}
 
-	for (const FAchievementEntry& Achievement : AchievementDefinition->Achievements)
+	const FAchievementEntry* Achievement = AchievementDefinition->FindEnabledAchievement(SelectedAchievementId);
+	if (!Achievement)
 	{
-		FString CanonicalId = Achievement.AchievementId;
-		CanonicalId.TrimStartAndEndInline();
-		if (!Achievement.bEnabled
-			|| CanonicalId.IsEmpty()
-			|| FName(*CanonicalId) != SelectedAchievementId)
-		{
-			continue;
-		}
-
-		UTexture2D* AchievementTexture = Achievement.UnlockedIcon.Get();
-		if (!AchievementTexture || !PlayerAvatarImage)
-		{
-			return false;
-		}
-
-		PlayerAvatarImage->SetBrushFromTexture(AchievementTexture, true);
-		PlayerAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		return true;
 	}
 
+	UTexture2D* AchievementTexture = Achievement->UnlockedIcon.Get();
+	if (!AchievementTexture || !PlayerAvatarImage)
+	{
+		return false;
+	}
+
+	PlayerAvatarImage->SetBrushFromTexture(AchievementTexture, true);
+	PlayerAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	return true;
 }
 

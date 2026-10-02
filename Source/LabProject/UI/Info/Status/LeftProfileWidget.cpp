@@ -2,9 +2,7 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
-#include "Components/ContentWidget.h"
 #include "Components/Image.h"
-#include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/GameInstance.h"
@@ -13,6 +11,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Mode/PdHUD.h"
+#include "UI/HUD/Player/PlayerHudWidget.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
@@ -216,8 +215,8 @@ void ULeftProfileWidget::RefreshAchievementButtons()
 			&& LoadedAchievementData->Achievements[AchievementIndex].bEnabled;
 		if (bHasLocalPresentation)
 		{
-			AchievementId = LoadedAchievementData->Achievements[AchievementIndex].AchievementId;
-			AchievementId.TrimStartAndEndInline();
+			AchievementId = UAchievementDefinition::NormalizeAchievementId(
+				LoadedAchievementData->Achievements[AchievementIndex].AchievementId);
 		}
 		const bool bHasSteamAchievement = AchievementSubsystem
 			&& AchievementSubsystem->HasSteamAchievementData()
@@ -539,9 +538,8 @@ void ULeftProfileWidget::ApplyAchievementIcon(const int32 AchievementIndex)
 		return;
 	}
 
-	FString AchievementId =
-		AchievementDefinition->Achievements[AchievementIndex].AchievementId;
-	AchievementId.TrimStartAndEndInline();
+	const FString AchievementId = UAchievementDefinition::NormalizeAchievementId(
+		AchievementDefinition->Achievements[AchievementIndex].AchievementId);
 	if (AchievementId.IsEmpty())
 	{
 		return;
@@ -623,43 +621,18 @@ void ULeftProfileWidget::ApplyAchievementBrush(const int32 AchievementIndex)
 		PlayerAchieveIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
 
-	if (UImage* PlayerAvatarImage = FindHudPlayerAvatarImage())
+	// HUD 아바타는 HUD가 선택된 업적으로 직접 다시 그린다.
+	const APdHUD* HUD = GetOwningPlayer() ? Cast<APdHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
+	if (UPlayerHudWidget* PlayerHudWidget = HUD ? Cast<UPlayerHudWidget>(HUD->GetPlayerHudWidget()) : nullptr)
 	{
-		PlayerAvatarImage->SetBrush(AchievementBrush);
-		PlayerAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		PlayerHudWidget->RefreshAchievementAvatar();
 	}
 }
 
 int32 ULeftProfileWidget::FindAchievementIndexById(const FName AchievementId) const
 {
-	if (AchievementId.IsNone())
-	{
-		return INDEX_NONE;
-	}
-
 	const UAchievementDefinition* AchievementDefinition = ResolveAchievementDefinition();
-	if (!AchievementDefinition)
-	{
-		return INDEX_NONE;
-	}
-
-	for (int32 AchievementIndex = 0;
-		AchievementIndex < AchievementDefinition->Achievements.Num();
-		++AchievementIndex)
-	{
-		const FAchievementEntry& Achievement =
-			AchievementDefinition->Achievements[AchievementIndex];
-		FString CanonicalId = Achievement.AchievementId;
-		CanonicalId.TrimStartAndEndInline();
-		if (Achievement.bEnabled
-			&& !CanonicalId.IsEmpty()
-			&& FName(*CanonicalId) == AchievementId)
-		{
-			return AchievementIndex;
-		}
-	}
-
-	return INDEX_NONE;
+	return AchievementDefinition ? AchievementDefinition->FindEnabledAchievementIndex(AchievementId) : INDEX_NONE;
 }
 
 bool ULeftProfileWidget::IsAchievementUnlocked(const int32 AchievementIndex) const
@@ -730,75 +703,6 @@ UImage* ULeftProfileWidget::GetAchievementImage(const int32 AchievementIndex) co
 	default:
 		return nullptr;
 	}
-}
-
-UImage* ULeftProfileWidget::FindHudPlayerAvatarImage() const
-{
-	const APlayerController* PlayerController = GetOwningPlayer();
-	const APdHUD* HUD = PlayerController ? Cast<APdHUD>(PlayerController->GetHUD()) : nullptr;
-	UUserWidget* PlayerHudWidget = HUD ? HUD->GetPlayerHudWidget() : nullptr;
-	return FindImageInUserWidget(PlayerHudWidget, TEXT("PlayerAvatar"));
-}
-
-UImage* ULeftProfileWidget::FindImageInUserWidget(UUserWidget* RootWidget, const FName ImageName) const
-{
-	if (!RootWidget || !RootWidget->WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UImage* FoundImage = Cast<UImage>(RootWidget->WidgetTree->FindWidget(ImageName)))
-	{
-		return FoundImage;
-	}
-
-	return FindImageInWidget(RootWidget->WidgetTree->RootWidget, ImageName);
-}
-
-UImage* ULeftProfileWidget::FindImageInWidget(UWidget* RootWidget, const FName ImageName) const
-{
-	if (!RootWidget)
-	{
-		return nullptr;
-	}
-
-	if (RootWidget->GetFName() == ImageName)
-	{
-		if (UImage* Image = Cast<UImage>(RootWidget))
-		{
-			return Image;
-		}
-	}
-
-	if (UUserWidget* ChildUserWidget = Cast<UUserWidget>(RootWidget))
-	{
-		if (UImage* FoundImage = FindImageInUserWidget(ChildUserWidget, ImageName))
-		{
-			return FoundImage;
-		}
-	}
-
-	if (const UPanelWidget* PanelWidget = Cast<UPanelWidget>(RootWidget))
-	{
-		const int32 ChildrenCount = PanelWidget->GetChildrenCount();
-		for (int32 ChildIndex = 0; ChildIndex < ChildrenCount; ++ChildIndex)
-		{
-			if (UImage* FoundImage = FindImageInWidget(PanelWidget->GetChildAt(ChildIndex), ImageName))
-			{
-				return FoundImage;
-			}
-		}
-	}
-
-	if (const UContentWidget* ContentWidget = Cast<UContentWidget>(RootWidget))
-	{
-		if (UImage* FoundImage = FindImageInWidget(ContentWidget->GetContent(), ImageName))
-		{
-			return FoundImage;
-		}
-	}
-
-	return nullptr;
 }
 
 const URecordDefinition* ULeftProfileWidget::ResolveRecordDefinition()

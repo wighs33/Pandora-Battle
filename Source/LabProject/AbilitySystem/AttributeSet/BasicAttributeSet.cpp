@@ -2,19 +2,13 @@
 
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
-#include "GameFramework/Controller.h"
-#include "GameFramework/Pawn.h"
-#include "GameFramework/PlayerState.h"
+#include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 #include "Character/CharacterBase.h"
-#include "Common/KillLogTypes.h"
 #include "Common/LabGameplayTags.h"
-#include "Mode/ExperienceGameMode.h"
-#include "Mode/PdPlayerController.h"
-#include "Mode/PdPlayerState.h"
+#include "Mode/PlayerEliminationSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Component/Player/CombatComponent.h"
-#include "Component/Player/PlayerRewardComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BasicAttributeSet)
 
 namespace
@@ -305,134 +299,6 @@ namespace
 					true))
 			{
 				return;
-			}
-		}
-	}
-
-	APlayerState* ResolvePlayerStateFromActor(AActor* Actor)
-	{
-		if (!Actor)
-		{
-			return nullptr;
-		}
-
-		if (APlayerState* PlayerState = Cast<APlayerState>(Actor))
-		{
-			return PlayerState;
-		}
-
-		if (APawn* Pawn = Cast<APawn>(Actor))
-		{
-			return Pawn->GetPlayerState();
-		}
-
-		if (AController* Controller = Cast<AController>(Actor))
-		{
-			return Controller->PlayerState;
-		}
-
-		if (APawn* InstigatorPawn = Actor->GetInstigator())
-		{
-			if (APlayerState* PlayerState = InstigatorPawn->GetPlayerState())
-			{
-				return PlayerState;
-			}
-		}
-
-		if (AActor* OwnerActor = Actor->GetOwner())
-		{
-			if (OwnerActor != Actor)
-			{
-				return ResolvePlayerStateFromActor(OwnerActor);
-			}
-		}
-
-		return nullptr;
-	}
-
-	FText ResolvePlayerDisplayName(const APlayerState* PlayerState)
-	{
-		if (const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState))
-		{
-			if (!PdPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName().IsEmpty())
-			{
-				return PdPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName();
-			}
-		}
-
-		const FString PlayerName = PlayerState ? PlayerState->GetPlayerName() : FString();
-		return PlayerName.IsEmpty()
-			? FText::FromString(GetNameSafe(PlayerState))
-			: FText::FromString(PlayerName);
-	}
-
-	void BroadcastKillLog(UWorld* World, const FKillLogEntry& KillLogEntry)
-	{
-		if (!World)
-		{
-			return;
-		}
-
-		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
-		{
-			if (APdPlayerController* PlayerController = Cast<APdPlayerController>(Iterator->Get()))
-			{
-				PlayerController->Client_AddKillLogEntry(KillLogEntry);
-			}
-		}
-	}
-
-	void TryBroadcastKillLog(AActor* VictimActor, AActor* DamageInstigator, AActor* DamageCauser)
-	{
-		if (!VictimActor || !VictimActor->HasAuthority())
-		{
-			return;
-		}
-
-		APlayerState* VictimPlayerState = ResolvePlayerStateFromActor(VictimActor);
-		if (!VictimPlayerState)
-		{
-			return;
-		}
-
-		APlayerState* KillerPlayerState = ResolvePlayerStateFromActor(DamageInstigator);
-		if (!KillerPlayerState)
-		{
-			KillerPlayerState = ResolvePlayerStateFromActor(DamageCauser);
-		}
-
-		FKillLogEntry KillLogEntry;
-		KillLogEntry.VictimName = ResolvePlayerDisplayName(VictimPlayerState);
-		KillLogEntry.bEnvironmentKill = !KillerPlayerState;
-		KillLogEntry.bSelfKill = KillerPlayerState && KillerPlayerState == VictimPlayerState;
-		KillLogEntry.KillerName = KillerPlayerState
-			? ResolvePlayerDisplayName(KillerPlayerState)
-			: NSLOCTEXT("KillLog", "EnvironmentKillerName", "Environment");
-
-		BroadcastKillLog(VictimActor->GetWorld(), KillLogEntry);
-
-		if (APdPlayerState* VictimPdPlayerState = Cast<APdPlayerState>(VictimPlayerState))
-		{
-			VictimPdPlayerState->GetPlayerMatchComponent()->RecordDeath();
-		}
-
-		if (KillerPlayerState && KillerPlayerState != VictimPlayerState)
-		{
-			const float PreviousScore = KillerPlayerState->GetScore();
-			KillerPlayerState->SetScore(PreviousScore + 1.0f);
-
-			APdPlayerState* KillerPdPlayerState = Cast<APdPlayerState>(KillerPlayerState);
-			if (UPlayerRewardComponent* RewardComponent = KillerPdPlayerState ? KillerPdPlayerState->GetPlayerRewardComponent() : nullptr)
-			{
-				RewardComponent->GrantKillExperience(VictimPlayerState);
-			}
-
-			if (UWorld* World = VictimActor->GetWorld())
-			{
-				if (AExperienceGameMode* ExperienceGameMode = World->GetAuthGameMode<AExperienceGameMode>())
-				{
-					ExperienceGameMode->NotifyPlayerKillScored(KillerPlayerState, VictimPlayerState);
-				}
 			}
 		}
 	}
@@ -1085,7 +951,10 @@ float UBasicAttributeSet::ApplyIncomingDamage(
 	SetHealth(NewHealth);
 	if (OldHealth > 0.f && NewHealth <= 0.f)
 	{
-		TryBroadcastKillLog(GetOwningActor(), DamageInstigator, DamageCauser);
+		if (UPlayerEliminationSubsystem* Eliminations = UWorld::GetSubsystem<UPlayerEliminationSubsystem>(GetWorld()))
+		{
+			Eliminations->HandleEliminated(GetOwningActor(), DamageInstigator, DamageCauser);
+		}
 		TryActivateDeathAbility(GetOwningAbilitySystemComponent());
 	}
 

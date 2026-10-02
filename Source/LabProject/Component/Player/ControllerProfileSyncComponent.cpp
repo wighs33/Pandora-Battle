@@ -42,19 +42,10 @@ namespace
 			return false;
 		}
 
-		for (const FAchievementEntry& Achievement : AchievementDefinition->Achievements)
+		if (const FAchievementEntry* Achievement = AchievementDefinition->FindEnabledAchievement(SubmittedAchievementId))
 		{
-			FString CanonicalId = Achievement.AchievementId;
-			CanonicalId.TrimStartAndEndInline();
-			if (Achievement.bEnabled
-				&& !CanonicalId.IsEmpty()
-				&& FName(*CanonicalId) == SubmittedAchievementId)
-			{
-				OutAchievementId = FName(*CanonicalId);
-				return true;
-			}
+			OutAchievementId = FName(*UAchievementDefinition::NormalizeAchievementId(Achievement->AchievementId));
 		}
-
 		return true;
 	}
 }

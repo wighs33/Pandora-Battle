@@ -1,15 +1,11 @@
 #pragma once
 
-#include "Containers/Ticker.h"
-#include "Engine/EngineBaseTypes.h"
 #include "CoreMinimal.h"
 #include "Definition/UI/UiContentGroup.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "Templates/SubclassOf.h"
 #include "UiSubsystem.generated.h"
 
-struct FWorldContext;
-class UNetDriver;
 class UUiLayerRoot;
 class UUiScreen;
 enum class EUiScreenLayer : uint8 { Screen, Overlay, Menu, Modal };
@@ -17,7 +13,6 @@ enum class EUiScreenLayer : uint8 { Screen, Overlay, Menu, Modal };
 class UCommonActivatableWidget;
 class UAbilitySystemComponent;
 class APlayerController;
-class UConnectingPopupWidget;
 class UGameSettingsWidget;
 struct FStreamableHandle;
 class UStatusViewModel;
@@ -62,6 +57,7 @@ public:
 	{
 		return bConfiguredWidgetContentReady;
 	}
+	bool IsConfiguredWidgetContentPreloadPending() const { return bConfiguredWidgetContentPreloadPending; }
 
 	/** Keeps one explicit-definition UI group resident for the lease lifetime. */
 	TSharedPtr<FContentLease> AcquireUiContent(
@@ -80,30 +76,16 @@ public:
 	void PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer Layer = EUiScreenLayer::Menu);
 	void OpenGameSettings(UUserWidget* OwnerMenu);
 	bool CloseGameSettings(const UUserWidget* ExpectedOwner = nullptr);
-	bool HasBlockingWait() const { return !ActiveWaitReasons.IsEmpty(); }
-	/** Server travel preparation, paired by LobbyTravelCoordinator's existing client RPCs. */
-	void SetGameStartPreparationPending(bool bPending);
+	/** Whether this world's base screen layer already shows a real CommonUI screen. */
+	bool HasActiveScreen(const UWorld* World) const;
+
+	/** Broadcasts when the widget definition or its core content changes, so waits can be re-evaluated. */
+	FSimpleMulticastDelegate OnWidgetContentChanged;
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleConfiguredWidgetDefinitionLoaded();
 	void RefreshConfiguredWidgetContentState();
-	/** Rebuilds only the view of existing work. Never begins a wait. */
-	void RefreshLoadingScreen();
-	bool TickLoadingWork(float DeltaTime);
-	void HandlePreClientTravel(const FString& URL, ETravelType TravelType, bool bSeamless);
-	void HandlePreLoadMap(const FWorldContext& Context, const FString& MapName);
-	void HandleSeamlessTravelStart(UWorld* World, const FString& URL);
-	void HandleTravelFailure(UWorld* World, ETravelFailure::Type Type, const FString& Error);
-	void HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type Type, const FString& Error);
-	void BeginTravel(UWorld* SourceWorld, const FString& URL);
-	void AbortTravel();
-	bool IsDestinationPresentationReady() const;
-	UConnectingPopupWidget* ShowConnectingPopup(bool bEnableCancelButton);
-	void HideConnectingPopup();
-
-	UFUNCTION()
-	void HandleConnectingPopupCanceled();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	UAbilitySystemComponent* ResolveAbilitySystemComponent() const;
@@ -118,8 +100,6 @@ private:
 
 	void BindPendingConfiguredUiContent();
 	void FailPendingConfiguredUiContent();
-
-	TSubclassOf<UConnectingPopupWidget> ResolveConnectingPopupWidgetClass();
 
 private:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "!UI|Definition", meta = (AssetBundles = "Client"))
@@ -150,32 +130,4 @@ private:
 	TWeakObjectPtr<UUserWidget> SettingsOwner;
 
 	bool bIsDeinitializing = false;
-
-	UPROPERTY(Transient)
-	TSubclassOf<UConnectingPopupWidget> ConnectingPopupWidgetClass;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UConnectingPopupWidget> ActiveConnectingPopupWidget;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UUiScreen> ConnectingScreen;
-
-	// A snapshot of work owned by content/session systems, plus the cross-world travel transaction.
-	enum class EWaitReason : uint8
-	{
-		StartupContent, LobbyEntryContent, GameEntryContent, SessionRequest,
-		SessionLifecycle, GameStartPreparation, Travel, PipelineCompile
-	};
-	TSet<EWaitReason> ActiveWaitReasons;
-	bool bTravelPending = false;
-	bool bGameStartPreparationPending = false;
-	TWeakObjectPtr<UWorld> TravelSourceWorld;
-	FString TravelDestinationMap;
-	uint64 CancelableSessionRequestId = 0;
-	FTSTicker::FDelegateHandle LoadingWorkTickerHandle;
-	FDelegateHandle PreClientTravelHandle;
-	FDelegateHandle PreLoadMapHandle;
-	FDelegateHandle SeamlessTravelHandle;
-	FDelegateHandle TravelFailureHandle;
-	FDelegateHandle NetworkFailureHandle;
 };

@@ -16,7 +16,7 @@
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "Common/KillLogTypes.h"
 #include "UI/HUD/Notification/NotificationData.h"
-#include "UI/Core/UiSubsystem.h"
+#include "UI/Core/LoadingScreenSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerPresentationComponent)
 
@@ -201,13 +201,13 @@ void UControllerPresentationComponent::UpdateTravelLoadingReadyTicker()
 		FMath::Max(Settings.TravelLoadingReadyCheckInterval, 0.01f));
 }
 
-// 실제 대기 작업이 끝나면 훈련실의 일시정지만 해제한다. 로딩 상태는 UI subsystem이 관찰한다.
+// 실제 대기 작업이 끝나면 훈련실의 일시정지만 해제한다. 로딩 상태는 LoadingScreenSubsystem이 관찰한다.
 bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 {
 	const APdPlayerController* Controller = GetPdController();
 	const ULocalPlayer* LocalPlayer = Controller ? Controller->GetLocalPlayer() : nullptr;
-	const UUiSubsystem* Ui = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
-	const bool bWaiting = Ui && Ui->HasBlockingWait();
+	const ULoadingScreenSubsystem* LoadingScreen = LocalPlayer ? LocalPlayer->GetSubsystem<ULoadingScreenSubsystem>() : nullptr;
+	const bool bWaiting = LoadingScreen && LoadingScreen->HasBlockingWait();
 	SetTrainingRoomLoadingPaused(bWaiting);
 	if (!bWaiting) TravelLoadingReadyTickerHandle.Reset();
 	return bWaiting;

@@ -275,17 +275,6 @@ UTexture2D* UEnemyAvatarWidget::ResolvePlayerAchievementTexture() const
 		return nullptr;
 	}
 
-	for (const FAchievementEntry& Achievement : AchievementDefinition->Achievements)
-	{
-		FString CanonicalId = Achievement.AchievementId;
-		CanonicalId.TrimStartAndEndInline();
-		if (Achievement.bEnabled
-			&& !CanonicalId.IsEmpty()
-			&& FName(*CanonicalId) == AchievementId)
-		{
-			return Achievement.UnlockedIcon.Get();
-		}
-	}
-
-	return nullptr;
+	const FAchievementEntry* Achievement = AchievementDefinition->FindEnabledAchievement(AchievementId);
+	return Achievement ? Achievement->UnlockedIcon.Get() : nullptr;
 }

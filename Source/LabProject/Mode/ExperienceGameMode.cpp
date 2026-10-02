@@ -5,6 +5,7 @@
 #include "Component/Experience/ExperienceManagerComponent.h"
 #include "Component/Match/MatchFlowComponent.h"
 #include "Component/Match/MatchPlayerSetupComponent.h"
+#include "Component/Match/MatchRewardComponent.h"
 #include "Component/Player/PlayerSpawnComponent.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
@@ -19,6 +20,9 @@
 #include "Experience/PdWorldSettings.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
+#include "Misc/PackageName.h"
 #include "Mode/ExperienceGameState.h"
 #include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
@@ -34,6 +38,16 @@ namespace
 {
 	// 심리스 이동 중인 참가자가 도착할 시간을 둔 뒤 빈 경기인지 다시 확인한다.
 	constexpr float EmptyDedicatedServerLobbyReturnDelaySeconds = 3.0f;
+
+	bool DoesMapOptionMatchWorld(
+		const FLobbyMatchMapOption& MapOption,
+		const FString& CurrentPackageName,
+		const FString& CurrentLevelName)
+	{
+		const FString Package = MapOption.Map.ToSoftObjectPath().GetLongPackageName();
+		return !Package.IsEmpty() && (Package.Equals(CurrentPackageName, ESearchCase::IgnoreCase)
+			|| FPackageName::GetShortName(Package).Equals(CurrentLevelName, ESearchCase::IgnoreCase));
+	}
 }
 
 // 경기에서 사용할 기본 프레임워크 클래스와 필수 컴포넌트를 구성한다.
@@ -48,9 +62,10 @@ AExperienceGameMode::AExperienceGameMode(const FObjectInitializer& ObjectInitial
 
 	// 기존 Blueprint의 컴포넌트 기본값 연결을 보존하기 위해 직렬화된 서브오브젝트 이름은 유지한다.
 	MatchFlowComponent = CreateDefaultSubobject<UMatchFlowComponent>(TEXT("ExperienceMatchFlow"));
+	RewardComponent = CreateDefaultSubobject<UMatchRewardComponent>(TEXT("ExperienceMatchReward"));
 	SpawnComponent = CreateDefaultSubobject<UPlayerSpawnComponent>(TEXT("ExperienceSpawn"));
 	PlayerSetupComponent = CreateDefaultSubobject<UMatchPlayerSetupComponent>(TEXT("ExperiencePlayerProvisioning"));
-	check(MatchFlowComponent && SpawnComponent && PlayerSetupComponent);
+	check(MatchFlowComponent && RewardComponent && SpawnComponent && PlayerSetupComponent);
 }
 
 // 맵 설정을 전달하고, 비동기 준비가 끝날 때마다 경기 시작 조건을 다시 확인한다.
@@ -131,7 +146,7 @@ void AExperienceGameMode::GenericPlayerInitialization(AController* Controller)
 
 	EPlayerMapRegion InitialMapRegion = EPlayerMapRegion::Dome;
 	FLobbyMatchMapOption MapOption;
-	if (MatchFlowComponent->FindCurrentMatchMapOption(MapOption))
+	if (FindCurrentMatchMapOption(MapOption))
 	{
 		InitialMapRegion = MapOption.InitialPlayerMapRegion;
 	}
@@ -274,10 +289,40 @@ APawn* AExperienceGameMode::SpawnDefaultPawnAtTransform_Implementation(AControll
 	return SpawnedPawn;
 }
 
-// 처치 결과를 경기의 득점·승리 판정에 전달한다.
-void AExperienceGameMode::NotifyPlayerKillScored(APlayerState* KillerPlayerState, APlayerState* VictimPlayerState)
+bool AExperienceGameMode::FindCurrentMatchMapOption(FLobbyMatchMapOption& OutMapOption) const
 {
-	MatchFlowComponent->NotifyPlayerKillScored(KillerPlayerState, VictimPlayerState);
+	if (!LoadedLevelDefinition || LoadedLevelDefinition->IngameLevels.IsEmpty())
+	{
+		return false;
+	}
+
+	const UWorld* CurrentWorld = GetWorld();
+	const FString CurrentPackageName = CurrentWorld && CurrentWorld->GetOutermost()
+		? CurrentWorld->GetOutermost()->GetName()
+		: FString();
+	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
+	const bool bHasCurrentLevelContext = !CurrentPackageName.IsEmpty() || !CurrentLevelName.IsEmpty();
+
+	if (const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GetGameInstance()))
+	{
+		const FName SelectedMapKey = LobbySubsystem->GetLobbySelectedMapKey();
+		if (!SelectedMapKey.IsNone()
+			&& LoadedLevelDefinition->FindIngameLevel(SelectedMapKey, OutMapOption)
+			&& (!bHasCurrentLevelContext || DoesMapOptionMatchWorld(OutMapOption, CurrentPackageName, CurrentLevelName)))
+		{
+			return true;
+		}
+	}
+
+	for (const FLobbyMatchMapOption& MapOption : LoadedLevelDefinition->IngameLevels)
+	{
+		if (DoesMapOptionMatchWorld(MapOption, CurrentPackageName, CurrentLevelName))
+		{
+			OutMapOption = MapOption;
+			return true;
+		}
+	}
+	return false;
 }
 
 // 참가자의 나가기 요청을 경기 중단·정산 정책에 따라 처리한다.
@@ -382,7 +427,7 @@ void AExperienceGameMode::HandleRuntimeContentPreloadComplete(uint32 RequestGene
 	SpawnComponent->Initialize(LoadedMatchRuleDefinition);
 	MatchFlowComponent->InitializeGameState();
 	PlayerSetupComponent->InitializeRuntime();
-	MatchFlowComponent->PreloadRewardContent();
+	RewardComponent->PreloadRewardContent();
 	ResumeStartingPlayers();
 }
 

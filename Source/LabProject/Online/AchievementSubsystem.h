@@ -50,6 +50,7 @@ private:
 	void BeginAchievementPresentationPreload();
 
 	IOnlineSubsystem* ResolveOnlineSubsystem() const;
+	TSharedPtr<class IOnlineAchievements, ESPMode::ThreadSafe> ResolveAchievementsInterface() const;
 
 	bool IsSteamSubsystemActive() const;
 	bool TryResolveLocalUniqueNetId(FUniqueNetIdPtr& OutUniqueNetId) const;
@@ -62,8 +63,6 @@ private:
 	bool IsAchievementAlreadyUnlocked(const FString& AchievementId) const;
 	bool WriteAchievementThroughOnlineSubsystem(const FString& AchievementId);
 	bool WriteAchievementThroughSteamApi(const FString& AchievementId) const;
-
-	static FString NormalizeAchievementId(FString AchievementId);
 
 private:
 	TSet<FString> PendingAchievementIds;

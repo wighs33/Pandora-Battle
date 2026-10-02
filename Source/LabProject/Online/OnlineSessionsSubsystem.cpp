@@ -6,17 +6,17 @@
 #include "Definition/Level/LevelDefinition.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
-#include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Mode/ExperienceGameState.h"
 #include "Engine/GameInstance.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "Mode/PdPlayerState.h"
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "TimerManager.h"
 #include "Common/GameResultTypes.h"
+#include "Component/Match/MatchOutcomeRules.h"
+#include "Component/Match/MatchResultReport.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineSessionsSubsystem)
 
@@ -391,49 +391,7 @@ void UOnlineSessionsSubsystem::ClearSessionDelegates()
 
 namespace
 {
-// 연결이 끊긴 경기 결과에 표시할 이름을 매치 표시명, 엔진 플레이어 이름 순서로 선택한다.
-FText ResolveResultPlayerName(const APlayerState* PlayerState)
-{
-	if (!PlayerState)
-	{
-		return NSLOCTEXT("GameResult", "UnknownPlayerName", "Unknown");
-	}
-
-	if (const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState))
-	{
-		if (!PdPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName().IsEmpty())
-		{
-			return PdPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName();
-		}
-	}
-
-	const FString PlayerName = PlayerState->GetPlayerName();
-	return FText::FromString(PlayerName.IsEmpty() ? GetNameSafe(PlayerState) : PlayerName);
-}
-
-// 연결 끊김 결과 화면에 표시할 팀 색상 이름을 선택한다.
-FText ResolveResultTeamName(const int32 TeamColorIndex)
-{
-	switch (TeamColorIndex)
-	{
-	case 0:
-		return NSLOCTEXT("GameResult", "TeamNameRed", "Red");
-	case 1:
-		return NSLOCTEXT("GameResult", "TeamNameBlue", "Blue");
-	case 2:
-		return NSLOCTEXT("GameResult", "TeamNameYellow", "Yellow");
-	case 3:
-		return NSLOCTEXT("GameResult", "TeamNamePurple", "Purple");
-	case 4:
-		return NSLOCTEXT("GameResult", "TeamNameGreen", "Green");
-	case 5:
-		return NSLOCTEXT("GameResult", "TeamNameOrange", "Orange");
-	default:
-		return NSLOCTEXT("GameResult", "TeamNameNone", "No Team");
-	}
-}
-
-// 현재 전장의 점수로 연결 끊김 결과를 만든다. 보상·로비 복귀는 허용하지 않고 킬·데스 순서로 정렬한다.
+// 연결이 끊긴 쪽은 누가 나갔는지 알 수 없으므로 나간 사람과 승자 없이 현재 점수만 결과로 보여 준다.
 bool BuildNetworkFailureGameResult(UWorld* World, FGameResultPresentationData& OutGameResultData)
 {
 	const AExperienceGameState* ExperienceGameState = World ? World->GetGameState<AExperienceGameState>() : nullptr;
@@ -442,55 +400,8 @@ bool BuildNetworkFailureGameResult(UWorld* World, FGameResultPresentationData& O
 		return false;
 	}
 
-	OutGameResultData = FGameResultPresentationData();
-	OutGameResultData.WinnerTitle = NSLOCTEXT("GameResult", "MatchEndedByConnectionLost", "Match Ended Due to Player Leaving");
-	OutGameResultData.WinnerTeamColorIndex = INDEX_NONE;
-	OutGameResultData.bAllowLobbyTravelOnExit = false;
-	OutGameResultData.bShowRewards = false;
-
-	for (APlayerState* PlayerState : ExperienceGameState->PlayerArray)
-	{
-		const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState);
-		if (!PdPlayerState)
-		{
-			continue;
-		}
-
-		FGameResultPlayerStat PlayerStat;
-		PlayerStat.PlayerName = ResolveResultPlayerName(PdPlayerState);
-		PlayerStat.TeamColorIndex = PdPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex();
-		PlayerStat.PlayerStateId = PdPlayerState->GetPlayerId();
-		PlayerStat.TeamName = ResolveResultTeamName(PlayerStat.TeamColorIndex);
-		PlayerStat.KillCount = PdPlayerState->GetPlayerMatchComponent()->GetKillCount();
-		PlayerStat.DeathCount = PdPlayerState->GetPlayerMatchComponent()->GetDeathCount();
-		OutGameResultData.PlayerStats.Add(PlayerStat);
-	}
-
-	OutGameResultData.PlayerStats.Sort([](const FGameResultPlayerStat& Left, const FGameResultPlayerStat& Right) {
-		if (Left.KillCount != Right.KillCount)
-		{
-			return Left.KillCount > Right.KillCount;
-		}
-
-		if (Left.DeathCount != Right.DeathCount)
-		{
-			return Left.DeathCount < Right.DeathCount;
-		}
-
-		return Left.PlayerName.ToString() < Right.PlayerName.ToString();
-	});
-
-	if (!OutGameResultData.PlayerStats.IsEmpty())
-	{
-		OutGameResultData.MaxKillerName = OutGameResultData.PlayerStats[0].PlayerName;
-		OutGameResultData.MaxKillCount = OutGameResultData.PlayerStats[0].KillCount;
-	}
-	else
-	{
-		OutGameResultData.MaxKillerName = NSLOCTEXT("GameResult", "UnknownPlayerName", "Unknown");
-		OutGameResultData.MaxKillCount = 0;
-	}
-
+	OutGameResultData = MatchResultReport::BuildPlayerExitResult(
+		*ExperienceGameState, nullptr, nullptr, INDEX_NONE, 1, FVictoryGoldRates());
 	return true;
 }
 } // namespace

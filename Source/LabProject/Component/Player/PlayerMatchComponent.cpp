@@ -83,6 +83,25 @@ int32 UPlayerMatchComponent::GetKillCount() const
 		: 0;
 }
 
+FText UPlayerMatchComponent::ResolveDisplayName(const APlayerState* PlayerState)
+{
+	if (!PlayerState)
+	{
+		return NSLOCTEXT("GameResult", "UnknownPlayerName", "Unknown");
+	}
+
+	if (const UPlayerMatchComponent* MatchComponent = PlayerState->FindComponentByClass<UPlayerMatchComponent>())
+	{
+		if (!MatchComponent->GetMatchDisplayName().IsEmpty())
+		{
+			return MatchComponent->GetMatchDisplayName();
+		}
+	}
+
+	const FString PlayerName = PlayerState->GetPlayerName();
+	return FText::FromString(PlayerName.IsEmpty() ? GetNameSafe(PlayerState) : PlayerName);
+}
+
 // 플레이어 사망 처리에서 호출해 서버에서 현재 경기의 사망 횟수를 누적한다.
 bool UPlayerMatchComponent::RecordDeath(const int32 Amount)
 {

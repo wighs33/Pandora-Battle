@@ -87,6 +87,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Match|Stats")
 	int32 GetDeathCount() const { return DeathCount; }
 
+	/** 킬 로그·결과 화면·전적에 쓰는 이름. 경기 표시 이름이 없으면 PlayerState 이름을 쓴다. */
+	static FText ResolveDisplayName(const APlayerState* PlayerState);
+
 	void SetPlayerMapRegion(EPlayerMapRegion InMapRegion);
 
 	UFUNCTION(BlueprintPure, Category = "!Match|Map")

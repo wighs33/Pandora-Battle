@@ -95,7 +95,7 @@ void UAchievementSubsystem::EvaluateAndUnlockAchievements()
 			continue;
 		}
 
-		const FString AchievementId = NormalizeAchievementId(Achievement.AchievementId);
+		const FString AchievementId = UAchievementDefinition::NormalizeAchievementId(Achievement.AchievementId);
 		if (AchievementId.IsEmpty())
 		{
 			continue;
@@ -184,7 +184,7 @@ bool UAchievementSubsystem::IsSteamAchievementKnown(
 {
 	return bAchievementsQueried
 		&& SteamAchievementProgressById.Contains(
-			NormalizeAchievementId(AchievementId));
+			UAchievementDefinition::NormalizeAchievementId(AchievementId));
 }
 
 bool UAchievementSubsystem::IsSteamAchievementUnlocked(
@@ -202,7 +202,7 @@ double UAchievementSubsystem::GetSteamAchievementProgress(
 	}
 
 	const double* Progress = SteamAchievementProgressById.Find(
-		NormalizeAchievementId(AchievementId));
+		UAchievementDefinition::NormalizeAchievementId(AchievementId));
 	return Progress ? *Progress : 0.0;
 }
 
@@ -326,6 +326,12 @@ IOnlineSubsystem* UAchievementSubsystem::ResolveOnlineSubsystem() const
 	return IOnlineSubsystem::Get();
 }
 
+IOnlineAchievementsPtr UAchievementSubsystem::ResolveAchievementsInterface() const
+{
+	const IOnlineSubsystem* OnlineSubsystem = ResolveOnlineSubsystem();
+	return OnlineSubsystem ? OnlineSubsystem->GetAchievementsInterface() : nullptr;
+}
+
 bool UAchievementSubsystem::IsSteamSubsystemActive() const
 {
 	const IOnlineSubsystem* OnlineSubsystem = ResolveOnlineSubsystem();
@@ -379,13 +385,7 @@ bool UAchievementSubsystem::EnsureAchievementsQueried()
 		return false;
 	}
 
-	IOnlineSubsystem* OnlineSubsystem = ResolveOnlineSubsystem();
-	if (!OnlineSubsystem)
-	{
-		return false;
-	}
-
-	IOnlineAchievementsPtr AchievementsInterface = OnlineSubsystem->GetAchievementsInterface();
+	const IOnlineAchievementsPtr AchievementsInterface = ResolveAchievementsInterface();
 	if (!AchievementsInterface.IsValid())
 	{
 		return false;
@@ -424,10 +424,7 @@ void UAchievementSubsystem::HandleAchievementsQueried(const FUniqueNetId& Player
 void UAchievementSubsystem::RebuildSteamAchievementSnapshot(
 	const FUniqueNetId& PlayerId)
 {
-	const IOnlineSubsystem* OnlineSubsystem = ResolveOnlineSubsystem();
-	const IOnlineAchievementsPtr AchievementsInterface = OnlineSubsystem
-		? OnlineSubsystem->GetAchievementsInterface()
-		: nullptr;
+	const IOnlineAchievementsPtr AchievementsInterface = ResolveAchievementsInterface();
 	if (!AchievementsInterface.IsValid())
 	{
 		bAchievementsQueried = false;
@@ -445,7 +442,7 @@ void UAchievementSubsystem::RebuildSteamAchievementSnapshot(
 
 	for (const FOnlineAchievement& Achievement : CachedAchievements)
 	{
-		const FString AchievementId = NormalizeAchievementId(Achievement.Id);
+		const FString AchievementId = UAchievementDefinition::NormalizeAchievementId(Achievement.Id);
 		if (AchievementId.IsEmpty())
 		{
 			continue;
@@ -470,7 +467,7 @@ void UAchievementSubsystem::RefreshSteamAchievementQuery()
 
 void UAchievementSubsystem::QueueUnlockAchievement(FString AchievementId)
 {
-	AchievementId = NormalizeAchievementId(MoveTemp(AchievementId));
+	AchievementId = UAchievementDefinition::NormalizeAchievementId(MoveTemp(AchievementId));
 	if (AchievementId.IsEmpty()
 		|| LocallyUnlockedAchievementIds.Contains(AchievementId)
 		|| InFlightAchievementIds.Contains(AchievementId)
@@ -542,13 +539,7 @@ bool UAchievementSubsystem::WriteAchievementThroughOnlineSubsystem(const FString
 		return false;
 	}
 
-	IOnlineSubsystem* OnlineSubsystem = ResolveOnlineSubsystem();
-	if (!OnlineSubsystem)
-	{
-		return false;
-	}
-
-	IOnlineAchievementsPtr AchievementsInterface = OnlineSubsystem->GetAchievementsInterface();
+	const IOnlineAchievementsPtr AchievementsInterface = ResolveAchievementsInterface();
 	if (!AchievementsInterface.IsValid())
 	{
 		return false;
@@ -585,7 +576,7 @@ void UAchievementSubsystem::HandleAchievementWritten(
 {
 	static_cast<void>(PlayerId);
 
-	AchievementId = NormalizeAchievementId(MoveTemp(AchievementId));
+	AchievementId = UAchievementDefinition::NormalizeAchievementId(MoveTemp(AchievementId));
 	InFlightAchievementIds.Remove(AchievementId);
 	InFlightWriteObjects.Remove(AchievementId);
 
@@ -631,10 +622,4 @@ bool UAchievementSubsystem::WriteAchievementThroughSteamApi(const FString& Achie
 	}
 
 	return SteamUserStatsInterface->StoreStats();
-}
-
-FString UAchievementSubsystem::NormalizeAchievementId(FString AchievementId)
-{
-	AchievementId.TrimStartAndEndInline();
-	return AchievementId;
 }

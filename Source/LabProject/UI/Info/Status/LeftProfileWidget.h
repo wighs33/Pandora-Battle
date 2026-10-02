@@ -85,9 +85,6 @@ private:
 	bool IsAchievementUnlocked(int32 AchievementIndex) const;
 	UButton* GetAchievementButton(int32 AchievementIndex) const;
 	UImage* GetAchievementImage(int32 AchievementIndex) const;
-	UImage* FindHudPlayerAvatarImage() const;
-	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
-	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
 
 	const URecordDefinition* ResolveRecordDefinition();
 	const UAchievementDefinition* ResolveAchievementDefinition() const;

@@ -10,6 +10,7 @@
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Component/Match/MatchResultReport.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "UI/Match/GameResultPlayerStatEntryWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
@@ -78,20 +79,7 @@ void UGameResultWidget::SetInfo(
 	MaxKillerName = InMaxKillerName;
 	MaxKillCount = InMaxKillCount;
 	PlayerStats = InPlayerStats;
-	PlayerStats.Sort([](const FGameResultPlayerStat& Left, const FGameResultPlayerStat& Right)
-	{
-		if (Left.KillCount != Right.KillCount)
-		{
-			return Left.KillCount > Right.KillCount;
-		}
-
-		if (Left.DeathCount != Right.DeathCount)
-		{
-			return Left.DeathCount < Right.DeathCount;
-		}
-
-		return Left.PlayerName.ToString() < Right.PlayerName.ToString();
-	});
+	MatchResultReport::SortPlayerStats(PlayerStats);
 	RefreshUI();
 }
 
@@ -101,20 +89,7 @@ void UGameResultWidget::SetInGameScoreboardInfo(const TArray<FGameResultPlayerSt
 	WinnerTitle = FText::GetEmpty();
 	WinnerTeamColorIndex = INDEX_NONE;
 	PlayerStats = InPlayerStats;
-	PlayerStats.Sort([](const FGameResultPlayerStat& Left, const FGameResultPlayerStat& Right)
-	{
-		if (Left.KillCount != Right.KillCount)
-		{
-			return Left.KillCount > Right.KillCount;
-		}
-
-		if (Left.DeathCount != Right.DeathCount)
-		{
-			return Left.DeathCount < Right.DeathCount;
-		}
-
-		return Left.PlayerName.ToString() < Right.PlayerName.ToString();
-	});
+	MatchResultReport::SortPlayerStats(PlayerStats);
 
 	if (PlayerStats.IsEmpty())
 	{
@@ -281,23 +256,8 @@ void UGameResultWidget::RefreshPlayerStatsList()
 		return;
 	}
 
-	TArray<FGameResultPlayerStat> SortedPlayerStats = PlayerStats;
-	SortedPlayerStats.Sort([](const FGameResultPlayerStat& Left, const FGameResultPlayerStat& Right)
-	{
-		if (Left.KillCount != Right.KillCount)
-		{
-			return Left.KillCount > Right.KillCount;
-		}
-
-		if (Left.DeathCount != Right.DeathCount)
-		{
-			return Left.DeathCount < Right.DeathCount;
-		}
-
-		return Left.PlayerName.ToString() < Right.PlayerName.ToString();
-	});
-
-	for (const FGameResultPlayerStat& PlayerStat : SortedPlayerStats)
+	// PlayerStats는 받을 때 이미 정렬해 두었다.
+	for (const FGameResultPlayerStat& PlayerStat : PlayerStats)
 	{
 		UGameResultPlayerStatEntryWidget* EntryWidget = CreateWidget<UGameResultPlayerStatEntryWidget>(
 			GetOwningPlayer(),

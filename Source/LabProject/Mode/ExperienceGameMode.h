@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Component/Match/MatchOutcomeRules.h"
 #include "GameFramework/GameModeBase.h"
 #include "UObject/PrimaryAssetId.h"
 #include "ExperienceGameMode.generated.h"
@@ -9,10 +10,12 @@ class UExperienceDefinition;
 class UExperienceManagerComponent;
 class UMatchFlowComponent;
 class UMatchPlayerSetupComponent;
+class UMatchRewardComponent;
 class UPlayerSpawnComponent;
 class UMatchRuleDefinition;
 class ULevelDefinition;
 class UDefaultProvisionDefinition;
+struct FLobbyMatchMapOption;
 struct FStreamableHandle;
 class URewardDefinition;
 class UWorld;
@@ -51,6 +54,7 @@ public:
 	AExperienceGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UMatchFlowComponent* GetMatchFlowComponent() const { return MatchFlowComponent; }
+	UMatchRewardComponent* GetRewardComponent() const { return RewardComponent; }
 	UPlayerSpawnComponent* GetSpawnComponent() const { return SpawnComponent; }
 	UMatchPlayerSetupComponent* GetPlayerSetupComponent() const { return PlayerSetupComponent; }
 
@@ -59,7 +63,15 @@ public:
 	const UDefaultProvisionDefinition* GetDefaultProvisionDefinition() const { return LoadedDefaultProvisionDefinition; }
 	bool IsRuntimeContentReady() const { return LoadedMatchRuleDefinition && LoadedLevelDefinition && LoadedDefaultProvisionDefinition; }
 
-	void NotifyPlayerKillScored(APlayerState* KillerPlayerState, APlayerState* VictimPlayerState);
+	/** 로비에서 고른 맵, 없으면 현재 월드와 같은 경기 맵 설정을 찾는다. */
+	bool FindCurrentMatchMapOption(FLobbyMatchMapOption& OutMapOption) const;
+
+	FVictoryGoldRates GetVictoryGoldRates() const
+	{
+		return {VictoryGoldPerKill, VictoryGoldPenaltyPerDeath, VictoryGoldPerWinningTeamMember};
+	}
+	const TSoftObjectPtr<URewardDefinition>& GetChestSpawnRewardDefinition() const { return ChestSpawnRewardDefinition; }
+
 	bool RequestAbortMatchToTitle(APlayerController* RequestingPlayer);
 
 protected:
@@ -123,11 +135,13 @@ private:
 	TSharedPtr<FStreamableHandle> RuntimeContentPreloadHandle;
 	uint32 RuntimeContentRequestGeneration = 0;
 
-	friend class UMatchFlowComponent;
 	friend class UMatchPlayerSetupComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Match|Runtime")
 	TObjectPtr<UMatchFlowComponent> MatchFlowComponent;
+
+	UPROPERTY(VisibleAnywhere, Category = "!Match|Runtime")
+	TObjectPtr<UMatchRewardComponent> RewardComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Match|Runtime")
 	TObjectPtr<UPlayerSpawnComponent> SpawnComponent;
