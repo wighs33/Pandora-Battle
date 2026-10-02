@@ -8,7 +8,6 @@
 #include "Component/Character/AbilityStateComponent.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
-#include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
@@ -226,21 +225,19 @@ void UEquipmentComponent::HandleEquipCooldownTagChanged(
 	const FGameplayTag CallbackTag,
 	const int32 NewCount)
 {
-	if (CallbackTag != LabGameplayTags::Cooldown_EquipWeapon || NewCount > 0)
+	if (CallbackTag != LabGameplayTags::Cooldown_EquipWeapon || NewCount > 0 || !bHasLatestWeaponRequest || !HasEquipmentAuthority())
 	{
 		return;
 	}
 
-	RefreshCachedReferences();
-	APdPlayerState* PlayerState = CachedOwner
-		? CachedOwner->GetPlayerState<APdPlayerState>()
-		: nullptr;
-	if (PlayerState)
+	// 쿨다운 동안 막힌 마지막 요청을 다시 시도한다. 이미 그 상태면 두 요청 모두 아무 일도 하지 않는다.
+	if (UItemInstance* LatestWeapon = LatestRequestedWeapon.Get())
 	{
-		if (USelectingPandoraAndWeaponComponent* PandoraAndWeaponComponent = PlayerState->GetSelectingPandoraAndWeaponComponent())
-		{
-			PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
-		}
+		RequestWeaponSelectionForDirection(LatestRequestedWeaponDirection, LatestWeapon);
+	}
+	else
+	{
+		RequestWeaponUnequip();
 	}
 }
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/Shop/ShopTypes.h"
+#include "UI/Shop/ShopEntryUiData.h"
 #include "ShopEntryViewData.generated.h"
 
 class UPandoraDefinition;

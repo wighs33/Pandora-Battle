@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "UI/HUD/Match/KillLogTypes.h"
+#include "Common/KillLogTypes.h"
 #include "KillLogWidget.generated.h"
 
 class UKillLogEntryWidget;

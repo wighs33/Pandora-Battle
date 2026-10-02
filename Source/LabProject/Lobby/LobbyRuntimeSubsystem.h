@@ -2,11 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Common/Enum_Direction.h"
+#include "Common/GameResultTypes.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "GameplayTagContainer.h"
 #include "Mode/PdLobbyRuntimeTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "UI/Match/GameResultTypes.h"
 #include "UObject/PrimaryAssetId.h"
 #include "LobbyRuntimeSubsystem.generated.h"
 

@@ -18,6 +18,9 @@ bool UEquipmentComponent::RequestWeaponSelectionForDirection(
 	{
 		return false;
 	}
+	LatestRequestedWeapon = WeaponInstance;
+	LatestRequestedWeaponDirection = Direction;
+	bHasLatestWeaponRequest = true;
 	RefreshCachedReferences();
 	if (CachedASC && CachedASC->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon))
 	{
@@ -102,6 +105,8 @@ bool UEquipmentComponent::RequestWeaponUnequip()
 	{
 		return false;
 	}
+	LatestRequestedWeapon = nullptr;
+	bHasLatestWeaponRequest = true;
 	RefreshCachedReferences();
 	ClearRequestedWeaponInstance();
 

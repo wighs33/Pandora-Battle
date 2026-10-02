@@ -259,6 +259,11 @@ protected:
 	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	EEnum_Direction RequestedWeaponLoadoutDirection = EEnum_Direction::Center;
 
+	/** 마지막으로 받은 장착·해제 요청. 장착 쿨다운에 막힌 요청은 쿨다운이 끝나면 이 값으로 다시 시도한다. */
+	TWeakObjectPtr<UItemInstance> LatestRequestedWeapon;
+	EEnum_Direction LatestRequestedWeaponDirection = EEnum_Direction::Center;
+	bool bHasLatestWeaponRequest = false;
+
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeaponId, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	FGuid CurrentWeaponId;
 

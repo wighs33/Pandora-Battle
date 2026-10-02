@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ControllerComponent.h"
-#include "UI/HUD/Notification/NotificationData.h"
+#include "Common/RewardNotificationTypes.h"
 #include "PlayerNotificationComponent.generated.h"
 
 struct FStreamableHandle;

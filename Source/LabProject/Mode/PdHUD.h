@@ -1,12 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Common/KillLogTypes.h"
 #include "Component/Character/AbilitySystemReadySubscription.h"
 #include "GameFramework/HUD.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
 #include "UI/Info/InfoUiTypes.h"
-#include "UI/HUD/Match/KillLogTypes.h"
 #include "UI/HUD/Notification/NotificationData.h"
 #include "PdHUD.generated.h"
 

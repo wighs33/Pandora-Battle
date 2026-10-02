@@ -7,6 +7,7 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Mode/PdPlayerController.h"
+#include "UI/HUD/Notification/NotificationData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerNotificationComponent)
 

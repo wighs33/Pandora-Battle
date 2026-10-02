@@ -2,9 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
+#include "Definition/Shop/ShopTypes.h"
 #include "GameplayTagContainer.h"
 #include "Engine/DataAsset.h"
-#include "UI/Shop/ShopTypes.h"
 #include "UObject/PrimaryAssetId.h"
 
 #include "PandoraDefinition.generated.h"

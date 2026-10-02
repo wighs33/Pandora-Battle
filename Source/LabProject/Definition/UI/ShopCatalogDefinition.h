@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Definition/Shop/ShopTypes.h"
 #include "Engine/DataAsset.h"
-#include "UI/Shop/ShopTypes.h"
 #include "ShopCatalogDefinition.generated.h"
 
 UCLASS(BlueprintType, Blueprintable)

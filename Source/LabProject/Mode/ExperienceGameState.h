@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
-#include "UI/Match/GameResultTypes.h"
+#include "Common/GameResultTypes.h"
 #include "ExperienceGameState.generated.h"
 
 class UExperienceManagerComponent;

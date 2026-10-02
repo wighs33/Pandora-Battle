@@ -2,9 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Definition/Item/WeaponDefinitionData.h"
+#include "Definition/Shop/ShopTypes.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "UI/Shop/ShopTypes.h"
 #include "UObject/PrimaryAssetId.h"
 
 #if WITH_EDITOR

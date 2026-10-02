@@ -7,6 +7,8 @@ class UItemDefinition;
 class UPandoraDefinition;
 class USkinDefinition;
 
+// Item·Pandora·Skin Definition과 상점 카탈로그가 공유하는 상품 설정. 화면 표시용 값은 UI/Shop/ShopEntryUiData.h에 둔다.
+
 UENUM(BlueprintType)
 enum class EShopProductType : uint8
 {
@@ -82,40 +84,4 @@ public:
 	{
 		return Product.HasValidProduct();
 	}
-};
-
-USTRUCT(BlueprintType)
-struct LABPROJECT_API FShopEntryUiData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
-	FText DisplayName;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
-	FText Description;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
-	TObjectPtr<UObject> IconResource = nullptr;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
-	TObjectPtr<UObject> ProductObject = nullptr;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
-	EShopProductType ProductType = EShopProductType::Pandora;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop", meta = (ClampMin = "0", UIMin = "0"))
-	int32 GoldPrice = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
-	bool bOwned = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
-	bool bCanAfford = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
-	bool bCanSell = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop")
-	bool bValid = false;
 };

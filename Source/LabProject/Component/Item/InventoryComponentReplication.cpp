@@ -1,6 +1,5 @@
 #include "Component/Item/InventoryComponent.h"
 
-#include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "GameFramework/Actor.h"
 #include "Definition/Item/ItemDefinition.h"
@@ -612,16 +611,6 @@ bool UInventoryComponent::SetWeaponIdForLoadoutSlot(
 	}
 
 	EnsureWeaponLoadoutSlotCount();
-	APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	USelectingPandoraAndWeaponComponent* PandoraAndWeaponComponent = PlayerState ? PlayerState->GetSelectingPandoraAndWeaponComponent() : nullptr;
-	const EEnum_Direction SelectedDirection = PandoraAndWeaponComponent
-		? PandoraLoadout::GetDirectionFromLoadoutNumber(
-			PandoraAndWeaponComponent->GetSelectedPandoraAndWeaponNumber())
-		: EEnum_Direction::Center;
-	const FGuid PreviousSelectedWeaponId =
-		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
-			? GetWeaponIdForLoadoutSlot(SelectedDirection)
-			: FGuid();
 	if (ItemId.IsValid())
 	{
 		UItemInstance* WeaponInstance = FindItemInstanceById(ItemId);
@@ -653,10 +642,6 @@ bool UInventoryComponent::SetWeaponIdForLoadoutSlot(
 	if (!bChanged)
 	{
 		RefreshWeaponLoadoutPresentationAssets();
-		if (PandoraAndWeaponComponent && SelectedDirection == Direction)
-		{
-			PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
-		}
 		return true;
 	}
 
@@ -667,15 +652,6 @@ bool UInventoryComponent::SetWeaponIdForLoadoutSlot(
 	}
 	RefreshWeaponLoadoutPresentationAssets();
 	OnWeaponLoadoutChanged.Broadcast();
-	const bool bSelectedWeaponChanged =
-		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
-		&& PreviousSelectedWeaponId
-			!= GetWeaponIdForLoadoutSlot(SelectedDirection);
-	if (PandoraAndWeaponComponent
-		&& (SelectedDirection == Direction || bSelectedWeaponChanged))
-	{
-		PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
-	}
 	return true;
 }
 
@@ -687,15 +663,6 @@ bool UInventoryComponent::ClearLoadoutSlotsReferencingWeapon(const FGuid ItemId)
 	}
 
 	EnsureWeaponLoadoutSlotCount();
-	APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	USelectingPandoraAndWeaponComponent* PandoraAndWeaponComponent = PlayerState ? PlayerState->GetSelectingPandoraAndWeaponComponent() : nullptr;
-	const EEnum_Direction SelectedDirection = PandoraAndWeaponComponent
-		? PandoraLoadout::GetDirectionFromLoadoutNumber(
-			PandoraAndWeaponComponent->GetSelectedPandoraAndWeaponNumber())
-		: EEnum_Direction::Center;
-	const bool bClearsSelectedWeapon =
-		PandoraLoadout::IsLoadoutDirection(SelectedDirection)
-		&& GetWeaponIdForLoadoutSlot(SelectedDirection) == ItemId;
 	bool bChanged = false;
 	for (FGuid& WeaponItemId : WeaponIdsByLoadoutSlot)
 	{
@@ -714,9 +681,5 @@ bool UInventoryComponent::ClearLoadoutSlotsReferencingWeapon(const FGuid ItemId)
 	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, WeaponIdsByLoadoutSlot, this);
 	RefreshWeaponLoadoutPresentationAssets();
 	OnWeaponLoadoutChanged.Broadcast();
-	if (PandoraAndWeaponComponent && bClearsSelectedWeapon)
-	{
-		PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
-	}
 	return true;
 }

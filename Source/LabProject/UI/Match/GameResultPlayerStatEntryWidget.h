@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "UI/Match/GameResultTypes.h"
+#include "Common/GameResultTypes.h"
 #include "GameResultPlayerStatEntryWidget.generated.h"
 
 class UTextBlock;

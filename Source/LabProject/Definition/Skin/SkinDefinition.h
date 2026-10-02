@@ -1,9 +1,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Definition/Shop/ShopTypes.h"
 #include "GameplayTagContainer.h"
 #include "Engine/DataAsset.h"
-#include "UI/Shop/ShopTypes.h"
 
 #include "SkinDefinition.generated.h"
 

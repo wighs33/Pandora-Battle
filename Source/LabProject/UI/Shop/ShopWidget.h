@@ -2,7 +2,7 @@
 
 #include "UI/Common/LocalizedMenuWidget.h"
 #include "CoreMinimal.h"
-#include "UI/Shop/ShopTypes.h"
+#include "UI/Shop/ShopEntryUiData.h"
 #include "ShopWidget.generated.h"
 
 class UButton;

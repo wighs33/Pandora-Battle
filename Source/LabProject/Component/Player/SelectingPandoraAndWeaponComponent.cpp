@@ -4,6 +4,7 @@
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Component/Player/EquipmentComponent.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 #include "GameFramework/Pawn.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -18,6 +19,43 @@ USelectingPandoraAndWeaponComponent::USelectingPandoraAndWeaponComponent(const F
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
+}
+
+// 서버에서 인벤토리 무기 슬롯과 판도라 슬롯의 변경을 구독한다. 선택 슬롯의 내용이 바뀌면 다시 적용한다.
+void USelectingPandoraAndWeaponComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	const APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>();
+	if (!PlayerState || !HasAuthority())
+	{
+		return;
+	}
+
+	if (UInventoryComponent* Inventory = PlayerState->GetInventoryComponent())
+	{
+		WeaponLoadoutChangedHandle = Inventory->OnWeaponLoadoutChanged.AddUObject(this, &ThisClass::ReapplyIfSelectedLoadoutChanged);
+	}
+	if (UPandoraComponent* PandoraComponent = PlayerState->GetPandoraComponent())
+	{
+		PandoraComponent->OnPandoraLoadoutChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
+	}
+}
+
+void USelectingPandoraAndWeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (const APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>())
+	{
+		if (UInventoryComponent* Inventory = PlayerState->GetInventoryComponent())
+		{
+			Inventory->OnWeaponLoadoutChanged.Remove(WeaponLoadoutChangedHandle);
+		}
+		if (UPandoraComponent* PandoraComponent = PlayerState->GetPandoraComponent())
+		{
+			PandoraComponent->OnPandoraLoadoutChanged.RemoveDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
+		}
+	}
+	WeaponLoadoutChangedHandle.Reset();
+	Super::EndPlay(EndPlayReason);
 }
 
 // 서버가 확정한 무기·판도라 선택 번호를 클라이언트에도 전달하도록 복제 항목에 등록한다.
@@ -60,13 +98,17 @@ void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 		return;
 	}
 
-	const EEnum_Direction SelectedDirection = PandoraLoadout::GetDirectionFromLoadoutNumber(SelectedPandoraAndWeaponNumber);
+	const EEnum_Direction SelectedDirection = GetSelectedDirection();
 
 	APawn* Pawn = PlayerState->GetPawn();
 	if (!Pawn)
 	{
 		return;
 	}
+
+	bHasAppliedLoadout = true;
+	AppliedWeaponId = GetSelectedWeaponId();
+	AppliedPandoraDefinition = FObjectKey(GetSelectedPandoraDefinition());
 
 	// 무기 장착 처리
 	const ACharacterBase* Character = Cast<ACharacterBase>(Pawn);
@@ -95,4 +137,47 @@ void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 			PandoraComponent->RequestPandoraSelectionForDirection(SelectedDirection, PandoraDefinition);
 		}
 	}
+}
+
+void USelectingPandoraAndWeaponComponent::HandlePandoraLoadoutChanged()
+{
+	ReapplyIfSelectedLoadoutChanged();
+}
+
+// 다른 슬롯이 바뀐 알림이면 아무 일도 하지 않는다. 장착 중인 무기를 같은 무기로 다시 요청하지 않기 위해서다.
+void USelectingPandoraAndWeaponComponent::ReapplyIfSelectedLoadoutChanged()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (!bHasAppliedLoadout
+		|| GetSelectedWeaponId() != AppliedWeaponId
+		|| FObjectKey(GetSelectedPandoraDefinition()) != AppliedPandoraDefinition)
+	{
+		ApplySelectedPandoraAndWeapon();
+	}
+}
+
+EEnum_Direction USelectingPandoraAndWeaponComponent::GetSelectedDirection() const
+{
+	return PandoraLoadout::GetDirectionFromLoadoutNumber(SelectedPandoraAndWeaponNumber);
+}
+
+FGuid USelectingPandoraAndWeaponComponent::GetSelectedWeaponId() const
+{
+	const APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>();
+	const UInventoryComponent* Inventory = PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	const EEnum_Direction SelectedDirection = GetSelectedDirection();
+	return Inventory && PandoraLoadout::IsLoadoutDirection(SelectedDirection)
+		? Inventory->GetWeaponIdForLoadoutSlot(SelectedDirection)
+		: FGuid();
+}
+
+const UPandoraDefinition* USelectingPandoraAndWeaponComponent::GetSelectedPandoraDefinition() const
+{
+	const APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>();
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	return PandoraComponent ? PandoraComponent->GetPandoraLoadoutDefinition(GetSelectedDirection()) : nullptr;
 }

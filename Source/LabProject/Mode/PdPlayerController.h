@@ -1,11 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Common/GameResultTypes.h"
+#include "Common/KillLogTypes.h"
+#include "Common/RewardNotificationTypes.h"
 #include "Component/Character/AbilitySystemReadySubscription.h"
 #include "GameFramework/PlayerController.h"
-#include "UI/Match/GameResultTypes.h"
-#include "UI/HUD/Match/KillLogTypes.h"
-#include "UI/HUD/Notification/NotificationData.h"
 #include "PdPlayerController.generated.h"
 
 class ACharacterBase;

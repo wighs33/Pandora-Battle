@@ -12,7 +12,6 @@
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 #include "Component/Player/EquipmentComponent.h"
-#include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraComponent)
 
 DEFINE_LOG_CATEGORY(PandoraComponentLog)
@@ -766,14 +765,6 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 
 		return false;
 	}
-	APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	USelectingPandoraAndWeaponComponent* PandoraAndWeaponComponent = PlayerState ? PlayerState->GetSelectingPandoraAndWeaponComponent() : nullptr;
-	const EEnum_Direction SelectedDirection = PandoraAndWeaponComponent
-		? PandoraLoadout::GetDirectionFromLoadoutNumber(
-			PandoraAndWeaponComponent->GetSelectedPandoraAndWeaponNumber())
-		: EEnum_Direction::Center;
-	const bool bUpdatesSelectedLoadout = SelectedDirection == Direction;
-
 	if (PandoraDefinition && !HasPandoraDefinition(PandoraDefinition))
 	{
 		return false;
@@ -812,10 +803,6 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 	{
 		MARK_PROPERTY_DIRTY_FROM_NAME(UPandoraComponent, PandoraLoadoutSlots, this);
 		NotifyPandoraLoadoutChanged();
-	}
-	if (PandoraAndWeaponComponent && bUpdatesSelectedLoadout)
-	{
-		PandoraAndWeaponComponent->ApplySelectedPandoraAndWeapon();
 	}
 	return true;
 }

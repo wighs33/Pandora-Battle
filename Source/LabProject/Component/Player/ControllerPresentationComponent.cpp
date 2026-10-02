@@ -14,7 +14,7 @@
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
-#include "UI/HUD/Match/KillLogTypes.h"
+#include "Common/KillLogTypes.h"
 #include "UI/HUD/Notification/NotificationData.h"
 #include "UI/Core/UiSubsystem.h"
 
