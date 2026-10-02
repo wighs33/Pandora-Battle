@@ -506,7 +506,7 @@ void AMonsterCharacter::ApplyAttackDamageToCharacter(ACharacterBase* TargetChara
 	ApplyMonsterDamageToCharacter(TargetCharacter);
 }
 
-// 설정된 몬스터 피해 GE를 적용한다. 플레이어의 피격 모션 억제 규칙은 기존대로 유지한다.
+// 설정된 몬스터 피해 GE를 적용한다. 플레이어는 몬스터 접촉 피해로 피격 모션을 재생하지 않는다.
 bool AMonsterCharacter::ApplyMonsterDamageToCharacter(ACharacterBase* TargetCharacter)
 {
 	if (!MonsterPresentationSettings.ContactDamageEffectClass || !FMath::IsFinite(AttackDamageMagnitude) || AttackDamageMagnitude <= 0.0f)
@@ -532,19 +532,12 @@ bool AMonsterCharacter::ApplyMonsterDamageToCharacter(ACharacterBase* TargetChar
 	{
 		return false;
 	}
-	UBasicAttributeSet* TargetAttributes = const_cast<UBasicAttributeSet*>(TargetASC->GetSet<UBasicAttributeSet>());
-	const bool bSuppressHitReact = TargetCharacter->IsA<APdPlayer>() && TargetAttributes;
-	if (bSuppressHitReact)
+	if (TargetCharacter->IsA<APdPlayer>())
 	{
-		TargetAttributes->SetPendingIncomingDamageAllowHitReact(false);
+		Spec.Data->AddDynamicAssetTag(LabGameplayTags::Effect_Damage_NoHitReaction);
 	}
 	Spec.Data->SetSetByCallerMagnitude(DamageTag, AttackDamageMagnitude);
-	const bool bApplied = SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC).WasSuccessfullyApplied();
-	if (bSuppressHitReact)
-	{
-		TargetAttributes->SetPendingIncomingDamageAllowHitReact(true);
-	}
-	return bApplied;
+	return SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC).WasSuccessfullyApplied();
 }
 
 // 과거 BP의 상시 접촉 피해 충돌은 비활성화해 공격 판정과 중복되지 않게 한다.

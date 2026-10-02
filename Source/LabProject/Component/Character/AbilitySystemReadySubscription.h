@@ -21,7 +21,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FPdAbilitySystemReadyDelegate,
  *
  * 대상이 이미 준비되어 있으면 구독 즉시 한 번 호출하고, 이후 다시 준비될 때마다 호출한다.
  * 위젯·컴포넌트는 준비 여부를 타이머로 다시 확인하지 않고 이 알림에서만 ASC에 연결한다.
- * 소유자는 종료 시 Reset으로 구독을 해제한다.
+ * 캐릭터 구독은 ASC에서 빠질 때의 알림도 함께 받을 수 있다. 소유자는 종료 시 Reset으로 구독을 해제한다.
  */
 class LABPROJECT_API FAbilitySystemReadySubscription final
 {
@@ -30,8 +30,9 @@ public:
 	FAbilitySystemReadySubscription(const FAbilitySystemReadySubscription&) = delete;
 	FAbilitySystemReadySubscription& operator=(const FAbilitySystemReadySubscription&) = delete;
 
-	/** 지정한 캐릭터의 ASC 준비를 구독한다. */
-	void SubscribeToCharacter(ACharacterBase* Character, const FPdAbilitySystemReadyDelegate::FDelegate& Delegate);
+	/** 지정한 캐릭터의 ASC 준비를 구독한다. OnReleased를 주면 캐릭터가 그 ASC에서 빠질 때도 알린다. */
+	void SubscribeToCharacter(ACharacterBase* Character, const FPdAbilitySystemReadyDelegate::FDelegate& Delegate,
+		const FPdAbilitySystemReadyDelegate::FDelegate& OnReleased = FPdAbilitySystemReadyDelegate::FDelegate());
 
 	/** 플레이어가 조종하는 캐릭터의 ASC 준비를 구독한다. Pawn이 바뀌면 새 캐릭터가 준비될 때 다시 알린다. */
 	void SubscribeToPossessedCharacter(APlayerController* PlayerController, const FPdAbilitySystemReadyDelegate::FDelegate& Delegate);
@@ -42,4 +43,5 @@ private:
 	TWeakObjectPtr<UAbilityStateComponent> CharacterSource;
 	TWeakObjectPtr<APdPlayerController> ControllerSource;
 	FDelegateHandle Handle;
+	FDelegateHandle ReleasedHandle;
 };

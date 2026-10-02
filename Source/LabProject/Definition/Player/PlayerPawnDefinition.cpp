@@ -39,15 +39,10 @@ void UPlayerPawnDefinition::PostLoad()
 	Super::PostLoad();
 
 	// 저장된 맨손 설정의 피해 GE를 공통 설정으로 옮긴다. 기존 자산을 다시 만들 필요는 없다.
-	if (!CombatDamageSettings.OutgoingDamageEffectClass)
-	{
-		CombatDamageSettings.OutgoingDamageEffectClass = UnarmedCombatSettings.OutgoingDamageEffectClass;
-	}
 	if (!CombatDamageSettings.IncomingDamageEffectClass)
 	{
 		CombatDamageSettings.IncomingDamageEffectClass = UnarmedCombatSettings.IncomingDamageEffectClass;
 	}
-	UnarmedCombatSettings.OutgoingDamageEffectClass = nullptr;
 	UnarmedCombatSettings.IncomingDamageEffectClass = nullptr;
 
 	// DA_PlayerPawn was once saved with the intended yaw values in Pitch.
@@ -157,13 +152,12 @@ EDataValidationResult UPlayerPawnDefinition::IsDataValid(FDataValidationContext&
 			"MovementHitReactCancelTags is empty; the runtime native fallback tags will be used."));
 	}
 
-	if (!CombatDamageSettings.OutgoingDamageEffectClass
-		|| !CombatDamageSettings.IncomingDamageEffectClass)
+	if (!CombatDamageSettings.IncomingDamageEffectClass)
 	{
 		MarkInvalid(NSLOCTEXT(
 			"PlayerPawnDefinition",
 			"MissingCombatDamageEffects",
-			"Combat requires both outgoing and incoming damage Gameplay Effects."));
+			"Combat requires an incoming damage Gameplay Effect."));
 	}
 	if (UnarmedCombatSettings.AttackMontage.IsNull())
 	{

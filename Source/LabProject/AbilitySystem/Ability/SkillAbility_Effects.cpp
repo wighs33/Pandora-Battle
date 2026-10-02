@@ -59,10 +59,6 @@ FGameplayEffectSpecHandle USkillAbility::MakeConfiguredStatusEffectSpec(const US
 {
 	UPdAbilitySystemComponent* SourceAbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
 	const UStatusEffectDefinition* StatusEffectDefinition = SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
-	if (StatusEffectDefinition)
-	{
-		StatusEffectDefinition->SynchronizeStackEffectStackLimit();
-	}
 	const TSubclassOf<UGameplayEffect> DebuffGameplayEffectClass =
 		StatusEffectDefinition ? StatusEffectDefinition->StackGameplayEffectClass : FallbackStatusEffectClass;
 	if (!SourceAbilitySystemComponent || !DebuffGameplayEffectClass)

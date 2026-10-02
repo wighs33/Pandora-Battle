@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 #include "Character/CharacterBase.h"
+#include "Common/Enum_Direction.h"
 #include "Common/LabGameplayTags.h"
 #include "Mode/PlayerEliminationSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -15,12 +16,6 @@ namespace
 {
 	constexpr float MaxInvestedStatLevel = 100.f;
 	constexpr float MaxPercentEffectValue = 100.f;
-
-	bool RollPercentChance(float PercentChance)
-	{
-		float Clamped = FMath::Clamp(PercentChance, 0.f, 100.f);
-		return FMath::FRand() * 100.f < Clamped;
-	}
 
 	float CalculateCriticalDamageMultiplier(float Critical)
 	{
@@ -500,25 +495,10 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 
 	// =================================================================================================================
 
+	// 공격 피해는 CalculateOutgoingDamage로 타격 시점에 계산하므로 이 메타 속성으로 들어온 값은 쓰지 않는다.
 	if (Data.EvaluatedData.Attribute == GetOutgoingDamageAttribute())
 	{
-		bLastOutgoingDamageCriticalHit = false;
-
-		float FinalOutgoingDamage = GetOutgoingDamage();
-		if (FinalOutgoingDamage <= 0.f)
-		{
-			SetOutgoingDamage(0.f);
-			return;
-		}
-
-		const float CriticalValue = GetCritical();
-		if (RollPercentChance(CriticalValue))
-		{
-			FinalOutgoingDamage *= CalculateCriticalDamageMultiplier(CriticalValue);
-			bLastOutgoingDamageCriticalHit = true;
-		}
-
-		SetOutgoingDamage(FinalOutgoingDamage);
+		SetOutgoingDamage(0.f);
 		return;
 	}
 
@@ -589,8 +569,10 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 	if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
 	{
 		const float AppliedIncomingDamage = GetIncomingDamage();
-		const bool bCriticalHit = bPendingIncomingDamageCriticalHit;
-		const bool bAllowHitReact = bPendingIncomingDamageAllowHitReact;
+		// 공격자가 이 피해 Spec에 붙인 표시. 태그가 없는 피해(스킬·상태 이상)는 일반 피해로 처리한다.
+		const FGameplayTagContainer& DamageSpecTags = Data.EffectSpec.GetDynamicAssetTags();
+		const bool bCriticalHit = DamageSpecTags.HasTagExact(LabGameplayTags::Effect_Damage_Critical);
+		const bool bAllowHitReact = !DamageSpecTags.HasTagExact(LabGameplayTags::Effect_Damage_NoHitReaction);
 		const FGameplayEffectContextHandle& EffectContext = Data.EffectSpec.GetContext();
 		AActor* DamageInstigator = EffectContext.GetOriginalInstigator();
 		if (!DamageInstigator)
@@ -614,8 +596,6 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 		const float TargetFinalStrength = CalculateFinalStrengthDamage(this);
 		const float MitigatedIncomingDamage = CalculateArmorMitigatedDamage(StatusMitigatedIncomingDamage, TargetArmor, TargetFinalStrength);
 
-		bPendingIncomingDamageCriticalHit = false;
-		bPendingIncomingDamageAllowHitReact = true;
 		SetIncomingDamage(0.f);
 		const bool bAllowDamageHitReact = bAllowHitReact && !bStatusDamage;
 		const float HealthDamage = ApplyIncomingDamage(
@@ -792,6 +772,21 @@ float UBasicAttributeSet::CalculateCooldownDuration(const float BaseCooldownDura
 	return FMath::Max(BaseCooldownDuration, 0.0f) * (1.0f - ReductionPercent / 100.0f);
 }
 
+float UBasicAttributeSet::GetPandoraLoadoutDamageBonusPercent(const EEnum_Direction LoadoutDirection) const
+{
+	switch (LoadoutDirection)
+	{
+	case EEnum_Direction::Left:
+		return FMath::Max(GetFirstPandora(), 0.0f);
+	case EEnum_Direction::Up:
+		return FMath::Max(GetSecondPandora(), 0.0f);
+	case EEnum_Direction::Right:
+		return FMath::Max(GetThirdPandora(), 0.0f);
+	default:
+		return 0.0f;
+	}
+}
+
 float UBasicAttributeSet::GetStatusEffectDamageBonusPercent(const FGameplayTag& StatusTag) const
 {
 	if (!StatusTag.IsValid())
@@ -854,28 +849,29 @@ bool UBasicAttributeSet::SetStatusEffectDamageOnSpec(
 	return true;
 }
 
-float UBasicAttributeSet::ConsumeOutgoingDamage()
+float UBasicAttributeSet::CalculateOutgoingDamage(const float BaseDamage, bool& bOutCriticalHit) const
 {
-	const float ConsumedOutgoingDamage = GetOutgoingDamage();
-	SetOutgoingDamage(0.f);
-	return ConsumedOutgoingDamage;
+	return CalculateCriticalDamage(BaseDamage, GetCritical(), FMath::FRand() * 100.f, bOutCriticalHit);
 }
 
-bool UBasicAttributeSet::ConsumeOutgoingDamageCriticalHit()
+float UBasicAttributeSet::CalculateCriticalDamage(
+	const float BaseDamage,
+	const float Critical,
+	const float RollPercent,
+	bool& bOutCriticalHit)
 {
-	const bool bConsumedCriticalHit = bLastOutgoingDamageCriticalHit;
-	bLastOutgoingDamageCriticalHit = false;
-	return bConsumedCriticalHit;
-}
+	bOutCriticalHit = false;
+	if (!(BaseDamage > 0.f))
+	{
+		return 0.f;
+	}
 
-void UBasicAttributeSet::SetPendingIncomingDamageCriticalHit(bool bCriticalHit)
-{
-	bPendingIncomingDamageCriticalHit = bCriticalHit;
-}
-
-void UBasicAttributeSet::SetPendingIncomingDamageAllowHitReact(bool bAllowHitReact)
-{
-	bPendingIncomingDamageAllowHitReact = bAllowHitReact;
+	if (RollPercent < FMath::Clamp(Critical, 0.f, 100.f))
+	{
+		bOutCriticalHit = true;
+		return BaseDamage * CalculateCriticalDamageMultiplier(Critical);
+	}
+	return BaseDamage;
 }
 
 float UBasicAttributeSet::ApplyIncomingDamage(

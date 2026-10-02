@@ -96,3 +96,28 @@ private:
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Abilities")
 	TObjectPtr<UAbilityGrantAndInputManager> AbilityGrantAndInputManager;
 };
+
+/**
+ * 최대 자원(체력·보호막·마나·기력)을 바꾸는 동안 현재 자원의 비율을 유지한다. 서버에서만 쓴다.
+ * 가득 차 있던 자원은 새 최대값까지 채우고, 최대값이 그대로인 자원은 건드리지 않는다.
+ */
+class LABPROJECT_API FScopedResourceRatio final
+{
+public:
+	explicit FScopedResourceRatio(UPdAbilitySystemComponent* InAbilitySystem);
+	~FScopedResourceRatio();
+	FScopedResourceRatio(const FScopedResourceRatio&) = delete;
+	FScopedResourceRatio& operator=(const FScopedResourceRatio&) = delete;
+
+private:
+	struct FResource
+	{
+		FGameplayAttribute MaxAttribute;
+		FGameplayAttribute CurrentAttribute;
+		float OldMax = 0.0f;
+		float OldCurrent = 0.0f;
+	};
+
+	UPdAbilitySystemComponent* AbilitySystem = nullptr;
+	TArray<FResource, TInlineAllocator<4>> Resources;
+};

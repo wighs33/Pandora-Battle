@@ -100,10 +100,6 @@ void UAbilityStateComponent::InitializeAbilitySystemActorInfo()
 	BindFrozenTagEvent(ASC);
 	RefreshAirborneGameplayTag();
 
-	if (UEquipmentComponent* EquipmentComponent = Character->GetEquipmentComponent())
-	{
-		EquipmentComponent->RefreshCachedReferences();
-	}
 	if (UCombatComponent* CombatComponent = Character->GetCombatComponent())
 	{
 		CombatComponent->RefreshCachedReferences();
@@ -138,10 +134,26 @@ void UAbilityStateComponent::UnregisterOnAbilitySystemReady(const FDelegateHandl
 	OnAbilitySystemReady.Remove(Handle);
 }
 
+FDelegateHandle UAbilityStateComponent::RegisterOnAbilitySystemReleased(const FPdAbilitySystemReadyDelegate::FDelegate& Delegate)
+{
+	return OnAbilitySystemReleased.Add(Delegate);
+}
+
+void UAbilityStateComponent::UnregisterOnAbilitySystemReleased(const FDelegateHandle Handle)
+{
+	OnAbilitySystemReleased.Remove(Handle);
+}
+
 // 빙의 해제·Pawn 교체·종료 시 자신이 구독한 상태를 정리한다. ASC의 Avatar가 자신일 때만 ActorInfo를 비운다.
 void UAbilityStateComponent::ClearAbilitySystemActorInfo()
 {
 	ACharacterBase* Character = GetCharacterOwner();
+	if (UPdAbilitySystemComponent* ReleasedAbilitySystem = BoundAbilitySystemComponent.Get())
+	{
+		// 구독자가 이 캐릭터 몫의 효과를 아직 Avatar가 연결된 ASC에서 거둘 수 있게 먼저 알린다.
+		OnAbilitySystemReleased.Broadcast(Character, ReleasedAbilitySystem);
+	}
+
 	UAbilitySystemComponent* ASC = BoundAbilitySystemComponent.Get();
 	if (!ASC && Character)
 	{

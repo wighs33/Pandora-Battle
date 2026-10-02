@@ -11,18 +11,35 @@ FPrimaryAssetId UStatusEffectDefinition::GetPrimaryAssetId() const
 	return FPrimaryAssetId(TEXT("StatusEffect"), GetFName());
 }
 
-void UStatusEffectDefinition::SynchronizeStackEffectStackLimit() const
+#if WITH_EDITOR
+// 스택 GE의 StackLimitCount가 발동 기준과 다르면 GAS가 스택을 먼저 잘라 상태 이상이 발동하지 않으므로 저장 전에 막는다.
+EDataValidationResult UStatusEffectDefinition::IsDataValid(FDataValidationContext& Context) const
 {
-	UGameplayEffect* StackGameplayEffect = StackGameplayEffectClass
+	EDataValidationResult Result = Super::IsDataValid(Context);
+
+	const UGameplayEffect* StackGameplayEffect = StackGameplayEffectClass
 		? StackGameplayEffectClass->GetDefaultObject<UGameplayEffect>()
 		: nullptr;
-
-	if (StackGameplayEffect)
+	if (!StackGameplayEffect)
 	{
-		// GAS가 허용하는 최대 중첩 수를 상태 이상 발동 기준인 MaxStackCount에 맞추고, 최소 1스택을 보장한다.
-		StackGameplayEffect->StackLimitCount = FMath::Max(MaxStackCount, 1);
+		Context.AddError(NSLOCTEXT("StatusEffectDefinition", "MissingStackEffect",
+			"Debuff Gameplay Effect Class is required to accumulate status effect stacks."));
+		return EDataValidationResult::Invalid;
 	}
+
+	if (StackGameplayEffect->GetStackLimitCount() != MaxStackCount)
+	{
+		Context.AddError(FText::Format(
+			NSLOCTEXT("StatusEffectDefinition", "StackLimitMismatch",
+				"{0} StackLimitCount is {1}, but MaxStackCount is {2}. Set them to the same value."),
+			FText::FromString(StackGameplayEffectClass->GetName()),
+			FText::AsNumber(StackGameplayEffect->GetStackLimitCount()),
+			FText::AsNumber(MaxStackCount)));
+		Result = EDataValidationResult::Invalid;
+	}
+	return Result;
 }
+#endif
 
 bool UStatusEffectDefinition::CanStack(const UAbilitySystemComponent* TargetAbilitySystemComponent) const
 {

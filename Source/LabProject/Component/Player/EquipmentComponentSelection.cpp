@@ -1,12 +1,15 @@
 #include "Component/Player/EquipmentComponent.h"
 
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/Item/ItemDefinition.h"
+#include "Definition/Player/CharacterActionDefinition.h"
+#include "Definition/Settings/GameSettingDefinition.h"
 #include "Engine/AssetManager.h"
+#include "GameplayEffect.h"
 #include "Item/ItemInstance.h"
 #include "Pandora/PandoraLoadoutTypes.h"
+#include "Settings/GameSettingsSubsystem.h"
 #include "Weapon/WeaponBase.h"
 
 // 서버가 확정한 슬롯의 무기를 준비하고 기존 무기의 해제·새 무기의 장착 능력을 이어 준다.
@@ -21,8 +24,8 @@ bool UEquipmentComponent::RequestWeaponSelectionForDirection(
 	LatestRequestedWeapon = WeaponInstance;
 	LatestRequestedWeaponDirection = Direction;
 	bHasLatestWeaponRequest = true;
-	RefreshCachedReferences();
-	if (CachedASC && CachedASC->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon))
+	const UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem();
+	if (AbilitySystem && AbilitySystem->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon))
 	{
 		return false;
 	}
@@ -55,7 +58,6 @@ bool UEquipmentComponent::RequestWeaponSelectionForDirection(
 						return;
 					}
 
-					RefreshCachedReferences();
 					if (UItemInstance* LoadedWeaponInstance =
 						FindOwnedItemInstanceById(SelectedWeaponId))
 					{
@@ -107,7 +109,6 @@ bool UEquipmentComponent::RequestWeaponUnequip()
 	}
 	LatestRequestedWeapon = nullptr;
 	bHasLatestWeaponRequest = true;
-	RefreshCachedReferences();
 	ClearRequestedWeaponInstance();
 
 	// 아직 무기가 없어도 이전 로딩·선택은 취소한다. 빈 슬롯의 반복 해제에는 능력을 실행하지 않는다.
@@ -144,17 +145,12 @@ bool UEquipmentComponent::EquipWeapon()
 // 장착 능력이 승인된 뒤 연출이 끊겨도 남아 있는 무기 전환을 마무리한다.
 bool UEquipmentComponent::CompletePendingWeaponSelectionWithoutAnimation()
 {
-	RefreshCachedReferences();
-
 	if (!RequestedWeaponId.IsValid())
 	{
 		return false;
 	}
 
-	const bool bDeathTransitionActive = CachedASC
-		&& (CachedASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
-			|| CachedASC->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f);
-	if (bDeathTransitionActive)
+	if (IsDeathTransitionActive())
 	{
 		ClearRequestedWeaponInstance();
 		return false;
@@ -179,17 +175,12 @@ bool UEquipmentComponent::CompletePendingWeaponSelectionWithoutAnimation()
 
 bool UEquipmentComponent::TryResumePendingWeaponSelection()
 {
-	RefreshCachedReferences();
-
 	if (!RequestedWeaponId.IsValid())
 	{
 		return false;
 	}
 
-	const bool bDeathTransitionActive = CachedASC
-		&& (CachedASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
-			|| CachedASC->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f);
-	if (bDeathTransitionActive)
+	if (IsDeathTransitionActive())
 	{
 		ClearRequestedWeaponInstance();
 		return false;
@@ -212,8 +203,6 @@ bool UEquipmentComponent::TryResumePendingWeaponSelection()
 // 인벤토리 인스턴스를 사용하지 않는 AI의 기본 무기를 서버에서 직접 적용한다.
 bool UEquipmentComponent::EquipWeaponDefinition(const UItemDefinition* WeaponDefinition)
 {
-	RefreshCachedReferences();
-
 	if (bEndingPlay || !HasEquipmentAuthority())
 	{
 		return false;
@@ -254,14 +243,86 @@ bool UEquipmentComponent::EquipWeaponDefinition(const UItemDefinition* WeaponDef
 		return true;
 	}
 
-	FEquippedItemStatSnapshot PendingStatSnapshot;
-	if (!BuildItemDefinitionStatSnapshot(WeaponDefinition, PendingStatSnapshot)
-		|| !ReplaceWeapon(WeaponDefinition, FGuid::NewGuid(), EEnum_Direction::Center, PendingStatSnapshot))
+	if (!ReplaceWeapon(WeaponDefinition, FGuid::NewGuid(), EEnum_Direction::Center))
 	{
 		return false;
 	}
 	RefreshCurrentWeaponAnimationLayer();
 	return true;
+}
+
+// 무기 교체 직후 다음 교체까지의 간격을 쿨다운 효과로 건다. 쿨다운이 끝나면 막혔던 마지막 요청을 다시 시도한다.
+bool UEquipmentComponent::ApplyEquipAbilityCooldown()
+{
+	if (!HasEquipmentAuthority())
+	{
+		return false;
+	}
+
+	UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem();
+	if (!AbilitySystem)
+	{
+		return false;
+	}
+
+	if (AbilitySystem->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon))
+	{
+		return true;
+	}
+
+	TSoftObjectPtr<UCharacterActionDefinition> ActionDefinition(
+		UCharacterActionDefinition::GetDefaultDefinitionPath());
+	const UCharacterActionDefinition* LoadedDefinition =
+		ActionDefinition.LoadSynchronous();
+	if (!LoadedDefinition)
+	{
+		return false;
+	}
+
+	const float CooldownDuration = static_cast<float>(FMath::Max(
+		LoadedDefinition->GetCooldownDuration(
+			ECharacterActionType::PandoraWeaponSwap),
+		0.0));
+	if (CooldownDuration <= 0.0f)
+	{
+		return true;
+	}
+
+	FGameplayEffectContextHandle EffectContext = AbilitySystem->MakeEffectContext();
+	EffectContext.AddSourceObject(const_cast<UCharacterActionDefinition*>(
+		LoadedDefinition));
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const TSubclassOf<UGameplayEffect> CooldownEffectClass =
+		SettingDefinition
+			? SettingDefinition->AbilityCooldownGameplayEffectClass
+			: nullptr;
+	if (!CooldownEffectClass)
+	{
+		return false;
+	}
+
+	FGameplayEffectSpecHandle CooldownSpec = AbilitySystem->MakeOutgoingSpec(
+		CooldownEffectClass,
+		1.0f,
+		EffectContext);
+	FGameplayTagContainer CooldownTags;
+	CooldownTags.AddTag(LabGameplayTags::Cooldown_EquipWeapon);
+	if (!CooldownSpec.IsValid() || !CooldownSpec.Data.IsValid())
+	{
+		return false;
+	}
+
+	CooldownSpec.Data->SetSetByCallerMagnitude(
+		LabGameplayTags::Data_Cooldown,
+		CooldownDuration);
+	CooldownSpec.Data->DynamicGrantedTags.AppendTags(CooldownTags);
+	CooldownSpec.Data->AppendDynamicAssetTags(CooldownTags);
+
+	CooldownSpec.Data->AppendDynamicAssetTags(
+		FGameplayTagContainer(LabGameplayTags::Effect_Policy_RemoveOnDeath));
+	return AbilitySystem->ApplyGameplayEffectSpecToSelf(
+		*CooldownSpec.Data.Get()).WasSuccessfullyApplied();
 }
 
 bool UEquipmentComponent::UnequipCurrentWeapon()
@@ -277,8 +338,6 @@ bool UEquipmentComponent::ApplyCurrentWeaponLoadoutDirection(
 	const FGuid WeaponId,
 	const EEnum_Direction Direction)
 {
-	RefreshCachedReferences();
-
 	const EEnum_Direction SanitizedDirection = PandoraLoadout::IsLoadoutDirection(Direction) ? Direction : EEnum_Direction::Center;
 	if (bEndingPlay || !HasEquipmentAuthority())
 	{

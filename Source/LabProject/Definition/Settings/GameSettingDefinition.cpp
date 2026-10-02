@@ -43,24 +43,3 @@ void UGameSettingDefinition::GetRuntimePreloadAssetPaths(
 			return Left.ToString() < Right.ToString();
 		});
 }
-
-#if WITH_EDITOR
-EDataValidationResult UGameSettingDefinition::IsDataValid(FDataValidationContext& Context) const
-{
-	EDataValidationResult Result = Super::IsDataValid(Context);
-	if (Result == EDataValidationResult::NotValidated)
-	{
-		Result = EDataValidationResult::Valid;
-	}
-
-	if (!EquippedItemGameplayEffectClass)
-	{
-		Context.AddError(NSLOCTEXT(
-			"GameSettingDefinition",
-			"MissingEquippedItemGameplayEffect",
-			"EquippedItemGameplayEffectClass is required for equipment gameplay tags."));
-		Result = EDataValidationResult::Invalid;
-	}
-	return Result;
-}
-#endif

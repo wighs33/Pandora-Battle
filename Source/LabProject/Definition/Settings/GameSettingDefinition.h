@@ -30,9 +30,6 @@ class LABPROJECT_API UGameSettingDefinition : public UPrimaryDataAsset
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-#if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
-#endif
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	void GetRuntimePreloadAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const;
@@ -66,13 +63,8 @@ public:
 	bool bEquipWeaponsWithoutAnimation = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Equipment|Gameplay Effect",
-		meta = (DisplayName = "Equipped Item Gameplay Effect",
-			ToolTip = "Infinite GE used to grant the equipped item's gameplay tag."))
-	TSubclassOf<UGameplayEffect> EquippedItemGameplayEffectClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Equipment|Gameplay Effect",
 		meta = (DisplayName = "Equipment Stat Gameplay Effect",
-			ToolTip = "Instant GE used to apply and remove equipment stat values."))
+			ToolTip = "Instant GE (StatUpExecution) that adds stat-upgrade investments to base attribute values. Equipped items use UEquipmentStatsEffect instead."))
 	TSubclassOf<UGameplayEffect> EquipmentStatGameplayEffectClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Camera|Clamp", meta = (ClampMin = "-89.9", ClampMax = "89.9", UIMin = "-89.9", UIMax = "89.9", DisplayName = "Player View Pitch Min"))

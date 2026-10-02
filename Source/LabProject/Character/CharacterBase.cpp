@@ -12,6 +12,7 @@
 #include "Component/Character/CharacterPresentationComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/EquipmentComponent.h"
+#include "Component/Player/EquipmentEffectComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
 #include "Component/UI/DamageIndicatorComponent.h"
@@ -68,6 +69,7 @@ ACharacterBase::ACharacterBase(const FObjectInitializer& ObjectInitializer) : Su
 	HealthBarWidget = CharacterHealthBar;
 
 	EquipmentComponent = CreateDefaultSubobject<UEquipmentComponent>(TEXT("EquipmentComponent"));
+	EquipmentEffectComponent = CreateDefaultSubobject<UEquipmentEffectComponent>(TEXT("EquipmentEffectComponent"));
 	SkinEquipmentComponent = CreateDefaultSubobject<USkinEquipmentComponent>(TEXT("SkinEquipmentComponent"));
 
 	CharacterDefinition = TSoftObjectPtr<UCharacterBaseDefinition>(UCharacterBaseDefinition::GetDefaultDefinitionPath());

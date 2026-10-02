@@ -6,7 +6,8 @@
 
 // 등록을 먼저 끝낸 뒤 현재 준비 상태를 전달해, 콜백 안에서 구독을 다시 바꿔도 핸들이 남지 않게 한다.
 void FAbilitySystemReadySubscription::SubscribeToCharacter(
-	ACharacterBase* Character, const FPdAbilitySystemReadyDelegate::FDelegate& Delegate)
+	ACharacterBase* Character, const FPdAbilitySystemReadyDelegate::FDelegate& Delegate,
+	const FPdAbilitySystemReadyDelegate::FDelegate& OnReleased)
 {
 	Reset();
 
@@ -18,6 +19,10 @@ void FAbilitySystemReadySubscription::SubscribeToCharacter(
 
 	CharacterSource = AbilityStateComponent;
 	Handle = AbilityStateComponent->RegisterOnAbilitySystemReady(Delegate);
+	if (OnReleased.IsBound())
+	{
+		ReleasedHandle = AbilityStateComponent->RegisterOnAbilitySystemReleased(OnReleased);
+	}
 	if (UPdAbilitySystemComponent* ReadyAbilitySystem = AbilityStateComponent->GetReadyAbilitySystemComponent())
 	{
 		Delegate.ExecuteIfBound(Character, ReadyAbilitySystem);
@@ -49,6 +54,7 @@ void FAbilitySystemReadySubscription::Reset()
 	if (UAbilityStateComponent* AbilityStateComponent = CharacterSource.Get())
 	{
 		AbilityStateComponent->UnregisterOnAbilitySystemReady(Handle);
+		AbilityStateComponent->UnregisterOnAbilitySystemReleased(ReleasedHandle);
 	}
 	if (APdPlayerController* PdPlayerController = ControllerSource.Get())
 	{
@@ -58,4 +64,5 @@ void FAbilitySystemReadySubscription::Reset()
 	CharacterSource.Reset();
 	ControllerSource.Reset();
 	Handle.Reset();
+	ReleasedHandle.Reset();
 }

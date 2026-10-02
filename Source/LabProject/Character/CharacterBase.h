@@ -21,6 +21,7 @@ class UCharacterPresentationComponent;
 class UCombatComponent;
 class UDamageIndicatorComponent;
 class UEquipmentComponent;
+class UEquipmentEffectComponent;
 class UMaterialInterface;
 class UNiagaraComponent;
 class UNiagaraSystem;
@@ -89,6 +90,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	UEquipmentComponent* GetEquipmentComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "!Equipment")
+	UEquipmentEffectComponent* GetEquipmentEffectComponent() const { return EquipmentEffectComponent; }
 
 	UFUNCTION(BlueprintPure, Category = "!Combat")
 	UCombatComponent* GetCombatComponent() const;
@@ -250,6 +254,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Equipment", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UEquipmentComponent> EquipmentComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Equipment", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UEquipmentEffectComponent> EquipmentEffectComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Skin", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USkinEquipmentComponent> SkinEquipmentComponent;

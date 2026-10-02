@@ -5,7 +5,7 @@
 #include "GameFramework/Controller.h"
 #include "Mode/PdPlayerState.h"
 #include "Component/Player/CombatComponent.h"
-#include "Component/Player/EquipmentComponent.h"
+#include "Component/Player/EquipmentEffectComponent.h"
 #include "Component/Player/LevelingComponent.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Player/StatUpgradeDefinition.h"
@@ -121,10 +121,10 @@ namespace StatusViewModel
 		return Controller ? Cast<ACharacterBase>(Controller->GetPawn()) : nullptr;
 	}
 
-	UEquipmentComponent* ResolveEquipmentComponent(UAbilitySystemComponent* ASC)
+	UEquipmentEffectComponent* ResolveEquipmentEffectComponent(UAbilitySystemComponent* ASC)
 	{
 		const ACharacterBase* Character = ResolveCharacter(ASC);
-		return Character ? Character->GetEquipmentComponent() : nullptr;
+		return Character ? Character->GetEquipmentEffectComponent() : nullptr;
 	}
 
 	float CalculateFinalStrengthDamage(UAbilitySystemComponent* ASC, float Strength)
@@ -480,10 +480,10 @@ void UStatusViewModel::UpdateEquipmentDerivedData()
 {
 	RefreshEquipmentComponentBinding();
 	TMap<FGameplayTag, float> EquipmentBonusMagnitudes;
-	if (const UEquipmentComponent* BoundEquipmentComponent =
-		EquipmentComponent.Get())
+	if (const UEquipmentEffectComponent* BoundEquipmentEffects =
+		EquipmentEffectComponent.Get())
 	{
-		BoundEquipmentComponent->GetEquipmentBonusStatMagnitudes(
+		BoundEquipmentEffects->GetEquipmentBonusStatMagnitudes(
 			EquipmentBonusMagnitudes);
 	}
 
@@ -785,15 +785,15 @@ void UStatusViewModel::OnEquipmentStatsChanged()
 
 void UStatusViewModel::RefreshEquipmentComponentBinding()
 {
-	UEquipmentComponent* ResolvedEquipment = StatusViewModel::ResolveEquipmentComponent(ASC.Get());
+	UEquipmentEffectComponent* ResolvedEquipment = StatusViewModel::ResolveEquipmentEffectComponent(ASC.Get());
 	const ACharacterBase* Character = StatusViewModel::ResolveCharacter(ASC.Get());
 	UCombatComponent* ResolvedCombat = Character ? Character->GetCombatComponent() : nullptr;
-	if (EquipmentComponent.Get() == ResolvedEquipment && CombatComponent.Get() == ResolvedCombat)
+	if (EquipmentEffectComponent.Get() == ResolvedEquipment && CombatComponent.Get() == ResolvedCombat)
 	{
 		return;
 	}
 	ClearEquipmentComponentBinding();
-	EquipmentComponent = ResolvedEquipment;
+	EquipmentEffectComponent = ResolvedEquipment;
 	CombatComponent = ResolvedCombat;
 	if (ResolvedEquipment)
 	{
@@ -807,12 +807,12 @@ void UStatusViewModel::RefreshEquipmentComponentBinding()
 
 void UStatusViewModel::ClearEquipmentComponentBinding()
 {
-	if (UEquipmentComponent* BoundEquipmentComponent = EquipmentComponent.Get())
+	if (UEquipmentEffectComponent* BoundEquipmentEffects = EquipmentEffectComponent.Get())
 	{
-		BoundEquipmentComponent->OnEquipmentStatsChanged.RemoveAll(this);
+		BoundEquipmentEffects->OnEquipmentStatsChanged.RemoveAll(this);
 	}
 
-	EquipmentComponent.Reset();
+	EquipmentEffectComponent.Reset();
 	if (UCombatComponent* Combat = CombatComponent.Get())
 	{
 		Combat->OnDamageBonusChanged.RemoveAll(this);

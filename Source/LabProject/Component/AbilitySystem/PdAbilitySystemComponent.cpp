@@ -408,6 +408,43 @@ void UPdAbilitySystemComponent::ResetRuntimeStateForRespawn()
 	ForceReplication();
 }
 
+FScopedResourceRatio::FScopedResourceRatio(UPdAbilitySystemComponent* InAbilitySystem)
+	: AbilitySystem(InAbilitySystem && InAbilitySystem->GetSet<UBasicAttributeSet>() ? InAbilitySystem : nullptr)
+{
+	if (!AbilitySystem)
+	{
+		return;
+	}
+
+	const auto Capture = [this](const FGameplayAttribute& MaxAttribute, const FGameplayAttribute& CurrentAttribute)
+	{
+		Resources.Add({MaxAttribute, CurrentAttribute,
+			AbilitySystem->GetNumericAttribute(MaxAttribute), AbilitySystem->GetNumericAttribute(CurrentAttribute)});
+	};
+	Capture(UBasicAttributeSet::GetMaxHealthAttribute(), UBasicAttributeSet::GetHealthAttribute());
+	Capture(UBasicAttributeSet::GetMaxShieldAttribute(), UBasicAttributeSet::GetShieldAttribute());
+	Capture(UBasicAttributeSet::GetMaxManaAttribute(), UBasicAttributeSet::GetManaAttribute());
+	Capture(UBasicAttributeSet::GetMaxStaminaAttribute(), UBasicAttributeSet::GetStaminaAttribute());
+}
+
+FScopedResourceRatio::~FScopedResourceRatio()
+{
+	for (const FResource& Resource : Resources)
+	{
+		const float NewMax = FMath::Max(AbilitySystem->GetNumericAttribute(Resource.MaxAttribute), 0.0f);
+		if (FMath::IsNearlyEqual(NewMax, Resource.OldMax))
+		{
+			continue;
+		}
+
+		const bool bWasFull = Resource.OldMax <= UE_KINDA_SMALL_NUMBER || Resource.OldCurrent >= Resource.OldMax - 1.0f;
+		const float NewCurrent = bWasFull
+			? NewMax
+			: FMath::Clamp(Resource.OldCurrent * NewMax / Resource.OldMax, 0.0f, NewMax);
+		AbilitySystem->ApplyAttributeDefaultValue(Resource.CurrentAttribute, NewCurrent);
+	}
+}
+
 void UPdAbilitySystemComponent::RestoreResourcesToMaximum()
 {
 	if (!GetAttributeSet(UBasicAttributeSet::StaticClass()))

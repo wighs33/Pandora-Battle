@@ -8,14 +8,11 @@ class UAnimMontage;
 class UGameplayEffect;
 class UNiagaraSystem;
 
-// 무기와 맨손이 함께 사용하는 피해 GE 설정이다.
+// 무기와 맨손이 함께 사용하는 피해 GE 설정이다. 치명타는 공격자 능력치로 계산해 이 GE의 Spec 태그로 전달한다.
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FCombatDamageSettings
 {
 	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Damage")
-	TSubclassOf<UGameplayEffect> OutgoingDamageEffectClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Combat|Damage")
 	TSubclassOf<UGameplayEffect> IncomingDamageEffectClass;
@@ -42,9 +39,6 @@ struct LABPROJECT_API FUnarmedCombatSettings
 	GENERATED_BODY()
 
 	// 이전 자산을 읽기 위한 필드다. PostLoad에서 공통 피해 설정으로 이전한다.
-	UPROPERTY(BlueprintReadOnly, Category = "!Combat|Legacy", meta = (DeprecatedProperty))
-	TSubclassOf<UGameplayEffect> OutgoingDamageEffectClass;
-
 	UPROPERTY(BlueprintReadOnly, Category = "!Combat|Legacy", meta = (DeprecatedProperty))
 	TSubclassOf<UGameplayEffect> IncomingDamageEffectClass;
 

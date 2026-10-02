@@ -1,5 +1,6 @@
 #include "Component/Player/EquipmentComponent.h"
 
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
@@ -8,6 +9,7 @@
 #include "Component/Character/AbilityStateComponent.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
+#include "Component/Player/EquipmentEffectComponent.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
@@ -30,41 +32,27 @@ UEquipmentComponent::UEquipmentComponent(const FObjectInitializer& ObjectInitial
 	SetIsReplicatedByDefault(true);
 }
 
-// Pawn이 사용할 ASC와 인벤토리의 변경 알림을 연결한다.
+// ASC는 빙의와 PlayerState 도착 순서에 따라 늦게 준비되므로, 준비 알림에서만 장착 쿨다운 태그를 구독한다.
 void UEquipmentComponent::BeginPlay()
 {
 	bEndingPlay = false;
 	Super::BeginPlay();
 
-	RefreshCachedReferences();
+	AbilitySystemSubscription.SubscribeToCharacter(
+		GetCharacter(),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
 }
 
-// Pawn 종료 시 적용 능력치와 직접 생성한 무기를 정리한다. 일반 교체 알림은 보내지 않는다.
+// Pawn 종료 시 직접 생성한 무기를 정리한다. 무기 효과는 장비 효과 컴포넌트가 스스로 거두고, 일반 교체 알림은 보내지 않는다.
 void UEquipmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	bEndingPlay = true;
 	// 늦게 도착한 로딩 완료와 쿨다운 알림이 종료 중인 Pawn의 장착을 다시 시작하지 않게 한다.
 	ClearRequestedWeaponInstance();
-	ReleaseWeaponPresentationLoads();
-	if (CachedASC && EquipCooldownTagChangedDelegateHandle.IsValid())
-	{
-		CachedASC->RegisterGameplayTagEvent(LabGameplayTags::Cooldown_EquipWeapon,
-			EGameplayTagEventType::NewOrRemoved).Remove(EquipCooldownTagChangedDelegateHandle);
-	}
-	EquipCooldownTagChangedDelegateHandle.Reset();
-	UnbindEquipmentSlotsChanged();
-	UnbindInventoryChanged();
-	if (HasEquipmentAuthority())
-	{
-		if (!ClearAppliedEquipmentState(CachedASC))
-		{
-			UE_LOG(
-				EquipmentComponentLog,
-				Error,
-				TEXT("Failed to clear applied equipment state while ending play for %s."),
-				*GetNameSafe(GetOwner()));
-		}
-	}
+	PresentationLoader.Reset();
+	AbilitySystemSubscription.Reset();
+	BindEquipCooldownTag(nullptr);
 	if (HasEquipmentAuthority() && IsValid(CurrentWeaponActor))
 	{
 		CurrentWeaponActor->Destroy();
@@ -76,115 +64,73 @@ void UEquipmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-// 빙의와 PlayerState 도착 순서에 맞춰 참조·구독을 갱신하고 아직 적용하지 않은 장비 능력치를 동기화한다.
-void UEquipmentComponent::RefreshCachedReferences()
+void UEquipmentComponent::HandleAbilitySystemReady(ACharacterBase* Character, UPdAbilitySystemComponent* ReadyAbilitySystem)
 {
-	if (bEndingPlay)
+	BindEquipCooldownTag(ReadyAbilitySystem);
+}
+
+void UEquipmentComponent::HandleAbilitySystemReleased(ACharacterBase* Character, UPdAbilitySystemComponent* ReleasedAbilitySystem)
+{
+	BindEquipCooldownTag(nullptr);
+}
+
+void UEquipmentComponent::BindEquipCooldownTag(UPdAbilitySystemComponent* AbilitySystem)
+{
+	if (CooldownTagAbilitySystem.Get() == AbilitySystem)
 	{
 		return;
 	}
-	CachedOwner = Cast<ACharacterBase>(GetOwner());
-	const APdPlayerState* PdPlayerState = CachedOwner ? Cast<APdPlayerState>(CachedOwner->GetPlayerState()) : nullptr;
-	UPdAbilitySystemComponent* NewAbilitySystem =
-		CachedOwner ? CachedOwner->GetPdAbilitySystemComponent() : nullptr;
-	UInventoryComponent* NewInventory =
-		PdPlayerState ? PdPlayerState->GetInventoryComponent() : nullptr;
-	const bool bAbilitySystemChanged = CachedASC != NewAbilitySystem;
-	const bool bInventoryChanged = CachedInventory != NewInventory;
-	if (bAbilitySystemChanged && HasEquipmentAuthority())
-	{
-		if (!ClearAppliedEquipmentState(CachedASC))
-		{
-			UE_LOG(
-				EquipmentComponentLog,
-				Error,
-				TEXT("Failed to clear applied equipment state before changing the ability system for %s."),
-				*GetNameSafe(GetOwner()));
-			// 이전 ASC의 적용 기록을 새 ASC에 적용한 것으로 간주하지 않는다.
-			CurrentWeaponStatSnapshot.Reset();
-			EquippedItemsStatSnapshot.Reset();
-		}
-	}
-	if (CachedASC != NewAbilitySystem)
-	{
-		if (CachedASC && EquipCooldownTagChangedDelegateHandle.IsValid())
-		{
-			CachedASC->RegisterGameplayTagEvent(
-				LabGameplayTags::Cooldown_EquipWeapon,
-				EGameplayTagEventType::NewOrRemoved).Remove(
-					EquipCooldownTagChangedDelegateHandle);
-		}
-		EquipCooldownTagChangedDelegateHandle.Reset();
-		CachedASC = NewAbilitySystem;
-		if (CachedASC)
-		{
-			EquipCooldownTagChangedDelegateHandle =
-				CachedASC->RegisterGameplayTagEvent(
-					LabGameplayTags::Cooldown_EquipWeapon,
-					EGameplayTagEventType::NewOrRemoved).AddUObject(
-						this,
-						&ThisClass::HandleEquipCooldownTagChanged);
-		}
-	}
-	if (bInventoryChanged)
-	{
-		UnbindEquipmentSlotsChanged();
-		UnbindInventoryChanged();
-		CachedInventory = NewInventory;
-		if (CachedInventory)
-		{
-			EquipmentSlotsChangedDelegateHandle =
-				CachedInventory->OnEquipmentSlotsChanged.AddUObject(
-					this,
-					&ThisClass::HandleEquipmentSlotsChanged);
-			InventoryChangedDelegateHandle =
-				CachedInventory->OnInventoryChanged.AddUObject(
-					this,
-					&ThisClass::HandleInventoryChanged);
-		}
-	}
-	if (bAbilitySystemChanged || bInventoryChanged)
-	{
-		bEquipmentStatsInitialized = false;
-	}
-	if (const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this))
-	{
-		EquippedItemEffectClass =
-			SettingDefinition->EquippedItemGameplayEffectClass;
-		EquipmentStatGameplayEffectClass =
-			SettingDefinition->EquipmentStatGameplayEffectClass;
-	}
 
-	if (HasEquipmentAuthority()
-		&& CachedASC
-		&& CachedInventory
-		&& !bEquipmentStatsInitialized
-		&& !bRefreshingEquipmentStats)
+	if (UPdAbilitySystemComponent* PreviousAbilitySystem = CooldownTagAbilitySystem.Get())
 	{
-		RefreshEquipmentStats();
+		PreviousAbilitySystem->RegisterGameplayTagEvent(LabGameplayTags::Cooldown_EquipWeapon,
+			EGameplayTagEventType::NewOrRemoved).Remove(EquipCooldownTagChangedDelegateHandle);
 	}
+	EquipCooldownTagChangedDelegateHandle.Reset();
 
-	if (bAbilitySystemChanged
-		&& HasEquipmentAuthority()
-		&& CachedASC
-		&& CurrentWeaponDefinition)
+	CooldownTagAbilitySystem = AbilitySystem;
+	if (AbilitySystem)
 	{
-		ApplyCurrentWeaponTagEffect(CachedASC, CurrentWeaponDefinition);
+		EquipCooldownTagChangedDelegateHandle = AbilitySystem->RegisterGameplayTagEvent(LabGameplayTags::Cooldown_EquipWeapon,
+			EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::HandleEquipCooldownTagChanged);
 	}
+}
+
+ACharacterBase* UEquipmentComponent::GetCharacter() const
+{
+	return Cast<ACharacterBase>(GetOwner());
+}
+
+UPdAbilitySystemComponent* UEquipmentComponent::GetReadyAbilitySystem() const
+{
+	const ACharacterBase* Character = GetCharacter();
+	const UAbilityStateComponent* AbilityState = Character ? Character->GetAbilityStateComponent() : nullptr;
+	return AbilityState ? AbilityState->GetReadyAbilitySystemComponent() : nullptr;
+}
+
+UInventoryComponent* UEquipmentComponent::GetInventory() const
+{
+	const ACharacterBase* Character = GetCharacter();
+	const APdPlayerState* PlayerState = Character ? Character->GetPlayerState<APdPlayerState>() : nullptr;
+	return PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+}
+
+UEquipmentEffectComponent* UEquipmentComponent::GetEquipmentEffects() const
+{
+	const ACharacterBase* Character = GetCharacter();
+	return Character ? Character->GetEquipmentEffectComponent() : nullptr;
 }
 
 void UEquipmentComponent::OnRep_CurrentWeaponDefinition()
 {
-	RefreshCachedReferences();
 	AttachWeaponToOwner(CurrentWeaponActor, CurrentWeaponDefinition);
 	RefreshCurrentWeaponPresentation();
+	SyncWeaponEffect();
 	NotifyCurrentWeaponDefinitionChanged();
 }
 
 void UEquipmentComponent::OnRep_CurrentWeaponActor()
 {
-	RefreshCachedReferences();
 	AttachWeaponToOwner(CurrentWeaponActor, CurrentWeaponDefinition);
 	RefreshCurrentWeaponPresentation();
 	NotifyCurrentWeaponStateChanged();
@@ -192,33 +138,37 @@ void UEquipmentComponent::OnRep_CurrentWeaponActor()
 
 void UEquipmentComponent::OnRep_CurrentWeaponId()
 {
-	RefreshCachedReferences();
+	SyncWeaponEffect();
 	NotifyCurrentWeaponStateChanged();
+}
+
+// 클라이언트도 현재 무기를 장비 효과 컴포넌트에 알려, 화면에 보여 줄 장비 능력치 합계에 무기를 넣게 한다.
+void UEquipmentComponent::SyncWeaponEffect() const
+{
+	if (UEquipmentEffectComponent* Effects = GetEquipmentEffects())
+	{
+		Effects->SetWeapon(GetCurrentWeaponDefinition(), CurrentWeaponId);
+	}
 }
 
 void UEquipmentComponent::NotifyCurrentWeaponDefinitionChanged()
 {
 	NotifyCurrentWeaponStateChanged();
-	if (const ACharacterBase* CharacterOwner = CachedOwner.Get())
+	if (const ACharacterBase* CharacterOwner = GetCharacter())
 	{
-		if (UAbilityStateComponent* AbilityState =
-			CharacterOwner->GetAbilityStateComponent())
+		if (UAbilityStateComponent* AbilityState = CharacterOwner->GetAbilityStateComponent())
 		{
 			AbilityState->ApplyMovementSpeedFromAttribute();
 		}
 	}
-	OnCurrentWeaponDefinitionChanged.Broadcast();
 }
 
 void UEquipmentComponent::NotifyCurrentWeaponStateChanged()
 {
-	RefreshCachedReferences();
-
-	if (CachedASC)
+	if (UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem())
 	{
-		CachedASC->OnAbilitiesChangedNative.Broadcast();
+		AbilitySystem->OnAbilitiesChangedNative.Broadcast();
 	}
-	OnEquipmentStatsChanged.Broadcast();
 }
 
 void UEquipmentComponent::HandleEquipCooldownTagChanged(
@@ -346,14 +296,10 @@ bool UEquipmentComponent::EquipWeaponInternal(
 
 	if (IsCurrentWeapon(NewCurrentWeaponId))
 	{
-		const bool bWeaponLoadoutDirectionChanged = CurrentWeaponLoadoutDirection != SanitizedWeaponLoadoutDirection;
 		if (CurrentWeaponLoadoutDirection != SanitizedWeaponLoadoutDirection)
 		{
 			CurrentWeaponLoadoutDirection = SanitizedWeaponLoadoutDirection;
 			MarkCurrentWeaponStateDirty(false, false, false, true);
-		}
-		if (HasEquipmentAuthority() && bWeaponLoadoutDirectionChanged)
-		{
 			RefreshPandoraForWeaponChange();
 			NotifyCurrentWeaponStateChanged();
 		}
@@ -386,10 +332,7 @@ bool UEquipmentComponent::EquipWeaponInternal(
 	}
 
 	RequestWeaponPresentationLoad(ItemDefinition, FSimpleDelegate());
-
-	FEquippedItemStatSnapshot PendingStatSnapshot;
-	return BuildItemStatSnapshot(WeaponInstance, PendingStatSnapshot)
-		&& ReplaceWeapon(ItemDefinition, NewCurrentWeaponId, SanitizedWeaponLoadoutDirection, PendingStatSnapshot);
+	return ReplaceWeapon(ItemDefinition, NewCurrentWeaponId, SanitizedWeaponLoadoutDirection);
 }
 
 bool UEquipmentComponent::ResolveWeaponEquipRequest(UItemInstance* WeaponInstance, const UItemDefinition*& OutItemDefinition, FGuid& OutWeaponId) const
@@ -397,9 +340,8 @@ bool UEquipmentComponent::ResolveWeaponEquipRequest(UItemInstance* WeaponInstanc
 	OutItemDefinition = nullptr;
 	OutWeaponId.Invalidate();
 
-	ACharacterBase* CharacterOwner = CachedOwner.Get();
 	const UItemDefinition* ItemDefinition = WeaponInstance ? WeaponInstance->ItemDefinition.Get() : nullptr;
-	if (!CharacterOwner || !ItemDefinition || !IsWeaponDefinitionEquipable(ItemDefinition))
+	if (!GetCharacter() || !ItemDefinition || !IsWeaponDefinitionEquipable(ItemDefinition))
 	{
 		return false;
 	}
@@ -432,39 +374,17 @@ bool UEquipmentComponent::ResolveWeaponIdFromInstance(UItemInstance* WeaponInsta
 {
 	OutWeaponId.Invalidate();
 
-	if (!IsValid(WeaponInstance) || !IsWeaponDefinitionEquipable(WeaponInstance->ItemDefinition.Get()))
+	UInventoryComponent* InventoryComponent = GetInventory();
+	if (!IsValid(WeaponInstance) || !IsWeaponDefinitionEquipable(WeaponInstance->ItemDefinition.Get()) || !InventoryComponent)
 	{
 		return false;
 	}
 
-	UInventoryComponent* InventoryComponent = CachedInventory.Get();
-	if (!InventoryComponent)
-	{
-		const ACharacterBase* CharacterOwner = CachedOwner.Get();
-		if (!CharacterOwner)
+	const bool bOwnsWeaponInstance = InventoryComponent->GetAllItems().Items.ContainsByPredicate(
+		[WeaponInstance](const TObjectPtr<UItemInstance>& OwnedItemInstance)
 		{
-			CharacterOwner = Cast<ACharacterBase>(GetOwner());
-		}
-
-		const APdPlayerState* PdPlayerState = CharacterOwner ? Cast<APdPlayerState>(CharacterOwner->GetPlayerState()) : nullptr;
-		InventoryComponent = PdPlayerState ? PdPlayerState->GetInventoryComponent() : nullptr;
-	}
-
-	if (!InventoryComponent)
-	{
-		return false;
-	}
-
-	bool bOwnsWeaponInstance = false;
-	for (const TObjectPtr<UItemInstance>& OwnedItemInstance : InventoryComponent->GetAllItems().Items)
-	{
-		if (OwnedItemInstance.Get() == WeaponInstance)
-		{
-			bOwnsWeaponInstance = true;
-			break;
-		}
-	}
-
+			return OwnedItemInstance.Get() == WeaponInstance;
+		});
 	if (!bOwnsWeaponInstance)
 	{
 		return false;
@@ -530,13 +450,8 @@ void UEquipmentComponent::RefreshPandoraForWeaponChange() const
 		return;
 	}
 
-	const ACharacterBase* CharacterOwner = CachedOwner.Get();
-	if (!CharacterOwner)
-	{
-		CharacterOwner = Cast<ACharacterBase>(GetOwner());
-	}
-
-	const APdPlayerState* PlayerStateOwner = CharacterOwner ? Cast<APdPlayerState>(CharacterOwner->GetPlayerState()) : nullptr;
+	const ACharacterBase* CharacterOwner = GetCharacter();
+	const APdPlayerState* PlayerStateOwner = CharacterOwner ? CharacterOwner->GetPlayerState<APdPlayerState>() : nullptr;
 	if (UPandoraComponent* PandoraComponent = PlayerStateOwner ? PlayerStateOwner->GetPandoraComponent() : nullptr)
 	{
 		PandoraComponent->RefreshCurrentPandoraSkills();
@@ -545,27 +460,31 @@ void UEquipmentComponent::RefreshPandoraForWeaponChange() const
 
 bool UEquipmentComponent::TryActivateSingleAbilityTag(const FGameplayTag& AbilityTag) const
 {
-	UPdAbilitySystemComponent* ASC = CachedASC.Get();
 	// Pawn이 존재해도 비동기 초기화나 빙의 전환 중에는 ASC의 Avatar가 아직 연결되지 않을 수 있다.
 	// 대기 중인 무기 선택은 유지하고 현재 캐릭터가 연결된 뒤 다시 적용한다.
-	if (!ASC || !AbilityTag.IsValid() || !IsValid(CachedOwner.Get()) || ASC->GetAvatarActor() != CachedOwner.Get())
+	UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem();
+	if (!AbilitySystem || !AbilityTag.IsValid())
 	{
 		return false;
 	}
 
 	FGameplayTagContainer AbilityTagContainer;
 	AbilityTagContainer.AddTag(AbilityTag);
-	return ASC->TryActivateAbilitiesByTag(AbilityTagContainer, true);
+	return AbilitySystem->TryActivateAbilitiesByTag(AbilityTagContainer, true);
 }
 
 bool UEquipmentComponent::HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const
 {
-	UPdAbilitySystemComponent* ASC = CachedASC.Get();
-	if (!ASC || AbilityTags.IsEmpty())
-	{
-		return false;
-	}
-	return ASC->HasActiveAbilityWithTags(AbilityTags);
+	const UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem();
+	return AbilitySystem && !AbilityTags.IsEmpty() && AbilitySystem->HasActiveAbilityWithTags(AbilityTags);
+}
+
+bool UEquipmentComponent::IsDeathTransitionActive() const
+{
+	const UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem();
+	return AbilitySystem
+		&& (AbilitySystem->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
+			|| AbilitySystem->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f);
 }
 
 FGameplayTag UEquipmentComponent::GetEquipAbilityTag() const
@@ -632,12 +551,7 @@ void UEquipmentComponent::CommitCurrentWeaponState(
 
 bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 {
-	const bool bHasCurrentWeaponState = CurrentWeaponId.IsValid()
-		|| CurrentWeaponActor
-		|| CurrentWeaponDefinition
-		|| CurrentWeaponStatSnapshot.HasAnyMagnitude()
-		|| CurrentWeaponTagEffectHandle.IsValid();
-	if (!bHasCurrentWeaponState)
+	if (!CurrentWeaponId.IsValid() && !CurrentWeaponActor && !CurrentWeaponDefinition)
 	{
 		if (CurrentWeaponLoadoutDirection != EEnum_Direction::Center)
 		{
@@ -648,12 +562,11 @@ bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 		return false;
 	}
 
-	if (!RemoveCurrentWeaponStats())
+	// 무기 효과(능력치·아이템 태그)를 먼저 거둬, 판도라 스킬 갱신이 이전 무기 태그를 보지 않게 한다.
+	if (UEquipmentEffectComponent* Effects = GetEquipmentEffects())
 	{
-		return false;
+		Effects->SetWeapon(nullptr, FGuid());
 	}
-
-	RemoveCurrentWeaponTagEffect(CachedASC, CurrentWeaponDefinition);
 
 	if (CurrentWeaponActor)
 	{
@@ -740,6 +653,43 @@ bool UEquipmentComponent::GetHitReactData(FHitReactData& OutHitReactData) const
 	return true;
 }
 
+const UItemDefinition* UEquipmentComponent::GetCurrentWeaponDefinition() const
+{
+	if (CurrentWeaponDefinition)
+	{
+		return CurrentWeaponDefinition.Get();
+	}
+
+	if (const UItemInstance* EquippedItemInstance = FindOwnedItemInstanceById(CurrentWeaponId))
+	{
+		return EquippedItemInstance->ItemDefinition.Get();
+	}
+	return nullptr;
+}
+
+// 무기 피해량(힘)처럼 속성에 더하지 않는 무기 능력치는 전투가 여기서 직접 읽는다.
+float UEquipmentComponent::GetCurrentWeaponStatMagnitude(const FGameplayTag StatTag) const
+{
+	if (!StatTag.IsValid())
+	{
+		return 0.0f;
+	}
+
+	if (const UItemInstance* EquippedItemInstance = FindOwnedItemInstanceById(CurrentWeaponId))
+	{
+		return EquippedItemInstance->GetEffectiveStatMagnitude(StatTag);
+	}
+
+	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
+	return ItemDefinition ? ItemDefinition->Map_Stat_Magnitude.FindRef(StatTag) : 0.0f;
+}
+
+UItemInstance* UEquipmentComponent::FindOwnedItemInstanceById(const FGuid ItemId) const
+{
+	const UInventoryComponent* InventoryComponent = ItemId.IsValid() ? GetInventory() : nullptr;
+	return InventoryComponent ? InventoryComponent->FindItemInstanceById(ItemId) : nullptr;
+}
+
 // 선택 변경과 해제는 같은 세대 번호로 이전 소유 무기·AI 무기의 로딩 완료를 무효화한다.
 void UEquipmentComponent::ClearRequestedWeaponInstance()
 {
@@ -748,9 +698,8 @@ void UEquipmentComponent::ClearRequestedWeaponInstance()
 	RequestedWeaponLoadoutDirection = EEnum_Direction::Center;
 }
 
-// 소유 아이템과 AI 기본 무기가 같은 Actor 생성·능력치 적용·복제 확정 절차를 사용한다.
-bool UEquipmentComponent::ReplaceWeapon(const UItemDefinition* Definition, const FGuid WeaponId,
-	const EEnum_Direction Direction, const FEquippedItemStatSnapshot& StatSnapshot)
+// 소유 아이템과 AI 기본 무기가 같은 Actor 생성·무기 효과 적용·복제 확정 절차를 사용한다.
+bool UEquipmentComponent::ReplaceWeapon(const UItemDefinition* Definition, const FGuid WeaponId, const EEnum_Direction Direction)
 {
 	const TSubclassOf<AWeaponBase> WeaponClass = Definition ? Definition->WeaponData.Equip.ActorClass.Get() : nullptr;
 	if (bEndingPlay || !HasEquipmentAuthority() || !WeaponClass)
@@ -758,24 +707,19 @@ bool UEquipmentComponent::ReplaceWeapon(const UItemDefinition* Definition, const
 		return false;
 	}
 
-	const bool bHadCurrentWeaponState = CurrentWeaponId.IsValid() || CurrentWeaponActor || CurrentWeaponDefinition
-		|| CurrentWeaponStatSnapshot.HasAnyMagnitude() || CurrentWeaponTagEffectHandle.IsValid();
-	if (!UnequipCurrentWeaponInternal() && bHadCurrentWeaponState)
-	{
-		return false;
-	}
+	UnequipCurrentWeaponInternal();
 
 	AWeaponBase* SpawnedWeapon = SpawnAndAttachWeaponActor(WeaponClass, Definition);
 	if (!SpawnedWeapon)
 	{
 		return false;
 	}
-	if (!ApplyAndStoreWeaponStats(StatSnapshot))
+
+	// 판도라 스킬 갱신이 새 무기 태그를 보도록 상태를 확정하기 전에 무기 효과를 건다.
+	if (UEquipmentEffectComponent* Effects = GetEquipmentEffects())
 	{
-		SpawnedWeapon->Destroy();
-		return false;
+		Effects->SetWeapon(Definition, WeaponId);
 	}
-	ApplyCurrentWeaponTagEffect(CachedASC, Definition);
 	CommitCurrentWeaponState(WeaponId, SpawnedWeapon, Definition, Direction);
 	return true;
 }

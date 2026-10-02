@@ -129,9 +129,10 @@ private:
 	bool ApplyAttackDamageToTarget(AActor* TargetActor, float RawDamage, UObject* SourceObject, AActor* DamageCauser, bool bAllowHitReact);
 
 protected:
+	// DamageSpecTags는 Spec의 동적 애셋 태그로 붙어 대상 AttributeSet이 치명타·피격 반응 여부를 읽는다.
 	bool ApplyDamageEffect(UPdAbilitySystemComponent* SourceASC, UPdAbilitySystemComponent* TargetASC,
 		TSubclassOf<UGameplayEffect> DamageEffectClass, float Magnitude, UObject* SourceObject,
-		AActor* InstigatorActor = nullptr, AActor* EffectCauserActor = nullptr) const;
+		AActor* InstigatorActor, AActor* EffectCauserActor, const FGameplayTagContainer& DamageSpecTags) const;
 
 public:
 	FOnCombatDamageBonusChanged OnDamageBonusChanged;

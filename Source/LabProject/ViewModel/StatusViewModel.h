@@ -5,7 +5,7 @@
 #include "StatusViewModel.generated.h"
 
 class UAbilitySystemComponent;
-class UEquipmentComponent;
+class UEquipmentEffectComponent;
 class UCombatComponent;
 struct FOnAttributeChangeData;
 
@@ -342,7 +342,7 @@ protected:
 	TWeakObjectPtr<UAbilitySystemComponent> ASC;
 
 	UPROPERTY()
-	TWeakObjectPtr<UEquipmentComponent> EquipmentComponent;
+	TWeakObjectPtr<UEquipmentEffectComponent> EquipmentEffectComponent;
 
 	UPROPERTY()
 	TWeakObjectPtr<UCombatComponent> CombatComponent;

@@ -41,6 +41,9 @@ public:
 	bool IsAbilitySystemReady() const { return GetReadyAbilitySystemComponent() != nullptr; }
 	FDelegateHandle RegisterOnAbilitySystemReady(const FPdAbilitySystemReadyDelegate::FDelegate& Delegate);
 	void UnregisterOnAbilitySystemReady(FDelegateHandle Handle);
+	/** 이 캐릭터가 ASC의 Avatar에서 빠지기 직전(빙의 해제·Pawn 교체·종료)에 보낸다. 준비 알림을 보낸 ASC에 대해서만 보낸다. */
+	FDelegateHandle RegisterOnAbilitySystemReleased(const FPdAbilitySystemReadyDelegate::FDelegate& Delegate);
+	void UnregisterOnAbilitySystemReleased(FDelegateHandle Handle);
 
 	// 캐릭터 Tick·이동 모드 변경·리스폰에서 호출하는 상태 반영.
 	void MaintainFrozenRotationLock();
@@ -86,6 +89,7 @@ private:
 	TWeakObjectPtr<UPdAbilitySystemComponent> BoundAbilitySystemComponent;
 
 	FPdAbilitySystemReadyDelegate OnAbilitySystemReady;
+	FPdAbilitySystemReadyDelegate OnAbilitySystemReleased;
 
 	UPROPERTY(Transient)
 	float BaseMaxWalkSpeed = 450.0f;

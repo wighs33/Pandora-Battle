@@ -354,36 +354,14 @@ void USkillAbility::ApplyCooldownOnEnd(
 
 float USkillAbility::GetDamageBonusPercent() const
 {
-	float DamageBonusPercent = Super::GetDamageBonusPercent();
+	const float DamageBonusPercent = Super::GetDamageBonusPercent();
 
 	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	const UBasicAttributeSet* Attributes = ASC ? ASC->GetSet<UBasicAttributeSet>() : nullptr;
 	const UPandoraSkillSource* PandoraSource = GetPandoraSkillSource();
-
-	if (!Attributes || !PandoraSource)
-	{
-		return DamageBonusPercent;
-	}
-
-	switch (PandoraSource->GetLoadoutDirection())
-	{
-	case EEnum_Direction::Left:
-		DamageBonusPercent += FMath::Max(Attributes->GetFirstPandora(), 0.0f);
-		break;
-
-	case EEnum_Direction::Up:
-		DamageBonusPercent += FMath::Max(Attributes->GetSecondPandora(), 0.0f);
-		break;
-
-	case EEnum_Direction::Right:
-		DamageBonusPercent += FMath::Max(Attributes->GetThirdPandora(), 0.0f);
-		break;
-
-	default:
-		break;
-	}
-
-	return DamageBonusPercent;
+	return Attributes && PandoraSource
+		? DamageBonusPercent + Attributes->GetPandoraLoadoutDamageBonusPercent(PandoraSource->GetLoadoutDirection())
+		: DamageBonusPercent;
 }
 
 FGameplayEffectSpecHandle USkillAbility::MakeActionDamageSpec(

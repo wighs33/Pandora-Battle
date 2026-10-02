@@ -6,6 +6,7 @@
 #include "BasicAttributeSet.generated.h"
 
 struct FGameplayEffectSpecHandle;
+enum class EEnum_Direction : uint8;
 
 #define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
 GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
@@ -31,6 +32,9 @@ public:
 	/** 원본 쿨타임에 신비의 감소율(0~100%)을 반영한 최종 지속시간(초)을 계산한다. */
 	float CalculateCooldownDuration(float BaseCooldownDuration) const;
 
+	/** 판도라를 장착한 칸(왼쪽·위·오른쪽)의 판도라 포스로 얻는 스킬 피해 증가율(%). 그 밖의 칸이나 음수 능력치는 0이다. */
+	float GetPandoraLoadoutDamageBonusPercent(EEnum_Direction LoadoutDirection) const;
+
 	/** 상태 태그에 해당하는 피해 증가율(%)을 반환한다. 지원하지 않는 태그나 음수 능력치는 0으로 처리한다. */
 	float GetStatusEffectDamageBonusPercent(const FGameplayTag& StatusTag) const;
 
@@ -48,10 +52,15 @@ public:
 		float SkillScaledDamageMagnitude,
 		float DamageScale = 1.0f);
 
-	float ConsumeOutgoingDamage();
-	bool ConsumeOutgoingDamageCriticalHit();
-	void SetPendingIncomingDamageCriticalHit(bool bCriticalHit);
-	void SetPendingIncomingDamageAllowHitReact(bool bAllowHitReact);
+	/**
+	 * 공격자의 치명타 능력치로 판정한 공격 피해를 계산한다. 타격마다 공격자 쪽에서 한 번 계산하고,
+	 * 치명타 여부는 피해 GE Spec의 Effect.Damage.Critical 동적 애셋 태그로 대상에게 전달한다.
+	 */
+	float CalculateOutgoingDamage(float BaseDamage, bool& bOutCriticalHit) const;
+
+	/** 치명타 판정 규칙. RollPercent(0~100)가 치명타 확률보다 작으면 치명타 배율을 곱한다. */
+	static float CalculateCriticalDamage(float BaseDamage, float Critical, float RollPercent, bool& bOutCriticalHit);
+
 	static bool ResolveAttributeFromStatTag(
 		const FGameplayTag& StatTag,
 		FGameplayAttribute& OutAttribute);
@@ -285,11 +294,6 @@ protected:
 		bool bAllowHitReact = true,
 		bool bShowMiss = true);
 
-private:
-	bool bLastOutgoingDamageCriticalHit = false;
-	bool bPendingIncomingDamageCriticalHit = false;
-	bool bPendingIncomingDamageAllowHitReact = true;
-
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "!Leveling", ReplicatedUsing = OnRep_Level)
 	FGameplayAttributeData Level = 1.f;
@@ -453,6 +457,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "!Resource", ReplicatedUsing = OnRep_MaxStaminaIncreasePercent, meta = (ForceUnits = "%"))
 	FGameplayAttributeData MaxStaminaIncreasePercent = 0.f;
 
+	// 공격 피해는 CalculateOutgoingDamage로 계산한다. 기존 GE 애셋이 참조하므로 속성만 남기고, 들어온 값은 즉시 비운다.
 	UPROPERTY(BlueprintReadWrite, Category = "!Damage")
 	FGameplayAttributeData OutgoingDamage = 0.f;
 

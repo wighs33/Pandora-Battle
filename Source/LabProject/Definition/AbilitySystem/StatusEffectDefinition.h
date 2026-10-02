@@ -3,6 +3,11 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
+
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include "StatusEffectDefinition.generated.h"
 
 class UGameplayEffect;
@@ -26,14 +31,15 @@ class LABPROJECT_API UStatusEffectDefinition : public UPrimaryDataAsset
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	bool CanStack(const UAbilitySystemComponent* TargetAbilitySystemComponent) const;
 	void RemoveStacks(UAbilitySystemComponent* TargetAbilitySystemComponent) const;
 
 	float GetDamageMagnitude() const { return DamageMagnitude; }
-
-	void SynchronizeStackEffectStackLimit() const;
 
 public:
 	/** 발동 전 누적 효과를 식별하는 태그. 스택 조회와 누적 효과 제거에 사용한다. */
@@ -44,7 +50,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect|Debuff", meta = (DisplayName = "Debuff Gameplay Effect Class"))
 	TSubclassOf<UGameplayEffect> StackGameplayEffectClass;
 
-	/** 누적 가능한 최대 스택 수이자 상태 이상 발동에 필요한 스택 수. */
+	/** 누적 가능한 최대 스택 수이자 상태 이상 발동에 필요한 스택 수. 스택 GameplayEffect의 StackLimitCount와 같아야 한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!StatusEffect|Debuff", meta = (ClampMin = "1"))
 	int32 MaxStackCount = 1;
 

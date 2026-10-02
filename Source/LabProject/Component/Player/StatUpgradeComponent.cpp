@@ -201,24 +201,16 @@ bool UStatUpgradeComponent::ApplyStatChange(FGameplayTag StatTag, const int32 Le
 		StatMagnitudes.FindOrAdd(Rule->CostPointTag) -= Cost * LevelDelta;
 	}
 
-	FGameplayAttribute MaxAttribute;
-	FGameplayAttribute CurrentAttribute;
-	float OldMax = 0.f;
-	float OldCurrent = 0.f;
 	if (Binding->IsMaxResource())
 	{
 		float ResourceBase = 0.f;
-		if (!Definition->TryGetResourceBaseValue(*Binding, ResourceBase)
-			|| !UBasicAttributeSet::ResolveAttributeFromStatTag(Binding->StatTag, MaxAttribute)
-			|| !UBasicAttributeSet::ResolveAttributeFromStatTag(Binding->CurrentResourceTag, CurrentAttribute))
+		if (!Definition->TryGetResourceBaseValue(*Binding, ResourceBase))
 		{
 			return false;
 		}
 
-		// 기본값 × 투자배율 + 장비보너스. 장비가 더한 값과 지속 중인 버프는 덮어쓰지 않는다.
+		// 기본값 × 투자배율만 기본값에 더한다. 장비와 지속 중인 버프는 각자의 GameplayEffect로 남는다.
 		StatMagnitudes.Add(Binding->StatTag, ResourceBase * InvestmentDelta * 0.01f);
-		OldMax = ASC->GetNumericAttribute(MaxAttribute);
-		OldCurrent = ASC->GetNumericAttribute(CurrentAttribute);
 	}
 
 	for (const TPair<FGameplayTag, float>& Change : StatMagnitudes)
@@ -232,19 +224,12 @@ bool UStatUpgradeComponent::ApplyStatChange(FGameplayTag StatTag, const int32 Le
 		}
 	}
 
+	// 최대 자원이 달라져도 현재 자원의 비율을 유지한다.
+	FScopedResourceRatio KeepResourceRatio(ASC);
 	if (!ASC->ApplyStatUpEffectByTags(Settings->EquipmentStatGameplayEffectClass, StatMagnitudes))
 	{
 		UE_LOG(StatUpgradeComponentLog, Error, TEXT("Failed to apply stat investment change: %s"), *StatTag.ToString());
 		return false;
-	}
-
-	// 최대 자원이 달라져도 현재 자원의 비율을 유지한다. 최종 최대값은 GAS에서 다시 읽는다.
-	if (Binding->IsMaxResource())
-	{
-		const float NewMax = FMath::Max(ASC->GetNumericAttribute(MaxAttribute), 0.f);
-		const float NewCurrent = OldMax <= UE_KINDA_SMALL_NUMBER || OldCurrent >= OldMax - 1.f
-			? NewMax : FMath::Clamp(OldCurrent * NewMax / OldMax, 0.f, NewMax);
-		ASC->SetNumericAttributeBase(CurrentAttribute, NewCurrent);
 	}
 	return true;
 }

@@ -22,33 +22,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillBlackHoleActor)
 
-namespace
-{
-	float GetBlackHolePandoraLoadoutDamageBonusPercent(
-		const UBasicAttributeSet* AttributeSet,
-		const EEnum_Direction LoadoutDirection)
-	{
-		if (!AttributeSet)
-		{
-			return 0.0f;
-		}
-
-		switch (LoadoutDirection)
-		{
-		case EEnum_Direction::Left:
-			return FMath::Max(AttributeSet->GetFirstPandora(), 0.0f);
-		case EEnum_Direction::Up:
-			return FMath::Max(AttributeSet->GetSecondPandora(), 0.0f);
-		case EEnum_Direction::Right:
-			return FMath::Max(AttributeSet->GetThirdPandora(), 0.0f);
-		case EEnum_Direction::Center:
-		case EEnum_Direction::Down:
-		default:
-			return 0.0f;
-		}
-	}
-}
-
 ASkillBlackHoleActor::ASkillBlackHoleActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -424,7 +397,7 @@ float ASkillBlackHoleActor::CalculateFinishAreaDamageMagnitude(const UAbilitySys
 		? FMath::Max(SourceAttributeSet->GetIntelligence(), 0.0f)
 		: 0.0f;
 	const float LoadoutDamagePercent = DamageDataTag.MatchesTag(LabGameplayTags::Data_Damage) && SourceAttributeSet
-		? GetBlackHolePandoraLoadoutDamageBonusPercent(SourceAttributeSet, SourcePandoraLoadoutDirection)
+		? SourceAttributeSet->GetPandoraLoadoutDamageBonusPercent(SourcePandoraLoadoutDirection)
 		: 0.0f;
 	const float AttackDamageBonusPercent = IntelligenceDamagePercent + LoadoutDamagePercent;
 	const double IntelligenceMultiplier = 1.0 + (static_cast<double>(AttackDamageBonusPercent) * 0.01);

@@ -1,66 +1,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ActiveGameplayEffectHandle.h"
 #include "AbilitySystem/Ability/EquipmentAbilityData.h"
 #include "Common/Enum_Direction.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
+#include "Component/Player/WeaponPresentationLoader.h"
 #include "GameplayTagContainer.h"
 #include "Components/ActorComponent.h"
-#include "UObject/PrimaryAssetId.h"
 #include "EquipmentComponent.generated.h"
 
 class AWeaponBase;
 class ACharacterBase;
+class UEquipmentEffectComponent;
 class UInventoryComponent;
 class UAnimInstance;
 class UAnimMontage;
 class UItemDefinition;
 class UItemInstance;
-class UGameplayEffect;
 class UPdAbilitySystemComponent;
-struct FStreamableHandle;
 
 DECLARE_LOG_CATEGORY_EXTERN(EquipmentComponentLog, Log, All);
-DECLARE_MULTICAST_DELEGATE(FOnCurrentWeaponDefinitionChanged);
-DECLARE_MULTICAST_DELEGATE(FOnEquipmentStatsChanged);
-
-USTRUCT(BlueprintType)
-struct FEquippedItemStatSnapshot
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
-	TMap<FGameplayTag, float> BaseStatMagnitudes;
-
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
-	TMap<FGameplayTag, float> EnhancedStatMagnitudes;
-
-	// 무기 피해량은 전투가 직접 읽으므로 ASC에 더하지 않고 변경 감지에만 포함한다.
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
-	TMap<FGameplayTag, float> NonAttributeStatMagnitudes;
-
-	// Public API ------------------------------------------------------------------------------------------------------
-	void Reset()
-	{
-		BaseStatMagnitudes.Reset();
-		EnhancedStatMagnitudes.Reset();
-		NonAttributeStatMagnitudes.Reset();
-	}
-
-	bool HasAnyMagnitude() const
-	{
-		return !BaseStatMagnitudes.IsEmpty()
-			|| !EnhancedStatMagnitudes.IsEmpty()
-			|| !NonAttributeStatMagnitudes.IsEmpty();
-	}
-};
 
 /**
- * 캐릭터에 적용할 무기와 장비 능력치를 관리한다.
+ * 캐릭터가 든 무기를 관리한다.
  *
- * 플레이어 소유 목록은 InventoryComponent에 두고, 서버에서 승인한 무기 전환과
- * 현재 Pawn의 무기 Actor·애니메이션·능력치 적용을 담당한다.
+ * 플레이어 소유 목록은 InventoryComponent에 두고, 서버에서 승인한 무기 전환과 현재 Pawn의 무기 Actor·애니메이션을 담당한다.
+ * 무기와 방어구의 능력치는 UEquipmentEffectComponent가 GameplayEffect로 걸며, 무기가 바뀌면 이 컴포넌트가 알려 준다.
  */
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UEquipmentComponent : public UActorComponent
@@ -78,8 +43,6 @@ protected:
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UEquipmentComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	void RefreshCachedReferences();
 
 	const UItemDefinition* GetRequestedWeaponDefinition() const;
 
@@ -105,9 +68,6 @@ public:
 
 	float GetCurrentWeaponStatMagnitude(FGameplayTag StatTag) const;
 
-	void GetEquipmentBonusStatMagnitudes(
-		TMap<FGameplayTag, float>& OutStatMagnitudes) const;
-
 	void RefreshCurrentWeaponAnimationLayer();
 
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
@@ -130,7 +90,8 @@ public:
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandleWeaponPresentationLoaded(FPrimaryAssetId ItemDefinitionId);
+	void HandleAbilitySystemReady(ACharacterBase* Character, UPdAbilitySystemComponent* ReadyAbilitySystem);
+	void HandleAbilitySystemReleased(ACharacterBase* Character, UPdAbilitySystemComponent* ReleasedAbilitySystem);
 
 	UFUNCTION()
 	void OnRep_CurrentWeaponDefinition();
@@ -141,10 +102,15 @@ private:
 	UFUNCTION()
 	void OnRep_CurrentWeaponId();
 	void HandleEquipCooldownTagChanged(FGameplayTag CallbackTag, int32 NewCount);
-	void HandleEquipmentSlotsChanged();
-	void HandleInventoryChanged();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	ACharacterBase* GetCharacter() const;
+	/** 이 캐릭터를 Avatar로 연결한 ASC. 연결 전이나 다른 Pawn으로 넘어간 뒤에는 nullptr. */
+	UPdAbilitySystemComponent* GetReadyAbilitySystem() const;
+	UInventoryComponent* GetInventory() const;
+	UEquipmentEffectComponent* GetEquipmentEffects() const;
+	void BindEquipCooldownTag(UPdAbilitySystemComponent* AbilitySystem);
+
 	bool EquipWeaponInternal(UItemInstance* WeaponInstance, EEnum_Direction WeaponLoadoutDirection);
 
 	bool ResolveWeaponEquipRequest(UItemInstance* WeaponInstance, const UItemDefinition*& OutItemDefinition, FGuid& OutWeaponId) const;
@@ -156,6 +122,7 @@ private:
 	bool TryActivateSingleAbilityTag(const FGameplayTag& AbilityTag) const;
 
 	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
+	bool IsDeathTransitionActive() const;
 	FGameplayTag GetEquipAbilityTag() const;
 	FGameplayTag GetUnequipAbilityTag() const;
 	TSubclassOf<UAnimInstance> GetLoadedEquipAnimLayer(const UItemDefinition* ItemDefinition) const;
@@ -163,20 +130,10 @@ private:
 	bool IsWeaponPresentationLoaded(const UItemDefinition* ItemDefinition) const;
 	bool RequestWeaponPresentationLoad(const UItemDefinition* ItemDefinition, FSimpleDelegate OnLoaded);
 	void RefreshCurrentWeaponPresentation();
-	void ReleaseWeaponPresentationLoads();
 
 	AWeaponBase* SpawnAndAttachWeaponActor(TSubclassOf<AWeaponBase> WeaponClass, const UItemDefinition* ItemDefinition) const;
 
-	bool ApplyAndStoreWeaponStats(const FEquippedItemStatSnapshot& PendingStatSnapshot);
-	void ApplyCurrentWeaponTagEffect(
-		UPdAbilitySystemComponent* AbilitySystemComponent,
-		const UItemDefinition* ItemDefinition);
 	bool ApplyEquipAbilityCooldown();
-	void RemoveCurrentWeaponTagEffect(
-		UPdAbilitySystemComponent* AbilitySystemComponent,
-		const UItemDefinition* ItemDefinition);
-
-	bool RemoveCurrentWeaponStats();
 
 	void CommitCurrentWeaponState(FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor,
 		const UItemDefinition* NewWeaponDefinition, EEnum_Direction NewWeaponLoadoutDirection);
@@ -184,31 +141,11 @@ private:
 	bool UnequipCurrentWeaponInternal();
 
 	// 승인된 장착 완료와 AI의 직접 장착이 공유하는 적용 단계다. 클라이언트 요청을 받지 않는다.
-	bool ReplaceWeapon(const UItemDefinition* Definition, FGuid WeaponId, EEnum_Direction Direction,
-		const FEquippedItemStatSnapshot& StatSnapshot);
+	bool ReplaceWeapon(const UItemDefinition* Definition, FGuid WeaponId, EEnum_Direction Direction);
 
 	void NotifyCurrentWeaponDefinitionChanged();
 	void NotifyCurrentWeaponStateChanged();
-
-	bool BuildItemStatSnapshot(const UItemInstance* ItemInstance, FEquippedItemStatSnapshot& OutSnapshot) const;
-	bool BuildItemDefinitionStatSnapshot(const UItemDefinition* ItemDefinition, FEquippedItemStatSnapshot& OutSnapshot) const;
-	bool BuildEquippedItemsStatSnapshot(FEquippedItemStatSnapshot& OutSnapshot) const;
-	bool BuildCurrentWeaponStatSnapshot(FEquippedItemStatSnapshot& OutSnapshot) const;
-
-	bool ApplyItemStatSnapshot(
-		UPdAbilitySystemComponent* AbilitySystemComponent,
-		const FEquippedItemStatSnapshot& StatSnapshot,
-		float MagnitudeScale) const;
-	bool SetAppliedStatSnapshot(
-		UPdAbilitySystemComponent* AbilitySystemComponent,
-		FEquippedItemStatSnapshot& AppliedSnapshot,
-		const FEquippedItemStatSnapshot& DesiredSnapshot,
-		bool& bOutChanged) const;
-	bool RefreshEquipmentStats();
-	bool ClearAppliedEquipmentState(UPdAbilitySystemComponent* AbilitySystemComponent);
-	void NotifyEquipmentStatsChanged();
-	void UnbindEquipmentSlotsChanged();
-	void UnbindInventoryChanged();
+	void SyncWeaponEffect() const;
 
 	UItemInstance* FindOwnedItemInstanceById(FGuid ItemId) const;
 
@@ -223,30 +160,7 @@ private:
 		bool bCurrentWeaponLoadoutDirectionChanged);
 	void RefreshPandoraForWeaponChange() const;
 
-public:
-	FOnCurrentWeaponDefinitionChanged OnCurrentWeaponDefinitionChanged;
-	FOnEquipmentStatsChanged OnEquipmentStatsChanged;
-
 protected:
-	UPROPERTY(Transient)
-	TObjectPtr<ACharacterBase> CachedOwner;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UPdAbilitySystemComponent> CachedASC;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UInventoryComponent> CachedInventory;
-
-	FDelegateHandle EquipCooldownTagChangedDelegateHandle;
-	FDelegateHandle EquipmentSlotsChangedDelegateHandle;
-	FDelegateHandle InventoryChangedDelegateHandle;
-
-	UPROPERTY(Transient)
-	TSubclassOf<UGameplayEffect> EquipmentStatGameplayEffectClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Equipment|Effect", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<UGameplayEffect> EquippedItemEffectClass;
-
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeaponActor, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	TObjectPtr<AWeaponBase> CurrentWeaponActor;
 
@@ -270,19 +184,13 @@ protected:
 	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment")
 	EEnum_Direction CurrentWeaponLoadoutDirection = EEnum_Direction::Center;
 
-	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
-	FEquippedItemStatSnapshot CurrentWeaponStatSnapshot;
-
-	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "!Equipment|Stat")
-	FEquippedItemStatSnapshot EquippedItemsStatSnapshot;
-
 	bool bEndingPlay = false;
-	bool bEquipmentStatsInitialized = false;
-	bool bRefreshingEquipmentStats = false;
 
-	FActiveGameplayEffectHandle CurrentWeaponTagEffectHandle;
+	FAbilitySystemReadySubscription AbilitySystemSubscription;
+	TWeakObjectPtr<UPdAbilitySystemComponent> CooldownTagAbilitySystem;
+	FDelegateHandle EquipCooldownTagChangedDelegateHandle;
 
-	TMap<FPrimaryAssetId, TSharedPtr<FStreamableHandle>> WeaponPresentationLoadHandles;
-	TMap<FPrimaryAssetId, TArray<FSimpleDelegate>> PendingWeaponPresentationCallbacks;
+	FWeaponPresentationLoader PresentationLoader;
+	/** 선택이 바뀌거나 해제되면 올려서, 그 전에 요청한 무기 외형 로딩의 완료 콜백을 무시하게 한다. */
 	uint32 WeaponPresentationRequestGeneration = 0;
 };

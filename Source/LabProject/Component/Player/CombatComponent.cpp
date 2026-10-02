@@ -1015,7 +1015,8 @@ bool UCombatComponent::ApplyUnarmedDamageToTarget(AActor* TargetActor)
 	return ApplyAttackDamageToTarget(TargetActor, GetUnarmedDamageSourceMagnitude(), GetOwner(), GetOwner(), true);
 }
 
-// 팀·능력치·치명타·피격 반응을 같은 순서로 적용한다. GE와 AttributeSet의 피해 규칙은 유지한다.
+// 팀·능력치·치명타·피격 반응을 같은 순서로 적용한다. 치명타는 공격자 능력치로 한 번 판정하고,
+// 판정 결과와 피격 반응 여부는 피해 Spec의 태그로 대상 AttributeSet에 전달한다.
 bool UCombatComponent::ApplyAttackDamageToTarget(AActor* TargetActor, const float RawDamage,
 	UObject* SourceObject, AActor* DamageCauser, const bool bAllowHitReact)
 {
@@ -1029,38 +1030,30 @@ bool UCombatComponent::ApplyAttackDamageToTarget(AActor* TargetActor, const floa
 	{
 		return false;
 	}
-	UBasicAttributeSet* SourceAttributes = const_cast<UBasicAttributeSet*>(SourceASC->GetSet<UBasicAttributeSet>());
-	UBasicAttributeSet* TargetAttributes = const_cast<UBasicAttributeSet*>(TargetASC->GetSet<UBasicAttributeSet>());
-	if (!SourceAttributes || !TargetAttributes || !FMath::IsFinite(RawDamage))
+	const UBasicAttributeSet* SourceAttributes = SourceASC->GetSet<UBasicAttributeSet>();
+	if (!SourceAttributes || !TargetASC->GetSet<UBasicAttributeSet>() || !FMath::IsFinite(RawDamage))
 	{
 		return false;
 	}
 	const float BaseDamage = CalculateStrengthAdjustedWeaponDamage(RawDamage, SourceAttributes->GetStrength()) * ActiveComboDamageMultiplier;
-	if (!FMath::IsFinite(BaseDamage) || BaseDamage <= 0.0f)
-	{
-		return false;
-	}
-	SourceAttributes->ConsumeOutgoingDamage();
-	if (!ApplyDamageEffect(SourceASC, SourceASC, CombatDamageSettings.OutgoingDamageEffectClass, BaseDamage, Target))
-	{
-		return false;
-	}
-	const float FinalDamage = SourceAttributes->ConsumeOutgoingDamage();
-	const bool bCritical = SourceAttributes->ConsumeOutgoingDamageCriticalHit();
+	bool bCriticalHit = false;
+	const float FinalDamage = SourceAttributes->CalculateOutgoingDamage(BaseDamage, bCriticalHit);
 	if (!FMath::IsFinite(FinalDamage) || FinalDamage <= 0.0f)
 	{
 		return false;
 	}
-	TargetAttributes->SetPendingIncomingDamageCriticalHit(bCritical);
-	TargetAttributes->SetPendingIncomingDamageAllowHitReact(bAllowHitReact);
-	if (!ApplyDamageEffect(SourceASC, TargetASC, CombatDamageSettings.IncomingDamageEffectClass,
-		FinalDamage, SourceObject, Source, DamageCauser))
+
+	FGameplayTagContainer DamageSpecTags;
+	if (bCriticalHit)
 	{
-		TargetAttributes->SetPendingIncomingDamageCriticalHit(false);
-		TargetAttributes->SetPendingIncomingDamageAllowHitReact(true);
-		return false;
+		DamageSpecTags.AddTag(LabGameplayTags::Effect_Damage_Critical);
 	}
-	return true;
+	if (!bAllowHitReact)
+	{
+		DamageSpecTags.AddTag(LabGameplayTags::Effect_Damage_NoHitReaction);
+	}
+	return ApplyDamageEffect(SourceASC, TargetASC, CombatDamageSettings.IncomingDamageEffectClass,
+		FinalDamage, SourceObject, Source, DamageCauser, DamageSpecTags);
 }
 
 float UCombatComponent::GetUnarmedDamageSourceMagnitude() const
@@ -1109,7 +1102,7 @@ void UCombatComponent::OnRep_TemporaryWeaponDamageBonus()
 
 bool UCombatComponent::ApplyDamageEffect(UPdAbilitySystemComponent* SourceASC, UPdAbilitySystemComponent* TargetASC,
 	TSubclassOf<UGameplayEffect> DamageEffectClass, float Magnitude, UObject* SourceObject,
-	AActor* InstigatorActor, AActor* EffectCauserActor) const
+	AActor* InstigatorActor, AActor* EffectCauserActor, const FGameplayTagContainer& DamageSpecTags) const
 {
 	const FGameplayTag DamageMagnitudeSetByCallerTag = UProjectTagDefinition::GetDefaultDefinition()->GetSetByCallerDamageMagnitudeTag();
 	if (!HasCombatAuthority() || !SourceASC || !TargetASC || !DamageEffectClass || !FMath::IsFinite(Magnitude) || Magnitude <= 0.0f
@@ -1132,6 +1125,7 @@ bool UCombatComponent::ApplyDamageEffect(UPdAbilitySystemComponent* SourceASC, U
 	}
 
 	SpecHandle.Data->SetSetByCallerMagnitude(DamageMagnitudeSetByCallerTag, Magnitude);
+	SpecHandle.Data->AppendDynamicAssetTags(DamageSpecTags);
 	const FActiveGameplayEffectHandle AppliedEffectHandle = SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 	return AppliedEffectHandle.WasSuccessfullyApplied();
 }
