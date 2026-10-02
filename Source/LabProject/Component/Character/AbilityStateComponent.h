@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
 #include "AbilityStateComponent.generated.h"
@@ -11,11 +12,15 @@ class UAbilitySystemComponent;
 class UActorComponent;
 class UCharacterMovementComponent;
 class UGameSettingDefinition;
+class UPdAbilitySystemComponent;
 struct FOnAttributeChangeData;
 
 /**
  * 캐릭터와 ASC를 연결하고 GAS 상태를 이동·빙결·사망 처리에 반영한다.
  * 능력 부여 정보는 ASC가, 사망 연출은 사망 컴포넌트가 소유한다.
+ *
+ * ASC 연결이 끝나면 준비 알림을 보낸다. 연결은 캐릭터 초기화·빙의·PlayerState 복제 시점에만 시도하며,
+ * 아직 PlayerState가 없으면 다음 시점의 호출이 다시 연결한다. 준비를 기다리는 쪽은 이 알림을 구독한다.
  */
 UCLASS(ClassGroup = (Character), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UAbilityStateComponent : public UActorComponent
@@ -31,6 +36,12 @@ public:
 	void InitializeAbilitySystemActorInfo();
 	void ClearAbilitySystemActorInfo();
 
+	// ASC 준비 계약. 준비되지 않았으면 nullptr을 반환한다.
+	UPdAbilitySystemComponent* GetReadyAbilitySystemComponent() const;
+	bool IsAbilitySystemReady() const { return GetReadyAbilitySystemComponent() != nullptr; }
+	FDelegateHandle RegisterOnAbilitySystemReady(const FPdAbilitySystemReadyDelegate::FDelegate& Delegate);
+	void UnregisterOnAbilitySystemReady(FDelegateHandle Handle);
+
 	// 캐릭터 Tick·이동 모드 변경·리스폰에서 호출하는 상태 반영.
 	void MaintainFrozenRotationLock();
 	void RefreshAirborneGameplayTag();
@@ -44,7 +55,6 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleMovementAttributesChanged(const FOnAttributeChangeData& Data);
-	void RetryApplyMovementSpeedFromAttribute();
 	void OnDeadTagChanged(FGameplayTag CallbackTag, int32 NewCount);
 	void OnFrozenTagChanged(FGameplayTag CallbackTag, int32 NewCount);
 	void HandleStaminaChanged(const FOnAttributeChangeData& Data);
@@ -52,15 +62,12 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ACharacterBase* GetCharacterOwner() const;
-	void TryInitializeAbilitySystemActorInfo();
-	void QueueAbilitySystemActorInfoInitializationRetry();
 
 	// 속성 기반 이동속도와 저스태미나 연출.
 	void BindMovementSpeedAttributeToASC(UAbilitySystemComponent* AbilitySystemComponent);
 	void UnbindMovementSpeedAttribute();
 	void RefreshLowStaminaEffectComponent(float StaminaPercent, const UGameSettingDefinition* SettingDefinition);
 	UActorComponent* ResolveLowStaminaEffectComponent(FName ComponentName);
-	void QueueMovementSpeedAttributeApplyRetry();
 
 	// 사망·빙결 태그 구독과 상태 복구.
 	void BindDeadTagEvent(UAbilitySystemComponent* AbilitySystemComponent);
@@ -76,16 +83,9 @@ private:
 
 private:
 	// PlayerState 연결이 먼저 끊겨도 자신이 연결했던 ASC를 정확히 해제한다.
-	TWeakObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
+	TWeakObjectPtr<UPdAbilitySystemComponent> BoundAbilitySystemComponent;
 
-	// 중복 예약을 막고 Pawn 교체 시 이전 초기화 재시도를 취소한다.
-	UPROPERTY(Transient)
-	bool bActorInfoInitializationQueued = false;
-
-	FTimerHandle ActorInfoInitializationRetryTimerHandle;
-
-	UPROPERTY(Transient)
-	int32 ActorInfoInitializationRetryCount = 0;
+	FPdAbilitySystemReadyDelegate OnAbilitySystemReady;
 
 	UPROPERTY(Transient)
 	float BaseMaxWalkSpeed = 450.0f;
@@ -98,10 +98,6 @@ private:
 	FDelegateHandle MovementMaxStaminaAttributeChangedDelegateHandle;
 	TWeakObjectPtr<UActorComponent> LowStaminaEffectComponent;
 	FName CachedLowStaminaEffectComponentName = NAME_None;
-	FTimerHandle MovementSpeedAttributeRetryTimerHandle;
-
-	UPROPERTY(Transient)
-	int32 MovementSpeedAttributeRetryAttempts = 0;
 
 	// 구독별 원본 ASC를 보관해 재연결 도중에도 정확한 대상에서 델리게이트를 해제한다.
 	TWeakObjectPtr<UAbilitySystemComponent> DeadTagBoundAbilitySystemComponent;

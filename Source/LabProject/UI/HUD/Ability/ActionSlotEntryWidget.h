@@ -2,10 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "GameplayTagContainer.h"
 #include "Definition/Player/CharacterActionDefinition.h"
 #include "ActionSlotEntryWidget.generated.h"
 
+class ACharacterBase;
 class APdPlayer;
 class UAbilitySystemComponent;
 class UGameplayEffect;
@@ -55,7 +57,7 @@ public:
 	void UpdateCooldownProgress();
 
 private:
-	void RetryBindAbilityCooldown();
+	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void HandleAbilityCooldownTagChanged(FGameplayTag ChangedTag, int32 NewCount);
 	void HandleAbilityCooldownEffectAdded(
 		UAbilitySystemComponent* TargetAbilitySystemComponent,
@@ -70,8 +72,6 @@ private:
 	void ApplyInputKeyIcon();
 	void BindAbilityCooldownChanged();
 	void UnbindAbilityCooldownChanged();
-	void ScheduleAbilityCooldownBindingRetry();
-	void ClearAbilityCooldownBindingRetry();
 	void ClearCooldownTimer();
 	void SetInputKeyRenderOpacity(float InOpacity) const;
 
@@ -144,6 +144,6 @@ private:
 	FDelegateHandle AbilityCooldownChangedHandle;
 	FDelegateHandle AbilityCooldownEffectAddedHandle;
 	FDelegateHandle AbilityCooldownEffectRemovedHandle;
-	FTimerHandle AbilityCooldownBindingRetryTimerHandle;
 	FTimerHandle UpdateCooldownTimerHandle;
+	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
 };

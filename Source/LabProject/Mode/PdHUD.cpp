@@ -84,11 +84,14 @@ void APdHUD::BeginPlay()
 {
 	Super::BeginPlay();
 	EnsureUiRouter();
+	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayerController(),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(this, UGameFrameworkComponentManager::NAME_GameActorReady);
 }
 
 void APdHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	PossessedCharacterReadySubscription.Reset();
 	UGameFrameworkComponentManager::RemoveGameFrameworkComponentReceiver(this);
 	RemoveAllUiWidgets();
 	if (UiRouter)
@@ -651,11 +654,11 @@ bool APdHUD::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
 	return false;
 }
 
+// 플레이어 HUD를 만들 때와 조종 캐릭터의 ASC가 준비될 때 호출된다. ASC가 아직이면 준비 알림에서 다시 적용한다.
 bool APdHUD::ApplyStatusViewModelToPlayerHud()
 {
 	if (!CachedPlayerHUD)
 	{
-		GetWorldTimerManager().ClearTimer(PlayerHudStatusViewModelRetryTimerHandle);
 		return false;
 	}
 
@@ -669,24 +672,7 @@ bool APdHUD::ApplyStatusViewModelToPlayerHud()
 	}
 
 	ApplyStatusViewModelToPlayerHudRecursive(CachedPlayerHUD, bFoundPlayerVitals, bAppliedViewModel);
-
-	if (!bFoundPlayerVitals || bAppliedViewModel)
-	{
-		GetWorldTimerManager().ClearTimer(PlayerHudStatusViewModelRetryTimerHandle);
-		return bAppliedViewModel;
-	}
-
-	if (!GetWorldTimerManager().IsTimerActive(PlayerHudStatusViewModelRetryTimerHandle))
-	{
-		GetWorldTimerManager().SetTimer(
-			PlayerHudStatusViewModelRetryTimerHandle,
-			this,
-			&ThisClass::RetryApplyStatusViewModelToPlayerHud,
-			0.1f,
-			true);
-	}
-
-	return false;
+	return bAppliedViewModel;
 }
 
 void APdHUD::ApplyStatusViewModelToPlayerHudRecursive(UUserWidget* RootWidget, bool& bFoundPlayerVitals, bool& bAppliedViewModel)
@@ -969,8 +955,10 @@ void APdHUD::ApplyHudTimerVisibility()
 	HudTimerWidget->StartTimer();
 }
 
-void APdHUD::RetryApplyStatusViewModelToPlayerHud()
+void APdHUD::HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent)
 {
+	static_cast<void>(Character);
+	static_cast<void>(AbilitySystemComponent);
 	ApplyStatusViewModelToPlayerHud();
 }
 
@@ -1031,7 +1019,6 @@ void APdHUD::RemoveAllUiWidgets()
 	ResetEditorTransactionBufferIfContainsPieObjects();
 
 	HideAimCrosshair();
-	GetWorldTimerManager().ClearTimer(PlayerHudStatusViewModelRetryTimerHandle);
 	CachedDamageScreenEffectWidget = nullptr;
 	CachedGoldenKillAnnouncementWidget = nullptr;
 	CachedKillLogWidget = nullptr;

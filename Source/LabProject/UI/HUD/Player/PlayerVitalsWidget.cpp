@@ -1,14 +1,13 @@
 #include "UI/HUD/Player/PlayerVitalsWidget.h"
 
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Engine/GameInstance.h"
-#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Settings/GameSettingsSubsystem.h"
 
@@ -19,42 +18,31 @@ void UPlayerVitalsWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	BeginGameSettingContentPreload();
-	StaminaPresentationInitializeRetryCount = 0;
-	if (UWorld* World = GetWorld())
-	{
-		StaminaPresentationInitializeTimerHandle = World->GetTimerManager().SetTimerForNextTick(
-			FTimerDelegate::CreateUObject(this, &ThisClass::InitializeStaminaPresentation));
-		return;
-	}
-
-	InitializeStaminaPresentation();
+	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayer(),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 }
 
 void UPlayerVitalsWidget::NativeDestruct()
 {
+	PossessedCharacterReadySubscription.Reset();
 	ReleaseGameSettingContentPreload();
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(StaminaPresentationInitializeTimerHandle);
-	}
-	StaminaPresentationInitializeTimerHandle.Invalidate();
-
 	UnbindStaminaAttributeDelegates();
 	Super::NativeDestruct();
 }
 
-void UPlayerVitalsWidget::InitializeStaminaPresentation()
+// 조종 캐릭터의 ASC가 준비될 때마다(리스폰 포함) 자원 표시를 그 ASC에 다시 연결한다.
+void UPlayerVitalsWidget::HandlePossessedCharacterReady(
+	ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent)
 {
+	static_cast<void>(Character);
 	UnbindStaminaAttributeDelegates();
 
 	UProgressBar* ResolvedStaminaBar = ResolveStaminaBar();
-	BoundAbilitySystemComponent = ResolveOwnerAbilitySystemComponent();
-	if (!ResolvedStaminaBar || !BoundAbilitySystemComponent)
+	if (!ResolvedStaminaBar)
 	{
-		QueueStaminaPresentationInitializeRetry();
 		return;
 	}
+	BoundAbilitySystemComponent = AbilitySystemComponent;
 
 	if (!bHasCachedNormalStaminaFillTint)
 	{
@@ -67,33 +55,10 @@ void UPlayerVitalsWidget::InitializeStaminaPresentation()
 		BoundAbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetStaminaAttribute());
 	CurrentMaxStamina =
 		BoundAbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetMaxStaminaAttribute());
-	StaminaPresentationInitializeRetryCount = 0;
 
 	BindStaminaAttributeDelegates();
 	RefreshStaminaFillTint();
 	RefreshResourceReadouts();
-}
-
-void UPlayerVitalsWidget::QueueStaminaPresentationInitializeRetry()
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	++StaminaPresentationInitializeRetryCount;
-	const float RetryDelay =
-		StaminaPresentationInitializeRetryCount >= MaxStaminaPresentationInitializeRetryCount
-			? 0.25f
-			: 0.1f;
-	World->GetTimerManager().ClearTimer(StaminaPresentationInitializeTimerHandle);
-	World->GetTimerManager().SetTimer(
-		StaminaPresentationInitializeTimerHandle,
-		this,
-		&ThisClass::InitializeStaminaPresentation,
-		RetryDelay,
-		false);
 }
 
 void UPlayerVitalsWidget::BindStaminaAttributeDelegates()
@@ -235,15 +200,6 @@ UProgressBar* UPlayerVitalsWidget::ResolveStaminaBar() const
 	}
 
 	return WidgetTree ? Cast<UProgressBar>(WidgetTree->FindWidget(TEXT("StaminaBar"))) : nullptr;
-}
-
-UAbilitySystemComponent* UPlayerVitalsWidget::ResolveOwnerAbilitySystemComponent() const
-{
-	const APlayerController* OwningPlayerController = GetOwningPlayer();
-	APawn* OwningPawn = OwningPlayerController ? OwningPlayerController->GetPawn() : nullptr;
-	return OwningPawn
-		? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwningPawn)
-		: nullptr;
 }
 
 void UPlayerVitalsWidget::HandleStaminaChanged(const FOnAttributeChangeData& Data)

@@ -10,8 +10,8 @@ class UHealthBarViewModel;
 class UUserWidget;
 
 /**
- * 모든 ACharacterBase 유형의 월드 체력바 위젯·뷰 모델·로컬 표시 정책과
- * 횟수가 제한된 초기화 재시도를 관리한다.
+ * 모든 ACharacterBase 유형의 월드 체력바 위젯·뷰 모델·로컬 표시 정책을 관리한다.
+ * 위젯은 캐릭터 초기화 때 붙이고, 값 연결은 AbilityStateComponent가 ASC 연결을 마칠 때 갱신한다.
  */
 UCLASS(ClassGroup = (Character), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UCharacterHealthBarComponent : public UWidgetComponent
@@ -25,7 +25,6 @@ public:
 	void InitializeHealthBar();
 	void ShutdownHealthBar();
 	void RefreshViewModel();
-	void TryRefreshViewModel();
 
 	void SetVisibleForLocalViewer(bool bRequestedVisible);
 	void UpdateVisibilityForLocalViewer(
@@ -35,9 +34,6 @@ public:
 		float MaxDistanceSquared);
 
 private:
-	// Event Handlers --------------------------------------------------------------------------------------------------
-	void RetryRefreshViewModel();
-
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ACharacterBase* GetCharacterOwner() const;
 	void ConfigureWidget();
@@ -45,7 +41,6 @@ private:
 	bool TryApplyViewModelToWidget();
 	bool BindViewModelToASC(UAbilitySystemComponent* AbilitySystemComponent);
 	bool IsAttributeDataReady(const UAbilitySystemComponent* AbilitySystemComponent) const;
-	void QueueViewModelRefreshRetry();
 	void UpdateFacing();
 	bool ShouldShowForLocalViewer(
 		APlayerController* LocalPlayerController,
@@ -60,11 +55,6 @@ private:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UHealthBarViewModel> HealthBarViewModel;
-
-	FTimerHandle ViewModelRetryTimerHandle;
-
-	UPROPERTY(Transient)
-	int32 ViewModelRetryCount = 0;
 
 	UPROPERTY(Transient)
 	double LastVisibleTimeSeconds = 0.0;

@@ -3,6 +3,7 @@
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Character/CharacterBase.h"
 #include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
@@ -73,12 +74,14 @@ void UStatusEffectsBarWidget::NativeConstruct()
 	ResolveStatusEffectWidgetClass();
 	bIsConstructed = true;
 	BeginStatusEffectContentPreload();
+	ObserveOwnerAbilitySystem();
 	ScheduleStatusEffectTagBinding();
 }
 
 void UStatusEffectsBarWidget::NativeDestruct()
 {
 	bIsConstructed = false;
+	OwnerReadySubscription.Reset();
 	ReleaseStatusEffectContentPreload();
 
 	if (UWorld* World = GetWorld())
@@ -163,12 +166,27 @@ void UStatusEffectsBarWidget::SetOwnerActor(AActor* InOwnerActor)
 
 	UnbindStatusEffectTagDelegates();
 	OwnerActor = InOwnerActor;
-	BindRetryCount = 0;
 
 	if (bIsConstructed)
 	{
+		ObserveOwnerAbilitySystem();
 		ScheduleStatusEffectTagBinding();
 	}
+}
+
+// 캐릭터 소유자의 ASC가 준비될 때마다(리스폰 포함) 태그 구독을 다시 예약한다.
+void UStatusEffectsBarWidget::ObserveOwnerAbilitySystem()
+{
+	OwnerReadySubscription.SubscribeToCharacter(Cast<ACharacterBase>(OwnerActor.Get()),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleOwnerAbilitySystemReady));
+}
+
+void UStatusEffectsBarWidget::HandleOwnerAbilitySystemReady(
+	ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent)
+{
+	static_cast<void>(Character);
+	static_cast<void>(AbilitySystemComponent);
+	ScheduleStatusEffectTagBinding();
 }
 
 void UStatusEffectsBarWidget::CenterHorizontalBox()
@@ -272,23 +290,13 @@ void UStatusEffectsBarWidget::BindStatusEffectTagDelegates()
 	BindStatusEffectTagsTimerHandle.Invalidate();
 	UnbindStatusEffectTagDelegates();
 
+	// 소유 캐릭터의 ASC가 아직이면 HandleOwnerAbilitySystemReady가 다시 예약한다.
 	BoundAbilitySystemComponent = GetOwnerAbilitySystemComponent();
 	if (!BoundAbilitySystemComponent)
 	{
-		if (UWorld* World = GetWorld(); World && BindRetryCount < MaxBindRetryCount)
-		{
-			++BindRetryCount;
-			World->GetTimerManager().SetTimer(
-				BindStatusEffectTagsTimerHandle,
-				this,
-				&ThisClass::BindStatusEffectTagDelegates,
-				0.1f,
-				false);
-		}
 		return;
 	}
 
-	BindRetryCount = 0;
 	BoundStatusEffectReplicationComponent = OwnerActor
 		? OwnerActor->FindComponentByClass<UStatusEffectReplicationComponent>()
 		: nullptr;

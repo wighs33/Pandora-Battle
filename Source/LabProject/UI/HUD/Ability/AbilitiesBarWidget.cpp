@@ -73,20 +73,22 @@ void UAbilitiesBarWidget::NativePreConstruct()
 	}
 }
 
+// 조종 캐릭터의 ASC가 준비될 때마다(리스폰 포함) 능력 목록 구독을 다시 연결한다.
 void UAbilitiesBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	InitializeAbilitySystemBinding();
+	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayer(),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 }
 
 void UAbilitiesBarWidget::NativeDestruct()
 {
+	PossessedCharacterReadySubscription.Reset();
 	UnbindAbilitiesChangedEvents();
 
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(RebuildBarTimerHandle);
-		World->GetTimerManager().ClearTimer(RetryInitializeTimerHandle);
 	}
 
 	Super::NativeDestruct();
@@ -135,24 +137,11 @@ void UAbilitiesBarWidget::FillAbilitiesBar()
 	RebuildAbilitiesBar();
 }
 
-void UAbilitiesBarWidget::InitializeAbilitySystemBinding()
+void UAbilitiesBarWidget::HandlePossessedCharacterReady(
+	ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent)
 {
+	static_cast<void>(Character);
 	UnbindAbilitiesChangedEvents();
-
-	UAbilitySystemComponent* AbilitySystemComponent = GetOwningAbilitySystemComponent();
-	if (!AbilitySystemComponent)
-	{
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().SetTimer(
-				RetryInitializeTimerHandle,
-				this,
-				&ThisClass::InitializeAbilitySystemBinding,
-				0.1f,
-				false);
-		}
-		return;
-	}
 
 	CachedAbilitySystemComponent = AbilitySystemComponent;
 	BindAbilitiesChangedEvents();

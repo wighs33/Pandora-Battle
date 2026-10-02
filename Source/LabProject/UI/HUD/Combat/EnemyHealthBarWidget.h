@@ -2,11 +2,13 @@
 
 #include "AttributeSet.h"
 #include "Blueprint/UserWidget.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "TimerManager.h"
 
 #include "EnemyHealthBarWidget.generated.h"
 
 class AActor;
+class ACharacterBase;
 class UAbilitySystemComponent;
 class UProgressBar;
 struct FOnAttributeChangeData;
@@ -38,14 +40,14 @@ public:
 
 private:
 	void InitializeFromOwner();
+	void HandleOwnerAbilitySystemReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void StartDecreaseHealthAnimation();
 
 	void OnHealthChanged(const FOnAttributeChangeData& ChangeData);
 	void OnMaxHealthChanged(const FOnAttributeChangeData& ChangeData);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void QueueInitializeRetry();
-	void StopInitializeRetry();
+	void ObserveOwnerAbilitySystem();
 	void BindAttributeDelegates();
 	void UnbindAttributeDelegates();
 	void ClearAnimationTimers();
@@ -82,12 +84,9 @@ private:
 
 	FDelegateHandle HealthChangedHandle;
 	FDelegateHandle MaxHealthChangedHandle;
-	FTimerHandle InitializeTimerHandle;
+	FAbilitySystemReadySubscription OwnerReadySubscription;
 	FTimerHandle AnimateHealthDelayTimer;
 	FTimerHandle DecreaseHealthTimer;
-	int32 InitializeRetryCount = 0;
 	float AnimatedHealthPercent = 0.0f;
 	float AnimatedHealthTargetPercent = 0.0f;
-
-	static constexpr int32 MaxInitializeRetryCount = 20;
 };

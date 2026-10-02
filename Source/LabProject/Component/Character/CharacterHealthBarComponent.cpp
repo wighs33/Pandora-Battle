@@ -24,8 +24,6 @@ namespace
 	constexpr bool bShowLocalPlayerHealthBar = false;
 	constexpr float VisibilityTargetZOffset = 90.0f;
 	constexpr float HideGraceTime = 0.35f;
-	constexpr int32 ViewModelMaxRetryAttempts = 10;
-	constexpr float ViewModelRetryInterval = 0.1f;
 }
 
 UCharacterHealthBarComponent::UCharacterHealthBarComponent()
@@ -49,27 +47,12 @@ void UCharacterHealthBarComponent::InitializeHealthBar()
 
 void UCharacterHealthBarComponent::ShutdownHealthBar()
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ViewModelRetryTimerHandle);
-	}
-
 	BindViewModelToASC(nullptr);
 	HealthBarViewModel = nullptr;
-	ViewModelRetryCount = 0;
 }
 
+// 위젯을 먼저 붙이고 ASC가 연결돼 있으면 값도 연결한다. ASC가 아직이면 연결 완료 시 AbilityStateComponent가 다시 호출한다.
 void UCharacterHealthBarComponent::RefreshViewModel()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ViewModelRetryTimerHandle);
-	}
-	ViewModelRetryCount = 0;
-	TryRefreshViewModel();
-}
-
-void UCharacterHealthBarComponent::TryRefreshViewModel()
 {
 	ACharacterBase* Character = GetCharacterOwner();
 	if (!Character || Character->GetNetMode() == NM_DedicatedServer)
@@ -82,19 +65,8 @@ void UCharacterHealthBarComponent::TryRefreshViewModel()
 		HealthBarViewModel = NewObject<UHealthBarViewModel>(this);
 	}
 
-	const bool bBoundToReadyASC = BindViewModelToASC(Character->GetAbilitySystemComponent());
-	const bool bAppliedToWidget = TryApplyViewModelToWidget();
-	if (bBoundToReadyASC && bAppliedToWidget)
-	{
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().ClearTimer(ViewModelRetryTimerHandle);
-		}
-		ViewModelRetryCount = 0;
-		return;
-	}
-
-	QueueViewModelRefreshRetry();
+	BindViewModelToASC(Character->GetAbilitySystemComponent());
+	TryApplyViewModelToWidget();
 }
 
 void UCharacterHealthBarComponent::ConfigureWidget()
@@ -218,36 +190,6 @@ bool UCharacterHealthBarComponent::IsAttributeDataReady(
 	return AbilitySystemComponent
 		&& AbilitySystemComponent->IsRegistered()
 		&& AbilitySystemComponent->GetAttributeSet(UBasicAttributeSet::StaticClass()) != nullptr;
-}
-
-void UCharacterHealthBarComponent::QueueViewModelRefreshRetry()
-{
-	ACharacterBase* Character = GetCharacterOwner();
-	UWorld* World = GetWorld();
-	if (!Character || Character->GetNetMode() == NM_DedicatedServer || !World)
-	{
-		return;
-	}
-
-	if (World->GetTimerManager().IsTimerActive(ViewModelRetryTimerHandle)
-		|| ViewModelRetryCount >= ViewModelMaxRetryAttempts)
-	{
-		return;
-	}
-
-	++ViewModelRetryCount;
-	World->GetTimerManager().SetTimer(
-		ViewModelRetryTimerHandle,
-		this,
-		&ThisClass::RetryRefreshViewModel,
-		ViewModelRetryInterval,
-		false);
-}
-
-void UCharacterHealthBarComponent::RetryRefreshViewModel()
-{
-	ViewModelRetryTimerHandle.Invalidate();
-	TryRefreshViewModel();
 }
 
 void UCharacterHealthBarComponent::SetVisibleForLocalViewer(

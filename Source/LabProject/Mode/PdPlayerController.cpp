@@ -1,7 +1,9 @@
 #include "Mode/PdPlayerController.h"
 
 #include "Mode/PdPlayerState.h"
+#include "Character/CharacterBase.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/Character/AbilityStateComponent.h"
 
 #include "Component/Chat/ChatControllerComponent.h"
 #include "Component/Player/ControllerInputComponent.h"
@@ -80,6 +82,7 @@ void APdPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ReleaseControllerDefinitionPreload();
 	LoadedPlayerControllerDefinition = nullptr;
+	ObservePossessedCharacter(nullptr);
 
 	UGameFrameworkComponentManager::RemoveGameFrameworkComponentReceiver(this);
 	Super::EndPlay(EndPlayReason);
@@ -109,6 +112,64 @@ void APdPlayerController::AcknowledgePossession(APawn* P)
 		&& (HasAuthority() || IsLocalController()))
 	{
 		ControllerProfileSyncComponent->ScheduleLocalCosmeticProfileSync();
+	}
+}
+
+// 서버의 빙의와 클라이언트의 Pawn 복제 양쪽에서 호출된다. 새로 조종할 캐릭터의 ASC 준비를 구독해 HUD 쪽에 중계한다.
+void APdPlayerController::SetPawn(APawn* InPawn)
+{
+	Super::SetPawn(InPawn);
+	ObservePossessedCharacter(Cast<ACharacterBase>(GetPawn()));
+}
+
+// 현재 조종 중이고 ASC 연결까지 끝난 캐릭터만 반환한다.
+ACharacterBase* APdPlayerController::GetReadyPossessedCharacter() const
+{
+	ACharacterBase* PossessedCharacter = ObservedPossessedCharacter.Get();
+	const UAbilityStateComponent* AbilityStateComponent = PossessedCharacter ? PossessedCharacter->GetAbilityStateComponent() : nullptr;
+	return PossessedCharacter && PossessedCharacter == GetPawn() && AbilityStateComponent && AbilityStateComponent->IsAbilitySystemReady()
+		? PossessedCharacter
+		: nullptr;
+}
+
+FDelegateHandle APdPlayerController::RegisterOnPossessedCharacterAbilitySystemReady(
+	const FPdAbilitySystemReadyDelegate::FDelegate& Delegate)
+{
+	return OnPossessedCharacterAbilitySystemReady.Add(Delegate);
+}
+
+void APdPlayerController::UnregisterOnPossessedCharacterAbilitySystemReady(const FDelegateHandle Handle)
+{
+	OnPossessedCharacterAbilitySystemReady.Remove(Handle);
+}
+
+// 같은 Pawn으로 SetPawn이 반복돼도 구독을 다시 만들지 않는다.
+void APdPlayerController::ObservePossessedCharacter(ACharacterBase* NewPossessedCharacter)
+{
+	if (ObservedPossessedCharacter.Get() == NewPossessedCharacter)
+	{
+		return;
+	}
+
+	PossessedCharacterReadySubscription.Reset();
+	ObservedPossessedCharacter = NewPossessedCharacter;
+	if (NewPossessedCharacter)
+	{
+		PossessedCharacterReadySubscription.SubscribeToCharacter(NewPossessedCharacter,
+			FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(
+				this, &ThisClass::HandlePossessedCharacterAbilitySystemReady));
+	}
+}
+
+// 조종이 바뀐 직후 이전 캐릭터의 늦은 알림은 전달하지 않는다.
+void APdPlayerController::HandlePossessedCharacterAbilitySystemReady(
+	ACharacterBase* ReadyCharacter, UPdAbilitySystemComponent* AbilitySystemComponent)
+{
+	if (ReadyCharacter && ReadyCharacter == GetPawn())
+	{
+		UE_LOG(PdPlayerControllerLog, Verbose, TEXT("%s: possessed character %s is ready; notifying UI listeners."),
+			*GetNameSafe(this), *GetNameSafe(ReadyCharacter));
+		OnPossessedCharacterAbilitySystemReady.Broadcast(ReadyCharacter, AbilitySystemComponent);
 	}
 }
 

@@ -2,11 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "GameplayTagContainer.h"
 #include "Layout/Margin.h"
 #include "AbilitiesBarWidget.generated.h"
 
+class ACharacterBase;
 class UAbilitySystemComponent;
 class UGameplayAbility;
 class UHorizontalBox;
@@ -48,7 +50,7 @@ public:
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void InitializeAbilitySystemBinding();
+	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void RebuildAbilitiesBar();
 	void HandleAbilitiesChanged();
 
@@ -106,5 +108,5 @@ private:
 	TWeakObjectPtr<UPandoraTreeComponent> BoundPandoraTreeComponent;
 	FDelegateHandle AbilitiesChangedNativeHandle;
 	FTimerHandle RebuildBarTimerHandle;
-	FTimerHandle RetryInitializeTimerHandle;
+	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
 };

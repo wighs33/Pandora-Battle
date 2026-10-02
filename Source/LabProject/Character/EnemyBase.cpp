@@ -1,6 +1,7 @@
 #include "Character/EnemyBase.h"
 
 #include "AbilitySystem/Ability/AttackAbility.h"
+#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/EnemyCombatComponent.h"
 #include "Component/Character/EnemyTrainingBotComponent.h"
@@ -29,6 +30,9 @@ AEnemyBase::AEnemyBase(const FObjectInitializer& ObjectInitializer)
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(
 		EGameplayEffectReplicationMode::Minimal);
+	BasicAttributeSet =
+		CreateDefaultSubobject<UBasicAttributeSet>(
+			TEXT("BasicAttributeSet"));
 
 	EnemyCombatComponent =
 		CreateDefaultSubobject<UEnemyCombatComponent>(

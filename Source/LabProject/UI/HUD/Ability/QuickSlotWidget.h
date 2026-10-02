@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "QuickSlotWidget.generated.h"
 
+class ACharacterBase;
 class UInventoryComponent;
 class UQuickSlotEntryWidget;
 class USkinDefinition;
@@ -29,7 +31,7 @@ public:
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void InitializeInventoryBinding();
+	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void HandleInventoryChanged();
 	UFUNCTION()
 	void HandleSkinEquipmentChanged();
@@ -72,6 +74,6 @@ private:
 	TSharedPtr<FStreamableHandle> QuickSlotIconPreloadHandle;
 	uint32 QuickSlotIconPreloadGeneration = 0;
 
-	FTimerHandle RetryInitializeTimerHandle;
 	FTimerHandle RebuildBarTimerHandle;
+	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
 };

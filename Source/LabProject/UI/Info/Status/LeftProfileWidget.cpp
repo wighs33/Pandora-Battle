@@ -38,22 +38,17 @@ void ULeftProfileWidget::NativeConstruct()
 	RefreshTierImage();
 	RefreshAchievementButtons();
 
-	PlayerNameRefreshRetryCount = 0;
+	// 이름 변경은 OnMatchDisplayNameChanged가, PlayerState 도착은 조종 캐릭터 준비 알림이 다시 반영한다.
 	BindMatchDisplayNameChanged();
-	if (!RefreshPlayerName())
-	{
-		SchedulePlayerNameRefreshRetry();
-	}
+	RefreshPlayerName();
+	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayer(),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 }
 
 void ULeftProfileWidget::NativeDestruct()
 {
+	PossessedCharacterReadySubscription.Reset();
 	ReleaseContentPreloads();
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(PlayerNameRefreshRetryTimerHandle);
-	}
-
 	UnbindMatchDisplayNameChanged();
 	UnbindSteamAchievementStateChanged();
 	UnbindAchievementButtons();
@@ -476,36 +471,13 @@ bool ULeftProfileWidget::RefreshPlayerName()
 	return bHasMatchDisplayName;
 }
 
-void ULeftProfileWidget::SchedulePlayerNameRefreshRetry()
+void ULeftProfileWidget::HandlePossessedCharacterReady(
+	ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent)
 {
-	UWorld* World = GetWorld();
-	if (!World || World->GetTimerManager().IsTimerActive(PlayerNameRefreshRetryTimerHandle))
-	{
-		return;
-	}
-
-	World->GetTimerManager().SetTimer(
-		PlayerNameRefreshRetryTimerHandle,
-		this,
-		&ThisClass::HandlePlayerNameRefreshRetry,
-		0.1f,
-		true);
-}
-
-void ULeftProfileWidget::HandlePlayerNameRefreshRetry()
-{
+	static_cast<void>(Character);
+	static_cast<void>(AbilitySystemComponent);
 	BindMatchDisplayNameChanged();
-
-	const bool bHasMatchDisplayName = RefreshPlayerName();
-	++PlayerNameRefreshRetryCount;
-
-	if (bHasMatchDisplayName || PlayerNameRefreshRetryCount >= 30)
-	{
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().ClearTimer(PlayerNameRefreshRetryTimerHandle);
-		}
-	}
+	RefreshPlayerName();
 }
 
 void ULeftProfileWidget::HandleMatchDisplayNameChanged(const FText& NewDisplayName)

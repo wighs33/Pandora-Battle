@@ -21,8 +21,6 @@
 
 namespace
 {
-	constexpr float CooldownBindingRetryInterval = 0.1f;
-
 	const TSoftObjectPtr<UInputAction>* GetSettingsInputAction(
 		const FActionSlotWidgetSettings& Settings,
 		const ECharacterActionType ActionType)
@@ -53,16 +51,28 @@ void UActionSlotEntryWidget::NativeConstruct()
 
 	ApplyWidgetDefinitionSettings();
 	RefreshVisual();
-	BindAbilityCooldownChanged();
 	CheckForCooldown();
+	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayer(),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 }
 
 void UActionSlotEntryWidget::NativeDestruct()
 {
+	PossessedCharacterReadySubscription.Reset();
 	UnbindAbilityCooldownChanged();
 	ClearCooldownTimer();
 
 	Super::NativeDestruct();
+}
+
+// 조종 캐릭터의 ASC가 준비될 때마다(리스폰 포함) 쿨다운 구독을 다시 연결한다.
+void UActionSlotEntryWidget::HandlePossessedCharacterReady(
+	ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent)
+{
+	static_cast<void>(Character);
+	static_cast<void>(AbilitySystemComponent);
+	BindAbilityCooldownChanged();
+	CheckForCooldown();
 }
 
 void UActionSlotEntryWidget::SetActionSlotData(
@@ -282,13 +292,13 @@ void UActionSlotEntryWidget::BindAbilityCooldownChanged()
 		return;
 	}
 
+	// 조종 캐릭터가 아직 준비되지 않았으면 HandlePossessedCharacterReady가 다시 연결한다.
 	APdPlayer* PlayerCharacter = ResolveOwningPlayerCharacter();
 	UAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter
 		? PlayerCharacter->GetAbilitySystemComponent()
 		: nullptr;
 	if (!AbilitySystemComponent)
 	{
-		ScheduleAbilityCooldownBindingRetry();
 		return;
 	}
 
@@ -311,8 +321,6 @@ void UActionSlotEntryWidget::BindAbilityCooldownChanged()
 
 void UActionSlotEntryWidget::UnbindAbilityCooldownChanged()
 {
-	ClearAbilityCooldownBindingRetry();
-
 	UAbilitySystemComponent* AbilitySystemComponent = BoundAbilitySystemComponent.Get();
 	if (AbilitySystemComponent
 		&& BoundAbilityCooldownTag.IsValid()
@@ -338,56 +346,6 @@ void UActionSlotEntryWidget::UnbindAbilityCooldownChanged()
 	AbilityCooldownEffectRemovedHandle.Reset();
 	BoundAbilityCooldownTag = FGameplayTag();
 	BoundAbilitySystemComponent.Reset();
-}
-
-void UActionSlotEntryWidget::RetryBindAbilityCooldown()
-{
-	if (!ResolveAbilityCooldownTag().IsValid())
-	{
-		ClearAbilityCooldownBindingRetry();
-		return;
-	}
-
-	if (BoundAbilitySystemComponent.IsValid())
-	{
-		ClearAbilityCooldownBindingRetry();
-		return;
-	}
-
-	APdPlayer* PlayerCharacter = ResolveOwningPlayerCharacter();
-	if (!PlayerCharacter || !PlayerCharacter->GetAbilitySystemComponent())
-	{
-		return;
-	}
-
-	BindAbilityCooldownChanged();
-	CheckForCooldown();
-}
-
-void UActionSlotEntryWidget::ScheduleAbilityCooldownBindingRetry()
-{
-	UWorld* World = GetWorld();
-	if (!World || World->GetTimerManager().IsTimerActive(AbilityCooldownBindingRetryTimerHandle))
-	{
-		return;
-	}
-
-	World->GetTimerManager().SetTimer(
-		AbilityCooldownBindingRetryTimerHandle,
-		this,
-		&ThisClass::RetryBindAbilityCooldown,
-		CooldownBindingRetryInterval,
-		true);
-}
-
-void UActionSlotEntryWidget::ClearAbilityCooldownBindingRetry()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(AbilityCooldownBindingRetryTimerHandle);
-	}
-
-	AbilityCooldownBindingRetryTimerHandle.Invalidate();
 }
 
 void UActionSlotEntryWidget::ClearCooldownTimer()

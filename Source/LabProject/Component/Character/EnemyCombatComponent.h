@@ -48,8 +48,8 @@ public:
 	bool IsUsingRangedWeapon() const;
 	bool IsUsingGunWeapon() const;
 
-	// 실제 기본 속성 집합이 ASC에 준비되었는지 확인한다.
-	bool IsDefaultAttributeSetupComplete() const;
+	// 서버에서 기본 능력치 준비 경로를 한 번이라도 거쳤는지 확인한다. 속성 집합 자체는 적 액터의 기본 서브오브젝트다.
+	bool IsDefaultAttributeSetupComplete() const { return bDefaultAttributeSetupPerformed; }
 	bool EquipEnemyWeaponDefinition(const UItemDefinition* WeaponDefinition);
 	const UItemDefinition* GetCurrentOrStartingEnemyWeaponDefinition() const;
 	void ClearStartingWeaponDefinition();
@@ -97,5 +97,6 @@ private:
 	bool bRuntimeContentReady = true;
 	bool bHandlePossessedWhenContentReady = false;
 
+	bool bDefaultAttributeSetupPerformed = false;
 	bool bDefaultStatDefinitionApplied = false;
 };

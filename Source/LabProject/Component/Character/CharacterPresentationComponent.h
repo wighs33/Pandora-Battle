@@ -84,7 +84,6 @@ private:
 	void RefreshTemporaryMeshScale();
 	UMaterialInterface* GetPreferredSkillOverlayMaterial();
 	const UMatchRuleDefinition* GetTeamOverlayMatchRuleDefinition() const;
-	void QueueTeamOverlayMaterialRetry();
 	FVector GetClampedBodyAuraRelativeLocationOffset(
 		FVector RelativeLocationOffset) const;
 	FVector GetClampedBodyAuraRelativeScale(FVector RelativeScale) const;
@@ -116,7 +115,5 @@ private:
 	TWeakObjectPtr<USkeletalMeshComponent> ScaledMeshComponent;
 	FVector MeshRelativeScaleBeforeModifiers = FVector::OneVector;
 
-	FTimerHandle TeamOverlayMaterialRetryTimerHandle;
-	int32 TeamOverlayMaterialRetryCount = 0;
 	TWeakObjectPtr<class APdPlayerState> TeamColorBoundPlayerState;
 };

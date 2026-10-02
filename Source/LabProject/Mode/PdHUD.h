@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "GameFramework/HUD.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
@@ -9,6 +10,7 @@
 #include "UI/HUD/Notification/NotificationData.h"
 #include "PdHUD.generated.h"
 
+class ACharacterBase;
 class APdPlayerController;
 class UInfoUiPresenter;
 class UDamageScreenEffectWidget;
@@ -112,7 +114,7 @@ public:
 	void OnPandoraTreeInputStarted(const FInputActionValue& InputValue);
 
 private:
-	void RetryApplyStatusViewModelToPlayerHud();
+	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void HandleSettingsMenuLayerClosed();
 
 protected:
@@ -189,7 +191,8 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<URightNotificationsWidget> CachedRightNotificationsUI = nullptr;
 
-	FTimerHandle PlayerHudStatusViewModelRetryTimerHandle;
+	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoUiPresenter> CachedInfoUiPresenter = nullptr;
 

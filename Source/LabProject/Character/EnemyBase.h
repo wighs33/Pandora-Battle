@@ -5,6 +5,7 @@
 #include "EnemyBase.generated.h"
 
 class UPdAbilitySystemComponent;
+class UBasicAttributeSet;
 class UEnemyBaseDefinition;
 class UEnemyCombatComponent;
 class UEnemyTrainingBotComponent;
@@ -191,6 +192,10 @@ protected:
 		Category = "!AbilitySystem",
 		meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPdAbilitySystemComponent> AbilitySystemComponent;
+
+	// 플레이어의 PlayerState처럼 ASC 소유 액터의 기본 서브오브젝트로 두어, 클라이언트에서도 ASC 초기화 시점에 속성이 함께 준비된다.
+	UPROPERTY(VisibleAnywhere, Category = "!AbilitySystem")
+	TObjectPtr<UBasicAttributeSet> BasicAttributeSet;
 
 	UPROPERTY(
 		VisibleAnywhere,

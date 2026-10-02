@@ -1,12 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "GameFramework/PlayerController.h"
 #include "UI/Match/GameResultTypes.h"
 #include "UI/HUD/Match/KillLogTypes.h"
 #include "UI/HUD/Notification/NotificationData.h"
 #include "PdPlayerController.generated.h"
 
+class ACharacterBase;
 class UChatControllerComponent;
 class UControllerInputComponent;
 class UControllerInputDefinition;
@@ -15,6 +17,7 @@ class UControllerPresentationComponent;
 class UControllerProfileSyncComponent;
 class UControllerSessionComponent;
 class UPlayerControllerDefinition;
+class UPdAbilitySystemComponent;
 class UPlayerNotificationComponent;
 struct FStreamableHandle;
 
@@ -38,9 +41,16 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual void AcknowledgePossession(APawn* P) override;
+	virtual void SetPawn(APawn* InPawn) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	APdPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	// 조종 중인 캐릭터의 ASC 준비 계약. Pawn 교체·리스폰 뒤 새 캐릭터가 준비될 때마다 다시 알린다.
+	// 구독은 FAbilitySystemReadySubscription::SubscribeToPossessedCharacter로 한다.
+	ACharacterBase* GetReadyPossessedCharacter() const;
+	FDelegateHandle RegisterOnPossessedCharacterAbilitySystemReady(const FPdAbilitySystemReadyDelegate::FDelegate& Delegate);
+	void UnregisterOnPossessedCharacterAbilitySystemReady(FDelegateHandle Handle);
 
 	void RequestLocalCosmeticProfileSync();
 
@@ -115,6 +125,7 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleControllerDefinitionPreloaded(uint32 RequestGeneration);
+	void HandlePossessedCharacterAbilitySystemReady(ACharacterBase* ReadyCharacter, UPdAbilitySystemComponent* AbilitySystemComponent);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyControllerDefinition();
@@ -122,6 +133,7 @@ private:
 	void BeginControllerDefinitionPreload();
 	void ReleaseControllerDefinitionPreload();
 	void RefreshControllerInput();
+	void ObservePossessedCharacter(ACharacterBase* NewPossessedCharacter);
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Components", meta = (AllowPrivateAccess = "true"))
@@ -154,4 +166,8 @@ private:
 
 	TSharedPtr<FStreamableHandle> PlayerControllerDefinitionLoadHandle;
 	uint32 PlayerControllerDefinitionLoadGeneration = 0;
+
+	TWeakObjectPtr<ACharacterBase> ObservedPossessedCharacter;
+	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
+	FPdAbilitySystemReadyDelegate OnPossessedCharacterAbilitySystemReady;
 };

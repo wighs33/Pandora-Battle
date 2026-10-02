@@ -3,6 +3,7 @@
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Character/CharacterBase.h"
 #include "Components/ProgressBar.h"
 #include "Engine/World.h"
 #include "GameplayEffectTypes.h"
@@ -12,22 +13,12 @@
 void UEnemyShieldBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	InitializeRetryCount = 0;
-
-	if (UWorld* World = GetWorld())
-	{
-		InitializeTimerHandle = World->GetTimerManager().SetTimerForNextTick(
-			FTimerDelegate::CreateUObject(this, &ThisClass::InitializeFromOwner));
-		return;
-	}
-
-	InitializeFromOwner();
+	ObserveOwnerAbilitySystem();
 }
 
 void UEnemyShieldBarWidget::NativeDestruct()
 {
-	StopInitializeRetry();
-
+	OwnerReadySubscription.Reset();
 	UnbindAttributeDelegates();
 
 	Super::NativeDestruct();
@@ -35,9 +26,29 @@ void UEnemyShieldBarWidget::NativeDestruct()
 
 void UEnemyShieldBarWidget::SetOwnerActor(AActor* InOwnerActor)
 {
-	StopInitializeRetry();
 	OwnerActor = InOwnerActor;
-	InitializeRetryCount = 0;
+	ObserveOwnerAbilitySystem();
+}
+
+// 캐릭터 소유자는 ASC 준비 알림에서 연결한다. 캐릭터가 아닌 소유자는 이미 가진 ASC에 바로 연결한다.
+void UEnemyShieldBarWidget::ObserveOwnerAbilitySystem()
+{
+	if (ACharacterBase* OwnerCharacter = Cast<ACharacterBase>(OwnerActor.Get()))
+	{
+		OwnerReadySubscription.SubscribeToCharacter(OwnerCharacter,
+			FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleOwnerAbilitySystemReady));
+		return;
+	}
+
+	OwnerReadySubscription.Reset();
+	InitializeFromOwner();
+}
+
+void UEnemyShieldBarWidget::HandleOwnerAbilitySystemReady(
+	ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent)
+{
+	static_cast<void>(Character);
+	static_cast<void>(AbilitySystemComponent);
 	InitializeFromOwner();
 }
 
@@ -56,67 +67,20 @@ void UEnemyShieldBarWidget::InitializeFromOwner()
 	UnbindAttributeDelegates();
 	if (!GetProgressBar())
 	{
-		StopInitializeRetry();
 		return;
 	}
 
 	BoundAbilitySystemComponent = GetOwnerAbilitySystemComponent();
 	if (!BoundAbilitySystemComponent)
 	{
-
-		QueueInitializeRetry();
 		return;
 	}
 
-	bool bFoundShield = false;
-	bool bFoundMaxShield = false;
-	CurrentShield = GetAttributeValue(UBasicAttributeSet::GetShieldAttribute(), &bFoundShield);
-	MaxShield = GetAttributeValue(UBasicAttributeSet::GetMaxShieldAttribute(), &bFoundMaxShield);
-
-	if (!bFoundShield || !bFoundMaxShield)
-	{
-		QueueInitializeRetry();
-		UpdateShieldPercent();
-		return;
-	}
-
-	StopInitializeRetry();
-	InitializeRetryCount = 0;
+	CurrentShield = GetAttributeValue(UBasicAttributeSet::GetShieldAttribute());
+	MaxShield = GetAttributeValue(UBasicAttributeSet::GetMaxShieldAttribute());
 
 	UpdateShieldPercent();
 	BindAttributeDelegates();
-}
-
-void UEnemyShieldBarWidget::QueueInitializeRetry()
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-	if (InitializeRetryCount >= MaxInitializeRetryCount)
-	{
-		StopInitializeRetry();
-		return;
-	}
-
-	++InitializeRetryCount;
-	World->GetTimerManager().ClearTimer(InitializeTimerHandle);
-	World->GetTimerManager().SetTimer(
-		InitializeTimerHandle,
-		this,
-		&ThisClass::InitializeFromOwner,
-		0.1f,
-		false);
-}
-
-void UEnemyShieldBarWidget::StopInitializeRetry()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(InitializeTimerHandle);
-	}
-	InitializeTimerHandle.Invalidate();
 }
 
 void UEnemyShieldBarWidget::BindAttributeDelegates()

@@ -2,10 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "UI/Common/LocalizedMenuWidget.h"
-#include "TimerManager.h"
 #include "AttributeSet.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "PlayerVitalsWidget.generated.h"
 
+class ACharacterBase;
 class UAbilitySystemComponent;
 class UProgressBar;
 struct FOnAttributeChangeData;
@@ -24,20 +25,18 @@ protected:
 	virtual void OnMenuLanguageChanged() override;
 
 private:
-	void InitializeStaminaPresentation();
+	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void HandleResourceChanged(const FOnAttributeChangeData& Data);
 	void HandleStaminaChanged(const FOnAttributeChangeData& Data);
 	void HandleMaxStaminaChanged(const FOnAttributeChangeData& Data);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void QueueStaminaPresentationInitializeRetry();
 	void BindStaminaAttributeDelegates();
 	void UnbindStaminaAttributeDelegates();
 	void BeginGameSettingContentPreload();
 	void ReleaseGameSettingContentPreload();
 	void RefreshStaminaFillTint();
 	UProgressBar* ResolveStaminaBar() const;
-	UAbilitySystemComponent* ResolveOwnerAbilitySystemComponent() const;
 	void RefreshResourceReadouts();
 
 protected:
@@ -52,13 +51,10 @@ private:
 
 	FDelegateHandle StaminaChangedDelegateHandle;
 	FDelegateHandle MaxStaminaChangedDelegateHandle;
-	FTimerHandle StaminaPresentationInitializeTimerHandle;
+	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
 	FLinearColor NormalStaminaFillTint = FLinearColor::White;
 	float CurrentStamina = 0.0f;
 	float CurrentMaxStamina = 0.0f;
-	int32 StaminaPresentationInitializeRetryCount = 0;
 	int32 GameSettingContentPreloadGeneration = 0;
 	bool bHasCachedNormalStaminaFillTint = false;
-
-	static constexpr int32 MaxStaminaPresentationInitializeRetryCount = 20;
 };

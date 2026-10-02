@@ -1,12 +1,14 @@
 #pragma once
 
 #include "Blueprint/UserWidget.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "GameplayTagContainer.h"
 #include "TimerManager.h"
 
 #include "StatusEffectsBarWidget.generated.h"
 
 class AActor;
+class ACharacterBase;
 class UAbilitySystemComponent;
 class UHorizontalBox;
 class UStatusEffectDefinition;
@@ -39,8 +41,10 @@ private:
 	void BindStatusEffectTagDelegates();
 	void HandleObservedTagChanged(FGameplayTag CallbackTag, int32 NewCount);
 	void HandleReplicatedStatusEffectStackChanged(FGameplayTag DebuffTag, int32 StackCount);
+	void HandleOwnerAbilitySystemReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ObserveOwnerAbilitySystem();
 	void TryAddStatusEffectWidget(UStatusEffectDefinition* DataAsset);
 	void ApplyWidgetDefinitionSettings();
 	void BeginStatusEffectContentPreload();
@@ -82,12 +86,10 @@ private:
 	FDelegateHandle ReplicatedStackChangedHandle;
 	FTimerHandle BindStatusEffectTagsTimerHandle;
 	FTimerHandle RefreshStatusEffectWidgetsTimerHandle;
-	int32 BindRetryCount = 0;
+	FAbilitySystemReadySubscription OwnerReadySubscription;
 	bool bBindStatusEffectTagsScheduled = false;
 	bool bStatusEffectWidgetRefreshScheduled = false;
 	bool bIsConstructed = false;
 	bool bObservedStatusEffectDataAssetCacheValid = false;
 	int32 ContentPreloadGeneration = 0;
-
-	static constexpr int32 MaxBindRetryCount = 20;
 };

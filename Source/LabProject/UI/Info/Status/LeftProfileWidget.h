@@ -1,9 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "UI/Common/LocalizedMenuWidget.h"
 #include "LeftProfileWidget.generated.h"
 
+class ACharacterBase;
 class APdPlayerState;
 class UAchievementDefinition;
 class UButton;
@@ -60,7 +62,7 @@ private:
 	UFUNCTION()
 	void HandleAchievementButtonClicked_6();
 	void HandleSteamAchievementStateChanged();
-	void HandlePlayerNameRefreshRetry();
+	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void HandleMatchDisplayNameChanged(const FText& NewDisplayName);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -74,7 +76,6 @@ private:
 	void BindMatchDisplayNameChanged();
 	void UnbindMatchDisplayNameChanged();
 	bool RefreshPlayerName();
-	void SchedulePlayerNameRefreshRetry();
 	void ApplyAchievementIcon(int32 AchievementIndex);
 	void RefreshSelectedAchievementIcon();
 	void ApplyAchievementBrush(int32 AchievementIndex);
@@ -150,8 +151,7 @@ private:
 	TWeakObjectPtr<APdPlayerState> BoundPlayerState;
 	FDelegateHandle MatchDisplayNameChangedHandle;
 	FDelegateHandle SteamAchievementStateChangedHandle;
-	FTimerHandle PlayerNameRefreshRetryTimerHandle;
-	int32 PlayerNameRefreshRetryCount = 0;
+	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
 	int32 ContentPreloadGeneration = 0;
 	bool bAchievementQueryPending = false;
 	TSharedPtr<FStreamableHandle> DefinitionPreloadHandle;

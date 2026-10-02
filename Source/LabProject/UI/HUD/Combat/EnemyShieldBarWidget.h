@@ -2,11 +2,12 @@
 
 #include "AttributeSet.h"
 #include "Blueprint/UserWidget.h"
-#include "TimerManager.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 
 #include "EnemyShieldBarWidget.generated.h"
 
 class AActor;
+class ACharacterBase;
 class UAbilitySystemComponent;
 class UProgressBar;
 struct FOnAttributeChangeData;
@@ -32,13 +33,13 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void InitializeFromOwner();
+	void HandleOwnerAbilitySystemReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 
 	void OnShieldChanged(const FOnAttributeChangeData& ChangeData);
 	void OnMaxShieldChanged(const FOnAttributeChangeData& ChangeData);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void QueueInitializeRetry();
-	void StopInitializeRetry();
+	void ObserveOwnerAbilitySystem();
 	void BindAttributeDelegates();
 	void UnbindAttributeDelegates();
 	UProgressBar* GetProgressBar() const;
@@ -65,8 +66,5 @@ private:
 
 	FDelegateHandle ShieldChangedHandle;
 	FDelegateHandle MaxShieldChangedHandle;
-	FTimerHandle InitializeTimerHandle;
-	int32 InitializeRetryCount = 0;
-
-	static constexpr int32 MaxInitializeRetryCount = 20;
+	FAbilitySystemReadySubscription OwnerReadySubscription;
 };

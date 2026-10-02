@@ -15,10 +15,10 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterPresentationComponent)
 
+DEFINE_LOG_CATEGORY_STATIC(LogCharacterPresentation, Log, All);
+
 namespace
 {
-	constexpr float TeamOverlayMaterialRetryInterval = 0.2f;
-	constexpr int32 TeamOverlayMaterialRetryAttempts = 20;
 	constexpr float MaxBodyAuraRelativeOffsetDistance = 600.0f;
 	constexpr float MaxBodyAuraRelativeScale = 10.0f;
 }
@@ -56,10 +56,6 @@ void UCharacterPresentationComponent::ShutdownPresentation()
 	TemporaryMeshScaleMultipliers.Reset();
 	RefreshTemporaryMeshScale();
 	UnbindMatchTeamColorChanged();
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(TeamOverlayMaterialRetryTimerHandle);
-	}
 	DefaultBodyAuraComponent = nullptr;
 	SkillPresentationOverlaySources.Reset();
 	SkillPresentationOverlayMaterials.Reset();
@@ -198,29 +194,27 @@ void UCharacterPresentationComponent::RefreshCharacterOverlayMaterial()
 		return;
 	}
 
+	// 팀이 없는 캐릭터(적·팀 배정 전 플레이어)는 오버레이를 쓰지 않는다.
+	// PlayerState 도착은 OnRep_PlayerState가, 팀 배정은 OnMatchTeamColorChanged가 이 함수를 다시 호출한다.
 	const APdPlayerState* PdPlayerState = Character->GetPlayerState<APdPlayerState>();
 	const UPlayerMatchComponent* MatchComponent = PdPlayerState ? PdPlayerState->GetPlayerMatchComponent() : nullptr;
 	const int32 TeamColorIndex = MatchComponent ? MatchComponent->GetMatchTeamColorIndex() : INDEX_NONE;
 	if (TeamColorIndex == INDEX_NONE)
 	{
 		CharacterMesh->SetOverlayMaterial(nullptr);
-		QueueTeamOverlayMaterialRetry();
 		return;
 	}
 
 	const UMatchRuleDefinition* MatchRules = GetTeamOverlayMatchRuleDefinition();
 	if (!MatchRules)
 	{
+		UE_LOG(LogCharacterPresentation, Error,
+			TEXT("%s: no MatchRuleDefinition is available for the team overlay. Check the default match rule asset."),
+			*GetNameSafe(Character));
 		CharacterMesh->SetOverlayMaterial(nullptr);
-		QueueTeamOverlayMaterialRetry();
 		return;
 	}
 
-	TeamOverlayMaterialRetryCount = 0;
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(TeamOverlayMaterialRetryTimerHandle);
-	}
 	CharacterMesh->SetOverlayMaterial(MatchRules->GetTeamOverlayMaterial(TeamColorIndex));
 }
 
@@ -301,28 +295,6 @@ void UCharacterPresentationComponent::ClearCharacterOverlayMaterialLocal()
 	}
 }
 
-void UCharacterPresentationComponent::QueueTeamOverlayMaterialRetry()
-{
-	UWorld* World = GetWorld();
-	if (!World
-		|| World->GetTimerManager().IsTimerActive(TeamOverlayMaterialRetryTimerHandle)
-		|| TeamOverlayMaterialRetryCount >= TeamOverlayMaterialRetryAttempts)
-	{
-		return;
-	}
-
-	++TeamOverlayMaterialRetryCount;
-	World->GetTimerManager().SetTimer(
-		TeamOverlayMaterialRetryTimerHandle,
-		FTimerDelegate::CreateWeakLambda(this, [this]()
-		{
-			TeamOverlayMaterialRetryTimerHandle.Invalidate();
-			BindMatchTeamColorChanged();
-			RefreshCharacterOverlayMaterial();
-		}),
-		TeamOverlayMaterialRetryInterval,
-		false);
-}
 
 void UCharacterPresentationComponent::HandleDashGameplayCue(
 	const EGameplayCueEvent::Type EventType,

@@ -12,7 +12,6 @@
 #include "Component/Character/CharacterHealthBarComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/EquipmentComponent.h"
-#include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
@@ -22,12 +21,11 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityStateComponent)
 
+DEFINE_LOG_CATEGORY_STATIC(LogAbilityStateComponent, Log, All);
+
 namespace
 {
-constexpr int32 ActorInfoMaxRetryAttempts = 10;
-constexpr float ActorInfoRetryInterval = 0.05f;
 constexpr float MinimumMaxWalkSpeed = 150.0f;
-constexpr int32 MovementSpeedAttributeMaxRetryAttempts = 50;
 constexpr float StaminaRegenDelay = 1.0f;
 constexpr float StaminaRegenEffectLevel = 1.0f;
 } // namespace
@@ -48,20 +46,9 @@ void UAbilityStateComponent::CaptureBaseMovementSpeed()
 	}
 }
 
-// 빙의·PlayerState 복제·캐릭터 초기화 시 이전 재시도를 초기화하고 현재 Owner와 Avatar의 ASC 연결을 시도한다.
+// 캐릭터 초기화·빙의·PlayerState 복제 시 현재 Owner와 Avatar로 ASC를 연결하고 준비 알림을 보낸다.
+// 플레이어의 PlayerState가 아직 없으면 연결하지 않는다. PlayerState가 도착하면 OnRep_PlayerState가 다시 호출한다.
 void UAbilityStateComponent::InitializeAbilitySystemActorInfo()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ActorInfoInitializationRetryTimerHandle);
-	}
-	bActorInfoInitializationQueued = false;
-	ActorInfoInitializationRetryCount = 0;
-	TryInitializeAbilitySystemActorInfo();
-}
-
-// 이전 Pawn의 ASC 연결을 정리하고 현재 캐릭터에 상태 구독과 기본 회복 능력을 연결한다. ASC가 미준비이면 재시도한다.
-void UAbilityStateComponent::TryInitializeAbilitySystemActorInfo()
 {
 	ACharacterBase* Character = GetCharacterOwner();
 	UPdAbilitySystemComponent* ASC = Character ? Character->GetPdAbilitySystemComponent() : nullptr;
@@ -79,20 +66,16 @@ void UAbilityStateComponent::TryInitializeAbilitySystemActorInfo()
 	}
 	if (!Character || !ASC || !OwnerActor || !AvatarActor || !ASC->IsRegistered() || !ASC->AbilityActorInfo.IsValid())
 	{
-		QueueAbilitySystemActorInfoInitializationRetry();
+		UE_LOG(LogAbilityStateComponent, Verbose,
+			TEXT("%s: ASC owner is not available yet; waiting for possession or PlayerState replication."),
+			*GetNameSafe(Character));
 		if (Character && Character->GetCharacterHealthBarComponent())
 		{
-			Character->GetCharacterHealthBarComponent()->TryRefreshViewModel();
+			// 체력바 위젯은 ASC 없이도 먼저 붙여 두고, 준비되면 아래 성공 경로에서 값을 연결한다.
+			Character->GetCharacterHealthBarComponent()->RefreshViewModel();
 		}
 		return;
 	}
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ActorInfoInitializationRetryTimerHandle);
-	}
-	bActorInfoInitializationQueued = false;
-	ActorInfoInitializationRetryCount = 0;
 
 	// 같은 ASC가 새 캐릭터로 넘어갈 때 이전 캐릭터의 구독부터 해제한다.
 	if (ACharacterBase* PreviousAvatar = Cast<ACharacterBase>(ASC->GetAvatarActor()); PreviousAvatar && PreviousAvatar != Character)
@@ -129,45 +112,33 @@ void UAbilityStateComponent::TryInitializeAbilitySystemActorInfo()
 	{
 		Character->GetCharacterHealthBarComponent()->RefreshViewModel();
 	}
+
+	UE_CLOG(!ASC->GetSet<UBasicAttributeSet>(), LogAbilityStateComponent, Error,
+		TEXT("%s: ASC owner %s has no BasicAttributeSet. It must be a default subobject of the ASC owner."),
+		*GetNameSafe(Character), *GetNameSafe(OwnerActor));
+	UE_LOG(LogAbilityStateComponent, Verbose, TEXT("%s: ability system ready (owner %s, net mode %d)."),
+		*GetNameSafe(Character), *GetNameSafe(OwnerActor), static_cast<int32>(Character->GetNetMode()));
+	OnAbilitySystemReady.Broadcast(Character, ASC);
 }
 
-// ASC 등록과 PlayerState 준비가 늦게 끝나는 경우 0.05초 간격으로 최대 10회 연결을 재시도한다.
-void UAbilityStateComponent::QueueAbilitySystemActorInfoInitializationRetry()
+// 이 캐릭터를 Avatar로 연결한 ASC만 준비된 것으로 본다. 리스폰으로 ASC가 새 Pawn에 넘어가면 이전 Pawn은 준비 상태가 아니다.
+UPdAbilitySystemComponent* UAbilityStateComponent::GetReadyAbilitySystemComponent() const
 {
-	UWorld* World = GetWorld();
-	if (bActorInfoInitializationQueued || !World)
-	{
-		return;
-	}
-
-	if (ActorInfoInitializationRetryCount >= ActorInfoMaxRetryAttempts)
-	{
-		return;
-	}
-
-	bActorInfoInitializationQueued = true;
-	++ActorInfoInitializationRetryCount;
-	World->GetTimerManager().SetTimer(ActorInfoInitializationRetryTimerHandle,
-		FTimerDelegate::CreateWeakLambda(this,
-			[this]() {
-				bActorInfoInitializationQueued = false;
-				ActorInfoInitializationRetryTimerHandle.Invalidate();
-				TryInitializeAbilitySystemActorInfo();
-				// 캐릭터 초기화 이후 ASC 연결만 늦어진 경우에도 보관된 최신 선택을 적용한다.
-				ACharacterBase* Character = GetCharacterOwner();
-				if (Character && Character->HasAuthority() && BoundAbilitySystemComponent.IsValid()
-					&& BoundAbilitySystemComponent->GetAvatarActor() == Character)
-				{
-					if (APdPlayerState* PlayerState = Character->GetPlayerState<APdPlayerState>())
-					{
-						PlayerState->GetSelectingPandoraAndWeaponComponent()->ApplySelectedPandoraAndWeapon();
-					}
-				}
-			}),
-		ActorInfoRetryInterval, false);
+	UPdAbilitySystemComponent* ASC = BoundAbilitySystemComponent.Get();
+	return ASC && ASC->GetAvatarActor() == GetOwner() ? ASC : nullptr;
 }
 
-// 빙의 해제·Pawn 교체·종료 시 자신이 구독한 상태와 타이머를 정리한다. ASC의 Avatar가 자신일 때만 ActorInfo를 비운다.
+FDelegateHandle UAbilityStateComponent::RegisterOnAbilitySystemReady(const FPdAbilitySystemReadyDelegate::FDelegate& Delegate)
+{
+	return OnAbilitySystemReady.Add(Delegate);
+}
+
+void UAbilityStateComponent::UnregisterOnAbilitySystemReady(const FDelegateHandle Handle)
+{
+	OnAbilitySystemReady.Remove(Handle);
+}
+
+// 빙의 해제·Pawn 교체·종료 시 자신이 구독한 상태를 정리한다. ASC의 Avatar가 자신일 때만 ActorInfo를 비운다.
 void UAbilityStateComponent::ClearAbilitySystemActorInfo()
 {
 	ACharacterBase* Character = GetCharacterOwner();
@@ -182,13 +153,6 @@ void UAbilityStateComponent::ClearAbilitySystemActorInfo()
 	UnbindMovementSpeedAttribute();
 	UnbindDeadTagEvent();
 	BoundAbilitySystemComponent.Reset();
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ActorInfoInitializationRetryTimerHandle);
-	}
-	bActorInfoInitializationQueued = false;
-	ActorInfoInitializationRetryCount = 0;
 
 	if (ASC && Character && ASC->GetAvatarActor() == Character)
 	{
@@ -219,7 +183,6 @@ void UAbilityStateComponent::BindMovementSpeedAttributeToASC(UAbilitySystemCompo
 	}
 
 	MovementAttributesAbilitySystemComponent = AbilitySystemComponent;
-	MovementSpeedAttributeRetryAttempts = 0;
 	MovementSpeedAttributeChangedDelegateHandle =
 		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMovementSpeedAttribute())
 			.AddUObject(this, &ThisClass::HandleMovementAttributesChanged);
@@ -241,28 +204,17 @@ void UAbilityStateComponent::HandleMovementAttributesChanged(const FOnAttributeC
 	}
 }
 
-// 기본 속도에 능력치·무기·스태미나 보정을 적용한다. 빙결 중에는 속도를 0으로 유지하고 속성셋 미도착 시 재시도한다.
+// 기본 속도에 능력치·무기·스태미나 보정을 적용한다. 빙결 중에는 속도를 0으로 유지한다.
+// 기본 속성은 ASC 소유 액터의 기본 서브오브젝트라 ASC가 연결된 시점에 이미 존재한다.
 void UAbilityStateComponent::ApplyMovementSpeedFromAttribute()
 {
 	ACharacterBase* Character = GetCharacterOwner();
 	UCharacterMovementComponent* MovementComponent = Character ? Character->GetCharacterMovement() : nullptr;
 	UAbilitySystemComponent* ASC = MovementAttributesAbilitySystemComponent.Get();
-	if (!MovementComponent || !ASC)
+	if (!MovementComponent || !ASC || !ASC->GetAttributeSet(UBasicAttributeSet::StaticClass()))
 	{
 		return;
 	}
-
-	if (!ASC->GetAttributeSet(UBasicAttributeSet::StaticClass()))
-	{
-		QueueMovementSpeedAttributeApplyRetry();
-		return;
-	}
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(MovementSpeedAttributeRetryTimerHandle);
-	}
-	MovementSpeedAttributeRetryAttempts = 0;
 
 	const float CurrentStamina = ASC->GetNumericAttribute(UBasicAttributeSet::GetStaminaAttribute());
 	const float CurrentMaxStamina = ASC->GetNumericAttribute(UBasicAttributeSet::GetMaxStaminaAttribute());
@@ -309,34 +261,6 @@ void UAbilityStateComponent::ApplyMovementSpeedFromAttribute()
 	{
 		MovementComponent->MaxWalkSpeed = NewMaxWalkSpeed;
 	}
-}
-
-// ASC는 연결됐지만 기본 속성셋이 아직 도착하지 않은 경우 0.1초 주기의 이동속도 적용 재시도를 예약한다.
-void UAbilityStateComponent::QueueMovementSpeedAttributeApplyRetry()
-{
-	UWorld* World = GetWorld();
-	if (!World || World->GetTimerManager().IsTimerActive(MovementSpeedAttributeRetryTimerHandle))
-	{
-		return;
-	}
-
-	World->GetTimerManager().SetTimer(
-		MovementSpeedAttributeRetryTimerHandle, this, &ThisClass::RetryApplyMovementSpeedFromAttribute, 0.1f, true);
-}
-
-// 복제된 속성셋 준비를 최대 50회 기다리며 이동속도를 적용한다. 제한을 넘으면 확인 타이머를 종료한다.
-void UAbilityStateComponent::RetryApplyMovementSpeedFromAttribute()
-{
-	++MovementSpeedAttributeRetryAttempts;
-	if (MovementSpeedAttributeRetryAttempts > MovementSpeedAttributeMaxRetryAttempts)
-	{
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().ClearTimer(MovementSpeedAttributeRetryTimerHandle);
-		}
-		return;
-	}
-	ApplyMovementSpeedFromAttribute();
 }
 
 // 스태미나 비율이 설정된 임계값 이하일 때 캐릭터의 저스태미나 이펙트를 켜고, 회복하면 끈다.
@@ -391,14 +315,9 @@ UActorComponent* UAbilityStateComponent::ResolveLowStaminaEffectComponent(const 
 	return nullptr;
 }
 
-// 이전 ASC의 이동 관련 속성 구독과 속성 준비 재시도를 해제해, 교체 전 Pawn이 새 속도 변경을 받지 않게 한다.
+// 이전 ASC의 이동 관련 속성 구독을 해제해, 교체 전 Pawn이 새 속도 변경을 받지 않게 한다.
 void UAbilityStateComponent::UnbindMovementSpeedAttribute()
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(MovementSpeedAttributeRetryTimerHandle);
-	}
-
 	if (UAbilitySystemComponent* ASC = MovementAttributesAbilitySystemComponent.Get())
 	{
 		if (MovementSpeedAttributeChangedDelegateHandle.IsValid())
@@ -422,7 +341,6 @@ void UAbilityStateComponent::UnbindMovementSpeedAttribute()
 	MovementStaminaAttributeChangedDelegateHandle.Reset();
 	MovementMaxStaminaAttributeChangedDelegateHandle.Reset();
 	MovementAttributesAbilitySystemComponent.Reset();
-	MovementSpeedAttributeRetryAttempts = 0;
 }
 
 // 서버와 소유 클라이언트가 낙하 상태를 GAS 태그에 반영한다. 서버는 공중 상태에서 일반 공격·주먹·원거리 공격 능력을 취소한다.

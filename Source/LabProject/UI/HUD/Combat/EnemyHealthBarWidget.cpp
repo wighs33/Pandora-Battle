@@ -4,6 +4,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
+#include "Character/CharacterBase.h"
 #include "Components/ProgressBar.h"
 #include "Engine/World.h"
 #include "GameplayEffectTypes.h"
@@ -13,21 +14,12 @@
 void UEnemyHealthBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	InitializeRetryCount = 0;
-
-	if (UWorld* World = GetWorld())
-	{
-		InitializeTimerHandle = World->GetTimerManager().SetTimerForNextTick(
-			FTimerDelegate::CreateUObject(this, &ThisClass::InitializeFromOwner));
-		return;
-	}
-
-	InitializeFromOwner();
+	ObserveOwnerAbilitySystem();
 }
 
 void UEnemyHealthBarWidget::NativeDestruct()
 {
-	StopInitializeRetry();
+	OwnerReadySubscription.Reset();
 
 	ClearAnimationTimers();
 	UnbindAttributeDelegates();
@@ -37,9 +29,29 @@ void UEnemyHealthBarWidget::NativeDestruct()
 
 void UEnemyHealthBarWidget::SetOwnerActor(AActor* InOwnerActor)
 {
-	StopInitializeRetry();
 	OwnerActor = InOwnerActor;
-	InitializeRetryCount = 0;
+	ObserveOwnerAbilitySystem();
+}
+
+// 캐릭터 소유자는 ASC 준비 알림에서 연결한다. 캐릭터가 아닌 소유자는 이미 가진 ASC에 바로 연결한다.
+void UEnemyHealthBarWidget::ObserveOwnerAbilitySystem()
+{
+	if (ACharacterBase* OwnerCharacter = Cast<ACharacterBase>(OwnerActor.Get()))
+	{
+		OwnerReadySubscription.SubscribeToCharacter(OwnerCharacter,
+			FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleOwnerAbilitySystemReady));
+		return;
+	}
+
+	OwnerReadySubscription.Reset();
+	InitializeFromOwner();
+}
+
+void UEnemyHealthBarWidget::HandleOwnerAbilitySystemReady(
+	ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent)
+{
+	static_cast<void>(Character);
+	static_cast<void>(AbilitySystemComponent);
 	InitializeFromOwner();
 }
 
@@ -120,69 +132,21 @@ void UEnemyHealthBarWidget::InitializeFromOwner()
 	ClearAnimationTimers();
 	if (!GetProgressBar())
 	{
-		StopInitializeRetry();
 		return;
 	}
 
 	BoundAbilitySystemComponent = GetOwnerAbilitySystemComponent();
 	if (!BoundAbilitySystemComponent)
 	{
-
-		QueueInitializeRetry();
 		return;
 	}
 
-	bool bFoundHealth = false;
-	bool bFoundMaxHealth = false;
-	CurrentHealth = GetAttributeValue(UBasicAttributeSet::GetHealthAttribute(), &bFoundHealth);
-	MaxHealth = GetAttributeValue(UBasicAttributeSet::GetMaxHealthAttribute(), &bFoundMaxHealth);
-
-	if (!bFoundHealth || !bFoundMaxHealth)
-	{
-		QueueInitializeRetry();
-		UpdateHealthPercent();
-		HideAnimatedProgressBar();
-		return;
-	}
-
-	StopInitializeRetry();
-	InitializeRetryCount = 0;
+	CurrentHealth = GetAttributeValue(UBasicAttributeSet::GetHealthAttribute());
+	MaxHealth = GetAttributeValue(UBasicAttributeSet::GetMaxHealthAttribute());
 
 	UpdateHealthPercent();
 	HideAnimatedProgressBar();
 	BindAttributeDelegates();
-}
-
-void UEnemyHealthBarWidget::QueueInitializeRetry()
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-	if (InitializeRetryCount >= MaxInitializeRetryCount)
-	{
-		StopInitializeRetry();
-		return;
-	}
-
-	++InitializeRetryCount;
-	World->GetTimerManager().ClearTimer(InitializeTimerHandle);
-	World->GetTimerManager().SetTimer(
-		InitializeTimerHandle,
-		this,
-		&ThisClass::InitializeFromOwner,
-		0.1f,
-		false);
-}
-
-void UEnemyHealthBarWidget::StopInitializeRetry()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(InitializeTimerHandle);
-	}
-	InitializeTimerHandle.Invalidate();
 }
 
 void UEnemyHealthBarWidget::BindAttributeDelegates()

@@ -54,21 +54,24 @@ void UQuickSlotWidget::NativePreConstruct()
 	}
 }
 
+// 빈 슬롯을 먼저 그리고, 조종 캐릭터가 준비되면 PlayerState 인벤토리와 Pawn 외형 장비에 연결한다.
 void UQuickSlotWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	InitializeInventoryBinding();
+	RebuildQuickSlotBar();
+	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayer(),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 }
 
 void UQuickSlotWidget::NativeDestruct()
 {
+	PossessedCharacterReadySubscription.Reset();
 	ReleaseQuickSlotIconPreload();
 	UnbindInventoryChangedEvent();
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().ClearTimer(RetryInitializeTimerHandle);
 		World->GetTimerManager().ClearTimer(RebuildBarTimerHandle);
 	}
 
@@ -89,26 +92,15 @@ void UQuickSlotWidget::FillQuickSlotBar()
 	RebuildQuickSlotBar();
 }
 
-void UQuickSlotWidget::InitializeInventoryBinding()
+void UQuickSlotWidget::HandlePossessedCharacterReady(
+	ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent)
 {
+	static_cast<void>(Character);
+	static_cast<void>(AbilitySystemComponent);
 	UnbindInventoryChangedEvent();
 
 	UInventoryComponent* InventoryComponent = ResolveOwningInventoryComponent();
 	USkinEquipmentComponent* SkinEquipmentComponent = ResolveOwningSkinEquipmentComponent();
-	if (!InventoryComponent || !SkinEquipmentComponent)
-	{
-		RebuildQuickSlotBar();
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().SetTimer(
-				RetryInitializeTimerHandle,
-				this,
-				&ThisClass::InitializeInventoryBinding,
-				0.1f,
-				false);
-		}
-	}
-
 	BoundInventoryComponent = InventoryComponent;
 	BoundSkinEquipmentComponent = SkinEquipmentComponent;
 	BindInventoryChangedEvent();

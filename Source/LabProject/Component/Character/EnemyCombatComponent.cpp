@@ -530,38 +530,16 @@ bool UEnemyCombatComponent::IsUsingGunWeapon() const
 	return WeaponDefinition && WeaponDefinition->WeaponData.Gun.HasAnyData();
 }
 
-bool UEnemyCombatComponent::IsDefaultAttributeSetupComplete() const
-{
-	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	const UPdAbilitySystemComponent* ASC = Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
-	return ASC && ASC->GetSet<UBasicAttributeSet>() != nullptr;
-}
-
+// 기본 속성 집합은 적 액터의 기본 서브오브젝트로 이미 ASC에 등록되어 있으므로, 서버에서 기본 능력치만 한 번 적용한다.
 void UEnemyCombatComponent::EnsureDefaultAttributeSetup()
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
-	if (!Enemy || !Enemy->HasAuthority() || !AbilitySystemComponent)
+	if (!Enemy || !Enemy->HasAuthority() || !Enemy->GetEnemyAbilitySystemComponent())
 	{
 		return;
 	}
 
-	if (!AbilitySystemComponent->GetAttributeSet(
-			UBasicAttributeSet::StaticClass()))
-	{
-		UBasicAttributeSet* BasicAttributeSet =
-			NewObject<UBasicAttributeSet>(
-				Enemy,
-				UBasicAttributeSet::StaticClass(),
-				TEXT("EnemyBasicAttributeSet"));
-		if (BasicAttributeSet)
-		{
-			AbilitySystemComponent->AddSpawnedAttribute(BasicAttributeSet);
-		}
-	}
-
-
+	bDefaultAttributeSetupPerformed = true;
 	ApplyDefaultStatDefinition();
 }
 
