@@ -20,6 +20,16 @@ enum class EBackendLoginState : uint8
 	LoggedIn
 };
 
+/** 백엔드가 게임 세션을 나누는 기준. 같은 값이 GameLift 게임 속성 mode로 서버에 전달된다. */
+UENUM(BlueprintType)
+enum class EOnlineMatchMode : uint8
+{
+	/** 로비에서 인원을 모아 한 경기를 하는 PvP 세션 */
+	Match,
+	/** 경기 끝 없이 들어오고 나가는 공유 월드 PvE 세션 */
+	Rpg
+};
+
 USTRUCT(BlueprintType)
 struct FBackendPlayerStats
 {
@@ -120,7 +130,10 @@ public:
 
 	/** 필요하면 먼저 로그인한 뒤, 백엔드가 잡아 준 GameLift 게임 세션으로 이동한다. */
 	UFUNCTION(BlueprintCallable, Category = "Backend")
-	void JoinOnlineMatch();
+	void JoinOnlineMatch(EOnlineMatchMode Mode = EOnlineMatchMode::Match);
+
+	UFUNCTION(BlueprintPure, Category = "Backend")
+	bool IsMatchJoinInProgress() const { return bMatchJoinInProgress; }
 
 	UFUNCTION(BlueprintCallable, Category = "Backend")
 	void RequestMyProfile();
@@ -170,4 +183,5 @@ private:
 	FString DisplayName;
 	bool bJoinMatchAfterLogin = false;
 	bool bMatchJoinInProgress = false;
+	EOnlineMatchMode PendingMatchMode = EOnlineMatchMode::Match;
 };

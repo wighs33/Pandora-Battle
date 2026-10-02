@@ -43,6 +43,8 @@ public:
 	bool FindCurrentMatchMapOption(
 		FLobbyMatchMapOption& OutMapOption) const;
 	bool IsGameResultShown() const { return bGameResultShown; }
+	/** travel 옵션 RpgMode로 연 공유 월드. 경기 타이머·결과·이탈 종료가 없다. */
+	bool IsRpgMode() const { return bRpgMode; }
 	bool HandlePlayerLogout(const APlayerState* ExitingPlayerState);
 
 private:
@@ -132,6 +134,7 @@ private:
 	bool bGoldenKillActive = false;
 	bool bGameResultShown = false;
 	bool bMatchTimerSuppressedByTravelOption = false;
+	bool bRpgMode = false;
 	FTimerHandle MatchTimerHandle;
 	FTimerHandle ChestConfigurationRetryTimerHandle;
 	FTimerHandle GameResultLobbyReturnTimerHandle;

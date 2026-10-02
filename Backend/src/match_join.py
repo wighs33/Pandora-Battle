@@ -3,6 +3,10 @@
 빈 자리가 있는 세션을 먼저 찾고, 없으면 새 세션을 만든 뒤 ACTIVE가 될 때까지 기다린다.
 클라이언트는 받은 주소로 접속하면서 PlayerSessionId를 URL 옵션으로 보내고, 게임 서버가 AcceptPlayerSession으로 검증한다.
 
+요청 본문의 mode로 세션 종류를 나누고, 같은 값을 게임 속성 mode에 넣어 검색과 서버 분기에 쓴다.
+- match(기본): 로비에서 인원을 모아 한 경기를 하는 PvP 세션. 경기가 시작되면 서버가 새 참가를 막는다.
+- rpg: 경기 끝 없이 들어오고 나가는 공유 월드. 서버는 RPG 맵을 연 뒤에 세션을 활성화한다.
+
 동시에 여러 명이 빈 서버에 요청하면 각자 새 세션을 만들 수 있다. 인원을 모아 한 세션에 넣는 일은
 FlexMatch로 옮길 때 해결한다(Docs/GameLift_Backend.md 참고).
 """
@@ -11,16 +15,37 @@ import json
 import os
 import time
 
-from common import ApiError, api_handler, json_response, require_player
+from common import ApiError, api_handler, json_response, parse_json_body, require_player
 
-ACTIVE_WAIT_SECONDS = 20.0
+# Lambda 제한(29초) 안에서 기다린다. RPG 세션은 서버가 맵을 연 뒤 활성화하므로 경기 세션보다 오래 걸린다.
+ACTIVE_WAIT_SECONDS = 24.0
 POLL_INTERVAL_SECONDS = 1.0
 
+MODE_PROPERTY = "mode"
+MATCH_MODE = "match"
+RPG_MODE = "rpg"
+SESSION_MODES = (MATCH_MODE, RPG_MODE)
 
-def search_joinable_sessions(gamelift, fleet_id, location):
+
+def read_mode(body):
+    mode = body.get("mode", MATCH_MODE)
+    if mode not in SESSION_MODES:
+        raise ApiError(400, "invalid_mode", "mode must be one of: %s." % ", ".join(SESSION_MODES))
+    return mode
+
+
+def session_mode(session):
+    for prop in session.get("GameProperties", []):
+        if prop.get("Key") == MODE_PROPERTY:
+            return prop.get("Value", "")
+    return MATCH_MODE
+
+
+def search_joinable_sessions(gamelift, fleet_id, location, mode):
     request = {
         "FleetId": fleet_id,
-        "FilterExpression": "hasAvailablePlayerSessions=true",
+        # 문자열은 작은따옴표로 감싼다(큰따옴표는 InvalidRequestException).
+        "FilterExpression": "hasAvailablePlayerSessions=true AND gameSessionProperties.%s = '%s'" % (MODE_PROPERTY, mode),
         "SortExpression": "creationTimeMillis ASC",
         "Limit": 10,
     }
@@ -37,7 +62,8 @@ def search_joinable_sessions(gamelift, fleet_id, location):
     return [
         session
         for session in gamelift.describe_game_sessions(**describe).get("GameSessions", [])
-        if session.get("PlayerSessionCreationPolicy", "ACCEPT_ALL") == "ACCEPT_ALL"
+        if session_mode(session) == mode
+        and session.get("PlayerSessionCreationPolicy", "ACCEPT_ALL") == "ACCEPT_ALL"
         and session.get("CurrentPlayerSessionCount", 0) < session.get("MaximumPlayerSessionCount", 0)
     ]
 
@@ -87,13 +113,14 @@ def join_or_create(
     player_id,
     display_name,
     max_players,
+    mode=MATCH_MODE,
     sleep=time.sleep,
     clock=time.monotonic,
     timeout=ACTIVE_WAIT_SECONDS,
 ):
     player_data = json.dumps({"displayName": display_name}, ensure_ascii=False)
 
-    for session in search_joinable_sessions(gamelift, fleet_id, location):
+    for session in search_joinable_sessions(gamelift, fleet_id, location, mode):
         player_session = try_create_player_session(gamelift, session["GameSessionId"], player_id, player_data)
         if player_session:
             return connection_info(player_session)
@@ -101,7 +128,8 @@ def join_or_create(
     request = {
         "FleetId": fleet_id,
         "MaximumPlayerSessionCount": max_players,
-        "Name": "labproject-match",
+        "Name": "labproject-%s" % mode,
+        "GameProperties": [{"Key": MODE_PROPERTY, "Value": mode}],
     }
     if location:
         request["Location"] = location
@@ -120,18 +148,21 @@ def join_or_create(
 @api_handler
 def handler(event, context):
     claims = require_player(event)
+    mode = read_mode(parse_json_body(event))
     fleet_id = os.environ.get("GAMELIFT_FLEET_ID", "")
     if not fleet_id:
         raise ApiError(503, "fleet_not_configured", "GameLift fleet is not configured for this stage.")
 
     import boto3
 
+    max_players_variable = "MAX_PLAYERS_PER_RPG_SESSION" if mode == RPG_MODE else "MAX_PLAYERS_PER_SESSION"
     result = join_or_create(
         boto3.client("gamelift"),
         fleet_id=fleet_id,
         location=os.environ.get("GAMELIFT_LOCATION", ""),
         player_id=claims["sub"],
         display_name=claims.get("name", ""),
-        max_players=int(os.environ.get("MAX_PLAYERS_PER_SESSION", "4")),
+        max_players=int(os.environ.get(max_players_variable, "4")),
+        mode=mode,
     )
     return json_response(200, result)

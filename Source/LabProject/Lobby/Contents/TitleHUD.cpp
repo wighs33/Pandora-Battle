@@ -17,6 +17,9 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/SkeletalMesh.h"
+#include "Localization/MenuLocalizationSubsystem.h"
+#include "Luna/LunaChatSubsystem.h"
+#include "Online/Backend/BackendClientSubsystem.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TitleHUD)
@@ -29,7 +32,10 @@ namespace
 	const FName TitleMouthMorph(TEXT("Key_2"));
 	// DT_MenuText rows: Title.LunaGreeting, then Title.LunaTip01 ... Title.LunaTip20.
 	const FName LunaGreetingKey(TEXT("Title.LunaGreeting"));
-	constexpr int32 LunaTipCount = 20;
+	const FName LunaChatThinkingKey(TEXT("Title.LunaChatThinking"));
+	const FName LunaChatUnavailableKey(TEXT("Title.LunaChatUnavailable"));
+	const FName RpgModeJoiningKey(TEXT("Title.RpgModeJoining"));
+	const FName RpgModeFailedKey(TEXT("Title.RpgModeFailed"));
 }
 
 ATitleHUD::ATitleHUD(const FObjectInitializer& ObjectInitializer)
@@ -131,10 +137,10 @@ void ATitleHUD::ShowTitleSpeech()
 	else
 	{
 		// Any tip except the one just shown.
-		int32 Tip = FMath::RandRange(1, LastTitleTip > 0 ? LunaTipCount - 1 : LunaTipCount);
+		int32 Tip = FMath::RandRange(1, LastTitleTip > 0 ? LunaChat::TipCount - 1 : LunaChat::TipCount);
 		if (LastTitleTip > 0 && Tip >= LastTitleTip) ++Tip;
 		LastTitleTip = Tip;
-		TextKey = FName(*FString::Printf(TEXT("Title.LunaTip%02d"), Tip));
+		TextKey = LunaChat::TipKey(Tip);
 	}
 	// The mouth only moves while the bubble is actually visible.
 	if (TitleWidget->ShowLunaSpeech(TextKey, GetTitleCharacterHeadTopUV()) && bTitleMouthAvailable)
@@ -150,8 +156,128 @@ void ATitleHUD::HideTitleSpeech()
 	if (TitleWidget) TitleWidget->HideLunaSpeech();
 	TitleMouthElapsed = -1.f;
 	TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.f);
+	const float NextTipDelay = bLunaChatActive ? ChatTipResumeDelay : SpeechHiddenInterval;
+	bLunaChatActive = false;
 	GetWorldTimerManager().SetTimer(TitleSpeechTimer, this, &ATitleHUD::ShowTitleSpeech,
-		FMath::Max(0.1f, SpeechHiddenInterval), false);
+		FMath::Max(0.1f, NextTipDelay), false);
+}
+
+void ATitleHUD::BindLunaChat()
+{
+	ULunaChatSubsystem* Luna = UGameInstance::GetSubsystem<ULunaChatSubsystem>(GetGameInstance());
+	if (!TitleWidget || !Luna) return;
+	TitleWidget->OnLunaQuestionSubmitted().AddUObject(this, &ATitleHUD::HandleLunaQuestion);
+	LunaReplyUpdatedHandle = Luna->OnReplyUpdated().AddUObject(this, &ATitleHUD::HandleLunaReplyUpdated);
+	LunaReplyFinishedHandle = Luna->OnReplyFinished().AddUObject(this, &ATitleHUD::HandleLunaReplyFinished);
+}
+
+void ATitleHUD::UnbindLunaChat()
+{
+	if (TitleWidget) TitleWidget->OnLunaQuestionSubmitted().RemoveAll(this);
+	if (ULunaChatSubsystem* Luna = UGameInstance::GetSubsystem<ULunaChatSubsystem>(GetGameInstance()))
+	{
+		Luna->OnReplyUpdated().Remove(LunaReplyUpdatedHandle);
+		Luna->OnReplyFinished().Remove(LunaReplyFinishedHandle);
+		// Nobody is left to show an answer that is still streaming.
+		Luna->CancelReply();
+	}
+	LunaReplyUpdatedHandle.Reset();
+	LunaReplyFinishedHandle.Reset();
+}
+
+void ATitleHUD::BindRpgMode()
+{
+	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
+	if (!TitleWidget || !Backend) return;
+	TitleWidget->OnRpgModeRequested().AddUObject(this, &ATitleHUD::HandleRpgModeRequested);
+	Backend->OnMatchJoinFinished.AddUniqueDynamic(this, &ATitleHUD::HandleRpgJoinFinished);
+}
+
+void ATitleHUD::UnbindRpgMode()
+{
+	if (TitleWidget) TitleWidget->OnRpgModeRequested().RemoveAll(this);
+	if (UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance()))
+	{
+		Backend->OnMatchJoinFinished.RemoveDynamic(this, &ATitleHUD::HandleRpgJoinFinished);
+	}
+	bRpgJoinPending = false;
+}
+
+void ATitleHUD::HandleRpgModeRequested()
+{
+	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
+	if (!TitleWidget || !Backend || Backend->IsMatchJoinInProgress()) return;
+	bRpgJoinPending = true;
+	TitleWidget->SetRpgModeEnabled(false);
+	ShowLunaChatText(GetLunaChatLine(RpgModeJoiningKey,
+		NSLOCTEXT("TitleHUD", "RpgModeJoining", "Let me find you a spot in the boss raid...")), true);
+	// Logs in first when needed. A failure can be reported before this call returns.
+	Backend->JoinOnlineMatch(EOnlineMatchMode::Rpg);
+}
+
+void ATitleHUD::HandleRpgJoinFinished(const bool bSucceeded, const FString& ErrorMessage)
+{
+	if (!bRpgJoinPending) return;
+	bRpgJoinPending = false;
+	// On success the client is already travelling to the raid map, and the title closes with this level.
+	if (bSucceeded) return;
+
+	if (TitleWidget) TitleWidget->SetRpgModeEnabled(true);
+	const FText Line = GetLunaChatLine(RpgModeFailedKey,
+		NSLOCTEXT("TitleHUD", "RpgModeFailed", "I couldn't reach the boss raid. Please try again in a moment."));
+	ShowLunaChatText(Line, true);
+	GetWorldTimerManager().SetTimer(TitleSpeechTimer, this, &ATitleHUD::HideTitleSpeech,
+		FMath::Max(ChatReplyMinDuration, Line.ToString().Len() * ChatReplySecondsPerCharacter), false);
+}
+
+void ATitleHUD::HandleLunaQuestion(const FString& Question)
+{
+	ULunaChatSubsystem* Luna = UGameInstance::GetSubsystem<ULunaChatSubsystem>(GetGameInstance());
+	if (!Luna || !Luna->Ask(Question)) return;
+	// Luna listens with her mouth closed until the first words of the answer arrive.
+	ShowLunaChatText(GetLunaChatLine(LunaChatThinkingKey,
+		NSLOCTEXT("TitleHUD", "LunaChatThinking", "Hmm, let me think...")), false);
+}
+
+void ATitleHUD::HandleLunaReplyUpdated(const FString& ReplySoFar)
+{
+	ShowLunaChatText(FText::FromString(ReplySoFar), true);
+}
+
+void ATitleHUD::HandleLunaReplyFinished(const bool bSucceeded, const FString& Reply)
+{
+	const FText Line = bSucceeded
+		? FText::FromString(Reply)
+		: GetLunaChatLine(LunaChatUnavailableKey,
+			NSLOCTEXT("TitleHUD", "LunaChatUnavailable", "I can't answer right now. Please ask me again in a moment."));
+	ShowLunaChatText(Line, true);
+	const float ReadingTime = Line.ToString().Len() * ChatReplySecondsPerCharacter;
+	GetWorldTimerManager().SetTimer(TitleSpeechTimer, this, &ATitleHUD::HideTitleSpeech,
+		FMath::Max(ChatReplyMinDuration, ReadingTime), false);
+}
+
+void ATitleHUD::ShowLunaChatText(const FText& Text, const bool bSpeaking)
+{
+	if (!TitleWidget) return;
+	// A conversation replaces the rotating tips until its answer has been read.
+	bLunaChatActive = true;
+	GetWorldTimerManager().ClearTimer(TitleSpeechTimer);
+	const bool bShown = TitleWidget->ShowLunaSpeechText(Text, GetTitleCharacterHeadTopUV());
+	if (bShown && bSpeaking && bTitleMouthAvailable)
+	{
+		if (TitleMouthElapsed < 0.f) TitleMouthElapsed = 0.f;
+	}
+	else
+	{
+		TitleMouthElapsed = -1.f;
+		TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.f);
+	}
+}
+
+FText ATitleHUD::GetLunaChatLine(const FName Key, const FText& Fallback) const
+{
+	const UMenuLocalizationSubsystem* Localization = UGameInstance::GetSubsystem<UMenuLocalizationSubsystem>(GetGameInstance());
+	return Localization ? Localization->GetTextOrFallback(Key, Fallback) : Fallback;
 }
 
 FVector2D ATitleHUD::GetTitleCharacterHeadTopUV() const
@@ -216,6 +342,8 @@ void ATitleHUD::BeginPlay()
 	}
 
 	InitializeTitleCharacter();
+	BindLunaChat();
+	BindRpgMode();
 	Screen = CreateWidget<UUiScreen>(PlayerController);
 	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
@@ -230,6 +358,8 @@ void ATitleHUD::BeginPlay()
 
 void ATitleHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	UnbindLunaChat();
+	UnbindRpgMode();
 	GetWorldTimerManager().ClearTimer(TitleBlinkTimer);
 	TitleBlinkElapsed = -1.f;
 	TitleCharacterMesh->SetMorphTarget(TitleBlinkMorph, 0.f);

@@ -4,20 +4,30 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/ButtonSlot.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/EditableTextBox.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/ScaleBox.h"
+#include "Components/ScaleBoxSlot.h"
+#include "Components/Spacer.h"
 #include "Components/TextBlock.h"
 #include "Definition/Level/LevelDefinition.h"
+#include "Engine/Font.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Engine/GameInstance.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "TimerManager.h"
@@ -36,8 +46,60 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TitleWidget)
 
+DEFINE_LOG_CATEGORY_STATIC(LogTitleWidget, Log, All);
+
 namespace
 {
+	const FName LunaChatHintKey(TEXT("Title.LunaChatHint"));
+	const FName RpgModeLabelKey(TEXT("Title.RpgMode"));
+	const FName WebsiteLabelKey(TEXT("Title.Website"));
+
+	// Vertical space between the game settings button and the website button stacked under it, in design units.
+	constexpr float TopRightButtonGap = 14.f;
+
+	// Where the tail sits across the bubble's width. The tail tip stays on Luna's head and the body grows mostly to the
+	// left, so even a full-width answer (wrap 420 + padding) ends before the Game Settings button at the top right.
+	constexpr float LunaSpeechTailFraction = 0.75f;
+
+	// Half-row layout in WBP_Title design units. The frame art (T_TitleSecondaryHalf) keeps its diamond ornament
+	// in the right 44 units, and the label stops a little before it so long labels ("보스 레이드") do not touch it.
+	constexpr float HalfRowGap = 16.f;
+	constexpr float HalfRowIconLeft = 26.f;
+	constexpr float HalfRowLabelLeft = 100.f;
+	constexpr float HalfRowLabelRight = 56.f;
+
+	// Same states and tints as the full row, drawn with frame art made for the half width. Stretching the full-row
+	// frame would squeeze its rounded ends, and a box brush cannot help: Slate sizes box margins in texture pixels.
+	FButtonStyle MakeHalfRowStyle(const FButtonStyle& RowStyle, UTexture2D* HalfRowFrame)
+	{
+		FButtonStyle Style = RowStyle;
+		if (HalfRowFrame)
+		{
+			for (FSlateBrush* Brush : {&Style.Normal, &Style.Hovered, &Style.Pressed, &Style.Disabled})
+			{
+				if (Brush->GetResourceObject())
+				{
+					Brush->SetResourceObject(HalfRowFrame);
+				}
+			}
+		}
+		return Style;
+	}
+
+	// Icon on the left, label after it, and the right end kept clear for the frame's ornament.
+	void PlaceHalfRowContent(const UWidget* Icon, const UWidget* LabelFit, const float RowWidth)
+	{
+		if (UCanvasPanelSlot* IconSlot = Icon ? Cast<UCanvasPanelSlot>(Icon->Slot) : nullptr)
+		{
+			IconSlot->SetPosition(FVector2D(HalfRowIconLeft, IconSlot->GetPosition().Y));
+		}
+		if (UCanvasPanelSlot* LabelSlot = LabelFit ? Cast<UCanvasPanelSlot>(LabelFit->Slot) : nullptr)
+		{
+			LabelSlot->SetPosition(FVector2D(HalfRowLabelLeft, LabelSlot->GetPosition().Y));
+			LabelSlot->SetSize(FVector2D(RowWidth - HalfRowLabelLeft - HalfRowLabelRight, LabelSlot->GetSize().Y));
+		}
+	}
+
 	void ResetEditorTransactionBufferIfContainsPieObjects(const TCHAR* Context)
 	{
 #if WITH_EDITOR
@@ -70,6 +132,12 @@ namespace
 UTitleWidget::UTitleWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	RpgModeIcon = TSoftObjectPtr<UTexture2D>(
+		FSoftObjectPath(TEXT("/Game/UI/Asset/TitleStyle/T_TitleIconRpg.T_TitleIconRpg")));
+	HalfRowFrame = TSoftObjectPtr<UTexture2D>(
+		FSoftObjectPath(TEXT("/Game/UI/Asset/TitleStyle/T_TitleSecondaryHalf.T_TitleSecondaryHalf")));
+	WebsiteIcon = TSoftObjectPtr<UTexture2D>(
+		FSoftObjectPath(TEXT("/Game/UI/Asset/TitleStyle/T_TitleIconWebsite.T_TitleIconWebsite")));
 }
 
 void UTitleWidget::SetTitleCharacterMaterial(UMaterialInterface* Material)
@@ -83,6 +151,16 @@ void UTitleWidget::SetTitleCharacterMaterial(UMaterialInterface* Material)
 
 bool UTitleWidget::ShowLunaSpeech(const FName TextKey, const FVector2D& HeadTopUV)
 {
+	if (!ShowLunaSpeechText(MenuText(TextKey), HeadTopUV))
+	{
+		return false;
+	}
+	LunaSpeechKey = TextKey;
+	return true;
+}
+
+bool UTitleWidget::ShowLunaSpeechText(const FText& Text, const FVector2D& HeadTopUV)
+{
 	UCanvasPanelSlot* BubbleSlot = LunaSpeechBubble ? Cast<UCanvasPanelSlot>(LunaSpeechBubble->Slot) : nullptr;
 	const UCanvasPanelSlot* PortraitSlot = Img_TitleCharacter ? Cast<UCanvasPanelSlot>(Img_TitleCharacter->Slot) : nullptr;
 	if (!BubbleSlot || !PortraitSlot || !LunaSpeechText)
@@ -90,8 +168,8 @@ bool UTitleWidget::ShowLunaSpeech(const FName TextKey, const FVector2D& HeadTopU
 		return false;
 	}
 
-	LunaSpeechKey = TextKey;
-	LunaSpeechText->SetText(MenuText(TextKey));
+	LunaSpeechKey = NAME_None;
+	LunaSpeechText->SetText(Text);
 
 	// The bubble shares the portrait's anchors, so the portrait's layout maps the head point directly.
 	const FVector2D PortraitSize = PortraitSlot->GetSize();
@@ -117,6 +195,13 @@ void UTitleWidget::OnMenuLanguageChanged()
 	{
 		LunaSpeechText->SetText(MenuText(LunaSpeechKey));
 	}
+	if (LunaChatInput)
+	{
+		LunaChatInput->SetHintText(MenuTextOrFallback(LunaChatHintKey,
+			NSLOCTEXT("TitleWidget", "LunaChatHint", "Ask Luna anything (Enter)")));
+	}
+	RefreshRpgModeText();
+	RefreshWebsiteText();
 }
 
 void UTitleWidget::NativeOnInitialized()
@@ -124,6 +209,17 @@ void UTitleWidget::NativeOnInitialized()
 	Super::NativeOnInitialized();
 	// Built before NativeConstruct so the localized font pass also covers the bubble text.
 	BuildLunaSpeechBubble();
+	BuildLunaChatInput();
+	BuildRpgModeButton();
+	BuildWebsiteButton();
+}
+
+void UTitleWidget::SetRpgModeEnabled(const bool bEnabled) const
+{
+	if (Btn_RpgMode)
+	{
+		Btn_RpgMode->SetIsEnabled(bEnabled);
+	}
 }
 
 void UTitleWidget::NativeConstruct()
@@ -151,6 +247,16 @@ void UTitleWidget::NativeConstruct()
 	if (Btn_TrainingMode)
 	{
 		Btn_TrainingMode->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleTrainingModeClicked);
+	}
+
+	if (Btn_RpgMode)
+	{
+		Btn_RpgMode->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleRpgModeClicked);
+	}
+
+	if (Btn_Website)
+	{
+		Btn_Website->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleWebsiteClicked);
 	}
 
 	if (Btn_PandoraShop)
@@ -213,6 +319,16 @@ void UTitleWidget::NativeDestruct()
 	if (Btn_TrainingMode)
 	{
 		Btn_TrainingMode->OnClicked.RemoveDynamic(this, &ThisClass::HandleTrainingModeClicked);
+	}
+
+	if (Btn_RpgMode)
+	{
+		Btn_RpgMode->OnClicked.RemoveDynamic(this, &ThisClass::HandleRpgModeClicked);
+	}
+
+	if (Btn_Website)
+	{
+		Btn_Website->OnClicked.RemoveDynamic(this, &ThisClass::HandleWebsiteClicked);
 	}
 
 	if (Btn_PandoraShop)
@@ -315,12 +431,25 @@ void UTitleWidget::BuildLunaSpeechBubble()
 	UOverlay* Bubble = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("LunaSpeechBubble"));
 
 	// A rotated square behind the body; only its lower half shows, as the tail pointing at Luna.
+	// The spacers on both sides keep it at LunaSpeechTailFraction of the width, whatever the text length.
+	UHorizontalBox* TailRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("LunaSpeechTailRow"));
 	UImage* Tail = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("LunaSpeechTail"));
 	Tail->SetBrush(TailBrush);
 	Tail->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
 	Tail->SetRenderTransformAngle(45.f);
-	UOverlaySlot* TailSlot = Bubble->AddChildToOverlay(Tail);
-	TailSlot->SetHorizontalAlignment(HAlign_Center);
+	auto AddTailSpacer = [this, TailRow](const float Fill)
+	{
+		FSlateChildSize Size(ESlateSizeRule::Fill);
+		Size.Value = Fill;
+		TailRow->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(Size);
+	};
+	AddTailSpacer(LunaSpeechTailFraction);
+	UHorizontalBoxSlot* TailCell = TailRow->AddChildToHorizontalBox(Tail);
+	TailCell->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+	TailCell->SetVerticalAlignment(VAlign_Bottom);
+	AddTailSpacer(1.f - LunaSpeechTailFraction);
+	UOverlaySlot* TailSlot = Bubble->AddChildToOverlay(TailRow);
+	TailSlot->SetHorizontalAlignment(HAlign_Fill);
 	TailSlot->SetVerticalAlignment(VAlign_Bottom);
 	TailSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
 
@@ -343,11 +472,259 @@ void UTitleWidget::BuildLunaSpeechBubble()
 	UCanvasPanelSlot* BubbleSlot = Canvas->AddChildToCanvas(Bubble);
 	BubbleSlot->SetAutoSize(true);
 	BubbleSlot->SetAnchors(PortraitSlot->GetAnchors());
-	BubbleSlot->SetAlignment(FVector2D(0.5f, 1.f)); // The tail tip is placed on the head point.
+	BubbleSlot->SetAlignment(FVector2D(LunaSpeechTailFraction, 1.f)); // The tail tip is placed on the head point.
 	BubbleSlot->SetZOrder(PortraitSlot->GetZOrder() + 1);
 
 	Bubble->SetVisibility(ESlateVisibility::Collapsed);
 	LunaSpeechBubble = Bubble;
+}
+
+void UTitleWidget::BuildLunaChatInput()
+{
+	// Same canvas and anchors as the portrait, at its lower edge, so the box stays under Luna at every resolution.
+	UCanvasPanel* Canvas = Img_TitleCharacter ? Cast<UCanvasPanel>(Img_TitleCharacter->GetParent()) : nullptr;
+	const UCanvasPanelSlot* PortraitSlot = Img_TitleCharacter ? Cast<UCanvasPanelSlot>(Img_TitleCharacter->Slot) : nullptr;
+	if (!Canvas || !PortraitSlot || !WidgetTree || LunaChatInput)
+	{
+		return;
+	}
+
+	LunaChatInput = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("Input_LunaChat"));
+
+	// UE 5.8's SetWidgetStyle hands Slate the address of its argument once the Slate widget exists.
+	// The Slate widget is not built yet here, so the style is copied into the UMG member only.
+	FSlateBrush Background;
+	Background.DrawAs = ESlateBrushDrawType::RoundedBox;
+	Background.TintColor = FSlateColor(FLinearColor(0.955f, 0.896f, 0.776f));
+	Background.OutlineSettings.Color = FSlateColor(FLinearColor(0.701f, 0.474f, 0.195f));
+	Background.OutlineSettings.Width = 2.f;
+	Background.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+	Background.OutlineSettings.CornerRadii = FVector4(12.f, 12.f, 12.f, 12.f);
+	FSlateBrush FocusedBackground = Background;
+	FocusedBackground.OutlineSettings.Color = FSlateColor(FLinearColor(0.905f, 0.640f, 0.260f));
+	FocusedBackground.OutlineSettings.Width = 3.f;
+
+	// The player may type in any language, so the CJK font (which also covers Latin) is used regardless of the menu language.
+	FEditableTextBoxStyle Style = LunaChatInput->GetWidgetStyle();
+	FSlateFontInfo Font = Style.TextStyle.Font;
+	const UGameInstance* GameInstance = GetGameInstance();
+	if (const UMenuLocalizationSubsystem* Localization = GameInstance ? GameInstance->GetSubsystem<UMenuLocalizationSubsystem>() : nullptr)
+	{
+		if (UFont* CjkFont = Localization->GetFontForLanguage(EGuideLanguage::Korean))
+		{
+			Font.FontObject = CjkFont;
+			Font.TypefaceFontName = NAME_None;
+		}
+	}
+	Font.Size = 16;
+	const FSlateColor TextColor(FLinearColor(0.130f, 0.056f, 0.021f));
+	Style.SetBackgroundImageNormal(Background)
+		.SetBackgroundImageHovered(Background)
+		.SetBackgroundImageFocused(FocusedBackground)
+		.SetBackgroundImageReadOnly(Background)
+		.SetPadding(FMargin(16.f, 10.f))
+		.SetFont(Font)
+		.SetForegroundColor(TextColor)
+		.SetFocusedForegroundColor(TextColor);
+	LunaChatInput->SetWidgetStyle(Style);
+	LunaChatInput->SetHintText(MenuTextOrFallback(LunaChatHintKey,
+		NSLOCTEXT("TitleWidget", "LunaChatHint", "Ask Luna anything (Enter)")));
+	LunaChatInput->SetClearKeyboardFocusOnCommit(false);
+	LunaChatInput->OnTextCommitted.AddDynamic(this, &ThisClass::HandleLunaChatCommitted);
+
+	const FVector2D PortraitSize = PortraitSlot->GetSize();
+	const FVector2D PortraitTopLeft = PortraitSlot->GetPosition() - PortraitSlot->GetAlignment() * PortraitSize;
+	UCanvasPanelSlot* InputSlot = Canvas->AddChildToCanvas(LunaChatInput);
+	InputSlot->SetAnchors(PortraitSlot->GetAnchors());
+	InputSlot->SetAlignment(FVector2D(0.5f, 1.f));
+	InputSlot->SetPosition(PortraitTopLeft + FVector2D(PortraitSize.X * 0.5f, PortraitSize.Y - 24.f));
+	InputSlot->SetSize(FVector2D(FMath::Min(420.f, PortraitSize.X * 0.9f), 48.f));
+	InputSlot->SetZOrder(PortraitSlot->GetZOrder() + 2);
+}
+
+void UTitleWidget::HandleLunaChatCommitted(const FText& Text, const ETextCommit::Type CommitMethod)
+{
+	const FString Question = Text.ToString().TrimStartAndEnd();
+	if (CommitMethod != ETextCommit::OnEnter || Question.IsEmpty())
+	{
+		return;
+	}
+
+	LunaChatInput->SetText(FText::GetEmpty());
+	LunaQuestionSubmitted.Broadcast(Question);
+}
+
+void UTitleWidget::BuildRpgModeButton()
+{
+	// The title layout lives in WBP_Title. Without its own boss raid button, the training row is split in two so the
+	// raid entry sits next to the other PvE mode and the rest of the menu keeps its place.
+	UCanvasPanel* Canvas = Btn_TrainingMode ? Cast<UCanvasPanel>(Btn_TrainingMode->GetParent()) : nullptr;
+	UCanvasPanelSlot* TrainingSlot = Btn_TrainingMode ? Cast<UCanvasPanelSlot>(Btn_TrainingMode->Slot) : nullptr;
+	const UImage* TrainingIcon = Cast<UImage>(GetWidgetFromName(TEXT("Title_TrainingIcon")));
+	const UScaleBox* TrainingLabelFit = Cast<UScaleBox>(GetWidgetFromName(TEXT("Title_TrainingLabel_LocaleFit")));
+	const UTextBlock* TrainingLabel = Cast<UTextBlock>(GetWidgetFromName(TEXT("Title_TrainingLabel")));
+	const UCanvasPanelSlot* TrainingIconSlot = TrainingIcon ? Cast<UCanvasPanelSlot>(TrainingIcon->Slot) : nullptr;
+	const UCanvasPanelSlot* TrainingLabelSlot = TrainingLabelFit ? Cast<UCanvasPanelSlot>(TrainingLabelFit->Slot) : nullptr;
+	if (Btn_RpgMode || !WidgetTree || !Canvas || !TrainingSlot || !TrainingIconSlot || !TrainingLabelSlot || !TrainingLabel)
+	{
+		return;
+	}
+
+	const FVector2D RowSize = TrainingSlot->GetSize();
+	const FVector2D HalfSize((RowSize.X - HalfRowGap) * 0.5f, RowSize.Y);
+	const FVector2D Alignment = TrainingSlot->GetAlignment();
+	const FVector2D RowTopLeft = TrainingSlot->GetPosition() - Alignment * RowSize;
+	const FButtonStyle HalfRowStyle = MakeHalfRowStyle(Btn_TrainingMode->GetStyle(), HalfRowFrame.LoadSynchronous());
+
+	TrainingSlot->SetSize(HalfSize);
+	TrainingSlot->SetPosition(RowTopLeft + Alignment * HalfSize);
+	Btn_TrainingMode->SetStyle(HalfRowStyle);
+	PlaceHalfRowContent(TrainingIcon, TrainingLabelFit, HalfSize.X);
+
+	Btn_RpgMode = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("Btn_RpgMode"));
+	Btn_RpgMode->SetStyle(HalfRowStyle);
+	UCanvasPanelSlot* RpgSlot = Canvas->AddChildToCanvas(Btn_RpgMode);
+	RpgSlot->SetAnchors(TrainingSlot->GetAnchors());
+	RpgSlot->SetAlignment(Alignment);
+	RpgSlot->SetSize(HalfSize);
+	RpgSlot->SetPosition(RowTopLeft + FVector2D(HalfSize.X + HalfRowGap, 0.f) + Alignment * HalfSize);
+	RpgSlot->SetZOrder(TrainingSlot->GetZOrder());
+
+	UCanvasPanel* Content = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Btn_RpgMode_Content"));
+	Content->SetVisibility(ESlateVisibility::HitTestInvisible);
+	if (UButtonSlot* ContentSlot = Cast<UButtonSlot>(Btn_RpgMode->AddChild(Content)))
+	{
+		ContentSlot->SetPadding(FMargin(0.f));
+		ContentSlot->SetHorizontalAlignment(HAlign_Fill);
+		ContentSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+
+	// The icon art is already in the title's cream colour, like the shop, guide and record icons.
+	UImage* Icon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Title_RpgIcon"));
+	if (UTexture2D* IconTexture = RpgModeIcon.LoadSynchronous())
+	{
+		Icon->SetBrushFromTexture(IconTexture);
+	}
+	Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
+	const float IconSize = TrainingIconSlot->GetSize().Y;
+	UCanvasPanelSlot* IconSlot = Content->AddChildToCanvas(Icon);
+	IconSlot->SetPosition(FVector2D(HalfRowIconLeft, TrainingIconSlot->GetPosition().Y));
+	IconSlot->SetSize(FVector2D(IconSize, IconSize));
+
+	UScaleBox* LabelFit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass(), TEXT("Title_RpgLabel_LocaleFit"));
+	LabelFit->SetStretch(TrainingLabelFit->GetStretch());
+	LabelFit->SetStretchDirection(TrainingLabelFit->GetStretchDirection());
+	LabelFit->SetVisibility(ESlateVisibility::HitTestInvisible);
+	UCanvasPanelSlot* LabelSlot = Content->AddChildToCanvas(LabelFit);
+	LabelSlot->SetPosition(TrainingLabelSlot->GetPosition());
+	LabelSlot->SetSize(TrainingLabelSlot->GetSize());
+
+	RpgModeLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Title_RpgLabel"));
+	RpgModeLabel->SetFont(TrainingLabel->GetFont());
+	RpgModeLabel->SetColorAndOpacity(TrainingLabel->GetColorAndOpacity());
+	RpgModeLabel->SetShadowOffset(TrainingLabel->GetShadowOffset());
+	RpgModeLabel->SetShadowColorAndOpacity(TrainingLabel->GetShadowColorAndOpacity());
+	RpgModeLabel->SetJustification(ETextJustify::Left);
+	RpgModeLabel->SetVisibility(ESlateVisibility::HitTestInvisible);
+	if (UScaleBoxSlot* TextSlot = Cast<UScaleBoxSlot>(LabelFit->AddChild(RpgModeLabel)))
+	{
+		TextSlot->SetHorizontalAlignment(HAlign_Fill);
+		TextSlot->SetVerticalAlignment(VAlign_Center);
+	}
+	RefreshRpgModeText();
+}
+
+void UTitleWidget::RefreshRpgModeText()
+{
+	if (!RpgModeLabel)
+	{
+		return;
+	}
+
+	const FText Label = MenuTextOrFallback(RpgModeLabelKey, NSLOCTEXT("TitleWidget", "RpgMode", "Boss Raid"));
+	RpgModeLabel->SetText(Label);
+	Btn_RpgMode->SetToolTipText(Label);
+}
+
+void UTitleWidget::BuildWebsiteButton()
+{
+	// The top-right corner holds the links that leave the match flow. The website button copies the game settings
+	// button's frame, icon and label layout and sits right under it, clear of Luna's speech bubble.
+	UCanvasPanel* Canvas = Btn_GameSettings ? Cast<UCanvasPanel>(Btn_GameSettings->GetParent()) : nullptr;
+	const UCanvasPanelSlot* SettingsSlot = Btn_GameSettings ? Cast<UCanvasPanelSlot>(Btn_GameSettings->Slot) : nullptr;
+	const UImage* SettingsIcon = Cast<UImage>(GetWidgetFromName(TEXT("Btn_GameSettings_StyledIcon")));
+	const UScaleBox* SettingsLabelFit = Cast<UScaleBox>(GetWidgetFromName(TEXT("Btn_GameSettings_StyledLabel_LocaleFit")));
+	const UTextBlock* SettingsLabel = Cast<UTextBlock>(GetWidgetFromName(TEXT("Btn_GameSettings_StyledLabel")));
+	const UCanvasPanelSlot* SettingsIconSlot = SettingsIcon ? Cast<UCanvasPanelSlot>(SettingsIcon->Slot) : nullptr;
+	const UCanvasPanelSlot* SettingsLabelSlot = SettingsLabelFit ? Cast<UCanvasPanelSlot>(SettingsLabelFit->Slot) : nullptr;
+	const UScaleBoxSlot* SettingsTextSlot = SettingsLabel ? Cast<UScaleBoxSlot>(SettingsLabel->Slot) : nullptr;
+	if (Btn_Website || !WidgetTree || !Canvas || !SettingsSlot || !SettingsIconSlot || !SettingsLabelSlot || !SettingsTextSlot
+		|| !FPlatformProcess::CanLaunchURL(*OfficialWebsiteUrl))
+	{
+		return;
+	}
+
+	Btn_Website = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("Btn_Website"));
+	Btn_Website->SetStyle(Btn_GameSettings->GetStyle());
+	UCanvasPanelSlot* WebsiteSlot = Canvas->AddChildToCanvas(Btn_Website);
+	WebsiteSlot->SetAnchors(SettingsSlot->GetAnchors());
+	WebsiteSlot->SetAlignment(SettingsSlot->GetAlignment());
+	WebsiteSlot->SetSize(SettingsSlot->GetSize());
+	WebsiteSlot->SetPosition(SettingsSlot->GetPosition() + FVector2D(0.f, SettingsSlot->GetSize().Y + TopRightButtonGap));
+	WebsiteSlot->SetZOrder(SettingsSlot->GetZOrder());
+
+	UCanvasPanel* Content = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Btn_Website_Content"));
+	Content->SetVisibility(ESlateVisibility::HitTestInvisible);
+	if (UButtonSlot* ContentSlot = Cast<UButtonSlot>(Btn_Website->AddChild(Content)))
+	{
+		ContentSlot->SetPadding(FMargin(0.f));
+		ContentSlot->SetHorizontalAlignment(HAlign_Fill);
+		ContentSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+
+	// The globe art is already in the title's cream colour, like the other title icons.
+	UImage* Icon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Title_WebsiteIcon"));
+	if (UTexture2D* IconTexture = WebsiteIcon.LoadSynchronous())
+	{
+		Icon->SetBrushFromTexture(IconTexture);
+	}
+	Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
+	UCanvasPanelSlot* IconSlot = Content->AddChildToCanvas(Icon);
+	IconSlot->SetPosition(SettingsIconSlot->GetPosition());
+	IconSlot->SetSize(SettingsIconSlot->GetSize());
+
+	UScaleBox* LabelFit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass(), TEXT("Title_WebsiteLabel_LocaleFit"));
+	LabelFit->SetStretch(SettingsLabelFit->GetStretch());
+	LabelFit->SetStretchDirection(SettingsLabelFit->GetStretchDirection());
+	LabelFit->SetVisibility(ESlateVisibility::HitTestInvisible);
+	UCanvasPanelSlot* LabelSlot = Content->AddChildToCanvas(LabelFit);
+	LabelSlot->SetPosition(SettingsLabelSlot->GetPosition());
+	LabelSlot->SetSize(SettingsLabelSlot->GetSize());
+
+	WebsiteLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Title_WebsiteLabel"));
+	WebsiteLabel->SetFont(SettingsLabel->GetFont());
+	WebsiteLabel->SetColorAndOpacity(SettingsLabel->GetColorAndOpacity());
+	WebsiteLabel->SetShadowOffset(SettingsLabel->GetShadowOffset());
+	WebsiteLabel->SetShadowColorAndOpacity(SettingsLabel->GetShadowColorAndOpacity());
+	WebsiteLabel->SetVisibility(ESlateVisibility::HitTestInvisible);
+	if (UScaleBoxSlot* TextSlot = Cast<UScaleBoxSlot>(LabelFit->AddChild(WebsiteLabel)))
+	{
+		TextSlot->SetHorizontalAlignment(SettingsTextSlot->GetHorizontalAlignment());
+		TextSlot->SetVerticalAlignment(SettingsTextSlot->GetVerticalAlignment());
+	}
+	RefreshWebsiteText();
+}
+
+void UTitleWidget::RefreshWebsiteText()
+{
+	if (!WebsiteLabel)
+	{
+		return;
+	}
+
+	const FText Label = MenuTextOrFallback(WebsiteLabelKey, NSLOCTEXT("TitleWidget", "Website", "Official Website"));
+	WebsiteLabel->SetText(Label);
+	Btn_Website->SetToolTipText(Label);
 }
 
 void UTitleWidget::HandleRoomListClicked()
@@ -363,6 +740,18 @@ void UTitleWidget::HandleQuickMatchClicked()
 void UTitleWidget::HandleTrainingModeClicked()
 {
 	OpenTrainingRoom();
+}
+
+void UTitleWidget::HandleRpgModeClicked()
+{
+	RpgModeRequested.Broadcast();
+}
+
+void UTitleWidget::HandleWebsiteClicked()
+{
+	FString Error;
+	FPlatformProcess::LaunchURL(*OfficialWebsiteUrl, nullptr, &Error);
+	UE_CLOG(!Error.IsEmpty(), LogTitleWidget, Warning, TEXT("Could not open the official website %s: %s"), *OfficialWebsiteUrl, *Error);
 }
 
 void UTitleWidget::HandlePandoraShopClicked()

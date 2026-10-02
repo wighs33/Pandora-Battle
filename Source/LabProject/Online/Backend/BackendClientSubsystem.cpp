@@ -1,5 +1,6 @@
 #include "Online/Backend/BackendClientSubsystem.h"
 
+#include "Common/GameSessionConstants.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -71,10 +72,14 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs JoinMatchCommand(
 		TEXT("pd.Backend.JoinMatch"),
-		TEXT("Ask the backend for a GameLift game session and travel to it."),
-		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+		TEXT("pd.Backend.JoinMatch [rpg]: ask the backend for a GameLift game session (PvP match, or the RPG shared world) and travel to it."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
-			if (UBackendClientSubsystem* Backend = FindBackendClient(World)) { Backend->JoinOnlineMatch(); }
+			const bool bRpg = Args.Num() > 0 && Args[0].Equals(LabGameSession::RpgSessionMode, ESearchCase::IgnoreCase);
+			if (UBackendClientSubsystem* Backend = FindBackendClient(World))
+			{
+				Backend->JoinOnlineMatch(bRpg ? EOnlineMatchMode::Rpg : EOnlineMatchMode::Match);
+			}
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs ProfileCommand(
@@ -216,7 +221,7 @@ void UBackendClientSubsystem::FinishLogin(const bool bSucceeded, const FString& 
 	}
 }
 
-void UBackendClientSubsystem::JoinOnlineMatch()
+void UBackendClientSubsystem::JoinOnlineMatch(const EOnlineMatchMode Mode)
 {
 	if (bMatchJoinInProgress)
 	{
@@ -224,6 +229,7 @@ void UBackendClientSubsystem::JoinOnlineMatch()
 	}
 
 	bMatchJoinInProgress = true;
+	PendingMatchMode = Mode;
 	if (IsLoggedIn())
 	{
 		SendMatchJoinRequest();
@@ -248,8 +254,12 @@ void UBackendClientSubsystem::SendMatchJoinRequest()
 		return;
 	}
 
+	const TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
+	Body->SetStringField(TEXT("mode"), PendingMatchMode == EOnlineMatchMode::Rpg
+		? LabGameSession::RpgSessionMode
+		: LabGameSession::MatchSessionMode);
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = PdBackendHttp::CreateJsonRequest(
-		TEXT("POST"), Url, MakeShared<FJsonObject>(), Settings->GetClientRequestTimeoutSeconds());
+		TEXT("POST"), Url, Body, Settings->GetClientRequestTimeoutSeconds());
 	Request->SetHeader(TEXT("Authorization"), TEXT("Bearer ") + SessionToken);
 	PdBackendHttp::Send(Request, PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleMatchJoinResponse));
 }
@@ -281,7 +291,9 @@ void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResp
 	}
 
 	const FString TravelUrl = FString::Printf(TEXT("%s:%d?PlayerSessionId=%s"), *Address, Port, *PlayerSessionId);
-	UE_LOG(LogBackendClient, Log, TEXT("Joining GameLift game session at %s:%d"), *Address, Port);
+	UE_LOG(LogBackendClient, Log, TEXT("Joining GameLift %s session at %s:%d"),
+		PendingMatchMode == EOnlineMatchMode::Rpg ? LabGameSession::RpgSessionMode : LabGameSession::MatchSessionMode,
+		*Address, Port);
 	PlayerController->ClientTravel(TravelUrl, TRAVEL_Absolute);
 	FinishMatchJoin(true, FString());
 }

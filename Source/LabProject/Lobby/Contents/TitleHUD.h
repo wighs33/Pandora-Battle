@@ -38,6 +38,28 @@ private:
 	void ShowTitleSpeech();
 	void HideTitleSpeech();
 	FVector2D GetTitleCharacterHeadTopUV() const;
+
+	// Luna chat: the player's question goes to the local LLM and the streamed answer replaces the rotating tips.
+	void BindLunaChat();
+	void UnbindLunaChat();
+	void HandleLunaQuestion(const FString& Question);
+	void HandleLunaReplyUpdated(const FString& ReplySoFar);
+	void HandleLunaReplyFinished(bool bSucceeded, const FString& Reply);
+	void ShowLunaChatText(const FText& Text, bool bSpeaking);
+	FText GetLunaChatLine(FName Key, const FText& Fallback) const;
+	/** While true the rotating tips are paused; the next tip waits ChatTipResumeDelay instead of SpeechHiddenInterval. */
+	bool bLunaChatActive = false;
+	FDelegateHandle LunaReplyUpdatedHandle;
+	FDelegateHandle LunaReplyFinishedHandle;
+
+	// Boss raid: the backend places the player in a GameLift rpg-mode session while Luna reports the progress.
+	void BindRpgMode();
+	void UnbindRpgMode();
+	void HandleRpgModeRequested();
+	UFUNCTION()
+	void HandleRpgJoinFinished(bool bSucceeded, const FString& ErrorMessage);
+	/** The backend also reports PvP joins (pd.Backend.JoinMatch); only the request made here is answered. */
+	bool bRpgJoinPending = false;
 	FTimerHandle TitleBlinkTimer;
 	float TitleBlinkElapsed = -1.f;
 	FTimerHandle TitleSpeechTimer;
@@ -62,6 +84,15 @@ protected:
 	/** Length of one 0 -> 1 -> 0 mouth movement while the bubble is visible. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Speech", meta = (ClampMin = "0.05", Units = "s"))
 	float MouthCycleDuration = 0.3f;
+
+	/** Luna's answer stays visible for at least this long, or longer for long answers (reading time per character). */
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Chat", meta = (ClampMin = "0.5", Units = "s"))
+	float ChatReplyMinDuration = 5.f;
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Chat", meta = (ClampMin = "0.0", Units = "s"))
+	float ChatReplySecondsPerCharacter = 0.08f;
+	/** After a conversation the tips wait longer, so the player can ask the next question without being interrupted. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Chat", meta = (ClampMin = "0.1", Units = "s"))
+	float ChatTipResumeDelay = 15.f;
 
 	/** Presentation only. Adjust the mesh and its relative transform in BP_TitleHUD. */
 	UPROPERTY(VisibleAnywhere, Category = "!Title|Character")

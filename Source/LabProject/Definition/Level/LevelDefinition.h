@@ -71,6 +71,7 @@ public:
 	FString GetLobbyTravelMapName() const;
 	FString GetRoomTravelMapName() const;
 	FString GetTrainingRoomTravelMapName() const;
+	FString GetRpgTravelMapName() const;
 	bool IsLobbyMapName(const FString& LevelName) const;
 	bool IsTrainingRoomMapName(const FString& LevelName) const;
 
@@ -93,4 +94,11 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Training Level")
 	TSoftObjectPtr<UWorld> TrainingLevel;
+
+	/**
+	 * 타이틀의 보스 레이드 맵. 전용 서버가 rpg 모드 게임 세션을 받으면 이 맵으로 이동해 경기 끝 없이 열어 둔다.
+	 * 서버 쿡 목록(MapsToCook)에 있어야 한다.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Rpg Level")
+	TSoftObjectPtr<UWorld> RpgLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Map/LV_Colosseum.LV_Colosseum")));
 };

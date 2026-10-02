@@ -33,6 +33,12 @@ Parameters:
     Default: 4
     MinValue: 1
     MaxValue: 16
+  MaxPlayersPerRpgSession:
+    Type: Number
+    Default: 6
+    MinValue: 1
+    MaxValue: 6
+    Description: Players per RPG shared-world session. The game server accepts at most 6 (LabGameSession::MaxPlayerCount).
 
 Globals:
   Function:
@@ -121,6 +127,7 @@ Resources:
           GAMELIFT_FLEET_ID: !Ref GameLiftFleetId
           GAMELIFT_LOCATION: !Ref GameLiftLocation
           MAX_PLAYERS_PER_SESSION: !Ref MaxPlayersPerSession
+          MAX_PLAYERS_PER_RPG_SESSION: !Ref MaxPlayersPerRpgSession
       Policies:
         - Statement:
             - Effect: Allow

@@ -131,6 +131,9 @@ void UMatchFlowComponent::InitializeTravelOptions(
 	bMatchTimerSuppressedByTravelOption = IsEnabledTravelOption(
 		Options,
 		LabGameSession::NoMatchTimerOption);
+	bRpgMode = IsEnabledTravelOption(
+		Options,
+		LabGameSession::RpgModeOption);
 }
 
 void UMatchFlowComponent::InitializeGameState()
@@ -725,9 +728,11 @@ ShouldSuppressServerMatchTimerForCurrentMap() const
 		FName(*CurrentLevelName));
 }
 
+// RPG 모드는 타이머가 끝나지 않으므로 승자 판정·결과·로비 복귀도 일어나지 않는다.
 bool UMatchFlowComponent::ShouldSuppressServerMatchTimer() const
 {
 	return bMatchTimerSuppressedByTravelOption
+		|| bRpgMode
 		|| ShouldSuppressServerMatchTimerForCurrentMap();
 }
 
@@ -904,9 +909,11 @@ bool UMatchFlowComponent::ShouldAbortMatchForPlayerExit(
 		GameMode
 			? GameMode->GetPlayerSetupComponent()
 			: nullptr;
+	// RPG 공유 월드는 누가 나가도 남은 플레이어가 계속 머문다.
 	if (!GameMode
 		|| !GameMode->HasAuthority()
 		|| bGameResultShown
+		|| bRpgMode
 		|| !ExitingPlayerState
 		|| !GameMode->IsRuntimeContentReady()
 		|| (Provisioning && Provisioning->IsTrainingRoomMap()))

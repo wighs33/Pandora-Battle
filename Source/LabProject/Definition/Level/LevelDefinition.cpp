@@ -211,6 +211,11 @@ FString ULevelDefinition::GetTrainingRoomTravelMapName() const
 	return ResolveMapPackageName(TrainingLevel);
 }
 
+FString ULevelDefinition::GetRpgTravelMapName() const
+{
+	return ResolveMapPackageName(RpgLevel);
+}
+
 bool ULevelDefinition::IsLobbyMapName(const FString& LevelName) const
 {
 	return !LevelName.TrimStartAndEnd().IsEmpty()
@@ -238,6 +243,7 @@ EDataValidationResult ULevelDefinition::IsDataValid(
 	ValidateRequiredLevel(Context, Result, LobbyLevel, TEXT("LobbyLevel"));
 	ValidateRequiredLevel(Context, Result, RoomLevel, TEXT("RoomLevel"));
 	ValidateRequiredLevel(Context, Result, TrainingLevel, TEXT("TrainingLevel"));
+	ValidateRequiredLevel(Context, Result, RpgLevel, TEXT("RpgLevel"));
 	return Result;
 }
 #endif

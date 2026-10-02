@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import common  # noqa: E402
 from auth import verify_steam_ticket  # noqa: E402
 from common import ApiError  # noqa: E402
-from match_join import join_or_create  # noqa: E402
+from match_join import join_or_create, read_mode  # noqa: E402
 from match_result import build_transaction, is_duplicate_report, validate_report  # noqa: E402
 from player import build_profile  # noqa: E402
 
@@ -200,10 +200,36 @@ class FakeGameLift:
 
 
 class MatchJoinTests(unittest.TestCase):
-    def join(self, gamelift, location=""):
+    def join(self, gamelift, location="", mode="match"):
         return join_or_create(
-            gamelift, "fleet-1", location, "steam:1", "Alice", 4, sleep=lambda seconds: None, clock=lambda: 0.0
+            gamelift, "fleet-1", location, "steam:1", "Alice", 4, mode=mode,
+            sleep=lambda seconds: None, clock=lambda: 0.0
         )
+
+    def test_mode_defaults_to_match_and_rejects_unknown_values(self):
+        self.assertEqual(read_mode({}), "match")
+        self.assertEqual(read_mode({"mode": "rpg"}), "rpg")
+        with self.assertRaises(ApiError) as context:
+            read_mode({"mode": "battle-royale"})
+        self.assertEqual(context.exception.code, "invalid_mode")
+
+    def test_rpg_search_and_new_session_carry_the_mode(self):
+        gamelift = FakeGameLift([])
+        self.join(gamelift, mode="rpg")
+        self.assertIn("gameSessionProperties.mode = 'rpg'", gamelift.search_request["FilterExpression"])
+        self.assertEqual(gamelift.created[0]["GameProperties"], [{"Key": "mode", "Value": "rpg"}])
+        self.assertEqual(gamelift.created[0]["Name"], "labproject-rpg")
+
+    def test_unindexed_fallback_keeps_modes_apart(self):
+        rpg_world = {"GameSessionId": "gsess-rpg", "CurrentPlayerSessionCount": 1, "MaximumPlayerSessionCount": 6,
+                     "GameProperties": [{"Key": "mode", "Value": "rpg"}]}
+        legacy_match = {"GameSessionId": "gsess-legacy", "CurrentPlayerSessionCount": 1, "MaximumPlayerSessionCount": 4}
+
+        gamelift = FakeGameLift([], active_unindexed=[rpg_world, legacy_match])
+        self.assertEqual(self.join(gamelift)["playerSessionId"], "psess-gsess-legacy")
+
+        gamelift = FakeGameLift([], active_unindexed=[legacy_match, rpg_world])
+        self.assertEqual(self.join(gamelift, mode="rpg")["playerSessionId"], "psess-gsess-rpg")
 
     def test_joins_existing_session_with_free_slot(self):
         gamelift = FakeGameLift(["gsess-full", "gsess-open"], full_sessions=["gsess-full"])

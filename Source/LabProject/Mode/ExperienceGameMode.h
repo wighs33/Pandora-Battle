@@ -82,6 +82,7 @@ protected:
 private:
 	UExperienceManagerComponent* GetExperienceManager() const;
 	void ResumeStartingPlayers();
+	void NotifyRpgWorldReadyIfNeeded();
 	void BeginRuntimeContentPreload();
 	void HandleRuntimeContentPreloadComplete(uint32 RequestGeneration);
 	void ReleaseRuntimeContentPreload();

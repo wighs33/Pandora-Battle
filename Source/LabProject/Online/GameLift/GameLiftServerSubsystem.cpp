@@ -1,6 +1,8 @@
 #include "Online/GameLift/GameLiftServerSubsystem.h"
 
 #include "Async/Async.h"
+#include "Common/GameSessionConstants.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/NetConnection.h"
@@ -47,6 +49,18 @@ namespace
 		TEXT("pd.GameLift.SessionEndTimeout"),
 		20.0f,
 		TEXT("After the match ends, maximum seconds to wait for result reports and player exits."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<float> CVarRpgEmptySessionTimeout(
+		TEXT("pd.GameLift.RpgEmptySessionTimeout"),
+		300.0f,
+		TEXT("Seconds an RPG shared-world session may stay empty before the process ends. Players may rejoin meanwhile."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<float> CVarRpgWorldReadyTimeout(
+		TEXT("pd.GameLift.RpgWorldReadyTimeout"),
+		60.0f,
+		TEXT("Seconds an RPG game session may wait for the shared-world map to load before the process ends."),
 		ECVF_Default);
 
 	constexpr float WatchdogIntervalSeconds = 1.0f;
@@ -97,6 +111,31 @@ namespace
 	FString DescribeError(const FGameLiftError& Error)
 	{
 		return Error.m_errorMessage.IsEmpty() ? Error.m_errorName : Error.m_errorMessage;
+	}
+
+	// 백엔드가 CreateGameSession의 GameProperties에 넣은 값. 없으면 빈 문자열이다.
+	FString FindGameProperty(const Aws::GameLift::Server::Model::GameSession& GameSession, const FString& Key)
+	{
+#ifdef GAMELIFT_USE_STD
+		for (const Aws::GameLift::Server::Model::GameProperty& Property : GameSession.GetGameProperties())
+		{
+			if (ToFString(Property.GetKey()) == Key)
+			{
+				return ToFString(Property.GetValue());
+			}
+		}
+#else
+		int Count = 0;
+		const Aws::GameLift::Server::Model::GameProperty* Properties = GameSession.GetGameProperties(Count);
+		for (int Index = 0; Properties && Index < Count; ++Index)
+		{
+			if (ToFString(Properties[Index].GetKey()) == Key)
+			{
+				return ToFString(Properties[Index].GetValue());
+			}
+		}
+#endif
+		return FString();
 	}
 #endif
 }
@@ -218,11 +257,12 @@ void UGameLiftServerSubsystem::NotifyServerReadyForSessions(const UWorld* World)
 		{
 			const FString SessionId = ToFString(GameSession.GetGameSessionId());
 			const int32 MaxPlayers = GameSession.GetMaximumPlayerSessionCount();
-			AsyncTask(ENamedThreads::GameThread, [WeakThis, SessionId, MaxPlayers]()
+			const FString SessionMode = FindGameProperty(GameSession, LabGameSession::SessionModeProperty);
+			AsyncTask(ENamedThreads::GameThread, [WeakThis, SessionId, MaxPlayers, SessionMode]()
 			{
 				if (UGameLiftServerSubsystem* This = WeakThis.Get())
 				{
-					This->HandleGameSessionStarted(SessionId, MaxPlayers);
+					This->HandleGameSessionStarted(SessionId, MaxPlayers, SessionMode);
 				}
 			});
 		});
@@ -257,7 +297,11 @@ void UGameLiftServerSubsystem::NotifyServerReadyForSessions(const UWorld* World)
 #endif
 }
 
-void UGameLiftServerSubsystem::HandleGameSessionStarted(const FString& InGameSessionId, const int32 MaxPlayerSessionCount)
+// 경기 세션은 이미 열린 로비가 바로 받는다. RPG 세션은 공유 월드로 이동하고, 그 맵이 준비되면 활성화한다.
+void UGameLiftServerSubsystem::HandleGameSessionStarted(
+	const FString& InGameSessionId,
+	const int32 MaxPlayerSessionCount,
+	const FString& SessionMode)
 {
 #if PD_WITH_GAMELIFT
 	if (bEnding)
@@ -265,6 +309,53 @@ void UGameLiftServerSubsystem::HandleGameSessionStarted(const FString& InGameSes
 		return;
 	}
 
+	bRpgSession = SessionMode.Equals(LabGameSession::RpgSessionMode, ESearchCase::IgnoreCase);
+	if (!bRpgSession)
+	{
+		ActivateSession(InGameSessionId, MaxPlayerSessionCount);
+		return;
+	}
+
+	PendingGameSessionId = InGameSessionId;
+	PendingMaxPlayerSessionCount = MaxPlayerSessionCount;
+	PendingSinceSeconds = FPlatformTime::Seconds();
+	if (!TravelToRpgWorld())
+	{
+		EndProcess(TEXT("RPG world could not be opened"));
+	}
+#endif
+}
+
+void UGameLiftServerSubsystem::ActivatePendingGameSession()
+{
+	if (PendingGameSessionId.IsEmpty() || bEnding)
+	{
+		return;
+	}
+
+	const FString SessionId = PendingGameSessionId;
+	PendingGameSessionId.Reset();
+	ActivateSession(SessionId, PendingMaxPlayerSessionCount);
+}
+
+bool UGameLiftServerSubsystem::TravelToRpgWorld()
+{
+	UWorld* World = GetGameInstance()->GetWorld();
+	const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
+	const FString MapName = Levels ? Levels->GetRpgTravelMapName() : FString();
+	if (!World || MapName.IsEmpty())
+	{
+		UE_LOG(LogGameLiftServer, Error, TEXT("RPG game session %s has no RpgLevel to open."), *PendingGameSessionId);
+		return false;
+	}
+
+	UE_LOG(LogGameLiftServer, Log, TEXT("RPG game session %s: opening %s before activation."), *PendingGameSessionId, *MapName);
+	return World->ServerTravel(FString::Printf(TEXT("%s?%s=1"), *MapName, LabGameSession::RpgModeOption));
+}
+
+void UGameLiftServerSubsystem::ActivateSession(const FString& InGameSessionId, const int32 MaxPlayerSessionCount)
+{
+#if PD_WITH_GAMELIFT
 	GameSessionId = InGameSessionId;
 	SessionActivatedSeconds = FPlatformTime::Seconds();
 	EmptySinceSeconds = -1.0;
@@ -276,8 +367,9 @@ void UGameLiftServerSubsystem::HandleGameSessionStarted(const FString& InGameSes
 		EndProcess(FString::Printf(TEXT("ActivateGameSession failed: %s"), *DescribeError(Outcome.GetError())));
 		return;
 	}
-	UE_LOG(LogGameLiftServer, Log, TEXT("GameLift game session activated: %s (max %d players)"),
-		*GameSessionId, MaxPlayerSessionCount);
+	UE_LOG(LogGameLiftServer, Log, TEXT("GameLift game session activated: %s (%s, max %d players)"),
+		*GameSessionId, bRpgSession ? LabGameSession::RpgSessionMode : LabGameSession::MatchSessionMode,
+		MaxPlayerSessionCount);
 #endif
 }
 
@@ -431,12 +523,24 @@ void UGameLiftServerSubsystem::RequestSessionEnd(const FString& Reason)
 // 게임 세션이 끝나야 할 조건을 1초마다 확인한다. 결과 보고가 진행 중이면 전송을 마칠 때까지 기다린다.
 bool UGameLiftServerSubsystem::TickSessionWatchdog(float DeltaSeconds)
 {
-	if (!bSdkInitialized || bEnding || GameSessionId.IsEmpty())
+	if (!bSdkInitialized || bEnding)
 	{
 		return true;
 	}
 
 	const double NowSeconds = FPlatformTime::Seconds();
+	// RPG 맵이 열리지 않으면 세션이 활성화되지 않은 채 남는다. 프로세스를 끝내 새 프로세스로 바꾼다.
+	if (!PendingGameSessionId.IsEmpty()
+		&& NowSeconds - PendingSinceSeconds >= CVarRpgWorldReadyTimeout.GetValueOnGameThread())
+	{
+		EndProcess(TEXT("RPG world was not ready in time"));
+		return true;
+	}
+	if (GameSessionId.IsEmpty())
+	{
+		return true;
+	}
+
 	const UMatchReportSubsystem* Reports = GetGameInstance()->GetSubsystem<UMatchReportSubsystem>();
 	const bool bReportsPending = Reports && Reports->HasPendingReports();
 	if (bSessionEndRequested)
@@ -453,9 +557,11 @@ bool UGameLiftServerSubsystem::TickSessionWatchdog(float DeltaSeconds)
 		return true;
 	}
 
+	// RPG 공유 월드는 잠시 비어도 다시 들어올 수 있게 더 오래 기다린다.
 	const double EmptySince = bAnyPlayerJoined ? EmptySinceSeconds : SessionActivatedSeconds;
+	const TAutoConsoleVariable<float>& EmptyTimeout = bRpgSession ? CVarRpgEmptySessionTimeout : CVarEmptySessionTimeout;
 	const float Timeout = bAnyPlayerJoined
-		? CVarEmptySessionTimeout.GetValueOnGameThread()
+		? EmptyTimeout.GetValueOnGameThread()
 		: CVarFirstPlayerTimeout.GetValueOnGameThread();
 	if (EmptySince >= 0.0 && NowSeconds - EmptySince >= Timeout)
 	{
