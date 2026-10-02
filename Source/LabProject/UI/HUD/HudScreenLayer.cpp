@@ -31,7 +31,6 @@
 namespace
 {
 	constexpr float InfoUiTrainingRoomPauseDelaySeconds = 0.05f;
-
 }
 
 void UHudScreenLayer::Initialize(APdHUD* InOwnerHud, UHudUiRouter* InRouter)
@@ -547,7 +546,6 @@ bool UHudScreenLayer::IsTrainingRoomPauseUiOpen(const UUserWidget* IgnoredWidget
 	{
 		return false;
 	}
-
 
 	return (!bInfoClosing && Hud->CachedInfoUI != IgnoredWidget && IsInfoOpen())
 		|| (UiRouter && UiRouter->IsSettingsMenuOpen())

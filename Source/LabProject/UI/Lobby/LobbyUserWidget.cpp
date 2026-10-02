@@ -385,14 +385,12 @@ bool ULobbyUserWidget::OpenSteamFriendAddOverlay() const
 	uint64 SteamIdValue = 0;
 	if (!TryParseSteamId64(SteamIdString, SteamIdValue))
 	{
-
 		return false;
 	}
 
 	CSteamID TargetSteamId(SteamIdValue);
 	if (!TargetSteamId.IsValid())
 	{
-
 		return false;
 	}
 

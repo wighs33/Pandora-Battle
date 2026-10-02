@@ -16,8 +16,6 @@ public:
 	virtual void Deinitialize() override;
 
 	void Activate();
-	void RequestStatUp(FGameplayTag StatTag);
-	void RequestStatDown(FGameplayTag StatTag);
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------

@@ -70,8 +70,5 @@ void UItemAnimLayerAnimInstance::RefreshCachedPlayer()
 void UItemAnimLayerAnimInstance::PushValuesToLegacyBlueprintVariables()
 {
 	SetObjectPropertyIfPresent(this, TEXT("Cached Player"), CachedPlayer.Get());
-	SetObjectPropertyIfPresent(this, TEXT("CachedPlayer"), CachedPlayer.Get());
-
 	SetBoolPropertyIfPresent(this, TEXT("IsAiming?"), bIsAiming);
-	SetBoolPropertyIfPresent(this, TEXT("IsAiming"), bIsAiming);
 }

@@ -77,7 +77,7 @@ void ULeftSkinWidget::SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipS
 
 	SelectedSkinEquipSlot = InSelectedSkinEquipSlot;
 
-BroadcastClickedSkinEquipTypeSlot(EquipTypeTag, SelectedSkinEquipSlot, false);
+	BroadcastClickedSkinEquipTypeSlot(EquipTypeTag, SelectedSkinEquipSlot, false);
 
 	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
 	{
@@ -142,7 +142,6 @@ USkinEquipSlotWidget* ULeftSkinWidget::FindFirstCompatibleSkinEquipSlot(const US
 
 		if (!SkinEquipSlot->HasEquippedSkin())
 		{
-
 			return SkinEquipSlot;
 		}
 	}
@@ -151,7 +150,6 @@ USkinEquipSlotWidget* ULeftSkinWidget::FindFirstCompatibleSkinEquipSlot(const US
 
 void ULeftSkinWidget::BroadcastClickedSkinEquipTypeSlot(FGameplayTag EquipTypeTag, USkinEquipSlotWidget* InSelectedSkinEquipSlot, bool bInIsSelectedAnySlot)
 {
-
 	OnClicked_SkinEquipTypeSlot.Broadcast(EquipTypeTag, InSelectedSkinEquipSlot, bInIsSelectedAnySlot);
 }
 
@@ -278,7 +276,6 @@ void ULeftSkinWidget::HandleDrawButtonClicked()
 	const bool bPaintCanvasVisible = PaintCanvasComponent
 		&& PaintCanvasComponent->BeginPaintCanvasUiSession();
 	BroadcastPaintCanvasGroupVisibilityChanged(bPaintCanvasVisible);
-
 }
 
 void ULeftSkinWidget::ApplyResolvedEquipTypeTags()
@@ -316,7 +313,6 @@ FGameplayTag ULeftSkinWidget::ResolveSkinEquipTypeTagForSlot(const USkinEquipSlo
 
 	if (SkinEquipSlot && SkinEquipSlot->GetEquipTypeTag().IsValid())
 	{
-
 		return SkinEquipSlot->GetEquipTypeTag();
 	}
 

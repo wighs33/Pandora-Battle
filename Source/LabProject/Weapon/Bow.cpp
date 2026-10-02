@@ -336,7 +336,6 @@ bool ABow::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* Tar
 	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
 		|| !IsValid(TargetActor))
 	{
-
 		return false;
 	}
 
@@ -348,7 +347,6 @@ bool ABow::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, A
 	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
 		|| TargetLocation.IsNearlyZero())
 	{
-
 		return false;
 	}
 
@@ -427,7 +425,6 @@ AActor* ABow::SpawnArrowActor(ACharacterBase* Character, bool bAttachToCharacter
 	UWorld* World = GetWorld();
 	if (!Character || !CharacterMesh || !ArrowClass || !World)
 	{
-
 		return nullptr;
 	}
 
@@ -446,7 +443,6 @@ AActor* ABow::SpawnArrowActor(ACharacterBase* Character, bool bAttachToCharacter
 	AActor* SpawnedArrow = World->SpawnActor<AActor>(ArrowClass, SpawnTransform, SpawnParams);
 	if (!SpawnedArrow)
 	{
-
 		return nullptr;
 	}
 
@@ -497,7 +493,6 @@ bool ABow::LaunchArrowAtTargetOnServer(ACharacterBase* AttackingCharacter, AActo
 {
 	if (!HasAuthority() || !AttackingCharacter || !IsValid(TargetActor))
 	{
-
 		return false;
 	}
 
@@ -516,21 +511,18 @@ bool ABow::LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, con
 	FVector LaunchStartLocation = FVector::ZeroVector;
 	if (!TryGetArrowLaunchStartLocation(AttackingCharacter, LaunchStartLocation))
 	{
-
 		return false;
 	}
 
 	const FVector LaunchDirection = (TargetLocation - LaunchStartLocation).GetSafeNormal();
 	if (LaunchDirection.IsNearlyZero())
 	{
-
 		return false;
 	}
 
 	AActor* ArrowActor = SpawnArrowActor(AttackingCharacter, false);
 	if (!ArrowActor)
 	{
-
 		return false;
 	}
 

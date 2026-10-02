@@ -293,7 +293,6 @@ bool UPandoraComponent::RequestPandoraSelectionForDirection(
 
 	if (!GetOwner())
 	{
-
 		return false;
 	}
 
@@ -337,13 +336,11 @@ bool UPandoraComponent::RequestSetPandoraLoadoutSlot(
 {
 	if (!PandoraLoadout::IsLoadoutDirection(Direction))
 	{
-
 		return false;
 	}
 
 	if (!GetOwner())
 	{
-
 		return false;
 	}
 
@@ -367,7 +364,6 @@ bool UPandoraComponent::RequestAutoSetPandoraLoadoutSlot(const UPandoraDefinitio
 
 	if (!PandoraDefinition)
 	{
-
 		return false;
 	}
 
@@ -381,7 +377,6 @@ bool UPandoraComponent::RequestAutoSetPandoraLoadoutSlot(const UPandoraDefinitio
 	EEnum_Direction Direction = EEnum_Direction::Center;
 	if (!ResolvePreferredAutoPandoraLoadoutDirection(PandoraDefinition, Direction))
 	{
-
 		return false;
 	}
 
@@ -496,7 +491,6 @@ bool UPandoraComponent::SelectPandoraByPrimaryAssetId(
 {
 	if (!HasPandoraAuthority())
 	{
-
 		return false;
 	}
 
@@ -531,7 +525,6 @@ bool UPandoraComponent::SelectPandoraByPrimaryAssetId(
 	const UPandoraDefinition* PandoraDefinition = FindOwnedPandoraDefinitionByPrimaryAssetId(PandoraDefinitionId);
 	if (!PandoraDefinition)
 	{
-
 		return false;
 	}
 
@@ -558,7 +551,6 @@ void UPandoraComponent::RefreshCurrentPandoraSkills()
 {
 	if (!HasPandoraAuthority())
 	{
-
 		return;
 	}
 
@@ -581,7 +573,6 @@ void UPandoraComponent::RefreshCurrentPandoraSkills()
 	if (ASC && CurrentPandoraDefinition && bCompatibleWithCurrentWeapon)
 	{
 		GrantPandoraSkills(ASC, CurrentPandoraDefinition, RuntimeLevel, EffectiveLoadoutDirection);
-
 	}
 
 	RefreshPandoraSkillInputBindings(ASC);
@@ -750,7 +741,6 @@ bool UPandoraComponent::ResolvePreferredAutoPandoraLoadoutDirection(
 
 			return true;
 		}
-
 }
 
 	return ResolveAutoPandoraLoadoutDirection(PandoraDefinition, OutDirection);
@@ -762,7 +752,6 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 {
 	if (!HasPandoraAuthority() || !PandoraLoadout::IsLoadoutDirection(Direction))
 	{
-
 		return false;
 	}
 	if (PandoraDefinition && !HasPandoraDefinition(PandoraDefinition))

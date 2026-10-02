@@ -74,14 +74,8 @@ void UShopPreviewPanelWidget::HandleBuyClicked()
 void UShopPreviewPanelWidget::ResolveWidgets()
 {
 	CaptureDefaultNameColor();
-
 	ConfigureDescriptionTextBlock();
-
 	CaptureDefaultPriceColor();
-
-
-
-
 }
 
 void UShopPreviewPanelWidget::ConfigureDescriptionTextBlock()

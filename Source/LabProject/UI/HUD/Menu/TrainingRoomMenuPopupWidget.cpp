@@ -96,7 +96,6 @@ bool UTrainingRoomMenuPopupWidget::SelectTrainingBotWeaponOptionByIndex(int32 Op
 {
 	if (!WeaponOptions.IsValidIndex(OptionIndex))
 	{
-
 		return false;
 	}
 
@@ -108,7 +107,6 @@ bool UTrainingRoomMenuPopupWidget::SelectTrainingBotWeaponOptionByIndex(int32 Op
 
 	if (Option.WeaponDefinition.IsNull())
 	{
-
 		return false;
 	}
 
@@ -119,7 +117,6 @@ bool UTrainingRoomMenuPopupWidget::SelectTrainingBotDagger()
 {
 	if (DaggerWeaponDefinition.IsNull())
 	{
-
 		return false;
 	}
 
@@ -145,7 +142,6 @@ bool UTrainingRoomMenuPopupWidget::SelectTrainingBotWeaponDefinitionInternal(
 {
 	if (!WeaponDefinition)
 	{
-
 		return false;
 	}
 
@@ -342,7 +338,6 @@ void UTrainingRoomMenuPopupWidget::SetTrainingBotAttackEnabled(bool bEnabled)
 	bTrainingBotAttackEnabled = bEnabled;
 	SyncBotCanAttackCheckBox();
 	const bool bApplied = ApplyAttackEnabledToTrainingBots(bTrainingBotAttackEnabled);
-
 }
 
 void UTrainingRoomMenuPopupWidget::HandleBotCanAttackCheckStateChanged(bool bIsChecked)
@@ -385,7 +380,6 @@ bool UTrainingRoomMenuPopupWidget::ApplyWeaponToTrainingBot(UItemDefinition* Wea
 	UWorld* World = GetWorld();
 	if (!World)
 	{
-
 		return false;
 	}
 
@@ -409,7 +403,6 @@ bool UTrainingRoomMenuPopupWidget::ApplyUnarmedToTrainingBot() const
 	UWorld* World = GetWorld();
 	if (!World)
 	{
-
 		return false;
 	}
 
@@ -448,7 +441,6 @@ bool UTrainingRoomMenuPopupWidget::ApplyAttackEnabledToTrainingBots(bool bEnable
 
 		TrainingBot->SetAttackEnabled(bEnabled);
 		bAppliedToAnyBot = true;
-
 }
 
 	return bAppliedToAnyBot;
@@ -542,7 +534,6 @@ void UTrainingRoomMenuPopupWidget::BindWeaponOptionButtons()
 		UButton* Button = Cast<UButton>(GetWidgetFromName(Option.ButtonWidgetName));
 		if (!Button)
 		{
-
 			continue;
 		}
 

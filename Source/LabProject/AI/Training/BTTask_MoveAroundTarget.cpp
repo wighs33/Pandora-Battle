@@ -135,7 +135,6 @@ void UBTTask_MoveAroundTarget::TickTask(UBehaviorTreeComponent& OwnerComp, uint8
 
 		if (MaxAttackApproachTime > 0.0f && Memory->ElapsedTime >= MaxAttackApproachTime)
 		{
-
 			AIController->StopMovement();
 			RestoreMovementSettings(Pawn, NodeMemory, !bTreatAttackApproachTimeoutAsSuccess || !bKeepFacingTargetAfterMove);
 			FinishLatentTask(OwnerComp, bTreatAttackApproachTimeoutAsSuccess ? EBTNodeResult::Succeeded : EBTNodeResult::Failed);
@@ -159,7 +158,6 @@ void UBTTask_MoveAroundTarget::TickTask(UBehaviorTreeComponent& OwnerComp, uint8
 
 	if (MaxMoveTime > 0.0f && Memory->ElapsedTime >= MaxMoveTime)
 	{
-
 		AIController->StopMovement();
 		if (bTreatTimeoutAsSuccess)
 		{
@@ -178,7 +176,6 @@ void UBTTask_MoveAroundTarget::TickTask(UBehaviorTreeComponent& OwnerComp, uint8
 	const UPathFollowingComponent* PathFollowingComponent = AIController->GetPathFollowingComponent();
 	if (PathFollowingComponent && PathFollowingComponent->GetStatus() == EPathFollowingStatus::Idle)
 	{
-
 		const bool bSucceeded = DistanceToDestination <= AcceptanceRadius + FinishDistanceTolerance;
 		if (bSucceeded)
 		{
@@ -385,14 +382,12 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::TickAttackWindow(UBehaviorTreeComp
 
 	if (Memory->bAttackAbilityObservedActive && !bAttackAbilityActive)
 	{
-
 		RestoreMovementSettings(Pawn, NodeMemory, !bKeepFacingTargetAfterMove);
 		return EBTNodeResult::Succeeded;
 	}
 
 	if (MaxComboAttackWaitTime > 0.0f && Memory->ElapsedTime >= MaxComboAttackWaitTime)
 	{
-
 		RestoreMovementSettings(Pawn, NodeMemory, !bKeepFacingTargetAfterMove);
 		return EBTNodeResult::Succeeded;
 	}
@@ -502,7 +497,6 @@ void UBTTask_MoveAroundTarget::ApplyFacingMode(APawn* Pawn, uint8* NodeMemory) c
 
 	if (const AEnemyBase* Enemy = Cast<AEnemyBase>(Pawn); Enemy && Enemy->IsStatusFrozen())
 	{
-
 		return;
 	}
 

@@ -93,7 +93,6 @@ struct LABPROJECT_API FPandoraDescriptionViewData
 
 class LABPROJECT_API FPandoraWidgetViewDataBuilder
 {
-
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	static FPandoraWidgetViewData Build(
@@ -109,7 +108,6 @@ public:
 
 class LABPROJECT_API FPandoraSlotViewDataBuilder
 {
-
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	static FPandoraSlotViewData Build(const UPandoraDefinition* PandoraDefinition, const UPandoraComponent* PandoraComponent);
@@ -117,7 +115,6 @@ public:
 
 class LABPROJECT_API FPandoraDescriptionViewDataBuilder
 {
-
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	static FPandoraDescriptionViewData Build(

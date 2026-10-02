@@ -32,7 +32,6 @@ UDeathAbility::UDeathAbility(const FObjectInitializer& ObjectInitializer)
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_HitReact);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Equip);
 	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Unequip);
-
 }
 
 #if WITH_EDITOR

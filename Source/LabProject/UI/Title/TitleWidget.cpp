@@ -100,7 +100,7 @@ namespace
 		}
 	}
 
-	void ResetEditorTransactionBufferIfContainsPieObjects(const TCHAR* Context)
+	void ResetEditorTransactionBufferIfContainsPieObjects()
 	{
 #if WITH_EDITOR
 		if (GEditor && GEditor->Trans && GEditor->Trans->ContainsPieObjects())
@@ -109,7 +109,6 @@ namespace
 				"TitleWidget",
 				"TransactionContainedTitleUiPieObject",
 				"A title UI PIE object was in the transaction buffer and had to be destroyed"));
-
 		}
 #endif
 	}
@@ -819,7 +818,7 @@ void UTitleWidget::OpenRoomList()
 		return;
 	}
 
-ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenRoomList"));
+	ResetEditorTransactionBufferIfContainsPieObjects();
 	UGameplayStatics::OpenLevel(this, FName(*RoomMapName));
 }
 
@@ -839,16 +838,16 @@ void UTitleWidget::OpenTrainingRoom()
 			LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
 		}
 	}
-	ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenTrainingRoom"));
+	ResetEditorTransactionBufferIfContainsPieObjects();
 	UGameplayStatics::OpenLevel(this, FName(*TrainingRoomMapName));
 }
 
 void UTitleWidget::OpenShop()
 {
 	LoadLocalProfile();
-	ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenShop"));
+	ResetEditorTransactionBufferIfContainsPieObjects();
 
-const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass();
+	const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass();
 	if (!ResolvedShopWidgetClass)
 	{
 		return;
@@ -889,12 +888,11 @@ const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass(
 		Screen->SetContent(ShopWidget, Config, EPdGameplayInputPolicy::Block, ShopWidget, FSimpleDelegate());
 		GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
 	}
-
 }
 
 void UTitleWidget::OpenGuide()
 {
-	ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenGuide"));
+	ResetEditorTransactionBufferIfContainsPieObjects();
 
 	APlayerController* PlayerController = GetOwningPlayer();
 	if (!PlayerController)
@@ -953,7 +951,7 @@ void UTitleWidget::OpenGuide()
 
 void UTitleWidget::OpenRecord()
 {
-	ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenRecord"));
+	ResetEditorTransactionBufferIfContainsPieObjects();
 
 	APlayerController* PlayerController = GetOwningPlayer();
 	if (!PlayerController)
@@ -1092,7 +1090,6 @@ void UTitleWidget::LoadLocalProfile() const
 	}
 
 	ProfileSubsystem->LoadProfile();
-
 }
 
 void UTitleWidget::StartQuickMatch()
@@ -1128,7 +1125,6 @@ void UTitleWidget::StartQuickMatch()
 	if (RequestId == 0)
 	{
 		SetQuickMatchEnabled(true);
-
 	}
 	else
 	{
@@ -1144,7 +1140,7 @@ void UTitleWidget::OpenLobbyAsListenServer() const
 		return;
 	}
 
-	ResetEditorTransactionBufferIfContainsPieObjects(TEXT("OpenLobbyAsListenServer"));
+	ResetEditorTransactionBufferIfContainsPieObjects();
 	TravelTitleToListenMap(this, LobbyMapName);
 }
 
@@ -1158,7 +1154,6 @@ void UTitleWidget::SetQuickMatchEnabled(const bool bEnabled) const
 
 void UTitleWidget::ClearQuickMatchDelegates()
 {
-
 	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr;
@@ -1212,5 +1207,4 @@ void UTitleWidget::HandleQuickMatchRequestComplete(
 	}
 
 	SetQuickMatchEnabled(true);
-
 }

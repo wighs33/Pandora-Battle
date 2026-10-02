@@ -77,10 +77,10 @@ protected:
 	AWeaponBase* GetCurrentWeaponActor() const;
 	FName GetCurrentAttackSectionName() const;
 	bool IsAttackSectionNameValid(FName SectionName) const;
-	bool IsAITargetInComboRange(const TCHAR* Context) const;
+	bool IsAITargetInComboRange() const;
 
-	bool FaceCurrentAttackTarget(const TCHAR* Context) const;
-	void RequestAIChaseTarget(const TCHAR* Context) const;
+	bool FaceCurrentAttackTarget() const;
+	void RequestAIChaseTarget() const;
 	void SetCurrentWeaponTraceEnabled(bool bEnabled, FName AttackSectionName = NAME_None) const;
 	void ResetAttackDamageHitTracking() const;
 	void SetCurrentComboDamageMultiplier(float DamageMultiplier) const;
@@ -138,9 +138,6 @@ protected:
 
 	UPROPERTY(Transient)
 	FName BufferedJumpSectionName = NAME_None;
-
-	UPROPERTY(Transient)
-	FName QueuedFromSectionName = NAME_None;
 
 	UPROPERTY(Transient)
 	bool bBufferedComboCostCommitted = false;

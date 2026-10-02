@@ -4,7 +4,6 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "UI/Shop/ShopEntryViewData.h"
-#include "UI/Common/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopEntryWidget)
 
@@ -12,7 +11,6 @@ void UShopEntryWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	ResolveWidgets();
 	if (Btn_Select)
 	{
 		Btn_Select->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleSelectClicked);
@@ -70,23 +68,8 @@ void UShopEntryWidget::HandleSelectClicked()
 	}
 }
 
-void UShopEntryWidget::ResolveWidgets()
-{
-
-
-
-	if (!Img_Icon)
-	{
-		Img_Icon = PdWidgetLookup::FindWidgetByNames<UImage>(this, { TEXT("IconImage") });
-	}
-
-
-}
-
 void UShopEntryWidget::RefreshUI()
 {
-	ResolveWidgets();
-
 	const FShopEntryUiData* UiData = EntryData ? &EntryData->GetUiData() : nullptr;
 	if (!UiData || !UiData->bValid)
 	{
@@ -102,9 +85,9 @@ void UShopEntryWidget::RefreshUI()
 		{
 			Txt_State->SetText(FText::GetEmpty());
 		}
-		if (Img_Icon)
+		if (IconImage)
 		{
-			Img_Icon->SetVisibility(ESlateVisibility::Collapsed);
+			IconImage->SetVisibility(ESlateVisibility::Collapsed);
 		}
 		ApplySelectionVisual();
 		return;
@@ -130,10 +113,10 @@ void UShopEntryWidget::RefreshUI()
 		Txt_State->SetText(StateText);
 	}
 
-	if (Img_Icon)
+	if (IconImage)
 	{
-		Img_Icon->SetBrushResourceObject(UiData->IconResource);
-		Img_Icon->SetVisibility(UiData->IconResource ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		IconImage->SetBrushResourceObject(UiData->IconResource);
+		IconImage->SetVisibility(UiData->IconResource ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 
 	ApplySelectionVisual();
@@ -141,8 +124,6 @@ void UShopEntryWidget::RefreshUI()
 
 void UShopEntryWidget::ApplySelectionVisual()
 {
-	ResolveWidgets();
-
 	if (!SelectionBorderImage)
 	{
 		return;

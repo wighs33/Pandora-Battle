@@ -30,6 +30,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillTargetedAreaAction)
 
+DEFINE_LOG_CATEGORY_STATIC(LogSkillTargetedAreaAction, Log, All);
+
 namespace
 {
 	constexpr float AOEGroundProjectionStartHeight = 500.0f;
@@ -147,7 +149,8 @@ void USkillTargetedAreaAction::OnStart()
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
-
+		UE_LOG(LogSkillTargetedAreaAction, Warning, TEXT("%s has no source skill definition, so targeting cannot start."),
+			*GetNameSafe(GetAbility()));
 		Finish(false);
 		return;
 	}
@@ -155,7 +158,8 @@ void USkillTargetedAreaAction::OnStart()
 	const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredTargetActorClass = GetConfiguredTargetActorClass();
 	if (!ConfiguredTargetActorClass || Settings.Radius <= 0.0)
 	{
-
+		UE_LOG(LogSkillTargetedAreaAction, Warning, TEXT("%s needs a target actor class and a positive radius."),
+			*GetNameSafe(SkillDataAsset));
 		Finish(false);
 		return;
 	}
@@ -174,7 +178,6 @@ void USkillTargetedAreaAction::OnStart()
 		if (!GetTargetGroundLocation(AttackTarget, ConfirmedAOELocation))
 		{
 			ConfirmedAOELocation = ResolveActorFeetLocation(AttackTarget);
-
 		}
 
 		ConfirmStrike();
@@ -303,7 +306,7 @@ void USkillTargetedAreaAction::ConfirmStrike()
 	}
 	bStrikeConfirmed = true;
 
-	DrawDebugDamageRadius(TEXT("ConfirmStrike"), FColor::Cyan, FColor::Blue);
+	DrawDebugDamageRadius(FColor::Cyan, FColor::Blue);
 
 	FGameplayCueParameters IndicatorParams;
 	IndicatorParams.RawMagnitude = static_cast<float>(CachedAOERadius * 2.0);
@@ -322,7 +325,6 @@ void USkillTargetedAreaAction::ConfirmStrike()
 	UAnimMontage* ConfiguredTriggerMontage = GetConfiguredTriggerMontage();
 	if (!ConfiguredTriggerMontage)
 	{
-
 		HandleMontageTriggerEvent(FGameplayEventData());
 		return;
 	}
@@ -351,7 +353,6 @@ void USkillTargetedAreaAction::AOEDamage()
 	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
 	if (!World)
 	{
-
 		return;
 	}
 
@@ -361,7 +362,7 @@ void USkillTargetedAreaAction::AOEDamage()
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(AOEDamage), false, AvatarActor);
 	const FCollisionShape SphereShape = FCollisionShape::MakeSphere(static_cast<float>(CachedAOERadius));
 
-	DrawDebugDamageRadius(TEXT("AOEDamage"), FColor::Yellow, FColor::Red);
+	DrawDebugDamageRadius(FColor::Yellow, FColor::Red);
 
 	AOEOverlapResults.Reset();
 	World->OverlapMultiByObjectType(
@@ -469,14 +470,12 @@ void USkillTargetedAreaAction::StartWaitMontageTrigger()
 	const FGameplayTag ConfiguredMontageTriggerEventTag = GetConfiguredMontageTriggerEventTag();
 	if (!ConfiguredMontageTriggerEventTag.IsValid())
 	{
-
 		return;
 	}
 
 	WaitMontageTriggerTask = GetAbility()->CreateWaitGameplayEventTask(ConfiguredMontageTriggerEventTag, true);
 	if (!WaitMontageTriggerTask)
 	{
-
 		return;
 	}
 
@@ -498,7 +497,6 @@ void USkillTargetedAreaAction::StartLightningDamageDelay()
 	LightningDamageDelayTask = UAbilityTask_WaitDelay::WaitDelay(GetAbility(), ConfiguredLightningDamageDelay);
 	if (!LightningDamageDelayTask)
 	{
-
 		HandleLightningDamageDelayFinished();
 		return;
 	}
@@ -566,7 +564,6 @@ void USkillTargetedAreaAction::ApplyEffectToHitActor(AActor* HitActor)
 	const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(HitActor);
 	if (SourceCharacter && TargetCharacter && !SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
 	{
-
 		return;
 	}
 
@@ -574,7 +571,6 @@ void USkillTargetedAreaAction::ApplyEffectToHitActor(AActor* HitActor)
 	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetAbility()->GetAvatarActorFromActorInfo());
 	if (!SourceASC || !TargetASC)
 	{
-
 		return;
 	}
 
@@ -585,14 +581,12 @@ void USkillTargetedAreaAction::ApplyEffectToHitActor(AActor* HitActor)
 		const FActiveGameplayEffectHandle AppliedHandle =
 			SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), TargetASC);
 		bAppliedDamage = AppliedHandle.WasSuccessfullyApplied();
-
 	}
 
 	if (bAppliedDamage)
 	{
 		GetAbility()->ApplyConfiguredStatusEffectToTarget(GetAbility()->GetSourceSkillDataAsset(), TargetASC);
 	}
-
 }
 
 void USkillTargetedAreaAction::ApplyDirectAOECamera(bool bEnabled) const
@@ -606,7 +600,6 @@ void USkillTargetedAreaAction::ApplyDirectAOECamera(bool bEnabled) const
 	APdPlayer* Player = Cast<APdPlayer>(GetAbility()->GetAvatarActorFromActorInfo());
 	if (!Player || !Player->IsLocallyControlled())
 	{
-
 		return;
 	}
 
@@ -820,7 +813,6 @@ FGameplayEffectSpecHandle USkillTargetedAreaAction::MakeDamageEffectSpec() const
 		DamageConfig, GetAbility()->CalculateDamageMagnitude(DamageConfig));
 }
 
-
 UAnimMontage* USkillTargetedAreaAction::GetConfiguredTargetingMontage() const
 {
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
@@ -896,7 +888,7 @@ bool USkillTargetedAreaAction::ShouldDrawDebugDamageRadius() const
 	return LabSkillDebug::IsDrawingEnabled() && Settings.bDrawDebugDamageRadius;
 }
 
-void USkillTargetedAreaAction::DrawDebugDamageRadius(const TCHAR* Context, const FColor& CircleColor, const FColor& SphereColor) const
+void USkillTargetedAreaAction::DrawDebugDamageRadius(const FColor& CircleColor, const FColor& SphereColor) const
 {
 	if (!ShouldDrawDebugDamageRadius())
 	{
@@ -986,7 +978,6 @@ void USkillTargetedAreaAction::DrawDebugDamageRadius(const TCHAR* Context, const
 			PreviousPoint = CurrentPoint;
 		}
 	}
-
 }
 
 void USkillTargetedAreaAction::HandleCancelInputPressed(float TimeWaited)
@@ -1105,7 +1096,6 @@ void USkillTargetedAreaAction::HandleTriggerMontageInterrupted()
 
 void USkillTargetedAreaAction::HandleMontageTriggerEvent(FGameplayEventData Payload)
 {
-
 	if (bStrikeTriggered)
 	{
 		return;
@@ -1115,7 +1105,6 @@ void USkillTargetedAreaAction::HandleMontageTriggerEvent(FGameplayEventData Payl
 
 	if (!GetAbility()->CommitSkill())
 	{
-
 		Finish();
 		return;
 	}

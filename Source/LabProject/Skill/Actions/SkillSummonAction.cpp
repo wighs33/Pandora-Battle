@@ -35,7 +35,6 @@ bool ShouldRepeatSummonTriggerDamage(const USkillDefinition* SkillDataAsset)
 	{
 		return SkillDataAsset ? SkillDataAsset->Damage.TriggerDamageInterval : 0.0;
 	}
-
 }
 
 void USkillSummonAction::OnStart()
@@ -71,13 +70,12 @@ void USkillSummonAction::OnStart()
 		return;
 	}
 
-GetAbility()->StartDurationMovementLock();
+	GetAbility()->StartDurationMovementLock();
 
 	StartWaitSummonMontageTriggerTask();
 
 	if (!GetResolvedSummonMontage())
 	{
-
 		TryCommitAndStartSummon();
 		return;
 	}
@@ -148,14 +146,12 @@ void USkillSummonAction::StartWaitSummonMontageTriggerTask()
 	const FGameplayTag TriggerTag = GetResolvedMontageTriggerEventTag();
 	if (!TriggerTag.IsValid())
 	{
-
 		return;
 	}
 
 	WaitSummonMontageTriggerTask = GetAbility()->CreateWaitGameplayEventTask(TriggerTag);
 	if (!WaitSummonMontageTriggerTask)
 	{
-
 		return;
 	}
 
@@ -174,7 +170,6 @@ bool USkillSummonAction::StartSummonMontageTask()
 	SummonMontageTask = GetAbility()->CreateDefaultMontageAndWaitTask(ResolvedMontage);
 	if (!SummonMontageTask)
 	{
-
 		return false;
 	}
 
@@ -198,7 +193,6 @@ void USkillSummonAction::TryCommitAndStartSummon()
 	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
 	if (!AvatarActor || !AvatarActor->HasAuthority())
 	{
-
 		GetAbility()->StartConfiguredCharacterOverlay();
 		GetAbility()->StartConfiguredDefaultFX();
 		if (!GetResolvedSummonMontage())
@@ -421,7 +415,6 @@ void USkillSummonAction::ActivateSummonNiagara(AActor* SummonedActor) const
 			NiagaraComponent->Activate(SummonConfig->bResetLaserNiagaraOnActivate);
 		}
 	}
-
 }
 
 void USkillSummonAction::FindConfiguredNiagaraComponents(AActor* SummonedActor, TArray<UNiagaraComponent*>& OutComponents) const
@@ -577,7 +570,7 @@ void USkillSummonAction::FinishSummonRiseAndActivateLaser()
 		}
 	}
 
-StartSummonLifetimeTimerOrEnd();
+	StartSummonLifetimeTimerOrEnd();
 }
 
 void USkillSummonAction::StartSummonLifetimeTimerOrEnd()
@@ -600,7 +593,6 @@ void USkillSummonAction::StartSummonLifetimeTimerOrEnd()
 	SummonDurationTask = UAbilityTask_WaitDelay::WaitDelay(GetAbility(), ActiveDuration);
 	if (!SummonDurationTask)
 	{
-
 		Finish();
 		return;
 	}
@@ -644,7 +636,6 @@ void USkillSummonAction::BindSummonTriggerDamage(AActor* SummonedActor)
 	UPrimitiveComponent* TriggerComponent = FindSummonTriggerComponent(SummonedActor);
 	if (!TriggerComponent)
 	{
-
 		return;
 	}
 
@@ -658,7 +649,6 @@ void USkillSummonAction::BindSummonTriggerDamage(AActor* SummonedActor)
 	TriggerComponent->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleSummonTriggerBeginOverlap);
 	TriggerComponent->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandleSummonTriggerEndOverlap);
 	TriggerComponent->UpdateOverlaps();
-
 }
 
 void USkillSummonAction::UnbindSummonTriggerDamage()
@@ -728,7 +718,6 @@ void USkillSummonAction::EnableSummonTriggerDamage()
 	bSummonTriggerDamageActive = true;
 	ApplySummonTriggerDamageToExistingOverlaps();
 	StartSummonTriggerDamageTickIfNeeded();
-
 }
 
 void USkillSummonAction::DisableSummonTriggerDamage()
@@ -772,7 +761,6 @@ void USkillSummonAction::StartSummonTriggerDamageTickIfNeeded()
 		&ThisClass::HandleSummonTriggerDamageTick,
 		DamageInterval,
 		true);
-
 }
 
 void USkillSummonAction::HandleSummonTriggerDamageTick()
@@ -894,7 +882,6 @@ void USkillSummonAction::ApplySummonTriggerDamage(AActor* HitActor, const bool b
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
 	if (!SourceASC || !TargetASC)
 	{
-
 		return;
 	}
 
@@ -905,7 +892,6 @@ void USkillSummonAction::ApplySummonTriggerDamage(AActor* HitActor, const bool b
 
 	if (SourceCharacter && !SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
 	{
-
 		return;
 	}
 
@@ -913,7 +899,6 @@ void USkillSummonAction::ApplySummonTriggerDamage(AActor* HitActor, const bool b
 	FGameplayEffectSpecHandle DamageSpecHandle = MakeSummonTriggerDamageSpec(DamageMagnitude);
 	if (!DamageSpecHandle.IsValid() || !DamageSpecHandle.Data.IsValid())
 	{
-
 		return;
 	}
 
@@ -928,7 +913,6 @@ void USkillSummonAction::ApplySummonTriggerDamage(AActor* HitActor, const bool b
 	{
 		DamagedSummonTriggerActors.Add(HitActorKey);
 	}
-
 }
 
 FGameplayEffectSpecHandle USkillSummonAction::MakeSummonTriggerDamageSpec(const float DamageMagnitude) const
@@ -937,7 +921,6 @@ FGameplayEffectSpecHandle USkillSummonAction::MakeSummonTriggerDamageSpec(const 
 	const FSkillGameplayEffectConfig TriggerDamage = SkillDataAsset ? SkillDataAsset->GetResolvedDamageConfig() : FSkillGameplayEffectConfig();
 	if (!SkillDataAsset || !TriggerDamage.GameplayEffectClass || DamageMagnitude <= 0.0f)
 	{
-
 		return FGameplayEffectSpecHandle();
 	}
 

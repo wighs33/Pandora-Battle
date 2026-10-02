@@ -63,7 +63,6 @@ void UBTService_UpdateEnemyTarget::TickNode(UBehaviorTreeComponent& OwnerComp, u
 	if (Enemy->IsStatusFrozen())
 	{
 		AIController->ClearFocus(EAIFocusPriority::Gameplay);
-
 	}
 	else
 	{

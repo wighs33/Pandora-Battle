@@ -754,7 +754,6 @@ void USkillProjectileCastAction::PauseProjectileMontageForAiming()
     }
 
     AbilitySystemComponent->CurrentMontageSetPlayRate(0.0f);
-
 }
 
 void USkillProjectileCastAction::ResumeProjectileMontageAfterAiming()
@@ -766,7 +765,6 @@ void USkillProjectileCastAction::ResumeProjectileMontageAfterAiming()
     }
 
     AbilitySystemComponent->CurrentMontageSetPlayRate(1.0f);
-
 }
 
 void USkillProjectileCastAction::CleanupAimingState()

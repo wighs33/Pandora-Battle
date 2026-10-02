@@ -69,7 +69,6 @@ namespace
 			| (static_cast<uint64>(MapRegion) << 16)
 			| TeamColorIndex;
 	}
-
 }
 
 UMapWidget::UMapWidget(const FObjectInitializer& ObjectInitializer)
@@ -329,7 +328,6 @@ void UMapWidget::ApplyMapTexture(UTexture2D* Texture)
 {
 	if (!MapImage || !Texture)
 	{
-
 		return;
 	}
 
@@ -548,7 +546,6 @@ void UMapWidget::SyncMapViewToPlayerMapRegion()
 	bHasSyncedPlayerMapView = true;
 	LastSyncedPlayerMapView = PlayerMapView;
 	ApplyMapView(PlayerMapView);
-
 }
 
 void UMapWidget::StartMapUpdateTimers()

@@ -107,7 +107,6 @@ void UEquipmentComponent::ApplyCurrentWeaponTagEffect(
 
 	if (!EquippedItemEffectClass || !ItemDefinition || !ItemDefinition->IdTag.IsValid())
 	{
-
 		return;
 	}
 	if (CurrentWeaponTagEffectHandle.IsValid())
@@ -126,7 +125,6 @@ void UEquipmentComponent::ApplyCurrentWeaponTagEffect(
 			EffectContext);
 	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
 	{
-
 		return;
 	}
 
@@ -674,7 +672,8 @@ bool UEquipmentComponent::ApplyItemStatSnapshot(
 
 	if (!EquipmentStatGameplayEffectClass)
 	{
-
+		UE_LOG(EquipmentComponentLog, Warning, TEXT("%s has no EquipmentStatGameplayEffectClass, so equipment stats are not applied."),
+			*GetNameSafe(GetOwner()));
 		return false;
 	}
 

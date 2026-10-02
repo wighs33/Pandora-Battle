@@ -6,8 +6,6 @@
 
 class UCharacterMovementComponent;
 
-DECLARE_LOG_CATEGORY_EXTERN(CommonAnimInstanceLog, Log, All);
-
 /**
  * UObject 상태는 게임 스레드에서 값 스냅샷으로 수집하고,
  * 애니메이션 워커 스레드에서는 스냅샷만 소비합니다.
@@ -19,7 +17,6 @@ class LABPROJECT_API UPdAnimInstance : public UAnimInstance
 
 protected:
 	// 게임 스레드에서 수집한 스냅샷
-
 
 	struct FGameThreadSnapshot
 	{

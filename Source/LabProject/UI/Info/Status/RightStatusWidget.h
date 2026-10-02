@@ -140,8 +140,8 @@ private:
 	UFUNCTION()
 	void HandleCriticalDownClicked();
 
-	void HandleStatUpButtonClicked(FGameplayTag InStatTag, const TCHAR* StatTagPropertyName, const UButton* SourceButton);
-	void HandleStatDownButtonClicked(FGameplayTag InStatTag, const TCHAR* StatTagPropertyName, const UButton* SourceButton);
+	void HandleStatUpButtonClicked(FGameplayTag InStatTag);
+	void HandleStatDownButtonClicked(FGameplayTag InStatTag);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ValidateConfiguredStatTags() const;
@@ -165,8 +165,6 @@ private:
 	FGameplayTag GetAttackSpeedStatTag() const;
 	FGameplayTag GetMovementSpeedStatTag() const;
 	FGameplayTag GetCriticalStatTag() const;
-	UButton* GetCriticalUpButton() const;
-	UButton* GetCriticalDownButton() const;
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Status")

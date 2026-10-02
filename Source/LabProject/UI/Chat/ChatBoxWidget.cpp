@@ -11,6 +11,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChatBoxWidget)
 
+DEFINE_LOG_CATEGORY_STATIC(LogChatBoxWidget, Log, All);
+
 void UChatBoxWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -79,7 +81,6 @@ void UChatBoxWidget::FocusChat()
 	UPdUIActionRouter* Router = ULocalPlayer::GetSubsystem<UPdUIActionRouter>(GetOwningLocalPlayer());
 	if (!PlayerController || !ChatInputText || !Router)
 	{
-
 		return;
 	}
 
@@ -131,13 +132,12 @@ void UChatBoxWidget::AddChatMessage(const FString& Message)
 	UScrollBox* ChatScrollBox = GetChatScrollBox();
 	if (!ChatScrollBox)
 	{
-
 		return;
 	}
 
 	if (!ChatEntryWidgetClass)
 	{
-
+		UE_LOG(LogChatBoxWidget, Warning, TEXT("%s has no ChatEntryWidgetClass, so chat messages are dropped."), *GetNameSafe(GetClass()));
 		return;
 	}
 

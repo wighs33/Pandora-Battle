@@ -5,7 +5,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RewardDefinition)
 
-int32 FRewardExperienceRange::RollReward(const UObject* LogContext, const TCHAR* CategoryName) const
+int32 FRewardExperienceRange::RollReward() const
 {
 	if (!bGrantRandomExperience)
 	{
@@ -19,7 +19,7 @@ int32 FRewardExperienceRange::RollReward(const UObject* LogContext, const TCHAR*
 	return Reward;
 }
 
-int32 FRewardSoulDustRange::RollReward(const UObject* LogContext, const TCHAR* CategoryName) const
+int32 FRewardSoulDustRange::RollReward() const
 {
 	if (!bGrantRandomSoulDust)
 	{
@@ -29,7 +29,6 @@ int32 FRewardSoulDustRange::RollReward(const UObject* LogContext, const TCHAR* C
 	const float ClampedChance = FMath::Clamp(SoulDustDropChance, 0.0f, 100.0f);
 	if (ClampedChance <= 0.0f || (ClampedChance < 100.0f && FMath::FRandRange(0.0f, 100.0f) >= ClampedChance))
 	{
-
 		return 0;
 	}
 
@@ -40,7 +39,7 @@ int32 FRewardSoulDustRange::RollReward(const UObject* LogContext, const TCHAR* C
 	return Reward;
 }
 
-int32 FRewardGoldRange::RollReward(const UObject* LogContext, const TCHAR* CategoryName) const
+int32 FRewardGoldRange::RollReward() const
 {
 	if (!bGrantRandomGold)
 	{
@@ -155,12 +154,12 @@ FSoftObjectPath URewardDefinition::GetDefaultRewardDefinitionPath()
 
 int32 URewardDefinition::RollMonsterDefeatExperienceReward() const
 {
-	return MonsterDefeatReward.Experience.RollReward(this, TEXT("MonsterDefeat"));
+	return MonsterDefeatReward.Experience.RollReward();
 }
 
 int32 URewardDefinition::RollMonsterDefeatSoulDustReward() const
 {
-	return MonsterDefeatReward.SoulDust.RollReward(this, TEXT("MonsterDefeat"));
+	return MonsterDefeatReward.SoulDust.RollReward();
 }
 
 FPrimaryAssetId URewardDefinition::RollMonsterDefeatPotionReward() const
@@ -170,7 +169,7 @@ FPrimaryAssetId URewardDefinition::RollMonsterDefeatPotionReward() const
 
 int32 URewardDefinition::RollPlayerKillExperienceReward() const
 {
-	return PlayerKillReward.Experience.RollReward(this, TEXT("PlayerKill"));
+	return PlayerKillReward.Experience.RollReward();
 }
 
 int32 URewardDefinition::ResolveActiveRewardChestCount(const int32 TotalChestCount) const

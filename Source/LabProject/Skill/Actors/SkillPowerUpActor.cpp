@@ -173,7 +173,6 @@ void ASkillPowerUpActor::StartSourcePlayerEffect()
 	EffectAlpha = RampDuration <= KINDA_SMALL_NUMBER ? 1.0f : 0.0f;
 	ApplyEffectAlpha(EffectAlpha);
 	SetActorTickEnabled(EffectAlpha < 1.0f);
-
 }
 
 void ASkillPowerUpActor::StopSourcePlayerEffect()
@@ -204,7 +203,7 @@ void ASkillPowerUpActor::StopSourcePlayerEffect()
 
 	RestoreSourcePlayerState();
 
-ActiveSourceCharacter = nullptr;
+	ActiveSourceCharacter = nullptr;
 	ActiveSourceMesh = nullptr;
 	StarterNiagaraComponent = nullptr;
 	bSourceEffectActive = false;

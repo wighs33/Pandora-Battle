@@ -152,7 +152,6 @@ void URoomListWidget::SetInfo()
 {
 	if (!RoomList)
 	{
-
 		return;
 	}
 
@@ -185,7 +184,7 @@ void URoomListWidget::SetInfo()
 		Rooms.Add(RoomItemWidget);
 	}
 
-RefreshUI();
+	RefreshUI();
 }
 
 void URoomListWidget::RefreshUI()
@@ -242,7 +241,6 @@ void URoomListWidget::HandleRefreshClicked()
 		{
 			Btn_Refresh->SetIsEnabled(true);
 		}
-
 	}
 }
 
@@ -286,7 +284,6 @@ void URoomListWidget::HandleCloseClicked()
 
 	if (!OnlineSessionsSubsystem || !OnlineSessionsSubsystem->HasNamedSession())
 	{
-
 		OpenTitleMap();
 		return;
 	}
@@ -308,7 +305,6 @@ void URoomListWidget::HandleCloseClicked()
 	if (ActiveDestroyRequestId == 0)
 	{
 		bPendingCloseAfterDestroy = false;
-
 	}
 }
 

@@ -87,7 +87,6 @@ void ALobbyPlayerController::Server_HandleChangeTeamColor_Implementation(const i
 
 void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(APdPlayerState* TargetPlayerState)
 {
-
 	if (!HasAuthority() || !TargetPlayerState)
 	{
 		return;
@@ -95,7 +94,6 @@ void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(APdPlayerSta
 
 	if (!IsLocalController())
 	{
-
 		return;
 	}
 
@@ -110,51 +108,12 @@ void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(APdPlayerSta
 	}
 }
 
-void ALobbyPlayerController::Client_StartGameCountdown_Implementation(const float DelaySeconds)
-{
-	ALobbyHUD* LobbyHUD = GetHUD<ALobbyHUD>();
-	if (LobbyHUD
-		&& (!IsValid(LobbyHUD->GetLobbyWidget()) || !LobbyHUD->GetLobbyWidget()->GetParent()))
-	{
-		LobbyHUD->CreateLobbyUI();
-	}
-
-	ULobbyWidget* LobbyWidget = LobbyHUD ? LobbyHUD->GetLobbyWidget() : nullptr;
-	if (!LobbyWidget)
-	{
-
-		return;
-	}
-
-	LobbyWidget->StartGameCountdown(DelaySeconds);
-}
-
-void ALobbyPlayerController::Client_CancelGameStartCountdown_Implementation()
-{
-	ALobbyHUD* LobbyHUD = GetHUD<ALobbyHUD>();
-	if (LobbyHUD && !LobbyHUD->GetLobbyWidget())
-	{
-		LobbyHUD->CreateLobbyUI();
-	}
-
-	ULobbyWidget* LobbyWidget = LobbyHUD ? LobbyHUD->GetLobbyWidget() : nullptr;
-	if (!LobbyWidget)
-	{
-
-		return;
-	}
-
-	LobbyWidget->HideGameCountdown();
-
-}
-
 void ALobbyPlayerController::Client_ShowGameStartConnectingPopup_Implementation()
 {
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	UUiSubsystem* UiSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 	if (!UiSubsystem)
 	{
-
 		return;
 	}
 
@@ -167,7 +126,6 @@ void ALobbyPlayerController::Client_ShowGameStartConnectingPopup_Implementation(
 			LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
 		}
 	}
-
 }
 
 void ALobbyPlayerController::Client_HideGameStartConnectingPopup_Implementation()
@@ -178,7 +136,6 @@ void ALobbyPlayerController::Client_HideGameStartConnectingPopup_Implementation(
 	{
 		UiSubsystem->SetGameStartPreparationPending(false);
 	}
-
 }
 
 void ALobbyPlayerController::Client_SetLobbyTravelLock_Implementation(const bool bLocked)

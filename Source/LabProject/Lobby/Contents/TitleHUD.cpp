@@ -337,7 +337,6 @@ void ATitleHUD::BeginPlay()
 
 	if (!TitleWidget)
 	{
-
 		return;
 	}
 

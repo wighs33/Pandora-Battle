@@ -385,8 +385,6 @@ void ULobbyRuntimeSubsystem::FindUnresolvedGameEntryAssets(
 	}
 }
 
-
-
 void ULobbyRuntimeSubsystem::HandleLevelDefinitionPreloadComplete()
 {
 	bLevelDefinitionPreloadPending = false;
@@ -435,18 +433,6 @@ void ULobbyRuntimeSubsystem::ReleaseLobbyEntryContentPreload()
 	LoadedLevelDefinition = nullptr;
 	bLevelDefinitionPreloadPending = false;
 	bLevelDefinitionReady = false;
-}
-
-void ULobbyRuntimeSubsystem::SetLobbyGameConfig(
-	const FName MapKey,
-	const FString& TravelMapName,
-	const int32 MaxPlayerCount,
-	const int32 MaxBotCount)
-{
-	LobbyRuntimeConfig.SelectedMapKey = MapKey;
-	LobbyRuntimeConfig.TravelMapName = TravelMapName;
-	LobbyRuntimeConfig.MaxPlayerCount = FMath::Max(MaxPlayerCount, 1);
-	LobbyRuntimeConfig.MaxBotCount = FMath::Clamp(MaxBotCount, 0, 100);
 }
 
 void ULobbyRuntimeSubsystem::ResetCachedPlayerMatchIdentities()

@@ -40,7 +40,6 @@ namespace
 		Page.Content = Content;
 		return Page;
 	}
-
 }
 
 UGuideWidget::UGuideWidget(const FObjectInitializer& ObjectInitializer)
@@ -209,7 +208,6 @@ void UGuideWidget::SelectGuidePage(const int32 PageIndex)
 {
 	if (!CachedPages.IsValidIndex(PageIndex))
 	{
-
 		return;
 	}
 
@@ -348,7 +346,6 @@ void UGuideWidget::BindGuideButtons()
 		UButton* Button = FindButtonForPage(PageIndex, CachedPages[PageIndex]);
 		if (!Button)
 		{
-
 			continue;
 		}
 

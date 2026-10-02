@@ -35,12 +35,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
 	void RefreshUI();
 
-	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
-	void StartGameCountdown(float DelaySeconds);
-
-	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
-	void HideGameCountdown();
-
 	UFUNCTION(BlueprintPure, Category = "!Lobby|UI")
 	TArray<APdPlayerState*> GetLobbyPlayerStates() const;
 
@@ -84,16 +78,6 @@ private:
 	bool RebuildPlayerSlots();
 	void ApplyWidgetDefinitionSettings();
 	FString GetResolvedTitleTravelMapName() const;
-	UWidget* FindGameStartCountdownRoot() const;
-	UTextBlock* FindGameStartCountdownText() const;
-	UWidget* FindTeamBalanceWarningRoot() const;
-	UTextBlock* FindTeamBalanceWarningText() const;
-	UButton* FindEnterButton() const;
-	UButton* FindMapPreviousButton() const;
-	UButton* FindMapNextButton() const;
-	UTextBlock* FindSelectedMapNameText() const;
-	UTextBlock* FindSelectedMapPlayerCountText() const;
-	UImage* FindSelectedMapThumbnailImage() const;
 	bool GetSelectedMapOptionForUI(FLobbyMatchMapOption& OutMapOption) const;
 	int32 GetMaxLobbySlotsForUI() const;
 	void RefreshSelectedMapUI();

@@ -7,64 +7,17 @@
 
 namespace PdWidgetLookup
 {
+	// OwnerWidget의 위젯 트리에서 처음 만나는 WidgetType을 찾는다. 트리에 종류별로 하나만 배치된 위젯에만 쓴다.
 	template <typename WidgetType>
-	WidgetType* FindWidgetByNames(const UWidgetTree* WidgetTree, const TArray<FName>& CandidateNames)
+	WidgetType* FindFirstWidgetOfType(const UUserWidget* OwnerWidget)
 	{
-		if (!WidgetTree)
-		{
-			return nullptr;
-		}
-
-		for (const FName& CandidateName : CandidateNames)
-		{
-			if (CandidateName.IsNone())
-			{
-				continue;
-			}
-
-			if (WidgetType* FoundWidget = Cast<WidgetType>(WidgetTree->FindWidget(CandidateName)))
-			{
-				return FoundWidget;
-			}
-		}
-
-		return nullptr;
-	}
-
-	template <typename WidgetType>
-	WidgetType* FindWidgetByNames(const UUserWidget* OwnerWidget, const TArray<FName>& CandidateNames)
-	{
-		if (!OwnerWidget)
-		{
-			return nullptr;
-		}
-
-		for (const FName& CandidateName : CandidateNames)
-		{
-			if (CandidateName.IsNone())
-			{
-				continue;
-			}
-
-			if (WidgetType* FoundWidget = Cast<WidgetType>(OwnerWidget->GetWidgetFromName(CandidateName)))
-			{
-				return FoundWidget;
-			}
-		}
-
-		return nullptr;
-	}
-
-	template <typename WidgetType>
-	WidgetType* FindFirstWidgetOfType(const UWidgetTree* WidgetTree)
-	{
-		if (!WidgetTree)
+		if (!OwnerWidget || !OwnerWidget->WidgetTree)
 		{
 			return nullptr;
 		}
 
 		WidgetType* Result = nullptr;
-		WidgetTree->ForEachWidget([&Result](UWidget* Widget)
+		OwnerWidget->WidgetTree->ForEachWidget([&Result](UWidget* Widget)
 		{
 			if (!Result)
 			{

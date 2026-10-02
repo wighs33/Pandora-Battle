@@ -537,26 +537,22 @@ void UInfoWidget::ShowInfoUi()
 	MapPanel->EnsureTotalMapWidget();
 	MapPanel->HideImmediately();
 
-	int32 PlayedAnimationCount = 0;
 	if (SlideInLeft)
 	{
 		PlayAnimation(SlideInLeft, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
-		++PlayedAnimationCount;
 	}
 
 	if (SlideInRight)
 	{
 		PlayAnimation(SlideInRight, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
-		++PlayedAnimationCount;
 	}
 
 	if (SlideInBottom)
 	{
 		PlayAnimation(SlideInBottom, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
-		++PlayedAnimationCount;
 	}
 
-CharacterPreview->ShowPreview();
+	CharacterPreview->ShowPreview();
 }
 
 void UInfoWidget::HideInfoUi()
@@ -569,32 +565,26 @@ void UInfoWidget::HideInfoUi()
 		CharacterPreview->ReturnCameraToPawn();
 	}
 
-	int32 PlayedAnimationCount = 0;
 	if (SlideInLeft)
 	{
 		PlayAnimationReverse(SlideInLeft, 1.0f, false);
-		++PlayedAnimationCount;
 	}
 
 	if (SlideInRight)
 	{
 		PlayAnimationReverse(SlideInRight, 1.0f, false);
-		++PlayedAnimationCount;
 	}
 
 	if (SlideInBottom)
 	{
 		PlayAnimationReverse(SlideInBottom, 1.0f, false);
-		++PlayedAnimationCount;
 	}
 
 	const bool bShouldCloseMap = MapPanel && MapPanel->IsOpenOrVisible();
 	if (bShouldCloseMap)
 	{
 		MapPanel->PlaySlideOut();
-		++PlayedAnimationCount;
 	}
-
 }
 
 float UInfoWidget::GetHideAnimationDelay() const
@@ -801,40 +791,32 @@ void UInfoWidget::HandlePaintCanvasGroupVisibilityChanged(const bool bVisible)
 
 void UInfoWidget::PlaySidePanelsSlideInAnimation()
 {
-	int32 PlayedAnimationCount = 0;
 	if (SlideInLeft)
 	{
 		StopAnimation(SlideInLeft);
 		PlayAnimation(SlideInLeft, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
-		++PlayedAnimationCount;
 	}
 
 	if (SlideInRight)
 	{
 		StopAnimation(SlideInRight);
 		PlayAnimation(SlideInRight, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
-		++PlayedAnimationCount;
 	}
-
 }
 
 void UInfoWidget::PlaySidePanelsSlideOutAnimation()
 {
-	int32 PlayedAnimationCount = 0;
 	if (SlideInLeft)
 	{
 		StopAnimation(SlideInLeft);
 		PlayAnimationReverse(SlideInLeft, 1.0f, false);
-		++PlayedAnimationCount;
 	}
 
 	if (SlideInRight)
 	{
 		StopAnimation(SlideInRight);
 		PlayAnimationReverse(SlideInRight, 1.0f, false);
-		++PlayedAnimationCount;
 	}
-
 }
 
 void UInfoWidget::SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag)

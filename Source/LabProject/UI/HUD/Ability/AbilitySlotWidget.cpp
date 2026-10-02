@@ -422,7 +422,6 @@ void UAbilitySlotWidget::ClearCooldownTimer()
 
 void UAbilitySlotWidget::HandleCooldownTagChanged(FGameplayTag CallbackTag, int32 NewCount)
 {
-
 	CheckForCooldown();
 }
 

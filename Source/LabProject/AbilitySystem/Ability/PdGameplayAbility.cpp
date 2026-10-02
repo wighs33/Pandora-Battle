@@ -27,7 +27,6 @@ UPdGameplayAbility::UPdGameplayAbility(const FObjectInitializer& ObjectInitializ
 	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
 	ActivationBlockedTags.AddTag(LabGameplayTags::State_Dead);
 	CooldownRemovalPolicyTags.AddTag(LabGameplayTags::Effect_Policy_RemoveOnDeath);
-
 }
 
 void UPdGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -50,7 +49,6 @@ void UPdGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, con
 
 	const bool bEquipmentTransitionAbility =
 		GetAssetTags().HasTagExact(LabGameplayTags::Action_Equip) || GetAssetTags().HasTagExact(LabGameplayTags::Action_Unequip);
-
 
 	// 사망 정리 중 정상 종료 알림이 들어와도 새 쿨다운을 적용하지 않는다.
 	if (!bWasCancelled)

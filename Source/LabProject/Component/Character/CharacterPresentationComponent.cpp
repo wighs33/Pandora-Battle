@@ -295,7 +295,6 @@ void UCharacterPresentationComponent::ClearCharacterOverlayMaterialLocal()
 	}
 }
 
-
 void UCharacterPresentationComponent::HandleDashGameplayCue(
 	const EGameplayCueEvent::Type EventType,
 	const FGameplayCueParameters& Parameters)

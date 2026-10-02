@@ -114,11 +114,10 @@ void URangedAttackAbility::OnAttackTraceStart(FGameplayEventData Payload)
 	AWeaponBase* CurrentWeapon = GetCurrentWeaponActor();
 	if (ShouldUseAIWeaponFire(Character, CurrentWeapon))
 	{
-
 		return;
 	}
 
-SetCurrentWeaponTraceEnabled(true);
+	SetCurrentWeaponTraceEnabled(true);
 }
 
 void URangedAttackAbility::OnAttackTraceEnd(FGameplayEventData Payload)
@@ -145,7 +144,6 @@ void URangedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
 	if (!EquipmentComponent)
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -153,14 +151,12 @@ void URangedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	FAttackData AttackData;
 	if (!EquipmentComponent->GetAttackData(AttackData))
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
@@ -200,7 +196,6 @@ void URangedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 		false);
 	if (!MontageTask)
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -216,7 +211,6 @@ void URangedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 
 	MontageTask->ReadyForActivation();
 	ScheduleAIPrimaryAttack();
-
 }
 
 AWeaponBase* URangedAttackAbility::GetCurrentWeaponActor() const
@@ -257,7 +251,6 @@ bool URangedAttackAbility::TryCacheAIPrimaryAttackTarget(ACharacterBase* Charact
 	const FVector TargetLocation = ResolveAITargetAimLocation(AttackTarget);
 	if (!IsValid(AttackTarget) || TargetLocation.IsNearlyZero())
 	{
-
 		return false;
 	}
 
@@ -285,7 +278,6 @@ bool URangedAttackAbility::TryExecuteScheduledAIWeaponFire()
 
 	if (!bHasCachedAIPrimaryAttackTargetLocation || CachedAIPrimaryAttackTargetLocation.IsNearlyZero())
 	{
-
 		return false;
 	}
 
@@ -322,7 +314,6 @@ void URangedAttackAbility::FaceCharacterToTargetLocation(ACharacterBase* Charact
 	}
 	if (Character->IsStatusFrozen())
 	{
-
 		return;
 	}
 
@@ -390,7 +381,6 @@ void URangedAttackAbility::ScheduleAIPrimaryAttack()
 			SafeDelay,
 			false);
 	}
-
 }
 
 void URangedAttackAbility::ClearAIPrimaryAttackTimer()

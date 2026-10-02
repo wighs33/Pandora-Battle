@@ -489,7 +489,6 @@ UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCanc
 	const TSubclassOf<UConnectingPopupWidget> PopupClass = ResolveConnectingPopupWidgetClass();
 	if (!PopupClass)
 	{
-
 		return nullptr;
 	}
 
@@ -511,7 +510,6 @@ UConnectingPopupWidget* UUiSubsystem::ShowConnectingPopup(const bool bEnableCanc
 
 	if (!ActiveConnectingPopupWidget)
 	{
-
 		return nullptr;
 	}
 

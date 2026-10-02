@@ -8,7 +8,6 @@
 class UFont;
 class UTexture2D;
 
-
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FGuidePageEntry
 {

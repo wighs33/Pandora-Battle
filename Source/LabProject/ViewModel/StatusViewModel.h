@@ -9,8 +9,6 @@ class UEquipmentComponent;
 class UCombatComponent;
 struct FOnAttributeChangeData;
 
-DECLARE_LOG_CATEGORY_EXTERN(StatusViewModelLog, Log, All);
-
 UCLASS(BlueprintType)
 class LABPROJECT_API UStatusViewModel : public UCommonViewModelBase
 {

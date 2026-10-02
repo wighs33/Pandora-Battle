@@ -278,7 +278,6 @@ bool AArrowProjectileBase::IsIgnoredImpactActor(const AActor* OtherActor) const
 			{
 				if (!OwningCharacter->CanDamageCharacterByTeam(OtherCharacter))
 				{
-
 					return true;
 				}
 			}

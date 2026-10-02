@@ -62,7 +62,6 @@ void UEnemyHealthBarWidget::UpdateHealthPercent()
 		HealthProgressBar->SetPercent(GetHealthPercent(CurrentHealth, MaxHealth));
 		return;
 	}
-
 }
 
 void UEnemyHealthBarWidget::AnimateHealth(const double From, const double To)
@@ -282,7 +281,7 @@ void UEnemyHealthBarWidget::OnHealthChanged(const FOnAttributeChangeData& Change
 	CurrentHealth = ChangeData.NewValue;
 	const float NewPercent = GetHealthPercent(CurrentHealth, MaxHealth);
 
-UpdateHealthPercent();
+	UpdateHealthPercent();
 	AnimateHealth(OldPercent, NewPercent);
 }
 

@@ -66,7 +66,6 @@ private:
 	void HandleAbilityCooldownEffectRemoved(const FActiveGameplayEffect& RemovedEffect);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void CacheOptionalWidgets();
 	void ApplyWidgetDefinitionSettings();
 	void ApplyActionVisual();
 	void ApplyInputKeyIcon();

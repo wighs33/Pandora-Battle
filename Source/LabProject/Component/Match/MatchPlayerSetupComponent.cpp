@@ -31,7 +31,6 @@ UMatchPlayerSetupComponent::UMatchPlayerSetupComponent()
 	DefaultPlayerProvisioner =
 		CreateDefaultSubobject<UDefaultPlayerProvisioner>(
 			TEXT("DefaultPlayerProvisioner"));
-
 }
 
 void UMatchPlayerSetupComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)

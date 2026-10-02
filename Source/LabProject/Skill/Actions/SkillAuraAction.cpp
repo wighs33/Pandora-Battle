@@ -19,9 +19,10 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillAuraAction)
 
+DEFINE_LOG_CATEGORY_STATIC(LogSkillAuraAction, Log, All);
+
 namespace
 {
-
 float ResolveGroundEffectZOffset(const FAuraSkillConfig& AuraConfig)
 	{
 		return FMath::IsFinite(AuraConfig.GroundEffectZOffset)
@@ -90,14 +91,14 @@ void USkillAuraAction::OnStart()
 	USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
-
+		UE_LOG(LogSkillAuraAction, Warning, TEXT("%s has no source skill definition, so the aura cannot start."),
+			*GetNameSafe(GetAbility()));
 		Finish(false);
 		return;
 	}
 
 	if (!GetAbility()->CommitSkill())
 	{
-
 		Finish(false);
 		return;
 	}
@@ -123,8 +124,6 @@ void USkillAuraAction::OnStart()
 
 void USkillAuraAction::OnStop()
 {
-
-
 	StopHealFieldTeamHealing();
 	StopAuraEffectAreaSpawning();
 	RemoveMovementSpeedIncrease();
@@ -136,7 +135,7 @@ void USkillAuraAction::StartAuraEffectAreaSpawning(USkillDefinition* SkillDataAs
 {
 	ActiveAuraSkillDataAsset = SkillDataAsset;
 	ActiveAuraSourceCharacter = GetAbility()->GetPdCharacterFromActorInfo();
-	SpawnAuraEffectArea(SkillDataAsset, TEXT("initial"));
+	SpawnAuraEffectArea(SkillDataAsset);
 
 	const FAuraSkillConfig* AuraConfig = &Settings;
 	UWorld* World = GetWorld();
@@ -152,7 +151,6 @@ void USkillAuraAction::StartAuraEffectAreaSpawning(USkillDefinition* SkillDataAs
 		&ThisClass::HandleRepeatedAuraEffectAreaSpawn,
 		Interval,
 		true);
-
 }
 
 void USkillAuraAction::StopAuraEffectAreaSpawning()
@@ -175,9 +173,7 @@ void USkillAuraAction::StopAuraEffectAreaSpawning()
 
 void USkillAuraAction::HandleRepeatedAuraEffectAreaSpawn()
 {
-	const ACharacterBase* Character = ActiveAuraSourceCharacter.Get();
-
-SpawnAuraEffectArea(ActiveAuraSkillDataAsset.Get(), TEXT("repeat"));
+	SpawnAuraEffectArea(ActiveAuraSkillDataAsset.Get());
 }
 
 ACharacterBase* USkillAuraAction::ResolveAuraSourceCharacter() const
@@ -190,20 +186,19 @@ ACharacterBase* USkillAuraAction::ResolveAuraSourceCharacter() const
 	return GetAbility()->GetPdCharacterFromActorInfo();
 }
 
-void USkillAuraAction::SpawnAuraEffectArea(const USkillDefinition* SkillDataAsset, const TCHAR* SpawnReason)
+void USkillAuraAction::SpawnAuraEffectArea(const USkillDefinition* SkillDataAsset)
 {
 	ACharacterBase* Character = ResolveAuraSourceCharacter();
 	UWorld* World = GetWorld();
 	const FAuraSkillConfig* AuraConfig = &Settings;
 	if (!Character || !Character->HasAuthority() || !World || !AuraConfig || !AuraConfig->bSpawnEffectArea)
 	{
-
 		return;
 	}
 
 	if (!AuraConfig->EffectAreaClass)
 	{
-
+		UE_LOG(LogSkillAuraAction, Warning, TEXT("%s spawns an effect area but has no EffectAreaClass."), *GetNameSafe(SkillDataAsset));
 		return;
 	}
 
@@ -238,7 +233,6 @@ void USkillAuraAction::SpawnAuraEffectArea(const USkillDefinition* SkillDataAsse
 		SpawnedArea->ForceNetUpdate();
 		ActiveAuraEffectAreas.Add(SpawnedArea);
 	}
-
 }
 
 void USkillAuraAction::ApplyMovementSpeedIncrease(const USkillDefinition* SkillDataAsset)
@@ -322,7 +316,7 @@ void USkillAuraAction::StartHealFieldTeamHealing(USkillDefinition* SkillDataAsse
 	TSubclassOf<UGameplayEffect> HealEffectClass = Healing.TeamHealEffect.GameplayEffectClass;
 	if (!HealEffectClass)
 	{
-
+		UE_LOG(LogSkillAuraAction, Warning, TEXT("%s enables healing but has no team heal effect class."), *GetNameSafe(SkillDataAsset));
 		return;
 	}
 
@@ -330,11 +324,10 @@ void USkillAuraAction::StartHealFieldTeamHealing(USkillDefinition* SkillDataAsse
 	ActiveHealFieldRadius = ResolveHealFieldRadius(Character, SkillDataAsset);
 	if (ActiveHealFieldRadius <= UE_SMALL_NUMBER)
 	{
-
 		return;
 	}
 
-	ApplyHealFieldTeamHeal(SkillDataAsset, TEXT("initial"));
+	ApplyHealFieldTeamHeal(SkillDataAsset);
 
 	const double ConfiguredInterval = Healing.HealInterval;
 	const FGameplayTag HealMagnitudeTag = Healing.TeamHealEffect.MagnitudeDataTag;
@@ -346,7 +339,6 @@ void USkillAuraAction::StartHealFieldTeamHealing(USkillDefinition* SkillDataAsse
 		&ThisClass::HandleHealFieldTeamHealTick,
 		Interval,
 		true);
-
 }
 
 void USkillAuraAction::StopHealFieldTeamHealing()
@@ -358,15 +350,15 @@ void USkillAuraAction::StopHealFieldTeamHealing()
 	HealFieldTeamHealTimerHandle.Invalidate();
 	ActiveHealFieldOrigin = FVector::ZeroVector;
 	ActiveHealFieldRadius = 0.0f;
-	ClearInteractionHealEffects(TEXT("ability ended"));
+	ClearInteractionHealEffects();
 }
 
 void USkillAuraAction::HandleHealFieldTeamHealTick()
 {
-	ApplyHealFieldTeamHeal(ActiveAuraSkillDataAsset.Get(), TEXT("tick"));
+	ApplyHealFieldTeamHeal(ActiveAuraSkillDataAsset.Get());
 }
 
-void USkillAuraAction::ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataAsset, const TCHAR* HealReason)
+void USkillAuraAction::ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataAsset)
 {
 	const FAuraSkillConfig* AuraConfig = &Settings;
 	ACharacterBase* SourceCharacter = ResolveAuraSourceCharacter();
@@ -379,7 +371,6 @@ void USkillAuraAction::ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataA
 	UWorld* World = GetWorld();
 	if (!World || ActiveHealFieldRadius <= UE_SMALL_NUMBER)
 	{
-
 		return;
 	}
 
@@ -438,7 +429,7 @@ void USkillAuraAction::ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataA
 			continue;
 		}
 
-		RemoveInteractionHealEffectFromTarget(ActiveTarget, ActiveHandle, TEXT("left heal field"));
+		RemoveInteractionHealEffectFromTarget(ActiveTarget, ActiveHandle);
 	}
 
 	for (ACharacterBase* TargetCharacter : CurrentTargets)
@@ -449,7 +440,7 @@ void USkillAuraAction::ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataA
 			continue;
 		}
 
-		const FActiveGameplayEffectHandle AppliedHandle = ApplyTeamHealEffectToTarget(SourceCharacter, TargetCharacter, SkillDataAsset, HealReason);
+		const FActiveGameplayEffectHandle AppliedHandle = ApplyTeamHealEffectToTarget(SourceCharacter, TargetCharacter, SkillDataAsset);
 		if (AppliedHandle.WasSuccessfullyApplied())
 		{
 			++AppliedCount;
@@ -459,7 +450,6 @@ void USkillAuraAction::ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataA
 			}
 		}
 	}
-
 }
 
 UPrimitiveComponent* USkillAuraAction::FindInteractionHealComponent(ACharacterBase* Character, const FName ComponentName) const
@@ -573,8 +563,7 @@ bool USkillAuraAction::ShouldHealInteractionTarget(
 FActiveGameplayEffectHandle USkillAuraAction::ApplyTeamHealEffectToTarget(
 	ACharacterBase* SourceCharacter,
 	ACharacterBase* TargetCharacter,
-	const USkillDefinition* SkillDataAsset,
-	const TCHAR* HealReason) const
+	const USkillDefinition* SkillDataAsset) const
 {
 	const FAuraSkillConfig* AuraConfig = &Settings;
 	if (!AuraConfig || !SourceCharacter || !TargetCharacter)
@@ -626,8 +615,7 @@ FActiveGameplayEffectHandle USkillAuraAction::ApplyTeamHealEffectToTarget(
 
 void USkillAuraAction::RemoveInteractionHealEffectFromTarget(
 	ACharacterBase* TargetCharacter,
-	const FActiveGameplayEffectHandle ActiveHandle,
-	const TCHAR* RemoveReason) const
+	const FActiveGameplayEffectHandle ActiveHandle) const
 {
 	if (!TargetCharacter || !ActiveHandle.IsValid())
 	{
@@ -641,10 +629,9 @@ void USkillAuraAction::RemoveInteractionHealEffectFromTarget(
 	}
 
 	const bool bRemoved = TargetASC->RemoveActiveGameplayEffect(ActiveHandle);
-
 }
 
-void USkillAuraAction::ClearInteractionHealEffects(const TCHAR* RemoveReason)
+void USkillAuraAction::ClearInteractionHealEffects()
 {
 	TArray<TWeakObjectPtr<ACharacterBase>> ActiveTargets;
 	ActiveInteractionHealEffectHandles.GetKeys(ActiveTargets);
@@ -653,7 +640,7 @@ void USkillAuraAction::ClearInteractionHealEffects(const TCHAR* RemoveReason)
 		FActiveGameplayEffectHandle ActiveHandle;
 		if (ActiveInteractionHealEffectHandles.RemoveAndCopyValue(ActiveTargetPtr, ActiveHandle))
 		{
-			RemoveInteractionHealEffectFromTarget(ActiveTargetPtr.Get(), ActiveHandle, RemoveReason);
+			RemoveInteractionHealEffectFromTarget(ActiveTargetPtr.Get(), ActiveHandle);
 		}
 	}
 

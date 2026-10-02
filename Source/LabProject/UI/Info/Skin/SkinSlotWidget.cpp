@@ -226,7 +226,6 @@ void USkinSlotWidget::SetSelected(const bool bInSelected)
 
 void USkinSlotWidget::CacheOptionalWidgets()
 {
-
 	if (Img_Back && !bDefaultBackgroundColorCached)
 	{
 		DefaultBackgroundColor = Img_Back->GetColorAndOpacity();

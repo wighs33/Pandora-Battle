@@ -10,8 +10,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HealthBarViewModel)
 
-DEFINE_LOG_CATEGORY(HealthBarViewModelLog);
-
 const FName UHealthBarViewModel::ViewModelName = TEXT("HealthBarViewModel");
 
 namespace HealthBarViewModel
@@ -63,7 +61,7 @@ void UHealthBarViewModel::InitializeViewModel(UObject* SourceObject)
 			UninitializeViewModel();
 		}
 
-ResetViewData();
+		ResetViewData();
 		return;
 	}
 

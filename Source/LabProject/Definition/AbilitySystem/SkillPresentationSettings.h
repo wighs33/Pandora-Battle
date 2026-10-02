@@ -138,7 +138,6 @@ struct LABPROJECT_API FSkillNiagaraSettings
 	/** 소켓 Niagara의 크기 배율. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Default FX|Socket")
 	FVector SocketScale = FVector::OneVector;
-
 };
 
 /** 무기 궤적, 검기 연출과 타격 판정. 애니메이션은 공통 Animation을 사용한다. */

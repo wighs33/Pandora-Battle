@@ -4,9 +4,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Character/PdPlayer.h"
 #include "Component/Player/PlayerMatchComponent.h"
-#include "Components/ContentWidget.h"
 #include "Components/Image.h"
-#include "Components/PanelWidget.h"
 #include "Components/Widget.h"
 #include "Definition/Online/AchievementDefinition.h"
 #include "Engine/GameInstance.h"
@@ -19,25 +17,8 @@
 #include "UI/HUD/Combat/EnemyShieldBarWidget.h"
 #include "UI/HUD/Status/StatusEffectsBarWidget.h"
 #include "TimerManager.h"
-#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnemyAvatarWidget)
-
-namespace
-{
-	void SetObjectPropertyValue(UObject* Object, const FName PropertyName, UObject* Value)
-	{
-		if (!IsValid(Object))
-		{
-			return;
-		}
-
-		if (FObjectPropertyBase* ObjectProperty = FindFProperty<FObjectPropertyBase>(Object->GetClass(), PropertyName))
-		{
-			ObjectProperty->SetObjectPropertyValue_InContainer(Object, Value);
-		}
-	}
-}
 
 void UEnemyAvatarWidget::NativeConstruct()
 {
@@ -47,9 +28,9 @@ void UEnemyAvatarWidget::NativeConstruct()
 	bLocalPlayerPresentationInitialized = false;
 	if (!bHasDefaultAvatarBrush)
 	{
-		if (const UImage* ResolvedAvatarImage = ResolveAvatarImage())
+		if (AvatarImage)
 		{
-			DefaultAvatarBrush = ResolvedAvatarImage->GetBrush();
+			DefaultAvatarBrush = AvatarImage->GetBrush();
 			bHasDefaultAvatarBrush = true;
 		}
 	}
@@ -108,7 +89,7 @@ void UEnemyAvatarWidget::SetOwnerActor(AActor* InOwnerActor)
 	}
 
 	OwnerActor = InOwnerActor;
-	RestoreDefaultAvatarBrush(ResolveAvatarImage());
+	RestoreDefaultAvatarBrush(AvatarImage);
 	bLocalPlayerPresentationInitialized = false;
 	PropagateOwnerActorToChildren();
 	ApplyLocalPlayerPresentation();
@@ -117,103 +98,26 @@ void UEnemyAvatarWidget::SetOwnerActor(AActor* InOwnerActor)
 
 void UEnemyAvatarWidget::PropagateOwnerActorToChildren()
 {
-	bool bPropagatedHealthBar = false;
-	bool bPropagatedShieldBar = false;
-	bool bPropagatedStatusEffectsBar = false;
-
-	if (WidgetTree)
+	if (!WidgetTree)
 	{
-		WidgetTree->ForEachWidget([this, &bPropagatedHealthBar, &bPropagatedShieldBar, &bPropagatedStatusEffectsBar](UWidget* Widget)
-		{
-			if (!Widget)
-			{
-				return;
-			}
-
-			if (UEnemyHealthBarWidget* EnemyHealthBar = Cast<UEnemyHealthBarWidget>(Widget))
-			{
-				EnemyHealthBar->SetOwnerActor(OwnerActor.Get());
-				bPropagatedHealthBar = true;
-				return;
-			}
-
-			if (UEnemyShieldBarWidget* EnemyShieldBar = Cast<UEnemyShieldBarWidget>(Widget))
-			{
-				EnemyShieldBar->SetOwnerActor(OwnerActor.Get());
-				bPropagatedShieldBar = true;
-				return;
-			}
-
-			if (UStatusEffectsBarWidget* StatusEffectsBar = Cast<UStatusEffectsBarWidget>(Widget))
-			{
-				StatusEffectsBar->SetOwnerActor(OwnerActor.Get());
-				bPropagatedStatusEffectsBar = true;
-				return;
-			}
-
-			if (UUserWidget* UserWidget = Cast<UUserWidget>(Widget))
-			{
-				SetObjectPropertyValue(UserWidget, TEXT("OwnerActor"), OwnerActor.Get());
-			}
-		});
+		return;
 	}
 
-	if (!bPropagatedHealthBar)
+	WidgetTree->ForEachWidget([this](UWidget* Widget)
 	{
-		if (UUserWidget* HealthBarWidget = FindFirstChildUserWidget({
-			TEXT("EnemyHealthBar"),
-			TEXT("W_EnemyHealthBar"),
-			TEXT("WBP_EnemyHealthBar")
-		}))
+		if (UEnemyHealthBarWidget* EnemyHealthBar = Cast<UEnemyHealthBarWidget>(Widget))
 		{
-			if (UEnemyHealthBarWidget* EnemyHealthBar = Cast<UEnemyHealthBarWidget>(HealthBarWidget))
-			{
-				EnemyHealthBar->SetOwnerActor(OwnerActor.Get());
-			}
-			else
-			{
-				SetObjectPropertyValue(HealthBarWidget, TEXT("OwnerActor"), OwnerActor.Get());
-			}
+			EnemyHealthBar->SetOwnerActor(OwnerActor.Get());
 		}
-	}
-
-	if (!bPropagatedShieldBar)
-	{
-		if (UUserWidget* ShieldBarWidget = FindFirstChildUserWidget({
-			TEXT("EnemyShieldBar"),
-			TEXT("W_EnemyShieldBar"),
-			TEXT("WBP_EnemyShieldBar")
-		}))
+		else if (UEnemyShieldBarWidget* EnemyShieldBar = Cast<UEnemyShieldBarWidget>(Widget))
 		{
-			if (UEnemyShieldBarWidget* EnemyShieldBar = Cast<UEnemyShieldBarWidget>(ShieldBarWidget))
-			{
-				EnemyShieldBar->SetOwnerActor(OwnerActor.Get());
-			}
-			else
-			{
-				SetObjectPropertyValue(ShieldBarWidget, TEXT("OwnerActor"), OwnerActor.Get());
-			}
+			EnemyShieldBar->SetOwnerActor(OwnerActor.Get());
 		}
-	}
-
-	if (!bPropagatedStatusEffectsBar)
-	{
-		if (UUserWidget* ResolvedStatusEffectsBar = FindFirstChildUserWidget({
-			TEXT("StatusEffectsBar"),
-			TEXT("W_StatusEffectsBar"),
-			TEXT("WBP_StatusEffectsBar")
-		}))
+		else if (UStatusEffectsBarWidget* ChildStatusEffectsBar = Cast<UStatusEffectsBarWidget>(Widget))
 		{
-			if (UStatusEffectsBarWidget* NativeStatusEffectsBar = Cast<UStatusEffectsBarWidget>(ResolvedStatusEffectsBar))
-			{
-				NativeStatusEffectsBar->SetOwnerActor(OwnerActor.Get());
-			}
-			else
-			{
-				SetObjectPropertyValue(ResolvedStatusEffectsBar, TEXT("OwnerActor"), OwnerActor.Get());
-			}
+			ChildStatusEffectsBar->SetOwnerActor(OwnerActor.Get());
 		}
-	}
+	});
 }
 
 void UEnemyAvatarWidget::ApplyLocalPlayerPresentation()
@@ -291,7 +195,7 @@ void UEnemyAvatarWidget::RestoreOriginalWidgetVisibilities()
 
 void UEnemyAvatarWidget::RefreshAvatarImage()
 {
-	UImage* TargetAvatarImage = ResolveAvatarImage();
+	UImage* TargetAvatarImage = AvatarImage;
 	if (!TargetAvatarImage)
 	{
 		return;
@@ -380,108 +284,6 @@ UTexture2D* UEnemyAvatarWidget::ResolvePlayerAchievementTexture() const
 			&& FName(*CanonicalId) == AchievementId)
 		{
 			return Achievement.UnlockedIcon.Get();
-		}
-	}
-
-	return nullptr;
-}
-
-UImage* UEnemyAvatarWidget::ResolveAvatarImage() const
-{
-	if (CachedAvatarImage)
-	{
-		return CachedAvatarImage.Get();
-	}
-
-	if (AvatarImage)
-	{
-		const_cast<UEnemyAvatarWidget*>(this)->CachedAvatarImage = AvatarImage;
-		return AvatarImage.Get();
-	}
-
-	UImage* ResolvedImage = FindImageInUserWidget(const_cast<UEnemyAvatarWidget*>(this), TEXT("AvatarImage"));
-	const_cast<UEnemyAvatarWidget*>(this)->CachedAvatarImage = ResolvedImage;
-	return ResolvedImage;
-}
-
-UUserWidget* UEnemyAvatarWidget::FindChildUserWidget(const FName WidgetName) const
-{
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	return Cast<UUserWidget>(WidgetTree->FindWidget(WidgetName));
-}
-
-UUserWidget* UEnemyAvatarWidget::FindFirstChildUserWidget(std::initializer_list<FName> WidgetNames) const
-{
-	for (const FName WidgetName : WidgetNames)
-	{
-		if (UUserWidget* FoundWidget = FindChildUserWidget(WidgetName))
-		{
-			return FoundWidget;
-		}
-	}
-
-	return nullptr;
-}
-
-UImage* UEnemyAvatarWidget::FindImageInUserWidget(UUserWidget* RootWidget, const FName ImageName) const
-{
-	if (!RootWidget || !RootWidget->WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UImage* FoundImage = Cast<UImage>(RootWidget->WidgetTree->FindWidget(ImageName)))
-	{
-		return FoundImage;
-	}
-
-	return FindImageInWidget(RootWidget->WidgetTree->RootWidget, ImageName);
-}
-
-UImage* UEnemyAvatarWidget::FindImageInWidget(UWidget* RootWidget, const FName ImageName) const
-{
-	if (!RootWidget)
-	{
-		return nullptr;
-	}
-
-	if (RootWidget->GetFName() == ImageName)
-	{
-		if (UImage* Image = Cast<UImage>(RootWidget))
-		{
-			return Image;
-		}
-	}
-
-	if (UUserWidget* ChildUserWidget = Cast<UUserWidget>(RootWidget))
-	{
-		if (UImage* FoundImage = FindImageInUserWidget(ChildUserWidget, ImageName))
-		{
-			return FoundImage;
-		}
-	}
-
-	if (const UPanelWidget* PanelWidget = Cast<UPanelWidget>(RootWidget))
-	{
-		const int32 ChildrenCount = PanelWidget->GetChildrenCount();
-		for (int32 ChildIndex = 0; ChildIndex < ChildrenCount; ++ChildIndex)
-		{
-			if (UImage* FoundImage = FindImageInWidget(PanelWidget->GetChildAt(ChildIndex), ImageName))
-			{
-				return FoundImage;
-			}
-		}
-	}
-
-	if (const UContentWidget* ContentWidget = Cast<UContentWidget>(RootWidget))
-	{
-		if (UImage* FoundImage = FindImageInWidget(ContentWidget->GetContent(), ImageName))
-		{
-			return FoundImage;
 		}
 	}
 

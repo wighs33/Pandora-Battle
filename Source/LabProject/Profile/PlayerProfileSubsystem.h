@@ -51,17 +51,13 @@ public:
 	FName GetSelectedAchievementId();
 	bool SetSelectedAchievementId(FName AchievementId, bool bSaveImmediately = true);
 	int32 GetGold();
-	int32 SetGold(int32 NewGold, bool bSaveImmediately = true);
 	int32 AddGold(int32 Amount, bool bSaveImmediately = true);
 	bool SpendGold(int32 Amount, bool bSaveImmediately = true);
 	// 골드와 구매한 Pandora/스킨만 초기화하고 기본 스킨과 경기 기록은 유지한다.
 	bool ResetPurchasedProgress(bool bSaveImmediately = true);
 	bool IsPandoraGranted(UPandoraDefinition* PandoraDefinition);
-	int32 GetGrantedPandoraLevel(UPandoraDefinition* PandoraDefinition);
-	bool GrantPandora(UPandoraDefinition* PandoraDefinition, int32 StartingLevel = 1, bool bSaveImmediately = true);
 	bool TryPurchasePandoraWithGold(UPandoraDefinition* PandoraDefinition, int32 GoldCost, int32 StartingLevel, int32& OutRemainingGold, bool bSaveImmediately = true);
 	bool IsSkinGranted(USkinDefinition* SkinDefinition);
-	bool GrantSkin(USkinDefinition* SkinDefinition, bool bSaveImmediately = true);
 	bool TryPurchaseSkinWithGold(USkinDefinition* SkinDefinition, int32 GoldCost, int32& OutRemainingGold, bool bSaveImmediately = true);
 	FOnPlayerProfileProgressChanged& OnProfileProgressChanged() { return ProfileProgressChanged; }
 

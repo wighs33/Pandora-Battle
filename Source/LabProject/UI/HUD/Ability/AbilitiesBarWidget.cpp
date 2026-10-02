@@ -11,7 +11,6 @@
 #include "Common/LabGameplayTags.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
-#include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Character/CharacterBase.h"
 #include "GameFramework/Pawn.h"
@@ -26,16 +25,11 @@
 #include "Component/Player/EquipmentComponent.h"
 #include "TimerManager.h"
 #include "UI/HUD/Ability/AbilitySlotWidget.h"
-#include "UI/Common/InputKeyIconResolver.h"
-#include "UI/Common/WidgetLookup.h"
-#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitiesBarWidget)
 
 namespace
 {
-	const FName AbilitySpecHandlePropertyName(TEXT("AbilitySpecHandle"));
-
 	const USkillDefinition* ResolveSourceSkillDataAsset(const FGameplayAbilitySpec* AbilitySpec)
 	{
 		if (!AbilitySpec)
@@ -178,7 +172,6 @@ void UAbilitiesBarWidget::RebuildAbilitiesBar()
 			// 스킬 정의가 있으면 표시하고, 해금 및 무기 조건은 슬롯의 활성 상태에만 반영한다.
 			if (!Skill)
 			{
-
 				AddEmptySlot(true, SlotIndex);
 				continue;
 			}
@@ -195,7 +188,6 @@ void UAbilitiesBarWidget::RebuildAbilitiesBar()
 					SlotIndex);
 				if (!SlotData.AbilitySpecHandle.IsValid())
 				{
-
 					SlotData.bEnabled = false;
 				}
 			}
@@ -238,42 +230,34 @@ void UAbilitiesBarWidget::AddAbilitySlot(const FGameplayAbilitySpecHandle& Abili
 
 void UAbilitiesBarWidget::AddAbilitySlot(const FAbilityBarSlotData& SlotData)
 {
-	UUserWidget* AbilityWidget = CreateBarWidget(AbilityWidgetClass);
-	if (!AbilityWidget)
+	UAbilitySlotWidget* AbilitySlotWidget = Cast<UAbilitySlotWidget>(CreateBarWidget(AbilityWidgetClass));
+	if (!AbilitySlotWidget)
 	{
 		return;
 	}
 
-	if (UAbilitySlotWidget* AbilitySlotWidget = Cast<UAbilitySlotWidget>(AbilityWidget))
+	AbilitySlotWidget->SetSkillSlotIndex(SlotData.SkillSlotIndex);
+	if (SlotData.bHasDisplayOverride)
 	{
-		AbilitySlotWidget->SetSkillSlotIndex(SlotData.SkillSlotIndex);
-		if (SlotData.bHasDisplayOverride)
-		{
-			AbilitySlotWidget->SetAbilitySlotDataEnabled(
-				SlotData.AbilitySpecHandle,
-				SlotData.DisplayNameOverride,
-				SlotData.IconOverride,
-				SlotData.bEnabled);
-		}
-		else
-		{
-			AbilitySlotWidget->SetAbilitySpecHandle(SlotData.AbilitySpecHandle);
-			AbilitySlotWidget->SetAbilitySlotEnabled(SlotData.bEnabled);
-		}
+		AbilitySlotWidget->SetAbilitySlotDataEnabled(
+			SlotData.AbilitySpecHandle,
+			SlotData.DisplayNameOverride,
+			SlotData.IconOverride,
+			SlotData.bEnabled);
 	}
 	else
 	{
-		SetAbilitySpecHandleOnWidget(AbilityWidget, SlotData.AbilitySpecHandle);
+		AbilitySlotWidget->SetAbilitySpecHandle(SlotData.AbilitySpecHandle);
+		AbilitySlotWidget->SetAbilitySlotEnabled(SlotData.bEnabled);
 	}
 
-	ApplySkillSlotKeyIcon(AbilityWidget, SlotData.SkillSlotIndex);
-	AddWidgetToBar(AbilityWidget, true);
+	AddWidgetToBar(AbilitySlotWidget, true);
 }
 
 void UAbilitiesBarWidget::AddEmptySlot(const bool bApplyPadding, const int32 SkillSlotIndex)
 {
 	UUserWidget* EmptySlotWidget = CreateBarWidget(EmptyAbilityWidgetClass);
-	ApplySkillSlotKeyIcon(EmptySlotWidget, SkillSlotIndex);
+	ApplyEmptySlotKeyText(EmptySlotWidget, SkillSlotIndex);
 	AddWidgetToBar(EmptySlotWidget, bApplyPadding);
 }
 
@@ -306,92 +290,27 @@ void UAbilitiesBarWidget::AddWidgetToBar(UUserWidget* Widget, bool bApplyPadding
 	}
 }
 
-void UAbilitiesBarWidget::SetAbilitySpecHandleOnWidget(UUserWidget* Widget, const FGameplayAbilitySpecHandle& AbilitySpecHandle) const
+void UAbilitiesBarWidget::ApplyEmptySlotKeyText(UUserWidget* Widget, const int32 SkillSlotIndex) const
 {
-	if (!Widget)
+	// Empty skill entries are plain UserWidgets rather than UAbilitySlotWidget, so their key caption is found by name.
+	UTextBlock* KeyText = Widget ? Cast<UTextBlock>(Widget->GetWidgetFromName(TEXT("KeyText"))) : nullptr;
+	if (!KeyText)
 	{
 		return;
 	}
 
-	if (UAbilitySlotWidget* AbilitySlotWidget = Cast<UAbilitySlotWidget>(Widget))
-	{
-		AbilitySlotWidget->SetAbilitySpecHandle(AbilitySpecHandle);
-		return;
-	}
-
-	FProperty* Property = FindPropertyByExactNameOrPrefix(Widget->GetClass(), AbilitySpecHandlePropertyName, TEXT("AbilitySpecHandle"));
-	FStructProperty* StructProperty = CastField<FStructProperty>(Property);
-	if (!StructProperty || StructProperty->Struct != FGameplayAbilitySpecHandle::StaticStruct())
-	{
-		return;
-	}
-
-	void* PropertyValue = StructProperty->ContainerPtrToValuePtr<void>(Widget);
-	StructProperty->CopyCompleteValue(PropertyValue, &AbilitySpecHandle);
-}
-
-void UAbilitiesBarWidget::ApplySkillSlotKeyIcon(UUserWidget* Widget, const int32 SkillSlotIndex) const
-{
-	if (!Widget)
-	{
-		return;
-	}
-
-	if (UAbilitySlotWidget* AbilitySlotWidget = Cast<UAbilitySlotWidget>(Widget))
-	{
-		AbilitySlotWidget->SetSkillSlotIndex(SkillSlotIndex);
-		return;
-	}
-
-	// Empty skill entries can be plain UserWidgets rather than UAbilitySlotWidget.
-	if (UTextBlock* KeyText = Cast<UTextBlock>(Widget->GetWidgetFromName(TEXT("KeyText"))))
-	{
-		const APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer());
-		const UControllerInputDefinition* InputDefinition = PlayerController
-			? PlayerController->GetLoadedInputDefinition() : nullptr;
-		const FText Caption = InputDefinition
-			? InputDefinition->ResolveInputActionKeyText(InputDefinition->GetLoadedSkillInputAction(SkillSlotIndex))
-			: FText::GetEmpty();
-		KeyText->SetText(Caption);
-		if (UWidget* KeyOverlay = Widget->GetWidgetFromName(TEXT("InputKeyOverlay")))
-		{
-			KeyOverlay->SetVisibility(Caption.IsEmpty()
-				? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
-		}
-		return;
-	}
-
-	UImage* KeyIcon = PdWidgetLookup::FindWidgetByNames<UImage>(Widget, {
-		TEXT("KeyIcon")
-	});
-	if (!KeyIcon)
-	{
-		return;
-	}
-
-	const APdPlayerController* PlayerController =
-		Cast<APdPlayerController>(GetOwningPlayer());
+	const APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer());
 	const UControllerInputDefinition* InputDefinition = PlayerController
-		? PlayerController->GetLoadedInputDefinition()
-		: nullptr;
-	const UInputAction* InputAction = InputDefinition
-		? InputDefinition->GetLoadedSkillInputAction(SkillSlotIndex)
-		: nullptr;
-
-	UObject* IconObject = PdInputKeyIconResolver::ResolveInputDefinitionIconObject(
-		GetOwningPlayer(),
-		InputAction);
-	if (!IconObject)
+		? PlayerController->GetLoadedInputDefinition() : nullptr;
+	const FText Caption = InputDefinition
+		? InputDefinition->ResolveInputActionKeyText(InputDefinition->GetLoadedSkillInputAction(SkillSlotIndex))
+		: FText::GetEmpty();
+	KeyText->SetText(Caption);
+	if (UWidget* KeyOverlay = Widget->GetWidgetFromName(TEXT("InputKeyOverlay")))
 	{
-		KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
-		return;
+		KeyOverlay->SetVisibility(Caption.IsEmpty()
+			? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}
-
-	KeyIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	KeyIcon->SetBrush(PdInputKeyIconResolver::MakeImageBrushFromExisting(
-		KeyIcon->GetBrush(),
-		IconObject,
-		KeyIcon->GetBrush().ImageSize));
 }
 
 bool UAbilitiesBarWidget::ShouldShowAbilityHandle(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle& AbilitySpecHandle) const
@@ -536,7 +455,6 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 		{
 			return AbilityHandle;
 		}
-
 	}
 
 	return FGameplayAbilitySpecHandle();
@@ -616,28 +534,4 @@ void UAbilitiesBarWidget::HandleAbilitiesChanged()
 void UAbilitiesBarWidget::HandlePandoraTreeChanged()
 {
 	FillAbilitiesBar();
-}
-
-FProperty* UAbilitiesBarWidget::FindPropertyByExactNameOrPrefix(UStruct* Struct, FName ExactName, const FString& Prefix)
-{
-	if (!Struct)
-	{
-		return nullptr;
-	}
-
-	if (FProperty* ExactProperty = FindFProperty<FProperty>(Struct, ExactName))
-	{
-		return ExactProperty;
-	}
-
-	for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
-	{
-		FProperty* Property = *PropertyIt;
-		if (Property && Property->GetName().StartsWith(Prefix))
-		{
-			return Property;
-		}
-	}
-
-	return nullptr;
 }

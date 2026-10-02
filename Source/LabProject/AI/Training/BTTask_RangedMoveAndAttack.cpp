@@ -200,7 +200,6 @@ EBTNodeResult::Type UBTTask_RangedMoveAndAttack::TickMove(UBehaviorTreeComponent
 
 	if (MaxMoveTime > 0.0f && Memory->ElapsedTime >= MaxMoveTime)
 	{
-
 		return EBTNodeResult::Succeeded;
 	}
 

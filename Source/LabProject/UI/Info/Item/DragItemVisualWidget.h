@@ -30,7 +30,6 @@ public:
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void CacheOptionalWidgets();
 	void ApplyVisual();
 
 protected:

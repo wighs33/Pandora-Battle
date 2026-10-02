@@ -13,7 +13,6 @@ namespace
 		PandoraKey.RemoveFromStart(TEXT("Pandora_"), ESearchCase::IgnoreCase);
 		return PandoraKey;
 	}
-
 }
 
 int32 FDefaultProvisionModeCounts::GetCount(

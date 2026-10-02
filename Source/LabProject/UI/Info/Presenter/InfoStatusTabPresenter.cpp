@@ -29,16 +29,6 @@ void UInfoStatusTabPresenter::Activate()
 	BindEvents();
 }
 
-void UInfoStatusTabPresenter::RequestStatUp(const FGameplayTag StatTag)
-{
-	HandleStatUpClicked(StatTag);
-}
-
-void UInfoStatusTabPresenter::RequestStatDown(const FGameplayTag StatTag)
-{
-	HandleStatDownClicked(StatTag);
-}
-
 void UInfoStatusTabPresenter::BindEvents()
 {
 	UInfoWidget* InfoWidget = GetInfoWidget();

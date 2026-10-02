@@ -12,7 +12,6 @@ class UButton;
  */
 class FFilterButtonHighlightState
 {
-
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	void Initialize(

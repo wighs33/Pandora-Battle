@@ -6,7 +6,7 @@
 #include "KillLogWidget.generated.h"
 
 class UKillLogEntryWidget;
-class UPanelWidget;
+class UVerticalBox;
 
 UCLASS()
 class LABPROJECT_API UKillLogWidget : public UUserWidget
@@ -14,24 +14,18 @@ class LABPROJECT_API UKillLogWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	// Engine Overrides ------------------------------------------------------------------------------------------------
-	virtual void NativeConstruct() override;
-
 	// Public API ------------------------------------------------------------------------------------------------------
-	UKillLogWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
 	UFUNCTION(BlueprintCallable, Category = "!KillLog")
 	void AddKillLogEntry(const FKillLogEntry& KillLogEntry);
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	UPanelWidget* FindKillLogContainer();
 	void RemoveKillLogEntry(UKillLogEntryWidget* EntryWidget);
 	void TrimOverflowEntries();
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!KillLog|Bind")
-	TObjectPtr<UPanelWidget> KillLogContainer = nullptr;
+	TObjectPtr<UVerticalBox> VerticalBox_KillLogs = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!KillLog|Setup")
 	TSubclassOf<UKillLogEntryWidget> KillLogEntryWidgetClass;
@@ -44,9 +38,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!KillLog|Setup")
 	bool bNewestEntryOnTop = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!KillLog|Setup")
-	TArray<FName> KillLogContainerCandidateNames;
 
 private:
 	UPROPERTY(Transient)

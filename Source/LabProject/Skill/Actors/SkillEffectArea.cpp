@@ -159,7 +159,6 @@ void ASkillEffectArea::ApplyEffectToActor(AActor* TargetActor)
 
 	if (!ShouldApplyEffectToActor(TargetActor))
 	{
-
 		return;
 	}
 
@@ -181,7 +180,6 @@ void ASkillEffectArea::ApplyEffectToActor(AActor* TargetActor)
 		EffectContext);
 	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
 	{
-
 		return;
 	}
 
@@ -202,7 +200,6 @@ void ASkillEffectArea::ApplyEffectToActor(AActor* TargetActor)
 			static_cast<float>(static_cast<double>(FMath::Max(EffectMagnitudeValue, 0.0f)) * IntelligenceMultiplier),
 			0.0f);
 		SpecHandle.Data->SetSetByCallerMagnitude(EffectMagnitudeDataTag, FinalMagnitudeValue);
-
 	}
 
 	const FActiveGameplayEffectHandle AppliedHandle =

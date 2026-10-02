@@ -34,7 +34,6 @@ void UOnlineSessionsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	IOnlineSubsystem* OnlineSubsystem = GetOnlineSubsystemForWorld();
 	if (!OnlineSubsystem)
 	{
-
 		return;
 	}
 

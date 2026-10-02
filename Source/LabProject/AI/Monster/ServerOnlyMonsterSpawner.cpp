@@ -77,7 +77,6 @@ AServerOnlyMonsterSpawner::AServerOnlyMonsterSpawner()
 	bReplicates = false;
 	bNetLoadOnClient = false;
 	SetReplicateMovement(false);
-
 }
 
 void AServerOnlyMonsterSpawner::BeginPlay()

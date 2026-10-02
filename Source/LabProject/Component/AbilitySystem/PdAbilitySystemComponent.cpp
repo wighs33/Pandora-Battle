@@ -270,7 +270,6 @@ void UPdAbilitySystemComponent::ResetAbilityRuntimeStateForDeath()
 	OnAbilitiesChangedNative.Broadcast();
 }
 
-
 // 사망 능력은 유지하고, 나머지 활성 시전을 정리한 뒤 취소한다.
 void UPdAbilitySystemComponent::CancelActiveAbilitiesForDeath()
 {

@@ -7,6 +7,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RightNotificationsWidget)
 
+DEFINE_LOG_CATEGORY_STATIC(LogRightNotificationsWidget, Log, All);
+
 void URightNotificationsWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -43,7 +45,6 @@ void URightNotificationsWidget::EnqueueNotification(const FPdNotificationData& N
 {
 	if (NotificationData.Text.IsEmpty() && !NotificationData.IconResource)
 	{
-
 		return;
 	}
 
@@ -54,7 +55,6 @@ void URightNotificationsWidget::EnqueueNotification(const FPdNotificationData& N
 
 void URightNotificationsWidget::ClearNotifications()
 {
-
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DequeueTimerHandle);
@@ -100,17 +100,14 @@ void URightNotificationsWidget::PrimeNotificationPool()
 		EntryWidget->SetVisibility(ESlateVisibility::Collapsed);
 		AvailableNotifications.AddUnique(EntryWidget);
 	}
-
 }
 
 void URightNotificationsWidget::TryShowQueuedNotifications()
 {
-
 	PrimeNotificationPool();
 
 	if (!NotificationList || (!NotificationEntryWidgetClass && AvailableNotifications.IsEmpty()))
 	{
-
 		return;
 	}
 
@@ -125,12 +122,10 @@ void URightNotificationsWidget::TryShowQueuedNotifications()
 
 bool URightNotificationsWidget::TryShowNextQueuedNotification()
 {
-
 	PrimeNotificationPool();
 
 	if (!NotificationList || (!NotificationEntryWidgetClass && AvailableNotifications.IsEmpty()))
 	{
-
 		return false;
 	}
 
@@ -142,14 +137,13 @@ bool URightNotificationsWidget::TryShowNextQueuedNotification()
 	UNotificationEntryWidget* EntryWidget = AcquireNotificationWidget();
 	if (!EntryWidget)
 	{
-
 		return false;
 	}
 
 	const FPdNotificationData NotificationData = NotificationQueue[0];
 	NotificationQueue.RemoveAt(0);
 
-EntryWidget->SetNotificationData(NotificationData);
+	EntryWidget->SetNotificationData(NotificationData);
 	EntryWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	if (EntryWidget->GetParent() != NotificationList)
 	{
@@ -207,7 +201,6 @@ void URightNotificationsWidget::HandleDequeueTimer()
 	}
 
 	bDequeueSequenceActive = false;
-
 }
 
 UNotificationEntryWidget* URightNotificationsWidget::AcquireNotificationWidget()
@@ -230,14 +223,14 @@ UNotificationEntryWidget* URightNotificationsWidget::AcquireNotificationWidget()
 	APlayerController* OwningPlayer = GetOwningPlayer();
 	if (!NotificationEntryWidgetClass)
 	{
-
+		UE_LOG(LogRightNotificationsWidget, Warning, TEXT("%s has no NotificationEntryWidgetClass, so notifications are not shown."),
+			*GetNameSafe(GetClass()));
 		return nullptr;
 	}
 
 	UNotificationEntryWidget* EntryWidget = CreateWidget<UNotificationEntryWidget>(OwningPlayer, NotificationEntryWidgetClass);
 	if (!EntryWidget)
 	{
-
 		return nullptr;
 	}
 
@@ -329,7 +322,7 @@ void URightNotificationsWidget::FinishRemoveNotification(UNotificationEntryWidge
 		}
 	}
 
-ActiveNotifications.Remove(EntryWidget);
+	ActiveNotifications.Remove(EntryWidget);
 	ReleaseNotificationWidget(EntryWidget);
 
 	TryShowQueuedNotifications();

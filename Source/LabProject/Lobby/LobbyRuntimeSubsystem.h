@@ -59,10 +59,9 @@ public:
 	}
 	const UMatchRuleDefinition* GetLoadedLobbyMatchRuleDefinition() const;
 
-	void SetLobbyGameConfig(FName MapKey, const FString& TravelMapName, int32 MaxPlayerCount, int32 MaxBotCount);
-	FName GetLobbySelectedMapKey() const { return LobbyRuntimeConfig.SelectedMapKey; }
-	int32 GetLobbyMaxPlayerCount() const { return LobbyRuntimeConfig.MaxPlayerCount; }
-	int32 GetLobbyMaxBotCount() const { return LobbyRuntimeConfig.MaxBotCount; }
+	// 경기를 마치고 로비로 돌아왔을 때 호스트가 고른 맵을 다시 선택하도록 맵 키를 보관한다.
+	void SetLobbySelectedMapKey(FName MapKey) { LobbySelectedMapKey = MapKey; }
+	FName GetLobbySelectedMapKey() const { return LobbySelectedMapKey; }
 
 	void ResetCachedPlayerMatchIdentities();
 	void CachePlayerMatchIdentityForPlayerState(const APlayerState* PlayerState, const FPlayerMatchIdentity& MatchIdentity);
@@ -138,8 +137,7 @@ private:
 	ELobbyContentPreloadResult GameEntryContentPreloadResult =
 		ELobbyContentPreloadResult::NotStarted;
 
-	UPROPERTY(Transient)
-	FLobbyRuntimeConfig LobbyRuntimeConfig;
+	FName LobbySelectedMapKey;
 
 	TMap<FString, FPlayerMatchIdentity> CachedPlayerMatchIdentitiesByPlayerKey;
 	TMap<FString, TMap<FGameplayTag, FName>> CachedLobbyEquippedSkinNamesByPlayerKey;

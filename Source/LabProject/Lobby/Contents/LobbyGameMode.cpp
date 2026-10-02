@@ -217,13 +217,13 @@ void ALobbyGameMode::Logout(AController* Exiting)
 }
 
 // 호스트가 확정한 로비 설정을 적용한다.
-void ALobbyGameMode::SaveConfig(FName MapKey, int32 InMaxBotCount)
+void ALobbyGameMode::SelectLobbyMap(FName MapKey)
 {
 	if (!LobbyConfigurationComponent->IsRuntimeReady()) { return; }
 	FLobbyMatchMapOption Option;
 	if (!LobbyConfigurationComponent->FindConfiguredMapOption(MapKey, Option)) { return; }
 	if (bGameStartRequested) { CancelPendingGameStart(); }
-	LobbyConfigurationComponent->SaveConfig(MapKey, InMaxBotCount);
+	LobbyConfigurationComponent->SelectLobbyMap(MapKey);
 	UpdateAdvertisedSessionSettings();
 }
 
@@ -384,7 +384,7 @@ void ALobbyGameMode::SelectLobbyMapByOffset(int32 Offset)
 		LobbyConfigurationComponent->GetLobbyMapOptionAtIndex(Index, Option);
 		if (Option.MapKey != Key) { continue; }
 		LobbyConfigurationComponent->GetLobbyMapOptionAtIndex(((Index + Offset) % Count + Count) % Count, Option);
-		SaveConfig(Option.MapKey, LobbyConfigurationComponent->GetConfiguredMaxBotCount());
+		SelectLobbyMap(Option.MapKey);
 		return;
 	}
 }

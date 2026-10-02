@@ -39,14 +39,6 @@ EDataValidationResult UPlayerControllerDefinition::IsDataValid(FDataValidationCo
 			"Presentation TravelLoadingReadyCheckInterval must be finite and at least 0.01 seconds."));
 	}
 
-	if (Presentation.TravelLoadingReadyCheckMaxAttempts < 0)
-	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerControllerDefinition",
-			"InvalidTravelLoadingAttempts",
-			"Presentation TravelLoadingReadyCheckMaxAttempts must be non-negative."));
-	}
-
 	if (!FMath::IsFinite(Presentation.HealthBarVisibilityUpdateInterval)
 		|| Presentation.HealthBarVisibilityUpdateInterval < 0.01f)
 	{

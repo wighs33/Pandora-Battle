@@ -352,7 +352,6 @@ void ASkillBlackHoleActor::ApplyFinishAreaDamage()
 	const float DamageMagnitude = CalculateFinishAreaDamageMagnitude(SourceASC);
 	if (!World || !SourceActor || !SourceActor->HasAuthority() || !SourceASC || !FinishDamageEffectClass || FinishDamageRadius <= 0.0f || DamageMagnitude <= 0.0f)
 	{
-
 		return;
 	}
 
@@ -366,7 +365,6 @@ void ASkillBlackHoleActor::ApplyFinishAreaDamage()
 		EffectContext);
 	if (!DamageSpecHandle.IsValid() || !DamageSpecHandle.Data.IsValid())
 	{
-
 		return;
 	}
 
@@ -415,7 +413,6 @@ void ASkillBlackHoleActor::ApplyFinishAreaDamage()
 		DamagedCharacters.Add(TargetKey);
 		AppliedCount += AppliedHandle.WasSuccessfullyApplied() || AppliedHandle.IsValid() ? 1 : 0;
 	}
-
 }
 
 float ASkillBlackHoleActor::CalculateFinishAreaDamageMagnitude(const UAbilitySystemComponent* SourceASC) const

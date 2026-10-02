@@ -63,7 +63,6 @@ bool AShieldUpGameplayCue::ApplyShieldOverlay(
 	USkeletalMeshComponent* SkeletalMeshComponent = ResolveSkeletalMesh(MyTarget);
 	if (!SkeletalMeshComponent)
 	{
-
 		return false;
 	}
 

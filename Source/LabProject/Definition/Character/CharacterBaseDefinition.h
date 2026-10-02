@@ -16,7 +16,6 @@ struct LABPROJECT_API FCharacterPresentationSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Character|Animation", meta = (AssetBundles = "Client"))
 	TSubclassOf<UAnimInstance> DefaultAnimLayer;
-
 };
 
 USTRUCT(BlueprintType)

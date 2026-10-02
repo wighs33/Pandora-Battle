@@ -9,6 +9,7 @@
 #include "AbilitiesBarWidget.generated.h"
 
 class ACharacterBase;
+class UAbilitySlotWidget;
 class UAbilitySystemComponent;
 class UGameplayAbility;
 class UHorizontalBox;
@@ -64,8 +65,7 @@ private:
 	void AddEmptySlot(bool bApplyPadding, int32 SkillSlotIndex = INDEX_NONE);
 	UUserWidget* CreateBarWidget(TSubclassOf<UUserWidget> WidgetClass) const;
 	void AddWidgetToBar(UUserWidget* Widget, bool bApplyPadding) const;
-	void SetAbilitySpecHandleOnWidget(UUserWidget* Widget, const FGameplayAbilitySpecHandle& AbilitySpecHandle) const;
-	void ApplySkillSlotKeyIcon(UUserWidget* Widget, int32 SkillSlotIndex) const;
+	void ApplyEmptySlotKeyText(UUserWidget* Widget, int32 SkillSlotIndex) const;
 	bool ShouldShowAbilityHandle(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle& AbilitySpecHandle) const;
 	UAbilitySystemComponent* GetOwningAbilitySystemComponent() const;
 	const UPandoraDefinition* GetSelectedPandoraDefinition() const;
@@ -83,8 +83,6 @@ private:
 	void BindPandoraTreeChangedEvent();
 	void UnbindPandoraTreeChangedEvent();
 
-	static FProperty* FindPropertyByExactNameOrPrefix(UStruct* Struct, FName ExactName, const FString& Prefix);
-
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities", meta = (AllowPrivateAccess = "true", ClampMin = "0"))
 	int32 MinimumSlots = 3;
@@ -96,7 +94,7 @@ private:
 	FMargin SlotPadding = FMargin(5.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities|Classes", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<UUserWidget> AbilityWidgetClass;
+	TSubclassOf<UAbilitySlotWidget> AbilityWidgetClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities|Classes", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UUserWidget> EmptyAbilityWidgetClass;

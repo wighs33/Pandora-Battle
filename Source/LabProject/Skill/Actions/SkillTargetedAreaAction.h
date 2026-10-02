@@ -109,7 +109,7 @@ private:
 	bool GetConfiguredDebugTargeting() const;
 	FGameplayTag GetConfiguredMontageTriggerEventTag() const;
 	bool ShouldDrawDebugDamageRadius() const;
-	void DrawDebugDamageRadius(const TCHAR* Context, const FColor& CircleColor, const FColor& SphereColor) const;
+	void DrawDebugDamageRadius(const FColor& CircleColor, const FColor& SphereColor) const;
 
 protected:
 	UPROPERTY(Transient)

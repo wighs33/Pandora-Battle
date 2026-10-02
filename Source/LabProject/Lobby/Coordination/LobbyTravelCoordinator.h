@@ -39,7 +39,7 @@ private:
 	// 다음 전장에 전달할 맵·경기 옵션·플레이어 정보.
 	void PrepareMatchTravel(bool bSuppressMatchTimer);
 	bool ResolveSelectedMatchMap(FString& OutTravelMapName, FLobbyMatchMapOption& OutSelectedMapOption) const;
-	void CacheSelectedGameConfigForTravel(const FLobbyMatchMapOption& SelectedMapOption, const FString& TravelMapName) const;
+	void CacheSelectedMapForTravel(const FLobbyMatchMapOption& SelectedMapOption) const;
 	void CacheLobbyTravelState(ULobbyRuntimeSubsystem* LobbySubsystem) const;
 	void CacheLobbyPlayerTravelState(ULobbyRuntimeSubsystem* LobbySubsystem, const APdPlayerState* LobbyPlayerState) const;
 	TMap<FGameplayTag, FName> BuildEquippedSkinNamesBySlot(const APlayerController* PlayerController) const;

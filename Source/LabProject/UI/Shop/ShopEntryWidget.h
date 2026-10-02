@@ -41,7 +41,6 @@ protected:
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void ResolveWidgets();
 	void RefreshUI();
 	void ApplySelectionVisual();
 
@@ -56,7 +55,7 @@ protected:
 	TObjectPtr<UTextBlock> Txt_State = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
-	TObjectPtr<UImage> Img_Icon = nullptr;
+	TObjectPtr<UImage> IconImage = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
 	TObjectPtr<UImage> SelectionBorderImage = nullptr;

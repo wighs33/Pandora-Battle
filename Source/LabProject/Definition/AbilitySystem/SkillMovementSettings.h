@@ -17,7 +17,6 @@ struct LABPROJECT_API FSkillMovementSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Movement|Speed", meta = (EditCondition = "bOverrideMovementSpeedWhileActive", ClampMin = "0.0", ForceUnits = "%"))
 	double MovementSpeedBonusPercent = 0.0;
 
-
 	/** 스킬이 유지되는 동안 캐릭터 이동을 제한한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Movement", meta = (DisplayName = "Lock Movement During Duration"))
 	bool bLockMovementDuringDuration = false;

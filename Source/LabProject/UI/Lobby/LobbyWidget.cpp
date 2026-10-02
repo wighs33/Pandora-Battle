@@ -31,22 +31,20 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyWidget)
 
-DEFINE_LOG_CATEGORY_STATIC(LogLobbyWidget, Log, All);
-
 void ULobbyWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	SetIsFocusable(true);
 
 	ApplyWidgetDefinitionSettings();
-	if (const UTextBlock* WarningText = FindTeamBalanceWarningText())
+	if (const UTextBlock* WarningText = Txt_Warning)
 	{
 		DefaultTeamBalanceWarningText = WarningText->GetText();
 	}
 	ApplyLobbyInputPassthroughVisibility();
 	if (!bHasDefaultSelectedMapPlayerCountColor)
 	{
-		if (const UTextBlock* PlayerCountText = FindSelectedMapPlayerCountText())
+		if (const UTextBlock* PlayerCountText = Txt_SelectedMapPlayerCount)
 		{
 			DefaultSelectedMapPlayerCountColor = PlayerCountText->GetColorAndOpacity();
 			bHasDefaultSelectedMapPlayerCountColor = true;
@@ -66,7 +64,7 @@ void ULobbyWidget::NativeConstruct()
 		Btn_GameStart->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleGameStartClicked);
 	}
 
-	if (UButton* EnterButton = FindEnterButton())
+	if (UButton* EnterButton = Btn_Enter)
 	{
 		EnterButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleEnterClicked);
 	}
@@ -76,12 +74,12 @@ void ULobbyWidget::NativeConstruct()
 		Btn_Invite->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleInviteClicked);
 	}
 
-	if (UButton* PreviousMapButton = FindMapPreviousButton())
+	if (UButton* PreviousMapButton = Btn_MapPrevious)
 	{
 		PreviousMapButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMapPreviousClicked);
 	}
 
-	if (UButton* NextMapButton = FindMapNextButton())
+	if (UButton* NextMapButton = Btn_MapNext)
 	{
 		NextMapButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleMapNextClicked);
 	}
@@ -121,7 +119,7 @@ bool ULobbyWidget::CloseTopmostUiForEscape()
 
 void ULobbyWidget::NativeDestruct()
 {
-	if (UTextBlock* WarningText = FindTeamBalanceWarningText())
+	if (UTextBlock* WarningText = Txt_Warning)
 	{
 		WarningText->SetText(DefaultTeamBalanceWarningText);
 	}
@@ -148,7 +146,7 @@ void ULobbyWidget::NativeDestruct()
 		Btn_GameStart->OnClicked.RemoveDynamic(this, &ThisClass::HandleGameStartClicked);
 	}
 
-	if (UButton* EnterButton = FindEnterButton())
+	if (UButton* EnterButton = Btn_Enter)
 	{
 		EnterButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleEnterClicked);
 	}
@@ -158,12 +156,12 @@ void ULobbyWidget::NativeDestruct()
 		Btn_Invite->OnClicked.RemoveDynamic(this, &ThisClass::HandleInviteClicked);
 	}
 
-	if (UButton* PreviousMapButton = FindMapPreviousButton())
+	if (UButton* PreviousMapButton = Btn_MapPrevious)
 	{
 		PreviousMapButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleMapPreviousClicked);
 	}
 
-	if (UButton* NextMapButton = FindMapNextButton())
+	if (UButton* NextMapButton = Btn_MapNext)
 	{
 		NextMapButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleMapNextClicked);
 	}
@@ -316,7 +314,7 @@ void ULobbyWidget::RefreshUI()
 		Btn_Invite->SetIsEnabled(bCanInvite);
 	}
 
-	if (UTextBlock* WarningText = FindTeamBalanceWarningText())
+	if (UTextBlock* WarningText = Txt_Warning)
 	{
 		const ALobbyGameState* GameState = GetLobbyGameState();
 		const bool bExperienceFailed = GameState && GameState->HasExperienceLoadFailed();
@@ -328,21 +326,6 @@ void ULobbyWidget::RefreshUI()
 	}
 
 	ApplyReplicatedGameStartState();
-}
-
-void ULobbyWidget::StartGameCountdown(const float DelaySeconds)
-{
-    if (APlayerController* Controller = GetOwningPlayer())
-    {
-        if (ALobbyHUD* Hud = Controller->GetHUD<ALobbyHUD>()) Hud->CreateLobbyUI();
-    }
-    ApplyLobbyInputPassthroughVisibility();
-    RefreshUI();
-}
-
-void ULobbyWidget::HideGameCountdown()
-{
-	RefreshUI();
 }
 
 TArray<APdPlayerState*> ULobbyWidget::GetLobbyPlayerStates() const
@@ -379,7 +362,6 @@ void ULobbyWidget::HandleCloseClicked()
 	const FString TitleMapName = GetResolvedTitleTravelMapName();
 	if (TitleMapName.IsEmpty())
 	{
-
 		return;
 	}
 
@@ -424,7 +406,6 @@ void ULobbyWidget::HandleGameStartClicked()
 	ALobbyGameMode* LobbyGameMode = World ? World->GetAuthGameMode<ALobbyGameMode>() : nullptr;
 	if (!LobbyGameMode)
 	{
-
 		return;
 	}
 
@@ -446,7 +427,6 @@ void ULobbyWidget::HandleEnterClicked()
 		{
 			LobbyHUD->NotifyLobbyWidgetClosed();
 		}
-
 	}
 }
 
@@ -461,17 +441,14 @@ void ULobbyWidget::HandleInviteClicked()
 	IOnlineExternalUIPtr ExternalUI = Online::GetExternalUIInterface(World);
 	if (!ExternalUI.IsValid())
 	{
-
 		return;
 	}
 
 	const bool bShown = ExternalUI->ShowInviteUI(0, NAME_GameSession);
 	if (!bShown)
 	{
-
 		return;
 	}
-
 }
 
 void ULobbyWidget::HandleMapPreviousClicked()
@@ -503,271 +480,6 @@ FString ULobbyWidget::GetResolvedTitleTravelMapName() const
 	const ULevelDefinition* Definition =
 		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
-}
-
-UWidget* ULobbyWidget::FindGameStartCountdownRoot() const
-{
-	if (GameStartCountdownRoot)
-	{
-		return GameStartCountdownRoot;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UWidget* NamedWidget = WidgetTree->FindWidget(TEXT("GameStartCountdownRoot")))
-	{
-		return NamedWidget;
-	}
-
-	if (UWidget* NamedWidget = WidgetTree->FindWidget(TEXT("GameStartCountdown")))
-	{
-		return NamedWidget;
-	}
-
-	if (UWidget* NamedWidget = WidgetTree->FindWidget(TEXT("StartGameCountdown")))
-	{
-		return NamedWidget;
-	}
-
-	return nullptr;
-}
-
-UTextBlock* ULobbyWidget::FindGameStartCountdownText() const
-{
-	if (Txt_GameStartCountdown)
-	{
-		return Txt_GameStartCountdown;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UTextBlock* NamedWidget = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("Txt_GameStartCountdown"))))
-	{
-		return NamedWidget;
-	}
-
-	if (UTextBlock* NamedWidget = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("Txt_StartGameCountdown"))))
-	{
-		return NamedWidget;
-	}
-
-	if (UTextBlock* NamedWidget = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("Txt_Countdown"))))
-	{
-		return NamedWidget;
-	}
-
-	return nullptr;
-}
-
-UWidget* ULobbyWidget::FindTeamBalanceWarningRoot() const
-{
-	if (TeamBalanceWarningRoot)
-	{
-		return TeamBalanceWarningRoot;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UWidget* NamedWidget = WidgetTree->FindWidget(TEXT("TeamBalanceWarningRoot")))
-	{
-		return NamedWidget;
-	}
-
-	if (UWidget* NamedWidget = WidgetTree->FindWidget(TEXT("WarningRoot")))
-	{
-		return NamedWidget;
-	}
-
-	if (UWidget* NamedWidget = WidgetTree->FindWidget(TEXT("Txt_Warning")))
-	{
-		return NamedWidget;
-	}
-
-	return nullptr;
-}
-
-UTextBlock* ULobbyWidget::FindTeamBalanceWarningText() const
-{
-	if (Txt_Warning)
-	{
-		return Txt_Warning;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UTextBlock* NamedWidget = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("Txt_Warning"))))
-	{
-		return NamedWidget;
-	}
-
-	if (UTextBlock* NamedWidget = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("Txt_TeamWarning"))))
-	{
-		return NamedWidget;
-	}
-
-	if (UTextBlock* NamedWidget = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("Txt_TeamBalanceWarning"))))
-	{
-		return NamedWidget;
-	}
-
-	return nullptr;
-}
-
-UButton* ULobbyWidget::FindEnterButton() const
-{
-	if (Btn_Enter)
-	{
-		return Btn_Enter;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	return Cast<UButton>(WidgetTree->FindWidget(TEXT("Btn_Enter")));
-}
-
-UButton* ULobbyWidget::FindMapPreviousButton() const
-{
-	if (Btn_MapPrevious)
-	{
-		return Btn_MapPrevious;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UButton* NamedWidget = Cast<UButton>(WidgetTree->FindWidget(TEXT("Btn_MapPrevious"))))
-	{
-		return NamedWidget;
-	}
-
-	if (UButton* NamedWidget = Cast<UButton>(WidgetTree->FindWidget(TEXT("Btn_PreviousMap"))))
-	{
-		return NamedWidget;
-	}
-
-	if (UButton* NamedWidget = Cast<UButton>(WidgetTree->FindWidget(TEXT("Btn_MapPrev"))))
-	{
-		return NamedWidget;
-	}
-
-	return nullptr;
-}
-
-UButton* ULobbyWidget::FindMapNextButton() const
-{
-	if (Btn_MapNext)
-	{
-		return Btn_MapNext;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UButton* NamedWidget = Cast<UButton>(WidgetTree->FindWidget(TEXT("Btn_MapNext"))))
-	{
-		return NamedWidget;
-	}
-
-	if (UButton* NamedWidget = Cast<UButton>(WidgetTree->FindWidget(TEXT("Btn_NextMap"))))
-	{
-		return NamedWidget;
-	}
-
-	return nullptr;
-}
-
-UTextBlock* ULobbyWidget::FindSelectedMapNameText() const
-{
-	if (Txt_SelectedMapName)
-	{
-		return Txt_SelectedMapName;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UTextBlock* NamedWidget = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("Txt_SelectedMapName"))))
-	{
-		return NamedWidget;
-	}
-
-	if (UTextBlock* NamedWidget = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("Txt_MapName"))))
-	{
-		return NamedWidget;
-	}
-
-	return nullptr;
-}
-
-UTextBlock* ULobbyWidget::FindSelectedMapPlayerCountText() const
-{
-	if (Txt_SelectedMapPlayerCount)
-	{
-		return Txt_SelectedMapPlayerCount;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UTextBlock* NamedWidget = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("Txt_SelectedMapPlayerCount"))))
-	{
-		return NamedWidget;
-	}
-
-	if (UTextBlock* NamedWidget = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("Txt_MapPlayerCount"))))
-	{
-		return NamedWidget;
-	}
-
-	return nullptr;
-}
-
-UImage* ULobbyWidget::FindSelectedMapThumbnailImage() const
-{
-	if (Img_SelectedMapThumbnail)
-	{
-		return Img_SelectedMapThumbnail;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UImage* NamedWidget = Cast<UImage>(WidgetTree->FindWidget(TEXT("Img_SelectedMapThumbnail"))))
-	{
-		return NamedWidget;
-	}
-
-	if (UImage* NamedWidget = Cast<UImage>(WidgetTree->FindWidget(TEXT("Img_MapThumbnail"))))
-	{
-		return NamedWidget;
-	}
-
-	return nullptr;
 }
 
 bool ULobbyWidget::GetSelectedMapOptionForUI(FLobbyMatchMapOption& OutMapOption) const
@@ -814,7 +526,7 @@ void ULobbyWidget::RefreshSelectedMapUI()
 		: GetMaxLobbySlotsForUI();
 	const bool bSelectedMapCapacityExceeded = bHasMapOption && ActivePlayers > MaxPlayers;
 
-	if (UTextBlock* MapNameText = FindSelectedMapNameText())
+	if (UTextBlock* MapNameText = Txt_SelectedMapName)
 	{
 		const FText MapName = bHasMapOption && !MapOption.DisplayName.IsEmpty()
 			? MapOption.DisplayName
@@ -822,7 +534,7 @@ void ULobbyWidget::RefreshSelectedMapUI()
 		MapNameText->SetText(MenuTextOrFallback(FName(*(TEXT("Map.") + MapOption.MapKey.ToString())), MapName));
 	}
 
-	if (UTextBlock* PlayerCountText = FindSelectedMapPlayerCountText())
+	if (UTextBlock* PlayerCountText = Txt_SelectedMapPlayerCount)
 	{
 		PlayerCountText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), ActivePlayers, MaxPlayers)));
 		if (!bHasDefaultSelectedMapPlayerCountColor)
@@ -836,7 +548,7 @@ void ULobbyWidget::RefreshSelectedMapUI()
 				: DefaultSelectedMapPlayerCountColor);
 	}
 
-	if (UImage* ThumbnailImage = FindSelectedMapThumbnailImage())
+	if (UImage* ThumbnailImage = Img_SelectedMapThumbnail)
 	{
 		if (bHasMapOption && MapOption.Thumbnail.Get())
 		{
@@ -849,13 +561,13 @@ void ULobbyWidget::RefreshSelectedMapUI()
 		}
 	}
 
-	if (UButton* PreviousMapButton = FindMapPreviousButton())
+	if (UButton* PreviousMapButton = Btn_MapPrevious)
 	{
 		PreviousMapButton->SetVisibility(bIsServer ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 		PreviousMapButton->SetIsEnabled(bIsServer && OptionCount > 1 && !IsGameStartPending());
 	}
 
-	if (UButton* NextMapButton = FindMapNextButton())
+	if (UButton* NextMapButton = Btn_MapNext)
 	{
 		NextMapButton->SetVisibility(bIsServer ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 		NextMapButton->SetIsEnabled(bIsServer && OptionCount > 1 && !IsGameStartPending());
@@ -915,12 +627,12 @@ bool ULobbyWidget::AreLobbyTeamsBalancedForUI(const TArray<APdPlayerState*>& Lob
 
 void ULobbyWidget::SetGameStartCountdownVisibility(const ESlateVisibility InVisibility)
 {
-	if (UWidget* RootWidget = FindGameStartCountdownRoot())
+	if (UWidget* RootWidget = GameStartCountdownRoot)
 	{
 		RootWidget->SetVisibility(InVisibility);
 	}
 
-	if (UTextBlock* CountdownText = FindGameStartCountdownText())
+	if (UTextBlock* CountdownText = Txt_GameStartCountdown)
 	{
 		CountdownText->SetVisibility(InVisibility);
 	}
@@ -928,12 +640,12 @@ void ULobbyWidget::SetGameStartCountdownVisibility(const ESlateVisibility InVisi
 
 void ULobbyWidget::SetTeamBalanceWarningVisibility(const ESlateVisibility InVisibility)
 {
-	if (UWidget* WarningRoot = FindTeamBalanceWarningRoot())
+	if (UWidget* WarningRoot = TeamBalanceWarningRoot)
 	{
 		WarningRoot->SetVisibility(InVisibility);
 	}
 
-	if (UTextBlock* WarningText = FindTeamBalanceWarningText())
+	if (UTextBlock* WarningText = Txt_Warning)
 	{
 		WarningText->SetVisibility(InVisibility);
 
@@ -953,7 +665,7 @@ void ULobbyWidget::SetTeamBalanceWarningVisibility(const ESlateVisibility InVisi
 
 void ULobbyWidget::RefreshGameStartCountdownUI()
 {
-	if (UTextBlock* CountdownText = FindGameStartCountdownText())
+	if (UTextBlock* CountdownText = Txt_GameStartCountdown)
 	{
 		CountdownText->SetText(FormatGameStartCountdownText());
 	}

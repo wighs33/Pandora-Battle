@@ -23,7 +23,6 @@
 
 namespace
 {
-
 UInfoWidget* ResolveInfoWidgetFromSlot(const UUserWidget* Widget)
 {
 	const APlayerController* PlayerController = Widget ? Widget->GetOwningPlayer() : nullptr;
@@ -292,13 +291,11 @@ void UItemSlotWidget::SetSelected(const bool bInSelected)
 
 void UItemSlotWidget::CacheOptionalWidgets()
 {
-
 	if (Img_Back && !bDefaultBackgroundColorCached)
 	{
 		DefaultBackgroundColor = Img_Back->GetColorAndOpacity();
 		bDefaultBackgroundColorCached = true;
 	}
-
 }
 
 void UItemSlotWidget::ApplySelectionVisual()
@@ -378,14 +375,12 @@ bool UItemSlotWidget::RequestSplitCachedStack() const
 
 	if (!IsCachedItemConsumable() || CachedData->Quantity < 2)
 	{
-
 		return false;
 	}
 
 	UInventoryComponent* InventoryComponent = ResolveOwningInventoryComponent();
 	if (!InventoryComponent)
 	{
-
 		return false;
 	}
 
@@ -412,7 +407,6 @@ bool UItemSlotWidget::RequestMergeDraggedItem(UDragDropOperation* InOperation) c
 	UInventoryComponent* InventoryComponent = ResolveOwningInventoryComponent();
 	if (!InventoryComponent)
 	{
-
 		return false;
 	}
 

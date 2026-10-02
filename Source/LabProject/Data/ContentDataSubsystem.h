@@ -28,7 +28,6 @@ public:
 
 	/** Starts and retains the process-wide skill preload. Safe to call repeatedly. */
 	void EnsureSkillDataAssetsPreload();
-	bool IsSkillDataAssetsReady() const { return bSkillDataAssetsReady; }
 	bool IsSkillDataAssetsLoading() const { return bSkillDataAssetsPreloadPending; }
 
 	/** 반환된 lease가 살아 있는 동안 콘텐츠를 유지하며, 완료 콜백은 다음 ticker에서 전달한다. */

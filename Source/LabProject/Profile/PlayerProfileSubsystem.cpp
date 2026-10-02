@@ -165,21 +165,6 @@ int32 UPlayerProfileSubsystem::GetGold()
 	return IsValid(SaveGameObject) ? SaveGameObject->Gold : 0;
 }
 
-int32 UPlayerProfileSubsystem::SetGold(const int32 NewGold, const bool bSaveImmediately)
-{
-	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
-	if (!IsValid(SaveGameObject))
-	{
-		return 0;
-	}
-
-	SaveGameObject->Gold = FMath::Max(0, NewGold);
-	RequestProfileSave(bSaveImmediately);
-
-	ProfileProgressChanged.Broadcast();
-	return SaveGameObject->Gold;
-}
-
 int32 UPlayerProfileSubsystem::AddGold(const int32 Amount, const bool bSaveImmediately)
 {
 	if (Amount <= 0)
@@ -263,65 +248,6 @@ bool UPlayerProfileSubsystem::IsPandoraGranted(UPandoraDefinition* PandoraDefini
 	return SaveGameObject->PlayerPandoraData.GrantedPandorasById.Contains(PandoraId);
 }
 
-int32 UPlayerProfileSubsystem::GetGrantedPandoraLevel(UPandoraDefinition* PandoraDefinition)
-{
-	if (!PandoraDefinition)
-	{
-		return 0;
-	}
-
-	const FPrimaryAssetId PandoraId = ResolvePandoraSaveId(PandoraDefinition);
-	const UDefaultProvisionDefinition* DefaultProvision = IsValid(PandoraDefinition)
-		? UDefaultProvisionDefinition::ResolveDefaultDefinition() : nullptr;
-	if (DefaultProvision && DefaultProvision->IsPandoraKeyGranted(PandoraDefinition->GetFName(), EDefaultProvisionMode::Gameplay))
-	{
-		return 0;
-	}
-
-	const UPdSaveGame* SaveGameObject = GetOrCreateProfile();
-	if (!IsValid(SaveGameObject))
-	{
-		return 0;
-	}
-
-	const int32* SavedLevel =
-		SaveGameObject->PlayerPandoraData.GrantedPandorasById.Find(PandoraId);
-	return SavedLevel ? FMath::Max(*SavedLevel, 1) : 0;
-}
-
-bool UPlayerProfileSubsystem::GrantPandora(UPandoraDefinition* PandoraDefinition,
-	const int32 StartingLevel,
-	const bool bSaveImmediately)
-{
-	if (!PandoraDefinition)
-	{
-		return false;
-	}
-
-	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
-	if (!IsValid(SaveGameObject))
-	{
-		return false;
-	}
-
-	const FPrimaryAssetId PandoraId = ResolvePandoraSaveId(PandoraDefinition);
-	const UDefaultProvisionDefinition* DefaultProvision = PandoraId.IsValid() && IsValid(PandoraDefinition)
-		? UDefaultProvisionDefinition::ResolveDefaultDefinition() : nullptr;
-	if (!PandoraId.IsValid()
-		|| (DefaultProvision && DefaultProvision->IsPandoraKeyGranted(PandoraDefinition->GetFName(), EDefaultProvisionMode::Gameplay)))
-	{
-		return false;
-	}
-
-	int32& GrantedLevel = SaveGameObject->PlayerPandoraData.GrantedPandorasById.FindOrAdd(PandoraId);
-	GrantedLevel = FMath::Max(GrantedLevel, FMath::Max(StartingLevel, 1));
-
-	RequestProfileSave(bSaveImmediately);
-
-	ProfileProgressChanged.Broadcast();
-	return true;
-}
-
 bool UPlayerProfileSubsystem::TryPurchasePandoraWithGold(UPandoraDefinition* PandoraDefinition,
 	const int32 GoldCost,
 	const int32 StartingLevel,
@@ -392,35 +318,6 @@ bool UPlayerProfileSubsystem::IsSkinGranted(USkinDefinition* SkinDefinition)
 	}
 
 	return SaveGameObject->PlayerSkinData.GrantedSkinsById.Contains(SkinId);
-}
-
-bool UPlayerProfileSubsystem::GrantSkin(USkinDefinition* SkinDefinition,
-	const bool bSaveImmediately)
-{
-	if (!SkinDefinition)
-	{
-		return false;
-	}
-
-	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
-	if (!IsValid(SaveGameObject))
-	{
-		return false;
-	}
-
-	const FPrimaryAssetId SkinId = ResolveSkinSaveId(SkinDefinition);
-	if (!SkinId.IsValid()
-		|| SkinDefinition->IsDefaultProfileSkin())
-	{
-		return false;
-	}
-
-	SaveGameObject->PlayerSkinData.GrantedSkinsById.FindOrAdd(SkinId) = 1;
-
-	RequestProfileSave(bSaveImmediately);
-
-	ProfileProgressChanged.Broadcast();
-	return true;
 }
 
 bool UPlayerProfileSubsystem::TryPurchaseSkinWithGold(USkinDefinition* SkinDefinition,

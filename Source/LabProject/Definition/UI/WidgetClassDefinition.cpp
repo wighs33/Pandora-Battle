@@ -126,7 +126,6 @@ namespace
 			LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 		return UiSubsystem ? UiSubsystem->GetWidgetClassDefinition() : nullptr;
 	}
-
 }
 
 void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
@@ -190,7 +189,6 @@ void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
 	case EUiContentGroup::Map:
 		CollectSettings(GetMapWidgetSettings());
 		break;
-
 	}
 
 	OutAssetPaths = UniquePaths.Array();

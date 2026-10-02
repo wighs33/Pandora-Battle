@@ -15,7 +15,6 @@
 #include "Mode/PdPlayerState.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "UI/Common/WidgetLookup.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Pandora/PandoraWidgetViewData.h"
 #include "View/MVVMView.h"
@@ -79,7 +78,6 @@ namespace
 
 		return nullptr;
 	}
-
 }
 
 void UPandoraWidget::NativePreConstruct()
@@ -87,7 +85,6 @@ void UPandoraWidget::NativePreConstruct()
 	Super::NativePreConstruct();
 
 	ApplyWidgetDefinitionSettings();
-	ResolveControlWidgets();
 
 	GetOrCreatePandoraWidgetViewModel();
 	ApplyPandoraWidgetViewModelToMvvmView();
@@ -104,7 +101,6 @@ void UPandoraWidget::NativeConstruct()
 	bIsFocusWithinWidget = false;
 	bIsPandoraDescriptionRequested = false;
 	ApplyWidgetDefinitionSettings();
-	ResolveControlWidgets();
 
 	GetOrCreatePandoraWidgetViewModel();
 	ApplyPandoraWidgetViewModelToMvvmView();
@@ -471,7 +467,6 @@ void UPandoraWidget::ResolvePandoraTreeComponent()
 	{
 		PandoraDefinition = FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(PandoraTreeComponent);
 	}
-
 }
 
 void UPandoraWidget::ResolvePandoraComponent()
@@ -480,7 +475,6 @@ void UPandoraWidget::ResolvePandoraComponent()
 	{
 		PandoraComponent = ResolvePandoraComponentFromPandoraWidget(this);
 	}
-
 }
 
 void UPandoraWidget::ApplyWidgetDefinitionSettings()
@@ -540,7 +534,6 @@ void UPandoraWidget::UnbindPandoraComponentEvents()
 
 void UPandoraWidget::BindButtonEvents()
 {
-	ResolveControlWidgets();
 	if (!Button)
 	{
 		return;
@@ -558,7 +551,6 @@ void UPandoraWidget::BindButtonEvents()
 
 void UPandoraWidget::UnbindButtonEvents()
 {
-	ResolveControlWidgets();
 	if (!Button)
 	{
 		return;
@@ -568,33 +560,6 @@ void UPandoraWidget::UnbindButtonEvents()
 	Button->OnReleased.RemoveDynamic(this, &ThisClass::HandleButtonReleased);
 	Button->OnHovered.RemoveDynamic(this, &ThisClass::HandleButtonHovered);
 	Button->OnUnhovered.RemoveDynamic(this, &ThisClass::HandleButtonUnhovered);
-}
-
-void UPandoraWidget::ResolveControlWidgets()
-{
-	if (!Button)
-	{
-		Button = PdWidgetLookup::FindWidgetByNames<UButton>(this, {
-			TEXT("PandoraButton")
-		});
-	}
-	if (!Button && WidgetTree)
-	{
-		Button = PdWidgetLookup::FindFirstWidgetOfType<UButton>(WidgetTree);
-	}
-
-	if (!ButtonProgressBar)
-	{
-		ButtonProgressBar = PdWidgetLookup::FindWidgetByNames<UProgressBar>(this, {
-			TEXT("PandoraButtonProgressBar"),
-			TEXT("PandoraProgressBar")
-		});
-	}
-	if (!ButtonProgressBar && WidgetTree)
-	{
-		ButtonProgressBar = PdWidgetLookup::FindFirstWidgetOfType<UProgressBar>(WidgetTree);
-	}
-
 }
 
 UPandoraWidgetViewModel* UPandoraWidget::GetOrCreatePandoraWidgetViewModel()
@@ -649,7 +614,6 @@ void UPandoraWidget::ApplyPandoraWidgetViewModelToMvvmView()
 
 	if (RuntimeViewModelName.IsNone())
 	{
-
 		return;
 	}
 
@@ -658,8 +622,6 @@ void UPandoraWidget::ApplyPandoraWidgetViewModelToMvvmView()
 
 void UPandoraWidget::ApplyDesignerDefaults()
 {
-	ResolveControlWidgets();
-
 	if (Button)
 	{
 		Button->SetBackgroundColor(PandoraButtonTransparentColor);
@@ -668,7 +630,6 @@ void UPandoraWidget::ApplyDesignerDefaults()
 
 void UPandoraWidget::ApplyEquipHintDefaults()
 {
-
 	if (Txt_Equip && !bHasCachedDefaultEquipText)
 	{
 		DefaultEquipText = Txt_Equip->GetText();
@@ -687,7 +648,6 @@ void UPandoraWidget::ApplyEquipHintDefaults()
 
 void UPandoraWidget::SetEquipHintWidgetsVisible(const bool bShowText, const bool bShowInputKey)
 {
-
 	const ESlateVisibility TextVisibility = bShowText
 		? ESlateVisibility::SelfHitTestInvisible
 		: ESlateVisibility::Collapsed;
@@ -718,7 +678,6 @@ void UPandoraWidget::SetEquipHintWidgetsVisible(const bool bShowText, const bool
 
 void UPandoraWidget::RefreshEquipHintState(const bool bHovered)
 {
-
 	ResolvePandoraComponent();
 
 	if (Txt_Equip && !bHasCachedDefaultEquipText)
@@ -816,7 +775,6 @@ bool UPandoraWidget::RequestAutoEquipPandora()
 {
 	if (!PandoraDefinition)
 	{
-
 		return false;
 	}
 
@@ -846,7 +804,6 @@ bool UPandoraWidget::RequestAutoEquipPandora()
 	UPandoraComponent* ResolvedPandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
 	if (!ResolvedPandoraComponent)
 	{
-
 		return false;
 	}
 
@@ -857,21 +814,18 @@ bool UPandoraWidget::RequestUnequipPandora()
 {
 	if (!PandoraDefinition)
 	{
-
 		return false;
 	}
 
 	ResolvePandoraComponent();
 	if (!PandoraComponent)
 	{
-
 		return false;
 	}
 
 	EEnum_Direction EquippedDirection = EEnum_Direction::Center;
 	if (!TryGetEquippedPandoraDirection(EquippedDirection))
 	{
-
 		return false;
 	}
 

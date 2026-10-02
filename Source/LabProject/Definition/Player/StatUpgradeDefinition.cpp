@@ -10,8 +10,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatUpgradeDefinition)
 
-DEFINE_LOG_CATEGORY_STATIC(StatUpgradeDefinitionLog, Log, All);
-
 namespace
 {
     constexpr float MaxSupportedInvestedLevel = 100.f;

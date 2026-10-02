@@ -1,6 +1,5 @@
 #include "Component/Chat/ChatControllerComponent.h"
 
-#include "Blueprint/WidgetTree.h"
 #include "UI/Chat/ChatBoxWidget.h"
 #include "UI/Chat/ChatEntryWidget.h"
 #include "Engine/World.h"
@@ -54,7 +53,6 @@ void UChatControllerComponent::FocusChat()
 
 	if (!ChatBoxWidget)
 	{
-
 		return;
 	}
 
@@ -171,21 +169,7 @@ UChatBoxWidget* UChatControllerComponent::FindChatBoxInPlayerHUD() const
 {
 	const APlayerController* PlayerController = Cast<APlayerController>(GetOwner());
 	const APdHUD* PdHUD = PlayerController ? Cast<APdHUD>(PlayerController->GetHUD()) : nullptr;
-	UUserWidget* PlayerHUDWidget = PdHUD ? PdHUD->GetPlayerHudWidget() : nullptr;
-	if (!PlayerHUDWidget || !PlayerHUDWidget->WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UChatBoxWidget* NamedChatBox = PdWidgetLookup::FindWidgetByNames<UChatBoxWidget>(PlayerHUDWidget->WidgetTree, {
-		TEXT("WBP_ChatBox"),
-		TEXT("ChatBox")
-	}))
-	{
-		return NamedChatBox;
-	}
-
-	return PdWidgetLookup::FindFirstWidgetOfType<UChatBoxWidget>(PlayerHUDWidget->WidgetTree);
+	return PdWidgetLookup::FindFirstWidgetOfType<UChatBoxWidget>(PdHUD ? PdHUD->GetPlayerHudWidget() : nullptr);
 }
 
 void UChatControllerComponent::HandleChatInputAction()

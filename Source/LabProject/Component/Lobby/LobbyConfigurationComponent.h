@@ -31,9 +31,7 @@ public:
 	void InitializeRuntime(FSimpleDelegate OnReady = FSimpleDelegate());
 	bool IsRuntimeReady() const { return RuntimeState == ERuntimeState::Ready; }
 	void ApplyDefaultLobbyConfigIfNeeded();
-	void SaveConfig(
-		FName MapKey,
-		int32 InMaxBotCount);
+	void SelectLobbyMap(FName MapKey);
 
 	int32 GetLobbyMapOptionCount();
 	bool GetLobbyMapOptionAtIndex(
@@ -47,7 +45,6 @@ public:
 		FName MapKey,
 		FLobbyMatchMapOption& OutMapOption);
 	int32 GetConfiguredMaxPlayerCount();
-	int32 GetConfiguredMaxBotCount();
 
 	const ULevelDefinition* GetLevelDefinition();
 	const UMatchRuleDefinition* GetMatchRuleDefinition();

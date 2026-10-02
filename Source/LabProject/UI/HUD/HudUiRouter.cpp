@@ -28,8 +28,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudUiRouter)
 
-DEFINE_LOG_CATEGORY_STATIC(LogHudUiRouter, Log, All);
-
 void UHudUiRouter::Initialize(APdHUD* InOwnerHud)
 {
 	if (!IsValid(InOwnerHud) || OwnerHud.Get() == InOwnerHud)

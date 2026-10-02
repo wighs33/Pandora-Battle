@@ -83,7 +83,6 @@ void UItemDetailWidget::ApplyLocalizedFont() const
 
 void UItemDetailWidget::SetItem(UItemInstance* InItemInstance, UItemInstance* InCompareItemInstance)
 {
-
 	(void)InCompareItemInstance;
 
 	const FItemViewData ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance, GetLocalization());
@@ -108,7 +107,6 @@ void UItemDetailWidget::SetItemViewData(const FItemViewData& InViewData)
 
 void UItemDetailWidget::SetSkinDefinition(const USkinDefinition* SkinDefinition)
 {
-
 	const FItemViewData ViewData = FItemViewDataBuilder::FromSkinDefinition(SkinDefinition, GetLocalization());
 	SetItemViewData(ViewData);
 	DisplayedSkin = SkinDefinition;

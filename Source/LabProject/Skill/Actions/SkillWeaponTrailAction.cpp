@@ -18,6 +18,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillWeaponTrailAction)
 
+DEFINE_LOG_CATEGORY_STATIC(LogSkillWeaponTrailAction, Log, All);
+
 void USkillWeaponTrailAction::OnStart()
 {
 	const auto* ActorInfo = GetAbility()->GetCurrentActorInfo();
@@ -31,17 +33,16 @@ void USkillWeaponTrailAction::OnStart()
 	USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
-
+		UE_LOG(LogSkillWeaponTrailAction, Warning, TEXT("%s has no source skill definition, so the weapon trail cannot start."),
+			*GetNameSafe(GetAbility()));
 		Finish(false);
 		return;
 	}
-
 
 	const bool bHasTrailSystem = Settings.TrailNiagaraSystem != nullptr;
 	const bool bUsesSlashHitTrace = Settings.bEnableSlashHitTrace;
 	if (!bHasTrailSystem && !bUsesSlashHitTrace)
 	{
-
 		Finish(false);
 		return;
 	}
@@ -51,14 +52,12 @@ void USkillWeaponTrailAction::OnStart()
 	AWeaponBase* CurrentWeapon = Equipment ? Equipment->GetCurrentWeaponActor() : nullptr;
 	if (!CurrentWeapon)
 	{
-
 		Finish(false);
 		return;
 	}
 
 	if (bHasTrailSystem && !CurrentWeapon->HasSkillWeaponTrailComponent())
 	{
-
 		Finish(false);
 		return;
 	}
@@ -100,7 +99,6 @@ void USkillWeaponTrailAction::OnStart()
 
 	if (bHasTrailSystem && !CurrentWeapon->StartSkillWeaponTrail(Settings.TrailNiagaraSystem))
 	{
-
 		if (MeleeWeapon)
 		{
 			MeleeWeapon->ClearSkillSlash();
@@ -134,7 +132,6 @@ void USkillWeaponTrailAction::OnStart()
 		const float Duration = FMath::Max(RequestedDuration, 0.0f);
 		if (Duration <= 0.0f)
 		{
-
 			Finish(true);
 			return false;
 		}
@@ -142,7 +139,6 @@ void USkillWeaponTrailAction::OnStart()
 		TrailDurationTask = UAbilityTask_WaitDelay::WaitDelay(GetAbility(), Duration);
 		if (!TrailDurationTask)
 		{
-
 			Finish(false);
 			return false;
 		}
@@ -217,7 +213,6 @@ void USkillWeaponTrailAction::OnStop()
 
 void USkillWeaponTrailAction::HandleTrailMontageFinished()
 {
-
 	TrailMontageTask = nullptr;
 	if (GetAbility()->HasDurationDeadline() || TrailDurationTask)
 	{
@@ -232,7 +227,6 @@ void USkillWeaponTrailAction::HandleTrailMontageFinished()
 
 void USkillWeaponTrailAction::HandleTrailDurationFinished()
 {
-
 	TrailDurationTask = nullptr;
 	Finish();
 }
@@ -241,7 +235,6 @@ void USkillWeaponTrailAction::HandleTrailAttackTraceStart(FGameplayEventData)
 {
 	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(TrailWeapon.Get()))
 	{
-
 		CurrentWeapon->StartAttackTrace();
 	}
 }
@@ -250,7 +243,6 @@ void USkillWeaponTrailAction::HandleTrailAttackTraceEnd(FGameplayEventData)
 {
 	if (AMeleeWeapon* CurrentWeapon = Cast<AMeleeWeapon>(TrailWeapon.Get()))
 	{
-
 		CurrentWeapon->StopAttackTrace();
 	}
 }

@@ -61,12 +61,10 @@ void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
 
 void UInventoryComponent::RebuildFilteredItemMap()
 {
-
 	Map_Type_ItemList.Reset();
 
 	if (FilterTypeTags.IsEmpty())
 	{
-
 		return;
 	}
 
@@ -74,7 +72,6 @@ void UInventoryComponent::RebuildFilteredItemMap()
 	{
 		FilterItem(ItemInstance);
 	}
-
 }
 
 void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry)
@@ -83,7 +80,6 @@ void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedI
 	// =================================================================================================================
 	if (!Entry.ItemId.IsValid() || !IsValid(Entry.ItemDefinition))
 	{
-
 		return;
 	}
 
@@ -149,13 +145,11 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 	// =================================================================================================================
 	if (!HasInventoryAuthority())
 	{
-
 		return;
 	}
 
 	if (!IsValid(ItemInstance) || !IsValid(ItemInstance->ItemDefinition))
 	{
-
 		return;
 	}
 
@@ -407,7 +401,6 @@ bool UInventoryComponent::SetConsumableQuickSlotItemId(const int32 SlotIndex, co
 		UItemInstance* ItemInstance = FindItemInstanceById(ItemId);
 		if (!IsConsumableItem(ItemInstance))
 		{
-
 			return false;
 		}
 	}

@@ -130,7 +130,6 @@ bool ARewardChest::CanInteract_Implementation(AActor* InteractingActor)
 
 bool ARewardChest::Interact_Implementation(AActor* InteractingActor)
 {
-
 // Reward application is owned by PlayerRewardComponent.
 	return false;
 }
@@ -148,7 +147,6 @@ void ARewardChest::GetRewardItems_Implementation(TArray<FPrimaryAssetId>& OutIte
 	if (ChestState != ERewardChestState::Closed
 		|| (HasAuthority() && !bRewardContentReady))
 	{
-
 		return;
 	}
 
@@ -160,7 +158,6 @@ void ARewardChest::GetRewardItems_Implementation(TArray<FPrimaryAssetId>& OutIte
 	{
 		AppendConfiguredItemPrimaryAssetIds(OutItemDefinitionList);
 	}
-
 }
 
 void ARewardChest::GetRewardSkins_Implementation(TArray<FPrimaryAssetId>& OutSkinDefinitionList)
@@ -169,12 +166,10 @@ void ARewardChest::GetRewardSkins_Implementation(TArray<FPrimaryAssetId>& OutSki
 	if (ChestState != ERewardChestState::Closed
 		|| (HasAuthority() && !bRewardContentReady))
 	{
-
 		return;
 	}
 
 	AppendPrimaryAssetIds(RewardSkins, OutSkinDefinitionList);
-
 }
 
 void ARewardChest::GetRewardPandoras_Implementation(TArray<FPrimaryAssetId>& OutPandoraDefinitionList)
@@ -183,29 +178,25 @@ void ARewardChest::GetRewardPandoras_Implementation(TArray<FPrimaryAssetId>& Out
 	if (ChestState != ERewardChestState::Closed
 		|| (HasAuthority() && !bRewardContentReady))
 	{
-
 		return;
 	}
 
 	AppendPrimaryAssetIds(RewardPandoras, OutPandoraDefinitionList);
-
 }
 
 void ARewardChest::OnRewardsClaimed_Implementation(AActor* RewardReceiver)
 {
-
-MarkOpened(RewardReceiver);
+	MarkOpened(RewardReceiver);
 }
 
 void ARewardChest::MarkOpened(AActor* RewardReceiver)
 {
 	if (!HasAuthority() || ChestState != ERewardChestState::Closed)
 	{
-
 		return;
 	}
 
-PlayCharacterInteractionAnimation(RewardReceiver);
+	PlayCharacterInteractionAnimation(RewardReceiver);
 	SetChestState(ERewardChestState::Opening, RewardReceiver);
 	ScheduleRespawnAfterOpen();
 }
@@ -222,8 +213,7 @@ void ARewardChest::DeactivateForSpawnPool()
 
 void ARewardChest::OnRep_ChestState()
 {
-
-ApplyChestState(nullptr);
+	ApplyChestState(nullptr);
 }
 
 void ARewardChest::HandleChestBeginOverlap(
@@ -279,7 +269,6 @@ void ARewardChest::AppendPrimaryAssetIds(
 		const DefinitionType* LoadedDefinition = SourceDefinition.Get();
 		if (!LoadedDefinition)
 		{
-
 			continue;
 		}
 
@@ -312,7 +301,6 @@ void ARewardChest::AppendRandomItemPrimaryAssetIds(
 			AssetManager.GetPrimaryAssetObject<UItemDefinition>(ItemDefinitionId);
 		if (!ItemDefinition)
 		{
-
 			continue;
 		}
 
@@ -456,7 +444,6 @@ int32 ARewardChest::ResolveRandomRewardItemCount() const
 	const int32 SelectedIndex = SelectWeightedItemIndex(CandidateWeights, TotalChance);
 	if (!CandidateCounts.IsValidIndex(SelectedIndex))
 	{
-
 		return FMath::Max(1, RandomRewardItemCount);
 	}
 
@@ -582,7 +569,6 @@ void ARewardChest::ConfigureChestCollision(const bool bEnableInteraction) const
 {
 	if (!ChestMesh)
 	{
-
 		return;
 	}
 
@@ -597,43 +583,38 @@ void ARewardChest::ConfigureChestCollision(const bool bEnableInteraction) const
 	ChestMesh->SetGenerateOverlapEvents(bEnableInteraction);
 	ChestMesh->SetCanEverAffectNavigation(false);
 	ChestMesh->UpdateOverlaps();
-
 }
 
 void ARewardChest::PlayCharacterInteractionAnimation(AActor* RewardReceiver) const
 {
 	if (!CharacterInteractionMontage)
 	{
-
 		return;
 	}
 
 	APdPlayer* Player = Cast<APdPlayer>(RewardReceiver);
 	if (!Player)
 	{
-
 		return;
 	}
 
-Player->PlayInteractionMontage(CharacterInteractionMontage, CharacterInteractionMontagePlayRate);
+	Player->PlayInteractionMontage(CharacterInteractionMontage, CharacterInteractionMontagePlayRate);
 }
 
 void ARewardChest::SetChestState(const ERewardChestState NewState, AActor* RewardReceiver)
 {
 	if (ChestState == NewState)
 	{
-
 		return;
 	}
 
-ChestState = NewState;
+	ChestState = NewState;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ARewardChest, ChestState, this);
 	ApplyChestState(RewardReceiver);
 }
 
 void ARewardChest::ApplyChestState(AActor* RewardReceiver)
 {
-
 	switch (ChestState)
 	{
 	case ERewardChestState::Closed:
@@ -687,7 +668,6 @@ void ARewardChest::ApplyClosedState()
 	SetInteractionTipVisible(false);
 
 	ConfigureChestCollision(true);
-
 }
 
 void ARewardChest::ApplyOpeningState(AActor* RewardReceiver)
@@ -704,19 +684,16 @@ void ARewardChest::ApplyOpeningState(AActor* RewardReceiver)
 
 	if (ChestMesh && OpenAnimation)
 	{
-
 		ChestMesh->PlayAnimation(OpenAnimation, false);
 	}
 
 	if (OpenEffect)
 	{
-
 		OpenEffect->Activate(true);
 	}
 
 	if (OpenSound)
 	{
-
 		UGameplayStatics::PlaySoundAtLocation(this, OpenSound, GetActorLocation(), OpenSoundVolume);
 	}
 
@@ -754,7 +731,6 @@ void ARewardChest::ApplyHiddenState()
 	{
 		OpenEffect->Deactivate();
 	}
-
 }
 
 void ARewardChest::ScheduleFinishOpening()
@@ -794,7 +770,6 @@ void ARewardChest::FinishOpening()
 {
 	if (!HasAuthority() || ChestState != ERewardChestState::Opening)
 	{
-
 		return;
 	}
 
@@ -835,7 +810,6 @@ void ARewardChest::HideOpenedChest()
 {
 	if (!HasAuthority() || ChestState != ERewardChestState::Opened)
 	{
-
 		return;
 	}
 
@@ -979,7 +953,6 @@ bool ARewardChest::IsOccupyingSpawnLocation(
 
 void ARewardChest::SetInteractionAnchorVisible(const bool bVisible) const
 {
-
 	if (InteractionBillboard)
 	{
 		InteractionBillboard->SetHiddenInGame(!bVisible);

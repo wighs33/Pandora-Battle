@@ -59,7 +59,6 @@ void UEnemyShieldBarWidget::UpdateShieldPercent()
 		ProgressBar->SetPercent(GetShieldPercent());
 		return;
 	}
-
 }
 
 void UEnemyShieldBarWidget::InitializeFromOwner()

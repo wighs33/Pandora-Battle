@@ -68,7 +68,7 @@ void ULobbyTravelCoordinator::PrepareMatchTravel(bool bSuppressMatchTimer)
 		GameMode->CancelPendingGameStart();
 		return;
 	}
-	CacheSelectedGameConfigForTravel(SelectedMapOption, TravelUrl);
+	CacheSelectedMapForTravel(SelectedMapOption);
 	CacheLobbyTravelState(GameMode->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>());
 	if (bSuppressMatchTimer) { TravelUrl += FString::Printf(TEXT("?%s=1"), LabGameSession::NoMatchTimerOption); }
 	PreloadContentAndScheduleTravel(TravelUrl);
@@ -96,8 +96,8 @@ bool ULobbyTravelCoordinator::ResolveSelectedMatchMap(FString& OutTravelMapName,
 	return !OutTravelMapName.IsEmpty();
 }
 
-// 맵 이동 뒤에도 선택 맵·정원·봇 설정을 복구할 수 있도록 GameInstance의 로비 서브시스템에 보관한다.
-void ULobbyTravelCoordinator::CacheSelectedGameConfigForTravel(const FLobbyMatchMapOption& SelectedMapOption, const FString& TravelMapName) const
+// 경기를 마치고 로비로 돌아왔을 때 같은 맵을 다시 고르도록 GameInstance의 로비 서브시스템에 보관한다.
+void ULobbyTravelCoordinator::CacheSelectedMapForTravel(const FLobbyMatchMapOption& SelectedMapOption) const
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
 	ULobbyRuntimeSubsystem* LobbySubsystem =
@@ -107,9 +107,7 @@ void ULobbyTravelCoordinator::CacheSelectedGameConfigForTravel(const FLobbyMatch
 		return;
 	}
 
-	LobbySubsystem->SetLobbyGameConfig(SelectedMapOption.MapKey, TravelMapName, SelectedMapOption.MaxPlayerCount,
-		LobbySubsystem->GetLobbyMaxBotCount());
-
+	LobbySubsystem->SetLobbySelectedMapKey(SelectedMapOption.MapKey);
 }
 
 // 이전 경기에서 남은 캐시를 비운 후, 현재 참가자들의 매치 식별 정보·스킨·판도라 슬롯을 맵 이동용으로 보관한다.

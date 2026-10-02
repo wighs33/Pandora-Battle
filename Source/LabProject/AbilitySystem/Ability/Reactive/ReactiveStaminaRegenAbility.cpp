@@ -28,7 +28,6 @@ void UReactiveStaminaRegenAbility::ActivateAbility(
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (!ASC || !StaminaRegenEffectClass)
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}

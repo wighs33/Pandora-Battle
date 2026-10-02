@@ -53,4 +53,5 @@ private:
 	TSharedPtr<FStreamableHandle> RuntimeContentPreloadHandle;
 	bool bRuntimeContentPreloadPending = false;
 	bool bRuntimeContentReady = false;
+	bool bReportedMissingGameSettingDefinition = false;
 };

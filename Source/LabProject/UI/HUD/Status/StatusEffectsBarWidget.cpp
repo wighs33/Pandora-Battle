@@ -13,53 +13,8 @@
 #include "Engine/StreamableManager.h"
 #include "UI/HUD/Status/StatusEffectWidget.h"
 #include "Definition/UI/WidgetClassDefinition.h"
-#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatusEffectsBarWidget)
-
-namespace
-{
-	bool SetStatusEffectObjectPropertyValue(UObject* Object, const FName PropertyName, UObject* Value)
-	{
-		if (!IsValid(Object))
-		{
-			return false;
-		}
-
-		FObjectPropertyBase* ObjectProperty = FindFProperty<FObjectPropertyBase>(Object->GetClass(), PropertyName);
-		if (!ObjectProperty)
-		{
-			return false;
-		}
-
-		if (Value && ObjectProperty->PropertyClass && !Value->IsA(ObjectProperty->PropertyClass))
-		{
-			return false;
-		}
-
-		ObjectProperty->SetObjectPropertyValue_InContainer(Object, Value);
-		return true;
-	}
-
-	UStatusEffectDefinition* GetStatusEffectDataAssetFromWidget(const UWidget* Widget)
-	{
-		if (!IsValid(Widget))
-		{
-			return nullptr;
-		}
-
-		if (const UStatusEffectWidget* StatusEffectWidget = Cast<UStatusEffectWidget>(Widget))
-		{
-			return StatusEffectWidget->GetEffectDataAsset();
-		}
-
-		const FObjectPropertyBase* ObjectProperty =
-			FindFProperty<FObjectPropertyBase>(Widget->GetClass(), TEXT("EffectDataAsset"));
-		return ObjectProperty
-			? Cast<UStatusEffectDefinition>(ObjectProperty->GetObjectPropertyValue_InContainer(Widget))
-			: nullptr;
-	}
-}
 
 UStatusEffectsBarWidget::UStatusEffectsBarWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -216,7 +171,7 @@ void UStatusEffectsBarWidget::ApplyWidgetDefinitionSettings()
 		if (const TSubclassOf<UStatusEffectWidget> ResolvedStatusEffectWidgetClass =
 			WidgetDefinition->GetStatusEffectWidgetClass())
 		{
-			StatusEffectWidgetClass = TSubclassOf<UUserWidget>(ResolvedStatusEffectWidgetClass.Get());
+			StatusEffectWidgetClass = ResolvedStatusEffectWidgetClass;
 		}
 	}
 }
@@ -228,22 +183,14 @@ void UStatusEffectsBarWidget::TryAddStatusEffectWidget(UStatusEffectDefinition* 
 		return;
 	}
 
-	UUserWidget* StatusEffectWidget = CreateStatusEffectWidget();
+	UStatusEffectWidget* StatusEffectWidget = CreateStatusEffectWidget();
 	if (!StatusEffectWidget)
 	{
 		return;
 	}
 
-	if (UStatusEffectWidget* NativeStatusEffectWidget = Cast<UStatusEffectWidget>(StatusEffectWidget))
-	{
-		NativeStatusEffectWidget->SetOwnerActor(OwnerActor.Get());
-		NativeStatusEffectWidget->SetEffectDataAsset(DataAsset);
-	}
-	else
-	{
-		SetStatusEffectObjectPropertyValue(StatusEffectWidget, TEXT("OwnerActor"), OwnerActor.Get());
-		SetStatusEffectObjectPropertyValue(StatusEffectWidget, TEXT("EffectDataAsset"), DataAsset);
-	}
+	StatusEffectWidget->SetOwnerActor(OwnerActor.Get());
+	StatusEffectWidget->SetEffectDataAsset(DataAsset);
 
 	HorizontalBox->AddChildToHorizontalBox(StatusEffectWidget);
 }
@@ -414,8 +361,8 @@ void UStatusEffectsBarWidget::RefreshStatusEffectWidgets()
 	TMap<const UStatusEffectDefinition*, int32> ExistingWidgetCounts;
 	for (int32 ChildIndex = HorizontalBox->GetChildrenCount() - 1; ChildIndex >= 0; --ChildIndex)
 	{
-		UWidget* ChildWidget = HorizontalBox->GetChildAt(ChildIndex);
-		const UStatusEffectDefinition* ChildDataAsset = GetStatusEffectDataAssetFromWidget(ChildWidget);
+		const UStatusEffectWidget* ChildWidget = Cast<UStatusEffectWidget>(HorizontalBox->GetChildAt(ChildIndex));
+		const UStatusEffectDefinition* ChildDataAsset = ChildWidget ? ChildWidget->GetEffectDataAsset() : nullptr;
 		const int32* DesiredWidgetCount = DesiredWidgetCounts.Find(ChildDataAsset);
 		int32& ExistingWidgetCount = ExistingWidgetCounts.FindOrAdd(ChildDataAsset);
 		if (!DesiredWidgetCount || ExistingWidgetCount >= *DesiredWidgetCount)
@@ -491,7 +438,7 @@ int32 UStatusEffectsBarWidget::GetStatusEffectDisplayCount(
 	return StackCount > 0 ? 1 : 0;
 }
 
-UUserWidget* UStatusEffectsBarWidget::CreateStatusEffectWidget()
+UStatusEffectWidget* UStatusEffectsBarWidget::CreateStatusEffectWidget()
 {
 	ResolveStatusEffectWidgetClass();
 
@@ -502,11 +449,11 @@ UUserWidget* UStatusEffectsBarWidget::CreateStatusEffectWidget()
 
 	if (APlayerController* OwningPlayer = GetOwningPlayer())
 	{
-		return CreateWidget<UUserWidget>(OwningPlayer, StatusEffectWidgetClass);
+		return CreateWidget<UStatusEffectWidget>(OwningPlayer, StatusEffectWidgetClass);
 	}
 
 	UWorld* World = GetWorld();
-	return World ? CreateWidget<UUserWidget>(World, StatusEffectWidgetClass) : nullptr;
+	return World ? CreateWidget<UStatusEffectWidget>(World, StatusEffectWidgetClass) : nullptr;
 }
 
 void UStatusEffectsBarWidget::ResolveStatusEffectWidgetClass()
@@ -518,7 +465,7 @@ void UStatusEffectsBarWidget::ResolveStatusEffectWidgetClass()
 
 	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
 	{
-		StatusEffectWidgetClass = TSubclassOf<UUserWidget>(WidgetDefinition->GetStatusEffectWidgetClass().Get());
+		StatusEffectWidgetClass = WidgetDefinition->GetStatusEffectWidgetClass();
 	}
 }
 

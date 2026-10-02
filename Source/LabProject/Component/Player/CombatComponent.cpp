@@ -417,7 +417,6 @@ bool UCombatComponent::TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter,
 	const ARangedWeaponBase* RangedWeapon = Cast<ARangedWeaponBase>(WeaponActor);
 	if (!RangedWeapon || !RangedWeapon->SupportsAimInput())
 	{
-
 		return true;
 	}
 
@@ -642,7 +641,6 @@ float UCombatComponent::CalculateStrengthAdjustedWeaponDamage(const float Weapon
 
 float UCombatComponent::GetStrengthAdjustedWeaponDamageMagnitude(const float SourceStrength) const
 {
-
 	const bool bHasEquippedWeapon = GetCurrentWeaponActor() != nullptr;
 	const float RawWeaponDamageAmount = bHasEquippedWeapon
 		? GetWeaponDamageSourceMagnitude()
@@ -766,7 +764,6 @@ bool UCombatComponent::GetUnarmedAttackData(FAttackData& OutAttackData) const
 	UAnimMontage* AttackMontage = GetCachedUnarmedAttackMontage();
 	if (!AttackMontage)
 	{
-
 		return false;
 	}
 
@@ -861,7 +858,6 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 	if (UnarmedCombatSettings.AttackTraces.IsEmpty()
 		|| UnarmedCombatSettings.TraceObjectTypes.IsEmpty())
 	{
-
 		return;
 	}
 
@@ -887,7 +883,6 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 		const FUnarmedAttackTraceDefinition& TraceDefinition = UnarmedCombatSettings.AttackTraces[TraceIndex];
 		if (TraceDefinition.StartSocketName.IsNone() || !SourceMesh->DoesSocketExist(TraceDefinition.StartSocketName))
 		{
-
 			continue;
 		}
 
@@ -896,7 +891,6 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 			: TraceDefinition.EndSocketName;
 		if (!SourceMesh->DoesSocketExist(EndSocketName))
 		{
-
 			continue;
 		}
 
@@ -1003,7 +997,6 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 
 			if (!SourceCharacter->CanDamageCharacterByTeam(HitCharacter))
 			{
-
 				continue;
 			}
 

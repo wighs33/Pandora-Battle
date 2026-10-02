@@ -57,7 +57,6 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Type_Press, "Skill.Type.Press", "Marks a press skill whose release behavior is resolved by the active ability input policy.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Policy_RemoveOnDeath, "Effect.Policy.RemoveOnDeath", "Gameplay effect is removed when its owner dies.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Policy_RemoveOnRespawn, "Effect.Policy.RemoveOnRespawn", "Gameplay effect is removed when its owner respawns.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Policy_RemoveOnPandoraReset, "Effect.Policy.RemoveOnPandoraReset", "Legacy asset compatibility only. Pandora selection no longer removes effects.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown, "Cooldown", "Root cooldown tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Dash, "Cooldown.Dash", "Dash cooldown tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Grapple, "Cooldown.Grapple", "Grapple cooldown tag.");

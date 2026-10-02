@@ -31,7 +31,7 @@ void UNotificationEntryWidget::SetNotificationData(const FPdNotificationData& In
 	CachedNotificationData = InNotificationData;
 	bHasRuntimeNotificationData = true;
 
-ApplyNotificationData(InNotificationData, true);
+	ApplyNotificationData(InNotificationData, true);
 }
 
 void UNotificationEntryWidget::ApplyNotificationData(const FPdNotificationData& InNotificationData, bool bNotifyBlueprint)
@@ -62,7 +62,6 @@ void UNotificationEntryWidget::ApplyNotificationData(const FPdNotificationData& 
 
 void UNotificationEntryWidget::PlayNotificationIn()
 {
-
 	if (FadeIn)
 	{
 		PlayAnimation(FadeIn, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
@@ -71,7 +70,6 @@ void UNotificationEntryWidget::PlayNotificationIn()
 
 float UNotificationEntryWidget::PlayNotificationOut()
 {
-
 	if (!FadeIn)
 	{
 		return 0.0f;

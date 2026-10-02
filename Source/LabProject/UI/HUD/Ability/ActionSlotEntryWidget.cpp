@@ -15,7 +15,6 @@
 #include "TimerManager.h"
 #include "UI/Common/InputKeyIconResolver.h"
 #include "Definition/UI/WidgetClassDefinition.h"
-#include "UI/Common/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ActionSlotEntryWidget)
 
@@ -91,22 +90,8 @@ void UActionSlotEntryWidget::SetActionSlotData(
 
 void UActionSlotEntryWidget::RefreshVisual()
 {
-	CacheOptionalWidgets();
 	ApplyActionVisual();
 	ApplyInputKeyIcon();
-}
-
-void UActionSlotEntryWidget::CacheOptionalWidgets()
-{
-
-	if (!ActionActiveFrame)
-	{
-		ActionActiveFrame = PdWidgetLookup::FindWidgetByNames<UWidget>(this, {
-			TEXT("ActionActiveFrame"),
-			TEXT("AbilityActiveFrame"),
-			TEXT("ActiveFrame")
-		});
-	}
 }
 
 void UActionSlotEntryWidget::ApplyWidgetDefinitionSettings()

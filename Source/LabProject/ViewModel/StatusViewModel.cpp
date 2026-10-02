@@ -12,8 +12,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatusViewModel)
 
-DEFINE_LOG_CATEGORY(StatusViewModelLog);
-
 const FName UStatusViewModel::ViewModelName = TEXT("StatusViewModel");
 
 namespace StatusViewModel
@@ -151,7 +149,6 @@ namespace StatusViewModel
 	{
 		return FMath::Max(MaxHealth, 0.f) * FMath::Max(Recovery, 0.f) * 0.01f;
 	}
-
 }
 
 UStatusViewModel::UStatusViewModel()
@@ -165,7 +162,6 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 	UAbilitySystemComponent* InASC = Cast<UAbilitySystemComponent>(SourceObject);
 	if (!InASC)
 	{
-
 		return;
 	}
 
@@ -173,7 +169,6 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 
 	if (ASC.Get() == InASC && IsViewModelInitialized())
 	{
-
 		RefreshEquipmentComponentBinding();
 		UpdateAllData();
 		return;
@@ -256,7 +251,7 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 
 	UpdateAllData();
 
-Super::InitializeViewModel(SourceObject);
+	Super::InitializeViewModel(SourceObject);
 }
 
 void UStatusViewModel::UninitializeViewModel()
@@ -339,7 +334,6 @@ void UStatusViewModel::UpdateLevelingData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
@@ -351,7 +345,6 @@ void UStatusViewModel::UpdateLevelingData()
 	UE_MVVM_SET_PROPERTY_VALUE(CurrentExperience, NewCurrentExperience);
 	UE_MVVM_SET_PROPERTY_VALUE(MaxExperience, NewMaxExperience);
 	UE_MVVM_SET_PROPERTY_VALUE(ExperiencePercent, NewMaxExperience > 0.f ? FMath::Clamp(NewCurrentExperience / NewMaxExperience, 0.f, 1.f) : 0.f);
-
 }
 
 void UStatusViewModel::UpdateOffenseData()
@@ -359,7 +352,6 @@ void UStatusViewModel::UpdateOffenseData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
@@ -373,7 +365,6 @@ void UStatusViewModel::UpdateOffenseData()
 	UE_MVVM_SET_PROPERTY_VALUE(Intelligence, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetIntelligenceAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(Critical, NewCritical);
 	UE_MVVM_SET_PROPERTY_VALUE(FinalCriticalDamage, StatusViewModel::CalculateFinalCriticalDamage(NewFinalStrength, NewCritical));
-
 }
 
 void UStatusViewModel::UpdateDefenseData()
@@ -381,7 +372,6 @@ void UStatusViewModel::UpdateDefenseData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
@@ -398,7 +388,6 @@ void UStatusViewModel::UpdateDefenseData()
 	UE_MVVM_SET_PROPERTY_VALUE(Recovery, NewRecovery);
 	UE_MVVM_SET_PROPERTY_VALUE(FinalRecovery, StatusViewModel::RoundResourceValue(StatusViewModel::CalculateFinalRecovery(NewRecovery, CurrentMaxHealth)));
 	UE_MVVM_SET_PROPERTY_VALUE(MaxShield, StatusViewModel::RoundResourceValue(CurrentMaxShield));
-
 }
 
 void UStatusViewModel::UpdateResistanceData()
@@ -406,14 +395,12 @@ void UStatusViewModel::UpdateResistanceData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
 	UE_MVVM_SET_PROPERTY_VALUE(Frostbite, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetFrostbiteAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(Burn, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetBurnAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(ElectricShock, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetElectricShockAttribute()));
-
 }
 
 void UStatusViewModel::UpdatePandoraForceData()
@@ -421,7 +408,6 @@ void UStatusViewModel::UpdatePandoraForceData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
@@ -431,7 +417,6 @@ void UStatusViewModel::UpdatePandoraForceData()
 		StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetSecondPandoraAttribute())));
 	UE_MVVM_SET_PROPERTY_VALUE(ThirdPandora, StatusViewModel::RoundPercentValue(
 		StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetThirdPandoraAttribute())));
-
 }
 
 void UStatusViewModel::UpdateAgilityData()
@@ -439,14 +424,12 @@ void UStatusViewModel::UpdateAgilityData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
 	UE_MVVM_SET_PROPERTY_VALUE(AttackSpeed, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetAttackSpeedAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(MovementSpeed, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMovementSpeedAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(Arcane, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetArcaneAttribute()));
-
 }
 
 void UStatusViewModel::UpdateInvestmentPointData()
@@ -454,7 +437,6 @@ void UStatusViewModel::UpdateInvestmentPointData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
@@ -464,7 +446,6 @@ void UStatusViewModel::UpdateInvestmentPointData()
 	UE_MVVM_SET_PROPERTY_VALUE(PandoraForcePoint, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetPandoraForcePointAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(ResourcePoint, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetResourcePointAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(AgilityPoint, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetAgilityPointAttribute()));
-
 }
 
 void UStatusViewModel::UpdateStatLevelData()
@@ -472,7 +453,6 @@ void UStatusViewModel::UpdateStatLevelData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
@@ -494,7 +474,6 @@ void UStatusViewModel::UpdateStatLevelData()
 	UE_MVVM_SET_PROPERTY_VALUE(AttackSpeedLevel, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetAttackSpeedLevelAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(MovementSpeedLevel, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMovementSpeedLevelAttribute()));
 	UE_MVVM_SET_PROPERTY_VALUE(ArcaneLevel, StatusViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetArcaneLevelAttribute()));
-
 }
 
 void UStatusViewModel::UpdateEquipmentDerivedData()
@@ -617,7 +596,6 @@ void UStatusViewModel::UpdateHealthData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
@@ -628,7 +606,6 @@ void UStatusViewModel::UpdateHealthData()
 	UE_MVVM_SET_PROPERTY_VALUE(MaxHealth, StatusViewModel::RoundResourceValue(CurrentMaxHealth));
 	UE_MVVM_SET_PROPERTY_VALUE(HealthPercent, CurrentMaxHealth > 0.f ? CurrentHealth / CurrentMaxHealth : 0.f);
 	UE_MVVM_SET_PROPERTY_VALUE(FinalRecovery, StatusViewModel::RoundResourceValue(StatusViewModel::CalculateFinalRecovery(Recovery, CurrentMaxHealth)));
-
 }
 
 /** Shield related values. */
@@ -637,7 +614,6 @@ void UStatusViewModel::UpdateShieldData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
@@ -647,7 +623,6 @@ void UStatusViewModel::UpdateShieldData()
 	UE_MVVM_SET_PROPERTY_VALUE(Shield, StatusViewModel::RoundResourceValue(CurrentShield));
 	UE_MVVM_SET_PROPERTY_VALUE(MaxShield, StatusViewModel::RoundResourceValue(CurrentMaxShield));
 	UE_MVVM_SET_PROPERTY_VALUE(ShieldPercent, CurrentMaxShield > 0.f ? CurrentShield / CurrentMaxShield : 0.f);
-
 }
 
 void UStatusViewModel::UpdateManaData()
@@ -655,7 +630,6 @@ void UStatusViewModel::UpdateManaData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
@@ -665,7 +639,6 @@ void UStatusViewModel::UpdateManaData()
 	UE_MVVM_SET_PROPERTY_VALUE(Mana, StatusViewModel::RoundResourceValue(CurrentMana));
 	UE_MVVM_SET_PROPERTY_VALUE(MaxMana, StatusViewModel::RoundResourceValue(CurrentMaxMana));
 	UE_MVVM_SET_PROPERTY_VALUE(ManaPercent, CurrentMaxMana > 0.f ? CurrentMana / CurrentMaxMana : 0.f);
-
 }
 
 void UStatusViewModel::UpdateStaminaData()
@@ -673,7 +646,6 @@ void UStatusViewModel::UpdateStaminaData()
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
-
 		return;
 	}
 
@@ -683,12 +655,10 @@ void UStatusViewModel::UpdateStaminaData()
 	UE_MVVM_SET_PROPERTY_VALUE(Stamina, StatusViewModel::RoundResourceValue(CurrentStamina));
 	UE_MVVM_SET_PROPERTY_VALUE(MaxStamina, StatusViewModel::RoundResourceValue(CurrentMaxStamina));
 	UE_MVVM_SET_PROPERTY_VALUE(StaminaPercent, CurrentMaxStamina > 0.f ? CurrentStamina / CurrentMaxStamina : 0.f);
-
 }
 
 void UStatusViewModel::UpdateAllData()
 {
-
 	UpdateLevelingData();
 	UpdateOffenseData();
 	UpdateDefenseData();
@@ -706,62 +676,52 @@ void UStatusViewModel::UpdateAllData()
 
 void UStatusViewModel::OnLevelingChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateLevelingData();
 }
 
 void UStatusViewModel::OnOffenseChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateOffenseData();
 	UpdateDefenseData();
 }
 
 void UStatusViewModel::OnDefenseChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateDefenseData();
 }
 
 void UStatusViewModel::OnResistanceChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateResistanceData();
 }
 
 void UStatusViewModel::OnPandoraForceChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdatePandoraForceData();
 }
 
 void UStatusViewModel::OnAgilityChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateAgilityData();
 }
 
 void UStatusViewModel::OnInvestmentPointChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateInvestmentPointData();
 }
 
 void UStatusViewModel::OnStatLevelChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateStatLevelData();
 }
 
 void UStatusViewModel::OnHealthChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateHealthData();
 }
 
 void UStatusViewModel::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateHealthData();
 	UpdateEquipmentDerivedData();
 }
@@ -769,46 +729,39 @@ void UStatusViewModel::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 /** Shield changed. */
 void UStatusViewModel::OnShieldChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateShieldData();
 }
 
 void UStatusViewModel::OnMaxShieldChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateShieldData();
 	UpdateEquipmentDerivedData();
 }
 
 void UStatusViewModel::OnManaChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateManaData();
 }
 
 void UStatusViewModel::OnMaxManaChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateManaData();
 	UpdateEquipmentDerivedData();
 }
 
 void UStatusViewModel::OnStaminaChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateStaminaData();
 }
 
 void UStatusViewModel::OnMaxStaminaChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateStaminaData();
 	UpdateEquipmentDerivedData();
 }
 
 void UStatusViewModel::OnResourceIncreasePercentChanged(const FOnAttributeChangeData& Data)
 {
-
 	UpdateEquipmentDerivedData();
 	UpdateHealthData();
 	UpdateShieldData();

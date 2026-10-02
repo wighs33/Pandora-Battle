@@ -24,7 +24,6 @@ void USkillShieldAction::OnStart()
 
 	if (!ResolvedShieldMontage)
 	{
-
 		ApplyShieldFromMontageTrigger();
 		if (IsRunning())
 		{
@@ -73,14 +72,12 @@ void USkillShieldAction::StartWaitMontageTriggerTask()
 	const FGameplayTag ResolvedMontageTriggerEventTag = GetResolvedMontageTriggerEventTag();
 	if (!ResolvedMontageTriggerEventTag.IsValid())
 	{
-
 		return;
 	}
 
 	WaitMontageTriggerTask = GetAbility()->CreateWaitGameplayEventTask(ResolvedMontageTriggerEventTag);
 	if (!WaitMontageTriggerTask)
 	{
-
 		return;
 	}
 
@@ -94,7 +91,6 @@ bool USkillShieldAction::StartShieldMontageTask()
 	ShieldMontageTask = GetAbility()->CreateDefaultMontageAndWaitTask(ResolvedShieldMontage);
 	if (!ShieldMontageTask)
 	{
-
 		return false;
 	}
 
@@ -122,7 +118,6 @@ void USkillShieldAction::ApplyShieldFromMontageTrigger()
 
 	if (!GetAbility()->CommitSkill())
 	{
-
 		Finish();
 		return;
 	}
@@ -165,6 +160,5 @@ void USkillShieldAction::HandleShieldMontageFinished()
 
 void USkillShieldAction::HandleMontageTriggerEvent(FGameplayEventData Payload)
 {
-
-ApplyShieldFromMontageTrigger();
+	ApplyShieldFromMontageTrigger();
 }

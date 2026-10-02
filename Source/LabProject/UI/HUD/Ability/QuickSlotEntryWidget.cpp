@@ -47,7 +47,6 @@ void UQuickSlotEntryWidget::SetGestureSlotData(const int32 InSlotIndex, const US
 
 void UQuickSlotEntryWidget::RefreshVisual()
 {
-
 	ApplyItemVisual();
 	ApplyInputKeyIcon();
 }

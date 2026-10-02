@@ -106,7 +106,6 @@ EDataValidationResult UGameFeatureAction_AddAttributes::IsDataValid(FDataValidat
 		}
 	}
 
-
 	return Result;
 }
 #endif
@@ -234,7 +233,6 @@ void UGameFeatureAction_AddAttributes::AddAttributesToActor(AActor* Actor, FGame
 		return;
 	}
 	AddAttributeSetsToActor(Actor, AbilitySystemComponent, Handles);
-
 }
 
 void UGameFeatureAction_AddAttributes::RemoveAttributesFromActor(AActor* Actor, FGameFeatureAttributeHandles& Handles) const
@@ -243,7 +241,6 @@ void UGameFeatureAction_AddAttributes::RemoveAttributesFromActor(AActor* Actor, 
 	{
 		return;
 	}
-
 
 	TArray<TWeakObjectPtr<UAttributeSet>> AttributeSets;
 	if (!Handles.AttributeSets.RemoveAndCopyValue(Actor, AttributeSets))
@@ -322,8 +319,6 @@ void UGameFeatureAction_AddAttributes::AddAttributeSetsToActor(AActor* Actor, UP
 			ActorAttributeSets.Add(AttributeSet);
 		}
 	}
-
-
 }
 
 void UGameFeatureAction_AddAttributes::CollectTargetClasses(TArray<TSubclassOf<AActor>>& OutTargetClasses) const

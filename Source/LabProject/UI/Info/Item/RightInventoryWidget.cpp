@@ -119,7 +119,6 @@ void URightInventoryWidget::SelectTypeFilter(FGameplayTag TypeTag)
 
 void URightInventoryWidget::ToggleActiveFiliterButtons(bool bActive)
 {
-
 	for (UButton* Button : FilterButtonList)
 	{
 		if (Button)
@@ -182,12 +181,11 @@ void URightInventoryWidget::SetInventorySlotCount(const int32 InInventorySlotCou
 		return;
 	}
 
-InventorySlotCount = NewInventorySlotCount;
+	InventorySlotCount = NewInventorySlotCount;
 }
 
 void URightInventoryWidget::BroadcastDroppedInventorySlot(const int32 SourceSlotIndex, const int32 TargetSlotIndex, UItemInstance* SourceItem)
 {
-
 	OnDropped_InventorySlot.Broadcast(SourceSlotIndex, TargetSlotIndex, SourceItem);
 }
 
@@ -241,14 +239,12 @@ void URightInventoryWidget::RebuildFilterButtonList()
 	FilterButtonList.Add(EquipmentButton);
 	FilterButtonList.Add(ConsumableButton);
 	FilterButtonList.Add(ValuableButton);
-
 }
 
 void URightInventoryWidget::RebuildTileViewFromCachedSourceItems()
 {
 	if (!TileView)
 	{
-
 		return;
 	}
 
@@ -329,7 +325,6 @@ void URightInventoryWidget::RebuildTileViewFromCachedSourceItems()
 		CachedSlotViewData.Add(SlotViewData);
 		TileView->AddItem(SlotViewData);
 	}
-
 }
 
 void URightInventoryWidget::UpdateCombineMessage(const bool bHasCombinableItems) const

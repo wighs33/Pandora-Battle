@@ -105,7 +105,6 @@ private:
 	void UnbindPandoraComponentEvents();
 	void BindButtonEvents();
 	void UnbindButtonEvents();
-	void ResolveControlWidgets();
 	UPandoraWidgetViewModel* GetOrCreatePandoraWidgetViewModel();
 	void ApplyPandoraWidgetViewModelToMvvmView();
 	void ApplyDesignerDefaults();

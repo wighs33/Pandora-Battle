@@ -78,7 +78,6 @@ namespace
 			CameraComponent->SetConstraintAspectRatio(false);
 			CameraComponent->bOverrideAspectRatioAxisConstraint = false;
 		}
-
 	}
 }
 
@@ -221,7 +220,6 @@ void UPandoraTreeWidget::SetPandoraPointsText()
 
 	if (!PandoraTreeComponent)
 	{
-
 		ViewModel->SetPointsAvailable(0);
 		ViewModel->SetPandoraPointsText(FText::GetEmpty());
 		return;
@@ -262,7 +260,6 @@ void UPandoraTreeWidget::ShowPandoraTree()
 		if (SlideInLeft) PlayAnimation(SlideInLeft, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
 		SpawnCharacterPreview();
 	}
-
 }
 
 void UPandoraTreeWidget::HidePandoraTree()
@@ -308,7 +305,6 @@ void UPandoraTreeWidget::PrepareToHidePandoraTree()
 	{
 		ReturnCameraToPawn(PreviewCameraHideBlendTime);
 	}
-
 }
 
 void UPandoraTreeWidget::ResetPandora()
@@ -512,7 +508,6 @@ void UPandoraTreeWidget::ResolvePandoraTreeComponent()
 	{
 		PandoraDefinition = FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(PandoraTreeComponent);
 	}
-
 }
 
 void UPandoraTreeWidget::ApplyWidgetDefinitionSettings()
@@ -589,7 +584,6 @@ void UPandoraTreeWidget::ApplyPandoraTreeViewModelToMvvmView()
 
 	if (RuntimeViewModelName.IsNone())
 	{
-
 		return;
 	}
 
@@ -609,7 +603,6 @@ void UPandoraTreeWidget::BindPandoraTreeEvents()
 
 void UPandoraTreeWidget::BindButtonEvents()
 {
-
 	if (ResetPandoraButton)
 	{
 		ResetPandoraButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleResetPandoraClicked);
@@ -662,7 +655,6 @@ void UPandoraTreeWidget::RefreshPandoraWidget(UWidget* Widget)
 
 		return;
 	}
-
 }
 
 void UPandoraTreeWidget::BindPandoraWidgetEvents(UPandoraWidget* PandoraWidget)

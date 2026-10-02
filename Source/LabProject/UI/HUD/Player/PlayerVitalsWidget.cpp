@@ -216,7 +216,6 @@ void UPlayerVitalsWidget::HandleMaxStaminaChanged(const FOnAttributeChangeData& 
 	RefreshStaminaFillTint();
 }
 
-
 void UPlayerVitalsWidget::OnMenuLanguageChanged()
 {
 	RefreshResourceReadouts();

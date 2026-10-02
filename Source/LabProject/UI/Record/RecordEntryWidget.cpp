@@ -25,7 +25,6 @@ void URecordEntryWidget::SetRecord(const int32 InDisplayNumber, const FMatchReco
 
 void URecordEntryWidget::RefreshUI()
 {
-
 	if (!bHasRecord)
 	{
 		return;

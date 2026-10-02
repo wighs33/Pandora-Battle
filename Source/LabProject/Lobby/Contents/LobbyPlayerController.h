@@ -31,12 +31,6 @@ public:
 	void Server_HandleKickPlayer(APdPlayerState* TargetPlayerState);
 
 	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")
-	void Client_StartGameCountdown(float DelaySeconds);
-
-	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")
-	void Client_CancelGameStartCountdown();
-
-	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")
 	void Client_ShowGameStartConnectingPopup();
 
 	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")

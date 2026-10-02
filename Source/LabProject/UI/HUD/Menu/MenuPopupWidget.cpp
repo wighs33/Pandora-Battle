@@ -164,7 +164,6 @@ void UMenuPopupWidget::ExitToTitleMap()
 		&& OnlineSessionsSubsystem->HasNamedSession();
 	if (bNeedsSessionDestroy)
 	{
-
 		ClearDestroySessionDelegate();
 		DestroySessionCompleteHandle = OnlineSessionsSubsystem->OnDestroySessionComplete.AddUObject(
 			this,
@@ -183,7 +182,6 @@ void UMenuPopupWidget::HandleResumeClicked()
 
 void UMenuPopupWidget::HandleExitClicked()
 {
-
 	ExitToTitleMap();
 }
 
@@ -331,7 +329,6 @@ void UMenuPopupWidget::SetRequestedPause(const bool bPaused)
 
 	if (!bAllowNetworkPause && World->GetNetMode() != NM_Standalone)
 	{
-
 		return;
 	}
 
@@ -351,7 +348,6 @@ void UMenuPopupWidget::TravelToTitleMap()
 	const FString TitleMapName = GetResolvedTitleTravelMapName();
 	if (TitleMapName.IsEmpty())
 	{
-
 		return;
 	}
 
@@ -383,8 +379,7 @@ void UMenuPopupWidget::ClearDestroySessionDelegate()
 
 void UMenuPopupWidget::HandleDestroySessionForExit(const bool bWasSuccessful)
 {
-
-ClearDestroySessionDelegate();
+	ClearDestroySessionDelegate();
 	TravelToTitleMap();
 }
 

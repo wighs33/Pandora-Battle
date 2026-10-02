@@ -51,5 +51,4 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="UI|Settings")
 	TObjectPtr<UButton> Btn_GameSettings;
-
 };

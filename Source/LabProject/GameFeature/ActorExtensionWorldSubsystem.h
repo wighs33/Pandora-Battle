@@ -24,7 +24,6 @@ struct FActorExtensionSpec
 
 class LABPROJECT_API FActorExtensionHandle
 {
-
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	FActorExtensionHandle(UActorExtensionWorldSubsystem* InSubsystem, int32 InExtensionId);

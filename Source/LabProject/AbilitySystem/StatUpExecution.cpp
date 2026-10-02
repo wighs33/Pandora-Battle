@@ -11,7 +11,6 @@ EGameplayModOp::Type UStatUpExecution::ResolveOperation(const FGameplayEffectSpe
 	// =================================================================================================================
 	if (!OperationSetByCallerTag.IsValid())
 	{
-
 		return EGameplayModOp::Additive;
 	}
 
@@ -20,7 +19,6 @@ EGameplayModOp::Type UStatUpExecution::ResolveOperation(const FGameplayEffectSpe
 	const float* OperationValue = Spec.SetByCallerTagMagnitudes.Find(OperationSetByCallerTag);
 	if (!OperationValue)
 	{
-
 		return EGameplayModOp::Additive;
 	}
 
@@ -38,7 +36,6 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	const UPdAbilitySystemComponent* TargetASC = Cast<UPdAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
 	if (!TargetASC)
 	{
-
 		return;
 	}
 
@@ -47,7 +44,6 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	const FGameplayTag OperationSetByCallerTag = UProjectTagDefinition::GetDefaultDefinition()->GetSetByCallerStatUpOperationTag();
 	if (!OperationSetByCallerTag.IsValid())
 	{
-
 		return;
 	}
 
@@ -62,13 +58,11 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	{
 		if (SetByCallerPair.Key.MatchesTagExact(OperationSetByCallerTag))
 		{
-
 			continue;
 		}
 
 		if (!SetByCallerPair.Key.IsValid() || FMath::IsNearlyZero(SetByCallerPair.Value))
 		{
-
 			continue;
 		}
 
@@ -77,13 +71,11 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		FGameplayAttribute Attribute;
 		if (!UBasicAttributeSet::ResolveAttributeFromStatTag(SetByCallerPair.Key, Attribute))
 		{
-
 			continue;
 		}
 
 		// =============================================================================================================
 
 		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(Attribute, ModifierOp, SetByCallerPair.Value));
-
 	}
 }

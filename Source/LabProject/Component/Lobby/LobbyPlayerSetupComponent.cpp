@@ -57,12 +57,7 @@ InitializeLobbyPlayerState(
 	}
 
 	AssignLobbySpawnIndexIfNeeded(LobbyPlayerState);
-
 }
-
-
-
-
 
 ALobbyGameMode*
 ULobbyPlayerSetupComponent::GetLobbyGameMode() const

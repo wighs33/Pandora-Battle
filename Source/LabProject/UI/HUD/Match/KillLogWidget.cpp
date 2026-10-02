@@ -1,41 +1,15 @@
 #include "UI/HUD/Match/KillLogWidget.h"
 
-#include "Components/PanelWidget.h"
+#include "Components/VerticalBox.h"
 #include "TimerManager.h"
-#include "UI/Common/WidgetLookup.h"
 #include "UI/HUD/Match/KillLogEntryWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KillLogWidget)
 
-UKillLogWidget::UKillLogWidget(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	KillLogContainerCandidateNames =
-	{
-		TEXT("VerticalBox_KillLogs"),
-		TEXT("KillLogContainer"),
-		TEXT("VB_KillLogs")
-	};
-}
-
-void UKillLogWidget::NativeConstruct()
-{
-	Super::NativeConstruct();
-	FindKillLogContainer();
-}
-
 void UKillLogWidget::AddKillLogEntry(const FKillLogEntry& KillLogEntry)
 {
-	UPanelWidget* Container = FindKillLogContainer();
-	if (!Container)
+	if (!VerticalBox_KillLogs || !KillLogEntryWidgetClass)
 	{
-
-		return;
-	}
-
-	if (!KillLogEntryWidgetClass)
-	{
-
 		return;
 	}
 
@@ -48,12 +22,12 @@ void UKillLogWidget::AddKillLogEntry(const FKillLogEntry& KillLogEntry)
 	EntryWidget->SetInfo(KillLogEntry);
 	if (bNewestEntryOnTop)
 	{
-		Container->InsertChildAt(0, EntryWidget);
+		VerticalBox_KillLogs->InsertChildAt(0, EntryWidget);
 		ActiveEntries.Insert(EntryWidget, 0);
 	}
 	else
 	{
-		Container->AddChild(EntryWidget);
+		VerticalBox_KillLogs->AddChild(EntryWidget);
 		ActiveEntries.Add(EntryWidget);
 	}
 
@@ -74,30 +48,6 @@ void UKillLogWidget::AddKillLogEntry(const FKillLogEntry& KillLogEntry)
 		FTimerHandle TimerHandle;
 		GetWorld()->GetTimerManager().SetTimer(TimerHandle, RemoveDelegate, EntryLifetime, false);
 	}
-}
-
-UPanelWidget* UKillLogWidget::FindKillLogContainer()
-{
-	if (KillLogContainer)
-	{
-		return KillLogContainer;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UPanelWidget* FoundContainer =
-		PdWidgetLookup::FindWidgetByNames<UPanelWidget>(WidgetTree, KillLogContainerCandidateNames))
-	{
-		KillLogContainer = FoundContainer;
-		return FoundContainer;
-	}
-
-	UPanelWidget* FirstPanelWidget = PdWidgetLookup::FindFirstWidgetOfType<UPanelWidget>(WidgetTree);
-	KillLogContainer = FirstPanelWidget;
-	return FirstPanelWidget;
 }
 
 void UKillLogWidget::RemoveKillLogEntry(UKillLogEntryWidget* EntryWidget)

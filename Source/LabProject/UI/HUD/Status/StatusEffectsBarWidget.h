@@ -13,7 +13,7 @@ class UAbilitySystemComponent;
 class UHorizontalBox;
 class UStatusEffectDefinition;
 class UStatusEffectReplicationComponent;
-class UUserWidget;
+class UStatusEffectWidget;
 struct FStreamableHandle;
 
 UCLASS(Blueprintable, BlueprintType)
@@ -53,7 +53,7 @@ private:
 	void ScheduleStatusEffectWidgetRefresh();
 	void UnbindStatusEffectTagDelegates();
 	int32 GetStatusEffectDisplayCount(const UStatusEffectDefinition* DataAsset) const;
-	UUserWidget* CreateStatusEffectWidget();
+	UStatusEffectWidget* CreateStatusEffectWidget();
 	void ResolveStatusEffectWidgetClass();
 	UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
 	void GatherObservedStatusEffectDataAssets(TArray<UStatusEffectDefinition*>& OutDataAssets);
@@ -69,7 +69,7 @@ protected:
 	TObjectPtr<AActor> OwnerActor;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|StatusEffect")
-	TSubclassOf<UUserWidget> StatusEffectWidgetClass;
+	TSubclassOf<UStatusEffectWidget> StatusEffectWidgetClass;
 
 private:
 	UPROPERTY(Transient)

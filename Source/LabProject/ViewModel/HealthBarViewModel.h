@@ -7,8 +7,6 @@
 class UAbilitySystemComponent;
 struct FOnAttributeChangeData;
 
-DECLARE_LOG_CATEGORY_EXTERN(HealthBarViewModelLog, Log, All);
-
 UCLASS(BlueprintType)
 class LABPROJECT_API UHealthBarViewModel : public UCommonViewModelBase
 {

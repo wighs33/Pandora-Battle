@@ -86,7 +86,6 @@ UDecalComponent* AAOEIndicatorGameplayCue::SpawnDecalFromParameters(
 
 	if (!ResolvedDecalMaterial)
 	{
-
 		return nullptr;
 	}
 
@@ -110,7 +109,6 @@ UDecalComponent* AAOEIndicatorGameplayCue::SpawnDecalFromParameters(
 
 	if (!NewDecalComponent)
 	{
-
 		return nullptr;
 	}
 

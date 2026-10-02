@@ -14,14 +14,12 @@ void UAnimNotify_CommitRequestedEquip::Notify(USkeletalMeshComponent* MeshComp, 
 	// =================================================================================================================
 	if (!IsValid(MeshComp))
 	{
-
 		return;
 	}
 
 	AActor* OwnerActor = MeshComp->GetOwner();
 	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority())
 	{
-
 		return;
 	}
 
@@ -39,7 +37,6 @@ void UAnimNotify_CommitRequestedEquip::Notify(USkeletalMeshComponent* MeshComp, 
 
 			FGameplayEventData Payload;
 			UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(OwnerActor, EventTag, Payload);
-
 		}
 	}
 }

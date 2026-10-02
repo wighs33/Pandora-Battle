@@ -132,7 +132,6 @@ void UCreateRoomPopupWidget::HandleCreateClicked()
 		{
 			CreateButton->SetIsEnabled(true);
 		}
-
 	}
 }
 
@@ -175,7 +174,6 @@ void UCreateRoomPopupWidget::HandleCreateSessionComplete(
 	{
 		CreateButton->SetIsEnabled(true);
 	}
-
 }
 
 void UCreateRoomPopupWidget::OpenLobbyAsListenServer() const
@@ -183,7 +181,6 @@ void UCreateRoomPopupWidget::OpenLobbyAsListenServer() const
 	const FString LobbyMapName = GetResolvedLobbyTravelMapName();
 	if (LobbyMapName.IsEmpty())
 	{
-
 		return;
 	}
 

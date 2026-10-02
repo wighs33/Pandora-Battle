@@ -106,7 +106,6 @@ void UEquipAbility::FinalizeEquipCommit()
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!HasAuthority(&CurrentActivationInfo))
 	{
-
 		return;
 	}
 
@@ -115,7 +114,6 @@ void UEquipAbility::FinalizeEquipCommit()
 	if (Character && PendingEquipAnimLayer)
 	{
 		Character->SetCurrentAnimLayer(PendingEquipAnimLayer);
-
 	}
 }
 
@@ -130,7 +128,6 @@ bool UEquipAbility::CommitPendingEquipIfPossible()
 	UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
 	if (!EquipmentComponent)
 	{
-
 		return false;
 	}
 
@@ -175,7 +172,6 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!ensure(Character))
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -183,7 +179,6 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	UEquipmentComponent* EquipmentComponent = Character->GetEquipmentComponent();
 	if (!ensure(EquipmentComponent))
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -212,7 +207,6 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 
 	if (!ensure(CommitAbility(Handle, ActorInfo, ActivationInfo)))
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
@@ -252,7 +246,6 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 		{
 			CommitEventTask->EventReceived.AddDynamic(this, &UEquipAbility::OnEquipCommitTiming);
 			CommitEventTask->ReadyForActivation();
-
 		}
 	}
 
@@ -270,7 +263,6 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 		false);
 	if (!ensure(MontageTask))
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -288,7 +280,6 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	if (EquipEffectClass)
 	{
 		ApplyGameplayEffect(EquipEffectClass, 1.f, 1);
-
 	}
 
 	// =================================================================================================================

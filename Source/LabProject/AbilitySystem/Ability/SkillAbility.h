@@ -139,7 +139,6 @@ public:
 	using UGameplayAbility::MakeTargetLocationInfoFromOwnerActor;
 	using UGameplayAbility::MakeTargetLocationInfoFromOwnerSkeletalMeshComponent;
 
-
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	virtual void OnAbilityEnding() override;

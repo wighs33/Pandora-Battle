@@ -101,7 +101,6 @@ void CancelSkillsConfiguredToCancelOnHit(UAbilitySystemComponent* AbilitySystemC
 		}
 
 		HandlesToCancel.AddUnique(AbilitySpec.Handle);
-
 	}
 
 	for (const FGameplayAbilitySpecHandle& AbilityHandle : HandlesToCancel)
@@ -180,7 +179,6 @@ void UHitReactAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, 
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!ensure(Character))
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -311,14 +309,12 @@ void UHitReactAbility::StartHitReactMontage(
 
 	if (!ensure(CommitAbility(Handle, ActorInfo, ActivationInfo)))
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
 	if (!StartSectionName.IsNone() && Montage->GetSectionIndex(StartSectionName) == INDEX_NONE)
 	{
-
 		StartSectionName = NAME_None;
 	}
 
@@ -356,5 +352,4 @@ void UHitReactAbility::StartHitReactMontage(
 		CueParameters.EffectCauser = Character;
 		K2_ExecuteGameplayCueWithParams(HitReactCueTag, CueParameters);
 	}
-
 }

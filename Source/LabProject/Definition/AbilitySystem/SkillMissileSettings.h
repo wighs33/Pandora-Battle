@@ -70,5 +70,4 @@ struct LABPROJECT_API FMissileSkillConfig
 	/** 미사일 목표 위치를 중심으로 피해를 적용할 반경(cm). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Missile|Damage Over Time", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	double DamageRadius = 256.0;
-
 };

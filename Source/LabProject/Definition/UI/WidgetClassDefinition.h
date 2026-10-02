@@ -187,7 +187,6 @@ struct LABPROJECT_API FInfoWidgetSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|InfoWidget|Detail")
 	FVector2D DetailPopupOffset = FVector2D(18.0f, 0.0f);
-
 };
 
 USTRUCT(BlueprintType)

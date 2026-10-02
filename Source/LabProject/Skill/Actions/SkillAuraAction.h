@@ -36,20 +36,20 @@ private:
 	void StartAuraEffectAreaSpawning(USkillDefinition* SkillDataAsset);
 	void StopAuraEffectAreaSpawning();
 	ACharacterBase* ResolveAuraSourceCharacter() const;
-	void SpawnAuraEffectArea(const USkillDefinition* SkillDataAsset, const TCHAR* SpawnReason);
+	void SpawnAuraEffectArea(const USkillDefinition* SkillDataAsset);
 	void ApplyMovementSpeedIncrease(const USkillDefinition* SkillDataAsset);
 	void RemoveMovementSpeedIncrease();
 	void StartHealFieldTeamHealing(USkillDefinition* SkillDataAsset);
 	void StopHealFieldTeamHealing();
-	void ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataAsset, const TCHAR* HealReason);
+	void ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataAsset);
 	UPrimitiveComponent* FindInteractionHealComponent(ACharacterBase* Character, FName ComponentName) const;
 	float ResolveHealFieldRadius(ACharacterBase* SourceCharacter, const USkillDefinition* SkillDataAsset) const;
 	FVector ResolveHealFieldOrigin(ACharacterBase* SourceCharacter) const;
 	bool IsCharacterInsideActiveHealField(const ACharacterBase* Character) const;
 	bool ShouldHealInteractionTarget(const ACharacterBase* SourceCharacter, const ACharacterBase* TargetCharacter, const USkillDefinition* SkillDataAsset) const;
-	FActiveGameplayEffectHandle ApplyTeamHealEffectToTarget(ACharacterBase* SourceCharacter, ACharacterBase* TargetCharacter, const USkillDefinition* SkillDataAsset, const TCHAR* HealReason) const;
-	void RemoveInteractionHealEffectFromTarget(ACharacterBase* TargetCharacter, FActiveGameplayEffectHandle ActiveHandle, const TCHAR* RemoveReason) const;
-	void ClearInteractionHealEffects(const TCHAR* RemoveReason);
+	FActiveGameplayEffectHandle ApplyTeamHealEffectToTarget(ACharacterBase* SourceCharacter, ACharacterBase* TargetCharacter, const USkillDefinition* SkillDataAsset) const;
+	void RemoveInteractionHealEffectFromTarget(ACharacterBase* TargetCharacter, FActiveGameplayEffectHandle ActiveHandle) const;
+	void ClearInteractionHealEffects();
 
 public:
 	/** 실행 중 장판 생성, 이동 속도 보정과 아군 회복을 관리한다. */

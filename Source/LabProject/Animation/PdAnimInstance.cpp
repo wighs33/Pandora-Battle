@@ -9,8 +9,6 @@
 #include "Weapon/WeaponBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdAnimInstance)
 
-DEFINE_LOG_CATEGORY(CommonAnimInstanceLog);
-
 void UPdAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();

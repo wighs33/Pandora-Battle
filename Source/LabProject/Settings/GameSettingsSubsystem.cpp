@@ -100,6 +100,11 @@ UGameSettingDefinition* UGameSettingsSubsystem::GetGameSettingDefinition()
 		return CachedGameSettingDefinition;
 	}
 
+	// 설정 애셋을 동기 로드로도 찾지 못한 경우다. 클래스 기본값으로 계속 동작하되 설정 누락을 한 번 알린다.
+	UE_CLOG(!bReportedMissingGameSettingDefinition, LogGameSettingsSubsystem, Warning,
+		TEXT("Game setting definition %s could not be loaded, so class defaults are used."),
+		*GameSettingDefinition.ToString());
+	bReportedMissingGameSettingDefinition = true;
 	PreloadRuntimeContentAsync();
 	return GetMutableDefault<UGameSettingDefinition>();
 }
@@ -190,7 +195,6 @@ void UGameSettingsSubsystem::HandleDefinitionPreloadComplete()
 		FinishRuntimeContentPreload(false);
 		return;
 	}
-
 
 	TArray<FSoftObjectPath> RuntimeAssetPaths;
 	CachedGameSettingDefinition->GetRuntimePreloadAssetPaths(RuntimeAssetPaths);

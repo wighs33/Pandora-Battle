@@ -53,7 +53,6 @@ void ULeftEquipmentWidget::NativeConstruct()
 	const FGameplayTag WeaponEquipTypeTag = ResolveEquipTypeTagForSlot(Weapon1);
 	const FGameplayTag ConsumableEquipTypeTag = ResolveEquipTypeTagForSlot(QuickSlot1);
 	const FGameplayTag ValuableEquipTypeTag = ResolveEquipTypeTagForSlot(ToolSlot1);
-
 }
 
 void ULeftEquipmentWidget::NativeDestruct()
@@ -77,7 +76,6 @@ void ULeftEquipmentWidget::InitialzeEquipSlots()
 	}
 	SelectedEquipSlot = nullptr;
 	bIsSelectedAnyButton = false;
-
 }
 
 void ULeftEquipmentWidget::ToggleActiveEquipSlots(bool bActive)
@@ -102,7 +100,7 @@ void ULeftEquipmentWidget::SelectEquipSlot(FGameplayTag EquipTypeTag, UEquipSlot
 
 	SelectedEquipSlot = InSelectedEquipSlot;
 
-BroadcastClickedEquipTypeSlot(EquipTypeTag, SelectedEquipSlot, false);
+	BroadcastClickedEquipTypeSlot(EquipTypeTag, SelectedEquipSlot, false);
 
 	for (UEquipSlotWidget* EquipSlot : EquipSlotList)
 	{
@@ -122,7 +120,6 @@ void ULeftEquipmentWidget::SetWeaponSlotData(const int32 WeaponSlotNumber, UItem
 
 	if (TargetSlot)
 	{
-
 		TargetSlot->SetData(ItemInstance);
 	}
 }
@@ -238,7 +235,6 @@ void ULeftEquipmentWidget::SetConsumableQuickSlotData(const int32 QuickSlotNumbe
 
 	if (TargetSlot)
 	{
-
 		TargetSlot->SetData(ItemInstance);
 	}
 }
@@ -317,7 +313,6 @@ UEquipSlotWidget* ULeftEquipmentWidget::FindFirstCompatibleEquipSlot(UItemInstan
 
 		if (!EquipSlot->HasEquippedItem())
 		{
-
 			return EquipSlot;
 		}
 	}
@@ -351,7 +346,6 @@ UEquipSlotWidget* ULeftEquipmentWidget::FindFirstEquippedCompatibleEquipSlot(UIt
 
 void ULeftEquipmentWidget::BroadcastClickedEquipTypeSlot(FGameplayTag EquipTypeTag, UEquipSlotWidget* InSelectedEquipSlot, bool bInIsSelectedAnyButton)
 {
-
 	OnClicked_EquipTypeSlot.Broadcast(EquipTypeTag, InSelectedEquipSlot, bInIsSelectedAnyButton);
 }
 
@@ -386,7 +380,6 @@ void ULeftEquipmentWidget::RebuildEquipSlotList()
 	EquipSlotList.Add(Weapon1);
 	EquipSlotList.Add(Weapon2);
 	EquipSlotList.Add(Weapon3);
-
 }
 
 void ULeftEquipmentWidget::RebuildEquipSlotNameList()
@@ -449,7 +442,6 @@ void ULeftEquipmentWidget::BindEquipSlotCallbacks()
 			EquipSlot->OnDroppedItem_EquipSlot.AddUniqueDynamic(this, &ThisClass::HandleEquipSlotItemDropped);
 		}
 	}
-
 }
 
 void ULeftEquipmentWidget::UnbindEquipSlotCallbacks()
@@ -545,7 +537,6 @@ FGameplayTag ULeftEquipmentWidget::ResolveEquipTypeTagForSlot(const UEquipSlotWi
 {
 	if (ItemSlot && ItemSlot->GetEquipTypeTag().IsValid())
 	{
-
 		return ItemSlot->GetEquipTypeTag();
 	}
 

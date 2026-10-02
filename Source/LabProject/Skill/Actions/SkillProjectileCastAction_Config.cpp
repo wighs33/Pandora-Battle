@@ -216,7 +216,6 @@ void USkillProjectileCastAction::ApplyReadiedProjectileScaleGrowth(ASkillProject
        NiagaraVector2DParameterName,
        NiagaraStartSize,
        NiagaraTargetSize);
-
 }
 
 TSubclassOf<AGameplayAbilityTargetActor> USkillProjectileCastAction::GetConfiguredGroundTargetActorClass() const

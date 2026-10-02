@@ -18,7 +18,6 @@
 #include "Definition/UI/ShopCatalogDefinition.h"
 #include "UI/Shop/ShopEntryViewData.h"
 #include "UI/Shop/ShopPreviewPanelWidget.h"
-#include "UI/Common/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopWidget)
 
@@ -27,7 +26,6 @@ void UShopWidget::NativeConstruct()
 	Super::NativeConstruct();
 	SetIsFocusable(true);
 
-	ResolveWidgets();
 	BindWidgets();
 	EnsurePlayerSaveLoaded();
 	if (UBgmSubsystem* BgmSubsystem = UGameInstance::GetSubsystem<UBgmSubsystem>(GetGameInstance()))
@@ -172,7 +170,6 @@ void UShopWidget::ReleaseContentPreloads()
 
 void UShopWidget::RefreshUI()
 {
-	ResolveWidgets();
 	EnsurePlayerSaveLoaded();
 	RebuildEntryData();
 	RefreshCategoryButtonStates();
@@ -336,7 +333,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 		PdPlayerController->RequestLocalCosmeticProfileSync();
 	}
 
-RefreshUI();
+	RefreshUI();
 	SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
 	return true;
 }
@@ -381,7 +378,7 @@ void UShopWidget::HandleResetShopSaveClicked()
 		ProfileSubsystem->SaveProfile();
 	}
 
-RefreshUI();
+	RefreshUI();
 	if (SelectedProductObject)
 	{
 		SelectEntry(FindEntryDataByProduct(SelectedProductObject, SelectedProductType));
@@ -390,26 +387,6 @@ RefreshUI();
 	if (bReset)
 	{
 		SetMessage(TEXT("Shop.ResetDone"), ShopSaveResetText);
-	}
-}
-
-void UShopWidget::ResolveWidgets()
-{
-
-
-
-
-
-
-	if (!Btn_ResetShopSave)
-	{
-		Btn_ResetShopSave = PdWidgetLookup::FindWidgetByNames<UButton>(this, {
-			TEXT("Btn_ResetShopSave"),
-			TEXT("Btn_ResetShopData"),
-			TEXT("Btn_ResetSave"),
-			TEXT("Btn_ResetPandoraGold"),
-			TEXT("Btn_ResetShopProgress")
-		});
 	}
 }
 
@@ -557,7 +534,6 @@ void UShopWidget::RebuildEntryData()
 		EntryData->OnClicked.AddUObject(this, &ThisClass::HandleEntryDataClicked);
 		EntryDataList.Add(EntryData);
 	}
-
 }
 
 TArray<FShopCatalogEntry> UShopWidget::BuildEffectiveCatalog() const
@@ -911,7 +887,6 @@ void UShopWidget::EnsurePlayerSaveLoaded() const
 	}
 
 	ProfileSubsystem->LoadProfile();
-
 }
 
 void UShopWidget::SetMessage(FName Key, const FText& Fallback, UObject* Product) const

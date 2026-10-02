@@ -19,10 +19,6 @@ struct LABPROJECT_API FControllerPresentationSettings
 		meta = (ClampMin = "0.01", ForceUnits = "s"))
 	float TravelLoadingReadyCheckInterval = 0.10f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Controller|Presentation|Travel",
-		meta = (ClampMin = "0"))
-	int32 TravelLoadingReadyCheckMaxAttempts = 50;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Controller|Presentation|HealthBar",
 		meta = (ClampMin = "0.01", ForceUnits = "s"))
 	float HealthBarVisibilityUpdateInterval = 0.15f;

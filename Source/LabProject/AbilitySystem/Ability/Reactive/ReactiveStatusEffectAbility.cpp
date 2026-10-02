@@ -11,6 +11,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReactiveStatusEffectAbility)
 
+DEFINE_LOG_CATEGORY_STATIC(LogReactiveStatusEffectAbility, Log, All);
+
 UReactiveStatusEffectAbility::UReactiveStatusEffectAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -29,12 +31,13 @@ void UReactiveStatusEffectAbility::ActivateAbility(
 
 	if (!StatusEffectDataAsset)
 	{
-
+		UE_LOG(LogReactiveStatusEffectAbility, Warning, TEXT("%s has no StatusEffectDataAsset, so it ends without reacting."),
+			*GetNameSafe(GetClass()));
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-WaitGameplayEffectAppliedTask = UAbilityTask_WaitGameplayEffectApplied_Target::WaitGameplayEffectAppliedToTarget(
+	WaitGameplayEffectAppliedTask = UAbilityTask_WaitGameplayEffectApplied_Target::WaitGameplayEffectAppliedToTarget(
 		this,
 		FGameplayTargetDataFilterHandle(),
 		FGameplayTagRequirements(),
@@ -116,7 +119,6 @@ void UReactiveStatusEffectAbility::OnGameplayEffectAppliedToTarget(
 
 	if (!StatusEffectDataAsset->StatusEffectClass)
 	{
-
 		return;
 	}
 

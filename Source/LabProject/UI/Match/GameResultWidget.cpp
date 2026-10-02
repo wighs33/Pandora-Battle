@@ -27,7 +27,6 @@ void UGameResultWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	ResolveExitButton();
 	RefreshUI();
 }
 
@@ -36,35 +35,6 @@ void UGameResultWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	SetIsFocusable(true);
-	ResolveExitButton();
-
-	if (PlayerStatsContainerCandidateNames.IsEmpty())
-	{
-		PlayerStatsContainerCandidateNames =
-		{
-			TEXT("PlayerStatsContainer"),
-			TEXT("VerticalBox_PlayerStats"),
-			TEXT("VB_PlayerStats"),
-			TEXT("ScrollBox_PlayerStats")
-		};
-	}
-
-	if (ScoreboardHiddenWidgetCandidateNames.IsEmpty())
-	{
-		ScoreboardHiddenWidgetCandidateNames =
-		{
-			TEXT("Txt_WinnerInfo"),
-			TEXT("Txt_Reward"),
-			TEXT("Reward"),
-			TEXT("Rewards"),
-			TEXT("RewardContainer"),
-			TEXT("RewardPanel"),
-			TEXT("HorizontalBox_Reward"),
-			TEXT("HB_Reward"),
-			TEXT("VerticalBox_Reward"),
-			TEXT("VB_Reward")
-		};
-	}
 
 	if (Btn_Exit)
 	{
@@ -246,7 +216,6 @@ void UGameResultWidget::HandleExitClicked()
     if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
         Screen->DeactivateWidget();
     RemoveFromParent();
-
 }
 
 FString UGameResultWidget::GetResolvedLobbyTravelMapName() const
@@ -254,30 +223,6 @@ FString UGameResultWidget::GetResolvedLobbyTravelMapName() const
 	const ULevelDefinition* Definition =
 		ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
-}
-
-void UGameResultWidget::ResolveExitButton()
-{
-	if (Btn_Exit || !WidgetTree)
-	{
-		return;
-	}
-
-	static const FName ExitButtonNames[] =
-	{
-		TEXT("Btn_Exit"),
-		TEXT("ExitButton"),
-		TEXT("Button_Exit")
-	};
-
-	for (const FName ExitButtonName : ExitButtonNames)
-	{
-		if (UButton* ExitButton = Cast<UButton>(WidgetTree->FindWidget(ExitButtonName)))
-		{
-			Btn_Exit = ExitButton;
-			return;
-		}
-	}
 }
 
 void UGameResultWidget::HandleEndSessionForExit(const bool bWasSuccessful)
@@ -323,44 +268,14 @@ void UGameResultWidget::TravelToLobbyMap()
 	}
 }
 
-UPanelWidget* UGameResultWidget::FindPlayerStatsContainer()
-{
-	if (PlayerStatsContainer)
-	{
-		return PlayerStatsContainer;
-	}
-
-	if (!WidgetTree)
-	{
-		return nullptr;
-	}
-
-	for (const FName& CandidateName : PlayerStatsContainerCandidateNames)
-	{
-		if (CandidateName.IsNone())
-		{
-			continue;
-		}
-
-		if (UPanelWidget* FoundContainer = Cast<UPanelWidget>(WidgetTree->FindWidget(CandidateName)))
-		{
-			PlayerStatsContainer = FoundContainer;
-			return FoundContainer;
-		}
-	}
-
-	return nullptr;
-}
-
 void UGameResultWidget::RefreshPlayerStatsList()
 {
-	UPanelWidget* Container = FindPlayerStatsContainer();
-	if (!Container)
+	if (!PlayerStatsContainer)
 	{
 		return;
 	}
 
-	Container->ClearChildren();
+	PlayerStatsContainer->ClearChildren();
 	if (!PlayerStatEntryWidgetClass)
 	{
 		return;
@@ -394,14 +309,12 @@ void UGameResultWidget::RefreshPlayerStatsList()
 
 		EntryWidget->SetInfo(PlayerStat, WinnerTeamColorIndex);
 		EntryWidget->SetShowReward(bShowRewards && !bInGameScoreboardMode);
-		Container->AddChild(EntryWidget);
+		PlayerStatsContainer->AddChild(EntryWidget);
 	}
 }
 
 void UGameResultWidget::ApplyDisplayModeVisibility()
 {
-	ResolveExitButton();
-
 	const bool bShowResultOnlyWidgets = !bInGameScoreboardMode;
 	const bool bShowRewardWidgets = bShowResultOnlyWidgets && bShowRewards;
 
@@ -424,25 +337,6 @@ void UGameResultWidget::ApplyDisplayModeVisibility()
 	{
 		ButtonOverlay->SetVisibility(
 			bShowResultOnlyWidgets ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-	}
-
-	for (const FName& CandidateName : ScoreboardHiddenWidgetCandidateNames)
-	{
-		if (CandidateName.IsNone())
-		{
-			continue;
-		}
-
-		UWidget* CandidateWidget = WidgetTree->FindWidget(CandidateName);
-		if (CandidateWidget == ButtonOverlay)
-		{
-			continue;
-		}
-
-		const bool bCandidateIsWinnerInfo = CandidateWidget && CandidateWidget == Txt_WinnerInfo;
-		SetWidgetVisibleForDisplayMode(
-			CandidateWidget,
-			bCandidateIsWinnerInfo ? bShowResultOnlyWidgets : bShowRewardWidgets);
 	}
 }
 

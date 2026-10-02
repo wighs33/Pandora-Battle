@@ -374,19 +374,16 @@ void UInventoryComponent::FilterItem(UItemInstance* ItemInstance)
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	if (!ItemDefinition)
 	{
-
 		return;
 	}
 
 	if (!ItemDefinition->IdTag.IsValid())
 	{
-
 		return;
 	}
 
 	if (FilterTypeTags.IsEmpty())
 	{
-
 		return;
 	}
 
@@ -397,10 +394,8 @@ void UInventoryComponent::FilterItem(UItemInstance* ItemInstance)
 		if (ItemDefinition->IdTag.MatchesTag(TypeTag))
 		{
 			Map_Type_ItemList.FindOrAdd(TypeTag).Items.AddUnique(ItemInstance);
-
 		}
 	}
-
 }
 
 UItemInstance* UInventoryComponent::FindItemInstanceById(FGuid ItemId) const
@@ -483,27 +478,23 @@ bool UInventoryComponent::UseConsumableQuickSlot(const int32 SlotIndex)
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	if (!IsValid(ItemInstance) || !ItemDefinition)
 	{
-
 		SetConsumableQuickSlotItemId(SlotIndex, FGuid());
 		return false;
 	}
 
 	if (!IsConsumableItem(ItemInstance))
 	{
-
 		return false;
 	}
 
 	const int32 QuantityToConsume = ItemDefinition->GetSafeQuantityToConsume();
 	if (ItemInstance->Quantity < QuantityToConsume)
 	{
-
 		return false;
 	}
 
 	if (!ApplyConsumableItemEffect(ItemInstance))
 	{
-
 		return false;
 	}
 
@@ -639,7 +630,6 @@ bool UInventoryComponent::SplitConsumableStack(const FGuid ItemId)
 {
 	if (!ItemId.IsValid())
 	{
-
 		return false;
 	}
 
@@ -652,19 +642,16 @@ bool UInventoryComponent::SplitConsumableStack(const FGuid ItemId)
 	UItemInstance* SourceItem = FindItemInstanceById(ItemId);
 	if (!IsValid(SourceItem) || !IsValid(SourceItem->ItemDefinition))
 	{
-
 		return false;
 	}
 
 	if (!IsConsumableItem(SourceItem))
 	{
-
 		return false;
 	}
 
 	if (SourceItem->Quantity < 2)
 	{
-
 		return false;
 	}
 
@@ -676,7 +663,6 @@ bool UInventoryComponent::SplitConsumableStack(const FGuid ItemId)
 
 	if (!SetReplicatedItemQuantityById(ItemId, RemainingQuantity))
 	{
-
 		return false;
 	}
 
@@ -692,7 +678,6 @@ bool UInventoryComponent::MergeConsumableStacks(const FGuid SourceItemId, const 
 {
 	if (!SourceItemId.IsValid() || !TargetItemId.IsValid() || SourceItemId == TargetItemId)
 	{
-
 		return false;
 	}
 
@@ -709,13 +694,11 @@ bool UInventoryComponent::MergeConsumableStacks(const FGuid SourceItemId, const 
 
 	if (!SourceDefinition || !TargetDefinition)
 	{
-
 		return false;
 	}
 
 	if (SourceDefinition != TargetDefinition || !IsConsumableItem(SourceItem) || !IsConsumableItem(TargetItem))
 	{
-
 		return false;
 	}
 
@@ -731,7 +714,6 @@ bool UInventoryComponent::MergeConsumableStacks(const FGuid SourceItemId, const 
 	ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
 	if (!SetReplicatedItemQuantityById(TargetItemId, static_cast<int32>(CombinedQuantity)))
 	{
-
 		return false;
 	}
 
@@ -863,7 +845,6 @@ bool UInventoryComponent::ApplyConsumableItemEffect(const UItemInstance* ItemIns
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	if (!ItemDefinition || !ItemDefinition->ConsumeGameplayEffectClass)
 	{
-
 		return false;
 	}
 
@@ -878,7 +859,6 @@ bool UInventoryComponent::ApplyConsumableItemEffect(const UItemInstance* ItemIns
 	}
 	if (!AbilitySystemComponent)
 	{
-
 		return false;
 	}
 
@@ -888,7 +868,6 @@ bool UInventoryComponent::ApplyConsumableItemEffect(const UItemInstance* ItemIns
 	FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(ItemDefinition->ConsumeGameplayEffectClass, 1.0f, EffectContext);
 	if (!SpecHandle.IsValid())
 	{
-
 		return false;
 	}
 

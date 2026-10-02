@@ -61,7 +61,6 @@ bool AGun::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* Tar
 	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
 		|| !IsValid(TargetActor))
 	{
-
 		return false;
 	}
 
@@ -73,7 +72,6 @@ bool AGun::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, A
 	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
 		|| TargetLocation.IsNearlyZero())
 	{
-
 		return false;
 	}
 

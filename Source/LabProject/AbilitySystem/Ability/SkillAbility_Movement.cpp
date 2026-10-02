@@ -225,7 +225,6 @@ void USkillAbility::HandleMovementContactDamageTick()
 		return;
 	}
 
-
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	UCapsuleComponent* CapsuleComponent = Character ? Character->GetCapsuleComponent() : nullptr;
 	UWorld* World = Character ? Character->GetWorld() : nullptr;

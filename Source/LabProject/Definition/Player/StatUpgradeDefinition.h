@@ -9,7 +9,6 @@
 // 투자 대상과 투자 레벨, 복리 표시값, 현재 자원의 연결을 한곳에서 정의한다.
 struct FStatUpgradeBinding
 {
-
 public:
 	FGameplayTag StatTag;
 	FGameplayTag LevelTag;

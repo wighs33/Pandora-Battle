@@ -201,7 +201,6 @@ float ALobbyGameState::GetGameStartRemainingSeconds() const
 
 void ALobbyGameState::OnRep_SelectedMapOption()
 {
-
 	NotifyLobbyStateChanged();
 }
 

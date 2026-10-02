@@ -22,7 +22,6 @@ public:
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshUI();
-	UTextBlock* GetMessageTextBlock() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Chat|Bind")
@@ -30,15 +29,4 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"), Category = "!Chat")
 	FString Message;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Chat|Fallback")
-	TArray<FName> MessageTextCandidateNames =
-	{
-		TEXT("Txt_Message"),
-		TEXT("Text_Message"),
-		TEXT("TextBlock_Message"),
-		TEXT("MessageText"),
-		TEXT("Txt_ChatMessage"),
-		TEXT("TextBlock")
-	};
 };

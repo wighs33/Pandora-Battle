@@ -153,7 +153,6 @@ void UPandoraDescriptionWidget::ResolvePandoraTreeComponent()
 	{
 		PandoraDefinition = FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(PandoraTreeComponent);
 	}
-
 }
 
 void UPandoraDescriptionWidget::ApplyEffectIconResources()

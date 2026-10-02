@@ -32,7 +32,6 @@ void UGameSettingsWidget::NativeConstruct()
 		RefreshVolume(Audio->GetMasterVolumePercent());
 	}
 	OnMenuLanguageChanged();
-
 }
 
 void UGameSettingsWidget::NativeDestruct()

@@ -14,14 +14,12 @@ void UAnimNotify_TriggerEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 	// =================================================================================================================
 	if (!IsValid(MeshComp))
 	{
-
 		return;
 	}
 
 	AActor* OwnerActor = MeshComp->GetOwner();
 	if (!IsValid(OwnerActor) || !EventTag.IsValid())
 	{
-
 		return;
 	}
 
@@ -31,7 +29,6 @@ void UAnimNotify_TriggerEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerActor);
 	if (!AbilitySystemComponent)
 	{
-
 		return;
 	}
 

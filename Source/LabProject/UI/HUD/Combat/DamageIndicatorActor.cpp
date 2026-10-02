@@ -162,7 +162,6 @@ void ADamageIndicatorActor::ApplyPayloadToWidget()
 		return;
 	}
 
-	SetNumericProperty(UserWidget, TEXT("DamageAmount"), Payload.DamageAmount);
 	SetNumericProperty(UserWidget, TEXT("Damage"), Payload.DamageAmount);
 	SetBoolProperty(UserWidget, TEXT("bCriticalHit"), Payload.bCriticalHit);
 	ApplyLocalPlayerDamageOutline(UserWidget, Payload.DamagedActor);

@@ -61,8 +61,6 @@ protected:
 
 private:
 	FString GetResolvedLobbyTravelMapName() const;
-	void ResolveExitButton();
-	UPanelWidget* FindPlayerStatsContainer();
 	void RefreshPlayerStatsList();
 	void ApplyDisplayModeVisibility();
 	void SetWidgetVisibleForDisplayMode(UWidget* Widget, bool bVisible) const;
@@ -85,12 +83,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Setup")
 	TSubclassOf<UGameResultPlayerStatEntryWidget> PlayerStatEntryWidgetClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Setup")
-	TArray<FName> PlayerStatsContainerCandidateNames;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Setup")
-	TArray<FName> ScoreboardHiddenWidgetCandidateNames;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Text")
 	FText WinnerInfoFormat = NSLOCTEXT("GameResult", "WinnerInfoFormat", "{0}");

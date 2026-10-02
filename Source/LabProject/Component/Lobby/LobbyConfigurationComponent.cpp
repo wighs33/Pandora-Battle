@@ -73,16 +73,16 @@ void ULobbyConfigurationComponent::ApplyDefaultLobbyConfigIfNeeded()
 {
 	ULobbyRuntimeSubsystem* Runtime = GetWorld()->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>();
 	const FName Key = Runtime->GetLobbySelectedMapKey();
-	SaveConfig(Key.IsNone() ? GetFirstMapKey() : Key, Runtime->GetLobbyMaxBotCount());
+	SelectLobbyMap(Key.IsNone() ? GetFirstMapKey() : Key);
 }
 
-void ULobbyConfigurationComponent::SaveConfig(FName MapKey, int32 InMaxBotCount)
+void ULobbyConfigurationComponent::SelectLobbyMap(FName MapKey)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
 	ULobbyRuntimeSubsystem* Runtime = GameMode->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>();
 	FLobbyMatchMapOption Option;
 	if (!FindConfiguredMapOption(MapKey, Option)) { return; }
-	Runtime->SetLobbyGameConfig(Option.MapKey, Option.Map.ToSoftObjectPath().GetLongPackageName(), Option.MaxPlayerCount, FMath::Clamp(InMaxBotCount, 0, 100));
+	Runtime->SetLobbySelectedMapKey(Option.MapKey);
 	if (ALobbyGameState* State = GameMode->GetGameState<ALobbyGameState>()) { State->SetSelectedMapOption(Option); }
 }
 
@@ -150,11 +150,6 @@ int32 ULobbyConfigurationComponent::GetConfiguredMaxPlayerCount()
 {
 	FLobbyMatchMapOption Option;
 	return GetSelectedLobbyMapOption(Option) ? Option.MaxPlayerCount : 0;
-}
-
-int32 ULobbyConfigurationComponent::GetConfiguredMaxBotCount()
-{
-	return GetWorld()->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>()->GetLobbyMaxBotCount();
 }
 
 const ULevelDefinition* ULobbyConfigurationComponent::GetLevelDefinition()

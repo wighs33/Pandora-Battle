@@ -152,7 +152,6 @@ void UEquipSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 
 void UEquipSlotWidget::BroadcastClickedEquipSlot(UEquipSlotWidget* ItemSlot)
 {
-
 	OnClicked_EquipSlot.Broadcast(ItemSlot ? ItemSlot : this);
 }
 
@@ -165,12 +164,10 @@ bool UEquipSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDrop
 		UItemInstance* DroppedItem = ItemDragOperation->GetItemInstance();
 		if (CanAcceptDroppedItem(DroppedItem))
 		{
-
 			OnDroppedItem_EquipSlot.Broadcast(this, DroppedItem);
 			ApplySlotVisual();
 			return true;
 		}
-
 }
 
 	ApplySlotVisual();
@@ -296,7 +293,6 @@ void UEquipSlotWidget::SetSelected(const bool bInSelected)
 
 void UEquipSlotWidget::HandleButtonClicked()
 {
-
 	BroadcastClickedEquipSlot(this);
 }
 
@@ -314,7 +310,6 @@ void UEquipSlotWidget::HandleButtonUnhovered()
 
 void UEquipSlotWidget::ApplySlotVisual()
 {
-
 	ApplyButtonBackgroundStyle();
 
 	UTexture2D* NormalIconTexture = GetCurrentIconTexture(false);
@@ -328,14 +323,12 @@ void UEquipSlotWidget::ApplySlotVisual()
 
 	if (IconImage)
 	{
-
 		IconImage->SetBrushFromTexture(DisplayIconTexture, false);
 		IconImage->SetRenderOpacity(
 			bShowingPandoraWeaponRequirement
 				? PandoraWeaponRequirementIconOpacity
 				: 1.0f);
 		IconImage->SetVisibility(bHasSlotIcon && !bHasItemIcon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
-
 	}
 	else if (bHasSlotIcon && ItemButton && !ItemInstance)
 	{
@@ -350,14 +343,12 @@ void UEquipSlotWidget::ApplySlotVisual()
 		ButtonStyle.SetPressed(MakeSlotIconBrush(ButtonStyle.Pressed, HoverIconTexture, FLinearColor(0.75f, 0.75f, 0.75f, SlotIconOpacity)));
 		ButtonStyle.SetDisabled(MakeSlotIconBrush(ButtonStyle.Disabled, RestIconTexture, FLinearColor(0.35f, 0.35f, 0.35f, SlotIconOpacity)));
 		ItemButton->SetStyle(ButtonStyle);
-
 	}
 
 	if (ItemImage)
 	{
 		ItemImage->SetBrushFromTexture(CurrentItemIconTexture, false);
 		ItemImage->SetVisibility(bHasItemIcon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
-
 	}
 
 	if (ApplyText)

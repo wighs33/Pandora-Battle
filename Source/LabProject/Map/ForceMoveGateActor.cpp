@@ -103,7 +103,6 @@ void AForceMoveGateActor::HandleForceMoveTriggered(APdPlayerController* Triggeri
 		ForceNetUpdate();
 		Multicast_PlayGateMovement(true, TriggeringPlayerController);
 	}
-
 }
 
 void AForceMoveGateActor::Multicast_PlayGateMovement_Implementation(
@@ -179,7 +178,6 @@ void AForceMoveGateActor::StartGateMovement(
 	{
 		BP_OnGateLowerStarted();
 	}
-
 }
 
 void AForceMoveGateActor::FinishGateMovement()

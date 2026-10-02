@@ -193,5 +193,4 @@ void AExperienceGameState::SaveLocalMatchRecord(
 	MatchRecord.Reward = LocalPlayerStat->GoldReward;
 
 	ProfileSubsystem->AddMatchRecord(MatchRecord, true);
-
 }

@@ -115,12 +115,10 @@ bool USkinEquipSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDrag
 		const USkinDefinition* DroppedSkin = SkinDragOperation->GetSkinDefinition();
 		if (CanAcceptDroppedSkin(DroppedSkin))
 		{
-
 			OnDroppedSkin_SkinEquipSlot.Broadcast(this, DroppedSkin);
 			ApplySlotVisual();
 			return true;
 		}
-
 	}
 
 	ApplySlotVisual();
@@ -263,7 +261,6 @@ void USkinEquipSlotWidget::HandleButtonUnhovered()
 
 void USkinEquipSlotWidget::ApplySlotVisual()
 {
-
 	ApplyButtonBackgroundStyle();
 
 	UTexture2D* NormalIconTexture = GetCurrentIconTexture(false);
@@ -302,13 +299,11 @@ void USkinEquipSlotWidget::ApplySlotVisual()
 
 		if (IconImage)
 		{
-
 			IconImage->SetBrushFromTexture(DisplayIconTexture, false);
 			IconImage->SetVisibility(bHasIcon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 		}
 		else if (bHasIcon && ItemButton)
 		{
-
 			UTexture2D* RestIconTexture = (bUseSelectedEmptyIcon || bIsAcceptedDragHovered) ? HoverIconTexture : NormalIconTexture;
 			FButtonStyle ButtonStyle = ItemButton->GetStyle();
 			ButtonStyle.SetNormal(MakeSkinSlotIconBrush(ButtonStyle.Normal, RestIconTexture, FLinearColor(0.9f, 0.9f, 0.9f, 1.0f)));
@@ -319,7 +314,6 @@ void USkinEquipSlotWidget::ApplySlotVisual()
 		}
 		else if (ItemButton && bHasDefaultButtonStyle)
 		{
-
 			ItemButton->SetStyle(DefaultButtonStyle);
 		}
 	}

@@ -43,7 +43,7 @@ public:
 	ALobbyGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// 외부에서는 로비 명령과 시작 조건만 사용하고, 담당 컴포넌트 선택은 GameMode에 맡긴다.
-	void SaveConfig(FName MapKey, int32 InMaxBotCount);
+	void SelectLobbyMap(FName MapKey);
 	void SelectLobbyMapByOffset(int32 Offset);
 	void TryStartGame();
 	bool CanHostStartGame() const;

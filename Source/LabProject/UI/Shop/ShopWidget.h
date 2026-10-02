@@ -55,7 +55,6 @@ private:
 	void HandleEntryDataClicked(UShopEntryViewData* EntryData);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void ResolveWidgets();
 	void BindWidgets();
 	void UnbindWidgets();
 	void BeginContentPreload();

@@ -1,29 +1,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Common/GameSessionConstants.h"
 #include "PdLobbyRuntimeTypes.generated.h"
 
 class UMaterialInterface;
 class UTexture2D;
-
-USTRUCT(BlueprintType)
-struct LABPROJECT_API FLobbyRuntimeConfig
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "!Lobby")
-	FName SelectedMapKey;
-
-	UPROPERTY(EditAnywhere, Category = "!Lobby")
-	FString TravelMapName;
-
-	UPROPERTY(EditAnywhere, Category = "!Lobby", meta = (ClampMin = "1"))
-	int32 MaxPlayerCount = LabGameSession::MaxPlayerCount;
-
-	UPROPERTY(EditAnywhere, Category = "!Lobby", meta = (ClampMin = "0"))
-	int32 MaxBotCount = 10;
-};
 
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FLobbyPaintCanvasStrokeCache

@@ -4,7 +4,6 @@
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
-#include "UI/Common/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DragItemVisualWidget)
 
@@ -33,33 +32,8 @@ void UDragItemVisualWidget::SetQuantity(const int32 InQuantity)
 	ApplyVisual();
 }
 
-void UDragItemVisualWidget::CacheOptionalWidgets()
-{
-	if (!RootSizeBox)
-	{
-		RootSizeBox = PdWidgetLookup::FindWidgetByNames<USizeBox>(this, {
-			TEXT("RootSizeBox"),
-			TEXT("DragSizeBox"),
-			TEXT("SizeBox")
-		});
-	}
-
-	if (!QuantityTextBlock)
-	{
-		QuantityTextBlock = PdWidgetLookup::FindWidgetByNames<UTextBlock>(this, {
-			TEXT("QuantityTextBlock"),
-			TEXT("Txt_Quantity"),
-			TEXT("Text_Quantity"),
-			TEXT("QuantityText"),
-			TEXT("ItemCountText")
-		});
-	}
-}
-
 void UDragItemVisualWidget::ApplyVisual()
 {
-	CacheOptionalWidgets();
-
 	if (RootSizeBox && IconSize.X > 0.0f && IconSize.Y > 0.0f)
 	{
 		RootSizeBox->SetWidthOverride(IconSize.X);

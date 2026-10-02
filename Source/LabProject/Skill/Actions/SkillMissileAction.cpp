@@ -23,7 +23,6 @@ namespace
 	constexpr float MissileTargetTrackingInterval = 0.05f;
 }
 
-
 void USkillMissileAction::OnStart()
 {
 	const FGameplayAbilityActorInfo* ActorInfo = GetAbility()->GetCurrentActorInfo();
@@ -639,7 +638,6 @@ FGameplayEffectSpecHandle USkillMissileAction::MakeDamageEffectSpec(const float 
 
 	return GetAbility()->MakeConfiguredDamageEffectSpec(DamageConfig, DamageMagnitude);
 }
-
 
 float USkillMissileAction::CalculateMissileDuration() const
 {

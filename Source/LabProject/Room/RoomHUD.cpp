@@ -25,7 +25,6 @@ void ARoomHUD::BeginPlay()
 
 	if (!RoomListWidget)
 	{
-
 		return;
 	}
 

@@ -15,7 +15,7 @@ struct LABPROJECT_API FRewardExperienceRange
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	int32 RollReward(const UObject* LogContext, const TCHAR* CategoryName) const;
+	int32 RollReward() const;
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Experience")
@@ -37,7 +37,7 @@ struct LABPROJECT_API FRewardSoulDustRange
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	int32 RollReward(const UObject* LogContext, const TCHAR* CategoryName) const;
+	int32 RollReward() const;
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Soul Dust")
@@ -63,7 +63,7 @@ struct LABPROJECT_API FRewardGoldRange
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	int32 RollReward(const UObject* LogContext, const TCHAR* CategoryName) const;
+	int32 RollReward() const;
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Gold")

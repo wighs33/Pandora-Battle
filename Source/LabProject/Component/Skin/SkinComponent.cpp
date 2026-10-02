@@ -170,7 +170,6 @@ void USkinComponent::FilterSkin(const USkinDefinition* SkinDefinition)
 
 	if (!SkinDefinition->IdTag.IsValid())
 	{
-
 		return;
 	}
 

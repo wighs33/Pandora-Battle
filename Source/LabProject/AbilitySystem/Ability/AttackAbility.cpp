@@ -164,7 +164,7 @@ void UAttackAbility::OnComboInputWindowOpened(FGameplayEventData Payload)
 {
 	static_cast<void>(Payload);
 
-	FaceCurrentAttackTarget(TEXT("InputWindowOpened"));
+	FaceCurrentAttackTarget();
 	const FName CurrentSectionName = GetCurrentAttackSectionName();
 	if (CurrentActorInfo
 		&& CurrentActorInfo->IsLocallyControlled()
@@ -183,7 +183,6 @@ void UAttackAbility::OnComboInputWindowOpened(FGameplayEventData Payload)
 		bComboInputConsumedForCurrentWindow = false;
 		bReachedJumpSectionTiming = false;
 		BufferedJumpSectionName = NAME_None;
-		QueuedFromSectionName = NAME_None;
 		bBufferedComboCostCommitted = false;
 	}
 
@@ -321,7 +320,6 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!Character)
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -347,14 +345,12 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 
 	if (!bHasAttackData || !AttackData.AttackMontage)
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
@@ -441,7 +437,6 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 		false);
 	if (!MontageTask)
 	{
-
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -455,9 +450,8 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 		ApplyGameplayEffect(AttackingEffectClass, 1.f, 1);
 	}
 
-	FaceCurrentAttackTarget(TEXT("ActivateAbility"));
+	FaceCurrentAttackTarget();
 	MontageTask->ReadyForActivation();
-
 }
 
 // Query helpers
@@ -576,9 +570,9 @@ bool UAttackAbility::RequestJumpToSection(FName RequestedSectionName)
 		return false;
 	}
 
-	if (!IsAITargetInComboRange(TEXT("RequestJumpToSection")))
+	if (!IsAITargetInComboRange())
 	{
-		RequestAIChaseTarget(TEXT("RequestJumpToSection"));
+		RequestAIChaseTarget();
 		return false;
 	}
 
@@ -601,7 +595,6 @@ void UAttackAbility::ResetAttackInputState()
 	bCanReceiveAttackInput = false;
 	bReachedJumpSectionTiming = false;
 	BufferedJumpSectionName = NAME_None;
-	QueuedFromSectionName = NAME_None;
 	bBufferedComboCostCommitted = false;
 }
 
@@ -656,7 +649,7 @@ AWeaponBase* UAttackAbility::GetCurrentWeaponActor() const
 }
 
 // Action helpers
-bool UAttackAbility::FaceCurrentAttackTarget(const TCHAR* Context) const
+bool UAttackAbility::FaceCurrentAttackTarget() const
 {
 	if (!bAIFaceTargetWhileAttacking || HasPlayerController())
 	{
@@ -671,7 +664,6 @@ bool UAttackAbility::FaceCurrentAttackTarget(const TCHAR* Context) const
 	}
 	if (Character->IsStatusFrozen())
 	{
-
 		return false;
 	}
 
@@ -695,7 +687,7 @@ bool UAttackAbility::FaceCurrentAttackTarget(const TCHAR* Context) const
 	return true;
 }
 
-void UAttackAbility::RequestAIChaseTarget(const TCHAR* Context) const
+void UAttackAbility::RequestAIChaseTarget() const
 {
 	if (HasPlayerController())
 	{
@@ -709,8 +701,7 @@ void UAttackAbility::RequestAIChaseTarget(const TCHAR* Context) const
 		return;
 	}
 
-	const bool bMoveRequested = Enemy->RequestMoveToAttackTarget(AttackTarget);
-
+	Enemy->RequestMoveToAttackTarget(AttackTarget);
 }
 
 void UAttackAbility::SetCurrentWeaponTraceEnabled(
@@ -829,7 +820,7 @@ bool UAttackAbility::IsAttackSectionNameValid(FName SectionName) const
 		&& CurrentAttackMontage->GetSectionIndex(SectionName) != INDEX_NONE;
 }
 
-bool UAttackAbility::IsAITargetInComboRange(const TCHAR* Context) const
+bool UAttackAbility::IsAITargetInComboRange() const
 {
 	if (HasPlayerController())
 	{
@@ -862,9 +853,9 @@ bool UAttackAbility::QueueBufferedComboTransition()
 		return false;
 	}
 
-	if (!IsAITargetInComboRange(TEXT("QueueBufferedComboTransition")))
+	if (!IsAITargetInComboRange())
 	{
-		RequestAIChaseTarget(TEXT("QueueBufferedComboTransition"));
+		RequestAIChaseTarget();
 		ResetAttackInputState();
 		return false;
 	}
@@ -890,12 +881,11 @@ bool UAttackAbility::QueueBufferedComboTransition()
 		bBufferedComboCostCommitted = true;
 	}
 
-	FaceCurrentAttackTarget(TEXT("QueueComboAtSectionEnd"));
+	FaceCurrentAttackTarget();
 	AnimInstance->Montage_SetNextSection(
 		CurrentSectionName,
 		BufferedJumpSectionName,
 		CurrentAttackMontage);
-	QueuedFromSectionName = CurrentSectionName;
 
 	// Preserve the buffered section until either the optional NextCombo event
 	// consumes it or the following section opens its own input window.
@@ -911,9 +901,9 @@ bool UAttackAbility::TryJumpToSection(FName SectionName)
 		return false;
 	}
 
-	if (!IsAITargetInComboRange(TEXT("TryJumpToSection")))
+	if (!IsAITargetInComboRange())
 	{
-		RequestAIChaseTarget(TEXT("TryJumpToSection"));
+		RequestAIChaseTarget();
 		ResetAttackInputState();
 		return false;
 	}
@@ -926,7 +916,7 @@ bool UAttackAbility::TryJumpToSection(FName SectionName)
 		return false;
 	}
 
-	FaceCurrentAttackTarget(TEXT("JumpToSection"));
+	FaceCurrentAttackTarget();
 	MontageJumpToSection(SectionName);
 	ResetAttackInputState();
 	return true;

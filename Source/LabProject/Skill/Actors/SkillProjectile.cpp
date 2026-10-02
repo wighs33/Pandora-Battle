@@ -135,7 +135,6 @@ void ASkillProjectile::PrepareProjectile(const FGameplayEffectSpecHandle& InDama
 	}
 	DisableProjectileCollision();
 	ApplyProjectileLoopVisual();
-
 }
 
 void ASkillProjectile::PrepareCosmeticReadiedProjectile(const float InLifeSpan)
@@ -216,7 +215,6 @@ void ASkillProjectile::StartReadiedScaleGrowth(
 	{
 		ForceNetUpdate();
 	}
-
 }
 
 float ASkillProjectile::GetReadiedScaleGrowthAlpha() const
@@ -268,7 +266,6 @@ void ASkillProjectile::ConfigureArcTrajectory(
 	ArcHeight = FMath::Max(InArcHeight, 0.0f);
 	ArcGravityScale = FMath::Max(InArcGravityScale, 0.0f);
 	MarkProjectileFlightDataDirty();
-
 }
 
 void ASkillProjectile::SetDebuffEffectSpecHandle(
@@ -277,7 +274,6 @@ void ASkillProjectile::SetDebuffEffectSpecHandle(
 {
 	DebuffEffectSpecHandle = InDebuffEffectSpecHandle;
 	StatusEffectDefinition = InStatusEffectDefinition;
-
 }
 
 void ASkillProjectile::SetImpactAreaDamageRadius(const float InImpactAreaDamageRadius)
@@ -313,7 +309,6 @@ void ASkillProjectile::ConfigureProjectileVisuals(
 	{
 		ForceNetUpdate();
 	}
-
 }
 
 void ASkillProjectile::BeginPlay()
@@ -370,7 +365,7 @@ void ASkillProjectile::Destroyed()
 		ExecuteImpactNiagaraAtLocation(GetActorLocation());
 	}
 
-Super::Destroyed();
+	Super::Destroyed();
 }
 
 void ASkillProjectile::OnRep_ProjectileFlightData()
@@ -485,14 +480,12 @@ void ASkillProjectile::StartProjectileMovement() const
 {
 	if (!ProjectileMovement || Speed <= 0.0f)
 	{
-
 		return;
 	}
 
 	FVector Direction = (FVector(TargetLocation) - GetActorLocation()).GetSafeNormal();
 	if (Direction.IsNearlyZero())
 	{
-
 		Direction = GetActorForwardVector();
 	}
 
@@ -515,7 +508,6 @@ void ASkillProjectile::StartProjectileMovement() const
 	}
 	ProjectileMovement->Activate(true);
 	ProjectileMovement->UpdateComponentVelocity();
-
 }
 
 FVector ASkillProjectile::CalculateArcLaunchVelocity() const
@@ -578,7 +570,6 @@ void ASkillProjectile::ConfigureCollision() const
 	SphereCollision->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(), ECR_Ignore);
 	SphereCollision->SetGenerateOverlapEvents(true);
 	SphereCollision->SetNotifyRigidBodyCollision(true);
-
 }
 
 void ASkillProjectile::DisableProjectileCollision() const
@@ -591,7 +582,6 @@ void ASkillProjectile::DisableProjectileCollision() const
 	SphereCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	SphereCollision->SetGenerateOverlapEvents(false);
 	SphereCollision->SetNotifyRigidBodyCollision(false);
-
 }
 
 void ASkillProjectile::ConfigureIgnoredActors() const
@@ -636,7 +626,6 @@ void ASkillProjectile::ConfigureIgnoredActors() const
 		}
 
 		SphereCollision->IgnoreActorWhenMoving(IgnoredActor, true);
-
 	}
 }
 
@@ -652,7 +641,6 @@ void ASkillProjectile::HandleImpact(
 
 	if (bHasImpacted || !OtherComp || IsIgnoredImpactActor(OtherActor))
 	{
-
 		return;
 	}
 
@@ -667,7 +655,6 @@ void ASkillProjectile::HandleImpact(
 	AActor* DamageTargetActor = ResolveDamageTargetActor(OtherActor, OtherComp);
 	if (IsIgnoredImpactActor(DamageTargetActor))
 	{
-
 		return;
 	}
 
@@ -832,7 +819,6 @@ bool ASkillProjectile::TryApplyDamageToTarget(AActor* TargetActor)
 {
 	if (!HasAuthority() || !IsValid(TargetActor) || !DamageEffectSpecHandle.IsValid())
 	{
-
 		return false;
 	}
 
@@ -842,7 +828,6 @@ bool ASkillProjectile::TryApplyDamageToTarget(AActor* TargetActor)
 		{
 			if (!SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
 			{
-
 				return false;
 			}
 		}
@@ -852,7 +837,6 @@ bool ASkillProjectile::TryApplyDamageToTarget(AActor* TargetActor)
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
 	if (!SourceASC || !TargetASC || !DamageEffectSpecHandle.Data.IsValid())
 	{
-
 		return false;
 	}
 
@@ -1011,7 +995,6 @@ bool ASkillProjectile::IsIgnoredImpactActor(const AActor* OtherActor) const
 			{
 				if (!SourceCharacter->CanDamageCharacterByTeam(OtherCharacter))
 				{
-
 					return true;
 				}
 			}
@@ -1035,7 +1018,6 @@ void ASkillProjectile::ExecuteSpawnGameplayCue() const
 {
 	if (!SpawnGameplayCueTag.IsValid())
 	{
-
 		return;
 	}
 
@@ -1047,7 +1029,6 @@ void ASkillProjectile::ExecuteSpawnGameplayCue() const
 		const_cast<ASkillProjectile*>(this),
 		SpawnGameplayCueTag,
 		Parameters);
-
 }
 
 void ASkillProjectile::ExecuteImpactGameplayCue()
@@ -1059,13 +1040,11 @@ void ASkillProjectile::ExecuteImpactGameplayCueAtLocation(const FVector& CueLoca
 {
 	if (!ImpactGameplayCueTag.IsValid())
 	{
-
 		return;
 	}
 
 	if (bImpactCueExecuted)
 	{
-
 		return;
 	}
 
@@ -1079,7 +1058,6 @@ void ASkillProjectile::ExecuteImpactGameplayCueAtLocation(const FVector& CueLoca
 		this,
 		ImpactGameplayCueTag,
 		Parameters);
-
 }
 
 void ASkillProjectile::ApplyProjectileLoopVisual() const
@@ -1119,7 +1097,6 @@ void ASkillProjectile::ApplyProjectileEffectSystem(UNiagaraSystem* DesiredSystem
 	}
 
 	ProjectileEffect->Activate(true);
-
 }
 
 void ASkillProjectile::ExecuteImpactNiagaraAtLocation(const FVector& CueLocation)
@@ -1136,7 +1113,6 @@ void ASkillProjectile::ExecuteImpactNiagaraAtLocation(const FVector& CueLocation
 		HitFX.Get(),
 		SpawnTransform.GetLocation(),
 		SpawnTransform.GetRotation().Rotator());
-
 }
 
 FTransform ASkillProjectile::ResolveImpactNiagaraSpawnTransform(const FVector& CueLocation) const

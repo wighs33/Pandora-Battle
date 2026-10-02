@@ -8,7 +8,6 @@ class UItemDefinition;
 
 struct FEquipData
 {
-
 public:
 	const UItemDefinition* ItemDefinition = nullptr;
 
@@ -25,7 +24,6 @@ public:
 
 struct FUnequipData
 {
-
 public:
 	const UItemDefinition* ItemDefinition = nullptr;
 
@@ -40,7 +38,6 @@ public:
 
 struct FAttackData
 {
-
 public:
 	const UItemDefinition* ItemDefinition = nullptr;
 
@@ -55,7 +52,6 @@ public:
 
 struct FHitReactData
 {
-
 public:
 	const UItemDefinition* ItemDefinition = nullptr;
 

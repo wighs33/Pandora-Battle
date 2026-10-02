@@ -26,6 +26,7 @@
 #include "UI/HUD/Notification/RightNotificationsWidget.h"
 #include "UI/HUD/Player/RespawnDelayWidget.h"
 #include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Common/WidgetLookup.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -356,26 +357,22 @@ void APdHUD::HideAimCrosshair()
 
 void APdHUD::ShowRightNotification(const FPdNotificationData& NotificationData)
 {
-
 	if (!CachedRightNotificationsUI)
 	{
-
 		CreateAllUi();
 	}
 
 	if (!CachedRightNotificationsUI)
 	{
-
 		return;
 	}
 
 	if (!CachedRightNotificationsUI->IsInViewport())
 	{
 		CachedRightNotificationsUI->AddToViewport(20);
-
 	}
 
-CachedRightNotificationsUI->EnqueueNotification(NotificationData);
+	CachedRightNotificationsUI->EnqueueNotification(NotificationData);
 }
 
 void APdHUD::ShowDamageScreenEffect(float DamageAmount)
@@ -393,7 +390,6 @@ void APdHUD::ShowDamageScreenEffect(float DamageAmount)
 	UDamageScreenEffectWidget* DamageScreenEffectWidget = FindDamageScreenEffectWidget();
 	if (!DamageScreenEffectWidget)
 	{
-
 		return;
 	}
 
@@ -415,7 +411,6 @@ void APdHUD::ShowGoldenKillAnnouncement(const FText& AnnouncementText)
 	UGoldenKillAnnouncementWidget* GoldenKillWidget = FindGoldenKillAnnouncementWidget();
 	if (!GoldenKillWidget)
 	{
-
 		return;
 	}
 
@@ -437,7 +432,6 @@ void APdHUD::AddKillLogEntry(const FKillLogEntry& KillLogEntry)
 	UKillLogWidget* KillLogWidget = FindKillLogWidget();
 	if (!KillLogWidget)
 	{
-
 		return;
 	}
 
@@ -702,207 +696,50 @@ void APdHUD::ApplyStatusViewModelToPlayerHudRecursive(UUserWidget* RootWidget, b
 	});
 }
 
+// 플레이어 HUD에는 아래 위젯들을 종류별로 하나씩만 배치하므로 이름이 아니라 타입으로 찾는다.
 UDamageScreenEffectWidget* APdHUD::FindDamageScreenEffectWidget()
 {
-	if (CachedDamageScreenEffectWidget)
+	if (!CachedDamageScreenEffectWidget)
 	{
-		return CachedDamageScreenEffectWidget;
+		CachedDamageScreenEffectWidget = PdWidgetLookup::FindFirstWidgetOfType<UDamageScreenEffectWidget>(CachedPlayerHUD);
 	}
-
-	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UDamageScreenEffectWidget* NamedWidget = Cast<UDamageScreenEffectWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("WBP_DamageScreenEffect"))))
-	{
-		CachedDamageScreenEffectWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	if (UDamageScreenEffectWidget* NamedWidget = Cast<UDamageScreenEffectWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("DamageScreenEffect"))))
-	{
-		CachedDamageScreenEffectWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	UDamageScreenEffectWidget* FoundWidget = nullptr;
-	CachedPlayerHUD->WidgetTree->ForEachWidget([&FoundWidget](UWidget* Widget)
-	{
-		if (!FoundWidget)
-		{
-			FoundWidget = Cast<UDamageScreenEffectWidget>(Widget);
-		}
-	});
-
-	CachedDamageScreenEffectWidget = FoundWidget;
-	return FoundWidget;
+	return CachedDamageScreenEffectWidget;
 }
 
 UGoldenKillAnnouncementWidget* APdHUD::FindGoldenKillAnnouncementWidget()
 {
-	if (CachedGoldenKillAnnouncementWidget)
+	if (!CachedGoldenKillAnnouncementWidget)
 	{
-		return CachedGoldenKillAnnouncementWidget;
+		CachedGoldenKillAnnouncementWidget = PdWidgetLookup::FindFirstWidgetOfType<UGoldenKillAnnouncementWidget>(CachedPlayerHUD);
 	}
-
-	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UGoldenKillAnnouncementWidget* NamedWidget = Cast<UGoldenKillAnnouncementWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("WBP_GoldenKillAnnouncement"))))
-	{
-		CachedGoldenKillAnnouncementWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	if (UGoldenKillAnnouncementWidget* NamedWidget = Cast<UGoldenKillAnnouncementWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("GoldenKillAnnouncement"))))
-	{
-		CachedGoldenKillAnnouncementWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	if (UGoldenKillAnnouncementWidget* NamedWidget = Cast<UGoldenKillAnnouncementWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("GoldenKillText"))))
-	{
-		CachedGoldenKillAnnouncementWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	UGoldenKillAnnouncementWidget* FoundWidget = nullptr;
-	CachedPlayerHUD->WidgetTree->ForEachWidget([&FoundWidget](UWidget* Widget)
-	{
-		if (!FoundWidget)
-		{
-			FoundWidget = Cast<UGoldenKillAnnouncementWidget>(Widget);
-		}
-	});
-
-	CachedGoldenKillAnnouncementWidget = FoundWidget;
-	return FoundWidget;
+	return CachedGoldenKillAnnouncementWidget;
 }
 
 UKillLogWidget* APdHUD::FindKillLogWidget()
 {
-	if (CachedKillLogWidget)
+	if (!CachedKillLogWidget)
 	{
-		return CachedKillLogWidget;
+		CachedKillLogWidget = PdWidgetLookup::FindFirstWidgetOfType<UKillLogWidget>(CachedPlayerHUD);
 	}
-
-	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UKillLogWidget* NamedWidget = Cast<UKillLogWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("WBP_KillLog"))))
-	{
-		CachedKillLogWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	if (UKillLogWidget* NamedWidget = Cast<UKillLogWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("KillLog"))))
-	{
-		CachedKillLogWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	UKillLogWidget* FoundWidget = nullptr;
-	CachedPlayerHUD->WidgetTree->ForEachWidget([&FoundWidget](UWidget* Widget)
-	{
-		if (!FoundWidget)
-		{
-			FoundWidget = Cast<UKillLogWidget>(Widget);
-		}
-	});
-
-	CachedKillLogWidget = FoundWidget;
-	return FoundWidget;
+	return CachedKillLogWidget;
 }
 
 UHudTimerWidget* APdHUD::FindHudTimerWidget()
 {
-	if (CachedHudTimerWidget)
+	if (!CachedHudTimerWidget)
 	{
-		return CachedHudTimerWidget;
+		CachedHudTimerWidget = PdWidgetLookup::FindFirstWidgetOfType<UHudTimerWidget>(CachedPlayerHUD);
 	}
-
-	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (UHudTimerWidget* NamedWidget = Cast<UHudTimerWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("WBP_HudTimer"))))
-	{
-		CachedHudTimerWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	if (UHudTimerWidget* NamedWidget = Cast<UHudTimerWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("HudTimer"))))
-	{
-		CachedHudTimerWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	if (UHudTimerWidget* NamedWidget = Cast<UHudTimerWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("TimerWidget"))))
-	{
-		CachedHudTimerWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	UHudTimerWidget* FoundWidget = nullptr;
-	CachedPlayerHUD->WidgetTree->ForEachWidget([&FoundWidget](UWidget* Widget)
-	{
-		if (!FoundWidget)
-		{
-			FoundWidget = Cast<UHudTimerWidget>(Widget);
-		}
-	});
-
-	CachedHudTimerWidget = FoundWidget;
-	return FoundWidget;
+	return CachedHudTimerWidget;
 }
 
 URespawnDelayWidget* APdHUD::FindRespawnDelayWidget()
 {
-	if (CachedRespawnDelayWidget)
+	if (!CachedRespawnDelayWidget)
 	{
-		return CachedRespawnDelayWidget;
+		CachedRespawnDelayWidget = PdWidgetLookup::FindFirstWidgetOfType<URespawnDelayWidget>(CachedPlayerHUD);
 	}
-
-	if (!CachedPlayerHUD || !CachedPlayerHUD->WidgetTree)
-	{
-		return nullptr;
-	}
-
-	if (URespawnDelayWidget* NamedWidget = Cast<URespawnDelayWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("WBP_RespawnDelay"))))
-	{
-		CachedRespawnDelayWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	if (URespawnDelayWidget* NamedWidget = Cast<URespawnDelayWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("RespawnDelay"))))
-	{
-		CachedRespawnDelayWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	if (URespawnDelayWidget* NamedWidget = Cast<URespawnDelayWidget>(CachedPlayerHUD->WidgetTree->FindWidget(TEXT("RespawnDelayWidget"))))
-	{
-		CachedRespawnDelayWidget = NamedWidget;
-		return NamedWidget;
-	}
-
-	URespawnDelayWidget* FoundWidget = nullptr;
-	CachedPlayerHUD->WidgetTree->ForEachWidget([&FoundWidget](UWidget* Widget)
-	{
-		if (!FoundWidget)
-		{
-			FoundWidget = Cast<URespawnDelayWidget>(Widget);
-		}
-	});
-
-	CachedRespawnDelayWidget = FoundWidget;
-	return FoundWidget;
+	return CachedRespawnDelayWidget;
 }
 
 bool APdHUD::IsTrainingRoomMap() const
@@ -966,7 +803,6 @@ void APdHUD::HandleSettingsMenuLayerClosed()
 {
 	RefreshTrainingRoomUiPause();
 	RefreshPlayerHudVisibility();
-
 }
 
 void APdHUD::CloseActiveSettingsMenuPopup()
@@ -998,7 +834,6 @@ void APdHUD::ApplyInventoryWidgetSettings()
 	const bool bTrainingRoom = IsTrainingRoomMap();
 	const int32 InventoryItemCountLimit = WidgetClassDefinition->GetInventoryItemCountLimit(bTrainingRoom);
 	RightInventoryWidget->SetInventorySlotCount(InventoryItemCountLimit);
-
 }
 
 void APdHUD::RefreshPlayerHudVisibility()

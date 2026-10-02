@@ -122,7 +122,6 @@ ASkillProjectile* USkillProjectileCastAction::SpawnPreparedSocketBarrageProjecti
        ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
     if (!Projectile)
     {
-
        return nullptr;
     }
 

@@ -93,7 +93,6 @@ void URoomItemWidget::RefreshUI()
 
 void URoomItemWidget::HandleJoinClicked()
 {
-
 	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr;
@@ -127,7 +126,6 @@ void URoomItemWidget::HandleJoinClicked()
 		{
 			Btn_Join->SetIsEnabled(true);
 		}
-
 	}
 }
 
@@ -156,6 +154,5 @@ void URoomItemWidget::HandleJoinSessionComplete(
 	if (!bWasSuccessful && Btn_Join)
 	{
 		Btn_Join->SetIsEnabled(true);
-
 	}
 }

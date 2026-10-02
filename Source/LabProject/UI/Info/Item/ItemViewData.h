@@ -57,7 +57,6 @@ public:
 
 class LABPROJECT_API FItemViewDataBuilder
 {
-
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	static FItemViewData FromItemInstance(const UItemInstance* ItemInstance, const UMenuLocalizationSubsystem* Localization = nullptr, bool bOwned = true, bool bActive = true);

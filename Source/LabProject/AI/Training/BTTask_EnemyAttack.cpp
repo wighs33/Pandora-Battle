@@ -28,7 +28,6 @@ EBTNodeResult::Type UBTTask_EnemyAttack::ExecuteTask(UBehaviorTreeComponent& Own
 	const float AttackStartDistance = Enemy->GetAttackStartDistance();
 	if (bRequireTargetInAttackRange && DistanceToTarget > AttackStartDistance)
 	{
-
 		if (bMoveToTargetWhenOutOfRange)
 		{
 			Enemy->RequestMoveToAttackTarget(Target);

@@ -255,7 +255,6 @@ namespace
 	{
 		if (!ASC || !AbilityTag.IsValid())
 		{
-
 			return false;
 		}
 
@@ -789,7 +788,6 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 			const float NewMana = ClampResourceAttribute(OldMana + RecoveryManaMagnitude, GetMaxMana());
 			SetMana(NewMana);
 			MARK_PROPERTY_DIRTY_FROM_NAME(UBasicAttributeSet, Mana, this);
-
 		}
 
 		SetHealth(GetHealth());
@@ -872,7 +870,6 @@ void UBasicAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute
 
 	if (OldValue != NewValue)
 	{
-
 		if (FProperty* Property = Attribute.GetUProperty())
 		{
 			MARK_PROPERTY_DIRTY(this, Property);
@@ -1080,7 +1077,6 @@ float UBasicAttributeSet::ApplyIncomingDamage(
 
 	if (RemainingHealthDamage <= 0.f)
 	{
-
 		return 0.f;
 	}
 

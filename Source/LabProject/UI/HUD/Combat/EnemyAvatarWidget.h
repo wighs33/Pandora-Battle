@@ -1,19 +1,14 @@
 #pragma once
 
-#include <initializer_list>
-
 #include "Blueprint/UserWidget.h"
 #include "Styling/SlateBrush.h"
 
 #include "EnemyAvatarWidget.generated.h"
 
 class AActor;
-class UEnemyShieldBarWidget;
-class UEnemyHealthBarWidget;
 class UImage;
 class UStatusEffectsBarWidget;
 class UTexture2D;
-class UUserWidget;
 class UWidget;
 
 UCLASS(Blueprintable, BlueprintType)
@@ -46,11 +41,6 @@ private:
 	bool IsPlayerOwner() const;
 	bool IsLocalPlayerOwner() const;
 	UTexture2D* ResolvePlayerAchievementTexture() const;
-	UUserWidget* FindChildUserWidget(FName WidgetName) const;
-	UUserWidget* FindFirstChildUserWidget(std::initializer_list<FName> WidgetNames) const;
-	UImage* ResolveAvatarImage() const;
-	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
-	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"), Category = "!UI|Enemy|Avatar")
@@ -66,9 +56,6 @@ protected:
 	float AvatarUpdateInterval = 0.1f;
 
 private:
-	UPROPERTY(Transient)
-	TObjectPtr<UImage> CachedAvatarImage;
-
 	TMap<TWeakObjectPtr<UWidget>, ESlateVisibility> OriginalWidgetVisibilities;
 	FSlateBrush DefaultAvatarBrush;
 	bool bHasDefaultAvatarBrush = false;
