@@ -23,7 +23,10 @@ class UAnimMontage;
 class UGameplayEffect;
 class UMaterialInterface;
 
-/** 지면을 조준하고 몽타주 이벤트에 맞춰 범위 피해를 적용한다. */
+/**
+ * 지면을 조준하고 몽타주 이벤트에 맞춰 범위 피해를 적용한다.
+ * 조준·대상 위치를 지면에 맞추는 규칙은 PdSkillAreaTargeting이 맡는다.
+ */
 UCLASS(meta = (DisplayName = "Targeted Area"))
 class LABPROJECT_API USkillTargetedAreaAction : public USkillAction
 {
@@ -91,9 +94,7 @@ private:
 	void ApplyDirectAOECamera(bool bEnabled) const;
 	void RemovePersistentGameplayCues();
 	FGameplayAbilityTargetingLocationInfo MakeTargetStartLocation();
-	bool GetTargetGroundLocation(AActor* AttackTarget, FVector& OutGroundLocation) const;
 	bool ResolveFallbackAOELocation(FVector& OutGroundLocation) const;
-	FVector ResolveConfirmedAOELocation(const FHitResult& HitResult, const FVector& TargetDataEndPoint) const;
 	bool TryValidateServerAOELocation(
 		const FHitResult& ClientHitResult,
 		const FVector& TargetDataEndPoint,

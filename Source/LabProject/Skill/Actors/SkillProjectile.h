@@ -6,13 +6,13 @@
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
 #include "Engine/NetSerialization.h"
+#include "Skill/Actors/SkillProjectilePresentation.h"
 #include "SkillProjectile.generated.h"
 
 class UProjectileMovementComponent;
 class UPrimitiveComponent;
 class USphereComponent;
 class UGameplayEffect;
-class UAbilitySystemComponent;
 class ASkillEffectArea;
 class ACharacterBase;
 class UNiagaraComponent;
@@ -21,6 +21,11 @@ class UStatusEffectDefinition;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FProjectileSkillImpact, AActor*, const FHitResult&);
 
+/**
+ * 스킬 투사체의 비행·충돌·연출 상태를 복제하고 순서를 조율한다.
+ * 비행 계산은 PdSkillProjectileFlight, 충돌 판정과 피해는 PdSkillProjectileHit,
+ * 이펙트와 대기 성장 연출은 PdSkillProjectilePresentation이 맡는다.
+ */
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API ASkillProjectile : public AActor
 {
@@ -123,35 +128,17 @@ protected:
 	void HandleImpact(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FHitResult& Hit);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ResetImpactState();
 	void StartProjectileMovement() const;
-	FVector CalculateArcLaunchVelocity() const;
-	void ConfigureCollision() const;
-	void DisableProjectileCollision() const;
-	void ConfigureIgnoredActors() const;
 	void StopAtImpact(const FVector& ImpactLocation);
-	FName ResolveImpactBoneName(
-		const UPrimitiveComponent* ImpactComponent,
-		const FHitResult& Hit,
-		const FVector& ImpactLocation) const;
 	void AttachToImpactComponent(UPrimitiveComponent* OtherComp, FName ImpactBoneName);
-	bool TryApplyDamageToTarget(AActor* TargetActor);
-	bool TryApplyDamageInImpactArea(const FVector& ImpactLocation);
-	bool TryApplyDebuffToTarget(AActor* TargetActor, UAbilitySystemComponent* SourceASC, UAbilitySystemComponent* TargetASC) const;
-	AActor* ResolveDamageTargetActor(AActor* OtherActor, const UPrimitiveComponent* OtherComponent) const;
-	bool IsIgnoredImpactActor(const AActor* OtherActor) const;
-	void ExecuteSpawnGameplayCue() const;
-	void ExecuteImpactGameplayCue();
 	void ExecuteImpactGameplayCueAtLocation(const FVector& CueLocation);
 	void ApplyProjectileLoopVisual() const;
-	void ApplyProjectileEffectSystem(UNiagaraSystem* DesiredSystem) const;
 	void ExecuteImpactNiagaraAtLocation(const FVector& CueLocation);
-	FTransform ResolveImpactNiagaraSpawnTransform(const FVector& CueLocation) const;
 	void StopReadiedScaleGrowth();
 	void UpdateReadiedScaleGrowth();
 	float GetSyncedWorldTimeSeconds() const;
 	void ApplyReadiedGrowthValue(float Alpha);
-	void SetReadiedNiagaraVector2DParameter(FVector2D Value) const;
-	FName GetNormalizedReadiedNiagaraParameterName() const;
 	void MarkProjectileFlightDataDirty();
 	void MarkProjectileVisualsDirty();
 	void MarkReadiedScaleGrowthDirty();
@@ -222,28 +209,7 @@ protected:
 	FGameplayTag ImpactGameplayCueTag;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ReadiedScaleGrowth, Transient)
-	bool bReadiedScaleGrowthActive = false;
-
-	UPROPERTY(Replicated, Transient)
-	FVector ReadiedScaleGrowthStartScale = FVector::OneVector;
-
-	UPROPERTY(Replicated, Transient)
-	FVector ReadiedScaleGrowthTargetScale = FVector::OneVector;
-
-	UPROPERTY(Replicated, Transient)
-	float ReadiedScaleGrowthDuration = 0.0f;
-
-	UPROPERTY(Replicated, Transient)
-	float ReadiedScaleGrowthServerStartTime = 0.0f;
-
-	UPROPERTY(Replicated, Transient)
-	FName ReadiedScaleGrowthNiagaraVector2DParameterName = NAME_None;
-
-	UPROPERTY(Replicated, Transient)
-	FVector2D ReadiedScaleGrowthNiagaraStartSize = FVector2D::UnitVector;
-
-	UPROPERTY(Replicated, Transient)
-	FVector2D ReadiedScaleGrowthNiagaraTargetSize = FVector2D::UnitVector;
+	FSkillProjectileGrowth ReadiedGrowth;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ImpactState, Transient)
 	bool bHasImpacted = false;

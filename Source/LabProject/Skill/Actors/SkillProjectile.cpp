@@ -1,33 +1,19 @@
 #include "Skill/Actors/SkillProjectile.h"
 
-#include "AbilitySystemBlueprintLibrary.h"
-#include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Character/CharacterHitValidation.h"
-#include "Common/CollisionChannels.h"
-#include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SphereComponent.h"
-#include "Engine/OverlapResult.h"
-#include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/ProjectileMovementComponent.h"
-#include "GameplayCueFunctionLibrary.h"
-#include "GameplayEffect.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
-#include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
-#include "UObject/ObjectKey.h"
+#include "Skill/Actors/SkillProjectileFlight.h"
+#include "Skill/Actors/SkillProjectileHit.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillProjectile)
-
-namespace
-{
-	constexpr float HitNiagaraGroundTraceStartHeight = 150.0f;
-	constexpr float HitNiagaraGroundTraceDepth = 5000.0f;
-}
 
 ASkillProjectile::ASkillProjectile()
 {
@@ -42,17 +28,7 @@ ASkillProjectile::ASkillProjectile()
 	SphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollision"));
 	SetRootComponent(SphereCollision);
 	SphereCollision->InitSphereRadius(12.0f);
-	SphereCollision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	SphereCollision->SetCollisionObjectType(LabCollisionChannels::Projectile());
-	SphereCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
-	SphereCollision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-	SphereCollision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
-	SphereCollision->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
-	SphereCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	SphereCollision->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Block);
-	SphereCollision->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(), ECR_Ignore);
-	SphereCollision->SetGenerateOverlapEvents(true);
-	SphereCollision->SetNotifyRigidBodyCollision(true);
+	PdSkillProjectileHit::ApplyCollisionProfile(SphereCollision);
 	SphereCollision->SetCanEverAffectNavigation(false);
 
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
@@ -87,14 +63,7 @@ void ASkillProjectile::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, bSpawnHitNiagaraOnGround, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, SpawnGameplayCueTag, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, ImpactGameplayCueTag, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, ReadiedScaleGrowthStartScale, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, ReadiedScaleGrowthTargetScale, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, ReadiedScaleGrowthDuration, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, ReadiedScaleGrowthServerStartTime, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, ReadiedScaleGrowthNiagaraVector2DParameterName, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, ReadiedScaleGrowthNiagaraStartSize, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, ReadiedScaleGrowthNiagaraTargetSize, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, bReadiedScaleGrowthActive, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, ReadiedGrowth, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, bHasImpacted, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillProjectile, bKeepProjectileVisualAfterImpact, Params);
 }
@@ -123,17 +92,14 @@ void ASkillProjectile::PrepareProjectile(const FGameplayEffectSpecHandle& InDama
 	MarkProjectileFlightDataDirty();
 
 	DamageEffectSpecHandle = InDamageEffectSpecHandle;
-	bHasImpacted = false;
-	bKeepProjectileVisualAfterImpact = false;
-	bImpactCueExecuted = false;
-	bImpactNiagaraExecuted = false;
-	ConfigureIgnoredActors();
+	ResetImpactState();
+	PdSkillProjectileHit::IgnoreSourceActors(SphereCollision, *this);
 	if (ProjectileMovement)
 	{
 		ProjectileMovement->StopMovementImmediately();
 		ProjectileMovement->Deactivate();
 	}
-	DisableProjectileCollision();
+	PdSkillProjectileHit::DisableCollision(SphereCollision);
 	ApplyProjectileLoopVisual();
 }
 
@@ -147,16 +113,13 @@ void ASkillProjectile::PrepareCosmeticReadiedProjectile(const float InLifeSpan)
 	DamageEffectSpecHandle = FGameplayEffectSpecHandle();
 	DebuffEffectSpecHandle = FGameplayEffectSpecHandle();
 	StatusEffectDefinition = nullptr;
-	bHasImpacted = false;
-	bKeepProjectileVisualAfterImpact = false;
-	bImpactCueExecuted = false;
-	bImpactNiagaraExecuted = false;
+	ResetImpactState();
 	if (ProjectileMovement)
 	{
 		ProjectileMovement->StopMovementImmediately();
 		ProjectileMovement->Deactivate();
 	}
-	DisableProjectileCollision();
+	PdSkillProjectileHit::DisableCollision(SphereCollision);
 	ApplyProjectileLoopVisual();
 
 	if (InLifeSpan > 0.0f)
@@ -184,12 +147,13 @@ void ASkillProjectile::StartReadiedScaleGrowth(
 	const bool bHasNiagaraSizeGrowth = !InNiagaraVector2DParameterName.IsNone() && !InNiagaraStartSize.Equals(InNiagaraTargetSize);
 	if (ClampedDuration <= 0.0f || (InStartScale.Equals(InTargetScale) && !bHasNiagaraSizeGrowth))
 	{
+		// 자랄 것이 없으면 최종 크기만 바로 적용한다.
 		StopReadiedScaleGrowth();
-		ReadiedScaleGrowthStartScale = InStartScale;
-		ReadiedScaleGrowthTargetScale = InTargetScale;
-		ReadiedScaleGrowthNiagaraVector2DParameterName = InNiagaraVector2DParameterName;
-		ReadiedScaleGrowthNiagaraStartSize = InNiagaraStartSize;
-		ReadiedScaleGrowthNiagaraTargetSize = InNiagaraTargetSize;
+		ReadiedGrowth.StartScale = InStartScale;
+		ReadiedGrowth.TargetScale = InTargetScale;
+		ReadiedGrowth.NiagaraVector2DParameterName = InNiagaraVector2DParameterName;
+		ReadiedGrowth.NiagaraStartSize = InNiagaraStartSize;
+		ReadiedGrowth.NiagaraTargetSize = InNiagaraTargetSize;
 		ApplyReadiedGrowthValue(1.0f);
 		MarkReadiedScaleGrowthDirty();
 		if (HasAuthority() && GetIsReplicated())
@@ -199,14 +163,14 @@ void ASkillProjectile::StartReadiedScaleGrowth(
 		return;
 	}
 
-	ReadiedScaleGrowthStartScale = InStartScale;
-	ReadiedScaleGrowthTargetScale = InTargetScale;
-	ReadiedScaleGrowthDuration = ClampedDuration;
-	ReadiedScaleGrowthServerStartTime = GetSyncedWorldTimeSeconds();
-	ReadiedScaleGrowthNiagaraVector2DParameterName = InNiagaraVector2DParameterName;
-	ReadiedScaleGrowthNiagaraStartSize = InNiagaraStartSize;
-	ReadiedScaleGrowthNiagaraTargetSize = InNiagaraTargetSize;
-	bReadiedScaleGrowthActive = true;
+	ReadiedGrowth.StartScale = InStartScale;
+	ReadiedGrowth.TargetScale = InTargetScale;
+	ReadiedGrowth.Duration = ClampedDuration;
+	ReadiedGrowth.ServerStartTime = GetSyncedWorldTimeSeconds();
+	ReadiedGrowth.NiagaraVector2DParameterName = InNiagaraVector2DParameterName;
+	ReadiedGrowth.NiagaraStartSize = InNiagaraStartSize;
+	ReadiedGrowth.NiagaraTargetSize = InNiagaraTargetSize;
+	ReadiedGrowth.bActive = true;
 	MarkReadiedScaleGrowthDirty();
 
 	ApplyReadiedGrowthValue(0.0f);
@@ -219,13 +183,7 @@ void ASkillProjectile::StartReadiedScaleGrowth(
 
 float ASkillProjectile::GetReadiedScaleGrowthAlpha() const
 {
-	if (ReadiedScaleGrowthDuration <= 0.0f)
-	{
-		return 1.0f;
-	}
-
-	const float ElapsedTime = FMath::Max(GetSyncedWorldTimeSeconds() - ReadiedScaleGrowthServerStartTime, 0.0f);
-	return FMath::Clamp(ElapsedTime / ReadiedScaleGrowthDuration, 0.0f, 1.0f);
+	return ReadiedGrowth.GetAlpha(GetSyncedWorldTimeSeconds());
 }
 
 void ASkillProjectile::LaunchProjectile(
@@ -239,12 +197,9 @@ void ASkillProjectile::LaunchProjectile(
 	Speed = FMath::Max(InSpeed, 0.0f);
 	MarkProjectileFlightDataDirty();
 	DamageEffectSpecHandle = InDamageEffectSpecHandle;
-	bHasImpacted = false;
-	bKeepProjectileVisualAfterImpact = false;
-	bImpactCueExecuted = false;
-	bImpactNiagaraExecuted = false;
-	ConfigureCollision();
-	ConfigureIgnoredActors();
+	ResetImpactState();
+	PdSkillProjectileHit::ApplyCollisionProfile(SphereCollision);
+	PdSkillProjectileHit::IgnoreSourceActors(SphereCollision, *this);
 	ApplyProjectileLoopVisual();
 
 	if (HasActorBegunPlay())
@@ -322,19 +277,15 @@ void ASkillProjectile::BeginPlay()
 
 	if (SphereCollision)
 	{
-		if (bCosmeticOnly)
+		if (!bCosmeticOnly && Speed > 0.0f)
 		{
-			DisableProjectileCollision();
-		}
-		else if (Speed > 0.0f)
-		{
-			ConfigureCollision();
+			PdSkillProjectileHit::ApplyCollisionProfile(SphereCollision);
 		}
 		else
 		{
-			DisableProjectileCollision();
+			PdSkillProjectileHit::DisableCollision(SphereCollision);
 		}
-		ConfigureIgnoredActors();
+		PdSkillProjectileHit::IgnoreSourceActors(SphereCollision, *this);
 		SphereCollision->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleSphereBeginOverlap);
 		SphereCollision->OnComponentHit.AddUniqueDynamic(this, &ThisClass::HandleSphereHit);
 	}
@@ -350,7 +301,7 @@ void ASkillProjectile::BeginPlay()
 			StartProjectileMovement();
 		}
 		ApplyProjectileLoopVisual();
-		ExecuteSpawnGameplayCue();
+		PdSkillProjectilePresentation::ExecuteCue(*this, SpawnGameplayCueTag, GetActorLocation());
 	}
 }
 
@@ -358,7 +309,7 @@ void ASkillProjectile::Destroyed()
 {
 	if (bHasImpacted && !bImpactCueExecuted)
 	{
-		ExecuteImpactGameplayCue();
+		ExecuteImpactGameplayCueAtLocation(GetActorLocation());
 	}
 	if (bHasImpacted && !bImpactNiagaraExecuted)
 	{
@@ -378,7 +329,7 @@ void ASkillProjectile::OnRep_ProjectileFlightData()
 
 	if (bCosmeticOnly)
 	{
-		DisableProjectileCollision();
+		PdSkillProjectileHit::DisableCollision(SphereCollision);
 		if (Speed > 0.0f)
 		{
 			StartProjectileMovement();
@@ -389,12 +340,12 @@ void ASkillProjectile::OnRep_ProjectileFlightData()
 
 	if (Speed > 0.0f)
 	{
-		ConfigureCollision();
+		PdSkillProjectileHit::ApplyCollisionProfile(SphereCollision);
 		StartProjectileMovement();
 	}
 	else
 	{
-		DisableProjectileCollision();
+		PdSkillProjectileHit::DisableCollision(SphereCollision);
 	}
 	ApplyProjectileLoopVisual();
 }
@@ -406,7 +357,7 @@ void ASkillProjectile::OnRep_ProjectileVisuals()
 
 void ASkillProjectile::OnRep_ReadiedScaleGrowth()
 {
-	if (bReadiedScaleGrowthActive)
+	if (ReadiedGrowth.bActive)
 	{
 		SetActorTickEnabled(true);
 		UpdateReadiedScaleGrowth();
@@ -462,7 +413,7 @@ void ASkillProjectile::HandleProjectileStopped(const FHitResult& Hit)
 	AActor* OtherActor = Hit.GetActor();
 	UPrimitiveComponent* OtherComponent = Hit.GetComponent();
 	if (!bCosmeticOnly && !bHasImpacted && SphereCollision && IsValid(OtherComponent)
-		&& (IsIgnoredImpactActor(OtherActor)
+		&& (PdSkillProjectileHit::IsIgnoredImpactActor(*this, OtherActor)
 			|| PdCharacterHitValidation::IsCharacterRelatedNonMeshHit(OtherActor, OtherComponent)))
 	{
 		// Ignoring damage alone does not prevent ProjectileMovement from stopping on a blocker.
@@ -476,170 +427,12 @@ void ASkillProjectile::HandleProjectileStopped(const FHitResult& Hit)
 	HandleImpact(OtherActor, OtherComponent, Hit);
 }
 
-void ASkillProjectile::StartProjectileMovement() const
-{
-	if (!ProjectileMovement || Speed <= 0.0f)
-	{
-		return;
-	}
-
-	FVector Direction = (FVector(TargetLocation) - GetActorLocation()).GetSafeNormal();
-	if (Direction.IsNearlyZero())
-	{
-		Direction = GetActorForwardVector();
-	}
-
-	ProjectileMovement->SetUpdatedComponent(SphereCollision);
-	ProjectileMovement->ProjectileGravityScale = 0.0f;
-	ProjectileMovement->InitialSpeed = Speed;
-	ProjectileMovement->MaxSpeed = Speed;
-	ProjectileMovement->Velocity = Direction * Speed;
-	if (bUseArcTrajectory)
-	{
-		const FVector ArcVelocity = CalculateArcLaunchVelocity();
-		if (!ArcVelocity.IsNearlyZero())
-		{
-			ProjectileMovement->ProjectileGravityScale = ArcGravityScale;
-			ProjectileMovement->InitialSpeed = ArcVelocity.Size();
-			ProjectileMovement->MaxSpeed = FMath::Max(Speed, ArcVelocity.Size()) * 2.0f;
-			ProjectileMovement->Velocity = ArcVelocity;
-			Direction = ArcVelocity.GetSafeNormal();
-		}
-	}
-	ProjectileMovement->Activate(true);
-	ProjectileMovement->UpdateComponentVelocity();
-}
-
-FVector ASkillProjectile::CalculateArcLaunchVelocity() const
-{
-	const UWorld* World = GetWorld();
-	const float WorldGravityZ = World ? World->GetGravityZ() : -980.0f;
-	const float GravityScale = FMath::Max(ArcGravityScale, UE_SMALL_NUMBER);
-	const float GravityZ = WorldGravityZ * GravityScale;
-	const float GravityMagnitude = FMath::Abs(GravityZ);
-	if (GravityMagnitude <= UE_SMALL_NUMBER)
-	{
-		return FVector::ZeroVector;
-	}
-
-	const FVector StartLocation = GetActorLocation();
-	const FVector EndLocation = FVector(TargetLocation);
-	const FVector Delta = EndLocation - StartLocation;
-	const FVector HorizontalDelta(Delta.X, Delta.Y, 0.0);
-	const float HorizontalDistance = HorizontalDelta.Size();
-
-	float TravelTime = 0.0f;
-	if (ArcHeight > UE_SMALL_NUMBER)
-	{
-		TravelTime = FMath::Sqrt((8.0f * ArcHeight) / GravityMagnitude);
-	}
-	else if (Speed > UE_SMALL_NUMBER && HorizontalDistance > UE_SMALL_NUMBER)
-	{
-		TravelTime = HorizontalDistance / Speed;
-	}
-
-	if (TravelTime <= UE_SMALL_NUMBER)
-	{
-		return FVector::ZeroVector;
-	}
-
-	const FVector HorizontalVelocity = HorizontalDistance > UE_SMALL_NUMBER
-		? HorizontalDelta / TravelTime
-		: FVector::ZeroVector;
-	const float VerticalVelocity = (Delta.Z - (0.5f * GravityZ * FMath::Square(TravelTime))) / TravelTime;
-	const FVector LaunchVelocity = HorizontalVelocity + FVector::UpVector * VerticalVelocity;
-
-	return LaunchVelocity;
-}
-
-void ASkillProjectile::ConfigureCollision() const
-{
-	if (!SphereCollision)
-	{
-		return;
-	}
-
-	SphereCollision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	SphereCollision->SetCollisionObjectType(LabCollisionChannels::Projectile());
-	SphereCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
-	SphereCollision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-	SphereCollision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
-	SphereCollision->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
-	SphereCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	SphereCollision->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Block);
-	SphereCollision->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(), ECR_Ignore);
-	SphereCollision->SetGenerateOverlapEvents(true);
-	SphereCollision->SetNotifyRigidBodyCollision(true);
-}
-
-void ASkillProjectile::DisableProjectileCollision() const
-{
-	if (!SphereCollision)
-	{
-		return;
-	}
-
-	SphereCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	SphereCollision->SetGenerateOverlapEvents(false);
-	SphereCollision->SetNotifyRigidBodyCollision(false);
-}
-
-void ASkillProjectile::ConfigureIgnoredActors() const
-{
-	if (!SphereCollision)
-	{
-		return;
-	}
-
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(const_cast<ASkillProjectile*>(this));
-
-	if (AActor* OwningActor = GetOwner())
-	{
-		ActorsToIgnore.AddUnique(OwningActor);
-
-		TArray<AActor*> AttachedActors;
-		OwningActor->GetAttachedActors(AttachedActors, true, true);
-		for (AActor* AttachedActor : AttachedActors)
-		{
-			ActorsToIgnore.AddUnique(AttachedActor);
-		}
-	}
-
-	if (APawn* InstigatorPawn = GetInstigator())
-	{
-		ActorsToIgnore.AddUnique(InstigatorPawn);
-
-		TArray<AActor*> AttachedActors;
-		InstigatorPawn->GetAttachedActors(AttachedActors, true, true);
-		for (AActor* AttachedActor : AttachedActors)
-		{
-			ActorsToIgnore.AddUnique(AttachedActor);
-		}
-	}
-
-	for (AActor* IgnoredActor : ActorsToIgnore)
-	{
-		if (!IsValid(IgnoredActor))
-		{
-			continue;
-		}
-
-		SphereCollision->IgnoreActorWhenMoving(IgnoredActor, true);
-	}
-}
-
 void ASkillProjectile::HandleImpact(
 	AActor* OtherActor,
 	UPrimitiveComponent* OtherComp,
 	const FHitResult& Hit)
 {
-	if (bCosmeticOnly)
-	{
-		return;
-	}
-
-	if (bHasImpacted || !OtherComp || IsIgnoredImpactActor(OtherActor))
+	if (bCosmeticOnly || bHasImpacted || !OtherComp || PdSkillProjectileHit::IsIgnoredImpactActor(*this, OtherActor))
 	{
 		return;
 	}
@@ -652,101 +445,114 @@ void ASkillProjectile::HandleImpact(
 		return;
 	}
 
-	AActor* DamageTargetActor = ResolveDamageTargetActor(OtherActor, OtherComp);
-	if (IsIgnoredImpactActor(DamageTargetActor))
+	AActor* DamageTargetActor = PdSkillProjectileHit::ResolveDamageTarget(OtherActor, OtherComp);
+	if (PdSkillProjectileHit::IsIgnoredImpactActor(*this, DamageTargetActor) || !HasAuthority())
 	{
 		return;
 	}
 
-	if (HasAuthority())
+	const bool bKeepProjectileAfterImpact = bStickOnImpact && PostImpactLifeSpan > UE_SMALL_NUMBER;
+	bHasImpacted = true;
+	bKeepProjectileVisualAfterImpact = bKeepProjectileAfterImpact;
+	MarkImpactStateDirty();
+
+	const FVector ImpactLocation =
+		PdSkillProjectileHit::ResolveImpactLocation(Hit, bKeepProjectileAfterImpact, GetActorLocation());
+	StopAtImpact(ImpactLocation);
+
+	FSkillProjectileDamage Damage;
+	Damage.DamageSpec = DamageEffectSpecHandle;
+	Damage.DebuffSpec = DebuffEffectSpecHandle;
+	Damage.StatusEffect = StatusEffectDefinition;
+	if (ImpactAreaDamageRadius > UE_SMALL_NUMBER)
 	{
-		const bool bKeepProjectileAfterImpact =
-			bStickOnImpact && PostImpactLifeSpan > UE_SMALL_NUMBER;
-		ACharacterBase* StuckCharacter = nullptr;
-		FName StuckBoneName = NAME_None;
-		bHasImpacted = true;
-		bKeepProjectileVisualAfterImpact = bKeepProjectileAfterImpact;
-		MarkImpactStateDirty();
+		PdSkillProjectileHit::ApplyDamageInArea(*this, ImpactLocation, ImpactAreaDamageRadius, Damage);
+	}
+	else
+	{
+		PdSkillProjectileHit::ApplyDamageToTarget(*this, DamageTargetActor, Damage);
+	}
 
-		const bool bHasReportedImpactPoint =
-			(Hit.GetActor() != nullptr || Hit.GetComponent() != nullptr)
-			&& !Hit.ImpactPoint.ContainsNaN();
-		const bool bHasReportedImpactLocation =
-			(Hit.GetActor() != nullptr || Hit.GetComponent() != nullptr)
-			&& !Hit.Location.ContainsNaN();
-		const FVector ImpactLocation = bKeepProjectileAfterImpact && bHasReportedImpactPoint
-			? FVector(Hit.ImpactPoint)
-			: (bHasReportedImpactLocation ? FVector(Hit.Location) : GetActorLocation());
-		StopAtImpact(ImpactLocation);
-
-		if (ImpactAreaDamageRadius > UE_SMALL_NUMBER)
+	ACharacterBase* StuckCharacter = nullptr;
+	FName StuckBoneName = NAME_None;
+	if (bKeepProjectileAfterImpact)
+	{
+		StuckCharacter = PdCharacterHitValidation::ResolveDirectMeshHit(OtherActor, OtherComp);
+		if (StuckCharacter && IsValid(StuckCharacter->GetMesh()))
 		{
-			TryApplyDamageInImpactArea(ImpactLocation);
+			// Character impacts always attach to the authoritative primary mesh.
+			// Hit.BoneName is normally populated by the mesh physics asset; use
+			// the nearest bone as a safe fallback so animation keeps the icicle
+			// embedded in the struck body part.
+			StuckBoneName = PdSkillProjectileHit::ResolveImpactBoneName(StuckCharacter->GetMesh(), Hit, ImpactLocation);
 		}
 		else
 		{
-			TryApplyDamageToTarget(DamageTargetActor);
-		}
-
-		if (bKeepProjectileAfterImpact)
-		{
-			StuckCharacter = PdCharacterHitValidation::ResolveDirectMeshHit(
-				OtherActor,
-				OtherComp);
-
-			if (StuckCharacter && IsValid(StuckCharacter->GetMesh()))
-			{
-				// Character impacts always attach to the authoritative primary mesh.
-				// Hit.BoneName is normally populated by the mesh physics asset; use
-				// the nearest bone as a safe fallback so animation keeps the icicle
-				// embedded in the struck body part.
-				StuckBoneName = ResolveImpactBoneName(
-					StuckCharacter->GetMesh(),
-					Hit,
-					ImpactLocation);
-			}
-			else
-			{
-				const FName ImpactBoneName = ResolveImpactBoneName(
-					OtherComp,
-					Hit,
-					ImpactLocation);
-				AttachToImpactComponent(OtherComp, ImpactBoneName);
-			}
-		}
-		else if (ProjectileEffect)
-		{
-			ProjectileEffect->Deactivate();
-		}
-
-		MulticastExecuteImpactGameplayCue(
-			FVector_NetQuantize(ImpactLocation),
-			HitFX.Get(),
-			bSpawnHitNiagaraOnGround,
-			ImpactGameplayCueTag,
-			bKeepProjectileAfterImpact,
-			StuckCharacter,
-			StuckBoneName);
-
-		FHitResult SkillHit = Hit;
-		SkillHit.ImpactPoint = ImpactLocation;
-		OnSkillImpact.Broadcast(DamageTargetActor, SkillHit);
-
-		if (bKeepProjectileAfterImpact)
-		{
-			SetLifeSpan(PostImpactLifeSpan);
-			ForceNetUpdate();
-		}
-		else
-		{
-			Destroy();
+			AttachToImpactComponent(OtherComp, PdSkillProjectileHit::ResolveImpactBoneName(OtherComp, Hit, ImpactLocation));
 		}
 	}
+	else if (ProjectileEffect)
+	{
+		ProjectileEffect->Deactivate();
+	}
+
+	MulticastExecuteImpactGameplayCue(
+		FVector_NetQuantize(ImpactLocation),
+		HitFX.Get(),
+		bSpawnHitNiagaraOnGround,
+		ImpactGameplayCueTag,
+		bKeepProjectileAfterImpact,
+		StuckCharacter,
+		StuckBoneName);
+
+	FHitResult SkillHit = Hit;
+	SkillHit.ImpactPoint = ImpactLocation;
+	OnSkillImpact.Broadcast(DamageTargetActor, SkillHit);
+
+	if (bKeepProjectileAfterImpact)
+	{
+		SetLifeSpan(PostImpactLifeSpan);
+		ForceNetUpdate();
+	}
+	else
+	{
+		Destroy();
+	}
+}
+
+void ASkillProjectile::ResetImpactState()
+{
+	bHasImpacted = false;
+	bKeepProjectileVisualAfterImpact = false;
+	bImpactCueExecuted = false;
+	bImpactNiagaraExecuted = false;
+}
+
+void ASkillProjectile::StartProjectileMovement() const
+{
+	if (!ProjectileMovement)
+	{
+		return;
+	}
+
+	PdSkillProjectileFlight::FLaunchParams Params;
+	Params.StartLocation = GetActorLocation();
+	Params.TargetLocation = FVector(TargetLocation);
+	Params.FallbackDirection = GetActorForwardVector();
+	Params.Speed = Speed;
+	Params.bUseArcTrajectory = bUseArcTrajectory;
+	Params.ArcHeight = ArcHeight;
+	Params.ArcGravityScale = ArcGravityScale;
+	if (const UWorld* World = GetWorld())
+	{
+		Params.WorldGravityZ = World->GetGravityZ();
+	}
+	PdSkillProjectileFlight::Launch(*ProjectileMovement, SphereCollision, Params);
 }
 
 void ASkillProjectile::StopAtImpact(const FVector& ImpactLocation)
 {
-	DisableProjectileCollision();
+	PdSkillProjectileHit::DisableCollision(SphereCollision);
 	if (ProjectileMovement)
 	{
 		ProjectileMovement->StopMovementImmediately();
@@ -761,35 +567,6 @@ void ASkillProjectile::StopAtImpact(const FVector& ImpactLocation)
 			nullptr,
 			ETeleportType::TeleportPhysics);
 	}
-}
-
-FName ASkillProjectile::ResolveImpactBoneName(
-	const UPrimitiveComponent* ImpactComponent,
-	const FHitResult& Hit,
-	const FVector& ImpactLocation) const
-{
-	if (!IsValid(ImpactComponent))
-	{
-		return NAME_None;
-	}
-
-	if (!Hit.BoneName.IsNone() && ImpactComponent->DoesSocketExist(Hit.BoneName))
-	{
-		return Hit.BoneName;
-	}
-
-	if (const USkeletalMeshComponent* SkeletalMesh =
-		Cast<USkeletalMeshComponent>(ImpactComponent))
-	{
-		const FName ClosestBoneName = SkeletalMesh->FindClosestBone(ImpactLocation);
-		if (!ClosestBoneName.IsNone()
-			&& SkeletalMesh->DoesSocketExist(ClosestBoneName))
-		{
-			return ClosestBoneName;
-		}
-	}
-
-	return NAME_None;
 }
 
 void ASkillProjectile::AttachToImpactComponent(
@@ -815,251 +592,18 @@ void ASkillProjectile::AttachToImpactComponent(
 		AttachSocketName);
 }
 
-bool ASkillProjectile::TryApplyDamageToTarget(AActor* TargetActor)
-{
-	if (!HasAuthority() || !IsValid(TargetActor) || !DamageEffectSpecHandle.IsValid())
-	{
-		return false;
-	}
-
-	if (const ACharacterBase* SourceCharacter = Cast<ACharacterBase>(GetInstigator()))
-	{
-		if (const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(TargetActor))
-		{
-			if (!SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
-			{
-				return false;
-			}
-		}
-	}
-
-	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetInstigator());
-	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
-	if (!SourceASC || !TargetASC || !DamageEffectSpecHandle.Data.IsValid())
-	{
-		return false;
-	}
-
-	const FActiveGameplayEffectHandle AppliedHandle =
-		SourceASC->ApplyGameplayEffectSpecToTarget(*DamageEffectSpecHandle.Data.Get(), TargetASC);
-	if (AppliedHandle.WasSuccessfullyApplied())
-	{
-		TryApplyDebuffToTarget(TargetActor, SourceASC, TargetASC);
-	}
-
-	return AppliedHandle.WasSuccessfullyApplied();
-}
-
-bool ASkillProjectile::TryApplyDamageInImpactArea(const FVector& ImpactLocation)
-{
-	UWorld* World = GetWorld();
-	if (!HasAuthority()
-		|| !World
-		|| ImpactAreaDamageRadius <= UE_SMALL_NUMBER
-		|| !DamageEffectSpecHandle.IsValid()
-		|| !DamageEffectSpecHandle.Data.IsValid())
-	{
-		return false;
-	}
-
-	FCollisionObjectQueryParams ObjectQueryParams;
-	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
-	ObjectQueryParams.AddObjectTypesToQuery(LabCollisionChannels::HitableBody());
-
-	FCollisionQueryParams QueryParams(
-		SCENE_QUERY_STAT(ProjectileImpactAreaDamage),
-		false);
-	if (AActor* OwningActor = GetOwner())
-	{
-		QueryParams.AddIgnoredActor(OwningActor);
-	}
-	if (APawn* InstigatorPawn = GetInstigator())
-	{
-		QueryParams.AddIgnoredActor(InstigatorPawn);
-	}
-
-	TArray<FOverlapResult> OverlapResults;
-	if (!World->OverlapMultiByObjectType(
-		OverlapResults,
-		ImpactLocation,
-		FQuat::Identity,
-		ObjectQueryParams,
-		FCollisionShape::MakeSphere(ImpactAreaDamageRadius),
-		QueryParams))
-	{
-		return false;
-	}
-
-	TSet<FObjectKey> ProcessedTargets;
-	bool bAppliedAnyDamage = false;
-	for (const FOverlapResult& OverlapResult : OverlapResults)
-	{
-		AActor* TargetActor = ResolveDamageTargetActor(
-			OverlapResult.GetActor(),
-			OverlapResult.GetComponent());
-		ACharacterBase* TargetCharacter = Cast<ACharacterBase>(TargetActor);
-		if (!IsValid(TargetCharacter))
-		{
-			continue;
-		}
-
-		const FObjectKey TargetKey(TargetCharacter);
-		if (ProcessedTargets.Contains(TargetKey))
-		{
-			continue;
-		}
-		ProcessedTargets.Add(TargetKey);
-
-		bAppliedAnyDamage |= TryApplyDamageToTarget(TargetCharacter);
-	}
-
-	return bAppliedAnyDamage;
-}
-
-bool ASkillProjectile::TryApplyDebuffToTarget(AActor* TargetActor, UAbilitySystemComponent* SourceASC, UAbilitySystemComponent* TargetASC) const
-{
-	if (!HasAuthority()
-		|| !DebuffEffectSpecHandle.IsValid()
-		|| !DebuffEffectSpecHandle.Data.IsValid()
-		|| !IsValid(TargetActor)
-		|| !SourceASC
-		|| !TargetASC
-		|| !StatusEffectDefinition
-		|| !StatusEffectDefinition->CanStack(TargetASC))
-	{
-		return false;
-	}
-
-	const FActiveGameplayEffectHandle AppliedHandle =
-		SourceASC->ApplyGameplayEffectSpecToTarget(*DebuffEffectSpecHandle.Data.Get(), TargetASC);
-	if (AppliedHandle.WasSuccessfullyApplied())
-	{
-		if (UStatusEffectReplicationComponent* ReplicationComponent =
-			TargetActor->FindComponentByClass<UStatusEffectReplicationComponent>())
-		{
-			ReplicationComponent->TrackAppliedStatusEffect(
-				StatusEffectDefinition,
-				AppliedHandle);
-		}
-	}
-
-	return AppliedHandle.WasSuccessfullyApplied();
-}
-
-AActor* ASkillProjectile::ResolveDamageTargetActor(
-	AActor* OtherActor,
-	const UPrimitiveComponent* OtherComponent) const
-{
-	if (!IsValid(OtherActor))
-	{
-		return nullptr;
-	}
-
-	if (PdCharacterHitValidation::ResolveRelatedCharacter(OtherActor, OtherComponent))
-	{
-		return PdCharacterHitValidation::ResolveDirectMeshHit(
-			OtherActor,
-			OtherComponent);
-	}
-
-	return OtherActor;
-}
-
-bool ASkillProjectile::IsIgnoredImpactActor(const AActor* OtherActor) const
-{
-	if (!IsValid(OtherActor))
-	{
-		return true;
-	}
-
-	const AActor* OwningActor = GetOwner();
-	const APawn* InstigatorPawn = GetInstigator();
-	const ACharacterBase* SourceCharacter = Cast<ACharacterBase>(InstigatorPawn);
-
-	const AActor* CurrentActor = OtherActor;
-	for (int32 Depth = 0; Depth < 8 && IsValid(CurrentActor); ++Depth)
-	{
-		if (CurrentActor == this || CurrentActor == OwningActor || CurrentActor == InstigatorPawn)
-		{
-			return true;
-		}
-
-		if (InstigatorPawn && CurrentActor->GetInstigator() == InstigatorPawn)
-		{
-			return true;
-		}
-
-		if (SourceCharacter)
-		{
-			if (const ACharacterBase* OtherCharacter = Cast<ACharacterBase>(CurrentActor))
-			{
-				if (!SourceCharacter->CanDamageCharacterByTeam(OtherCharacter))
-				{
-					return true;
-				}
-			}
-		}
-
-		const AActor* OwnerActor = CurrentActor->GetOwner();
-		const AActor* AttachParentActor = CurrentActor->GetAttachParentActor();
-		const AActor* NextActor = OwnerActor ? OwnerActor : AttachParentActor;
-		if (NextActor == CurrentActor)
-		{
-			break;
-		}
-
-		CurrentActor = NextActor;
-	}
-
-	return false;
-}
-
-void ASkillProjectile::ExecuteSpawnGameplayCue() const
-{
-	if (!SpawnGameplayCueTag.IsValid())
-	{
-		return;
-	}
-
-	FGameplayCueParameters Parameters;
-	Parameters.Location = GetActorLocation();
-	Parameters.Instigator = GetInstigator();
-	Parameters.EffectCauser = const_cast<ASkillProjectile*>(this);
-	UGameplayCueFunctionLibrary::ExecuteGameplayCueOnActor(
-		const_cast<ASkillProjectile*>(this),
-		SpawnGameplayCueTag,
-		Parameters);
-}
-
-void ASkillProjectile::ExecuteImpactGameplayCue()
-{
-	ExecuteImpactGameplayCueAtLocation(GetActorLocation());
-}
-
 void ASkillProjectile::ExecuteImpactGameplayCueAtLocation(const FVector& CueLocation)
 {
-	if (!ImpactGameplayCueTag.IsValid())
-	{
-		return;
-	}
-
-	if (bImpactCueExecuted)
+	if (!ImpactGameplayCueTag.IsValid() || bImpactCueExecuted)
 	{
 		return;
 	}
 
 	bImpactCueExecuted = true;
-
-	FGameplayCueParameters Parameters;
-	Parameters.Location = CueLocation;
-	Parameters.Instigator = GetInstigator();
-	Parameters.EffectCauser = this;
-	UGameplayCueFunctionLibrary::ExecuteGameplayCueOnActor(
-		this,
-		ImpactGameplayCueTag,
-		Parameters);
+	PdSkillProjectilePresentation::ExecuteCue(*this, ImpactGameplayCueTag, CueLocation);
 }
 
+// 날아가는 동안은 비행 이펙트, 대기 중에는 총구 이펙트를 쓰고, 맞은 뒤에는 박힌 투사체만 이펙트를 유지한다.
 void ASkillProjectile::ApplyProjectileLoopVisual() const
 {
 	UNiagaraSystem* DesiredSystem = nullptr;
@@ -1068,35 +612,7 @@ void ASkillProjectile::ApplyProjectileLoopVisual() const
 		DesiredSystem = Speed > 0.0f ? ProjectileFX.Get() : MuzzleFX.Get();
 	}
 
-	ApplyProjectileEffectSystem(DesiredSystem);
-}
-
-void ASkillProjectile::ApplyProjectileEffectSystem(UNiagaraSystem* DesiredSystem) const
-{
-	if (!ProjectileEffect)
-	{
-		return;
-	}
-
-	if (!DesiredSystem)
-	{
-		ProjectileEffect->Deactivate();
-		return;
-	}
-
-	const bool bAssetChanged = ProjectileEffect->GetAsset() != DesiredSystem;
-	if (bAssetChanged)
-	{
-		ProjectileEffect->DeactivateImmediate();
-		ProjectileEffect->SetAsset(DesiredSystem);
-		ProjectileEffect->ResetSystem();
-	}
-	else if (!ProjectileEffect->IsActive())
-	{
-		ProjectileEffect->ResetSystem();
-	}
-
-	ProjectileEffect->Activate(true);
+	PdSkillProjectilePresentation::ApplyLoopEffect(ProjectileEffect, DesiredSystem);
 }
 
 void ASkillProjectile::ExecuteImpactNiagaraAtLocation(const FVector& CueLocation)
@@ -1107,65 +623,18 @@ void ASkillProjectile::ExecuteImpactNiagaraAtLocation(const FVector& CueLocation
 	}
 
 	bImpactNiagaraExecuted = true;
-	const FTransform SpawnTransform = ResolveImpactNiagaraSpawnTransform(CueLocation);
-	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-		this,
-		HitFX.Get(),
-		SpawnTransform.GetLocation(),
-		SpawnTransform.GetRotation().Rotator());
-}
-
-FTransform ASkillProjectile::ResolveImpactNiagaraSpawnTransform(const FVector& CueLocation) const
-{
-	if (!bSpawnHitNiagaraOnGround)
-	{
-		return FTransform(GetActorRotation(), CueLocation);
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return FTransform(GetActorRotation(), CueLocation);
-	}
-
-	const FVector TraceStart = CueLocation + FVector(0.0, 0.0, HitNiagaraGroundTraceStartHeight);
-	const FVector TraceEnd = CueLocation - FVector(0.0, 0.0, HitNiagaraGroundTraceDepth);
-
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ProjectileHitNiagaraGroundTrace), false);
-	QueryParams.AddIgnoredActor(this);
-	if (AActor* OwningActor = GetOwner())
-	{
-		QueryParams.AddIgnoredActor(OwningActor);
-	}
-	if (APawn* InstigatorPawn = GetInstigator())
-	{
-		QueryParams.AddIgnoredActor(InstigatorPawn);
-	}
-
-	FCollisionObjectQueryParams ObjectParams;
-	ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic);
-	ObjectParams.AddObjectTypesToQuery(ECC_WorldDynamic);
-
-	FHitResult GroundHit;
-	if (World->LineTraceSingleByObjectType(GroundHit, TraceStart, TraceEnd, ObjectParams, QueryParams) && GroundHit.bBlockingHit)
-	{
-		const FRotator GroundRotation = FRotationMatrix::MakeFromZ(GroundHit.Normal.GetSafeNormal()).Rotator();
-
-		return FTransform(GroundRotation, GroundHit.Location);
-	}
-
-	return FTransform(GetActorRotation(), CueLocation);
+	PdSkillProjectilePresentation::SpawnImpactEffect(*this, HitFX.Get(), CueLocation, bSpawnHitNiagaraOnGround);
 }
 
 void ASkillProjectile::StopReadiedScaleGrowth()
 {
-	if (!bReadiedScaleGrowthActive)
+	if (!ReadiedGrowth.bActive)
 	{
 		return;
 	}
 
 	UpdateReadiedScaleGrowth();
-	bReadiedScaleGrowthActive = false;
+	ReadiedGrowth.bActive = false;
 	MarkReadiedScaleGrowthDirty();
 	SetActorTickEnabled(false);
 	ForceNetUpdate();
@@ -1173,36 +642,24 @@ void ASkillProjectile::StopReadiedScaleGrowth()
 
 void ASkillProjectile::UpdateReadiedScaleGrowth()
 {
-	if (!bReadiedScaleGrowthActive)
+	if (!ReadiedGrowth.bActive)
 	{
 		return;
 	}
 
-	if (ReadiedScaleGrowthDuration <= UE_SMALL_NUMBER)
-	{
-		ApplyReadiedGrowthValue(1.0f);
-		bReadiedScaleGrowthActive = false;
-		MarkReadiedScaleGrowthDirty();
-		SetActorTickEnabled(false);
-		if (HasAuthority())
-		{
-			ForceNetUpdate();
-		}
-		return;
-	}
-
-	const float Alpha = GetReadiedScaleGrowthAlpha();
+	const float Alpha = ReadiedGrowth.Duration <= UE_SMALL_NUMBER ? 1.0f : GetReadiedScaleGrowthAlpha();
 	ApplyReadiedGrowthValue(Alpha);
-
-	if (Alpha >= 1.0f)
+	if (Alpha < 1.0f)
 	{
-		bReadiedScaleGrowthActive = false;
-		MarkReadiedScaleGrowthDirty();
-		SetActorTickEnabled(false);
-		if (HasAuthority())
-		{
-			ForceNetUpdate();
-		}
+		return;
+	}
+
+	ReadiedGrowth.bActive = false;
+	MarkReadiedScaleGrowthDirty();
+	SetActorTickEnabled(false);
+	if (HasAuthority())
+	{
+		ForceNetUpdate();
 	}
 }
 
@@ -1220,50 +677,11 @@ float ASkillProjectile::GetSyncedWorldTimeSeconds() const
 
 void ASkillProjectile::ApplyReadiedGrowthValue(const float Alpha)
 {
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	SetActorScale3D(FMath::Lerp(ReadiedScaleGrowthStartScale, ReadiedScaleGrowthTargetScale, ClampedAlpha));
-
-	if (!GetNormalizedReadiedNiagaraParameterName().IsNone())
-	{
-		const FVector2D Value(
-			FMath::Lerp(ReadiedScaleGrowthNiagaraStartSize.X, ReadiedScaleGrowthNiagaraTargetSize.X, ClampedAlpha),
-			FMath::Lerp(ReadiedScaleGrowthNiagaraStartSize.Y, ReadiedScaleGrowthNiagaraTargetSize.Y, ClampedAlpha));
-		SetReadiedNiagaraVector2DParameter(Value);
-	}
-}
-
-void ASkillProjectile::SetReadiedNiagaraVector2DParameter(const FVector2D Value) const
-{
-	const FName ParameterName = GetNormalizedReadiedNiagaraParameterName();
-	if (ParameterName.IsNone())
-	{
-		return;
-	}
-
-	TArray<UNiagaraComponent*> NiagaraComponents;
-	GetComponents(NiagaraComponents);
-	for (UNiagaraComponent* NiagaraComponent : NiagaraComponents)
-	{
-		if (!NiagaraComponent)
-		{
-			continue;
-		}
-
-		NiagaraComponent->SetVariableVec2(ParameterName, Value);
-	}
-}
-
-FName ASkillProjectile::GetNormalizedReadiedNiagaraParameterName() const
-{
-	if (ReadiedScaleGrowthNiagaraVector2DParameterName.IsNone())
-	{
-		return NAME_None;
-	}
-
-	const FString RawName = ReadiedScaleGrowthNiagaraVector2DParameterName.ToString();
-	return RawName.StartsWith(TEXT("User."))
-		? ReadiedScaleGrowthNiagaraVector2DParameterName
-		: FName(*FString::Printf(TEXT("User.%s"), *RawName));
+	SetActorScale3D(ReadiedGrowth.GetScale(Alpha));
+	PdSkillProjectilePresentation::SetNiagaraVector2D(
+		*this,
+		ReadiedGrowth.GetNiagaraParameterName(),
+		ReadiedGrowth.GetNiagaraSize(Alpha));
 }
 
 void ASkillProjectile::MarkProjectileFlightDataDirty()
@@ -1302,14 +720,7 @@ void ASkillProjectile::MarkReadiedScaleGrowthDirty()
 		return;
 	}
 
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillProjectile, ReadiedScaleGrowthStartScale, this);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillProjectile, ReadiedScaleGrowthTargetScale, this);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillProjectile, ReadiedScaleGrowthDuration, this);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillProjectile, ReadiedScaleGrowthServerStartTime, this);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillProjectile, ReadiedScaleGrowthNiagaraVector2DParameterName, this);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillProjectile, ReadiedScaleGrowthNiagaraStartSize, this);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillProjectile, ReadiedScaleGrowthNiagaraTargetSize, this);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillProjectile, bReadiedScaleGrowthActive, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillProjectile, ReadiedGrowth, this);
 }
 
 void ASkillProjectile::MarkImpactStateDirty()
@@ -1343,6 +754,8 @@ void ASkillProjectile::MulticastExecuteImpactGameplayCue_Implementation(
 			InStuckCharacter->GetMesh(),
 			InStuckBoneName);
 	}
+
+	// 복제 속성보다 먼저 도착한 클라이언트도 같은 충돌 연출을 쓰도록 비어 있는 값만 채운다.
 	bool bVisualsChanged = false;
 	if (!HitFX && InHitFX)
 	{

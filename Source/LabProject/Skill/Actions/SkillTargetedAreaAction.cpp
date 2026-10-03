@@ -15,7 +15,6 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
-#include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/EngineTypes.h"
@@ -23,118 +22,13 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
-#include "Map/PlayerMapRegionTrigger.h"
-#include "Map/OutOfBoundsVolume.h"
 #include "Materials/MaterialInterface.h"
-#include "DrawDebugHelpers.h"
+#include "Skill/Actions/SkillAreaTargeting.h"
+#include "Skill/SkillDebugDraw.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillTargetedAreaAction)
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkillTargetedAreaAction, Log, All);
-
-namespace
-{
-	constexpr float AOEGroundProjectionStartHeight = 500.0f;
-	constexpr float AOEGroundProjectionMinDepth = 1000.0f;
-	constexpr float AOEGroundMinNormalZ = 0.35f;
-
-	bool IsIgnoredAOEGroundActor(const AActor* Actor)
-	{
-		return Actor
-			&& (Actor->IsA<AOutOfBoundsVolume>()
-				|| Actor->IsA<APlayerMapRegionTrigger>());
-	}
-
-	bool IsValidAOEGroundHit(const FHitResult& Hit)
-	{
-		return Hit.bBlockingHit
-			&& Hit.ImpactNormal.Z >= AOEGroundMinNormalZ
-			&& !Cast<APawn>(Hit.GetActor())
-			&& !IsIgnoredAOEGroundActor(Hit.GetActor());
-	}
-
-	FVector ResolveActorFeetLocation(const AActor* Actor)
-	{
-		if (!Actor)
-		{
-			return FVector::ZeroVector;
-		}
-
-		FVector FeetLocation = Actor->GetActorLocation();
-		if (const ACharacterBase* Character = Cast<ACharacterBase>(Actor))
-		{
-			if (const UCapsuleComponent* CapsuleComponent = Character->GetCapsuleComponent())
-			{
-				FeetLocation.Z -= CapsuleComponent->GetScaledCapsuleHalfHeight();
-			}
-		}
-
-		return FeetLocation;
-	}
-
-	bool TryResolveGroundHitLocation(
-		UWorld* World,
-		const FVector& SourceLocation,
-		const TArray<AActor*>& ActorsToIgnore,
-		const TEnumAsByte<ETraceTypeQuery> TraceType,
-		const float TraceDepth,
-		FVector& OutGroundLocation)
-	{
-		if (!World)
-		{
-			return false;
-		}
-
-		const float ResolvedTraceDepth = FMath::Max(TraceDepth, AOEGroundProjectionMinDepth);
-		const FVector TraceStart = SourceLocation + FVector::UpVector * AOEGroundProjectionStartHeight;
-		const FVector TraceEnd = SourceLocation - FVector::UpVector * ResolvedTraceDepth;
-
-		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(AOEGroundProjection), false);
-		for (AActor* ActorToIgnore : ActorsToIgnore)
-		{
-			if (IsValid(ActorToIgnore))
-			{
-				QueryParams.AddIgnoredActor(ActorToIgnore);
-			}
-		}
-
-		const ECollisionChannel TraceChannel = UEngineTypes::ConvertToCollisionChannel(TraceType);
-		if (TraceChannel != ECC_MAX)
-		{
-			TArray<FHitResult> ChannelHits;
-			if (World->LineTraceMultiByChannel(ChannelHits, TraceStart, TraceEnd, TraceChannel, QueryParams))
-			{
-				for (const FHitResult& Hit : ChannelHits)
-				{
-					if (IsValidAOEGroundHit(Hit))
-					{
-						OutGroundLocation = Hit.ImpactPoint;
-						return true;
-					}
-				}
-			}
-		}
-
-		FCollisionObjectQueryParams ObjectParams;
-		ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic);
-		ObjectParams.AddObjectTypesToQuery(ECC_WorldDynamic);
-
-		TArray<FHitResult> ObjectHits;
-		if (World->LineTraceMultiByObjectType(ObjectHits, TraceStart, TraceEnd, ObjectParams, QueryParams))
-		{
-			for (const FHitResult& Hit : ObjectHits)
-			{
-				if (IsValidAOEGroundHit(Hit))
-				{
-					OutGroundLocation = Hit.ImpactPoint;
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
-}
 
 void USkillTargetedAreaAction::OnStart()
 {
@@ -175,11 +69,8 @@ void USkillTargetedAreaAction::OnStart()
 
 	if (AActor* AttackTarget = GetAbility()->GetAttackTargetFromAvatar(); IsValid(AttackTarget))
 	{
-		if (!GetTargetGroundLocation(AttackTarget, ConfirmedAOELocation))
-		{
-			ConfirmedAOELocation = ResolveActorFeetLocation(AttackTarget);
-		}
-
+		ConfirmedAOELocation = PdSkillAreaTargeting::ResolveTargetLocation(
+			*AttackTarget, GetAbility()->GetAvatarActorFromActorInfo(), Settings);
 		ConfirmStrike();
 		return;
 	}
@@ -627,29 +518,6 @@ FGameplayAbilityTargetingLocationInfo USkillTargetedAreaAction::MakeTargetStartL
 	return GetAbility()->MakeTargetLocationInfoFromOwnerActor();
 }
 
-bool USkillTargetedAreaAction::GetTargetGroundLocation(AActor* AttackTarget, FVector& OutGroundLocation) const
-{
-	if (!IsValid(AttackTarget))
-	{
-		return false;
-	}
-
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(AttackTarget);
-	if (AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo())
-	{
-		ActorsToIgnore.Add(AvatarActor);
-	}
-
-	return TryResolveGroundHitLocation(
-		AttackTarget->GetWorld(),
-		AttackTarget->GetActorLocation(),
-		ActorsToIgnore,
-		Settings.TargetGroundTraceChannel,
-		static_cast<float>(Settings.TargetGroundTraceDepth),
-		OutGroundLocation);
-}
-
 bool USkillTargetedAreaAction::ResolveFallbackAOELocation(
 	FVector& OutGroundLocation) const
 {
@@ -658,93 +526,20 @@ bool USkillTargetedAreaAction::ResolveFallbackAOELocation(
 		return false;
 	}
 
-	if (AActor* AttackTarget = GetAbility()->GetAttackTargetFromAvatar();
-		IsValid(AttackTarget))
+	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
+	if (AActor* AttackTarget = GetAbility()->GetAttackTargetFromAvatar(); IsValid(AttackTarget))
 	{
-		if (GetTargetGroundLocation(AttackTarget, OutGroundLocation))
-		{
-			return true;
-		}
-
-		OutGroundLocation = ResolveActorFeetLocation(AttackTarget);
+		OutGroundLocation = PdSkillAreaTargeting::ResolveTargetLocation(*AttackTarget, AvatarActor, Settings);
 		return true;
 	}
 
-	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
-	if (!AvatarActor || !World)
+	if (!AvatarActor || !AvatarActor->GetWorld())
 	{
 		return false;
 	}
 
-	const float MaxRange = static_cast<float>(Settings.TargetingMaxRange);
-	const float ForwardDistance = FMath::Clamp(
-		MaxRange > 0.0f ? MaxRange * 0.65f : 800.0f,
-		300.0f,
-		1200.0f);
-	const FVector CandidateLocation = AvatarActor->GetActorLocation()
-		+ AvatarActor->GetActorForwardVector() * ForwardDistance;
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(AvatarActor);
-	if (TryResolveGroundHitLocation(
-		World,
-		CandidateLocation,
-		ActorsToIgnore,
-		Settings.TargetGroundTraceChannel,
-		static_cast<float>(Settings.TargetGroundTraceDepth),
-		OutGroundLocation))
-	{
-		return true;
-	}
-
-	OutGroundLocation = CandidateLocation;
+	OutGroundLocation = PdSkillAreaTargeting::ResolveForwardLocation(*AvatarActor, Settings);
 	return true;
-}
-
-FVector USkillTargetedAreaAction::ResolveConfirmedAOELocation(const FHitResult& HitResult, const FVector& TargetDataEndPoint) const
-{
-	FVector ResolvedLocation = HitResult.Location.IsNearlyZero() ? TargetDataEndPoint : HitResult.Location;
-
-	TArray<AActor*> ActorsToIgnore;
-	if (AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo())
-	{
-		ActorsToIgnore.Add(AvatarActor);
-	}
-
-	AActor* HitActor = HitResult.GetActor();
-	if (!IsValid(HitActor) || !HitActor->IsA<APawn>())
-	{
-		FVector GroundLocation = FVector::ZeroVector;
-		UWorld* World = HitActor ? HitActor->GetWorld() : (GetAbility()->GetAvatarActorFromActorInfo() ? GetAbility()->GetAvatarActorFromActorInfo()->GetWorld() : nullptr);
-		if (TryResolveGroundHitLocation(
-			World,
-			ResolvedLocation,
-			ActorsToIgnore,
-			Settings.TargetGroundTraceChannel,
-			static_cast<float>(Settings.TargetGroundTraceDepth),
-			GroundLocation))
-		{
-			return GroundLocation;
-		}
-
-		return ResolvedLocation;
-	}
-
-	ActorsToIgnore.Add(HitActor);
-
-	FVector GroundLocation = FVector::ZeroVector;
-	if (TryResolveGroundHitLocation(
-		HitActor->GetWorld(),
-		HitActor->GetActorLocation(),
-		ActorsToIgnore,
-		Settings.TargetGroundTraceChannel,
-		static_cast<float>(Settings.TargetGroundTraceDepth),
-		GroundLocation))
-	{
-		return GroundLocation;
-	}
-
-	return ResolveActorFeetLocation(HitActor);
 }
 
 bool USkillTargetedAreaAction::TryValidateServerAOELocation(
@@ -888,88 +683,13 @@ void USkillTargetedAreaAction::DrawDebugDamageRadius(const FColor& CircleColor, 
 	}
 
 	const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
-	if (!World)
-	{
-		return;
-	}
-
-	const float Radius = static_cast<float>(CachedAOERadius);
-	const float DrawTime = static_cast<float>(FMath::Max(Settings.DebugDamageRadiusDrawTime, 0.0));
-	const FVector Center = ConfirmedAOELocation;
-	const uint8 DepthPriority = 1;
-	constexpr int32 CircleSegments = 128;
-	constexpr int32 HemisphereSegments = 24;
-	constexpr int32 HemisphereMeridians = 8;
-	constexpr int32 LatitudeRings = 4;
-	constexpr float LineThickness = 2.0f;
-
-	DrawDebugCircle(
-		World,
-		Center,
-		Radius,
-		CircleSegments,
+	LabSkillDebug::DrawAreaRadius(
+		AvatarActor ? AvatarActor->GetWorld() : nullptr,
+		ConfirmedAOELocation,
+		static_cast<float>(CachedAOERadius),
 		CircleColor,
-		false,
-		DrawTime,
-		DepthPriority,
-		4.0f,
-		FVector::ForwardVector,
-		FVector::RightVector,
-		false);
-
-	for (int32 RingIndex = 1; RingIndex <= LatitudeRings; ++RingIndex)
-	{
-		const float Alpha = static_cast<float>(RingIndex) / static_cast<float>(LatitudeRings + 1);
-		const float Angle = Alpha * HALF_PI;
-		const float RingRadius = FMath::Cos(Angle) * Radius;
-		const float RingHeight = FMath::Sin(Angle) * Radius;
-
-		DrawDebugCircle(
-			World,
-			Center + FVector(0.0, 0.0, RingHeight),
-			RingRadius,
-			CircleSegments,
-			SphereColor,
-			false,
-			DrawTime,
-			DepthPriority,
-			LineThickness,
-			FVector::ForwardVector,
-			FVector::RightVector,
-			false);
-	}
-
-	for (int32 MeridianIndex = 0; MeridianIndex < HemisphereMeridians; ++MeridianIndex)
-	{
-		const float Azimuth = (static_cast<float>(MeridianIndex) / static_cast<float>(HemisphereMeridians)) * TWO_PI;
-		const FVector HorizontalDirection(
-			FMath::Cos(Azimuth),
-			FMath::Sin(Azimuth),
-			0.0f);
-
-		FVector PreviousPoint = Center + HorizontalDirection * Radius;
-		for (int32 SegmentIndex = 1; SegmentIndex <= HemisphereSegments; ++SegmentIndex)
-		{
-			const float Alpha = static_cast<float>(SegmentIndex) / static_cast<float>(HemisphereSegments);
-			const float Angle = Alpha * HALF_PI;
-			const FVector CurrentPoint = Center
-				+ HorizontalDirection * (FMath::Cos(Angle) * Radius)
-				+ FVector(0.0, 0.0, FMath::Sin(Angle) * Radius);
-
-			DrawDebugLine(
-				World,
-				PreviousPoint,
-				CurrentPoint,
-				SphereColor,
-				false,
-				DrawTime,
-				DepthPriority,
-				LineThickness);
-
-			PreviousPoint = CurrentPoint;
-		}
-	}
+		SphereColor,
+		static_cast<float>(FMath::Max(Settings.DebugDamageRadiusDrawTime, 0.0)));
 }
 
 void USkillTargetedAreaAction::HandleCancelInputPressed(float TimeWaited)
@@ -1023,7 +743,8 @@ void USkillTargetedAreaAction::HandleTargetDataValid(const FGameplayAbilityTarge
 	}
 	else
 	{
-		ConfirmedAOELocation = ResolveConfirmedAOELocation(*ClientHitResult, TargetDataEndPoint);
+		ConfirmedAOELocation = PdSkillAreaTargeting::ResolveAimedLocation(
+			*ClientHitResult, TargetDataEndPoint, GetAbility()->GetAvatarActorFromActorInfo(), Settings);
 	}
 
 	ConfirmStrike();

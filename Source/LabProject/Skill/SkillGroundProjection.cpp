@@ -1,7 +1,9 @@
 #include "Skill/SkillGroundProjection.h"
 
 #include "Skill/Actors/SkillEffectArea.h"
+#include "Character/CharacterBase.h"
 #include "CollisionQueryParams.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Map/PlayerMapRegionTrigger.h"
@@ -138,6 +140,25 @@ void PdSkillGroundProjection::AddIgnoredActorAndAttachments(TArray<AActor*>& Act
 			ActorsToIgnore.AddUnique(AttachedActor);
 		}
 	}
+}
+
+FVector PdSkillGroundProjection::ResolveActorFeetLocation(const AActor* Actor)
+{
+	if (!Actor)
+	{
+		return FVector::ZeroVector;
+	}
+
+	FVector FeetLocation = Actor->GetActorLocation();
+	if (const ACharacterBase* Character = Cast<ACharacterBase>(Actor))
+	{
+		if (const UCapsuleComponent* CapsuleComponent = Character->GetCapsuleComponent())
+		{
+			FeetLocation.Z -= CapsuleComponent->GetScaledCapsuleHalfHeight();
+		}
+	}
+
+	return FeetLocation;
 }
 
 bool PdSkillGroundProjection::TryProjectToGround(

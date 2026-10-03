@@ -6,149 +6,111 @@
 #include "AbilitySystem/Ability/SkillAbility.h"
 #include "Definition/AbilitySystem/SkillActorFieldSettings.h"
 #include "TimerManager.h"
-#include "UObject/ObjectKey.h"
 #include "SkillActorFieldAction.generated.h"
 
 class AActor;
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitGameplayEvent;
 class UAnimMontage;
-class UPrimitiveComponent;
-class USkeletalMeshComponent;
+class USkillFieldTriggerDamage;
 struct FGameplayEffectSpecHandle;
 
-/** 배치 액터의 생성 순서와 충돌 피해, 반복 생성 및 수명을 관리한다. */
+/**
+ * 배치 액터의 생성 순서와 반복 생성, 수명을 관리한다.
+ * 배치 위치는 PdSkillFieldPlacement가, 트리거에 겹친 대상의 피해 시점은 USkillFieldTriggerDamage가 정한다.
+ */
 UCLASS(meta = (DisplayName = "Actor Field"))
 class LABPROJECT_API USkillActorFieldAction : public USkillAction
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    // Public API ------------------------------------------------------------------------------------------------------
-    USkillActorFieldAction();
+	// Public API ------------------------------------------------------------------------------------------------------
+	USkillActorFieldAction();
 
 protected:
-    // Event Handlers --------------------------------------------------------------------------------------------------
-    virtual void OnStart() override;
-    virtual void OnStop() override;
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnStart() override;
+	virtual void OnStop() override;
 
 private:
-    UFUNCTION()
-    void HandleFieldMontageTriggerEvent(FGameplayEventData Payload);
+	UFUNCTION()
+	void HandleFieldMontageTriggerEvent(FGameplayEventData Payload);
 
-    UFUNCTION()
-    void HandleFieldMontageFinished();
+	UFUNCTION()
+	void HandleFieldMontageFinished();
 
-    UFUNCTION()
-    void HandleFieldMontageInterrupted();
-    void SpawnNextFieldActor();
+	UFUNCTION()
+	void HandleFieldMontageInterrupted();
+	void SpawnNextFieldActor();
 
-    UFUNCTION()
-    void HandleRepeatedFieldSpawnSequence();
-    void HandleFieldTriggerDamageTick();
+	UFUNCTION()
+	void HandleRepeatedFieldSpawnSequence();
 
-    UFUNCTION()
-    void HandleFieldTriggerBeginOverlap(
-        UPrimitiveComponent* OverlappedComponent,
-        AActor* OtherActor,
-        UPrimitiveComponent* OtherComp,
-        int32 OtherBodyIndex,
-        bool bFromSweep,
-        const FHitResult& SweepResult);
+	UFUNCTION()
+	void HandleFieldDurationFinished();
 
-    UFUNCTION()
-    void HandleFieldTriggerEndOverlap(
-        UPrimitiveComponent* OverlappedComponent,
-        AActor* OtherActor,
-        UPrimitiveComponent* OtherComp,
-        int32 OtherBodyIndex);
+	bool ApplyFieldTriggerDamage(AActor* DamageSourceActor, AActor* HitActor);
 
-    UFUNCTION()
-    void HandleFieldDurationFinished();
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	UAnimMontage* GetResolvedFieldMontage() const;
+	FGameplayTag GetResolvedFieldTriggerEventTag() const;
+	bool StartFieldMontageTask();
+	void StartWaitFieldMontageTriggerTask();
+	void TryCommitAndStartField();
 
-    // Internal Helpers ------------------------------------------------------------------------------------------------
-    UAnimMontage* GetResolvedFieldMontage() const;
-    FGameplayTag GetResolvedFieldTriggerEventTag() const;
-    bool StartFieldMontageTask();
-    void StartWaitFieldMontageTriggerTask();
-    void TryCommitAndStartField();
+	void StartFieldDurationMovementLockIfAllowed();
+	bool ShouldSkipFieldDurationMovementLock() const;
+	void ApplyFieldMovementSpeedIncrease();
+	void RemoveFieldMovementSpeedIncrease();
 
-    void StartFieldDurationMovementLockIfAllowed();
-    bool ShouldSkipFieldDurationMovementLock() const;
-    void ApplyFieldMovementSpeedIncrease();
-    void RemoveFieldMovementSpeedIncrease();
+	void StartFieldSpawnSequence();
+	void StartFieldRepeatTimer();
+	void FinishFieldSpawnSequence();
+	AActor* SpawnFieldActorForSocket(FName SocketName);
 
-    TArray<FName> GetConfiguredFieldSocketNames() const;
-    void StartFieldSpawnSequence();
-    void StartFieldRepeatTimer();
-    void FinishFieldSpawnSequence();
-    AActor* SpawnFieldActorForSocket(FName SocketName);
+	void DestroyFieldActorWhenReplicationIsSafe(
+		AActor* SpawnedActor,
+		const FSkillActorFieldSettings& FieldSettings) const;
 
-    void DestroyFieldActorWhenReplicationIsSafe(
-        AActor* SpawnedActor,
-        const FSkillActorFieldSettings& FieldSettings) const;
+	bool ShouldRepeatFieldSpawnSequence() const;
 
-    FTransform ResolveFieldSpawnTransform(FName SocketName) const;
-    USkeletalMeshComponent* ResolveFieldSpawnSocketMesh(FName SocketName) const;
-    bool AttachSpawnedFieldActorToSocket(AActor* SpawnedActor, FName SocketName) const;
-    bool ShouldRepeatFieldSpawnSequence() const;
+	void BindFieldTriggerDamage(AActor* SpawnedActor);
 
-    UPrimitiveComponent* FindFieldTriggerComponent(AActor* SpawnedActor) const;
-    void BindFieldTriggerDamage(AActor* SpawnedActor);
-    void UnbindFieldTriggerDamage();
-    void StartFieldTriggerDamageTickIfNeeded();
+	FGameplayEffectSpecHandle MakeFieldTriggerDamageSpec(
+		AActor* DamageSourceActor,
+		float DamageMagnitude) const;
 
-    void ApplyFieldTriggerDamageToExistingOverlaps(
-        AActor* DamageSourceActor,
-        UPrimitiveComponent* TriggerComponent,
-        bool bApplyDamage);
+	float CalculateFieldTriggerDamageMagnitude() const;
 
-    void ApplyFieldTriggerDamage(
-        AActor* DamageSourceActor,
-        AActor* HitActor,
-        bool bAllowRepeatedDamage = false);
-
-    FGameplayEffectSpecHandle MakeFieldTriggerDamageSpec(
-        AActor* DamageSourceActor,
-        float DamageMagnitude) const;
-
-    float CalculateFieldTriggerDamageMagnitude() const;
-    void TrackFieldTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor);
-    void UntrackFieldTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor);
-
-    void ScheduleCompletion();
-    void CleanupFieldTasks();
+	void ScheduleCompletion();
+	void CleanupFieldTasks();
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
-    FSkillActorFieldSettings Settings;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+	FSkillActorFieldSettings Settings;
 
 private:
-    UPROPERTY(Transient)
-    TObjectPtr<UAbilityTask_PlayMontageAndWait> FieldMontageTask;
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_PlayMontageAndWait> FieldMontageTask;
 
-    UPROPERTY(Transient)
-    TObjectPtr<UAbilityTask_WaitGameplayEvent> WaitFieldMontageTriggerTask;
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitGameplayEvent> WaitFieldMontageTriggerTask;
 
-    UPROPERTY(Transient)
-    TArray<TObjectPtr<AActor>> SpawnedFieldActors;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<AActor>> SpawnedFieldActors;
 
-    TArray<FName> PendingFieldSocketNames;
+	TArray<FName> PendingFieldSocketNames;
 
-    FTimerHandle FieldSpawnTimerHandle;
-    FTimerHandle FieldRepeatSpawnTimerHandle;
-    FTimerHandle FieldEndTimerHandle;
+	FTimerHandle FieldSpawnTimerHandle;
+	FTimerHandle FieldRepeatSpawnTimerHandle;
+	FTimerHandle FieldEndTimerHandle;
 
-    int32 NextFieldSocketIndex = 0;
-    bool bFieldStarted = false;
+	int32 NextFieldSocketIndex = 0;
+	bool bFieldStarted = false;
 
-    UPROPERTY(Transient)
-    TArray<TObjectPtr<UPrimitiveComponent>> FieldTriggerComponents;
+	UPROPERTY(Transient)
+	TObjectPtr<USkillFieldTriggerDamage> FieldTriggerDamage;
 
-    FTimerHandle FieldTriggerDamageTickTimerHandle;
-    TMap<FObjectKey, TSet<FObjectKey>> DamagedFieldTriggerActorsBySource;
-    TMap<FObjectKey, TWeakObjectPtr<AActor>> FieldDamageSourceActorsByKey;
-    TMap<FObjectKey, TArray<TWeakObjectPtr<AActor>>> FieldOverlappingActorsBySource;
-
-    FActiveGameplayEffectHandle MovementSpeedEffectHandle;
+	FActiveGameplayEffectHandle MovementSpeedEffectHandle;
 };
