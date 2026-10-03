@@ -10,7 +10,7 @@ class UAbilityTask_WaitInputRelease;
 class UAbilityTask_WaitTargetData;
 class UCharacterActionDefinition;
 class UGrappleComponent;
-struct FStreamableHandle;
+class FContentLease;
 
 /**
  * 그래플 입력을 누르는 동안 조준하고, 놓으면 GAS 대상 데이터를 제출한다.
@@ -87,7 +87,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UCharacterActionDefinition> LoadedCharacterActionDefinition;
 
-	TSharedPtr<FStreamableHandle> CharacterActionDefinitionPreloadHandle;
+	TSharedPtr<FContentLease> CharacterActionDefinitionLease;
 
 	mutable FGameplayTagContainer GrappleCooldownTags;
 	FDelegateHandle GrappleFinishedDelegateHandle;

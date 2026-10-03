@@ -8,8 +8,8 @@
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "Profile/PlayerProfileSubsystem.h"
@@ -38,15 +38,16 @@ void URecordWidget::NativeConstruct()
 
 void URecordWidget::NativeDestruct()
 {
-	ReleaseContentPreloads();
+	TierImageLease.Reset();
+	RecordDefinitionLease.Reset();
 	UnbindWidgets();
 	Super::NativeDestruct();
 }
 
 void URecordWidget::BeginContentPreload()
 {
-	ReleaseContentPreloads();
-	const int32 PreloadGeneration = ++ContentPreloadGeneration;
+	TierImageLease.Reset();
+	RecordDefinitionLease.Reset();
 
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
@@ -58,24 +59,13 @@ void URecordWidget::BeginContentPreload()
 		return;
 	}
 
-	RecordDefinitionPreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			{RecordDefinition.ToSoftObjectPath()},
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					BeginTierImagePreload(PreloadGeneration);
-				}));
+	RecordDefinitionLease = ContentSubsystem->AcquireContent(
+		{RecordDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginTierImagePreload));
 }
 
-void URecordWidget::BeginTierImagePreload(const int32 PreloadGeneration)
+void URecordWidget::BeginTierImagePreload()
 {
-	if (PreloadGeneration != ContentPreloadGeneration)
-	{
-		return;
-	}
-
 	const URecordDefinition* LoadedRecordData = ResolveRecordDefinition();
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
@@ -92,36 +82,9 @@ void URecordWidget::BeginTierImagePreload(const int32 PreloadGeneration)
 		TierImagePaths.Add(TierEntry.TierImage.ToSoftObjectPath());
 	}
 
-	TierImagePreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			TierImagePaths,
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					if (PreloadGeneration == ContentPreloadGeneration)
-					{
-						RefreshRecords();
-					}
-				}));
-}
-
-void URecordWidget::ReleaseContentPreloads()
-{
-	++ContentPreloadGeneration;
-
-	auto ReleaseHandle = [](TSharedPtr<FStreamableHandle>& Handle)
-	{
-		if (Handle.IsValid())
-		{
-			Handle->CancelHandle();
-			Handle->ReleaseHandle();
-			Handle.Reset();
-		}
-	};
-
-	ReleaseHandle(TierImagePreloadHandle);
-	ReleaseHandle(RecordDefinitionPreloadHandle);
+	TierImageLease = ContentSubsystem->AcquireContent(
+		TierImagePaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshRecords));
 }
 
 void URecordWidget::RefreshRecords()

@@ -12,9 +12,10 @@
 #include "Component/Player/PlayerRewardComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Item/RewardDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/PlayerState.h"
 #include "GameplayEffect.h"
 #include "Mode/PdPlayerState.h"
@@ -187,11 +188,7 @@ void AMonsterCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	DeactivateAttackSphere();
 	DeactivateDamageSphere();
 	GetWorldTimerManager().ClearTimer(DeathDestroyTimerHandle);
-	if (MonsterContentPreloadHandle)
-	{
-		MonsterContentPreloadHandle->CancelHandle();
-		MonsterContentPreloadHandle.Reset();
-	}
+	MonsterContentLease.Reset();
 	if (AbilitySystemComponent && FrozenTagChangedHandle.IsValid())
 	{
 		AbilitySystemComponent->RegisterGameplayTagEvent(
@@ -257,17 +254,17 @@ void AMonsterCharacter::BeginMonsterContentPreload()
 		HandleMonsterContentPreloadComplete();
 		return;
 	}
-	MonsterContentPreloadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-		MonsterAttackMontage.ToSoftObjectPath(), FStreamableDelegate::CreateUObject(this, &ThisClass::HandleMonsterContentPreloadComplete),
-		FStreamableManager::DefaultAsyncLoadPriority, false, true);
-	if (MonsterContentPreloadHandle)
-	{
-		MonsterContentPreloadHandle->StartStalledHandle();
-	}
-	else
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
 		HandleMonsterContentPreloadComplete();
+		return;
 	}
+	MonsterContentLease = ContentSubsystem->AcquireContent(
+		{ MonsterAttackMontage.ToSoftObjectPath() },
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleMonsterContentPreloadComplete));
 }
 
 // 로딩 결과를 초기화 흐름에 전달한다. 과거 StateTree 상태에서 요청한 공격을 뒤늦게 재실행하지 않는다.

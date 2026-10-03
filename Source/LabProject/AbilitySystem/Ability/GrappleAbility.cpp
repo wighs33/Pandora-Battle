@@ -9,8 +9,9 @@
 #include "Mode/PdHUD.h"
 #include "Definition/Player/CharacterActionDefinition.h"
 #include "Component/Player/GrappleComponent.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
+#include "Engine/GameInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GrappleAbility)
 
@@ -49,12 +50,18 @@ void UGrappleAbility::OnAvatarSet(
 		return;
 	}
 
-	CharacterActionDefinitionPreloadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			Definition.ToSoftObjectPath(),
-			FStreamableDelegate::CreateUObject(
+	const AActor* AvatarActor = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
+	const UGameInstance* GameInstance = AvatarActor ? AvatarActor->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (ContentSubsystem)
+	{
+		CharacterActionDefinitionLease = ContentSubsystem->AcquireContent(
+			{ Definition.ToSoftObjectPath() },
+			FSimpleDelegate::CreateUObject(
 				this,
 				&ThisClass::HandleCharacterActionDefinitionPreloadComplete));
+	}
 }
 
 void UGrappleAbility::OnRemoveAbility(
@@ -249,12 +256,7 @@ void UGrappleAbility::HandleCharacterActionDefinitionPreloadComplete()
 
 void UGrappleAbility::ReleaseCharacterActionDefinitionPreload()
 {
-	if (CharacterActionDefinitionPreloadHandle.IsValid())
-	{
-		CharacterActionDefinitionPreloadHandle->CancelHandle();
-		CharacterActionDefinitionPreloadHandle->ReleaseHandle();
-		CharacterActionDefinitionPreloadHandle.Reset();
-	}
+	CharacterActionDefinitionLease.Reset();
 	LoadedCharacterActionDefinition = nullptr;
 }
 

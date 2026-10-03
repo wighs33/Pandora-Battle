@@ -8,9 +8,9 @@
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/Font.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/Texture2D.h"
 #include "InputCoreTypes.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
@@ -82,7 +82,8 @@ void UGuideWidget::NativeConstruct()
 
 void UGuideWidget::NativeDestruct()
 {
-	ReleaseContentPreloads();
+	GuideImageLease.Reset();
+	GuideDefinitionLease.Reset();
 	UnbindGuideButtons();
 
 	if (Btn_Close)
@@ -100,8 +101,8 @@ void UGuideWidget::NativeDestruct()
 
 void UGuideWidget::BeginContentPreload()
 {
-	ReleaseContentPreloads();
-	const int32 PreloadGeneration = ++ContentPreloadGeneration;
+	GuideImageLease.Reset();
+	GuideDefinitionLease.Reset();
 
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
@@ -113,24 +114,13 @@ void UGuideWidget::BeginContentPreload()
 		return;
 	}
 
-	GuideDefinitionPreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			{GuideDefinition.ToSoftObjectPath()},
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					BeginPageImagePreload(PreloadGeneration);
-				}));
+	GuideDefinitionLease = ContentSubsystem->AcquireContent(
+		{GuideDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginPageImagePreload));
 }
 
-void UGuideWidget::BeginPageImagePreload(const int32 PreloadGeneration)
+void UGuideWidget::BeginPageImagePreload()
 {
-	if (PreloadGeneration != ContentPreloadGeneration)
-	{
-		return;
-	}
-
 	const UGuideDefinition* LoadedGuideData = ResolveGuideDefinition();
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
@@ -147,36 +137,9 @@ void UGuideWidget::BeginPageImagePreload(const int32 PreloadGeneration)
 		ImagePaths.Add(Page.Image.ToSoftObjectPath());
 	}
 
-	GuideImagePreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			ImagePaths,
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					if (PreloadGeneration == ContentPreloadGeneration)
-					{
-						RefreshGuide();
-					}
-				}));
-}
-
-void UGuideWidget::ReleaseContentPreloads()
-{
-	++ContentPreloadGeneration;
-
-	auto ReleaseHandle = [](TSharedPtr<FStreamableHandle>& Handle)
-	{
-		if (Handle.IsValid())
-		{
-			Handle->CancelHandle();
-			Handle->ReleaseHandle();
-			Handle.Reset();
-		}
-	};
-
-	ReleaseHandle(GuideImagePreloadHandle);
-	ReleaseHandle(GuideDefinitionPreloadHandle);
+	GuideImageLease = ContentSubsystem->AcquireContent(
+		ImagePaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshGuide));
 }
 
 const UGuideDefinition* UGuideWidget::ResolveGuideDefinition() const

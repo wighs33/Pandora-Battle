@@ -14,7 +14,7 @@ class UHorizontalBox;
 class UStatusEffectDefinition;
 class UStatusEffectReplicationComponent;
 class UStatusEffectWidget;
-struct FStreamableHandle;
+class FContentLease;
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UStatusEffectsBarWidget : public UUserWidget
@@ -48,7 +48,6 @@ private:
 	void TryAddStatusEffectWidget(UStatusEffectDefinition* DataAsset);
 	void ApplyWidgetDefinitionSettings();
 	void BeginStatusEffectContentPreload();
-	void ReleaseStatusEffectContentPreload();
 	void ScheduleStatusEffectWidgetRefresh();
 	void UnbindStatusEffectTagDelegates();
 	int32 GetStatusEffectDisplayCount(const UStatusEffectDefinition* DataAsset) const;
@@ -79,7 +78,7 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStatusEffectDefinition>> CachedObservedStatusEffectDataAssets;
-	TSharedPtr<FStreamableHandle> StatusEffectContentPreloadHandle;
+	TSharedPtr<FContentLease> StatusEffectContentLease;
 
 	TMap<FGameplayTag, FDelegateHandle> ObservedTagChangedHandles;
 	FDelegateHandle ReplicatedStackChangedHandle;
@@ -88,5 +87,4 @@ private:
 	bool bStatusEffectWidgetRefreshScheduled = false;
 	bool bIsConstructed = false;
 	bool bObservedStatusEffectDataAssetCacheValid = false;
-	int32 ContentPreloadGeneration = 0;
 };

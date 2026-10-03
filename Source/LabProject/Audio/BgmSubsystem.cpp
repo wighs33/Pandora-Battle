@@ -2,8 +2,8 @@
 
 #include "Components/AudioComponent.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
@@ -232,7 +232,7 @@ void UBgmSubsystem::BeginBgmSoundPreload(
 
 	if (BgmSettings.Sound.Get())
 	{
-		CompleteBgmSoundPreload(LoadGeneration, BgmContext, World);
+		CompleteBgmSoundPreload(BgmContext, World);
 		return;
 	}
 
@@ -245,44 +245,24 @@ void UBgmSubsystem::BeginBgmSoundPreload(
 		return;
 	}
 
-	bSoundLoadPending = true;
-	TSharedPtr<FStreamableHandle> SoundLoadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			{RequestedSoundPath},
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, LoadGeneration, BgmContext, World]()
-				{
-					CompleteBgmSoundPreload(
-						LoadGeneration,
-						BgmContext,
-						World);
-				}));
-
-	if (LoadGeneration == BgmLoadGeneration && bSoundLoadPending)
-	{
-		PendingSoundLoadHandle = MoveTemp(SoundLoadHandle);
-	}
-	else if (SoundLoadHandle.IsValid())
-	{
-		SoundLoadHandle->ReleaseHandle();
-	}
+	SoundLease = ContentSubsystem->AcquireContent(
+		{RequestedSoundPath},
+		FSimpleDelegate::CreateWeakLambda(
+			this,
+			[this, BgmContext, World]()
+			{
+				CompleteBgmSoundPreload(
+					BgmContext,
+					World);
+			}));
 }
 
 void UBgmSubsystem::CompleteBgmSoundPreload(
-	const uint64 LoadGeneration,
 	const EBgmContext BgmContext,
 	const TWeakObjectPtr<UWorld> World)
 {
-	if (LoadGeneration != BgmLoadGeneration)
-	{
-		return;
-	}
-
-	bSoundLoadPending = false;
-	TSharedPtr<FStreamableHandle> CompletedHandle =
-		MoveTemp(PendingSoundLoadHandle);
-	PendingSoundLoadHandle.Reset();
+	// 새 오디오 컴포넌트가 사운드를 참조한 뒤에 로드를 놓도록 함수가 끝날 때 해제한다.
+	const TSharedPtr<FContentLease> CompletedLease = MoveTemp(SoundLease);
 
 	UWorld* ResolvedWorld = World.Get();
 	const UGameSettingDefinition* SettingDefinition =
@@ -291,20 +271,12 @@ void UBgmSubsystem::CompleteBgmSoundPreload(
 	if (!ResolvedWorld
 		|| !ResolveBgmSettings(SettingDefinition, BgmContext, BgmSettings))
 	{
-		if (CompletedHandle.IsValid())
-		{
-			CompletedHandle->ReleaseHandle();
-		}
 		return;
 	}
 
 	USoundBase* LoadedBgm = BgmSettings.Sound.Get();
 	if (!LoadedBgm)
 	{
-		if (CompletedHandle.IsValid())
-		{
-			CompletedHandle->ReleaseHandle();
-		}
 		return;
 	}
 
@@ -325,24 +297,12 @@ void UBgmSubsystem::CompleteBgmSoundPreload(
 	}
 	ActiveBgmContext = BgmContext;
 	ActiveBgmSoundPath = BgmSettings.Sound.ToSoftObjectPath();
-
-	if (CompletedHandle.IsValid())
-	{
-		CompletedHandle->ReleaseHandle();
-	}
 }
 
 void UBgmSubsystem::CancelPendingBgmLoads()
 {
 	++BgmLoadGeneration;
-	bSoundLoadPending = false;
-
-	if (PendingSoundLoadHandle.IsValid())
-	{
-		PendingSoundLoadHandle->CancelHandle();
-		PendingSoundLoadHandle->ReleaseHandle();
-		PendingSoundLoadHandle.Reset();
-	}
+	SoundLease.Reset();
 }
 
 EBgmContext UBgmSubsystem::ResolveWorldBgmContext(UWorld* World) const

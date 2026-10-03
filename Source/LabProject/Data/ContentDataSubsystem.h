@@ -30,7 +30,7 @@ public:
 	void EnsureSkillDataAssetsPreload();
 	bool IsSkillDataAssetsLoading() const { return bSkillDataAssetsPreloadPending; }
 
-	/** 반환된 lease가 살아 있는 동안 콘텐츠를 유지하며, 완료 콜백은 다음 ticker에서 전달한다. */
+	/** 반환된 lease가 살아 있는 동안 콘텐츠를 유지한다. 완료 콜백은 로드가 끝나는 프레임에, 빈 목록이면 다음 ticker에서 전달한다. */
 	TSharedPtr<FContentLease> AcquireContent(
 		const TArray<FSoftObjectPath>& AssetPaths,
 		FSimpleDelegate OnComplete = FSimpleDelegate());

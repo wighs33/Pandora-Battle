@@ -2,9 +2,9 @@
 
 #include "Common/LabGameplayTags.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/Texture2D.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
@@ -57,7 +57,7 @@ void ULeftEquipmentWidget::NativeConstruct()
 
 void ULeftEquipmentWidget::NativeDestruct()
 {
-	ReleasePandoraWeaponIconPreload();
+	PandoraWeaponIconLease.Reset();
 	CachedWeaponSlotPandoraRequirements.Reset();
 	UnbindEquipSlotCallbacks();
 
@@ -145,8 +145,7 @@ void ULeftEquipmentWidget::SetWeaponSlotPandoraRequirement(
 
 void ULeftEquipmentWidget::BeginPandoraWeaponIconPreload()
 {
-	ReleasePandoraWeaponIconPreload();
-	const int32 PreloadGeneration = ++PandoraWeaponIconPreloadGeneration;
+	PandoraWeaponIconLease.Reset();
 
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
@@ -173,29 +172,9 @@ void ULeftEquipmentWidget::BeginPandoraWeaponIconPreload()
 		}
 	}
 
-	PandoraWeaponIconPreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			IconPaths,
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					if (PreloadGeneration == PandoraWeaponIconPreloadGeneration)
-					{
-						RefreshCachedPandoraWeaponRequirements();
-					}
-				}));
-}
-
-void ULeftEquipmentWidget::ReleasePandoraWeaponIconPreload()
-{
-	++PandoraWeaponIconPreloadGeneration;
-	if (PandoraWeaponIconPreloadHandle.IsValid())
-	{
-		PandoraWeaponIconPreloadHandle->CancelHandle();
-		PandoraWeaponIconPreloadHandle->ReleaseHandle();
-		PandoraWeaponIconPreloadHandle.Reset();
-	}
+	PandoraWeaponIconLease = ContentSubsystem->AcquireContent(
+		IconPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshCachedPandoraWeaponRequirements));
 }
 
 void ULeftEquipmentWidget::RefreshCachedPandoraWeaponRequirements()

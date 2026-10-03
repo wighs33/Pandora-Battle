@@ -16,7 +16,8 @@ class UCombatComponent;
 class UPlayerRewardComponent;
 class UInventoryComponent;
 class APdHUD;
-struct FStreamableHandle;
+class FContentLease;
+class UContentDataSubsystem;
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UControllerInputComponent : public UActorComponent
@@ -92,8 +93,8 @@ private:
 	void HandleTargetConfirmInputStarted(const FInputActionValue& InputValue);
 	void HandleAbilityInputStarted(const FInputActionValue& InputValue, const FGameplayTag& InputTag);
 	void HandleAbilityInputEnded(const FInputActionValue& InputValue, const FGameplayTag& InputTag);
-	void HandleInputDefinitionPreloadComplete(uint32 RequestGeneration);
-	void HandleInputContentPreloadComplete(uint32 RequestGeneration);
+	void HandleInputDefinitionPreloadComplete();
+	void HandleInputContentPreloadComplete();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetPdController() const;
@@ -106,6 +107,7 @@ private:
 	bool IsOpenLobbyInputAllowed() const;
 	void BeginInputDefinitionPreload();
 	void ReleaseInputDefinitionPreload();
+	UContentDataSubsystem* FindContentDataSubsystem() const;
 	bool ApplyInputDefinition();
 	void RemoveAppliedInputDefinition();
 	void AddInputBindingHandle(uint32 BindingHandle);
@@ -126,9 +128,8 @@ private:
 	TArray<TObjectPtr<UInputAction>> LoadedInputActions;
 
 	TArray<uint32> BindingHandles;
-	TSharedPtr<FStreamableHandle> InputDefinitionLoadHandle;
-	TSharedPtr<FStreamableHandle> InputContentLoadHandle;
-	uint32 InputPreloadRequestGeneration = 0;
+	TSharedPtr<FContentLease> InputDefinitionLease;
+	TSharedPtr<FContentLease> InputContentLease;
 	bool bInputPreloadPending = false;
 	bool bAppliedInputDefinition = false;
 	bool bSelectPandoraActionOpened = false;

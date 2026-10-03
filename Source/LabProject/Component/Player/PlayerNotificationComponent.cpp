@@ -1,11 +1,14 @@
 #include "Component/Player/PlayerNotificationComponent.h"
 
 #include "Component/Player/ControllerPresentationComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "Mode/PdPlayerController.h"
 #include "UI/HUD/Notification/NotificationData.h"
 
@@ -116,47 +119,33 @@ void UPlayerNotificationComponent::ShowRewardNotifications(const TArray<FPdRewar
 		return;
 	}
 
-	const uint64 RequestId = NextRewardNotificationRequestId++;
-	// 완료 콜백이 로딩 함수의 반환보다 먼저 실행되어도 요청을 찾을 수 있도록 빈 항목부터 등록한다.
-	PendingRewardNotificationLoadHandles.Add(RequestId);
-	TSharedPtr<FStreamableHandle> LoadHandle = AssetManager.GetStreamableManager().RequestAsyncLoad(
-		PathsToLoad, FStreamableDelegate::CreateWeakLambda(this, [this, RequestId, Rewards]()
-		{
-			CompleteRewardNotificationLoad(RequestId, Rewards);
-		}));
-
-	if (TSharedPtr<FStreamableHandle>* PendingHandle = PendingRewardNotificationLoadHandles.Find(RequestId))
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
-		if (LoadHandle.IsValid())
-		{
-			*PendingHandle = MoveTemp(LoadHandle);
-		}
-		else
-		{
-			CompleteRewardNotificationLoad(RequestId, Rewards);
-		}
-	}
-	else if (LoadHandle.IsValid())
-	{
-		LoadHandle->ReleaseHandle();
-	}
-}
-
-// 로딩이 끝난 요청의 알림을 한 번만 표시하고, 위젯에 아이콘을 넘긴 뒤 로딩 참조를 해제한다.
-void UPlayerNotificationComponent::CompleteRewardNotificationLoad(
-	const uint64 RequestId, const TArray<FPdRewardNotification>& Rewards)
-{
-	TSharedPtr<FStreamableHandle> CompletedHandle;
-	if (!PendingRewardNotificationLoadHandles.RemoveAndCopyValue(RequestId, CompletedHandle))
-	{
+		ShowLoadedRewardNotifications(Rewards);
 		return;
 	}
 
+	const uint64 RequestId = NextRewardNotificationRequestId++;
+	PendingRewardNotificationLeases.Add(
+		RequestId,
+		ContentSubsystem->AcquireContent(
+			PathsToLoad,
+			FSimpleDelegate::CreateWeakLambda(this, [this, RequestId, Rewards]()
+			{
+				CompleteRewardNotificationLoad(RequestId, Rewards);
+			})));
+}
+
+// 로딩이 끝난 요청의 알림을 표시하고, 위젯에 아이콘을 넘긴 뒤 로딩 참조를 해제한다.
+void UPlayerNotificationComponent::CompleteRewardNotificationLoad(
+	const uint64 RequestId, const TArray<FPdRewardNotification>& Rewards)
+{
+	TSharedPtr<FContentLease> CompletedLease;
+	PendingRewardNotificationLeases.RemoveAndCopyValue(RequestId, CompletedLease);
 	ShowLoadedRewardNotifications(Rewards);
-	if (CompletedHandle.IsValid())
-	{
-		CompletedHandle->ReleaseHandle();
-	}
 }
 
 // 보상 정보를 화면용 문구와 아이콘으로 바꿔 알림 UI에 전달한다. 에셋을 읽지 못해도 기본 문구는 표시한다.
@@ -227,13 +216,6 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 // Controller 종료 후에는 대기 중인 알림을 취소하고 표시용 에셋의 로딩 참조를 정리한다.
 void UPlayerNotificationComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	auto PendingLoads = MoveTemp(PendingRewardNotificationLoadHandles);
-	for (const TPair<uint64, TSharedPtr<FStreamableHandle>>& PendingLoad : PendingLoads)
-	{
-		if (PendingLoad.Value.IsValid())
-		{
-			PendingLoad.Value->CancelHandle();
-		}
-	}
+	PendingRewardNotificationLeases.Reset();
 	Super::EndPlay(EndPlayReason);
 }

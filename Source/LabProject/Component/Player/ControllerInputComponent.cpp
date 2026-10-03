@@ -5,9 +5,11 @@
 #include "Character/PdPlayer.h"
 #include "Component/Chat/ChatControllerComponent.h"
 #include "Common/LabGameplayTags.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "EnhancedInputComponent.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayTagContainer.h"
@@ -66,7 +68,7 @@ void UControllerInputComponent::RefreshInputDefinition()
 	}
 
 	if (!GetLoadedInputDefinition()
-		|| !InputContentLoadHandle.IsValid())
+		|| !InputContentLease.IsValid())
 	{
 		BeginInputDefinitionPreload();
 		return;
@@ -109,35 +111,29 @@ void UControllerInputComponent::BeginInputDefinitionPreload()
 	}
 
 	ReleaseInputDefinitionPreload();
+	// OnRegister는 GameInstance가 없는 에디터 월드에서도 불리므로 그때는 조용히 건너뛴다.
+	UContentDataSubsystem* ContentSubsystem = FindContentDataSubsystem();
+	if (!ContentSubsystem)
+	{
+		return;
+	}
+
 	bInputPreloadPending = true;
-	const uint32 RequestGeneration = InputPreloadRequestGeneration;
 	if (GetLoadedInputDefinition())
 	{
-		HandleInputDefinitionPreloadComplete(RequestGeneration);
+		HandleInputDefinitionPreloadComplete();
 		return;
 	}
 
-	InputDefinitionLoadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			ActiveInputDefinition.ToSoftObjectPath(),
-			FStreamableDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleInputDefinitionPreloadComplete,
-				RequestGeneration));
-	if (!InputDefinitionLoadHandle.IsValid())
-	{
-		bInputPreloadPending = false;
-	}
+	InputDefinitionLease = ContentSubsystem->AcquireContent(
+		TArray<FSoftObjectPath>{ActiveInputDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::HandleInputDefinitionPreloadComplete));
 }
 
-void UControllerInputComponent::HandleInputDefinitionPreloadComplete(
-	const uint32 RequestGeneration)
+void UControllerInputComponent::HandleInputDefinitionPreloadComplete()
 {
-	if (RequestGeneration != InputPreloadRequestGeneration)
-	{
-		return;
-	}
-
 	LoadedInputDefinition = ActiveInputDefinition.Get();
 	if (!LoadedInputDefinition)
 	{
@@ -145,55 +141,42 @@ void UControllerInputComponent::HandleInputDefinitionPreloadComplete(
 		return;
 	}
 
-	TArray<FSoftObjectPath> RuntimeAssetPaths;
-	RuntimeAssetPaths.Add(ActiveInputDefinition.ToSoftObjectPath());
-	LoadedInputDefinition->GetRuntimePreloadAssetPaths(RuntimeAssetPaths);
-	InputContentLoadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			RuntimeAssetPaths,
-			FStreamableDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleInputContentPreloadComplete,
-				RequestGeneration));
-	if (InputDefinitionLoadHandle.IsValid())
+	UContentDataSubsystem* ContentSubsystem = FindContentDataSubsystem();
+	if (!ContentSubsystem)
 	{
-		InputDefinitionLoadHandle->ReleaseHandle();
-		InputDefinitionLoadHandle.Reset();
-	}
-	if (!InputContentLoadHandle.IsValid())
-	{
-		HandleInputContentPreloadComplete(RequestGeneration);
-	}
-}
-
-void UControllerInputComponent::HandleInputContentPreloadComplete(
-	const uint32 RequestGeneration)
-{
-	if (RequestGeneration != InputPreloadRequestGeneration)
-	{
+		InputDefinitionLease.Reset();
+		HandleInputContentPreloadComplete();
 		return;
 	}
 
+	TArray<FSoftObjectPath> RuntimeAssetPaths;
+	RuntimeAssetPaths.Add(ActiveInputDefinition.ToSoftObjectPath());
+	LoadedInputDefinition->GetRuntimePreloadAssetPaths(RuntimeAssetPaths);
+	InputContentLease = ContentSubsystem->AcquireContent(
+		RuntimeAssetPaths,
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::HandleInputContentPreloadComplete));
+	InputDefinitionLease.Reset();
+}
+
+void UControllerInputComponent::HandleInputContentPreloadComplete()
+{
 	bInputPreloadPending = false;
 	ApplyInputDefinition();
 }
 
 void UControllerInputComponent::ReleaseInputDefinitionPreload()
 {
-	++InputPreloadRequestGeneration;
 	bInputPreloadPending = false;
-	if (InputDefinitionLoadHandle.IsValid())
-	{
-		InputDefinitionLoadHandle->CancelHandle();
-		InputDefinitionLoadHandle->ReleaseHandle();
-		InputDefinitionLoadHandle.Reset();
-	}
-	if (InputContentLoadHandle.IsValid())
-	{
-		InputContentLoadHandle->CancelHandle();
-		InputContentLoadHandle->ReleaseHandle();
-		InputContentLoadHandle.Reset();
-	}
+	InputDefinitionLease.Reset();
+	InputContentLease.Reset();
+}
+
+UContentDataSubsystem* UControllerInputComponent::FindContentDataSubsystem() const
+{
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	return GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 }
 
 bool UControllerInputComponent::ApplyInputDefinition()

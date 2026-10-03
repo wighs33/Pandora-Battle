@@ -15,7 +15,6 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerState.h"
@@ -26,19 +25,6 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UiSubsystem)
 
 DEFINE_LOG_CATEGORY(PdUiSubsystemLog);
-
-namespace
-{
-	void ReleaseUiStreamableHandle(TSharedPtr<FStreamableHandle>& Handle)
-	{
-		if (Handle.IsValid())
-		{
-			Handle->CancelHandle();
-			Handle->ReleaseHandle();
-			Handle.Reset();
-		}
-	}
-}
 
 void UUiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -210,19 +196,10 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 		return;
 	}
 
-	const TWeakObjectPtr<ThisClass> WeakThis(this);
-	ReleaseUiStreamableHandle(ConfiguredDefinitionLoadHandle);
-	ConfiguredDefinitionLoadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			{DefaultWidgetClassDefinition.ToSoftObjectPath()},
-			FSimpleDelegate::CreateLambda(
-				[WeakThis]()
-				{
-					if (ThisClass* This = WeakThis.Get())
-					{
-						This->HandleConfiguredWidgetDefinitionLoaded();
-					}
-				}));
+	// 로드에 실패하면 정의가 비어 있으므로 처리기가 대기 표시를 내리고 실패를 알린다.
+	ConfiguredDefinitionLease = ContentSubsystem->AcquireContent(
+		{DefaultWidgetClassDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleConfiguredWidgetDefinitionLoaded));
 }
 
 void UUiSubsystem::HandleConfiguredWidgetDefinitionLoaded()
@@ -321,7 +298,7 @@ void UUiSubsystem::ReleaseConfiguredWidgetDefinitionPreload()
 		}
 	}
 	PendingConfiguredUiContent.Reset();
-	ReleaseUiStreamableHandle(ConfiguredDefinitionLoadHandle);
+	ConfiguredDefinitionLease.Reset();
 }
 
 #if WITH_EDITOR

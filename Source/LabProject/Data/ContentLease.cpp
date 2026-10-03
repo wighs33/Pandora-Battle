@@ -32,8 +32,16 @@ void FContentLease::Start(
 		return;
 	}
 
-	ExpectedPaths = AssetPaths;
+	ExpectedPaths.Reset();
+	for (const FSoftObjectPath& AssetPath : AssetPaths)
+	{
+		if (!AssetPath.IsNull())
+		{
+			ExpectedPaths.AddUnique(AssetPath);
+		}
+	}
 	State = EState::Loading;
+	TGuardValue<bool> StartingGuard(bStarting, true);
 	if (ExpectedPaths.IsEmpty())
 	{
 		HandlePreloadComplete();
@@ -103,7 +111,16 @@ void FContentLease::HandlePreloadComplete()
 	State = bResolvedAllAssets
 		? EState::Ready
 		: EState::Failed;
-	QueueCompletion();
+	// 엔진은 로드 완료를 이미 다음 프레임에 알리므로 그때는 바로 전달한다.
+	// 시작하는 도중에 끝난 경우(빈 목록·시작 실패)만 호출자가 lease를 저장할 때까지 미룬다.
+	if (bStarting)
+	{
+		QueueCompletion();
+	}
+	else
+	{
+		DispatchCompletion();
+	}
 }
 
 void FContentLease::QueueCompletion()
@@ -112,7 +129,7 @@ void FContentLease::QueueCompletion()
 	{
 		return;
 	}
-	// 이미 로드된 콘텐츠도 호출자가 lease를 저장한 다음 완료 콜백을 받도록 지연한다.
+	// 시작하는 도중에 끝났거나 실패로 표시된 lease도 호출자가 저장한 다음에 완료 콜백을 받도록 지연한다.
 	bCompletionQueued = true;
 	const TWeakPtr<FContentLease> WeakLease = AsShared();
 	FTSTicker::GetCoreTicker().AddTicker(

@@ -5,9 +5,9 @@
 #include "GameplayTagContainer.h"
 #include "StatUpgradeComponent.generated.h"
 
+class FContentLease;
 class UAbilitySystemComponent;
 class UStatUpgradeDefinition;
-struct FStreamableHandle;
 
 DECLARE_LOG_CATEGORY_EXTERN(StatUpgradeComponentLog, Log, All);
 
@@ -49,7 +49,7 @@ private:
 	void ServerRequestStatDown(FGameplayTag StatTag);
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandleStatUpgradeDefinitionPreloaded(uint32 RequestGeneration);
+	void HandleStatUpgradeDefinitionPreloaded();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool ApplyStatChange(FGameplayTag StatTag, int32 LevelDelta);
@@ -65,7 +65,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UStatUpgradeDefinition> LoadedStatUpgradeDefinition;
 
-	TSharedPtr<FStreamableHandle> StatUpgradeDefinitionLoadHandle;
-	uint32 StatUpgradeDefinitionLoadGeneration = 0;
+	TSharedPtr<FContentLease> StatUpgradeDefinitionLease;
 	bool bApplyingStatChange = false;
 };

@@ -6,8 +6,8 @@
 #include "Components/CheckBox.h"
 #include "Components/Image.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "EngineUtils.h"
 #include "Definition/Item/ItemDefinition.h"
 
@@ -77,8 +77,8 @@ void UTrainingRoomMenuPopupWidget::NativeConstruct()
 
 void UTrainingRoomMenuPopupWidget::NativeDestruct()
 {
-	CancelPendingWeaponSelection();
-	ReleaseConfiguredWeaponPreload();
+	PendingWeaponSelectionLease.Reset();
+	ConfiguredWeaponLease.Reset();
 
 	if (Chk_BotCanAttack)
 	{
@@ -132,7 +132,7 @@ bool UTrainingRoomMenuPopupWidget::SelectTrainingBotUnarmed()
 
 bool UTrainingRoomMenuPopupWidget::SelectTrainingBotWeaponDefinition(UItemDefinition* WeaponDefinition)
 {
-	CancelPendingWeaponSelection();
+	PendingWeaponSelectionLease.Reset();
 	return SelectTrainingBotWeaponDefinitionInternal(WeaponDefinition, NAME_None);
 }
 
@@ -172,7 +172,7 @@ bool UTrainingRoomMenuPopupWidget::RequestTrainingBotWeaponSelection(
 		return false;
 	}
 
-	CancelPendingWeaponSelection();
+	PendingWeaponSelectionLease.Reset();
 	if (UItemDefinition* LoadedWeaponDefinition = WeaponDefinition.Get())
 	{
 		return SelectTrainingBotWeaponDefinitionInternal(
@@ -188,48 +188,26 @@ bool UTrainingRoomMenuPopupWidget::RequestTrainingBotWeaponSelection(
 		return false;
 	}
 
-	const int32 SelectionGeneration = ++PendingWeaponSelectionGeneration;
-	bPendingWeaponSelectionRequestActive = true;
-	TSharedPtr<FStreamableHandle> SelectionHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			{WeaponDefinition.ToSoftObjectPath()},
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, SelectionGeneration, WeaponDefinition, BuiltInButtonWidgetName]()
-				{
-					CompletePendingWeaponSelection(
-						SelectionGeneration,
-						WeaponDefinition,
-						BuiltInButtonWidgetName);
-				}));
-
-	// A resident asset may invoke the completion delegate before RequestAsyncLoad returns.
-	if (bPendingWeaponSelectionRequestActive
-		&& SelectionGeneration == PendingWeaponSelectionGeneration)
-	{
-		PendingWeaponSelectionHandle = MoveTemp(SelectionHandle);
-	}
-	else if (SelectionHandle.IsValid())
-	{
-		SelectionHandle->ReleaseHandle();
-	}
-
+	PendingWeaponSelectionLease = ContentSubsystem->AcquireContent(
+		{WeaponDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::CompletePendingWeaponSelection,
+			WeaponDefinition,
+			BuiltInButtonWidgetName));
 	return true;
 }
 
 void UTrainingRoomMenuPopupWidget::CompletePendingWeaponSelection(
-	const int32 SelectionGeneration,
 	TSoftObjectPtr<UItemDefinition> WeaponDefinition,
 	const FName BuiltInButtonWidgetName)
 {
-	if (SelectionGeneration != PendingWeaponSelectionGeneration)
+	// 선택 알림에서 새 요청이 시작될 수 있으므로 완료된 lease를 먼저 꺼내 두고 선택이 끝난 뒤 해제한다.
+	const TSharedPtr<FContentLease> CompletedLease = MoveTemp(PendingWeaponSelectionLease);
+	if (!CompletedLease.IsValid() || !CompletedLease->IsReady())
 	{
 		return;
 	}
-
-	bPendingWeaponSelectionRequestActive = false;
-	TSharedPtr<FStreamableHandle> CompletedHandle = MoveTemp(PendingWeaponSelectionHandle);
-	PendingWeaponSelectionHandle.Reset();
 
 	if (UItemDefinition* LoadedWeaponDefinition = WeaponDefinition.Get())
 	{
@@ -237,16 +215,11 @@ void UTrainingRoomMenuPopupWidget::CompletePendingWeaponSelection(
 			LoadedWeaponDefinition,
 			BuiltInButtonWidgetName);
 	}
-
-	if (CompletedHandle.IsValid())
-	{
-		CompletedHandle->ReleaseHandle();
-	}
 }
 
 void UTrainingRoomMenuPopupWidget::BeginConfiguredWeaponPreload()
 {
-	ReleaseConfiguredWeaponPreload();
+	ConfiguredWeaponLease.Reset();
 
 	TArray<FSoftObjectPath> WeaponPaths;
 	if (!InitialWeaponDefinition.IsNull())
@@ -273,30 +246,7 @@ void UTrainingRoomMenuPopupWidget::BeginConfiguredWeaponPreload()
 		return;
 	}
 
-	ConfiguredWeaponPreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(WeaponPaths);
-}
-
-void UTrainingRoomMenuPopupWidget::ReleaseConfiguredWeaponPreload()
-{
-	if (ConfiguredWeaponPreloadHandle.IsValid())
-	{
-		ConfiguredWeaponPreloadHandle->CancelHandle();
-		ConfiguredWeaponPreloadHandle->ReleaseHandle();
-		ConfiguredWeaponPreloadHandle.Reset();
-	}
-}
-
-void UTrainingRoomMenuPopupWidget::CancelPendingWeaponSelection()
-{
-	++PendingWeaponSelectionGeneration;
-	bPendingWeaponSelectionRequestActive = false;
-	if (PendingWeaponSelectionHandle.IsValid())
-	{
-		PendingWeaponSelectionHandle->CancelHandle();
-		PendingWeaponSelectionHandle->ReleaseHandle();
-		PendingWeaponSelectionHandle.Reset();
-	}
+	ConfiguredWeaponLease = ContentSubsystem->AcquireContent(WeaponPaths);
 }
 
 void UTrainingRoomMenuPopupWidget::RefreshWeaponOptionSelectionVisuals()
@@ -357,7 +307,7 @@ void UTrainingRoomMenuPopupWidget::HandleUnarmedButtonClicked()
 
 bool UTrainingRoomMenuPopupWidget::SelectTrainingBotUnarmedInternal(const int32 OptionIndex)
 {
-	CancelPendingWeaponSelection();
+	PendingWeaponSelectionLease.Reset();
 	SelectedWeaponDefinition = nullptr;
 	SelectedWeaponOptionIndex = OptionIndex;
 	SelectedBuiltInButtonWidgetName = OptionIndex == INDEX_NONE ? UnarmedButtonWidgetName : NAME_None;

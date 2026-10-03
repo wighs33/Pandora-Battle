@@ -1,7 +1,11 @@
 #include "Component/Item/InventoryComponent.h"
 
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/AssetManager.h"
+#include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
+#include "Engine/World.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 
@@ -75,18 +79,20 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 		}
 	}
 
-	for (auto HandleIt = WeaponLoadoutPresentationHandles.CreateIterator(); HandleIt; ++HandleIt)
+	for (auto LeaseIt = WeaponLoadoutPresentationLeases.CreateIterator(); LeaseIt; ++LeaseIt)
 	{
-		if (DesiredItemDefinitions.Contains(HandleIt.Key()))
+		if (!DesiredItemDefinitions.Contains(LeaseIt.Key()))
 		{
-			continue;
+			LeaseIt.RemoveCurrent();
 		}
+	}
 
-		if (HandleIt.Value().IsValid())
-		{
-			HandleIt.Value()->ReleaseHandle();
-		}
-		HandleIt.RemoveCurrent();
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		return;
 	}
 
 	UAssetManager& AssetManager = UAssetManager::Get();
@@ -95,13 +101,13 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 		: DesiredItemDefinitions)
 	{
 		const FPrimaryAssetId& AssetId = DesiredPair.Key;
-		if (WeaponLoadoutPresentationHandles.Contains(AssetId))
+		if (WeaponLoadoutPresentationLeases.Contains(AssetId))
 		{
 			continue;
 		}
 
 		// AssetManager bundle state is global; each inventory retains its own
-		// handle for the lifetime of its loadout references.
+		// lease for the lifetime of its loadout references.
 		TArray<FSoftObjectPath> PresentationAssetPaths;
 		const FAssetBundleEntry BundleEntry =
 			AssetManager.GetAssetBundleEntry(
@@ -141,14 +147,14 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 		// preload. Record an empty sentinel so subsequent refreshes stay cheap.
 		if (PresentationAssetPaths.IsEmpty())
 		{
-			WeaponLoadoutPresentationHandles.Add(AssetId, nullptr);
+			WeaponLoadoutPresentationLeases.Add(AssetId, nullptr);
 			continue;
 		}
 
-		TSharedPtr<FStreamableHandle> LoadHandle =
-			AssetManager.GetStreamableManager().RequestAsyncLoad(
-				PresentationAssetPaths);
-		if (!LoadHandle.IsValid())
+		// 시작하지 못한 lease는 보관하지 않아 다음 갱신에서 다시 시도한다.
+		TSharedPtr<FContentLease> PresentationLease =
+			ContentSubsystem->AcquireContent(PresentationAssetPaths);
+		if (PresentationLease->HasFailed())
 		{
 			UE_LOG(
 				InventoryComponentLog,
@@ -158,37 +164,11 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 			continue;
 		}
 
-		const TWeakPtr<FStreamableHandle> WeakLoadHandle = LoadHandle;
-		LoadHandle->BindCompleteDelegate(
-			FStreamableDelegate::CreateWeakLambda(
-				this,
-				[AssetId, WeakLoadHandle]()
-				{
-					const TSharedPtr<FStreamableHandle> CompletedHandle =
-						WeakLoadHandle.Pin();
-					if (CompletedHandle.IsValid() && CompletedHandle->HasError())
-					{
-						UE_LOG(
-							InventoryComponentLog,
-							Error,
-							TEXT("Weapon presentation assets failed to load for item '%s'."),
-							*AssetId.ToString());
-					}
-				}));
-
-		WeaponLoadoutPresentationHandles.Add(AssetId, MoveTemp(LoadHandle));
+		WeaponLoadoutPresentationLeases.Add(AssetId, MoveTemp(PresentationLease));
 	}
 }
 
 void UInventoryComponent::ReleaseWeaponLoadoutPresentationAssets()
 {
-	for (TPair<FPrimaryAssetId, TSharedPtr<FStreamableHandle>>& HandlePair :
-		WeaponLoadoutPresentationHandles)
-	{
-		if (HandlePair.Value.IsValid())
-		{
-			HandlePair.Value->ReleaseHandle();
-		}
-	}
-	WeaponLoadoutPresentationHandles.Reset();
+	WeaponLoadoutPresentationLeases.Reset();
 }

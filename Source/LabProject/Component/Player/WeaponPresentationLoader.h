@@ -3,8 +3,8 @@
 #include "CoreMinimal.h"
 #include "UObject/PrimaryAssetId.h"
 
+class FContentLease;
 class UItemDefinition;
-struct FStreamableHandle;
 
 /**
  * 무기 외형 에셋(Actor 클래스·몽타주·애니메이션 레이어 등)을 비동기로 불러 두고, 소유자가 놓을 때까지 잡아 둔다.
@@ -28,6 +28,6 @@ public:
 private:
 	void HandleLoaded(FPrimaryAssetId ItemDefinitionId, bool bRequiresEquipMontage);
 
-	TMap<FPrimaryAssetId, TSharedPtr<FStreamableHandle>> LoadHandles;
+	TMap<FPrimaryAssetId, TSharedPtr<FContentLease>> LoadLeases;
 	TMap<FPrimaryAssetId, TArray<FSimpleDelegate>> PendingCallbacks;
 };

@@ -2,10 +2,10 @@
 
 #include "Component/Match/MatchOutcomeRules.h"
 #include "Component/Player/PlayerMatchComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Item/RewardDefinition.h"
-#include "Engine/AssetManager.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/GameStateBase.h"
@@ -48,12 +48,7 @@ UMatchRewardComponent::UMatchRewardComponent()
 void UMatchRewardComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnbindChestConfigurationEvents();
-	if (RewardContentPreloadHandle.IsValid())
-	{
-		RewardContentPreloadHandle->CancelHandle();
-		RewardContentPreloadHandle->ReleaseHandle();
-		RewardContentPreloadHandle.Reset();
-	}
+	RewardContentLease.Reset();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -72,13 +67,18 @@ void UMatchRewardComponent::PreloadRewardContent()
 		return;
 	}
 
-	RewardContentPreloadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-		Reward.ToSoftObjectPath(),
-		FStreamableDelegate::CreateUObject(this, &ThisClass::HandleRewardContentLoaded));
-	if (!RewardContentPreloadHandle.IsValid())
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
 		HandleRewardContentLoaded();
+		return;
 	}
+
+	RewardContentLease = ContentSubsystem->AcquireContent(
+		TArray<FSoftObjectPath>{Reward.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRewardContentLoaded));
 }
 
 void UMatchRewardComponent::StopChestConfiguration()

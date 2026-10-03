@@ -6,9 +6,9 @@
 #include "SkinEquipmentComponent.generated.h"
 
 class ACharacterBase;
+class FContentLease;
 class USkinDefinition;
 class UAnimMontage;
-struct FStreamableHandle;
 
 DECLARE_LOG_CATEGORY_EXTERN(SkinEquipmentComponentLog, Log, All);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnEquippedSkinsChanged);
@@ -85,7 +85,7 @@ protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void OnRep_EquippedSkins();
-	void RebuildEquippedSkinActorsFromLoadedContent(uint32 RequestGeneration);
+	void RebuildEquippedSkinActorsFromLoadedContent();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool EquipSkinDefinition(const USkinDefinition* SkinDefinition, FGameplayTag SlotTag);
@@ -137,6 +137,7 @@ protected:
 	bool bGesturePlayRequestPending = false;
 	bool bEndingPlay = false;
 
-	TSharedPtr<FStreamableHandle> SkinPresentationLoadHandle;
+	TSharedPtr<FContentLease> SkinPresentationLease;
+	// 외형 Actor 생성·제거 중 다시 들어온 갱신을 알아차리기 위한 번호다.
 	uint32 SkinPresentationRequestGeneration = 0;
 };

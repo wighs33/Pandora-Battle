@@ -6,7 +6,7 @@
 #include "RecordWidget.generated.h"
 
 class UButton;
-struct FStreamableHandle;
+class FContentLease;
 class UImage;
 class UPanelWidget;
 class UProgressBar;
@@ -41,8 +41,7 @@ private:
 	void BindWidgets();
 	void UnbindWidgets();
 	void BeginContentPreload();
-	void BeginTierImagePreload(int32 PreloadGeneration);
-	void ReleaseContentPreloads();
+	void BeginTierImagePreload();
 	void ApplyWidgetDefinitionSettings();
 
 	TSubclassOf<URecordEntryWidget> ResolveRecordEntryWidgetClass() const;
@@ -85,7 +84,6 @@ private:
 	bool bWidgetsBound = false;
 	int32 MaxVisibleRecordEntries = 5;
 	float MaxTierProgressWinCount = 160.0f;
-	int32 ContentPreloadGeneration = 0;
-	TSharedPtr<FStreamableHandle> RecordDefinitionPreloadHandle;
-	TSharedPtr<FStreamableHandle> TierImagePreloadHandle;
+	TSharedPtr<FContentLease> RecordDefinitionLease;
+	TSharedPtr<FContentLease> TierImageLease;
 };

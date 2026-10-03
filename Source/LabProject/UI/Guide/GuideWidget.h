@@ -8,7 +8,7 @@
 
 class UButton;
 class UGuideWidget;
-struct FStreamableHandle;
+class FContentLease;
 class UTextBlock;
 class UTexture2D;
 class UWidget;
@@ -68,8 +68,7 @@ private:
 	void ResolveWidgets();
 	void ApplyBackgroundPatternVisibility();
 	void BeginContentPreload();
-	void BeginPageImagePreload(int32 PreloadGeneration);
-	void ReleaseContentPreloads();
+	void BeginPageImagePreload();
 	const UGuideDefinition* ResolveGuideDefinition() const;
 	void RebuildPages();
 	void BindGuideButtons();
@@ -119,7 +118,6 @@ private:
 
 	EGuideLanguage CurrentLanguage = EGuideLanguage::Korean;
 	int32 CurrentPageIndex = INDEX_NONE;
-	int32 ContentPreloadGeneration = 0;
 	ESlateVisibility DefaultBackgroundPatternVisibility = ESlateVisibility::Visible;
 	UPROPERTY(Transient)
 	FSlateFontInfo DefaultContentFont;
@@ -127,6 +125,6 @@ private:
 	bool bCapturedBackgroundPatternVisibility = false;
 	bool bOpenedFromGameplayMenu = false;
 	bool bIsClosing = false;
-	TSharedPtr<FStreamableHandle> GuideDefinitionPreloadHandle;
-	TSharedPtr<FStreamableHandle> GuideImagePreloadHandle;
+	TSharedPtr<FContentLease> GuideDefinitionLease;
+	TSharedPtr<FContentLease> GuideImageLease;
 };

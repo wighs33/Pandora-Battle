@@ -12,7 +12,7 @@ class UAIPerceptionComponent;
 class UAISenseConfig_Sight;
 class ANavigationData;
 struct FAIStimulus;
-struct FStreamableHandle;
+class FContentLease;
 
 /**
  * 몬스터의 감지 대상과 StateTree 실행 수명을 관리한다.
@@ -55,7 +55,7 @@ public:
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandleMonsterStateTreeLoaded(uint32 RequestGeneration);
+	void HandleMonsterStateTreeLoaded();
 
 	void HandleExperienceLoaded(const UExperienceDefinition* Experience);
 
@@ -101,8 +101,7 @@ protected:
 
 	TWeakObjectPtr<UExperienceManagerComponent> ExperienceManagerWaitingForLoad;
 	FDelegateHandle ExperienceLoadedDelegateHandle;
-	TSharedPtr<FStreamableHandle> StateTreeLoadHandle;
-	uint32 StateTreeLoadGeneration = 0;
+	TSharedPtr<FContentLease> StateTreeLease;
 	bool bComponentConfigurationValid = false;
 	bool bAIStopped = true;
 	bool bStateTreeConfigured = false;

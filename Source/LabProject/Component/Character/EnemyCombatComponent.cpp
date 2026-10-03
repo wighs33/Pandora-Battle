@@ -14,11 +14,12 @@
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/EnemyTrainingBotComponent.h"
 #include "Component/Player/EquipmentComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Player/StatUpgradeDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -138,7 +139,7 @@ void UEnemyCombatComponent::ApplySettings(
 
 void UEnemyCombatComponent::BeginRuntimeContentPreload()
 {
-	ReleaseRuntimeContentPreload();
+	RuntimeContentLease.Reset();
 	bRuntimeContentReady = false;
 
 	TArray<FSoftObjectPath> AssetPaths;
@@ -162,41 +163,30 @@ void UEnemyCombatComponent::BeginRuntimeContentPreload()
 		return;
 	}
 
-	const uint32 RequestGeneration = RuntimeContentLoadGeneration;
-	TSharedPtr<FStreamableHandle> NewLoadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			AssetPaths,
-			FStreamableDelegate::CreateWeakLambda(
-				this,
-				[this, RequestGeneration]()
-				{
-					HandleRuntimeContentPreloaded(RequestGeneration);
-				}));
-
-	if (NewLoadHandle.IsValid()
-		&& RequestGeneration == RuntimeContentLoadGeneration
-		&& !bRuntimeContentReady)
+	const UWorld* World = GetWorld();
+	const UGameInstance* GameInstance =
+		World
+			? World->GetGameInstance()
+			: nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance
+			? GameInstance->GetSubsystem<UContentDataSubsystem>()
+			: nullptr;
+	if (!ContentSubsystem)
 	{
-		RuntimeContentLoadHandle = MoveTemp(NewLoadHandle);
-	}
-	else if (NewLoadHandle.IsValid())
-	{
-		NewLoadHandle->ReleaseHandle();
-	}
-	else
-	{
-		HandleRuntimeContentPreloaded(RequestGeneration);
-	}
-}
-
-void UEnemyCombatComponent::HandleRuntimeContentPreloaded(
-	const uint32 RequestGeneration)
-{
-	if (RequestGeneration != RuntimeContentLoadGeneration)
-	{
+		HandleRuntimeContentPreloaded();
 		return;
 	}
 
+	RuntimeContentLease = ContentSubsystem->AcquireContent(
+		AssetPaths,
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::HandleRuntimeContentPreloaded));
+}
+
+void UEnemyCombatComponent::HandleRuntimeContentPreloaded()
+{
 	bRuntimeContentReady = true;
 	if (!Settings.DefaultStatDefinition.IsNull()
 		&& !Settings.DefaultStatDefinition.Get())
@@ -225,17 +215,6 @@ void UEnemyCombatComponent::HandleRuntimeContentPreloaded(
 	if (bHandlePossessedWhenContentReady)
 	{
 		HandlePossessed();
-	}
-}
-
-void UEnemyCombatComponent::ReleaseRuntimeContentPreload()
-{
-	++RuntimeContentLoadGeneration;
-	if (RuntimeContentLoadHandle.IsValid())
-	{
-		RuntimeContentLoadHandle->CancelHandle();
-		RuntimeContentLoadHandle->ReleaseHandle();
-		RuntimeContentLoadHandle.Reset();
 	}
 }
 
@@ -298,7 +277,7 @@ void UEnemyCombatComponent::ShutdownRuntime()
 	Enemy->GetWorldTimerManager().ClearTimer(AttackTimerHandle);
 	AttackTarget = nullptr;
 	bHandlePossessedWhenContentReady = false;
-	ReleaseRuntimeContentPreload();
+	RuntimeContentLease.Reset();
 }
 
 void UEnemyCombatComponent::InitializeBehaviorTreeCombat()

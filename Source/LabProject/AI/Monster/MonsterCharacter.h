@@ -11,7 +11,7 @@ class UAnimMontage;
 class UPrimitiveComponent;
 class URewardDefinition;
 class APdPlayerState;
-struct FStreamableHandle;
+class FContentLease;
 
 /**
  * 몬스터의 공격 판정과 피격·사망 처리를 담당한다.
@@ -144,7 +144,7 @@ private:
 	TSet<TWeakObjectPtr<AActor>> AttackHitActorsThisSwing;
 	TWeakObjectPtr<APdPlayerState> LastDamagingPlayerState;
 	TWeakObjectPtr<UAnimInstance> AttackAnimInstance;
-	TSharedPtr<FStreamableHandle> MonsterContentPreloadHandle;
+	TSharedPtr<FContentLease> MonsterContentLease;
 	bool bMonsterContentPreloadStarted = false;
 	bool bMonsterContentReady = false;
 	bool bMonsterAttackActive = false;

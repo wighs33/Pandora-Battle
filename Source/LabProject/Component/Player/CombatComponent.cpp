@@ -16,9 +16,11 @@
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "DrawDebugHelpers.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "GameplayEffect.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -699,12 +701,19 @@ void UCombatComponent::BeginUnarmedAttackMontagePreload()
 		return;
 	}
 
-	UnarmedAttackMontagePreloadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			UnarmedCombatSettings.AttackMontage.ToSoftObjectPath(),
-			FStreamableDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleUnarmedAttackMontagePreloadComplete));
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		return;
+	}
+
+	UnarmedAttackMontageLease = ContentSubsystem->AcquireContent(
+		TArray<FSoftObjectPath>{UnarmedCombatSettings.AttackMontage.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::HandleUnarmedAttackMontagePreloadComplete));
 }
 
 void UCombatComponent::HandleUnarmedAttackMontagePreloadComplete()
@@ -714,12 +723,7 @@ void UCombatComponent::HandleUnarmedAttackMontagePreloadComplete()
 
 void UCombatComponent::ReleaseUnarmedAttackMontagePreload()
 {
-	if (UnarmedAttackMontagePreloadHandle.IsValid())
-	{
-		UnarmedAttackMontagePreloadHandle->CancelHandle();
-		UnarmedAttackMontagePreloadHandle->ReleaseHandle();
-		UnarmedAttackMontagePreloadHandle.Reset();
-	}
+	UnarmedAttackMontageLease.Reset();
 	CachedUnarmedAttackMontage = nullptr;
 }
 

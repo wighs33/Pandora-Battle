@@ -5,7 +5,7 @@
 #include "Common/RewardNotificationTypes.h"
 #include "PlayerNotificationComponent.generated.h"
 
-struct FStreamableHandle;
+class FContentLease;
 
 /**
  * 지급된 보상을 소유 플레이어에게 알리는 컴포넌트.
@@ -40,5 +40,5 @@ private:
 
 private:
 	uint64 NextRewardNotificationRequestId = 1;
-	TMap<uint64, TSharedPtr<FStreamableHandle>> PendingRewardNotificationLoadHandles;
+	TMap<uint64, TSharedPtr<FContentLease>> PendingRewardNotificationLeases;
 };

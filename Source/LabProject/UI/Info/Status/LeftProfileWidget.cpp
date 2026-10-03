@@ -5,8 +5,8 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -47,7 +47,8 @@ void ULeftProfileWidget::NativeConstruct()
 void ULeftProfileWidget::NativeDestruct()
 {
 	PossessedCharacterReadySubscription.Reset();
-	ReleaseContentPreloads();
+	PresentationLease.Reset();
+	DefinitionLease.Reset();
 	UnbindMatchDisplayNameChanged();
 	UnbindSteamAchievementStateChanged();
 	UnbindAchievementButtons();
@@ -56,8 +57,8 @@ void ULeftProfileWidget::NativeDestruct()
 
 void ULeftProfileWidget::BeginContentPreload()
 {
-	ReleaseContentPreloads();
-	const int32 PreloadGeneration = ++ContentPreloadGeneration;
+	PresentationLease.Reset();
+	DefinitionLease.Reset();
 
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
@@ -67,29 +68,18 @@ void ULeftProfileWidget::BeginContentPreload()
 		return;
 	}
 
-	DefinitionPreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			{
-				UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-					.Record.ToSoftObjectPath(),
-				UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-					.Achievement.ToSoftObjectPath()
-			},
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					BeginPresentationPreload(PreloadGeneration);
-				}));
+	DefinitionLease = ContentSubsystem->AcquireContent(
+		{
+			UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+				.Record.ToSoftObjectPath(),
+			UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+				.Achievement.ToSoftObjectPath()
+		},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginPresentationPreload));
 }
 
-void ULeftProfileWidget::BeginPresentationPreload(const int32 PreloadGeneration)
+void ULeftProfileWidget::BeginPresentationPreload()
 {
-	if (PreloadGeneration != ContentPreloadGeneration)
-	{
-		return;
-	}
-
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
@@ -116,37 +106,15 @@ void ULeftProfileWidget::BeginPresentationPreload(const int32 PreloadGeneration)
 		}
 	}
 
-	PresentationPreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			PresentationPaths,
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					if (PreloadGeneration == ContentPreloadGeneration)
-					{
-						RefreshTierImage();
-						RefreshAchievementButtons();
-					}
-				}));
-}
-
-void ULeftProfileWidget::ReleaseContentPreloads()
-{
-	++ContentPreloadGeneration;
-
-	auto ReleaseHandle = [](TSharedPtr<FStreamableHandle>& Handle)
-	{
-		if (Handle.IsValid())
-		{
-			Handle->CancelHandle();
-			Handle->ReleaseHandle();
-			Handle.Reset();
-		}
-	};
-
-	ReleaseHandle(PresentationPreloadHandle);
-	ReleaseHandle(DefinitionPreloadHandle);
+	PresentationLease = ContentSubsystem->AcquireContent(
+		PresentationPaths,
+		FSimpleDelegate::CreateWeakLambda(
+			this,
+			[this]()
+			{
+				RefreshTierImage();
+				RefreshAchievementButtons();
+			}));
 }
 
 void ULeftProfileWidget::RefreshTierImage()

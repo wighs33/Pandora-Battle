@@ -1,8 +1,11 @@
 #include "Component/Player/WeaponPresentationLoader.h"
 
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "Weapon/WeaponBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWeaponPresentation, Log, All);
@@ -58,16 +61,20 @@ bool FWeaponPresentationLoader::Request(
 		return false;
 	}
 
-	FStreamableManager& StreamableManager = UAssetManager::Get().GetStreamableManager();
+	const UWorld* World = Owner.GetWorld();
+	UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (IsLoaded(ItemDefinition, bRequiresEquipMontage))
 	{
-		// 이미 메모리에 있어도 장착하는 동안 내려가지 않게 핸들을 잡아 둔다.
-		if (!LoadHandles.Contains(ItemDefinitionId))
+		// 이미 메모리에 있어도 장착하는 동안 내려가지 않게 lease를 잡아 둔다.
+		if (ContentSubsystem && !LoadLeases.Contains(ItemDefinitionId))
 		{
-			if (TSharedPtr<FStreamableHandle> RetainHandle =
-				StreamableManager.RequestAsyncLoad(GetPresentationAssetPaths(*ItemDefinition)))
+			TSharedPtr<FContentLease> RetainLease =
+				ContentSubsystem->AcquireContent(GetPresentationAssetPaths(*ItemDefinition));
+			if (!RetainLease->HasFailed())
 			{
-				LoadHandles.Add(ItemDefinitionId, MoveTemp(RetainHandle));
+				LoadLeases.Add(ItemDefinitionId, MoveTemp(RetainLease));
 			}
 		}
 
@@ -80,9 +87,9 @@ bool FWeaponPresentationLoader::Request(
 		PendingCallbacks.FindOrAdd(ItemDefinitionId).Add(MoveTemp(OnLoaded));
 	}
 
-	if (const TSharedPtr<FStreamableHandle>* ExistingHandle = LoadHandles.Find(ItemDefinitionId))
+	if (const TSharedPtr<FContentLease>* ExistingLease = LoadLeases.Find(ItemDefinitionId))
 	{
-		if (ExistingHandle->IsValid() && !(*ExistingHandle)->HasLoadCompleted())
+		if (ExistingLease->IsValid() && (*ExistingLease)->IsLoading())
 		{
 			return true;
 		}
@@ -94,13 +101,19 @@ bool FWeaponPresentationLoader::Request(
 		return false;
 	}
 
-	TSharedPtr<FStreamableHandle> LoadHandle = StreamableManager.RequestAsyncLoad(
+	if (!ContentSubsystem)
+	{
+		PendingCallbacks.Remove(ItemDefinitionId);
+		return false;
+	}
+
+	TSharedPtr<FContentLease> LoadLease = ContentSubsystem->AcquireContent(
 		GetPresentationAssetPaths(*ItemDefinition),
-		FStreamableDelegate::CreateWeakLambda(&Owner, [this, ItemDefinitionId, bRequiresEquipMontage]()
+		FSimpleDelegate::CreateWeakLambda(&Owner, [this, ItemDefinitionId, bRequiresEquipMontage]()
 		{
 			HandleLoaded(ItemDefinitionId, bRequiresEquipMontage);
 		}));
-	if (!LoadHandle.IsValid())
+	if (LoadLease->HasFailed())
 	{
 		PendingCallbacks.Remove(ItemDefinitionId);
 		UE_LOG(LogWeaponPresentation, Error,
@@ -108,21 +121,14 @@ bool FWeaponPresentationLoader::Request(
 		return false;
 	}
 
-	LoadHandles.Add(ItemDefinitionId, MoveTemp(LoadHandle));
+	LoadLeases.Add(ItemDefinitionId, MoveTemp(LoadLease));
 	return true;
 }
 
 void FWeaponPresentationLoader::Reset()
 {
 	PendingCallbacks.Reset();
-	for (TPair<FPrimaryAssetId, TSharedPtr<FStreamableHandle>>& HandlePair : LoadHandles)
-	{
-		if (HandlePair.Value.IsValid())
-		{
-			HandlePair.Value->ReleaseHandle();
-		}
-	}
-	LoadHandles.Reset();
+	LoadLeases.Reset();
 }
 
 void FWeaponPresentationLoader::HandleLoaded(const FPrimaryAssetId ItemDefinitionId, const bool bRequiresEquipMontage)

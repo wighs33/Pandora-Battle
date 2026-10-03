@@ -8,8 +8,8 @@ class AController;
 class AExperienceGameMode;
 class APlayerState;
 class ARewardChest;
+class FContentLease;
 class URewardDefinition;
-struct FStreamableHandle;
 
 /**
  * 서버에서 경기 보상을 지급한다.
@@ -58,5 +58,5 @@ private:
 	bool bChestConfigurationStopped = false;
 	FDelegateHandle WorldBeginPlayHandle;
 	TArray<TPair<TWeakObjectPtr<ARewardChest>, FDelegateHandle>> PendingChestContentHandles;
-	TSharedPtr<FStreamableHandle> RewardContentPreloadHandle;
+	TSharedPtr<FContentLease> RewardContentLease;
 };

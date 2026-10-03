@@ -19,7 +19,7 @@ class UControllerSessionComponent;
 class UPlayerControllerDefinition;
 class UPdAbilitySystemComponent;
 class UPlayerNotificationComponent;
-struct FStreamableHandle;
+class FContentLease;
 
 DECLARE_LOG_CATEGORY_EXTERN(PdPlayerControllerLog, Log, All);
 
@@ -128,14 +128,13 @@ public:
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandleControllerDefinitionPreloaded(uint32 RequestGeneration);
+	void HandleControllerDefinitionPreloaded();
 	void HandlePossessedCharacterAbilitySystemReady(ACharacterBase* ReadyCharacter, UPdAbilitySystemComponent* AbilitySystemComponent);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ApplyControllerDefinition();
 	const UPlayerControllerDefinition* GetControllerDefinition() const;
 	void BeginControllerDefinitionPreload();
-	void ReleaseControllerDefinitionPreload();
 	void RefreshControllerInput();
 	void ObservePossessedCharacter(ACharacterBase* NewPossessedCharacter);
 
@@ -168,8 +167,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPlayerControllerDefinition> LoadedPlayerControllerDefinition;
 
-	TSharedPtr<FStreamableHandle> PlayerControllerDefinitionLoadHandle;
-	uint32 PlayerControllerDefinitionLoadGeneration = 0;
+	TSharedPtr<FContentLease> PlayerControllerDefinitionLease;
 
 	TWeakObjectPtr<ACharacterBase> ObservedPossessedCharacter;
 	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;

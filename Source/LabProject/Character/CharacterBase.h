@@ -31,7 +31,7 @@ class UStatusEffectReplicationComponent;
 class UUserWidget;
 class UWidgetClassDefinition;
 class UWidgetComponent;
-struct FStreamableHandle;
+class FContentLease;
 
 /**
  * 캐릭터 공통 컴포넌트를 구성하고 생명주기를 연결한다.
@@ -204,7 +204,7 @@ public:
 
 protected:
 	virtual void HandleCharacterRuntimeInitialized();
-	void HandleCharacterDefinitionPreloaded(uint32 RequestGeneration);
+	void HandleCharacterDefinitionPreloaded();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	// 플레이어와 적의 소유 방식·전용 설정·회전·UI 차이를 유지하는 확장 지점.
@@ -271,9 +271,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Faction")
 	int32 FactionId = 0;
 
-	// 로딩 중 애셋의 수명을 유지하고, 취소·재요청 이전의 완료 콜백을 구분한다.
-	TSharedPtr<FStreamableHandle> CharacterDefinitionLoadHandle;
-	uint32 CharacterDefinitionLoadGeneration = 0;
+	TSharedPtr<FContentLease> CharacterDefinitionLease;
 	// Super::BeginPlay 내부의 엔진 상태와 구분해, 공통 BeginPlay 설정 적용 이후만 초기화를 허용한다.
 	bool bCharacterBeginPlayCalled = false;
 	// 로드 성공뿐 아니라 미지정·실패 후 기본 설정으로 진행할 수 있는 상태도 포함한다.

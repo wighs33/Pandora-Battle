@@ -6,9 +6,10 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Item/ItemDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
 #include "Pandora/PandoraSkillSource.h"
 #include "Component/Player/EquipmentComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HitReactAbility)
@@ -221,48 +222,38 @@ void UHitReactAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, 
 void UHitReactAbility::OnAbilityEnding()
 {
 	Super::OnAbilityEnding();
-	ReleaseHitReactMontagePreload();
+	HitReactMontageLease.Reset();
 }
 
 void UHitReactAbility::BeginHitReactMontagePreload()
 {
-	ReleaseHitReactMontagePreload();
+	HitReactMontageLease.Reset();
 	if (HitReactMontage.IsNull())
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 		return;
 	}
 
-	const uint32 RequestGeneration = HitReactMontageRequestGeneration;
-	TSharedPtr<FStreamableHandle> NewHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			HitReactMontage.ToSoftObjectPath(),
-			FStreamableDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleHitReactMontagePreloadComplete,
-				RequestGeneration));
-	if (RequestGeneration != HitReactMontageRequestGeneration)
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	const UGameInstance* GameInstance = AvatarActor ? AvatarActor->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
-		if (NewHandle.IsValid())
-		{
-			NewHandle->CancelHandle();
-			NewHandle->ReleaseHandle();
-		}
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 		return;
 	}
 
-	HitReactMontagePreloadHandle = MoveTemp(NewHandle);
-	if (!HitReactMontagePreloadHandle.IsValid())
-	{
-		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
-	}
+	HitReactMontageLease = ContentSubsystem->AcquireContent(
+		{ HitReactMontage.ToSoftObjectPath() },
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::HandleHitReactMontagePreloadComplete));
 }
 
-void UHitReactAbility::HandleHitReactMontagePreloadComplete(
-	const uint32 RequestGeneration)
+void UHitReactAbility::HandleHitReactMontagePreloadComplete()
 {
-	if (RequestGeneration != HitReactMontageRequestGeneration
-		|| !IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))
+	if (!IsEndAbilityValid(CurrentSpecHandle, CurrentActorInfo))
 	{
 		return;
 	}
@@ -279,17 +270,6 @@ void UHitReactAbility::HandleHitReactMontagePreloadComplete(
 		CurrentSpecHandle,
 		CurrentActorInfo,
 		CurrentActivationInfo);
-}
-
-void UHitReactAbility::ReleaseHitReactMontagePreload()
-{
-	++HitReactMontageRequestGeneration;
-	if (HitReactMontagePreloadHandle.IsValid())
-	{
-		HitReactMontagePreloadHandle->CancelHandle();
-		HitReactMontagePreloadHandle->ReleaseHandle();
-		HitReactMontagePreloadHandle.Reset();
-	}
 }
 
 void UHitReactAbility::StartHitReactMontage(

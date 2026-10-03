@@ -14,7 +14,6 @@ class UCommonActivatableWidget;
 class UAbilitySystemComponent;
 class APlayerController;
 class UGameSettingsWidget;
-struct FStreamableHandle;
 class UStatusViewModel;
 class UUserWidget;
 class UWidget;
@@ -108,7 +107,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UWidgetClassDefinition> WidgetClassDefinition;
 
-	TSharedPtr<FStreamableHandle> ConfiguredDefinitionLoadHandle;
+	TSharedPtr<FContentLease> ConfiguredDefinitionLease;
 	TSharedPtr<FContentLease> ConfiguredCoreContentLease;
 	TArray<TPair<EUiContentGroup, TWeakPtr<FContentLease>>> PendingConfiguredUiContent;
 	bool bHasExternalWidgetClassDefinition = false;

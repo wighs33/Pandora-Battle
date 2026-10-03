@@ -2,13 +2,15 @@
 
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "GameFramework/Actor.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Definition/Player/StatUpgradeDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatUpgradeComponent)
@@ -234,7 +236,7 @@ bool UStatUpgradeComponent::ApplyStatChange(FGameplayTag StatTag, const int32 Le
 	return true;
 }
 
-// 현재 정의만 로딩하고 이전 요청의 완료 콜백은 세대 번호로 구분한다.
+// 현재 정의만 로딩한다. 이전 요청의 lease는 먼저 해제되어 완료 콜백을 받지 않는다.
 void UStatUpgradeComponent::BeginStatUpgradeDefinitionPreload()
 {
 	ReleaseStatUpgradeDefinitionPreload();
@@ -247,48 +249,33 @@ void UStatUpgradeComponent::BeginStatUpgradeDefinitionPreload()
 
 	if (StatUpgradeDefinition.Get())
 	{
-		HandleStatUpgradeDefinitionPreloaded(StatUpgradeDefinitionLoadGeneration);
+		HandleStatUpgradeDefinitionPreloaded();
 		return;
 	}
 
-	const uint32 RequestGeneration = StatUpgradeDefinitionLoadGeneration;
-	TSharedPtr<FStreamableHandle> NewLoadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			StatUpgradeDefinition.ToSoftObjectPath(),
-			FStreamableDelegate::CreateWeakLambda(
-				this,
-				[this, RequestGeneration]()
-				{
-					HandleStatUpgradeDefinitionPreloaded(RequestGeneration);
-				}));
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		return;
+	}
 
-	if (NewLoadHandle.IsValid()
-		&& RequestGeneration == StatUpgradeDefinitionLoadGeneration
-		&& !LoadedStatUpgradeDefinition)
-	{
-		StatUpgradeDefinitionLoadHandle = MoveTemp(NewLoadHandle);
-	}
-	else if (NewLoadHandle.IsValid())
-	{
-		NewLoadHandle->ReleaseHandle();
-	}
+	StatUpgradeDefinitionLease = ContentSubsystem->AcquireContent(
+		TArray<FSoftObjectPath>{StatUpgradeDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleStatUpgradeDefinitionPreloaded));
 }
 
 // 동기·비동기 로딩의 공통 완료 경로다. 서버 기본값 적용이 끝난 정의만 투자와 포인트 지급에 공개한다.
-void UStatUpgradeComponent::HandleStatUpgradeDefinitionPreloaded(
-	const uint32 RequestGeneration)
+void UStatUpgradeComponent::HandleStatUpgradeDefinitionPreloaded()
 {
-	if (RequestGeneration != StatUpgradeDefinitionLoadGeneration || LoadedStatUpgradeDefinition || bApplyingStatChange)
+	if (LoadedStatUpgradeDefinition || bApplyingStatChange)
 	{
 		return;
 	}
 
 	UStatUpgradeDefinition* Definition = StatUpgradeDefinition.Get();
-	if (StatUpgradeDefinitionLoadHandle.IsValid())
-	{
-		StatUpgradeDefinitionLoadHandle->ReleaseHandle();
-		StatUpgradeDefinitionLoadHandle.Reset();
-	}
+	StatUpgradeDefinitionLease.Reset();
 	if (!Definition)
 	{
 		UE_LOG(
@@ -320,13 +307,7 @@ void UStatUpgradeComponent::HandleStatUpgradeDefinitionPreloaded(
 // 취소된 로딩이 나중에 완료되어도 현재 플레이어 상태를 변경하지 못하게 한다.
 void UStatUpgradeComponent::ReleaseStatUpgradeDefinitionPreload()
 {
-	++StatUpgradeDefinitionLoadGeneration;
-	if (StatUpgradeDefinitionLoadHandle.IsValid())
-	{
-		StatUpgradeDefinitionLoadHandle->CancelHandle();
-		StatUpgradeDefinitionLoadHandle->ReleaseHandle();
-		StatUpgradeDefinitionLoadHandle.Reset();
-	}
+	StatUpgradeDefinitionLease.Reset();
 }
 
 // 플레이어 상태가 소유한 ASC를 조회한다.

@@ -8,7 +8,7 @@
 
 class UAnimMontage;
 class UGameplayEffect;
-struct FStreamableHandle;
+class FContentLease;
 
 UCLASS(Blueprintable)
 class LABPROJECT_API UHitReactAbility : public UPdGameplayAbility
@@ -39,12 +39,11 @@ protected:
 
 	UFUNCTION()
 	void OnHitReactMontageCancelled();
-	void HandleHitReactMontagePreloadComplete(uint32 RequestGeneration);
+	void HandleHitReactMontagePreloadComplete();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ClearActiveHitReactEffect();
 	void BeginHitReactMontagePreload();
-	void ReleaseHitReactMontagePreload();
 	void StartHitReactMontage(
 		UAnimMontage* Montage,
 		const FGameplayAbilitySpecHandle Handle,
@@ -67,6 +66,5 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Cue", meta = (Categories = "GameplayCue"))
 	FGameplayTag HitReactCueTag;
 
-	TSharedPtr<FStreamableHandle> HitReactMontagePreloadHandle;
-	uint32 HitReactMontageRequestGeneration = 0;
+	TSharedPtr<FContentLease> HitReactMontageLease;
 };

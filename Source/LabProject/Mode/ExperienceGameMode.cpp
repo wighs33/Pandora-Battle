@@ -9,14 +9,15 @@
 #include "Component/Player/PlayerSpawnComponent.h"
 #include "Component/Player/SelectingPandoraAndWeaponComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Experience/ExperienceDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
 #include "Experience/PdWorldSettings.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
@@ -401,20 +402,23 @@ void AExperienceGameMode::BeginRuntimeContentPreload()
 	{
 		if (!Path.IsNull()) { Paths.AddUnique(Path); }
 	}
-	const uint32 Generation = RuntimeContentRequestGeneration;
 	if (Paths.IsEmpty())
 	{
-		HandleRuntimeContentPreloadComplete(Generation);
+		HandleRuntimeContentPreloadComplete();
 		return;
 	}
-	RuntimeContentPreloadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(Paths,
-		FStreamableDelegate::CreateUObject(this, &ThisClass::HandleRuntimeContentPreloadComplete, Generation));
-	if (!RuntimeContentPreloadHandle.IsValid()) { HandleRuntimeContentPreloadComplete(Generation); }
+	UContentDataSubsystem* ContentSubsystem = UGameInstance::GetSubsystem<UContentDataSubsystem>(GetGameInstance());
+	if (!ContentSubsystem)
+	{
+		HandleRuntimeContentPreloadComplete();
+		return;
+	}
+	RuntimeContentLease = ContentSubsystem->AcquireContent(Paths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRuntimeContentPreloadComplete));
 }
 
-void AExperienceGameMode::HandleRuntimeContentPreloadComplete(uint32 RequestGeneration)
+void AExperienceGameMode::HandleRuntimeContentPreloadComplete()
 {
-	if (RequestGeneration != RuntimeContentRequestGeneration) { return; }
 	const FProjectDefinitionReferences& Definitions = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
 	LoadedMatchRuleDefinition = Definitions.MatchRule.Get();
 	LoadedLevelDefinition = Definitions.LevelDefinition.Get();
@@ -433,13 +437,7 @@ void AExperienceGameMode::HandleRuntimeContentPreloadComplete(uint32 RequestGene
 
 void AExperienceGameMode::ReleaseRuntimeContentPreload()
 {
-	++RuntimeContentRequestGeneration;
-	if (RuntimeContentPreloadHandle.IsValid())
-	{
-		RuntimeContentPreloadHandle->CancelHandle();
-		RuntimeContentPreloadHandle->ReleaseHandle();
-		RuntimeContentPreloadHandle.Reset();
-	}
+	RuntimeContentLease.Reset();
 	LoadedMatchRuleDefinition = nullptr;
 	LoadedLevelDefinition = nullptr;
 	LoadedDefaultProvisionDefinition = nullptr;

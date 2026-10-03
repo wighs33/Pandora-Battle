@@ -8,6 +8,7 @@
 #include "Components/PlayerStateComponent.h"
 #include "InventoryComponent.generated.h"
 
+class FContentLease;
 class UInventoryComponent;
 class UItemDefinition;
 class UItemInstance;
@@ -325,5 +326,5 @@ private:
 	uint64 ItemLoadGeneration = 0;
 	int32 PendingItemLoadRequestCount = 0;
 	TArray<TSharedPtr<FStreamableHandle>> PendingItemLoadHandles;
-	TMap<FPrimaryAssetId, TSharedPtr<FStreamableHandle>> WeaponLoadoutPresentationHandles;
+	TMap<FPrimaryAssetId, TSharedPtr<FContentLease>> WeaponLoadoutPresentationLeases;
 };

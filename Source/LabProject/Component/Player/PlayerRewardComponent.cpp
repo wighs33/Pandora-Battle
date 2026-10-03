@@ -13,9 +13,11 @@
 #include "Component/Player/PlayerNotificationComponent.h"
 #include "Component/Player/LevelingComponent.h"
 #include "Component/Skin/SkinComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Item/RewardDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "UObject/PrimaryAssetId.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerRewardComponent)
 
@@ -49,34 +51,24 @@ void UPlayerRewardComponent::BeginPlay()
 		return;
 	}
 
-	PlayerKillRewardLoadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-		PlayerKillRewardDefinition.ToSoftObjectPath(), FStreamableDelegate::CreateUObject(this, &ThisClass::HandlePlayerKillRewardLoaded),
-		FStreamableManager::DefaultAsyncLoadPriority, false, true);
-	if (PlayerKillRewardLoadHandle)
+	UContentDataSubsystem* ContentSubsystem = FindContentDataSubsystem();
+	if (!ContentSubsystem)
 	{
-		PlayerKillRewardLoadHandle->StartStalledHandle();
+		return;
 	}
-	else
-	{
-		UE_LOG(LogPlayerReward, Error, TEXT("Failed to request player kill reward data: %s."), *PlayerKillRewardDefinition.ToString());
-	}
+
+	PlayerKillRewardLease = ContentSubsystem->AcquireContent(
+		TArray<FSoftObjectPath>{PlayerKillRewardDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandlePlayerKillRewardLoaded));
 }
 
 // 플레이어가 나가거나 게임피처가 해제되면 미완료 보상 로딩과 대기 중인 처치 보상을 정리한다.
 void UPlayerRewardComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (PlayerKillRewardLoadHandle)
-	{
-		PlayerKillRewardLoadHandle->CancelHandle();
-		PlayerKillRewardLoadHandle.Reset();
-	}
+	PlayerKillRewardLease.Reset();
 	PendingPlayerKillRewards = 0;
 	LoadedPlayerKillRewardDefinition = nullptr;
-	for (const auto& Entry : MonsterRewardLoadHandles)
-	{
-		Entry.Value->CancelHandle();
-	}
-	MonsterRewardLoadHandles.Reset();
+	MonsterRewardLeases.Reset();
 	PendingMonsterRewards.Reset();
 	Super::EndPlay(EndPlayReason);
 }
@@ -95,7 +87,7 @@ void UPlayerRewardComponent::GrantKillExperience(APlayerState* VictimPlayerState
 	{
 		GrantPlayerKillReward();
 	}
-	else if (PlayerKillRewardLoadHandle)
+	else if (PlayerKillRewardLease.IsValid())
 	{
 		++PendingPlayerKillRewards;
 	}
@@ -109,7 +101,7 @@ void UPlayerRewardComponent::GrantKillExperience(APlayerState* VictimPlayerState
 void UPlayerRewardComponent::HandlePlayerKillRewardLoaded()
 {
 	LoadedPlayerKillRewardDefinition = PlayerKillRewardDefinition.Get();
-	PlayerKillRewardLoadHandle.Reset();
+	PlayerKillRewardLease.Reset();
 	const int32 RewardsToGrant = PendingPlayerKillRewards;
 	PendingPlayerKillRewards = 0;
 	if (!LoadedPlayerKillRewardDefinition)
@@ -233,6 +225,12 @@ APdPlayerState* UPlayerRewardComponent::GetPdPlayerState() const
 	return Cast<APdPlayerState>(GetOwner());
 }
 
+UContentDataSubsystem* UPlayerRewardComponent::FindContentDataSubsystem() const
+{
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	return GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+}
+
 // 몬스터가 확정한 처치 보상을 플레이어 수명에 보관하고, 같은 정의의 로딩은 공유한다.
 void UPlayerRewardComponent::GrantMonsterDefeatRewards(TSoftObjectPtr<URewardDefinition> RewardDefinition)
 {
@@ -253,22 +251,19 @@ void UPlayerRewardComponent::GrantMonsterDefeatRewards(TSoftObjectPtr<URewardDef
 	}
 	const FSoftObjectPath Path = RewardDefinition.ToSoftObjectPath();
 	++PendingMonsterRewards.FindOrAdd(Path);
-	if (MonsterRewardLoadHandles.Contains(Path))
+	if (MonsterRewardLeases.Contains(Path))
 	{
 		return;
 	}
-	TSharedPtr<FStreamableHandle> Handle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-		Path, FStreamableDelegate::CreateUObject(this, &ThisClass::HandleMonsterRewardLoaded, Path),
-		FStreamableManager::DefaultAsyncLoadPriority, false, true);
-	if (Handle)
-	{
-		MonsterRewardLoadHandles.Add(Path, Handle);
-		Handle->StartStalledHandle();
-	}
-	else
+	UContentDataSubsystem* ContentSubsystem = FindContentDataSubsystem();
+	if (!ContentSubsystem)
 	{
 		HandleMonsterRewardLoaded(Path);
+		return;
 	}
+	MonsterRewardLeases.Add(Path, ContentSubsystem->AcquireContent(
+		TArray<FSoftObjectPath>{Path},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleMonsterRewardLoaded, Path)));
 }
 
 // 로딩 중 죽은 몬스터마다 한 번씩 보상을 지급한다. 몬스터 Actor를 다시 조회하지 않는다.
@@ -276,8 +271,8 @@ void UPlayerRewardComponent::HandleMonsterRewardLoaded(FSoftObjectPath Definitio
 {
 	int32 RewardCount = 0;
 	PendingMonsterRewards.RemoveAndCopyValue(DefinitionPath, RewardCount);
-	TSharedPtr<FStreamableHandle> KeepAlive;
-	MonsterRewardLoadHandles.RemoveAndCopyValue(DefinitionPath, KeepAlive);
+	TSharedPtr<FContentLease> KeepAlive;
+	MonsterRewardLeases.RemoveAndCopyValue(DefinitionPath, KeepAlive);
 	const URewardDefinition* Definition = Cast<URewardDefinition>(DefinitionPath.ResolveObject());
 	if (!Definition)
 	{

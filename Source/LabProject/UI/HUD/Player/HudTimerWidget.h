@@ -6,7 +6,7 @@
 
 class UTextBlock;
 class UMatchRuleDefinition;
-struct FStreamableHandle;
+class FContentLease;
 
 UCLASS()
 class LABPROJECT_API UHudTimerWidget : public UUserWidget
@@ -52,7 +52,6 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool BeginMatchRulePreload();
-	void ReleaseMatchRulePreload();
 	void SyncFromReplicatedTimerState();
 	FText FormatTimerText() const;
 	float GetConfiguredTimerSeconds() const;
@@ -84,8 +83,7 @@ protected:
 
 private:
 	FTimerHandle TimerTickHandle;
-	int32 MatchRulePreloadGeneration = 0;
-	TSharedPtr<FStreamableHandle> MatchRulePreloadHandle;
+	TSharedPtr<FContentLease> MatchRuleLease;
 	float CurrentTimerSeconds = 0.0f;
 	bool bRefreshTimerActive = false;
 };

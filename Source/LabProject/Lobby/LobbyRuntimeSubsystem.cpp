@@ -148,7 +148,6 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 			TEXT("Lobby entry preload has no configured Level Definition."));
 		return;
 	}
-	const TWeakObjectPtr<ThisClass> WeakThis(this);
 	TArray<FSoftObjectPath> DefinitionPaths = { LevelDefinitionPath };
 	const FSoftObjectPath MatchRulePath =
 		UMatchRuleDefinition::GetDefaultDefinitionPath();
@@ -156,21 +155,12 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 	{
 		DefinitionPaths.AddUnique(MatchRulePath);
 	}
-	TSharedPtr<FStreamableHandle> PreloadHandle =
-		ContentDataSubsystem->PreloadSoftObjectPathsAsync(
+	LevelDefinitionPreloadLease =
+		ContentDataSubsystem->AcquireContent(
 			DefinitionPaths,
-			FSimpleDelegate::CreateLambda(
-				[WeakThis]()
-				{
-					if (ThisClass* This = WeakThis.Get())
-					{
-						This->HandleLevelDefinitionPreloadComplete();
-					}
-				}));
-	if (PreloadHandle.IsValid())
-	{
-		LevelDefinitionPreloadHandle = MoveTemp(PreloadHandle);
-	}
+			FSimpleDelegate::CreateUObject(
+				this,
+				&ThisClass::HandleLevelDefinitionPreloadComplete));
 }
 
 const UMatchRuleDefinition*
@@ -418,13 +408,7 @@ void ULobbyRuntimeSubsystem::HandleLevelDefinitionPreloadComplete()
 void ULobbyRuntimeSubsystem::ReleaseLobbyEntryContentPreload()
 {
 	LobbyContentLeases.Reset();
-
-	if (LevelDefinitionPreloadHandle.IsValid())
-	{
-		LevelDefinitionPreloadHandle->CancelHandle();
-		LevelDefinitionPreloadHandle->ReleaseHandle();
-		LevelDefinitionPreloadHandle.Reset();
-	}
+	LevelDefinitionPreloadLease.Reset();
 	LoadedLevelDefinition = nullptr;
 	bLevelDefinitionPreloadPending = false;
 	bLevelDefinitionReady = false;

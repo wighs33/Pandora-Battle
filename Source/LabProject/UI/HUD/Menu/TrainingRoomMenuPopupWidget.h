@@ -9,7 +9,7 @@ class UCheckBox;
 class UImage;
 class UItemDefinition;
 class UTrainingRoomMenuPopupWidget;
-struct FStreamableHandle;
+class FContentLease;
 
 USTRUCT(BlueprintType)
 struct FTrainingBotWeaponOption
@@ -126,12 +126,9 @@ private:
 		TSoftObjectPtr<UItemDefinition> WeaponDefinition,
 		FName BuiltInButtonWidgetName);
 	void CompletePendingWeaponSelection(
-		int32 SelectionGeneration,
 		TSoftObjectPtr<UItemDefinition> WeaponDefinition,
 		FName BuiltInButtonWidgetName);
 	void BeginConfiguredWeaponPreload();
-	void ReleaseConfiguredWeaponPreload();
-	void CancelPendingWeaponSelection();
 	bool SelectTrainingBotUnarmedInternal(int32 OptionIndex);
 	bool ApplyWeaponToTrainingBot(UItemDefinition* WeaponDefinition) const;
 	bool ApplyUnarmedToTrainingBot() const;
@@ -202,8 +199,6 @@ private:
 	UPROPERTY(Transient)
 	FName SelectedBuiltInButtonWidgetName;
 
-	int32 PendingWeaponSelectionGeneration = 0;
-	bool bPendingWeaponSelectionRequestActive = false;
-	TSharedPtr<FStreamableHandle> ConfiguredWeaponPreloadHandle;
-	TSharedPtr<FStreamableHandle> PendingWeaponSelectionHandle;
+	TSharedPtr<FContentLease> ConfiguredWeaponLease;
+	TSharedPtr<FContentLease> PendingWeaponSelectionLease;
 };

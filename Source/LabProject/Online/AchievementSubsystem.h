@@ -7,7 +7,7 @@
 #include "AchievementSubsystem.generated.h"
 
 class IOnlineSubsystem;
-struct FStreamableHandle;
+class FContentLease;
 
 DECLARE_MULTICAST_DELEGATE(FOnSteamAchievementStateChanged);
 
@@ -76,7 +76,7 @@ private:
 	FOnSteamAchievementStateChanged SteamAchievementStateChanged;
 	UPROPERTY(Transient)
 	TObjectPtr<UAchievementDefinition> CachedAchievementDefinition;
-	TSharedPtr<FStreamableHandle> DefinitionPreloadHandle;
-	TSharedPtr<FStreamableHandle> PresentationPreloadHandle;
+	TSharedPtr<FContentLease> DefinitionLease;
+	TSharedPtr<FContentLease> PresentationLease;
 	FDelegateHandle ProfileProgressChangedHandle;
 };

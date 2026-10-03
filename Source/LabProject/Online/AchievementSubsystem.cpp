@@ -7,8 +7,8 @@
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
-#include "Engine/StreamableManager.h"
 #include "Profile/PlayerProfileSubsystem.h"
 
 THIRD_PARTY_INCLUDES_START
@@ -58,18 +58,8 @@ void UAchievementSubsystem::Deinitialize()
 	bAchievementQueryInFlight = false;
 	bAchievementQueryCompleted = false;
 	SteamAchievementStateChanged.Clear();
-	if (DefinitionPreloadHandle.IsValid())
-	{
-		DefinitionPreloadHandle->CancelHandle();
-		DefinitionPreloadHandle->ReleaseHandle();
-		DefinitionPreloadHandle.Reset();
-	}
-	if (PresentationPreloadHandle.IsValid())
-	{
-		PresentationPreloadHandle->CancelHandle();
-		PresentationPreloadHandle->ReleaseHandle();
-		PresentationPreloadHandle.Reset();
-	}
+	DefinitionLease.Reset();
+	PresentationLease.Reset();
 	CachedAchievementDefinition = nullptr;
 
 	Super::Deinitialize();
@@ -222,7 +212,8 @@ const UAchievementDefinition* UAchievementSubsystem::ResolveAchievementDefinitio
 
 void UAchievementSubsystem::BeginAchievementDefinitionPreload()
 {
-	if (CachedAchievementDefinition || DefinitionPreloadHandle.IsValid())
+	if (CachedAchievementDefinition
+		|| (DefinitionLease.IsValid() && DefinitionLease->IsLoading()))
 	{
 		return;
 	}
@@ -243,7 +234,7 @@ void UAchievementSubsystem::BeginAchievementDefinitionPreload()
 		return;
 	}
 
-	DefinitionPreloadHandle = ContentSubsystem->PreloadSoftObjectPathsAsync(
+	DefinitionLease = ContentSubsystem->AcquireContent(
 		{AchievementPath},
 		FSimpleDelegate::CreateUObject(
 			this,
@@ -252,7 +243,8 @@ void UAchievementSubsystem::BeginAchievementDefinitionPreload()
 
 void UAchievementSubsystem::BeginAchievementPresentationPreload()
 {
-	if (PresentationPreloadHandle.IsValid())
+	// 실패한 로드는 다음 조회 때 다시 요청한다.
+	if (PresentationLease.IsValid() && !PresentationLease->HasFailed())
 	{
 		return;
 	}
@@ -287,17 +279,13 @@ void UAchievementSubsystem::BeginAchievementPresentationPreload()
 		return;
 	}
 
-	PresentationPreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(PresentationPaths);
+	PresentationLease =
+		ContentSubsystem->AcquireContent(PresentationPaths);
 }
 
 void UAchievementSubsystem::HandleAchievementDefinitionContentReady()
 {
-	if (DefinitionPreloadHandle.IsValid())
-	{
-		DefinitionPreloadHandle->ReleaseHandle();
-		DefinitionPreloadHandle.Reset();
-	}
+	DefinitionLease.Reset();
 	CachedAchievementDefinition = nullptr;
 	if (!ResolveAchievementDefinition())
 	{

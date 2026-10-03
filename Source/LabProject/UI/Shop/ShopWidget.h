@@ -6,6 +6,7 @@
 #include "ShopWidget.generated.h"
 
 class UButton;
+class FContentLease;
 struct FStreamableHandle;
 class UShopCatalogDefinition;
 class UShopEntryViewData;
@@ -57,7 +58,7 @@ private:
 	void BindWidgets();
 	void UnbindWidgets();
 	void BeginContentPreload();
-	void BeginCatalogPresentationPreload(int32 PreloadGeneration);
+	void BeginCatalogPresentationPreload();
 	void ReleaseContentPreloads();
 	void SetActiveCategory(EShopProductType NewCategory);
 	void RefreshCategoryButtonStates() const;
@@ -173,6 +174,6 @@ private:
 	int32 ContentPreloadGeneration = 0;
 	TSharedPtr<FStreamableHandle> PandoraContentPreloadHandle;
 	TSharedPtr<FStreamableHandle> SkinContentPreloadHandle;
-	TSharedPtr<FStreamableHandle> CatalogProductPreloadHandle;
-	TSharedPtr<FStreamableHandle> CatalogPresentationPreloadHandle;
+	TSharedPtr<FContentLease> CatalogProductLease;
+	TSharedPtr<FContentLease> CatalogPresentationLease;
 };

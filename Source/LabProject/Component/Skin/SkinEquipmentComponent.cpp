@@ -9,8 +9,10 @@
 #include "Common/LabGameplayTags.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -449,17 +451,26 @@ void USkinEquipmentComponent::RebuildEquippedSkinActors()
 	{
 		return;
 	}
-	SkinPresentationLoadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(MissingPaths.Array(),
-		FStreamableDelegate::CreateUObject(this, &ThisClass::RebuildEquippedSkinActorsFromLoadedContent, RequestGeneration));
-	if (!SkinPresentationLoadHandle.IsValid())
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
+		return;
+	}
+	SkinPresentationLease = ContentSubsystem->AcquireContent(MissingPaths.Array(),
+		FSimpleDelegate::CreateUObject(this, &ThisClass::RebuildEquippedSkinActorsFromLoadedContent));
+	if (SkinPresentationLease->HasFailed())
+	{
+		SkinPresentationLease.Reset();
 		UE_LOG(SkinEquipmentComponentLog, Error, TEXT("Failed to preload changed skins for '%s'."), *GetPathNameSafe(GetOwner()));
 	}
 }
 
-// 로딩 중 다른 선택이나 종료가 발생했다면 이전 결과를 적용하지 않는다.
-void USkinEquipmentComponent::RebuildEquippedSkinActorsFromLoadedContent(const uint32 RequestGeneration)
+// 적용 중 생성·제거로 다시 들어온 갱신이나 종료가 발생했다면 남은 슬롯을 적용하지 않는다.
+void USkinEquipmentComponent::RebuildEquippedSkinActorsFromLoadedContent()
 {
+	const uint32 RequestGeneration = SkinPresentationRequestGeneration;
 	const TArray<FEquippedSkinSlot> DesiredSlots = EquippedSkins;
 	for (const FEquippedSkinSlot& Slot : DesiredSlots)
 	{
@@ -525,12 +536,7 @@ void USkinEquipmentComponent::ApplyEquippedSkinSlot(const FEquippedSkinSlot& Slo
 void USkinEquipmentComponent::ReleaseSkinPresentationLoad()
 {
 	++SkinPresentationRequestGeneration;
-	if (SkinPresentationLoadHandle.IsValid())
-	{
-		SkinPresentationLoadHandle->CancelHandle();
-		SkinPresentationLoadHandle->ReleaseHandle();
-		SkinPresentationLoadHandle.Reset();
-	}
+	SkinPresentationLease.Reset();
 }
 
 // 캐릭터 종료 시에만 모든 슬롯의 생성 Actor를 정리한다.

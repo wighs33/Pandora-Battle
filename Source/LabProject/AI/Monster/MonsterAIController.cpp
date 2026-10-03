@@ -4,10 +4,11 @@
 #include "Components/StateTreeAIComponent.h"
 #include "Character/EnemyBase.h"
 #include "AI/Monster/MonsterCharacter.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/Experience/ExperienceDefinition.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Mode/ExperienceGameState.h"
@@ -601,7 +602,7 @@ bool AMonsterAIController::ResolveMonsterStateTreeFromEnemyDefinition()
 	{
 		return true;
 	}
-	if (StateTreeLoadHandle)
+	if (StateTreeLease.IsValid())
 	{
 		return false;
 	}
@@ -623,13 +624,14 @@ bool AMonsterAIController::ResolveMonsterStateTreeFromEnemyDefinition()
 	{
 		return true;
 	}
-	StateTreeLoadHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-		StateTreeReference.ToSoftObjectPath(),
-		FStreamableDelegate::CreateUObject(this, &ThisClass::HandleMonsterStateTreeLoaded, StateTreeLoadGeneration),
-		FStreamableManager::DefaultAsyncLoadPriority, false, true);
-	if (StateTreeLoadHandle)
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (ContentSubsystem)
 	{
-		StateTreeLoadHandle->StartStalledHandle();
+		StateTreeLease = ContentSubsystem->AcquireContent(
+			{ StateTreeReference.ToSoftObjectPath() },
+			FSimpleDelegate::CreateUObject(this, &ThisClass::HandleMonsterStateTreeLoaded));
 	}
 	else if (!bLoggedConfigurationError)
 	{
@@ -639,10 +641,10 @@ bool AMonsterAIController::ResolveMonsterStateTreeFromEnemyDefinition()
 	return false;
 }
 
-// 조종 대상이 바뀌기 전에 요청한 로딩 완료는 무시하고, 현재 몬스터의 행동 자산만 연결한다.
-void AMonsterAIController::HandleMonsterStateTreeLoaded(uint32 RequestGeneration)
+// 로딩이 끝나면 현재 몬스터의 정의에서 행동 자산을 다시 읽어 연결한다.
+void AMonsterAIController::HandleMonsterStateTreeLoaded()
 {
-	if (RequestGeneration != StateTreeLoadGeneration || bAIStopped)
+	if (bAIStopped)
 	{
 		return;
 	}
@@ -662,14 +664,9 @@ void AMonsterAIController::HandleMonsterStateTreeLoaded(uint32 RequestGeneration
 void AMonsterAIController::StopMonsterAI()
 {
 	bAIStopped = true;
-	++StateTreeLoadGeneration;
 	StopWaitingForExperience();
 	StopWaitingForNavigationData();
-	if (StateTreeLoadHandle)
-	{
-		StateTreeLoadHandle->CancelHandle();
-		StateTreeLoadHandle.Reset();
-	}
+	StateTreeLease.Reset();
 	if (NativeStateTreeAI && NativeStateTreeAI->IsRunning())
 	{
 		NativeStateTreeAI->StopLogic(TEXT("Monster AI stopped"));

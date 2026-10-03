@@ -14,7 +14,7 @@ class UInfoSkinTabPresenter;
 class UInfoStatusTabPresenter;
 class UInfoWidget;
 class UItemInstance;
-struct FStreamableHandle;
+class FContentLease;
 enum class EInfoLoadoutStateChange : uint8;
 
 /**
@@ -57,7 +57,6 @@ private:
 	void BindLoadoutStateNotification();
 	void UnbindLoadoutStateNotification();
 	void BeginItemPresentationPreload();
-	void ReleaseItemPresentationPreload();
 	void SetActiveTab(FGameplayTag LeftUiTag);
 
 private:
@@ -76,6 +75,5 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoPandoraTabPresenter> PandoraPresenter;
 	FDelegateHandle LoadoutStateChangedDelegateHandle;
-	int32 ItemPresentationPreloadGeneration = 0;
-	TSharedPtr<FStreamableHandle> ItemPresentationPreloadHandle;
+	TSharedPtr<FContentLease> ItemPresentationLease;
 };

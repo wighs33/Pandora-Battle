@@ -1,8 +1,11 @@
 #include "Component/Experience/ExperienceManagerComponent.h"
 
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Experience/ExperienceDefinition.h"
 #include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "GameFeaturesSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -148,7 +151,7 @@ void UExperienceManagerComponent::HandleCurrentExperienceIdReplicated()
 	StartExperienceLoad();
 }
 
-// 다른 월드의 로딩 상태와 독립적인 핸들로 Experience와 그 하드 참조를 비동기 로드한다.
+// 다른 월드의 로딩 상태와 독립적인 lease로 Experience와 그 하드 참조를 비동기 로드한다.
 void UExperienceManagerComponent::StartExperienceLoad()
 {
 	if (!CurrentExperienceId.IsValid() || LoadState != EExperienceLoadState::Unloaded)
@@ -159,50 +162,43 @@ void UExperienceManagerComponent::StartExperienceLoad()
 	LoadState = EExperienceLoadState::Loading;
 	LastFailedExperienceId = FPrimaryAssetId();
 	LastLoadFailureMessage.Reset();
-	UAssetManager& AssetManager = UAssetManager::Get();
-	if (!AssetManager.GetPrimaryAssetPath(CurrentExperienceId).IsValid())
+	const FSoftObjectPath ExperiencePath = UAssetManager::Get().GetPrimaryAssetPath(CurrentExperienceId);
+	if (!ExperiencePath.IsValid())
 	{
 		FailExperienceLoad(CurrentExperienceId,
 			FString::Printf(TEXT("Experience asset is not registered: %s"), *CurrentExperienceId.ToString()));
 		return;
 	}
 
-	FAssetManagerLoadParams LoadParams;
-	LoadParams.OnComplete =
-		FStreamableDelegateWithHandle::CreateUObject(this, &ThisClass::HandleExperienceAssetLoaded, CurrentExperienceId);
-	TSharedPtr<FStreamableHandle> NewLoadHandle =
-		AssetManager.PreloadPrimaryAssets({CurrentExperienceId}, {}, false, MoveTemp(LoadParams));
-	if (!NewLoadHandle.IsValid())
+	const UWorld* World = GetWorld();
+	const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
 		FailExperienceLoad(CurrentExperienceId, TEXT("Experience asset preload could not be started."));
 		return;
 	}
 
-	// 즉시 완료 콜백에서 실패하거나 맵이 종료됐다면 이미 정리한 핸들을 다시 보관하지 않는다.
-	if (LoadState == EExperienceLoadState::Failed || LoadState == EExperienceLoadState::Deactivating)
-	{
-		NewLoadHandle->CancelHandle();
-		return;
-	}
-	ExperienceLoadHandle = MoveTemp(NewLoadHandle);
+	ExperienceLease = ContentSubsystem->AcquireContent(
+		{ExperiencePath},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleExperienceAssetLoaded, CurrentExperienceId));
 }
 
 // 로드한 에셋이 실제 Experience인지 확인하고 필요한 GameFeature 활성화를 이어간다.
-void UExperienceManagerComponent::HandleExperienceAssetLoaded(
-	TSharedPtr<FStreamableHandle> LoadHandle, FPrimaryAssetId LoadedExperienceId)
+void UExperienceManagerComponent::HandleExperienceAssetLoaded(FPrimaryAssetId LoadedExperienceId)
 {
 	if (LoadedExperienceId != CurrentExperienceId || LoadState != EExperienceLoadState::Loading)
 	{
 		return;
 	}
 
-	if (!LoadHandle.IsValid() || LoadHandle->HasError())
+	if (!ExperienceLease.IsValid() || ExperienceLease->HasFailed())
 	{
 		FailExperienceLoad(LoadedExperienceId,
 			FString::Printf(TEXT("Experience asset preload failed: %s"), *LoadedExperienceId.ToString()));
 		return;
 	}
-	ExperienceLoadHandle = MoveTemp(LoadHandle);
 	CurrentExperience = Cast<UExperienceDefinition>(UAssetManager::Get().GetPrimaryAssetObject(LoadedExperienceId));
 	if (!CurrentExperience)
 	{
@@ -325,10 +321,6 @@ void UExperienceManagerComponent::ReleaseRuntimeResources()
 		}
 	}
 
-	if (ExperienceLoadHandle.IsValid())
-	{
-		ExperienceLoadHandle->CancelHandle();
-		ExperienceLoadHandle.Reset();
-	}
+	ExperienceLease.Reset();
 	CurrentExperience = nullptr;
 }

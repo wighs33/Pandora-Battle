@@ -8,7 +8,7 @@
 
 class UPandoraDefinition;
 class UTexture2D;
-struct FStreamableHandle;
+class FContentLease;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FPdOnClickedEquipTypeSlot,
@@ -88,7 +88,6 @@ private:
 	void BindEquipSlotCallbacks();
 	void UnbindEquipSlotCallbacks();
 	void BeginPandoraWeaponIconPreload();
-	void ReleasePandoraWeaponIconPreload();
 	void RefreshCachedPandoraWeaponRequirements();
 	UEquipSlotWidget* GetWeaponSlot(int32 WeaponSlotNumber) const;
 	UTexture2D* ResolvePandoraWeaponRequirementIcon(const UPandoraDefinition* PandoraDefinition) const;
@@ -196,6 +195,5 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPandoraDefinition>> CachedWeaponSlotPandoraRequirements;
 
-	int32 PandoraWeaponIconPreloadGeneration = 0;
-	TSharedPtr<FStreamableHandle> PandoraWeaponIconPreloadHandle;
+	TSharedPtr<FContentLease> PandoraWeaponIconLease;
 };

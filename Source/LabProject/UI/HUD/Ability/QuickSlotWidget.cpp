@@ -5,9 +5,10 @@
 #include "Components/UniformGridSlot.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Item/ItemDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Component/Item/InventoryComponent.h"
@@ -67,7 +68,8 @@ void UQuickSlotWidget::NativeConstruct()
 void UQuickSlotWidget::NativeDestruct()
 {
 	PossessedCharacterReadySubscription.Reset();
-	ReleaseQuickSlotIconPreload();
+	QuickSlotIconLease.Reset();
+	PreloadedQuickSlotIconPaths.Reset();
 	UnbindInventoryChangedEvent();
 
 	if (UWorld* World = GetWorld())
@@ -178,13 +180,13 @@ void UQuickSlotWidget::RefreshQuickSlotIconPreload()
 		});
 
 	if (PreloadedQuickSlotIconPaths == IconPaths
-		&& (IconPaths.IsEmpty() || QuickSlotIconPreloadHandle.IsValid()))
+		&& (IconPaths.IsEmpty() || QuickSlotIconLease.IsValid()))
 	{
 		FillQuickSlotBar();
 		return;
 	}
 
-	ReleaseQuickSlotIconPreload();
+	QuickSlotIconLease.Reset();
 	PreloadedQuickSlotIconPaths = IconPaths;
 	FillQuickSlotBar();
 	if (IconPaths.IsEmpty())
@@ -192,48 +194,17 @@ void UQuickSlotWidget::RefreshQuickSlotIconPreload()
 		return;
 	}
 
-	const uint32 RequestGeneration = QuickSlotIconPreloadGeneration;
-	TSharedPtr<FStreamableHandle> NewHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			IconPaths,
-			FStreamableDelegate::CreateWeakLambda(
-				this,
-				[this, RequestGeneration]()
-				{
-					if (RequestGeneration != QuickSlotIconPreloadGeneration)
-					{
-						return;
-					}
-
-					FillQuickSlotBar();
-				}));
-
-	if (RequestGeneration != QuickSlotIconPreloadGeneration)
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
-		if (NewHandle.IsValid())
-		{
-			NewHandle->ReleaseHandle();
-		}
 		return;
 	}
 
-	QuickSlotIconPreloadHandle = MoveTemp(NewHandle);
-}
-
-void UQuickSlotWidget::ReleaseQuickSlotIconPreload()
-{
-	++QuickSlotIconPreloadGeneration;
-	if (QuickSlotIconPreloadHandle.IsValid())
-	{
-		if (!QuickSlotIconPreloadHandle->HasLoadCompleted())
-		{
-			QuickSlotIconPreloadHandle->CancelHandle();
-		}
-		QuickSlotIconPreloadHandle->ReleaseHandle();
-	}
-
-	QuickSlotIconPreloadHandle.Reset();
-	PreloadedQuickSlotIconPaths.Reset();
+	QuickSlotIconLease = ContentSubsystem->AcquireContent(
+		IconPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::FillQuickSlotBar));
 }
 
 void UQuickSlotWidget::HandleSkinEquipmentChanged()

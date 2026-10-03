@@ -18,7 +18,7 @@ class USoundBase;
 class UPandoraDefinition;
 class USkeletalMeshComponent;
 class UWidgetComponent;
-struct FStreamableHandle;
+class FContentLease;
 
 UENUM(BlueprintType)
 enum class ERewardChestState : uint8
@@ -224,7 +224,7 @@ private:
 	FTimerHandle RespawnTimerHandle;
 	FTransform OriginalSpawnTransform = FTransform::Identity;
 	bool bOriginalSpawnTransformCaptured = false;
-	TSharedPtr<FStreamableHandle> RewardContentPreloadHandle;
+	TSharedPtr<FContentLease> RewardContentLease;
 	bool bRewardContentReady = false;
 	FSimpleMulticastDelegate RewardContentReady;
 };

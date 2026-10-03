@@ -7,8 +7,8 @@
 #include "LobbyConfigurationComponent.generated.h"
 
 class ALobbyGameMode;
+class FContentLease;
 class UDefaultProvisionDefinition;
-struct FStreamableHandle;
 
 /**
  * ALobbyGameMode의 데이터 조회와 선택된 맵에 대한 정책을 담당한다.
@@ -54,7 +54,7 @@ private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	FName GetFirstMapKey();
 	ALobbyGameMode* GetLobbyGameMode() const;
-	void FinishRuntimeInitialization(uint32 RequestGeneration);
+	void FinishRuntimeInitialization();
 	void ReleaseRuntimePreloads();
 
 private:
@@ -71,7 +71,6 @@ private:
 		LoadedDefaultProvisionDefinition;
 
 	ERuntimeState RuntimeState = ERuntimeState::NotStarted;
-	TSharedPtr<FStreamableHandle> LobbyDependenciesPreloadHandle;
+	TSharedPtr<FContentLease> LobbyDependenciesLease;
 	FSimpleDelegate RuntimeReadyDelegate;
-	uint32 RuntimePreloadRequestGeneration = 0;
 };

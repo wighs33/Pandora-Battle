@@ -13,6 +13,7 @@ class UCombatComponent;
 class UItemDefinition;
 class UUserWidget;
 class UAnimMontage;
+class FContentLease;
 struct FAttackData;
 struct FEnemyCombatSettings;
 struct FEnemyTrainingBotSettings;
@@ -151,7 +152,7 @@ public:
 
 protected:
 	virtual void HandleCharacterRuntimeInitialized() override;
-	void HandleEnemyDefinitionPreloaded(uint32 RequestGeneration);
+	void HandleEnemyDefinitionPreloaded();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual TSubclassOf<UUserWidget> ResolveHealthBarWidgetClass(
@@ -173,7 +174,6 @@ protected:
 
 	void ApplyEnemyDefinition();
 	void BeginEnemyDefinitionPreload();
-	void ReleaseEnemyDefinitionPreload();
 	void InitializeEnemyRuntime();
 
 protected:
@@ -218,8 +218,7 @@ protected:
 		meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UEnemyTrainingBotComponent> EnemyTrainingBotComponent;
 
-	TSharedPtr<FStreamableHandle> EnemyDefinitionLoadHandle;
-	uint32 EnemyDefinitionLoadGeneration = 0;
+	TSharedPtr<FContentLease> EnemyDefinitionLease;
 	bool bEnemyDefinitionReady = false;
 	bool bEnemyRuntimeInitialized = false;
 

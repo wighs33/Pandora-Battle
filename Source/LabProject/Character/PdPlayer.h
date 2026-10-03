@@ -21,6 +21,7 @@ class AActor;
 class UAnimMontage;
 class UMaterialInterface;
 class UStaticMeshComponent;
+class FContentLease;
 
 /**
  * 플레이어 전용 컴포넌트를 구성하고 조작·카메라·로드아웃의 생명주기를 연결한다.
@@ -102,7 +103,7 @@ public:
 
 protected:
 	virtual void HandleCharacterRuntimeInitialized() override;
-	void HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPath, uint32 RequestGeneration);
+	void HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPath);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual AActor* GetAbilitySystemOwnerActor() const override;
@@ -110,7 +111,6 @@ protected:
 	virtual bool ShouldUseContinuousCharacterTick() const override;
 	virtual bool IsAdditionalCharacterRuntimeContentReady() const override;
 	void BeginPlayerPawnDefinitionPreload();
-	void ReleasePlayerPawnDefinitionPreload();
 	void ApplySelectedPlayerPandoraAndWeapon();
 	void ApplyPlayerPawnDefinition();
 
@@ -158,7 +158,6 @@ protected:
 	TObjectPtr<UCameraComponent> FollowCamera;
 
 private:
-	TSharedPtr<FStreamableHandle> PlayerPawnDefinitionLoadHandle;
-	uint32 PlayerPawnDefinitionLoadGeneration = 0;
+	TSharedPtr<FContentLease> PlayerPawnDefinitionLease;
 	bool bPlayerPawnDefinitionReady = false;
 };

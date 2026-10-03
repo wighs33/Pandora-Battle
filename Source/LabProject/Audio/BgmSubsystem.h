@@ -7,7 +7,7 @@
 
 class UAudioComponent;
 class UWorld;
-struct FStreamableHandle;
+class FContentLease;
 
 UCLASS()
 class LABPROJECT_API UBgmSubsystem : public UGameInstanceSubsystem
@@ -40,7 +40,6 @@ private:
 		EBgmContext BgmContext,
 		TWeakObjectPtr<UWorld> World);
 	void CompleteBgmSoundPreload(
-		uint64 LoadGeneration,
 		EBgmContext BgmContext,
 		TWeakObjectPtr<UWorld> World);
 	void CancelPendingBgmLoads();
@@ -55,6 +54,5 @@ private:
 	FSoftObjectPath ActiveBgmSoundPath;
 	FDelegateHandle PostLoadMapWithWorldHandle;
 	uint64 BgmLoadGeneration = 0;
-	bool bSoundLoadPending = false;
-	TSharedPtr<FStreamableHandle> PendingSoundLoadHandle;
+	TSharedPtr<FContentLease> SoundLease;
 };

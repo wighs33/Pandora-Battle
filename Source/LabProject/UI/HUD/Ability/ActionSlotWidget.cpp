@@ -4,8 +4,8 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "Mode/PdPlayerController.h"
 #include "Definition/Player/ControllerInputDefinition.h"
@@ -39,7 +39,8 @@ void UActionSlotWidget::NativeConstruct()
 
 void UActionSlotWidget::NativeDestruct()
 {
-	ReleaseActionContentPreloads();
+	ActionPresentationLease.Reset();
+	ActionDefinitionLease.Reset();
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(RebuildActionSlotTimerHandle);
@@ -49,8 +50,8 @@ void UActionSlotWidget::NativeDestruct()
 
 void UActionSlotWidget::BeginActionContentPreload()
 {
-	ReleaseActionContentPreloads();
-	const int32 PreloadGeneration = ++ActionContentPreloadGeneration;
+	ActionPresentationLease.Reset();
+	ActionDefinitionLease.Reset();
 
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
@@ -66,29 +67,17 @@ void UActionSlotWidget::BeginActionContentPreload()
 
 	if (ActionDefinitionReference.Get())
 	{
-		BeginActionPresentationPreload(PreloadGeneration);
+		BeginActionPresentationPreload();
 		return;
 	}
 
-	ActionDefinitionPreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			{ActionDefinitionReference.ToSoftObjectPath()},
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					BeginActionPresentationPreload(PreloadGeneration);
-				}));
+	ActionDefinitionLease = ContentSubsystem->AcquireContent(
+		{ActionDefinitionReference.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginActionPresentationPreload));
 }
 
-void UActionSlotWidget::BeginActionPresentationPreload(
-	const int32 PreloadGeneration)
+void UActionSlotWidget::BeginActionPresentationPreload()
 {
-	if (PreloadGeneration != ActionContentPreloadGeneration)
-	{
-		return;
-	}
-
 	TArray<FSoftObjectPath> PresentationPaths;
 	if (const UCharacterActionDefinition* ActionDefinition =
 		ResolveActionDefinition())
@@ -127,36 +116,9 @@ void UActionSlotWidget::BeginActionPresentationPreload(
 		return;
 	}
 
-	ActionPresentationPreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			PresentationPaths,
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					if (PreloadGeneration == ActionContentPreloadGeneration)
-					{
-						FillActionSlotBar();
-					}
-				}));
-}
-
-void UActionSlotWidget::ReleaseActionContentPreloads()
-{
-	++ActionContentPreloadGeneration;
-
-	auto ReleaseHandle = [](TSharedPtr<FStreamableHandle>& Handle)
-	{
-		if (Handle.IsValid())
-		{
-			Handle->CancelHandle();
-			Handle->ReleaseHandle();
-			Handle.Reset();
-		}
-	};
-
-	ReleaseHandle(ActionPresentationPreloadHandle);
-	ReleaseHandle(ActionDefinitionPreloadHandle);
+	ActionPresentationLease = ContentSubsystem->AcquireContent(
+		PresentationPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::FillActionSlotBar));
 }
 
 void UActionSlotWidget::FillActionSlotBar()

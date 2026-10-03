@@ -1,12 +1,13 @@
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyConfigurationComponent)
@@ -30,7 +31,6 @@ void ULobbyConfigurationComponent::InitializeRuntime(FSimpleDelegate OnReady)
 	ReleaseRuntimePreloads();
 	RuntimeState = ERuntimeState::Loading;
 	RuntimeReadyDelegate = MoveTemp(OnReady);
-	const uint32 RequestGeneration = RuntimePreloadRequestGeneration;
 	TArray<FSoftObjectPath> DependencyPaths;
 	const FProjectDefinitionReferences& DefinitionReferences =
 		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
@@ -52,21 +52,22 @@ void ULobbyConfigurationComponent::InitializeRuntime(FSimpleDelegate OnReady)
 
 	if (DependencyPaths.IsEmpty())
 	{
-		FinishRuntimeInitialization(RequestGeneration);
+		FinishRuntimeInitialization();
 		return;
 	}
 
-	LobbyDependenciesPreloadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			DependencyPaths,
-			FStreamableDelegate::CreateUObject(
-				this,
-				&ThisClass::FinishRuntimeInitialization,
-				RequestGeneration));
-	if (!LobbyDependenciesPreloadHandle.IsValid())
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
-		FinishRuntimeInitialization(RequestGeneration);
+		FinishRuntimeInitialization();
+		return;
 	}
+
+	LobbyDependenciesLease = ContentSubsystem->AcquireContent(
+		DependencyPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::FinishRuntimeInitialization));
 }
 
 void ULobbyConfigurationComponent::ApplyDefaultLobbyConfigIfNeeded()
@@ -174,10 +175,9 @@ ULobbyConfigurationComponent::GetLobbyGameMode() const
 	return Cast<ALobbyGameMode>(GetOwner());
 }
 
-void ULobbyConfigurationComponent::FinishRuntimeInitialization(
-	const uint32 RequestGeneration)
+void ULobbyConfigurationComponent::FinishRuntimeInitialization()
 {
-	if (RequestGeneration != RuntimePreloadRequestGeneration || RuntimeState != ERuntimeState::Loading)
+	if (RuntimeState != ERuntimeState::Loading)
 	{
 		return;
 	}
@@ -214,12 +214,6 @@ void ULobbyConfigurationComponent::ReleaseRuntimePreloads()
 	LoadedDefaultProvisionDefinition = nullptr;
 	LoadedLevelDefinition = nullptr;
 	LoadedMatchRuleDefinition = nullptr;
-	++RuntimePreloadRequestGeneration;
 	RuntimeReadyDelegate.Unbind();
-	if (LobbyDependenciesPreloadHandle.IsValid())
-	{
-		LobbyDependenciesPreloadHandle->CancelHandle();
-		LobbyDependenciesPreloadHandle->ReleaseHandle();
-		LobbyDependenciesPreloadHandle.Reset();
-	}
+	LobbyDependenciesLease.Reset();
 }

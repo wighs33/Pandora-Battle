@@ -7,11 +7,12 @@
 #include "Component/Character/EnemyTrainingBotComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "AbilitySystem/Ability/EquipmentAbilityData.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Definition/Player/PlayerPawnDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnemyBase)
 
@@ -70,7 +71,7 @@ void AEnemyBase::PossessedBy(AController* NewController)
 
 void AEnemyBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	ReleaseEnemyDefinitionPreload();
+	EnemyDefinitionLease.Reset();
 	bEnemyDefinitionReady = false;
 	bEnemyRuntimeInitialized = false;
 	LoadedEnemyDefinition = nullptr;
@@ -131,7 +132,7 @@ void AEnemyBase::ApplyEnemyDefinition()
 
 void AEnemyBase::BeginEnemyDefinitionPreload()
 {
-	ReleaseEnemyDefinitionPreload();
+	EnemyDefinitionLease.Reset();
 	bEnemyDefinitionReady = false;
 
 	if (EnemyDefinition.IsNull())
@@ -147,41 +148,26 @@ void AEnemyBase::BeginEnemyDefinitionPreload()
 		return;
 	}
 
-	const uint32 RequestGeneration = EnemyDefinitionLoadGeneration;
-	TSharedPtr<FStreamableHandle> NewLoadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			EnemyDefinition.ToSoftObjectPath(),
-			FStreamableDelegate::CreateWeakLambda(
-				this,
-				[this, RequestGeneration]()
-				{
-					HandleEnemyDefinitionPreloaded(RequestGeneration);
-				}));
-
-	if (NewLoadHandle.IsValid()
-		&& RequestGeneration == EnemyDefinitionLoadGeneration
-		&& !bEnemyDefinitionReady)
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance
+			? GameInstance->GetSubsystem<UContentDataSubsystem>()
+			: nullptr;
+	if (!ContentSubsystem)
 	{
-		EnemyDefinitionLoadHandle = MoveTemp(NewLoadHandle);
-	}
-	else if (NewLoadHandle.IsValid())
-	{
-		NewLoadHandle->ReleaseHandle();
-	}
-	else
-	{
-		HandleEnemyDefinitionPreloaded(RequestGeneration);
-	}
-}
-
-void AEnemyBase::HandleEnemyDefinitionPreloaded(
-	const uint32 RequestGeneration)
-{
-	if (RequestGeneration != EnemyDefinitionLoadGeneration)
-	{
+		HandleEnemyDefinitionPreloaded();
 		return;
 	}
 
+	EnemyDefinitionLease = ContentSubsystem->AcquireContent(
+		{EnemyDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::HandleEnemyDefinitionPreloaded));
+}
+
+void AEnemyBase::HandleEnemyDefinitionPreloaded()
+{
 	LoadedEnemyDefinition = EnemyDefinition.Get();
 	bEnemyDefinitionReady = true;
 	if (!LoadedEnemyDefinition)
@@ -195,17 +181,6 @@ void AEnemyBase::HandleEnemyDefinitionPreloaded(
 
 	ApplyEnemyDefinition();
 	TryInitializeCharacterRuntime();
-}
-
-void AEnemyBase::ReleaseEnemyDefinitionPreload()
-{
-	++EnemyDefinitionLoadGeneration;
-	if (EnemyDefinitionLoadHandle.IsValid())
-	{
-		EnemyDefinitionLoadHandle->CancelHandle();
-		EnemyDefinitionLoadHandle->ReleaseHandle();
-		EnemyDefinitionLoadHandle.Reset();
-	}
 }
 
 bool AEnemyBase::IsAdditionalCharacterRuntimeContentReady() const

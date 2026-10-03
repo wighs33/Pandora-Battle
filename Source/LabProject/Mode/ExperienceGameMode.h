@@ -16,7 +16,7 @@ class UMatchRuleDefinition;
 class ULevelDefinition;
 class UDefaultProvisionDefinition;
 struct FLobbyMatchMapOption;
-struct FStreamableHandle;
+class FContentLease;
 class URewardDefinition;
 class UWorld;
 class APawn;
@@ -96,7 +96,7 @@ private:
 	void ResumeStartingPlayers();
 	void NotifyRpgWorldReadyIfNeeded();
 	void BeginRuntimeContentPreload();
-	void HandleRuntimeContentPreloadComplete(uint32 RequestGeneration);
+	void HandleRuntimeContentPreloadComplete();
 	void ReleaseRuntimeContentPreload();
 
 protected:
@@ -132,8 +132,7 @@ private:
 	TObjectPtr<ULevelDefinition> LoadedLevelDefinition;
 	UPROPERTY(Transient)
 	TObjectPtr<UDefaultProvisionDefinition> LoadedDefaultProvisionDefinition;
-	TSharedPtr<FStreamableHandle> RuntimeContentPreloadHandle;
-	uint32 RuntimeContentRequestGeneration = 0;
+	TSharedPtr<FContentLease> RuntimeContentLease;
 
 	friend class UMatchPlayerSetupComponent;
 

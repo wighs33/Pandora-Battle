@@ -6,9 +6,11 @@
 #include "Common/CollisionChannels.h"
 #include "Components/MaterialBillboardComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
 #include "Components/WidgetComponent.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Definition/Item/ItemDefinition.h"
@@ -532,13 +534,12 @@ void ARewardChest::BeginRewardContentPreload()
 		return;
 	}
 
-	RewardContentPreloadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			AssetPaths.Array(),
-			FStreamableDelegate::CreateUObject(
-				this,
-				&ThisClass::MarkRewardContentReady));
-	if (!RewardContentPreloadHandle.IsValid())
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance
+			? GameInstance->GetSubsystem<UContentDataSubsystem>()
+			: nullptr;
+	if (!ContentSubsystem)
 	{
 		UE_LOG(
 			LogRewardChest,
@@ -546,7 +547,15 @@ void ARewardChest::BeginRewardContentPreload()
 			TEXT("Reward chest '%s' failed to start its reward-content preload."),
 			*GetPathName());
 		MarkRewardContentReady();
+		return;
 	}
+
+	// 일부 보상 경로가 로드되지 않아도 상자는 준비 상태로 진행한다.
+	RewardContentLease = ContentSubsystem->AcquireContent(
+		AssetPaths.Array(),
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::MarkRewardContentReady));
 }
 
 void ARewardChest::MarkRewardContentReady()
@@ -558,12 +567,7 @@ void ARewardChest::MarkRewardContentReady()
 void ARewardChest::ReleaseRewardContentPreload()
 {
 	bRewardContentReady = false;
-	if (RewardContentPreloadHandle.IsValid())
-	{
-		RewardContentPreloadHandle->CancelHandle();
-		RewardContentPreloadHandle->ReleaseHandle();
-		RewardContentPreloadHandle.Reset();
-	}
+	RewardContentLease.Reset();
 }
 
 void ARewardChest::ConfigureChestCollision(const bool bEnableInteraction) const

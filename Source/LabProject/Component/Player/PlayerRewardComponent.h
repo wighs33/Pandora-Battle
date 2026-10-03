@@ -7,8 +7,9 @@
 class AActor;
 class APdPlayerState;
 class APlayerState;
+class FContentLease;
+class UContentDataSubsystem;
 class URewardDefinition;
-struct FStreamableHandle;
 
 /**
  * 플레이어의 상호작용 보상과 처치 보상 지급을 담당한다.
@@ -47,6 +48,7 @@ private:
 	void ApplyMonsterDefeatRewards(const URewardDefinition* RewardDefinition);
 
 	APdPlayerState* GetPdPlayerState() const;
+	UContentDataSubsystem* FindContentDataSubsystem() const;
 
 private:
 	UPROPERTY(Transient)
@@ -55,8 +57,8 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<URewardDefinition> LoadedPlayerKillRewardDefinition;
 
-	TSharedPtr<FStreamableHandle> PlayerKillRewardLoadHandle;
+	TSharedPtr<FContentLease> PlayerKillRewardLease;
 	int32 PendingPlayerKillRewards = 0;
 	TMap<FSoftObjectPath, int32> PendingMonsterRewards;
-	TMap<FSoftObjectPath, TSharedPtr<FStreamableHandle>> MonsterRewardLoadHandles;
+	TMap<FSoftObjectPath, TSharedPtr<FContentLease>> MonsterRewardLeases;
 };

@@ -20,10 +20,11 @@
 #include "Components/GameFrameworkComponentManager.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Character/CharacterBaseDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Mode/PdPlayerState.h"
 #include "NiagaraComponent.h"
@@ -152,42 +153,30 @@ void ACharacterBase::BeginCharacterDefinitionPreload()
 {
 	CancelCharacterDefinitionPreload();
 	bCharacterDefinitionReady = false;
-	const uint32 RequestGeneration = CharacterDefinitionLoadGeneration;
 
 	if (CharacterDefinition.IsNull() || CharacterDefinition.IsValid())
 	{
-		HandleCharacterDefinitionPreloaded(RequestGeneration);
+		HandleCharacterDefinitionPreloaded();
 		return;
 	}
 
-	TSharedPtr<FStreamableHandle> NewLoadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(CharacterDefinition.ToSoftObjectPath(),
-			FStreamableDelegate::CreateUObject(this, &ThisClass::HandleCharacterDefinitionPreloaded, RequestGeneration));
-	if (!NewLoadHandle.IsValid())
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
 	{
-		HandleCharacterDefinitionPreloaded(RequestGeneration);
+		HandleCharacterDefinitionPreloaded();
 		return;
 	}
 
-	// 콜백이 요청 반환 전에 실행되었거나 요청이 바뀌었다면 완료된 핸들을 다시 보관하지 않는다.
-	if (RequestGeneration == CharacterDefinitionLoadGeneration && !bCharacterDefinitionReady)
-	{
-		CharacterDefinitionLoadHandle = MoveTemp(NewLoadHandle);
-	}
-	else
-	{
-		NewLoadHandle->ReleaseHandle();
-	}
+	CharacterDefinitionLease = ContentSubsystem->AcquireContent(
+		{ CharacterDefinition.ToSoftObjectPath() },
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleCharacterDefinitionPreloaded));
 }
 
 // 즉시 준비와 비동기 완료를 한곳에서 확정하고 초기화를 이어 간다. 정의 미지정·로드 실패는 기본 설정을 사용한다.
-void ACharacterBase::HandleCharacterDefinitionPreloaded(const uint32 RequestGeneration)
+void ACharacterBase::HandleCharacterDefinitionPreloaded()
 {
-	if (RequestGeneration != CharacterDefinitionLoadGeneration)
-	{
-		return;
-	}
-
 	LoadedCharacterDefinition = CharacterDefinition.Get();
 	bCharacterDefinitionReady = true;
 	if (!CharacterDefinition.IsNull() && !LoadedCharacterDefinition)
@@ -203,13 +192,7 @@ void ACharacterBase::HandleCharacterDefinitionPreloaded(const uint32 RequestGene
 // 공통 설정의 로딩 요청을 취소하고 이전 완료 콜백을 무효화해, 종료된 캐릭터가 다시 초기화되지 않게 한다.
 void ACharacterBase::CancelCharacterDefinitionPreload()
 {
-	++CharacterDefinitionLoadGeneration;
-	if (CharacterDefinitionLoadHandle.IsValid())
-	{
-		CharacterDefinitionLoadHandle->CancelHandle();
-		CharacterDefinitionLoadHandle->ReleaseHandle();
-		CharacterDefinitionLoadHandle.Reset();
-	}
+	CharacterDefinitionLease.Reset();
 }
 
 // 로드된 공통 정의의 외형·사망 설정을 담당 컴포넌트에 적용하며, 정의가 없으면 기본값을 사용한다.

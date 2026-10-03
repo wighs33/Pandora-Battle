@@ -13,11 +13,12 @@
 #include "Component/Player/ControllerSessionComponent.h"
 #include "Component/Player/PlayerNotificationComponent.h"
 #include "Components/GameFrameworkComponentManager.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Definition/Player/PlayerControllerDefinition.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/PawnMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayerController)
@@ -80,7 +81,7 @@ void APdPlayerController::BeginPlay()
 // 설정 로딩과 게임피처 수신을 종료한다. 각 컴포넌트의 정리는 엔진이 호출하는 EndPlay에 맡긴다.
 void APdPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	ReleaseControllerDefinitionPreload();
+	PlayerControllerDefinitionLease.Reset();
 	LoadedPlayerControllerDefinition = nullptr;
 	ObservePossessedCharacter(nullptr);
 
@@ -380,10 +381,10 @@ const UPlayerControllerDefinition* APdPlayerController::GetControllerDefinition(
 	return GetDefault<UPlayerControllerDefinition>();
 }
 
-// 컨트롤러 설정을 비동기로 준비하고 종료된 요청의 콜백이 적용되지 않도록 구분한다.
+// 컨트롤러 설정을 비동기로 준비하고, 이미 로드되어 있으면 바로 적용한다.
 void APdPlayerController::BeginControllerDefinitionPreload()
 {
-	ReleaseControllerDefinitionPreload();
+	PlayerControllerDefinitionLease.Reset();
 
 	if (PlayerControllerDefinition.IsNull())
 	{
@@ -396,38 +397,26 @@ void APdPlayerController::BeginControllerDefinitionPreload()
 		return;
 	}
 
-	const uint32 RequestGeneration = PlayerControllerDefinitionLoadGeneration;
-	TSharedPtr<FStreamableHandle> NewLoadHandle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			PlayerControllerDefinition.ToSoftObjectPath(),
-			FStreamableDelegate::CreateWeakLambda(
-				this,
-				[this, RequestGeneration]()
-				{
-					HandleControllerDefinitionPreloaded(RequestGeneration);
-				}));
-
-	if (NewLoadHandle.IsValid()
-		&& RequestGeneration == PlayerControllerDefinitionLoadGeneration
-		&& !LoadedPlayerControllerDefinition)
-	{
-		PlayerControllerDefinitionLoadHandle = MoveTemp(NewLoadHandle);
-	}
-	else if (NewLoadHandle.IsValid())
-	{
-		NewLoadHandle->ReleaseHandle();
-	}
-}
-
-// 설정 에셋 로드가 끝나면 실행 중인 화면 처리에도 새 설정을 반영한다.
-void APdPlayerController::HandleControllerDefinitionPreloaded(
-	const uint32 RequestGeneration)
-{
-	if (RequestGeneration != PlayerControllerDefinitionLoadGeneration)
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance
+			? GameInstance->GetSubsystem<UContentDataSubsystem>()
+			: nullptr;
+	if (!ContentSubsystem)
 	{
 		return;
 	}
 
+	PlayerControllerDefinitionLease = ContentSubsystem->AcquireContent(
+		{PlayerControllerDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::HandleControllerDefinitionPreloaded));
+}
+
+// 설정 에셋 로드가 끝나면 실행 중인 화면 처리에도 새 설정을 반영한다.
+void APdPlayerController::HandleControllerDefinitionPreloaded()
+{
 	LoadedPlayerControllerDefinition = PlayerControllerDefinition.Get();
 	if (!LoadedPlayerControllerDefinition)
 	{
@@ -440,18 +429,6 @@ void APdPlayerController::HandleControllerDefinitionPreloaded(
 	}
 
 	ApplyControllerDefinition();
-}
-
-// 남아 있는 설정 로딩을 취소하고 이전 요청의 콜백을 무효화한다.
-void APdPlayerController::ReleaseControllerDefinitionPreload()
-{
-	++PlayerControllerDefinitionLoadGeneration;
-	if (PlayerControllerDefinitionLoadHandle.IsValid())
-	{
-		PlayerControllerDefinitionLoadHandle->CancelHandle();
-		PlayerControllerDefinitionLoadHandle->ReleaseHandle();
-		PlayerControllerDefinitionLoadHandle.Reset();
-	}
 }
 
 // 입력 설정이 없으면 프로젝트 기본값을 선택하고, 준비된 입력 바인딩을 한 번 갱신한다.

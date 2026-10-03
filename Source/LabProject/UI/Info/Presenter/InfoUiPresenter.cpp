@@ -2,10 +2,10 @@
 
 #include "Component/Item/InventoryComponent.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "Item/ItemInstance.h"
 #include "Mode/PdPlayerController.h"
 #include "UI/Info/InfoLoadoutStore.h"
@@ -50,7 +50,7 @@ void UInfoUiPresenter::Initialize(APdPlayerController* InController)
 
 void UInfoUiPresenter::Deinitialize()
 {
-	ReleaseItemPresentationPreload();
+	ItemPresentationLease.Reset();
 	UnbindLoadoutStateNotification();
 
 	if (StatusPresenter)
@@ -97,7 +97,7 @@ void UInfoUiPresenter::UnbindInfoUi(const UInfoWidget* ExpectedInfoWidget)
 	{
 		return;
 	}
-	ReleaseItemPresentationPreload();
+	ItemPresentationLease.Reset();
 	EnsureTabPresenters();
 	StatusPresenter->BindInfoUi(nullptr);
 	ItemPresenter->BindInfoUi(nullptr);
@@ -223,8 +223,7 @@ void UInfoUiPresenter::UnbindLoadoutStateNotification()
 
 void UInfoUiPresenter::BeginItemPresentationPreload()
 {
-	ReleaseItemPresentationPreload();
-	const int32 PreloadGeneration = ++ItemPresentationPreloadGeneration;
+	ItemPresentationLease.Reset();
 	const UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
 	UContentDataSubsystem* ContentSubsystem = GameInstance
 		? GameInstance->GetSubsystem<UContentDataSubsystem>()
@@ -249,30 +248,15 @@ void UInfoUiPresenter::BeginItemPresentationPreload()
 		}
 	}
 
-	ItemPresentationPreloadHandle = ContentSubsystem->PreloadSoftObjectPathsAsync(
+	ItemPresentationLease = ContentSubsystem->AcquireContent(
 		IconPaths,
-		FSimpleDelegate::CreateWeakLambda(this, [this, PreloadGeneration]()
+		FSimpleDelegate::CreateWeakLambda(this, [this]()
 		{
-			if (PreloadGeneration != ItemPresentationPreloadGeneration)
-			{
-				return;
-			}
 			if (LoadoutStore)
 			{
 				LoadoutStore->NotifyPresentationAssetsReady();
 			}
 		}));
-}
-
-void UInfoUiPresenter::ReleaseItemPresentationPreload()
-{
-	++ItemPresentationPreloadGeneration;
-	if (ItemPresentationPreloadHandle.IsValid())
-	{
-		ItemPresentationPreloadHandle->CancelHandle();
-		ItemPresentationPreloadHandle->ReleaseHandle();
-		ItemPresentationPreloadHandle.Reset();
-	}
 }
 
 void UInfoUiPresenter::HandleLoadoutStateChanged(const EInfoLoadoutStateChange Change)

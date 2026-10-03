@@ -7,7 +7,7 @@
 #include "ExperienceManagerComponent.generated.h"
 
 class UExperienceDefinition;
-struct FStreamableHandle;
+class FContentLease;
 
 DECLARE_LOG_CATEGORY_EXTERN(PdExperienceManagerLog, Log, All);
 
@@ -57,7 +57,7 @@ private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
 	void HandleCurrentExperienceIdReplicated();
-	void HandleExperienceAssetLoaded(TSharedPtr<FStreamableHandle> LoadHandle, FPrimaryAssetId LoadedExperienceId);
+	void HandleExperienceAssetLoaded(FPrimaryAssetId LoadedExperienceId);
 	void HandleGameFeaturesLoaded(const TMap<FString, UE::GameFeatures::FResult>& Results);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -76,7 +76,7 @@ private:
 	TObjectPtr<const UExperienceDefinition> CurrentExperience;
 
 	EExperienceLoadState LoadState = EExperienceLoadState::Unloaded;
-	TSharedPtr<FStreamableHandle> ExperienceLoadHandle;
+	TSharedPtr<FContentLease> ExperienceLease;
 	TArray<FString> GameFeaturePluginURLs;
 	FPrimaryAssetId LastFailedExperienceId;
 	FString LastLoadFailureMessage;

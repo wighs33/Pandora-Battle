@@ -5,7 +5,7 @@
 #include "GameSettingsSubsystem.generated.h"
 
 class UGameSettingDefinition;
-struct FStreamableHandle;
+class FContentLease;
 
 UCLASS()
 class LABPROJECT_API UGameSettingsSubsystem : public UGameInstanceSubsystem
@@ -33,13 +33,11 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleDefinitionPreloadComplete();
-	void HandleRuntimeContentPreloadComplete(
-		TArray<FSoftObjectPath> ExpectedAssetPaths);
+	void HandleRuntimeContentPreloadComplete();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	static FSoftObjectPath GetDefaultGameSettingDefinitionPath();
 	void FinishRuntimeContentPreload(bool bSucceeded);
-	void ReleaseRuntimeContentPreloadHandles();
 
 private:
 	UPROPERTY(Transient)
@@ -49,8 +47,8 @@ private:
 	TObjectPtr<UGameSettingDefinition> CachedGameSettingDefinition;
 
 	TArray<FSimpleDelegate> PendingRuntimeContentCallbacks;
-	TSharedPtr<FStreamableHandle> DefinitionPreloadHandle;
-	TSharedPtr<FStreamableHandle> RuntimeContentPreloadHandle;
+	TSharedPtr<FContentLease> DefinitionLease;
+	TSharedPtr<FContentLease> RuntimeContentLease;
 	bool bRuntimeContentPreloadPending = false;
 	bool bRuntimeContentReady = false;
 	bool bReportedMissingGameSettingDefinition = false;

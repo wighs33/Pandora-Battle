@@ -16,6 +16,7 @@ class APdHUD;
 class ACharacterBase;
 class APdPlayer;
 class AWeaponBase;
+class FContentLease;
 class UAbilitySystemComponent;
 class UAttackAbility;
 class UAnimMontage;
@@ -23,7 +24,6 @@ class UGameplayEffect;
 class UPdAbilitySystemComponent;
 struct FOnAttributeChangeData;
 struct FAttackData;
-struct FStreamableHandle;
 
 DECLARE_MULTICAST_DELEGATE(FOnCombatDamageBonusChanged);
 
@@ -151,7 +151,7 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UAnimMontage> CachedUnarmedAttackMontage;
 
-	TSharedPtr<FStreamableHandle> UnarmedAttackMontagePreloadHandle;
+	TSharedPtr<FContentLease> UnarmedAttackMontageLease;
 	TArray<TEnumAsByte<EObjectTypeQuery>> CachedUnarmedAttackObjectTypes;
 	TArray<AActor*> UnarmedAttackActorsToIgnore;
 	TArray<FHitResult> UnarmedAttackHitResults;

@@ -4,8 +4,10 @@
 #include "CableComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
+#include "Engine/GameInstance.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
@@ -90,7 +92,7 @@ void APdPlayer::PreInitializeComponents()
 // 플레이어가 월드를 떠나거나 제거될 때 대기 중인 설정 로딩과 로컬 카메라 연출을 정리한다.
 void APdPlayer::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	ReleasePlayerPawnDefinitionPreload();
+	PlayerPawnDefinitionLease.Reset();
 	bPlayerPawnDefinitionReady = false;
 	if (PlayerCameraComponent)
 	{
@@ -172,47 +174,38 @@ void APdPlayer::Tick(float DeltaSeconds)
 // 지정된 플레이어 설정이나 기본 정의를 준비하며, 아직 없는 에셋은 게임 진행을 막지 않고 비동기로 읽는다.
 void APdPlayer::BeginPlayerPawnDefinitionPreload()
 {
-	ReleasePlayerPawnDefinitionPreload();
+	PlayerPawnDefinitionLease.Reset();
 	bPlayerPawnDefinitionReady = false;
 
-	UAssetManager& AssetManager = UAssetManager::Get();
 	const FSoftObjectPath DefinitionPath = PlayerPawnDefinition
 		? FSoftObjectPath(PlayerPawnDefinition.Get())
-		: AssetManager.GetPrimaryAssetPath(UPlayerPawnDefinition::GetDefaultPrimaryAssetId());
-	const uint32 RequestGeneration = PlayerPawnDefinitionLoadGeneration;
+		: UAssetManager::Get().GetPrimaryAssetPath(UPlayerPawnDefinition::GetDefaultPrimaryAssetId());
 	if (DefinitionPath.IsNull() || DefinitionPath.ResolveObject())
 	{
-		HandlePlayerPawnDefinitionPreloaded(DefinitionPath, RequestGeneration);
+		HandlePlayerPawnDefinitionPreloaded(DefinitionPath);
 		return;
 	}
 
-	TSharedPtr<FStreamableHandle> NewHandle = AssetManager.GetStreamableManager().RequestAsyncLoad(
-		DefinitionPath, FStreamableDelegate::CreateWeakLambda(this, [this, DefinitionPath, RequestGeneration]()
+	const UGameInstance* GameInstance = GetGameInstance();
+	UContentDataSubsystem* ContentSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
+	if (!ContentSubsystem)
+	{
+		HandlePlayerPawnDefinitionPreloaded(DefinitionPath);
+		return;
+	}
+
+	PlayerPawnDefinitionLease = ContentSubsystem->AcquireContent(
+		{ DefinitionPath },
+		FSimpleDelegate::CreateWeakLambda(this, [this, DefinitionPath]()
 		{
-			HandlePlayerPawnDefinitionPreloaded(DefinitionPath, RequestGeneration);
+			HandlePlayerPawnDefinitionPreloaded(DefinitionPath);
 		}));
-	if (NewHandle.IsValid() && RequestGeneration == PlayerPawnDefinitionLoadGeneration && !bPlayerPawnDefinitionReady)
-	{
-		PlayerPawnDefinitionLoadHandle = MoveTemp(NewHandle);
-	}
-	else if (NewHandle.IsValid())
-	{
-		NewHandle->ReleaseHandle();
-	}
-	else
-	{
-		HandlePlayerPawnDefinitionPreloaded(DefinitionPath, RequestGeneration);
-	}
 }
 
-// 최신 로딩 결과의 플레이어 설정을 적용하고 공통 초기화를 이어 간다.
-void APdPlayer::HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPath, uint32 RequestGeneration)
+// 로딩 결과의 플레이어 설정을 적용하고 공통 초기화를 이어 간다.
+void APdPlayer::HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPath)
 {
-	if (RequestGeneration != PlayerPawnDefinitionLoadGeneration)
-	{
-		return;
-	}
-
 	PlayerPawnDefinition = Cast<UPlayerPawnDefinition>(DefinitionPath.ResolveObject());
 	if (!PlayerPawnDefinition)
 	{
@@ -223,18 +216,6 @@ void APdPlayer::HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPa
 	ApplyPlayerPawnDefinition();
 	bPlayerPawnDefinitionReady = true;
 	TryInitializeCharacterRuntime();
-}
-
-// 플레이어 설정 로딩을 취소하고 이전 완료 콜백을 무효화해, 종료되거나 재준비 중인 캐릭터를 갱신하지 못하게 한다.
-void APdPlayer::ReleasePlayerPawnDefinitionPreload()
-{
-	++PlayerPawnDefinitionLoadGeneration;
-	if (PlayerPawnDefinitionLoadHandle.IsValid())
-	{
-		PlayerPawnDefinitionLoadHandle->CancelHandle();
-		PlayerPawnDefinitionLoadHandle->ReleaseHandle();
-		PlayerPawnDefinitionLoadHandle.Reset();
-	}
 }
 
 // 플레이어 전용 조작·카메라 설정까지 준비되어 공통 초기화를 진행해도 되는지 판단한다.

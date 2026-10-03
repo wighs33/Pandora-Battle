@@ -2,8 +2,8 @@
 
 #include "Components/TextBlock.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "Mode/ExperienceGameState.h"
@@ -30,7 +30,7 @@ void UHudTimerWidget::NativeConstruct()
 
 void UHudTimerWidget::NativeDestruct()
 {
-	ReleaseMatchRulePreload();
+	MatchRuleLease.Reset();
 
 	if (UWorld* World = GetWorld())
 	{
@@ -42,7 +42,7 @@ void UHudTimerWidget::NativeDestruct()
 
 bool UHudTimerWidget::BeginMatchRulePreload()
 {
-	ReleaseMatchRulePreload();
+	MatchRuleLease.Reset();
 
 	const UWorld* World = GetWorld();
 	const AExperienceGameState* ExperienceGameState =
@@ -62,31 +62,10 @@ bool UHudTimerWidget::BeginMatchRulePreload()
 		return false;
 	}
 
-	const int32 PreloadGeneration = ++MatchRulePreloadGeneration;
-	MatchRulePreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			{MatchRuleDefinition.ToSoftObjectPath()},
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					if (PreloadGeneration == MatchRulePreloadGeneration)
-					{
-						StartTimer();
-					}
-				}));
+	MatchRuleLease = ContentSubsystem->AcquireContent(
+		{MatchRuleDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::StartTimer));
 	return true;
-}
-
-void UHudTimerWidget::ReleaseMatchRulePreload()
-{
-	++MatchRulePreloadGeneration;
-	if (MatchRulePreloadHandle.IsValid())
-	{
-		MatchRulePreloadHandle->CancelHandle();
-		MatchRulePreloadHandle->ReleaseHandle();
-		MatchRulePreloadHandle.Reset();
-	}
 }
 
 void UHudTimerWidget::StartTimer()

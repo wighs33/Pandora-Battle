@@ -6,6 +6,7 @@
 #include "Components/TextBlock.h"
 #include "Components/TileView.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/StreamableManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Definition/Item/ItemDefinition.h"
@@ -96,24 +97,13 @@ void UShopWidget::BeginContentPreload()
 		}
 	}
 
-	CatalogProductPreloadHandle =
-		ContentDataSubsystem->PreloadSoftObjectPathsAsync(
-			CatalogProductPaths,
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					BeginCatalogPresentationPreload(PreloadGeneration);
-				}));
+	CatalogProductLease = ContentDataSubsystem->AcquireContent(
+		CatalogProductPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginCatalogPresentationPreload));
 }
 
-void UShopWidget::BeginCatalogPresentationPreload(const int32 PreloadGeneration)
+void UShopWidget::BeginCatalogPresentationPreload()
 {
-	if (PreloadGeneration != ContentPreloadGeneration)
-	{
-		return;
-	}
-
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentDataSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
@@ -134,23 +124,16 @@ void UShopWidget::BeginCatalogPresentationPreload(const int32 PreloadGeneration)
 		}
 	}
 
-	CatalogPresentationPreloadHandle =
-		ContentDataSubsystem->PreloadSoftObjectPathsAsync(
-			PresentationPaths,
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, PreloadGeneration]()
-				{
-					if (PreloadGeneration == ContentPreloadGeneration)
-					{
-						RefreshUI();
-					}
-				}));
+	CatalogPresentationLease = ContentDataSubsystem->AcquireContent(
+		PresentationPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshUI));
 }
 
 void UShopWidget::ReleaseContentPreloads()
 {
 	++ContentPreloadGeneration;
+	CatalogPresentationLease.Reset();
+	CatalogProductLease.Reset();
 
 	auto ReleaseHandle = [](TSharedPtr<FStreamableHandle>& Handle)
 	{
@@ -162,8 +145,6 @@ void UShopWidget::ReleaseContentPreloads()
 		}
 	};
 
-	ReleaseHandle(CatalogPresentationPreloadHandle);
-	ReleaseHandle(CatalogProductPreloadHandle);
 	ReleaseHandle(SkinContentPreloadHandle);
 	ReleaseHandle(PandoraContentPreloadHandle);
 }

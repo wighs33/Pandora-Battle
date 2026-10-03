@@ -125,7 +125,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ULevelDefinition> LoadedLevelDefinition;
 
-	TSharedPtr<FStreamableHandle> LevelDefinitionPreloadHandle;
+	TSharedPtr<FContentLease> LevelDefinitionPreloadLease;
 	TMap<TWeakObjectPtr<UUiSubsystem>, TSharedPtr<FContentLease>>
 		LobbyContentLeases;
 	bool bLevelDefinitionPreloadPending = false;

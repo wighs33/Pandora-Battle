@@ -9,7 +9,7 @@
 class UActionSlotEntryWidget;
 class UCharacterActionDefinition;
 class UHorizontalBox;
-struct FStreamableHandle;
+class FContentLease;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UActionSlotWidget : public UUserWidget
@@ -33,8 +33,7 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void BeginActionContentPreload();
-	void BeginActionPresentationPreload(int32 PreloadGeneration);
-	void ReleaseActionContentPreloads();
+	void BeginActionPresentationPreload();
 	void AddActionSlotEntry(int32 SlotIndex);
 	UActionSlotEntryWidget* CreateActionSlotEntryWidget() const;
 	void AddWidgetToBar(UWidget* Widget) const;
@@ -61,7 +60,6 @@ private:
 	TArray<TObjectPtr<UActionSlotEntryWidget>> EntryWidgets;
 
 	FTimerHandle RebuildActionSlotTimerHandle;
-	int32 ActionContentPreloadGeneration = 0;
-	TSharedPtr<FStreamableHandle> ActionDefinitionPreloadHandle;
-	TSharedPtr<FStreamableHandle> ActionPresentationPreloadHandle;
+	TSharedPtr<FContentLease> ActionDefinitionLease;
+	TSharedPtr<FContentLease> ActionPresentationLease;
 };

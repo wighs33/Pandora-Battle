@@ -1,8 +1,8 @@
 #include "Settings/GameSettingsSubsystem.h"
 
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
@@ -30,7 +30,8 @@ void UGameSettingsSubsystem::Deinitialize()
 	bRuntimeContentReady = false;
 	CachedGameSettingDefinition = nullptr;
 	PendingRuntimeContentCallbacks.Reset();
-	ReleaseRuntimeContentPreloadHandles();
+	RuntimeContentLease.Reset();
+	DefinitionLease.Reset();
 
 	Super::Deinitialize();
 }
@@ -150,34 +151,16 @@ void UGameSettingsSubsystem::PreloadRuntimeContentAsync(
 		? GameSettingDefinition.ToSoftObjectPath()
 		: GetDefaultGameSettingDefinitionPath();
 
-	ReleaseRuntimeContentPreloadHandles();
+	RuntimeContentLease.Reset();
+	DefinitionLease.Reset();
 	bRuntimeContentPreloadPending = true;
-	const TWeakObjectPtr<ThisClass> WeakThis(this);
-	TSharedPtr<FStreamableHandle> PreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
+	DefinitionLease = ContentSubsystem->AcquireContent(
 		{DefinitionPath},
-		FSimpleDelegate::CreateLambda(
-			[WeakThis]()
-			{
-				if (ThisClass* This = WeakThis.Get())
-				{
-					This->HandleDefinitionPreloadComplete();
-				}
-			}));
-
-	if (PreloadHandle.IsValid())
-	{
-		DefinitionPreloadHandle = MoveTemp(PreloadHandle);
-	}
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleDefinitionPreloadComplete));
 }
 
 void UGameSettingsSubsystem::HandleDefinitionPreloadComplete()
 {
-	if (!bRuntimeContentPreloadPending)
-	{
-		return;
-	}
-
 	CachedGameSettingDefinition = !GameSettingDefinition.IsNull()
 		? GameSettingDefinition.Get()
 		: Cast<UGameSettingDefinition>(
@@ -217,50 +200,16 @@ void UGameSettingsSubsystem::HandleDefinitionPreloadComplete()
 		return;
 	}
 
-	const TWeakObjectPtr<ThisClass> WeakThis(this);
-	TArray<FSoftObjectPath> ExpectedAssetPaths = RuntimeAssetPaths;
-	TSharedPtr<FStreamableHandle> PreloadHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
-			RuntimeAssetPaths,
-			FSimpleDelegate::CreateLambda(
-				[WeakThis, ExpectedAssetPaths = MoveTemp(ExpectedAssetPaths)]() mutable
-				{
-					if (ThisClass* This = WeakThis.Get())
-					{
-						This->HandleRuntimeContentPreloadComplete(
-							MoveTemp(ExpectedAssetPaths));
-					}
-				}));
-
-	if (PreloadHandle.IsValid())
-	{
-		RuntimeContentPreloadHandle = MoveTemp(PreloadHandle);
-	}
+	RuntimeContentLease = ContentSubsystem->AcquireContent(
+		RuntimeAssetPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRuntimeContentPreloadComplete));
 }
 
-void UGameSettingsSubsystem::HandleRuntimeContentPreloadComplete(
-	TArray<FSoftObjectPath> ExpectedAssetPaths)
+void UGameSettingsSubsystem::HandleRuntimeContentPreloadComplete()
 {
-	if (!bRuntimeContentPreloadPending)
-	{
-		return;
-	}
-
-	bool bAllAssetsResolved = true;
-	for (const FSoftObjectPath& AssetPath : ExpectedAssetPaths)
-	{
-		if (!AssetPath.ResolveObject())
-		{
-			bAllAssetsResolved = false;
-			UE_LOG(
-				LogGameSettingsSubsystem,
-				Error,
-				TEXT("GameSetting runtime preload completed without resolving '%s'."),
-				*AssetPath.ToString());
-		}
-	}
-
-	FinishRuntimeContentPreload(bAllAssetsResolved);
+	FinishRuntimeContentPreload(
+		RuntimeContentLease.IsValid()
+		&& RuntimeContentLease->IsReady());
 }
 
 void UGameSettingsSubsystem::FinishRuntimeContentPreload(
@@ -277,20 +226,4 @@ void UGameSettingsSubsystem::FinishRuntimeContentPreload(
 	{
 		CompletionCallback.ExecuteIfBound();
 	}
-}
-
-void UGameSettingsSubsystem::ReleaseRuntimeContentPreloadHandles()
-{
-	auto ReleaseHandle = [](TSharedPtr<FStreamableHandle>& Handle)
-	{
-		if (Handle.IsValid())
-		{
-			Handle->CancelHandle();
-			Handle->ReleaseHandle();
-			Handle.Reset();
-		}
-	};
-
-	ReleaseHandle(RuntimeContentPreloadHandle);
-	ReleaseHandle(DefinitionPreloadHandle);
 }

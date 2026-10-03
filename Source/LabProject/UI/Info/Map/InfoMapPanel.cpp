@@ -13,7 +13,6 @@
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
-#include "Engine/StreamableManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/PackageName.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
@@ -141,7 +140,6 @@ void UInfoMapPanel::BeginContentPreload()
 		return;
 	}
 	ReleaseContentPreloads();
-	const int32 PreloadGeneration = ++ContentPreloadGeneration;
 	bContentReady = false;
 	bContentPreloadRequested = true;
 
@@ -156,38 +154,28 @@ void UInfoMapPanel::BeginContentPreload()
 			UWidgetClassDefinition::ResolveWidgetClassDefinition(OwnerWidget));
 	if (!UiSubsystem || !WidgetDefinition)
 	{
-		FailContentPreload(PreloadGeneration);
+		FailContentPreload();
 		return;
 	}
 
 	MapContentLease = UiSubsystem->AcquireUiContent(
 		WidgetDefinition,
 		EUiContentGroup::Map,
-		FSimpleDelegate::CreateWeakLambda(
-			this,
-			[this, PreloadGeneration]()
-			{
-				HandleUiContentCompletion(PreloadGeneration);
-			}));
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleUiContentCompletion));
 	if (!MapContentLease.IsValid())
 	{
-		FailContentPreload(PreloadGeneration);
+		FailContentPreload();
 		return;
 	}
 	RefreshButtonEnabledState();
 }
 
-void UInfoMapPanel::HandleUiContentCompletion(
-	const int32 PreloadGeneration)
+void UInfoMapPanel::HandleUiContentCompletion()
 {
-	if (PreloadGeneration != ContentPreloadGeneration)
-	{
-		return;
-	}
 	if (!MapContentLease.IsValid()
 		|| !MapContentLease->IsReady())
 	{
-		FailContentPreload(PreloadGeneration);
+		FailContentPreload();
 		return;
 	}
 
@@ -197,7 +185,7 @@ void UInfoMapPanel::HandleUiContentCompletion(
 		: nullptr;
 	if (!ContentSubsystem)
 	{
-		CompleteContentPreload(PreloadGeneration);
+		CompleteContentPreload();
 		return;
 	}
 
@@ -205,15 +193,13 @@ void UInfoMapPanel::HandleUiContentCompletion(
 		GetDefaultMapUiLevelDefinition();
 	if (Levels.IsNull() || Levels.Get())
 	{
-		BeginMapWidgetClassPreload(PreloadGeneration);
+		BeginMapWidgetClassPreload();
 		return;
 	}
-	MapRulePreloadHandle = ContentSubsystem->PreloadSoftObjectPathsAsync(
+	// 레벨 정의를 읽지 못해도 기본 맵 위젯으로 열 수 있으므로 결과와 관계없이 다음 단계로 넘어간다.
+	MapRuleLease = ContentSubsystem->AcquireContent(
 		{Levels.ToSoftObjectPath()},
-		FSimpleDelegate::CreateWeakLambda(this, [this, PreloadGeneration]()
-		{
-			BeginMapWidgetClassPreload(PreloadGeneration);
-		}));
+		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginMapWidgetClassPreload));
 }
 
 void UInfoMapPanel::Shutdown()
@@ -419,19 +405,15 @@ void UInfoMapPanel::PlaySlideOut()
 	}
 }
 
-void UInfoMapPanel::BeginMapWidgetClassPreload(const int32 PreloadGeneration)
+void UInfoMapPanel::BeginMapWidgetClassPreload()
 {
-	if (PreloadGeneration != ContentPreloadGeneration)
-	{
-		return;
-	}
 	const UGameInstance* GameInstance = OwnerWidget ? OwnerWidget->GetGameInstance() : nullptr;
 	UContentDataSubsystem* ContentSubsystem = GameInstance
 		? GameInstance->GetSubsystem<UContentDataSubsystem>()
 		: nullptr;
 	if (!ContentSubsystem)
 	{
-		CompleteContentPreload(PreloadGeneration);
+		CompleteContentPreload();
 		return;
 	}
 
@@ -446,37 +428,26 @@ void UInfoMapPanel::BeginMapWidgetClassPreload(const int32 PreloadGeneration)
 			}
 		}
 	}
-	TArray<FSoftObjectPath> ExpectedContentPaths = ContentPaths;
-	MapWidgetClassPreloadHandle = ContentSubsystem->PreloadSoftObjectPathsAsync(
+	MapWidgetClassLease = ContentSubsystem->AcquireContent(
 		ContentPaths,
 		FSimpleDelegate::CreateWeakLambda(
 			this,
-			[this,
-				PreloadGeneration,
-				ExpectedContentPaths = MoveTemp(ExpectedContentPaths)]()
-		{
-			if (PreloadGeneration != ContentPreloadGeneration)
+			[this]()
 			{
-				return;
-			}
-			for (const FSoftObjectPath& ExpectedPath : ExpectedContentPaths)
-			{
-				if (ExpectedPath.IsValid() && !ExpectedPath.ResolveObject())
+				if (MapWidgetClassLease.IsValid()
+					&& MapWidgetClassLease->IsReady())
 				{
-					FailContentPreload(PreloadGeneration);
-					return;
+					CompleteContentPreload();
 				}
-			}
-			CompleteContentPreload(PreloadGeneration);
-		}));
+				else
+				{
+					FailContentPreload();
+				}
+			}));
 }
 
-void UInfoMapPanel::CompleteContentPreload(const int32 PreloadGeneration)
+void UInfoMapPanel::CompleteContentPreload()
 {
-	if (PreloadGeneration != ContentPreloadGeneration)
-	{
-		return;
-	}
 	bContentReady = true;
 	RefreshButtonEnabledState();
 	EnsureTotalMapWidget();
@@ -486,12 +457,8 @@ void UInfoMapPanel::CompleteContentPreload(const int32 PreloadGeneration)
 	}
 }
 
-void UInfoMapPanel::FailContentPreload(const int32 PreloadGeneration)
+void UInfoMapPanel::FailContentPreload()
 {
-	if (PreloadGeneration != ContentPreloadGeneration)
-	{
-		return;
-	}
 	bOpenRequested = false;
 	ReleaseContentPreloads();
 	RefreshButtonEnabledState();
@@ -499,18 +466,8 @@ void UInfoMapPanel::FailContentPreload(const int32 PreloadGeneration)
 
 void UInfoMapPanel::ReleaseContentPreloads()
 {
-	++ContentPreloadGeneration;
-	auto ReleaseHandle = [](TSharedPtr<FStreamableHandle>& Handle)
-	{
-		if (Handle.IsValid())
-		{
-			Handle->CancelHandle();
-			Handle->ReleaseHandle();
-			Handle.Reset();
-		}
-	};
-	ReleaseHandle(MapWidgetClassPreloadHandle);
-	ReleaseHandle(MapRulePreloadHandle);
+	MapWidgetClassLease.Reset();
+	MapRuleLease.Reset();
 	MapContentLease.Reset();
 	bContentPreloadRequested = false;
 	bContentReady = false;

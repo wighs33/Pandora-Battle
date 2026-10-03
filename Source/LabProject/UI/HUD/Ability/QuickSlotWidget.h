@@ -11,7 +11,7 @@ class UQuickSlotEntryWidget;
 class USkinDefinition;
 class USkinEquipmentComponent;
 class UUniformGridPanel;
-struct FStreamableHandle;
+class FContentLease;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API UQuickSlotWidget : public UUserWidget
@@ -40,7 +40,6 @@ private:
 	void BindInventoryChangedEvent();
 	void UnbindInventoryChangedEvent();
 	void RefreshQuickSlotIconPreload();
-	void ReleaseQuickSlotIconPreload();
 	void AddQuickSlotEntry(int32 SlotIndex, UInventoryComponent* InventoryComponent, USkinEquipmentComponent* SkinEquipmentComponent);
 	UQuickSlotEntryWidget* CreateQuickSlotEntryWidget() const;
 	void AddWidgetToBar(UWidget* Widget, int32 SlotIndex) const;
@@ -70,8 +69,7 @@ private:
 	TArray<TObjectPtr<UQuickSlotEntryWidget>> EntryWidgets;
 
 	TArray<FSoftObjectPath> PreloadedQuickSlotIconPaths;
-	TSharedPtr<FStreamableHandle> QuickSlotIconPreloadHandle;
-	uint32 QuickSlotIconPreloadGeneration = 0;
+	TSharedPtr<FContentLease> QuickSlotIconLease;
 
 	FTimerHandle RebuildBarTimerHandle;
 	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;

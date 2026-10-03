@@ -8,9 +8,9 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Engine/GameInstance.h"
-#include "Engine/StreamableManager.h"
 #include "UI/HUD/Status/StatusEffectWidget.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 
@@ -37,7 +37,7 @@ void UStatusEffectsBarWidget::NativeDestruct()
 {
 	bIsConstructed = false;
 	OwnerReadySubscription.Reset();
-	ReleaseStatusEffectContentPreload();
+	StatusEffectContentLease.Reset();
 
 	if (UWorld* World = GetWorld())
 	{
@@ -54,8 +54,7 @@ void UStatusEffectsBarWidget::NativeDestruct()
 
 void UStatusEffectsBarWidget::BeginStatusEffectContentPreload()
 {
-	ReleaseStatusEffectContentPreload();
-	const int32 PreloadGeneration = ++ContentPreloadGeneration;
+	StatusEffectContentLease.Reset();
 
 	UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
@@ -72,13 +71,13 @@ void UStatusEffectsBarWidget::BeginStatusEffectContentPreload()
 		StatusEffectPaths.Add(StatusEffect.ToSoftObjectPath());
 	}
 
-	StatusEffectContentPreloadHandle = ContentSubsystem->PreloadSoftObjectPathsAsync(
+	StatusEffectContentLease = ContentSubsystem->AcquireContent(
 		StatusEffectPaths,
 		FSimpleDelegate::CreateWeakLambda(
 			this,
-			[this, PreloadGeneration]()
+			[this]()
 			{
-				if (PreloadGeneration != ContentPreloadGeneration || !bIsConstructed)
+				if (!bIsConstructed)
 				{
 					return;
 				}
@@ -87,17 +86,6 @@ void UStatusEffectsBarWidget::BeginStatusEffectContentPreload()
 				BindStatusEffectTagDelegates();
 				ScheduleStatusEffectWidgetRefresh();
 			}));
-}
-
-void UStatusEffectsBarWidget::ReleaseStatusEffectContentPreload()
-{
-	++ContentPreloadGeneration;
-	if (StatusEffectContentPreloadHandle.IsValid())
-	{
-		StatusEffectContentPreloadHandle->CancelHandle();
-		StatusEffectContentPreloadHandle->ReleaseHandle();
-		StatusEffectContentPreloadHandle.Reset();
-	}
 }
 
 void UStatusEffectsBarWidget::SetOwnerActor(AActor* InOwnerActor)

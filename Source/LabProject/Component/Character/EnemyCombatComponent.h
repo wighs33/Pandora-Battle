@@ -7,7 +7,7 @@
 
 class AEnemyBase;
 class UItemDefinition;
-struct FStreamableHandle;
+class FContentLease;
 
 /**
  * 적의 대상 지정·능력치 초기화·기본 장비·공격 예약을 관리한다.
@@ -63,14 +63,13 @@ private:
 	bool ApplyDefaultStatDefinition();
 	bool EquipStartingWeapon();
 	void HandleInitialCombatDelayElapsed();
-	void HandleRuntimeContentPreloaded(uint32 RequestGeneration);
+	void HandleRuntimeContentPreloaded();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	AEnemyBase* GetEnemyOwner() const;
 	const AEnemyBase* GetEnemyOwnerConst() const;
 	void StartAttackTimer();
 	void BeginRuntimeContentPreload();
-	void ReleaseRuntimeContentPreload();
 	bool ValidateAttackRequest();
 	void StopAttackMovement() const;
 	void FaceAttackTarget(const AActor* CurrentAttackTarget);
@@ -92,8 +91,7 @@ private:
 
 	FTimerHandle InitialCombatTimerHandle;
 	FTimerHandle AttackTimerHandle;
-	TSharedPtr<FStreamableHandle> RuntimeContentLoadHandle;
-	uint32 RuntimeContentLoadGeneration = 0;
+	TSharedPtr<FContentLease> RuntimeContentLease;
 	bool bRuntimeContentReady = true;
 	bool bHandlePossessedWhenContentReady = false;
 
