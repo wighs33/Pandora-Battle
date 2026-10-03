@@ -62,7 +62,6 @@ private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleAbilitySystemReady(ACharacterBase* Character, UPdAbilitySystemComponent* ReadyAbilitySystem);
 	void HandleAbilitySystemReleased(ACharacterBase* Character, UPdAbilitySystemComponent* ReleasedAbilitySystem);
-	void HandleInventoryChanged();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool HasEffectAuthority() const;

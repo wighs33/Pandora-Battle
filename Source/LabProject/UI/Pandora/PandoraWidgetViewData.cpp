@@ -17,13 +17,6 @@ namespace
 {
 	const FText MaxLevelText = NSLOCTEXT("PandoraWidget", "MaxLevel", "MAX");
 
-	FText FormatPointsRequiredText(int32 Points)
-	{
-		return FText::Format(
-			NSLOCTEXT("PandoraDescriptionWidget", "PointsRequiredFormat", "Points Required: {0}"),
-			FText::AsNumber(Points));
-	}
-
 	FString MakeWeaponTagDisplayName(const FGameplayTag& WeaponTag)
 	{
 		FString TagText = WeaponTag.ToString();
@@ -234,7 +227,6 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 {
 	FPandoraDescriptionViewData ViewData;
 	ViewData.SkillSlots.SetNum(UPandoraDefinition::GetFixedMaxLevel());
-	ViewData.bHasPandoraDefinition = PandoraDefinition != nullptr;
 
 	if (!PandoraDefinition)
 	{
@@ -244,16 +236,6 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 	ViewData.TitleText = Localization ? Localization->GetProductText(PandoraDefinition, TEXT("Name"), PandoraDefinition->GetDisplayName()) : PandoraDefinition->GetDisplayName();
 	ViewData.DescriptionText = Localization ? Localization->GetProductText(PandoraDefinition, TEXT("Description"), PandoraDefinition->GetDescription()) : PandoraDefinition->GetDescription();
 	ViewData.SkillSectionVisibility = ESlateVisibility::Visible;
-	ViewData.MaxLevel = FMath::Max(PandoraDefinition->GetMaxLevel(), 1);
-
-	if (PandoraTreeComponent)
-	{
-		ViewData.CurrentLevel = PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition);
-		ViewData.MaxLevel = FMath::Max(PandoraTreeComponent->GetMaxPandoraLevel(PandoraDefinition), 1);
-		ViewData.PointsRequiredText = FormatPointsRequiredText(PandoraTreeComponent->GetRequiredPointsForPandora(PandoraDefinition, true));
-	}
-
-	ViewData.NextLevel = ViewData.CurrentLevel + 1 > ViewData.MaxLevel ? -1 : ViewData.CurrentLevel + 1;
 
 	FNumberFormattingOptions NumberFormat;
 	NumberFormat.SetMinimumFractionalDigits(0).SetMaximumFractionalDigits(1);
@@ -280,14 +262,12 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 		SkillViewData.CooldownText = FText::Format(CooldownFormat, FText::AsNumber(Skill->Time.CooldownDuration, &NumberFormat));
 	}
 
-	ViewData.bLockedByPandoraRequirement = PandoraTreeComponent
-		&& !PandoraTreeComponent->IsPandoraAvailableForInvestment(PandoraDefinition);
-
 	const FText WeaponRequirement = MakeWeaponRequirementText(PandoraDefinition->GetActivatableWeaponTags());
 	ViewData.WeaponRequirementText = WeaponRequirement;
 	ViewData.WeaponRequirementVisibility = WeaponRequirement.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
 
-	if (ViewData.bLockedByPandoraRequirement)
+	// 아직 투자할 수 없는 판도라는 설명 대신 해금 조건을 보여 준다.
+	if (PandoraTreeComponent && !PandoraTreeComponent->IsPandoraAvailableForInvestment(PandoraDefinition))
 	{
 		FText RequirementText = MakePandoraUnlockRequirementsText(PandoraDefinition, PandoraTreeComponent, Localization);
 		if (RequirementText.IsEmpty())
@@ -296,16 +276,6 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
 		}
 
 		ViewData.DescriptionText = RequirementText;
-		return ViewData;
-	}
-
-	if (ViewData.NextLevel > 0 && ViewData.CurrentLevel < ViewData.MaxLevel)
-	{
-		ViewData.PointsRequiredVisibility = ESlateVisibility::Visible;
-	}
-	else
-	{
-		ViewData.PointsRequiredVisibility = ESlateVisibility::Collapsed;
 	}
 
 	return ViewData;

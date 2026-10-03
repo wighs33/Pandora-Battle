@@ -25,7 +25,6 @@ protected:
 	virtual void OnStop() override;
 
 private:
-	void Elapsed();
 
 private:
 	FTimerHandle Timer;

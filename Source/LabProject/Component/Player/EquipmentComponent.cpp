@@ -487,16 +487,6 @@ bool UEquipmentComponent::IsDeathTransitionActive() const
 			|| AbilitySystem->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f);
 }
 
-FGameplayTag UEquipmentComponent::GetEquipAbilityTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetEquipmentEquipAbilityTag();
-}
-
-FGameplayTag UEquipmentComponent::GetUnequipAbilityTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetEquipmentUnequipAbilityTag();
-}
-
 void UEquipmentComponent::CommitCurrentWeaponState(
 	const FGuid NewCurrentWeaponId,
 	AWeaponBase* NewWeaponActor,

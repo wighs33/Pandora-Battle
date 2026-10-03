@@ -52,7 +52,7 @@ public:
 	void SetWidgetClassDefinition(UWidgetClassDefinition* InWidgetClassDefinition);
 	void ClearWidgetClassDefinition(const UWidgetClassDefinition* ExpectedWidgetClassDefinition);
 	UWidgetClassDefinition* GetWidgetClassDefinition() const { return WidgetClassDefinition; }
-	void EnsureConfiguredWidgetContentPreload();
+	void BeginConfiguredWidgetDefinitionPreload();
 	bool IsConfiguredWidgetContentReady() const
 	{
 		return bConfiguredWidgetContentReady;
@@ -93,7 +93,6 @@ private:
 
 	APlayerController* GetLocalPlayerController() const;
 
-	void BeginConfiguredWidgetDefinitionPreload();
 	void ReleaseConfiguredWidgetDefinitionPreload();
 
 	void BindPendingConfiguredUiContent();

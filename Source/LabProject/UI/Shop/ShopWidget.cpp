@@ -531,7 +531,7 @@ void UShopWidget::RebuildEntryData()
 
 		UShopEntryViewData* EntryData = NewObject<UShopEntryViewData>(this);
 		EntryData->Initialize(EffectiveCatalogEntry, ProductObject, CurrentGold, IsProductOwned(ProductObject, CatalogEntry.Product.ProductType));
-		EntryData->OnClicked.AddUObject(this, &ThisClass::HandleEntryDataClicked);
+		EntryData->OnClicked.AddUObject(this, &ThisClass::SelectEntry);
 		EntryDataList.Add(EntryData);
 	}
 }
@@ -920,7 +920,3 @@ void UShopWidget::HandleTileViewItemClicked(UObject* ItemObject)
 	SelectEntry(Cast<UShopEntryViewData>(ItemObject));
 }
 
-void UShopWidget::HandleEntryDataClicked(UShopEntryViewData* EntryData)
-{
-	SelectEntry(EntryData);
-}

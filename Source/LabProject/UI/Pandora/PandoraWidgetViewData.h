@@ -75,21 +75,8 @@ struct LABPROJECT_API FPandoraDescriptionViewData
 	FText DescriptionText;
 	FText WeaponRequirementText;
 	ESlateVisibility WeaponRequirementVisibility = ESlateVisibility::Collapsed;
-	ESlateVisibility CurrentLevelVisibility = ESlateVisibility::Collapsed;
-	FText CurrentLevelTitleText;
-	FText CurrentLevelDescriptionText;
-	ESlateVisibility NextLevelVisibility = ESlateVisibility::Collapsed;
-	FText NextLevelTitleText;
-	FText NextLevelDescriptionText;
-	ESlateVisibility PointsRequiredVisibility = ESlateVisibility::Collapsed;
-	FText PointsRequiredText;
 	ESlateVisibility SkillSectionVisibility = ESlateVisibility::Collapsed;
 	TArray<FPandoraSkillSlotViewData> SkillSlots;
-	bool bHasPandoraDefinition = false;
-	bool bLockedByPandoraRequirement = false;
-	int32 CurrentLevel = 0;
-	int32 NextLevel = 1;
-	int32 MaxLevel = 1;
 };
 
 class LABPROJECT_API FPandoraWidgetViewDataBuilder

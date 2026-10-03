@@ -46,7 +46,7 @@ public:
 	void ReleaseLobbyEntryContentPreload();
 	bool IsLobbyEntryContentLoading() const;
 	void BeginGameEntryContentPreload();
-	void CancelGameEntryContentPreload();
+	void ReleaseGameEntryContentPreload();
 
 	ELobbyContentPreloadResult GetGameEntryContentPreloadResult() const
 	{
@@ -110,7 +110,6 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	static void GetGameEntryPrimaryAssetIds(TArray<FPrimaryAssetId>& OutAssetIds);
-	void ReleaseGameEntryContentPreload();
 	void SetGameEntryContentPreloadResult(
 		ELobbyContentPreloadResult Result,
 		TArray<FPrimaryAssetId> MissingAssetIds = {});

@@ -78,9 +78,6 @@ private:
 	void BuildInventoryViewSlots(const TArray<UObject*>& SourceItems, TArray<UObject*>& OutViewItems);
 	int32 FindInventoryDisplaySlotIndexByItemId(FGuid ItemId) const;
 	void CollectAssignedItemIds(TSet<FGuid>& OutAssignedItemIds) const;
-	FGameplayTag GetEquipmentItemTypeTag() const;
-	FGameplayTag GetWeaponItemTypeTag() const;
-	FGameplayTag GetConsumableItemTypeTag() const;
 
 private:
 	UPROPERTY(Transient)

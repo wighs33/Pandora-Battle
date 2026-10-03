@@ -537,7 +537,7 @@ void ARewardChest::BeginRewardContentPreload()
 			AssetPaths.Array(),
 			FStreamableDelegate::CreateUObject(
 				this,
-				&ThisClass::HandleRewardContentPreloadComplete));
+				&ThisClass::MarkRewardContentReady));
 	if (!RewardContentPreloadHandle.IsValid())
 	{
 		UE_LOG(
@@ -547,11 +547,6 @@ void ARewardChest::BeginRewardContentPreload()
 			*GetPathName());
 		MarkRewardContentReady();
 	}
-}
-
-void ARewardChest::HandleRewardContentPreloadComplete()
-{
-	MarkRewardContentReady();
 }
 
 void ARewardChest::MarkRewardContentReady()

@@ -147,7 +147,7 @@ void UHudUiRouter::EnsureCoreLayers()
 	// policy after creation instead of assuming a newly added HUD is visible.
 	Hud->RefreshPlayerHudVisibility();
 	Hud->ApplyStatusViewModelToPlayerHud();
-	Hud->ApplyHudTimerVisibility();
+	Hud->RefreshHudTimerVisibility();
 
 	if (!Hud->CachedSelectPandoraUI)
 	{
@@ -323,60 +323,6 @@ void UHudUiRouter::ResetLayers()
 	}
 }
 
-bool UHudUiRouter::OpenSettingsMenu()
-{
-	return MenuLayer && MenuLayer->Open();
-}
-
-bool UHudUiRouter::ToggleSettingsMenu()
-{
-	return MenuLayer && MenuLayer->Toggle();
-}
-
-bool UHudUiRouter::CloseSettingsMenu()
-{
-	return MenuLayer && MenuLayer->Close();
-}
-
-bool UHudUiRouter::IsSettingsMenuOpen() const
-{
-	return MenuLayer && MenuLayer->IsOpen();
-}
-
-UMenuPopupWidget* UHudUiRouter::GetSettingsMenuWidget() const
-{
-	return MenuLayer ? MenuLayer->GetWidget() : nullptr;
-}
-
-void UHudUiRouter::ShowScoreboard()
-{
-	if (ScoreboardLayer)
-	{
-		ScoreboardLayer->Show();
-	}
-}
-
-void UHudUiRouter::HideScoreboard()
-{
-	if (ScoreboardLayer)
-	{
-		ScoreboardLayer->Hide();
-	}
-}
-
-void UHudUiRouter::RefreshScoreboard()
-{
-	if (ScoreboardLayer)
-	{
-		ScoreboardLayer->Refresh();
-	}
-}
-
-bool UHudUiRouter::IsScoreboardOpen() const
-{
-	return ScoreboardLayer && ScoreboardLayer->IsOpen();
-}
-
 void UHudUiRouter::ShowAimCrosshair(const FGameplayTag DesiredCrosshairWidgetTag)
 {
 	APdHUD* Hud = OwnerHud.Get();
@@ -419,97 +365,6 @@ void UHudUiRouter::HideAimCrosshair()
 	}
 }
 
-void UHudUiRouter::OpenInfo()
-{
-	if (ScreenLayer)
-	{
-		ScreenLayer->OpenInfo();
-	}
-}
-
-void UHudUiRouter::OpenInfo(const EInfoUiSection InitialSection)
-{
-	if (ScreenLayer)
-	{
-		ScreenLayer->OpenInfo(InitialSection);
-	}
-}
-
-void UHudUiRouter::CloseInfo(
-	const bool bSuppressCameraReturn,
-	const bool bImmediate)
-{
-	if (ScreenLayer)
-	{
-		ScreenLayer->CloseInfo(bSuppressCameraReturn, bImmediate);
-	}
-}
-
-void UHudUiRouter::ToggleInfo()
-{
-	if (ScreenLayer)
-	{
-		ScreenLayer->ToggleInfo();
-	}
-}
-
-void UHudUiRouter::OpenPandoraTree()
-{
-	if (ScreenLayer)
-	{
-		ScreenLayer->OpenPandoraTree();
-	}
-}
-
-void UHudUiRouter::ClosePandoraTree(
-	const bool bSuppressCameraReturn,
-	const bool bImmediate)
-{
-	if (ScreenLayer)
-	{
-		ScreenLayer->ClosePandoraTree(bSuppressCameraReturn, bImmediate);
-	}
-}
-
-void UHudUiRouter::TogglePandoraTree()
-{
-	if (ScreenLayer)
-	{
-		ScreenLayer->TogglePandoraTree();
-	}
-}
-
-bool UHudUiRouter::IsInfoClosing() const
-{
-	return ScreenLayer && ScreenLayer->IsInfoClosing();
-}
-
-bool UHudUiRouter::IsPandoraTreeClosing() const
-{
-	return ScreenLayer && ScreenLayer->IsPandoraTreeClosing();
-}
-
-bool UHudUiRouter::ShouldScreenLayerSuppressPlayerHud() const
-{
-	return ScreenLayer && ScreenLayer->ShouldSuppressPlayerHud();
-}
-
-void UHudUiRouter::RefreshTrainingRoomPause(const UUserWidget* IgnoredWidget)
-{
-	if (ScreenLayer)
-	{
-		ScreenLayer->RefreshTrainingRoomPause(IgnoredWidget);
-	}
-}
-
-void UHudUiRouter::ScheduleTrainingRoomPause(const float DelaySeconds)
-{
-	if (ScreenLayer)
-	{
-		ScreenLayer->ScheduleTrainingRoomPause(DelaySeconds);
-	}
-}
-
 void UHudUiRouter::ApplyActiveDefinition(UWidgetClassDefinition* NewDefinition)
 {
 	UWidgetClassDefinition* PreviousDefinition = ActiveDefinition;
@@ -546,7 +401,3 @@ APdPlayerController* UHudUiRouter::ResolvePlayerController() const
 	return Hud ? Cast<APdPlayerController>(Hud->GetOwningPlayerController()) : nullptr;
 }
 
-bool UHudUiRouter::IsInfoOpen() const
-{
-	return ScreenLayer && ScreenLayer->IsInfoOpen();
-}

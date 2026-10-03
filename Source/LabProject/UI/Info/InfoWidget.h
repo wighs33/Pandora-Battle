@@ -194,14 +194,6 @@ private:
 	void BindLeftSkinPaintCanvasEvents();
 	void UnbindLeftSkinPaintCanvasEvents();
 	bool IsScreenPositionInsideCharacterDropPanel(const FVector2D& ScreenSpacePosition) const;
-	FGameplayTag GetProfileLeftUiTag() const;
-	FGameplayTag GetProfileRightUiTag() const;
-	FGameplayTag GetItemLeftUiTag() const;
-	FGameplayTag GetItemRightUiTag() const;
-	FGameplayTag GetSkinLeftUiTag() const;
-	FGameplayTag GetSkinRightUiTag() const;
-	FGameplayTag GetPandoraLeftUiTag() const;
-	FGameplayTag GetPandoraRightUiTag() const;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")

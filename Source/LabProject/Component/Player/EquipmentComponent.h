@@ -123,8 +123,6 @@ private:
 
 	bool HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const;
 	bool IsDeathTransitionActive() const;
-	FGameplayTag GetEquipAbilityTag() const;
-	FGameplayTag GetUnequipAbilityTag() const;
 	TSubclassOf<UAnimInstance> GetLoadedEquipAnimLayer(const UItemDefinition* ItemDefinition) const;
 
 	bool IsWeaponPresentationLoaded(const UItemDefinition* ItemDefinition) const;

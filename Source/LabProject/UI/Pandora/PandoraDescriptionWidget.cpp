@@ -74,9 +74,6 @@ void UPandoraDescriptionWidget::SetDetails()
 	{
 		ViewData.DescriptionText = NSLOCTEXT("PandoraDescriptionWidget", "UnownedPandoraDescription", "You do not own this Pandora.");
 		ViewData.WeaponRequirementVisibility = ESlateVisibility::Collapsed;
-		ViewData.CurrentLevelVisibility = ESlateVisibility::Collapsed;
-		ViewData.NextLevelVisibility = ESlateVisibility::Collapsed;
-		ViewData.PointsRequiredVisibility = ESlateVisibility::Collapsed;
 		ViewData.SkillSectionVisibility = ESlateVisibility::Collapsed;
 	}
 
@@ -84,14 +81,6 @@ void UPandoraDescriptionWidget::SetDetails()
 	ViewModel->SetDescriptionText(ViewData.DescriptionText);
 	ViewModel->SetWeaponRequirementText(ViewData.WeaponRequirementText);
 	ViewModel->SetWeaponRequirementVisibility(ViewData.WeaponRequirementVisibility);
-	ViewModel->SetCurrentLevelVisibility(ViewData.CurrentLevelVisibility);
-	ViewModel->SetCurrentLevelTitleText(ViewData.CurrentLevelTitleText);
-	ViewModel->SetCurrentLevelDescriptionText(ViewData.CurrentLevelDescriptionText);
-	ViewModel->SetNextLevelVisibility(ViewData.NextLevelVisibility);
-	ViewModel->SetNextLevelTitleText(ViewData.NextLevelTitleText);
-	ViewModel->SetNextLevelDescriptionText(ViewData.NextLevelDescriptionText);
-	ViewModel->SetPointsRequiredVisibility(ViewData.PointsRequiredVisibility);
-	ViewModel->SetPointsRequiredText(ViewData.PointsRequiredText);
 	ViewModel->SetSkillSectionVisibility(ViewData.SkillSectionVisibility);
 
 	for (int32 SkillSlotIndex = 0; SkillSlotIndex < 4; ++SkillSlotIndex)

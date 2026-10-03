@@ -21,14 +21,6 @@ public:
 	void SetWeaponRequirementText(const FText& InWeaponRequirementText);
 	void SetWeaponRequirementTextColor(const FSlateColor& InWeaponRequirementTextColor);
 	void SetWeaponRequirementVisibility(ESlateVisibility InVisibility);
-	void SetCurrentLevelVisibility(ESlateVisibility InVisibility);
-	void SetCurrentLevelTitleText(const FText& InCurrentLevelTitleText);
-	void SetCurrentLevelDescriptionText(const FText& InCurrentLevelDescriptionText);
-	void SetNextLevelVisibility(ESlateVisibility InVisibility);
-	void SetNextLevelTitleText(const FText& InNextLevelTitleText);
-	void SetNextLevelDescriptionText(const FText& InNextLevelDescriptionText);
-	void SetPointsRequiredVisibility(ESlateVisibility InVisibility);
-	void SetPointsRequiredText(const FText& InPointsRequiredText);
 	void SetSkillSectionVisibility(ESlateVisibility InVisibility);
 	void SetSkillSlot(int32 SlotIndex, UObject* InIconResource, const FText& InNameText, const FText& InDescriptionText, const FText& InManaText, const FText& InCooldownText);
 
@@ -47,30 +39,6 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
 	ESlateVisibility WeaponRequirementVisibility = ESlateVisibility::Collapsed;
-
-	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
-	ESlateVisibility CurrentLevelVisibility = ESlateVisibility::Collapsed;
-
-	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
-	FText CurrentLevelTitleText;
-
-	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
-	FText CurrentLevelDescriptionText;
-
-	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
-	ESlateVisibility NextLevelVisibility = ESlateVisibility::Collapsed;
-
-	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
-	FText NextLevelTitleText;
-
-	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
-	FText NextLevelDescriptionText;
-
-	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
-	ESlateVisibility PointsRequiredVisibility = ESlateVisibility::Collapsed;
-
-	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel")
-	FText PointsRequiredText;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "!Pandora Description ViewModel|Skills")
 	ESlateVisibility SkillSectionVisibility = ESlateVisibility::Collapsed;

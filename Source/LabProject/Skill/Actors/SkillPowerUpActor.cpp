@@ -34,7 +34,7 @@ void ASkillPowerUpActor::GetLifetimeReplicatedProps(
 }
 
 void ASkillPowerUpActor::ConfigurePresentationSettings(
-	const FAnimeAuraPresentationSettings& InSettings)
+	const FSkillPowerUpPresentationSettings& InSettings)
 {
 	if (!HasAuthority())
 	{

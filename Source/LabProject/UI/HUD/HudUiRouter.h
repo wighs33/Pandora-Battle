@@ -41,33 +41,12 @@ public:
 	void ReleaseInfoLayers();
 	void ResetLayers();
 
-	bool OpenSettingsMenu();
-	bool ToggleSettingsMenu();
-	bool CloseSettingsMenu();
-	bool IsSettingsMenuOpen() const;
-	UMenuPopupWidget* GetSettingsMenuWidget() const;
-
-	void ShowScoreboard();
-	void HideScoreboard();
-	void RefreshScoreboard();
-	bool IsScoreboardOpen() const;
+	UHudMenuLayer* GetMenuLayer() const { return MenuLayer; }
+	UHudScreenLayer* GetScreenLayer() const { return ScreenLayer; }
+	UHudScoreboardLayer* GetScoreboardLayer() const { return ScoreboardLayer; }
 
 	void ShowAimCrosshair(FGameplayTag DesiredCrosshairWidgetTag);
 	void HideAimCrosshair();
-
-	void OpenInfo();
-	void OpenInfo(EInfoUiSection InitialSection);
-	void CloseInfo(bool bSuppressCameraReturn = false, bool bImmediate = false);
-	void ToggleInfo();
-	void OpenPandoraTree();
-	void ClosePandoraTree(bool bSuppressCameraReturn = false, bool bImmediate = false);
-	void TogglePandoraTree();
-	bool IsInfoOpen() const;
-	bool IsInfoClosing() const;
-	bool IsPandoraTreeClosing() const;
-	bool ShouldScreenLayerSuppressPlayerHud() const;
-	void RefreshTrainingRoomPause(const UUserWidget* IgnoredWidget = nullptr);
-	void ScheduleTrainingRoomPause(float DelaySeconds);
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------

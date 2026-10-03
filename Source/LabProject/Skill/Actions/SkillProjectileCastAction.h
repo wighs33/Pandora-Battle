@@ -69,7 +69,6 @@ private:
     void FireAtDefaultTarget();
     bool ExecuteProjectileShot(FVector TargetLocation);
     void TryFinishAfterProjectileFired();
-    void FinishCast();
 
     void StartShootProjectileEventTask();
     void PauseProjectileMontageForAiming();

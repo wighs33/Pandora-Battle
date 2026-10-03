@@ -2,6 +2,7 @@
 
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Player/CharacterActionDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
@@ -32,8 +33,8 @@ bool UEquipmentComponent::RequestWeaponSelectionForDirection(
 
 	RequestedWeaponLoadoutDirection = PandoraLoadout::IsLoadoutDirection(Direction) ? Direction : EEnum_Direction::Center;
 
-	const FGameplayTag EquipAbilityTag = GetEquipAbilityTag();
-	const FGameplayTag UnequipAbilityTag = GetUnequipAbilityTag();
+	const FGameplayTag EquipAbilityTag = UProjectTagDefinition::Get(this)->GetEquipmentEquipAbilityTag();
+	const FGameplayTag UnequipAbilityTag = UProjectTagDefinition::Get(this)->GetEquipmentUnequipAbilityTag();
 
 	FGuid SelectedWeaponId;
 	if (!ResolveWeaponIdFromInstance(WeaponInstance, SelectedWeaponId))
@@ -117,7 +118,7 @@ bool UEquipmentComponent::RequestWeaponUnequip()
 		return true;
 	}
 
-	const FGameplayTag UnequipAbilityTag = GetUnequipAbilityTag();
+	const FGameplayTag UnequipAbilityTag = UProjectTagDefinition::Get(this)->GetEquipmentUnequipAbilityTag();
 
 	FGameplayTagContainer UnequipTagContainer;
 	UnequipTagContainer.AddTag(UnequipAbilityTag);
@@ -186,8 +187,8 @@ bool UEquipmentComponent::TryResumePendingWeaponSelection()
 		return false;
 	}
 
-	const FGameplayTag EquipAbilityTag = GetEquipAbilityTag();
-	const FGameplayTag UnequipAbilityTag = GetUnequipAbilityTag();
+	const FGameplayTag EquipAbilityTag = UProjectTagDefinition::Get(this)->GetEquipmentEquipAbilityTag();
+	const FGameplayTag UnequipAbilityTag = UProjectTagDefinition::Get(this)->GetEquipmentUnequipAbilityTag();
 	FGameplayTagContainer EquipmentTransitionTags;
 	EquipmentTransitionTags.AddTag(EquipAbilityTag);
 	EquipmentTransitionTags.AddTag(UnequipAbilityTag);

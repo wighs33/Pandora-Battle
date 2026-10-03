@@ -252,8 +252,9 @@ void UInfoItemTabPresenter::HandleItemSlotClicked(UObject* Item)
 	}
 
 	UInfoLoadoutStore* Store = LoadoutStore.Get();
-	const bool bConsumableSlot = GetConsumableItemTypeTag().IsValid()
-		&& SelectedEquipTypeTag.MatchesTag(GetConsumableItemTypeTag());
+	const UProjectTagDefinition* Tags = UProjectTagDefinition::Get(this);
+	const bool bConsumableSlot = Tags->GetItemConsumableTypeTag().IsValid()
+		&& SelectedEquipTypeTag.MatchesTag(Tags->GetItemConsumableTypeTag());
 	if (bConsumableSlot)
 	{
 		if (Store
@@ -266,8 +267,8 @@ void UInfoItemTabPresenter::HandleItemSlotClicked(UObject* Item)
 		return;
 	}
 
-	const bool bWeaponSlot = GetWeaponItemTypeTag().IsValid()
-		&& SelectedEquipTypeTag.MatchesTag(GetWeaponItemTypeTag());
+	const bool bWeaponSlot = Tags->GetItemWeaponTypeTag().IsValid()
+		&& SelectedEquipTypeTag.MatchesTag(Tags->GetItemWeaponTypeTag());
 	if (bWeaponSlot)
 	{
 		const EEnum_Direction Direction =
@@ -281,8 +282,8 @@ void UInfoItemTabPresenter::HandleItemSlotClicked(UObject* Item)
 		return;
 	}
 
-	const bool bEquipmentSlot = GetEquipmentItemTypeTag().IsValid()
-		&& SelectedEquipTypeTag.MatchesTag(GetEquipmentItemTypeTag());
+	const bool bEquipmentSlot = Tags->GetItemEquipmentTypeTag().IsValid()
+		&& SelectedEquipTypeTag.MatchesTag(Tags->GetItemEquipmentTypeTag());
 	if (bEquipmentSlot)
 	{
 		if (!Store
@@ -622,8 +623,9 @@ void UInfoItemTabPresenter::ClearEquipmentSlot(
 	}
 
 	UInfoLoadoutStore* Store = LoadoutStore.Get();
-	if (GetConsumableItemTypeTag().IsValid()
-		&& EquipTypeTag.MatchesTag(GetConsumableItemTypeTag()))
+	const UProjectTagDefinition* Tags = UProjectTagDefinition::Get(this);
+	if (Tags->GetItemConsumableTypeTag().IsValid()
+		&& EquipTypeTag.MatchesTag(Tags->GetItemConsumableTypeTag()))
 	{
 		if (!Store || !Store->RequestClearConsumableQuickSlot(TargetEquipSlot->GetNth() - 1))
 		{
@@ -634,7 +636,7 @@ void UInfoItemTabPresenter::ClearEquipmentSlot(
 		return;
 	}
 
-	if (GetWeaponItemTypeTag().IsValid() && EquipTypeTag.MatchesTag(GetWeaponItemTypeTag()))
+	if (Tags->GetItemWeaponTypeTag().IsValid() && EquipTypeTag.MatchesTag(Tags->GetItemWeaponTypeTag()))
 	{
 		const EEnum_Direction Direction =
 			PandoraLoadout::GetDirectionFromLoadoutNumber(TargetEquipSlot->GetNth());
@@ -647,8 +649,8 @@ void UInfoItemTabPresenter::ClearEquipmentSlot(
 		return;
 	}
 
-	if (GetEquipmentItemTypeTag().IsValid()
-		&& EquipTypeTag.MatchesTag(GetEquipmentItemTypeTag()))
+	if (Tags->GetItemEquipmentTypeTag().IsValid()
+		&& EquipTypeTag.MatchesTag(Tags->GetItemEquipmentTypeTag()))
 	{
 		if (!Store || !Store->RequestClearEquipmentSlot(EquipTypeTag))
 		{
@@ -892,17 +894,3 @@ void UInfoItemTabPresenter::CollectAssignedItemIds(TSet<FGuid>& OutAssignedItemI
 	}
 }
 
-FGameplayTag UInfoItemTabPresenter::GetEquipmentItemTypeTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetItemEquipmentTypeTag();
-}
-
-FGameplayTag UInfoItemTabPresenter::GetWeaponItemTypeTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetItemWeaponTypeTag();
-}
-
-FGameplayTag UInfoItemTabPresenter::GetConsumableItemTypeTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
-}

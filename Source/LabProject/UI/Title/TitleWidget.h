@@ -17,7 +17,6 @@ class UUiSubsystem;
 class UImage;
 class UMaterialInterface;
 class UTextBlock;
-class UTexture2D;
 class UWidget;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLunaQuestionSubmitted, const FString& /*Question*/);
@@ -35,7 +34,6 @@ public:
 	virtual void NativeDestruct() override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UTitleWidget(const FObjectInitializer& ObjectInitializer);
 	void SetTitleCharacterMaterial(UMaterialInterface* Material);
 
 	/** Shows Luna's localized line above her head. HeadTopUV is a point in Img_TitleCharacter's texture space. */
@@ -96,10 +94,6 @@ private:
 	void ApplyWidgetDefinitionSettings();
 	void BuildLunaSpeechBubble();
 	void BuildLunaChatInput();
-	void BuildRpgModeButton();
-	void RefreshRpgModeText();
-	void BuildWebsiteButton();
-	void RefreshWebsiteText();
 	FString GetResolvedLobbyTravelMapName() const;
 	FString GetResolvedRoomTravelMapName() const;
 	FString GetResolvedTrainingRoomTravelMapName() const;
@@ -136,29 +130,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_TrainingMode;
 
-	/**
-	 * Boss Raid: joins an rpg-mode GameLift session on a dedicated server. When WBP_Title has no such button, it is built
-	 * at runtime and the training row is split in two to make room.
-	 */
+	/** Boss Raid: joins an rpg-mode GameLift session on a dedicated server. Shares the training row in WBP_Title. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_RpgMode;
 
-	UPROPERTY(EditDefaultsOnly, Category = "!Lobby|UI")
-	TSoftObjectPtr<UTexture2D> RpgModeIcon;
-
-	/** Frame art for the half-width training and boss raid buttons. */
-	UPROPERTY(EditDefaultsOnly, Category = "!Lobby|UI")
-	TSoftObjectPtr<UTexture2D> HalfRowFrame;
-
-	/**
-	 * Opens the official website in the system browser. When WBP_Title has no such button, it is built at runtime under
-	 * the game settings button with the same frame. Platforms that cannot open a browser do not show it.
-	 */
+	/** Opens the official website in the system browser. Platforms that cannot open a browser do not show it. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_Website;
-
-	UPROPERTY(EditDefaultsOnly, Category = "!Lobby|UI")
-	TSoftObjectPtr<UTexture2D> WebsiteIcon;
 
 	UPROPERTY(EditDefaultsOnly, Category = "!Lobby|UI")
 	FString OfficialWebsiteUrl = TEXT("https://pandora-archive.vercel.app/");
@@ -232,14 +210,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UEditableTextBox> LunaChatInput;
-
-	/** Label of the runtime-built boss raid button. WBP_Title's own labels are localized through MenuTextBindings. */
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> RpgModeLabel;
-
-	/** Label of the runtime-built website button. */
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> WebsiteLabel;
 
 	FName LunaSpeechKey;
 	FOnLunaQuestionSubmitted LunaQuestionSubmitted;

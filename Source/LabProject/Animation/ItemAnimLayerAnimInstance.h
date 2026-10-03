@@ -26,12 +26,11 @@ public:
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshCachedPlayer();
-	void PushValuesToLegacyBlueprintVariables();
 
 protected:
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Animation|References", meta = (DisplayName = "Cached Player"))
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Animation|References")
 	TObjectPtr<APdPlayer> CachedPlayer = nullptr;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation|State", meta = (DisplayName = "IsAiming?"))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation|State")
 	bool bIsAiming = false;
 };

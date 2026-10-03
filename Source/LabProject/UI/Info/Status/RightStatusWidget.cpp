@@ -49,227 +49,208 @@ void URightStatusWidget::BroadcastClickedStatDownButton(FGameplayTag InStatTag)
 
 void URightStatusWidget::HandleStrengthClicked()
 {
-	HandleStatUpButtonClicked(GetStrengthStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusStrengthTag());
 }
 
 void URightStatusWidget::HandleIntelligenceClicked()
 {
-	HandleStatUpButtonClicked(GetIntelligenceStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusIntelligenceTag());
 }
 
 void URightStatusWidget::HandleArcaneClicked()
 {
-	HandleStatUpButtonClicked(GetArcaneStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusArcaneTag());
 }
 
 void URightStatusWidget::HandleArmorClicked()
 {
-	HandleStatUpButtonClicked(GetArmorStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusArmorTag());
 }
 
 void URightStatusWidget::HandleRecoveryClicked()
 {
-	HandleStatUpButtonClicked(GetRecoveryStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusRecoveryTag());
 }
 
 void URightStatusWidget::HandleMaxShieldClicked()
 {
-	HandleStatUpButtonClicked(GetMaxShieldStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusMaxShieldTag());
 }
 
 void URightStatusWidget::HandleFrostbiteClicked()
 {
-	HandleStatUpButtonClicked(GetFrostbiteStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusFrostbiteTag());
 }
 
 void URightStatusWidget::HandleBurnClicked()
 {
-	HandleStatUpButtonClicked(GetBurnStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusBurnTag());
 }
 
 void URightStatusWidget::HandleElectricShockClicked()
 {
-	HandleStatUpButtonClicked(GetElectricShockStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusElectricShockTag());
 }
 
 void URightStatusWidget::HandleFirstPandoraClicked()
 {
-	HandleStatUpButtonClicked(GetFirstPandoraStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusFirstPandoraTag());
 }
 
 void URightStatusWidget::HandleSecondPandoraClicked()
 {
-	HandleStatUpButtonClicked(GetSecondPandoraStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusSecondPandoraTag());
 }
 
 void URightStatusWidget::HandleThirdPandoraClicked()
 {
-	HandleStatUpButtonClicked(GetThirdPandoraStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusThirdPandoraTag());
 }
 
 void URightStatusWidget::HandleMaxHealthClicked()
 {
-	HandleStatUpButtonClicked(GetMaxHealthStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusMaxHealthTag());
 }
 
 void URightStatusWidget::HandleMaxManaClicked()
 {
-	HandleStatUpButtonClicked(GetMaxManaStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusMaxManaTag());
 }
 
 void URightStatusWidget::HandleMaxStaminaClicked()
 {
-	HandleStatUpButtonClicked(GetMaxStaminaStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusMaxStaminaTag());
 }
 
 void URightStatusWidget::HandleAttackSpeedClicked()
 {
-	HandleStatUpButtonClicked(GetAttackSpeedStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusAttackSpeedTag());
 }
 
 void URightStatusWidget::HandleMovementSpeedClicked()
 {
-	HandleStatUpButtonClicked(GetMovementSpeedStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusMovementSpeedTag());
 }
 
 void URightStatusWidget::HandleCriticalClicked()
 {
-	HandleStatUpButtonClicked(GetCriticalStatTag());
+	BroadcastClickedStatUpButton(UProjectTagDefinition::Get(this)->GetStatusCriticalTag());
 }
 
 void URightStatusWidget::HandleStrengthDownClicked()
 {
-	HandleStatDownButtonClicked(GetStrengthStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusStrengthTag());
 }
 
 void URightStatusWidget::HandleIntelligenceDownClicked()
 {
-	HandleStatDownButtonClicked(GetIntelligenceStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusIntelligenceTag());
 }
 
 void URightStatusWidget::HandleArcaneDownClicked()
 {
-	HandleStatDownButtonClicked(GetArcaneStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusArcaneTag());
 }
 
 void URightStatusWidget::HandleArmorDownClicked()
 {
-	HandleStatDownButtonClicked(GetArmorStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusArmorTag());
 }
 
 void URightStatusWidget::HandleRecoveryDownClicked()
 {
-	HandleStatDownButtonClicked(GetRecoveryStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusRecoveryTag());
 }
 
 void URightStatusWidget::HandleMaxShieldDownClicked()
 {
-	HandleStatDownButtonClicked(GetMaxShieldStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusMaxShieldTag());
 }
 
 void URightStatusWidget::HandleFrostbiteDownClicked()
 {
-	HandleStatDownButtonClicked(GetFrostbiteStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusFrostbiteTag());
 }
 
 void URightStatusWidget::HandleBurnDownClicked()
 {
-	HandleStatDownButtonClicked(GetBurnStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusBurnTag());
 }
 
 void URightStatusWidget::HandleElectricShockDownClicked()
 {
-	HandleStatDownButtonClicked(GetElectricShockStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusElectricShockTag());
 }
 
 void URightStatusWidget::HandleFirstPandoraDownClicked()
 {
-	HandleStatDownButtonClicked(GetFirstPandoraStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusFirstPandoraTag());
 }
 
 void URightStatusWidget::HandleSecondPandoraDownClicked()
 {
-	HandleStatDownButtonClicked(GetSecondPandoraStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusSecondPandoraTag());
 }
 
 void URightStatusWidget::HandleThirdPandoraDownClicked()
 {
-	HandleStatDownButtonClicked(GetThirdPandoraStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusThirdPandoraTag());
 }
 
 void URightStatusWidget::HandleMaxHealthDownClicked()
 {
-	HandleStatDownButtonClicked(GetMaxHealthStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusMaxHealthTag());
 }
 
 void URightStatusWidget::HandleMaxManaDownClicked()
 {
-	HandleStatDownButtonClicked(GetMaxManaStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusMaxManaTag());
 }
 
 void URightStatusWidget::HandleMaxStaminaDownClicked()
 {
-	HandleStatDownButtonClicked(GetMaxStaminaStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusMaxStaminaTag());
 }
 
 void URightStatusWidget::HandleAttackSpeedDownClicked()
 {
-	HandleStatDownButtonClicked(GetAttackSpeedStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusAttackSpeedTag());
 }
 
 void URightStatusWidget::HandleMovementSpeedDownClicked()
 {
-	HandleStatDownButtonClicked(GetMovementSpeedStatTag());
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusMovementSpeedTag());
 }
 
 void URightStatusWidget::HandleCriticalDownClicked()
 {
-	HandleStatDownButtonClicked(GetCriticalStatTag());
-}
-
-void URightStatusWidget::HandleStatUpButtonClicked(FGameplayTag InStatTag)
-{
-	if (!InStatTag.IsValid())
-	{
-		return;
-	}
-
-	BroadcastClickedStatUpButton(InStatTag);
-}
-
-void URightStatusWidget::HandleStatDownButtonClicked(FGameplayTag InStatTag)
-{
-	if (!InStatTag.IsValid())
-	{
-		return;
-	}
-
-	BroadcastClickedStatDownButton(InStatTag);
+	BroadcastClickedStatDownButton(UProjectTagDefinition::Get(this)->GetStatusCriticalTag());
 }
 
 // 디자이너가 비워 둔 능력치 태그가 있으면 그 줄의 올리기·내리기 버튼이 아무 일도 하지 않으므로 생성 시점에 알린다.
 void URightStatusWidget::ValidateConfiguredStatTags() const
 {
+	const UProjectTagDefinition* Tags = UProjectTagDefinition::Get(this);
 	const TPair<const TCHAR*, FGameplayTag> ConfiguredStatTags[] =
 	{
-		{ TEXT("StrengthStatTag"), GetStrengthStatTag() },
-		{ TEXT("IntelligenceStatTag"), GetIntelligenceStatTag() },
-		{ TEXT("ArcaneStatTag"), GetArcaneStatTag() },
-		{ TEXT("ArmorStatTag"), GetArmorStatTag() },
-		{ TEXT("RecoveryStatTag"), GetRecoveryStatTag() },
-		{ TEXT("MaxShieldStatTag"), GetMaxShieldStatTag() },
-		{ TEXT("FrostbiteStatTag"), GetFrostbiteStatTag() },
-		{ TEXT("BurnStatTag"), GetBurnStatTag() },
-		{ TEXT("ElectricShockStatTag"), GetElectricShockStatTag() },
-		{ TEXT("FirstPandoraStatTag"), GetFirstPandoraStatTag() },
-		{ TEXT("SecondPandoraStatTag"), GetSecondPandoraStatTag() },
-		{ TEXT("ThirdPandoraStatTag"), GetThirdPandoraStatTag() },
-		{ TEXT("MaxHealthStatTag"), GetMaxHealthStatTag() },
-		{ TEXT("MaxManaStatTag"), GetMaxManaStatTag() },
-		{ TEXT("MaxStaminaStatTag"), GetMaxStaminaStatTag() },
-		{ TEXT("AttackSpeedStatTag"), GetAttackSpeedStatTag() },
-		{ TEXT("MovementSpeedStatTag"), GetMovementSpeedStatTag() },
-		{ TEXT("CriticalStatTag"), GetCriticalStatTag() },
+		{ TEXT("StrengthStatTag"), Tags->GetStatusStrengthTag() },
+		{ TEXT("IntelligenceStatTag"), Tags->GetStatusIntelligenceTag() },
+		{ TEXT("ArcaneStatTag"), Tags->GetStatusArcaneTag() },
+		{ TEXT("ArmorStatTag"), Tags->GetStatusArmorTag() },
+		{ TEXT("RecoveryStatTag"), Tags->GetStatusRecoveryTag() },
+		{ TEXT("MaxShieldStatTag"), Tags->GetStatusMaxShieldTag() },
+		{ TEXT("FrostbiteStatTag"), Tags->GetStatusFrostbiteTag() },
+		{ TEXT("BurnStatTag"), Tags->GetStatusBurnTag() },
+		{ TEXT("ElectricShockStatTag"), Tags->GetStatusElectricShockTag() },
+		{ TEXT("FirstPandoraStatTag"), Tags->GetStatusFirstPandoraTag() },
+		{ TEXT("SecondPandoraStatTag"), Tags->GetStatusSecondPandoraTag() },
+		{ TEXT("ThirdPandoraStatTag"), Tags->GetStatusThirdPandoraTag() },
+		{ TEXT("MaxHealthStatTag"), Tags->GetStatusMaxHealthTag() },
+		{ TEXT("MaxManaStatTag"), Tags->GetStatusMaxManaTag() },
+		{ TEXT("MaxStaminaStatTag"), Tags->GetStatusMaxStaminaTag() },
+		{ TEXT("AttackSpeedStatTag"), Tags->GetStatusAttackSpeedTag() },
+		{ TEXT("MovementSpeedStatTag"), Tags->GetStatusMovementSpeedTag() },
+		{ TEXT("CriticalStatTag"), Tags->GetStatusCriticalTag() },
 	};
 
 	for (const TPair<const TCHAR*, FGameplayTag>& ConfiguredStatTag : ConfiguredStatTags)
@@ -374,92 +355,3 @@ void URightStatusWidget::UnbindButtonCallbacks()
 	}
 }
 
-FGameplayTag URightStatusWidget::GetStrengthStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusStrengthTag();
-}
-
-FGameplayTag URightStatusWidget::GetIntelligenceStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusIntelligenceTag();
-}
-
-FGameplayTag URightStatusWidget::GetArcaneStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusArcaneTag();
-}
-
-FGameplayTag URightStatusWidget::GetArmorStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusArmorTag();
-}
-
-FGameplayTag URightStatusWidget::GetRecoveryStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusRecoveryTag();
-}
-
-FGameplayTag URightStatusWidget::GetMaxShieldStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusMaxShieldTag();
-}
-
-FGameplayTag URightStatusWidget::GetFrostbiteStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusFrostbiteTag();
-}
-
-FGameplayTag URightStatusWidget::GetBurnStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusBurnTag();
-}
-
-FGameplayTag URightStatusWidget::GetElectricShockStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusElectricShockTag();
-}
-
-FGameplayTag URightStatusWidget::GetFirstPandoraStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusFirstPandoraTag();
-}
-
-FGameplayTag URightStatusWidget::GetSecondPandoraStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusSecondPandoraTag();
-}
-
-FGameplayTag URightStatusWidget::GetThirdPandoraStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusThirdPandoraTag();
-}
-
-FGameplayTag URightStatusWidget::GetMaxHealthStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusMaxHealthTag();
-}
-
-FGameplayTag URightStatusWidget::GetMaxManaStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusMaxManaTag();
-}
-
-FGameplayTag URightStatusWidget::GetMaxStaminaStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusMaxStaminaTag();
-}
-
-FGameplayTag URightStatusWidget::GetAttackSpeedStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusAttackSpeedTag();
-}
-
-FGameplayTag URightStatusWidget::GetMovementSpeedStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusMovementSpeedTag();
-}
-
-FGameplayTag URightStatusWidget::GetCriticalStatTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetStatusCriticalTag();
-}

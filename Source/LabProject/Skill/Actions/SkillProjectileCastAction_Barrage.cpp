@@ -239,7 +239,7 @@ void USkillProjectileCastAction::FireNextSocketBarrageProjectile()
        ClearSocketBarrageState(false);
        if (bShouldEndAbility)
        {
-          FinishCast();
+          Finish();
        }
        return;
     }
@@ -260,7 +260,7 @@ void USkillProjectileCastAction::FireNextSocketBarrageProjectile()
        ClearSocketBarrageState(false);
        if (bShouldEndAbility)
        {
-          FinishCast();
+          Finish();
        }
        return;
     }

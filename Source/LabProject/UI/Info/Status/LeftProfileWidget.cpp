@@ -318,7 +318,7 @@ void ULeftProfileWidget::BindSteamAchievementStateChanged()
 	SteamAchievementStateChangedHandle =
 		AchievementSubsystem->OnSteamAchievementStateChanged().AddUObject(
 			this,
-			&ThisClass::HandleSteamAchievementStateChanged);
+			&ThisClass::RefreshAchievementButtons);
 	AchievementSubsystem->RequestSteamAchievementQuery();
 }
 
@@ -334,11 +334,6 @@ void ULeftProfileWidget::UnbindSteamAchievementStateChanged()
 			SteamAchievementStateChangedHandle);
 	}
 	SteamAchievementStateChangedHandle.Reset();
-}
-
-void ULeftProfileWidget::HandleSteamAchievementStateChanged()
-{
-	RefreshAchievementButtons();
 }
 
 void ULeftProfileWidget::BindAchievementButtons()

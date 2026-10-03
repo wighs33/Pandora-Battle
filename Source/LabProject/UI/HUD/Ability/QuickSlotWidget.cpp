@@ -111,7 +111,7 @@ void UQuickSlotWidget::BindInventoryChangedEvent()
 {
 	if (UInventoryComponent* InventoryComponent = BoundInventoryComponent.Get())
 	{
-		InventoryComponent->OnInventoryChanged.AddUObject(this, &ThisClass::HandleInventoryChanged);
+		InventoryComponent->OnInventoryChanged.AddUObject(this, &ThisClass::RefreshQuickSlotIconPreload);
 	}
 
 	if (USkinEquipmentComponent* SkinEquipmentComponent = BoundSkinEquipmentComponent.Get())
@@ -134,11 +134,6 @@ void UQuickSlotWidget::UnbindInventoryChangedEvent()
 
 	BoundInventoryComponent.Reset();
 	BoundSkinEquipmentComponent.Reset();
-}
-
-void UQuickSlotWidget::HandleInventoryChanged()
-{
-	RefreshQuickSlotIconPreload();
 }
 
 void UQuickSlotWidget::RefreshQuickSlotIconPreload()

@@ -623,11 +623,6 @@ bool UPandoraWidget::CanShowEquipHint() const
 		&& PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition) >= 1;
 }
 
-bool UPandoraWidget::CanAutoEquipPandora() const
-{
-	return CanShowEquipHint();
-}
-
 bool UPandoraWidget::IsPandoraEquipped() const
 {
 	EEnum_Direction EquippedDirection = EEnum_Direction::Center;
@@ -681,7 +676,7 @@ bool UPandoraWidget::RequestAutoEquipPandora()
 		return false;
 	}
 
-	if (!CanAutoEquipPandora())
+	if (!CanShowEquipHint())
 	{
 		const int32 CurrentLevel = PandoraTreeComponent && PandoraDefinition
 			? PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition.Get())

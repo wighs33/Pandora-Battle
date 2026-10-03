@@ -97,7 +97,7 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 			if (UUiSubsystem* UiSubsystem =
 				LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr)
 			{
-				UiSubsystem->EnsureConfiguredWidgetContentPreload();
+				UiSubsystem->BeginConfiguredWidgetDefinitionPreload();
 				TSharedPtr<FContentLease>& ContentLease =
 					LobbyContentLeases.FindOrAdd(UiSubsystem);
 				if (ContentLease.IsValid()
@@ -245,11 +245,6 @@ void ULobbyRuntimeSubsystem::BeginGameEntryContentPreload()
 		SetGameEntryContentPreloadResult(
 			ELobbyContentPreloadResult::Failed);
 	}
-}
-
-void ULobbyRuntimeSubsystem::CancelGameEntryContentPreload()
-{
-	ReleaseGameEntryContentPreload();
 }
 
 void ULobbyRuntimeSubsystem::GetGameEntryPrimaryAssetIds(

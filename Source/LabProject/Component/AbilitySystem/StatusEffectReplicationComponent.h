@@ -130,9 +130,6 @@ public:
 	}
 
 private:
-	void HandleReplicatedStackAddedOrChanged(
-		const FReplicatedStatusEffectStackEntry& Entry);
-	void HandleReplicatedStackRemoved(FGameplayTag DebuffTag);
 	void RefreshReplicatedStackFromAbilitySystem(FGameplayTag DebuffTag);
 	void UpdateStatusEffectDecay(FGameplayTag DebuffTag);
 

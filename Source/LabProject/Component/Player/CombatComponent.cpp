@@ -67,7 +67,7 @@ void UCombatComponent::BeginPlay()
 void UCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	bEndingPlay = true;
-	StopAutomaticFire();
+	StopPrimaryAttack();
 	StopUnarmedAttackTrace();
 	ReleaseUnarmedAttackMontagePreload();
 	AbilitySystemSubscription.Reset();
@@ -180,7 +180,7 @@ void UCombatComponent::StartPrimaryAttack()
 		{
 			BlockingAbilitySystemComponent->LocalInputConfirm();
 		}
-		StopAutomaticFire();
+		StopPrimaryAttack();
 		return;
 	}
 
@@ -188,11 +188,6 @@ void UCombatComponent::StartPrimaryAttack()
 	LastPrimaryAttackRequestTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	ProcessAttackInput();
 	TryStartAutomaticFire();
-}
-
-void UCombatComponent::StopPrimaryAttack()
-{
-	StopAutomaticFire();
 }
 
 void UCombatComponent::StartAim()
@@ -257,7 +252,7 @@ void UCombatComponent::StopAim()
 	}
 }
 
-void UCombatComponent::StopAutomaticFire()
+void UCombatComponent::StopPrimaryAttack()
 {
 	bPrimaryAttackHeld = false;
 	if (UWorld* World = GetWorld())
@@ -322,26 +317,6 @@ UAbilitySystemComponent* UCombatComponent::GetPlayerAbilitySystemComponent() con
 {
 	APdPlayer* PlayerCharacter = GetPlayerOwner();
 	return PlayerCharacter ? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(PlayerCharacter) : nullptr;
-}
-
-FGameplayTag UCombatComponent::GetAttackAbilityTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetCombatAttackAbilityTag();
-}
-
-FGameplayTag UCombatComponent::GetPunchAbilityTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetCombatPunchAbilityTag();
-}
-
-FGameplayTag UCombatComponent::GetRangedAttackAbilityTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetCombatRangedAttackAbilityTag();
-}
-
-FGameplayTag UCombatComponent::GetWeaponDamageSourceTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetCombatWeaponDamageSourceTag();
 }
 
 UAttackAbility* UCombatComponent::ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent,
@@ -437,10 +412,10 @@ FGameplayTag UCombatComponent::GetSelectedAttackAbilityTag(const AWeaponBase* We
 {
 	if (ShouldUseRangedAttackAbility(WeaponActor))
 	{
-		return GetRangedAttackAbilityTag();
+		return UProjectTagDefinition::Get(this)->GetCombatRangedAttackAbilityTag();
 	}
 
-	return WeaponActor ? GetAttackAbilityTag() : GetPunchAbilityTag();
+	return WeaponActor ? UProjectTagDefinition::Get(this)->GetCombatAttackAbilityTag() : UProjectTagDefinition::Get(this)->GetCombatPunchAbilityTag();
 }
 
 void UCombatComponent::RequestNextAttackSection(UAttackAbility* ActiveAttackAbility)
@@ -485,7 +460,7 @@ bool UCombatComponent::TryStartAutomaticFire()
 {
 	if (bEndingPlay || !bPrimaryAttackHeld || IsPrimaryAttackBlockedByAbilityTags())
 	{
-		StopAutomaticFire();
+		StopPrimaryAttack();
 		return false;
 	}
 	AWeaponBase* Weapon = GetCurrentWeaponActor();
@@ -493,7 +468,7 @@ bool UCombatComponent::TryStartAutomaticFire()
 	const float Interval = Weapon ? Weapon->GetAutomaticFireInterval() : 0.0f;
 	if (!World || !Weapon || !Weapon->SupportsAutomaticFire() || !FMath::IsFinite(Interval) || Interval <= 0.0f)
 	{
-		StopAutomaticFire();
+		StopPrimaryAttack();
 		return false;
 	}
 	const double Elapsed = World->GetTimeSeconds() - LastPrimaryAttackRequestTime;
@@ -507,7 +482,7 @@ void UCombatComponent::HandleAutomaticFireTick()
 	AWeaponBase* Weapon = GetCurrentWeaponActor();
 	if (!bPrimaryAttackHeld || bEndingPlay || IsPrimaryAttackBlockedByAbilityTags() || !Weapon || !Weapon->SupportsAutomaticFire())
 	{
-		StopAutomaticFire();
+		StopPrimaryAttack();
 		return;
 	}
 	LastPrimaryAttackRequestTime = GetWorld()->GetTimeSeconds();
@@ -613,7 +588,7 @@ float UCombatComponent::GetWeaponDamageSourceMagnitude() const
 	const ACharacterBase* CharacterOwner = GetCharacter();
 
 	const UEquipmentComponent* EquipmentComponent = CharacterOwner ? CharacterOwner->GetEquipmentComponent() : nullptr;
-	const FGameplayTag WeaponDamageSourceTag = GetWeaponDamageSourceTag();
+	const FGameplayTag WeaponDamageSourceTag = UProjectTagDefinition::Get(this)->GetCombatWeaponDamageSourceTag();
 	return EquipmentComponent && WeaponDamageSourceTag.IsValid()
 		? FMath::Max(
 			0.0f,

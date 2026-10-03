@@ -223,7 +223,7 @@ const UProjectTagDefinition* UProjectTagDefinition::GetDefaultDefinition()
 
 const FPrimaryAssetType& UProjectTagDefinition::GetDefinitionPrimaryAssetType()
 {
-	static const FPrimaryAssetType AssetType(TEXT("ProjectTagConfig"));
+	static const FPrimaryAssetType AssetType(TEXT("ProjectTagDefinition"));
 	return AssetType;
 }
 

@@ -32,7 +32,6 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
-	void HandleInventoryChanged();
 	UFUNCTION()
 	void HandleSkinEquipmentChanged();
 	void RebuildQuickSlotBar();

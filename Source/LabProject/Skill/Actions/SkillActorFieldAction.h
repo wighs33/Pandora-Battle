@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Skill/Actions/SkillAction.h"
 #include "AbilitySystem/Ability/SkillAbility.h"
-#include "Definition/AbilitySystem/SkillStaticSettings.h"
+#include "Definition/AbilitySystem/SkillActorFieldSettings.h"
 #include "TimerManager.h"
 #include "UObject/ObjectKey.h"
 #include "SkillActorFieldAction.generated.h"
@@ -34,21 +34,21 @@ protected:
 
 private:
     UFUNCTION()
-    void HandleStaticMontageTriggerEvent(FGameplayEventData Payload);
+    void HandleFieldMontageTriggerEvent(FGameplayEventData Payload);
 
     UFUNCTION()
-    void HandleStaticMontageFinished();
+    void HandleFieldMontageFinished();
 
     UFUNCTION()
-    void HandleStaticMontageInterrupted();
-    void SpawnNextStaticActor();
+    void HandleFieldMontageInterrupted();
+    void SpawnNextFieldActor();
 
     UFUNCTION()
-    void HandleRepeatedStaticSpawnSequence();
-    void HandleStaticTriggerDamageTick();
+    void HandleRepeatedFieldSpawnSequence();
+    void HandleFieldTriggerDamageTick();
 
     UFUNCTION()
-    void HandleStaticTriggerBeginOverlap(
+    void HandleFieldTriggerBeginOverlap(
         UPrimitiveComponent* OverlappedComponent,
         AActor* OtherActor,
         UPrimitiveComponent* OtherComp,
@@ -57,98 +57,98 @@ private:
         const FHitResult& SweepResult);
 
     UFUNCTION()
-    void HandleStaticTriggerEndOverlap(
+    void HandleFieldTriggerEndOverlap(
         UPrimitiveComponent* OverlappedComponent,
         AActor* OtherActor,
         UPrimitiveComponent* OtherComp,
         int32 OtherBodyIndex);
 
     UFUNCTION()
-    void HandleStaticDurationFinished();
+    void HandleFieldDurationFinished();
 
     // Internal Helpers ------------------------------------------------------------------------------------------------
-    UAnimMontage* GetResolvedStaticMontage() const;
-    FGameplayTag GetResolvedStaticTriggerEventTag() const;
-    bool StartStaticMontageTask();
-    void StartWaitStaticMontageTriggerTask();
-    void TryCommitAndStartStatic();
+    UAnimMontage* GetResolvedFieldMontage() const;
+    FGameplayTag GetResolvedFieldTriggerEventTag() const;
+    bool StartFieldMontageTask();
+    void StartWaitFieldMontageTriggerTask();
+    void TryCommitAndStartField();
 
-    void StartStaticDurationMovementLockIfAllowed();
-    bool ShouldSkipStaticDurationMovementLock() const;
-    void ApplyStaticMovementSpeedIncrease();
-    void RemoveStaticMovementSpeedIncrease();
+    void StartFieldDurationMovementLockIfAllowed();
+    bool ShouldSkipFieldDurationMovementLock() const;
+    void ApplyFieldMovementSpeedIncrease();
+    void RemoveFieldMovementSpeedIncrease();
 
-    TArray<FName> GetConfiguredStaticSocketNames() const;
-    void StartStaticSpawnSequence();
-    void StartStaticRepeatTimer();
-    void FinishStaticSpawnSequence();
-    AActor* SpawnStaticActorForSocket(FName SocketName);
+    TArray<FName> GetConfiguredFieldSocketNames() const;
+    void StartFieldSpawnSequence();
+    void StartFieldRepeatTimer();
+    void FinishFieldSpawnSequence();
+    AActor* SpawnFieldActorForSocket(FName SocketName);
 
-    void DestroyStaticActorWhenReplicationIsSafe(
+    void DestroyFieldActorWhenReplicationIsSafe(
         AActor* SpawnedActor,
-        const FSkillStaticSettings& StaticSettings) const;
+        const FSkillActorFieldSettings& FieldSettings) const;
 
-    FTransform ResolveStaticSpawnTransform(FName SocketName) const;
-    USkeletalMeshComponent* ResolveStaticSpawnSocketMesh(FName SocketName) const;
-    bool AttachSpawnedStaticActorToSocket(AActor* SpawnedActor, FName SocketName) const;
-    bool ShouldRepeatStaticSpawnSequence() const;
+    FTransform ResolveFieldSpawnTransform(FName SocketName) const;
+    USkeletalMeshComponent* ResolveFieldSpawnSocketMesh(FName SocketName) const;
+    bool AttachSpawnedFieldActorToSocket(AActor* SpawnedActor, FName SocketName) const;
+    bool ShouldRepeatFieldSpawnSequence() const;
 
-    UPrimitiveComponent* FindStaticTriggerComponent(AActor* SpawnedActor) const;
-    void BindStaticTriggerDamage(AActor* SpawnedActor);
-    void UnbindStaticTriggerDamage();
-    void StartStaticTriggerDamageTickIfNeeded();
+    UPrimitiveComponent* FindFieldTriggerComponent(AActor* SpawnedActor) const;
+    void BindFieldTriggerDamage(AActor* SpawnedActor);
+    void UnbindFieldTriggerDamage();
+    void StartFieldTriggerDamageTickIfNeeded();
 
-    void ApplyStaticTriggerDamageToExistingOverlaps(
+    void ApplyFieldTriggerDamageToExistingOverlaps(
         AActor* DamageSourceActor,
         UPrimitiveComponent* TriggerComponent,
         bool bApplyDamage);
 
-    void ApplyStaticTriggerDamage(
+    void ApplyFieldTriggerDamage(
         AActor* DamageSourceActor,
         AActor* HitActor,
         bool bAllowRepeatedDamage = false);
 
-    FGameplayEffectSpecHandle MakeStaticTriggerDamageSpec(
+    FGameplayEffectSpecHandle MakeFieldTriggerDamageSpec(
         AActor* DamageSourceActor,
         float DamageMagnitude) const;
 
-    float CalculateStaticTriggerDamageMagnitude() const;
-    void TrackStaticTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor);
-    void UntrackStaticTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor);
+    float CalculateFieldTriggerDamageMagnitude() const;
+    void TrackFieldTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor);
+    void UntrackFieldTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor);
 
     void ScheduleCompletion();
-    void CleanupStaticTasks();
+    void CleanupFieldTasks();
 
 public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
-    FSkillStaticSettings Settings;
+    FSkillActorFieldSettings Settings;
 
 private:
     UPROPERTY(Transient)
-    TObjectPtr<UAbilityTask_PlayMontageAndWait> StaticMontageTask;
+    TObjectPtr<UAbilityTask_PlayMontageAndWait> FieldMontageTask;
 
     UPROPERTY(Transient)
-    TObjectPtr<UAbilityTask_WaitGameplayEvent> WaitStaticMontageTriggerTask;
+    TObjectPtr<UAbilityTask_WaitGameplayEvent> WaitFieldMontageTriggerTask;
 
     UPROPERTY(Transient)
-    TArray<TObjectPtr<AActor>> SpawnedStaticActors;
+    TArray<TObjectPtr<AActor>> SpawnedFieldActors;
 
-    TArray<FName> PendingStaticSocketNames;
+    TArray<FName> PendingFieldSocketNames;
 
-    FTimerHandle StaticSpawnTimerHandle;
-    FTimerHandle StaticRepeatSpawnTimerHandle;
-    FTimerHandle StaticEndTimerHandle;
+    FTimerHandle FieldSpawnTimerHandle;
+    FTimerHandle FieldRepeatSpawnTimerHandle;
+    FTimerHandle FieldEndTimerHandle;
 
-    int32 NextStaticSocketIndex = 0;
-    bool bStaticStarted = false;
+    int32 NextFieldSocketIndex = 0;
+    bool bFieldStarted = false;
 
     UPROPERTY(Transient)
-    TArray<TObjectPtr<UPrimitiveComponent>> StaticTriggerComponents;
+    TArray<TObjectPtr<UPrimitiveComponent>> FieldTriggerComponents;
 
-    FTimerHandle StaticTriggerDamageTickTimerHandle;
-    TMap<FObjectKey, TSet<FObjectKey>> DamagedStaticTriggerActorsBySource;
-    TMap<FObjectKey, TWeakObjectPtr<AActor>> StaticDamageSourceActorsByKey;
-    TMap<FObjectKey, TArray<TWeakObjectPtr<AActor>>> StaticOverlappingActorsBySource;
+    FTimerHandle FieldTriggerDamageTickTimerHandle;
+    TMap<FObjectKey, TSet<FObjectKey>> DamagedFieldTriggerActorsBySource;
+    TMap<FObjectKey, TWeakObjectPtr<AActor>> FieldDamageSourceActorsByKey;
+    TMap<FObjectKey, TArray<TWeakObjectPtr<AActor>>> FieldOverlappingActorsBySource;
 
     FActiveGameplayEffectHandle MovementSpeedEffectHandle;
 };

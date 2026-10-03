@@ -32,7 +32,6 @@ public:
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandlePostLoadMapWithWorld(UWorld* LoadedWorld);
 	void HandleDefaultMasterVolumePreloadComplete(uint64 RequestGeneration);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------

@@ -415,8 +415,8 @@ void UInfoWidget::SelectProfileTab()
 	SelectInfoCenterPage(
 		WB_LeftProfile,
 		WB_RightStatus,
-		GetProfileLeftUiTag(),
-		GetProfileRightUiTag());
+		UProjectTagDefinition::Get(this)->GetUiProfileLeftTag(),
+		UProjectTagDefinition::Get(this)->GetUiStatusRightTag());
 }
 
 void UInfoWidget::SelectItemTab()
@@ -434,8 +434,8 @@ void UInfoWidget::SelectItemTab()
 	SelectInfoCenterPage(
 		WB_LeftEquipment,
 		WB_RightInventory,
-		GetItemLeftUiTag(),
-		GetItemRightUiTag());
+		UProjectTagDefinition::Get(this)->GetUiEquipmentLeftTag(),
+		UProjectTagDefinition::Get(this)->GetUiInventoryRightTag());
 }
 
 void UInfoWidget::SelectSkinTab()
@@ -453,8 +453,8 @@ void UInfoWidget::SelectSkinTab()
 	SelectInfoCenterPage(
 		WB_LeftSkin,
 		WB_RightSkin,
-		GetSkinLeftUiTag(),
-		GetSkinRightUiTag());
+		UProjectTagDefinition::Get(this)->GetUiSkinEquipmentLeftTag(),
+		UProjectTagDefinition::Get(this)->GetUiSkinInventoryRightTag());
 }
 
 void UInfoWidget::SelectPandoraTab()
@@ -472,8 +472,8 @@ void UInfoWidget::SelectPandoraTab()
 	SelectInfoCenterPage(
 		WB_LeftPandora,
 		WB_RightPandora,
-		GetPandoraLeftUiTag(),
-		GetPandoraRightUiTag());
+		UProjectTagDefinition::Get(this)->GetUiPandoraEquipmentLeftTag(),
+		UProjectTagDefinition::Get(this)->GetUiPandoraInventoryRightTag());
 }
 
 void UInfoWidget::SelectMapTab()
@@ -822,7 +822,7 @@ void UInfoWidget::PlaySidePanelsSlideOutAnimation()
 void UInfoWidget::SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag)
 {
 	HideDetailWidgets();
-	if (LeftUiTag != GetSkinLeftUiTag() && RightUiTag != GetSkinRightUiTag())
+	if (LeftUiTag != UProjectTagDefinition::Get(this)->GetUiSkinEquipmentLeftTag() && RightUiTag != UProjectTagDefinition::Get(this)->GetUiSkinInventoryRightTag())
 	{
 		HideSkinPaintCanvasGroup();
 	}
@@ -988,42 +988,3 @@ bool UInfoWidget::IsScreenPositionInsideCharacterDropPanel(const FVector2D& Scre
 		LocalPosition.Y <= LocalSize.Y;
 }
 
-FGameplayTag UInfoWidget::GetProfileLeftUiTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetUiProfileLeftTag();
-}
-
-FGameplayTag UInfoWidget::GetProfileRightUiTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetUiStatusRightTag();
-}
-
-FGameplayTag UInfoWidget::GetItemLeftUiTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetUiEquipmentLeftTag();
-}
-
-FGameplayTag UInfoWidget::GetItemRightUiTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetUiInventoryRightTag();
-}
-
-FGameplayTag UInfoWidget::GetSkinLeftUiTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetUiSkinEquipmentLeftTag();
-}
-
-FGameplayTag UInfoWidget::GetSkinRightUiTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetUiSkinInventoryRightTag();
-}
-
-FGameplayTag UInfoWidget::GetPandoraLeftUiTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetUiPandoraEquipmentLeftTag();
-}
-
-FGameplayTag UInfoWidget::GetPandoraRightUiTag() const
-{
-	return UProjectTagDefinition::Get(this)->GetUiPandoraInventoryRightTag();
-}

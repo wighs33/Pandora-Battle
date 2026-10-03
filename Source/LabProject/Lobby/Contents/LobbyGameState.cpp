@@ -228,7 +228,7 @@ void ALobbyGameState::RefreshGameEntryContentPreload() const
 	}
 	else
 	{
-		LobbyRuntimeSubsystem->CancelGameEntryContentPreload();
+		LobbyRuntimeSubsystem->ReleaseGameEntryContentPreload();
 	}
 }
 

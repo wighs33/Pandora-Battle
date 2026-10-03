@@ -34,7 +34,7 @@ void UAudioSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		PostLoadMapWithWorldHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
 			this,
-			&ThisClass::HandlePostLoadMapWithWorld);
+			&ThisClass::ApplyMasterVolumeToAudioDevice);
 	}
 }
 
@@ -145,11 +145,6 @@ void UAudioSettingsSubsystem::SaveMasterVolumeSettings()
 	{
 		bMasterVolumeSettingsDirty = false;
 	}
-}
-
-void UAudioSettingsSubsystem::HandlePostLoadMapWithWorld(UWorld* LoadedWorld)
-{
-	ApplyMasterVolumeToAudioDevice(LoadedWorld);
 }
 
 void UAudioSettingsSubsystem::LoadMasterVolumeSettings()

@@ -29,22 +29,22 @@
 
 namespace
 {
-bool HasConfiguredStaticTriggerDamage(const USkillDefinition* SkillDataAsset)
+bool HasConfiguredFieldTriggerDamage(const USkillDefinition* SkillDataAsset)
     {
        return SkillDataAsset && SkillDataAsset->GetResolvedDamageConfig().GameplayEffectClass != nullptr;
     }
 
-    bool ShouldRepeatStaticTriggerDamage(const USkillDefinition* SkillDataAsset)
+    bool ShouldRepeatFieldTriggerDamage(const USkillDefinition* SkillDataAsset)
     {
        return SkillDataAsset && SkillDataAsset->Damage.bRepeatTriggerDamageWhileOverlapping;
     }
 
-    double GetStaticTriggerDamageInterval(const USkillDefinition* SkillDataAsset)
+    double GetFieldTriggerDamageInterval(const USkillDefinition* SkillDataAsset)
     {
        return SkillDataAsset ? SkillDataAsset->Damage.TriggerDamageInterval : 0.0;
     }
 
-    bool IsStaticSourceActorTarget(AActor* SourceActor, AActor* DamageSourceActor, AActor* HitActor)
+    bool IsFieldSourceActorTarget(AActor* SourceActor, AActor* DamageSourceActor, AActor* HitActor)
     {
        if (!IsValid(HitActor))
        {
@@ -88,23 +88,23 @@ void USkillActorFieldAction::OnStart()
 {
     const FGameplayAbilityActorInfo* ActorInfo = GetAbility()->GetCurrentActorInfo();
 
-    CleanupStaticTasks();
-    SpawnedStaticActors.Reset();
-    StaticTriggerComponents.Reset();
-    PendingStaticSocketNames.Reset();
-    DamagedStaticTriggerActorsBySource.Reset();
-    StaticDamageSourceActorsByKey.Reset();
-    StaticOverlappingActorsBySource.Reset();
-    NextStaticSocketIndex = 0;
-    bStaticStarted = false;
+    CleanupFieldTasks();
+    SpawnedFieldActors.Reset();
+    FieldTriggerComponents.Reset();
+    PendingFieldSocketNames.Reset();
+    DamagedFieldTriggerActorsBySource.Reset();
+    FieldDamageSourceActorsByKey.Reset();
+    FieldOverlappingActorsBySource.Reset();
+    NextFieldSocketIndex = 0;
+    bFieldStarted = false;
     MovementSpeedEffectHandle.Invalidate();
 
     if (UWorld* World = GetWorld())
     {
-       World->GetTimerManager().ClearTimer(StaticSpawnTimerHandle);
-       World->GetTimerManager().ClearTimer(StaticRepeatSpawnTimerHandle);
-       World->GetTimerManager().ClearTimer(StaticEndTimerHandle);
-       World->GetTimerManager().ClearTimer(StaticTriggerDamageTickTimerHandle);
+       World->GetTimerManager().ClearTimer(FieldSpawnTimerHandle);
+       World->GetTimerManager().ClearTimer(FieldRepeatSpawnTimerHandle);
+       World->GetTimerManager().ClearTimer(FieldEndTimerHandle);
+       World->GetTimerManager().ClearTimer(FieldTriggerDamageTickTimerHandle);
     }
 
     const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
@@ -114,35 +114,35 @@ void USkillActorFieldAction::OnStart()
        return;
     }
 
-    if (!Settings.StaticActorClass)
+    if (!Settings.FieldActorClass)
     {
        Finish(false);
        return;
     }
 
-    StartStaticDurationMovementLockIfAllowed();
-    StartWaitStaticMontageTriggerTask();
+    StartFieldDurationMovementLockIfAllowed();
+    StartWaitFieldMontageTriggerTask();
 
-    if (!GetResolvedStaticMontage())
+    if (!GetResolvedFieldMontage())
     {
-       TryCommitAndStartStatic();
+       TryCommitAndStartField();
        return;
     }
 
-    if (!StartStaticMontageTask())
+    if (!StartFieldMontageTask())
     {
-       TryCommitAndStartStatic();
+       TryCommitAndStartField();
        return;
     }
 }
 
 void USkillActorFieldAction::OnStop()
 {
-    CleanupStaticTasks();
-    RemoveStaticMovementSpeedIncrease();
+    CleanupFieldTasks();
+    RemoveFieldMovementSpeedIncrease();
 
     TSet<AActor*> ActorsWithBoundDamageTriggers;
-    for (const UPrimitiveComponent* TriggerComponent : StaticTriggerComponents)
+    for (const UPrimitiveComponent* TriggerComponent : FieldTriggerComponents)
     {
        if (TriggerComponent && TriggerComponent->GetOwner())
        {
@@ -150,25 +150,25 @@ void USkillActorFieldAction::OnStop()
        }
     }
 
-    UnbindStaticTriggerDamage();
+    UnbindFieldTriggerDamage();
 
     if (UWorld* World = GetWorld())
     {
-       World->GetTimerManager().ClearTimer(StaticSpawnTimerHandle);
-       World->GetTimerManager().ClearTimer(StaticRepeatSpawnTimerHandle);
-       World->GetTimerManager().ClearTimer(StaticEndTimerHandle);
-       World->GetTimerManager().ClearTimer(StaticTriggerDamageTickTimerHandle);
+       World->GetTimerManager().ClearTimer(FieldSpawnTimerHandle);
+       World->GetTimerManager().ClearTimer(FieldRepeatSpawnTimerHandle);
+       World->GetTimerManager().ClearTimer(FieldEndTimerHandle);
+       World->GetTimerManager().ClearTimer(FieldTriggerDamageTickTimerHandle);
     }
-    StaticSpawnTimerHandle.Invalidate();
-    StaticRepeatSpawnTimerHandle.Invalidate();
-    StaticEndTimerHandle.Invalidate();
-    StaticTriggerDamageTickTimerHandle.Invalidate();
+    FieldSpawnTimerHandle.Invalidate();
+    FieldRepeatSpawnTimerHandle.Invalidate();
+    FieldEndTimerHandle.Invalidate();
+    FieldTriggerDamageTickTimerHandle.Invalidate();
 
     const bool bDestroySpawnedActorsOnAbilityEnd =
        GetAbility()->HasDurationDeadline() || Settings.bDestroySpawnedActorsOnAbilityEnd;
-    if (bDestroySpawnedActorsOnAbilityEnd || !SpawnedStaticActors.IsEmpty())
+    if (bDestroySpawnedActorsOnAbilityEnd || !SpawnedFieldActors.IsEmpty())
     {
-       for (AActor* SpawnedActor : SpawnedStaticActors)
+       for (AActor* SpawnedActor : SpawnedFieldActors)
        {
           const bool bForceDestroyForSourceBuffActor = SpawnedActor && SpawnedActor->IsA<ASkillPowerUpActor>();
           const bool bForceDestroyForBoundDamageTrigger =
@@ -182,28 +182,28 @@ void USkillActorFieldAction::OnStop()
                 || bForceDestroyForSourceBuffActor
                 || (bForceDestroyForBoundDamageTrigger && !bExpiresThroughConfiguredLifeSpan)))
           {
-             DestroyStaticActorWhenReplicationIsSafe(SpawnedActor, Settings);
+             DestroyFieldActorWhenReplicationIsSafe(SpawnedActor, Settings);
           }
        }
     }
 
-    SpawnedStaticActors.Reset();
-    StaticTriggerComponents.Reset();
-    PendingStaticSocketNames.Reset();
-    DamagedStaticTriggerActorsBySource.Reset();
-    StaticDamageSourceActorsByKey.Reset();
-    StaticOverlappingActorsBySource.Reset();
-    NextStaticSocketIndex = 0;
-    bStaticStarted = false;
+    SpawnedFieldActors.Reset();
+    FieldTriggerComponents.Reset();
+    PendingFieldSocketNames.Reset();
+    DamagedFieldTriggerActorsBySource.Reset();
+    FieldDamageSourceActorsByKey.Reset();
+    FieldOverlappingActorsBySource.Reset();
+    NextFieldSocketIndex = 0;
+    bFieldStarted = false;
 }
 
-UAnimMontage* USkillActorFieldAction::GetResolvedStaticMontage() const
+UAnimMontage* USkillActorFieldAction::GetResolvedFieldMontage() const
 {
     const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
     return SkillDataAsset ? SkillDataAsset->Animation.PrimaryMontage.Get() : nullptr;
 }
 
-FGameplayTag USkillActorFieldAction::GetResolvedStaticTriggerEventTag() const
+FGameplayTag USkillActorFieldAction::GetResolvedFieldTriggerEventTag() const
 {
     const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
     return SkillDataAsset && SkillDataAsset->Animation.PrimaryEventTag.IsValid()
@@ -211,59 +211,59 @@ FGameplayTag USkillActorFieldAction::GetResolvedStaticTriggerEventTag() const
        : LabGameplayTags::Event_Montage_Trigger;
 }
 
-bool USkillActorFieldAction::StartStaticMontageTask()
+bool USkillActorFieldAction::StartFieldMontageTask()
 {
-    UAnimMontage* MontageToPlay = GetResolvedStaticMontage();
+    UAnimMontage* MontageToPlay = GetResolvedFieldMontage();
     if (!MontageToPlay)
     {
        return false;
     }
 
-    StaticMontageTask = GetAbility()->CreateDefaultMontageAndWaitTask(MontageToPlay);
-    if (!StaticMontageTask)
+    FieldMontageTask = GetAbility()->CreateDefaultMontageAndWaitTask(MontageToPlay);
+    if (!FieldMontageTask)
     {
        return false;
     }
 
-    StaticMontageTask->OnCompleted.AddDynamic(this, &ThisClass::HandleStaticMontageFinished);
-    StaticMontageTask->OnBlendOut.AddDynamic(this, &ThisClass::HandleStaticMontageFinished);
-    StaticMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::HandleStaticMontageInterrupted);
-    StaticMontageTask->OnCancelled.AddDynamic(this, &ThisClass::HandleStaticMontageInterrupted);
-    StaticMontageTask->ReadyForActivation();
+    FieldMontageTask->OnCompleted.AddDynamic(this, &ThisClass::HandleFieldMontageFinished);
+    FieldMontageTask->OnBlendOut.AddDynamic(this, &ThisClass::HandleFieldMontageFinished);
+    FieldMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::HandleFieldMontageInterrupted);
+    FieldMontageTask->OnCancelled.AddDynamic(this, &ThisClass::HandleFieldMontageInterrupted);
+    FieldMontageTask->ReadyForActivation();
     return true;
 }
 
-void USkillActorFieldAction::StartWaitStaticMontageTriggerTask()
+void USkillActorFieldAction::StartWaitFieldMontageTriggerTask()
 {
-    const FGameplayTag TriggerTag = GetResolvedStaticTriggerEventTag();
+    const FGameplayTag TriggerTag = GetResolvedFieldTriggerEventTag();
     if (!TriggerTag.IsValid())
     {
        return;
     }
 
-    WaitStaticMontageTriggerTask = GetAbility()->CreateWaitGameplayEventTask(TriggerTag);
-    if (!WaitStaticMontageTriggerTask)
+    WaitFieldMontageTriggerTask = GetAbility()->CreateWaitGameplayEventTask(TriggerTag);
+    if (!WaitFieldMontageTriggerTask)
     {
        return;
     }
 
-    WaitStaticMontageTriggerTask->EventReceived.AddDynamic(this, &ThisClass::HandleStaticMontageTriggerEvent);
-    WaitStaticMontageTriggerTask->ReadyForActivation();
+    WaitFieldMontageTriggerTask->EventReceived.AddDynamic(this, &ThisClass::HandleFieldMontageTriggerEvent);
+    WaitFieldMontageTriggerTask->ReadyForActivation();
 }
 
-void USkillActorFieldAction::TryCommitAndStartStatic()
+void USkillActorFieldAction::TryCommitAndStartField()
 {
-    if (bStaticStarted || !(IsRunning() && GetAbility()->CanRunActions()))
+    if (bFieldStarted || !(IsRunning() && GetAbility()->CanRunActions()))
     {
        return;
     }
-    bStaticStarted = true;
+    bFieldStarted = true;
 
     AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
     if (!AvatarActor || !AvatarActor->HasAuthority())
     {
        GetAbility()->StartConfiguredDefaultFX();
-       if (!GetAbility()->HasDurationDeadline() && !StaticEndTimerHandle.IsValid() && !GetResolvedStaticMontage())
+       if (!GetAbility()->HasDurationDeadline() && !FieldEndTimerHandle.IsValid() && !GetResolvedFieldMontage())
        {
           Finish();
        }
@@ -276,18 +276,18 @@ void USkillActorFieldAction::TryCommitAndStartStatic()
        return;
     }
 
-    ApplyStaticMovementSpeedIncrease();
+    ApplyFieldMovementSpeedIncrease();
     GetAbility()->StartConfiguredDefaultFX();
     GetAbility()->SpawnConfiguredCharacterDecal();
-    StartStaticDurationMovementLockIfAllowed();
-    StartStaticSpawnSequence();
+    StartFieldDurationMovementLockIfAllowed();
+    StartFieldSpawnSequence();
     if (IsRunning())
     {
-       StartStaticRepeatTimer();
+       StartFieldRepeatTimer();
     }
 }
 
-void USkillActorFieldAction::ApplyStaticMovementSpeedIncrease()
+void USkillActorFieldAction::ApplyFieldMovementSpeedIncrease()
 {
     if (MovementSpeedEffectHandle.IsValid())
     {
@@ -341,7 +341,7 @@ void USkillActorFieldAction::ApplyStaticMovementSpeedIncrease()
        MovementSpeedSpec);
 }
 
-void USkillActorFieldAction::RemoveStaticMovementSpeedIncrease()
+void USkillActorFieldAction::RemoveFieldMovementSpeedIncrease()
 {
     if (!MovementSpeedEffectHandle.IsValid())
     {
@@ -360,9 +360,9 @@ void USkillActorFieldAction::RemoveStaticMovementSpeedIncrease()
     MovementSpeedEffectHandle.Invalidate();
 }
 
-void USkillActorFieldAction::StartStaticDurationMovementLockIfAllowed()
+void USkillActorFieldAction::StartFieldDurationMovementLockIfAllowed()
 {
-    if (ShouldSkipStaticDurationMovementLock())
+    if (ShouldSkipFieldDurationMovementLock())
     {
        return;
     }
@@ -370,13 +370,13 @@ void USkillActorFieldAction::StartStaticDurationMovementLockIfAllowed()
     GetAbility()->StartDurationMovementLock();
 }
 
-bool USkillActorFieldAction::ShouldSkipStaticDurationMovementLock() const
+bool USkillActorFieldAction::ShouldSkipFieldDurationMovementLock() const
 {
-    return Settings.StaticActorClass
-       && Settings.StaticActorClass.Get()->IsChildOf(ASkillPowerUpActor::StaticClass());
+    return Settings.FieldActorClass
+       && Settings.FieldActorClass.Get()->IsChildOf(ASkillPowerUpActor::StaticClass());
 }
 
-TArray<FName> USkillActorFieldAction::GetConfiguredStaticSocketNames() const
+TArray<FName> USkillActorFieldAction::GetConfiguredFieldSocketNames() const
 {
     TArray<FName> SocketNames;
     if (!Settings.bUseSpawnSockets)
@@ -401,23 +401,23 @@ TArray<FName> USkillActorFieldAction::GetConfiguredStaticSocketNames() const
     return SocketNames;
 }
 
-void USkillActorFieldAction::StartStaticSpawnSequence()
+void USkillActorFieldAction::StartFieldSpawnSequence()
 {
-    PendingStaticSocketNames = GetConfiguredStaticSocketNames();
-    NextStaticSocketIndex = 0;
+    PendingFieldSocketNames = GetConfiguredFieldSocketNames();
+    NextFieldSocketIndex = 0;
 
-    if (PendingStaticSocketNames.IsEmpty())
+    if (PendingFieldSocketNames.IsEmpty())
     {
        ScheduleCompletion();
        return;
     }
 
-    SpawnNextStaticActor();
+    SpawnNextFieldActor();
 }
 
-void USkillActorFieldAction::StartStaticRepeatTimer()
+void USkillActorFieldAction::StartFieldRepeatTimer()
 {
-    if (!ShouldRepeatStaticSpawnSequence())
+    if (!ShouldRepeatFieldSpawnSequence())
     {
        return;
     }
@@ -430,53 +430,53 @@ void USkillActorFieldAction::StartStaticRepeatTimer()
 
     const float RepeatInterval = static_cast<float>(FMath::Max(Settings.RepeatSpawnInterval, 0.1));
     World->GetTimerManager().SetTimer(
-       StaticRepeatSpawnTimerHandle,
+       FieldRepeatSpawnTimerHandle,
        this,
-       &ThisClass::HandleRepeatedStaticSpawnSequence,
+       &ThisClass::HandleRepeatedFieldSpawnSequence,
        RepeatInterval,
        true);
 }
 
-void USkillActorFieldAction::SpawnNextStaticActor()
+void USkillActorFieldAction::SpawnNextFieldActor()
 {
-    if (!PendingStaticSocketNames.IsValidIndex(NextStaticSocketIndex))
+    if (!PendingFieldSocketNames.IsValidIndex(NextFieldSocketIndex))
     {
-       FinishStaticSpawnSequence();
+       FinishFieldSpawnSequence();
        return;
     }
 
-    SpawnStaticActorForSocket(PendingStaticSocketNames[NextStaticSocketIndex]);
+    SpawnFieldActorForSocket(PendingFieldSocketNames[NextFieldSocketIndex]);
 
-    ++NextStaticSocketIndex;
-    if (!PendingStaticSocketNames.IsValidIndex(NextStaticSocketIndex))
+    ++NextFieldSocketIndex;
+    if (!PendingFieldSocketNames.IsValidIndex(NextFieldSocketIndex))
     {
-       FinishStaticSpawnSequence();
+       FinishFieldSpawnSequence();
        return;
     }
 
     const float SpawnInterval = static_cast<float>(FMath::Max(Settings.SpawnInterval, 0.0));
     if (SpawnInterval <= KINDA_SMALL_NUMBER)
     {
-       SpawnNextStaticActor();
+       SpawnNextFieldActor();
        return;
     }
 
     if (UWorld* World = GetWorld())
     {
        World->GetTimerManager().SetTimer(
-          StaticSpawnTimerHandle,
+          FieldSpawnTimerHandle,
           this,
-          &ThisClass::SpawnNextStaticActor,
+          &ThisClass::SpawnNextFieldActor,
           SpawnInterval,
           false);
     }
 }
 
-void USkillActorFieldAction::FinishStaticSpawnSequence()
+void USkillActorFieldAction::FinishFieldSpawnSequence()
 {
-    PendingStaticSocketNames.Reset();
-    NextStaticSocketIndex = 0;
-    if (SpawnedStaticActors.IsEmpty())
+    PendingFieldSocketNames.Reset();
+    NextFieldSocketIndex = 0;
+    if (SpawnedFieldActors.IsEmpty())
     {
        Finish(false);
        return;
@@ -484,23 +484,23 @@ void USkillActorFieldAction::FinishStaticSpawnSequence()
     ScheduleCompletion();
 }
 
-AActor* USkillActorFieldAction::SpawnStaticActorForSocket(const FName SocketName)
+AActor* USkillActorFieldAction::SpawnFieldActorForSocket(const FName SocketName)
 {
     AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
     UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
-    if (!AvatarActor || !AvatarActor->HasAuthority() || !World || !Settings.StaticActorClass)
+    if (!AvatarActor || !AvatarActor->HasAuthority() || !World || !Settings.FieldActorClass)
     {
        return nullptr;
     }
 
-    const FTransform SpawnTransform = ResolveStaticSpawnTransform(SocketName);
+    const FTransform SpawnTransform = ResolveFieldSpawnTransform(SocketName);
     FActorSpawnParameters SpawnParams;
     SpawnParams.Owner = AvatarActor;
     SpawnParams.Instigator = Cast<APawn>(AvatarActor);
     SpawnParams.SpawnCollisionHandlingOverride = Settings.SpawnCollisionHandling;
 
     AActor* SpawnedActor = World->SpawnActorDeferred<AActor>(
-       Settings.StaticActorClass,
+       Settings.FieldActorClass,
        SpawnTransform,
        SpawnParams.Owner,
        SpawnParams.Instigator,
@@ -509,7 +509,7 @@ AActor* USkillActorFieldAction::SpawnStaticActorForSocket(const FName SocketName
     if (!SpawnedActor && SpawnParams.SpawnCollisionHandlingOverride != ESpawnActorCollisionHandlingMethod::AlwaysSpawn)
     {
        SpawnedActor = World->SpawnActorDeferred<AActor>(
-          Settings.StaticActorClass,
+          Settings.FieldActorClass,
           SpawnTransform,
           SpawnParams.Owner,
           SpawnParams.Instigator,
@@ -540,7 +540,7 @@ AActor* USkillActorFieldAction::SpawnStaticActorForSocket(const FName SocketName
           FinishDamageConfig = SkillDataAsset->GetResolvedDamageConfig();
        }
 
-       BlackHoleActor->ConfigureFromStaticSettings(
+       BlackHoleActor->ConfigureFromFieldSettings(
           Settings,
           FinishDamageConfig,
           FMath::Max(GetAbility()->GetAbilityLevel(), 1),
@@ -549,7 +549,7 @@ AActor* USkillActorFieldAction::SpawnStaticActorForSocket(const FName SocketName
 
     if (ASkillPowerUpActor* PowerUpActor = Cast<ASkillPowerUpActor>(SpawnedActor))
     {
-       PowerUpActor->ConfigurePresentationSettings(Settings.AnimeAuraPresentation);
+       PowerUpActor->ConfigurePresentationSettings(Settings.PowerUpPresentation);
     }
 
     if (ASkillEffectArea* EffectArea = Cast<ASkillEffectArea>(SpawnedActor))
@@ -571,7 +571,7 @@ AActor* USkillActorFieldAction::SpawnStaticActorForSocket(const FName SocketName
        SpawnedActor->SetReplicateMovement(true);
     }
 
-    AttachSpawnedStaticActorToSocket(SpawnedActor, SocketName);
+    AttachSpawnedFieldActorToSocket(SpawnedActor, SocketName);
 
     if (bShouldReplicateSpawnedActor)
     {
@@ -593,14 +593,14 @@ AActor* USkillActorFieldAction::SpawnStaticActorForSocket(const FName SocketName
        SpawnedActor->SetLifeSpan(RequestedLifeSpan);
     }
 
-    SpawnedStaticActors.Add(SpawnedActor);
-    BindStaticTriggerDamage(SpawnedActor);
+    SpawnedFieldActors.Add(SpawnedActor);
+    BindFieldTriggerDamage(SpawnedActor);
     return SpawnedActor;
 }
 
-void USkillActorFieldAction::DestroyStaticActorWhenReplicationIsSafe(
+void USkillActorFieldAction::DestroyFieldActorWhenReplicationIsSafe(
     AActor* SpawnedActor,
-    const FSkillStaticSettings& StaticSettings) const
+    const FSkillActorFieldSettings& FieldSettings) const
 {
     if (!SpawnedActor || !SpawnedActor->HasAuthority())
     {
@@ -608,7 +608,7 @@ void USkillActorFieldAction::DestroyStaticActorWhenReplicationIsSafe(
     }
 
     const float MinimumReplicatedLifetime = SpawnedActor->GetIsReplicated()
-       ? static_cast<float>(FMath::Max(StaticSettings.MinimumReplicatedActorLifetime, 0.0))
+       ? static_cast<float>(FMath::Max(FieldSettings.MinimumReplicatedActorLifetime, 0.0))
        : 0.0f;
     const float RemainingReplicationLifetime = FMath::Max(
        MinimumReplicatedLifetime - SpawnedActor->GetGameTimeSinceCreation(),
@@ -625,7 +625,7 @@ void USkillActorFieldAction::DestroyStaticActorWhenReplicationIsSafe(
     SpawnedActor->Destroy();
 }
 
-FTransform USkillActorFieldAction::ResolveStaticSpawnTransform(const FName SocketName) const
+FTransform USkillActorFieldAction::ResolveFieldSpawnTransform(const FName SocketName) const
 {
     AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
     if (!AvatarActor)
@@ -687,7 +687,7 @@ FTransform USkillActorFieldAction::ResolveStaticSpawnTransform(const FName Socke
     return FTransform(SpawnRotation, SpawnLocation, BaseTransform.GetScale3D());
 }
 
-USkeletalMeshComponent* USkillActorFieldAction::ResolveStaticSpawnSocketMesh(const FName SocketName) const
+USkeletalMeshComponent* USkillActorFieldAction::ResolveFieldSpawnSocketMesh(const FName SocketName) const
 {
     if (SocketName.IsNone())
     {
@@ -699,7 +699,7 @@ USkeletalMeshComponent* USkillActorFieldAction::ResolveStaticSpawnSocketMesh(con
     return CharacterMesh && CharacterMesh->DoesSocketExist(SocketName) ? CharacterMesh : nullptr;
 }
 
-bool USkillActorFieldAction::AttachSpawnedStaticActorToSocket(AActor* SpawnedActor, const FName SocketName) const
+bool USkillActorFieldAction::AttachSpawnedFieldActorToSocket(AActor* SpawnedActor, const FName SocketName) const
 {
     if (!SpawnedActor
        || !Settings.bUseSpawnSockets
@@ -709,7 +709,7 @@ bool USkillActorFieldAction::AttachSpawnedStaticActorToSocket(AActor* SpawnedAct
        return false;
     }
 
-    USkeletalMeshComponent* CharacterMesh = ResolveStaticSpawnSocketMesh(SocketName);
+    USkeletalMeshComponent* CharacterMesh = ResolveFieldSpawnSocketMesh(SocketName);
     if (!CharacterMesh)
     {
        return false;
@@ -719,7 +719,7 @@ bool USkillActorFieldAction::AttachSpawnedStaticActorToSocket(AActor* SpawnedAct
     return true;
 }
 
-bool USkillActorFieldAction::ShouldRepeatStaticSpawnSequence() const
+bool USkillActorFieldAction::ShouldRepeatFieldSpawnSequence() const
 {
     return GetAbility()->GetSourceSkillDataAsset()
        && Settings.bRepeatSpawnSequence
@@ -728,7 +728,7 @@ bool USkillActorFieldAction::ShouldRepeatStaticSpawnSequence() const
        && Settings.RepeatSpawnInterval > 0.0;
 }
 
-UPrimitiveComponent* USkillActorFieldAction::FindStaticTriggerComponent(AActor* SpawnedActor) const
+UPrimitiveComponent* USkillActorFieldAction::FindFieldTriggerComponent(AActor* SpawnedActor) const
 {
     if (!SpawnedActor)
     {
@@ -784,30 +784,30 @@ UPrimitiveComponent* USkillActorFieldAction::FindStaticTriggerComponent(AActor* 
     return PrimitiveComponents[0];
 }
 
-void USkillActorFieldAction::BindStaticTriggerDamage(AActor* SpawnedActor)
+void USkillActorFieldAction::BindFieldTriggerDamage(AActor* SpawnedActor)
 {
     if (!SpawnedActor || !SpawnedActor->HasAuthority())
     {
        return;
     }
 
-    if (!HasConfiguredStaticTriggerDamage(GetAbility()->GetSourceSkillDataAsset()))
+    if (!HasConfiguredFieldTriggerDamage(GetAbility()->GetSourceSkillDataAsset()))
     {
        return;
     }
 
-    if (SpawnedActor->IsA<ASkillBlackHoleActor>() && Settings.bOmenOrbApplyFinishAreaDamage)
+    if (SpawnedActor->IsA<ASkillBlackHoleActor>() && Settings.bBlackHoleApplyFinishAreaDamage)
     {
        return;
     }
 
-    UPrimitiveComponent* TriggerComponent = FindStaticTriggerComponent(SpawnedActor);
+    UPrimitiveComponent* TriggerComponent = FindFieldTriggerComponent(SpawnedActor);
     if (!TriggerComponent)
     {
        return;
     }
 
-    // Static skill trigger volumes are gameplay-only overlap queries. Keeping them
+    // Actor field trigger volumes are gameplay-only overlap queries. Keeping them
     // as WorldDynamic lets weapon object traces hit the volume and then resolve its
     // owning character as the damage target.
     TriggerComponent->SetCollisionProfileName(TEXT("Custom"));
@@ -821,46 +821,46 @@ void USkillActorFieldAction::BindStaticTriggerDamage(AActor* SpawnedActor)
     // root trigger also hides attached particle/Niagara components.
     TriggerComponent->SetHiddenInGame(true, false);
     TriggerComponent->SetGenerateOverlapEvents(true);
-    TriggerComponent->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleStaticTriggerBeginOverlap);
-    TriggerComponent->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandleStaticTriggerEndOverlap);
-    StaticTriggerComponents.AddUnique(TriggerComponent);
+    TriggerComponent->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleFieldTriggerBeginOverlap);
+    TriggerComponent->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandleFieldTriggerEndOverlap);
+    FieldTriggerComponents.AddUnique(TriggerComponent);
     TriggerComponent->UpdateOverlaps();
 
-    ApplyStaticTriggerDamageToExistingOverlaps(
+    ApplyFieldTriggerDamageToExistingOverlaps(
        SpawnedActor,
        TriggerComponent,
        Settings.bDamageExistingOverlapsOnSpawn);
 
-    StartStaticTriggerDamageTickIfNeeded();
+    StartFieldTriggerDamageTickIfNeeded();
 }
 
-void USkillActorFieldAction::UnbindStaticTriggerDamage()
+void USkillActorFieldAction::UnbindFieldTriggerDamage()
 {
-    for (UPrimitiveComponent* TriggerComponent : StaticTriggerComponents)
+    for (UPrimitiveComponent* TriggerComponent : FieldTriggerComponents)
     {
        if (TriggerComponent)
        {
-          TriggerComponent->OnComponentBeginOverlap.RemoveDynamic(this, &ThisClass::HandleStaticTriggerBeginOverlap);
-          TriggerComponent->OnComponentEndOverlap.RemoveDynamic(this, &ThisClass::HandleStaticTriggerEndOverlap);
+          TriggerComponent->OnComponentBeginOverlap.RemoveDynamic(this, &ThisClass::HandleFieldTriggerBeginOverlap);
+          TriggerComponent->OnComponentEndOverlap.RemoveDynamic(this, &ThisClass::HandleFieldTriggerEndOverlap);
           TriggerComponent->SetGenerateOverlapEvents(false);
           TriggerComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
        }
     }
-    StaticDamageSourceActorsByKey.Reset();
-    StaticOverlappingActorsBySource.Reset();
+    FieldDamageSourceActorsByKey.Reset();
+    FieldOverlappingActorsBySource.Reset();
 }
 
-void USkillActorFieldAction::StartStaticTriggerDamageTickIfNeeded()
+void USkillActorFieldAction::StartFieldTriggerDamageTickIfNeeded()
 {
-    if (StaticTriggerDamageTickTimerHandle.IsValid())
+    if (FieldTriggerDamageTickTimerHandle.IsValid())
     {
        return;
     }
 
     const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-    const bool bRepeatDamage = ShouldRepeatStaticTriggerDamage(SkillDataAsset);
-    const double TriggerDamageInterval = GetStaticTriggerDamageInterval(SkillDataAsset);
-    if (!bRepeatDamage || !HasConfiguredStaticTriggerDamage(SkillDataAsset))
+    const bool bRepeatDamage = ShouldRepeatFieldTriggerDamage(SkillDataAsset);
+    const double TriggerDamageInterval = GetFieldTriggerDamageInterval(SkillDataAsset);
+    if (!bRepeatDamage || !HasConfiguredFieldTriggerDamage(SkillDataAsset))
     {
        return;
     }
@@ -874,38 +874,38 @@ void USkillActorFieldAction::StartStaticTriggerDamageTickIfNeeded()
     // 소환 액터와 동일하게, 0 이하의 설정도 타이머 생성 시 최소 0.05초로 보정한다.
     const float DamageInterval = static_cast<float>(FMath::Max(TriggerDamageInterval, 0.05));
     World->GetTimerManager().SetTimer(
-       StaticTriggerDamageTickTimerHandle,
+       FieldTriggerDamageTickTimerHandle,
        this,
-       &ThisClass::HandleStaticTriggerDamageTick,
+       &ThisClass::HandleFieldTriggerDamageTick,
        DamageInterval,
        true);
 }
 
-void USkillActorFieldAction::HandleStaticTriggerDamageTick()
+void USkillActorFieldAction::HandleFieldTriggerDamageTick()
 {
-    if (!ShouldRepeatStaticTriggerDamage(GetAbility()->GetSourceSkillDataAsset()))
+    if (!ShouldRepeatFieldTriggerDamage(GetAbility()->GetSourceSkillDataAsset()))
     {
        return;
     }
 
     TArray<FObjectKey> DamageSourceKeys;
-    StaticOverlappingActorsBySource.GetKeys(DamageSourceKeys);
+    FieldOverlappingActorsBySource.GetKeys(DamageSourceKeys);
 
     for (const FObjectKey& SourceKey : DamageSourceKeys)
     {
-       TWeakObjectPtr<AActor>* DamageSourcePtr = StaticDamageSourceActorsByKey.Find(SourceKey);
+       TWeakObjectPtr<AActor>* DamageSourcePtr = FieldDamageSourceActorsByKey.Find(SourceKey);
        AActor* DamageSourceActor = DamageSourcePtr ? DamageSourcePtr->Get() : nullptr;
        if (!IsValid(DamageSourceActor))
        {
-          StaticDamageSourceActorsByKey.Remove(SourceKey);
-          StaticOverlappingActorsBySource.Remove(SourceKey);
+          FieldDamageSourceActorsByKey.Remove(SourceKey);
+          FieldOverlappingActorsBySource.Remove(SourceKey);
           continue;
        }
 
-       TArray<TWeakObjectPtr<AActor>>* OverlappingActors = StaticOverlappingActorsBySource.Find(SourceKey);
+       TArray<TWeakObjectPtr<AActor>>* OverlappingActors = FieldOverlappingActorsBySource.Find(SourceKey);
        if (!OverlappingActors)
        {
-          StaticDamageSourceActorsByKey.Remove(SourceKey);
+          FieldDamageSourceActorsByKey.Remove(SourceKey);
           continue;
        }
 
@@ -925,8 +925,8 @@ void USkillActorFieldAction::HandleStaticTriggerDamageTick()
 
        if (OverlappingActors->IsEmpty())
        {
-          StaticDamageSourceActorsByKey.Remove(SourceKey);
-          StaticOverlappingActorsBySource.Remove(SourceKey);
+          FieldDamageSourceActorsByKey.Remove(SourceKey);
+          FieldOverlappingActorsBySource.Remove(SourceKey);
           continue;
        }
 
@@ -938,7 +938,7 @@ void USkillActorFieldAction::HandleStaticTriggerDamageTick()
              continue;
           }
 
-          const TArray<TWeakObjectPtr<AActor>>* CurrentOverlappingActors = StaticOverlappingActorsBySource.Find(SourceKey);
+          const TArray<TWeakObjectPtr<AActor>>* CurrentOverlappingActors = FieldOverlappingActorsBySource.Find(SourceKey);
           if (!CurrentOverlappingActors
              || !CurrentOverlappingActors->ContainsByPredicate(
                 [OverlappingActor](const TWeakObjectPtr<AActor>& ExistingActor)
@@ -949,12 +949,12 @@ void USkillActorFieldAction::HandleStaticTriggerDamageTick()
              continue;
           }
 
-          ApplyStaticTriggerDamage(DamageSourceActor, OverlappingActor, true);
+          ApplyFieldTriggerDamage(DamageSourceActor, OverlappingActor, true);
        }
     }
 }
 
-void USkillActorFieldAction::ApplyStaticTriggerDamageToExistingOverlaps(AActor* DamageSourceActor, UPrimitiveComponent* TriggerComponent, const bool bApplyDamage)
+void USkillActorFieldAction::ApplyFieldTriggerDamageToExistingOverlaps(AActor* DamageSourceActor, UPrimitiveComponent* TriggerComponent, const bool bApplyDamage)
 {
     if (!DamageSourceActor || !TriggerComponent)
     {
@@ -965,15 +965,15 @@ void USkillActorFieldAction::ApplyStaticTriggerDamageToExistingOverlaps(AActor* 
     TriggerComponent->GetOverlappingActors(OverlappingActors, ACharacterBase::StaticClass());
     for (AActor* OverlappingActor : OverlappingActors)
     {
-       TrackStaticTriggerOverlap(DamageSourceActor, OverlappingActor);
+       TrackFieldTriggerOverlap(DamageSourceActor, OverlappingActor);
        if (bApplyDamage)
        {
-          ApplyStaticTriggerDamage(DamageSourceActor, OverlappingActor);
+          ApplyFieldTriggerDamage(DamageSourceActor, OverlappingActor);
        }
     }
 }
 
-void USkillActorFieldAction::TrackStaticTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor)
+void USkillActorFieldAction::TrackFieldTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor)
 {
     if (!IsValid(DamageSourceActor) || !IsValid(OtherActor) || !OtherActor->IsA<ACharacterBase>())
     {
@@ -981,9 +981,9 @@ void USkillActorFieldAction::TrackStaticTriggerOverlap(AActor* DamageSourceActor
     }
 
     const FObjectKey SourceKey(DamageSourceActor);
-    StaticDamageSourceActorsByKey.FindOrAdd(SourceKey) = DamageSourceActor;
+    FieldDamageSourceActorsByKey.FindOrAdd(SourceKey) = DamageSourceActor;
 
-    TArray<TWeakObjectPtr<AActor>>& OverlappingActors = StaticOverlappingActorsBySource.FindOrAdd(SourceKey);
+    TArray<TWeakObjectPtr<AActor>>& OverlappingActors = FieldOverlappingActorsBySource.FindOrAdd(SourceKey);
     for (const TWeakObjectPtr<AActor>& ExistingActor : OverlappingActors)
     {
        if (ExistingActor.Get() == OtherActor)
@@ -995,7 +995,7 @@ void USkillActorFieldAction::TrackStaticTriggerOverlap(AActor* DamageSourceActor
     OverlappingActors.Add(OtherActor);
 }
 
-void USkillActorFieldAction::UntrackStaticTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor)
+void USkillActorFieldAction::UntrackFieldTriggerOverlap(AActor* DamageSourceActor, AActor* OtherActor)
 {
     if (!DamageSourceActor || !OtherActor)
     {
@@ -1003,7 +1003,7 @@ void USkillActorFieldAction::UntrackStaticTriggerOverlap(AActor* DamageSourceAct
     }
 
     const FObjectKey SourceKey(DamageSourceActor);
-    TArray<TWeakObjectPtr<AActor>>* OverlappingActors = StaticOverlappingActorsBySource.Find(SourceKey);
+    TArray<TWeakObjectPtr<AActor>>* OverlappingActors = FieldOverlappingActorsBySource.Find(SourceKey);
     if (!OverlappingActors)
     {
        return;
@@ -1017,12 +1017,12 @@ void USkillActorFieldAction::UntrackStaticTriggerOverlap(AActor* DamageSourceAct
 
     if (OverlappingActors->IsEmpty())
     {
-       StaticOverlappingActorsBySource.Remove(SourceKey);
-       StaticDamageSourceActorsByKey.Remove(SourceKey);
+       FieldOverlappingActorsBySource.Remove(SourceKey);
+       FieldDamageSourceActorsByKey.Remove(SourceKey);
     }
 }
 
-void USkillActorFieldAction::ApplyStaticTriggerDamage(AActor* DamageSourceActor, AActor* HitActor, const bool bAllowRepeatedDamage)
+void USkillActorFieldAction::ApplyFieldTriggerDamage(AActor* DamageSourceActor, AActor* HitActor, const bool bAllowRepeatedDamage)
 {
     AActor* SourceActor = GetAbility()->GetAvatarActorFromActorInfo();
     if (!SourceActor || !SourceActor->HasAuthority() || !IsValid(DamageSourceActor) || !IsValid(HitActor))
@@ -1030,12 +1030,12 @@ void USkillActorFieldAction::ApplyStaticTriggerDamage(AActor* DamageSourceActor,
        return;
     }
 
-    if (Settings.bIgnoreSourceActor && IsStaticSourceActorTarget(SourceActor, DamageSourceActor, HitActor))
+    if (Settings.bIgnoreSourceActor && IsFieldSourceActorTarget(SourceActor, DamageSourceActor, HitActor))
     {
        return;
     }
 
-    TSet<FObjectKey>& DamagedActorsForSource = DamagedStaticTriggerActorsBySource.FindOrAdd(FObjectKey(DamageSourceActor));
+    TSet<FObjectKey>& DamagedActorsForSource = DamagedFieldTriggerActorsBySource.FindOrAdd(FObjectKey(DamageSourceActor));
     const FObjectKey HitActorKey(HitActor);
     if (!bAllowRepeatedDamage && DamagedActorsForSource.Contains(HitActorKey))
     {
@@ -1050,7 +1050,7 @@ void USkillActorFieldAction::ApplyStaticTriggerDamage(AActor* DamageSourceActor,
     }
 
     const FGameplayEffectSpecHandle DamageSpecHandle =
-       MakeStaticTriggerDamageSpec(DamageSourceActor, CalculateStaticTriggerDamageMagnitude());
+       MakeFieldTriggerDamageSpec(DamageSourceActor, CalculateFieldTriggerDamageMagnitude());
     if (!DamageSpecHandle.IsValid())
     {
        return;
@@ -1063,7 +1063,7 @@ void USkillActorFieldAction::ApplyStaticTriggerDamage(AActor* DamageSourceActor,
     }
 }
 
-FGameplayEffectSpecHandle USkillActorFieldAction::MakeStaticTriggerDamageSpec(AActor* DamageSourceActor, const float DamageMagnitude) const
+FGameplayEffectSpecHandle USkillActorFieldAction::MakeFieldTriggerDamageSpec(AActor* DamageSourceActor, const float DamageMagnitude) const
 {
     const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
     const FSkillGameplayEffectConfig TriggerDamage = SkillDataAsset ? SkillDataAsset->GetResolvedDamageConfig() : FSkillGameplayEffectConfig();
@@ -1075,7 +1075,7 @@ FGameplayEffectSpecHandle USkillActorFieldAction::MakeStaticTriggerDamageSpec(AA
     return GetAbility()->MakeConfiguredDamageEffectSpec(TriggerDamage, DamageMagnitude, DamageSourceActor);
 }
 
-float USkillActorFieldAction::CalculateStaticTriggerDamageMagnitude() const
+float USkillActorFieldAction::CalculateFieldTriggerDamageMagnitude() const
 {
     const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
     return SkillDataAsset
@@ -1086,7 +1086,7 @@ float USkillActorFieldAction::CalculateStaticTriggerDamageMagnitude() const
 
 void USkillActorFieldAction::ScheduleCompletion()
 {
-    if (ShouldRepeatStaticSpawnSequence())
+    if (ShouldRepeatFieldSpawnSequence())
     {
        return;
     }
@@ -1107,96 +1107,96 @@ void USkillActorFieldAction::ScheduleCompletion()
     if (UWorld* World = GetWorld())
     {
        World->GetTimerManager().SetTimer(
-          StaticEndTimerHandle,
+          FieldEndTimerHandle,
           this,
-          &ThisClass::HandleStaticDurationFinished,
+          &ThisClass::HandleFieldDurationFinished,
           EndDelay,
           false);
     }
 }
 
-void USkillActorFieldAction::HandleRepeatedStaticSpawnSequence()
+void USkillActorFieldAction::HandleRepeatedFieldSpawnSequence()
 {
-    if (!ShouldRepeatStaticSpawnSequence())
+    if (!ShouldRepeatFieldSpawnSequence())
     {
        return;
     }
 
-    if (!PendingStaticSocketNames.IsEmpty())
+    if (!PendingFieldSocketNames.IsEmpty())
     {
        return;
     }
 
-    StartStaticSpawnSequence();
+    StartFieldSpawnSequence();
 }
 
-void USkillActorFieldAction::CleanupStaticTasks()
+void USkillActorFieldAction::CleanupFieldTasks()
 {
-    if (StaticMontageTask)
+    if (FieldMontageTask)
     {
-       StaticMontageTask->EndTask();
-       StaticMontageTask = nullptr;
+       FieldMontageTask->EndTask();
+       FieldMontageTask = nullptr;
     }
 
-    if (WaitStaticMontageTriggerTask)
+    if (WaitFieldMontageTriggerTask)
     {
-       WaitStaticMontageTriggerTask->EndTask();
-       WaitStaticMontageTriggerTask = nullptr;
+       WaitFieldMontageTriggerTask->EndTask();
+       WaitFieldMontageTriggerTask = nullptr;
     }
 }
 
-void USkillActorFieldAction::HandleStaticMontageTriggerEvent(FGameplayEventData Payload)
+void USkillActorFieldAction::HandleFieldMontageTriggerEvent(FGameplayEventData Payload)
 {
     static_cast<void>(Payload);
 
-    TryCommitAndStartStatic();
+    TryCommitAndStartField();
 }
 
-void USkillActorFieldAction::HandleStaticMontageFinished()
+void USkillActorFieldAction::HandleFieldMontageFinished()
 {
-    StaticMontageTask = nullptr;
+    FieldMontageTask = nullptr;
 
-    if (bStaticStarted)
+    if (bFieldStarted)
     {
        const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-       if ((!AvatarActor || !AvatarActor->HasAuthority()) && !GetAbility()->HasDurationDeadline() && !StaticEndTimerHandle.IsValid())
+       if ((!AvatarActor || !AvatarActor->HasAuthority()) && !GetAbility()->HasDurationDeadline() && !FieldEndTimerHandle.IsValid())
        {
           Finish();
        }
        return;
     }
 
-    TryCommitAndStartStatic();
+    TryCommitAndStartField();
 }
 
-void USkillActorFieldAction::HandleStaticMontageInterrupted()
+void USkillActorFieldAction::HandleFieldMontageInterrupted()
 {
-    StaticMontageTask = nullptr;
+    FieldMontageTask = nullptr;
 
-    if (bStaticStarted)
+    if (bFieldStarted)
     {
        const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-       if ((!AvatarActor || !AvatarActor->HasAuthority()) && !GetAbility()->HasDurationDeadline() && !StaticEndTimerHandle.IsValid())
+       if ((!AvatarActor || !AvatarActor->HasAuthority()) && !GetAbility()->HasDurationDeadline() && !FieldEndTimerHandle.IsValid())
        {
           Finish();
        }
        return;
     }
 
-    TryCommitAndStartStatic();
+    TryCommitAndStartField();
     const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-    if (bStaticStarted && (!AvatarActor || !AvatarActor->HasAuthority()))
+    if (bFieldStarted && (!AvatarActor || !AvatarActor->HasAuthority()))
     {
        Finish();
     }
 }
 
-void USkillActorFieldAction::HandleStaticDurationFinished()
+void USkillActorFieldAction::HandleFieldDurationFinished()
 {
     Finish();
 }
 
-void USkillActorFieldAction::HandleStaticTriggerBeginOverlap(
+void USkillActorFieldAction::HandleFieldTriggerBeginOverlap(
     UPrimitiveComponent* OverlappedComponent,
     AActor* OtherActor,
     UPrimitiveComponent* OtherComp,
@@ -1210,11 +1210,11 @@ void USkillActorFieldAction::HandleStaticTriggerBeginOverlap(
     static_cast<void>(SweepResult);
 
     AActor* DamageSourceActor = OverlappedComponent ? OverlappedComponent->GetOwner() : nullptr;
-    TrackStaticTriggerOverlap(DamageSourceActor, OtherActor);
-    ApplyStaticTriggerDamage(DamageSourceActor, OtherActor);
+    TrackFieldTriggerOverlap(DamageSourceActor, OtherActor);
+    ApplyFieldTriggerDamage(DamageSourceActor, OtherActor);
 }
 
-void USkillActorFieldAction::HandleStaticTriggerEndOverlap(
+void USkillActorFieldAction::HandleFieldTriggerEndOverlap(
     UPrimitiveComponent* OverlappedComponent,
     AActor* OtherActor,
     UPrimitiveComponent* OtherComp,
@@ -1224,5 +1224,5 @@ void USkillActorFieldAction::HandleStaticTriggerEndOverlap(
     static_cast<void>(OtherBodyIndex);
 
     AActor* DamageSourceActor = OverlappedComponent ? OverlappedComponent->GetOwner() : nullptr;
-    UntrackStaticTriggerOverlap(DamageSourceActor, OtherActor);
+    UntrackFieldTriggerOverlap(DamageSourceActor, OtherActor);
 }

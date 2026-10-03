@@ -113,7 +113,6 @@ private:
 	void SetEquipHintWidgetsVisible(bool bShowText, bool bShowInputKey);
 	void RefreshEquipHintState(bool bHovered);
 	bool CanShowEquipHint() const;
-	bool CanAutoEquipPandora() const;
 	bool IsPandoraEquipped() const;
 	bool TryGetEquippedPandoraDirection(EEnum_Direction& OutDirection) const;
 	bool RequestAutoEquipPandora();

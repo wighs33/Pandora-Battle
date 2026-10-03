@@ -25,8 +25,7 @@ APdPlayerState::APdPlayerState(const FObjectInitializer& ObjectInitializer)
 
 	AbilitySystemComponent = CreateDefaultSubobject<UPdAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	BasicAttributeSet = CreateDefaultSubobject<UBasicAttributeSet>(TEXT("BasicAttributeSet"));
-	// Preserve the serialized subobject name used by existing PlayerState Blueprints.
-	SelectingPandoraAndWeaponComponent = CreateDefaultSubobject<USelectingPandoraAndWeaponComponent>(TEXT("PlayerLoadoutComponent"));
+	SelectingPandoraAndWeaponComponent = CreateDefaultSubobject<USelectingPandoraAndWeaponComponent>(TEXT("SelectingPandoraAndWeaponComponent"));
 	PlayerMatchComponent = CreateDefaultSubobject<UPlayerMatchComponent>(TEXT("PlayerMatchComponent"));
 	LobbyPlayerStateComponent = CreateDefaultSubobject<ULobbyPlayerStateComponent>(TEXT("LobbyPlayerStateComponent"));
 	LevelingComponent = CreateDefaultSubobject<ULevelingComponent>(TEXT("LevelingComponent"));

@@ -109,11 +109,6 @@ void UUiSubsystem::ClearWidgetClassDefinition(
 	}
 }
 
-void UUiSubsystem::EnsureConfiguredWidgetContentPreload()
-{
-	BeginConfiguredWidgetDefinitionPreload();
-}
-
 TSharedPtr<FContentLease> UUiSubsystem::AcquireUiContent(
 	UWidgetClassDefinition* Definition,
 	const EUiContentGroup Group,

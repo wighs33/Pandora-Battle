@@ -14,7 +14,7 @@ class UCurveFloat;
 class USceneComponent;
 class FLifetimeProperty;
 struct FSkillGameplayEffectConfig;
-struct FSkillStaticSettings;
+struct FSkillActorFieldSettings;
 
 UCLASS(Blueprintable)
 class LABPROJECT_API ASkillBlackHoleActor : public AActor
@@ -31,18 +31,18 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	ASkillBlackHoleActor();
 
-	UFUNCTION(BlueprintCallable, Category = "!Skill|Darkness|Black Hole")
+	UFUNCTION(BlueprintCallable, Category = "!Skill|Black Hole")
 	void StartBlackHoleSequence();
 
-	void ConfigureFromStaticSettings(
-		const FSkillStaticSettings& StaticSettings,
+	void ConfigureFromFieldSettings(
+		const FSkillActorFieldSettings& FieldSettings,
 		const FSkillGameplayEffectConfig& FinishDamageConfig,
 		int32 InAbilityLevel,
 		EEnum_Direction InSourcePandoraLoadoutDirection = EEnum_Direction::Center);
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintImplementableEvent, Category = "!Skill|Darkness|Black Hole")
+	UFUNCTION(BlueprintImplementableEvent, Category = "!Skill|Black Hole")
 	void OnOrbSequenceFinished();
 
 private:
@@ -71,100 +71,101 @@ private:
 	float EvaluateCurveOrLinear(const UCurveFloat* Curve, float NormalizedTime) const;
 
 private:
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Components")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Components")
 	FName OrbComponentName = TEXT("Orb");
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Components")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Components")
 	FName FloorComponentName = TEXT("Floor");
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Components")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Components")
 	FName BlackHoleNiagaraComponentName = TEXT("NS_Omen_ORB_Glitch");
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Components")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Components")
 	FName AreaNiagaraComponentName = TEXT("NS_Free_Magic_Area2");
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Components")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Components")
 	FName SlashNiagaraComponentName = TEXT("NS_Free_Magic_Slash");
 
+	// 성장 시간, 끌어당김, 종료 피해는 스킬 정의가 정한다. ConfigureFromFieldSettings가 생성 직전에 채운다.
 	UPROPERTY(Replicated)
 	float GrowthDuration = 3.0f;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Growth", meta = (ClampMin = "0.0"))
-	float GrowthStartScaleMultiplier = 1.0f;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Growth", meta = (ClampMin = "0.0"))
-	float GrowthEndScaleMultiplier = 7.0f;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Growth")
-	TObjectPtr<UCurveFloat> GrowthCurve;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|VFX", meta = (ClampMin = "0.01", ForceUnits = "s"))
-	float BlackHoleFXDuration = 3.0f;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|VFX")
-	float BlackHoleFXStartValue = 1.0f;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|VFX")
-	float BlackHoleFXEndValue = 6.0f;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|VFX")
-	TObjectPtr<UCurveFloat> BlackHoleFXCurve;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|VFX")
-	FName BlackHoleFXActivateParameterName = TEXT("FX_Activate");
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|VFX")
-	bool bActivateFinishNiagara = true;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|VFX")
-	bool bResetFinishNiagaraOnActivate = false;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Finish Damage")
-	bool bApplyFinishAreaDamage = false;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Finish Damage", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	float FinishDamageRadius = 1200.0f;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Finish Damage")
-	TSubclassOf<UGameplayEffect> FinishDamageEffectClass;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Finish Damage", meta = (Categories = "Data"))
-	FGameplayTag FinishDamageDataTag;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Finish Damage", meta = (ClampMin = "0.0"))
-	double FinishDamageMagnitude = 0.0;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Collapse")
-	bool bCollapseOrbDuringBlackHoleFX = true;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Collapse", meta = (ClampMin = "0.01", ForceUnits = "s"))
-	float CollapseDuration = 3.0f;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Collapse")
-	TObjectPtr<UCurveFloat> CollapseCurve;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Pull")
+	UPROPERTY(Transient)
 	bool bPullEnemiesDuringGrowth = true;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Pull", meta = (ClampMin = "0.0", ForceUnits = "cm"))
+	UPROPERTY(Transient)
 	float PullRadius = 1200.0f;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Pull", meta = (ClampMin = "0.0", ForceUnits = "cm/s"))
+	UPROPERTY(Transient)
 	float PullSpeed = 650.0f;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Pull", meta = (ClampMin = "0.0", ForceUnits = "cm"))
+	UPROPERTY(Transient)
+	bool bApplyFinishAreaDamage = false;
+
+	UPROPERTY(Transient)
+	float FinishDamageRadius = 1200.0f;
+
+	UPROPERTY(Transient)
+	TSubclassOf<UGameplayEffect> FinishDamageEffectClass;
+
+	UPROPERTY(Transient)
+	FGameplayTag FinishDamageDataTag;
+
+	UPROPERTY(Transient)
+	double FinishDamageMagnitude = 0.0;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Growth", meta = (ClampMin = "0.0"))
+	float GrowthStartScaleMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Growth", meta = (ClampMin = "0.0"))
+	float GrowthEndScaleMultiplier = 7.0f;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Growth")
+	TObjectPtr<UCurveFloat> GrowthCurve;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|VFX", meta = (ClampMin = "0.01", ForceUnits = "s"))
+	float BlackHoleFXDuration = 3.0f;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|VFX")
+	float BlackHoleFXStartValue = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|VFX")
+	float BlackHoleFXEndValue = 6.0f;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|VFX")
+	TObjectPtr<UCurveFloat> BlackHoleFXCurve;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|VFX")
+	FName BlackHoleFXActivateParameterName = TEXT("FX_Activate");
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|VFX")
+	bool bActivateFinishNiagara = true;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|VFX")
+	bool bResetFinishNiagaraOnActivate = false;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Collapse")
+	bool bCollapseOrbDuringBlackHoleFX = true;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Collapse", meta = (ClampMin = "0.01", ForceUnits = "s"))
+	float CollapseDuration = 3.0f;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Collapse")
+	TObjectPtr<UCurveFloat> CollapseCurve;
+
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Pull", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	float PullStopDistance = 120.0f;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Pull")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Pull")
 	bool bPullOnHorizontalPlane = true;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Pull")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Pull")
 	bool bScalePullStrengthWithGrowthAlpha = true;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Pull")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Pull")
 	bool bScalePullRadiusWithGrowthAlpha = false;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Darkness|Pull")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Black Hole|Pull")
 	bool bRequireSourceCharacterForTeamFilter = true;
 
 	UPROPERTY(Transient)

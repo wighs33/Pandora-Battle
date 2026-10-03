@@ -108,7 +108,7 @@ void UAchievementSubsystem::EvaluateAndUnlockAchievements()
 		}
 	}
 
-	EnsureAchievementsQueried();
+	RequestSteamAchievementQuery();
 	FlushPendingAchievementUnlocks();
 }
 
@@ -172,11 +172,6 @@ const UAchievementDefinition* UAchievementSubsystem::GetAchievementDefinition()
 		BeginAchievementPresentationPreload();
 	}
 	return AchievementDefinition;
-}
-
-bool UAchievementSubsystem::RequestSteamAchievementQuery()
-{
-	return EnsureAchievementsQueried();
 }
 
 bool UAchievementSubsystem::IsSteamAchievementKnown(
@@ -373,7 +368,7 @@ bool UAchievementSubsystem::TryResolveLocalUniqueNetId(FUniqueNetIdPtr& OutUniqu
 	return false;
 }
 
-bool UAchievementSubsystem::EnsureAchievementsQueried()
+bool UAchievementSubsystem::RequestSteamAchievementQuery()
 {
 	if (bAchievementsQueried || bAchievementQueryInFlight)
 	{
@@ -462,7 +457,7 @@ void UAchievementSubsystem::RefreshSteamAchievementQuery()
 	bAchievementsQueried = false;
 	bAchievementQueryCompleted = false;
 	SteamAchievementProgressById.Reset();
-	EnsureAchievementsQueried();
+	RequestSteamAchievementQuery();
 }
 
 void UAchievementSubsystem::QueueUnlockAchievement(FString AchievementId)
@@ -471,7 +466,7 @@ void UAchievementSubsystem::QueueUnlockAchievement(FString AchievementId)
 	if (AchievementId.IsEmpty()
 		|| LocallyUnlockedAchievementIds.Contains(AchievementId)
 		|| InFlightAchievementIds.Contains(AchievementId)
-		|| IsAchievementAlreadyUnlocked(AchievementId))
+		|| IsSteamAchievementUnlocked(AchievementId))
 	{
 		return;
 	}
@@ -490,7 +485,7 @@ void UAchievementSubsystem::FlushPendingAchievementUnlocks()
 	{
 		if (!bAchievementQueryInFlight && !bAchievementQueryCompleted)
 		{
-			EnsureAchievementsQueried();
+			RequestSteamAchievementQuery();
 		}
 		return;
 	}
@@ -504,7 +499,7 @@ void UAchievementSubsystem::FlushPendingAchievementUnlocks()
 			continue;
 		}
 
-		if (LocallyUnlockedAchievementIds.Contains(AchievementId) || IsAchievementAlreadyUnlocked(AchievementId))
+		if (LocallyUnlockedAchievementIds.Contains(AchievementId) || IsSteamAchievementUnlocked(AchievementId))
 		{
 			LocallyUnlockedAchievementIds.Add(AchievementId);
 			PendingAchievementIds.Remove(AchievementId);
@@ -525,11 +520,6 @@ void UAchievementSubsystem::FlushPendingAchievementUnlocks()
 			break;
 		}
 	}
-}
-
-bool UAchievementSubsystem::IsAchievementAlreadyUnlocked(const FString& AchievementId) const
-{
-	return IsSteamAchievementUnlocked(AchievementId);
 }
 
 bool UAchievementSubsystem::WriteAchievementThroughOnlineSubsystem(const FString& AchievementId)

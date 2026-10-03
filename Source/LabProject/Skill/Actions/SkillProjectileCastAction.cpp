@@ -85,7 +85,7 @@ void USkillProjectileCastAction::HandleMontageFinished()
        bSocketBarrageEndAbilityAfterFire = true;
        return;
     }
-    FinishCast();
+    Finish();
 }
 
 void USkillProjectileCastAction::HandleShootProjectileEvent(FGameplayEventData Payload)
@@ -332,7 +332,7 @@ void USkillProjectileCastAction::TryFinishAfterProjectileFired()
         return;
     }
 
-    FinishCast();
+    Finish();
 }
 
 void USkillProjectileCastAction::HandleTargetDataValid(const FGameplayAbilityTargetDataHandle& Data)
@@ -808,7 +808,3 @@ void USkillProjectileCastAction::CleanupAimingState()
     DestroyReadiedProjectile();
 }
 
-void USkillProjectileCastAction::FinishCast()
-{
-    Finish();
-}

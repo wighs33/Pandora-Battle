@@ -61,7 +61,6 @@ private:
 
 	UFUNCTION()
 	void HandleAchievementButtonClicked_6();
-	void HandleSteamAchievementStateChanged();
 	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void HandleMatchDisplayNameChanged(const FText& NewDisplayName);
 

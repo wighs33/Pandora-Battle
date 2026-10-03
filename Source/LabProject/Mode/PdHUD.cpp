@@ -11,6 +11,9 @@
 #include "Mode/PdPlayerController.h"
 #include "TimerManager.h"
 #include "UI/Info/Presenter/InfoUiPresenter.h"
+#include "UI/HUD/HudMenuLayer.h"
+#include "UI/HUD/HudScoreboardLayer.h"
+#include "UI/HUD/HudScreenLayer.h"
 #include "UI/HUD/HudUiRouter.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Core/UiScreen.h"
@@ -143,11 +146,6 @@ void APdHUD::DeinitializeUi(const UWidgetClassDefinition* InWidgetClassDefinitio
 	}
 }
 
-void APdHUD::RefreshHudTimerVisibility()
-{
-	ApplyHudTimerVisibility();
-}
-
 void APdHUD::CreateAllUi()
 {
 	if (UHudUiRouter* Router = EnsureUiRouter())
@@ -158,30 +156,31 @@ void APdHUD::CreateAllUi()
 
 void APdHUD::OpenInfoUiFocused(const EInfoUiSection Section)
 {
-	UHudUiRouter* Router = EnsureUiRouter();
-	if (!Router)
+	EnsureUiRouter();
+	UHudScreenLayer* ScreenLayer = GetScreenLayer();
+	if (!ScreenLayer)
 	{
 		return;
 	}
 
 	const bool bWasInfoReadyForSectionChange =
 		CachedInfoUI
-		&& Router->IsInfoOpen()
-		&& !Router->IsInfoClosing()
-		&& !Router->IsSettingsMenuOpen();
+		&& ScreenLayer->IsInfoOpen()
+		&& !ScreenLayer->IsInfoClosing()
+		&& !IsSettingsMenuOpen();
 	if (bWasInfoReadyForSectionChange
 		&& CachedInfoUI->GetFocusedSection() == Section)
 	{
-		Router->CloseInfo();
+		ScreenLayer->CloseInfo();
 		return;
 	}
 
 	if (!bWasInfoReadyForSectionChange)
 	{
-		Router->OpenInfo(Section);
+		ScreenLayer->OpenInfo(Section);
 	}
 
-	if (CachedInfoUI && (UiRouter && UiRouter->IsInfoOpen()))
+	if (CachedInfoUI && ScreenLayer->IsInfoOpen())
 	{
 		CachedInfoUI->FocusSection(Section, bWasInfoReadyForSectionChange);
 	}
@@ -189,50 +188,55 @@ void APdHUD::OpenInfoUiFocused(const EInfoUiSection Section)
 
 void APdHUD::CloseInfoUi()
 {
-	if (UiRouter)
+	if (UHudScreenLayer* ScreenLayer = GetScreenLayer())
 	{
-		UiRouter->CloseInfo();
+		ScreenLayer->CloseInfo();
 	}
 }
 
 void APdHUD::ToggleInfoUi()
 {
-	if (UHudUiRouter* Router = EnsureUiRouter())
+	EnsureUiRouter();
+	if (UHudScreenLayer* ScreenLayer = GetScreenLayer())
 	{
-		Router->ToggleInfo();
+		ScreenLayer->ToggleInfo();
 	}
 }
 
 void APdHUD::OpenPandoraTreeUi()
 {
-	if (UHudUiRouter* Router = EnsureUiRouter())
+	EnsureUiRouter();
+	if (UHudScreenLayer* ScreenLayer = GetScreenLayer())
 	{
-		Router->OpenPandoraTree();
+		ScreenLayer->OpenPandoraTree();
 	}
 }
 
 void APdHUD::ClosePandoraTreeUi()
 {
-	if (UiRouter)
+	if (UHudScreenLayer* ScreenLayer = GetScreenLayer())
 	{
-		UiRouter->ClosePandoraTree();
+		ScreenLayer->ClosePandoraTree();
 	}
 }
 
 void APdHUD::TogglePandoraTreeUi()
 {
-	if (UHudUiRouter* Router = EnsureUiRouter())
+	EnsureUiRouter();
+	if (UHudScreenLayer* ScreenLayer = GetScreenLayer())
 	{
-		Router->TogglePandoraTree();
+		ScreenLayer->TogglePandoraTree();
 	}
 }
 
 bool APdHUD::IsPlayerHudSuppressedByUi() const
 {
-	return (UiRouter && UiRouter->ShouldScreenLayerSuppressPlayerHud())
+	const UHudScreenLayer* ScreenLayer = GetScreenLayer();
+	const UHudScoreboardLayer* ScoreboardLayer = GetScoreboardLayer();
+	return (ScreenLayer && ScreenLayer->ShouldSuppressPlayerHud())
 		|| (SelectPandoraScreen && SelectPandoraScreen->IsActivated())
-		|| (UiRouter && UiRouter->IsSettingsMenuOpen())
-		|| (UiRouter && UiRouter->IsScoreboardOpen());
+		|| IsSettingsMenuOpen()
+		|| (ScoreboardLayer && ScoreboardLayer->IsOpen());
 }
 
 bool APdHUD::IsSelectPandoraUiOpen() const
@@ -469,47 +473,50 @@ void APdHUD::HideRespawnDelay()
 
 void APdHUD::ShowInGameScoreboard()
 {
-	if (UHudUiRouter* Router = EnsureUiRouter())
+	EnsureUiRouter();
+	if (UHudScoreboardLayer* ScoreboardLayer = GetScoreboardLayer())
 	{
-		Router->ShowScoreboard();
+		ScoreboardLayer->Show();
 	}
 }
 
 void APdHUD::HideInGameScoreboard()
 {
-	if (UiRouter)
+	if (UHudScoreboardLayer* ScoreboardLayer = GetScoreboardLayer())
 	{
-		UiRouter->HideScoreboard();
+		ScoreboardLayer->Hide();
 	}
 }
 
 void APdHUD::OpenSettingsMenu()
 {
-	if (UHudUiRouter* Router = EnsureUiRouter())
+	EnsureUiRouter();
+	if (UHudMenuLayer* MenuLayer = GetMenuLayer())
 	{
-		Router->OpenSettingsMenu();
+		MenuLayer->Open();
 	}
 }
 
 void APdHUD::ToggleSettingsMenu()
 {
-	if (UHudUiRouter* Router = EnsureUiRouter())
+	EnsureUiRouter();
+	if (UHudMenuLayer* MenuLayer = GetMenuLayer())
 	{
-		Router->ToggleSettingsMenu();
+		MenuLayer->Toggle();
 	}
 }
 
 bool APdHUD::HandleEscapeInput()
 {
-	if (UiRouter && UiRouter->IsSettingsMenuOpen())
+	if (UHudMenuLayer* MenuLayer = GetMenuLayer(); MenuLayer && MenuLayer->IsOpen())
 	{
-		if (UMenuPopupWidget* SettingsMenuWidget = GetActiveSettingsMenuWidget();
+		if (UMenuPopupWidget* SettingsMenuWidget = MenuLayer->GetWidget();
 			SettingsMenuWidget && SettingsMenuWidget->CloseGuide())
 		{
 			return true;
 		}
 
-		CloseActiveSettingsMenuPopup();
+		MenuLayer->Close();
 		return true;
 	}
 
@@ -519,18 +526,19 @@ bool APdHUD::HandleEscapeInput()
 		return true;
 	}
 
+	const UHudScreenLayer* ScreenLayer = GetScreenLayer();
 	if (CachedPandoraTreeUI && CachedPandoraTreeUI->IsPandoraTreeShown())
 	{
-		if (!UiRouter || !UiRouter->IsPandoraTreeClosing())
+		if (!ScreenLayer || !ScreenLayer->IsPandoraTreeClosing())
 		{
 			ClosePandoraTreeUi();
 		}
 		return true;
 	}
 
-	if (CachedInfoUI && (UiRouter && UiRouter->IsInfoOpen()))
+	if (CachedInfoUI && ScreenLayer && ScreenLayer->IsInfoOpen())
 	{
-		if (!UiRouter || !UiRouter->IsInfoClosing())
+		if (!ScreenLayer->IsInfoClosing())
 		{
 			CloseInfoUi();
 		}
@@ -538,7 +546,7 @@ bool APdHUD::HandleEscapeInput()
 	}
 
 	OpenSettingsMenu();
-	return UiRouter && UiRouter->IsSettingsMenuOpen();
+	return IsSettingsMenuOpen();
 }
 
 void APdHUD::RefreshUiBindings()
@@ -595,6 +603,27 @@ UHudUiRouter* APdHUD::EnsureUiRouter()
 		}
 	}
 	return UiRouter;
+}
+
+UHudScreenLayer* APdHUD::GetScreenLayer() const
+{
+	return UiRouter ? UiRouter->GetScreenLayer() : nullptr;
+}
+
+UHudMenuLayer* APdHUD::GetMenuLayer() const
+{
+	return UiRouter ? UiRouter->GetMenuLayer() : nullptr;
+}
+
+UHudScoreboardLayer* APdHUD::GetScoreboardLayer() const
+{
+	return UiRouter ? UiRouter->GetScoreboardLayer() : nullptr;
+}
+
+bool APdHUD::IsSettingsMenuOpen() const
+{
+	const UHudMenuLayer* MenuLayer = GetMenuLayer();
+	return MenuLayer && MenuLayer->IsOpen();
 }
 
 UInfoUiPresenter* APdHUD::GetInfoUiPresenter()
@@ -757,9 +786,9 @@ bool APdHUD::IsTrainingRoomMap() const
 
 void APdHUD::RefreshTrainingRoomUiPause(const UUserWidget* IgnoredWidget)
 {
-	if (UiRouter)
+	if (UHudScreenLayer* ScreenLayer = GetScreenLayer())
 	{
-		UiRouter->RefreshTrainingRoomPause(IgnoredWidget);
+		ScreenLayer->RefreshTrainingRoomPause(IgnoredWidget);
 	}
 }
 
@@ -769,7 +798,7 @@ bool APdHUD::ShouldSuppressHudTimer()
 	return HudTimerWidget && HudTimerWidget->ShouldSuppressTimer();
 }
 
-void APdHUD::ApplyHudTimerVisibility()
+void APdHUD::RefreshHudTimerVisibility()
 {
 	UHudTimerWidget* HudTimerWidget = FindHudTimerWidget();
 	if (!HudTimerWidget)
@@ -805,18 +834,6 @@ void APdHUD::HandleSettingsMenuLayerClosed()
 	RefreshPlayerHudVisibility();
 }
 
-void APdHUD::CloseActiveSettingsMenuPopup()
-{
-	if (UiRouter)
-	{
-		UiRouter->CloseSettingsMenu();
-	}
-}
-
-UMenuPopupWidget* APdHUD::GetActiveSettingsMenuWidget() const
-{
-	return UiRouter ? UiRouter->GetSettingsMenuWidget() : nullptr;
-}
 
 void APdHUD::ApplyInventoryWidgetSettings()
 {

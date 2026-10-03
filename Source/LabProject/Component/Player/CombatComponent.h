@@ -81,7 +81,6 @@ public:
 
 private:
 	float GetTemporaryWeaponDamageBonus() const;
-	void StopAutomaticFire();
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
 	void ServerRequestNextComboInput(FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey ActivationKey, FName ClientExpectedSectionName);
@@ -104,10 +103,6 @@ private:
 	APdHUD* GetPdHUD() const;
 	AWeaponBase* GetCurrentWeaponActor() const;
 	UAbilitySystemComponent* GetPlayerAbilitySystemComponent() const;
-	FGameplayTag GetAttackAbilityTag() const;
-	FGameplayTag GetPunchAbilityTag() const;
-	FGameplayTag GetRangedAttackAbilityTag() const;
-	FGameplayTag GetWeaponDamageSourceTag() const;
 
 	UAttackAbility* ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
 	UAnimMontage* GetCachedUnarmedAttackMontage() const;

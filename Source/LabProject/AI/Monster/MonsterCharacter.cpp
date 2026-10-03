@@ -35,9 +35,6 @@ AMonsterCharacter::AMonsterCharacter(const FObjectInitializer& ObjectInitializer
 	bReplicates = true;
 	SetReplicateMovement(true);
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-	bStartCombatOnPossess = false;
-	bUseBehaviorTreeCombat = false;
-	bEnableTrainingBotHitReaction = false;
 	ContactDamageDataTag = LabGameplayTags::Data_Damage;
 }
 

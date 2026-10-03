@@ -131,6 +131,10 @@ protected:
 private:
 	APdPlayerController* GetPdController() const;
 	UHudUiRouter* EnsureUiRouter();
+	UHudScreenLayer* GetScreenLayer() const;
+	UHudMenuLayer* GetMenuLayer() const;
+	UHudScoreboardLayer* GetScoreboardLayer() const;
+	bool IsSettingsMenuOpen() const;
 	UInfoUiPresenter* GetInfoUiPresenter();
 	UUiSubsystem* GetUiSubsystem() const;
 	bool ApplyStatusViewModelToWidget(UUserWidget* InWidget);
@@ -145,9 +149,6 @@ private:
 	bool IsTrainingRoomMap() const;
 	void RefreshTrainingRoomUiPause(const UUserWidget* IgnoredWidget = nullptr);
 	bool ShouldSuppressHudTimer();
-	void ApplyHudTimerVisibility();
-	void CloseActiveSettingsMenuPopup();
-	UMenuPopupWidget* GetActiveSettingsMenuWidget() const;
 	bool CloseSelectPandoraUiInternal(bool bCommitSelection);
 	void ApplyInventoryWidgetSettings();
 	void RemoveAllUiWidgets();

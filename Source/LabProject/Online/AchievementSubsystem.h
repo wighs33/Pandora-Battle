@@ -54,13 +54,11 @@ private:
 
 	bool IsSteamSubsystemActive() const;
 	bool TryResolveLocalUniqueNetId(FUniqueNetIdPtr& OutUniqueNetId) const;
-	bool EnsureAchievementsQueried();
 	void RebuildSteamAchievementSnapshot(const FUniqueNetId& PlayerId);
 	void RefreshSteamAchievementQuery();
 
 	void QueueUnlockAchievement(FString AchievementId);
 	void FlushPendingAchievementUnlocks();
-	bool IsAchievementAlreadyUnlocked(const FString& AchievementId) const;
 	bool WriteAchievementThroughOnlineSubsystem(const FString& AchievementId);
 	bool WriteAchievementThroughSteamApi(const FString& AchievementId) const;
 

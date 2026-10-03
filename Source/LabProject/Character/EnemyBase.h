@@ -218,55 +218,6 @@ protected:
 		meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UEnemyTrainingBotComponent> EnemyTrainingBotComponent;
 
-	/*
-	 * Serialized Blueprint compatibility bridge.
-	 *
-	 * BP_Enemy, BP_TrainingBot, and BP_Bug currently store these original
-	 * AEnemyBase properties. They are read once into the focused components
-	 * during PreInitializeComponents so existing assets retain their exact
-	 * behavior. New archetypes should use EnemyDefinition instead.
-	 */
-	UPROPERTY(
-		EditDefaultsOnly,
-		BlueprintReadOnly,
-		Category = "!AI|Compatibility",
-		meta = (AssetBundles = "Server"))
-	TSoftObjectPtr<UItemDefinition> StartingWeaponDefinition;
-
-	UPROPERTY(
-		EditDefaultsOnly,
-		BlueprintReadOnly,
-		Category = "!AI|Compatibility")
-	bool bEnableTrainingBotHitReaction = true;
-
-	UPROPERTY(
-		EditDefaultsOnly,
-		BlueprintReadOnly,
-		Category = "!AI|Compatibility")
-	bool bStartCombatOnPossess = true;
-
-	UPROPERTY(
-		EditDefaultsOnly,
-		BlueprintReadOnly,
-		Category = "!AI|Compatibility")
-	bool bUseBehaviorTreeCombat = false;
-
-	UPROPERTY(
-		EditDefaultsOnly,
-		BlueprintReadOnly,
-		Category = "!AI|Compatibility")
-	bool bMoveToTargetBeforeAttack = true;
-
-	UPROPERTY(
-		EditDefaultsOnly,
-		BlueprintReadOnly,
-		Category = "!AI|Compatibility",
-		meta = (
-			ClampMin = "0.0",
-			ForceUnits = "cm",
-			DisplayName = "Attack Range"))
-	float AttackStartDistance = 180.0f;
-
 	TSharedPtr<FStreamableHandle> EnemyDefinitionLoadHandle;
 	uint32 EnemyDefinitionLoadGeneration = 0;
 	bool bEnemyDefinitionReady = false;

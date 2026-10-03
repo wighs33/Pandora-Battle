@@ -333,7 +333,7 @@ void ULoadingScreenSubsystem::AbortTravel()
 	TravelDestinationMap.Reset();
 	if (ULobbyRuntimeSubsystem* Runtime = GetLocalPlayer()->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>())
 	{
-		Runtime->CancelGameEntryContentPreload();
+		Runtime->ReleaseGameEntryContentPreload();
 	}
 	RefreshLoadingScreen();
 }

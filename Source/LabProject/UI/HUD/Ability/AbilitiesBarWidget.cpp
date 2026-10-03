@@ -472,7 +472,7 @@ void UAbilitiesBarWidget::BindAbilitiesChangedEvents()
 
 	if (UPdAbilitySystemComponent* PdAbilitySystemComponent = Cast<UPdAbilitySystemComponent>(AbilitySystemComponent))
 	{
-		AbilitiesChangedNativeHandle = PdAbilitySystemComponent->OnAbilitiesChangedNative.AddUObject(this, &ThisClass::HandleAbilitiesChanged);
+		AbilitiesChangedNativeHandle = PdAbilitySystemComponent->OnAbilitiesChangedNative.AddUObject(this, &ThisClass::FillAbilitiesBar);
 	}
 }
 
@@ -524,11 +524,6 @@ void UAbilitiesBarWidget::UnbindPandoraTreeChangedEvent()
 			&ThisClass::HandlePandoraTreeChanged);
 	}
 	BoundPandoraTreeComponent.Reset();
-}
-
-void UAbilitiesBarWidget::HandleAbilitiesChanged()
-{
-	FillAbilitiesBar();
 }
 
 void UAbilitiesBarWidget::HandlePandoraTreeChanged()

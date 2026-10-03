@@ -55,7 +55,7 @@ ACharacterBase::ACharacterBase(const FObjectInitializer& ObjectInitializer) : Su
 	}
 	ApplySkillDamageCollisionToCharacterComponents();
 
-	AbilityStateComponent = CreateDefaultSubobject<UAbilityStateComponent>(TEXT("CharacterAbilityRuntimeComponent"));
+	AbilityStateComponent = CreateDefaultSubobject<UAbilityStateComponent>(TEXT("AbilityStateComponent"));
 	CharacterDeathComponent = CreateDefaultSubobject<UCharacterDeathComponent>(TEXT("CharacterDeathComponent"));
 	CharacterPresentationComponent = CreateDefaultSubobject<UCharacterPresentationComponent>(TEXT("CharacterPresentationComponent"));
 	StatusEffectReplicationComponent = CreateDefaultSubobject<UStatusEffectReplicationComponent>(TEXT("StatusEffectReplicationComponent"));

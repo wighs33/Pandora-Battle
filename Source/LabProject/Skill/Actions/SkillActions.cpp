@@ -23,9 +23,8 @@ void USkillWaitAction::OnStart()
 {
 	if (Seconds <= 0.0f) { Finish(); return; }
 	if (!GetWorld()) { Finish(false); return; }
-	GetWorld()->GetTimerManager().SetTimer(Timer, this, &ThisClass::Elapsed, Seconds, false);
+	GetWorld()->GetTimerManager().SetTimer(Timer, FTimerDelegate::CreateUObject(this, &ThisClass::Finish, true), Seconds, false);
 }
-void USkillWaitAction::Elapsed() { Finish(); }
 void USkillWaitAction::OnStop()
 {
 	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(Timer);

@@ -1,5 +1,5 @@
 #include "Skill/Actors/SkillBlackHoleActor.h"
-#include "Definition/AbilitySystem/SkillStaticSettings.h"
+#include "Definition/AbilitySystem/SkillActorFieldSettings.h"
 
 #include "ActiveGameplayEffectHandle.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
@@ -41,7 +41,7 @@ void ASkillBlackHoleActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	PullRootMotionSourceName = FName(*FString::Printf(TEXT("OmenOrbPull_%u"), GetUniqueID()));
+	PullRootMotionSourceName = FName(*FString::Printf(TEXT("BlackHolePull_%u"), GetUniqueID()));
 	ResolveBlueprintComponents();
 	CacheInitialComponentScales();
 	StartBlackHoleSequence();
@@ -96,8 +96,8 @@ void ASkillBlackHoleActor::StartBlackHoleSequence()
 	RefreshTickEnabledFromSequenceState();
 }
 
-void ASkillBlackHoleActor::ConfigureFromStaticSettings(
-	const FSkillStaticSettings& StaticSettings,
+void ASkillBlackHoleActor::ConfigureFromFieldSettings(
+	const FSkillActorFieldSettings& FieldSettings,
 	const FSkillGameplayEffectConfig& FinishDamageConfig,
 	const int32 InAbilityLevel,
 	const EEnum_Direction InSourcePandoraLoadoutDirection)
@@ -105,13 +105,13 @@ void ASkillBlackHoleActor::ConfigureFromStaticSettings(
 	ConfiguredAbilityLevel = FMath::Max(InAbilityLevel, 1);
 	SourcePandoraLoadoutDirection = InSourcePandoraLoadoutDirection;
 
-	GrowthDuration = static_cast<float>(FMath::Max(StaticSettings.OmenOrbGrowthDuration, 0.01));
-	bPullEnemiesDuringGrowth = StaticSettings.bOmenOrbPullEnemiesDuringGrowth;
-	PullRadius = static_cast<float>(FMath::Max(StaticSettings.OmenOrbPullRadius, 0.0));
-	PullSpeed = static_cast<float>(FMath::Max(StaticSettings.OmenOrbPullSpeed, 0.0));
+	GrowthDuration = static_cast<float>(FMath::Max(FieldSettings.BlackHoleGrowthDuration, 0.01));
+	bPullEnemiesDuringGrowth = FieldSettings.bBlackHolePullEnemiesDuringGrowth;
+	PullRadius = static_cast<float>(FMath::Max(FieldSettings.BlackHolePullRadius, 0.0));
+	PullSpeed = static_cast<float>(FMath::Max(FieldSettings.BlackHolePullSpeed, 0.0));
 
-	bApplyFinishAreaDamage = StaticSettings.bOmenOrbApplyFinishAreaDamage;
-	FinishDamageRadius = static_cast<float>(FMath::Max(StaticSettings.OmenOrbFinishDamageRadius, 0.0));
+	bApplyFinishAreaDamage = FieldSettings.bBlackHoleApplyFinishAreaDamage;
+	FinishDamageRadius = static_cast<float>(FMath::Max(FieldSettings.BlackHoleFinishDamageRadius, 0.0));
 	FinishDamageEffectClass = FinishDamageConfig.GameplayEffectClass;
 	FinishDamageDataTag = FinishDamageConfig.MagnitudeDataTag.IsValid()
 		? FinishDamageConfig.MagnitudeDataTag
@@ -347,7 +347,7 @@ void ASkillBlackHoleActor::ApplyFinishAreaDamage()
 	FCollisionObjectQueryParams ObjectQueryParams;
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
 
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(OmenOrbFinishDamage), false, this);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(BlackHoleFinishDamage), false, this);
 	QueryParams.AddIgnoredActor(this);
 	QueryParams.AddIgnoredActor(SourceActor);
 
@@ -422,7 +422,7 @@ void ASkillBlackHoleActor::PullEnemyCharacters(const float DeltaSeconds, const f
 	FCollisionObjectQueryParams ObjectQueryParams;
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
 
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(OmenOrbPull), false, this);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(BlackHolePull), false, this);
 	QueryParams.AddIgnoredActor(this);
 	if (AActor* SourceActor = ResolveSourceActor())
 	{

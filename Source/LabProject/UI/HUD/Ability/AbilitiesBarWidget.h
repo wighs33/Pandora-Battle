@@ -53,7 +53,6 @@ private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void RebuildAbilitiesBar();
-	void HandleAbilitiesChanged();
 
 	UFUNCTION()
 	void HandlePandoraTreeChanged();

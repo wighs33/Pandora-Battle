@@ -128,11 +128,6 @@ void UEquipmentEffectComponent::HandleAbilitySystemReleased(ACharacterBase* Char
 	BindInventory(nullptr);
 }
 
-void UEquipmentEffectComponent::HandleInventoryChanged()
-{
-	RefreshEffects();
-}
-
 bool UEquipmentEffectComponent::HasEffectAuthority() const
 {
 	const AActor* OwnerActor = GetOwner();
@@ -158,8 +153,8 @@ void UEquipmentEffectComponent::BindInventory(UInventoryComponent* NewInventory)
 	if (NewInventory)
 	{
 		// 슬롯 교체와 장착한 아이템의 강화가 모두 능력치를 바꾼다.
-		EquipmentSlotsChangedHandle = NewInventory->OnEquipmentSlotsChanged.AddUObject(this, &ThisClass::HandleInventoryChanged);
-		InventoryChangedHandle = NewInventory->OnInventoryChanged.AddUObject(this, &ThisClass::HandleInventoryChanged);
+		EquipmentSlotsChangedHandle = NewInventory->OnEquipmentSlotsChanged.AddUObject(this, &ThisClass::RefreshEffects);
+		InventoryChangedHandle = NewInventory->OnInventoryChanged.AddUObject(this, &ThisClass::RefreshEffects);
 	}
 }
 

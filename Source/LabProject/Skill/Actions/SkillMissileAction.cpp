@@ -247,7 +247,7 @@ void USkillMissileAction::StartMissileTargetTracking()
 	World->GetTimerManager().SetTimer(
 		MissileTargetTrackingTimerHandle,
 		this,
-		&ThisClass::HandleMissileTargetTrackingTick,
+		&ThisClass::RefreshMissileTargets,
 		MissileTargetTrackingInterval,
 		true);
 }
@@ -258,11 +258,6 @@ void USkillMissileAction::StopMissileTargetTracking()
 	{
 		World->GetTimerManager().ClearTimer(MissileTargetTrackingTimerHandle);
 	}
-}
-
-void USkillMissileAction::HandleMissileTargetTrackingTick()
-{
-	RefreshMissileTargets();
 }
 
 void USkillMissileAction::RefreshMissileTargets()

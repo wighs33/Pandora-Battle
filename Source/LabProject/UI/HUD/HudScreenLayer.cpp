@@ -1,5 +1,6 @@
 #include "UI/HUD/HudScreenLayer.h"
 #include "UI/Core/UiScreen.h"
+#include "UI/HUD/HudMenuLayer.h"
 #include "UI/HUD/HudUiRouter.h"
 
 #include "Blueprint/UserWidget.h"
@@ -97,9 +98,9 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 		return;
 	}
 
-	if (UiRouter->IsSettingsMenuOpen())
+	if (UHudMenuLayer* MenuLayer = UiRouter->GetMenuLayer(); MenuLayer && MenuLayer->IsOpen())
 	{
-		UiRouter->CloseSettingsMenu();
+		MenuLayer->Close();
 	}
 	TGuardValue<bool> ScreenHandoffGuard(bScreenHandoffInProgress, true);
 	if (IsPandoraTreeOpen())
@@ -255,9 +256,9 @@ void UHudScreenLayer::OpenPandoraTree()
 		return;
 	}
 
-	if (UiRouter->IsSettingsMenuOpen())
+	if (UHudMenuLayer* MenuLayer = UiRouter->GetMenuLayer(); MenuLayer && MenuLayer->IsOpen())
 	{
-		UiRouter->CloseSettingsMenu();
+		MenuLayer->Close();
 	}
 	TGuardValue<bool> ScreenHandoffGuard(bScreenHandoffInProgress, true);
 	if (!IsInfoOpen() || bInfoClosing) OpenInfo(EInfoUiSection::Pandora);
@@ -548,7 +549,7 @@ bool UHudScreenLayer::IsTrainingRoomPauseUiOpen(const UUserWidget* IgnoredWidget
 	}
 
 	return (!bInfoClosing && Hud->CachedInfoUI != IgnoredWidget && IsInfoOpen())
-		|| (UiRouter && UiRouter->IsSettingsMenuOpen())
+		|| (UiRouter && UiRouter->GetMenuLayer() && UiRouter->GetMenuLayer()->IsOpen())
 		|| (!bPandoraTreeClosing && Hud->CachedPandoraTreeUI != IgnoredWidget && IsPandoraTreeOpen());
 }
 

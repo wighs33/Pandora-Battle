@@ -33,7 +33,6 @@ protected:
 
 private:
 	void HandleMissileDurationFinished();
-	void HandleMissileTargetTrackingTick();
 	void HandleDamageDelayFinished();
 	void HandleDamageTick();
 

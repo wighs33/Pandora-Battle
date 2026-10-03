@@ -1,5 +1,5 @@
 #pragma once
-#include "Definition/AbilitySystem/SkillStaticSettings.h"
+#include "Definition/AbilitySystem/SkillActorFieldSettings.h"
 
 #include "CoreMinimal.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
@@ -29,12 +29,12 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	ASkillPowerUpActor();
 
-	void ConfigurePresentationSettings(const FAnimeAuraPresentationSettings& InSettings);
+	void ConfigurePresentationSettings(const FSkillPowerUpPresentationSettings& InSettings);
 
-	UFUNCTION(BlueprintCallable, Category = "!Skill|Anime Aura")
+	UFUNCTION(BlueprintCallable, Category = "!Skill|Power Up")
 	void StartSourcePlayerEffect();
 
-	UFUNCTION(BlueprintCallable, Category = "!Skill|Anime Aura")
+	UFUNCTION(BlueprintCallable, Category = "!Skill|Power Up")
 	void StopSourcePlayerEffect();
 
 private:
@@ -53,51 +53,51 @@ private:
 	void ScheduleSourcePlayerEffectRetry();
 
 private:
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Components")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Components")
 	FName StarterNiagaraComponentName = TEXT("NS_Anime_Aura_Starter");
 
 	UPROPERTY(ReplicatedUsing = OnRep_PresentationSettings)
-	FAnimeAuraPresentationSettings PresentationSettings;
+	FSkillPowerUpPresentationSettings PresentationSettings;
 
 	UPROPERTY(
 		EditAnywhere,
-		Category = "!Skill|Anime Aura|Overlay",
+		Category = "!Skill|Power Up|Overlay",
 		meta = (
 			DeprecatedProperty,
 			DeprecationMessage = "Skill overlays now always restore the character's team outline when they end."))
 	bool bRestoreTeamOverlayOnEnd = true;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Niagara")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Niagara")
 	FName NiagaraActivateParameterName = TEXT("FX_Activate");
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Niagara")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Niagara")
 	float NiagaraActivateStartValue = 0.0f;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Niagara")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Niagara")
 	float NiagaraActivateEndValue = 1.0f;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Material")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Material")
 	FName MaterialScalarParameterName = TEXT("Erode");
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Scale")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Scale")
 	bool bScaleSourceCharacter = true;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Scale", meta = (EditCondition = "bScaleSourceCharacter", ClampMin = "1.0"))
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Scale", meta = (EditCondition = "bScaleSourceCharacter", ClampMin = "1.0"))
 	float CharacterScaleMultiplier = 1.5f;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Scale", meta = (ClampMin = "0.0", ForceUnits = "s"))
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Scale", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float RampDuration = 0.35f;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Weapon Trace")
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Weapon Trace")
 	bool bScaleWeaponTraceEndZ = true;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Weapon Trace", meta = (EditCondition = "bScaleWeaponTraceEndZ", ClampMin = "1.0"))
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Weapon Trace", meta = (EditCondition = "bScaleWeaponTraceEndZ", ClampMin = "1.0"))
 	float WeaponTraceEndZMultiplier = 1.5f;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Network", meta = (ClampMin = "0.01", ForceUnits = "s"))
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Network", meta = (ClampMin = "0.01", ForceUnits = "s"))
 	float SourceResolveRetryInterval = 0.1f;
 
-	UPROPERTY(EditAnywhere, Category = "!Skill|Anime Aura|Network", meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Network", meta = (ClampMin = "1"))
 	int32 SourceResolveRetryAttempts = 20;
 
 	FTimerHandle SourceResolveRetryTimerHandle;

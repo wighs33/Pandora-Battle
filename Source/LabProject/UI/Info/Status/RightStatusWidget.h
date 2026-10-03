@@ -140,31 +140,11 @@ private:
 	UFUNCTION()
 	void HandleCriticalDownClicked();
 
-	void HandleStatUpButtonClicked(FGameplayTag InStatTag);
-	void HandleStatDownButtonClicked(FGameplayTag InStatTag);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ValidateConfiguredStatTags() const;
 	void BindButtonCallbacks();
 	void UnbindButtonCallbacks();
-	FGameplayTag GetStrengthStatTag() const;
-	FGameplayTag GetIntelligenceStatTag() const;
-	FGameplayTag GetArcaneStatTag() const;
-	FGameplayTag GetArmorStatTag() const;
-	FGameplayTag GetRecoveryStatTag() const;
-	FGameplayTag GetMaxShieldStatTag() const;
-	FGameplayTag GetFrostbiteStatTag() const;
-	FGameplayTag GetBurnStatTag() const;
-	FGameplayTag GetElectricShockStatTag() const;
-	FGameplayTag GetFirstPandoraStatTag() const;
-	FGameplayTag GetSecondPandoraStatTag() const;
-	FGameplayTag GetThirdPandoraStatTag() const;
-	FGameplayTag GetMaxHealthStatTag() const;
-	FGameplayTag GetMaxManaStatTag() const;
-	FGameplayTag GetMaxStaminaStatTag() const;
-	FGameplayTag GetAttackSpeedStatTag() const;
-	FGameplayTag GetMovementSpeedStatTag() const;
-	FGameplayTag GetCriticalStatTag() const;
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Status")

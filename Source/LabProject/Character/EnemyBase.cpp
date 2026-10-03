@@ -118,60 +118,6 @@ void AEnemyBase::ApplyEnemyDefinition()
 
 	ModifyResolvedEnemySettings(CombatSettings, TrainingBotSettings);
 
-	// Preserve values serialized by the existing enemy Blueprints. Only
-	// properties that differ from the nearest native class defaults override
-	// the definition so a newly assigned definition remains authoritative.
-	UClass* NativeClass = GetClass();
-	while (NativeClass
-		&& NativeClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
-	{
-		NativeClass = NativeClass->GetSuperClass();
-	}
-	const AEnemyBase* NativeDefaults =
-		NativeClass
-			? Cast<AEnemyBase>(NativeClass->GetDefaultObject())
-			: GetDefault<AEnemyBase>();
-	if (NativeDefaults)
-	{
-		if (StartingWeaponDefinition
-			!= NativeDefaults->StartingWeaponDefinition)
-		{
-			CombatSettings.StartingWeaponDefinition =
-				StartingWeaponDefinition;
-		}
-		if (bStartCombatOnPossess
-			!= NativeDefaults->bStartCombatOnPossess)
-		{
-			CombatSettings.bStartCombatOnPossess =
-				bStartCombatOnPossess;
-		}
-		if (bUseBehaviorTreeCombat
-			!= NativeDefaults->bUseBehaviorTreeCombat)
-		{
-			CombatSettings.bUseBehaviorTreeCombat =
-				bUseBehaviorTreeCombat;
-		}
-		if (bMoveToTargetBeforeAttack
-			!= NativeDefaults->bMoveToTargetBeforeAttack)
-		{
-			CombatSettings.bMoveToTargetBeforeAttack =
-				bMoveToTargetBeforeAttack;
-		}
-		if (!FMath::IsNearlyEqual(
-				AttackStartDistance,
-				NativeDefaults->AttackStartDistance))
-		{
-			CombatSettings.AttackStartDistance =
-				AttackStartDistance;
-		}
-		if (bEnableTrainingBotHitReaction
-			!= NativeDefaults->bEnableTrainingBotHitReaction)
-		{
-			TrainingBotSettings.bEnableHitReaction =
-				bEnableTrainingBotHitReaction;
-		}
-	}
-
 	if (EnemyCombatComponent)
 	{
 		EnemyCombatComponent->ApplySettings(CombatSettings);

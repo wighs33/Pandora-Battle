@@ -73,8 +73,8 @@ EDataValidationResult ALobbyGameMode::IsDataValid(FDataValidationContext& Contex
 ALobbyGameMode::ALobbyGameMode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	LobbyConfigurationComponent = CreateDefaultSubobject<ULobbyConfigurationComponent>(TEXT("LobbyConfigurationComponent"));
-	LobbyPlayerSetupComponent = CreateDefaultSubobject<ULobbyPlayerSetupComponent>(TEXT("LobbyPlayerCoordinatorComponent"));
-	SpawnComponent = CreateDefaultSubobject<UPlayerSpawnComponent>(TEXT("LobbyRespawnComponent"));
+	LobbyPlayerSetupComponent = CreateDefaultSubobject<ULobbyPlayerSetupComponent>(TEXT("LobbyPlayerSetupComponent"));
+	SpawnComponent = CreateDefaultSubobject<UPlayerSpawnComponent>(TEXT("SpawnComponent"));
 	DefaultPlayerProvisioner = CreateDefaultSubobject<UDefaultPlayerProvisioner>(TEXT("DefaultPlayerProvisioner"));
 	TravelCoordinator = CreateDefaultSubobject<ULobbyTravelCoordinator>(TEXT("LobbyTravelCoordinator"));
 

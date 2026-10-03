@@ -15,7 +15,7 @@ void FReplicatedStatusEffectStackEntry::PostReplicatedAdd(
 {
 	if (InArraySerializer.Owner)
 	{
-		InArraySerializer.Owner->HandleReplicatedStackAddedOrChanged(*this);
+		InArraySerializer.Owner->NotifyStatusEffectStackChanged(DebuffTag, StackCount);
 	}
 }
 
@@ -24,7 +24,7 @@ void FReplicatedStatusEffectStackEntry::PostReplicatedChange(
 {
 	if (InArraySerializer.Owner)
 	{
-		InArraySerializer.Owner->HandleReplicatedStackAddedOrChanged(*this);
+		InArraySerializer.Owner->NotifyStatusEffectStackChanged(DebuffTag, StackCount);
 	}
 }
 
@@ -33,7 +33,7 @@ void FReplicatedStatusEffectStackEntry::PreReplicatedRemove(
 {
 	if (InArraySerializer.Owner)
 	{
-		InArraySerializer.Owner->HandleReplicatedStackRemoved(DebuffTag);
+		InArraySerializer.Owner->NotifyStatusEffectStackChanged(DebuffTag, 0);
 	}
 }
 
@@ -137,18 +137,6 @@ int32 UStatusEffectReplicationComponent::GetStatusEffectStackCount(
 	return ReplicatedStacks.Entries.IsValidIndex(EntryIndex)
 		? FMath::Max(ReplicatedStacks.Entries[EntryIndex].StackCount, 0)
 		: 0;
-}
-
-void UStatusEffectReplicationComponent::HandleReplicatedStackAddedOrChanged(
-	const FReplicatedStatusEffectStackEntry& Entry)
-{
-	NotifyStatusEffectStackChanged(Entry.DebuffTag, Entry.StackCount);
-}
-
-void UStatusEffectReplicationComponent::HandleReplicatedStackRemoved(
-	const FGameplayTag DebuffTag)
-{
-	NotifyStatusEffectStackChanged(DebuffTag, 0);
 }
 
 void UStatusEffectReplicationComponent::NotifyStatusEffectStackChanged(

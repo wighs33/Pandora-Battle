@@ -52,7 +52,6 @@ protected:
 
 private:
 	void HandleTileViewItemClicked(UObject* ItemObject);
-	void HandleEntryDataClicked(UShopEntryViewData* EntryData);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void BindWidgets();

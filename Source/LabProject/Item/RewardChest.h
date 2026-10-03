@@ -110,7 +110,6 @@ protected:
 		int32 OtherBodyIndex);
 
 private:
-	void HandleRewardContentPreloadComplete();
 	void FinishOpening();
 	void HideOpenedChest();
 	void RetryRespawnAtAvailableLocation();
