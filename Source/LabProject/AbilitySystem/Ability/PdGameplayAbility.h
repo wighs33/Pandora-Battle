@@ -80,6 +80,13 @@ protected:
 		const FGameplayAbilityActivationInfo ActivationInfo, float CooldownDuration, const FGameplayTagContainer& CooldownTags) const;
 	bool TryCommitAdditionalActionStaminaCost() const;
 
+	/** 무기 공격은 공중에서 시작하지 않는다. 막으면 State.Movement.Airborne을 실패 사유로 남긴다. */
+	static bool CheckAvatarGrounded(const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags);
+	/** 아바타의 공격 속도를 반영한 무기 공격 몽타주 재생 배율. */
+	float GetAttackSpeedPlayRate() const;
+	/** 캐릭터와 컨트롤러를 대상 위치 쪽 수평 방향으로 돌린다. 얼어 있거나 위치가 겹치면 돌리지 않는다. */
+	static bool FaceCharacterToward(ACharacterBase* Character, const FVector& TargetLocation);
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Cooldown|Policy", meta = (Categories = "Effect.Policy"))
 	FGameplayTagContainer CooldownRemovalPolicyTags;
 

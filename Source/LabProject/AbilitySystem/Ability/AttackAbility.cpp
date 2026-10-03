@@ -25,17 +25,6 @@
 namespace
 {
 constexpr double LateComboInputGraceSeconds = 0.15;
-
-float CalculateWeaponAttackSpeedPlayRate(const FGameplayAbilityActorInfo* ActorInfo)
-{
-	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const UBasicAttributeSet* AttributeSet = AbilitySystemComponent
-		? AbilitySystemComponent->GetSet<UBasicAttributeSet>()
-		: nullptr;
-
-	const float AttackSpeedPercent = AttributeSet ? FMath::Max(AttributeSet->GetAttackSpeed(), 0.0f) : 0.0f;
-	return FMath::Max(0.01f, 1.0f + AttackSpeedPercent * 0.01f);
-}
 }
 
 UAttackAbility::UAttackAbility(const FObjectInitializer& ObjectInitializer)
@@ -62,26 +51,8 @@ bool UAttackAbility::CanActivateAbility(
 	const FGameplayTagContainer* TargetTags,
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
-	const ACharacterBase* Character = ActorInfo
-		? Cast<ACharacterBase>(ActorInfo->AvatarActor.Get())
-		: nullptr;
-	const UCharacterMovementComponent* MovementComponent =
-		Character ? Character->GetCharacterMovement() : nullptr;
-	if (MovementComponent && MovementComponent->IsFalling())
-	{
-		if (OptionalRelevantTags)
-		{
-			OptionalRelevantTags->AddTag(LabGameplayTags::State_Movement_Airborne);
-		}
-		return false;
-	}
-
-	return Super::CanActivateAbility(
-		Handle,
-		ActorInfo,
-		SourceTags,
-		TargetTags,
-		OptionalRelevantTags);
+	return CheckAvatarGrounded(ActorInfo, OptionalRelevantTags)
+		&& Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
 
 // State helpers
@@ -424,7 +395,7 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 		}
 	}
 
-	const float AttackSpeedPlayRate = CalculateWeaponAttackSpeedPlayRate(ActorInfo);
+	const float AttackSpeedPlayRate = GetAttackSpeedPlayRate();
 	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 		this,
 		NAME_None,
@@ -657,34 +628,9 @@ bool UAttackAbility::FaceCurrentAttackTarget() const
 	}
 
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
-	AActor* AttackTarget = GetAttackTargetFromAvatar();
-	if (!IsValid(Character) || !IsValid(AttackTarget) || Character == AttackTarget)
-	{
-		return false;
-	}
-	if (Character->IsStatusFrozen())
-	{
-		return false;
-	}
-
-	FVector ToTarget = AttackTarget->GetActorLocation() - Character->GetActorLocation();
-	ToTarget.Z = 0.0f;
-	if (ToTarget.IsNearlyZero())
-	{
-		return false;
-	}
-
-	FRotator LookAtRotation = ToTarget.Rotation();
-	LookAtRotation.Pitch = 0.0f;
-	LookAtRotation.Roll = 0.0f;
-
-	if (AController* Controller = Character->GetController())
-	{
-		Controller->SetControlRotation(LookAtRotation);
-	}
-	Character->SetActorRotation(LookAtRotation);
-
-	return true;
+	const AActor* AttackTarget = GetAttackTargetFromAvatar();
+	return IsValid(Character) && IsValid(AttackTarget) && Character != AttackTarget
+		&& FaceCharacterToward(Character, AttackTarget->GetActorLocation());
 }
 
 void UAttackAbility::RequestAIChaseTarget() const

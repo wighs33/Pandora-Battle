@@ -1,5 +1,9 @@
 #include "Skill/Actions/SkillAction.h"
 #include "AbilitySystem/Ability/SkillAbility.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "Character/CharacterBase.h"
+#include "Common/LabGameplayTags.h"
 
 void USkillAction::Start(USkillAbility* InAbility, const FSkillActionContext& InContext)
 {
@@ -33,6 +37,43 @@ void USkillAction::Finish(bool bSucceeded)
 	OnStop();
 	OnFinished.Broadcast(this, bSucceeded);
 	OnFinished.Clear();
+}
+
+bool USkillAction::ResolveDamageableCharacterTarget(
+	AActor* SourceActor,
+	AActor* HitActor,
+	UAbilitySystemComponent*& OutSourceASC,
+	UAbilitySystemComponent*& OutTargetASC)
+{
+	const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(HitActor);
+	if (!TargetCharacter)
+	{
+		return false;
+	}
+
+	OutSourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(SourceActor);
+	OutTargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
+	if (!OutSourceASC || !OutTargetASC || OutTargetASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	{
+		return false;
+	}
+
+	const ACharacterBase* SourceCharacter = Cast<ACharacterBase>(SourceActor);
+	return !SourceCharacter || SourceCharacter->CanDamageCharacterByTeam(TargetCharacter);
+}
+
+bool USkillAction::ApplyDamageWithConfiguredStatus(
+	UAbilitySystemComponent& SourceASC,
+	UAbilitySystemComponent& TargetASC,
+	const FGameplayEffectSpec& DamageSpec) const
+{
+	if (!SourceASC.ApplyGameplayEffectSpecToTarget(DamageSpec, &TargetASC).WasSuccessfullyApplied())
+	{
+		return false;
+	}
+
+	GetAbility()->ApplyConfiguredStatusEffectToTarget(GetAbility()->GetSourceSkillDataAsset(), &TargetASC);
+	return true;
 }
 
 void USkillSequenceAction::OnStart()

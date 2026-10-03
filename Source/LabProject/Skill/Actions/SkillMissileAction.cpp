@@ -541,19 +541,10 @@ void USkillMissileAction::ApplyEffectToHitActor(AActor* HitActor, const float Ti
 		return;
 	}
 
-	FGameplayEffectSpecHandle DamageSpecHandle = MakeDamageEffectSpec(TickDamageMagnitude);
-	if (!DamageSpecHandle.IsValid() || !DamageSpecHandle.Data.IsValid())
+	const FGameplayEffectSpecHandle DamageSpecHandle = MakeDamageEffectSpec(TickDamageMagnitude);
+	if (DamageSpecHandle.IsValid())
 	{
-		return;
-	}
-
-	const FActiveGameplayEffectHandle AppliedHandle = SourceASC->ApplyGameplayEffectSpecToTarget(
-		*DamageSpecHandle.Data.Get(), TargetASC);
-	if (AppliedHandle.WasSuccessfullyApplied())
-	{
-		GetAbility()->ApplyConfiguredStatusEffectToTarget(
-			GetAbility()->GetSourceSkillDataAsset(),
-			TargetASC);
+		ApplyDamageWithConfiguredStatus(*SourceASC, *TargetASC, *DamageSpecHandle.Data);
 	}
 }
 

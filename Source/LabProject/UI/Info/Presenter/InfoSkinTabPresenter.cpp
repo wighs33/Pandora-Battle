@@ -71,7 +71,7 @@ void UInfoSkinTabPresenter::Activate()
 	{
 		if (URightSkinWidget* RightSkinWidget = InfoWidget->GetRightSkinWidget())
 		{
-			RightSkinWidget->ToggleActiveFiliterButtons(true);
+			RightSkinWidget->SetFilterButtonsEnabled(true);
 		}
 
 		if (ULeftSkinWidget* LeftSkinWidget = InfoWidget->GetLeftSkinWidget())
@@ -317,16 +317,16 @@ void UInfoSkinTabPresenter::BindEvents()
 
 	if (URightSkinWidget* RightSkinWidget = InfoWidget->GetRightSkinWidget())
 	{
-		RightSkinWidget->OnClicked_SkinFilterAllButton.RemoveDynamic(
+		RightSkinWidget->OnClicked_FilterAllButton.RemoveDynamic(
 			this,
 			&ThisClass::HandleSkinFilterAllClicked);
-		RightSkinWidget->OnClicked_SkinFilterAllButton.AddUniqueDynamic(
+		RightSkinWidget->OnClicked_FilterAllButton.AddUniqueDynamic(
 			this,
 			&ThisClass::HandleSkinFilterAllClicked);
-		RightSkinWidget->OnClicked_SkinFilterTypeButton.RemoveDynamic(
+		RightSkinWidget->OnClicked_FilterTypeButton.RemoveDynamic(
 			this,
 			&ThisClass::HandleSkinFilterTypeClicked);
-		RightSkinWidget->OnClicked_SkinFilterTypeButton.AddUniqueDynamic(
+		RightSkinWidget->OnClicked_FilterTypeButton.AddUniqueDynamic(
 			this,
 			&ThisClass::HandleSkinFilterTypeClicked);
 	}
@@ -360,10 +360,10 @@ void UInfoSkinTabPresenter::UnbindEvents()
 	}
 	if (URightSkinWidget* RightSkinWidget = InfoWidget->GetRightSkinWidget())
 	{
-		RightSkinWidget->OnClicked_SkinFilterAllButton.RemoveDynamic(
+		RightSkinWidget->OnClicked_FilterAllButton.RemoveDynamic(
 			this,
 			&ThisClass::HandleSkinFilterAllClicked);
-		RightSkinWidget->OnClicked_SkinFilterTypeButton.RemoveDynamic(
+		RightSkinWidget->OnClicked_FilterTypeButton.RemoveDynamic(
 			this,
 			&ThisClass::HandleSkinFilterTypeClicked);
 	}

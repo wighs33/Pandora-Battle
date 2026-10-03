@@ -101,7 +101,6 @@ private:
 	void ResolvePandoraTreeComponent();
 	void ApplyWidgetDefinitionSettings();
 	UPandoraTreeViewModel* GetOrCreatePandoraTreeViewModel();
-	void ApplyPandoraTreeViewModelToMvvmView();
 	void BindPandoraTreeEvents();
 	void UnbindPandoraTreeEvents();
 	void BindButtonEvents();

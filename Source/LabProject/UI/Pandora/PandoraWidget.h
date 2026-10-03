@@ -106,7 +106,6 @@ private:
 	void BindButtonEvents();
 	void UnbindButtonEvents();
 	UPandoraWidgetViewModel* GetOrCreatePandoraWidgetViewModel();
-	void ApplyPandoraWidgetViewModelToMvvmView();
 	void ApplyDesignerDefaults();
 	void ClearButtonPressTimer();
 	void RefreshPandoraDescriptionRequest(bool bForceRefresh = false);

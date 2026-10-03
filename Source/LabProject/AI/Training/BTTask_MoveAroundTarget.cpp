@@ -1,4 +1,5 @@
 #include "AI/Training/BTTask_MoveAroundTarget.h"
+#include "AI/Training/TrainingBotMovement.h"
 
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -8,7 +9,6 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Navigation/PathFollowingComponent.h"
-#include "NavigationSystem.h"
 
 namespace
 {
@@ -223,15 +223,7 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::RequestNextMove(UBehaviorTreeCompo
 		AIController->SetFocus(TargetActor, EAIFocusPriority::Gameplay);
 	}
 
-	const EPathFollowingRequestResult::Type MoveResult = AIController->MoveToLocation(
-		Destination,
-		AcceptanceRadius,
-		bStopOnOverlap,
-		true,
-		true,
-		true,
-		nullptr,
-		true);
+	const EPathFollowingRequestResult::Type MoveResult = TrainingBotMovement::MoveToLocation(*AIController, Destination, AcceptanceRadius, bStopOnOverlap);
 
 	if (bDrawDebug)
 	{
@@ -433,51 +425,18 @@ bool UBTTask_MoveAroundTarget::BuildMoveDestination(APawn* Pawn, AActor* TargetA
 		return false;
 	}
 
-	const FVector PawnLocation = Pawn->GetActorLocation();
-	const FVector TargetLocation = TargetActor->GetActorLocation();
-
-	FVector DirectionFromTargetToPawn = PawnLocation - TargetLocation;
-	DirectionFromTargetToPawn.Z = 0.0f;
-	if (!DirectionFromTargetToPawn.Normalize())
-	{
-		DirectionFromTargetToPawn = -TargetActor->GetActorForwardVector();
-		DirectionFromTargetToPawn.Z = 0.0f;
-		DirectionFromTargetToPawn.Normalize();
-	}
-
-	FVector TargetRightVector = TargetActor->GetActorRightVector();
-	TargetRightVector.Z = 0.0f;
-	TargetRightVector.Normalize();
-
-	const float DistanceFromTarget = FMath::RandRange(
-		FMath::Min(MinDistanceFromTarget, MaxDistanceFromTarget),
-		FMath::Max(MinDistanceFromTarget, MaxDistanceFromTarget));
-	const int32 SideStepMultiplier = FMath::RandRange(
-		FMath::Min(MinSideStepMultiplier, MaxSideStepMultiplier),
-		FMath::Max(MinSideStepMultiplier, MaxSideStepMultiplier));
-
-	FVector Destination = TargetLocation
-		+ DirectionFromTargetToPawn * DistanceFromTarget
-		+ TargetRightVector * static_cast<float>(SideStepMultiplier) * SideStepDistance;
-	Destination.Z = PawnLocation.Z;
-
+	OutDestination = TrainingBotMovement::BuildSideStepDestination(
+		*Pawn,
+		*TargetActor,
+		MinDistanceFromTarget,
+		MaxDistanceFromTarget,
+		MinSideStepMultiplier,
+		MaxSideStepMultiplier,
+		SideStepDistance);
 	if (bProjectDestinationToNavigation)
 	{
-		if (UWorld* World = Pawn->GetWorld())
-		{
-			if (UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
-			{
-				FNavLocation ProjectedLocation;
-				const FVector ProjectionExtent(NavigationProjectionExtent, NavigationProjectionExtent, NavigationProjectionExtent);
-				if (NavigationSystem->ProjectPointToNavigation(Destination, ProjectedLocation, ProjectionExtent))
-				{
-					Destination = ProjectedLocation.Location;
-				}
-			}
-		}
+		OutDestination = TrainingBotMovement::ProjectToNavigation(Pawn->GetWorld(), OutDestination, NavigationProjectionExtent);
 	}
-
-	OutDestination = Destination;
 	return true;
 }
 
@@ -513,39 +472,10 @@ void UBTTask_MoveAroundTarget::ApplyFacingMode(APawn* Pawn, uint8* NodeMemory) c
 
 void UBTTask_MoveAroundTarget::UpdateFacing(AAIController* AIController, APawn* Pawn, AActor* TargetActor, float DeltaSeconds) const
 {
-	if (!bFaceTargetWhileMoving || !AIController || !Pawn || !TargetActor)
+	if (bFaceTargetWhileMoving && AIController && Pawn && TargetActor)
 	{
-		return;
+		TrainingBotMovement::FaceTarget(*AIController, *Pawn, *TargetActor, DeltaSeconds, FaceTargetRotationInterpSpeed);
 	}
-
-	FVector ToTarget = TargetActor->GetActorLocation() - Pawn->GetActorLocation();
-	ToTarget.Z = 0.0f;
-	if (ToTarget.IsNearlyZero())
-	{
-		return;
-	}
-
-	if (const AEnemyBase* Enemy = Cast<AEnemyBase>(Pawn); Enemy && Enemy->IsStatusFrozen())
-	{
-		AIController->ClearFocus(EAIFocusPriority::Gameplay);
-
-		return;
-	}
-
-	FRotator DesiredRotation = ToTarget.Rotation();
-	DesiredRotation.Pitch = 0.0f;
-	DesiredRotation.Roll = 0.0f;
-
-	if (FaceTargetRotationInterpSpeed > 0.0f && DeltaSeconds > 0.0f)
-	{
-		DesiredRotation = FMath::RInterpConstantTo(Pawn->GetActorRotation(), DesiredRotation, DeltaSeconds, FaceTargetRotationInterpSpeed);
-		DesiredRotation.Pitch = 0.0f;
-		DesiredRotation.Roll = 0.0f;
-	}
-
-	AIController->SetFocus(TargetActor, EAIFocusPriority::Gameplay);
-	AIController->SetControlRotation(DesiredRotation);
-	Pawn->SetActorRotation(DesiredRotation);
 }
 
 void UBTTask_MoveAroundTarget::RestoreMovementSettings(APawn* Pawn, uint8* NodeMemory, bool bRestoreFacing) const

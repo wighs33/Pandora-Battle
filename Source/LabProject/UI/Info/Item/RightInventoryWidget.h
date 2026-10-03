@@ -1,59 +1,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/Common/LocalizedMenuWidget.h"
-#include "GameplayTagContainer.h"
-#include "UI/Info/FilterButtonHighlight.h"
+#include "UI/Info/RightListPanelWidget.h"
 #include "RightInventoryWidget.generated.h"
 
-class UButton;
-class UEditableTextBox;
 class UInventorySlotViewData;
 class UItemDefinition;
 class UItemInstance;
 class UTextBlock;
-class UTileView;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedInventoryFilterAllButton);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedInventoryFilterTypeButton, FGameplayTag, TypeTag);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FPdOnDroppedInventorySlot, int32, SourceSlotIndex, int32, TargetSlotIndex, UItemInstance*, SourceItem);
 
+/** 인벤토리 슬롯 목록. 빈 칸까지 슬롯 수만큼 보여 주고, 합칠 수 있는 무기·장비가 있으면 안내를 띄운다. */
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URightInventoryWidget : public ULocalizedMenuWidget
+class LABPROJECT_API URightInventoryWidget : public URightListPanelWidget
 {
 	GENERATED_BODY()
 
 protected:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+	virtual void ApplyWidgetDefinitionSettings() override;
+	virtual void RebuildTileView() override;
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	URightInventoryWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
-	void SelectAllFilter();
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory", meta = (Categories = "Item"))
-	void SelectTypeFilter(FGameplayTag TypeTag);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
-	void ToggleActiveFiliterButtons(bool bActive);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
-	void ResetFilterHighlightToAll();
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
-	void SetTileView(const TArray<UObject*>& InListItems);
-
 	void SetAssignedItemIds(const TSet<FGuid>& InAssignedItemIds);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
-	void ClearTileViewItemClicked();
-
-	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
-	UTileView* GetTileView() const { return TileView; }
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
 	void SelectInventorySlot(UInventorySlotViewData* SlotViewData);
@@ -67,52 +39,19 @@ public:
 	void BroadcastDroppedInventorySlot(int32 SourceSlotIndex, int32 TargetSlotIndex, UItemInstance* SourceItem);
 
 private:
-	// Event Handlers --------------------------------------------------------------------------------------------------
-	UFUNCTION()
-	void OnAllButtonClicked();
-
-	UFUNCTION()
-	void OnWeaponButtonClicked();
-
-	UFUNCTION()
-	void OnEquipmentButtonClicked();
-
-	UFUNCTION()
-	void OnValuableButtonClicked();
-
-	UFUNCTION()
-	void OnConsumableButtonClicked();
-
-	UFUNCTION()
-	void OnSearchButtonClicked();
-
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void RebuildFilterButtonList();
-	void RebuildTileViewFromCachedSourceItems();
 	void UpdateCombineMessage(bool bHasCombinableItems) const;
-	bool DoesItemMatchSearch(const UItemInstance* ItemInstance, const FString& SearchText) const;
 	bool IsDuplicateHighlightCandidate(const UItemDefinition* ItemDefinition) const;
-	void ApplyWidgetDefinitionSettings();
-	UButton* ResolveFilterButton(FGameplayTag TypeTag) const;
-	FGameplayTag GetWeaponTypeTag() const;
-	FGameplayTag GetEquipmentTypeTag() const;
-	FGameplayTag GetValuableTypeTag() const;
-	FGameplayTag GetConsumableTypeTag() const;
+
+	// ApplyWidgetDefinitionSettings에서 등록하는 분류 순서.
+	static constexpr int32 WeaponFilterIndex = 0;
+	static constexpr int32 EquipmentFilterIndex = 1;
 
 public:
-	UPROPERTY(BlueprintAssignable, Category = "!UI|Inventory")
-	FPdOnClickedInventoryFilterAllButton OnClicked_FilterAllButton;
-
-	UPROPERTY(BlueprintAssignable, Category = "!UI|Inventory")
-	FPdOnClickedInventoryFilterTypeButton OnClicked_FilterTypeButton;
-
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Inventory")
 	FPdOnDroppedInventorySlot OnDropped_InventorySlot;
 
 protected:
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory", meta = (BindWidget))
-	TObjectPtr<UButton> AllButton;
-
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory", meta = (BindWidget))
 	TObjectPtr<UButton> WeaponButton;
 
@@ -125,21 +64,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory", meta = (BindWidget))
 	TObjectPtr<UButton> ConsumableButton;
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Inventory")
-	TArray<TObjectPtr<UButton>> FilterButtonList;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Inventory|Filter")
-	FLinearColor SelectedFilterAccentColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory", meta = (BindWidget))
-	TObjectPtr<UTileView> TileView;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory|Search", meta = (BindWidgetOptional))
-	TObjectPtr<UButton> Btn_Search;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory|Search", meta = (BindWidgetOptional))
-	TObjectPtr<UEditableTextBox> SearchBox;
-
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory|Combine", meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> Txt_Message;
 
@@ -149,19 +73,5 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Inventory|Slots")
 	TArray<TObjectPtr<UInventorySlotViewData>> CachedSlotViewData;
 
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UObject>> CachedSourceListItems;
-
-	UPROPERTY(Transient)
-	FString ActiveSearchText;
-
 	TSet<FGuid> AssignedItemIds;
-
-private:
-	FGameplayTag WeaponTypeTagOverride;
-	FGameplayTag EquipmentTypeTagOverride;
-	FGameplayTag ValuableTypeTagOverride;
-	FGameplayTag ConsumableTypeTagOverride;
-
-	FFilterButtonHighlightState FilterButtonHighlightState;
 };

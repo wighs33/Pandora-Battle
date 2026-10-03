@@ -91,8 +91,6 @@ private:
 	UAbilitySystemComponent* ResolveAbilitySystemComponent() const;
 	bool BindStatusViewModelToWidget(UUserWidget* InWidget);
 
-	FName ResolveStatusViewModelSourceName(const UUserWidget* InWidget) const;
-
 	APlayerController* GetLocalPlayerController() const;
 
 	void BeginConfiguredWidgetDefinitionPreload();

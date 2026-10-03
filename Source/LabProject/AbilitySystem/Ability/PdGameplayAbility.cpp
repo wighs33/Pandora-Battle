@@ -12,6 +12,7 @@
 #include "Definition/AbilitySystem/SkillGameplayEffectConfig.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
@@ -340,6 +341,54 @@ AActor* UPdGameplayAbility::GetAttackTargetFromAvatar() const
 	AActor* AttackTarget = ITargetingInterface::Execute_GetAttackTarget(AvatarActor);
 	const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(AttackTarget);
 	return TargetCharacter && TargetCharacter->IsDead() ? nullptr : AttackTarget;
+}
+
+bool UPdGameplayAbility::CheckAvatarGrounded(
+	const FGameplayAbilityActorInfo* ActorInfo,
+	FGameplayTagContainer* OptionalRelevantTags)
+{
+	const ACharacterBase* Character = ActorInfo ? Cast<ACharacterBase>(ActorInfo->AvatarActor.Get()) : nullptr;
+	const UCharacterMovementComponent* MovementComponent = Character ? Character->GetCharacterMovement() : nullptr;
+	if (!MovementComponent || !MovementComponent->IsFalling())
+	{
+		return true;
+	}
+
+	if (OptionalRelevantTags)
+	{
+		OptionalRelevantTags->AddTag(LabGameplayTags::State_Movement_Airborne);
+	}
+	return false;
+}
+
+float UPdGameplayAbility::GetAttackSpeedPlayRate() const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	const UBasicAttributeSet* Attributes = ASC ? ASC->GetSet<UBasicAttributeSet>() : nullptr;
+	return Attributes ? Attributes->GetAttackSpeedPlayRate() : 1.0f;
+}
+
+bool UPdGameplayAbility::FaceCharacterToward(ACharacterBase* Character, const FVector& TargetLocation)
+{
+	if (!Character || Character->IsStatusFrozen())
+	{
+		return false;
+	}
+
+	FVector ToTarget = TargetLocation - Character->GetActorLocation();
+	ToTarget.Z = 0.0f;
+	if (ToTarget.IsNearlyZero())
+	{
+		return false;
+	}
+
+	const FRotator LookAtRotation(0.0f, ToTarget.Rotation().Yaw, 0.0f);
+	if (AController* Controller = Character->GetController())
+	{
+		Controller->SetControlRotation(LookAtRotation);
+	}
+	Character->SetActorRotation(LookAtRotation);
+	return true;
 }
 
 float UPdGameplayAbility::GetDamageBonusPercent() const

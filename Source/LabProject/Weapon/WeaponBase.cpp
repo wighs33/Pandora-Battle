@@ -278,8 +278,7 @@ float AWeaponBase::GetWeaponAttackSpeedPlayRate() const
         ? AbilitySystemComponent->GetSet<UBasicAttributeSet>()
         : nullptr;
 
-    const float AttackSpeedPercent = AttributeSet ? FMath::Max(AttributeSet->GetAttackSpeed(), 0.0f) : 0.0f;
-    return FMath::Max(0.01f, 1.0f + AttackSpeedPercent * 0.01f);
+    return AttributeSet ? AttributeSet->GetAttackSpeedPlayRate() : 1.0f;
 }
 
 UAnimMontage* AWeaponBase::GetConfiguredWeaponMontage() const

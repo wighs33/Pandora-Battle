@@ -21,8 +21,7 @@
 #include "Mode/PdPlayerState.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "Data/ContentLease.h"
-#include "View/MVVMView.h"
-#include "View/MVVMViewClass.h"
+#include "UI/Common/ViewModelBinding.h"
 #include "ViewModel/StatusViewModel.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UiSubsystem)
 
@@ -412,23 +411,7 @@ bool UUiSubsystem::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
 
 bool UUiSubsystem::BindStatusViewModelToWidget(UUserWidget* InWidget)
 {
-	if (!InWidget || !StatusViewModel)
-	{
-		return false;
-	}
-
-	UMVVMView* ViewExtension = InWidget->GetExtension<UMVVMView>();
-	if (!ViewExtension)
-	{
-		return false;
-	}
-
-	const FName ViewModelSourceName =
-		ResolveStatusViewModelSourceName(InWidget);
-	return !ViewModelSourceName.IsNone()
-		&& ViewExtension->SetViewModel(
-			ViewModelSourceName,
-			StatusViewModel);
+	return PdViewModelBinding::SetViewModel(InWidget, StatusViewModel, UStatusViewModel::ViewModelName);
 }
 
 UAbilitySystemComponent* UUiSubsystem::ResolveAbilitySystemComponent() const
@@ -447,49 +430,6 @@ UAbilitySystemComponent* UUiSubsystem::ResolveAbilitySystemComponent() const
 
 	const APdPlayerState* PdPlayerState = PlayerController->GetPlayerState<APdPlayerState>();
 	return PdPlayerState ? PdPlayerState->GetAbilitySystemComponent() : nullptr;
-}
-
-FName UUiSubsystem::ResolveStatusViewModelSourceName(const UUserWidget* InWidget) const
-{
-	if (!InWidget)
-	{
-		return NAME_None;
-	}
-
-	const UMVVMView* ViewExtension = InWidget->GetExtension<UMVVMView>();
-	const UMVVMViewClass* ViewClass = ViewExtension ? ViewExtension->GetViewClass() : nullptr;
-	if (!ViewClass)
-	{
-		return NAME_None;
-	}
-
-	FName FirstCompatibleSourceName = NAME_None;
-	for (const FMVVMViewClass_Source& Source : ViewClass->GetSources())
-	{
-		if (!Source.IsViewModel() || !Source.CanBeSet())
-		{
-			continue;
-		}
-
-		const UClass* SourceClass = Source.GetSourceClass();
-		const bool bIsStatusViewModelSource = SourceClass && StatusViewModel && StatusViewModel->GetClass()->IsChildOf(SourceClass);
-		if (!bIsStatusViewModelSource)
-		{
-			continue;
-		}
-
-		if (Source.GetName() == UStatusViewModel::ViewModelName)
-		{
-			return Source.GetName();
-		}
-
-		if (FirstCompatibleSourceName.IsNone())
-		{
-			FirstCompatibleSourceName = Source.GetName();
-		}
-	}
-
-	return FirstCompatibleSourceName;
 }
 
 APlayerController* UUiSubsystem::GetLocalPlayerController() const

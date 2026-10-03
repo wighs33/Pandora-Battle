@@ -123,7 +123,7 @@ void UInfoItemTabPresenter::Activate()
 
 	if (URightInventoryWidget* RightInventoryWidget = InfoWidget->GetRightInventoryWidget())
 	{
-		RightInventoryWidget->ToggleActiveFiliterButtons(true);
+		RightInventoryWidget->SetFilterButtonsEnabled(true);
 	}
 	if (ULeftEquipmentWidget* LeftEquipmentWidget = InfoWidget->GetLeftEquipmentWidget())
 	{
@@ -146,7 +146,7 @@ void UInfoItemTabPresenter::HandleInfoUiOpened()
 
 	if (URightInventoryWidget* RightInventoryWidget = InfoWidget ? InfoWidget->GetRightInventoryWidget() : nullptr)
 	{
-		RightInventoryWidget->ToggleActiveFiliterButtons(true);
+		RightInventoryWidget->SetFilterButtonsEnabled(true);
 	}
 	RefreshInventoryTileView();
 }

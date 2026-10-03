@@ -24,41 +24,14 @@
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Pandora/PandoraDescriptionWidget.h"
 #include "UI/Pandora/PandoraWidget.h"
+#include "UI/Common/ViewModelBinding.h"
 #include "UI/Pandora/PandoraWidgetViewData.h"
-#include "View/MVVMView.h"
-#include "View/MVVMViewClass.h"
 #include "ViewModel/PandoraTreeViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraTreeWidget)
 
 namespace
 {
-	UPandoraTreeComponent* ResolvePandoraTreeComponentFromTreeWidget(const UUserWidget* Widget)
-	{
-		if (!Widget)
-		{
-			return nullptr;
-		}
-
-		if (APlayerController* PlayerController = Widget->GetOwningPlayer())
-		{
-			if (APdPlayerState* PlayerState = PlayerController->GetPlayerState<APdPlayerState>())
-			{
-				return PlayerState->GetPandoraTreeComponent();
-			}
-		}
-
-		if (APawn* OwningPawn = Widget->GetOwningPlayerPawn())
-		{
-			if (APdPlayerState* PlayerState = OwningPawn->GetPlayerState<APdPlayerState>())
-			{
-				return PlayerState->GetPandoraTreeComponent();
-			}
-		}
-
-		return nullptr;
-	}
-
 	void DisablePreviewCameraLetterboxing(AActor* ViewTarget)
 	{
 		if (!IsValid(ViewTarget))
@@ -93,8 +66,7 @@ void UPandoraTreeWidget::NativePreConstruct()
 
 	ApplyWidgetDefinitionSettings();
 
-	GetOrCreatePandoraTreeViewModel();
-	ApplyPandoraTreeViewModelToMvvmView();
+	PdViewModelBinding::SetViewModel(this, GetOrCreatePandoraTreeViewModel());
 	RefreshPandoraWidgets();
 }
 
@@ -106,8 +78,7 @@ void UPandoraTreeWidget::NativeConstruct()
 	ApplyWidgetDefinitionSettings();
 	ResolvePandoraTreeComponent();
 
-	GetOrCreatePandoraTreeViewModel();
-	ApplyPandoraTreeViewModelToMvvmView();
+	PdViewModelBinding::SetViewModel(this, GetOrCreatePandoraTreeViewModel());
 	BindPandoraTreeEvents();
 	BindButtonEvents();
 	SetPandoraPointsText();
@@ -501,7 +472,8 @@ void UPandoraTreeWidget::ResolvePandoraTreeComponent()
 {
 	if (!PandoraTreeComponent)
 	{
-		PandoraTreeComponent = ResolvePandoraTreeComponentFromTreeWidget(this);
+		const APdPlayerState* PlayerState = FPandoraWidgetViewDataBuilder::FindOwningPlayerState(this);
+		PandoraTreeComponent = PlayerState ? PlayerState->GetPandoraTreeComponent() : nullptr;
 	}
 
 	if (!PandoraDefinition && PandoraTreeComponent)
@@ -545,49 +517,6 @@ UPandoraTreeViewModel* UPandoraTreeWidget::GetOrCreatePandoraTreeViewModel()
 	}
 
 	return PandoraTreeViewModel.Get();
-}
-
-void UPandoraTreeWidget::ApplyPandoraTreeViewModelToMvvmView()
-{
-	if (!PandoraTreeViewModel)
-	{
-		return;
-	}
-
-	UMVVMView* ViewExtension = GetExtension<UMVVMView>();
-	if (!ViewExtension)
-	{
-		return;
-	}
-
-	const UMVVMViewClass* ViewClass = ViewExtension->GetViewClass();
-	if (!ViewClass)
-	{
-		return;
-	}
-
-	FName RuntimeViewModelName = NAME_None;
-	for (const FMVVMViewClass_Source& Source : ViewClass->GetSources())
-	{
-		if (!Source.IsViewModel() || !Source.CanBeSet())
-		{
-			continue;
-		}
-
-		const UClass* SourceClass = Source.GetSourceClass();
-		if (SourceClass && PandoraTreeViewModel->GetClass()->IsChildOf(SourceClass))
-		{
-			RuntimeViewModelName = Source.GetName();
-			break;
-		}
-	}
-
-	if (RuntimeViewModelName.IsNone())
-	{
-		return;
-	}
-
-	ViewExtension->SetViewModel(RuntimeViewModelName, PandoraTreeViewModel);
 }
 
 void UPandoraTreeWidget::BindPandoraTreeEvents()

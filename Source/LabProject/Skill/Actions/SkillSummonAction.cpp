@@ -871,44 +871,20 @@ void USkillSummonAction::ApplySummonTriggerDamage(AActor* HitActor, const bool b
 		return;
 	}
 
-	const ACharacterBase* SourceCharacter = Cast<ACharacterBase>(SourceActor);
-	const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(HitActor);
-	if (!TargetCharacter)
+	UAbilitySystemComponent* SourceASC = nullptr;
+	UAbilitySystemComponent* TargetASC = nullptr;
+	if (!ResolveDamageableCharacterTarget(SourceActor, HitActor, SourceASC, TargetASC))
 	{
 		return;
 	}
 
-	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(SourceActor);
-	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
-	if (!SourceASC || !TargetASC)
+	const FGameplayEffectSpecHandle DamageSpecHandle = MakeSummonTriggerDamageSpec(CalculateSummonTriggerDamageMagnitude());
+	if (!DamageSpecHandle.IsValid())
 	{
 		return;
 	}
 
-	if (TargetASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
-	{
-		return;
-	}
-
-	if (SourceCharacter && !SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
-	{
-		return;
-	}
-
-	const float DamageMagnitude = CalculateSummonTriggerDamageMagnitude();
-	FGameplayEffectSpecHandle DamageSpecHandle = MakeSummonTriggerDamageSpec(DamageMagnitude);
-	if (!DamageSpecHandle.IsValid() || !DamageSpecHandle.Data.IsValid())
-	{
-		return;
-	}
-
-	const FActiveGameplayEffectHandle AppliedHandle = SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), TargetASC);
-	if (AppliedHandle.WasSuccessfullyApplied())
-	{
-		GetAbility()->ApplyConfiguredStatusEffectToTarget(
-			GetAbility()->GetSourceSkillDataAsset(),
-			TargetASC);
-	}
+	ApplyDamageWithConfiguredStatus(*SourceASC, *TargetASC, *DamageSpecHandle.Data);
 	if (!bAllowRepeatedDamage)
 	{
 		DamagedSummonTriggerActors.Add(HitActorKey);

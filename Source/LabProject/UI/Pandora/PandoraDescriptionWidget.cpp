@@ -2,53 +2,21 @@
 
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Components/Image.h"
-#include "GameFramework/Pawn.h"
-#include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Mode/PdPlayerState.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "UI/Pandora/SkillEffectIconResolver.h"
+#include "UI/Common/ViewModelBinding.h"
 #include "UI/Pandora/PandoraWidgetViewData.h"
-#include "View/MVVMView.h"
-#include "View/MVVMViewClass.h"
 #include "ViewModel/PandoraDescriptionViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraDescriptionWidget)
 
-namespace
-{
-	UPandoraTreeComponent* ResolvePandoraTreeComponentFromDescriptionWidget(const UUserWidget* Widget)
-	{
-		if (!Widget)
-		{
-			return nullptr;
-		}
-
-		if (APlayerController* OwningPlayer = Widget->GetOwningPlayer())
-		{
-			if (APdPlayerState* PlayerState = OwningPlayer->GetPlayerState<APdPlayerState>())
-			{
-				return PlayerState->GetPandoraTreeComponent();
-			}
-		}
-
-		if (APawn* OwningPawn = Widget->GetOwningPlayerPawn())
-		{
-			if (APdPlayerState* PlayerState = OwningPawn->GetPlayerState<APdPlayerState>())
-			{
-				return PlayerState->GetPandoraTreeComponent();
-			}
-		}
-
-		return nullptr;
-	}
-}
 void UPandoraDescriptionWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	GetOrCreatePandoraDescriptionViewModel();
-	ApplyPandoraDescriptionViewModelToMvvmView();
+	PdViewModelBinding::SetViewModel(this, GetOrCreatePandoraDescriptionViewModel());
 	ResolvePandoraTreeComponent();
 	SetDetails();
 }
@@ -146,7 +114,8 @@ void UPandoraDescriptionWidget::ResolvePandoraTreeComponent()
 {
 	if (!PandoraTreeComponent)
 	{
-		PandoraTreeComponent = ResolvePandoraTreeComponentFromDescriptionWidget(this);
+		const APdPlayerState* PlayerState = FPandoraWidgetViewDataBuilder::FindOwningPlayerState(this);
+		PandoraTreeComponent = PlayerState ? PlayerState->GetPandoraTreeComponent() : nullptr;
 	}
 
 	if (!PandoraDefinition && PandoraTreeComponent)
@@ -189,47 +158,4 @@ UPandoraDescriptionViewModel* UPandoraDescriptionWidget::GetOrCreatePandoraDescr
 	}
 
 	return PandoraDescriptionViewModel.Get();
-}
-
-void UPandoraDescriptionWidget::ApplyPandoraDescriptionViewModelToMvvmView()
-{
-	if (!PandoraDescriptionViewModel)
-	{
-		return;
-	}
-
-	UMVVMView* ViewExtension = GetExtension<UMVVMView>();
-	if (!ViewExtension)
-	{
-		return;
-	}
-
-	const UMVVMViewClass* ViewClass = ViewExtension->GetViewClass();
-	if (!ViewClass)
-	{
-		return;
-	}
-
-	FName RuntimeViewModelName = NAME_None;
-	for (const FMVVMViewClass_Source& Source : ViewClass->GetSources())
-	{
-		if (!Source.IsViewModel() || !Source.CanBeSet())
-		{
-			continue;
-		}
-
-		const UClass* SourceClass = Source.GetSourceClass();
-		if (SourceClass && PandoraDescriptionViewModel->GetClass()->IsChildOf(SourceClass))
-		{
-			RuntimeViewModelName = Source.GetName();
-			break;
-		}
-	}
-
-	if (RuntimeViewModelName.IsNone())
-	{
-		return;
-	}
-
-	ViewExtension->SetViewModel(RuntimeViewModelName, PandoraDescriptionViewModel);
 }

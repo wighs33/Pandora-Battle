@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 
+class APdPlayerState;
 class UUserWidget;
 class UMenuLocalizationSubsystem;
 class UPandoraDefinition;
@@ -100,6 +101,8 @@ public:
 		const UPandoraTreeComponent* PandoraTreeComponent,
 		const FPandoraWidgetStyleConfig& Style);
 
+	/** 위젯을 가진 플레이어의 PlayerState. 컨트롤러에 아직 복제되지 않았으면 폰 쪽을 본다. */
+	static APdPlayerState* FindOwningPlayerState(const UUserWidget* Widget);
 	static UPandoraDefinition* GetSelectedPandoraDefinition(const UPandoraTreeComponent* PandoraTreeComponent);
 	static bool IsPandoraOwnedInProfile(const UUserWidget* Widget, UPandoraDefinition* PandoraDefinition);
 

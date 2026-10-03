@@ -4,6 +4,7 @@
 #include "Common/LabGameplayTags.h"
 #include "Common/Enum_Direction.h"
 #include "Component/Pandora/PandoraComponent.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameInstance.h"
 #include "Profile/PlayerProfileSubsystem.h"
@@ -141,6 +142,25 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 	ViewData.IconResource = PandoraDefinition ? PandoraDefinition->GetIconResource() : nullptr;
 
 	return ViewData;
+}
+
+APdPlayerState* FPandoraWidgetViewDataBuilder::FindOwningPlayerState(const UUserWidget* Widget)
+{
+	if (!Widget)
+	{
+		return nullptr;
+	}
+
+	if (const APlayerController* PlayerController = Widget->GetOwningPlayer())
+	{
+		if (APdPlayerState* PlayerState = PlayerController->GetPlayerState<APdPlayerState>())
+		{
+			return PlayerState;
+		}
+	}
+
+	const APawn* OwningPawn = Widget->GetOwningPlayerPawn();
+	return OwningPawn ? OwningPawn->GetPlayerState<APdPlayerState>() : nullptr;
 }
 
 UPandoraDefinition* FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(const UPandoraTreeComponent* PandoraTreeComponent)

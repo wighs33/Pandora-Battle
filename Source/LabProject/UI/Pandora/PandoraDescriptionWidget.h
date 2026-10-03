@@ -36,7 +36,6 @@ private:
 	void ResolvePandoraTreeComponent();
 	void ApplyEffectIconResources();
 	UPandoraDescriptionViewModel* GetOrCreatePandoraDescriptionViewModel();
-	void ApplyPandoraDescriptionViewModelToMvvmView();
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Effect Icons")

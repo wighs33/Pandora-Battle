@@ -7,7 +7,6 @@
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Localization/MenuLocalizationSubsystem.h"
-#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "HAL/PlatformTime.h"
@@ -16,9 +15,8 @@
 #include "Component/Pandora/PandoraComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Common/ViewModelBinding.h"
 #include "UI/Pandora/PandoraWidgetViewData.h"
-#include "View/MVVMView.h"
-#include "View/MVVMViewClass.h"
 #include "ViewModel/PandoraWidgetViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraWidget)
@@ -26,58 +24,6 @@
 namespace
 {
 	const FLinearColor PandoraButtonTransparentColor(1.0f, 1.0f, 1.0f, 0.0f);
-
-	UPandoraTreeComponent* ResolvePandoraTreeComponentFromPandoraWidget(const UUserWidget* Widget)
-	{
-		if (!Widget)
-		{
-			return nullptr;
-		}
-
-		if (APlayerController* PlayerController = Widget->GetOwningPlayer())
-		{
-			if (APdPlayerState* PlayerState = PlayerController->GetPlayerState<APdPlayerState>())
-			{
-				return PlayerState->GetPandoraTreeComponent();
-			}
-		}
-
-		if (APawn* OwningPawn = Widget->GetOwningPlayerPawn())
-		{
-			if (APdPlayerState* PlayerState = OwningPawn->GetPlayerState<APdPlayerState>())
-			{
-				return PlayerState->GetPandoraTreeComponent();
-			}
-		}
-
-		return nullptr;
-	}
-
-	UPandoraComponent* ResolvePandoraComponentFromPandoraWidget(const UUserWidget* Widget)
-	{
-		if (!Widget)
-		{
-			return nullptr;
-		}
-
-		if (APlayerController* PlayerController = Widget->GetOwningPlayer())
-		{
-			if (APdPlayerState* PlayerState = PlayerController->GetPlayerState<APdPlayerState>())
-			{
-				return PlayerState->GetPandoraComponent();
-			}
-		}
-
-		if (APawn* OwningPawn = Widget->GetOwningPlayerPawn())
-		{
-			if (APdPlayerState* PlayerState = OwningPawn->GetPlayerState<APdPlayerState>())
-			{
-				return PlayerState->GetPandoraComponent();
-			}
-		}
-
-		return nullptr;
-	}
 }
 
 void UPandoraWidget::NativePreConstruct()
@@ -86,8 +32,7 @@ void UPandoraWidget::NativePreConstruct()
 
 	ApplyWidgetDefinitionSettings();
 
-	GetOrCreatePandoraWidgetViewModel();
-	ApplyPandoraWidgetViewModelToMvvmView();
+	PdViewModelBinding::SetViewModel(this, GetOrCreatePandoraWidgetViewModel());
 	ApplyDesignerDefaults();
 	ApplyEquipHintDefaults();
 	SetPandoraInfo();
@@ -102,8 +47,7 @@ void UPandoraWidget::NativeConstruct()
 	bIsPandoraDescriptionRequested = false;
 	ApplyWidgetDefinitionSettings();
 
-	GetOrCreatePandoraWidgetViewModel();
-	ApplyPandoraWidgetViewModelToMvvmView();
+	PdViewModelBinding::SetViewModel(this, GetOrCreatePandoraWidgetViewModel());
 	ResolvePandoraTreeComponent();
 	ResolvePandoraComponent();
 	BindPandoraTreeEvents();
@@ -460,7 +404,8 @@ void UPandoraWidget::ResolvePandoraTreeComponent()
 {
 	if (!PandoraTreeComponent)
 	{
-		PandoraTreeComponent = ResolvePandoraTreeComponentFromPandoraWidget(this);
+		const APdPlayerState* PlayerState = FPandoraWidgetViewDataBuilder::FindOwningPlayerState(this);
+		PandoraTreeComponent = PlayerState ? PlayerState->GetPandoraTreeComponent() : nullptr;
 	}
 
 	if (!PandoraDefinition && PandoraTreeComponent)
@@ -473,7 +418,8 @@ void UPandoraWidget::ResolvePandoraComponent()
 {
 	if (!PandoraComponent)
 	{
-		PandoraComponent = ResolvePandoraComponentFromPandoraWidget(this);
+		const APdPlayerState* PlayerState = FPandoraWidgetViewDataBuilder::FindOwningPlayerState(this);
+		PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
 	}
 }
 
@@ -575,49 +521,6 @@ UPandoraWidgetViewModel* UPandoraWidget::GetOrCreatePandoraWidgetViewModel()
 	}
 
 	return PandoraWidgetViewModel.Get();
-}
-
-void UPandoraWidget::ApplyPandoraWidgetViewModelToMvvmView()
-{
-	if (!PandoraWidgetViewModel)
-	{
-		return;
-	}
-
-	UMVVMView* ViewExtension = GetExtension<UMVVMView>();
-	if (!ViewExtension)
-	{
-		return;
-	}
-
-	const UMVVMViewClass* ViewClass = ViewExtension->GetViewClass();
-	if (!ViewClass)
-	{
-		return;
-	}
-
-	FName RuntimeViewModelName = NAME_None;
-	for (const FMVVMViewClass_Source& Source : ViewClass->GetSources())
-	{
-		if (!Source.IsViewModel() || !Source.CanBeSet())
-		{
-			continue;
-		}
-
-		const UClass* SourceClass = Source.GetSourceClass();
-		if (SourceClass && PandoraWidgetViewModel->GetClass()->IsChildOf(SourceClass))
-		{
-			RuntimeViewModelName = Source.GetName();
-			break;
-		}
-	}
-
-	if (RuntimeViewModelName.IsNone())
-	{
-		return;
-	}
-
-	ViewExtension->SetViewModel(RuntimeViewModelName, PandoraWidgetViewModel);
 }
 
 void UPandoraWidget::ApplyDesignerDefaults()
@@ -787,27 +690,8 @@ bool UPandoraWidget::RequestAutoEquipPandora()
 		return false;
 	}
 
-	APdPlayerState* PlayerState = nullptr;
-	if (APlayerController* PlayerController = GetOwningPlayer())
-	{
-		PlayerState = PlayerController->GetPlayerState<APdPlayerState>();
-	}
-
-	if (!PlayerState)
-	{
-		if (APawn* OwningPawn = GetOwningPlayerPawn())
-		{
-			PlayerState = OwningPawn->GetPlayerState<APdPlayerState>();
-		}
-	}
-
-	UPandoraComponent* ResolvedPandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
-	if (!ResolvedPandoraComponent)
-	{
-		return false;
-	}
-
-	return ResolvedPandoraComponent->RequestAutoSetPandoraLoadoutSlot(PandoraDefinition.Get());
+	ResolvePandoraComponent();
+	return PandoraComponent && PandoraComponent->RequestAutoSetPandoraLoadoutSlot(PandoraDefinition.Get());
 }
 
 bool UPandoraWidget::RequestUnequipPandora()

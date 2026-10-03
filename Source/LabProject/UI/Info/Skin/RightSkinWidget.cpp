@@ -1,199 +1,47 @@
 #include "UI/Info/Skin/RightSkinWidget.h"
-#include "Localization/MenuLocalizationSubsystem.h"
 
 #include "Character/CharacterBase.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
-#include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
-#include "Components/EditableTextBox.h"
 #include "Components/TileView.h"
+#include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Info/Skin/SkinSlotViewData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RightSkinWidget)
 
-URightSkinWidget::URightSkinWidget(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
 void URightSkinWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	ApplyWidgetDefinitionSettings();
-
-	if (AllButton)
-	{
-		AllButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnAllButtonClicked);
-	}
-
-	if (CosmeticsButton)
-	{
-		CosmeticsButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnCosmeticsButtonClicked);
-	}
-
-	if (GestureButton)
-	{
-		GestureButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnGestureButtonClicked);
-	}
-
-	if (RidingButton)
-	{
-		RidingButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnRidingButtonClicked);
-	}
-
-	if (PetButton)
-	{
-		PetButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnPetButtonClicked);
-	}
-
-	if (Btn_Search)
-	{
-		Btn_Search->OnClicked.AddUniqueDynamic(this, &ThisClass::OnSearchButtonClicked);
-	}
-
-	RebuildFilterButtonList();
-	FilterButtonHighlightState.Initialize(FilterButtonList, AllButton, SelectedFilterAccentColor);
 	RefreshSkinEquipmentBinding();
 }
 
 void URightSkinWidget::NativeDestruct()
 {
 	ClearSkinEquipmentBinding();
-	FilterButtonHighlightState.Reset();
-
-	if (AllButton)
-	{
-		AllButton->OnClicked.RemoveDynamic(this, &ThisClass::OnAllButtonClicked);
-	}
-
-	if (CosmeticsButton)
-	{
-		CosmeticsButton->OnClicked.RemoveDynamic(this, &ThisClass::OnCosmeticsButtonClicked);
-	}
-
-	if (GestureButton)
-	{
-		GestureButton->OnClicked.RemoveDynamic(this, &ThisClass::OnGestureButtonClicked);
-	}
-
-	if (RidingButton)
-	{
-		RidingButton->OnClicked.RemoveDynamic(this, &ThisClass::OnRidingButtonClicked);
-	}
-
-	if (PetButton)
-	{
-		PetButton->OnClicked.RemoveDynamic(this, &ThisClass::OnPetButtonClicked);
-	}
-
-	if (Btn_Search)
-	{
-		Btn_Search->OnClicked.RemoveDynamic(this, &ThisClass::OnSearchButtonClicked);
-	}
 
 	Super::NativeDestruct();
 }
 
-void URightSkinWidget::SelectAllFilter()
+void URightSkinWidget::ApplyWidgetDefinitionSettings()
 {
-	FilterButtonHighlightState.Select(AllButton, SelectedFilterAccentColor);
-	OnClicked_SkinFilterAllButton.Broadcast();
-}
-
-void URightSkinWidget::SelectTypeFilter(FGameplayTag TypeTag)
-{
-	if (UButton* SelectedButton = ResolveFilterButton(TypeTag))
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	const FSkinWidgetSettings* Settings = WidgetDefinition ? &WidgetDefinition->GetSkinWidgetSettings() : nullptr;
+	if (Settings)
 	{
-		FilterButtonHighlightState.Select(SelectedButton, SelectedFilterAccentColor);
+		SkinSlotCount = FMath::Max(Settings->SkinSlotCount, 0);
 	}
 
-	OnClicked_SkinFilterTypeButton.Broadcast(TypeTag);
+	AddTypeFilter(CosmeticsButton, Settings ? Settings->CosmeticsTypeTag : FGameplayTag(), &UProjectTagDefinition::GetSkinCosmeticsTypeTag);
+	AddTypeFilter(GestureButton, Settings ? Settings->GestureTypeTag : FGameplayTag(), &UProjectTagDefinition::GetSkinGestureTypeTag);
+	AddTypeFilter(RidingButton, Settings ? Settings->RidingTypeTag : FGameplayTag(), &UProjectTagDefinition::GetSkinRidingTypeTag);
+	AddTypeFilter(PetButton, Settings ? Settings->PetTypeTag : FGameplayTag(), &UProjectTagDefinition::GetSkinPetTypeTag);
 }
 
-void URightSkinWidget::ToggleActiveFiliterButtons(bool bActive)
-{
-	for (UButton* Button : FilterButtonList)
-	{
-		if (Button)
-		{
-			Button->SetIsEnabled(bActive);
-		}
-	}
-}
-
-void URightSkinWidget::ResetFilterHighlightToAll()
-{
-	FilterButtonHighlightState.Select(AllButton, SelectedFilterAccentColor);
-}
-
-void URightSkinWidget::SetTileView(const TArray<UObject*>& InListItems)
-{
-	RefreshSkinEquipmentBinding();
-	CachedSourceListItems.Reset();
-	CachedSourceListItems.Reserve(InListItems.Num());
-	for (UObject* ListItem : InListItems)
-	{
-		CachedSourceListItems.Add(ListItem);
-	}
-
-	RebuildTileViewFromCachedSourceItems();
-}
-
-void URightSkinWidget::ClearTileViewItemClicked()
-{
-	if (TileView)
-	{
-		TileView->OnItemClicked().Clear();
-	}
-}
-
-void URightSkinWidget::OnAllButtonClicked()
-{
-	SelectAllFilter();
-}
-
-void URightSkinWidget::OnCosmeticsButtonClicked()
-{
-	SelectTypeFilter(GetCosmeticsTypeTag());
-}
-
-void URightSkinWidget::OnGestureButtonClicked()
-{
-	SelectTypeFilter(GetGestureTypeTag());
-}
-
-void URightSkinWidget::OnRidingButtonClicked()
-{
-	SelectTypeFilter(GetRidingTypeTag());
-}
-
-void URightSkinWidget::OnPetButtonClicked()
-{
-	SelectTypeFilter(GetPetTypeTag());
-}
-
-void URightSkinWidget::OnSearchButtonClicked()
-{
-	ActiveSearchText = SearchBox ? SearchBox->GetText().ToString().TrimStartAndEnd() : FString();
-	RebuildTileViewFromCachedSourceItems();
-}
-
-void URightSkinWidget::RebuildFilterButtonList()
-{
-	FilterButtonList.Reset();
-	FilterButtonList.Reserve(5);
-
-	FilterButtonList.Add(AllButton);
-	FilterButtonList.Add(CosmeticsButton);
-	FilterButtonList.Add(GestureButton);
-	FilterButtonList.Add(RidingButton);
-	FilterButtonList.Add(PetButton);
-}
-
-void URightSkinWidget::RebuildTileViewFromCachedSourceItems()
+// 검색 중에는 맞는 스킨만, 아니면 빈 칸을 포함해 슬롯 수만큼 보여 준다.
+void URightSkinWidget::RebuildTileView()
 {
 	if (!TileView)
 	{
@@ -205,15 +53,13 @@ void URightSkinWidget::RebuildTileViewFromCachedSourceItems()
 	RefreshSkinEquipmentBinding();
 
 	TSet<const USkinDefinition*> AssignedSkinDefinitions;
-	if (const USkinEquipmentComponent* SkinEquipment =
-		BoundSkinEquipmentComponent.Get())
+	if (const USkinEquipmentComponent* SkinEquipment = BoundSkinEquipmentComponent.Get())
 	{
 		TArray<FEquippedSkinSlot> EquippedSkinSlots;
 		SkinEquipment->GetEquippedSkinSlots(EquippedSkinSlots);
 		for (const FEquippedSkinSlot& EquippedSkinSlot : EquippedSkinSlots)
 		{
-			if (const USkinDefinition* SkinDefinition =
-				EquippedSkinSlot.SkinDefinition.Get())
+			if (const USkinDefinition* SkinDefinition = EquippedSkinSlot.SkinDefinition.Get())
 			{
 				AssignedSkinDefinitions.Add(SkinDefinition);
 			}
@@ -222,26 +68,16 @@ void URightSkinWidget::RebuildTileViewFromCachedSourceItems()
 
 	TArray<const USkinDefinition*> SkinDefinitions;
 	SkinDefinitions.Reserve(CachedSourceListItems.Num());
-
-	const FString SearchText = ActiveSearchText.TrimStartAndEnd();
-	const bool bUseSearch = !SearchText.IsEmpty();
 	for (const TObjectPtr<UObject>& ListItem : CachedSourceListItems)
 	{
 		const USkinDefinition* SkinDefinition = Cast<USkinDefinition>(ListItem.Get());
-		if (!SkinDefinition)
+		if (SkinDefinition && MatchesSearch(SkinDefinition, SkinDefinition->DisplayName, ActiveSearchText))
 		{
-			continue;
+			SkinDefinitions.Add(SkinDefinition);
 		}
-
-		if (bUseSearch && !DoesSkinMatchSearch(SkinDefinition, SearchText))
-		{
-			continue;
-		}
-
-		SkinDefinitions.Add(SkinDefinition);
 	}
 
-	const int32 SlotCountToDisplay = bUseSearch ? SkinDefinitions.Num() : FMath::Max(SkinSlotCount, SkinDefinitions.Num());
+	const int32 SlotCountToDisplay = IsSearching() ? SkinDefinitions.Num() : FMath::Max(SkinSlotCount, SkinDefinitions.Num());
 	CachedSlotViewData.Reserve(SlotCountToDisplay);
 
 	for (int32 SlotIndex = 0; SlotIndex < SlotCountToDisplay; ++SlotIndex)
@@ -261,7 +97,7 @@ void URightSkinWidget::RebuildTileViewFromCachedSourceItems()
 
 void URightSkinWidget::HandleEquippedSkinsChanged()
 {
-	RebuildTileViewFromCachedSourceItems();
+	RebuildTileView();
 }
 
 void URightSkinWidget::RefreshSkinEquipmentBinding()
@@ -296,96 +132,4 @@ void URightSkinWidget::ClearSkinEquipmentBinding()
 			&ThisClass::HandleEquippedSkinsChanged);
 	}
 	BoundSkinEquipmentComponent.Reset();
-}
-
-bool URightSkinWidget::DoesSkinMatchSearch(const USkinDefinition* SkinDefinition, const FString& SearchText) const
-{
-	if (SearchText.IsEmpty())
-	{
-		return true;
-	}
-
-	if (!IsValid(SkinDefinition))
-	{
-		return false;
-	}
-
-	const FString DisplayName = (GetLocalization() ? GetLocalization()->GetProductText(SkinDefinition, TEXT("Name"), SkinDefinition->DisplayName) : SkinDefinition->DisplayName).ToString();
-	if (DisplayName.Contains(SearchText, ESearchCase::IgnoreCase))
-	{
-		return true;
-	}
-
-	return SkinDefinition->GetName().Contains(SearchText, ESearchCase::IgnoreCase);
-}
-
-void URightSkinWidget::ApplyWidgetDefinitionSettings()
-{
-	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
-	{
-		const FSkinWidgetSettings& Settings = WidgetDefinition->GetSkinWidgetSettings();
-		SkinSlotCount = FMath::Max(Settings.SkinSlotCount, 0);
-		CosmeticsTypeTagOverride = Settings.CosmeticsTypeTag;
-		GestureTypeTagOverride = Settings.GestureTypeTag;
-		RidingTypeTagOverride = Settings.RidingTypeTag;
-		PetTypeTagOverride = Settings.PetTypeTag;
-	}
-}
-
-UButton* URightSkinWidget::ResolveFilterButton(const FGameplayTag TypeTag) const
-{
-	if (!TypeTag.IsValid())
-	{
-		return nullptr;
-	}
-
-	if (TypeTag.MatchesTagExact(GetCosmeticsTypeTag()))
-	{
-		return CosmeticsButton;
-	}
-
-	if (TypeTag.MatchesTagExact(GetGestureTypeTag()))
-	{
-		return GestureButton;
-	}
-
-	if (TypeTag.MatchesTagExact(GetRidingTypeTag()))
-	{
-		return RidingButton;
-	}
-
-	if (TypeTag.MatchesTagExact(GetPetTypeTag()))
-	{
-		return PetButton;
-	}
-
-	return nullptr;
-}
-
-FGameplayTag URightSkinWidget::GetCosmeticsTypeTag() const
-{
-	return CosmeticsTypeTagOverride.IsValid()
-		? CosmeticsTypeTagOverride
-		: UProjectTagDefinition::Get(this)->GetSkinCosmeticsTypeTag();
-}
-
-FGameplayTag URightSkinWidget::GetGestureTypeTag() const
-{
-	return GestureTypeTagOverride.IsValid()
-		? GestureTypeTagOverride
-		: UProjectTagDefinition::Get(this)->GetSkinGestureTypeTag();
-}
-
-FGameplayTag URightSkinWidget::GetRidingTypeTag() const
-{
-	return RidingTypeTagOverride.IsValid()
-		? RidingTypeTagOverride
-		: UProjectTagDefinition::Get(this)->GetSkinRidingTypeTag();
-}
-
-FGameplayTag URightSkinWidget::GetPetTypeTag() const
-{
-	return PetTypeTagOverride.IsValid()
-		? PetTypeTagOverride
-		: UProjectTagDefinition::Get(this)->GetSkinPetTypeTag();
 }

@@ -32,6 +32,9 @@ public:
 	/** 원본 쿨타임에 신비의 감소율(0~100%)을 반영한 최종 지속시간(초)을 계산한다. */
 	float CalculateCooldownDuration(float BaseCooldownDuration) const;
 
+	/** 공격 속도(%)를 무기 공격 몽타주 재생 배율로 바꾼다. 음수 공격 속도는 0%로 본다. */
+	float GetAttackSpeedPlayRate() const;
+
 	/** 판도라를 장착한 칸(왼쪽·위·오른쪽)의 판도라 포스로 얻는 스킬 피해 증가율(%). 그 밖의 칸이나 음수 능력치는 0이다. */
 	float GetPandoraLoadoutDamageBonusPercent(EEnum_Direction LoadoutDirection) const;
 

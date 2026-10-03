@@ -62,7 +62,6 @@ protected:
 	bool TryCacheAIPrimaryAttackTarget(ACharacterBase* Character);
 	bool TryExecuteScheduledAIWeaponFire();
 	FVector ResolveAITargetAimLocation(const AActor* TargetActor) const;
-	void FaceCharacterToTargetLocation(ACharacterBase* Character, const FVector& TargetLocation) const;
 	float GetAIRangedTargetLockDelay() const;
 	void ScheduleAIPrimaryAttack();
 	void ClearAIPrimaryAttackTimer();

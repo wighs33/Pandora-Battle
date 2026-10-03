@@ -19,20 +19,6 @@
 #include "Weapon/MeleeWeapon.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RangedAttackAbility)
 
-namespace
-{
-float CalculateRangedWeaponAttackSpeedPlayRate(const FGameplayAbilityActorInfo* ActorInfo)
-{
-	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	const UBasicAttributeSet* AttributeSet = AbilitySystemComponent
-		? AbilitySystemComponent->GetSet<UBasicAttributeSet>()
-		: nullptr;
-
-	const float AttackSpeedPercent = AttributeSet ? FMath::Max(AttributeSet->GetAttackSpeed(), 0.0f) : 0.0f;
-	return FMath::Max(0.01f, 1.0f + AttackSpeedPercent * 0.01f);
-}
-}
-
 URangedAttackAbility::URangedAttackAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -55,26 +41,8 @@ bool URangedAttackAbility::CanActivateAbility(
 	const FGameplayTagContainer* TargetTags,
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
-	const ACharacterBase* Character = ActorInfo
-		? Cast<ACharacterBase>(ActorInfo->AvatarActor.Get())
-		: nullptr;
-	const UCharacterMovementComponent* MovementComponent =
-		Character ? Character->GetCharacterMovement() : nullptr;
-	if (MovementComponent && MovementComponent->IsFalling())
-	{
-		if (OptionalRelevantTags)
-		{
-			OptionalRelevantTags->AddTag(LabGameplayTags::State_Movement_Airborne);
-		}
-		return false;
-	}
-
-	return Super::CanActivateAbility(
-		Handle,
-		ActorInfo,
-		SourceTags,
-		TargetTags,
-		OptionalRelevantTags);
+	return CheckAvatarGrounded(ActorInfo, OptionalRelevantTags)
+		&& Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
 
 // State helpers
@@ -183,7 +151,7 @@ void URangedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 		}
 	}
 
-	const float AttackSpeedPlayRate = CalculateRangedWeaponAttackSpeedPlayRate(ActorInfo);
+	const float AttackSpeedPlayRate = GetAttackSpeedPlayRate();
 	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 		this,
 		NAME_None,
@@ -257,7 +225,7 @@ bool URangedAttackAbility::TryCacheAIPrimaryAttackTarget(ACharacterBase* Charact
 	CachedAIPrimaryAttackTargetActor = AttackTarget;
 	CachedAIPrimaryAttackTargetLocation = TargetLocation;
 	bHasCachedAIPrimaryAttackTargetLocation = true;
-	FaceCharacterToTargetLocation(Character, CachedAIPrimaryAttackTargetLocation);
+	FaceCharacterToward(Character, CachedAIPrimaryAttackTargetLocation);
 
 	return true;
 }
@@ -282,7 +250,7 @@ bool URangedAttackAbility::TryExecuteScheduledAIWeaponFire()
 	}
 
 	AActor* AttackTarget = CachedAIPrimaryAttackTargetActor.Get();
-	FaceCharacterToTargetLocation(Character, CachedAIPrimaryAttackTargetLocation);
+	FaceCharacterToward(Character, CachedAIPrimaryAttackTargetLocation);
 
 	const bool bFired = CurrentWeapon->HandleAIPrimaryAttackAtLocation(Character, AttackTarget, CachedAIPrimaryAttackTargetLocation);
 	bAIPrimaryAttackExecuted = bFired;
@@ -304,34 +272,6 @@ FVector URangedAttackAbility::ResolveAITargetAimLocation(const AActor* TargetAct
 	FVector AimLocation = TargetActor->GetActorLocation();
 	AimLocation.Z += FMath::Max(TargetHalfHeight * 0.5f, 0.0f);
 	return AimLocation;
-}
-
-void URangedAttackAbility::FaceCharacterToTargetLocation(ACharacterBase* Character, const FVector& TargetLocation) const
-{
-	if (!Character || TargetLocation.IsNearlyZero())
-	{
-		return;
-	}
-	if (Character->IsStatusFrozen())
-	{
-		return;
-	}
-
-	const FVector ToTarget = TargetLocation - Character->GetActorLocation();
-	if (ToTarget.IsNearlyZero())
-	{
-		return;
-	}
-
-	FRotator LookAtRotation = ToTarget.Rotation();
-	LookAtRotation.Pitch = 0.0f;
-	LookAtRotation.Roll = 0.0f;
-
-	if (AController* Controller = Character->GetController())
-	{
-		Controller->SetControlRotation(LookAtRotation);
-	}
-	Character->SetActorRotation(LookAtRotation);
 }
 
 float URangedAttackAbility::GetAIRangedTargetLockDelay() const

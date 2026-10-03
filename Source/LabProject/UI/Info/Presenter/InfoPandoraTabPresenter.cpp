@@ -242,16 +242,16 @@ void UInfoPandoraTabPresenter::BindEvents()
 	}
 	if (URightPandoraWidget* RightPandoraWidget = InfoWidget->GetRightPandoraWidget())
 	{
-		RightPandoraWidget->OnClicked_PandoraFilterAllButton.RemoveDynamic(
+		RightPandoraWidget->OnClicked_FilterAllButton.RemoveDynamic(
 			this,
 			&ThisClass::HandlePandoraFilterAllClicked);
-		RightPandoraWidget->OnClicked_PandoraFilterAllButton.AddUniqueDynamic(
+		RightPandoraWidget->OnClicked_FilterAllButton.AddUniqueDynamic(
 			this,
 			&ThisClass::HandlePandoraFilterAllClicked);
-		RightPandoraWidget->OnClicked_PandoraFilterTypeButton.RemoveDynamic(
+		RightPandoraWidget->OnClicked_FilterTypeButton.RemoveDynamic(
 			this,
 			&ThisClass::HandlePandoraFilterTypeClicked);
-		RightPandoraWidget->OnClicked_PandoraFilterTypeButton.AddUniqueDynamic(
+		RightPandoraWidget->OnClicked_FilterTypeButton.AddUniqueDynamic(
 			this,
 			&ThisClass::HandlePandoraFilterTypeClicked);
 	}
@@ -278,10 +278,10 @@ void UInfoPandoraTabPresenter::UnbindEvents()
 	}
 	if (URightPandoraWidget* RightPandoraWidget = InfoWidget->GetRightPandoraWidget())
 	{
-		RightPandoraWidget->OnClicked_PandoraFilterAllButton.RemoveDynamic(
+		RightPandoraWidget->OnClicked_FilterAllButton.RemoveDynamic(
 			this,
 			&ThisClass::HandlePandoraFilterAllClicked);
-		RightPandoraWidget->OnClicked_PandoraFilterTypeButton.RemoveDynamic(
+		RightPandoraWidget->OnClicked_FilterTypeButton.RemoveDynamic(
 			this,
 			&ThisClass::HandlePandoraFilterTypeClicked);
 	}
@@ -396,7 +396,7 @@ void UInfoPandoraTabPresenter::RefreshPandoraTileView() const
 	UInfoWidget* InfoWidget = GetInfoWidget();
 	if (URightPandoraWidget* RightPandoraWidget = InfoWidget ? InfoWidget->GetRightPandoraWidget() : nullptr)
 	{
-		RightPandoraWidget->SetTileViewAndShowLockState(CurrentPandoraList);
+		RightPandoraWidget->SetTileView(CurrentPandoraList);
 	}
 }
 

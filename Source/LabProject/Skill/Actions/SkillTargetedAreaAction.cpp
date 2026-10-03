@@ -574,18 +574,10 @@ void USkillTargetedAreaAction::ApplyEffectToHitActor(AActor* HitActor)
 		return;
 	}
 
-	bool bAppliedDamage = false;
-	FGameplayEffectSpecHandle DamageSpecHandle = MakeDamageEffectSpec();
+	const FGameplayEffectSpecHandle DamageSpecHandle = MakeDamageEffectSpec();
 	if (DamageSpecHandle.IsValid())
 	{
-		const FActiveGameplayEffectHandle AppliedHandle =
-			SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), TargetASC);
-		bAppliedDamage = AppliedHandle.WasSuccessfullyApplied();
-	}
-
-	if (bAppliedDamage)
-	{
-		GetAbility()->ApplyConfiguredStatusEffectToTarget(GetAbility()->GetSourceSkillDataAsset(), TargetASC);
+		ApplyDamageWithConfiguredStatus(*SourceASC, *TargetASC, *DamageSpecHandle.Data);
 	}
 }
 

@@ -772,6 +772,11 @@ float UBasicAttributeSet::CalculateCooldownDuration(const float BaseCooldownDura
 	return FMath::Max(BaseCooldownDuration, 0.0f) * (1.0f - ReductionPercent / 100.0f);
 }
 
+float UBasicAttributeSet::GetAttackSpeedPlayRate() const
+{
+	return 1.0f + FMath::Max(GetAttackSpeed(), 0.0f) * 0.01f;
+}
+
 float UBasicAttributeSet::GetPandoraLoadoutDamageBonusPercent(const EEnum_Direction LoadoutDirection) const
 {
 	switch (LoadoutDirection)
