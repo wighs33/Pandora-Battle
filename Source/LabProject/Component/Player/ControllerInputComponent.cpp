@@ -234,6 +234,10 @@ bool UControllerInputComponent::ApplyInputDefinition()
 	BindNativeInputActions(*EnhancedInputComponent, *LoadedDefinition);
 
 	bAppliedInputDefinition = AppliedInputMapping || !BindingHandles.IsEmpty();
+	if (bAppliedInputDefinition)
+	{
+		InputDefinitionApplied.Broadcast();
+	}
 
 	return bAppliedInputDefinition;
 }

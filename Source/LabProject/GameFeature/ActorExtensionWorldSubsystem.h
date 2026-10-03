@@ -5,6 +5,7 @@
 #include "ActorExtensionWorldSubsystem.generated.h"
 
 class AActor;
+class AGameStateBase;
 struct FComponentRequestHandle;
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FPdActorExtensionCanActivate, AActor*);
@@ -55,6 +56,7 @@ public:
 	virtual TStatId GetStatId() const override;
 	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
 	virtual bool IsTickable() const override;
+	virtual bool IsTickableWhenPaused() const override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	TSharedPtr<FActorExtensionHandle> RegisterExtensionForClass(UClass* TargetClass, FActorExtensionSpec ExtensionSpec);
@@ -63,6 +65,7 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleActorExtensionEvent(AActor* Actor, FName EventName);
+	void HandleGameStateSet(AGameStateBase* GameState);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void EnsureExtensionEventHandler(UClass* TargetClass);
@@ -84,6 +87,7 @@ private:
 	TMap<int32, FActorExtensionSpec> ExtensionById;
 	TMap<UClass*, TSet<int32>> ClassExtensionIds;
 	TMap<UClass*, TSharedPtr<FComponentRequestHandle>> ExtensionEventHandles;
+	FDelegateHandle GameStateSetHandle;
 	int32 NextExtensionId = 1;
 	bool bExperienceLoaded = false;
 };

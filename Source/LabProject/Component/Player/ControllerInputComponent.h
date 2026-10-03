@@ -38,6 +38,9 @@ public:
 	const TSoftObjectPtr<UControllerInputDefinition>& GetInputDefinition() const { return ActiveInputDefinition; }
 	UControllerInputDefinition* GetLoadedInputDefinition();
 
+	/** 입력 정의와 그 액션·아이콘을 다 읽어 적용할 때마다 알린다. */
+	FSimpleMulticastDelegate& OnInputDefinitionApplied() { return InputDefinitionApplied; }
+
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleMoveInput(const FInputActionValue& InputValue);
@@ -129,4 +132,5 @@ private:
 	bool bInputPreloadPending = false;
 	bool bAppliedInputDefinition = false;
 	bool bSelectPandoraActionOpened = false;
+	FSimpleMulticastDelegate InputDefinitionApplied;
 };

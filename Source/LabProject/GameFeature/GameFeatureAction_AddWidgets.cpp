@@ -7,7 +7,6 @@
 #include "GameFeature/ActorExtensionWorldSubsystem.h"
 #include "GameFeaturesSubsystemSettings.h"
 #include "Mode/PdHUD.h"
-#include "TimerManager.h"
 #include "Definition/UI/WidgetClassDefinition.h"
 #include "UI/Core/UiSubsystem.h"
 #include "Data/ContentLease.h"
@@ -112,17 +111,9 @@ void UGameFeatureAction_AddWidgets::RegisterWidgetExtension(
 	}
 
 	UActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UActorExtensionWorldSubsystem>();
+	// 기반 클래스는 초기화를 마친 게임 월드에서만 부르므로, 없으면 확장을 지원하지 않는 월드 종류다.
 	if (!ExtensionSubsystem)
 	{
-		TWeakObjectPtr<UWorld> WeakWorld = World;
-		TWeakObjectPtr<ThisClass> WeakThis = this;
-		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakThis, WeakWorld, ChangeContext]()
-		{
-			if (ThisClass* This = WeakThis.Get())
-			{
-				This->RegisterWidgetExtension(WeakWorld.Get(), ChangeContext);
-			}
-		}));
 		return;
 	}
 

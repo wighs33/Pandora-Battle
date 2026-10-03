@@ -528,7 +528,7 @@ void ARewardChest::BeginRewardContentPreload()
 
 	if (AssetPaths.IsEmpty())
 	{
-		bRewardContentReady = true;
+		MarkRewardContentReady();
 		return;
 	}
 
@@ -545,13 +545,19 @@ void ARewardChest::BeginRewardContentPreload()
 			Error,
 			TEXT("Reward chest '%s' failed to start its reward-content preload."),
 			*GetPathName());
-		bRewardContentReady = true;
+		MarkRewardContentReady();
 	}
 }
 
 void ARewardChest::HandleRewardContentPreloadComplete()
 {
+	MarkRewardContentReady();
+}
+
+void ARewardChest::MarkRewardContentReady()
+{
 	bRewardContentReady = true;
+	RewardContentReady.Broadcast();
 }
 
 void ARewardChest::ReleaseRewardContentPreload()

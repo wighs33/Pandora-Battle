@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFeatureAction.h"
 #include "GameFeaturesSubsystem.h"
+#include "Engine/World.h"
 #include "GameFeatureAction_WorldNetworkBase.generated.h"
 
 class UGameInstance;
@@ -26,6 +27,11 @@ private:
 	void HandleGameInstanceStart(UGameInstance* GameInstance, FGameFeatureStateChangeContext ChangeContext);
 	void HandleGameInstanceWorldChanged(UGameInstance* GameInstance, UWorld* OldWorld, UWorld* NewWorld,
 		FGameFeatureStateChangeContext ChangeContext);
+	void HandlePostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS,
+		FGameFeatureStateChangeContext ChangeContext);
+
+	/** 초기화를 마친 게임 월드이고 이 액션의 넷 모드에 해당할 때만 AddToWorld를 부른다. */
+	void AddToWorldIfReady(const FWorldContext& WorldContext, const FGameFeatureStateChangeContext& ChangeContext);
 
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -44,4 +50,5 @@ public:
 private:
 	TMap<FGameFeatureStateChangeContext, FDelegateHandle> GameInstanceStartHandles;
 	TMap<FGameFeatureStateChangeContext, FDelegateHandle> GameInstanceWorldChangedHandles;
+	TMap<FGameFeatureStateChangeContext, FDelegateHandle> PostWorldInitializationHandles;
 };

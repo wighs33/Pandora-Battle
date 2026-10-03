@@ -100,10 +100,6 @@ void UAbilityStateComponent::InitializeAbilitySystemActorInfo()
 	BindFrozenTagEvent(ASC);
 	RefreshAirborneGameplayTag();
 
-	if (UCombatComponent* CombatComponent = Character->GetCombatComponent())
-	{
-		CombatComponent->RefreshCachedReferences();
-	}
 	if (Character->GetCharacterHealthBarComponent())
 	{
 		Character->GetCharacterHealthBarComponent()->RefreshViewModel();

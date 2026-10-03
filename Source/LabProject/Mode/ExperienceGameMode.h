@@ -38,7 +38,7 @@ class LABPROJECT_API AExperienceGameMode : public AGameModeBase
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
-	virtual void BeginPlay() override;
+	virtual void StartPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void InitGameState() override;
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;

@@ -11,7 +11,6 @@
 #include "Engine/World.h"
 #include "GameFeature/ActorExtensionWorldSubsystem.h"
 #include "GameFeaturesSubsystemSettings.h"
-#include "TimerManager.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -171,17 +170,9 @@ void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(
 	}
 
 	UActorExtensionWorldSubsystem* ExtensionSubsystem = World->GetSubsystem<UActorExtensionWorldSubsystem>();
+	// 기반 클래스는 초기화를 마친 게임 월드에서만 부르므로, 없으면 확장을 지원하지 않는 월드 종류다.
 	if (!ExtensionSubsystem)
 	{
-		TWeakObjectPtr<UWorld> WeakWorld = World;
-		TWeakObjectPtr<ThisClass> WeakThis = this;
-		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakThis, WeakWorld, ChangeContext]()
-		{
-			if (ThisClass* This = WeakThis.Get())
-			{
-				This->RegisterAbilityExtension(WeakWorld.Get(), ChangeContext);
-			}
-		}));
 		return;
 	}
 

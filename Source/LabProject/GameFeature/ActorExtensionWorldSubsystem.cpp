@@ -55,6 +55,12 @@ void UActorExtensionWorldSubsystem::Deinitialize()
 		}
 	}
 
+	if (GameStateSetHandle.IsValid())
+	{
+		GetWorld()->GameStateSetEvent.Remove(GameStateSetHandle);
+		GameStateSetHandle.Reset();
+	}
+
 	UncheckedActors.Reset();
 	RegisterActors.Reset();
 	ActiveActorExtensions.Reset();
@@ -142,6 +148,12 @@ bool UActorExtensionWorldSubsystem::DoesSupportWorldType(EWorldType::Type WorldT
 bool UActorExtensionWorldSubsystem::IsTickable() const
 {
 	return bExperienceLoaded && (!UncheckedActors.IsEmpty() || !RegisterActors.IsEmpty());
+}
+
+// 훈련실은 로딩 화면 동안 게임을 멈추는데, 그 로딩은 여기서 붙이는 HUD 위젯을 기다린다. 멈춘 동안에도 적용해야 교착되지 않는다.
+bool UActorExtensionWorldSubsystem::IsTickableWhenPaused() const
+{
+	return true;
 }
 
 TSharedPtr<FActorExtensionHandle> UActorExtensionWorldSubsystem::RegisterExtensionForClass(
@@ -254,13 +266,20 @@ void UActorExtensionWorldSubsystem::HandleActorExtensionEvent(AActor* Actor, FNa
 
 void UActorExtensionWorldSubsystem::RefreshExperienceLoadState()
 {
-	if (bExperienceLoaded)
+	if (bExperienceLoaded || GameStateSetHandle.IsValid())
 	{
 		return;
 	}
 
 	UWorld* World = GetWorld();
 	AGameStateBase* GameState = World ? World->GetGameState() : nullptr;
+	// 월드 초기화 직후의 등록은 GameState보다 먼저 온다. Experience가 있는 월드인지는 GameState가 생긴 뒤에 판단한다.
+	if (World && !GameState)
+	{
+		GameStateSetHandle = World->GameStateSetEvent.AddUObject(this, &ThisClass::HandleGameStateSet);
+		return;
+	}
+
 	UExperienceManagerComponent* ExperienceManager = GameState ? GameState->FindComponentByClass<UExperienceManagerComponent>() : nullptr;
 	if (!ExperienceManager)
 	{
@@ -286,6 +305,18 @@ void UActorExtensionWorldSubsystem::RefreshExperienceLoadState()
 		{
 			bExperienceLoaded = true;
 		}));
+}
+
+void UActorExtensionWorldSubsystem::HandleGameStateSet(AGameStateBase* GameState)
+{
+	if (!GameState)
+	{
+		return;
+	}
+
+	GetWorld()->GameStateSetEvent.Remove(GameStateSetHandle);
+	GameStateSetHandle.Reset();
+	RefreshExperienceLoadState();
 }
 
 void UActorExtensionWorldSubsystem::QueueActor(AActor* Actor)

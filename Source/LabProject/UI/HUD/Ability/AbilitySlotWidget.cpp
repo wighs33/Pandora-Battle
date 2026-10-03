@@ -68,21 +68,38 @@ void UAbilitySlotWidget::NativeConstruct()
 
 	RefreshAbilityBinding();
 
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::SetInputKeyIcon);
-	}
-	else
-	{
-		SetInputKeyIcon();
-	}
+	// 입력 정의는 비동기로 적용되므로 지금 한 번 그리고, 적용될 때마다 다시 그린다.
+	BindInputDefinitionApplied();
+	SetInputKeyIcon();
 }
 
 void UAbilitySlotWidget::NativeDestruct()
 {
 	ClearCooldownTimer();
 	UnbindGameplayTagEvents();
+	UnbindInputDefinitionApplied();
 	Super::NativeDestruct();
+}
+
+void UAbilitySlotWidget::BindInputDefinitionApplied()
+{
+	UnbindInputDefinitionApplied();
+	if (APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
+	{
+		InputDefinitionController = PlayerController;
+		InputDefinitionAppliedHandle = PlayerController->RegisterOnInputDefinitionApplied(
+			FSimpleDelegate::CreateUObject(this, &ThisClass::SetInputKeyIcon));
+	}
+}
+
+void UAbilitySlotWidget::UnbindInputDefinitionApplied()
+{
+	if (APdPlayerController* PlayerController = InputDefinitionController.Get())
+	{
+		PlayerController->UnregisterOnInputDefinitionApplied(InputDefinitionAppliedHandle);
+	}
+	InputDefinitionController.Reset();
+	InputDefinitionAppliedHandle.Reset();
 }
 
 void UAbilitySlotWidget::SetAbilitySpecHandle(FGameplayAbilitySpecHandle InAbilitySpecHandle)

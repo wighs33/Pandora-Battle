@@ -330,6 +330,19 @@ UControllerInputDefinition* APdPlayerController::GetLoadedInputDefinition() cons
 		: nullptr;
 }
 
+FDelegateHandle APdPlayerController::RegisterOnInputDefinitionApplied(const FSimpleDelegate& Delegate)
+{
+	return ControllerInputComponent ? ControllerInputComponent->OnInputDefinitionApplied().Add(Delegate) : FDelegateHandle();
+}
+
+void APdPlayerController::UnregisterOnInputDefinitionApplied(const FDelegateHandle Handle)
+{
+	if (ControllerInputComponent)
+	{
+		ControllerInputComponent->OnInputDefinitionApplied().Remove(Handle);
+	}
+}
+
 // 로컬 플레이어의 경기 나가기 요청을 세션 처리 경로에 전달한다.
 bool APdPlayerController::RequestExitMatchToTitle()
 {

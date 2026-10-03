@@ -30,7 +30,7 @@ void UStatusEffectsBarWidget::NativeConstruct()
 	bIsConstructed = true;
 	BeginStatusEffectContentPreload();
 	ObserveOwnerAbilitySystem();
-	ScheduleStatusEffectTagBinding();
+	BindStatusEffectTagDelegates();
 }
 
 void UStatusEffectsBarWidget::NativeDestruct()
@@ -41,13 +41,10 @@ void UStatusEffectsBarWidget::NativeDestruct()
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().ClearTimer(BindStatusEffectTagsTimerHandle);
 		World->GetTimerManager().ClearTimer(RefreshStatusEffectWidgetsTimerHandle);
 	}
 
-	bBindStatusEffectTagsScheduled = false;
 	bStatusEffectWidgetRefreshScheduled = false;
-	BindStatusEffectTagsTimerHandle.Invalidate();
 	RefreshStatusEffectWidgetsTimerHandle.Invalidate();
 	UnbindStatusEffectTagDelegates();
 	InvalidateObservedStatusEffectDataAssetCache();
@@ -87,7 +84,7 @@ void UStatusEffectsBarWidget::BeginStatusEffectContentPreload()
 				}
 
 				InvalidateObservedStatusEffectDataAssetCache();
-				ScheduleStatusEffectTagBinding();
+				BindStatusEffectTagDelegates();
 				ScheduleStatusEffectWidgetRefresh();
 			}));
 }
@@ -125,11 +122,11 @@ void UStatusEffectsBarWidget::SetOwnerActor(AActor* InOwnerActor)
 	if (bIsConstructed)
 	{
 		ObserveOwnerAbilitySystem();
-		ScheduleStatusEffectTagBinding();
+		BindStatusEffectTagDelegates();
 	}
 }
 
-// 캐릭터 소유자의 ASC가 준비될 때마다(리스폰 포함) 태그 구독을 다시 예약한다.
+// 캐릭터 소유자의 ASC가 준비될 때마다(리스폰 포함) 태그를 다시 구독한다.
 void UStatusEffectsBarWidget::ObserveOwnerAbilitySystem()
 {
 	OwnerReadySubscription.SubscribeToCharacter(Cast<ACharacterBase>(OwnerActor.Get()),
@@ -141,7 +138,7 @@ void UStatusEffectsBarWidget::HandleOwnerAbilitySystemReady(
 {
 	static_cast<void>(Character);
 	static_cast<void>(AbilitySystemComponent);
-	ScheduleStatusEffectTagBinding();
+	BindStatusEffectTagDelegates();
 }
 
 void UStatusEffectsBarWidget::CenterHorizontalBox()
@@ -195,24 +192,6 @@ void UStatusEffectsBarWidget::TryAddStatusEffectWidget(UStatusEffectDefinition* 
 	HorizontalBox->AddChildToHorizontalBox(StatusEffectWidget);
 }
 
-void UStatusEffectsBarWidget::ScheduleStatusEffectTagBinding()
-{
-	if (bBindStatusEffectTagsScheduled)
-	{
-		return;
-	}
-
-	if (UWorld* World = GetWorld())
-	{
-		bBindStatusEffectTagsScheduled = true;
-		BindStatusEffectTagsTimerHandle = World->GetTimerManager().SetTimerForNextTick(
-			FTimerDelegate::CreateUObject(this, &ThisClass::BindStatusEffectTagDelegates));
-		return;
-	}
-
-	BindStatusEffectTagDelegates();
-}
-
 void UStatusEffectsBarWidget::ScheduleStatusEffectWidgetRefresh()
 {
 	if (bStatusEffectWidgetRefreshScheduled)
@@ -231,13 +210,12 @@ void UStatusEffectsBarWidget::ScheduleStatusEffectWidgetRefresh()
 	RefreshStatusEffectWidgets();
 }
 
+// 생성·소유자 변경·ASC 준비·설정 로딩 완료 때마다 부른다. 기존 구독을 먼저 지우므로 여러 번 불러도 같다.
 void UStatusEffectsBarWidget::BindStatusEffectTagDelegates()
 {
-	bBindStatusEffectTagsScheduled = false;
-	BindStatusEffectTagsTimerHandle.Invalidate();
 	UnbindStatusEffectTagDelegates();
 
-	// 소유 캐릭터의 ASC가 아직이면 HandleOwnerAbilitySystemReady가 다시 예약한다.
+	// 소유 캐릭터의 ASC가 아직이면 HandleOwnerAbilitySystemReady가 준비될 때 다시 부른다.
 	BoundAbilitySystemComponent = GetOwnerAbilitySystemComponent();
 	if (!BoundAbilitySystemComponent)
 	{

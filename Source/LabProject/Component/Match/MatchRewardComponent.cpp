@@ -47,11 +47,7 @@ UMatchRewardComponent::UMatchRewardComponent()
 
 void UMatchRewardComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearAllTimersForObject(this);
-	}
-	ChestConfigurationTimerHandle.Invalidate();
+	UnbindChestConfigurationEvents();
 	if (RewardContentPreloadHandle.IsValid())
 	{
 		RewardContentPreloadHandle->CancelHandle();
@@ -88,13 +84,27 @@ void UMatchRewardComponent::PreloadRewardContent()
 void UMatchRewardComponent::StopChestConfiguration()
 {
 	bChestConfigurationStopped = true;
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ChestConfigurationTimerHandle);
-	}
+	UnbindChestConfigurationEvents();
 }
 
-// 선택적 상자 설정만 로드하고, 액터 BeginPlay가 끝난 다음 배치를 적용한다.
+void UMatchRewardComponent::UnbindChestConfigurationEvents()
+{
+	if (UWorld* World = GetWorld(); World && WorldBeginPlayHandle.IsValid())
+	{
+		World->OnWorldBeginPlay.Remove(WorldBeginPlayHandle);
+	}
+	WorldBeginPlayHandle.Reset();
+	for (const TPair<TWeakObjectPtr<ARewardChest>, FDelegateHandle>& Pending : PendingChestContentHandles)
+	{
+		if (ARewardChest* RewardChest = Pending.Key.Get())
+		{
+			RewardChest->OnRewardContentReady().Remove(Pending.Value);
+		}
+	}
+	PendingChestContentHandles.Reset();
+}
+
+// 선택적 상자 설정만 로드하고, 맵의 모든 액터가 BeginPlay를 마친 뒤 배치를 적용한다.
 void UMatchRewardComponent::HandleRewardContentLoaded()
 {
 	if (bChestConfigurationStopped)
@@ -108,8 +118,21 @@ void UMatchRewardComponent::HandleRewardContentLoaded()
 		UE_LOG(LogMatchReward, Error, TEXT("Chest spawn reward definition failed to load: %s"), *Reward.ToString());
 		return;
 	}
-	ChestConfigurationTimerHandle =
-		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ThisClass::ConfigureRewardChestSpawns);
+	UWorld* World = GetWorld();
+	if (World && World->GetBegunPlay())
+	{
+		ConfigureRewardChestSpawns();
+	}
+	else if (World && !WorldBeginPlayHandle.IsValid())
+	{
+		WorldBeginPlayHandle = World->OnWorldBeginPlay.AddUObject(this, &ThisClass::HandleWorldBeginPlay);
+	}
+}
+
+void UMatchRewardComponent::HandleWorldBeginPlay()
+{
+	UnbindChestConfigurationEvents();
+	ConfigureRewardChestSpawns();
 }
 
 // 맵에 놓인 상자 중 보상 설정이 정한 수만큼만 무작위로 남기고 나머지는 이번 경기에서 끈다.
@@ -135,20 +158,23 @@ void UMatchRewardComponent::ConfigureRewardChestSpawns()
 		return A.GetName() < B.GetName();
 	});
 
-	// 공용 설정이 없으면 상자의 보상 설정을 쓰므로, 상자가 자기 설정을 다 읽을 때까지 다음 틱에 다시 본다.
+	// 공용 설정이 없으면 상자의 보상 설정을 쓰므로, 아직 설정을 읽는 상자가 있으면 그 준비 알림에서 다시 고른다.
+	UnbindChestConfigurationEvents();
 	if (GameMode->GetChestSpawnRewardDefinition().IsNull())
 	{
-		for (const ARewardChest* RewardChest : RewardChests)
+		for (ARewardChest* RewardChest : RewardChests)
 		{
 			if (!RewardChest->GetRewardDefinitionAsset().IsNull() && !RewardChest->IsRewardContentReady())
 			{
-				ChestConfigurationTimerHandle =
-					World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::ConfigureRewardChestSpawns);
-				return;
+				PendingChestContentHandles.Emplace(RewardChest,
+					RewardChest->OnRewardContentReady().AddUObject(this, &ThisClass::ConfigureRewardChestSpawns));
 			}
 		}
+		if (!PendingChestContentHandles.IsEmpty())
+		{
+			return;
+		}
 	}
-	World->GetTimerManager().ClearTimer(ChestConfigurationTimerHandle);
 
 	const URewardDefinition* RewardDefinition = ResolveRewardDefinitionForChestSpawns(RewardChests);
 	if (RewardChests.IsEmpty() || !RewardDefinition)

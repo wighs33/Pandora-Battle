@@ -6,6 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "AbilitySlotWidget.generated.h"
 
+class APdPlayerController;
 class UAbilitySystemComponent;
 class UGameplayAbility;
 class UImage;
@@ -84,6 +85,8 @@ private:
 	void RefreshAbilityBinding();
 	void BindGameplayTagEvents();
 	void UnbindGameplayTagEvents();
+	void BindInputDefinitionApplied();
+	void UnbindInputDefinitionApplied();
 	void ClearCooldownTimer();
 	void SetInputKeyRenderOpacity(float InOpacity) const;
 	void ApplyAbilitySlotEnabledState();
@@ -179,5 +182,7 @@ private:
 	FDelegateHandle CooldownTagChangedHandle;
 	FDelegateHandle GameplayAbilityTagChangedHandle;
 	FDelegateHandle ManaChangedHandle;
+	TWeakObjectPtr<APdPlayerController> InputDefinitionController;
+	FDelegateHandle InputDefinitionAppliedHandle;
 	FTimerHandle UpdateCooldownTimerHandle;
 };

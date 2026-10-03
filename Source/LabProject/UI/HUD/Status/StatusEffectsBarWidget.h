@@ -49,7 +49,6 @@ private:
 	void ApplyWidgetDefinitionSettings();
 	void BeginStatusEffectContentPreload();
 	void ReleaseStatusEffectContentPreload();
-	void ScheduleStatusEffectTagBinding();
 	void ScheduleStatusEffectWidgetRefresh();
 	void UnbindStatusEffectTagDelegates();
 	int32 GetStatusEffectDisplayCount(const UStatusEffectDefinition* DataAsset) const;
@@ -84,10 +83,8 @@ private:
 
 	TMap<FGameplayTag, FDelegateHandle> ObservedTagChangedHandles;
 	FDelegateHandle ReplicatedStackChangedHandle;
-	FTimerHandle BindStatusEffectTagsTimerHandle;
 	FTimerHandle RefreshStatusEffectWidgetsTimerHandle;
 	FAbilitySystemReadySubscription OwnerReadySubscription;
-	bool bBindStatusEffectTagsScheduled = false;
 	bool bStatusEffectWidgetRefreshScheduled = false;
 	bool bIsConstructed = false;
 	bool bObservedStatusEffectDataAssetCacheValid = false;

@@ -77,12 +77,12 @@ void AExperienceGameMode::InitGame(const FString& MapName, const FString& Option
 	BeginRuntimeContentPreload();
 }
 
-// 액터의 BeginPlay가 모두 끝난 다음 경기 시작 조건을 확인한다.
-void AExperienceGameMode::BeginPlay()
+// Super::StartPlay가 맵의 모든 액터에 BeginPlay를 보낸 뒤 경기 시작 조건을 확인한다.
+void AExperienceGameMode::StartPlay()
 {
-	Super::BeginPlay();
-	GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::TryStartServerMatch);
-	GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::NotifyRpgWorldReadyIfNeeded);
+	Super::StartPlay();
+	TryStartServerMatch();
+	NotifyRpgWorldReadyIfNeeded();
 }
 
 // 맵을 떠난 뒤 준비 완료 콜백이 경기를 시작하지 않도록 연결을 정리한다.
@@ -178,8 +178,8 @@ void AExperienceGameMode::Logout(AController* Exiting)
 	PlayerSetupComponent->ClearRuntimeStateForController(Exiting, ExitingPlayerState);
 	Super::Logout(Exiting);
 
-	// 엔진의 컨트롤러 목록에서도 퇴장자가 제거된 뒤 남은 참가자의 준비를 확인한다.
-	GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::TryStartServerMatch);
+	// 엔진은 Logout 전에 퇴장 컨트롤러를 파괴 중으로 표시하므로, TryStartServerMatch는 남은 참가자만 확인한다.
+	TryStartServerMatch();
 
 	// Listen Server는 호스트가 나가면 서버도 끝나지만, 전용 서버는 빈 경기장에 남으므로 로비로 되돌린다.
 	// RPG 공유 월드는 비어도 그대로 열어 두고 다음 참가자를 기다린다.

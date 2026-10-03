@@ -57,6 +57,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Input")
 	UControllerInputDefinition* GetLoadedInputDefinition() const;
 
+	// 입력 정의는 비동기로 적용된다. 입력 키를 표시하는 HUD는 적용될 때마다 이 알림으로 다시 그린다.
+	FDelegateHandle RegisterOnInputDefinitionApplied(const FSimpleDelegate& Delegate);
+	void UnregisterOnInputDefinitionApplied(FDelegateHandle Handle);
+
 	bool RequestExitMatchToTitle();
 
 	UPlayerNotificationComponent* GetPlayerNotificationComponent() const { return NotificationComponent.Get(); }

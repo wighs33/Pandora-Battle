@@ -2,7 +2,6 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
-#include "TimerManager.h"
 #include "MatchRewardComponent.generated.h"
 
 class AController;
@@ -30,7 +29,7 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UMatchRewardComponent();
 
-	/** 상자 설정을 비동기로 읽고, 액터 BeginPlay가 끝난 다음 틱에 활성 상자를 고른다. */
+	/** 상자 설정을 비동기로 읽고, 월드의 모든 액터가 BeginPlay를 마친 뒤 활성 상자를 고른다. */
 	void PreloadRewardContent();
 
 	/** 경기가 끝나면 아직 끝나지 않은 상자 배치를 멈춘다. */
@@ -46,15 +45,18 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleRewardContentLoaded();
+	void HandleWorldBeginPlay();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void ConfigureRewardChestSpawns();
+	void UnbindChestConfigurationEvents();
 	const URewardDefinition* ResolveRewardDefinitionForChestSpawns(const TArray<ARewardChest*>& RewardChests) const;
 	void GrantVictoryGoldToController(AController* WinnerController, int32 WinnerTeamMemberCount) const;
 	AExperienceGameMode* GetExperienceGameMode() const;
 
 private:
 	bool bChestConfigurationStopped = false;
-	FTimerHandle ChestConfigurationTimerHandle;
+	FDelegateHandle WorldBeginPlayHandle;
+	TArray<TPair<TWeakObjectPtr<ARewardChest>, FDelegateHandle>> PendingChestContentHandles;
 	TSharedPtr<FStreamableHandle> RewardContentPreloadHandle;
 };

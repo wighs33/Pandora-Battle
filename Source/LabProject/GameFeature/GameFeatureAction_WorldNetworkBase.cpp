@@ -28,18 +28,15 @@ void UGameFeatureAction_WorldNetworkBase::OnGameFeatureActivating(FGameFeatureAc
 		&ThisClass::HandleGameInstanceWorldChanged,
 		ChangeContext));
 
+	// 맵 로딩은 월드를 InitWorld보다 먼저 현재 월드로 바꾼다. 월드 서브시스템이 생긴 뒤인 초기화 완료 시점에 적용한다.
+	PostWorldInitializationHandles.Add(ChangeContext, FWorldDelegates::OnPostWorldInitialization.AddUObject(
+		this,
+		&ThisClass::HandlePostWorldInitialization,
+		ChangeContext));
+
 	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
 	{
-		if (!Context.ShouldApplyToWorldContext(WorldContext))
-		{
-			continue;
-		}
-
-		UWorld* World = WorldContext.World();
-		if (World && World->IsGameWorld() && ShouldApplyToNetMode(World->GetNetMode()))
-		{
-			AddToWorld(WorldContext, ChangeContext);
-		}
+		AddToWorldIfReady(WorldContext, ChangeContext);
 	}
 }
 
@@ -58,6 +55,12 @@ void UGameFeatureAction_WorldNetworkBase::OnGameFeatureDeactivating(FGameFeature
 		FWorldDelegates::OnGameInstanceWorldChanged.Remove(*WorldChangedHandle);
 		GameInstanceWorldChangedHandles.Remove(ChangeContext);
 	}
+
+	if (FDelegateHandle* PostInitializationHandle = PostWorldInitializationHandles.Find(ChangeContext))
+	{
+		FWorldDelegates::OnPostWorldInitialization.Remove(*PostInitializationHandle);
+		PostWorldInitializationHandles.Remove(ChangeContext);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -70,13 +73,9 @@ void UGameFeatureAction_WorldNetworkBase::HandleGameInstanceStart(UGameInstance*
 		return;
 	}
 
-	const FWorldContext* WorldContext = GameInstance->GetWorldContext();
-	UWorld* World = WorldContext ? WorldContext->World() : nullptr;
-	if (WorldContext && World && World->IsGameWorld()
-		&& ChangeContext.ShouldApplyToWorldContext(*WorldContext)
-		&& ShouldApplyToNetMode(World->GetNetMode()))
+	if (const FWorldContext* WorldContext = GameInstance->GetWorldContext())
 	{
-		AddToWorld(*WorldContext, ChangeContext);
+		AddToWorldIfReady(*WorldContext, ChangeContext);
 	}
 }
 
@@ -84,18 +83,37 @@ void UGameFeatureAction_WorldNetworkBase::HandleGameInstanceWorldChanged(UGameIn
 	UWorld* NewWorld, FGameFeatureStateChangeContext ChangeContext)
 {
 	static_cast<void>(OldWorld);
+	static_cast<void>(NewWorld);
 
-	if (!GameInstance || !NewWorld || !NewWorld->IsGameWorld())
+	// 아직 초기화 전인 월드는 HandlePostWorldInitialization이 이어서 처리한다.
+	if (const FWorldContext* WorldContext = GameInstance ? GameInstance->GetWorldContext() : nullptr)
 	{
-		return;
+		AddToWorldIfReady(*WorldContext, ChangeContext);
 	}
+}
 
-	const FWorldContext* WorldContext = GameInstance->GetWorldContext();
-	if (WorldContext
-		&& ChangeContext.ShouldApplyToWorldContext(*WorldContext)
-		&& ShouldApplyToNetMode(NewWorld->GetNetMode()))
+void UGameFeatureAction_WorldNetworkBase::HandlePostWorldInitialization(UWorld* World,
+	const UWorld::InitializationValues IVS, FGameFeatureStateChangeContext ChangeContext)
+{
+	static_cast<void>(IVS);
+
+	// 월드 컨텍스트의 현재 월드가 된 뒤에 초기화된 경우만 처리한다. 먼저 초기화된 월드는 월드 변경 알림이 처리한다.
+	const FWorldContext* WorldContext = GEngine ? GEngine->GetWorldContextFromWorld(World) : nullptr;
+	if (WorldContext && WorldContext->World() == World)
 	{
-		AddToWorld(*WorldContext, ChangeContext);
+		AddToWorldIfReady(*WorldContext, ChangeContext);
+	}
+}
+
+void UGameFeatureAction_WorldNetworkBase::AddToWorldIfReady(const FWorldContext& WorldContext,
+	const FGameFeatureStateChangeContext& ChangeContext)
+{
+	UWorld* World = WorldContext.World();
+	if (World && World->IsGameWorld() && World->bIsWorldInitialized
+		&& ChangeContext.ShouldApplyToWorldContext(WorldContext)
+		&& ShouldApplyToNetMode(World->GetNetMode()))
+	{
+		AddToWorld(WorldContext, ChangeContext);
 	}
 }
 

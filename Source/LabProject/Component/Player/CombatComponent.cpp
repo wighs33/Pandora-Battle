@@ -54,7 +54,11 @@ void UCombatComponent::BeginPlay()
 	bEndingPlay = false;
 	Super::BeginPlay();
 
-	RefreshCachedReferences();
+	// ASC는 빙의와 PlayerState 도착 순서에 따라 늦게 준비되므로, 준비 알림에서만 공격 속도 변화를 구독한다.
+	AbilitySystemSubscription.SubscribeToCharacter(
+		GetCharacter(),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
+		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
 	// Pawn 정의가 BeginPlay 이전에 적용된 경우에도 몽타주 로딩을 시작한다.
 	BeginUnarmedAttackMontagePreload();
 }
@@ -66,11 +70,8 @@ void UCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	StopAutomaticFire();
 	StopUnarmedAttackTrace();
 	ReleaseUnarmedAttackMontagePreload();
-	if (CachedASC && AttackSpeedChangedDelegateHandle.IsValid())
-	{
-		CachedASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetAttackSpeedAttribute()).Remove(AttackSpeedChangedDelegateHandle);
-	}
-	AttackSpeedChangedDelegateHandle.Reset();
+	AbilitySystemSubscription.Reset();
+	BindAttackSpeed(nullptr);
 	TemporaryWeaponDamageBonuses.Reset();
 	Super::EndPlay(EndPlayReason);
 }
@@ -84,30 +85,41 @@ void UCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME_WITH_PARAMS_FAST(UCombatComponent, ReplicatedTemporaryWeaponDamageBonus, Params);
 }
 
-// 빙의·PlayerState 도착에 맞춰 ASC를 갱신하고 공격속도 변화가 연사 예약에 반영되게 한다.
-void UCombatComponent::RefreshCachedReferences()
+void UCombatComponent::HandleAbilitySystemReady(ACharacterBase* Character, UPdAbilitySystemComponent* ReadyAbilitySystem)
 {
-	if (bEndingPlay)
+	BindAttackSpeed(ReadyAbilitySystem);
+}
+
+void UCombatComponent::HandleAbilitySystemReleased(ACharacterBase* Character, UPdAbilitySystemComponent* ReleasedAbilitySystem)
+{
+	BindAttackSpeed(nullptr);
+}
+
+// 공격 속도가 바뀌면 누르고 있는 연사의 다음 입력 시점을 다시 잡는다.
+void UCombatComponent::BindAttackSpeed(UPdAbilitySystemComponent* AbilitySystem)
+{
+	if (AttackSpeedAbilitySystem.Get() == AbilitySystem)
 	{
 		return;
 	}
-	CachedOwner = Cast<ACharacterBase>(GetOwner());
-	UPdAbilitySystemComponent* NewASC = CachedOwner ? CachedOwner->GetPdAbilitySystemComponent() : nullptr;
-	if (CachedASC == NewASC)
+
+	if (UPdAbilitySystemComponent* PreviousAbilitySystem = AttackSpeedAbilitySystem.Get())
 	{
-		return;
-	}
-	if (CachedASC && AttackSpeedChangedDelegateHandle.IsValid())
-	{
-		CachedASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetAttackSpeedAttribute()).Remove(AttackSpeedChangedDelegateHandle);
+		PreviousAbilitySystem->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetAttackSpeedAttribute())
+			.Remove(AttackSpeedChangedDelegateHandle);
 	}
 	AttackSpeedChangedDelegateHandle.Reset();
-	CachedASC = NewASC;
-	if (CachedASC)
+	AttackSpeedAbilitySystem = AbilitySystem;
+	if (AbilitySystem)
 	{
-		AttackSpeedChangedDelegateHandle = CachedASC->GetGameplayAttributeValueChangeDelegate(
+		AttackSpeedChangedDelegateHandle = AbilitySystem->GetGameplayAttributeValueChangeDelegate(
 			UBasicAttributeSet::GetAttackSpeedAttribute()).AddUObject(this, &ThisClass::HandleAttackSpeedChanged);
 	}
+}
+
+ACharacterBase* UCombatComponent::GetCharacter() const
+{
+	return Cast<ACharacterBase>(GetOwner());
 }
 
 // 플레이어·AI가 선택한 피해 설정과 맨손 연출 설정을 적용한다.
@@ -126,7 +138,7 @@ void UCombatComponent::ApplySettings(const FCombatDamageSettings& DamageSettings
 
 void UCombatComponent::PlayUnarmedComboWindowStartEffect() const
 {
-	ACharacterBase* Character = CachedOwner ? CachedOwner.Get() : Cast<ACharacterBase>(GetOwner());
+	ACharacterBase* Character = GetCharacter();
 	if (!UnarmedCombatSettings.ComboWindowStartEffect
 		|| !Character
 		|| Character->GetNetMode() == NM_DedicatedServer
@@ -158,7 +170,6 @@ void UCombatComponent::PlayUnarmedComboWindowStartEffect() const
 // 누르기 입력은 즉시 한 번 처리하고 자동 무기라면 다음 입력을 예약한다.
 void UCombatComponent::StartPrimaryAttack()
 {
-	RefreshCachedReferences();
 	if (bEndingPlay)
 	{
 		return;
@@ -259,7 +270,6 @@ void UCombatComponent::StopAutomaticFire()
 void UCombatComponent::ServerRequestNextComboInput_Implementation(
 	FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey ActivationKey, FName ClientExpectedSectionName)
 {
-	RefreshCachedReferences();
 	if (bEndingPlay || !HasCombatAuthority() || IsPrimaryAttackBlockedByAbilityTags() || !ActivationKey.IsValidKey())
 	{
 		return;
@@ -302,11 +312,7 @@ APdHUD* UCombatComponent::GetPdHUD() const
 
 AWeaponBase* UCombatComponent::GetCurrentWeaponActor() const
 {
-	const ACharacterBase* CharacterOwner = CachedOwner.Get();
-	if (!CharacterOwner)
-	{
-		CharacterOwner = Cast<ACharacterBase>(GetOwner());
-	}
+	const ACharacterBase* CharacterOwner = GetCharacter();
 
 	const UEquipmentComponent* EquipmentComponent = CharacterOwner ? CharacterOwner->GetEquipmentComponent() : nullptr;
 	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
@@ -396,9 +402,7 @@ void UCombatComponent::ProcessAttackInput()
 
 bool UCombatComponent::IsPrimaryAttackBlockedByAbilityTags() const
 {
-	const ACharacterBase* CharacterOwner = IsValid(CachedOwner.Get())
-		? CachedOwner.Get()
-		: Cast<ACharacterBase>(GetOwner());
+	const ACharacterBase* CharacterOwner = GetCharacter();
 	if (CharacterOwner && CharacterOwner->IsStatusFrozen())
 	{
 		return true;
@@ -522,11 +526,7 @@ void UCombatComponent::HandleAttackSpeedChanged(const FOnAttributeChangeData& Da
 
 bool UCombatComponent::CanAffordRangedWeaponAttackStamina() const
 {
-	const ACharacterBase* CharacterOwner = CachedOwner.Get();
-	if (!CharacterOwner)
-	{
-		CharacterOwner = Cast<ACharacterBase>(GetOwner());
-	}
+	const ACharacterBase* CharacterOwner = GetCharacter();
 	if (!CharacterOwner)
 	{
 		return false;
@@ -559,11 +559,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 		return false;
 	}
 
-	ACharacterBase* CharacterOwner = CachedOwner.Get();
-	if (!CharacterOwner)
-	{
-		CharacterOwner = Cast<ACharacterBase>(GetOwner());
-	}
+	ACharacterBase* CharacterOwner = GetCharacter();
 	if (!CharacterOwner)
 	{
 		return false;
@@ -614,11 +610,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 
 float UCombatComponent::GetWeaponDamageSourceMagnitude() const
 {
-	const ACharacterBase* CharacterOwner = CachedOwner.Get();
-	if (!CharacterOwner)
-	{
-		CharacterOwner = Cast<ACharacterBase>(GetOwner());
-	}
+	const ACharacterBase* CharacterOwner = GetCharacter();
 
 	const UEquipmentComponent* EquipmentComponent = CharacterOwner ? CharacterOwner->GetEquipmentComponent() : nullptr;
 	const FGameplayTag WeaponDamageSourceTag = GetWeaponDamageSourceTag();
@@ -711,7 +703,6 @@ void UCombatComponent::SetActiveComboDamageMultiplier(const float DamageMultipli
 // 무기 피해량과 출처만 정하고 실제 타격 처리는 맨손과 공유한다.
 bool UCombatComponent::ApplyWeaponDamageToTarget(AActor* TargetActor)
 {
-	RefreshCachedReferences();
 	AWeaponBase* Weapon = GetCurrentWeaponActor();
 	return Weapon && ApplyAttackDamageToTarget(TargetActor,
 		GetWeaponDamageSourceMagnitude() + GetTemporaryWeaponDamageBonus(), Weapon, Weapon, Weapon->ShouldTriggerHitReactOnDamage());
@@ -847,7 +838,7 @@ void UCombatComponent::StopUnarmedAttackTrace()
 void UCombatComponent::PerformUnarmedAttackTrace()
 {
 	AActor* OwnerActor = GetOwner();
-	ACharacterBase* SourceCharacter = CachedOwner.Get();
+	ACharacterBase* SourceCharacter = GetCharacter();
 	USkeletalMeshComponent* SourceMesh = SourceCharacter ? SourceCharacter->GetMesh() : nullptr;
 	UWorld* World = GetWorld();
 	if (bEndingPlay || !bUnarmedAttackTraceActive || !OwnerActor || !HasCombatAuthority() || !SourceCharacter || !SourceMesh || !World)
@@ -1020,10 +1011,9 @@ bool UCombatComponent::ApplyUnarmedDamageToTarget(AActor* TargetActor)
 bool UCombatComponent::ApplyAttackDamageToTarget(AActor* TargetActor, const float RawDamage,
 	UObject* SourceObject, AActor* DamageCauser, const bool bAllowHitReact)
 {
-	RefreshCachedReferences();
-	ACharacterBase* Source = CachedOwner.Get();
+	ACharacterBase* Source = GetCharacter();
 	ACharacterBase* Target = Cast<ACharacterBase>(TargetActor);
-	UPdAbilitySystemComponent* SourceASC = CachedASC.Get();
+	UPdAbilitySystemComponent* SourceASC = IsValid(Source) ? Source->GetPdAbilitySystemComponent() : nullptr;
 	UPdAbilitySystemComponent* TargetASC = IsValid(Target) ? Target->GetPdAbilitySystemComponent() : nullptr;
 	if (bEndingPlay || !HasCombatAuthority() || !IsValid(Source) || !IsValid(Target)
 		|| Source == Target || !SourceASC || !TargetASC || !Source->CanDamageCharacterByTeam(Target))

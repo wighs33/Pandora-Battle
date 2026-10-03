@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Component/Character/AbilitySystemReadySubscription.h"
 #include "Definition/Common/CombatSettings.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "GameplayPrediction.h"
@@ -77,7 +78,6 @@ public:
 	void ResetUnarmedAttackHitTracking();
 
 	void ApplySettings(const FCombatDamageSettings& DamageSettings, const FUnarmedCombatSettings& UnarmedSettings);
-	void RefreshCachedReferences();
 
 private:
 	float GetTemporaryWeaponDamageBonus() const;
@@ -87,6 +87,8 @@ private:
 	void ServerRequestNextComboInput(FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey ActivationKey, FName ClientExpectedSectionName);
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandleAbilitySystemReady(ACharacterBase* Character, UPdAbilitySystemComponent* ReadyAbilitySystem);
+	void HandleAbilitySystemReleased(ACharacterBase* Character, UPdAbilitySystemComponent* ReleasedAbilitySystem);
 	void HandleUnarmedAttackMontagePreloadComplete();
 	void HandleAutomaticFireTick();
 	void HandleAttackSpeedChanged(const FOnAttributeChangeData& Data);
@@ -96,6 +98,8 @@ private:
 	void OnRep_TemporaryWeaponDamageBonus();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	ACharacterBase* GetCharacter() const;
+	void BindAttackSpeed(UPdAbilitySystemComponent* AbilitySystem);
 	APdPlayer* GetPlayerOwner() const;
 	APdHUD* GetPdHUD() const;
 	AWeaponBase* GetCurrentWeaponActor() const;
@@ -139,12 +143,6 @@ public:
 
 protected:
 	UPROPERTY(Transient)
-	TObjectPtr<ACharacterBase> CachedOwner;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UPdAbilitySystemComponent> CachedASC;
-
-	UPROPERTY(Transient)
 	FCombatDamageSettings CombatDamageSettings;
 
 	UPROPERTY(Transient)
@@ -179,6 +177,8 @@ protected:
 	bool bUnarmedAttackTraceActive = false;
 	uint32 UnarmedAttackTraceGeneration = 0;
 	double LastPrimaryAttackRequestTime = 0.0;
+	FAbilitySystemReadySubscription AbilitySystemSubscription;
+	TWeakObjectPtr<UPdAbilitySystemComponent> AttackSpeedAbilitySystem;
 	FDelegateHandle AttackSpeedChangedDelegateHandle;
 	FTimerHandle UnarmedAttackTraceTimerHandle;
 	FTimerHandle AutomaticFireTimerHandle;

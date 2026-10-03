@@ -90,6 +90,9 @@ public:
 	TSoftObjectPtr<URewardDefinition> GetRewardDefinitionAsset() const { return RewardDefinition; }
 	bool IsRewardContentReady() const { return bRewardContentReady; }
 
+	/** 서버에서 보상 설정과 보상 애셋을 다 읽었을 때 알린다. */
+	FSimpleMulticastDelegate& OnRewardContentReady() { return RewardContentReady; }
+
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
@@ -125,6 +128,7 @@ private:
 	bool IsWeaponItemDefinition(const UItemDefinition* ItemDefinition) const;
 	void BeginRewardContentPreload();
 	void ReleaseRewardContentPreload();
+	void MarkRewardContentReady();
 
 	void ConfigureChestCollision(bool bEnableInteraction) const;
 	void PlayCharacterInteractionAnimation(AActor* RewardReceiver) const;
@@ -223,4 +227,5 @@ private:
 	bool bOriginalSpawnTransformCaptured = false;
 	TSharedPtr<FStreamableHandle> RewardContentPreloadHandle;
 	bool bRewardContentReady = false;
+	FSimpleMulticastDelegate RewardContentReady;
 };
