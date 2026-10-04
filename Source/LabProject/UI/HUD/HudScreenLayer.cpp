@@ -51,9 +51,7 @@ void UHudScreenLayer::Shutdown()
 
 	if (Hud && Hud->CachedPandoraTreeUI)
 	{
-		Hud->CachedPandoraTreeUI->OnPandoraTreeClosed.RemoveDynamic(
-			this,
-			&ThisClass::HandlePandoraTreeClosed);
+		Hud->CachedPandoraTreeUI->OnPandoraTreeClosed.RemoveDynamic(this, &ThisClass::HandlePandoraTreeClosed);
 	}
 
 	bInfoClosing = false;
@@ -113,11 +111,9 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 	if (Presenter)
 	{
 		Presenter->BindInfoUi(Hud->CachedInfoUI);
-		Hud->CachedInfoUI->OnClickedInfoCenterButton.RemoveDynamic(
-			Presenter,
+		Hud->CachedInfoUI->OnClickedInfoCenterButton.RemoveDynamic(Presenter,
 			&UInfoUiPresenter::HandleClickedInfoCenterButton);
-		Hud->CachedInfoUI->OnClickedInfoCenterButton.AddUniqueDynamic(
-			Presenter,
+		Hud->CachedInfoUI->OnClickedInfoCenterButton.AddUniqueDynamic(Presenter,
 			&UInfoUiPresenter::HandleClickedInfoCenterButton);
 	}
 
@@ -147,17 +143,14 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 	Hud->CachedInfoUI->FocusSection(InitialSection, false);
 }
 
-void UHudScreenLayer::CloseInfo(
-	const bool bSuppressCameraReturn,
-	const bool bImmediate)
+void UHudScreenLayer::CloseInfo(const bool bSuppressCameraReturn, const bool bImmediate)
 {
 	APdHUD* Hud = OwnerHud.Get();
 	if (!Hud)
 	{
 		return;
 	}
-	if (PendingScreenRequest == EPendingScreenRequest::Info
-		&& !Hud->CachedInfoUI)
+	if (PendingScreenRequest == EPendingScreenRequest::Info && !Hud->CachedInfoUI)
 	{
 		PendingScreenRequest = EPendingScreenRequest::None;
 		ReleaseInfoContentIfUnused();
@@ -196,12 +189,8 @@ void UHudScreenLayer::CloseInfo(
 	const float HideAnimationDelay = Hud->CachedInfoUI->GetHideAnimationDelay();
 	if (HideAnimationDelay > 0.0f)
 	{
-		Hud->GetWorldTimerManager().SetTimer(
-			InfoCloseTimerHandle,
-			this,
-			&ThisClass::FinishCloseInfo,
-			HideAnimationDelay,
-			false);
+		Hud->GetWorldTimerManager().SetTimer(InfoCloseTimerHandle, this, &ThisClass::FinishCloseInfo,
+			HideAnimationDelay, false);
 		return;
 	}
 
@@ -271,9 +260,7 @@ void UHudScreenLayer::OpenPandoraTree()
 	ScheduleTrainingRoomPause(InfoUiTrainingRoomPauseDelaySeconds);
 }
 
-void UHudScreenLayer::ClosePandoraTree(
-	const bool bSuppressCameraReturn,
-	const bool bImmediate)
+void UHudScreenLayer::ClosePandoraTree(const bool bSuppressCameraReturn, const bool bImmediate)
 {
 	APdHUD* Hud = OwnerHud.Get();
 	if (!Hud || !Hud->CachedPandoraTreeUI)
@@ -331,8 +318,7 @@ bool UHudScreenLayer::IsPandoraTreeOpen() const
 
 bool UHudScreenLayer::ShouldSuppressPlayerHud() const
 {
-	return (!bInfoClosing && IsInfoOpen())
-		|| (!bPandoraTreeClosing && IsPandoraTreeOpen());
+	return (!bInfoClosing && IsInfoOpen()) || (!bPandoraTreeClosing && IsPandoraTreeOpen());
 }
 
 void UHudScreenLayer::RefreshTrainingRoomPause(const UUserWidget* IgnoredWidget)
@@ -356,12 +342,8 @@ void UHudScreenLayer::ScheduleTrainingRoomPause(const float DelaySeconds)
 		return;
 	}
 
-	Hud->GetWorldTimerManager().SetTimer(
-		TrainingRoomPauseTimerHandle,
-		this,
-		&ThisClass::HandleDelayedTrainingRoomPause,
-		DelaySeconds,
-		false);
+	Hud->GetWorldTimerManager().SetTimer(TrainingRoomPauseTimerHandle, this, &ThisClass::HandleDelayedTrainingRoomPause,
+		DelaySeconds, false);
 }
 
 void UHudScreenLayer::HandlePandoraTreeClosed(UPandoraTreeWidget* ClosedWidget)
@@ -373,9 +355,7 @@ void UHudScreenLayer::HandlePandoraTreeClosed(UPandoraTreeWidget* ClosedWidget)
 	}
 
 	bPandoraTreeClosing = false;
-	ClosedWidget->OnPandoraTreeClosed.RemoveDynamic(
-		this,
-		&ThisClass::HandlePandoraTreeClosed);
+	ClosedWidget->OnPandoraTreeClosed.RemoveDynamic(this, &ThisClass::HandlePandoraTreeClosed);
 	ClosedWidget->SetReturnCameraOnHide(false);
 	if (Hud->CachedInfoUI) Hud->CachedInfoUI->OnPandoraDrawerClosed();
 	RefreshTrainingRoomPause();
@@ -409,33 +389,26 @@ void UHudScreenLayer::FinishCloseInfo()
 	ReleaseInfoContentIfUnused();
 }
 
-bool UHudScreenLayer::EnsureInfoContentReady(
-	const EPendingScreenRequest Request)
+bool UHudScreenLayer::EnsureInfoContentReady(const EPendingScreenRequest Request)
 {
 	UHudUiRouter* UiRouter = Router.Get();
 	UUiSubsystem* UiSubsystem = UiRouter ? UiRouter->ResolveUiSubsystem() : nullptr;
-	UWidgetClassDefinition* Definition =
-		UiRouter ? UiRouter->GetActiveDefinition() : nullptr;
+	UWidgetClassDefinition* Definition = UiRouter ? UiRouter->GetActiveDefinition() : nullptr;
 	if (!UiSubsystem || !Definition)
 	{
 		return false;
 	}
 
 	PendingScreenRequest = Request;
-	if (InfoContentLease.IsValid()
-		&& InfoContentDefinition.Get() != Definition)
+	if (InfoContentLease.IsValid() && InfoContentDefinition.Get() != Definition)
 	{
 		ReleaseInfoContent();
 	}
 	if (!InfoContentLease.IsValid())
 	{
 		InfoContentDefinition = Definition;
-		InfoContentLease = UiSubsystem->AcquireUiContent(
-			Definition,
-			EUiContentGroup::Info,
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this]()
+		InfoContentLease = UiSubsystem->AcquireUiContent(Definition, EUiContentGroup::Info,
+			FSimpleDelegate::CreateWeakLambda(this, [this]()
 				{
 					ContinuePendingScreenOpen();
 				}));
@@ -456,11 +429,8 @@ void UHudScreenLayer::ContinuePendingScreenOpen()
 		return;
 	}
 	UHudUiRouter* UiRouter = Router.Get();
-	UWidgetClassDefinition* Definition =
-		UiRouter ? UiRouter->GetActiveDefinition() : nullptr;
-	if (!InfoContentLease.IsValid()
-		|| !InfoContentLease->IsReady()
-		|| !IsValid(Definition)
+	UWidgetClassDefinition* Definition = UiRouter ? UiRouter->GetActiveDefinition() : nullptr;
+	if (!InfoContentLease.IsValid() || !InfoContentLease->IsReady() || !IsValid(Definition)
 		|| InfoContentDefinition.Get() != Definition)
 	{
 		PendingScreenRequest = EPendingScreenRequest::None;
@@ -480,12 +450,8 @@ void UHudScreenLayer::ContinuePendingScreenOpen()
 
 void UHudScreenLayer::ReleaseInfoContentIfUnused()
 {
-	if (bScreenHandoffInProgress
-		|| PendingScreenRequest != EPendingScreenRequest::None
-		|| bInfoClosing
-		|| bPandoraTreeClosing
-		|| IsInfoOpen()
-		|| IsPandoraTreeOpen())
+	if (bScreenHandoffInProgress || PendingScreenRequest != EPendingScreenRequest::None || bInfoClosing
+		|| bPandoraTreeClosing || IsInfoOpen() || IsPandoraTreeOpen())
 	{
 		return;
 	}
@@ -497,9 +463,7 @@ void UHudScreenLayer::ReleaseInfoContent()
 	APdHUD* Hud = OwnerHud.Get();
 	if (Hud && Hud->CachedPandoraTreeUI)
 	{
-		Hud->CachedPandoraTreeUI->OnPandoraTreeClosed.RemoveDynamic(
-			this,
-			&ThisClass::HandlePandoraTreeClosed);
+		Hud->CachedPandoraTreeUI->OnPandoraTreeClosed.RemoveDynamic(this, &ThisClass::HandlePandoraTreeClosed);
 	}
 	if (UHudUiRouter* UiRouter = Router.Get())
 	{
@@ -559,9 +523,7 @@ void UHudScreenLayer::SetTrainingRoomPaused(const bool bPaused)
 
 	if (bPaused)
 	{
-		if (bAppliedTrainingRoomPause
-			|| !Hud->IsTrainingRoomMap()
-			|| World->GetNetMode() != NM_Standalone)
+		if (bAppliedTrainingRoomPause || !Hud->IsTrainingRoomMap() || World->GetNetMode() != NM_Standalone)
 		{
 			return;
 		}

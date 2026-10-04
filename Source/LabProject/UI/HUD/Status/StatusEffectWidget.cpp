@@ -217,8 +217,7 @@ void UStatusEffectWidget::UpdateFillMeter()
 	}
 	else if (MaxStackCount > 0)
 	{
-		FillPercent = static_cast<float>(CurrentStackCount)
-			/ static_cast<float>(MaxStackCount);
+		FillPercent = static_cast<float>(CurrentStackCount) / static_cast<float>(MaxStackCount);
 	}
 
 	EffectFillMeter->SetPercent(FMath::Clamp(FillPercent, MeterEmptyPercent, MeterFullPercent));
@@ -229,31 +228,19 @@ void UStatusEffectWidget::RestartStackFillPresentation()
 	ClearStackFillPresentationTimers();
 
 	UWorld* World = GetWorld();
-	if (!World
-		|| !EffectFillMeter
-		|| bIsStatusEffectApplied
-		|| CurrentStackCount <= 0
-		|| GetMaxStackCount() <= 0)
+	if (!World || !EffectFillMeter || bIsStatusEffectApplied || CurrentStackCount <= 0 || GetMaxStackCount() <= 0)
 	{
 		return;
 	}
 
-	World->GetTimerManager().SetTimer(
-		StackFillHoldTimer,
-		this,
-		&ThisClass::StartStackFillDecrease,
-		StatusEffectTiming::StackHoldSeconds,
-		false);
+	World->GetTimerManager().SetTimer(StackFillHoldTimer, this, &ThisClass::StartStackFillDecrease,
+		StatusEffectTiming::StackHoldSeconds, false);
 }
 
 void UStatusEffectWidget::StartStackFillDecrease()
 {
 	UWorld* World = GetWorld();
-	if (!World
-		|| !EffectFillMeter
-		|| bIsStatusEffectApplied
-		|| CurrentStackCount <= 0
-		|| GetMaxStackCount() <= 0)
+	if (!World || !EffectFillMeter || bIsStatusEffectApplied || CurrentStackCount <= 0 || GetMaxStackCount() <= 0)
 	{
 		return;
 	}
@@ -278,15 +265,10 @@ void UStatusEffectWidget::UpdateStackFillDecrease()
 		return;
 	}
 
-	const double ElapsedSeconds = FMath::Max(
-		World->GetTimeSeconds() - StackFillDecreaseStartTime,
-		0.0);
-	const float NewPercent = FMath::Clamp(
-		StackFillDecreaseStartPercent
-			- static_cast<float>(ElapsedSeconds
-				/ static_cast<double>(StatusEffectTiming::FullStackLifetimeSeconds - StatusEffectTiming::StackHoldSeconds)),
-		MeterEmptyPercent,
-		MeterFullPercent);
+	const double ElapsedSeconds = FMath::Max(World->GetTimeSeconds() - StackFillDecreaseStartTime, 0.0);
+	const float NewPercent = FMath::Clamp(StackFillDecreaseStartPercent - static_cast<float>(ElapsedSeconds
+		/ static_cast<double>(StatusEffectTiming::FullStackLifetimeSeconds - StatusEffectTiming::StackHoldSeconds)),
+		MeterEmptyPercent, MeterFullPercent);
 	EffectFillMeter->SetPercent(NewPercent);
 
 	if (NewPercent <= MeterEmptyPercent)
@@ -331,12 +313,8 @@ void UStatusEffectWidget::HandleStatusEffectApplied()
 		return;
 	}
 
-	GetWorld()->GetTimerManager().SetTimer(
-		UpdateTimeRemainingTimer,
-		this,
-		&ThisClass::UpdateTimeRemaining,
-		MeterUpdateInterval,
-		true);
+	GetWorld()->GetTimerManager().SetTimer(UpdateTimeRemainingTimer, this, &ThisClass::UpdateTimeRemaining,
+		MeterUpdateInterval, true);
 }
 
 void UStatusEffectWidget::UpdateTimeRemaining()
@@ -347,8 +325,7 @@ void UStatusEffectWidget::UpdateTimeRemaining()
 	}
 
 	const float NewPercent = FMath::Clamp(
-		EffectAppliedTimeLeft->GetPercent() - (MeterUpdateInterval / GetStatusDuration()),
-		MeterEmptyPercent,
+		EffectAppliedTimeLeft->GetPercent() - (MeterUpdateInterval / GetStatusDuration()), MeterEmptyPercent,
 		MeterFullPercent);
 	EffectAppliedTimeLeft->SetPercent(NewPercent);
 
@@ -369,12 +346,9 @@ void UStatusEffectWidget::EvaluateRemovalAfterDebuffRemoved()
 			: AbilitySystemComponent
 				&& AbilitySystemComponent->HasMatchingGameplayTag(
 					EffectDataAsset->StackTag));
-	const bool bHasStatusEffect = bIsStatusEffectApplied
-		|| (AbilitySystemComponent
-			&& EffectDataAsset
-			&& EffectDataAsset->StatusEffectTag.IsValid()
-			&& AbilitySystemComponent->HasMatchingGameplayTag(
-				EffectDataAsset->StatusEffectTag));
+	const bool bHasStatusEffect = bIsStatusEffectApplied || (AbilitySystemComponent && EffectDataAsset
+		&& EffectDataAsset->StatusEffectTag.IsValid()
+		&& AbilitySystemComponent->HasMatchingGameplayTag(EffectDataAsset->StatusEffectTag));
 	if (bHasDebuff || bHasStatusEffect)
 	{
 		return;
@@ -428,11 +402,8 @@ void UStatusEffectWidget::BindGameplayListeners()
 		: nullptr;
 	if (BoundStatusEffectReplicationComponent)
 	{
-		ReplicatedStackChangedHandle = BoundStatusEffectReplicationComponent
-			->OnStatusEffectStackChanged()
-			.AddUObject(
-				this,
-				&ThisClass::OnReplicatedStatusEffectStackChanged);
+		ReplicatedStackChangedHandle = BoundStatusEffectReplicationComponent->OnStatusEffectStackChanged()
+			.AddUObject(this, &ThisClass::OnReplicatedStatusEffectStackChanged);
 	}
 }
 
@@ -440,12 +411,9 @@ void UStatusEffectWidget::UnbindGameplayListeners()
 {
 	if (!BoundAbilitySystemComponent)
 	{
-		if (BoundStatusEffectReplicationComponent
-			&& ReplicatedStackChangedHandle.IsValid())
+		if (BoundStatusEffectReplicationComponent && ReplicatedStackChangedHandle.IsValid())
 		{
-			BoundStatusEffectReplicationComponent
-				->OnStatusEffectStackChanged()
-				.Remove(ReplicatedStackChangedHandle);
+			BoundStatusEffectReplicationComponent->OnStatusEffectStackChanged().Remove(ReplicatedStackChangedHandle);
 		}
 		BoundStatusEffectReplicationComponent = nullptr;
 		DebuffTagChangedHandle.Reset();
@@ -458,24 +426,19 @@ void UStatusEffectWidget::UnbindGameplayListeners()
 
 	if (DebuffTagChangedHandle.IsValid() && BoundDebuffTag.IsValid())
 	{
-		BoundAbilitySystemComponent
-			->RegisterGameplayTagEvent(BoundDebuffTag, EGameplayTagEventType::NewOrRemoved)
+		BoundAbilitySystemComponent->RegisterGameplayTagEvent(BoundDebuffTag, EGameplayTagEventType::NewOrRemoved)
 			.Remove(DebuffTagChangedHandle);
 	}
 
 	if (StatusEffectTagChangedHandle.IsValid() && BoundStatusEffectTag.IsValid())
 	{
-		BoundAbilitySystemComponent
-			->RegisterGameplayTagEvent(BoundStatusEffectTag, EGameplayTagEventType::NewOrRemoved)
+		BoundAbilitySystemComponent->RegisterGameplayTagEvent(BoundStatusEffectTag, EGameplayTagEventType::NewOrRemoved)
 			.Remove(StatusEffectTagChangedHandle);
 	}
 
-	if (BoundStatusEffectReplicationComponent
-		&& ReplicatedStackChangedHandle.IsValid())
+	if (BoundStatusEffectReplicationComponent && ReplicatedStackChangedHandle.IsValid())
 	{
-		BoundStatusEffectReplicationComponent
-			->OnStatusEffectStackChanged()
-			.Remove(ReplicatedStackChangedHandle);
+		BoundStatusEffectReplicationComponent->OnStatusEffectStackChanged().Remove(ReplicatedStackChangedHandle);
 	}
 
 	BoundAbilitySystemComponent = nullptr;
@@ -549,12 +512,9 @@ void UStatusEffectWidget::OnStatusEffectTagChanged(const FGameplayTag CallbackTa
 	EvaluateRemovalAfterDebuffRemoved();
 }
 
-void UStatusEffectWidget::OnReplicatedStatusEffectStackChanged(
-	const FGameplayTag DebuffTag,
-	const int32 StackCount)
+void UStatusEffectWidget::OnReplicatedStatusEffectStackChanged(const FGameplayTag DebuffTag, const int32 StackCount)
 {
-	if (!EffectDataAsset
-		|| !DebuffTag.MatchesTagExact(EffectDataAsset->StackTag))
+	if (!EffectDataAsset || !DebuffTag.MatchesTagExact(EffectDataAsset->StackTag))
 	{
 		return;
 	}
@@ -571,9 +531,7 @@ void UStatusEffectWidget::OnReplicatedStatusEffectStackChanged(
 		if (UWorld* World = GetWorld())
 		{
 			World->GetTimerManager().SetTimerForNextTick(
-				FTimerDelegate::CreateUObject(
-					this,
-					&ThisClass::EvaluateRemovalAfterDebuffRemoved));
+				FTimerDelegate::CreateUObject(this, &ThisClass::EvaluateRemovalAfterDebuffRemoved));
 			return;
 		}
 
@@ -608,8 +566,7 @@ int32 UStatusEffectWidget::GetActiveDebuffStackCount() const
 
 	if (BoundStatusEffectReplicationComponent)
 	{
-		return BoundStatusEffectReplicationComponent->GetStatusEffectStackCount(
-			EffectDataAsset->StackTag);
+		return BoundStatusEffectReplicationComponent->GetStatusEffectStackCount(EffectDataAsset->StackTag);
 	}
 
 	int32 StackCount = 0;
@@ -617,9 +574,7 @@ int32 UStatusEffectWidget::GetActiveDebuffStackCount() const
 		BoundAbilitySystemComponent->GetActiveEffectsWithAllTags(DebuffTags);
 	for (const FActiveGameplayEffectHandle& ActiveHandle : ActiveHandles)
 	{
-		StackCount += FMath::Max(
-			BoundAbilitySystemComponent->GetCurrentStackCount(ActiveHandle),
-			1);
+		StackCount += FMath::Max(BoundAbilitySystemComponent->GetCurrentStackCount(ActiveHandle), 1);
 	}
 
 	if (StackCount <= 0 && BoundAbilitySystemComponent->HasMatchingGameplayTag(EffectDataAsset->StackTag))

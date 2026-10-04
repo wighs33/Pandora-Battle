@@ -26,8 +26,7 @@ USkillAbility::USkillAbility(const FObjectInitializer& ObjectInitializer)
 	SetAssetTags(Tags);
 }
 
-const USkillDefinition* USkillAbility::ResolveSkill(
-	const FGameplayAbilitySpecHandle Handle,
+const USkillDefinition* USkillAbility::ResolveSkill(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo)
 {
 	const UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
@@ -42,12 +41,9 @@ const UPandoraSkillSource* USkillAbility::GetPandoraSkillSource() const
 	return Cast<UPandoraSkillSource>(GetCurrentSourceObject());
 }
 
-bool USkillAbility::CanActivateAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayTagContainer* SourceTags,
-	const FGameplayTagContainer* TargetTags,
-	FGameplayTagContainer* RelevantTags) const
+bool USkillAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* RelevantTags) const
 {
 	const UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	const FGameplayAbilitySpec* Spec = ASC ? ASC->FindAbilitySpecFromHandle(Handle) : nullptr;
@@ -68,18 +64,14 @@ bool USkillAbility::CanActivateAbility(
 	}
 
 	const USkillDefinition* Skill = ResolveSkill(Handle, ActorInfo);
-	return Skill && Skill->Action && ASC
-		&& !ASC->HasAnyMatchingGameplayTags(Skill->Activation.BlockedTags)
+	return Skill && Skill->Action && ASC && !ASC->HasAnyMatchingGameplayTags(Skill->Activation.BlockedTags)
 		&& ASC->HasAllMatchingGameplayTags(Skill->Activation.RequiredTags)
 		&& !ASC->AreAbilityTagsBlocked(Skill->Activation.Tags)
 		&& Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, RelevantTags);
 }
 
-void USkillAbility::PreActivate(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	FOnGameplayAbilityEnded::FDelegate* EndedDelegate,
+void USkillAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* EndedDelegate,
 	const FGameplayEventData* TriggerEventData)
 {
 	UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
@@ -134,8 +126,7 @@ float USkillAbility::GetRemainingDuration() const
 
 bool USkillAbility::CanRunActions() const
 {
-	return IsActive() && CanExecuteSkillPayload()
-		&& (!HasDurationDeadline() || GetRemainingDuration() > 0.0f);
+	return IsActive() && CanExecuteSkillPayload() && (!HasDurationDeadline() || GetRemainingDuration() > 0.0f);
 }
 
 bool USkillAbility::CommitSkill()
@@ -164,8 +155,7 @@ bool USkillAbility::CommitSkill()
 		return bSkillCommitted;
 	}
 
-	if (!CheckCost(CurrentSpecHandle, CurrentActorInfo)
-		|| !CheckCooldown(CurrentSpecHandle, CurrentActorInfo)
+	if (!CheckCost(CurrentSpecHandle, CurrentActorInfo) || !CheckCooldown(CurrentSpecHandle, CurrentActorInfo)
 		|| !CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
 	{
 		return false;
@@ -187,11 +177,8 @@ bool USkillAbility::CommitSkill()
 	return true;
 }
 
-void USkillAbility::ActivateAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const FGameplayEventData* TriggerEventData)
+void USkillAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	if (!ActorInfo)
 	{
@@ -245,8 +232,7 @@ void USkillAbility::ActivateAbility(
 			return;
 		}
 
-		GetWorld()->GetTimerManager().SetTimer(
-			DurationTimer, this, &ThisClass::FinishSkill, Remaining, false);
+		GetWorld()->GetTimerManager().SetTimer(DurationTimer, this, &ThisClass::FinishSkill, Remaining, false);
 	}
 
 	ActiveAction = DuplicateObject<USkillAction>(Definition->Action, this);
@@ -284,9 +270,7 @@ void USkillAbility::ActionFinished(USkillAction* Action, const bool bSucceeded)
 	FinishSkill();
 }
 
-void USkillAbility::InputReleased(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
+void USkillAbility::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo)
 {
 	const USkillDefinition* Definition = ResolveSkill(Handle, ActorInfo);
@@ -304,8 +288,7 @@ void USkillAbility::InputReleased(
 	}
 	else
 	{
-		GetWorld()->GetTimerManager().SetTimer(
-			DurationTimer, this, &ThisClass::FinishSkill, Remaining, false);
+		GetWorld()->GetTimerManager().SetTimer(DurationTimer, this, &ThisClass::FinishSkill, Remaining, false);
 	}
 }
 
@@ -330,17 +313,13 @@ void USkillAbility::OnAbilityEnding()
 	RestoreAvatarMovementForAbility();
 }
 
-void USkillAbility::ApplyCooldown(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
+void USkillAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo) const
 {
 }
 
-void USkillAbility::ApplyCooldownOnEnd(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo)
+void USkillAbility::ApplyCooldownOnEnd(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
 {
 	if (!CanExecuteSkillPayload() || !bSkillCommitted || UsesSinceCooldown != 0
 		|| UAbilitySystemGlobals::Get().ShouldIgnoreCooldowns())
@@ -363,8 +342,7 @@ float USkillAbility::GetDamageBonusPercent() const
 		: DamageBonusPercent;
 }
 
-FGameplayEffectSpecHandle USkillAbility::MakeActionDamageSpec(
-	const FSkillGameplayEffectConfig& Damage) const
+FGameplayEffectSpecHandle USkillAbility::MakeActionDamageSpec(const FSkillGameplayEffectConfig& Damage) const
 {
 	return MakeConfiguredDamageEffectSpec(Damage, CalculateDamageMagnitude(Damage));
 }
@@ -382,8 +360,7 @@ bool USkillAbility::CommitAbility(const FGameplayAbilitySpecHandle Handle, const
 		return false;
 	}
 
-	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ?
-		ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 
 	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent && Handle.IsValid() ?
 		AbilitySystemComponent->FindAbilitySpecFromHandle(Handle) : GetCurrentAbilitySpec();

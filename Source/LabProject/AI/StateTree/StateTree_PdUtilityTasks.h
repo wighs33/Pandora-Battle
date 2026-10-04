@@ -56,9 +56,9 @@ struct FStateTreePdTrackPlayerTaskInstanceData
 };
 
 /**
- * Publishes the player remembered by AMonsterAIController's native perception
- * route. Perception delegates are owned by the controller, so entering and
- * leaving this task cannot accumulate dynamic delegate bindings.
+ * AMonsterAIController의 네이티브 인지 경로가 기억한 플레이어를 내보낸다.
+ * 인지 델리게이트는 컨트롤러가 가지므로, 이 태스크에 들어가고 나와도
+ * 동적 델리게이트 바인딩이 쌓이지 않는다.
  */
 USTRUCT(meta = (DisplayName = "Pd Track Perceived Player", Category = "AI|Perception"))
 struct LABPROJECT_API FStateTreePdTrackPlayerTask : public FStateTreeAITaskBase
@@ -102,8 +102,8 @@ struct FStateTreePdMovementParametersTaskInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", ForceUnits = "cm/s^2"))
 	float AccelerationWhileActive = 500.0f;
 
-	// Kept only so existing StateTree assets can deserialize their old values.
-	// Runtime restoration uses the values captured when the task enters.
+	// 기존 StateTree 애셋이 예전 값을 역직렬화할 수 있도록만 남겨 둔다.
+	// 실행 중 복원은 태스크에 들어갈 때 잡아 둔 값을 쓴다.
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "The movement values present on task entry are restored automatically."))
 	float WalkSpeedOnExit = 200.0f;
 
@@ -136,8 +136,8 @@ struct FStateTreePdMovementParametersTaskInstanceData
 };
 
 /**
- * Applies configured movement values while its state is active, then restores
- * the values captured from the same movement component on state entry.
+ * 상태가 활성인 동안 설정한 이동 값을 적용하고, 끝나면 상태에 들어갈 때
+ * 같은 이동 컴포넌트에서 잡아 둔 값으로 되돌린다.
  */
 USTRUCT(meta = (DisplayName = "Pd Movement Parameters", Category = "AI|Movement"))
 struct LABPROJECT_API FStateTreePdMovementParametersTask : public FStateTreeAITaskBase

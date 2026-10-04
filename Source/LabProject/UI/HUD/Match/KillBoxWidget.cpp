@@ -38,10 +38,7 @@ void UKillBoxWidget::NativeConstruct()
 	RefreshUI();
 }
 
-void UKillBoxWidget::SetTeamInfo(
-	const int32 InTeamColorIndex,
-	const FText& InTeamName,
-	const FLinearColor& InTeamColor)
+void UKillBoxWidget::SetTeamInfo(const int32 InTeamColorIndex, const FText& InTeamName, const FLinearColor& InTeamColor)
 {
 	TeamColorIndex = InTeamColorIndex;
 	TeamName = InTeamName;

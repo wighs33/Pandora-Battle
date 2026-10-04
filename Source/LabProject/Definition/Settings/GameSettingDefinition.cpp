@@ -12,12 +12,10 @@ FPrimaryAssetId UGameSettingDefinition::GetPrimaryAssetId() const
 	return FPrimaryAssetId(TEXT("GameSetting"), GetFName());
 }
 
-void UGameSettingDefinition::GetRuntimePreloadAssetPaths(
-	TArray<FSoftObjectPath>& OutAssetPaths) const
+void UGameSettingDefinition::GetRuntimePreloadAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const
 {
 	TSet<FSoftObjectPath> UniquePaths;
-	const auto AddPath =
-		[&UniquePaths](const FSoftObjectPath& AssetPath)
+	const auto AddPath = [&UniquePaths](const FSoftObjectPath& AssetPath)
 		{
 			if (AssetPath.IsValid() && !AssetPath.IsNull())
 			{
@@ -37,8 +35,7 @@ void UGameSettingDefinition::GetRuntimePreloadAssetPaths(
 	AddPath(GameplayBgm.ToSoftObjectPath());
 
 	OutAssetPaths = UniquePaths.Array();
-	OutAssetPaths.Sort(
-		[](const FSoftObjectPath& Left, const FSoftObjectPath& Right)
+	OutAssetPaths.Sort([](const FSoftObjectPath& Left, const FSoftObjectPath& Right)
 		{
 			return Left.ToString() < Right.ToString();
 		});

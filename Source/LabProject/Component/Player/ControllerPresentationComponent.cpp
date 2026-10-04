@@ -113,8 +113,7 @@ void UControllerPresentationComponent::ApplyCameraViewPitchClamp() const
 }
 
 // 보상이나 상태 알림을 띄우도록 HUD에 알린다.
-void UControllerPresentationComponent::ShowRightNotification(
-	const FPdNotificationData& NotificationData) const
+void UControllerPresentationComponent::ShowRightNotification(const FPdNotificationData& NotificationData) const
 {
 	RightNotificationRequested.Broadcast(NotificationData);
 }
@@ -161,9 +160,7 @@ void UControllerPresentationComponent::UpdateTravelLoadingReadyTicker()
 	}
 	LoadingScreenWaiting.Reset();
 	TravelLoadingReadyTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
-		FTickerDelegate::CreateUObject(
-			this,
-			&ThisClass::TickTravelLoadingScreenReady),
+		FTickerDelegate::CreateUObject(this, &ThisClass::TickTravelLoadingScreenReady),
 		FMath::Max(Settings.TravelLoadingReadyCheckInterval, 0.01f));
 }
 
@@ -183,8 +180,7 @@ bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 }
 
 // 혼자 실행하는 훈련실에서만 로딩 중 게임 진행을 멈추고 이후 재개한다.
-void UControllerPresentationComponent::SetTrainingRoomLoadingPaused(
-	const bool bPaused)
+void UControllerPresentationComponent::SetTrainingRoomLoadingPaused(const bool bPaused)
 {
 	APdPlayerController* Controller = GetPdController();
 	UWorld* World = GetWorld();
@@ -199,23 +195,18 @@ void UControllerPresentationComponent::SetTrainingRoomLoadingPaused(
 
 	if (bPaused)
 	{
-		const AExperienceGameMode* ExperienceGameMode =
-			World->GetAuthGameMode<AExperienceGameMode>();
+		const AExperienceGameMode* ExperienceGameMode = World->GetAuthGameMode<AExperienceGameMode>();
 		const UMatchPlayerSetupComponent* Provisioning =
 			ExperienceGameMode
 				? ExperienceGameMode->GetPlayerSetupComponent()
 				: nullptr;
-		if (bAppliedTrainingRoomLoadingPause
-			|| !Provisioning
-			|| !Provisioning->IsTrainingRoomMap()
-			|| World->GetNetMode() != NM_Standalone
-			|| UGameplayStatics::IsGamePaused(World))
+		if (bAppliedTrainingRoomLoadingPause || !Provisioning || !Provisioning->IsTrainingRoomMap()
+			|| World->GetNetMode() != NM_Standalone || UGameplayStatics::IsGamePaused(World))
 		{
 			return;
 		}
 
-		bAppliedTrainingRoomLoadingPause =
-			UGameplayStatics::SetGamePaused(World, true);
+		bAppliedTrainingRoomLoadingPause = UGameplayStatics::SetGamePaused(World, true);
 		return;
 	}
 
@@ -239,12 +230,8 @@ void UControllerPresentationComponent::StartHealthBarVisibilityManagement()
 	FTimerManager& TimerManager = World->GetTimerManager();
 	TimerManager.ClearTimer(HealthBarVisibilityManagementTimerHandle);
 	UpdateManagedHealthBarVisibility();
-	TimerManager.SetTimer(
-		HealthBarVisibilityManagementTimerHandle,
-		this,
-		&ThisClass::UpdateManagedHealthBarVisibility,
-		FMath::Max(Settings.HealthBarVisibilityUpdateInterval, 0.01f),
-		true);
+	TimerManager.SetTimer(HealthBarVisibilityManagementTimerHandle, this, &ThisClass::UpdateManagedHealthBarVisibility,
+		FMath::Max(Settings.HealthBarVisibilityUpdateInterval, 0.01f), true);
 }
 
 // 관찰자의 위치·시선·팀 관계에 맞춰 각 캐릭터의 체력바 가시성을 갱신한다.
@@ -283,17 +270,13 @@ void UControllerPresentationComponent::UpdateManagedHealthBarVisibility()
 			continue;
 		}
 
-		TargetCharacter->UpdateHealthBarVisibilityForLocalViewer(
-			Controller,
-			CameraLocation,
-			CameraRotation,
+		TargetCharacter->UpdateHealthBarVisibilityForLocalViewer(Controller, CameraLocation, CameraRotation,
 			MaxDistanceSquared);
 	}
 }
 
 // 아군을 제외하고 체력바를 표시할 대상 캐릭터인지 판단한다.
-bool UControllerPresentationComponent::ShouldManageHealthBarForTarget(
-	const ACharacterBase* TargetCharacter) const
+bool UControllerPresentationComponent::ShouldManageHealthBarForTarget(const ACharacterBase* TargetCharacter) const
 {
 	const APdPlayerController* Controller = GetPdController();
 	if (!Controller || !TargetCharacter || TargetCharacter == Controller->GetPawn())

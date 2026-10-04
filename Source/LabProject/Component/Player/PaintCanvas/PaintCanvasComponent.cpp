@@ -32,10 +32,7 @@ namespace
 
     bool IsValidDrawLocation(const FVector2D& DrawLocation)
     {
-        return DrawLocation.X >= 0.0
-            && DrawLocation.X <= 1.0
-            && DrawLocation.Y >= 0.0
-            && DrawLocation.Y <= 1.0;
+        return DrawLocation.X >= 0.0 && DrawLocation.X <= 1.0 && DrawLocation.Y >= 0.0 && DrawLocation.Y <= 1.0;
     }
 }
 
@@ -121,14 +118,8 @@ bool UPaintCanvasComponent::EnsurePaintCanvasRenderResources(const bool bResetCa
 {
     if (!PaintCanvasRenderTarget)
     {
-       PaintCanvasRenderTarget = UKismetRenderingLibrary::CreateRenderTarget2D(
-          this,
-          FMath::Max(RenderTargetWidth, 1),
-          FMath::Max(RenderTargetHeight, 1),
-          RTF_RGBA16f,
-          ClearColor,
-          false,
-          false);
+       PaintCanvasRenderTarget = UKismetRenderingLibrary::CreateRenderTarget2D(this, FMath::Max(RenderTargetWidth, 1),
+           FMath::Max(RenderTargetHeight, 1), RTF_RGBA16f, ClearColor, false, false);
     }
 
     if (!PaintBrushMaterial)
@@ -161,16 +152,11 @@ void UPaintCanvasComponent::ResetPaintCanvasRenderTarget()
     }
 }
 
-bool UPaintCanvasComponent::DrawBrushToRenderTarget(
-    UTexture2D* InBrushTexture,
-    const double InBrushSize,
+bool UPaintCanvasComponent::DrawBrushToRenderTarget(UTexture2D* InBrushTexture, const double InBrushSize,
     const FVector2D& DrawLocation)
 {
     const double SafeBrushSize = ClampBrushSize(InBrushSize, MaxReplicatedPaintBrushSize);
-    if (!PaintCanvasRenderTarget
-        || !PaintBrushMaterial
-        || SafeBrushSize <= 0.0
-        || !IsValidDrawLocation(DrawLocation))
+    if (!PaintCanvasRenderTarget || !PaintBrushMaterial || SafeBrushSize <= 0.0 || !IsValidDrawLocation(DrawLocation))
     {
         return false;
     }
@@ -183,25 +169,15 @@ bool UPaintCanvasComponent::DrawBrushToRenderTarget(
     UCanvas* DrawCanvas = nullptr;
     FVector2D RenderTargetSize = FVector2D::ZeroVector;
     FDrawToRenderTargetContext Context;
-    UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(
-        this,
-        PaintCanvasRenderTarget,
-        DrawCanvas,
-        RenderTargetSize,
+    UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(this, PaintCanvasRenderTarget, DrawCanvas, RenderTargetSize,
         Context);
 
     if (DrawCanvas)
     {
         const FVector2D BrushScreenSize(SafeBrushSize, SafeBrushSize);
         const FVector2D BrushScreenPosition = RenderTargetSize * DrawLocation - BrushScreenSize * 0.5;
-        DrawCanvas->K2_DrawMaterial(
-            PaintBrushMaterial,
-            BrushScreenPosition,
-            BrushScreenSize,
-            FVector2D::ZeroVector,
-            FVector2D(1.0, 1.0),
-            0.0f,
-            FVector2D(0.5, 0.5));
+        DrawCanvas->K2_DrawMaterial(PaintBrushMaterial, BrushScreenPosition, BrushScreenSize, FVector2D::ZeroVector,
+            FVector2D(1.0, 1.0), 0.0f, FVector2D(0.5, 0.5));
     }
 
     UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(this, Context);
@@ -307,12 +283,8 @@ bool UPaintCanvasComponent::StartLocalPaintCanvasExport()
 
     if (UWorld* World = GetWorld())
     {
-       World->GetTimerManager().SetTimer(
-          PaintCanvasExportTimerHandle,
-          this,
-          &ThisClass::CancelPaintCanvasExport,
-          static_cast<float>(FMath::Max(PaintCanvasExportDuration, 0.1)),
-          false);
+       World->GetTimerManager().SetTimer(PaintCanvasExportTimerHandle, this, &ThisClass::CancelPaintCanvasExport,
+           static_cast<float>(FMath::Max(PaintCanvasExportDuration, 0.1)), false);
     }
 
     return true;
@@ -337,24 +309,17 @@ bool UPaintCanvasComponent::TryConsumePaintNetworkEvent(double& LastAcceptedTime
     return true;
 }
 
-UTextureRenderTarget2D* UPaintCanvasComponent::CreatePaintCanvasCopy(
-    UTextureRenderTarget2D* SourceRenderTarget,
-    const double Scale,
-    const FLinearColor& ClearTargetColor)
+UTextureRenderTarget2D* UPaintCanvasComponent::CreatePaintCanvasCopy(UTextureRenderTarget2D* SourceRenderTarget,
+    const double Scale, const FLinearColor& ClearTargetColor)
 {
     if (!SourceRenderTarget)
     {
        return nullptr;
     }
 
-    UTextureRenderTarget2D* CopyRenderTarget = UKismetRenderingLibrary::CreateRenderTarget2D(
-       this,
-       FMath::Max(SourceRenderTarget->SizeX, 1),
-       FMath::Max(SourceRenderTarget->SizeY, 1),
-       RTF_RGBA16f,
-       ClearTargetColor,
-       false,
-       false);
+    UTextureRenderTarget2D* CopyRenderTarget = UKismetRenderingLibrary::CreateRenderTarget2D(this,
+        FMath::Max(SourceRenderTarget->SizeX, 1), FMath::Max(SourceRenderTarget->SizeY, 1), RTF_RGBA16f,
+        ClearTargetColor, false, false);
     if (!CopyRenderTarget)
     {
        return nullptr;
@@ -363,12 +328,8 @@ UTextureRenderTarget2D* UPaintCanvasComponent::CreatePaintCanvasCopy(
     UCanvas* DrawCanvas = nullptr;
     FVector2D RenderTargetSize = FVector2D::ZeroVector;
     FDrawToRenderTargetContext Context;
-    UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(
-       this,
-       CopyRenderTarget,
-       DrawCanvas,
-       RenderTargetSize,
-       Context);
+    UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(this, CopyRenderTarget, DrawCanvas, RenderTargetSize,
+        Context);
 
     if (DrawCanvas)
     {
@@ -376,16 +337,8 @@ UTextureRenderTarget2D* UPaintCanvasComponent::CreatePaintCanvasCopy(
        const FVector2D DrawSize = RenderTargetSize * SafeScale;
        const FVector2D DrawPosition = (RenderTargetSize - DrawSize) * 0.5;
 
-       DrawCanvas->K2_DrawTexture(
-          SourceRenderTarget,
-          DrawPosition,
-          DrawSize,
-          FVector2D::ZeroVector,
-          FVector2D(1.0, 1.0),
-          FLinearColor::White,
-          BLEND_Opaque,
-          0.0f,
-          FVector2D(0.5, 0.5));
+       DrawCanvas->K2_DrawTexture(SourceRenderTarget, DrawPosition, DrawSize, FVector2D::ZeroVector,
+           FVector2D(1.0, 1.0), FLinearColor::White, BLEND_Opaque, 0.0f, FVector2D(0.5, 0.5));
     }
 
     UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(this, Context);
@@ -397,9 +350,7 @@ bool UPaintCanvasComponent::ApplyPaintCanvasToSpeechBubble()
     UTextureRenderTarget2D* PaintRenderTarget = GetActivePaintCanvasRenderTarget();
     if (!PaintRenderTarget)
     {
-        UE_LOG(
-            PdPaintCanvasComponentLog,
-            Warning,
+        UE_LOG(PdPaintCanvasComponentLog, Warning,
             TEXT("Failed to export paint canvas to speech bubble. RenderTarget=None"));
         return false;
     }
@@ -412,11 +363,8 @@ bool UPaintCanvasComponent::ApplyPaintCanvasToSpeechBubble()
     }
 
     UPaintCanvasDisplay* PaintPresentation = GetOrCreatePresentation();
-    return PaintPresentation
-        && PaintPresentation->ShowSpeechBubble(
-            SpeechBubbleRenderTarget,
-            PaintSpeechBubbleMaterialIndex,
-            PaintSpeechBubbleRenderTargetParameterName);
+    return PaintPresentation && PaintPresentation->ShowSpeechBubble(SpeechBubbleRenderTarget,
+        PaintSpeechBubbleMaterialIndex, PaintSpeechBubbleRenderTargetParameterName);
 }
 
 UTextureRenderTarget2D* UPaintCanvasComponent::GetActivePaintCanvasRenderTarget() const
@@ -433,10 +381,8 @@ bool UPaintCanvasComponent::IsValidPaintCanvasStrokes(const TArray<FPaintCanvasS
 
     for (const FPaintCanvasStroke& Stroke : Strokes)
     {
-        if (!FMath::IsFinite(Stroke.BrushSize)
-            || !FMath::IsFinite(Stroke.DrawLocation.X)
-            || !FMath::IsFinite(Stroke.DrawLocation.Y)
-            || Stroke.BrushSize <= 0.0f
+        if (!FMath::IsFinite(Stroke.BrushSize) || !FMath::IsFinite(Stroke.DrawLocation.X)
+            || !FMath::IsFinite(Stroke.DrawLocation.Y) || Stroke.BrushSize <= 0.0f
             || Stroke.BrushSize > FMath::Max(MaxReplicatedPaintBrushSize, 1.0)
             || !IsValidDrawLocation(FVector2D(Stroke.DrawLocation)))
         {
@@ -465,11 +411,8 @@ bool UPaintCanvasComponent::ReplayPaintCanvasStrokes(const TArray<FPaintCanvasSt
     return true;
 }
 
-void UPaintCanvasComponent::CacheLocalPaintCanvasFaceDecalForTravel(
-    UMaterialInterface* FaceDecalMaterial,
-    const FName AttachSocketName,
-    const FTransform& FaceDecalTransformOffset,
-    FVector FaceDecalSize,
+void UPaintCanvasComponent::CacheLocalPaintCanvasFaceDecalForTravel(UMaterialInterface* FaceDecalMaterial,
+    const FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize,
     const FName TextureParameterName) const
 {
     const APdPlayer* PlayerOwner = GetPlayerOwner();
@@ -479,7 +422,7 @@ void UPaintCanvasComponent::CacheLocalPaintCanvasFaceDecalForTravel(
     }
 
     if (ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(
-       PlayerOwner->GetGameInstance()))
+        PlayerOwner->GetGameInstance()))
     {
        LobbySubsystem->ResetLocalLobbyPaintCanvasCache();
        for (const FPaintCanvasStroke& Stroke : LocalPaintStrokes)
@@ -487,57 +430,34 @@ void UPaintCanvasComponent::CacheLocalPaintCanvasFaceDecalForTravel(
            LobbySubsystem->CacheLocalLobbyPaintCanvasStroke(
                BrushTexture.Get(), Stroke.BrushSize, FVector2D(Stroke.DrawLocation), Stroke.bStartsNewStroke);
        }
-       LobbySubsystem->CacheLocalLobbyPaintCanvasFaceDecal(
-          FaceDecalMaterial,
-          AttachSocketName,
-          FaceDecalTransformOffset,
-          FaceDecalSize,
-          TextureParameterName);
+       LobbySubsystem->CacheLocalLobbyPaintCanvasFaceDecal(FaceDecalMaterial, AttachSocketName,
+           FaceDecalTransformOffset, FaceDecalSize, TextureParameterName);
     }
 }
 
-bool UPaintCanvasComponent::ApplyActivePaintCanvasToFaceDecal(
-    UMaterialInterface* FaceDecalMaterial,
-    FName AttachSocketName,
-    const FTransform& FaceDecalTransformOffset,
-    FVector FaceDecalSize,
+bool UPaintCanvasComponent::ApplyActivePaintCanvasToFaceDecal(UMaterialInterface* FaceDecalMaterial,
+    FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize,
     FName TextureParameterName)
 {
-    if (!ApplyLocalPaintCanvasToFaceDecal(
-       FaceDecalMaterial,
-       AttachSocketName,
-       FaceDecalTransformOffset,
-       FaceDecalSize,
-       TextureParameterName))
+    if (!ApplyLocalPaintCanvasToFaceDecal(FaceDecalMaterial, AttachSocketName, FaceDecalTransformOffset, FaceDecalSize,
+        TextureParameterName))
     {
        return false;
     }
 
-    CacheLocalPaintCanvasFaceDecalForTravel(
-       FaceDecalMaterial,
-       AttachSocketName,
-       FaceDecalTransformOffset,
-       FaceDecalSize,
-       TextureParameterName);
+    CacheLocalPaintCanvasFaceDecalForTravel(FaceDecalMaterial, AttachSocketName, FaceDecalTransformOffset,
+        FaceDecalSize, TextureParameterName);
     const APdPlayer* PlayerOwner = GetPlayerOwner();
     if (PlayerOwner && PlayerOwner->GetNetMode() != NM_Standalone)
     {
-        ServerApplyPaintCanvasFaceDecal(
-            LocalPaintStrokes,
-            FaceDecalMaterial,
-            AttachSocketName,
-            FaceDecalTransformOffset,
-            FaceDecalSize,
-            TextureParameterName);
+        ServerApplyPaintCanvasFaceDecal(LocalPaintStrokes, FaceDecalMaterial, AttachSocketName,
+            FaceDecalTransformOffset, FaceDecalSize, TextureParameterName);
     }
     return true;
 }
 
-bool UPaintCanvasComponent::ApplyLocalPaintCanvasToFaceDecal(
-    UMaterialInterface* FaceDecalMaterial,
-    FName AttachSocketName,
-    const FTransform& FaceDecalTransformOffset,
-    FVector FaceDecalSize,
+bool UPaintCanvasComponent::ApplyLocalPaintCanvasToFaceDecal(UMaterialInterface* FaceDecalMaterial,
+    FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize,
     FName TextureParameterName)
 {
     UTextureRenderTarget2D* PaintRenderTarget = GetActivePaintCanvasRenderTarget();
@@ -553,13 +473,8 @@ bool UPaintCanvasComponent::ApplyLocalPaintCanvasToFaceDecal(
         return false;
     }
 
-    return PaintPresentation->ApplyFaceDecal(
-            PaintSnapshot,
-            FaceDecalMaterial,
-            AttachSocketName,
-            FaceDecalTransformOffset,
-            FaceDecalSize,
-            TextureParameterName);
+    return PaintPresentation->ApplyFaceDecal(PaintSnapshot, FaceDecalMaterial, AttachSocketName,
+        FaceDecalTransformOffset, FaceDecalSize, TextureParameterName);
 }
 
 void UPaintCanvasComponent::ServerExportPaintCanvas_Implementation(const TArray<FPaintCanvasStroke>& Strokes)
@@ -587,39 +502,24 @@ void UPaintCanvasComponent::MulticastExportPaintCanvas_Implementation(const TArr
     }
 }
 
-void UPaintCanvasComponent::ServerApplyPaintCanvasFaceDecal_Implementation(
-    const TArray<FPaintCanvasStroke>& Strokes,
-    UMaterialInterface* FaceDecalMaterial,
-    FName AttachSocketName,
-    FTransform FaceDecalTransformOffset,
-    FVector FaceDecalSize,
-    FName TextureParameterName)
+void UPaintCanvasComponent::ServerApplyPaintCanvasFaceDecal_Implementation(const TArray<FPaintCanvasStroke>& Strokes,
+    UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, FTransform FaceDecalTransformOffset,
+    FVector FaceDecalSize, FName TextureParameterName)
 {
-    if (!IsValidPaintCanvasStrokes(Strokes)
-        || !FaceDecalMaterial
-        || FaceDecalTransformOffset.ContainsNaN()
+    if (!IsValidPaintCanvasStrokes(Strokes) || !FaceDecalMaterial || FaceDecalTransformOffset.ContainsNaN()
         || FaceDecalSize.ContainsNaN()
         || !TryConsumePaintNetworkEvent(LastPaintFaceDecalServerTime, PaintControlNetworkMinInterval))
     {
         return;
     }
 
-    MulticastApplyPaintCanvasFaceDecal(
-        Strokes,
-        FaceDecalMaterial,
-        AttachSocketName,
-        FaceDecalTransformOffset,
-        FaceDecalSize,
-        TextureParameterName);
+    MulticastApplyPaintCanvasFaceDecal(Strokes, FaceDecalMaterial, AttachSocketName, FaceDecalTransformOffset,
+        FaceDecalSize, TextureParameterName);
 }
 
-void UPaintCanvasComponent::MulticastApplyPaintCanvasFaceDecal_Implementation(
-    const TArray<FPaintCanvasStroke>& Strokes,
-    UMaterialInterface* FaceDecalMaterial,
-    FName AttachSocketName,
-    FTransform FaceDecalTransformOffset,
-    FVector FaceDecalSize,
-    FName TextureParameterName)
+void UPaintCanvasComponent::MulticastApplyPaintCanvasFaceDecal_Implementation(const TArray<FPaintCanvasStroke>& Strokes,
+    UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, FTransform FaceDecalTransformOffset,
+    FVector FaceDecalSize, FName TextureParameterName)
 {
     const APdPlayer* PlayerOwner = GetPlayerOwner();
     if (!PlayerOwner || PlayerOwner->GetNetMode() == NM_DedicatedServer || PlayerOwner->IsLocallyControlled())
@@ -629,11 +529,7 @@ void UPaintCanvasComponent::MulticastApplyPaintCanvasFaceDecal_Implementation(
 
     if (ReplayPaintCanvasStrokes(Strokes))
     {
-        ApplyLocalPaintCanvasToFaceDecal(
-            FaceDecalMaterial,
-            AttachSocketName,
-            FaceDecalTransformOffset,
-            FaceDecalSize,
+        ApplyLocalPaintCanvasToFaceDecal(FaceDecalMaterial, AttachSocketName, FaceDecalTransformOffset, FaceDecalSize,
             TextureParameterName);
     }
 }
@@ -661,27 +557,21 @@ void UPaintCanvasComponent::RestoreCachedLobbyPaintCanvasFaceDecal()
 
     CancelPaintCanvasExport();
     LocalPaintStrokes.Reset();
-    const int32 StrokeCount = FMath::Min(
-        FaceDecalCache.Strokes.Num(),
+    const int32 StrokeCount = FMath::Min(FaceDecalCache.Strokes.Num(),
         FMath::Clamp(MaxReplicatedPaintStrokeHistory, 1, 8192));
     for (int32 StrokeIndex = 0; StrokeIndex < StrokeCount; ++StrokeIndex)
     {
         const FLobbyPaintCanvasStrokeCache& CachedStroke = FaceDecalCache.Strokes[StrokeIndex];
         FPaintCanvasStroke& Stroke = LocalPaintStrokes.AddDefaulted_GetRef();
-        Stroke.BrushSize = static_cast<float>(
-            ClampBrushSize(CachedStroke.BrushSize, MaxReplicatedPaintBrushSize));
+        Stroke.BrushSize = static_cast<float>(ClampBrushSize(CachedStroke.BrushSize, MaxReplicatedPaintBrushSize));
         Stroke.DrawLocation = FVector2f(CachedStroke.DrawLocation);
         Stroke.bStartsNewStroke = CachedStroke.bStartsNewStroke;
     }
 
     if (IsValidPaintCanvasStrokes(LocalPaintStrokes) && ReplayPaintCanvasStrokes(LocalPaintStrokes))
     {
-        ApplyActivePaintCanvasToFaceDecal(
-            FaceDecalCache.FaceDecalMaterial,
-            FaceDecalCache.AttachSocketName,
-            FaceDecalCache.FaceDecalTransformOffset,
-            FaceDecalCache.FaceDecalSize,
-            FaceDecalCache.TextureParameterName);
+        ApplyActivePaintCanvasToFaceDecal(FaceDecalCache.FaceDecalMaterial, FaceDecalCache.AttachSocketName,
+            FaceDecalCache.FaceDecalTransformOffset, FaceDecalCache.FaceDecalSize, FaceDecalCache.TextureParameterName);
     }
 }
 

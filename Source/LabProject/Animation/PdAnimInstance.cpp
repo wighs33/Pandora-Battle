@@ -46,8 +46,8 @@ void UPdAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
 
-	// NativeUpdateAnimation finishes before this phase. Copy the value-only
-	// snapshot once so the worker path never follows a UObject pointer.
+	// NativeUpdateAnimation은 이 단계 전에 끝난다. 값만 담은 스냅샷을 한 번 복사해
+	// 워커 경로가 UObject 포인터를 따라가지 않게 한다.
 	const FGameThreadSnapshot Snapshot = GameThreadSnapshot;
 
 	if (!Snapshot.bIsValid)
@@ -105,16 +105,13 @@ void UPdAnimInstance::RefreshGameThreadReferences(const bool bForceNewRevision)
 		NewCharacter = nullptr;
 	}
 
-	UCharacterMovementComponent* NewMovementComponent =
-		NewCharacter ? NewCharacter->GetCharacterMovement() : nullptr;
+	UCharacterMovementComponent* NewMovementComponent = NewCharacter ? NewCharacter->GetCharacterMovement() : nullptr;
 	if (!IsValid(NewMovementComponent))
 	{
 		NewMovementComponent = nullptr;
 	}
 
-	if (bForceNewRevision ||
-		CachedCharacter.Get() != NewCharacter ||
-		MovementComponent.Get() != NewMovementComponent)
+	if (bForceNewRevision || CachedCharacter.Get() != NewCharacter || MovementComponent.Get() != NewMovementComponent)
 	{
 		++GameThreadSourceRevision;
 	}
@@ -140,9 +137,7 @@ void UPdAnimInstance::CaptureGameThreadSnapshot()
 
 	const FVector CurrentVelocity = CharacterMovement->Velocity;
 	NewSnapshot.Velocity = FVector3f(CurrentVelocity);
-	NewSnapshot.Direction = UKismetAnimationLibrary::CalculateDirection(
-		CurrentVelocity,
-		Character->GetActorRotation());
+	NewSnapshot.Direction = UKismetAnimationLibrary::CalculateDirection(CurrentVelocity, Character->GetActorRotation());
 	NewSnapshot.bIsFalling = CharacterMovement->IsFalling();
 	NewSnapshot.bIsOnGround = CharacterMovement->IsMovingOnGround();
 	NewSnapshot.bIsCrouching = CharacterMovement->IsCrouching();
@@ -154,8 +149,7 @@ void UPdAnimInstance::CaptureGameThreadSnapshot()
 	}
 	else
 	{
-		const FRotator AimDelta =
-			(Character->GetBaseAimRotation() - Character->GetActorRotation()).GetNormalized();
+		const FRotator AimDelta = (Character->GetBaseAimRotation() - Character->GetActorRotation()).GetNormalized();
 		NewSnapshot.AimYaw = AimDelta.Yaw;
 		NewSnapshot.AimPitch = AimDelta.Pitch;
 	}

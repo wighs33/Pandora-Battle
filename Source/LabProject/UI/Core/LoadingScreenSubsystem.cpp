@@ -251,8 +251,7 @@ void ULoadingScreenSubsystem::RefreshLoadingScreen()
 	if (bTravelPending)
 	{
 		// 출발 월드에 있는 동안에는 콘텐츠 로딩이 끝나도 맵 이동을 끝내지 않는다.
-		if (IsDestinationPresentationReady()
-			&& !ActiveWaitReasons.Contains(EWaitReason::StartupContent)
+		if (IsDestinationPresentationReady() && !ActiveWaitReasons.Contains(EWaitReason::StartupContent)
 			&& !ActiveWaitReasons.Contains(EWaitReason::LobbyEntryContent)
 			&& !ActiveWaitReasons.Contains(EWaitReason::GameEntryContent)
 			&& !ActiveWaitReasons.Contains(EWaitReason::PipelineCompile))

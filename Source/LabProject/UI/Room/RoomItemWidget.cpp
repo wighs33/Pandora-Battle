@@ -29,8 +29,7 @@ void URoomItemWidget::NativeDestruct()
 	{
 		if (JoinSessionCompleteHandle.IsValid())
 		{
-			OnlineSessionsSubsystem->OnJoinRoomRequestComplete.Remove(
-				JoinSessionCompleteHandle);
+			OnlineSessionsSubsystem->OnJoinRoomRequestComplete.Remove(JoinSessionCompleteHandle);
 			JoinSessionCompleteHandle.Reset();
 		}
 
@@ -108,18 +107,13 @@ void URoomItemWidget::HandleJoinClicked()
 
 	if (JoinSessionCompleteHandle.IsValid())
 	{
-		OnlineSessionsSubsystem->OnJoinRoomRequestComplete.Remove(
-			JoinSessionCompleteHandle);
+		OnlineSessionsSubsystem->OnJoinRoomRequestComplete.Remove(JoinSessionCompleteHandle);
 		JoinSessionCompleteHandle.Reset();
 	}
 
 	JoinSessionCompleteHandle =
-		OnlineSessionsSubsystem->OnJoinRoomRequestComplete.AddUObject(
-			this,
-			&ThisClass::HandleJoinSessionComplete);
-	ActiveJoinRequestId = OnlineSessionsSubsystem->BeginJoinRoomSession(
-		GetOwningLocalPlayer(),
-		Result);
+		OnlineSessionsSubsystem->OnJoinRoomRequestComplete.AddUObject(this, &ThisClass::HandleJoinSessionComplete);
+	ActiveJoinRequestId = OnlineSessionsSubsystem->BeginJoinRoomSession(GetOwningLocalPlayer(), Result);
 	if (ActiveJoinRequestId == 0)
 	{
 		if (Btn_Join)
@@ -129,9 +123,7 @@ void URoomItemWidget::HandleJoinClicked()
 	}
 }
 
-void URoomItemWidget::HandleJoinSessionComplete(
-	const uint64 RequestId,
-	const bool bWasSuccessful)
+void URoomItemWidget::HandleJoinSessionComplete(const uint64 RequestId, const bool bWasSuccessful)
 {
 	if (RequestId == 0 || RequestId != ActiveJoinRequestId)
 	{
@@ -145,8 +137,7 @@ void URoomItemWidget::HandleJoinSessionComplete(
 	{
 		if (JoinSessionCompleteHandle.IsValid())
 		{
-			OnlineSessionsSubsystem->OnJoinRoomRequestComplete.Remove(
-				JoinSessionCompleteHandle);
+			OnlineSessionsSubsystem->OnJoinRoomRequestComplete.Remove(JoinSessionCompleteHandle);
 			JoinSessionCompleteHandle.Reset();
 		}
 	}

@@ -31,16 +31,8 @@ bool UDashGameplayCue::OnActive_Implementation(AActor* MyTarget, const FGameplay
 	USceneComponent* RootComponent = MyTarget->GetRootComponent();
 	if (StartEmitter && RootComponent)
 	{
-		UGameplayStatics::SpawnEmitterAttached(
-			StartEmitter,
-			RootComponent,
-			NAME_None,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			StartEmitterScale,
-			EAttachLocation::KeepRelativeOffset,
-			true,
-			EPSCPoolMethod::None,
+		UGameplayStatics::SpawnEmitterAttached(StartEmitter, RootComponent, NAME_None, FVector::ZeroVector,
+			FRotator::ZeroRotator, StartEmitterScale, EAttachLocation::KeepRelativeOffset, true, EPSCPoolMethod::None,
 			true);
 	}
 
@@ -66,15 +58,8 @@ bool UDashGameplayCue::OnRemove_Implementation(AActor* MyTarget, const FGameplay
 	const FVector RemovedLocation = MyTarget->GetActorLocation();
 	if (RemovedEmitter)
 	{
-		UGameplayStatics::SpawnEmitterAtLocation(
-			MyTarget,
-			RemovedEmitter,
-			RemovedLocation,
-			FRotator::ZeroRotator,
-			RemovedEmitterScale,
-			true,
-			EPSCPoolMethod::None,
-			true);
+		UGameplayStatics::SpawnEmitterAtLocation(MyTarget, RemovedEmitter, RemovedLocation, FRotator::ZeroRotator,
+			RemovedEmitterScale, true, EPSCPoolMethod::None, true);
 	}
 
 	if (RemovedSound)

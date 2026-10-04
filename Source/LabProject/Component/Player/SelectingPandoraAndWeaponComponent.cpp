@@ -128,8 +128,7 @@ void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 	// 판도라 장착 처리
 	if (UPandoraComponent* PandoraComponent = PlayerState->FindComponentByClass<UPandoraComponent>())
 	{
-		const UPandoraDefinition* PandoraDefinition =
-			PandoraComponent->GetPandoraLoadoutDefinition(SelectedDirection);
+		const UPandoraDefinition* PandoraDefinition = PandoraComponent->GetPandoraLoadoutDefinition(SelectedDirection);
 
 		if (PandoraComponent->GetCurrentPandoraDefinition() != PandoraDefinition ||
 			PandoraComponent->GetCurrentPandoraLoadoutDirection() != SelectedDirection)
@@ -152,8 +151,7 @@ void USelectingPandoraAndWeaponComponent::ReapplyIfSelectedLoadoutChanged()
 		return;
 	}
 
-	if (!bHasAppliedLoadout
-		|| GetSelectedWeaponId() != AppliedWeaponId
+	if (!bHasAppliedLoadout || GetSelectedWeaponId() != AppliedWeaponId
 		|| FObjectKey(GetSelectedPandoraDefinition()) != AppliedPandoraDefinition)
 	{
 		ApplySelectedPandoraAndWeapon();

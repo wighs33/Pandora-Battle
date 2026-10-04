@@ -90,12 +90,8 @@ void FUnarmedAttackSweep::ResetPreviousTraces(const int32 TraceCount)
 	PreviousTraceValid.Init(0, TraceCount);
 }
 
-void FUnarmedAttackSweep::Sweep(
-	const UObject& WorldContext,
-	const FUnarmedCombatSettings& Settings,
-	ACharacterBase& SourceCharacter,
-	USkeletalMeshComponent& SourceMesh,
-	const bool bDrawDebug,
+void FUnarmedAttackSweep::Sweep(const UObject& WorldContext, const FUnarmedCombatSettings& Settings,
+	ACharacterBase& SourceCharacter, USkeletalMeshComponent& SourceMesh, const bool bDrawDebug,
 	const TFunctionRef<void(AActor*)> OnNewHit)
 {
 	UWorld* World = WorldContext.GetWorld();
@@ -109,8 +105,7 @@ void FUnarmedAttackSweep::Sweep(
 	ActorsToIgnore.Add(&SourceCharacter);
 
 	const int32 TraceCount = Settings.AttackTraces.Num();
-	if (PreviousTraceStartLocations.Num() != TraceCount
-		|| PreviousTraceEndLocations.Num() != TraceCount
+	if (PreviousTraceStartLocations.Num() != TraceCount || PreviousTraceEndLocations.Num() != TraceCount
 		|| PreviousTraceValid.Num() != TraceCount)
 	{
 		ResetPreviousTraces(TraceCount);
@@ -156,20 +151,14 @@ void FUnarmedAttackSweep::TraceFromPreviousPosition(const UObject& WorldContext,
 	bool bHasPreviousTrace = PreviousTraceValid[TraceIndex] != 0;
 	if (bHasPreviousTrace)
 	{
-		const double TravelDistance = FMath::Max(
-			FVector::Distance(PreviousTraceStartLocations[TraceIndex], TraceStart),
+		const double TravelDistance = FMath::Max(FVector::Distance(PreviousTraceStartLocations[TraceIndex], TraceStart),
 			FVector::Distance(PreviousTraceEndLocations[TraceIndex], TraceEnd));
 		// 순간이동이나 큰 위치 보정은 이전 위치에서 이어서 휘두른 공격으로 취급하지 않는다.
 		bHasPreviousTrace = FMath::IsFinite(TravelDistance) && TravelDistance <= Settings.MaxTraceTravelDistance;
 	}
-	const FVector PreviousTraceStart = bHasPreviousTrace
-		? PreviousTraceStartLocations[TraceIndex]
-		: TraceStart;
-	const FVector PreviousTraceEnd = bHasPreviousTrace
-		? PreviousTraceEndLocations[TraceIndex]
-		: TraceEnd;
-	const float MaxTravelDistance = FMath::Max(
-		FVector::Distance(PreviousTraceStart, TraceStart),
+	const FVector PreviousTraceStart = bHasPreviousTrace ? PreviousTraceStartLocations[TraceIndex] : TraceStart;
+	const FVector PreviousTraceEnd = bHasPreviousTrace ? PreviousTraceEndLocations[TraceIndex] : TraceEnd;
+	const float MaxTravelDistance = FMath::Max(FVector::Distance(PreviousTraceStart, TraceStart),
 		FVector::Distance(PreviousTraceEnd, TraceEnd));
 	const float InterpolationDistance = Settings.TraceInterpolationDistance;
 	const int32 MaxSteps = FMath::Clamp(Settings.MaxTraceInterpolationSteps, 1, 64);
@@ -177,26 +166,13 @@ void FUnarmedAttackSweep::TraceFromPreviousPosition(const UObject& WorldContext,
 
 	for (int32 InterpolationIndex = 1; InterpolationIndex <= InterpolationCount; ++InterpolationIndex)
 	{
-		const float Alpha =
-			static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
+		const float Alpha = static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
 		const FVector InterpolatedTraceStart = FMath::Lerp(PreviousTraceStart, TraceStart, Alpha);
 		const FVector InterpolatedTraceEnd = FMath::Lerp(PreviousTraceEnd, TraceEnd, Alpha);
 		InterpolatedHitResults.Reset();
-		UKismetSystemLibrary::BoxTraceMultiForObjects(
-			&WorldContext,
-			InterpolatedTraceStart,
-			InterpolatedTraceEnd,
-			TraceHalfSize,
-			TraceRotation,
-			Settings.TraceObjectTypes,
-			false,
-			ActorsToIgnore,
-			EDrawDebugTrace::None,
-			InterpolatedHitResults,
-			true,
-			FLinearColor::Red,
-			FLinearColor::Green,
-			UnarmedTraceDebugDrawTime);
+		UKismetSystemLibrary::BoxTraceMultiForObjects(&WorldContext, InterpolatedTraceStart, InterpolatedTraceEnd,
+			TraceHalfSize, TraceRotation, Settings.TraceObjectTypes, false, ActorsToIgnore, EDrawDebugTrace::None,
+			InterpolatedHitResults, true, FLinearColor::Red, FLinearColor::Green, UnarmedTraceDebugDrawTime);
 		HitResults.Append(InterpolatedHitResults);
 	}
 

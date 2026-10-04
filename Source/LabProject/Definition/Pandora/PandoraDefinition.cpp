@@ -64,9 +64,7 @@ int32 UPandoraDefinition::GetRequiredLevelForSkillSlot(const int32 SkillSlotInde
 bool UPandoraDefinition::IsSkillSlotUnlocked(const int32 SkillSlotIndex, const int32 PandoraLevel) const
 {
 	const int32 RequiredLevel = GetRequiredLevelForSkillSlot(SkillSlotIndex);
-	return Skills.IsValidIndex(SkillSlotIndex)
-		&& RequiredLevel >= 1
-		&& RequiredLevel <= GetMaxLevel()
+	return Skills.IsValidIndex(SkillSlotIndex) && RequiredLevel >= 1 && RequiredLevel <= GetMaxLevel()
 		&& FMath::Clamp(PandoraLevel, 0, GetMaxLevel()) >= RequiredLevel;
 }
 

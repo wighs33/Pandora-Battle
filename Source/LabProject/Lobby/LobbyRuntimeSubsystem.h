@@ -39,7 +39,7 @@ public:
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	void BeginLobbyEntryContentPreload();
-	/** Releases lobby-only UI/data after the game screen has taken ownership. */
+	/** 게임 화면이 넘겨받은 뒤 로비 전용 UI·데이터를 놓는다. */
 	void ReleaseLobbyEntryContentPreload();
 	/** 로비 정의 데이터를 불러오는 중인지. 로비 화면 콘텐츠의 로딩 여부는 UiSubsystem이 답한다. */
 	bool IsLobbyEntryContentLoading() const;

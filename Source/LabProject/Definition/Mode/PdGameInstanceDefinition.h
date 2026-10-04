@@ -23,7 +23,7 @@ class URewardDefinition;
 class UStatUpgradeDefinition;
 class UStatusEffectDefinition;
 
-/** Default project content selected once by the GameInstance bootstrap asset. */
+/** GameInstance 부트스트랩 애셋이 한 번 고르는 프로젝트 기본 콘텐츠. */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FProjectDefinitionReferences
 {

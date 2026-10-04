@@ -23,11 +23,8 @@ namespace
 		return FText::FromString(FString(FieldName));
 	}
 
-	void ValidateFiniteNonNegativeFloat(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
-		const float Value,
-		const TCHAR* FieldName)
+	void ValidateFiniteNonNegativeFloat(FDataValidationContext& Context, EDataValidationResult& Result,
+		const float Value, const TCHAR* FieldName)
 	{
 		if (!FMath::IsFinite(Value) || Value < 0.0f)
 		{
@@ -37,10 +34,7 @@ namespace
 		}
 	}
 
-	void ValidateFinitePositiveFloat(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
-		const float Value,
+	void ValidateFinitePositiveFloat(FDataValidationContext& Context, EDataValidationResult& Result, const float Value,
 		const TCHAR* FieldName)
 	{
 		if (!FMath::IsFinite(Value) || Value <= 0.0f)
@@ -51,9 +45,7 @@ namespace
 		}
 	}
 
-	void ValidateTeamOverlayMaterials(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
+	void ValidateTeamOverlayMaterials(FDataValidationContext& Context, EDataValidationResult& Result,
 		const TArray<FTeamOverlayMaterial>& TeamOverlayMaterials)
 	{
 		TSet<uint8> UsedTeamColors;
@@ -79,10 +71,7 @@ namespace
 		}
 	}
 
-	void ValidateNameArray(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
-		const TArray<FName>& Names,
+	void ValidateNameArray(FDataValidationContext& Context, EDataValidationResult& Result, const TArray<FName>& Names,
 		const TCHAR* FieldName)
 	{
 		TSet<FName> UsedNames;
@@ -93,8 +82,7 @@ namespace
 			{
 				MarkMatchRuleInvalid(Context, Result, FText::Format(
 					NSLOCTEXT("MatchRuleDefinition", "InvalidNameEntry", "{0}[{1}] must not be None."),
-					MatchRuleFieldText(FieldName),
-					FText::AsNumber(Index)));
+					MatchRuleFieldText(FieldName), FText::AsNumber(Index)));
 				continue;
 			}
 
@@ -102,8 +90,7 @@ namespace
 			{
 				Context.AddWarning(FText::Format(
 					NSLOCTEXT("MatchRuleDefinition", "DuplicateNameEntry", "{0} contains a duplicate entry: {1}"),
-					MatchRuleFieldText(FieldName),
-					FText::FromName(Name)));
+					MatchRuleFieldText(FieldName), FText::FromName(Name)));
 			}
 			UsedNames.Add(Name);
 		}
@@ -122,8 +109,7 @@ FPrimaryAssetId UMatchRuleDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UMatchRuleDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.MatchRule.ToSoftObjectPath();
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().MatchRule.ToSoftObjectPath();
 }
 
 const UMatchRuleDefinition* UMatchRuleDefinition::ResolveDefaultDefinition()
@@ -134,8 +120,7 @@ const UMatchRuleDefinition* UMatchRuleDefinition::ResolveDefaultDefinition()
 		return nullptr;
 	}
 
-	if (const UMatchRuleDefinition* LoadedDefinition =
-		Cast<UMatchRuleDefinition>(DefinitionPath.ResolveObject()))
+	if (const UMatchRuleDefinition* LoadedDefinition = Cast<UMatchRuleDefinition>(DefinitionPath.ResolveObject()))
 	{
 		return LoadedDefinition;
 	}
@@ -205,11 +190,7 @@ EDataValidationResult UMatchRuleDefinition::IsDataValid(FDataValidationContext& 
 	}
 
 	ValidateTeamOverlayMaterials(Context, Result, TeamOverlayMaterials);
-	ValidateFiniteNonNegativeFloat(
-		Context,
-		Result,
-		LobbyStartCountdownSeconds,
-		TEXT("LobbyStartCountdownSeconds"));
+	ValidateFiniteNonNegativeFloat(Context, Result, LobbyStartCountdownSeconds, TEXT("LobbyStartCountdownSeconds"));
 	ValidateFiniteNonNegativeFloat(Context, Result, MatchTimerSeconds, TEXT("MatchTimerSeconds"));
 	ValidateFiniteNonNegativeFloat(Context, Result, PlayerRespawnDelay, TEXT("PlayerRespawnDelay"));
 	ValidateFinitePositiveFloat(Context, Result, HudTickInterval, TEXT("HudTickInterval"));
@@ -218,9 +199,7 @@ EDataValidationResult UMatchRuleDefinition::IsDataValid(FDataValidationContext& 
 
 	if (MatchTimerSeconds <= 0.0f)
 	{
-		Context.AddWarning(NSLOCTEXT(
-			"MatchRuleDefinition",
-			"ZeroServerTimer",
+		Context.AddWarning(NSLOCTEXT("MatchRuleDefinition", "ZeroServerTimer",
 			"MatchTimerSeconds is zero. The server match timer will expire immediately."));
 	}
 

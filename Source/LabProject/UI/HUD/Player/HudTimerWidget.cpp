@@ -45,10 +45,8 @@ bool UHudTimerWidget::BeginMatchRulePreload()
 	MatchRuleLease.Reset();
 
 	const UWorld* World = GetWorld();
-	const AExperienceGameState* ExperienceGameState =
-		World ? World->GetGameState<AExperienceGameState>() : nullptr;
-	if ((ExperienceGameState && ExperienceGameState->GetMatchRuleDefinition())
-		|| MatchRuleDefinition.IsNull()
+	const AExperienceGameState* ExperienceGameState = World ? World->GetGameState<AExperienceGameState>() : nullptr;
+	if ((ExperienceGameState && ExperienceGameState->GetMatchRuleDefinition()) || MatchRuleDefinition.IsNull()
 		|| MatchRuleDefinition.Get())
 	{
 		return false;
@@ -62,8 +60,7 @@ bool UHudTimerWidget::BeginMatchRulePreload()
 		return false;
 	}
 
-	MatchRuleLease = ContentSubsystem->AcquireContent(
-		{MatchRuleDefinition.ToSoftObjectPath()},
+	MatchRuleLease = ContentSubsystem->AcquireContent({MatchRuleDefinition.ToSoftObjectPath()},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::StartTimer));
 	return true;
 }
@@ -93,12 +90,8 @@ void UHudTimerWidget::StartTimer()
 	const UMatchRuleDefinition* MatchRules = GetMatchRuleDefinition();
 	bRefreshTimerActive = true;
 	SetVisibility(ESlateVisibility::HitTestInvisible);
-	World->GetTimerManager().SetTimer(
-		TimerTickHandle,
-		this,
-		&ThisClass::HandleTimerTick,
-		FMath::Max(MatchRules ? MatchRules->HudTickInterval : 0.1f, 0.01f),
-		true);
+	World->GetTimerManager().SetTimer(TimerTickHandle, this, &ThisClass::HandleTimerTick,
+		FMath::Max(MatchRules ? MatchRules->HudTickInterval : 0.1f, 0.01f), true);
 
 	SyncFromReplicatedTimerState();
 }
@@ -135,10 +128,8 @@ void UHudTimerWidget::ResetTimer()
 bool UHudTimerWidget::IsTimerRunning() const
 {
 	const UWorld* World = GetWorld();
-	const AExperienceGameState* ExperienceGameState =
-		World ? World->GetGameState<AExperienceGameState>() : nullptr;
-	return ExperienceGameState
-		&& ExperienceGameState->GetMatchTimerPhase() == EMatchTimerPhase::Running;
+	const AExperienceGameState* ExperienceGameState = World ? World->GetGameState<AExperienceGameState>() : nullptr;
+	return ExperienceGameState && ExperienceGameState->GetMatchTimerPhase() == EMatchTimerPhase::Running;
 }
 
 void UHudTimerWidget::RefreshUI()
@@ -150,8 +141,7 @@ void UHudTimerWidget::RefreshUI()
 
 	Txt_Timer->SetText(FormatTimerText());
 
-	const bool bUseWarningColor = bUseWarningTextColor
-		&& CurrentTimerSeconds > 0.0f
+	const bool bUseWarningColor = bUseWarningTextColor && CurrentTimerSeconds > 0.0f
 		&& CurrentTimerSeconds <= WarningThresholdSeconds;
 	Txt_Timer->SetColorAndOpacity(FSlateColor(bUseWarningColor ? WarningTextColor : NormalTextColor));
 }
@@ -178,8 +168,7 @@ void UHudTimerWidget::HandleTimerTick()
 void UHudTimerWidget::SyncFromReplicatedTimerState()
 {
 	const UWorld* World = GetWorld();
-	const AExperienceGameState* ExperienceGameState =
-		World ? World->GetGameState<AExperienceGameState>() : nullptr;
+	const AExperienceGameState* ExperienceGameState = World ? World->GetGameState<AExperienceGameState>() : nullptr;
 	if (!ExperienceGameState)
 	{
 		return;
@@ -236,8 +225,7 @@ FText UHudTimerWidget::FormatTimerText() const
 const UMatchRuleDefinition* UHudTimerWidget::GetMatchRuleDefinition() const
 {
 	const UWorld* World = GetWorld();
-	const AExperienceGameState* ExperienceGameState =
-		World ? World->GetGameState<AExperienceGameState>() : nullptr;
+	const AExperienceGameState* ExperienceGameState = World ? World->GetGameState<AExperienceGameState>() : nullptr;
 	if (ExperienceGameState && ExperienceGameState->GetMatchRuleDefinition())
 	{
 		return ExperienceGameState->GetMatchRuleDefinition();
@@ -257,13 +245,11 @@ const UMatchRuleDefinition* UHudTimerWidget::GetMatchRuleDefinition() const
 bool UHudTimerWidget::ShouldSuppressTimer() const
 {
 	const UWorld* World = GetWorld();
-	const AExperienceGameState* ExperienceGameState =
-		World ? World->GetGameState<AExperienceGameState>() : nullptr;
+	const AExperienceGameState* ExperienceGameState = World ? World->GetGameState<AExperienceGameState>() : nullptr;
 	if (ExperienceGameState)
 	{
 		const EMatchTimerPhase TimerPhase = ExperienceGameState->GetMatchTimerPhase();
-		return TimerPhase == EMatchTimerPhase::Inactive
-			|| TimerPhase == EMatchTimerPhase::Suppressed;
+		return TimerPhase == EMatchTimerPhase::Inactive || TimerPhase == EMatchTimerPhase::Suppressed;
 	}
 
 	return ShouldSuppressTimerForCurrentMap();
@@ -275,8 +261,7 @@ bool UHudTimerWidget::ShouldSuppressTimerForCurrentMap() const
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
 	const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
 	return (Levels && Levels->IsTrainingRoomMapName(CurrentLevelName))
-		|| (MatchRules
-			&& MatchRules->MapsWithoutMatchTimer.Contains(FName(*CurrentLevelName)));
+		|| (MatchRules && MatchRules->MapsWithoutMatchTimer.Contains(FName(*CurrentLevelName)));
 }
 
 float UHudTimerWidget::GetConfiguredTimerSeconds() const

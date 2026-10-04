@@ -19,8 +19,7 @@ ULobbyConfigurationComponent::ULobbyConfigurationComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void ULobbyConfigurationComponent::EndPlay(
-	const EEndPlayReason::Type EndPlayReason)
+void ULobbyConfigurationComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ReleaseRuntimePreloads();
 	Super::EndPlay(EndPlayReason);
@@ -36,18 +35,15 @@ void ULobbyConfigurationComponent::InitializeRuntime(FSimpleDelegate OnReady)
 		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
 	if (!DefinitionReferences.MatchRule.IsNull())
 	{
-		DependencyPaths.AddUnique(
-			DefinitionReferences.MatchRule.ToSoftObjectPath());
+		DependencyPaths.AddUnique(DefinitionReferences.MatchRule.ToSoftObjectPath());
 	}
 	if (!DefinitionReferences.LevelDefinition.IsNull())
 	{
-		DependencyPaths.AddUnique(
-			DefinitionReferences.LevelDefinition.ToSoftObjectPath());
+		DependencyPaths.AddUnique(DefinitionReferences.LevelDefinition.ToSoftObjectPath());
 	}
 	if (!DefinitionReferences.DefaultProvision.IsNull())
 	{
-		DependencyPaths.AddUnique(
-			DefinitionReferences.DefaultProvision.ToSoftObjectPath());
+		DependencyPaths.AddUnique(DefinitionReferences.DefaultProvision.ToSoftObjectPath());
 	}
 
 	if (DependencyPaths.IsEmpty())
@@ -65,8 +61,7 @@ void ULobbyConfigurationComponent::InitializeRuntime(FSimpleDelegate OnReady)
 		return;
 	}
 
-	LobbyDependenciesLease = ContentSubsystem->AcquireContent(
-		DependencyPaths,
+	LobbyDependenciesLease = ContentSubsystem->AcquireContent(DependencyPaths,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::FinishRuntimeInitialization));
 }
 
@@ -92,9 +87,7 @@ FName ULobbyConfigurationComponent::GetFirstMapKey()
 	if (const ULevelDefinition* Levels = GetLevelDefinition())
 	{
 		FLobbyMatchMapOption MapOption;
-		if (Levels->GetIngameLevelAtIndex(
-			0,
-			MapOption))
+		if (Levels->GetIngameLevelAtIndex(0, MapOption))
 		{
 			return MapOption.MapKey;
 		}
@@ -105,29 +98,18 @@ FName ULobbyConfigurationComponent::GetFirstMapKey()
 int32 ULobbyConfigurationComponent::GetLobbyMapOptionCount()
 {
 	const ULevelDefinition* Levels = GetLevelDefinition();
-	return Levels
-		? Levels->IngameLevels.Num()
-		: 0;
+	return Levels ? Levels->IngameLevels.Num() : 0;
 }
 
-bool ULobbyConfigurationComponent::GetLobbyMapOptionAtIndex(
-	const int32 Index,
-	FLobbyMatchMapOption& OutMapOption)
+bool ULobbyConfigurationComponent::GetLobbyMapOptionAtIndex(const int32 Index, FLobbyMatchMapOption& OutMapOption)
 {
 	const ULevelDefinition* Levels = GetLevelDefinition();
-	return Levels
-		&& Levels->GetIngameLevelAtIndex(
-			Index,
-			OutMapOption);
+	return Levels && Levels->GetIngameLevelAtIndex(Index, OutMapOption);
 }
 
-bool ULobbyConfigurationComponent::
-GetSelectedLobbyMapOption(
-	FLobbyMatchMapOption& OutMapOption)
+bool ULobbyConfigurationComponent:: GetSelectedLobbyMapOption(FLobbyMatchMapOption& OutMapOption)
 {
-	return FindConfiguredMapOption(
-		GetSelectedLobbyMapKey(),
-		OutMapOption);
+	return FindConfiguredMapOption(GetSelectedLobbyMapKey(), OutMapOption);
 }
 
 FName ULobbyConfigurationComponent::GetSelectedLobbyMapKey()
@@ -136,15 +118,10 @@ FName ULobbyConfigurationComponent::GetSelectedLobbyMapKey()
 	return State ? State->GetSelectedMapKey() : NAME_None;
 }
 
-bool ULobbyConfigurationComponent::FindConfiguredMapOption(
-	const FName MapKey,
-	FLobbyMatchMapOption& OutMapOption)
+bool ULobbyConfigurationComponent::FindConfiguredMapOption(const FName MapKey, FLobbyMatchMapOption& OutMapOption)
 {
 	const ULevelDefinition* Levels = GetLevelDefinition();
-	return Levels
-		&& Levels->FindIngameLevel(
-			MapKey,
-			OutMapOption);
+	return Levels && Levels->FindIngameLevel(MapKey, OutMapOption);
 }
 
 int32 ULobbyConfigurationComponent::GetConfiguredMaxPlayerCount()
@@ -163,14 +140,12 @@ const UMatchRuleDefinition* ULobbyConfigurationComponent::GetMatchRuleDefinition
 	return LoadedMatchRuleDefinition;
 }
 
-const UDefaultProvisionDefinition*
-ULobbyConfigurationComponent::GetDefaultProvisionDefinition() const
+const UDefaultProvisionDefinition* ULobbyConfigurationComponent::GetDefaultProvisionDefinition() const
 {
 	return LoadedDefaultProvisionDefinition;
 }
 
-ALobbyGameMode*
-ULobbyConfigurationComponent::GetLobbyGameMode() const
+ALobbyGameMode* ULobbyConfigurationComponent::GetLobbyGameMode() const
 {
 	return Cast<ALobbyGameMode>(GetOwner());
 }

@@ -28,43 +28,32 @@ namespace
 	}
 
 	template <typename ObjectType>
-	void ValidateSoftObjectReference(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
-		const TSoftObjectPtr<ObjectType>& SoftObject,
-		const TCHAR* FieldName)
+	void ValidateSoftObjectReference(FDataValidationContext& Context, EDataValidationResult& Result,
+		const TSoftObjectPtr<ObjectType>& SoftObject, const TCHAR* FieldName)
 	{
 		if (!SoftObject.IsNull() && !SoftObject.LoadSynchronous())
 		{
 			MarkItemInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("ItemDefinition", "InvalidSoftObjectReference", "{0} could not be loaded: {1}"),
-				ItemFieldText(FieldName),
-				FText::FromString(SoftObject.ToString())));
+				ItemFieldText(FieldName), FText::FromString(SoftObject.ToString())));
 		}
 	}
 
 	template <typename ClassType>
-	void ValidateSoftClassReference(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
-		const TSoftClassPtr<ClassType>& SoftClass,
-		const TCHAR* FieldName)
+	void ValidateSoftClassReference(FDataValidationContext& Context, EDataValidationResult& Result,
+		const TSoftClassPtr<ClassType>& SoftClass, const TCHAR* FieldName)
 	{
 		// 클래스 타입을 몰라도 되도록 경로로 불러와 확인한다. 허용 타입은 편집기 속성이 이미 제한한다.
 		if (!SoftClass.IsNull() && !SoftClass.ToSoftObjectPath().TryLoad())
 		{
 			MarkItemInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("ItemDefinition", "InvalidSoftClassReference", "{0} could not be loaded: {1}"),
-				ItemFieldText(FieldName),
-				FText::FromString(SoftClass.ToString())));
+				ItemFieldText(FieldName), FText::FromString(SoftClass.ToString())));
 		}
 	}
 
-	void ValidateMagnitudeMap(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
-		const TMap<FGameplayTag, float>& Magnitudes,
-		const TCHAR* FieldName)
+	void ValidateMagnitudeMap(FDataValidationContext& Context, EDataValidationResult& Result,
+		const TMap<FGameplayTag, float>& Magnitudes, const TCHAR* FieldName)
 	{
 		for (const TPair<FGameplayTag, float>& Pair : Magnitudes)
 		{
@@ -197,11 +186,8 @@ namespace
 		ValidateMagnitudeMap(Context, Result, ItemDefinition.Map_Consume_Magnitude, TEXT("Map_Consume_Magnitude"));
 	}
 
-	void ValidateItemAimCameraSettings(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
-		const FWeaponAimCameraSettings& CameraSettings,
-		const TCHAR* FieldPrefix)
+	void ValidateItemAimCameraSettings(FDataValidationContext& Context, EDataValidationResult& Result,
+		const FWeaponAimCameraSettings& CameraSettings, const TCHAR* FieldPrefix)
 	{
 		if (!FMath::IsFinite(CameraSettings.TargetFOV) || CameraSettings.TargetFOV <= 0.0f)
 		{
@@ -358,10 +344,8 @@ namespace
 		}
 
 		const FVector2D& ImpactDecalSizeRange = ItemDefinition.WeaponData.Gun.ImpactDecalSizeRange;
-		if (!FMath::IsFinite(ImpactDecalSizeRange.X)
-			|| !FMath::IsFinite(ImpactDecalSizeRange.Y)
-			|| ImpactDecalSizeRange.X < 0.0f
-			|| ImpactDecalSizeRange.Y < 0.0f)
+		if (!FMath::IsFinite(ImpactDecalSizeRange.X) || !FMath::IsFinite(ImpactDecalSizeRange.Y)
+			|| ImpactDecalSizeRange.X < 0.0f || ImpactDecalSizeRange.Y < 0.0f)
 		{
 			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunImpactDecalSizeRange", "WeaponData.Gun.ImpactDecalSizeRange must contain non-negative finite values."));
 		}
@@ -480,9 +464,7 @@ bool UItemDefinition::IsWeaponDefinition(const FGameplayTag WeaponTypeTag) const
 
 float UItemDefinition::GetSafeAttackStaminaCost() const
 {
-	return FMath::IsFinite(WeaponData.Attack.StaminaCost)
-		? FMath::Max(WeaponData.Attack.StaminaCost, 0.0f)
-		: 0.0f;
+	return FMath::IsFinite(WeaponData.Attack.StaminaCost) ? FMath::Max(WeaponData.Attack.StaminaCost, 0.0f) : 0.0f;
 }
 
 float UItemDefinition::GetEquippedMovementSpeedMultiplier() const
@@ -492,11 +474,8 @@ float UItemDefinition::GetEquippedMovementSpeedMultiplier() const
 		return 1.0f;
 	}
 
-	const float ConfiguredMultiplier =
-		WeaponData.Movement.MeleeEquippedMovementSpeedMultiplier;
-	return FMath::IsFinite(ConfiguredMultiplier)
-		? FMath::Max(ConfiguredMultiplier, 0.01f)
-		: 1.0f;
+	const float ConfiguredMultiplier = WeaponData.Movement.MeleeEquippedMovementSpeedMultiplier;
+	return FMath::IsFinite(ConfiguredMultiplier) ? FMath::Max(ConfiguredMultiplier, 0.01f) : 1.0f;
 }
 
 bool UItemDefinition::IsConsumableDefinition(const FGameplayTag ConsumableTypeTag) const

@@ -38,9 +38,7 @@ void UControllerLagCompensationComponent::BeginPlay()
 }
 
 // 처음에는 짧은 간격으로 표본을 모으고, 이후에는 긴 간격으로 지연 변화를 따라간다.
-void UControllerLagCompensationComponent::TickComponent(
-	float DeltaTime,
-	ELevelTick TickType,
+void UControllerLagCompensationComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -88,12 +86,8 @@ double UControllerLagCompensationComponent::GetViewServerTime() const
 	return GetEstimatedServerTime() - RoundTripSeconds * 0.5;
 }
 
-void UControllerLagCompensationComponent::ShowRewindDebug(
-	const FVector& CurrentCenter,
-	const FVector& RewoundCenter,
-	const float CapsuleHalfHeight,
-	const float CapsuleRadius,
-	const double RewindMs)
+void UControllerLagCompensationComponent::ShowRewindDebug(const FVector& CurrentCenter, const FVector& RewoundCenter,
+	const float CapsuleHalfHeight, const float CapsuleRadius, const double RewindMs)
 {
 	APlayerController* Controller = GetOwningController();
 	if (!Controller)
@@ -123,8 +117,7 @@ void UControllerLagCompensationComponent::ServerRequestServerTime_Implementation
 	ClientReportServerTime(ClientRequestTime, World->GetTimeSeconds());
 }
 
-void UControllerLagCompensationComponent::ClientReportServerTime_Implementation(
-	const double ClientRequestTime,
+void UControllerLagCompensationComponent::ClientReportServerTime_Implementation(const double ClientRequestTime,
 	const double ServerReceiveTime)
 {
 	const UWorld* World = GetWorld();
@@ -145,11 +138,8 @@ void UControllerLagCompensationComponent::ClientReportServerTime_Implementation(
 	AddClockSample(MeasuredRoundTripSeconds, EstimatedServerTimeNow - ClientReceiveTime);
 }
 
-void UControllerLagCompensationComponent::ClientDrawRewindDebug_Implementation(
-	const FVector_NetQuantize CurrentCenter,
-	const FVector_NetQuantize RewoundCenter,
-	const float CapsuleHalfHeight,
-	const float CapsuleRadius,
+void UControllerLagCompensationComponent::ClientDrawRewindDebug_Implementation(const FVector_NetQuantize CurrentCenter,
+	const FVector_NetQuantize RewoundCenter, const float CapsuleHalfHeight, const float CapsuleRadius,
 	const float RewindMs)
 {
 	DrawRewindDebug(CurrentCenter, RewoundCenter, CapsuleHalfHeight, CapsuleRadius, RewindMs);
@@ -200,8 +190,7 @@ void UControllerLagCompensationComponent::RequestServerTime()
 }
 
 // 시계 차이는 RTT가 가장 짧은 표본을, 편도 지연은 최근 표본의 평균 RTT를 사용한다.
-void UControllerLagCompensationComponent::AddClockSample(
-	const double InRoundTripSeconds,
+void UControllerLagCompensationComponent::AddClockSample(const double InRoundTripSeconds,
 	const double InServerTimeOffset)
 {
 	FClockSample& Sample = ClockSamples.AddDefaulted_GetRef();
@@ -227,12 +216,8 @@ void UControllerLagCompensationComponent::AddClockSample(
 	RoundTripSeconds = TotalRoundTripSeconds / ClockSamples.Num();
 }
 
-void UControllerLagCompensationComponent::DrawRewindDebug(
-	const FVector& CurrentCenter,
-	const FVector& RewoundCenter,
-	const float CapsuleHalfHeight,
-	const float CapsuleRadius,
-	const double RewindMs) const
+void UControllerLagCompensationComponent::DrawRewindDebug(const FVector& CurrentCenter, const FVector& RewoundCenter,
+	const float CapsuleHalfHeight, const float CapsuleRadius, const double RewindMs) const
 {
 #if ENABLE_DRAW_DEBUG
 	const UWorld* World = GetWorld();

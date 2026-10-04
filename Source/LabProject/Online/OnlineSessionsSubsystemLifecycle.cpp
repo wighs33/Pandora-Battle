@@ -22,7 +22,7 @@ void UOnlineSessionsSubsystem::StartSession()
 	}
 	if (SessionInterface->GetSessionState(NAME_GameSession) == EOnlineSessionState::InProgress)
 	{
-		// Starting is idempotent when the backend already reached the target state.
+		// 백엔드가 이미 목표 상태면 시작을 다시 해도 결과가 같다.
 		OnStartSessionComplete.Broadcast(true);
 		return;
 	}
@@ -88,7 +88,7 @@ void UOnlineSessionsSubsystem::EndSession()
 	if (!SessionInterface->GetNamedSession(NAME_GameSession) || CurrentSessionState == EOnlineSessionState::NoSession
 		|| CurrentSessionState == EOnlineSessionState::Ended)
 	{
-		// Ending is idempotent when the session is already absent.
+		// 세션이 이미 없으면 종료를 다시 해도 결과가 같다.
 		OnEndSessionComplete.Broadcast(true);
 		return;
 	}

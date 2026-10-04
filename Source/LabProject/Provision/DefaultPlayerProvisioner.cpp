@@ -32,8 +32,7 @@ namespace
 
 	bool HasItemPolicyGrant(const UDefaultProvisionDefinition& Definition, const EDefaultProvisionMode Mode)
 	{
-		return Definition.GetGrantAllItems().IsEnabled(Mode)
-			|| Definition.GetGrantAllWeapons().IsEnabled(Mode)
+		return Definition.GetGrantAllItems().IsEnabled(Mode) || Definition.GetGrantAllWeapons().IsEnabled(Mode)
 			|| Definition.GetGrantAllEquipment().IsEnabled(Mode);
 	}
 
@@ -106,11 +105,8 @@ namespace
 	}
 
 	// 명시 지급의 수량과 퀵슬롯을 정의대로 맞춘다. 인벤토리에 요청을 하나라도 보냈으면 true다.
-	bool ApplyExplicitItemGrants(
-		const UDefaultProvisionDefinition& Definition,
-		const EDefaultProvisionMode Mode,
-		UInventoryComponent& Inventory,
-		TSet<FPrimaryAssetId>& OutGrantedIds)
+	bool ApplyExplicitItemGrants(const UDefaultProvisionDefinition& Definition, const EDefaultProvisionMode Mode,
+		UInventoryComponent& Inventory, TSet<FPrimaryAssetId>& OutGrantedIds)
 	{
 		bool bIssuedRequest = false;
 		for (const FDefaultProvisionItemStackGrant& Grant : Definition.GetItemGrants())
@@ -151,11 +147,8 @@ namespace
 
 	// "전체 아이템·무기·장비 지급" 정책으로 더 줄 아이템을 고른다. 명시 지급과 이미 가진 아이템은 뺀다.
 	// 정책이 켜져 있는데 아이템 목록이 비어 있으면 false다.
-	bool CollectPolicyItemIds(
-		const UDefaultProvisionDefinition& Definition,
-		const EDefaultProvisionMode Mode,
-		const UInventoryComponent& Inventory,
-		const TSet<FPrimaryAssetId>& ExplicitGrantIds,
+	bool CollectPolicyItemIds(const UDefaultProvisionDefinition& Definition, const EDefaultProvisionMode Mode,
+		const UInventoryComponent& Inventory, const TSet<FPrimaryAssetId>& ExplicitGrantIds,
 		TArray<FPrimaryAssetId>& OutItemIds)
 	{
 		const bool bGrantAllItems = Definition.GetGrantAllItems().IsEnabled(Mode);
@@ -211,11 +204,8 @@ namespace
 	}
 
 	// 이 모드에서 열 판도라와 레벨을 고른다. 레벨 0은 열기만 하고 판도라 트리 레벨은 주지 않는다.
-	void CollectPandoraGrants(
-		const UDefaultProvisionDefinition& Definition,
-		const EDefaultProvisionMode Mode,
-		TArray<FPrimaryAssetId>& OutUnlockedIds,
-		TArray<FGrantedPandora>& OutGrantedPandoras)
+	void CollectPandoraGrants(const UDefaultProvisionDefinition& Definition, const EDefaultProvisionMode Mode,
+		TArray<FPrimaryAssetId>& OutUnlockedIds, TArray<FGrantedPandora>& OutGrantedPandoras)
 	{
 		UAssetManager& AssetManager = UAssetManager::Get();
 		for (const FDefaultProvisionPandoraGrant& Grant : Definition.GetPandoraGrants())
@@ -554,8 +544,7 @@ UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::Apply
 
 	const TObjectKey<APlayerState> PlayerStateKey(PlayerState);
 	const FInitializedPandoraState* InitializedState = InitializedPandoras.Find(PlayerStateKey);
-	if (InitializedState
-		&& InitializedState->PandoraComponent.Get() == PandoraComponent
+	if (InitializedState && InitializedState->PandoraComponent.Get() == PandoraComponent
 		&& InitializedState->PandoraTreeComponent.Get() == PandoraTreeComponent)
 	{
 		return EProvisionStepResult::Done;

@@ -18,8 +18,7 @@ URecordDefinition::URecordDefinition(const FObjectInitializer& ObjectInitializer
 		for (int32 TierIndex = 0; TierIndex < DefaultTierCount; ++TierIndex)
 		{
 			FRecordTierEntry TierEntry;
-			TierEntry.TierName = FText::Format(
-				NSLOCTEXT("RecordDefinition", "DefaultTierNameFormat", "Tier {0}"),
+			TierEntry.TierName = FText::Format(NSLOCTEXT("RecordDefinition", "DefaultTierNameFormat", "Tier {0}"),
 				FText::AsNumber(TierIndex + 1));
 			TierEntry.RankOrder = TierIndex;
 			TierEntries.Add(TierEntry);
@@ -52,9 +51,7 @@ FRecordTierEntry URecordDefinition::ResolveTierForWinCount(const int32 WinCount)
 	});
 
 	const int32 SanitizedWinsPerTier = FMath::Max(WinsPerTier, 1);
-	const int32 TierIndex = FMath::Clamp(
-		FMath::Max(WinCount, 0) / SanitizedWinsPerTier,
-		0,
+	const int32 TierIndex = FMath::Clamp(FMath::Max(WinCount, 0) / SanitizedWinsPerTier, 0,
 		SortedTierIndices.Num() - 1);
 	return TierEntries[SortedTierIndices[TierIndex]];
 }

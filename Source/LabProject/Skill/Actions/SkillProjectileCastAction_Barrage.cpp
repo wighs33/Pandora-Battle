@@ -61,18 +61,12 @@ bool USkillProjectileCastAction::TryStartSocketBarrage(const FVector TargetLocat
     AvatarActor->ForceNetUpdate();
 
     const float ConfiguredFireInterval = GetConfiguredProjectileSocketFireInterval();
-    const float InitialFireDelay = FMath::Max(
-       ConfiguredFireInterval,
-       SocketBarrageMinimumInitialReplicationDelay);
+    const float InitialFireDelay = FMath::Max(ConfiguredFireInterval, SocketBarrageMinimumInitialReplicationDelay);
 
     if (UWorld* World = GetWorld())
     {
-       World->GetTimerManager().SetTimer(
-          SocketBarrageTimerHandle,
-          this,
-          &ThisClass::FireNextSocketBarrageProjectile,
-          InitialFireDelay,
-          false);
+       World->GetTimerManager().SetTimer(SocketBarrageTimerHandle, this, &ThisClass::FireNextSocketBarrageProjectile,
+           InitialFireDelay, false);
     }
     else
     {
@@ -114,12 +108,8 @@ ASkillProjectile* USkillProjectileCastAction::SpawnPreparedSocketBarrageProjecti
 
     const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
     APawn* InstigatorPawn = Cast<APawn>(AvatarActor);
-    ASkillProjectile* Projectile = World->SpawnActorDeferred<ASkillProjectile>(
-       ConfiguredProjectileClass,
-       SpawnTransform,
-       AvatarActor,
-       InstigatorPawn,
-       ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+    ASkillProjectile* Projectile = World->SpawnActorDeferred<ASkillProjectile>(ConfiguredProjectileClass,
+        SpawnTransform, AvatarActor, InstigatorPawn, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
     if (!Projectile)
     {
        return nullptr;
@@ -164,21 +154,17 @@ void USkillProjectileCastAction::LaunchSocketBarrageProjectile(ASkillProjectile*
     const FVector SpawnLocation = Projectile->GetActorLocation();
     const FVector LaunchTargetLocation = ResolveSocketBarrageLaunchTargetLocation(SpawnLocation);
     const FVector SpawnDirection = (LaunchTargetLocation - SpawnLocation).GetSafeNormal();
-    const FRotator SpawnRotation = SpawnDirection.IsNearlyZero()
-       ? AvatarActor->GetActorRotation()
+    const FRotator SpawnRotation = SpawnDirection.IsNearlyZero() ? AvatarActor->GetActorRotation()
        : SpawnDirection.Rotation();
     Projectile->SetActorRotation(SpawnRotation, ETeleportType::TeleportPhysics);
 
     const float ChargeDamageAlpha = IsConfiguredReadiedProjectileChargeGrowthEnabled()
        ? Projectile->GetReadiedScaleGrowthAlpha()
        : 1.0f;
-    Projectile->SetImpactAreaDamageRadius(
-       CalculateConfiguredImpactAreaDamageRadius(ChargeDamageAlpha));
+    Projectile->SetImpactAreaDamageRadius(CalculateConfiguredImpactAreaDamageRadius(ChargeDamageAlpha));
     ApplyConfiguredProjectileTrajectory(Projectile);
-    Projectile->LaunchProjectile(
-       LaunchTargetLocation,
-       GetConfiguredProjectileSpeed(),
-       MakeDamageEffectSpec(ChargeDamageAlpha));
+    Projectile->LaunchProjectile(LaunchTargetLocation, GetConfiguredProjectileSpeed(),
+        MakeDamageEffectSpec(ChargeDamageAlpha));
     Projectile->ForceNetUpdate();
 }
 
@@ -191,7 +177,7 @@ FVector USkillProjectileCastAction::ResolveSocketBarrageLaunchTargetLocation(con
 
     FVector LaunchTargetLocation = SocketBarrageTargetLocation;
     if (LaunchTargetLocation.IsNearlyZero()
-       || FVector::DistSquared(ProjectileLocation, LaunchTargetLocation) <= UE_KINDA_SMALL_NUMBER)
+        || FVector::DistSquared(ProjectileLocation, LaunchTargetLocation) <= UE_KINDA_SMALL_NUMBER)
     {
        LaunchTargetLocation = ResolveDefaultTargetLocation();
     }
@@ -274,12 +260,8 @@ void USkillProjectileCastAction::FireNextSocketBarrageProjectile()
 
     if (UWorld* World = GetWorld())
     {
-       World->GetTimerManager().SetTimer(
-          SocketBarrageTimerHandle,
-          this,
-          &ThisClass::FireNextSocketBarrageProjectile,
-          FireInterval,
-          false);
+       World->GetTimerManager().SetTimer(SocketBarrageTimerHandle, this, &ThisClass::FireNextSocketBarrageProjectile,
+           FireInterval, false);
     }
 }
 
@@ -318,7 +300,5 @@ bool USkillProjectileCastAction::IsSocketBarrageActive() const
 bool USkillProjectileCastAction::ShouldWaitForServerSocketBarrageEnd() const
 {
     const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-    return AvatarActor
-       && !AvatarActor->HasAuthority()
-       && GetConfiguredProjectileSocketNames().Num() > 1;
+    return AvatarActor && !AvatarActor->HasAuthority() && GetConfiguredProjectileSocketNames().Num() > 1;
 }

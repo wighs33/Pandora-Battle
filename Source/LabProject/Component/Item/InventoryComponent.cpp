@@ -179,17 +179,13 @@ void UInventoryComponent::AddItemsByPrimaryAssetIdsWithCompletion(const TArray<F
 	}
 }
 
-void UInventoryComponent::SetItemQuantityByPrimaryAssetId(
-	const FPrimaryAssetId ItemDefinitionId,
-	const int32 Quantity)
+void UInventoryComponent::SetItemQuantityByPrimaryAssetId(const FPrimaryAssetId ItemDefinitionId, const int32 Quantity)
 {
 	SetItemQuantityByPrimaryAssetIdInternal(ItemDefinitionId, Quantity, INDEX_NONE);
 }
 
-void UInventoryComponent::SetConsumableItemQuantityAndQuickSlotByPrimaryAssetId(
-	const FPrimaryAssetId ItemDefinitionId,
-	const int32 Quantity,
-	const int32 SlotIndex)
+void UInventoryComponent::SetConsumableItemQuantityAndQuickSlotByPrimaryAssetId(const FPrimaryAssetId ItemDefinitionId,
+	const int32 Quantity, const int32 SlotIndex)
 {
 	if (!IsValidConsumableQuickSlotIndex(SlotIndex))
 	{
@@ -199,10 +195,8 @@ void UInventoryComponent::SetConsumableItemQuantityAndQuickSlotByPrimaryAssetId(
 	SetItemQuantityByPrimaryAssetIdInternal(ItemDefinitionId, Quantity, SlotIndex);
 }
 
-void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(
-	const FPrimaryAssetId ItemDefinitionId,
-	const int32 Quantity,
-	const int32 ConsumableQuickSlotIndex)
+void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(const FPrimaryAssetId ItemDefinitionId,
+	const int32 Quantity, const int32 ConsumableQuickSlotIndex)
 {
 	if (!HasInventoryAuthority() || !ItemDefinitionId.IsValid())
 	{
@@ -215,12 +209,9 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(
 	const uint64 RequestGeneration = ItemLoadGeneration;
 	++PendingItemLoadRequestCount;
 	UAssetManager& AssetManager = UAssetManager::Get();
-	TSharedPtr<FStreamableHandle> LoadHandle = AssetManager.LoadPrimaryAssets(
-		ItemDefinitionIds,
-		{},
-		FStreamableDelegate::CreateWeakLambda(
-			this,
-			[this, ItemDefinitionId, Quantity, ConsumableQuickSlotIndex, RequestGeneration]()
+	TSharedPtr<FStreamableHandle> LoadHandle = AssetManager.LoadPrimaryAssets(ItemDefinitionIds, {},
+		FStreamableDelegate::CreateWeakLambda(this,
+		[this, ItemDefinitionId, Quantity, ConsumableQuickSlotIndex, RequestGeneration]()
 		{
 			if (RequestGeneration != ItemLoadGeneration)
 			{
@@ -238,9 +229,7 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(
 				UAssetManager::Get().GetPrimaryAssetObject(ItemDefinitionId));
 			if (!IsValid(ItemDefinition))
 			{
-				UE_LOG(
-					InventoryComponentLog,
-					Error,
+				UE_LOG(InventoryComponentLog, Error,
 					TEXT("Failed to resolve asynchronously loaded item definition '%s'."),
 					*ItemDefinitionId.ToString());
 				CompletePendingItemLoadRequest(RequestGeneration);
@@ -280,12 +269,9 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(
 				ItemToAssign = NewItemInstance;
 			}
 
-			if (IsValidConsumableQuickSlotIndex(ConsumableQuickSlotIndex)
-				&& IsConsumableItem(ItemToAssign))
+			if (IsValidConsumableQuickSlotIndex(ConsumableQuickSlotIndex) && IsConsumableItem(ItemToAssign))
 			{
-				SetConsumableQuickSlotItemId(
-					ConsumableQuickSlotIndex,
-					ItemToAssign->GetOrCreateItemId());
+				SetConsumableQuickSlotItemId(ConsumableQuickSlotIndex, ItemToAssign->GetOrCreateItemId());
 			}
 
 			CompletePendingItemLoadRequest(RequestGeneration);
@@ -305,8 +291,7 @@ void UInventoryComponent::ClearAllItems()
 		return;
 	}
 
-	// Cancel requests that have not completed and invalidate callbacks that may
-	// already be queued for execution.
+	// 끝나지 않은 요청을 취소하고, 이미 실행 대기 중일 수 있는 콜백을 무효로 만든다.
 	CancelPendingItemLoads();
 
 	const bool bHadItems = !AllItemList.Items.IsEmpty() || !ReplicatedEntries.Entries.IsEmpty();
@@ -360,10 +345,7 @@ void UInventoryComponent::ClearAllItems()
 	{
 		OnEquipmentSlotsChanged.Broadcast();
 	}
-	if (bHadItems
-		|| bHadQuickSlotReferences
-		|| bHadEquippedItemReferences
-		|| bHadWeaponLoadoutReferences)
+	if (bHadItems || bHadQuickSlotReferences || bHadEquippedItemReferences || bHadWeaponLoadoutReferences)
 	{
 		NotifyInventoryChanged();
 	}
@@ -513,17 +495,11 @@ UItemInstance* UInventoryComponent::GetConsumableQuickSlotItem(const int32 SlotI
 	return FindItemInstanceById(ConsumableQuickSlotItemIds[SlotIndex]);
 }
 
-bool UInventoryComponent::SetEquipmentSlot(
-	const FGameplayTag SlotTag,
-	UItemInstance* ItemInstance)
+bool UInventoryComponent::SetEquipmentSlot(const FGameplayTag SlotTag, UItemInstance* ItemInstance)
 {
 	const FGameplayTag ResolvedSlotTag = ResolveEquipmentSlotTag(SlotTag);
-	const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
-		? ItemInstance->ItemDefinition.Get()
-		: nullptr;
-	if (!ResolvedSlotTag.IsValid()
-		|| !ItemDefinition
-		|| !ItemDefinition->IdTag.IsValid()
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
+	if (!ResolvedSlotTag.IsValid() || !ItemDefinition || !ItemDefinition->IdTag.IsValid()
 		|| !ItemDefinition->IdTag.MatchesTag(ResolvedSlotTag))
 	{
 		return false;
@@ -564,9 +540,7 @@ bool UInventoryComponent::ClearEquipmentSlot(const FGameplayTag SlotTag)
 FGuid UInventoryComponent::GetEquipmentSlotItemId(const FGameplayTag SlotTag) const
 {
 	const int32 SlotIndex = FindEquipmentSlotIndex(SlotTag);
-	return EquippedItemSlots.IsValidIndex(SlotIndex)
-		? EquippedItemSlots[SlotIndex].ItemId
-		: FGuid();
+	return EquippedItemSlots.IsValidIndex(SlotIndex) ? EquippedItemSlots[SlotIndex].ItemId : FGuid();
 }
 
 UItemInstance* UInventoryComponent::GetEquipmentSlotItem(const FGameplayTag SlotTag) const
@@ -574,9 +548,7 @@ UItemInstance* UInventoryComponent::GetEquipmentSlotItem(const FGameplayTag Slot
 	return FindItemInstanceById(GetEquipmentSlotItemId(SlotTag));
 }
 
-bool UInventoryComponent::AssignWeaponToLoadoutSlot(
-	const EEnum_Direction Direction,
-	UItemInstance* WeaponInstance)
+bool UInventoryComponent::AssignWeaponToLoadoutSlot(const EEnum_Direction Direction, UItemInstance* WeaponInstance)
 {
 	if ((PandoraLoadout::GetLoadoutNumberFromDirection(Direction) - 1) == INDEX_NONE || !IsWeaponItem(WeaponInstance))
 	{
@@ -617,9 +589,7 @@ bool UInventoryComponent::ClearWeaponFromLoadoutSlot(const EEnum_Direction Direc
 FGuid UInventoryComponent::GetWeaponIdForLoadoutSlot(const EEnum_Direction Direction) const
 {
 	const int32 SlotIndex = (PandoraLoadout::GetLoadoutNumberFromDirection(Direction) - 1);
-	return WeaponIdsByLoadoutSlot.IsValidIndex(SlotIndex)
-		? WeaponIdsByLoadoutSlot[SlotIndex]
-		: FGuid();
+	return WeaponIdsByLoadoutSlot.IsValidIndex(SlotIndex) ? WeaponIdsByLoadoutSlot[SlotIndex] : FGuid();
 }
 
 UItemInstance* UInventoryComponent::FindWeaponForLoadoutSlot(const EEnum_Direction Direction) const
@@ -721,13 +691,9 @@ bool UInventoryComponent::MergeConsumableStacks(const FGuid SourceItemId, const 
 	return RemoveReplicatedItemById(SourceItemId);
 }
 
-bool UInventoryComponent::MergeUpgradeableItems(
-	const FGuid SourceItemId,
-	const FGuid TargetItemId)
+bool UInventoryComponent::MergeUpgradeableItems(const FGuid SourceItemId, const FGuid TargetItemId)
 {
-	if (!SourceItemId.IsValid()
-		|| !TargetItemId.IsValid()
-		|| SourceItemId == TargetItemId)
+	if (!SourceItemId.IsValid() || !TargetItemId.IsValid() || SourceItemId == TargetItemId)
 	{
 		return false;
 	}
@@ -740,15 +706,9 @@ bool UInventoryComponent::MergeUpgradeableItems(
 
 	UItemInstance* SourceItem = FindItemInstanceById(SourceItemId);
 	UItemInstance* TargetItem = FindItemInstanceById(TargetItemId);
-	const UItemDefinition* SourceDefinition = IsValid(SourceItem)
-		? SourceItem->ItemDefinition.Get()
-		: nullptr;
-	const UItemDefinition* TargetDefinition = IsValid(TargetItem)
-		? TargetItem->ItemDefinition.Get()
-		: nullptr;
-	if (!SourceDefinition
-		|| SourceDefinition != TargetDefinition
-		|| !IsUpgradeableItem(SourceItem)
+	const UItemDefinition* SourceDefinition = IsValid(SourceItem) ? SourceItem->ItemDefinition.Get() : nullptr;
+	const UItemDefinition* TargetDefinition = IsValid(TargetItem) ? TargetItem->ItemDefinition.Get() : nullptr;
+	if (!SourceDefinition || SourceDefinition != TargetDefinition || !IsUpgradeableItem(SourceItem)
 		|| !IsUpgradeableItem(TargetItem))
 	{
 		return false;
@@ -757,8 +717,7 @@ bool UInventoryComponent::MergeUpgradeableItems(
 	const auto IsItemAssigned = [this](const FGuid ItemId)
 	{
 		return WeaponIdsByLoadoutSlot.Contains(ItemId)
-			|| EquippedItemSlots.ContainsByPredicate(
-			[ItemId](const FEquippedItemSlot& EquippedItemSlot)
+			|| EquippedItemSlots.ContainsByPredicate([ItemId](const FEquippedItemSlot& EquippedItemSlot)
 		{
 			return EquippedItemSlot.ItemId == ItemId;
 		});
@@ -768,12 +727,12 @@ bool UInventoryComponent::MergeUpgradeableItems(
 	const bool bTargetIsAssigned = IsItemAssigned(TargetItemId);
 	if (bSourceIsAssigned && bTargetIsAssigned)
 	{
-		// Never consume an item that another equipment/loadout slot still owns.
+		// 다른 장비·로드아웃 슬롯이 아직 가진 아이템은 절대 소모하지 않는다.
 		return false;
 	}
 
-	// Dropping in either direction upgrades the assigned item and consumes the
-	// unassigned duplicate, so its slot reference and active stats stay intact.
+	// 어느 방향으로 끌어 놓아도 배정된 아이템을 강화하고 배정되지 않은 중복을 소모하므로,
+	// 슬롯 참조와 적용 중인 능력치가 그대로 유지된다.
 	const FGuid ConsumedItemId = bSourceIsAssigned ? TargetItemId : SourceItemId;
 	const FGuid UpgradedItemId = bSourceIsAssigned ? SourceItemId : TargetItemId;
 	UItemInstance* ConsumedItem = bSourceIsAssigned ? TargetItem : SourceItem;
@@ -786,12 +745,9 @@ bool UInventoryComponent::MergeUpgradeableItems(
 		return false;
 	}
 
-	const int64 MergedUpgradeLevel =
-		static_cast<int64>(ConsumedItem->GetUpgradeLevel())
-		+ static_cast<int64>(UpgradedItem->GetUpgradeLevel())
-		+ 1;
-	const int32 NewUpgradeLevel = static_cast<int32>(FMath::Min<int64>(
-		MergedUpgradeLevel,
+	const int64 MergedUpgradeLevel = static_cast<int64>(ConsumedItem->GetUpgradeLevel())
+		+ static_cast<int64>(UpgradedItem->GetUpgradeLevel()) + 1;
+	const int32 NewUpgradeLevel = static_cast<int32>(FMath::Min<int64>(MergedUpgradeLevel,
 		static_cast<int64>(MAX_int32)));
 	UpgradedItem->SetUpgradeLevel(NewUpgradeLevel);
 	TargetEntry->UpgradeLevel = NewUpgradeLevel;
@@ -810,25 +766,20 @@ bool UInventoryComponent::IsConsumableItem(const UItemInstance* ItemInstance) co
 {
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	const FGameplayTag ConsumableTypeTag = UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
-	return ItemDefinition
-		&& ItemDefinition->IsConsumableDefinition(ConsumableTypeTag);
+	return ItemDefinition && ItemDefinition->IsConsumableDefinition(ConsumableTypeTag);
 }
 
 bool UInventoryComponent::IsWeaponItem(const UItemInstance* ItemInstance) const
 {
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	const FGameplayTag WeaponTypeTag = UProjectTagDefinition::Get(this)->GetItemWeaponTypeTag();
-	return ItemDefinition
-		&& WeaponTypeTag.IsValid()
-		&& ItemDefinition->IdTag.IsValid()
+	return ItemDefinition && WeaponTypeTag.IsValid() && ItemDefinition->IdTag.IsValid()
 		&& ItemDefinition->IdTag.MatchesTag(WeaponTypeTag);
 }
 
 bool UInventoryComponent::IsUpgradeableItem(const UItemInstance* ItemInstance) const
 {
-	const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
-		? ItemInstance->ItemDefinition.Get()
-		: nullptr;
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	if (!ItemDefinition)
 	{
 		return false;
@@ -837,8 +788,7 @@ bool UInventoryComponent::IsUpgradeableItem(const UItemInstance* ItemInstance) c
 	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	const FGameplayTag WeaponTypeTag = TagConfig->GetItemWeaponTypeTag();
 	const FGameplayTag EquipmentTypeTag = TagConfig->GetItemEquipmentTypeTag();
-	return ItemDefinition->IsWeaponDefinition(WeaponTypeTag)
-		|| ItemDefinition->MatchesItemType(EquipmentTypeTag);
+	return ItemDefinition->IsWeaponDefinition(WeaponTypeTag) || ItemDefinition->MatchesItemType(EquipmentTypeTag);
 }
 
 bool UInventoryComponent::ApplyConsumableItemEffect(const UItemInstance* ItemInstance) const

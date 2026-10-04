@@ -20,9 +20,7 @@ namespace
 	constexpr int32 MaxClientSyncedSkinNameCount = 512;
 	constexpr double RemoteSkinSyncMinInterval = 0.20;
 
-	bool TryResolveCanonicalAchievementId(
-		UGameInstance* GameInstance,
-		const FName SubmittedAchievementId,
+	bool TryResolveCanonicalAchievementId(UGameInstance* GameInstance, const FName SubmittedAchievementId,
 		FName& OutAchievementId)
 	{
 		OutAchievementId = NAME_None;
@@ -71,16 +69,14 @@ void UControllerProfileSyncComponent::EndPlay(const EEndPlayReason::Type EndPlay
 void UControllerProfileSyncComponent::ScheduleLocalCosmeticProfileSync()
 {
 	APdPlayerController* Controller = GetPdController();
-	if (!Controller
-		|| (!Controller->HasAuthority() && !Controller->IsLocalController()))
+	if (!Controller || (!Controller->HasAuthority() && !Controller->IsLocalController()))
 	{
 		return;
 	}
 	// Steam 업적 조회가 끝나면 선택한 업적을 다시 검증해 보낸다.
 	if (!AchievementSubscription.IsSubscribed())
 	{
-		AchievementSubscription.Subscribe(
-			Controller->GetGameInstance(),
+		AchievementSubscription.Subscribe(Controller->GetGameInstance(),
 			FSimpleDelegate::CreateUObject(this, &ThisClass::ScheduleLocalCosmeticProfileSync));
 	}
 
@@ -89,15 +85,9 @@ void UControllerProfileSyncComponent::ScheduleLocalCosmeticProfileSync()
 	{
 		FTimerManager& TimerManager = World->GetTimerManager();
 		TimerManager.ClearTimer(LocalCosmeticProfileSyncTimerHandle);
-		TimerManager.SetTimerForNextTick(
-			this,
-			&ThisClass::PushLocalCosmeticProfileToServer);
-		TimerManager.SetTimer(
-			LocalCosmeticProfileSyncTimerHandle,
-			this,
-			&ThisClass::PushLocalCosmeticProfileToServer,
-			LocalCosmeticProfileSyncInterval,
-			true);
+		TimerManager.SetTimerForNextTick(this, &ThisClass::PushLocalCosmeticProfileToServer);
+		TimerManager.SetTimer(LocalCosmeticProfileSyncTimerHandle, this, &ThisClass::PushLocalCosmeticProfileToServer,
+			LocalCosmeticProfileSyncInterval, true);
 	}
 }
 
@@ -141,8 +131,7 @@ void UControllerProfileSyncComponent::ApplyCollectedItemCount(const int32 ItemCo
 	ProfileSubsystem->SaveProfile();
 }
 
-void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer(
-	const TArray<FName>& OwnedSkinNames,
+void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer(const TArray<FName>& OwnedSkinNames,
 	const FName SelectedAchievementId)
 {
 	APdPlayerController* Controller = GetPdController();
@@ -153,9 +142,7 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 
 	if (OwnedSkinNames.Num() > MaxClientSyncedSkinNameCount)
 	{
-		UE_LOG(
-			PdPlayerControllerLog,
-			VeryVerbose,
+		UE_LOG(PdPlayerControllerLog, VeryVerbose,
 			TEXT("Ignored oversized local cosmetic profile. Player=%s Count=%d Limit=%d"),
 			*GetNameSafe(Controller->PlayerState),
 			OwnedSkinNames.Num(),
@@ -177,10 +164,7 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 		PlayerState ? PlayerState->FindComponentByClass<UPlayerMatchComponent>() : nullptr)
 	{
 		FName CanonicalAchievementId;
-		if (TryResolveCanonicalAchievementId(
-			GameInstance,
-			SelectedAchievementId,
-			CanonicalAchievementId))
+		if (TryResolveCanonicalAchievementId(GameInstance, SelectedAchievementId, CanonicalAchievementId))
 		{
 			PlayerMatchComponent->SetSelectedAchievementId(CanonicalAchievementId);
 		}
@@ -211,10 +195,8 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 		}
 
 		UniqueSkinNames.Add(SkinName);
-		const FPrimaryAssetId SkinDefinitionId =
-			ContentDataSubsystem->GetSkinDefinitionIdByName(SkinName);
-		if (SkinDefinitionId.IsValid()
-			&& SkinDefinitionId.PrimaryAssetType == SkinDefinitionAssetType)
+		const FPrimaryAssetId SkinDefinitionId = ContentDataSubsystem->GetSkinDefinitionIdByName(SkinName);
+		if (SkinDefinitionId.IsValid() && SkinDefinitionId.PrimaryAssetType == SkinDefinitionAssetType)
 		{
 			OwnedSkinDefinitionIds.AddUnique(SkinDefinitionId);
 		}
@@ -234,8 +216,7 @@ APdPlayerController* UControllerProfileSyncComponent::GetPdController() const
 void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 {
 	APdPlayerController* Controller = GetPdController();
-	if (!Controller
-		|| (!Controller->HasAuthority() && !Controller->IsLocalController()))
+	if (!Controller || (!Controller->HasAuthority() && !Controller->IsLocalController()))
 	{
 		CompleteLocalCosmeticProfileSyncAttempt();
 		return;
@@ -262,8 +243,7 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 	TArray<FName> OwnedSkinNames;
 	for (const FPrimaryAssetId& SkinId : ProfileSubsystem->GetOwnedSkinAssetIds())
 	{
-		if (SkinId.IsValid()
-			&& SkinId.PrimaryAssetType == SkinDefinitionAssetType)
+		if (SkinId.IsValid() && SkinId.PrimaryAssetType == SkinDefinitionAssetType)
 		{
 			OwnedSkinNames.AddUnique(SkinId.PrimaryAssetName);
 		}
@@ -275,49 +255,36 @@ void UControllerProfileSyncComponent::PushLocalCosmeticProfileToServer()
 
 	if (OwnedSkinNames.Num() > MaxClientSyncedSkinNameCount)
 	{
-		OwnedSkinNames.SetNum(
-			MaxClientSyncedSkinNameCount,
-			EAllowShrinking::No);
+		OwnedSkinNames.SetNum(MaxClientSyncedSkinNameCount, EAllowShrinking::No);
 	}
 
 	const FName SelectedAchievementId = ProfileSubsystem->GetSelectedAchievementId();
 	FName SteamValidatedAchievementId = NAME_None;
 	UAchievementSubsystem* AchievementSubsystem =
 		UGameInstance::GetSubsystem<UAchievementSubsystem>(Controller->GetGameInstance());
-	if (AchievementSubsystem
-		&& !AchievementSubsystem->IsSteamAchievementQueryComplete())
+	if (AchievementSubsystem && !AchievementSubsystem->IsSteamAchievementQueryComplete())
 	{
 		AchievementSubsystem->RequestSteamAchievementQuery();
 	}
 
-	if (!SelectedAchievementId.IsNone()
-		&& AchievementSubsystem
-		&& AchievementSubsystem->HasSteamAchievementData()
-		&& AchievementSubsystem->IsSteamAchievementKnown(
-			SelectedAchievementId.ToString())
-		&& AchievementSubsystem->IsSteamAchievementUnlocked(
-			SelectedAchievementId.ToString()))
+	if (!SelectedAchievementId.IsNone() && AchievementSubsystem && AchievementSubsystem->HasSteamAchievementData()
+		&& AchievementSubsystem->IsSteamAchievementKnown(SelectedAchievementId.ToString())
+		&& AchievementSubsystem->IsSteamAchievementUnlocked(SelectedAchievementId.ToString()))
 	{
 		SteamValidatedAchievementId = SelectedAchievementId;
 	}
-	else if (!SelectedAchievementId.IsNone()
-		&& AchievementSubsystem
-		&& AchievementSubsystem->HasSteamAchievementData())
+	else if (!SelectedAchievementId.IsNone() && AchievementSubsystem && AchievementSubsystem->HasSteamAchievementData())
 	{
 		ProfileSubsystem->SetSelectedAchievementId(NAME_None, true);
 	}
 
 	if (Controller->HasAuthority())
 	{
-		ApplySubmittedLocalCosmeticProfileOnServer(
-			OwnedSkinNames,
-			SteamValidatedAchievementId);
+		ApplySubmittedLocalCosmeticProfileOnServer(OwnedSkinNames, SteamValidatedAchievementId);
 	}
 	else
 	{
-		Controller->Server_SubmitLocalCosmeticProfile(
-			OwnedSkinNames,
-			SteamValidatedAchievementId);
+		Controller->Server_SubmitLocalCosmeticProfile(OwnedSkinNames, SteamValidatedAchievementId);
 	}
 
 	CompleteLocalCosmeticProfileSyncAttempt();
@@ -372,8 +339,7 @@ bool UControllerProfileSyncComponent::TryConsumeRemoteSkinSyncRequest()
 	}
 
 	const double CurrentTime = World->GetTimeSeconds();
-	if (LastRemoteSkinSyncRequestTime >= 0.0
-		&& CurrentTime - LastRemoteSkinSyncRequestTime
+	if (LastRemoteSkinSyncRequestTime >= 0.0 && CurrentTime - LastRemoteSkinSyncRequestTime
 			< RemoteSkinSyncMinInterval)
 	{
 		return false;

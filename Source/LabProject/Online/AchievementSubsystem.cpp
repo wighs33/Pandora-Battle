@@ -23,11 +23,9 @@ void UAchievementSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	Collection.InitializeDependency<UPlayerProfileSubsystem>();
 	Collection.InitializeDependency<UContentDataSubsystem>();
-	if (UPlayerProfileSubsystem* ProfileSubsystem =
-		GetGameInstance()->GetSubsystem<UPlayerProfileSubsystem>())
+	if (UPlayerProfileSubsystem* ProfileSubsystem = GetGameInstance()->GetSubsystem<UPlayerProfileSubsystem>())
 	{
-		ProfileProgressChangedHandle = ProfileSubsystem->OnProfileProgressChanged().AddUObject(
-			this,
+		ProfileProgressChangedHandle = ProfileSubsystem->OnProfileProgressChanged().AddUObject(this,
 			&ThisClass::EvaluateAndUnlockAchievements);
 	}
 	BeginAchievementDefinitionPreload();
@@ -39,8 +37,7 @@ void UAchievementSubsystem::Deinitialize()
 	{
 		if (const UGameInstance* GameInstance = GetGameInstance())
 		{
-			if (UPlayerProfileSubsystem* ProfileSubsystem =
-				GameInstance->GetSubsystem<UPlayerProfileSubsystem>())
+			if (UPlayerProfileSubsystem* ProfileSubsystem = GameInstance->GetSubsystem<UPlayerProfileSubsystem>())
 			{
 				ProfileSubsystem->OnProfileProgressChanged().Remove(ProfileProgressChangedHandle);
 			}
@@ -140,10 +137,7 @@ int32 UAchievementSubsystem::CalculateAchievementProgressValue(const FAchievemen
 	case EAchievementTrigger::DeathCount:
 		return FMath::Max(Profile.TotalDeathCount, MatchRecordDeathCount);
 	case EAchievementTrigger::RewardGold:
-		return FMath::Max3(
-			Profile.TotalRewardGold,
-			FMath::Max(Profile.Gold, 0),
-			MatchRecordRewardGold);
+		return FMath::Max3(Profile.TotalRewardGold, FMath::Max(Profile.Gold, 0), MatchRecordRewardGold);
 	case EAchievementTrigger::PandoraUnlocked:
 		return Profile.GrantedPandoraCount;
 	case EAchievementTrigger::SkinUnlocked:
@@ -165,22 +159,18 @@ const UAchievementDefinition* UAchievementSubsystem::GetAchievementDefinition()
 	return AchievementDefinition;
 }
 
-bool UAchievementSubsystem::IsSteamAchievementKnown(
-	const FString& AchievementId) const
+bool UAchievementSubsystem::IsSteamAchievementKnown(const FString& AchievementId) const
 {
 	return bAchievementsQueried
-		&& SteamAchievementProgressById.Contains(
-			UAchievementDefinition::NormalizeAchievementId(AchievementId));
+		&& SteamAchievementProgressById.Contains(UAchievementDefinition::NormalizeAchievementId(AchievementId));
 }
 
-bool UAchievementSubsystem::IsSteamAchievementUnlocked(
-	const FString& AchievementId) const
+bool UAchievementSubsystem::IsSteamAchievementUnlocked(const FString& AchievementId) const
 {
 	return GetSteamAchievementProgress(AchievementId) >= 100.0;
 }
 
-double UAchievementSubsystem::GetSteamAchievementProgress(
-	const FString& AchievementId) const
+double UAchievementSubsystem::GetSteamAchievementProgress(const FString& AchievementId) const
 {
 	if (!bAchievementsQueried)
 	{
@@ -205,23 +195,20 @@ const UAchievementDefinition* UAchievementSubsystem::ResolveAchievementDefinitio
 	CachedAchievementDefinition = AchievementData.Get();
 	if (!CachedAchievementDefinition && AchievementData.IsNull() == false)
 	{
-		CachedAchievementDefinition = Cast<UAchievementDefinition>(
-			AchievementData.ToSoftObjectPath().ResolveObject());
+		CachedAchievementDefinition = Cast<UAchievementDefinition>(AchievementData.ToSoftObjectPath().ResolveObject());
 	}
 	return CachedAchievementDefinition;
 }
 
 void UAchievementSubsystem::BeginAchievementDefinitionPreload()
 {
-	if (CachedAchievementDefinition
-		|| (DefinitionLease.IsValid() && DefinitionLease->IsLoading()))
+	if (CachedAchievementDefinition || (DefinitionLease.IsValid() && DefinitionLease->IsLoading()))
 	{
 		return;
 	}
 
-	const FSoftObjectPath AchievementPath =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-			.Achievement.ToSoftObjectPath();
+	const FSoftObjectPath AchievementPath = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+		.Achievement.ToSoftObjectPath();
 	if (AchievementPath.IsNull())
 	{
 		return;
@@ -235,11 +222,8 @@ void UAchievementSubsystem::BeginAchievementDefinitionPreload()
 		return;
 	}
 
-	DefinitionLease = ContentSubsystem->AcquireContent(
-		{AchievementPath},
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleAchievementDefinitionContentReady));
+	DefinitionLease = ContentSubsystem->AcquireContent({AchievementPath},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleAchievementDefinitionContentReady));
 }
 
 void UAchievementSubsystem::BeginAchievementPresentationPreload()
@@ -280,11 +264,8 @@ void UAchievementSubsystem::BeginAchievementPresentationPreload()
 		return;
 	}
 
-	PresentationLease = ContentSubsystem->AcquireContent(
-		PresentationPaths,
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleAchievementPresentationContentReady));
+	PresentationLease = ContentSubsystem->AcquireContent(PresentationPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleAchievementPresentationContentReady));
 }
 
 void UAchievementSubsystem::HandleAchievementPresentationContentReady()
@@ -413,8 +394,7 @@ void UAchievementSubsystem::HandleAchievementsQueried(const FUniqueNetId& Player
 	FlushPendingAchievementUnlocks();
 }
 
-void UAchievementSubsystem::RebuildSteamAchievementSnapshot(
-	const FUniqueNetId& PlayerId)
+void UAchievementSubsystem::RebuildSteamAchievementSnapshot(const FUniqueNetId& PlayerId)
 {
 	const IOnlineAchievementsPtr AchievementsInterface = ResolveAchievementsInterface();
 	if (!AchievementsInterface.IsValid())
@@ -424,9 +404,7 @@ void UAchievementSubsystem::RebuildSteamAchievementSnapshot(
 	}
 
 	TArray<FOnlineAchievement> CachedAchievements;
-	if (AchievementsInterface->GetCachedAchievements(
-			PlayerId,
-			CachedAchievements) != EOnlineCachedResult::Success)
+	if (AchievementsInterface->GetCachedAchievements(PlayerId, CachedAchievements) != EOnlineCachedResult::Success)
 	{
 		bAchievementsQueried = false;
 		return;
@@ -460,10 +438,8 @@ void UAchievementSubsystem::RefreshSteamAchievementQuery()
 void UAchievementSubsystem::QueueUnlockAchievement(FString AchievementId)
 {
 	AchievementId = UAchievementDefinition::NormalizeAchievementId(MoveTemp(AchievementId));
-	if (AchievementId.IsEmpty()
-		|| LocallyUnlockedAchievementIds.Contains(AchievementId)
-		|| InFlightAchievementIds.Contains(AchievementId)
-		|| IsSteamAchievementUnlocked(AchievementId))
+	if (AchievementId.IsEmpty() || LocallyUnlockedAchievementIds.Contains(AchievementId)
+		|| InFlightAchievementIds.Contains(AchievementId) || IsSteamAchievementUnlocked(AchievementId))
 	{
 		return;
 	}
@@ -548,17 +524,12 @@ bool UAchievementSubsystem::WriteAchievementThroughOnlineSubsystem(const FString
 	AchievementsInterface->WriteAchievements(
 		*LocalUserId,
 		WriteObjectRef,
-		FOnAchievementsWrittenDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleAchievementWritten,
-			AchievementId));
+		FOnAchievementsWrittenDelegate::CreateUObject(this, &ThisClass::HandleAchievementWritten, AchievementId));
 
 	return true;
 }
 
-void UAchievementSubsystem::HandleAchievementWritten(
-	const FUniqueNetId& PlayerId,
-	const bool bWasSuccessful,
+void UAchievementSubsystem::HandleAchievementWritten(const FUniqueNetId& PlayerId, const bool bWasSuccessful,
 	FString AchievementId)
 {
 	static_cast<void>(PlayerId);

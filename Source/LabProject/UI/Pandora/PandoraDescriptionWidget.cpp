@@ -66,10 +66,8 @@ void UPandoraDescriptionWidget::SetDetails()
 
 	ViewModel->SetWeaponRequirementTextColor(WeaponRequirementTextColor);
 
-	FPandoraDescriptionViewData ViewData = FPandoraDescriptionViewDataBuilder::Build(
-		PandoraDefinition.Get(),
-		PandoraTreeComponent.Get(),
-		GetLocalization());
+	FPandoraDescriptionViewData ViewData = FPandoraDescriptionViewDataBuilder::Build(PandoraDefinition.Get(),
+		PandoraTreeComponent.Get(), GetLocalization());
 	if (!PandoraTreeComponent && PandoraDefinition && !FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(this, PandoraDefinition))
 	{
 		ViewData.DescriptionText = NSLOCTEXT("PandoraDescriptionWidget", "UnownedPandoraDescription", "You do not own this Pandora.");
@@ -89,9 +87,7 @@ void UPandoraDescriptionWidget::SetDetails()
 			? &ViewData.SkillSlots[SkillSlotIndex]
 			: nullptr;
 
-		ViewModel->SetSkillSlot(
-			SkillSlotIndex,
-			SkillViewData ? SkillViewData->IconResource : nullptr,
+		ViewModel->SetSkillSlot(SkillSlotIndex, SkillViewData ? SkillViewData->IconResource : nullptr,
 			SkillViewData ? SkillViewData->DisplayName : FText::GetEmpty(),
 			SkillViewData ? SkillViewData->Description : FText::GetEmpty(),
 			SkillViewData ? SkillViewData->ManaText : FText::GetEmpty(),
@@ -115,8 +111,7 @@ void UPandoraDescriptionWidget::ResolvePandoraTreeComponent()
 
 void UPandoraDescriptionWidget::ApplyEffectIconResources()
 {
-	const TArray<UImage*> EffectIconResources =
-	{
+	const TArray<UImage*> EffectIconResources = {
 		EffectIconResource1.Get(),
 		EffectIconResource2.Get(),
 		EffectIconResource3.Get()
@@ -124,13 +119,8 @@ void UPandoraDescriptionWidget::ApplyEffectIconResources()
 
 	for (int32 SkillIndex = 0; SkillIndex < EffectIconResources.Num(); ++SkillIndex)
 	{
-		const USkillDefinition* Skill = PandoraDefinition
-			? PandoraDefinition->GetSkillDefinition(SkillIndex)
-			: nullptr;
-		PdSkillEffectIconResolver::ApplySkillEffectIcon(
-			this,
-			Skill,
-			EffectIconResources[SkillIndex]);
+		const USkillDefinition* Skill = PandoraDefinition ? PandoraDefinition->GetSkillDefinition(SkillIndex) : nullptr;
+		PdSkillEffectIconResolver::ApplySkillEffectIcon(this, Skill, EffectIconResources[SkillIndex]);
 	}
 }
 

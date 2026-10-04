@@ -417,12 +417,8 @@ void ATitleHUD::ShowPendingGameResult()
 		return;
 	}
 
-	GameResultWidget->SetInfo(
-		GameResultData.WinnerTitle,
-		GameResultData.WinnerTeamColorIndex,
-		GameResultData.MaxKillerName,
-		GameResultData.MaxKillCount,
-		GameResultData.PlayerStats);
+	GameResultWidget->SetInfo(GameResultData.WinnerTitle, GameResultData.WinnerTeamColorIndex,
+		GameResultData.MaxKillerName, GameResultData.MaxKillCount, GameResultData.PlayerStats);
 	GameResultWidget->SetExitToLobbyEnabled(GameResultData.bAllowLobbyTravelOnExit);
 	GameResultWidget->SetShowRewards(GameResultData.bShowRewards);
 	GameResultWidget->ShowResultScreen();

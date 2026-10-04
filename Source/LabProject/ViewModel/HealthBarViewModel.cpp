@@ -22,10 +22,8 @@ namespace HealthBarViewModel
 
 	FText MakeHealthText(const float InHealth, const float InMaxHealth)
 	{
-		return FText::Format(
-			NSLOCTEXT("HealthBarViewModel", "HealthTextFormat", "{0}/{1}"),
-			FText::AsNumber(FMath::RoundToInt(InHealth)),
-			FText::AsNumber(FMath::RoundToInt(InMaxHealth)));
+		return FText::Format(NSLOCTEXT("HealthBarViewModel", "HealthTextFormat", "{0}/{1}"),
+			FText::AsNumber(FMath::RoundToInt(InHealth)), FText::AsNumber(FMath::RoundToInt(InMaxHealth)));
 	}
 
 	float GetRequiredExperienceForNextLevel(UAbilitySystemComponent* ASC)
@@ -37,10 +35,8 @@ namespace HealthBarViewModel
 
 	FText MakeExperienceText(const float InExperience, const float InMaxExperience)
 	{
-		return FText::Format(
-			NSLOCTEXT("HealthBarViewModel", "ExperienceTextFormat", "{0}/{1}"),
-			FText::AsNumber(FMath::RoundToInt(InExperience)),
-			FText::AsNumber(FMath::RoundToInt(InMaxExperience)));
+		return FText::Format(NSLOCTEXT("HealthBarViewModel", "ExperienceTextFormat", "{0}/{1}"),
+			FText::AsNumber(FMath::RoundToInt(InExperience)), FText::AsNumber(FMath::RoundToInt(InMaxExperience)));
 	}
 }
 

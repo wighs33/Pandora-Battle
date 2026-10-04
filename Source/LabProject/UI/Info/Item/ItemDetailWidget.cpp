@@ -151,8 +151,7 @@ void UItemDetailWidget::SetHeader(const FItemViewData& ViewData) const
 	}
 }
 
-void UItemDetailWidget::PopulateStats(
-	const TMap<FGameplayTag, float>& NewStats,
+void UItemDetailWidget::PopulateStats(const TMap<FGameplayTag, float>& NewStats,
 	const TMap<FGameplayTag, float>& UpgradeBonusStats)
 {
 	if (!StatsList)
@@ -176,10 +175,7 @@ void UItemDetailWidget::PopulateStats(
 	}
 }
 
-void UItemDetailWidget::AddStatRow(
-	const FGameplayTag StatTag,
-	const float NewValue,
-	const float UpgradeBonusValue)
+void UItemDetailWidget::AddStatRow(const FGameplayTag StatTag, const float NewValue, const float UpgradeBonusValue)
 {
 	if (!StatsList)
 	{
@@ -191,8 +187,7 @@ void UItemDetailWidget::AddStatRow(
 	if (RoundedUpgradeBonus != 0)
 	{
 		const FString UpgradeSign = RoundedUpgradeBonus > 0 ? TEXT("+") : TEXT("");
-		ValueText += FString::Printf(
-			TEXT(" (%s%d)"),
+		ValueText += FString::Printf(TEXT(" (%s%d)"),
 			*UpgradeSign,
 			RoundedUpgradeBonus);
 	}

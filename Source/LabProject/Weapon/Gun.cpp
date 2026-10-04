@@ -516,11 +516,9 @@ bool AGun::TraceGunShot(APdPlayer* PlayerCharacter, const FVector& RequestedView
 		return true;
 	}
 
-	// In third-person aiming, the camera ray can hit the character mesh while the
-	// short muzzle-to-crosshair convergence ray narrowly misses its physics bodies.
-	// Reuse only that exact primary-mesh aim hit after the muzzle trace confirms that
-	// no valid world or character impact blocked the path. Capsules and interaction
-	// components remain ineligible for damage.
+	// 3인칭 조준에서는 카메라 광선이 캐릭터 메시에 맞아도, 총구에서 조준점으로 모이는 짧은 광선은
+	// 그 물리 바디를 아슬아슬하게 비껴갈 수 있다. 총구 trace가 유효한 월드·캐릭터 충돌에 막히지 않은
+	// 것을 확인한 뒤에만 그 주 메시 조준 맞음을 다시 쓴다. 캡슐과 상호작용 컴포넌트는 여전히 피해 대상이 아니다.
 	const ACharacterBase* AimDamageCharacter =
 		PdCharacterHitValidation::ResolveWeaponDamageHit(AimHitResult.GetActor(), AimHitResult.GetComponent());
 	if (!AimDamageCharacter)

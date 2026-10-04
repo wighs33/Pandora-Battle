@@ -248,8 +248,7 @@ void USkinSlotWidget::ApplySelectionVisual()
 
 FLinearColor USkinSlotWidget::ResolveAssignedBackgroundColor() const
 {
-	const UWidgetClassDefinition* WidgetDefinition =
-		UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
 	const FInventoryWidgetSettings DefaultSettings;
 	return WidgetDefinition
 		? WidgetDefinition->GetInventoryWidgetSettings().AssignedItemBackgroundColor

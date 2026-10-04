@@ -38,9 +38,7 @@ FVector PdSkillProjectileFlight::CalculateArcLaunchVelocity(const FLaunchParams&
 	return HorizontalVelocity + FVector::UpVector * VerticalVelocity;
 }
 
-void PdSkillProjectileFlight::Launch(
-	UProjectileMovementComponent& Movement,
-	USceneComponent* UpdatedComponent,
+void PdSkillProjectileFlight::Launch(UProjectileMovementComponent& Movement, USceneComponent* UpdatedComponent,
 	const FLaunchParams& Params)
 {
 	if (Params.Speed <= 0.0f)

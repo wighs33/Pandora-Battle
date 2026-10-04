@@ -42,8 +42,7 @@ void UPandoraComponent::GrantPandoraSkills(
 	UPdAbilitySystemComponent* ASC, const UPandoraDefinition* Definition, const int32 PandoraLevel,
 	const EEnum_Direction LoadoutDirection)
 {
-	if (!ASC || GetOwner() != ASC->GetOwner()
-		|| !ASC->IsOwnerActorAuthoritative() || !Definition)
+	if (!ASC || GetOwner() != ASC->GetOwner() || !ASC->IsOwnerActorAuthoritative() || !Definition)
 	{
 		return;
 	}
@@ -245,8 +244,7 @@ void UPandoraComponent::HandleGrantedAbilityRemoved(const FGameplayAbilitySpec& 
 
 void UPandoraComponent::ReleaseSkillSourceIfUnused(UPandoraSkillSource* Source, const FGameplayAbilitySpecHandle RemovedHandle)
 {
-	if (!HasPandoraAuthority() || !IsValid(Source) || Source->GetOuter() != this
-		|| !OwnedSkillSources.Contains(Source))
+	if (!HasPandoraAuthority() || !IsValid(Source) || Source->GetOuter() != this || !OwnedSkillSources.Contains(Source))
 	{
 		return;
 	}

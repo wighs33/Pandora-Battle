@@ -11,16 +11,13 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyPlayerSetupComponent)
 
-ULobbyPlayerSetupComponent::
-ULobbyPlayerSetupComponent()
+ULobbyPlayerSetupComponent:: ULobbyPlayerSetupComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
 void ULobbyPlayerSetupComponent::
-InitializeLobbyPlayerState(
-	APlayerController* PlayerController,
-	APdPlayerState* LobbyPlayerState)
+	InitializeLobbyPlayerState(APlayerController* PlayerController, APdPlayerState* LobbyPlayerState)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
 	if (!GameMode || !GameMode->HasAuthority() || !LobbyPlayerState)
@@ -59,54 +56,37 @@ InitializeLobbyPlayerState(
 	AssignLobbySpawnIndexIfNeeded(LobbyPlayerState);
 }
 
-ALobbyGameMode*
-ULobbyPlayerSetupComponent::GetLobbyGameMode() const
+ALobbyGameMode* ULobbyPlayerSetupComponent::GetLobbyGameMode() const
 {
 	return Cast<ALobbyGameMode>(GetOwner());
 }
 
-void ULobbyPlayerSetupComponent::
-AssignLobbySpawnIndexIfNeeded(
-	APdPlayerState* LobbyPlayerState) const
+void ULobbyPlayerSetupComponent:: AssignLobbySpawnIndexIfNeeded(APdPlayerState* LobbyPlayerState) const
 {
-	if (!LobbyPlayerState
-		|| LobbyPlayerState->GetPlayerMatchComponent()
-			->GetMatchSpawnIndex() != INDEX_NONE)
+	if (!LobbyPlayerState || LobbyPlayerState->GetPlayerMatchComponent()->GetMatchSpawnIndex() != INDEX_NONE)
 	{
 		return;
 	}
 
-	LobbyPlayerState->GetPlayerMatchComponent()
-		->SetMatchSpawnIndex(
-			FindAvailableLobbySpawnIndex(
-				LobbyPlayerState));
+	LobbyPlayerState->GetPlayerMatchComponent()->SetMatchSpawnIndex(FindAvailableLobbySpawnIndex(LobbyPlayerState));
 }
 
-int32 ULobbyPlayerSetupComponent::
-FindAvailableLobbySpawnIndex(
-	const APdPlayerState* IgnoredPlayerState) const
+int32 ULobbyPlayerSetupComponent:: FindAvailableLobbySpawnIndex(const APdPlayerState* IgnoredPlayerState) const
 {
-	const ALobbyGameMode* GameMode =
-		GetLobbyGameMode();
+	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	TSet<int32> UsedSpawnIndices;
 	if (GameMode && GameMode->GameState)
 	{
-		for (APlayerState* PlayerState :
-			GameMode->GameState->PlayerArray)
+		for (APlayerState* PlayerState : GameMode->GameState->PlayerArray)
 		{
-			const APdPlayerState* LobbyPlayerState =
-				Cast<APdPlayerState>(PlayerState);
-			if (!LobbyPlayerState
-				|| LobbyPlayerState
+			const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState);
+			if (!LobbyPlayerState || LobbyPlayerState
 					== IgnoredPlayerState)
 			{
 				continue;
 			}
 
-			const int32 SpawnIndex =
-				LobbyPlayerState
-					->GetPlayerMatchComponent()
-					->GetMatchSpawnIndex();
+			const int32 SpawnIndex = LobbyPlayerState->GetPlayerMatchComponent()->GetMatchSpawnIndex();
 			if (SpawnIndex != INDEX_NONE)
 			{
 				UsedSpawnIndices.Add(SpawnIndex);

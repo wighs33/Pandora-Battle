@@ -39,12 +39,8 @@ void UDamageScreenEffectWidget::PlayDamageScreenEffect(float DamageAmount)
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(
-			HideTimerHandle,
-			this,
-			&ThisClass::HideDamageScreenEffect,
-			FallbackVisibleDuration,
-			false);
+		World->GetTimerManager().SetTimer(HideTimerHandle, this, &ThisClass::HideDamageScreenEffect,
+			FallbackVisibleDuration, false);
 	}
 }
 

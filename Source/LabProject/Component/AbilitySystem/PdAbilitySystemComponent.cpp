@@ -15,8 +15,7 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdAbilitySystemComponent)
 
 // 생성자
-UPdAbilitySystemComponent::UPdAbilitySystemComponent(
-	const FObjectInitializer& ObjectInitializer)
+UPdAbilitySystemComponent::UPdAbilitySystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// 서버/클라이언트 동기화가 자동
@@ -30,8 +29,7 @@ UPdAbilitySystemComponent::UPdAbilitySystemComponent(
 }
 
 // 능력이 회수될 때 입력과 연출을 정리하고, 자원 소유자와 UI에 회수를 알린다.
-void UPdAbilitySystemComponent::OnRemoveAbility(
-	FGameplayAbilitySpec& AbilitySpec)
+void UPdAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& AbilitySpec)
 {
     AbilityGrantAndInputManager->ClearAbilityInput(*this, AbilitySpec.Handle);
 
@@ -41,9 +39,7 @@ void UPdAbilitySystemComponent::OnRemoveAbility(
     OnAbilitiesChangedNative.Broadcast();
 }
 
-void UPdAbilitySystemComponent::NotifyAbilityEnded(
-	FGameplayAbilitySpecHandle Handle,
-	UGameplayAbility* Ability,
+void UPdAbilitySystemComponent::NotifyAbilityEnded(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability,
 	bool bWasCancelled)
 {
 	AbilityGrantAndInputManager->ClearAbilityInput(*this, Handle);
@@ -51,9 +47,7 @@ void UPdAbilitySystemComponent::NotifyAbilityEnded(
 	Super::NotifyAbilityEnded(Handle, Ability, bWasCancelled);
 }
 
-void UPdAbilitySystemComponent::NotifyAbilityFailed(
-	const FGameplayAbilitySpecHandle Handle,
-	UGameplayAbility* Ability,
+void UPdAbilitySystemComponent::NotifyAbilityFailed(const FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability,
 	const FGameplayTagContainer& FailureReason)
 {
 	AbilityGrantAndInputManager->ClearAbilityInput(*this, Handle);
@@ -61,17 +55,14 @@ void UPdAbilitySystemComponent::NotifyAbilityFailed(
 	Super::NotifyAbilityFailed(Handle, Ability, FailureReason);
 }
 
-void UPdAbilitySystemComponent::ClientActivateAbilityFailed_Implementation(
-	FGameplayAbilitySpecHandle Handle,
+void UPdAbilitySystemComponent::ClientActivateAbilityFailed_Implementation(FGameplayAbilitySpecHandle Handle,
 	int16 PredictionKey)
 {
 	// 늦게 도착한 이전 시전의 실패 응답이 현재 시전의 입력을 지우지 않도록 PredictionKey를 확인한다.
 	FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(Handle);
 	const UGameplayAbility* Instance = Spec ? Spec->GetPrimaryInstance() : nullptr;
 
-	if (Instance &&
-		Instance->GetCurrentActivationInfo()
-			.GetActivationPredictionKey().Current == PredictionKey)
+	if (Instance && Instance->GetCurrentActivationInfo().GetActivationPredictionKey().Current == PredictionKey)
 	{
 		AbilityGrantAndInputManager->ClearAbilityInput(*this, Handle);
 	}
@@ -88,8 +79,7 @@ void UPdAbilitySystemComponent::OnRep_ActivateAbilities()
 
 // 서버에서 기본값과 시작 투자분을 검증해 최대 자원, 현재 자원 순서로 초기화한다.
 // 초기화 시점과 중복 호출 방지는 호출하는 플레이어·적 컴포넌트가 담당한다.
-bool UPdAbilitySystemComponent::ApplyConfiguredAttributeDefaults(
-	const UStatUpgradeDefinition& Definition)
+bool UPdAbilitySystemComponent::ApplyConfiguredAttributeDefaults(const UStatUpgradeDefinition& Definition)
 {
 	if (!IsOwnerActorAuthoritative() || !GetSet<UBasicAttributeSet>())
 	{
@@ -127,9 +117,7 @@ bool UPdAbilitySystemComponent::ApplyConfiguredAttributeDefaults(
 			return false;
 		}
 
-		SetNumericAttributeBase(
-			CurrentAttribute,
-			GetNumericAttribute(MaxAttribute));
+		SetNumericAttributeBase(CurrentAttribute, GetNumericAttribute(MaxAttribute));
 	}
 
 	if (AActor* Owner = GetOwner())
@@ -141,8 +129,7 @@ bool UPdAbilitySystemComponent::ApplyConfiguredAttributeDefaults(
 }
 
 // 서버에서 값을 검증해 GAS 기본값을 변경한다. Dirty 표시는 엔진에 맡기고 복제 갱신을 요청한다.
-bool UPdAbilitySystemComponent::ApplyAttributeDefaultValue(
-	const FGameplayAttribute& Attribute,
+bool UPdAbilitySystemComponent::ApplyAttributeDefaultValue(const FGameplayAttribute& Attribute,
 	const float DefaultValue)
 {
 	if (!IsOwnerActorAuthoritative() || !Attribute.IsValid() || !FMath::IsFinite(DefaultValue)
@@ -162,8 +149,7 @@ bool UPdAbilitySystemComponent::ApplyAttributeDefaultValue(
 }
 
 // 로컬 입력이 유효하면 누름을 즉시 전달한다. 일시 정지와 월드 전환 중에는 새 시전을 시작하지 않는다.
-void UPdAbilitySystemComponent::HandleAbilityInputPressed(
-	const FGameplayTag& InputTag)
+void UPdAbilitySystemComponent::HandleAbilityInputPressed(const FGameplayTag& InputTag)
 {
 	if (!GetWorld() || GetWorld()->IsPaused() || !AbilityActorInfo.IsValid()
 		|| !AbilityActorInfo->OwnerActor.IsValid() || !AbilityActorInfo->AvatarActor.IsValid()
@@ -175,8 +161,7 @@ void UPdAbilitySystemComponent::HandleAbilityInputPressed(
 }
 
 // 해제는 일시 정지·입력 차단과 무관하게 누름 기록을 소비하고, 유효한 로컬 시전에 즉시 전달한다.
-void UPdAbilitySystemComponent::HandleAbilityInputReleased(
-	const FGameplayTag& InputTag)
+void UPdAbilitySystemComponent::HandleAbilityInputReleased(const FGameplayTag& InputTag)
 {
 	AbilityGrantAndInputManager->HandleAbilityInputReleased(*this, InputTag);
 }
@@ -189,34 +174,28 @@ const FGameplayAbilitySpec* UPdAbilitySystemComponent::FindActiveAbilitySpecByTa
 }
 
 // 동작 간 충돌을 판단할 때, 지정한 종류의 능력이 실행 중인지만 확인한다. 부여되어 있지만 쉬고 있는 능력은 제외한다.
-bool UPdAbilitySystemComponent::HasActiveAbilityWithTags(
-	const FGameplayTagContainer& AbilityTags) const
+bool UPdAbilitySystemComponent::HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const
 {
 	return FindActiveAbilitySpecByTags(AbilityTags) != nullptr;
 }
 
 // 여러 스킬을 하나의 동작 범주로 묶어 실행 여부를 확인한다. 적 AI는 근접·원거리·주먹 공격 중 하나라도 진행 중인지 판단한다.
-bool UPdAbilitySystemComponent::HasActiveAbilityOfAnyClass(
-	const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
+bool UPdAbilitySystemComponent::HasActiveAbilityOfAnyClass(const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
 	const bool bIncludeChildClasses) const
 {
 	return AbilityGrantAndInputManager->HasActiveAbilityOfAnyClass(*this, AbilityClasses, bIncludeChildClasses);
 }
 
 // 여러 스탯의 변화량을 하나의 GameplayEffect에 담아 서버에서 자신에게 적용한다. 각 변화량과 연산 방식은 태그로 전달한다.
-bool UPdAbilitySystemComponent::ApplyStatUpEffectByTags(
-	TSubclassOf<UGameplayEffect> GameplayEffectClass,
-	const TMap<FGameplayTag, float>& StatMagnitudes,
-	const EEnum_Operation Operation,
-	const float Level)
+bool UPdAbilitySystemComponent::ApplyStatUpEffectByTags(TSubclassOf<UGameplayEffect> GameplayEffectClass,
+	const TMap<FGameplayTag, float>& StatMagnitudes, const EEnum_Operation Operation, const float Level)
 {
 	if (!IsOwnerActorAuthoritative() || !GameplayEffectClass || StatMagnitudes.IsEmpty())
 	{
 		return false;
 	}
 
-	FGameplayEffectSpecHandle SpecHandle =
-		MakeOutgoingSpec(GameplayEffectClass, Level, MakeEffectContext());
+	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(GameplayEffectClass, Level, MakeEffectContext());
 
 	if (!SpecHandle.IsValid())
 	{
@@ -238,15 +217,13 @@ bool UPdAbilitySystemComponent::ApplyStatUpEffectByTags(
 // 서버에서 캐릭터가 사용할 능력을 중복 없이 부여하고, 나중에 회수할 핸들을 돌려준다.
 // 자동 실행 대상으로 설정된 능력은 부여 후 실행도 시도한다.
 TArray<FGameplayAbilitySpecHandle> UPdAbilitySystemComponent::GrantAbilities(
-	const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses,
-	const int32 AbilityLevel)
+	const TArray<TSubclassOf<UGameplayAbility>>& AbilityClasses, const int32 AbilityLevel)
 {
 	return AbilityGrantAndInputManager->GrantAbilities(*this, AbilityClasses, AbilityLevel);
 }
 
 // 기능 해제나 구성 변경 시 서버에서 지정한 능력의 부여를 회수한다. 시전만 중단하는 리셋과 달리 능력 목록에서도 제거한다.
-void UPdAbilitySystemComponent::RemoveAbilities(
-	const TArray<FGameplayAbilitySpecHandle>& AbilityHandles)
+void UPdAbilitySystemComponent::RemoveAbilities(const TArray<FGameplayAbilitySpecHandle>& AbilityHandles)
 {
 	AbilityGrantAndInputManager->RemoveAbilities(*this, AbilityHandles);
 }
@@ -302,10 +279,8 @@ void UPdAbilitySystemComponent::CancelActiveAbilitiesForDeath()
 		{
 			AbilitySpec.InputPressed = false;
 
-			if (!AbilitySpec.Ability
-				|| !AbilitySpec.IsActive()
-				|| AbilitySpec.Ability->GetAssetTags().HasTagExact(
-					LabGameplayTags::GameplayAbility_Death))
+			if (!AbilitySpec.Ability || !AbilitySpec.IsActive()
+				|| AbilitySpec.Ability->GetAssetTags().HasTagExact(LabGameplayTags::GameplayAbility_Death))
 			{
 				continue;
 			}
@@ -343,10 +318,8 @@ int32 UPdAbilitySystemComponent::ClearStatusEffectsForRespawn()
 }
 
 // 서버에서 지정된 효과·직접 부여한 상태 태그·지속 연출을 제거한다. 반환값은 제거된 GameplayEffect 수다.
-int32 UPdAbilitySystemComponent::RemoveRuntimeEffects(
-	const FGameplayTagContainer& EffectTags,
-	const FGameplayTagContainer& OwnedTags,
-	const FGameplayTagContainer& LooseTags,
+int32 UPdAbilitySystemComponent::RemoveRuntimeEffects(const FGameplayTagContainer& EffectTags,
+	const FGameplayTagContainer& OwnedTags, const FGameplayTagContainer& LooseTags,
 	const FGameplayTagContainer& GameplayCues)
 {
 	if (!IsOwnerActorAuthoritative())
@@ -380,13 +353,9 @@ int32 UPdAbilitySystemComponent::RemoveRuntimeEffects(
 	return FMath::Max(InitialCount - GetNumActiveGameplayEffects(), 0);
 }
 
-void UPdAbilitySystemComponent::ApplyAbilityBlockAndCancelTags(
-	const FGameplayTagContainer& AbilityTags,
-	UGameplayAbility* RequestingAbility,
-	bool bEnableBlockTags,
-	const FGameplayTagContainer& BlockTags,
-	bool bExecuteCancelTags,
-	const FGameplayTagContainer& CancelTags)
+void UPdAbilitySystemComponent::ApplyAbilityBlockAndCancelTags(const FGameplayTagContainer& AbilityTags,
+	UGameplayAbility* RequestingAbility, bool bEnableBlockTags, const FGameplayTagContainer& BlockTags,
+	bool bExecuteCancelTags, const FGameplayTagContainer& CancelTags)
 {
 	Super::ApplyAbilityBlockAndCancelTags(AbilityTags, RequestingAbility, bEnableBlockTags, BlockTags, false, CancelTags);
 	if (!bExecuteCancelTags || CancelTags.IsEmpty()) return;

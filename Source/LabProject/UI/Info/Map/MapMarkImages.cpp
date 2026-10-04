@@ -30,9 +30,7 @@ void FMapMarkImages::Configure(const FMapWidgetSettings& Settings)
 		const int32 TeamColorIndex = TeamColorToIndex(TeamMarkImage.TeamColor);
 		if (!TeamMarkImage.TeamMarkImage.IsNull())
 		{
-			TeamMarkImagesByTeamColorIndex.Add(
-				TeamColorIndex,
-				TeamMarkImage.TeamMarkImage);
+			TeamMarkImagesByTeamColorIndex.Add(TeamColorIndex, TeamMarkImage.TeamMarkImage);
 		}
 
 		if (HasPositiveSize(TeamMarkImage.TeamMarkImageSize))
@@ -52,26 +50,18 @@ bool FMapMarkImages::ApplyCharacterMark(UImage* MarkWidget) const
 	return ApplyImage(MarkWidget, CharacterMarkImage.Get(), CharacterMarkImageSize);
 }
 
-bool FMapMarkImages::ApplyTeamMark(
-	UImage* MarkWidget,
-	const int32 TeamColorIndex) const
+bool FMapMarkImages::ApplyTeamMark(UImage* MarkWidget, const int32 TeamColorIndex) const
 {
 	if (!MarkWidget)
 	{
 		return false;
 	}
 
-	const int32 NormalizedTeamColorIndex = FMath::Clamp(
-		TeamColorIndex,
-		0,
-		TeamColorToIndex(ETeamColor::Orange));
-	const TSoftObjectPtr<UObject>* FoundResource =
-		TeamMarkImagesByTeamColorIndex.Find(NormalizedTeamColorIndex);
+	const int32 NormalizedTeamColorIndex = FMath::Clamp(TeamColorIndex, 0, TeamColorToIndex(ETeamColor::Orange));
+	const TSoftObjectPtr<UObject>* FoundResource = TeamMarkImagesByTeamColorIndex.Find(NormalizedTeamColorIndex);
 	UObject* ResourceObject = FoundResource ? FoundResource->Get() : nullptr;
 	FVector2D DesiredImageSize = FVector2D::ZeroVector;
-	if (const FVector2D* FoundImageSize =
-		TeamMarkImageSizesByTeamColorIndex.Find(
-			NormalizedTeamColorIndex))
+	if (const FVector2D* FoundImageSize = TeamMarkImageSizesByTeamColorIndex.Find(NormalizedTeamColorIndex))
 	{
 		DesiredImageSize = *FoundImageSize;
 	}
@@ -101,10 +91,7 @@ bool FMapMarkImages::ApplyTeamMark(
 			? LabTeamColorUtils::GetTeamColor(
 				NormalizedTeamColorIndex)
 			: FLinearColor::White);
-	return ApplyImage(
-		MarkWidget,
-		ResourceObject,
-		DesiredImageSize);
+	return ApplyImage(MarkWidget, ResourceObject, DesiredImageSize);
 }
 
 FVector2D FMapMarkImages::GetDefaultMarkSize()

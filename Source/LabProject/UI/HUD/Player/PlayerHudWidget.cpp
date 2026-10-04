@@ -47,10 +47,8 @@ void UPlayerHudWidget::NativeConstruct()
 	Super::NativeConstruct();
 	ClearTransactionalFlagsForRuntimeWidget(this);
 	// Steam 업적 조회 결과와 업적 아이콘 로딩 완료 때 아바타 아이콘을 다시 그린다.
-	if (UAchievementSubsystem* AchievementSubsystem = AchievementSubscription.Subscribe(
-		GetGameInstance(),
-		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleAchievementDisplayChanged),
-		true))
+	if (UAchievementSubsystem* AchievementSubsystem = AchievementSubscription.Subscribe(GetGameInstance(),
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleAchievementDisplayChanged), true))
 	{
 		AchievementSubsystem->RequestSteamAchievementQuery();
 	}
@@ -111,8 +109,7 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 		PlayerAvatarImage->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	UAchievementSubsystem* AchievementSubsystem =
-		UGameInstance::GetSubsystem<UAchievementSubsystem>(GetGameInstance());
+	UAchievementSubsystem* AchievementSubsystem = UGameInstance::GetSubsystem<UAchievementSubsystem>(GetGameInstance());
 	if (!AchievementSubsystem)
 	{
 		return false;
@@ -142,8 +139,7 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 		return false;
 	}
 
-	const FName SelectedAchievementId =
-		ProfileSubsystem->GetSelectedAchievementId();
+	const FName SelectedAchievementId = ProfileSubsystem->GetSelectedAchievementId();
 	if (SelectedAchievementId.IsNone())
 	{
 		return true;
@@ -186,9 +182,7 @@ void UPlayerHudWidget::HandleAchievementDisplayChanged()
 	RefreshAchievementAvatar();
 }
 
-UImage* UPlayerHudWidget::FindImageInUserWidget(
-	UUserWidget* RootWidget,
-	const FName ImageName) const
+UImage* UPlayerHudWidget::FindImageInUserWidget(UUserWidget* RootWidget, const FName ImageName) const
 {
 	if (!RootWidget || !RootWidget->WidgetTree)
 	{
@@ -203,9 +197,7 @@ UImage* UPlayerHudWidget::FindImageInUserWidget(
 	return FindImageInWidget(RootWidget->WidgetTree->RootWidget, ImageName);
 }
 
-UImage* UPlayerHudWidget::FindImageInWidget(
-	UWidget* RootWidget,
-	const FName ImageName) const
+UImage* UPlayerHudWidget::FindImageInWidget(UWidget* RootWidget, const FName ImageName) const
 {
 	if (!RootWidget)
 	{
@@ -232,8 +224,7 @@ UImage* UPlayerHudWidget::FindImageInWidget(
 	{
 		for (int32 ChildIndex = 0; ChildIndex < PanelWidget->GetChildrenCount(); ++ChildIndex)
 		{
-			if (UImage* FoundImage =
-				FindImageInWidget(PanelWidget->GetChildAt(ChildIndex), ImageName))
+			if (UImage* FoundImage = FindImageInWidget(PanelWidget->GetChildAt(ChildIndex), ImageName))
 			{
 				return FoundImage;
 			}
@@ -269,15 +260,13 @@ void UPlayerHudWidget::RefreshKillBoxVisibility()
 bool UPlayerHudWidget::IsTrainingRoomMap() const
 {
 	const UWorld* World = GetWorld();
-	const ULevelDefinition* Levels =
-		ULevelDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
 	if (!World || !Levels)
 	{
 		return false;
 	}
 
-	return Levels->IsTrainingRoomMapName(
-		UGameplayStatics::GetCurrentLevelName(this, true));
+	return Levels->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(this, true));
 }
 
 void UPlayerHudWidget::RebuildKillBox()
@@ -322,9 +311,7 @@ void UPlayerHudWidget::BuildKillBoxWidgetsForTeams(const TArray<int32>& TeamColo
 		}
 		ClearTransactionalFlagsForRuntimeWidget(KillBoxWidget);
 
-		KillBoxWidget->SetTeamInfo(
-			TeamColorIndex,
-			ResolveTeamName(TeamColorIndex),
+		KillBoxWidget->SetTeamInfo(TeamColorIndex, ResolveTeamName(TeamColorIndex),
 			LabTeamColorUtils::GetTeamColor(TeamColorIndex));
 		KillBoxWidget->SetKillCount(0);
 
@@ -342,12 +329,8 @@ void UPlayerHudWidget::StartKillBoxRefreshTimer()
 {
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(
-			KillBoxRefreshTimerHandle,
-			this,
-			&ThisClass::RefreshKillBox,
-			ResolveKillBoxRefreshInterval(),
-			true);
+		World->GetTimerManager().SetTimer(KillBoxRefreshTimerHandle, this, &ThisClass::RefreshKillBox,
+			ResolveKillBoxRefreshInterval(), true);
 	}
 }
 
@@ -383,8 +366,7 @@ void UPlayerHudWidget::RefreshKillBox()
 	}
 }
 
-void UPlayerHudWidget::ResolveActiveTeamStats(
-	TArray<int32>& OutTeamColorIndices,
+void UPlayerHudWidget::ResolveActiveTeamStats(TArray<int32>& OutTeamColorIndices,
 	TMap<int32, int32>& OutKillCountByTeam) const
 {
 	OutTeamColorIndices.Reset();
@@ -405,8 +387,7 @@ void UPlayerHudWidget::ResolveActiveTeamStats(
 			continue;
 		}
 
-		const int32 TeamColorIndex =
-			PdPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex();
+		const int32 TeamColorIndex = PdPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex();
 		if (TeamColorIndex == INDEX_NONE)
 		{
 			continue;
@@ -418,8 +399,7 @@ void UPlayerHudWidget::ResolveActiveTeamStats(
 			OutKillCountByTeam.Add(TeamColorIndex, 0);
 		}
 
-		OutKillCountByTeam.FindChecked(TeamColorIndex) +=
-			PdPlayerState->GetPlayerMatchComponent()->GetKillCount();
+		OutKillCountByTeam.FindChecked(TeamColorIndex) += PdPlayerState->GetPlayerMatchComponent()->GetKillCount();
 	}
 
 	OutTeamColorIndices.Sort();
@@ -499,11 +479,7 @@ FText UPlayerHudWidget::ResolveTeamName(const int32 TeamColorIndex) const
 bool UPlayerHudWidget::CanRebuildKillBox() const
 {
 	const UWorld* World = GetWorld();
-	return !IsDesignTime()
-		&& World
-		&& World->IsGameWorld()
-		&& HorizontalBox_KillBox
-		&& !IsTrainingRoomMap();
+	return !IsDesignTime() && World && World->IsGameWorld() && HorizontalBox_KillBox && !IsTrainingRoomMap();
 }
 
 void UPlayerHudWidget::CenterKillBoxContainer() const

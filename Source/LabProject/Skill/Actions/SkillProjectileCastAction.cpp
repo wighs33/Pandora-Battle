@@ -288,10 +288,8 @@ bool USkillProjectileCastAction::ExecuteProjectileShot(FVector TargetLocation)
        return true;
     }
 
-    UE_LOG(
-       LogProjectileAbility,
-       Error,
-       TEXT("Projectile skill %s committed but failed to spawn its authoritative projectile."),
+    UE_LOG(LogProjectileAbility, Error,
+        TEXT("Projectile skill %s committed but failed to spawn its authoritative projectile."),
        *GetNameSafe(GetAbility()->GetSourceSkillDataAsset()));
     Finish(false);
     return false;
@@ -422,11 +420,8 @@ void USkillProjectileCastAction::HandleTargetDataValid(const FGameplayAbilityTar
     }
 }
 
-bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(
-    const FHitResult& ClientHitResult,
-    const FVector& TargetDataEndPoint,
-    const bool bUsingGroundTargeting,
-    FVector& OutValidatedLocation) const
+bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(const FHitResult& ClientHitResult,
+    const FVector& TargetDataEndPoint, const bool bUsingGroundTargeting, FVector& OutValidatedLocation) const
 {
     AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
     FVector RequestedLocation = FVector::ZeroVector;
@@ -447,13 +442,8 @@ bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(
        ValidationParams.LineOfSightProfileName = Settings.GroundTargetingTraceProfile.Name;
 
        PdTargetValidator::FValidatedGroundTarget ValidatedTarget;
-       if (!PdTargetValidator::ValidateGroundTarget(
-          World,
-          AvatarActor,
-          CharacterLocation,
-          RequestedLocation,
-          ValidationParams,
-          ValidatedTarget))
+       if (!PdTargetValidator::ValidateGroundTarget(World, AvatarActor, CharacterLocation, RequestedLocation,
+           ValidationParams, ValidatedTarget))
        {
           return false;
        }
@@ -461,8 +451,7 @@ bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(
        const FVector GroundNormal = ValidatedTarget.Normal.IsNearlyZero()
           ? FVector::UpVector
           : ValidatedTarget.Normal.GetSafeNormal();
-       OutValidatedLocation = ValidatedTarget.Location
-          + GroundNormal * GetConfiguredProjectileRadius();
+       OutValidatedLocation = ValidatedTarget.Location + GroundNormal * GetConfiguredProjectileRadius();
        return true;
     }
 
@@ -471,14 +460,8 @@ bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(
     ValidationParams.LineOfSightProfileName = Settings.TargetTraceProfile.Name;
 
     PdTargetValidator::FValidatedPointTarget ValidatedTarget;
-    if (!PdTargetValidator::ValidatePointTarget(
-       World,
-       AvatarActor,
-       CharacterLocation,
-       GetSpawnLocation(),
-       RequestedLocation,
-       ValidationParams,
-       ValidatedTarget))
+    if (!PdTargetValidator::ValidatePointTarget(World, AvatarActor, CharacterLocation, GetSpawnLocation(),
+        RequestedLocation, ValidationParams, ValidatedTarget))
     {
        return false;
     }
@@ -566,11 +549,10 @@ void USkillProjectileCastAction::WaitForPlayerTargetData()
        TargetDataTask = nullptr;
     }
 
-    UAbilityTask_WaitTargetData* const PendingTargetDataTask = UAbilityTask_WaitTargetData::WaitTargetData(
-       GetAbility(),
-       NAME_None,
-       bUsingGroundTargeting ? EGameplayTargetingConfirmation::UserConfirmed : EGameplayTargetingConfirmation::Instant,
-       TargetActorClass);
+    UAbilityTask_WaitTargetData* const PendingTargetDataTask = UAbilityTask_WaitTargetData::WaitTargetData(GetAbility(),
+        NAME_None,
+        bUsingGroundTargeting ? EGameplayTargetingConfirmation::UserConfirmed : EGameplayTargetingConfirmation::Instant,
+        TargetActorClass);
     TargetDataTask = PendingTargetDataTask;
     if (!PendingTargetDataTask)
     {
@@ -590,9 +572,8 @@ void USkillProjectileCastAction::WaitForPlayerTargetData()
     // 즉시 확정하는 대상 액터는 생성을 마치는 순간 대상 데이터를 보낼 수 있고, 그 콜백이 능력을 끝내면
     // FinishSpawningTargetDataActor가 돌아오기 전에 TargetDataTask가 정리된다. 아직 지금 작업이고 콜백 안에서
     // 끝나지 않았을 때만 작업을 켠다.
-    if (TargetDataTask == PendingTargetDataTask
-       && IsValid(PendingTargetDataTask)
-       && PendingTargetDataTask->GetState() == EGameplayTaskState::AwaitingActivation)
+    if (TargetDataTask == PendingTargetDataTask && IsValid(PendingTargetDataTask)
+        && PendingTargetDataTask->GetState() == EGameplayTaskState::AwaitingActivation)
     {
        PendingTargetDataTask->ReadyForActivation();
     }
@@ -652,9 +633,9 @@ bool USkillProjectileCastAction::ShouldRetargetUsingAim(const FVector& TargetLoc
     const FVector SpawnLocation = GetSpawnLocation();
     const float MinimumDistance = FMath::Max(GetConfiguredMinimumTargetDistanceFromSpawn(), 0.0f);
     const bool bTooClose = MinimumDistance > 0.0f
-       && FVector::DistSquared(SpawnLocation, TargetLocation) < FMath::Square(MinimumDistance);
+        && FVector::DistSquared(SpawnLocation, TargetLocation) < FMath::Square(MinimumDistance);
     const bool bStronglyDownward = TargetLocation.Z < SpawnLocation.Z - 50.0f
-       && FVector::DistSquared2D(SpawnLocation, TargetLocation) < FMath::Square(MinimumDistance);
+        && FVector::DistSquared2D(SpawnLocation, TargetLocation) < FMath::Square(MinimumDistance);
 
     return bTooClose || bStronglyDownward;
 }
@@ -700,16 +681,10 @@ bool USkillProjectileCastAction::TryResolveProjectileAimTargetLocation(FVector& 
     ActorsToIgnore.Add(AvatarActor);
 
     FHitResult ViewHitResult;
-    const bool bHit = UKismetSystemLibrary::LineTraceSingleByProfile(
-       this,
-       ViewTraceStart,
-       ViewTraceEnd,
-       ConfiguredTargetTraceProfile.Name,
-       false,
-       ActorsToIgnore,
-       GetConfiguredDrawTargetTraceDebug() ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None,
-       ViewHitResult,
-       true);
+    const bool bHit = UKismetSystemLibrary::LineTraceSingleByProfile(this, ViewTraceStart, ViewTraceEnd,
+        ConfiguredTargetTraceProfile.Name, false, ActorsToIgnore,
+        GetConfiguredDrawTargetTraceDebug() ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None, ViewHitResult,
+        true);
 
     OutTargetLocation = bHit ? ViewHitResult.Location : ViewTraceEnd;
 

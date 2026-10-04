@@ -62,8 +62,7 @@ void USkillSummonAction::OnStart()
 		return;
 	}
 
-	SummonTriggerDamage->Configure(
-		SkillDataAsset->Damage,
+	SummonTriggerDamage->Configure(SkillDataAsset->Damage,
 		FSkillTriggerHit::CreateUObject(this, &ThisClass::ApplySummonTriggerDamage));
 	SummonTriggerDamage->SetDamageActive(false);
 
@@ -228,26 +227,16 @@ bool USkillSummonAction::SpawnSummonedActor()
 	const FTransform FinalTransform = ResolveFinalSummonTransform();
 	SummonRiseFinalLocation = FinalTransform.GetLocation();
 	SummonRiseFinalRotation = FinalTransform.Rotator();
-	SummonRiseStartLocation = SummonRiseFinalLocation
-		- FVector::UpVector * SummonConfig->GetRiseDistance();
+	SummonRiseStartLocation = SummonRiseFinalLocation - FVector::UpVector * SummonConfig->GetRiseDistance();
 
 	const FTransform SpawnTransform(SummonRiseFinalRotation, SummonRiseStartLocation);
-	AActor* SummonedActor = World->SpawnActorDeferred<AActor>(
-		SummonConfig->SummonedActorClass,
-		SpawnTransform,
-		AvatarActor,
-		Cast<APawn>(AvatarActor),
-		SummonConfig->SpawnCollisionHandling);
-	if (!SummonedActor
-		&& SummonConfig->SpawnCollisionHandling
+	AActor* SummonedActor = World->SpawnActorDeferred<AActor>(SummonConfig->SummonedActorClass, SpawnTransform,
+		AvatarActor, Cast<APawn>(AvatarActor), SummonConfig->SpawnCollisionHandling);
+	if (!SummonedActor && SummonConfig->SpawnCollisionHandling
 			!= ESpawnActorCollisionHandlingMethod::AlwaysSpawn)
 	{
-		SummonedActor = World->SpawnActorDeferred<AActor>(
-			SummonConfig->SummonedActorClass,
-			SpawnTransform,
-			AvatarActor,
-			Cast<APawn>(AvatarActor),
-			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		SummonedActor = World->SpawnActorDeferred<AActor>(SummonConfig->SummonedActorClass, SpawnTransform, AvatarActor,
+			Cast<APawn>(AvatarActor), ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	}
 	if (!SummonedActor)
 	{
@@ -336,14 +325,8 @@ FVector USkillSummonAction::ProjectSummonLocationToGround(const FVector& Candida
 	PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, AvatarActor);
 
 	PdSkillGroundProjection::FGroundProjectionResult GroundProjection;
-	if (PdSkillGroundProjection::TryProjectToGround(
-		World,
-		CandidateLocation,
-		SummonConfig->GroundTraceChannel,
-		SummonConfig->GroundTraceStartHeight,
-		SummonConfig->GroundTraceDepth,
-		ActorsToIgnore,
-		GroundProjection))
+	if (PdSkillGroundProjection::TryProjectToGround(World, CandidateLocation, SummonConfig->GroundTraceChannel,
+		SummonConfig->GroundTraceStartHeight, SummonConfig->GroundTraceDepth, ActorsToIgnore, GroundProjection))
 	{
 		return GroundProjection.Location;
 	}
@@ -361,8 +344,7 @@ void USkillSummonAction::DeactivateSummonNiagara(AActor* SummonedActor) const
 
 	if (ASkillSummonActor* SkillSummonActor = Cast<ASkillSummonActor>(SummonedActor))
 	{
-		SkillSummonActor->DeactivateSummonNiagara(
-			SummonConfig->LaserNiagaraComponentName,
+		SkillSummonActor->DeactivateSummonNiagara(SummonConfig->LaserNiagaraComponentName,
 			SummonConfig->bActivateAllNiagaraComponentsWhenNameNone);
 		return;
 	}
@@ -388,10 +370,8 @@ void USkillSummonAction::ActivateSummonNiagara(AActor* SummonedActor) const
 
 	if (ASkillSummonActor* SkillSummonActor = Cast<ASkillSummonActor>(SummonedActor))
 	{
-		SkillSummonActor->ActivateSummonNiagara(
-			SummonConfig->LaserNiagaraComponentName,
-			SummonConfig->bResetLaserNiagaraOnActivate,
-			SummonConfig->bActivateAllNiagaraComponentsWhenNameNone);
+		SkillSummonActor->ActivateSummonNiagara(SummonConfig->LaserNiagaraComponentName,
+			SummonConfig->bResetLaserNiagaraOnActivate, SummonConfig->bActivateAllNiagaraComponentsWhenNameNone);
 		return;
 	}
 
@@ -470,15 +450,9 @@ void USkillSummonAction::StartSummonRise()
 	}
 
 	SummonRiseStartTime = World->GetTimeSeconds();
-	const float TickInterval = static_cast<float>(FMath::Clamp(
-		SummonConfig->RiseTickInterval,
-		0.005,
+	const float TickInterval = static_cast<float>(FMath::Clamp(SummonConfig->RiseTickInterval, 0.005,
 		static_cast<double>(RiseDuration)));
-	World->GetTimerManager().SetTimer(
-		SummonRiseTimerHandle,
-		this,
-		&ThisClass::HandleSummonRiseTick,
-		TickInterval,
+	World->GetTimerManager().SetTimer(SummonRiseTimerHandle, this, &ThisClass::HandleSummonRiseTick, TickInterval,
 		true);
 
 	HandleSummonRiseTick();
@@ -529,11 +503,7 @@ void USkillSummonAction::FinishSummonRiseAndActivateLaser()
 		return;
 	}
 
-	SummonedActor->SetActorLocationAndRotation(
-		SummonRiseFinalLocation,
-		SummonRiseFinalRotation,
-		false,
-		nullptr,
+	SummonedActor->SetActorLocationAndRotation(SummonRiseFinalLocation, SummonRiseFinalRotation, false, nullptr,
 		ETeleportType::TeleportPhysics);
 	ForceSummonedActorNetUpdate(SummonedActor, *SummonConfig);
 
@@ -541,21 +511,16 @@ void USkillSummonAction::FinishSummonRiseAndActivateLaser()
 	ForceSummonedActorNetUpdate(SummonedActor, *SummonConfig);
 
 	if (const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-		SkillDataAsset
-		&& SkillDataAsset->GetResolvedDamageConfig().GameplayEffectClass
-		&& CalculateSummonTriggerDamageMagnitude() > 0.0f)
+		SkillDataAsset && SkillDataAsset->GetResolvedDamageConfig().GameplayEffectClass
+			&& CalculateSummonTriggerDamageMagnitude() > 0.0f)
 	{
 		const float TriggerDelay = static_cast<float>(FMath::Max(Settings.TriggerDamageDelay, 0.0));
 		if (TriggerDelay > KINDA_SMALL_NUMBER)
 		{
 			if (UWorld* World = GetWorld())
 			{
-				World->GetTimerManager().SetTimer(
-					SummonTriggerDamageDelayTimerHandle,
-					this,
-					&ThisClass::EnableSummonTriggerDamage,
-					TriggerDelay,
-					false);
+				World->GetTimerManager().SetTimer(SummonTriggerDamageDelayTimerHandle, this,
+					&ThisClass::EnableSummonTriggerDamage, TriggerDelay, false);
 			}
 		}
 		else
@@ -615,8 +580,7 @@ float USkillSummonAction::ResolveSummonLifetimeTimerDuration() const
 		return ActiveDuration;
 	}
 
-	return FMath::Max(
-		ActiveDuration,
+	return FMath::Max(ActiveDuration,
 		static_cast<float>(FMath::Max(SummonConfig->MinimumReplicatedActorLifetime, 0.0)));
 }
 
@@ -696,9 +660,7 @@ FGameplayEffectSpecHandle USkillSummonAction::MakeSummonTriggerDamageSpec(const 
 		return FGameplayEffectSpecHandle();
 	}
 
-	return GetAbility()->MakeConfiguredDamageEffectSpec(
-		TriggerDamage,
-		DamageMagnitude,
+	return GetAbility()->MakeConfiguredDamageEffectSpec(TriggerDamage, DamageMagnitude,
 		SpawnedSummonActor.IsValid() ? SpawnedSummonActor.Get() : nullptr);
 }
 

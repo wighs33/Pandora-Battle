@@ -105,8 +105,7 @@ void AForceMoveGateActor::HandleForceMoveTriggered(APdPlayerController* Triggeri
 	}
 }
 
-void AForceMoveGateActor::Multicast_PlayGateMovement_Implementation(
-	const bool bInRaised,
+void AForceMoveGateActor::Multicast_PlayGateMovement_Implementation(const bool bInRaised,
 	APdPlayerController* TriggeringPlayerController)
 {
 	StartGateMovement(bInRaised, TriggeringPlayerController);
@@ -141,9 +140,7 @@ void AForceMoveGateActor::ApplyGateRaisedStateImmediately()
 	GateMesh->SetRelativeLocation(bGateRaised ? GetRaisedRelativeLocation() : ClosedRelativeLocation);
 }
 
-void AForceMoveGateActor::StartGateMovement(
-	const bool bInRaised,
-	APdPlayerController* TriggeringPlayerController)
+void AForceMoveGateActor::StartGateMovement(const bool bInRaised, APdPlayerController* TriggeringPlayerController)
 {
 	if (!GateMesh)
 	{

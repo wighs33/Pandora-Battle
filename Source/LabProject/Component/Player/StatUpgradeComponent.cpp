@@ -21,8 +21,7 @@ UStatUpgradeComponent::UStatUpgradeComponent(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 {
 	SetIsReplicatedByDefault(true);
-	StatUpgradeDefinition = TSoftObjectPtr<UStatUpgradeDefinition>(
-		UStatUpgradeDefinition::GetDefaultDefinitionPath());
+	StatUpgradeDefinition = TSoftObjectPtr<UStatUpgradeDefinition>(UStatUpgradeDefinition::GetDefaultDefinitionPath());
 }
 
 // 플레이어 상태의 기본 속성이 등록된 뒤 투자 규칙을 로드하고 기본값을 한 번 초기화한다.
@@ -84,10 +83,7 @@ bool UStatUpgradeComponent::RequestStatDown(FGameplayTag StatTag)
 bool UStatUpgradeComponent::SetPointsForAllCategories(const float Value)
 {
 	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor
-		|| !OwnerActor->HasAuthority()
-		|| !LoadedStatUpgradeDefinition
-		|| !FMath::IsFinite(Value)
+	if (!OwnerActor || !OwnerActor->HasAuthority() || !LoadedStatUpgradeDefinition || !FMath::IsFinite(Value)
 		|| Value < 0.0f)
 	{
 		return false;
@@ -277,9 +273,7 @@ void UStatUpgradeComponent::HandleStatUpgradeDefinitionPreloaded()
 	StatUpgradeDefinitionLease.Reset();
 	if (!Definition)
 	{
-		UE_LOG(
-			StatUpgradeComponentLog,
-			Error,
+		UE_LOG(StatUpgradeComponentLog, Error,
 			TEXT("Stat upgrade definition '%s' did not resolve after asynchronous preload."),
 			*StatUpgradeDefinition.ToString());
 		return;

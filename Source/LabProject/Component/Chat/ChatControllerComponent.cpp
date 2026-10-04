@@ -133,10 +133,7 @@ FString UChatControllerComponent::GetSenderDisplayName() const
 	const APlayerState* PlayerState = PlayerController ? PlayerController->PlayerState : nullptr;
 	if (const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState))
 	{
-		const FString MatchDisplayName = PdPlayerState
-			->GetPlayerMatchComponent()
-			->GetMatchDisplayName()
-			.ToString()
+		const FString MatchDisplayName = PdPlayerState->GetPlayerMatchComponent()->GetMatchDisplayName().ToString()
 			.TrimStartAndEnd();
 		if (!MatchDisplayName.IsEmpty())
 		{
@@ -151,17 +148,11 @@ FString UChatControllerComponent::GetSenderDisplayName() const
 			int32 FallbackNicknameIndex = 1;
 			if (const AGameStateBase* GameState = World->GetGameState())
 			{
-				const int32 PlayerIndex = PlayerState
-					? GameState->PlayerArray.IndexOfByKey(PlayerState)
-					: INDEX_NONE;
-				FallbackNicknameIndex = PlayerIndex != INDEX_NONE
-					? PlayerIndex + 1
-					: GameState->PlayerArray.Num() + 1;
+				const int32 PlayerIndex = PlayerState ? GameState->PlayerArray.IndexOfByKey(PlayerState) : INDEX_NONE;
+				FallbackNicknameIndex = PlayerIndex != INDEX_NONE ? PlayerIndex + 1 : GameState->PlayerArray.Num() + 1;
 			}
 
-			const FString ResolvedNickname = LobbySubsystem->ResolveDefaultPlayerNickname(
-				PlayerController,
-				PlayerState,
+			const FString ResolvedNickname = LobbySubsystem->ResolveDefaultPlayerNickname(PlayerController, PlayerState,
 				FallbackNicknameIndex).ToString().TrimStartAndEnd();
 			if (!ResolvedNickname.IsEmpty())
 			{

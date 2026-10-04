@@ -56,7 +56,7 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Reward Chest")
 	void MarkOpened(AActor* RewardReceiver);
 
-	/** Keeps an unused placed chest as a hidden spawn-location anchor. */
+	/** 쓰지 않은 배치 상자를 숨긴 스폰 위치 기준점으로 남긴다. */
 	void DeactivateForSpawnPool();
 
 	UFUNCTION(BlueprintPure, Category = "!Reward Chest")

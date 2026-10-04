@@ -19,13 +19,9 @@ FIntPoint UPortalDefinition::GetRenderTargetSize(const FIntPoint& ViewportSize) 
 		/ static_cast<float>(FMath::Max(ViewportSize.X, ViewportSize.Y));
 	const float FinalScale = FMath::Min(ClampedResolutionScale, MaxDimensionScale);
 
-	const int32 Width = FMath::Clamp(
-		FMath::RoundToInt(static_cast<float>(ViewportSize.X) * FinalScale),
-		16,
+	const int32 Width = FMath::Clamp(FMath::RoundToInt(static_cast<float>(ViewportSize.X) * FinalScale), 16,
 		MaxDimension);
-	const int32 Height = FMath::Clamp(
-		FMath::RoundToInt(static_cast<float>(ViewportSize.Y) * FinalScale),
-		16,
+	const int32 Height = FMath::Clamp(FMath::RoundToInt(static_cast<float>(ViewportSize.Y) * FinalScale), 16,
 		MaxDimension);
 	return FIntPoint(Width, Height);
 }
@@ -34,12 +30,8 @@ FIntPoint UPortalDefinition::GetRenderTargetSize(const FIntPoint& ViewportSize) 
 namespace
 {
 	template <typename AssetType>
-	void ValidatePortalAsset(
-		const TSoftObjectPtr<AssetType>& Asset,
-		const FText& MissingMessage,
-		const FText& InvalidMessage,
-		FDataValidationContext& Context,
-		EDataValidationResult& Result)
+	void ValidatePortalAsset(const TSoftObjectPtr<AssetType>& Asset, const FText& MissingMessage,
+		const FText& InvalidMessage, FDataValidationContext& Context, EDataValidationResult& Result)
 	{
 		if (Asset.IsNull())
 		{
@@ -64,57 +56,43 @@ EDataValidationResult UPortalDefinition::IsDataValid(FDataValidationContext& Con
 		Result = EDataValidationResult::Valid;
 	}
 
-	ValidatePortalAsset(
-		PortalPlaneMesh,
+	ValidatePortalAsset(PortalPlaneMesh,
 		NSLOCTEXT("PortalDefinition", "MissingPortalMesh", "PortalPlaneMesh must be assigned."),
 		NSLOCTEXT("PortalDefinition", "InvalidPortalMesh", "PortalPlaneMesh does not resolve to a cookable asset."),
-		Context,
-		Result);
-	ValidatePortalAsset(
-		PortalMaterial,
+		Context, Result);
+	ValidatePortalAsset(PortalMaterial,
 		NSLOCTEXT("PortalDefinition", "MissingPortalMaterial", "PortalMaterial must be assigned."),
 		NSLOCTEXT("PortalDefinition", "InvalidPortalMaterial", "PortalMaterial does not resolve to a cookable asset."),
-		Context,
-		Result);
-	ValidatePortalAsset(
-		PortalEffect,
+		Context, Result);
+	ValidatePortalAsset(PortalEffect,
 		NSLOCTEXT("PortalDefinition", "MissingPortalEffect", "PortalEffect must be assigned."),
 		NSLOCTEXT("PortalDefinition", "InvalidPortalEffect", "PortalEffect does not resolve to a cookable asset."),
-		Context,
-		Result);
+		Context, Result);
 
 	if (ResolutionScale < 0.1f || ResolutionScale > 1.0f)
 	{
-		Context.AddError(NSLOCTEXT(
-			"PortalDefinition",
-			"InvalidResolutionScale",
+		Context.AddError(NSLOCTEXT("PortalDefinition", "InvalidResolutionScale",
 			"ResolutionScale must be between 0.1 and 1.0."));
 		Result = EDataValidationResult::Invalid;
 	}
 
 	if (MaxRenderTargetDimension < 256 || MaxRenderTargetDimension > 4096)
 	{
-		Context.AddError(NSLOCTEXT(
-			"PortalDefinition",
-			"InvalidMaximumDimension",
+		Context.AddError(NSLOCTEXT("PortalDefinition", "InvalidMaximumDimension",
 			"MaxRenderTargetDimension must be between 256 and 4096."));
 		Result = EDataValidationResult::Invalid;
 	}
 
 	if (FallbackViewportSize.X < 16 || FallbackViewportSize.Y < 16)
 	{
-		Context.AddError(NSLOCTEXT(
-			"PortalDefinition",
-			"InvalidFallbackViewportSize",
+		Context.AddError(NSLOCTEXT("PortalDefinition", "InvalidFallbackViewportSize",
 			"FallbackViewportSize dimensions must both be at least 16."));
 		Result = EDataValidationResult::Invalid;
 	}
 
 	if (MaxCaptureFrameRate < 0.0f || MaxCaptureFrameRate > 120.0f)
 	{
-		Context.AddError(NSLOCTEXT(
-			"PortalDefinition",
-			"InvalidCaptureFrameRate",
+		Context.AddError(NSLOCTEXT("PortalDefinition", "InvalidCaptureFrameRate",
 			"MaxCaptureFrameRate must be between 0 and 120."));
 		Result = EDataValidationResult::Invalid;
 	}

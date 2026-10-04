@@ -13,10 +13,8 @@ namespace
 	// 플레이어 ID·지역·팀 색을 한 값으로 묶어 표식 줄을 다시 만들어야 하는지 비교한다.
 	uint64 MakeMarkerStateKey(const APdPlayerState& PlayerState)
 	{
-		const UPlayerMatchComponent* MatchComponent =
-			PlayerState.GetPlayerMatchComponent();
-		const uint32 PlayerId = static_cast<uint32>(
-			PlayerState.GetPlayerId());
+		const UPlayerMatchComponent* MatchComponent = PlayerState.GetPlayerMatchComponent();
+		const uint32 PlayerId = static_cast<uint32>(PlayerState.GetPlayerId());
 		const uint16 TeamColorIndex = static_cast<uint16>(
 			MatchComponent
 				? MatchComponent->GetMatchTeamColorIndex() + 1
@@ -25,9 +23,7 @@ namespace
 			MatchComponent
 				? MatchComponent->GetPlayerMapRegion()
 				: EPlayerMapRegion::Dome);
-		return (static_cast<uint64>(PlayerId) << 32)
-			| (static_cast<uint64>(MapRegion) << 16)
-			| TeamColorIndex;
+		return (static_cast<uint64>(PlayerId) << 32) | (static_cast<uint64>(MapRegion) << 16) | TeamColorIndex;
 	}
 
 	// 표식 순서가 매번 같도록 플레이어 ID, 같으면 이름 순으로 정렬한다.
@@ -84,8 +80,7 @@ namespace
 	}
 }
 
-UHorizontalBox* FMapAreaRegionBoxes::Resolve(
-	const EPlayerMapRegion MapRegion) const
+UHorizontalBox* FMapAreaRegionBoxes::Resolve(const EPlayerMapRegion MapRegion) const
 {
 	switch (MapRegion)
 	{
@@ -102,9 +97,7 @@ UHorizontalBox* FMapAreaRegionBoxes::Resolve(
 
 void FMapAreaRegionBoxes::SetVisible(const bool bVisible) const
 {
-	const ESlateVisibility NewVisibility = bVisible
-		? ESlateVisibility::HitTestInvisible
-		: ESlateVisibility::Collapsed;
+	const ESlateVisibility NewVisibility = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
 	for (UHorizontalBox* MarkerBox : {Dome, Windmill, Temple})
 	{
 		if (MarkerBox)
@@ -114,10 +107,7 @@ void FMapAreaRegionBoxes::SetVisible(const bool bVisible) const
 	}
 }
 
-void FMapAreaRegionMarkers::Refresh(
-	UObject& Outer,
-	const FMapAreaRegionBoxes& Boxes,
-	const AGameStateBase* GameState,
+void FMapAreaRegionMarkers::Refresh(UObject& Outer, const FMapAreaRegionBoxes& Boxes, const AGameStateBase* GameState,
 	const FMapMarkImages& MarkImages)
 {
 	if (!GameState)

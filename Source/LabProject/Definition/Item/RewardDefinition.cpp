@@ -70,9 +70,7 @@ FPrimaryAssetId FRewardRandomPotionDrop::RollReward() const
 			continue;
 		}
 
-		const FPrimaryAssetId PotionDefinitionId(
-			ItemDefinitionType,
-			PotionDefinitionPath.GetAssetFName());
+		const FPrimaryAssetId PotionDefinitionId(ItemDefinitionType, PotionDefinitionPath.GetAssetFName());
 		ValidPotionDefinitionIds.AddUnique(PotionDefinitionId);
 	}
 
@@ -82,8 +80,7 @@ FPrimaryAssetId FRewardRandomPotionDrop::RollReward() const
 	}
 
 	const float ClampedChance = FMath::Clamp(PotionDropChance, 0.0f, 100.0f);
-	if (ClampedChance <= 0.0f
-		|| (ClampedChance < 100.0f && FMath::FRandRange(0.0f, 100.0f) >= ClampedChance))
+	if (ClampedChance <= 0.0f || (ClampedChance < 100.0f && FMath::FRandRange(0.0f, 100.0f) >= ClampedChance))
 	{
 		return FPrimaryAssetId();
 	}
@@ -111,12 +108,9 @@ FMonsterDefeatRewardCategory::FMonsterDefeatRewardCategory()
 
 	PotionDrop.bGrantRandomPotion = true;
 	PotionDrop.PotionDropChance = 20.0f;
-	PotionDrop.PotionDefinitions =
-	{
-		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(
-			TEXT("/Game/Item/Consumable/DA_HealPotion.DA_HealPotion"))),
-		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(
-			TEXT("/Game/Item/Consumable/DA_ManaPotion.DA_ManaPotion"))),
+	PotionDrop.PotionDefinitions = {
+		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(TEXT("/Game/Item/Consumable/DA_HealPotion.DA_HealPotion"))),
+		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(TEXT("/Game/Item/Consumable/DA_ManaPotion.DA_ManaPotion"))),
 		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(
 			TEXT("/Game/Item/Consumable/DA_StaminaPotion.DA_StaminaPotion")))
 	};
@@ -148,8 +142,7 @@ FPrimaryAssetId URewardDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath URewardDefinition::GetDefaultRewardDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.Reward.ToSoftObjectPath();
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Reward.ToSoftObjectPath();
 }
 
 int32 URewardDefinition::RollMonsterDefeatExperienceReward() const

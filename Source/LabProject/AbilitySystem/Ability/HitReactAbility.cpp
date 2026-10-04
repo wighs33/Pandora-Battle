@@ -114,10 +114,9 @@ void CancelSkillsConfiguredToCancelOnHit(UAbilitySystemComponent* AbilitySystemC
 UHitReactAbility::UHitReactAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Hit reactions may overlap as independent executions, but the ability
-	// instance itself has no state that clients need to replicate. Prediction,
-	// montage replication and gameplay cues use their own GAS paths.
-	// Replicating an InstancedPerExecution ability is unsupported by GAS.
+	// 피격 반응은 서로 독립된 실행으로 겹칠 수 있지만, 능력 인스턴스 자체에는 클라이언트에
+	// 복제할 상태가 없다. 예측, 몽타주 복제, 게임플레이 큐는 각자의 GAS 경로를 쓴다.
+	// InstancedPerExecution 능력의 복제는 GAS가 지원하지 않는다.
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateNo;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
@@ -136,9 +135,8 @@ void UHitReactAbility::PostLoad()
 {
 	Super::PostLoad();
 
-	// Older GA_HitReact assets serialized ReplicateYes. Restore the supported
-	// policy after Blueprint defaults are deserialized so packaged builds and
-	// data validation cannot recreate the per-execution replication conflict.
+	// 예전 GA_HitReact 애셋은 ReplicateYes로 저장돼 있다. 블루프린트 기본값을 역직렬화한 뒤
+	// 지원되는 정책으로 되돌려, 패키지 빌드와 데이터 검증에서 실행별 복제 충돌이 다시 생기지 않게 한다.
 	if (InstancingPolicy == EGameplayAbilityInstancingPolicy::InstancedPerExecution)
 	{
 		ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateNo;
@@ -244,11 +242,8 @@ void UHitReactAbility::BeginHitReactMontagePreload()
 		return;
 	}
 
-	HitReactMontageLease = ContentSubsystem->AcquireContent(
-		{ HitReactMontage.ToSoftObjectPath() },
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleHitReactMontagePreloadComplete));
+	HitReactMontageLease = ContentSubsystem->AcquireContent({ HitReactMontage.ToSoftObjectPath() },
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleHitReactMontagePreloadComplete));
 }
 
 void UHitReactAbility::HandleHitReactMontagePreloadComplete()
@@ -265,18 +260,11 @@ void UHitReactAbility::HandleHitReactMontagePreloadComplete()
 		return;
 	}
 
-	StartHitReactMontage(
-		Montage,
-		CurrentSpecHandle,
-		CurrentActorInfo,
-		CurrentActivationInfo);
+	StartHitReactMontage(Montage, CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo);
 }
 
-void UHitReactAbility::StartHitReactMontage(
-	UAnimMontage* Montage,
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo)
+void UHitReactAbility::StartHitReactMontage(UAnimMontage* Montage, const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
 {
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!ensure(Character) || !ensure(Montage))
@@ -298,16 +286,8 @@ void UHitReactAbility::StartHitReactMontage(
 		StartSectionName = NAME_None;
 	}
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this,
-		NAME_None,
-		Montage,
-		1.f,
-		StartSectionName,
-		false,
-		1.0f,
-		0.f,
-		true);
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this,
+		NAME_None, Montage, 1.f, StartSectionName, false, 1.0f, 0.f, true);
 	if (!ensure(MontageTask))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);

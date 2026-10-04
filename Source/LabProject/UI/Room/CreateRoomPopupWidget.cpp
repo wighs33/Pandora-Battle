@@ -65,8 +65,7 @@ void UCreateRoomPopupWidget::NativeDestruct()
 	{
 		if (CreateSessionCompleteHandle.IsValid())
 		{
-			OnlineSessionsSubsystem->OnCreateRoomRequestComplete.Remove(
-				CreateSessionCompleteHandle);
+			OnlineSessionsSubsystem->OnCreateRoomRequestComplete.Remove(CreateSessionCompleteHandle);
 			CreateSessionCompleteHandle.Reset();
 		}
 
@@ -111,21 +110,14 @@ void UCreateRoomPopupWidget::HandleCreateClicked()
 
 	if (CreateSessionCompleteHandle.IsValid())
 	{
-		OnlineSessionsSubsystem->OnCreateRoomRequestComplete.Remove(
-			CreateSessionCompleteHandle);
+		OnlineSessionsSubsystem->OnCreateRoomRequestComplete.Remove(CreateSessionCompleteHandle);
 		CreateSessionCompleteHandle.Reset();
 	}
 
 	CreateSessionCompleteHandle =
-		OnlineSessionsSubsystem->OnCreateRoomRequestComplete.AddUObject(
-			this,
-			&ThisClass::HandleCreateSessionComplete);
-	ActiveCreateRequestId = OnlineSessionsSubsystem->BeginCreateRoomSession(
-		GetOwningLocalPlayer(),
-		GetRoomNameInput(),
-		InitialSessionMapName,
-		MaxPublicConnections,
-		bCreateLAN);
+		OnlineSessionsSubsystem->OnCreateRoomRequestComplete.AddUObject(this, &ThisClass::HandleCreateSessionComplete);
+	ActiveCreateRequestId = OnlineSessionsSubsystem->BeginCreateRoomSession(GetOwningLocalPlayer(), GetRoomNameInput(),
+		InitialSessionMapName, MaxPublicConnections, bCreateLAN);
 	if (ActiveCreateRequestId == 0)
 	{
 		if (UButton* CreateButton = GetCreateButton())
@@ -142,9 +134,7 @@ void UCreateRoomPopupWidget::HandleCancelClicked()
 	RemoveFromParent();
 }
 
-void UCreateRoomPopupWidget::HandleCreateSessionComplete(
-	const uint64 RequestId,
-	const bool bWasSuccessful)
+void UCreateRoomPopupWidget::HandleCreateSessionComplete(const uint64 RequestId, const bool bWasSuccessful)
 {
 	if (RequestId == 0 || RequestId != ActiveCreateRequestId)
 	{
@@ -158,8 +148,7 @@ void UCreateRoomPopupWidget::HandleCreateSessionComplete(
 	{
 		if (CreateSessionCompleteHandle.IsValid())
 		{
-			OnlineSessionsSubsystem->OnCreateRoomRequestComplete.Remove(
-				CreateSessionCompleteHandle);
+			OnlineSessionsSubsystem->OnCreateRoomRequestComplete.Remove(CreateSessionCompleteHandle);
 			CreateSessionCompleteHandle.Reset();
 		}
 	}
@@ -213,7 +202,6 @@ UEditableTextBox* UCreateRoomPopupWidget::GetRoomNameTextBox() const
 
 FString UCreateRoomPopupWidget::GetResolvedLobbyTravelMapName() const
 {
-	const ULevelDefinition* Definition =
-		ULevelDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition = ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }

@@ -41,8 +41,7 @@ FVector USkillProjectileCastAction::GetSpawnLocationForSocket(const FName Socket
     }
 
     const float ForwardSpawnDistance = FMath::Max(
-        GetConfiguredMinimumForwardSpawnOffset() + Settings.SpawnLocationOffset.X,
-        0.0f);
+        GetConfiguredMinimumForwardSpawnOffset() + Settings.SpawnLocationOffset.X, 0.0f);
     const FVector ForwardOffset = SpawnForward * ForwardSpawnDistance;
     const FVector RightOffset = AvatarActor->GetActorRightVector() * Settings.SpawnLocationOffset.Y;
     const FVector UpOffset = AvatarActor->GetActorUpVector() * Settings.SpawnLocationOffset.Z;
@@ -59,8 +58,7 @@ void USkillProjectileCastAction::ShootProjectile_Implementation(FVector TargetLo
     }
 
     const FVector SpawnLocation = GetSpawnLocation();
-    if (TargetLocation.IsNearlyZero()
-        || FVector::DistSquared(SpawnLocation, TargetLocation) <= UE_KINDA_SMALL_NUMBER)
+    if (TargetLocation.IsNearlyZero() || FVector::DistSquared(SpawnLocation, TargetLocation) <= UE_KINDA_SMALL_NUMBER)
     {
         TargetLocation = ResolveDefaultTargetLocation();
     }
@@ -72,8 +70,7 @@ void USkillProjectileCastAction::ShootProjectile_Implementation(FVector TargetLo
     }
 
     const FVector SpawnDirection = (TargetLocation - SpawnLocation).GetSafeNormal();
-    const FRotator SpawnRotation = SpawnDirection.IsNearlyZero()
-        ? AvatarActor->GetActorRotation()
+    const FRotator SpawnRotation = SpawnDirection.IsNearlyZero() ? AvatarActor->GetActorRotation()
         : SpawnDirection.Rotation();
     const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
 
@@ -82,12 +79,8 @@ void USkillProjectileCastAction::ShootProjectile_Implementation(FVector TargetLo
 
     if (!Projectile)
     {
-        Projectile = World->SpawnActorDeferred<ASkillProjectile>(
-            Settings.ProjectileActorClass,
-            SpawnTransform,
-            AvatarActor,
-            Cast<APawn>(AvatarActor),
-            ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+        Projectile = World->SpawnActorDeferred<ASkillProjectile>(Settings.ProjectileActorClass, SpawnTransform,
+            AvatarActor, Cast<APawn>(AvatarActor), ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
         if (!Projectile)
         {
             return;
@@ -131,10 +124,7 @@ ASkillProjectile* USkillProjectileCastAction::SpawnReadiedProjectile()
     const bool bAvatarHasAuthority = AvatarActor && AvatarActor->HasAuthority();
     const bool bLocallyControlledAvatar = AvatarPawn && AvatarPawn->IsLocallyControlled();
 
-    if (!AvatarActor
-        || (!bAvatarHasAuthority && !bLocallyControlledAvatar)
-        || !World
-        || !Settings.ProjectileActorClass)
+    if (!AvatarActor || (!bAvatarHasAuthority && !bLocallyControlledAvatar) || !World || !Settings.ProjectileActorClass)
     {
         return nullptr;
     }
@@ -163,12 +153,8 @@ ASkillProjectile* USkillProjectileCastAction::SpawnReadiedProjectile()
     }
 
     const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
-    ASkillProjectile* Projectile = World->SpawnActorDeferred<ASkillProjectile>(
-        Settings.ProjectileActorClass,
-        SpawnTransform,
-        AvatarActor,
-        Cast<APawn>(AvatarActor),
-        ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+    ASkillProjectile* Projectile = World->SpawnActorDeferred<ASkillProjectile>(Settings.ProjectileActorClass,
+        SpawnTransform, AvatarActor, Cast<APawn>(AvatarActor), ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
     if (!Projectile)
     {
         return nullptr;
@@ -249,8 +235,6 @@ FGameplayEffectSpecHandle USkillProjectileCastAction::MakeDamageEffectSpec(const
 
 FGameplayEffectSpecHandle USkillProjectileCastAction::MakeStatusEffectSpec() const
 {
-    return GetAbility()->MakeConfiguredStatusEffectSpec(
-        GetAbility()->GetSourceSkillDataAsset(),
-        GetConfiguredStatusEffectClass(),
-        GetConfiguredStatusEffectLevel());
+    return GetAbility()->MakeConfiguredStatusEffectSpec(GetAbility()->GetSourceSkillDataAsset(),
+        GetConfiguredStatusEffectClass(), GetConfiguredStatusEffectLevel());
 }

@@ -138,14 +138,8 @@ bool AArrowProjectileBase::LaunchArrowActor(const FVector& Direction)
 
 	if (TrailSystem)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAttached(
-			TrailSystem,
-			CollisionComponent,
-			NAME_None,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			EAttachLocation::KeepRelativeOffset,
-			true);
+		UNiagaraFunctionLibrary::SpawnSystemAttached(TrailSystem, CollisionComponent, NAME_None, FVector::ZeroVector,
+			FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
 	}
 
 	UProjectileMovementComponent* ProjectileMovementComponent = GetProjectileMovementComponent();
@@ -180,13 +174,8 @@ void AArrowProjectileBase::Tick(float DeltaSeconds)
 	PerformImpactTrace();
 }
 
-void AArrowProjectileBase::HandleCollisionOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult)
+void AArrowProjectileBase::HandleCollisionOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	static_cast<void>(OverlappedComponent);
 	static_cast<void>(OtherBodyIndex);
@@ -196,12 +185,8 @@ void AArrowProjectileBase::HandleCollisionOverlap(
 	TryHandleImpact(OtherActor, OtherComp);
 }
 
-void AArrowProjectileBase::HandleCollisionHit(
-	UPrimitiveComponent* HitComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	FVector NormalImpulse,
-	const FHitResult& Hit)
+void AArrowProjectileBase::HandleCollisionHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	static_cast<void>(HitComponent);
 	static_cast<void>(NormalImpulse);
@@ -324,20 +309,11 @@ void AArrowProjectileBase::PerformImpactTrace()
 		return;
 	}
 
-	// Match the authored collision box exactly; a rotated world AABB is too broad for impact correction.
+	// 작성한 충돌 상자와 똑같이 맞춘다. 회전한 월드 AABB는 충돌 보정에 너무 넓다.
 	TArray<FHitResult> HitResults;
-	const bool bHit = UKismetSystemLibrary::BoxTraceMultiForObjects(
-		this,
-		PreviousImpactTraceLocation,
-		CurrentLocation,
-		TraceBox->GetScaledBoxExtent(),
-		TraceBox->GetComponentRotation(),
-		MakeArrowImpactTraceObjectTypes(),
-		false,
-		ActorsToIgnore,
-		EDrawDebugTrace::None,
-		HitResults,
-		true);
+	const bool bHit = UKismetSystemLibrary::BoxTraceMultiForObjects(this, PreviousImpactTraceLocation, CurrentLocation,
+		TraceBox->GetScaledBoxExtent(), TraceBox->GetComponentRotation(), MakeArrowImpactTraceObjectTypes(), false,
+		ActorsToIgnore, EDrawDebugTrace::None, HitResults, true);
 
 	PreviousImpactTraceLocation = CurrentLocation;
 
@@ -381,8 +357,7 @@ bool AArrowProjectileBase::TryHandleImpact(AActor* OtherActor, UPrimitiveCompone
 		return false;
 	}
 
-	ACharacterBase* DamageTargetCharacter =
-		PdCharacterHitValidation::ResolveWeaponDamageHit(OtherActor, OtherComp);
+	ACharacterBase* DamageTargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(OtherActor, OtherComp);
 	bHasImpacted = true;
 
 	const ACharacterBase* SourceCharacter = GetOwningCharacter();

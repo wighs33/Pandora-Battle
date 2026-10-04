@@ -91,8 +91,7 @@ void UQuickSlotEntryWidget::ApplyInputKeyIcon()
 		return;
 	}
 
-	UObject* IconObject = PdInputKeyIconResolver::ResolveInputDefinitionIconObject(
-		GetOwningPlayer(),
+	UObject* IconObject = PdInputKeyIconResolver::ResolveInputDefinitionIconObject(GetOwningPlayer(),
 		ResolveInputAction());
 
 	if (!IconObject)
@@ -102,20 +101,15 @@ void UQuickSlotEntryWidget::ApplyInputKeyIcon()
 	}
 
 	KeyIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	KeyIcon->SetBrush(PdInputKeyIconResolver::MakeImageBrushFromExisting(
-		KeyIcon->GetBrush(),
-		IconObject,
+	KeyIcon->SetBrush(PdInputKeyIconResolver::MakeImageBrushFromExisting(KeyIcon->GetBrush(), IconObject,
 		InputKeyIconSize));
 }
 
 UInputAction* UQuickSlotEntryWidget::ResolveInputAction() const
 {
-	const APdPlayerController* PlayerController =
-		Cast<APdPlayerController>(GetOwningPlayer());
+	const APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer());
 	const UControllerInputDefinition* InputDefinition = PlayerController
 		? PlayerController->GetLoadedInputDefinition()
 		: nullptr;
-	return InputDefinition
-		? InputDefinition->GetLoadedQuickSlotInputAction(SlotIndex)
-		: nullptr;
+	return InputDefinition ? InputDefinition->GetLoadedQuickSlotInputAction(SlotIndex) : nullptr;
 }

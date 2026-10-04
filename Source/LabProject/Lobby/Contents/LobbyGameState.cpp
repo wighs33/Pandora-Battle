@@ -95,8 +95,7 @@ void ALobbyGameState::SetSelectedMapOption(const FLobbyMatchMapOption& InMapOpti
 		return;
 	}
 
-	if (SelectedMapOption.MapKey == InMapOption.MapKey
-		&& SelectedMapOption.DisplayName.EqualTo(InMapOption.DisplayName)
+	if (SelectedMapOption.MapKey == InMapOption.MapKey && SelectedMapOption.DisplayName.EqualTo(InMapOption.DisplayName)
 		&& SelectedMapOption.Map.ToSoftObjectPath() == InMapOption.Map.ToSoftObjectPath()
 		&& SelectedMapOption.MaxPlayerCount == InMapOption.MaxPlayerCount
 		&& SelectedMapOption.Thumbnail.Get() == InMapOption.Thumbnail.Get())
@@ -114,8 +113,7 @@ void ALobbyGameState::SetSelectedMapOption(const FLobbyMatchMapOption& InMapOpti
 FLobbyMatchMapOption ALobbyGameState::GetSelectedMapOption() const
 {
 	FLobbyMatchMapOption ResolvedMapOption = SelectedMapOption;
-	if (ResolvedMapOption.MapKey.IsNone()
-		|| IsValid(ResolvedMapOption.Thumbnail))
+	if (ResolvedMapOption.MapKey.IsNone() || IsValid(ResolvedMapOption.Thumbnail))
 	{
 		return ResolvedMapOption;
 	}
@@ -130,10 +128,7 @@ FLobbyMatchMapOption ALobbyGameState::GetSelectedMapOption() const
 			? LobbyRuntimeSubsystem->GetLoadedLevelDefinition()
 			: nullptr;
 	FLobbyMatchMapOption ConfiguredMapOption;
-	if (LevelDefinition
-		&& LevelDefinition->FindIngameLevel(
-			ResolvedMapOption.MapKey,
-			ConfiguredMapOption))
+	if (LevelDefinition && LevelDefinition->FindIngameLevel(ResolvedMapOption.MapKey, ConfiguredMapOption))
 	{
 		ResolvedMapOption.Thumbnail = ConfiguredMapOption.Thumbnail;
 	}
@@ -144,13 +139,10 @@ FLobbyMatchMapOption ALobbyGameState::GetSelectedMapOption() const
 bool ALobbyGameState::IsSelectedMapImageReady() const
 {
 	const FLobbyMatchMapOption ResolvedMapOption = GetSelectedMapOption();
-	return !ResolvedMapOption.MapKey.IsNone()
-		&& IsValid(ResolvedMapOption.Thumbnail);
+	return !ResolvedMapOption.MapKey.IsNone() && IsValid(ResolvedMapOption.Thumbnail);
 }
 
-void ALobbyGameState::SetGameStartPending(
-	const bool bInStartPending,
-	const double InStartEndServerTimeSeconds)
+void ALobbyGameState::SetGameStartPending(const bool bInStartPending, const double InStartEndServerTimeSeconds)
 {
 	if (!HasAuthority())
 	{
@@ -161,9 +153,7 @@ void ALobbyGameState::SetGameStartPending(
 		? FMath::Max(InStartEndServerTimeSeconds, GetServerWorldTimeSeconds())
 		: 0.0;
 	const bool bPendingChanged = bStartPending != bInStartPending;
-	const bool bEndTimeChanged = !FMath::IsNearlyEqual(
-		GameStartEndServerTimeSeconds,
-		NewEndServerTimeSeconds);
+	const bool bEndTimeChanged = !FMath::IsNearlyEqual(GameStartEndServerTimeSeconds, NewEndServerTimeSeconds);
 	if (!bPendingChanged && !bEndTimeChanged)
 	{
 		return;
@@ -177,10 +167,7 @@ void ALobbyGameState::SetGameStartPending(
 	}
 	if (bEndTimeChanged)
 	{
-		MARK_PROPERTY_DIRTY_FROM_NAME(
-			ALobbyGameState,
-			GameStartEndServerTimeSeconds,
-			this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(ALobbyGameState, GameStartEndServerTimeSeconds, this);
 	}
 	ForceNetUpdate();
 	RefreshGameEntryContentPreload();
@@ -194,9 +181,7 @@ float ALobbyGameState::GetGameStartRemainingSeconds() const
 		return 0.0f;
 	}
 
-	return static_cast<float>(FMath::Max(
-		GameStartEndServerTimeSeconds - GetServerWorldTimeSeconds(),
-		0.0));
+	return static_cast<float>(FMath::Max(GameStartEndServerTimeSeconds - GetServerWorldTimeSeconds(), 0.0));
 }
 
 void ALobbyGameState::OnRep_SelectedMapOption()

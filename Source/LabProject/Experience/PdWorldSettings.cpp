@@ -20,33 +20,22 @@ namespace PdWorldSettings
 			return WorldSettings.DefaultGameMode.Get();
 		}
 
-		const FString GlobalDefaultGameMode =
-			UGameMapsSettings::GetGlobalDefaultGameMode();
-		return GlobalDefaultGameMode.IsEmpty()
-			? nullptr
-			: LoadClass<AGameModeBase>(
-				nullptr,
+		const FString GlobalDefaultGameMode = UGameMapsSettings::GetGlobalDefaultGameMode();
+		return GlobalDefaultGameMode.IsEmpty() ? nullptr : LoadClass<AGameModeBase>(nullptr,
 				*GlobalDefaultGameMode);
 	}
 
 	bool UsesProjectMapConvention(const APdWorldSettings& WorldSettings)
 	{
 		const UWorld* World = WorldSettings.GetWorld();
-		const FString PackageName = World
-			? World->GetOutermost()->GetName()
-			: FString();
+		const FString PackageName = World ? World->GetOutermost()->GetName() : FString();
 		return PackageName.StartsWith(TEXT("/Game/Map/LV_"));
 	}
 
-	bool RequiresExperience(
-		const APdWorldSettings& WorldSettings,
-		const UClass* GameModeClass)
+	bool RequiresExperience(const APdWorldSettings& WorldSettings, const UClass* GameModeClass)
 	{
-		const bool bIsProjectGameMap =
-			WorldSettings.DefaultGameMode
-			|| UsesProjectMapConvention(WorldSettings);
-		return bIsProjectGameMap
-			&& GameModeClass
+		const bool bIsProjectGameMap = WorldSettings.DefaultGameMode || UsesProjectMapConvention(WorldSettings);
+		return bIsProjectGameMap && GameModeClass
 			&& GameModeClass->ImplementsInterface(UExperienceHostGameMode::StaticClass());
 	}
 }
@@ -64,8 +53,7 @@ FPrimaryAssetId APdWorldSettings::FindDefaultExperienceId(const UWorld* World)
 }
 
 #if WITH_EDITOR
-EDataValidationResult APdWorldSettings::IsDataValid(
-	FDataValidationContext& Context) const
+EDataValidationResult APdWorldSettings::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 	if (Result == EDataValidationResult::NotValidated)
@@ -73,15 +61,11 @@ EDataValidationResult APdWorldSettings::IsDataValid(
 		Result = EDataValidationResult::Valid;
 	}
 
-	const UClass* GameModeClass =
-		PdWorldSettings::ResolveEffectiveGameModeClass(*this);
-	if (PdWorldSettings::RequiresExperience(*this, GameModeClass)
-		&& !DefaultExperienceId.IsValid())
+	const UClass* GameModeClass = PdWorldSettings::ResolveEffectiveGameModeClass(*this);
+	if (PdWorldSettings::RequiresExperience(*this, GameModeClass) && !DefaultExperienceId.IsValid())
 	{
 		Result = EDataValidationResult::Invalid;
-		Context.AddError(NSLOCTEXT(
-			"PdWorldSettings",
-			"MissingRequiredExperience",
+		Context.AddError(NSLOCTEXT("PdWorldSettings", "MissingRequiredExperience",
 			"DefaultExperienceId is required when the map uses an Experience-enabled GameMode."));
 	}
 

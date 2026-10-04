@@ -28,72 +28,56 @@ namespace
     }
 
     // 기본 능력치나 성장 수치가 실제 계산 가능한 유한값인지 에디터에서 검사한다.
-    void ValidateFinite(
-       FDataValidationContext& Context,
-       EDataValidationResult& Result,
-       const float Value,
-       const FText& FieldName)
+    void ValidateFinite(FDataValidationContext& Context, EDataValidationResult& Result, const float Value,
+        const FText& FieldName)
     {
        if (!IsFinite(Value))
        {
           MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "NonFiniteValue", "{0} must be a finite value."),
-             FieldName));
+              NSLOCTEXT("StatUpgradeDefinition", "NonFiniteValue", "{0} must be a finite value."), FieldName));
        }
     }
 
     // 비용처럼 0 이상이어야 하는 스탯 설정값이 음수로 잘못 입력되지 않았는지 검사한다.
-    void ValidateNonNegative(
-       FDataValidationContext& Context,
-       EDataValidationResult& Result,
-       const float Value,
-       const FText& FieldName)
+    void ValidateNonNegative(FDataValidationContext& Context, EDataValidationResult& Result, const float Value,
+        const FText& FieldName)
     {
        if (!IsFinite(Value) || Value < 0.f)
        {
           MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "InvalidNonNegativeValue", "{0} must be a non-negative finite value."),
-             FieldName));
+              NSLOCTEXT("StatUpgradeDefinition", "InvalidNonNegativeValue", "{0} must be a non-negative finite value."),
+              FieldName));
        }
     }
 
     // 최대 투자 레벨처럼 반드시 0보다 커야 하는 설정값이 올바른지 검사한다.
-    void ValidatePositive(
-       FDataValidationContext& Context,
-       EDataValidationResult& Result,
-       const float Value,
-       const FText& FieldName)
+    void ValidatePositive(FDataValidationContext& Context, EDataValidationResult& Result, const float Value,
+        const FText& FieldName)
     {
        if (!IsFinite(Value) || Value <= 0.f)
        {
           MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "InvalidPositiveValue", "{0} must be a positive finite value."),
-             FieldName));
+              NSLOCTEXT("StatUpgradeDefinition", "InvalidPositiveValue", "{0} must be a positive finite value."),
+              FieldName));
        }
     }
 
     // 설정값이 프로젝트에서 지원하는 상한선을 넘지 않도록 에디터에서 검사한다.
-    void ValidateLessOrEqual(
-       FDataValidationContext& Context,
-       EDataValidationResult& Result,
-       const float Value,
-       const float MaxValue,
-       const FText& FieldName)
+    void ValidateLessOrEqual(FDataValidationContext& Context, EDataValidationResult& Result, const float Value,
+        const float MaxValue, const FText& FieldName)
     {
        if (IsFinite(Value) && Value > MaxValue)
        {
           MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "ValueAboveMaximum", "{0} must be less than or equal to {1}."),
-             FieldName,
-             FText::AsNumber(MaxValue)));
+              NSLOCTEXT("StatUpgradeDefinition", "ValueAboveMaximum", "{0} must be less than or equal to {1}."),
+              FieldName, FText::AsNumber(MaxValue)));
        }
     }
 #endif
 
     // 특정 스탯 태그와 정확히 일치하는 기본값 설정을 찾아, 개별 스탯 전용 값을 우선 적용할 때 사용한다.
-    const FStatAttributeDefaultValue* FindExactAttributeValue(
-       const TArray<FStatAttributeDefaultValue>& AttributeValues,
-       const FGameplayTag& StatTag)
+    const FStatAttributeDefaultValue* FindExactAttributeValue(const TArray<FStatAttributeDefaultValue>& AttributeValues,
+        const FGameplayTag& StatTag)
     {
        for (const FStatAttributeDefaultValue& AttributeValue : AttributeValues)
        {
@@ -108,8 +92,7 @@ namespace
 
     // 정확한 스탯 설정이 없으면 상위 카테고리 설정까지 찾아, 공통 성장 규칙을 여러 하위 스탯에 적용한다.
     const FStatAttributeDefaultValue* FindMatchingAttributeValue(
-       const TArray<FStatAttributeDefaultValue>& AttributeValues,
-       const FGameplayTag& StatTag)
+        const TArray<FStatAttributeDefaultValue>& AttributeValues, const FGameplayTag& StatTag)
     {
        if (const FStatAttributeDefaultValue* ExactValue = FindExactAttributeValue(AttributeValues, StatTag))
        {
@@ -128,9 +111,8 @@ namespace
     }
 
     // 스탯 태그가 속한 업그레이드 카테고리의 비용·재화 규칙을 찾아 실제 스탯 투자에 사용한다.
-    const FStatUpgradeRule* FindMatchingUpgradeRule(
-       const TArray<FStatUpgradeRule>& UpgradeRules,
-       const FGameplayTag& StatTag)
+    const FStatUpgradeRule* FindMatchingUpgradeRule(const TArray<FStatUpgradeRule>& UpgradeRules,
+        const FGameplayTag& StatTag)
     {
        for (const FStatUpgradeRule& Rule : UpgradeRules)
        {
@@ -158,8 +140,7 @@ FPrimaryAssetId UStatUpgradeDefinition::GetPrimaryAssetId() const
 // 게임 시작 시 사용할 기본 스탯 설정 에셋의 경로를 GameInstance 설정에서 가져온다.
 FSoftObjectPath UStatUpgradeDefinition::GetDefaultDefinitionPath()
 {
-    return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-       .StatUpgrade.ToSoftObjectPath();
+    return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().StatUpgrade.ToSoftObjectPath();
 }
 
 // 플레이어가 특정 스탯에 포인트를 투자할 때 적용할 비용·재화 규칙을 찾아준다.
@@ -209,8 +190,8 @@ bool UStatUpgradeDefinition::CalculateInitialAttributeValues(TArray<TPair<FGamep
        }
        float Magnitude = 0.f;
        if (!FMath::IsFinite(*ConfiguredLevel) || *ConfiguredLevel < 0.f
-          || *ConfiguredLevel > FMath::FloorToFloat(GetMaxInvestedLevel())
-          || !TryGetUpgradeMagnitude(Binding, Magnitude))
+           || *ConfiguredLevel > FMath::FloorToFloat(GetMaxInvestedLevel())
+           || !TryGetUpgradeMagnitude(Binding, Magnitude))
        {
           return false;
        }
@@ -270,8 +251,7 @@ float UStatUpgradeDefinition::GetMaxInvestedLevel() const
 // 게임에서 투자 가능한 각 스탯을 실제 능력치 태그·투자 레벨 태그·증가율 태그와 연결하는 고정 매핑을 제공한다.
 TConstArrayView<FStatUpgradeBinding> UStatUpgradeDefinition::GetStatBindings()
 {
-    static const FStatUpgradeBinding Bindings[] =
-    {
+    static const FStatUpgradeBinding Bindings[] = {
        { LabGameplayTags::Status_Offense_Strength, LabGameplayTags::Status_Offense_StrengthLevel },
        { LabGameplayTags::Status_Offense_Intelligence, LabGameplayTags::Status_Offense_IntelligenceLevel },
        { LabGameplayTags::Status_Offense_Critical, LabGameplayTags::Status_Offense_CriticalLevel },
@@ -315,15 +295,14 @@ const FStatUpgradeBinding* UStatUpgradeDefinition::FindStatBinding(const FGamepl
 bool UStatUpgradeDefinition::TryGetUpgradeMagnitude(const FStatUpgradeBinding& Binding, float& OutMagnitude) const
 {
     return (TryGetAttributeValuePerUpgrade(Binding.GetEffectTag(), OutMagnitude)
-       || TryGetAttributeValuePerUpgrade(Binding.StatTag, OutMagnitude))
-       && FMath::IsFinite(OutMagnitude) && OutMagnitude > 0.f;
+        || TryGetAttributeValuePerUpgrade(Binding.StatTag, OutMagnitude))
+        && FMath::IsFinite(OutMagnitude) && OutMagnitude > 0.f;
 }
 
 // HP·MP·스태미나 같은 최대 자원의 순수 기본값을 정의 데이터에서 구한다. 장비나 버프가 섞인 현재값은 사용하지 않는다.
 bool UStatUpgradeDefinition::TryGetResourceBaseValue(const FStatUpgradeBinding& Binding, float& OutValue) const
 {
-    return TryGetExactAttributeDefaultValue(Binding.StatTag, OutValue)
-       && FMath::IsFinite(OutValue) && OutValue > 0.f;
+    return TryGetExactAttributeDefaultValue(Binding.StatTag, OutValue) && FMath::IsFinite(OutValue) && OutValue > 0.f;
 }
 
 // 투자 레벨과 레벨당 증가량을 이용해 현재까지 누적된 실제 스탯 증가량을 계산한다.
@@ -383,7 +362,7 @@ namespace
 {
     // 업그레이드 규칙마다 루트 태그·중복·비용 태그를 보고, 그 범주에 속한 속성 기본값이 있는지 확인한다.
     void ValidateUpgradeRules(FDataValidationContext& Context, EDataValidationResult& Result,
-       const TArray<FStatUpgradeRule>& UpgradeRules, const TArray<FStatAttributeDefaultValue>& AttributeDefaultValues)
+        const TArray<FStatUpgradeRule>& UpgradeRules, const TArray<FStatAttributeDefaultValue>& AttributeDefaultValues)
     {
         TSet<FGameplayTag> UpgradeRootTags;
         for (int32 EntryIndex = 0; EntryIndex < UpgradeRules.Num(); ++EntryIndex)
@@ -392,8 +371,8 @@ namespace
            if (!Rule.IsValid())
            {
               MarkStatUpgradeInvalid(Context, Result, FText::Format(
-                 NSLOCTEXT("StatUpgradeDefinition", "InvalidUpgradeRule", "UpgradeRules entry {0} requires RootTag."),
-                 FText::AsNumber(EntryIndex)));
+                  NSLOCTEXT("StatUpgradeDefinition", "InvalidUpgradeRule", "UpgradeRules entry {0} requires RootTag."),
+                  FText::AsNumber(EntryIndex)));
               continue;
            }
 
@@ -408,13 +387,9 @@ namespace
 
            UpgradeRootTags.Add(Rule.RootTag);
 
-           ValidateNonNegative(
-              Context,
-              Result,
-              Rule.Cost,
-              FText::Format(
-                 NSLOCTEXT("StatUpgradeDefinition", "UpgradeRuleCostField", "UpgradeRules entry {0} Cost"),
-                 FText::AsNumber(EntryIndex)));
+           ValidateNonNegative(Context, Result, Rule.Cost, FText::Format(
+               NSLOCTEXT("StatUpgradeDefinition", "UpgradeRuleCostField", "UpgradeRules entry {0} Cost"),
+               FText::AsNumber(EntryIndex)));
 
            if (Rule.Cost > 0.f && !Rule.CostPointTag.IsValid())
            {
@@ -430,10 +405,9 @@ namespace
            }
 
            const bool bHasAttributeValueInCategory = AttributeDefaultValues.ContainsByPredicate(
-              [&Rule](const FStatAttributeDefaultValue& AttributeValue)
+               [&Rule](const FStatAttributeDefaultValue& AttributeValue)
               {
-                 return AttributeValue.StatTag.IsValid()
-                    && AttributeValue.StatTag.MatchesTag(Rule.RootTag);
+                 return AttributeValue.StatTag.IsValid() && AttributeValue.StatTag.MatchesTag(Rule.RootTag);
               });
            if (!bHasAttributeValueInCategory)
            {
@@ -446,7 +420,7 @@ namespace
 
     // 최대 자원과 현재 자원 태그 짝이 비었거나, 같은 태그끼리 짝이거나, 최대 자원 태그가 겹치는지 본다.
     void ValidatePairedResources(FDataValidationContext& Context, EDataValidationResult& Result,
-       const TArray<FPairedResourceStatTag>& PairedResourceStatTags)
+        const TArray<FPairedResourceStatTag>& PairedResourceStatTags)
     {
         TSet<FGameplayTag> PairedMaxStatTags;
         for (int32 EntryIndex = 0; EntryIndex < PairedResourceStatTags.Num(); ++EntryIndex)
@@ -480,7 +454,7 @@ namespace
 
     // 속성 기본값마다 태그·중복과 기본값·업그레이드당 증가값이 유한한지 본다.
     void ValidateAttributeDefaults(FDataValidationContext& Context, EDataValidationResult& Result,
-       const TArray<FStatAttributeDefaultValue>& AttributeDefaultValues)
+        const TArray<FStatAttributeDefaultValue>& AttributeDefaultValues)
     {
         TSet<FGameplayTag> AttributeDefaultTags;
         for (int32 EntryIndex = 0; EntryIndex < AttributeDefaultValues.Num(); ++EntryIndex)

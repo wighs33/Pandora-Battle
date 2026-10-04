@@ -95,12 +95,8 @@ void UEnemyHealthBarWidget::AnimateHealth(const double From, const double To)
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(
-			AnimateHealthDelayTimer,
-			this,
-			&ThisClass::StartDecreaseHealthAnimation,
-			AnimateHealthDelay,
-			false);
+		World->GetTimerManager().SetTimer(AnimateHealthDelayTimer, this, &ThisClass::StartDecreaseHealthAnimation,
+			AnimateHealthDelay, false);
 	}
 }
 
@@ -113,9 +109,7 @@ void UEnemyHealthBarWidget::DecreaseHealthIncrement()
 		return;
 	}
 
-	AnimatedHealthPercent = FMath::Max(
-		AnimatedHealthTargetPercent,
-		AnimatedHealthPercent - AnimatedHealthDecreaseStep);
+	AnimatedHealthPercent = FMath::Max(AnimatedHealthTargetPercent, AnimatedHealthPercent - AnimatedHealthDecreaseStep);
 	AnimatedHealthProgressBar->SetPercent(AnimatedHealthPercent);
 
 	if (AnimatedHealthPercent <= AnimatedHealthTargetPercent)
@@ -175,8 +169,7 @@ void UEnemyHealthBarWidget::UnbindAttributeDelegates()
 
 	if (HealthChangedHandle.IsValid())
 	{
-		BoundAbilitySystemComponent
-			->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute())
+		BoundAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute())
 			.Remove(HealthChangedHandle);
 		HealthChangedHandle.Reset();
 	}
@@ -196,13 +189,8 @@ void UEnemyHealthBarWidget::StartDecreaseHealthAnimation()
 {
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(
-			DecreaseHealthTimer,
-			this,
-			&ThisClass::DecreaseHealthIncrement,
-			FMath::Max(AnimateHealthDecreaseIncrement, 0.001f),
-			true,
-			0.0f);
+		World->GetTimerManager().SetTimer(DecreaseHealthTimer, this, &ThisClass::DecreaseHealthIncrement,
+			FMath::Max(AnimateHealthDecreaseIncrement, 0.001f), true, 0.0f);
 	}
 }
 
@@ -250,9 +238,7 @@ float UEnemyHealthBarWidget::GetAttributeValue(const FGameplayAttribute& Attribu
 {
 	bool bSuccessfullyFoundAttribute = false;
 	const float Value = UAbilitySystemBlueprintLibrary::GetFloatAttributeFromAbilitySystemComponent(
-		BoundAbilitySystemComponent,
-		Attribute,
-		bSuccessfullyFoundAttribute);
+		BoundAbilitySystemComponent, Attribute, bSuccessfullyFoundAttribute);
 	if (bOutSuccessfullyFoundAttribute)
 	{
 		*bOutSuccessfullyFoundAttribute = bSuccessfullyFoundAttribute;

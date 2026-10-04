@@ -29,12 +29,10 @@ EDataValidationResult UStatusEffectDefinition::IsDataValid(FDataValidationContex
 
 	if (StackGameplayEffect->GetStackLimitCount() != MaxStackCount)
 	{
-		Context.AddError(FText::Format(
-			NSLOCTEXT("StatusEffectDefinition", "StackLimitMismatch",
-				"{0} StackLimitCount is {1}, but MaxStackCount is {2}. Set them to the same value."),
+		Context.AddError(FText::Format(NSLOCTEXT("StatusEffectDefinition", "StackLimitMismatch",
+			"{0} StackLimitCount is {1}, but MaxStackCount is {2}. Set them to the same value."),
 			FText::FromString(StackGameplayEffectClass->GetName()),
-			FText::AsNumber(StackGameplayEffect->GetStackLimitCount()),
-			FText::AsNumber(MaxStackCount)));
+			FText::AsNumber(StackGameplayEffect->GetStackLimitCount()), FText::AsNumber(MaxStackCount)));
 		Result = EDataValidationResult::Invalid;
 	}
 	return Result;

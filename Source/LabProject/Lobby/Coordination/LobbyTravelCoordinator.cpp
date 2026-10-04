@@ -266,8 +266,7 @@ void ULobbyTravelCoordinator::ScheduleServerTravel(const FString& TravelUrl)
 
 	World->GetTimerManager().ClearTimer(TravelDelayTimerHandle);
 	World->GetTimerManager().SetTimer(TravelDelayTimerHandle,
-		FTimerDelegate::CreateWeakLambda(this,
-			[this, TravelUrl]() {
+		FTimerDelegate::CreateWeakLambda(this, [this, TravelUrl]() {
 				ALobbyGameMode* LobbyGameMode = GetLobbyGameMode();
 				if (!LobbyGameMode) { return; }
 				UWorld* TravelWorld = LobbyGameMode->GetWorld();

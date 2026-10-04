@@ -16,17 +16,11 @@
 
 namespace
 {
-	FRotator SanitizeRotationRate(
-		const FRotator& RotationRate,
-		const FRotator& Fallback)
+	FRotator SanitizeRotationRate(const FRotator& RotationRate, const FRotator& Fallback)
 	{
-		const bool bIsFinite =
-			FMath::IsFinite(RotationRate.Pitch)
-			&& FMath::IsFinite(RotationRate.Yaw)
+		const bool bIsFinite = FMath::IsFinite(RotationRate.Pitch) && FMath::IsFinite(RotationRate.Yaw)
 			&& FMath::IsFinite(RotationRate.Roll);
-		return bIsFinite && !FMath::IsNearlyZero(RotationRate.Yaw)
-			? RotationRate
-			: Fallback;
+		return bIsFinite && !FMath::IsNearlyZero(RotationRate.Yaw) ? RotationRate : Fallback;
 	}
 }
 
@@ -42,8 +36,7 @@ void UPlayerAimComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UPlayerAimComponent::GetLifetimeReplicatedProps(
-	TArray<FLifetimeProperty>& OutLifetimeProps) const
+void UPlayerAimComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
@@ -60,20 +53,15 @@ void UPlayerAimComponent::GetLifetimeReplicatedProps(
 
 void UPlayerAimComponent::ApplySettings(const FPlayerAimSettings& Settings)
 {
-	const bool bRestartReplication =
-		GetWorld() && GetWorld()->GetTimerManager().IsTimerActive(ReplicationTimerHandle);
+	const bool bRestartReplication = GetWorld() && GetWorld()->GetTimerManager().IsTimerActive(ReplicationTimerHandle);
 	if (bRestartReplication)
 	{
 		StopReplication();
 	}
 
 	ReplicationInterval = FMath::Max(Settings.ReplicationInterval, 0.05f);
-	DefaultRotationRate = SanitizeRotationRate(
-		Settings.DefaultRotationRate,
-		FRotator(0.0f, 500.0f, 0.0f));
-	AimingRotationRate = SanitizeRotationRate(
-		Settings.AimingRotationRate,
-		FRotator(0.0f, 3000.0f, 0.0f));
+	DefaultRotationRate = SanitizeRotationRate(Settings.DefaultRotationRate, FRotator(0.0f, 500.0f, 0.0f));
+	AimingRotationRate = SanitizeRotationRate(Settings.AimingRotationRate, FRotator(0.0f, 3000.0f, 0.0f));
 
 	if (APdPlayer* Player = GetPlayerOwner();
 		Player && !Player->IsStatusFrozen())
@@ -99,12 +87,8 @@ void UPlayerAimComponent::StartReplication()
 	UpdateReplicatedAimOffset();
 	if (!World->GetTimerManager().IsTimerActive(ReplicationTimerHandle))
 	{
-		World->GetTimerManager().SetTimer(
-			ReplicationTimerHandle,
-			this,
-			&ThisClass::UpdateReplicatedAimOffset,
-			ReplicationInterval,
-			true);
+		World->GetTimerManager().SetTimer(ReplicationTimerHandle, this, &ThisClass::UpdateReplicatedAimOffset,
+			ReplicationInterval, true);
 	}
 }
 
@@ -116,47 +100,33 @@ void UPlayerAimComponent::StopReplication()
 	}
 }
 
-void UPlayerAimComponent::SetWeaponAimActive(
-	const bool bEnabled,
-	const FWeaponAimCameraSettings& CameraSettings)
+void UPlayerAimComponent::SetWeaponAimActive(const bool bEnabled, const FWeaponAimCameraSettings& CameraSettings)
 {
-	const FWeaponAimCameraSettings SafeSettings =
-		UPlayerCameraComponent::SanitizeAimCameraSettings(CameraSettings);
+	const FWeaponAimCameraSettings SafeSettings = UPlayerCameraComponent::SanitizeAimCameraSettings(CameraSettings);
 	ApplyWeaponAimState(bEnabled, SafeSettings);
 
 	const APdPlayer* Player = GetPlayerOwner();
-	if (Player
-		&& Player->IsLocallyControlled()
-		&& !Player->HasAuthority())
+	if (Player && Player->IsLocallyControlled() && !Player->HasAuthority())
 	{
 		ServerSetWeaponAimActive(bEnabled, SafeSettings);
 	}
 }
 
-void UPlayerAimComponent::ServerSetWeaponAimActive_Implementation(
-	const bool bEnabled,
+void UPlayerAimComponent::ServerSetWeaponAimActive_Implementation(const bool bEnabled,
 	FWeaponAimCameraSettings CameraSettings)
 {
 	APdPlayer* Player = GetPlayerOwner();
-	const UEquipmentComponent* EquipmentComponent = Player
-		? Player->GetEquipmentComponent()
-		: nullptr;
+	const UEquipmentComponent* EquipmentComponent = Player ? Player->GetEquipmentComponent() : nullptr;
 	const ARangedWeaponBase* CurrentWeapon = EquipmentComponent
 		? Cast<ARangedWeaponBase>(EquipmentComponent->GetCurrentWeaponActor())
 		: nullptr;
-	if (bEnabled
-		&& (!CurrentWeapon
-			|| !CurrentWeapon->CanUseRangedWeapon(Player, false)))
+	if (bEnabled && (!CurrentWeapon || !CurrentWeapon->CanUseRangedWeapon(Player, false)))
 	{
-		ApplyWeaponAimState(
-			false,
-			FWeaponAimCameraSettings());
+		ApplyWeaponAimState(false, FWeaponAimCameraSettings());
 		return;
 	}
 
-	ApplyWeaponAimState(
-		bEnabled,
-		UPlayerCameraComponent::SanitizeAimCameraSettings(CameraSettings));
+	ApplyWeaponAimState(bEnabled, UPlayerCameraComponent::SanitizeAimCameraSettings(CameraSettings));
 }
 
 void UPlayerAimComponent::OnRep_WeaponAimActive()
@@ -168,8 +138,7 @@ void UPlayerAimComponent::OnRep_ReplicatedAimOffset()
 {
 	if (APdPlayer* Player = GetPlayerOwner(); Player && !Player->IsLocallyControlled())
 	{
-		Player->SetAimOffsetForAnimation(
-			FRotator::NormalizeAxis(FRotator::DecompressAxisFromByte(ReplicatedAimYaw)),
+		Player->SetAimOffsetForAnimation(FRotator::NormalizeAxis(FRotator::DecompressAxisFromByte(ReplicatedAimYaw)),
 			FRotator::NormalizeAxis(FRotator::DecompressAxisFromByte(ReplicatedAimPitch)));
 	}
 }
@@ -179,9 +148,7 @@ APdPlayer* UPlayerAimComponent::GetPlayerOwner() const
 	return Cast<APdPlayer>(GetOwner());
 }
 
-void UPlayerAimComponent::ApplyWeaponAimState(
-	const bool bEnabled,
-	const FWeaponAimCameraSettings& CameraSettings)
+void UPlayerAimComponent::ApplyWeaponAimState(const bool bEnabled, const FWeaponAimCameraSettings& CameraSettings)
 {
 	APdPlayer* Player = GetPlayerOwner();
 	if (!Player)
@@ -203,20 +170,15 @@ void UPlayerAimComponent::ApplyWeaponAimState(
 	bWeaponAimActive = bEnabled;
 	if (Player->HasAuthority() && bStateChanged)
 	{
-		MARK_PROPERTY_DIRTY_FROM_NAME(
-			UPlayerAimComponent,
-			bWeaponAimActive,
-			this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(UPlayerAimComponent, bWeaponAimActive, this);
 		Player->ForceNetUpdate();
 	}
 
 	if (bEnabled)
 	{
-		// Relinking after the state flip lets a newly created item layer read
-		// IsWeaponAimActive() as true during NativeInitializeAnimation. This
-		// also repairs layers left stale by an interrupted skill montage.
-		if (UEquipmentComponent* EquipmentComponent =
-			Player->GetEquipmentComponent())
+		// 상태를 바꾼 뒤 다시 연결해야 새로 만든 아이템 레이어가 NativeInitializeAnimation에서
+		// IsWeaponAimActive()를 true로 읽는다. 스킬 몽타주가 끊겨 묵은 레이어도 함께 고친다.
+		if (UEquipmentComponent* EquipmentComponent = Player->GetEquipmentComponent())
 		{
 			EquipmentComponent->RefreshCurrentWeaponAnimationLayer();
 		}
@@ -228,21 +190,18 @@ void UPlayerAimComponent::ApplyWeaponAimState(
 	}
 }
 
-void UPlayerAimComponent::CacheMovementDefaults(
-	UCharacterMovementComponent* MovementComponent)
+void UPlayerAimComponent::CacheMovementDefaults(UCharacterMovementComponent* MovementComponent)
 {
 	if (!MovementComponent || bHasCachedMovementDefaults)
 	{
 		return;
 	}
 
-	bDefaultAllowPhysicsRotationDuringAnimRootMotion =
-		MovementComponent->bAllowPhysicsRotationDuringAnimRootMotion;
+	bDefaultAllowPhysicsRotationDuringAnimRootMotion = MovementComponent->bAllowPhysicsRotationDuringAnimRootMotion;
 	bHasCachedMovementDefaults = true;
 }
 
-void UPlayerAimComponent::ApplyMovementSettings(
-	UCharacterMovementComponent* MovementComponent)
+void UPlayerAimComponent::ApplyMovementSettings(UCharacterMovementComponent* MovementComponent)
 {
 	APdPlayer* Player = GetPlayerOwner();
 	if (!Player || !MovementComponent)
@@ -254,10 +213,8 @@ void UPlayerAimComponent::ApplyMovementSettings(
 
 	MovementComponent->bOrientRotationToMovement = !bWeaponAimActive;
 	MovementComponent->bUseControllerDesiredRotation = bWeaponAimActive;
-	MovementComponent->RotationRate =
-		bWeaponAimActive ? AimingRotationRate : DefaultRotationRate;
-	MovementComponent->bAllowPhysicsRotationDuringAnimRootMotion =
-		bWeaponAimActive
+	MovementComponent->RotationRate = bWeaponAimActive ? AimingRotationRate : DefaultRotationRate;
+	MovementComponent->bAllowPhysicsRotationDuringAnimRootMotion = bWeaponAimActive
 		|| bDefaultAllowPhysicsRotationDuringAnimRootMotion;
 	Player->bUseControllerRotationYaw = false;
 }
@@ -271,26 +228,18 @@ void UPlayerAimComponent::UpdateReplicatedAimOffset()
 	}
 
 	Player->UpdateAimOffsetForAnimation();
-	const uint8 NewAimYaw =
-		FRotator::CompressAxisToByte(Player->GetAimYawForAnimation());
-	const uint8 NewAimPitch =
-		FRotator::CompressAxisToByte(Player->GetAimPitchForAnimation());
+	const uint8 NewAimYaw = FRotator::CompressAxisToByte(Player->GetAimYawForAnimation());
+	const uint8 NewAimPitch = FRotator::CompressAxisToByte(Player->GetAimPitchForAnimation());
 
 	if (ReplicatedAimYaw != NewAimYaw)
 	{
 		ReplicatedAimYaw = NewAimYaw;
-		MARK_PROPERTY_DIRTY_FROM_NAME(
-			UPlayerAimComponent,
-			ReplicatedAimYaw,
-			this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(UPlayerAimComponent, ReplicatedAimYaw, this);
 	}
 
 	if (ReplicatedAimPitch != NewAimPitch)
 	{
 		ReplicatedAimPitch = NewAimPitch;
-		MARK_PROPERTY_DIRTY_FROM_NAME(
-			UPlayerAimComponent,
-			ReplicatedAimPitch,
-			this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(UPlayerAimComponent, ReplicatedAimPitch, this);
 	}
 }

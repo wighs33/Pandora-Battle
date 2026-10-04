@@ -122,9 +122,7 @@ void UAbilitiesBarWidget::FillAbilitiesBar()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(RebuildBarTimerHandle);
-		RebuildBarTimerHandle = World->GetTimerManager().SetTimerForNextTick(
-			this,
-			&ThisClass::RebuildAbilitiesBar);
+		RebuildBarTimerHandle = World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::RebuildAbilitiesBar);
 		return;
 	}
 
@@ -182,10 +180,8 @@ void UAbilitiesBarWidget::RebuildAbilitiesBar()
 			SlotData.bEnabled = bSelectedPandoraEnabled && bSkillSlotUnlocked;
 			if (SlotData.bEnabled)
 			{
-				SlotData.AbilitySpecHandle = FindAbilitySpecHandleForSkill(
-					AbilitySystemComponent,
-					SelectedPandoraDefinition,
-					SlotIndex);
+				SlotData.AbilitySpecHandle = FindAbilitySpecHandleForSkill(AbilitySystemComponent,
+					SelectedPandoraDefinition, SlotIndex);
 				if (!SlotData.AbilitySpecHandle.IsValid())
 				{
 					SlotData.bEnabled = false;
@@ -239,11 +235,8 @@ void UAbilitiesBarWidget::AddAbilitySlot(const FAbilityBarSlotData& SlotData)
 	AbilitySlotWidget->SetSkillSlotIndex(SlotData.SkillSlotIndex);
 	if (SlotData.bHasDisplayOverride)
 	{
-		AbilitySlotWidget->SetAbilitySlotDataEnabled(
-			SlotData.AbilitySpecHandle,
-			SlotData.DisplayNameOverride,
-			SlotData.IconOverride,
-			SlotData.bEnabled);
+		AbilitySlotWidget->SetAbilitySlotDataEnabled(SlotData.AbilitySpecHandle, SlotData.DisplayNameOverride,
+			SlotData.IconOverride, SlotData.bEnabled);
 	}
 	else
 	{
@@ -327,8 +320,7 @@ bool UAbilitiesBarWidget::ShouldShowAbilityHandle(UAbilitySystemComponent* Abili
 	}
 	const USkillDefinition* SourceSkill = ResolveSourceSkillDataAsset(AbilitySpec);
 	// 판도라 스킬은 선택된 판도라의 전용 슬롯에서 표시한다.
-	return SourceSkill
-		&& !AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora);
+	return SourceSkill && !AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora);
 }
 
 UAbilitySystemComponent* UAbilitiesBarWidget::GetOwningAbilitySystemComponent() const
@@ -404,13 +396,10 @@ const UItemDefinition* UAbilitiesBarWidget::GetCurrentWeaponDefinition() const
 }
 
 FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
-	UAbilitySystemComponent* AbilitySystemComponent,
-	const UPandoraDefinition* PandoraDefinition,
+	UAbilitySystemComponent* AbilitySystemComponent, const UPandoraDefinition* PandoraDefinition,
 	int32 SkillIndex) const
 {
-	if (!AbilitySystemComponent
-		|| !PandoraDefinition
-		|| SkillIndex < 0
+	if (!AbilitySystemComponent || !PandoraDefinition || SkillIndex < 0
 		|| SkillIndex >= UPandoraDefinition::GetFixedMaxLevel())
 	{
 		return FGameplayAbilitySpecHandle();
@@ -448,8 +437,7 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 		}
 
 		const UPandoraSkillSource* SkillSource = Cast<UPandoraSkillSource>(AbilitySpec->SourceObject.Get());
-		if (SkillSource
-			&& SkillSource->GetPandoraDefinition() == PandoraDefinition
+		if (SkillSource && SkillSource->GetPandoraDefinition() == PandoraDefinition
 			&& SkillSource->GetSkillIndex() == SkillIndex
 			&& AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(SkillInputTag))
 		{
@@ -508,20 +496,15 @@ void UAbilitiesBarWidget::BindPandoraTreeChangedEvent()
 		return;
 	}
 
-	PandoraTreeComponent->OnPandorasChanged.AddUniqueDynamic(
-		this,
-		&ThisClass::HandlePandoraTreeChanged);
+	PandoraTreeComponent->OnPandorasChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraTreeChanged);
 	BoundPandoraTreeComponent = PandoraTreeComponent;
 }
 
 void UAbilitiesBarWidget::UnbindPandoraTreeChangedEvent()
 {
-	if (UPandoraTreeComponent* PandoraTreeComponent =
-		BoundPandoraTreeComponent.Get())
+	if (UPandoraTreeComponent* PandoraTreeComponent = BoundPandoraTreeComponent.Get())
 	{
-		PandoraTreeComponent->OnPandorasChanged.RemoveDynamic(
-			this,
-			&ThisClass::HandlePandoraTreeChanged);
+		PandoraTreeComponent->OnPandorasChanged.RemoveDynamic(this, &ThisClass::HandlePandoraTreeChanged);
 	}
 	BoundPandoraTreeComponent.Reset();
 }

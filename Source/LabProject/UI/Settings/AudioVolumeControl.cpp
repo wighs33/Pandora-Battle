@@ -37,9 +37,7 @@ namespace
 	}
 }
 
-void UAudioVolumeControl::Initialize(
-	UUserWidget* InOwnerWidget,
-	UAudioVolumeSlider* InVolumeSlider,
+void UAudioVolumeControl::Initialize(UUserWidget* InOwnerWidget, UAudioVolumeSlider* InVolumeSlider,
 	UButton* InSoundButton)
 {
 	Shutdown();
@@ -63,8 +61,7 @@ void UAudioVolumeControl::Initialize(
 
 	if (UAudioSettingsSubsystem* AudioSettingsSubsystem = GetAudioSettingsSubsystem())
 	{
-		MasterVolumeChangedHandle = AudioSettingsSubsystem->OnMasterVolumeChanged.AddUObject(
-			this,
+		MasterVolumeChangedHandle = AudioSettingsSubsystem->OnMasterVolumeChanged.AddUObject(this,
 			&ThisClass::HandleMasterVolumeChanged);
 	}
 
@@ -116,10 +113,7 @@ void UAudioVolumeControl::BeginSoundButtonTexturePreload()
 		return;
 	}
 
-	SettingsSubsystem->PreloadRuntimeContentAsync(
-		FSimpleDelegate::CreateWeakLambda(
-			this,
-			[this, PreloadGeneration]()
+	SettingsSubsystem->PreloadRuntimeContentAsync(FSimpleDelegate::CreateWeakLambda(this, [this, PreloadGeneration]()
 			{
 				if (PreloadGeneration == TexturePreloadGeneration)
 				{
@@ -143,8 +137,7 @@ void UAudioVolumeControl::HandleSliderValueChanged(const float NormalizedValue)
 	if (UAudioSettingsSubsystem* AudioSettingsSubsystem = GetAudioSettingsSubsystem())
 	{
 		const int32 VolumePercent = FMath::Clamp(
-			FMath::RoundToInt(NormalizedValue * static_cast<float>(AudioVolumeControlMaxMasterVolumePercent)),
-			0,
+			FMath::RoundToInt(NormalizedValue * static_cast<float>(AudioVolumeControlMaxMasterVolumePercent)), 0,
 			AudioVolumeControlMaxMasterVolumePercent);
 		AudioSettingsSubsystem->SetMasterVolumePercent(VolumePercent);
 	}
@@ -185,8 +178,7 @@ void UAudioVolumeControl::SetSliderValueFromPercent(const int32 VolumePercent)
 	}
 
 	TGuardValue<bool> SynchronizingGuard(bSynchronizing, true);
-	VolumeSlider->Value = static_cast<float>(
-		FMath::Clamp(VolumePercent, 0, AudioVolumeControlMaxMasterVolumePercent))
+	VolumeSlider->Value = static_cast<float>(FMath::Clamp(VolumePercent, 0, AudioVolumeControlMaxMasterVolumePercent))
 		/ static_cast<float>(AudioVolumeControlMaxMasterVolumePercent);
 	static_cast<UAudioSliderBase*>(VolumeSlider.Get())->SynchronizeProperties();
 }

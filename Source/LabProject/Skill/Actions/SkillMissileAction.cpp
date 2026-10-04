@@ -177,8 +177,7 @@ void USkillMissileAction::StartMissilePresentation()
 	}
 
 	GetAbility()->StartConfiguredMissilePresentation();
-	GetAbility()->SetMissileTargeting(Settings.AimPositionParameterName,
-	                                                           Settings.TargetSocketName);
+	GetAbility()->SetMissileTargeting(Settings.AimPositionParameterName, Settings.TargetSocketName);
 }
 
 void USkillMissileAction::StartMissileDurationTimer()
@@ -205,12 +204,8 @@ void USkillMissileAction::StartMissileDurationTimer()
 		return;
 	}
 
-	World->GetTimerManager().SetTimer(
-		MissileDurationTimerHandle,
-		this,
-		&ThisClass::HandleMissileDurationFinished,
-		MissileDuration,
-		false);
+	World->GetTimerManager().SetTimer(MissileDurationTimerHandle, this, &ThisClass::HandleMissileDurationFinished,
+		MissileDuration, false);
 }
 
 void USkillMissileAction::HandleMissileDurationFinished()
@@ -244,12 +239,8 @@ void USkillMissileAction::StartMissileTargetTracking()
 		return;
 	}
 
-	World->GetTimerManager().SetTimer(
-		MissileTargetTrackingTimerHandle,
-		this,
-		&ThisClass::RefreshMissileTargets,
-		MissileTargetTrackingInterval,
-		true);
+	World->GetTimerManager().SetTimer(MissileTargetTrackingTimerHandle, this, &ThisClass::RefreshMissileTargets,
+		MissileTargetTrackingInterval, true);
 }
 
 void USkillMissileAction::StopMissileTargetTracking()
@@ -278,20 +269,12 @@ void USkillMissileAction::RefreshMissileTargets()
 
 	FCollisionObjectQueryParams ObjectQueryParams;
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
-	FCollisionQueryParams QueryParams(
-		SCENE_QUERY_STAT(MissileActiveTargetSearch),
-		false,
-		AvatarActor);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MissileActiveTargetSearch), false, AvatarActor);
 	const FCollisionShape SphereShape = FCollisionShape::MakeSphere(static_cast<float>(Settings.TargetingMaxRange));
 
 	TArray<FOverlapResult> OverlapResults;
-	World->OverlapMultiByObjectType(
-		OverlapResults,
-		GetMissileTargetingOrigin(),
-		FQuat::Identity,
-		ObjectQueryParams,
-		SphereShape,
-		QueryParams);
+	World->OverlapMultiByObjectType(OverlapResults, GetMissileTargetingOrigin(), FQuat::Identity, ObjectQueryParams,
+		SphereShape, QueryParams);
 
 	TSet<FObjectKey> AddedTargetKeys;
 	TArray<TWeakObjectPtr<AActor>> NewTargetActors;
@@ -318,9 +301,7 @@ void USkillMissileAction::RefreshMissileTargets()
 		}
 	}
 
-	NewTargetActors.Sort([](
-		const TWeakObjectPtr<AActor>& Left,
-		const TWeakObjectPtr<AActor>& Right)
+	NewTargetActors.Sort([](const TWeakObjectPtr<AActor>& Left, const TWeakObjectPtr<AActor>& Right)
 		{
 			const AActor* LeftActor = Left.Get();
 			const AActor* RightActor = Right.Get();
@@ -381,12 +362,8 @@ void USkillMissileAction::StartDamageSequence()
 		return;
 	}
 
-	World->GetTimerManager().SetTimer(
-		DamageDelayTimerHandle,
-		this,
-		&ThisClass::HandleDamageDelayFinished,
-		DamageStartDelay,
-		false);
+	World->GetTimerManager().SetTimer(DamageDelayTimerHandle, this, &ThisClass::HandleDamageDelayFinished,
+		DamageStartDelay, false);
 }
 
 void USkillMissileAction::HandleDamageDelayFinished()
@@ -423,12 +400,8 @@ void USkillMissileAction::HandleDamageTick()
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(
-			DamageTickTimerHandle,
-			this,
-			&ThisClass::HandleDamageTick,
-			CalculateDamageInterval(),
-			false);
+		World->GetTimerManager().SetTimer(DamageTickTimerHandle, this, &ThisClass::HandleDamageTick,
+			CalculateDamageInterval(), false);
 	}
 	else
 	{
@@ -447,13 +420,9 @@ void USkillMissileAction::ApplyMissileDamageTick(const float TickDamageMagnitude
 
 	FCollisionObjectQueryParams ObjectQueryParams;
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
-	FCollisionQueryParams QueryParams(
-		SCENE_QUERY_STAT(MissileDamage),
-		false,
-		AvatarActor);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MissileDamage), false, AvatarActor);
 	const float DamageRadius = CalculateDamageRadius();
-	const FCollisionShape SphereShape = FCollisionShape::MakeSphere(
-		DamageRadius);
+	const FCollisionShape SphereShape = FCollisionShape::MakeSphere(DamageRadius);
 	TSet<FObjectKey> DamageTargetKeys;
 	TArray<TWeakObjectPtr<AActor>> DamageTargets;
 
@@ -461,8 +430,7 @@ void USkillMissileAction::ApplyMissileDamageTick(const float TickDamageMagnitude
 	{
 		AActor* TargetActor = TargetPtr.Get();
 		FVector TargetLocation = FVector::ZeroVector;
-		if (!IsEligibleMissileTargetActor(TargetActor)
-			|| !ResolveTargetAimLocation(TargetActor, TargetLocation)
+		if (!IsEligibleMissileTargetActor(TargetActor) || !ResolveTargetAimLocation(TargetActor, TargetLocation)
 			|| !IsMissileTargetLocationWithinRange(TargetLocation))
 		{
 			continue;
@@ -481,12 +449,7 @@ void USkillMissileAction::ApplyMissileDamageTick(const float TickDamageMagnitude
 		}
 
 		TArray<FOverlapResult> OverlapResults;
-		World->OverlapMultiByObjectType(
-			OverlapResults,
-			TargetLocation,
-			FQuat::Identity,
-			ObjectQueryParams,
-			SphereShape,
+		World->OverlapMultiByObjectType(OverlapResults, TargetLocation, FQuat::Identity, ObjectQueryParams, SphereShape,
 			QueryParams);
 		for (const FOverlapResult& OverlapResult : OverlapResults)
 		{
@@ -575,23 +538,17 @@ bool USkillMissileAction::ResolveTargetAimLocation(AActor* TargetActor, FVector&
 
 bool USkillMissileAction::IsEligibleMissileTargetActor(const AActor* TargetActor) const
 {
-	const ACharacterBase* SourceCharacter =
-		Cast<ACharacterBase>(GetAbility()->GetAvatarActorFromActorInfo());
-	const ACharacterBase* TargetCharacter =
-		Cast<ACharacterBase>(TargetActor);
-	if (!IsValid(SourceCharacter)
-		|| !IsValid(TargetCharacter)
+	const ACharacterBase* SourceCharacter = Cast<ACharacterBase>(GetAbility()->GetAvatarActorFromActorInfo());
+	const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(TargetActor);
+	if (!IsValid(SourceCharacter) || !IsValid(TargetCharacter)
 		|| !SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))
 	{
 		return false;
 	}
 
-	const UAbilitySystemComponent* TargetASC =
-		TargetCharacter->GetAbilitySystemComponent();
-	return TargetASC
-		&& !TargetASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
-		&& TargetASC->GetNumericAttribute(
-			UBasicAttributeSet::GetHealthAttribute()) > 0.0f;
+	const UAbilitySystemComponent* TargetASC = TargetCharacter->GetAbilitySystemComponent();
+	return TargetASC && !TargetASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
+		&& TargetASC->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) > 0.0f;
 }
 
 bool USkillMissileAction::IsMissileTargetLocationWithinRange(const FVector& TargetLocation) const
@@ -639,9 +596,7 @@ float USkillMissileAction::CalculateDamageRadius() const
 float USkillMissileAction::CalculateDamageMagnitudePerTick() const
 {
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	return SkillDataAsset
-		       ? GetAbility()->CalculateDamageMagnitude(SkillDataAsset->GetResolvedDamageConfig())
-		       : 0.0f;
+	return SkillDataAsset ? GetAbility()->CalculateDamageMagnitude(SkillDataAsset->GetResolvedDamageConfig()) : 0.0f;
 }
 
 int32 USkillMissileAction::CalculateDamageTickCount() const
@@ -675,16 +630,8 @@ void USkillMissileAction::DrawDebugTargetingRange() const
 		return;
 	}
 
-	DrawDebugSphere(
-		World,
-		GetMissileTargetingOrigin(),
-		static_cast<float>(Settings.TargetingMaxRange),
-		64,
-		FColor::Cyan,
-		false,
-		MissileTargetTrackingInterval * 1.5f,
-		0,
-		2.0f);
+	DrawDebugSphere(World, GetMissileTargetingOrigin(), static_cast<float>(Settings.TargetingMaxRange), 64,
+		FColor::Cyan, false, MissileTargetTrackingInterval * 1.5f, 0, 2.0f);
 }
 
 void USkillMissileAction::MarkDamageSequenceFinished()

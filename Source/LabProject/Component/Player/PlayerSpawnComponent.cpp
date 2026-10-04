@@ -20,8 +20,7 @@ UPlayerSpawnComponent::UPlayerSpawnComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UPlayerSpawnComponent::EndPlay(
-	const EEndPlayReason::Type EndPlayReason)
+void UPlayerSpawnComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	StopRespawning();
 	OnPlayerRespawned.Clear();
@@ -33,8 +32,7 @@ void UPlayerSpawnComponent::EndPlay(
 	Super::EndPlay(EndPlayReason);
 }
 
-AActor* UPlayerSpawnComponent::ChooseConfiguredPlayerStart(
-	AController* Player, FName SpawnIndexTagPrefix)
+AActor* UPlayerSpawnComponent::ChooseConfiguredPlayerStart(AController* Player, FName SpawnIndexTagPrefix)
 {
 	if (Player)
 	{
@@ -47,10 +45,7 @@ AActor* UPlayerSpawnComponent::ChooseConfiguredPlayerStart(
 	const APlayerState* PlayerState = Player ? Player->GetPlayerState<APlayerState>() : nullptr;
 	const UPlayerMatchComponent* MatchComponent = PlayerState ? PlayerState->FindComponentByClass<UPlayerMatchComponent>() : nullptr;
 	const int32 SpawnIndex = MatchComponent ? MatchComponent->GetMatchSpawnIndex() : INDEX_NONE;
-	if (AActor* TaggedPlayerStart =
-		FindPlayerStartBySpawnIndex(
-			SpawnIndex,
-			SpawnIndexTagPrefix))
+	if (AActor* TaggedPlayerStart = FindPlayerStartBySpawnIndex(SpawnIndex, SpawnIndexTagPrefix))
 	{
 		MarkPlayerStartUsed(Player, TaggedPlayerStart);
 		return TaggedPlayerStart;
@@ -65,9 +60,7 @@ AActor* UPlayerSpawnComponent::ChooseConfiguredPlayerStart(
 	return nullptr;
 }
 
-void UPlayerSpawnComponent::MarkPlayerStartUsed(
-	AController* Player,
-	AActor* PlayerStart)
+void UPlayerSpawnComponent::MarkPlayerStartUsed(AController* Player, AActor* PlayerStart)
 {
 	if (!PlayerStart)
 	{
@@ -96,15 +89,10 @@ void UPlayerSpawnComponent::RecordInitialSpawn(AController* PlayerController, co
 	}
 }
 
-void UPlayerSpawnComponent::RequestPlayerRespawn(
-	AController* PlayerController,
-	APawn* DeadPawn)
+void UPlayerSpawnComponent::RequestPlayerRespawn(AController* PlayerController, APawn* DeadPawn)
 {
 	AGameModeBase* GameMode = Cast<AGameModeBase>(GetOwner());
-	if (!GameMode
-		|| !GameMode->HasAuthority()
-		|| !PlayerController
-		|| !PlayerController->IsPlayerController())
+	if (!GameMode || !GameMode->HasAuthority() || !PlayerController || !PlayerController->IsPlayerController())
 	{
 		return;
 	}
@@ -132,11 +120,9 @@ void UPlayerSpawnComponent::RequestPlayerRespawn(
 		}
 	}
 
-	if (APdPlayerController* PdPlayerController =
-		Cast<APdPlayerController>(PlayerController))
+	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(PlayerController))
 	{
-		PdPlayerController->Client_StartRespawnDelayCountdown(
-			RespawnDelay);
+		PdPlayerController->Client_StartRespawnDelayCountdown(RespawnDelay);
 	}
 
 	if (RespawnDelay <= 0.0f)
@@ -152,41 +138,31 @@ void UPlayerSpawnComponent::RequestPlayerRespawn(
 	}
 
 	FTimerHandle RespawnTimerHandle;
-	World->GetTimerManager().SetTimer(
-		RespawnTimerHandle,
-		FTimerDelegate::CreateWeakLambda(
-			this,
-			[this, WeakPlayerController, WeakDeadPawn, ControllerKey]()
+	World->GetTimerManager().SetTimer(RespawnTimerHandle,
+		FTimerDelegate::CreateWeakLambda(this, [this, WeakPlayerController, WeakDeadPawn, ControllerKey]()
 			{
 				PendingPlayerRespawnTimers.Remove(ControllerKey);
-				FinishPlayerRespawn(
-					WeakPlayerController,
-					WeakDeadPawn);
+				FinishPlayerRespawn(WeakPlayerController, WeakDeadPawn);
 			}),
 		RespawnDelay,
 		false);
-	PendingPlayerRespawnTimers.Add(
-		ControllerKey,
-		RespawnTimerHandle);
+	PendingPlayerRespawnTimers.Add(ControllerKey, RespawnTimerHandle);
 }
 
-bool UPlayerSpawnComponent::TryGetPlayerInitialSpawnTransform(
-	AController* PlayerController,
+bool UPlayerSpawnComponent::TryGetPlayerInitialSpawnTransform(AController* PlayerController,
 	FTransform& OutSpawnTransform) const
 {
 	if (PlayerController)
 	{
 		if (const FTransform* CachedSpawnTransform =
-			InitialPlayerSpawnTransforms.Find(
-				TObjectKey<AController>(PlayerController)))
+			InitialPlayerSpawnTransforms.Find(TObjectKey<AController>(PlayerController)))
 		{
 			OutSpawnTransform = *CachedSpawnTransform;
 			return true;
 		}
 
 		if (const TWeakObjectPtr<AActor>* AssignedPlayerStart =
-			AssignedPlayerStartsByController.Find(
-				TObjectKey<AController>(PlayerController)))
+			AssignedPlayerStartsByController.Find(TObjectKey<AController>(PlayerController)))
 		{
 			if (const AActor* PlayerStart = AssignedPlayerStart->Get())
 			{
@@ -209,41 +185,31 @@ TArray<APlayerController*> UPlayerSpawnComponent::MovePlayersToInitialSpawns()
 		return MovedPlayers;
 	}
 
-	for (FConstPlayerControllerIterator Iterator =
-			World->GetPlayerControllerIterator();
+	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator();
 		Iterator;
 		++Iterator)
 	{
 		APlayerController* PlayerController = Iterator->Get();
-		APawn* Pawn =
-			PlayerController ? PlayerController->GetPawn() : nullptr;
+		APawn* Pawn = PlayerController ? PlayerController->GetPawn() : nullptr;
 		if (!PlayerController || !Pawn)
 		{
 			continue;
 		}
 
 		FTransform InitialSpawnTransform;
-		if (!TryGetPlayerInitialSpawnTransform(
-			PlayerController,
-			InitialSpawnTransform))
+		if (!TryGetPlayerInitialSpawnTransform(PlayerController, InitialSpawnTransform))
 		{
 			continue;
 		}
 
-		Pawn->SetActorTransform(
-			InitialSpawnTransform,
-			false,
-			nullptr,
-			ETeleportType::TeleportPhysics);
-		PlayerController->SetControlRotation(
-			InitialSpawnTransform.GetRotation().Rotator());
+		Pawn->SetActorTransform(InitialSpawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		PlayerController->SetControlRotation(InitialSpawnTransform.GetRotation().Rotator());
 		MovedPlayers.Add(PlayerController);
 	}
 	return MovedPlayers;
 }
 
-void UPlayerSpawnComponent::ClearRuntimeStateForController(
-	AController* Controller)
+void UPlayerSpawnComponent::ClearRuntimeStateForController(AController* Controller)
 {
 	if (!Controller)
 	{
@@ -253,8 +219,7 @@ void UPlayerSpawnComponent::ClearRuntimeStateForController(
 	const TObjectKey<AController> ControllerKey(Controller);
 	if (UWorld* World = GetWorld())
 	{
-		if (FTimerHandle* RespawnTimerHandle =
-			PendingPlayerRespawnTimers.Find(ControllerKey))
+		if (FTimerHandle* RespawnTimerHandle = PendingPlayerRespawnTimers.Find(ControllerKey))
 		{
 			World->GetTimerManager().ClearTimer(*RespawnTimerHandle);
 		}
@@ -264,8 +229,7 @@ void UPlayerSpawnComponent::ClearRuntimeStateForController(
 	InitialPlayerSpawnTransforms.Remove(ControllerKey);
 	LastRandomRespawnPlayerStartNames.Remove(ControllerKey);
 
-	if (TWeakObjectPtr<AActor>* AssignedPlayerStart =
-		AssignedPlayerStartsByController.Find(ControllerKey))
+	if (TWeakObjectPtr<AActor>* AssignedPlayerStart = AssignedPlayerStartsByController.Find(ControllerKey))
 	{
 		if (AActor* PlayerStart = AssignedPlayerStart->Get())
 		{
@@ -275,8 +239,7 @@ void UPlayerSpawnComponent::ClearRuntimeStateForController(
 	AssignedPlayerStartsByController.Remove(ControllerKey);
 }
 
-AActor* UPlayerSpawnComponent::FindPlayerStartBySpawnIndex(
-	const int32 SpawnIndex,
+AActor* UPlayerSpawnComponent::FindPlayerStartBySpawnIndex(const int32 SpawnIndex,
 	const FName PlayerStartTagPrefix) const
 {
 	if (SpawnIndex == INDEX_NONE)
@@ -289,23 +252,16 @@ AActor* UPlayerSpawnComponent::FindPlayerStartBySpawnIndex(
 		*FString::Printf(TEXT("%s%d"), *Prefix, SpawnIndex));
 
 	TArray<AActor*> PlayerStarts;
-	UGameplayStatics::GetAllActorsOfClass(
-		GetWorld(),
-		APlayerStart::StaticClass(),
-		PlayerStarts);
-	PlayerStarts.Sort(
-		[](const AActor& A, const AActor& B)
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), PlayerStarts);
+	PlayerStarts.Sort([](const AActor& A, const AActor& B)
 		{
 			return A.GetName() < B.GetName();
 		});
 
 	for (AActor* PlayerStartActor : PlayerStarts)
 	{
-		const APlayerStart* PlayerStart =
-			Cast<APlayerStart>(PlayerStartActor);
-		if (PlayerStart
-			&& PlayerStart->PlayerStartTag == DesiredPlayerStartTag
-			&& !IsPlayerStartUsed(PlayerStartActor))
+		const APlayerStart* PlayerStart = Cast<APlayerStart>(PlayerStartActor);
+		if (PlayerStart && PlayerStart->PlayerStartTag == DesiredPlayerStartTag && !IsPlayerStartUsed(PlayerStartActor))
 		{
 			return PlayerStartActor;
 		}
@@ -317,12 +273,8 @@ AActor* UPlayerSpawnComponent::FindPlayerStartBySpawnIndex(
 AActor* UPlayerSpawnComponent::FindFirstUnusedPlayerStart() const
 {
 	TArray<AActor*> PlayerStarts;
-	UGameplayStatics::GetAllActorsOfClass(
-		GetWorld(),
-		APlayerStart::StaticClass(),
-		PlayerStarts);
-	PlayerStarts.Sort(
-		[](const AActor& A, const AActor& B)
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), PlayerStarts);
+	PlayerStarts.Sort([](const AActor& A, const AActor& B)
 		{
 			return A.GetName() < B.GetName();
 		});
@@ -338,12 +290,9 @@ AActor* UPlayerSpawnComponent::FindFirstUnusedPlayerStart() const
 	return nullptr;
 }
 
-bool UPlayerSpawnComponent::IsPlayerStartUsed(
-	const AActor* PlayerStart) const
+bool UPlayerSpawnComponent::IsPlayerStartUsed(const AActor* PlayerStart) const
 {
-	return PlayerStart
-		&& UsedPlayerStarts.ContainsByPredicate(
-			[PlayerStart](const TObjectPtr<AActor>& UsedPlayerStart)
+	return PlayerStart && UsedPlayerStarts.ContainsByPredicate([PlayerStart](const TObjectPtr<AActor>& UsedPlayerStart)
 			{
 				return UsedPlayerStart.Get() == PlayerStart;
 			});
@@ -421,8 +370,7 @@ bool UPlayerSpawnComponent::TryGetPlayerRespawnTransform(AController* Controller
 	return true;
 }
 
-AActor* UPlayerSpawnComponent::FindRandomRespawnPlayerStart(
-	AController* PlayerController,
+AActor* UPlayerSpawnComponent::FindRandomRespawnPlayerStart(AController* PlayerController,
 	const UMatchRuleDefinition& Rules) const
 {
 	UWorld* World = GetWorld();
@@ -432,12 +380,8 @@ AActor* UPlayerSpawnComponent::FindRandomRespawnPlayerStart(
 	}
 
 	TArray<AActor*> PlayerStarts;
-	UGameplayStatics::GetAllActorsOfClass(
-		World,
-		APlayerStart::StaticClass(),
-		PlayerStarts);
-	PlayerStarts.Sort(
-		[](const AActor& A, const AActor& B)
+	UGameplayStatics::GetAllActorsOfClass(World, APlayerStart::StaticClass(), PlayerStarts);
+	PlayerStarts.Sort([](const AActor& A, const AActor& B)
 		{
 			return A.GetName() < B.GetName();
 		});
@@ -445,12 +389,8 @@ AActor* UPlayerSpawnComponent::FindRandomRespawnPlayerStart(
 	TArray<AActor*> Candidates;
 	for (AActor* PlayerStartActor : PlayerStarts)
 	{
-		const APlayerStart* PlayerStart =
-			Cast<APlayerStart>(PlayerStartActor);
-		if (PlayerStart
-			&& DoesPlayerStartMatchRandomRespawnTags(
-				PlayerStart,
-				Rules))
+		const APlayerStart* PlayerStart = Cast<APlayerStart>(PlayerStartActor);
+		if (PlayerStart && DoesPlayerStartMatchRandomRespawnTags(PlayerStart, Rules))
 		{
 			Candidates.Add(PlayerStartActor);
 		}
@@ -461,31 +401,23 @@ AActor* UPlayerSpawnComponent::FindRandomRespawnPlayerStart(
 		return nullptr;
 	}
 
-	if (Rules.bAvoidLastRandomRespawnPlayerStart
-		&& Candidates.Num() > 1
-		&& PlayerController)
+	if (Rules.bAvoidLastRandomRespawnPlayerStart && Candidates.Num() > 1 && PlayerController)
 	{
 		const FName* LastPlayerStartName =
-			LastRandomRespawnPlayerStartNames.Find(
-				TObjectKey<AController>(PlayerController));
+			LastRandomRespawnPlayerStartNames.Find(TObjectKey<AController>(PlayerController));
 		if (LastPlayerStartName && !LastPlayerStartName->IsNone())
 		{
-			Candidates.RemoveAll(
-				[LastPlayerStartName](const AActor* Candidate)
+			Candidates.RemoveAll([LastPlayerStartName](const AActor* Candidate)
 				{
-					return Candidate
-						&& Candidate->GetFName() == *LastPlayerStartName;
+					return Candidate && Candidate->GetFName() == *LastPlayerStartName;
 				});
 		}
 	}
 
-	return Candidates.IsEmpty()
-		? nullptr
-		: Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
+	return Candidates.IsEmpty() ? nullptr : Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
 }
 
-bool UPlayerSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(
-	const APlayerStart* PlayerStart,
+bool UPlayerSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(const APlayerStart* PlayerStart,
 	const UMatchRuleDefinition& Rules) const
 {
 	if (!PlayerStart)
@@ -493,12 +425,9 @@ bool UPlayerSpawnComponent::DoesPlayerStartMatchRandomRespawnTags(
 		return false;
 	}
 
-	for (const FName& RespawnTag :
-		Rules.RandomRespawnPlayerStartTags)
+	for (const FName& RespawnTag : Rules.RandomRespawnPlayerStartTags)
 	{
-		if (!RespawnTag.IsNone()
-			&& (PlayerStart->PlayerStartTag == RespawnTag
-				|| PlayerStart->ActorHasTag(RespawnTag)))
+		if (!RespawnTag.IsNone() && (PlayerStart->PlayerStartTag == RespawnTag || PlayerStart->ActorHasTag(RespawnTag)))
 		{
 			return true;
 		}

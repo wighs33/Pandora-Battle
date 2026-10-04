@@ -97,11 +97,8 @@ void ULeftPandoraWidget::RefreshPandoraLoadoutSlots(UPandoraComponent* PandoraCo
 	}
 
 	const UPandoraTreeComponent* PandoraTreeComponent = BoundPandoraTreeComponent.Get();
-	const auto RefreshSlot = [this, PandoraComponent, PandoraTreeComponent](
-		UPandoraEquipSlotWidget* PandoraSlot,
-		UTextBlock* PandoraLevelText,
-		UTextBlock* PandoraLevelLabel,
-		const EEnum_Direction Direction)
+	const auto RefreshSlot = [this, PandoraComponent, PandoraTreeComponent](UPandoraEquipSlotWidget* PandoraSlot,
+		UTextBlock* PandoraLevelText, UTextBlock* PandoraLevelLabel, const EEnum_Direction Direction)
 	{
 		const UPandoraDefinition* PandoraDefinition =
 			PandoraComponent ? PandoraComponent->GetPandoraLoadoutDefinition(Direction) : nullptr;
@@ -149,8 +146,7 @@ void ULeftPandoraWidget::SetWeaponImage(const int32 Nth, UTexture2D* WeaponImage
 {
 	CacheDefaultWeaponImageBrushes();
 
-	const TArray<UImage*> WeaponImages =
-		{ FirstWeaponImage.Get(), SecondWeaponImage.Get(), ThirdWeaponImage.Get() };
+	const TArray<UImage*> WeaponImages = { FirstWeaponImage.Get(), SecondWeaponImage.Get(), ThirdWeaponImage.Get() };
 	const int32 ImageIndex = Nth - 1;
 	if (!WeaponImages.IsValidIndex(ImageIndex) || !WeaponImages[ImageIndex])
 	{
@@ -205,8 +201,7 @@ UPandoraComponent* ULeftPandoraWidget::ResolveOwningPandoraComponent() const
 	return nullptr;
 }
 
-UPandoraTreeComponent* ULeftPandoraWidget::ResolvePandoraTreeComponent(
-	const UPandoraComponent* PandoraComponent) const
+UPandoraTreeComponent* ULeftPandoraWidget::ResolvePandoraTreeComponent(const UPandoraComponent* PandoraComponent) const
 {
 	if (const APdPlayerState* PlayerState =
 		PandoraComponent ? Cast<APdPlayerState>(PandoraComponent->GetOwner()) : nullptr)
@@ -289,8 +284,7 @@ void ULeftPandoraWidget::CacheDefaultWeaponImageBrushes()
 	}
 
 	DefaultWeaponImageBrushes.Reset();
-	for (const UImage* WeaponImage :
-		{ FirstWeaponImage.Get(), SecondWeaponImage.Get(), ThirdWeaponImage.Get() })
+	for (const UImage* WeaponImage : { FirstWeaponImage.Get(), SecondWeaponImage.Get(), ThirdWeaponImage.Get() })
 	{
 		DefaultWeaponImageBrushes.Add(WeaponImage ? WeaponImage->GetBrush() : FSlateBrush());
 	}

@@ -68,9 +68,7 @@ void UQuickSlotWidget::FillQuickSlotBar()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(RebuildBarTimerHandle);
-		RebuildBarTimerHandle = World->GetTimerManager().SetTimerForNextTick(
-			this,
-			&ThisClass::RebuildQuickSlotBar);
+		RebuildBarTimerHandle = World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::RebuildQuickSlotBar);
 		return;
 	}
 
@@ -136,8 +134,7 @@ void UQuickSlotWidget::RefreshQuickSlotIconPreload()
 			SlotIndex < ConsumableQuickSlotCount;
 			++SlotIndex)
 		{
-			const UItemInstance* ItemInstance =
-				InventoryComponent->GetConsumableQuickSlotItem(SlotIndex);
+			const UItemInstance* ItemInstance = InventoryComponent->GetConsumableQuickSlotItem(SlotIndex);
 			const UItemDefinition* ItemDefinition =
 				IsValid(ItemInstance)
 					? ItemInstance->ItemDefinition.Get()
@@ -147,8 +144,7 @@ void UQuickSlotWidget::RefreshQuickSlotIconPreload()
 				continue;
 			}
 
-			const FSoftObjectPath IconPath =
-				ItemDefinition->IconTexture.ToSoftObjectPath();
+			const FSoftObjectPath IconPath = ItemDefinition->IconTexture.ToSoftObjectPath();
 			if (IconPath.IsValid() && !IconPath.IsNull())
 			{
 				IconPaths.AddUnique(IconPath);
@@ -156,14 +152,12 @@ void UQuickSlotWidget::RefreshQuickSlotIconPreload()
 		}
 	}
 
-	IconPaths.Sort(
-		[](const FSoftObjectPath& Left, const FSoftObjectPath& Right)
+	IconPaths.Sort([](const FSoftObjectPath& Left, const FSoftObjectPath& Right)
 		{
 			return Left.ToString() < Right.ToString();
 		});
 
-	if (PreloadedQuickSlotIconPaths == IconPaths
-		&& (IconPaths.IsEmpty() || QuickSlotIconLease.IsValid()))
+	if (PreloadedQuickSlotIconPaths == IconPaths && (IconPaths.IsEmpty() || QuickSlotIconLease.IsValid()))
 	{
 		FillQuickSlotBar();
 		return;
@@ -185,8 +179,7 @@ void UQuickSlotWidget::RefreshQuickSlotIconPreload()
 		return;
 	}
 
-	QuickSlotIconLease = ContentSubsystem->AcquireContent(
-		IconPaths,
+	QuickSlotIconLease = ContentSubsystem->AcquireContent(IconPaths,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::FillQuickSlotBar));
 }
 
@@ -234,9 +227,7 @@ void UQuickSlotWidget::RebuildQuickSlotBar()
 	}
 }
 
-void UQuickSlotWidget::AddQuickSlotEntry(
-	const int32 SlotIndex,
-	UInventoryComponent* InventoryComponent,
+void UQuickSlotWidget::AddQuickSlotEntry(const int32 SlotIndex, UInventoryComponent* InventoryComponent,
 	USkinEquipmentComponent* SkinEquipmentComponent)
 {
 	UQuickSlotEntryWidget* EntryWidget = CreateQuickSlotEntryWidget();
@@ -247,15 +238,12 @@ void UQuickSlotWidget::AddQuickSlotEntry(
 
 	if (SlotIndex < ConsumableQuickSlotCount)
 	{
-		EntryWidget->SetQuickSlotData(
-			SlotIndex,
+		EntryWidget->SetQuickSlotData(SlotIndex,
 			InventoryComponent ? InventoryComponent->GetConsumableQuickSlotItem(SlotIndex) : nullptr);
 	}
 	else
 	{
-		EntryWidget->SetGestureSlotData(
-			SlotIndex,
-			ResolveGestureSlotSkinDefinition(SkinEquipmentComponent, SlotIndex));
+		EntryWidget->SetGestureSlotData(SlotIndex, ResolveGestureSlotSkinDefinition(SkinEquipmentComponent, SlotIndex));
 	}
 
 	EntryWidgets.Add(EntryWidget);
@@ -328,8 +316,7 @@ USkinEquipmentComponent* UQuickSlotWidget::ResolveOwningSkinEquipmentComponent()
 }
 
 const USkinDefinition* UQuickSlotWidget::ResolveGestureSlotSkinDefinition(
-	const USkinEquipmentComponent* SkinEquipmentComponent,
-	const int32 QuickSlotIndex) const
+	const USkinEquipmentComponent* SkinEquipmentComponent, const int32 QuickSlotIndex) const
 {
 	const FGameplayTag SlotTag = LabGameplayTags::GetGestureSlotTag(QuickSlotIndex - ConsumableQuickSlotCount);
 	return SkinEquipmentComponent && SlotTag.IsValid()

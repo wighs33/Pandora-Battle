@@ -31,12 +31,8 @@ void PdSlotCooldownDisplay::ShowReady(UWidget* TimerContainer, UProgressBar* Pro
 	}
 }
 
-void PdSlotCooldownDisplay::ShowRemaining(
-	UProgressBar* Progress,
-	UTextBlock* TimerText,
-	const float TimeRemaining,
-	const double CooldownDuration,
-	const bool bShowTimeRemaining)
+void PdSlotCooldownDisplay::ShowRemaining(UProgressBar* Progress, UTextBlock* TimerText, const float TimeRemaining,
+	const double CooldownDuration, const bool bShowTimeRemaining)
 {
 	if (Progress)
 	{

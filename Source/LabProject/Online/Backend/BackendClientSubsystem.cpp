@@ -53,16 +53,14 @@ namespace
 	}
 
 	// 콘솔 명령은 명령을 입력한 월드의 GameInstance로 전달해 PIE의 여러 클라이언트를 구분한다.
-	FAutoConsoleCommandWithWorldAndArgs LoginCommand(
-		TEXT("pd.Backend.Login"),
+	FAutoConsoleCommandWithWorldAndArgs LoginCommand(TEXT("pd.Backend.Login"),
 		TEXT("Log in to the backend with Steam (or -BackendDevLogin=<id>)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
 		{
 			if (UBackendClientSubsystem* Backend = FindBackendClient(World)) { Backend->Login(); }
 		}));
 
-	FAutoConsoleCommandWithWorldAndArgs DevLoginCommand(
-		TEXT("pd.Backend.DevLogin"),
+	FAutoConsoleCommandWithWorldAndArgs DevLoginCommand(TEXT("pd.Backend.DevLogin"),
 		TEXT("pd.Backend.DevLogin <id>: developer login (backend stage must allow it)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
@@ -82,8 +80,7 @@ namespace
 			}
 		}));
 
-	FAutoConsoleCommandWithWorldAndArgs ProfileCommand(
-		TEXT("pd.Backend.Profile"),
+	FAutoConsoleCommandWithWorldAndArgs ProfileCommand(TEXT("pd.Backend.Profile"),
 		TEXT("Print the logged-in player's stats and recent matches."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
 		{
@@ -133,7 +130,7 @@ void UBackendClientSubsystem::Login()
 		*GetDefault<UBackendSettings>()->GetSteamWebApiIdentity());
 	Identity->GetLinkedAccountAuthToken(0, TokenType,
 		IOnlineIdentity::FOnGetLinkedAccountAuthTokenCompleteDelegate::CreateWeakLambda(this,
-			[this](int32, const bool bWasSuccessful, const FExternalAuthToken& AuthToken)
+		[this](int32, const bool bWasSuccessful, const FExternalAuthToken& AuthToken)
 			{
 				if (!bWasSuccessful || !AuthToken.HasTokenString())
 				{

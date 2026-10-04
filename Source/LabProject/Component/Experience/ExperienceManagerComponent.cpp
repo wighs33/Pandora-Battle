@@ -180,8 +180,7 @@ void UExperienceManagerComponent::StartExperienceLoad()
 		return;
 	}
 
-	ExperienceLease = ContentSubsystem->AcquireContent(
-		{ExperiencePath},
+	ExperienceLease = ContentSubsystem->AcquireContent({ExperiencePath},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleExperienceAssetLoaded, CurrentExperienceId));
 }
 
@@ -227,8 +226,7 @@ void UExperienceManagerComponent::StartGameFeatureLoads()
 		AcquireExperienceGameFeatureReference(this, PluginURL);
 	}
 
-	UGameFeaturesSubsystem::Get().LoadAndActivateGameFeaturePlugin(
-		PluginURLs, FGameFeatureProtocolOptions(),
+	UGameFeaturesSubsystem::Get().LoadAndActivateGameFeaturePlugin(PluginURLs, FGameFeatureProtocolOptions(),
 		FMultipleGameFeaturePluginsLoaded::CreateUObject(this, &ThisClass::HandleGameFeaturesLoaded));
 }
 

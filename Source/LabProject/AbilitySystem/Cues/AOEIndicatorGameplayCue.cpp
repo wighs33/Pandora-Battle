@@ -13,9 +13,7 @@ namespace
 {
 	float DecodeCueSeconds(const int32 EncodedMilliseconds)
 	{
-		return EncodedMilliseconds > 1
-			? static_cast<float>(EncodedMilliseconds) / 1000.0f
-			: 0.0f;
+		return EncodedMilliseconds > 1 ? static_cast<float>(EncodedMilliseconds) / 1000.0f : 0.0f;
 	}
 
 	float ResolveCueGrowthDuration(const FGameplayCueParameters& Parameters, const bool bTrackAsPersistent)
@@ -27,9 +25,7 @@ namespace
 
 	float ResolveCueLifeSpan(const FGameplayCueParameters& Parameters, const bool bTrackAsPersistent)
 	{
-		return bTrackAsPersistent
-			? 0.0f
-			: DecodeCueSeconds(Parameters.GameplayEffectLevel);
+		return bTrackAsPersistent ? 0.0f : DecodeCueSeconds(Parameters.GameplayEffectLevel);
 	}
 
 	float ResolveFloorOnlyDecalDepth(const float ConfiguredDepth)
@@ -46,8 +42,7 @@ AAOEIndicatorGameplayCue::AAOEIndicatorGameplayCue()
 
 bool AAOEIndicatorGameplayCue::HandlesEvent(EGameplayCueEvent::Type EventType) const
 {
-	return EventType == EGameplayCueEvent::Executed
-		|| EventType == EGameplayCueEvent::OnActive
+	return EventType == EGameplayCueEvent::Executed || EventType == EGameplayCueEvent::OnActive
 		|| EventType == EGameplayCueEvent::Removed;
 }
 
@@ -77,10 +72,8 @@ void AAOEIndicatorGameplayCue::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-UDecalComponent* AAOEIndicatorGameplayCue::SpawnDecalFromParameters(
-	AActor* MyTarget,
-	const FGameplayCueParameters& Parameters,
-	const bool bTrackAsPersistent)
+UDecalComponent* AAOEIndicatorGameplayCue::SpawnDecalFromParameters(AActor* MyTarget,
+	const FGameplayCueParameters& Parameters, const bool bTrackAsPersistent)
 {
 	UMaterialInterface* ResolvedDecalMaterial = ResolveDecalMaterial(Parameters);
 
@@ -99,12 +92,8 @@ UDecalComponent* AAOEIndicatorGameplayCue::SpawnDecalFromParameters(
 	const float GrowthDuration = ResolveCueGrowthDuration(Parameters, bTrackAsPersistent);
 	const float LifeSpan = ResolveCueLifeSpan(Parameters, bTrackAsPersistent);
 	const float EffectiveDecalDepth = ResolveFloorOnlyDecalDepth(DecalDepth);
-	UDecalComponent* NewDecalComponent = UGameplayStatics::SpawnDecalAtLocation(
-		this,
-		ResolvedDecalMaterial,
-		FVector(EffectiveDecalDepth, StartDiameter, StartDiameter),
-		Parameters.Location,
-		FRotator(-90.0f, 0.0f, 0.0f),
+	UDecalComponent* NewDecalComponent = UGameplayStatics::SpawnDecalAtLocation(this, ResolvedDecalMaterial,
+		FVector(EffectiveDecalDepth, StartDiameter, StartDiameter), Parameters.Location, FRotator(-90.0f, 0.0f, 0.0f),
 		LifeSpan);
 
 	if (!NewDecalComponent)
@@ -132,11 +121,8 @@ UDecalComponent* AAOEIndicatorGameplayCue::SpawnDecalFromParameters(
 	return NewDecalComponent;
 }
 
-void AAOEIndicatorGameplayCue::ApplyDecalGrowth(
-	UDecalComponent* DecalComponent,
-	const float StartDiameter,
-	const float TargetDiameter,
-	const float GrowthDuration)
+void AAOEIndicatorGameplayCue::ApplyDecalGrowth(UDecalComponent* DecalComponent, const float StartDiameter,
+	const float TargetDiameter, const float GrowthDuration)
 {
 	if (!IsValid(DecalComponent) || GrowthDuration <= UE_SMALL_NUMBER || FMath::IsNearlyEqual(StartDiameter, TargetDiameter))
 	{

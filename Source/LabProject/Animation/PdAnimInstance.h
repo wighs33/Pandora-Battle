@@ -60,7 +60,7 @@ private:
 	void ResetThreadSafeAnimationData();
 
 protected:
-	// Cached UObject references (game thread only)
+	// 캐시한 UObject 참조 (게임 스레드 전용)
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "References")
 	TObjectPtr<ACharacter> CachedCharacter;

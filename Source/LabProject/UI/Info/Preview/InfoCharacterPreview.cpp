@@ -47,9 +47,7 @@ void ConfigurePreviewCamera(AActor* ViewTarget)
 }
 }
 
-void UInfoCharacterPreview::Initialize(
-	UInfoWidget* InOwnerWidget,
-	const bool bInUsePreviewCamera,
+void UInfoCharacterPreview::Initialize(UInfoWidget* InOwnerWidget, const bool bInUsePreviewCamera,
 	TSubclassOf<AActor> InPreviewClass)
 {
 	OwnerWidget = InOwnerWidget;
@@ -92,13 +90,8 @@ void UInfoCharacterPreview::ShowPreview()
 	{
 		return;
 	}
-	SpawnedPreview->AttachToComponent(
-		MeshComponent,
-		FAttachmentTransformRules(
-			EAttachmentRule::KeepRelative,
-			EAttachmentRule::KeepRelative,
-			EAttachmentRule::KeepRelative,
-			true));
+	SpawnedPreview->AttachToComponent(MeshComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative,
+		EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, true));
 	ConfigurePreviewCamera(SpawnedPreview);
 	CutToViewTarget(OwnerWidget->GetOwningPlayer(), SpawnedPreview);
 }

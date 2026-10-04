@@ -168,10 +168,8 @@ void UTitleWidget::NativeConstruct()
 	{
 		if (!QuickMatchRequestCompleteHandle.IsValid())
 		{
-			QuickMatchRequestCompleteHandle =
-				OnlineSessionsSubsystem->OnQuickMatchRequestComplete.AddUObject(
-					this,
-					&ThisClass::HandleQuickMatchRequestComplete);
+			QuickMatchRequestCompleteHandle = OnlineSessionsSubsystem->OnQuickMatchRequestComplete.AddUObject(this,
+				&ThisClass::HandleQuickMatchRequestComplete);
 		}
 	}
 }
@@ -358,13 +356,9 @@ void UTitleWidget::BuildLunaChatInput()
 	}
 	Font.Size = 16;
 	const FSlateColor TextColor(FLinearColor(0.130f, 0.056f, 0.021f));
-	Style.SetBackgroundImageNormal(Background)
-		.SetBackgroundImageHovered(Background)
-		.SetBackgroundImageFocused(FocusedBackground)
-		.SetBackgroundImageReadOnly(Background)
-		.SetPadding(FMargin(16.f, 10.f))
-		.SetFont(Font)
-		.SetForegroundColor(TextColor)
+	Style.SetBackgroundImageNormal(Background).SetBackgroundImageHovered(Background)
+		.SetBackgroundImageFocused(FocusedBackground).SetBackgroundImageReadOnly(Background)
+		.SetPadding(FMargin(16.f, 10.f)).SetFont(Font).SetForegroundColor(TextColor)
 		.SetFocusedForegroundColor(TextColor);
 	LunaChatInput->SetWidgetStyle(Style);
 	LunaChatInput->SetHintText(MenuTextOrFallback(LunaChatHintKey,
@@ -457,25 +451,20 @@ void UTitleWidget::HandleExitClicked()
 
 FString UTitleWidget::GetResolvedLobbyTravelMapName() const
 {
-	const ULevelDefinition* Definition =
-		ULevelDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition = ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 
 FString UTitleWidget::GetResolvedRoomTravelMapName() const
 {
-	const ULevelDefinition* Definition =
-		ULevelDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition = ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetRoomTravelMapName() : FString();
 }
 
 FString UTitleWidget::GetResolvedTrainingRoomTravelMapName() const
 {
-	const ULevelDefinition* Definition =
-		ULevelDefinition::ResolveDefaultDefinition();
-	return Definition
-		? Definition->GetTrainingRoomTravelMapName()
-		: FString();
+	const ULevelDefinition* Definition = ULevelDefinition::ResolveDefaultDefinition();
+	return Definition ? Definition->GetTrainingRoomTravelMapName() : FString();
 }
 
 void UTitleWidget::OpenRoomList()
@@ -500,8 +489,7 @@ void UTitleWidget::OpenTrainingRoom()
 
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
-			GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>())
+		if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem = GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>())
 		{
 			LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
 		}
@@ -742,19 +730,12 @@ void UTitleWidget::StartQuickMatch()
 
 	if (!QuickMatchRequestCompleteHandle.IsValid())
 	{
-		QuickMatchRequestCompleteHandle =
-			OnlineSessionsSubsystem->OnQuickMatchRequestComplete.AddUObject(
-				this,
-				&ThisClass::HandleQuickMatchRequestComplete);
+		QuickMatchRequestCompleteHandle = OnlineSessionsSubsystem->OnQuickMatchRequestComplete.AddUObject(this,
+			&ThisClass::HandleQuickMatchRequestComplete);
 	}
 
-	const uint64 RequestId = OnlineSessionsSubsystem->BeginQuickMatch(
-		GetOwningLocalPlayer(),
-		QuickMatchMaxSearchResults,
-		QuickMatchMaxPublicConnections,
-		QuickMatchRoomName,
-		TEXT("Lobby"),
-		bQuickMatchLAN,
+	const uint64 RequestId = OnlineSessionsSubsystem->BeginQuickMatch(GetOwningLocalPlayer(),
+		QuickMatchMaxSearchResults, QuickMatchMaxPublicConnections, QuickMatchRoomName, TEXT("Lobby"), bQuickMatchLAN,
 		bQuickMatchUseLobbies);
 	if (RequestId == 0)
 	{
@@ -800,8 +781,7 @@ void UTitleWidget::ClearQuickMatchDelegates()
 
 	if (QuickMatchRequestCompleteHandle.IsValid())
 	{
-		OnlineSessionsSubsystem->OnQuickMatchRequestComplete.Remove(
-			QuickMatchRequestCompleteHandle);
+		OnlineSessionsSubsystem->OnQuickMatchRequestComplete.Remove(QuickMatchRequestCompleteHandle);
 		QuickMatchRequestCompleteHandle.Reset();
 	}
 
@@ -840,9 +820,7 @@ UUiSubsystem* UTitleWidget::GetUiSubsystem() const
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 }
 
-void UTitleWidget::HandleQuickMatchRequestComplete(
-	const uint64 RequestId,
-	const bool bWasSuccessful,
+void UTitleWidget::HandleQuickMatchRequestComplete(const uint64 RequestId, const bool bWasSuccessful,
 	const bool bCreatedRoom)
 {
 	if (RequestId == 0 || RequestId != ActiveQuickMatchRequestId)

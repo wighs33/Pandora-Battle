@@ -39,8 +39,7 @@ bool UInfoPaintPreviewRenderer::Show(APdPlayer* Player, UPaintCanvasWidget* Widg
     Refresh();
     // 새로 등록한 씬 컴포넌트와 렌더 리소스가 초기화되도록 한 프레임을 준다.
     // 코어 ticker는 정보창이 게임플레이를 멈춘 동안에도 돈다.
-    InitialCaptureHandle = FTSTicker::GetCoreTicker().AddTicker(
-        FTickerDelegate::CreateWeakLambda(this, [this](float)
+    InitialCaptureHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float)
         {
             Refresh();
             InitialCaptureHandle.Reset();
@@ -140,8 +139,7 @@ void UInfoPaintPreviewRenderer::AddLightAndCapture(USceneComponent& Root, const 
     Capture->RegisterComponent();
     Capture->ShowOnlyActorComponents(PreviewActor);
     const FVector CameraPosition = Head + FVector(175, 0, 8);
-    Capture->SetWorldLocationAndRotation(CameraPosition,
-        (Head + FVector(0,0,-12) - CameraPosition).Rotation());
+    Capture->SetWorldLocationAndRotation(CameraPosition, (Head + FVector(0,0,-12) - CameraPosition).Rotation());
 }
 
 void UInfoPaintPreviewRenderer::ShowCaptureOnWidget(UPaintCanvasWidget& Widget, const FSkinWidgetSettings& Settings)

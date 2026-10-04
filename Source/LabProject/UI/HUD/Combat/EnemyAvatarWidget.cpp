@@ -55,12 +55,8 @@ void UEnemyAvatarWidget::StartAvatarUpdateTimer()
 		return;
 	}
 
-	World->GetTimerManager().SetTimer(
-		AvatarUpdateTimerHandle,
-		this,
-		&ThisClass::HandleAvatarUpdateTick,
-		FMath::Max(AvatarUpdateInterval, 0.02f),
-		true);
+	World->GetTimerManager().SetTimer(AvatarUpdateTimerHandle, this, &ThisClass::HandleAvatarUpdateTick,
+		FMath::Max(AvatarUpdateInterval, 0.02f), true);
 }
 
 void UEnemyAvatarWidget::StopAvatarUpdateTimer()
@@ -123,8 +119,7 @@ void UEnemyAvatarWidget::PropagateOwnerActorToChildren()
 void UEnemyAvatarWidget::ApplyLocalPlayerPresentation()
 {
 	const bool bIsLocalPlayerOwner = IsLocalPlayerOwner();
-	if (bLocalPlayerPresentationInitialized
-		&& bLastLocalPlayerOwner == bIsLocalPlayerOwner)
+	if (bLocalPlayerPresentationInitialized && bLastLocalPlayerOwner == bIsLocalPlayerOwner)
 	{
 		return;
 	}
@@ -251,13 +246,9 @@ bool UEnemyAvatarWidget::IsLocalPlayerOwner() const
 UTexture2D* UEnemyAvatarWidget::ResolvePlayerAchievementTexture() const
 {
 	const APdPlayer* PlayerOwner = Cast<APdPlayer>(OwnerActor.Get());
-	const APdPlayerState* PlayerState =
-		PlayerOwner ? PlayerOwner->GetPlayerState<APdPlayerState>() : nullptr;
-	const UPlayerMatchComponent* PlayerMatchComponent =
-		PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
-	const FName AchievementId = PlayerMatchComponent
-		? PlayerMatchComponent->GetSelectedAchievementId()
-		: NAME_None;
+	const APdPlayerState* PlayerState = PlayerOwner ? PlayerOwner->GetPlayerState<APdPlayerState>() : nullptr;
+	const UPlayerMatchComponent* PlayerMatchComponent = PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
+	const FName AchievementId = PlayerMatchComponent ? PlayerMatchComponent->GetSelectedAchievementId() : NAME_None;
 	if (AchievementId.IsNone())
 	{
 		return nullptr;

@@ -110,10 +110,7 @@ FReply UItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 
 		if (CachedData)
 		{
-			return UWidgetBlueprintLibrary::DetectDragIfPressed(
-				InMouseEvent,
-				this,
-				EKeys::LeftMouseButton).NativeReply;
+			return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
 		}
 	}
 
@@ -208,8 +205,7 @@ void UItemSlotWidget::SetSlotData(UInventorySlotViewData* Target)
 	CachedSlotData = Target;
 	CachedData = Target ? Target->GetItemInstance() : nullptr;
 	CachedViewData = FItemViewDataBuilder::FromItemInstance(CachedData, GetLocalization());
-	bDuplicateWeaponOrEquipment =
-		Target && Target->IsDuplicateWeaponOrEquipment();
+	bDuplicateWeaponOrEquipment = Target && Target->IsDuplicateWeaponOrEquipment();
 
 	ApplyItemVisual(CachedViewData);
 }
@@ -266,8 +262,7 @@ void UItemSlotWidget::ApplyItemVisual(const FItemViewData& ViewData)
 	if (Txt_Upgrade)
 	{
 		const int32 UpgradeLevel = FMath::Max(ViewData.UpgradeLevel, 0);
-		Txt_Upgrade->SetText(FText::Format(
-			NSLOCTEXT("ItemSlotWidget", "UpgradeLevelFormat", "+{0}"),
+		Txt_Upgrade->SetText(FText::Format(NSLOCTEXT("ItemSlotWidget", "UpgradeLevelFormat", "+{0}"),
 			FText::AsNumber(UpgradeLevel)));
 		Txt_Upgrade->SetVisibility(
 			UpgradeLevel > 0 && ViewData.HasContent()
@@ -313,8 +308,7 @@ void UItemSlotWidget::ApplySelectionVisual()
 
 FLinearColor UItemSlotWidget::ResolveBackgroundColor(const bool bAssigned) const
 {
-	const UWidgetClassDefinition* WidgetDefinition =
-		UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
 	const FInventoryWidgetSettings DefaultSettings;
 	const FInventoryWidgetSettings& Settings = WidgetDefinition
 		? WidgetDefinition->GetInventoryWidgetSettings()
@@ -335,8 +329,7 @@ bool UItemSlotWidget::IsItemConsumable(const UItemInstance* ItemInstance) const
 {
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	const FGameplayTag ConsumableTypeTag = UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
-	return ItemDefinition
-		&& ItemDefinition->IsConsumableDefinition(ConsumableTypeTag);
+	return ItemDefinition && ItemDefinition->IsConsumableDefinition(ConsumableTypeTag);
 }
 
 bool UItemSlotWidget::IsCachedItemConsumable() const
@@ -346,9 +339,7 @@ bool UItemSlotWidget::IsCachedItemConsumable() const
 
 bool UItemSlotWidget::IsItemUpgradeable(const UItemInstance* ItemInstance) const
 {
-	const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
-		? ItemInstance->ItemDefinition.Get()
-		: nullptr;
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	if (!ItemDefinition)
 	{
 		return false;

@@ -35,8 +35,7 @@ ARewardChest::ARewardChest(const FObjectInitializer& ObjectInitializer)
 	bReplicates = true;
 	SetReplicateMovement(true);
 
-	RandomRewardItemCountChances =
-	{
+	RandomRewardItemCountChances = {
 		FRewardChestItemCountChance(1, 40.0f),
 		FRewardChestItemCountChance(2, 30.0f),
 		FRewardChestItemCountChance(3, 20.0f),
@@ -125,14 +124,13 @@ void ARewardChest::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 
 bool ARewardChest::CanInteract_Implementation(AActor* InteractingActor)
 {
-	return ChestState == ERewardChestState::Closed
-		&& IsValid(InteractingActor)
+	return ChestState == ERewardChestState::Closed && IsValid(InteractingActor)
 		&& (!HasAuthority() || bRewardContentReady);
 }
 
 bool ARewardChest::Interact_Implementation(AActor* InteractingActor)
 {
-// Reward application is owned by PlayerRewardComponent.
+// 보상 적용은 PlayerRewardComponent가 맡는다.
 	return false;
 }
 
@@ -146,8 +144,7 @@ FText ARewardChest::GetInteractText_Implementation(AActor* InteractingActor)
 void ARewardChest::GetRewardItems_Implementation(TArray<FPrimaryAssetId>& OutItemDefinitionList)
 {
 	OutItemDefinitionList.Reset();
-	if (ChestState != ERewardChestState::Closed
-		|| (HasAuthority() && !bRewardContentReady))
+	if (ChestState != ERewardChestState::Closed || (HasAuthority() && !bRewardContentReady))
 	{
 		return;
 	}
@@ -170,8 +167,7 @@ void ARewardChest::GetRewardItems_Implementation(TArray<FPrimaryAssetId>& OutIte
 void ARewardChest::GetRewardSkins_Implementation(TArray<FPrimaryAssetId>& OutSkinDefinitionList)
 {
 	OutSkinDefinitionList.Reset();
-	if (ChestState != ERewardChestState::Closed
-		|| (HasAuthority() && !bRewardContentReady))
+	if (ChestState != ERewardChestState::Closed || (HasAuthority() && !bRewardContentReady))
 	{
 		return;
 	}
@@ -182,8 +178,7 @@ void ARewardChest::GetRewardSkins_Implementation(TArray<FPrimaryAssetId>& OutSki
 void ARewardChest::GetRewardPandoras_Implementation(TArray<FPrimaryAssetId>& OutPandoraDefinitionList)
 {
 	OutPandoraDefinitionList.Reset();
-	if (ChestState != ERewardChestState::Closed
-		|| (HasAuthority() && !bRewardContentReady))
+	if (ChestState != ERewardChestState::Closed || (HasAuthority() && !bRewardContentReady))
 	{
 		return;
 	}
@@ -223,13 +218,8 @@ void ARewardChest::OnRep_ChestState()
 	ApplyChestState(nullptr);
 }
 
-void ARewardChest::HandleChestBeginOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult)
+void ARewardChest::HandleChestBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	static_cast<void>(OtherBodyIndex);
 	static_cast<void>(bFromSweep);
@@ -244,11 +234,8 @@ void ARewardChest::HandleChestBeginOverlap(
 	}
 }
 
-void ARewardChest::HandleChestEndOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex)
+void ARewardChest::HandleChestEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
 	static_cast<void>(OtherBodyIndex);
 
@@ -262,8 +249,7 @@ void ARewardChest::HandleChestEndOverlap(
 }
 
 template <typename DefinitionType>
-void ARewardChest::AppendPrimaryAssetIds(
-	const TArray<TSoftObjectPtr<DefinitionType>>& SourceDefinitions,
+void ARewardChest::AppendPrimaryAssetIds(const TArray<TSoftObjectPtr<DefinitionType>>& SourceDefinitions,
 	TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const
 {
 	for (const TSoftObjectPtr<DefinitionType>& SourceDefinition : SourceDefinitions)
@@ -297,8 +283,7 @@ TArray<FRewardChestLootCandidate> ARewardChest::GatherDroppableItemCandidates() 
 	TArray<FRewardChestLootCandidate> Candidates;
 	for (const FPrimaryAssetId& ItemDefinitionId : AllItemDefinitionIds)
 	{
-		const UItemDefinition* ItemDefinition =
-			AssetManager.GetPrimaryAssetObject<UItemDefinition>(ItemDefinitionId);
+		const UItemDefinition* ItemDefinition = AssetManager.GetPrimaryAssetObject<UItemDefinition>(ItemDefinitionId);
 		if (ItemDefinition && ItemDefinition->CanDropFromRewardChest())
 		{
 			Candidates.Add({ ItemDefinitionId, ItemDefinition->GetRewardChestDropWeight(), IsWeaponItemDefinition(ItemDefinition) });
@@ -331,14 +316,11 @@ TArray<FRewardChestLootCandidate> ARewardChest::GatherConfiguredItemCandidates()
 	return Candidates;
 }
 
-bool ARewardChest::IsWeaponItemDefinition(
-	const UItemDefinition* ItemDefinition) const
+bool ARewardChest::IsWeaponItemDefinition(const UItemDefinition* ItemDefinition) const
 {
 	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	return ItemDefinition
-		&& (ItemDefinition->HasWeaponData()
-			|| ItemDefinition->MatchesItemType(
-				TagConfig->GetItemWeaponTypeTag()));
+		&& (ItemDefinition->HasWeaponData() || ItemDefinition->MatchesItemType(TagConfig->GetItemWeaponTypeTag()));
 }
 
 void ARewardChest::BeginRewardContentPreload()
@@ -373,13 +355,10 @@ void ARewardChest::BeginRewardContentPreload()
 	{
 		UAssetManager& AssetManager = UAssetManager::Get();
 		TArray<FPrimaryAssetId> ItemDefinitionIds;
-		AssetManager.GetPrimaryAssetIdList(
-			FPrimaryAssetType(TEXT("ItemDefinition")),
-			ItemDefinitionIds);
+		AssetManager.GetPrimaryAssetIdList(FPrimaryAssetType(TEXT("ItemDefinition")), ItemDefinitionIds);
 		for (const FPrimaryAssetId& ItemDefinitionId : ItemDefinitionIds)
 		{
-			const FSoftObjectPath ItemDefinitionPath =
-				AssetManager.GetPrimaryAssetPath(ItemDefinitionId);
+			const FSoftObjectPath ItemDefinitionPath = AssetManager.GetPrimaryAssetPath(ItemDefinitionId);
 			if (ItemDefinitionPath.IsValid())
 			{
 				AssetPaths.Add(ItemDefinitionPath);
@@ -400,21 +379,15 @@ void ARewardChest::BeginRewardContentPreload()
 			: nullptr;
 	if (!ContentSubsystem)
 	{
-		UE_LOG(
-			LogRewardChest,
-			Error,
-			TEXT("Reward chest '%s' failed to start its reward-content preload."),
+		UE_LOG(LogRewardChest, Error, TEXT("Reward chest '%s' failed to start its reward-content preload."),
 			*GetPathName());
 		MarkRewardContentReady();
 		return;
 	}
 
 	// 일부 보상 경로가 로드되지 않아도 상자는 준비 상태로 진행한다.
-	RewardContentLease = ContentSubsystem->AcquireContent(
-		AssetPaths.Array(),
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::MarkRewardContentReady));
+	RewardContentLease = ContentSubsystem->AcquireContent(AssetPaths.Array(),
+		FSimpleDelegate::CreateUObject(this, &ThisClass::MarkRewardContentReady));
 }
 
 void ARewardChest::MarkRewardContentReady()
@@ -441,8 +414,7 @@ void ARewardChest::ConfigureChestCollision(const bool bEnableInteraction) const
 	ChestMesh->SetCollisionResponseToAllChannels(ECR_Block);
 	ChestMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 	ChestMesh->SetCollisionResponseToChannel(ECC_WorldDynamic, bEnableInteraction ? ECR_Overlap : ECR_Ignore);
-	ChestMesh->SetCollisionResponseToChannel(
-		LabCollisionChannels::OverlapBox(),
+	ChestMesh->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(),
 		bEnableInteraction ? ECR_Overlap : ECR_Ignore);
 	ChestMesh->SetGenerateOverlapEvents(bEnableInteraction);
 	ChestMesh->SetCanEverAffectNavigation(false);
@@ -622,12 +594,7 @@ void ARewardChest::ScheduleFinishOpening()
 		return;
 	}
 
-	World->GetTimerManager().SetTimer(
-		FinishOpeningTimerHandle,
-		this,
-		&ThisClass::FinishOpening,
-		FinishDelay,
-		false);
+	World->GetTimerManager().SetTimer(FinishOpeningTimerHandle, this, &ThisClass::FinishOpening, FinishDelay, false);
 }
 
 void ARewardChest::FinishOpening()
@@ -662,12 +629,8 @@ void ARewardChest::ScheduleHideOpenedChest()
 		return;
 	}
 
-	World->GetTimerManager().SetTimer(
-		HideOpenedChestTimerHandle,
-		this,
-		&ThisClass::HideOpenedChest,
-		HideAfterOpenFallbackDelay,
-		false);
+	World->GetTimerManager().SetTimer(HideOpenedChestTimerHandle, this, &ThisClass::HideOpenedChest,
+		HideAfterOpenFallbackDelay, false);
 }
 
 void ARewardChest::HideOpenedChest()
@@ -697,18 +660,13 @@ void ARewardChest::ScheduleRespawnAfterOpen()
 	const float RespawnDelay = FMath::Max(RespawnDelayAfterOpen, 0.0f);
 	if (RespawnDelay <= 0.0f)
 	{
-		RespawnTimerHandle = World->GetTimerManager().SetTimerForNextTick(
-			this,
+		RespawnTimerHandle = World->GetTimerManager().SetTimerForNextTick(this,
 			&ThisClass::RetryRespawnAtAvailableLocation);
 		return;
 	}
 
-	World->GetTimerManager().SetTimer(
-		RespawnTimerHandle,
-		this,
-		&ThisClass::RetryRespawnAtAvailableLocation,
-		RespawnDelay,
-		false);
+	World->GetTimerManager().SetTimer(RespawnTimerHandle, this, &ThisClass::RetryRespawnAtAvailableLocation,
+		RespawnDelay, false);
 }
 
 void ARewardChest::RetryRespawnAtAvailableLocation()
@@ -718,19 +676,14 @@ void ARewardChest::RetryRespawnAtAvailableLocation()
 		return;
 	}
 
-	if (ChestState == ERewardChestState::Hidden
-		&& TryRespawnAtRandomAvailableLocation())
+	if (ChestState == ERewardChestState::Hidden && TryRespawnAtRandomAvailableLocation())
 	{
 		return;
 	}
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(
-			RespawnTimerHandle,
-			this,
-			&ThisClass::RetryRespawnAtAvailableLocation,
-			0.25f,
+		World->GetTimerManager().SetTimer(RespawnTimerHandle, this, &ThisClass::RetryRespawnAtAvailableLocation, 0.25f,
 			false);
 	}
 }
@@ -761,9 +714,7 @@ bool ARewardChest::TryRespawnAtRandomAvailableLocation()
 		const bool bAlreadyAdded = AvailableSpawnTransforms.ContainsByPredicate(
 			[&CandidateTransform](const FTransform& ExistingTransform)
 			{
-				return ExistingTransform.GetLocation().Equals(
-					CandidateTransform.GetLocation(),
-					1.0f);
+				return ExistingTransform.GetLocation().Equals(CandidateTransform.GetLocation(), 1.0f);
 			});
 		if (bAlreadyAdded)
 		{
@@ -776,8 +727,7 @@ bool ARewardChest::TryRespawnAtRandomAvailableLocation()
 			++OccupantIterator)
 		{
 			const ARewardChest* Occupant = *OccupantIterator;
-			if (IsValid(Occupant)
-				&& Occupant->IsOccupyingSpawnLocation(CandidateTransform))
+			if (IsValid(Occupant) && Occupant->IsOccupyingSpawnLocation(CandidateTransform))
 			{
 				bOccupied = true;
 				break;
@@ -795,24 +745,16 @@ bool ARewardChest::TryRespawnAtRandomAvailableLocation()
 		return false;
 	}
 
-	const int32 SpawnIndex = FMath::RandRange(
-		0,
-		AvailableSpawnTransforms.Num() - 1);
-	SetActorTransform(
-		AvailableSpawnTransforms[SpawnIndex],
-		false,
-		nullptr,
-		ETeleportType::TeleportPhysics);
+	const int32 SpawnIndex = FMath::RandRange(0, AvailableSpawnTransforms.Num() - 1);
+	SetActorTransform(AvailableSpawnTransforms[SpawnIndex], false, nullptr, ETeleportType::TeleportPhysics);
 	SetChestState(ERewardChestState::Closed, nullptr);
 	ForceNetUpdate();
 	return true;
 }
 
-bool ARewardChest::IsOccupyingSpawnLocation(
-	const FTransform& SpawnTransform) const
+bool ARewardChest::IsOccupyingSpawnLocation(const FTransform& SpawnTransform) const
 {
-	return ChestState != ERewardChestState::Hidden
-		&& GetActorLocation().Equals(SpawnTransform.GetLocation(), 1.0f);
+	return ChestState != ERewardChestState::Hidden && GetActorLocation().Equals(SpawnTransform.GetLocation(), 1.0f);
 }
 
 void ARewardChest::SetInteractionAnchorVisible(const bool bVisible) const

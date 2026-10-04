@@ -87,8 +87,7 @@ EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(FDataValidati
 
 		const FGameplayTag& InputTag = Abilities[EntryIndex].InputTag;
 		const FGameplayTag& InputAbilityRoot = LabGameplayTags::Input_Ability;
-		if (InputTag.IsValid()
-			&& !InputTag.MatchesTag(InputAbilityRoot))
+		if (InputTag.IsValid() && !InputTag.MatchesTag(InputAbilityRoot))
 		{
 			Result = EDataValidationResult::Invalid;
 			Context.AddError(FText::Format(
@@ -126,8 +125,7 @@ void UGameFeatureAction_AddAbilities::AddAdditionalAssetBundleData(FAssetBundleD
 	{
 		if (!Entry.Ability.IsNull())
 		{
-			AssetBundleData.AddBundleAsset(
-				UGameFeaturesSubsystemSettings::LoadStateServer,
+			AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateServer,
 				Entry.Ability.ToSoftObjectPath().GetAssetPath());
 		}
 	}
@@ -148,8 +146,7 @@ void UGameFeatureAction_AddAbilities::AddToWorld(const FWorldContext& WorldConte
 	RegisterAbilityExtension(World, ChangeContext);
 }
 
-void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(
-	UWorld* World,
+void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(UWorld* World,
 	FGameFeatureStateChangeContext ChangeContext)
 {
 	if (!World || TargetClass.IsNull())

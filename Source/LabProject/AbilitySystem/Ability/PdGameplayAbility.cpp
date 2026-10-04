@@ -248,7 +248,7 @@ bool UPdGameplayAbility::TryCommitAdditionalActionStaminaCost() const
 		return false;
 	}
 
-	// Autonomous proxies only validate replicated stamina; the server spends it.
+	// 자율 프록시는 복제된 스태미나만 확인하고, 실제 소모는 서버가 한다.
 	if (!ActorInfo->IsNetAuthority())
 	{
 		return true;
@@ -268,8 +268,7 @@ bool UPdGameplayAbility::TryCommitAdditionalActionStaminaCost() const
 	}
 
 	return ApplyGameplayEffectSpecToOwner(
-			GetCurrentAbilitySpecHandle(), ActorInfo, GetCurrentActivationInfo(), CostSpecHandle)
-		.WasSuccessfullyApplied();
+		GetCurrentAbilitySpecHandle(), ActorInfo, GetCurrentActivationInfo(), CostSpecHandle).WasSuccessfullyApplied();
 }
 
 bool UPdGameplayAbility::ApplySharedCooldownEffect(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -343,19 +342,15 @@ AActor* UPdGameplayAbility::GetAttackTargetFromAvatar() const
 	return TargetCharacter && TargetCharacter->IsDead() ? nullptr : AttackTarget;
 }
 
-bool UPdGameplayAbility::CanActivateAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayTagContainer* SourceTags,
-	const FGameplayTagContainer* TargetTags,
-	FGameplayTagContainer* OptionalRelevantTags) const
+bool UPdGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
 {
 	return (!bRequiresGroundedAvatar || CheckAvatarGrounded(ActorInfo, OptionalRelevantTags))
 		&& Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
 
-bool UPdGameplayAbility::CheckAvatarGrounded(
-	const FGameplayAbilityActorInfo* ActorInfo,
+bool UPdGameplayAbility::CheckAvatarGrounded(const FGameplayAbilityActorInfo* ActorInfo,
 	FGameplayTagContainer* OptionalRelevantTags)
 {
 	const ACharacterBase* Character = ActorInfo ? Cast<ACharacterBase>(ActorInfo->AvatarActor.Get()) : nullptr;
@@ -404,28 +399,20 @@ bool UPdGameplayAbility::FaceCharacterToward(ACharacterBase* Character, const FV
 
 float UPdGameplayAbility::GetDamageBonusPercent() const
 {
-	const UAbilitySystemComponent* ASC =
-		GetAbilitySystemComponentFromActorInfo();
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 
-	const UBasicAttributeSet* Attributes =
-		ASC ? ASC->GetSet<UBasicAttributeSet>() : nullptr;
+	const UBasicAttributeSet* Attributes = ASC ? ASC->GetSet<UBasicAttributeSet>() : nullptr;
 
-	return Attributes
-		? FMath::Max(Attributes->GetIntelligence(), 0.0f)
-		: 0.0f;
+	return Attributes ? FMath::Max(Attributes->GetIntelligence(), 0.0f) : 0.0f;
 }
 
-float UPdGameplayAbility::CalculateDamageMagnitude(
-	const FSkillGameplayEffectConfig& DamageConfig) const
+float UPdGameplayAbility::CalculateDamageMagnitude(const FSkillGameplayEffectConfig& DamageConfig) const
 {
-	const float BaseDamage =
-		static_cast<float>(FMath::Max(DamageConfig.Magnitude, 0.0));
+	const float BaseDamage = static_cast<float>(FMath::Max(DamageConfig.Magnitude, 0.0));
 
-	const float DamageBonusPercent =
-		GetDamageBonusPercent();
+	const float DamageBonusPercent = GetDamageBonusPercent();
 
-	return static_cast<float>(
-		BaseDamage
+	return static_cast<float>(BaseDamage
 		* (1.0
 			+ static_cast<double>(DamageBonusPercent) * 0.01));
 }

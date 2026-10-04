@@ -53,13 +53,8 @@ void UPandoraDescriptionViewModel::SetSkillSectionVisibility(const ESlateVisibil
 	UE_MVVM_SET_PROPERTY_VALUE(SkillSectionVisibility, InVisibility);
 }
 
-void UPandoraDescriptionViewModel::SetSkillSlot(
-	const int32 SlotIndex,
-	UObject* InIconResource,
-	const FText& InNameText,
-	const FText& InDescriptionText,
-	const FText& InManaText,
-	const FText& InCooldownText)
+void UPandoraDescriptionViewModel::SetSkillSlot(const int32 SlotIndex, UObject* InIconResource, const FText& InNameText,
+	const FText& InDescriptionText, const FText& InManaText, const FText& InCooldownText)
 {
 	const ESlateVisibility IconVisibility = InIconResource ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
 

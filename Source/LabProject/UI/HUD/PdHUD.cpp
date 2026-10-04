@@ -80,8 +80,7 @@ void APdHUD::InitializeUi(UWidgetClassDefinition* InWidgetClassDefinition)
 		return;
 	}
 
-	const bool bActiveDefinitionChanged =
-		Router->GetActiveDefinition() != InWidgetClassDefinition;
+	const bool bActiveDefinitionChanged = Router->GetActiveDefinition() != InWidgetClassDefinition;
 	if (bActiveDefinitionChanged && Router->GetActiveDefinition())
 	{
 		RemoveAllUiWidgets();
@@ -98,10 +97,8 @@ void APdHUD::DeinitializeUi(const UWidgetClassDefinition* InWidgetClassDefinitio
 		return;
 	}
 
-	const bool bWasActiveDefinition =
-		UiRouter->GetActiveDefinition() == InWidgetClassDefinition;
-	const bool bActiveDefinitionChanged =
-		UiRouter->RemoveDefinitionRequest(InWidgetClassDefinition);
+	const bool bWasActiveDefinition = UiRouter->GetActiveDefinition() == InWidgetClassDefinition;
+	const bool bActiveDefinitionChanged = UiRouter->RemoveDefinitionRequest(InWidgetClassDefinition);
 	if (bWasActiveDefinition && bActiveDefinitionChanged)
 	{
 		RemoveAllUiWidgets();
@@ -129,13 +126,9 @@ void APdHUD::OpenInfoUiFocused(const EInfoUiSection Section)
 		return;
 	}
 
-	const bool bWasInfoReadyForSectionChange =
-		CachedInfoUI
-		&& ScreenLayer->IsInfoOpen()
-		&& !ScreenLayer->IsInfoClosing()
-		&& !IsEscapeMenuOpen();
-	if (bWasInfoReadyForSectionChange
-		&& CachedInfoUI->GetFocusedSection() == Section)
+	const bool bWasInfoReadyForSectionChange = CachedInfoUI && ScreenLayer->IsInfoOpen()
+		&& !ScreenLayer->IsInfoClosing() && !IsEscapeMenuOpen();
+	if (bWasInfoReadyForSectionChange && CachedInfoUI->GetFocusedSection() == Section)
 	{
 		ScreenLayer->CloseInfo();
 		return;
@@ -199,9 +192,7 @@ bool APdHUD::IsPlayerHudSuppressedByUi() const
 {
 	const UHudScreenLayer* ScreenLayer = GetScreenLayer();
 	const UHudScoreboardLayer* ScoreboardLayer = GetScoreboardLayer();
-	return (ScreenLayer && ScreenLayer->ShouldSuppressPlayerHud())
-		|| IsSelectPandoraUiOpen()
-		|| IsEscapeMenuOpen()
+	return (ScreenLayer && ScreenLayer->ShouldSuppressPlayerHud()) || IsSelectPandoraUiOpen() || IsEscapeMenuOpen()
 		|| (ScoreboardLayer && ScoreboardLayer->IsOpen());
 }
 

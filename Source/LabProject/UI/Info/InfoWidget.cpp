@@ -72,32 +72,17 @@ void UInfoWidget::ConfigureInfoViews()
 {
 	if (DetailPopup)
 	{
-		DetailPopup->Initialize(
-			this,
-			WB_LeftEquipment,
-			ItemDetailWidgetClass,
-			PandoraDescriptionWidgetClass,
+		DetailPopup->Initialize(this, WB_LeftEquipment, ItemDetailWidgetClass, PandoraDescriptionWidgetClass,
 			DetailPopupOffset);
 	}
 	if (CharacterPreview)
 	{
-		CharacterPreview->Initialize(
-			this,
-			bUseCharacterPreviewCamera,
-			CharacterPreviewClass);
+		CharacterPreview->Initialize(this, bUseCharacterPreviewCamera, CharacterPreviewClass);
 	}
 	if (MapPanel)
 	{
-		MapPanel->Initialize(
-			this,
-			WidgetTree,
-			MapButton,
-			MapOverlay,
-			TotalMap,
-			TotalMapWidgetClass,
-			SlideMap,
-			MapSlideStartOffset,
-			MapSlideDuration);
+		MapPanel->Initialize(this, WidgetTree, MapButton, MapOverlay, TotalMap, TotalMapWidgetClass, SlideMap,
+			MapSlideStartOffset, MapSlideDuration);
 	}
 	if (PaintCanvas)
 	{
@@ -126,8 +111,7 @@ void UInfoWidget::NativeConstruct()
 	PdButtonClick::Bind(this, GetButtonBindings());
 	BindLeftSkinPaintCanvasEvents();
 	SetCanvasExportButtonVisible(false);
-	SetPandoraUpgradeButtonVisible(
-		FocusedSection == EInfoUiSection::Pandora);
+	SetPandoraUpgradeButtonVisible(FocusedSection == EInfoUiSection::Pandora);
 	MapPanel->RefreshButtonEnabledState();
 	MapPanel->HideImmediately();
 }
@@ -191,8 +175,7 @@ bool UInfoWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 
 FReply UInfoWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton
-		&& PaintCanvas
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && PaintCanvas
 		&& PaintCanvas->BeginStroke(InMouseEvent.GetScreenSpacePosition()))
 	{
 		return FReply::Handled();
@@ -203,10 +186,8 @@ FReply UInfoWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const F
 
 FReply UInfoWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (PaintCanvas
-		&& PaintCanvas->ContinueStroke(
-			InMouseEvent.GetScreenSpacePosition(),
-			InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton)))
+	if (PaintCanvas && PaintCanvas->ContinueStroke(InMouseEvent.GetScreenSpacePosition(),
+		InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton)))
 	{
 		return FReply::Handled();
 	}
@@ -216,8 +197,7 @@ FReply UInfoWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointe
 
 FReply UInfoWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton
-		&& PaintCanvas
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && PaintCanvas
 		&& PaintCanvas->EndStroke(InMouseEvent.GetScreenSpacePosition()))
 	{
 		return FReply::Handled();
@@ -256,10 +236,8 @@ void UInfoWidget::ShowPandoraDescriptionDetailAtWidget(const UPandoraDefinition*
 	DetailPopup->ShowPandora(PandoraDefinition, AnchorWidget, bPlaceLeftOfWidget);
 }
 
-void UInfoWidget::ShowPandoraDescriptionDetailImmediatelyAtWidget(
-	const UPandoraDefinition* PandoraDefinition,
-	UWidget* AnchorWidget,
-	const bool bPlaceLeftOfWidget)
+void UInfoWidget::ShowPandoraDescriptionDetailImmediatelyAtWidget(const UPandoraDefinition* PandoraDefinition,
+	UWidget* AnchorWidget, const bool bPlaceLeftOfWidget)
 {
 	EnsureInfoViews();
 	ConfigureInfoViews();
@@ -342,9 +320,7 @@ void UInfoWidget::SelectMapTab()
 	OnClickedMapButton.Broadcast();
 }
 
-void UInfoWidget::FocusSection(
-	const EInfoUiSection Section,
-	const bool bAnimateTransition)
+void UInfoWidget::FocusSection(const EInfoUiSection Section, const bool bAnimateTransition)
 {
 	switch (Section)
 	{
@@ -529,9 +505,7 @@ void UInfoWidget::OnPandoraUpgradeButtonClicked()
 		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
 		{
 			const TWeakObjectPtr<APdHUD> WeakHud = Hud;
-			FTSTicker::GetCoreTicker().AddTicker(
-				FTickerDelegate::CreateLambda(
-					[WeakHud](float)
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakHud](float)
 					{
 						if (APdHUD* ValidHud = WeakHud.Get())
 						{
@@ -601,13 +575,11 @@ void UInfoWidget::ApplyWidgetDefinitionSettings()
 		bUseCharacterPreviewCamera = Settings.bUseCharacterPreviewCamera;
 		bReturnCameraOnHide = Settings.bReturnCameraOnHide;
 		DetailPopupOffset = Settings.DetailPopupOffset;
-		if (const TSubclassOf<UMapWidget> ResolvedTotalMapWidgetClass =
-			WidgetDefinition->GetTotalMapWidgetClass())
+		if (const TSubclassOf<UMapWidget> ResolvedTotalMapWidgetClass = WidgetDefinition->GetTotalMapWidgetClass())
 		{
 			TotalMapWidgetClass = ResolvedTotalMapWidgetClass;
 		}
-		if (const TSubclassOf<AActor> ResolvedCharacterPreviewClass =
-			WidgetDefinition->GetCharacterPreviewClass())
+		if (const TSubclassOf<AActor> ResolvedCharacterPreviewClass = WidgetDefinition->GetCharacterPreviewClass())
 		{
 			CharacterPreviewClass = ResolvedCharacterPreviewClass;
 		}
@@ -672,12 +644,8 @@ TArray<FPdButtonClickBinding, TInlineAllocator<12>> UInfoWidget::GetButtonBindin
 	};
 }
 
-void UInfoWidget::SelectSidePanelSection(
-	const EInfoUiSection Section,
-	UWidget* LeftWidget,
-	UWidget* RightWidget,
-	const FGameplayTag& LeftUiTag,
-	const FGameplayTag& RightUiTag)
+void UInfoWidget::SelectSidePanelSection(const EInfoUiSection Section, UWidget* LeftWidget, UWidget* RightWidget,
+	const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag)
 {
 	FocusedSection = Section;
 	SetPandoraUpgradeButtonVisible(Section == EInfoUiSection::Pandora);
@@ -727,14 +695,11 @@ void UInfoWidget::OnClosePaintClicked()
 
 bool UInfoWidget::SetPaintCanvasWidgetVisible(const bool bVisible)
 {
-	const bool bPaintCanvasVisible = PaintCanvas
-		&& PaintCanvas->SetVisible(bVisible);
+	const bool bPaintCanvasVisible = PaintCanvas && PaintCanvas->SetVisible(bVisible);
 
 	if (Txt_Canvas)
 	{
-		Txt_Canvas->SetVisibility(bPaintCanvasVisible
-			? ESlateVisibility::Visible
-			: ESlateVisibility::Collapsed);
+		Txt_Canvas->SetVisibility(bPaintCanvasVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
 	return bPaintCanvasVisible;
@@ -760,10 +725,7 @@ void UInfoWidget::SetPandoraUpgradeButtonVisible(const bool bVisible)
 	RefreshPandoraDrawerLabel();
 	if (Btn_PandoraUpgrade)
 	{
-		Btn_PandoraUpgrade->SetVisibility(
-			bVisible
-				? ESlateVisibility::Visible
-				: ESlateVisibility::Collapsed);
+		Btn_PandoraUpgrade->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 }
 
@@ -824,8 +786,7 @@ void UInfoWidget::BindLeftSkinPaintCanvasEvents()
 {
 	if (WB_LeftSkin)
 	{
-		WB_LeftSkin->OnPaintCanvasGroupVisibilityChanged.AddUniqueDynamic(
-			this,
+		WB_LeftSkin->OnPaintCanvasGroupVisibilityChanged.AddUniqueDynamic(this,
 			&ThisClass::HandlePaintCanvasGroupVisibilityChanged);
 	}
 }
@@ -834,8 +795,7 @@ void UInfoWidget::UnbindLeftSkinPaintCanvasEvents()
 {
 	if (WB_LeftSkin)
 	{
-		WB_LeftSkin->OnPaintCanvasGroupVisibilityChanged.RemoveDynamic(
-			this,
+		WB_LeftSkin->OnPaintCanvasGroupVisibilityChanged.RemoveDynamic(this,
 			&ThisClass::HandlePaintCanvasGroupVisibilityChanged);
 	}
 }
@@ -851,9 +811,7 @@ bool UInfoWidget::IsScreenPositionInsideCharacterDropPanel(const FVector2D& Scre
 	const FGeometry& PanelGeometry = DropPanel->GetCachedGeometry();
 	const FVector2D LocalPosition = PanelGeometry.AbsoluteToLocal(ScreenSpacePosition);
 	const FVector2D LocalSize = PanelGeometry.GetLocalSize();
-	return LocalPosition.X >= 0.0f &&
-		LocalPosition.Y >= 0.0f &&
-		LocalPosition.X <= LocalSize.X &&
+	return LocalPosition.X >= 0.0f && LocalPosition.Y >= 0.0f && LocalPosition.X <= LocalSize.X &&
 		LocalPosition.Y <= LocalSize.Y;
 }
 

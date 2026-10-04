@@ -17,10 +17,8 @@ UReactiveStaminaRegenAbility::UReactiveStaminaRegenAbility(const FObjectInitiali
 	ActivationOwnedTags.Reset();
 }
 
-void UReactiveStaminaRegenAbility::ActivateAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
+void UReactiveStaminaRegenAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
@@ -72,12 +70,8 @@ void UReactiveStaminaRegenAbility::HandleStaminaChanged(const FOnAttributeChange
 
 		if (UWorld* World = GetWorld())
 		{
-			World->GetTimerManager().SetTimer(
-				StaminaRegenDelayTimerHandle,
-				this,
-				&ThisClass::ApplyStaminaRegenEffect,
-				StaminaRegenDelay,
-				false);
+			World->GetTimerManager().SetTimer(StaminaRegenDelayTimerHandle, this, &ThisClass::ApplyStaminaRegenEffect,
+				StaminaRegenDelay, false);
 		}
 		return;
 	}

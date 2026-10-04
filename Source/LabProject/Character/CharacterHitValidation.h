@@ -8,35 +8,35 @@ class UPrimitiveComponent;
 
 namespace PdCharacterHitValidation
 {
-	/** Resolves a character directly or indirectly related to the hit actor/component. */
+	/** 맞은 액터·컴포넌트와 직접 또는 간접으로 연결된 캐릭터를 찾는다. */
 	LABPROJECT_API ACharacterBase* ResolveRelatedCharacter(
 		AActor* HitActor,
 		const UPrimitiveComponent* HitComponent);
 
-	/** Returns a character only when the hit component is that character's primary skeletal mesh. */
+	/** 맞은 컴포넌트가 그 캐릭터의 주 스켈레탈 메시일 때만 캐릭터를 돌려준다. */
 	LABPROJECT_API ACharacterBase* ResolveDirectMeshHit(
 		AActor* HitActor,
 		const UPrimitiveComponent* HitComponent);
 
-	/** Returns a character when a melee weapon touches its primary mesh or movement capsule. */
+	/** 근접 무기가 주 메시나 이동 캡슐에 닿았을 때 캐릭터를 돌려준다. */
 	LABPROJECT_API ACharacterBase* ResolveMeleeWeaponDamageHit(
 		AActor* HitActor,
 		const UPrimitiveComponent* HitComponent);
 
 	/**
-	 * Resolves a valid ranged weapon or projectile damage hit.
-	 * A character is accepted only when the hit component is its primary skeletal mesh.
+	 * 원거리 무기나 투사체 피해로 인정할 맞음을 찾는다.
+	 * 캐릭터는 맞은 컴포넌트가 주 스켈레탈 메시일 때만 인정한다.
 	 */
 	LABPROJECT_API ACharacterBase* ResolveWeaponDamageHit(
 		AActor* HitActor,
 		const UPrimitiveComponent* HitComponent);
 
-	/** True when the hit belongs to a character but did not touch its primary skeletal mesh. */
+	/** 캐릭터에 속한 맞음이지만 주 스켈레탈 메시에 닿지 않았으면 true. */
 	LABPROJECT_API bool IsCharacterRelatedNonMeshHit(
 		AActor* HitActor,
 		const UPrimitiveComponent* HitComponent);
 
-	/** True when the hit belongs to a character but is not a component accepted for weapon damage. */
+	/** 캐릭터에 속한 맞음이지만 무기 피해로 인정하는 컴포넌트가 아니면 true. */
 	LABPROJECT_API bool IsCharacterRelatedNonWeaponDamageHit(
 		AActor* HitActor,
 		const UPrimitiveComponent* HitComponent);

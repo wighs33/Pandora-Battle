@@ -50,8 +50,7 @@ void ALobbyHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 bool ALobbyHUD::IsPlayerHudSuppressedByUi() const
 {
-	return Super::IsPlayerHudSuppressedByUi()
-		|| (LobbyScreen && LobbyScreen->IsActivated());
+	return Super::IsPlayerHudSuppressedByUi() || (LobbyScreen && LobbyScreen->IsActivated());
 }
 
 bool ALobbyHUD::HandleEscapeInput()

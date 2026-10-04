@@ -381,18 +381,13 @@ void ULobbyWidget::HandleCloseClicked()
 	}
 
 	bPendingCloseAfterDestroy = true;
-	DestroySessionCompleteHandle = OnlineSessionsSubsystem->OnDestroySessionComplete.AddUObject(
-		this,
+	DestroySessionCompleteHandle = OnlineSessionsSubsystem->OnDestroySessionComplete.AddUObject(this,
 		&ThisClass::HandleDestroySessionForClose);
 
 	if (UWorld* World = GetWorld(); World && World->GetAuthGameMode())
 	{
 		SendRemoteClientsToTitleMap(TitleMapName);
-		World->GetTimerManager().SetTimer(
-			CloseDestroyTimerHandle,
-			this,
-			&ThisClass::DestroySessionForClose,
-			0.25f,
+		World->GetTimerManager().SetTimer(CloseDestroyTimerHandle, this, &ThisClass::DestroySessionForClose, 0.25f,
 			false);
 		return;
 	}
@@ -477,8 +472,7 @@ void ULobbyWidget::HandleMapNextClicked()
 
 FString ULobbyWidget::GetResolvedTitleTravelMapName() const
 {
-	const ULevelDefinition* Definition =
-		ULevelDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition = ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }
 
@@ -521,9 +515,7 @@ void ULobbyWidget::RefreshSelectedMapUI()
 	const ALobbyGameMode* LobbyGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALobbyGameMode>() : nullptr;
 	const int32 OptionCount = LobbyGameMode ? LobbyGameMode->GetLobbyConfigurationComponent()->GetLobbyMapOptionCount() : 0;
 	const int32 ActivePlayers = GetLobbyPlayerStates().Num();
-	const int32 MaxPlayers = bHasMapOption
-		? FMath::Max(MapOption.MaxPlayerCount, 1)
-		: GetMaxLobbySlotsForUI();
+	const int32 MaxPlayers = bHasMapOption ? FMath::Max(MapOption.MaxPlayerCount, 1) : GetMaxLobbySlotsForUI();
 	const bool bSelectedMapCapacityExceeded = bHasMapOption && ActivePlayers > MaxPlayers;
 
 	if (UTextBlock* MapNameText = Txt_SelectedMapName)
@@ -652,8 +644,7 @@ void ULobbyWidget::SetTeamBalanceWarningVisibility(const ESlateVisibility InVisi
 		if (UPanelWidget* ParentWidget = WarningText->GetParent())
 		{
 			const FString ParentName = ParentWidget->GetName();
-			if (!WidgetTree
-				|| ParentWidget != WidgetTree->RootWidget
+			if (!WidgetTree || ParentWidget != WidgetTree->RootWidget
 				|| ParentName.Contains(TEXT("Warning"), ESearchCase::IgnoreCase)
 				|| ParentName.Contains(TEXT("TeamBalance"), ESearchCase::IgnoreCase))
 			{
@@ -701,12 +692,8 @@ void ULobbyWidget::ApplyReplicatedGameStartState()
 		}
 		else if (!World->GetTimerManager().IsTimerActive(GameStartCountdownTickHandle))
 		{
-			World->GetTimerManager().SetTimer(
-				GameStartCountdownTickHandle,
-				this,
-				&ThisClass::HandleGameStartCountdownTick,
-				FMath::Max(GameStartCountdownTickInterval, 0.01f),
-				true);
+			World->GetTimerManager().SetTimer(GameStartCountdownTickHandle, this,
+				&ThisClass::HandleGameStartCountdownTick, FMath::Max(GameStartCountdownTickInterval, 0.01f), true);
 		}
 	}
 
@@ -756,8 +743,7 @@ void ULobbyWidget::SetLobbyInteractionsLocked(const bool bLocked)
 
 		TargetWidgetTree->ForEachWidgetAndDescendants([this](UWidget* Widget)
 		{
-			if (!Widget
-				|| (!Widget->IsA<UButton>() && !Widget->IsA<UComboBoxString>()))
+			if (!Widget || (!Widget->IsA<UButton>() && !Widget->IsA<UComboBoxString>()))
 			{
 				return;
 			}
@@ -783,9 +769,7 @@ FText ULobbyWidget::FormatGameStartCountdownText() const
 	}
 
 	FFormatNamedArguments Arguments;
-	Arguments.Add(
-		TEXT("Seconds"),
-		FText::AsNumber(FMath::CeilToInt(RemainingSeconds)));
+	Arguments.Add(TEXT("Seconds"), FText::AsNumber(FMath::CeilToInt(RemainingSeconds)));
 	return FText::Format(GameStartCountdownFormatText, Arguments);
 }
 
@@ -804,9 +788,7 @@ bool ULobbyWidget::IsGameStartPending() const
 float ULobbyWidget::GetGameStartRemainingSeconds() const
 {
 	const ALobbyGameState* LobbyGameState = GetLobbyGameState();
-	return LobbyGameState
-		? LobbyGameState->GetGameStartRemainingSeconds()
-		: 0.0f;
+	return LobbyGameState ? LobbyGameState->GetGameStartRemainingSeconds() : 0.0f;
 }
 
 void ULobbyWidget::DestroySessionForClose()

@@ -148,8 +148,7 @@ void UGameFeatureAction_AddAttributes::AddToWorld(const FWorldContext& WorldCont
 	RegisterAttributeExtension(World, ChangeContext);
 }
 
-void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(
-	UWorld* World,
+void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(UWorld* World,
 	FGameFeatureStateChangeContext ChangeContext)
 {
 	if (!World)

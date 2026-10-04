@@ -71,11 +71,8 @@ void UStatusEffectsBarWidget::BeginStatusEffectContentPreload()
 		StatusEffectPaths.Add(StatusEffect.ToSoftObjectPath());
 	}
 
-	StatusEffectContentLease = ContentSubsystem->AcquireContent(
-		StatusEffectPaths,
-		FSimpleDelegate::CreateWeakLambda(
-			this,
-			[this]()
+	StatusEffectContentLease = ContentSubsystem->AcquireContent(StatusEffectPaths,
+		FSimpleDelegate::CreateWeakLambda(this, [this]()
 			{
 				if (!bIsConstructed)
 				{
@@ -215,11 +212,8 @@ void UStatusEffectsBarWidget::BindStatusEffectTagDelegates()
 		: nullptr;
 	if (BoundStatusEffectReplicationComponent)
 	{
-		ReplicatedStackChangedHandle = BoundStatusEffectReplicationComponent
-			->OnStatusEffectStackChanged()
-			.AddUObject(
-				this,
-				&ThisClass::HandleReplicatedStatusEffectStackChanged);
+		ReplicatedStackChangedHandle = BoundStatusEffectReplicationComponent->OnStatusEffectStackChanged()
+			.AddUObject(this, &ThisClass::HandleReplicatedStatusEffectStackChanged);
 	}
 
 	TArray<UStatusEffectDefinition*> ObservedDataAssets;
@@ -233,20 +227,16 @@ void UStatusEffectsBarWidget::BindStatusEffectTagDelegates()
 
 		if (DataAsset->StackTag.IsValid() && !ObservedTagChangedHandles.Contains(DataAsset->StackTag))
 		{
-			ObservedTagChangedHandles.Add(
-				DataAsset->StackTag,
-				BoundAbilitySystemComponent
-					->RegisterGameplayTagEvent(DataAsset->StackTag, EGameplayTagEventType::NewOrRemoved)
-					.AddUObject(this, &ThisClass::HandleObservedTagChanged));
+			ObservedTagChangedHandles.Add(DataAsset->StackTag, BoundAbilitySystemComponent
+				->RegisterGameplayTagEvent(DataAsset->StackTag, EGameplayTagEventType::NewOrRemoved)
+				.AddUObject(this, &ThisClass::HandleObservedTagChanged));
 		}
 
 		if (DataAsset->StatusEffectTag.IsValid() && !ObservedTagChangedHandles.Contains(DataAsset->StatusEffectTag))
 		{
-			ObservedTagChangedHandles.Add(
-				DataAsset->StatusEffectTag,
-				BoundAbilitySystemComponent
-					->RegisterGameplayTagEvent(DataAsset->StatusEffectTag, EGameplayTagEventType::NewOrRemoved)
-					.AddUObject(this, &ThisClass::HandleObservedTagChanged));
+			ObservedTagChangedHandles.Add(DataAsset->StatusEffectTag, BoundAbilitySystemComponent
+				->RegisterGameplayTagEvent(DataAsset->StatusEffectTag, EGameplayTagEventType::NewOrRemoved)
+				.AddUObject(this, &ThisClass::HandleObservedTagChanged));
 		}
 	}
 
@@ -255,12 +245,9 @@ void UStatusEffectsBarWidget::BindStatusEffectTagDelegates()
 
 void UStatusEffectsBarWidget::UnbindStatusEffectTagDelegates()
 {
-	if (BoundStatusEffectReplicationComponent
-		&& ReplicatedStackChangedHandle.IsValid())
+	if (BoundStatusEffectReplicationComponent && ReplicatedStackChangedHandle.IsValid())
 	{
-		BoundStatusEffectReplicationComponent
-			->OnStatusEffectStackChanged()
-			.Remove(ReplicatedStackChangedHandle);
+		BoundStatusEffectReplicationComponent->OnStatusEffectStackChanged().Remove(ReplicatedStackChangedHandle);
 	}
 	BoundStatusEffectReplicationComponent = nullptr;
 	ReplicatedStackChangedHandle.Reset();
@@ -293,8 +280,7 @@ void UStatusEffectsBarWidget::HandleObservedTagChanged(const FGameplayTag Callba
 	ScheduleStatusEffectWidgetRefresh();
 }
 
-void UStatusEffectsBarWidget::HandleReplicatedStatusEffectStackChanged(
-	const FGameplayTag DebuffTag,
+void UStatusEffectsBarWidget::HandleReplicatedStatusEffectStackChanged(const FGameplayTag DebuffTag,
 	const int32 StackCount)
 {
 	static_cast<void>(DebuffTag);
@@ -358,8 +344,7 @@ void UStatusEffectsBarWidget::RefreshStatusEffectWidgets()
 	}
 }
 
-int32 UStatusEffectsBarWidget::GetStatusEffectDisplayCount(
-	const UStatusEffectDefinition* DataAsset) const
+int32 UStatusEffectsBarWidget::GetStatusEffectDisplayCount(const UStatusEffectDefinition* DataAsset) const
 {
 	if (!BoundAbilitySystemComponent || !DataAsset)
 	{
@@ -371,8 +356,7 @@ int32 UStatusEffectsBarWidget::GetStatusEffectDisplayCount(
 	{
 		if (BoundStatusEffectReplicationComponent)
 		{
-			StackCount = BoundStatusEffectReplicationComponent
-				->GetStatusEffectStackCount(DataAsset->StackTag);
+			StackCount = BoundStatusEffectReplicationComponent->GetStatusEffectStackCount(DataAsset->StackTag);
 		}
 		else
 		{
@@ -382,13 +366,10 @@ int32 UStatusEffectsBarWidget::GetStatusEffectDisplayCount(
 				BoundAbilitySystemComponent->GetActiveEffectsWithAllTags(DebuffTags);
 			for (const FActiveGameplayEffectHandle ActiveHandle : ActiveHandles)
 			{
-				StackCount += FMath::Max(
-					BoundAbilitySystemComponent->GetCurrentStackCount(ActiveHandle),
-					1);
+				StackCount += FMath::Max(BoundAbilitySystemComponent->GetCurrentStackCount(ActiveHandle), 1);
 			}
 
-			if (StackCount <= 0
-				&& BoundAbilitySystemComponent->HasMatchingGameplayTag(DataAsset->StackTag))
+			if (StackCount <= 0 && BoundAbilitySystemComponent->HasMatchingGameplayTag(DataAsset->StackTag))
 			{
 				StackCount = 1;
 			}
@@ -440,8 +421,7 @@ UAbilitySystemComponent* UStatusEffectsBarWidget::GetOwnerAbilitySystemComponent
 	return OwnerActor.Get() ? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerActor.Get()) : nullptr;
 }
 
-void UStatusEffectsBarWidget::GatherObservedStatusEffectDataAssets(
-	TArray<UStatusEffectDefinition*>& OutDataAssets)
+void UStatusEffectsBarWidget::GatherObservedStatusEffectDataAssets(TArray<UStatusEffectDefinition*>& OutDataAssets)
 {
 	if (!bObservedStatusEffectDataAssetCacheValid)
 	{

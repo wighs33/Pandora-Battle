@@ -35,15 +35,12 @@ FGameplayTag UGrappleAbility::GetDefaultInputTag() const
 	return LabGameplayTags::Input_Ability_Movement_Grapple;
 }
 
-void UGrappleAbility::OnAvatarSet(
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilitySpec& Spec)
+void UGrappleAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {
 	Super::OnAvatarSet(ActorInfo, Spec);
 	ReleaseCharacterActionDefinitionPreload();
 
-	const TSoftObjectPtr<UCharacterActionDefinition> Definition(
-		UCharacterActionDefinition::GetDefaultDefinitionPath());
+	const TSoftObjectPtr<UCharacterActionDefinition> Definition(UCharacterActionDefinition::GetDefaultDefinitionPath());
 	LoadedCharacterActionDefinition = Definition.Get();
 	if (LoadedCharacterActionDefinition || Definition.IsNull())
 	{
@@ -56,44 +53,32 @@ void UGrappleAbility::OnAvatarSet(
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (ContentSubsystem)
 	{
-		CharacterActionDefinitionLease = ContentSubsystem->AcquireContent(
-			{ Definition.ToSoftObjectPath() },
-			FSimpleDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleCharacterActionDefinitionPreloadComplete));
+		CharacterActionDefinitionLease = ContentSubsystem->AcquireContent({ Definition.ToSoftObjectPath() },
+			FSimpleDelegate::CreateUObject(this, &ThisClass::HandleCharacterActionDefinitionPreloadComplete));
 	}
 }
 
-void UGrappleAbility::OnRemoveAbility(
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilitySpec& Spec)
+void UGrappleAbility::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {
 	ReleaseCharacterActionDefinitionPreload();
 	Super::OnRemoveAbility(ActorInfo, Spec);
 }
 
-void UGrappleAbility::ActivateAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
+void UGrappleAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
 	static_cast<void>(TriggerEventData);
 
 	UGrappleComponent* GrappleComponent = GetGrappleComponent();
 	const APdPlayer* Player = Cast<APdPlayer>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr);
-	if (!ActorInfo
-		|| !Player
-		|| !GrappleComponent
-		|| Player->IsStatusFrozen()
-		|| GrappleComponent->IsGrappling())
+	if (!ActorInfo || !Player || !GrappleComponent || Player->IsStatusFrozen() || GrappleComponent->IsGrappling())
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	GrappleFinishedDelegateHandle = GrappleComponent->OnGrappleFinished.AddUObject(
-		this,
+	GrappleFinishedDelegateHandle = GrappleComponent->OnGrappleFinished.AddUObject(this,
 		&ThisClass::HandleGrappleFinished);
 
 	SetLocalAimPresentation(true);
@@ -150,28 +135,19 @@ const FGameplayTagContainer* UGrappleAbility::GetCooldownTags() const
 	return &GrappleCooldownTags;
 }
 
-void UGrappleAbility::ApplyCooldown(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
+void UGrappleAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo) const
 {
 	FGameplayTagContainer CooldownTags;
 	CooldownTags.AddTag(LabGameplayTags::Cooldown_Grapple);
-	ApplySharedCooldownEffect(
-		Handle,
-		ActorInfo,
-		ActivationInfo,
-		static_cast<float>(FMath::Max(GetConfiguredCooldownDuration(), 0.0)),
-		CooldownTags);
+	ApplySharedCooldownEffect(Handle, ActorInfo, ActivationInfo,
+		static_cast<float>(FMath::Max(GetConfiguredCooldownDuration(), 0.0)), CooldownTags);
 }
 
 void UGrappleAbility::StartTargetDataTask()
 {
-	WaitTargetDataTask = UAbilityTask_WaitTargetData::WaitTargetData(
-		this,
-		TEXT("GrappleTargetData"),
-		EGameplayTargetingConfirmation::Custom,
-		AGrappleTargetActor::StaticClass());
+	WaitTargetDataTask = UAbilityTask_WaitTargetData::WaitTargetData(this, TEXT("GrappleTargetData"),
+		EGameplayTargetingConfirmation::Custom, AGrappleTargetActor::StaticClass());
 	if (!WaitTargetDataTask)
 	{
 		return;
@@ -180,8 +156,7 @@ void UGrappleAbility::StartTargetDataTask()
 	WaitTargetDataTask->ValidData.AddDynamic(this, &ThisClass::HandleTargetDataValid);
 	WaitTargetDataTask->Cancelled.AddDynamic(this, &ThisClass::HandleTargetDataCancelled);
 
-	AGameplayAbilityTargetActor* TargetActor = BeginSpawningTargetDataActor(
-		WaitTargetDataTask,
+	AGameplayAbilityTargetActor* TargetActor = BeginSpawningTargetDataActor(WaitTargetDataTask,
 		AGrappleTargetActor::StaticClass());
 	SpawnedTargetActor = Cast<AGrappleTargetActor>(TargetActor);
 	if (TargetActor)
@@ -241,15 +216,13 @@ UCharacterActionDefinition* UGrappleAbility::LoadCharacterActionDefinition() con
 		return LoadedCharacterActionDefinition;
 	}
 
-	TSoftObjectPtr<UCharacterActionDefinition> Definition(
-		UCharacterActionDefinition::GetDefaultDefinitionPath());
+	TSoftObjectPtr<UCharacterActionDefinition> Definition(UCharacterActionDefinition::GetDefaultDefinitionPath());
 	return Definition.LoadSynchronous();
 }
 
 void UGrappleAbility::HandleCharacterActionDefinitionPreloadComplete()
 {
-	const TSoftObjectPtr<UCharacterActionDefinition> Definition(
-		UCharacterActionDefinition::GetDefaultDefinitionPath());
+	const TSoftObjectPtr<UCharacterActionDefinition> Definition(UCharacterActionDefinition::GetDefaultDefinitionPath());
 	LoadedCharacterActionDefinition = Definition.Get();
 }
 
@@ -262,9 +235,7 @@ void UGrappleAbility::ReleaseCharacterActionDefinitionPreload()
 double UGrappleAbility::GetConfiguredCooldownDuration() const
 {
 	const UCharacterActionDefinition* ActionDefinition = LoadCharacterActionDefinition();
-	return ActionDefinition
-		? ActionDefinition->GetCooldownDuration(ECharacterActionType::GrappleHook)
-		: 0.0;
+	return ActionDefinition ? ActionDefinition->GetCooldownDuration(ECharacterActionType::GrappleHook) : 0.0;
 }
 
 UGrappleComponent* UGrappleAbility::GetGrappleComponent() const
@@ -314,10 +285,7 @@ void UGrappleAbility::HandleTargetDataValid(const FGameplayAbilityTargetDataHand
 
 	if (!CurrentActorInfo || !CurrentActorInfo->IsNetAuthority())
 	{
-		const bool bCommittedGrapple = CommitAbility(
-			CurrentSpecHandle,
-			CurrentActorInfo,
-			CurrentActivationInfo);
+		const bool bCommittedGrapple = CommitAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo);
 		if (!bCommittedGrapple)
 		{
 			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);

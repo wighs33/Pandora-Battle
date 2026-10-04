@@ -11,8 +11,7 @@ FPrimaryAssetId UPlayerControllerDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UPlayerControllerDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.PlayerController.ToSoftObjectPath();
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().PlayerController.ToSoftObjectPath();
 }
 
 #if WITH_EDITOR
@@ -33,27 +32,20 @@ EDataValidationResult UPlayerControllerDefinition::IsDataValid(FDataValidationCo
 	if (!FMath::IsFinite(Presentation.TravelLoadingReadyCheckInterval)
 		|| Presentation.TravelLoadingReadyCheckInterval < 0.01f)
 	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerControllerDefinition",
-			"InvalidTravelLoadingInterval",
+		MarkInvalid(NSLOCTEXT("PlayerControllerDefinition", "InvalidTravelLoadingInterval",
 			"Presentation TravelLoadingReadyCheckInterval must be finite and at least 0.01 seconds."));
 	}
 
 	if (!FMath::IsFinite(Presentation.HealthBarVisibilityUpdateInterval)
 		|| Presentation.HealthBarVisibilityUpdateInterval < 0.01f)
 	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerControllerDefinition",
-			"InvalidHealthBarUpdateInterval",
+		MarkInvalid(NSLOCTEXT("PlayerControllerDefinition", "InvalidHealthBarUpdateInterval",
 			"Presentation HealthBarVisibilityUpdateInterval must be finite and at least 0.01 seconds."));
 	}
 
-	if (!FMath::IsFinite(Presentation.HealthBarVisibilityDistance)
-		|| Presentation.HealthBarVisibilityDistance < 0.0f)
+	if (!FMath::IsFinite(Presentation.HealthBarVisibilityDistance) || Presentation.HealthBarVisibilityDistance < 0.0f)
 	{
-		MarkInvalid(NSLOCTEXT(
-			"PlayerControllerDefinition",
-			"InvalidHealthBarDistance",
+		MarkInvalid(NSLOCTEXT("PlayerControllerDefinition", "InvalidHealthBarDistance",
 			"Presentation HealthBarVisibilityDistance must be finite and non-negative."));
 	}
 

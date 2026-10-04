@@ -85,14 +85,10 @@ int32 MatchOutcomeRules::CountTeamMembers(const TConstArrayView<FMatchStanding> 
 	return FMath::Max(TeamMemberCount, 1);
 }
 
-int32 MatchOutcomeRules::CalculateVictoryGold(
-	const int32 KillCount,
-	const int32 DeathCount,
-	const int32 WinningTeamMemberCount,
-	const FVictoryGoldRates& Rates)
+int32 MatchOutcomeRules::CalculateVictoryGold(const int32 KillCount, const int32 DeathCount,
+	const int32 WinningTeamMemberCount, const FVictoryGoldRates& Rates)
 {
-	const int32 RawReward =
-		FMath::Max(KillCount, 0) * FMath::Max(Rates.GoldPerKill, 0)
+	const int32 RawReward = FMath::Max(KillCount, 0) * FMath::Max(Rates.GoldPerKill, 0)
 		- FMath::Max(DeathCount, 0) * FMath::Max(Rates.PenaltyPerDeath, 0)
 		+ FMath::Max(WinningTeamMemberCount, 1) * FMath::Max(Rates.GoldPerWinningTeamMember, 0);
 	return FMath::Max(RawReward, 0);

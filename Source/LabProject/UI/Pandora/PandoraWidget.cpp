@@ -213,10 +213,8 @@ void UPandoraWidget::SetPandoraInfo()
 	Style.UnavailableContentOpacity = UnavailableContentOpacity;
 	Style.bShowMaxText = bShowMaxText;
 
-	FPandoraWidgetViewData ViewData = FPandoraWidgetViewDataBuilder::Build(
-		PandoraDefinition.Get(),
-		PandoraTreeComponent.Get(),
-		Style);
+	FPandoraWidgetViewData ViewData = FPandoraWidgetViewDataBuilder::Build(PandoraDefinition.Get(),
+		PandoraTreeComponent.Get(), Style);
 	if (!PandoraTreeComponent && PandoraDefinition && !FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(this, PandoraDefinition))
 	{
 		ViewData.bCanSpend = false;
@@ -291,10 +289,7 @@ void UPandoraWidget::IncrementButtonTimer()
 
 	ButtonHoldElapsedTime = FMath::Max(0.0, FPlatformTime::Seconds() - ButtonHoldStartRealTime);
 
-	const float PressPercent = FMath::Clamp(
-		static_cast<float>(ButtonHoldElapsedTime / ButtonHoldDuration),
-		0.0f,
-		1.0f);
+	const float PressPercent = FMath::Clamp(static_cast<float>(ButtonHoldElapsedTime / ButtonHoldDuration), 0.0f, 1.0f);
 	if (ButtonProgressBar)
 	{
 		ButtonProgressBar->SetPercent(PressPercent);
@@ -324,8 +319,7 @@ void UPandoraWidget::ResetButtonPress()
 
 void UPandoraWidget::HandleButtonPressed()
 {
-	const bool bCanSpend = PandoraTreeComponent
-		&& PandoraDefinition
+	const bool bCanSpend = PandoraTreeComponent && PandoraDefinition
 		&& PandoraTreeComponent->CanSpendPointOnPandora(PandoraDefinition.Get());
 	if (!bCanSpend)
 	{
@@ -714,11 +708,8 @@ bool UPandoraWidget::RequestUnequipPandora()
 void UPandoraWidget::RefreshPandoraDescriptionRequest(const bool bForceRefresh)
 {
 	const APlayerController* OwningPlayer = GetOwningPlayer();
-	const bool bShouldRequestDescription =
-		(bIsButtonHoverActive || bIsFocusWithinWidget)
-		&& IsValid(PandoraDefinition)
-		&& OwningPlayer
-		&& OwningPlayer->IsLocalController();
+	const bool bShouldRequestDescription = (bIsButtonHoverActive || bIsFocusWithinWidget) && IsValid(PandoraDefinition)
+		&& OwningPlayer && OwningPlayer->IsLocalController();
 
 	if (bShouldRequestDescription == bIsPandoraDescriptionRequested)
 	{

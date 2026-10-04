@@ -17,9 +17,7 @@ namespace
 		// 상호작용 센서가 피격 메시보다 먼저 투사체·스킬 검사를 막지 않도록 전용 채널을 쓴다.
 		InteractionSensor.SetCollisionObjectType(LabCollisionChannels::OverlapBox());
 		InteractionSensor.SetCollisionResponseToAllChannels(ECR_Overlap);
-		InteractionSensor.SetCollisionResponseToChannel(
-			LabCollisionChannels::Projectile(),
-			ECR_Ignore);
+		InteractionSensor.SetCollisionResponseToChannel(LabCollisionChannels::Projectile(), ECR_Ignore);
 		InteractionSensor.SetGenerateOverlapEvents(true);
 		InteractionSensor.SetCanEverAffectNavigation(false);
 	}
@@ -84,8 +82,7 @@ bool UPlayerInteractionComponent::InteractWithCurrentTarget()
 {
 	APdPlayer* Player = GetPlayerOwner();
 	AActor* InteractableActor = GetCurrentInteractActor();
-	if (!Player
-		|| !IsValid(InteractableActor)
+	if (!Player || !IsValid(InteractableActor)
 		|| !InteractableActor->GetClass()->ImplementsInterface(UInteractableInterface::StaticClass())
 		|| !IInteractableInterface::Execute_CanInteract(InteractableActor, Player))
 	{
@@ -139,8 +136,7 @@ void UPlayerInteractionComponent::PlayInteractionMontage(UAnimMontage* Montage, 
 	}
 }
 
-void UPlayerInteractionComponent::MulticastPlayInteractionMontage_Implementation(
-	UAnimMontage* Montage,
+void UPlayerInteractionComponent::MulticastPlayInteractionMontage_Implementation(UAnimMontage* Montage,
 	const float PlayRate)
 {
 	APdPlayer* Player = GetPlayerOwner();
@@ -209,14 +205,11 @@ APdPlayer* UPlayerInteractionComponent::GetPlayerOwner() const
 	return Cast<APdPlayer>(GetOwner());
 }
 
-bool UPlayerInteractionComponent::TryMakeInteractableEntry(
-	AActor* OtherActor,
+bool UPlayerInteractionComponent::TryMakeInteractableEntry(AActor* OtherActor,
 	TScriptInterface<IInteractableInterface>& OutInteractableActor) const
 {
 	const APdPlayer* Player = GetPlayerOwner();
-	if (!Player
-		|| !IsValid(OtherActor)
-		|| OtherActor == Player
+	if (!Player || !IsValid(OtherActor) || OtherActor == Player
 		|| !OtherActor->GetClass()->ImplementsInterface(UInteractableInterface::StaticClass()))
 	{
 		return false;
@@ -287,8 +280,7 @@ void UPlayerInteractionComponent::HandleEndOverlap(
 	{
 		return;
 	}
-	CurrentInteractActors.RemoveAll(
-		[OtherActor](const TScriptInterface<IInteractableInterface>& Entry)
+	CurrentInteractActors.RemoveAll([OtherActor](const TScriptInterface<IInteractableInterface>& Entry)
 		{
 			return !IsValid(Entry.GetObject()) || Entry.GetObject() == OtherActor;
 		});

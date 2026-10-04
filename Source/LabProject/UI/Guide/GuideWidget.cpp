@@ -114,8 +114,7 @@ void UGuideWidget::BeginContentPreload()
 		return;
 	}
 
-	GuideDefinitionLease = ContentSubsystem->AcquireContent(
-		{GuideDefinition.ToSoftObjectPath()},
+	GuideDefinitionLease = ContentSubsystem->AcquireContent({GuideDefinition.ToSoftObjectPath()},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginPageImagePreload));
 }
 
@@ -137,8 +136,7 @@ void UGuideWidget::BeginPageImagePreload()
 		ImagePaths.Add(Page.Image.ToSoftObjectPath());
 	}
 
-	GuideImageLease = ContentSubsystem->AcquireContent(
-		ImagePaths,
+	GuideImageLease = ContentSubsystem->AcquireContent(ImagePaths,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshGuide));
 }
 

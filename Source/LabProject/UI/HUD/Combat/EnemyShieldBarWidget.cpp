@@ -109,8 +109,7 @@ void UEnemyShieldBarWidget::UnbindAttributeDelegates()
 
 	if (ShieldChangedHandle.IsValid())
 	{
-		BoundAbilitySystemComponent
-			->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetShieldAttribute())
+		BoundAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetShieldAttribute())
 			.Remove(ShieldChangedHandle);
 		ShieldChangedHandle.Reset();
 	}
@@ -135,9 +134,7 @@ float UEnemyShieldBarWidget::GetAttributeValue(const FGameplayAttribute& Attribu
 {
 	bool bSuccessfullyFoundAttribute = false;
 	const float Value = UAbilitySystemBlueprintLibrary::GetFloatAttributeFromAbilitySystemComponent(
-		BoundAbilitySystemComponent,
-		Attribute,
-		bSuccessfullyFoundAttribute);
+		BoundAbilitySystemComponent, Attribute, bSuccessfullyFoundAttribute);
 	if (bOutSuccessfullyFoundAttribute)
 	{
 		*bOutSuccessfullyFoundAttribute = bSuccessfullyFoundAttribute;

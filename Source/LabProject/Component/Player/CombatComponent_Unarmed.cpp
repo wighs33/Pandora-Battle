@@ -22,9 +22,7 @@ UNiagaraSystem* UCombatComponent::GetUnarmedComboWindowStartEffect() const
 
 UAnimMontage* UCombatComponent::GetCachedUnarmedAttackMontage() const
 {
-	return CachedUnarmedAttackMontage
-		? CachedUnarmedAttackMontage.Get()
-		: UnarmedCombatSettings.AttackMontage.Get();
+	return CachedUnarmedAttackMontage ? CachedUnarmedAttackMontage.Get() : UnarmedCombatSettings.AttackMontage.Get();
 }
 
 void UCombatComponent::BeginUnarmedAttackMontagePreload()
@@ -46,9 +44,7 @@ void UCombatComponent::BeginUnarmedAttackMontagePreload()
 
 	UnarmedAttackMontageLease = ContentSubsystem->AcquireContent(
 		TArray<FSoftObjectPath>{UnarmedCombatSettings.AttackMontage.ToSoftObjectPath()},
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleUnarmedAttackMontagePreloadComplete));
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleUnarmedAttackMontagePreloadComplete));
 }
 
 void UCombatComponent::HandleUnarmedAttackMontagePreloadComplete()
@@ -77,9 +73,7 @@ bool UCombatComponent::GetUnarmedAttackData(FAttackData& OutAttackData) const
 	return true;
 }
 
-void UCombatComponent::SetUnarmedAttackTraceEnabledForSection(
-	const bool bEnabled,
-	const FName AttackSectionName)
+void UCombatComponent::SetUnarmedAttackTraceEnabledForSection(const bool bEnabled, const FName AttackSectionName)
 {
 	if (!bEnabled)
 	{
@@ -138,10 +132,8 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 		return;
 	}
 
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
-	const bool bDrawAttackDebug = SettingDefinition
-		&& SettingDefinition->bDrawAttackDebugVisualization;
+	const UGameSettingDefinition* SettingDefinition = UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const bool bDrawAttackDebug = SettingDefinition && SettingDefinition->bDrawAttackDebugVisualization;
 	UnarmedAttackSweep.Sweep(*this, UnarmedCombatSettings, *SourceCharacter, *SourceMesh, bDrawAttackDebug,
 		[this](AActor* HitActor)
 		{
@@ -161,7 +153,5 @@ float UCombatComponent::GetUnarmedDamageSourceMagnitude() const
 		return UnarmedCombatSettings.DamageMagnitude;
 	}
 
-	return GetCurrentWeaponActor()
-		? GetWeaponDamageSourceMagnitude()
-		: 0.0f;
+	return GetCurrentWeaponActor() ? GetWeaponDamageSourceMagnitude() : 0.0f;
 }

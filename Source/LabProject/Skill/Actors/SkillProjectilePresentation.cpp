@@ -71,8 +71,7 @@ FVector FSkillProjectileGrowth::GetScale(const float Alpha) const
 FVector2D FSkillProjectileGrowth::GetNiagaraSize(const float Alpha) const
 {
 	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return FVector2D(
-		FMath::Lerp(NiagaraStartSize.X, NiagaraTargetSize.X, ClampedAlpha),
+	return FVector2D(FMath::Lerp(NiagaraStartSize.X, NiagaraTargetSize.X, ClampedAlpha),
 		FMath::Lerp(NiagaraStartSize.Y, NiagaraTargetSize.Y, ClampedAlpha));
 }
 
@@ -130,11 +129,8 @@ void PdSkillProjectilePresentation::ExecuteCue(AActor& Projectile, const FGamepl
 	UGameplayCueFunctionLibrary::ExecuteGameplayCueOnActor(&Projectile, CueTag, Parameters);
 }
 
-void PdSkillProjectilePresentation::SpawnImpactEffect(
-	AActor& Projectile,
-	UNiagaraSystem* HitEffect,
-	const FVector& Location,
-	const bool bOnGround)
+void PdSkillProjectilePresentation::SpawnImpactEffect(AActor& Projectile, UNiagaraSystem* HitEffect,
+	const FVector& Location, const bool bOnGround)
 {
 	if (!HitEffect)
 	{
@@ -142,10 +138,7 @@ void PdSkillProjectilePresentation::SpawnImpactEffect(
 	}
 
 	const FTransform SpawnTransform = ResolveImpactEffectTransform(Projectile, Location, bOnGround);
-	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-		&Projectile,
-		HitEffect,
-		SpawnTransform.GetLocation(),
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(&Projectile, HitEffect, SpawnTransform.GetLocation(),
 		SpawnTransform.GetRotation().Rotator());
 }
 

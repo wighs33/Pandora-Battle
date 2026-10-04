@@ -80,11 +80,8 @@ int32 PdRewardChestLoot::RollItemCount(const FRewardChestItemCountRule& Rule)
 	return CandidateCounts.IsValidIndex(SelectedIndex) ? CandidateCounts[SelectedIndex] : FallbackCount;
 }
 
-void PdRewardChestLoot::RollRandomItems(
-	const TConstArrayView<FRewardChestLootCandidate> Candidates,
-	const FRewardChestItemCountRule& CountRule,
-	const bool bAllowDuplicates,
-	TArray<FPrimaryAssetId>& OutItemIds)
+void PdRewardChestLoot::RollRandomItems(const TConstArrayView<FRewardChestLootCandidate> Candidates,
+	const FRewardChestItemCountRule& CountRule, const bool bAllowDuplicates, TArray<FPrimaryAssetId>& OutItemIds)
 {
 	FWeightedItemIds Weapons;
 	FWeightedItemIds Others;
@@ -103,9 +100,7 @@ void PdRewardChestLoot::RollRandomItems(
 
 	const int32 OtherDropCount = FMath::Max(0, DropCount - (bAddedWeapon ? 1 : 0));
 	for (int32 DropIndex = 0;
-		DropIndex < OtherDropCount
-			&& !Others.Ids.IsEmpty()
-			&& Others.TotalWeight > 0.0f;
+		DropIndex < OtherDropCount && !Others.Ids.IsEmpty() && Others.TotalWeight > 0.0f;
 		++DropIndex)
 	{
 		const int32 SelectedIndex = Others.Pick();
@@ -122,8 +117,7 @@ void PdRewardChestLoot::RollRandomItems(
 	}
 }
 
-void PdRewardChestLoot::PickConfiguredItems(
-	const TConstArrayView<FRewardChestLootCandidate> Candidates,
+void PdRewardChestLoot::PickConfiguredItems(const TConstArrayView<FRewardChestLootCandidate> Candidates,
 	TArray<FPrimaryAssetId>& OutItemIds)
 {
 	FWeightedItemIds Weapons;

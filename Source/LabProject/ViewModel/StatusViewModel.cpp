@@ -61,42 +61,30 @@ namespace StatusViewModel
 
 	const UStatUpgradeDefinition* LoadDefaultStatUpgradeDefinition()
 	{
-		TSoftObjectPtr<UStatUpgradeDefinition> StatDefinition(
-			UStatUpgradeDefinition::GetDefaultDefinitionPath());
+		TSoftObjectPtr<UStatUpgradeDefinition> StatDefinition(UStatUpgradeDefinition::GetDefaultDefinitionPath());
 		return StatDefinition.LoadSynchronous();
 	}
 
-	float CalculateDisplayedMaxResourceIncreasePercent(
-		UAbilitySystemComponent* ASC,
-		const TMap<FGameplayTag, float>& EquipmentBonusMagnitudes,
-		const UStatUpgradeDefinition* StatDefinition,
-		const FGameplayAttribute& IncreasePercentAttribute,
-		const FGameplayTag MaxResourceStatTag)
+	float CalculateDisplayedMaxResourceIncreasePercent(UAbilitySystemComponent* ASC,
+		const TMap<FGameplayTag, float>& EquipmentBonusMagnitudes, const UStatUpgradeDefinition* StatDefinition,
+		const FGameplayAttribute& IncreasePercentAttribute, const FGameplayTag MaxResourceStatTag)
 	{
-		const float AttributeIncreasePercent = GetAttributeValue(
-			ASC,
-			IncreasePercentAttribute);
+		const float AttributeIncreasePercent = GetAttributeValue(ASC, IncreasePercentAttribute);
 		if (!StatDefinition || !MaxResourceStatTag.IsValid())
 		{
 			return RoundPercentValue(AttributeIncreasePercent);
 		}
 
 		float DefaultMaxResource = 0.0f;
-		if (!StatDefinition->TryGetExactAttributeDefaultValue(
-				MaxResourceStatTag,
-				DefaultMaxResource)
-			|| !FMath::IsFinite(DefaultMaxResource)
-			|| DefaultMaxResource <= UE_KINDA_SMALL_NUMBER)
+		if (!StatDefinition->TryGetExactAttributeDefaultValue(MaxResourceStatTag, DefaultMaxResource)
+			|| !FMath::IsFinite(DefaultMaxResource) || DefaultMaxResource <= UE_KINDA_SMALL_NUMBER)
 		{
 			return RoundPercentValue(AttributeIncreasePercent);
 		}
 
-		const float EquipmentBonus =
-			EquipmentBonusMagnitudes.FindRef(MaxResourceStatTag);
-		const float EquipmentIncreasePercent =
-			EquipmentBonus / DefaultMaxResource * 100.0f;
-		return RoundPercentValue(
-			AttributeIncreasePercent + EquipmentIncreasePercent);
+		const float EquipmentBonus = EquipmentBonusMagnitudes.FindRef(MaxResourceStatTag);
+		const float EquipmentIncreasePercent = EquipmentBonus / DefaultMaxResource * 100.0f;
+		return RoundPercentValue(AttributeIncreasePercent + EquipmentIncreasePercent);
 	}
 
 	ACharacterBase* ResolveCharacter(UAbilitySystemComponent* ASC)

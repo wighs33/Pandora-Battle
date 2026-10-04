@@ -39,11 +39,8 @@ namespace
 		return FText::FromString(FString(FieldName));
 	}
 
-	void ValidateRequiredInputAction(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
-		const TSoftObjectPtr<UInputAction>& InputAction,
-		const TCHAR* FieldName)
+	void ValidateRequiredInputAction(FDataValidationContext& Context, EDataValidationResult& Result,
+		const TSoftObjectPtr<UInputAction>& InputAction, const TCHAR* FieldName)
 	{
 		if (InputAction.IsNull())
 		{
@@ -68,12 +65,10 @@ UControllerInputDefinition::GetEffectiveCharacterActionDefinition() const
 		return CharacterActionDefinition;
 	}
 
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.CharacterAction;
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().CharacterAction;
 }
 
-UInputAction* UControllerInputDefinition::GetLoadedSkillInputAction(
-	const int32 SkillSlotIndex) const
+UInputAction* UControllerInputDefinition::GetLoadedSkillInputAction(const int32 SkillSlotIndex) const
 {
 	switch (SkillSlotIndex)
 	{
@@ -90,8 +85,7 @@ UInputAction* UControllerInputDefinition::GetLoadedSkillInputAction(
 	}
 }
 
-UInputAction* UControllerInputDefinition::GetLoadedQuickSlotInputAction(
-	const int32 QuickSlotIndex) const
+UInputAction* UControllerInputDefinition::GetLoadedQuickSlotInputAction(const int32 QuickSlotIndex) const
 {
 	switch (QuickSlotIndex)
 	{
@@ -143,8 +137,7 @@ UObject* UControllerInputDefinition::ResolveInputActionIconObject(const UInputAc
 	return nullptr;
 }
 
-void UControllerInputDefinition::GetRuntimePreloadAssetPaths(
-	TArray<FSoftObjectPath>& OutAssetPaths) const
+void UControllerInputDefinition::GetRuntimePreloadAssetPaths(TArray<FSoftObjectPath>& OutAssetPaths) const
 {
 	const auto AddSoftPath = [&OutAssetPaths](const auto& SoftObject)
 	{
@@ -221,41 +214,19 @@ EDataValidationResult UControllerInputDefinition::IsDataValid(FDataValidationCon
 	ValidateRequiredInputAction(Context, Result, AimInputAction, TEXT("AimInputAction"));
 	ValidateRequiredInputAction(Context, Result, EscapeInputAction, TEXT("EscapeInputAction"));
 
-	const bool bHasNativeInputAction =
-		!MoveInputAction.IsNull()
-		|| !LookInputAction.IsNull()
-		|| !JumpInputAction.IsNull()
-		|| !CrouchInputAction.IsNull()
-		|| !InteractInputAction.IsNull()
-		|| !AttackInputAction.IsNull()
-		|| !AimInputAction.IsNull()
-		|| !GrappleInputAction.IsNull()
-		|| !Skill1InputAction.IsNull()
-		|| !Skill2InputAction.IsNull()
-		|| !Skill3InputAction.IsNull()
-		|| !Skill4InputAction.IsNull()
-		|| !QuickSlot1InputAction.IsNull()
-		|| !QuickSlot2InputAction.IsNull()
-		|| !QuickSlot3InputAction.IsNull()
-		|| !QuickSlot4InputAction.IsNull()
-		|| !Gesture1InputAction.IsNull()
-		|| !Gesture2InputAction.IsNull()
-		|| !Gesture3InputAction.IsNull()
-		|| !Gesture4InputAction.IsNull()
-		|| !TargetConfirmInputAction.IsNull()
-		|| !OpenInfoProfileInputAction.IsNull()
-		|| !OpenInfoItemInputAction.IsNull()
-		|| !OpenInfoSkinInputAction.IsNull()
-		|| !OpenInfoPandoraInputAction.IsNull()
-		|| !OpenInfoMapInputAction.IsNull()
-		|| !OpenSettingUiInputAction.IsNull()
-		|| !EscapeInputAction.IsNull()
-		|| !OpenLobbyInputAction.IsNull()
-		|| !SelectPandoraInputAction.IsNull()
-		|| !PandoraTreeInputAction.IsNull()
-		|| !ScoreboardInputAction.IsNull()
-		|| !ChatInputAction.IsNull()
-		|| !ChatScrollInputAction.IsNull();
+	const bool bHasNativeInputAction = !MoveInputAction.IsNull() || !LookInputAction.IsNull()
+		|| !JumpInputAction.IsNull() || !CrouchInputAction.IsNull() || !InteractInputAction.IsNull()
+		|| !AttackInputAction.IsNull() || !AimInputAction.IsNull() || !GrappleInputAction.IsNull()
+		|| !Skill1InputAction.IsNull() || !Skill2InputAction.IsNull() || !Skill3InputAction.IsNull()
+		|| !Skill4InputAction.IsNull() || !QuickSlot1InputAction.IsNull() || !QuickSlot2InputAction.IsNull()
+		|| !QuickSlot3InputAction.IsNull() || !QuickSlot4InputAction.IsNull() || !Gesture1InputAction.IsNull()
+		|| !Gesture2InputAction.IsNull() || !Gesture3InputAction.IsNull() || !Gesture4InputAction.IsNull()
+		|| !TargetConfirmInputAction.IsNull() || !OpenInfoProfileInputAction.IsNull()
+		|| !OpenInfoItemInputAction.IsNull() || !OpenInfoSkinInputAction.IsNull()
+		|| !OpenInfoPandoraInputAction.IsNull() || !OpenInfoMapInputAction.IsNull()
+		|| !OpenSettingUiInputAction.IsNull() || !EscapeInputAction.IsNull() || !OpenLobbyInputAction.IsNull()
+		|| !SelectPandoraInputAction.IsNull() || !PandoraTreeInputAction.IsNull() || !ScoreboardInputAction.IsNull()
+		|| !ChatInputAction.IsNull() || !ChatScrollInputAction.IsNull();
 
 	if (!bHasNativeInputAction)
 	{

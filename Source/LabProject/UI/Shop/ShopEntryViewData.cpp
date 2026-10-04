@@ -7,11 +7,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopEntryViewData)
 
-void UShopEntryViewData::Initialize(
-	const FShopCatalogEntry& InCatalogEntry,
-	UObject* InProductObject,
-	const int32 InPlayerGold,
-	const bool bInOwned)
+void UShopEntryViewData::Initialize(const FShopCatalogEntry& InCatalogEntry, UObject* InProductObject,
+	const int32 InPlayerGold, const bool bInOwned)
 {
 	ProductObject = InProductObject;
 

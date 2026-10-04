@@ -28,8 +28,7 @@ THIRD_PARTY_INCLUDES_END
 namespace
 {
 	// 콤보 상자 항목 순서가 팀 색 번호다.
-	const TCHAR* LobbyTeamColorOptions[LabTeamColorUtils::TeamColorCount] =
-	{
+	const TCHAR* LobbyTeamColorOptions[LabTeamColorUtils::TeamColorCount] = {
 		TEXT("Red"),
 		TEXT("Blue"),
 		TEXT("Yellow"),
@@ -180,8 +179,7 @@ void ULobbyUserWidget::RefreshUI()
 
 	if (Overlay_AddFriend)
 	{
-		Overlay_AddFriend->SetVisibility(
-			bLocalPlayer ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
+		Overlay_AddFriend->SetVisibility(bLocalPlayer ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
 	}
 
 	if (Img_OwnerMark)
@@ -199,16 +197,13 @@ void ULobbyUserWidget::RefreshUI()
 
 	if (Editable_PlayerName)
 	{
-		const bool bPreserveLocalNicknameDraft =
-			bLocalPlayer && Editable_PlayerName->HasKeyboardFocus();
+		const bool bPreserveLocalNicknameDraft = bLocalPlayer && Editable_PlayerName->HasKeyboardFocus();
 
 		Editable_PlayerName->SetVisibility(ESlateVisibility::Visible);
 		Editable_PlayerName->SetHintText(LobbyState->GetNicknameHint());
 		if (!bPreserveLocalNicknameDraft)
 		{
-			Editable_PlayerName->SetText(LobbyState->IsUsingNicknameHint()
-				? FText::GetEmpty()
-				: DisplayName);
+			Editable_PlayerName->SetText(LobbyState->IsUsingNicknameHint() ? FText::GetEmpty() : DisplayName);
 		}
 		Editable_PlayerName->SetIsReadOnly(!bLocalPlayer);
 	}

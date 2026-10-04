@@ -37,8 +37,7 @@ void UEquipmentComponent::BeginPlay()
 	bEndingPlay = false;
 	Super::BeginPlay();
 
-	AbilitySystemSubscription.SubscribeToCharacter(
-		GetCharacter(),
+	AbilitySystemSubscription.SubscribeToCharacter(GetCharacter(),
 		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
 		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
 }
@@ -157,9 +156,7 @@ void UEquipmentComponent::NotifyCurrentWeaponStateChanged()
 	}
 }
 
-void UEquipmentComponent::HandleEquipCooldownTagChanged(
-	const FGameplayTag CallbackTag,
-	const int32 NewCount)
+void UEquipmentComponent::HandleEquipCooldownTagChanged(const FGameplayTag CallbackTag, const int32 NewCount)
 {
 	if (CallbackTag != LabGameplayTags::Cooldown_EquipWeapon || NewCount > 0 || !bHasLatestWeaponRequest || !HasEquipmentAuthority())
 	{
@@ -255,14 +252,12 @@ bool UEquipmentComponent::GetUnequipData(FUnequipData& OutUnequipData) const
 
 bool UEquipmentComponent::ShouldEquipWeaponsWithoutAnimation() const
 {
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const UGameSettingDefinition* SettingDefinition = UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	return SettingDefinition && SettingDefinition->bEquipWeaponsWithoutAnimation;
 }
 
 // 장착 완료 시점에 인벤토리 소유권을 다시 확인하고 준비된 무기를 적용한다.
-bool UEquipmentComponent::EquipWeaponInternal(
-	UItemInstance* WeaponInstance,
+bool UEquipmentComponent::EquipWeaponInternal(UItemInstance* WeaponInstance,
 	const EEnum_Direction WeaponLoadoutDirection)
 {
 	if (bEndingPlay || !HasEquipmentAuthority())
@@ -295,24 +290,17 @@ bool UEquipmentComponent::EquipWeaponInternal(
 	if (!IsWeaponPresentationLoaded(ItemDefinition))
 	{
 		const uint32 RequestGeneration = WeaponPresentationRequestGeneration;
-		return RequestWeaponPresentationLoad(
-			ItemDefinition,
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, NewCurrentWeaponId, SanitizedWeaponLoadoutDirection, RequestGeneration]()
+		return RequestWeaponPresentationLoad(ItemDefinition, FSimpleDelegate::CreateWeakLambda(this,
+			[this, NewCurrentWeaponId, SanitizedWeaponLoadoutDirection, RequestGeneration]()
 				{
-					if (!HasEquipmentAuthority()
-						|| WeaponPresentationRequestGeneration != RequestGeneration)
+					if (!HasEquipmentAuthority() || WeaponPresentationRequestGeneration != RequestGeneration)
 					{
 						return;
 					}
 
-					if (UItemInstance* LoadedWeaponInstance =
-						FindOwnedItemInstanceById(NewCurrentWeaponId))
+					if (UItemInstance* LoadedWeaponInstance = FindOwnedItemInstanceById(NewCurrentWeaponId))
 					{
-						EquipWeaponInternal(
-							LoadedWeaponInstance,
-							SanitizedWeaponLoadoutDirection);
+						EquipWeaponInternal(LoadedWeaponInstance, SanitizedWeaponLoadoutDirection);
 					}
 				}));
 	}
@@ -345,9 +333,7 @@ bool UEquipmentComponent::ResolveWeaponEquipRequest(UItemInstance* WeaponInstanc
 
 bool UEquipmentComponent::IsCurrentWeapon(FGuid WeaponId) const
 {
-	return CurrentWeaponActor
-		&& CurrentWeaponId.IsValid()
-		&& CurrentWeaponId == WeaponId;
+	return CurrentWeaponActor && CurrentWeaponId.IsValid() && CurrentWeaponId == WeaponId;
 }
 
 bool UEquipmentComponent::HasEquipmentAuthority() const
@@ -397,10 +383,8 @@ bool UEquipmentComponent::IsWeaponDefinitionEquipable(const UItemDefinition* Ite
 	return ItemDefinition && !ItemDefinition->WeaponData.Equip.ActorClass.IsNull();
 }
 
-void UEquipmentComponent::MarkCurrentWeaponStateDirty(
-	const bool bCurrentWeaponChanged,
-	const bool bCurrentWeaponIdChanged,
-	const bool bCurrentWeaponDefinitionChanged,
+void UEquipmentComponent::MarkCurrentWeaponStateDirty(const bool bCurrentWeaponChanged,
+	const bool bCurrentWeaponIdChanged, const bool bCurrentWeaponDefinitionChanged,
 	const bool bCurrentWeaponLoadoutDirectionChanged)
 {
 	if (bEndingPlay || !HasEquipmentAuthority())
@@ -468,16 +452,12 @@ bool UEquipmentComponent::HasActiveAbilityWithTags(const FGameplayTagContainer& 
 bool UEquipmentComponent::IsDeathTransitionActive() const
 {
 	const UPdAbilitySystemComponent* AbilitySystem = AbilitySystemSubscription.GetReadyAbilitySystem();
-	return AbilitySystem
-		&& (AbilitySystem->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
-			|| AbilitySystem->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f);
+	return AbilitySystem && (AbilitySystem->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
+		|| AbilitySystem->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f);
 }
 
-void UEquipmentComponent::CommitCurrentWeaponState(
-	const FGuid NewCurrentWeaponId,
-	AWeaponBase* NewWeaponActor,
-	const UItemDefinition* NewWeaponDefinition,
-	const EEnum_Direction NewWeaponLoadoutDirection)
+void UEquipmentComponent::CommitCurrentWeaponState(const FGuid NewCurrentWeaponId, AWeaponBase* NewWeaponActor,
+	const UItemDefinition* NewWeaponDefinition, const EEnum_Direction NewWeaponLoadoutDirection)
 {
 	const EEnum_Direction SanitizedNewWeaponLoadoutDirection =
 		PandoraLoadout::IsLoadoutDirection(NewWeaponLoadoutDirection) ? NewWeaponLoadoutDirection : EEnum_Direction::Center;
@@ -490,10 +470,7 @@ void UEquipmentComponent::CommitCurrentWeaponState(
 	CurrentWeaponDefinition = NewWeaponDefinition;
 	CurrentWeaponLoadoutDirection = SanitizedNewWeaponLoadoutDirection;
 
-	MarkCurrentWeaponStateDirty(
-		bCurrentWeaponChanged,
-		bCurrentWeaponIdChanged,
-		bCurrentWeaponDefinitionChanged,
+	MarkCurrentWeaponStateDirty(bCurrentWeaponChanged, bCurrentWeaponIdChanged, bCurrentWeaponDefinitionChanged,
 		bCurrentWeaponLoadoutDirectionChanged);
 
 	if (HasEquipmentAuthority())
@@ -509,8 +486,7 @@ void UEquipmentComponent::CommitCurrentWeaponState(
 		}
 	}
 
-	if (HasEquipmentAuthority()
-		&& (bCurrentWeaponDefinitionChanged || bCurrentWeaponLoadoutDirectionChanged))
+	if (HasEquipmentAuthority() && (bCurrentWeaponDefinitionChanged || bCurrentWeaponLoadoutDirectionChanged))
 	{
 		RefreshPandoraForWeaponChange();
 	}
@@ -558,14 +534,10 @@ bool UEquipmentComponent::UnequipCurrentWeaponInternal()
 	CurrentWeaponDefinition = nullptr;
 	CurrentWeaponLoadoutDirection = EEnum_Direction::Center;
 
-	MarkCurrentWeaponStateDirty(
-		bCurrentWeaponChanged,
-		bCurrentWeaponIdChanged,
-		bCurrentWeaponDefinitionChanged,
+	MarkCurrentWeaponStateDirty(bCurrentWeaponChanged, bCurrentWeaponIdChanged, bCurrentWeaponDefinitionChanged,
 		bCurrentWeaponLoadoutDirectionChanged);
 
-	if (HasEquipmentAuthority()
-		&& (bCurrentWeaponDefinitionChanged || bCurrentWeaponLoadoutDirectionChanged))
+	if (HasEquipmentAuthority() && (bCurrentWeaponDefinitionChanged || bCurrentWeaponLoadoutDirectionChanged))
 	{
 		RefreshPandoraForWeaponChange();
 	}

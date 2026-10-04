@@ -111,7 +111,7 @@ void USkillDashAction::OnStart()
 		const auto* Hit = Data ? Data->GetHitResult() : nullptr;
 		if (Hit && !Hit->Location.IsNearlyZero())
 		{
-			// TargetData carries a world location; the dash needs the direction from the character to it.
+			// TargetData는 월드 위치를 담는다. 대시에는 캐릭터에서 그 위치로 가는 방향이 필요하다.
 			const FVector ToTarget = (Hit->Location - Character->GetActorLocation()).GetSafeNormal2D();
 			if (!ToTarget.IsNearlyZero()) Direction = ToTarget;
 			break;

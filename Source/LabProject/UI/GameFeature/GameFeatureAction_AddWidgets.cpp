@@ -74,22 +74,19 @@ void UGameFeatureAction_AddWidgets::AddAdditionalAssetBundleData(FAssetBundleDat
 {
 	if (!TargetHudClass.IsNull())
 	{
-		AssetBundleData.AddBundleAsset(
-			UGameFeaturesSubsystemSettings::LoadStateClient,
+		AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateClient,
 			TargetHudClass.ToSoftObjectPath().GetAssetPath());
 	}
 
 	if (!WidgetClassDefinition.IsNull())
 	{
-		AssetBundleData.AddBundleAsset(
-			UGameFeaturesSubsystemSettings::LoadStateClient,
+		AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateClient,
 			WidgetClassDefinition.ToSoftObjectPath().GetAssetPath());
 	}
 }
 #endif
 
-void UGameFeatureAction_AddWidgets::AddToWorld(
-	const FWorldContext& WorldContext,
+void UGameFeatureAction_AddWidgets::AddToWorld(const FWorldContext& WorldContext,
 	const FGameFeatureStateChangeContext& ChangeContext)
 {
 	UWorld* World = WorldContext.World();
@@ -101,9 +98,7 @@ void UGameFeatureAction_AddWidgets::AddToWorld(
 	RegisterWidgetExtension(World, ChangeContext);
 }
 
-void UGameFeatureAction_AddWidgets::RegisterWidgetExtension(
-	UWorld* World,
-	FGameFeatureStateChangeContext ChangeContext)
+void UGameFeatureAction_AddWidgets::RegisterWidgetExtension(UWorld* World, FGameFeatureStateChangeContext ChangeContext)
 {
 	if (!World || TargetHudClass.IsNull())
 	{
@@ -145,9 +140,7 @@ bool UGameFeatureAction_AddWidgets::CanActivateWidgetExtension(AActor* Actor) co
 	return HUD && HUD->GetOwningPlayerController() && !WidgetClassDefinition.IsNull();
 }
 
-void UGameFeatureAction_AddWidgets::AddWidgetsToActor(
-	AActor* Actor,
-	FGameFeatureStateChangeContext ChangeContext)
+void UGameFeatureAction_AddWidgets::AddWidgetsToActor(AActor* Actor, FGameFeatureStateChangeContext ChangeContext)
 {
 	APdHUD* HUD = Cast<APdHUD>(Actor);
 	if (!HUD)
@@ -156,8 +149,7 @@ void UGameFeatureAction_AddWidgets::AddWidgetsToActor(
 	}
 
 	FGameFeatureWidgetHandles* Handles = ContextHandles.Find(ChangeContext);
-	if (!Handles
-		|| Handles->WidgetDefinitionsByActor.Contains(Actor)
+	if (!Handles || Handles->WidgetDefinitionsByActor.Contains(Actor)
 		|| Handles->PendingWidgetDefinitionsByActor.Contains(Actor))
 	{
 		return;
@@ -174,18 +166,12 @@ void UGameFeatureAction_AddWidgets::AddWidgetsToActor(
 
 	Handles->PendingWidgetDefinitionsByActor.Add(Actor, LoadedWidgetClassDefinition);
 	APlayerController* PlayerController = HUD->GetOwningPlayerController();
-	ULocalPlayer* LocalPlayer = PlayerController
-		? PlayerController->GetLocalPlayer()
-		: nullptr;
-	UUiSubsystem* UiSubsystem = LocalPlayer
-		? LocalPlayer->GetSubsystem<UUiSubsystem>()
-		: nullptr;
+	ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
+	UUiSubsystem* UiSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 	if (!UiSubsystem)
 	{
 		Handles->PendingWidgetDefinitionsByActor.Remove(Actor);
-		UE_LOG(
-			PdGameFeatureAction_AddWidgetsLog,
-			Error,
+		UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error,
 			TEXT("AddWidgets skipped '%s': UiSubsystem was unavailable for the UI preload."),
 			*GetNameSafe(Actor));
 		return;
@@ -199,28 +185,19 @@ void UGameFeatureAction_AddWidgets::AddWidgetsToActor(
 		{
 			if (ThisClass* This = WeakThis.Get())
 			{
-				This->CompleteAddWidgetsToActor(
-					WeakActor.Get(),
-					ChangeContext,
-					WeakDefinition.Get());
+				This->CompleteAddWidgetsToActor(WeakActor.Get(), ChangeContext, WeakDefinition.Get());
 			}
 		});
 
 	TArray<TSharedPtr<FContentLease>> ContentLeases;
-	for (const EUiContentGroup Group :
-		{EUiContentGroup::Core, EUiContentGroup::InGame})
+	for (const EUiContentGroup Group : {EUiContentGroup::Core, EUiContentGroup::InGame})
 	{
 		TSharedPtr<FContentLease> Lease =
-			UiSubsystem->AcquireUiContent(
-				LoadedWidgetClassDefinition,
-				Group,
-				CompletionDelegate);
+			UiSubsystem->AcquireUiContent(LoadedWidgetClassDefinition, Group, CompletionDelegate);
 		if (!Lease.IsValid())
 		{
 			Handles->PendingWidgetDefinitionsByActor.Remove(Actor);
-			UE_LOG(
-				PdGameFeatureAction_AddWidgetsLog,
-				Error,
+			UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error,
 				TEXT("AddWidgets skipped '%s': UI content group lease acquisition failed."),
 				*GetNameSafe(Actor));
 			return;
@@ -231,10 +208,8 @@ void UGameFeatureAction_AddWidgets::AddWidgetsToActor(
 	CompleteAddWidgetsToActor(Actor, ChangeContext, LoadedWidgetClassDefinition);
 }
 
-void UGameFeatureAction_AddWidgets::CompleteAddWidgetsToActor(
-	AActor* Actor,
-	FGameFeatureStateChangeContext ChangeContext,
-	UWidgetClassDefinition* ExpectedWidgetClassDefinition)
+void UGameFeatureAction_AddWidgets::CompleteAddWidgetsToActor(AActor* Actor,
+	FGameFeatureStateChangeContext ChangeContext, UWidgetClassDefinition* ExpectedWidgetClassDefinition)
 {
 	APdHUD* HUD = Cast<APdHUD>(Actor);
 	FGameFeatureWidgetHandles* Handles = ContextHandles.Find(ChangeContext);
@@ -245,23 +220,17 @@ void UGameFeatureAction_AddWidgets::CompleteAddWidgetsToActor(
 
 	const TWeakObjectPtr<UWidgetClassDefinition>* PendingDefinition =
 		Handles->PendingWidgetDefinitionsByActor.Find(Actor);
-	const TArray<TSharedPtr<FContentLease>>* ContentLeases =
-		Handles->WidgetContentLeasesByActor.Find(Actor);
-	if (!PendingDefinition
-		|| PendingDefinition->Get() != ExpectedWidgetClassDefinition
-		|| !ContentLeases)
+	const TArray<TSharedPtr<FContentLease>>* ContentLeases = Handles->WidgetContentLeasesByActor.Find(Actor);
+	if (!PendingDefinition || PendingDefinition->Get() != ExpectedWidgetClassDefinition || !ContentLeases)
 	{
 		return;
 	}
 
 	for (const TSharedPtr<FContentLease>& Lease : *ContentLeases)
 	{
-		if (!Lease.IsValid()
-			|| Lease->HasFailed())
+		if (!Lease.IsValid() || Lease->HasFailed())
 		{
-			UE_LOG(
-				PdGameFeatureAction_AddWidgetsLog,
-				Error,
+			UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error,
 				TEXT("HUD initialization was canceled because a Core/InGame UI content group for '%s' failed."),
 				*GetNameSafe(ExpectedWidgetClassDefinition));
 			Handles->PendingWidgetDefinitionsByActor.Remove(Actor);
@@ -279,9 +248,7 @@ void UGameFeatureAction_AddWidgets::CompleteAddWidgetsToActor(
 	Handles->WidgetDefinitionsByActor.Add(Actor, ExpectedWidgetClassDefinition);
 }
 
-void UGameFeatureAction_AddWidgets::RemoveWidgetsFromActor(
-	AActor* Actor,
-	FGameFeatureStateChangeContext ChangeContext)
+void UGameFeatureAction_AddWidgets::RemoveWidgetsFromActor(AActor* Actor, FGameFeatureStateChangeContext ChangeContext)
 {
 	APdHUD* HUD = Cast<APdHUD>(Actor);
 	if (!HUD)

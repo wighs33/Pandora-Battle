@@ -112,20 +112,15 @@ void UAbilitySlotWidget::SetAbilitySpecHandle(FGameplayAbilitySpecHandle InAbili
 	SetInputKeyIcon();
 }
 
-void UAbilitySlotWidget::SetAbilitySlotData(
-	FGameplayAbilitySpecHandle InAbilitySpecHandle,
-	FText InDisplayNameOverride,
+void UAbilitySlotWidget::SetAbilitySlotData(FGameplayAbilitySpecHandle InAbilitySpecHandle, FText InDisplayNameOverride,
 	UObject* InIconOverride)
 {
 	SetAbilitySpecHandle(InAbilitySpecHandle);
 	SetAbilityDisplayOverride(InDisplayNameOverride, InIconOverride);
 }
 
-void UAbilitySlotWidget::SetAbilitySlotDataEnabled(
-	FGameplayAbilitySpecHandle InAbilitySpecHandle,
-	FText InDisplayNameOverride,
-	UObject* InIconOverride,
-	bool bEnabled)
+void UAbilitySlotWidget::SetAbilitySlotDataEnabled(FGameplayAbilitySpecHandle InAbilitySpecHandle,
+	FText InDisplayNameOverride, UObject* InIconOverride, bool bEnabled)
 {
 	SetAbilitySlotData(InAbilitySpecHandle, MoveTemp(InDisplayNameOverride), InIconOverride);
 	SetAbilitySlotEnabled(bEnabled);
@@ -239,8 +234,7 @@ void UAbilitySlotWidget::CheckForManaAvailability()
 		: 0.0;
 	const bool bInsufficientMana = bHasManaCostData && CurrentMana + UE_SMALL_NUMBER < ManaCost;
 
-	AbilityDisableFrame->SetVisibility(
-		bInsufficientMana ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	AbilityDisableFrame->SetVisibility(bInsufficientMana ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 }
 
 void UAbilitySlotWidget::UpdateCooldownProgress()
@@ -297,9 +291,7 @@ void UAbilitySlotWidget::InitializeAbilityObject()
 
 	bool bIsInstance = false;
 	const UGameplayAbility* GameplayAbility = UAbilitySystemBlueprintLibrary::GetGameplayAbilityFromSpecHandle(
-		AbilitySystemComponent,
-		AbilitySpecHandle,
-		bIsInstance);
+		AbilitySystemComponent, AbilitySpecHandle, bIsInstance);
 
 	AbilityObjectRef = GameplayAbility;
 }
@@ -387,8 +379,7 @@ void UAbilitySlotWidget::UnbindGameplayTagEvents()
 
 	if (ManaChangedHandle.IsValid())
 	{
-		AbilitySystemComponent
-			->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetManaAttribute())
+		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetManaAttribute())
 			.Remove(ManaChangedHandle);
 		ManaChangedHandle.Reset();
 	}
@@ -500,9 +491,7 @@ const USkillDefinition* UAbilitySlotWidget::ResolveSkillDataAsset() const
 	const UPandoraDefinition* PandoraDefinition = PandoraComponent
 		? PandoraComponent->GetCurrentPandoraDefinition()
 		: nullptr;
-	return PandoraDefinition
-		? PandoraDefinition->GetSkillDefinition(SkillSlotIndex)
-		: nullptr;
+	return PandoraDefinition ? PandoraDefinition->GetSkillDefinition(SkillSlotIndex) : nullptr;
 }
 
 void UAbilitySlotWidget::ResolveCooldown(float& OutTimeRemaining, float& OutDuration) const
@@ -523,8 +512,7 @@ void UAbilitySlotWidget::ResolveCooldown(float& OutTimeRemaining, float& OutDura
 
 UInputAction* UAbilitySlotWidget::ResolveInputAction() const
 {
-	const APdPlayerController* PlayerController =
-		Cast<APdPlayerController>(GetOwningPlayer());
+	const APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer());
 	const UControllerInputDefinition* InputDefinition = PlayerController
 		? PlayerController->GetLoadedInputDefinition()
 		: nullptr;
@@ -538,8 +526,7 @@ UInputAction* UAbilitySlotWidget::ResolveInputAction() const
 	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent ? AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle) : nullptr;
 	if (AbilitySpec)
 	{
-		const FGameplayTagContainer& SourceTags =
-			AbilitySpec->GetDynamicSpecSourceTags();
+		const FGameplayTagContainer& SourceTags = AbilitySpec->GetDynamicSpecSourceTags();
 		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill1))
 		{
 			ResolvedSkillSlotIndex = 0;
@@ -563,9 +550,7 @@ UInputAction* UAbilitySlotWidget::ResolveInputAction() const
 
 UObject* UAbilitySlotWidget::ResolveInputIconObject() const
 {
-	return PdInputKeyIconResolver::ResolveInputDefinitionIconObject(
-		GetOwningPlayer(),
-		ResolveInputAction());
+	return PdInputKeyIconResolver::ResolveInputDefinitionIconObject(GetOwningPlayer(), ResolveInputAction());
 }
 
 FSlateBrush UAbilitySlotWidget::MakeImageBrush(UObject* ResourceObject)

@@ -14,9 +14,7 @@ void USkillTriggerDamage::Configure(const FSkillTopLevelDamageConfig& DamageConf
 	OnHit = MoveTemp(InOnHit);
 }
 
-UPrimitiveComponent* USkillTriggerDamage::FindTriggerComponent(
-	AActor* Actor,
-	const FName ComponentName,
+UPrimitiveComponent* USkillTriggerDamage::FindTriggerComponent(AActor* Actor, const FName ComponentName,
 	const bool bUseAnyPrimitiveAsFallback)
 {
 	if (!Actor)
@@ -65,8 +63,7 @@ UPrimitiveComponent* USkillTriggerDamage::FindTriggerComponent(
 
 	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
 	{
-		if (PrimitiveComponent
-			&& PrimitiveComponent->GetGenerateOverlapEvents()
+		if (PrimitiveComponent && PrimitiveComponent->GetGenerateOverlapEvents()
 			&& PrimitiveComponent->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
 		{
 			return PrimitiveComponent;
@@ -144,13 +141,8 @@ bool USkillTriggerDamage::IsBound(const AActor* TriggerOwner) const
 	});
 }
 
-void USkillTriggerDamage::HandleBeginOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	const int32 OtherBodyIndex,
-	const bool bFromSweep,
-	const FHitResult& SweepResult)
+void USkillTriggerDamage::HandleBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, const int32 OtherBodyIndex, const bool bFromSweep, const FHitResult& SweepResult)
 {
 	static_cast<void>(OtherComp);
 	static_cast<void>(OtherBodyIndex);
@@ -162,11 +154,8 @@ void USkillTriggerDamage::HandleBeginOverlap(
 	Hit(DamageSourceActor, OtherActor, false);
 }
 
-void USkillTriggerDamage::HandleEndOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	const int32 OtherBodyIndex)
+void USkillTriggerDamage::HandleEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, const int32 OtherBodyIndex)
 {
 	static_cast<void>(OtherComp);
 	static_cast<void>(OtherBodyIndex);
@@ -234,9 +223,8 @@ void USkillTriggerDamage::HandleRepeatTick()
 			}
 
 			const TArray<TWeakObjectPtr<AActor>>* CurrentOverlappingActors = OverlappingActorsBySource.Find(SourceKey);
-			if (!CurrentOverlappingActors
-				|| !CurrentOverlappingActors->ContainsByPredicate(
-					[OverlappingActor](const TWeakObjectPtr<AActor>& ExistingActor)
+			if (!CurrentOverlappingActors || !CurrentOverlappingActors->ContainsByPredicate(
+				[OverlappingActor](const TWeakObjectPtr<AActor>& ExistingActor)
 					{
 						return ExistingActor.Get() == OverlappingActor;
 					}))
@@ -281,12 +269,7 @@ void USkillTriggerDamage::StartRepeatTickIfNeeded()
 
 	// 0 이하의 설정도 타이머 생성 시 최소 0.05초로 보정한다.
 	const float DamageInterval = static_cast<float>(FMath::Max(RepeatInterval, 0.05));
-	World->GetTimerManager().SetTimer(
-		RepeatTimerHandle,
-		this,
-		&ThisClass::HandleRepeatTick,
-		DamageInterval,
-		true);
+	World->GetTimerManager().SetTimer(RepeatTimerHandle, this, &ThisClass::HandleRepeatTick, DamageInterval, true);
 }
 
 void USkillTriggerDamage::Track(AActor* DamageSourceActor, AActor* OtherActor)
@@ -325,8 +308,7 @@ void USkillTriggerDamage::Untrack(AActor* DamageSourceActor, AActor* OtherActor)
 		return;
 	}
 
-	OverlappingActors->RemoveAllSwap(
-		[OtherActor](const TWeakObjectPtr<AActor>& ExistingActor)
+	OverlappingActors->RemoveAllSwap([OtherActor](const TWeakObjectPtr<AActor>& ExistingActor)
 		{
 			return !ExistingActor.IsValid() || ExistingActor.Get() == OtherActor;
 		});

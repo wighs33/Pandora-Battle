@@ -42,9 +42,7 @@ TArray<FName> PdSkillFieldPlacement::GetSpawnSocketNames(const FSkillActorFieldS
 	return SocketNames;
 }
 
-FTransform PdSkillFieldPlacement::ResolveSpawnTransform(
-	AActor& Avatar,
-	const FSkillActorFieldSettings& Settings,
+FTransform PdSkillFieldPlacement::ResolveSpawnTransform(AActor& Avatar, const FSkillActorFieldSettings& Settings,
 	const FName SocketName)
 {
 	FTransform BaseTransform = Avatar.GetActorTransform();
@@ -76,13 +74,8 @@ FTransform PdSkillFieldPlacement::ResolveSpawnTransform(
 		PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, &Avatar);
 
 		PdSkillGroundProjection::FGroundProjectionResult GroundProjection;
-		if (PdSkillGroundProjection::TryProjectToGround(
-			Avatar.GetWorld(),
-			TraceBaseLocation,
-			Settings.GroundTraceChannel,
-			Settings.GroundTraceStartHeight,
-			Settings.GroundTraceDepth,
-			ActorsToIgnore,
+		if (PdSkillGroundProjection::TryProjectToGround(Avatar.GetWorld(), TraceBaseLocation,
+			Settings.GroundTraceChannel, Settings.GroundTraceStartHeight, Settings.GroundTraceDepth, ActorsToIgnore,
 			GroundProjection))
 		{
 			SpawnLocation = GroundProjection.Location + SpawnOffset;
@@ -92,11 +85,8 @@ FTransform PdSkillFieldPlacement::ResolveSpawnTransform(
 	return FTransform(SpawnRotation, SpawnLocation, BaseTransform.GetScale3D());
 }
 
-bool PdSkillFieldPlacement::AttachToSpawnSocket(
-	AActor& FieldActor,
-	const AActor& Avatar,
-	const FSkillActorFieldSettings& Settings,
-	const FName SocketName)
+bool PdSkillFieldPlacement::AttachToSpawnSocket(AActor& FieldActor, const AActor& Avatar,
+	const FSkillActorFieldSettings& Settings, const FName SocketName)
 {
 	if (!Settings.bUseSpawnSockets || !Settings.bAttachSpawnedActorToSocket)
 	{

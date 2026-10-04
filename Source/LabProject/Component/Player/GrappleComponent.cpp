@@ -43,21 +43,14 @@ void UGrappleComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UGrappleComponent::TickComponent(
-	const float DeltaTime,
-	const ELevelTick TickType,
+void UGrappleComponent::TickComponent(const float DeltaTime, const ELevelTick TickType,
 	FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	APdPlayer* PlayerOwner = GetPlayerOwner();
-	UCharacterMovementComponent* MovementComponent =
-		PlayerOwner ? PlayerOwner->GetCharacterMovement() : nullptr;
-	if (!bGrappleMoveActive
-		|| !bIsGrappling
-		|| !PlayerOwner
-		|| !PlayerOwner->HasAuthority()
-		|| !MovementComponent
+	UCharacterMovementComponent* MovementComponent = PlayerOwner ? PlayerOwner->GetCharacterMovement() : nullptr;
+	if (!bGrappleMoveActive || !bIsGrappling || !PlayerOwner || !PlayerOwner->HasAuthority() || !MovementComponent
 		|| !MovementComponent->UpdatedComponent)
 	{
 		if (bGrappleMoveActive)
@@ -70,21 +63,13 @@ void UGrappleComponent::TickComponent(
 	const double SafeMoveDuration = FMath::Max(MoveDuration, UE_KINDA_SMALL_NUMBER);
 	GrappleMoveElapsedTime += FMath::Max(static_cast<double>(DeltaTime), 0.0);
 	const double MoveAlpha = FMath::Clamp(GrappleMoveElapsedTime / SafeMoveDuration, 0.0, 1.0);
-	const FVector DesiredLocation = FMath::Lerp(
-		GrappleMoveStartLocation,
-		GrappleMoveDestination,
-		MoveAlpha);
-	const FQuat DesiredRotation = FQuat::Slerp(
-		GrappleMoveStartRotation.Quaternion(),
-		GrappleMoveTargetRotation.Quaternion(),
-		MoveAlpha);
+	const FVector DesiredLocation = FMath::Lerp(GrappleMoveStartLocation, GrappleMoveDestination, MoveAlpha);
+	const FQuat DesiredRotation = FQuat::Slerp(GrappleMoveStartRotation.Quaternion(),
+		GrappleMoveTargetRotation.Quaternion(), MoveAlpha);
 
 	FHitResult MoveHit;
-	MovementComponent->SafeMoveUpdatedComponent(
-		DesiredLocation - PlayerOwner->GetActorLocation(),
-		DesiredRotation,
-		true,
-		MoveHit);
+	MovementComponent->SafeMoveUpdatedComponent(DesiredLocation - PlayerOwner->GetActorLocation(), DesiredRotation,
+		true, MoveHit);
 
 	if (IsCapsuleLocationClear(PlayerOwner->GetActorLocation()))
 	{
@@ -118,9 +103,7 @@ void UGrappleComponent::SetHookComponent(UCableComponent* InHookComponent)
 	}
 }
 
-bool UGrappleComponent::TraceGrappleFromView(
-	const FVector& ViewLocation,
-	const FVector& ViewDirection,
+bool UGrappleComponent::TraceGrappleFromView(const FVector& ViewLocation, const FVector& ViewDirection,
 	FHitResult& OutHitResult) const
 {
 	APdPlayer* PlayerOwner = GetPlayerOwner();
@@ -142,23 +125,14 @@ bool UGrappleComponent::TraceGrappleFromView(
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(PlayerOwner);
 
-	const bool bHit = UKismetSystemLibrary::SphereTraceSingle(
-		PlayerOwner,
-		TraceStart,
-		TraceEnd,
-		static_cast<float>(TraceRadius),
-		TraceChannel.GetValue(),
-		false,
-		ActorsToIgnore,
-		bDrawTraceDebug ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None,
-		OutHitResult,
-		true);
+	const bool bHit = UKismetSystemLibrary::SphereTraceSingle(PlayerOwner, TraceStart, TraceEnd,
+		static_cast<float>(TraceRadius), TraceChannel.GetValue(), false, ActorsToIgnore,
+		bDrawTraceDebug ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None, OutHitResult, true);
 
 	return bHit && OutHitResult.GetComponent();
 }
 
-bool UGrappleComponent::ValidateTargetDataAndTrace(
-	const FHitResult& ClientHitResult,
+bool UGrappleComponent::ValidateTargetDataAndTrace(const FHitResult& ClientHitResult,
 	FHitResult& OutServerHitResult) const
 {
 	const APdPlayer* PlayerOwner = GetPlayerOwner();
@@ -172,28 +146,18 @@ bool UGrappleComponent::ValidateTargetDataAndTrace(
 	ValidationParams.MaxTraceDistance = TraceDistance;
 
 	PdTargetValidator::FValidatedTraceView ValidatedView;
-	if (!PdTargetValidator::ValidateClientTraceRequest(
-		PlayerOwner,
-		ClientHitResult,
-		ValidationParams,
-		ValidatedView))
+	if (!PdTargetValidator::ValidateClientTraceRequest(PlayerOwner, ClientHitResult, ValidationParams, ValidatedView))
 	{
 		return false;
 	}
 
-	return TraceGrappleFromView(
-		ValidatedView.ViewLocation,
-		ValidatedView.ViewDirection,
-		OutServerHitResult);
+	return TraceGrappleFromView(ValidatedView.ViewLocation, ValidatedView.ViewDirection, OutServerHitResult);
 }
 
 bool UGrappleComponent::StartGrappleFromValidatedHit(const FHitResult& HitResult)
 {
 	APdPlayer* PlayerOwner = GetPlayerOwner();
-	if (!PlayerOwner
-		|| !PlayerOwner->HasAuthority()
-		|| bIsGrappling
-		|| PlayerOwner->IsStatusFrozen())
+	if (!PlayerOwner || !PlayerOwner->HasAuthority() || bIsGrappling || PlayerOwner->IsStatusFrozen())
 	{
 		return false;
 	}
@@ -218,12 +182,8 @@ bool UGrappleComponent::StartGrappleFromValidatedHit(const FHitResult& HitResult
 	UWorld* World = GetWorld();
 	if (World && HookAttachDelay > 0.0)
 	{
-		World->GetTimerManager().SetTimer(
-			GrappleHookAttachTimerHandle,
-			this,
-			&ThisClass::AttachGrappleHookToTarget,
-			static_cast<float>(HookAttachDelay),
-			false);
+		World->GetTimerManager().SetTimer(GrappleHookAttachTimerHandle, this, &ThisClass::AttachGrappleHookToTarget,
+			static_cast<float>(HookAttachDelay), false);
 	}
 	else
 	{
@@ -232,12 +192,8 @@ bool UGrappleComponent::StartGrappleFromValidatedHit(const FHitResult& HitResult
 
 	if (World && MoveStartDelay > 0.0)
 	{
-		World->GetTimerManager().SetTimer(
-			GrappleMoveStartTimerHandle,
-			this,
-			&ThisClass::StartGrappleMove,
-			static_cast<float>(MoveStartDelay),
-			false);
+		World->GetTimerManager().SetTimer(GrappleMoveStartTimerHandle, this, &ThisClass::StartGrappleMove,
+			static_cast<float>(MoveStartDelay), false);
 	}
 	else
 	{
@@ -272,8 +228,7 @@ void UGrappleComponent::StopGrapple()
 	if (bWasGrappleMoveActive && PlayerOwner && PlayerOwner->HasAuthority())
 	{
 		const UCharacterMovementComponent* MovementComponent = PlayerOwner->GetCharacterMovement();
-		ClientCorrectGrappleEnd(
-			PlayerOwner->GetActorLocation(),
+		ClientCorrectGrappleEnd(PlayerOwner->GetActorLocation(),
 			MovementComponent ? static_cast<uint8>(MovementComponent->MovementMode) : static_cast<uint8>(MOVE_Falling),
 			MovementComponent ? MovementComponent->CustomMovementMode : 0);
 	}
@@ -326,8 +281,7 @@ void UGrappleComponent::AttachGrappleHookToTarget()
 	}
 
 	HookComponent->CableLength = FMath::Max(
-		static_cast<float>(FVector::Distance(HookComponent->GetComponentLocation(), PendingGrappleImpactPoint)),
-		1.0f);
+		static_cast<float>(FVector::Distance(HookComponent->GetComponentLocation(), PendingGrappleImpactPoint)), 1.0f);
 	HookComponent->SetAttachEndToComponent(HitComponent, NAME_None);
 	HookComponent->EndLocation = HitComponent->GetComponentTransform().InverseTransformPosition(PendingGrappleImpactPoint);
 	HookComponent->bAttachEnd = true;
@@ -338,10 +292,7 @@ void UGrappleComponent::AttachGrappleHookToTarget()
 void UGrappleComponent::StartGrappleMove()
 {
 	APdPlayer* PlayerOwner = GetPlayerOwner();
-	if (!PlayerOwner
-		|| !PlayerOwner->HasAuthority()
-		|| !bIsGrappling
-		|| !IsValid(PendingGrappleHitComponent.Get())
+	if (!PlayerOwner || !PlayerOwner->HasAuthority() || !bIsGrappling || !IsValid(PendingGrappleHitComponent.Get())
 		|| GrappleMoveDestination.ContainsNaN())
 	{
 		StopGrapple();
@@ -366,10 +317,7 @@ void UGrappleComponent::StartGrappleMove()
 	LastSafeGrappleLocation = GrappleMoveStartLocation;
 	GrappleMoveStartRotation = PlayerOwner->GetActorRotation();
 	const FVector DirectionToTarget = GrappleMoveDestination - GrappleMoveStartLocation;
-	GrappleMoveTargetRotation = FRotator(
-		0.0,
-		DirectionToTarget.Rotation().Yaw,
-		0.0);
+	GrappleMoveTargetRotation = FRotator(0.0, DirectionToTarget.Rotation().Yaw, 0.0);
 	GrappleMoveElapsedTime = 0.0;
 
 	MovementModeBeforeGrapple = MovementComponent->MovementMode;
@@ -402,10 +350,8 @@ void UGrappleComponent::OnRep_GrappleTarget()
 	ApplyReplicatedGrappleState();
 }
 
-void UGrappleComponent::ClientCorrectGrappleEnd_Implementation(
-	const FVector_NetQuantize100 ServerLocation,
-	const uint8 ServerMovementMode,
-	const uint8 ServerCustomMovementMode)
+void UGrappleComponent::ClientCorrectGrappleEnd_Implementation(const FVector_NetQuantize100 ServerLocation,
+	const uint8 ServerMovementMode, const uint8 ServerCustomMovementMode)
 {
 	APdPlayer* PlayerOwner = GetPlayerOwner();
 	if (!PlayerOwner || PlayerOwner->HasAuthority() || !PlayerOwner->IsLocallyControlled())
@@ -413,11 +359,7 @@ void UGrappleComponent::ClientCorrectGrappleEnd_Implementation(
 		return;
 	}
 
-	PlayerOwner->SetActorLocation(
-		ServerLocation,
-		false,
-		nullptr,
-		ETeleportType::TeleportPhysics);
+	PlayerOwner->SetActorLocation(ServerLocation, false, nullptr, ETeleportType::TeleportPhysics);
 
 	if (UCharacterMovementComponent* MovementComponent = PlayerOwner->GetCharacterMovement())
 	{
@@ -426,9 +368,7 @@ void UGrappleComponent::ClientCorrectGrappleEnd_Implementation(
 			ServerMovementMode < static_cast<uint8>(MOVE_MAX)
 				? static_cast<EMovementMode>(ServerMovementMode)
 				: MOVE_Falling;
-		MovementComponent->SetMovementMode(
-			CorrectedMovementMode,
-			ServerCustomMovementMode);
+		MovementComponent->SetMovementMode(CorrectedMovementMode, ServerCustomMovementMode);
 	}
 }
 
@@ -447,10 +387,8 @@ void UGrappleComponent::ConfigureHookComponent()
 				|| HookComponent->GetAttachSocketName() != GrappleHookSocketName;
 			if (bNeedsReattach)
 			{
-				HookComponent->AttachToComponent(
-					MeshComponent,
-					FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-					GrappleHookSocketName);
+				HookComponent->AttachToComponent(MeshComponent,
+					FAttachmentTransformRules::SnapToTargetNotIncludingScale, GrappleHookSocketName);
 			}
 		}
 	}
@@ -540,12 +478,8 @@ void UGrappleComponent::ApplyReplicatedGrappleState()
 
 	if (World && !World->GetTimerManager().IsTimerActive(GrappleHookAttachTimerHandle))
 	{
-		World->GetTimerManager().SetTimer(
-			GrappleHookAttachTimerHandle,
-			this,
-			&ThisClass::AttachGrappleHookToTarget,
-			static_cast<float>(HookAttachDelay),
-			false);
+		World->GetTimerManager().SetTimer(GrappleHookAttachTimerHandle, this, &ThisClass::AttachGrappleHookToTarget,
+			static_cast<float>(HookAttachDelay), false);
 	}
 }
 
@@ -562,18 +496,12 @@ void UGrappleComponent::ResetGrappleHookVisual()
 	}
 }
 
-bool UGrappleComponent::ResolveSafeGrappleDestination(
-	const FHitResult& HitResult,
-	FVector& OutDestination) const
+bool UGrappleComponent::ResolveSafeGrappleDestination(const FHitResult& HitResult, FVector& OutDestination) const
 {
 	const APdPlayer* PlayerOwner = GetPlayerOwner();
-	const UCapsuleComponent* CapsuleComponent =
-		PlayerOwner ? PlayerOwner->GetCapsuleComponent() : nullptr;
+	const UCapsuleComponent* CapsuleComponent = PlayerOwner ? PlayerOwner->GetCapsuleComponent() : nullptr;
 	UWorld* World = GetWorld();
-	if (!PlayerOwner
-		|| !CapsuleComponent
-		|| !World
-		|| HitResult.ImpactPoint.ContainsNaN())
+	if (!PlayerOwner || !CapsuleComponent || !World || HitResult.ImpactPoint.ContainsNaN())
 	{
 		return false;
 	}
@@ -593,8 +521,7 @@ bool UGrappleComponent::ResolveSafeGrappleDestination(
 	const double CapsuleSupportDistance = CapsuleRadius
 		+ FMath::Max(CapsuleHalfHeight - CapsuleRadius, 0.0) * FMath::Abs(SurfaceNormal.Z);
 	const double SafeClearance = FMath::Max(EndpointClearance, 0.0);
-	FVector CandidateLocation = HitResult.ImpactPoint
-		+ SurfaceNormal * (CapsuleSupportDistance + SafeClearance);
+	FVector CandidateLocation = HitResult.ImpactPoint + SurfaceNormal * (CapsuleSupportDistance + SafeClearance);
 
 	if (!CandidateLocation.ContainsNaN() && IsCapsuleLocationClear(CandidateLocation))
 	{
@@ -603,8 +530,7 @@ bool UGrappleComponent::ResolveSafeGrappleDestination(
 	}
 
 	FRotator CandidateRotation(0.0, PlayerOwner->GetActorRotation().Yaw, 0.0);
-	if (!CandidateLocation.ContainsNaN()
-		&& World->FindTeleportSpot(PlayerOwner, CandidateLocation, CandidateRotation)
+	if (!CandidateLocation.ContainsNaN() && World->FindTeleportSpot(PlayerOwner, CandidateLocation, CandidateRotation)
 		&& IsCapsuleLocationClear(CandidateLocation))
 	{
 		OutDestination = CandidateLocation;
@@ -617,29 +543,19 @@ bool UGrappleComponent::ResolveSafeGrappleDestination(
 bool UGrappleComponent::IsCapsuleLocationClear(const FVector& Location) const
 {
 	const APdPlayer* PlayerOwner = GetPlayerOwner();
-	const UCapsuleComponent* CapsuleComponent =
-		PlayerOwner ? PlayerOwner->GetCapsuleComponent() : nullptr;
+	const UCapsuleComponent* CapsuleComponent = PlayerOwner ? PlayerOwner->GetCapsuleComponent() : nullptr;
 	const UWorld* World = GetWorld();
-	if (!PlayerOwner
-		|| !CapsuleComponent
-		|| !World
-		|| Location.ContainsNaN())
+	if (!PlayerOwner || !CapsuleComponent || !World || Location.ContainsNaN())
 	{
 		return false;
 	}
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(GrappleSafeLocation), false, PlayerOwner);
 	const FCollisionResponseParams ResponseParams(CapsuleComponent->GetCollisionResponseToChannels());
-	const FCollisionShape CapsuleShape = FCollisionShape::MakeCapsule(
-		CapsuleComponent->GetScaledCapsuleRadius(),
+	const FCollisionShape CapsuleShape = FCollisionShape::MakeCapsule(CapsuleComponent->GetScaledCapsuleRadius(),
 		CapsuleComponent->GetScaledCapsuleHalfHeight());
-	return !World->OverlapBlockingTestByChannel(
-		Location,
-		CapsuleComponent->GetComponentQuat(),
-		CapsuleComponent->GetCollisionObjectType(),
-		CapsuleShape,
-		QueryParams,
-		ResponseParams);
+	return !World->OverlapBlockingTestByChannel(Location, CapsuleComponent->GetComponentQuat(),
+		CapsuleComponent->GetCollisionObjectType(), CapsuleShape, QueryParams, ResponseParams);
 }
 
 bool UGrappleComponent::RecoverPlayerFromPenetration()
@@ -656,8 +572,7 @@ bool UGrappleComponent::RecoverPlayerFromPenetration()
 		return true;
 	}
 
-	const FVector RecoveryCandidates[] =
-	{
+	const FVector RecoveryCandidates[] = {
 		LastSafeGrappleLocation,
 		GrappleMoveStartLocation
 	};
@@ -668,25 +583,16 @@ bool UGrappleComponent::RecoverPlayerFromPenetration()
 			continue;
 		}
 
-		PlayerOwner->SetActorLocation(
-			RecoveryCandidate,
-			false,
-			nullptr,
-			ETeleportType::TeleportPhysics);
+		PlayerOwner->SetActorLocation(RecoveryCandidate, false, nullptr, ETeleportType::TeleportPhysics);
 		return true;
 	}
 
 	FVector TeleportCandidate = GrappleMoveStartLocation;
 	const FRotator TeleportRotation(0.0, PlayerOwner->GetActorRotation().Yaw, 0.0);
-	if (!TeleportCandidate.ContainsNaN()
-		&& World->FindTeleportSpot(PlayerOwner, TeleportCandidate, TeleportRotation)
+	if (!TeleportCandidate.ContainsNaN() && World->FindTeleportSpot(PlayerOwner, TeleportCandidate, TeleportRotation)
 		&& IsCapsuleLocationClear(TeleportCandidate))
 	{
-		PlayerOwner->SetActorLocation(
-			TeleportCandidate,
-			false,
-			nullptr,
-			ETeleportType::TeleportPhysics);
+		PlayerOwner->SetActorLocation(TeleportCandidate, false, nullptr, ETeleportType::TeleportPhysics);
 		return true;
 	}
 
@@ -696,8 +602,7 @@ bool UGrappleComponent::RecoverPlayerFromPenetration()
 void UGrappleComponent::RestoreMovementAfterGrapple()
 {
 	APdPlayer* PlayerOwner = GetPlayerOwner();
-	UCharacterMovementComponent* MovementComponent =
-		PlayerOwner ? PlayerOwner->GetCharacterMovement() : nullptr;
+	UCharacterMovementComponent* MovementComponent = PlayerOwner ? PlayerOwner->GetCharacterMovement() : nullptr;
 	if (!bMovementModeOverridden || !MovementComponent)
 	{
 		bMovementModeOverridden = false;
@@ -710,9 +615,7 @@ void UGrappleComponent::RestoreMovementAfterGrapple()
 	case MOVE_Swimming:
 	case MOVE_Flying:
 	case MOVE_Custom:
-		MovementComponent->SetMovementMode(
-			MovementModeBeforeGrapple.GetValue(),
-			CustomMovementModeBeforeGrapple);
+		MovementComponent->SetMovementMode(MovementModeBeforeGrapple.GetValue(), CustomMovementModeBeforeGrapple);
 		break;
 	default:
 		MovementComponent->SetMovementMode(MOVE_Falling);

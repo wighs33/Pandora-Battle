@@ -28,9 +28,7 @@ UMatchPlayerSetupComponent::UMatchPlayerSetupComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
-	DefaultPlayerProvisioner =
-		CreateDefaultSubobject<UDefaultPlayerProvisioner>(
-			TEXT("DefaultPlayerProvisioner"));
+	DefaultPlayerProvisioner = CreateDefaultSubobject<UDefaultPlayerProvisioner>(TEXT("DefaultPlayerProvisioner"));
 }
 
 void UMatchPlayerSetupComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -54,8 +52,7 @@ void UMatchPlayerSetupComponent::InitializeRuntime()
 	}
 }
 
-void UMatchPlayerSetupComponent::InitializeLoggedInPlayer(
-	APlayerController* NewPlayer)
+void UMatchPlayerSetupComponent::InitializeLoggedInPlayer(APlayerController* NewPlayer)
 {
 	AExperienceGameMode* GameMode = Cast<AExperienceGameMode>(GetOwner());
 	if (!GameMode || !NewPlayer)
@@ -71,8 +68,7 @@ void UMatchPlayerSetupComponent::InitializeLoggedInPlayer(
 			ProfileSubsystem->LoadProfile();
 		}
 	}
-	if (APdPlayerController* PdPlayerController =
-		Cast<APdPlayerController>(NewPlayer))
+	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(NewPlayer))
 	{
 		PdPlayerController->Client_RequestLocalCosmeticProfileSync();
 	}
@@ -108,8 +104,7 @@ void UMatchPlayerSetupComponent::InitializeMatchIdentity(APlayerController* NewP
 	if (GameMode->bAssignDefaultTeamWhenLobbyTeamMissing
 		&& PlayerMatchComponent->GetMatchTeamColorIndex() == INDEX_NONE)
 	{
-		PlayerMatchComponent->SetMatchTeamColorIndex(
-			GameMode->DefaultLobbyTeamColorIndex);
+		PlayerMatchComponent->SetMatchTeamColorIndex(GameMode->DefaultLobbyTeamColorIndex);
 	}
 }
 
@@ -207,12 +202,8 @@ void UMatchPlayerSetupComponent::BeginSkinContentPreload()
 	ContentSubsystem->GetSkinDefinitionIds(ContentIds);
 
 	bSkinContentLoadPending = true;
-	TSharedPtr<FStreamableHandle> NewLoadHandle =
-		ContentSubsystem->PreloadPrimaryAssetsAsync(
-			ContentIds,
-			FSimpleDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleSkinContentPreloaded));
+	TSharedPtr<FStreamableHandle> NewLoadHandle = ContentSubsystem->PreloadPrimaryAssetsAsync(ContentIds,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleSkinContentPreloaded));
 	if (NewLoadHandle.IsValid() && bSkinContentLoadPending)
 	{
 		SkinContentLoadHandle = MoveTemp(NewLoadHandle);
@@ -261,8 +252,7 @@ bool UMatchPlayerSetupComponent::IsTrainingRoomMap() const
 	return Levels && Levels->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 }
 
-void UMatchPlayerSetupComponent::ApplyLobbySkinEquipment(
-	APlayerController* NewPlayer) const
+void UMatchPlayerSetupComponent::ApplyLobbySkinEquipment(APlayerController* NewPlayer) const
 {
 	const AExperienceGameMode* GameMode = Cast<AExperienceGameMode>(GetOwner());
 	if (!GameMode || !GameMode->HasAuthority() || !NewPlayer)
@@ -271,18 +261,14 @@ void UMatchPlayerSetupComponent::ApplyLobbySkinEquipment(
 	}
 
 	UContentDataSubsystem* ContentDataSubsystem = UGameInstance::GetSubsystem<UContentDataSubsystem>(GameMode->GetGameInstance());
-	APdPlayerState* PdPlayerState =
-		NewPlayer->GetPlayerState<APdPlayerState>();
-	ACharacterBase* PlayerCharacter =
-		Cast<ACharacterBase>(NewPlayer->GetPawn());
-	USkinComponent* SkinComponent =
-		PdPlayerState ? PdPlayerState->GetSkinComponent() : nullptr;
+	APdPlayerState* PdPlayerState = NewPlayer->GetPlayerState<APdPlayerState>();
+	ACharacterBase* PlayerCharacter = Cast<ACharacterBase>(NewPlayer->GetPawn());
+	USkinComponent* SkinComponent = PdPlayerState ? PdPlayerState->GetSkinComponent() : nullptr;
 	USkinEquipmentComponent* SkinEquipmentComponent =
 		PlayerCharacter
 			? PlayerCharacter->GetSkinEquipmentComponent()
 			: nullptr;
-	if (!ContentDataSubsystem || !PdPlayerState || !PlayerCharacter
-		|| !SkinComponent || !SkinEquipmentComponent)
+	if (!ContentDataSubsystem || !PdPlayerState || !PlayerCharacter || !SkinComponent || !SkinEquipmentComponent)
 	{
 		return;
 	}
@@ -296,27 +282,21 @@ void UMatchPlayerSetupComponent::ApplyLobbySkinEquipment(
 
 	TArray<USkinDefinition*> SkinDefinitionsToGrant;
 	TMap<FGameplayTag, USkinDefinition*> SkinDefinitionsBySlot;
-	for (const TPair<FGameplayTag, FName>& EquippedSkinPair
-		: EquippedSkinNamesBySlot)
+	for (const TPair<FGameplayTag, FName>& EquippedSkinPair : EquippedSkinNamesBySlot)
 	{
-		if (!EquippedSkinPair.Key.IsValid()
-			|| EquippedSkinPair.Value.IsNone())
+		if (!EquippedSkinPair.Key.IsValid() || EquippedSkinPair.Value.IsNone())
 		{
 			continue;
 		}
 
-		USkinDefinition* SkinDefinition =
-			ContentDataSubsystem->GetSkinDefinitionByName(
-				EquippedSkinPair.Value);
+		USkinDefinition* SkinDefinition = ContentDataSubsystem->GetSkinDefinitionByName(EquippedSkinPair.Value);
 		if (!SkinDefinition)
 		{
 			continue;
 		}
 
 		SkinDefinitionsToGrant.AddUnique(SkinDefinition);
-		SkinDefinitionsBySlot.Add(
-			EquippedSkinPair.Key,
-			SkinDefinition);
+		SkinDefinitionsBySlot.Add(EquippedSkinPair.Key, SkinDefinition);
 	}
 
 	if (SkinDefinitionsToGrant.IsEmpty())
@@ -325,15 +305,11 @@ void UMatchPlayerSetupComponent::ApplyLobbySkinEquipment(
 	}
 
 	SkinComponent->AddSkinDefinitions(SkinDefinitionsToGrant);
-	for (const TPair<FGameplayTag, USkinDefinition*>& SkinDefinitionPair
-		: SkinDefinitionsBySlot)
+	for (const TPair<FGameplayTag, USkinDefinition*>& SkinDefinitionPair : SkinDefinitionsBySlot)
 	{
-		if (USkinDefinition* SkinDefinition =
-			SkinDefinitionPair.Value)
+		if (USkinDefinition* SkinDefinition = SkinDefinitionPair.Value)
 		{
-			SkinEquipmentComponent->RequestEquipSkinDefinition(
-				SkinDefinition,
-				SkinDefinitionPair.Key);
+			SkinEquipmentComponent->RequestEquipSkinDefinition(SkinDefinition, SkinDefinitionPair.Key);
 		}
 	}
 }

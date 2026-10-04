@@ -44,9 +44,7 @@ float FMapMarkProjection::ToMarkAngle(const FVector& WorldForward) const
 	return RotationAngle;
 }
 
-void FMapPawnMarkers::UpdateSelfMarks(
-	const FMapMarkerCanvas& Canvas,
-	const APawn& OwningPawn,
+void FMapPawnMarkers::UpdateSelfMarks(const FMapMarkerCanvas& Canvas, const APawn& OwningPawn,
 	const bool bOnShownRegion)
 {
 	bool bTeamMarkVisible = false;
@@ -57,8 +55,7 @@ void FMapPawnMarkers::UpdateSelfMarks(
 
 	if (SelfTeamMark)
 	{
-		bTeamMarkVisible = ApplyTeamMark(SelfTeamMark, OwningPawn, *Canvas.MarkImages)
-			&& bOnShownRegion
+		bTeamMarkVisible = ApplyTeamMark(SelfTeamMark, OwningPawn, *Canvas.MarkImages) && bOnShownRegion
 			&& PlaceMark(SelfTeamMark, OwningPawn, Canvas.Projection, true);
 
 		if (!bTeamMarkVisible)
@@ -74,8 +71,7 @@ void FMapPawnMarkers::UpdateSelfMarks(
 
 	if (SelfCharacterMark)
 	{
-		const bool bCharacterMarkVisible = bTeamMarkVisible
-			&& Canvas.MarkImages->ApplyCharacterMark(SelfCharacterMark)
+		const bool bCharacterMarkVisible = bTeamMarkVisible && Canvas.MarkImages->ApplyCharacterMark(SelfCharacterMark)
 			&& PlaceMark(SelfCharacterMark, OwningPawn, Canvas.Projection, false);
 
 		if (!bCharacterMarkVisible)
@@ -85,8 +81,7 @@ void FMapPawnMarkers::UpdateSelfMarks(
 	}
 }
 
-void FMapPawnMarkers::UpdateRemoteMarks(
-	const FMapMarkerCanvas& Canvas,
+void FMapPawnMarkers::UpdateRemoteMarks(const FMapMarkerCanvas& Canvas,
 	const TConstArrayView<const APawn*> PawnsOnShownRegion)
 {
 	EnsureRemoteMarkCount(Canvas, PawnsOnShownRegion.Num());
@@ -172,8 +167,7 @@ void FMapPawnMarkers::EnsureRemoteMarkCount(const FMapMarkerCanvas& Canvas, cons
 {
 	while (RemoteTeamMarks.Num() < RequiredCount)
 	{
-		UImage* NewTeamMark = CreateMark(
-			Canvas,
+		UImage* NewTeamMark = CreateMark(Canvas,
 			*FString::Printf(TEXT("RemoteTeamMark_%d"), RemoteTeamMarks.Num()),
 			RemoteTeamMarkZOrder);
 		if (!NewTeamMark)
@@ -241,16 +235,10 @@ bool FMapPawnMarkers::ApplyTeamMark(UImage* Mark, const APawn& Pawn, const FMapM
 		return false;
 	}
 
-	return MarkImages.ApplyTeamMark(
-		Mark,
-		PdPlayerState->GetPlayerMatchComponent()
-			->GetMatchTeamColorIndex());
+	return MarkImages.ApplyTeamMark(Mark, PdPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex());
 }
 
-bool FMapPawnMarkers::PlaceMark(
-	UImage* Mark,
-	const APawn& Pawn,
-	const FMapMarkProjection& Projection,
+bool FMapPawnMarkers::PlaceMark(UImage* Mark, const APawn& Pawn, const FMapMarkProjection& Projection,
 	const bool bRotateToPawnForward)
 {
 	if (!Mark)
@@ -271,10 +259,7 @@ bool FMapPawnMarkers::PlaceMark(
 	}
 
 	Mark->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-	Mark->SetRenderTransformAngle(
-		bRotateToPawnForward
-			? Projection.ToMarkAngle(Pawn.GetActorForwardVector())
-			: 0.0f);
+	Mark->SetRenderTransformAngle(bRotateToPawnForward ? Projection.ToMarkAngle(Pawn.GetActorForwardVector()) : 0.0f);
 	Mark->SetVisibility(ESlateVisibility::HitTestInvisible);
 	return true;
 }

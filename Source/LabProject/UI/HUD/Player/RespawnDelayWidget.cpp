@@ -50,12 +50,8 @@ void URespawnDelayWidget::StartRespawnDelay(const float InDelaySeconds)
 	if (UWorld* World = GetWorld())
 	{
 		LastUpdateTimeSeconds = World->GetTimeSeconds();
-		World->GetTimerManager().SetTimer(
-			RespawnDelayTickHandle,
-			this,
-			&ThisClass::HandleRespawnDelayTick,
-			FMath::Max(TickInterval, 0.01f),
-			true);
+		World->GetTimerManager().SetTimer(RespawnDelayTickHandle, this, &ThisClass::HandleRespawnDelayTick,
+			FMath::Max(TickInterval, 0.01f), true);
 	}
 }
 

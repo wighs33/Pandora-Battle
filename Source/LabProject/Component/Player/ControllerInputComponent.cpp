@@ -63,8 +63,7 @@ void UControllerInputComponent::RefreshInputDefinition()
 		return;
 	}
 
-	if (!GetLoadedInputDefinition()
-		|| !InputContentLease.IsValid())
+	if (!GetLoadedInputDefinition() || !InputContentLease.IsValid())
 	{
 		BeginInputDefinitionPreload();
 		return;
@@ -123,9 +122,7 @@ void UControllerInputComponent::BeginInputDefinitionPreload()
 
 	InputDefinitionLease = ContentSubsystem->AcquireContent(
 		TArray<FSoftObjectPath>{ActiveInputDefinition.ToSoftObjectPath()},
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleInputDefinitionPreloadComplete));
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleInputDefinitionPreloadComplete));
 }
 
 void UControllerInputComponent::HandleInputDefinitionPreloadComplete()
@@ -148,11 +145,8 @@ void UControllerInputComponent::HandleInputDefinitionPreloadComplete()
 	TArray<FSoftObjectPath> RuntimeAssetPaths;
 	RuntimeAssetPaths.Add(ActiveInputDefinition.ToSoftObjectPath());
 	LoadedInputDefinition->GetRuntimePreloadAssetPaths(RuntimeAssetPaths);
-	InputContentLease = ContentSubsystem->AcquireContent(
-		RuntimeAssetPaths,
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleInputContentPreloadComplete));
+	InputContentLease = ContentSubsystem->AcquireContent(RuntimeAssetPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleInputContentPreloadComplete));
 	InputDefinitionLease.Reset();
 }
 
@@ -228,8 +222,7 @@ void UControllerInputComponent::RemoveAppliedInputDefinition()
 	{
 		if (UPdAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter->GetPdAbilitySystemComponent())
 		{
-			AbilitySystemComponent->HandleAbilityInputReleased(
-				LabGameplayTags::Input_Ability_Movement_Grapple);
+			AbilitySystemComponent->HandleAbilityInputReleased(LabGameplayTags::Input_Ability_Movement_Grapple);
 		}
 	}
 
@@ -296,8 +289,7 @@ bool UControllerInputComponent::CanSwapPandoraAndWeapon(APdPlayer* PlayerCharact
 		return true;
 	}
 
-	const UAbilitySystemComponent* AbilitySystemComponent =
-		PlayerCharacter->GetAbilitySystemComponent();
+	const UAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter->GetAbilitySystemComponent();
 	return !AbilitySystemComponent
 		|| !AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon);
 }
@@ -321,8 +313,7 @@ void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& 
 	};
 
 	// 슬롯 번호·능력 태그·정보 탭처럼 같은 처리기를 여러 입력이 나눠 쓰면 그 값을 바인딩에 함께 싣는다.
-	const auto Bind = [this, &EnhancedInputComponent]<typename... TPayload>(
-		UInputAction* InputAction,
+	const auto Bind = [this, &EnhancedInputComponent]<typename... TPayload>(UInputAction* InputAction,
 		const ETriggerEvent TriggerEvent,
 		void (UControllerInputComponent::*Handler)(const FInputActionValue&, TPayload...),
 		const std::type_identity_t<TPayload>... Payload)
@@ -335,8 +326,7 @@ void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& 
 	};
 
 	// 누르는 동안 유지되는 입력은 떼거나 취소될 때 같은 끝 처리를 받는다.
-	const auto BindPressAndRelease = [&Bind]<typename... TPayload>(
-		UInputAction* InputAction,
+	const auto BindPressAndRelease = [&Bind]<typename... TPayload>(UInputAction* InputAction,
 		void (UControllerInputComponent::*PressedHandler)(const FInputActionValue&, TPayload...),
 		void (UControllerInputComponent::*ReleasedHandler)(const FInputActionValue&, TPayload...),
 		const std::type_identity_t<TPayload>... Payload)
@@ -416,11 +406,8 @@ void UControllerInputComponent::HandleMoveInput(const FInputActionValue& InputVa
 	UAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter ? PlayerCharacter->GetAbilitySystemComponent() : nullptr;
 	const bool bCancelledHitReactForMovement = PlayerCharacter && PlayerCharacter->GetPlayerActionComponent()->RequestCancelHitReactForMovement(0.08f);
 	const FGameplayTag MovementBlockStateTag = LoadedInputDefinition ? LoadedInputDefinition->GetMovementBlockStateTag() : FGameplayTag();
-	if (!bCancelledHitReactForMovement
-		&& AbilitySystemComponent
-		&& MovementBlockStateTag.IsValid()
-		&& AbilitySystemComponent->HasMatchingGameplayTag(MovementBlockStateTag)
-		&& EquipmentComponent
+	if (!bCancelledHitReactForMovement && AbilitySystemComponent && MovementBlockStateTag.IsValid()
+		&& AbilitySystemComponent->HasMatchingGameplayTag(MovementBlockStateTag) && EquipmentComponent
 		&& !EquipmentComponent->AllowsMovementDuringAttack())
 	{
 		return;

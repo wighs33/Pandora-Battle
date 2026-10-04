@@ -49,13 +49,13 @@ namespace
 
 		if (bIsAuthoritativeNotify)
 		{
-			// Combo authority follows the server's montage and active ability tasks.
+			// 콤보 권한은 서버의 몽타주와 활성 능력 태스크를 따른다.
 			AbilitySystemComponent->HandleGameplayEvent(EventTag, &Payload);
 			return;
 		}
 
-		// The owning client's predicted notify may update an already-active local
-		// presentation/input task, but it cannot activate an ability or reach the server.
+		// 소유 클라이언트의 예측 알림은 이미 활성인 로컬 표시·입력 태스크를 갱신할 수는 있지만,
+		// 능력을 활성화하거나 서버에 닿을 수는 없다.
 		if (FGameplayEventMulticastDelegate* EventDelegate =
 			AbilitySystemComponent->GenericGameplayEventCallbacks.Find(EventTag))
 		{

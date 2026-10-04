@@ -129,11 +129,8 @@ void UPlayerNotificationComponent::ShowRewardNotifications(const TArray<FPdRewar
 	}
 
 	const uint64 RequestId = NextRewardNotificationRequestId++;
-	PendingRewardNotificationLeases.Add(
-		RequestId,
-		ContentSubsystem->AcquireContent(
-			PathsToLoad,
-			FSimpleDelegate::CreateWeakLambda(this, [this, RequestId, Rewards]()
+	PendingRewardNotificationLeases.Add(RequestId, ContentSubsystem->AcquireContent(PathsToLoad,
+		FSimpleDelegate::CreateWeakLambda(this, [this, RequestId, Rewards]()
 			{
 				CompleteRewardNotificationLoad(RequestId, Rewards);
 			})));

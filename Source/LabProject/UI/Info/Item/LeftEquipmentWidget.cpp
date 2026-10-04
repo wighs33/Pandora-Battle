@@ -124,8 +124,7 @@ void ULeftEquipmentWidget::SetWeaponSlotData(const int32 WeaponSlotNumber, UItem
 	}
 }
 
-void ULeftEquipmentWidget::SetWeaponSlotPandoraRequirement(
-	const int32 WeaponSlotNumber,
+void ULeftEquipmentWidget::SetWeaponSlotPandoraRequirement(const int32 WeaponSlotNumber,
 	const UPandoraDefinition* PandoraDefinition)
 {
 	if (WeaponSlotNumber >= 1 && WeaponSlotNumber <= 3)
@@ -136,8 +135,7 @@ void ULeftEquipmentWidget::SetWeaponSlotPandoraRequirement(
 
 	if (UEquipSlotWidget* TargetSlot = GetWeaponSlot(WeaponSlotNumber))
 	{
-		TargetSlot->SetPandoraWeaponRequirementIcon(
-			ResolvePandoraWeaponRequirementIcon(PandoraDefinition),
+		TargetSlot->SetPandoraWeaponRequirementIcon(ResolvePandoraWeaponRequirementIcon(PandoraDefinition),
 			PandoraWeaponRequirementOpacity);
 	}
 }
@@ -171,8 +169,7 @@ void ULeftEquipmentWidget::BeginPandoraWeaponIconPreload()
 		}
 	}
 
-	PandoraWeaponIconLease = ContentSubsystem->AcquireContent(
-		IconPaths,
+	PandoraWeaponIconLease = ContentSubsystem->AcquireContent(IconPaths,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshCachedPandoraWeaponRequirements));
 }
 
@@ -183,8 +180,7 @@ void ULeftEquipmentWidget::RefreshCachedPandoraWeaponRequirements()
 		if (UEquipSlotWidget* TargetSlot = GetWeaponSlot(SlotIndex + 1))
 		{
 			TargetSlot->SetPandoraWeaponRequirementIcon(
-				ResolvePandoraWeaponRequirementIcon(
-					CachedWeaponSlotPandoraRequirements[SlotIndex]),
+				ResolvePandoraWeaponRequirementIcon(CachedWeaponSlotPandoraRequirements[SlotIndex]),
 				PandoraWeaponRequirementOpacity);
 		}
 	}
@@ -217,9 +213,7 @@ void ULeftEquipmentWidget::SetConsumableQuickSlotData(const int32 QuickSlotNumbe
 	}
 }
 
-void ULeftEquipmentWidget::SetEquipmentSlotData(
-	const FGameplayTag EquipTypeTag,
-	UItemInstance* ItemInstance)
+void ULeftEquipmentWidget::SetEquipmentSlotData(const FGameplayTag EquipTypeTag, UItemInstance* ItemInstance)
 {
 	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	UEquipSlotWidget* TargetSlot = nullptr;
@@ -362,8 +356,7 @@ void ULeftEquipmentWidget::RebuildEquipSlotList()
 
 void ULeftEquipmentWidget::RebuildEquipSlotNameList()
 {
-	EquipSlotNameList =
-		{
+	EquipSlotNameList = {
 			MenuTextOrFallback(TEXT("Info.Hat"), FText::FromString(TEXT("Hat"))),
 			MenuTextOrFallback(TEXT("Info.Top"), FText::FromString(TEXT("Top"))),
 			MenuTextOrFallback(TEXT("Info.Bottom"), FText::FromString(TEXT("Bottom"))),
@@ -456,8 +449,7 @@ UEquipSlotWidget* ULeftEquipmentWidget::GetWeaponSlot(const int32 WeaponSlotNumb
 	}
 }
 
-UTexture2D* ULeftEquipmentWidget::ResolvePandoraWeaponRequirementIcon(
-	const UPandoraDefinition* PandoraDefinition) const
+UTexture2D* ULeftEquipmentWidget::ResolvePandoraWeaponRequirementIcon(const UPandoraDefinition* PandoraDefinition) const
 {
 	if (!PandoraDefinition)
 	{

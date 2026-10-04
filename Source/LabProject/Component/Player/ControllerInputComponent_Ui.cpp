@@ -22,8 +22,7 @@ void UControllerInputComponent::HandleOpenInfoInputStarted(const FInputActionVal
 void UControllerInputComponent::HandleOpenSettingUiInputStarted(const FInputActionValue& InputValue)
 {
 	const UControllerInputDefinition* Definition = LoadedInputDefinition.Get();
-	if (Definition
-		&& Definition->GetOpenSettingUiInputAction().ToSoftObjectPath()
+	if (Definition && Definition->GetOpenSettingUiInputAction().ToSoftObjectPath()
 			== Definition->GetEscapeInputAction().ToSoftObjectPath())
 	{
 		// 예전 데이터 애셋은 두 칸 모두 IA_Escape를 가리킬 수 있다. 같은 키가 두 번 처리되지 않도록 Esc 처리에 맡긴다.
@@ -43,8 +42,7 @@ void UControllerInputComponent::HandleEscapeInputStarted(const FInputActionValue
 	APdPlayerController* Controller = GetPdController();
 	if (Controller)
 	{
-		if (UChatControllerComponent* ChatController =
-			Controller->FindComponentByClass<UChatControllerComponent>();
+		if (UChatControllerComponent* ChatController = Controller->FindComponentByClass<UChatControllerComponent>();
 			ChatController && ChatController->IsChatFocused())
 		{
 			ChatController->ExitChat();
@@ -126,8 +124,7 @@ void UControllerInputComponent::HandleScoreboardInputStarted(const FInputActionV
 
 	if (APdPlayerController* Controller = GetPdController())
 	{
-		if (UControllerPresentationComponent* Presentation =
-			Controller->GetControllerPresentationComponent())
+		if (UControllerPresentationComponent* Presentation = Controller->GetControllerPresentationComponent())
 		{
 			Presentation->ShowInGameScoreboard();
 		}
@@ -140,8 +137,7 @@ void UControllerInputComponent::HandleScoreboardInputEnded(const FInputActionVal
 
 	if (APdPlayerController* Controller = GetPdController())
 	{
-		if (UControllerPresentationComponent* Presentation =
-			Controller->GetControllerPresentationComponent())
+		if (UControllerPresentationComponent* Presentation = Controller->GetControllerPresentationComponent())
 		{
 			Presentation->HideInGameScoreboard();
 		}
@@ -154,8 +150,7 @@ void UControllerInputComponent::HandleChatInputStarted(const FInputActionValue& 
 
 	if (APdPlayerController* Controller = GetPdController())
 	{
-		if (UChatControllerComponent* ChatController =
-			Controller->FindComponentByClass<UChatControllerComponent>())
+		if (UChatControllerComponent* ChatController = Controller->FindComponentByClass<UChatControllerComponent>())
 		{
 			ChatController->HandleChatInputAction();
 		}
@@ -172,8 +167,7 @@ void UControllerInputComponent::HandleChatScrollInputTriggered(const FInputActio
 
 	if (APdPlayerController* Controller = GetPdController())
 	{
-		if (UChatControllerComponent* ChatController =
-			Controller->FindComponentByClass<UChatControllerComponent>())
+		if (UChatControllerComponent* ChatController = Controller->FindComponentByClass<UChatControllerComponent>())
 		{
 			ChatController->ScrollChat(ScrollValue > 0.0f);
 		}
@@ -188,11 +182,9 @@ bool UControllerInputComponent::IsOpenLobbyInputAllowed() const
 		return false;
 	}
 
-	const ULevelDefinition* Levels =
-		ULevelDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
-	return Levels
-		&& Levels->IsLobbyMapName(CurrentLevelName);
+	return Levels && Levels->IsLobbyMapName(CurrentLevelName);
 }
 
 void UControllerInputComponent::ReleaseHeldUiInput()

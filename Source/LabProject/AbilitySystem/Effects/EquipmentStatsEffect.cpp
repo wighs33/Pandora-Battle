@@ -29,8 +29,7 @@ UEquipmentStatsEffect::UEquipmentStatsEffect()
 
 TConstArrayView<FGameplayTag> UEquipmentStatsEffect::GetStatTags()
 {
-	static const FGameplayTag StatTags[] =
-	{
+	static const FGameplayTag StatTags[] = {
 		LabGameplayTags::Status_Offense_Strength,
 		LabGameplayTags::Status_Offense_Intelligence,
 		LabGameplayTags::Status_Offense_Critical,
@@ -50,10 +49,8 @@ TConstArrayView<FGameplayTag> UEquipmentStatsEffect::GetStatTags()
 	return StatTags;
 }
 
-FGameplayEffectSpecHandle UEquipmentStatsEffect::MakeSpec(
-	const UAbilitySystemComponent& AbilitySystem,
-	const TMap<FGameplayTag, float>& StatMagnitudes,
-	const UObject* SourceObject)
+FGameplayEffectSpecHandle UEquipmentStatsEffect::MakeSpec(const UAbilitySystemComponent& AbilitySystem,
+	const TMap<FGameplayTag, float>& StatMagnitudes, const UObject* SourceObject)
 {
 	FGameplayEffectContextHandle Context = AbilitySystem.MakeEffectContext();
 	Context.AddSourceObject(SourceObject);

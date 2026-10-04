@@ -39,8 +39,7 @@ namespace
 
 	FText MakeFallbackNickname(const int32 FallbackIndex)
 	{
-		return FText::Format(
-			NSLOCTEXT("Lobby", "DefaultNicknameFormat", "User{0}"),
+		return FText::Format(NSLOCTEXT("Lobby", "DefaultNicknameFormat", "User{0}"),
 			FallbackIndex > 0 ? FallbackIndex : 1);
 	}
 
@@ -85,9 +84,7 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentDataSubsystem)
 	{
-		UE_LOG(
-			LogLobbyRuntimeSubsystem,
-			Error,
+		UE_LOG(LogLobbyRuntimeSubsystem, Error,
 			TEXT("Lobby entry preload could not start because ContentDataSubsystem is unavailable."));
 		return;
 	}
@@ -99,37 +96,26 @@ void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 	}
 
 	bLevelDefinitionPreloadPending = true;
-	const FSoftObjectPath LevelDefinitionPath =
-		ULevelDefinition::GetDefaultDefinitionPath();
+	const FSoftObjectPath LevelDefinitionPath = ULevelDefinition::GetDefaultDefinitionPath();
 	if (!LevelDefinitionPath.IsValid())
 	{
 		bLevelDefinitionPreloadPending = false;
-		UE_LOG(
-			LogLobbyRuntimeSubsystem,
-			Error,
-			TEXT("Lobby entry preload has no configured Level Definition."));
+		UE_LOG(LogLobbyRuntimeSubsystem, Error, TEXT("Lobby entry preload has no configured Level Definition."));
 		return;
 	}
 	TArray<FSoftObjectPath> DefinitionPaths = { LevelDefinitionPath };
-	const FSoftObjectPath MatchRulePath =
-		UMatchRuleDefinition::GetDefaultDefinitionPath();
+	const FSoftObjectPath MatchRulePath = UMatchRuleDefinition::GetDefaultDefinitionPath();
 	if (MatchRulePath.IsValid())
 	{
 		DefinitionPaths.AddUnique(MatchRulePath);
 	}
-	LevelDefinitionPreloadLease =
-		ContentDataSubsystem->AcquireContent(
-			DefinitionPaths,
-			FSimpleDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleLevelDefinitionPreloadComplete));
+	LevelDefinitionPreloadLease = ContentDataSubsystem->AcquireContent(DefinitionPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleLevelDefinitionPreloadComplete));
 }
 
-const UMatchRuleDefinition*
-ULobbyRuntimeSubsystem::GetLoadedLobbyMatchRuleDefinition() const
+const UMatchRuleDefinition* ULobbyRuntimeSubsystem::GetLoadedLobbyMatchRuleDefinition() const
 {
-	return Cast<UMatchRuleDefinition>(
-		UMatchRuleDefinition::GetDefaultDefinitionPath().ResolveObject());
+	return Cast<UMatchRuleDefinition>(UMatchRuleDefinition::GetDefaultDefinitionPath().ResolveObject());
 }
 
 void ULobbyRuntimeSubsystem::BeginGameEntryContentPreload()
@@ -148,12 +134,9 @@ void ULobbyRuntimeSubsystem::BeginGameEntryContentPreload()
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentDataSubsystem)
 	{
-		UE_LOG(
-			LogLobbyRuntimeSubsystem,
-			Error,
+		UE_LOG(LogLobbyRuntimeSubsystem, Error,
 			TEXT("Game entry preload could not start because ContentDataSubsystem is unavailable."));
-		SetGameEntryContentPreloadResult(
-			ELobbyContentPreloadResult::Failed);
+		SetGameEntryContentPreloadResult(ELobbyContentPreloadResult::Failed);
 		return;
 	}
 
@@ -163,24 +146,18 @@ void ULobbyRuntimeSubsystem::BeginGameEntryContentPreload()
 	FindUnregisteredGameEntryAssets(AssetIds, UnregisteredAssetIds);
 	if (!UnregisteredAssetIds.IsEmpty())
 	{
-		SetGameEntryContentPreloadResult(
-			ELobbyContentPreloadResult::MissingAssets,
-			MoveTemp(UnregisteredAssetIds));
+		SetGameEntryContentPreloadResult(ELobbyContentPreloadResult::MissingAssets, MoveTemp(UnregisteredAssetIds));
 		return;
 	}
 
 	const uint32 RequestGeneration = GameEntryContentRequestGeneration;
 	const TWeakObjectPtr<ThisClass> WeakThis(this);
-	TSharedPtr<FStreamableHandle> PreloadHandle =
-		ContentDataSubsystem->PreloadPrimaryAssetsAsync(
-			AssetIds,
-			FSimpleDelegate::CreateLambda(
-				[WeakThis, RequestGeneration]()
+	TSharedPtr<FStreamableHandle> PreloadHandle = ContentDataSubsystem->PreloadPrimaryAssetsAsync(AssetIds,
+		FSimpleDelegate::CreateLambda([WeakThis, RequestGeneration]()
 				{
 					if (ThisClass* This = WeakThis.Get())
 					{
-						This->HandleGameEntryContentPreloadComplete(
-							RequestGeneration);
+						This->HandleGameEntryContentPreloadComplete(RequestGeneration);
 					}
 				}));
 	if (PreloadHandle.IsValid())
@@ -190,28 +167,21 @@ void ULobbyRuntimeSubsystem::BeginGameEntryContentPreload()
 	else if (GameEntryContentPreloadResult
 		== ELobbyContentPreloadResult::Loading)
 	{
-		UE_LOG(
-			LogLobbyRuntimeSubsystem,
-			Error,
-			TEXT("Game entry preload request did not return a valid handle."));
-		SetGameEntryContentPreloadResult(
-			ELobbyContentPreloadResult::Failed);
+		UE_LOG(LogLobbyRuntimeSubsystem, Error, TEXT("Game entry preload request did not return a valid handle."));
+		SetGameEntryContentPreloadResult(ELobbyContentPreloadResult::Failed);
 	}
 }
 
-void ULobbyRuntimeSubsystem::GetGameEntryPrimaryAssetIds(
-	TArray<FPrimaryAssetId>& OutAssetIds)
+void ULobbyRuntimeSubsystem::GetGameEntryPrimaryAssetIds(TArray<FPrimaryAssetId>& OutAssetIds)
 {
 	OutAssetIds.Reset();
-	const UProjectBootstrapSettings* BootstrapSettings =
-		GetDefault<UProjectBootstrapSettings>();
+	const UProjectBootstrapSettings* BootstrapSettings = GetDefault<UProjectBootstrapSettings>();
 	if (!BootstrapSettings)
 	{
 		return;
 	}
 
-	for (const FPrimaryAssetId& AssetId :
-		BootstrapSettings->GetGameEntryRequiredPrimaryAssets())
+	for (const FPrimaryAssetId& AssetId : BootstrapSettings->GetGameEntryRequiredPrimaryAssets())
 	{
 		if (AssetId.IsValid())
 		{
@@ -219,8 +189,7 @@ void ULobbyRuntimeSubsystem::GetGameEntryPrimaryAssetIds(
 		}
 	}
 
-	for (const FPrimaryAssetType& AssetType :
-		BootstrapSettings->GetGameEntryRequiredPrimaryAssetTypes())
+	for (const FPrimaryAssetType& AssetType : BootstrapSettings->GetGameEntryRequiredPrimaryAssetTypes())
 	{
 		if (!AssetType.IsValid())
 		{
@@ -237,15 +206,13 @@ void ULobbyRuntimeSubsystem::GetGameEntryPrimaryAssetIds(
 			}
 		}
 	}
-	OutAssetIds.Sort(
-		[](const FPrimaryAssetId& Left, const FPrimaryAssetId& Right)
+	OutAssetIds.Sort([](const FPrimaryAssetId& Left, const FPrimaryAssetId& Right)
 		{
 			return Left.ToString() < Right.ToString();
 		});
 }
 
-void ULobbyRuntimeSubsystem::HandleGameEntryContentPreloadComplete(
-	const uint32 RequestGeneration)
+void ULobbyRuntimeSubsystem::HandleGameEntryContentPreloadComplete(const uint32 RequestGeneration)
 {
 	if (RequestGeneration != GameEntryContentRequestGeneration)
 	{
@@ -258,14 +225,11 @@ void ULobbyRuntimeSubsystem::HandleGameEntryContentPreloadComplete(
 	FindUnresolvedGameEntryAssets(AssetIds, MissingAssetIds);
 	if (!MissingAssetIds.IsEmpty())
 	{
-		SetGameEntryContentPreloadResult(
-			ELobbyContentPreloadResult::MissingAssets,
-			MoveTemp(MissingAssetIds));
+		SetGameEntryContentPreloadResult(ELobbyContentPreloadResult::MissingAssets, MoveTemp(MissingAssetIds));
 		return;
 	}
 
-	SetGameEntryContentPreloadResult(
-		ELobbyContentPreloadResult::Success);
+	SetGameEntryContentPreloadResult(ELobbyContentPreloadResult::Success);
 }
 
 void ULobbyRuntimeSubsystem::ReleaseGameEntryContentPreload()
@@ -280,53 +244,42 @@ void ULobbyRuntimeSubsystem::ReleaseGameEntryContentPreload()
 	}
 }
 
-void ULobbyRuntimeSubsystem::SetGameEntryContentPreloadResult(
-	const ELobbyContentPreloadResult Result,
+void ULobbyRuntimeSubsystem::SetGameEntryContentPreloadResult(const ELobbyContentPreloadResult Result,
 	TArray<FPrimaryAssetId> MissingAssetIds)
 {
 	GameEntryContentPreloadResult = Result;
 
-	for (const FPrimaryAssetId& MissingAssetId :
-		MissingAssetIds)
+	for (const FPrimaryAssetId& MissingAssetId : MissingAssetIds)
 	{
-		UE_LOG(
-			LogLobbyRuntimeSubsystem,
-			Error,
-			TEXT("Game entry preload is missing required data asset '%s'."),
+		UE_LOG(LogLobbyRuntimeSubsystem, Error, TEXT("Game entry preload is missing required data asset '%s'."),
 			*MissingAssetId.ToString());
 	}
 	GameEntryContentPreloadFinished.Broadcast();
 }
 
-void ULobbyRuntimeSubsystem::FindUnregisteredGameEntryAssets(
-	const TArray<FPrimaryAssetId>& AssetIds,
+void ULobbyRuntimeSubsystem::FindUnregisteredGameEntryAssets(const TArray<FPrimaryAssetId>& AssetIds,
 	TArray<FPrimaryAssetId>& OutMissingAssetIds)
 {
 	OutMissingAssetIds.Reset();
 	const UAssetManager& AssetManager = UAssetManager::Get();
 	for (const FPrimaryAssetId& AssetId : AssetIds)
 	{
-		if (!AssetId.IsValid()
-			|| !AssetManager.GetPrimaryAssetPath(AssetId).IsValid())
+		if (!AssetId.IsValid() || !AssetManager.GetPrimaryAssetPath(AssetId).IsValid())
 		{
 			OutMissingAssetIds.AddUnique(AssetId);
 		}
 	}
 }
 
-void ULobbyRuntimeSubsystem::FindUnresolvedGameEntryAssets(
-	const TArray<FPrimaryAssetId>& AssetIds,
+void ULobbyRuntimeSubsystem::FindUnresolvedGameEntryAssets(const TArray<FPrimaryAssetId>& AssetIds,
 	TArray<FPrimaryAssetId>& OutMissingAssetIds)
 {
 	OutMissingAssetIds.Reset();
 	const UAssetManager& AssetManager = UAssetManager::Get();
 	for (const FPrimaryAssetId& AssetId : AssetIds)
 	{
-		const FSoftObjectPath AssetPath =
-			AssetManager.GetPrimaryAssetPath(AssetId);
-		if (!AssetPath.IsValid()
-			|| (!AssetManager.GetPrimaryAssetObject(AssetId)
-				&& !AssetPath.ResolveObject()))
+		const FSoftObjectPath AssetPath = AssetManager.GetPrimaryAssetPath(AssetId);
+		if (!AssetPath.IsValid() || (!AssetManager.GetPrimaryAssetObject(AssetId) && !AssetPath.ResolveObject()))
 		{
 			OutMissingAssetIds.AddUnique(AssetId);
 		}
@@ -336,22 +289,17 @@ void ULobbyRuntimeSubsystem::FindUnresolvedGameEntryAssets(
 void ULobbyRuntimeSubsystem::HandleLevelDefinitionPreloadComplete()
 {
 	bLevelDefinitionPreloadPending = false;
-	LoadedLevelDefinition = Cast<ULevelDefinition>(
-		ULevelDefinition::GetDefaultDefinitionPath().ResolveObject());
-	bLevelDefinitionReady = LoadedLevelDefinition != nullptr
-		&& !LoadedLevelDefinition->IngameLevels.IsEmpty();
+	LoadedLevelDefinition = Cast<ULevelDefinition>(ULevelDefinition::GetDefaultDefinitionPath().ResolveObject());
+	bLevelDefinitionReady = LoadedLevelDefinition != nullptr && !LoadedLevelDefinition->IngameLevels.IsEmpty();
 
 	if (bLevelDefinitionReady)
 	{
-		for (const FLobbyMatchMapOption& MapOption :
-			LoadedLevelDefinition->IngameLevels)
+		for (const FLobbyMatchMapOption& MapOption : LoadedLevelDefinition->IngameLevels)
 		{
 			if (!IsValid(MapOption.Thumbnail))
 			{
 				bLevelDefinitionReady = false;
-				UE_LOG(
-					LogLobbyRuntimeSubsystem,
-					Error,
+				UE_LOG(LogLobbyRuntimeSubsystem, Error,
 					TEXT("Lobby entry preload completed without map thumbnail '%s'."),
 					*MapOption.MapKey.ToString());
 			}
@@ -360,10 +308,7 @@ void ULobbyRuntimeSubsystem::HandleLevelDefinitionPreloadComplete()
 
 	if (!bLevelDefinitionReady)
 	{
-		UE_LOG(
-			LogLobbyRuntimeSubsystem,
-			Error,
-			TEXT("Lobby entry preload did not fully resolve '%s'."),
+		UE_LOG(LogLobbyRuntimeSubsystem, Error, TEXT("Lobby entry preload did not fully resolve '%s'."),
 			*ULevelDefinition::GetDefaultDefinitionPath().ToString());
 	}
 }
@@ -387,10 +332,8 @@ void ULobbyRuntimeSubsystem::SetLobbySelectedMapKey(const FName MapKey)
 	}
 }
 
-FText ULobbyRuntimeSubsystem::ResolveDefaultPlayerNickname(
-	const APlayerController* PlayerController,
-	const APlayerState* PlayerState,
-	const int32 FallbackIndex) const
+FText ULobbyRuntimeSubsystem::ResolveDefaultPlayerNickname(const APlayerController* PlayerController,
+	const APlayerState* PlayerState, const int32 FallbackIndex) const
 {
 	const IOnlineSubsystem* OnlineSubsystem = IOnlineSubsystem::Get();
 	const FName SubsystemName = OnlineSubsystem ? OnlineSubsystem->GetSubsystemName() : NAME_None;
@@ -476,11 +419,8 @@ void ULobbyRuntimeSubsystem::CacheLocalLobbyPaintCanvasStroke(
 	Stroke.bStartsNewStroke = bStartsNewStroke;
 }
 
-void ULobbyRuntimeSubsystem::CacheLocalLobbyPaintCanvasFaceDecal(
-	UMaterialInterface* FaceDecalMaterial,
-	const FName AttachSocketName,
-	const FTransform& FaceDecalTransformOffset,
-	const FVector FaceDecalSize,
+void ULobbyRuntimeSubsystem::CacheLocalLobbyPaintCanvasFaceDecal(UMaterialInterface* FaceDecalMaterial,
+	const FName AttachSocketName, const FTransform& FaceDecalTransformOffset, const FVector FaceDecalSize,
 	const FName TextureParameterName)
 {
 	if (!FaceDecalMaterial || LocalLobbyPaintCanvasFaceDecalCache.Strokes.IsEmpty())
@@ -500,8 +440,7 @@ void ULobbyRuntimeSubsystem::CacheLocalLobbyPaintCanvasFaceDecal(
 bool ULobbyRuntimeSubsystem::ConsumeLocalLobbyPaintCanvasFaceDecalCache(
 	FLobbyPaintCanvasFaceDecalCache& OutFaceDecalCache)
 {
-	if (!LocalLobbyPaintCanvasFaceDecalCache.bHasFaceDecal
-		|| !LocalLobbyPaintCanvasFaceDecalCache.FaceDecalMaterial
+	if (!LocalLobbyPaintCanvasFaceDecalCache.bHasFaceDecal || !LocalLobbyPaintCanvasFaceDecalCache.FaceDecalMaterial
 		|| LocalLobbyPaintCanvasFaceDecalCache.Strokes.IsEmpty())
 	{
 		OutFaceDecalCache = FLobbyPaintCanvasFaceDecalCache();

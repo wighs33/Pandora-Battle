@@ -128,8 +128,8 @@ void USkillAbility::RestoreAvatarMovementForAbility()
 	MovementComponent->RotationRate = CachedAbilityRotationRate;
 	Character->bUseControllerRotationYaw = bCachedAbilityUseControllerRotationYaw;
 
-	// Aim can start or stop while an ability owns movement. Cached flags then
-	// describe an obsolete state, so let the character's current policy win.
+	// 능력이 이동을 쥐고 있는 동안에도 조준이 시작되거나 끝날 수 있다. 그러면 저장해 둔 플래그는
+	// 지난 상태이므로 캐릭터의 현재 정책을 따른다.
 	Character->ReapplyCurrentRotationPolicy();
 }
 
@@ -162,42 +162,29 @@ void USkillAbility::ApplyActiveMovementSpeedBonus(FActiveGameplayEffectHandle& I
 	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const UGameSettingDefinition* SettingDefinition = UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	const TSubclassOf<UGameplayEffect> MovementSpeedEffectClass =
 		SettingDefinition
 			? SettingDefinition->MovementSpeedGameplayEffectClass
 			: nullptr;
-	if (!SkillDataAsset
-		|| !SkillDataAsset->Movement.bOverrideMovementSpeedWhileActive
-		|| SkillDataAsset->Movement.MovementSpeedBonusPercent <= 0.0
-		|| !Character
-		|| !Character->HasAuthority()
-		|| !AbilitySystemComponent
-		|| !MovementSpeedEffectClass)
+	if (!SkillDataAsset || !SkillDataAsset->Movement.bOverrideMovementSpeedWhileActive
+		|| SkillDataAsset->Movement.MovementSpeedBonusPercent <= 0.0 || !Character || !Character->HasAuthority()
+		|| !AbilitySystemComponent || !MovementSpeedEffectClass)
 	{
 		return;
 	}
 
-	FGameplayEffectSpecHandle MovementSpeedSpec = MakeOutgoingGameplayEffectSpec(
-		GetCurrentAbilitySpecHandle(),
-		GetCurrentActorInfo(),
-		GetCurrentActivationInfo(),
-		MovementSpeedEffectClass,
-		GetAbilityLevel());
+	FGameplayEffectSpecHandle MovementSpeedSpec = MakeOutgoingGameplayEffectSpec(GetCurrentAbilitySpecHandle(),
+		GetCurrentActorInfo(), GetCurrentActivationInfo(), MovementSpeedEffectClass, GetAbilityLevel());
 	if (!MovementSpeedSpec.IsValid() || !MovementSpeedSpec.Data.IsValid())
 	{
 		return;
 	}
 
-	MovementSpeedSpec.Data->SetSetByCallerMagnitude(
-		LabGameplayTags::Data_MovementSpeed,
+	MovementSpeedSpec.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_MovementSpeed,
 		static_cast<float>(SkillDataAsset->Movement.MovementSpeedBonusPercent));
-	InOutEffectHandle = ApplyGameplayEffectSpecToOwner(
-		GetCurrentAbilitySpecHandle(),
-		GetCurrentActorInfo(),
-		GetCurrentActivationInfo(),
-		MovementSpeedSpec);
+	InOutEffectHandle = ApplyGameplayEffectSpecToOwner(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(),
+		GetCurrentActivationInfo(), MovementSpeedSpec);
 }
 
 void USkillAbility::RemoveActiveMovementSpeedBonus(FActiveGameplayEffectHandle& InOutEffectHandle)

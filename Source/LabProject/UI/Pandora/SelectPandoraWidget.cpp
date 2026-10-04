@@ -20,37 +20,27 @@ void USelectPandoraWidget::NativeConstruct()
 
 void USelectPandoraWidget::SetPandoraImage(int32 Nth, UTexture2D* PandoraImage)
 {
-	SetImageByIndex(
-		{ FirstPandoraImage.Get(), SecondPandoraImage.Get(), ThirdPandoraImage.Get() },
-		DefaultPandoraImageBrushes,
-		Nth,
-		PandoraImage);
+	SetImageByIndex({ FirstPandoraImage.Get(), SecondPandoraImage.Get(), ThirdPandoraImage.Get() },
+		DefaultPandoraImageBrushes, Nth, PandoraImage);
 }
 
 void USelectPandoraWidget::SetPandoraEnabled(int32 Nth, bool bEnabled)
 {
-	SetImageTintByIndex(
-		{ FirstPandoraImage.Get(), SecondPandoraImage.Get(), ThirdPandoraImage.Get() },
-		Nth,
+	SetImageTintByIndex({ FirstPandoraImage.Get(), SecondPandoraImage.Get(), ThirdPandoraImage.Get() }, Nth,
 		bEnabled ? EnabledPandoraTint : DisabledPandoraTint);
 
-	const TArray<UImage*> CutImages =
-		{ Img_FirstCut.Get(), Img_SecondCut.Get(), Img_ThirdCut.Get() };
+	const TArray<UImage*> CutImages = { Img_FirstCut.Get(), Img_SecondCut.Get(), Img_ThirdCut.Get() };
 	const int32 CutImageIndex = Nth - 1;
 	if (CutImages.IsValidIndex(CutImageIndex) && CutImages[CutImageIndex])
 	{
-		CutImages[CutImageIndex]->SetVisibility(
-			bEnabled ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		CutImages[CutImageIndex]->SetVisibility(bEnabled ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	}
 }
 
 void USelectPandoraWidget::SetWeaponImage(int32 Nth, UTexture2D* WeaponImage)
 {
-	SetImageByIndex(
-		{ FirstWeaponImage.Get(), SecondWeaponImage.Get(), ThirdWeaponImage.Get() },
-		DefaultWeaponImageBrushes,
-		Nth,
-		WeaponImage);
+	SetImageByIndex({ FirstWeaponImage.Get(), SecondWeaponImage.Get(), ThirdWeaponImage.Get() },
+		DefaultWeaponImageBrushes, Nth, WeaponImage);
 }
 
 void USelectPandoraWidget::SetDirection(int32 Index)
@@ -136,9 +126,7 @@ void USelectPandoraWidget::SetImageTintByIndex(const TArray<UImage*>& Images, in
 void USelectPandoraWidget::RefreshSelectedLoadoutNumber()
 {
 	const APlayerController* PlayerController = GetOwningPlayer();
-	const APdPlayerState* PlayerState = PlayerController
-		? PlayerController->GetPlayerState<APdPlayerState>()
-		: nullptr;
+	const APdPlayerState* PlayerState = PlayerController ? PlayerController->GetPlayerState<APdPlayerState>() : nullptr;
 	const USelectingPandoraAndWeaponComponent* PandoraAndWeaponComponent = PlayerState ? PlayerState->GetSelectingPandoraAndWeaponComponent() : nullptr;
 	SetSelectedLoadoutNumberVisibility(
 		PandoraAndWeaponComponent
@@ -146,31 +134,22 @@ void USelectPandoraWidget::RefreshSelectedLoadoutNumber()
 			: 0);
 }
 
-void USelectPandoraWidget::SetSelectedLoadoutNumberVisibility(
-	const int32 LoadoutNumber) const
+void USelectPandoraWidget::SetSelectedLoadoutNumberVisibility(const int32 LoadoutNumber) const
 {
-	const TArray<UTextBlock*> NumberTexts =
-		{ Txt_First.Get(), Txt_Second.Get(), Txt_Third.Get() };
-	const TArray<UImage*> HighlightImages =
-		{ Img_Highlight1.Get(), Img_Highlight2.Get(), Img_Highlight3.Get() };
+	const TArray<UTextBlock*> NumberTexts = { Txt_First.Get(), Txt_Second.Get(), Txt_Third.Get() };
+	const TArray<UImage*> HighlightImages = { Img_Highlight1.Get(), Img_Highlight2.Get(), Img_Highlight3.Get() };
 	for (int32 Index = 0; Index < NumberTexts.Num(); ++Index)
 	{
 		const bool bSelected = LoadoutNumber == Index + 1;
 		if (UTextBlock* NumberText = NumberTexts[Index])
 		{
-			NumberText->SetVisibility(
-				bSelected
-					? ESlateVisibility::SelfHitTestInvisible
-					: ESlateVisibility::Collapsed);
+			NumberText->SetVisibility(bSelected ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 		}
 		if (HighlightImages.IsValidIndex(Index))
 		{
 			if (UImage* HighlightImage = HighlightImages[Index])
 			{
-				HighlightImage->SetVisibility(
-					bSelected
-						? ESlateVisibility::Visible
-						: ESlateVisibility::Collapsed);
+				HighlightImage->SetVisibility(bSelected ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 			}
 		}
 	}

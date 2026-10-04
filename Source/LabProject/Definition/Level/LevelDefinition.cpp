@@ -13,33 +13,23 @@ namespace
 		return Map.ToSoftObjectPath().GetLongPackageName();
 	}
 
-	bool DoesMapMatchLevelName(
-		const TSoftObjectPtr<UWorld>& Map,
-		const FString& LevelName)
+	bool DoesMapMatchLevelName(const TSoftObjectPtr<UWorld>& Map, const FString& LevelName)
 	{
 		const FString MapPackageName = ResolveMapPackageName(Map);
-		return !MapPackageName.IsEmpty()
-			&& (MapPackageName.Equals(LevelName, ESearchCase::IgnoreCase)
-				|| FPackageName::GetShortName(MapPackageName).Equals(
-					LevelName,
-					ESearchCase::IgnoreCase));
+		return !MapPackageName.IsEmpty() && (MapPackageName.Equals(LevelName, ESearchCase::IgnoreCase)
+			|| FPackageName::GetShortName(MapPackageName).Equals(LevelName, ESearchCase::IgnoreCase));
 	}
 
 #if WITH_EDITOR
-	void MarkLevelDefinitionInvalid(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
+	void MarkLevelDefinitionInvalid(FDataValidationContext& Context, EDataValidationResult& Result,
 		const FText& Message)
 	{
 		Result = EDataValidationResult::Invalid;
 		Context.AddError(Message);
 	}
 
-	void ValidateRequiredLevel(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
-		const TSoftObjectPtr<UWorld>& Level,
-		const TCHAR* FieldName)
+	void ValidateRequiredLevel(FDataValidationContext& Context, EDataValidationResult& Result,
+		const TSoftObjectPtr<UWorld>& Level, const TCHAR* FieldName)
 	{
 		if (Level.IsNull())
 		{
@@ -49,16 +39,12 @@ namespace
 		}
 	}
 
-	void ValidateIngameLevels(
-		FDataValidationContext& Context,
-		EDataValidationResult& Result,
+	void ValidateIngameLevels(FDataValidationContext& Context, EDataValidationResult& Result,
 		const TArray<FLobbyMatchMapOption>& IngameLevels)
 	{
 		if (IngameLevels.IsEmpty())
 		{
-			MarkLevelDefinitionInvalid(Context, Result, NSLOCTEXT(
-				"LevelDefinition",
-				"EmptyIngameLevels",
+			MarkLevelDefinitionInvalid(Context, Result, NSLOCTEXT("LevelDefinition", "EmptyIngameLevels",
 				"IngameLevels must contain at least one level."));
 			return;
 		}
@@ -68,42 +54,36 @@ namespace
 		{
 			const FLobbyMatchMapOption& Level = IngameLevels[Index];
 			const FText LevelLabel = FText::Format(
-				NSLOCTEXT("LevelDefinition", "IngameLevelLabel", "IngameLevels[{0}] ({1})"),
-				FText::AsNumber(Index),
+				NSLOCTEXT("LevelDefinition", "IngameLevelLabel", "IngameLevels[{0}] ({1})"), FText::AsNumber(Index),
 				FText::FromName(Level.MapKey));
 
 			if (Level.MapKey.IsNone())
 			{
 				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("LevelDefinition", "MissingLevelKey", "{0} MapKey is required."),
-					LevelLabel));
+					NSLOCTEXT("LevelDefinition", "MissingLevelKey", "{0} MapKey is required."), LevelLabel));
 			}
 			else if (UsedLevelKeys.Contains(Level.MapKey))
 			{
 				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("LevelDefinition", "DuplicateLevelKey", "{0} has a duplicate MapKey."),
-					LevelLabel));
+					NSLOCTEXT("LevelDefinition", "DuplicateLevelKey", "{0} has a duplicate MapKey."), LevelLabel));
 			}
 			UsedLevelKeys.Add(Level.MapKey);
 
 			if (Level.DisplayName.IsEmpty())
 			{
 				Context.AddWarning(FText::Format(
-					NSLOCTEXT("LevelDefinition", "MissingDisplayName", "{0} DisplayName is empty."),
-					LevelLabel));
+					NSLOCTEXT("LevelDefinition", "MissingDisplayName", "{0} DisplayName is empty."), LevelLabel));
 			}
 
 			if (Level.Map.IsNull())
 			{
 				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("LevelDefinition", "MissingTravelDestination", "{0} must set Map."),
-					LevelLabel));
+					NSLOCTEXT("LevelDefinition", "MissingTravelDestination", "{0} must set Map."), LevelLabel));
 			}
 			if (!Level.Thumbnail)
 			{
 				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("LevelDefinition", "MissingThumbnail", "{0} Thumbnail is required."),
-					LevelLabel));
+					NSLOCTEXT("LevelDefinition", "MissingThumbnail", "{0} Thumbnail is required."), LevelLabel));
 			}
 			if (Level.MaxPlayerCount < 1 || Level.MaxPlayerCount > LabGameSession::MaxPlayerCount)
 			{
@@ -111,8 +91,7 @@ namespace
 					NSLOCTEXT("LevelDefinition", "InvalidMaxPlayerCount", "{0} MaxPlayerCount must be between 1 and the session limit."),
 					LevelLabel));
 			}
-			if (!Level.GameplayMapWidgetClass.IsNull()
-				&& !Level.GameplayMapWidgetClass.ToSoftObjectPath().TryLoad())
+			if (!Level.GameplayMapWidgetClass.IsNull() && !Level.GameplayMapWidgetClass.ToSoftObjectPath().TryLoad())
 			{
 				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
 					NSLOCTEXT("LevelDefinition", "InvalidGameplayMapWidgetClass", "{0} GameplayMapWidgetClass could not be loaded: {1}"),
@@ -131,8 +110,7 @@ FPrimaryAssetId ULevelDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath ULevelDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.LevelDefinition.ToSoftObjectPath();
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().LevelDefinition.ToSoftObjectPath();
 }
 
 const ULevelDefinition* ULevelDefinition::ResolveDefaultDefinition()
@@ -142,17 +120,14 @@ const ULevelDefinition* ULevelDefinition::ResolveDefaultDefinition()
 	{
 		return nullptr;
 	}
-	if (const ULevelDefinition* LoadedDefinition =
-		Cast<ULevelDefinition>(DefinitionPath.ResolveObject()))
+	if (const ULevelDefinition* LoadedDefinition = Cast<ULevelDefinition>(DefinitionPath.ResolveObject()))
 	{
 		return LoadedDefinition;
 	}
 	return Cast<ULevelDefinition>(DefinitionPath.TryLoad());
 }
 
-bool ULevelDefinition::GetIngameLevelAtIndex(
-	const int32 Index,
-	FLobbyMatchMapOption& OutLevel) const
+bool ULevelDefinition::GetIngameLevelAtIndex(const int32 Index, FLobbyMatchMapOption& OutLevel) const
 {
 	if (!IngameLevels.IsValidIndex(Index))
 	{
@@ -162,9 +137,7 @@ bool ULevelDefinition::GetIngameLevelAtIndex(
 	return true;
 }
 
-bool ULevelDefinition::FindIngameLevel(
-	const FName LevelKey,
-	FLobbyMatchMapOption& OutLevel) const
+bool ULevelDefinition::FindIngameLevel(const FName LevelKey, FLobbyMatchMapOption& OutLevel) const
 {
 	const FName ResolvedLevelKey = ResolveIngameLevelKey(LevelKey);
 	if (ResolvedLevelKey.IsNone())
@@ -218,14 +191,12 @@ FString ULevelDefinition::GetBossRaidTravelMapName() const
 
 bool ULevelDefinition::IsLobbyMapName(const FString& LevelName) const
 {
-	return !LevelName.TrimStartAndEnd().IsEmpty()
-		&& DoesMapMatchLevelName(LobbyLevel, LevelName);
+	return !LevelName.TrimStartAndEnd().IsEmpty() && DoesMapMatchLevelName(LobbyLevel, LevelName);
 }
 
 bool ULevelDefinition::IsTrainingRoomMapName(const FString& LevelName) const
 {
-	return !LevelName.TrimStartAndEnd().IsEmpty()
-		&& DoesMapMatchLevelName(TrainingLevel, LevelName);
+	return !LevelName.TrimStartAndEnd().IsEmpty() && DoesMapMatchLevelName(TrainingLevel, LevelName);
 }
 
 bool ULevelDefinition::IsTrainingRoomWorld(const UObject* WorldContextObject)
@@ -235,8 +206,7 @@ bool ULevelDefinition::IsTrainingRoomWorld(const UObject* WorldContextObject)
 }
 
 #if WITH_EDITOR
-EDataValidationResult ULevelDefinition::IsDataValid(
-	FDataValidationContext& Context) const
+EDataValidationResult ULevelDefinition::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 	if (Result == EDataValidationResult::NotValidated)

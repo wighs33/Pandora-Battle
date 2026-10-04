@@ -104,8 +104,7 @@ bool UHudUiRouter::RemoveDefinitionRequest(const UWidgetClassDefinition* Definit
 
 	UWidgetClassDefinition* PreviousDefinition = ActiveDefinition;
 	DefinitionRequests.RemoveAt(RequestIndex);
-	UWidgetClassDefinition* NewDefinition =
-		DefinitionRequests.IsEmpty() ? nullptr : DefinitionRequests.Last().Get();
+	UWidgetClassDefinition* NewDefinition = DefinitionRequests.IsEmpty() ? nullptr : DefinitionRequests.Last().Get();
 	ApplyActiveDefinition(NewDefinition);
 	return PreviousDefinition != ActiveDefinition;
 }
@@ -163,11 +162,9 @@ void UHudUiRouter::EnsureCoreLayers()
 	}
 	if (!Hud->CachedRightNotificationsUI)
 	{
-		if (const TSubclassOf<URightNotificationsWidget> WidgetClass =
-			Definition->GetRightNotificationsWidgetClass())
+		if (const TSubclassOf<URightNotificationsWidget> WidgetClass = Definition->GetRightNotificationsWidgetClass())
 		{
-			Hud->CachedRightNotificationsUI =
-				CreateWidget<URightNotificationsWidget>(Controller, WidgetClass);
+			Hud->CachedRightNotificationsUI = CreateWidget<URightNotificationsWidget>(Controller, WidgetClass);
 		}
 	}
 	if (Hud->CachedRightNotificationsUI && !Hud->CachedRightNotificationsUI->IsInViewport())
@@ -186,8 +183,7 @@ void UHudUiRouter::EnsureInfoLayers()
 	APdHUD* Hud = OwnerHud.Get();
 	APdPlayerController* Controller = ResolvePlayerController();
 	UWidgetClassDefinition* Definition = ActiveDefinition;
-	if (!Hud || !Controller || !Controller->IsLocalController() || !Definition
-		|| bEnsuringInfoLayers)
+	if (!Hud || !Controller || !Controller->IsLocalController() || !Definition || bEnsuringInfoLayers)
 	{
 		return;
 	}
@@ -202,11 +198,9 @@ void UHudUiRouter::EnsureInfoLayers()
 	}
 	if (!Hud->CachedPandoraTreeUI)
 	{
-		if (const TSubclassOf<UPandoraTreeWidget> WidgetClass =
-			Definition->GetPandoraTreeWidgetClass())
+		if (const TSubclassOf<UPandoraTreeWidget> WidgetClass = Definition->GetPandoraTreeWidgetClass())
 		{
-			Hud->CachedPandoraTreeUI =
-				CreateWidget<UPandoraTreeWidget>(Controller, WidgetClass);
+			Hud->CachedPandoraTreeUI = CreateWidget<UPandoraTreeWidget>(Controller, WidgetClass);
 		}
 	}
 
@@ -215,11 +209,9 @@ void UHudUiRouter::EnsureInfoLayers()
 		if (UInfoUiPresenter* Presenter = Hud->GetInfoUiPresenter())
 		{
 			Presenter->BindInfoUi(Hud->CachedInfoUI);
-			Hud->CachedInfoUI->OnClickedInfoCenterButton.RemoveDynamic(
-				Presenter,
+			Hud->CachedInfoUI->OnClickedInfoCenterButton.RemoveDynamic(Presenter,
 				&UInfoUiPresenter::HandleClickedInfoCenterButton);
-			Hud->CachedInfoUI->OnClickedInfoCenterButton.AddUniqueDynamic(
-				Presenter,
+			Hud->CachedInfoUI->OnClickedInfoCenterButton.AddUniqueDynamic(Presenter,
 				&UInfoUiPresenter::HandleClickedInfoCenterButton);
 		}
 
@@ -238,8 +230,7 @@ void UHudUiRouter::ReleaseInfoLayers()
 	{
 		if (UInfoUiPresenter* Presenter = Hud->CachedInfoUiPresenter)
 		{
-			Hud->CachedInfoUI->OnClickedInfoCenterButton.RemoveDynamic(
-				Presenter,
+			Hud->CachedInfoUI->OnClickedInfoCenterButton.RemoveDynamic(Presenter,
 				&UInfoUiPresenter::HandleClickedInfoCenterButton);
 			Presenter->UnbindInfoUi(Hud->CachedInfoUI);
 		}
@@ -306,8 +297,7 @@ void UHudUiRouter::ShowAimCrosshair(const FGameplayTag DesiredCrosshairWidgetTag
 		return;
 	}
 
-	TSubclassOf<UUserWidget> DesiredWidgetClass =
-		ActiveDefinition->FindWidgetClassByTag(DesiredCrosshairWidgetTag);
+	TSubclassOf<UUserWidget> DesiredWidgetClass = ActiveDefinition->FindWidgetClassByTag(DesiredCrosshairWidgetTag);
 	if (!DesiredWidgetClass)
 	{
 		DesiredWidgetClass = ActiveDefinition->GetAimCrosshairWidgetClass();

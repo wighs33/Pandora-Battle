@@ -2,8 +2,7 @@
 
 bool PandoraLoadout::IsLoadoutDirection(const EEnum_Direction Direction)
 {
-	return Direction == EEnum_Direction::Left
-		|| Direction == EEnum_Direction::Up
+	return Direction == EEnum_Direction::Left || Direction == EEnum_Direction::Up
 		|| Direction == EEnum_Direction::Right;
 }
 

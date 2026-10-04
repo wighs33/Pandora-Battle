@@ -334,8 +334,8 @@ bool UOnlineSessionsSubsystem::IsSteamSubsystemActive() const
 // NULL 서비스는 LAN 검색을 사용하고, Steam 등 다른 서비스는 호출자가 요청한 LAN 설정을 따른다.
 bool UOnlineSessionsSubsystem::ShouldUseLANSession(const bool bRequestedLAN) const
 {
-	// OnlineSubsystemNull discovers sessions through LAN beacons. Steam/EOS sessions
-	// should keep the caller's value so platform matchmaking can be used.
+	// OnlineSubsystemNull은 LAN 비컨으로 세션을 찾는다. Steam·EOS 세션은 플랫폼 매치메이킹을
+	// 쓸 수 있도록 호출한 쪽의 값을 그대로 둔다.
 	return bRequestedLAN || IsNullSubsystemActive();
 }
 
@@ -456,9 +456,8 @@ void UOnlineSessionsSubsystem::HandleNetworkFailure(
 		}
 	}
 
-	// Do not auto-destroy sessions here. In multi-PIE/listen-server tests the NULL
-	// subsystem can be shared by local windows, so destroying on a client-side close
-	// can tear down the host's advertised room.
+	// 여기서 세션을 자동으로 없애지 않는다. 멀티 PIE·리슨 서버 테스트에서는 NULL 서브시스템을 로컬 창들이
+	// 함께 쓸 수 있어, 클라이언트 쪽 닫기에서 없애면 호스트가 알린 방이 사라질 수 있다.
 }
 
 // 엔진 실패 종류와 메시지를 확인해 호스트 종료·호스트 연결 상실에 해당하는 경우를 구분한다.

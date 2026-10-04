@@ -74,8 +74,7 @@ void UGameFeatureAction_AddActorExtension::AddAdditionalAssetBundleData(FAssetBu
 }
 #endif
 
-void UGameFeatureAction_AddActorExtension::AddToWorld(
-	const FWorldContext& WorldContext,
+void UGameFeatureAction_AddActorExtension::AddToWorld(const FWorldContext& WorldContext,
 	const FGameFeatureStateChangeContext& ChangeContext)
 {
 	UWorld* World = WorldContext.World();
@@ -87,8 +86,7 @@ void UGameFeatureAction_AddActorExtension::AddToWorld(
 	RegisterActorExtension(World, ChangeContext);
 }
 
-void UGameFeatureAction_AddActorExtension::RegisterActorExtension(
-	UWorld* World,
+void UGameFeatureAction_AddActorExtension::RegisterActorExtension(UWorld* World,
 	FGameFeatureStateChangeContext ChangeContext)
 {
 	if (!World || TargetClass.IsNull())
@@ -132,8 +130,7 @@ bool UGameFeatureAction_AddActorExtension::CanActivateActorExtension(AActor* Act
 	return Actor && Extension.CanActivate(Actor);
 }
 
-void UGameFeatureAction_AddActorExtension::ActivateActorExtension(
-	AActor* Actor,
+void UGameFeatureAction_AddActorExtension::ActivateActorExtension(AActor* Actor,
 	FGameFeatureStateChangeContext ChangeContext)
 {
 	if (!Actor)
@@ -151,8 +148,7 @@ void UGameFeatureAction_AddActorExtension::ActivateActorExtension(
 	ActorExtension.OnActivate(Actor);
 }
 
-void UGameFeatureAction_AddActorExtension::DeactivateActorExtension(
-	AActor* Actor,
+void UGameFeatureAction_AddActorExtension::DeactivateActorExtension(AActor* Actor,
 	FGameFeatureStateChangeContext ChangeContext)
 {
 	if (!Actor)

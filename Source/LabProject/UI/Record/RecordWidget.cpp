@@ -59,8 +59,7 @@ void URecordWidget::BeginContentPreload()
 		return;
 	}
 
-	RecordDefinitionLease = ContentSubsystem->AcquireContent(
-		{RecordDefinition.ToSoftObjectPath()},
+	RecordDefinitionLease = ContentSubsystem->AcquireContent({RecordDefinition.ToSoftObjectPath()},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginTierImagePreload));
 }
 
@@ -82,8 +81,7 @@ void URecordWidget::BeginTierImagePreload()
 		TierImagePaths.Add(TierEntry.TierImage.ToSoftObjectPath());
 	}
 
-	TierImageLease = ContentSubsystem->AcquireContent(
-		TierImagePaths,
+	TierImageLease = ContentSubsystem->AcquireContent(TierImagePaths,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshRecords));
 }
 
@@ -125,9 +123,7 @@ void URecordWidget::RefreshRecords()
 			continue;
 		}
 
-		URecordEntryWidget* EntryWidget = CreateWidget<URecordEntryWidget>(
-			GetOwningPlayer(),
-			ResolvedEntryClass);
+		URecordEntryWidget* EntryWidget = CreateWidget<URecordEntryWidget>(GetOwningPlayer(), ResolvedEntryClass);
 		if (!EntryWidget)
 		{
 			continue;

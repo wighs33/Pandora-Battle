@@ -66,8 +66,7 @@ void MatchResultReport::SortPlayerStats(TArray<FGameResultPlayerStat>& PlayerSta
 
 FText MatchResultReport::ResolveWinnerTitle(const int32 WinnerTeamColorIndex)
 {
-	return FText::Format(
-		NSLOCTEXT("GameResult", "WinnerTeamTitleFormat", "{0} Team Wins"),
+	return FText::Format(NSLOCTEXT("GameResult", "WinnerTeamTitleFormat", "{0} Team Wins"),
 		ResolveTeamName(WinnerTeamColorIndex));
 }
 
@@ -96,13 +95,9 @@ TArray<FGameResultPlayerStat> MatchResultReport::BuildPlayerStats(const AGameSta
 	return PlayerStats;
 }
 
-void MatchResultReport::ApplyVictoryRewards(
-	TArray<FGameResultPlayerStat>& PlayerStats,
-	const APlayerState* WinnerPlayerState,
-	const int32 WinnerTeamColorIndex,
-	const int32 WinnerTeamMemberCount,
-	const APlayerState* ExcludedPlayerState,
-	const FVictoryGoldRates& Rates)
+void MatchResultReport::ApplyVictoryRewards(TArray<FGameResultPlayerStat>& PlayerStats,
+	const APlayerState* WinnerPlayerState, const int32 WinnerTeamColorIndex, const int32 WinnerTeamMemberCount,
+	const APlayerState* ExcludedPlayerState, const FVictoryGoldRates& Rates)
 {
 	const int32 ExcludedPlayerStateId = ExcludedPlayerState ? ExcludedPlayerState->GetPlayerId() : INDEX_NONE;
 	const FText ExcludedPlayerName = UPlayerMatchComponent::ResolveDisplayName(ExcludedPlayerState);
@@ -128,13 +123,9 @@ void MatchResultReport::ApplyVictoryRewards(
 	}
 }
 
-FGameResultPresentationData MatchResultReport::BuildPlayerExitResult(
-	const AGameStateBase& GameState,
-	const APlayerState* ExitingPlayerState,
-	const APlayerState* WinnerPlayerState,
-	const int32 WinnerTeamColorIndex,
-	const int32 WinnerTeamMemberCount,
-	const FVictoryGoldRates& Rates)
+FGameResultPresentationData MatchResultReport::BuildPlayerExitResult(const AGameStateBase& GameState,
+	const APlayerState* ExitingPlayerState, const APlayerState* WinnerPlayerState, const int32 WinnerTeamColorIndex,
+	const int32 WinnerTeamMemberCount, const FVictoryGoldRates& Rates)
 {
 	FGameResultPresentationData GameResultData;
 	GameResultData.WinnerTitle = NSLOCTEXT("GameResult", "MatchEndedByPlayerExit", "Match Ended Due to Player Leaving");
@@ -144,13 +135,8 @@ FGameResultPresentationData MatchResultReport::BuildPlayerExitResult(
 	GameResultData.PlayerStats = BuildPlayerStats(GameState);
 	if (WinnerPlayerState)
 	{
-		ApplyVictoryRewards(
-			GameResultData.PlayerStats,
-			WinnerPlayerState,
-			WinnerTeamColorIndex,
-			WinnerTeamMemberCount,
-			ExitingPlayerState,
-			Rates);
+		ApplyVictoryRewards(GameResultData.PlayerStats, WinnerPlayerState, WinnerTeamColorIndex, WinnerTeamMemberCount,
+			ExitingPlayerState, Rates);
 	}
 
 	if (!GameResultData.PlayerStats.IsEmpty())
@@ -165,12 +151,8 @@ FGameResultPresentationData MatchResultReport::BuildPlayerExitResult(
 	return GameResultData;
 }
 
-void MatchResultReport::ReportToBackend(
-	const AExperienceGameMode& GameMode,
-	const APlayerState* WinnerPlayerState,
-	const int32 WinnerTeamColorIndex,
-	const TCHAR* EndReason,
-	const APlayerState* ExitingPlayerState)
+void MatchResultReport::ReportToBackend(const AExperienceGameMode& GameMode, const APlayerState* WinnerPlayerState,
+	const int32 WinnerTeamColorIndex, const TCHAR* EndReason, const APlayerState* ExitingPlayerState)
 {
 	const UGameInstance* GameInstance = GameMode.GetGameInstance();
 	UMatchReportSubsystem* Reports = GameInstance ? GameInstance->GetSubsystem<UMatchReportSubsystem>() : nullptr;

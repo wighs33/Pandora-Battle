@@ -54,7 +54,7 @@ public:
 	FSimpleMulticastDelegate OnPlayerGameplayReady;
 
 private:
-	// Blueprint component instances must not share the template's mutable provision state.
+	// 블루프린트 컴포넌트 인스턴스가 템플릿의 변경 가능한 지급 상태를 공유하면 안 된다.
 	UPROPERTY(Transient, Instanced)
 	TObjectPtr<UDefaultPlayerProvisioner>
 		DefaultPlayerProvisioner;

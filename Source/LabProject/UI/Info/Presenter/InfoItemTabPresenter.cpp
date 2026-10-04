@@ -31,9 +31,7 @@ void AppendItemListAsObjects(const FItemList& ItemList, TArray<UObject*>& OutLis
 
 FString GetItemDisplayNameForSort(const UItemInstance* ItemInstance)
 {
-	const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
-		? ItemInstance->ItemDefinition.Get()
-		: nullptr;
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	if (IsValid(ItemDefinition) && !ItemDefinition->DisplayName.IsEmpty())
 	{
 		return ItemDefinition->DisplayName.ToString();
@@ -201,14 +199,11 @@ void UInfoItemTabPresenter::RefreshEquipmentSlots() const
 	LeftEquipmentWidget->SetWeaponSlotData(3, GetSelectedWeapon(EEnum_Direction::Right));
 
 	const UInfoLoadoutStore* Store = LoadoutStore.Get();
-	LeftEquipmentWidget->SetWeaponSlotPandoraRequirement(
-		1,
+	LeftEquipmentWidget->SetWeaponSlotPandoraRequirement(1,
 		Store ? Store->GetSelectedPandoraDefinition(EEnum_Direction::Left) : nullptr);
-	LeftEquipmentWidget->SetWeaponSlotPandoraRequirement(
-		2,
+	LeftEquipmentWidget->SetWeaponSlotPandoraRequirement(2,
 		Store ? Store->GetSelectedPandoraDefinition(EEnum_Direction::Up) : nullptr);
-	LeftEquipmentWidget->SetWeaponSlotPandoraRequirement(
-		3,
+	LeftEquipmentWidget->SetWeaponSlotPandoraRequirement(3,
 		Store ? Store->GetSelectedPandoraDefinition(EEnum_Direction::Right) : nullptr);
 
 	const UInventoryComponent* Inventory = Store ? Store->GetInventoryComponent() : nullptr;
@@ -217,14 +212,12 @@ void UInfoItemTabPresenter::RefreshEquipmentSlots() const
 	TagConfig->GetItemEquipmentSlotTags(EquipmentSlotTags);
 	for (const FGameplayTag& EquipmentSlotTag : EquipmentSlotTags)
 	{
-		LeftEquipmentWidget->SetEquipmentSlotData(
-			EquipmentSlotTag,
+		LeftEquipmentWidget->SetEquipmentSlotData(EquipmentSlotTag,
 			Inventory ? Inventory->GetEquipmentSlotItem(EquipmentSlotTag) : nullptr);
 	}
 	for (int32 SlotIndex = 0; SlotIndex < UInventoryComponent::ConsumableQuickSlotCount; ++SlotIndex)
 	{
-		LeftEquipmentWidget->SetConsumableQuickSlotData(
-			SlotIndex + 1,
+		LeftEquipmentWidget->SetConsumableQuickSlotData(SlotIndex + 1,
 			Inventory ? Inventory->GetConsumableQuickSlotItem(SlotIndex) : nullptr);
 	}
 }
@@ -238,15 +231,9 @@ void UInfoItemTabPresenter::HandleItemSlotClicked(UObject* Item)
 		ItemInstance = SlotViewData->GetItemInstance();
 	}
 
-	const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
-		? ItemInstance->ItemDefinition.Get()
-		: nullptr;
-	if (!GetController()
-		|| !ItemDefinition
-		|| !ItemDefinition->IdTag.IsValid()
-		|| !SelectedEquipSlot
-		|| !SelectedEquipTypeTag.IsValid()
-		|| !ItemDefinition->IdTag.MatchesTag(SelectedEquipTypeTag))
+	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
+	if (!GetController() || !ItemDefinition || !ItemDefinition->IdTag.IsValid() || !SelectedEquipSlot
+		|| !SelectedEquipTypeTag.IsValid() || !ItemDefinition->IdTag.MatchesTag(SelectedEquipTypeTag))
 	{
 		return;
 	}
@@ -257,10 +244,7 @@ void UInfoItemTabPresenter::HandleItemSlotClicked(UObject* Item)
 		&& SelectedEquipTypeTag.MatchesTag(Tags->GetItemConsumableTypeTag());
 	if (bConsumableSlot)
 	{
-		if (Store
-			&& Store->RequestSetConsumableQuickSlot(
-				SelectedEquipSlot->GetNth() - 1,
-				ItemInstance))
+		if (Store && Store->RequestSetConsumableQuickSlot(SelectedEquipSlot->GetNth() - 1, ItemInstance))
 		{
 			ClearInventoryTileItemClicked();
 		}
@@ -271,8 +255,7 @@ void UInfoItemTabPresenter::HandleItemSlotClicked(UObject* Item)
 		&& SelectedEquipTypeTag.MatchesTag(Tags->GetItemWeaponTypeTag());
 	if (bWeaponSlot)
 	{
-		const EEnum_Direction Direction =
-			PandoraLoadout::GetDirectionFromLoadoutNumber(SelectedEquipSlot->GetNth());
+		const EEnum_Direction Direction = PandoraLoadout::GetDirectionFromLoadoutNumber(SelectedEquipSlot->GetNth());
 		if (!Store || !Store->RequestSetWeaponLoadoutSlot(Direction, ItemInstance))
 		{
 			return;
@@ -286,8 +269,7 @@ void UInfoItemTabPresenter::HandleItemSlotClicked(UObject* Item)
 		&& SelectedEquipTypeTag.MatchesTag(Tags->GetItemEquipmentTypeTag());
 	if (bEquipmentSlot)
 	{
-		if (!Store
-			|| !Store->RequestSetEquipmentSlot(SelectedEquipTypeTag, ItemInstance))
+		if (!Store || !Store->RequestSetEquipmentSlot(SelectedEquipTypeTag, ItemInstance))
 		{
 			return;
 		}
@@ -301,9 +283,7 @@ void UInfoItemTabPresenter::HandleItemSlotClicked(UObject* Item)
 	RefreshInventoryTileView();
 }
 
-void UInfoItemTabPresenter::HandleItemEquipSlotClicked(
-	FGameplayTag EquipTypeTag,
-	UEquipSlotWidget* InSelectedEquipSlot,
+void UInfoItemTabPresenter::HandleItemEquipSlotClicked(FGameplayTag EquipTypeTag, UEquipSlotWidget* InSelectedEquipSlot,
 	const bool bIsSelectedAnyButton)
 {
 	static_cast<void>(bIsSelectedAnyButton);
@@ -332,10 +312,8 @@ void UInfoItemTabPresenter::HandleItemEquipSlotClicked(
 	BindInventoryTileItemClicked();
 }
 
-void UInfoItemTabPresenter::HandleItemEquipSlotDropped(
-	const FGameplayTag EquipTypeTag,
-	UEquipSlotWidget* TargetEquipSlot,
-	UItemInstance* ItemInstance)
+void UInfoItemTabPresenter::HandleItemEquipSlotDropped(const FGameplayTag EquipTypeTag,
+	UEquipSlotWidget* TargetEquipSlot, UItemInstance* ItemInstance)
 {
 	SelectedEquipSlot = TargetEquipSlot;
 	SelectedEquipTypeTag = EquipTypeTag;
@@ -359,9 +337,7 @@ void UInfoItemTabPresenter::HandleItemDroppedToCharacter(UItemInstance* ItemInst
 	HandleItemSlotClicked(ItemInstance);
 }
 
-void UInfoItemTabPresenter::HandleInventorySlotDropped(
-	const int32 SourceSlotIndex,
-	const int32 TargetSlotIndex,
+void UInfoItemTabPresenter::HandleInventorySlotDropped(const int32 SourceSlotIndex, const int32 TargetSlotIndex,
 	UItemInstance* SourceItem)
 {
 	if (!IsValid(SourceItem) || SourceSlotIndex == TargetSlotIndex)
@@ -442,9 +418,7 @@ void UInfoItemTabPresenter::RefreshInventoryTileView()
 	}
 
 	UInfoWidget* InfoWidget = GetInfoWidget();
-	URightInventoryWidget* RightInventoryWidget = InfoWidget
-		? InfoWidget->GetRightInventoryWidget()
-		: nullptr;
+	URightInventoryWidget* RightInventoryWidget = InfoWidget ? InfoWidget->GetRightInventoryWidget() : nullptr;
 	if (!RightInventoryWidget)
 	{
 		return;
@@ -457,8 +431,7 @@ void UInfoItemTabPresenter::RefreshInventoryTileView()
 	if (Inventory)
 	{
 		AppendItemListAsObjects(Inventory->GetAllItems(), AllInventoryItems);
-		const bool bCanUseTypeFilter = bUseItemTypeFilter
-			&& CurrentItemFilterTag.IsValid()
+		const bool bCanUseTypeFilter = bUseItemTypeFilter && CurrentItemFilterTag.IsValid()
 			&& !Inventory->GetFilteredItemMap().IsEmpty();
 		if (bCanUseTypeFilter)
 		{
@@ -503,49 +476,26 @@ void UInfoItemTabPresenter::BindEvents()
 		return;
 	}
 
-	InfoWidget->OnDroppedItemToCharacterPanel.RemoveDynamic(
-		this,
-		&ThisClass::HandleItemDroppedToCharacter);
-	InfoWidget->OnDroppedItemToCharacterPanel.AddUniqueDynamic(
-		this,
-		&ThisClass::HandleItemDroppedToCharacter);
+	InfoWidget->OnDroppedItemToCharacterPanel.RemoveDynamic(this, &ThisClass::HandleItemDroppedToCharacter);
+	InfoWidget->OnDroppedItemToCharacterPanel.AddUniqueDynamic(this, &ThisClass::HandleItemDroppedToCharacter);
 
 	if (ULeftEquipmentWidget* LeftEquipmentWidget = InfoWidget->GetLeftEquipmentWidget())
 	{
-		LeftEquipmentWidget->OnClicked_EquipTypeSlot.RemoveDynamic(
-			this,
-			&ThisClass::HandleItemEquipSlotClicked);
-		LeftEquipmentWidget->OnClicked_EquipTypeSlot.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleItemEquipSlotClicked);
-		LeftEquipmentWidget->OnDroppedItem_EquipTypeSlot.RemoveDynamic(
-			this,
-			&ThisClass::HandleItemEquipSlotDropped);
-		LeftEquipmentWidget->OnDroppedItem_EquipTypeSlot.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleItemEquipSlotDropped);
+		LeftEquipmentWidget->OnClicked_EquipTypeSlot.RemoveDynamic(this, &ThisClass::HandleItemEquipSlotClicked);
+		LeftEquipmentWidget->OnClicked_EquipTypeSlot.AddUniqueDynamic(this, &ThisClass::HandleItemEquipSlotClicked);
+		LeftEquipmentWidget->OnDroppedItem_EquipTypeSlot.RemoveDynamic(this, &ThisClass::HandleItemEquipSlotDropped);
+		LeftEquipmentWidget->OnDroppedItem_EquipTypeSlot.AddUniqueDynamic(this, &ThisClass::HandleItemEquipSlotDropped);
 	}
 
 	if (URightInventoryWidget* RightInventoryWidget = InfoWidget->GetRightInventoryWidget())
 	{
-		RightInventoryWidget->OnClicked_FilterAllButton.RemoveDynamic(
-			this,
-			&ThisClass::HandleItemFilterAllClicked);
-		RightInventoryWidget->OnClicked_FilterAllButton.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleItemFilterAllClicked);
-		RightInventoryWidget->OnClicked_FilterTypeButton.RemoveDynamic(
-			this,
+		RightInventoryWidget->OnClicked_FilterAllButton.RemoveDynamic(this, &ThisClass::HandleItemFilterAllClicked);
+		RightInventoryWidget->OnClicked_FilterAllButton.AddUniqueDynamic(this, &ThisClass::HandleItemFilterAllClicked);
+		RightInventoryWidget->OnClicked_FilterTypeButton.RemoveDynamic(this, &ThisClass::HandleItemFilterTypeClicked);
+		RightInventoryWidget->OnClicked_FilterTypeButton.AddUniqueDynamic(this,
 			&ThisClass::HandleItemFilterTypeClicked);
-		RightInventoryWidget->OnClicked_FilterTypeButton.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleItemFilterTypeClicked);
-		RightInventoryWidget->OnDropped_InventorySlot.RemoveDynamic(
-			this,
-			&ThisClass::HandleInventorySlotDropped);
-		RightInventoryWidget->OnDropped_InventorySlot.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleInventorySlotDropped);
+		RightInventoryWidget->OnDropped_InventorySlot.RemoveDynamic(this, &ThisClass::HandleInventorySlotDropped);
+		RightInventoryWidget->OnDropped_InventorySlot.AddUniqueDynamic(this, &ThisClass::HandleInventorySlotDropped);
 	}
 }
 
@@ -558,38 +508,24 @@ void UInfoItemTabPresenter::UnbindEvents()
 		return;
 	}
 
-	InfoWidget->OnDroppedItemToCharacterPanel.RemoveDynamic(
-		this,
-		&ThisClass::HandleItemDroppedToCharacter);
+	InfoWidget->OnDroppedItemToCharacterPanel.RemoveDynamic(this, &ThisClass::HandleItemDroppedToCharacter);
 	if (ULeftEquipmentWidget* LeftEquipmentWidget = InfoWidget->GetLeftEquipmentWidget())
 	{
-		LeftEquipmentWidget->OnClicked_EquipTypeSlot.RemoveDynamic(
-			this,
-			&ThisClass::HandleItemEquipSlotClicked);
-		LeftEquipmentWidget->OnDroppedItem_EquipTypeSlot.RemoveDynamic(
-			this,
-			&ThisClass::HandleItemEquipSlotDropped);
+		LeftEquipmentWidget->OnClicked_EquipTypeSlot.RemoveDynamic(this, &ThisClass::HandleItemEquipSlotClicked);
+		LeftEquipmentWidget->OnDroppedItem_EquipTypeSlot.RemoveDynamic(this, &ThisClass::HandleItemEquipSlotDropped);
 	}
 	if (URightInventoryWidget* RightInventoryWidget = InfoWidget->GetRightInventoryWidget())
 	{
-		RightInventoryWidget->OnClicked_FilterAllButton.RemoveDynamic(
-			this,
-			&ThisClass::HandleItemFilterAllClicked);
-		RightInventoryWidget->OnClicked_FilterTypeButton.RemoveDynamic(
-			this,
-			&ThisClass::HandleItemFilterTypeClicked);
-		RightInventoryWidget->OnDropped_InventorySlot.RemoveDynamic(
-			this,
-			&ThisClass::HandleInventorySlotDropped);
+		RightInventoryWidget->OnClicked_FilterAllButton.RemoveDynamic(this, &ThisClass::HandleItemFilterAllClicked);
+		RightInventoryWidget->OnClicked_FilterTypeButton.RemoveDynamic(this, &ThisClass::HandleItemFilterTypeClicked);
+		RightInventoryWidget->OnDropped_InventorySlot.RemoveDynamic(this, &ThisClass::HandleInventorySlotDropped);
 	}
 }
 
 void UInfoItemTabPresenter::BindInventoryTileItemClicked()
 {
 	UInfoWidget* InfoWidget = GetInfoWidget();
-	URightInventoryWidget* RightInventoryWidget = InfoWidget
-		? InfoWidget->GetRightInventoryWidget()
-		: nullptr;
+	URightInventoryWidget* RightInventoryWidget = InfoWidget ? InfoWidget->GetRightInventoryWidget() : nullptr;
 	if (UTileView* TileView = RightInventoryWidget ? RightInventoryWidget->GetTileView() : nullptr)
 	{
 		TileView->OnItemClicked().RemoveAll(this);
@@ -600,18 +536,14 @@ void UInfoItemTabPresenter::BindInventoryTileItemClicked()
 void UInfoItemTabPresenter::ClearInventoryTileItemClicked() const
 {
 	UInfoWidget* InfoWidget = GetInfoWidget();
-	URightInventoryWidget* RightInventoryWidget = InfoWidget
-		? InfoWidget->GetRightInventoryWidget()
-		: nullptr;
+	URightInventoryWidget* RightInventoryWidget = InfoWidget ? InfoWidget->GetRightInventoryWidget() : nullptr;
 	if (UTileView* TileView = RightInventoryWidget ? RightInventoryWidget->GetTileView() : nullptr)
 	{
 		TileView->OnItemClicked().RemoveAll(this);
 	}
 }
 
-void UInfoItemTabPresenter::ClearEquipmentSlot(
-	UEquipSlotWidget* TargetEquipSlot,
-	FGameplayTag EquipTypeTag)
+void UInfoItemTabPresenter::ClearEquipmentSlot(UEquipSlotWidget* TargetEquipSlot, FGameplayTag EquipTypeTag)
 {
 	if (!TargetEquipSlot)
 	{
@@ -624,8 +556,7 @@ void UInfoItemTabPresenter::ClearEquipmentSlot(
 
 	UInfoLoadoutStore* Store = LoadoutStore.Get();
 	const UProjectTagDefinition* Tags = UProjectTagDefinition::Get(this);
-	if (Tags->GetItemConsumableTypeTag().IsValid()
-		&& EquipTypeTag.MatchesTag(Tags->GetItemConsumableTypeTag()))
+	if (Tags->GetItemConsumableTypeTag().IsValid() && EquipTypeTag.MatchesTag(Tags->GetItemConsumableTypeTag()))
 	{
 		if (!Store || !Store->RequestClearConsumableQuickSlot(TargetEquipSlot->GetNth() - 1))
 		{
@@ -638,8 +569,7 @@ void UInfoItemTabPresenter::ClearEquipmentSlot(
 
 	if (Tags->GetItemWeaponTypeTag().IsValid() && EquipTypeTag.MatchesTag(Tags->GetItemWeaponTypeTag()))
 	{
-		const EEnum_Direction Direction =
-			PandoraLoadout::GetDirectionFromLoadoutNumber(TargetEquipSlot->GetNth());
+		const EEnum_Direction Direction = PandoraLoadout::GetDirectionFromLoadoutNumber(TargetEquipSlot->GetNth());
 		if (!Store || !Store->RequestClearWeaponLoadoutSlot(Direction))
 		{
 			return;
@@ -649,8 +579,7 @@ void UInfoItemTabPresenter::ClearEquipmentSlot(
 		return;
 	}
 
-	if (Tags->GetItemEquipmentTypeTag().IsValid()
-		&& EquipTypeTag.MatchesTag(Tags->GetItemEquipmentTypeTag()))
+	if (Tags->GetItemEquipmentTypeTag().IsValid() && EquipTypeTag.MatchesTag(Tags->GetItemEquipmentTypeTag()))
 	{
 		if (!Store || !Store->RequestClearEquipmentSlot(EquipTypeTag))
 		{
@@ -765,9 +694,7 @@ void UInfoItemTabPresenter::ReconcileInventoryDisplaySlots(const TArray<UObject*
 	}
 }
 
-void UInfoItemTabPresenter::BuildInventoryViewSlots(
-	const TArray<UObject*>& SourceItems,
-	TArray<UObject*>& OutViewItems)
+void UInfoItemTabPresenter::BuildInventoryViewSlots(const TArray<UObject*>& SourceItems, TArray<UObject*>& OutViewItems)
 {
 	OutViewItems.Reset();
 	CachedInventoryViewSlots.Reset();
@@ -867,8 +794,7 @@ void UInfoItemTabPresenter::CollectAssignedItemIds(TSet<FGuid>& OutAssignedItemI
 		TagConfig->GetItemEquipmentSlotTags(EquipmentSlotTags);
 		for (const FGameplayTag& EquipmentSlotTag : EquipmentSlotTags)
 		{
-			const FGuid EquippedItemId =
-				Inventory->GetEquipmentSlotItemId(EquipmentSlotTag);
+			const FGuid EquippedItemId = Inventory->GetEquipmentSlotItemId(EquipmentSlotTag);
 			if (EquippedItemId.IsValid())
 			{
 				OutAssignedItemIds.Add(EquippedItemId);
@@ -882,8 +808,7 @@ void UInfoItemTabPresenter::CollectAssignedItemIds(TSet<FGuid>& OutAssignedItemI
 				OutAssignedItemIds.Add(QuickSlotItem->GetItemId());
 			}
 		}
-		for (const EEnum_Direction Direction :
-			{ EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
+		for (const EEnum_Direction Direction : { EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
 		{
 			const FGuid WeaponItemId = Inventory->GetWeaponIdForLoadoutSlot(Direction);
 			if (WeaponItemId.IsValid())

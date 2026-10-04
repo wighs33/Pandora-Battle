@@ -26,8 +26,8 @@ bool UControllerSessionComponent::RequestExitMatchToTitle()
 	}
 	if (!Controller->HasAuthority() || !Controller->IsLocalController())
 	{
-		// Returning false lets the local menu destroy its session and travel.
-		// The server settles the match only after observing the real Logout.
+		// false를 돌려주면 로컬 메뉴가 세션을 없애고 이동한다.
+		// 서버는 실제 Logout을 본 뒤에만 경기를 정산한다.
 		return false;
 	}
 
@@ -42,8 +42,7 @@ bool UControllerSessionComponent::RequestExitMatchToTitle()
 	return false;
 }
 
-void UControllerSessionComponent::TravelToTitleWithGameResult(
-	const FGameResultPresentationData& GameResultData,
+void UControllerSessionComponent::TravelToTitleWithGameResult(const FGameResultPresentationData& GameResultData,
 	const FString& TitleMapName) const
 {
 	APdPlayerController* Controller = GetPdController();
@@ -60,8 +59,7 @@ void UControllerSessionComponent::TravelToTitleWithGameResult(
 	DestroySessionAndTravelToTitle(TitleMapName);
 }
 
-void UControllerSessionComponent::TravelToTitleWithoutGameResult(
-	const FString& TitleMapName) const
+void UControllerSessionComponent::TravelToTitleWithoutGameResult(const FString& TitleMapName) const
 {
 	APdPlayerController* Controller = GetPdController();
 	if (!Controller)
@@ -86,8 +84,7 @@ void UControllerSessionComponent::TravelToTitleWithoutGameResult(
 	DestroySessionAndTravelToTitle(TitleMapName);
 }
 
-void UControllerSessionComponent::DestroySessionAndTravelToTitle(
-	const FString& TitleMapName) const
+void UControllerSessionComponent::DestroySessionAndTravelToTitle(const FString& TitleMapName) const
 {
 	APdPlayerController* Controller = GetPdController();
 	if (!Controller)
@@ -124,7 +121,6 @@ bool UControllerSessionComponent::CanRequestExitMatchToTitle() const
 		return false;
 	}
 
-	const AExperienceGameState* ExperienceGameState =
-		World->GetGameState<AExperienceGameState>();
+	const AExperienceGameState* ExperienceGameState = World->GetGameState<AExperienceGameState>();
 	return ExperienceGameState && ExperienceGameState->PlayerArray.Num() > 1;
 }

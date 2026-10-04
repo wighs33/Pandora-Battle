@@ -88,8 +88,7 @@ FGameplayEffectSpecHandle USkillAbility::MakeConfiguredStatusEffectSpec(const US
 	{
 		return StatusEffectSpecHandle;
 	}
-	StatusEffectSpecHandle.Data->SetDuration(
-		StatusEffectTiming::FullStackLifetimeSeconds, true);
+	StatusEffectSpecHandle.Data->SetDuration(StatusEffectTiming::FullStackLifetimeSeconds, true);
 
 	return StatusEffectSpecHandle;
 }
@@ -113,8 +112,7 @@ FActiveGameplayEffectHandle USkillAbility::ApplyConfiguredStatusEffectToTarget(c
 	// 상태 이상 정의 없이 대체 효과만 있으면 쌓기 규칙과 추적 없이 그대로 건다.
 	const UStatusEffectDefinition* StatusEffectDefinition = SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
 	const FGameplayEffectSpec& StatusEffectSpec = *StatusEffectSpecHandle.Data.Get();
-	return StatusEffectDefinition
-		? UStatusEffectReplicationComponent::ApplyTrackedStatusEffect(
+	return StatusEffectDefinition ? UStatusEffectReplicationComponent::ApplyTrackedStatusEffect(
 			*SourceAbilitySystemComponent, *TargetAbilitySystemComponent, *StatusEffectDefinition, StatusEffectSpec)
 		: SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(StatusEffectSpec, TargetAbilitySystemComponent);
 }

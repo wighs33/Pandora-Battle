@@ -34,8 +34,7 @@ float GetAnimationDuration(const UWidgetAnimation* Animation, const float Fallba
 
 TSoftObjectPtr<ULevelDefinition> GetDefaultMapUiLevelDefinition()
 {
-	return TSoftObjectPtr<ULevelDefinition>(
-		ULevelDefinition::GetDefaultDefinitionPath());
+	return TSoftObjectPtr<ULevelDefinition>(ULevelDefinition::GetDefaultDefinitionPath());
 }
 
 const ULevelDefinition* ResolveLoadedMapUiLevelDefinition()
@@ -43,9 +42,7 @@ const ULevelDefinition* ResolveLoadedMapUiLevelDefinition()
 	return GetDefaultMapUiLevelDefinition().Get();
 }
 
-bool DoesMapOptionMatchCurrentLevel(
-	const FLobbyMatchMapOption& MapOption,
-	const FString& CurrentPackageName,
+bool DoesMapOptionMatchCurrentLevel(const FLobbyMatchMapOption& MapOption, const FString& CurrentPackageName,
 	const FString& CurrentLevelName)
 {
 	const FString Package = MapOption.Map.ToSoftObjectPath().GetLongPackageName();
@@ -72,14 +69,9 @@ bool FindMapOptionForCurrentMap(const UInfoWidget* Widget, FLobbyMatchMapOption&
 		if (const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(CurrentWorld->GetGameInstance()))
 		{
 			const FName SelectedMapKey = LobbySubsystem->GetLobbySelectedMapKey();
-			if (!SelectedMapKey.IsNone()
-				&& Levels->FindIngameLevel(SelectedMapKey, OutMapOption)
-				&& !OutMapOption.GameplayMapWidgetClass.IsNull()
-				&& (!bHasLevelContext
-					|| DoesMapOptionMatchCurrentLevel(
-						OutMapOption,
-						CurrentPackageName,
-						CurrentLevelName)))
+			if (!SelectedMapKey.IsNone() && Levels->FindIngameLevel(SelectedMapKey, OutMapOption)
+				&& !OutMapOption.GameplayMapWidgetClass.IsNull() && (!bHasLevelContext
+				|| DoesMapOptionMatchCurrentLevel(OutMapOption, CurrentPackageName, CurrentLevelName)))
 			{
 				return true;
 			}
@@ -104,16 +96,9 @@ UWorld* UInfoMapPanel::GetWorld() const
 	return OwnerWidget ? OwnerWidget->GetWorld() : Super::GetWorld();
 }
 
-void UInfoMapPanel::Initialize(
-	UInfoWidget* InOwnerWidget,
-	UWidgetTree* InWidgetTree,
-	UButton* InMapButton,
-	UOverlay* InMapOverlay,
-	UMapWidget* InTotalMap,
-	TSubclassOf<UMapWidget> InDefaultMapWidgetClass,
-	UWidgetAnimation* InSlideAnimation,
-	const FVector2D InSlideStartOffset,
-	const float InSlideDuration)
+void UInfoMapPanel::Initialize(UInfoWidget* InOwnerWidget, UWidgetTree* InWidgetTree, UButton* InMapButton,
+	UOverlay* InMapOverlay, UMapWidget* InTotalMap, TSubclassOf<UMapWidget> InDefaultMapWidgetClass,
+	UWidgetAnimation* InSlideAnimation, const FVector2D InSlideStartOffset, const float InSlideDuration)
 {
 	const bool bOwnerChanged = OwnerWidget != InOwnerWidget;
 	OwnerWidget = InOwnerWidget;
@@ -143,23 +128,16 @@ void UInfoMapPanel::BeginContentPreload()
 	bContentReady = false;
 	bContentPreloadRequested = true;
 
-	ULocalPlayer* LocalPlayer = OwnerWidget
-		? OwnerWidget->GetOwningLocalPlayer()
-		: nullptr;
-	UUiSubsystem* UiSubsystem = LocalPlayer
-		? LocalPlayer->GetSubsystem<UUiSubsystem>()
-		: nullptr;
-	const UWidgetClassDefinition* WidgetDefinition =
-		UWidgetClassDefinition::ResolveWidgetClassDefinition(OwnerWidget);
+	ULocalPlayer* LocalPlayer = OwnerWidget ? OwnerWidget->GetOwningLocalPlayer() : nullptr;
+	UUiSubsystem* UiSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(OwnerWidget);
 	if (!UiSubsystem || !WidgetDefinition)
 	{
 		FailContentPreload();
 		return;
 	}
 
-	MapContentLease = UiSubsystem->AcquireUiContent(
-		WidgetDefinition,
-		EUiContentGroup::Map,
+	MapContentLease = UiSubsystem->AcquireUiContent(WidgetDefinition, EUiContentGroup::Map,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleUiContentCompletion));
 	if (!MapContentLease.IsValid())
 	{
@@ -171,8 +149,7 @@ void UInfoMapPanel::BeginContentPreload()
 
 void UInfoMapPanel::HandleUiContentCompletion()
 {
-	if (!MapContentLease.IsValid()
-		|| !MapContentLease->IsReady())
+	if (!MapContentLease.IsValid() || !MapContentLease->IsReady())
 	{
 		FailContentPreload();
 		return;
@@ -188,16 +165,14 @@ void UInfoMapPanel::HandleUiContentCompletion()
 		return;
 	}
 
-	const TSoftObjectPtr<ULevelDefinition> Levels =
-		GetDefaultMapUiLevelDefinition();
+	const TSoftObjectPtr<ULevelDefinition> Levels = GetDefaultMapUiLevelDefinition();
 	if (Levels.IsNull() || Levels.Get())
 	{
 		BeginMapWidgetClassPreload();
 		return;
 	}
 	// 레벨 정의를 읽지 못해도 기본 맵 위젯으로 열 수 있으므로 결과와 관계없이 다음 단계로 넘어간다.
-	MapRuleLease = ContentSubsystem->AcquireContent(
-		{Levels.ToSoftObjectPath()},
+	MapRuleLease = ContentSubsystem->AcquireContent({Levels.ToSoftObjectPath()},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginMapWidgetClassPreload));
 }
 
@@ -226,19 +201,13 @@ bool UInfoMapPanel::IsDisabledForCurrentMap() const
 		return false;
 	}
 
-	const ULevelDefinition* Levels =
-		ResolveLoadedMapUiLevelDefinition();
-	return Levels
-		&& Levels->IsTrainingRoomMapName(
-			UGameplayStatics::GetCurrentLevelName(
-				OwnerWidget,
-				true));
+	const ULevelDefinition* Levels = ResolveLoadedMapUiLevelDefinition();
+	return Levels && Levels->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(OwnerWidget, true));
 }
 
 bool UInfoMapPanel::IsOpenOrVisible() const
 {
-	return bOverlayOpen
-		|| (MapOverlay && MapOverlay->GetVisibility() != ESlateVisibility::Collapsed);
+	return bOverlayOpen || (MapOverlay && MapOverlay->GetVisibility() != ESlateVisibility::Collapsed);
 }
 
 float UInfoMapPanel::GetHideAnimationDelay() const
@@ -253,8 +222,7 @@ void UInfoMapPanel::RefreshButtonEnabledState()
 		return;
 	}
 	const bool bDisabledForMap = IsDisabledForCurrentMap();
-	const bool bDisabled = bDisabledForMap
-		|| (bContentPreloadRequested && !bContentReady);
+	const bool bDisabled = bDisabledForMap || (bContentPreloadRequested && !bContentReady);
 	MapButton->SetIsEnabled(!bDisabled);
 	if (bDisabledForMap)
 	{
@@ -331,13 +299,7 @@ void UInfoMapPanel::PlaySlideIn()
 		MapOverlay->SetRenderTranslation(FVector2D::ZeroVector);
 		MapOverlay->SetRenderOpacity(1.0f);
 		OwnerWidget->UnbindAllFromAnimationFinished(SlideAnimation);
-		OwnerWidget->PlayAnimation(
-			SlideAnimation,
-			0.0f,
-			1,
-			EUMGSequencePlayMode::Forward,
-			1.0f,
-			false);
+		OwnerWidget->PlayAnimation(SlideAnimation, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
 		return;
 	}
 	if (UWorld* World = GetWorld())
@@ -345,21 +307,14 @@ void UInfoMapPanel::PlaySlideIn()
 		SlideStartTime = World->GetTimeSeconds();
 		MapOverlay->SetRenderTranslation(SlideStartOffset);
 		MapOverlay->SetRenderOpacity(0.0f);
-		World->GetTimerManager().SetTimer(
-			SlideTimerHandle,
-			this,
-			&ThisClass::TickSlideAnimation,
-			1.0f / 60.0f,
-			true);
+		World->GetTimerManager().SetTimer(SlideTimerHandle, this, &ThisClass::TickSlideAnimation, 1.0f / 60.0f, true);
 	}
 }
 
 void UInfoMapPanel::PlaySlideOut()
 {
 	bOpenRequested = false;
-	if (!MapOverlay
-		|| !OwnerWidget
-		|| (!bOverlayOpen && MapOverlay->GetVisibility() == ESlateVisibility::Collapsed))
+	if (!MapOverlay || !OwnerWidget || (!bOverlayOpen && MapOverlay->GetVisibility() == ESlateVisibility::Collapsed))
 	{
 		ReleaseContentPreloads();
 		return;
@@ -381,12 +336,8 @@ void UInfoMapPanel::PlaySlideOut()
 		OwnerWidget->PlayAnimationReverse(SlideAnimation, 1.0f, false);
 		if (UWorld* World = GetWorld())
 		{
-			World->GetTimerManager().SetTimer(
-				SlideTimerHandle,
-				this,
-				&ThisClass::FinishSlideOutAnimation,
-				GetAnimationDuration(SlideAnimation, SlideDuration),
-				false);
+			World->GetTimerManager().SetTimer(SlideTimerHandle, this, &ThisClass::FinishSlideOutAnimation,
+				GetAnimationDuration(SlideAnimation, SlideDuration), false);
 		}
 		return;
 	}
@@ -395,12 +346,7 @@ void UInfoMapPanel::PlaySlideOut()
 		SlideStartTime = World->GetTimeSeconds();
 		MapOverlay->SetRenderTranslation(FVector2D::ZeroVector);
 		MapOverlay->SetRenderOpacity(1.0f);
-		World->GetTimerManager().SetTimer(
-			SlideTimerHandle,
-			this,
-			&ThisClass::TickSlideAnimation,
-			1.0f / 60.0f,
-			true);
+		World->GetTimerManager().SetTimer(SlideTimerHandle, this, &ThisClass::TickSlideAnimation, 1.0f / 60.0f, true);
 	}
 }
 
@@ -427,14 +373,10 @@ void UInfoMapPanel::BeginMapWidgetClassPreload()
 			}
 		}
 	}
-	MapWidgetClassLease = ContentSubsystem->AcquireContent(
-		ContentPaths,
-		FSimpleDelegate::CreateWeakLambda(
-			this,
-			[this]()
+	MapWidgetClassLease = ContentSubsystem->AcquireContent(ContentPaths,
+		FSimpleDelegate::CreateWeakLambda(this, [this]()
 			{
-				if (MapWidgetClassLease.IsValid()
-					&& MapWidgetClassLease->IsReady())
+				if (MapWidgetClassLease.IsValid() && MapWidgetClassLease->IsReady())
 				{
 					CompleteContentPreload();
 				}
@@ -497,9 +439,7 @@ bool UInfoMapPanel::EnsureMapOverlay()
 		return false;
 	}
 
-	UOverlay* NewMapOverlay = WidgetTree->ConstructWidget<UOverlay>(
-		UOverlay::StaticClass(),
-		TEXT("MapOverlay"));
+	UOverlay* NewMapOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("MapOverlay"));
 	UWidget* RootWidget = WidgetTree->RootWidget;
 	if (!NewMapOverlay || !RootWidget)
 	{
@@ -579,14 +519,12 @@ void UInfoMapPanel::TickSlideAnimation()
 	const float EaseAlpha = FMath::InterpEaseOut(0.0f, 1.0f, Alpha, 3.0f);
 	if (bSlideReverse)
 	{
-		MapOverlay->SetRenderTranslation(
-			FMath::Lerp(FVector2D::ZeroVector, SlideStartOffset, EaseAlpha));
+		MapOverlay->SetRenderTranslation(FMath::Lerp(FVector2D::ZeroVector, SlideStartOffset, EaseAlpha));
 		MapOverlay->SetRenderOpacity(1.0f - EaseAlpha);
 	}
 	else
 	{
-		MapOverlay->SetRenderTranslation(
-			FMath::Lerp(SlideStartOffset, FVector2D::ZeroVector, EaseAlpha));
+		MapOverlay->SetRenderTranslation(FMath::Lerp(SlideStartOffset, FVector2D::ZeroVector, EaseAlpha));
 		MapOverlay->SetRenderOpacity(EaseAlpha);
 	}
 

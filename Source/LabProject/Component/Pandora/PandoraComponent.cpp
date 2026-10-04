@@ -103,22 +103,15 @@ bool UPandoraComponent::HasPandoraAuthority() const
 	return OwnerActor && OwnerActor->HasAuthority();
 }
 
-void UPandoraComponent::LogRejectedServerRequest(
-	const TCHAR* RequestName,
-	const FString& Reason)
+void UPandoraComponent::LogRejectedServerRequest(const TCHAR* RequestName, const FString& Reason)
 {
 	uint32 SuppressedCount = 0;
-	if (!ServerValidationLogLimiter.TryAcquire(
-		ServerValidationLogIntervalSeconds,
-		SuppressedCount))
+	if (!ServerValidationLogLimiter.TryAcquire(ServerValidationLogIntervalSeconds, SuppressedCount))
 	{
 		return;
 	}
 
-	UE_LOG(
-		PandoraComponentLog,
-		Warning,
-		TEXT("Rejected Pandora server request. Owner=%s Request=%s Reason=%s "
+	UE_LOG(PandoraComponentLog, Warning, TEXT("Rejected Pandora server request. Owner=%s Request=%s Reason=%s "
 			"SuppressedSinceLast=%u"),
 		*GetPathNameSafe(GetOwner()),
 		RequestName,
@@ -131,8 +124,7 @@ void UPandoraComponent::GrantPandorasByPrimaryAssetIds(const TArray<FPrimaryAsse
 	GrantPandorasWithLoadout(PandoraDefinitions, {});
 }
 
-void UPandoraComponent::GrantPandorasWithLoadout(
-	const TArray<FPrimaryAssetId>& PandoraDefinitions,
+void UPandoraComponent::GrantPandorasWithLoadout(const TArray<FPrimaryAssetId>& PandoraDefinitions,
 	const TMap<EEnum_Direction, FPrimaryAssetId>& PandoraLoadoutByDirection)
 {
 	if (!HasPandoraAuthority() || PandoraDefinitions.IsEmpty())
@@ -249,8 +241,7 @@ void UPandoraComponent::ClearAllPandoras()
 
 	const bool bHadPandoras = !ReplicatedEntries.Entries.IsEmpty();
 	const bool bHadSelection = CurrentPandoraDefinition != nullptr
-		|| CurrentPandoraLoadoutDirection != EEnum_Direction::Center
-		|| !GrantedPandoraAbilityHandles.IsEmpty();
+		|| CurrentPandoraLoadoutDirection != EEnum_Direction::Center || !GrantedPandoraAbilityHandles.IsEmpty();
 	const bool bHadLoadout = !PandoraLoadoutSlots.IsEmpty();
 
 	ClearGrantedPandoraContent();
@@ -286,8 +277,7 @@ bool UPandoraComponent::RequestPandoraSelection(const UPandoraDefinition* Pandor
 	return RequestPandoraSelectionForDirection(EEnum_Direction::Center, PandoraDefinition);
 }
 
-bool UPandoraComponent::RequestPandoraSelectionForDirection(
-	const EEnum_Direction Direction,
+bool UPandoraComponent::RequestPandoraSelectionForDirection(const EEnum_Direction Direction,
 	const UPandoraDefinition* PandoraDefinition)
 {
 	const FPrimaryAssetId PandoraDefinitionId = PandoraDefinition ? PandoraDefinition->GetPrimaryAssetId() : FPrimaryAssetId();
@@ -306,33 +296,25 @@ bool UPandoraComponent::RequestPandoraSelectionForDirection(
 	return SelectPandoraByPrimaryAssetId(PandoraDefinitionId, Direction);
 }
 
-void UPandoraComponent::ServerRequestPandoraSelection_Implementation(
-	FPrimaryAssetId PandoraDefinitionId,
+void UPandoraComponent::ServerRequestPandoraSelection_Implementation(FPrimaryAssetId PandoraDefinitionId,
 	EEnum_Direction RequestedDirection)
 {
-	if (RequestedDirection != EEnum_Direction::Center
-		&& !PandoraLoadout::IsLoadoutDirection(RequestedDirection))
+	if (RequestedDirection != EEnum_Direction::Center && !PandoraLoadout::IsLoadoutDirection(RequestedDirection))
 	{
-		LogRejectedServerRequest(
-			TEXT("Select"),
-			FString::Printf(
-				TEXT("invalid direction=%d"),
-				static_cast<int32>(RequestedDirection)));
+		LogRejectedServerRequest(TEXT("Select"),
+			FString::Printf(TEXT("invalid direction=%d"), static_cast<int32>(RequestedDirection)));
 		return;
 	}
 
 	if (!SelectPandoraByPrimaryAssetId(PandoraDefinitionId, RequestedDirection))
 	{
-		LogRejectedServerRequest(
-			TEXT("Select"),
-			FString::Printf(
-				TEXT("Pandora is not owned or cannot be resolved. AssetId=%s"),
+		LogRejectedServerRequest(TEXT("Select"),
+			FString::Printf(TEXT("Pandora is not owned or cannot be resolved. AssetId=%s"),
 				*PandoraDefinitionId.ToString()));
 	}
 }
 
-bool UPandoraComponent::RequestSetPandoraLoadoutSlot(
-	const EEnum_Direction Direction,
+bool UPandoraComponent::RequestSetPandoraLoadoutSlot(const EEnum_Direction Direction,
 	const UPandoraDefinition* PandoraDefinition)
 {
 	if (!PandoraLoadout::IsLoadoutDirection(Direction))
@@ -384,17 +366,13 @@ bool UPandoraComponent::RequestAutoSetPandoraLoadoutSlot(const UPandoraDefinitio
 	return SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition);
 }
 
-void UPandoraComponent::ServerSetPandoraLoadoutSlot_Implementation(
-	EEnum_Direction Direction,
+void UPandoraComponent::ServerSetPandoraLoadoutSlot_Implementation(EEnum_Direction Direction,
 	FPrimaryAssetId PandoraDefinitionId)
 {
 	if (!PandoraLoadout::IsLoadoutDirection(Direction))
 	{
-		LogRejectedServerRequest(
-			TEXT("SetLoadoutSlot"),
-			FString::Printf(
-				TEXT("invalid direction=%d"),
-				static_cast<int32>(Direction)));
+		LogRejectedServerRequest(TEXT("SetLoadoutSlot"),
+			FString::Printf(TEXT("invalid direction=%d"), static_cast<int32>(Direction)));
 		return;
 	}
 
@@ -404,10 +382,8 @@ void UPandoraComponent::ServerSetPandoraLoadoutSlot_Implementation(
 		PandoraDefinition = FindOwnedPandoraDefinitionByPrimaryAssetId(PandoraDefinitionId);
 		if (!PandoraDefinition)
 		{
-			LogRejectedServerRequest(
-				TEXT("SetLoadoutSlot"),
-				FString::Printf(
-					TEXT("Pandora is not owned or cannot be resolved. AssetId=%s"),
+			LogRejectedServerRequest(TEXT("SetLoadoutSlot"),
+				FString::Printf(TEXT("Pandora is not owned or cannot be resolved. AssetId=%s"),
 					*PandoraDefinitionId.ToString()));
 			return;
 		}
@@ -415,10 +391,8 @@ void UPandoraComponent::ServerSetPandoraLoadoutSlot_Implementation(
 
 	if (!SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition))
 	{
-		LogRejectedServerRequest(
-			TEXT("SetLoadoutSlot"),
-			FString::Printf(
-				TEXT("loadout policy rejected AssetId=%s Direction=%d"),
+		LogRejectedServerRequest(TEXT("SetLoadoutSlot"),
+			FString::Printf(TEXT("loadout policy rejected AssetId=%s Direction=%d"),
 				*PandoraDefinitionId.ToString(),
 				static_cast<int32>(Direction)));
 	}
@@ -428,19 +402,15 @@ void UPandoraComponent::ServerAutoSetPandoraLoadoutSlot_Implementation(FPrimaryA
 {
 	if (!PandoraDefinitionId.IsValid())
 	{
-		LogRejectedServerRequest(
-			TEXT("AutoSetLoadoutSlot"),
-			TEXT("invalid Pandora PrimaryAssetId"));
+		LogRejectedServerRequest(TEXT("AutoSetLoadoutSlot"), TEXT("invalid Pandora PrimaryAssetId"));
 		return;
 	}
 
 	const UPandoraDefinition* PandoraDefinition = FindOwnedPandoraDefinitionByPrimaryAssetId(PandoraDefinitionId);
 	if (!PandoraDefinition)
 	{
-		LogRejectedServerRequest(
-			TEXT("AutoSetLoadoutSlot"),
-			FString::Printf(
-				TEXT("Pandora is not owned or cannot be resolved. AssetId=%s"),
+		LogRejectedServerRequest(TEXT("AutoSetLoadoutSlot"),
+			FString::Printf(TEXT("Pandora is not owned or cannot be resolved. AssetId=%s"),
 				*PandoraDefinitionId.ToString()));
 		return;
 	}
@@ -448,20 +418,16 @@ void UPandoraComponent::ServerAutoSetPandoraLoadoutSlot_Implementation(FPrimaryA
 	EEnum_Direction Direction = EEnum_Direction::Center;
 	if (!ResolvePreferredAutoPandoraLoadoutDirection(PandoraDefinition, Direction))
 	{
-		LogRejectedServerRequest(
-			TEXT("AutoSetLoadoutSlot"),
-			FString::Printf(
-				TEXT("no compatible loadout slot. AssetId=%s"),
+		LogRejectedServerRequest(TEXT("AutoSetLoadoutSlot"),
+			FString::Printf(TEXT("no compatible loadout slot. AssetId=%s"),
 				*PandoraDefinitionId.ToString()));
 		return;
 	}
 
 	if (!SetPandoraLoadoutSlotInternal(Direction, PandoraDefinition))
 	{
-		LogRejectedServerRequest(
-			TEXT("AutoSetLoadoutSlot"),
-			FString::Printf(
-				TEXT("loadout policy rejected AssetId=%s Direction=%d"),
+		LogRejectedServerRequest(TEXT("AutoSetLoadoutSlot"),
+			FString::Printf(TEXT("loadout policy rejected AssetId=%s Direction=%d"),
 				*PandoraDefinitionId.ToString(),
 				static_cast<int32>(Direction)));
 	}
@@ -486,8 +452,7 @@ bool UPandoraComponent::AddOwnedPandoraEntry(const UPandoraDefinition* PandoraDe
 	return true;
 }
 
-bool UPandoraComponent::SelectPandoraByPrimaryAssetId(
-	FPrimaryAssetId PandoraDefinitionId,
+bool UPandoraComponent::SelectPandoraByPrimaryAssetId(FPrimaryAssetId PandoraDefinitionId,
 	const EEnum_Direction RequestedDirection)
 {
 	if (!HasPandoraAuthority())
@@ -556,8 +521,7 @@ void UPandoraComponent::RefreshCurrentPandoraSkills()
 	const int32 RuntimeLevel = ResolveSelectedPandoraRuntimeLevel(CurrentPandoraDefinition);
 
 	const bool bCompatibleWithCurrentWeapon = IsPandoraCompatibleWithCurrentWeapon(CurrentPandoraDefinition);
-	const EEnum_Direction EffectiveLoadoutDirection = ResolvePandoraSelectionDirection(
-		CurrentPandoraDefinition,
+	const EEnum_Direction EffectiveLoadoutDirection = ResolvePandoraSelectionDirection(CurrentPandoraDefinition,
 		CurrentPandoraLoadoutDirection);
 
 	if (CurrentPandoraLoadoutDirection != EffectiveLoadoutDirection)
@@ -599,8 +563,7 @@ int32 UPandoraComponent::ResolveSelectedPandoraRuntimeLevel(const UPandoraDefini
 	return FMath::Clamp(PandoraLevel, 1, FMath::Max(MaxUnlockLevel, 1));
 }
 
-EEnum_Direction UPandoraComponent::ResolvePandoraSelectionDirection(
-	const UPandoraDefinition* PandoraDefinition,
+EEnum_Direction UPandoraComponent::ResolvePandoraSelectionDirection(const UPandoraDefinition* PandoraDefinition,
 	const EEnum_Direction RequestedDirection) const
 {
 	if (!PandoraDefinition)
@@ -688,8 +651,7 @@ void UPandoraComponent::NotifyPandoraLoadoutChanged()
 	OnPandoraLoadoutChanged.Broadcast();
 }
 
-bool UPandoraComponent::ResolveAutoPandoraLoadoutDirection(
-	const UPandoraDefinition* PandoraDefinition,
+bool UPandoraComponent::ResolveAutoPandoraLoadoutDirection(const UPandoraDefinition* PandoraDefinition,
 	EEnum_Direction& OutDirection) const
 {
 	OutDirection = EEnum_Direction::Center;
@@ -719,8 +681,7 @@ bool UPandoraComponent::ResolveAutoPandoraLoadoutDirection(
 	return false;
 }
 
-bool UPandoraComponent::ResolvePreferredAutoPandoraLoadoutDirection(
-	const UPandoraDefinition* PandoraDefinition,
+bool UPandoraComponent::ResolvePreferredAutoPandoraLoadoutDirection(const UPandoraDefinition* PandoraDefinition,
 	EEnum_Direction& OutDirection) const
 {
 	OutDirection = EEnum_Direction::Center;
@@ -745,8 +706,7 @@ bool UPandoraComponent::ResolvePreferredAutoPandoraLoadoutDirection(
 	return ResolveAutoPandoraLoadoutDirection(PandoraDefinition, OutDirection);
 }
 
-bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
-	const EEnum_Direction Direction,
+bool UPandoraComponent::SetPandoraLoadoutSlotInternal(const EEnum_Direction Direction,
 	const UPandoraDefinition* PandoraDefinition)
 {
 	if (!HasPandoraAuthority() || !PandoraLoadout::IsLoadoutDirection(Direction))

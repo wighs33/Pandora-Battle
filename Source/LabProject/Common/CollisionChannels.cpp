@@ -18,9 +18,7 @@ namespace
 			}
 		}
 
-		UE_LOG(
-			LogLabCollisionChannels,
-			Fatal,
+		UE_LOG(LogLabCollisionChannels, Fatal,
 			TEXT("Required collision channel '%s' is missing. Configure it in Project Settings > Engine > Collision."),
 			ChannelName);
 		return ECC_MAX;

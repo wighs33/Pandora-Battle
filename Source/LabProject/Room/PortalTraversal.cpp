@@ -3,14 +3,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
 
-bool FPortalTraversalTracker::UpdateCrossing(
-	const AActor* Actor,
-	const FVector& Point,
-	const FVector& PlaneLocation,
-	const FVector& PlaneNormal,
-	const double Now,
-	const float Cooldown,
-	const float CrossingTolerance)
+bool FPortalTraversalTracker::UpdateCrossing(const AActor* Actor, const FVector& Point, const FVector& PlaneLocation,
+	const FVector& PlaneNormal, const double Now, const float Cooldown, const float CrossingTolerance)
 {
 	if (!Actor)
 	{
@@ -42,12 +36,8 @@ bool FPortalTraversalTracker::UpdateCrossing(
 	return bCrossedPlane && !bCoolingDown;
 }
 
-void FPortalTraversalTracker::Prime(
-	const AActor* Actor,
-	const FVector& Location,
-	const FVector& PlaneLocation,
-	const FVector& PlaneForward,
-	const double Now)
+void FPortalTraversalTracker::Prime(const AActor* Actor, const FVector& Location, const FVector& PlaneLocation,
+	const FVector& PlaneForward, const double Now)
 {
 	if (!Actor)
 	{
@@ -110,8 +100,7 @@ void FPortalOverlapList::Untrack(AActor* Actor, const UPrimitiveComponent* Overl
 {
 	if (!Actor)
 	{
-		Actors.RemoveAllSwap(
-			[](const TWeakObjectPtr<AActor>& ExistingActor)
+		Actors.RemoveAllSwap([](const TWeakObjectPtr<AActor>& ExistingActor)
 			{
 				return !ExistingActor.IsValid();
 			});
@@ -122,8 +111,7 @@ void FPortalOverlapList::Untrack(AActor* Actor, const UPrimitiveComponent* Overl
 		return;
 	}
 
-	Actors.RemoveAllSwap(
-		[Actor](const TWeakObjectPtr<AActor>& ExistingActor)
+	Actors.RemoveAllSwap([Actor](const TWeakObjectPtr<AActor>& ExistingActor)
 		{
 			return !ExistingActor.IsValid() || ExistingActor.Get() == Actor;
 		});
@@ -134,9 +122,7 @@ bool FPortalOverlapList::HasAny(const UPrimitiveComponent* OverlapComponent, con
 	for (int32 ActorIndex = Actors.Num() - 1; ActorIndex >= 0; --ActorIndex)
 	{
 		AActor* Actor = Actors[ActorIndex].Get();
-		if (!IsCandidate(Actor)
-			|| !OverlapComponent
-			|| !OverlapComponent->IsOverlappingActor(Actor))
+		if (!IsCandidate(Actor) || !OverlapComponent || !OverlapComponent->IsOverlappingActor(Actor))
 		{
 			Actors.RemoveAtSwap(ActorIndex);
 			continue;
@@ -148,19 +134,14 @@ bool FPortalOverlapList::HasAny(const UPrimitiveComponent* OverlapComponent, con
 	return false;
 }
 
-void FPortalOverlapList::Collect(
-	const UPrimitiveComponent* OverlapComponent,
-	const FCandidateFilter IsCandidate,
-	TArray<AActor*>& OutActors,
-	const TFunctionRef<void(AActor*)> OnDropped)
+void FPortalOverlapList::Collect(const UPrimitiveComponent* OverlapComponent, const FCandidateFilter IsCandidate,
+	TArray<AActor*>& OutActors, const TFunctionRef<void(AActor*)> OnDropped)
 {
 	OutActors.Reset();
 	for (int32 ActorIndex = Actors.Num() - 1; ActorIndex >= 0; --ActorIndex)
 	{
 		AActor* Actor = Actors[ActorIndex].Get();
-		if (IsCandidate(Actor)
-			&& OverlapComponent
-			&& OverlapComponent->IsOverlappingActor(Actor))
+		if (IsCandidate(Actor) && OverlapComponent && OverlapComponent->IsOverlappingActor(Actor))
 		{
 			OutActors.Add(Actor);
 			continue;

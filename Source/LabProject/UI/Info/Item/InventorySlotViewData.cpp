@@ -8,11 +8,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InventorySlotViewData)
 
-void UInventorySlotViewData::Initialize(
-	const int32 InSlotIndex,
-	UItemInstance* InItemInstance,
-	const bool bInDuplicateWeaponOrEquipment,
-	const bool bInAssigned)
+void UInventorySlotViewData::Initialize(const int32 InSlotIndex, UItemInstance* InItemInstance,
+	const bool bInDuplicateWeaponOrEquipment, const bool bInAssigned)
 {
 	SlotIndex = InSlotIndex;
 	ItemInstance = InItemInstance;

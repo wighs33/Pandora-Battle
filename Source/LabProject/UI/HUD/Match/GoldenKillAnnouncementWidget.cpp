@@ -53,11 +53,7 @@ void UGoldenKillAnnouncementWidget::PlayGoldenKillAnnouncement(const FText& Over
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(
-			HideTimerHandle,
-			this,
-			&ThisClass::HideGoldenKillAnnouncement,
-			HideDelay,
+		World->GetTimerManager().SetTimer(HideTimerHandle, this, &ThisClass::HideGoldenKillAnnouncement, HideDelay,
 			false);
 	}
 }

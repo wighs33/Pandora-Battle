@@ -61,12 +61,8 @@ void UHudScoreboardLayer::Show()
 	if (UWorld* World = Hud->GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(RefreshTimerHandle);
-		World->GetTimerManager().SetTimer(
-			RefreshTimerHandle,
-			this,
-			&ThisClass::Refresh,
-			ScoreboardRefreshIntervalSeconds,
-			true);
+		World->GetTimerManager().SetTimer(RefreshTimerHandle, this, &ThisClass::Refresh,
+			ScoreboardRefreshIntervalSeconds, true);
 	}
 
 	Hud->RefreshPlayerHudVisibility();

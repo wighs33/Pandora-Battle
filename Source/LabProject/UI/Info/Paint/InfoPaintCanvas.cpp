@@ -20,22 +20,14 @@ namespace
 	const FName CanvasTextureParameterName(TEXT("CanvasTexture"));
 }
 
-void UInfoPaintCanvas::Initialize(
-	UInfoWidget* InOwnerWidget,
-	UPaintCanvasWidget* InPaintCanvasWidget)
+void UInfoPaintCanvas::Initialize(UInfoWidget* InOwnerWidget, UPaintCanvasWidget* InPaintCanvasWidget)
 {
 	OwnerWidget = InOwnerWidget;
 	PaintCanvasWidget = InPaintCanvasWidget;
 
-	const APlayerController* PlayerController = OwnerWidget
-		? OwnerWidget->GetOwningPlayer()
-		: nullptr;
-	const APdHUD* HUD = PlayerController
-		? Cast<APdHUD>(PlayerController->GetHUD())
-		: nullptr;
-	const UWidgetClassDefinition* WidgetDefinition = HUD
-		? HUD->GetWidgetClassDefinition()
-		: nullptr;
+	const APlayerController* PlayerController = OwnerWidget ? OwnerWidget->GetOwningPlayer() : nullptr;
+	const APdHUD* HUD = PlayerController ? Cast<APdHUD>(PlayerController->GetHUD()) : nullptr;
+	const UWidgetClassDefinition* WidgetDefinition = HUD ? HUD->GetWidgetClassDefinition() : nullptr;
 	OpaqueCanvasDisplayMaterial = WidgetDefinition
 		? WidgetDefinition->GetSkinWidgetSettings().PaintCanvasDisplayMaterial.Get()
 		: nullptr;
@@ -79,20 +71,13 @@ bool UInfoPaintCanvas::SetVisible(const bool bVisible)
 	UTextureRenderTarget2D* RenderTarget = PaintCanvasComponent
 		? PaintCanvasComponent->GetActivePaintCanvasRenderTarget()
 		: nullptr;
-	UImage* PaintCanvasImage = PaintCanvasWidget
-		? PaintCanvasWidget->GetCanvasImage()
-		: nullptr;
+	UImage* PaintCanvasImage = PaintCanvasWidget ? PaintCanvasWidget->GetCanvasImage() : nullptr;
 	if (!OpaqueCanvasDisplayMaterialInstance && OpaqueCanvasDisplayMaterial)
 	{
-		OpaqueCanvasDisplayMaterialInstance = UMaterialInstanceDynamic::Create(
-			OpaqueCanvasDisplayMaterial,
-			this);
+		OpaqueCanvasDisplayMaterialInstance = UMaterialInstanceDynamic::Create(OpaqueCanvasDisplayMaterial, this);
 	}
 
-	if (!PaintCanvasWidget
-		|| !PaintCanvasImage
-		|| !RenderTarget
-		|| !OpaqueCanvasDisplayMaterialInstance
+	if (!PaintCanvasWidget || !PaintCanvasImage || !RenderTarget || !OpaqueCanvasDisplayMaterialInstance
 		|| !PlayerCharacter->HasActivePaintCanvas())
 	{
 		if (PaintCanvasWidget)
@@ -106,9 +91,7 @@ bool UInfoPaintCanvas::SetVisible(const bool bVisible)
 		return false;
 	}
 
-	OpaqueCanvasDisplayMaterialInstance->SetTextureParameterValue(
-		CanvasTextureParameterName,
-		RenderTarget);
+	OpaqueCanvasDisplayMaterialInstance->SetTextureParameterValue(CanvasTextureParameterName, RenderTarget);
 	PaintCanvasImage->SetBrushFromMaterial(OpaqueCanvasDisplayMaterialInstance);
 	if (UImage* Speech = PaintCanvasWidget->GetSpeechPreviewImage())
 		Speech->SetBrushFromMaterial(OpaqueCanvasDisplayMaterialInstance);
@@ -129,9 +112,7 @@ bool UInfoPaintCanvas::BeginStroke(const FVector2D& ScreenSpacePosition)
 	return bIsDrawing;
 }
 
-bool UInfoPaintCanvas::ContinueStroke(
-	const FVector2D& ScreenSpacePosition,
-	const bool bIsLeftMouseButtonDown)
+bool UInfoPaintCanvas::ContinueStroke(const FVector2D& ScreenSpacePosition, const bool bIsLeftMouseButtonDown)
 {
 	if (!bIsDrawing)
 	{
@@ -198,13 +179,9 @@ bool UInfoPaintCanvas::ApplyActiveCanvasToFaceDecal()
 	}
 
 	UMaterialInterface* FaceDecalMaterial = SkinSettings.PaintCanvasFaceDecalMaterial.Get();
-	return FaceDecalMaterial
-		&& PlayerCharacter->ApplyActivePaintCanvasToFaceDecal(
-			FaceDecalMaterial,
-			SkinSettings.PaintCanvasFaceDecalSocketName,
-			SkinSettings.PaintCanvasFaceDecalTransformOffset,
-			SkinSettings.PaintCanvasFaceDecalSize,
-			SkinSettings.PaintCanvasFaceDecalTextureParameterName);
+	return FaceDecalMaterial && PlayerCharacter->ApplyActivePaintCanvasToFaceDecal(FaceDecalMaterial,
+		SkinSettings.PaintCanvasFaceDecalSocketName, SkinSettings.PaintCanvasFaceDecalTransformOffset,
+		SkinSettings.PaintCanvasFaceDecalSize, SkinSettings.PaintCanvasFaceDecalTextureParameterName);
 }
 
 bool UInfoPaintCanvas::HasActiveCanvas() const
@@ -238,22 +215,15 @@ bool UInfoPaintCanvas::PaintAtScreenPosition(const FVector2D& ScreenSpacePositio
 	UPaintCanvasComponent* PaintCanvasComponent = PlayerCharacter
 		? PlayerCharacter->GetPaintCanvasComponent()
 		: nullptr;
-	const bool bPainted = PaintCanvasComponent
-		&& PaintCanvasComponent->PaintAtNormalizedLocation(DrawLocation);
+	const bool bPainted = PaintCanvasComponent && PaintCanvasComponent->PaintAtNormalizedLocation(DrawLocation);
 	if (bPainted && Preview) Preview->Refresh();
 	return bPainted;
 }
 
-bool UInfoPaintCanvas::TryGetDrawLocation(
-	const FVector2D& ScreenSpacePosition,
-	FVector2D& OutDrawLocation) const
+bool UInfoPaintCanvas::TryGetDrawLocation(const FVector2D& ScreenSpacePosition, FVector2D& OutDrawLocation) const
 {
-	const UImage* PaintCanvasImage = PaintCanvasWidget
-		? PaintCanvasWidget->GetCanvasImage()
-		: nullptr;
-	if (!PaintCanvasWidget
-		|| !PaintCanvasImage
-		|| PaintCanvasWidget->GetVisibility() == ESlateVisibility::Collapsed
+	const UImage* PaintCanvasImage = PaintCanvasWidget ? PaintCanvasWidget->GetCanvasImage() : nullptr;
+	if (!PaintCanvasWidget || !PaintCanvasImage || PaintCanvasWidget->GetVisibility() == ESlateVisibility::Collapsed
 		|| PaintCanvasWidget->GetVisibility() == ESlateVisibility::Hidden)
 	{
 		return false;
@@ -267,16 +237,13 @@ bool UInfoPaintCanvas::TryGetDrawLocation(
 	}
 
 	const FVector2D LocalPosition = CanvasGeometry.AbsoluteToLocal(ScreenSpacePosition);
-	if (LocalPosition.X < 0.0
-		|| LocalPosition.Y < 0.0
-		|| LocalPosition.X > CanvasSize.X
+	if (LocalPosition.X < 0.0 || LocalPosition.Y < 0.0 || LocalPosition.X > CanvasSize.X
 		|| LocalPosition.Y > CanvasSize.Y)
 	{
 		return false;
 	}
 
-	OutDrawLocation = FVector2D(
-		FMath::Clamp(LocalPosition.X / CanvasSize.X, 0.0, 1.0),
+	OutDrawLocation = FVector2D(FMath::Clamp(LocalPosition.X / CanvasSize.X, 0.0, 1.0),
 		FMath::Clamp(LocalPosition.Y / CanvasSize.Y, 0.0, 1.0));
 	return true;
 }

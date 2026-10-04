@@ -42,9 +42,8 @@ bool UExperienceDefinition::ResolveGameFeaturePluginURLs(TArray<FString>& OutPlu
 		FString PluginURL;
 		if (!UGameFeaturesSubsystem::Get().GetPluginURLByName(GameFeatureId.PrimaryAssetName.ToString(), PluginURL))
 		{
-			OutError = FText::Format(
-				NSLOCTEXT("ExperienceDefinition", "PluginNameMismatch",
-					"No GameFeature plugin matches {0}. The GameFeatureData asset name must match its plugin name."),
+			OutError = FText::Format(NSLOCTEXT("ExperienceDefinition", "PluginNameMismatch",
+				"No GameFeature plugin matches {0}. The GameFeatureData asset name must match its plugin name."),
 				FText::FromString(GameFeatureId.ToString()));
 			return false;
 		}

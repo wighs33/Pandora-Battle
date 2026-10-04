@@ -10,9 +10,7 @@ void PdEditorTransaction::ResetIfContainsPieObjects()
 #if WITH_EDITOR
 	if (GEditor && GEditor->Trans && GEditor->Trans->ContainsPieObjects())
 	{
-		GEditor->ResetTransaction(NSLOCTEXT(
-			"PdEditorTransaction",
-			"TransactionContainedPieUiObject",
+		GEditor->ResetTransaction(NSLOCTEXT("PdEditorTransaction", "TransactionContainedPieUiObject",
 			"A PIE UI object was in the transaction buffer and had to be destroyed"));
 	}
 #endif

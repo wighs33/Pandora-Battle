@@ -10,8 +10,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatusEffectReplicationComponent)
 
-void FReplicatedStatusEffectStackEntry::PostReplicatedAdd(
-	const FReplicatedStatusEffectStackList& InArraySerializer)
+void FReplicatedStatusEffectStackEntry::PostReplicatedAdd(const FReplicatedStatusEffectStackList& InArraySerializer)
 {
 	if (InArraySerializer.Owner)
 	{
@@ -19,8 +18,7 @@ void FReplicatedStatusEffectStackEntry::PostReplicatedAdd(
 	}
 }
 
-void FReplicatedStatusEffectStackEntry::PostReplicatedChange(
-	const FReplicatedStatusEffectStackList& InArraySerializer)
+void FReplicatedStatusEffectStackEntry::PostReplicatedChange(const FReplicatedStatusEffectStackList& InArraySerializer)
 {
 	if (InArraySerializer.Owner)
 	{
@@ -28,8 +26,7 @@ void FReplicatedStatusEffectStackEntry::PostReplicatedChange(
 	}
 }
 
-void FReplicatedStatusEffectStackEntry::PreReplicatedRemove(
-	const FReplicatedStatusEffectStackList& InArraySerializer)
+void FReplicatedStatusEffectStackEntry::PreReplicatedRemove(const FReplicatedStatusEffectStackList& InArraySerializer)
 {
 	if (InArraySerializer.Owner)
 	{
@@ -37,8 +34,7 @@ void FReplicatedStatusEffectStackEntry::PreReplicatedRemove(
 	}
 }
 
-UStatusEffectReplicationComponent::UStatusEffectReplicationComponent(
-	const FObjectInitializer& ObjectInitializer)
+UStatusEffectReplicationComponent::UStatusEffectReplicationComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -52,8 +48,7 @@ void UStatusEffectReplicationComponent::BeginPlay()
 	ReplicatedStacks.Owner = this;
 }
 
-void UStatusEffectReplicationComponent::EndPlay(
-	const EEndPlayReason::Type EndPlayReason)
+void UStatusEffectReplicationComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnbindAbilitySystem();
 	ReplicatedStacks.Owner = nullptr;
@@ -62,22 +57,16 @@ void UStatusEffectReplicationComponent::EndPlay(
 	Super::EndPlay(EndPlayReason);
 }
 
-void UStatusEffectReplicationComponent::GetLifetimeReplicatedProps(
-	TArray<FLifetimeProperty>& OutLifetimeProps) const
+void UStatusEffectReplicationComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
-	DOREPLIFETIME_WITH_PARAMS_FAST(
-		UStatusEffectReplicationComponent,
-		ReplicatedStacks,
-		Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UStatusEffectReplicationComponent, ReplicatedStacks, Params);
 }
 
-void UStatusEffectReplicationComponent::SetStatusEffectStackCount(
-	const FGameplayTag DebuffTag,
-	const int32 StackCount,
+void UStatusEffectReplicationComponent::SetStatusEffectStackCount(const FGameplayTag DebuffTag, const int32 StackCount,
 	const FActiveGameplayEffectHandle ActiveEffectHandle)
 {
 	AActor* OwnerActor = GetOwner();
@@ -95,17 +84,15 @@ void UStatusEffectReplicationComponent::SetStatusEffectStackCount(
 	EnsureAbilitySystemBinding();
 	TrackDebuffTag(DebuffTag);
 	RefreshTrackedActiveEffects(DebuffTag);
-	// The apply callback can run before a tag query exposes the new handle.
-	// Keep the authoritative handle supplied by GAS even in that ordering.
+	// 적용 콜백은 태그 질의가 새 핸들을 보여 주기 전에 불릴 수 있다.
+	// 그 순서에서도 GAS가 넘겨 준 권위 있는 핸들을 유지한다.
 	TrackActiveEffect(DebuffTag, ActiveEffectHandle);
 	WriteReplicatedStack(DebuffTag, StackCount);
 }
 
 FActiveGameplayEffectHandle UStatusEffectReplicationComponent::ApplyTrackedStatusEffect(
-	UAbilitySystemComponent& SourceAbilitySystemComponent,
-	UAbilitySystemComponent& TargetAbilitySystemComponent,
-	const UStatusEffectDefinition& StatusEffectDefinition,
-	const FGameplayEffectSpec& StatusEffectSpec)
+	UAbilitySystemComponent& SourceAbilitySystemComponent, UAbilitySystemComponent& TargetAbilitySystemComponent,
+	const UStatusEffectDefinition& StatusEffectDefinition, const FGameplayEffectSpec& StatusEffectSpec)
 {
 	if (!StatusEffectDefinition.CanStack(&TargetAbilitySystemComponent))
 	{
@@ -127,16 +114,12 @@ FActiveGameplayEffectHandle UStatusEffectReplicationComponent::ApplyTrackedStatu
 	return AppliedHandle;
 }
 
-void UStatusEffectReplicationComponent::TrackAppliedStatusEffect(
-	const UStatusEffectDefinition* StatusEffectDefinition,
+void UStatusEffectReplicationComponent::TrackAppliedStatusEffect(const UStatusEffectDefinition* StatusEffectDefinition,
 	const FActiveGameplayEffectHandle ActiveEffectHandle)
 {
 	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor
-		|| !OwnerActor->HasAuthority()
-		|| !StatusEffectDefinition
-		|| !StatusEffectDefinition->StackTag.IsValid()
-		|| !ActiveEffectHandle.IsValid())
+	if (!OwnerActor || !OwnerActor->HasAuthority() || !StatusEffectDefinition
+		|| !StatusEffectDefinition->StackTag.IsValid() || !ActiveEffectHandle.IsValid())
 	{
 		return;
 	}
@@ -146,18 +129,11 @@ void UStatusEffectReplicationComponent::TrackAppliedStatusEffect(
 	const int32 StackCount = BoundAbilitySystemComponent.IsValid()
 		? BoundAbilitySystemComponent->GetCurrentStackCount(ActiveEffectHandle)
 		: 0;
-	SetStatusEffectStackCount(
-		DebuffTag,
-		FMath::Max(StackCount, 1),
-		ActiveEffectHandle);
-	RestartStatusEffectDecay(
-		StatusEffectDefinition,
-		ActiveEffectHandle,
-		FMath::Max(StackCount, 1));
+	SetStatusEffectStackCount(DebuffTag, FMath::Max(StackCount, 1), ActiveEffectHandle);
+	RestartStatusEffectDecay(StatusEffectDefinition, ActiveEffectHandle, FMath::Max(StackCount, 1));
 }
 
-int32 UStatusEffectReplicationComponent::GetStatusEffectStackCount(
-	const FGameplayTag DebuffTag) const
+int32 UStatusEffectReplicationComponent::GetStatusEffectStackCount(const FGameplayTag DebuffTag) const
 {
 	const int32 EntryIndex = FindReplicatedStackIndex(DebuffTag);
 	return ReplicatedStacks.Entries.IsValidIndex(EntryIndex)
@@ -165,8 +141,7 @@ int32 UStatusEffectReplicationComponent::GetStatusEffectStackCount(
 		: 0;
 }
 
-void UStatusEffectReplicationComponent::NotifyStatusEffectStackChanged(
-	const FGameplayTag DebuffTag,
+void UStatusEffectReplicationComponent::NotifyStatusEffectStackChanged(const FGameplayTag DebuffTag,
 	const int32 StackCount)
 {
 	if (DebuffTag.IsValid())
@@ -188,8 +163,7 @@ void UStatusEffectReplicationComponent::EnsureAbilitySystemBinding()
 	BoundAbilitySystemComponent = AbilitySystemComponent;
 	if (AbilitySystemComponent)
 	{
-		ActiveEffectRemovedHandle = AbilitySystemComponent
-			->OnAnyGameplayEffectRemovedDelegate()
+		ActiveEffectRemovedHandle = AbilitySystemComponent->OnAnyGameplayEffectRemovedDelegate()
 			.AddUObject(this, &ThisClass::HandleAnyActiveEffectRemoved);
 	}
 }
@@ -198,24 +172,19 @@ void UStatusEffectReplicationComponent::UnbindAbilitySystem()
 {
 	ClearAllStatusEffectDecayTimers();
 
-	UAbilitySystemComponent* AbilitySystemComponent =
-		BoundAbilitySystemComponent.Get();
+	UAbilitySystemComponent* AbilitySystemComponent = BoundAbilitySystemComponent.Get();
 	if (AbilitySystemComponent)
 	{
 		for (const TPair<FGameplayTag, FDelegateHandle>& Pair : DebuffTagChangedHandles)
 		{
 			if (Pair.Key.IsValid() && Pair.Value.IsValid())
 			{
-				AbilitySystemComponent
-					->RegisterGameplayTagEvent(
-						Pair.Key,
-						EGameplayTagEventType::NewOrRemoved)
+				AbilitySystemComponent->RegisterGameplayTagEvent(Pair.Key, EGameplayTagEventType::NewOrRemoved)
 					.Remove(Pair.Value);
 			}
 		}
 
-		for (const TPair<FActiveGameplayEffectHandle, FTrackedActiveEffectBinding>& Pair
-			: TrackedActiveEffects)
+		for (const TPair<FActiveGameplayEffectHandle, FTrackedActiveEffectBinding>& Pair : TrackedActiveEffects)
 		{
 			if (!Pair.Value.StackChangedHandle.IsValid())
 			{
@@ -231,8 +200,7 @@ void UStatusEffectReplicationComponent::UnbindAbilitySystem()
 
 		if (ActiveEffectRemovedHandle.IsValid())
 		{
-			AbilitySystemComponent->OnAnyGameplayEffectRemovedDelegate().Remove(
-				ActiveEffectRemovedHandle);
+			AbilitySystemComponent->OnAnyGameplayEffectRemovedDelegate().Remove(ActiveEffectRemovedHandle);
 		}
 	}
 
@@ -242,43 +210,32 @@ void UStatusEffectReplicationComponent::UnbindAbilitySystem()
 	BoundAbilitySystemComponent.Reset();
 }
 
-void UStatusEffectReplicationComponent::TrackDebuffTag(
-	const FGameplayTag DebuffTag)
+void UStatusEffectReplicationComponent::TrackDebuffTag(const FGameplayTag DebuffTag)
 {
-	UAbilitySystemComponent* AbilitySystemComponent =
-		BoundAbilitySystemComponent.Get();
-	if (!AbilitySystemComponent
-		|| !DebuffTag.IsValid()
-		|| DebuffTagChangedHandles.Contains(DebuffTag))
+	UAbilitySystemComponent* AbilitySystemComponent = BoundAbilitySystemComponent.Get();
+	if (!AbilitySystemComponent || !DebuffTag.IsValid() || DebuffTagChangedHandles.Contains(DebuffTag))
 	{
 		return;
 	}
 
 	const FDelegateHandle DelegateHandle = AbilitySystemComponent
-		->RegisterGameplayTagEvent(
-			DebuffTag,
-			EGameplayTagEventType::NewOrRemoved)
+		->RegisterGameplayTagEvent(DebuffTag, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &ThisClass::HandleDebuffTagChanged);
 	DebuffTagChangedHandles.Add(DebuffTag, DelegateHandle);
 }
 
-void UStatusEffectReplicationComponent::TrackActiveEffect(
-	const FGameplayTag DebuffTag,
+void UStatusEffectReplicationComponent::TrackActiveEffect(const FGameplayTag DebuffTag,
 	const FActiveGameplayEffectHandle ActiveEffectHandle)
 {
-	UAbilitySystemComponent* AbilitySystemComponent =
-		BoundAbilitySystemComponent.Get();
-	if (!AbilitySystemComponent
-		|| !DebuffTag.IsValid()
-		|| !ActiveEffectHandle.IsValid()
+	UAbilitySystemComponent* AbilitySystemComponent = BoundAbilitySystemComponent.Get();
+	if (!AbilitySystemComponent || !DebuffTag.IsValid() || !ActiveEffectHandle.IsValid()
 		|| TrackedActiveEffects.Contains(ActiveEffectHandle))
 	{
 		return;
 	}
 
 	FOnActiveGameplayEffectStackChange* StackChangedDelegate =
-		AbilitySystemComponent->OnGameplayEffectStackChangeDelegate(
-			ActiveEffectHandle);
+		AbilitySystemComponent->OnGameplayEffectStackChangeDelegate(ActiveEffectHandle);
 	if (!StackChangedDelegate)
 	{
 		return;
@@ -286,17 +243,13 @@ void UStatusEffectReplicationComponent::TrackActiveEffect(
 
 	FTrackedActiveEffectBinding Binding;
 	Binding.DebuffTag = DebuffTag;
-	Binding.StackChangedHandle = StackChangedDelegate->AddUObject(
-		this,
-		&ThisClass::HandleActiveEffectStackChanged);
+	Binding.StackChangedHandle = StackChangedDelegate->AddUObject(this, &ThisClass::HandleActiveEffectStackChanged);
 	TrackedActiveEffects.Add(ActiveEffectHandle, Binding);
 }
 
-void UStatusEffectReplicationComponent::RefreshTrackedActiveEffects(
-	const FGameplayTag DebuffTag)
+void UStatusEffectReplicationComponent::RefreshTrackedActiveEffects(const FGameplayTag DebuffTag)
 {
-	UAbilitySystemComponent* AbilitySystemComponent =
-		BoundAbilitySystemComponent.Get();
+	UAbilitySystemComponent* AbilitySystemComponent = BoundAbilitySystemComponent.Get();
 	if (!AbilitySystemComponent || !DebuffTag.IsValid())
 	{
 		return;
@@ -315,8 +268,7 @@ void UStatusEffectReplicationComponent::RefreshTrackedActiveEffects(
 
 	for (auto Iterator = TrackedActiveEffects.CreateIterator(); Iterator; ++Iterator)
 	{
-		if (!Iterator.Value().DebuffTag.MatchesTagExact(DebuffTag)
-			|| ActiveHandleSet.Contains(Iterator.Key()))
+		if (!Iterator.Value().DebuffTag.MatchesTagExact(DebuffTag) || ActiveHandleSet.Contains(Iterator.Key()))
 		{
 			continue;
 		}
@@ -324,19 +276,16 @@ void UStatusEffectReplicationComponent::RefreshTrackedActiveEffects(
 		if (Iterator.Value().StackChangedHandle.IsValid())
 		{
 			if (FOnActiveGameplayEffectStackChange* StackChangedDelegate =
-				AbilitySystemComponent->OnGameplayEffectStackChangeDelegate(
-					Iterator.Key()))
+				AbilitySystemComponent->OnGameplayEffectStackChangeDelegate(Iterator.Key()))
 			{
-				StackChangedDelegate->Remove(
-					Iterator.Value().StackChangedHandle);
+				StackChangedDelegate->Remove(Iterator.Value().StackChangedHandle);
 			}
 		}
 		Iterator.RemoveCurrent();
 	}
 }
 
-void UStatusEffectReplicationComponent::RefreshReplicatedStackFromAbilitySystem(
-	const FGameplayTag DebuffTag)
+void UStatusEffectReplicationComponent::RefreshReplicatedStackFromAbilitySystem(const FGameplayTag DebuffTag)
 {
 	AActor* OwnerActor = GetOwner();
 	if (!OwnerActor || !OwnerActor->HasAuthority() || !DebuffTag.IsValid())
@@ -347,16 +296,12 @@ void UStatusEffectReplicationComponent::RefreshReplicatedStackFromAbilitySystem(
 	EnsureAbilitySystemBinding();
 	TrackDebuffTag(DebuffTag);
 	RefreshTrackedActiveEffects(DebuffTag);
-	WriteReplicatedStack(
-		DebuffTag,
-		CalculateStackCountFromAbilitySystem(DebuffTag));
+	WriteReplicatedStack(DebuffTag, CalculateStackCountFromAbilitySystem(DebuffTag));
 }
 
-int32 UStatusEffectReplicationComponent::CalculateStackCountFromAbilitySystem(
-	const FGameplayTag DebuffTag) const
+int32 UStatusEffectReplicationComponent::CalculateStackCountFromAbilitySystem(const FGameplayTag DebuffTag) const
 {
-	const UAbilitySystemComponent* AbilitySystemComponent =
-		BoundAbilitySystemComponent.Get();
+	const UAbilitySystemComponent* AbilitySystemComponent = BoundAbilitySystemComponent.Get();
 	if (!AbilitySystemComponent || !DebuffTag.IsValid())
 	{
 		return 0;
@@ -370,14 +315,11 @@ int32 UStatusEffectReplicationComponent::CalculateStackCountFromAbilitySystem(
 		AbilitySystemComponent->GetActiveEffectsWithAllTags(DebuffTags);
 	for (const FActiveGameplayEffectHandle ActiveHandle : ActiveHandles)
 	{
-		const int32 HandleStackCount = FMath::Max(
-			AbilitySystemComponent->GetCurrentStackCount(ActiveHandle),
-			1);
+		const int32 HandleStackCount = FMath::Max(AbilitySystemComponent->GetCurrentStackCount(ActiveHandle), 1);
 		StackCount += HandleStackCount;
 	}
 
-	if (StackCount <= 0
-		&& AbilitySystemComponent->HasMatchingGameplayTag(DebuffTag))
+	if (StackCount <= 0 && AbilitySystemComponent->HasMatchingGameplayTag(DebuffTag))
 	{
 		StackCount = 1;
 	}
@@ -385,9 +327,7 @@ int32 UStatusEffectReplicationComponent::CalculateStackCountFromAbilitySystem(
 	return StackCount;
 }
 
-void UStatusEffectReplicationComponent::WriteReplicatedStack(
-	const FGameplayTag DebuffTag,
-	const int32 StackCount)
+void UStatusEffectReplicationComponent::WriteReplicatedStack(const FGameplayTag DebuffTag, const int32 StackCount)
 {
 	const int32 SafeStackCount = FMath::Max(StackCount, 0);
 	const int32 EntryIndex = FindReplicatedStackIndex(DebuffTag);
@@ -407,8 +347,7 @@ void UStatusEffectReplicationComponent::WriteReplicatedStack(
 
 	if (ReplicatedStacks.Entries.IsValidIndex(EntryIndex))
 	{
-		FReplicatedStatusEffectStackEntry& Entry =
-			ReplicatedStacks.Entries[EntryIndex];
+		FReplicatedStatusEffectStackEntry& Entry = ReplicatedStacks.Entries[EntryIndex];
 		if (Entry.StackCount == SafeStackCount)
 		{
 			return;
@@ -421,8 +360,7 @@ void UStatusEffectReplicationComponent::WriteReplicatedStack(
 		return;
 	}
 
-	FReplicatedStatusEffectStackEntry& NewEntry =
-		ReplicatedStacks.Entries.AddDefaulted_GetRef();
+	FReplicatedStatusEffectStackEntry& NewEntry = ReplicatedStacks.Entries.AddDefaulted_GetRef();
 	NewEntry.DebuffTag = DebuffTag;
 	NewEntry.StackCount = SafeStackCount;
 	ReplicatedStacks.MarkEntryDirty(NewEntry);
@@ -432,10 +370,7 @@ void UStatusEffectReplicationComponent::WriteReplicatedStack(
 
 void UStatusEffectReplicationComponent::MarkReplicatedStacksDirty()
 {
-	MARK_PROPERTY_DIRTY_FROM_NAME(
-		UStatusEffectReplicationComponent,
-		ReplicatedStacks,
-		this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(UStatusEffectReplicationComponent, ReplicatedStacks, this);
 
 	if (AActor* OwnerActor = GetOwner())
 	{
@@ -443,27 +378,20 @@ void UStatusEffectReplicationComponent::MarkReplicatedStacksDirty()
 	}
 }
 
-int32 UStatusEffectReplicationComponent::FindReplicatedStackIndex(
-	const FGameplayTag DebuffTag) const
+int32 UStatusEffectReplicationComponent::FindReplicatedStackIndex(const FGameplayTag DebuffTag) const
 {
-	return ReplicatedStacks.Entries.IndexOfByPredicate(
-		[DebuffTag](const FReplicatedStatusEffectStackEntry& Entry)
+	return ReplicatedStacks.Entries.IndexOfByPredicate([DebuffTag](const FReplicatedStatusEffectStackEntry& Entry)
 		{
 			return Entry.DebuffTag.MatchesTagExact(DebuffTag);
 		});
 }
 
-void UStatusEffectReplicationComponent::RestartStatusEffectDecay(
-	const UStatusEffectDefinition* StatusEffectDefinition,
-	const FActiveGameplayEffectHandle ActiveEffectHandle,
-	const int32 StackCount)
+void UStatusEffectReplicationComponent::RestartStatusEffectDecay(const UStatusEffectDefinition* StatusEffectDefinition,
+	const FActiveGameplayEffectHandle ActiveEffectHandle, const int32 StackCount)
 {
 	UWorld* World = GetWorld();
-	if (!World
-		|| !StatusEffectDefinition
-		|| !StatusEffectDefinition->StackTag.IsValid()
-		|| !ActiveEffectHandle.IsValid()
-		|| StackCount <= 0)
+	if (!World || !StatusEffectDefinition || !StatusEffectDefinition->StackTag.IsValid()
+		|| !ActiveEffectHandle.IsValid() || StackCount <= 0)
 	{
 		return;
 	}
@@ -471,70 +399,48 @@ void UStatusEffectReplicationComponent::RestartStatusEffectDecay(
 	const FGameplayTag DebuffTag = StatusEffectDefinition->StackTag;
 	ClearStatusEffectDecay(DebuffTag);
 
-	FStatusEffectDecayState& DecayState =
-		StatusEffectDecayStates.Add(DebuffTag);
+	FStatusEffectDecayState& DecayState = StatusEffectDecayStates.Add(DebuffTag);
 	DecayState.ActiveEffectHandle = ActiveEffectHandle;
-	DecayState.DecayStartTime = World->GetTimeSeconds()
-		+ StatusEffectTiming::StackHoldSeconds;
+	DecayState.DecayStartTime = World->GetTimeSeconds() + StatusEffectTiming::StackHoldSeconds;
 	DecayState.StartingStackCount = StackCount;
-	DecayState.MaxStackCount = FMath::Max(
-		StatusEffectDefinition->MaxStackCount,
-		1);
+	DecayState.MaxStackCount = FMath::Max(StatusEffectDefinition->MaxStackCount, 1);
 	const float StackBoundaryInterval =
 		(StatusEffectTiming::FullStackLifetimeSeconds - StatusEffectTiming::StackHoldSeconds)
 		/ static_cast<float>(DecayState.MaxStackCount);
 
-	World->GetTimerManager().SetTimer(
-		DecayState.UpdateTimerHandle,
-		FTimerDelegate::CreateUObject(
-			this,
-			&ThisClass::UpdateStatusEffectDecay,
-			DebuffTag),
-		StatusEffectTiming::StackHoldSeconds + StackBoundaryInterval,
-		false);
+	World->GetTimerManager().SetTimer(DecayState.UpdateTimerHandle,
+		FTimerDelegate::CreateUObject(this, &ThisClass::UpdateStatusEffectDecay, DebuffTag),
+		StatusEffectTiming::StackHoldSeconds + StackBoundaryInterval, false);
 }
 
-void UStatusEffectReplicationComponent::UpdateStatusEffectDecay(
-	const FGameplayTag DebuffTag)
+void UStatusEffectReplicationComponent::UpdateStatusEffectDecay(const FGameplayTag DebuffTag)
 {
 	UWorld* World = GetWorld();
-	UAbilitySystemComponent* AbilitySystemComponent =
-		BoundAbilitySystemComponent.Get();
-	const FStatusEffectDecayState* DecayState =
-		StatusEffectDecayStates.Find(DebuffTag);
+	UAbilitySystemComponent* AbilitySystemComponent = BoundAbilitySystemComponent.Get();
+	const FStatusEffectDecayState* DecayState = StatusEffectDecayStates.Find(DebuffTag);
 	if (!World || !AbilitySystemComponent || !DecayState)
 	{
 		ClearStatusEffectDecay(DebuffTag);
 		return;
 	}
 
-	const FActiveGameplayEffectHandle ActiveEffectHandle =
-		DecayState->ActiveEffectHandle;
-	const int32 CurrentStackCount =
-		AbilitySystemComponent->GetCurrentStackCount(ActiveEffectHandle);
+	const FActiveGameplayEffectHandle ActiveEffectHandle = DecayState->ActiveEffectHandle;
+	const int32 CurrentStackCount = AbilitySystemComponent->GetCurrentStackCount(ActiveEffectHandle);
 	if (CurrentStackCount <= 0)
 	{
 		ClearStatusEffectDecay(DebuffTag);
 		return;
 	}
 
-	const double ElapsedSeconds = FMath::Max(
-		World->GetTimeSeconds() - DecayState->DecayStartTime,
-		0.0);
-	const double RemovedStackProgress =
-		(ElapsedSeconds
-			/ static_cast<double>(StatusEffectTiming::FullStackLifetimeSeconds - StatusEffectTiming::StackHoldSeconds))
+	const double ElapsedSeconds = FMath::Max(World->GetTimeSeconds() - DecayState->DecayStartTime, 0.0);
+	const double RemovedStackProgress = (ElapsedSeconds
+		/ static_cast<double>(StatusEffectTiming::FullStackLifetimeSeconds - StatusEffectTiming::StackHoldSeconds))
 		* static_cast<double>(DecayState->MaxStackCount);
 	const int32 TargetStackCount = FMath::Max(
-		FMath::CeilToInt(
-			static_cast<double>(DecayState->StartingStackCount)
-				- RemovedStackProgress),
-		0);
+		FMath::CeilToInt(static_cast<double>(DecayState->StartingStackCount) - RemovedStackProgress), 0);
 	if (TargetStackCount < CurrentStackCount)
 	{
-		AbilitySystemComponent->RemoveActiveGameplayEffect(
-			ActiveEffectHandle,
-			CurrentStackCount - TargetStackCount);
+		AbilitySystemComponent->RemoveActiveGameplayEffect(ActiveEffectHandle, CurrentStackCount - TargetStackCount);
 	}
 
 	if (TargetStackCount <= 0)
@@ -542,39 +448,27 @@ void UStatusEffectReplicationComponent::UpdateStatusEffectDecay(
 		return;
 	}
 
-	FStatusEffectDecayState* MutableDecayState =
-		StatusEffectDecayStates.Find(DebuffTag);
+	FStatusEffectDecayState* MutableDecayState = StatusEffectDecayStates.Find(DebuffTag);
 	if (!MutableDecayState)
 	{
 		return;
 	}
 
-	const int32 RemovedStackCount =
-		MutableDecayState->StartingStackCount - TargetStackCount;
+	const int32 RemovedStackCount = MutableDecayState->StartingStackCount - TargetStackCount;
 	const double StackBoundaryInterval =
 		static_cast<double>(StatusEffectTiming::FullStackLifetimeSeconds - StatusEffectTiming::StackHoldSeconds)
 		/ static_cast<double>(MutableDecayState->MaxStackCount);
-	const double NextBoundaryTime = MutableDecayState->DecayStartTime
-		+ (static_cast<double>(RemovedStackCount + 1)
+	const double NextBoundaryTime = MutableDecayState->DecayStartTime + (static_cast<double>(RemovedStackCount + 1)
 			* StackBoundaryInterval);
-	const float NextDelay = FMath::Max(
-		static_cast<float>(NextBoundaryTime - World->GetTimeSeconds()),
+	const float NextDelay = FMath::Max(static_cast<float>(NextBoundaryTime - World->GetTimeSeconds()),
 		KINDA_SMALL_NUMBER);
-	World->GetTimerManager().SetTimer(
-		MutableDecayState->UpdateTimerHandle,
-		FTimerDelegate::CreateUObject(
-			this,
-			&ThisClass::UpdateStatusEffectDecay,
-			DebuffTag),
-		NextDelay,
-		false);
+	World->GetTimerManager().SetTimer(MutableDecayState->UpdateTimerHandle,
+		FTimerDelegate::CreateUObject(this, &ThisClass::UpdateStatusEffectDecay, DebuffTag), NextDelay, false);
 }
 
-void UStatusEffectReplicationComponent::ClearStatusEffectDecay(
-	const FGameplayTag DebuffTag)
+void UStatusEffectReplicationComponent::ClearStatusEffectDecay(const FGameplayTag DebuffTag)
 {
-	FStatusEffectDecayState* DecayState =
-		StatusEffectDecayStates.Find(DebuffTag);
+	FStatusEffectDecayState* DecayState = StatusEffectDecayStates.Find(DebuffTag);
 	if (!DecayState)
 	{
 		return;
@@ -582,8 +476,7 @@ void UStatusEffectReplicationComponent::ClearStatusEffectDecay(
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().ClearTimer(
-			DecayState->UpdateTimerHandle);
+		World->GetTimerManager().ClearTimer(DecayState->UpdateTimerHandle);
 	}
 	StatusEffectDecayStates.Remove(DebuffTag);
 }
@@ -592,19 +485,15 @@ void UStatusEffectReplicationComponent::ClearAllStatusEffectDecayTimers()
 {
 	if (UWorld* World = GetWorld())
 	{
-		for (TPair<FGameplayTag, FStatusEffectDecayState>& Pair
-			: StatusEffectDecayStates)
+		for (TPair<FGameplayTag, FStatusEffectDecayState>& Pair : StatusEffectDecayStates)
 		{
-			World->GetTimerManager().ClearTimer(
-				Pair.Value.UpdateTimerHandle);
+			World->GetTimerManager().ClearTimer(Pair.Value.UpdateTimerHandle);
 		}
 	}
 	StatusEffectDecayStates.Reset();
 }
 
-void UStatusEffectReplicationComponent::HandleDebuffTagChanged(
-	const FGameplayTag DebuffTag,
-	const int32 NewCount)
+void UStatusEffectReplicationComponent::HandleDebuffTagChanged(const FGameplayTag DebuffTag, const int32 NewCount)
 {
 	if (NewCount <= 0)
 	{
@@ -616,28 +505,20 @@ void UStatusEffectReplicationComponent::HandleDebuffTagChanged(
 }
 
 void UStatusEffectReplicationComponent::HandleActiveEffectStackChanged(
-	const FActiveGameplayEffectHandle ActiveEffectHandle,
-	const int32 NewStackCount,
-	const int32)
+	const FActiveGameplayEffectHandle ActiveEffectHandle, const int32 NewStackCount, const int32)
 {
-	if (const FTrackedActiveEffectBinding* Binding =
-		TrackedActiveEffects.Find(ActiveEffectHandle))
+	if (const FTrackedActiveEffectBinding* Binding = TrackedActiveEffects.Find(ActiveEffectHandle))
 	{
-		// GAS invokes this delegate while its active-effect container is being
-		// updated. Querying the container here can temporarily return no handles
-		// and collapse the presentation value to the one-tag fallback. The
-		// delegate's stack count is the authoritative value for this tracked GE.
-		WriteReplicatedStack(
-			Binding->DebuffTag,
-			FMath::Max(NewStackCount, 0));
+		// GAS는 활성 효과 컨테이너를 갱신하는 도중에 이 델리게이트를 부른다. 이때 컨테이너를 질의하면
+		// 핸들이 잠시 하나도 안 나와 표시 값이 태그 하나짜리 대체값으로 무너질 수 있다.
+		// 추적 중인 GE에는 델리게이트가 넘긴 스택 수가 권위 있는 값이다.
+		WriteReplicatedStack(Binding->DebuffTag, FMath::Max(NewStackCount, 0));
 	}
 }
 
-void UStatusEffectReplicationComponent::HandleAnyActiveEffectRemoved(
-	const FActiveGameplayEffect& RemovedEffect)
+void UStatusEffectReplicationComponent::HandleAnyActiveEffectRemoved(const FActiveGameplayEffect& RemovedEffect)
 {
-	const FTrackedActiveEffectBinding* Binding =
-		TrackedActiveEffects.Find(RemovedEffect.Handle);
+	const FTrackedActiveEffectBinding* Binding = TrackedActiveEffects.Find(RemovedEffect.Handle);
 	if (!Binding)
 	{
 		return;
@@ -645,10 +526,8 @@ void UStatusEffectReplicationComponent::HandleAnyActiveEffectRemoved(
 
 	const FGameplayTag DebuffTag = Binding->DebuffTag;
 	TrackedActiveEffects.Remove(RemovedEffect.Handle);
-	if (const FStatusEffectDecayState* DecayState =
-		StatusEffectDecayStates.Find(DebuffTag);
-		DecayState
-		&& DecayState->ActiveEffectHandle == RemovedEffect.Handle)
+	if (const FStatusEffectDecayState* DecayState = StatusEffectDecayStates.Find(DebuffTag);
+		DecayState && DecayState->ActiveEffectHandle == RemovedEffect.Handle)
 	{
 		ClearStatusEffectDecay(DebuffTag);
 	}
@@ -657,10 +536,7 @@ void UStatusEffectReplicationComponent::HandleAnyActiveEffectRemoved(
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimerForNextTick(
-			FTimerDelegate::CreateUObject(
-				this,
-				&ThisClass::RefreshReplicatedStackFromAbilitySystem,
-				DebuffTag));
+			FTimerDelegate::CreateUObject(this, &ThisClass::RefreshReplicatedStackFromAbilitySystem, DebuffTag));
 		return;
 	}
 

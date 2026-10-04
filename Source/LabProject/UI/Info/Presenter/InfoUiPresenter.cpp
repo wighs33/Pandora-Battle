@@ -106,11 +106,9 @@ void UInfoUiPresenter::UnbindInfoUi(const UInfoWidget* ExpectedInfoWidget)
 	InfoWidget = nullptr;
 }
 
-bool UInfoUiPresenter::WouldSelectedPandoraDirectionChangeLoadout(
-	const EEnum_Direction Direction) const
+bool UInfoUiPresenter::WouldSelectedPandoraDirectionChangeLoadout(const EEnum_Direction Direction) const
 {
-	return LoadoutStore
-		&& LoadoutStore->WouldSelectedDirectionChangeLoadout(Direction);
+	return LoadoutStore && LoadoutStore->WouldSelectedDirectionChangeLoadout(Direction);
 }
 
 void UInfoUiPresenter::HandleSelectedPandoraDirection(const EEnum_Direction Direction)
@@ -132,9 +130,7 @@ void UInfoUiPresenter::HandleOpenedInfoUi()
 	PandoraPresenter->HandleInfoUiOpened();
 }
 
-void UInfoUiPresenter::HandleClickedInfoCenterButton(
-	const FGameplayTag LeftUiTag,
-	const FGameplayTag RightUiTag)
+void UInfoUiPresenter::HandleClickedInfoCenterButton(const FGameplayTag LeftUiTag, const FGameplayTag RightUiTag)
 {
 	static_cast<void>(RightUiTag);
 	if (LeftUiTag.IsValid())
@@ -207,8 +203,7 @@ void UInfoUiPresenter::BindLoadoutStateNotification()
 	{
 		return;
 	}
-	LoadoutStateChangedDelegateHandle = LoadoutStore->OnStateChanged.AddUObject(
-		this,
+	LoadoutStateChangedDelegateHandle = LoadoutStore->OnStateChanged.AddUObject(this,
 		&ThisClass::HandleLoadoutStateChanged);
 }
 
@@ -228,9 +223,7 @@ void UInfoUiPresenter::BeginItemPresentationPreload()
 	UContentDataSubsystem* ContentSubsystem = GameInstance
 		? GameInstance->GetSubsystem<UContentDataSubsystem>()
 		: nullptr;
-	UInventoryComponent* Inventory = LoadoutStore
-		? LoadoutStore->GetInventoryComponent()
-		: nullptr;
+	UInventoryComponent* Inventory = LoadoutStore ? LoadoutStore->GetInventoryComponent() : nullptr;
 	if (!ContentSubsystem || !Inventory)
 	{
 		return;
@@ -239,18 +232,14 @@ void UInfoUiPresenter::BeginItemPresentationPreload()
 	TArray<FSoftObjectPath> IconPaths;
 	for (const TObjectPtr<UItemInstance>& ItemInstance : Inventory->GetAllItems().Items)
 	{
-		const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
-			? ItemInstance->ItemDefinition.Get()
-			: nullptr;
+		const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 		if (ItemDefinition)
 		{
 			IconPaths.Add(ItemDefinition->IconTexture.ToSoftObjectPath());
 		}
 	}
 
-	ItemPresentationLease = ContentSubsystem->AcquireContent(
-		IconPaths,
-		FSimpleDelegate::CreateWeakLambda(this, [this]()
+	ItemPresentationLease = ContentSubsystem->AcquireContent(IconPaths, FSimpleDelegate::CreateWeakLambda(this, [this]()
 		{
 			if (LoadoutStore)
 			{

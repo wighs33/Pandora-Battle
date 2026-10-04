@@ -109,20 +109,15 @@ void UShopWidget::BeginContentPreload()
 		return;
 	}
 
-	const FSimpleDelegate RefreshAfterLoad =
-		FSimpleDelegate::CreateWeakLambda(
-			this,
-			[this, PreloadGeneration]()
+	const FSimpleDelegate RefreshAfterLoad = FSimpleDelegate::CreateWeakLambda(this, [this, PreloadGeneration]()
 			{
 				if (PreloadGeneration == ContentPreloadGeneration)
 				{
 					RefreshUI();
 				}
 			});
-	PandoraContentPreloadHandle =
-		ContentDataSubsystem->PreloadPandoraDataAssetsAsync(RefreshAfterLoad);
-	SkinContentPreloadHandle =
-		ContentDataSubsystem->PreloadSkinDataAssetsAsync(RefreshAfterLoad);
+	PandoraContentPreloadHandle = ContentDataSubsystem->PreloadPandoraDataAssetsAsync(RefreshAfterLoad);
+	SkinContentPreloadHandle = ContentDataSubsystem->PreloadSkinDataAssetsAsync(RefreshAfterLoad);
 
 	TArray<FSoftObjectPath> CatalogProductPaths;
 	const TArray<FShopCatalogProductReference>& ProductReferences =
@@ -145,8 +140,7 @@ void UShopWidget::BeginContentPreload()
 		}
 	}
 
-	CatalogProductLease = ContentDataSubsystem->AcquireContent(
-		CatalogProductPaths,
+	CatalogProductLease = ContentDataSubsystem->AcquireContent(CatalogProductPaths,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginCatalogPresentationPreload));
 }
 
@@ -172,8 +166,7 @@ void UShopWidget::BeginCatalogPresentationPreload()
 		}
 	}
 
-	CatalogPresentationLease = ContentDataSubsystem->AcquireContent(
-		PresentationPaths,
+	CatalogPresentationLease = ContentDataSubsystem->AcquireContent(PresentationPaths,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshUI));
 }
 

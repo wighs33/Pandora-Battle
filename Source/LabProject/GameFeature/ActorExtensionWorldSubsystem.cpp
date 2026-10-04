@@ -11,8 +11,7 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ActorExtensionWorldSubsystem)
 
 FActorExtensionHandle::FActorExtensionHandle(UActorExtensionWorldSubsystem* InSubsystem, int32 InExtensionId)
-	: Subsystem(InSubsystem)
-	, ExtensionId(InExtensionId)
+	: Subsystem(InSubsystem), ExtensionId(InExtensionId)
 {
 }
 
@@ -156,8 +155,7 @@ bool UActorExtensionWorldSubsystem::IsTickableWhenPaused() const
 	return true;
 }
 
-TSharedPtr<FActorExtensionHandle> UActorExtensionWorldSubsystem::RegisterExtensionForClass(
-	UClass* TargetClass,
+TSharedPtr<FActorExtensionHandle> UActorExtensionWorldSubsystem::RegisterExtensionForClass(UClass* TargetClass,
 	FActorExtensionSpec ExtensionSpec)
 {
 	if (!TargetClass)
@@ -233,13 +231,9 @@ void UActorExtensionWorldSubsystem::EnsureExtensionEventHandler(UClass* TargetCl
 		return;
 	}
 
-	ExtensionEventHandles.Add(
-		TargetClass,
-		ComponentManager->AddExtensionHandler(
-			TargetClass,
-			UGameFrameworkComponentManager::FExtensionHandlerDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleActorExtensionEvent)));
+	ExtensionEventHandles.Add(TargetClass, ComponentManager->AddExtensionHandler(TargetClass,
+		UGameFrameworkComponentManager::FExtensionHandlerDelegate::CreateUObject(this,
+		&ThisClass::HandleActorExtensionEvent)));
 }
 
 void UActorExtensionWorldSubsystem::HandleActorExtensionEvent(AActor* Actor, FName EventName)
@@ -293,15 +287,13 @@ void UActorExtensionWorldSubsystem::RefreshExperienceLoadState()
 		return;
 	}
 
-	ExperienceManager->CallOrRegister_OnExperienceLoaded(FOnPdExperienceLoaded::FDelegate::CreateWeakLambda(
-		this,
+	ExperienceManager->CallOrRegister_OnExperienceLoaded(FOnPdExperienceLoaded::FDelegate::CreateWeakLambda(this,
 		[this](const UExperienceDefinition*)
 		{
 			bExperienceLoaded = true;
 		}));
 	ExperienceManager->CallOrRegister_OnExperienceLoadFailed(FOnPdExperienceLoadFailed::FDelegate::CreateWeakLambda(
-		this,
-		[this](FPrimaryAssetId, const FString&)
+		this, [this](FPrimaryAssetId, const FString&)
 		{
 			bExperienceLoaded = true;
 		}));
@@ -373,8 +365,7 @@ void UActorExtensionWorldSubsystem::CollectExtensionsForActor(AActor* Actor, TAr
 		for (const int32 ExtensionId : *ExtensionIds)
 		{
 			const FActorExtensionSpec* ExtensionSpec = ExtensionById.Find(ExtensionId);
-			if (!ExtensionSpec
-				|| IsExtensionActiveForActor(Actor, ExtensionId)
+			if (!ExtensionSpec || IsExtensionActiveForActor(Actor, ExtensionId)
 				|| IsExtensionPendingForActor(Actor, ExtensionId)
 				|| !ShouldApplyExtensionToActor(Actor, *ExtensionSpec))
 			{
@@ -424,9 +415,7 @@ void UActorExtensionWorldSubsystem::RemoveActor(AActor* Actor)
 	}
 }
 
-void UActorExtensionWorldSubsystem::DeactivateExtensionForActor(
-	AActor* Actor,
-	int32 ExtensionId,
+void UActorExtensionWorldSubsystem::DeactivateExtensionForActor(AActor* Actor, int32 ExtensionId,
 	const FActorExtensionSpec& ExtensionSpec)
 {
 	static_cast<void>(ExtensionId);
@@ -456,8 +445,7 @@ bool UActorExtensionWorldSubsystem::IsExtensionPendingForActor(AActor* Actor, in
 	return false;
 }
 
-bool UActorExtensionWorldSubsystem::ShouldApplyExtensionToActor(
-	AActor* Actor,
+bool UActorExtensionWorldSubsystem::ShouldApplyExtensionToActor(AActor* Actor,
 	const FActorExtensionSpec& ExtensionSpec) const
 {
 	if (!Actor || !ExtensionSpec.bUseClientRoleFilter)

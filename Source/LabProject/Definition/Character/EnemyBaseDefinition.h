@@ -34,11 +34,10 @@ struct LABPROJECT_API FMonsterPresentationSettings
 };
 
 /**
- * Data shared by enemy combat archetypes.
+ * 적 전투 원형들이 함께 쓰는 데이터.
  *
- * Runtime state deliberately does not live here. AEnemyBase resolves this
- * immutable configuration once during component initialization and copies it
- * into its focused runtime components.
+ * 실행 중 상태는 일부러 여기에 두지 않는다. AEnemyBase가 컴포넌트를 초기화할 때
+ * 이 불변 설정을 한 번 읽어 역할별 실행 컴포넌트에 복사한다.
  */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FEnemyCombatSettings
@@ -145,7 +144,7 @@ private:
 		meta = (AllowPrivateAccess = "true"))
 	FMonsterPresentationSettings MonsterPresentation;
 
-	/** Required server-side behavior shared by monster AI controllers. */
+	/** 몬스터 AI 컨트롤러가 함께 쓰는 서버 쪽 필수 동작. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster|AI",
 		meta = (AllowPrivateAccess = "true", AssetBundles = "Server"))
 	TSoftObjectPtr<UStateTree> MonsterStateTree;

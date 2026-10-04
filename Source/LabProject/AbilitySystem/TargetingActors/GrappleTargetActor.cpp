@@ -34,16 +34,13 @@ void AGrappleTargetActor::ConfirmTargetingAndContinue()
 	FVector ViewDirection = FVector::ZeroVector;
 	FHitResult GrappleHit;
 
-	if (!Player
-		|| !GrappleComponent
-		|| !Player->GetWeaponAimViewPoint(ViewLocation, ViewDirection)
+	if (!Player || !GrappleComponent || !Player->GetWeaponAimViewPoint(ViewLocation, ViewDirection)
 		|| !GrappleComponent->TraceGrappleFromView(ViewLocation, ViewDirection, GrappleHit))
 	{
 		CanceledDelegate.Broadcast(FGameplayAbilityTargetDataHandle());
 		return;
 	}
 
-	FGameplayAbilityTargetDataHandle TargetData(
-		new FGameplayAbilityTargetData_SingleTargetHit(GrappleHit));
+	FGameplayAbilityTargetDataHandle TargetData(new FGameplayAbilityTargetData_SingleTargetHit(GrappleHit));
 	TargetDataReadyDelegate.Broadcast(TargetData);
 }

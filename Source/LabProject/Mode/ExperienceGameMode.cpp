@@ -39,9 +39,7 @@ namespace
 	// 심리스 이동 중인 참가자가 도착할 시간을 둔 뒤 빈 경기인지 다시 확인한다.
 	constexpr float EmptyDedicatedServerLobbyReturnDelaySeconds = 3.0f;
 
-	bool DoesMapOptionMatchWorld(
-		const FLobbyMatchMapOption& MapOption,
-		const FString& CurrentPackageName,
+	bool DoesMapOptionMatchWorld(const FLobbyMatchMapOption& MapOption, const FString& CurrentPackageName,
 		const FString& CurrentLevelName)
 	{
 		const FString Package = MapOption.Map.ToSoftObjectPath().GetLongPackageName();
@@ -102,10 +100,7 @@ void AExperienceGameMode::InitGameState()
 }
 
 // 접속 승인 전 엔진의 인증 결과와 현재 서버의 정원을 확인한다.
-void AExperienceGameMode::PreLogin(
-	const FString& Options,
-	const FString& Address,
-	const FUniqueNetIdRepl& UniqueId,
+void AExperienceGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId,
 	FString& ErrorMessage)
 {
 	Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
@@ -114,8 +109,7 @@ void AExperienceGameMode::PreLogin(
 		return;
 	}
 
-	const int32 CurrentPlayerCount =
-		GameState ? GameState->PlayerArray.Num() : 0;
+	const int32 CurrentPlayerCount = GameState ? GameState->PlayerArray.Num() : 0;
 	if (CurrentPlayerCount >= LabGameSession::MaxPlayerCount)
 	{
 		ErrorMessage = TEXT("Server is full.");
@@ -184,12 +178,8 @@ void AExperienceGameMode::Logout(AController* Exiting)
 	// 보스 레이드 월드는 비어도 그대로 열어 두고 다음 참가자를 기다린다.
 	if (GetNetMode() == NM_DedicatedServer && !MatchFlowComponent->IsBossRaid())
 	{
-		GetWorldTimerManager().SetTimer(
-			EmptyDedicatedServerLobbyReturnTimerHandle,
-			this,
-			&ThisClass::ReturnEmptyDedicatedServerToLobby,
-			EmptyDedicatedServerLobbyReturnDelaySeconds,
-			false);
+		GetWorldTimerManager().SetTimer(EmptyDedicatedServerLobbyReturnTimerHandle, this,
+			&ThisClass::ReturnEmptyDedicatedServerToLobby, EmptyDedicatedServerLobbyReturnDelaySeconds, false);
 	}
 }
 
@@ -483,8 +473,7 @@ void AExperienceGameMode::NotifyBossRaidWorldReadyIfNeeded()
 // 현재 입장한 참가자의 Pawn과 기본 지급이 모두 준비됐을 때 경기 시간을 한 번만 시작한다.
 void AExperienceGameMode::TryStartServerMatch()
 {
-	if (!HasActorBegunPlay() || !CanStartGameplay()
-		|| MatchFlowComponent->IsGameResultShown())
+	if (!HasActorBegunPlay() || !CanStartGameplay() || MatchFlowComponent->IsGameResultShown())
 	{
 		return;
 	}

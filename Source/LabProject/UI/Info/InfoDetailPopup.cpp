@@ -16,12 +16,9 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InfoDetailPopup)
 
-void UInfoDetailPopup::Initialize(
-	UInfoWidget* InOwnerWidget,
-	ULeftEquipmentWidget* InEquipmentWidget,
+void UInfoDetailPopup::Initialize(UInfoWidget* InOwnerWidget, ULeftEquipmentWidget* InEquipmentWidget,
 	TSubclassOf<UItemDetailWidget> InItemDetailWidgetClass,
-	TSubclassOf<UPandoraDescriptionWidget> InPandoraDescriptionWidgetClass,
-	const FVector2D InPopupOffset)
+	TSubclassOf<UPandoraDescriptionWidget> InPandoraDescriptionWidgetClass, const FVector2D InPopupOffset)
 {
 	OwnerWidget = InOwnerWidget;
 	EquipmentWidget = InEquipmentWidget;
@@ -47,10 +44,7 @@ void UInfoDetailPopup::Shutdown()
 	OwnerWidget = nullptr;
 }
 
-void UInfoDetailPopup::ShowItem(
-	UItemInstance* ItemInstance,
-	UWidget* AnchorWidget,
-	const bool bPlaceLeftOfWidget)
+void UInfoDetailPopup::ShowItem(UItemInstance* ItemInstance, UWidget* AnchorWidget, const bool bPlaceLeftOfWidget)
 {
 	if (!ItemInstance || !AnchorWidget)
 	{
@@ -73,9 +67,7 @@ void UInfoDetailPopup::ShowItem(
 	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
 }
 
-void UInfoDetailPopup::ShowSkinDefinition(
-	const USkinDefinition* SkinDefinition,
-	UWidget* AnchorWidget,
+void UInfoDetailPopup::ShowSkinDefinition(const USkinDefinition* SkinDefinition, UWidget* AnchorWidget,
 	const bool bPlaceLeftOfWidget)
 {
 	if (!SkinDefinition || !AnchorWidget)
@@ -99,9 +91,7 @@ void UInfoDetailPopup::ShowSkinDefinition(
 	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
 }
 
-void UInfoDetailPopup::ShowPandora(
-	const UPandoraDefinition* PandoraDefinition,
-	UWidget* AnchorWidget,
+void UInfoDetailPopup::ShowPandora(const UPandoraDefinition* PandoraDefinition, UWidget* AnchorWidget,
 	const bool bPlaceLeftOfWidget)
 {
 	const APlayerController* PlayerController = OwnerWidget ? OwnerWidget->GetOwningPlayer() : nullptr;
@@ -119,8 +109,7 @@ void UInfoDetailPopup::ShowPandora(
 	{
 		return;
 	}
-	if (ActivePandoraAnchor.Get() == AnchorWidget
-		&& ActivePandoraDefinition.Get() == PandoraDefinition
+	if (ActivePandoraAnchor.Get() == AnchorWidget && ActivePandoraDefinition.Get() == PandoraDefinition
 		&& DetailWidget->GetVisibility() != ESlateVisibility::Collapsed)
 	{
 		return;
@@ -175,9 +164,7 @@ UItemDetailWidget* UInfoDetailPopup::GetOrCreateItemDetailWidget()
 	{
 		return nullptr;
 	}
-	ItemDetailWidget = CreateWidget<UItemDetailWidget>(
-		OwnerWidget->GetOwningPlayer(),
-		ItemDetailWidgetClass);
+	ItemDetailWidget = CreateWidget<UItemDetailWidget>(OwnerWidget->GetOwningPlayer(), ItemDetailWidgetClass);
 	if (ItemDetailWidget)
 	{
 		ItemDetailWidget->AddToViewport(UUiLayerRoot::TooltipZOrder);
@@ -208,8 +195,7 @@ UPandoraDescriptionWidget* UInfoDetailPopup::GetOrCreatePandoraDescriptionWidget
 	{
 		return nullptr;
 	}
-	PandoraDescriptionWidget = CreateWidget<UPandoraDescriptionWidget>(
-		OwnerWidget->GetOwningPlayer(),
+	PandoraDescriptionWidget = CreateWidget<UPandoraDescriptionWidget>(OwnerWidget->GetOwningPlayer(),
 		PandoraDescriptionWidgetClass);
 	if (PandoraDescriptionWidget)
 	{
@@ -219,9 +205,7 @@ UPandoraDescriptionWidget* UInfoDetailPopup::GetOrCreatePandoraDescriptionWidget
 	return PandoraDescriptionWidget;
 }
 
-void UInfoDetailPopup::PositionAdjacent(
-	UUserWidget* DetailWidget,
-	const UWidget* AnchorWidget,
+void UInfoDetailPopup::PositionAdjacent(UUserWidget* DetailWidget, const UWidget* AnchorWidget,
 	const bool bPlaceLeftOfWidget) const
 {
 	if (!OwnerWidget || !DetailWidget || !AnchorWidget)
@@ -252,30 +236,22 @@ void UInfoDetailPopup::PositionAdjacent(
 			ViewportPosition.Y + PopupOffset.Y);
 	if (ViewportSize.X > 0.0f && DesiredSize.X > 0.0f)
 	{
-		PopupPosition.X = FMath::Clamp(
-			PopupPosition.X,
-			0.0f,
-			FMath::Max(ViewportSize.X - DesiredSize.X, 0.0f));
+		PopupPosition.X = FMath::Clamp(PopupPosition.X, 0.0f, FMath::Max(ViewportSize.X - DesiredSize.X, 0.0f));
 	}
 	if (ViewportSize.Y > 0.0f && DesiredSize.Y > 0.0f)
 	{
-		PopupPosition.Y = FMath::Clamp(
-			PopupPosition.Y,
-			0.0f,
-			FMath::Max(ViewportSize.Y - DesiredSize.Y, 0.0f));
+		PopupPosition.Y = FMath::Clamp(PopupPosition.Y, 0.0f, FMath::Max(ViewportSize.Y - DesiredSize.Y, 0.0f));
 	}
 	DetailWidget->SetPositionInViewport(PopupPosition, false);
 }
 
-UItemInstance* UInfoDetailPopup::ResolveEquippedItemForComparison(
-	UItemInstance* HoveredItem) const
+UItemInstance* UInfoDetailPopup::ResolveEquippedItemForComparison(UItemInstance* HoveredItem) const
 {
 	if (!HoveredItem || !EquipmentWidget)
 	{
 		return nullptr;
 	}
-	const UEquipSlotWidget* EquippedSlot =
-		EquipmentWidget->FindFirstEquippedCompatibleEquipSlot(HoveredItem);
+	const UEquipSlotWidget* EquippedSlot = EquipmentWidget->FindFirstEquippedCompatibleEquipSlot(HoveredItem);
 	UItemInstance* EquippedItem = EquippedSlot ? EquippedSlot->GetItemInstance() : nullptr;
 	return EquippedItem != HoveredItem ? EquippedItem : nullptr;
 }

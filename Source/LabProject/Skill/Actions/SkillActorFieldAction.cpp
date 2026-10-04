@@ -31,9 +31,8 @@ bool HasConfiguredFieldTriggerDamage(const USkillDefinition* SkillDataAsset)
 		return SkillDataAsset && SkillDataAsset->GetResolvedDamageConfig().GameplayEffectClass != nullptr;
 	}
 
-	// Actor field trigger volumes are gameplay-only overlap queries. Keeping them
-	// as WorldDynamic lets weapon object traces hit the volume and then resolve its
-	// owning character as the damage target.
+	// 액터 필드의 트리거 볼륨은 게임플레이 전용 겹침 질의다. WorldDynamic으로 두면
+	// 무기 오브젝트 trace가 볼륨에 맞은 뒤 그 소유 캐릭터를 피해 대상으로 찾을 수 있다.
 	void ConfigureFieldTriggerCollision(UPrimitiveComponent& TriggerComponent)
 	{
 		TriggerComponent.SetCollisionProfileName(TEXT("Custom"));
@@ -43,8 +42,8 @@ bool HasConfiguredFieldTriggerDamage(const USkillDefinition* SkillDataAsset)
 		TriggerComponent.SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 		TriggerComponent.SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
 
-		// Hide only the gameplay collision primitive. Propagating this state from a
-		// root trigger also hides attached particle/Niagara components.
+		// 게임플레이 충돌 프리미티브만 숨긴다. 루트 트리거에서 이 상태를 전파하면
+		// 붙어 있는 파티클·Niagara 컴포넌트까지 숨는다.
 		TriggerComponent.SetHiddenInGame(true, false);
 	}
 
@@ -62,8 +61,7 @@ bool HasConfiguredFieldTriggerDamage(const USkillDefinition* SkillDataAsset)
 
 		if (DamageSourceActor)
 		{
-			if (HitActor == DamageSourceActor->GetOwner()
-				|| HitActor == DamageSourceActor->GetInstigator()
+			if (HitActor == DamageSourceActor->GetOwner() || HitActor == DamageSourceActor->GetInstigator()
 				|| HitActor == DamageSourceActor->GetAttachParentActor())
 			{
 				return true;
@@ -124,8 +122,7 @@ void USkillActorFieldAction::OnStart()
 		return;
 	}
 
-	FieldTriggerDamage->Configure(
-		SkillDataAsset->Damage,
+	FieldTriggerDamage->Configure(SkillDataAsset->Damage,
 		FSkillTriggerHit::CreateUObject(this, &ThisClass::ApplyFieldTriggerDamage));
 
 	StartFieldDurationMovementLockIfAllowed();
@@ -182,14 +179,11 @@ void USkillActorFieldAction::OnStop()
 			const bool bForceDestroyForSourceBuffActor = SpawnedActor && SpawnedActor->IsA<ASkillPowerUpActor>();
 			const bool bForceDestroyForBoundDamageTrigger =
 				SpawnedActor && ActorsWithBoundDamageTriggers.Contains(SpawnedActor);
-			const bool bExpiresThroughConfiguredLifeSpan =
-				Settings.bUseSpawnedActorLifeSpan
+			const bool bExpiresThroughConfiguredLifeSpan = Settings.bUseSpawnedActorLifeSpan
 				&& Settings.SpawnedActorLifeSpan > 0.0;
-			if (SpawnedActor
-				&& SpawnedActor->HasAuthority()
-				&& (bDestroySpawnedActorsOnAbilityEnd
-					|| bForceDestroyForSourceBuffActor
-					|| (bForceDestroyForBoundDamageTrigger && !bExpiresThroughConfiguredLifeSpan)))
+			if (SpawnedActor && SpawnedActor->HasAuthority() && (bDestroySpawnedActorsOnAbilityEnd
+				|| bForceDestroyForSourceBuffActor
+				|| (bForceDestroyForBoundDamageTrigger && !bExpiresThroughConfiguredLifeSpan)))
 			{
 				DestroyFieldActorWhenReplicationIsSafe(SpawnedActor, Settings);
 			}
@@ -304,8 +298,7 @@ void USkillActorFieldAction::StartFieldDurationMovementLockIfAllowed()
 
 bool USkillActorFieldAction::ShouldSkipFieldDurationMovementLock() const
 {
-	return Settings.FieldActorClass
-		&& Settings.FieldActorClass.Get()->IsChildOf(ASkillPowerUpActor::StaticClass());
+	return Settings.FieldActorClass && Settings.FieldActorClass.Get()->IsChildOf(ASkillPowerUpActor::StaticClass());
 }
 
 
@@ -337,12 +330,8 @@ void USkillActorFieldAction::StartFieldRepeatTimer()
 	}
 
 	const float RepeatInterval = static_cast<float>(FMath::Max(Settings.RepeatSpawnInterval, 0.1));
-	World->GetTimerManager().SetTimer(
-		FieldRepeatSpawnTimerHandle,
-		this,
-		&ThisClass::HandleRepeatedFieldSpawnSequence,
-		RepeatInterval,
-		true);
+	World->GetTimerManager().SetTimer(FieldRepeatSpawnTimerHandle, this, &ThisClass::HandleRepeatedFieldSpawnSequence,
+		RepeatInterval, true);
 }
 
 void USkillActorFieldAction::SpawnNextFieldActor()
@@ -371,11 +360,7 @@ void USkillActorFieldAction::SpawnNextFieldActor()
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(
-			FieldSpawnTimerHandle,
-			this,
-			&ThisClass::SpawnNextFieldActor,
-			SpawnInterval,
+		World->GetTimerManager().SetTimer(FieldSpawnTimerHandle, this, &ThisClass::SpawnNextFieldActor, SpawnInterval,
 			false);
 	}
 }
@@ -463,11 +448,8 @@ void USkillActorFieldAction::ConfigureSpawnedFieldActor(AActor& SpawnedActor, AA
 			FinishDamageConfig = SkillDataAsset->GetResolvedDamageConfig();
 		}
 
-		BlackHoleActor->ConfigureFromFieldSettings(
-			Settings,
-			FinishDamageConfig,
-			FMath::Max(GetAbility()->GetAbilityLevel(), 1),
-			PandoraLoadoutDirection);
+		BlackHoleActor->ConfigureFromFieldSettings(Settings, FinishDamageConfig,
+			FMath::Max(GetAbility()->GetAbilityLevel(), 1), PandoraLoadoutDirection);
 	}
 
 	if (ASkillPowerUpActor* PowerUpActor = Cast<ASkillPowerUpActor>(&SpawnedActor))
@@ -500,8 +482,7 @@ void USkillActorFieldAction::ApplyFieldActorLifeSpan(AActor& SpawnedActor, const
 	SpawnedActor.SetLifeSpan(RequestedLifeSpan);
 }
 
-void USkillActorFieldAction::DestroyFieldActorWhenReplicationIsSafe(
-	AActor* SpawnedActor,
+void USkillActorFieldAction::DestroyFieldActorWhenReplicationIsSafe(AActor* SpawnedActor,
 	const FSkillActorFieldSettings& FieldSettings) const
 {
 	if (!SpawnedActor || !SpawnedActor->HasAuthority())
@@ -513,12 +494,11 @@ void USkillActorFieldAction::DestroyFieldActorWhenReplicationIsSafe(
 		? static_cast<float>(FMath::Max(FieldSettings.MinimumReplicatedActorLifetime, 0.0))
 		: 0.0f;
 	const float RemainingReplicationLifetime = FMath::Max(
-		MinimumReplicatedLifetime - SpawnedActor->GetGameTimeSinceCreation(),
-		0.0f);
+		MinimumReplicatedLifetime - SpawnedActor->GetGameTimeSinceCreation(), 0.0f);
 	if (!GetAbility()->HasDurationDeadline() && RemainingReplicationLifetime > KINDA_SMALL_NUMBER)
 	{
-		// Damage delegates have already been removed. Keep only the replicated
-		// actor alive long enough for a cold client to load and instantiate it.
+		// 피해 델리게이트는 이미 지웠다. 애셋을 아직 읽지 않은 클라이언트가 읽어 만들 수 있을 만큼만
+		// 복제되는 액터를 남겨 둔다.
 		SpawnedActor->ForceNetUpdate();
 		SpawnedActor->SetLifeSpan(RemainingReplicationLifetime);
 		return;
@@ -532,10 +512,8 @@ void USkillActorFieldAction::DestroyFieldActorWhenReplicationIsSafe(
 
 bool USkillActorFieldAction::ShouldRepeatFieldSpawnSequence() const
 {
-	return GetAbility()->GetSourceSkillDataAsset()
-		&& Settings.bRepeatSpawnSequence
-		&& GetAbility()->HasDurationDeadline()
-		&& GetAbility()->GetRemainingDuration() > 0.0f
+	return GetAbility()->GetSourceSkillDataAsset() && Settings.bRepeatSpawnSequence
+		&& GetAbility()->HasDurationDeadline() && GetAbility()->GetRemainingDuration() > 0.0f
 		&& Settings.RepeatSpawnInterval > 0.0;
 }
 
@@ -615,10 +593,7 @@ FGameplayEffectSpecHandle USkillActorFieldAction::MakeFieldTriggerDamageSpec(AAc
 float USkillActorFieldAction::CalculateFieldTriggerDamageMagnitude() const
 {
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	return SkillDataAsset
-		? GetAbility()->CalculateDamageMagnitude(
-			SkillDataAsset->GetResolvedDamageConfig())
-		: 0.0f;
+	return SkillDataAsset ? GetAbility()->CalculateDamageMagnitude(SkillDataAsset->GetResolvedDamageConfig()) : 0.0f;
 }
 
 void USkillActorFieldAction::ScheduleCompletion()
@@ -643,11 +618,7 @@ void USkillActorFieldAction::ScheduleCompletion()
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(
-			FieldEndTimerHandle,
-			this,
-			&ThisClass::HandleFieldDurationFinished,
-			EndDelay,
+		World->GetTimerManager().SetTimer(FieldEndTimerHandle, this, &ThisClass::HandleFieldDurationFinished, EndDelay,
 			false);
 	}
 }

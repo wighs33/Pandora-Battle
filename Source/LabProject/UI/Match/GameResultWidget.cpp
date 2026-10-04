@@ -66,12 +66,8 @@ void UGameResultWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void UGameResultWidget::SetInfo(
-	const FText& InWinnerTitle,
-	const int32 InWinnerTeamColorIndex,
-	const FText& InMaxKillerName,
-	const int32 InMaxKillCount,
-	const TArray<FGameResultPlayerStat>& InPlayerStats)
+void UGameResultWidget::SetInfo(const FText& InWinnerTitle, const int32 InWinnerTeamColorIndex,
+	const FText& InMaxKillerName, const int32 InMaxKillCount, const TArray<FGameResultPlayerStat>& InPlayerStats)
 {
 	bInGameScoreboardMode = false;
 	WinnerTitle = InWinnerTitle;
@@ -129,19 +125,14 @@ void UGameResultWidget::RefreshUI()
 	if (Txt_WinnerInfo)
 	{
 		const FText DisplayWinnerName = WinnerTitle.IsEmpty() ? UnknownPlayerText : WinnerTitle;
-		Txt_WinnerInfo->SetText(FText::Format(
-			WinnerInfoFormat,
-			DisplayWinnerName));
+		Txt_WinnerInfo->SetText(FText::Format(WinnerInfoFormat, DisplayWinnerName));
 		Txt_WinnerInfo->SetColorAndOpacity(LabTeamColorUtils::GetTeamColor(WinnerTeamColorIndex));
 	}
 
 	if (Txt_MostKill)
 	{
 		const FText DisplayMaxKillerName = MaxKillerName.IsEmpty() ? UnknownPlayerText : MaxKillerName;
-		Txt_MostKill->SetText(FText::Format(
-			MostKillFormat,
-			DisplayMaxKillerName,
-			MaxKillCount));
+		Txt_MostKill->SetText(FText::Format(MostKillFormat, DisplayMaxKillerName, MaxKillCount));
 	}
 
 	RefreshPlayerStatsList();
@@ -181,8 +172,7 @@ void UGameResultWidget::HandleExitClicked()
 		{
 			Btn_Exit->SetIsEnabled(false);
 		}
-		EndSessionCompleteHandle = OnlineSessionsSubsystem->OnEndSessionComplete.AddUObject(
-			this,
+		EndSessionCompleteHandle = OnlineSessionsSubsystem->OnEndSessionComplete.AddUObject(this,
 			&ThisClass::HandleEndSessionForExit);
 		OnlineSessionsSubsystem->EndSession();
 		return;
@@ -195,8 +185,7 @@ void UGameResultWidget::HandleExitClicked()
 
 FString UGameResultWidget::GetResolvedLobbyTravelMapName() const
 {
-	const ULevelDefinition* Definition =
-		ULevelDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition = ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetLobbyTravelMapName() : FString();
 }
 
@@ -260,8 +249,7 @@ void UGameResultWidget::RefreshPlayerStatsList()
 	for (const FGameResultPlayerStat& PlayerStat : PlayerStats)
 	{
 		UGameResultPlayerStatEntryWidget* EntryWidget = CreateWidget<UGameResultPlayerStatEntryWidget>(
-			GetOwningPlayer(),
-			PlayerStatEntryWidgetClass);
+			GetOwningPlayer(), PlayerStatEntryWidgetClass);
 		if (!EntryWidget)
 		{
 			continue;
@@ -295,8 +283,7 @@ void UGameResultWidget::ApplyDisplayModeVisibility()
 	UWidget* ButtonOverlay = WidgetTree->FindWidget(TEXT("ButtonOverlay"));
 	if (ButtonOverlay)
 	{
-		ButtonOverlay->SetVisibility(
-			bShowResultOnlyWidgets ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		ButtonOverlay->SetVisibility(bShowResultOnlyWidgets ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 }
 

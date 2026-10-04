@@ -22,9 +22,8 @@ struct FStateTreePdPlayerDistanceConditionInstanceData
 };
 
 /**
- * Tests the flat distance between an actor and the StateTree's actual combat
- * target. A missing target does not pass the condition, allowing target loss
- * to select the roaming state.
+ * 액터와 StateTree의 실제 전투 대상 사이의 평면 거리를 검사한다.
+ * 대상이 없으면 조건을 통과하지 않으므로, 대상을 잃으면 배회 상태가 선택된다.
  */
 USTRUCT(meta = (DisplayName = "Pd Target Actor Distance", Category = "AI|Distance"))
 struct LABPROJECT_API FStateTreePdPlayerDistanceCondition : public FStateTreeAIConditionBase
@@ -63,8 +62,8 @@ struct FStateTreePdTargetDistanceConditionInstanceData
 };
 
 /**
- * Tests whether an actor is farther from, or closer to, a target location in
- * the XY plane. This is the native replacement for STC_TargetDistance.
+ * 액터가 XY 평면에서 대상 위치보다 먼지 가까운지 검사한다.
+ * STC_TargetDistance를 대신하는 네이티브 조건이다.
  */
 USTRUCT(meta = (DisplayName = "Pd Target Distance", Category = "AI|Distance"))
 struct LABPROJECT_API FStateTreePdTargetDistanceCondition : public FStateTreeAIConditionBase

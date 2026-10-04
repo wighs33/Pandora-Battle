@@ -12,8 +12,7 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_WorldNetworkBase)
 
 UGameFeatureAction_WorldNetworkBase::UGameFeatureAction_WorldNetworkBase()
-	: bClientAction(false)
-	, bServerAction(false)
+	: bClientAction(false), bServerAction(false)
 {
 }
 
@@ -23,21 +22,15 @@ void UGameFeatureAction_WorldNetworkBase::OnGameFeatureActivating(FGameFeatureAc
 {
 	const FGameFeatureStateChangeContext ChangeContext(Context);
 
-	GameInstanceStartHandles.Add(ChangeContext, FWorldDelegates::OnStartGameInstance.AddUObject(
-		this,
-		&ThisClass::HandleGameInstanceStart,
-		ChangeContext));
+	GameInstanceStartHandles.Add(ChangeContext, FWorldDelegates::OnStartGameInstance.AddUObject(this,
+		&ThisClass::HandleGameInstanceStart, ChangeContext));
 
-	GameInstanceWorldChangedHandles.Add(ChangeContext, FWorldDelegates::OnGameInstanceWorldChanged.AddUObject(
-		this,
-		&ThisClass::HandleGameInstanceWorldChanged,
-		ChangeContext));
+	GameInstanceWorldChangedHandles.Add(ChangeContext, FWorldDelegates::OnGameInstanceWorldChanged.AddUObject(this,
+		&ThisClass::HandleGameInstanceWorldChanged, ChangeContext));
 
 	// 맵 로딩은 월드를 InitWorld보다 먼저 현재 월드로 바꾼다. 월드 서브시스템이 생긴 뒤인 초기화 완료 시점에 적용한다.
-	PostWorldInitializationHandles.Add(ChangeContext, FWorldDelegates::OnPostWorldInitialization.AddUObject(
-		this,
-		&ThisClass::HandlePostWorldInitialization,
-		ChangeContext));
+	PostWorldInitializationHandles.Add(ChangeContext, FWorldDelegates::OnPostWorldInitialization.AddUObject(this,
+		&ThisClass::HandlePostWorldInitialization, ChangeContext));
 
 	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
 	{
@@ -115,8 +108,7 @@ void UGameFeatureAction_WorldNetworkBase::AddToWorldIfReady(const FWorldContext&
 {
 	UWorld* World = WorldContext.World();
 	if (World && World->IsGameWorld() && World->bIsWorldInitialized
-		&& ChangeContext.ShouldApplyToWorldContext(WorldContext)
-		&& ShouldApplyToNetMode(World->GetNetMode()))
+		&& ChangeContext.ShouldApplyToWorldContext(WorldContext) && ShouldApplyToNetMode(World->GetNetMode()))
 	{
 		AddToWorld(WorldContext, ChangeContext);
 	}

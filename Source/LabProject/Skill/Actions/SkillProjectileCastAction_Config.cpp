@@ -95,13 +95,8 @@ void USkillProjectileCastAction::ApplyConfiguredProjectileVisuals(ASkillProjecti
     {
        return;
     }
-    Projectile->ConfigureProjectileVisuals(
-       Settings.MuzzleNiagaraSystem.Get(),
-       Settings.ProjectileNiagaraSystem.Get(),
-       Settings.HitNiagaraSystem.Get(),
-       Settings.bSpawnHitNiagaraOnGround,
-       FGameplayTag(),
-       FGameplayTag());
+    Projectile->ConfigureProjectileVisuals(Settings.MuzzleNiagaraSystem.Get(), Settings.ProjectileNiagaraSystem.Get(),
+        Settings.HitNiagaraSystem.Get(), Settings.bSpawnHitNiagaraOnGround, FGameplayTag(), FGameplayTag());
 }
 
 void USkillProjectileCastAction::ApplyConfiguredProjectileTrajectory(ASkillProjectile* Projectile) const
@@ -111,10 +106,8 @@ void USkillProjectileCastAction::ApplyConfiguredProjectileTrajectory(ASkillProje
        return;
     }
 
-    Projectile->ConfigureArcTrajectory(
-       Settings.bUseArcTrajectory,
-       GetConfiguredProjectileArcHeight(),
-       GetConfiguredProjectileArcGravityScale());
+    Projectile->ConfigureArcTrajectory(Settings.bUseArcTrajectory, GetConfiguredProjectileArcHeight(),
+        GetConfiguredProjectileArcGravityScale());
 }
 
 void USkillProjectileCastAction::ApplyConfiguredProjectileImpactPersistence(ASkillProjectile* Projectile) const
@@ -123,9 +116,8 @@ void USkillProjectileCastAction::ApplyConfiguredProjectileImpactPersistence(ASki
     {
        return;
     }
-    Projectile->ConfigureImpactPersistence(
-       Settings.bStickOnImpact,
-       static_cast<float>(FMath::Max(Settings.PostImpactLifeSpan, 0.0)));
+    Projectile->ConfigureImpactPersistence(Settings.bStickOnImpact,
+        static_cast<float>(FMath::Max(Settings.PostImpactLifeSpan, 0.0)));
 }
 
 float USkillProjectileCastAction::GetConfiguredTargetTraceMaxRange() const
@@ -177,11 +169,8 @@ void USkillProjectileCastAction::ApplyConfiguredStatusEffect(ASkillProjectile* P
        return;
     }
 
-    UStatusEffectDefinition* StatusEffectDataAsset =
-       GetConfiguredStatusEffectDataAsset();
-    Projectile->SetDebuffEffectSpecHandle(
-       MakeStatusEffectSpec(),
-       StatusEffectDataAsset);
+    UStatusEffectDefinition* StatusEffectDataAsset = GetConfiguredStatusEffectDataAsset();
+    Projectile->SetDebuffEffectSpecHandle(MakeStatusEffectSpec(), StatusEffectDataAsset);
 }
 
 void USkillProjectileCastAction::ApplyReadiedProjectileScaleGrowth(ASkillProjectile* Projectile) const
@@ -209,21 +198,15 @@ void USkillProjectileCastAction::ApplyReadiedProjectileScaleGrowth(ASkillProject
        return;
     }
 
-    Projectile->StartReadiedScaleGrowth(
-       StartScale,
-       TargetScale,
-       ScaleDuration,
-       NiagaraVector2DParameterName,
-       NiagaraStartSize,
-       NiagaraTargetSize);
+    Projectile->StartReadiedScaleGrowth(StartScale, TargetScale, ScaleDuration, NiagaraVector2DParameterName,
+        NiagaraStartSize, NiagaraTargetSize);
 }
 
 TSubclassOf<AGameplayAbilityTargetActor> USkillProjectileCastAction::GetConfiguredGroundTargetActorClass() const
 {
     const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredClass = Settings.GroundTargetActorClass;
-    if (ConfiguredClass
-       && ConfiguredClass->IsChildOf(AGameplayAbilityTargetActor_GroundTrace::StaticClass())
-       && !ConfiguredClass->IsChildOf(AGroundTargetActor::StaticClass()))
+    if (ConfiguredClass && ConfiguredClass->IsChildOf(AGameplayAbilityTargetActor_GroundTrace::StaticClass())
+        && !ConfiguredClass->IsChildOf(AGroundTargetActor::StaticClass()))
     {
        return AGroundTargetActor::StaticClass();
     }
@@ -267,13 +250,11 @@ float USkillProjectileCastAction::GetConfiguredGroundTargetingDecalSize() const
 
 float USkillProjectileCastAction::GetConfiguredGroundTargetingDecalFinalSize() const
 {
-    return Settings.TargetDecalFinalSize > 0.0
-       ? static_cast<float>(Settings.TargetDecalFinalSize)
+    return Settings.TargetDecalFinalSize > 0.0 ? static_cast<float>(Settings.TargetDecalFinalSize)
        : GetConfiguredGroundTargetingDecalSize();
 }
 
-float USkillProjectileCastAction::CalculateConfiguredImpactAreaDamageRadius(
-    const float ChargeDamageAlpha) const
+float USkillProjectileCastAction::CalculateConfiguredImpactAreaDamageRadius(const float ChargeDamageAlpha) const
 {
     if (!Settings.bUseGroundTargeting || !Settings.TargetDecal.Get())
     {
@@ -286,23 +267,19 @@ float USkillProjectileCastAction::CalculateConfiguredImpactAreaDamageRadius(
        ? FMath::Lerp(StartDiameter, FinalDiameter, FMath::Clamp(ChargeDamageAlpha, 0.0f, 1.0f))
        : StartDiameter;
 
-    // Targeting decal sizes are configured as diameters, matching the AOE decal convention.
+    // 조준 데칼 크기는 범위 데칼과 같은 규칙으로 지름으로 정한다.
     return DamageDiameter * 0.5f;
 }
 
-bool USkillProjectileCastAction::TryBuildGroundTargetingDecalGrowth(
-    float& OutStartSize,
-    float& OutTargetSize,
+bool USkillProjectileCastAction::TryBuildGroundTargetingDecalGrowth(float& OutStartSize, float& OutTargetSize,
     float& OutDuration) const
 {
     OutStartSize = GetConfiguredGroundTargetingDecalSize();
     OutTargetSize = GetConfiguredGroundTargetingDecalFinalSize();
     OutDuration = 0.0f;
 
-    if (!Settings.bUseGroundTargeting
-       || !Settings.bGrowTargetDecalSize
-       || OutStartSize <= 0.0f
-       || OutTargetSize <= 0.0f)
+    if (!Settings.bUseGroundTargeting || !Settings.bGrowTargetDecalSize || OutStartSize <= 0.0f
+        || OutTargetSize <= 0.0f)
     {
        return false;
     }

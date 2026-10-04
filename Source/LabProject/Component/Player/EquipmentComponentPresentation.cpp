@@ -35,9 +35,7 @@ bool UEquipmentComponent::IsWeaponPresentationLoaded(const UItemDefinition* Item
 	return FWeaponPresentationLoader::IsLoaded(ItemDefinition, !ShouldEquipWeaponsWithoutAnimation());
 }
 
-bool UEquipmentComponent::RequestWeaponPresentationLoad(
-	const UItemDefinition* ItemDefinition,
-	FSimpleDelegate OnLoaded)
+bool UEquipmentComponent::RequestWeaponPresentationLoad(const UItemDefinition* ItemDefinition, FSimpleDelegate OnLoaded)
 {
 	return PresentationLoader.Request(*this, ItemDefinition, !ShouldEquipWeaponsWithoutAnimation(), MoveTemp(OnLoaded));
 }
@@ -59,13 +57,11 @@ void UEquipmentComponent::RefreshCurrentWeaponPresentation()
 	}
 
 	const FPrimaryAssetId ItemDefinitionId = ItemDefinition->GetPrimaryAssetId();
-	const bool bLoadRequested = RequestWeaponPresentationLoad(
-		ItemDefinition,
+	const bool bLoadRequested = RequestWeaponPresentationLoad(ItemDefinition,
 		FSimpleDelegate::CreateWeakLambda(this, [this, ItemDefinitionId]()
 		{
 			const UItemDefinition* CurrentDefinition = GetCurrentWeaponDefinition();
-			if (IsValid(CurrentDefinition)
-				&& CurrentDefinition->GetPrimaryAssetId() == ItemDefinitionId)
+			if (IsValid(CurrentDefinition) && CurrentDefinition->GetPrimaryAssetId() == ItemDefinitionId)
 			{
 				RefreshCurrentWeaponAnimationLayer();
 			}
@@ -121,8 +117,6 @@ void UEquipmentComponent::AttachWeaponToOwner(AWeaponBase* WeaponActor, const UI
 	}
 
 	const FName AttachSocketName = ItemDefinition ? ItemDefinition->WeaponData.Equip.GetResolvedAttachSocketName() : NAME_None;
-	WeaponActor->AttachToComponent(
-		OwnerMesh,
-		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+	WeaponActor->AttachToComponent(OwnerMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		AttachSocketName);
 }

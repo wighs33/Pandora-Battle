@@ -120,9 +120,7 @@ void URightInventoryWidget::RebuildTileView()
 		const FGuid ItemId = ItemInstance ? ItemInstance->GetItemId() : FGuid();
 		const int32* DuplicateCount = ItemDefinition ? DuplicateCandidateCounts.Find(ItemDefinition) : nullptr;
 		UInventorySlotViewData* SlotViewData = NewObject<UInventorySlotViewData>(this);
-		SlotViewData->Initialize(
-			SlotIndex,
-			ItemInstance,
+		SlotViewData->Initialize(SlotIndex, ItemInstance,
 			DuplicateCount && *DuplicateCount > 1 && DefinitionsWithUnassignedItems.Contains(ItemDefinition),
 			ItemId.IsValid() && AssignedItemIds.Contains(ItemId));
 		CachedSlotViewData.Add(SlotViewData);
@@ -137,10 +135,8 @@ void URightInventoryWidget::UpdateCombineMessage(const bool bHasCombinableItems)
 		return;
 	}
 
-	Txt_Message->SetText(MenuTextOrFallback(TEXT("Info.Combine"), NSLOCTEXT(
-		"RightInventoryWidget",
-		"CombineDuplicateItemsMessage",
-		"Combine duplicate weapons or equipment to upgrade them.")));
+	Txt_Message->SetText(MenuTextOrFallback(TEXT("Info.Combine"), NSLOCTEXT("RightInventoryWidget",
+		"CombineDuplicateItemsMessage", "Combine duplicate weapons or equipment to upgrade them.")));
 	Txt_Message->SetVisibility(
 		bHasCombinableItems
 			? ESlateVisibility::SelfHitTestInvisible
@@ -149,7 +145,6 @@ void URightInventoryWidget::UpdateCombineMessage(const bool bHasCombinableItems)
 
 bool URightInventoryWidget::IsDuplicateHighlightCandidate(const UItemDefinition* ItemDefinition) const
 {
-	return ItemDefinition
-		&& (ItemDefinition->IsWeaponDefinition(GetTypeFilterTag(WeaponFilterIndex))
-			|| ItemDefinition->MatchesItemType(GetTypeFilterTag(EquipmentFilterIndex)));
+	return ItemDefinition && (ItemDefinition->IsWeaponDefinition(GetTypeFilterTag(WeaponFilterIndex))
+		|| ItemDefinition->MatchesItemType(GetTypeFilterTag(EquipmentFilterIndex)));
 }

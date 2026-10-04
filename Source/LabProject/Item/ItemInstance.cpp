@@ -46,10 +46,7 @@ float UItemInstance::GetUpgradeBonusStatMagnitude(const FGameplayTag StatTag) co
 	}
 
 	const double MaxFloatMagnitude = static_cast<double>(TNumericLimits<float>::Max());
-	return static_cast<float>(FMath::Clamp(
-		BonusMagnitude,
-		-MaxFloatMagnitude,
-		MaxFloatMagnitude));
+	return static_cast<float>(FMath::Clamp(BonusMagnitude, -MaxFloatMagnitude, MaxFloatMagnitude));
 }
 
 float UItemInstance::GetEffectiveStatMagnitude(const FGameplayTag StatTag) const
@@ -69,8 +66,7 @@ float UItemInstance::GetEffectiveStatMagnitude(const FGameplayTag StatTag) const
 	return FMath::IsFinite(Result) ? Result : 0.0f;
 }
 
-void UItemInstance::BuildUpgradeBonusStatMagnitudes(
-	TMap<FGameplayTag, float>& OutMagnitudes) const
+void UItemInstance::BuildUpgradeBonusStatMagnitudes(TMap<FGameplayTag, float>& OutMagnitudes) const
 {
 	OutMagnitudes.Reset();
 	if (GetUpgradeLevel() <= 0)
@@ -107,8 +103,7 @@ void UItemInstance::BuildUpgradeBonusStatMagnitudes(
 	}
 }
 
-void UItemInstance::BuildEffectiveStatMagnitudes(
-	TMap<FGameplayTag, float>& OutMagnitudes) const
+void UItemInstance::BuildEffectiveStatMagnitudes(TMap<FGameplayTag, float>& OutMagnitudes) const
 {
 	OutMagnitudes.Reset();
 	if (const UItemDefinition* Definition = ItemDefinition.Get())

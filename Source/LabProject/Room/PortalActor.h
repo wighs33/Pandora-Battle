@@ -87,7 +87,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Scene Capture", meta = (ClampMin = "0.01"))
 	float InitRetryInterval = 0.1f;
 
-	/** Soft definition referenced by BP_Portal; its asset bundle is validated before cook. */
+	/** BP_Portal이 참조하는 soft 정의. 쿡 전에 애셋 번들을 검증한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Portal|Definition",
 		meta = (AssetBundles = "Portal"))
 	TSoftObjectPtr<UPortalDefinition> PortalDefinition;

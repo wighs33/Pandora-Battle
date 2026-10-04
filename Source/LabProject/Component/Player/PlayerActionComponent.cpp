@@ -59,8 +59,7 @@ void UPlayerActionComponent::ServerCancelHitReactForMovement_Implementation(cons
 bool UPlayerActionComponent::CancelHitReactForMovementLocally(const float BlendOutTime)
 {
 	ACharacterBase* Character = Cast<ACharacterBase>(GetOwner());
-	UAbilitySystemComponent* AbilitySystemComponent =
-		Character ? Character->GetAbilitySystemComponent() : nullptr;
+	UAbilitySystemComponent* AbilitySystemComponent = Character ? Character->GetAbilitySystemComponent() : nullptr;
 	if (!Character || !AbilitySystemComponent)
 	{
 		return false;

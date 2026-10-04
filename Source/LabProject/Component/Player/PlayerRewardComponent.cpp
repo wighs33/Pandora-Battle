@@ -171,8 +171,7 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 	TArray<FPrimaryAssetId> RewardItemDefinitions;
 	TArray<FPrimaryAssetId> RewardSkinDefinitions;
 	TArray<FPrimaryAssetId> RewardPandoraDefinitions;
-	UInventoryComponent* InventoryComponent =
-		PlayerState->FindComponentByClass<UInventoryComponent>();
+	UInventoryComponent* InventoryComponent = PlayerState->FindComponentByClass<UInventoryComponent>();
 	IInteractableInterface::Execute_GetRewardItems(InteractableActor, RewardItemDefinitions);
 	IInteractableInterface::Execute_GetRewardSkins(InteractableActor, RewardSkinDefinitions);
 	IInteractableInterface::Execute_GetRewardPandoras(InteractableActor, RewardPandoraDefinitions);
@@ -256,8 +255,7 @@ void UPlayerRewardComponent::GrantMonsterDefeatRewards(TSoftObjectPtr<URewardDef
 		HandleMonsterRewardLoaded(Path);
 		return;
 	}
-	MonsterRewardLeases.Add(Path, ContentSubsystem->AcquireContent(
-		TArray<FSoftObjectPath>{Path},
+	MonsterRewardLeases.Add(Path, ContentSubsystem->AcquireContent(TArray<FSoftObjectPath>{Path},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleMonsterRewardLoaded, Path)));
 }
 

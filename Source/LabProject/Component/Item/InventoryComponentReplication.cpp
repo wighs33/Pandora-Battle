@@ -335,16 +335,13 @@ void UInventoryComponent::ServerUseConsumableQuickSlot_Implementation(const int3
 	UseConsumableQuickSlot(SlotIndex);
 }
 
-void UInventoryComponent::ServerSetWeaponIdForLoadoutSlot_Implementation(
-	const EEnum_Direction Direction,
+void UInventoryComponent::ServerSetWeaponIdForLoadoutSlot_Implementation(const EEnum_Direction Direction,
 	const FGuid ItemId)
 {
 	SetWeaponIdForLoadoutSlot(Direction, ItemId);
 }
 
-void UInventoryComponent::ServerSetEquipmentSlot_Implementation(
-	const FGameplayTag SlotTag,
-	const FGuid ItemId)
+void UInventoryComponent::ServerSetEquipmentSlot_Implementation(const FGameplayTag SlotTag, const FGuid ItemId)
 {
 	SetEquipmentSlotItemId(SlotTag, ItemId);
 }
@@ -359,9 +356,7 @@ void UInventoryComponent::ServerMergeConsumableStacks_Implementation(const FGuid
 	MergeConsumableStacks(SourceItemId, TargetItemId);
 }
 
-void UInventoryComponent::ServerMergeUpgradeableItems_Implementation(
-	const FGuid SourceItemId,
-	const FGuid TargetItemId)
+void UInventoryComponent::ServerMergeUpgradeableItems_Implementation(const FGuid SourceItemId, const FGuid TargetItemId)
 {
 	MergeUpgradeableItems(SourceItemId, TargetItemId);
 }
@@ -444,8 +439,7 @@ bool UInventoryComponent::ClearConsumableQuickSlotReferencesToItem(const FGuid I
 	return bChanged;
 }
 
-FGameplayTag UInventoryComponent::ResolveEquipmentSlotTag(
-	const FGameplayTag SlotTag) const
+FGameplayTag UInventoryComponent::ResolveEquipmentSlotTag(const FGameplayTag SlotTag) const
 {
 	if (!SlotTag.IsValid())
 	{
@@ -484,9 +478,7 @@ int32 UInventoryComponent::FindEquipmentSlotIndex(const FGameplayTag SlotTag) co
 	return INDEX_NONE;
 }
 
-bool UInventoryComponent::SetEquipmentSlotItemId(
-	const FGameplayTag SlotTag,
-	const FGuid ItemId)
+bool UInventoryComponent::SetEquipmentSlotItemId(const FGameplayTag SlotTag, const FGuid ItemId)
 {
 	if (!HasInventoryAuthority())
 	{
@@ -502,12 +494,8 @@ bool UInventoryComponent::SetEquipmentSlotItemId(
 	if (ItemId.IsValid())
 	{
 		const UItemInstance* ItemInstance = FindItemInstanceById(ItemId);
-		const UItemDefinition* ItemDefinition = IsValid(ItemInstance)
-			? ItemInstance->ItemDefinition.Get()
-			: nullptr;
-		if (!ItemDefinition
-			|| !ItemDefinition->IdTag.IsValid()
-			|| !ItemDefinition->IdTag.MatchesTag(ResolvedSlotTag))
+		const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
+		if (!ItemDefinition || !ItemDefinition->IdTag.IsValid() || !ItemDefinition->IdTag.MatchesTag(ResolvedSlotTag))
 		{
 			return false;
 		}
@@ -518,8 +506,7 @@ bool UInventoryComponent::SetEquipmentSlotItemId(
 		ExistingIndex >= 0;
 		--ExistingIndex)
 	{
-		if (EquippedItemSlots[ExistingIndex].ItemId == ItemId
-			&& ItemId.IsValid()
+		if (EquippedItemSlots[ExistingIndex].ItemId == ItemId && ItemId.IsValid()
 			&& EquippedItemSlots[ExistingIndex].SlotTag != ResolvedSlotTag)
 		{
 			EquippedItemSlots.RemoveAt(ExistingIndex);
@@ -564,16 +551,14 @@ bool UInventoryComponent::SetEquipmentSlotItemId(
 	return true;
 }
 
-bool UInventoryComponent::ClearEquipmentSlotReferencesToItem(
-	const FGuid ItemId)
+bool UInventoryComponent::ClearEquipmentSlotReferencesToItem(const FGuid ItemId)
 {
 	if (!HasInventoryAuthority() || !ItemId.IsValid())
 	{
 		return false;
 	}
 
-	const int32 RemovedCount = EquippedItemSlots.RemoveAll(
-		[ItemId](const FEquippedItemSlot& EquippedItemSlot)
+	const int32 RemovedCount = EquippedItemSlots.RemoveAll([ItemId](const FEquippedItemSlot& EquippedItemSlot)
 		{
 			return EquippedItemSlot.ItemId == ItemId;
 		});
@@ -587,9 +572,7 @@ bool UInventoryComponent::ClearEquipmentSlotReferencesToItem(
 	return true;
 }
 
-bool UInventoryComponent::SetWeaponIdForLoadoutSlot(
-	const EEnum_Direction Direction,
-	const FGuid ItemId)
+bool UInventoryComponent::SetWeaponIdForLoadoutSlot(const EEnum_Direction Direction, const FGuid ItemId)
 {
 	if (!HasInventoryAuthority())
 	{

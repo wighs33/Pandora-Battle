@@ -60,9 +60,7 @@ TArray<FGameplayAbilitySpecHandle> UAbilityGrantAndInputManager::GrantAbilities(
 			continue;
 		}
 
-		FGameplayAbilitySpec AbilitySpec(
-			AbilityClass,
-			FMath::Max(AbilityLevel, 1));
+		FGameplayAbilitySpec AbilitySpec(AbilityClass, FMath::Max(AbilityLevel, 1));
 
 		const UPdGameplayAbility* AbilityCDO = Cast<UPdGameplayAbility>(AbilityClass->GetDefaultObject());
 		const bool bAutoActivateWhenGranted = AbilityCDO && AbilityCDO->ShouldAutoActivateWhenGranted();
@@ -143,9 +141,8 @@ const FGameplayAbilitySpec* UAbilityGrantAndInputManager::FindActiveAbilitySpecB
 
 	for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystemComponent.GetActivatableAbilities())
 	{
-		if (AbilitySpec.IsActive() && AbilitySpec.Ability
-			&& (AbilitySpec.Ability->GetAssetTags().HasAny(AbilityTags)
-				|| AbilitySpec.GetDynamicSpecSourceTags().HasAny(AbilityTags)))
+		if (AbilitySpec.IsActive() && AbilitySpec.Ability && (AbilitySpec.Ability->GetAssetTags().HasAny(AbilityTags)
+			|| AbilitySpec.GetDynamicSpecSourceTags().HasAny(AbilityTags)))
 		{
 			return &AbilitySpec;
 		}
@@ -282,8 +279,7 @@ void UAbilityGrantAndInputManager::HandleAbilityInputReleased(
 	for (const FReleaseTarget& Target : Targets)
 	{
 		const FGameplayAbilitySpec* Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Target.Handle);
-		if (!Target.bEnded && Spec && Spec->IsActive()
-			&& Spec->GetPrimaryInstance() == Target.Instance.Get()
+		if (!Target.bEnded && Spec && Spec->IsActive() && Spec->GetPrimaryInstance() == Target.Instance.Get()
 			&& ResolveAbilityInputPredictionKey(*Spec) == Target.PredictionKey)
 		{
 			SendInputToActiveAbility(AbilitySystemComponent, Target.Handle, false);
@@ -325,8 +321,7 @@ void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 
 	// 타기팅 확정이나 InputReleased가 시전을 끝낼 수 있으므로 같은 시전에만 전달한다.
 	Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
-	if (!ActorInfo->OwnerActor.IsValid() || !ActorInfo->AvatarActor.IsValid()
-		|| bEnded || !Spec || !Spec->IsActive()
+	if (!ActorInfo->OwnerActor.IsValid() || !ActorInfo->AvatarActor.IsValid() || bEnded || !Spec || !Spec->IsActive()
 		|| Spec->GetPrimaryInstance() != Instance.Get() || ResolveAbilityInputPredictionKey(*Spec) != PredictionKey)
 	{
 		return;
@@ -349,8 +344,7 @@ void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 	}
 
 	Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
-	if (ActorInfo->OwnerActor.IsValid() && ActorInfo->AvatarActor.IsValid()
-		&& !bEnded && Spec && Spec->IsActive()
+	if (ActorInfo->OwnerActor.IsValid() && ActorInfo->AvatarActor.IsValid() && !bEnded && Spec && Spec->IsActive()
 		&& Spec->GetPrimaryInstance() == Instance.Get() && ResolveAbilityInputPredictionKey(*Spec) == PredictionKey)
 	{
 		// Handle과 PredictionKey로 구분한 시전의 입력 이벤트를 발생시켜 WaitInputPress/WaitInputRelease 태스크에 전달한다.
@@ -363,8 +357,7 @@ void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 // 종료·실패·회수된 능력의 입력 상태와 모든 입력 태그에 남은 핸들 기록을 함께 제거한다.
 void UAbilityGrantAndInputManager::ClearAbilityInput(UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayAbilitySpecHandle Handle)
 {
-	if (FGameplayAbilitySpec* Spec =
-		AbilitySystemComponent.FindAbilitySpecFromHandle(Handle))
+	if (FGameplayAbilitySpec* Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle))
 	{
 		Spec->InputPressed = false;
 	}

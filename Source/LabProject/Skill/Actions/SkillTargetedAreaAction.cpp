@@ -161,16 +161,8 @@ void USkillTargetedAreaAction::LoopTargetingAnimation()
 		return;
 	}
 
-	TargetingMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		GetAbility(),
-		NAME_None,
-		ConfiguredTargetingMontage,
-		1.0f,
-		NAME_None,
-		true,
-		1.0f,
-		0.0f,
-		false);
+	TargetingMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(GetAbility(), NAME_None,
+		ConfiguredTargetingMontage, 1.0f, NAME_None, true, 1.0f, 0.0f, false);
 	if (!TargetingMontageTask)
 	{
 		return;
@@ -261,13 +253,8 @@ void USkillTargetedAreaAction::AOEDamage()
 	DrawDebugDamageRadius(FColor::Yellow, FColor::Red);
 
 	AOEOverlapResults.Reset();
-	World->OverlapMultiByObjectType(
-		AOEOverlapResults,
-		ConfirmedAOELocation,
-		FQuat::Identity,
-		ObjectQueryParams,
-		SphereShape,
-		QueryParams);
+	World->OverlapMultiByObjectType(AOEOverlapResults, ConfirmedAOELocation, FQuat::Identity, ObjectQueryParams,
+		SphereShape, QueryParams);
 
 	HitActorKeys.Reset();
 	TArray<TWeakObjectPtr<AActor>> DamageTargets;
@@ -330,11 +317,8 @@ void USkillTargetedAreaAction::StartWaitTargetData()
 		return;
 	}
 
-	WaitTargetDataTask = UAbilityTask_WaitTargetData::WaitTargetData(
-		GetAbility(),
-		NAME_None,
-		EGameplayTargetingConfirmation::UserConfirmed,
-		ConfiguredTargetActorClass);
+	WaitTargetDataTask = UAbilityTask_WaitTargetData::WaitTargetData(GetAbility(), NAME_None,
+		EGameplayTargetingConfirmation::UserConfirmed, ConfiguredTargetActorClass);
 	if (!WaitTargetDataTask)
 	{
 		if (ResolveFallbackAOELocation(ConfirmedAOELocation))
@@ -523,8 +507,7 @@ FGameplayAbilityTargetingLocationInfo USkillTargetedAreaAction::MakeTargetStartL
 	return GetAbility()->MakeTargetLocationInfoFromOwnerActor();
 }
 
-bool USkillTargetedAreaAction::ResolveFallbackAOELocation(
-	FVector& OutGroundLocation) const
+bool USkillTargetedAreaAction::ResolveFallbackAOELocation(FVector& OutGroundLocation) const
 {
 	if (!(IsRunning() && GetAbility()->CanRunActions()))
 	{
@@ -547,10 +530,8 @@ bool USkillTargetedAreaAction::ResolveFallbackAOELocation(
 	return true;
 }
 
-bool USkillTargetedAreaAction::TryValidateServerAOELocation(
-	const FHitResult& ClientHitResult,
-	const FVector& TargetDataEndPoint,
-	FVector& OutValidatedLocation)
+bool USkillTargetedAreaAction::TryValidateServerAOELocation(const FHitResult& ClientHitResult,
+	const FVector& TargetDataEndPoint, FVector& OutValidatedLocation)
 {
 	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
 	FVector RequestedLocation = FVector::ZeroVector;
@@ -571,13 +552,8 @@ bool USkillTargetedAreaAction::TryValidateServerAOELocation(
 	ValidationParams.LineOfSightProfileName = Settings.TargetingTraceProfileName;
 
 	PdTargetValidator::FValidatedGroundTarget ValidatedTarget;
-	if (!PdTargetValidator::ValidateGroundTarget(
-		World,
-		AvatarActor,
-		AuthoritySourceLocation,
-		RequestedLocation,
-		ValidationParams,
-		ValidatedTarget))
+	if (!PdTargetValidator::ValidateGroundTarget(World, AvatarActor, AuthoritySourceLocation, RequestedLocation,
+		ValidationParams, ValidatedTarget))
 	{
 		return false;
 	}
@@ -615,8 +591,7 @@ TSubclassOf<AGameplayAbilityTargetActor> USkillTargetedAreaAction::GetConfigured
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	const TSubclassOf<AGameplayAbilityTargetActor> ConfiguredClass =
 		SkillDataAsset ? Settings.TargetActorClass : nullptr;
-	if (ConfiguredClass
-		&& ConfiguredClass->IsChildOf(AGameplayAbilityTargetActor_GroundTrace::StaticClass())
+	if (ConfiguredClass && ConfiguredClass->IsChildOf(AGameplayAbilityTargetActor_GroundTrace::StaticClass())
 		&& !ConfiguredClass->IsChildOf(AGroundTargetActor::StaticClass()))
 	{
 		return AGroundTargetActor::StaticClass();
@@ -681,20 +656,15 @@ void USkillTargetedAreaAction::DrawDebugDamageRadius(const FColor& CircleColor, 
 	}
 
 	const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-	LabSkillDebug::DrawAreaRadius(
-		AvatarActor ? AvatarActor->GetWorld() : nullptr,
-		ConfirmedAOELocation,
-		static_cast<float>(CachedAOERadius),
-		CircleColor,
-		SphereColor,
+	LabSkillDebug::DrawAreaRadius(AvatarActor ? AvatarActor->GetWorld() : nullptr, ConfirmedAOELocation,
+		static_cast<float>(CachedAOERadius), CircleColor, SphereColor,
 		static_cast<float>(FMath::Max(Settings.DebugDamageRadiusDrawTime, 0.0)));
 }
 
 void USkillTargetedAreaAction::HandleCancelInputPressed(float TimeWaited)
 {
 	static_cast<void>(TimeWaited);
-	if (UPdAbilitySystemComponent* AbilitySystemComponent =
-		GetAbility()->GetPdAbilitySystemComponentFromActorInfo())
+	if (UPdAbilitySystemComponent* AbilitySystemComponent = GetAbility()->GetPdAbilitySystemComponentFromActorInfo())
 	{
 		AbilitySystemComponent->LocalInputConfirm();
 	}

@@ -41,10 +41,7 @@ void FContentLease::Start(const TArray<FSoftObjectPath>& AssetPaths)
 
 	const TWeakPtr<FContentLease> WeakLease = AsShared();
 	TSharedPtr<FStreamableHandle> NewHandle =
-		UContentDataSubsystem::PreloadSoftObjectPathsAsync(
-			ExpectedPaths,
-			FSimpleDelegate::CreateLambda(
-				[WeakLease]()
+		UContentDataSubsystem::PreloadSoftObjectPathsAsync(ExpectedPaths, FSimpleDelegate::CreateLambda([WeakLease]()
 				{
 					if (const TSharedPtr<FContentLease> This = WeakLease.Pin())
 					{
@@ -61,8 +58,7 @@ void FContentLease::Start(const TArray<FSoftObjectPath>& AssetPaths)
 		NewHandle->CancelHandle();
 		NewHandle->ReleaseHandle();
 	}
-	if (!StreamableHandle.IsValid()
-		&& State == EState::Loading)
+	if (!StreamableHandle.IsValid() && State == EState::Loading)
 	{
 		MarkFailed();
 	}
@@ -70,8 +66,7 @@ void FContentLease::Start(const TArray<FSoftObjectPath>& AssetPaths)
 
 void FContentLease::MarkFailed()
 {
-	if (State == EState::Ready
-		|| State == EState::Failed)
+	if (State == EState::Ready || State == EState::Failed)
 	{
 		return;
 	}
@@ -92,16 +87,11 @@ void FContentLease::HandlePreloadComplete()
 		if (!ExpectedPath.ResolveObject())
 		{
 			bResolvedAllAssets = false;
-			UE_LOG(
-				LogContentLease,
-				Error,
-				TEXT("Content preload did not resolve '%s'."),
+			UE_LOG(LogContentLease, Error, TEXT("Content preload did not resolve '%s'."),
 				*ExpectedPath.ToString());
 		}
 	}
-	State = bResolvedAllAssets
-		? EState::Ready
-		: EState::Failed;
+	State = bResolvedAllAssets ? EState::Ready : EState::Failed;
 	// 엔진은 로드 완료를 이미 다음 프레임에 알리므로 그때는 바로 전달한다.
 	// 시작하는 도중에 끝난 경우(빈 목록·시작 실패)만 호출자가 lease를 저장할 때까지 미룬다.
 	if (bStarting)
@@ -123,9 +113,7 @@ void FContentLease::QueueCompletion()
 	// 시작하는 도중에 끝났거나 실패로 표시된 lease도 호출자가 저장한 다음에 완료 콜백을 받도록 지연한다.
 	bCompletionQueued = true;
 	const TWeakPtr<FContentLease> WeakLease = AsShared();
-	FTSTicker::GetCoreTicker().AddTicker(
-		FTickerDelegate::CreateLambda(
-			[WeakLease](float)
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakLease](float)
 			{
 				if (const TSharedPtr<FContentLease> This = WeakLease.Pin())
 				{
@@ -138,8 +126,7 @@ void FContentLease::QueueCompletion()
 void FContentLease::DispatchCompletion()
 {
 	bCompletionQueued = false;
-	if (State != EState::Ready
-		&& State != EState::Failed)
+	if (State != EState::Ready && State != EState::Failed)
 	{
 		return;
 	}

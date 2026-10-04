@@ -23,7 +23,7 @@ struct LABPROJECT_API FInputActionIconMapping
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Icon", meta = (AssetBundles = "Client"))
 	TSoftObjectPtr<UInputAction> InputAction;
 
-	// HUD key captions are authored here; they do not change the actual input binding.
+	// HUD 키 안내 문구는 여기서 정한다. 실제 입력 바인딩은 바꾸지 않는다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Display")
 	FText KeyText;
 
@@ -203,7 +203,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Character Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UCharacterActionDefinition> CharacterActionDefinition;
 
-	// Preserve the serialized name and icon fields for screens that still use input images.
+	// 아직 입력 이미지를 쓰는 화면을 위해 저장된 이름과 아이콘 필드를 유지한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Display", meta = (DisplayName = "Input Action Displays", TitleProperty = "InputAction", AllowPrivateAccess = "true"))
 	TArray<FInputActionIconMapping> InputActionIconMappings;
 

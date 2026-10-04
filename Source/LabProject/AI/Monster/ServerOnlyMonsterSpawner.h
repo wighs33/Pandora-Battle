@@ -39,19 +39,19 @@ private:
 	bool ApplyMonsterSpawnParameters(AMonsterCharacter* Monster) const;
 
 protected:
-	/** Optional per-spawner override. When empty, DA_EnemyBase supplies the default monster class. */
+	/** 스포너마다 따로 정할 몬스터 클래스. 비어 있으면 DA_EnemyBase의 기본 몬스터 클래스를 쓴다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (DisplayName = "Monster Class"))
 	TSubclassOf<AMonsterCharacter> MonsterClass;
 
-	/** Delay before replacing a destroyed monster. */
+	/** 몬스터가 파괴된 뒤 새로 채우기까지의 지연. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (ClampMin = "0.0", Units = "s"))
 	float RespawnCooldown = 5.0f;
 
-	/** Value forwarded to the spawned monster's expose-on-spawn leash setting. */
+	/** 스폰한 몬스터의 expose-on-spawn 추적 범위(leash) 설정에 넘기는 값. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (ClampMin = "0.0", Units = "cm"))
 	double MaxLeashDistanceFromSpawnPoint = 3000.0;
 
-	/** Value forwarded to the spawned monster's expose-on-spawn roaming setting. */
+	/** 스폰한 몬스터의 expose-on-spawn 배회 설정에 넘기는 값. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (ClampMin = "0.0", Units = "cm"))
 	double MinLeashDistanceFromSpawnPointToResumeRoaming = 500.0;
 

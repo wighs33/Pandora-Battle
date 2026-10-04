@@ -140,9 +140,7 @@ void UInfoPandoraTabPresenter::HandlePandoraSlotClicked(UObject* Item)
 
 	if (Store && PandoraComponent)
 	{
-		const bool bRequested = Store->RequestSetPandoraLoadoutSlot(
-			Direction,
-			PandoraDefinition);
+		const bool bRequested = Store->RequestSetPandoraLoadoutSlot(Direction, PandoraDefinition);
 		if (bRequested)
 		{
 			ResetEquipSlotClickState();
@@ -150,8 +148,7 @@ void UInfoPandoraTabPresenter::HandlePandoraSlotClicked(UObject* Item)
 	}
 }
 
-void UInfoPandoraTabPresenter::HandlePandoraEquipSlotClicked(
-	UPandoraEquipSlotWidget* InSelectedEquipSlot,
+void UInfoPandoraTabPresenter::HandlePandoraEquipSlotClicked(UPandoraEquipSlotWidget* InSelectedEquipSlot,
 	const bool bIsSelectedAnyButton)
 {
 	if (!GetController())
@@ -233,26 +230,15 @@ void UInfoPandoraTabPresenter::BindEvents()
 
 	if (ULeftPandoraWidget* LeftPandoraWidget = InfoWidget->GetLeftPandoraWidget())
 	{
-		LeftPandoraWidget->OnClicked_PandoraEquipSlot.RemoveDynamic(
-			this,
-			&ThisClass::HandlePandoraEquipSlotClicked);
-		LeftPandoraWidget->OnClicked_PandoraEquipSlot.AddUniqueDynamic(
-			this,
-			&ThisClass::HandlePandoraEquipSlotClicked);
+		LeftPandoraWidget->OnClicked_PandoraEquipSlot.RemoveDynamic(this, &ThisClass::HandlePandoraEquipSlotClicked);
+		LeftPandoraWidget->OnClicked_PandoraEquipSlot.AddUniqueDynamic(this, &ThisClass::HandlePandoraEquipSlotClicked);
 	}
 	if (URightPandoraWidget* RightPandoraWidget = InfoWidget->GetRightPandoraWidget())
 	{
-		RightPandoraWidget->OnClicked_FilterAllButton.RemoveDynamic(
-			this,
-			&ThisClass::HandlePandoraFilterAllClicked);
-		RightPandoraWidget->OnClicked_FilterAllButton.AddUniqueDynamic(
-			this,
-			&ThisClass::HandlePandoraFilterAllClicked);
-		RightPandoraWidget->OnClicked_FilterTypeButton.RemoveDynamic(
-			this,
-			&ThisClass::HandlePandoraFilterTypeClicked);
-		RightPandoraWidget->OnClicked_FilterTypeButton.AddUniqueDynamic(
-			this,
+		RightPandoraWidget->OnClicked_FilterAllButton.RemoveDynamic(this, &ThisClass::HandlePandoraFilterAllClicked);
+		RightPandoraWidget->OnClicked_FilterAllButton.AddUniqueDynamic(this, &ThisClass::HandlePandoraFilterAllClicked);
+		RightPandoraWidget->OnClicked_FilterTypeButton.RemoveDynamic(this, &ThisClass::HandlePandoraFilterTypeClicked);
+		RightPandoraWidget->OnClicked_FilterTypeButton.AddUniqueDynamic(this,
 			&ThisClass::HandlePandoraFilterTypeClicked);
 	}
 }
@@ -272,18 +258,12 @@ void UInfoPandoraTabPresenter::UnbindEvents()
 	}
 	if (ULeftPandoraWidget* LeftPandoraWidget = InfoWidget->GetLeftPandoraWidget())
 	{
-		LeftPandoraWidget->OnClicked_PandoraEquipSlot.RemoveDynamic(
-			this,
-			&ThisClass::HandlePandoraEquipSlotClicked);
+		LeftPandoraWidget->OnClicked_PandoraEquipSlot.RemoveDynamic(this, &ThisClass::HandlePandoraEquipSlotClicked);
 	}
 	if (URightPandoraWidget* RightPandoraWidget = InfoWidget->GetRightPandoraWidget())
 	{
-		RightPandoraWidget->OnClicked_FilterAllButton.RemoveDynamic(
-			this,
-			&ThisClass::HandlePandoraFilterAllClicked);
-		RightPandoraWidget->OnClicked_FilterTypeButton.RemoveDynamic(
-			this,
-			&ThisClass::HandlePandoraFilterTypeClicked);
+		RightPandoraWidget->OnClicked_FilterAllButton.RemoveDynamic(this, &ThisClass::HandlePandoraFilterAllClicked);
+		RightPandoraWidget->OnClicked_FilterTypeButton.RemoveDynamic(this, &ThisClass::HandlePandoraFilterTypeClicked);
 	}
 }
 
@@ -313,8 +293,7 @@ void UInfoPandoraTabPresenter::RefreshLeftPandoraSlots() const
 	UPandoraComponent* PandoraComponent = Store ? Store->GetPandoraComponent() : nullptr;
 	LeftPandoraWidget->RefreshPandoraLoadoutSlots(PandoraComponent);
 
-	const auto ResolveWeaponIcon = [](const UItemInstance* WeaponInstance) -> UTexture2D*
-	{
+	const auto ResolveWeaponIcon = [](const UItemInstance* WeaponInstance) -> UTexture2D* {
 		const UItemDefinition* WeaponDefinition = IsValid(WeaponInstance)
 			? WeaponInstance->ItemDefinition.Get()
 			: nullptr;
@@ -334,8 +313,7 @@ void UInfoPandoraTabPresenter::RefreshSelectPandoraLoadout() const
 	}
 	const UInfoLoadoutStore* Store = LoadoutStore.Get();
 	const UPandoraComponent* PandoraComponent = Store ? Store->GetPandoraComponent() : nullptr;
-	for (const EEnum_Direction Direction :
-		{EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right})
+	for (const EEnum_Direction Direction : {EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right})
 	{
 		const int32 SlotNumber = PandoraLoadout::GetLoadoutNumberFromDirection(Direction);
 		const UPandoraDefinition* PandoraDefinition = PandoraComponent
@@ -389,9 +367,7 @@ void UInfoPandoraTabPresenter::BuildPandoraTileViewItems(
 void UInfoPandoraTabPresenter::RefreshPandoraTileView() const
 {
 	TArray<UObject*> CurrentPandoraList;
-	BuildPandoraTileViewItems(
-		CurrentPandoraList,
-		bUseTypeFilter ? CurrentFilterTag : FGameplayTag(),
+	BuildPandoraTileViewItems(CurrentPandoraList, bUseTypeFilter ? CurrentFilterTag : FGameplayTag(),
 		bShowOnlyOwnedForEquipSlot);
 	UInfoWidget* InfoWidget = GetInfoWidget();
 	if (URightPandoraWidget* RightPandoraWidget = InfoWidget ? InfoWidget->GetRightPandoraWidget() : nullptr)
@@ -416,8 +392,7 @@ void UInfoPandoraTabPresenter::BindPandoraTileItemClicked()
 
 	UnbindPandoraTileItemClicked();
 	BoundTileView = TileView;
-	TileItemClickedDelegateHandle =
-		TileView->OnItemClicked().AddUObject(this, &ThisClass::HandlePandoraSlotClicked);
+	TileItemClickedDelegateHandle = TileView->OnItemClicked().AddUObject(this, &ThisClass::HandlePandoraSlotClicked);
 }
 
 void UInfoPandoraTabPresenter::UnbindPandoraTileItemClicked()
@@ -433,11 +408,8 @@ void UInfoPandoraTabPresenter::UnbindPandoraTileItemClicked()
 	TileItemClickedDelegateHandle.Reset();
 }
 
-bool UInfoPandoraTabPresenter::ResolveLoadoutSlotForClick(
-	const UPandoraComponent* PandoraComponent,
-	const UPandoraDefinition* PandoraDefinition,
-	EEnum_Direction& OutDirection,
-	int32& OutSlotNumber) const
+bool UInfoPandoraTabPresenter::ResolveLoadoutSlotForClick(const UPandoraComponent* PandoraComponent,
+	const UPandoraDefinition* PandoraDefinition, EEnum_Direction& OutDirection, int32& OutSlotNumber) const
 {
 	OutDirection = EEnum_Direction::Center;
 	OutSlotNumber = 0;
@@ -449,8 +421,7 @@ bool UInfoPandoraTabPresenter::ResolveLoadoutSlotForClick(
 	if (SelectedEquipSlot)
 	{
 		const int32 SelectedSlotNumber = SelectedEquipSlot->GetNth();
-		const EEnum_Direction SelectedDirection =
-			PandoraLoadout::GetDirectionFromLoadoutNumber(SelectedSlotNumber);
+		const EEnum_Direction SelectedDirection = PandoraLoadout::GetDirectionFromLoadoutNumber(SelectedSlotNumber);
 		if (PandoraLoadout::IsLoadoutDirection(SelectedDirection))
 		{
 			OutDirection = SelectedDirection;
@@ -459,8 +430,7 @@ bool UInfoPandoraTabPresenter::ResolveLoadoutSlotForClick(
 		}
 	}
 
-	for (const EEnum_Direction Direction :
-		{ EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
+	for (const EEnum_Direction Direction : { EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
 	{
 		if (PandoraComponent->GetPandoraLoadoutDefinition(Direction) == PandoraDefinition)
 		{
@@ -469,8 +439,7 @@ bool UInfoPandoraTabPresenter::ResolveLoadoutSlotForClick(
 			return true;
 		}
 	}
-	for (const EEnum_Direction Direction :
-		{ EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
+	for (const EEnum_Direction Direction : { EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right })
 	{
 		if (!PandoraComponent->GetPandoraLoadoutDefinition(Direction))
 		{
@@ -504,15 +473,13 @@ void UInfoPandoraTabPresenter::ResetEquipSlotClickState()
 	}
 }
 
-void UInfoPandoraTabPresenter::ClearPandoraEquipSlot(
-	UPandoraEquipSlotWidget* TargetPandoraEquipSlot)
+void UInfoPandoraTabPresenter::ClearPandoraEquipSlot(UPandoraEquipSlotWidget* TargetPandoraEquipSlot)
 {
 	if (!TargetPandoraEquipSlot)
 	{
 		return;
 	}
-	const EEnum_Direction Direction = PandoraLoadout::GetDirectionFromLoadoutNumber(
-		TargetPandoraEquipSlot->GetNth());
+	const EEnum_Direction Direction = PandoraLoadout::GetDirectionFromLoadoutNumber(TargetPandoraEquipSlot->GetNth());
 	if (!PandoraLoadout::IsLoadoutDirection(Direction))
 	{
 		return;

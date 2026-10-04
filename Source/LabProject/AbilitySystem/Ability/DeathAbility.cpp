@@ -40,9 +40,7 @@ EDataValidationResult UDeathAbility::IsDataValid(FDataValidationContext& Context
 	EDataValidationResult Result = Super::IsDataValid(Context);
 	if (!DeathEffectClass)
 	{
-		Context.AddError(NSLOCTEXT(
-			"DeathAbility",
-			"MissingDeathEffect",
+		Context.AddError(NSLOCTEXT("DeathAbility", "MissingDeathEffect",
 			"DeathEffectClass must be configured on the Death Gameplay Ability asset."));
 		Result = EDataValidationResult::Invalid;
 	}
@@ -50,27 +48,22 @@ EDataValidationResult UDeathAbility::IsDataValid(FDataValidationContext& Context
 }
 #endif
 
-bool UDeathAbility::CanActivateAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayTagContainer* SourceTags,
-	const FGameplayTagContainer* TargetTags,
-	FGameplayTagContainer* OptionalRelevantTags) const
+bool UDeathAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
 {
 	static_cast<void>(Handle);
 	static_cast<void>(SourceTags);
 	static_cast<void>(TargetTags);
 	static_cast<void>(OptionalRelevantTags);
 
-	// Death is a terminal state transition and must not be rejected by an
-	// active skill's general GameplayAbility block tag.
+	// 사망은 끝 상태로 넘어가는 전환이라, 활성 스킬의 일반 GameplayAbility 차단 태그에
+	// 막히면 안 된다.
 	const UAbilitySystemComponent* AbilitySystemComponent =
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	return AbilitySystemComponent
-		&& AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetHealthAttribute()) <= 0.0f
-		&& !AbilitySystemComponent->HasMatchingGameplayTag(
-			LabGameplayTags::State_Dead);
+		&& AbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f
+		&& !AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
 }
 
 void UDeathAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,

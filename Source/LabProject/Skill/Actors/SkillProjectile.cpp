@@ -75,9 +75,7 @@ void ASkillProjectile::Tick(const float DeltaSeconds)
 	UpdateReadiedScaleGrowth();
 }
 
-void ASkillProjectile::InitializeProjectile(
-	const FVector& InTargetLocation,
-	float InSpeed,
+void ASkillProjectile::InitializeProjectile(const FVector& InTargetLocation, float InSpeed,
 	const FGameplayEffectSpecHandle& InDamageEffectSpecHandle)
 {
 	bCosmeticOnly = false;
@@ -128,13 +126,8 @@ void ASkillProjectile::PrepareCosmeticReadiedProjectile(const float InLifeSpan)
 	}
 }
 
-void ASkillProjectile::StartReadiedScaleGrowth(
-	FVector InStartScale,
-	FVector InTargetScale,
-	const float InDuration,
-	const FName InNiagaraVector2DParameterName,
-	FVector2D InNiagaraStartSize,
-	FVector2D InNiagaraTargetSize)
+void ASkillProjectile::StartReadiedScaleGrowth(FVector InStartScale, FVector InTargetScale, const float InDuration,
+	const FName InNiagaraVector2DParameterName, FVector2D InNiagaraStartSize, FVector2D InNiagaraTargetSize)
 {
 	const float ClampedDuration = FMath::Max(InDuration, 0.0f);
 	InStartScale = InStartScale.ComponentMax(FVector::ZeroVector);
@@ -186,9 +179,7 @@ float ASkillProjectile::GetReadiedScaleGrowthAlpha() const
 	return ReadiedGrowth.GetAlpha(GetSyncedWorldTimeSeconds());
 }
 
-void ASkillProjectile::LaunchProjectile(
-	const FVector& InTargetLocation,
-	float InSpeed,
+void ASkillProjectile::LaunchProjectile(const FVector& InTargetLocation, float InSpeed,
 	const FGameplayEffectSpecHandle& InDamageEffectSpecHandle)
 {
 	bCosmeticOnly = false;
@@ -212,9 +203,7 @@ void ASkillProjectile::LaunchProjectile(
 	}
 }
 
-void ASkillProjectile::ConfigureArcTrajectory(
-	const bool bInUseArcTrajectory,
-	const float InArcHeight,
+void ASkillProjectile::ConfigureArcTrajectory(const bool bInUseArcTrajectory, const float InArcHeight,
 	const float InArcGravityScale)
 {
 	bUseArcTrajectory = bInUseArcTrajectory;
@@ -223,8 +212,7 @@ void ASkillProjectile::ConfigureArcTrajectory(
 	MarkProjectileFlightDataDirty();
 }
 
-void ASkillProjectile::SetDebuffEffectSpecHandle(
-	const FGameplayEffectSpecHandle& InDebuffEffectSpecHandle,
+void ASkillProjectile::SetDebuffEffectSpecHandle(const FGameplayEffectSpecHandle& InDebuffEffectSpecHandle,
 	UStatusEffectDefinition* InStatusEffectDefinition)
 {
 	DebuffEffectSpecHandle = InDebuffEffectSpecHandle;
@@ -236,20 +224,14 @@ void ASkillProjectile::SetImpactAreaDamageRadius(const float InImpactAreaDamageR
 	ImpactAreaDamageRadius = FMath::Max(InImpactAreaDamageRadius, 0.0f);
 }
 
-void ASkillProjectile::ConfigureImpactPersistence(
-	const bool bInStickOnImpact,
-	const float InPostImpactLifeSpan)
+void ASkillProjectile::ConfigureImpactPersistence(const bool bInStickOnImpact, const float InPostImpactLifeSpan)
 {
 	PostImpactLifeSpan = FMath::Max(InPostImpactLifeSpan, 0.0f);
 	bStickOnImpact = bInStickOnImpact && PostImpactLifeSpan > UE_SMALL_NUMBER;
 }
 
-void ASkillProjectile::ConfigureProjectileVisuals(
-	UNiagaraSystem* InMuzzleFX,
-	UNiagaraSystem* InProjectileFX,
-	UNiagaraSystem* InHitFX,
-	const bool bInSpawnHitNiagaraOnGround,
-	const FGameplayTag InSpawnGameplayCueTag,
+void ASkillProjectile::ConfigureProjectileVisuals(UNiagaraSystem* InMuzzleFX, UNiagaraSystem* InProjectileFX,
+	UNiagaraSystem* InHitFX, const bool bInSpawnHitNiagaraOnGround, const FGameplayTag InSpawnGameplayCueTag,
 	const FGameplayTag InImpactGameplayCueTag)
 {
 	MuzzleFX = InMuzzleFX;
@@ -380,13 +362,8 @@ void ASkillProjectile::OnRep_ImpactState()
 	ExecuteImpactNiagaraAtLocation(GetActorLocation());
 }
 
-void ASkillProjectile::HandleSphereBeginOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult)
+void ASkillProjectile::HandleSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	static_cast<void>(OverlappedComponent);
 	static_cast<void>(OtherBodyIndex);
@@ -395,12 +372,8 @@ void ASkillProjectile::HandleSphereBeginOverlap(
 	HandleImpact(OtherActor, OtherComp, bFromSweep ? SweepResult : EmptyHit);
 }
 
-void ASkillProjectile::HandleSphereHit(
-	UPrimitiveComponent* HitComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	FVector NormalImpulse,
-	const FHitResult& Hit)
+void ASkillProjectile::HandleSphereHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	static_cast<void>(HitComponent);
 	static_cast<void>(NormalImpulse);
@@ -414,32 +387,28 @@ void ASkillProjectile::HandleProjectileStopped(const FHitResult& Hit)
 	UPrimitiveComponent* OtherComponent = Hit.GetComponent();
 	if (!bCosmeticOnly && !bHasImpacted && SphereCollision && IsValid(OtherComponent)
 		&& (PdSkillProjectileHit::IsIgnoredImpactActor(*this, OtherActor)
-			|| PdCharacterHitValidation::IsCharacterRelatedNonMeshHit(OtherActor, OtherComponent)))
+		|| PdCharacterHitValidation::IsCharacterRelatedNonMeshHit(OtherActor, OtherComponent)))
 	{
-		// Ignoring damage alone does not prevent ProjectileMovement from stopping on a blocker.
+		// 피해만 무시해서는 ProjectileMovement가 막는 물체에서 멈추는 것을 막을 수 없다.
 		SphereCollision->IgnoreComponentWhenMoving(OtherComponent, true);
 		StartProjectileMovement();
 		return;
 	}
 
-	// Initial penetration can stop projectile movement without a component hit notification.
-	// HandleImpact guards against processing an already reported hit twice.
+	// 처음부터 겹친 상태면 컴포넌트 충돌 알림 없이 투사체 이동이 멈출 수 있다.
+	// HandleImpact는 이미 보고된 맞음을 두 번 처리하지 않는다.
 	HandleImpact(OtherActor, OtherComponent, Hit);
 }
 
-void ASkillProjectile::HandleImpact(
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	const FHitResult& Hit)
+void ASkillProjectile::HandleImpact(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FHitResult& Hit)
 {
 	if (bCosmeticOnly || bHasImpacted || !OtherComp || PdSkillProjectileHit::IsIgnoredImpactActor(*this, OtherActor))
 	{
 		return;
 	}
 
-	// A character can own several query primitives (capsule, interaction sensor,
-	// equipment and presentation volumes). None of those may consume a skill
-	// projectile. Only the character's primary skeletal mesh is damage geometry.
+	// 캐릭터는 질의 프리미티브(캡슐, 상호작용 감지, 장비·표시 볼륨)를 여러 개 가질 수 있지만,
+	// 그중 무엇도 스킬 투사체를 소모하면 안 된다. 피해 형상은 캐릭터의 주 스켈레탈 메시뿐이다.
 	if (PdCharacterHitValidation::IsCharacterRelatedNonMeshHit(OtherActor, OtherComp))
 	{
 		return;
@@ -480,10 +449,8 @@ void ASkillProjectile::HandleImpact(
 		StuckCharacter = PdCharacterHitValidation::ResolveDirectMeshHit(OtherActor, OtherComp);
 		if (StuckCharacter && IsValid(StuckCharacter->GetMesh()))
 		{
-			// Character impacts always attach to the authoritative primary mesh.
-			// Hit.BoneName is normally populated by the mesh physics asset; use
-			// the nearest bone as a safe fallback so animation keeps the icicle
-			// embedded in the struck body part.
+			// 캐릭터에 맞으면 항상 권위 있는 주 메시에 붙인다. Hit.BoneName은 보통 메시의 물리 애셋이 채우지만,
+			// 없을 때는 가장 가까운 본을 써서 애니메이션이 움직여도 고드름이 맞은 부위에 박혀 있게 한다.
 			StuckBoneName = PdSkillProjectileHit::ResolveImpactBoneName(StuckCharacter->GetMesh(), Hit, ImpactLocation);
 		}
 		else
@@ -496,14 +463,8 @@ void ASkillProjectile::HandleImpact(
 		ProjectileEffect->Deactivate();
 	}
 
-	MulticastExecuteImpactGameplayCue(
-		FVector_NetQuantize(ImpactLocation),
-		HitFX.Get(),
-		bSpawnHitNiagaraOnGround,
-		ImpactGameplayCueTag,
-		bKeepProjectileAfterImpact,
-		StuckCharacter,
-		StuckBoneName);
+	MulticastExecuteImpactGameplayCue(FVector_NetQuantize(ImpactLocation), HitFX.Get(), bSpawnHitNiagaraOnGround,
+		ImpactGameplayCueTag, bKeepProjectileAfterImpact, StuckCharacter, StuckBoneName);
 
 	FHitResult SkillHit = Hit;
 	SkillHit.ImpactPoint = ImpactLocation;
@@ -561,21 +522,13 @@ void ASkillProjectile::StopAtImpact(const FVector& ImpactLocation)
 
 	if (!ImpactLocation.ContainsNaN())
 	{
-		SetActorLocation(
-			ImpactLocation,
-			false,
-			nullptr,
-			ETeleportType::TeleportPhysics);
+		SetActorLocation(ImpactLocation, false, nullptr, ETeleportType::TeleportPhysics);
 	}
 }
 
-void ASkillProjectile::AttachToImpactComponent(
-	UPrimitiveComponent* OtherComp,
-	const FName ImpactBoneName)
+void ASkillProjectile::AttachToImpactComponent(UPrimitiveComponent* OtherComp, const FName ImpactBoneName)
 {
-	if (!IsValid(OtherComp)
-		|| OtherComp == SphereCollision
-		|| !IsValid(OtherComp->GetOwner()))
+	if (!IsValid(OtherComp) || OtherComp == SphereCollision || !IsValid(OtherComp->GetOwner()))
 	{
 		return;
 	}
@@ -586,10 +539,7 @@ void ASkillProjectile::AttachToImpactComponent(
 		AttachSocketName = NAME_None;
 	}
 
-	AttachToComponent(
-		OtherComp,
-		FAttachmentTransformRules::KeepWorldTransform,
-		AttachSocketName);
+	AttachToComponent(OtherComp, FAttachmentTransformRules::KeepWorldTransform, AttachSocketName);
 }
 
 void ASkillProjectile::ExecuteImpactGameplayCueAtLocation(const FVector& CueLocation)
@@ -734,25 +684,16 @@ void ASkillProjectile::MarkImpactStateDirty()
 	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillProjectile, bKeepProjectileVisualAfterImpact, this);
 }
 
-void ASkillProjectile::MulticastExecuteImpactGameplayCue_Implementation(
-	FVector_NetQuantize CueLocation,
-	UNiagaraSystem* InHitFX,
-	const bool bInSpawnHitNiagaraOnGround,
-	FGameplayTag InImpactGameplayCueTag,
-	const bool bKeepProjectileVisual,
-	ACharacterBase* InStuckCharacter,
-	const FName InStuckBoneName)
+void ASkillProjectile::MulticastExecuteImpactGameplayCue_Implementation(FVector_NetQuantize CueLocation,
+	UNiagaraSystem* InHitFX, const bool bInSpawnHitNiagaraOnGround, FGameplayTag InImpactGameplayCueTag,
+	const bool bKeepProjectileVisual, ACharacterBase* InStuckCharacter, const FName InStuckBoneName)
 {
 	bHasImpacted = true;
 	bKeepProjectileVisualAfterImpact = bKeepProjectileVisual;
 	StopAtImpact(FVector(CueLocation));
-	if (bKeepProjectileVisual
-		&& IsValid(InStuckCharacter)
-		&& IsValid(InStuckCharacter->GetMesh()))
+	if (bKeepProjectileVisual && IsValid(InStuckCharacter) && IsValid(InStuckCharacter->GetMesh()))
 	{
-		AttachToImpactComponent(
-			InStuckCharacter->GetMesh(),
-			InStuckBoneName);
+		AttachToImpactComponent(InStuckCharacter->GetMesh(), InStuckBoneName);
 	}
 
 	// 복제 속성보다 먼저 도착한 클라이언트도 같은 충돌 연출을 쓰도록 비어 있는 값만 채운다.

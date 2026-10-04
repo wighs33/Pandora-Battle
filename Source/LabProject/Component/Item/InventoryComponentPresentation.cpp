@@ -51,21 +51,18 @@ namespace
 bool UInventoryComponent::HasPendingItemLoads()
 {
 	CleanupCompletedItemLoadHandles();
-	return PendingItemLoadRequestCount > 0
-		|| !PendingItemLoadHandles.IsEmpty();
+	return PendingItemLoadRequestCount > 0 || !PendingItemLoadHandles.IsEmpty();
 }
 
 void UInventoryComponent::CleanupCompletedItemLoadHandles()
 {
-	PendingItemLoadHandles.RemoveAll(
-		[](const TSharedPtr<FStreamableHandle>& PendingHandle)
+	PendingItemLoadHandles.RemoveAll([](const TSharedPtr<FStreamableHandle>& PendingHandle)
 		{
 			return !PendingHandle.IsValid() || PendingHandle->HasLoadCompleted();
 		});
 }
 
-void UInventoryComponent::CompletePendingItemLoadRequest(
-	const uint64 RequestGeneration)
+void UInventoryComponent::CompletePendingItemLoadRequest(const uint64 RequestGeneration)
 {
 	if (RequestGeneration != ItemLoadGeneration)
 	{
@@ -84,8 +81,8 @@ void UInventoryComponent::CompletePendingItemLoadRequest(
 
 void UInventoryComponent::CancelPendingItemLoads()
 {
-	// CancelHandle cannot retract a completion delegate that is already queued.
-	// Advancing the generation makes every callback from the old batch a no-op.
+	// CancelHandle은 이미 대기열에 들어간 완료 델리게이트를 거둘 수 없다.
+	// 세대 값을 올려 이전 묶음의 콜백을 모두 아무 일도 하지 않게 만든다.
 	const bool bHadPendingLoads = PendingItemLoadRequestCount > 0 || !PendingItemLoadHandles.IsEmpty();
 	++ItemLoadGeneration;
 	PendingItemLoadRequestCount = 0;
@@ -145,13 +142,10 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 		}
 
 		// 시작하지 못한 lease는 보관하지 않아 다음 갱신에서 다시 시도한다.
-		TSharedPtr<FContentLease> PresentationLease =
-			ContentSubsystem->AcquireContent(PresentationAssetPaths);
+		TSharedPtr<FContentLease> PresentationLease = ContentSubsystem->AcquireContent(PresentationAssetPaths);
 		if (PresentationLease->HasFailed())
 		{
-			UE_LOG(
-				InventoryComponentLog,
-				Error,
+			UE_LOG(InventoryComponentLog, Error,
 				TEXT("Failed to start weapon presentation preload for loadout item '%s'."),
 				*AssetId.ToString());
 			continue;

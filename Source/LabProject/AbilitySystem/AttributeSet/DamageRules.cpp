@@ -21,8 +21,7 @@ namespace PdDamageRules
 				return false;
 			}
 
-			return EffectSpec.DynamicGrantedTags.HasTag(StatusTag)
-				|| EffectSpec.GetDynamicAssetTags().HasTag(StatusTag)
+			return EffectSpec.DynamicGrantedTags.HasTag(StatusTag) || EffectSpec.GetDynamicAssetTags().HasTag(StatusTag)
 				|| (EffectSpec.Def && EffectSpec.Def->GetGrantedTags().HasTag(StatusTag))
 				|| (EffectSpec.Def && EffectSpec.Def->GetAssetTags().HasTag(StatusTag));
 		}
@@ -48,10 +47,7 @@ namespace PdDamageRules
 		return EStatusDamage::None;
 	}
 
-	float CalculateCriticalDamage(
-		const float BaseDamage,
-		const float Critical,
-		const float RollPercent,
+	float CalculateCriticalDamage(const float BaseDamage, const float Critical, const float RollPercent,
 		bool& bOutCriticalHit)
 	{
 		bOutCriticalHit = false;
@@ -68,9 +64,7 @@ namespace PdDamageRules
 		return BaseDamage;
 	}
 
-	float CalculateStatusEffectDamage(
-		const float SkillScaledDamage,
-		const float DamageBonusPercent,
+	float CalculateStatusEffectDamage(const float SkillScaledDamage, const float DamageBonusPercent,
 		const float DamageScale)
 	{
 		const float DamageMultiplier = 1.0f + (DamageBonusPercent * 0.01f);

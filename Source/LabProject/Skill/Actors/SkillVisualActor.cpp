@@ -49,9 +49,8 @@ namespace
 		Owner->GetComponents<UNiagaraComponent>(NiagaraComponents);
 		for (UNiagaraComponent* NiagaraComponent : NiagaraComponents)
 		{
-			if (NiagaraComponent
-				&& (NiagaraComponent->GetFName() == ComponentName
-					|| NiagaraComponent->ComponentTags.Contains(ComponentName)))
+			if (NiagaraComponent && (NiagaraComponent->GetFName() == ComponentName
+				|| NiagaraComponent->ComponentTags.Contains(ComponentName)))
 			{
 				return NiagaraComponent;
 			}
@@ -73,10 +72,8 @@ ASkillVisualActor::ASkillVisualActor()
 	PrimaryActorTick.TickInterval = 0.05f;
 }
 
-void ASkillVisualActor::InitializePresentation(
-	ACharacterBase* InSourceCharacter,
-	const USkillDefinition* InSkillDefinition,
-	const ESkillPresentationFlags InFlags)
+void ASkillVisualActor::InitializePresentation(ACharacterBase* InSourceCharacter,
+	const USkillDefinition* InSkillDefinition, const ESkillPresentationFlags InFlags)
 {
 	if (!HasAuthority())
 	{
@@ -88,9 +85,7 @@ void ASkillVisualActor::InitializePresentation(
 	PresentationFlags = static_cast<uint8>(InFlags);
 }
 
-void ASkillVisualActor::SetPresentationEnabled(
-	const ESkillPresentationFlags Flag,
-	const bool bEnabled)
+void ASkillVisualActor::SetPresentationEnabled(const ESkillPresentationFlags Flag, const bool bEnabled)
 {
 	if (!HasAuthority())
 	{
@@ -98,9 +93,7 @@ void ASkillVisualActor::SetPresentationEnabled(
 	}
 
 	const uint8 FlagValue = static_cast<uint8>(Flag);
-	const uint8 NewFlags = bEnabled
-		? PresentationFlags | FlagValue
-		: PresentationFlags & ~FlagValue;
+	const uint8 NewFlags = bEnabled ? PresentationFlags | FlagValue : PresentationFlags & ~FlagValue;
 	if (NewFlags == PresentationFlags)
 	{
 		return;
@@ -111,8 +104,7 @@ void ASkillVisualActor::SetPresentationEnabled(
 	ForceNetUpdate();
 }
 
-void ASkillVisualActor::SetMissileTargetActors(
-	const TArray<AActor*>& InTargetActors)
+void ASkillVisualActor::SetMissileTargetActors(const TArray<AActor*>& InTargetActors)
 {
 	if (!HasAuthority())
 	{
@@ -173,8 +165,7 @@ void ASkillVisualActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void ASkillVisualActor::GetLifetimeReplicatedProps(
-	TArray<FLifetimeProperty>& OutLifetimeProps) const
+void ASkillVisualActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
@@ -218,24 +209,19 @@ void ASkillVisualActor::RefreshLocalPresentation()
 		LocalPresentationSourceCharacter = ResolvedSourceCharacter;
 	}
 
-	const bool bWantsDefaultFX =
-		HasPresentationFlag(PresentationFlags, ESkillPresentationFlags::DefaultFX);
-	if (bWantsDefaultFX && !bDefaultAuraApplied
-		&& !LocalDefaultSocketNiagaraComponent
+	const bool bWantsDefaultFX = HasPresentationFlag(PresentationFlags, ESkillPresentationFlags::DefaultFX);
+	if (bWantsDefaultFX && !bDefaultAuraApplied && !LocalDefaultSocketNiagaraComponent
 		&& !LocalBorrowedSocketNiagaraComponent)
 	{
 		StartDefaultFX();
 	}
 	else if (!bWantsDefaultFX
-		&& (bDefaultAuraApplied
-			|| LocalDefaultSocketNiagaraComponent
-			|| LocalBorrowedSocketNiagaraComponent))
+		&& (bDefaultAuraApplied || LocalDefaultSocketNiagaraComponent || LocalBorrowedSocketNiagaraComponent))
 	{
 		StopDefaultFX();
 	}
 
-	const bool bWantsGroundFX =
-		HasPresentationFlag(PresentationFlags, ESkillPresentationFlags::GroundFX);
+	const bool bWantsGroundFX = HasPresentationFlag(PresentationFlags, ESkillPresentationFlags::GroundFX);
 	if (bWantsGroundFX && !LocalDefaultGroundNiagaraComponent)
 	{
 		StartGroundFX();
@@ -245,8 +231,7 @@ void ASkillVisualActor::RefreshLocalPresentation()
 		StopGroundFX();
 	}
 
-	const bool bWantsOverlay =
-		HasPresentationFlag(PresentationFlags, ESkillPresentationFlags::CharacterOverlay);
+	const bool bWantsOverlay = HasPresentationFlag(PresentationFlags, ESkillPresentationFlags::CharacterOverlay);
 	if (bWantsOverlay && !bCharacterOverlayApplied)
 	{
 		StartCharacterOverlay();
@@ -256,8 +241,7 @@ void ASkillVisualActor::RefreshLocalPresentation()
 		StopCharacterOverlay();
 	}
 
-	const bool bWantsMissile =
-		HasPresentationFlag(PresentationFlags, ESkillPresentationFlags::Missile);
+	const bool bWantsMissile = HasPresentationFlag(PresentationFlags, ESkillPresentationFlags::Missile);
 	if (bWantsMissile)
 	{
 		RefreshLocalMissiles();
@@ -288,12 +272,8 @@ void ASkillVisualActor::StartDefaultFX()
 	const FSkillNiagaraSettings& NiagaraSettings = SkillDefinition->Niagara;
 	if (NiagaraSettings.AuraNiagaraSystem)
 	{
-		Character->ApplyBodyAuraNiagaraWithOffset(
-			NiagaraSettings.AuraNiagaraComponentName,
-			NiagaraSettings.AuraNiagaraSystem.Get(),
-			true,
-			true,
-			NiagaraSettings.AuraLocationOffset,
+		Character->ApplyBodyAuraNiagaraWithOffset(NiagaraSettings.AuraNiagaraComponentName,
+			NiagaraSettings.AuraNiagaraSystem.Get(), true, true, NiagaraSettings.AuraLocationOffset,
 			NiagaraSettings.AuraScale);
 		bDefaultAuraApplied = true;
 	}
@@ -318,22 +298,16 @@ void ASkillVisualActor::StartDefaultFX()
 	}
 
 	USkeletalMeshComponent* MeshComponent = Character->GetMesh();
-	if (!MeshComponent
-		|| NiagaraSettings.SocketName.IsNone()
+	if (!MeshComponent || NiagaraSettings.SocketName.IsNone()
 		|| !MeshComponent->DoesSocketExist(NiagaraSettings.SocketName))
 	{
 		return;
 	}
 
 	LocalDefaultSocketNiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
-		NiagaraSettings.SocketNiagaraSystem.Get(),
-		MeshComponent,
-		NiagaraSettings.SocketName,
-		NiagaraSettings.SocketLocationOffset,
-		NiagaraSettings.SocketRotationOffset,
-		EAttachLocation::KeepRelativeOffset,
-		false,
-		true);
+		NiagaraSettings.SocketNiagaraSystem.Get(), MeshComponent, NiagaraSettings.SocketName,
+		NiagaraSettings.SocketLocationOffset, NiagaraSettings.SocketRotationOffset, EAttachLocation::KeepRelativeOffset,
+		false, true);
 	if (LocalDefaultSocketNiagaraComponent)
 	{
 		LocalDefaultSocketNiagaraComponent->SetRelativeScale3D(NiagaraSettings.SocketScale);
@@ -345,8 +319,7 @@ void ASkillVisualActor::StopDefaultFX()
 	ACharacterBase* Character = ResolveSourceCharacter();
 	if (bDefaultAuraApplied && Character && SkillDefinition)
 	{
-		Character->ClearBodyAuraNiagaraIfMatching(
-			SkillDefinition->Niagara.AuraNiagaraComponentName,
+		Character->ClearBodyAuraNiagaraIfMatching(SkillDefinition->Niagara.AuraNiagaraComponentName,
 			SkillDefinition->Niagara.AuraNiagaraSystem.Get());
 	}
 	bDefaultAuraApplied = false;
@@ -385,8 +358,7 @@ void ASkillVisualActor::StopDefaultFX()
 void ASkillVisualActor::StartGroundFX()
 {
 	ACharacterBase* Character = ResolveSourceCharacter();
-	if (!Character || !SkillDefinition
-		|| !SkillDefinition->Niagara.GroundNiagaraSystem)
+	if (!Character || !SkillDefinition || !SkillDefinition->Niagara.GroundNiagaraSystem)
 	{
 		return;
 	}
@@ -395,42 +367,29 @@ void ASkillVisualActor::StartGroundFX()
 	if (NiagaraSettings.bGroundNiagaraFollowsCharacter)
 	{
 		USkeletalMeshComponent* MeshComponent = Character->GetMesh();
-		if (MeshComponent
-			&& !NiagaraSettings.GroundFollowSocketName.IsNone()
+		if (MeshComponent && !NiagaraSettings.GroundFollowSocketName.IsNone()
 			&& MeshComponent->DoesSocketExist(NiagaraSettings.GroundFollowSocketName))
 		{
 			LocalDefaultGroundNiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
-				NiagaraSettings.GroundNiagaraSystem.Get(),
-				MeshComponent,
-				NiagaraSettings.GroundFollowSocketName,
-				NiagaraSettings.GroundLocationOffset,
-				NiagaraSettings.GroundRotationOffset,
-				EAttachLocation::KeepRelativeOffset,
-				false,
-				true);
+				NiagaraSettings.GroundNiagaraSystem.Get(), MeshComponent, NiagaraSettings.GroundFollowSocketName,
+				NiagaraSettings.GroundLocationOffset, NiagaraSettings.GroundRotationOffset,
+				EAttachLocation::KeepRelativeOffset, false, true);
 			if (LocalDefaultGroundNiagaraComponent)
 			{
-				LocalDefaultGroundNiagaraComponent->SetRelativeScale3D(
-					NiagaraSettings.GroundScale);
+				LocalDefaultGroundNiagaraComponent->SetRelativeScale3D(NiagaraSettings.GroundScale);
 			}
 			return;
 		}
 	}
 
 	const FTransform CharacterTransform = Character->GetActorTransform();
-	const FVector SpawnLocation =
-		ResolveCharacterFloorLocation(Character)
+	const FVector SpawnLocation = ResolveCharacterFloorLocation(Character)
 		+ CharacterTransform.TransformVector(NiagaraSettings.GroundLocationOffset);
 	const FRotator SpawnRotation =
 		(Character->GetActorRotation() + NiagaraSettings.GroundRotationOffset).GetNormalized();
 
-	LocalDefaultGroundNiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-		Character,
-		NiagaraSettings.GroundNiagaraSystem.Get(),
-		SpawnLocation,
-		SpawnRotation,
-		NiagaraSettings.GroundScale,
-		false,
+	LocalDefaultGroundNiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(Character,
+		NiagaraSettings.GroundNiagaraSystem.Get(), SpawnLocation, SpawnRotation, NiagaraSettings.GroundScale, false,
 		true);
 }
 
@@ -449,17 +408,13 @@ void ASkillVisualActor::StopGroundFX()
 void ASkillVisualActor::StartCharacterOverlay()
 {
 	ACharacterBase* Character = ResolveSourceCharacter();
-	if (!Character
-		|| !SkillDefinition
-		|| !SkillDefinition->Overlay.bUseCharacterOverlay
+	if (!Character || !SkillDefinition || !SkillDefinition->Overlay.bUseCharacterOverlay
 		|| !SkillDefinition->Overlay.CharacterOverlayMaterial)
 	{
 		return;
 	}
 
-	Character->ApplySkillPresentationOverlay(
-		this,
-		SkillDefinition->Overlay.CharacterOverlayMaterial.Get());
+	Character->ApplySkillPresentationOverlay(this, SkillDefinition->Overlay.CharacterOverlayMaterial.Get());
 	bCharacterOverlayApplied = true;
 }
 
@@ -507,10 +462,7 @@ void ASkillVisualActor::RefreshLocalMissiles()
 UNiagaraComponent* ASkillVisualActor::StartMissileForTarget(AActor* TargetActor)
 {
 	ACharacterBase* Character = ResolveSourceCharacter();
-	if (!Character
-		|| !IsValid(TargetActor)
-		|| !SkillDefinition
-		|| !SkillDefinition->Niagara.SocketNiagaraSystem)
+	if (!Character || !IsValid(TargetActor) || !SkillDefinition || !SkillDefinition->Niagara.SocketNiagaraSystem)
 	{
 		return nullptr;
 	}
@@ -518,42 +470,24 @@ UNiagaraComponent* ASkillVisualActor::StartMissileForTarget(AActor* TargetActor)
 	const FSkillNiagaraSettings& NiagaraSettings = SkillDefinition->Niagara;
 	UNiagaraComponent* MissileComponent = nullptr;
 	USkeletalMeshComponent* MeshComponent = Character->GetMesh();
-	if (MeshComponent
-		&& !NiagaraSettings.SocketName.IsNone()
+	if (MeshComponent && !NiagaraSettings.SocketName.IsNone()
 		&& MeshComponent->DoesSocketExist(NiagaraSettings.SocketName))
 	{
-		MissileComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
-			NiagaraSettings.SocketNiagaraSystem,
-			MeshComponent,
-			NiagaraSettings.SocketName,
-			NiagaraSettings.SocketLocationOffset,
-			NiagaraSettings.SocketRotationOffset,
-			NiagaraSettings.SocketScale,
-			EAttachLocation::KeepRelativeOffset,
-			false,
-			ENCPoolMethod::None,
-			false,
-			false);
+		MissileComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(NiagaraSettings.SocketNiagaraSystem,
+			MeshComponent, NiagaraSettings.SocketName, NiagaraSettings.SocketLocationOffset,
+			NiagaraSettings.SocketRotationOffset, NiagaraSettings.SocketScale, EAttachLocation::KeepRelativeOffset,
+			false, ENCPoolMethod::None, false, false);
 	}
 	else
 	{
-		const FVector SpawnLocation =
-			Character->GetActorLocation()
+		const FVector SpawnLocation = Character->GetActorLocation()
 			+ Character->GetActorForwardVector() * NiagaraSettings.SocketLocationOffset.X
 			+ Character->GetActorRightVector() * NiagaraSettings.SocketLocationOffset.Y
 			+ Character->GetActorUpVector() * NiagaraSettings.SocketLocationOffset.Z;
-		const FRotator SpawnRotation =
-			Character->GetActorRotation() + NiagaraSettings.SocketRotationOffset;
-		MissileComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			Character,
-			NiagaraSettings.SocketNiagaraSystem,
-			SpawnLocation,
-			SpawnRotation,
-			NiagaraSettings.SocketScale,
-			false,
-			false,
-			ENCPoolMethod::None,
-			false);
+		const FRotator SpawnRotation = Character->GetActorRotation() + NiagaraSettings.SocketRotationOffset;
+		MissileComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(Character,
+			NiagaraSettings.SocketNiagaraSystem, SpawnLocation, SpawnRotation, NiagaraSettings.SocketScale, false,
+			false, ENCPoolMethod::None, false);
 	}
 
 	if (MissileComponent)
@@ -567,8 +501,7 @@ UNiagaraComponent* ASkillVisualActor::StartMissileForTarget(AActor* TargetActor)
 
 void ASkillVisualActor::StopMissileAtIndex(const int32 Index)
 {
-	if (!LocalMissileNiagaraComponents.IsValidIndex(Index)
-		|| !LocalMissileTargetActors.IsValidIndex(Index))
+	if (!LocalMissileNiagaraComponents.IsValidIndex(Index) || !LocalMissileTargetActors.IsValidIndex(Index))
 	{
 		return;
 	}
@@ -619,20 +552,16 @@ void ASkillVisualActor::UpdateLocalMissileTargets()
 	}
 }
 
-void ASkillVisualActor::ApplyMissileTargetLocation(
-	AActor* TargetActor,
-	UNiagaraComponent* MissileComponent) const
+void ASkillVisualActor::ApplyMissileTargetLocation(AActor* TargetActor, UNiagaraComponent* MissileComponent) const
 {
 	if (!IsValid(TargetActor) || !MissileComponent || !SkillDefinition)
 	{
 		return;
 	}
 
-	const FName ParameterName = NormalizeNiagaraUserParameterName(
-		MissileAimParameter);
+	const FName ParameterName = NormalizeNiagaraUserParameterName(MissileAimParameter);
 	FVector TargetLocation = FVector::ZeroVector;
-	if (ParameterName.IsNone()
-		|| !ResolveMissileTargetLocation(TargetActor, TargetLocation))
+	if (ParameterName.IsNone() || !ResolveMissileTargetLocation(TargetActor, TargetLocation))
 	{
 		return;
 	}
@@ -641,9 +570,7 @@ void ASkillVisualActor::ApplyMissileTargetLocation(
 	MissileComponent->SetVariableVec3(ParameterName, TargetLocation);
 }
 
-bool ASkillVisualActor::ResolveMissileTargetLocation(
-	const AActor* TargetActor,
-	FVector& OutTargetLocation) const
+bool ASkillVisualActor::ResolveMissileTargetLocation(const AActor* TargetActor, FVector& OutTargetLocation) const
 {
 	if (!IsValid(TargetActor) || !SkillDefinition)
 	{
@@ -654,9 +581,8 @@ bool ASkillVisualActor::ResolveMissileTargetLocation(
 	if (!TargetSocketName.IsNone())
 	{
 		if (const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(TargetActor);
-			TargetCharacter
-			&& TargetCharacter->GetMesh()
-			&& TargetCharacter->GetMesh()->DoesSocketExist(TargetSocketName))
+			TargetCharacter && TargetCharacter->GetMesh()
+				&& TargetCharacter->GetMesh()->DoesSocketExist(TargetSocketName))
 		{
 			OutTargetLocation = TargetCharacter->GetMesh()->GetSocketLocation(TargetSocketName);
 			return true;
@@ -685,8 +611,7 @@ ACharacterBase* ASkillVisualActor::ResolveSourceCharacter() const
 	return Cast<ACharacterBase>(GetOwner());
 }
 
-FVector ASkillVisualActor::ResolveCharacterFloorLocation(
-	ACharacterBase* Character) const
+FVector ASkillVisualActor::ResolveCharacterFloorLocation(ACharacterBase* Character) const
 {
 	if (!Character)
 	{
@@ -696,14 +621,9 @@ FVector ASkillVisualActor::ResolveCharacterFloorLocation(
 	TArray<AActor*> ActorsToIgnore;
 	PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, Character);
 	PdSkillGroundProjection::FGroundProjectionResult GroundProjection;
-	if (PdSkillGroundProjection::TryProjectToGround(
-		Character->GetWorld(),
-		Character->GetActorLocation(),
-		LabCollisionChannels::VisibilityTrace(),
-		DefaultFXGroundTraceStartHeight,
-		DefaultFXGroundTraceDepth,
-		ActorsToIgnore,
-		GroundProjection))
+	if (PdSkillGroundProjection::TryProjectToGround(Character->GetWorld(), Character->GetActorLocation(),
+		LabCollisionChannels::VisibilityTrace(), DefaultFXGroundTraceStartHeight, DefaultFXGroundTraceDepth,
+		ActorsToIgnore, GroundProjection))
 	{
 		return GroundProjection.Location;
 	}
@@ -715,8 +635,7 @@ FVector ASkillVisualActor::ResolveCharacterFloorLocation(
 	}
 
 	const UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
-	if (MovementComponent
-		&& MovementComponent->CurrentFloor.IsWalkableFloor())
+	if (MovementComponent && MovementComponent->CurrentFloor.IsWalkableFloor())
 	{
 		FloorLocation.Z = MovementComponent->CurrentFloor.HitResult.ImpactPoint.Z;
 	}

@@ -43,19 +43,16 @@ void UUiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	StatusViewModel = NewObject<UStatusViewModel>(this);
 	if (ULocalPlayerSettingsSubsystem* PlayerSettings = Collection.InitializeDependency<ULocalPlayerSettingsSubsystem>())
 	{
-		CustomMouseCursorSettingsHandle = PlayerSettings->OnCustomMouseCursorSettingsReady.AddUObject(
-			this,
+		CustomMouseCursorSettingsHandle = PlayerSettings->OnCustomMouseCursorSettingsReady.AddUObject(this,
 			&ThisClass::HandleCustomMouseCursorSettingsReady);
 	}
 	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
 	if (ULobbyRuntimeSubsystem* LobbyRuntime = GameInstance ? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>() : nullptr)
 	{
-		LobbyEntryPreloadRequestedHandle = LobbyRuntime->OnLobbyEntryContentPreloadRequested.AddUObject(
-			this,
+		LobbyEntryPreloadRequestedHandle = LobbyRuntime->OnLobbyEntryContentPreloadRequested.AddUObject(this,
 			&ThisClass::HandleLobbyEntryContentPreloadRequested);
-		LobbyEntryReleasedHandle = LobbyRuntime->OnLobbyEntryContentReleased.AddUObject(
-			this,
+		LobbyEntryReleasedHandle = LobbyRuntime->OnLobbyEntryContentReleased.AddUObject(this,
 			&ThisClass::HandleLobbyEntryContentReleased);
 	}
 	if (UContentDataSubsystem* ContentSubsystem =
@@ -63,11 +60,8 @@ void UUiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		ContentSubsystem->EnsureSkillDataAssetsPreload();
 	}
-	ConfiguredCoreContentLease = AcquireConfiguredUiContent(
-		EUiContentGroup::Core,
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::RefreshConfiguredWidgetContentState));
+	ConfiguredCoreContentLease = AcquireConfiguredUiContent(EUiContentGroup::Core,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshConfiguredWidgetContentState));
 	RefreshConfiguredWidgetContentState();
 }
 
@@ -119,8 +113,7 @@ void UUiSubsystem::SetWidgetClassDefinition(UWidgetClassDefinition* InWidgetClas
 	}
 }
 
-void UUiSubsystem::ClearWidgetClassDefinition(
-	const UWidgetClassDefinition* ExpectedWidgetClassDefinition)
+void UUiSubsystem::ClearWidgetClassDefinition(const UWidgetClassDefinition* ExpectedWidgetClassDefinition)
 {
 	if (!ExpectedWidgetClassDefinition || WidgetClassDefinition == ExpectedWidgetClassDefinition)
 	{
@@ -130,10 +123,8 @@ void UUiSubsystem::ClearWidgetClassDefinition(
 	}
 }
 
-TSharedPtr<FContentLease> UUiSubsystem::AcquireUiContent(
-	const UWidgetClassDefinition* Definition,
-	const EUiContentGroup Group,
-	FSimpleDelegate OnComplete)
+TSharedPtr<FContentLease> UUiSubsystem::AcquireUiContent(const UWidgetClassDefinition* Definition,
+	const EUiContentGroup Group, FSimpleDelegate OnComplete)
 {
 	if (!IsValid(Definition) || bIsDeinitializing)
 	{
@@ -144,8 +135,7 @@ TSharedPtr<FContentLease> UUiSubsystem::AcquireUiContent(
 	return UContentDataSubsystem::AcquireContent(AssetPaths, MoveTemp(OnComplete));
 }
 
-TSharedPtr<FContentLease> UUiSubsystem::AcquireConfiguredUiContent(
-	const EUiContentGroup Group,
+TSharedPtr<FContentLease> UUiSubsystem::AcquireConfiguredUiContent(const EUiContentGroup Group,
 	FSimpleDelegate OnComplete)
 {
 	if (bIsDeinitializing)
@@ -168,25 +158,20 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 {
 	if (ConfiguredWidgetClassDefinition)
 	{
-		if (ConfiguredCoreContentLease.IsValid()
-			&& ConfiguredCoreContentLease->HasFailed())
+		if (ConfiguredCoreContentLease.IsValid() && ConfiguredCoreContentLease->HasFailed())
 		{
 			ConfiguredCoreContentLease.Reset();
 		}
 		if (!ConfiguredCoreContentLease.IsValid())
 		{
-			ConfiguredCoreContentLease = AcquireConfiguredUiContent(
-				EUiContentGroup::Core,
-				FSimpleDelegate::CreateUObject(
-					this,
-					&ThisClass::RefreshConfiguredWidgetContentState));
+			ConfiguredCoreContentLease = AcquireConfiguredUiContent(EUiContentGroup::Core,
+				FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshConfiguredWidgetContentState));
 		}
 		RefreshConfiguredWidgetContentState();
 		return;
 	}
 
-	if (bConfiguredWidgetContentReady
-		|| bConfiguredWidgetContentPreloadPending)
+	if (bConfiguredWidgetContentReady || bConfiguredWidgetContentPreloadPending)
 	{
 		return;
 	}
@@ -195,10 +180,7 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 	{
 		bConfiguredWidgetContentReady = false;
 		FailPendingConfiguredUiContent();
-		UE_LOG(
-			PdUiSubsystemLog,
-			Error,
-			TEXT("Default WidgetClassDefinition is required but was not configured."));
+		UE_LOG(PdUiSubsystemLog, Error, TEXT("Default WidgetClassDefinition is required but was not configured."));
 		return;
 	}
 
@@ -211,9 +193,7 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentSubsystem)
 	{
-		UE_LOG(
-			PdUiSubsystemLog,
-			Error,
+		UE_LOG(PdUiSubsystemLog, Error,
 			TEXT("Default WidgetClassDefinition preload could not start because ContentDataSubsystem is unavailable."));
 		bConfiguredWidgetContentPreloadPending = false;
 		FailPendingConfiguredUiContent();
@@ -221,8 +201,7 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 	}
 
 	// 로드에 실패하면 정의가 비어 있으므로 처리기가 대기 표시를 내리고 실패를 알린다.
-	ConfiguredDefinitionLease = ContentSubsystem->AcquireContent(
-		{DefaultWidgetClassDefinition.ToSoftObjectPath()},
+	ConfiguredDefinitionLease = ContentSubsystem->AcquireContent({DefaultWidgetClassDefinition.ToSoftObjectPath()},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleConfiguredWidgetDefinitionLoaded));
 }
 
@@ -238,9 +217,7 @@ void UUiSubsystem::HandleConfiguredWidgetDefinitionLoaded()
 	{
 		bConfiguredWidgetContentPreloadPending = false;
 		FailPendingConfiguredUiContent();
-		UE_LOG(
-			PdUiSubsystemLog,
-			Error,
+		UE_LOG(PdUiSubsystemLog, Error,
 			TEXT("Default WidgetClassDefinition '%s' did not resolve after its asynchronous preload."),
 			*DefaultWidgetClassDefinition.ToString());
 		return;
@@ -298,8 +275,7 @@ void UUiSubsystem::RefreshConfiguredWidgetContentState()
 		bConfiguredWidgetContentReady = false;
 		return;
 	}
-	bConfiguredWidgetContentReady = ConfiguredCoreContentLease.IsValid()
-		&& ConfiguredCoreContentLease->IsReady();
+	bConfiguredWidgetContentReady = ConfiguredCoreContentLease.IsValid() && ConfiguredCoreContentLease->IsReady();
 	bConfiguredWidgetContentPreloadPending = ConfiguredCoreContentLease.IsValid()
 		&& ConfiguredCoreContentLease->IsLoading();
 	OnWidgetContentChanged.Broadcast();
@@ -325,9 +301,7 @@ void UUiSubsystem::ReleaseConfiguredWidgetDefinitionPreload()
 UWidgetClassDefinition* UUiSubsystem::LoadConfiguredEditorWidgetClassDefinition()
 {
 	const UUiSubsystem* DefaultSubsystem = GetDefault<UUiSubsystem>();
-	return DefaultSubsystem
-		? DefaultSubsystem->DefaultWidgetClassDefinition.LoadSynchronous()
-		: nullptr;
+	return DefaultSubsystem ? DefaultSubsystem->DefaultWidgetClassDefinition.LoadSynchronous() : nullptr;
 }
 #endif
 
@@ -354,8 +328,7 @@ bool UUiSubsystem::RefreshStatusViewModel()
 
 bool UUiSubsystem::ApplyStatusViewModelToWidget(UUserWidget* InWidget)
 {
-	return BindStatusViewModelToWidget(InWidget)
-		&& RefreshStatusViewModel();
+	return BindStatusViewModelToWidget(InWidget) && RefreshStatusViewModel();
 }
 
 bool UUiSubsystem::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
@@ -368,8 +341,7 @@ bool UUiSubsystem::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
 	bool bBoundAny = false;
 	TSet<UUserWidget*> VisitedWidgets;
 	TFunction<void(UUserWidget*)> BindWidgetTree =
-		[this, &bBoundAny, &VisitedWidgets, &BindWidgetTree](
-			UUserWidget* UserWidget)
+		[this, &bBoundAny, &VisitedWidgets, &BindWidgetTree](UUserWidget* UserWidget)
 	{
 		if (!UserWidget || VisitedWidgets.Contains(UserWidget))
 		{
@@ -385,11 +357,9 @@ bool UUiSubsystem::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
 
 		// ForEachWidget은 안에 든 UUserWidget 자체는 방문하지만 그 위젯의 WidgetTree 안으로는 들어가지 않는다.
 		// 그 위젯들에 붙은 MVVM 확장을 놓치지 않도록 직접 재귀한다.
-		UserWidget->WidgetTree->ForEachWidget(
-			[&BindWidgetTree](UWidget* ChildWidget)
+		UserWidget->WidgetTree->ForEachWidget([&BindWidgetTree](UWidget* ChildWidget)
 			{
-				if (UUserWidget* ChildUserWidget =
-					Cast<UUserWidget>(ChildWidget))
+				if (UUserWidget* ChildUserWidget = Cast<UUserWidget>(ChildWidget))
 				{
 					BindWidgetTree(ChildUserWidget);
 				}
@@ -503,8 +473,7 @@ bool UUiSubsystem::CloseGameSettings(const UUserWidget* ExpectedOwner)
 }
 
 // 설정 서브시스템이 사용자 지정 커서 설정이 준비됐다고 알리면 커서 위젯을 뷰포트에 건다.
-void UUiSubsystem::HandleCustomMouseCursorSettingsReady(
-	APlayerController* PlayerController,
+void UUiSubsystem::HandleCustomMouseCursorSettingsReady(APlayerController* PlayerController,
 	const UGameSettingDefinition& SettingDefinition)
 {
 	UMouseCursorWidget::InstallConfiguredCursor(PlayerController, SettingDefinition);

@@ -231,8 +231,7 @@ void URightStatusWidget::HandleCriticalDownClicked()
 void URightStatusWidget::ValidateConfiguredStatTags() const
 {
 	const UProjectTagDefinition* Tags = UProjectTagDefinition::Get(this);
-	const TPair<const TCHAR*, FGameplayTag> ConfiguredStatTags[] =
-	{
+	const TPair<const TCHAR*, FGameplayTag> ConfiguredStatTags[] = {
 		{ TEXT("StrengthStatTag"), Tags->GetStatusStrengthTag() },
 		{ TEXT("IntelligenceStatTag"), Tags->GetStatusIntelligenceTag() },
 		{ TEXT("ArcaneStatTag"), Tags->GetStatusArcaneTag() },

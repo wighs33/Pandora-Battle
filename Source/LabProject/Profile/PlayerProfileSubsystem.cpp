@@ -33,29 +33,22 @@ namespace
 
 	FPrimaryAssetId ResolvePandoraSaveId(const UPandoraDefinition* PandoraDefinition)
 	{
-		return PandoraDefinition
-			? ResolveRedirectedAssetId(PandoraDefinition->GetPrimaryAssetId())
-			: FPrimaryAssetId();
+		return PandoraDefinition ? ResolveRedirectedAssetId(PandoraDefinition->GetPrimaryAssetId()) : FPrimaryAssetId();
 	}
 
 	FPrimaryAssetId ResolveSkinSaveId(const USkinDefinition* SkinDefinition)
 	{
-		return SkinDefinition
-			? ResolveRedirectedAssetId(SkinDefinition->GetPrimaryAssetId())
-			: FPrimaryAssetId();
+		return SkinDefinition ? ResolveRedirectedAssetId(SkinDefinition->GetPrimaryAssetId()) : FPrimaryAssetId();
 	}
 
 	int32 AddNonNegativeSaturated(const int32 CurrentValue, const int32 Amount)
 	{
-		return static_cast<int32>(FMath::Min<int64>(
-			static_cast<int64>(FMath::Max(CurrentValue, 0))
-				+ static_cast<int64>(FMath::Max(Amount, 0)),
-			TNumericLimits<int32>::Max()));
+		return static_cast<int32>(FMath::Min<int64>(static_cast<int64>(FMath::Max(CurrentValue, 0))
+			+ static_cast<int64>(FMath::Max(Amount, 0)), TNumericLimits<int32>::Max()));
 	}
 }
 
-void UPlayerProfileSubsystem::AddMatchRecord(const FMatchRecord& MatchRecord,
-	const bool bSaveImmediately)
+void UPlayerProfileSubsystem::AddMatchRecord(const FMatchRecord& MatchRecord, const bool bSaveImmediately)
 {
 	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
@@ -69,18 +62,14 @@ void UPlayerProfileSubsystem::AddMatchRecord(const FMatchRecord& MatchRecord,
 	SanitizedRecord.Reward = FMath::Max(SanitizedRecord.Reward, 0);
 
 	SaveGameObject->MatchRecords.Add(SanitizedRecord);
-	SaveGameObject->MatchPlayedCount =
-		AddNonNegativeSaturated(SaveGameObject->MatchPlayedCount, 1);
-	SaveGameObject->TotalKillCount =
-		AddNonNegativeSaturated(SaveGameObject->TotalKillCount, SanitizedRecord.KillCount);
+	SaveGameObject->MatchPlayedCount = AddNonNegativeSaturated(SaveGameObject->MatchPlayedCount, 1);
+	SaveGameObject->TotalKillCount = AddNonNegativeSaturated(SaveGameObject->TotalKillCount, SanitizedRecord.KillCount);
 	SaveGameObject->TotalDeathCount =
 		AddNonNegativeSaturated(SaveGameObject->TotalDeathCount, SanitizedRecord.DeathCount);
-	SaveGameObject->TotalRewardGold =
-		AddNonNegativeSaturated(SaveGameObject->TotalRewardGold, SanitizedRecord.Reward);
+	SaveGameObject->TotalRewardGold = AddNonNegativeSaturated(SaveGameObject->TotalRewardGold, SanitizedRecord.Reward);
 	if (SanitizedRecord.bWin)
 	{
-		SaveGameObject->WinCount =
-			AddNonNegativeSaturated(SaveGameObject->WinCount, 1);
+		SaveGameObject->WinCount = AddNonNegativeSaturated(SaveGameObject->WinCount, 1);
 	}
 
 	while (SaveGameObject->MatchRecords.Num() > PlayerProfileDataVersion::MaxMatchRecordCount)
@@ -111,8 +100,7 @@ int32 UPlayerProfileSubsystem::GetItemCollectedCount()
 	return IsValid(SaveGameObject) ? FMath::Max(SaveGameObject->ItemCollectedCount, 0) : 0;
 }
 
-int32 UPlayerProfileSubsystem::AddItemCollectedCount(const int32 Amount,
-	const bool bSaveImmediately)
+int32 UPlayerProfileSubsystem::AddItemCollectedCount(const int32 Amount, const bool bSaveImmediately)
 {
 	if (Amount <= 0)
 	{
@@ -125,8 +113,7 @@ int32 UPlayerProfileSubsystem::AddItemCollectedCount(const int32 Amount,
 		return 0;
 	}
 
-	SaveGameObject->ItemCollectedCount =
-		AddNonNegativeSaturated(SaveGameObject->ItemCollectedCount, Amount);
+	SaveGameObject->ItemCollectedCount = AddNonNegativeSaturated(SaveGameObject->ItemCollectedCount, Amount);
 
 	RequestProfileSave(bSaveImmediately);
 
@@ -140,8 +127,7 @@ FName UPlayerProfileSubsystem::GetSelectedAchievementId()
 	return IsValid(SaveGameObject) ? SaveGameObject->SelectedAchievementId : NAME_None;
 }
 
-bool UPlayerProfileSubsystem::SetSelectedAchievementId(const FName AchievementId,
-	const bool bSaveImmediately)
+bool UPlayerProfileSubsystem::SetSelectedAchievementId(const FName AchievementId, const bool bSaveImmediately)
 {
 	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
 	if (!IsValid(SaveGameObject))
@@ -249,10 +235,7 @@ bool UPlayerProfileSubsystem::IsPandoraGranted(const UPandoraDefinition* Pandora
 }
 
 bool UPlayerProfileSubsystem::TryPurchasePandoraWithGold(const UPandoraDefinition* PandoraDefinition,
-	const int32 GoldCost,
-	const int32 StartingLevel,
-	int32& OutRemainingGold,
-	const bool bSaveImmediately)
+	const int32 GoldCost, const int32 StartingLevel, int32& OutRemainingGold, const bool bSaveImmediately)
 {
 	OutRemainingGold = GetGold();
 	if (!PandoraDefinition)
@@ -287,9 +270,7 @@ bool UPlayerProfileSubsystem::TryPurchasePandoraWithGold(const UPandoraDefinitio
 	}
 
 	SaveGameObject->Gold -= SanitizedGoldCost;
-	SaveGameObject->PlayerPandoraData.GrantedPandorasById.Add(
-		PandoraId,
-		FMath::Max(StartingLevel, 1));
+	SaveGameObject->PlayerPandoraData.GrantedPandorasById.Add(PandoraId, FMath::Max(StartingLevel, 1));
 	OutRemainingGold = SaveGameObject->Gold;
 
 	RequestProfileSave(bSaveImmediately);
@@ -320,10 +301,8 @@ bool UPlayerProfileSubsystem::IsSkinGranted(USkinDefinition* SkinDefinition)
 	return SaveGameObject->PlayerSkinData.GrantedSkinsById.Contains(SkinId);
 }
 
-bool UPlayerProfileSubsystem::TryPurchaseSkinWithGold(USkinDefinition* SkinDefinition,
-	const int32 GoldCost,
-	int32& OutRemainingGold,
-	const bool bSaveImmediately)
+bool UPlayerProfileSubsystem::TryPurchaseSkinWithGold(USkinDefinition* SkinDefinition, const int32 GoldCost,
+	int32& OutRemainingGold, const bool bSaveImmediately)
 {
 	OutRemainingGold = GetGold();
 	if (!SkinDefinition)
@@ -338,8 +317,7 @@ bool UPlayerProfileSubsystem::TryPurchaseSkinWithGold(USkinDefinition* SkinDefin
 	}
 
 	const FPrimaryAssetId SkinId = ResolveSkinSaveId(SkinDefinition);
-	if (!SkinId.IsValid()
-		|| SkinDefinition->IsDefaultProfileSkin()
+	if (!SkinId.IsValid() || SkinDefinition->IsDefaultProfileSkin()
 		|| SaveGameObject->PlayerSkinData.GrantedSkinsById.Contains(SkinId))
 	{
 		return false;

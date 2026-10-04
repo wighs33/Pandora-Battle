@@ -17,8 +17,7 @@ void SendAttackDamageWindowEvent(USkeletalMeshComponent* MeshComp, const FGamepl
 	}
 
 	AActor* OwnerActor = MeshComp->GetOwner();
-	if (!IsValid(OwnerActor)
-		|| !OwnerActor->HasAuthority()
+	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority()
 		|| !UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerActor))
 	{
 		return;
@@ -38,11 +37,8 @@ UAnimNotifyState_AttackDamageWindow::UAnimNotifyState_AttackDamageWindow()
 	EndEventTag = LabGameplayTags::Notifier_Attack_DamageWindowClose;
 }
 
-void UAnimNotifyState_AttackDamageWindow::NotifyBegin(
-	USkeletalMeshComponent* MeshComp,
-	UAnimSequenceBase* Animation,
-	float TotalDuration,
-	const FAnimNotifyEventReference& EventReference)
+void UAnimNotifyState_AttackDamageWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
+	float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
 	static_cast<void>(Animation);
 	static_cast<void>(TotalDuration);
@@ -54,9 +50,7 @@ void UAnimNotifyState_AttackDamageWindow::NotifyBegin(
 	SendAttackDamageWindowEvent(MeshComp, EventTag);
 }
 
-void UAnimNotifyState_AttackDamageWindow::NotifyEnd(
-	USkeletalMeshComponent* MeshComp,
-	UAnimSequenceBase* Animation,
+void UAnimNotifyState_AttackDamageWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 	const FAnimNotifyEventReference& EventReference)
 {
 	static_cast<void>(Animation);

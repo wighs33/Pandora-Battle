@@ -38,9 +38,7 @@ void AppendSkinListAsObjects(const FSkinList& SkinList, TArray<UObject*>& OutLis
 
 FGameplayTag ResolveSkinDefinitionMatchTag(const FGameplayTag SlotOrFilterTag)
 {
-	return SlotOrFilterTag.MatchesTag(LabGameplayTags::Skin_Gesture)
-		? LabGameplayTags::Skin_Gesture
-		: SlotOrFilterTag;
+	return SlotOrFilterTag.MatchesTag(LabGameplayTags::Skin_Gesture) ? LabGameplayTags::Skin_Gesture : SlotOrFilterTag;
 }
 }
 
@@ -131,10 +129,7 @@ void UInfoSkinTabPresenter::HandleSkinSlotClicked(UObject* Item)
 
 void UInfoSkinTabPresenter::EquipSkinDefinition(const USkinDefinition* SkinDefinition)
 {
-	if (!GetController()
-		|| !SkinDefinition
-		|| !SkinDefinition->IdTag.IsValid()
-		|| !SelectedEquipSlot
+	if (!GetController() || !SkinDefinition || !SkinDefinition->IdTag.IsValid() || !SelectedEquipSlot
 		|| !SelectedEquipTypeTag.IsValid())
 	{
 		return;
@@ -161,10 +156,8 @@ void UInfoSkinTabPresenter::EquipSkinDefinition(const USkinDefinition* SkinDefin
 	}
 }
 
-void UInfoSkinTabPresenter::HandleSkinEquipSlotClicked(
-	FGameplayTag EquipTypeTag,
-	USkinEquipSlotWidget* InSelectedEquipSlot,
-	const bool bIsSelectedAnyButton)
+void UInfoSkinTabPresenter::HandleSkinEquipSlotClicked(FGameplayTag EquipTypeTag,
+	USkinEquipSlotWidget* InSelectedEquipSlot, const bool bIsSelectedAnyButton)
 {
 	static_cast<void>(bIsSelectedAnyButton);
 	if (!GetController())
@@ -192,10 +185,8 @@ void UInfoSkinTabPresenter::HandleSkinEquipSlotClicked(
 	BindTileItemClicked();
 }
 
-void UInfoSkinTabPresenter::HandleSkinEquipSlotDropped(
-	const FGameplayTag EquipTypeTag,
-	USkinEquipSlotWidget* TargetSkinEquipSlot,
-	const USkinDefinition* SkinDefinition)
+void UInfoSkinTabPresenter::HandleSkinEquipSlotDropped(const FGameplayTag EquipTypeTag,
+	USkinEquipSlotWidget* TargetSkinEquipSlot, const USkinDefinition* SkinDefinition)
 {
 	SelectedEquipSlot = TargetSkinEquipSlot;
 	SelectedEquipTypeTag = EquipTypeTag;
@@ -297,43 +288,23 @@ void UInfoSkinTabPresenter::BindEvents()
 		return;
 	}
 
-	InfoWidget->OnDroppedSkinToCharacterPanel.RemoveDynamic(
-		this,
-		&ThisClass::HandleSkinDroppedToCharacter);
-	InfoWidget->OnDroppedSkinToCharacterPanel.AddUniqueDynamic(
-		this,
-		&ThisClass::HandleSkinDroppedToCharacter);
+	InfoWidget->OnDroppedSkinToCharacterPanel.RemoveDynamic(this, &ThisClass::HandleSkinDroppedToCharacter);
+	InfoWidget->OnDroppedSkinToCharacterPanel.AddUniqueDynamic(this, &ThisClass::HandleSkinDroppedToCharacter);
 
 	if (ULeftSkinWidget* LeftSkinWidget = InfoWidget->GetLeftSkinWidget())
 	{
-		LeftSkinWidget->OnClicked_SkinEquipTypeSlot.RemoveDynamic(
-			this,
-			&ThisClass::HandleSkinEquipSlotClicked);
-		LeftSkinWidget->OnClicked_SkinEquipTypeSlot.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleSkinEquipSlotClicked);
-		LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.RemoveDynamic(
-			this,
-			&ThisClass::HandleSkinEquipSlotDropped);
-		LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleSkinEquipSlotDropped);
+		LeftSkinWidget->OnClicked_SkinEquipTypeSlot.RemoveDynamic(this, &ThisClass::HandleSkinEquipSlotClicked);
+		LeftSkinWidget->OnClicked_SkinEquipTypeSlot.AddUniqueDynamic(this, &ThisClass::HandleSkinEquipSlotClicked);
+		LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.RemoveDynamic(this, &ThisClass::HandleSkinEquipSlotDropped);
+		LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.AddUniqueDynamic(this, &ThisClass::HandleSkinEquipSlotDropped);
 	}
 
 	if (URightSkinWidget* RightSkinWidget = InfoWidget->GetRightSkinWidget())
 	{
-		RightSkinWidget->OnClicked_FilterAllButton.RemoveDynamic(
-			this,
-			&ThisClass::HandleSkinFilterAllClicked);
-		RightSkinWidget->OnClicked_FilterAllButton.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleSkinFilterAllClicked);
-		RightSkinWidget->OnClicked_FilterTypeButton.RemoveDynamic(
-			this,
-			&ThisClass::HandleSkinFilterTypeClicked);
-		RightSkinWidget->OnClicked_FilterTypeButton.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleSkinFilterTypeClicked);
+		RightSkinWidget->OnClicked_FilterAllButton.RemoveDynamic(this, &ThisClass::HandleSkinFilterAllClicked);
+		RightSkinWidget->OnClicked_FilterAllButton.AddUniqueDynamic(this, &ThisClass::HandleSkinFilterAllClicked);
+		RightSkinWidget->OnClicked_FilterTypeButton.RemoveDynamic(this, &ThisClass::HandleSkinFilterTypeClicked);
+		RightSkinWidget->OnClicked_FilterTypeButton.AddUniqueDynamic(this, &ThisClass::HandleSkinFilterTypeClicked);
 	}
 }
 
@@ -351,26 +322,16 @@ void UInfoSkinTabPresenter::UnbindEvents()
 		return;
 	}
 
-	InfoWidget->OnDroppedSkinToCharacterPanel.RemoveDynamic(
-		this,
-		&ThisClass::HandleSkinDroppedToCharacter);
+	InfoWidget->OnDroppedSkinToCharacterPanel.RemoveDynamic(this, &ThisClass::HandleSkinDroppedToCharacter);
 	if (ULeftSkinWidget* LeftSkinWidget = InfoWidget->GetLeftSkinWidget())
 	{
-		LeftSkinWidget->OnClicked_SkinEquipTypeSlot.RemoveDynamic(
-			this,
-			&ThisClass::HandleSkinEquipSlotClicked);
-		LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.RemoveDynamic(
-			this,
-			&ThisClass::HandleSkinEquipSlotDropped);
+		LeftSkinWidget->OnClicked_SkinEquipTypeSlot.RemoveDynamic(this, &ThisClass::HandleSkinEquipSlotClicked);
+		LeftSkinWidget->OnDroppedSkin_SkinEquipTypeSlot.RemoveDynamic(this, &ThisClass::HandleSkinEquipSlotDropped);
 	}
 	if (URightSkinWidget* RightSkinWidget = InfoWidget->GetRightSkinWidget())
 	{
-		RightSkinWidget->OnClicked_FilterAllButton.RemoveDynamic(
-			this,
-			&ThisClass::HandleSkinFilterAllClicked);
-		RightSkinWidget->OnClicked_FilterTypeButton.RemoveDynamic(
-			this,
-			&ThisClass::HandleSkinFilterTypeClicked);
+		RightSkinWidget->OnClicked_FilterAllButton.RemoveDynamic(this, &ThisClass::HandleSkinFilterAllClicked);
+		RightSkinWidget->OnClicked_FilterTypeButton.RemoveDynamic(this, &ThisClass::HandleSkinFilterTypeClicked);
 	}
 }
 
@@ -395,9 +356,7 @@ void UInfoSkinTabPresenter::ClearTileItemClicked() const
 	}
 }
 
-void UInfoSkinTabPresenter::ClearSkinEquipSlot(
-	USkinEquipSlotWidget* TargetSkinEquipSlot,
-	FGameplayTag EquipTypeTag)
+void UInfoSkinTabPresenter::ClearSkinEquipSlot(USkinEquipSlotWidget* TargetSkinEquipSlot, FGameplayTag EquipTypeTag)
 {
 	if (!TargetSkinEquipSlot)
 	{

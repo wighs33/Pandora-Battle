@@ -121,8 +121,7 @@ void URangedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 
 	if (AttackTraceStartEventTag.IsValid())
 	{
-		UAbilityTask_WaitGameplayEvent* AttackTraceStartTask =
-			CreateWaitGameplayEventTask(AttackTraceStartEventTag);
+		UAbilityTask_WaitGameplayEvent* AttackTraceStartTask = CreateWaitGameplayEventTask(AttackTraceStartEventTag);
 		if (ensure(AttackTraceStartTask))
 		{
 			AttackTraceStartTask->EventReceived.AddDynamic(this, &URangedAttackAbility::OnAttackTraceStart);
@@ -132,8 +131,7 @@ void URangedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 
 	if (AttackTraceEndEventTag.IsValid())
 	{
-		UAbilityTask_WaitGameplayEvent* AttackTraceEndTask =
-			CreateWaitGameplayEventTask(AttackTraceEndEventTag);
+		UAbilityTask_WaitGameplayEvent* AttackTraceEndTask = CreateWaitGameplayEventTask(AttackTraceEndEventTag);
 		if (ensure(AttackTraceEndTask))
 		{
 			AttackTraceEndTask->EventReceived.AddDynamic(this, &URangedAttackAbility::OnAttackTraceEnd);
@@ -181,10 +179,7 @@ AActor* URangedAttackAbility::ResolveAttackTarget(ACharacterBase* Character) con
 bool URangedAttackAbility::ShouldUseAIWeaponFire(ACharacterBase* Character, AWeaponBase* CurrentWeapon) const
 {
 	const ARangedWeaponBase* RangedWeapon = Cast<ARangedWeaponBase>(CurrentWeapon);
-	return Character
-		&& !Character->IsPlayerControlled()
-		&& RangedWeapon
-		&& RangedWeapon->SupportsAimInput()
+	return Character && !Character->IsPlayerControlled() && RangedWeapon && RangedWeapon->SupportsAimInput()
 		&& HasAuthority(&CurrentActivationInfo);
 }
 
@@ -279,12 +274,8 @@ void URangedAttackAbility::ScheduleAIPrimaryAttack()
 	}
 	else
 	{
-		World->GetTimerManager().SetTimer(
-			AIPrimaryAttackTimerHandle,
-			this,
-			&ThisClass::HandleAIPrimaryAttackTimer,
-			SafeDelay,
-			false);
+		World->GetTimerManager().SetTimer(AIPrimaryAttackTimerHandle, this, &ThisClass::HandleAIPrimaryAttackTimer,
+			SafeDelay, false);
 	}
 }
 

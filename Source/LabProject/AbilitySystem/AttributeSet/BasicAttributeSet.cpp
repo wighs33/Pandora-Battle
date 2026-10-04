@@ -24,8 +24,7 @@ namespace
 	// 스탯 포인트를 투자한 단계. 0~100단계로 제한한다.
 	bool IsInvestedStatLevelAttribute(const FGameplayAttribute& Attribute)
 	{
-		static const FGameplayAttribute InvestedStatLevelAttributes[] =
-		{
+		static const FGameplayAttribute InvestedStatLevelAttributes[] = {
 			UBasicAttributeSet::GetStrengthLevelAttribute(),
 			UBasicAttributeSet::GetIntelligenceLevelAttribute(),
 			UBasicAttributeSet::GetArcaneLevelAttribute(),
@@ -51,8 +50,7 @@ namespace
 	// 경험치·스탯 포인트와 단계·장비에서 나온 능력치. 음수만 막는다.
 	bool IsNonNegativeStatAttribute(const FGameplayAttribute& Attribute)
 	{
-		static const FGameplayAttribute NonNegativeStatAttributes[] =
-		{
+		static const FGameplayAttribute NonNegativeStatAttributes[] = {
 			UBasicAttributeSet::GetExperienceAttribute(),
 			UBasicAttributeSet::GetMaxExperienceAttribute(),
 			UBasicAttributeSet::GetOffensePointAttribute(),
@@ -109,13 +107,10 @@ namespace
 
 	bool EffectSpecHasAssetTag(const FGameplayEffectSpec& EffectSpec, const FGameplayTag& AssetTag)
 	{
-		return AssetTag.IsValid()
-			&& EffectSpec.Def
-			&& EffectSpec.Def->GetAssetTags().HasTag(AssetTag);
+		return AssetTag.IsValid() && EffectSpec.Def && EffectSpec.Def->GetAssetTags().HasTag(AssetTag);
 	}
 
-	float ResolveStatusResistance(
-		const UBasicAttributeSet& AttributeSet,
+	float ResolveStatusResistance(const UBasicAttributeSet& AttributeSet,
 		const PdDamageRules::EStatusDamage StatusDamage)
 	{
 		switch (StatusDamage)
@@ -160,29 +155,20 @@ namespace
 			return;
 		}
 
-		const int32 DeadTagCount =
-			ASC->GetTagCount(LabGameplayTags::State_Dead);
+		const int32 DeadTagCount = ASC->GetTagCount(LabGameplayTags::State_Dead);
 		if (DeadTagCount > 0)
 		{
 			return;
 		}
 
 		FGameplayTagContainer DeathAbilityTags;
-		DeathAbilityTags.AddTag(
-			LabGameplayTags::GameplayAbility_Death);
+		DeathAbilityTags.AddTag(LabGameplayTags::GameplayAbility_Death);
 
 		TArray<FGameplayAbilitySpec*> DeathAbilitySpecs;
-		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(
-			DeathAbilityTags,
-			DeathAbilitySpecs,
-			false);
-		for (const FGameplayAbilitySpec* DeathAbilitySpec :
-			DeathAbilitySpecs)
+		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(DeathAbilityTags, DeathAbilitySpecs, false);
+		for (const FGameplayAbilitySpec* DeathAbilitySpec : DeathAbilitySpecs)
 		{
-			if (DeathAbilitySpec
-				&& ASC->TryActivateAbility(
-					DeathAbilitySpec->Handle,
-					true))
+			if (DeathAbilitySpec && ASC->TryActivateAbility(DeathAbilitySpec->Handle, true))
 			{
 				return;
 			}
@@ -231,12 +217,9 @@ UBasicAttributeSet::UBasicAttributeSet()
 	MaxStaminaIncreasePercent = 0.0f;
 }
 
-bool UBasicAttributeSet::ResolveAttributeFromStatTag(
-	const FGameplayTag& StatTag,
-	FGameplayAttribute& OutAttribute)
+bool UBasicAttributeSet::ResolveAttributeFromStatTag(const FGameplayTag& StatTag, FGameplayAttribute& OutAttribute)
 {
-	static const TMap<FGameplayTag, FGameplayAttribute> AttributeMappings =
-	{
+	static const TMap<FGameplayTag, FGameplayAttribute> AttributeMappings = {
 		{ LabGameplayTags::Status_Level, GetLevelAttribute() },
 		{ LabGameplayTags::Status_Experience, GetExperienceAttribute() },
 		{ LabGameplayTags::Status_MaxExperience, GetMaxExperienceAttribute() },
@@ -387,17 +370,9 @@ void UBasicAttributeSet::HandleIncomingDamageExecuted(const FGameplayEffectSpec&
 
 	SetIncomingDamage(0.f);
 	const bool bAllowDamageHitReact = bAllowHitReact && !bStatusDamage;
-	const float HealthDamage = ApplyIncomingDamage(
-		MitigatedIncomingDamage,
-		bCriticalHit,
-		DamageInstigator,
-		DamageCauser,
-		bAllowDamageHitReact,
-		!bStatusDamage);
-	const bool bShouldHitReact =
-		bAllowHitReact
-		&& !FMath::IsNearlyZero(HealthDamage)
-		&& !bStatusDamage
+	const float HealthDamage = ApplyIncomingDamage(MitigatedIncomingDamage, bCriticalHit, DamageInstigator,
+		DamageCauser, bAllowDamageHitReact, !bStatusDamage);
+	const bool bShouldHitReact = bAllowHitReact && !FMath::IsNearlyZero(HealthDamage) && !bStatusDamage
 		&& EffectSpecHasAssetTag(EffectSpec, LabGameplayTags::Effect_HitReaction);
 
 	if (bShouldHitReact && GetHealth() > 0.f)
@@ -410,9 +385,7 @@ void UBasicAttributeSet::HandleIncomingDamageExecuted(const FGameplayEffectSpec&
 void UBasicAttributeSet::HandleHealthExecuted(const FGameplayEffectModCallbackData& Data)
 {
 	const bool bStatusDamage = PdDamageRules::ClassifyStatusDamage(Data.EffectSpec) != PdDamageRules::EStatusDamage::None;
-	const bool bShouldHitReact =
-		Data.EvaluatedData.Magnitude < 0.f
-		&& !bStatusDamage
+	const bool bShouldHitReact = Data.EvaluatedData.Magnitude < 0.f && !bStatusDamage
 		&& EffectSpecHasAssetTag(Data.EffectSpec, LabGameplayTags::Effect_HitReaction);
 	const float RecoveryManaMagnitude = Data.EvaluatedData.Magnitude > 0.f
 		? Data.EffectSpec.GetSetByCallerMagnitude(LabGameplayTags::Data_Mana, false, 0.f)
@@ -574,22 +547,15 @@ float UBasicAttributeSet::GetStatusEffectDamageBonusPercent(const FGameplayTag& 
 	return 0.0f;
 }
 
-float UBasicAttributeSet::CalculateStatusEffectDamage(
-	const FGameplayTag& StatusTag,
-	const float SkillScaledDamageMagnitude,
-	const float DamageScale) const
+float UBasicAttributeSet::CalculateStatusEffectDamage(const FGameplayTag& StatusTag,
+	const float SkillScaledDamageMagnitude, const float DamageScale) const
 {
-	return PdDamageRules::CalculateStatusEffectDamage(
-		SkillScaledDamageMagnitude,
-		GetStatusEffectDamageBonusPercent(StatusTag),
-		DamageScale);
+	return PdDamageRules::CalculateStatusEffectDamage(SkillScaledDamageMagnitude,
+		GetStatusEffectDamageBonusPercent(StatusTag), DamageScale);
 }
 
-bool UBasicAttributeSet::SetStatusEffectDamageOnSpec(
-	FGameplayEffectSpecHandle& SpecHandle,
-	const UBasicAttributeSet* SourceAttributes,
-	const FGameplayTag& StatusTag,
-	const float SkillScaledDamageMagnitude,
+bool UBasicAttributeSet::SetStatusEffectDamageOnSpec(FGameplayEffectSpecHandle& SpecHandle,
+	const UBasicAttributeSet* SourceAttributes, const FGameplayTag& StatusTag, const float SkillScaledDamageMagnitude,
 	const float DamageScale)
 {
 	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
@@ -597,10 +563,8 @@ bool UBasicAttributeSet::SetStatusEffectDamageOnSpec(
 		return false;
 	}
 
-	const float CalculatedDamageMagnitude = PdDamageRules::CalculateStatusEffectDamage(
-		SkillScaledDamageMagnitude,
-		SourceAttributes ? SourceAttributes->GetStatusEffectDamageBonusPercent(StatusTag) : 0.0f,
-		DamageScale);
+	const float CalculatedDamageMagnitude = PdDamageRules::CalculateStatusEffectDamage(SkillScaledDamageMagnitude,
+		SourceAttributes ? SourceAttributes->GetStatusEffectDamageBonusPercent(StatusTag) : 0.0f, DamageScale);
 	if (CalculatedDamageMagnitude <= 0.0f)
 	{
 		return false;
@@ -615,44 +579,27 @@ float UBasicAttributeSet::CalculateOutgoingDamage(const float BaseDamage, bool& 
 	return PdDamageRules::CalculateCriticalDamage(BaseDamage, GetCritical(), FMath::FRand() * 100.f, bOutCriticalHit);
 }
 
-float UBasicAttributeSet::ApplyIncomingDamage(
-	const float IncomingDamageAmount,
-	const bool bCriticalHit,
-	AActor* DamageInstigator,
-	AActor* DamageCauser,
-	const bool bAllowHitReact,
-	const bool bShowMiss)
+float UBasicAttributeSet::ApplyIncomingDamage(const float IncomingDamageAmount, const bool bCriticalHit,
+	AActor* DamageInstigator, AActor* DamageCauser, const bool bAllowHitReact, const bool bShowMiss)
 {
 	const float FinalDamage = FMath::Max(IncomingDamageAmount, 0.f);
 	UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
-	ACharacterBase* DamageTargetCharacter =
-		ASC ? Cast<ACharacterBase>(ASC->GetAvatarActor()) : nullptr;
+	ACharacterBase* DamageTargetCharacter = ASC ? Cast<ACharacterBase>(ASC->GetAvatarActor()) : nullptr;
 
 	if (FinalDamage <= 0.f)
 	{
 		if (bShowMiss && DamageTargetCharacter)
 		{
-			DamageTargetCharacter->HandleDamageTaken(
-				0.0f,
-				false,
-				false,
-				DamageInstigator,
-				DamageCauser);
+			DamageTargetCharacter->HandleDamageTaken(0.0f, false, false, DamageInstigator, DamageCauser);
 		}
 		return 0.f;
 	}
 
-	if (ASC && ASC->HasMatchingGameplayTag(
-		LabGameplayTags::State_DefenseField_Invulnerable))
+	if (ASC && ASC->HasMatchingGameplayTag(LabGameplayTags::State_DefenseField_Invulnerable))
 	{
 		if (DamageTargetCharacter)
 		{
-			DamageTargetCharacter->HandleDamageTaken(
-				0.0f,
-				false,
-				false,
-				DamageInstigator,
-				DamageCauser);
+			DamageTargetCharacter->HandleDamageTaken(0.0f, false, false, DamageInstigator, DamageCauser);
 		}
 		return 0.f;
 	}
@@ -667,12 +614,8 @@ float UBasicAttributeSet::ApplyIncomingDamage(
 	if (DamageTargetCharacter)
 	{
 		const float DisplayDamage = Absorption.ShieldDamage + RemainingHealthDamage;
-		DamageTargetCharacter->HandleDamageTaken(
-			DisplayDamage,
-			bCriticalHit,
-			bAllowHitReact && RemainingHealthDamage > 0.0f,
-			DamageInstigator,
-			DamageCauser);
+		DamageTargetCharacter->HandleDamageTaken(DisplayDamage, bCriticalHit,
+			bAllowHitReact && RemainingHealthDamage > 0.0f, DamageInstigator, DamageCauser);
 	}
 
 	if (RemainingHealthDamage <= 0.f)

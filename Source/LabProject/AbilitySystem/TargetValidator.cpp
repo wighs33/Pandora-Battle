@@ -10,23 +10,15 @@ namespace
 {
 	bool IsFiniteVector(const FVector& Value)
 	{
-		return FMath::IsFinite(Value.X)
-			&& FMath::IsFinite(Value.Y)
-			&& FMath::IsFinite(Value.Z);
+		return FMath::IsFinite(Value.X) && FMath::IsFinite(Value.Y) && FMath::IsFinite(Value.Z);
 	}
 
 	bool AreFiniteNonNegative(const double First, const double Second)
 	{
-		return FMath::IsFinite(First)
-			&& FMath::IsFinite(Second)
-			&& First >= 0.0
-			&& Second >= 0.0;
+		return FMath::IsFinite(First) && FMath::IsFinite(Second) && First >= 0.0 && Second >= 0.0;
 	}
 
-	bool IsWithinRange(
-		const FVector& SourceLocation,
-		const FVector& TargetLocation,
-		const double MaxRange,
+	bool IsWithinRange(const FVector& SourceLocation, const FVector& TargetLocation, const double MaxRange,
 		const double RangeTolerance)
 	{
 		const double AllowedRange = MaxRange + RangeTolerance;
@@ -50,8 +42,7 @@ namespace
 
 		for (int32 ChannelIndex = 0; ChannelIndex < ECC_MAX; ++ChannelIndex)
 		{
-			if (ResponseParams.CollisionResponse.GetResponse(
-				static_cast<ECollisionChannel>(ChannelIndex)) == ECR_Block)
+			if (ResponseParams.CollisionResponse.GetResponse(static_cast<ECollisionChannel>(ChannelIndex)) == ECR_Block)
 			{
 				return true;
 			}
@@ -60,29 +51,17 @@ namespace
 		return false;
 	}
 
-	bool HasServerLineOfSight(
-		UWorld* World,
-		const FVector& SourceLocation,
-		const FVector& GroundLocation,
-		const FVector& GroundNormal,
-		const FName TraceProfileName,
-		const double SurfaceOffset,
-		const double SurfaceTolerance,
-		const int32 MaxIgnoredPawnCount,
-		const TArray<AActor*>& ActorsToIgnore)
+	bool HasServerLineOfSight(UWorld* World, const FVector& SourceLocation, const FVector& GroundLocation,
+		const FVector& GroundNormal, const FName TraceProfileName, const double SurfaceOffset,
+		const double SurfaceTolerance, const int32 MaxIgnoredPawnCount, const TArray<AActor*>& ActorsToIgnore)
 	{
-		if (!World
-			|| !IsBlockingCollisionProfile(TraceProfileName)
-			|| !IsFiniteVector(SourceLocation)
-			|| !IsFiniteVector(GroundLocation)
-			|| !IsFiniteVector(GroundNormal))
+		if (!World || !IsBlockingCollisionProfile(TraceProfileName) || !IsFiniteVector(SourceLocation)
+			|| !IsFiniteVector(GroundLocation) || !IsFiniteVector(GroundNormal))
 		{
 			return false;
 		}
 
-		const FVector SafeGroundNormal = GroundNormal.IsNearlyZero()
-			? FVector::UpVector
-			: GroundNormal.GetSafeNormal();
+		const FVector SafeGroundNormal = GroundNormal.IsNearlyZero() ? FVector::UpVector : GroundNormal.GetSafeNormal();
 		const FVector TraceEnd = GroundLocation + SafeGroundNormal * FMath::Max(SurfaceOffset, 0.0);
 		const FVector TraceDirection = (TraceEnd - SourceLocation).GetSafeNormal();
 		if (TraceDirection.IsNearlyZero())
@@ -105,12 +84,7 @@ namespace
 		for (int32 TraceIndex = 0; TraceIndex < MaxTraceCount; ++TraceIndex)
 		{
 			FHitResult BlockingHit;
-			if (!World->LineTraceSingleByProfile(
-				BlockingHit,
-				TraceStart,
-				TraceEnd,
-				TraceProfileName,
-				QueryParams))
+			if (!World->LineTraceSingleByProfile(BlockingHit, TraceStart, TraceEnd, TraceProfileName, QueryParams))
 			{
 				return true;
 			}
@@ -134,10 +108,8 @@ namespace
 	}
 }
 
-bool PdTargetValidator::TryResolveTargetDataLocation(
-	const FHitResult& ClientHitResult,
-	const FVector& TargetDataEndPoint,
-	FVector& OutRequestedLocation)
+bool PdTargetValidator::TryResolveTargetDataLocation(const FHitResult& ClientHitResult,
+	const FVector& TargetDataEndPoint, FVector& OutRequestedLocation)
 {
 	if (ClientHitResult.bBlockingHit && IsFiniteVector(ClientHitResult.ImpactPoint))
 	{
@@ -160,11 +132,8 @@ bool PdTargetValidator::TryResolveTargetDataLocation(
 	return false;
 }
 
-bool PdTargetValidator::TryResolveAuthorityTargetRequest(
-	const AActor* AvatarActor,
-	const FHitResult& ClientHitResult,
-	const FVector& TargetDataEndPoint,
-	FVector& OutRequestedLocation)
+bool PdTargetValidator::TryResolveAuthorityTargetRequest(const AActor* AvatarActor, const FHitResult& ClientHitResult,
+	const FVector& TargetDataEndPoint, FVector& OutRequestedLocation)
 {
 	if (!AvatarActor || !AvatarActor->HasAuthority() || !AvatarActor->GetWorld())
 	{
@@ -174,29 +143,22 @@ bool PdTargetValidator::TryResolveAuthorityTargetRequest(
 	return TryResolveTargetDataLocation(ClientHitResult, TargetDataEndPoint, OutRequestedLocation);
 }
 
-bool PdTargetValidator::ValidateClientTraceRequest(
-	const AActor* AuthoritySourceActor,
-	const FHitResult& ClientHitResult,
-	const FTraceRequestValidationParams& Params,
+bool PdTargetValidator::ValidateClientTraceRequest(const AActor* AuthoritySourceActor,
+	const FHitResult& ClientHitResult, const FTraceRequestValidationParams& Params,
 	FValidatedTraceView& OutValidatedView)
 {
-	if (!IsValid(AuthoritySourceActor)
-		|| !AuthoritySourceActor->HasAuthority()
-		|| !IsFiniteVector(ClientHitResult.TraceStart)
-		|| !IsFiniteVector(ClientHitResult.TraceEnd)
+	if (!IsValid(AuthoritySourceActor) || !AuthoritySourceActor->HasAuthority()
+		|| !IsFiniteVector(ClientHitResult.TraceStart) || !IsFiniteVector(ClientHitResult.TraceEnd)
 		|| !AreFiniteNonNegative(Params.TraceStartOffset, Params.TraceLengthTolerance)
-		|| !FMath::IsFinite(Params.MaxTraceDistance)
-		|| Params.MaxTraceDistance <= 0.0
-		|| !FMath::IsFinite(Params.MaxViewDistanceFromSource)
-		|| Params.MaxViewDistanceFromSource < 0.0)
+		|| !FMath::IsFinite(Params.MaxTraceDistance) || Params.MaxTraceDistance <= 0.0
+		|| !FMath::IsFinite(Params.MaxViewDistanceFromSource) || Params.MaxViewDistanceFromSource < 0.0)
 	{
 		return false;
 	}
 
 	FVector ViewDirection = ClientHitResult.TraceEnd - ClientHitResult.TraceStart;
 	const double ClientTraceLength = ViewDirection.Size();
-	if (!FMath::IsFinite(ClientTraceLength)
-		|| ClientTraceLength <= UE_SMALL_NUMBER
+	if (!FMath::IsFinite(ClientTraceLength) || ClientTraceLength <= UE_SMALL_NUMBER
 		|| ClientTraceLength > Params.MaxTraceDistance + Params.TraceLengthTolerance)
 	{
 		return false;
@@ -204,8 +166,7 @@ bool PdTargetValidator::ValidateClientTraceRequest(
 
 	ViewDirection /= ClientTraceLength;
 	const FVector ViewLocation = ClientHitResult.TraceStart - ViewDirection * Params.TraceStartOffset;
-	if (!IsFiniteVector(ViewLocation)
-		|| FVector::DistSquared(ViewLocation, AuthoritySourceActor->GetActorLocation())
+	if (!IsFiniteVector(ViewLocation) || FVector::DistSquared(ViewLocation, AuthoritySourceActor->GetActorLocation())
 			> FMath::Square(Params.MaxViewDistanceFromSource))
 	{
 		return false;
@@ -216,25 +177,15 @@ bool PdTargetValidator::ValidateClientTraceRequest(
 	return true;
 }
 
-bool PdTargetValidator::ValidateGroundTarget(
-	UWorld* World,
-	AActor* AuthoritySourceActor,
-	const FVector& AuthoritySourceLocation,
-	const FVector& RequestedLocation,
-	const FGroundTargetValidationParams& Params,
-	FValidatedGroundTarget& OutValidatedTarget)
+bool PdTargetValidator::ValidateGroundTarget(UWorld* World, AActor* AuthoritySourceActor,
+	const FVector& AuthoritySourceLocation, const FVector& RequestedLocation,
+	const FGroundTargetValidationParams& Params, FValidatedGroundTarget& OutValidatedTarget)
 {
-	if (!World
-		|| !IsValid(AuthoritySourceActor)
-		|| !AuthoritySourceActor->HasAuthority()
-		|| AuthoritySourceActor->GetWorld() != World
-		|| !IsFiniteVector(AuthoritySourceLocation)
-		|| !IsFiniteVector(RequestedLocation)
-		|| !FMath::IsFinite(Params.MaxRange)
-		|| Params.MaxRange <= 0.0
+	if (!World || !IsValid(AuthoritySourceActor) || !AuthoritySourceActor->HasAuthority()
+		|| AuthoritySourceActor->GetWorld() != World || !IsFiniteVector(AuthoritySourceLocation)
+		|| !IsFiniteVector(RequestedLocation) || !FMath::IsFinite(Params.MaxRange) || Params.MaxRange <= 0.0
 		|| !AreFiniteNonNegative(Params.RangeTolerance, Params.GroundTraceStartHeight)
-		|| !FMath::IsFinite(Params.GroundTraceDepth)
-		|| Params.GroundTraceDepth <= 0.0
+		|| !FMath::IsFinite(Params.GroundTraceDepth) || Params.GroundTraceDepth <= 0.0
 		|| !AreFiniteNonNegative(Params.LineOfSightSurfaceOffset, Params.LineOfSightSurfaceTolerance)
 		|| !IsWithinRange(AuthoritySourceLocation, RequestedLocation, Params.MaxRange, Params.RangeTolerance))
 	{
@@ -245,27 +196,13 @@ bool PdTargetValidator::ValidateGroundTarget(
 	PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, AuthoritySourceActor);
 
 	PdSkillGroundProjection::FGroundProjectionResult GroundResult;
-	if (!PdSkillGroundProjection::TryProjectToGround(
-		World,
-		RequestedLocation,
-		Params.GroundTraceType,
-		Params.GroundTraceStartHeight,
-		Params.GroundTraceDepth,
-		ActorsToIgnore,
-		GroundResult)
-		|| !IsFiniteVector(GroundResult.Location)
-		|| !IsFiniteVector(GroundResult.Normal)
+	if (!PdSkillGroundProjection::TryProjectToGround(World, RequestedLocation, Params.GroundTraceType,
+		Params.GroundTraceStartHeight, Params.GroundTraceDepth, ActorsToIgnore, GroundResult)
+		|| !IsFiniteVector(GroundResult.Location) || !IsFiniteVector(GroundResult.Normal)
 		|| !IsWithinRange(AuthoritySourceLocation, GroundResult.Location, Params.MaxRange, Params.RangeTolerance)
-		|| !HasServerLineOfSight(
-			World,
-			AuthoritySourceLocation,
-			GroundResult.Location,
-			GroundResult.Normal,
-			Params.LineOfSightProfileName,
-			Params.LineOfSightSurfaceOffset,
-			Params.LineOfSightSurfaceTolerance,
-			Params.MaxIgnoredPawnCount,
-			ActorsToIgnore))
+		|| !HasServerLineOfSight(World, AuthoritySourceLocation, GroundResult.Location, GroundResult.Normal,
+		Params.LineOfSightProfileName, Params.LineOfSightSurfaceOffset, Params.LineOfSightSurfaceTolerance,
+		Params.MaxIgnoredPawnCount, ActorsToIgnore))
 	{
 		return false;
 	}
@@ -276,27 +213,15 @@ bool PdTargetValidator::ValidateGroundTarget(
 	return true;
 }
 
-bool PdTargetValidator::ValidatePointTarget(
-	UWorld* World,
-	AActor* AuthoritySourceActor,
-	const FVector& AuthorityRangeOrigin,
-	const FVector& AuthorityTraceStart,
-	const FVector& RequestedLocation,
-	const FPointTargetValidationParams& Params,
-	FValidatedPointTarget& OutValidatedTarget)
+bool PdTargetValidator::ValidatePointTarget(UWorld* World, AActor* AuthoritySourceActor,
+	const FVector& AuthorityRangeOrigin, const FVector& AuthorityTraceStart, const FVector& RequestedLocation,
+	const FPointTargetValidationParams& Params, FValidatedPointTarget& OutValidatedTarget)
 {
-	if (!World
-		|| !IsValid(AuthoritySourceActor)
-		|| !AuthoritySourceActor->HasAuthority()
-		|| AuthoritySourceActor->GetWorld() != World
-		|| !IsFiniteVector(AuthorityRangeOrigin)
-		|| !IsFiniteVector(AuthorityTraceStart)
-		|| !IsFiniteVector(RequestedLocation)
-		|| !FMath::IsFinite(Params.MaxRange)
-		|| Params.MaxRange <= 0.0
-		|| !FMath::IsFinite(Params.RangeTolerance)
-		|| Params.RangeTolerance < 0.0
-		|| !IsBlockingCollisionProfile(Params.LineOfSightProfileName)
+	if (!World || !IsValid(AuthoritySourceActor) || !AuthoritySourceActor->HasAuthority()
+		|| AuthoritySourceActor->GetWorld() != World || !IsFiniteVector(AuthorityRangeOrigin)
+		|| !IsFiniteVector(AuthorityTraceStart) || !IsFiniteVector(RequestedLocation)
+		|| !FMath::IsFinite(Params.MaxRange) || Params.MaxRange <= 0.0 || !FMath::IsFinite(Params.RangeTolerance)
+		|| Params.RangeTolerance < 0.0 || !IsBlockingCollisionProfile(Params.LineOfSightProfileName)
 		|| !IsWithinRange(AuthorityRangeOrigin, RequestedLocation, Params.MaxRange, Params.RangeTolerance)
 		|| FVector::DistSquared(AuthorityTraceStart, RequestedLocation) <= UE_SMALL_NUMBER)
 	{
@@ -316,16 +241,10 @@ bool PdTargetValidator::ValidatePointTarget(
 	}
 
 	FHitResult BlockingHit;
-	const bool bBlockingHit = World->LineTraceSingleByProfile(
-		BlockingHit,
-		AuthorityTraceStart,
-		RequestedLocation,
-		Params.LineOfSightProfileName,
-		QueryParams);
+	const bool bBlockingHit = World->LineTraceSingleByProfile(BlockingHit, AuthorityTraceStart, RequestedLocation,
+		Params.LineOfSightProfileName, QueryParams);
 
-	const FVector ValidatedLocation = bBlockingHit
-		? BlockingHit.ImpactPoint
-		: RequestedLocation;
+	const FVector ValidatedLocation = bBlockingHit ? BlockingHit.ImpactPoint : RequestedLocation;
 	if (!IsFiniteVector(ValidatedLocation)
 		|| !IsWithinRange(AuthorityRangeOrigin, ValidatedLocation, Params.MaxRange, Params.RangeTolerance))
 	{

@@ -127,11 +127,8 @@ void UAttackAbility::OnComboInputWindowOpened(FGameplayEventData Payload)
 
 	FaceCurrentAttackTarget();
 	const FName CurrentSectionName = GetCurrentAttackSectionName();
-	if (CurrentActorInfo
-		&& CurrentActorInfo->IsLocallyControlled()
-		&& HasPlayerController()
-		&& !CurrentSectionName.IsNone()
-		&& LastComboWindowEffectSectionName != CurrentSectionName)
+	if (CurrentActorInfo && CurrentActorInfo->IsLocallyControlled() && HasPlayerController()
+		&& !CurrentSectionName.IsNone() && LastComboWindowEffectSectionName != CurrentSectionName)
 	{
 		LastComboWindowEffectSectionName = CurrentSectionName;
 		PlayConfiguredComboWindowStartEffect();
@@ -169,8 +166,8 @@ void UAttackAbility::OnComboInputWindowClosed(FGameplayEventData Payload)
 
 	if (!BufferedJumpSectionName.IsNone() && !bReachedJumpSectionTiming)
 	{
-		// The transition is normally registered as soon as the input succeeds.
-		// Keep this as a recovery path for any externally supplied section request.
+		// 전환은 보통 입력이 성공하는 즉시 등록된다.
+		// 외부에서 들어온 섹션 요청을 위한 복구 경로로 남겨 둔다.
 		if (!bBufferedComboCostCommitted)
 		{
 			QueueBufferedComboTransition();
@@ -222,12 +219,8 @@ void UAttackAbility::OnAttackDamageWindowClosed(FGameplayEventData Payload)
 	UWorld* World = GetWorld();
 	if (World && CloseGraceSeconds > UE_SMALL_NUMBER)
 	{
-		World->GetTimerManager().SetTimer(
-			AttackDamageWindowCloseTimerHandle,
-			this,
-			&ThisClass::FinalizeAttackDamageWindowClose,
-			CloseGraceSeconds,
-			false);
+		World->GetTimerManager().SetTimer(AttackDamageWindowCloseTimerHandle, this,
+			&ThisClass::FinalizeAttackDamageWindowClose, CloseGraceSeconds, false);
 		return;
 	}
 
@@ -386,8 +379,7 @@ void UAttackAbility::ListenForAttackWindowEvents()
 			CreateWaitGameplayEventTask(AttackDamageWindowStartEventTag);
 		if (ensure(AttackDamageWindowStartedEventTask))
 		{
-			AttackDamageWindowStartedEventTask->EventReceived.AddDynamic(
-				this,
+			AttackDamageWindowStartedEventTask->EventReceived.AddDynamic(this,
 				&UAttackAbility::OnAttackDamageWindowOpened);
 			AttackDamageWindowStartedEventTask->ReadyForActivation();
 		}
@@ -399,8 +391,7 @@ void UAttackAbility::ListenForAttackWindowEvents()
 			CreateWaitGameplayEventTask(AttackDamageWindowEndEventTag);
 		if (ensure(AttackDamageWindowEndedEventTask))
 		{
-			AttackDamageWindowEndedEventTask->EventReceived.AddDynamic(
-				this,
+			AttackDamageWindowEndedEventTask->EventReceived.AddDynamic(this,
 				&UAttackAbility::OnAttackDamageWindowClosed);
 			AttackDamageWindowEndedEventTask->ReadyForActivation();
 		}
@@ -408,8 +399,7 @@ void UAttackAbility::ListenForAttackWindowEvents()
 
 	if (JumpSectionEventTag.IsValid())
 	{
-		UAbilityTask_WaitGameplayEvent* JumpSectionEventTask =
-			CreateWaitGameplayEventTask(JumpSectionEventTag);
+		UAbilityTask_WaitGameplayEvent* JumpSectionEventTask = CreateWaitGameplayEventTask(JumpSectionEventTag);
 		if (ensure(JumpSectionEventTask))
 		{
 			JumpSectionEventTask->EventReceived.AddDynamic(this, &UAttackAbility::OnJumpSectionTiming);
@@ -495,8 +485,8 @@ bool UAttackAbility::RequestNextComboInput()
 
 	if (!GetCurrentMontage())
 	{
-		// PlayMontageAndWait can report completion one frame after the montage
-		// instance has disappeared. Only a window-authorized input may restart it.
+		// PlayMontageAndWait는 몽타주 인스턴스가 사라진 다음 프레임에 완료를 알릴 수 있다.
+		// 입력 창이 허락한 입력만 공격을 다시 시작할 수 있다.
 		bCanReceiveAttackInput = false;
 		bRestartAttackAfterMontage = true;
 		return true;
@@ -547,9 +537,8 @@ bool UAttackAbility::RequestJumpToSection(FName RequestedSectionName)
 
 	BufferedJumpSectionName = RequestedSectionName;
 
-	// Set the active montage instance's next-section link while the source
-	// section is unquestionably still active. NotifyEnd can be delivered after
-	// an unlinked section has already stopped, which is too late to set it.
+	// 원래 섹션이 확실히 재생 중일 때 활성 몽타주 인스턴스의 다음 섹션 연결을 정한다.
+	// NotifyEnd는 연결되지 않은 섹션이 이미 멈춘 뒤에 올 수 있어 그때는 너무 늦다.
 	return QueueBufferedComboTransition();
 }
 
@@ -644,9 +633,7 @@ void UAttackAbility::RequestAIChaseTarget() const
 	Enemy->RequestMoveToAttackTarget(AttackTarget);
 }
 
-void UAttackAbility::SetCurrentWeaponTraceEnabled(
-	const bool bEnabled,
-	const FName AttackSectionName) const
+void UAttackAbility::SetCurrentWeaponTraceEnabled(const bool bEnabled, const FName AttackSectionName) const
 {
 	AWeaponBase* CurrentWeapon = GetCurrentWeaponActor();
 	if (CurrentWeapon)
@@ -749,8 +736,7 @@ void UAttackAbility::PlayConfiguredComboWindowStartEffect()
 bool UAttackAbility::IsAttackSectionNameValid(FName SectionName) const
 {
 	UAnimMontage* CurrentAttackMontage = GetCurrentMontage();
-	return CurrentAttackMontage
-		&& !SectionName.IsNone()
+	return CurrentAttackMontage && !SectionName.IsNone()
 		&& CurrentAttackMontage->GetSectionIndex(SectionName) != INDEX_NONE;
 }
 
@@ -816,13 +802,10 @@ bool UAttackAbility::QueueBufferedComboTransition()
 	}
 
 	FaceCurrentAttackTarget();
-	AnimInstance->Montage_SetNextSection(
-		CurrentSectionName,
-		BufferedJumpSectionName,
-		CurrentAttackMontage);
+	AnimInstance->Montage_SetNextSection(CurrentSectionName, BufferedJumpSectionName, CurrentAttackMontage);
 
-	// Preserve the buffered section until either the optional NextCombo event
-	// consumes it or the following section opens its own input window.
+	// 선택적 NextCombo 이벤트가 쓰거나 다음 섹션이 자기 입력 창을 열 때까지
+	// 버퍼에 담긴 섹션을 유지한다.
 	bCanReceiveAttackInput = false;
 	return true;
 }
@@ -842,8 +825,7 @@ bool UAttackAbility::TryJumpToSection(FName SectionName)
 		return false;
 	}
 
-	const bool bComboCostAlreadyCommitted =
-		bBufferedComboCostCommitted && BufferedJumpSectionName == SectionName;
+	const bool bComboCostAlreadyCommitted = bBufferedComboCostCommitted && BufferedJumpSectionName == SectionName;
 	if (!bComboCostAlreadyCommitted && !TryCommitAdditionalActionStaminaCost())
 	{
 		ResetAttackInputState();

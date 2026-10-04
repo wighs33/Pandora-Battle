@@ -102,7 +102,7 @@ protected:
     UPROPERTY(Transient)
     TObjectPtr<UNiagaraSystem> ActiveSkillTrailSystem;
 
-    // Shared by melee, bow, and gun traces.
+    // 근접·활·총 trace가 함께 쓴다.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Weapon|Trace|Debug")
     bool bDrawAttackTraceDebug = false;
 };

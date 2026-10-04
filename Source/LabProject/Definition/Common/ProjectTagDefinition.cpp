@@ -30,8 +30,7 @@ namespace
 		}
 
 		static FPrimaryAssetId ResolvedDefinitionId;
-		if (!ResolvedDefinitionId.IsValid()
-			|| !AssetManager->GetPrimaryAssetPath(ResolvedDefinitionId).IsValid())
+		if (!ResolvedDefinitionId.IsValid() || !AssetManager->GetPrimaryAssetPath(ResolvedDefinitionId).IsValid())
 		{
 			TArray<FPrimaryAssetId> DefinitionIds;
 			AssetManager->GetPrimaryAssetIdList(UProjectTagDefinition::GetDefinitionPrimaryAssetType(), DefinitionIds);
@@ -39,13 +38,9 @@ namespace
 			if (DefinitionIds.IsEmpty())
 			{
 				uint32 SuppressedCount = 0;
-				if (MissingDefinitionLogLimiter.TryAcquire(
-					RequiredDefinitionLogIntervalSeconds,
-					SuppressedCount))
+				if (MissingDefinitionLogLimiter.TryAcquire(RequiredDefinitionLogIntervalSeconds, SuppressedCount))
 				{
-					UE_LOG(
-						LogProjectTagDefinition,
-						Error,
+					UE_LOG(LogProjectTagDefinition, Error,
 						TEXT("No ProjectTagDefinition PrimaryAsset is registered. Expected %s. "
 							"SuppressedSinceLast=%u"),
 						*UProjectTagDefinition::GetPreferredPrimaryAssetId().ToString(),
@@ -63,9 +58,7 @@ namespace
 
 			if (DefinitionIds.Num() > 1)
 			{
-				UE_LOG(
-					LogProjectTagDefinition,
-					Error,
+				UE_LOG(LogProjectTagDefinition, Error,
 					TEXT("Multiple ProjectTagDefinition PrimaryAssets are registered (%d). "
 						"Keep exactly one. %s will be used when available."),
 					DefinitionIds.Num(),
@@ -93,27 +86,20 @@ namespace
 			return LoadedDefinition;
 		}
 
-		if (!PendingDefinitionLoadHandle.IsValid()
-			|| PendingDefinitionLoadHandle->HasLoadCompleted())
+		if (!PendingDefinitionLoadHandle.IsValid() || PendingDefinitionLoadHandle->HasLoadCompleted())
 		{
-			PendingDefinitionLoadHandle =
-				AssetManager->LoadPrimaryAsset(ResolvedDefinitionId);
+			PendingDefinitionLoadHandle = AssetManager->LoadPrimaryAsset(ResolvedDefinitionId);
 		}
 
 		const UProjectTagDefinition* LoadedDefinition =
 			AssetManager->GetPrimaryAssetObject<UProjectTagDefinition>(ResolvedDefinitionId);
 		if (!LoadedDefinition
-			&& (!PendingDefinitionLoadHandle.IsValid()
-				|| PendingDefinitionLoadHandle->HasLoadCompleted()))
+			&& (!PendingDefinitionLoadHandle.IsValid() || PendingDefinitionLoadHandle->HasLoadCompleted()))
 		{
 			uint32 SuppressedCount = 0;
-			if (LoadFailedDefinitionLogLimiter.TryAcquire(
-				RequiredDefinitionLogIntervalSeconds,
-				SuppressedCount))
+			if (LoadFailedDefinitionLogLimiter.TryAcquire(RequiredDefinitionLogIntervalSeconds, SuppressedCount))
 			{
-				UE_LOG(
-					LogProjectTagDefinition,
-					Error,
+				UE_LOG(LogProjectTagDefinition, Error,
 					TEXT("Failed to load ProjectTagDefinition PrimaryAsset %s at %s. "
 						"SuppressedSinceLast=%u"),
 					*ResolvedDefinitionId.ToString(),
@@ -248,11 +234,8 @@ EDataValidationResult UProjectTagDefinition::IsDataValid(FDataValidationContext&
 		AssetManager->GetPrimaryAssetIdList(GetDefinitionPrimaryAssetType(), DefinitionIds);
 		if (DefinitionIds.Num() != 1)
 		{
-			Context.AddError(FText::Format(
-				NSLOCTEXT(
-					"ProjectTagDefinition",
-					"SinglePrimaryAssetRequired",
-					"Exactly one ProjectTagDefinition PrimaryAsset must be registered, but {0} were found."),
+			Context.AddError(FText::Format(NSLOCTEXT("ProjectTagDefinition", "SinglePrimaryAssetRequired",
+				"Exactly one ProjectTagDefinition PrimaryAsset must be registered, but {0} were found."),
 				FText::AsNumber(DefinitionIds.Num())));
 			Result = EDataValidationResult::Invalid;
 		}

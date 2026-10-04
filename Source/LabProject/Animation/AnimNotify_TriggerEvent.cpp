@@ -36,8 +36,7 @@ void UAnimNotify_TriggerEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 
 	ACharacterBase* Character = Cast<ACharacterBase>(OwnerActor);
 	const bool bIsAuthoritativeNotify = OwnerActor->HasAuthority();
-	const bool bIsOwningClientPresentation =
-		Character && Character->IsLocallyControlled() && !bIsAuthoritativeNotify;
+	const bool bIsOwningClientPresentation = Character && Character->IsLocallyControlled() && !bIsAuthoritativeNotify;
 	if (!bIsAuthoritativeNotify && !bIsOwningClientPresentation)
 	{
 		return;
@@ -50,15 +49,15 @@ void UAnimNotify_TriggerEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 
 	if (bIsAuthoritativeNotify)
 	{
-		// Only the server is allowed to execute the complete GameplayEvent path,
-		// including abilities configured to activate from this event tag.
+		// 이 이벤트 태그로 활성화되도록 설정한 능력까지 포함한 GameplayEvent 전체 경로는
+		// 서버만 실행할 수 있다.
 		AbilitySystemComponent->HandleGameplayEvent(EventTag, &Payload);
 		return;
 	}
 
-	// On the owning client, notify only exact-tag listeners that are already active
-	// (for predicted presentation/input preparation). Do not call HandleGameplayEvent:
-	// it can activate new abilities and would turn client montage timing into gameplay.
+	// 소유 클라이언트에서는 이미 활성인 정확한 태그의 리스너에만 알린다(예측 표시·입력 준비용).
+	// HandleGameplayEvent는 부르지 않는다. 새 능력을 활성화할 수 있어 클라이언트 몽타주 타이밍이
+	// 게임플레이가 되어 버린다.
 	if (FGameplayEventMulticastDelegate* EventDelegate =
 		AbilitySystemComponent->GenericGameplayEventCallbacks.Find(EventTag))
 	{

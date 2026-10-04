@@ -19,12 +19,8 @@ void UChatBoxWidget::NativeConstruct()
 
 	if (TxtBox_ChatInput)
 	{
-		TxtBox_ChatInput->OnTextCommitted.RemoveDynamic(
-			this,
-			&ThisClass::HandleChatTextCommitted);
-		TxtBox_ChatInput->OnTextCommitted.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleChatTextCommitted);
+		TxtBox_ChatInput->OnTextCommitted.RemoveDynamic(this, &ThisClass::HandleChatTextCommitted);
+		TxtBox_ChatInput->OnTextCommitted.AddUniqueDynamic(this, &ThisClass::HandleChatTextCommitted);
 	}
 	SetChatInputEnabled(false);
 
@@ -42,9 +38,7 @@ void UChatBoxWidget::NativeDestruct()
 {
 	if (TxtBox_ChatInput)
 	{
-		TxtBox_ChatInput->OnTextCommitted.RemoveDynamic(
-			this,
-			&ThisClass::HandleChatTextCommitted);
+		TxtBox_ChatInput->OnTextCommitted.RemoveDynamic(this, &ThisClass::HandleChatTextCommitted);
 	}
 
 	// LocalPlayer가 남아 있어도 종료 중에는 서브시스템이 먼저 해제될 수 있다.
@@ -205,9 +199,7 @@ void UChatBoxWidget::SetChatInputEnabled(const bool bEnabled) const
 	if (UEditableText* ChatInputText = GetChatInputWidget())
 	{
 		ChatInputText->SetIsEnabled(bEnabled);
-		ChatInputText->SetHintText(bEnabled
-			? MenuText(TEXT("HUD.ChatActive"))
-			: MenuText(TEXT("HUD.ChatIdle")));
+		ChatInputText->SetHintText(bEnabled ? MenuText(TEXT("HUD.ChatActive")) : MenuText(TEXT("HUD.ChatIdle")));
 	}
 }
 

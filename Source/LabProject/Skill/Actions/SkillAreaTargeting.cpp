@@ -15,23 +15,16 @@ namespace
 
 	bool IsIgnoredAOEGroundActor(const AActor* Actor)
 	{
-		return Actor
-			&& (Actor->IsA<AOutOfBoundsVolume>()
-				|| Actor->IsA<APlayerMapRegionTrigger>());
+		return Actor && (Actor->IsA<AOutOfBoundsVolume>() || Actor->IsA<APlayerMapRegionTrigger>());
 	}
 
 	bool IsValidAOEGroundHit(const FHitResult& Hit)
 	{
-		return Hit.bBlockingHit
-			&& Hit.ImpactNormal.Z >= AOEGroundMinNormalZ
-			&& !Cast<APawn>(Hit.GetActor())
+		return Hit.bBlockingHit && Hit.ImpactNormal.Z >= AOEGroundMinNormalZ && !Cast<APawn>(Hit.GetActor())
 			&& !IsIgnoredAOEGroundActor(Hit.GetActor());
 	}
 
-	bool TryResolveGroundUnderTarget(
-		AActor& Target,
-		AActor* Avatar,
-		const FSkillAreaSettings& Settings,
+	bool TryResolveGroundUnderTarget(AActor& Target, AActor* Avatar, const FSkillAreaSettings& Settings,
 		FVector& OutGroundLocation)
 	{
 		TArray<AActor*> ActorsToIgnore;
@@ -41,22 +34,14 @@ namespace
 			ActorsToIgnore.Add(Avatar);
 		}
 
-		return PdSkillAreaTargeting::TryResolveGroundLocation(
-			Target.GetWorld(),
-			Target.GetActorLocation(),
-			ActorsToIgnore,
-			Settings.TargetGroundTraceChannel,
-			static_cast<float>(Settings.TargetGroundTraceDepth),
+		return PdSkillAreaTargeting::TryResolveGroundLocation(Target.GetWorld(), Target.GetActorLocation(),
+			ActorsToIgnore, Settings.TargetGroundTraceChannel, static_cast<float>(Settings.TargetGroundTraceDepth),
 			OutGroundLocation);
 	}
 }
 
-bool PdSkillAreaTargeting::TryResolveGroundLocation(
-	UWorld* World,
-	const FVector& SourceLocation,
-	const TArray<AActor*>& ActorsToIgnore,
-	const TEnumAsByte<ETraceTypeQuery> TraceType,
-	const float TraceDepth,
+bool PdSkillAreaTargeting::TryResolveGroundLocation(UWorld* World, const FVector& SourceLocation,
+	const TArray<AActor*>& ActorsToIgnore, const TEnumAsByte<ETraceTypeQuery> TraceType, const float TraceDepth,
 	FVector& OutGroundLocation)
 {
 	if (!World)
@@ -126,10 +111,7 @@ FVector PdSkillAreaTargeting::ResolveTargetLocation(AActor& Target, AActor* Avat
 FVector PdSkillAreaTargeting::ResolveForwardLocation(AActor& Avatar, const FSkillAreaSettings& Settings)
 {
 	const float MaxRange = static_cast<float>(Settings.TargetingMaxRange);
-	const float ForwardDistance = FMath::Clamp(
-		MaxRange > 0.0f ? MaxRange * 0.65f : 800.0f,
-		300.0f,
-		1200.0f);
+	const float ForwardDistance = FMath::Clamp(MaxRange > 0.0f ? MaxRange * 0.65f : 800.0f, 300.0f, 1200.0f);
 	const FVector CandidateLocation = Avatar.GetActorLocation() + Avatar.GetActorForwardVector() * ForwardDistance;
 
 	TArray<AActor*> ActorsToIgnore;
@@ -146,11 +128,8 @@ FVector PdSkillAreaTargeting::ResolveForwardLocation(AActor& Avatar, const FSkil
 		: CandidateLocation;
 }
 
-FVector PdSkillAreaTargeting::ResolveAimedLocation(
-	const FHitResult& HitResult,
-	const FVector& TargetDataEndPoint,
-	AActor* Avatar,
-	const FSkillAreaSettings& Settings)
+FVector PdSkillAreaTargeting::ResolveAimedLocation(const FHitResult& HitResult, const FVector& TargetDataEndPoint,
+	AActor* Avatar, const FSkillAreaSettings& Settings)
 {
 	const FVector AimedLocation = HitResult.Location.IsNearlyZero() ? TargetDataEndPoint : HitResult.Location;
 

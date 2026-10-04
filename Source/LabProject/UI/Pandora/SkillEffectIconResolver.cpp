@@ -38,14 +38,10 @@ namespace
 			return ESkillEffectIconType::ElectricShock;
 		}
 
-		return SkillDefinition->bShowShieldEffectIcon
-			? ESkillEffectIconType::Shield
-			: ESkillEffectIconType::None;
+		return SkillDefinition->bShowShieldEffectIcon ? ESkillEffectIconType::Shield : ESkillEffectIconType::None;
 	}
 
-	UTexture2D* ResolveConfiguredImage(
-		const UObject* WorldContextObject,
-		const ESkillEffectIconType EffectIconType)
+	UTexture2D* ResolveConfiguredImage(const UObject* WorldContextObject, const ESkillEffectIconType EffectIconType)
 	{
 		const UWidgetClassDefinition* WidgetDefinition =
 			UWidgetClassDefinition::ResolveWidgetClassDefinition(WorldContextObject);
@@ -54,8 +50,7 @@ namespace
 			return nullptr;
 		}
 
-		const FSkillTipWidgetSettings& Settings =
-			WidgetDefinition->GetPandoraDescriptionEffectIconSettings();
+		const FSkillTipWidgetSettings& Settings = WidgetDefinition->GetPandoraDescriptionEffectIconSettings();
 		switch (EffectIconType)
 		{
 		case ESkillEffectIconType::Burn:
@@ -73,9 +68,7 @@ namespace
 	}
 }
 
-void PdSkillEffectIconResolver::ApplySkillEffectIcon(
-	const UObject* WorldContextObject,
-	const USkillDefinition* Skill,
+void PdSkillEffectIconResolver::ApplySkillEffectIcon(const UObject* WorldContextObject, const USkillDefinition* Skill,
 	UImage* ImageWidget)
 {
 	if (!ImageWidget)

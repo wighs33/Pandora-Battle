@@ -11,17 +11,12 @@ FPrimaryAssetId UPdGameInstanceDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UPdGameInstanceDefinition::GetDefaultDefinitionPath()
 {
-	return GetDefault<UProjectBootstrapSettings>()
-		->GetBootstrapDefinition().ToSoftObjectPath();
+	return GetDefault<UProjectBootstrapSettings>()->GetBootstrapDefinition().ToSoftObjectPath();
 }
 
-const FProjectDefinitionReferences&
-UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+const FProjectDefinitionReferences& UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
 {
-	const UPdGameInstanceDefinition* Definition =
-		GetDefault<UProjectBootstrapSettings>()
-			->GetBootstrapDefinition().LoadSynchronous();
-	return Definition
-		? Definition->Definitions
-		: GetDefault<UPdGameInstanceDefinition>()->Definitions;
+	const UPdGameInstanceDefinition* Definition = GetDefault<UProjectBootstrapSettings>()
+		->GetBootstrapDefinition().LoadSynchronous();
+	return Definition ? Definition->Definitions : GetDefault<UPdGameInstanceDefinition>()->Definitions;
 }

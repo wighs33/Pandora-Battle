@@ -62,8 +62,7 @@ namespace PdEnemyAttackSelection
 			return;
 		}
 
-		// Compatibility fallback for legacy Blueprint abilities without the
-		// expected native attack asset tag.
+		// 기대하는 네이티브 공격 애셋 태그가 없는 예전 블루프린트 능력을 위한 호환 대체 경로.
 		for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystem.GetActivatableAbilities())
 		{
 			const UGameplayAbility* AbilityCDO = AbilitySpec.Ability;

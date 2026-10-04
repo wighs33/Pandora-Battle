@@ -86,10 +86,7 @@ void URightSkinWidget::RebuildTileView()
 			? SkinDefinitions[SlotIndex]
 			: nullptr;
 		USkinSlotViewData* SlotViewData = NewObject<USkinSlotViewData>(this);
-		SlotViewData->Initialize(
-			SlotIndex,
-			SkinDefinition,
-			AssignedSkinDefinitions.Contains(SkinDefinition));
+		SlotViewData->Initialize(SlotIndex, SkinDefinition, AssignedSkinDefinitions.Contains(SkinDefinition));
 		CachedSlotViewData.Add(SlotViewData);
 		TileView->AddItem(SlotViewData);
 	}
@@ -102,11 +99,8 @@ void URightSkinWidget::HandleEquippedSkinsChanged()
 
 void URightSkinWidget::RefreshSkinEquipmentBinding()
 {
-	const ACharacterBase* Character =
-		Cast<ACharacterBase>(GetOwningPlayerPawn());
-	USkinEquipmentComponent* ResolvedSkinEquipment = Character
-		? Character->GetSkinEquipmentComponent()
-		: nullptr;
+	const ACharacterBase* Character = Cast<ACharacterBase>(GetOwningPlayerPawn());
+	USkinEquipmentComponent* ResolvedSkinEquipment = Character ? Character->GetSkinEquipmentComponent() : nullptr;
 	if (BoundSkinEquipmentComponent.Get() == ResolvedSkinEquipment)
 	{
 		return;
@@ -116,20 +110,15 @@ void URightSkinWidget::RefreshSkinEquipmentBinding()
 	BoundSkinEquipmentComponent = ResolvedSkinEquipment;
 	if (ResolvedSkinEquipment)
 	{
-		ResolvedSkinEquipment->OnEquippedSkinsChanged.AddUniqueDynamic(
-			this,
-			&ThisClass::HandleEquippedSkinsChanged);
+		ResolvedSkinEquipment->OnEquippedSkinsChanged.AddUniqueDynamic(this, &ThisClass::HandleEquippedSkinsChanged);
 	}
 }
 
 void URightSkinWidget::ClearSkinEquipmentBinding()
 {
-	if (USkinEquipmentComponent* SkinEquipment =
-		BoundSkinEquipmentComponent.Get())
+	if (USkinEquipmentComponent* SkinEquipment = BoundSkinEquipmentComponent.Get())
 	{
-		SkinEquipment->OnEquippedSkinsChanged.RemoveDynamic(
-			this,
-			&ThisClass::HandleEquippedSkinsChanged);
+		SkinEquipment->OnEquippedSkinsChanged.RemoveDynamic(this, &ThisClass::HandleEquippedSkinsChanged);
 	}
 	BoundSkinEquipmentComponent.Reset();
 }

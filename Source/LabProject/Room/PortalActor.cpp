@@ -148,8 +148,8 @@ EDataValidationResult APortalActor::IsDataValid(FDataValidationContext& Context)
 		Result = EDataValidationResult::Valid;
 	}
 
-	// The native base CDO intentionally has no project content dependency. Every
-	// concrete portal Blueprint or placed instance must provide the soft definition.
+	// 네이티브 기반 CDO는 일부러 프로젝트 콘텐츠에 의존하지 않는다. 구체적인 포털 블루프린트나
+	// 배치한 인스턴스는 모두 soft 정의를 지정해야 한다.
 	if (HasAnyFlags(RF_ClassDefaultObject) && GetClass() == StaticClass())
 	{
 		return Result;
@@ -167,10 +167,7 @@ EDataValidationResult APortalActor::IsDataValid(FDataValidationContext& Context)
 	if (!PortalDefinition.LoadSynchronous())
 	{
 		Context.AddError(FText::Format(
-			NSLOCTEXT(
-				"PortalActor",
-				"InvalidPortalDefinition",
-				"PortalDefinition '{0}' could not be loaded."),
+			NSLOCTEXT("PortalActor", "InvalidPortalDefinition", "PortalDefinition '{0}' could not be loaded."),
 			FText::FromString(PortalDefinition.ToSoftObjectPath().ToString())));
 		return EDataValidationResult::Invalid;
 	}
@@ -199,12 +196,8 @@ void APortalActor::BeginPlay()
 
 		if (UWorld* World = GetWorld())
 		{
-			World->GetTimerManager().SetTimer(
-				InitMaterialTimerHandle,
-				this,
-				&ThisClass::NativeTryInitPortalMaterial,
-				FMath::Max(InitRetryInterval, 0.01f),
-				true);
+			World->GetTimerManager().SetTimer(InitMaterialTimerHandle, this, &ThisClass::NativeTryInitPortalMaterial,
+				FMath::Max(InitRetryInterval, 0.01f), true);
 		}
 	}
 	else
@@ -323,10 +316,8 @@ void APortalActor::NativeUpdateSceneCapture()
 	const FTransform TargetPortal = LinkedPortalActor->GetPortalReferenceTransform();
 	LinkedCapture->SetWorldLocationAndRotation(
 		PdPortalSpace::TransformLocation(SourcePortal, TargetPortal, CameraManager->GetCameraLocation()),
-		PdPortalSpace::TransformRotation(SourcePortal, TargetPortal, CameraManager->GetCameraRotation()),
-		false,
-		nullptr,
-		ETeleportType::TeleportPhysics);
+		PdPortalSpace::TransformRotation(SourcePortal, TargetPortal, CameraManager->GetCameraRotation()), false,
+		nullptr, ETeleportType::TeleportPhysics);
 
 	if (bCopyPlayerCameraFov)
 	{
@@ -360,10 +351,8 @@ bool APortalActor::NativeTryTeleportOverlappingActor()
 	}
 
 	TArray<AActor*> OverlappingActors;
-	DetectionOverlaps.Collect(
-		PlayerDetectionComponent,
-		[this](const AActor* Actor) { return IsTeleportCandidate(Actor); },
-		OverlappingActors,
+	DetectionOverlaps.Collect(PlayerDetectionComponent,
+		[this](const AActor* Actor) { return IsTeleportCandidate(Actor); }, OverlappingActors,
 		[this](AActor* Actor) { RemoveTraversalStateIfNoLongerOverlapping(Actor); });
 	if (OverlappingActors.IsEmpty())
 	{
@@ -449,10 +438,8 @@ bool APortalActor::EnsureRenderTargetSize()
 
 	const ETextureRenderTargetFormat DesiredFormat = LoadedPortalDefinition->RenderTargetFormat.GetValue();
 	const bool bNeedsNewTarget = !PortalRT;
-	const bool bNeedsResize = PortalRT
-		&& (PortalRT->SizeX != DesiredSize.X
-			|| PortalRT->SizeY != DesiredSize.Y
-			|| PortalRT->RenderTargetFormat != DesiredFormat);
+	const bool bNeedsResize = PortalRT && (PortalRT->SizeX != DesiredSize.X || PortalRT->SizeY != DesiredSize.Y
+		|| PortalRT->RenderTargetFormat != DesiredFormat);
 
 	if (!bNeedsNewTarget && !bNeedsResize)
 	{
@@ -612,8 +599,7 @@ void APortalActor::SetTickEnabledFromOverlaps()
 		return;
 	}
 
-	SetActorTickEnabled(PortalBoxOverlaps.HasAny(
-		BoxComponent,
+	SetActorTickEnabled(PortalBoxOverlaps.HasAny(BoxComponent,
 		[this](const AActor* Actor) { return IsTeleportCandidate(Actor); }));
 }
 
@@ -720,10 +706,7 @@ void APortalActor::TeleportActorThroughPortal(AActor* Actor)
 			if (APdPlayerController* PlayerController = Cast<APdPlayerController>(Controller);
 				HasAuthority() && PlayerController && !PlayerController->IsLocalController())
 			{
-				PlayerController->Client_ApplyPortalTeleport(
-					TargetLocation,
-					TargetRotation,
-					TargetVelocity,
+				PlayerController->Client_ApplyPortalTeleport(TargetLocation, TargetRotation, TargetVelocity,
 					TargetControlRotation);
 			}
 		}

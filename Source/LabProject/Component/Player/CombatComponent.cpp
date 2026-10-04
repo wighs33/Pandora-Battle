@@ -31,9 +31,7 @@ namespace
 	// 플레이어 원거리 공격 한 번의 스태미나 비용. AI는 스태미나를 쓰지 않으므로 0이다.
 	float GetPlayerRangedAttackStaminaCost(const ACharacterBase& Character)
 	{
-		return Character.IsPlayerControlled()
-			? UPdGameplayAbility::GetWeaponAttackStaminaCost(&Character)
-			: 0.0f;
+		return Character.IsPlayerControlled() ? UPdGameplayAbility::GetWeaponAttackStaminaCost(&Character) : 0.0f;
 	}
 
 	bool HasStaminaFor(const UPdAbilitySystemComponent* AbilitySystemComponent, const float StaminaCost)
@@ -41,8 +39,7 @@ namespace
 		const UBasicAttributeSet* AttributeSet = AbilitySystemComponent
 			? AbilitySystemComponent->GetSet<UBasicAttributeSet>()
 			: nullptr;
-		return AttributeSet
-			&& AttributeSet->GetStamina() + UE_SMALL_NUMBER >= StaminaCost;
+		return AttributeSet && AttributeSet->GetStamina() + UE_SMALL_NUMBER >= StaminaCost;
 	}
 }
 
@@ -59,8 +56,7 @@ void UCombatComponent::BeginPlay()
 	Super::BeginPlay();
 
 	// ASC는 빙의와 PlayerState 도착 순서에 따라 늦게 준비되므로, 준비 알림에서만 공격 속도 변화를 구독한다.
-	AbilitySystemSubscription.SubscribeToCharacter(
-		GetCharacter(),
+	AbilitySystemSubscription.SubscribeToCharacter(GetCharacter(),
 		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
 		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
 	// Pawn 정의가 BeginPlay 이전에 적용된 경우에도 몽타주 로딩을 시작한다.
@@ -222,9 +218,7 @@ void UCombatComponent::StopAim()
 	// 무기별 해제 처리가 누락돼도 조준 상태 자체는 반드시 종료한다.
 	if (PlayerCharacter->IsWeaponAimActive())
 	{
-		PlayerCharacter->SetWeaponAimActive(
-			false,
-			FWeaponAimCameraSettings());
+		PlayerCharacter->SetWeaponAimActive(false, FWeaponAimCameraSettings());
 	}
 }
 
@@ -356,11 +350,10 @@ bool UCombatComponent::IsPrimaryAttackBlockedByAbilityTags() const
 	}
 
 	const UAbilitySystemComponent* AbilitySystemComponent = GetPlayerAbilitySystemComponent();
-	return AbilitySystemComponent
-		&& (AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
-			|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Status_Frostbite)
-			|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
-			|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_ShootProjectile_Active));
+	return AbilitySystemComponent && (AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Status_Frostbite)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_ShootProjectile_Active));
 }
 
 bool UCombatComponent::TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter, AWeaponBase* WeaponActor) const
@@ -481,8 +474,7 @@ bool UCombatComponent::CanAffordRangedWeaponAttackStamina() const
 	}
 
 	const float StaminaCost = GetPlayerRangedAttackStaminaCost(*CharacterOwner);
-	return StaminaCost <= 0.0f
-		|| HasStaminaFor(CharacterOwner->GetPdAbilitySystemComponent(), StaminaCost);
+	return StaminaCost <= 0.0f || HasStaminaFor(CharacterOwner->GetPdAbilitySystemComponent(), StaminaCost);
 }
 
 bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
@@ -504,8 +496,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 		return true;
 	}
 
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		CharacterOwner->GetPdAbilitySystemComponent();
+	UPdAbilitySystemComponent* AbilitySystemComponent = CharacterOwner->GetPdAbilitySystemComponent();
 	if (!HasStaminaFor(AbilitySystemComponent, StaminaCost))
 	{
 		return false;
@@ -517,14 +508,10 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 		return false;
 	}
 
-	FGameplayEffectContextHandle EffectContext =
-		AbilitySystemComponent->MakeEffectContext();
+	FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
 	EffectContext.AddSourceObject(this);
 	FGameplayEffectSpecHandle CostSpecHandle =
-		AbilitySystemComponent->MakeOutgoingSpec(
-			CostEffectClass,
-			1.0f,
-			EffectContext);
+		AbilitySystemComponent->MakeOutgoingSpec(CostEffectClass, 1.0f, EffectContext);
 	if (!UPdGameplayAbility::SetCostEffectMagnitudes(CostSpecHandle, 0.0f, StaminaCost))
 	{
 		return false;
@@ -639,7 +626,7 @@ bool UCombatComponent::BuildWeaponDamage(const AWeaponBase& Weapon, PdDamageRule
 	// 무기 능력치와 무기 피해 보너스는 장착 중인 무기에서만 읽는다.
 	return GetCurrentWeaponActor() == &Weapon
 		&& BuildOutgoingDamage(GetWeaponDamageSourceMagnitude() + GetTemporaryWeaponDamageBonus(),
-			Weapon.ShouldTriggerHitReactOnDamage(), OutDamage);
+		Weapon.ShouldTriggerHitReactOnDamage(), OutDamage);
 }
 
 // 팀·능력치·치명타·피격 반응을 같은 순서로 적용한다. 치명타는 공격자 능력치로 한 번 판정하고,

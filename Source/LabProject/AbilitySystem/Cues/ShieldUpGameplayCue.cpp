@@ -17,8 +17,7 @@ AShieldUpGameplayCue::AShieldUpGameplayCue()
 
 bool AShieldUpGameplayCue::HandlesEvent(EGameplayCueEvent::Type EventType) const
 {
-	return EventType == EGameplayCueEvent::OnActive
-		|| EventType == EGameplayCueEvent::WhileActive
+	return EventType == EGameplayCueEvent::OnActive || EventType == EGameplayCueEvent::WhileActive
 		|| EventType == EGameplayCueEvent::Removed;
 }
 
@@ -55,9 +54,7 @@ USkeletalMeshComponent* AShieldUpGameplayCue::ResolveSkeletalMesh(AActor* MyTarg
 	return Cast<USkeletalMeshComponent>(MyTarget->GetComponentByClass(USkeletalMeshComponent::StaticClass()));
 }
 
-bool AShieldUpGameplayCue::ApplyShieldOverlay(
-	AActor* MyTarget,
-	UMaterialInterface* OverlayMaterial,
+bool AShieldUpGameplayCue::ApplyShieldOverlay(AActor* MyTarget, UMaterialInterface* OverlayMaterial,
 	const bool bPlaySound)
 {
 	USkeletalMeshComponent* SkeletalMeshComponent = ResolveSkeletalMesh(MyTarget);
@@ -84,15 +81,13 @@ bool AShieldUpGameplayCue::ApplyShieldOverlay(
 			if (FallbackOverlayMesh.Get() != SkeletalMeshComponent)
 			{
 				FallbackOverlayMesh = SkeletalMeshComponent;
-				FallbackPreviousOverlayMaterial =
-					SkeletalMeshComponent->GetOverlayMaterial();
+				FallbackPreviousOverlayMaterial = SkeletalMeshComponent->GetOverlayMaterial();
 			}
 			SkeletalMeshComponent->SetOverlayMaterial(OverlayMaterial);
 		}
 		else if (FallbackOverlayMesh.Get() == SkeletalMeshComponent)
 		{
-			SkeletalMeshComponent->SetOverlayMaterial(
-				FallbackPreviousOverlayMaterial);
+			SkeletalMeshComponent->SetOverlayMaterial(FallbackPreviousOverlayMaterial);
 			FallbackOverlayMesh.Reset();
 			FallbackPreviousOverlayMaterial = nullptr;
 		}
@@ -100,10 +95,7 @@ bool AShieldUpGameplayCue::ApplyShieldOverlay(
 
 	if (bPlaySound && ShieldUpSound)
 	{
-		UGameplayStatics::PlaySoundAtLocation(
-			this,
-			ShieldUpSound,
-			SkeletalMeshComponent->GetComponentLocation());
+		UGameplayStatics::PlaySoundAtLocation(this, ShieldUpSound, SkeletalMeshComponent->GetComponentLocation());
 	}
 
 	return true;

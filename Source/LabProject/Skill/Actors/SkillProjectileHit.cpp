@@ -150,9 +150,7 @@ AActor* PdSkillProjectileHit::ResolveDamageTarget(AActor* OtherActor, const UPri
 	return OtherActor;
 }
 
-FVector PdSkillProjectileHit::ResolveImpactLocation(
-	const FHitResult& Hit,
-	const bool bUseSurfacePoint,
+FVector PdSkillProjectileHit::ResolveImpactLocation(const FHitResult& Hit, const bool bUseSurfacePoint,
 	const FVector& FallbackLocation)
 {
 	const bool bHasReportedHit = Hit.GetActor() != nullptr || Hit.GetComponent() != nullptr;
@@ -164,9 +162,7 @@ FVector PdSkillProjectileHit::ResolveImpactLocation(
 	return bHasReportedHit && !Hit.Location.ContainsNaN() ? FVector(Hit.Location) : FallbackLocation;
 }
 
-FName PdSkillProjectileHit::ResolveImpactBoneName(
-	const UPrimitiveComponent* ImpactComponent,
-	const FHitResult& Hit,
+FName PdSkillProjectileHit::ResolveImpactBoneName(const UPrimitiveComponent* ImpactComponent, const FHitResult& Hit,
 	const FVector& ImpactLocation)
 {
 	if (!IsValid(ImpactComponent))
@@ -191,9 +187,7 @@ FName PdSkillProjectileHit::ResolveImpactBoneName(
 	return NAME_None;
 }
 
-bool PdSkillProjectileHit::ApplyDamageToTarget(
-	const AActor& Projectile,
-	AActor* TargetActor,
+bool PdSkillProjectileHit::ApplyDamageToTarget(const AActor& Projectile, AActor* TargetActor,
 	const FSkillProjectileDamage& Damage)
 {
 	if (!Projectile.HasAuthority() || !IsValid(TargetActor) || !Damage.DamageSpec.IsValid())
@@ -231,17 +225,11 @@ bool PdSkillProjectileHit::ApplyDamageToTarget(
 	return AppliedHandle.WasSuccessfullyApplied();
 }
 
-bool PdSkillProjectileHit::ApplyDamageInArea(
-	const AActor& Projectile,
-	const FVector& Center,
-	const float Radius,
+bool PdSkillProjectileHit::ApplyDamageInArea(const AActor& Projectile, const FVector& Center, const float Radius,
 	const FSkillProjectileDamage& Damage)
 {
 	UWorld* World = Projectile.GetWorld();
-	if (!Projectile.HasAuthority()
-		|| !World
-		|| Radius <= UE_SMALL_NUMBER
-		|| !Damage.DamageSpec.IsValid()
+	if (!Projectile.HasAuthority() || !World || Radius <= UE_SMALL_NUMBER || !Damage.DamageSpec.IsValid()
 		|| !Damage.DamageSpec.Data.IsValid())
 	{
 		return false;
@@ -262,13 +250,8 @@ bool PdSkillProjectileHit::ApplyDamageInArea(
 	}
 
 	TArray<FOverlapResult> OverlapResults;
-	if (!World->OverlapMultiByObjectType(
-		OverlapResults,
-		Center,
-		FQuat::Identity,
-		ObjectQueryParams,
-		FCollisionShape::MakeSphere(Radius),
-		QueryParams))
+	if (!World->OverlapMultiByObjectType(OverlapResults, Center, FQuat::Identity, ObjectQueryParams,
+		FCollisionShape::MakeSphere(Radius), QueryParams))
 	{
 		return false;
 	}

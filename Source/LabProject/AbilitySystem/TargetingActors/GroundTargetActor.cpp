@@ -21,9 +21,7 @@ namespace
 
 	bool IsIgnoredTargetingGroundActor(const AActor* Actor)
 	{
-		return Actor
-			&& (Actor->IsA<AOutOfBoundsVolume>()
-				|| Actor->IsA<APlayerMapRegionTrigger>());
+		return Actor && (Actor->IsA<AOutOfBoundsVolume>() || Actor->IsA<APlayerMapRegionTrigger>());
 	}
 
 	bool IsGroundTraceActorOwnedBy(const AActor* Actor, const AActor* OwnerCandidate)
@@ -52,8 +50,7 @@ namespace
 		}
 
 		const APawn* SourcePawn = Cast<APawn>(SourceActor);
-		return Actor == SourceActor
-			|| IsGroundTraceActorOwnedBy(Actor, SourceActor)
+		return Actor == SourceActor || IsGroundTraceActorOwnedBy(Actor, SourceActor)
 			|| (SourcePawn && Actor->GetInstigator() == SourcePawn);
 	}
 
@@ -83,16 +80,12 @@ namespace
 
 	bool IsValidTargetingGroundHit(const FHitResult& Hit, const AActor* SourceActor)
 	{
-		return Hit.bBlockingHit
-			&& Hit.ImpactNormal.Z >= TargetingGroundMinNormalZ
-			&& !IsPawnRelatedTargetingActor(Hit.GetActor())
-			&& !IsIgnoredTargetingGroundActor(Hit.GetActor())
+		return Hit.bBlockingHit && Hit.ImpactNormal.Z >= TargetingGroundMinNormalZ
+			&& !IsPawnRelatedTargetingActor(Hit.GetActor()) && !IsIgnoredTargetingGroundActor(Hit.GetActor())
 			&& !IsSourceRelatedActor(Hit.GetActor(), SourceActor);
 	}
 
-	void AddSourceAndAttachmentsToIgnore(
-		FCollisionQueryParams& QueryParams,
-		AActor* SourceActor)
+	void AddSourceAndAttachmentsToIgnore(FCollisionQueryParams& QueryParams, AActor* SourceActor)
 	{
 		if (!IsValid(SourceActor))
 		{
@@ -112,13 +105,8 @@ namespace
 		}
 	}
 
-	bool TryTraceTargetingWorldSurface(
-		UWorld* World,
-		const FVector& TraceStart,
-		const FVector& TraceEnd,
-		const AActor* SourceActor,
-		const bool bRequireGroundSurface,
-		FCollisionQueryParams QueryParams,
+	bool TryTraceTargetingWorldSurface(UWorld* World, const FVector& TraceStart, const FVector& TraceEnd,
+		const AActor* SourceActor, const bool bRequireGroundSurface, FCollisionQueryParams QueryParams,
 		FHitResult& OutHit)
 	{
 		if (!World)
@@ -136,12 +124,7 @@ namespace
 		for (int32 TraceIndex = 0; TraceIndex < MaxIgnoredHitCount; ++TraceIndex)
 		{
 			FHitResult Hit;
-			if (!World->LineTraceSingleByObjectType(
-				Hit,
-				CurrentTraceStart,
-				TraceEnd,
-				ObjectParams,
-				QueryParams))
+			if (!World->LineTraceSingleByObjectType(Hit, CurrentTraceStart, TraceEnd, ObjectParams, QueryParams))
 			{
 				return false;
 			}
@@ -202,9 +185,7 @@ void AGroundTargetActor::Tick(const float DeltaSeconds)
 	UpdateDecalGrowth();
 }
 
-void AGroundTargetActor::ConfigureDecalGrowth(
-	const double InStartSize,
-	const double InTargetSize,
+void AGroundTargetActor::ConfigureDecalGrowth(const double InStartSize, const double InTargetSize,
 	const double InDuration)
 {
 	DecalGrowthStartSize = FMath::Max(InStartSize, 0.0);
@@ -217,9 +198,7 @@ void AGroundTargetActor::ConfigureDecalGrowth(
 	ApplyDecalSize(bDecalGrowthActive ? DecalGrowthStartSize : DecalGrowthTargetSize);
 }
 
-void AGroundTargetActor::ConfigureGroundProjection(
-	const double InTraceStartHeight,
-	const double InTraceDepth)
+void AGroundTargetActor::ConfigureGroundProjection(const double InTraceStartHeight, const double InTraceDepth)
 {
 	GroundProjectionTraceStartHeight = FMath::Max(InTraceStartHeight, 0.0);
 	GroundProjectionTraceDepth = FMath::Max(InTraceDepth, 100.0);
@@ -237,15 +216,9 @@ void AGroundTargetActor::BeginPlay()
 	DestroySpawnedDecal();
 
 	const double InitialSize = bDecalGrowthActive ? DecalGrowthStartSize : DecalSize;
-	SpawnedDecalComponent = UGameplayStatics::SpawnDecalAttached(
-		Decal,
-		FVector(ResolveTargetingDecalDepth(DecalDepth), InitialSize, InitialSize),
-		DefaultSceneRoot,
-		NAME_None,
-		FVector::ZeroVector,
-		TargetingDecalWorldRotation,
-		EAttachLocation::KeepRelativeOffset,
-		0.0f);
+	SpawnedDecalComponent = UGameplayStatics::SpawnDecalAttached(Decal,
+		FVector(ResolveTargetingDecalDepth(DecalDepth), InitialSize, InitialSize), DefaultSceneRoot, NAME_None,
+		FVector::ZeroVector, TargetingDecalWorldRotation, EAttachLocation::KeepRelativeOffset, 0.0f);
 
 	if (SpawnedDecalComponent)
 	{
@@ -265,11 +238,9 @@ void AGroundTargetActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (GenericDelegateBoundASC)
 	{
-		GenericDelegateBoundASC->GenericLocalConfirmCallbacks.RemoveDynamic(
-			this,
+		GenericDelegateBoundASC->GenericLocalConfirmCallbacks.RemoveDynamic(this,
 			&AGameplayAbilityTargetActor::ConfirmTargeting);
-		GenericDelegateBoundASC->GenericLocalCancelCallbacks.RemoveDynamic(
-			this,
+		GenericDelegateBoundASC->GenericLocalCancelCallbacks.RemoveDynamic(this,
 			&AGameplayAbilityTargetActor::CancelTargeting);
 		GenericDelegateBoundASC = nullptr;
 	}
@@ -289,8 +260,7 @@ FHitResult AGroundTargetActor::PerformTrace(AActor* InSourceActor)
 
 	const FVector TargetingTraceStart = StartLocation.GetTargetingTransform().GetLocation();
 	const float SafeMaxRange = FMath::Max(MaxRange, 0.0f);
-	FVector TargetingTraceEnd =
-		TargetingTraceStart + InSourceActor->GetActorForwardVector() * SafeMaxRange;
+	FVector TargetingTraceEnd = TargetingTraceStart + InSourceActor->GetActorForwardVector() * SafeMaxRange;
 	if (PrimaryPC)
 	{
 		FVector ViewStart = FVector::ZeroVector;
@@ -299,12 +269,7 @@ FHitResult AGroundTargetActor::PerformTrace(AActor* InSourceActor)
 
 		const FVector ViewDirection = ViewRotation.Vector().GetSafeNormal();
 		FVector ViewEnd = ViewStart + ViewDirection * SafeMaxRange;
-		ClipCameraRayToAbilityRange(
-			ViewStart,
-			ViewDirection,
-			TargetingTraceStart,
-			SafeMaxRange,
-			ViewEnd);
+		ClipCameraRayToAbilityRange(ViewStart, ViewDirection, TargetingTraceStart, SafeMaxRange, ViewEnd);
 
 		FVector AimDirection = (ViewEnd - TargetingTraceStart).GetSafeNormal();
 		if (AimDirection.IsNearlyZero())
@@ -314,44 +279,26 @@ FHitResult AGroundTargetActor::PerformTrace(AActor* InSourceActor)
 		TargetingTraceEnd = TargetingTraceStart + AimDirection * SafeMaxRange;
 	}
 
-	FCollisionQueryParams TargetingQueryParams(
-		SCENE_QUERY_STAT(TargetActorGroundDecalAimTrace),
-		false);
+	FCollisionQueryParams TargetingQueryParams(SCENE_QUERY_STAT(TargetActorGroundDecalAimTrace), false);
 	TargetingQueryParams.bReturnPhysicalMaterial = true;
 	AddSourceAndAttachmentsToIgnore(TargetingQueryParams, InSourceActor);
 
 	FHitResult AimSurfaceHit;
-	const bool bHitAimSurface = TryTraceTargetingWorldSurface(
-		World,
-		TargetingTraceStart,
-		TargetingTraceEnd,
-		InSourceActor,
-		false,
-		TargetingQueryParams,
-		AimSurfaceHit);
-	const FVector AimLocation = bHitAimSurface
-		? AimSurfaceHit.ImpactPoint
-		: TargetingTraceEnd;
+	const bool bHitAimSurface = TryTraceTargetingWorldSurface(World, TargetingTraceStart, TargetingTraceEnd,
+		InSourceActor, false, TargetingQueryParams, AimSurfaceHit);
+	const FVector AimLocation = bHitAimSurface ? AimSurfaceHit.ImpactPoint : TargetingTraceEnd;
 
 	const FVector GroundTraceStart = AimLocation
 		+ FVector::UpVector * static_cast<float>(FMath::Max(GroundProjectionTraceStartHeight, 0.0));
 	const FVector GroundTraceEnd = AimLocation
 		- FVector::UpVector * static_cast<float>(FMath::Max(GroundProjectionTraceDepth, 100.0));
 
-	FCollisionQueryParams GroundQueryParams(
-		SCENE_QUERY_STAT(TargetActorGroundDecalFloorTrace),
-		false);
+	FCollisionQueryParams GroundQueryParams(SCENE_QUERY_STAT(TargetActorGroundDecalFloorTrace), false);
 	GroundQueryParams.bReturnPhysicalMaterial = true;
 	AddSourceAndAttachmentsToIgnore(GroundQueryParams, InSourceActor);
 
 	FHitResult GroundHit;
-	if (TryTraceTargetingWorldSurface(
-		World,
-		GroundTraceStart,
-		GroundTraceEnd,
-		InSourceActor,
-		true,
-		GroundQueryParams,
+	if (TryTraceTargetingWorldSurface(World, GroundTraceStart, GroundTraceEnd, InSourceActor, true, GroundQueryParams,
 		GroundHit))
 	{
 		bLastTraceWasGood = true;

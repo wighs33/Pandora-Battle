@@ -76,10 +76,8 @@ namespace
 	}
 }
 
-FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
-	const UPandoraDefinition* PandoraDefinition,
-	const UPandoraTreeComponent* PandoraTreeComponent,
-	const FPandoraWidgetStyleConfig& Style)
+FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(const UPandoraDefinition* PandoraDefinition,
+	const UPandoraTreeComponent* PandoraTreeComponent, const FPandoraWidgetStyleConfig& Style)
 {
 	FPandoraWidgetViewData ViewData;
 
@@ -95,29 +93,23 @@ FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
 		? PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition)
 		: 0;
 	const bool bHasPandora = ViewData.CurrentLevel > 0;
-	const bool bUnlockedForTree = PandoraTreeComponent
-		&& PandoraDefinition
+	const bool bUnlockedForTree = PandoraTreeComponent && PandoraDefinition
 		&& PandoraTreeComponent->IsPandoraUnlockedForTree(PandoraDefinition);
 	ViewData.bOwned = bHasPandora || bUnlockedForTree;
 
-	ViewData.bCanSpend = PandoraTreeComponent
-		&& PandoraDefinition
+	ViewData.bCanSpend = PandoraTreeComponent && PandoraDefinition
 		&& PandoraTreeComponent->CanSpendPointOnPandora(PandoraDefinition);
 	ViewData.PointsAvailable = PandoraTreeComponent ? PandoraTreeComponent->GetPointsAvailable() : INDEX_NONE;
 	ViewData.RequiredPoints = PandoraTreeComponent && PandoraDefinition
 		? PandoraTreeComponent->GetRequiredPointsForPandora(PandoraDefinition, ViewData.CurrentLevel > 0)
 		: INDEX_NONE;
-	ViewData.bUnlockRulesMet = !PandoraTreeComponent
-		|| !PandoraDefinition
+	ViewData.bUnlockRulesMet = !PandoraTreeComponent || !PandoraDefinition
 		|| PandoraTreeComponent->IsPandoraAvailableForInvestment(PandoraDefinition);
 
 	ViewData.bAtMaxLevel = PandoraDefinition && ViewData.MaxLevel > 0 && ViewData.CurrentLevel >= ViewData.MaxLevel;
 	ViewData.bLocked = PandoraTreeComponent && PandoraDefinition && ViewData.CurrentLevel <= 0 && !ViewData.bUnlockRulesMet;
-	ViewData.bNotEnoughPoints = PandoraTreeComponent
-		&& !ViewData.bAtMaxLevel
-		&& !ViewData.bLocked
-		&& ViewData.RequiredPoints > 0
-		&& ViewData.PointsAvailable >= 0
+	ViewData.bNotEnoughPoints = PandoraTreeComponent && !ViewData.bAtMaxLevel && !ViewData.bLocked
+		&& ViewData.RequiredPoints > 0 && ViewData.PointsAvailable >= 0
 		&& ViewData.PointsAvailable < ViewData.RequiredPoints;
 	const bool bAvailableStyle = !PandoraTreeComponent || ViewData.bCanSpend || ViewData.bAtMaxLevel;
 	ViewData.bActive = bAvailableStyle && !ViewData.bLocked && !ViewData.bNotEnoughPoints;
@@ -176,9 +168,7 @@ bool FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(const UUserWidget* W
 	return ProfileSubsystem->IsPandoraGranted(PandoraDefinition);
 }
 
-FText FPandoraWidgetViewDataBuilder::MakeLevelText(
-	const int32 CurrentLevel,
-	const int32 MaxLevel,
+FText FPandoraWidgetViewDataBuilder::MakeLevelText(const int32 CurrentLevel, const int32 MaxLevel,
 	const bool bShowMaxText)
 {
 	if (bShowMaxText && MaxLevel > 0 && CurrentLevel >= MaxLevel)
@@ -186,14 +176,11 @@ FText FPandoraWidgetViewDataBuilder::MakeLevelText(
 		return MaxLevelText;
 	}
 
-	return FText::Format(
-		NSLOCTEXT("PandoraWidget", "PandoraLevelFormat", "{0}/{1}"),
-		FText::AsNumber(CurrentLevel),
+	return FText::Format(NSLOCTEXT("PandoraWidget", "PandoraLevelFormat", "{0}/{1}"), FText::AsNumber(CurrentLevel),
 		FText::AsNumber(MaxLevel));
 }
 
-FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(
-	const UPandoraDefinition* PandoraDefinition,
+FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(const UPandoraDefinition* PandoraDefinition,
 	const UPandoraComponent* PandoraComponent)
 {
 	FPandoraSlotViewData ViewData;
@@ -220,10 +207,8 @@ FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(
 	return ViewData;
 }
 
-FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
-	const UPandoraDefinition* PandoraDefinition,
-	const UPandoraTreeComponent* PandoraTreeComponent,
-	const UMenuLocalizationSubsystem* Localization)
+FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(const UPandoraDefinition* PandoraDefinition,
+	const UPandoraTreeComponent* PandoraTreeComponent, const UMenuLocalizationSubsystem* Localization)
 {
 	FPandoraDescriptionViewData ViewData;
 	ViewData.SkillSlots.SetNum(UPandoraDefinition::GetFixedMaxLevel());

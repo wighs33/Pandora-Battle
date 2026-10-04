@@ -42,8 +42,7 @@ namespace
 	/** 말풍선 한두 줄에 들어가는 길이 */
 	constexpr int32 MaxReplyCharacters = 120;
 
-	FAutoConsoleCommandWithWorldAndArgs AskLunaCommand(
-		TEXT("pd.Luna.Ask"),
+	FAutoConsoleCommandWithWorldAndArgs AskLunaCommand(TEXT("pd.Luna.Ask"),
 		TEXT("pd.Luna.Ask <question>: ask Luna through the local Ollama model."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
@@ -274,8 +273,7 @@ FString ULunaChatSubsystem::BuildSystemPrompt() const
 	const EGuideLanguage Language = Localization ? Localization->GetLanguage() : EGuideLanguage::Korean;
 	const FString LanguageName = StaticEnum<EGuideLanguage>()->GetNameStringByValue(static_cast<int64>(Language));
 
-	FString Prompt = FString::Printf(TEXT(
-		"You are Luna, the guide of the multiplayer action game \"Pandora Battle\". "
+	FString Prompt = FString::Printf(TEXT("You are Luna, the guide of the multiplayer action game \"Pandora Battle\". "
 		"You appear on the title screen and talk with the player through a small speech bubble.\n"
 		"Rules:\n"
 		"- Always reply in %s (%s), whatever language the player writes in.\n"

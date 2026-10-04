@@ -193,8 +193,7 @@ void ULeftSkinWidget::RebuildSkinEquipSlotList()
 
 void ULeftSkinWidget::RebuildEquipSlotNameList()
 {
-	EquipSlotNameList =
-		{
+	EquipSlotNameList = {
 			MenuTextOrFallback(TEXT("Info.Hat"), FText::FromString(TEXT("Hat"))),
 			MenuTextOrFallback(TEXT("Info.Top"), FText::FromString(TEXT("Top"))),
 			MenuTextOrFallback(TEXT("Info.Bottom"), FText::FromString(TEXT("Bottom"))),
@@ -273,8 +272,7 @@ void ULeftSkinWidget::HandleDrawButtonClicked()
 	}
 
 	UPaintCanvasComponent* PaintCanvasComponent = PlayerCharacter->GetPaintCanvasComponent();
-	const bool bPaintCanvasVisible = PaintCanvasComponent
-		&& PaintCanvasComponent->BeginPaintCanvasUiSession();
+	const bool bPaintCanvasVisible = PaintCanvasComponent && PaintCanvasComponent->BeginPaintCanvasUiSession();
 	BroadcastPaintCanvasGroupVisibilityChanged(bPaintCanvasVisible);
 }
 

@@ -29,13 +29,8 @@ void APlayerMapRegionTrigger::BeginPlay()
 	ConfigureTriggerCollision();
 }
 
-void APlayerMapRegionTrigger::HandleTriggerBeginOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult)
+void APlayerMapRegionTrigger::HandleTriggerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (!HasAuthority())
 	{

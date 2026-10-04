@@ -80,8 +80,8 @@ AServerOnlyMonsterSpawner::AServerOnlyMonsterSpawner()
 
 void AServerOnlyMonsterSpawner::BeginPlay()
 {
-	// A non-replicated actor created locally on a network client reports
-	// ROLE_Authority, so HasAuthority() alone cannot identify this case.
+	// 네트워크 클라이언트가 로컬로 만든 비복제 액터도 ROLE_Authority를 보고하므로
+	// HasAuthority()만으로는 이 경우를 가려낼 수 없다.
 	if (GetNetMode() == NM_Client || !HasAuthority())
 	{
 		UE_LOG(LogServerOnlyMonsterSpawner, Error,

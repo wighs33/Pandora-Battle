@@ -31,10 +31,9 @@ constexpr float DefaultGestureCancelBlendOutTime = 0.12f;
 
 bool IsPetSkinDefinition(const USkinDefinition* SkinDefinition, const FGameplayTag SlotTag)
 {
-	return SkinDefinition
-		&& (!SkinDefinition->PetActorClass.IsNull()
-			|| SkinDefinition->IdTag.MatchesTag(UProjectTagDefinition::GetDefaultDefinition()->GetSkinPetTypeTag())
-			|| SlotTag == UProjectTagDefinition::GetDefaultDefinition()->GetSkinPetTypeTag());
+	return SkinDefinition && (!SkinDefinition->PetActorClass.IsNull()
+		|| SkinDefinition->IdTag.MatchesTag(UProjectTagDefinition::GetDefaultDefinition()->GetSkinPetTypeTag())
+		|| SlotTag == UProjectTagDefinition::GetDefaultDefinition()->GetSkinPetTypeTag());
 }
 }
 
@@ -292,8 +291,7 @@ bool USkinEquipmentComponent::CanReferenceSkinDefinition(const USkinDefinition* 
 	}
 
 	const FPrimaryAssetId PrimaryAssetId = SkinDefinition->GetPrimaryAssetId();
-	return PrimaryAssetId.IsValid()
-		&& PrimaryAssetId.PrimaryAssetType == FPrimaryAssetType(TEXT("SkinDefinition"));
+	return PrimaryAssetId.IsValid() && PrimaryAssetId.PrimaryAssetType == FPrimaryAssetType(TEXT("SkinDefinition"));
 }
 
 bool USkinEquipmentComponent::HasSkinEquipmentAuthority() const
@@ -321,9 +319,7 @@ bool USkinEquipmentComponent::TryConsumeGesturePlayRequest()
 float USkinEquipmentComponent::GetClampedGestureBlendOutTime(const float BlendOutTime) const
 {
 	const float SafeMaxBlendOutTime = static_cast<float>(FMath::Max(MaxGestureCancelBlendOutTime, 0.0));
-	const float SafeBlendOutTime = FMath::IsFinite(BlendOutTime)
-		? BlendOutTime
-		: DefaultGestureCancelBlendOutTime;
+	const float SafeBlendOutTime = FMath::IsFinite(BlendOutTime) ? BlendOutTime : DefaultGestureCancelBlendOutTime;
 	return FMath::Clamp(SafeBlendOutTime, 0.0f, SafeMaxBlendOutTime);
 }
 
@@ -549,18 +545,13 @@ AActor* USkinEquipmentComponent::SpawnPetSkinActor(const USkinDefinition* SkinDe
 	TSubclassOf<AActor> PetActorClass = SkinDefinition->PetActorClass.Get();
 	if (!PetActorClass)
 	{
-		UE_LOG(
-			SkinEquipmentComponentLog,
-			Error,
-			TEXT("Pet skin class '%s' was unavailable after preload for '%s'."),
+		UE_LOG(SkinEquipmentComponentLog, Error, TEXT("Pet skin class '%s' was unavailable after preload for '%s'."),
 			*SkinDefinition->PetActorClass.ToString(),
 			*GetPathNameSafe(GetOwner()));
 		return nullptr;
 	}
 
-	const FVector SpawnLocation =
-		CharacterOwner->GetActorLocation()
-		- CharacterOwner->GetActorForwardVector() * 140.0f
+	const FVector SpawnLocation = CharacterOwner->GetActorLocation() - CharacterOwner->GetActorForwardVector() * 140.0f
 		+ CharacterOwner->GetActorRightVector() * 80.0f;
 	const FTransform SpawnTransform(CharacterOwner->GetActorRotation(), SpawnLocation);
 
@@ -568,12 +559,8 @@ AActor* USkinEquipmentComponent::SpawnPetSkinActor(const USkinDefinition* SkinDe
 	AActor* SpawnedActor = nullptr;
 	if (PetActorClass->IsChildOf(APetCharacter::StaticClass()))
 	{
-		DeferredPetCharacter = World->SpawnActorDeferred<APetCharacter>(
-			PetActorClass,
-			SpawnTransform,
-			nullptr,
-			CharacterOwner,
-			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		DeferredPetCharacter = World->SpawnActorDeferred<APetCharacter>(PetActorClass, SpawnTransform, nullptr,
+			CharacterOwner, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 		if (DeferredPetCharacter)
 		{
 			DeferredPetCharacter->SetReplicates(true);
@@ -630,10 +617,7 @@ AActor* USkinEquipmentComponent::SpawnAndAttachSkinActor(const USkinDefinition* 
 	TSubclassOf<AActor> SkinActorClass = SkinDefinition->ActorClass.Get();
 	if (!SkinActorClass)
 	{
-		UE_LOG(
-			SkinEquipmentComponentLog,
-			Error,
-			TEXT("Skin actor class '%s' was unavailable after preload for '%s'."),
+		UE_LOG(SkinEquipmentComponentLog, Error, TEXT("Skin actor class '%s' was unavailable after preload for '%s'."),
 			*SkinDefinition->ActorClass.ToString(),
 			*GetPathNameSafe(GetOwner()));
 		return nullptr;
@@ -657,9 +641,7 @@ AActor* USkinEquipmentComponent::SpawnAndAttachSkinActor(const USkinDefinition* 
 	}
 
 	SkinActor->SetReplicates(false);
-	SkinActor->AttachToComponent(
-		OwnerMesh,
-		FAttachmentTransformRules::SnapToTargetIncludingScale,
+	SkinActor->AttachToComponent(OwnerMesh, FAttachmentTransformRules::SnapToTargetIncludingScale,
 		SkinDefinition->AttachSocketName);
 
 	TArray<USkeletalMeshComponent*> SkeletalMeshComponents;

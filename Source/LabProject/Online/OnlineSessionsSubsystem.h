@@ -82,7 +82,7 @@ public:
 		const FString& MapName, bool bIsLAN, bool bUseLobbies);
 	bool CancelSessionRequest(uint64 RequestId);
 	bool IsSessionRequestActive(uint64 RequestId) const;
-	/** The originating local player owns the visible wait; canceled cleanup is not a user wait. */
+	/** 화면에 보이는 대기는 요청한 로컬 플레이어의 것이다. 취소 뒤 정리는 사용자 대기가 아니다. */
 	uint64 GetPendingUserRequestId(const ULocalPlayer* LocalPlayer) const;
 	bool IsUserRequestCancelable(uint64 RequestId) const;
 	bool IsSessionLifecyclePending() const { return ActiveSessionLifecycleOperation != ESessionLifecycleOperation::None; }

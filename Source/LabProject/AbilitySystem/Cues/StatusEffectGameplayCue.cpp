@@ -16,8 +16,7 @@ AStatusEffectGameplayCue::AStatusEffectGameplayCue()
 
 bool AStatusEffectGameplayCue::HandlesEvent(EGameplayCueEvent::Type EventType) const
 {
-	return EventType == EGameplayCueEvent::OnActive
-		|| EventType == EGameplayCueEvent::WhileActive
+	return EventType == EGameplayCueEvent::OnActive || EventType == EGameplayCueEvent::WhileActive
 		|| EventType == EGameplayCueEvent::Removed;
 }
 

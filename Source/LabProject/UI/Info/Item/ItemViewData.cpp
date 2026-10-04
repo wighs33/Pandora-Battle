@@ -7,11 +7,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ItemViewData)
 
-FItemViewData FItemViewDataBuilder::FromItemInstance(
-	const UItemInstance* ItemInstance,
-	const UMenuLocalizationSubsystem* Localization,
-	const bool bOwned,
-	const bool bActive)
+FItemViewData FItemViewDataBuilder::FromItemInstance(const UItemInstance* ItemInstance,
+	const UMenuLocalizationSubsystem* Localization, const bool bOwned, const bool bActive)
 {
 	FItemViewData ViewData;
 	ViewData.bOwned = bOwned && ItemInstance != nullptr;
@@ -34,11 +31,8 @@ FItemViewData FItemViewDataBuilder::FromItemInstance(
 	return ViewData;
 }
 
-FItemViewData FItemViewDataBuilder::FromSkinDefinition(
-	const USkinDefinition* SkinDefinition,
-	const UMenuLocalizationSubsystem* Localization,
-	const bool bOwned,
-	const bool bActive)
+FItemViewData FItemViewDataBuilder::FromSkinDefinition(const USkinDefinition* SkinDefinition,
+	const UMenuLocalizationSubsystem* Localization, const bool bOwned, const bool bActive)
 {
 	FItemViewData ViewData;
 	ViewData.bOwned = bOwned && SkinDefinition != nullptr;

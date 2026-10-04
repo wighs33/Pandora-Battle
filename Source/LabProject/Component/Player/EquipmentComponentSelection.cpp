@@ -14,8 +14,7 @@
 #include "Weapon/WeaponBase.h"
 
 // 서버가 확정한 슬롯의 무기를 준비하고 기존 무기의 해제·새 무기의 장착 능력을 이어 준다.
-bool UEquipmentComponent::RequestWeaponSelectionForDirection(
-	const EEnum_Direction Direction,
+bool UEquipmentComponent::RequestWeaponSelectionForDirection(const EEnum_Direction Direction,
 	UItemInstance* WeaponInstance)
 {
 	if (bEndingPlay || !HasEquipmentAuthority())
@@ -48,23 +47,17 @@ bool UEquipmentComponent::RequestWeaponSelectionForDirection(
 	{
 		const uint32 RequestGeneration = ++WeaponPresentationRequestGeneration;
 		const EEnum_Direction DeferredDirection = RequestedWeaponLoadoutDirection;
-		return RequestWeaponPresentationLoad(
-			SelectedWeaponDefinition,
-			FSimpleDelegate::CreateWeakLambda(
-				this,
-				[this, SelectedWeaponId, DeferredDirection, RequestGeneration]()
+		return RequestWeaponPresentationLoad(SelectedWeaponDefinition,
+			FSimpleDelegate::CreateWeakLambda(this, [this, SelectedWeaponId, DeferredDirection, RequestGeneration]()
 				{
 					if (WeaponPresentationRequestGeneration != RequestGeneration)
 					{
 						return;
 					}
 
-					if (UItemInstance* LoadedWeaponInstance =
-						FindOwnedItemInstanceById(SelectedWeaponId))
+					if (UItemInstance* LoadedWeaponInstance = FindOwnedItemInstanceById(SelectedWeaponId))
 					{
-						RequestWeaponSelectionForDirection(
-							DeferredDirection,
-							LoadedWeaponInstance);
+						RequestWeaponSelectionForDirection(DeferredDirection, LoadedWeaponInstance);
 					}
 				}));
 	}
@@ -219,12 +212,10 @@ bool UEquipmentComponent::EquipWeaponDefinition(const UItemDefinition* WeaponDef
 	{
 		const FPrimaryAssetId WeaponDefinitionId = WeaponDefinition->GetPrimaryAssetId();
 		const uint32 RequestGeneration = WeaponPresentationRequestGeneration;
-		return RequestWeaponPresentationLoad(
-			WeaponDefinition,
+		return RequestWeaponPresentationLoad(WeaponDefinition,
 			FSimpleDelegate::CreateWeakLambda(this, [this, WeaponDefinitionId, RequestGeneration]()
 			{
-				if (!HasEquipmentAuthority()
-					|| bEndingPlay || WeaponPresentationRequestGeneration != RequestGeneration)
+				if (!HasEquipmentAuthority() || bEndingPlay || WeaponPresentationRequestGeneration != RequestGeneration)
 				{
 					return;
 				}
@@ -271,19 +262,15 @@ bool UEquipmentComponent::ApplyEquipAbilityCooldown()
 		return true;
 	}
 
-	TSoftObjectPtr<UCharacterActionDefinition> ActionDefinition(
-		UCharacterActionDefinition::GetDefaultDefinitionPath());
-	const UCharacterActionDefinition* LoadedDefinition =
-		ActionDefinition.LoadSynchronous();
+	TSoftObjectPtr<UCharacterActionDefinition> ActionDefinition(UCharacterActionDefinition::GetDefaultDefinitionPath());
+	const UCharacterActionDefinition* LoadedDefinition = ActionDefinition.LoadSynchronous();
 	if (!LoadedDefinition)
 	{
 		return false;
 	}
 
 	const float CooldownDuration = static_cast<float>(FMath::Max(
-		LoadedDefinition->GetCooldownDuration(
-			ECharacterActionType::PandoraWeaponSwap),
-		0.0));
+		LoadedDefinition->GetCooldownDuration(ECharacterActionType::PandoraWeaponSwap), 0.0));
 	if (CooldownDuration <= 0.0f)
 	{
 		return true;
@@ -291,8 +278,7 @@ bool UEquipmentComponent::ApplyEquipAbilityCooldown()
 
 	FGameplayEffectContextHandle EffectContext = AbilitySystem->MakeEffectContext();
 	EffectContext.AddSourceObject(LoadedDefinition);
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const UGameSettingDefinition* SettingDefinition = UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	const TSubclassOf<UGameplayEffect> CooldownEffectClass =
 		SettingDefinition
 			? SettingDefinition->AbilityCooldownGameplayEffectClass
@@ -302,10 +288,7 @@ bool UEquipmentComponent::ApplyEquipAbilityCooldown()
 		return false;
 	}
 
-	FGameplayEffectSpecHandle CooldownSpec = AbilitySystem->MakeOutgoingSpec(
-		CooldownEffectClass,
-		1.0f,
-		EffectContext);
+	FGameplayEffectSpecHandle CooldownSpec = AbilitySystem->MakeOutgoingSpec(CooldownEffectClass, 1.0f, EffectContext);
 	FGameplayTagContainer CooldownTags;
 	CooldownTags.AddTag(LabGameplayTags::Cooldown_EquipWeapon);
 	if (!CooldownSpec.IsValid() || !CooldownSpec.Data.IsValid())
@@ -313,14 +296,11 @@ bool UEquipmentComponent::ApplyEquipAbilityCooldown()
 		return false;
 	}
 
-	CooldownSpec.Data->SetSetByCallerMagnitude(
-		LabGameplayTags::Data_Cooldown,
-		CooldownDuration);
+	CooldownSpec.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_Cooldown, CooldownDuration);
 	CooldownSpec.Data->DynamicGrantedTags.AppendTags(CooldownTags);
 	CooldownSpec.Data->AppendDynamicAssetTags(CooldownTags);
 
-	CooldownSpec.Data->AppendDynamicAssetTags(
-		FGameplayTagContainer(LabGameplayTags::Effect_Policy_RemoveOnDeath));
+	CooldownSpec.Data->AppendDynamicAssetTags(FGameplayTagContainer(LabGameplayTags::Effect_Policy_RemoveOnDeath));
 	return AbilitySystem->ApplyGameplayEffectSpecToSelf(
 		*CooldownSpec.Data.Get()).WasSuccessfullyApplied();
 }
@@ -334,9 +314,7 @@ bool UEquipmentComponent::UnequipCurrentWeapon()
 	return UnequipCurrentWeaponInternal();
 }
 
-bool UEquipmentComponent::ApplyCurrentWeaponLoadoutDirection(
-	const FGuid WeaponId,
-	const EEnum_Direction Direction)
+bool UEquipmentComponent::ApplyCurrentWeaponLoadoutDirection(const FGuid WeaponId, const EEnum_Direction Direction)
 {
 	const EEnum_Direction SanitizedDirection = PandoraLoadout::IsLoadoutDirection(Direction) ? Direction : EEnum_Direction::Center;
 	if (bEndingPlay || !HasEquipmentAuthority())

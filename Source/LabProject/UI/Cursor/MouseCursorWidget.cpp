@@ -16,8 +16,7 @@
 
 namespace
 {
-	constexpr EMouseCursor::Type CustomCursorMappedTypes[] =
-	{
+	constexpr EMouseCursor::Type CustomCursorMappedTypes[] = {
 		EMouseCursor::Default,
 		EMouseCursor::TextEditBeam,
 		EMouseCursor::ResizeLeftRight,
@@ -35,8 +34,7 @@ namespace
 	};
 }
 
-bool UMouseCursorWidget::InstallConfiguredCursor(
-	APlayerController* PlayerController,
+bool UMouseCursorWidget::InstallConfiguredCursor(APlayerController* PlayerController,
 	const UGameSettingDefinition& SettingDefinition)
 {
 	UTexture2D* CursorTexture = SettingDefinition.MouseCursorTexture.Get();
@@ -52,9 +50,7 @@ bool UMouseCursorWidget::InstallConfiguredCursor(
 	}
 
 	const EMouseCursor::Type CursorType = SettingDefinition.MouseCursorType.GetValue();
-	CursorWidget->ConfigureCursor(
-		CursorTexture,
-		SettingDefinition.MouseCursorSize,
+	CursorWidget->ConfigureCursor(CursorTexture, SettingDefinition.MouseCursorSize,
 		SettingDefinition.MouseCursorHotSpot);
 
 	UGameViewportClient* ViewportClient = nullptr;
@@ -89,8 +85,7 @@ void UMouseCursorWidget::ConfigureCursor(UTexture2D* InTexture, const FVector2D 
 {
 	CursorTexture = InTexture;
 	CursorSize = FVector2D(FMath::Max(InSize.X, 1.0), FMath::Max(InSize.Y, 1.0));
-	CursorHotSpot = FVector2D(
-		FMath::Clamp(InHotSpot.X, 0.0, CursorSize.X),
+	CursorHotSpot = FVector2D(FMath::Clamp(InHotSpot.X, 0.0, CursorSize.X),
 		FMath::Clamp(InHotSpot.Y, 0.0, CursorSize.Y));
 
 	ApplyCursorVisual();

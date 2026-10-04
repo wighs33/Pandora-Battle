@@ -85,8 +85,7 @@ void UCharacterHealthBarComponent::ConfigureWidget()
 
 	// 적은 위젯 정의의 아바타 위젯을 항상 쓰고, 그 밖의 캐릭터는 BP가 지정한 위젯이 없을 때만 정의의 체력바를 쓴다.
 	const bool bEnemy = Character->IsA<AEnemyBase>();
-	const UWidgetClassDefinition* WidgetDefinition =
-		UWidgetClassDefinition::ResolveWidgetClassDefinition(Character);
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(Character);
 	const TSubclassOf<UUserWidget> ResolvedWidgetClass = !WidgetDefinition
 		? nullptr
 		: bEnemy
@@ -159,9 +158,7 @@ bool UCharacterHealthBarComponent::TryApplyViewModelToWidget(UUserWidget* InWidg
 bool UCharacterHealthBarComponent::TryApplyViewModelToWidget()
 {
 	const ACharacterBase* Character = GetCharacterOwner();
-	if (!Character
-		|| Character->GetNetMode() == NM_DedicatedServer
-		|| !GetWidgetClass())
+	if (!Character || Character->GetNetMode() == NM_DedicatedServer || !GetWidgetClass())
 	{
 		return false;
 	}
@@ -170,8 +167,7 @@ bool UCharacterHealthBarComponent::TryApplyViewModelToWidget()
 	return TryApplyViewModelToWidget(GetUserWidgetObject());
 }
 
-bool UCharacterHealthBarComponent::BindViewModelToASC(
-	UAbilitySystemComponent* AbilitySystemComponent)
+bool UCharacterHealthBarComponent::BindViewModelToASC(UAbilitySystemComponent* AbilitySystemComponent)
 {
 	if (!HealthBarViewModel)
 	{
@@ -191,16 +187,13 @@ bool UCharacterHealthBarComponent::BindViewModelToASC(
 	return HealthBarViewModel->IsViewModelInitialized();
 }
 
-bool UCharacterHealthBarComponent::IsAttributeDataReady(
-	const UAbilitySystemComponent* AbilitySystemComponent) const
+bool UCharacterHealthBarComponent::IsAttributeDataReady(const UAbilitySystemComponent* AbilitySystemComponent) const
 {
-	return AbilitySystemComponent
-		&& AbilitySystemComponent->IsRegistered()
+	return AbilitySystemComponent && AbilitySystemComponent->IsRegistered()
 		&& AbilitySystemComponent->GetAttributeSet(UBasicAttributeSet::StaticClass()) != nullptr;
 }
 
-void UCharacterHealthBarComponent::SetVisibleForLocalViewer(
-	const bool bRequestedVisible)
+void UCharacterHealthBarComponent::SetVisibleForLocalViewer(const bool bRequestedVisible)
 {
 	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character || Character->GetNetMode() == NM_DedicatedServer)
@@ -222,11 +215,8 @@ void UCharacterHealthBarComponent::SetVisibleForLocalViewer(
 	}
 }
 
-void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(
-	APlayerController* LocalPlayerController,
-	const FVector& CameraLocation,
-	const FRotator& CameraRotation,
-	const float MaxDistanceSquared)
+void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(APlayerController* LocalPlayerController,
+	const FVector& CameraLocation, const FRotator& CameraRotation, const float MaxDistanceSquared)
 {
 	const ACharacterBase* Character = GetCharacterOwner();
 	if (!Character || Character->GetNetMode() == NM_DedicatedServer)
@@ -234,8 +224,7 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(
 		return;
 	}
 
-	const bool bIsLocalPlayerPawn =
-		Character->IsPlayerControlled() && Character->IsLocallyControlled();
+	const bool bIsLocalPlayerPawn = Character->IsPlayerControlled() && Character->IsLocallyControlled();
 	if (bIsLocalPlayerPawn && !bShowLocalPlayerHealthBar)
 	{
 		SetVisibleForLocalViewer(false);
@@ -243,8 +232,7 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(
 	}
 
 	const UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent();
-	if (Character->IsDeathHandled()
-		|| (ASC && ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)))
+	if (Character->IsDeathHandled() || (ASC && ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)))
 	{
 		SetVisibleForLocalViewer(false);
 		return;
@@ -257,11 +245,8 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(
 		return;
 	}
 
-	const FVector ViewerLocation = GetLineOfSightStartLocation(
-		LocalPlayerController,
-		CameraLocation);
-	if (MaxDistanceSquared > 0.0f
-		&& FVector::DistSquared(ViewerLocation, GetVisibilityTargetLocation())
+	const FVector ViewerLocation = GetLineOfSightStartLocation(LocalPlayerController, CameraLocation);
+	if (MaxDistanceSquared > 0.0f && FVector::DistSquared(ViewerLocation, GetVisibilityTargetLocation())
 			> MaxDistanceSquared)
 	{
 		SetVisibleForLocalViewer(false);
@@ -270,18 +255,13 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(
 
 	UWorld* World = GetWorld();
 	const double NowSeconds = World ? World->GetTimeSeconds() : 0.0;
-	const bool bVisibilityTestPassed = ShouldShowForLocalViewer(
-		LocalPlayerController,
-		CameraLocation,
-		CameraRotation);
+	const bool bVisibilityTestPassed = ShouldShowForLocalViewer(LocalPlayerController, CameraLocation, CameraRotation);
 	if (bVisibilityTestPassed)
 	{
 		LastVisibleTimeSeconds = NowSeconds;
 	}
 
-	const bool bWithinHideGraceTime = IsVisible()
-		&& HideGraceTime > 0.0f
-		&& NowSeconds - LastVisibleTimeSeconds
+	const bool bWithinHideGraceTime = IsVisible() && HideGraceTime > 0.0f && NowSeconds - LastVisibleTimeSeconds
 			<= static_cast<double>(HideGraceTime);
 	const bool bShouldShow = bVisibilityTestPassed || bWithinHideGraceTime;
 	SetVisibleForLocalViewer(bShouldShow);
@@ -294,17 +274,14 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(
 void UCharacterHealthBarComponent::UpdateFacing()
 {
 	const ACharacterBase* Character = GetCharacterOwner();
-	if (!Character
-		|| Character->GetNetMode() == NM_DedicatedServer
-		|| !IsVisible()
+	if (!Character || Character->GetNetMode() == NM_DedicatedServer || !IsVisible()
 		|| GetWidgetSpace() != EWidgetSpace::World)
 	{
 		return;
 	}
 
 	UWorld* World = GetWorld();
-	APlayerController* LocalPlayerController =
-		World ? World->GetFirstPlayerController() : nullptr;
+	APlayerController* LocalPlayerController = World ? World->GetFirstPlayerController() : nullptr;
 	if (!LocalPlayerController || !LocalPlayerController->IsLocalController())
 	{
 		return;
@@ -316,15 +293,11 @@ void UCharacterHealthBarComponent::UpdateFacing()
 	SetWorldRotation((CameraLocation - GetComponentLocation()).Rotation());
 }
 
-bool UCharacterHealthBarComponent::ShouldShowForLocalViewer(
-	APlayerController* LocalPlayerController,
-	const FVector& CameraLocation,
-	const FRotator& CameraRotation) const
+bool UCharacterHealthBarComponent::ShouldShowForLocalViewer(APlayerController* LocalPlayerController,
+	const FVector& CameraLocation, const FRotator& CameraRotation) const
 {
 	const ACharacterBase* Character = GetCharacterOwner();
-	if (!Character
-		|| !LocalPlayerController
-		|| !LocalPlayerController->IsLocalController())
+	if (!Character || !LocalPlayerController || !LocalPlayerController->IsLocalController())
 	{
 		return false;
 	}
@@ -336,9 +309,7 @@ bool UCharacterHealthBarComponent::ShouldShowForLocalViewer(
 	}
 
 	const FVector TargetLocation = GetVisibilityTargetLocation();
-	const FVector ViewerCharacterLocation = GetLineOfSightStartLocation(
-		LocalPlayerController,
-		CameraLocation);
+	const FVector ViewerCharacterLocation = GetLineOfSightStartLocation(LocalPlayerController, CameraLocation);
 
 	if (!bHideWhenCharacterNotVisible)
 	{
@@ -352,10 +323,7 @@ bool UCharacterHealthBarComponent::ShouldShowForLocalViewer(
 	}
 
 	FVector2D ScreenPosition = FVector2D::ZeroVector;
-	if (!LocalPlayerController->ProjectWorldLocationToScreen(
-		TargetLocation,
-		ScreenPosition,
-		true))
+	if (!LocalPlayerController->ProjectWorldLocationToScreen(TargetLocation, ScreenPosition, true))
 	{
 		return false;
 	}
@@ -363,22 +331,17 @@ bool UCharacterHealthBarComponent::ShouldShowForLocalViewer(
 	int32 ViewportSizeX = 0;
 	int32 ViewportSizeY = 0;
 	LocalPlayerController->GetViewportSize(ViewportSizeX, ViewportSizeY);
-	if (ViewportSizeX > 0
-		&& ViewportSizeY > 0
-		&& (ScreenPosition.X < 0.0f
-			|| ScreenPosition.Y < 0.0f
-			|| ScreenPosition.X > static_cast<float>(ViewportSizeX)
-			|| ScreenPosition.Y > static_cast<float>(ViewportSizeY)))
+	if (ViewportSizeX > 0 && ViewportSizeY > 0 && (ScreenPosition.X < 0.0f || ScreenPosition.Y < 0.0f
+		|| ScreenPosition.X > static_cast<float>(ViewportSizeX)
+		|| ScreenPosition.Y > static_cast<float>(ViewportSizeY)))
 	{
 		return false;
 	}
 
-	return !bUseLineOfSightCheck
-		|| HasLineOfSight(ViewerCharacterLocation);
+	return !bUseLineOfSightCheck || HasLineOfSight(ViewerCharacterLocation);
 }
 
-bool UCharacterHealthBarComponent::HasLineOfSight(
-	const FVector& TraceStartLocation) const
+bool UCharacterHealthBarComponent::HasLineOfSight(const FVector& TraceStartLocation) const
 {
 	const UWorld* World = GetWorld();
 	if (!World)
@@ -391,20 +354,14 @@ bool UCharacterHealthBarComponent::HasLineOfSight(
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
 
 	FHitResult HitResult;
-	return !World->LineTraceSingleByObjectType(
-		HitResult,
-		TraceStartLocation,
-		GetVisibilityTargetLocation(),
-		ObjectQueryParams,
-		QueryParams);
+	return !World->LineTraceSingleByObjectType(HitResult, TraceStartLocation, GetVisibilityTargetLocation(),
+		ObjectQueryParams, QueryParams);
 }
 
-FVector UCharacterHealthBarComponent::GetLineOfSightStartLocation(
-	const APlayerController* LocalPlayerController,
+FVector UCharacterHealthBarComponent::GetLineOfSightStartLocation(const APlayerController* LocalPlayerController,
 	const FVector& FallbackCameraLocation) const
 {
-	const APawn* LocalPawn =
-		LocalPlayerController ? LocalPlayerController->GetPawn() : nullptr;
+	const APawn* LocalPawn = LocalPlayerController ? LocalPlayerController->GetPawn() : nullptr;
 	return LocalPawn ? LocalPawn->GetActorLocation() : FallbackCameraLocation;
 }
 
@@ -416,10 +373,7 @@ FVector UCharacterHealthBarComponent::GetVisibilityTargetLocation() const
 		return GetComponentLocation();
 	}
 
-	const FVector VisibilityOffset(
-		0.0f,
-		0.0f,
-		VisibilityTargetZOffset);
+	const FVector VisibilityOffset(0.0f, 0.0f, VisibilityTargetZOffset);
 	if (const USkeletalMeshComponent* CharacterMesh = Character->GetMesh())
 	{
 		return CharacterMesh->Bounds.Origin + VisibilityOffset;

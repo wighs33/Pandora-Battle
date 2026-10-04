@@ -47,10 +47,9 @@ bool UOnlineSessionsSubsystem::StartCreateRoomPhase(const uint64 RequestId)
 	ClearSessionOperationDelegate(SessionOperationState);
 	SessionOperationState = ESessionOperationState::CreatingSession;
 	const FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate =
-		FOnCreateSessionCompleteDelegate::CreateWeakLambda(this,
-			[this, RequestId](FName SessionName, bool bSuccess)
+		FOnCreateSessionCompleteDelegate::CreateWeakLambda(this, [this, RequestId](FName SessionName, bool bSuccess)
 			{
-				// Backends may complete inline; the caller must receive its request ID first.
+				// 백엔드가 바로 완료할 수 있으므로 호출한 쪽이 요청 ID를 먼저 받아야 한다.
 				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
 					[this, RequestId, SessionName, bSuccess](float)
 					{
@@ -129,10 +128,9 @@ bool UOnlineSessionsSubsystem::StartFindRoomsPhase(const uint64 RequestId)
 	ClearSessionOperationDelegate(SessionOperationState);
 	SessionOperationState = ESessionOperationState::FindingSessions;
 	const FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate =
-		FOnFindSessionsCompleteDelegate::CreateWeakLambda(this,
-			[this, RequestId](bool bSuccess)
+		FOnFindSessionsCompleteDelegate::CreateWeakLambda(this, [this, RequestId](bool bSuccess)
 			{
-				// Backends may complete inline; the caller must receive its request ID first.
+				// 백엔드가 바로 완료할 수 있으므로 호출한 쪽이 요청 ID를 먼저 받아야 한다.
 				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
 					[this, RequestId, bSuccess](float)
 					{
@@ -250,9 +248,9 @@ bool UOnlineSessionsSubsystem::StartJoinRoomPhase(const uint64 RequestId)
 	SessionOperationState = ESessionOperationState::JoiningSession;
 	const FOnJoinSessionCompleteDelegate JoinSessionCompleteDelegate =
 		FOnJoinSessionCompleteDelegate::CreateWeakLambda(this,
-			[this, RequestId](FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+		[this, RequestId](FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 			{
-				// Backends may complete inline; the caller must receive its request ID first.
+				// 백엔드가 바로 완료할 수 있으므로 호출한 쪽이 요청 ID를 먼저 받아야 한다.
 				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
 					[this, RequestId, SessionName, Result](float)
 					{
@@ -338,10 +336,9 @@ bool UOnlineSessionsSubsystem::StartDestroySessionPhase(const uint64 RequestId, 
 	SessionOperationState =
 		bCleanupCanceledSession ? ESessionOperationState::CleaningCanceledSession : ESessionOperationState::DestroyingExistingSession;
 	const FOnDestroySessionCompleteDelegate DestroySessionCompleteDelegate =
-		FOnDestroySessionCompleteDelegate::CreateWeakLambda(this,
-			[this, RequestId](FName SessionName, bool bSuccess)
+		FOnDestroySessionCompleteDelegate::CreateWeakLambda(this, [this, RequestId](FName SessionName, bool bSuccess)
 			{
-				// Backends may complete inline; the caller must receive its request ID first.
+				// 백엔드가 바로 완료할 수 있으므로 호출한 쪽이 요청 ID를 먼저 받아야 한다.
 				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
 					[this, RequestId, SessionName, bSuccess](float)
 					{

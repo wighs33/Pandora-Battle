@@ -46,15 +46,12 @@ void UPlayerVitalsWidget::HandlePossessedCharacterReady(
 
 	if (!bHasCachedNormalStaminaFillTint)
 	{
-		NormalStaminaFillTint =
-			ResolvedStaminaBar->GetWidgetStyle().FillImage.TintColor.GetSpecifiedColor();
+		NormalStaminaFillTint = ResolvedStaminaBar->GetWidgetStyle().FillImage.TintColor.GetSpecifiedColor();
 		bHasCachedNormalStaminaFillTint = true;
 	}
 
-	CurrentStamina =
-		BoundAbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetStaminaAttribute());
-	CurrentMaxStamina =
-		BoundAbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetMaxStaminaAttribute());
+	CurrentStamina = BoundAbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetStaminaAttribute());
+	CurrentMaxStamina = BoundAbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetMaxStaminaAttribute());
 
 	BindStaminaAttributeDelegates();
 	RefreshStaminaFillTint();
@@ -76,8 +73,7 @@ void UPlayerVitalsWidget::BindStaminaAttributeDelegates()
 		UBasicAttributeSet::GetLevelAttribute()})
 	{
 		ResourceDelegateHandles.Emplace(Attribute, BoundAbilitySystemComponent
-			->GetGameplayAttributeValueChangeDelegate(Attribute)
-			.AddUObject(this, &ThisClass::HandleResourceChanged));
+			->GetGameplayAttributeValueChangeDelegate(Attribute).AddUObject(this, &ThisClass::HandleResourceChanged));
 	}
 
 	StaminaChangedDelegateHandle = BoundAbilitySystemComponent
@@ -129,10 +125,7 @@ void UPlayerVitalsWidget::BeginGameSettingContentPreload()
 		return;
 	}
 
-	SettingsSubsystem->PreloadRuntimeContentAsync(
-		FSimpleDelegate::CreateWeakLambda(
-			this,
-			[this, PreloadGeneration]()
+	SettingsSubsystem->PreloadRuntimeContentAsync(FSimpleDelegate::CreateWeakLambda(this, [this, PreloadGeneration]()
 			{
 				if (PreloadGeneration == GameSettingContentPreloadGeneration)
 				{
@@ -154,8 +147,7 @@ void UPlayerVitalsWidget::RefreshStaminaFillTint()
 		return;
 	}
 
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveLoadedGameSettingDefinition(this);
+	const UGameSettingDefinition* SettingDefinition = UGameSettingsSubsystem::ResolveLoadedGameSettingDefinition(this);
 	if (!SettingDefinition)
 	{
 		SettingDefinition = GetDefault<UGameSettingDefinition>();
@@ -167,17 +159,11 @@ void UPlayerVitalsWidget::RefreshStaminaFillTint()
 	const float StaminaPercent = StaminaRatio * 100.0f;
 	float TargetTintValue = NormalStaminaFillTint.LinearRGBToHSV().B;
 
-	if (StaminaPercent <= FMath::Clamp(
-		SettingDefinition->CriticalStaminaThresholdPercent,
-		0.0f,
-		100.0f))
+	if (StaminaPercent <= FMath::Clamp(SettingDefinition->CriticalStaminaThresholdPercent, 0.0f, 100.0f))
 	{
 		TargetTintValue = FMath::Clamp(SettingDefinition->CriticalStaminaFillTintValue, 0.0f, 1.0f);
 	}
-	else if (StaminaPercent <= FMath::Clamp(
-		SettingDefinition->LowStaminaThresholdPercent,
-		0.0f,
-		100.0f))
+	else if (StaminaPercent <= FMath::Clamp(SettingDefinition->LowStaminaThresholdPercent, 0.0f, 100.0f))
 	{
 		TargetTintValue = FMath::Clamp(SettingDefinition->LowStaminaFillTintValue, 0.0f, 1.0f);
 	}

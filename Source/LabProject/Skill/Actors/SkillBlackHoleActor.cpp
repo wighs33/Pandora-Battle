@@ -54,9 +54,7 @@ void ASkillBlackHoleActor::Tick(const float DeltaSeconds)
 	if (HasAuthority() && bPullEnemiesDuringGrowth && IsPullPhaseActive())
 	{
 		const float NormalizedGrowthTime = FMath::Clamp(
-			GrowthElapsed / FMath::Max(GrowthDuration, UE_KINDA_SMALL_NUMBER),
-			0.0f,
-			1.0f);
+			GrowthElapsed / FMath::Max(GrowthDuration, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
 		const float PullStrengthAlpha = bGrowthActive
 			? FMath::Clamp(EvaluateCurveOrLinear(GrowthCurve, NormalizedGrowthTime), 0.0f, 1.0f)
 			: 1.0f;
@@ -96,10 +94,8 @@ void ASkillBlackHoleActor::StartBlackHoleSequence()
 	RefreshTickEnabledFromSequenceState();
 }
 
-void ASkillBlackHoleActor::ConfigureFromFieldSettings(
-	const FSkillActorFieldSettings& FieldSettings,
-	const FSkillGameplayEffectConfig& FinishDamageConfig,
-	const int32 InAbilityLevel,
+void ASkillBlackHoleActor::ConfigureFromFieldSettings(const FSkillActorFieldSettings& FieldSettings,
+	const FSkillGameplayEffectConfig& FinishDamageConfig, const int32 InAbilityLevel,
 	const EEnum_Direction InSourcePandoraLoadoutDirection)
 {
 	ConfiguredAbilityLevel = FMath::Max(InAbilityLevel, 1);
@@ -248,9 +244,8 @@ void ASkillBlackHoleActor::FinishBlackHoleVFX()
 		ActivateFinishNiagara();
 	}
 
-	// The last pull update already ran at the start of this tick. Remove the
-	// persistent root-motion source immediately before applying finish damage so
-	// it cannot be re-applied during a longer collapse tail.
+	// 마지막 끌어당김 갱신은 이번 틱 시작에 이미 돌았다. 마무리 피해를 주기 직전에
+	// 지속 루트 모션 소스를 바로 지워, 더 긴 붕괴 꼬리 동안 다시 적용되지 않게 한다.
 	ClearPullRootMotionSources();
 
 	if (HasAuthority() && bApplyFinishAreaDamage)
@@ -332,10 +327,8 @@ void ASkillBlackHoleActor::ApplyFinishAreaDamage()
 	EffectContext.AddInstigator(SourceActor, SourceActor);
 	EffectContext.AddSourceObject(this);
 
-	FGameplayEffectSpecHandle DamageSpecHandle = SourceASC->MakeOutgoingSpec(
-		FinishDamageEffectClass,
-		ConfiguredAbilityLevel,
-		EffectContext);
+	FGameplayEffectSpecHandle DamageSpecHandle = SourceASC->MakeOutgoingSpec(FinishDamageEffectClass,
+		ConfiguredAbilityLevel, EffectContext);
 	if (!DamageSpecHandle.IsValid() || !DamageSpecHandle.Data.IsValid())
 	{
 		return;
@@ -352,13 +345,8 @@ void ASkillBlackHoleActor::ApplyFinishAreaDamage()
 	QueryParams.AddIgnoredActor(SourceActor);
 
 	TArray<FOverlapResult> OverlapResults;
-	World->OverlapMultiByObjectType(
-		OverlapResults,
-		GetActorLocation(),
-		FQuat::Identity,
-		ObjectQueryParams,
-		FCollisionShape::MakeSphere(FinishDamageRadius),
-		QueryParams);
+	World->OverlapMultiByObjectType(OverlapResults, GetActorLocation(), FQuat::Identity, ObjectQueryParams,
+		FCollisionShape::MakeSphere(FinishDamageRadius), QueryParams);
 
 	TSet<FObjectKey> DamagedCharacters;
 	int32 AppliedCount = 0;

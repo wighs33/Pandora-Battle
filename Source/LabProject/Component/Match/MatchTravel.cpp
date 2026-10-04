@@ -33,11 +33,8 @@ void MatchTravel::SendAllPlayersToTitle(UWorld& World, const FString& TitleMapNa
 	}
 }
 
-void MatchTravel::SendPlayersToTitleWithResult(
-	UWorld& World,
-	const FString& TitleMapName,
-	const FGameResultPresentationData& GameResultData,
-	const APlayerState* ExcludedPlayerState)
+void MatchTravel::SendPlayersToTitleWithResult(UWorld& World, const FString& TitleMapName,
+	const FGameResultPresentationData& GameResultData, const APlayerState* ExcludedPlayerState)
 {
 	if (TitleMapName.IsEmpty())
 	{

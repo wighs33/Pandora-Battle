@@ -358,8 +358,7 @@ void UMapWidget::SyncMapViewToPlayerMapRegion()
 		return;
 	}
 
-	const EMapView PlayerMapView = MapRegionToView(
-		PdPlayerState->GetPlayerMatchComponent()->GetPlayerMapRegion());
+	const EMapView PlayerMapView = MapRegionToView(PdPlayerState->GetPlayerMatchComponent()->GetPlayerMapRegion());
 
 	if (bHasManualMapViewSelection)
 	{
@@ -390,19 +389,11 @@ void UMapWidget::StartMapUpdateTimers()
 		return;
 	}
 
-	World->GetTimerManager().SetTimer(
-		MarkerUpdateTimerHandle,
-		this,
-		&ThisClass::HandleMapUpdateTick,
-		FMath::Max(MarkerUpdateInterval, 0.02f),
-		true);
+	World->GetTimerManager().SetTimer(MarkerUpdateTimerHandle, this, &ThisClass::HandleMapUpdateTick,
+		FMath::Max(MarkerUpdateInterval, 0.02f), true);
 
-	World->GetTimerManager().SetTimer(
-		RemotePlayerListRefreshTimerHandle,
-		this,
-		&ThisClass::RefreshRemotePlayerPawns,
-		FMath::Max(RemotePlayerListRefreshInterval, 0.1f),
-		true);
+	World->GetTimerManager().SetTimer(RemotePlayerListRefreshTimerHandle, this, &ThisClass::RefreshRemotePlayerPawns,
+		FMath::Max(RemotePlayerListRefreshInterval, 0.1f), true);
 }
 
 void UMapWidget::StopMapUpdateTimers()
@@ -493,8 +484,7 @@ void UMapWidget::UpdateCharacterMark()
 		return;
 	}
 
-	PawnMarkers.UpdateSelfMarks(
-		MakeMarkerCanvas(),
+	PawnMarkers.UpdateSelfMarks(MakeMarkerCanvas(),
 		*OwningPawn,
 		DoesPawnMatchCurrentMapView(*OwningPawn));
 }

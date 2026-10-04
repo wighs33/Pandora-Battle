@@ -5,8 +5,7 @@
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Mode/PdPlayerController.h"
 
-FText PdInputKeyIconResolver::ResolveInputDefinitionKeyText(
-	APlayerController* PlayerController,
+FText PdInputKeyIconResolver::ResolveInputDefinitionKeyText(APlayerController* PlayerController,
 	const UInputAction* InputAction)
 {
 	const APdPlayerController* PdPlayerController = Cast<APdPlayerController>(PlayerController);
@@ -16,8 +15,7 @@ FText PdInputKeyIconResolver::ResolveInputDefinitionKeyText(
 	return InputDefinition ? InputDefinition->ResolveInputActionKeyText(InputAction) : FText::GetEmpty();
 }
 
-UObject* PdInputKeyIconResolver::ResolveInputDefinitionIconObject(
-	APlayerController* PlayerController,
+UObject* PdInputKeyIconResolver::ResolveInputDefinitionIconObject(APlayerController* PlayerController,
 	const UInputAction* InputAction)
 {
 	const APdPlayerController* PdPlayerController = Cast<APdPlayerController>(PlayerController);
@@ -27,10 +25,8 @@ UObject* PdInputKeyIconResolver::ResolveInputDefinitionIconObject(
 	return InputDefinition ? InputDefinition->ResolveInputActionIconObject(InputAction) : nullptr;
 }
 
-FSlateBrush PdInputKeyIconResolver::MakeImageBrushFromExisting(
-	const FSlateBrush& ExistingBrush,
-	UObject* ResourceObject,
-	const FVector2D ImageSize)
+FSlateBrush PdInputKeyIconResolver::MakeImageBrushFromExisting(const FSlateBrush& ExistingBrush,
+	UObject* ResourceObject, const FVector2D ImageSize)
 {
 	FSlateBrush Brush = ExistingBrush;
 	if (ImageSize.X > 0.0f && ImageSize.Y > 0.0f)
@@ -41,13 +37,8 @@ FSlateBrush PdInputKeyIconResolver::MakeImageBrushFromExisting(
 	return Brush;
 }
 
-void PdInputKeyIconResolver::ApplyInputKeyCaption(
-	const UUserWidget& SlotWidget,
-	UTextBlock& KeyText,
-	UWidget& InputKeyOverlay,
-	UWidget* KeyIcon,
-	const UInputAction* InputAction,
-	const bool bHidden)
+void PdInputKeyIconResolver::ApplyInputKeyCaption(const UUserWidget& SlotWidget, UTextBlock& KeyText,
+	UWidget& InputKeyOverlay, UWidget* KeyIcon, const UInputAction* InputAction, const bool bHidden)
 {
 	if (KeyIcon)
 	{

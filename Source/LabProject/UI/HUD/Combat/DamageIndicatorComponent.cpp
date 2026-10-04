@@ -29,17 +29,12 @@ void UDamageIndicatorComponent::ShowDamageIndicator(float DamageAmount, FVector 
 	FVector CameraRight = GetOwner() ? GetOwner()->GetActorRightVector() : FVector::RightVector;
 	ResolveCameraAxes(CameraUp, CameraRight);
 
-	const FVector StartLocation =
-		WorldLocation
-		+ CameraUp * InitialCameraUpOffset
+	const FVector StartLocation = WorldLocation + CameraUp * InitialCameraUpOffset
 		+ CameraRight * InitialCameraRightOffset;
 
 	const float EndUpOffset = FMath::FRandRange(EndCameraUpOffsetMin, EndCameraUpOffsetMax);
 	const float EndRightOffset = FMath::FRandRange(EndCameraRightOffsetMin, EndCameraRightOffsetMax);
-	const FVector EndLocation =
-		StartLocation
-		+ CameraUp * EndUpOffset
-		+ CameraRight * EndRightOffset;
+	const FVector EndLocation = StartLocation + CameraUp * EndUpOffset + CameraRight * EndRightOffset;
 
 	const FTransform SpawnTransform(FRotator::ZeroRotator, StartLocation);
 

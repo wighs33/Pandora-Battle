@@ -43,8 +43,7 @@ namespace
 
 bool UEquipmentEffectComponent::FItemEffect::HasSameEffect(const FItemEffect& Other) const
 {
-	return bWeapon == Other.bWeapon
-		&& GrantedTag == Other.GrantedTag
+	return bWeapon == Other.bWeapon && GrantedTag == Other.GrantedTag
 		&& AreStatMagnitudesEqual(StatMagnitudes, Other.StatMagnitudes);
 }
 
@@ -58,8 +57,7 @@ void UEquipmentEffectComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	AbilitySystemSubscription.SubscribeToCharacter(
-		Cast<ACharacterBase>(GetOwner()),
+	AbilitySystemSubscription.SubscribeToCharacter(Cast<ACharacterBase>(GetOwner()),
 		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
 		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
 }
@@ -157,8 +155,7 @@ void UEquipmentEffectComponent::BindInventory(UInventoryComponent* NewInventory)
 	}
 }
 
-void UEquipmentEffectComponent::BuildDesiredEffects(
-	TMap<FGameplayTag, FItemEffect>& OutSlotEffects,
+void UEquipmentEffectComponent::BuildDesiredEffects(TMap<FGameplayTag, FItemEffect>& OutSlotEffects,
 	FItemEffect& OutWeaponEffect) const
 {
 	OutSlotEffects.Reset();
@@ -192,9 +189,7 @@ void UEquipmentEffectComponent::BuildDesiredEffects(
 }
 
 // 인벤토리 아이템은 기본·추가·강화 능력치를 모두 더하고, 인벤토리 밖의 무기(AI)는 정의의 능력치만 쓴다.
-void UEquipmentEffectComponent::CollectItemStats(
-	const UItemDefinition* Definition,
-	const UItemInstance* Instance,
+void UEquipmentEffectComponent::CollectItemStats(const UItemDefinition* Definition, const UItemInstance* Instance,
 	FItemEffect& OutEffect)
 {
 	TMap<FGameplayTag, float> Magnitudes;

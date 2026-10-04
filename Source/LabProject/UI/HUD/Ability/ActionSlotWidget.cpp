@@ -56,8 +56,7 @@ void UActionSlotWidget::BeginActionContentPreload()
 	const UGameInstance* GameInstance = GetGameInstance();
 	UContentDataSubsystem* ContentSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	const TSoftObjectPtr<UCharacterActionDefinition> ActionDefinitionReference =
-		ResolveActionDefinitionReference();
+	const TSoftObjectPtr<UCharacterActionDefinition> ActionDefinitionReference = ResolveActionDefinitionReference();
 
 	if (!ContentSubsystem || ActionDefinitionReference.IsNull())
 	{
@@ -71,33 +70,27 @@ void UActionSlotWidget::BeginActionContentPreload()
 		return;
 	}
 
-	ActionDefinitionLease = ContentSubsystem->AcquireContent(
-		{ActionDefinitionReference.ToSoftObjectPath()},
+	ActionDefinitionLease = ContentSubsystem->AcquireContent({ActionDefinitionReference.ToSoftObjectPath()},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginActionPresentationPreload));
 }
 
 void UActionSlotWidget::BeginActionPresentationPreload()
 {
 	TArray<FSoftObjectPath> PresentationPaths;
-	if (const UCharacterActionDefinition* ActionDefinition =
-		ResolveActionDefinition())
+	if (const UCharacterActionDefinition* ActionDefinition = ResolveActionDefinition())
 	{
 		ActionDefinition->GetRuntimePreloadAssetPaths(PresentationPaths);
 	}
 
-	if (const APdPlayerController* PlayerController =
-		Cast<APdPlayerController>(GetOwningPlayer()))
+	if (const APdPlayerController* PlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
 	{
-		if (const UControllerInputDefinition* InputDefinition =
-			PlayerController->GetLoadedInputDefinition())
+		if (const UControllerInputDefinition* InputDefinition = PlayerController->GetLoadedInputDefinition())
 		{
-			for (const FInputActionIconMapping& Mapping :
-				InputDefinition->GetInputActionIconMappings())
+			for (const FInputActionIconMapping& Mapping : InputDefinition->GetInputActionIconMappings())
 			{
 				if (!Mapping.InputAction.IsNull())
 				{
-					PresentationPaths.Add(
-						Mapping.InputAction.ToSoftObjectPath());
+					PresentationPaths.Add(Mapping.InputAction.ToSoftObjectPath());
 				}
 				if (!Mapping.Icon.IsNull())
 				{
@@ -116,8 +109,7 @@ void UActionSlotWidget::BeginActionPresentationPreload()
 		return;
 	}
 
-	ActionPresentationLease = ContentSubsystem->AcquireContent(
-		PresentationPaths,
+	ActionPresentationLease = ContentSubsystem->AcquireContent(PresentationPaths,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::FillActionSlotBar));
 }
 
@@ -127,9 +119,7 @@ void UActionSlotWidget::FillActionSlotBar()
 	{
 		World->GetTimerManager().ClearTimer(RebuildActionSlotTimerHandle);
 		RebuildActionSlotTimerHandle =
-			World->GetTimerManager().SetTimerForNextTick(
-				this,
-				&ThisClass::RebuildActionSlotBar);
+			World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::RebuildActionSlotBar);
 		return;
 	}
 
@@ -256,9 +246,7 @@ UActionSlotWidget::ResolveActionDefinitionReference() const
 
 ECharacterActionType UActionSlotWidget::ResolveActionType(const int32 SlotIndex) const
 {
-	return SlotIndex == 0
-		? ECharacterActionType::PandoraWeaponSwap
-		: ECharacterActionType::GrappleHook;
+	return SlotIndex == 0 ? ECharacterActionType::PandoraWeaponSwap : ECharacterActionType::GrappleHook;
 }
 
 FMargin UActionSlotWidget::ResolveSlotPadding() const

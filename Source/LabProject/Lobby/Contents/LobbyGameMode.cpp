@@ -32,15 +32,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogLobbyGameMode, Log, All);
 
 namespace
 {
-	TAutoConsoleVariable<int32> CVarDedicatedServerMinPlayersToStart(
-		TEXT("pd.DedicatedServer.MinPlayersToStart"),
-		2,
-		TEXT("Minimum lobby players before a dedicated server starts the match automatically."),
-		ECVF_Default);
+	TAutoConsoleVariable<int32> CVarDedicatedServerMinPlayersToStart(TEXT("pd.DedicatedServer.MinPlayersToStart"), 2,
+		TEXT("Minimum lobby players before a dedicated server starts the match automatically."), ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarDedicatedServerAutoStartDelay(
-		TEXT("pd.DedicatedServer.AutoStartDelay"),
-		5.0f,
+	TAutoConsoleVariable<float> CVarDedicatedServerAutoStartDelay(TEXT("pd.DedicatedServer.AutoStartDelay"), 5.0f,
 		TEXT("Seconds the start conditions must hold before a dedicated server starts the lobby countdown."),
 		ECVF_Default);
 
@@ -111,12 +106,8 @@ void ALobbyGameMode::BeginPlay()
 
 	if (GetNetMode() == NM_DedicatedServer)
 	{
-		GetWorldTimerManager().SetTimer(
-			DedicatedServerAutoStartTimerHandle,
-			this,
-			&ThisClass::UpdateDedicatedServerAutoStart,
-			DedicatedServerAutoStartCheckIntervalSeconds,
-			true);
+		GetWorldTimerManager().SetTimer(DedicatedServerAutoStartTimerHandle, this,
+			&ThisClass::UpdateDedicatedServerAutoStart, DedicatedServerAutoStartCheckIntervalSeconds, true);
 
 		// 로비가 열려 접속을 받을 수 있으면 GameLift에 게임 세션을 받을 준비가 됐다고 알린다.
 		if (UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this))
@@ -548,8 +539,7 @@ void ALobbyGameMode::UpdateDedicatedServerAutoStart()
 	{
 		DedicatedServerAutoStartReadyTimeSeconds = NowSeconds;
 		UE_LOG(LogLobbyGameMode, Log, TEXT("Dedicated server lobby is ready with %d players. Auto start in %.1fs."),
-			GetActiveLobbyPlayerCount(),
-			CVarDedicatedServerAutoStartDelay.GetValueOnGameThread());
+			GetActiveLobbyPlayerCount(), CVarDedicatedServerAutoStartDelay.GetValueOnGameThread());
 	}
 
 	if (NowSeconds - DedicatedServerAutoStartReadyTimeSeconds

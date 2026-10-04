@@ -22,9 +22,7 @@ namespace
 	}
 }
 
-void UPandoraSkillSource::Initialize(
-	const UPandoraDefinition* InPandoraDefinition,
-	const int32 InSkillIndex,
+void UPandoraSkillSource::Initialize(const UPandoraDefinition* InPandoraDefinition, const int32 InSkillIndex,
 	const EEnum_Direction InLoadoutDirection)
 {
 	if (PandoraDefinition != InPandoraDefinition)

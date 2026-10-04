@@ -69,7 +69,7 @@ struct LABPROJECT_API FPlayerActionPolicySettings
 {
 	GENERATED_BODY()
 
-	/** Abilities with any of these tags may be canceled when locomotion interrupts a hit reaction. */
+	/** 이동이 피격 반응을 끊을 때 이 태그 중 하나라도 가진 능력은 취소될 수 있다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Action",
 		meta = (Categories = "Action,GameplayAbility"))
 	FGameplayTagContainer MovementHitReactCancelTags;

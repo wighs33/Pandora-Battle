@@ -53,10 +53,8 @@ void URoomListWidget::NativeConstruct()
 	{
 		if (!FindSessionsCompleteHandle.IsValid())
 		{
-			FindSessionsCompleteHandle =
-				OnlineSessionsSubsystem->OnFindRoomsRequestComplete.AddUObject(
-					this,
-					&ThisClass::HandleFindSessionsComplete);
+			FindSessionsCompleteHandle = OnlineSessionsSubsystem->OnFindRoomsRequestComplete.AddUObject(this,
+				&ThisClass::HandleFindSessionsComplete);
 		}
 	}
 
@@ -73,8 +71,7 @@ void URoomListWidget::ApplyWidgetDefinitionSettings()
 	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
 	{
 		const FRoomListWidgetSettings& Settings = WidgetDefinition->GetRoomListWidgetSettings();
-		if (const TSubclassOf<URoomItemWidget> ResolvedRoomItemWidgetClass =
-			WidgetDefinition->GetRoomItemWidgetClass())
+		if (const TSubclassOf<URoomItemWidget> ResolvedRoomItemWidgetClass = WidgetDefinition->GetRoomItemWidgetClass())
 		{
 			RoomItemWidgetClass = ResolvedRoomItemWidgetClass;
 		}
@@ -119,15 +116,13 @@ void URoomListWidget::NativeDestruct()
 	{
 		if (FindSessionsCompleteHandle.IsValid())
 		{
-			OnlineSessionsSubsystem->OnFindRoomsRequestComplete.Remove(
-				FindSessionsCompleteHandle);
+			OnlineSessionsSubsystem->OnFindRoomsRequestComplete.Remove(FindSessionsCompleteHandle);
 			FindSessionsCompleteHandle.Reset();
 		}
 
 		if (DestroySessionCompleteHandle.IsValid())
 		{
-			OnlineSessionsSubsystem->OnDestroySessionRequestComplete.Remove(
-				DestroySessionCompleteHandle);
+			OnlineSessionsSubsystem->OnDestroySessionRequestComplete.Remove(DestroySessionCompleteHandle);
 			DestroySessionCompleteHandle.Reset();
 		}
 
@@ -230,11 +225,8 @@ void URoomListWidget::HandleRefreshClicked()
 		Btn_Refresh->SetIsEnabled(false);
 	}
 
-	ActiveFindRequestId = OnlineSessionsSubsystem->BeginFindRoomSessions(
-		GetOwningLocalPlayer(),
-		MaxSearchResults,
-		bSearchLAN,
-		bUseLobbies);
+	ActiveFindRequestId = OnlineSessionsSubsystem->BeginFindRoomSessions(GetOwningLocalPlayer(), MaxSearchResults,
+		bSearchLAN, bUseLobbies);
 	if (ActiveFindRequestId == 0)
 	{
 		if (Btn_Refresh)
@@ -287,27 +279,21 @@ void URoomListWidget::HandleCloseClicked()
 
 	if (DestroySessionCompleteHandle.IsValid())
 	{
-		OnlineSessionsSubsystem->OnDestroySessionRequestComplete.Remove(
-			DestroySessionCompleteHandle);
+		OnlineSessionsSubsystem->OnDestroySessionRequestComplete.Remove(DestroySessionCompleteHandle);
 		DestroySessionCompleteHandle.Reset();
 	}
 
 	bPendingCloseAfterDestroy = true;
-	DestroySessionCompleteHandle =
-		OnlineSessionsSubsystem->OnDestroySessionRequestComplete.AddUObject(
-			this,
-			&ThisClass::HandleDestroySessionForClose);
-	ActiveDestroyRequestId =
-		OnlineSessionsSubsystem->BeginDestroySession(GetOwningLocalPlayer());
+	DestroySessionCompleteHandle = OnlineSessionsSubsystem->OnDestroySessionRequestComplete.AddUObject(this,
+		&ThisClass::HandleDestroySessionForClose);
+	ActiveDestroyRequestId = OnlineSessionsSubsystem->BeginDestroySession(GetOwningLocalPlayer());
 	if (ActiveDestroyRequestId == 0)
 	{
 		bPendingCloseAfterDestroy = false;
 	}
 }
 
-void URoomListWidget::HandleFindSessionsComplete(
-	const uint64 RequestId,
-	const TArray<FBlueprintSessionResult>& Results,
+void URoomListWidget::HandleFindSessionsComplete(const uint64 RequestId, const TArray<FBlueprintSessionResult>& Results,
 	const bool bWasSuccessful)
 {
 	if (RequestId == 0 || RequestId != ActiveFindRequestId)
@@ -325,9 +311,7 @@ void URoomListWidget::HandleFindSessionsComplete(
 	RefreshUI();
 }
 
-void URoomListWidget::HandleDestroySessionForClose(
-	const uint64 RequestId,
-	const bool bWasSuccessful)
+void URoomListWidget::HandleDestroySessionForClose(const uint64 RequestId, const bool bWasSuccessful)
 {
 	static_cast<void>(bWasSuccessful);
 
@@ -343,8 +327,7 @@ void URoomListWidget::HandleDestroySessionForClose(
 	{
 		if (DestroySessionCompleteHandle.IsValid())
 		{
-			OnlineSessionsSubsystem->OnDestroySessionRequestComplete.Remove(
-				DestroySessionCompleteHandle);
+			OnlineSessionsSubsystem->OnDestroySessionRequestComplete.Remove(DestroySessionCompleteHandle);
 			DestroySessionCompleteHandle.Reset();
 		}
 	}
@@ -381,7 +364,6 @@ void URoomListWidget::OpenTitleMap() const
 
 FString URoomListWidget::GetResolvedTitleTravelMapName() const
 {
-	const ULevelDefinition* Definition =
-		ULevelDefinition::ResolveDefaultDefinition();
+	const ULevelDefinition* Definition = ULevelDefinition::ResolveDefaultDefinition();
 	return Definition ? Definition->GetTitleTravelMapName() : FString();
 }

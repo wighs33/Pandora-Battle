@@ -33,33 +33,20 @@ DEFINE_LOG_CATEGORY_STATIC(LogGameLiftServer, Log, All);
 
 namespace
 {
-	TAutoConsoleVariable<float> CVarFirstPlayerTimeout(
-		TEXT("pd.GameLift.FirstPlayerTimeout"),
-		120.0f,
-		TEXT("Seconds an activated game session waits for its first player before the process ends."),
-		ECVF_Default);
+	TAutoConsoleVariable<float> CVarFirstPlayerTimeout(TEXT("pd.GameLift.FirstPlayerTimeout"), 120.0f,
+		TEXT("Seconds an activated game session waits for its first player before the process ends."), ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarEmptySessionTimeout(
-		TEXT("pd.GameLift.EmptySessionTimeout"),
-		15.0f,
-		TEXT("Seconds a game session may stay empty after players left before the process ends."),
-		ECVF_Default);
+	TAutoConsoleVariable<float> CVarEmptySessionTimeout(TEXT("pd.GameLift.EmptySessionTimeout"), 15.0f,
+		TEXT("Seconds a game session may stay empty after players left before the process ends."), ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarSessionEndTimeout(
-		TEXT("pd.GameLift.SessionEndTimeout"),
-		20.0f,
-		TEXT("After the match ends, maximum seconds to wait for result reports and player exits."),
-		ECVF_Default);
+	TAutoConsoleVariable<float> CVarSessionEndTimeout(TEXT("pd.GameLift.SessionEndTimeout"), 20.0f,
+		TEXT("After the match ends, maximum seconds to wait for result reports and player exits."), ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarBossRaidEmptySessionTimeout(
-		TEXT("pd.GameLift.BossRaidEmptySessionTimeout"),
-		300.0f,
+	TAutoConsoleVariable<float> CVarBossRaidEmptySessionTimeout(TEXT("pd.GameLift.BossRaidEmptySessionTimeout"), 300.0f,
 		TEXT("Seconds a boss raid session may stay empty before the process ends. Players may rejoin meanwhile."),
 		ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarBossRaidWorldReadyTimeout(
-		TEXT("pd.GameLift.BossRaidWorldReadyTimeout"),
-		60.0f,
+	TAutoConsoleVariable<float> CVarBossRaidWorldReadyTimeout(TEXT("pd.GameLift.BossRaidWorldReadyTimeout"), 60.0f,
 		TEXT("Seconds a boss raid game session may wait for the raid map to load before the process ends."),
 		ECVF_Default);
 
@@ -252,8 +239,7 @@ void UGameLiftServerSubsystem::NotifyServerReadyForSessions(const UWorld* World)
 
 	const TWeakObjectPtr<ThisClass> WeakThis(this);
 	ProcessParameters = MakeShared<FProcessParameters>();
-	ProcessParameters->OnStartGameSession.BindLambda(
-		[WeakThis](Aws::GameLift::Server::Model::GameSession GameSession)
+	ProcessParameters->OnStartGameSession.BindLambda([WeakThis](Aws::GameLift::Server::Model::GameSession GameSession)
 		{
 			const FString SessionId = ToFString(GameSession.GetGameSessionId());
 			const int32 MaxPlayers = GameSession.GetMaximumPlayerSessionCount();
@@ -298,10 +284,8 @@ void UGameLiftServerSubsystem::NotifyServerReadyForSessions(const UWorld* World)
 }
 
 // 경기 세션은 이미 열린 로비가 바로 받는다. 보스 레이드 세션은 레이드 맵으로 이동하고, 그 맵이 준비되면 활성화한다.
-void UGameLiftServerSubsystem::HandleGameSessionStarted(
-	const FString& InGameSessionId,
-	const int32 MaxPlayerSessionCount,
-	const FString& SessionMode)
+void UGameLiftServerSubsystem::HandleGameSessionStarted(const FString& InGameSessionId,
+	const int32 MaxPlayerSessionCount, const FString& SessionMode)
 {
 #if PD_WITH_GAMELIFT
 	if (bEnding)

@@ -25,15 +25,13 @@ ASkillPowerUpActor::ASkillPowerUpActor()
 	bNetUseOwnerRelevancy = true;
 }
 
-void ASkillPowerUpActor::GetLifetimeReplicatedProps(
-	TArray<FLifetimeProperty>& OutLifetimeProps) const
+void ASkillPowerUpActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ThisClass, PresentationSettings);
 }
 
-void ASkillPowerUpActor::ConfigurePresentationSettings(
-	const FSkillPowerUpPresentationSettings& InSettings)
+void ASkillPowerUpActor::ConfigurePresentationSettings(const FSkillPowerUpPresentationSettings& InSettings)
 {
 	if (!HasAuthority())
 	{
@@ -144,15 +142,8 @@ void ASkillPowerUpActor::StartSourcePlayerEffect()
 
 	if (AttachedSystemToSpawn)
 	{
-		AttachedNiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
-			AttachedSystemToSpawn,
-			SourceMesh,
-			NAME_None,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			EAttachLocation::KeepRelativeOffset,
-			false,
-			true);
+		AttachedNiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(AttachedSystemToSpawn, SourceMesh,
+			NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false, true);
 	}
 
 	if (bScaleWeaponTraceEndZ && WeaponTraceEndZMultiplier > 1.0f)
@@ -175,10 +166,7 @@ void ASkillPowerUpActor::StopSourcePlayerEffect()
 {
 	SetActorTickEnabled(false);
 
-	if (!bSourceEffectActive
-		&& !bCharacterScaleApplied
-		&& !bTraceEndZApplied
-		&& !bOverlayApplied)
+	if (!bSourceEffectActive && !bCharacterScaleApplied && !bTraceEndZApplied && !bOverlayApplied)
 	{
 		return;
 	}
@@ -273,10 +261,7 @@ void ASkillPowerUpActor::ApplyEffectAlpha(const float Alpha)
 	if (UMaterialParameterCollection* ParameterCollection = PresentationSettings.MaterialParameterCollection;
 		ParameterCollection && !MaterialScalarParameterName.IsNone())
 	{
-		UKismetMaterialLibrary::SetScalarParameterValue(
-			this,
-			ParameterCollection,
-			MaterialScalarParameterName,
+		UKismetMaterialLibrary::SetScalarParameterValue(this, ParameterCollection, MaterialScalarParameterName,
 			ClampedAlpha);
 	}
 

@@ -143,13 +143,11 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		return;
 	}
 
-	const bool bWeaponReplacementRequested =
-		EquipmentComponent->GetRequestedWeaponDefinition() != nullptr;
+	const bool bWeaponReplacementRequested = EquipmentComponent->GetRequestedWeaponDefinition() != nullptr;
 	FUnequipData UnequipVisualData;
 	if (bWeaponReplacementRequested)
 	{
-		UnequipVisualData.ItemDefinition =
-			EquipmentComponent->GetCurrentWeaponDefinition();
+		UnequipVisualData.ItemDefinition = EquipmentComponent->GetCurrentWeaponDefinition();
 	}
 	else if (!EquipmentComponent->GetUnequipData(UnequipVisualData))
 	{
@@ -183,8 +181,7 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	if (ensure(CommitUnequipEventTag.IsValid()))
 	{
-		UAbilityTask_WaitGameplayEvent* CommitEventTask =
-			CreateWaitGameplayEventTask(CommitUnequipEventTag, true);
+		UAbilityTask_WaitGameplayEvent* CommitEventTask = CreateWaitGameplayEventTask(CommitUnequipEventTag, true);
 		if (ensure(CommitEventTask))
 		{
 			CommitEventTask->EventReceived.AddDynamic(this, &UUnequipAbility::OnUnequipCommitTiming);
@@ -194,16 +191,8 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	// =================================================================================================================
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this,
-		NAME_None,
-		UnequipVisualData.UnequipMontage,
-		1.f,
-		NAME_None,
-		false,
-		1.f,
-		0.f,
-		false);
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this,
+		NAME_None, UnequipVisualData.UnequipMontage, 1.f, NAME_None, false, 1.f, 0.f, false);
 	if (!ensure(MontageTask))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);

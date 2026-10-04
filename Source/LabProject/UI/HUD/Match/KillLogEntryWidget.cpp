@@ -64,8 +64,5 @@ FText UKillLogEntryWidget::BuildKillMessage() const
 
 bool UKillLogEntryWidget::ShouldUseSeparatedNameTextBlocks() const
 {
-	return Txt_KillerName
-		&& Txt_VictimName
-		&& !KillLogEntry.bSelfKill
-		&& !KillLogEntry.bEnvironmentKill;
+	return Txt_KillerName && Txt_VictimName && !KillLogEntry.bSelfKill && !KillLogEntry.bEnvironmentKill;
 }

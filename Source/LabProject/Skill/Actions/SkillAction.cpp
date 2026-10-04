@@ -39,11 +39,8 @@ void USkillAction::Finish(bool bSucceeded)
 	OnFinished.Clear();
 }
 
-bool USkillAction::ResolveDamageableCharacterTarget(
-	AActor* SourceActor,
-	AActor* HitActor,
-	UAbilitySystemComponent*& OutSourceASC,
-	UAbilitySystemComponent*& OutTargetASC)
+bool USkillAction::ResolveDamageableCharacterTarget(AActor* SourceActor, AActor* HitActor,
+	UAbilitySystemComponent*& OutSourceASC, UAbilitySystemComponent*& OutTargetASC)
 {
 	const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(HitActor);
 	if (!TargetCharacter)
@@ -62,10 +59,8 @@ bool USkillAction::ResolveDamageableCharacterTarget(
 	return !SourceCharacter || SourceCharacter->CanDamageCharacterByTeam(TargetCharacter);
 }
 
-bool USkillAction::ApplyDamageWithConfiguredStatus(
-	UAbilitySystemComponent& SourceASC,
-	UAbilitySystemComponent& TargetASC,
-	const FGameplayEffectSpec& DamageSpec) const
+bool USkillAction::ApplyDamageWithConfiguredStatus(UAbilitySystemComponent& SourceASC,
+	UAbilitySystemComponent& TargetASC, const FGameplayEffectSpec& DamageSpec) const
 {
 	if (!SourceASC.ApplyGameplayEffectSpecToTarget(DamageSpec, &TargetASC).WasSuccessfullyApplied())
 	{

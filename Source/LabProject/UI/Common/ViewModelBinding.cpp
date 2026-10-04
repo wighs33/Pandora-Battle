@@ -5,9 +5,7 @@
 #include "View/MVVMView.h"
 #include "View/MVVMViewClass.h"
 
-FName PdViewModelBinding::FindSettableSourceName(
-	const UUserWidget* Widget,
-	const UClass* ViewModelClass,
+FName PdViewModelBinding::FindSettableSourceName(const UUserWidget* Widget, const UClass* ViewModelClass,
 	const FName PreferredName)
 {
 	const UMVVMView* ViewExtension = Widget ? Widget->GetExtension<UMVVMView>() : nullptr;

@@ -2,10 +2,8 @@
 
 #include "Components/Button.h"
 
-void FFilterButtonHighlightState::Initialize(
-	const TArray<TObjectPtr<UButton>>& InButtons,
-	UButton* InitialSelectedButton,
-	const FLinearColor& AccentColor)
+void FFilterButtonHighlightState::Initialize(const TArray<TObjectPtr<UButton>>& InButtons,
+	UButton* InitialSelectedButton, const FLinearColor& AccentColor)
 {
 	Reset();
 
@@ -74,9 +72,7 @@ void FFilterButtonHighlightState::Reset()
 	DefaultButtonStyles.Reset();
 }
 
-void FFilterButtonHighlightState::ApplyAccentToButtonStyle(
-	FButtonStyle& ButtonStyle,
-	const FLinearColor& AccentColor)
+void FFilterButtonHighlightState::ApplyAccentToButtonStyle(FButtonStyle& ButtonStyle, const FLinearColor& AccentColor)
 {
 	ApplyAccentToBrushOutline(ButtonStyle.Normal, AccentColor);
 	ApplyAccentToBrushOutline(ButtonStyle.Hovered, AccentColor);
@@ -84,17 +80,13 @@ void FFilterButtonHighlightState::ApplyAccentToButtonStyle(
 	ApplyAccentToBrushOutline(ButtonStyle.Disabled, AccentColor);
 }
 
-void FFilterButtonHighlightState::ApplyAccentToBrushOutline(
-	FSlateBrush& Brush,
-	const FLinearColor& AccentColor)
+void FFilterButtonHighlightState::ApplyAccentToBrushOutline(FSlateBrush& Brush, const FLinearColor& AccentColor)
 {
 	const FLinearColor DefaultOutlineColor = Brush.OutlineSettings.Color.GetSpecifiedColor();
-	Brush.OutlineSettings.Color = FSlateColor(
-		MakeAccentColorPreservingValue(DefaultOutlineColor, AccentColor));
+	Brush.OutlineSettings.Color = FSlateColor(MakeAccentColorPreservingValue(DefaultOutlineColor, AccentColor));
 }
 
-FLinearColor FFilterButtonHighlightState::MakeAccentColorPreservingValue(
-	const FLinearColor& SourceColor,
+FLinearColor FFilterButtonHighlightState::MakeAccentColorPreservingValue(const FLinearColor& SourceColor,
 	const FLinearColor& AccentColor)
 {
 	FLinearColor SourceHsv = SourceColor.LinearRGBToHSV();

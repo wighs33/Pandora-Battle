@@ -29,10 +29,8 @@ DEFINE_LOG_CATEGORY(PdPlayerControllerLog);
 APdPlayerController::APdPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	ControllerInputComponent =
-		CreateDefaultSubobject<UControllerInputComponent>(TEXT("ControllerInputComponent"));
-	ChatControllerComponent =
-		CreateDefaultSubobject<UChatControllerComponent>(TEXT("ChatControllerComponent"));
+	ControllerInputComponent = CreateDefaultSubobject<UControllerInputComponent>(TEXT("ControllerInputComponent"));
+	ChatControllerComponent = CreateDefaultSubobject<UChatControllerComponent>(TEXT("ChatControllerComponent"));
 	ControllerPresentationComponent =
 		CreateDefaultSubobject<UControllerPresentationComponent>(TEXT("ControllerPresentationComponent"));
 	ControllerProfileSyncComponent =
@@ -59,8 +57,7 @@ void APdPlayerController::PreInitializeComponents()
 void APdPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(
-		this,
+	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(this,
 		UGameFrameworkComponentManager::NAME_GameActorReady);
 	RefreshControllerInput();
 
@@ -71,8 +68,7 @@ void APdPlayerController::BeginPlay()
 			ControllerPresentationComponent->InitializeLocalPresentation();
 		}
 	}
-	if (ControllerProfileSyncComponent
-		&& (HasAuthority() || IsLocalController()))
+	if (ControllerProfileSyncComponent && (HasAuthority() || IsLocalController()))
 	{
 		ControllerProfileSyncComponent->ScheduleLocalCosmeticProfileSync();
 	}
@@ -109,8 +105,7 @@ void APdPlayerController::AcknowledgePossession(APawn* P)
 			ControllerPresentationComponent->RefreshAfterPossession(P);
 		}
 	}
-	if (ControllerProfileSyncComponent
-		&& (HasAuthority() || IsLocalController()))
+	if (ControllerProfileSyncComponent && (HasAuthority() || IsLocalController()))
 	{
 		ControllerProfileSyncComponent->ScheduleLocalCosmeticProfileSync();
 	}
@@ -158,7 +153,7 @@ void APdPlayerController::ObservePossessedCharacter(ACharacterBase* NewPossessed
 	{
 		PossessedCharacterReadySubscription.SubscribeToCharacter(NewPossessedCharacter,
 			FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(
-				this, &ThisClass::HandlePossessedCharacterAbilitySystemReady));
+			this, &ThisClass::HandlePossessedCharacterAbilitySystemReady));
 	}
 }
 
@@ -184,8 +179,7 @@ void APdPlayerController::Client_ShowRewardNotifications_Implementation(const TA
 }
 
 // 서버가 확정한 처치 기록을 소유 클라이언트의 킬 로그에 표시한다.
-void APdPlayerController::Client_AddKillLogEntry_Implementation(
-	const FKillLogEntry& KillLogEntry)
+void APdPlayerController::Client_AddKillLogEntry_Implementation(const FKillLogEntry& KillLogEntry)
 {
 	if (ControllerPresentationComponent)
 	{
@@ -194,8 +188,7 @@ void APdPlayerController::Client_AddKillLogEntry_Implementation(
 }
 
 // 서버가 보낸 골든 킬 안내를 소유 클라이언트에게 표시한다.
-void APdPlayerController::Client_ShowGoldenKillAnnouncement_Implementation(
-	const FText& AnnouncementText)
+void APdPlayerController::Client_ShowGoldenKillAnnouncement_Implementation(const FText& AnnouncementText)
 {
 	if (ControllerPresentationComponent)
 	{
@@ -223,8 +216,7 @@ void APdPlayerController::Client_AddCollectedItemCount_Implementation(const int3
 
 // 경기 결과를 보관한 뒤 세션을 정리하고 타이틀로 이동한다.
 void APdPlayerController::Client_TravelToTitleWithGameResult_Implementation(
-	const FGameResultPresentationData& GameResultData,
-	const FString& TitleMapName)
+	const FGameResultPresentationData& GameResultData, const FString& TitleMapName)
 {
 	if (ControllerSessionComponent)
 	{
@@ -233,19 +225,16 @@ void APdPlayerController::Client_TravelToTitleWithGameResult_Implementation(
 }
 
 // 경기 결과 없이 세션을 정리하고 타이틀로 이동한다.
-void APdPlayerController::Client_TravelToTitleWithoutGameResult_Implementation(
-	const FString& TitleMapName)
+void APdPlayerController::Client_TravelToTitleWithoutGameResult_Implementation(const FString& TitleMapName)
 {
 	if (ControllerSessionComponent)
 	{
-		ControllerSessionComponent->TravelToTitleWithoutGameResult(
-			TitleMapName);
+		ControllerSessionComponent->TravelToTitleWithoutGameResult(TitleMapName);
 	}
 }
 
 // 사망한 플레이어에게 남은 리스폰 대기 시간을 표시한다.
-void APdPlayerController::Client_StartRespawnDelayCountdown_Implementation(
-	const float DelaySeconds)
+void APdPlayerController::Client_StartRespawnDelayCountdown_Implementation(const float DelaySeconds)
 {
 	if (ControllerPresentationComponent)
 	{
@@ -273,11 +262,8 @@ void APdPlayerController::Client_ResetRespawnedPawnStateAtTransform_Implementati
 }
 
 // 서버가 계산한 포탈 출구 위치·시선·속도를 소유 클라이언트에 반영한다.
-void APdPlayerController::Client_ApplyPortalTeleport_Implementation(
-	const FVector& TargetLocation,
-	const FRotator& TargetRotation,
-	const FVector& TargetVelocity,
-	const FRotator& TargetControlRotation)
+void APdPlayerController::Client_ApplyPortalTeleport_Implementation(const FVector& TargetLocation,
+	const FRotator& TargetRotation, const FVector& TargetVelocity, const FRotator& TargetControlRotation)
 {
 	APawn* ControlledPawn = GetPawn();
 	if (!IsValid(ControlledPawn))
@@ -310,25 +296,20 @@ void APdPlayerController::Client_RequestLocalCosmeticProfileSync_Implementation(
 }
 
 // 클라이언트의 외형 프로필 주장을 서버의 카탈로그 검증과 적용 경로에 전달한다.
-void APdPlayerController::Server_SubmitLocalCosmeticProfile_Implementation(
-	const TArray<FName>& OwnedSkinNames,
+void APdPlayerController::Server_SubmitLocalCosmeticProfile_Implementation(const TArray<FName>& OwnedSkinNames,
 	const FName SelectedAchievementId)
 {
 	if (ControllerProfileSyncComponent)
 	{
 		ControllerProfileSyncComponent
-			->ApplySubmittedLocalCosmeticProfileOnServer(
-				OwnedSkinNames,
-				SelectedAchievementId);
+			->ApplySubmittedLocalCosmeticProfileOnServer(OwnedSkinNames, SelectedAchievementId);
 	}
 }
 
 // 스킬바와 입력 아이콘이 현재 입력 설정을 조회할 수 있게 한다.
 UControllerInputDefinition* APdPlayerController::GetLoadedInputDefinition() const
 {
-	return ControllerInputComponent
-		? ControllerInputComponent->GetLoadedInputDefinition()
-		: nullptr;
+	return ControllerInputComponent ? ControllerInputComponent->GetLoadedInputDefinition() : nullptr;
 }
 
 FDelegateHandle APdPlayerController::RegisterOnInputDefinitionApplied(const FSimpleDelegate& Delegate)
@@ -347,8 +328,7 @@ void APdPlayerController::UnregisterOnInputDefinitionApplied(const FDelegateHand
 // 로컬 플레이어의 경기 나가기 요청을 세션 처리 경로에 전달한다.
 bool APdPlayerController::RequestExitMatchToTitle()
 {
-	return ControllerSessionComponent
-		&& ControllerSessionComponent->RequestExitMatchToTitle();
+	return ControllerSessionComponent && ControllerSessionComponent->RequestExitMatchToTitle();
 }
 
 // 현재 사용할 화면 설정을 화면 표시 컴포넌트에 반영한다.
@@ -362,8 +342,7 @@ void APdPlayerController::ApplyControllerDefinition()
 
 	if (ControllerPresentationComponent)
 	{
-		ControllerPresentationComponent->ApplySettings(
-			Definition->GetPresentationSettings());
+		ControllerPresentationComponent->ApplySettings(Definition->GetPresentationSettings());
 	}
 }
 
@@ -407,11 +386,8 @@ void APdPlayerController::BeginControllerDefinitionPreload()
 		return;
 	}
 
-	PlayerControllerDefinitionLease = ContentSubsystem->AcquireContent(
-		{PlayerControllerDefinition.ToSoftObjectPath()},
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleControllerDefinitionPreloaded));
+	PlayerControllerDefinitionLease = ContentSubsystem->AcquireContent({PlayerControllerDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleControllerDefinitionPreloaded));
 }
 
 // 설정 에셋 로드가 끝나면 실행 중인 화면 처리에도 새 설정을 반영한다.
@@ -420,9 +396,7 @@ void APdPlayerController::HandleControllerDefinitionPreloaded()
 	LoadedPlayerControllerDefinition = PlayerControllerDefinition.Get();
 	if (!LoadedPlayerControllerDefinition)
 	{
-		UE_LOG(
-			PdPlayerControllerLog,
-			Error,
+		UE_LOG(PdPlayerControllerLog, Error,
 			TEXT("PlayerController definition '%s' did not resolve after asynchronous preload."),
 			*PlayerControllerDefinition.ToString());
 		return;
@@ -446,8 +420,7 @@ void APdPlayerController::RefreshControllerInput()
 	}
 
 	const TSoftObjectPtr<UControllerInputDefinition> DefaultInputDefinition =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-			.ControllerInput;
+		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().ControllerInput;
 	if (!DefaultInputDefinition.IsNull())
 	{
 		ControllerInputComponent->SetInputDefinition(DefaultInputDefinition);

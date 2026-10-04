@@ -45,8 +45,7 @@ void UInfoLoadoutStore::RefreshBindings()
 		: nullptr;
 	UInventoryComponent* Inventory = PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
 	UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
-	const bool bBindingsChanged = BoundInventoryComponent != Inventory
-		|| BoundPandoraComponent != PandoraComponent;
+	const bool bBindingsChanged = BoundInventoryComponent != Inventory || BoundPandoraComponent != PandoraComponent;
 
 	if (BoundInventoryComponent != Inventory)
 	{
@@ -54,13 +53,10 @@ void UInfoLoadoutStore::RefreshBindings()
 		BoundInventoryComponent = Inventory;
 		if (BoundInventoryComponent)
 		{
-			InventoryChangedDelegateHandle = BoundInventoryComponent->OnInventoryChanged.AddUObject(
-				this,
+			InventoryChangedDelegateHandle = BoundInventoryComponent->OnInventoryChanged.AddUObject(this,
 				&ThisClass::HandleInventoryChanged);
-			WeaponLoadoutChangedDelegateHandle =
-				BoundInventoryComponent->OnWeaponLoadoutChanged.AddUObject(
-					this,
-					&ThisClass::HandleWeaponLoadoutChanged);
+			WeaponLoadoutChangedDelegateHandle = BoundInventoryComponent->OnWeaponLoadoutChanged.AddUObject(this,
+				&ThisClass::HandleWeaponLoadoutChanged);
 		}
 	}
 
@@ -70,8 +66,7 @@ void UInfoLoadoutStore::RefreshBindings()
 		BoundPandoraComponent = PandoraComponent;
 		if (BoundPandoraComponent)
 		{
-			BoundPandoraComponent->OnPandoraLoadoutChanged.AddUniqueDynamic(
-				this,
+			BoundPandoraComponent->OnPandoraLoadoutChanged.AddUniqueDynamic(this,
 				&ThisClass::HandlePandoraLoadoutChanged);
 		}
 	}
@@ -95,9 +90,7 @@ UPandoraComponent* UInfoLoadoutStore::GetPandoraComponent() const
 
 UEquipmentComponent* UInfoLoadoutStore::GetEquipmentComponent() const
 {
-	const APdPlayer* Player = IsValid(OwningController)
-		? Cast<APdPlayer>(OwningController->GetPawn())
-		: nullptr;
+	const APdPlayer* Player = IsValid(OwningController) ? Cast<APdPlayer>(OwningController->GetPawn()) : nullptr;
 	return Player ? Player->GetEquipmentComponent() : nullptr;
 }
 
@@ -116,8 +109,7 @@ UItemInstance* UInfoLoadoutStore::GetSelectedWeapon(const EEnum_Direction Direct
 	}
 }
 
-const UPandoraDefinition* UInfoLoadoutStore::GetSelectedPandoraDefinition(
-	const EEnum_Direction Direction) const
+const UPandoraDefinition* UInfoLoadoutStore::GetSelectedPandoraDefinition(const EEnum_Direction Direction) const
 {
 	switch (Direction)
 	{
@@ -132,8 +124,7 @@ const UPandoraDefinition* UInfoLoadoutStore::GetSelectedPandoraDefinition(
 	}
 }
 
-bool UInfoLoadoutStore::WouldSelectedDirectionChangeLoadout(
-	const EEnum_Direction Direction) const
+bool UInfoLoadoutStore::WouldSelectedDirectionChangeLoadout(const EEnum_Direction Direction) const
 {
 	const UEquipmentComponent* Equipment = GetEquipmentComponent();
 	const UPandoraComponent* PandoraComponent = GetPandoraComponent();
@@ -146,13 +137,9 @@ bool UInfoLoadoutStore::WouldSelectedDirectionChangeLoadout(
 		const bool bWouldChangeSelectedLoadout = PandoraAndWeaponComponent
 			&& PandoraAndWeaponComponent->GetSelectedPandoraAndWeaponNumber() != 0;
 		const bool bWouldUnequipWeapon = Equipment
-			&& (Equipment->GetCurrentWeaponId().IsValid()
-				|| Equipment->GetCurrentWeaponDefinition());
-		const bool bWouldClearPandora = PandoraComponent
-			&& PandoraComponent->GetCurrentPandoraDefinition();
-		return bWouldChangeSelectedLoadout
-			|| bWouldUnequipWeapon
-			|| bWouldClearPandora;
+			&& (Equipment->GetCurrentWeaponId().IsValid() || Equipment->GetCurrentWeaponDefinition());
+		const bool bWouldClearPandora = PandoraComponent && PandoraComponent->GetCurrentPandoraDefinition();
+		return bWouldChangeSelectedLoadout || bWouldUnequipWeapon || bWouldClearPandora;
 	}
 	if (!PandoraLoadout::IsLoadoutDirection(Direction))
 	{
@@ -160,20 +147,17 @@ bool UInfoLoadoutStore::WouldSelectedDirectionChangeLoadout(
 	}
 
 	const UPandoraDefinition* PandoraDefinition = GetSelectedPandoraDefinition(Direction);
-	const int32 RequestedLoadoutNumber =
-		PandoraLoadout::GetLoadoutNumberFromDirection(Direction);
+	const int32 RequestedLoadoutNumber = PandoraLoadout::GetLoadoutNumberFromDirection(Direction);
 	const bool bWouldChangeSelectedLoadout = PandoraAndWeaponComponent
 		&& PandoraAndWeaponComponent->GetSelectedPandoraAndWeaponNumber()
 			!= RequestedLoadoutNumber;
 	const bool bPandoraWouldChange = PandoraComponent
 		&& (PandoraComponent->GetCurrentPandoraDefinition() != PandoraDefinition
-			|| PandoraComponent->GetCurrentPandoraLoadoutDirection() != Direction);
+		|| PandoraComponent->GetCurrentPandoraLoadoutDirection() != Direction);
 
 	UItemInstance* Weapon = GetSelectedWeapon(Direction);
-	bool bWeaponWouldChange = Equipment
-		&& !IsValid(Weapon)
-		&& (Equipment->GetCurrentWeaponId().IsValid()
-			|| Equipment->GetCurrentWeaponDefinition());
+	bool bWeaponWouldChange = Equipment && !IsValid(Weapon)
+		&& (Equipment->GetCurrentWeaponId().IsValid() || Equipment->GetCurrentWeaponDefinition());
 	if (Equipment && IsValid(Weapon))
 	{
 		const FGuid WeaponId = Weapon->GetOrCreateItemId();
@@ -181,20 +165,14 @@ bool UInfoLoadoutStore::WouldSelectedDirectionChangeLoadout(
 		const bool bSameWeapon = WeaponId.IsValid() && CurrentWeaponId.IsValid()
 			? WeaponId == CurrentWeaponId
 			: Equipment->GetCurrentWeaponDefinition() == Weapon->ItemDefinition.Get();
-		bWeaponWouldChange = !bSameWeapon
-			|| Equipment->GetCurrentWeaponLoadoutDirection() != Direction;
+		bWeaponWouldChange = !bSameWeapon || Equipment->GetCurrentWeaponLoadoutDirection() != Direction;
 	}
-	return bWouldChangeSelectedLoadout
-		|| bPandoraWouldChange
-		|| bWeaponWouldChange;
+	return bWouldChangeSelectedLoadout || bPandoraWouldChange || bWeaponWouldChange;
 }
 
-bool UInfoLoadoutStore::RequestSetConsumableQuickSlot(
-	const int32 SlotIndex,
-	UItemInstance* ItemInstance)
+bool UInfoLoadoutStore::RequestSetConsumableQuickSlot(const int32 SlotIndex, UItemInstance* ItemInstance)
 {
-	if (IsValid(BoundInventoryComponent)
-		&& BoundInventoryComponent->SetConsumableQuickSlot(SlotIndex, ItemInstance))
+	if (IsValid(BoundInventoryComponent) && BoundInventoryComponent->SetConsumableQuickSlot(SlotIndex, ItemInstance))
 	{
 		return true;
 	}
@@ -203,20 +181,16 @@ bool UInfoLoadoutStore::RequestSetConsumableQuickSlot(
 
 bool UInfoLoadoutStore::RequestClearConsumableQuickSlot(const int32 SlotIndex)
 {
-	if (IsValid(BoundInventoryComponent)
-		&& BoundInventoryComponent->ClearConsumableQuickSlot(SlotIndex))
+	if (IsValid(BoundInventoryComponent) && BoundInventoryComponent->ClearConsumableQuickSlot(SlotIndex))
 	{
 		return true;
 	}
 	return PublishRejectedCommand(EInfoLoadoutStateChange::Inventory);
 }
 
-bool UInfoLoadoutStore::RequestSetEquipmentSlot(
-	const FGameplayTag SlotTag,
-	UItemInstance* ItemInstance)
+bool UInfoLoadoutStore::RequestSetEquipmentSlot(const FGameplayTag SlotTag, UItemInstance* ItemInstance)
 {
-	if (IsValid(BoundInventoryComponent)
-		&& BoundInventoryComponent->SetEquipmentSlot(SlotTag, ItemInstance))
+	if (IsValid(BoundInventoryComponent) && BoundInventoryComponent->SetEquipmentSlot(SlotTag, ItemInstance))
 	{
 		return true;
 	}
@@ -225,20 +199,16 @@ bool UInfoLoadoutStore::RequestSetEquipmentSlot(
 
 bool UInfoLoadoutStore::RequestClearEquipmentSlot(const FGameplayTag SlotTag)
 {
-	if (IsValid(BoundInventoryComponent)
-		&& BoundInventoryComponent->ClearEquipmentSlot(SlotTag))
+	if (IsValid(BoundInventoryComponent) && BoundInventoryComponent->ClearEquipmentSlot(SlotTag))
 	{
 		return true;
 	}
 	return PublishRejectedCommand(EInfoLoadoutStateChange::Inventory);
 }
 
-bool UInfoLoadoutStore::RequestSetWeaponLoadoutSlot(
-	const EEnum_Direction Direction,
-	UItemInstance* ItemInstance)
+bool UInfoLoadoutStore::RequestSetWeaponLoadoutSlot(const EEnum_Direction Direction, UItemInstance* ItemInstance)
 {
-	if (IsValid(BoundInventoryComponent)
-		&& BoundInventoryComponent->AssignWeaponToLoadoutSlot(Direction, ItemInstance))
+	if (IsValid(BoundInventoryComponent) && BoundInventoryComponent->AssignWeaponToLoadoutSlot(Direction, ItemInstance))
 	{
 		return true;
 	}
@@ -247,16 +217,14 @@ bool UInfoLoadoutStore::RequestSetWeaponLoadoutSlot(
 
 bool UInfoLoadoutStore::RequestClearWeaponLoadoutSlot(const EEnum_Direction Direction)
 {
-	if (IsValid(BoundInventoryComponent)
-		&& BoundInventoryComponent->ClearWeaponFromLoadoutSlot(Direction))
+	if (IsValid(BoundInventoryComponent) && BoundInventoryComponent->ClearWeaponFromLoadoutSlot(Direction))
 	{
 		return true;
 	}
 	return PublishRejectedCommand(EInfoLoadoutStateChange::WeaponLoadout);
 }
 
-bool UInfoLoadoutStore::RequestSetPandoraLoadoutSlot(
-	const EEnum_Direction Direction,
+bool UInfoLoadoutStore::RequestSetPandoraLoadoutSlot(const EEnum_Direction Direction,
 	const UPandoraDefinition* PandoraDefinition)
 {
 	if (IsValid(BoundPandoraComponent)
@@ -278,8 +246,7 @@ bool UInfoLoadoutStore::RequestSelectLoadoutDirection(const EEnum_Direction Dire
 		return false;
 	}
 
-	if (Direction != EEnum_Direction::Down
-		&& !PandoraLoadout::IsLoadoutDirection(Direction))
+	if (Direction != EEnum_Direction::Down && !PandoraLoadout::IsLoadoutDirection(Direction))
 	{
 		return false;
 	}
@@ -306,8 +273,7 @@ void UInfoLoadoutStore::UnbindInventoryComponent()
 		}
 		if (WeaponLoadoutChangedDelegateHandle.IsValid())
 		{
-			BoundInventoryComponent->OnWeaponLoadoutChanged.Remove(
-				WeaponLoadoutChangedDelegateHandle);
+			BoundInventoryComponent->OnWeaponLoadoutChanged.Remove(WeaponLoadoutChangedDelegateHandle);
 		}
 	}
 	BoundInventoryComponent = nullptr;
@@ -319,9 +285,7 @@ void UInfoLoadoutStore::UnbindPandoraComponent()
 {
 	if (IsValid(BoundPandoraComponent))
 	{
-		BoundPandoraComponent->OnPandoraLoadoutChanged.RemoveDynamic(
-			this,
-			&ThisClass::HandlePandoraLoadoutChanged);
+		BoundPandoraComponent->OnPandoraLoadoutChanged.RemoveDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
 	}
 	BoundPandoraComponent = nullptr;
 }

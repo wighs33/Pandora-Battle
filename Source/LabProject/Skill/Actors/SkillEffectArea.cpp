@@ -147,10 +147,8 @@ void ASkillEffectArea::ApplyEffectToActor(AActor* TargetActor)
 	EffectContext.AddInstigator(GetInstigator(), this);
 	EffectContext.AddSourceObject(this);
 
-	FGameplayEffectSpecHandle SpecHandle = SpecAbilitySystemComponent->MakeOutgoingSpec(
-		EffectClass,
-		FMath::Max(EffectLevel, 1.0f),
-		EffectContext);
+	FGameplayEffectSpecHandle SpecHandle = SpecAbilitySystemComponent->MakeOutgoingSpec(EffectClass,
+		FMath::Max(EffectLevel, 1.0f), EffectContext);
 	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
 	{
 		return;

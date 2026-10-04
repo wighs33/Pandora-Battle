@@ -12,9 +12,7 @@ UAnimNotify_WeaponEvent::UAnimNotify_WeaponEvent()
 	WeaponEventName = NAME_None;
 }
 
-void UAnimNotify_WeaponEvent::Notify(
-	USkeletalMeshComponent* MeshComp,
-	UAnimSequenceBase* Animation,
+void UAnimNotify_WeaponEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 	const FAnimNotifyEventReference& EventReference)
 {
 	static_cast<void>(Animation);

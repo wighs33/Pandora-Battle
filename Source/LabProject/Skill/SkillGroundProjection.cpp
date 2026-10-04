@@ -34,11 +34,8 @@ namespace
 
 	bool IsIgnoredGroundActor(const AActor* Actor)
 	{
-		return Actor
-			&& (Actor->IsA<APawn>()
-				|| Actor->IsA<ASkillEffectArea>()
-				|| Actor->IsA<AOutOfBoundsVolume>()
-				|| Actor->IsA<APlayerMapRegionTrigger>());
+		return Actor && (Actor->IsA<APawn>() || Actor->IsA<ASkillEffectArea>() || Actor->IsA<AOutOfBoundsVolume>()
+			|| Actor->IsA<APlayerMapRegionTrigger>());
 	}
 
 	bool IsRelatedToIgnoredActor(const AActor* Actor, const TArray<AActor*>& ActorsToIgnore)
@@ -55,8 +52,7 @@ namespace
 				continue;
 			}
 
-			if (Actor == IgnoredActor
-				|| IsGroundProjectionActorOwnedBy(Actor, IgnoredActor)
+			if (Actor == IgnoredActor || IsGroundProjectionActorOwnedBy(Actor, IgnoredActor)
 				|| IsGroundProjectionActorOwnedBy(IgnoredActor, Actor))
 			{
 				return true;
@@ -77,15 +73,11 @@ namespace
 	bool IsValidGroundHit(const FHitResult& Hit, const TArray<AActor*>& ActorsToIgnore)
 	{
 		const AActor* HitActor = Hit.GetActor();
-		return Hit.bBlockingHit
-			&& Hit.ImpactNormal.Z >= SkillGroundMinNormalZ
-			&& !IsIgnoredGroundActor(HitActor)
+		return Hit.bBlockingHit && Hit.ImpactNormal.Z >= SkillGroundMinNormalZ && !IsIgnoredGroundActor(HitActor)
 			&& !IsRelatedToIgnoredActor(HitActor, ActorsToIgnore);
 	}
 
-	bool TryResolveGroundHit(
-		const TArray<FHitResult>& Hits,
-		const TArray<AActor*>& ActorsToIgnore,
+	bool TryResolveGroundHit(const TArray<FHitResult>& Hits, const TArray<AActor*>& ActorsToIgnore,
 		PdSkillGroundProjection::FGroundProjectionResult& OutResult)
 	{
 		for (const FHitResult& Hit : Hits)
@@ -104,12 +96,8 @@ namespace
 		return false;
 	}
 
-	bool TryTraceWorldSurfaceToGround(
-		UWorld* World,
-		const FVector& TraceStart,
-		const FVector& TraceEnd,
-		const FCollisionQueryParams& QueryParams,
-		const TArray<AActor*>& ActorsToIgnore,
+	bool TryTraceWorldSurfaceToGround(UWorld* World, const FVector& TraceStart, const FVector& TraceEnd,
+		const FCollisionQueryParams& QueryParams, const TArray<AActor*>& ActorsToIgnore,
 		PdSkillGroundProjection::FGroundProjectionResult& OutResult)
 	{
 		FCollisionObjectQueryParams ObjectParams;
@@ -161,14 +149,9 @@ FVector PdSkillGroundProjection::ResolveActorFeetLocation(const AActor* Actor)
 	return FeetLocation;
 }
 
-bool PdSkillGroundProjection::TryProjectToGround(
-	UWorld* World,
-	const FVector& SourceLocation,
-	const TEnumAsByte<ETraceTypeQuery> TraceType,
-	const double TraceStartHeight,
-	const double TraceDepth,
-	const TArray<AActor*>& ActorsToIgnore,
-	FGroundProjectionResult& OutResult)
+bool PdSkillGroundProjection::TryProjectToGround(UWorld* World, const FVector& SourceLocation,
+	const TEnumAsByte<ETraceTypeQuery> TraceType, const double TraceStartHeight, const double TraceDepth,
+	const TArray<AActor*>& ActorsToIgnore, FGroundProjectionResult& OutResult)
 {
 	if (!World)
 	{
@@ -189,13 +172,7 @@ bool PdSkillGroundProjection::TryProjectToGround(
 		}
 	}
 
-	if (TryTraceWorldSurfaceToGround(
-		World,
-		TraceStart,
-		TraceEnd,
-		QueryParams,
-		ActorsToIgnore,
-		OutResult))
+	if (TryTraceWorldSurfaceToGround(World, TraceStart, TraceEnd, QueryParams, ActorsToIgnore, OutResult))
 	{
 		return true;
 	}

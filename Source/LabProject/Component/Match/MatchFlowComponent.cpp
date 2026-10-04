@@ -158,13 +158,8 @@ void UMatchFlowComponent::StartServerMatchTimerIfNeeded()
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
 	UWorld* World = GetWorld();
 	AExperienceGameState* ExperienceGameState = GameMode ? GameMode->GetGameState<AExperienceGameState>() : nullptr;
-	if (!GameMode
-		|| !GameMode->IsRuntimeContentReady()
-		|| bServerMatchTimerStarted
-		|| bGameResultShown
-		|| !GameMode->HasAuthority()
-		|| !World
-		|| !ExperienceGameState)
+	if (!GameMode || !GameMode->IsRuntimeContentReady() || bServerMatchTimerStarted || bGameResultShown
+		|| !GameMode->HasAuthority() || !World || !ExperienceGameState)
 	{
 		return;
 	}
@@ -207,10 +202,7 @@ void UMatchFlowComponent::HandleMatchTimerExpired()
 	const FMatchSnapshot Snapshot = TakeMatchSnapshot(GameMode->GetGameState<AGameStateBase>());
 	if (APdPlayerState* WinnerPlayerState = Snapshot.GetWinner())
 	{
-		ShowGameResult(
-			WinnerPlayerState,
-			Snapshot.GetWinnerTeamMemberCount(),
-			Snapshot.GetTopScorer(),
+		ShowGameResult(WinnerPlayerState, Snapshot.GetWinnerTeamMemberCount(), Snapshot.GetTopScorer(),
 			Snapshot.Outcome.TopScore);
 		return;
 	}
@@ -226,11 +218,7 @@ void UMatchFlowComponent::HandleMatchTimerExpired()
 void UMatchFlowComponent::HandlePlayerKillScored(APlayerState* KillerPlayerState, APlayerState* VictimPlayerState)
 {
 	const AExperienceGameMode* GameMode = GetExperienceGameMode();
-	if (!GameMode
-		|| !GameMode->HasAuthority()
-		|| !bGoldenKillActive
-		|| bGameResultShown
-		|| !KillerPlayerState
+	if (!GameMode || !GameMode->HasAuthority() || !bGoldenKillActive || bGameResultShown || !KillerPlayerState
 		|| KillerPlayerState == VictimPlayerState)
 	{
 		return;
@@ -239,10 +227,7 @@ void UMatchFlowComponent::HandlePlayerKillScored(APlayerState* KillerPlayerState
 	const FMatchSnapshot Snapshot = TakeMatchSnapshot(GameMode->GetGameState<AGameStateBase>());
 	if (Snapshot.Outcome.Type == EMatchOutcomeType::UniqueLeader && Snapshot.GetWinner() == KillerPlayerState)
 	{
-		ShowGameResult(
-			Snapshot.GetWinner(),
-			Snapshot.GetWinnerTeamMemberCount(),
-			Snapshot.GetTopScorer(),
+		ShowGameResult(Snapshot.GetWinner(), Snapshot.GetWinnerTeamMemberCount(), Snapshot.GetTopScorer(),
 			Snapshot.Outcome.TopScore);
 	}
 }
@@ -293,11 +278,8 @@ void UMatchFlowComponent::StartGoldenKill()
 	}
 }
 
-void UMatchFlowComponent::ShowGameResult(
-	APdPlayerState* WinnerPlayerState,
-	const int32 WinnerTeamMemberCount,
-	const APdPlayerState* TopScorerPlayerState,
-	const int32 TopScore)
+void UMatchFlowComponent::ShowGameResult(APdPlayerState* WinnerPlayerState, const int32 WinnerTeamMemberCount,
+	const APdPlayerState* TopScorerPlayerState, const int32 TopScore)
 {
 	AExperienceGameMode* GameMode = GetExperienceGameMode();
 	AExperienceGameState* ExperienceGameState = GameMode ? GameMode->GetGameState<AExperienceGameState>() : nullptr;
@@ -313,40 +295,26 @@ void UMatchFlowComponent::ShowGameResult(
 	GameMode->GetRewardComponent()->GrantVictoryGold(WinnerPlayerState, WinnerTeamColorIndex, WinnerTeamMemberCount);
 
 	TArray<FGameResultPlayerStat> PlayerStats = MatchResultReport::BuildPlayerStats(*ExperienceGameState);
-	MatchResultReport::ApplyVictoryRewards(
-		PlayerStats,
-		WinnerPlayerState,
-		WinnerTeamColorIndex,
-		WinnerTeamMemberCount,
-		nullptr,
-		GameMode->GetVictoryGoldRates());
+	MatchResultReport::ApplyVictoryRewards(PlayerStats, WinnerPlayerState, WinnerTeamColorIndex, WinnerTeamMemberCount,
+		nullptr, GameMode->GetVictoryGoldRates());
 	MatchResultReport::ReportToBackend(*GameMode, WinnerPlayerState, WinnerTeamColorIndex, TEXT("completed"));
 
-	ExperienceGameState->Multicast_ShowGameResult(
-		MatchResultReport::ResolveWinnerTitle(WinnerTeamColorIndex),
+	ExperienceGameState->Multicast_ShowGameResult(MatchResultReport::ResolveWinnerTitle(WinnerTeamColorIndex),
 		WinnerTeamColorIndex,
 		UPlayerMatchComponent::ResolveDisplayName(TopScorerPlayerState ? TopScorerPlayerState : WinnerPlayerState),
-		TopScore,
-		PlayerStats);
+		TopScore, PlayerStats);
 
-	GetWorld()->GetTimerManager().SetTimer(
-		GameResultLobbyReturnTimerHandle,
-		this,
-		&ThisClass::ReturnToLobbyAfterGameResult,
-		GameResultLobbyReturnDelaySeconds,
-		false);
+	GetWorld()->GetTimerManager().SetTimer(GameResultLobbyReturnTimerHandle, this,
+		&ThisClass::ReturnToLobbyAfterGameResult, GameResultLobbyReturnDelaySeconds, false);
 }
 
 bool UMatchFlowComponent::RequestAbortMatchToTitle(APlayerController* RequestingPlayer)
 {
 	const AExperienceGameMode* GameMode = GetExperienceGameMode();
-	if (!GameMode
-		|| !GameMode->HasAuthority()
-		|| !RequestingPlayer
-		// Only the listen host may intentionally end the whole match. Remote
-		// players leave locally and are handled by Logout on the server.
-		|| !RequestingPlayer->IsLocalController()
-		|| !AbortMatchToTitleForPlayerExit(RequestingPlayer->PlayerState))
+	if (!GameMode || !GameMode->HasAuthority() || !RequestingPlayer
+		// 경기 전체를 일부러 끝낼 수 있는 것은 리슨 호스트뿐이다. 원격 플레이어는
+		// 로컬에서 나가고 서버의 Logout이 처리한다.
+		|| !RequestingPlayer->IsLocalController() || !AbortMatchToTitleForPlayerExit(RequestingPlayer->PlayerState))
 	{
 		return false;
 	}
@@ -358,9 +326,7 @@ bool UMatchFlowComponent::RequestAbortMatchToTitle(APlayerController* Requesting
 bool UMatchFlowComponent::HandlePlayerLogout(const APlayerState* ExitingPlayerState)
 {
 	const AExperienceGameMode* GameMode = GetExperienceGameMode();
-	return GameMode
-		&& GameMode->HasAuthority()
-		&& ExitingPlayerState
+	return GameMode && GameMode->HasAuthority() && ExitingPlayerState
 		&& AbortMatchToTitleForPlayerExit(ExitingPlayerState);
 }
 
@@ -384,10 +350,7 @@ bool UMatchFlowComponent::AbortMatchToTitleForPlayerExit(const APlayerState* Exi
 	const APdPlayerState* WinnerPlayerState = Snapshot.GetWinner();
 	const int32 WinnerTeamColorIndex = Snapshot.GetWinnerTeamColorIndex();
 	const int32 WinnerTeamMemberCount = Snapshot.GetWinnerTeamMemberCount();
-	GameMode->GetRewardComponent()->GrantVictoryGold(
-		WinnerPlayerState,
-		WinnerTeamColorIndex,
-		WinnerTeamMemberCount,
+	GameMode->GetRewardComponent()->GrantVictoryGold(WinnerPlayerState, WinnerTeamColorIndex, WinnerTeamMemberCount,
 		ExitingPlayerState);
 
 	MatchTravel::SendPlayersToTitleWithResult(
@@ -420,23 +383,15 @@ bool UMatchFlowComponent::ShouldAbortMatchForPlayerExit(const APlayerState* Exit
 {
 	const AExperienceGameMode* GameMode = GetExperienceGameMode();
 	// 보스 레이드 월드는 누가 나가도 남은 플레이어가 계속 머문다.
-	if (!GameMode
-		|| !GameMode->HasAuthority()
-		|| bGameResultShown
-		|| bBossRaid
-		|| !ExitingPlayerState
-		|| !GameMode->IsRuntimeContentReady()
-		|| GameMode->GetPlayerSetupComponent()->IsTrainingRoomMap())
+	if (!GameMode || !GameMode->HasAuthority() || bGameResultShown || bBossRaid || !ExitingPlayerState
+		|| !GameMode->IsRuntimeContentReady() || GameMode->GetPlayerSetupComponent()->IsTrainingRoomMap())
 	{
 		return false;
 	}
 
 	const UWorld* World = GetWorld();
 	const AGameStateBase* GameState = GameMode->GetGameState<AGameStateBase>();
-	return World
-		&& World->GetNetMode() != NM_Standalone
-		&& GameState
-		&& GameState->PlayerArray.Num() > 1;
+	return World && World->GetNetMode() != NM_Standalone && GameState && GameState->PlayerArray.Num() > 1;
 }
 
 void UMatchFlowComponent::ReturnToLobbyAfterGameResult()

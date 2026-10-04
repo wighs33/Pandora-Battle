@@ -76,8 +76,7 @@ void UMatchRewardComponent::PreloadRewardContent()
 		return;
 	}
 
-	RewardContentLease = ContentSubsystem->AcquireContent(
-		TArray<FSoftObjectPath>{Reward.ToSoftObjectPath()},
+	RewardContentLease = ContentSubsystem->AcquireContent(TArray<FSoftObjectPath>{Reward.ToSoftObjectPath()},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRewardContentLoaded));
 }
 
@@ -231,11 +230,8 @@ const URewardDefinition* UMatchRewardComponent::ResolveRewardDefinitionForChestS
 	return nullptr;
 }
 
-void UMatchRewardComponent::GrantVictoryGold(
-	const APlayerState* WinnerPlayerState,
-	const int32 WinnerTeamColorIndex,
-	const int32 WinnerTeamMemberCount,
-	const APlayerState* ExcludedPlayerState) const
+void UMatchRewardComponent::GrantVictoryGold(const APlayerState* WinnerPlayerState, const int32 WinnerTeamColorIndex,
+	const int32 WinnerTeamMemberCount, const APlayerState* ExcludedPlayerState) const
 {
 	if (!WinnerPlayerState || WinnerPlayerState == ExcludedPlayerState)
 	{
@@ -250,8 +246,7 @@ void UMatchRewardComponent::GrantVictoryGold(
 		for (const APlayerState* PlayerState : GameState->PlayerArray)
 		{
 			const APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState);
-			if (!PdPlayerState
-				|| PlayerState == ExcludedPlayerState
+			if (!PdPlayerState || PlayerState == ExcludedPlayerState
 				|| PdPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex() != WinnerTeamColorIndex)
 			{
 				continue;

@@ -30,11 +30,8 @@ bool FWeaponPresentationLoader::IsLoaded(const UItemDefinition* ItemDefinition, 
 
 	const FWeaponDefinitionData& WeaponData = ItemDefinition->WeaponData;
 	return (WeaponData.Equip.ActorClass.IsNull() || WeaponData.Equip.ActorClass.IsValid())
-		&& (!bRequiresEquipMontage
-			|| WeaponData.Equip.EquipMontage.IsNull()
-			|| WeaponData.Equip.EquipMontage.IsValid())
-		&& (WeaponData.Equip.UnequipMontage.IsNull()
-			|| WeaponData.Equip.UnequipMontage.IsValid())
+		&& (!bRequiresEquipMontage || WeaponData.Equip.EquipMontage.IsNull() || WeaponData.Equip.EquipMontage.IsValid())
+		&& (WeaponData.Equip.UnequipMontage.IsNull() || WeaponData.Equip.UnequipMontage.IsValid())
 		&& (WeaponData.Equip.AnimLayer.IsNull() || WeaponData.Equip.AnimLayer.IsValid())
 		&& (WeaponData.Attack.AttackMontage.IsNull() || WeaponData.Attack.AttackMontage.IsValid())
 		&& (WeaponData.HitReact.HitReactMontage.IsNull() || WeaponData.HitReact.HitReactMontage.IsValid())
@@ -42,11 +39,8 @@ bool FWeaponPresentationLoader::IsLoaded(const UItemDefinition* ItemDefinition, 
 		&& (WeaponData.Gun.ImpactDecalMaterial.IsNull() || WeaponData.Gun.ImpactDecalMaterial.IsValid());
 }
 
-bool FWeaponPresentationLoader::Request(
-	UObject& Owner,
-	const UItemDefinition* ItemDefinition,
-	const bool bRequiresEquipMontage,
-	FSimpleDelegate OnLoaded)
+bool FWeaponPresentationLoader::Request(UObject& Owner, const UItemDefinition* ItemDefinition,
+	const bool bRequiresEquipMontage, FSimpleDelegate OnLoaded)
 {
 	if (!IsValid(ItemDefinition))
 	{
@@ -107,8 +101,7 @@ bool FWeaponPresentationLoader::Request(
 		return false;
 	}
 
-	TSharedPtr<FContentLease> LoadLease = ContentSubsystem->AcquireContent(
-		GetPresentationAssetPaths(*ItemDefinition),
+	TSharedPtr<FContentLease> LoadLease = ContentSubsystem->AcquireContent(GetPresentationAssetPaths(*ItemDefinition),
 		FSimpleDelegate::CreateWeakLambda(&Owner, [this, ItemDefinitionId, bRequiresEquipMontage]()
 		{
 			HandleLoaded(ItemDefinitionId, bRequiresEquipMontage);

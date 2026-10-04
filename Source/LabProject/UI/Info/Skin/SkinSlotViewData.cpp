@@ -4,9 +4,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinSlotViewData)
 
-void USkinSlotViewData::Initialize(
-	const int32 InSlotIndex,
-	const USkinDefinition* InSkinDefinition,
+void USkinSlotViewData::Initialize(const int32 InSlotIndex, const USkinDefinition* InSkinDefinition,
 	const bool bInAssigned)
 {
 	SlotIndex = InSlotIndex;

@@ -21,9 +21,7 @@ void UPaintCanvasDisplay::SetSpeechBubbleComponent(UPrimitiveComponent* InSpeech
     SpeechBubbleComponent = InSpeechBubbleComponent;
 }
 
-bool UPaintCanvasDisplay::ShowSpeechBubble(
-    UTextureRenderTarget2D* RenderTarget,
-    const int32 MaterialIndex,
+bool UPaintCanvasDisplay::ShowSpeechBubble(UTextureRenderTarget2D* RenderTarget, const int32 MaterialIndex,
     const FName TextureParameterName)
 {
     if (!RenderTarget)
@@ -33,9 +31,7 @@ bool UPaintCanvasDisplay::ShowSpeechBubble(
 
     if (!IsValid(SpeechBubbleComponent))
     {
-        UE_LOG(
-            LogPaintCanvasPresentation,
-            Warning,
+        UE_LOG(LogPaintCanvasPresentation, Warning,
             TEXT("Failed to show paint speech bubble. Speech bubble component is not valid."));
         return false;
     }
@@ -43,9 +39,7 @@ bool UPaintCanvasDisplay::ShowSpeechBubble(
     UMaterialInterface* ExistingMaterial = SpeechBubbleComponent->GetMaterial(MaterialIndex);
     if (!ExistingMaterial)
     {
-        UE_LOG(
-            LogPaintCanvasPresentation,
-            Warning,
+        UE_LOG(LogPaintCanvasPresentation, Warning,
             TEXT("Failed to show paint speech bubble. %s has no material at index %d."),
             *SpeechBubbleComponent->GetName(),
             MaterialIndex);
@@ -87,12 +81,8 @@ void UPaintCanvasDisplay::HideSpeechBubble()
     ActiveSpeechBubbleRenderTarget = nullptr;
 }
 
-bool UPaintCanvasDisplay::ApplyFaceDecal(
-    UTextureRenderTarget2D* PaintSnapshot,
-    UMaterialInterface* FaceDecalMaterial,
-    FName AttachSocketName,
-    const FTransform& FaceDecalTransformOffset,
-    FVector FaceDecalSize,
+bool UPaintCanvasDisplay::ApplyFaceDecal(UTextureRenderTarget2D* PaintSnapshot, UMaterialInterface* FaceDecalMaterial,
+    FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize,
     FName TextureParameterName)
 {
     APdPlayer* Player = PlayerOwner.Get();
@@ -102,8 +92,7 @@ bool UPaintCanvasDisplay::ApplyFaceDecal(
         return false;
     }
 
-    if (!AttachSocketName.IsNone()
-        && !CharacterMesh->DoesSocketExist(AttachSocketName)
+    if (!AttachSocketName.IsNone() && !CharacterMesh->DoesSocketExist(AttachSocketName)
         && CharacterMesh->GetBoneIndex(AttachSocketName) == INDEX_NONE)
     {
         AttachSocketName = NAME_None;
@@ -128,8 +117,7 @@ bool UPaintCanvasDisplay::ApplyFaceDecal(
     FaceDecalSize.Z = FMath::Max(FaceDecalSize.Z, 1.0);
 
     const bool bHasAttachSocket = !AttachSocketName.IsNone();
-    const FTransform FaceDecalBaseTransform(
-        Player->GetActorRotation(),
+    const FTransform FaceDecalBaseTransform(Player->GetActorRotation(),
         bHasAttachSocket ? CharacterMesh->GetSocketLocation(AttachSocketName) : Player->GetActorLocation(),
         FVector::OneVector);
 
@@ -137,15 +125,9 @@ bool UPaintCanvasDisplay::ApplyFaceDecal(
     FaceDecalWorldTransform.NormalizeRotation();
     FaceDecalWorldTransform.AddToTranslation(FaceDecalWorldTransform.GetUnitAxis(EAxis::X) * (FaceDecalSize.X * 0.5));
 
-    ActiveFaceDecalComponent = UGameplayStatics::SpawnDecalAttached(
-        ActiveFaceDecalMaterial.Get(),
-        FaceDecalSize,
-        CharacterMesh,
-        AttachSocketName,
-        FaceDecalWorldTransform.GetLocation(),
-        FaceDecalWorldTransform.GetRotation().Rotator(),
-        EAttachLocation::KeepWorldPosition,
-        0.0f);
+    ActiveFaceDecalComponent = UGameplayStatics::SpawnDecalAttached(ActiveFaceDecalMaterial.Get(), FaceDecalSize,
+        CharacterMesh, AttachSocketName, FaceDecalWorldTransform.GetLocation(),
+        FaceDecalWorldTransform.GetRotation().Rotator(), EAttachLocation::KeepWorldPosition, 0.0f);
 
     if (!IsValid(ActiveFaceDecalComponent))
     {

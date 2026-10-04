@@ -23,15 +23,11 @@ const FGameplayTagContainer* UEquipAbility::GetCooldownTags() const
 	return &EquipCooldownTags;
 }
 
-void UEquipAbility::ApplyCooldown(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
+void UEquipAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	TSoftObjectPtr<UCharacterActionDefinition> ActionDefinition(
-		UCharacterActionDefinition::GetDefaultDefinitionPath());
-	const UCharacterActionDefinition* LoadedDefinition =
-		ActionDefinition.LoadSynchronous();
+	TSoftObjectPtr<UCharacterActionDefinition> ActionDefinition(UCharacterActionDefinition::GetDefaultDefinitionPath());
+	const UCharacterActionDefinition* LoadedDefinition = ActionDefinition.LoadSynchronous();
 	const float CooldownDuration = LoadedDefinition
 		? static_cast<float>(FMath::Max(
 			LoadedDefinition->GetCooldownDuration(
@@ -41,12 +37,7 @@ void UEquipAbility::ApplyCooldown(
 
 	FGameplayTagContainer CooldownTags;
 	CooldownTags.AddTag(LabGameplayTags::Cooldown_EquipWeapon);
-	ApplySharedCooldownEffect(
-		Handle,
-		ActorInfo,
-		ActivationInfo,
-		CooldownDuration,
-		CooldownTags);
+	ApplySharedCooldownEffect(Handle, ActorInfo, ActivationInfo, CooldownDuration, CooldownTags);
 }
 
 // State helpers
@@ -86,8 +77,8 @@ void UEquipAbility::ResolveEquipTransition()
 		}
 		else
 		{
-			// CommitAbility can fail while the shared equipment cooldown is active.
-			// Never let the cancellation fallback bypass that cooldown.
+			// 공유 장비 쿨다운 중에는 CommitAbility가 실패할 수 있다.
+			// 취소 처리 경로가 그 쿨다운을 건너뛰게 두지 않는다.
 			EquipmentComponent->ClearRequestedWeaponInstance();
 		}
 	}

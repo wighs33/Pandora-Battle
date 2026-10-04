@@ -34,8 +34,7 @@ void ApplyToButton(UWidget* Widget)
 				return {};
 			}
 
-			const UGameSettingDefinition* Settings =
-				UGameSettingsSubsystem::ResolveLoadedGameSettingDefinition(Source);
+			const UGameSettingDefinition* Settings = UGameSettingsSubsystem::ResolveLoadedGameSettingDefinition(Source);
 			if (!Settings || !Settings->bUseCustomMouseCursor || Settings->MouseCursorTexture.IsNull())
 			{
 				return {};
@@ -62,8 +61,7 @@ void ApplyToButton(UWidget* Widget)
 				BottomRight = CursorPosition + Radius;
 			}
 			const float Gap = 12.0f * FMath::Max(FSlateApplication::Get().GetApplicationScale(), 1.0f);
-			return FSlateRect(TopLeft.X - Gap, TopLeft.Y - Gap,
-				BottomRight.X + Gap, BottomRight.Y + Gap);
+			return FSlateRect(TopLeft.X - Gap, TopLeft.Y - Gap, BottomRight.X + Gap, BottomRight.Y + Gap);
 		}));
 }
 }

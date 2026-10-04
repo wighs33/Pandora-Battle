@@ -28,16 +28,13 @@ float ResolveGroundEffectZOffset(const FAuraSkillConfig& AuraConfig)
 			: 3.0f;
 	}
 
-	FVector ResolveCharacterStandingFloorLocation(
-		ACharacterBase* Character,
-		const FAuraSkillConfig& AuraConfig)
+	FVector ResolveCharacterStandingFloorLocation(ACharacterBase* Character, const FAuraSkillConfig& AuraConfig)
 	{
 		const FVector BaseLocation = Character ? Character->GetActorLocation() : FVector::ZeroVector;
 		FVector GroundLocation = BaseLocation;
 		bool bResolvedMovementFloor = false;
 
-		const UCharacterMovementComponent* MovementComponent =
-			Character ? Character->GetCharacterMovement() : nullptr;
+		const UCharacterMovementComponent* MovementComponent = Character ? Character->GetCharacterMovement() : nullptr;
 		if (MovementComponent && MovementComponent->CurrentFloor.IsWalkableFloor())
 		{
 			const FVector FloorImpactPoint = MovementComponent->CurrentFloor.HitResult.ImpactPoint;
@@ -48,8 +45,8 @@ float ResolveGroundEffectZOffset(const FAuraSkillConfig& AuraConfig)
 			}
 		}
 
-		// A floor result can be temporarily unavailable immediately after spawn or while changing movement modes.
-		// Falling back to the capsule bottom keeps the placement trace-free and close to the character's feet.
+		// 바닥 결과는 스폰 직후나 이동 모드를 바꾸는 동안 잠시 없을 수 있다.
+		// 그때는 캡슐 아래쪽을 써서 trace 없이 캐릭터 발 가까이에 둔다.
 		if (!bResolvedMovementFloor)
 		{
 			if (const UCapsuleComponent* CapsuleComponent = Character ? Character->GetCapsuleComponent() : nullptr)
@@ -144,12 +141,8 @@ void USkillAuraAction::StartAuraEffectAreaSpawning(const USkillDefinition* Skill
 	}
 
 	const float Interval = static_cast<float>(FMath::Max(AuraConfig->EffectAreaSpawnInterval, 0.1));
-	World->GetTimerManager().SetTimer(
-		AuraEffectAreaSpawnTimerHandle,
-		this,
-		&ThisClass::HandleRepeatedAuraEffectAreaSpawn,
-		Interval,
-		true);
+	World->GetTimerManager().SetTimer(AuraEffectAreaSpawnTimerHandle, this,
+		&ThisClass::HandleRepeatedAuraEffectAreaSpawn, Interval, true);
 }
 
 void USkillAuraAction::StopAuraEffectAreaSpawning()
@@ -207,12 +200,8 @@ void USkillAuraAction::SpawnAuraEffectArea(const USkillDefinition* SkillDataAsse
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	const FTransform SpawnTransform = ResolveAuraEffectAreaSpawnTransform(Character, *AuraConfig);
-	ASkillEffectArea* SpawnedArea = World->SpawnActorDeferred<ASkillEffectArea>(
-		AuraConfig->EffectAreaClass,
-		SpawnTransform,
-		SpawnParams.Owner,
-		SpawnParams.Instigator,
-		SpawnParams.SpawnCollisionHandlingOverride);
+	ASkillEffectArea* SpawnedArea = World->SpawnActorDeferred<ASkillEffectArea>(AuraConfig->EffectAreaClass,
+		SpawnTransform, SpawnParams.Owner, SpawnParams.Instigator, SpawnParams.SpawnCollisionHandlingOverride);
 	if (SpawnedArea)
 	{
 		SpawnedArea->SetReplicates(true);
@@ -220,8 +209,7 @@ void USkillAuraAction::SpawnAuraEffectArea(const USkillDefinition* SkillDataAsse
 		SpawnedArea->SetSourceActor(Character);
 		SpawnedArea->SetIgnoreSourceActor(AuraConfig->bEffectAreaIgnoreSourceActor);
 		SpawnedArea->SetAffectEnemiesOnly(AuraConfig->bEffectAreaAffectEnemiesOnly);
-		SpawnedArea->SetSourcePandoraLoadoutDirection(
-			GetAbility()->GetPandoraSkillSource()->GetLoadoutDirection());
+		SpawnedArea->SetSourcePandoraLoadoutDirection(GetAbility()->GetPandoraSkillSource()->GetLoadoutDirection());
 
 		if (AuraConfig->EffectAreaLifeSpan > 0.0)
 		{
@@ -265,12 +253,8 @@ void USkillAuraAction::StartHealFieldTeamHealing(const USkillDefinition* SkillDa
 	const FGameplayTag HealMagnitudeTag = Healing.TeamHealEffect.MagnitudeDataTag;
 	const double HealMagnitude = Healing.TeamHealEffect.Magnitude;
 	const float Interval = static_cast<float>(FMath::Max(ConfiguredInterval, 0.05));
-	World->GetTimerManager().SetTimer(
-		HealFieldTeamHealTimerHandle,
-		this,
-		&ThisClass::HandleHealFieldTeamHealTick,
-		Interval,
-		true);
+	World->GetTimerManager().SetTimer(HealFieldTeamHealTimerHandle, this, &ThisClass::HandleHealFieldTeamHealTick,
+		Interval, true);
 }
 
 void USkillAuraAction::StopHealFieldTeamHealing()
@@ -313,13 +297,8 @@ void USkillAuraAction::ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataA
 	const FCollisionShape SphereShape = FCollisionShape::MakeSphere(ActiveHealFieldRadius);
 
 	TArray<FOverlapResult> OverlapResults;
-	World->OverlapMultiByObjectType(
-		OverlapResults,
-		ActiveHealFieldOrigin,
-		FQuat::Identity,
-		ObjectQueryParams,
-		SphereShape,
-		QueryParams);
+	World->OverlapMultiByObjectType(OverlapResults, ActiveHealFieldOrigin, FQuat::Identity, ObjectQueryParams,
+		SphereShape, QueryParams);
 
 	int32 AppliedCount = 0;
 	TSet<ACharacterBase*> CurrentTargets;
@@ -337,8 +316,7 @@ void USkillAuraAction::ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataA
 	}
 
 	const bool bHealSelf = Healing.bHealSelf;
-	if (bHealSelf
-		&& ShouldHealInteractionTarget(SourceCharacter, SourceCharacter, SkillDataAsset)
+	if (bHealSelf && ShouldHealInteractionTarget(SourceCharacter, SourceCharacter, SkillDataAsset)
 		&& IsCharacterInsideActiveHealField(SourceCharacter))
 	{
 		CurrentTargets.Add(SourceCharacter);
@@ -453,10 +431,7 @@ bool USkillAuraAction::IsCharacterInsideActiveHealField(const ACharacterBase* Ch
 	FVector ClosestPoint = FVector::ZeroVector;
 	if (const UCapsuleComponent* CapsuleComponent = Character->GetCapsuleComponent();
 		CapsuleComponent
-		&& CapsuleComponent->GetSquaredDistanceToCollision(
-			ActiveHealFieldOrigin,
-			SquaredDistance,
-			ClosestPoint))
+			&& CapsuleComponent->GetSquaredDistanceToCollision(ActiveHealFieldOrigin, SquaredDistance, ClosestPoint))
 	{
 		return SquaredDistance <= FMath::Square(ActiveHealFieldRadius);
 	}
@@ -465,10 +440,8 @@ bool USkillAuraAction::IsCharacterInsideActiveHealField(const ACharacterBase* Ch
 		<= FMath::Square(ActiveHealFieldRadius);
 }
 
-bool USkillAuraAction::ShouldHealInteractionTarget(
-	const ACharacterBase* SourceCharacter,
-	const ACharacterBase* TargetCharacter,
-	const USkillDefinition* SkillDataAsset) const
+bool USkillAuraAction::ShouldHealInteractionTarget(const ACharacterBase* SourceCharacter,
+	const ACharacterBase* TargetCharacter, const USkillDefinition* SkillDataAsset) const
 {
 	const FAuraSkillConfig* AuraConfig = &Settings;
 	if (!AuraConfig || !SourceCharacter || !TargetCharacter)
@@ -488,14 +461,11 @@ bool USkillAuraAction::ShouldHealInteractionTarget(
 
 	const int32 SourceFactionId = SourceCharacter->GetFactionId();
 	const int32 TargetFactionId = TargetCharacter->GetFactionId();
-	return SourceFactionId != 0
-		&& SourceFactionId == TargetFactionId;
+	return SourceFactionId != 0 && SourceFactionId == TargetFactionId;
 }
 
-FActiveGameplayEffectHandle USkillAuraAction::ApplyTeamHealEffectToTarget(
-	ACharacterBase* SourceCharacter,
-	ACharacterBase* TargetCharacter,
-	const USkillDefinition* SkillDataAsset) const
+FActiveGameplayEffectHandle USkillAuraAction::ApplyTeamHealEffectToTarget(ACharacterBase* SourceCharacter,
+	ACharacterBase* TargetCharacter, const USkillDefinition* SkillDataAsset) const
 {
 	const FAuraSkillConfig* AuraConfig = &Settings;
 	if (!AuraConfig || !SourceCharacter || !TargetCharacter)
@@ -523,10 +493,8 @@ FActiveGameplayEffectHandle USkillAuraAction::ApplyTeamHealEffectToTarget(
 	EffectContext.AddInstigator(Cast<APawn>(SourceCharacter), SourceCharacter);
 	EffectContext.AddSourceObject(SkillDataAsset);
 
-	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(
-		HealEffectClass,
-		FMath::Max(static_cast<float>(GetAbility()->GetAbilityLevel()), 1.0f),
-		EffectContext);
+	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(HealEffectClass,
+		FMath::Max(static_cast<float>(GetAbility()->GetAbilityLevel()), 1.0f), EffectContext);
 	if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
 	{
 		return FActiveGameplayEffectHandle();
@@ -534,9 +502,7 @@ FActiveGameplayEffectHandle USkillAuraAction::ApplyTeamHealEffectToTarget(
 
 	if (HealMagnitudeTag.IsValid())
 	{
-		SpecHandle.Data->SetSetByCallerMagnitude(
-			HealMagnitudeTag,
-			static_cast<float>(FMath::Max(HealMagnitude, 0.0)));
+		SpecHandle.Data->SetSetByCallerMagnitude(HealMagnitudeTag, static_cast<float>(FMath::Max(HealMagnitude, 0.0)));
 	}
 
 	const FActiveGameplayEffectHandle AppliedHandle = SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
@@ -545,8 +511,7 @@ FActiveGameplayEffectHandle USkillAuraAction::ApplyTeamHealEffectToTarget(
 	return AppliedHandle;
 }
 
-void USkillAuraAction::RemoveInteractionHealEffectFromTarget(
-	ACharacterBase* TargetCharacter,
+void USkillAuraAction::RemoveInteractionHealEffectFromTarget(ACharacterBase* TargetCharacter,
 	const FActiveGameplayEffectHandle ActiveHandle) const
 {
 	if (!TargetCharacter || !ActiveHandle.IsValid())

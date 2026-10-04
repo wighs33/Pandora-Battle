@@ -43,11 +43,8 @@ void AOutOfBoundsVolume::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void AOutOfBoundsVolume::HandleBoundaryEndOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex)
+void AOutOfBoundsVolume::HandleBoundaryEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
 	if (!HasAuthority() || ShouldIgnoreEndOverlap(OtherActor))
 	{
@@ -110,9 +107,7 @@ bool AOutOfBoundsVolume::ShouldIgnoreEndOverlap(const AActor* OtherActor) const
 		return true;
 	}
 
-	return !IsValid(OtherActor)
-		|| OtherActor->IsActorBeingDestroyed()
-		|| !OtherActor->HasActorBegunPlay();
+	return !IsValid(OtherActor) || OtherActor->IsActorBeingDestroyed() || !OtherActor->HasActorBegunPlay();
 }
 
 void AOutOfBoundsVolume::ConfigureBoundaryCollision() const

@@ -39,8 +39,7 @@ namespace
 	class FWidgetRuntimeSoftPathCollector
 	{
 	public:
-		explicit FWidgetRuntimeSoftPathCollector(TSet<FSoftObjectPath>& InPaths)
-			: Paths(InPaths)
+		explicit FWidgetRuntimeSoftPathCollector(TSet<FSoftObjectPath>& InPaths) : Paths(InPaths)
 		{
 		}
 
@@ -78,20 +77,15 @@ namespace
 				const void* PropertyValue = It.Value();
 				FSoftObjectPath FoundPath;
 
-				if (const FSoftClassProperty* SoftClassProperty =
-					CastField<FSoftClassProperty>(Property))
+				if (const FSoftClassProperty* SoftClassProperty = CastField<FSoftClassProperty>(Property))
 				{
-					FoundPath =
-						SoftClassProperty->GetPropertyValue(PropertyValue).ToSoftObjectPath();
+					FoundPath = SoftClassProperty->GetPropertyValue(PropertyValue).ToSoftObjectPath();
 				}
-				else if (const FSoftObjectProperty* SoftObjectProperty =
-					CastField<FSoftObjectProperty>(Property))
+				else if (const FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property))
 				{
-					FoundPath =
-						SoftObjectProperty->GetPropertyValue(PropertyValue).ToSoftObjectPath();
+					FoundPath = SoftObjectProperty->GetPropertyValue(PropertyValue).ToSoftObjectPath();
 				}
-				else if (const FStructProperty* StructProperty =
-					CastField<FStructProperty>(Property))
+				else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 				{
 					if (StructProperty->Struct == TBaseStructure<FSoftObjectPath>::Get()
 						|| StructProperty->Struct == TBaseStructure<FSoftClassPath>::Get())
@@ -121,14 +115,12 @@ namespace
 
 	const UWidgetClassDefinition* ResolveWidgetDefinitionFromLocalPlayer(const ULocalPlayer* LocalPlayer)
 	{
-		const UUiSubsystem* UiSubsystem =
-			LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
+		const UUiSubsystem* UiSubsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 		return UiSubsystem ? UiSubsystem->GetWidgetClassDefinition() : nullptr;
 	}
 }
 
-void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
-	const EUiContentGroup Group,
+void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(const EUiContentGroup Group,
 	TArray<FSoftObjectPath>& OutAssetPaths) const
 {
 	TSet<FSoftObjectPath> UniquePaths;
@@ -241,8 +233,7 @@ const UWidgetClassDefinition* UWidgetClassDefinition::ResolveWidgetClassDefiniti
 				continue;
 			}
 
-			if (const UWidgetClassDefinition* WidgetDefinition =
-				ResolveWidgetDefinitionFromLocalPlayer(LocalPlayer))
+			if (const UWidgetClassDefinition* WidgetDefinition = ResolveWidgetDefinitionFromLocalPlayer(LocalPlayer))
 			{
 				return WidgetDefinition;
 			}

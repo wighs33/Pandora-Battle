@@ -44,9 +44,7 @@ void UEquipSlotWidget::BroadcastClickedEquipSlot(UEquipSlotWidget* ItemSlot)
 	OnClicked_EquipSlot.Broadcast(ItemSlot ? ItemSlot : this);
 }
 
-void UEquipSlotWidget::SetPandoraWeaponRequirementIcon(
-	UTexture2D* InIconTexture,
-	const float InOpacity)
+void UEquipSlotWidget::SetPandoraWeaponRequirementIcon(UTexture2D* InIconTexture, const float InOpacity)
 {
 	PandoraWeaponRequirementIconTexture = InIconTexture;
 	PandoraWeaponRequirementIconOpacity = FMath::Clamp(InOpacity, 0.0f, 1.0f);
@@ -192,8 +190,7 @@ bool UEquipSlotWidget::IsCurrentItemConsumable() const
 {
 	const UItemDefinition* ItemDefinition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr;
 	const FGameplayTag ConsumableTypeTag = UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
-	return ItemDefinition
-		&& ItemDefinition->IsConsumableDefinition(ConsumableTypeTag);
+	return ItemDefinition && ItemDefinition->IsConsumableDefinition(ConsumableTypeTag);
 }
 
 UTexture2D* UEquipSlotWidget::GetCurrentIconTexture(const bool bForHover) const

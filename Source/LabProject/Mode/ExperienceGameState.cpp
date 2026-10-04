@@ -46,9 +46,7 @@ void AExperienceGameState::OnRep_MatchRuleDefinition()
 	MatchTimerChanged.Broadcast();
 }
 
-void AExperienceGameState::SetMatchTimerState(
-	const EMatchTimerPhase InPhase,
-	const float InEndServerTimeSeconds)
+void AExperienceGameState::SetMatchTimerState(const EMatchTimerPhase InPhase, const float InEndServerTimeSeconds)
 {
 	FReplicatedMatchTimerState NewState;
 	NewState.Phase = InPhase;
@@ -75,15 +73,12 @@ bool AExperienceGameState::TryGetMatchTimerRemainingSeconds(float& OutRemainingS
 		return true;
 	}
 
-	if (MatchTimerState.Phase != EMatchTimerPhase::Running
-		|| MatchTimerState.EndServerTimeSeconds <= 0.0f)
+	if (MatchTimerState.Phase != EMatchTimerPhase::Running || MatchTimerState.EndServerTimeSeconds <= 0.0f)
 	{
 		return false;
 	}
 
-	OutRemainingSeconds = FMath::Max(
-		MatchTimerState.EndServerTimeSeconds - GetServerWorldTimeSeconds(),
-		0.0f);
+	OutRemainingSeconds = FMath::Max(MatchTimerState.EndServerTimeSeconds - GetServerWorldTimeSeconds(), 0.0f);
 	return true;
 }
 
@@ -92,11 +87,8 @@ void AExperienceGameState::OnRep_MatchTimerState()
 	MatchTimerChanged.Broadcast();
 }
 
-void AExperienceGameState::Multicast_ShowGameResult_Implementation(
-	const FText& WinnerTitle,
-	const int32 WinnerTeamColorIndex,
-	const FText& MaxKillerName,
-	const int32 MaxKillCount,
+void AExperienceGameState::Multicast_ShowGameResult_Implementation(const FText& WinnerTitle,
+	const int32 WinnerTeamColorIndex, const FText& MaxKillerName, const int32 MaxKillCount,
 	const TArray<FGameResultPlayerStat>& PlayerStats)
 {
 	UWorld* World = GetWorld();
@@ -110,8 +102,7 @@ void AExperienceGameState::Multicast_ShowGameResult_Implementation(
 	GameResultReceived.Broadcast(WinnerTitle, WinnerTeamColorIndex, MaxKillerName, MaxKillCount, PlayerStats);
 }
 
-void AExperienceGameState::SaveLocalMatchRecord(
-	APlayerController* LocalPlayerController,
+void AExperienceGameState::SaveLocalMatchRecord(APlayerController* LocalPlayerController,
 	const TArray<FGameResultPlayerStat>& PlayerStats) const
 {
 	if (!LocalPlayerController || !LocalPlayerController->IsLocalController())

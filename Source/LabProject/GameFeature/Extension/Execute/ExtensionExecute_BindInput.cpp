@@ -50,8 +50,7 @@ void FExtensionExecute_BindInput::AddAdditionalAssetBundleData(FAssetBundleData&
 {
 	if (!InputDefinition.IsNull())
 	{
-		AssetBundleData.AddBundleAsset(
-			UGameFeaturesSubsystemSettings::LoadStateClient,
+		AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateClient,
 			InputDefinition.ToSoftObjectPath().GetAssetPath());
 	}
 }

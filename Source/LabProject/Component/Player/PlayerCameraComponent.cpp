@@ -19,9 +19,7 @@ UPlayerCameraComponent::UPlayerCameraComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UPlayerCameraComponent::InitializeCamera(
-	USpringArmComponent* InCameraBoom,
-	UCameraComponent* InFollowCamera,
+void UPlayerCameraComponent::InitializeCamera(USpringArmComponent* InCameraBoom, UCameraComponent* InFollowCamera,
 	const FPlayerCameraPresentationSettings& Settings)
 {
 	ResetOcclusionMaterialState();
@@ -32,8 +30,7 @@ void UPlayerCameraComponent::InitializeCamera(
 
 	if (PresentationSettings.OcclusionSurfaceObjectTypes.IsEmpty())
 	{
-		PresentationSettings.OcclusionSurfaceObjectTypes =
-		{
+		PresentationSettings.OcclusionSurfaceObjectTypes = {
 			ECC_WorldStatic,
 			ECC_WorldDynamic
 		};
@@ -66,9 +63,7 @@ void UPlayerCameraComponent::TickPresentation(const float DeltaSeconds)
 	UpdateOcclusionMaterialState();
 }
 
-void UPlayerCameraComponent::SetWeaponAimActive(
-	const bool bEnabled,
-	const FWeaponAimCameraSettings& Settings)
+void UPlayerCameraComponent::SetWeaponAimActive(const bool bEnabled, const FWeaponAimCameraSettings& Settings)
 {
 	if (bEnabled)
 	{
@@ -78,8 +73,7 @@ void UPlayerCameraComponent::SetWeaponAimActive(
 	bWeaponAimCameraActive = bEnabled;
 }
 
-void UPlayerCameraComponent::SetAbilityCameraOverrideActive(
-	const bool bEnabled,
+void UPlayerCameraComponent::SetAbilityCameraOverrideActive(const bool bEnabled,
 	const FWeaponAimCameraSettings& Settings)
 {
 	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
@@ -100,10 +94,8 @@ void UPlayerCameraComponent::SetAbilityCameraOverrideActive(
 	bAbilityCameraOverrideActive = bEnabled;
 }
 
-void UPlayerCameraComponent::SetAbilityCameraOverrideActiveForDuration(
-	const bool bEnabled,
-	const FWeaponAimCameraSettings& Settings,
-	const float Duration)
+void UPlayerCameraComponent::SetAbilityCameraOverrideActiveForDuration(const bool bEnabled,
+	const FWeaponAimCameraSettings& Settings, const float Duration)
 {
 	SetAbilityCameraOverrideActive(bEnabled, Settings);
 
@@ -116,12 +108,8 @@ void UPlayerCameraComponent::SetAbilityCameraOverrideActiveForDuration(
 	World->GetTimerManager().ClearTimer(AbilityCameraOverrideTimerHandle);
 	if (bAbilityCameraOverrideActive && Duration > 0.0f)
 	{
-		World->GetTimerManager().SetTimer(
-			AbilityCameraOverrideTimerHandle,
-			this,
-			&ThisClass::ClearAbilityCameraOverride,
-			Duration,
-			false);
+		World->GetTimerManager().SetTimer(AbilityCameraOverrideTimerHandle, this,
+			&ThisClass::ClearAbilityCameraOverride, Duration, false);
 	}
 }
 
@@ -155,8 +143,7 @@ bool UPlayerCameraComponent::GetAimViewPoint(FVector& OutLocation, FVector& OutD
 	return !OutDirection.IsNearlyZero();
 }
 
-FWeaponAimCameraSettings UPlayerCameraComponent::SanitizeAimCameraSettings(
-	FWeaponAimCameraSettings Settings)
+FWeaponAimCameraSettings UPlayerCameraComponent::SanitizeAimCameraSettings(FWeaponAimCameraSettings Settings)
 {
 	Settings.TargetFOV = FMath::Clamp(Settings.TargetFOV, 5.0f, 170.0f);
 	Settings.TargetBoomSocketOffset = Settings.TargetBoomSocketOffset.ContainsNaN()
@@ -170,10 +157,8 @@ FWeaponAimCameraSettings UPlayerCameraComponent::SanitizeAimCameraSettings(
 	else
 	{
 		Settings.TargetCameraRotation.Normalize();
-		Settings.TargetCameraRotation.Pitch =
-			FMath::Clamp(Settings.TargetCameraRotation.Pitch, -89.0f, 89.0f);
-		Settings.TargetCameraRotation.Roll =
-			FMath::Clamp(Settings.TargetCameraRotation.Roll, -89.0f, 89.0f);
+		Settings.TargetCameraRotation.Pitch = FMath::Clamp(Settings.TargetCameraRotation.Pitch, -89.0f, 89.0f);
+		Settings.TargetCameraRotation.Roll = FMath::Clamp(Settings.TargetCameraRotation.Roll, -89.0f, 89.0f);
 	}
 
 	Settings.InterpSpeed = FMath::Clamp(Settings.InterpSpeed, 0.0f, 100.0f);
@@ -215,8 +200,7 @@ void UPlayerCameraComponent::UpdateAimCamera(const float DeltaSeconds)
 		DesiredCameraSettings = &ActiveWeaponAimCameraSettings;
 	}
 
-	const float TargetFOV =
-		DesiredCameraSettings ? DesiredCameraSettings->TargetFOV : DefaultCameraFOV;
+	const float TargetFOV = DesiredCameraSettings ? DesiredCameraSettings->TargetFOV : DefaultCameraFOV;
 	const FVector TargetSocketOffset = DesiredCameraSettings
 		? DesiredCameraSettings->TargetBoomSocketOffset
 		: DefaultCameraBoomSocketOffset;
@@ -239,11 +223,8 @@ void UPlayerCameraComponent::UpdateAimCamera(const float DeltaSeconds)
 		FMath::FInterpTo(FollowCamera->FieldOfView, TargetFOV, DeltaSeconds, CameraTransitionSpeed));
 	CameraBoom->SocketOffset =
 		FMath::VInterpTo(CameraBoom->SocketOffset, TargetSocketOffset, DeltaSeconds, CameraTransitionSpeed);
-	FollowCamera->SetRelativeRotation(FMath::RInterpTo(
-		FollowCamera->GetRelativeRotation(),
-		TargetCameraRotation,
-		DeltaSeconds,
-		CameraTransitionSpeed));
+	FollowCamera->SetRelativeRotation(FMath::RInterpTo(FollowCamera->GetRelativeRotation(), TargetCameraRotation,
+		DeltaSeconds, CameraTransitionSpeed));
 }
 
 void UPlayerCameraComponent::UpdateOcclusionMaterialState()
@@ -254,8 +235,7 @@ void UPlayerCameraComponent::UpdateOcclusionMaterialState()
 	}
 
 	const float DisableDistance = FMath::Max(0.0f, PresentationSettings.OcclusionDisableDistance);
-	const float ReenableDistance =
-		FMath::Max(DisableDistance, PresentationSettings.OcclusionReenableDistance);
+	const float ReenableDistance = FMath::Max(DisableDistance, PresentationSettings.OcclusionReenableDistance);
 
 	TSet<TWeakObjectPtr<UMeshComponent>> NearMeshComponents;
 	AppendOcclusionMeshComponents(DisableDistance, NearMeshComponents);
@@ -270,9 +250,8 @@ void UPlayerCameraComponent::UpdateOcclusionMaterialState()
 	for (const TWeakObjectPtr<UMeshComponent>& MeshComponentPtr : NearMeshComponents)
 	{
 		UMeshComponent* MeshComponent = MeshComponentPtr.Get();
-		if (MeshComponent
-			&& (OcclusionDisabledMeshComponents.Contains(MeshComponentPtr)
-				|| SetOcclusionEnabledForMesh(MeshComponent, false)))
+		if (MeshComponent && (OcclusionDisabledMeshComponents.Contains(MeshComponentPtr)
+			|| SetOcclusionEnabledForMesh(MeshComponent, false)))
 		{
 			NextDisabledMeshComponents.Add(MeshComponentPtr);
 		}
@@ -298,8 +277,7 @@ void UPlayerCameraComponent::UpdateOcclusionMaterialState()
 	OcclusionDisabledMeshComponents = MoveTemp(NextDisabledMeshComponents);
 }
 
-void UPlayerCameraComponent::AppendOcclusionMeshComponents(
-	const float ProbeRadius,
+void UPlayerCameraComponent::AppendOcclusionMeshComponents(const float ProbeRadius,
 	TSet<TWeakObjectPtr<UMeshComponent>>& OutMeshComponents) const
 {
 	const UWorld* World = GetWorld();
@@ -310,24 +288,19 @@ void UPlayerCameraComponent::AppendOcclusionMeshComponents(
 	}
 
 	FCollisionObjectQueryParams ObjectQueryParams;
-	for (const TEnumAsByte<ECollisionChannel> ObjectType :
-		PresentationSettings.OcclusionSurfaceObjectTypes)
+	for (const TEnumAsByte<ECollisionChannel> ObjectType : PresentationSettings.OcclusionSurfaceObjectTypes)
 	{
 		ObjectQueryParams.AddObjectTypesToQuery(ObjectType);
 	}
 
-	FCollisionQueryParams QueryParams(
-		SCENE_QUERY_STAT(PlayerCameraOcclusionSurfaceProximity),
-		false,
-		OwnerActor);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PlayerCameraOcclusionSurfaceProximity), false, OwnerActor);
 	QueryParams.AddIgnoredActor(OwnerActor);
 	QueryParams.bTraceComplex = true;
 
 	FVector CameraLocation = FollowCamera->GetComponentLocation();
 	if (const APawn* OwnerPawn = Cast<APawn>(OwnerActor))
 	{
-		if (const APlayerController* PlayerController =
-			Cast<APlayerController>(OwnerPawn->GetController()))
+		if (const APlayerController* PlayerController = Cast<APlayerController>(OwnerPawn->GetController()))
 		{
 			FRotator CameraRotation;
 			PlayerController->GetPlayerViewPoint(CameraLocation, CameraRotation);
@@ -335,13 +308,8 @@ void UPlayerCameraComponent::AppendOcclusionMeshComponents(
 	}
 
 	TArray<FOverlapResult> OverlapResults;
-	World->OverlapMultiByObjectType(
-		OverlapResults,
-		CameraLocation,
-		FQuat::Identity,
-		ObjectQueryParams,
-		FCollisionShape::MakeSphere(ProbeRadius),
-		QueryParams);
+	World->OverlapMultiByObjectType(OverlapResults, CameraLocation, FQuat::Identity, ObjectQueryParams,
+		FCollisionShape::MakeSphere(ProbeRadius), QueryParams);
 
 	for (const FOverlapResult& OverlapResult : OverlapResults)
 	{
@@ -368,9 +336,7 @@ void UPlayerCameraComponent::AppendOcclusionMeshComponents(
 	}
 }
 
-bool UPlayerCameraComponent::SetOcclusionEnabledForMesh(
-	UMeshComponent* MeshComponent,
-	const bool bEnabled)
+bool UPlayerCameraComponent::SetOcclusionEnabledForMesh(UMeshComponent* MeshComponent, const bool bEnabled)
 {
 	if (!MeshComponent || PresentationSettings.OcclusionEnabledParameterName.IsNone())
 	{
@@ -387,8 +353,7 @@ bool UPlayerCameraComponent::SetOcclusionEnabledForMesh(
 		const int32 MaterialCount = MeshComponent->GetNumMaterials();
 		NewDynamicMaterials.Reserve(MaterialCount);
 
-		const FMaterialParameterInfo ParameterInfo(
-			PresentationSettings.OcclusionEnabledParameterName);
+		const FMaterialParameterInfo ParameterInfo(PresentationSettings.OcclusionEnabledParameterName);
 		for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 		{
 			UMaterialInterface* Material = MeshComponent->GetMaterial(MaterialIndex);
@@ -410,8 +375,7 @@ bool UPlayerCameraComponent::SetOcclusionEnabledForMesh(
 			}
 		}
 
-		DynamicMaterials =
-			&OcclusionMaterialInstances.Add(MeshComponentKey, MoveTemp(NewDynamicMaterials));
+		DynamicMaterials = &OcclusionMaterialInstances.Add(MeshComponentKey, MoveTemp(NewDynamicMaterials));
 	}
 
 	bool bFoundOcclusionMaterial = false;
@@ -419,8 +383,7 @@ bool UPlayerCameraComponent::SetOcclusionEnabledForMesh(
 	{
 		if (UMaterialInstanceDynamic* DynamicMaterial = DynamicMaterialPtr.Get())
 		{
-			DynamicMaterial->SetScalarParameterValue(
-				PresentationSettings.OcclusionEnabledParameterName,
+			DynamicMaterial->SetScalarParameterValue(PresentationSettings.OcclusionEnabledParameterName,
 				bEnabled ? 1.0f : 0.0f);
 			bFoundOcclusionMaterial = true;
 		}
@@ -431,8 +394,7 @@ bool UPlayerCameraComponent::SetOcclusionEnabledForMesh(
 
 void UPlayerCameraComponent::ResetOcclusionMaterialState()
 {
-	for (const TWeakObjectPtr<UMeshComponent>& MeshComponentPtr :
-		OcclusionDisabledMeshComponents)
+	for (const TWeakObjectPtr<UMeshComponent>& MeshComponentPtr : OcclusionDisabledMeshComponents)
 	{
 		if (UMeshComponent* MeshComponent = MeshComponentPtr.Get())
 		{

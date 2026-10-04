@@ -25,9 +25,7 @@ void ASkillSummonActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillSummonActor, bReplicatedActivateAllWhenNameNone, Params);
 }
 
-void ASkillSummonActor::ActivateSummonNiagara(
-	const FName ComponentName,
-	const bool bResetSystem,
+void ASkillSummonActor::ActivateSummonNiagara(const FName ComponentName, const bool bResetSystem,
 	const bool bActivateAllWhenNameNone)
 {
 	ReplicatedSummonNiagaraComponentName = ComponentName;
@@ -44,9 +42,7 @@ void ASkillSummonActor::ActivateSummonNiagara(
 	ApplySummonNiagaraActiveState();
 }
 
-void ASkillSummonActor::DeactivateSummonNiagara(
-	const FName ComponentName,
-	const bool bActivateAllWhenNameNone)
+void ASkillSummonActor::DeactivateSummonNiagara(const FName ComponentName, const bool bActivateAllWhenNameNone)
 {
 	ReplicatedSummonNiagaraComponentName = ComponentName;
 	bReplicatedActivateAllWhenNameNone = bActivateAllWhenNameNone;
@@ -68,9 +64,7 @@ void ASkillSummonActor::OnRep_SummonNiagaraActive()
 void ASkillSummonActor::ApplySummonNiagaraActiveState()
 {
 	TArray<UNiagaraComponent*> NiagaraComponents;
-	FindSummonNiagaraComponents(
-		ReplicatedSummonNiagaraComponentName,
-		bReplicatedActivateAllWhenNameNone,
+	FindSummonNiagaraComponents(ReplicatedSummonNiagaraComponentName, bReplicatedActivateAllWhenNameNone,
 		NiagaraComponents);
 
 	for (UNiagaraComponent* NiagaraComponent : NiagaraComponents)
@@ -91,9 +85,7 @@ void ASkillSummonActor::ApplySummonNiagaraActiveState()
 	}
 }
 
-void ASkillSummonActor::FindSummonNiagaraComponents(
-	const FName ComponentName,
-	const bool bActivateAllWhenNameNone,
+void ASkillSummonActor::FindSummonNiagaraComponents(const FName ComponentName, const bool bActivateAllWhenNameNone,
 	TArray<UNiagaraComponent*>& OutComponents) const
 {
 	TArray<UNiagaraComponent*> NiagaraComponents;

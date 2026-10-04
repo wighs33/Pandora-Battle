@@ -78,9 +78,7 @@ void UPlayerMatchComponent::SetSelectedAchievementId(const FName InAchievementId
 int32 UPlayerMatchComponent::GetKillCount() const
 {
 	const APlayerState* OwnerPlayerState = GetPlayerState<APlayerState>();
-	return OwnerPlayerState
-		? FMath::Max(FMath::RoundToInt(OwnerPlayerState->GetScore()), 0)
-		: 0;
+	return OwnerPlayerState ? FMath::Max(FMath::RoundToInt(OwnerPlayerState->GetScore()), 0) : 0;
 }
 
 FText UPlayerMatchComponent::ResolveDisplayName(const APlayerState* PlayerState)

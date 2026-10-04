@@ -107,8 +107,7 @@ void USkillShieldAction::ApplyShieldFromMontageTrigger()
 	{
 		return;
 	}
-	const TSubclassOf<UGameplayEffect> ResolvedShieldGameplayEffectClass =
-		GetResolvedShieldGameplayEffectClass();
+	const TSubclassOf<UGameplayEffect> ResolvedShieldGameplayEffectClass = GetResolvedShieldGameplayEffectClass();
 	if (!ResolvedShieldGameplayEffectClass)
 	{
 		Finish(false);

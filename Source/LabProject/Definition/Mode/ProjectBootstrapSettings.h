@@ -45,12 +45,12 @@ private:
 			DisplayName = "Game Instance Bootstrap Definition"))
 	TSoftObjectPtr<UPdGameInstanceDefinition> BootstrapDefinition;
 
-	/** Exact primary assets that must be loaded before entering gameplay. */
+	/** 게임플레이에 들어가기 전에 반드시 읽어야 하는 정확한 주 애셋 목록. */
 	UPROPERTY(Config, EditAnywhere, Category = "Content|Game Entry",
 		meta = (TitleProperty = "PrimaryAssetName"))
 	TArray<FPrimaryAssetId> GameEntryRequiredPrimaryAssets;
 
-	/** Every registered asset of these primary asset types is loaded before gameplay. */
+	/** 이 주 애셋 유형으로 등록된 애셋은 게임플레이 전에 모두 읽는다. */
 	UPROPERTY(Config, EditAnywhere, Category = "Content|Game Entry")
 	TArray<FPrimaryAssetType> GameEntryRequiredPrimaryAssetTypes;
 
