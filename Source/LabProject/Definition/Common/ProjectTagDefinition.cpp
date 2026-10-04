@@ -24,8 +24,8 @@ namespace
 		UAssetManager* AssetManager = UAssetManager::GetIfInitialized();
 		if (!AssetManager)
 		{
-			// Very early editor/CDO code can run before AssetManager initialization.
-			// GetDefaultDefinition() provides native defaults until PrimaryAssets are available.
+			// 에디터·CDO 초기화 코드는 AssetManager보다 먼저 돌 수 있다.
+			// Primary Asset을 쓸 수 있을 때까지는 GetDefaultDefinition()이 코드 기본값을 준다.
 			return nullptr;
 		}
 
@@ -78,7 +78,7 @@ namespace
 			}
 			else if (DefinitionIds.Num() == 1)
 			{
-				// Supports safely renaming the sole config asset.
+				// 설정 애셋이 하나뿐이면 이름이 바뀌어도 그 애셋을 쓴다.
 				ResolvedDefinitionId = DefinitionIds[0];
 			}
 			else

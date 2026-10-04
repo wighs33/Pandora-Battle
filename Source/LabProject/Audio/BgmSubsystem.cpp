@@ -24,9 +24,7 @@ namespace
 		bool bPersistAcrossLevelTransition = true;
 	};
 
-	bool ResolveBgmSettings(
-		const UGameSettingDefinition* SettingDefinition,
-		const EBgmContext BgmContext,
+	bool ResolveBgmSettings(const UGameSettingDefinition* SettingDefinition, const EBgmContext BgmContext,
 		FResolvedBgmSettings& OutSettings)
 	{
 		if (!SettingDefinition)
@@ -98,8 +96,7 @@ void UBgmSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	if (!PostLoadMapWithWorldHandle.IsValid())
 	{
-		PostLoadMapWithWorldHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
-			this,
+		PostLoadMapWithWorldHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this,
 			&ThisClass::HandlePostLoadMapWithWorld);
 	}
 }
@@ -165,25 +162,18 @@ void UBgmSubsystem::PlayBgmForContext(const EBgmContext BgmContext, UWorld* Worl
 
 	const TWeakObjectPtr<UWorld> WeakWorld(World);
 	SettingsSubsystem->PreloadRuntimeContentAsync(
-		FSimpleDelegate::CreateWeakLambda(
-			this,
-			[this, LoadGeneration, BgmContext, WeakWorld]()
+		FSimpleDelegate::CreateWeakLambda(this, [this, LoadGeneration, BgmContext, WeakWorld]()
 			{
 				if (LoadGeneration != BgmLoadGeneration)
 				{
 					return;
 				}
 
-				BeginBgmSoundPreload(
-					LoadGeneration,
-					BgmContext,
-					WeakWorld);
+				BeginBgmSoundPreload(LoadGeneration, BgmContext, WeakWorld);
 			}));
 }
 
-void UBgmSubsystem::BeginBgmSoundPreload(
-	const uint64 LoadGeneration,
-	const EBgmContext BgmContext,
+void UBgmSubsystem::BeginBgmSoundPreload(const uint64 LoadGeneration, const EBgmContext BgmContext,
 	const TWeakObjectPtr<UWorld> World)
 {
 	if (LoadGeneration != BgmLoadGeneration)
@@ -220,9 +210,7 @@ void UBgmSubsystem::BeginBgmSoundPreload(
 	}
 
 	const FSoftObjectPath RequestedSoundPath = BgmSettings.Sound.ToSoftObjectPath();
-	if (IsValid(ActiveBgmAudioComponent)
-		&& ActiveBgmAudioComponent->IsPlaying()
-		&& ActiveBgmContext == BgmContext
+	if (IsValid(ActiveBgmAudioComponent) && ActiveBgmAudioComponent->IsPlaying() && ActiveBgmContext == BgmContext
 		&& ActiveBgmSoundPath == RequestedSoundPath)
 	{
 		const float BgmBaseVolume = FMath::Max(BgmSettings.Volume, 0.0f);
@@ -245,21 +233,14 @@ void UBgmSubsystem::BeginBgmSoundPreload(
 		return;
 	}
 
-	SoundLease = ContentSubsystem->AcquireContent(
-		{RequestedSoundPath},
-		FSimpleDelegate::CreateWeakLambda(
-			this,
-			[this, BgmContext, World]()
+	SoundLease = ContentSubsystem->AcquireContent({RequestedSoundPath},
+		FSimpleDelegate::CreateWeakLambda(this, [this, BgmContext, World]()
 			{
-				CompleteBgmSoundPreload(
-					BgmContext,
-					World);
+				CompleteBgmSoundPreload(BgmContext, World);
 			}));
 }
 
-void UBgmSubsystem::CompleteBgmSoundPreload(
-	const EBgmContext BgmContext,
-	const TWeakObjectPtr<UWorld> World)
+void UBgmSubsystem::CompleteBgmSoundPreload(const EBgmContext BgmContext, const TWeakObjectPtr<UWorld> World)
 {
 	// 새 오디오 컴포넌트가 사운드를 참조한 뒤에 로드를 놓도록 함수가 끝날 때 해제한다.
 	const TSharedPtr<FContentLease> CompletedLease = MoveTemp(SoundLease);
@@ -268,8 +249,7 @@ void UBgmSubsystem::CompleteBgmSoundPreload(
 	const UGameSettingDefinition* SettingDefinition =
 		UGameSettingsSubsystem::ResolveLoadedGameSettingDefinition(ResolvedWorld);
 	FResolvedBgmSettings BgmSettings;
-	if (!ResolvedWorld
-		|| !ResolveBgmSettings(SettingDefinition, BgmContext, BgmSettings))
+	if (!ResolvedWorld || !ResolveBgmSettings(SettingDefinition, BgmContext, BgmSettings))
 	{
 		return;
 	}
@@ -282,15 +262,8 @@ void UBgmSubsystem::CompleteBgmSoundPreload(
 
 	StopActiveBgmAudio();
 	const float BgmBaseVolume = FMath::Max(BgmSettings.Volume, 0.0f);
-	ActiveBgmAudioComponent = UGameplayStatics::SpawnSound2D(
-		ResolvedWorld,
-		LoadedBgm,
-		BgmBaseVolume,
-		BgmSettings.Pitch,
-		0.0f,
-		nullptr,
-		BgmSettings.bPersistAcrossLevelTransition,
-		true);
+	ActiveBgmAudioComponent = UGameplayStatics::SpawnSound2D(ResolvedWorld, LoadedBgm, BgmBaseVolume, BgmSettings.Pitch,
+		0.0f, nullptr, BgmSettings.bPersistAcrossLevelTransition, true);
 	if (IsValid(ActiveBgmAudioComponent))
 	{
 		ActiveBgmAudioComponent->OnAudioFinished.AddUniqueDynamic(this, &ThisClass::HandleBgmAudioFinished);
@@ -333,11 +306,8 @@ EBgmContext UBgmSubsystem::ResolveWorldBgmContext(UWorld* World) const
 		return EBgmContext::RoomList;
 	}
 
-	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
-		GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>();
-	const FName SelectedMapKey = LobbyRuntimeSubsystem
-		? LobbyRuntimeSubsystem->GetLobbySelectedMapKey()
-		: NAME_None;
+	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem = GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>();
+	const FName SelectedMapKey = LobbyRuntimeSubsystem ? LobbyRuntimeSubsystem->GetLobbySelectedMapKey() : NAME_None;
 	if (SelectedMapKey.ToString().Contains(TEXT("Training"), ESearchCase::IgnoreCase))
 	{
 		return EBgmContext::TrainingRoom;

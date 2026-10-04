@@ -15,8 +15,7 @@ namespace
 	}
 }
 
-int32 FDefaultProvisionModeCounts::GetCount(
-	const EDefaultProvisionMode Mode) const
+int32 FDefaultProvisionModeCounts::GetCount(const EDefaultProvisionMode Mode) const
 {
 	switch (Mode)
 	{
@@ -31,8 +30,7 @@ int32 FDefaultProvisionModeCounts::GetCount(
 	}
 }
 
-float FDefaultProvisionModeValues::GetValue(
-	const EDefaultProvisionMode Mode) const
+float FDefaultProvisionModeValues::GetValue(const EDefaultProvisionMode Mode) const
 {
 	switch (Mode)
 	{
@@ -47,8 +45,7 @@ float FDefaultProvisionModeValues::GetValue(
 	}
 }
 
-bool FDefaultProvisionModeFlags::IsEnabled(
-	const EDefaultProvisionMode Mode) const
+bool FDefaultProvisionModeFlags::IsEnabled(const EDefaultProvisionMode Mode) const
 {
 	switch (Mode)
 	{
@@ -63,17 +60,14 @@ bool FDefaultProvisionModeFlags::IsEnabled(
 	}
 }
 
-int32 FDefaultProvisionModeLevels::GetLevel(
-	const EDefaultProvisionMode Mode) const
+int32 FDefaultProvisionModeLevels::GetLevel(const EDefaultProvisionMode Mode) const
 {
 	switch (Mode)
 	{
 	case EDefaultProvisionMode::Lobby:
 		return FMath::Max(Lobby, static_cast<int32>(INDEX_NONE));
 	case EDefaultProvisionMode::TrainingRoom:
-		return FMath::Max(
-			TrainingRoom,
-			static_cast<int32>(INDEX_NONE));
+		return FMath::Max(TrainingRoom, static_cast<int32>(INDEX_NONE));
 	case EDefaultProvisionMode::Gameplay:
 		return FMath::Max(Gameplay, static_cast<int32>(INDEX_NONE));
 	default:
@@ -96,8 +90,7 @@ FPrimaryAssetId UDefaultProvisionDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UDefaultProvisionDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.DefaultProvision.ToSoftObjectPath();
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().DefaultProvision.ToSoftObjectPath();
 }
 
 const UDefaultProvisionDefinition* UDefaultProvisionDefinition::ResolveDefaultDefinition()
@@ -117,19 +110,15 @@ const UDefaultProvisionDefinition* UDefaultProvisionDefinition::ResolveDefaultDe
 	return Cast<UDefaultProvisionDefinition>(DefinitionPath.TryLoad());
 }
 
-bool UDefaultProvisionDefinition::HasPandoraGrants(
-	const EDefaultProvisionMode Mode) const
+bool UDefaultProvisionDefinition::HasPandoraGrants(const EDefaultProvisionMode Mode) const
 {
-	return PandoraGrants.ContainsByPredicate(
-		[Mode](const FDefaultProvisionPandoraGrant& PandoraGrant)
+	return PandoraGrants.ContainsByPredicate([Mode](const FDefaultProvisionPandoraGrant& PandoraGrant)
 		{
-			return PandoraGrant.PandoraDefinitionId.IsValid()
-				&& PandoraGrant.Levels.GetLevel(Mode) >= 0;
+			return PandoraGrant.PandoraDefinitionId.IsValid() && PandoraGrant.Levels.GetLevel(Mode) >= 0;
 		});
 }
 
-bool UDefaultProvisionDefinition::IsPandoraKeyGranted(
-	const FName PandoraKeyName,
+bool UDefaultProvisionDefinition::IsPandoraKeyGranted(const FName PandoraKeyName,
 	const EDefaultProvisionMode Mode) const
 {
 	if (PandoraKeyName.IsNone())
@@ -139,18 +128,14 @@ bool UDefaultProvisionDefinition::IsPandoraKeyGranted(
 
 	const FString NormalizedCandidate = NormalizePandoraKey(PandoraKeyName);
 	return PandoraGrants.ContainsByPredicate(
-		[Mode, &NormalizedCandidate](
-			const FDefaultProvisionPandoraGrant& PandoraGrant)
+		[Mode, &NormalizedCandidate](const FDefaultProvisionPandoraGrant& PandoraGrant)
 		{
-			if (!PandoraGrant.PandoraDefinitionId.IsValid()
-				|| PandoraGrant.Levels.GetLevel(Mode) < 0)
+			if (!PandoraGrant.PandoraDefinitionId.IsValid() || PandoraGrant.Levels.GetLevel(Mode) < 0)
 			{
 				return false;
 			}
 
-			return NormalizedCandidate.Equals(
-				NormalizePandoraKey(
-					PandoraGrant.PandoraDefinitionId.PrimaryAssetName),
+			return NormalizedCandidate.Equals(NormalizePandoraKey(PandoraGrant.PandoraDefinitionId.PrimaryAssetName),
 				ESearchCase::IgnoreCase);
 		});
 }

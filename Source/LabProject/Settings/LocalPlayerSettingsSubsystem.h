@@ -11,8 +11,7 @@ class UInputMappingContext;
 class UInputSettingsSaveGame;
 class UGameSettingDefinition;
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(
-	FOnCustomMouseCursorSettingsReady,
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCustomMouseCursorSettingsReady,
 	APlayerController* /*PlayerController*/,
 	const UGameSettingDefinition& /*SettingDefinition*/);
 
@@ -54,8 +53,7 @@ private:
 	float GetMouseSensitivityMultiplier() const;
 	void LoadInputSettings();
 	void ApplyMouseSensitivity(APlayerController* PlayerController) const;
-	bool ApplyLoadedConfiguredMouseCursor(
-		APlayerController* PlayerController,
+	bool ApplyLoadedConfiguredMouseCursor(APlayerController* PlayerController,
 		const UGameSettingDefinition* SettingDefinition);
 	void QueueRuntimeSettingsApplication(APlayerController* PlayerController);
 	void ReleaseRuntimeSettingsPreload();

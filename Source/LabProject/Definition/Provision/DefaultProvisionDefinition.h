@@ -13,7 +13,7 @@ enum class EDefaultProvisionMode : uint8
 	Gameplay
 };
 
-/** Per-mode quantities for one asset in the shared provision catalog. */
+/** 공용 지급 목록의 애셋 하나를 모드별로 몇 개 줄지 */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FDefaultProvisionModeCounts
 {
@@ -36,7 +36,7 @@ public:
 	int32 GetCount(EDefaultProvisionMode Mode) const;
 };
 
-/** Per-mode scalar values shared by lobby, training, and gameplay. */
+/** 로비·훈련장·경기가 함께 쓰는 모드별 수치 */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FDefaultProvisionModeValues
 {
@@ -59,7 +59,7 @@ public:
 	float GetValue(EDefaultProvisionMode Mode) const;
 };
 
-/** Per-mode switch used by shared default-provision policies. */
+/** 공용 기본 지급 정책의 모드별 켜기/끄기 */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FDefaultProvisionModeFlags
 {
@@ -82,7 +82,7 @@ public:
 	bool IsEnabled(EDefaultProvisionMode Mode) const;
 };
 
-/** Per-mode Pandora levels. -1 does not grant; 0 grants LV0. */
+/** 모드별 판도라 레벨. -1은 주지 않고 0은 LV0으로 연다. */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FDefaultProvisionModeLevels
 {
@@ -105,7 +105,7 @@ public:
 	int32 GetLevel(EDefaultProvisionMode Mode) const;
 };
 
-/** Item quantity and optional quick-slot assignment shared by every mode. */
+/** 모든 모드가 함께 쓰는 아이템 수량과 퀵슬롯 지정(선택) */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FDefaultProvisionItemStackGrant
 {
@@ -128,7 +128,7 @@ public:
 	FDefaultProvisionModeCounts Counts;
 };
 
-/** Pandora asset selected once, with its starting level configured per mode. */
+/** 한 번 고른 판도라 애셋과 모드별 시작 레벨 */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FDefaultProvisionPandoraGrant
 {
@@ -142,7 +142,7 @@ struct LABPROJECT_API FDefaultProvisionPandoraGrant
 	FDefaultProvisionModeLevels Levels;
 };
 
-/** Gesture-to-slot assignment granted identically in every mode. */
+/** 모든 모드에서 똑같이 주는 제스처와 칸 지정 */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FDefaultProvisionGestureSlotGrant
 {

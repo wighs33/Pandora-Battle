@@ -35,13 +35,8 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void PlayBgmForContext(EBgmContext BgmContext, UWorld* World);
-	void BeginBgmSoundPreload(
-		uint64 LoadGeneration,
-		EBgmContext BgmContext,
-		TWeakObjectPtr<UWorld> World);
-	void CompleteBgmSoundPreload(
-		EBgmContext BgmContext,
-		TWeakObjectPtr<UWorld> World);
+	void BeginBgmSoundPreload(uint64 LoadGeneration, EBgmContext BgmContext, TWeakObjectPtr<UWorld> World);
+	void CompleteBgmSoundPreload(EBgmContext BgmContext, TWeakObjectPtr<UWorld> World);
 	void CancelPendingBgmLoads();
 	void StopActiveBgmAudio();
 	EBgmContext ResolveWorldBgmContext(UWorld* World) const;

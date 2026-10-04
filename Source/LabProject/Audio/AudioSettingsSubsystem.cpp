@@ -32,8 +32,7 @@ void UAudioSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	if (!PostLoadMapWithWorldHandle.IsValid())
 	{
-		PostLoadMapWithWorldHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
-			this,
+		PostLoadMapWithWorldHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this,
 			&ThisClass::ApplyMasterVolumeToAudioDevice);
 	}
 }
@@ -65,18 +64,13 @@ bool UAudioSettingsSubsystem::IsMasterMuted() const
 	return GetMasterVolumePercent() == MinMasterVolumePercent;
 }
 
-void UAudioSettingsSubsystem::SetMasterVolumePercent(
-	const int32 NewVolumePercent,
-	const bool bSaveImmediately)
+void UAudioSettingsSubsystem::SetMasterVolumePercent(const int32 NewVolumePercent, const bool bSaveImmediately)
 {
-	// A user/runtime choice made while the default setting is loading must win.
+	// 기본 설정을 불러오는 중에 사용자나 실행 중 코드가 고른 값이 이긴다.
 	bWaitingForDefaultMasterVolume = false;
 	++DefaultMasterVolumeRequestGeneration;
 
-	const int32 SanitizedVolumePercent = FMath::Clamp(
-		NewVolumePercent,
-		MinMasterVolumePercent,
-		MaxMasterVolumePercent);
+	const int32 SanitizedVolumePercent = FMath::Clamp(NewVolumePercent, MinMasterVolumePercent, MaxMasterVolumePercent);
 	if (SanitizedVolumePercent > MinMasterVolumePercent)
 	{
 		LastAudibleMasterVolumePercent = SanitizedVolumePercent;
@@ -136,10 +130,8 @@ void UAudioSettingsSubsystem::SaveMasterVolumeSettings()
 	AudioSettingsSaveGame->BgmVolumePercent = 0;
 	AudioSettingsSaveGame->LastAudibleBgmVolumePercent = 0;
 	AudioSettingsSaveGame->MasterVolumePercent = GetMasterVolumePercent();
-	AudioSettingsSaveGame->LastAudibleMasterVolumePercent = FMath::Clamp(
-		LastAudibleMasterVolumePercent,
-		MinMasterVolumePercent,
-		MaxMasterVolumePercent);
+	AudioSettingsSaveGame->LastAudibleMasterVolumePercent = FMath::Clamp(LastAudibleMasterVolumePercent,
+		MinMasterVolumePercent, MaxMasterVolumePercent);
 
 	if (UGameplayStatics::SaveGameToSlot(AudioSettingsSaveGame, GetAudioSettingsSaveSlotName(), 0))
 	{
@@ -163,25 +155,17 @@ void UAudioSettingsSubsystem::LoadMasterVolumeSettings()
 
 	if (IsValid(AudioSettingsSaveGame) && AudioSettingsSaveGame->bHasMasterVolumeSetting)
 	{
-		MasterVolumePercent = FMath::Clamp(
-			AudioSettingsSaveGame->MasterVolumePercent,
-			MinMasterVolumePercent,
+		MasterVolumePercent = FMath::Clamp(AudioSettingsSaveGame->MasterVolumePercent, MinMasterVolumePercent,
 			MaxMasterVolumePercent);
-		LastAudibleMasterVolumePercent = FMath::Clamp(
-			AudioSettingsSaveGame->LastAudibleMasterVolumePercent,
-			MinMasterVolumePercent,
-			MaxMasterVolumePercent);
+		LastAudibleMasterVolumePercent = FMath::Clamp(AudioSettingsSaveGame->LastAudibleMasterVolumePercent,
+			MinMasterVolumePercent, MaxMasterVolumePercent);
 	}
 	else if (IsValid(AudioSettingsSaveGame) && AudioSettingsSaveGame->bHasBgmVolumeSetting)
 	{
-		MasterVolumePercent = FMath::Clamp(
-			AudioSettingsSaveGame->BgmVolumePercent,
-			MinMasterVolumePercent,
+		MasterVolumePercent = FMath::Clamp(AudioSettingsSaveGame->BgmVolumePercent, MinMasterVolumePercent,
 			MaxMasterVolumePercent);
-		LastAudibleMasterVolumePercent = FMath::Clamp(
-			AudioSettingsSaveGame->LastAudibleBgmVolumePercent,
-			MinMasterVolumePercent,
-			MaxMasterVolumePercent);
+		LastAudibleMasterVolumePercent = FMath::Clamp(AudioSettingsSaveGame->LastAudibleBgmVolumePercent,
+			MinMasterVolumePercent, MaxMasterVolumePercent);
 		bMasterVolumeSettingsDirty = true;
 	}
 	else
@@ -198,9 +182,7 @@ void UAudioSettingsSubsystem::LoadMasterVolumeSettings()
 			bWaitingForDefaultMasterVolume = true;
 			const uint64 RequestGeneration = ++DefaultMasterVolumeRequestGeneration;
 			SettingsSubsystem->PreloadRuntimeContentAsync(
-				FSimpleDelegate::CreateWeakLambda(
-					this,
-					[this, RequestGeneration]()
+				FSimpleDelegate::CreateWeakLambda(this, [this, RequestGeneration]()
 					{
 						HandleDefaultMasterVolumePreloadComplete(RequestGeneration);
 					}));
@@ -211,8 +193,7 @@ void UAudioSettingsSubsystem::LoadMasterVolumeSettings()
 		}
 	}
 
-	if (LastAudibleMasterVolumePercent <= MinMasterVolumePercent
-		&& MasterVolumePercent > MinMasterVolumePercent)
+	if (LastAudibleMasterVolumePercent <= MinMasterVolumePercent && MasterVolumePercent > MinMasterVolumePercent)
 	{
 		LastAudibleMasterVolumePercent = MasterVolumePercent;
 		bMasterVolumeSettingsDirty = true;
@@ -224,11 +205,9 @@ void UAudioSettingsSubsystem::LoadMasterVolumeSettings()
 	}
 }
 
-void UAudioSettingsSubsystem::HandleDefaultMasterVolumePreloadComplete(
-	const uint64 RequestGeneration)
+void UAudioSettingsSubsystem::HandleDefaultMasterVolumePreloadComplete(const uint64 RequestGeneration)
 {
-	if (!bWaitingForDefaultMasterVolume
-		|| RequestGeneration != DefaultMasterVolumeRequestGeneration)
+	if (!bWaitingForDefaultMasterVolume || RequestGeneration != DefaultMasterVolumeRequestGeneration)
 	{
 		return;
 	}
@@ -267,8 +246,7 @@ int32 UAudioSettingsSubsystem::ResolveDefaultMasterVolumePercent() const
 
 float UAudioSettingsSubsystem::GetMasterVolumeMultiplier() const
 {
-	return static_cast<float>(GetMasterVolumePercent())
-		/ static_cast<float>(MaxMasterVolumePercent);
+	return static_cast<float>(GetMasterVolumePercent()) / static_cast<float>(MaxMasterVolumePercent);
 }
 
 void UAudioSettingsSubsystem::ApplyMasterVolumeToAudioDevice(UWorld* TargetWorld) const
@@ -280,9 +258,7 @@ void UAudioSettingsSubsystem::ApplyMasterVolumeToAudioDevice(UWorld* TargetWorld
 		World = GameInstance ? GameInstance->GetWorld() : nullptr;
 	}
 
-	if (!World
-		|| !World->IsGameWorld()
-		|| World->GetGameInstance() != GetGameInstance()
+	if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance()
 		|| World->GetNetMode() == NM_DedicatedServer)
 	{
 		return;

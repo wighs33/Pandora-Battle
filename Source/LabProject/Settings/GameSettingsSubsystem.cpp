@@ -15,8 +15,7 @@ void UGameSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	Collection.InitializeDependency<UContentDataSubsystem>();
-	GameSettingDefinition = TSoftObjectPtr<UGameSettingDefinition>(
-		GetDefaultGameSettingDefinitionPath());
+	GameSettingDefinition = TSoftObjectPtr<UGameSettingDefinition>(GetDefaultGameSettingDefinitionPath());
 	bRuntimeContentReady = false;
 	bRuntimeContentPreloadPending = false;
 	CachedGameSettingDefinition = nullptr;
@@ -38,8 +37,7 @@ void UGameSettingsSubsystem::Deinitialize()
 
 FSoftObjectPath UGameSettingsSubsystem::GetDefaultGameSettingDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.GameSetting.ToSoftObjectPath();
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().GameSetting.ToSoftObjectPath();
 }
 
 UGameSettingDefinition* UGameSettingsSubsystem::ResolveGameSettingDefinition(const UObject* WorldContextObject)
@@ -66,16 +64,13 @@ UGameSettingDefinition* UGameSettingsSubsystem::ResolveGameSettingDefinition(con
 	return GetMutableDefault<UGameSettingDefinition>();
 }
 
-UGameSettingDefinition* UGameSettingsSubsystem::ResolveLoadedGameSettingDefinition(
-	const UObject* WorldContextObject)
+UGameSettingDefinition* UGameSettingsSubsystem::ResolveLoadedGameSettingDefinition(const UObject* WorldContextObject)
 {
 	const UWorld* World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;
 	UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
 	const UGameSettingsSubsystem* SettingsSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UGameSettingsSubsystem>() : nullptr;
-	return SettingsSubsystem
-		? SettingsSubsystem->GetLoadedGameSettingDefinition()
-		: nullptr;
+	return SettingsSubsystem ? SettingsSubsystem->GetLoadedGameSettingDefinition() : nullptr;
 }
 
 UGameSettingDefinition* UGameSettingsSubsystem::GetGameSettingDefinition()
@@ -115,8 +110,7 @@ UGameSettingDefinition* UGameSettingsSubsystem::GetLoadedGameSettingDefinition()
 	return bRuntimeContentReady ? CachedGameSettingDefinition.Get() : nullptr;
 }
 
-void UGameSettingsSubsystem::PreloadRuntimeContentAsync(
-	FSimpleDelegate OnComplete)
+void UGameSettingsSubsystem::PreloadRuntimeContentAsync(FSimpleDelegate OnComplete)
 {
 	if (bRuntimeContentReady && CachedGameSettingDefinition)
 	{
@@ -139,9 +133,7 @@ void UGameSettingsSubsystem::PreloadRuntimeContentAsync(
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentSubsystem)
 	{
-		UE_LOG(
-			LogGameSettingsSubsystem,
-			Error,
+		UE_LOG(LogGameSettingsSubsystem, Error,
 			TEXT("GameSetting runtime preload could not start because ContentDataSubsystem is unavailable."));
 		FinishRuntimeContentPreload(false);
 		return;
@@ -154,8 +146,7 @@ void UGameSettingsSubsystem::PreloadRuntimeContentAsync(
 	RuntimeContentLease.Reset();
 	DefinitionLease.Reset();
 	bRuntimeContentPreloadPending = true;
-	DefinitionLease = ContentSubsystem->AcquireContent(
-		{DefinitionPath},
+	DefinitionLease = ContentSubsystem->AcquireContent({DefinitionPath},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleDefinitionPreloadComplete));
 }
 
@@ -168,13 +159,10 @@ void UGameSettingsSubsystem::HandleDefinitionPreloadComplete()
 
 	if (!CachedGameSettingDefinition)
 	{
-		UE_LOG(
-			LogGameSettingsSubsystem,
-			Error,
+		UE_LOG(LogGameSettingsSubsystem, Error,
 			TEXT("GameSetting runtime content preload completed without resolving '%s'."),
 			*(!GameSettingDefinition.IsNull()
-				? GameSettingDefinition.ToString()
-				: GetDefaultGameSettingDefinitionPath().ToString()));
+				? GameSettingDefinition.ToString() : GetDefaultGameSettingDefinitionPath().ToString()));
 		FinishRuntimeContentPreload(false);
 		return;
 	}
@@ -192,35 +180,27 @@ void UGameSettingsSubsystem::HandleDefinitionPreloadComplete()
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentSubsystem)
 	{
-		UE_LOG(
-			LogGameSettingsSubsystem,
-			Error,
+		UE_LOG(LogGameSettingsSubsystem, Error,
 			TEXT("GameSetting runtime dependencies could not preload because ContentDataSubsystem is unavailable."));
 		FinishRuntimeContentPreload(false);
 		return;
 	}
 
-	RuntimeContentLease = ContentSubsystem->AcquireContent(
-		RuntimeAssetPaths,
+	RuntimeContentLease = ContentSubsystem->AcquireContent(RuntimeAssetPaths,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRuntimeContentPreloadComplete));
 }
 
 void UGameSettingsSubsystem::HandleRuntimeContentPreloadComplete()
 {
-	FinishRuntimeContentPreload(
-		RuntimeContentLease.IsValid()
-		&& RuntimeContentLease->IsReady());
+	FinishRuntimeContentPreload(RuntimeContentLease.IsValid() && RuntimeContentLease->IsReady());
 }
 
-void UGameSettingsSubsystem::FinishRuntimeContentPreload(
-	const bool bSucceeded)
+void UGameSettingsSubsystem::FinishRuntimeContentPreload(const bool bSucceeded)
 {
 	bRuntimeContentPreloadPending = false;
-	bRuntimeContentReady = bSucceeded
-		&& CachedGameSettingDefinition != nullptr;
+	bRuntimeContentReady = bSucceeded && CachedGameSettingDefinition != nullptr;
 
-	TArray<FSimpleDelegate> CompletionCallbacks =
-		MoveTemp(PendingRuntimeContentCallbacks);
+	TArray<FSimpleDelegate> CompletionCallbacks = MoveTemp(PendingRuntimeContentCallbacks);
 	PendingRuntimeContentCallbacks.Reset();
 	for (FSimpleDelegate& CompletionCallback : CompletionCallbacks)
 	{

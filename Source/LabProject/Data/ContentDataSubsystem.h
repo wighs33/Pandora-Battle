@@ -26,29 +26,26 @@ public:
 	TSharedPtr<FStreamableHandle> PreloadPandoraDataAssetsAsync(FSimpleDelegate OnComplete = FSimpleDelegate());
 	TSharedPtr<FStreamableHandle> PreloadSkinDataAssetsAsync(FSimpleDelegate OnComplete = FSimpleDelegate());
 
-	/** Starts and retains the process-wide skill preload. Safe to call repeatedly. */
+	/** 프로세스 전체에서 쓰는 스킬 미리 로드를 시작하고 유지한다. 여러 번 불러도 된다. */
 	void EnsureSkillDataAssetsPreload();
 	bool IsSkillDataAssetsLoading() const { return bSkillDataAssetsPreloadPending; }
 
 	/** 반환된 lease가 살아 있는 동안 콘텐츠를 유지한다. 완료 콜백은 로드가 끝나는 프레임에, 빈 목록이면 다음 ticker에서 전달한다. */
-	TSharedPtr<FContentLease> AcquireContent(
-		const TArray<FSoftObjectPath>& AssetPaths,
+	TSharedPtr<FContentLease> AcquireContent(const TArray<FSoftObjectPath>& AssetPaths,
 		FSimpleDelegate OnComplete = FSimpleDelegate());
 
 	/**
-	 * Preloads arbitrary soft references without blocking the game thread.
-	 * The caller owns the returned handle and should release it when the content is no longer needed.
+	 * 소프트 참조를 게임 스레드를 막지 않고 미리 로드한다.
+	 * 돌려받은 핸들은 호출한 쪽이 소유하며, 콘텐츠가 더 필요 없으면 해제한다.
 	 */
-	TSharedPtr<FStreamableHandle> PreloadSoftObjectPathsAsync(
-		const TArray<FSoftObjectPath>& AssetPaths,
+	TSharedPtr<FStreamableHandle> PreloadSoftObjectPathsAsync(const TArray<FSoftObjectPath>& AssetPaths,
 		FSimpleDelegate OnComplete = FSimpleDelegate());
 
 	/**
-	 * Preloads the runtime bundles for the supplied Primary Assets without blocking.
-	 * This is the common entry point for systems that own a known set of data assets.
+	 * 주어진 Primary Asset의 런타임 번들을 막지 않고 미리 로드한다.
+	 * 정해진 데이터 애셋 묶음을 소유하는 시스템이 공통으로 쓰는 진입점이다.
 	 */
-	TSharedPtr<FStreamableHandle> PreloadPrimaryAssetsAsync(
-		const TArray<FPrimaryAssetId>& AssetIds,
+	TSharedPtr<FStreamableHandle> PreloadPrimaryAssetsAsync(const TArray<FPrimaryAssetId>& AssetIds,
 		FSimpleDelegate OnComplete = FSimpleDelegate());
 
 	UFUNCTION(BlueprintPure, Category = "!ContentData|Pandora")
@@ -60,7 +57,7 @@ public:
 	FPrimaryAssetId GetSkinDefinitionIdByName(FName SkinName) const;
 
 	void GetSkinDefinitionIds(TArray<FPrimaryAssetId>& OutAssetIds) const;
-	// Profile bootstrap needs these entitlements immediately, including before UI preload.
+	// 프로필 초기화가 UI 미리 로드보다 먼저 이 기본 보유 목록을 바로 쓴다.
 	void GetDefaultSkinDefinitionIds(TArray<FPrimaryAssetId>& OutAssetIds) const;
 
 	void GetLoadedPandoraDefinitionsByName(TMap<FName, TObjectPtr<UPandoraDefinition>>& OutAssets) const;
@@ -76,27 +73,18 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void BuildPrimaryAssetIndexes();
-	void BuildPrimaryAssetIndex(
-		FPrimaryAssetType AssetType,
-		TMap<FName, FPrimaryAssetId>& OutAssetIdsByName,
-		TMap<FName, FSoftObjectPath>& OutAssetPathsByName,
-		TSet<FName>& OutInvalidNames);
-	void AddIndexedName(
-		FPrimaryAssetType AssetType,
-		FName LookupName,
-		const FPrimaryAssetId& AssetId,
-		const FSoftObjectPath& AssetPath,
-		TMap<FName, FPrimaryAssetId>& AssetIdsByName,
-		TMap<FName, FSoftObjectPath>& AssetPathsByName,
-		TSet<FName>& InvalidNames);
+	void BuildPrimaryAssetIndex(FPrimaryAssetType AssetType, TMap<FName, FPrimaryAssetId>& OutAssetIdsByName,
+		TMap<FName, FSoftObjectPath>& OutAssetPathsByName, TSet<FName>& OutInvalidNames);
+	void AddIndexedName(FPrimaryAssetType AssetType, FName LookupName, const FPrimaryAssetId& AssetId,
+		const FSoftObjectPath& AssetPath, TMap<FName, FPrimaryAssetId>& AssetIdsByName,
+		TMap<FName, FSoftObjectPath>& AssetPathsByName, TSet<FName>& InvalidNames);
 
 	TArray<FName> GetRuntimeBundles() const;
 	bool AreSkillDataAssetsLoaded() const;
 	UObject* LoadPrimaryAssetOnDemand(const FPrimaryAssetId& AssetId) const;
 
 	template <typename AssetType>
-	void GatherLoadedAssets(
-		const TMap<FName, FPrimaryAssetId>& AssetIdsByName,
+	void GatherLoadedAssets(const TMap<FName, FPrimaryAssetId>& AssetIdsByName,
 		TMap<FName, TObjectPtr<AssetType>>& OutAssets) const;
 
 private:

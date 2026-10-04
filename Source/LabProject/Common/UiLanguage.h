@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "UiLanguage.generated.h"
 
-// Keep the reflected name and numeric values: existing DA_Guide assets serialize this enum.
+// 기존 DA_Guide 애셋이 이 enum을 저장하므로 리플렉션 이름과 숫자 값을 바꾸지 않는다.
 UENUM(BlueprintType)
 enum class EGuideLanguage : uint8
 {

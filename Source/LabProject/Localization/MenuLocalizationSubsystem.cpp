@@ -13,7 +13,7 @@ void UMenuLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collection
 	Super::Initialize(Collection);
 	const UMenuLocalizationSettings* Settings = GetDefault<UMenuLocalizationSettings>();
 	Language = UiLanguage::IsSupported(Settings->DefaultLanguage) ? Settings->DefaultLanguage : EGuideLanguage::Korean;
-	// These small, always-needed UI resources are loaded once, before the entry screen is constructed.
+	// 항상 필요한 작은 UI 리소스라 첫 화면을 만들기 전에 한 번 동기 로드한다.
 	TextTable = Settings->TextTable.LoadSynchronous();
 	CjkFont = Settings->CjkFont.LoadSynchronous();
 	LatinFont = Settings->LatinFont.LoadSynchronous();
@@ -49,8 +49,8 @@ FText UMenuLocalizationSubsystem::GetText(FName Key) const
 
 FText UMenuLocalizationSubsystem::GetTextOrFallback(FName Key, const FText& Fallback) const
 {
-	// DataTable CSV imports strip spaces from row names. Map identifiers used
-	// by the session system may contain spaces; only normalize the lookup key.
+	// 데이터테이블 CSV 임포트는 행 이름의 공백을 지운다. 세션이 쓰는 맵 식별자에는 공백이 있을 수 있어
+	// 조회 키만 공백을 지워 맞춘다.
 	const FName LookupKey(*Key.ToString().Replace(TEXT(" "), TEXT("")));
 	const FMenuTextRow* Row = TextTable ? TextTable->FindRow<FMenuTextRow>(LookupKey, TEXT("Menu localization"), false) : nullptr;
 	if (Row)
@@ -69,7 +69,7 @@ UFont* UMenuLocalizationSubsystem::GetFontForLanguage(EGuideLanguage FontLanguag
 FText UMenuLocalizationSubsystem::GetProductText(const UObject* Product, FName Field, const FText& Fallback) const
 {
 	if (!Product) return Fallback;
-	// Full asset path prevents products with the same short name from sharing translations.
+	// 짧은 이름이 같은 상품이 번역을 나눠 쓰지 않도록 애셋 전체 경로를 키로 쓴다.
 	const FName Key(*FString::Printf(TEXT("Product.%s.%s"), *Product->GetPathName(), *Field.ToString()));
 	return GetTextOrFallback(Key, Fallback);
 }

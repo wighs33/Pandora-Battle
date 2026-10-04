@@ -20,8 +20,7 @@ namespace
 	const FName ClientBundle(TEXT("Client"));
 	const FName ServerBundle(TEXT("Server"));
 
-	void GatherUniqueSortedAssetIds(
-		const TMap<FName, FPrimaryAssetId>& AssetIdsByName,
+	void GatherUniqueSortedAssetIds(const TMap<FName, FPrimaryAssetId>& AssetIdsByName,
 		TArray<FPrimaryAssetId>& OutAssetIds)
 	{
 		TSet<FPrimaryAssetId> UniqueAssetIds;
@@ -65,8 +64,7 @@ void UContentDataSubsystem::Deinitialize()
 		SkillDataAssetsPreloadHandle.Reset();
 	}
 
-	for (TPair<FPrimaryAssetId, TSharedPtr<FStreamableHandle>>& LoadPair
-		: PendingOnDemandLoadHandles)
+	for (TPair<FPrimaryAssetId, TSharedPtr<FStreamableHandle>>& LoadPair : PendingOnDemandLoadHandles)
 	{
 		if (LoadPair.Value.IsValid())
 		{
@@ -106,8 +104,7 @@ void UContentDataSubsystem::EnsureSkillDataAssetsPreload()
 	{
 		return;
 	}
-	if (bSkillDataAssetsPreloadPending
-		&& SkillDataAssetsPreloadHandle.IsValid())
+	if (bSkillDataAssetsPreloadPending && SkillDataAssetsPreloadHandle.IsValid())
 	{
 		return;
 	}
@@ -121,10 +118,7 @@ void UContentDataSubsystem::EnsureSkillDataAssetsPreload()
 
 	bSkillDataAssetsPreloadPending = true;
 	TSharedPtr<FStreamableHandle> NewPreloadHandle =
-		PreloadSkillDataAssetsAsync(
-			FSimpleDelegate::CreateUObject(
-				this,
-				&ThisClass::HandleSkillDataAssetsPreloaded));
+		PreloadSkillDataAssetsAsync(FSimpleDelegate::CreateUObject(this, &ThisClass::HandleSkillDataAssetsPreloaded));
 	if (NewPreloadHandle.IsValid())
 	{
 		SkillDataAssetsPreloadHandle = MoveTemp(NewPreloadHandle);
@@ -139,10 +133,7 @@ void UContentDataSubsystem::HandleSkillDataAssetsPreloaded()
 {
 	bSkillDataAssetsPreloadPending = false;
 	bSkillDataAssetsReady = AreSkillDataAssetsLoaded();
-	UE_CLOG(
-		!bSkillDataAssetsReady,
-		ContentDataSubsystemLog,
-		Error,
+	UE_CLOG(!bSkillDataAssetsReady, ContentDataSubsystemLog, Error,
 		TEXT("Skill data asset preload completed with unresolved assets."));
 }
 
@@ -153,23 +144,15 @@ bool UContentDataSubsystem::AreSkillDataAssetsLoaded() const
 	AssetManager.GetPrimaryAssetIdList(SkillAssetType, AssetIds);
 	if (AssetIds.IsEmpty())
 	{
-		UE_LOG(
-			ContentDataSubsystemLog,
-			Error,
-			TEXT("No registered Skill primary assets were found."));
+		UE_LOG(ContentDataSubsystemLog, Error, TEXT("No registered Skill primary assets were found."));
 		return false;
 	}
 	for (const FPrimaryAssetId& AssetId : AssetIds)
 	{
 		const FSoftObjectPath AssetPath = AssetManager.GetPrimaryAssetPath(AssetId);
-		if (!AssetPath.IsValid()
-			|| (!AssetManager.GetPrimaryAssetObject(AssetId)
-				&& !AssetPath.ResolveObject()))
+		if (!AssetPath.IsValid() || (!AssetManager.GetPrimaryAssetObject(AssetId) && !AssetPath.ResolveObject()))
 		{
-			UE_LOG(
-				ContentDataSubsystemLog,
-				Error,
-				TEXT("Required skill data asset '%s' was not resolved."),
+			UE_LOG(ContentDataSubsystemLog, Error, TEXT("Required skill data asset '%s' was not resolved."),
 				*AssetId.ToString());
 			return false;
 		}
@@ -184,8 +167,7 @@ TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSkinDataAssetsAsync(
 	return PreloadPrimaryAssetsAsync(AssetIds, MoveTemp(OnComplete));
 }
 
-TSharedPtr<FContentLease> UContentDataSubsystem::AcquireContent(
-	const TArray<FSoftObjectPath>& AssetPaths,
+TSharedPtr<FContentLease> UContentDataSubsystem::AcquireContent(const TArray<FSoftObjectPath>& AssetPaths,
 	FSimpleDelegate OnComplete)
 {
 	TSharedPtr<FContentLease> Lease = MakeShared<FContentLease>(MoveTemp(OnComplete));
@@ -194,8 +176,7 @@ TSharedPtr<FContentLease> UContentDataSubsystem::AcquireContent(
 }
 
 TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSoftObjectPathsAsync(
-	const TArray<FSoftObjectPath>& AssetPaths,
-	FSimpleDelegate OnComplete)
+	const TArray<FSoftObjectPath>& AssetPaths, FSimpleDelegate OnComplete)
 {
 	TSet<FSoftObjectPath> UniquePaths;
 	for (const FSoftObjectPath& AssetPath : AssetPaths)
@@ -219,22 +200,16 @@ TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSoftObjectPathsAsync
 	});
 
 	const FSimpleDelegate CompletionDelegate = MoveTemp(OnComplete);
-	TSharedPtr<FStreamableHandle> Handle =
-		UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-			PathsToLoad,
-			FStreamableDelegate::CreateLambda(
-				[CompletionDelegate]()
+	TSharedPtr<FStreamableHandle> Handle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(PathsToLoad,
+		FStreamableDelegate::CreateLambda([CompletionDelegate]()
 				{
 					CompletionDelegate.ExecuteIfBound();
 				}));
 
 	if (!Handle.IsValid())
 	{
-		UE_LOG(
-			ContentDataSubsystemLog,
-			Error,
-			TEXT("Failed to start an asynchronous preload for %d soft object path(s)."),
-			PathsToLoad.Num());
+		UE_LOG(ContentDataSubsystemLog, Error,
+			TEXT("Failed to start an asynchronous preload for %d soft object path(s)."), PathsToLoad.Num());
 		CompletionDelegate.ExecuteIfBound();
 	}
 
@@ -292,30 +267,20 @@ void UContentDataSubsystem::GetLoadedPandoraDefinitionsByName(
 	GatherLoadedAssets(PandoraDefinitionIdsByName, OutAssets);
 }
 
-void UContentDataSubsystem::GetLoadedSkinDefinitionsByName(
-	TMap<FName, TObjectPtr<USkinDefinition>>& OutAssets) const
+void UContentDataSubsystem::GetLoadedSkinDefinitionsByName(TMap<FName, TObjectPtr<USkinDefinition>>& OutAssets) const
 {
 	GatherLoadedAssets(SkinDefinitionIdsByName, OutAssets);
 }
 
 void UContentDataSubsystem::BuildPrimaryAssetIndexes()
 {
-	BuildPrimaryAssetIndex(
-		PandoraAssetType,
-		PandoraDefinitionIdsByName,
-		PandoraDefinitionPathsByName,
+	BuildPrimaryAssetIndex(PandoraAssetType, PandoraDefinitionIdsByName, PandoraDefinitionPathsByName,
 		InvalidPandoraNames);
-	BuildPrimaryAssetIndex(
-		SkinAssetType,
-		SkinDefinitionIdsByName,
-		SkinDefinitionPathsByName,
-		InvalidSkinNames);
+	BuildPrimaryAssetIndex(SkinAssetType, SkinDefinitionIdsByName, SkinDefinitionPathsByName, InvalidSkinNames);
 }
 
-void UContentDataSubsystem::BuildPrimaryAssetIndex(
-	const FPrimaryAssetType AssetType,
-	TMap<FName, FPrimaryAssetId>& OutAssetIdsByName,
-	TMap<FName, FSoftObjectPath>& OutAssetPathsByName,
+void UContentDataSubsystem::BuildPrimaryAssetIndex(const FPrimaryAssetType AssetType,
+	TMap<FName, FPrimaryAssetId>& OutAssetIdsByName, TMap<FName, FSoftObjectPath>& OutAssetPathsByName,
 	TSet<FName>& OutInvalidNames)
 {
 	OutAssetIdsByName.Reset();
@@ -331,9 +296,7 @@ void UContentDataSubsystem::BuildPrimaryAssetIndex(
 		const FPrimaryAssetId AssetId = AssetManager.GetPrimaryAssetIdForData(AssetData);
 		if (!AssetId.IsValid())
 		{
-			UE_LOG(
-				ContentDataSubsystemLog,
-				Error,
+			UE_LOG(ContentDataSubsystemLog, Error,
 				TEXT("Primary asset '%s' has no valid PrimaryAssetId for type '%s'."),
 				*AssetData.GetSoftObjectPath().ToString(),
 				*AssetType.ToString());
@@ -341,25 +304,14 @@ void UContentDataSubsystem::BuildPrimaryAssetIndex(
 		}
 
 		const FSoftObjectPath AssetPath = AssetData.GetSoftObjectPath();
-		AddIndexedName(
-			AssetType,
-			AssetId.PrimaryAssetName,
-			AssetId,
-			AssetPath,
-			OutAssetIdsByName,
-			OutAssetPathsByName,
+		AddIndexedName(AssetType, AssetId.PrimaryAssetName, AssetId, AssetPath, OutAssetIdsByName, OutAssetPathsByName,
 			OutInvalidNames);
 	}
 }
 
-void UContentDataSubsystem::AddIndexedName(
-	const FPrimaryAssetType AssetType,
-	const FName LookupName,
-	const FPrimaryAssetId& AssetId,
-	const FSoftObjectPath& AssetPath,
-	TMap<FName, FPrimaryAssetId>& AssetIdsByName,
-	TMap<FName, FSoftObjectPath>& AssetPathsByName,
-	TSet<FName>& InvalidNames)
+void UContentDataSubsystem::AddIndexedName(const FPrimaryAssetType AssetType, const FName LookupName,
+	const FPrimaryAssetId& AssetId, const FSoftObjectPath& AssetPath, TMap<FName, FPrimaryAssetId>& AssetIdsByName,
+	TMap<FName, FSoftObjectPath>& AssetPathsByName, TSet<FName>& InvalidNames)
 {
 	if (LookupName.IsNone() || InvalidNames.Contains(LookupName))
 	{
@@ -370,9 +322,7 @@ void UContentDataSubsystem::AddIndexedName(
 	const FSoftObjectPath* ExistingPath = AssetPathsByName.Find(LookupName);
 	if (ExistingId && ExistingPath && (*ExistingId != AssetId || *ExistingPath != AssetPath))
 	{
-		UE_LOG(
-			ContentDataSubsystemLog,
-			Error,
+		UE_LOG(ContentDataSubsystemLog, Error,
 			TEXT("Duplicate %s content name '%s': '%s' and '%s'. The ambiguous name is disabled."),
 			*AssetType.ToString(),
 			*LookupName.ToString(),
@@ -405,8 +355,7 @@ TArray<FName> UContentDataSubsystem::GetRuntimeBundles() const
 	return Bundles;
 }
 
-TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadPrimaryAssetsAsync(
-	const TArray<FPrimaryAssetId>& AssetIds,
+TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadPrimaryAssetsAsync(const TArray<FPrimaryAssetId>& AssetIds,
 	FSimpleDelegate OnComplete)
 {
 	TSet<FPrimaryAssetId> UniqueAssetIds;
@@ -425,33 +374,24 @@ TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadPrimaryAssetsAsync(
 	}
 
 	TArray<FPrimaryAssetId> AssetIdsToLoad = UniqueAssetIds.Array();
-	AssetIdsToLoad.Sort(
-		[](const FPrimaryAssetId& Left, const FPrimaryAssetId& Right)
+	AssetIdsToLoad.Sort([](const FPrimaryAssetId& Left, const FPrimaryAssetId& Right)
 		{
 			return Left.ToString() < Right.ToString();
 		});
 
 	UAssetManager& AssetManager = UAssetManager::Get();
 	const FSimpleDelegate CompletionDelegate = MoveTemp(OnComplete);
-	const FStreamableDelegate StreamableCompletion =
-		FStreamableDelegate::CreateLambda(
-			[CompletionDelegate]()
+	const FStreamableDelegate StreamableCompletion = FStreamableDelegate::CreateLambda([CompletionDelegate]()
 			{
 				CompletionDelegate.ExecuteIfBound();
 			});
 
-	TSharedPtr<FStreamableHandle> Handle = AssetManager.PreloadPrimaryAssets(
-		AssetIdsToLoad,
-		GetRuntimeBundles(),
-		false,
+	TSharedPtr<FStreamableHandle> Handle = AssetManager.PreloadPrimaryAssets(AssetIdsToLoad, GetRuntimeBundles(), false,
 		StreamableCompletion);
 
 	if (!Handle.IsValid())
 	{
-		UE_LOG(
-			ContentDataSubsystemLog,
-			Error,
-			TEXT("Failed to start an asynchronous preload for %d primary asset(s)."),
+		UE_LOG(ContentDataSubsystemLog, Error, TEXT("Failed to start an asynchronous preload for %d primary asset(s)."),
 			AssetIdsToLoad.Num());
 		CompletionDelegate.ExecuteIfBound();
 	}
@@ -473,21 +413,16 @@ UObject* UContentDataSubsystem::LoadPrimaryAssetOnDemand(const FPrimaryAssetId& 
 		return LoadedAsset;
 	}
 
-	if (const TSharedPtr<FStreamableHandle>* ExistingHandle =
-		PendingOnDemandLoadHandles.Find(AssetId);
+	if (const TSharedPtr<FStreamableHandle>* ExistingHandle = PendingOnDemandLoadHandles.Find(AssetId);
 		ExistingHandle && ExistingHandle->IsValid())
 	{
 		return nullptr;
 	}
 
-	TSharedPtr<FStreamableHandle> LoadHandle =
-		AssetManager.LoadPrimaryAsset(AssetId, GetRuntimeBundles());
+	TSharedPtr<FStreamableHandle> LoadHandle = AssetManager.LoadPrimaryAsset(AssetId, GetRuntimeBundles());
 	if (!LoadHandle.IsValid())
 	{
-		UE_LOG(
-			ContentDataSubsystemLog,
-			Error,
-			TEXT("Failed to start on-demand load for primary asset '%s'."),
+		UE_LOG(ContentDataSubsystemLog, Error, TEXT("Failed to start on-demand load for primary asset '%s'."),
 			*AssetId.ToString());
 		return nullptr;
 	}
@@ -497,8 +432,7 @@ UObject* UContentDataSubsystem::LoadPrimaryAssetOnDemand(const FPrimaryAssetId& 
 }
 
 template <typename AssetType>
-void UContentDataSubsystem::GatherLoadedAssets(
-	const TMap<FName, FPrimaryAssetId>& AssetIdsByName,
+void UContentDataSubsystem::GatherLoadedAssets(const TMap<FName, FPrimaryAssetId>& AssetIdsByName,
 	TMap<FName, TObjectPtr<AssetType>>& OutAssets) const
 {
 	OutAssets.Reset();

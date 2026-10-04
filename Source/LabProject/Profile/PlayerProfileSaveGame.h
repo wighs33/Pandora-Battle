@@ -86,6 +86,10 @@ public:
 	UPdSaveGame* DecodeProfile() const;
 
 private:
+	// 본문을 풀기 전에 머리글(저장 형식, 난독화 값, 저장 ID, 본문 크기)이 맞는지 본다. 맞으면 빈 문자열이다.
+	FString FindHeaderProblem() const;
+
+private:
 	UPROPERTY()
 	int32 StorageFormatVersion = PlayerProfileStorageVersion::Current;
 

@@ -19,14 +19,12 @@ public:
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	static UGameSettingDefinition* ResolveGameSettingDefinition(const UObject* WorldContextObject);
-	static UGameSettingDefinition* ResolveLoadedGameSettingDefinition(
-		const UObject* WorldContextObject);
+	static UGameSettingDefinition* ResolveLoadedGameSettingDefinition(const UObject* WorldContextObject);
 
 	UGameSettingDefinition* GetGameSettingDefinition();
 
 	UGameSettingDefinition* GetLoadedGameSettingDefinition() const;
-	void PreloadRuntimeContentAsync(
-		FSimpleDelegate OnComplete = FSimpleDelegate());
+	void PreloadRuntimeContentAsync(FSimpleDelegate OnComplete = FSimpleDelegate());
 	bool IsRuntimeContentReady() const { return bRuntimeContentReady; }
 	bool IsRuntimeContentLoading() const { return bRuntimeContentPreloadPending; }
 

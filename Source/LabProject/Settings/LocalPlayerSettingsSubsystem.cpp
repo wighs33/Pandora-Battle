@@ -38,9 +38,7 @@ namespace
 			? FVector2D(0.0, DefaultMouseSensitivitySliderValue)
 			: FVector2D(DefaultMouseSensitivitySliderValue, 1.0);
 
-		return FMath::GetMappedRangeValueClamped(
-			SensitivityRange,
-			SliderRange,
+		return FMath::GetMappedRangeValueClamped(SensitivityRange, SliderRange,
 			static_cast<double>(SensitivityPercent));
 	}
 
@@ -55,10 +53,7 @@ namespace
 			? FVector2D(MinMouseSensitivityPercent, DefaultMouseSensitivityPercent)
 			: FVector2D(DefaultMouseSensitivityPercent, MaxMouseSensitivityPercent);
 
-		return FMath::RoundToInt(FMath::GetMappedRangeValueClamped(
-			SliderRange,
-			SensitivityRange,
-			ClampedSliderValue));
+		return FMath::RoundToInt(FMath::GetMappedRangeValueClamped(SliderRange, SensitivityRange, ClampedSliderValue));
 	}
 
 	const FString& GetInputSettingsSaveSlotName()
@@ -117,8 +112,7 @@ bool ULocalPlayerSettingsSubsystem::ApplyConfiguredMouseCursor(APlayerController
 	return ApplyLoadedConfiguredMouseCursor(PlayerController, SettingDefinition);
 }
 
-bool ULocalPlayerSettingsSubsystem::ApplyLoadedConfiguredMouseCursor(
-	APlayerController* PlayerController,
+bool ULocalPlayerSettingsSubsystem::ApplyLoadedConfiguredMouseCursor(APlayerController* PlayerController,
 	const UGameSettingDefinition* SettingDefinition)
 {
 	if (!SettingDefinition || !SettingDefinition->bUseCustomMouseCursor)
@@ -176,16 +170,12 @@ void ULocalPlayerSettingsSubsystem::ApplyCameraViewPitchClamp(APlayerController*
 
 int32 ULocalPlayerSettingsSubsystem::GetMouseSensitivityPercent() const
 {
-	return FMath::Clamp(
-		MouseSensitivityPercent,
-		MinMouseSensitivityPercent,
-		MaxMouseSensitivityPercent);
+	return FMath::Clamp(MouseSensitivityPercent, MinMouseSensitivityPercent, MaxMouseSensitivityPercent);
 }
 
 float ULocalPlayerSettingsSubsystem::GetMouseSensitivityMultiplier() const
 {
-	return static_cast<float>(GetMouseSensitivityPercent())
-		/ static_cast<float>(DefaultMouseSensitivityPercent);
+	return static_cast<float>(GetMouseSensitivityPercent()) / static_cast<float>(DefaultMouseSensitivityPercent);
 }
 
 float ULocalPlayerSettingsSubsystem::GetMouseSensitivitySliderValue() const
@@ -208,12 +198,9 @@ void ULocalPlayerSettingsSubsystem::SetMouseSensitivitySliderValue(const float N
 	}
 }
 
-void ULocalPlayerSettingsSubsystem::ApplyMouseSensitivity(
-	APlayerController* PlayerController) const
+void ULocalPlayerSettingsSubsystem::ApplyMouseSensitivity(APlayerController* PlayerController) const
 {
-	if (!PlayerController
-		|| !PlayerController->IsLocalController()
-		|| !PlayerController->PlayerInput)
+	if (!PlayerController || !PlayerController->IsLocalController() || !PlayerController->PlayerInput)
 	{
 		return;
 	}
@@ -226,12 +213,8 @@ void ULocalPlayerSettingsSubsystem::ApplyMouseSensitivity(
 
 	const float SensitivityMultiplier = GetMouseSensitivityMultiplier();
 	bool bAppliedAxisSensitivity = false;
-	const auto ApplyAxisSensitivity = [
-		PlayerController,
-		DefaultInputSettings,
-		SensitivityMultiplier,
-		&bAppliedAxisSensitivity](
-		const FKey& AxisKey)
+	const auto ApplyAxisSensitivity = [PlayerController, DefaultInputSettings, SensitivityMultiplier,
+		&bAppliedAxisSensitivity](const FKey& AxisKey)
 	{
 		FInputAxisProperties RuntimeAxisProperties;
 		if (!PlayerController->PlayerInput->GetAxisProperties(AxisKey, RuntimeAxisProperties))
@@ -312,13 +295,10 @@ void ULocalPlayerSettingsSubsystem::LoadInputSettings()
 			UGameplayStatics::CreateSaveGameObject(UInputSettingsSaveGame::StaticClass()));
 	}
 
-	if (IsValid(InputSettingsSaveGame)
-		&& InputSettingsSaveGame->bHasMouseSensitivitySetting)
+	if (IsValid(InputSettingsSaveGame) && InputSettingsSaveGame->bHasMouseSensitivitySetting)
 	{
-		MouseSensitivityPercent = FMath::Clamp(
-			InputSettingsSaveGame->MouseSensitivityPercent,
-			MinMouseSensitivityPercent,
-			MaxMouseSensitivityPercent);
+		MouseSensitivityPercent = FMath::Clamp(InputSettingsSaveGame->MouseSensitivityPercent,
+			MinMouseSensitivityPercent, MaxMouseSensitivityPercent);
 		return;
 	}
 
@@ -327,16 +307,14 @@ void ULocalPlayerSettingsSubsystem::LoadInputSettings()
 	SaveInputSettings();
 }
 
-void ULocalPlayerSettingsSubsystem::QueueRuntimeSettingsApplication(
-	APlayerController* PlayerController)
+void ULocalPlayerSettingsSubsystem::QueueRuntimeSettingsApplication(APlayerController* PlayerController)
 {
 	if (!PlayerController || !PlayerController->IsLocalController())
 	{
 		return;
 	}
 
-	if (bRuntimeSettingsLoadPending
-		&& PendingSettingsPlayerController.Get() == PlayerController)
+	if (bRuntimeSettingsLoadPending && PendingSettingsPlayerController.Get() == PlayerController)
 	{
 		return;
 	}
@@ -355,10 +333,7 @@ void ULocalPlayerSettingsSubsystem::QueueRuntimeSettingsApplication(
 	}
 
 	bRuntimeSettingsLoadPending = true;
-	SettingsSubsystem->PreloadRuntimeContentAsync(
-		FSimpleDelegate::CreateWeakLambda(
-			this,
-			[this, PreloadGeneration]()
+	SettingsSubsystem->PreloadRuntimeContentAsync(FSimpleDelegate::CreateWeakLambda(this, [this, PreloadGeneration]()
 			{
 				if (PreloadGeneration != RuntimeSettingsPreloadGeneration)
 				{
@@ -366,17 +341,13 @@ void ULocalPlayerSettingsSubsystem::QueueRuntimeSettingsApplication(
 				}
 
 				bRuntimeSettingsLoadPending = false;
-				APlayerController* PlayerController =
-					PendingSettingsPlayerController.Get();
+				APlayerController* PlayerController = PendingSettingsPlayerController.Get();
 				PendingSettingsPlayerController.Reset();
 				const UGameSettingDefinition* SettingDefinition =
-					UGameSettingsSubsystem::ResolveLoadedGameSettingDefinition(
-						PlayerController);
+					UGameSettingsSubsystem::ResolveLoadedGameSettingDefinition(PlayerController);
 				if (PlayerController && SettingDefinition)
 				{
-					ApplyLoadedConfiguredMouseCursor(
-						PlayerController,
-						SettingDefinition);
+					ApplyLoadedConfiguredMouseCursor(PlayerController, SettingDefinition);
 					ApplyCameraViewPitchClamp(PlayerController);
 				}
 			}));

@@ -25,6 +25,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnDefaultPlayerProvisioned, APlayerControll
  *
  * 소유자가 정의 에셋을 로드하고 플레이 공간마다 지급 처리 객체 하나를 초기화한다.
  * 정의와 모드는 Shutdown까지 고정하며, 반복 초기화로 기존 지급 상태를 초기화하지 않는다.
+ *
+ * 지급은 능력치·아이템·판도라·제스처 네 단계다. 한 단계라도 끝나지 않으면 기다릴 비동기 준비의 완료 알림을 받아
+ * 다시 시도하고, 이미 끝난 단계는 플레이어별 기록을 보고 건너뛴다.
  */
 UCLASS(Transient)
 class LABPROJECT_API UDefaultPlayerProvisioner : public UObject
@@ -36,6 +39,12 @@ public:
 
 private:
 	enum class EContentState : uint8 { NotStarted, Loading, Ready, Failed };
+
+	// 지급 단계 하나의 결과. Waiting은 비동기 준비(아이템 로딩, 능력치 정의, Pawn)가 끝나면 다시 시도할 수 있고,
+	// Failed는 구성 요소나 정의가 빠져 다시 시도해도 끝나지 않는다.
+	enum class EProvisionStepResult : uint8 { Done, Waiting, Failed };
+
+	// 인벤토리 지급을 마친 인벤토리. 같은 인벤토리면 다시 맞추지 않고, 인벤토리가 바뀌면 처음부터 다시 지급한다.
 	struct FInventoryProvisionState
 	{
 		TWeakObjectPtr<UInventoryComponent> Inventory;
@@ -53,6 +62,7 @@ private:
 		FDelegateHandle PawnHandle;
 	};
 
+	// 판도라 지급을 마친 컴포넌트 쌍. 둘 다 같으면 다시 지급하지 않는다.
 	struct FInitializedPandoraState
 	{
 		TWeakObjectPtr<UPandoraComponent> PandoraComponent;
@@ -67,9 +77,7 @@ public:
 	bool Initialize(const UDefaultProvisionDefinition* InDefinition, EDefaultProvisionMode InMode);
 	bool IsInitialized() const { return ProvisionDefinition != nullptr && !bShuttingDown; }
 	void ProvisionPlayer(APlayerController* PlayerController);
-	void ClearRuntimeStateForController(
-		AController* Controller,
-		APlayerState* PlayerState);
+	void ClearRuntimeStateForController(AController* Controller, APlayerState* PlayerState);
 	void Shutdown();
 
 private:
@@ -79,37 +87,36 @@ private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	const UDefaultProvisionDefinition* GetDefinition() const;
 	bool EnsureContentLoaded(APlayerController* PlayerController);
-	bool TryProvisionPlayer(APlayerController* PlayerController);
-	bool ApplyItems(APdPlayerState* PlayerState);
-	bool ApplyModeValues(APdPlayerState* PlayerState);
-	bool ApplyPandoras(APdPlayerState* PlayerState);
-	bool ApplyGestures(
-		APlayerController* PlayerController,
-		APdPlayerState* PlayerState);
-	void WaitForProvisionInputs(APlayerController* PlayerController);
+	EProvisionStepResult TryProvisionPlayer(APlayerController* PlayerController);
+	EProvisionStepResult ApplyModeValues(APdPlayerState* PlayerState);
+	EProvisionStepResult ApplyItems(APdPlayerState* PlayerState);
+	EProvisionStepResult ApplyPandoras(APdPlayerState* PlayerState);
+	EProvisionStepResult ApplyGestures(APlayerController* PlayerController, APdPlayerState* PlayerState);
+	void WaitForProvisionInputs(APlayerController* PlayerController, EProvisionStepResult Result);
 	void StopWaitingForProvisionInputs(TObjectKey<APlayerController> ControllerKey);
 	void ScheduleProvisionAttempt(APlayerController* PlayerController);
 	void ClearScheduledProvisionAttempt(APlayerController* PlayerController);
-	int32 GetInventoryItemQuantity(
-		const UInventoryComponent* InventoryComponent,
-		FPrimaryAssetId ItemDefinitionId) const;
 
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<const UDefaultProvisionDefinition> ProvisionDefinition;
 
-	TMap<TObjectKey<APlayerController>, FTimerHandle> PendingProvisionAttempts;
-	TMap<TObjectKey<APlayerController>, FProvisionWait> ProvisionWaits;
-	TArray<TWeakObjectPtr<APlayerController>> PendingContentControllers;
+	// 플레이 공간의 모든 플레이어가 함께 기다리는 지급 콘텐츠(아이템·판도라·제스처 정의) 로딩
 	TArray<FPrimaryAssetId> RequiredContentIds;
 	TSharedPtr<FStreamableHandle> ContentLoadHandle;
 	EContentState ContentState = EContentState::NotStarted;
-	EDefaultProvisionMode Mode = EDefaultProvisionMode::Lobby;
-	TMap<TObjectKey<APlayerState>, FInventoryProvisionState> InventoryStates;
+	TArray<TWeakObjectPtr<APlayerController>> PendingContentControllers;
+
+	// 다시 지급할 플레이어의 다음 틱 예약과 기다리는 완료 알림
+	TMap<TObjectKey<APlayerController>, FTimerHandle> PendingProvisionAttempts;
+	TMap<TObjectKey<APlayerController>, FProvisionWait> ProvisionWaits;
+
+	// 단계별로 지급을 마친 플레이어. 로그아웃하면 지운다.
 	TSet<TObjectKey<APlayerState>> InitializedModeValues;
-	TMap<TObjectKey<APlayerState>, FInitializedPandoraState>
-		InitializedPandoras;
-	TMap<TObjectKey<APlayerState>, TWeakObjectPtr<USkinEquipmentComponent>>
-		InitializedGestureEquipment;
+	TMap<TObjectKey<APlayerState>, FInventoryProvisionState> InventoryStates;
+	TMap<TObjectKey<APlayerState>, FInitializedPandoraState> InitializedPandoras;
+	TMap<TObjectKey<APlayerState>, TWeakObjectPtr<USkinEquipmentComponent>> InitializedGestureEquipment;
+
+	EDefaultProvisionMode Mode = EDefaultProvisionMode::Lobby;
 	bool bShuttingDown = false;
 };

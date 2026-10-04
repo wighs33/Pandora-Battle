@@ -29,7 +29,7 @@ public:
 
 	FText GetTextOrFallback(FName Key, const FText& Fallback) const;
 
-	/** Stable product identity resolves text only; icons and gameplay data remain asset-owned. */
+	/** 상품 애셋 경로로 번역 문구만 찾는다. 아이콘과 게임플레이 데이터는 애셋이 가진 값을 쓴다. */
 	FText GetProductText(const UObject* Product, FName Field, const FText& Fallback) const;
 
 	UFont* GetFontForLanguage(EGuideLanguage FontLanguage) const;
