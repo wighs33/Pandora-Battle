@@ -109,7 +109,7 @@ void USkillAuraAction::OnStart()
 	GetAbility()->StartConfiguredDefaultFX();
 	GetAbility()->StartConfiguredCharacterOverlay();
 	GetAbility()->ApplyActiveMovementSpeedBonus(MovementSpeedEffectHandle);
-	GetAbility()->StartMovementContactDamage();
+	ContactDamage.Start(*GetAbility(), *this);
 	StartAuraEffectAreaSpawning(SkillDataAsset);
 	StartHealFieldTeamHealing(SkillDataAsset);
 
@@ -122,6 +122,7 @@ void USkillAuraAction::OnStart()
 
 void USkillAuraAction::OnStop()
 {
+	ContactDamage.Stop();
 	StopHealFieldTeamHealing();
 	StopAuraEffectAreaSpawning();
 	GetAbility()->RemoveActiveMovementSpeedBonus(MovementSpeedEffectHandle);

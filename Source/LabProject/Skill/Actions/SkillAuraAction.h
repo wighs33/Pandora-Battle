@@ -4,6 +4,7 @@
 #include "Skill/Actions/SkillAction.h"
 #include "AbilitySystem/Ability/SkillAbility.h"
 #include "Definition/AbilitySystem/SkillAuraSettings.h"
+#include "Skill/Actions/SkillMovementContactDamage.h"
 #include "TimerManager.h"
 #include "SkillAuraAction.generated.h"
 
@@ -71,6 +72,9 @@ private:
 	TArray<TWeakObjectPtr<ASkillEffectArea>> ActiveAuraEffectAreas;
 
 	FActiveGameplayEffectHandle MovementSpeedEffectHandle;
+
+	/** 오라를 두른 채 움직이는 동안 닿은 적에게 피해를 준다. */
+	FSkillMovementContactDamage ContactDamage;
 
 	UPROPERTY(Transient)
 	FVector ActiveHealFieldOrigin = FVector::ZeroVector;

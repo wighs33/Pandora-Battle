@@ -123,7 +123,6 @@ public:
 	// 스킬 정의가 켠 '사용 중 이동 속도 증가'를 시전자에게 건다. 이미 건 효과가 있거나 서버가 아니면 그대로 둔다.
 	void ApplyActiveMovementSpeedBonus(FActiveGameplayEffectHandle& InOutEffectHandle);
 	void RemoveActiveMovementSpeedBonus(FActiveGameplayEffectHandle& InOutEffectHandle);
-	void StartMovementContactDamage();
 	void StartConfiguredDefaultFX();
 	void StartConfiguredGroundFX();
 	void StartConfiguredCharacterOverlay();
@@ -178,9 +177,6 @@ private:
 	void StopConfiguredSelfBuff();
 	void StopAvatarMovementForSkillActivation();
 	void StopDurationMovementLock();
-	void StopMovementContactDamage();
-	void HandleMovementContactDamageTick();
-	void ApplyMovementContactDamageToActor(AActor* HitActor);
 	ASkillVisualActor* GetOrCreatePresentationActor();
 	void SetConfiguredPresentationEnabled(
 		const ESkillPresentationFlags PresentationFlag, const bool bEnabled);
@@ -220,18 +216,6 @@ private:
 
 	UPROPERTY(Transient)
 	bool bDurationMovementLockActive = false;
-
-	UPROPERTY(Transient)
-	bool bMovementContactDamageActive = false;
-
-	UPROPERTY(Transient)
-	FVector MovementContactDamagePreviousLocation = FVector::ZeroVector;
-
-	FTimerHandle MovementContactDamageTimerHandle;
-	TSet<FObjectKey> MovementContactOverlappingActors;
-	TSet<FObjectKey> MovementContactCurrentActors;
-	TArray<FHitResult> MovementContactSweepHits;
-	TArray<FOverlapResult> MovementContactOverlapResults;
 
 	UPROPERTY(Transient)
 	TObjectPtr<USkillAction> ActiveAction;

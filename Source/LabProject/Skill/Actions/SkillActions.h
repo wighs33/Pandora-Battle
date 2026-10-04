@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Skill/Actions/SkillAction.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
+#include "Skill/Actions/SkillMovementContactDamage.h"
 #include "SkillActions.generated.h"
 
 class UAbilityTask_ApplyRootMotionConstantForce;
@@ -116,6 +117,9 @@ private:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_ApplyRootMotionConstantForce> Task;
+
+	/** 대시로 움직이는 동안만 닿은 적에게 피해를 준다. */
+	FSkillMovementContactDamage ContactDamage;
 };
 
 /** 명시한 효과를 현재 대상 또는 시전자에게 적용한다. 회복과 버프에도 사용한다. */

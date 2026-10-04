@@ -122,7 +122,7 @@ void USkillDashAction::OnStart()
 		Character->GetCharacterMovement()->GetMaxSpeed(), bEnableGravity);
 	if (!Task) { Finish(false); return; }
 	GetAbility()->SpawnConfiguredCharacterDecal();
-	GetAbility()->StartMovementContactDamage();
+	ContactDamage.Start(*GetAbility(), *this);
 	if (const auto* Skill = GetAbility()->GetSourceSkillDataAsset(); Skill && Skill->Niagara.GameplayCueTag.IsValid())
 	{
 		FGameplayCueParameters Cue;
@@ -145,6 +145,7 @@ void USkillDashAction::Completed()
 }
 void USkillDashAction::OnStop()
 {
+	ContactDamage.Stop();
 	if (!Task) return;
 	Task->OnFinish.RemoveAll(this);
 	Task->EndTask();

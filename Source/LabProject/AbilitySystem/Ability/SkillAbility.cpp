@@ -326,7 +326,6 @@ void USkillAbility::OnAbilityEnding()
 	Super::OnAbilityEnding();
 	DestroyActiveSkillPresentationActor();
 	StopConfiguredSelfBuff();
-	StopMovementContactDamage();
 	StopDurationMovementLock();
 	RestoreAvatarMovementForAbility();
 }
