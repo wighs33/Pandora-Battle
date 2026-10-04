@@ -61,6 +61,13 @@ namespace PdTargetValidator
 		const FVector& TargetDataEndPoint,
 		FVector& OutRequestedLocation);
 
+	// 서버의 시전자만 클라이언트가 보낸 조준 위치를 꺼낸다. 시전자·월드가 없거나 권한이 없으면 false다.
+	LABPROJECT_API bool TryResolveAuthorityTargetRequest(
+		const AActor* AvatarActor,
+		const FHitResult& ClientHitResult,
+		const FVector& TargetDataEndPoint,
+		FVector& OutRequestedLocation);
+
 	LABPROJECT_API bool ValidateClientTraceRequest(
 		const AActor* AuthoritySourceActor,
 		const FHitResult& ClientHitResult,

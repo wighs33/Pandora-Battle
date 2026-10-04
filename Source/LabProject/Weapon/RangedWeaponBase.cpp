@@ -300,7 +300,7 @@ TArray<AActor*> ARangedWeaponBase::MakeShotIgnoredActors(AActor* ShooterCharacte
 	return { ShooterCharacter, const_cast<ARangedWeaponBase*>(this) };
 }
 
-FVector ARangedWeaponBase::GetAITargetAimLocation(const AActor* TargetActor) const
+FVector ARangedWeaponBase::GetAITargetAimLocation(const AActor* TargetActor)
 {
 	if (!IsValid(TargetActor))
 	{

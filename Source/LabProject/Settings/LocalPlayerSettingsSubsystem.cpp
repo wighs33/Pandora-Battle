@@ -391,15 +391,7 @@ void ULocalPlayerSettingsSubsystem::ReleaseRuntimeSettingsPreload()
 
 bool ULocalPlayerSettingsSubsystem::AddInputMappingContext(UInputMappingContext* InputMappingContext, const int32 Priority) const
 {
-	if (!InputMappingContext)
-	{
-		return false;
-	}
-
-	ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer
-		? LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>()
-		: nullptr;
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = InputMappingContext ? GetEnhancedInputSubsystem() : nullptr;
 	if (!InputSubsystem)
 	{
 		return false;
@@ -411,15 +403,7 @@ bool ULocalPlayerSettingsSubsystem::AddInputMappingContext(UInputMappingContext*
 
 bool ULocalPlayerSettingsSubsystem::RemoveInputMappingContext(UInputMappingContext* InputMappingContext) const
 {
-	if (!InputMappingContext)
-	{
-		return false;
-	}
-
-	ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer
-		? LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>()
-		: nullptr;
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = InputMappingContext ? GetEnhancedInputSubsystem() : nullptr;
 	if (!InputSubsystem)
 	{
 		return false;
@@ -431,14 +415,12 @@ bool ULocalPlayerSettingsSubsystem::RemoveInputMappingContext(UInputMappingConte
 
 TArray<FKey> ULocalPlayerSettingsSubsystem::QueryKeysMappedToAction(const UInputAction* InputAction) const
 {
-	if (!InputAction)
-	{
-		return {};
-	}
-
-	ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer
-		? LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>()
-		: nullptr;
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = InputAction ? GetEnhancedInputSubsystem() : nullptr;
 	return InputSubsystem ? InputSubsystem->QueryKeysMappedToAction(InputAction) : TArray<FKey>();
+}
+
+UEnhancedInputLocalPlayerSubsystem* ULocalPlayerSettingsSubsystem::GetEnhancedInputSubsystem() const
+{
+	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	return LocalPlayer ? LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
 }

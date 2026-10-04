@@ -29,23 +29,6 @@ namespace
 {
 constexpr float DefaultGestureCancelBlendOutTime = 0.12f;
 
-FGameplayTag ResolveGestureSlotTag(const int32 GestureSlotIndex)
-{
-	switch (GestureSlotIndex)
-	{
-	case 0:
-		return LabGameplayTags::Skin_Gesture_Slot1;
-	case 1:
-		return LabGameplayTags::Skin_Gesture_Slot2;
-	case 2:
-		return LabGameplayTags::Skin_Gesture_Slot3;
-	case 3:
-		return LabGameplayTags::Skin_Gesture_Slot4;
-	default:
-		return FGameplayTag();
-	}
-}
-
 bool IsPetSkinDefinition(const USkinDefinition* SkinDefinition, const FGameplayTag SlotTag)
 {
 	return SkinDefinition
@@ -134,7 +117,7 @@ bool USkinEquipmentComponent::RequestEquipSkinDefinition(const USkinDefinition* 
 // 서버가 장착한 제스처와 현재 행동 상태를 확인한 뒤 재생을 승인한다.
 bool USkinEquipmentComponent::RequestPlayGestureSlot(const int32 GestureSlotIndex)
 {
-	const FGameplayTag SlotTag = ResolveGestureSlotTag(GestureSlotIndex);
+	const FGameplayTag SlotTag = LabGameplayTags::GetGestureSlotTag(GestureSlotIndex);
 	const USkinDefinition* Definition = GetEquippedSkinDefinition(SlotTag);
 	UAnimMontage* Montage = Definition ? Definition->GestureMontage.Get() : nullptr;
 	if (!SlotTag.IsValid() || !Montage || !CanPlayGesture() || !TryConsumeGesturePlayRequest())

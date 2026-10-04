@@ -130,15 +130,13 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 
 	if (!InfoScreen)
 	{
-		InfoScreen = CreateWidget<UUiScreen>(Controller);
-		FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
-		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		InfoScreen->SetContent(Hud->CachedInfoUI, Config, EPdGameplayInputPolicy::Block, Hud->CachedInfoUI,
+		InfoScreen = UUiScreen::CreateBlocking(Controller, Hud->CachedInfoUI, Hud->CachedInfoUI,
 			FSimpleDelegate::CreateWeakLambda(this, [this]()
 			{
 				if (IsPandoraTreeOpen()) ClosePandoraTree();
 				else if (!bInfoClosing) CloseInfo();
-			}));
+			}),
+			ECommonInputMode::All);
 	}
 	if (!InfoScreen->IsActivated())
 		Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(InfoScreen, EUiScreenLayer::Screen);

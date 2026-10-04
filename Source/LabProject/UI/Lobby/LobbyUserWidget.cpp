@@ -17,6 +17,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "UI/Common/TeamColorUtils.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "steam/steam_api.h"
@@ -26,9 +27,8 @@ THIRD_PARTY_INCLUDES_END
 
 namespace
 {
-	constexpr int32 LobbyTeamColorCount = 6;
-
-	const TCHAR* LobbyTeamColorOptions[LobbyTeamColorCount] =
+	// 콤보 상자 항목 순서가 팀 색 번호다.
+	const TCHAR* LobbyTeamColorOptions[LabTeamColorUtils::TeamColorCount] =
 	{
 		TEXT("Red"),
 		TEXT("Blue"),
@@ -37,44 +37,6 @@ namespace
 		TEXT("Green"),
 		TEXT("Orange")
 	};
-
-	int32 NormalizeLobbyTeamColorIndex(const int32 TeamColorIndex)
-	{
-		return TeamColorIndex == INDEX_NONE
-			? 0
-			: FMath::Clamp(TeamColorIndex, 0, LobbyTeamColorCount - 1);
-	}
-
-	FLinearColor GetLobbyTeamColor(const int32 TeamColorIndex)
-	{
-		switch (NormalizeLobbyTeamColorIndex(TeamColorIndex))
-		{
-		case 0:
-			return FLinearColor(0.95f, 0.08f, 0.06f, 1.0f);
-		case 1:
-			return FLinearColor(0.08f, 0.28f, 1.0f, 1.0f);
-		case 2:
-			return FLinearColor(1.0f, 0.78f, 0.08f, 1.0f);
-		case 3:
-			return FLinearColor(0.58f, 0.18f, 0.95f, 1.0f);
-		case 4:
-			return FLinearColor(0.08f, 0.72f, 0.24f, 1.0f);
-		case 5:
-			return FLinearColor(1.0f, 0.42f, 0.04f, 1.0f);
-		default:
-			return FLinearColor::White;
-		}
-	}
-
-	FLinearColor GetLobbyTeamColorTint(const int32 TeamColorIndex)
-	{
-		FLinearColor HsvColor = GetLobbyTeamColor(TeamColorIndex).LinearRGBToHSV();
-		HsvColor.G = 0.9f;
-
-		FLinearColor Tint = HsvColor.HSVToLinearRGB();
-		Tint.A = 0.9f;
-		return Tint;
-	}
 
 	int32 FindLobbyTeamColorOptionIndex(const UComboBoxString* ComboBox, const FString& OptionName)
 	{
@@ -85,12 +47,12 @@ namespace
 			{
 				if (ComboBox->GetOptionAtIndex(OptionIndex).Equals(OptionName, ESearchCase::IgnoreCase))
 				{
-					return FMath::Clamp(OptionIndex, 0, LobbyTeamColorCount - 1);
+					return FMath::Clamp(OptionIndex, 0, LabTeamColorUtils::TeamColorCount - 1);
 				}
 			}
 		}
 
-		for (int32 OptionIndex = 0; OptionIndex < LobbyTeamColorCount; ++OptionIndex)
+		for (int32 OptionIndex = 0; OptionIndex < LabTeamColorUtils::TeamColorCount; ++OptionIndex)
 		{
 			if (OptionName.Equals(LobbyTeamColorOptions[OptionIndex], ESearchCase::IgnoreCase))
 			{
@@ -432,7 +394,7 @@ void ULobbyUserWidget::RefreshTeamColorUI()
 		return;
 	}
 
-	const int32 TeamColorIndex = NormalizeLobbyTeamColorIndex(PlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex());
+	const int32 TeamColorIndex = LabTeamColorUtils::NormalizeTeamColorIndex(PlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex());
 
 	if (Cbb_TeamColor)
 	{
@@ -453,7 +415,7 @@ void ULobbyUserWidget::SetColorBorderByTeamColorIndex(const int32 TeamColorIndex
 {
 	if (ColorBorder)
 	{
-		ColorBorder->SetBrushColor(GetLobbyTeamColorTint(TeamColorIndex));
+		ColorBorder->SetBrushColor(LabTeamColorUtils::GetTeamColorTint(TeamColorIndex));
 	}
 }
 

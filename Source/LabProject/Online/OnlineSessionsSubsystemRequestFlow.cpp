@@ -96,13 +96,7 @@ void UOnlineSessionsSubsystem::OnCreateSessionCompleted(FName, const bool bWasSu
 	}
 
 	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
-	const bool bIdentityValid = IsActiveLocalPlayerIdentityValid();
-	const bool bCanceled = bActiveRequestCancelRequested || !bIdentityValid;
-	ClearSessionOperationDelegate(SessionOperationState);
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
-	}
+	const bool bCanceled = EndSessionOperationWait();
 
 	if (bCanceled)
 	{
@@ -190,13 +184,7 @@ void UOnlineSessionsSubsystem::OnFindSessionsCompleted(const bool bWasSuccessful
 	}
 
 	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
-	const bool bIdentityValid = IsActiveLocalPlayerIdentityValid();
-	const bool bCanceled = bActiveRequestCancelRequested || !bIdentityValid;
-	ClearSessionOperationDelegate(SessionOperationState);
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
-	}
+	const bool bCanceled = EndSessionOperationWait();
 
 	if (bCanceled)
 	{
@@ -304,13 +292,7 @@ void UOnlineSessionsSubsystem::OnJoinSessionCompleted(
 	}
 
 	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
-	const bool bIdentityValid = IsActiveLocalPlayerIdentityValid();
-	const bool bCanceled = bActiveRequestCancelRequested || !bIdentityValid;
-	ClearSessionOperationDelegate(SessionOperationState);
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
-	}
+	const bool bCanceled = EndSessionOperationWait();
 
 	if (bCanceled)
 	{
@@ -388,13 +370,7 @@ void UOnlineSessionsSubsystem::OnDestroySessionCompleted(FName, const bool bWasS
 
 	const ESessionOperationState CompletedOperationState = SessionOperationState;
 	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
-	const bool bIdentityValid = IsActiveLocalPlayerIdentityValid();
-	const bool bCanceled = bActiveRequestCancelRequested || !bIdentityValid;
-	ClearSessionOperationDelegate(SessionOperationState);
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
-	}
+	const bool bCanceled = EndSessionOperationWait();
 
 	if (CompletedOperationState == ESessionOperationState::CleaningCanceledSession)
 	{
@@ -524,6 +500,18 @@ void UOnlineSessionsSubsystem::ResetActiveSessionRequest()
 }
 
 // 직전 작업 단계에 등록했던 콜백만 해제해 빠른 매칭의 다음 단계에 이전 콜백이 남지 않게 한다.
+// 세션 작업의 완료 델리게이트와 제한 시간을 정리한다. 취소됐거나 요청한 로컬 플레이어가 바뀌었으면 true를 돌려준다.
+bool UOnlineSessionsSubsystem::EndSessionOperationWait()
+{
+	const bool bCanceled = bActiveRequestCancelRequested || !IsActiveLocalPlayerIdentityValid();
+	ClearSessionOperationDelegate(SessionOperationState);
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
+	}
+	return bCanceled;
+}
+
 void UOnlineSessionsSubsystem::ClearSessionOperationDelegate(const ESessionOperationState OperationState)
 {
 	if (!SessionInterface.IsValid())

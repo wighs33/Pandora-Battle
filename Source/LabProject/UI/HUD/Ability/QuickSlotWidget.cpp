@@ -26,23 +26,6 @@ namespace
 	constexpr int32 RequiredQuickSlotCount = 8;
 	constexpr int32 ConsumableQuickSlotCount = 4;
 	constexpr int32 QuickSlotGridColumns = 4;
-
-	FGameplayTag ResolveGestureSlotTagFromQuickSlotIndex(const int32 QuickSlotIndex)
-	{
-		switch (QuickSlotIndex - ConsumableQuickSlotCount)
-		{
-		case 0:
-			return LabGameplayTags::Skin_Gesture_Slot1;
-		case 1:
-			return LabGameplayTags::Skin_Gesture_Slot2;
-		case 2:
-			return LabGameplayTags::Skin_Gesture_Slot3;
-		case 3:
-			return LabGameplayTags::Skin_Gesture_Slot4;
-		default:
-			return FGameplayTag();
-		}
-	}
 }
 
 void UQuickSlotWidget::NativePreConstruct()
@@ -348,7 +331,7 @@ const USkinDefinition* UQuickSlotWidget::ResolveGestureSlotSkinDefinition(
 	const USkinEquipmentComponent* SkinEquipmentComponent,
 	const int32 QuickSlotIndex) const
 {
-	const FGameplayTag SlotTag = ResolveGestureSlotTagFromQuickSlotIndex(QuickSlotIndex);
+	const FGameplayTag SlotTag = LabGameplayTags::GetGestureSlotTag(QuickSlotIndex - ConsumableQuickSlotCount);
 	return SkinEquipmentComponent && SlotTag.IsValid()
 		? SkinEquipmentComponent->GetEquippedSkinDefinition(SlotTag)
 		: nullptr;

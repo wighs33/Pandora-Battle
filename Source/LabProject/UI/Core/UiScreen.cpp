@@ -27,6 +27,25 @@ void UUiScreen::SetContent(UUserWidget* Panel, const FUIInputConfig& InputConfig
     ContentSlot->SetVerticalAlignment(VAlign_Fill);
 }
 
+FUIInputConfig UUiScreen::MakeBlockingInputConfig(const ECommonInputMode InputMode, const EMouseCaptureMode MouseCapture)
+{
+    FUIInputConfig Config(InputMode, MouseCapture);
+    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+    return Config;
+}
+
+UUiScreen* UUiScreen::CreateBlocking(APlayerController* OwningPlayer, UUserWidget* Panel, UWidget* FocusTarget,
+    FSimpleDelegate BackAction, const ECommonInputMode InputMode, const EMouseCaptureMode MouseCapture)
+{
+    UUiScreen* Screen = CreateWidget<UUiScreen>(OwningPlayer);
+    if (Screen)
+    {
+        Screen->SetContent(Panel, MakeBlockingInputConfig(InputMode, MouseCapture), EPdGameplayInputPolicy::Block,
+            FocusTarget, MoveTemp(BackAction));
+    }
+    return Screen;
+}
+
 TOptional<FUIInputConfig> UUiScreen::GetDesiredInputConfig() const
 {
     return Config;

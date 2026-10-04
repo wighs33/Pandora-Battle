@@ -131,6 +131,7 @@ private:
 	void BroadcastActiveRequestFailure();
 	void ResetActiveSessionRequest();
 	void ClearSessionOperationDelegate(ESessionOperationState OperationState);
+	bool EndSessionOperationWait();
 	bool MatchesActiveRequestId(uint64 CallbackRequestId) const;
 	bool IsActiveLocalPlayerIdentityValid() const;
 	APlayerController* ResolveActiveLocalPlayerController() const;

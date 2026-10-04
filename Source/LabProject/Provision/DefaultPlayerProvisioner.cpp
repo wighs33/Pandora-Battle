@@ -26,26 +26,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogDefaultPlayerProvisioner, Log, All);
 
-namespace
-{
-	FGameplayTag ResolveGestureSlotTag(const int32 GestureSlotIndex)
-	{
-		switch (GestureSlotIndex)
-		{
-		case 0:
-			return LabGameplayTags::Skin_Gesture_Slot1;
-		case 1:
-			return LabGameplayTags::Skin_Gesture_Slot2;
-		case 2:
-			return LabGameplayTags::Skin_Gesture_Slot3;
-		case 3:
-			return LabGameplayTags::Skin_Gesture_Slot4;
-		default:
-			return FGameplayTag();
-		}
-	}
-}
-
 UWorld* UDefaultPlayerProvisioner::GetWorld() const
 {
 	return !HasAnyFlags(RF_ClassDefaultObject) && GetOuter()
@@ -143,7 +123,7 @@ bool UDefaultPlayerProvisioner::EnsureContentLoaded(APlayerController* PlayerCon
 		: Definition->GetGestureGrants())
 	{
 		if (Grant.SkinDefinitionId.IsValid()
-			&& ResolveGestureSlotTag(Grant.GestureSlotIndex).IsValid())
+			&& LabGameplayTags::GetGestureSlotTag(Grant.GestureSlotIndex).IsValid())
 		{
 			RequiredContentIds.AddUnique(Grant.SkinDefinitionId);
 		}
@@ -661,7 +641,7 @@ bool UDefaultPlayerProvisioner::ApplyGestures(
 		: Definition->GetGestureGrants())
 	{
 		const FGameplayTag SlotTag =
-			ResolveGestureSlotTag(Grant.GestureSlotIndex);
+			LabGameplayTags::GetGestureSlotTag(Grant.GestureSlotIndex);
 		USkinDefinition* SkinDefinition =
 			Grant.SkinDefinitionId.IsValid() && SlotTag.IsValid()
 				? Cast<USkinDefinition>(

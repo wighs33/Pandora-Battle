@@ -32,7 +32,12 @@ void ULeftProfileWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	BindAchievementButtons();
-	BindSteamAchievementStateChanged();
+	if (UAchievementSubsystem* AchievementSubsystem = AchievementSubscription.Subscribe(
+		GetGameInstance(),
+		FSimpleDelegate::CreateUObject(this, &ThisClass::RefreshAchievementButtons)))
+	{
+		AchievementSubsystem->RequestSteamAchievementQuery();
+	}
 	BeginContentPreload();
 	RefreshTierImage();
 	RefreshAchievementButtons();
@@ -50,7 +55,7 @@ void ULeftProfileWidget::NativeDestruct()
 	PresentationLease.Reset();
 	DefinitionLease.Reset();
 	UnbindMatchDisplayNameChanged();
-	UnbindSteamAchievementStateChanged();
+	AchievementSubscription.Reset();
 	UnbindAchievementButtons();
 	Super::NativeDestruct();
 }
@@ -269,39 +274,6 @@ void ULeftProfileWidget::UpdateAchievementSelection(const int32 AchievementIndex
 				? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		}
 	}
-}
-
-void ULeftProfileWidget::BindSteamAchievementStateChanged()
-{
-	UnbindSteamAchievementStateChanged();
-	UGameInstance* GameInstance = GetGameInstance();
-	UAchievementSubsystem* AchievementSubsystem = GameInstance
-		? GameInstance->GetSubsystem<UAchievementSubsystem>()
-		: nullptr;
-	if (!AchievementSubsystem)
-	{
-		return;
-	}
-
-	SteamAchievementStateChangedHandle =
-		AchievementSubsystem->OnSteamAchievementStateChanged().AddUObject(
-			this,
-			&ThisClass::RefreshAchievementButtons);
-	AchievementSubsystem->RequestSteamAchievementQuery();
-}
-
-void ULeftProfileWidget::UnbindSteamAchievementStateChanged()
-{
-	UGameInstance* GameInstance = GetGameInstance();
-	UAchievementSubsystem* AchievementSubsystem = GameInstance
-		? GameInstance->GetSubsystem<UAchievementSubsystem>()
-		: nullptr;
-	if (AchievementSubsystem && SteamAchievementStateChangedHandle.IsValid())
-	{
-		AchievementSubsystem->OnSteamAchievementStateChanged().Remove(
-			SteamAchievementStateChangedHandle);
-	}
-	SteamAchievementStateChangedHandle.Reset();
 }
 
 void ULeftProfileWidget::BindAchievementButtons()

@@ -370,26 +370,7 @@ bool UEnemyTrainingBotComponent::RequestWeaponChange(
 		return true;
 	}
 
-	PendingWeaponDefinition = WeaponDefinition;
-	bPendingUnarmed = false;
-	bWeaponChangeInProgress = true;
-	CancelWeaponChangeAttackState();
-
-	float UnequipDuration = 0.0f;
-	PlayCurrentUnequipMontage(UnequipDuration);
-	Enemy->GetWorldTimerManager().ClearTimer(WeaponChangeTimerHandle);
-	if (UnequipDuration <= UE_KINDA_SMALL_NUMBER)
-	{
-		FinishPendingWeaponChange();
-		return true;
-	}
-
-	Enemy->GetWorldTimerManager().SetTimer(
-		WeaponChangeTimerHandle,
-		this,
-		&ThisClass::FinishPendingWeaponChange,
-		UnequipDuration,
-		false);
+	BeginWeaponChange(*Enemy, WeaponDefinition);
 	return true;
 }
 
@@ -416,27 +397,33 @@ bool UEnemyTrainingBotComponent::RequestUnarmed()
 		return true;
 	}
 
-	PendingWeaponDefinition = nullptr;
-	bPendingUnarmed = true;
+	BeginWeaponChange(*Enemy, nullptr);
+	return true;
+}
+
+// 현재 무기를 내려놓는 몽타주가 끝나면 FinishPendingWeaponChange가 다음 무기를 든다. 무기가 없으면 맨손이 된다.
+void UEnemyTrainingBotComponent::BeginWeaponChange(AEnemyBase& Enemy, const UItemDefinition* NextWeaponDefinition)
+{
+	PendingWeaponDefinition = NextWeaponDefinition;
+	bPendingUnarmed = NextWeaponDefinition == nullptr;
 	bWeaponChangeInProgress = true;
 	CancelWeaponChangeAttackState();
 
 	float UnequipDuration = 0.0f;
 	PlayCurrentUnequipMontage(UnequipDuration);
-	Enemy->GetWorldTimerManager().ClearTimer(WeaponChangeTimerHandle);
+	Enemy.GetWorldTimerManager().ClearTimer(WeaponChangeTimerHandle);
 	if (UnequipDuration <= UE_KINDA_SMALL_NUMBER)
 	{
 		FinishPendingWeaponChange();
-		return true;
+		return;
 	}
 
-	Enemy->GetWorldTimerManager().SetTimer(
+	Enemy.GetWorldTimerManager().SetTimer(
 		WeaponChangeTimerHandle,
 		this,
 		&ThisClass::FinishPendingWeaponChange,
 		UnequipDuration,
 		false);
-	return true;
 }
 
 void UEnemyTrainingBotComponent::CancelWeaponChangeAttackState(

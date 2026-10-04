@@ -67,19 +67,7 @@ void UGameFeatureAction_AddActorExtension::AddAdditionalAssetBundleData(FAssetBu
 {
 	if (!TargetClass.IsNull())
 	{
-		if (bClientAction)
-		{
-			AssetBundleData.AddBundleAsset(
-				UGameFeaturesSubsystemSettings::LoadStateClient,
-				TargetClass.ToSoftObjectPath().GetAssetPath());
-		}
-
-		if (bServerAction)
-		{
-			AssetBundleData.AddBundleAsset(
-				UGameFeaturesSubsystemSettings::LoadStateServer,
-				TargetClass.ToSoftObjectPath().GetAssetPath());
-		}
+		AddToActionBundles(AssetBundleData, TargetClass.ToSoftObjectPath().GetAssetPath());
 	}
 
 	Extension.AddAdditionalAssetBundleData(AssetBundleData);

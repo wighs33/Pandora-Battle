@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Component/Character/AbilitySystemReadySubscription.h"
+#include "Online/AchievementNotificationSubscription.h"
 #include "UI/Common/LocalizedMenuWidget.h"
 #include "LeftProfileWidget.generated.h"
 
@@ -67,8 +68,6 @@ private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void BindAchievementButtons();
 	void UnbindAchievementButtons();
-	void BindSteamAchievementStateChanged();
-	void UnbindSteamAchievementStateChanged();
 	void BeginContentPreload();
 	void BeginPresentationPreload();
 	void BindMatchDisplayNameChanged();
@@ -145,7 +144,7 @@ protected:
 private:
 	TWeakObjectPtr<APdPlayerState> BoundPlayerState;
 	FDelegateHandle MatchDisplayNameChangedHandle;
-	FDelegateHandle SteamAchievementStateChangedHandle;
+	FAchievementNotificationSubscription AchievementSubscription;
 	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
 	bool bAchievementQueryPending = false;
 	TSharedPtr<FContentLease> DefinitionLease;

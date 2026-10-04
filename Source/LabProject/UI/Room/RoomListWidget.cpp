@@ -262,11 +262,8 @@ void URoomListWidget::HandleCreateGameClicked()
 
 	if (UCreateRoomPopupWidget* PopupWidget = CreateWidget<UCreateRoomPopupWidget>(GetOwningPlayer(), CreateRoomPopupWidgetClass))
 	{
-		UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
-		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		Screen->SetContent(PopupWidget, Config, EPdGameplayInputPolicy::Block, PopupWidget, FSimpleDelegate());
-		GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
+		GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(
+			UUiScreen::CreateBlocking(GetOwningPlayer(), PopupWidget, PopupWidget, FSimpleDelegate()), EUiScreenLayer::Modal);
 	}
 }
 

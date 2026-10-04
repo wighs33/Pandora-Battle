@@ -196,7 +196,7 @@ bool URangedAttackAbility::TryCacheAIPrimaryAttackTarget(ACharacterBase* Charact
 	}
 
 	AActor* AttackTarget = ResolveAttackTarget(Character);
-	const FVector TargetLocation = ResolveAITargetAimLocation(AttackTarget);
+	const FVector TargetLocation = ARangedWeaponBase::GetAITargetAimLocation(AttackTarget);
 	if (!IsValid(AttackTarget) || TargetLocation.IsNearlyZero())
 	{
 		return false;
@@ -236,22 +236,6 @@ bool URangedAttackAbility::TryExecuteScheduledAIWeaponFire()
 	bAIPrimaryAttackExecuted = bFired;
 
 	return bFired;
-}
-
-FVector URangedAttackAbility::ResolveAITargetAimLocation(const AActor* TargetActor) const
-{
-	if (!IsValid(TargetActor))
-	{
-		return FVector::ZeroVector;
-	}
-
-	float TargetRadius = 0.0f;
-	float TargetHalfHeight = 0.0f;
-	TargetActor->GetSimpleCollisionCylinder(TargetRadius, TargetHalfHeight);
-
-	FVector AimLocation = TargetActor->GetActorLocation();
-	AimLocation.Z += FMath::Max(TargetHalfHeight * 0.5f, 0.0f);
-	return AimLocation;
 }
 
 float URangedAttackAbility::GetAIRangedTargetLockDelay() const

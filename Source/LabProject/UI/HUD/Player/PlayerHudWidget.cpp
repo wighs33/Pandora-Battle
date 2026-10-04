@@ -46,7 +46,14 @@ void UPlayerHudWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	ClearTransactionalFlagsForRuntimeWidget(this);
-	BindAchievementNotifications();
+	// Steam 업적 조회 결과와 업적 아이콘 로딩 완료 때 아바타 아이콘을 다시 그린다.
+	if (UAchievementSubsystem* AchievementSubsystem = AchievementSubscription.Subscribe(
+		GetGameInstance(),
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleAchievementDisplayChanged),
+		true))
+	{
+		AchievementSubsystem->RequestSteamAchievementQuery();
+	}
 	RefreshLobbyTipVisibility();
 	RefreshKillBoxVisibility();
 	RefreshAchievementAvatar();
@@ -60,7 +67,7 @@ void UPlayerHudWidget::NativeConstruct()
 
 void UPlayerHudWidget::NativeDestruct()
 {
-	UnbindAchievementNotifications();
+	AchievementSubscription.Reset();
 	ClearKillBoxWidgets();
 	PdEditorTransaction::ResetIfContainsPieObjects();
 	Super::NativeDestruct();
@@ -172,47 +179,6 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 	PlayerAvatarImage->SetBrushFromTexture(AchievementTexture, true);
 	PlayerAvatarImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	return true;
-}
-
-// Steam 업적 조회 결과와 업적 아이콘 로딩 완료 때 아바타 아이콘을 다시 그린다.
-void UPlayerHudWidget::BindAchievementNotifications()
-{
-	UnbindAchievementNotifications();
-	UGameInstance* GameInstance = GetGameInstance();
-	UAchievementSubsystem* AchievementSubsystem = GameInstance
-		? GameInstance->GetSubsystem<UAchievementSubsystem>()
-		: nullptr;
-	if (!AchievementSubsystem)
-	{
-		return;
-	}
-
-	SteamAchievementStateChangedHandle =
-		AchievementSubsystem->OnSteamAchievementStateChanged().AddUObject(
-			this,
-			&ThisClass::HandleAchievementDisplayChanged);
-	AchievementPresentationReadyHandle =
-		AchievementSubsystem->OnAchievementPresentationReady().AddUObject(
-			this,
-			&ThisClass::HandleAchievementDisplayChanged);
-	AchievementSubsystem->RequestSteamAchievementQuery();
-}
-
-void UPlayerHudWidget::UnbindAchievementNotifications()
-{
-	UGameInstance* GameInstance = GetGameInstance();
-	UAchievementSubsystem* AchievementSubsystem = GameInstance
-		? GameInstance->GetSubsystem<UAchievementSubsystem>()
-		: nullptr;
-	if (AchievementSubsystem)
-	{
-		AchievementSubsystem->OnSteamAchievementStateChanged().Remove(
-			SteamAchievementStateChangedHandle);
-		AchievementSubsystem->OnAchievementPresentationReady().Remove(
-			AchievementPresentationReadyHandle);
-	}
-	SteamAchievementStateChangedHandle.Reset();
-	AchievementPresentationReadyHandle.Reset();
 }
 
 void UPlayerHudWidget::HandleAchievementDisplayChanged()

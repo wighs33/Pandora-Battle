@@ -98,10 +98,7 @@ ULobbyWidget* ALobbyHUD::CreateLobbyUI()
 
     if (!LobbyScreen)
     {
-        LobbyScreen = CreateWidget<UUiScreen>(PlayerController);
-        FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-        Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-        LobbyScreen->SetContent(LobbyWidget, Config, EPdGameplayInputPolicy::Block, LobbyWidget,
+        LobbyScreen = UUiScreen::CreateBlocking(PlayerController, LobbyWidget, LobbyWidget,
             FSimpleDelegate::CreateWeakLambda(this, [this]() { HandleEscapeInput(); }));
         PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(LobbyScreen, EUiScreenLayer::Screen);
     }

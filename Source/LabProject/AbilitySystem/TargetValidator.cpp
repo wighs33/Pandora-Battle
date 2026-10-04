@@ -160,6 +160,20 @@ bool PdTargetValidator::TryResolveTargetDataLocation(
 	return false;
 }
 
+bool PdTargetValidator::TryResolveAuthorityTargetRequest(
+	const AActor* AvatarActor,
+	const FHitResult& ClientHitResult,
+	const FVector& TargetDataEndPoint,
+	FVector& OutRequestedLocation)
+{
+	if (!AvatarActor || !AvatarActor->HasAuthority() || !AvatarActor->GetWorld())
+	{
+		return false;
+	}
+
+	return TryResolveTargetDataLocation(ClientHitResult, TargetDataEndPoint, OutRequestedLocation);
+}
+
 bool PdTargetValidator::ValidateClientTraceRequest(
 	const AActor* AuthoritySourceActor,
 	const FHitResult& ClientHitResult,

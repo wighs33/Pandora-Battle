@@ -89,7 +89,7 @@ void UPandoraTreeWidget::NativeDestruct()
 {
 	ClearHideTimer();
 	bPandoraDescriptionDirty = false;
-	UnbindPandoraWidgetEvents();
+	UnbindAllPandoraWidgetEvents();
 	PandoraDescriptionRequestStack.Reset();
 	HidePandoraDescription();
 	if (PandoraDescriptionWidget)
@@ -593,53 +593,30 @@ void UPandoraTreeWidget::BindPandoraWidgetEvents(UPandoraWidget* PandoraWidget)
 		return;
 	}
 
-	PandoraWidget->OnPandoraDescriptionRequested.RemoveDynamic(
-		this,
-		&ThisClass::HandlePandoraDescriptionRequested);
-	PandoraWidget->OnPandoraDescriptionDismissed.RemoveDynamic(
-		this,
-		&ThisClass::HandlePandoraDescriptionDismissed);
-	PandoraWidget->OnPandoraTreeFocusRequested.RemoveDynamic(
-		this,
-		&ThisClass::HandlePandoraTreeFocusRequested);
-
-	PandoraWidget->OnPandoraDescriptionRequested.AddUniqueDynamic(
-		this,
-		&ThisClass::HandlePandoraDescriptionRequested);
-	PandoraWidget->OnPandoraDescriptionDismissed.AddUniqueDynamic(
-		this,
-		&ThisClass::HandlePandoraDescriptionDismissed);
-	PandoraWidget->OnPandoraTreeFocusRequested.AddUniqueDynamic(
-		this,
-		&ThisClass::HandlePandoraTreeFocusRequested);
+	UnbindPandoraWidgetEvents(PandoraWidget);
+	PandoraWidget->OnPandoraDescriptionRequested.AddUniqueDynamic(this, &ThisClass::HandlePandoraDescriptionRequested);
+	PandoraWidget->OnPandoraDescriptionDismissed.AddUniqueDynamic(this, &ThisClass::HandlePandoraDescriptionDismissed);
+	PandoraWidget->OnPandoraTreeFocusRequested.AddUniqueDynamic(this, &ThisClass::HandlePandoraTreeFocusRequested);
 }
 
-void UPandoraTreeWidget::UnbindPandoraWidgetEvents()
+void UPandoraTreeWidget::UnbindPandoraWidgetEvents(UPandoraWidget* PandoraWidget)
 {
-	if (!WidgetTree)
+	if (!IsValid(PandoraWidget))
 	{
 		return;
 	}
 
-	WidgetTree->ForEachWidget(
-		[this](UWidget* Widget)
-		{
-			UPandoraWidget* PandoraWidget = Cast<UPandoraWidget>(Widget);
-			if (!IsValid(PandoraWidget))
-			{
-				return;
-			}
+	PandoraWidget->OnPandoraDescriptionRequested.RemoveDynamic(this, &ThisClass::HandlePandoraDescriptionRequested);
+	PandoraWidget->OnPandoraDescriptionDismissed.RemoveDynamic(this, &ThisClass::HandlePandoraDescriptionDismissed);
+	PandoraWidget->OnPandoraTreeFocusRequested.RemoveDynamic(this, &ThisClass::HandlePandoraTreeFocusRequested);
+}
 
-			PandoraWidget->OnPandoraDescriptionRequested.RemoveDynamic(
-				this,
-				&ThisClass::HandlePandoraDescriptionRequested);
-			PandoraWidget->OnPandoraDescriptionDismissed.RemoveDynamic(
-				this,
-				&ThisClass::HandlePandoraDescriptionDismissed);
-			PandoraWidget->OnPandoraTreeFocusRequested.RemoveDynamic(
-				this,
-				&ThisClass::HandlePandoraTreeFocusRequested);
-		});
+void UPandoraTreeWidget::UnbindAllPandoraWidgetEvents()
+{
+	if (WidgetTree)
+	{
+		WidgetTree->ForEachWidget([this](UWidget* Widget) { UnbindPandoraWidgetEvents(Cast<UPandoraWidget>(Widget)); });
+	}
 }
 
 void UPandoraTreeWidget::ResolveTogglePandoraTreeAction()

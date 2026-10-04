@@ -553,20 +553,13 @@ bool USkillTargetedAreaAction::TryValidateServerAOELocation(
 	FVector& OutValidatedLocation)
 {
 	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
-	if (!AvatarActor || !AvatarActor->HasAuthority() || !World)
+	FVector RequestedLocation = FVector::ZeroVector;
+	if (!PdTargetValidator::TryResolveAuthorityTargetRequest(AvatarActor, ClientHitResult, TargetDataEndPoint, RequestedLocation))
 	{
 		return false;
 	}
 
-	FVector RequestedLocation = FVector::ZeroVector;
-	if (!PdTargetValidator::TryResolveTargetDataLocation(
-		ClientHitResult,
-		TargetDataEndPoint,
-		RequestedLocation))
-	{
-		return false;
-	}
+	UWorld* World = AvatarActor->GetWorld();
 
 	const FGameplayAbilityTargetingLocationInfo TargetStartLocation = MakeTargetStartLocation();
 	const FVector AuthoritySourceLocation = TargetStartLocation.GetTargetingTransform().GetLocation();

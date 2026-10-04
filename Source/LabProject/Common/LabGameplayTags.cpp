@@ -217,3 +217,20 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_MovementSpeedLevel, "Status.Agility.MovementSpeedLevel", "Movement speed investment level tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_ArcaneLevel, "Status.Agility.ArcaneLevel", "Arcane investment level tag.");
 }
+
+FGameplayTag LabGameplayTags::GetGestureSlotTag(const int32 GestureSlotIndex)
+{
+	switch (GestureSlotIndex)
+	{
+	case 0:
+		return Skin_Gesture_Slot1;
+	case 1:
+		return Skin_Gesture_Slot2;
+	case 2:
+		return Skin_Gesture_Slot3;
+	case 3:
+		return Skin_Gesture_Slot4;
+	default:
+		return FGameplayTag();
+	}
+}

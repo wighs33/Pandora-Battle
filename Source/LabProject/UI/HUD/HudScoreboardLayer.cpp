@@ -52,10 +52,9 @@ void UHudScoreboardLayer::Show()
 	Refresh();
 	if (!ScoreboardScreen)
     {
-        ScoreboardScreen = CreateWidget<UUiScreen>(Controller);
-        FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
-        Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-        ScoreboardScreen->SetContent(ScoreboardWidget, Config, EPdGameplayInputPolicy::Block, ScoreboardWidget, FSimpleDelegate::CreateUObject(this, &ThisClass::Hide));
+        ScoreboardScreen = UUiScreen::CreateBlocking(Controller, ScoreboardWidget, ScoreboardWidget,
+            FSimpleDelegate::CreateUObject(this, &ThisClass::Hide), ECommonInputMode::All,
+            EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
         Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(ScoreboardScreen, EUiScreenLayer::Overlay);
     }
 

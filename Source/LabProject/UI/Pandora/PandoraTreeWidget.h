@@ -107,7 +107,8 @@ private:
 	void UnbindButtonEvents();
 	void RefreshPandoraWidget(UWidget* Widget);
 	void BindPandoraWidgetEvents(UPandoraWidget* PandoraWidget);
-	void UnbindPandoraWidgetEvents();
+	void UnbindPandoraWidgetEvents(UPandoraWidget* PandoraWidget);
+	void UnbindAllPandoraWidgetEvents();
 	void ShowPandoraDescriptionAtWidget(
 		const UPandoraDefinition* InPandoraDefinition,
 		UPandoraTreeComponent* InPandoraTreeComponent,

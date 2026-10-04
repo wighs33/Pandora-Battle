@@ -58,7 +58,7 @@ UControllerProfileSyncComponent::UControllerProfileSyncComponent()
 
 void UControllerProfileSyncComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	UnbindSteamAchievementStateChanged();
+	AchievementSubscription.Reset();
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(LocalCosmeticProfileSyncTimerHandle);
@@ -76,7 +76,13 @@ void UControllerProfileSyncComponent::ScheduleLocalCosmeticProfileSync()
 	{
 		return;
 	}
-	BindSteamAchievementStateChanged();
+	// Steam 업적 조회가 끝나면 선택한 업적을 다시 검증해 보낸다.
+	if (!AchievementSubscription.IsSubscribed())
+	{
+		AchievementSubscription.Subscribe(
+			Controller->GetGameInstance(),
+			FSimpleDelegate::CreateUObject(this, &ThisClass::ScheduleLocalCosmeticProfileSync));
+	}
 
 	LocalCosmeticProfileSyncAttemptCount = 0;
 	if (UWorld* World = GetWorld())
@@ -355,46 +361,6 @@ void UControllerProfileSyncComponent::CompleteLocalCosmeticProfileSyncAttempt()
 			World->GetTimerManager().ClearTimer(LocalCosmeticProfileSyncTimerHandle);
 		}
 	}
-}
-
-void UControllerProfileSyncComponent::BindSteamAchievementStateChanged()
-{
-	if (SteamAchievementStateChangedHandle.IsValid())
-	{
-		return;
-	}
-
-	APdPlayerController* Controller = GetPdController();
-	UGameInstance* GameInstance =
-		Controller ? Controller->GetGameInstance() : nullptr;
-	UAchievementSubsystem* AchievementSubsystem = GameInstance
-		? GameInstance->GetSubsystem<UAchievementSubsystem>()
-		: nullptr;
-	if (!AchievementSubsystem)
-	{
-		return;
-	}
-
-	SteamAchievementStateChangedHandle =
-		AchievementSubsystem->OnSteamAchievementStateChanged().AddUObject(
-			this,
-			&ThisClass::ScheduleLocalCosmeticProfileSync);
-}
-
-void UControllerProfileSyncComponent::UnbindSteamAchievementStateChanged()
-{
-	APdPlayerController* Controller = GetPdController();
-	UGameInstance* GameInstance =
-		Controller ? Controller->GetGameInstance() : nullptr;
-	UAchievementSubsystem* AchievementSubsystem = GameInstance
-		? GameInstance->GetSubsystem<UAchievementSubsystem>()
-		: nullptr;
-	if (AchievementSubsystem && SteamAchievementStateChangedHandle.IsValid())
-	{
-		AchievementSubsystem->OnSteamAchievementStateChanged().Remove(
-			SteamAchievementStateChangedHandle);
-	}
-	SteamAchievementStateChangedHandle.Reset();
 }
 
 bool UControllerProfileSyncComponent::TryConsumeRemoteSkinSyncRequest()

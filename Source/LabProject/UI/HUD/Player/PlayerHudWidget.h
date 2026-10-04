@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Online/AchievementNotificationSubscription.h"
 #include "UI/Common/LocalizedMenuWidget.h"
 #include "TimerManager.h"
 #include "PlayerHudWidget.generated.h"
@@ -59,8 +60,6 @@ private:
 	void ClearKillBoxWidgets();
 	void ClearKillBoxTimer();
 	void ClearTransactionalFlagsForRuntimeWidget(UUserWidget* Widget) const;
-	void BindAchievementNotifications();
-	void UnbindAchievementNotifications();
 	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
 	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
 
@@ -79,6 +78,5 @@ private:
 	TMap<int32, TObjectPtr<UKillBoxWidget>> KillBoxWidgets;
 
 	FTimerHandle KillBoxRefreshTimerHandle;
-	FDelegateHandle SteamAchievementStateChangedHandle;
-	FDelegateHandle AchievementPresentationReadyHandle;
+	FAchievementNotificationSubscription AchievementSubscription;
 };

@@ -40,6 +40,11 @@ protected:
 
 	bool ShouldApplyToNetMode(ENetMode NetMode) const;
 
+#if WITH_EDITORONLY_DATA
+	// 이 액션이 도는 쪽(클라이언트·서버)의 로드 번들에 애셋을 넣는다.
+	void AddToActionBundles(FAssetBundleData& AssetBundleData, const FTopLevelAssetPath& AssetPath) const;
+#endif
+
 public:
 	UPROPERTY(EditAnywhere, Category = "Network")
 	uint8 bClientAction : 1;

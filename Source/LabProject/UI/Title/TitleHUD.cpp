@@ -343,11 +343,8 @@ void ATitleHUD::BeginPlay()
 	InitializeTitleCharacter();
 	BindLunaChat();
 	BindBossRaid();
-	Screen = CreateWidget<UUiScreen>(PlayerController);
-	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
 	// 타이틀/방 목록의 종료는 기존 버튼이 담당한다.
-	Screen->SetContent(TitleWidget, Config, EPdGameplayInputPolicy::Block, TitleWidget, FSimpleDelegate::CreateLambda([]() {}));
+	Screen = UUiScreen::CreateBlocking(PlayerController, TitleWidget, TitleWidget, FSimpleDelegate::CreateLambda([]() {}));
 	PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Screen);
 	// 엔진 기본 PlayerController를 사용하므로 로컬 설정을 여기서 적용한다.
 	PlayerController->GetLocalPlayer()->GetSubsystem<ULocalPlayerSettingsSubsystem>()->ApplyLocalPlayerSettings(PlayerController);

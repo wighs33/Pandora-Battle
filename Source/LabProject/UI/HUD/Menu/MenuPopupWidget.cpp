@@ -300,12 +300,8 @@ void UMenuPopupWidget::OpenGuide()
 	ActiveGuideWidget->SetOpenedFromGameplayMenu(true);
 	ActiveGuideWidget->OnGuideClosed.RemoveDynamic(this, &ThisClass::HandleGuideClosed);
 	ActiveGuideWidget->OnGuideClosed.AddUniqueDynamic(this, &ThisClass::HandleGuideClosed);
-	UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
-	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-	Screen->SetContent(ActiveGuideWidget, Config, EPdGameplayInputPolicy::Block, ActiveGuideWidget,
-		FSimpleDelegate::CreateUObject(ActiveGuideWidget, &UGuideWidget::CloseGuide));
-	GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen);
+	GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(UUiScreen::CreateBlocking(PlayerController,
+		ActiveGuideWidget, ActiveGuideWidget, FSimpleDelegate::CreateUObject(ActiveGuideWidget, &UGuideWidget::CloseGuide)));
 	ActiveGuideWidget->RefreshGuide();
 }
 
@@ -385,9 +381,7 @@ void UMenuPopupWidget::HandleDestroySessionForExit(const bool bWasSuccessful)
 
 TOptional<FUIInputConfig> UMenuPopupWidget::GetDesiredInputConfig() const
 {
-    FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-    return Config;
+    return UUiScreen::MakeBlockingInputConfig();
 }
 
 UWidget* UMenuPopupWidget::NativeGetDesiredFocusTarget() const

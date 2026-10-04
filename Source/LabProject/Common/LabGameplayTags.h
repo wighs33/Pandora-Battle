@@ -218,4 +218,7 @@ namespace LabGameplayTags
 	LABPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Agility_AttackSpeedLevel);
 	LABPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Agility_MovementSpeedLevel);
 	LABPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Agility_ArcaneLevel);
+
+	// 제스처 칸 번호(0~3)의 슬롯 태그. 범위를 벗어나면 빈 태그다.
+	LABPROJECT_API FGameplayTag GetGestureSlotTag(int32 GestureSlotIndex);
 }

@@ -143,10 +143,7 @@ void ULoadingScreenSubsystem::ShowConnectingPopup(const bool bEnableCancelButton
 
 	if (!ConnectingScreen)
 	{
-		ConnectingScreen = CreateWidget<UUiScreen>(PlayerController);
-		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		ConnectingScreen->SetContent(ActiveConnectingPopupWidget, Config, EPdGameplayInputPolicy::Block, ActiveConnectingPopupWidget,
+		ConnectingScreen = UUiScreen::CreateBlocking(PlayerController, ActiveConnectingPopupWidget, ActiveConnectingPopupWidget,
 			FSimpleDelegate::CreateUObject(ActiveConnectingPopupWidget, &UConnectingPopupWidget::HandleCancelClicked));
 		UiSubsystem->PushScreen(ConnectingScreen, EUiScreenLayer::Modal);
 	}

@@ -5,6 +5,7 @@
 #include "LocalPlayerSettingsSubsystem.generated.h"
 
 class APlayerController;
+class UEnhancedInputLocalPlayerSubsystem;
 class UInputAction;
 class UInputMappingContext;
 class UInputSettingsSaveGame;
@@ -58,6 +59,9 @@ private:
 		const UGameSettingDefinition* SettingDefinition);
 	void QueueRuntimeSettingsApplication(APlayerController* PlayerController);
 	void ReleaseRuntimeSettingsPreload();
+
+private:
+	UEnhancedInputLocalPlayerSubsystem* GetEnhancedInputSubsystem() const;
 
 private:
 	TWeakObjectPtr<APlayerController> PendingSettingsPlayerController;

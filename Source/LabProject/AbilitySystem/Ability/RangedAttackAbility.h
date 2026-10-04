@@ -53,7 +53,6 @@ protected:
 	bool ShouldUseAIWeaponFire(ACharacterBase* Character, AWeaponBase* CurrentWeapon) const;
 	bool TryCacheAIPrimaryAttackTarget(ACharacterBase* Character);
 	bool TryExecuteScheduledAIWeaponFire();
-	FVector ResolveAITargetAimLocation(const AActor* TargetActor) const;
 	float GetAIRangedTargetLockDelay() const;
 	void ScheduleAIPrimaryAttack();
 	void ClearAIPrimaryAttackTimer();

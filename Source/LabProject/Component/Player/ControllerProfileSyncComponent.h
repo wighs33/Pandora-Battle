@@ -2,6 +2,7 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
+#include "Online/AchievementNotificationSubscription.h"
 #include "TimerManager.h"
 #include "ControllerProfileSyncComponent.generated.h"
 
@@ -42,12 +43,10 @@ private:
 	void GrantDefaultSkinEntitlementsOnServer() const;
 	void CompleteLocalCosmeticProfileSyncAttempt();
 	bool TryConsumeRemoteSkinSyncRequest();
-	void BindSteamAchievementStateChanged();
-	void UnbindSteamAchievementStateChanged();
 
 private:
 	FTimerHandle LocalCosmeticProfileSyncTimerHandle;
-	FDelegateHandle SteamAchievementStateChangedHandle;
+	FAchievementNotificationSubscription AchievementSubscription;
 	int32 LocalCosmeticProfileSyncAttemptCount = 0;
 	double LastRemoteSkinSyncRequestTime = -1.0;
 };

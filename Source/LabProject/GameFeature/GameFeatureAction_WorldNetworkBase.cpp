@@ -3,6 +3,11 @@
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "GameFeaturesSubsystemSettings.h"
+
+#if WITH_EDITORONLY_DATA
+#include "AssetRegistry/AssetBundleData.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_WorldNetworkBase)
 
@@ -116,6 +121,21 @@ void UGameFeatureAction_WorldNetworkBase::AddToWorldIfReady(const FWorldContext&
 		AddToWorld(WorldContext, ChangeContext);
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+void UGameFeatureAction_WorldNetworkBase::AddToActionBundles(FAssetBundleData& AssetBundleData, const FTopLevelAssetPath& AssetPath) const
+{
+	if (bClientAction)
+	{
+		AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateClient, AssetPath);
+	}
+
+	if (bServerAction)
+	{
+		AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateServer, AssetPath);
+	}
+}
+#endif
 
 bool UGameFeatureAction_WorldNetworkBase::ShouldApplyToNetMode(ENetMode NetMode) const
 {

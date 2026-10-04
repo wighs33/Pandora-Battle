@@ -822,11 +822,7 @@ void UTitleWidget::PresentMenuPopup(UUserWidget* Popup, FSimpleDelegate OnBack)
 		return;
 	}
 
-	UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
-	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-	Screen->SetContent(Popup, Config, EPdGameplayInputPolicy::Block, Popup, MoveTemp(OnBack));
-	GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
+	GetUiSubsystem()->PushScreen(UUiScreen::CreateBlocking(GetOwningPlayer(), Popup, Popup, MoveTemp(OnBack)), EUiScreenLayer::Menu);
 }
 
 void UTitleWidget::DismissMenuPopup(UUserWidget* Popup) const

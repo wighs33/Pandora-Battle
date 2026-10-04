@@ -65,6 +65,7 @@ private:
 	bool TryActivateHitReactAbility();
 	UAnimMontage* ResolveHitReactMontage() const;
 
+	void BeginWeaponChange(AEnemyBase& Enemy, const UItemDefinition* NextWeaponDefinition);
 	void CancelWeaponChangeAttackState(float BlendOutTime = 0.08f);
 	bool PlayCurrentUnequipMontage(float& OutDuration);
 

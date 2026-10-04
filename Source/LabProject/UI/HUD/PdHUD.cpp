@@ -245,11 +245,8 @@ void APdHUD::OpenSelectPandoraUi()
 	}
 
     if (IsSelectPandoraUiOpen()) return;
-    SelectPandoraScreen = CreateWidget<UUiScreen>(GetOwningPlayerController());
-    FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
-    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-    SelectPandoraScreen->SetContent(CachedSelectPandoraUI, Config, EPdGameplayInputPolicy::Block, nullptr,
-        FSimpleDelegate::CreateWeakLambda(this, [this]() { CloseSelectPandoraUiInternal(false); }));
+    SelectPandoraScreen = UUiScreen::CreateBlocking(GetOwningPlayerController(), CachedSelectPandoraUI, nullptr,
+        FSimpleDelegate::CreateWeakLambda(this, [this]() { CloseSelectPandoraUiInternal(false); }), ECommonInputMode::All);
     GetOwningPlayerController()->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(SelectPandoraScreen, EUiScreenLayer::Overlay);
     int32 Width = 0, Height = 0;
     GetOwningPlayerController()->GetViewportSize(Width, Height);

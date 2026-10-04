@@ -23,6 +23,15 @@ public:
     void SetContent(UUserWidget* Panel, const FUIInputConfig& InputConfig, EPdGameplayInputPolicy GameplayPolicy,
         UWidget* FocusTarget, FSimpleDelegate BackAction);
 
+    // 이동·시점 입력을 막는 입력 설정. 마우스는 기본으로 잡지 않는다.
+    static FUIInputConfig MakeBlockingInputConfig(
+        ECommonInputMode InputMode = ECommonInputMode::Menu, EMouseCaptureMode MouseCapture = EMouseCaptureMode::NoCapture);
+
+    // Panel을 담고 이동·시점·게임플레이 입력을 막는 화면을 만든다. 층에 올리는 일은 UUiSubsystem::PushScreen이 한다.
+    static UUiScreen* CreateBlocking(APlayerController* OwningPlayer, UUserWidget* Panel, UWidget* FocusTarget,
+        FSimpleDelegate BackAction, ECommonInputMode InputMode = ECommonInputMode::Menu,
+        EMouseCaptureMode MouseCapture = EMouseCaptureMode::NoCapture);
+
     EPdGameplayInputPolicy GameplayInputPolicy = EPdGameplayInputPolicy::Block;
 
 private:

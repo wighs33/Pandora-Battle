@@ -13,6 +13,32 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TrainingRoomMenuPopupWidget)
 
+namespace
+{
+	bool IsTrainingBot(const AEnemyBase* Enemy)
+	{
+		const AController* BotController = IsValid(Enemy) ? Enemy->GetController() : nullptr;
+		return BotController && BotController->IsA<ATrainingBotAIController>();
+	}
+
+	// 훈련장의 첫 훈련 봇. 메뉴의 무기·공격 설정은 이 봇을 기준으로 보여 준다.
+	AEnemyBase* FindTrainingBot(const UWorld* World)
+	{
+		if (!World)
+		{
+			return nullptr;
+		}
+		for (TActorIterator<AEnemyBase> It(World); It; ++It)
+		{
+			if (IsTrainingBot(*It))
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
+}
+
 void UTrainingBotWeaponOptionClickProxy::Initialize(UTrainingRoomMenuPopupWidget* InOwnerWidget, int32 InOptionIndex)
 {
 	OwnerWidget = InOwnerWidget;
@@ -322,53 +348,14 @@ bool UTrainingRoomMenuPopupWidget::SelectTrainingBotUnarmedInternal(const int32 
 
 bool UTrainingRoomMenuPopupWidget::ApplyWeaponToTrainingBot(UItemDefinition* WeaponDefinition) const
 {
-	if (!WeaponDefinition)
-	{
-		return false;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-
-	for (TActorIterator<AEnemyBase> It(World); It; ++It)
-	{
-		AEnemyBase* TrainingBot = *It;
-		const AController* BotController = IsValid(TrainingBot) ? TrainingBot->GetController() : nullptr;
-		if (!IsValid(TrainingBot) || !BotController || !BotController->IsA<ATrainingBotAIController>())
-		{
-			continue;
-		}
-
-		return TrainingBot->RequestTrainingBotWeaponChange(WeaponDefinition);
-	}
-
-	return false;
+	AEnemyBase* TrainingBot = WeaponDefinition ? FindTrainingBot(GetWorld()) : nullptr;
+	return TrainingBot && TrainingBot->RequestTrainingBotWeaponChange(WeaponDefinition);
 }
 
 bool UTrainingRoomMenuPopupWidget::ApplyUnarmedToTrainingBot() const
 {
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-
-	for (TActorIterator<AEnemyBase> It(World); It; ++It)
-	{
-		AEnemyBase* TrainingBot = *It;
-		const AController* BotController = IsValid(TrainingBot) ? TrainingBot->GetController() : nullptr;
-		if (!IsValid(TrainingBot) || !BotController || !BotController->IsA<ATrainingBotAIController>())
-		{
-			continue;
-		}
-
-		return TrainingBot->RequestTrainingBotUnarmed();
-	}
-
-	return false;
+	AEnemyBase* TrainingBot = FindTrainingBot(GetWorld());
+	return TrainingBot && TrainingBot->RequestTrainingBotUnarmed();
 }
 
 bool UTrainingRoomMenuPopupWidget::ApplyAttackEnabledToTrainingBots(bool bEnabled) const
@@ -382,80 +369,47 @@ bool UTrainingRoomMenuPopupWidget::ApplyAttackEnabledToTrainingBots(bool bEnable
 	bool bAppliedToAnyBot = false;
 	for (TActorIterator<AEnemyBase> It(World); It; ++It)
 	{
-		AEnemyBase* TrainingBot = *It;
-		const AController* BotController = IsValid(TrainingBot) ? TrainingBot->GetController() : nullptr;
-		if (!IsValid(TrainingBot) || !BotController || !BotController->IsA<ATrainingBotAIController>())
+		if (IsTrainingBot(*It))
 		{
-			continue;
+			It->SetAttackEnabled(bEnabled);
+			bAppliedToAnyBot = true;
 		}
-
-		TrainingBot->SetAttackEnabled(bEnabled);
-		bAppliedToAnyBot = true;
-}
+	}
 
 	return bAppliedToAnyBot;
 }
 
 bool UTrainingRoomMenuPopupWidget::ResolveTrainingBotAttackEnabled() const
 {
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return bInitialTrainingBotAttackEnabled;
-	}
-
-	for (TActorIterator<AEnemyBase> It(World); It; ++It)
-	{
-		const AEnemyBase* TrainingBot = *It;
-		const AController* BotController = IsValid(TrainingBot) ? TrainingBot->GetController() : nullptr;
-		if (IsValid(TrainingBot) && BotController && BotController->IsA<ATrainingBotAIController>())
-		{
-			return TrainingBot->IsAttackEnabled();
-		}
-	}
-
-	return bInitialTrainingBotAttackEnabled;
+	const AEnemyBase* TrainingBot = FindTrainingBot(GetWorld());
+	return TrainingBot ? TrainingBot->IsAttackEnabled() : bInitialTrainingBotAttackEnabled;
 }
 
 bool UTrainingRoomMenuPopupWidget::SyncSelectedWeaponFromTrainingBot()
 {
-	UWorld* World = GetWorld();
-	if (!World)
+	const AEnemyBase* TrainingBot = FindTrainingBot(GetWorld());
+	if (!TrainingBot)
 	{
 		return false;
 	}
 
-	for (TActorIterator<AEnemyBase> It(World); It; ++It)
+	const UItemDefinition* BotWeaponDefinition = TrainingBot->GetCurrentOrStartingEnemyWeaponDefinition();
+	if (!BotWeaponDefinition)
 	{
-		const AEnemyBase* TrainingBot = *It;
-		const AController* BotController = IsValid(TrainingBot) ? TrainingBot->GetController() : nullptr;
-		if (!IsValid(TrainingBot) || !BotController || !BotController->IsA<ATrainingBotAIController>())
-		{
-			continue;
-		}
-
-		const UItemDefinition* BotWeaponDefinition = TrainingBot->GetCurrentOrStartingEnemyWeaponDefinition();
-		if (!BotWeaponDefinition)
-		{
-			SelectedWeaponDefinition = nullptr;
-			SelectedWeaponOptionIndex = FindUnarmedWeaponOptionIndex();
-			SelectedBuiltInButtonWidgetName = SelectedWeaponOptionIndex == INDEX_NONE ? UnarmedButtonWidgetName : NAME_None;
-
-			return true;
-		}
-
-		SelectedWeaponDefinition = BotWeaponDefinition;
-		SelectedWeaponOptionIndex = FindWeaponOptionIndex(BotWeaponDefinition);
-		SelectedBuiltInButtonWidgetName = NAME_None;
-		if (SelectedWeaponOptionIndex == INDEX_NONE && DoesSoftWeaponDefinitionMatch(DaggerWeaponDefinition, BotWeaponDefinition))
-		{
-			SelectedBuiltInButtonWidgetName = DaggerButtonWidgetName;
-		}
-
+		SelectedWeaponDefinition = nullptr;
+		SelectedWeaponOptionIndex = FindUnarmedWeaponOptionIndex();
+		SelectedBuiltInButtonWidgetName = SelectedWeaponOptionIndex == INDEX_NONE ? UnarmedButtonWidgetName : NAME_None;
 		return true;
 	}
 
-	return false;
+	SelectedWeaponDefinition = BotWeaponDefinition;
+	SelectedWeaponOptionIndex = FindWeaponOptionIndex(BotWeaponDefinition);
+	SelectedBuiltInButtonWidgetName = NAME_None;
+	if (SelectedWeaponOptionIndex == INDEX_NONE && DoesSoftWeaponDefinitionMatch(DaggerWeaponDefinition, BotWeaponDefinition))
+	{
+		SelectedBuiltInButtonWidgetName = DaggerButtonWidgetName;
+	}
+	return true;
 }
 
 void UTrainingRoomMenuPopupWidget::SyncBotCanAttackCheckBox()

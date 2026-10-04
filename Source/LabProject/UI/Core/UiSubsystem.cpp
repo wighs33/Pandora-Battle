@@ -497,13 +497,8 @@ void UUiSubsystem::OpenGameSettings(UUserWidget* OwnerMenu)
 	ActiveGameSettings = CreateWidget<UGameSettingsWidget>(Controller, SettingsClass);
 	if (!ActiveGameSettings) return;
 	SettingsOwner = OwnerMenu;
-	UUiScreen* Screen = CreateWidget<UUiScreen>(Controller);
-	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-	Screen->SetContent(ActiveGameSettings, Config, EPdGameplayInputPolicy::Block,
-		ActiveGameSettings->GetInitialFocusTarget(),
-		FSimpleDelegate::CreateUObject(ActiveGameSettings, &UGameSettingsWidget::CloseSettings));
-	PushScreen(Screen, EUiScreenLayer::Modal);
+	PushScreen(UUiScreen::CreateBlocking(Controller, ActiveGameSettings, ActiveGameSettings->GetInitialFocusTarget(),
+		FSimpleDelegate::CreateUObject(ActiveGameSettings, &UGameSettingsWidget::CloseSettings)), EUiScreenLayer::Modal);
 }
 
 bool UUiSubsystem::HasActiveScreen(const UWorld* World) const
