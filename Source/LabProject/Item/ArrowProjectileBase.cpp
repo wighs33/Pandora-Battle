@@ -3,18 +3,17 @@
 #include "Character/CharacterBase.h"
 #include "Character/CharacterHitValidation.h"
 #include "Common/CollisionChannels.h"
+#include "Component/Player/CombatComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/ProjectileMovementComponent.h"
-#include "Component/Player/EquipmentComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
-#include "Weapon/WeaponBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ArrowProjectileBase)
 
 namespace
@@ -241,13 +240,6 @@ ACharacterBase* AArrowProjectileBase::GetOwningCharacter() const
 	return Cast<ACharacterBase>(GetInstigator());
 }
 
-AWeaponBase* AArrowProjectileBase::GetOwningWeapon() const
-{
-	const ACharacterBase* OwnerCharacter = GetOwningCharacter();
-	const UEquipmentComponent* EquipmentComponent = OwnerCharacter ? OwnerCharacter->GetEquipmentComponent() : nullptr;
-	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
-}
-
 bool AArrowProjectileBase::IsIgnoredImpactActor(const AActor* OtherActor) const
 {
 	if (!IsValid(OtherActor))
@@ -393,15 +385,11 @@ bool AArrowProjectileBase::TryHandleImpact(AActor* OtherActor, UPrimitiveCompone
 		PdCharacterHitValidation::ResolveWeaponDamageHit(OtherActor, OtherComp);
 	bHasImpacted = true;
 
-	if (DamageTargetCharacter)
+	const ACharacterBase* SourceCharacter = GetOwningCharacter();
+	UCombatComponent* SourceCombat = SourceCharacter ? SourceCharacter->GetCombatComponent() : nullptr;
+	if (DamageTargetCharacter && SourceCombat)
 	{
-		if (AWeaponBase* OwningWeapon = GetOwningWeapon())
-		{
-			OwningWeapon->ApplyDamageFromAuthoritativeProjectileImpact(
-				OtherActor,
-				OtherComp,
-				this);
-		}
+		SourceCombat->ApplyOutgoingDamageToTarget(DamageTargetCharacter, LaunchDamage, this, this);
 	}
 
 	StopProjectileMotion();

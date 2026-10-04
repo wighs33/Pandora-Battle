@@ -471,6 +471,18 @@ void ABow::DestroyDrawnArrow()
 	DrawnArrow->Destroy();
 }
 
+// 쏘는 순간의 무기 피해를 화살에 담는다. 날아가는 동안 무기를 바꾸거나 해제해도 이 값으로 맞힌다.
+bool ABow::LaunchArrowWithDamage(AArrowProjectileBase& Arrow, ACharacterBase* Character, const FVector& Direction)
+{
+	PdDamageRules::FOutgoingDamage LaunchDamage;
+	const UCombatComponent* CombatComponent = Character ? Character->GetCombatComponent() : nullptr;
+	if (CombatComponent && CombatComponent->BuildWeaponDamage(*this, LaunchDamage))
+	{
+		Arrow.SetLaunchDamage(LaunchDamage);
+	}
+	return Arrow.LaunchArrowActor(Direction);
+}
+
 bool ABow::TryGetArrowLaunchStartLocation(const ACharacterBase* Character, FVector& OutLocation) const
 {
 	const FName AttachSocketName = GetArrowAttachSocketName();
@@ -530,7 +542,7 @@ bool ABow::LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, con
 	ArrowActor->SetActorRotation(LaunchDirection.Rotation());
 
 	AArrowProjectileBase* ArrowProjectile = Cast<AArrowProjectileBase>(ArrowActor);
-	const bool bLaunched = ArrowProjectile && ArrowProjectile->LaunchArrowActor(LaunchDirection);
+	const bool bLaunched = ArrowProjectile && LaunchArrowWithDamage(*ArrowProjectile, AttackingCharacter, LaunchDirection);
 	if (!bLaunched)
 	{
 		ArrowActor->Destroy();
@@ -614,7 +626,7 @@ bool ABow::LaunchArrowOnServer(
 		return false;
 	}
 
-	if (!ArrowProjectile->LaunchArrowActor(LaunchDirection))
+	if (!LaunchArrowWithDamage(*ArrowProjectile, PlayerCharacter, LaunchDirection))
 	{
 		ArrowActor->Destroy();
 		return false;

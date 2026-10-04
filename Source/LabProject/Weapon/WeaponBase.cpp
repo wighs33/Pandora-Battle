@@ -4,7 +4,6 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
-#include "Character/CharacterHitValidation.h"
 #include "Weapon/WeaponAnimNotifyNames.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/CombatComponent.h"
@@ -14,7 +13,6 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Settings/GameSettingsSubsystem.h"
-#include "Item/ArrowProjectileBase.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
@@ -358,28 +356,6 @@ bool AWeaponBase::ApplySkillWeaponTrailVisual(const bool bActivate)
     }
 
     return true;
-}
-
-bool AWeaponBase::ApplyDamageFromAuthoritativeProjectileImpact(
-    AActor* HitActor,
-    const UPrimitiveComponent* HitComponent,
-    const AArrowProjectileBase* ProjectileSource)
-{
-    if (!HasAuthority() || !IsCurrentWeaponForOwner() || !IsValid(ProjectileSource))
-    {
-        return false;
-    }
-
-    const ACharacterBase* SourceCharacter = GetOwningCharacter();
-    const bool bOwnedBySourceCharacter = ProjectileSource->GetOwner() == SourceCharacter
-        || ProjectileSource->GetInstigator() == SourceCharacter;
-    if (!SourceCharacter || !bOwnedBySourceCharacter)
-    {
-        return false;
-    }
-
-    ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
-    return TargetCharacter && ApplyDamageToTarget(TargetCharacter);
 }
 
 bool AWeaponBase::ApplyDamageToTarget(AActor* TargetActor)

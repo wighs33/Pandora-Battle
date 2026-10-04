@@ -668,8 +668,17 @@ void UCombatComponent::SetActiveComboDamageMultiplier(const float DamageMultipli
 bool UCombatComponent::ApplyWeaponDamageToTarget(AActor* TargetActor)
 {
 	AWeaponBase* Weapon = GetCurrentWeaponActor();
-	return Weapon && ApplyAttackDamageToTarget(TargetActor,
-		GetWeaponDamageSourceMagnitude() + GetTemporaryWeaponDamageBonus(), Weapon, Weapon, Weapon->ShouldTriggerHitReactOnDamage());
+	PdDamageRules::FOutgoingDamage Damage;
+	return Weapon && BuildWeaponDamage(*Weapon, Damage)
+		&& ApplyOutgoingDamageToTarget(TargetActor, Damage, Weapon, Weapon);
+}
+
+bool UCombatComponent::BuildWeaponDamage(const AWeaponBase& Weapon, PdDamageRules::FOutgoingDamage& OutDamage) const
+{
+	// 무기 능력치와 무기 피해 보너스는 장착 중인 무기에서만 읽는다.
+	return GetCurrentWeaponActor() == &Weapon
+		&& BuildOutgoingDamage(GetWeaponDamageSourceMagnitude() + GetTemporaryWeaponDamageBonus(),
+			Weapon.ShouldTriggerHitReactOnDamage(), OutDamage);
 }
 
 UAnimMontage* UCombatComponent::GetCachedUnarmedAttackMontage() const
@@ -811,39 +820,54 @@ bool UCombatComponent::ApplyUnarmedDamageToTarget(AActor* TargetActor)
 bool UCombatComponent::ApplyAttackDamageToTarget(AActor* TargetActor, const float RawDamage,
 	UObject* SourceObject, AActor* DamageCauser, const bool bAllowHitReact)
 {
-	ACharacterBase* Source = GetCharacter();
-	ACharacterBase* Target = Cast<ACharacterBase>(TargetActor);
-	UPdAbilitySystemComponent* SourceASC = IsValid(Source) ? Source->GetPdAbilitySystemComponent() : nullptr;
-	UPdAbilitySystemComponent* TargetASC = IsValid(Target) ? Target->GetPdAbilitySystemComponent() : nullptr;
-	if (bEndingPlay || !HasCombatAuthority() || !IsValid(Source) || !IsValid(Target)
-		|| Source == Target || !SourceASC || !TargetASC || !Source->CanDamageCharacterByTeam(Target))
-	{
-		return false;
-	}
-	const UBasicAttributeSet* SourceAttributes = SourceASC->GetSet<UBasicAttributeSet>();
-	if (!SourceAttributes || !TargetASC->GetSet<UBasicAttributeSet>() || !FMath::IsFinite(RawDamage))
+	PdDamageRules::FOutgoingDamage Damage;
+	return BuildOutgoingDamage(RawDamage, bAllowHitReact, Damage)
+		&& ApplyOutgoingDamageToTarget(TargetActor, Damage, SourceObject, DamageCauser);
+}
+
+// 공격자 쪽 계산: 근력과 콤보 배율을 반영하고 치명타를 굴린다. 방어·저항은 맞는 쪽 AttributeSet이 계산한다.
+bool UCombatComponent::BuildOutgoingDamage(const float RawDamage, const bool bAllowHitReact,
+	PdDamageRules::FOutgoingDamage& OutDamage) const
+{
+	OutDamage = PdDamageRules::FOutgoingDamage();
+	const ACharacterBase* Source = GetCharacter();
+	const UPdAbilitySystemComponent* SourceASC = IsValid(Source) ? Source->GetPdAbilitySystemComponent() : nullptr;
+	const UBasicAttributeSet* SourceAttributes = SourceASC ? SourceASC->GetSet<UBasicAttributeSet>() : nullptr;
+	if (bEndingPlay || !HasCombatAuthority() || !SourceAttributes || !FMath::IsFinite(RawDamage))
 	{
 		return false;
 	}
 	const float BaseDamage = CalculateStrengthAdjustedWeaponDamage(RawDamage, SourceAttributes->GetStrength()) * ActiveComboDamageMultiplier;
-	bool bCriticalHit = false;
-	const float FinalDamage = SourceAttributes->CalculateOutgoingDamage(BaseDamage, bCriticalHit);
-	if (!FMath::IsFinite(FinalDamage) || FinalDamage <= 0.0f)
+	OutDamage.Damage = SourceAttributes->CalculateOutgoingDamage(BaseDamage, OutDamage.bCriticalHit);
+	OutDamage.bAllowHitReact = bAllowHitReact;
+	return OutDamage.IsValid();
+}
+
+bool UCombatComponent::ApplyOutgoingDamageToTarget(AActor* TargetActor, const PdDamageRules::FOutgoingDamage& Damage,
+	UObject* SourceObject, AActor* DamageCauser)
+{
+	ACharacterBase* Source = GetCharacter();
+	ACharacterBase* Target = Cast<ACharacterBase>(TargetActor);
+	UPdAbilitySystemComponent* SourceASC = IsValid(Source) ? Source->GetPdAbilitySystemComponent() : nullptr;
+	UPdAbilitySystemComponent* TargetASC = IsValid(Target) ? Target->GetPdAbilitySystemComponent() : nullptr;
+	if (bEndingPlay || !HasCombatAuthority() || !Damage.IsValid() || !IsValid(Source) || !IsValid(Target)
+		|| Source == Target || !SourceASC || !TargetASC || !TargetASC->GetSet<UBasicAttributeSet>()
+		|| !Source->CanDamageCharacterByTeam(Target))
 	{
 		return false;
 	}
 
 	FGameplayTagContainer DamageSpecTags;
-	if (bCriticalHit)
+	if (Damage.bCriticalHit)
 	{
 		DamageSpecTags.AddTag(LabGameplayTags::Effect_Damage_Critical);
 	}
-	if (!bAllowHitReact)
+	if (!Damage.bAllowHitReact)
 	{
 		DamageSpecTags.AddTag(LabGameplayTags::Effect_Damage_NoHitReaction);
 	}
 	return ApplyDamageEffect(SourceASC, TargetASC, CombatDamageSettings.IncomingDamageEffectClass,
-		FinalDamage, SourceObject, Source, DamageCauser, DamageSpecTags);
+		Damage.Damage, SourceObject, Source, DamageCauser, DamageSpecTags);
 }
 
 float UCombatComponent::GetUnarmedDamageSourceMagnitude() const

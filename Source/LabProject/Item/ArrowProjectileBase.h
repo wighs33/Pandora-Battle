@@ -1,12 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbilitySystem/AttributeSet/DamageRules.h"
 #include "GameFramework/Actor.h"
 #include "ArrowProjectileBase.generated.h"
 
 class UNiagaraSystem;
 class ACharacterBase;
-class AWeaponBase;
 class UBoxComponent;
 class UPrimitiveComponent;
 class UProjectileMovementComponent;
@@ -29,6 +29,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!Arrow")
 	bool LaunchArrowActor(const FVector& Direction);
+
+	/** 발사할 때 정한 피해를 담는다. 명중할 때 무기가 바뀌었거나 해제됐어도 이 값으로 피해를 준다. */
+	void SetLaunchDamage(const PdDamageRules::FOutgoingDamage& Damage) { LaunchDamage = Damage; }
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -53,7 +56,6 @@ protected:
 	UPrimitiveComponent* GetCollisionComponent() const;
 	UProjectileMovementComponent* GetProjectileMovementComponent() const;
 	ACharacterBase* GetOwningCharacter() const;
-	AWeaponBase* GetOwningWeapon() const;
 	bool IsIgnoredImpactActor(const AActor* OtherActor) const;
 	void PerformImpactTrace();
 	void StopProjectileMotion();
@@ -95,4 +97,6 @@ protected:
 
 	UPROPERTY(Transient)
 	FVector PreviousImpactTraceLocation = FVector::ZeroVector;
+
+	PdDamageRules::FOutgoingDamage LaunchDamage;
 };

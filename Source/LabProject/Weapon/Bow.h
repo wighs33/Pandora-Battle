@@ -4,6 +4,7 @@
 #include "Weapon/RangedWeaponBase.h"
 #include "Bow.generated.h"
 
+class AArrowProjectileBase;
 class UAnimMontage;
 class UPdAbilitySystemComponent;
 
@@ -63,6 +64,7 @@ protected:
 	AActor* SpawnArrowActor(ACharacterBase* Character, bool bAttachToCharacter);
 	AActor* SpawnDrawnArrow(APdPlayer* PlayerCharacter);
 	void DestroyDrawnArrow();
+	bool LaunchArrowWithDamage(AArrowProjectileBase& Arrow, ACharacterBase* Character, const FVector& Direction);
 	bool TryGetArrowLaunchStartLocation(const ACharacterBase* Character, FVector& OutLocation) const;
 	bool LaunchArrowAtTargetOnServer(ACharacterBase* AttackingCharacter, AActor* TargetActor);
 	bool LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, const FVector& TargetLocation);

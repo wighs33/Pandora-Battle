@@ -31,6 +31,16 @@ namespace PdDamageRules
 	/** 방어력(0~100%)에 맞는 쪽 근력 반영 무기 피해를 곱한 값만큼 피해를 깎는다. */
 	LABPROJECT_API float MitigateByArmor(float Damage, float ArmorPercent, float FinalStrengthDamage);
 
+	/** 공격자 쪽에서 정해진 피해. 근력·콤보 배율·치명타가 이미 반영되어 있고, 맞는 쪽의 방어·저항은 피해 GE가 적용될 때 계산한다. */
+	struct FOutgoingDamage
+	{
+		float Damage = 0.f;
+		bool bCriticalHit = false;
+		bool bAllowHitReact = true;
+
+		bool IsValid() const { return FMath::IsFinite(Damage) && Damage > 0.f; }
+	};
+
 	/** 보호막이 먼저 피해를 받고 남은 피해를 체력이 받는다. */
 	struct FShieldAbsorption
 	{

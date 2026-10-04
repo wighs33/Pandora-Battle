@@ -5,7 +5,6 @@
 #include "GameFramework/Actor.h"
 #include "WeaponBase.generated.h"
 
-class AArrowProjectileBase;
 class ACharacterBase;
 class APdPlayer;
 class UAnimMontage;
@@ -87,21 +86,12 @@ protected:
     bool ApplySkillWeaponTrailVisual(bool bActivate);
     UNiagaraComponent* ResolveSkillTrailComponent() const;
 
-private:
-    bool ApplyDamageFromAuthoritativeProjectileImpact(
-        AActor* HitActor,
-        const UPrimitiveComponent* HitComponent,
-        const AArrowProjectileBase* ProjectileSource);
-
 public:
     UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Weapon")
     TObjectPtr<USceneComponent> SceneRoot;
 
     UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Weapon")
     TObjectPtr<USkeletalMeshComponent> WeaponMesh;
-
-private:
-    friend class AArrowProjectileBase;
 
 protected:
     // Blueprint에서 사용할 Trail 컴포넌트를 명시적으로 지정한다. 이름/태그로 추측하지 않는다.
