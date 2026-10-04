@@ -18,14 +18,12 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
-#include "DrawDebugHelpers.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameplayEffect.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Definition/Item/ItemDefinition.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Mode/PdPlayerController.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -38,9 +36,22 @@
 
 namespace
 {
-	constexpr float UnarmedTraceDebugDrawTime = 1.0f;
-	const FColor UnarmedTraceDebugColor = FColor::Red;
-	const FColor UnarmedTraceDebugHitColor = FColor::Green;
+	// 플레이어 원거리 공격 한 번의 스태미나 비용. AI는 스태미나를 쓰지 않으므로 0이다.
+	float GetPlayerRangedAttackStaminaCost(const ACharacterBase& Character)
+	{
+		return Character.IsPlayerControlled()
+			? UPdGameplayAbility::GetWeaponAttackStaminaCost(&Character)
+			: 0.0f;
+	}
+
+	bool HasStaminaFor(const UPdAbilitySystemComponent* AbilitySystemComponent, const float StaminaCost)
+	{
+		const UBasicAttributeSet* AttributeSet = AbilitySystemComponent
+			? AbilitySystemComponent->GetSet<UBasicAttributeSet>()
+			: nullptr;
+		return AttributeSet
+			&& AttributeSet->GetStamina() + UE_SMALL_NUMBER >= StaminaCost;
+	}
 }
 
 UCombatComponent::UCombatComponent(const FObjectInitializer& ObjectInitializer)
@@ -133,7 +144,6 @@ void UCombatComponent::ApplySettings(const FCombatDamageSettings& DamageSettings
 	StopUnarmedAttackTrace();
 	CombatDamageSettings = DamageSettings;
 	UnarmedCombatSettings = UnarmedSettings;
-	CachedUnarmedAttackObjectTypes = UnarmedCombatSettings.TraceObjectTypes;
 	ResetUnarmedAttackHitTracking();
 	if (HasBegunPlay() && !bEndingPlay)
 	{
@@ -509,24 +519,9 @@ bool UCombatComponent::CanAffordRangedWeaponAttackStamina() const
 		return false;
 	}
 
-	if (!CharacterOwner->IsPlayerControlled())
-	{
-		return true;
-	}
-
-	const float StaminaCost = UPdGameplayAbility::GetWeaponAttackStaminaCost(CharacterOwner);
-	if (StaminaCost <= 0.0f)
-	{
-		return true;
-	}
-
-	const UPdAbilitySystemComponent* AbilitySystemComponent =
-		CharacterOwner->GetPdAbilitySystemComponent();
-	const UBasicAttributeSet* AttributeSet = AbilitySystemComponent
-		? AbilitySystemComponent->GetSet<UBasicAttributeSet>()
-		: nullptr;
-	return AttributeSet
-		&& AttributeSet->GetStamina() + UE_SMALL_NUMBER >= StaminaCost;
+	const float StaminaCost = GetPlayerRangedAttackStaminaCost(*CharacterOwner);
+	return StaminaCost <= 0.0f
+		|| HasStaminaFor(CharacterOwner->GetPdAbilitySystemComponent(), StaminaCost);
 }
 
 bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
@@ -542,12 +537,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 		return false;
 	}
 
-	if (!CharacterOwner->IsPlayerControlled())
-	{
-		return true;
-	}
-
-	const float StaminaCost = UPdGameplayAbility::GetWeaponAttackStaminaCost(CharacterOwner);
+	const float StaminaCost = GetPlayerRangedAttackStaminaCost(*CharacterOwner);
 	if (StaminaCost <= 0.0f)
 	{
 		return true;
@@ -555,10 +545,7 @@ bool UCombatComponent::TryCommitRangedWeaponAttackStamina()
 
 	UPdAbilitySystemComponent* AbilitySystemComponent =
 		CharacterOwner->GetPdAbilitySystemComponent();
-	const UBasicAttributeSet* AttributeSet = AbilitySystemComponent
-		? AbilitySystemComponent->GetSet<UBasicAttributeSet>()
-		: nullptr;
-	if (!AttributeSet || AttributeSet->GetStamina() + UE_SMALL_NUMBER < StaminaCost)
+	if (!HasStaminaFor(AbilitySystemComponent, StaminaCost))
 	{
 		return false;
 	}
@@ -757,42 +744,25 @@ void UCombatComponent::SetUnarmedAttackTraceEnabledForSection(
 		return;
 	}
 
-	const bool bEnteredNewAttackSection = TrackedUnarmedAttackSectionName != AttackSectionName;
-	if (bEnteredNewAttackSection)
-	{
-		TrackedUnarmedAttackSectionName = AttackSectionName;
-		HitActorsInCurrentUnarmedAttack.Reset();
-		PreviousUnarmedAttackTraceValid.Init(0, UnarmedCombatSettings.AttackTraces.Num());
-	}
-
+	UnarmedAttackSweep.EnterSection(AttackSectionName, UnarmedCombatSettings.AttackTraces.Num());
 	StartUnarmedAttackTrace();
 }
 
 void UCombatComponent::ResetUnarmedAttackHitTracking()
 {
-	++UnarmedAttackTraceGeneration;
-	PreviousUnarmedAttackTraceValid.Init(0, UnarmedCombatSettings.AttackTraces.Num());
-	TrackedUnarmedAttackSectionName = NAME_None;
-	HitActorsInCurrentUnarmedAttack.Reset();
+	UnarmedAttackSweep.ResetHitTracking(UnarmedCombatSettings.AttackTraces.Num());
 }
 
 // 공격 판정 창이 열려 있는 동안만 서버가 손·발의 충돌 검사를 반복한다.
 void UCombatComponent::StartUnarmedAttackTrace()
 {
 	UWorld* World = GetWorld();
-	if (bEndingPlay || !HasCombatAuthority() || bUnarmedAttackTraceActive || !World
-		|| UnarmedCombatSettings.AttackTraces.IsEmpty() || CachedUnarmedAttackObjectTypes.IsEmpty()
-		|| !FMath::IsFinite(UnarmedCombatSettings.TraceInterval) || UnarmedCombatSettings.TraceInterval <= 0.0f
-		|| !FMath::IsFinite(UnarmedCombatSettings.TraceInterpolationDistance) || UnarmedCombatSettings.TraceInterpolationDistance <= 0.0f
-		|| !FMath::IsFinite(UnarmedCombatSettings.MaxTraceTravelDistance) || UnarmedCombatSettings.MaxTraceTravelDistance <= 0.0f)
+	if (bEndingPlay || !HasCombatAuthority() || UnarmedAttackSweep.IsActive() || !World
+		|| !FUnarmedAttackSweep::CanSweep(UnarmedCombatSettings))
 	{
 		return;
 	}
-	bUnarmedAttackTraceActive = true;
-	++UnarmedAttackTraceGeneration;
-	PreviousUnarmedAttackTraceStartLocations.SetNumZeroed(UnarmedCombatSettings.AttackTraces.Num());
-	PreviousUnarmedAttackTraceEndLocations.SetNumZeroed(UnarmedCombatSettings.AttackTraces.Num());
-	PreviousUnarmedAttackTraceValid.Init(0, UnarmedCombatSettings.AttackTraces.Num());
+	UnarmedAttackSweep.Begin(UnarmedCombatSettings.AttackTraces.Num());
 	World->GetTimerManager().SetTimer(UnarmedAttackTraceTimerHandle, this, &ThisClass::PerformUnarmedAttackTrace,
 		UnarmedCombatSettings.TraceInterval, true);
 	// 즉시 타격의 콜백에서 공격이 끝나도 타이머를 다시 등록하지 않는다.
@@ -801,17 +771,13 @@ void UCombatComponent::StartUnarmedAttackTrace()
 
 void UCombatComponent::StopUnarmedAttackTrace()
 {
-	bUnarmedAttackTraceActive = false;
-	++UnarmedAttackTraceGeneration;
+	UnarmedAttackSweep.End();
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(UnarmedAttackTraceTimerHandle);
 	}
 
 	UnarmedAttackTraceTimerHandle.Invalidate();
-	PreviousUnarmedAttackTraceStartLocations.Reset();
-	PreviousUnarmedAttackTraceEndLocations.Reset();
-	PreviousUnarmedAttackTraceValid.Reset();
 }
 
 void UCombatComponent::PerformUnarmedAttackTrace()
@@ -819,165 +785,20 @@ void UCombatComponent::PerformUnarmedAttackTrace()
 	AActor* OwnerActor = GetOwner();
 	ACharacterBase* SourceCharacter = GetCharacter();
 	USkeletalMeshComponent* SourceMesh = SourceCharacter ? SourceCharacter->GetMesh() : nullptr;
-	UWorld* World = GetWorld();
-	if (bEndingPlay || !bUnarmedAttackTraceActive || !OwnerActor || !HasCombatAuthority() || !SourceCharacter || !SourceMesh || !World)
+	if (bEndingPlay || !UnarmedAttackSweep.IsActive() || !OwnerActor || !HasCombatAuthority() || !SourceCharacter || !SourceMesh || !GetWorld())
 	{
 		return;
 	}
 
-	if (UnarmedCombatSettings.AttackTraces.IsEmpty()
-		|| UnarmedCombatSettings.TraceObjectTypes.IsEmpty())
-	{
-		return;
-	}
-
-	const uint32 TraceGeneration = UnarmedAttackTraceGeneration;
-	UnarmedAttackActorsToIgnore.Reset(1);
-	UnarmedAttackActorsToIgnore.Add(SourceCharacter);
 	const UGameSettingDefinition* SettingDefinition =
 		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	const bool bDrawAttackDebug = SettingDefinition
 		&& SettingDefinition->bDrawAttackDebugVisualization;
-
-	if (PreviousUnarmedAttackTraceStartLocations.Num() != UnarmedCombatSettings.AttackTraces.Num()
-		|| PreviousUnarmedAttackTraceEndLocations.Num() != UnarmedCombatSettings.AttackTraces.Num()
-		|| PreviousUnarmedAttackTraceValid.Num() != UnarmedCombatSettings.AttackTraces.Num())
-	{
-		PreviousUnarmedAttackTraceStartLocations.SetNumZeroed(UnarmedCombatSettings.AttackTraces.Num());
-		PreviousUnarmedAttackTraceEndLocations.SetNumZeroed(UnarmedCombatSettings.AttackTraces.Num());
-		PreviousUnarmedAttackTraceValid.Init(0, UnarmedCombatSettings.AttackTraces.Num());
-	}
-
-	for (int32 TraceIndex = 0; TraceIndex < UnarmedCombatSettings.AttackTraces.Num(); ++TraceIndex)
-	{
-		const FUnarmedAttackTraceDefinition& TraceDefinition = UnarmedCombatSettings.AttackTraces[TraceIndex];
-		if (TraceDefinition.StartSocketName.IsNone() || !SourceMesh->DoesSocketExist(TraceDefinition.StartSocketName))
+	UnarmedAttackSweep.Sweep(*this, UnarmedCombatSettings, *SourceCharacter, *SourceMesh, bDrawAttackDebug,
+		[this](AActor* HitActor)
 		{
-			continue;
-		}
-
-		const FName EndSocketName = TraceDefinition.EndSocketName.IsNone()
-			? TraceDefinition.StartSocketName
-			: TraceDefinition.EndSocketName;
-		if (!SourceMesh->DoesSocketExist(EndSocketName))
-		{
-			continue;
-		}
-
-		const FVector TraceStart = SourceMesh->GetSocketLocation(TraceDefinition.StartSocketName);
-		FVector TraceEnd = SourceMesh->GetSocketLocation(EndSocketName);
-		if (TraceStart.Equals(TraceEnd, KINDA_SMALL_NUMBER))
-		{
-			TraceEnd = TraceStart + SourceCharacter->GetActorForwardVector();
-		}
-
-		UnarmedAttackHitResults.Reset();
-		const FVector TraceHalfSize = TraceDefinition.HalfSize;
-		if (TraceHalfSize.ContainsNaN()
-			|| TraceHalfSize.X <= 0.0f
-			|| TraceHalfSize.Y <= 0.0f
-			|| TraceHalfSize.Z <= 0.0f)
-		{
-			continue;
-		}
-		const FRotator TraceRotation = SourceCharacter->GetActorRotation();
-		if (TraceStart.ContainsNaN() || TraceEnd.ContainsNaN())
-		{
-			PreviousUnarmedAttackTraceValid[TraceIndex] = 0;
-			continue;
-		}
-		bool bHasPreviousTrace = PreviousUnarmedAttackTraceValid[TraceIndex] != 0;
-		if (bHasPreviousTrace)
-		{
-			const double TravelDistance = FMath::Max(
-				FVector::Distance(PreviousUnarmedAttackTraceStartLocations[TraceIndex], TraceStart),
-				FVector::Distance(PreviousUnarmedAttackTraceEndLocations[TraceIndex], TraceEnd));
-			// 순간이동이나 큰 위치 보정은 이전 위치에서 이어서 휘두른 공격으로 취급하지 않는다.
-			bHasPreviousTrace = FMath::IsFinite(TravelDistance) && TravelDistance <= UnarmedCombatSettings.MaxTraceTravelDistance;
-		}
-		const FVector PreviousTraceStart = bHasPreviousTrace
-			? PreviousUnarmedAttackTraceStartLocations[TraceIndex]
-			: TraceStart;
-		const FVector PreviousTraceEnd = bHasPreviousTrace
-			? PreviousUnarmedAttackTraceEndLocations[TraceIndex]
-			: TraceEnd;
-		const float MaxTravelDistance = FMath::Max(
-			FVector::Distance(PreviousTraceStart, TraceStart),
-			FVector::Distance(PreviousTraceEnd, TraceEnd));
-		const float InterpolationDistance = UnarmedCombatSettings.TraceInterpolationDistance;
-		const int32 MaxSteps = FMath::Clamp(UnarmedCombatSettings.MaxTraceInterpolationSteps, 1, 64);
-		const int32 InterpolationCount = FMath::CeilToInt(FMath::Clamp(MaxTravelDistance / InterpolationDistance, 1.0f, static_cast<float>(MaxSteps)));
-
-		for (int32 InterpolationIndex = 1; InterpolationIndex <= InterpolationCount; ++InterpolationIndex)
-		{
-			const float Alpha =
-				static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
-			const FVector InterpolatedTraceStart = FMath::Lerp(PreviousTraceStart, TraceStart, Alpha);
-			const FVector InterpolatedTraceEnd = FMath::Lerp(PreviousTraceEnd, TraceEnd, Alpha);
-			InterpolatedUnarmedHitResults.Reset();
-			UKismetSystemLibrary::BoxTraceMultiForObjects(
-				this,
-				InterpolatedTraceStart,
-				InterpolatedTraceEnd,
-				TraceHalfSize,
-				TraceRotation,
-				CachedUnarmedAttackObjectTypes,
-				false,
-				UnarmedAttackActorsToIgnore,
-				EDrawDebugTrace::None,
-				InterpolatedUnarmedHitResults,
-				true,
-				FLinearColor::Red,
-				FLinearColor::Green,
-				UnarmedTraceDebugDrawTime);
-			UnarmedAttackHitResults.Append(InterpolatedUnarmedHitResults);
-		}
-
-		PreviousUnarmedAttackTraceStartLocations[TraceIndex] = TraceStart;
-		PreviousUnarmedAttackTraceEndLocations[TraceIndex] = TraceEnd;
-		PreviousUnarmedAttackTraceValid[TraceIndex] = 1;
-
-		if (bDrawAttackDebug)
-		{
-			const bool bAnyHit = UnarmedAttackHitResults.ContainsByPredicate(
-				[this](const FHitResult& Hit)
-				{
-					return Hit.GetActor() && !HitActorsInCurrentUnarmedAttack.Contains(Hit.GetActor());
-				});
-			const FColor DrawColor = bAnyHit
-				? UnarmedTraceDebugHitColor
-				: UnarmedTraceDebugColor;
-			DrawDebugBox(World, TraceStart, TraceHalfSize, TraceRotation.Quaternion(), DrawColor, false, UnarmedTraceDebugDrawTime, 0, 1.5f);
-			DrawDebugLine(World, TraceStart, TraceEnd, DrawColor, false, UnarmedTraceDebugDrawTime, 0, 2.0f);
-		}
-
-		for (const FHitResult& HitResult : UnarmedAttackHitResults)
-		{
-			AActor* HitActor = HitResult.GetActor();
-			if (!HitActor || HitActorsInCurrentUnarmedAttack.Contains(HitActor))
-			{
-				continue;
-			}
-
-			ACharacterBase* HitCharacter = Cast<ACharacterBase>(HitActor);
-			if (!HitCharacter || HitCharacter == SourceCharacter)
-			{
-				continue;
-			}
-
-			if (!SourceCharacter->CanDamageCharacterByTeam(HitCharacter))
-			{
-				continue;
-			}
-
-			HitActorsInCurrentUnarmedAttack.Add(HitActor);
 			ApplyUnarmedDamageToTarget(HitActor);
-			if (TraceGeneration != UnarmedAttackTraceGeneration)
-			{
-				return;
-			}
-		}
-	}
+		});
 }
 
 bool UCombatComponent::ApplyUnarmedDamageToTarget(AActor* TargetActor)

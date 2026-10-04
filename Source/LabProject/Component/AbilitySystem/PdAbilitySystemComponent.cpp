@@ -3,6 +3,7 @@
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Common/LabGameplayTags.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Component/AbilitySystem/AbilityGrantAndInputManager.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Player/StatUpgradeDefinition.h"
@@ -424,6 +425,59 @@ void UPdAbilitySystemComponent::ResetRuntimeStateForRespawn()
 	SetNumericAttributeBase(UBasicAttributeSet::GetShieldAttribute(), 0.0f);
 	SetNumericAttributeBase(UBasicAttributeSet::GetStaminaAttribute(), FMath::Max(MaxStamina, 0.0f));
 	SetNumericAttributeBase(UBasicAttributeSet::GetManaAttribute(), FMath::Max(MaxMana, 0.0f));
+	ForceReplication();
+}
+
+void UPdAbilitySystemComponent::ResetResourcesForEnemyRespawn()
+{
+	ClearStatusEffectsForRespawn();
+
+	UBasicAttributeSet* AttributeSet = nullptr;
+	for (UAttributeSet* SpawnedAttributeSet : GetSpawnedAttributes())
+	{
+		AttributeSet = Cast<UBasicAttributeSet>(SpawnedAttributeSet);
+		if (AttributeSet)
+		{
+			break;
+		}
+	}
+	if (!AttributeSet)
+	{
+		return;
+	}
+
+	// 최대값의 기본값은 그대로 두고 자원만 지금의 최대값까지 채운다.
+	// 최대값에 걸린 효과를 기본값에 다시 쓰면 리스폰할 때마다 그 효과가 쌓인다.
+	const float RespawnMaxHealth = FMath::Max(GetNumericAttribute(UBasicAttributeSet::GetMaxHealthAttribute()), 1.0f);
+	const float RespawnMaxStamina = FMath::Max(GetNumericAttribute(UBasicAttributeSet::GetMaxStaminaAttribute()), 0.0f);
+	const float RespawnMaxMana = FMath::Max(GetNumericAttribute(UBasicAttributeSet::GetMaxManaAttribute()), 0.0f);
+
+	FGameplayTagContainer DeadTags;
+	DeadTags.AddTag(LabGameplayTags::State_Dead);
+	RemoveActiveEffectsWithGrantedTags(DeadTags);
+	RemoveActiveEffects(FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(DeadTags));
+
+	// 값이 같아도 기본값을 다시 보내도록 속성을 직접 dirty로 표시한다.
+	const auto SetAttributeBase = [this, AttributeSet](const FGameplayAttribute& Attribute, const float NewValue)
+	{
+		SetNumericAttributeBase(Attribute, NewValue);
+		if (FProperty* Property = Attribute.GetUProperty())
+		{
+			MARK_PROPERTY_DIRTY(AttributeSet, Property);
+		}
+	};
+	SetAttributeBase(UBasicAttributeSet::GetHealthAttribute(), RespawnMaxHealth);
+	SetAttributeBase(UBasicAttributeSet::GetShieldAttribute(), 0.0f);
+	SetAttributeBase(UBasicAttributeSet::GetStaminaAttribute(), RespawnMaxStamina);
+	SetAttributeBase(UBasicAttributeSet::GetManaAttribute(), RespawnMaxMana);
+
+	RemoveActiveEffectsWithGrantedTags(DeadTags);
+	RemoveActiveEffects(FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(DeadTags));
+	if (GetTagCount(LabGameplayTags::State_Dead) > 0)
+	{
+		SetLooseGameplayTagCount(LabGameplayTags::State_Dead, 0, EGameplayTagReplicationState::CountToOwner);
+	}
+
 	ForceReplication();
 }
 

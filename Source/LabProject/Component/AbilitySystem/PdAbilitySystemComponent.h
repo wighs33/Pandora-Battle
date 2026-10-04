@@ -75,6 +75,8 @@ public:
 	int32 ClearStatusEffectsForRespawn();
 	// 리스폰은 사망·상태이상·보호막까지 초기화하고, 자원 복구는 기존 효과를 유지한다.
 	void ResetRuntimeStateForRespawn();
+	// 적 리스폰. 상태 이상·사망 효과를 지운 뒤 자원을 지금의 최대값까지 채운다. 최대값의 기본값은 건드리지 않는다.
+	void ResetResourcesForEnemyRespawn();
 	void RestoreResourcesToMaximum();
 	void ReactivateAutoActivatedAbilities();
 

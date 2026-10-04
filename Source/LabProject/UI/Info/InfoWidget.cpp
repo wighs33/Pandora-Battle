@@ -17,6 +17,7 @@
 #include "Item/ItemInstance.h"
 #include "Engine/GameInstance.h"
 #include "Profile/PlayerProfileSubsystem.h"
+#include "UI/Common/ButtonClickBinding.h"
 #include "UI/HUD/PdHUD.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
@@ -122,67 +123,8 @@ void UInfoWidget::NativeConstruct()
 
 	SetPaintCanvasWidgetVisible(false);
 
-	if (ProfileTabButton)
-	{
-		ProfileTabButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnProfileTabButtonClicked);
-	}
-
-	if (ItemTabButton)
-	{
-		ItemTabButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnItemTabButtonClicked);
-	}
-
-	if (SkinButton)
-	{
-		SkinButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnSkinButtonClicked);
-	}
-
-	if (PandoraButton)
-	{
-		PandoraButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnPandoraButtonClicked);
-	}
-
-	if (MapButton)
-	{
-		MapButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnMapButtonClicked);
-	}
-
-	if (Btn_Setting)
-	{
-		Btn_Setting->OnClicked.AddUniqueDynamic(this, &ThisClass::OnSettingButtonClicked);
-	}
-
-	if (Btn_Close)
-	{
-		Btn_Close->OnClicked.AddUniqueDynamic(this, &ThisClass::OnCloseButtonClicked);
-	}
-
-	if (Btn_PandoraUpgrade)
-	{
-		Btn_PandoraUpgrade->OnClicked.AddUniqueDynamic(
-			this,
-			&ThisClass::OnPandoraUpgradeButtonClicked);
-	}
-
-	if (Btn_CanvasExport)
-	{
-		Btn_CanvasExport->OnClicked.AddUniqueDynamic(this, &ThisClass::OnCanvasExportButtonClicked);
-	}
-
-	if (Btn_FaceDecal)
-	{
-		Btn_FaceDecal->OnClicked.AddUniqueDynamic(this, &ThisClass::OnFaceDecalButtonClicked);
-	}
-
-	if (Btn_Debug)
-	{
-		Btn_Debug->OnClicked.AddUniqueDynamic(
-			this,
-			&ThisClass::OnDebugButtonClicked);
-	}
-
+	PdButtonClick::Bind(this, GetButtonBindings());
 	BindLeftSkinPaintCanvasEvents();
-	if (Btn_ClosePaint) Btn_ClosePaint->OnClicked.AddUniqueDynamic(this, &ThisClass::OnClosePaintClicked);
 	SetCanvasExportButtonVisible(false);
 	SetPandoraUpgradeButtonVisible(
 		FocusedSection == EInfoUiSection::Pandora);
@@ -210,67 +152,8 @@ void UInfoWidget::NativeDestruct()
 		PaintCanvas->Shutdown();
 	}
 
-	if (ProfileTabButton)
-	{
-		ProfileTabButton->OnClicked.RemoveDynamic(this, &ThisClass::OnProfileTabButtonClicked);
-	}
-
-	if (ItemTabButton)
-	{
-		ItemTabButton->OnClicked.RemoveDynamic(this, &ThisClass::OnItemTabButtonClicked);
-	}
-
-	if (SkinButton)
-	{
-		SkinButton->OnClicked.RemoveDynamic(this, &ThisClass::OnSkinButtonClicked);
-	}
-
-	if (PandoraButton)
-	{
-		PandoraButton->OnClicked.RemoveDynamic(this, &ThisClass::OnPandoraButtonClicked);
-	}
-
-	if (MapButton)
-	{
-		MapButton->OnClicked.RemoveDynamic(this, &ThisClass::OnMapButtonClicked);
-	}
-
-	if (Btn_Setting)
-	{
-		Btn_Setting->OnClicked.RemoveDynamic(this, &ThisClass::OnSettingButtonClicked);
-	}
-
-	if (Btn_Close)
-	{
-		Btn_Close->OnClicked.RemoveDynamic(this, &ThisClass::OnCloseButtonClicked);
-	}
-
-	if (Btn_PandoraUpgrade)
-	{
-		Btn_PandoraUpgrade->OnClicked.RemoveDynamic(
-			this,
-			&ThisClass::OnPandoraUpgradeButtonClicked);
-	}
-
-	if (Btn_CanvasExport)
-	{
-		Btn_CanvasExport->OnClicked.RemoveDynamic(this, &ThisClass::OnCanvasExportButtonClicked);
-	}
-
-	if (Btn_FaceDecal)
-	{
-		Btn_FaceDecal->OnClicked.RemoveDynamic(this, &ThisClass::OnFaceDecalButtonClicked);
-	}
-
-	if (Btn_Debug)
-	{
-		Btn_Debug->OnClicked.RemoveDynamic(
-			this,
-			&ThisClass::OnDebugButtonClicked);
-	}
-
+	PdButtonClick::Unbind(this, GetButtonBindings());
 	UnbindLeftSkinPaintCanvasEvents();
-	if (Btn_ClosePaint) Btn_ClosePaint->OnClicked.RemoveDynamic(this, &ThisClass::OnClosePaintClicked);
 	SetCanvasExportButtonVisible(false);
 
 	Super::NativeDestruct();
@@ -401,79 +284,42 @@ void UInfoWidget::HidePandoraDescriptionDetailAtWidget(const UWidget* AnchorWidg
 
 void UInfoWidget::SelectProfileTab()
 {
-	FocusedSection = EInfoUiSection::Profile;
-	SetPandoraUpgradeButtonVisible(false);
-	if (MapPanel)
-	{
-		MapPanel->PlaySlideOut();
-	}
 	if (WB_LeftProfile)
 	{
 		WB_LeftProfile->RefreshTierImage();
 	}
-
-	SelectInfoCenterPage(
-		WB_LeftProfile,
-		WB_RightStatus,
-		UProjectTagDefinition::Get(this)->GetUiProfileLeftTag(),
-		UProjectTagDefinition::Get(this)->GetUiStatusRightTag());
+	const UProjectTagDefinition* Tags = UProjectTagDefinition::Get(this);
+	SelectSidePanelSection(EInfoUiSection::Profile, WB_LeftProfile, WB_RightStatus, Tags->GetUiProfileLeftTag(), Tags->GetUiStatusRightTag());
 }
 
 void UInfoWidget::SelectItemTab()
 {
-	FocusedSection = EInfoUiSection::Item;
-	SetPandoraUpgradeButtonVisible(false);
-	if (MapPanel)
-	{
-		MapPanel->PlaySlideOut();
-	}
 	if (WB_RightInventory)
 	{
 		WB_RightInventory->ResetFilterHighlightToAll();
 	}
-	SelectInfoCenterPage(
-		WB_LeftEquipment,
-		WB_RightInventory,
-		UProjectTagDefinition::Get(this)->GetUiEquipmentLeftTag(),
-		UProjectTagDefinition::Get(this)->GetUiInventoryRightTag());
+	const UProjectTagDefinition* Tags = UProjectTagDefinition::Get(this);
+	SelectSidePanelSection(EInfoUiSection::Item, WB_LeftEquipment, WB_RightInventory, Tags->GetUiEquipmentLeftTag(), Tags->GetUiInventoryRightTag());
 }
 
 void UInfoWidget::SelectSkinTab()
 {
-	FocusedSection = EInfoUiSection::Skin;
-	SetPandoraUpgradeButtonVisible(false);
-	if (MapPanel)
-	{
-		MapPanel->PlaySlideOut();
-	}
 	if (WB_RightSkin)
 	{
 		WB_RightSkin->ResetFilterHighlightToAll();
 	}
-	SelectInfoCenterPage(
-		WB_LeftSkin,
-		WB_RightSkin,
-		UProjectTagDefinition::Get(this)->GetUiSkinEquipmentLeftTag(),
-		UProjectTagDefinition::Get(this)->GetUiSkinInventoryRightTag());
+	const UProjectTagDefinition* Tags = UProjectTagDefinition::Get(this);
+	SelectSidePanelSection(EInfoUiSection::Skin, WB_LeftSkin, WB_RightSkin, Tags->GetUiSkinEquipmentLeftTag(), Tags->GetUiSkinInventoryRightTag());
 }
 
 void UInfoWidget::SelectPandoraTab()
 {
-	FocusedSection = EInfoUiSection::Pandora;
-	SetPandoraUpgradeButtonVisible(true);
-	if (MapPanel)
-	{
-		MapPanel->PlaySlideOut();
-	}
 	if (WB_RightPandora)
 	{
 		WB_RightPandora->ResetFilterHighlightToAll();
 	}
-	SelectInfoCenterPage(
-		WB_LeftPandora,
-		WB_RightPandora,
-		UProjectTagDefinition::Get(this)->GetUiPandoraEquipmentLeftTag(),
-		UProjectTagDefinition::Get(this)->GetUiPandoraInventoryRightTag());
+	const UProjectTagDefinition* Tags = UProjectTagDefinition::Get(this);
+	SelectSidePanelSection(EInfoUiSection::Pandora, WB_LeftPandora, WB_RightPandora, Tags->GetUiPandoraEquipmentLeftTag(), Tags->GetUiPandoraInventoryRightTag());
 }
 
 void UInfoWidget::SelectMapTab()
@@ -817,6 +663,40 @@ void UInfoWidget::PlaySidePanelsSlideOutAnimation()
 		StopAnimation(SlideInRight);
 		PlayAnimationReverse(SlideInRight, 1.0f, false);
 	}
+}
+
+TArray<FPdButtonClickBinding, TInlineAllocator<12>> UInfoWidget::GetButtonBindings() const
+{
+	return {
+		{ ProfileTabButton, GET_FUNCTION_NAME_CHECKED(ThisClass, OnProfileTabButtonClicked) },
+		{ ItemTabButton, GET_FUNCTION_NAME_CHECKED(ThisClass, OnItemTabButtonClicked) },
+		{ SkinButton, GET_FUNCTION_NAME_CHECKED(ThisClass, OnSkinButtonClicked) },
+		{ PandoraButton, GET_FUNCTION_NAME_CHECKED(ThisClass, OnPandoraButtonClicked) },
+		{ MapButton, GET_FUNCTION_NAME_CHECKED(ThisClass, OnMapButtonClicked) },
+		{ Btn_Setting, GET_FUNCTION_NAME_CHECKED(ThisClass, OnSettingButtonClicked) },
+		{ Btn_Close, GET_FUNCTION_NAME_CHECKED(ThisClass, OnCloseButtonClicked) },
+		{ Btn_PandoraUpgrade, GET_FUNCTION_NAME_CHECKED(ThisClass, OnPandoraUpgradeButtonClicked) },
+		{ Btn_CanvasExport, GET_FUNCTION_NAME_CHECKED(ThisClass, OnCanvasExportButtonClicked) },
+		{ Btn_FaceDecal, GET_FUNCTION_NAME_CHECKED(ThisClass, OnFaceDecalButtonClicked) },
+		{ Btn_Debug, GET_FUNCTION_NAME_CHECKED(ThisClass, OnDebugButtonClicked) },
+		{ Btn_ClosePaint, GET_FUNCTION_NAME_CHECKED(ThisClass, OnClosePaintClicked) },
+	};
+}
+
+void UInfoWidget::SelectSidePanelSection(
+	const EInfoUiSection Section,
+	UWidget* LeftWidget,
+	UWidget* RightWidget,
+	const FGameplayTag& LeftUiTag,
+	const FGameplayTag& RightUiTag)
+{
+	FocusedSection = Section;
+	SetPandoraUpgradeButtonVisible(Section == EInfoUiSection::Pandora);
+	if (MapPanel)
+	{
+		MapPanel->PlaySlideOut();
+	}
+	SelectInfoCenterPage(LeftWidget, RightWidget, LeftUiTag, RightUiTag);
 }
 
 void UInfoWidget::SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag)

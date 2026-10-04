@@ -72,14 +72,6 @@ private:
 	bool ValidateAttackRequest();
 	void StopAttackMovement() const;
 	void FaceAttackTarget(const AActor* CurrentAttackTarget);
-	void GatherAttackAbilityHandles(
-		bool bUsingRangedWeapon,
-		bool bHasEquippedWeapon,
-		TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles) const;
-	bool TryHandleActiveAttackAbility(
-		const TArray<FGameplayAbilitySpecHandle>& AbilityHandles);
-	bool TryActivateAttackAbility(
-		TArray<FGameplayAbilitySpecHandle>& AbilityHandles);
 
 private:
 	UPROPERTY(Transient)

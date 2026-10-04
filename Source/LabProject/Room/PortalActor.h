@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "UObject/ObjectKey.h"
+#include "Room/PortalTraversal.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -110,15 +110,6 @@ protected:
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Portal|Runtime")
 	TObjectPtr<UTextureRenderTarget2D> PortalRT;
 
-private:
-	struct FPortalTraversalState
-	{
-		FVector LastPosition = FVector::ZeroVector;
-		bool bLastInFront = false;
-		bool bInitialized = false;
-		double LastTeleportTime = -BIG_NUMBER;
-	};
-
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -172,37 +163,14 @@ private:
 	void ConfigureLinkedCaptureComponent() const;
 	void UpdatePortalVisualParameters() const;
 	void SetTickEnabledFromOverlaps();
-	void ResolvePortalComponents() const;
-	void SeedTeleportOverlapCache(UPrimitiveComponent* OverlapComponent, TArray<TWeakObjectPtr<AActor>>& OutActors);
-	bool TrackTeleportOverlap(TArray<TWeakObjectPtr<AActor>>& OverlappingActors, AActor* Actor) const;
-	void UntrackTeleportOverlap(
-		TArray<TWeakObjectPtr<AActor>>& OverlappingActors,
-		AActor* Actor,
-		const UPrimitiveComponent* OverlapComponent) const;
-	bool HasTrackedTeleportOverlap(
-		TArray<TWeakObjectPtr<AActor>>& OverlappingActors,
-		const UPrimitiveComponent* OverlapComponent) const;
 	void RemoveTraversalStateIfNoLongerOverlapping(AActor* Actor);
 
 	bool IsTeleportCandidate(const AActor* Actor) const;
-	void ResolveOverlappingTeleportActors(TArray<TWeakObjectPtr<AActor>>& OutActors);
 	APortalActor* GetLinkedPortalActor() const;
 	APlayerCameraManager* GetCachedPlayerCameraManager() const;
 	float GetBlueprintOffsetAmount() const;
-	UStaticMeshComponent* GetPortalPlaneComponent() const;
-	UBoxComponent* GetBoxComponent() const;
-	UBoxComponent* GetPlayerDetectionComponent() const;
-	UArrowComponent* GetForwardDirectionComponent() const;
-	USceneCaptureComponent2D* GetPortalCameraComponent() const;
-	UNiagaraComponent* GetFXComponent() const;
-	bool IsPointCrossingPortal(AActor* Actor, const FVector& Point);
 	void TeleportActorThroughPortal(AActor* Actor);
 	void PrimeTraversalState(AActor* Actor);
-
-	FVector TransformLocationToLinkedPortal(const FVector& WorldLocation) const;
-	FVector TransformDirectionToLinkedPortal(const FVector& WorldDirection) const;
-	FRotator TransformRotationToLinkedPortal(const FRotator& WorldRotation) const;
-	FVector TransformVelocityToLinkedPortal(const FVector& WorldVelocity) const;
 	FTransform GetPortalReferenceTransform() const;
 
 private:
@@ -214,14 +182,8 @@ private:
 	TObjectPtr<UMaterialInterface> PortalMaterialParent;
 
 	double LastSceneCaptureTime = -BIG_NUMBER;
-	TMap<TObjectKey<AActor>, FPortalTraversalState> TraversalStates;
-	TArray<TWeakObjectPtr<AActor>> PortalOverlappingTeleportActors;
-	TArray<TWeakObjectPtr<AActor>> DetectedTeleportActors;
+	FPortalTraversalTracker TraversalTracker;
+	FPortalOverlapList PortalBoxOverlaps;
+	FPortalOverlapList DetectionOverlaps;
 	mutable TWeakObjectPtr<APlayerCameraManager> CachedPlayerCameraManager;
-	mutable TWeakObjectPtr<UStaticMeshComponent> CachedPortalPlane;
-	mutable TWeakObjectPtr<UBoxComponent> CachedBox;
-	mutable TWeakObjectPtr<UBoxComponent> CachedPlayerDetection;
-	mutable TWeakObjectPtr<UArrowComponent> CachedForwardDirection;
-	mutable TWeakObjectPtr<USceneCaptureComponent2D> CachedPortalCamera;
-	mutable TWeakObjectPtr<UNiagaraComponent> CachedFX;
 };

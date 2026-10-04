@@ -18,9 +18,9 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Mode/PdPlayerController.h"
+#include "Room/PortalSpace.h"
 #include "NavAreas/NavArea_Obstacle.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
@@ -69,27 +69,6 @@ void ConfigurePortalTeleportBox(UBoxComponent* BoxComponent)
 
 	BoxComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	BoxComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-}
-
-template <typename ComponentType>
-ComponentType* FindPortalComponentByName(const AActor* Actor, const FName ComponentName)
-{
-	if (!Actor)
-	{
-		return nullptr;
-	}
-
-	TArray<ComponentType*> Components;
-	Actor->GetComponents<ComponentType>(Components);
-	for (ComponentType* Component : Components)
-	{
-		if (Component && Component->GetFName() == ComponentName)
-		{
-			return Component;
-		}
-	}
-
-	return nullptr;
 }
 }
 
@@ -203,21 +182,15 @@ EDataValidationResult APortalActor::IsDataValid(FDataValidationContext& Context)
 void APortalActor::BeginPlay()
 {
 	Super::BeginPlay();
-	ResolvePortalComponents();
 
-	if (UBoxComponent* PortalBox = GetBoxComponent())
-	{
-		PortalBox->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandlePortalBeginOverlap);
-		PortalBox->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandlePortalEndOverlap);
-		SeedTeleportOverlapCache(PortalBox, PortalOverlappingTeleportActors);
-	}
+	const auto IsCandidate = [this](const AActor* Actor) { return IsTeleportCandidate(Actor); };
+	BoxComponent->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandlePortalBeginOverlap);
+	BoxComponent->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandlePortalEndOverlap);
+	PortalBoxOverlaps.Seed(BoxComponent, IsCandidate);
 
-	if (UBoxComponent* DetectionBox = GetPlayerDetectionComponent())
-	{
-		DetectionBox->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleDetectionBeginOverlap);
-		DetectionBox->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandleDetectionEndOverlap);
-		SeedTeleportOverlapCache(DetectionBox, DetectedTeleportActors);
-	}
+	PlayerDetectionComponent->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleDetectionBeginOverlap);
+	PlayerDetectionComponent->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandleDetectionEndOverlap);
+	DetectionOverlaps.Seed(PlayerDetectionComponent, IsCandidate);
 
 	const bool bPortalDefinitionReady = LoadedPortalDefinition || ApplyPortalDefinition();
 	if (bPortalDefinitionReady && ShouldRenderPortalView())
@@ -250,13 +223,13 @@ void APortalActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		World->GetTimerManager().ClearTimer(InitMaterialTimerHandle);
 	}
 
-	PortalOverlappingTeleportActors.Reset();
-	DetectedTeleportActors.Reset();
-	TraversalStates.Reset();
+	PortalBoxOverlaps.Reset();
+	DetectionOverlaps.Reset();
+	TraversalTracker.Reset();
 
 	if (APortalActor* LinkedPortalActor = GetLinkedPortalActor())
 	{
-		if (USceneCaptureComponent2D* LinkedCapture = LinkedPortalActor->GetPortalCameraComponent();
+		if (USceneCaptureComponent2D* LinkedCapture = LinkedPortalActor->PortalCameraComponent;
 			LinkedCapture && LinkedCapture->TextureTarget == PortalRT)
 		{
 			LinkedCapture->TextureTarget = nullptr;
@@ -286,24 +259,18 @@ bool APortalActor::ShouldRenderPortalView() const
 
 void APortalActor::NativeTryInitPortalMaterial()
 {
-	UStaticMeshComponent* ResolvedPortalPlane = GetPortalPlaneComponent();
-	if (!ResolvedPortalPlane)
-	{
-		return;
-	}
-
 	if (!PortalMat)
 	{
 		UMaterialInterface* MaterialParent = PortalMaterialParent;
 		if (!MaterialParent)
 		{
-			MaterialParent = ResolvedPortalPlane->GetMaterial(0);
+			MaterialParent = PortalPlaneComponent->GetMaterial(0);
 		}
 
 		if (MaterialParent)
 		{
 			PortalMat = UMaterialInstanceDynamic::Create(MaterialParent, this);
-			ResolvedPortalPlane->SetMaterial(0, PortalMat);
+			PortalPlaneComponent->SetMaterial(0, PortalMat);
 		}
 	}
 
@@ -318,7 +285,7 @@ void APortalActor::NativeTryInitPortalMaterial()
 	UpdatePortalVisualParameters();
 
 	const APortalActor* LinkedPortalActor = GetLinkedPortalActor();
-	const USceneCaptureComponent2D* LinkedCapture = LinkedPortalActor ? LinkedPortalActor->GetPortalCameraComponent() : nullptr;
+	const USceneCaptureComponent2D* LinkedCapture = LinkedPortalActor ? LinkedPortalActor->PortalCameraComponent : nullptr;
 	const bool bReady = PortalMat && PortalRT && LinkedCapture && LinkedCapture->TextureTarget == PortalRT;
 	if (bReady)
 	{
@@ -337,7 +304,7 @@ void APortalActor::NativeUpdateSceneCapture()
 	}
 
 	APortalActor* LinkedPortalActor = GetLinkedPortalActor();
-	USceneCaptureComponent2D* LinkedCapture = LinkedPortalActor ? LinkedPortalActor->GetPortalCameraComponent() : nullptr;
+	USceneCaptureComponent2D* LinkedCapture = LinkedPortalActor ? LinkedPortalActor->PortalCameraComponent : nullptr;
 	if (!LinkedPortalActor || !LinkedCapture)
 	{
 		return;
@@ -352,9 +319,11 @@ void APortalActor::NativeUpdateSceneCapture()
 	EnsureRenderTargetSize();
 	ConfigureLinkedCaptureComponent();
 
+	const FTransform SourcePortal = GetPortalReferenceTransform();
+	const FTransform TargetPortal = LinkedPortalActor->GetPortalReferenceTransform();
 	LinkedCapture->SetWorldLocationAndRotation(
-		TransformLocationToLinkedPortal(CameraManager->GetCameraLocation()),
-		TransformRotationToLinkedPortal(CameraManager->GetCameraRotation()),
+		PdPortalSpace::TransformLocation(SourcePortal, TargetPortal, CameraManager->GetCameraLocation()),
+		PdPortalSpace::TransformRotation(SourcePortal, TargetPortal, CameraManager->GetCameraRotation()),
 		false,
 		nullptr,
 		ETeleportType::TeleportPhysics);
@@ -390,22 +359,28 @@ bool APortalActor::NativeTryTeleportOverlappingActor()
 		return false;
 	}
 
-	TArray<TWeakObjectPtr<AActor>> OverlappingActors;
-	ResolveOverlappingTeleportActors(OverlappingActors);
+	TArray<AActor*> OverlappingActors;
+	DetectionOverlaps.Collect(
+		PlayerDetectionComponent,
+		[this](const AActor* Actor) { return IsTeleportCandidate(Actor); },
+		OverlappingActors,
+		[this](AActor* Actor) { RemoveTraversalStateIfNoLongerOverlapping(Actor); });
 	if (OverlappingActors.IsEmpty())
 	{
 		return false;
 	}
 
 	bool bTeleportedAnyActor = false;
-	const UPrimitiveComponent* DetectionComponent = GetPlayerDetectionComponent();
-	for (const TWeakObjectPtr<AActor>& WeakActor : OverlappingActors)
+	const FVector PlaneLocation = GetPortalPlaneLocation();
+	const FVector PlaneNormal = GetPortalForward().GetSafeNormal();
+	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	for (AActor* Actor : OverlappingActors)
 	{
-		AActor* Actor = WeakActor.Get();
 		if (!IsTeleportCandidate(Actor)
-			|| !DetectionComponent
-			|| !DetectionComponent->IsOverlappingActor(Actor)
-			|| !IsPointCrossingPortal(Actor, Actor->GetActorLocation()))
+			|| !PlayerDetectionComponent->IsOverlappingActor(Actor)
+			|| PlaneNormal.IsNearlyZero()
+			|| !TraversalTracker.UpdateCrossing(
+				Actor, Actor->GetActorLocation(), PlaneLocation, PlaneNormal, Now, TeleportCooldown, CrossingDistanceTolerance))
 		{
 			continue;
 		}
@@ -419,27 +394,17 @@ bool APortalActor::NativeTryTeleportOverlappingActor()
 
 FVector APortalActor::GetPortalForward() const
 {
-	if (const UArrowComponent* DirectionComponent = GetForwardDirectionComponent())
-	{
-		return DirectionComponent->GetForwardVector();
-	}
-
-	return GetActorForwardVector();
+	return ForwardDirectionComponent->GetForwardVector();
 }
 
 FVector APortalActor::GetPortalPlaneLocation() const
 {
-	if (const UStaticMeshComponent* ResolvedPortalPlane = GetPortalPlaneComponent())
-	{
-		return ResolvedPortalPlane->GetComponentLocation();
-	}
-
-	return GetActorLocation();
+	return PortalPlaneComponent->GetComponentLocation();
 }
 
 void APortalActor::HandlePortalBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (TrackTeleportOverlap(PortalOverlappingTeleportActors, OtherActor))
+	if (PortalBoxOverlaps.Track(OtherActor, [this](const AActor* Actor) { return IsTeleportCandidate(Actor); }))
 	{
 		SetTickEnabledFromOverlaps();
 	}
@@ -447,7 +412,7 @@ void APortalActor::HandlePortalBeginOverlap(UPrimitiveComponent* OverlappedCompo
 
 void APortalActor::HandlePortalEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	UntrackTeleportOverlap(PortalOverlappingTeleportActors, OtherActor, OverlappedComponent);
+	PortalBoxOverlaps.Untrack(OtherActor, OverlappedComponent);
 	RemoveTraversalStateIfNoLongerOverlapping(OtherActor);
 
 	SetTickEnabledFromOverlaps();
@@ -455,7 +420,7 @@ void APortalActor::HandlePortalEndOverlap(UPrimitiveComponent* OverlappedCompone
 
 void APortalActor::HandleDetectionBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (TrackTeleportOverlap(DetectedTeleportActors, OtherActor))
+	if (DetectionOverlaps.Track(OtherActor, [this](const AActor* Actor) { return IsTeleportCandidate(Actor); }))
 	{
 		SetTickEnabledFromOverlaps();
 	}
@@ -463,7 +428,7 @@ void APortalActor::HandleDetectionBeginOverlap(UPrimitiveComponent* OverlappedCo
 
 void APortalActor::HandleDetectionEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	UntrackTeleportOverlap(DetectedTeleportActors, OtherActor, OverlappedComponent);
+	DetectionOverlaps.Untrack(OtherActor, OverlappedComponent);
 	RemoveTraversalStateIfNoLongerOverlapping(OtherActor);
 
 	SetTickEnabledFromOverlaps();
@@ -511,7 +476,7 @@ bool APortalActor::EnsureRenderTargetSize()
 
 	if (APortalActor* LinkedPortalActor = GetLinkedPortalActor())
 	{
-		if (USceneCaptureComponent2D* LinkedCapture = LinkedPortalActor->GetPortalCameraComponent())
+		if (USceneCaptureComponent2D* LinkedCapture = LinkedPortalActor->PortalCameraComponent)
 		{
 			LinkedCapture->TextureTarget = PortalRT;
 		}
@@ -537,21 +502,7 @@ FIntPoint APortalActor::GetDesiredRenderTargetSize() const
 		}
 	}
 
-	const float ResolutionScale = FMath::Clamp(LoadedPortalDefinition->ResolutionScale, 0.1f, 1.0f);
-	const int32 MaxDimension = FMath::Clamp(LoadedPortalDefinition->MaxRenderTargetDimension, 256, 4096);
-	const float MaxDimensionScale = static_cast<float>(MaxDimension)
-		/ static_cast<float>(FMath::Max(ViewportSize.X, ViewportSize.Y));
-	const float FinalScale = FMath::Min(ResolutionScale, MaxDimensionScale);
-
-	const int32 Width = FMath::Clamp(
-		FMath::RoundToInt(static_cast<float>(ViewportSize.X) * FinalScale),
-		16,
-		MaxDimension);
-	const int32 Height = FMath::Clamp(
-		FMath::RoundToInt(static_cast<float>(ViewportSize.Y) * FinalScale),
-		16,
-		MaxDimension);
-	return FIntPoint(Width, Height);
+	return LoadedPortalDefinition->GetRenderTargetSize(ViewportSize);
 }
 
 bool APortalActor::ApplyPortalDefinition()
@@ -564,12 +515,10 @@ bool APortalActor::ApplyPortalDefinition()
 		return false;
 	}
 
-	UStaticMeshComponent* ResolvedPortalPlane = GetPortalPlaneComponent();
-	UNiagaraComponent* ResolvedFXComponent = GetFXComponent();
 	UStaticMesh* PortalMesh = ResolvedDefinition->PortalPlaneMesh.LoadSynchronous();
 	UMaterialInterface* PortalMaterial = ResolvedDefinition->PortalMaterial.LoadSynchronous();
 	UNiagaraSystem* PortalEffect = ResolvedDefinition->PortalEffect.LoadSynchronous();
-	if (!ResolvedPortalPlane || !ResolvedFXComponent || !PortalMesh || !PortalMaterial || !PortalEffect)
+	if (!PortalMesh || !PortalMaterial || !PortalEffect)
 	{
 		LoadedPortalDefinition = nullptr;
 		PortalMaterialParent = nullptr;
@@ -578,13 +527,13 @@ bool APortalActor::ApplyPortalDefinition()
 
 	LoadedPortalDefinition = ResolvedDefinition;
 	PortalMaterialParent = PortalMaterial;
-	if (ResolvedPortalPlane->GetStaticMesh() != PortalMesh)
+	if (PortalPlaneComponent->GetStaticMesh() != PortalMesh)
 	{
-		ResolvedPortalPlane->SetStaticMesh(PortalMesh);
+		PortalPlaneComponent->SetStaticMesh(PortalMesh);
 	}
-	if (ResolvedFXComponent->GetAsset() != PortalEffect)
+	if (FXComponent->GetAsset() != PortalEffect)
 	{
-		ResolvedFXComponent->SetAsset(PortalEffect);
+		FXComponent->SetAsset(PortalEffect);
 	}
 	return true;
 }
@@ -616,7 +565,7 @@ bool APortalActor::IsCaptureRateLimitElapsed()
 void APortalActor::ConfigureLinkedCaptureComponent() const
 {
 	APortalActor* LinkedPortalActor = GetLinkedPortalActor();
-	USceneCaptureComponent2D* CaptureComponent = LinkedPortalActor ? LinkedPortalActor->GetPortalCameraComponent() : nullptr;
+	USceneCaptureComponent2D* CaptureComponent = LinkedPortalActor ? LinkedPortalActor->PortalCameraComponent : nullptr;
 	if (!LinkedPortalActor || !CaptureComponent)
 	{
 		return;
@@ -649,9 +598,9 @@ void APortalActor::UpdatePortalVisualParameters() const
 		PortalMat->SetVectorParameterValue(OffsetDistanceParameterName, FLinearColor(OffsetDistance.X, OffsetDistance.Y, OffsetDistance.Z, 1.0f));
 	}
 
-	if (UNiagaraComponent* ResolvedFXComponent = GetFXComponent(); ResolvedFXComponent && VortexVectorParameterName != NAME_None)
+	if (VortexVectorParameterName != NAME_None)
 	{
-		ResolvedFXComponent->SetVariableVec3(VortexVectorParameterName, PortalForward);
+		FXComponent->SetVariableVec3(VortexVectorParameterName, PortalForward);
 	}
 }
 
@@ -663,91 +612,9 @@ void APortalActor::SetTickEnabledFromOverlaps()
 		return;
 	}
 
-	SetActorTickEnabled(HasTrackedTeleportOverlap(
-		PortalOverlappingTeleportActors,
-		GetBoxComponent()));
-}
-
-void APortalActor::SeedTeleportOverlapCache(UPrimitiveComponent* OverlapComponent, TArray<TWeakObjectPtr<AActor>>& OutActors)
-{
-	OutActors.Reset();
-	if (!OverlapComponent)
-	{
-		return;
-	}
-
-	TArray<AActor*> OverlappingActors;
-	OverlapComponent->GetOverlappingActors(OverlappingActors);
-	for (AActor* Actor : OverlappingActors)
-	{
-		TrackTeleportOverlap(OutActors, Actor);
-	}
-}
-
-bool APortalActor::TrackTeleportOverlap(TArray<TWeakObjectPtr<AActor>>& OverlappingActors, AActor* Actor) const
-{
-	if (!IsTeleportCandidate(Actor))
-	{
-		return false;
-	}
-
-	for (const TWeakObjectPtr<AActor>& ExistingActor : OverlappingActors)
-	{
-		if (ExistingActor.Get() == Actor)
-		{
-			return true;
-		}
-	}
-
-	OverlappingActors.Add(Actor);
-	return true;
-}
-
-void APortalActor::UntrackTeleportOverlap(
-	TArray<TWeakObjectPtr<AActor>>& OverlappingActors,
-	AActor* Actor,
-	const UPrimitiveComponent* OverlapComponent) const
-{
-	if (!Actor)
-	{
-		OverlappingActors.RemoveAllSwap(
-			[](const TWeakObjectPtr<AActor>& ExistingActor)
-			{
-				return !ExistingActor.IsValid();
-			});
-		return;
-	}
-	if (OverlapComponent && OverlapComponent->IsOverlappingActor(Actor))
-	{
-		return;
-	}
-
-	OverlappingActors.RemoveAllSwap(
-		[Actor](const TWeakObjectPtr<AActor>& ExistingActor)
-		{
-			return !ExistingActor.IsValid() || ExistingActor.Get() == Actor;
-		});
-}
-
-bool APortalActor::HasTrackedTeleportOverlap(
-	TArray<TWeakObjectPtr<AActor>>& OverlappingActors,
-	const UPrimitiveComponent* OverlapComponent) const
-{
-	for (int32 ActorIndex = OverlappingActors.Num() - 1; ActorIndex >= 0; --ActorIndex)
-	{
-		AActor* Actor = OverlappingActors[ActorIndex].Get();
-		if (!IsTeleportCandidate(Actor)
-			|| !OverlapComponent
-			|| !OverlapComponent->IsOverlappingActor(Actor))
-		{
-			OverlappingActors.RemoveAtSwap(ActorIndex);
-			continue;
-		}
-
-		return true;
-	}
-
-	return false;
+	SetActorTickEnabled(PortalBoxOverlaps.HasAny(
+		BoxComponent,
+		[this](const AActor* Actor) { return IsTeleportCandidate(Actor); }));
 }
 
 void APortalActor::RemoveTraversalStateIfNoLongerOverlapping(AActor* Actor)
@@ -757,15 +624,9 @@ void APortalActor::RemoveTraversalStateIfNoLongerOverlapping(AActor* Actor)
 		return;
 	}
 
-	const UPrimitiveComponent* PortalComponent = GetBoxComponent();
-	const UPrimitiveComponent* DetectionComponent = GetPlayerDetectionComponent();
-	const bool bStillOverlappingPortal = PortalComponent
-		&& PortalComponent->IsOverlappingActor(Actor);
-	const bool bStillDetected = DetectionComponent
-		&& DetectionComponent->IsOverlappingActor(Actor);
-	if (!bStillOverlappingPortal && !bStillDetected)
+	if (!BoxComponent->IsOverlappingActor(Actor) && !PlayerDetectionComponent->IsOverlappingActor(Actor))
 	{
-		TraversalStates.Remove(TObjectKey<AActor>(Actor));
+		TraversalTracker.Remove(Actor);
 	}
 }
 
@@ -777,27 +638,6 @@ bool APortalActor::IsTeleportCandidate(const AActor* Actor) const
 	}
 
 	return !TeleportableActorClass || Actor->IsA(TeleportableActorClass);
-}
-
-void APortalActor::ResolveOverlappingTeleportActors(
-	TArray<TWeakObjectPtr<AActor>>& OutActors)
-{
-	OutActors.Reset();
-	const UPrimitiveComponent* DetectionComponent = GetPlayerDetectionComponent();
-	for (int32 ActorIndex = DetectedTeleportActors.Num() - 1; ActorIndex >= 0; --ActorIndex)
-	{
-		AActor* Actor = DetectedTeleportActors[ActorIndex].Get();
-		if (IsTeleportCandidate(Actor)
-			&& DetectionComponent
-			&& DetectionComponent->IsOverlappingActor(Actor))
-		{
-			OutActors.Add(Actor);
-			continue;
-		}
-
-		DetectedTeleportActors.RemoveAtSwap(ActorIndex);
-		RemoveTraversalStateIfNoLongerOverlapping(Actor);
-	}
 }
 
 APortalActor* APortalActor::GetLinkedPortalActor() const
@@ -831,134 +671,6 @@ float APortalActor::GetBlueprintOffsetAmount() const
 	return PortalEffectOffsetAmount;
 }
 
-void APortalActor::ResolvePortalComponents() const
-{
-	if (!CachedPortalPlane.IsValid())
-	{
-		CachedPortalPlane = PortalPlaneComponent.Get();
-		if (!CachedPortalPlane.IsValid())
-		{
-			CachedPortalPlane = FindPortalComponentByName<UStaticMeshComponent>(this, TEXT("PortalPlane"));
-		}
-	}
-	if (!CachedBox.IsValid())
-	{
-		CachedBox = BoxComponent.Get();
-		if (!CachedBox.IsValid())
-		{
-			CachedBox = FindPortalComponentByName<UBoxComponent>(this, TEXT("Box"));
-		}
-	}
-	if (!CachedPlayerDetection.IsValid())
-	{
-		CachedPlayerDetection = PlayerDetectionComponent.Get();
-		if (!CachedPlayerDetection.IsValid())
-		{
-			CachedPlayerDetection = FindPortalComponentByName<UBoxComponent>(this, TEXT("PlayerDetection"));
-		}
-	}
-	if (!CachedForwardDirection.IsValid())
-	{
-		CachedForwardDirection = ForwardDirectionComponent.Get();
-		if (!CachedForwardDirection.IsValid())
-		{
-			CachedForwardDirection = FindPortalComponentByName<UArrowComponent>(this, TEXT("ForwardDirection"));
-		}
-	}
-	if (!CachedPortalCamera.IsValid())
-	{
-		CachedPortalCamera = PortalCameraComponent.Get();
-		if (!CachedPortalCamera.IsValid())
-		{
-			CachedPortalCamera = FindPortalComponentByName<USceneCaptureComponent2D>(this, TEXT("PortalCamera"));
-		}
-	}
-	if (!CachedFX.IsValid())
-	{
-		CachedFX = FXComponent.Get();
-		if (!CachedFX.IsValid())
-		{
-			CachedFX = FindPortalComponentByName<UNiagaraComponent>(this, TEXT("FX"));
-		}
-	}
-}
-
-UStaticMeshComponent* APortalActor::GetPortalPlaneComponent() const
-{
-	ResolvePortalComponents();
-	return CachedPortalPlane.Get();
-}
-
-UBoxComponent* APortalActor::GetBoxComponent() const
-{
-	ResolvePortalComponents();
-	return CachedBox.Get();
-}
-
-UBoxComponent* APortalActor::GetPlayerDetectionComponent() const
-{
-	ResolvePortalComponents();
-	return CachedPlayerDetection.Get();
-}
-
-UArrowComponent* APortalActor::GetForwardDirectionComponent() const
-{
-	ResolvePortalComponents();
-	return CachedForwardDirection.Get();
-}
-
-USceneCaptureComponent2D* APortalActor::GetPortalCameraComponent() const
-{
-	ResolvePortalComponents();
-	return CachedPortalCamera.Get();
-}
-
-UNiagaraComponent* APortalActor::GetFXComponent() const
-{
-	ResolvePortalComponents();
-	return CachedFX.Get();
-}
-
-bool APortalActor::IsPointCrossingPortal(AActor* Actor, const FVector& Point)
-{
-	if (!Actor)
-	{
-		return false;
-	}
-
-	const FVector PortalLocation = GetPortalPlaneLocation();
-	const FVector PortalNormal = GetPortalForward().GetSafeNormal();
-	if (PortalNormal.IsNearlyZero())
-	{
-		return false;
-	}
-
-	FPortalTraversalState& State = TraversalStates.FindOrAdd(TObjectKey<AActor>(Actor));
-	const float CurrentDistance = FVector::DotProduct(Point - PortalLocation, PortalNormal);
-	const bool bIsInFront = CurrentDistance >= 0.0f;
-
-	if (!State.bInitialized)
-	{
-		State.LastPosition = Point;
-		State.bLastInFront = bIsInFront;
-		State.bInitialized = true;
-		return false;
-	}
-
-	const double CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-	const bool bCoolingDown = CurrentTime - State.LastTeleportTime < TeleportCooldown;
-	const float LastDistance = FVector::DotProduct(State.LastPosition - PortalLocation, PortalNormal);
-
-	FVector PlaneIntersection = FVector::ZeroVector;
-	const bool bSegmentHitsPlane = FMath::SegmentPlaneIntersection(State.LastPosition, Point, FPlane(PortalLocation, PortalNormal), PlaneIntersection);
-	const bool bCrossedPlane = State.bLastInFront && !bIsInFront && bSegmentHitsPlane && LastDistance > CrossingDistanceTolerance && CurrentDistance <= CrossingDistanceTolerance;
-
-	State.LastPosition = Point;
-	State.bLastInFront = bIsInFront;
-
-	return bCrossedPlane && !bCoolingDown;
-}
-
 void APortalActor::TeleportActorThroughPortal(AActor* Actor)
 {
 	APortalActor* LinkedPortalActor = GetLinkedPortalActor();
@@ -967,8 +679,11 @@ void APortalActor::TeleportActorThroughPortal(AActor* Actor)
 		return;
 	}
 
-	const FVector TargetLocation = TransformLocationToLinkedPortal(Actor->GetActorLocation()) + LinkedPortalActor->GetPortalForward() * ExitOffset;
-	const FRotator TargetRotation = TransformRotationToLinkedPortal(Actor->GetActorRotation());
+	const FTransform SourcePortal = GetPortalReferenceTransform();
+	const FTransform TargetPortal = LinkedPortalActor->GetPortalReferenceTransform();
+	const FVector TargetLocation = PdPortalSpace::TransformLocation(SourcePortal, TargetPortal, Actor->GetActorLocation())
+		+ LinkedPortalActor->GetPortalForward() * ExitOffset;
+	const FRotator TargetRotation = PdPortalSpace::TransformRotation(SourcePortal, TargetPortal, Actor->GetActorRotation());
 
 	FVector TargetVelocity = FVector::ZeroVector;
 	UMovementComponent* MovementComponent = nullptr;
@@ -982,7 +697,7 @@ void APortalActor::TeleportActorThroughPortal(AActor* Actor)
 	}
 	if (MovementComponent)
 	{
-		TargetVelocity = TransformVelocityToLinkedPortal(MovementComponent->Velocity);
+		TargetVelocity = PdPortalSpace::TransformVelocity(SourcePortal, TargetPortal, MovementComponent->Velocity);
 	}
 
 	if (ACharacter* Character = Cast<ACharacter>(Actor))
@@ -999,7 +714,7 @@ void APortalActor::TeleportActorThroughPortal(AActor* Actor)
 		if (AController* Controller = Pawn->GetController())
 		{
 			const FRotator TargetControlRotation =
-				TransformRotationToLinkedPortal(Controller->GetControlRotation());
+				PdPortalSpace::TransformRotation(SourcePortal, TargetPortal, Controller->GetControlRotation());
 			Controller->SetControlRotation(TargetControlRotation);
 
 			if (APdPlayerController* PlayerController = Cast<APdPlayerController>(Controller);
@@ -1026,78 +741,14 @@ void APortalActor::TeleportActorThroughPortal(AActor* Actor)
 
 void APortalActor::PrimeTraversalState(AActor* Actor)
 {
-	if (!Actor)
+	if (Actor)
 	{
-		return;
+		TraversalTracker.Prime(Actor, Actor->GetActorLocation(), GetPortalPlaneLocation(), GetPortalForward(),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0);
 	}
-
-	FPortalTraversalState& State = TraversalStates.FindOrAdd(TObjectKey<AActor>(Actor));
-	State.LastPosition = Actor->GetActorLocation();
-	State.bLastInFront = FVector::DotProduct(State.LastPosition - GetPortalPlaneLocation(), GetPortalForward()) >= 0.0f;
-	State.bInitialized = true;
-	State.LastTeleportTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-}
-
-FVector APortalActor::TransformLocationToLinkedPortal(const FVector& WorldLocation) const
-{
-	APortalActor* LinkedPortalActor = GetLinkedPortalActor();
-	if (!LinkedPortalActor)
-	{
-		return WorldLocation;
-	}
-
-	const FTransform SourceTransform = GetPortalReferenceTransform();
-	const FTransform TargetTransform = LinkedPortalActor->GetPortalReferenceTransform();
-
-	FVector LocalLocation = SourceTransform.InverseTransformPositionNoScale(WorldLocation);
-	LocalLocation.X *= -1.0f;
-	LocalLocation.Y *= -1.0f;
-	return TargetTransform.TransformPositionNoScale(LocalLocation);
-}
-
-FVector APortalActor::TransformDirectionToLinkedPortal(const FVector& WorldDirection) const
-{
-	APortalActor* LinkedPortalActor = GetLinkedPortalActor();
-	if (!LinkedPortalActor)
-	{
-		return WorldDirection;
-	}
-
-	const FTransform SourceTransform = GetPortalReferenceTransform();
-	const FTransform TargetTransform = LinkedPortalActor->GetPortalReferenceTransform();
-
-	FVector LocalDirection = SourceTransform.InverseTransformVectorNoScale(WorldDirection);
-	LocalDirection.X *= -1.0f;
-	LocalDirection.Y *= -1.0f;
-	return TargetTransform.TransformVectorNoScale(LocalDirection).GetSafeNormal();
-}
-
-FRotator APortalActor::TransformRotationToLinkedPortal(const FRotator& WorldRotation) const
-{
-	const FRotationMatrix RotationMatrix(WorldRotation);
-	const FVector Forward = TransformDirectionToLinkedPortal(RotationMatrix.GetScaledAxis(EAxis::X));
-	const FVector Right = TransformDirectionToLinkedPortal(RotationMatrix.GetScaledAxis(EAxis::Y));
-	const FVector Up = TransformDirectionToLinkedPortal(RotationMatrix.GetScaledAxis(EAxis::Z));
-
-	return UKismetMathLibrary::MakeRotationFromAxes(Forward, Right, Up);
-}
-
-FVector APortalActor::TransformVelocityToLinkedPortal(const FVector& WorldVelocity) const
-{
-	const double Speed = WorldVelocity.Size();
-	if (Speed <= UE_KINDA_SMALL_NUMBER)
-	{
-		return FVector::ZeroVector;
-	}
-
-	return TransformDirectionToLinkedPortal(WorldVelocity / Speed) * Speed;
 }
 
 FTransform APortalActor::GetPortalReferenceTransform() const
 {
-	const FQuat PortalRotation = GetForwardDirectionComponent()
-		? GetForwardDirectionComponent()->GetComponentQuat()
-		: GetActorQuat();
-
-	return FTransform(PortalRotation, GetPortalPlaneLocation(), FVector::OneVector);
+	return FTransform(ForwardDirectionComponent->GetComponentQuat(), GetPortalPlaneLocation(), FVector::OneVector);
 }

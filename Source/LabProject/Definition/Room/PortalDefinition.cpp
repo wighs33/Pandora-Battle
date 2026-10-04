@@ -11,6 +11,25 @@ FPrimaryAssetId UPortalDefinition::GetPrimaryAssetId() const
 	return FPrimaryAssetId(TEXT("PortalDefinition"), GetFName());
 }
 
+FIntPoint UPortalDefinition::GetRenderTargetSize(const FIntPoint& ViewportSize) const
+{
+	const float ClampedResolutionScale = FMath::Clamp(ResolutionScale, 0.1f, 1.0f);
+	const int32 MaxDimension = FMath::Clamp(MaxRenderTargetDimension, 256, 4096);
+	const float MaxDimensionScale = static_cast<float>(MaxDimension)
+		/ static_cast<float>(FMath::Max(ViewportSize.X, ViewportSize.Y));
+	const float FinalScale = FMath::Min(ClampedResolutionScale, MaxDimensionScale);
+
+	const int32 Width = FMath::Clamp(
+		FMath::RoundToInt(static_cast<float>(ViewportSize.X) * FinalScale),
+		16,
+		MaxDimension);
+	const int32 Height = FMath::Clamp(
+		FMath::RoundToInt(static_cast<float>(ViewportSize.Y) * FinalScale),
+		16,
+		MaxDimension);
+	return FIntPoint(Width, Height);
+}
+
 #if WITH_EDITOR
 namespace
 {

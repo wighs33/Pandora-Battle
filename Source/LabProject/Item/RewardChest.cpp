@@ -154,11 +154,16 @@ void ARewardChest::GetRewardItems_Implementation(TArray<FPrimaryAssetId>& OutIte
 
 	if (bUseItemDefinitionDropRates)
 	{
-		AppendRandomItemPrimaryAssetIds(OutItemDefinitionList);
+		FRewardChestItemCountRule CountRule;
+		CountRule.bUseChances = bUseRandomRewardItemCountChances;
+		CountRule.FallbackCount = RandomRewardItemCount;
+		CountRule.Chances = RandomRewardItemCountChances;
+		PdRewardChestLoot::RollRandomItems(
+			GatherDroppableItemCandidates(), CountRule, bAllowDuplicateRandomItems, OutItemDefinitionList);
 	}
 	else
 	{
-		AppendConfiguredItemPrimaryAssetIds(OutItemDefinitionList);
+		PdRewardChestLoot::PickConfiguredItems(GatherConfiguredItemCandidates(), OutItemDefinitionList);
 	}
 }
 
@@ -282,194 +287,48 @@ void ARewardChest::AppendPrimaryAssetIds(
 	}
 }
 
-void ARewardChest::AppendRandomItemPrimaryAssetIds(
-	TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const
+TArray<FRewardChestLootCandidate> ARewardChest::GatherDroppableItemCandidates() const
 {
 	UAssetManager& AssetManager = UAssetManager::Get();
 
 	TArray<FPrimaryAssetId> AllItemDefinitionIds;
 	AssetManager.GetPrimaryAssetIdList(FPrimaryAssetType(TEXT("ItemDefinition")), AllItemDefinitionIds);
 
-	TArray<FPrimaryAssetId> WeaponCandidateIds;
-	TArray<float> WeaponCandidateWeights;
-	float TotalWeaponWeight = 0.0f;
-	TArray<FPrimaryAssetId> NonWeaponCandidateIds;
-	TArray<float> NonWeaponCandidateWeights;
-	float TotalNonWeaponWeight = 0.0f;
-
+	TArray<FRewardChestLootCandidate> Candidates;
 	for (const FPrimaryAssetId& ItemDefinitionId : AllItemDefinitionIds)
 	{
 		const UItemDefinition* ItemDefinition =
 			AssetManager.GetPrimaryAssetObject<UItemDefinition>(ItemDefinitionId);
-		if (!ItemDefinition)
+		if (ItemDefinition && ItemDefinition->CanDropFromRewardChest())
 		{
-			continue;
-		}
-
-		const float DropRate = ItemDefinition->GetRewardChestDropWeight();
-		if (!ItemDefinition->CanDropFromRewardChest())
-		{
-			continue;
-		}
-
-		if (IsWeaponItemDefinition(ItemDefinition))
-		{
-			WeaponCandidateIds.Add(ItemDefinitionId);
-			WeaponCandidateWeights.Add(DropRate);
-			TotalWeaponWeight += DropRate;
-		}
-		else
-		{
-			NonWeaponCandidateIds.Add(ItemDefinitionId);
-			NonWeaponCandidateWeights.Add(DropRate);
-			TotalNonWeaponWeight += DropRate;
+			Candidates.Add({ ItemDefinitionId, ItemDefinition->GetRewardChestDropWeight(), IsWeaponItemDefinition(ItemDefinition) });
 		}
 	}
-
-	const int32 WeaponSelectedIndex =
-		SelectWeightedItemIndex(WeaponCandidateWeights, TotalWeaponWeight);
-	const int32 DropCount = ResolveRandomRewardItemCount();
-	if (WeaponCandidateIds.IsValidIndex(WeaponSelectedIndex))
-	{
-		OutPrimaryAssetIds.Add(WeaponCandidateIds[WeaponSelectedIndex]);
-	}
-	const int32 NonWeaponDropCount = FMath::Max(
-		0,
-		DropCount - (OutPrimaryAssetIds.IsEmpty() ? 0 : 1));
-	for (int32 DropIndex = 0;
-		DropIndex < NonWeaponDropCount
-			&& !NonWeaponCandidateIds.IsEmpty()
-			&& TotalNonWeaponWeight > 0.0f;
-		++DropIndex)
-	{
-		const int32 SelectedIndex =
-			SelectWeightedItemIndex(NonWeaponCandidateWeights, TotalNonWeaponWeight);
-		if (!NonWeaponCandidateIds.IsValidIndex(SelectedIndex))
-		{
-			break;
-		}
-
-		OutPrimaryAssetIds.Add(NonWeaponCandidateIds[SelectedIndex]);
-
-		if (!bAllowDuplicateRandomItems)
-		{
-			TotalNonWeaponWeight -= NonWeaponCandidateWeights[SelectedIndex];
-			NonWeaponCandidateIds.RemoveAt(SelectedIndex);
-			NonWeaponCandidateWeights.RemoveAt(SelectedIndex);
-		}
-	}
+	return Candidates;
 }
 
-void ARewardChest::AppendConfiguredItemPrimaryAssetIds(
-	TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const
+TArray<FRewardChestLootCandidate> ARewardChest::GatherConfiguredItemCandidates() const
 {
-	TArray<FPrimaryAssetId> WeaponIds;
-	TArray<float> WeaponWeights;
-	float TotalWeaponWeight = 0.0f;
-	TArray<FPrimaryAssetId> NonWeaponIds;
-
+	TArray<FRewardChestLootCandidate> Candidates;
 	for (const TSoftObjectPtr<UItemDefinition>& RewardItem : RewardItems)
 	{
-		if (RewardItem.IsNull())
-		{
-			continue;
-		}
-
 		const UItemDefinition* ItemDefinition = RewardItem.Get();
-		if (!ItemDefinition)
-		{
-			continue;
-		}
-
-		const FPrimaryAssetId PrimaryAssetId = ItemDefinition->GetPrimaryAssetId();
+		const FPrimaryAssetId PrimaryAssetId = ItemDefinition ? ItemDefinition->GetPrimaryAssetId() : FPrimaryAssetId();
 		if (!PrimaryAssetId.IsValid())
 		{
 			continue;
 		}
 
-		if (IsWeaponItemDefinition(ItemDefinition))
-		{
-			if (!ItemDefinition->CanDropFromRewardChest())
-			{
-				continue;
-			}
-
-			if (WeaponIds.Contains(PrimaryAssetId))
-			{
-				continue;
-			}
-			WeaponIds.Add(PrimaryAssetId);
-			const float DropWeight = ItemDefinition->GetRewardChestDropWeight();
-			WeaponWeights.Add(DropWeight);
-			TotalWeaponWeight += DropWeight;
-		}
-		else
-		{
-			NonWeaponIds.Add(PrimaryAssetId);
-		}
-	}
-
-	const int32 SelectedWeaponIndex =
-		SelectWeightedItemIndex(WeaponWeights, TotalWeaponWeight);
-	if (WeaponIds.IsValidIndex(SelectedWeaponIndex))
-	{
-		OutPrimaryAssetIds.Add(WeaponIds[SelectedWeaponIndex]);
-	}
-	OutPrimaryAssetIds.Append(NonWeaponIds);
-}
-
-int32 ARewardChest::ResolveRandomRewardItemCount() const
-{
-	if (!bUseRandomRewardItemCountChances)
-	{
-		return FMath::Max(1, RandomRewardItemCount);
-	}
-
-	TArray<int32> CandidateCounts;
-	TArray<float> CandidateWeights;
-	float TotalChance = 0.0f;
-
-	for (const FRewardChestItemCountChance& CountChance : RandomRewardItemCountChances)
-	{
-		const int32 ItemCount = FMath::Max(1, CountChance.ItemCount);
-		const float Chance = FMath::Max(0.0f, CountChance.Chance);
-		if (Chance <= 0.0f)
+		// 상자 드롭을 끈 무기는 빼고, 무기가 아닌 아이템은 드롭 설정과 상관없이 넣는다.
+		const bool bWeapon = IsWeaponItemDefinition(ItemDefinition);
+		if (bWeapon && !ItemDefinition->CanDropFromRewardChest())
 		{
 			continue;
 		}
 
-		CandidateCounts.Add(ItemCount);
-		CandidateWeights.Add(Chance);
-		TotalChance += Chance;
+		Candidates.Add({ PrimaryAssetId, ItemDefinition->GetRewardChestDropWeight(), bWeapon });
 	}
-
-	const int32 SelectedIndex = SelectWeightedItemIndex(CandidateWeights, TotalChance);
-	if (!CandidateCounts.IsValidIndex(SelectedIndex))
-	{
-		return FMath::Max(1, RandomRewardItemCount);
-	}
-
-	return CandidateCounts[SelectedIndex];
-}
-
-int32 ARewardChest::SelectWeightedItemIndex(const TArray<float>& Weights, const float TotalWeight)
-{
-	if (Weights.IsEmpty() || TotalWeight <= 0.0f)
-	{
-		return INDEX_NONE;
-	}
-
-	float RemainingWeight = FMath::FRandRange(0.0f, TotalWeight);
-	for (int32 Index = 0; Index < Weights.Num(); ++Index)
-	{
-		RemainingWeight -= FMath::Max(0.0f, Weights[Index]);
-		if (RemainingWeight <= 0.0f)
-		{
-			return Index;
-		}
-	}
-
-	return Weights.Num() - 1;
+	return Candidates;
 }
 
 bool ARewardChest::IsWeaponItemDefinition(

@@ -1,17 +1,12 @@
 #include "Component/Character/EnemyCombatComponent.h"
 
-#include "Abilities/GameplayAbility.h"
 #include "AbilitySystemComponent.h"
 #include "AIController.h"
-#include "Algo/RandomShuffle.h"
-#include "AbilitySystem/Ability/AttackAbility.h"
-#include "AbilitySystem/Ability/PunchAbility.h"
-#include "AbilitySystem/Ability/RangedAttackAbility.h"
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Character/CharacterBase.h"
 #include "Character/EnemyBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/Character/EnemyAttackSelection.h"
 #include "Component/Character/EnemyTrainingBotComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Data/ContentDataSubsystem.h"
@@ -24,7 +19,6 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interface/AttackTargetSourceInterface.h"
 #include "GameFramework/PlayerController.h"
-#include "Net/Core/PushModel/PushModel.h"
 #include "Weapon/Gun.h"
 #include "Weapon/WeaponBase.h"
 #include "Weapon/RangedWeaponBase.h"
@@ -60,46 +54,6 @@ bool IsValidEnemyAttackTarget(
 	}
 
 	return true;
-}
-
-FGameplayTag ResolveEnemyAttackAbilityTag(
-	const bool bUsingRangedWeapon,
-	const bool bHasEquippedWeapon)
-{
-	if (bUsingRangedWeapon)
-	{
-		return LabGameplayTags::Action_RangedAttack;
-	}
-
-	return bHasEquippedWeapon
-		? LabGameplayTags::Action_Attack
-		: LabGameplayTags::Action_Punch;
-}
-
-bool IsAbilityClassCompatibleWithAttackMode(
-	const UClass* AbilityClass,
-	const bool bUsingRangedWeapon,
-	const bool bHasEquippedWeapon)
-{
-	if (!AbilityClass)
-	{
-		return false;
-	}
-
-	if (bUsingRangedWeapon)
-	{
-		return AbilityClass->IsChildOf(URangedAttackAbility::StaticClass());
-	}
-
-	const bool bIsPunchAbility =
-		AbilityClass->IsChildOf(UPunchAbility::StaticClass());
-	if (!bHasEquippedWeapon)
-	{
-		return bIsPunchAbility;
-	}
-
-	return AbilityClass->IsChildOf(UAttackAbility::StaticClass())
-		&& !bIsPunchAbility;
 }
 } // namespace
 
@@ -618,171 +572,8 @@ void UEnemyCombatComponent::ResetAttributesForRespawn()
 	}
 
 	EnsureDefaultAttributeSetup();
-	AbilitySystemComponent->ClearStatusEffectsForRespawn();
-
-	UBasicAttributeSet* AttributeSet = const_cast<UBasicAttributeSet*>(
-		AbilitySystemComponent->GetSet<UBasicAttributeSet>());
-	if (!AttributeSet)
-	{
-		return;
-	}
-
-	const float MaxHealthBeforeReset =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetMaxHealthAttribute());
-	const float MaxShieldBeforeReset =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetMaxShieldAttribute());
-	const float MaxStaminaBeforeReset =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetMaxStaminaAttribute());
-	const float MaxManaBeforeReset =
-		AbilitySystemComponent->GetNumericAttribute(
-			UBasicAttributeSet::GetMaxManaAttribute());
-
-	FGameplayTagContainer DeadTags;
-	DeadTags.AddTag(LabGameplayTags::State_Dead);
-	AbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(DeadTags);
-	AbilitySystemComponent->RemoveActiveEffects(
-		FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(DeadTags));
-
-	const auto SetAttributeBase =
-		[AbilitySystemComponent, AttributeSet](
-			const FGameplayAttribute& Attribute,
-			const float NewValue)
-		{
-			AbilitySystemComponent->SetNumericAttributeBase(
-				Attribute,
-				NewValue);
-			if (FProperty* Property = Attribute.GetUProperty())
-			{
-				MARK_PROPERTY_DIRTY(AttributeSet, Property);
-			}
-		};
-
-	const float RespawnMaxHealth =
-		FMath::Max(MaxHealthBeforeReset, 1.0f);
-	const float RespawnMaxShield =
-		FMath::Max(MaxShieldBeforeReset, 0.0f);
-	const float RespawnMaxStamina =
-		FMath::Max(MaxStaminaBeforeReset, 0.0f);
-	const float RespawnMaxMana =
-		FMath::Max(MaxManaBeforeReset, 0.0f);
-
-	SetAttributeBase(
-		UBasicAttributeSet::GetMaxHealthAttribute(),
-		RespawnMaxHealth);
-	SetAttributeBase(
-		UBasicAttributeSet::GetMaxShieldAttribute(),
-		RespawnMaxShield);
-	SetAttributeBase(
-		UBasicAttributeSet::GetMaxStaminaAttribute(),
-		RespawnMaxStamina);
-	SetAttributeBase(
-		UBasicAttributeSet::GetMaxManaAttribute(),
-		RespawnMaxMana);
-	SetAttributeBase(
-		UBasicAttributeSet::GetHealthAttribute(),
-		RespawnMaxHealth);
-	SetAttributeBase(UBasicAttributeSet::GetShieldAttribute(), 0.0f);
-	SetAttributeBase(
-		UBasicAttributeSet::GetStaminaAttribute(),
-		RespawnMaxStamina);
-	SetAttributeBase(
-		UBasicAttributeSet::GetManaAttribute(),
-		RespawnMaxMana);
-
-	AbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(DeadTags);
-	AbilitySystemComponent->RemoveActiveEffects(
-		FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(DeadTags));
-
-	if (AbilitySystemComponent->GetTagCount(
-			LabGameplayTags::State_Dead) > 0)
-	{
-		AbilitySystemComponent->SetLooseGameplayTagCount(
-			LabGameplayTags::State_Dead,
-			0,
-			EGameplayTagReplicationState::CountToOwner);
-	}
-
-	AbilitySystemComponent->ForceReplication();
+	AbilitySystemComponent->ResetResourcesForEnemyRespawn();
 	Enemy->ApplyMovementSpeedFromAttribute();
-}
-
-bool UEnemyCombatComponent::TryHandleActiveAttackAbility(
-	const TArray<FGameplayAbilitySpecHandle>& AbilityHandles)
-{
-	AEnemyBase* Enemy = GetEnemyOwner();
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
-	if (!AbilitySystemComponent || AbilityHandles.IsEmpty())
-	{
-		return false;
-	}
-
-	for (const FGameplayAbilitySpecHandle& AbilityHandle : AbilityHandles)
-	{
-		FGameplayAbilitySpec* AbilitySpec =
-			AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
-		if (!AbilitySpec || !AbilitySpec->IsActive())
-		{
-			continue;
-		}
-
-		UAttackAbility* ActiveAttackAbility =
-			Cast<UAttackAbility>(AbilitySpec->GetPrimaryInstance());
-		if (ActiveAttackAbility)
-		{
-			if (Settings.bRequestComboWhenAttackIsActive)
-			{
-				const FName RequestedSectionName =
-					ActiveAttackAbility->GetNextAttackSectionName();
-				if (!RequestedSectionName.IsNone())
-				{
-					ActiveAttackAbility->RequestJumpToSection(
-						RequestedSectionName);
-				}
-			}
-			return true;
-		}
-
-		const UGameplayAbility* AbilityCDO = AbilitySpec->Ability;
-		const UClass* AbilityClass =
-			AbilityCDO ? AbilityCDO->GetClass() : nullptr;
-		if (AbilityClass
-			&& (AbilityClass->IsChildOf(UAttackAbility::StaticClass())
-				|| AbilityClass->IsChildOf(
-					URangedAttackAbility::StaticClass())))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool UEnemyCombatComponent::TryActivateAttackAbility(
-	TArray<FGameplayAbilitySpecHandle>& AbilityHandles)
-{
-	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
-	if (!AbilitySystemComponent || AbilityHandles.IsEmpty())
-	{
-		return false;
-	}
-
-	Algo::RandomShuffle(AbilityHandles);
-	for (const FGameplayAbilitySpecHandle& AbilityHandle : AbilityHandles)
-	{
-		if (AbilitySystemComponent->TryActivateAbility(
-				AbilityHandle,
-				true))
-		{
-			return true;
-		}
-	}
-	return false;
 }
 
 bool UEnemyCombatComponent::IsAttackAbilityActive() const
@@ -791,11 +582,7 @@ bool UEnemyCombatComponent::IsAttackAbilityActive() const
 	const UPdAbilitySystemComponent* AbilitySystemComponent =
 		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
 	return AbilitySystemComponent
-		&& AbilitySystemComponent->HasActiveAbilityOfAnyClass({
-			UAttackAbility::StaticClass(),
-			URangedAttackAbility::StaticClass(),
-			UPunchAbility::StaticClass()
-		});
+		&& PdEnemyAttackSelection::IsAnyAttackActive(*AbilitySystemComponent);
 }
 
 bool UEnemyCombatComponent::IsAttackInProgress() const
@@ -958,57 +745,6 @@ void UEnemyCombatComponent::FaceAttackTarget(
 	}
 }
 
-void UEnemyCombatComponent::GatherAttackAbilityHandles(
-	const bool bUsingRangedWeapon,
-	const bool bHasEquippedWeapon,
-	TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles) const
-{
-	OutAbilityHandles.Reset();
-	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	const UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
-	if (!AbilitySystemComponent)
-	{
-		return;
-	}
-
-	const FGameplayTag AttackAbilityTag =
-		ResolveEnemyAttackAbilityTag(
-			bUsingRangedWeapon,
-			bHasEquippedWeapon);
-	if (AttackAbilityTag.IsValid())
-	{
-		FGameplayTagContainer AttackAbilityTags;
-		AttackAbilityTags.AddTag(AttackAbilityTag);
-		AbilitySystemComponent->FindAllAbilitiesWithTags(
-			OutAbilityHandles,
-			AttackAbilityTags,
-			false);
-	}
-
-	if (!OutAbilityHandles.IsEmpty())
-	{
-		return;
-	}
-
-	// Compatibility fallback for legacy Blueprint abilities without the
-	// expected native attack asset tag.
-	for (const FGameplayAbilitySpec& AbilitySpec :
-		AbilitySystemComponent->GetActivatableAbilities())
-	{
-		const UGameplayAbility* AbilityCDO = AbilitySpec.Ability;
-		const UClass* AbilityClass =
-			AbilityCDO ? AbilityCDO->GetClass() : nullptr;
-		if (IsAbilityClassCompatibleWithAttackMode(
-				AbilityClass,
-				bUsingRangedWeapon,
-				bHasEquippedWeapon))
-		{
-			OutAbilityHandles.AddUnique(AbilitySpec.Handle);
-		}
-	}
-}
-
 void UEnemyCombatComponent::Attack()
 {
 	if (!ValidateAttackRequest())
@@ -1030,21 +766,31 @@ void UEnemyCombatComponent::Attack()
 	}
 
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	const UEquipmentComponent* Equipment =
-		Enemy ? Enemy->GetEquipmentComponent() : nullptr;
+	UPdAbilitySystemComponent* AbilitySystemComponent =
+		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	const UEquipmentComponent* Equipment = Enemy->GetEquipmentComponent();
 	const bool bUsingRangedWeapon = IsUsingRangedWeapon();
 	const bool bHasEquippedWeapon = Equipment
 		&& (Equipment->GetCurrentWeaponActor()
 			|| Equipment->GetCurrentWeaponDefinition());
 
 	TArray<FGameplayAbilitySpecHandle> AbilityHandles;
-	GatherAttackAbilityHandles(
+	PdEnemyAttackSelection::GatherAttackAbilityHandles(
+		*AbilitySystemComponent,
 		bUsingRangedWeapon,
 		bHasEquippedWeapon,
 		AbilityHandles);
-	if (!TryHandleActiveAttackAbility(AbilityHandles))
+	if (!PdEnemyAttackSelection::TryContinueActiveAttack(
+			*AbilitySystemComponent,
+			AbilityHandles,
+			Settings.bRequestComboWhenAttackIsActive))
 	{
-		TryActivateAttackAbility(AbilityHandles);
+		PdEnemyAttackSelection::TryActivateAnyAttack(*AbilitySystemComponent, AbilityHandles);
 	}
 }
 

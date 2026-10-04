@@ -3,7 +3,7 @@
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
 #include "Engine/World.h"
-#include "Net/UnrealNetwork.h"
+#include "AbilitySystem/AttributeSet/DamageRules.h"
 #include "Character/CharacterBase.h"
 #include "Common/Enum_Direction.h"
 #include "Common/LabGameplayTags.h"
@@ -15,150 +15,96 @@
 namespace
 {
 	constexpr float MaxInvestedStatLevel = 100.f;
-	constexpr float MaxPercentEffectValue = 100.f;
-
-	float CalculateCriticalDamageMultiplier(float Critical)
-	{
-		return 2.f + FMath::Max(Critical, 0.f) * 0.01f;
-	}
 
 	float ClampResourceAttribute(float Value, float MaxValue)
 	{
 		return FMath::Clamp(Value, 0.f, FMath::Max(MaxValue, 0.f));
 	}
 
-	float ClampInvestedStatLevel(float Value)
-	{
-		return FMath::Clamp(Value, 0.f, MaxInvestedStatLevel);
-	}
-
-	float ClampStatValue(float Value)
-	{
-		return FMath::Max(Value, 0.f);
-	}
-
-	float ClampPercentEffectValue(float Value)
-	{
-		return FMath::Clamp(Value, 0.f, MaxPercentEffectValue);
-	}
-
+	// 스탯 포인트를 투자한 단계. 0~100단계로 제한한다.
 	bool IsInvestedStatLevelAttribute(const FGameplayAttribute& Attribute)
 	{
-		return Attribute == UBasicAttributeSet::GetStrengthLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetIntelligenceLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetArcaneLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetArmorLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetRecoveryLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetFrostbiteLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetBurnLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetElectricShockLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetFirstPandoraLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetSecondPandoraLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetThirdPandoraLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetMaxHealthLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetMaxShieldLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetMaxManaLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetMaxStaminaLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetAttackSpeedLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetMovementSpeedLevelAttribute()
-			|| Attribute == UBasicAttributeSet::GetCriticalLevelAttribute();
-	}
-
-	bool IsStatValueAttribute(const FGameplayAttribute& Attribute)
-	{
-		return Attribute == UBasicAttributeSet::GetStrengthAttribute()
-			|| Attribute == UBasicAttributeSet::GetIntelligenceAttribute()
-			|| Attribute == UBasicAttributeSet::GetArcaneAttribute()
-			|| Attribute == UBasicAttributeSet::GetArmorAttribute()
-			|| Attribute == UBasicAttributeSet::GetRecoveryAttribute()
-			|| Attribute == UBasicAttributeSet::GetFrostbiteAttribute()
-			|| Attribute == UBasicAttributeSet::GetBurnAttribute()
-			|| Attribute == UBasicAttributeSet::GetElectricShockAttribute()
-			|| Attribute == UBasicAttributeSet::GetFirstPandoraAttribute()
-			|| Attribute == UBasicAttributeSet::GetSecondPandoraAttribute()
-			|| Attribute == UBasicAttributeSet::GetThirdPandoraAttribute()
-			|| Attribute == UBasicAttributeSet::GetMaxHealthIncreasePercentAttribute()
-			|| Attribute == UBasicAttributeSet::GetMaxShieldIncreasePercentAttribute()
-			|| Attribute == UBasicAttributeSet::GetMaxManaIncreasePercentAttribute()
-			|| Attribute == UBasicAttributeSet::GetMaxStaminaIncreasePercentAttribute()
-			|| Attribute == UBasicAttributeSet::GetAttackSpeedAttribute()
-			|| Attribute == UBasicAttributeSet::GetMovementSpeedAttribute()
-			|| Attribute == UBasicAttributeSet::GetCriticalAttribute();
-	}
-
-	bool ClampInvestedStatLevelAttribute(const FGameplayAttribute& Attribute, UBasicAttributeSet* AttributeSet)
-	{
-		if (!AttributeSet)
+		static const FGameplayAttribute InvestedStatLevelAttributes[] =
 		{
-			return false;
+			UBasicAttributeSet::GetStrengthLevelAttribute(),
+			UBasicAttributeSet::GetIntelligenceLevelAttribute(),
+			UBasicAttributeSet::GetArcaneLevelAttribute(),
+			UBasicAttributeSet::GetArmorLevelAttribute(),
+			UBasicAttributeSet::GetRecoveryLevelAttribute(),
+			UBasicAttributeSet::GetFrostbiteLevelAttribute(),
+			UBasicAttributeSet::GetBurnLevelAttribute(),
+			UBasicAttributeSet::GetElectricShockLevelAttribute(),
+			UBasicAttributeSet::GetFirstPandoraLevelAttribute(),
+			UBasicAttributeSet::GetSecondPandoraLevelAttribute(),
+			UBasicAttributeSet::GetThirdPandoraLevelAttribute(),
+			UBasicAttributeSet::GetMaxHealthLevelAttribute(),
+			UBasicAttributeSet::GetMaxShieldLevelAttribute(),
+			UBasicAttributeSet::GetMaxManaLevelAttribute(),
+			UBasicAttributeSet::GetMaxStaminaLevelAttribute(),
+			UBasicAttributeSet::GetAttackSpeedLevelAttribute(),
+			UBasicAttributeSet::GetMovementSpeedLevelAttribute(),
+			UBasicAttributeSet::GetCriticalLevelAttribute(),
+		};
+		return MakeArrayView(InvestedStatLevelAttributes).Contains(Attribute);
+	}
+
+	// 경험치·스탯 포인트와 단계·장비에서 나온 능력치. 음수만 막는다.
+	bool IsNonNegativeStatAttribute(const FGameplayAttribute& Attribute)
+	{
+		static const FGameplayAttribute NonNegativeStatAttributes[] =
+		{
+			UBasicAttributeSet::GetExperienceAttribute(),
+			UBasicAttributeSet::GetMaxExperienceAttribute(),
+			UBasicAttributeSet::GetOffensePointAttribute(),
+			UBasicAttributeSet::GetDefensePointAttribute(),
+			UBasicAttributeSet::GetResistancePointAttribute(),
+			UBasicAttributeSet::GetPandoraForcePointAttribute(),
+			UBasicAttributeSet::GetResourcePointAttribute(),
+			UBasicAttributeSet::GetAgilityPointAttribute(),
+			UBasicAttributeSet::GetStrengthAttribute(),
+			UBasicAttributeSet::GetIntelligenceAttribute(),
+			UBasicAttributeSet::GetArcaneAttribute(),
+			UBasicAttributeSet::GetArmorAttribute(),
+			UBasicAttributeSet::GetRecoveryAttribute(),
+			UBasicAttributeSet::GetFrostbiteAttribute(),
+			UBasicAttributeSet::GetBurnAttribute(),
+			UBasicAttributeSet::GetElectricShockAttribute(),
+			UBasicAttributeSet::GetFirstPandoraAttribute(),
+			UBasicAttributeSet::GetSecondPandoraAttribute(),
+			UBasicAttributeSet::GetThirdPandoraAttribute(),
+			UBasicAttributeSet::GetMaxHealthIncreasePercentAttribute(),
+			UBasicAttributeSet::GetMaxShieldIncreasePercentAttribute(),
+			UBasicAttributeSet::GetMaxManaIncreasePercentAttribute(),
+			UBasicAttributeSet::GetMaxStaminaIncreasePercentAttribute(),
+			UBasicAttributeSet::GetAttackSpeedAttribute(),
+			UBasicAttributeSet::GetMovementSpeedAttribute(),
+			UBasicAttributeSet::GetCriticalAttribute(),
+		};
+		return MakeArrayView(NonNegativeStatAttributes).Contains(Attribute);
+	}
+
+	// 레벨·성장 값·능력치를 속성별 허용 범위로 자른다. 범위가 정해진 속성이 아니면 false.
+	bool TryClampToAttributeRange(const FGameplayAttribute& Attribute, float& InOutValue)
+	{
+		if (Attribute == UBasicAttributeSet::GetLevelAttribute())
+		{
+			InOutValue = FMath::Max(InOutValue, 1.f);
+			return true;
 		}
 
-		if (Attribute == UBasicAttributeSet::GetStrengthLevelAttribute()) { AttributeSet->SetStrengthLevel(ClampInvestedStatLevel(AttributeSet->GetStrengthLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetIntelligenceLevelAttribute()) { AttributeSet->SetIntelligenceLevel(ClampInvestedStatLevel(AttributeSet->GetIntelligenceLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetArcaneLevelAttribute()) { AttributeSet->SetArcaneLevel(ClampInvestedStatLevel(AttributeSet->GetArcaneLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetArmorLevelAttribute()) { AttributeSet->SetArmorLevel(ClampInvestedStatLevel(AttributeSet->GetArmorLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetRecoveryLevelAttribute()) { AttributeSet->SetRecoveryLevel(ClampInvestedStatLevel(AttributeSet->GetRecoveryLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetFrostbiteLevelAttribute()) { AttributeSet->SetFrostbiteLevel(ClampInvestedStatLevel(AttributeSet->GetFrostbiteLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetBurnLevelAttribute()) { AttributeSet->SetBurnLevel(ClampInvestedStatLevel(AttributeSet->GetBurnLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetElectricShockLevelAttribute()) { AttributeSet->SetElectricShockLevel(ClampInvestedStatLevel(AttributeSet->GetElectricShockLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetFirstPandoraLevelAttribute()) { AttributeSet->SetFirstPandoraLevel(ClampInvestedStatLevel(AttributeSet->GetFirstPandoraLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetSecondPandoraLevelAttribute()) { AttributeSet->SetSecondPandoraLevel(ClampInvestedStatLevel(AttributeSet->GetSecondPandoraLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetThirdPandoraLevelAttribute()) { AttributeSet->SetThirdPandoraLevel(ClampInvestedStatLevel(AttributeSet->GetThirdPandoraLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetMaxHealthLevelAttribute()) { AttributeSet->SetMaxHealthLevel(ClampInvestedStatLevel(AttributeSet->GetMaxHealthLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetMaxShieldLevelAttribute()) { AttributeSet->SetMaxShieldLevel(ClampInvestedStatLevel(AttributeSet->GetMaxShieldLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetMaxManaLevelAttribute()) { AttributeSet->SetMaxManaLevel(ClampInvestedStatLevel(AttributeSet->GetMaxManaLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetMaxStaminaLevelAttribute()) { AttributeSet->SetMaxStaminaLevel(ClampInvestedStatLevel(AttributeSet->GetMaxStaminaLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetAttackSpeedLevelAttribute()) { AttributeSet->SetAttackSpeedLevel(ClampInvestedStatLevel(AttributeSet->GetAttackSpeedLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetMovementSpeedLevelAttribute()) { AttributeSet->SetMovementSpeedLevel(ClampInvestedStatLevel(AttributeSet->GetMovementSpeedLevel())); return true; }
-		if (Attribute == UBasicAttributeSet::GetCriticalLevelAttribute()) { AttributeSet->SetCriticalLevel(ClampInvestedStatLevel(AttributeSet->GetCriticalLevel())); return true; }
-
-		return false;
-	}
-
-	bool ClampStatValueAttribute(const FGameplayAttribute& Attribute, UBasicAttributeSet* AttributeSet)
-	{
-		if (!AttributeSet)
+		if (IsInvestedStatLevelAttribute(Attribute))
 		{
-			return false;
+			InOutValue = FMath::Clamp(InOutValue, 0.f, MaxInvestedStatLevel);
+			return true;
 		}
 
-		if (Attribute == UBasicAttributeSet::GetStrengthAttribute()) { AttributeSet->SetStrength(ClampStatValue(AttributeSet->GetStrength())); return true; }
-		if (Attribute == UBasicAttributeSet::GetIntelligenceAttribute()) { AttributeSet->SetIntelligence(ClampStatValue(AttributeSet->GetIntelligence())); return true; }
-		if (Attribute == UBasicAttributeSet::GetArcaneAttribute()) { AttributeSet->SetArcane(ClampStatValue(AttributeSet->GetArcane())); return true; }
-		if (Attribute == UBasicAttributeSet::GetArmorAttribute()) { AttributeSet->SetArmor(ClampStatValue(AttributeSet->GetArmor())); return true; }
-		if (Attribute == UBasicAttributeSet::GetRecoveryAttribute()) { AttributeSet->SetRecovery(ClampStatValue(AttributeSet->GetRecovery())); return true; }
-		if (Attribute == UBasicAttributeSet::GetFrostbiteAttribute()) { AttributeSet->SetFrostbite(ClampStatValue(AttributeSet->GetFrostbite())); return true; }
-		if (Attribute == UBasicAttributeSet::GetBurnAttribute()) { AttributeSet->SetBurn(ClampStatValue(AttributeSet->GetBurn())); return true; }
-		if (Attribute == UBasicAttributeSet::GetElectricShockAttribute()) { AttributeSet->SetElectricShock(ClampStatValue(AttributeSet->GetElectricShock())); return true; }
-		if (Attribute == UBasicAttributeSet::GetFirstPandoraAttribute()) { AttributeSet->SetFirstPandora(ClampStatValue(AttributeSet->GetFirstPandora())); return true; }
-		if (Attribute == UBasicAttributeSet::GetSecondPandoraAttribute()) { AttributeSet->SetSecondPandora(ClampStatValue(AttributeSet->GetSecondPandora())); return true; }
-		if (Attribute == UBasicAttributeSet::GetThirdPandoraAttribute()) { AttributeSet->SetThirdPandora(ClampStatValue(AttributeSet->GetThirdPandora())); return true; }
-		if (Attribute == UBasicAttributeSet::GetMaxHealthIncreasePercentAttribute()) { AttributeSet->SetMaxHealthIncreasePercent(ClampStatValue(AttributeSet->GetMaxHealthIncreasePercent())); return true; }
-		if (Attribute == UBasicAttributeSet::GetMaxShieldIncreasePercentAttribute()) { AttributeSet->SetMaxShieldIncreasePercent(ClampStatValue(AttributeSet->GetMaxShieldIncreasePercent())); return true; }
-		if (Attribute == UBasicAttributeSet::GetMaxManaIncreasePercentAttribute()) { AttributeSet->SetMaxManaIncreasePercent(ClampStatValue(AttributeSet->GetMaxManaIncreasePercent())); return true; }
-		if (Attribute == UBasicAttributeSet::GetMaxStaminaIncreasePercentAttribute()) { AttributeSet->SetMaxStaminaIncreasePercent(ClampStatValue(AttributeSet->GetMaxStaminaIncreasePercent())); return true; }
-		if (Attribute == UBasicAttributeSet::GetAttackSpeedAttribute()) { AttributeSet->SetAttackSpeed(ClampStatValue(AttributeSet->GetAttackSpeed())); return true; }
-		if (Attribute == UBasicAttributeSet::GetMovementSpeedAttribute()) { AttributeSet->SetMovementSpeed(ClampStatValue(AttributeSet->GetMovementSpeed())); return true; }
-		if (Attribute == UBasicAttributeSet::GetCriticalAttribute()) { AttributeSet->SetCritical(ClampStatValue(AttributeSet->GetCritical())); return true; }
+		if (IsNonNegativeStatAttribute(Attribute))
+		{
+			InOutValue = FMath::Max(InOutValue, 0.f);
+			return true;
+		}
 
 		return false;
-	}
-
-	float CalculateFinalArmor(const float TargetArmor, const float TargetFinalStrength)
-	{
-		return FMath::Max(TargetFinalStrength, 0.f) * ClampPercentEffectValue(TargetArmor) * 0.01f;
-	}
-
-	float CalculateArmorMitigatedDamage(const float IncomingDamageAmount, const float TargetArmor, const float TargetFinalStrength)
-	{
-		const float DamageReduction = CalculateFinalArmor(TargetArmor, TargetFinalStrength);
-		return FMath::Max(FMath::Max(IncomingDamageAmount, 0.f) - DamageReduction, 0.f);
-	}
-
-	float CalculateStatusResistanceMitigatedDamage(const float IncomingDamageAmount, const float TargetStatusResistance)
-	{
-		const float DamageMultiplier = 1.f - (ClampPercentEffectValue(TargetStatusResistance) * 0.01f);
-		return FMath::Max(IncomingDamageAmount, 0.f) * DamageMultiplier;
 	}
 
 	bool EffectSpecHasAssetTag(const FGameplayEffectSpec& EffectSpec, const FGameplayTag& AssetTag)
@@ -168,63 +114,21 @@ namespace
 			&& EffectSpec.Def->GetAssetTags().HasTag(AssetTag);
 	}
 
-	bool EffectSpecHasStatusTag(const FGameplayEffectSpec& EffectSpec, const FGameplayTag& StatusTag)
-	{
-		if (!StatusTag.IsValid())
-		{
-			return false;
-		}
-
-		return EffectSpec.DynamicGrantedTags.HasTag(StatusTag)
-			|| EffectSpec.GetDynamicAssetTags().HasTag(StatusTag)
-			|| (EffectSpec.Def && EffectSpec.Def->GetGrantedTags().HasTag(StatusTag))
-			|| (EffectSpec.Def && EffectSpec.Def->GetAssetTags().HasTag(StatusTag));
-	}
-
-	bool IsBurningStatusDamageEffectSpec(const FGameplayEffectSpec& EffectSpec)
-	{
-		return EffectSpecHasStatusTag(EffectSpec, LabGameplayTags::Status_Burning);
-	}
-
-	bool IsFrozenStatusDamageEffectSpec(const FGameplayEffectSpec& EffectSpec)
-	{
-		return EffectSpecHasStatusTag(EffectSpec, LabGameplayTags::Status_Frostbite);
-	}
-
-	bool IsElectricShockStatusDamageEffectSpec(const FGameplayEffectSpec& EffectSpec)
-	{
-		return EffectSpecHasStatusTag(EffectSpec, LabGameplayTags::Status_ElectricShock);
-	}
-
-	bool IsStatusDamageEffectSpec(const FGameplayEffectSpec& EffectSpec)
-	{
-		return IsBurningStatusDamageEffectSpec(EffectSpec)
-			|| IsFrozenStatusDamageEffectSpec(EffectSpec)
-			|| IsElectricShockStatusDamageEffectSpec(EffectSpec);
-	}
-
 	float ResolveStatusResistance(
-		const UBasicAttributeSet* AttributeSet,
-		const bool bBurningStatusDamage,
-		const bool bFrozenStatusDamage,
-		const bool bElectricShockStatusDamage)
+		const UBasicAttributeSet& AttributeSet,
+		const PdDamageRules::EStatusDamage StatusDamage)
 	{
-		if (!AttributeSet)
+		switch (StatusDamage)
 		{
+		case PdDamageRules::EStatusDamage::Burning:
+			return AttributeSet.GetBurnLevel();
+		case PdDamageRules::EStatusDamage::Frozen:
+			return AttributeSet.GetFrostbiteLevel();
+		case PdDamageRules::EStatusDamage::ElectricShock:
+			return AttributeSet.GetElectricShockLevel();
+		default:
 			return 0.f;
 		}
-
-		if (bBurningStatusDamage)
-		{
-			return AttributeSet->GetBurnLevel();
-		}
-
-		if (bFrozenStatusDamage)
-		{
-			return AttributeSet->GetFrostbiteLevel();
-		}
-
-		return bElectricShockStatusDamage ? AttributeSet->GetElectricShockLevel() : 0.f;
 	}
 
 	bool TryActivateAbilityByTag(UAbilitySystemComponent* ASC, const FGameplayTag& AbilityTag)
@@ -394,255 +298,137 @@ bool UBasicAttributeSet::ResolveAttributeFromStatTag(
 	return OutAttribute.IsValid();
 }
 
-void UBasicAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	// =================================================================================================================
-
-	FDoRepLifetimeParams Params;
-	Params.bIsPushBased = true;
-
-	// =================================================================================================================
-
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Strength, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Level, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Experience, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxExperience, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, OffensePoint, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, DefensePoint, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ResistancePoint, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, PandoraForcePoint, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ResourcePoint, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, AgilityPoint, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, StrengthLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, IntelligenceLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ArcaneLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ArmorLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, RecoveryLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, FrostbiteLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, BurnLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ElectricShockLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, FirstPandoraLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, SecondPandoraLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ThirdPandoraLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxHealthLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxShieldLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxManaLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxStaminaLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, AttackSpeedLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MovementSpeedLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, CriticalLevel, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Intelligence, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Arcane, Params);
-
-	// =================================================================================================================
-
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Armor, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Recovery, Params);
-
-	// =================================================================================================================
-
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Frostbite, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Burn, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ElectricShock, Params);
-
-	// =================================================================================================================
-
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, FirstPandora, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, SecondPandora, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ThirdPandora, Params);
-
-	// =================================================================================================================
-
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, AttackSpeed, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MovementSpeed, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Critical, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, CriticalDamageMultiplier, Params);
-
-	// =================================================================================================================
-
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Health, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxHealth, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Shield, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxShield, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Mana, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxMana, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Stamina, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxStamina, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxHealthIncreasePercent, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxShieldIncreasePercent, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxManaIncreasePercent, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxStaminaIncreasePercent, Params);
-}
-
 void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
 
 	// =================================================================================================================
 
+	const FGameplayAttribute& Attribute = Data.EvaluatedData.Attribute;
+
 	// 공격 피해는 CalculateOutgoingDamage로 타격 시점에 계산하므로 이 메타 속성으로 들어온 값은 쓰지 않는다.
-	if (Data.EvaluatedData.Attribute == GetOutgoingDamageAttribute())
+	if (Attribute == GetOutgoingDamageAttribute())
 	{
 		SetOutgoingDamage(0.f);
 		return;
 	}
 
-	if (Data.EvaluatedData.Attribute == GetLevelAttribute())
+	// GE가 바꾼 레벨·성장 값·능력치의 기본값을 허용 범위로 되돌린다.
+	// 장비·투자처럼 계속 걸린 효과는 현재값에만 더해지므로, 현재값을 기본값에 쓰면 그 효과가 두 번 들어간다.
+	const FGameplayAttributeData* AttributeData = Attribute.GetGameplayAttributeData(this);
+	float ClampedBaseValue = AttributeData ? AttributeData->GetBaseValue() : 0.f;
+	if (AttributeData && TryClampToAttributeRange(Attribute, ClampedBaseValue))
 	{
-		SetLevel(FMath::Max(GetLevel(), 1.f));
-		return;
-	}
-
-	if (Data.EvaluatedData.Attribute == GetExperienceAttribute())
-	{
-		SetExperience(FMath::Max(GetExperience(), 0.f));
-		return;
-	}
-
-	if (Data.EvaluatedData.Attribute == GetMaxExperienceAttribute())
-	{
-		SetMaxExperience(FMath::Max(GetMaxExperience(), 0.f));
-		return;
-	}
-
-	if (Data.EvaluatedData.Attribute == GetOffensePointAttribute())
-	{
-		SetOffensePoint(FMath::Max(GetOffensePoint(), 0.f));
-		return;
-	}
-
-	if (Data.EvaluatedData.Attribute == GetDefensePointAttribute())
-	{
-		SetDefensePoint(FMath::Max(GetDefensePoint(), 0.f));
-		return;
-	}
-
-	if (Data.EvaluatedData.Attribute == GetResistancePointAttribute())
-	{
-		SetResistancePoint(FMath::Max(GetResistancePoint(), 0.f));
-		return;
-	}
-
-	if (Data.EvaluatedData.Attribute == GetPandoraForcePointAttribute())
-	{
-		SetPandoraForcePoint(FMath::Max(GetPandoraForcePoint(), 0.f));
-		return;
-	}
-
-	if (Data.EvaluatedData.Attribute == GetResourcePointAttribute())
-	{
-		SetResourcePoint(FMath::Max(GetResourcePoint(), 0.f));
-		return;
-	}
-
-	if (Data.EvaluatedData.Attribute == GetAgilityPointAttribute())
-	{
-		SetAgilityPoint(FMath::Max(GetAgilityPoint(), 0.f));
-		return;
-	}
-
-	if (ClampInvestedStatLevelAttribute(Data.EvaluatedData.Attribute, this))
-	{
-		return;
-	}
-
-	if (ClampStatValueAttribute(Data.EvaluatedData.Attribute, this))
-	{
-		return;
-	}
-
-	if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
-	{
-		const float AppliedIncomingDamage = GetIncomingDamage();
-		// 공격자가 이 피해 Spec에 붙인 표시. 태그가 없는 피해(스킬·상태 이상)는 일반 피해로 처리한다.
-		const FGameplayTagContainer& DamageSpecTags = Data.EffectSpec.GetDynamicAssetTags();
-		const bool bCriticalHit = DamageSpecTags.HasTagExact(LabGameplayTags::Effect_Damage_Critical);
-		const bool bAllowHitReact = !DamageSpecTags.HasTagExact(LabGameplayTags::Effect_Damage_NoHitReaction);
-		const FGameplayEffectContextHandle& EffectContext = Data.EffectSpec.GetContext();
-		AActor* DamageInstigator = EffectContext.GetOriginalInstigator();
-		if (!DamageInstigator)
+		if (ClampedBaseValue != AttributeData->GetBaseValue())
 		{
-			DamageInstigator = EffectContext.GetInstigator();
-		}
-		AActor* DamageCauser = EffectContext.GetEffectCauser();
-		const bool bBurningStatusDamage = IsBurningStatusDamageEffectSpec(Data.EffectSpec);
-		const bool bFrozenStatusDamage = IsFrozenStatusDamageEffectSpec(Data.EffectSpec);
-		const bool bElectricShockStatusDamage = IsElectricShockStatusDamageEffectSpec(Data.EffectSpec);
-		const bool bStatusDamage = bBurningStatusDamage || bFrozenStatusDamage || bElectricShockStatusDamage;
-		const float TargetStatusResistance = ResolveStatusResistance(
-			this,
-			bBurningStatusDamage,
-			bFrozenStatusDamage,
-			bElectricShockStatusDamage);
-		const float StatusMitigatedIncomingDamage = bStatusDamage
-			? CalculateStatusResistanceMitigatedDamage(AppliedIncomingDamage, TargetStatusResistance)
-			: AppliedIncomingDamage;
-		const float TargetArmor = GetArmor();
-		// 방어력은 맞는 쪽 자신의 근력 반영 무기 피해에 비례한다. 그 값은 전투 컴포넌트가 ASC에 등록해 둔 계산으로 얻는다.
-		const UPdAbilitySystemComponent* OwningAbilitySystem = Cast<UPdAbilitySystemComponent>(GetOwningAbilitySystemComponent());
-		const float TargetFinalStrength = OwningAbilitySystem ? OwningAbilitySystem->GetFinalStrengthDamage(GetStrength()) : 0.f;
-		const float MitigatedIncomingDamage = CalculateArmorMitigatedDamage(StatusMitigatedIncomingDamage, TargetArmor, TargetFinalStrength);
-
-		SetIncomingDamage(0.f);
-		const bool bAllowDamageHitReact = bAllowHitReact && !bStatusDamage;
-		const float HealthDamage = ApplyIncomingDamage(
-			MitigatedIncomingDamage,
-			bCriticalHit,
-			DamageInstigator,
-			DamageCauser,
-			bAllowDamageHitReact,
-			!bStatusDamage);
-		const bool bShouldHitReact =
-			bAllowHitReact
-			&& !FMath::IsNearlyZero(HealthDamage)
-			&& !bStatusDamage
-			&& EffectSpecHasAssetTag(Data.EffectSpec, LabGameplayTags::Effect_HitReaction);
-
-		if (bShouldHitReact && GetHealth() > 0.f)
-		{
-			TryActivateHitReactionAbility(GetOwningAbilitySystemComponent());
+			SetAttributeBaseValue(Attribute, ClampedBaseValue);
 		}
 		return;
 	}
 
-	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	if (Attribute == GetIncomingDamageAttribute())
 	{
-		const bool bStatusDamage = IsStatusDamageEffectSpec(Data.EffectSpec);
-		const bool bShouldHitReact =
-			Data.EvaluatedData.Magnitude < 0.f
-			&& !bStatusDamage
-			&& EffectSpecHasAssetTag(Data.EffectSpec, LabGameplayTags::Effect_HitReaction);
-		const float RecoveryManaMagnitude = Data.EvaluatedData.Magnitude > 0.f
-			? Data.EffectSpec.GetSetByCallerMagnitude(LabGameplayTags::Data_Mana, false, 0.f)
-			: 0.f;
-		if (RecoveryManaMagnitude > 0.f)
-		{
-			const float OldMana = GetMana();
-			const float NewMana = ClampResourceAttribute(OldMana + RecoveryManaMagnitude, GetMaxMana());
-			SetMana(NewMana);
-			MARK_PROPERTY_DIRTY_FROM_NAME(UBasicAttributeSet, Mana, this);
-		}
-
-		SetHealth(GetHealth());
-		if (bShouldHitReact && GetHealth() > 0.f)
-		{
-			TryActivateHitReactionAbility(GetOwningAbilitySystemComponent());
-		}
+		HandleIncomingDamageExecuted(Data.EffectSpec);
 		return;
 	}
 
-	if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
+	if (Attribute == GetHealthAttribute())
+	{
+		HandleHealthExecuted(Data);
+		return;
+	}
+
+	if (Attribute == GetStaminaAttribute())
 	{
 		SetStamina(GetStamina());
 		return;
 	}
 
-	if (Data.EvaluatedData.Attribute == GetManaAttribute())
+	if (Attribute == GetManaAttribute())
 	{
 		SetMana(GetMana());
-		return;
+	}
+}
+
+void UBasicAttributeSet::SetAttributeBaseValue(const FGameplayAttribute& Attribute, const float NewValue)
+{
+	UAbilitySystemComponent* AbilityComp = GetOwningAbilitySystemComponent();
+	if (ensure(AbilityComp))
+	{
+		AbilityComp->SetNumericAttributeBase(Attribute, NewValue);
+	}
+}
+
+// 들어온 피해에 상태 저항과 방어력을 반영해 보호막·체력에 나눠 적용하고, 조건이 맞으면 피격 반응을 켠다.
+void UBasicAttributeSet::HandleIncomingDamageExecuted(const FGameplayEffectSpec& EffectSpec)
+{
+	const float AppliedIncomingDamage = GetIncomingDamage();
+	// 공격자가 이 피해 Spec에 붙인 표시. 태그가 없는 피해(스킬·상태 이상)는 일반 피해로 처리한다.
+	const FGameplayTagContainer& DamageSpecTags = EffectSpec.GetDynamicAssetTags();
+	const bool bCriticalHit = DamageSpecTags.HasTagExact(LabGameplayTags::Effect_Damage_Critical);
+	const bool bAllowHitReact = !DamageSpecTags.HasTagExact(LabGameplayTags::Effect_Damage_NoHitReaction);
+	const FGameplayEffectContextHandle& EffectContext = EffectSpec.GetContext();
+	AActor* DamageInstigator = EffectContext.GetOriginalInstigator();
+	if (!DamageInstigator)
+	{
+		DamageInstigator = EffectContext.GetInstigator();
+	}
+	AActor* DamageCauser = EffectContext.GetEffectCauser();
+	const PdDamageRules::EStatusDamage StatusDamage = PdDamageRules::ClassifyStatusDamage(EffectSpec);
+	const bool bStatusDamage = StatusDamage != PdDamageRules::EStatusDamage::None;
+	const float StatusMitigatedIncomingDamage = bStatusDamage
+		? PdDamageRules::MitigateByStatusResistance(AppliedIncomingDamage, ResolveStatusResistance(*this, StatusDamage))
+		: AppliedIncomingDamage;
+	const float TargetArmor = GetArmor();
+	// 방어력은 맞는 쪽 자신의 근력 반영 무기 피해에 비례한다. 그 값은 전투 컴포넌트가 ASC에 등록해 둔 계산으로 얻는다.
+	const UPdAbilitySystemComponent* OwningAbilitySystem = Cast<UPdAbilitySystemComponent>(GetOwningAbilitySystemComponent());
+	const float TargetFinalStrength = OwningAbilitySystem ? OwningAbilitySystem->GetFinalStrengthDamage(GetStrength()) : 0.f;
+	const float MitigatedIncomingDamage = PdDamageRules::MitigateByArmor(StatusMitigatedIncomingDamage, TargetArmor, TargetFinalStrength);
+
+	SetIncomingDamage(0.f);
+	const bool bAllowDamageHitReact = bAllowHitReact && !bStatusDamage;
+	const float HealthDamage = ApplyIncomingDamage(
+		MitigatedIncomingDamage,
+		bCriticalHit,
+		DamageInstigator,
+		DamageCauser,
+		bAllowDamageHitReact,
+		!bStatusDamage);
+	const bool bShouldHitReact =
+		bAllowHitReact
+		&& !FMath::IsNearlyZero(HealthDamage)
+		&& !bStatusDamage
+		&& EffectSpecHasAssetTag(EffectSpec, LabGameplayTags::Effect_HitReaction);
+
+	if (bShouldHitReact && GetHealth() > 0.f)
+	{
+		TryActivateHitReactionAbility(GetOwningAbilitySystemComponent());
+	}
+}
+
+// 체력을 직접 바꾸는 GE. 회복 GE에 실린 마나도 함께 채우고, 상태 이상이 아닌 피해면 피격 반응을 켠다.
+void UBasicAttributeSet::HandleHealthExecuted(const FGameplayEffectModCallbackData& Data)
+{
+	const bool bStatusDamage = PdDamageRules::ClassifyStatusDamage(Data.EffectSpec) != PdDamageRules::EStatusDamage::None;
+	const bool bShouldHitReact =
+		Data.EvaluatedData.Magnitude < 0.f
+		&& !bStatusDamage
+		&& EffectSpecHasAssetTag(Data.EffectSpec, LabGameplayTags::Effect_HitReaction);
+	const float RecoveryManaMagnitude = Data.EvaluatedData.Magnitude > 0.f
+		? Data.EffectSpec.GetSetByCallerMagnitude(LabGameplayTags::Data_Mana, false, 0.f)
+		: 0.f;
+	if (RecoveryManaMagnitude > 0.f)
+	{
+		const float OldMana = GetMana();
+		const float NewMana = ClampResourceAttribute(OldMana + RecoveryManaMagnitude, GetMaxMana());
+		SetMana(NewMana);
+		MARK_PROPERTY_DIRTY_FROM_NAME(UBasicAttributeSet, Mana, this);
+	}
+
+	SetHealth(GetHealth());
+	if (bShouldHitReact && GetHealth() > 0.f)
+	{
+		TryActivateHitReactionAbility(GetOwningAbilitySystemComponent());
 	}
 }
 
@@ -673,27 +459,9 @@ void UBasicAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute,
 	{
 		NewValue = FMath::Max(NewValue, 0.f);
 	}
-	else if (Attribute == GetLevelAttribute())
+	else
 	{
-		NewValue = FMath::Max(NewValue, 1.f);
-	}
-	else if (Attribute == GetExperienceAttribute()
-		|| Attribute == GetMaxExperienceAttribute()
-		|| Attribute == GetOffensePointAttribute()
-		|| Attribute == GetDefensePointAttribute()
-		|| Attribute == GetResistancePointAttribute()
-		|| Attribute == GetPandoraForcePointAttribute()
-		|| Attribute == GetResourcePointAttribute()
-		|| Attribute == GetAgilityPointAttribute()
-		|| IsInvestedStatLevelAttribute(Attribute))
-	{
-		NewValue = IsInvestedStatLevelAttribute(Attribute)
-			? ClampInvestedStatLevel(NewValue)
-			: FMath::Max(NewValue, 0.f);
-	}
-	else if (IsStatValueAttribute(Attribute))
-	{
-		NewValue = ClampStatValue(NewValue);
+		TryClampToAttributeRange(Attribute, NewValue);
 	}
 }
 
@@ -811,12 +579,10 @@ float UBasicAttributeSet::CalculateStatusEffectDamage(
 	const float SkillScaledDamageMagnitude,
 	const float DamageScale) const
 {
-	const float StatusDamageBonusPercent = GetStatusEffectDamageBonusPercent(StatusTag);
-	const float DamageMultiplier = 1.0f + (StatusDamageBonusPercent * 0.01f);
-	const float ScaledDamage = FMath::Max(SkillScaledDamageMagnitude, 0.0f)
-		* DamageMultiplier
-		* FMath::Max(DamageScale, 0.0f);
-	return FMath::Max(ScaledDamage, 0.0f);
+	return PdDamageRules::CalculateStatusEffectDamage(
+		SkillScaledDamageMagnitude,
+		GetStatusEffectDamageBonusPercent(StatusTag),
+		DamageScale);
 }
 
 bool UBasicAttributeSet::SetStatusEffectDamageOnSpec(
@@ -831,9 +597,10 @@ bool UBasicAttributeSet::SetStatusEffectDamageOnSpec(
 		return false;
 	}
 
-	const float CalculatedDamageMagnitude = SourceAttributes
-		? SourceAttributes->CalculateStatusEffectDamage(StatusTag, SkillScaledDamageMagnitude, DamageScale)
-		: FMath::Max(SkillScaledDamageMagnitude, 0.0f) * FMath::Max(DamageScale, 0.0f);
+	const float CalculatedDamageMagnitude = PdDamageRules::CalculateStatusEffectDamage(
+		SkillScaledDamageMagnitude,
+		SourceAttributes ? SourceAttributes->GetStatusEffectDamageBonusPercent(StatusTag) : 0.0f,
+		DamageScale);
 	if (CalculatedDamageMagnitude <= 0.0f)
 	{
 		return false;
@@ -845,27 +612,7 @@ bool UBasicAttributeSet::SetStatusEffectDamageOnSpec(
 
 float UBasicAttributeSet::CalculateOutgoingDamage(const float BaseDamage, bool& bOutCriticalHit) const
 {
-	return CalculateCriticalDamage(BaseDamage, GetCritical(), FMath::FRand() * 100.f, bOutCriticalHit);
-}
-
-float UBasicAttributeSet::CalculateCriticalDamage(
-	const float BaseDamage,
-	const float Critical,
-	const float RollPercent,
-	bool& bOutCriticalHit)
-{
-	bOutCriticalHit = false;
-	if (!(BaseDamage > 0.f))
-	{
-		return 0.f;
-	}
-
-	if (RollPercent < FMath::Clamp(Critical, 0.f, 100.f))
-	{
-		bOutCriticalHit = true;
-		return BaseDamage * CalculateCriticalDamageMultiplier(Critical);
-	}
-	return BaseDamage;
+	return PdDamageRules::CalculateCriticalDamage(BaseDamage, GetCritical(), FMath::FRand() * 100.f, bOutCriticalHit);
 }
 
 float UBasicAttributeSet::ApplyIncomingDamage(
@@ -910,19 +657,16 @@ float UBasicAttributeSet::ApplyIncomingDamage(
 		return 0.f;
 	}
 
-	float RemainingHealthDamage = FinalDamage;
-	float ShieldDamage = 0.0f;
-	const float CurrentShield = GetShield();
-	if (CurrentShield > 0.f)
+	const PdDamageRules::FShieldAbsorption Absorption = PdDamageRules::AbsorbByShield(FinalDamage, GetShield());
+	if (Absorption.ShieldDamage > 0.f)
 	{
-		ShieldDamage = FMath::Min(FinalDamage, CurrentShield);
-		SetShield(FMath::Max(CurrentShield - FinalDamage, 0.f));
-		RemainingHealthDamage = FMath::Max(FinalDamage - ShieldDamage, 0.f);
+		SetShield(Absorption.RemainingShield);
 	}
+	const float RemainingHealthDamage = Absorption.HealthDamage;
 
 	if (DamageTargetCharacter)
 	{
-		const float DisplayDamage = ShieldDamage + RemainingHealthDamage;
+		const float DisplayDamage = Absorption.ShieldDamage + RemainingHealthDamage;
 		DamageTargetCharacter->HandleDamageTaken(
 			DisplayDamage,
 			bCriticalHit,
@@ -951,272 +695,3 @@ float UBasicAttributeSet::ApplyIncomingDamage(
 	return RemainingHealthDamage;
 }
 
-void UBasicAttributeSet::OnRep_Strength(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Strength, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Level(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Level, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Experience(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Experience, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxExperience(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxExperience, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_OffensePoint(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, OffensePoint, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_DefensePoint(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, DefensePoint, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_ResistancePoint(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, ResistancePoint, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_PandoraForcePoint(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, PandoraForcePoint, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_ResourcePoint(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, ResourcePoint, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_AgilityPoint(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, AgilityPoint, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_StrengthLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, StrengthLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_IntelligenceLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, IntelligenceLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_ArcaneLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, ArcaneLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_ArmorLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, ArmorLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_RecoveryLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, RecoveryLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_FrostbiteLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, FrostbiteLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_BurnLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, BurnLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_ElectricShockLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, ElectricShockLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_FirstPandoraLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, FirstPandoraLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_SecondPandoraLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, SecondPandoraLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_ThirdPandoraLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, ThirdPandoraLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxHealthLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxHealthLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxShieldLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxShieldLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxManaLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxManaLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxStaminaLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxStaminaLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_AttackSpeedLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, AttackSpeedLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MovementSpeedLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MovementSpeedLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_CriticalLevel(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, CriticalLevel, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Intelligence(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Intelligence, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Arcane(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Arcane, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Armor(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Armor, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Recovery(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Recovery, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Frostbite(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Frostbite, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Burn(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Burn, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_ElectricShock(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, ElectricShock, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_FirstPandora(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, FirstPandora, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_SecondPandora(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, SecondPandora, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_ThirdPandora(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, ThirdPandora, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_AttackSpeed(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, AttackSpeed, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MovementSpeed(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MovementSpeed, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Critical(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Critical, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_CriticalDamageMultiplier(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, CriticalDamageMultiplier, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Health(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Health, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxHealth(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxHealth, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Shield(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Shield, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxShield(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxShield, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxShieldIncreasePercent(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxShieldIncreasePercent, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Mana(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Mana, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxMana(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxMana, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_Stamina(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, Stamina, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxStamina(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxStamina, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxHealthIncreasePercent(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxHealthIncreasePercent, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxManaIncreasePercent(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxManaIncreasePercent, OldValue);
-}
-
-void UBasicAttributeSet::OnRep_MaxStaminaIncreasePercent(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBasicAttributeSet, MaxStaminaIncreasePercent, OldValue);
-}

@@ -27,6 +27,10 @@ public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
+	// Public API ------------------------------------------------------------------------------------------------------
+	/** 화면 크기에 해상도 비율과 최대 크기를 적용한 렌더 타깃 크기. */
+	FIntPoint GetRenderTargetSize(const FIntPoint& ViewportSize) const;
+
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif

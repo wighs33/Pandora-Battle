@@ -17,6 +17,7 @@
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Definition/UI/ShopCatalogDefinition.h"
+#include "UI/Shop/ShopCatalog.h"
 #include "UI/Shop/ShopEntryViewData.h"
 #include "UI/Shop/ShopPreviewPanelWidget.h"
 
@@ -118,7 +119,7 @@ void UShopWidget::BeginCatalogPresentationPreload()
 	for (const FShopCatalogProductReference& ProductReference : ProductReferences)
 	{
 		if (const UItemDefinition* ItemDefinition =
-			Cast<UItemDefinition>(ResolveProductObject(ProductReference)))
+			Cast<UItemDefinition>(PdShopCatalog::ResolveProductObject(ProductReference)))
 		{
 			PresentationPaths.Add(ItemDefinition->IconTexture.ToSoftObjectPath());
 		}
@@ -498,7 +499,7 @@ void UShopWidget::RebuildEntryData()
 			continue;
 		}
 
-		UObject* ProductObject = ResolveProductObject(CatalogEntry);
+		UObject* ProductObject = PdShopCatalog::ResolveProductObject(CatalogEntry.Product);
 		if (!ProductObject)
 		{
 			continue;
@@ -519,264 +520,13 @@ void UShopWidget::RebuildEntryData()
 
 TArray<FShopCatalogEntry> UShopWidget::BuildEffectiveCatalog() const
 {
-	TArray<FShopCatalogEntry> EffectiveCatalog;
-	TSet<FString> SeenProductKeys;
+	FShopCatalogSource Source;
+	Source.ManualProducts = ShopCatalogDefinition ? ShopCatalogDefinition->ProductList : ShopProductList;
+	Source.bIncludeAllPandoras = ShopCatalogDefinition ? ShopCatalogDefinition->bAutoIncludeAllPandoras : bAutoIncludeAllPandoras;
+	Source.bIncludeAllSkins = ShopCatalogDefinition ? ShopCatalogDefinition->bAutoIncludeAllSkins : bAutoIncludeAllSkins;
 
-	const TArray<FShopCatalogProductReference>* ManualProductList = nullptr;
-	bool bShouldAutoIncludePandoras = bAutoIncludeAllPandoras;
-	bool bShouldAutoIncludeSkins = bAutoIncludeAllSkins;
-
-	if (ShopCatalogDefinition)
-	{
-		ManualProductList = &ShopCatalogDefinition->ProductList;
-		bShouldAutoIncludePandoras = ShopCatalogDefinition->bAutoIncludeAllPandoras;
-		bShouldAutoIncludeSkins = ShopCatalogDefinition->bAutoIncludeAllSkins;
-	}
-	else if (!ShopProductList.IsEmpty())
-	{
-		ManualProductList = &ShopProductList;
-	}
-
-	if (ManualProductList)
-	{
-		for (const FShopCatalogProductReference& ProductReference : *ManualProductList)
-		{
-			AppendProductReference(EffectiveCatalog, SeenProductKeys, ProductReference);
-		}
-	}
-
-	if (bShouldAutoIncludePandoras)
-	{
-		AppendAllPandoras(EffectiveCatalog, SeenProductKeys);
-	}
-
-	if (bShouldAutoIncludeSkins)
-	{
-		AppendAllSkins(EffectiveCatalog, SeenProductKeys);
-	}
-
-	SortCatalogEntries(EffectiveCatalog);
-	return EffectiveCatalog;
-}
-
-void UShopWidget::AppendProductReference(
-	TArray<FShopCatalogEntry>& OutCatalog,
-	TSet<FString>& SeenProductKeys,
-	const FShopCatalogProductReference& ProductReference) const
-{
-	if (!ProductReference.HasValidProduct())
-	{
-		return;
-	}
-
-	const FString ProductKey = MakeProductKey(ProductReference);
-	if (ProductKey.IsEmpty() || SeenProductKeys.Contains(ProductKey))
-	{
-		return;
-	}
-
-	FShopCatalogEntry CatalogEntry = MakeCatalogEntry(ProductReference);
-	if (!ResolveProductObject(CatalogEntry))
-	{
-		return;
-	}
-
-	SeenProductKeys.Add(ProductKey);
-	OutCatalog.Add(MoveTemp(CatalogEntry));
-}
-
-void UShopWidget::AppendAllPandoras(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys) const
-{
 	const UGameInstance* GameInstance = GetGameInstance();
-	const UContentDataSubsystem* ContentDataSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	if (!ContentDataSubsystem)
-	{
-		return;
-	}
-
-	TMap<FName, TObjectPtr<UPandoraDefinition>> LoadedPandorasByName;
-	ContentDataSubsystem->GetLoadedPandoraDefinitionsByName(LoadedPandorasByName);
-	TArray<UPandoraDefinition*> PandoraDefinitions;
-	for (const TPair<FName, TObjectPtr<UPandoraDefinition>>& PandoraPair : LoadedPandorasByName)
-	{
-		PandoraDefinitions.Add(PandoraPair.Value.Get());
-	}
-	PandoraDefinitions.RemoveAll([](const UPandoraDefinition* PandoraDefinition)
-	{
-		return !IsValid(PandoraDefinition);
-	});
-
-	PandoraDefinitions.Sort([](const UPandoraDefinition& Left, const UPandoraDefinition& Right)
-	{
-		return Left.GetDisplayName().ToString() < Right.GetDisplayName().ToString();
-	});
-
-	for (UPandoraDefinition* PandoraDefinition : PandoraDefinitions)
-	{
-		FShopCatalogProductReference ProductReference;
-		ProductReference.ProductType = EShopProductType::Pandora;
-		ProductReference.PandoraDefinition = PandoraDefinition;
-		AppendProductReference(OutCatalog, SeenProductKeys, ProductReference);
-	}
-}
-
-void UShopWidget::AppendAllSkins(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys) const
-{
-	const UGameInstance* GameInstance = GetGameInstance();
-	const UContentDataSubsystem* ContentDataSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	if (!ContentDataSubsystem)
-	{
-		return;
-	}
-
-	TMap<FName, TObjectPtr<USkinDefinition>> LoadedSkinsByName;
-	ContentDataSubsystem->GetLoadedSkinDefinitionsByName(LoadedSkinsByName);
-	TArray<USkinDefinition*> SkinDefinitions;
-	for (const TPair<FName, TObjectPtr<USkinDefinition>>& SkinPair : LoadedSkinsByName)
-	{
-		SkinDefinitions.Add(SkinPair.Value.Get());
-	}
-	SkinDefinitions.RemoveAll([](const USkinDefinition* SkinDefinition)
-	{
-		return !IsValid(SkinDefinition);
-	});
-
-	SkinDefinitions.Sort([](const USkinDefinition& Left, const USkinDefinition& Right)
-	{
-		return Left.DisplayName.ToString() < Right.DisplayName.ToString();
-	});
-
-	for (USkinDefinition* SkinDefinition : SkinDefinitions)
-	{
-		FShopCatalogProductReference ProductReference;
-		ProductReference.ProductType = EShopProductType::Skin;
-		ProductReference.SkinDefinition = SkinDefinition;
-		AppendProductReference(OutCatalog, SeenProductKeys, ProductReference);
-	}
-}
-
-FString UShopWidget::MakeProductKey(const FShopCatalogProductReference& ProductReference) const
-{
-	FSoftObjectPath ObjectPath;
-	switch (ProductReference.ProductType)
-	{
-	case EShopProductType::Pandora:
-		ObjectPath = ProductReference.PandoraDefinition.ToSoftObjectPath();
-		break;
-	case EShopProductType::Skin:
-		ObjectPath = ProductReference.SkinDefinition.ToSoftObjectPath();
-		break;
-	case EShopProductType::Item:
-		ObjectPath = ProductReference.ItemDefinition.ToSoftObjectPath();
-		break;
-	default:
-		break;
-	}
-
-	if (!ObjectPath.IsValid())
-	{
-		return FString();
-	}
-
-	return FString::Printf(TEXT("%d:%s"), static_cast<int32>(ProductReference.ProductType), *ObjectPath.ToString());
-}
-
-void UShopWidget::SortCatalogEntries(TArray<FShopCatalogEntry>& CatalogEntries) const
-{
-	CatalogEntries.Sort([this](const FShopCatalogEntry& Left, const FShopCatalogEntry& Right)
-	{
-		if (Left.ShopData.SortOrder != Right.ShopData.SortOrder)
-		{
-			return Left.ShopData.SortOrder < Right.ShopData.SortOrder;
-		}
-
-		if (Left.Product.ProductType != Right.Product.ProductType)
-		{
-			return static_cast<uint8>(Left.Product.ProductType) < static_cast<uint8>(Right.Product.ProductType);
-		}
-
-		return GetCatalogEntrySortName(Left) < GetCatalogEntrySortName(Right);
-	});
-}
-
-FString UShopWidget::GetCatalogEntrySortName(const FShopCatalogEntry& CatalogEntry) const
-{
-	UObject* ProductObject = ResolveProductObject(CatalogEntry);
-	if (const UPandoraDefinition* PandoraDefinition = Cast<UPandoraDefinition>(ProductObject))
-	{
-		return PandoraDefinition->GetDisplayName().ToString();
-	}
-
-	if (const USkinDefinition* SkinDefinition = Cast<USkinDefinition>(ProductObject))
-	{
-		return SkinDefinition->DisplayName.ToString();
-	}
-
-	if (const UItemDefinition* ItemDefinition = Cast<UItemDefinition>(ProductObject))
-	{
-		return ItemDefinition->DisplayName.ToString();
-	}
-
-	return GetNameSafe(ProductObject);
-}
-
-UObject* UShopWidget::ResolveProductObject(const FShopCatalogEntry& CatalogEntry) const
-{
-	return ResolveProductObject(CatalogEntry.Product);
-}
-
-UObject* UShopWidget::ResolveProductObject(const FShopCatalogProductReference& ProductReference) const
-{
-	switch (ProductReference.ProductType)
-	{
-	case EShopProductType::Pandora:
-		return ProductReference.PandoraDefinition.Get();
-	case EShopProductType::Skin:
-		return ProductReference.SkinDefinition.Get();
-	case EShopProductType::Item:
-		return ProductReference.ItemDefinition.Get();
-	default:
-		return nullptr;
-	}
-}
-
-FShopCatalogEntry UShopWidget::MakeCatalogEntry(const FShopCatalogProductReference& ProductReference) const
-{
-	FShopCatalogEntry CatalogEntry;
-	CatalogEntry.Product = ProductReference;
-	CatalogEntry.ShopData = ResolveShopData(ResolveProductObject(ProductReference), ProductReference.ProductType);
-	return CatalogEntry;
-}
-
-FShopProductDefinitionData UShopWidget::ResolveShopData(UObject* ProductObject, const EShopProductType ProductType) const
-{
-	switch (ProductType)
-	{
-	case EShopProductType::Pandora:
-		if (const UPandoraDefinition* PandoraDefinition = Cast<UPandoraDefinition>(ProductObject))
-		{
-			return PandoraDefinition->GetShopData();
-		}
-		break;
-	case EShopProductType::Skin:
-		if (const USkinDefinition* SkinDefinition = Cast<USkinDefinition>(ProductObject))
-		{
-			return SkinDefinition->ShopData;
-		}
-		break;
-	case EShopProductType::Item:
-		if (const UItemDefinition* ItemDefinition = Cast<UItemDefinition>(ProductObject))
-		{
-			return ItemDefinition->ShopData;
-		}
-		break;
-	default:
-		break;
-	}
-
-	return FShopProductDefinitionData();
+	return PdShopCatalog::Build(Source, GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr);
 }
 
 int32 UShopWidget::GetCurrentGold() const

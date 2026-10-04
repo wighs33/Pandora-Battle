@@ -61,9 +61,6 @@ public:
 	 */
 	float CalculateOutgoingDamage(float BaseDamage, bool& bOutCriticalHit) const;
 
-	/** 치명타 판정 규칙. RollPercent(0~100)가 치명타 확률보다 작으면 치명타 배율을 곱한다. */
-	static float CalculateCriticalDamage(float BaseDamage, float Critical, float RollPercent, bool& bOutCriticalHit);
-
 	static bool ResolveAttributeFromStatTag(
 		const FGameplayTag& StatTag,
 		FGameplayAttribute& OutAttribute);
@@ -289,6 +286,9 @@ protected:
 	void OnRep_MaxStaminaLevel(const FGameplayAttributeData& OldValue);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void SetAttributeBaseValue(const FGameplayAttribute& Attribute, float NewValue);
+	void HandleIncomingDamageExecuted(const FGameplayEffectSpec& EffectSpec);
+	void HandleHealthExecuted(const FGameplayEffectModCallbackData& Data);
 	float ApplyIncomingDamage(
 		float IncomingDamageAmount,
 		bool bCriticalHit,

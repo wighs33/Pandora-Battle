@@ -9,6 +9,7 @@
 
 class UButton;
 class UAudioVolumeSlider;
+struct FPdButtonClickBinding;
 class UAudioVolumeControl;
 class UEditableTextBox;
 class UGuideWidget;
@@ -91,6 +92,7 @@ private:
 	void HandleLunaChatCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	TArray<FPdButtonClickBinding, TInlineAllocator<10>> GetMenuButtonBindings() const;
 	void ApplyWidgetDefinitionSettings();
 	void BuildLunaSpeechBubble();
 	void BuildLunaChatInput();
@@ -105,6 +107,10 @@ private:
 	void BindRecordCloseButton();
 	void UnbindRecordCloseButton();
 	UButton* FindRecordCloseButton() const;
+	// 팝업이 켜진 화면에 아직 없으면 입력을 막는 메뉴 화면에 담아 올린다.
+	void PresentMenuPopup(UUserWidget* Popup, FSimpleDelegate OnBack);
+	// 팝업을 담은 화면을 내리고 위젯을 뗀다.
+	void DismissMenuPopup(UUserWidget* Popup) const;
 
 	TSubclassOf<UShopWidget> ResolveShopWidgetClass() const;
 	TSubclassOf<UUserWidget> ResolveGuideWidgetClass() const;

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Component/Character/AbilitySystemReadySubscription.h"
+#include "Component/Player/UnarmedAttackSweep.h"
 #include "Definition/Common/CombatSettings.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "GameplayPrediction.h"
@@ -141,22 +142,11 @@ protected:
 	UPROPERTY(Transient)
 	FUnarmedCombatSettings UnarmedCombatSettings;
 
-	TSet<TWeakObjectPtr<AActor>> HitActorsInCurrentUnarmedAttack;
-
-	UPROPERTY(Transient)
-	FName TrackedUnarmedAttackSectionName = NAME_None;
-
 	UPROPERTY(Transient)
 	TObjectPtr<UAnimMontage> CachedUnarmedAttackMontage;
 
 	TSharedPtr<FContentLease> UnarmedAttackMontageLease;
-	TArray<TEnumAsByte<EObjectTypeQuery>> CachedUnarmedAttackObjectTypes;
-	TArray<AActor*> UnarmedAttackActorsToIgnore;
-	TArray<FHitResult> UnarmedAttackHitResults;
-	TArray<FHitResult> InterpolatedUnarmedHitResults;
-	TArray<FVector> PreviousUnarmedAttackTraceStartLocations;
-	TArray<FVector> PreviousUnarmedAttackTraceEndLocations;
-	TArray<uint8> PreviousUnarmedAttackTraceValid;
+	FUnarmedAttackSweep UnarmedAttackSweep;
 	TMap<FObjectKey, float> TemporaryWeaponDamageBonuses;
 
 	UPROPERTY(Transient)
@@ -167,8 +157,6 @@ protected:
 
 	bool bPrimaryAttackHeld = false;
 	bool bEndingPlay = false;
-	bool bUnarmedAttackTraceActive = false;
-	uint32 UnarmedAttackTraceGeneration = 0;
 	double LastPrimaryAttackRequestTime = 0.0;
 	FAbilitySystemReadySubscription AbilitySystemSubscription;
 	TWeakObjectPtr<UPdAbilitySystemComponent> BoundAbilitySystem;

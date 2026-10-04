@@ -15,6 +15,7 @@
 
 class UButton;
 class UCanvasPanel;
+struct FPdButtonClickBinding;
 class UPandoraTreeWidget;
 class UDragDropOperation;
 class UInfoCharacterPreview;
@@ -184,6 +185,9 @@ private:
 	void ApplyWidgetDefinitionSettings();
 	void PlaySidePanelsSlideInAnimation();
 	void PlaySidePanelsSlideOutAnimation();
+	TArray<FPdButtonClickBinding, TInlineAllocator<12>> GetButtonBindings() const;
+	// 왼쪽·오른쪽 패널을 쓰는 탭으로 바꾼다. 지도 패널은 밀어 닫고, 판도라 탭에서만 강화 버튼을 보인다.
+	void SelectSidePanelSection(EInfoUiSection Section, UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag);
 	void SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag);
 	void HideSkinPaintCanvasGroup();
 	bool SetPaintCanvasWidgetVisible(bool bVisible);

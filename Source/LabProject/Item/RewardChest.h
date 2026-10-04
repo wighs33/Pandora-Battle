@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Interface/InteractableInterface.h"
+#include "Item/RewardChestLoot.h"
 #include "TimerManager.h"
 #include "RewardChest.generated.h"
 
@@ -27,29 +28,6 @@ enum class ERewardChestState : uint8
 	Opening,
 	Opened,
 	Hidden
-};
-
-USTRUCT(BlueprintType)
-struct FRewardChestItemCountChance
-{
-	GENERATED_BODY()
-
-public:
-	// Public API ------------------------------------------------------------------------------------------------------
-	FRewardChestItemCountChance() = default;
-
-	FRewardChestItemCountChance(const int32 InItemCount, const float InChance)
-		: ItemCount(InItemCount)
-		, Chance(InChance)
-	{
-	}
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Reward Chest|Reward", meta = (ClampMin = "1", UIMin = "1"))
-	int32 ItemCount = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Reward Chest|Reward", meta = (ClampMin = "0.0", UIMin = "0.0"))
-	float Chance = 1.0f;
 };
 
 UCLASS(Blueprintable, BlueprintType)
@@ -118,12 +96,8 @@ private:
 	template <typename DefinitionType>
 	void AppendPrimaryAssetIds(const TArray<TSoftObjectPtr<DefinitionType>>& SourceDefinitions, TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
 
-	void AppendRandomItemPrimaryAssetIds(
-		TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
-	void AppendConfiguredItemPrimaryAssetIds(
-		TArray<FPrimaryAssetId>& OutPrimaryAssetIds) const;
-	int32 ResolveRandomRewardItemCount() const;
-	static int32 SelectWeightedItemIndex(const TArray<float>& Weights, float TotalWeight);
+	TArray<FRewardChestLootCandidate> GatherDroppableItemCandidates() const;
+	TArray<FRewardChestLootCandidate> GatherConfiguredItemCandidates() const;
 	bool IsWeaponItemDefinition(const UItemDefinition* ItemDefinition) const;
 	void BeginRewardContentPreload();
 	void ReleaseRewardContentPreload();

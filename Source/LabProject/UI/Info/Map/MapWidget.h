@@ -2,6 +2,9 @@
 
 #include "UI/Common/LocalizedMenuWidget.h"
 #include "UI/Core/WidgetClassDefinition.h"
+#include "UI/Info/Map/MapAreaRegionMarkers.h"
+#include "UI/Info/Map/MapMarkImages.h"
+#include "UI/Info/Map/MapPawnMarkers.h"
 #include "MapWidget.generated.h"
 
 class UButton;
@@ -13,8 +16,9 @@ class USizeBox;
 class UTextBlock;
 class UTexture2D;
 class APawn;
-enum class EPlayerMapRegion : uint8;
 
+// 지역 지도와 전체 지도를 바꿔 보여 주는 위젯. 보기 전환·설정·갱신 주기를 맡고,
+// 표식 그림 고르기와 내·다른 플레이어 표식, 전체 지도의 지역별 표식은 각 표식 묶음에 맡긴다.
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UMapWidget : public ULocalizedMenuWidget
 {
@@ -76,32 +80,21 @@ private:
 	void ApplyTotalSizeBoxSize(const FVector2D& Size);
 	void ResolveDefaultTextures();
 	void ApplyWidgetDefinitionSettings();
-	void ApplyProjectionSettings(const FMapWidgetProjectionSettings& ProjectionSettings);
-	bool ApplyMarkImage(UImage* MarkWidget, UObject* ResourceObject, const FVector2D& DesiredImageSize) const;
 	const FMapWidgetProjectionSettings* FindProjectionOverride(const FMapWidgetSettings& Settings) const;
 	void SetRegionSelectionButtonsVisible(bool bVisible);
 	void SyncMapViewToPlayerMapRegion();
 	void StartMapUpdateTimers();
 	void StopMapUpdateTimers();
 	void RefreshAreaMapRegionMarkers();
-	void SetAreaMapRegionMarkersVisible(bool bVisible) const;
-	UHorizontalBox* ResolveAreaMapRegionMarkerBox(
-		EPlayerMapRegion MapRegion) const;
 	void UpdateCharacterMark();
 	void UpdateTeamMarks();
-	void HideTeamMarks();
-	void HideSelfMarks();
 	void HideDesignerMarkerWidgets() const;
-	void EnsureTeamMarkCapacity(int32 RequiredCount);
-	UImage* CreateDynamicMarkerWidget(FName MarkerName, int32 ZOrder);
+	FMapMarkerCanvas MakeMarkerCanvas();
 	UPanelWidget* GetMarkerParentPanel() const;
-	bool UpdatePawnMapMark(UImage* MarkWidget, const APawn& Pawn, bool bRotateToPawnForward = true) const;
-	bool ApplyCharacterMarkImage(UImage* MarkWidget) const;
-	bool ApplyTeamMarkImage(UImage* MarkWidget, const APawn& Pawn) const;
-	bool ApplyTeamMarkImageForTeamColor(
-		UImage* MarkWidget,
-		int32 TeamColorIndex) const;
+	FMapAreaRegionBoxes GetAreaRegionBoxes() const;
 	bool DoesPawnMatchCurrentMapView(const APawn& Pawn) const;
+	UTexture2D* GetMapTexture(EMapView MapView) const;
+	FText GetMapViewName(EMapView MapView) const;
 	const FTransform& GetCurrentPlaneTransform() const;
 	FVector2D GetCurrentTotalSizeBoxSize() const;
 
@@ -166,26 +159,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Map|Texture")
 	TObjectPtr<UTexture2D> TempleMapTexture;
 
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Size")
-	FVector2D AreaMapTotalSizeBoxSize = FVector2D(900.0f, 900.0f);
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Size")
-	FVector2D WindmillMapTotalSizeBoxSize = FVector2D(900.0f, 900.0f);
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Size")
-	FVector2D DomeMapTotalSizeBoxSize = FVector2D(900.0f, 900.0f);
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Size")
-	FVector2D TempleMapTotalSizeBoxSize = FVector2D(900.0f, 900.0f);
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Plane")
-	FTransform WindmillPlaneTransform = FTransform::Identity;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Plane")
-	FTransform TemplePlaneTransform = FTransform::Identity;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Plane")
-	FTransform DomePlaneTransform = FTransform::Identity;
+	// 지도별 크기와 지역 평면. 정의 데이터의 위젯별 덮어쓰기나 기본값으로 채운다.
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Projection")
+	FMapWidgetProjectionSettings ProjectionSettings;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Marker")
 	bool bShowRemotePlayerMarks = true;
@@ -198,40 +174,13 @@ protected:
 
 private:
 	UPROPERTY(Transient)
-	TObjectPtr<UImage> SelfTeamMarkWidget;
+	FMapPawnMarkers PawnMarkers;
 
-	UPROPERTY(Transient)
-	TObjectPtr<UImage> SelfCharacterMarkWidget;
-
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UImage>> RemoteTeamMarkWidgets;
+	FMapMarkImages MarkImages;
+	FMapAreaRegionMarkers AreaRegionMarkers;
 
 	UPROPERTY(Transient)
 	TArray<TWeakObjectPtr<APawn>> CachedRemotePlayerPawns;
-
-	TArray<uint64> AreaMapMarkerStateKeys;
-	bool bAreaMapMarkerWidgetsComplete = false;
-
-	UPROPERTY(Transient)
-	TMap<int32, TSoftObjectPtr<UObject>> TeamMarkImagesByTeamColorIndex;
-
-	UPROPERTY(Transient)
-	TMap<int32, FVector2D> TeamMarkImageSizesByTeamColorIndex;
-
-	UPROPERTY(Transient)
-	TSoftObjectPtr<UObject> CharacterMarkResourceObject;
-
-	UPROPERTY(Transient)
-	FVector2D CharacterMarkResolvedImageSize = FVector2D::ZeroVector;
-
-	UPROPERTY(Transient)
-	float PlaneLocalSize = 100.0f;
-
-	UPROPERTY(Transient)
-	bool bRotateMarksToPawnForward = true;
-
-	UPROPERTY(Transient)
-	float MarkerRotationOffsetDegrees = 0.0f;
 
 	FTimerHandle MarkerUpdateTimerHandle;
 	FTimerHandle RemotePlayerListRefreshTimerHandle;

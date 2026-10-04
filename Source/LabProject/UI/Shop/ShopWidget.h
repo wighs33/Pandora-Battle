@@ -64,16 +64,6 @@ private:
 	void RefreshCategoryButtonStates() const;
 	void RebuildEntryData();
 	TArray<FShopCatalogEntry> BuildEffectiveCatalog() const;
-	FShopCatalogEntry MakeCatalogEntry(const FShopCatalogProductReference& ProductReference) const;
-	void AppendProductReference(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys, const FShopCatalogProductReference& ProductReference) const;
-	void AppendAllPandoras(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys) const;
-	void AppendAllSkins(TArray<FShopCatalogEntry>& OutCatalog, TSet<FString>& SeenProductKeys) const;
-	FString MakeProductKey(const FShopCatalogProductReference& ProductReference) const;
-	void SortCatalogEntries(TArray<FShopCatalogEntry>& CatalogEntries) const;
-	FString GetCatalogEntrySortName(const FShopCatalogEntry& CatalogEntry) const;
-	UObject* ResolveProductObject(const FShopCatalogEntry& CatalogEntry) const;
-	UObject* ResolveProductObject(const FShopCatalogProductReference& ProductReference) const;
-	FShopProductDefinitionData ResolveShopData(UObject* ProductObject, EShopProductType ProductType) const;
 
 	int32 GetCurrentGold() const;
 	bool IsProductOwned(UShopEntryViewData* EntryData) const;

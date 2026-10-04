@@ -1,5 +1,6 @@
 #include "UI/Title/TitleWidget.h"
 
+#include "UI/Common/ButtonClickBinding.h"
 #include "UI/Common/EditorTransactionReset.h"
 #include "AudioSlider.h"
 #include "Blueprint/WidgetTree.h"
@@ -159,55 +160,7 @@ void UTitleWidget::NativeConstruct()
 	AudioVolumeControl = NewObject<UAudioVolumeControl>(this);
 	AudioVolumeControl->Initialize(this, AudioVolumeSlider_, Btn_Sound);
 
-	if (Btn_RoomList)
-	{
-		Btn_RoomList->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleRoomListClicked);
-	}
-
-	if (Btn_QuickMatch)
-	{
-		Btn_QuickMatch->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleQuickMatchClicked);
-	}
-
-	if (Btn_TrainingMode)
-	{
-		Btn_TrainingMode->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleTrainingModeClicked);
-	}
-
-	if (Btn_RpgMode)
-	{
-		Btn_RpgMode->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleRpgModeClicked);
-	}
-
-	if (Btn_Website)
-	{
-		Btn_Website->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleWebsiteClicked);
-	}
-
-	if (Btn_PandoraShop)
-	{
-		Btn_PandoraShop->OnClicked.AddUniqueDynamic(this, &ThisClass::HandlePandoraShopClicked);
-	}
-
-	if (Btn_Guide)
-	{
-		Btn_Guide->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleGuideClicked);
-	}
-
-	if (Btn_Record)
-	{
-		Btn_Record->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleRecordClicked);
-	}
-
-	if (Btn_Exit)
-	{
-		Btn_Exit->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleExitClicked);
-	}
-
-	if (Btn_Tutorial)
-	{
-		Btn_Tutorial->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleGuideClicked);
-	}
+	PdButtonClick::Bind(this, GetMenuButtonBindings());
 
 	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
@@ -231,81 +184,43 @@ void UTitleWidget::NativeDestruct()
 		AudioVolumeControl = nullptr;
 	}
 
-	if (Btn_RoomList)
-	{
-		Btn_RoomList->OnClicked.RemoveDynamic(this, &ThisClass::HandleRoomListClicked);
-	}
-
-	if (Btn_QuickMatch)
-	{
-		Btn_QuickMatch->OnClicked.RemoveDynamic(this, &ThisClass::HandleQuickMatchClicked);
-	}
-
-	if (Btn_TrainingMode)
-	{
-		Btn_TrainingMode->OnClicked.RemoveDynamic(this, &ThisClass::HandleTrainingModeClicked);
-	}
-
-	if (Btn_RpgMode)
-	{
-		Btn_RpgMode->OnClicked.RemoveDynamic(this, &ThisClass::HandleRpgModeClicked);
-	}
-
-	if (Btn_Website)
-	{
-		Btn_Website->OnClicked.RemoveDynamic(this, &ThisClass::HandleWebsiteClicked);
-	}
-
-	if (Btn_PandoraShop)
-	{
-		Btn_PandoraShop->OnClicked.RemoveDynamic(this, &ThisClass::HandlePandoraShopClicked);
-	}
-
-	if (Btn_Guide)
-	{
-		Btn_Guide->OnClicked.RemoveDynamic(this, &ThisClass::HandleGuideClicked);
-	}
-
-	if (Btn_Record)
-	{
-		Btn_Record->OnClicked.RemoveDynamic(this, &ThisClass::HandleRecordClicked);
-	}
-
-	if (Btn_Exit)
-	{
-		Btn_Exit->OnClicked.RemoveDynamic(this, &ThisClass::HandleExitClicked);
-	}
-
-	if (Btn_Tutorial)
-	{
-		Btn_Tutorial->OnClicked.RemoveDynamic(this, &ThisClass::HandleGuideClicked);
-	}
+	PdButtonClick::Unbind(this, GetMenuButtonBindings());
 
 	ClearQuickMatchDelegates();
 	if (ShopWidget)
 	{
-		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(ShopWidget->GetCachedWidget(), GetOwningLocalPlayer()))
-			Screen->DeactivateWidget();
-		ShopWidget->RemoveFromParent();
+		DismissMenuPopup(ShopWidget);
 		ShopWidget = nullptr;
 	}
 	if (IsValid(GuideWidget))
 	{
-		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GuideWidget->GetCachedWidget(), GetOwningLocalPlayer()))
-			Screen->DeactivateWidget();
-		GuideWidget->RemoveFromParent();
+		DismissMenuPopup(GuideWidget);
 	}
 	GuideWidget = nullptr;
 	if (IsValid(RecordWidget))
 	{
 		UnbindRecordCloseButton();
-		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(RecordWidget->GetCachedWidget(), GetOwningLocalPlayer()))
-			Screen->DeactivateWidget();
-		RecordWidget->RemoveFromParent();
+		DismissMenuPopup(RecordWidget);
 	}
 	RecordWidget = nullptr;
 
 	Super::NativeDestruct();
+}
+
+TArray<FPdButtonClickBinding, TInlineAllocator<10>> UTitleWidget::GetMenuButtonBindings() const
+{
+	return {
+		{ Btn_RoomList, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleRoomListClicked) },
+		{ Btn_QuickMatch, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleQuickMatchClicked) },
+		{ Btn_TrainingMode, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleTrainingModeClicked) },
+		{ Btn_RpgMode, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleRpgModeClicked) },
+		{ Btn_Website, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleWebsiteClicked) },
+		{ Btn_PandoraShop, GET_FUNCTION_NAME_CHECKED(ThisClass, HandlePandoraShopClicked) },
+		{ Btn_Guide, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleGuideClicked) },
+		{ Btn_Record, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleRecordClicked) },
+		{ Btn_Exit, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleExitClicked) },
+		{ Btn_Tutorial, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleGuideClicked) },
+	};
 }
 
 void UTitleWidget::ApplyWidgetDefinitionSettings()
@@ -616,9 +531,7 @@ void UTitleWidget::OpenShop()
 	{
 		if (ShopWidget)
 		{
-			if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(ShopWidget->GetCachedWidget(), GetOwningLocalPlayer()))
-				Screen->DeactivateWidget();
-			ShopWidget->RemoveFromParent();
+			DismissMenuPopup(ShopWidget);
 			ShopWidget = nullptr;
 		}
 
@@ -631,16 +544,7 @@ void UTitleWidget::OpenShop()
 	}
 
 	ShopWidget->RefreshUI();
-	ShopWidget->SetVisibility(ESlateVisibility::Visible);
-	UCommonActivatableWidget* ExistingScreen = UCommonUIActionRouterBase::FindOwningActivatable(ShopWidget->GetCachedWidget(), GetOwningLocalPlayer());
-	if (!ExistingScreen || !ExistingScreen->IsActivated())
-	{
-		UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
-		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		Screen->SetContent(ShopWidget, Config, EPdGameplayInputPolicy::Block, ShopWidget, FSimpleDelegate());
-		GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
-	}
+	PresentMenuPopup(ShopWidget, FSimpleDelegate());
 }
 
 void UTitleWidget::OpenGuide()
@@ -668,9 +572,7 @@ void UTitleWidget::OpenGuide()
 	{
 		if (GuideWidget)
 		{
-			if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GuideWidget->GetCachedWidget(), GetOwningLocalPlayer()))
-				Screen->DeactivateWidget();
-			GuideWidget->RemoveFromParent();
+			DismissMenuPopup(GuideWidget);
 			GuideWidget = nullptr;
 		}
 
@@ -687,19 +589,10 @@ void UTitleWidget::OpenGuide()
 		TypedGuideWidget->RefreshGuide();
 	}
 
-	GuideWidget->SetVisibility(ESlateVisibility::Visible);
-	UCommonActivatableWidget* ExistingScreen = UCommonUIActionRouterBase::FindOwningActivatable(GuideWidget->GetCachedWidget(), GetOwningLocalPlayer());
-	if (!ExistingScreen || !ExistingScreen->IsActivated())
+	PresentMenuPopup(GuideWidget, FSimpleDelegate::CreateWeakLambda(this, [this]()
 	{
-		UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
-		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		Screen->SetContent(GuideWidget, Config, EPdGameplayInputPolicy::Block, GuideWidget, FSimpleDelegate::CreateWeakLambda(this, [this]()
-		{
-			if (UGuideWidget* Guide = Cast<UGuideWidget>(GuideWidget)) Guide->CloseGuide();
-		}));
-		GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
-	}
+		if (UGuideWidget* Guide = Cast<UGuideWidget>(GuideWidget)) Guide->CloseGuide();
+	}));
 }
 
 void UTitleWidget::OpenRecord()
@@ -728,9 +621,7 @@ void UTitleWidget::OpenRecord()
 		if (RecordWidget)
 		{
 			UnbindRecordCloseButton();
-			if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(RecordWidget->GetCachedWidget(), GetOwningLocalPlayer()))
-				Screen->DeactivateWidget();
-			RecordWidget->RemoveFromParent();
+			DismissMenuPopup(RecordWidget);
 			RecordWidget = nullptr;
 		}
 
@@ -742,17 +633,7 @@ void UTitleWidget::OpenRecord()
 		return;
 	}
 
-	RecordWidget->SetVisibility(ESlateVisibility::Visible);
-	UCommonActivatableWidget* ExistingScreen = UCommonUIActionRouterBase::FindOwningActivatable(RecordWidget->GetCachedWidget(), GetOwningLocalPlayer());
-	if (!ExistingScreen || !ExistingScreen->IsActivated())
-	{
-		UUiScreen* Screen = CreateWidget<UUiScreen>(PlayerController);
-		FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
-		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
-		Screen->SetContent(RecordWidget, Config, EPdGameplayInputPolicy::Block,
-			RecordWidget, FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRecordCloseClicked));
-		GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
-	}
+	PresentMenuPopup(RecordWidget, FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRecordCloseClicked));
 
 	if (URecordWidget* TypedRecordWidget = Cast<URecordWidget>(RecordWidget))
 	{
@@ -930,6 +811,31 @@ void UTitleWidget::ClearQuickMatchDelegates()
 	{
 		OnlineSessionsSubsystem->CancelSessionRequest(RequestId);
 	}
+}
+
+void UTitleWidget::PresentMenuPopup(UUserWidget* Popup, FSimpleDelegate OnBack)
+{
+	Popup->SetVisibility(ESlateVisibility::Visible);
+	const UCommonActivatableWidget* ExistingScreen = UCommonUIActionRouterBase::FindOwningActivatable(Popup->GetCachedWidget(), GetOwningLocalPlayer());
+	if (ExistingScreen && ExistingScreen->IsActivated())
+	{
+		return;
+	}
+
+	UUiScreen* Screen = CreateWidget<UUiScreen>(GetOwningPlayer());
+	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
+	Screen->SetContent(Popup, Config, EPdGameplayInputPolicy::Block, Popup, MoveTemp(OnBack));
+	GetUiSubsystem()->PushScreen(Screen, EUiScreenLayer::Menu);
+}
+
+void UTitleWidget::DismissMenuPopup(UUserWidget* Popup) const
+{
+	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(Popup->GetCachedWidget(), GetOwningLocalPlayer()))
+	{
+		Screen->DeactivateWidget();
+	}
+	Popup->RemoveFromParent();
 }
 
 UUiSubsystem* UTitleWidget::GetUiSubsystem() const
