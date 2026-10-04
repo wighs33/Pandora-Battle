@@ -26,29 +26,22 @@ UEnemyTrainingBotComponent::UEnemyTrainingBotComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
-	const UEnemyBaseDefinition* NativeDefaults =
-		GetDefault<UEnemyBaseDefinition>();
+	const UEnemyBaseDefinition* NativeDefaults = GetDefault<UEnemyBaseDefinition>();
 	if (NativeDefaults)
 	{
 		Settings = NativeDefaults->GetTrainingBotSettings();
 	}
 }
 
-void UEnemyTrainingBotComponent::ApplySettings(
-	const FEnemyTrainingBotSettings& InSettings)
+void UEnemyTrainingBotComponent::ApplySettings(const FEnemyTrainingBotSettings& InSettings)
 {
 	Settings = InSettings;
-	const auto SanitizeNonNegative =
-		[](const float Value)
+	const auto SanitizeNonNegative = [](const float Value)
 		{
-			return FMath::IsFinite(Value)
-				? FMath::Max(Value, 0.0f)
-				: 0.0f;
+			return FMath::IsFinite(Value) ? FMath::Max(Value, 0.0f) : 0.0f;
 		};
-	Settings.HitStunDuration =
-		SanitizeNonNegative(Settings.HitStunDuration);
-	Settings.RespawnDelay =
-		SanitizeNonNegative(Settings.RespawnDelay);
+	Settings.HitStunDuration = SanitizeNonNegative(Settings.HitStunDuration);
+	Settings.RespawnDelay = SanitizeNonNegative(Settings.RespawnDelay);
 }
 
 AEnemyBase* UEnemyTrainingBotComponent::GetEnemyOwner() const
@@ -101,9 +94,7 @@ bool UEnemyTrainingBotComponent::ShouldUseRespawn() const
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
 	const AController* Controller = Enemy ? Enemy->GetController() : nullptr;
-	return Settings.bRespawnOnDeath
-		&& Controller
-		&& Controller->IsA<ATrainingBotAIController>();
+	return Settings.bRespawnOnDeath && Controller && Controller->IsA<ATrainingBotAIController>();
 }
 
 bool UEnemyTrainingBotComponent::ShouldSuppressDeathHandling() const
@@ -114,8 +105,7 @@ bool UEnemyTrainingBotComponent::ShouldSuppressDeathHandling() const
 		return false;
 	}
 
-	return bRespawnResetInProgress
-		|| bRespawnScheduled
+	return bRespawnResetInProgress || bRespawnScheduled
 		|| Enemy->GetWorldTimerManager().IsTimerActive(RespawnTimerHandle);
 }
 
@@ -130,31 +120,21 @@ void UEnemyTrainingBotComponent::HandleDeathAfterBase()
 	ScheduleRespawn();
 }
 
-void UEnemyTrainingBotComponent::HandleDamageTaken(
-	const float DamageAmount,
-	const bool bAllowHitReact)
+void UEnemyTrainingBotComponent::HandleDamageTaken(const float DamageAmount, const bool bAllowHitReact)
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
-	if (!Enemy
-		|| !bAllowHitReact
-		|| !Enemy->HasAuthority()
-		|| DamageAmount <= 0.0f
-		|| !ShouldUseHitReaction())
+	if (!Enemy || !bAllowHitReact || !Enemy->HasAuthority() || DamageAmount <= 0.0f || !ShouldUseHitReaction())
 	{
 		return;
 	}
 
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy->GetEnemyAbilitySystemComponent();
-	if (!AbilitySystemComponent
-		|| AbilitySystemComponent->HasMatchingGameplayTag(
-			LabGameplayTags::State_Dead))
+	UPdAbilitySystemComponent* AbilitySystemComponent = Enemy->GetEnemyAbilitySystemComponent();
+	if (!AbilitySystemComponent || AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
 	{
 		return;
 	}
 
-	const UBasicAttributeSet* AttributeSet =
-		AbilitySystemComponent->GetSet<UBasicAttributeSet>();
+	const UBasicAttributeSet* AttributeSet = AbilitySystemComponent->GetSet<UBasicAttributeSet>();
 	if (AttributeSet && AttributeSet->GetHealth() <= 0.0f)
 	{
 		return;
@@ -176,8 +156,7 @@ void UEnemyTrainingBotComponent::TriggerHitReaction()
 	FGameplayTagContainer CancelTags;
 	CancelTags.AddTag(LabGameplayTags::Action_Attack);
 	CancelTags.AddTag(LabGameplayTags::Action_RangedAttack);
-	if (UPdAbilitySystemComponent* AbilitySystemComponent =
-			Enemy->GetEnemyAbilitySystemComponent())
+	if (UPdAbilitySystemComponent* AbilitySystemComponent = Enemy->GetEnemyAbilitySystemComponent())
 	{
 		AbilitySystemComponent->CancelAbilities(&CancelTags);
 	}
@@ -196,14 +175,12 @@ void UEnemyTrainingBotComponent::StartHitStun()
 		return;
 	}
 
-	if (AAIController* AIController =
-			Cast<AAIController>(Enemy->GetController()))
+	if (AAIController* AIController = Cast<AAIController>(Enemy->GetController()))
 	{
 		AIController->StopMovement();
 	}
 
-	if (UCharacterMovementComponent* Movement =
-			Enemy->GetCharacterMovement())
+	if (UCharacterMovementComponent* Movement = Enemy->GetCharacterMovement())
 	{
 		if (!bHitStunned)
 		{
@@ -222,11 +199,7 @@ void UEnemyTrainingBotComponent::StartHitStun()
 		return;
 	}
 
-	Enemy->GetWorldTimerManager().SetTimer(
-		HitStunTimerHandle,
-		this,
-		&ThisClass::EndHitStun,
-		Settings.HitStunDuration,
+	Enemy->GetWorldTimerManager().SetTimer(HitStunTimerHandle, this, &ThisClass::EndHitStun, Settings.HitStunDuration,
 		false);
 }
 
@@ -239,31 +212,26 @@ void UEnemyTrainingBotComponent::EndHitStun()
 	}
 
 	bHitStunned = false;
-	if (UCharacterMovementComponent* Movement =
-			Enemy->GetCharacterMovement())
+	if (UCharacterMovementComponent* Movement = Enemy->GetCharacterMovement())
 	{
 		const EMovementMode RestoreMode =
 			PreHitStunMovementMode == MOVE_None
 				? MOVE_Walking
 				: PreHitStunMovementMode.GetValue();
-		Movement->SetMovementMode(
-			RestoreMode,
-			PreHitStunCustomMovementMode);
+		Movement->SetMovementMode(RestoreMode, PreHitStunCustomMovementMode);
 	}
 }
 
 bool UEnemyTrainingBotComponent::TryActivateHitReactAbility()
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
+	UPdAbilitySystemComponent* AbilitySystemComponent = Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
 	if (!AbilitySystemComponent)
 	{
 		return false;
 	}
 
-	const auto TryActivateByTag =
-		[AbilitySystemComponent](const FGameplayTag& AbilityTag)
+	const auto TryActivateByTag = [AbilitySystemComponent](const FGameplayTag& AbilityTag)
 		{
 			if (!AbilityTag.IsValid())
 			{
@@ -274,16 +242,10 @@ bool UEnemyTrainingBotComponent::TryActivateHitReactAbility()
 			AbilityTags.AddTag(AbilityTag);
 
 			TArray<FGameplayAbilitySpecHandle> AbilityHandles;
-			AbilitySystemComponent->FindAllAbilitiesWithTags(
-				AbilityHandles,
-				AbilityTags,
-				false);
-			for (const FGameplayAbilitySpecHandle& AbilityHandle :
-				AbilityHandles)
+			AbilitySystemComponent->FindAllAbilitiesWithTags(AbilityHandles, AbilityTags, false);
+			for (const FGameplayAbilitySpecHandle& AbilityHandle : AbilityHandles)
 			{
-				if (AbilitySystemComponent->TryActivateAbility(
-						AbilityHandle,
-						true))
+				if (AbilitySystemComponent->TryActivateAbility(AbilityHandle, true))
 				{
 					return true;
 				}
@@ -298,13 +260,11 @@ bool UEnemyTrainingBotComponent::TryActivateHitReactAbility()
 UAnimMontage* UEnemyTrainingBotComponent::ResolveHitReactMontage() const
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	const UEquipmentComponent* Equipment =
-		Enemy ? Enemy->GetEquipmentComponent() : nullptr;
+	const UEquipmentComponent* Equipment = Enemy ? Enemy->GetEquipmentComponent() : nullptr;
 	if (Equipment)
 	{
 		FHitReactData HitReactData;
-		if (Equipment->GetHitReactData(HitReactData)
-			&& HitReactData.HitReactMontage)
+		if (Equipment->GetHitReactData(HitReactData) && HitReactData.HitReactMontage)
 		{
 			return HitReactData.HitReactMontage;
 		}
@@ -324,15 +284,10 @@ void UEnemyTrainingBotComponent::PlayHitReactMontageLocal() const
 	}
 }
 
-void UEnemyTrainingBotComponent::PlayUnequipMontageLocal(
-	UAnimMontage* UnequipMontage,
-	const float PlayRate) const
+void UEnemyTrainingBotComponent::PlayUnequipMontageLocal(UAnimMontage* UnequipMontage, const float PlayRate) const
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	UAnimInstance* AnimInstance =
-		Enemy && Enemy->GetMesh()
-			? Enemy->GetMesh()->GetAnimInstance()
-			: nullptr;
+	UAnimInstance* AnimInstance = Enemy && Enemy->GetMesh() ? Enemy->GetMesh()->GetAnimInstance() : nullptr;
 	if (!AnimInstance || !UnequipMontage)
 	{
 		return;
@@ -342,8 +297,7 @@ void UEnemyTrainingBotComponent::PlayUnequipMontageLocal(
 	AnimInstance->Montage_Play(UnequipMontage, PlayRate);
 }
 
-bool UEnemyTrainingBotComponent::RequestWeaponChange(
-	const UItemDefinition* WeaponDefinition)
+bool UEnemyTrainingBotComponent::RequestWeaponChange(const UItemDefinition* WeaponDefinition)
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
 	if (!Enemy || !Enemy->HasAuthority() || !WeaponDefinition)
@@ -358,14 +312,12 @@ bool UEnemyTrainingBotComponent::RequestWeaponChange(
 		return false;
 	}
 
-	if (Equipment->GetCurrentWeaponActor()
-		&& Equipment->GetCurrentWeaponDefinition() == WeaponDefinition
+	if (Equipment->GetCurrentWeaponActor() && Equipment->GetCurrentWeaponDefinition() == WeaponDefinition
 		&& !bWeaponChangeInProgress)
 	{
 		FEnemyCombatSettings UpdatedSettings = Combat->GetSettings();
 		UpdatedSettings.StartingWeaponDefinition =
-			TSoftObjectPtr<UItemDefinition>(
-				FSoftObjectPath(WeaponDefinition->GetPathName()));
+			TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(WeaponDefinition->GetPathName()));
 		Combat->ApplySettings(UpdatedSettings);
 		return true;
 	}
@@ -389,9 +341,7 @@ bool UEnemyTrainingBotComponent::RequestUnarmed()
 		return false;
 	}
 
-	if (!Equipment->GetCurrentWeaponActor()
-		&& !Equipment->GetCurrentWeaponDefinition()
-		&& !bWeaponChangeInProgress)
+	if (!Equipment->GetCurrentWeaponActor() && !Equipment->GetCurrentWeaponDefinition() && !bWeaponChangeInProgress)
 	{
 		Combat->ClearStartingWeaponDefinition();
 		return true;
@@ -418,16 +368,11 @@ void UEnemyTrainingBotComponent::BeginWeaponChange(AEnemyBase& Enemy, const UIte
 		return;
 	}
 
-	Enemy.GetWorldTimerManager().SetTimer(
-		WeaponChangeTimerHandle,
-		this,
-		&ThisClass::FinishPendingWeaponChange,
-		UnequipDuration,
-		false);
+	Enemy.GetWorldTimerManager().SetTimer(WeaponChangeTimerHandle, this, &ThisClass::FinishPendingWeaponChange,
+		UnequipDuration, false);
 }
 
-void UEnemyTrainingBotComponent::CancelWeaponChangeAttackState(
-	const float BlendOutTime)
+void UEnemyTrainingBotComponent::CancelWeaponChangeAttackState(const float BlendOutTime)
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
 	if (!Enemy || !Enemy->HasAuthority())
@@ -435,14 +380,12 @@ void UEnemyTrainingBotComponent::CancelWeaponChangeAttackState(
 		return;
 	}
 
-	if (AAIController* AIController =
-			Cast<AAIController>(Enemy->GetController()))
+	if (AAIController* AIController = Cast<AAIController>(Enemy->GetController()))
 	{
 		AIController->StopMovement();
 	}
 
-	if (UPdAbilitySystemComponent* AbilitySystemComponent =
-			Enemy->GetEnemyAbilitySystemComponent())
+	if (UPdAbilitySystemComponent* AbilitySystemComponent = Enemy->GetEnemyAbilitySystemComponent())
 	{
 		FGameplayTagContainer CancelTags;
 		CancelTags.AddTag(LabGameplayTags::Action_Attack);
@@ -451,17 +394,13 @@ void UEnemyTrainingBotComponent::CancelWeaponChangeAttackState(
 		AbilitySystemComponent->CancelAbilities(&CancelTags);
 	}
 
-	if (UAnimInstance* AnimInstance =
-			Enemy->GetMesh()
-				? Enemy->GetMesh()->GetAnimInstance()
-				: nullptr)
+	if (UAnimInstance* AnimInstance = Enemy->GetMesh() ? Enemy->GetMesh()->GetAnimInstance() : nullptr)
 	{
 		AnimInstance->Montage_Stop(BlendOutTime);
 	}
 
 	UEquipmentComponent* Equipment = Enemy->GetEquipmentComponent();
-	if (AWeaponBase* Weapon =
-			Equipment ? Equipment->GetCurrentWeaponActor() : nullptr)
+	if (AWeaponBase* Weapon = Equipment ? Equipment->GetCurrentWeaponActor() : nullptr)
 	{
 		if (AMeleeWeapon* MeleeWeapon = Cast<AMeleeWeapon>(Weapon))
 		{
@@ -471,35 +410,25 @@ void UEnemyTrainingBotComponent::CancelWeaponChangeAttackState(
 	}
 }
 
-bool UEnemyTrainingBotComponent::PlayCurrentUnequipMontage(
-	float& OutDuration)
+bool UEnemyTrainingBotComponent::PlayCurrentUnequipMontage(float& OutDuration)
 {
 	OutDuration = 0.0f;
 	AEnemyBase* Enemy = GetEnemyOwner();
-	UEquipmentComponent* Equipment =
-		Enemy ? Enemy->GetEquipmentComponent() : nullptr;
-	if (!Enemy
-		|| !Equipment
-		|| (!Equipment->GetCurrentWeaponActor()
-			&& !Equipment->GetCurrentWeaponDefinition()))
+	UEquipmentComponent* Equipment = Enemy ? Enemy->GetEquipmentComponent() : nullptr;
+	if (!Enemy || !Equipment || (!Equipment->GetCurrentWeaponActor() && !Equipment->GetCurrentWeaponDefinition()))
 	{
 		return false;
 	}
 
 	FUnequipData UnequipData;
-	if (!Equipment->GetUnequipData(UnequipData)
-		|| !UnequipData.UnequipMontage)
+	if (!Equipment->GetUnequipData(UnequipData) || !UnequipData.UnequipMontage)
 	{
 		return false;
 	}
 
 	constexpr float PlayRate = 1.0f;
-	OutDuration = FMath::Max(
-		UnequipData.UnequipMontage->GetPlayLength() / PlayRate,
-		0.0f);
-	Enemy->MulticastPlayTrainingBotUnequipMontage(
-		UnequipData.UnequipMontage,
-		PlayRate);
+	OutDuration = FMath::Max(UnequipData.UnequipMontage->GetPlayLength() / PlayRate, 0.0f);
+	Enemy->MulticastPlayTrainingBotUnequipMontage(UnequipData.UnequipMontage, PlayRate);
 	return true;
 }
 
@@ -523,17 +452,14 @@ void UEnemyTrainingBotComponent::FinishPendingWeaponChange()
 		return;
 	}
 
-	if (Equipment->GetCurrentWeaponActor()
-		|| Equipment->GetCurrentWeaponDefinition())
+	if (Equipment->GetCurrentWeaponActor() || Equipment->GetCurrentWeaponDefinition())
 	{
 		Equipment->UnequipCurrentWeapon();
 	}
 	Enemy->ResetAnimationToDefault();
 
-	const UItemDefinition* RequestedWeaponDefinition =
-		PendingWeaponDefinition.Get();
-	const bool bRequestedUnarmed =
-		bPendingUnarmed || !RequestedWeaponDefinition;
+	const UItemDefinition* RequestedWeaponDefinition = PendingWeaponDefinition.Get();
+	const bool bRequestedUnarmed = bPendingUnarmed || !RequestedWeaponDefinition;
 	if (bRequestedUnarmed)
 	{
 		Combat->ClearStartingWeaponDefinition();
@@ -563,24 +489,19 @@ void UEnemyTrainingBotComponent::CacheRespawnTransform()
 void UEnemyTrainingBotComponent::ScheduleRespawn()
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
-	if (!Enemy
-		|| !Enemy->HasAuthority()
-		|| bRespawnResetInProgress
-		|| bRespawnScheduled
+	if (!Enemy || !Enemy->HasAuthority() || bRespawnResetInProgress || bRespawnScheduled
 		|| Enemy->GetWorldTimerManager().IsTimerActive(RespawnTimerHandle))
 	{
 		return;
 	}
 
 	CacheRespawnTransform();
-	if (AAIController* AIController =
-			Cast<AAIController>(Enemy->GetController()))
+	if (AAIController* AIController = Cast<AAIController>(Enemy->GetController()))
 	{
 		AIController->StopMovement();
 	}
 
-	if (UEnemyCombatComponent* Combat =
-			Enemy->GetEnemyCombatComponent())
+	if (UEnemyCombatComponent* Combat = Enemy->GetEnemyCombatComponent())
 	{
 		Combat->ShutdownRuntime();
 	}
@@ -597,12 +518,7 @@ void UEnemyTrainingBotComponent::ScheduleRespawn()
 
 	Enemy->StartDeathDissolve(Settings.RespawnDelay);
 	bRespawnScheduled = true;
-	Enemy->GetWorldTimerManager().SetTimer(
-		RespawnTimerHandle,
-		this,
-		&ThisClass::Respawn,
-		Settings.RespawnDelay,
-		false);
+	Enemy->GetWorldTimerManager().SetTimer(RespawnTimerHandle, this, &ThisClass::Respawn, Settings.RespawnDelay, false);
 }
 
 void UEnemyTrainingBotComponent::Respawn()
@@ -629,11 +545,7 @@ void UEnemyTrainingBotComponent::Respawn()
 		Combat->ResetAttributesForRespawn();
 	}
 
-	Enemy->SetActorTransform(
-		RespawnTransform,
-		false,
-		nullptr,
-		ETeleportType::TeleportPhysics);
+	Enemy->SetActorTransform(RespawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
 	Enemy->MulticastResetTrainingBotRespawnVisuals(RespawnTransform);
 
 	Enemy->InitializeBehaviorTreeCombat();
@@ -646,8 +558,7 @@ void UEnemyTrainingBotComponent::Respawn()
 		RequestUnarmed();
 	}
 
-	if (ATrainingBotAIController* TrainingController =
-			Cast<ATrainingBotAIController>(Enemy->GetController()))
+	if (ATrainingBotAIController* TrainingController = Cast<ATrainingBotAIController>(Enemy->GetController()))
 	{
 		TrainingController->RefreshTargetFromPlayers();
 	}
@@ -662,8 +573,7 @@ void UEnemyTrainingBotComponent::ResetRuntimeStateForRespawn()
 		return;
 	}
 
-	if (UEnemyCombatComponent* Combat =
-			Enemy->GetEnemyCombatComponent())
+	if (UEnemyCombatComponent* Combat = Enemy->GetEnemyCombatComponent())
 	{
 		Combat->ShutdownRuntime();
 	}
@@ -671,8 +581,7 @@ void UEnemyTrainingBotComponent::ResetRuntimeStateForRespawn()
 	Enemy->GetWorldTimerManager().ClearTimer(WeaponChangeTimerHandle);
 
 	CleanupArrowProjectilesForRespawn();
-	if (AAIController* AIController =
-			Cast<AAIController>(Enemy->GetController()))
+	if (AAIController* AIController = Cast<AAIController>(Enemy->GetController()))
 	{
 		AIController->StopMovement();
 	}
@@ -684,23 +593,18 @@ void UEnemyTrainingBotComponent::ResetRuntimeStateForRespawn()
 	bPendingUnarmed = false;
 	bWeaponChangeInProgress = false;
 
-	if (UPdAbilitySystemComponent* AbilitySystemComponent =
-			Enemy->GetEnemyAbilitySystemComponent())
+	if (UPdAbilitySystemComponent* AbilitySystemComponent = Enemy->GetEnemyAbilitySystemComponent())
 	{
 		AbilitySystemComponent->CancelAllAbilities();
 	}
 
-	if (UAnimInstance* AnimInstance =
-			Enemy->GetMesh()
-				? Enemy->GetMesh()->GetAnimInstance()
-				: nullptr)
+	if (UAnimInstance* AnimInstance = Enemy->GetMesh() ? Enemy->GetMesh()->GetAnimInstance() : nullptr)
 	{
 		AnimInstance->Montage_Stop(0.0f);
 	}
 
 	UEquipmentComponent* Equipment = Enemy->GetEquipmentComponent();
-	if (AWeaponBase* Weapon =
-			Equipment ? Equipment->GetCurrentWeaponActor() : nullptr)
+	if (AWeaponBase* Weapon = Equipment ? Equipment->GetCurrentWeaponActor() : nullptr)
 	{
 		if (AMeleeWeapon* MeleeWeapon = Cast<AMeleeWeapon>(Weapon))
 		{
@@ -709,17 +613,14 @@ void UEnemyTrainingBotComponent::ResetRuntimeStateForRespawn()
 		Weapon->StopWeaponMontage(0.0f);
 	}
 
-	if (Equipment
-		&& (Equipment->GetCurrentWeaponActor()
-			|| Equipment->GetCurrentWeaponDefinition()
-			|| Equipment->GetCurrentWeaponId().IsValid()))
+	if (Equipment && (Equipment->GetCurrentWeaponActor() || Equipment->GetCurrentWeaponDefinition()
+		|| Equipment->GetCurrentWeaponId().IsValid()))
 	{
 		Equipment->UnequipCurrentWeapon();
 	}
 
 	Enemy->ResetAnimationToDefault();
-	if (UEnemyCombatComponent* Combat =
-			Enemy->GetEnemyCombatComponent())
+	if (UEnemyCombatComponent* Combat = Enemy->GetEnemyCombatComponent())
 	{
 		Combat->ClearStartingWeaponDefinition();
 	}
@@ -734,11 +635,9 @@ void UEnemyTrainingBotComponent::CleanupArrowProjectilesForRespawn()
 	}
 
 	TArray<AArrowProjectileBase*> ArrowProjectiles;
-	const auto AddArrowProjectile =
-		[&ArrowProjectiles](AActor* Actor)
+	const auto AddArrowProjectile = [&ArrowProjectiles](AActor* Actor)
 		{
-			AArrowProjectileBase* ArrowProjectile =
-				Cast<AArrowProjectileBase>(Actor);
+			AArrowProjectileBase* ArrowProjectile = Cast<AArrowProjectileBase>(Actor);
 			if (IsValid(ArrowProjectile))
 			{
 				ArrowProjectiles.AddUnique(ArrowProjectile);
@@ -764,8 +663,7 @@ void UEnemyTrainingBotComponent::CleanupArrowProjectilesForRespawn()
 				continue;
 			}
 
-			if (ArrowProjectile->GetAttachParentActor() == Enemy
-				|| ArrowProjectile->GetOwner() == Enemy
+			if (ArrowProjectile->GetAttachParentActor() == Enemy || ArrowProjectile->GetOwner() == Enemy
 				|| ArrowProjectile->GetInstigator() == Enemy)
 			{
 				AddArrowProjectile(ArrowProjectile);
@@ -780,8 +678,7 @@ void UEnemyTrainingBotComponent::CleanupArrowProjectilesForRespawn()
 			continue;
 		}
 
-		if (Enemy->HasAuthority()
-			|| !ArrowProjectile->GetIsReplicated())
+		if (Enemy->HasAuthority() || !ArrowProjectile->GetIsReplicated())
 		{
 			ArrowProjectile->Destroy();
 		}
@@ -792,8 +689,7 @@ void UEnemyTrainingBotComponent::CleanupArrowProjectilesForRespawn()
 	}
 }
 
-void UEnemyTrainingBotComponent::ResetRespawnVisualsLocal(
-	const FTransform& InRespawnTransform)
+void UEnemyTrainingBotComponent::ResetRespawnVisualsLocal(const FTransform& InRespawnTransform)
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
 	if (!Enemy)
@@ -804,11 +700,7 @@ void UEnemyTrainingBotComponent::ResetRespawnVisualsLocal(
 	CleanupArrowProjectilesForRespawn();
 	if (!Enemy->HasAuthority())
 	{
-		Enemy->SetActorTransform(
-			InRespawnTransform,
-			false,
-			nullptr,
-			ETeleportType::TeleportPhysics);
+		Enemy->SetActorTransform(InRespawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
 	}
 	Enemy->ResetDeathStateForRespawn();
 }

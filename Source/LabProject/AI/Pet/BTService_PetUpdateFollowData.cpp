@@ -48,8 +48,7 @@ void UBTService_PetUpdateFollowData::TickNode(UBehaviorTreeComponent& OwnerComp,
 	if (FollowTarget)
 	{
 		BlackboardComponent->SetValueAsObject(FollowTargetActorKey.SelectedKeyName, FollowTarget);
-		BlackboardComponent->SetValueAsFloat(
-			DistanceToOwnerKey.SelectedKeyName,
+		BlackboardComponent->SetValueAsFloat(DistanceToOwnerKey.SelectedKeyName,
 			FVector::Dist2D(Pawn->GetActorLocation(), FollowTarget->GetActorLocation()));
 	}
 	else

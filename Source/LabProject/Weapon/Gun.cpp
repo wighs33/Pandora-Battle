@@ -49,17 +49,13 @@ bool AGun::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 
 	ExecuteMuzzleFlashCue(PlayerCharacter);
 	RecordClientPerceivedShot(PlayerCharacter, ViewLocation, ViewDirection);
-	ServerHandlePrimaryAttack(
-		ViewLocation,
-		ViewDirection,
-		PdLagCompensation::GetClientViewServerTime(PlayerCharacter));
+	ServerHandlePrimaryAttack(ViewLocation, ViewDirection, PdLagCompensation::GetClientViewServerTime(PlayerCharacter));
 	return true;
 }
 
 bool AGun::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor)
 {
-	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
-		|| !IsValid(TargetActor))
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false) || !IsValid(TargetActor))
 	{
 		return false;
 	}
@@ -69,8 +65,7 @@ bool AGun::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* Tar
 
 bool AGun::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* /*TargetActor*/, const FVector& TargetLocation)
 {
-	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
-		|| TargetLocation.IsNearlyZero())
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false) || TargetLocation.IsNearlyZero())
 	{
 		return false;
 	}
@@ -78,11 +73,8 @@ bool AGun::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, A
 	return HandleAIPrimaryAttackAtLocationOnServer(AttackingCharacter, TargetLocation);
 }
 
-bool AGun::HandlePrimaryAttackOnServer(
-	APdPlayer* PlayerCharacter,
-	const FVector& RequestedViewLocation,
-	const FVector& RequestedViewDirection,
-	const double ClientViewServerTime)
+bool AGun::HandlePrimaryAttackOnServer(APdPlayer* PlayerCharacter, const FVector& RequestedViewLocation,
+	const FVector& RequestedViewDirection, const double ClientViewServerTime)
 {
 	if (!CanServerUseRangedWeapon(PlayerCharacter, true))
 	{
@@ -114,23 +106,14 @@ bool AGun::HandlePrimaryAttackOnServer(
 		: FPdRewindRequest();
 
 	FHitResult HitResult;
-	const bool bHasHitResult = TraceGunShot(
-		PlayerCharacter,
-		RequestedViewLocation,
-		RequestedViewDirection,
-		HitResult,
+	const bool bHasHitResult = TraceGunShot(PlayerCharacter, RequestedViewLocation, RequestedViewDirection, HitResult,
 		RewindRequest.RewindServerTime);
-	RecordLagCompensatedShot(
-		PlayerCharacter,
-		RewindRequest,
-		RequestedViewLocation,
-		RequestedViewDirection,
+	RecordLagCompensatedShot(PlayerCharacter, RewindRequest, RequestedViewLocation, RequestedViewDirection,
 		bHasHitResult ? &HitResult : nullptr);
 
 	if (bHasHitResult)
 	{
-		const bool bHitFriendlyTarget =
-			IsFriendlyDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent());
+		const bool bHitFriendlyTarget = IsFriendlyDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent());
 		if (!bHitFriendlyTarget && HasConfiguredImpactDecal() && ShouldSpawnImpactDecalForHit(HitResult))
 		{
 			const FVector ImpactLocation = HitResult.ImpactPoint.IsNearlyZero() ? HitResult.Location : HitResult.ImpactPoint;
@@ -152,8 +135,7 @@ bool AGun::HandlePrimaryAttackOnServer(
 
 bool AGun::HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, const FVector& TargetLocation)
 {
-	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
-		|| TargetLocation.IsNearlyZero())
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false) || TargetLocation.IsNearlyZero())
 	{
 		return false;
 	}
@@ -169,8 +151,7 @@ bool AGun::HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingChar
 	FVector ShotDirection = FVector::ForwardVector;
 	if (TraceAIGunShotAtLocation(AttackingCharacter, TargetLocation, HitResult, ShotDirection))
 	{
-		const bool bHitFriendlyTarget =
-			IsFriendlyDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent());
+		const bool bHitFriendlyTarget = IsFriendlyDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent());
 		if (!bHitFriendlyTarget && HasConfiguredImpactDecal() && ShouldSpawnImpactDecalForHit(HitResult))
 		{
 			const FVector ImpactLocation = HitResult.ImpactPoint.IsNearlyZero() ? HitResult.Location : HitResult.ImpactPoint;
@@ -187,15 +168,10 @@ bool AGun::HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingChar
 	return true;
 }
 
-void AGun::ServerHandlePrimaryAttack_Implementation(
-	FVector_NetQuantize RequestedViewLocation,
-	FVector_NetQuantizeNormal RequestedViewDirection,
-	double ClientViewServerTime)
+void AGun::ServerHandlePrimaryAttack_Implementation(FVector_NetQuantize RequestedViewLocation,
+	FVector_NetQuantizeNormal RequestedViewDirection, double ClientViewServerTime)
 {
-	HandlePrimaryAttackOnServer(
-		Cast<APdPlayer>(GetOwningCharacter()),
-		RequestedViewLocation,
-		RequestedViewDirection,
+	HandlePrimaryAttackOnServer(Cast<APdPlayer>(GetOwningCharacter()), RequestedViewLocation, RequestedViewDirection,
 		ClientViewServerTime);
 }
 
@@ -209,10 +185,8 @@ void AGun::MulticastExecuteMuzzleFlashCue_Implementation()
 	ExecuteMuzzleFlashCue(GetOwningCharacter());
 }
 
-void AGun::MulticastSpawnImpactDecal_Implementation(
-	FVector_NetQuantize ImpactLocation,
-	FVector_NetQuantizeNormal ImpactNormal,
-	float DecalSize)
+void AGun::MulticastSpawnImpactDecal_Implementation(FVector_NetQuantize ImpactLocation,
+	FVector_NetQuantizeNormal ImpactNormal, float DecalSize)
 {
 	SpawnImpactDecal(ImpactLocation, ImpactNormal, DecalSize);
 }
@@ -332,10 +306,7 @@ void AGun::SpawnImpactDecal(const FVector& ImpactLocation, const FVector& Impact
 	}
 
 	const FVector SafeImpactNormal = ImpactNormal.GetSafeNormal(UE_SMALL_NUMBER, FVector::UpVector);
-	const FVector DecalSizeVector(
-		FMath::Max(0.0f, GunData.ImpactDecalDepth),
-		DecalSize,
-		DecalSize);
+	const FVector DecalSizeVector(FMath::Max(0.0f, GunData.ImpactDecalDepth), DecalSize, DecalSize);
 	const FRotator DecalRotation = (SafeImpactNormal.Rotation() + GunData.ImpactDecalRotationOffset).GetNormalized();
 	const float LifeSpan = FMath::Max(0.0f, GunData.ImpactDecalLifeSpan);
 
@@ -453,11 +424,8 @@ FVector AGun::GetGunTraceStartLocation(const ACharacterBase* Character) const
 	return GetActorLocation();
 }
 
-bool AGun::TraceAIGunShotAtLocation(
-	ACharacterBase* AttackingCharacter,
-	const FVector& TargetLocation,
-	FHitResult& OutHitResult,
-	FVector& OutShotDirection) const
+bool AGun::TraceAIGunShotAtLocation(ACharacterBase* AttackingCharacter, const FVector& TargetLocation,
+	FHitResult& OutHitResult, FVector& OutShotDirection) const
 {
 	const float TraceRange = GetGunTraceRange();
 	if (!AttackingCharacter || TargetLocation.IsNearlyZero() || TraceRange <= 0.0f)
@@ -481,32 +449,15 @@ bool AGun::TraceAIGunShotAtLocation(
 
 	const FVector TraceEnd = TraceStart + (OutShotDirection * TraceRange);
 	const float TraceRadius = GetGunTraceRadius();
-	const TArray<TEnumAsByte<EObjectTypeQuery>> TraceObjectTypes =
-		GetGunTraceObjectTypes();
+	const TArray<TEnumAsByte<EObjectTypeQuery>> TraceObjectTypes = GetGunTraceObjectTypes();
 	TArray<FHitResult> HitResults;
-	UKismetSystemLibrary::SphereTraceMultiForObjects(
-		this,
-		TraceStart,
-		TraceEnd,
-		TraceRadius,
-		TraceObjectTypes,
-		false,
-		ActorsToIgnore,
-		ShotTraceDebugDrawType,
-		HitResults,
-		true,
-		FLinearColor::Red,
-		FLinearColor::Green,
-		5.0f);
+	UKismetSystemLibrary::SphereTraceMultiForObjects(this, TraceStart, TraceEnd, TraceRadius, TraceObjectTypes, false,
+		ActorsToIgnore, ShotTraceDebugDrawType, HitResults, true, FLinearColor::Red, FLinearColor::Green, 5.0f);
 	return SelectFirstValidGunImpact(HitResults, OutHitResult);
 }
 
-bool AGun::TraceGunShot(
-	APdPlayer* PlayerCharacter,
-	const FVector& RequestedViewLocation,
-	const FVector& RequestedViewDirection,
-	FHitResult& OutHitResult,
-	const double RewindServerTime) const
+bool AGun::TraceGunShot(APdPlayer* PlayerCharacter, const FVector& RequestedViewLocation,
+	const FVector& RequestedViewDirection, FHitResult& OutHitResult, const double RewindServerTime) const
 {
 	const float TraceRange = GetGunTraceRange();
 	if (!PlayerCharacter || TraceRange <= 0.0f)
@@ -537,31 +488,19 @@ bool AGun::TraceGunShot(
 		: EDrawDebugTrace::None;
 	FVector AimTargetLocation = FVector::ZeroVector;
 	FHitResult AimHitResult;
-	if (!ResolveAimTargetBeyondLaunchPoint(
-		ViewLocation,
-		SafeViewDirection,
-		TraceStart,
-		TraceRange,
-		TraceObjectTypes,
-		ActorsToIgnore,
-		AimTraceDebugDrawType,
-		AimTargetLocation,
-		&AimHitResult,
-		RewindServerTime))
+	if (!ResolveAimTargetBeyondLaunchPoint(ViewLocation, SafeViewDirection, TraceStart, TraceRange, TraceObjectTypes,
+		ActorsToIgnore, AimTraceDebugDrawType, AimTargetLocation, &AimHitResult, RewindServerTime))
 	{
 		return false;
 	}
 
 	const FVector ShotDirection = (AimTargetLocation - TraceStart).GetSafeNormal();
-	if (ShotDirection.IsNearlyZero()
-		|| FVector::DotProduct(ShotDirection, SafeViewDirection) <= 0.0f)
+	if (ShotDirection.IsNearlyZero() || FVector::DotProduct(ShotDirection, SafeViewDirection) <= 0.0f)
 	{
 		return false;
 	}
 	const float TargetDistance = FVector::Distance(TraceStart, AimTargetLocation);
-	const float TraceDistance = FMath::Min(
-		TraceRange,
-		TargetDistance + GetGunTraceRadius() + 1.0f);
+	const float TraceDistance = FMath::Min(TraceRange, TargetDistance + GetGunTraceRadius() + 1.0f);
 	const FVector TraceEnd = TraceStart + (ShotDirection * TraceDistance);
 
 	const EDrawDebugTrace::Type ShotTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
@@ -570,15 +509,8 @@ bool AGun::TraceGunShot(
 
 	const float TraceRadius = GetGunTraceRadius();
 	TArray<FHitResult> HitResults;
-	SphereTraceMultiForRangedShot(
-		RewindServerTime,
-		TraceStart,
-		TraceEnd,
-		TraceRadius,
-		TraceObjectTypes,
-		ActorsToIgnore,
-		ShotTraceDebugDrawType,
-		HitResults);
+	SphereTraceMultiForRangedShot(RewindServerTime, TraceStart, TraceEnd, TraceRadius, TraceObjectTypes, ActorsToIgnore,
+		ShotTraceDebugDrawType, HitResults);
 	if (SelectFirstValidGunImpact(HitResults, OutHitResult))
 	{
 		return true;
@@ -590,9 +522,7 @@ bool AGun::TraceGunShot(
 	// no valid world or character impact blocked the path. Capsules and interaction
 	// components remain ineligible for damage.
 	const ACharacterBase* AimDamageCharacter =
-		PdCharacterHitValidation::ResolveWeaponDamageHit(
-			AimHitResult.GetActor(),
-			AimHitResult.GetComponent());
+		PdCharacterHitValidation::ResolveWeaponDamageHit(AimHitResult.GetActor(), AimHitResult.GetComponent());
 	if (!AimDamageCharacter)
 	{
 		return false;
@@ -601,10 +531,8 @@ bool AGun::TraceGunShot(
 	const FVector AimImpactLocation = AimHitResult.ImpactPoint.IsNearlyZero()
 		? AimHitResult.Location
 		: AimHitResult.ImpactPoint;
-	const float AimImpactForwardDistance =
-		FVector::DotProduct(AimImpactLocation - TraceStart, ShotDirection);
-	if (AimImpactForwardDistance <= 0.0f
-		|| AimImpactForwardDistance > TraceDistance + TraceRadius + 1.0f)
+	const float AimImpactForwardDistance = FVector::DotProduct(AimImpactLocation - TraceStart, ShotDirection);
+	if (AimImpactForwardDistance <= 0.0f || AimImpactForwardDistance > TraceDistance + TraceRadius + 1.0f)
 	{
 		return false;
 	}
@@ -614,11 +542,8 @@ bool AGun::TraceGunShot(
 }
 
 // 되감기 전후 판정을 비교해 통계를 남기고, 명중한 대상의 현재·되감기 위치를 디버그로 표시한다.
-void AGun::RecordLagCompensatedShot(
-	APdPlayer* PlayerCharacter,
-	const FPdRewindRequest& RewindRequest,
-	const FVector& RequestedViewLocation,
-	const FVector& RequestedViewDirection,
+void AGun::RecordLagCompensatedShot(APdPlayer* PlayerCharacter, const FPdRewindRequest& RewindRequest,
+	const FVector& RequestedViewLocation, const FVector& RequestedViewDirection,
 	const FHitResult* JudgedHitResult) const
 {
 	const bool bCollectStats = PdLagCompensation::IsStatsEnabled();
@@ -644,10 +569,7 @@ void AGun::RecordLagCompensatedShot(
 
 	if (bCollectStats)
 	{
-		LagCompensationSubsystem->RecordServerShot(
-			PlayerCharacter->GetController(),
-			RewindRequest,
-			CurrentCharacter,
+		LagCompensationSubsystem->RecordServerShot(PlayerCharacter->GetController(), RewindRequest, CurrentCharacter,
 			JudgedCharacter);
 	}
 
@@ -666,19 +588,13 @@ void AGun::RecordLagCompensatedShot(
 		? ShooterController->FindComponentByClass<UControllerLagCompensationComponent>()
 		: nullptr)
 	{
-		LagCompensationComponent->ShowRewindDebug(
-			DebugCharacter->GetActorLocation(),
-			RewoundCenter,
-			DebugCapsule->GetScaledCapsuleHalfHeight(),
-			DebugCapsule->GetScaledCapsuleRadius(),
-			RewindRequest.RewindMs);
+		LagCompensationComponent->ShowRewindDebug(DebugCharacter->GetActorLocation(), RewoundCenter,
+			DebugCapsule->GetScaledCapsuleHalfHeight(), DebugCapsule->GetScaledCapsuleRadius(), RewindRequest.RewindMs);
 	}
 }
 
 // 통계 수집 중이면 클라이언트 화면 기준으로도 같은 사격을 판정해 체감 명중 수를 남긴다.
-void AGun::RecordClientPerceivedShot(
-	APdPlayer* PlayerCharacter,
-	const FVector& ViewLocation,
+void AGun::RecordClientPerceivedShot(APdPlayer* PlayerCharacter, const FVector& ViewLocation,
 	const FVector& ViewDirection) const
 {
 	ULagCompensationSubsystem* LagCompensationSubsystem = ULagCompensationSubsystem::Get(this);
@@ -688,26 +604,19 @@ void AGun::RecordClientPerceivedShot(
 	}
 
 	FHitResult LocalHitResult;
-	const bool bPerceivedCharacterHit =
-		TraceGunShot(PlayerCharacter, ViewLocation, ViewDirection, LocalHitResult)
+	const bool bPerceivedCharacterHit = TraceGunShot(PlayerCharacter, ViewLocation, ViewDirection, LocalHitResult)
 		&& ResolveDamageTargetActor(LocalHitResult.GetActor(), LocalHitResult.GetComponent()) != nullptr;
 	LagCompensationSubsystem->RecordClientShot(bPerceivedCharacterHit);
 }
 
-bool AGun::SelectFirstValidGunImpact(
-	const TArray<FHitResult>& HitResults,
-	FHitResult& OutHitResult) const
+bool AGun::SelectFirstValidGunImpact(const TArray<FHitResult>& HitResults, FHitResult& OutHitResult) const
 {
 	for (const FHitResult& HitResult : HitResults)
 	{
-		const bool bRelatedToCharacter =
-			PdCharacterHitValidation::ResolveRelatedCharacter(
-				HitResult.GetActor(),
-				HitResult.GetComponent()) != nullptr;
+		const bool bRelatedToCharacter = PdCharacterHitValidation::ResolveRelatedCharacter(HitResult.GetActor(),
+			HitResult.GetComponent()) != nullptr;
 		if (bRelatedToCharacter
-			&& !PdCharacterHitValidation::ResolveWeaponDamageHit(
-				HitResult.GetActor(),
-				HitResult.GetComponent()))
+			&& !PdCharacterHitValidation::ResolveWeaponDamageHit(HitResult.GetActor(), HitResult.GetComponent()))
 		{
 			continue;
 		}
@@ -720,9 +629,7 @@ bool AGun::SelectFirstValidGunImpact(
 	return false;
 }
 
-bool AGun::IsFriendlyDamageTargetActor(
-	AActor* HitActor,
-	const UPrimitiveComponent* HitComponent) const
+bool AGun::IsFriendlyDamageTargetActor(AActor* HitActor, const UPrimitiveComponent* HitComponent) const
 {
 	const ACharacterBase* SourceCharacter = GetOwningCharacter();
 	if (!SourceCharacter || !IsValid(HitActor))
@@ -730,8 +637,7 @@ bool AGun::IsFriendlyDamageTargetActor(
 		return false;
 	}
 
-	const ACharacterBase* TargetCharacter =
-		PdCharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
+	const ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
 	if (!TargetCharacter)
 	{
 		return false;
@@ -740,17 +646,14 @@ bool AGun::IsFriendlyDamageTargetActor(
 	return !SourceCharacter->CanDamageCharacterByTeam(TargetCharacter);
 }
 
-AActor* AGun::ResolveDamageTargetActor(
-	AActor* HitActor,
-	const UPrimitiveComponent* HitComponent) const
+AActor* AGun::ResolveDamageTargetActor(AActor* HitActor, const UPrimitiveComponent* HitComponent) const
 {
 	if (!IsValid(HitActor))
 	{
 		return nullptr;
 	}
 
-	ACharacterBase* TargetCharacter =
-		PdCharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
+	ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
 	const ACharacterBase* SourceCharacter = GetOwningCharacter();
 	return TargetCharacter
 		&& (!SourceCharacter || SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))

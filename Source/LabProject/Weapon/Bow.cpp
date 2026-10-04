@@ -124,21 +124,16 @@ bool ABow::BeginServerDraw(APdPlayer* PlayerCharacter)
 	}
 
 	bServerDrawPending = true;
-	World->GetTimerManager().SetTimer(
-		ServerDrawReadyTimerHandle,
-		this,
-		&ThisClass::HandleServerDrawReady,
-		GetEffectiveMinimumDrawDuration(),
-		false);
+	World->GetTimerManager().SetTimer(ServerDrawReadyTimerHandle, this, &ThisClass::HandleServerDrawReady,
+		GetEffectiveMinimumDrawDuration(), false);
 	return true;
 }
 
 void ABow::BindServerDrawInvalidation(UPdAbilitySystemComponent* AbilitySystemComponent)
 {
-	if (!HasAuthority()
-		|| !AbilitySystemComponent
+	if (!HasAuthority() || !AbilitySystemComponent
 		|| (ServerDrawBoundAbilitySystemComponent.Get() == AbilitySystemComponent
-			&& OwnerDeadTagChangedDelegateHandle.IsValid()))
+		&& OwnerDeadTagChangedDelegateHandle.IsValid()))
 	{
 		return;
 	}
@@ -333,8 +328,7 @@ bool ABow::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 
 bool ABow::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* TargetActor)
 {
-	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
-		|| !IsValid(TargetActor))
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false) || !IsValid(TargetActor))
 	{
 		return false;
 	}
@@ -344,8 +338,7 @@ bool ABow::HandleAIPrimaryAttack(ACharacterBase* AttackingCharacter, AActor* Tar
 
 bool ABow::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, AActor* /*TargetActor*/, const FVector& TargetLocation)
 {
-	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
-		|| TargetLocation.IsNearlyZero())
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false) || TargetLocation.IsNearlyZero())
 	{
 		return false;
 	}
@@ -449,9 +442,7 @@ AActor* ABow::SpawnArrowActor(ACharacterBase* Character, bool bAttachToCharacter
 	SpawnedArrow->SetActorHiddenInGame(false);
 	if (bAttachToCharacter)
 	{
-		SpawnedArrow->AttachToComponent(
-			CharacterMesh,
-			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+		SpawnedArrow->AttachToComponent(CharacterMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 			AttachSocketName);
 	}
 
@@ -513,8 +504,7 @@ bool ABow::LaunchArrowAtTargetOnServer(ACharacterBase* AttackingCharacter, AActo
 
 bool ABow::LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, const FVector& TargetLocation)
 {
-	if (!CanServerUseRangedWeapon(AttackingCharacter, false)
-		|| !IsServerFireCadenceReady()
+	if (!CanServerUseRangedWeapon(AttackingCharacter, false) || !IsServerFireCadenceReady()
 		|| TargetLocation.IsNearlyZero())
 	{
 		return false;
@@ -553,17 +543,11 @@ bool ABow::LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, con
 	return true;
 }
 
-bool ABow::LaunchArrowOnServer(
-	APdPlayer* PlayerCharacter,
-	const FVector& RequestedViewLocation,
+bool ABow::LaunchArrowOnServer(APdPlayer* PlayerCharacter, const FVector& RequestedViewLocation,
 	const FVector& RequestedViewDirection)
 {
-	UCombatComponent* CombatComponent = PlayerCharacter
-		? PlayerCharacter->GetCombatComponent()
-		: nullptr;
-	if (!CanServerUseRangedWeapon(PlayerCharacter, true)
-		|| !IsServerFireCadenceReady()
-		|| !CombatComponent
+	UCombatComponent* CombatComponent = PlayerCharacter ? PlayerCharacter->GetCombatComponent() : nullptr;
+	if (!CanServerUseRangedWeapon(PlayerCharacter, true) || !IsServerFireCadenceReady() || !CombatComponent
 		|| !CombatComponent->CanAffordRangedWeaponAttackStamina())
 	{
 		InvalidateServerDrawState(true);
@@ -582,11 +566,8 @@ bool ABow::LaunchArrowOnServer(
 		return false;
 	}
 
-	const FVector LaunchDirection = CalculateArrowLaunchDirection(
-		PlayerCharacter,
-		RequestedViewLocation,
-		RequestedViewDirection,
-		LaunchStartLocation);
+	const FVector LaunchDirection = CalculateArrowLaunchDirection(PlayerCharacter, RequestedViewLocation,
+		RequestedViewDirection, LaunchStartLocation);
 	if (LaunchDirection.IsNearlyZero())
 	{
 		DestroyDrawnArrow();
@@ -641,8 +622,7 @@ void ABow::ServerBeginDraw_Implementation()
 	BeginServerDraw(Cast<APdPlayer>(GetOwningCharacter()));
 }
 
-void ABow::ServerLaunchArrow_Implementation(
-	FVector_NetQuantize RequestedViewLocation,
+void ABow::ServerLaunchArrow_Implementation(FVector_NetQuantize RequestedViewLocation,
 	FVector_NetQuantizeNormal RequestedViewDirection)
 {
 	LaunchArrowOnServer(Cast<APdPlayer>(GetOwningCharacter()), RequestedViewLocation, RequestedViewDirection);
@@ -674,11 +654,8 @@ AActor* ABow::RefreshDrawnArrow(APdPlayer* PlayerCharacter)
 	return SpawnDrawnArrow(PlayerCharacter);
 }
 
-FVector ABow::CalculateArrowLaunchDirection(
-	APdPlayer* PlayerCharacter,
-	const FVector& RequestedViewLocation,
-	const FVector& RequestedViewDirection,
-	const FVector& LaunchStartLocation) const
+FVector ABow::CalculateArrowLaunchDirection(APdPlayer* PlayerCharacter, const FVector& RequestedViewLocation,
+	const FVector& RequestedViewDirection, const FVector& LaunchStartLocation) const
 {
 	const float TraceRange = GetArrowTraceRange();
 	if (!PlayerCharacter || TraceRange <= 0.0f)
@@ -710,41 +687,24 @@ FVector ABow::CalculateArrowLaunchDirection(
 		? ItemDefinition->WeaponData.Bow.AimTraceDebugDrawType.GetValue()
 		: EDrawDebugTrace::None;
 	FVector AimTargetLocation = FVector::ZeroVector;
-	if (!ResolveAimTargetBeyondLaunchPoint(
-		ViewLocation,
-		SafeViewDirection,
-		LaunchStartLocation,
-		TraceRange,
-		GetBowTraceObjectTypes(),
-		ActorsToIgnore,
-		AimTraceDebugDrawType,
-		AimTargetLocation))
+	if (!ResolveAimTargetBeyondLaunchPoint(ViewLocation, SafeViewDirection, LaunchStartLocation, TraceRange,
+		GetBowTraceObjectTypes(), ActorsToIgnore, AimTraceDebugDrawType, AimTargetLocation))
 	{
 		return FVector::ZeroVector;
 	}
 
 	const FVector LaunchDirection = (AimTargetLocation - LaunchStartLocation).GetSafeNormal();
-	if (LaunchDirection.IsNearlyZero()
-		|| FVector::DotProduct(LaunchDirection, SafeViewDirection) <= 0.0f)
+	if (LaunchDirection.IsNearlyZero() || FVector::DotProduct(LaunchDirection, SafeViewDirection) <= 0.0f)
 	{
 		return FVector::ZeroVector;
 	}
 
-	const float LaunchTraceDistance = FMath::Min(
-		TraceRange,
+	const float LaunchTraceDistance = FMath::Min(TraceRange,
 		FVector::Distance(LaunchStartLocation, AimTargetLocation) + 1.0f);
 	const FVector LaunchTraceEnd = LaunchStartLocation + (LaunchDirection * LaunchTraceDistance);
 	FHitResult HitResult;
-	const bool bHit = UKismetSystemLibrary::LineTraceSingleForObjects(
-		this,
-		LaunchStartLocation,
-		LaunchTraceEnd,
-		GetBowTraceObjectTypes(),
-		false,
-		ActorsToIgnore,
-		EDrawDebugTrace::None,
-		HitResult,
-		true);
+	const bool bHit = UKismetSystemLibrary::LineTraceSingleForObjects(this, LaunchStartLocation, LaunchTraceEnd,
+		GetBowTraceObjectTypes(), false, ActorsToIgnore, EDrawDebugTrace::None, HitResult, true);
 
 	const FVector TargetLocation = bHit ? HitResult.Location : LaunchTraceEnd;
 	return (TargetLocation - LaunchStartLocation).GetSafeNormal();

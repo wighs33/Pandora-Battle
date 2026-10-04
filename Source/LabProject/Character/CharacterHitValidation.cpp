@@ -7,9 +7,7 @@
 
 namespace PdCharacterHitValidation
 {
-	ACharacterBase* ResolveRelatedCharacter(
-		AActor* HitActor,
-		const UPrimitiveComponent* HitComponent)
+	ACharacterBase* ResolveRelatedCharacter(AActor* HitActor, const UPrimitiveComponent* HitComponent)
 	{
 		if (const UPrimitiveComponent* Component = HitComponent)
 		{
@@ -41,19 +39,13 @@ namespace PdCharacterHitValidation
 		return nullptr;
 	}
 
-	ACharacterBase* ResolveDirectMeshHit(
-		AActor* HitActor,
-		const UPrimitiveComponent* HitComponent)
+	ACharacterBase* ResolveDirectMeshHit(AActor* HitActor, const UPrimitiveComponent* HitComponent)
 	{
 		ACharacterBase* Character = ResolveRelatedCharacter(HitActor, HitComponent);
-		return Character && HitComponent && HitComponent == Character->GetMesh()
-			? Character
-			: nullptr;
+		return Character && HitComponent && HitComponent == Character->GetMesh() ? Character : nullptr;
 	}
 
-	ACharacterBase* ResolveMeleeWeaponDamageHit(
-		AActor* HitActor,
-		const UPrimitiveComponent* HitComponent)
+	ACharacterBase* ResolveMeleeWeaponDamageHit(AActor* HitActor, const UPrimitiveComponent* HitComponent)
 	{
 		ACharacterBase* Character = ResolveRelatedCharacter(HitActor, HitComponent);
 		return Character
@@ -64,24 +56,18 @@ namespace PdCharacterHitValidation
 				: nullptr;
 	}
 
-	ACharacterBase* ResolveWeaponDamageHit(
-		AActor* HitActor,
-		const UPrimitiveComponent* HitComponent)
+	ACharacterBase* ResolveWeaponDamageHit(AActor* HitActor, const UPrimitiveComponent* HitComponent)
 	{
 		return ResolveDirectMeshHit(HitActor, HitComponent);
 	}
 
-	bool IsCharacterRelatedNonMeshHit(
-		AActor* HitActor,
-		const UPrimitiveComponent* HitComponent)
+	bool IsCharacterRelatedNonMeshHit(AActor* HitActor, const UPrimitiveComponent* HitComponent)
 	{
 		return ResolveRelatedCharacter(HitActor, HitComponent) != nullptr
 			&& ResolveDirectMeshHit(HitActor, HitComponent) == nullptr;
 	}
 
-	bool IsCharacterRelatedNonWeaponDamageHit(
-		AActor* HitActor,
-		const UPrimitiveComponent* HitComponent)
+	bool IsCharacterRelatedNonWeaponDamageHit(AActor* HitActor, const UPrimitiveComponent* HitComponent)
 	{
 		return ResolveRelatedCharacter(HitActor, HitComponent) != nullptr
 			&& ResolveWeaponDamageHit(HitActor, HitComponent) == nullptr;

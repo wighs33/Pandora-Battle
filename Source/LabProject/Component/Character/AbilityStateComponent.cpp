@@ -189,13 +189,13 @@ void UAbilityStateComponent::BindMovementSpeedAttributeToASC(UAbilitySystemCompo
 	MovementAttributesAbilitySystemComponent = AbilitySystemComponent;
 	MovementSpeedAttributeChangedDelegateHandle =
 		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMovementSpeedAttribute())
-			.AddUObject(this, &ThisClass::HandleMovementAttributesChanged);
+		.AddUObject(this, &ThisClass::HandleMovementAttributesChanged);
 	MovementStaminaAttributeChangedDelegateHandle =
 		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetStaminaAttribute())
-			.AddUObject(this, &ThisClass::HandleMovementAttributesChanged);
+		.AddUObject(this, &ThisClass::HandleMovementAttributesChanged);
 	MovementMaxStaminaAttributeChangedDelegateHandle =
 		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxStaminaAttribute())
-			.AddUObject(this, &ThisClass::HandleMovementAttributesChanged);
+		.AddUObject(this, &ThisClass::HandleMovementAttributesChanged);
 	// 무기마다 이동속도 배율이 달라서, 장착 무기가 바뀌면 다시 계산한다.
 	const ACharacterBase* Character = GetCharacterOwner();
 	if (UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr)
@@ -668,7 +668,7 @@ void UAbilityStateComponent::BindStaminaRegenToASC(UAbilitySystemComponent* Abil
 	StaminaRegenAbilitySystemComponent = AbilitySystemComponent;
 	StaminaChangedDelegateHandle =
 		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetStaminaAttribute())
-			.AddUObject(this, &ThisClass::HandleStaminaChanged);
+		.AddUObject(this, &ThisClass::HandleStaminaChanged);
 }
 
 // 스태미나 소비 시 회복 효과를 중단하고 1초 뒤 회복을 예약한다. 최대치에 도달하면 회복 효과와 대기 타이머를 제거한다.

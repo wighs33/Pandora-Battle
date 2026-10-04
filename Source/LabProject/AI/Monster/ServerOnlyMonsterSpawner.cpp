@@ -35,8 +35,7 @@ namespace
 			 ++PropertyIt)
 		{
 			FProperty* Property = *PropertyIt;
-			const bool bNameMatches =
-				NormalizePropertyName(Property->GetName()) == NormalizedRequestedName
+			const bool bNameMatches = NormalizePropertyName(Property->GetName()) == NormalizedRequestedName
 				|| NormalizePropertyName(Property->GetAuthoredName()) == NormalizedRequestedName;
 
 			if (!bNameMatches)
@@ -85,9 +84,7 @@ void AServerOnlyMonsterSpawner::BeginPlay()
 	// ROLE_Authority, so HasAuthority() alone cannot identify this case.
 	if (GetNetMode() == NM_Client || !HasAuthority())
 	{
-		UE_LOG(
-			LogServerOnlyMonsterSpawner,
-			Error,
+		UE_LOG(LogServerOnlyMonsterSpawner, Error,
 			TEXT("Destroying unauthorized client-side monster spawner '%s' before it can spawn a monster."),
 			*GetPathName());
 		Destroy();
@@ -98,22 +95,17 @@ void AServerOnlyMonsterSpawner::BeginPlay()
 	if (!MonsterClass)
 	{
 		UAssetManager& AssetManager = UAssetManager::Get();
-		const FPrimaryAssetId DefinitionId =
-			UEnemyBaseDefinition::GetDefaultPrimaryAssetId();
-		UEnemyBaseDefinition* EnemyDefinition =
-			AssetManager.GetPrimaryAssetObject<UEnemyBaseDefinition>(DefinitionId);
+		const FPrimaryAssetId DefinitionId = UEnemyBaseDefinition::GetDefaultPrimaryAssetId();
+		UEnemyBaseDefinition* EnemyDefinition = AssetManager.GetPrimaryAssetObject<UEnemyBaseDefinition>(DefinitionId);
 		if (!EnemyDefinition)
 		{
-			const FSoftObjectPath DefinitionPath =
-				AssetManager.GetPrimaryAssetPath(DefinitionId);
-			EnemyDefinition =
-				Cast<UEnemyBaseDefinition>(DefinitionPath.TryLoad());
+			const FSoftObjectPath DefinitionPath = AssetManager.GetPrimaryAssetPath(DefinitionId);
+			EnemyDefinition = Cast<UEnemyBaseDefinition>(DefinitionPath.TryLoad());
 		}
 
 		if (EnemyDefinition)
 		{
-			MonsterClass = EnemyDefinition->GetCombatSettings()
-				.DefaultMonsterClass.LoadSynchronous();
+			MonsterClass = EnemyDefinition->GetCombatSettings().DefaultMonsterClass.LoadSynchronous();
 		}
 	}
 	SpawnMonster();
@@ -141,9 +133,7 @@ void AServerOnlyMonsterSpawner::SpawnMonster()
 
 	if (IsValid(SpawnedMonster))
 	{
-		UE_LOG(
-			LogServerOnlyMonsterSpawner,
-			Warning,
+		UE_LOG(LogServerOnlyMonsterSpawner, Warning,
 			TEXT("Spawner '%s' ignored a duplicate spawn request while '%s' is still alive."),
 			*GetPathName(),
 			*SpawnedMonster->GetPathName());
@@ -153,9 +143,7 @@ void AServerOnlyMonsterSpawner::SpawnMonster()
 	UWorld* World = GetWorld();
 	if (!World || !MonsterClass)
 	{
-		UE_LOG(
-			LogServerOnlyMonsterSpawner,
-			Error,
+		UE_LOG(LogServerOnlyMonsterSpawner, Error,
 			TEXT("Spawner '%s' cannot spawn because its world or Monster Class is invalid."),
 			*GetPathName());
 		return;
@@ -164,20 +152,12 @@ void AServerOnlyMonsterSpawner::SpawnMonster()
 	World->GetTimerManager().ClearTimer(RespawnTimerHandle);
 
 	const FTransform SpawnTransform = GetActorTransform();
-	AMonsterCharacter* NewMonster = World->SpawnActorDeferred<AMonsterCharacter>(
-		MonsterClass,
-		SpawnTransform,
-		nullptr,
-		nullptr,
-		ESpawnActorCollisionHandlingMethod::AlwaysSpawn,
-		ESpawnActorScaleMethod::MultiplyWithRoot);
+	AMonsterCharacter* NewMonster = World->SpawnActorDeferred<AMonsterCharacter>(MonsterClass, SpawnTransform, nullptr,
+		nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn, ESpawnActorScaleMethod::MultiplyWithRoot);
 
 	if (!NewMonster)
 	{
-		UE_LOG(
-			LogServerOnlyMonsterSpawner,
-			Error,
-			TEXT("Spawner '%s' failed to create monster class '%s'."),
+		UE_LOG(LogServerOnlyMonsterSpawner, Error, TEXT("Spawner '%s' failed to create monster class '%s'."),
 			*GetPathName(),
 			*GetPathNameSafe(MonsterClass.Get()));
 		ScheduleRespawn();
@@ -185,25 +165,17 @@ void AServerOnlyMonsterSpawner::SpawnMonster()
 	}
 
 	SpawnedMonster = NewMonster;
-	NewMonster->OnDestroyed.AddUniqueDynamic(
-		this,
-		&AServerOnlyMonsterSpawner::HandleSpawnedMonsterDestroyed);
+	NewMonster->OnDestroyed.AddUniqueDynamic(this, &AServerOnlyMonsterSpawner::HandleSpawnedMonsterDestroyed);
 
 	if (!ApplyMonsterSpawnParameters(NewMonster))
 	{
-		UE_LOG(
-			LogServerOnlyMonsterSpawner,
-			Warning,
-			TEXT(
-				"Monster class '%s' does not expose both expected leash properties; "
+		UE_LOG(LogServerOnlyMonsterSpawner, Warning,
+			TEXT("Monster class '%s' does not expose both expected leash properties; "
 				"the monster will use its own defaults."),
 			*GetPathNameSafe(MonsterClass.Get()));
 	}
 
-	UGameplayStatics::FinishSpawningActor(
-		NewMonster,
-		SpawnTransform,
-		ESpawnActorScaleMethod::MultiplyWithRoot);
+	UGameplayStatics::FinishSpawningActor(NewMonster, SpawnTransform, ESpawnActorScaleMethod::MultiplyWithRoot);
 }
 
 void AServerOnlyMonsterSpawner::ScheduleRespawn()
@@ -224,18 +196,11 @@ void AServerOnlyMonsterSpawner::ScheduleRespawn()
 
 	if (RespawnCooldown <= 0.0f)
 	{
-		RespawnTimerHandle = TimerManager.SetTimerForNextTick(
-			this,
-			&AServerOnlyMonsterSpawner::SpawnMonster);
+		RespawnTimerHandle = TimerManager.SetTimerForNextTick(this, &AServerOnlyMonsterSpawner::SpawnMonster);
 		return;
 	}
 
-	TimerManager.SetTimer(
-		RespawnTimerHandle,
-		this,
-		&AServerOnlyMonsterSpawner::SpawnMonster,
-		RespawnCooldown,
-		false);
+	TimerManager.SetTimer(RespawnTimerHandle, this, &AServerOnlyMonsterSpawner::SpawnMonster, RespawnCooldown, false);
 }
 
 void AServerOnlyMonsterSpawner::CleanupSpawnedMonster()
@@ -254,13 +219,9 @@ void AServerOnlyMonsterSpawner::CleanupSpawnedMonster()
 
 bool AServerOnlyMonsterSpawner::ApplyMonsterSpawnParameters(AMonsterCharacter* Monster) const
 {
-	const bool bSetMaxLeash = SetNumericProperty(
-		Monster,
-		TEXT("Max Leash Distance From Spawn Point"),
+	const bool bSetMaxLeash = SetNumericProperty(Monster, TEXT("Max Leash Distance From Spawn Point"),
 		MaxLeashDistanceFromSpawnPoint);
-	const bool bSetMinLeash = SetNumericProperty(
-		Monster,
-		TEXT("Min Leash Distance From Spawn Point To Resume Roaming"),
+	const bool bSetMinLeash = SetNumericProperty(Monster, TEXT("Min Leash Distance From Spawn Point To Resume Roaming"),
 		MinLeashDistanceFromSpawnPointToResumeRoaming);
 
 	return bSetMaxLeash && bSetMinLeash;

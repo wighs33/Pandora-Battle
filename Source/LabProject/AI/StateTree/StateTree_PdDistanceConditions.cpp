@@ -10,16 +10,10 @@
 #if WITH_EDITOR
 namespace
 {
-FText GetBoundOrNumericValue(
-	const FGuid& ID,
-	const FName PropertyName,
-	const double Value,
-	const IStateTreeBindingLookup& BindingLookup,
-	const EStateTreeNodeFormatting Formatting)
+FText GetBoundOrNumericValue(const FGuid& ID, const FName PropertyName, const double Value,
+	const IStateTreeBindingLookup& BindingLookup, const EStateTreeNodeFormatting Formatting)
 {
-	FText Result = BindingLookup.GetBindingSourceDisplayName(
-		FPropertyBindingPath(ID, PropertyName),
-		Formatting);
+	FText Result = BindingLookup.GetBindingSourceDisplayName(FPropertyBindingPath(ID, PropertyName), Formatting);
 
 	if (Result.IsEmpty())
 	{
@@ -42,28 +36,21 @@ bool FStateTreePdPlayerDistanceCondition::TestCondition(FStateTreeExecutionConte
 		return false;
 	}
 
-	const double DistanceSquared = FVector::DistSquared2D(
-		InstanceData.TargetActor->GetActorLocation(),
+	const double DistanceSquared = FVector::DistSquared2D(InstanceData.TargetActor->GetActorLocation(),
 		InstanceData.Actor->GetActorLocation());
 
 	return DistanceSquared > FMath::Square(InstanceData.TriggerDistance);
 }
 
 #if WITH_EDITOR
-FText FStateTreePdPlayerDistanceCondition::GetDescription(
-	const FGuid& ID,
-	FStateTreeDataView InstanceDataView,
-	const IStateTreeBindingLookup& BindingLookup,
-	const EStateTreeNodeFormatting Formatting) const
+FText FStateTreePdPlayerDistanceCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView,
+	const IStateTreeBindingLookup& BindingLookup, const EStateTreeNodeFormatting Formatting) const
 {
 	const FInstanceDataType* InstanceData = InstanceDataView.GetPtr<FInstanceDataType>();
 	check(InstanceData);
 
 	FText TargetActor = BindingLookup.GetBindingSourceDisplayName(
-		FPropertyBindingPath(
-			ID,
-			GET_MEMBER_NAME_CHECKED(FInstanceDataType, TargetActor)),
-		Formatting);
+		FPropertyBindingPath(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, TargetActor)), Formatting);
 	if (TargetActor.IsEmpty())
 	{
 		TargetActor = IsValid(InstanceData->TargetActor)
@@ -71,11 +58,8 @@ FText FStateTreePdPlayerDistanceCondition::GetDescription(
 			: LOCTEXT("TargetActor", "Target Actor");
 	}
 
-	const FText TriggerDistance = GetBoundOrNumericValue(
-		ID,
-		GET_MEMBER_NAME_CHECKED(FInstanceDataType, TriggerDistance),
-		InstanceData->TriggerDistance,
-		BindingLookup,
+	const FText TriggerDistance = GetBoundOrNumericValue(ID,
+		GET_MEMBER_NAME_CHECKED(FInstanceDataType, TriggerDistance), InstanceData->TriggerDistance, BindingLookup,
 		Formatting);
 
 	return Formatting == EStateTreeNodeFormatting::RichText
@@ -102,8 +86,7 @@ bool FStateTreePdTargetDistanceCondition::TestCondition(FStateTreeExecutionConte
 		return false;
 	}
 
-	const double DistanceSquared = FVector::DistSquared2D(
-		InstanceData.Actor->GetActorLocation(),
+	const double DistanceSquared = FVector::DistSquared2D(InstanceData.Actor->GetActorLocation(),
 		InstanceData.TargetLocation);
 	const bool bIsFartherAway = DistanceSquared > FMath::Square(InstanceData.Distance);
 
@@ -111,21 +94,14 @@ bool FStateTreePdTargetDistanceCondition::TestCondition(FStateTreeExecutionConte
 }
 
 #if WITH_EDITOR
-FText FStateTreePdTargetDistanceCondition::GetDescription(
-	const FGuid& ID,
-	FStateTreeDataView InstanceDataView,
-	const IStateTreeBindingLookup& BindingLookup,
-	const EStateTreeNodeFormatting Formatting) const
+FText FStateTreePdTargetDistanceCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView,
+	const IStateTreeBindingLookup& BindingLookup, const EStateTreeNodeFormatting Formatting) const
 {
 	const FInstanceDataType* InstanceData = InstanceDataView.GetPtr<FInstanceDataType>();
 	check(InstanceData);
 
-	const FText Distance = GetBoundOrNumericValue(
-		ID,
-		GET_MEMBER_NAME_CHECKED(FInstanceDataType, Distance),
-		InstanceData->Distance,
-		BindingLookup,
-		Formatting);
+	const FText Distance = GetBoundOrNumericValue(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Distance),
+		InstanceData->Distance, BindingLookup, Formatting);
 
 	if (Formatting == EStateTreeNodeFormatting::RichText)
 	{

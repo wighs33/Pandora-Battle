@@ -133,12 +133,8 @@ void AMeleeWeapon::StartAttackTraceInternal(const bool bResetHitActors)
 
     if (UWorld* World = GetWorld())
     {
-        World->GetTimerManager().SetTimer(
-            AttackTraceTimerHandle,
-            this,
-            &ThisClass::PerformAttackTrace,
-            FMath::Max(AttackTraceInterval, UE_SMALL_NUMBER),
-            true);
+        World->GetTimerManager().SetTimer(AttackTraceTimerHandle, this, &ThisClass::PerformAttackTrace,
+            FMath::Max(AttackTraceInterval, UE_SMALL_NUMBER), true);
     }
 }
 
@@ -155,22 +151,12 @@ void AMeleeWeapon::StopAttackTrace()
     AttackTraceTimerHandle.Invalidate();
 }
 
-void AMeleeWeapon::ConfigureSkillSlash(
-    UNiagaraSystem* SlashSystem,
-    const FVector& SlashScale,
-    const FVector& SlashSpawnLocationOffset,
-    const FName SlashSpawnSocketName,
-    const FRotator& SlashSpawnRotationOffset,
-    float AttackTraceEndMultiplier,
-    bool bEnableHitTrace,
-    TSubclassOf<UGameplayEffect> AdditionalDamageEffectClass,
-    FGameplayTag AdditionalDamageDataTag,
-    float AdditionalDamageMagnitude,
-    int32 AdditionalDamageLevel,
-    UObject* AdditionalDamageSourceObject,
-    const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
-    UStatusEffectDefinition* StatusEffectDefinition,
-    float AdditionalDamageDelay)
+void AMeleeWeapon::ConfigureSkillSlash(UNiagaraSystem* SlashSystem, const FVector& SlashScale,
+    const FVector& SlashSpawnLocationOffset, const FName SlashSpawnSocketName, const FRotator& SlashSpawnRotationOffset,
+    float AttackTraceEndMultiplier, bool bEnableHitTrace, TSubclassOf<UGameplayEffect> AdditionalDamageEffectClass,
+    FGameplayTag AdditionalDamageDataTag, float AdditionalDamageMagnitude, int32 AdditionalDamageLevel,
+    UObject* AdditionalDamageSourceObject, const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
+    UStatusEffectDefinition* StatusEffectDefinition, float AdditionalDamageDelay)
 {
     ActiveSkillSlashSystem = SlashSystem;
     ActiveSkillSlashScale = SlashScale.IsNearlyZero() ? FVector::OneVector : SlashScale;
@@ -198,13 +184,10 @@ void AMeleeWeapon::ConfigureSkillSlash(
 void AMeleeWeapon::PlaySkillSlashVisual()
 {
     const ACharacterBase* OwningCharacter = GetOwningCharacter();
-    const bool bCanPredictForOwningClient = !HasAuthority()
-        && OwningCharacter
+    const bool bCanPredictForOwningClient = !HasAuthority() && OwningCharacter
         && OwningCharacter->IsLocallyControlled();
 
-    if ((!HasAuthority() && !bCanPredictForOwningClient)
-        || !IsCurrentWeaponForOwner()
-        || !bSkillSlashHitTraceEnabled
+    if ((!HasAuthority() && !bCanPredictForOwningClient) || !IsCurrentWeaponForOwner() || !bSkillSlashHitTraceEnabled
         || !ActiveSkillSlashSystem)
     {
         return;
@@ -264,11 +247,8 @@ float AMeleeWeapon::GetTemporaryAttackTraceEndZMultiplier() const
     return ActiveMultiplier;
 }
 
-void AMeleeWeapon::MulticastSpawnSkillSlashNiagara_Implementation(
-    UNiagaraSystem* SlashSystem,
-    const FVector& SpawnLocation,
-    const FRotator& SpawnRotation,
-    const FVector& SpawnScale)
+void AMeleeWeapon::MulticastSpawnSkillSlashNiagara_Implementation(UNiagaraSystem* SlashSystem,
+    const FVector& SpawnLocation, const FRotator& SpawnRotation, const FVector& SpawnScale)
 {
     if (!SlashSystem || ConsumeMatchingPredictedSkillSlash(SlashSystem, SpawnLocation))
     {
@@ -280,8 +260,7 @@ void AMeleeWeapon::MulticastSpawnSkillSlashNiagara_Implementation(
 
 bool AMeleeWeapon::CanDamageMeleeTracedHit(const FHitResult& HitResult) const
 {
-    const ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(
-        HitResult.GetActor(),
+    const ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(HitResult.GetActor(),
         HitResult.GetComponent());
     const ACharacterBase* SourceCharacter = GetOwningCharacter();
     if (!TargetCharacter || !SourceCharacter || TargetCharacter == SourceCharacter)
@@ -299,8 +278,7 @@ bool AMeleeWeapon::CanDamageMeleeTracedHit(const FHitResult& HitResult) const
 
 FVector AMeleeWeapon::GetAttackTraceEndLocation(const FVector& TraceStartLocation) const
 {
-    const FVector RawTraceEndLocation = AttackTraceEnd
-        ? AttackTraceEnd->GetComponentLocation()
+    const FVector RawTraceEndLocation = AttackTraceEnd ? AttackTraceEnd->GetComponentLocation()
         : TraceStartLocation;
     const float TraceEndZMultiplier = GetTemporaryAttackTraceEndZMultiplier();
 
@@ -368,9 +346,7 @@ void AMeleeWeapon::PerformAttackTrace()
     TArray<FHitResult> DebugHitResults;
 
     auto TraceAttackLine = [this, &ObjectTypes, &CapsuleObjectTypes, &ActorsToIgnore,
-        &DebugStartLocations, &DebugEndLocations, &DebugHitResults](
-        const FVector& LineStart,
-        const FVector& LineEnd)
+        &DebugStartLocations, &DebugEndLocations, &DebugHitResults](const FVector& LineStart, const FVector& LineEnd)
     {
         TArray<FHitResult> HitResults;
         const float TraceRadius = FMath::Clamp(AttackTraceRadius, 0.0f, 20.0f);
@@ -383,8 +359,7 @@ void AMeleeWeapon::PerformAttackTrace()
         }
         else
         {
-            UKismetSystemLibrary::LineTraceMultiForObjects(
-                this, LineStart, LineEnd, ObjectTypes, false, ActorsToIgnore,
+            UKismetSystemLibrary::LineTraceMultiForObjects(this, LineStart, LineEnd, ObjectTypes, false, ActorsToIgnore,
                 EDrawDebugTrace::None, HitResults, true, FLinearColor::Red, FLinearColor::Green, 0.1f);
         }
 
@@ -410,8 +385,7 @@ void AMeleeWeapon::PerformAttackTrace()
         for (const FHitResult& HitResult : HitResults)
         {
             ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(
-                HitResult.GetActor(),
-                HitResult.GetComponent());
+                HitResult.GetActor(), HitResult.GetComponent());
             if (!TargetCharacter || !CanDamageMeleeTracedHit(HitResult))
             {
                 continue;
@@ -440,21 +414,15 @@ void AMeleeWeapon::PerformAttackTrace()
     const float StartTravelDistance = FVector::Distance(PreviousAttackTraceStartLocation, TraceStartLocation);
     const float EndTravelDistance = FVector::Distance(PreviousAttackTraceEndLocation, TraceEndLocation);
     const float MaxTravelDistance = FMath::Max(StartTravelDistance, EndTravelDistance);
-    const int32 InterpolationCount = FMath::Max(
-        1,
+    const int32 InterpolationCount = FMath::Max(1,
         FMath::CeilToInt(MaxTravelDistance / AttackTraceInterpolationDistance));
 
     for (int32 InterpolationIndex = 1; InterpolationIndex <= InterpolationCount; ++InterpolationIndex)
     {
         const float Alpha = static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
-        const FVector InterpolatedStartLocation = FMath::Lerp(
-            PreviousAttackTraceStartLocation,
-            TraceStartLocation,
+        const FVector InterpolatedStartLocation = FMath::Lerp(PreviousAttackTraceStartLocation, TraceStartLocation,
             Alpha);
-        const FVector InterpolatedEndLocation = FMath::Lerp(
-            PreviousAttackTraceEndLocation,
-            TraceEndLocation,
-            Alpha);
+        const FVector InterpolatedEndLocation = FMath::Lerp(PreviousAttackTraceEndLocation, TraceEndLocation, Alpha);
         TraceAttackLine(InterpolatedStartLocation, InterpolatedEndLocation);
     }
 
@@ -495,20 +463,12 @@ void AMeleeWeapon::ApplyActiveSkillAdditionalDamageToTarget(ACharacterBase* Targ
         if (UWorld* World = GetWorld())
         {
             FTimerHandle DelayHandle;
-            World->GetTimerManager().SetTimer(
-                DelayHandle,
-                FTimerDelegate::CreateWeakLambda(this,
-                    [this, TargetWeak, DamageEffectClass, DamageDataTag, DamageMagnitude, DamageLevel,
-                        DamageSourceObjectWeak, DebuffEffectSpecHandle, StatusEffectDefinitionWeak]()
+            World->GetTimerManager().SetTimer(DelayHandle, FTimerDelegate::CreateWeakLambda(this,
+                [this, TargetWeak, DamageEffectClass, DamageDataTag, DamageMagnitude, DamageLevel,
+                DamageSourceObjectWeak, DebuffEffectSpecHandle, StatusEffectDefinitionWeak]()
                     {
-                        ApplySkillAdditionalDamageToTarget(
-                            TargetWeak.Get(),
-                            DamageEffectClass,
-                            DamageDataTag,
-                            DamageMagnitude,
-                            DamageLevel,
-                            DamageSourceObjectWeak.Get(),
-                            DebuffEffectSpecHandle,
+                        ApplySkillAdditionalDamageToTarget(TargetWeak.Get(), DamageEffectClass, DamageDataTag,
+                            DamageMagnitude, DamageLevel, DamageSourceObjectWeak.Get(), DebuffEffectSpecHandle,
                             StatusEffectDefinitionWeak.Get());
                     }),
                 DamageDelay,
@@ -517,25 +477,13 @@ void AMeleeWeapon::ApplyActiveSkillAdditionalDamageToTarget(ACharacterBase* Targ
         }
     }
 
-    ApplySkillAdditionalDamageToTarget(
-        TargetCharacter,
-        DamageEffectClass,
-        DamageDataTag,
-        DamageMagnitude,
-        DamageLevel,
-        DamageSourceObjectWeak.Get(),
-        DebuffEffectSpecHandle,
-        StatusEffectDefinitionWeak.Get());
+    ApplySkillAdditionalDamageToTarget(TargetCharacter, DamageEffectClass, DamageDataTag, DamageMagnitude, DamageLevel,
+        DamageSourceObjectWeak.Get(), DebuffEffectSpecHandle, StatusEffectDefinitionWeak.Get());
 }
 
-void AMeleeWeapon::ApplySkillAdditionalDamageToTarget(
-    ACharacterBase* TargetCharacter,
-    TSubclassOf<UGameplayEffect> DamageEffectClass,
-    FGameplayTag DamageDataTag,
-    float DamageMagnitude,
-    int32 DamageLevel,
-    UObject* DamageSourceObject,
-    const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
+void AMeleeWeapon::ApplySkillAdditionalDamageToTarget(ACharacterBase* TargetCharacter,
+    TSubclassOf<UGameplayEffect> DamageEffectClass, FGameplayTag DamageDataTag, float DamageMagnitude,
+    int32 DamageLevel, UObject* DamageSourceObject, const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
     UStatusEffectDefinition* StatusEffectDefinition)
 {
     if (!HasAuthority() || !DamageEffectClass || DamageMagnitude <= 0.0f)
@@ -560,10 +508,8 @@ void AMeleeWeapon::ApplySkillAdditionalDamageToTarget(
     EffectContext.AddInstigator(SourceCharacter, this);
     EffectContext.AddSourceObject(DamageSourceObject ? DamageSourceObject : static_cast<UObject*>(this));
 
-    FGameplayEffectSpecHandle DamageSpecHandle = SourceASC->MakeOutgoingSpec(
-        DamageEffectClass,
-        FMath::Max(DamageLevel, 1),
-        EffectContext);
+    FGameplayEffectSpecHandle DamageSpecHandle = SourceASC->MakeOutgoingSpec(DamageEffectClass,
+        FMath::Max(DamageLevel, 1), EffectContext);
     if (!DamageSpecHandle.IsValid() || !DamageSpecHandle.Data.IsValid())
     {
         return;
@@ -606,14 +552,11 @@ void AMeleeWeapon::SpawnSkillSlashNiagara()
     }
 
     const bool bHasTraceComponents = AttackTraceStart && AttackTraceEnd;
-    const FVector TraceStartLocation = AttackTraceStart
-        ? AttackTraceStart->GetComponentLocation()
+    const FVector TraceStartLocation = AttackTraceStart ? AttackTraceStart->GetComponentLocation()
         : FVector::ZeroVector;
-    const FVector RawTraceEndLocation = AttackTraceEnd
-        ? AttackTraceEnd->GetComponentLocation()
+    const FVector RawTraceEndLocation = AttackTraceEnd ? AttackTraceEnd->GetComponentLocation()
         : TraceStartLocation;
-    const FVector TraceEndLocation = bHasTraceComponents
-        ? GetAttackTraceEndLocation(TraceStartLocation)
+    const FVector TraceEndLocation = bHasTraceComponents ? GetAttackTraceEndLocation(TraceStartLocation)
         : RawTraceEndLocation;
 
     FRotator SlashRotation = ActiveSkillSlashSpawnRotationOffset;
@@ -628,8 +571,7 @@ void AMeleeWeapon::SpawnSkillSlashNiagara()
         USkeletalMeshComponent* OwnerMesh = OwnerCharacter ? OwnerCharacter->GetMesh() : nullptr;
         if (OwnerMesh && OwnerMesh->DoesSocketExist(ActiveSkillSlashSpawnSocketName))
         {
-            const FTransform SocketTransform = OwnerMesh->GetSocketTransform(
-                ActiveSkillSlashSpawnSocketName,
+            const FTransform SocketTransform = OwnerMesh->GetSocketTransform(ActiveSkillSlashSpawnSocketName,
                 RTS_World);
             SlashBaseLocation = SocketTransform.GetLocation();
             SlashLocation = SocketTransform.TransformPosition(ActiveSkillSlashSpawnLocationOffset);
@@ -676,11 +618,8 @@ void AMeleeWeapon::SpawnSkillSlashNiagara()
     }
 }
 
-bool AMeleeWeapon::SpawnSkillSlashNiagaraLocal(
-    UNiagaraSystem* SlashSystem,
-    const FVector& SpawnLocation,
-    const FRotator& SpawnRotation,
-    const FVector& SpawnScale)
+bool AMeleeWeapon::SpawnSkillSlashNiagaraLocal(UNiagaraSystem* SlashSystem, const FVector& SpawnLocation,
+    const FRotator& SpawnRotation, const FVector& SpawnScale)
 {
     if (!SlashSystem || GetNetMode() == NM_DedicatedServer)
     {
@@ -688,21 +627,11 @@ bool AMeleeWeapon::SpawnSkillSlashNiagaraLocal(
     }
 
     const FVector EffectiveScale = SpawnScale.IsNearlyZero() ? FVector::OneVector : SpawnScale;
-    return IsValid(UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-        this,
-        SlashSystem,
-        SpawnLocation,
-        SpawnRotation,
-        EffectiveScale,
-        true,
-        true,
-        ENCPoolMethod::AutoRelease,
-        true));
+    return IsValid(UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, SlashSystem, SpawnLocation, SpawnRotation,
+        EffectiveScale, true, true, ENCPoolMethod::AutoRelease, true));
 }
 
-bool AMeleeWeapon::ConsumeMatchingPredictedSkillSlash(
-    UNiagaraSystem* SlashSystem,
-    const FVector& SpawnLocation)
+bool AMeleeWeapon::ConsumeMatchingPredictedSkillSlash(UNiagaraSystem* SlashSystem, const FVector& SpawnLocation)
 {
     if (HasAuthority() || !bHasPendingPredictedSkillSlash)
     {
@@ -712,14 +641,10 @@ bool AMeleeWeapon::ConsumeMatchingPredictedSkillSlash(
     const ACharacterBase* OwningCharacter = GetOwningCharacter();
     const UWorld* World = GetWorld();
     const double CurrentWorldTime = World ? World->GetTimeSeconds() : -1.0;
-    const bool bPredictionStillRecent = CurrentWorldTime >= 0.0
-        && PredictedSkillSlashWorldTime >= 0.0
+    const bool bPredictionStillRecent = CurrentWorldTime >= 0.0 && PredictedSkillSlashWorldTime >= 0.0
         && CurrentWorldTime - PredictedSkillSlashWorldTime <= 1.0;
-    const bool bMatchesPrediction = OwningCharacter
-        && OwningCharacter->IsLocallyControlled()
-        && bPredictionStillRecent
-        && PredictedSkillSlashSystem.Get() == SlashSystem
-        && PredictedSkillSlashLocation.Equals(SpawnLocation, 100.0);
+    const bool bMatchesPrediction = OwningCharacter && OwningCharacter->IsLocallyControlled() && bPredictionStillRecent
+        && PredictedSkillSlashSystem.Get() == SlashSystem && PredictedSkillSlashLocation.Equals(SpawnLocation, 100.0);
 
     if (bMatchesPrediction || !bPredictionStillRecent)
     {
@@ -731,18 +656,14 @@ bool AMeleeWeapon::ConsumeMatchingPredictedSkillSlash(
     return bMatchesPrediction;
 }
 
-void AMeleeWeapon::MulticastDrawInterpolatedAttackTraceDebug_Implementation(
-    const TArray<FVector>& StartLocations,
-    const TArray<FVector>& EndLocations,
-    const TArray<FHitResult>& Hits)
+void AMeleeWeapon::MulticastDrawInterpolatedAttackTraceDebug_Implementation(const TArray<FVector>& StartLocations,
+    const TArray<FVector>& EndLocations, const TArray<FHitResult>& Hits)
 {
     DrawInterpolatedAttackTraceDebug(StartLocations, EndLocations, Hits);
 }
 
-void AMeleeWeapon::DrawInterpolatedAttackTraceDebug(
-    const TArray<FVector>& StartLocations,
-    const TArray<FVector>& EndLocations,
-    const TArray<FHitResult>& Hits) const
+void AMeleeWeapon::DrawInterpolatedAttackTraceDebug(const TArray<FVector>& StartLocations,
+    const TArray<FVector>& EndLocations, const TArray<FHitResult>& Hits) const
 {
     UWorld* World = GetWorld();
     if (!IsAttackDebugVisualizationEnabled() || !World)
@@ -758,15 +679,7 @@ void AMeleeWeapon::DrawInterpolatedAttackTraceDebug(
 
     for (int32 LineIndex = 0; LineIndex < LineCount; ++LineIndex)
     {
-        DrawDebugLine(
-            World,
-            StartLocations[LineIndex],
-            EndLocations[LineIndex],
-            SweepColor,
-            false,
-            DrawTime,
-            0,
-            2.0f);
+        DrawDebugLine(World, StartLocations[LineIndex], EndLocations[LineIndex], SweepColor, false, DrawTime, 0, 2.0f);
     }
 
     for (const FHitResult& Hit : Hits)
@@ -788,28 +701,22 @@ bool AMeleeWeapon::ApplyDamageFromAuthoritativeMeleeTrace(const FHitResult& HitR
         return false;
     }
 
-    ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(
-        HitResult.GetActor(),
+    ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(HitResult.GetActor(),
         HitResult.GetComponent());
     return TargetCharacter && ApplyDamageToTarget(TargetCharacter);
 }
 
-void AMeleeWeapon::ApplySkillDebuffToTarget(
-    ACharacterBase* TargetCharacter,
-    const FGameplayEffectSpecHandle& DebuffEffectSpecHandle,
-    UStatusEffectDefinition* StatusEffectDefinition)
+void AMeleeWeapon::ApplySkillDebuffToTarget(ACharacterBase* TargetCharacter,
+    const FGameplayEffectSpecHandle& DebuffEffectSpecHandle, UStatusEffectDefinition* StatusEffectDefinition)
 {
-    if (!HasAuthority()
-        || !TargetCharacter
-        || !DebuffEffectSpecHandle.IsValid()
+    if (!HasAuthority() || !TargetCharacter || !DebuffEffectSpecHandle.IsValid()
         || !DebuffEffectSpecHandle.Data.IsValid())
     {
         return;
     }
 
     ACharacterBase* SourceCharacter = GetOwningCharacter();
-    UPdAbilitySystemComponent* SourceASC = SourceCharacter
-        ? SourceCharacter->GetPdAbilitySystemComponent()
+    UPdAbilitySystemComponent* SourceASC = SourceCharacter ? SourceCharacter->GetPdAbilitySystemComponent()
         : nullptr;
     UPdAbilitySystemComponent* TargetASC = TargetCharacter->GetPdAbilitySystemComponent();
     if (!SourceASC || !TargetASC || !StatusEffectDefinition)

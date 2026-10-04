@@ -103,9 +103,7 @@ void UCharacterPresentationComponent::LinkAnimLayer(TSubclassOf<UAnimInstance> A
 void UCharacterPresentationComponent::UpdateAimOffset()
 {
 	const ACharacterBase* Character = GetCharacterOwner();
-	if (!Character
-		|| (!Character->HasAuthority() && !Character->IsLocallyControlled())
-		|| Character->IsStatusFrozen())
+	if (!Character || (!Character->HasAuthority() && !Character->IsLocallyControlled()) || Character->IsStatusFrozen())
 	{
 		return;
 	}
@@ -167,7 +165,7 @@ const UMatchRuleDefinition* UCharacterPresentationComponent::GetTeamOverlayMatch
 	}
 
 	const UGameInstance* GameInstance = Character ? Character->GetGameInstance() : nullptr;
-	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem = 
+	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>() : nullptr;
 	if (const UMatchRuleDefinition* LobbyMatchRules =
 		LobbyRuntimeSubsystem ? LobbyRuntimeSubsystem->GetLoadedLobbyMatchRuleDefinition() : nullptr)
@@ -294,8 +292,7 @@ void UCharacterPresentationComponent::ClearCharacterOverlayMaterialLocal()
 	}
 }
 
-void UCharacterPresentationComponent::HandleDashGameplayCue(
-	const EGameplayCueEvent::Type EventType,
+void UCharacterPresentationComponent::HandleDashGameplayCue(const EGameplayCueEvent::Type EventType,
 	const FGameplayCueParameters& Parameters)
 {
 	ACharacterBase* Character = GetCharacterOwner();
@@ -344,9 +341,7 @@ FVector UCharacterPresentationComponent::GetClampedBodyAuraRelativeScale(FVector
 	}
 
 	const float MaxScale = MaxBodyAuraRelativeScale;
-	return FVector(
-		FMath::Clamp(RelativeScale.X, 0.0f, MaxScale),
-		FMath::Clamp(RelativeScale.Y, 0.0f, MaxScale),
+	return FVector(FMath::Clamp(RelativeScale.X, 0.0f, MaxScale), FMath::Clamp(RelativeScale.Y, 0.0f, MaxScale),
 		FMath::Clamp(RelativeScale.Z, 0.0f, MaxScale));
 }
 
@@ -365,8 +360,7 @@ UNiagaraComponent* UCharacterPresentationComponent::FindBodyAuraNiagaraComponent
 		for (UNiagaraComponent* NiagaraComponent : NiagaraComponents)
 		{
 			if (NiagaraComponent
-				&& (NiagaraComponent->GetFName() == ComponentName
-					|| NiagaraComponent->ComponentHasTag(ComponentName)))
+				&& (NiagaraComponent->GetFName() == ComponentName || NiagaraComponent->ComponentHasTag(ComponentName)))
 			{
 				return NiagaraComponent;
 			}
@@ -375,12 +369,8 @@ UNiagaraComponent* UCharacterPresentationComponent::FindBodyAuraNiagaraComponent
 	return DefaultBodyAuraComponent.Get();
 }
 
-void UCharacterPresentationComponent::ApplyBodyAuraNiagaraWithOffset(
-	const FName ComponentName,
-	UNiagaraSystem* NiagaraSystem,
-	const bool bActivate,
-	const bool bResetSystem,
-	const FVector RelativeLocationOffset,
+void UCharacterPresentationComponent::ApplyBodyAuraNiagaraWithOffset(const FName ComponentName,
+	UNiagaraSystem* NiagaraSystem, const bool bActivate, const bool bResetSystem, const FVector RelativeLocationOffset,
 	const FVector RelativeScale)
 {
 	UNiagaraComponent* AuraComponent = FindBodyAuraNiagaraComponent(ComponentName);

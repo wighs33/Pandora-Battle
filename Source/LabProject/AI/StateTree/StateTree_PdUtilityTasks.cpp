@@ -16,13 +16,10 @@ UCharacterMovementComponent* ResolveMovementComponent(
 	const FStateTreePdMovementParametersTaskInstanceData& InstanceData)
 {
 	return
-		IsValid(InstanceData.Pawn)
-			? InstanceData.Pawn->GetCharacterMovement()
-			: nullptr;
+		IsValid(InstanceData.Pawn) ? InstanceData.Pawn->GetCharacterMovement() : nullptr;
 }
 
-void CaptureAndApplyMovementParameters(
-	FStateTreePdMovementParametersTaskInstanceData& InstanceData,
+void CaptureAndApplyMovementParameters(FStateTreePdMovementParametersTaskInstanceData& InstanceData,
 	UCharacterMovementComponent* Movement)
 {
 	if (InstanceData.bHasSavedMovementParameters)
@@ -50,8 +47,7 @@ void CaptureAndApplyMovementParameters(
 	Movement->MaxAcceleration = InstanceData.AccelerationWhileActive;
 }
 
-void RestoreMovementParameters(
-	FStateTreePdMovementParametersTaskInstanceData& InstanceData)
+void RestoreMovementParameters(FStateTreePdMovementParametersTaskInstanceData& InstanceData)
 {
 	if (!InstanceData.bHasSavedMovementParameters)
 	{
@@ -89,8 +85,7 @@ FStateTreePdSaveLocationTask::FStateTreePdSaveLocationTask()
 	bShouldCopyBoundPropertiesOnExitState = false;
 }
 
-EStateTreeRunStatus FStateTreePdSaveLocationTask::EnterState(
-	FStateTreeExecutionContext& Context,
+EStateTreeRunStatus FStateTreePdSaveLocationTask::EnterState(FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
@@ -106,11 +101,8 @@ EStateTreeRunStatus FStateTreePdSaveLocationTask::EnterState(
 }
 
 #if WITH_EDITOR
-FText FStateTreePdSaveLocationTask::GetDescription(
-	const FGuid& ID,
-	FStateTreeDataView InstanceDataView,
-	const IStateTreeBindingLookup& BindingLookup,
-	EStateTreeNodeFormatting Formatting) const
+FText FStateTreePdSaveLocationTask::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView,
+	const IStateTreeBindingLookup& BindingLookup, EStateTreeNodeFormatting Formatting) const
 {
 	static_cast<void>(InstanceDataView);
 	return DescribeWithBoundInput(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Pawn), BindingLookup, Formatting,
@@ -126,8 +118,7 @@ FStateTreePdTrackPlayerTask::FStateTreePdTrackPlayerTask()
 	bShouldCopyBoundPropertiesOnExitState = false;
 }
 
-EStateTreeRunStatus FStateTreePdTrackPlayerTask::EnterState(
-	FStateTreeExecutionContext& Context,
+EStateTreeRunStatus FStateTreePdTrackPlayerTask::EnterState(FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
 	static_cast<void>(Transition);
@@ -143,9 +134,7 @@ EStateTreeRunStatus FStateTreePdTrackPlayerTask::EnterState(
 	return EStateTreeRunStatus::Running;
 }
 
-EStateTreeRunStatus FStateTreePdTrackPlayerTask::Tick(
-	FStateTreeExecutionContext& Context,
-	const float DeltaTime) const
+EStateTreeRunStatus FStateTreePdTrackPlayerTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
 	static_cast<void>(DeltaTime);
 
@@ -161,11 +150,8 @@ EStateTreeRunStatus FStateTreePdTrackPlayerTask::Tick(
 }
 
 #if WITH_EDITOR
-FText FStateTreePdTrackPlayerTask::GetDescription(
-	const FGuid& ID,
-	FStateTreeDataView InstanceDataView,
-	const IStateTreeBindingLookup& BindingLookup,
-	EStateTreeNodeFormatting Formatting) const
+FText FStateTreePdTrackPlayerTask::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView,
+	const IStateTreeBindingLookup& BindingLookup, EStateTreeNodeFormatting Formatting) const
 {
 	static_cast<void>(InstanceDataView);
 	return DescribeWithBoundInput(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Controller), BindingLookup, Formatting,
@@ -181,8 +167,7 @@ FStateTreePdMovementParametersTask::FStateTreePdMovementParametersTask()
 	bShouldCopyBoundPropertiesOnExitState = false;
 }
 
-EStateTreeRunStatus FStateTreePdMovementParametersTask::EnterState(
-	FStateTreeExecutionContext& Context,
+EStateTreeRunStatus FStateTreePdMovementParametersTask::EnterState(FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
@@ -194,8 +179,7 @@ EStateTreeRunStatus FStateTreePdMovementParametersTask::EnterState(
 	return EStateTreeRunStatus::Running;
 }
 
-void FStateTreePdMovementParametersTask::ExitState(
-	FStateTreeExecutionContext& Context,
+void FStateTreePdMovementParametersTask::ExitState(FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
@@ -205,11 +189,8 @@ void FStateTreePdMovementParametersTask::ExitState(
 }
 
 #if WITH_EDITOR
-FText FStateTreePdMovementParametersTask::GetDescription(
-	const FGuid& ID,
-	FStateTreeDataView InstanceDataView,
-	const IStateTreeBindingLookup& BindingLookup,
-	EStateTreeNodeFormatting Formatting) const
+FText FStateTreePdMovementParametersTask::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView,
+	const IStateTreeBindingLookup& BindingLookup, EStateTreeNodeFormatting Formatting) const
 {
 	static_cast<void>(InstanceDataView);
 	return DescribeWithBoundInput(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Pawn), BindingLookup, Formatting,

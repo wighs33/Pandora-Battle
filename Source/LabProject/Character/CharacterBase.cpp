@@ -68,10 +68,8 @@ ACharacterBase::ACharacterBase(const FObjectInitializer& ObjectInitializer) : Su
 	// 체력바 위젯 컴포넌트는 UI 쪽 클래스라 프로젝트 설정에서 받는다. 캐릭터 BP는 이 하위 객체의 이름과 클래스로 값을 덮어쓴다.
 	UClass* HealthBarClass = GetDefault<UProjectBootstrapSettings>()->GetCharacterHealthBarComponentClass().Get();
 	ensureMsgf(HealthBarClass, TEXT("Project Bootstrap settings must name a loaded character health bar component class."));
-	HealthBarWidget = Cast<UWidgetComponent>(CreateDefaultSubobject(
-		TEXT("WidgetComponent"),
-		UWidgetComponent::StaticClass(),
-		HealthBarClass ? HealthBarClass : UWidgetComponent::StaticClass(),
+	HealthBarWidget = Cast<UWidgetComponent>(CreateDefaultSubobject(TEXT("WidgetComponent"),
+		UWidgetComponent::StaticClass(), HealthBarClass ? HealthBarClass : UWidgetComponent::StaticClass(),
 		/*bIsRequired*/ true,
 		/*bIsTransient*/ false));
 	HealthBarWidget->SetupAttachment(GetRootComponent());
@@ -167,8 +165,7 @@ void ACharacterBase::BeginCharacterDefinitionPreload()
 		return;
 	}
 
-	CharacterDefinitionLease = UContentDataSubsystem::AcquireContent(
-		{ CharacterDefinition.ToSoftObjectPath() },
+	CharacterDefinitionLease = UContentDataSubsystem::AcquireContent({ CharacterDefinition.ToSoftObjectPath() },
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleCharacterDefinitionPreloaded));
 }
 

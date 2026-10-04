@@ -29,8 +29,7 @@ FStateTreePdMonsterAttackTask::FStateTreePdMonsterAttackTask()
 	bShouldCopyBoundPropertiesOnExitState = false;
 }
 
-EStateTreeRunStatus FStateTreePdMonsterAttackTask::EnterState(
-	FStateTreeExecutionContext& Context,
+EStateTreeRunStatus FStateTreePdMonsterAttackTask::EnterState(FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
 	static_cast<void>(Transition);
@@ -47,17 +46,14 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::EnterState(
 	return Tick(Context, 0.0f);
 }
 
-EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(
-	FStateTreeExecutionContext& Context,
+EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(FStateTreeExecutionContext& Context,
 	const float DeltaTime) const
 {
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	AAIController* AIController = InstanceData.AIController;
 	AEnemyBase* Enemy = AIController ? Cast<AEnemyBase>(AIController->GetPawn()) : nullptr;
 	AActor* TargetActor = InstanceData.TargetActor;
-	if (!IsValid(AIController)
-		|| !IsValid(Enemy)
-		|| !Enemy->IsActorValidAttackTarget(TargetActor))
+	if (!IsValid(AIController) || !IsValid(Enemy) || !Enemy->IsActorValidAttackTarget(TargetActor))
 	{
 		return EStateTreeRunStatus::Failed;
 	}
@@ -72,13 +68,9 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(
 		}
 
 		InstanceData.AttackCompletionElapsedTime += SafeDeltaTime;
-		if (HasReachedTimeout(
-			InstanceData.AttackCompletionElapsedTime,
-			InstanceData.AttackCompletionTimeout))
+		if (HasReachedTimeout(InstanceData.AttackCompletionElapsedTime, InstanceData.AttackCompletionTimeout))
 		{
-			UE_LOG(
-				LogStateTreeMonsterAttack,
-				Warning,
+			UE_LOG(LogStateTreeMonsterAttack, Warning,
 				TEXT("%s's attack against %s did not finish within %.2f seconds."),
 				*GetNameSafe(Enemy),
 				*GetNameSafe(TargetActor),
@@ -109,8 +101,7 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(
 		InstanceData.bWaitingForAttackStart = false;
 		InstanceData.AttackRetryTimeRemaining = 0.0f;
 		InstanceData.AttackStartElapsedTime = 0.0f;
-		InstanceData.MoveRetryTimeRemaining =
-			FMath::Max(InstanceData.MoveRetryTimeRemaining - SafeDeltaTime, 0.0f);
+		InstanceData.MoveRetryTimeRemaining = FMath::Max(InstanceData.MoveRetryTimeRemaining - SafeDeltaTime, 0.0f);
 
 		if (!InstanceData.bMoveToTargetWhenOutOfRange)
 		{
@@ -119,7 +110,7 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(
 
 		const bool bNeedsMoveRequest = !InstanceData.bMoveRequested
 			|| (AIController->GetMoveStatus() != EPathFollowingStatus::Moving
-				&& InstanceData.MoveRetryTimeRemaining <= 0.0f);
+			&& InstanceData.MoveRetryTimeRemaining <= 0.0f);
 		if (bNeedsMoveRequest)
 		{
 			if (!Enemy->RequestMoveToAttackTarget(TargetActor))
@@ -152,13 +143,11 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(
 		InstanceData.AttackStartElapsedTime += SafeDeltaTime;
 	}
 
-	InstanceData.AttackRetryTimeRemaining =
-		FMath::Max(InstanceData.AttackRetryTimeRemaining - SafeDeltaTime, 0.0f);
+	InstanceData.AttackRetryTimeRemaining = FMath::Max(InstanceData.AttackRetryTimeRemaining - SafeDeltaTime, 0.0f);
 	if (Enemy->IsAttackEnabled() && InstanceData.AttackRetryTimeRemaining <= 0.0f)
 	{
 		Enemy->Attack();
-		InstanceData.AttackRetryTimeRemaining =
-			FMath::Max(InstanceData.AttackRetryInterval, 0.0f);
+		InstanceData.AttackRetryTimeRemaining = FMath::Max(InstanceData.AttackRetryInterval, 0.0f);
 
 		if (Enemy->IsAttackInProgress())
 		{
@@ -170,10 +159,7 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(
 
 	if (HasReachedTimeout(InstanceData.AttackStartElapsedTime, InstanceData.AttackStartTimeout))
 	{
-		UE_LOG(
-			LogStateTreeMonsterAttack,
-			Warning,
-			TEXT("%s could not start an attack against %s within %.2f seconds."),
+		UE_LOG(LogStateTreeMonsterAttack, Warning, TEXT("%s could not start an attack against %s within %.2f seconds."),
 			*GetNameSafe(Enemy),
 			*GetNameSafe(TargetActor),
 			InstanceData.AttackStartTimeout);
@@ -183,8 +169,7 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(
 	return EStateTreeRunStatus::Running;
 }
 
-void FStateTreePdMonsterAttackTask::ExitState(
-	FStateTreeExecutionContext& Context,
+void FStateTreePdMonsterAttackTask::ExitState(FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
 	static_cast<void>(Transition);
@@ -204,17 +189,13 @@ void FStateTreePdMonsterAttackTask::ExitState(
 }
 
 #if WITH_EDITOR
-FText FStateTreePdMonsterAttackTask::GetDescription(
-	const FGuid& ID,
-	FStateTreeDataView InstanceDataView,
-	const IStateTreeBindingLookup& BindingLookup,
-	EStateTreeNodeFormatting Formatting) const
+FText FStateTreePdMonsterAttackTask::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView,
+	const IStateTreeBindingLookup& BindingLookup, EStateTreeNodeFormatting Formatting) const
 {
 	static_cast<void>(InstanceDataView);
 
 	const FText TargetValue = BindingLookup.GetBindingSourceDisplayName(
-		FPropertyBindingPath(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, TargetActor)),
-		Formatting);
+		FPropertyBindingPath(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, TargetActor)), Formatting);
 
 	if (Formatting == EStateTreeNodeFormatting::RichText)
 	{

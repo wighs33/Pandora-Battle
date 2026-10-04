@@ -19,29 +19,16 @@ DEFINE_LOG_CATEGORY_STATIC(LogEnemyBaseRuntime, Log, All);
 AEnemyBase::AEnemyBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	EnemyDefinition =
-		TSoftObjectPtr<UEnemyBaseDefinition>(
-			UEnemyBaseDefinition::GetDefaultDefinitionPath());
+	EnemyDefinition = TSoftObjectPtr<UEnemyBaseDefinition>(UEnemyBaseDefinition::GetDefaultDefinitionPath());
 
-	AbilitySystemComponent =
-		CreateDefaultSubobject<UPdAbilitySystemComponent>(
-			TEXT("AbilitySystemComponent"));
+	AbilitySystemComponent = CreateDefaultSubobject<UPdAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
-	AbilitySystemComponent->SetReplicationMode(
-		EGameplayEffectReplicationMode::Minimal);
-	BasicAttributeSet =
-		CreateDefaultSubobject<UBasicAttributeSet>(
-			TEXT("BasicAttributeSet"));
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
+	BasicAttributeSet = CreateDefaultSubobject<UBasicAttributeSet>(TEXT("BasicAttributeSet"));
 
-	EnemyCombatComponent =
-		CreateDefaultSubobject<UEnemyCombatComponent>(
-			TEXT("EnemyCombatComponent"));
-	CombatComponent =
-		CreateDefaultSubobject<UCombatComponent>(
-			TEXT("CombatComponent"));
-	EnemyTrainingBotComponent =
-		CreateDefaultSubobject<UEnemyTrainingBotComponent>(
-			TEXT("EnemyTrainingBotComponent"));
+	EnemyCombatComponent = CreateDefaultSubobject<UEnemyCombatComponent>(TEXT("EnemyCombatComponent"));
+	CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
+	EnemyTrainingBotComponent = CreateDefaultSubobject<UEnemyTrainingBotComponent>(TEXT("EnemyTrainingBotComponent"));
 }
 
 void AEnemyBase::PreInitializeComponents()
@@ -107,8 +94,7 @@ void AEnemyBase::ApplyEnemyDefinition()
 			: FEnemyCombatSettings();
 	if (ResolvedDefinition && CombatSettings.DefaultStatDefinition.IsNull())
 	{
-		CombatSettings.DefaultStatDefinition =
-			ResolvedDefinition->GetEffectiveDefaultStatDefinition();
+		CombatSettings.DefaultStatDefinition = ResolvedDefinition->GetEffectiveDefaultStatDefinition();
 	}
 	FEnemyTrainingBotSettings TrainingBotSettings =
 		ResolvedDefinition
@@ -123,8 +109,7 @@ void AEnemyBase::ApplyEnemyDefinition()
 	}
 	if (EnemyTrainingBotComponent)
 	{
-		EnemyTrainingBotComponent->ApplySettings(
-			TrainingBotSettings);
+		EnemyTrainingBotComponent->ApplySettings(TrainingBotSettings);
 	}
 }
 
@@ -146,11 +131,8 @@ void AEnemyBase::BeginEnemyDefinitionPreload()
 		return;
 	}
 
-	EnemyDefinitionLease = UContentDataSubsystem::AcquireContent(
-		{EnemyDefinition.ToSoftObjectPath()},
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleEnemyDefinitionPreloaded));
+	EnemyDefinitionLease = UContentDataSubsystem::AcquireContent({EnemyDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleEnemyDefinitionPreloaded));
 }
 
 void AEnemyBase::HandleEnemyDefinitionPreloaded()
@@ -159,9 +141,7 @@ void AEnemyBase::HandleEnemyDefinitionPreloaded()
 	bEnemyDefinitionReady = true;
 	if (!LoadedEnemyDefinition)
 	{
-		UE_LOG(
-			LogEnemyBaseRuntime,
-			Error,
+		UE_LOG(LogEnemyBaseRuntime, Error,
 			TEXT("Enemy definition '%s' did not resolve after asynchronous preload; native defaults will be used."),
 			*EnemyDefinition.ToString());
 	}
@@ -172,9 +152,7 @@ void AEnemyBase::HandleEnemyDefinitionPreloaded()
 
 bool AEnemyBase::IsAdditionalCharacterRuntimeContentReady() const
 {
-	return bEnemyDefinitionReady
-		&& EnemyCombatComponent
-		&& EnemyCombatComponent->IsRuntimeContentReady();
+	return bEnemyDefinitionReady && EnemyCombatComponent && EnemyCombatComponent->IsRuntimeContentReady();
 }
 
 void AEnemyBase::HandleCharacterRuntimeInitialized()
@@ -208,16 +186,14 @@ void AEnemyBase::InitializeEnemyRuntime()
 	}
 }
 
-void AEnemyBase::ModifyResolvedEnemySettings(
-	FEnemyCombatSettings& CombatSettings,
+void AEnemyBase::ModifyResolvedEnemySettings(FEnemyCombatSettings& CombatSettings,
 	FEnemyTrainingBotSettings& TrainingBotSettings) const
 {
 	static_cast<void>(CombatSettings);
 	static_cast<void>(TrainingBotSettings);
 }
 
-void AEnemyBase::ApplyResolvedEnemyDefinition(
-	const UEnemyBaseDefinition* ResolvedDefinition)
+void AEnemyBase::ApplyResolvedEnemyDefinition(const UEnemyBaseDefinition* ResolvedDefinition)
 {
 	static_cast<void>(ResolvedDefinition);
 }
@@ -232,12 +208,10 @@ void AEnemyBase::InitializeBehaviorTreeCombat()
 
 bool AEnemyBase::IsActorValidAttackTarget(AActor* InActor) const
 {
-	return EnemyCombatComponent
-		&& EnemyCombatComponent->IsActorValidAttackTarget(InActor);
+	return EnemyCombatComponent && EnemyCombatComponent->IsActorValidAttackTarget(InActor);
 }
 
-float AEnemyBase::GetAttackDistanceToActor(
-	const AActor* InActor) const
+float AEnemyBase::GetAttackDistanceToActor(const AActor* InActor) const
 {
 	return EnemyCombatComponent
 		? EnemyCombatComponent->GetAttackDistanceToActor(InActor)
@@ -246,79 +220,54 @@ float AEnemyBase::GetAttackDistanceToActor(
 
 float AEnemyBase::GetAttackStartDistance() const
 {
-	return EnemyCombatComponent
-		? EnemyCombatComponent->GetAttackStartDistance()
-		: 0.0f;
+	return EnemyCombatComponent ? EnemyCombatComponent->GetAttackStartDistance() : 0.0f;
 }
 
 bool AEnemyBase::IsUsingRangedWeapon() const
 {
-	return EnemyCombatComponent
-		&& EnemyCombatComponent->IsUsingRangedWeapon();
+	return EnemyCombatComponent && EnemyCombatComponent->IsUsingRangedWeapon();
 }
 
 bool AEnemyBase::IsUsingGunWeapon() const
 {
-	return EnemyCombatComponent
-		&& EnemyCombatComponent->IsUsingGunWeapon();
+	return EnemyCombatComponent && EnemyCombatComponent->IsUsingGunWeapon();
 }
 
-bool AEnemyBase::RequestTrainingBotWeaponChange(
-	const UItemDefinition* WeaponDefinition)
+bool AEnemyBase::RequestTrainingBotWeaponChange(const UItemDefinition* WeaponDefinition)
 {
-	return EnemyTrainingBotComponent
-		&& EnemyTrainingBotComponent->RequestWeaponChange(
-			WeaponDefinition);
+	return EnemyTrainingBotComponent && EnemyTrainingBotComponent->RequestWeaponChange(WeaponDefinition);
 }
 
 bool AEnemyBase::RequestTrainingBotUnarmed()
 {
-	return EnemyTrainingBotComponent
-		&& EnemyTrainingBotComponent->RequestUnarmed();
+	return EnemyTrainingBotComponent && EnemyTrainingBotComponent->RequestUnarmed();
 }
 
-const UItemDefinition*
-AEnemyBase::GetCurrentOrStartingEnemyWeaponDefinition() const
+const UItemDefinition* AEnemyBase::GetCurrentOrStartingEnemyWeaponDefinition() const
 {
-	return EnemyCombatComponent
-		? EnemyCombatComponent
-			->GetCurrentOrStartingEnemyWeaponDefinition()
-		: nullptr;
+	return EnemyCombatComponent ? EnemyCombatComponent->GetCurrentOrStartingEnemyWeaponDefinition() : nullptr;
 }
 
-bool AEnemyBase::GetFallbackAttackData(
-	FAttackData& OutAttackData) const
+bool AEnemyBase::GetFallbackAttackData(FAttackData& OutAttackData) const
 {
 	OutAttackData = FAttackData();
 	return false;
 }
 
-void AEnemyBase::HandleDamageTaken(
-	const float DamageAmount,
-	const bool bCriticalHit,
-	const bool bAllowHitReact,
-	AActor* DamageInstigator,
-	AActor* DamageCauser)
+void AEnemyBase::HandleDamageTaken(const float DamageAmount, const bool bCriticalHit, const bool bAllowHitReact,
+	AActor* DamageInstigator, AActor* DamageCauser)
 {
-	Super::HandleDamageTaken(
-		DamageAmount,
-		bCriticalHit,
-		bAllowHitReact,
-		DamageInstigator,
-		DamageCauser);
+	Super::HandleDamageTaken(DamageAmount, bCriticalHit, bAllowHitReact, DamageInstigator, DamageCauser);
 
 	if (EnemyTrainingBotComponent)
 	{
-		EnemyTrainingBotComponent->HandleDamageTaken(
-			DamageAmount,
-			bAllowHitReact);
+		EnemyTrainingBotComponent->HandleDamageTaken(DamageAmount, bAllowHitReact);
 	}
 }
 
 void AEnemyBase::HandleDeath_Implementation()
 {
-	if (EnemyTrainingBotComponent
-		&& EnemyTrainingBotComponent->ShouldSuppressDeathHandling())
+	if (EnemyTrainingBotComponent && EnemyTrainingBotComponent->ShouldSuppressDeathHandling())
 	{
 		return;
 	}
@@ -339,109 +288,85 @@ void AEnemyBase::Attack()
 	}
 }
 
-void AEnemyBase::SetAttackEnabled(
-	const bool bInAttackEnabled)
+void AEnemyBase::SetAttackEnabled(const bool bInAttackEnabled)
 {
 	if (EnemyCombatComponent)
 	{
-		EnemyCombatComponent->SetAttackEnabled(
-			bInAttackEnabled);
+		EnemyCombatComponent->SetAttackEnabled(bInAttackEnabled);
 	}
 }
 
 bool AEnemyBase::IsAttackEnabled() const
 {
-	return EnemyCombatComponent
-		&& EnemyCombatComponent->IsAttackEnabled();
+	return EnemyCombatComponent && EnemyCombatComponent->IsAttackEnabled();
 }
 
 bool AEnemyBase::IsAttackAbilityActive() const
 {
-	return EnemyCombatComponent
-		&& EnemyCombatComponent->IsAttackAbilityActive();
+	return EnemyCombatComponent && EnemyCombatComponent->IsAttackAbilityActive();
 }
 
 bool AEnemyBase::IsAttackInProgress() const
 {
-	return EnemyCombatComponent
-		&& EnemyCombatComponent->IsAttackInProgress();
+	return EnemyCombatComponent && EnemyCombatComponent->IsAttackInProgress();
 }
 
-bool AEnemyBase::MoveToAttackTarget(
-	AActor* CurrentAttackTarget)
+bool AEnemyBase::MoveToAttackTarget(AActor* CurrentAttackTarget)
 {
-	return EnemyCombatComponent
-		&& EnemyCombatComponent->MoveToAttackTarget(
-			CurrentAttackTarget);
+	return EnemyCombatComponent && EnemyCombatComponent->MoveToAttackTarget(CurrentAttackTarget);
 }
 
-bool AEnemyBase::RequestMoveToAttackTarget(
-	AActor* InAttackTarget)
+bool AEnemyBase::RequestMoveToAttackTarget(AActor* InAttackTarget)
 {
-	return EnemyCombatComponent
-		&& EnemyCombatComponent->RequestMoveToAttackTarget(
-			InAttackTarget);
+	return EnemyCombatComponent && EnemyCombatComponent->RequestMoveToAttackTarget(InAttackTarget);
 }
 
 bool AEnemyBase::IsTrainingHitStunned() const
 {
-	return EnemyTrainingBotComponent
-		&& EnemyTrainingBotComponent->IsHitStunned();
+	return EnemyTrainingBotComponent && EnemyTrainingBotComponent->IsHitStunned();
 }
 
 bool AEnemyBase::IsDefaultAttributeSetupComplete() const
 {
-	return EnemyCombatComponent
-		&& EnemyCombatComponent->IsDefaultAttributeSetupComplete();
+	return EnemyCombatComponent && EnemyCombatComponent->IsDefaultAttributeSetupComplete();
 }
 
-void AEnemyBase::SetUseNearestPlayerWhenTargetUnset(
-	const bool bInUseNearestPlayer)
+void AEnemyBase::SetUseNearestPlayerWhenTargetUnset(const bool bInUseNearestPlayer)
 {
 	if (EnemyCombatComponent)
 	{
-		EnemyCombatComponent->SetUseNearestPlayerWhenTargetUnset(
-			bInUseNearestPlayer);
+		EnemyCombatComponent->SetUseNearestPlayerWhenTargetUnset(bInUseNearestPlayer);
 	}
 }
 
 AActor* AEnemyBase::GetAttackTarget_Implementation() const
 {
-	return EnemyCombatComponent
-		? EnemyCombatComponent->ResolveAttackTarget()
-		: nullptr;
+	return EnemyCombatComponent ? EnemyCombatComponent->ResolveAttackTarget() : nullptr;
 }
 
 void AEnemyBase::MulticastPlayTrainingHitReactMontage_Implementation()
 {
-	if (GetNetMode() == NM_DedicatedServer
-		|| !EnemyTrainingBotComponent)
+	if (GetNetMode() == NM_DedicatedServer || !EnemyTrainingBotComponent)
 	{
 		return;
 	}
 	EnemyTrainingBotComponent->PlayHitReactMontageLocal();
 }
 
-void AEnemyBase::MulticastPlayTrainingBotUnequipMontage_Implementation(
-	UAnimMontage* UnequipMontage,
+void AEnemyBase::MulticastPlayTrainingBotUnequipMontage_Implementation(UAnimMontage* UnequipMontage,
 	const float PlayRate)
 {
-	if (GetNetMode() == NM_DedicatedServer
-		|| !EnemyTrainingBotComponent)
+	if (GetNetMode() == NM_DedicatedServer || !EnemyTrainingBotComponent)
 	{
 		return;
 	}
-	EnemyTrainingBotComponent->PlayUnequipMontageLocal(
-		UnequipMontage,
-		PlayRate);
+	EnemyTrainingBotComponent->PlayUnequipMontageLocal(UnequipMontage, PlayRate);
 }
 
-void AEnemyBase::MulticastResetTrainingBotRespawnVisuals_Implementation(
-	const FTransform& RespawnTransform)
+void AEnemyBase::MulticastResetTrainingBotRespawnVisuals_Implementation(const FTransform& RespawnTransform)
 {
 	if (EnemyTrainingBotComponent)
 	{
-		EnemyTrainingBotComponent->ResetRespawnVisualsLocal(
-			RespawnTransform);
+		EnemyTrainingBotComponent->ResetRespawnVisualsLocal(RespawnTransform);
 	}
 }

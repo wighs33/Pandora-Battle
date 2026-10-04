@@ -26,8 +26,7 @@ UCharacterDeathComponent::UCharacterDeathComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UCharacterDeathComponent::ApplySettings(
-	const FCharacterDeathSettings& InSettings)
+void UCharacterDeathComponent::ApplySettings(const FCharacterDeathSettings& InSettings)
 {
 	Settings = InSettings;
 }
@@ -59,8 +58,7 @@ void UCharacterDeathComponent::TickRuntime(const float DeltaSeconds)
 	}
 }
 
-void UCharacterDeathComponent::HandleDeadTagChanged(
-	const int32 NewCount,
+void UCharacterDeathComponent::HandleDeadTagChanged(const int32 NewCount,
 	UAbilitySystemComponent* BoundAbilitySystemComponent)
 {
 	ACharacterBase* Character = GetCharacterOwner();
@@ -83,8 +81,7 @@ void UCharacterDeathComponent::HandleDeadTagChanged(
 	if (!Character->HasAuthority() && BoundAbilitySystemComponent)
 	{
 		const float CurrentHealth =
-			BoundAbilitySystemComponent->GetNumericAttribute(
-				UBasicAttributeSet::GetHealthAttribute());
+			BoundAbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute());
 		if (CurrentHealth > 0.0f && !bDeathHandled)
 		{
 			return;
@@ -97,8 +94,7 @@ void UCharacterDeathComponent::HandleDeadTagChanged(
 	}
 	bDeathHandled = true;
 
-	if (UPdAbilitySystemComponent* PdASC =
-		Character->GetPdAbilitySystemComponent())
+	if (UPdAbilitySystemComponent* PdASC = Character->GetPdAbilitySystemComponent())
 	{
 		PdASC->ResetAbilityRuntimeStateForDeath();
 	}
@@ -130,8 +126,7 @@ void UCharacterDeathComponent::HandleRemoteDeath()
 	}
 
 	bDeathHandled = true;
-	if (UPdAbilitySystemComponent* PdASC =
-		Character->GetPdAbilitySystemComponent())
+	if (UPdAbilitySystemComponent* PdASC = Character->GetPdAbilitySystemComponent())
 	{
 		PdASC->ResetAbilityRuntimeStateForDeath();
 	}
@@ -151,8 +146,7 @@ void UCharacterDeathComponent::ApplyDeathPhysics()
 		HealthBarWidget->SetVisibility(false, true);
 	}
 
-	if (UCharacterMovementComponent* MovementComponent =
-		Character->GetCharacterMovement())
+	if (UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement())
 	{
 		MovementComponent->StopMovementImmediately();
 		MovementComponent->DisableMovement();
@@ -165,25 +159,20 @@ void UCharacterDeathComponent::ApplyDeathPhysics()
 
 	if (USkeletalMeshComponent* CharacterMesh = Character->GetMesh())
 	{
-		CharacterMesh->SetCollisionEnabled(
-			ECollisionEnabled::QueryAndPhysics);
+		CharacterMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 		CharacterMesh->SetAllBodiesSimulatePhysics(true);
 		CharacterMesh->SetSimulatePhysics(true);
 		CharacterMesh->WakeAllRigidBodies();
 		CharacterMesh->bBlendPhysics = true;
 
-		const FVector DeathImpulse =
-			(-Character->GetActorForwardVector()
+		const FVector DeathImpulse = (-Character->GetActorForwardVector()
 				* Settings.ImpulseHorizontalStrength)
 			+ (Character->GetActorRightVector()
 				* Settings.ImpulseSideStrength)
 			+ (FVector::UpVector * Settings.ImpulseUpwardStrength);
-		const FVector DeathImpulseLocation =
-			Character->GetActorLocation()
+		const FVector DeathImpulseLocation = Character->GetActorLocation()
 			+ FVector(0.0f, 0.0f, Settings.ImpulseLocationZOffset);
-		CharacterMesh->AddImpulseAtLocation(
-			DeathImpulse,
-			DeathImpulseLocation);
+		CharacterMesh->AddImpulseAtLocation(DeathImpulse, DeathImpulseLocation);
 	}
 }
 
@@ -198,15 +187,13 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 	CacheInitialRespawnState();
 	if (Character->HasAuthority())
 	{
-		if (UPdAbilitySystemComponent* PdASC =
-			Character->GetPdAbilitySystemComponent())
+		if (UPdAbilitySystemComponent* PdASC = Character->GetPdAbilitySystemComponent())
 		{
 			PdASC->ClearStatusEffectsForRespawn();
 		}
 	}
 
-	if (UAbilityStateComponent* AbilityState =
-		Character->GetAbilityStateComponent())
+	if (UAbilityStateComponent* AbilityState = Character->GetAbilityStateComponent())
 	{
 		AbilityState->ClearFrozenStateForRespawn();
 	}
@@ -237,14 +224,9 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 		CharacterMesh->PutAllRigidBodiesToSleep();
 		if (UCapsuleComponent* Capsule = Character->GetCapsuleComponent())
 		{
-			CharacterMesh->AttachToComponent(
-				Capsule,
-				FAttachmentTransformRules::KeepRelativeTransform);
+			CharacterMesh->AttachToComponent(Capsule, FAttachmentTransformRules::KeepRelativeTransform);
 		}
-		CharacterMesh->SetRelativeTransform(
-			InitialMeshRelativeTransform,
-			false,
-			nullptr,
+		CharacterMesh->SetRelativeTransform(InitialMeshRelativeTransform, false, nullptr,
 			ETeleportType::TeleportPhysics);
 		CharacterMesh->SetCollisionEnabled(InitialMeshCollisionEnabled);
 		ConfigureWeaponDamageMesh(CharacterMesh);
@@ -258,13 +240,11 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 		Presentation->RefreshCharacterOverlayMaterial();
 	}
 
-	if (UCharacterMovementComponent* MovementComponent =
-		Character->GetCharacterMovement())
+	if (UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement())
 	{
 		if (!MovementComponent->UpdatedComponent)
 		{
-			MovementComponent->SetUpdatedComponent(
-				Character->GetCapsuleComponent());
+			MovementComponent->SetUpdatedComponent(Character->GetCapsuleComponent());
 		}
 		MovementComponent->Activate(true);
 		MovementComponent->SetComponentTickEnabled(true);
@@ -277,21 +257,18 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 		MovementComponent->SetMovementMode(RestoredMovementMode);
 	}
 
-	if (UAbilityStateComponent* AbilityState =
-		Character->GetAbilityStateComponent())
+	if (UAbilityStateComponent* AbilityState = Character->GetAbilityStateComponent())
 	{
 		AbilityState->ApplyMovementSpeedFromAttribute();
 	}
 
 	Character->InitializeAbilitySystemActorInfo();
-	if (UPdAbilitySystemComponent* PdASC =
-		Character->GetPdAbilitySystemComponent())
+	if (UPdAbilitySystemComponent* PdASC = Character->GetPdAbilitySystemComponent())
 	{
 		PdASC->ReactivateAutoActivatedAbilities();
 	}
 
-	if (UEquipmentComponent* EquipmentComponent =
-		Character->GetEquipmentComponent())
+	if (UEquipmentComponent* EquipmentComponent = Character->GetEquipmentComponent())
 	{
 		EquipmentComponent->RefreshCurrentWeaponAnimationLayer();
 	}
@@ -304,21 +281,16 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 	Character->SetHealthBarVisibleForLocalViewer(false);
 }
 
-float UCharacterDeathComponent::GetSafeDissolveDuration(
-	const float RequestedDuration) const
+float UCharacterDeathComponent::GetSafeDissolveDuration(const float RequestedDuration) const
 {
-	return RequestedDuration > 0.0f
-		? RequestedDuration
-		: FMath::Max(Settings.DissolveFallbackDuration, 0.01f);
+	return RequestedDuration > 0.0f ? RequestedDuration : FMath::Max(Settings.DissolveFallbackDuration, 0.01f);
 }
 
 void UCharacterDeathComponent::InitializeDeathDissolveMaterials()
 {
 	DeathDissolveMaterialInstances.Reset();
 	const ACharacterBase* Character = GetCharacterOwner();
-	if (!Character
-		|| !Settings.bUseDissolve
-		|| Character->GetNetMode() == NM_DedicatedServer)
+	if (!Character || !Settings.bUseDissolve || Character->GetNetMode() == NM_DedicatedServer)
 	{
 		return;
 	}
@@ -335,21 +307,17 @@ void UCharacterDeathComponent::InitializeDeathDissolveMaterials()
 		MaterialIndex < MaterialCount;
 		++MaterialIndex)
 	{
-		UMaterialInterface* Material =
-			CharacterMesh->GetMaterial(MaterialIndex);
+		UMaterialInterface* Material = CharacterMesh->GetMaterial(MaterialIndex);
 		if (!Material)
 		{
 			DeathDissolveMaterialInstances.Add(nullptr);
 			continue;
 		}
 
-		UMaterialInstanceDynamic* DynamicMaterial =
-			Cast<UMaterialInstanceDynamic>(Material);
+		UMaterialInstanceDynamic* DynamicMaterial = Cast<UMaterialInstanceDynamic>(Material);
 		if (!DynamicMaterial)
 		{
-			DynamicMaterial = CharacterMesh->CreateDynamicMaterialInstance(
-				MaterialIndex,
-				Material);
+			DynamicMaterial = CharacterMesh->CreateDynamicMaterialInstance(MaterialIndex, Material);
 		}
 		DeathDissolveMaterialInstances.Add(DynamicMaterial);
 	}
@@ -369,14 +337,11 @@ void UCharacterDeathComponent::ResetDeathDissolve()
 	}
 }
 
-void UCharacterDeathComponent::StartDeathDissolveLocal(
-	const float DurationSeconds)
+void UCharacterDeathComponent::StartDeathDissolveLocal(const float DurationSeconds)
 {
 	ClearCharacterOverlayMaterialLocal();
 	ACharacterBase* Character = GetCharacterOwner();
-	if (!Character
-		|| !Settings.bUseDissolve
-		|| Character->GetNetMode() == NM_DedicatedServer)
+	if (!Character || !Settings.bUseDissolve || Character->GetNetMode() == NM_DedicatedServer)
 	{
 		return;
 	}
@@ -394,8 +359,7 @@ void UCharacterDeathComponent::StartDeathDissolveLocal(
 	Character->RefreshCharacterTickEnabled();
 }
 
-void UCharacterDeathComponent::UpdateDeathDissolve(
-	const float DeltaSeconds)
+void UCharacterDeathComponent::UpdateDeathDissolve(const float DeltaSeconds)
 {
 	if (!bDeathDissolveActive)
 	{
@@ -409,10 +373,7 @@ void UCharacterDeathComponent::UpdateDeathDissolve(
 			0.0f,
 			1.0f)
 		: 1.0f;
-	SetDeathDissolveValue(FMath::Lerp(
-		Settings.DissolveInitialValue,
-		Settings.DissolveTargetValue,
-		DissolveAlpha));
+	SetDeathDissolveValue(FMath::Lerp(Settings.DissolveInitialValue, Settings.DissolveTargetValue, DissolveAlpha));
 
 	if (DissolveAlpha >= 1.0f)
 	{
@@ -424,23 +385,18 @@ void UCharacterDeathComponent::UpdateDeathDissolve(
 	}
 }
 
-void UCharacterDeathComponent::SetDeathDissolveValue(
-	const float DissolveValue)
+void UCharacterDeathComponent::SetDeathDissolveValue(const float DissolveValue)
 {
-	if (!Settings.bUseDissolve
-		|| Settings.DissolveScalarParameterName.IsNone())
+	if (!Settings.bUseDissolve || Settings.DissolveScalarParameterName.IsNone())
 	{
 		return;
 	}
 
-	for (UMaterialInstanceDynamic* DynamicMaterial :
-		DeathDissolveMaterialInstances)
+	for (UMaterialInstanceDynamic* DynamicMaterial : DeathDissolveMaterialInstances)
 	{
 		if (DynamicMaterial)
 		{
-			DynamicMaterial->SetScalarParameterValue(
-				Settings.DissolveScalarParameterName,
-				DissolveValue);
+			DynamicMaterial->SetScalarParameterValue(Settings.DissolveScalarParameterName, DissolveValue);
 		}
 	}
 }
@@ -449,8 +405,7 @@ void UCharacterDeathComponent::ClearCharacterOverlayMaterialLocal()
 {
 	if (ACharacterBase* Character = GetCharacterOwner())
 	{
-		if (UCharacterPresentationComponent* Presentation =
-			Character->GetCharacterPresentationComponent())
+		if (UCharacterPresentationComponent* Presentation = Character->GetCharacterPresentationComponent())
 		{
 			Presentation->ClearCharacterOverlayMaterialLocal();
 		}
@@ -475,8 +430,7 @@ void UCharacterDeathComponent::CacheInitialRespawnState()
 			? Character->GetClass()->GetDefaultObject<ACharacterBase>()
 			: nullptr;
 
-	const USkeletalMeshComponent* SourceMesh =
-		DefaultCharacter ? DefaultCharacter->GetMesh() : nullptr;
+	const USkeletalMeshComponent* SourceMesh = DefaultCharacter ? DefaultCharacter->GetMesh() : nullptr;
 	if (!SourceMesh)
 	{
 		SourceMesh = Character->GetMesh();
@@ -487,8 +441,7 @@ void UCharacterDeathComponent::CacheInitialRespawnState()
 		InitialMeshCollisionEnabled = SourceMesh->GetCollisionEnabled();
 	}
 
-	const UCapsuleComponent* SourceCapsule =
-		DefaultCharacter ? DefaultCharacter->GetCapsuleComponent() : nullptr;
+	const UCapsuleComponent* SourceCapsule = DefaultCharacter ? DefaultCharacter->GetCapsuleComponent() : nullptr;
 	if (!SourceCapsule)
 	{
 		SourceCapsule = Character->GetCapsuleComponent();
@@ -516,23 +469,17 @@ void UCharacterDeathComponent::CacheInitialRespawnState()
 	bHasCachedRespawnInitialState = true;
 }
 
-void UCharacterDeathComponent::HandleDamageTaken(
-	const float DamageAmount,
-	const bool bCriticalHit)
+void UCharacterDeathComponent::HandleDamageTaken(const float DamageAmount, const bool bCriticalHit)
 {
 	ACharacterBase* Character = GetCharacterOwner();
 	if (Character && Character->HasAuthority())
 	{
-		Character->MulticastHandleDamageTaken(
-			FMath::Max(DamageAmount, 0.0f),
-			bCriticalHit,
+		Character->MulticastHandleDamageTaken(FMath::Max(DamageAmount, 0.0f), bCriticalHit,
 			Character->GetDamageIndicatorWorldLocation());
 	}
 }
 
-void UCharacterDeathComponent::HandleRemoteDamageTaken(
-	const float DamageAmount,
-	const bool bCriticalHit,
+void UCharacterDeathComponent::HandleRemoteDamageTaken(const float DamageAmount, const bool bCriticalHit,
 	const FVector WorldLocation)
 {
 	ACharacterBase* Character = GetCharacterOwner();
@@ -542,13 +489,9 @@ void UCharacterDeathComponent::HandleRemoteDamageTaken(
 	}
 
 	const float DisplayDamageAmount = FMath::Max(DamageAmount, 0.0f);
-	if (IDamageIndicatorInterface* DamageIndicator =
-		Character->GetDamageIndicator())
+	if (IDamageIndicatorInterface* DamageIndicator = Character->GetDamageIndicator())
 	{
-		DamageIndicator->ShowDamageIndicator(
-			DisplayDamageAmount,
-			WorldLocation,
-			bCriticalHit);
+		DamageIndicator->ShowDamageIndicator(DisplayDamageAmount, WorldLocation, bCriticalHit);
 	}
 
 	if (DisplayDamageAmount > 0.0f && Character->IsLocallyControlled())
@@ -558,14 +501,10 @@ void UCharacterDeathComponent::HandleRemoteDamageTaken(
 			PlayerController->ShowDamageScreenEffect(DisplayDamageAmount);
 		}
 	}
-	Character->OnDamageTaken(
-		DisplayDamageAmount,
-		bCriticalHit,
-		WorldLocation);
+	Character->OnDamageTaken(DisplayDamageAmount, bCriticalHit, WorldLocation);
 }
 
-void UCharacterDeathComponent::ConfigureWeaponDamageMesh(
-	USkeletalMeshComponent* CharacterMesh) const
+void UCharacterDeathComponent::ConfigureWeaponDamageMesh(USkeletalMeshComponent* CharacterMesh) const
 {
 	if (!CharacterMesh)
 	{

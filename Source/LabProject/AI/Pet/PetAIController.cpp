@@ -41,12 +41,10 @@ void APetAIController::OnPossess(APawn* InPawn)
 	if (BehaviorTreeAsset)
 	{
 		UBlackboardComponent* LocalBlackboard = nullptr;
-		if (BehaviorTreeAsset->BlackboardAsset
-			&& UseBlackboard(BehaviorTreeAsset->BlackboardAsset, LocalBlackboard))
+		if (BehaviorTreeAsset->BlackboardAsset && UseBlackboard(BehaviorTreeAsset->BlackboardAsset, LocalBlackboard))
 		{
 			const APetCharacter* Pet = Cast<APetCharacter>(InPawn);
-			LocalBlackboard->SetValueAsObject(
-				FollowTargetActorKeyName, Pet ? Pet->GetFollowTargetActor() : nullptr);
+			LocalBlackboard->SetValueAsObject(FollowTargetActorKeyName, Pet ? Pet->GetFollowTargetActor() : nullptr);
 			bBehaviorTreeRunning = RunBehaviorTree(BehaviorTreeAsset);
 		}
 	}
@@ -90,20 +88,11 @@ void APetAIController::RefreshFollowTarget()
 
 	if (!bBehaviorTreeRunning && FollowTarget)
 	{
-		EPathFollowingRequestResult::Type MoveResult = MoveToActor(
-			FollowTarget,
-			DirectMoveAcceptanceRadius,
-			true,
-			bUsePathfindingForFollow,
-			true);
+		EPathFollowingRequestResult::Type MoveResult = MoveToActor(FollowTarget, DirectMoveAcceptanceRadius, true,
+			bUsePathfindingForFollow, true);
 		if (MoveResult == EPathFollowingRequestResult::Failed && bUsePathfindingForFollow)
 		{
-			MoveResult = MoveToActor(
-				FollowTarget,
-				DirectMoveAcceptanceRadius,
-				true,
-				false,
-				true);
+			MoveResult = MoveToActor(FollowTarget, DirectMoveAcceptanceRadius, true, false, true);
 		}
 
 		bDirectFollowFallbackActive = MoveResult == EPathFollowingRequestResult::Failed;
@@ -130,19 +119,13 @@ void APetAIController::UpdateDirectFollowFallback(const float DeltaSeconds)
 		return;
 	}
 
-	const FVector FollowDestination =
-		FollowTarget->GetActorLocation()
+	const FVector FollowDestination = FollowTarget->GetActorLocation()
 		+ FollowTarget->GetActorRotation().RotateVector(DirectFollowOffset);
 	const FVector ToDestination = FollowDestination - ControlledPawn->GetActorLocation();
 	const float DistanceToDestination = ToDestination.Size2D();
-	if (DirectFollowTeleportDistance > 0.0f
-		&& ToDestination.Size() > DirectFollowTeleportDistance)
+	if (DirectFollowTeleportDistance > 0.0f && ToDestination.Size() > DirectFollowTeleportDistance)
 	{
-		ControlledPawn->SetActorLocation(
-			FollowDestination,
-			false,
-			nullptr,
-			ETeleportType::TeleportPhysics);
+		ControlledPawn->SetActorLocation(FollowDestination, false, nullptr, ETeleportType::TeleportPhysics);
 		return;
 	}
 
@@ -161,12 +144,8 @@ void APetAIController::StartFollowTargetRefreshTimer()
 	}
 
 	World->GetTimerManager().ClearTimer(FollowTargetRefreshTimerHandle);
-	World->GetTimerManager().SetTimer(
-		FollowTargetRefreshTimerHandle,
-		this,
-		&ThisClass::RefreshFollowTarget,
-		FMath::Max(FollowTargetRefreshInterval, 0.05f),
-		true);
+	World->GetTimerManager().SetTimer(FollowTargetRefreshTimerHandle, this, &ThisClass::RefreshFollowTarget,
+		FMath::Max(FollowTargetRefreshInterval, 0.05f), true);
 }
 
 void APetAIController::StopFollowTargetRefreshTimer()

@@ -18,8 +18,7 @@ FStateTreePdForgetPerceptionTask::FStateTreePdForgetPerceptionTask()
 	bShouldCopyBoundPropertiesOnExitState = false;
 }
 
-EStateTreeRunStatus FStateTreePdForgetPerceptionTask::EnterState(
-	FStateTreeExecutionContext& Context,
+EStateTreeRunStatus FStateTreePdForgetPerceptionTask::EnterState(FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
 	if (Transition.ChangeType != EStateTreeStateChangeType::Changed)
@@ -44,17 +43,13 @@ EStateTreeRunStatus FStateTreePdForgetPerceptionTask::EnterState(
 }
 
 #if WITH_EDITOR
-FText FStateTreePdForgetPerceptionTask::GetDescription(
-	const FGuid& ID,
-	FStateTreeDataView InstanceDataView,
-	const IStateTreeBindingLookup& BindingLookup,
-	const EStateTreeNodeFormatting Formatting) const
+FText FStateTreePdForgetPerceptionTask::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView,
+	const IStateTreeBindingLookup& BindingLookup, const EStateTreeNodeFormatting Formatting) const
 {
 	static_cast<void>(InstanceDataView);
 
 	const FText ControllerValue = BindingLookup.GetBindingSourceDisplayName(
-		FPropertyBindingPath(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Controller)),
-		Formatting);
+		FPropertyBindingPath(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Controller)), Formatting);
 
 	if (Formatting == EStateTreeNodeFormatting::RichText)
 	{

@@ -84,8 +84,7 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::ExecuteTask(UBehaviorTreeComponent
 		return EBTNodeResult::Failed;
 	}
 
-	Memory->MovesBeforeAttack = FMath::RandRange(
-		FMath::Max(1, FMath::Min(MinMovesBeforeAttack, MaxMovesBeforeAttack)),
+	Memory->MovesBeforeAttack = FMath::RandRange(FMath::Max(1, FMath::Min(MinMovesBeforeAttack, MaxMovesBeforeAttack)),
 		FMath::Max(1, FMath::Max(MinMovesBeforeAttack, MaxMovesBeforeAttack)));
 	ApplyFacingMode(Pawn, NodeMemory);
 	UpdateFacing(AIController, Pawn, TargetActor, 0.0f);
@@ -290,14 +289,8 @@ EBTNodeResult::Type UBTTask_MoveAroundTarget::RequestAttackApproach(UBehaviorTre
 		AIController->SetFocus(TargetActor, EAIFocusPriority::Gameplay);
 	}
 
-	const EPathFollowingRequestResult::Type MoveResult = AIController->MoveToActor(
-		TargetActor,
-		AttackRange,
-		true,
-		true,
-		true,
-		nullptr,
-		true);
+	const EPathFollowingRequestResult::Type MoveResult = AIController->MoveToActor(TargetActor, AttackRange, true, true,
+		true, nullptr, true);
 
 	if (MoveResult == EPathFollowingRequestResult::AlreadyAtGoal)
 	{

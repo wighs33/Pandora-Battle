@@ -218,9 +218,7 @@ const UItemDefinition* AWeaponBase::GetSourceItemDefinition() const
     return SourceItemDefinition.Get();
 }
 
-bool AWeaponBase::TryGetOwnerMeshSocketLocation(
-    const ACharacterBase* Character,
-    FName SocketName,
+bool AWeaponBase::TryGetOwnerMeshSocketLocation(const ACharacterBase* Character, FName SocketName,
     FVector& OutLocation) const
 {
     const USkeletalMeshComponent* CharacterMesh = Character ? Character->GetMesh() : nullptr;
@@ -275,8 +273,7 @@ ACharacterBase* AWeaponBase::GetOwningCharacter() const
 bool AWeaponBase::IsCurrentWeaponForOwner() const
 {
     const ACharacterBase* SourceCharacter = GetOwningCharacter();
-    const UEquipmentComponent* EquipmentComponent = SourceCharacter
-        ? SourceCharacter->GetEquipmentComponent()
+    const UEquipmentComponent* EquipmentComponent = SourceCharacter ? SourceCharacter->GetEquipmentComponent()
         : nullptr;
     return EquipmentComponent && EquipmentComponent->GetCurrentWeaponActor() == this;
 }

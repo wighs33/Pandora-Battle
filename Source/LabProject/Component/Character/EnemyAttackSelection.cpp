@@ -12,23 +12,17 @@ namespace PdEnemyAttackSelection
 {
 	namespace
 	{
-		FGameplayTag ResolveAttackAbilityTag(
-			const bool bUsingRangedWeapon,
-			const bool bHasEquippedWeapon)
+		FGameplayTag ResolveAttackAbilityTag(const bool bUsingRangedWeapon, const bool bHasEquippedWeapon)
 		{
 			if (bUsingRangedWeapon)
 			{
 				return LabGameplayTags::Action_RangedAttack;
 			}
 
-			return bHasEquippedWeapon
-				? LabGameplayTags::Action_Attack
-				: LabGameplayTags::Action_Punch;
+			return bHasEquippedWeapon ? LabGameplayTags::Action_Attack : LabGameplayTags::Action_Punch;
 		}
 
-		bool IsAbilityClassCompatibleWithAttackMode(
-			const UClass* AbilityClass,
-			const bool bUsingRangedWeapon,
+		bool IsAbilityClassCompatibleWithAttackMode(const UClass* AbilityClass, const bool bUsingRangedWeapon,
 			const bool bHasEquippedWeapon)
 		{
 			if (!AbilityClass)
@@ -41,37 +35,26 @@ namespace PdEnemyAttackSelection
 				return AbilityClass->IsChildOf(URangedAttackAbility::StaticClass());
 			}
 
-			const bool bIsPunchAbility =
-				AbilityClass->IsChildOf(UPunchAbility::StaticClass());
+			const bool bIsPunchAbility = AbilityClass->IsChildOf(UPunchAbility::StaticClass());
 			if (!bHasEquippedWeapon)
 			{
 				return bIsPunchAbility;
 			}
 
-			return AbilityClass->IsChildOf(UAttackAbility::StaticClass())
-				&& !bIsPunchAbility;
+			return AbilityClass->IsChildOf(UAttackAbility::StaticClass()) && !bIsPunchAbility;
 		}
 	}
 
-	void GatherAttackAbilityHandles(
-		const UPdAbilitySystemComponent& AbilitySystem,
-		const bool bUsingRangedWeapon,
-		const bool bHasEquippedWeapon,
-		TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles)
+	void GatherAttackAbilityHandles(const UPdAbilitySystemComponent& AbilitySystem, const bool bUsingRangedWeapon,
+		const bool bHasEquippedWeapon, TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles)
 	{
 		OutAbilityHandles.Reset();
-		const FGameplayTag AttackAbilityTag =
-			ResolveAttackAbilityTag(
-				bUsingRangedWeapon,
-				bHasEquippedWeapon);
+		const FGameplayTag AttackAbilityTag = ResolveAttackAbilityTag(bUsingRangedWeapon, bHasEquippedWeapon);
 		if (AttackAbilityTag.IsValid())
 		{
 			FGameplayTagContainer AttackAbilityTags;
 			AttackAbilityTags.AddTag(AttackAbilityTag);
-			AbilitySystem.FindAllAbilitiesWithTags(
-				OutAbilityHandles,
-				AttackAbilityTags,
-				false);
+			AbilitySystem.FindAllAbilitiesWithTags(OutAbilityHandles, AttackAbilityTags, false);
 		}
 
 		if (!OutAbilityHandles.IsEmpty())
@@ -81,60 +64,46 @@ namespace PdEnemyAttackSelection
 
 		// Compatibility fallback for legacy Blueprint abilities without the
 		// expected native attack asset tag.
-		for (const FGameplayAbilitySpec& AbilitySpec :
-			AbilitySystem.GetActivatableAbilities())
+		for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystem.GetActivatableAbilities())
 		{
 			const UGameplayAbility* AbilityCDO = AbilitySpec.Ability;
-			const UClass* AbilityClass =
-				AbilityCDO ? AbilityCDO->GetClass() : nullptr;
-			if (IsAbilityClassCompatibleWithAttackMode(
-					AbilityClass,
-					bUsingRangedWeapon,
-					bHasEquippedWeapon))
+			const UClass* AbilityClass = AbilityCDO ? AbilityCDO->GetClass() : nullptr;
+			if (IsAbilityClassCompatibleWithAttackMode(AbilityClass, bUsingRangedWeapon, bHasEquippedWeapon))
 			{
 				OutAbilityHandles.AddUnique(AbilitySpec.Handle);
 			}
 		}
 	}
 
-	bool TryContinueActiveAttack(
-		UPdAbilitySystemComponent& AbilitySystem,
-		const TArray<FGameplayAbilitySpecHandle>& AbilityHandles,
-		const bool bRequestCombo)
+	bool TryContinueActiveAttack(UPdAbilitySystemComponent& AbilitySystem,
+		const TArray<FGameplayAbilitySpecHandle>& AbilityHandles, const bool bRequestCombo)
 	{
 		for (const FGameplayAbilitySpecHandle& AbilityHandle : AbilityHandles)
 		{
-			FGameplayAbilitySpec* AbilitySpec =
-				AbilitySystem.FindAbilitySpecFromHandle(AbilityHandle);
+			FGameplayAbilitySpec* AbilitySpec = AbilitySystem.FindAbilitySpecFromHandle(AbilityHandle);
 			if (!AbilitySpec || !AbilitySpec->IsActive())
 			{
 				continue;
 			}
 
-			UAttackAbility* ActiveAttackAbility =
-				Cast<UAttackAbility>(AbilitySpec->GetPrimaryInstance());
+			UAttackAbility* ActiveAttackAbility = Cast<UAttackAbility>(AbilitySpec->GetPrimaryInstance());
 			if (ActiveAttackAbility)
 			{
 				if (bRequestCombo)
 				{
-					const FName RequestedSectionName =
-						ActiveAttackAbility->GetNextAttackSectionName();
+					const FName RequestedSectionName = ActiveAttackAbility->GetNextAttackSectionName();
 					if (!RequestedSectionName.IsNone())
 					{
-						ActiveAttackAbility->RequestJumpToSection(
-							RequestedSectionName);
+						ActiveAttackAbility->RequestJumpToSection(RequestedSectionName);
 					}
 				}
 				return true;
 			}
 
 			const UGameplayAbility* AbilityCDO = AbilitySpec->Ability;
-			const UClass* AbilityClass =
-				AbilityCDO ? AbilityCDO->GetClass() : nullptr;
-			if (AbilityClass
-				&& (AbilityClass->IsChildOf(UAttackAbility::StaticClass())
-					|| AbilityClass->IsChildOf(
-						URangedAttackAbility::StaticClass())))
+			const UClass* AbilityClass = AbilityCDO ? AbilityCDO->GetClass() : nullptr;
+			if (AbilityClass && (AbilityClass->IsChildOf(UAttackAbility::StaticClass())
+				|| AbilityClass->IsChildOf(URangedAttackAbility::StaticClass())))
 			{
 				return true;
 			}
@@ -143,16 +112,13 @@ namespace PdEnemyAttackSelection
 		return false;
 	}
 
-	bool TryActivateAnyAttack(
-		UPdAbilitySystemComponent& AbilitySystem,
+	bool TryActivateAnyAttack(UPdAbilitySystemComponent& AbilitySystem,
 		TArray<FGameplayAbilitySpecHandle>& AbilityHandles)
 	{
 		Algo::RandomShuffle(AbilityHandles);
 		for (const FGameplayAbilitySpecHandle& AbilityHandle : AbilityHandles)
 		{
-			if (AbilitySystem.TryActivateAbility(
-					AbilityHandle,
-					true))
+			if (AbilitySystem.TryActivateAbility(AbilityHandle, true))
 			{
 				return true;
 			}

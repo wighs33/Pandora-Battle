@@ -17,15 +17,12 @@ FPrimaryAssetId UEnemyBaseDefinition::GetPrimaryAssetId() const
 
 FPrimaryAssetId UEnemyBaseDefinition::GetDefaultPrimaryAssetId()
 {
-	return FPrimaryAssetId(
-		TEXT("EnemyBaseDefinition"),
-		GetDefaultDefinitionPath().GetAssetFName());
+	return FPrimaryAssetId(TEXT("EnemyBaseDefinition"), GetDefaultDefinitionPath().GetAssetFName());
 }
 
 FSoftObjectPath UEnemyBaseDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.EnemyBase.ToSoftObjectPath();
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().EnemyBase.ToSoftObjectPath();
 }
 
 TSoftObjectPtr<UStatUpgradeDefinition>
@@ -36,8 +33,7 @@ UEnemyBaseDefinition::GetEffectiveDefaultStatDefinition() const
 		return Combat.DefaultStatDefinition;
 	}
 
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.StatUpgrade;
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().StatUpgrade;
 }
 
 #if WITH_EDITOR
@@ -49,13 +45,11 @@ EDataValidationResult UEnemyBaseDefinition::IsDataValid(FDataValidationContext& 
 		Result = EDataValidationResult::Valid;
 	}
 
-	const auto RequireFiniteNonNegative =
-		[&Context, &Result](const float Value, const TCHAR* FieldName)
+	const auto RequireFiniteNonNegative = [&Context, &Result](const float Value, const TCHAR* FieldName)
 		{
 			if (!FMath::IsFinite(Value) || Value < 0.0f)
 			{
-				Context.AddError(FText::FromString(FString::Printf(
-					TEXT("%s must be finite and non-negative."),
+				Context.AddError(FText::FromString(FString::Printf(TEXT("%s must be finite and non-negative."),
 					FieldName)));
 				Result = EDataValidationResult::Invalid;
 			}
@@ -69,40 +63,33 @@ EDataValidationResult UEnemyBaseDefinition::IsDataValid(FDataValidationContext& 
 	RequireFiniteNonNegative(TrainingBot.RespawnDelay, TEXT("TrainingBot.RespawnDelay"));
 	if (!FMath::IsFinite(MonsterMaxHealth) || MonsterMaxHealth <= 0.0f)
 	{
-		Context.AddError(FText::FromString(
-			TEXT("MonsterMaxHealth must be finite and positive.")));
+		Context.AddError(FText::FromString(TEXT("MonsterMaxHealth must be finite and positive.")));
 		Result = EDataValidationResult::Invalid;
 	}
 
 	if (Combat.DefaultMonsterClass.IsNull())
 	{
-		Context.AddError(FText::FromString(
-			TEXT("Combat.DefaultMonsterClass is required.")));
+		Context.AddError(FText::FromString(TEXT("Combat.DefaultMonsterClass is required.")));
 		Result = EDataValidationResult::Invalid;
 	}
 	if (MonsterStateTree.IsNull())
 	{
-		Context.AddError(FText::FromString(
-			TEXT("MonsterStateTree is required for server-side monster AI.")));
+		Context.AddError(FText::FromString(TEXT("MonsterStateTree is required for server-side monster AI.")));
 		Result = EDataValidationResult::Invalid;
 	}
 
-	const bool bHasAnyMonsterPresentationSetting =
-		MonsterPresentation.ContactDamageEffectClass
+	const bool bHasAnyMonsterPresentationSetting = MonsterPresentation.ContactDamageEffectClass
 		|| MonsterPresentation.HitReactMontage;
 	if (bHasAnyMonsterPresentationSetting
-		&& (!MonsterPresentation.ContactDamageEffectClass
-			|| !MonsterPresentation.HitReactMontage))
+		&& (!MonsterPresentation.ContactDamageEffectClass || !MonsterPresentation.HitReactMontage))
 	{
 		Context.AddError(FText::FromString(
 			TEXT("MonsterPresentation must configure the damage effect and hit-react montage together. Death uses immediate ragdoll.")));
 		Result = EDataValidationResult::Invalid;
 	}
-	if (!FMath::IsFinite(MonsterPresentation.HitReactPlayRate)
-		|| MonsterPresentation.HitReactPlayRate <= 0.0f)
+	if (!FMath::IsFinite(MonsterPresentation.HitReactPlayRate) || MonsterPresentation.HitReactPlayRate <= 0.0f)
 	{
-		Context.AddError(FText::FromString(
-			TEXT("MonsterPresentation.HitReactPlayRate must be finite and positive.")));
+		Context.AddError(FText::FromString(TEXT("MonsterPresentation.HitReactPlayRate must be finite and positive.")));
 		Result = EDataValidationResult::Invalid;
 	}
 

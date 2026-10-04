@@ -15,8 +15,7 @@ FPrimaryAssetId UCharacterBaseDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UCharacterBaseDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
-		.Character.ToSoftObjectPath();
+	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Character.ToSoftObjectPath();
 }
 
 #if WITH_EDITOR
@@ -28,13 +27,11 @@ EDataValidationResult UCharacterBaseDefinition::IsDataValid(FDataValidationConte
 		Result = EDataValidationResult::Valid;
 	}
 
-	auto RequireFiniteNonNegative =
-		[&Context, &Result](const float Value, const TCHAR* FieldName)
+	auto RequireFiniteNonNegative = [&Context, &Result](const float Value, const TCHAR* FieldName)
 		{
 			if (!FMath::IsFinite(Value) || Value < 0.0f)
 			{
-				Context.AddError(FText::FromString(FString::Printf(
-					TEXT("%s must be finite and non-negative."),
+				Context.AddError(FText::FromString(FString::Printf(TEXT("%s must be finite and non-negative."),
 					FieldName)));
 				Result = EDataValidationResult::Invalid;
 			}

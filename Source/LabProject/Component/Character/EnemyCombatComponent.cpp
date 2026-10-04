@@ -28,26 +28,19 @@ DEFINE_LOG_CATEGORY_STATIC(LogEnemyCombatComponent, Log, All);
 
 namespace
 {
-bool IsValidEnemyAttackTarget(
-	const AEnemyBase* Enemy,
-	const AActor* PotentialTarget)
+bool IsValidEnemyAttackTarget(const AEnemyBase* Enemy, const AActor* PotentialTarget)
 {
-	if (!IsValid(Enemy)
-		|| !IsValid(PotentialTarget)
-		|| PotentialTarget == Enemy)
+	if (!IsValid(Enemy) || !IsValid(PotentialTarget) || PotentialTarget == Enemy)
 	{
 		return false;
 	}
 
-	const ACharacterBase* TargetCharacter =
-		Cast<ACharacterBase>(PotentialTarget);
+	const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(PotentialTarget);
 	if (TargetCharacter && TargetCharacter->IsDead())
 	{
 		return false;
 	}
-	if (TargetCharacter
-		&& Enemy->GetFactionId() != 0
-		&& TargetCharacter->GetFactionId() == Enemy->GetFactionId())
+	if (TargetCharacter && Enemy->GetFactionId() != 0 && TargetCharacter->GetFactionId() == Enemy->GetFactionId())
 	{
 		return false;
 	}
@@ -60,33 +53,24 @@ UEnemyCombatComponent::UEnemyCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
-	const UEnemyBaseDefinition* NativeDefaults =
-		GetDefault<UEnemyBaseDefinition>();
+	const UEnemyBaseDefinition* NativeDefaults = GetDefault<UEnemyBaseDefinition>();
 	if (NativeDefaults)
 	{
 		Settings = NativeDefaults->GetCombatSettings();
 	}
 }
 
-void UEnemyCombatComponent::ApplySettings(
-	const FEnemyCombatSettings& InSettings)
+void UEnemyCombatComponent::ApplySettings(const FEnemyCombatSettings& InSettings)
 {
 	Settings = InSettings;
-	const auto SanitizeNonNegative =
-		[](const float Value)
+	const auto SanitizeNonNegative = [](const float Value)
 		{
-			return FMath::IsFinite(Value)
-				? FMath::Max(Value, 0.0f)
-				: 0.0f;
+			return FMath::IsFinite(Value) ? FMath::Max(Value, 0.0f) : 0.0f;
 		};
-	Settings.InitialCombatDelay =
-		SanitizeNonNegative(Settings.InitialCombatDelay);
-	Settings.AttackInterval =
-		SanitizeNonNegative(Settings.AttackInterval);
-	Settings.AttackStartDistance =
-		SanitizeNonNegative(Settings.AttackStartDistance);
-	Settings.RangedAttackStartDistance =
-		SanitizeNonNegative(Settings.RangedAttackStartDistance);
+	Settings.InitialCombatDelay = SanitizeNonNegative(Settings.InitialCombatDelay);
+	Settings.AttackInterval = SanitizeNonNegative(Settings.AttackInterval);
+	Settings.AttackStartDistance = SanitizeNonNegative(Settings.AttackStartDistance);
+	Settings.RangedAttackStartDistance = SanitizeNonNegative(Settings.RangedAttackStartDistance);
 	bDefaultStatDefinitionApplied = false;
 	BeginRuntimeContentPreload();
 }
@@ -106,8 +90,7 @@ void UEnemyCombatComponent::BeginRuntimeContentPreload()
 		AssetPaths.AddUnique(Settings.StartingWeaponDefinition.ToSoftObjectPath());
 	}
 
-	AssetPaths.RemoveAll(
-		[](const FSoftObjectPath& AssetPath)
+	AssetPaths.RemoveAll([](const FSoftObjectPath& AssetPath)
 		{
 			return AssetPath.ResolveObject() != nullptr;
 		});
@@ -117,31 +100,22 @@ void UEnemyCombatComponent::BeginRuntimeContentPreload()
 		return;
 	}
 
-	RuntimeContentLease = UContentDataSubsystem::AcquireContent(
-		AssetPaths,
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleRuntimeContentPreloaded));
+	RuntimeContentLease = UContentDataSubsystem::AcquireContent(AssetPaths,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRuntimeContentPreloaded));
 }
 
 void UEnemyCombatComponent::HandleRuntimeContentPreloaded()
 {
 	bRuntimeContentReady = true;
-	if (!Settings.DefaultStatDefinition.IsNull()
-		&& !Settings.DefaultStatDefinition.Get())
+	if (!Settings.DefaultStatDefinition.IsNull() && !Settings.DefaultStatDefinition.Get())
 	{
-		UE_LOG(
-			LogEnemyCombatComponent,
-			Error,
+		UE_LOG(LogEnemyCombatComponent, Error,
 			TEXT("Enemy stat definition '%s' did not resolve after asynchronous preload."),
 			*Settings.DefaultStatDefinition.ToString());
 	}
-	if (!Settings.StartingWeaponDefinition.IsNull()
-		&& !Settings.StartingWeaponDefinition.Get())
+	if (!Settings.StartingWeaponDefinition.IsNull() && !Settings.StartingWeaponDefinition.Get())
 	{
-		UE_LOG(
-			LogEnemyCombatComponent,
-			Error,
+		UE_LOG(LogEnemyCombatComponent, Error,
 			TEXT("Enemy starting weapon '%s' did not resolve after asynchronous preload."),
 			*Settings.StartingWeaponDefinition.ToString());
 	}
@@ -196,12 +170,8 @@ void UEnemyCombatComponent::HandlePossessed()
 	}
 
 	Enemy->GetWorldTimerManager().ClearTimer(InitialCombatTimerHandle);
-	Enemy->GetWorldTimerManager().SetTimer(
-		InitialCombatTimerHandle,
-		this,
-		&ThisClass::HandleInitialCombatDelayElapsed,
-		Settings.InitialCombatDelay,
-		false);
+	Enemy->GetWorldTimerManager().SetTimer(InitialCombatTimerHandle, this, &ThisClass::HandleInitialCombatDelayElapsed,
+		Settings.InitialCombatDelay, false);
 }
 
 void UEnemyCombatComponent::ShutdownRuntime()
@@ -286,31 +256,23 @@ void UEnemyCombatComponent::StartAttackTimer()
 	}
 
 	FTimerDelegate AttackDelegate;
-	AttackDelegate.BindWeakLambda(
-		Enemy,
-		[WeakEnemy = TWeakObjectPtr<AEnemyBase>(Enemy)]()
+	AttackDelegate.BindWeakLambda(Enemy, [WeakEnemy = TWeakObjectPtr<AEnemyBase>(Enemy)]()
 		{
 			if (AEnemyBase* ResolvedEnemy = WeakEnemy.Get())
 			{
 				ResolvedEnemy->Attack();
 			}
 		});
-	Enemy->GetWorldTimerManager().SetTimer(
-		AttackTimerHandle,
-		AttackDelegate,
-		Settings.AttackInterval,
-		true,
+	Enemy->GetWorldTimerManager().SetTimer(AttackTimerHandle, AttackDelegate, Settings.AttackInterval, true,
 		Settings.AttackInterval);
 }
 
-bool UEnemyCombatComponent::IsActorValidAttackTarget(
-	const AActor* InActor) const
+bool UEnemyCombatComponent::IsActorValidAttackTarget(const AActor* InActor) const
 {
 	return IsValidEnemyAttackTarget(GetEnemyOwnerConst(), InActor);
 }
 
-void UEnemyCombatComponent::SetUseNearestPlayerWhenTargetUnset(
-	const bool bInUseNearestPlayer)
+void UEnemyCombatComponent::SetUseNearestPlayerWhenTargetUnset(const bool bInUseNearestPlayer)
 {
 	Settings.bUseNearestPlayerWhenTargetUnset = bInUseNearestPlayer;
 }
@@ -323,8 +285,7 @@ AActor* UEnemyCombatComponent::ResolveAttackTarget() const
 		return nullptr;
 	}
 
-	const IAttackTargetSourceInterface* TargetSource =
-		Cast<IAttackTargetSourceInterface>(Enemy->GetController());
+	const IAttackTargetSourceInterface* TargetSource = Cast<IAttackTargetSourceInterface>(Enemy->GetController());
 	if (AActor* SelectedTarget = TargetSource ? TargetSource->GetSelectedAttackTarget() : nullptr;
 		IsActorValidAttackTarget(SelectedTarget))
 	{
@@ -341,22 +302,18 @@ AActor* UEnemyCombatComponent::ResolveAttackTarget() const
 	double BestDistanceSq = TNumericLimits<double>::Max();
 	if (World)
 	{
-		for (FConstPlayerControllerIterator Iterator =
-				World->GetPlayerControllerIterator();
+		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator();
 			Iterator;
 			++Iterator)
 		{
 			const APlayerController* PlayerController = Iterator->Get();
-			APawn* PlayerPawn =
-				PlayerController ? PlayerController->GetPawn() : nullptr;
+			APawn* PlayerPawn = PlayerController ? PlayerController->GetPawn() : nullptr;
 			if (!IsActorValidAttackTarget(PlayerPawn))
 			{
 				continue;
 			}
 
-			const double DistanceSq = FVector::DistSquared(
-				Enemy->GetActorLocation(),
-				PlayerPawn->GetActorLocation());
+			const double DistanceSq = FVector::DistSquared(Enemy->GetActorLocation(), PlayerPawn->GetActorLocation());
 			if (DistanceSq < BestDistanceSq)
 			{
 				BestDistanceSq = DistanceSq;
@@ -368,8 +325,7 @@ AActor* UEnemyCombatComponent::ResolveAttackTarget() const
 	return BestTarget;
 }
 
-float UEnemyCombatComponent::GetAttackDistanceToActor(
-	const AActor* InActor) const
+float UEnemyCombatComponent::GetAttackDistanceToActor(const AActor* InActor) const
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
 	if (!Enemy || !IsValid(InActor))
@@ -377,9 +333,7 @@ float UEnemyCombatComponent::GetAttackDistanceToActor(
 		return TNumericLimits<float>::Max();
 	}
 
-	const float CenterDistance2D = FVector::Dist2D(
-		Enemy->GetActorLocation(),
-		InActor->GetActorLocation());
+	const float CenterDistance2D = FVector::Dist2D(Enemy->GetActorLocation(), InActor->GetActorLocation());
 
 	float SelfRadius = 0.0f;
 	float SelfHalfHeight = 0.0f;
@@ -389,50 +343,39 @@ float UEnemyCombatComponent::GetAttackDistanceToActor(
 	float TargetHalfHeight = 0.0f;
 	InActor->GetSimpleCollisionCylinder(TargetRadius, TargetHalfHeight);
 
-	return FMath::Max(
-		CenterDistance2D - SelfRadius - TargetRadius,
-		0.0f);
+	return FMath::Max(CenterDistance2D - SelfRadius - TargetRadius, 0.0f);
 }
 
 float UEnemyCombatComponent::GetAttackStartDistance() const
 {
-	return IsUsingRangedWeapon()
-		? Settings.RangedAttackStartDistance
-		: Settings.AttackStartDistance;
+	return IsUsingRangedWeapon() ? Settings.RangedAttackStartDistance : Settings.AttackStartDistance;
 }
 
 bool UEnemyCombatComponent::IsUsingRangedWeapon() const
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	const UEquipmentComponent* Equipment =
-		Enemy ? Enemy->GetEquipmentComponent() : nullptr;
-	const ARangedWeaponBase* Weapon =
-		Equipment ? Cast<ARangedWeaponBase>(Equipment->GetCurrentWeaponActor()) : nullptr;
+	const UEquipmentComponent* Equipment = Enemy ? Enemy->GetEquipmentComponent() : nullptr;
+	const ARangedWeaponBase* Weapon = Equipment ? Cast<ARangedWeaponBase>(Equipment->GetCurrentWeaponActor()) : nullptr;
 	if (Weapon && Weapon->SupportsAimInput())
 	{
 		return true;
 	}
 
-	const UItemDefinition* WeaponDefinition =
-		Equipment ? Equipment->GetCurrentWeaponDefinition() : nullptr;
-	return WeaponDefinition
-		&& WeaponDefinition->WeaponData.Aim.bSupportsInput;
+	const UItemDefinition* WeaponDefinition = Equipment ? Equipment->GetCurrentWeaponDefinition() : nullptr;
+	return WeaponDefinition && WeaponDefinition->WeaponData.Aim.bSupportsInput;
 }
 
 bool UEnemyCombatComponent::IsUsingGunWeapon() const
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	const UEquipmentComponent* Equipment =
-		Enemy ? Enemy->GetEquipmentComponent() : nullptr;
-	const AWeaponBase* Weapon =
-		Equipment ? Equipment->GetCurrentWeaponActor() : nullptr;
+	const UEquipmentComponent* Equipment = Enemy ? Enemy->GetEquipmentComponent() : nullptr;
+	const AWeaponBase* Weapon = Equipment ? Equipment->GetCurrentWeaponActor() : nullptr;
 	if (Weapon && Weapon->IsA<AGun>())
 	{
 		return true;
 	}
 
-	const UItemDefinition* WeaponDefinition =
-		Equipment ? Equipment->GetCurrentWeaponDefinition() : nullptr;
+	const UItemDefinition* WeaponDefinition = Equipment ? Equipment->GetCurrentWeaponDefinition() : nullptr;
 	return WeaponDefinition && WeaponDefinition->WeaponData.Gun.HasAnyData();
 }
 
@@ -452,11 +395,9 @@ void UEnemyCombatComponent::EnsureDefaultAttributeSetup()
 bool UEnemyCombatComponent::ApplyDefaultStatDefinition()
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
+	UPdAbilitySystemComponent* AbilitySystemComponent = Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
 	const UStatUpgradeDefinition* StatDefinition = Settings.DefaultStatDefinition.Get();
-	if (!Enemy || !Enemy->HasAuthority() || !AbilitySystemComponent
-		|| bDefaultStatDefinitionApplied || !StatDefinition)
+	if (!Enemy || !Enemy->HasAuthority() || !AbilitySystemComponent || bDefaultStatDefinitionApplied || !StatDefinition)
 	{
 		return false;
 	}
@@ -474,9 +415,7 @@ bool UEnemyCombatComponent::ApplyDefaultStatDefinition()
 bool UEnemyCombatComponent::EquipStartingWeapon()
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
-	if (!Enemy
-		|| !Enemy->HasAuthority()
-		|| Settings.StartingWeaponDefinition.IsNull())
+	if (!Enemy || !Enemy->HasAuthority() || Settings.StartingWeaponDefinition.IsNull())
 	{
 		return false;
 	}
@@ -487,14 +426,11 @@ bool UEnemyCombatComponent::EquipStartingWeapon()
 		return false;
 	}
 
-	UItemDefinition* WeaponDefinition =
-		Settings.StartingWeaponDefinition.Get();
-	return WeaponDefinition
-		&& Equipment->EquipWeaponDefinition(WeaponDefinition);
+	UItemDefinition* WeaponDefinition = Settings.StartingWeaponDefinition.Get();
+	return WeaponDefinition && Equipment->EquipWeaponDefinition(WeaponDefinition);
 }
 
-bool UEnemyCombatComponent::EquipEnemyWeaponDefinition(
-	const UItemDefinition* WeaponDefinition)
+bool UEnemyCombatComponent::EquipEnemyWeaponDefinition(const UItemDefinition* WeaponDefinition)
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
 	if (!Enemy || !Enemy->HasAuthority() || !WeaponDefinition)
@@ -510,34 +446,27 @@ bool UEnemyCombatComponent::EquipEnemyWeaponDefinition(
 
 	Enemy->InitializeAbilitySystemActorInfo();
 	EnsureDefaultAttributeSetup();
-	const bool bEquipped =
-		Equipment->EquipWeaponDefinition(WeaponDefinition);
+	const bool bEquipped = Equipment->EquipWeaponDefinition(WeaponDefinition);
 	if (bEquipped)
 	{
 		Settings.StartingWeaponDefinition =
-			TSoftObjectPtr<UItemDefinition>(
-				FSoftObjectPath(WeaponDefinition->GetPathName()));
+			TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(WeaponDefinition->GetPathName()));
 	}
 	return bEquipped;
 }
 
-const UItemDefinition*
-UEnemyCombatComponent::GetCurrentOrStartingEnemyWeaponDefinition() const
+const UItemDefinition* UEnemyCombatComponent::GetCurrentOrStartingEnemyWeaponDefinition() const
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	if (const UEquipmentComponent* Equipment =
-			Enemy ? Enemy->GetEquipmentComponent() : nullptr)
+	if (const UEquipmentComponent* Equipment = Enemy ? Enemy->GetEquipmentComponent() : nullptr)
 	{
-		if (const UItemDefinition* WeaponDefinition =
-				Equipment->GetCurrentWeaponDefinition())
+		if (const UItemDefinition* WeaponDefinition = Equipment->GetCurrentWeaponDefinition())
 		{
 			return WeaponDefinition;
 		}
 	}
 
-	return Settings.StartingWeaponDefinition.IsNull()
-		? nullptr
-		: Settings.StartingWeaponDefinition.Get();
+	return Settings.StartingWeaponDefinition.IsNull() ? nullptr : Settings.StartingWeaponDefinition.Get();
 }
 
 void UEnemyCombatComponent::ClearStartingWeaponDefinition()
@@ -548,8 +477,7 @@ void UEnemyCombatComponent::ClearStartingWeaponDefinition()
 void UEnemyCombatComponent::ResetAttributesForRespawn()
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
+	UPdAbilitySystemComponent* AbilitySystemComponent = Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
 	if (!Enemy || !Enemy->HasAuthority() || !AbilitySystemComponent)
 	{
 		return;
@@ -563,10 +491,8 @@ void UEnemyCombatComponent::ResetAttributesForRespawn()
 bool UEnemyCombatComponent::IsAttackAbilityActive() const
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	const UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
-	return AbilitySystemComponent
-		&& PdEnemyAttackSelection::IsAnyAttackActive(*AbilitySystemComponent);
+	const UPdAbilitySystemComponent* AbilitySystemComponent = Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
+	return AbilitySystemComponent && PdEnemyAttackSelection::IsAnyAttackActive(*AbilitySystemComponent);
 }
 
 bool UEnemyCombatComponent::IsAttackInProgress() const
@@ -574,20 +500,16 @@ bool UEnemyCombatComponent::IsAttackInProgress() const
 	return IsAttackAbilityActive();
 }
 
-bool UEnemyCombatComponent::MoveToAttackTarget(
-	AActor* CurrentAttackTarget)
+bool UEnemyCombatComponent::MoveToAttackTarget(AActor* CurrentAttackTarget)
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
-	if (!Enemy
-		|| !Enemy->HasAuthority()
-		|| !Settings.bMoveToTargetBeforeAttack
+	if (!Enemy || !Enemy->HasAuthority() || !Settings.bMoveToTargetBeforeAttack
 		|| !IsActorValidAttackTarget(CurrentAttackTarget))
 	{
 		return false;
 	}
 
-	AAIController* AIController =
-		Cast<AAIController>(Enemy->GetController());
+	AAIController* AIController = Cast<AAIController>(Enemy->GetController());
 	if (Enemy->IsStatusFrozen())
 	{
 		if (AIController)
@@ -599,8 +521,7 @@ bool UEnemyCombatComponent::MoveToAttackTarget(
 	}
 
 	const bool bUsingRangedWeapon = IsUsingRangedWeapon();
-	if (bUsingRangedWeapon
-		&& !Settings.bMoveToTargetBeforeRangedAttack)
+	if (bUsingRangedWeapon && !Settings.bMoveToTargetBeforeRangedAttack)
 	{
 		if (!IsUsingGunWeapon() && AIController)
 		{
@@ -609,8 +530,7 @@ bool UEnemyCombatComponent::MoveToAttackTarget(
 		return false;
 	}
 
-	const UEnemyTrainingBotComponent* TrainingBot =
-		Enemy->GetEnemyTrainingBotComponent();
+	const UEnemyTrainingBotComponent* TrainingBot = Enemy->GetEnemyTrainingBotComponent();
 	if (TrainingBot && TrainingBot->IsHitStunned())
 	{
 		if (AIController)
@@ -620,8 +540,7 @@ bool UEnemyCombatComponent::MoveToAttackTarget(
 		return true;
 	}
 
-	const float Distance2D =
-		GetAttackDistanceToActor(CurrentAttackTarget);
+	const float Distance2D = GetAttackDistanceToActor(CurrentAttackTarget);
 	const float RequiredAttackDistance = GetAttackStartDistance();
 	if (Distance2D <= RequiredAttackDistance)
 	{
@@ -637,24 +556,15 @@ bool UEnemyCombatComponent::MoveToAttackTarget(
 		return false;
 	}
 
-	static_cast<void>(AIController->MoveToActor(
-		CurrentAttackTarget,
-		RequiredAttackDistance,
-		true,
-		true,
-		true,
-		nullptr,
+	static_cast<void>(AIController->MoveToActor(CurrentAttackTarget, RequiredAttackDistance, true, true, true, nullptr,
 		true));
 	return true;
 }
 
-bool UEnemyCombatComponent::RequestMoveToAttackTarget(
-	AActor* InAttackTarget)
+bool UEnemyCombatComponent::RequestMoveToAttackTarget(AActor* InAttackTarget)
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	if (!Enemy
-		|| !Enemy->HasAuthority()
-		|| !IsActorValidAttackTarget(InAttackTarget))
+	if (!Enemy || !Enemy->HasAuthority() || !IsActorValidAttackTarget(InAttackTarget))
 	{
 		return false;
 	}
@@ -665,21 +575,15 @@ bool UEnemyCombatComponent::RequestMoveToAttackTarget(
 bool UEnemyCombatComponent::ValidateAttackRequest()
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
-	const UEnemyTrainingBotComponent* TrainingBot =
-		Enemy ? Enemy->GetEnemyTrainingBotComponent() : nullptr;
-	if (!Enemy
-		|| !Enemy->HasAuthority()
-		|| !Settings.bAttackEnabled
-		|| (TrainingBot && TrainingBot->IsWeaponChangeInProgress())
-		|| !AbilitySystemComponent)
+	UPdAbilitySystemComponent* AbilitySystemComponent = Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
+	const UEnemyTrainingBotComponent* TrainingBot = Enemy ? Enemy->GetEnemyTrainingBotComponent() : nullptr;
+	if (!Enemy || !Enemy->HasAuthority() || !Settings.bAttackEnabled
+		|| (TrainingBot && TrainingBot->IsWeaponChangeInProgress()) || !AbilitySystemComponent)
 	{
 		return false;
 	}
 
-	if (AbilitySystemComponent->HasMatchingGameplayTag(
-			LabGameplayTags::State_Dead))
+	if (AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
 	{
 		Enemy->GetWorldTimerManager().ClearTimer(AttackTimerHandle);
 		StopAttackMovement();
@@ -698,30 +602,23 @@ bool UEnemyCombatComponent::ValidateAttackRequest()
 void UEnemyCombatComponent::StopAttackMovement() const
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	if (AAIController* AIController =
-			Enemy ? Cast<AAIController>(Enemy->GetController()) : nullptr)
+	if (AAIController* AIController = Enemy ? Cast<AAIController>(Enemy->GetController()) : nullptr)
 	{
 		AIController->StopMovement();
 	}
 }
 
-void UEnemyCombatComponent::FaceAttackTarget(
-	const AActor* CurrentAttackTarget)
+void UEnemyCombatComponent::FaceAttackTarget(const AActor* CurrentAttackTarget)
 {
 	AEnemyBase* Enemy = GetEnemyOwner();
-	if (!Enemy
-		|| Enemy->IsStatusFrozen()
-		|| !IsValid(CurrentAttackTarget))
+	if (!Enemy || Enemy->IsStatusFrozen() || !IsValid(CurrentAttackTarget))
 	{
 		return;
 	}
 
 	if (AController* Controller = Enemy->GetController())
 	{
-		FRotator LookAtRotation =
-			(CurrentAttackTarget->GetActorLocation()
-				- Enemy->GetActorLocation())
-				.Rotation();
+		FRotator LookAtRotation = (CurrentAttackTarget->GetActorLocation() - Enemy->GetActorLocation()).Rotation();
 		LookAtRotation.Pitch = 0.0f;
 		LookAtRotation.Roll = 0.0f;
 		Controller->SetControlRotation(LookAtRotation);
@@ -750,8 +647,7 @@ void UEnemyCombatComponent::Attack()
 	}
 
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
-	UPdAbilitySystemComponent* AbilitySystemComponent =
-		Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
+	UPdAbilitySystemComponent* AbilitySystemComponent = Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
 	if (!AbilitySystemComponent)
 	{
 		return;
@@ -760,8 +656,7 @@ void UEnemyCombatComponent::Attack()
 	const UEquipmentComponent* Equipment = Enemy->GetEquipmentComponent();
 	const bool bUsingRangedWeapon = IsUsingRangedWeapon();
 	const bool bHasEquippedWeapon = Equipment
-		&& (Equipment->GetCurrentWeaponActor()
-			|| Equipment->GetCurrentWeaponDefinition());
+		&& (Equipment->GetCurrentWeaponActor() || Equipment->GetCurrentWeaponDefinition());
 
 	TArray<FGameplayAbilitySpecHandle> AbilityHandles;
 	PdEnemyAttackSelection::GatherAttackAbilityHandles(
@@ -778,8 +673,7 @@ void UEnemyCombatComponent::Attack()
 	}
 }
 
-void UEnemyCombatComponent::SetAttackEnabled(
-	const bool bInAttackEnabled)
+void UEnemyCombatComponent::SetAttackEnabled(const bool bInAttackEnabled)
 {
 	if (Settings.bAttackEnabled == bInAttackEnabled)
 	{
@@ -796,8 +690,7 @@ void UEnemyCombatComponent::SetAttackEnabled(
 	if (!Settings.bAttackEnabled)
 	{
 		Enemy->GetWorldTimerManager().ClearTimer(AttackTimerHandle);
-		if (UPdAbilitySystemComponent* AbilitySystemComponent =
-				Enemy->GetEnemyAbilitySystemComponent())
+		if (UPdAbilitySystemComponent* AbilitySystemComponent = Enemy->GetEnemyAbilitySystemComponent())
 		{
 			FGameplayTagContainer AttackTags;
 			AttackTags.AddTag(LabGameplayTags::Action_Attack);
@@ -806,8 +699,7 @@ void UEnemyCombatComponent::SetAttackEnabled(
 			AbilitySystemComponent->CancelAbilities(&AttackTags);
 		}
 	}
-	else if (!Settings.bUseBehaviorTreeCombat
-		&& Settings.bStartCombatOnPossess)
+	else if (!Settings.bUseBehaviorTreeCombat && Settings.bStartCombatOnPossess)
 	{
 		StartAttackTimer();
 	}

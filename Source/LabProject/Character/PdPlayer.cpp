@@ -38,8 +38,7 @@ namespace
 APdPlayer::APdPlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	PlayerInteractionComponent =
-		CreateDefaultSubobject<UPlayerInteractionComponent>(TEXT("InteractionBox"));
+	PlayerInteractionComponent = CreateDefaultSubobject<UPlayerInteractionComponent>(TEXT("InteractionBox"));
 	PlayerInteractionComponent->SetupAttachment(GetRootComponent());
 	InteractionBox = PlayerInteractionComponent;
 
@@ -185,8 +184,7 @@ void APdPlayer::BeginPlayerPawnDefinitionPreload()
 		return;
 	}
 
-	PlayerPawnDefinitionLease = UContentDataSubsystem::AcquireContent(
-		{ DefinitionPath },
+	PlayerPawnDefinitionLease = UContentDataSubsystem::AcquireContent({ DefinitionPath },
 		FSimpleDelegate::CreateWeakLambda(this, [this, DefinitionPath]()
 		{
 			HandlePlayerPawnDefinitionPreloaded(DefinitionPath);
@@ -362,25 +360,15 @@ bool APdPlayer::HasActivePaintCanvas() const
 // 현재 그림을 캐릭터의 말풍선으로 표시하고 다른 플레이어에게 공유하도록 요청한다.
 bool APdPlayer::ExportActivePaintCanvasToSpeechBubble()
 {
-	return PaintCanvasComponent
-		&& PaintCanvasComponent->ExportActivePaintCanvasToSpeechBubble();
+	return PaintCanvasComponent && PaintCanvasComponent->ExportActivePaintCanvasToSpeechBubble();
 }
 
 // 현재 그린 그림을 지정한 얼굴 소켓의 데칼로 적용하도록 페인트 컴포넌트에 요청한다.
-bool APdPlayer::ApplyActivePaintCanvasToFaceDecal(
-	UMaterialInterface* FaceDecalMaterial,
-	FName AttachSocketName,
-	const FTransform& FaceDecalTransformOffset,
-	FVector FaceDecalSize,
-	FName TextureParameterName)
+bool APdPlayer::ApplyActivePaintCanvasToFaceDecal(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName,
+	const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName)
 {
-	return PaintCanvasComponent
-		&& PaintCanvasComponent->ApplyActivePaintCanvasToFaceDecal(
-			FaceDecalMaterial,
-			AttachSocketName,
-			FaceDecalTransformOffset,
-			FaceDecalSize,
-			TextureParameterName);
+	return PaintCanvasComponent && PaintCanvasComponent->ApplyActivePaintCanvasToFaceDecal(FaceDecalMaterial,
+		AttachSocketName, FaceDecalTransformOffset, FaceDecalSize, TextureParameterName);
 }
 
 // 상자 열기 등 상호작용에 사용할 몽타주를 재생하고 필요한 네트워크 처리를 상호작용 컴포넌트에 맡긴다.
@@ -428,9 +416,7 @@ void APdPlayer::SetAbilityCameraOverrideActive(bool bEnabled, const FWeaponAimCa
 }
 
 // 스킬 전용 카메라 연출을 정해진 시간만 유지한 뒤 해제하도록 요청한다.
-void APdPlayer::SetAbilityCameraOverrideActiveForDuration(
-	bool bEnabled,
-	const FWeaponAimCameraSettings& CameraSettings,
+void APdPlayer::SetAbilityCameraOverrideActiveForDuration(bool bEnabled, const FWeaponAimCameraSettings& CameraSettings,
 	float Duration)
 {
 	if (!PlayerCameraComponent)
@@ -438,15 +424,11 @@ void APdPlayer::SetAbilityCameraOverrideActiveForDuration(
 		return;
 	}
 
-	PlayerCameraComponent->SetAbilityCameraOverrideActiveForDuration(
-		bEnabled,
-		CameraSettings,
-		Duration);
+	PlayerCameraComponent->SetAbilityCameraOverrideActiveForDuration(bEnabled, CameraSettings, Duration);
 }
 
 // 현재 조준 여부에 맞는 캐릭터 회전 방식을 적용하며, 조준 컴포넌트가 없으면 이동 방향을 바라보게 한다.
-void APdPlayer::ApplyCurrentRotationPolicy(
-	UCharacterMovementComponent* MovementComponent)
+void APdPlayer::ApplyCurrentRotationPolicy(UCharacterMovementComponent* MovementComponent)
 {
 	if (!MovementComponent)
 	{
@@ -468,13 +450,11 @@ void APdPlayer::ApplyCurrentRotationPolicy(
 // 조준 판정에 사용할 카메라 기준 시작 위치와 바라보는 방향을 제공한다.
 bool APdPlayer::GetWeaponAimViewPoint(FVector& OutLocation, FVector& OutDirection) const
 {
-	return PlayerCameraComponent
-		&& PlayerCameraComponent->GetAimViewPoint(OutLocation, OutDirection);
+	return PlayerCameraComponent && PlayerCameraComponent->GetAimViewPoint(OutLocation, OutDirection);
 }
 
 // 대상이 상호작용 인터페이스를 가지며 센서 안이나 허용 거리 내에 있는지 확인한다. 대상 자체의 허용 조건은 검사하지 않는다.
 bool APdPlayer::CanInteractWithActor(AActor* InteractableActor) const
 {
-	return PlayerInteractionComponent
-		&& PlayerInteractionComponent->CanInteractWithActor(InteractableActor);
+	return PlayerInteractionComponent && PlayerInteractionComponent->CanInteractWithActor(InteractableActor);
 }

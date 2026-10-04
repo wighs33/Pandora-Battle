@@ -73,8 +73,7 @@ void AMonsterAIController::PostInitializeComponents()
 
 #if WITH_EDITOR
 // 에디터에서 감지·StateTree 컴포넌트가 중복되거나 잘못 연결된 구성을 찾는다.
-EDataValidationResult AMonsterAIController::IsDataValid(
-	FDataValidationContext& Context) const
+EDataValidationResult AMonsterAIController::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 
@@ -106,11 +105,9 @@ void AMonsterAIController::BeginPlay()
 
 	if (AIPerception)
 	{
-		AIPerception->OnTargetPerceptionUpdated.AddUniqueDynamic(
-			this,
+		AIPerception->OnTargetPerceptionUpdated.AddUniqueDynamic(this,
 			&AMonsterAIController::HandleTargetPerceptionUpdated);
-		AIPerception->OnTargetPerceptionForgotten.AddUniqueDynamic(
-			this,
+		AIPerception->OnTargetPerceptionForgotten.AddUniqueDynamic(this,
 			&AMonsterAIController::HandleTargetPerceptionForgotten);
 		RefreshPerceivedPlayerPawn();
 	}
@@ -123,11 +120,9 @@ void AMonsterAIController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (AIPerception)
 	{
-		AIPerception->OnTargetPerceptionUpdated.RemoveDynamic(
-			this,
+		AIPerception->OnTargetPerceptionUpdated.RemoveDynamic(this,
 			&AMonsterAIController::HandleTargetPerceptionUpdated);
-		AIPerception->OnTargetPerceptionForgotten.RemoveDynamic(
-			this,
+		AIPerception->OnTargetPerceptionForgotten.RemoveDynamic(this,
 			&AMonsterAIController::HandleTargetPerceptionForgotten);
 	}
 
@@ -166,9 +161,7 @@ void AMonsterAIController::OnUnPossess()
 // StateTree에 현재 유효한 플레이어 표적만 제공한다.
 APawn* AMonsterAIController::GetPerceivedPlayerPawn() const
 {
-	return IsValidPerceivedPlayerTarget(PerceivedPlayerPawn.Get())
-		? PerceivedPlayerPawn.Get()
-		: nullptr;
+	return IsValidPerceivedPlayerTarget(PerceivedPlayerPawn.Get()) ? PerceivedPlayerPawn.Get() : nullptr;
 }
 
 AActor* AMonsterAIController::GetSelectedAttackTarget() const
@@ -208,21 +201,15 @@ void AMonsterAIController::ConfigurePerception()
 }
 
 // 두 개의 감지·행동 컴포넌트가 동시에 작동할 수 있는 설정 오류를 수집한다.
-void AMonsterAIController::GatherComponentConfigurationErrors(
-	TArray<FText>& OutErrors) const
+void AMonsterAIController::GatherComponentConfigurationErrors(TArray<FText>& OutErrors) const
 {
 	TArray<UAIPerceptionComponent*> PerceptionComponents;
 	GetComponents<UAIPerceptionComponent>(PerceptionComponents);
 
-	if (!IsValid(AIPerception)
-		|| PerceptionComponents.Num() != 1
-		|| !PerceptionComponents.Contains(AIPerception))
+	if (!IsValid(AIPerception) || PerceptionComponents.Num() != 1 || !PerceptionComponents.Contains(AIPerception))
 	{
-		OutErrors.Add(FText::Format(
-			NSLOCTEXT(
-				"MonsterAIController",
-				"InvalidPerceptionComponentCount",
-				"{0} must contain exactly one AIPerceptionComponent: the inherited "
+		OutErrors.Add(FText::Format(NSLOCTEXT("MonsterAIController", "InvalidPerceptionComponentCount",
+			"{0} must contain exactly one AIPerceptionComponent: the inherited "
 				"AIPerception component. Found {1}. Remove Blueprint-added perception components."),
 			FText::FromString(GetPathName()),
 			FText::AsNumber(PerceptionComponents.Num())));
@@ -230,21 +217,14 @@ void AMonsterAIController::GatherComponentConfigurationErrors(
 
 	if (!IsValid(NativeSightConfig))
 	{
-		OutErrors.Add(FText::Format(
-			NSLOCTEXT(
-				"MonsterAIController",
-				"MissingNativeSightConfig",
-				"{0} is missing its inherited NativeSightConfig subobject."),
-			FText::FromString(GetPathName())));
+		OutErrors.Add(FText::Format(NSLOCTEXT("MonsterAIController", "MissingNativeSightConfig",
+			"{0} is missing its inherited NativeSightConfig subobject."), FText::FromString(GetPathName())));
 	}
 
 	if (GetAIPerceptionComponent() != AIPerception)
 	{
-		OutErrors.Add(FText::Format(
-			NSLOCTEXT(
-				"MonsterAIController",
-				"InvalidPerceptionComponentRoute",
-				"{0} must use its inherited AIPerception component as the controller "
+		OutErrors.Add(FText::Format(NSLOCTEXT("MonsterAIController", "InvalidPerceptionComponentRoute",
+			"{0} must use its inherited AIPerception component as the controller "
 				"perception component."),
 			FText::FromString(GetPathName())));
 	}
@@ -252,15 +232,11 @@ void AMonsterAIController::GatherComponentConfigurationErrors(
 	TArray<UStateTreeAIComponent*> StateTreeComponents;
 	GetComponents<UStateTreeAIComponent>(StateTreeComponents);
 
-	if (!IsValid(NativeStateTreeAI)
-		|| StateTreeComponents.Num() != 1
+	if (!IsValid(NativeStateTreeAI) || StateTreeComponents.Num() != 1
 		|| !StateTreeComponents.Contains(NativeStateTreeAI))
 	{
-		OutErrors.Add(FText::Format(
-			NSLOCTEXT(
-				"MonsterAIController",
-				"InvalidStateTreeComponentCount",
-				"{0} must contain exactly one StateTreeAIComponent: the inherited "
+		OutErrors.Add(FText::Format(NSLOCTEXT("MonsterAIController", "InvalidStateTreeComponentCount",
+			"{0} must contain exactly one StateTreeAIComponent: the inherited "
 				"NativeStateTreeAI component. Found {1}. Remove Blueprint-added StateTree components."),
 			FText::FromString(GetPathName()),
 			FText::AsNumber(StateTreeComponents.Num())));
@@ -268,11 +244,8 @@ void AMonsterAIController::GatherComponentConfigurationErrors(
 
 	if (BrainComponent != NativeStateTreeAI)
 	{
-		OutErrors.Add(FText::Format(
-			NSLOCTEXT(
-				"MonsterAIController",
-				"InvalidBrainComponentRoute",
-				"{0} must use its inherited NativeStateTreeAI component as BrainComponent."),
+		OutErrors.Add(FText::Format(NSLOCTEXT("MonsterAIController", "InvalidBrainComponentRoute",
+			"{0} must use its inherited NativeStateTreeAI component as BrainComponent."),
 			FText::FromString(GetPathName())));
 	}
 }
@@ -292,10 +265,7 @@ bool AMonsterAIController::ValidateComponentConfiguration()
 	{
 		for (const FText& Error : Errors)
 		{
-			UE_LOG(
-				LogMonsterAIController,
-				Error,
-				TEXT("%s"),
+			UE_LOG(LogMonsterAIController, Error, TEXT("%s"),
 				*Error.ToString());
 		}
 		bLoggedComponentConfigurationError = true;
@@ -317,8 +287,7 @@ bool AMonsterAIController::IsValidPerceivedPlayerTarget(APawn* PlayerPawn) const
 }
 
 // 몬스터의 평면 거리 기준으로 표적을 계속 기억할 수 있는지 판단한다.
-bool AMonsterAIController::IsWithinTargetRetentionDistance(
-	const AActor* TargetActor) const
+bool AMonsterAIController::IsWithinTargetRetentionDistance(const AActor* TargetActor) const
 {
 	const APawn* ControlledPawn = GetPawn();
 	if (!IsValid(ControlledPawn) || !IsValid(TargetActor) || !NativeSightConfig)
@@ -326,32 +295,24 @@ bool AMonsterAIController::IsWithinTargetRetentionDistance(
 		return false;
 	}
 
-	const double RetentionDistance =
-		FMath::Max(static_cast<double>(NativeSightConfig->LoseSightRadius), 0.0);
+	const double RetentionDistance = FMath::Max(static_cast<double>(NativeSightConfig->LoseSightRadius), 0.0);
 	if (RetentionDistance <= 0.0)
 	{
 		return true;
 	}
 
-	return FVector::DistSquared2D(
-			   ControlledPawn->GetActorLocation(),
-			   TargetActor->GetActorLocation())
+	return FVector::DistSquared2D(ControlledPawn->GetActorLocation(), TargetActor->GetActorLocation())
 		<= FMath::Square(RetentionDistance);
 }
 
 // 감지 표적을 갱신한다. 캐릭터의 공격 대상은 이 값을 읽는다.
 void AMonsterAIController::SetPerceivedPlayerPawn(APawn* PlayerPawn)
 {
-	APawn* ValidTarget = IsValidPerceivedPlayerTarget(PlayerPawn)
-		? PlayerPawn
-		: nullptr;
+	APawn* ValidTarget = IsValidPerceivedPlayerTarget(PlayerPawn) ? PlayerPawn : nullptr;
 
 	if (PerceivedPlayerPawn != ValidTarget)
 	{
-		UE_LOG(
-			LogMonsterAIController,
-			Verbose,
-			TEXT("%s changed target from %s to %s."),
+		UE_LOG(LogMonsterAIController, Verbose, TEXT("%s changed target from %s to %s."),
 			*GetNameSafe(this),
 			*GetNameSafe(PerceivedPlayerPawn),
 			*GetNameSafe(ValidTarget));
@@ -361,9 +322,7 @@ void AMonsterAIController::SetPerceivedPlayerPawn(APawn* PlayerPawn)
 }
 
 // 현재 표적을 안정적으로 유지하고 필요할 때 가장 가까운 감지 플레이어로 교체한다.
-void AMonsterAIController::RefreshPerceivedPlayerPawn(
-	const AActor* ExcludedActor,
-	APawn* NewlySensedPawn)
+void AMonsterAIController::RefreshPerceivedPlayerPawn(const AActor* ExcludedActor, APawn* NewlySensedPawn)
 {
 	if (bAIStopped || !AIPerception)
 	{
@@ -379,34 +338,26 @@ void AMonsterAIController::RefreshPerceivedPlayerPawn(
 	}
 
 	TArray<AActor*> KnownActors;
-	AIPerception->GetKnownPerceivedActors(
-		UAISense_Sight::StaticClass(),
-		KnownActors);
+	AIPerception->GetKnownPerceivedActors(UAISense_Sight::StaticClass(), KnownActors);
 
 	TArray<AActor*> CurrentlyPerceivedActors;
-	AIPerception->GetCurrentlyPerceivedActors(
-		UAISense_Sight::StaticClass(),
-		CurrentlyPerceivedActors);
+	AIPerception->GetCurrentlyPerceivedActors(UAISense_Sight::StaticClass(), CurrentlyPerceivedActors);
 
-	if (IsValidPerceivedPlayerTarget(NewlySensedPawn)
-		&& NewlySensedPawn != ExcludedActor)
+	if (IsValidPerceivedPlayerTarget(NewlySensedPawn) && NewlySensedPawn != ExcludedActor)
 	{
 		CurrentlyPerceivedActors.AddUnique(NewlySensedPawn);
 		KnownActors.AddUnique(NewlySensedPawn);
 	}
 
-	const auto IsSelectableTarget =
-		[this, ExcludedActor](AActor* CandidateActor)
+	const auto IsSelectableTarget = [this, ExcludedActor](AActor* CandidateActor)
 		{
 			APawn* CandidatePawn = Cast<APawn>(CandidateActor);
-			return CandidateActor != ExcludedActor
-				&& IsValidPerceivedPlayerTarget(CandidatePawn)
+			return CandidateActor != ExcludedActor && IsValidPerceivedPlayerTarget(CandidatePawn)
 				&& IsWithinTargetRetentionDistance(CandidatePawn);
 		};
 
 	APawn* CurrentTarget = PerceivedPlayerPawn.Get();
-	const bool bCurrentTargetIsStillKnown =
-		KnownActors.Contains(CurrentTarget)
+	const bool bCurrentTargetIsStillKnown = KnownActors.Contains(CurrentTarget)
 		|| CurrentlyPerceivedActors.Contains(CurrentTarget);
 	if (bCurrentTargetIsStillKnown && IsSelectableTarget(CurrentTarget))
 	{
@@ -416,8 +367,7 @@ void AMonsterAIController::RefreshPerceivedPlayerPawn(
 	}
 
 	const FVector SelectionOrigin = ControlledPawn->GetActorLocation();
-	const auto SelectClosestTarget =
-		[&IsSelectableTarget, &SelectionOrigin](const TArray<AActor*>& Candidates)
+	const auto SelectClosestTarget = [&IsSelectableTarget, &SelectionOrigin](const TArray<AActor*>& Candidates)
 		{
 			APawn* ClosestTarget = nullptr;
 			double ClosestDistanceSquared = TNumericLimits<double>::Max();
@@ -430,19 +380,13 @@ void AMonsterAIController::RefreshPerceivedPlayerPawn(
 				}
 
 				APawn* CandidatePawn = CastChecked<APawn>(CandidateActor);
-				const double CandidateDistanceSquared = FVector::DistSquared2D(
-					SelectionOrigin,
+				const double CandidateDistanceSquared = FVector::DistSquared2D(SelectionOrigin,
 					CandidatePawn->GetActorLocation());
-				const bool bSameDistance =
-					CandidateDistanceSquared == ClosestDistanceSquared;
-				const bool bStableTieBreak =
-					bSameDistance
-					&& (!ClosestTarget
-						|| CandidatePawn->GetPathName()
+				const bool bSameDistance = CandidateDistanceSquared == ClosestDistanceSquared;
+				const bool bStableTieBreak = bSameDistance && (!ClosestTarget || CandidatePawn->GetPathName()
 							< ClosestTarget->GetPathName());
 
-				if (CandidateDistanceSquared < ClosestDistanceSquared
-					|| bStableTieBreak)
+				if (CandidateDistanceSquared < ClosestDistanceSquared || bStableTieBreak)
 				{
 					ClosestTarget = CandidatePawn;
 					ClosestDistanceSquared = CandidateDistanceSquared;
@@ -483,8 +427,7 @@ void AMonsterAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 	}
 
 	// 시야에서 사라진 표적은 기억 시간 동안 유지하되, 유지 거리 밖이면 즉시 해제한다.
-	if (Actor == PerceivedPlayerPawn
-		&& !IsWithinTargetRetentionDistance(PlayerPawn))
+	if (Actor == PerceivedPlayerPawn && !IsWithinTargetRetentionDistance(PlayerPawn))
 	{
 		SetPerceivedPlayerPawn(nullptr);
 		RefreshPerceivedPlayerPawn(Actor);
@@ -521,11 +464,8 @@ bool AMonsterAIController::ConfigureStateTreeAI()
 	{
 		if (!bLoggedConfigurationError)
 		{
-			UE_LOG(
-				LogMonsterAIController,
-				Error,
-				TEXT(
-					"%s has no Monster State Tree. Configure MonsterStateTree on the "
+			UE_LOG(LogMonsterAIController, Error,
+				TEXT("%s has no Monster State Tree. Configure MonsterStateTree on the "
 					"Enemy Base Definition before spawning monsters."),
 				*GetPathName());
 			bLoggedConfigurationError = true;
@@ -546,19 +486,15 @@ bool AMonsterAIController::ConfigureStateTreeAI()
 bool AMonsterAIController::IsExperienceReadyOrWait()
 {
 	const UWorld* World = GetWorld();
-	const AExperienceGameState* ExperienceGameState =
-		World ? World->GetGameState<AExperienceGameState>() : nullptr;
+	const AExperienceGameState* ExperienceGameState = World ? World->GetGameState<AExperienceGameState>() : nullptr;
 	UExperienceManagerComponent* ExperienceManager =
 		ExperienceGameState ? ExperienceGameState->GetExperienceManagerComponent() : nullptr;
 	if (!ExperienceManager)
 	{
 		if (!bLoggedConfigurationError)
 		{
-			UE_LOG(
-				LogMonsterAIController,
-				Error,
-				TEXT(
-					"%s cannot resolve monster AI because the current GameState has no "
+			UE_LOG(LogMonsterAIController, Error,
+				TEXT("%s cannot resolve monster AI because the current GameState has no "
 					"ExperienceManagerComponent."),
 				*GetPathName());
 			bLoggedConfigurationError = true;
@@ -574,11 +510,8 @@ bool AMonsterAIController::IsExperienceReadyOrWait()
 	if (!ExperienceLoadedDelegateHandle.IsValid())
 	{
 		ExperienceManagerWaitingForLoad = ExperienceManager;
-		ExperienceLoadedDelegateHandle =
-			ExperienceManager->CallOrRegister_OnExperienceLoaded(
-				FOnPdExperienceLoaded::FDelegate::CreateUObject(
-					this,
-					&AMonsterAIController::HandleExperienceLoaded));
+		ExperienceLoadedDelegateHandle = ExperienceManager->CallOrRegister_OnExperienceLoaded(
+			FOnPdExperienceLoaded::FDelegate::CreateUObject(this, &AMonsterAIController::HandleExperienceLoaded));
 	}
 
 	return false;
@@ -618,8 +551,7 @@ bool AMonsterAIController::ResolveMonsterStateTreeFromEnemyDefinition()
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (ContentSubsystem)
 	{
-		StateTreeLease = ContentSubsystem->AcquireContent(
-			{ StateTreeReference.ToSoftObjectPath() },
+		StateTreeLease = ContentSubsystem->AcquireContent({ StateTreeReference.ToSoftObjectPath() },
 			FSimpleDelegate::CreateUObject(this, &ThisClass::HandleMonsterStateTreeLoaded));
 	}
 	else if (!bLoggedConfigurationError)
@@ -684,8 +616,7 @@ void AMonsterAIController::StopMonsterAI()
 // 더 이상 사용할 수 없는 경기 준비 알림을 해제한다.
 void AMonsterAIController::StopWaitingForExperience()
 {
-	if (UExperienceManagerComponent* ExperienceManager =
-			ExperienceManagerWaitingForLoad.Get())
+	if (UExperienceManagerComponent* ExperienceManager = ExperienceManagerWaitingForLoad.Get())
 	{
 		ExperienceManager->RemoveOnExperienceLoaded(ExperienceLoadedDelegateHandle);
 	}
@@ -716,16 +647,14 @@ bool AMonsterAIController::HasRequiredNavigationData() const
 		return false;
 	}
 
-	const UNavigationSystemV1* NavigationSystem =
-		FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+	const UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
 	if (!NavigationSystem)
 	{
 		return false;
 	}
 
-	return NavigationSystem->GetNavDataForProps(
-			   ControlledPawn->GetNavAgentPropertiesRef(),
-			   ControlledPawn->GetActorLocation())
+	return NavigationSystem->GetNavDataForProps(ControlledPawn->GetNavAgentPropertiesRef(),
+		ControlledPawn->GetActorLocation())
 		!= nullptr;
 }
 
@@ -737,14 +666,11 @@ void AMonsterAIController::WaitForNavigationData()
 		return;
 	}
 
-	if (UNavigationSystemV1* NavigationSystem =
-			FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+	if (UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
 	{
-		NavigationSystem->OnNavDataRegisteredEvent.AddUniqueDynamic(
-			this,
+		NavigationSystem->OnNavDataRegisteredEvent.AddUniqueDynamic(this,
 			&AMonsterAIController::HandleNavigationDataAvailable);
-		NavigationSystem->OnNavigationGenerationFinishedDelegate.AddUniqueDynamic(
-			this,
+		NavigationSystem->OnNavigationGenerationFinishedDelegate.AddUniqueDynamic(this,
 			&AMonsterAIController::HandleNavigationDataAvailable);
 		bWaitingForNavigationData = true;
 	}
@@ -758,14 +684,11 @@ void AMonsterAIController::StopWaitingForNavigationData()
 		return;
 	}
 
-	if (UNavigationSystemV1* NavigationSystem =
-			FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+	if (UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
 	{
-		NavigationSystem->OnNavDataRegisteredEvent.RemoveDynamic(
-			this,
+		NavigationSystem->OnNavDataRegisteredEvent.RemoveDynamic(this,
 			&AMonsterAIController::HandleNavigationDataAvailable);
-		NavigationSystem->OnNavigationGenerationFinishedDelegate.RemoveDynamic(
-			this,
+		NavigationSystem->OnNavigationGenerationFinishedDelegate.RemoveDynamic(this,
 			&AMonsterAIController::HandleNavigationDataAvailable);
 	}
 
@@ -810,11 +733,7 @@ void AMonsterAIController::StartMonsterStateTreeIfReady()
 	{
 		if (!bLoggedNavigationError)
 		{
-			UE_LOG(
-				LogMonsterAIController,
-				Warning,
-				TEXT(
-					"%s is waiting for compatible NavData at %s. "
+			UE_LOG(LogMonsterAIController, Warning, TEXT("%s is waiting for compatible NavData at %s. "
 					"The map or active Experience must provide a NavMeshBoundsVolume and built navigation data."),
 				*GetPathName(),
 				*GetPawn()->GetActorLocation().ToCompactString());

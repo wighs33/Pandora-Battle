@@ -18,49 +18,32 @@ DEFINE_LOG_CATEGORY(LogPdLagCompensation);
 
 namespace
 {
-	TAutoConsoleVariable<int32> CVarLagCompensationEnabled(
-		TEXT("pd.LagComp.Enabled"),
-		1,
+	TAutoConsoleVariable<int32> CVarLagCompensationEnabled(TEXT("pd.LagComp.Enabled"), 1,
 		TEXT("Rewinds character hitboxes to the time the shooting client saw.\n")
 		TEXT("0: judge against the current server state, 1: server rewind (default)"),
 		ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarLagCompensationMaxRewindMs(
-		TEXT("pd.LagComp.MaxRewindMs"),
-		200.0f,
-		TEXT("Upper bound of how far the server rewinds a shot, in milliseconds."),
-		ECVF_Default);
+	TAutoConsoleVariable<float> CVarLagCompensationMaxRewindMs(TEXT("pd.LagComp.MaxRewindMs"), 200.0f,
+		TEXT("Upper bound of how far the server rewinds a shot, in milliseconds."), ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarLagCompensationPingToleranceMs(
-		TEXT("pd.LagComp.PingToleranceMs"),
-		50.0f,
+	TAutoConsoleVariable<float> CVarLagCompensationPingToleranceMs(TEXT("pd.LagComp.PingToleranceMs"), 50.0f,
 		TEXT("Extra rewind allowed on top of the shooter's measured round-trip ping, in milliseconds.\n")
 		TEXT("Limits clients that report an older time than their real latency."),
 		ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarLagCompensationHistoryMs(
-		TEXT("pd.LagComp.HistoryMs"),
-		1000.0f,
-		TEXT("How long the server keeps hitbox history, in milliseconds."),
-		ECVF_Default);
+	TAutoConsoleVariable<float> CVarLagCompensationHistoryMs(TEXT("pd.LagComp.HistoryMs"), 1000.0f,
+		TEXT("How long the server keeps hitbox history, in milliseconds."), ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarLagCompensationTeleportDistance(
-		TEXT("pd.LagComp.TeleportDistance"),
-		300.0f,
-		TEXT("Two consecutive samples farther apart than this are not interpolated (respawn, portal)."),
-		ECVF_Default);
+	TAutoConsoleVariable<float> CVarLagCompensationTeleportDistance(TEXT("pd.LagComp.TeleportDistance"), 300.0f,
+		TEXT("Two consecutive samples farther apart than this are not interpolated (respawn, portal)."), ECVF_Default);
 
-	TAutoConsoleVariable<int32> CVarLagCompensationStats(
-		TEXT("pd.LagComp.Stats"),
-		0,
+	TAutoConsoleVariable<int32> CVarLagCompensationStats(TEXT("pd.LagComp.Stats"), 0,
 		TEXT("Collects per-shot current vs rewound hit comparison and logs every shot.\n")
 		TEXT("Print with pd.LagComp.PrintStats, clear with pd.LagComp.ResetStats."),
 		ECVF_Default);
 
 #if !UE_BUILD_SHIPPING
-	TAutoConsoleVariable<int32> CVarLagCompensationDebugDraw(
-		TEXT("pd.LagComp.DebugDraw"),
-		0,
+	TAutoConsoleVariable<int32> CVarLagCompensationDebugDraw(TEXT("pd.LagComp.DebugDraw"), 0,
 		TEXT("Draws the current (red) and rewound (green) capsule of a hit character on the server\n")
 		TEXT("and on the shooting client."),
 		ECVF_Cheat);
@@ -103,21 +86,18 @@ namespace
 		}
 	}
 
-	FAutoConsoleCommand PrintLagCompensationStatsCommand(
-		TEXT("pd.LagComp.PrintStats"),
+	FAutoConsoleCommand PrintLagCompensationStatsCommand(TEXT("pd.LagComp.PrintStats"),
 		TEXT("Prints lag compensation hit comparison stats for every game world in this process."),
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
 			ForEachLagCompensationSubsystem([](ULagCompensationSubsystem& Subsystem, const UWorld& World)
 			{
-				UE_LOG(LogPdLagCompensation, Display, TEXT("[%s] %s"),
-					GetNetModeLabel(World.GetNetMode()),
+				UE_LOG(LogPdLagCompensation, Display, TEXT("[%s] %s"), GetNetModeLabel(World.GetNetMode()),
 					*Subsystem.DescribeStats());
 			});
 		}));
 
-	FAutoConsoleCommand ResetLagCompensationStatsCommand(
-		TEXT("pd.LagComp.ResetStats"),
+	FAutoConsoleCommand ResetLagCompensationStatsCommand(TEXT("pd.LagComp.ResetStats"),
 		TEXT("Clears lag compensation hit comparison stats for every game world in this process."),
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
@@ -234,8 +214,7 @@ void ULagCompensationSubsystem::UnregisterCharacter(const ACharacterBase* Charac
 	});
 }
 
-FPdRewindRequest ULagCompensationSubsystem::ResolveRewindRequest(
-	const AController* ShooterController,
+FPdRewindRequest ULagCompensationSubsystem::ResolveRewindRequest(const AController* ShooterController,
 	const double ClientViewServerTime) const
 {
 	FPdRewindRequest Request;
@@ -275,14 +254,9 @@ FPdRewindRequest ULagCompensationSubsystem::ResolveRewindRequest(
 	return Request;
 }
 
-bool ULagCompensationSubsystem::LineTraceSingleAtTime(
-	const double RewindServerTime,
-	const FVector& Start,
-	const FVector& End,
-	const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
-	const TArray<AActor*>& ActorsToIgnore,
-	const EDrawDebugTrace::Type DebugDrawType,
-	FHitResult& OutHit) const
+bool ULagCompensationSubsystem::LineTraceSingleAtTime(const double RewindServerTime, const FVector& Start,
+	const FVector& End, const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes, const TArray<AActor*>& ActorsToIgnore,
+	const EDrawDebugTrace::Type DebugDrawType, FHitResult& OutHit) const
 {
 	OutHit = FHitResult();
 
@@ -291,19 +265,8 @@ bool ULagCompensationSubsystem::LineTraceSingleAtTime(
 	AppendRewoundCharacters(WorldActorsToIgnore);
 
 	FHitResult WorldHit;
-	const bool bWorldHit = UKismetSystemLibrary::LineTraceSingleForObjects(
-		this,
-		Start,
-		End,
-		ObjectTypes,
-		false,
-		WorldActorsToIgnore,
-		DebugDrawType,
-		WorldHit,
-		true,
-		FLinearColor::Red,
-		FLinearColor::Green,
-		5.0f);
+	const bool bWorldHit = UKismetSystemLibrary::LineTraceSingleForObjects(this, Start, End, ObjectTypes, false,
+		WorldActorsToIgnore, DebugDrawType, WorldHit, true, FLinearColor::Red, FLinearColor::Green, 5.0f);
 
 	TArray<FHitResult> CharacterHits;
 	TraceRewoundCharacters(RewindServerTime, Start, End, 0.0f, ObjectTypes, ActorsToIgnore, CharacterHits);
@@ -326,35 +289,17 @@ bool ULagCompensationSubsystem::LineTraceSingleAtTime(
 	return true;
 }
 
-bool ULagCompensationSubsystem::SphereTraceMultiAtTime(
-	const double RewindServerTime,
-	const FVector& Start,
-	const FVector& End,
-	const float Radius,
-	const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
-	const TArray<AActor*>& ActorsToIgnore,
-	const EDrawDebugTrace::Type DebugDrawType,
-	TArray<FHitResult>& OutHits) const
+bool ULagCompensationSubsystem::SphereTraceMultiAtTime(const double RewindServerTime, const FVector& Start,
+	const FVector& End, const float Radius, const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
+	const TArray<AActor*>& ActorsToIgnore, const EDrawDebugTrace::Type DebugDrawType, TArray<FHitResult>& OutHits) const
 {
 	OutHits.Reset();
 
 	TArray<AActor*> WorldActorsToIgnore = ActorsToIgnore;
 	AppendRewoundCharacters(WorldActorsToIgnore);
 
-	UKismetSystemLibrary::SphereTraceMultiForObjects(
-		this,
-		Start,
-		End,
-		Radius,
-		ObjectTypes,
-		false,
-		WorldActorsToIgnore,
-		DebugDrawType,
-		OutHits,
-		true,
-		FLinearColor::Red,
-		FLinearColor::Green,
-		5.0f);
+	UKismetSystemLibrary::SphereTraceMultiForObjects(this, Start, End, Radius, ObjectTypes, false, WorldActorsToIgnore,
+		DebugDrawType, OutHits, true, FLinearColor::Red, FLinearColor::Green, 5.0f);
 
 	TArray<FHitResult> CharacterHits;
 	TraceRewoundCharacters(RewindServerTime, Start, End, Radius, ObjectTypes, ActorsToIgnore, CharacterHits);
@@ -368,9 +313,7 @@ bool ULagCompensationSubsystem::SphereTraceMultiAtTime(
 	return !OutHits.IsEmpty();
 }
 
-bool ULagCompensationSubsystem::GetCapsuleCenterAtTime(
-	const ACharacterBase* Character,
-	const double ServerTime,
+bool ULagCompensationSubsystem::GetCapsuleCenterAtTime(const ACharacterBase* Character, const double ServerTime,
 	FVector& OutCenter) const
 {
 	const FPdCharacterHitHistory* History = FindHistory(Character);
@@ -387,10 +330,8 @@ bool ULagCompensationSubsystem::GetCapsuleCenterAtTime(
 	return true;
 }
 
-void ULagCompensationSubsystem::RecordServerShot(
-	const AController* ShooterController,
-	const FPdRewindRequest& RewindRequest,
-	const ACharacterBase* CurrentHitCharacter,
+void ULagCompensationSubsystem::RecordServerShot(const AController* ShooterController,
+	const FPdRewindRequest& RewindRequest, const ACharacterBase* CurrentHitCharacter,
 	const ACharacterBase* RewoundHitCharacter)
 {
 	++Stats.ServerShots;
@@ -404,10 +345,8 @@ void ULagCompensationSubsystem::RecordServerShot(
 	Stats.MaxRewindMs = FMath::Max(Stats.MaxRewindMs, RewindRequest.RewindMs);
 
 	const APlayerState* PlayerState = ShooterController ? ShooterController->PlayerState : nullptr;
-	UE_LOG(LogPdLagCompensation, Log,
-		TEXT("Shot by %s: rewind=%.1fms%s ping=%.0fms current=%s rewound=%s"),
-		PlayerState ? *PlayerState->GetPlayerName() : TEXT("Unknown"),
-		RewindRequest.RewindMs,
+	UE_LOG(LogPdLagCompensation, Log, TEXT("Shot by %s: rewind=%.1fms%s ping=%.0fms current=%s rewound=%s"),
+		PlayerState ? *PlayerState->GetPlayerName() : TEXT("Unknown"), RewindRequest.RewindMs,
 		RewindRequest.bClamped ? TEXT(" (clamped)") : TEXT(""),
 		PlayerState ? PlayerState->GetPingInMilliseconds() : 0.0f,
 		CurrentHitCharacter ? *CurrentHitCharacter->GetName() : TEXT("miss"),
@@ -432,8 +371,7 @@ FString ULagCompensationSubsystem::DescribeStats() const
 		return Total > 0 ? 100.0 * static_cast<double>(Count) / static_cast<double>(Total) : 0.0;
 	};
 
-	return FString::Printf(
-		TEXT("server shots=%d rewound=%d clamped=%d avgRewind=%.1fms maxRewind=%.1fms | ")
+	return FString::Printf(TEXT("server shots=%d rewound=%d clamped=%d avgRewind=%.1fms maxRewind=%.1fms | ")
 		TEXT("hit(current)=%d (%.1f%%) hit(rewound)=%d (%.1f%%) rewoundOnly=%d currentOnly=%d | ")
 		TEXT("client shots=%d perceivedHits=%d (%.1f%%)"),
 		Stats.ServerShots,
@@ -470,8 +408,7 @@ void ULagCompensationSubsystem::RecordSnapshots()
 	}
 
 	const double ServerTime = World->GetTimeSeconds();
-	const double HistorySeconds = FMath::Max(
-		CVarLagCompensationHistoryMs.GetValueOnGameThread(),
+	const double HistorySeconds = FMath::Max(CVarLagCompensationHistoryMs.GetValueOnGameThread(),
 		CVarLagCompensationMaxRewindMs.GetValueOnGameThread() + 100.0f) * 0.001;
 	const double OldestKeptTime = ServerTime - HistorySeconds;
 
@@ -533,9 +470,7 @@ const FPdCharacterHitHistory* ULagCompensationSubsystem::FindHistory(const AChar
 	});
 }
 
-bool ULagCompensationSubsystem::FindSnapshotAtTime(
-	const FPdCharacterHitHistory& History,
-	const double ServerTime,
+bool ULagCompensationSubsystem::FindSnapshotAtTime(const FPdCharacterHitHistory& History, const double ServerTime,
 	FPdHitboxSnapshot& OutSnapshot) const
 {
 	const TArray<FPdHitboxSnapshot>& Snapshots = History.Snapshots;
@@ -602,14 +537,9 @@ void ULagCompensationSubsystem::AppendRewoundCharacters(TArray<AActor*>& InOutAc
 }
 
 // 과거 위치의 메시에 대한 trace를 현재 메시 좌표계에서 수행하고 결과를 과거 위치 기준으로 되돌린다.
-void ULagCompensationSubsystem::TraceRewoundCharacters(
-	const double RewindServerTime,
-	const FVector& Start,
-	const FVector& End,
-	const float Radius,
-	const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
-	const TArray<AActor*>& ActorsToIgnore,
-	TArray<FHitResult>& OutHits) const
+void ULagCompensationSubsystem::TraceRewoundCharacters(const double RewindServerTime, const FVector& Start,
+	const FVector& End, const float Radius, const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
+	const TArray<AActor*>& ActorsToIgnore, TArray<FHitResult>& OutHits) const
 {
 	for (const FPdCharacterHitHistory& History : Histories)
 	{
@@ -620,8 +550,7 @@ void ULagCompensationSubsystem::TraceRewoundCharacters(
 		}
 
 		USkeletalMeshComponent* Mesh = Character->GetMesh();
-		if (!Mesh
-			|| !Mesh->IsQueryCollisionEnabled()
+		if (!Mesh || !Mesh->IsQueryCollisionEnabled()
 			|| !ObjectTypes.Contains(UEngineTypes::ConvertToObjectType(Mesh->GetCollisionObjectType())))
 		{
 			continue;
@@ -653,11 +582,7 @@ void ULagCompensationSubsystem::TraceRewoundCharacters(
 		bool bHit = false;
 		if (Radius > UE_KINDA_SMALL_NUMBER)
 		{
-			bHit = Mesh->SweepComponent(
-				MeshHit,
-				ShiftedStart,
-				ShiftedEnd,
-				FQuat::Identity,
+			bHit = Mesh->SweepComponent(MeshHit, ShiftedStart, ShiftedEnd, FQuat::Identity,
 				FCollisionShape::MakeSphere(Radius));
 		}
 		else

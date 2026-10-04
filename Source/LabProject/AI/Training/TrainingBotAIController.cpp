@@ -32,9 +32,7 @@ void ATrainingBotAIController::OnPossess(APawn* InPawn)
 
 	if (!BehaviorTreeAsset)
 	{
-		UE_LOG(
-			LogTrainingBotAIController,
-			Error,
+		UE_LOG(LogTrainingBotAIController, Error,
 			TEXT("%s cannot start training bot AI because BehaviorTreeAsset is missing."),
 			*GetPathName());
 		return;
@@ -42,9 +40,7 @@ void ATrainingBotAIController::OnPossess(APawn* InPawn)
 
 	if (!BehaviorTreeAsset->BlackboardAsset)
 	{
-		UE_LOG(
-			LogTrainingBotAIController,
-			Error,
+		UE_LOG(LogTrainingBotAIController, Error,
 			TEXT("%s cannot start training bot AI because %s has no Blackboard asset."),
 			*GetPathName(),
 			*GetNameSafe(BehaviorTreeAsset));
@@ -54,10 +50,7 @@ void ATrainingBotAIController::OnPossess(APawn* InPawn)
 	UBlackboardComponent* LocalBlackboard = nullptr;
 	if (!UseBlackboard(BehaviorTreeAsset->BlackboardAsset, LocalBlackboard))
 	{
-		UE_LOG(
-			LogTrainingBotAIController,
-			Error,
-			TEXT("%s failed to initialize Blackboard %s for training bot %s."),
+		UE_LOG(LogTrainingBotAIController, Error, TEXT("%s failed to initialize Blackboard %s for training bot %s."),
 			*GetPathName(),
 			*GetNameSafe(BehaviorTreeAsset->BlackboardAsset),
 			*GetNameSafe(InPawn));
@@ -69,10 +62,7 @@ void ATrainingBotAIController::OnPossess(APawn* InPawn)
 
 	if (!RunBehaviorTree(BehaviorTreeAsset))
 	{
-		UE_LOG(
-			LogTrainingBotAIController,
-			Error,
-			TEXT("%s failed to start Behavior Tree %s for training bot %s."),
+		UE_LOG(LogTrainingBotAIController, Error, TEXT("%s failed to start Behavior Tree %s for training bot %s."),
 			*GetPathName(),
 			*GetNameSafe(BehaviorTreeAsset),
 			*GetNameSafe(InPawn));
@@ -205,12 +195,8 @@ void ATrainingBotAIController::StartTargetRefreshTimer()
 	}
 
 	World->GetTimerManager().ClearTimer(TargetRefreshTimerHandle);
-	World->GetTimerManager().SetTimer(
-		TargetRefreshTimerHandle,
-		this,
-		&ThisClass::RefreshTargetFromPlayers,
-		FMath::Max(TargetRefreshInterval, 0.05f),
-		true);
+	World->GetTimerManager().SetTimer(TargetRefreshTimerHandle, this, &ThisClass::RefreshTargetFromPlayers,
+		FMath::Max(TargetRefreshInterval, 0.05f), true);
 }
 
 void ATrainingBotAIController::StopTargetRefreshTimer()

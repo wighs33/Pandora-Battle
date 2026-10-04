@@ -103,7 +103,7 @@ EDataValidationResult AMonsterCharacter::IsDataValid(FDataValidationContext& Con
 	const UEnemyBaseDefinition* Definition = GCompilingBlueprint ? EnemyDefinition.Get() : EnemyDefinition.LoadSynchronous();
 	if (EnemyDefinition.IsNull() || (!GCompilingBlueprint && !Definition)
 		|| (Definition && (!Definition->GetMonsterPresentationSettings().ContactDamageEffectClass
-			|| !Definition->GetMonsterPresentationSettings().HitReactMontage)))
+		|| !Definition->GetMonsterPresentationSettings().HitReactMontage)))
 	{
 		Context.AddError(FText::FromString(TEXT("Monster EnemyDefinition requires damage and hit-react settings.")));
 		Result = EDataValidationResult::Invalid;
@@ -262,8 +262,7 @@ void AMonsterCharacter::BeginMonsterContentPreload()
 		HandleMonsterContentPreloadComplete();
 		return;
 	}
-	MonsterContentLease = ContentSubsystem->AcquireContent(
-		{ MonsterAttackMontage.ToSoftObjectPath() },
+	MonsterContentLease = ContentSubsystem->AcquireContent({ MonsterAttackMontage.ToSoftObjectPath() },
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleMonsterContentPreloadComplete));
 }
 
