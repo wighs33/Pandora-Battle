@@ -18,12 +18,10 @@
 #include "UI/Info/Presenter/InfoUiPresenter.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Info/InfoWidget.h"
-#include "UI/HUD/Menu/MenuPopupWidget.h"
 #include "UI/Pandora/PandoraTreeWidget.h"
 #include "UI/HUD/Player/PlayerHudWidget.h"
 #include "UI/HUD/Notification/RightNotificationsWidget.h"
 #include "UI/Pandora/SelectPandoraWidget.h"
-#include "UI/HUD/Menu/TrainingRoomMenuPopupWidget.h"
 #include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudUiRouter)
@@ -222,12 +220,6 @@ void UHudUiRouter::EnsureInfoLayers()
 
 	if (Hud->CachedInfoUI)
 	{
-		Hud->CachedInfoUI->OnClickedSettingButton.RemoveDynamic(
-			Hud,
-			&APdHUD::OpenSettingsMenu);
-		Hud->CachedInfoUI->OnClickedSettingButton.AddUniqueDynamic(
-			Hud,
-			&APdHUD::OpenSettingsMenu);
 		if (UInfoUiPresenter* Presenter = Hud->GetInfoUiPresenter())
 		{
 			Presenter->BindInfoUi(Hud->CachedInfoUI);
@@ -259,9 +251,6 @@ void UHudUiRouter::ReleaseInfoLayers()
 				&UInfoUiPresenter::HandleClickedInfoCenterButton);
 			Presenter->UnbindInfoUi(Hud->CachedInfoUI);
 		}
-		Hud->CachedInfoUI->OnClickedSettingButton.RemoveDynamic(
-			Hud,
-			&APdHUD::OpenSettingsMenu);
 		Hud->CachedInfoUI->SetReturnCameraOnHide(true);
 		Hud->CachedInfoUI->RemoveFromParent();
 		Hud->CachedInfoUI = nullptr;

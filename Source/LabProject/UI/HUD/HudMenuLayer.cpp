@@ -5,8 +5,7 @@
 #include "UI/HUD/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "UI/Core/UiSubsystem.h"
-#include "UI/HUD/Menu/MenuPopupWidget.h"
-#include "UI/HUD/Menu/TrainingRoomMenuPopupWidget.h"
+#include "UI/HUD/Menu/EscapeMenuWidget.h"
 #include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudMenuLayer)
@@ -37,30 +36,17 @@ bool UHudMenuLayer::Open()
 		return true;
 	}
 
-	TSubclassOf<UMenuPopupWidget> MenuPopupClass;
-	if (Hud->IsTrainingRoomMap())
+	const TSubclassOf<UEscapeMenuWidget> EscapeMenuClass = Definition->GetEscapeMenuWidgetClass();
+	if (!EscapeMenuClass)
 	{
-		const TSubclassOf<class UTrainingRoomMenuPopupWidget> TrainingMenuClass =
-			Definition->GetTrainingRoomMenuPopupWidgetClass();
-		if (TrainingMenuClass)
-		{
-			MenuPopupClass = TSubclassOf<UMenuPopupWidget>(TrainingMenuClass.Get());
-		}
-	}
-	if (!MenuPopupClass)
-	{
-		MenuPopupClass = Definition->GetMenuPopupWidgetClass();
-	}
-	if (!MenuPopupClass)
-	{
-		UE_LOG(LogHudMenuLayer, Error, TEXT("Settings menu layer has no configured widget class."));
+		UE_LOG(LogHudMenuLayer, Error, TEXT("Escape menu layer has no configured widget class."));
 		return false;
 	}
 
-	ActiveWidget = CreateWidget<UMenuPopupWidget>(Controller, MenuPopupClass);
+	ActiveWidget = CreateWidget<UEscapeMenuWidget>(Controller, EscapeMenuClass);
 	if (!ActiveWidget)
 	{
-		UE_LOG(LogHudMenuLayer, Error, TEXT("Failed to create settings menu widget."));
+		UE_LOG(LogHudMenuLayer, Error, TEXT("Failed to create escape menu widget."));
 		return false;
 	}
 
@@ -83,7 +69,7 @@ bool UHudMenuLayer::Close()
 		return false;
 	}
 
-	UMenuPopupWidget* MenuWidget = ActiveWidget.Get();
+	UEscapeMenuWidget* MenuWidget = ActiveWidget.Get();
 	if (!IsOpen())
 	{
 		ActiveWidget = nullptr;
@@ -100,7 +86,7 @@ bool UHudMenuLayer::Close()
 
 bool UHudMenuLayer::IsOpen() const
 {
-	return IsValid(ActiveWidget) && (ActiveWidget->IsActivated() || ActiveWidget->GetActiveGuideWidget());
+	return IsValid(ActiveWidget) && ActiveWidget->IsActivated();
 }
 
 void UHudMenuLayer::Shutdown()
@@ -113,7 +99,7 @@ void UHudMenuLayer::Shutdown()
 	ActiveWidget = nullptr;
 }
 
-void UHudMenuLayer::HandleMenuClosed(UMenuPopupWidget* ClosedWidget)
+void UHudMenuLayer::HandleMenuClosed(UEscapeMenuWidget* ClosedWidget)
 {
 	if (ActiveWidget != ClosedWidget)
 	{
@@ -128,6 +114,6 @@ void UHudMenuLayer::HandleMenuClosed(UMenuPopupWidget* ClosedWidget)
 
 	if (APdHUD* Hud = OwnerHud.Get())
 	{
-		Hud->HandleSettingsMenuLayerClosed();
+		Hud->HandleEscapeMenuClosed();
 	}
 }

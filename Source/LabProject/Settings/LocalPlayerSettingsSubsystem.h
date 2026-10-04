@@ -33,6 +33,7 @@ public:
 	void ApplyCameraViewPitchClamp(APlayerController* PlayerController);
 
 	float GetMouseSensitivitySliderValue() const;
+	int32 GetMouseSensitivityPercent() const;
 
 	void SetMouseSensitivitySliderValue(float NormalizedValue);
 
@@ -49,7 +50,6 @@ public:
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool ApplyConfiguredMouseCursor(APlayerController* PlayerController);
-	int32 GetMouseSensitivityPercent() const;
 	float GetMouseSensitivityMultiplier() const;
 	void LoadInputSettings();
 	void ApplyMouseSensitivity(APlayerController* PlayerController) const;

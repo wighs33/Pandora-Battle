@@ -193,11 +193,15 @@ void UGuideWidget::CloseGuide()
 	OnGuideClosed.Broadcast(this);
 }
 
-void UGuideWidget::SetOpenedFromGameplayMenu(const bool bInOpenedFromGameplayMenu)
+void UGuideWidget::SetOpenedFromGameSettings(const bool bInOpenedFromGameSettings)
 {
-	bOpenedFromGameplayMenu = bInOpenedFromGameplayMenu;
+	bOpenedFromGameSettings = bInOpenedFromGameSettings;
 	ResolveWidgets();
 	ApplyBackgroundPatternVisibility();
+	if (Btn_GameSettings)
+	{
+		Btn_GameSettings->SetVisibility(bOpenedFromGameSettings ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	}
 }
 
 FReply UGuideWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
@@ -268,7 +272,7 @@ void UGuideWidget::ApplyBackgroundPatternVisibility()
 	}
 
 	Img_BackgroundPattern->SetVisibility(
-		bOpenedFromGameplayMenu
+		bOpenedFromGameSettings
 			? ESlateVisibility::Hidden
 			: DefaultBackgroundPatternVisibility);
 }

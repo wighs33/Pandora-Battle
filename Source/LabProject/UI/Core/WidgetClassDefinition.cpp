@@ -20,7 +20,7 @@
 #include "UI/Info/InfoWidget.h"
 #include "UI/HUD/Match/KillBoxWidget.h"
 #include "UI/Info/Map/MapWidget.h"
-#include "UI/HUD/Menu/MenuPopupWidget.h"
+#include "UI/HUD/Menu/EscapeMenuWidget.h"
 #include "UI/HUD/Notification/NotificationEntryWidget.h"
 #include "UI/Pandora/PandoraDescriptionWidget.h"
 #include "UI/HUD/Ability/QuickSlotEntryWidget.h"
@@ -30,7 +30,6 @@
 #include "UI/Pandora/PandoraTreeWidget.h"
 #include "UI/HUD/Notification/RightNotificationsWidget.h"
 #include "UI/HUD/Status/StatusEffectWidget.h"
-#include "UI/HUD/Menu/TrainingRoomMenuPopupWidget.h"
 #include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetClassDefinition)
@@ -162,7 +161,7 @@ void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
 		CollectSettings(GetSelectPandoraWidgetSettings());
 		CollectSettings(GetAimCrosshairWidgetSettings());
 		CollectSettings(GetRightNotificationsWidgetSettings());
-		CollectSettings(GetMenuPopupWidgetSettings());
+		CollectSettings(GetEscapeMenuWidgetSettings());
 		CollectSettings(GetStatusEffectsBarWidgetSettings());
 		CollectSettings(GetGameResultWidgetSettings());
 		CollectSettings(GetCharacterWidgetSettings());
@@ -331,14 +330,9 @@ TSubclassOf<URightNotificationsWidget> UWidgetClassDefinition::GetRightNotificat
 	return GetRightNotificationsWidgetSettings().WidgetClass;
 }
 
-TSubclassOf<UMenuPopupWidget> UWidgetClassDefinition::GetMenuPopupWidgetClass() const
+TSubclassOf<UEscapeMenuWidget> UWidgetClassDefinition::GetEscapeMenuWidgetClass() const
 {
-	return GetMenuPopupWidgetSettings().MenuPopupWidgetClass;
-}
-
-TSubclassOf<UTrainingRoomMenuPopupWidget> UWidgetClassDefinition::GetTrainingRoomMenuPopupWidgetClass() const
-{
-	return GetMenuPopupWidgetSettings().TrainingRoomMenuPopupWidgetClass;
+	return GetEscapeMenuWidgetSettings().WidgetClass;
 }
 
 TSubclassOf<UConnectingPopupWidget> UWidgetClassDefinition::GetConnectingPopupWidgetClass() const

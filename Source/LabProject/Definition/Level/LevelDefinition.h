@@ -74,6 +74,7 @@ public:
 	FString GetBossRaidTravelMapName() const;
 	bool IsLobbyMapName(const FString& LevelName) const;
 	bool IsTrainingRoomMapName(const FString& LevelName) const;
+	static bool IsTrainingRoomWorld(const UObject* WorldContextObject);
 
 private:
 	FName ResolveIngameLevelKey(FName LevelKey) const;

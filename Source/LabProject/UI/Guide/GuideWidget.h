@@ -41,7 +41,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Guide")
 	void CloseGuide();
 
-	void SetOpenedFromGameplayMenu(bool bInOpenedFromGameplayMenu);
+	/** 게임 설정 화면에서 열면 뒤의 설정 화면이 보이도록 배경 무늬를 끄고, 가이드 안의 설정 버튼을 숨긴다. */
+	void SetOpenedFromGameSettings(bool bInOpenedFromGameSettings);
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -123,7 +124,7 @@ private:
 	FSlateFontInfo DefaultContentFont;
 	bool bCapturedDefaultContentFont = false;
 	bool bCapturedBackgroundPatternVisibility = false;
-	bool bOpenedFromGameplayMenu = false;
+	bool bOpenedFromGameSettings = false;
 	bool bIsClosing = false;
 	TSharedPtr<FContentLease> GuideDefinitionLease;
 	TSharedPtr<FContentLease> GuideImageLease;

@@ -27,7 +27,7 @@ class UKillBoxWidget;
 class ULobbyUserWidget;
 class UMapWidget;
 class UMaterialInterface;
-class UMenuPopupWidget;
+class UEscapeMenuWidget;
 class UNotificationEntryWidget;
 class UPandoraDescriptionWidget;
 class UQuickSlotEntryWidget;
@@ -40,7 +40,6 @@ class URoomItemWidget;
 class UShopWidget;
 class UStatusEffectWidget;
 class UTexture2D;
-class UTrainingRoomMenuPopupWidget;
 class UWidgetInputIconsDefinition;
 class UWidgetMapUIDefinition;
 class UWidgetStyleDefinition;
@@ -307,15 +306,12 @@ struct LABPROJECT_API FRightNotificationsWidgetSettings
 };
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FMenuPopupWidgetSettings
+struct LABPROJECT_API FEscapeMenuWidgetSettings
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|MenuPopup")
-	TSubclassOf<UMenuPopupWidget> MenuPopupWidgetClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|MenuPopup")
-	TSubclassOf<UTrainingRoomMenuPopupWidget> TrainingRoomMenuPopupWidgetClass;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|EscapeMenu")
+	TSubclassOf<UEscapeMenuWidget> WidgetClass;
 };
 
 USTRUCT(BlueprintType)
@@ -689,8 +685,7 @@ public:
 	TSubclassOf<UUserWidget> GetAimCrosshairWidgetClass() const;
 	TSubclassOf<UPandoraTreeWidget> GetPandoraTreeWidgetClass() const;
 	TSubclassOf<URightNotificationsWidget> GetRightNotificationsWidgetClass() const;
-	TSubclassOf<UMenuPopupWidget> GetMenuPopupWidgetClass() const;
-	TSubclassOf<UTrainingRoomMenuPopupWidget> GetTrainingRoomMenuPopupWidgetClass() const;
+	TSubclassOf<UEscapeMenuWidget> GetEscapeMenuWidgetClass() const;
 	TSubclassOf<UConnectingPopupWidget> GetConnectingPopupWidgetClass() const;
 	TSubclassOf<UShopWidget> GetShopWidgetClass() const;
 	TSubclassOf<UGuideWidget> GetGuideWidgetClass() const;
@@ -736,7 +731,7 @@ public:
 private:
 	const FPlayerHudWidgetSettings& GetPlayerHudWidgetSettings() const { return PlayerHudWidgetSettings; }
 	const FAimCrosshairWidgetSettings& GetAimCrosshairWidgetSettings() const { return AimCrosshairWidgetSettings; }
-	const FMenuPopupWidgetSettings& GetMenuPopupWidgetSettings() const { return MenuPopupWidgetSettings; }
+	const FEscapeMenuWidgetSettings& GetEscapeMenuWidgetSettings() const { return EscapeMenuWidgetSettings; }
 	const FConnectingPopupWidgetSettings& GetConnectingPopupWidgetSettings() const { return ConnectingPopupWidgetSettings; }
 	const FInfoAuxiliaryWidgetSettings& GetInfoAuxiliaryWidgetSettings() const { return InfoAuxiliaryWidgetSettings; }
 	const FGameResultWidgetSettings& GetGameResultWidgetSettings() const { return GameResultWidgetSettings; }
@@ -758,8 +753,8 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|AimCrosshairWidget", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
 	FAimCrosshairWidgetSettings AimCrosshairWidgetSettings;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|MenuPopup", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
-	FMenuPopupWidgetSettings MenuPopupWidgetSettings;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|EscapeMenu", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
+	FEscapeMenuWidgetSettings EscapeMenuWidgetSettings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|ConnectingPopup", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
 	FConnectingPopupWidgetSettings ConnectingPopupWidgetSettings;

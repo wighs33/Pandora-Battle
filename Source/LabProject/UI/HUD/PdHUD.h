@@ -21,7 +21,6 @@ class UGoldenKillAnnouncementWidget;
 class UHudTimerWidget;
 class UInfoWidget;
 class UKillLogWidget;
-class UMenuPopupWidget;
 class UHudMenuLayer;
 class UHudScreenLayer;
 class UHudScoreboardLayer;
@@ -87,7 +86,7 @@ public:
 	void ShowDamageScreenEffect(float DamageAmount);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
-	void ToggleSettingsMenu();
+	void ToggleEscapeMenu();
 
 	void RefreshUiBindings();
 
@@ -100,7 +99,7 @@ public:
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
-	void OpenSettingsMenu();
+	void OpenEscapeMenu();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
 	virtual bool HandleEscapeInput() override;
@@ -112,7 +111,7 @@ public:
 
 private:
 	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
-	void HandleSettingsMenuLayerClosed();
+	void HandleEscapeMenuClosed();
 	void HandleAimCrosshairChanged(bool bVisible, FGameplayTag CrosshairWidgetTag);
 	void ShowRightNotification(const FPdNotificationData& NotificationData);
 	void ShowGoldenKillAnnouncement(const FText& AnnouncementText);
@@ -144,7 +143,7 @@ private:
 	UHudScreenLayer* GetScreenLayer() const;
 	UHudMenuLayer* GetMenuLayer() const;
 	UHudScoreboardLayer* GetScoreboardLayer() const;
-	bool IsSettingsMenuOpen() const;
+	bool IsEscapeMenuOpen() const;
 	UInfoUiPresenter* GetInfoUiPresenter();
 	UUiSubsystem* GetUiSubsystem() const;
 	bool ApplyStatusViewModelToWidget(UUserWidget* InWidget);

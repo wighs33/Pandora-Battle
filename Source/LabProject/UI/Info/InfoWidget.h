@@ -38,7 +38,6 @@ class AActor;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnClickedInfoCenterButton, FGameplayTag, LeftUiTag, FGameplayTag, RightUiTag);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedMapButton);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedSettingButton);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedItemToCharacterPanel, UItemInstance*, ItemInstance);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedSkinToCharacterPanel, const USkinDefinition*, SkinDefinition);
 
@@ -157,9 +156,6 @@ private:
 	void OnMapButtonClicked();
 
 	UFUNCTION()
-	void OnSettingButtonClicked();
-
-	UFUNCTION()
 	void OnCloseButtonClicked();
 
 	UFUNCTION()
@@ -205,9 +201,6 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
 	FPdOnClickedMapButton OnClickedMapButton;
-
-	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
-	FPdOnClickedSettingButton OnClickedSettingButton;
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
 	FPdOnDroppedItemToCharacterPanel OnDroppedItemToCharacterPanel;
@@ -284,9 +277,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidget))
 	TObjectPtr<UButton> MapButton;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
-	TObjectPtr<UButton> Btn_Setting;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> Btn_Close;

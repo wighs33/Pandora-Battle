@@ -8,10 +8,23 @@
 #include "Components/Button.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
+#include "Components/WidgetSwitcher.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/Font.h"
 #include "InputCoreTypes.h"
+#include "Settings/LocalPlayerSettingsSubsystem.h"
+#include "UI/Core/UiScreen.h"
+#include "UI/Core/WidgetClassDefinition.h"
+#include "UI/Guide/GuideWidget.h"
+#include "UI/Settings/AudioVolumeControl.h"
+
+namespace
+{
+	constexpr int32 GeneralPageIndex = 0;
+	constexpr int32 TrainingRoomPageIndex = 1;
+}
 
 void UGameSettingsWidget::NativeConstruct()
 {
@@ -31,6 +44,21 @@ void UGameSettingsWidget::NativeConstruct()
 		VolumeChangedHandle = Audio->OnMasterVolumeChanged.AddUObject(this, &ThisClass::RefreshVolume);
 		RefreshVolume(Audio->GetMasterVolumePercent());
 	}
+	SoundButtonControl = NewObject<UAudioVolumeControl>(this);
+	SoundButtonControl->Initialize(this, nullptr, Btn_Sound);
+	if (const ULocalPlayerSettingsSubsystem* Settings = ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer()))
+	{
+		TGuardValue<bool> Guard(bSynchronizing, true);
+		Slider_MouseSensitivity->SetValue(Settings->GetMouseSensitivitySliderValue());
+	}
+	Slider_MouseSensitivity->OnValueChanged.AddUniqueDynamic(this, &ThisClass::HandleMouseSensitivityChanged);
+	RefreshMouseSensitivityText();
+	Btn_Guide->OnClicked.AddUniqueDynamic(this, &ThisClass::OpenGuide);
+	Btn_TabGeneral->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowGeneralPage);
+	Btn_TabTrainingRoom->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowTrainingRoomPage);
+	SettingsTabs->SetVisibility(ULevelDefinition::IsTrainingRoomWorld(this)
+		? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	ShowPage(GeneralPageIndex);
 	OnMenuLanguageChanged();
 }
 
@@ -45,6 +73,20 @@ void UGameSettingsWidget::NativeDestruct()
 		Audio->OnMasterVolumeChanged.Remove(VolumeChangedHandle);
 		Audio->SaveMasterVolumeSettings();
 	}
+	if (SoundButtonControl)
+	{
+		SoundButtonControl->Shutdown();
+		SoundButtonControl = nullptr;
+	}
+	Slider_MouseSensitivity->OnValueChanged.RemoveDynamic(this, &ThisClass::HandleMouseSensitivityChanged);
+	if (ULocalPlayerSettingsSubsystem* Settings = ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer()))
+	{
+		Settings->SaveInputSettings();
+	}
+	Btn_Guide->OnClicked.RemoveDynamic(this, &ThisClass::OpenGuide);
+	Btn_TabGeneral->OnClicked.RemoveDynamic(this, &ThisClass::ShowGeneralPage);
+	Btn_TabTrainingRoom->OnClicked.RemoveDynamic(this, &ThisClass::ShowTrainingRoomPage);
+	CloseGuide();
 	Super::NativeDestruct();
 }
 
@@ -100,6 +142,70 @@ void UGameSettingsWidget::RefreshVolume(int32 Percent)
 	TGuardValue<bool> Guard(bSynchronizing, true);
 	Slider_MasterVolume->SetValue(Percent / 100.f);
 	Txt_VolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), Percent)));
+}
+
+void UGameSettingsWidget::HandleMouseSensitivityChanged(float Value)
+{
+	if (bSynchronizing) return;
+	if (ULocalPlayerSettingsSubsystem* Settings = ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer()))
+		Settings->SetMouseSensitivitySliderValue(Value);
+	RefreshMouseSensitivityText();
+}
+
+void UGameSettingsWidget::RefreshMouseSensitivityText()
+{
+	if (const ULocalPlayerSettingsSubsystem* Settings = ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer()))
+		Txt_MouseSensitivityValue->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), Settings->GetMouseSensitivityPercent())));
+}
+
+// 가이드는 설정 화면 위 같은 층에 올린다. 설정이 바로 아래에 있으므로 가이드 안의 설정 버튼은 숨긴다.
+void UGameSettingsWidget::OpenGuide()
+{
+	APlayerController* Controller = GetOwningPlayer();
+	const UWidgetClassDefinition* Definition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	const TSubclassOf<UGuideWidget> GuideClass = Definition ? Definition->GetGuideWidgetClass() : nullptr;
+	if (!Controller || !GuideClass || ActiveGuideWidget) return;
+	ActiveGuideWidget = CreateWidget<UGuideWidget>(Controller, GuideClass);
+	if (!ActiveGuideWidget) return;
+	ActiveGuideWidget->SetOpenedFromGameSettings(true);
+	ActiveGuideWidget->OnGuideClosed.AddUniqueDynamic(this, &ThisClass::HandleGuideClosed);
+	GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(UUiScreen::CreateBlocking(Controller, ActiveGuideWidget,
+		ActiveGuideWidget, FSimpleDelegate::CreateUObject(ActiveGuideWidget, &UGuideWidget::CloseGuide)), EUiScreenLayer::Modal);
+	ActiveGuideWidget->RefreshGuide();
+}
+
+void UGameSettingsWidget::HandleGuideClosed(UGuideWidget* ClosedGuideWidget)
+{
+	if (ClosedGuideWidget != ActiveGuideWidget) return;
+	ActiveGuideWidget->OnGuideClosed.RemoveDynamic(this, &ThisClass::HandleGuideClosed);
+	ActiveGuideWidget = nullptr;
+}
+
+void UGameSettingsWidget::CloseGuide()
+{
+	if (UGuideWidget* Guide = ActiveGuideWidget)
+	{
+		Guide->OnGuideClosed.RemoveDynamic(this, &ThisClass::HandleGuideClosed);
+		ActiveGuideWidget = nullptr;
+		Guide->CloseGuide();
+	}
+}
+
+void UGameSettingsWidget::ShowGeneralPage()
+{
+	ShowPage(GeneralPageIndex);
+}
+
+void UGameSettingsWidget::ShowTrainingRoomPage()
+{
+	ShowPage(TrainingRoomPageIndex);
+}
+
+void UGameSettingsWidget::ShowPage(int32 PageIndex)
+{
+	Switcher_SettingsPages->SetActiveWidgetIndex(PageIndex);
+	Btn_TabGeneral->SetBackgroundColor(PageIndex == GeneralPageIndex ? SelectedTabColor : UnselectedTabColor);
+	Btn_TabTrainingRoom->SetBackgroundColor(PageIndex == TrainingRoomPageIndex ? SelectedTabColor : UnselectedTabColor);
 }
 
 void UGameSettingsWidget::CloseSettings()

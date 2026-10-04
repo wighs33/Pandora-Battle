@@ -510,16 +510,6 @@ void UInfoWidget::OnMapButtonClicked()
 	SelectMapTab();
 }
 
-void UInfoWidget::OnSettingButtonClicked()
-{
-	if (MapPanel)
-	{
-		MapPanel->PlaySlideOut();
-	}
-	HideSkinPaintCanvasGroup();
-	OnClickedSettingButton.Broadcast();
-}
-
 void UInfoWidget::OnCloseButtonClicked()
 {
 	CloseGameSettings();
@@ -673,7 +663,6 @@ TArray<FPdButtonClickBinding, TInlineAllocator<12>> UInfoWidget::GetButtonBindin
 		{ SkinButton, GET_FUNCTION_NAME_CHECKED(ThisClass, OnSkinButtonClicked) },
 		{ PandoraButton, GET_FUNCTION_NAME_CHECKED(ThisClass, OnPandoraButtonClicked) },
 		{ MapButton, GET_FUNCTION_NAME_CHECKED(ThisClass, OnMapButtonClicked) },
-		{ Btn_Setting, GET_FUNCTION_NAME_CHECKED(ThisClass, OnSettingButtonClicked) },
 		{ Btn_Close, GET_FUNCTION_NAME_CHECKED(ThisClass, OnCloseButtonClicked) },
 		{ Btn_PandoraUpgrade, GET_FUNCTION_NAME_CHECKED(ThisClass, OnPandoraUpgradeButtonClicked) },
 		{ Btn_CanvasExport, GET_FUNCTION_NAME_CHECKED(ThisClass, OnCanvasExportButtonClicked) },

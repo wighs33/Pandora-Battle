@@ -6,10 +6,10 @@
 #include "HudMenuLayer.generated.h"
 
 class APdHUD;
-class UMenuPopupWidget;
+class UEscapeMenuWidget;
 class UHudUiRouter;
 
-/** 설정 메뉴 위젯의 수명을 관리하고 닫힘 이벤트를 HUD에 알린다. */
+/** ESC 메뉴 위젯의 수명을 관리하고 닫힘 이벤트를 HUD에 알린다. */
 UCLASS()
 class LABPROJECT_API UHudMenuLayer : public UObject
 {
@@ -22,18 +22,17 @@ public:
 	bool Toggle();
 	bool Close();
 	bool IsOpen() const;
-	UMenuPopupWidget* GetWidget() const { return ActiveWidget; }
 	void Shutdown();
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()
-	void HandleMenuClosed(UMenuPopupWidget* ClosedWidget);
+	void HandleMenuClosed(UEscapeMenuWidget* ClosedWidget);
 
 private:
 	TWeakObjectPtr<APdHUD> OwnerHud;
 	TWeakObjectPtr<UHudUiRouter> Router;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UMenuPopupWidget> ActiveWidget;
+	TObjectPtr<UEscapeMenuWidget> ActiveWidget;
 };

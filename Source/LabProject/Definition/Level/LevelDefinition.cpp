@@ -1,6 +1,7 @@
 #include "Definition/Level/LevelDefinition.h"
 
 #include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Kismet/GameplayStatics.h"
 #include "Misc/PackageName.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelDefinition)
@@ -225,6 +226,12 @@ bool ULevelDefinition::IsTrainingRoomMapName(const FString& LevelName) const
 {
 	return !LevelName.TrimStartAndEnd().IsEmpty()
 		&& DoesMapMatchLevelName(TrainingLevel, LevelName);
+}
+
+bool ULevelDefinition::IsTrainingRoomWorld(const UObject* WorldContextObject)
+{
+	const ULevelDefinition* Definition = ResolveDefaultDefinition();
+	return Definition && Definition->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(WorldContextObject, true));
 }
 
 #if WITH_EDITOR

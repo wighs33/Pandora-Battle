@@ -19,12 +19,10 @@
 #include "UI/Core/UiSubsystem.h"
 #include "Data/ContentLease.h"
 #include "UI/Info/InfoWidget.h"
-#include "UI/HUD/Menu/MenuPopupWidget.h"
 #include "UI/Pandora/PandoraTreeWidget.h"
 #include "UI/HUD/Player/PlayerHudWidget.h"
 #include "UI/HUD/Notification/RightNotificationsWidget.h"
 #include "UI/Pandora/SelectPandoraWidget.h"
-#include "UI/HUD/Menu/TrainingRoomMenuPopupWidget.h"
 #include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudScreenLayer)
@@ -110,8 +108,6 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 
 	bInfoClosing = false;
 	Hud->CachedInfoUI->SetReturnCameraOnHide(true);
-	Hud->CachedInfoUI->OnClickedSettingButton.RemoveDynamic(Hud, &APdHUD::OpenSettingsMenu);
-	Hud->CachedInfoUI->OnClickedSettingButton.AddUniqueDynamic(Hud, &APdHUD::OpenSettingsMenu);
 
 	UInfoUiPresenter* Presenter = Hud->GetInfoUiPresenter();
 	if (Presenter)

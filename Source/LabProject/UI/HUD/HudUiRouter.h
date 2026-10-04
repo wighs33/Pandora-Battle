@@ -10,7 +10,6 @@ class APdHUD;
 class UHudMenuLayer;
 class UHudScoreboardLayer;
 class UHudScreenLayer;
-class UMenuPopupWidget;
 class UUserWidget;
 class UWidget;
 class UWidgetClassDefinition;

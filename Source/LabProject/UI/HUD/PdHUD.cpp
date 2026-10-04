@@ -25,7 +25,6 @@
 #include "UI/HUD/Player/HudTimerWidget.h"
 #include "UI/Info/InfoWidget.h"
 #include "UI/HUD/Match/KillLogWidget.h"
-#include "UI/HUD/Menu/MenuPopupWidget.h"
 #include "UI/HUD/Player/PlayerVitalsWidget.h"
 #include "UI/Pandora/SelectPandoraWidget.h"
 #include "UI/Pandora/PandoraTreeWidget.h"
@@ -155,7 +154,7 @@ void APdHUD::OpenInfoUiFocused(const EInfoUiSection Section)
 		CachedInfoUI
 		&& ScreenLayer->IsInfoOpen()
 		&& !ScreenLayer->IsInfoClosing()
-		&& !IsSettingsMenuOpen();
+		&& !IsEscapeMenuOpen();
 	if (bWasInfoReadyForSectionChange
 		&& CachedInfoUI->GetFocusedSection() == Section)
 	{
@@ -223,7 +222,7 @@ bool APdHUD::IsPlayerHudSuppressedByUi() const
 	const UHudScoreboardLayer* ScoreboardLayer = GetScoreboardLayer();
 	return (ScreenLayer && ScreenLayer->ShouldSuppressPlayerHud())
 		|| (SelectPandoraScreen && SelectPandoraScreen->IsActivated())
-		|| IsSettingsMenuOpen()
+		|| IsEscapeMenuOpen()
 		|| (ScoreboardLayer && ScoreboardLayer->IsOpen());
 }
 
@@ -579,7 +578,7 @@ void APdHUD::HandleInGameScoreboardChanged(const bool bVisible)
 	}
 }
 
-void APdHUD::OpenSettingsMenu()
+void APdHUD::OpenEscapeMenu()
 {
 	EnsureUiRouter();
 	if (UHudMenuLayer* MenuLayer = GetMenuLayer())
@@ -588,7 +587,7 @@ void APdHUD::OpenSettingsMenu()
 	}
 }
 
-void APdHUD::ToggleSettingsMenu()
+void APdHUD::ToggleEscapeMenu()
 {
 	EnsureUiRouter();
 	if (UHudMenuLayer* MenuLayer = GetMenuLayer())
@@ -601,12 +600,6 @@ bool APdHUD::HandleEscapeInput()
 {
 	if (UHudMenuLayer* MenuLayer = GetMenuLayer(); MenuLayer && MenuLayer->IsOpen())
 	{
-		if (UMenuPopupWidget* SettingsMenuWidget = MenuLayer->GetWidget();
-			SettingsMenuWidget && SettingsMenuWidget->CloseGuide())
-		{
-			return true;
-		}
-
 		MenuLayer->Close();
 		return true;
 	}
@@ -636,8 +629,8 @@ bool APdHUD::HandleEscapeInput()
 		return true;
 	}
 
-	OpenSettingsMenu();
-	return IsSettingsMenuOpen();
+	OpenEscapeMenu();
+	return IsEscapeMenuOpen();
 }
 
 void APdHUD::RefreshUiBindings()
@@ -651,7 +644,7 @@ void APdHUD::RefreshUiBindings()
 void APdHUD::OnOpenSettingsMenuInputStarted(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
-	ToggleSettingsMenu();
+	ToggleEscapeMenu();
 }
 
 void APdHUD::OnSelectPandoraInputStarted(const FInputActionValue& InputValue)
@@ -711,7 +704,7 @@ UHudScoreboardLayer* APdHUD::GetScoreboardLayer() const
 	return UiRouter ? UiRouter->GetScoreboardLayer() : nullptr;
 }
 
-bool APdHUD::IsSettingsMenuOpen() const
+bool APdHUD::IsEscapeMenuOpen() const
 {
 	const UHudMenuLayer* MenuLayer = GetMenuLayer();
 	return MenuLayer && MenuLayer->IsOpen();
@@ -864,15 +857,7 @@ URespawnDelayWidget* APdHUD::FindRespawnDelayWidget()
 
 bool APdHUD::IsTrainingRoomMap() const
 {
-	const ULevelDefinition* Levels =
-		ULevelDefinition::ResolveDefaultDefinition();
-	if (!Levels)
-	{
-		return false;
-	}
-
-	return Levels->IsTrainingRoomMapName(
-		UGameplayStatics::GetCurrentLevelName(this, true));
+	return ULevelDefinition::IsTrainingRoomWorld(this);
 }
 
 void APdHUD::RefreshTrainingRoomUiPause(const UUserWidget* IgnoredWidget)
@@ -919,7 +904,7 @@ void APdHUD::HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbility
 	ApplyStatusViewModelToPlayerHud();
 }
 
-void APdHUD::HandleSettingsMenuLayerClosed()
+void APdHUD::HandleEscapeMenuClosed()
 {
 	RefreshTrainingRoomUiPause();
 	RefreshPlayerHudVisibility();
