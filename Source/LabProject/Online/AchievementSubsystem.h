@@ -38,8 +38,15 @@ public:
 		return SteamAchievementStateChanged;
 	}
 
+	/** 업적 정의와 아이콘 로딩이 끝나면 알린다. 업적 아이콘을 그리는 화면이 다시 그릴 시점이다. */
+	FSimpleMulticastDelegate& OnAchievementPresentationReady()
+	{
+		return AchievementPresentationReady;
+	}
+
 private:
 	void HandleAchievementDefinitionContentReady();
+	void HandleAchievementPresentationContentReady();
 
 	void HandleAchievementsQueried(const FUniqueNetId& PlayerId, bool bWasSuccessful);
 	void HandleAchievementWritten(const FUniqueNetId& PlayerId, bool bWasSuccessful, FString AchievementId);
@@ -74,6 +81,7 @@ private:
 	bool bAchievementQueryInFlight = false;
 	bool bAchievementQueryCompleted = false;
 	FOnSteamAchievementStateChanged SteamAchievementStateChanged;
+	FSimpleMulticastDelegate AchievementPresentationReady;
 	UPROPERTY(Transient)
 	TObjectPtr<UAchievementDefinition> CachedAchievementDefinition;
 	TSharedPtr<FContentLease> DefinitionLease;

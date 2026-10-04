@@ -39,8 +39,6 @@ public:
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	void HandleSourcePlayerEffectRetry();
-
 	UFUNCTION()
 	void OnRep_PresentationSettings();
 
@@ -50,7 +48,6 @@ private:
 	AWeaponBase* ResolveCurrentWeapon(const ACharacterBase* Character) const;
 	void ApplyEffectAlpha(float Alpha);
 	void RestoreSourcePlayerState();
-	void ScheduleSourcePlayerEffectRetry();
 
 private:
 	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Components")
@@ -93,15 +90,6 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Weapon Trace", meta = (EditCondition = "bScaleWeaponTraceEndZ", ClampMin = "1.0"))
 	float WeaponTraceEndZMultiplier = 1.5f;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Network", meta = (ClampMin = "0.01", ForceUnits = "s"))
-	float SourceResolveRetryInterval = 0.1f;
-
-	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Network", meta = (ClampMin = "1"))
-	int32 SourceResolveRetryAttempts = 20;
-
-	FTimerHandle SourceResolveRetryTimerHandle;
-	int32 SourceResolveRetryCount = 0;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ACharacterBase> ActiveSourceCharacter;

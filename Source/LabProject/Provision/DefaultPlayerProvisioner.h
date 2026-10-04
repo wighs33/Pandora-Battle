@@ -15,6 +15,7 @@ class UInventoryComponent;
 class UPandoraComponent;
 class UPandoraTreeComponent;
 class USkinEquipmentComponent;
+class UStatUpgradeComponent;
 struct FStreamableHandle;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDefaultPlayerProvisioned, APlayerController*);
@@ -39,6 +40,17 @@ private:
 	{
 		TWeakObjectPtr<UInventoryComponent> Inventory;
 		bool bCompleted = false;
+	};
+
+	// 지급을 마치지 못한 플레이어가 기다리는 비동기 준비. 완료 알림이 오면 다음 틱에 다시 지급한다.
+	struct FProvisionWait
+	{
+		TWeakObjectPtr<UInventoryComponent> Inventory;
+		FDelegateHandle InventoryHandle;
+		TWeakObjectPtr<UStatUpgradeComponent> StatUpgrade;
+		FDelegateHandle StatUpgradeHandle;
+		TWeakObjectPtr<APlayerController> Controller;
+		FDelegateHandle PawnHandle;
 	};
 
 	struct FInitializedPandoraState
@@ -74,8 +86,10 @@ private:
 	bool ApplyGestures(
 		APlayerController* PlayerController,
 		APdPlayerState* PlayerState);
-	void ScheduleRetry(APlayerController* PlayerController);
-	void ClearRetryTimer(APlayerController* PlayerController);
+	void WaitForProvisionInputs(APlayerController* PlayerController);
+	void StopWaitingForProvisionInputs(TObjectKey<APlayerController> ControllerKey);
+	void ScheduleProvisionAttempt(APlayerController* PlayerController);
+	void ClearScheduledProvisionAttempt(APlayerController* PlayerController);
 	int32 GetInventoryItemQuantity(
 		const UInventoryComponent* InventoryComponent,
 		FPrimaryAssetId ItemDefinitionId) const;
@@ -84,7 +98,8 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<const UDefaultProvisionDefinition> ProvisionDefinition;
 
-	TMap<TObjectKey<APlayerController>, FTimerHandle> PendingRetryTimers;
+	TMap<TObjectKey<APlayerController>, FTimerHandle> PendingProvisionAttempts;
+	TMap<TObjectKey<APlayerController>, FProvisionWait> ProvisionWaits;
 	TArray<TWeakObjectPtr<APlayerController>> PendingContentControllers;
 	TArray<FPrimaryAssetId> RequiredContentIds;
 	TSharedPtr<FStreamableHandle> ContentLoadHandle;

@@ -64,6 +64,7 @@ void ULobbyRuntimeSubsystem::Deinitialize()
 {
 	ReleaseLobbyEntryContentPreload();
 	ReleaseGameEntryContentPreload();
+	GameEntryContentPreloadFinished.Clear();
 	LoadedLevelDefinition = nullptr;
 	bLevelDefinitionPreloadPending = false;
 	bLevelDefinitionReady = false;
@@ -293,6 +294,7 @@ void ULobbyRuntimeSubsystem::SetGameEntryContentPreloadResult(
 			TEXT("Game entry preload is missing required data asset '%s'."),
 			*MissingAssetId.ToString());
 	}
+	GameEntryContentPreloadFinished.Broadcast();
 }
 
 void ULobbyRuntimeSubsystem::FindUnregisteredGameEntryAssets(

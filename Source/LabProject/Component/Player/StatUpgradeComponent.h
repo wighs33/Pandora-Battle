@@ -40,6 +40,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!AbilitySystem|Stat|Points")
 	bool SetPointsForAllCategories(float Value);
 
+	/** 서버에서는 기본 능력치 초기화까지 끝나야 true다. 포인트 지급과 투자는 이때부터 받는다. */
+	bool IsDefinitionReady() const { return LoadedStatUpgradeDefinition != nullptr; }
+	FSimpleMulticastDelegate& OnDefinitionReady() { return DefinitionReady; }
+
 private:
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable)
@@ -66,5 +70,6 @@ private:
 	TObjectPtr<UStatUpgradeDefinition> LoadedStatUpgradeDefinition;
 
 	TSharedPtr<FContentLease> StatUpgradeDefinitionLease;
+	FSimpleMulticastDelegate DefinitionReady;
 	bool bApplyingStatChange = false;
 };

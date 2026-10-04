@@ -290,7 +290,8 @@ void URangedAttackAbility::ScheduleAIPrimaryAttack()
 	const float SafeDelay = FMath::Max(GetAIRangedTargetLockDelay(), 0.0f);
 	if (SafeDelay <= 0.0f)
 	{
-		World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::HandleAIPrimaryAttackTimer);
+		// 지연이 없을 때의 다음 틱 예약도 같은 핸들에 담아, 능력이 먼저 끝나면 ClearAIPrimaryAttackTimer가 함께 취소한다.
+		AIPrimaryAttackTimerHandle = World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::HandleAIPrimaryAttackTimer);
 	}
 	else
 	{

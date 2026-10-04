@@ -11,7 +11,6 @@
 #include "NiagaraSystem.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Net/UnrealNetwork.h"
-#include "TimerManager.h"
 #include "Weapon/WeaponBase.h"
 #include "Weapon/MeleeWeapon.h"
 
@@ -79,7 +78,6 @@ void ASkillPowerUpActor::Tick(const float DeltaSeconds)
 
 void ASkillPowerUpActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	GetWorldTimerManager().ClearTimer(SourceResolveRetryTimerHandle);
 	StopSourcePlayerEffect();
 
 	Super::EndPlay(EndPlayReason);
@@ -103,6 +101,8 @@ void ASkillPowerUpActor::OnRep_Instigator()
 	}
 }
 
+// 클라이언트에서 소유자·발동자 참조가 아직 풀리지 않았으면 그냥 돌아간다.
+// 참조가 풀리면 엔진이 OnRep_Owner·OnRep_Instigator를 다시 불러 여기로 돌아온다.
 void ASkillPowerUpActor::StartSourcePlayerEffect()
 {
 	if (bSourceEffectActive || !PresentationSettings.IsComplete())
@@ -114,13 +114,9 @@ void ASkillPowerUpActor::StartSourcePlayerEffect()
 	USkeletalMeshComponent* SourceMesh = SourceCharacter ? SourceCharacter->GetMesh() : nullptr;
 	if (!SourceCharacter || !SourceMesh)
 	{
-		ScheduleSourcePlayerEffectRetry();
 		return;
 	}
 
-	GetWorldTimerManager().ClearTimer(SourceResolveRetryTimerHandle);
-	SourceResolveRetryTimerHandle.Invalidate();
-	SourceResolveRetryCount = 0;
 	ActiveSourceCharacter = SourceCharacter;
 	ActiveSourceMesh = SourceMesh;
 	CachedSourceMeshScale = SourceMesh->GetComponentScale();
@@ -208,30 +204,6 @@ void ASkillPowerUpActor::StopSourcePlayerEffect()
 	StarterNiagaraComponent = nullptr;
 	bSourceEffectActive = false;
 	EffectAlpha = 0.0f;
-}
-
-void ASkillPowerUpActor::ScheduleSourcePlayerEffectRetry()
-{
-	if (bSourceEffectActive
-		|| SourceResolveRetryTimerHandle.IsValid()
-		|| SourceResolveRetryCount >= FMath::Max(SourceResolveRetryAttempts, 1))
-	{
-		return;
-	}
-
-	++SourceResolveRetryCount;
-	GetWorldTimerManager().SetTimer(
-		SourceResolveRetryTimerHandle,
-		this,
-		&ThisClass::HandleSourcePlayerEffectRetry,
-		FMath::Max(SourceResolveRetryInterval, 0.01f),
-		false);
-}
-
-void ASkillPowerUpActor::HandleSourcePlayerEffectRetry()
-{
-	SourceResolveRetryTimerHandle.Invalidate();
-	StartSourcePlayerEffect();
 }
 
 ACharacterBase* ASkillPowerUpActor::ResolveSourceCharacter() const

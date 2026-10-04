@@ -33,10 +33,7 @@ void UPlayerHudWidget::InitializePlayerHud(UWidgetClassDefinition* InWidgetClass
 	WidgetClassDefinition = InWidgetClassDefinition;
 	RefreshLobbyTipVisibility();
 	RefreshKillBoxVisibility();
-	if (!RefreshAchievementAvatar())
-	{
-		StartAchievementAvatarRefreshRetry();
-	}
+	RefreshAchievementAvatar();
 
 	if (CanRebuildKillBox())
 	{
@@ -49,14 +46,10 @@ void UPlayerHudWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	ClearTransactionalFlagsForRuntimeWidget(this);
-	BindSteamAchievementStateChanged();
+	BindAchievementNotifications();
 	RefreshLobbyTipVisibility();
 	RefreshKillBoxVisibility();
-	AchievementAvatarRefreshRetryCount = 0;
-	if (!RefreshAchievementAvatar())
-	{
-		StartAchievementAvatarRefreshRetry();
-	}
+	RefreshAchievementAvatar();
 
 	if (CanRebuildKillBox())
 	{
@@ -67,8 +60,7 @@ void UPlayerHudWidget::NativeConstruct()
 
 void UPlayerHudWidget::NativeDestruct()
 {
-	UnbindSteamAchievementStateChanged();
-	ClearAchievementAvatarRefreshRetry();
+	UnbindAchievementNotifications();
 	ClearKillBoxWidgets();
 	PdEditorTransaction::ResetIfContainsPieObjects();
 	Super::NativeDestruct();
@@ -182,9 +174,10 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 	return true;
 }
 
-void UPlayerHudWidget::BindSteamAchievementStateChanged()
+// Steam 업적 조회 결과와 업적 아이콘 로딩 완료 때 아바타 아이콘을 다시 그린다.
+void UPlayerHudWidget::BindAchievementNotifications()
 {
-	UnbindSteamAchievementStateChanged();
+	UnbindAchievementNotifications();
 	UGameInstance* GameInstance = GetGameInstance();
 	UAchievementSubsystem* AchievementSubsystem = GameInstance
 		? GameInstance->GetSubsystem<UAchievementSubsystem>()
@@ -197,62 +190,34 @@ void UPlayerHudWidget::BindSteamAchievementStateChanged()
 	SteamAchievementStateChangedHandle =
 		AchievementSubsystem->OnSteamAchievementStateChanged().AddUObject(
 			this,
-			&ThisClass::HandleSteamAchievementStateChanged);
+			&ThisClass::HandleAchievementDisplayChanged);
+	AchievementPresentationReadyHandle =
+		AchievementSubsystem->OnAchievementPresentationReady().AddUObject(
+			this,
+			&ThisClass::HandleAchievementDisplayChanged);
 	AchievementSubsystem->RequestSteamAchievementQuery();
 }
 
-void UPlayerHudWidget::UnbindSteamAchievementStateChanged()
+void UPlayerHudWidget::UnbindAchievementNotifications()
 {
 	UGameInstance* GameInstance = GetGameInstance();
 	UAchievementSubsystem* AchievementSubsystem = GameInstance
 		? GameInstance->GetSubsystem<UAchievementSubsystem>()
 		: nullptr;
-	if (AchievementSubsystem && SteamAchievementStateChangedHandle.IsValid())
+	if (AchievementSubsystem)
 	{
 		AchievementSubsystem->OnSteamAchievementStateChanged().Remove(
 			SteamAchievementStateChangedHandle);
+		AchievementSubsystem->OnAchievementPresentationReady().Remove(
+			AchievementPresentationReadyHandle);
 	}
 	SteamAchievementStateChangedHandle.Reset();
+	AchievementPresentationReadyHandle.Reset();
 }
 
-void UPlayerHudWidget::HandleSteamAchievementStateChanged()
+void UPlayerHudWidget::HandleAchievementDisplayChanged()
 {
-	ClearAchievementAvatarRefreshRetry();
-	if (!RefreshAchievementAvatar())
-	{
-		StartAchievementAvatarRefreshRetry();
-	}
-}
-
-void UPlayerHudWidget::StartAchievementAvatarRefreshRetry()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			AchievementAvatarRefreshTimerHandle,
-			this,
-			&ThisClass::HandleAchievementAvatarRefreshRetry,
-			0.2f,
-			true);
-	}
-}
-
-void UPlayerHudWidget::HandleAchievementAvatarRefreshRetry()
-{
-	++AchievementAvatarRefreshRetryCount;
-	if (RefreshAchievementAvatar() || AchievementAvatarRefreshRetryCount >= 25)
-	{
-		ClearAchievementAvatarRefreshRetry();
-	}
-}
-
-void UPlayerHudWidget::ClearAchievementAvatarRefreshRetry()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(AchievementAvatarRefreshTimerHandle);
-	}
-	AchievementAvatarRefreshTimerHandle.Invalidate();
+	RefreshAchievementAvatar();
 }
 
 UImage* UPlayerHudWidget::FindImageInUserWidget(

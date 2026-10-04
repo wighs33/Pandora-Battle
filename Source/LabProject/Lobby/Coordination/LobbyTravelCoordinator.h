@@ -30,11 +30,13 @@ private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleStartSessionComplete(bool bWasSuccessful, bool bSuppressMatchTimer);
 	void CheckContentPreloadAndScheduleTravel();
+	void HandleGameEntryContentPreloadFinished();
 	void HandleGameEntryContentPreloadFailure(ELobbyContentPreloadResult Result);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ALobbyGameMode* GetLobbyGameMode() const;
 	void ClearStartSessionDelegate();
+	void StopWaitingForGameEntryContent();
 
 	// 다음 전장에 전달할 맵·경기 옵션·플레이어 정보.
 	void PrepareMatchTravel(bool bSuppressMatchTimer);
@@ -51,7 +53,7 @@ private:
 
 private:
 	FDelegateHandle StartSessionCompleteHandle;
-	FTimerHandle GameEntryContentPreloadPollTimerHandle;
+	FDelegateHandle GameEntryContentPreloadFinishedHandle;
 	FTimerHandle TravelDelayTimerHandle;
 	// 맵 경로와 NoMatchTimer 등의 옵션이 포함된 이동 URL.
 	FString PendingTravelUrl;

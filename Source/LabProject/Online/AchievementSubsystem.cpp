@@ -58,6 +58,7 @@ void UAchievementSubsystem::Deinitialize()
 	bAchievementQueryInFlight = false;
 	bAchievementQueryCompleted = false;
 	SteamAchievementStateChanged.Clear();
+	AchievementPresentationReady.Clear();
 	DefinitionLease.Reset();
 	PresentationLease.Reset();
 	CachedAchievementDefinition = nullptr;
@@ -279,8 +280,16 @@ void UAchievementSubsystem::BeginAchievementPresentationPreload()
 		return;
 	}
 
-	PresentationLease =
-		ContentSubsystem->AcquireContent(PresentationPaths);
+	PresentationLease = ContentSubsystem->AcquireContent(
+		PresentationPaths,
+		FSimpleDelegate::CreateUObject(
+			this,
+			&ThisClass::HandleAchievementPresentationContentReady));
+}
+
+void UAchievementSubsystem::HandleAchievementPresentationContentReady()
+{
+	AchievementPresentationReady.Broadcast();
 }
 
 void UAchievementSubsystem::HandleAchievementDefinitionContentReady()

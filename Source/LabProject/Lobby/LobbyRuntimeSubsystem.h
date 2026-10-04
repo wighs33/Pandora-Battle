@@ -54,6 +54,12 @@ public:
 		return GameEntryContentPreloadResult;
 	}
 
+	/** 경기 진입 콘텐츠 로딩이 성공이나 실패로 끝나면 알린다. 시작 취소로 로딩을 내려놓을 때는 알리지 않는다. */
+	FSimpleMulticastDelegate& OnGameEntryContentPreloadFinished()
+	{
+		return GameEntryContentPreloadFinished;
+	}
+
 	const ULevelDefinition* GetLoadedLevelDefinition() const
 	{
 		return bLevelDefinitionReady ? LoadedLevelDefinition.Get() : nullptr;
@@ -118,6 +124,7 @@ private:
 	uint32 GameEntryContentRequestGeneration = 0;
 	ELobbyContentPreloadResult GameEntryContentPreloadResult =
 		ELobbyContentPreloadResult::NotStarted;
+	FSimpleMulticastDelegate GameEntryContentPreloadFinished;
 
 	FName LobbySelectedMapKey;
 

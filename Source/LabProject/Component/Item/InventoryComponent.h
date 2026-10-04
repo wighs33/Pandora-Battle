@@ -140,6 +140,9 @@ public:
 	 */
 	bool HasPendingItemLoads();
 
+	/** 진행 중이던 아이템 로딩이 모두 끝나거나 취소되면 알린다. */
+	FSimpleMulticastDelegate& OnItemLoadsFinished() { return ItemLoadsFinished; }
+
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!Inventory|Stack")
 	void SetItemQuantityByPrimaryAssetId(FPrimaryAssetId ItemDefinitionId, int32 Quantity);
 
@@ -326,5 +329,6 @@ private:
 	uint64 ItemLoadGeneration = 0;
 	int32 PendingItemLoadRequestCount = 0;
 	TArray<TSharedPtr<FStreamableHandle>> PendingItemLoadHandles;
+	FSimpleMulticastDelegate ItemLoadsFinished;
 	TMap<FPrimaryAssetId, TSharedPtr<FContentLease>> WeaponLoadoutPresentationLeases;
 };

@@ -301,6 +301,7 @@ void UStatUpgradeComponent::HandleStatUpgradeDefinitionPreloaded()
 		}
 	}
 	LoadedStatUpgradeDefinition = Definition;
+	DefinitionReady.Broadcast();
 }
 
 // 취소된 로딩이 나중에 완료되어도 현재 플레이어 상태를 변경하지 못하게 한다.

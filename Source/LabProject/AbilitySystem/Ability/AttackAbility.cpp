@@ -566,6 +566,7 @@ void UAttackAbility::WaitForContinueInput()
 	WaitInputPressTask->ReadyForActivation();
 }
 
+// 몽타주 완료 콜백 안에서는 이번 활성화가 아직 끝나지 않았으므로, EndAbility가 끝난 다음 틱에 같은 능력을 다시 활성화한다.
 void UAttackAbility::RestartAttackAfterMontage()
 {
 	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo();

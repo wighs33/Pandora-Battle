@@ -36,6 +36,10 @@ void UInventoryComponent::CompletePendingItemLoadRequest(
 	if (ensure(PendingItemLoadRequestCount > 0))
 	{
 		--PendingItemLoadRequestCount;
+		if (PendingItemLoadRequestCount == 0)
+		{
+			ItemLoadsFinished.Broadcast();
+		}
 	}
 }
 
@@ -43,6 +47,7 @@ void UInventoryComponent::CancelPendingItemLoads()
 {
 	// CancelHandle cannot retract a completion delegate that is already queued.
 	// Advancing the generation makes every callback from the old batch a no-op.
+	const bool bHadPendingLoads = PendingItemLoadRequestCount > 0 || !PendingItemLoadHandles.IsEmpty();
 	++ItemLoadGeneration;
 	PendingItemLoadRequestCount = 0;
 
@@ -55,6 +60,10 @@ void UInventoryComponent::CancelPendingItemLoads()
 	}
 
 	PendingItemLoadHandles.Reset();
+	if (bHadPendingLoads)
+	{
+		ItemLoadsFinished.Broadcast();
+	}
 }
 
 void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()

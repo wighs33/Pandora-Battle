@@ -41,8 +41,7 @@ protected:
 	virtual void OnMenuLanguageChanged() override;
 
 private:
-	void HandleAchievementAvatarRefreshRetry();
-	void HandleSteamAchievementStateChanged();
+	void HandleAchievementDisplayChanged();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshLobbyTipVisibility();
@@ -60,10 +59,8 @@ private:
 	void ClearKillBoxWidgets();
 	void ClearKillBoxTimer();
 	void ClearTransactionalFlagsForRuntimeWidget(UUserWidget* Widget) const;
-	void StartAchievementAvatarRefreshRetry();
-	void ClearAchievementAvatarRefreshRetry();
-	void BindSteamAchievementStateChanged();
-	void UnbindSteamAchievementStateChanged();
+	void BindAchievementNotifications();
+	void UnbindAchievementNotifications();
 	UImage* FindImageInUserWidget(UUserWidget* RootWidget, FName ImageName) const;
 	UImage* FindImageInWidget(UWidget* RootWidget, FName ImageName) const;
 
@@ -82,7 +79,6 @@ private:
 	TMap<int32, TObjectPtr<UKillBoxWidget>> KillBoxWidgets;
 
 	FTimerHandle KillBoxRefreshTimerHandle;
-	FTimerHandle AchievementAvatarRefreshTimerHandle;
 	FDelegateHandle SteamAchievementStateChangedHandle;
-	int32 AchievementAvatarRefreshRetryCount = 0;
+	FDelegateHandle AchievementPresentationReadyHandle;
 };

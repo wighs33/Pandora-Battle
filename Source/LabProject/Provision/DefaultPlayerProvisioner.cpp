@@ -96,12 +96,13 @@ void UDefaultPlayerProvisioner::ProvisionPlayer(APlayerController* PlayerControl
 
 	if (TryProvisionPlayer(PlayerController))
 	{
-		ClearRetryTimer(PlayerController);
+		ClearScheduledProvisionAttempt(PlayerController);
+		StopWaitingForProvisionInputs(TObjectKey<APlayerController>(PlayerController));
 		OnPlayerProvisioned.Broadcast(PlayerController);
 		return;
 	}
 
-	ScheduleRetry(PlayerController);
+	WaitForProvisionInputs(PlayerController);
 }
 
 bool UDefaultPlayerProvisioner::EnsureContentLoaded(APlayerController* PlayerController)
@@ -684,7 +685,92 @@ bool UDefaultPlayerProvisioner::ApplyGestures(
 	return true;
 }
 
-void UDefaultPlayerProvisioner::ScheduleRetry(APlayerController* PlayerController)
+// 인벤토리 아이템 로딩, 능력치 정의 준비, 제스처를 받을 캐릭터 빙의를 완료 알림으로 기다렸다가 다시 지급한다.
+// 기다릴 대상이 없는데도 실패하면 구성 요소나 정의가 빠진 것이라 다시 시도하지 않고 오류로 알린다.
+void UDefaultPlayerProvisioner::WaitForProvisionInputs(APlayerController* PlayerController)
+{
+	if (bShuttingDown || !PlayerController)
+	{
+		return;
+	}
+
+	APdPlayerState* PlayerState = PlayerController->GetPlayerState<APdPlayerState>();
+	UInventoryComponent* InventoryComponent = PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	UStatUpgradeComponent* StatUpgradeComponent = PlayerState ? PlayerState->GetStatUpgradeComponent() : nullptr;
+	const bool bWaitForInventory = InventoryComponent && InventoryComponent->HasPendingItemLoads();
+	const bool bWaitForStatUpgrade = StatUpgradeComponent && !StatUpgradeComponent->IsDefinitionReady();
+	const UDefaultProvisionDefinition* Definition = GetDefinition();
+	const ACharacterBase* Character = Cast<ACharacterBase>(PlayerController->GetPawn());
+	const bool bWaitForPawn = Definition && !Definition->GetGestureGrants().IsEmpty()
+		&& (!Character || !Character->GetSkinEquipmentComponent());
+	if (!bWaitForInventory && !bWaitForStatUpgrade && !bWaitForPawn)
+	{
+		UE_LOG(LogDefaultPlayerProvisioner, Error,
+			TEXT("Default provisioning for %s failed with nothing left to wait for. Check the player state components and the provision definition."),
+			*GetNameSafe(PlayerController));
+		return;
+	}
+
+	const TObjectKey<APlayerController> ControllerKey(PlayerController);
+	const TWeakObjectPtr<APlayerController> WeakPlayer(PlayerController);
+	const auto Resume = [this, WeakPlayer, ControllerKey]()
+	{
+		StopWaitingForProvisionInputs(ControllerKey);
+		if (APlayerController* Player = WeakPlayer.Get())
+		{
+			ScheduleProvisionAttempt(Player);
+		}
+	};
+
+	FProvisionWait& Wait = ProvisionWaits.FindOrAdd(ControllerKey);
+	if (bWaitForInventory && !(Wait.Inventory.Get() == InventoryComponent && Wait.InventoryHandle.IsValid()))
+	{
+		if (UInventoryComponent* PreviousInventory = Wait.Inventory.Get())
+		{
+			PreviousInventory->OnItemLoadsFinished().Remove(Wait.InventoryHandle);
+		}
+		Wait.Inventory = InventoryComponent;
+		Wait.InventoryHandle = InventoryComponent->OnItemLoadsFinished().AddWeakLambda(this, Resume);
+	}
+	if (bWaitForStatUpgrade && !(Wait.StatUpgrade.Get() == StatUpgradeComponent && Wait.StatUpgradeHandle.IsValid()))
+	{
+		if (UStatUpgradeComponent* PreviousStatUpgrade = Wait.StatUpgrade.Get())
+		{
+			PreviousStatUpgrade->OnDefinitionReady().Remove(Wait.StatUpgradeHandle);
+		}
+		Wait.StatUpgrade = StatUpgradeComponent;
+		Wait.StatUpgradeHandle = StatUpgradeComponent->OnDefinitionReady().AddWeakLambda(this, Resume);
+	}
+	if (bWaitForPawn && !(Wait.Controller.Get() == PlayerController && Wait.PawnHandle.IsValid()))
+	{
+		Wait.Controller = PlayerController;
+		Wait.PawnHandle = PlayerController->GetOnNewPawnNotifier().AddWeakLambda(this, [Resume](APawn*) { Resume(); });
+	}
+}
+
+void UDefaultPlayerProvisioner::StopWaitingForProvisionInputs(const TObjectKey<APlayerController> ControllerKey)
+{
+	FProvisionWait Wait;
+	if (!ProvisionWaits.RemoveAndCopyValue(ControllerKey, Wait))
+	{
+		return;
+	}
+
+	if (UInventoryComponent* InventoryComponent = Wait.Inventory.Get())
+	{
+		InventoryComponent->OnItemLoadsFinished().Remove(Wait.InventoryHandle);
+	}
+	if (UStatUpgradeComponent* StatUpgradeComponent = Wait.StatUpgrade.Get())
+	{
+		StatUpgradeComponent->OnDefinitionReady().Remove(Wait.StatUpgradeHandle);
+	}
+	if (APlayerController* PlayerController = Wait.Controller.Get())
+	{
+		PlayerController->GetOnNewPawnNotifier().Remove(Wait.PawnHandle);
+	}
+}
+
+void UDefaultPlayerProvisioner::ScheduleProvisionAttempt(APlayerController* PlayerController)
 {
 	UWorld* World = GetWorld();
 	if (bShuttingDown || !World || !PlayerController)
@@ -694,7 +780,7 @@ void UDefaultPlayerProvisioner::ScheduleRetry(APlayerController* PlayerControlle
 
 	const TObjectKey<APlayerController> ControllerKey(PlayerController);
 	if (FTimerHandle* ExistingTimer =
-		PendingRetryTimers.Find(ControllerKey);
+		PendingProvisionAttempts.Find(ControllerKey);
 		ExistingTimer
 		&& World->GetTimerManager().IsTimerActive(*ExistingTimer))
 	{
@@ -708,13 +794,13 @@ void UDefaultPlayerProvisioner::ScheduleRetry(APlayerController* PlayerControlle
 				this,
 				[this, WeakPlayer, ControllerKey]()
 				{
-					PendingRetryTimers.Remove(ControllerKey);
+					PendingProvisionAttempts.Remove(ControllerKey);
 					ProvisionPlayer(WeakPlayer.Get());
 				}));
-	PendingRetryTimers.Add(ControllerKey, TimerHandle);
+	PendingProvisionAttempts.Add(ControllerKey, TimerHandle);
 }
 
-void UDefaultPlayerProvisioner::ClearRetryTimer(
+void UDefaultPlayerProvisioner::ClearScheduledProvisionAttempt(
 	APlayerController* PlayerController)
 {
 	if (!PlayerController)
@@ -726,12 +812,12 @@ void UDefaultPlayerProvisioner::ClearRetryTimer(
 	if (UWorld* World = GetWorld())
 	{
 		if (FTimerHandle* TimerHandle =
-			PendingRetryTimers.Find(ControllerKey))
+			PendingProvisionAttempts.Find(ControllerKey))
 		{
 			World->GetTimerManager().ClearTimer(*TimerHandle);
 		}
 	}
-	PendingRetryTimers.Remove(ControllerKey);
+	PendingProvisionAttempts.Remove(ControllerKey);
 }
 
 void UDefaultPlayerProvisioner::ClearRuntimeStateForController(
@@ -741,7 +827,8 @@ void UDefaultPlayerProvisioner::ClearRuntimeStateForController(
 	if (APlayerController* PlayerController =
 		Cast<APlayerController>(Controller))
 	{
-		ClearRetryTimer(PlayerController);
+		ClearScheduledProvisionAttempt(PlayerController);
+		StopWaitingForProvisionInputs(TObjectKey<APlayerController>(PlayerController));
 		PendingContentControllers.Remove(PlayerController);
 	}
 	if (!PlayerState)
@@ -762,12 +849,18 @@ void UDefaultPlayerProvisioner::Shutdown()
 	if (UWorld* World = GetWorld())
 	{
 		for (TPair<TObjectKey<APlayerController>, FTimerHandle>& Pair
-			: PendingRetryTimers)
+			: PendingProvisionAttempts)
 		{
 			World->GetTimerManager().ClearTimer(Pair.Value);
 		}
 	}
-	PendingRetryTimers.Reset();
+	PendingProvisionAttempts.Reset();
+	TArray<TObjectKey<APlayerController>> WaitingControllers;
+	ProvisionWaits.GetKeys(WaitingControllers);
+	for (const TObjectKey<APlayerController>& ControllerKey : WaitingControllers)
+	{
+		StopWaitingForProvisionInputs(ControllerKey);
+	}
 	PendingContentControllers.Reset();
 	InventoryStates.Reset();
 	InitializedModeValues.Reset();

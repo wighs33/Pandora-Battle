@@ -200,7 +200,7 @@ void ULobbyTravelCoordinator::PreloadContentAndScheduleTravel(const FString& Tra
 	CheckContentPreloadAndScheduleTravel();
 }
 
-// 필수 콘텐츠 로딩 중에는 0.05초마다 확인하고, 성공하면 확인 타이머를 해제해 서버 이동을 예약한다. 실패하면 시작을 취소한다.
+// 필수 콘텐츠 로딩 중이면 로딩 완료 알림을 기다리고, 성공하면 서버 이동을 예약한다. 실패하면 시작을 취소한다.
 void ULobbyTravelCoordinator::CheckContentPreloadAndScheduleTravel()
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
@@ -212,21 +212,21 @@ void ULobbyTravelCoordinator::CheckContentPreloadAndScheduleTravel()
 		return;
 	}
 
-	const ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance());
+	ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance());
 	const ELobbyContentPreloadResult PreloadResult =
 		LobbySubsystem ? LobbySubsystem->GetGameEntryContentPreloadResult() : ELobbyContentPreloadResult::Failed;
 	switch (PreloadResult)
 	{
 	case ELobbyContentPreloadResult::Loading:
-		if (!World->GetTimerManager().IsTimerActive(GameEntryContentPreloadPollTimerHandle))
+		if (!GameEntryContentPreloadFinishedHandle.IsValid())
 		{
-			World->GetTimerManager().SetTimer(
-				GameEntryContentPreloadPollTimerHandle, this, &ThisClass::CheckContentPreloadAndScheduleTravel, 0.05f, true);
+			GameEntryContentPreloadFinishedHandle = LobbySubsystem->OnGameEntryContentPreloadFinished().AddUObject(
+				this, &ThisClass::HandleGameEntryContentPreloadFinished);
 		}
 		return;
 
 	case ELobbyContentPreloadResult::Success: {
-		World->GetTimerManager().ClearTimer(GameEntryContentPreloadPollTimerHandle);
+		StopWaitingForGameEntryContent();
 		const FString ReadyTravelUrl = MoveTemp(PendingTravelUrl);
 		ScheduleServerTravel(ReadyTravelUrl);
 		return;
@@ -236,6 +236,12 @@ void ULobbyTravelCoordinator::CheckContentPreloadAndScheduleTravel()
 		HandleGameEntryContentPreloadFailure(PreloadResult);
 		return;
 	}
+}
+
+void ULobbyTravelCoordinator::HandleGameEntryContentPreloadFinished()
+{
+	StopWaitingForGameEntryContent();
+	CheckContentPreloadAndScheduleTravel();
 }
 
 // 필수 콘텐츠 준비 실패를 기록하고 시작 요청·이동 잠금·접속 팝업을 정리해 로비로 되돌린다.
@@ -278,14 +284,26 @@ void ULobbyTravelCoordinator::ScheduleServerTravel(const FString& TravelUrl)
 void ULobbyTravelCoordinator::CancelPendingTravel()
 {
 	ClearStartSessionDelegate();
+	StopWaitingForGameEntryContent();
 	if (ALobbyGameMode* GameMode = GetLobbyGameMode(); GameMode && GameMode->GetWorld())
 	{
-		GameMode->GetWorldTimerManager().ClearTimer(GameEntryContentPreloadPollTimerHandle);
 		GameMode->GetWorldTimerManager().ClearTimer(TravelDelayTimerHandle);
 	}
 	PendingTravelUrl.Reset();
 	SetGameStartConnectingPopupVisible(false);
 	SetAllLobbyPawnsTravelLocked(false);
+}
+
+void ULobbyTravelCoordinator::StopWaitingForGameEntryContent()
+{
+	ALobbyGameMode* GameMode = GetLobbyGameMode();
+	ULobbyRuntimeSubsystem* LobbySubsystem =
+		GameMode ? UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance()) : nullptr;
+	if (LobbySubsystem && GameEntryContentPreloadFinishedHandle.IsValid())
+	{
+		LobbySubsystem->OnGameEntryContentPreloadFinished().Remove(GameEntryContentPreloadFinishedHandle);
+	}
+	GameEntryContentPreloadFinishedHandle.Reset();
 }
 
 // 온라인 세션의 늦은 완료 알림이 취소되거나 종료된 로비의 이동 절차를 다시 실행하지 않도록 구독을 해제한다.

@@ -653,6 +653,7 @@ void UStatusEffectReplicationComponent::HandleAnyActiveEffectRemoved(
 		ClearStatusEffectDecay(DebuffTag);
 	}
 
+	// 같은 프레임에 효과를 지우고 다시 거는 경우 복제 항목을 0으로 지웠다가 새로 만들지 않도록, 남은 중첩 수는 다음 틱에 한 번만 다시 센다.
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimerForNextTick(
