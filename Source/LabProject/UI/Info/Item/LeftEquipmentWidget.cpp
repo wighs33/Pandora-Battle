@@ -131,8 +131,7 @@ void ULeftEquipmentWidget::SetWeaponSlotPandoraRequirement(
 	if (WeaponSlotNumber >= 1 && WeaponSlotNumber <= 3)
 	{
 		CachedWeaponSlotPandoraRequirements.SetNum(3);
-		CachedWeaponSlotPandoraRequirements[WeaponSlotNumber - 1] =
-			const_cast<UPandoraDefinition*>(PandoraDefinition);
+		CachedWeaponSlotPandoraRequirements[WeaponSlotNumber - 1] = PandoraDefinition;
 	}
 
 	if (UEquipSlotWidget* TargetSlot = GetWeaponSlot(WeaponSlotNumber))

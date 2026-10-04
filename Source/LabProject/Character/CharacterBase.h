@@ -205,8 +205,7 @@ protected:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	// 플레이어와 적의 소유 방식·전용 설정·회전·UI 차이를 유지하는 확장 지점.
-	virtual AActor* GetAbilitySystemOwnerActor() const;
-	virtual AActor* GetAbilitySystemAvatarActor() const;
+	virtual AActor* GetAbilitySystemOwnerActor();
 	virtual void RestoreRotationSettingsAfterFrozen(UCharacterMovementComponent* MovementComponent);
 	virtual void ApplyCurrentRotationPolicy(UCharacterMovementComponent* MovementComponent);
 	virtual bool ShouldUseContinuousCharacterTick() const;

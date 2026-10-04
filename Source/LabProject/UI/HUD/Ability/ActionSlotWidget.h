@@ -35,7 +35,7 @@ private:
 	void BeginActionContentPreload();
 	void BeginActionPresentationPreload();
 	void AddActionSlotEntry(int32 SlotIndex);
-	UActionSlotEntryWidget* CreateActionSlotEntryWidget() const;
+	UActionSlotEntryWidget* CreateActionSlotEntryWidget();
 	void AddWidgetToBar(UWidget* Widget) const;
 	TSubclassOf<UActionSlotEntryWidget> ResolveEntryWidgetClass() const;
 	TSoftObjectPtr<UCharacterActionDefinition> ResolveActionDefinitionReference() const;

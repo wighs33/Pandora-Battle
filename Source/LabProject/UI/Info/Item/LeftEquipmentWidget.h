@@ -193,7 +193,7 @@ protected:
 
 private:
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UPandoraDefinition>> CachedWeaponSlotPandoraRequirements;
+	TArray<TObjectPtr<const UPandoraDefinition>> CachedWeaponSlotPandoraRequirements;
 
 	TSharedPtr<FContentLease> PandoraWeaponIconLease;
 };

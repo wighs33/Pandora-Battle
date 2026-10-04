@@ -663,7 +663,7 @@ AActor* ABow::RefreshDrawnArrow(APdPlayer* PlayerCharacter)
 }
 
 FVector ABow::CalculateArrowLaunchDirection(
-	const APdPlayer* PlayerCharacter,
+	APdPlayer* PlayerCharacter,
 	const FVector& RequestedViewLocation,
 	const FVector& RequestedViewDirection,
 	const FVector& LaunchStartLocation) const
@@ -674,9 +674,7 @@ FVector ABow::CalculateArrowLaunchDirection(
 		return FVector::ZeroVector;
 	}
 
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(const_cast<APdPlayer*>(PlayerCharacter));
-	ActorsToIgnore.Add(const_cast<ABow*>(this));
+	TArray<AActor*> ActorsToIgnore = MakeShotIgnoredActors(PlayerCharacter);
 	if (IsValid(CurrentDrawnArrow))
 	{
 		ActorsToIgnore.Add(CurrentDrawnArrow.Get());

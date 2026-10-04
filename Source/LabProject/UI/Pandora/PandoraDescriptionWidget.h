@@ -23,7 +23,7 @@ protected:
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
-	void SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition);
+	void SetPandoraDefinition(const UPandoraDefinition* InPandoraDefinition);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetPandoraTreeComponent(UPandoraTreeComponent* InPandoraTreeComponent);
@@ -51,7 +51,7 @@ protected:
 	FSlateColor WeaponRequirementTextColor = FSlateColor(FLinearColor(1.0f, 0.22f, 0.05f, 1.0f));
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"), Category = "!UI|Pandora")
-	TObjectPtr<UPandoraDefinition> PandoraDefinition;
+	TObjectPtr<const UPandoraDefinition> PandoraDefinition;
 
 	UPROPERTY(BlueprintReadOnly, Transient, Category = "!UI|Pandora|Internal")
 	TObjectPtr<UPandoraTreeComponent> PandoraTreeComponent;

@@ -39,10 +39,10 @@ public:
 	UPandoraTreeWidget(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
-	void SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition);
+	void SetPandoraDefinition(const UPandoraDefinition* InPandoraDefinition);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Pandora")
-	UPandoraDefinition* GetPandoraDefinition() const { return PandoraDefinition.Get(); }
+	const UPandoraDefinition* GetPandoraDefinition() const { return PandoraDefinition.Get(); }
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetPandoraPointsText();
@@ -109,7 +109,7 @@ private:
 	void BindPandoraWidgetEvents(UPandoraWidget* PandoraWidget);
 	void UnbindPandoraWidgetEvents();
 	void ShowPandoraDescriptionAtWidget(
-		UPandoraDefinition* InPandoraDefinition,
+		const UPandoraDefinition* InPandoraDefinition,
 		UPandoraTreeComponent* InPandoraTreeComponent,
 		const UWidget* AnchorWidget);
 	void HidePandoraDescription(const UWidget* RequestingAnchorWidget = nullptr);
@@ -117,7 +117,7 @@ private:
 	void PrunePandoraDescriptionRequests();
 	void ShowTopRequestedPandoraDescription();
 	void ResolveTogglePandoraTreeAction();
-	bool IsTogglePandoraTreeKey(const FKey& Key) const;
+	bool IsTogglePandoraTreeKey(const FKey& Key);
 	void ResolveCharacterPreviewClass();
 	void SpawnCharacterPreview();
 	void ReturnCameraToPawn(float BlendTime) const;
@@ -147,7 +147,7 @@ protected:
 	FText PandoraPointsFormat = NSLOCTEXT("PandoraTreeWidget", "PandoraPointsFormat", "Soul Dust: {0}");
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora")
-	TObjectPtr<UPandoraDefinition> PandoraDefinition;
+	TObjectPtr<const UPandoraDefinition> PandoraDefinition;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora|Input")
 	TObjectPtr<UInputAction> TogglePandoraTreeAction;
@@ -193,8 +193,8 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraDescriptionWidget> PandoraDescriptionWidget;
 
-	TWeakObjectPtr<UWidget> ActivePandoraDescriptionAnchor;
-	TWeakObjectPtr<UPandoraDefinition> ActivePandoraDescriptionDefinition;
+	TWeakObjectPtr<const UWidget> ActivePandoraDescriptionAnchor;
+	TWeakObjectPtr<const UPandoraDefinition> ActivePandoraDescriptionDefinition;
 	TArray<TWeakObjectPtr<UPandoraWidget>> PandoraDescriptionRequestStack;
 	bool bPandoraDescriptionDirty = false;
 };

@@ -44,7 +44,7 @@ public:
 
 	void InitializePresentation(
 		ACharacterBase* InSourceCharacter,
-		USkillDefinition* InSkillDefinition,
+		const USkillDefinition* InSkillDefinition,
 		ESkillPresentationFlags InFlags);
 
 	void SetPresentationEnabled(ESkillPresentationFlags Flag, bool bEnabled);
@@ -77,14 +77,14 @@ private:
 	void ApplyMissileTargetLocation(AActor* TargetActor, UNiagaraComponent* MissileComponent) const;
 	bool ResolveMissileTargetLocation(const AActor* TargetActor, FVector& OutTargetLocation) const;
 	ACharacterBase* ResolveSourceCharacter() const;
-	FVector ResolveCharacterFloorLocation(const ACharacterBase* Character) const;
+	FVector ResolveCharacterFloorLocation(ACharacterBase* Character) const;
 
 private:
 	UPROPERTY(ReplicatedUsing = OnRep_PresentationState)
 	TObjectPtr<ACharacterBase> SourceCharacter;
 
 	UPROPERTY(ReplicatedUsing = OnRep_PresentationState)
-	TObjectPtr<USkillDefinition> SkillDefinition;
+	TObjectPtr<const USkillDefinition> SkillDefinition;
 
 	UPROPERTY(ReplicatedUsing = OnRep_PresentationState)
 	uint8 PresentationFlags = static_cast<uint8>(ESkillPresentationFlags::None);

@@ -77,7 +77,7 @@ namespace
 }
 
 FPandoraWidgetViewData FPandoraWidgetViewDataBuilder::Build(
-	UPandoraDefinition* PandoraDefinition,
+	const UPandoraDefinition* PandoraDefinition,
 	const UPandoraTreeComponent* PandoraTreeComponent,
 	const FPandoraWidgetStyleConfig& Style)
 {
@@ -156,15 +156,15 @@ APdPlayerState* FPandoraWidgetViewDataBuilder::FindOwningPlayerState(const UUser
 	return OwningPawn ? OwningPawn->GetPlayerState<APdPlayerState>() : nullptr;
 }
 
-UPandoraDefinition* FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(const UPandoraTreeComponent* PandoraTreeComponent)
+const UPandoraDefinition* FPandoraWidgetViewDataBuilder::GetSelectedPandoraDefinition(const UPandoraTreeComponent* PandoraTreeComponent)
 {
 	const APdPlayerState* PlayerState = PandoraTreeComponent ? PandoraTreeComponent->GetPlayerState<APdPlayerState>() : nullptr;
 	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
-	return PandoraComponent ? const_cast<UPandoraDefinition*>(PandoraComponent->GetCurrentPandoraDefinition()) : nullptr;
+	return PandoraComponent ? PandoraComponent->GetCurrentPandoraDefinition() : nullptr;
 }
 
 // 경기 트리가 없는 미리보기에서만 로컬 프로필의 소유 목록을 사용한다.
-bool FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(const UUserWidget* Widget, UPandoraDefinition* PandoraDefinition)
+bool FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(const UUserWidget* Widget, const UPandoraDefinition* PandoraDefinition)
 {
 	UPlayerProfileSubsystem* ProfileSubsystem =
 		Widget ? UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(Widget->GetGameInstance()) : nullptr;
@@ -221,7 +221,7 @@ FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(
 }
 
 FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(
-	UPandoraDefinition* PandoraDefinition,
+	const UPandoraDefinition* PandoraDefinition,
 	const UPandoraTreeComponent* PandoraTreeComponent,
 	const UMenuLocalizationSubsystem* Localization)
 {

@@ -72,7 +72,7 @@ protected:
 		const FVector& RequestedViewDirection);
 	AActor* RefreshDrawnArrow(APdPlayer* PlayerCharacter);
 	FVector CalculateArrowLaunchDirection(
-		const APdPlayer* PlayerCharacter,
+		APdPlayer* PlayerCharacter,
 		const FVector& RequestedViewLocation,
 		const FVector& RequestedViewDirection,
 		const FVector& LaunchStartLocation) const;

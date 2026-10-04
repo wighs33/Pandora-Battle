@@ -224,7 +224,7 @@ bool UPlayerProfileSubsystem::ResetPurchasedProgress(const bool bSaveImmediately
 	return true;
 }
 
-bool UPlayerProfileSubsystem::IsPandoraGranted(UPandoraDefinition* PandoraDefinition)
+bool UPlayerProfileSubsystem::IsPandoraGranted(const UPandoraDefinition* PandoraDefinition)
 {
 	if (!PandoraDefinition)
 	{
@@ -248,7 +248,7 @@ bool UPlayerProfileSubsystem::IsPandoraGranted(UPandoraDefinition* PandoraDefini
 	return SaveGameObject->PlayerPandoraData.GrantedPandorasById.Contains(PandoraId);
 }
 
-bool UPlayerProfileSubsystem::TryPurchasePandoraWithGold(UPandoraDefinition* PandoraDefinition,
+bool UPlayerProfileSubsystem::TryPurchasePandoraWithGold(const UPandoraDefinition* PandoraDefinition,
 	const int32 GoldCost,
 	const int32 StartingLevel,
 	int32& OutRemainingGold,

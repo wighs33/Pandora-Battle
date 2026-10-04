@@ -20,7 +20,7 @@ struct FStreamableHandle;
 struct FGameplayAbilitySpec;
 
 DECLARE_LOG_CATEGORY_EXTERN(PandoraComponentLog, Log, All);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdPandoraSelectionChangedDelegate, UPandoraDefinition*, PandoraDefinition);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdPandoraSelectionChangedDelegate, const UPandoraDefinition*, PandoraDefinition);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraLoadoutChangedDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraInventoryChangedDelegate);
 

@@ -21,7 +21,7 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	FGrantedPandora() = default;
 
-	FGrantedPandora(UPandoraDefinition* InPandora, int32 InLevel)
+	FGrantedPandora(const UPandoraDefinition* InPandora, int32 InLevel)
 		: Pandora(InPandora)
 		, Level(InLevel)
 	{
@@ -39,7 +39,7 @@ public:
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Pandora")
-	TObjectPtr<UPandoraDefinition> Pandora;
+	TObjectPtr<const UPandoraDefinition> Pandora;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Pandora", meta = (ClampMin = "1"))
 	int32 Level = 1;
@@ -66,50 +66,50 @@ public:
 	UPandoraTreeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
-	bool GrantPandora(UPandoraDefinition* Pandora, int32 StartingLevel = 1, bool bIgnorePointCost = false);
+	bool GrantPandora(const UPandoraDefinition* Pandora, int32 StartingLevel = 1, bool bIgnorePointCost = false);
 
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
-	bool LevelUpGrantedPandora(UPandoraDefinition* Pandora);
+	bool LevelUpGrantedPandora(const UPandoraDefinition* Pandora);
 
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
-	void SpendPointOnPandora(UPandoraDefinition* Pandora);
+	void SpendPointOnPandora(const UPandoraDefinition* Pandora);
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool FindGrantedPandora(UPandoraDefinition* Pandora, FGrantedPandora& OutGrantedPandora) const;
+	bool FindGrantedPandora(const UPandoraDefinition* Pandora, FGrantedPandora& OutGrantedPandora) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool HasGrantedPandora(UPandoraDefinition* Pandora) const;
+	bool HasGrantedPandora(const UPandoraDefinition* Pandora) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool IsPandoraUnlockedForTree(UPandoraDefinition* Pandora) const;
+	bool IsPandoraUnlockedForTree(const UPandoraDefinition* Pandora) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool CanGivePandora(UPandoraDefinition* Pandora, int32 StartingLevel = 1, bool bIgnorePointCost = false) const;
+	bool CanGivePandora(const UPandoraDefinition* Pandora, int32 StartingLevel = 1, bool bIgnorePointCost = false) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool CanLevelUpPandora(UPandoraDefinition* Pandora) const;
+	bool CanLevelUpPandora(const UPandoraDefinition* Pandora) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool CanSpendPointOnPandora(UPandoraDefinition* Pandora) const;
+	bool CanSpendPointOnPandora(const UPandoraDefinition* Pandora) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool ArePandoraUnlockRulesMet(UPandoraDefinition* Pandora) const;
+	bool ArePandoraUnlockRulesMet(const UPandoraDefinition* Pandora) const;
 
 	// 비용과 최대 레벨을 제외한 해금 판정이다. 보유 판도라는 선행 조건을 다시 요구하지 않는다.
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool IsPandoraAvailableForInvestment(UPandoraDefinition* Pandora) const;
+	bool IsPandoraAvailableForInvestment(const UPandoraDefinition* Pandora) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	int32 GetRequiredPointsForPandora(UPandoraDefinition* Pandora, bool bNextLevel = false) const;
+	int32 GetRequiredPointsForPandora(const UPandoraDefinition* Pandora, bool bNextLevel = false) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	int32 GetRequiredPointsForPandoraLevel(UPandoraDefinition* Pandora, int32 Level) const;
+	int32 GetRequiredPointsForPandoraLevel(const UPandoraDefinition* Pandora, int32 Level) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	int32 GetCurrentPandoraLevel(UPandoraDefinition* Pandora) const;
+	int32 GetCurrentPandoraLevel(const UPandoraDefinition* Pandora) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	int32 GetMaxPandoraLevel(UPandoraDefinition* Pandora) const;
+	int32 GetMaxPandoraLevel(const UPandoraDefinition* Pandora) const;
 
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
 	void ResetPandora();
@@ -131,7 +131,7 @@ public:
 
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "!PandoraTree")
-	void ServerSpendPointOnPandora(UPandoraDefinition* Pandora);
+	void ServerSpendPointOnPandora(const UPandoraDefinition* Pandora);
 
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "!PandoraTree")
 	void ServerResetPandora();
@@ -153,10 +153,10 @@ private:
 
 	bool HasPandoraTreeAuthority() const;
 	UPandoraComponent* GetOwnerPandoraComponent() const;
-	int32 FindGrantedPandoraIndex(UPandoraDefinition* Pandora) const;
-	bool TryGetInvestmentCost(UPandoraDefinition* Pandora, int32 CurrentLevel, int32 TargetLevel, bool bIgnorePointCost, int32& OutCost) const;
-	bool ApplyPandoraInvestment(UPandoraDefinition* Pandora, int32 EntryIndex, int32 NewLevel, int32 Cost);
-	bool SpendPointOnPandoraInternal(UPandoraDefinition* Pandora);
+	int32 FindGrantedPandoraIndex(const UPandoraDefinition* Pandora) const;
+	bool TryGetInvestmentCost(const UPandoraDefinition* Pandora, int32 CurrentLevel, int32 TargetLevel, bool bIgnorePointCost, int32& OutCost) const;
+	bool ApplyPandoraInvestment(const UPandoraDefinition* Pandora, int32 EntryIndex, int32 NewLevel, int32 Cost);
+	bool SpendPointOnPandoraInternal(const UPandoraDefinition* Pandora);
 	bool ResetPandoraInternal();
 	void RestoreInitialPandoras(int32 NewPointsAvailable);
 	int32 ClampPandoraLevel(const UPandoraDefinition* Pandora, int32 Level) const;

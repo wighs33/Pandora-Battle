@@ -472,9 +472,7 @@ bool AGun::TraceAIGunShotAtLocation(
 		return false;
 	}
 
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(AttackingCharacter);
-	ActorsToIgnore.Add(const_cast<AGun*>(this));
+	const TArray<AActor*> ActorsToIgnore = MakeShotIgnoredActors(AttackingCharacter);
 
 	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
 	const EDrawDebugTrace::Type ShotTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
@@ -516,9 +514,7 @@ bool AGun::TraceGunShot(
 		return false;
 	}
 
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(PlayerCharacter);
-	ActorsToIgnore.Add(const_cast<AGun*>(this));
+	const TArray<AActor*> ActorsToIgnore = MakeShotIgnoredActors(PlayerCharacter);
 
 	FVector ViewLocation = FVector::ZeroVector;
 	FVector ViewDirection = FVector::ZeroVector;

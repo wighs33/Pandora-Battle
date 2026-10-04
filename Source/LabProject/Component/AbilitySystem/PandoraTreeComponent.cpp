@@ -66,7 +66,7 @@ void UPandoraTreeComponent::InitializeFromDefaultProvision(const TArray<FGranted
 }
 
 // 처음 투자할 때만 소유 목록에 추가한다. 비용과 선행 조건은 조회 함수와 같은 기준을 쓴다.
-bool UPandoraTreeComponent::GrantPandora(UPandoraDefinition* Pandora, int32 StartingLevel, bool bIgnorePointCost)
+bool UPandoraTreeComponent::GrantPandora(const UPandoraDefinition* Pandora, int32 StartingLevel, bool bIgnorePointCost)
 {
 	if (!HasPandoraTreeAuthority() || bChangingPandoras || HasGrantedPandora(Pandora))
 	{
@@ -80,7 +80,7 @@ bool UPandoraTreeComponent::GrantPandora(UPandoraDefinition* Pandora, int32 Star
 }
 
 // 기존 투자 항목을 올리고 현재 장착 중인 판도라의 사용 가능한 스킬을 갱신한다.
-bool UPandoraTreeComponent::LevelUpGrantedPandora(UPandoraDefinition* Pandora)
+bool UPandoraTreeComponent::LevelUpGrantedPandora(const UPandoraDefinition* Pandora)
 {
 	if (!HasPandoraTreeAuthority() || bChangingPandoras)
 	{
@@ -99,7 +99,7 @@ bool UPandoraTreeComponent::LevelUpGrantedPandora(UPandoraDefinition* Pandora)
 		&& ApplyPandoraInvestment(Pandora, EntryIndex, CurrentLevel + 1, Cost);
 }
 
-void UPandoraTreeComponent::SpendPointOnPandora(UPandoraDefinition* Pandora)
+void UPandoraTreeComponent::SpendPointOnPandora(const UPandoraDefinition* Pandora)
 {
 	if (HasPandoraTreeAuthority())
 	{
@@ -112,7 +112,7 @@ void UPandoraTreeComponent::SpendPointOnPandora(UPandoraDefinition* Pandora)
 }
 
 // 클라이언트가 표시한 투자 가능 여부를 신뢰하지 않고 서버 상태로 다시 판정한다.
-void UPandoraTreeComponent::ServerSpendPointOnPandora_Implementation(UPandoraDefinition* Pandora)
+void UPandoraTreeComponent::ServerSpendPointOnPandora_Implementation(const UPandoraDefinition* Pandora)
 {
 	if (!SpendPointOnPandoraInternal(Pandora))
 	{
@@ -121,12 +121,12 @@ void UPandoraTreeComponent::ServerSpendPointOnPandora_Implementation(UPandoraDef
 	}
 }
 
-bool UPandoraTreeComponent::SpendPointOnPandoraInternal(UPandoraDefinition* Pandora)
+bool UPandoraTreeComponent::SpendPointOnPandoraInternal(const UPandoraDefinition* Pandora)
 {
 	return HasGrantedPandora(Pandora) ? LevelUpGrantedPandora(Pandora) : GrantPandora(Pandora);
 }
 
-bool UPandoraTreeComponent::FindGrantedPandora(UPandoraDefinition* Pandora, FGrantedPandora& OutGrantedPandora) const
+bool UPandoraTreeComponent::FindGrantedPandora(const UPandoraDefinition* Pandora, FGrantedPandora& OutGrantedPandora) const
 {
 	const int32 Index = FindGrantedPandoraIndex(Pandora);
 	if (Index == INDEX_NONE)
@@ -138,44 +138,44 @@ bool UPandoraTreeComponent::FindGrantedPandora(UPandoraDefinition* Pandora, FGra
 	return true;
 }
 
-bool UPandoraTreeComponent::HasGrantedPandora(UPandoraDefinition* Pandora) const
+bool UPandoraTreeComponent::HasGrantedPandora(const UPandoraDefinition* Pandora) const
 {
 	return FindGrantedPandoraIndex(Pandora) != INDEX_NONE;
 }
 
-bool UPandoraTreeComponent::IsPandoraUnlockedForTree(UPandoraDefinition* Pandora) const
+bool UPandoraTreeComponent::IsPandoraUnlockedForTree(const UPandoraDefinition* Pandora) const
 {
 	const UPandoraComponent* PandoraComponent = GetOwnerPandoraComponent();
 	return PandoraComponent && PandoraComponent->HasPandoraDefinition(Pandora);
 }
 
-bool UPandoraTreeComponent::IsPandoraAvailableForInvestment(UPandoraDefinition* Pandora) const
+bool UPandoraTreeComponent::IsPandoraAvailableForInvestment(const UPandoraDefinition* Pandora) const
 {
 	return IsValid(Pandora) && (HasGrantedPandora(Pandora) || IsPandoraUnlockedForTree(Pandora) || ArePandoraUnlockRulesMet(Pandora));
 }
 
-bool UPandoraTreeComponent::CanGivePandora(UPandoraDefinition* Pandora, int32 StartingLevel, bool bIgnorePointCost) const
+bool UPandoraTreeComponent::CanGivePandora(const UPandoraDefinition* Pandora, int32 StartingLevel, bool bIgnorePointCost) const
 {
 	int32 Cost = 0;
 	return !HasGrantedPandora(Pandora)
 		&& TryGetInvestmentCost(Pandora, 0, ClampPandoraLevel(Pandora, StartingLevel), bIgnorePointCost, Cost);
 }
 
-bool UPandoraTreeComponent::CanLevelUpPandora(UPandoraDefinition* Pandora) const
+bool UPandoraTreeComponent::CanLevelUpPandora(const UPandoraDefinition* Pandora) const
 {
 	const int32 CurrentLevel = GetCurrentPandoraLevel(Pandora);
 	int32 Cost = 0;
 	return CurrentLevel > 0 && TryGetInvestmentCost(Pandora, CurrentLevel, CurrentLevel + 1, false, Cost);
 }
 
-bool UPandoraTreeComponent::CanSpendPointOnPandora(UPandoraDefinition* Pandora) const
+bool UPandoraTreeComponent::CanSpendPointOnPandora(const UPandoraDefinition* Pandora) const
 {
 	const int32 CurrentLevel = GetCurrentPandoraLevel(Pandora);
 	int32 Cost = 0;
 	return TryGetInvestmentCost(Pandora, CurrentLevel, CurrentLevel + 1, false, Cost);
 }
 
-bool UPandoraTreeComponent::ArePandoraUnlockRulesMet(UPandoraDefinition* Pandora) const
+bool UPandoraTreeComponent::ArePandoraUnlockRulesMet(const UPandoraDefinition* Pandora) const
 {
 	if (!IsValid(Pandora))
 	{
@@ -192,24 +192,24 @@ bool UPandoraTreeComponent::ArePandoraUnlockRulesMet(UPandoraDefinition* Pandora
 	return true;
 }
 
-int32 UPandoraTreeComponent::GetRequiredPointsForPandora(UPandoraDefinition* Pandora, bool bNextLevel) const
+int32 UPandoraTreeComponent::GetRequiredPointsForPandora(const UPandoraDefinition* Pandora, bool bNextLevel) const
 {
 	const int32 CurrentLevel = GetCurrentPandoraLevel(Pandora);
 	return GetRequiredPointsForPandoraLevel(Pandora, FMath::Max(CurrentLevel + (bNextLevel ? 1 : 0), 1));
 }
 
-int32 UPandoraTreeComponent::GetRequiredPointsForPandoraLevel(UPandoraDefinition* Pandora, int32 Level) const
+int32 UPandoraTreeComponent::GetRequiredPointsForPandoraLevel(const UPandoraDefinition* Pandora, int32 Level) const
 {
 	return IsValid(Pandora) ? Pandora->GetRequiredPointsForLevel(Level) : 1;
 }
 
-int32 UPandoraTreeComponent::GetCurrentPandoraLevel(UPandoraDefinition* Pandora) const
+int32 UPandoraTreeComponent::GetCurrentPandoraLevel(const UPandoraDefinition* Pandora) const
 {
 	const int32 Index = FindGrantedPandoraIndex(Pandora);
 	return Index != INDEX_NONE ? ClampPandoraLevel(Pandora, GrantedPandoras[Index].Level) : 0;
 }
 
-int32 UPandoraTreeComponent::GetMaxPandoraLevel(UPandoraDefinition* Pandora) const
+int32 UPandoraTreeComponent::GetMaxPandoraLevel(const UPandoraDefinition* Pandora) const
 {
 	return IsValid(Pandora) ? Pandora->GetMaxLevel() : 0;
 }
@@ -308,7 +308,7 @@ UPandoraComponent* UPandoraTreeComponent::GetOwnerPandoraComponent() const
 	return PlayerState ? PlayerState->FindComponentByClass<UPandoraComponent>() : nullptr;
 }
 
-int32 UPandoraTreeComponent::FindGrantedPandoraIndex(UPandoraDefinition* Pandora) const
+int32 UPandoraTreeComponent::FindGrantedPandoraIndex(const UPandoraDefinition* Pandora) const
 {
 	return IsValid(Pandora) ? GrantedPandoras.IndexOfByPredicate(
 		[Pandora](const FGrantedPandora& Entry) { return Entry.Pandora == Pandora; }) : INDEX_NONE;
@@ -316,7 +316,7 @@ int32 UPandoraTreeComponent::FindGrantedPandoraIndex(UPandoraDefinition* Pandora
 
 // 비용 합산이 int32 범위를 넘으면 구매를 거절하고, 지불 가능한 경우에만 int32로 변환한다.
 bool UPandoraTreeComponent::TryGetInvestmentCost(
-	UPandoraDefinition* Pandora, int32 CurrentLevel, int32 TargetLevel, bool bIgnorePointCost, int32& OutCost) const
+	const UPandoraDefinition* Pandora, int32 CurrentLevel, int32 TargetLevel, bool bIgnorePointCost, int32& OutCost) const
 {
 	OutCost = 0;
 	if (!IsValid(Pandora) || TargetLevel <= CurrentLevel || TargetLevel > Pandora->GetMaxLevel())
@@ -337,7 +337,7 @@ bool UPandoraTreeComponent::TryGetInvestmentCost(
 	return true;
 }
 
-bool UPandoraTreeComponent::ApplyPandoraInvestment(UPandoraDefinition* Pandora, int32 EntryIndex, int32 NewLevel, int32 Cost)
+bool UPandoraTreeComponent::ApplyPandoraInvestment(const UPandoraDefinition* Pandora, int32 EntryIndex, int32 NewLevel, int32 Cost)
 {
 	UPandoraComponent* PandoraComponent = GetOwnerPandoraComponent();
 	if (!PandoraComponent)

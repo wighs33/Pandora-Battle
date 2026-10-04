@@ -29,6 +29,9 @@ protected:
 
     bool CanServerUseRangedWeapon(const ACharacterBase* AttackingCharacter, bool bRequirePlayerAim) const;
 
+    // 엔진 trace API는 비const 액터 목록만 받으므로, 사수와 무기를 무시 목록에 넣는 캐스트를 이 함수 한 곳에 둔다.
+    TArray<AActor*> MakeShotIgnoredActors(AActor* ShooterCharacter) const;
+
     bool ResolveServerAimViewPoint(
         const APdPlayer* PlayerCharacter,
         const FVector& RequestedViewLocation,

@@ -52,7 +52,7 @@ void UAbilityStateComponent::InitializeAbilitySystemActorInfo()
 	ACharacterBase* Character = GetCharacterOwner();
 	UPdAbilitySystemComponent* ASC = Character ? Character->GetPdAbilitySystemComponent() : nullptr;
 	AActor* OwnerActor = Character ? Character->GetAbilitySystemOwnerActor() : nullptr;
-	AActor* AvatarActor = Character ? Character->GetAbilitySystemAvatarActor() : nullptr;
+	AActor* AvatarActor = Character;
 	if (BoundAbilitySystemComponent.IsValid() && BoundAbilitySystemComponent.Get() != ASC)
 	{
 		ClearAbilitySystemActorInfo();

@@ -86,7 +86,7 @@ void USkillAuraAction::OnStart()
 	ActiveHealFieldRadius = 0.0f;
 	ActiveInteractionHealEffectHandles.Reset();
 
-	USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
 		UE_LOG(LogSkillAuraAction, Warning, TEXT("%s has no source skill definition, so the aura cannot start."),
@@ -129,7 +129,7 @@ void USkillAuraAction::OnStop()
 	ActiveAuraSourceCharacter.Reset();
 }
 
-void USkillAuraAction::StartAuraEffectAreaSpawning(USkillDefinition* SkillDataAsset)
+void USkillAuraAction::StartAuraEffectAreaSpawning(const USkillDefinition* SkillDataAsset)
 {
 	ActiveAuraSkillDataAsset = SkillDataAsset;
 	ActiveAuraSourceCharacter = GetAbility()->GetPdCharacterFromActorInfo();
@@ -233,7 +233,7 @@ void USkillAuraAction::SpawnAuraEffectArea(const USkillDefinition* SkillDataAsse
 	}
 }
 
-void USkillAuraAction::StartHealFieldTeamHealing(USkillDefinition* SkillDataAsset)
+void USkillAuraAction::StartHealFieldTeamHealing(const USkillDefinition* SkillDataAsset)
 {
 	const FAuraSkillConfig* AuraConfig = &Settings;
 	ACharacterBase* Character = ResolveAuraSourceCharacter();

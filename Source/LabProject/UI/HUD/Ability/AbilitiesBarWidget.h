@@ -62,7 +62,7 @@ private:
 	void AddAbilitySlot(const FGameplayAbilitySpecHandle& AbilitySpecHandle, int32 SkillSlotIndex);
 	void AddAbilitySlot(const FAbilityBarSlotData& SlotData);
 	void AddEmptySlot(bool bApplyPadding, int32 SkillSlotIndex = INDEX_NONE);
-	UUserWidget* CreateBarWidget(TSubclassOf<UUserWidget> WidgetClass) const;
+	UUserWidget* CreateBarWidget(TSubclassOf<UUserWidget> WidgetClass);
 	void AddWidgetToBar(UUserWidget* Widget, bool bApplyPadding) const;
 	void ApplyEmptySlotKeyText(UUserWidget* Widget, int32 SkillSlotIndex) const;
 	bool ShouldShowAbilityHandle(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle& AbilitySpecHandle) const;

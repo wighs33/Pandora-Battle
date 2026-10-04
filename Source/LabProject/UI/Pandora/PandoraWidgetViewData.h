@@ -84,14 +84,14 @@ class LABPROJECT_API FPandoraWidgetViewDataBuilder
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	static FPandoraWidgetViewData Build(
-		UPandoraDefinition* PandoraDefinition,
+		const UPandoraDefinition* PandoraDefinition,
 		const UPandoraTreeComponent* PandoraTreeComponent,
 		const FPandoraWidgetStyleConfig& Style);
 
 	/** 위젯을 가진 플레이어의 PlayerState. 컨트롤러에 아직 복제되지 않았으면 폰 쪽을 본다. */
 	static APdPlayerState* FindOwningPlayerState(const UUserWidget* Widget);
-	static UPandoraDefinition* GetSelectedPandoraDefinition(const UPandoraTreeComponent* PandoraTreeComponent);
-	static bool IsPandoraOwnedInProfile(const UUserWidget* Widget, UPandoraDefinition* PandoraDefinition);
+	static const UPandoraDefinition* GetSelectedPandoraDefinition(const UPandoraTreeComponent* PandoraTreeComponent);
+	static bool IsPandoraOwnedInProfile(const UUserWidget* Widget, const UPandoraDefinition* PandoraDefinition);
 
 	static FText MakeLevelText(int32 CurrentLevel, int32 MaxLevel, bool bShowMaxText);
 };
@@ -108,7 +108,7 @@ class LABPROJECT_API FPandoraDescriptionViewDataBuilder
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	static FPandoraDescriptionViewData Build(
-		UPandoraDefinition* PandoraDefinition,
+		const UPandoraDefinition* PandoraDefinition,
 		const UPandoraTreeComponent* PandoraTreeComponent,
 		const UMenuLocalizationSubsystem* Localization = nullptr);
 };

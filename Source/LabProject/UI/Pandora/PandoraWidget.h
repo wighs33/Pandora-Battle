@@ -45,10 +45,10 @@ protected:
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
-	void SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition);
+	void SetPandoraDefinition(const UPandoraDefinition* InPandoraDefinition);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Pandora")
-	UPandoraDefinition* GetPandoraDefinition() const { return PandoraDefinition.Get(); }
+	const UPandoraDefinition* GetPandoraDefinition() const { return PandoraDefinition.Get(); }
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetPandoraTreeComponent(UPandoraTreeComponent* InPandoraTreeComponent);
@@ -148,7 +148,7 @@ protected:
 	TObjectPtr<UImage> KeyIcon;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"), Category = "!UI|Pandora")
-	TObjectPtr<UPandoraDefinition> PandoraDefinition;
+	TObjectPtr<const UPandoraDefinition> PandoraDefinition;
 
 	UPROPERTY(BlueprintReadOnly, Transient, Category = "!UI|Pandora|Internal")
 	TObjectPtr<UPandoraTreeComponent> PandoraTreeComponent;

@@ -71,7 +71,7 @@ bool UDefaultPlayerProvisioner::Initialize(
 		}
 		return true;
 	}
-	ProvisionDefinition = const_cast<UDefaultProvisionDefinition*>(InDefinition);
+	ProvisionDefinition = InDefinition;
 	Mode = InMode;
 	return true;
 }

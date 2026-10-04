@@ -33,11 +33,11 @@ private:
 	void HandleHealFieldTeamHealTick();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void StartAuraEffectAreaSpawning(USkillDefinition* SkillDataAsset);
+	void StartAuraEffectAreaSpawning(const USkillDefinition* SkillDataAsset);
 	void StopAuraEffectAreaSpawning();
 	ACharacterBase* ResolveAuraSourceCharacter() const;
 	void SpawnAuraEffectArea(const USkillDefinition* SkillDataAsset);
-	void StartHealFieldTeamHealing(USkillDefinition* SkillDataAsset);
+	void StartHealFieldTeamHealing(const USkillDefinition* SkillDataAsset);
 	void StopHealFieldTeamHealing();
 	void ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataAsset);
 	UPrimitiveComponent* FindInteractionHealComponent(ACharacterBase* Character, FName ComponentName) const;
@@ -60,7 +60,7 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	TObjectPtr<USkillDefinition> ActiveAuraSkillDataAsset;
+	TObjectPtr<const USkillDefinition> ActiveAuraSkillDataAsset;
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<ACharacterBase> ActiveAuraSourceCharacter;

@@ -154,7 +154,7 @@ FReply UPandoraWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, cons
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
-void UPandoraWidget::SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition)
+void UPandoraWidget::SetPandoraDefinition(const UPandoraDefinition* InPandoraDefinition)
 {
 	if (PandoraDefinition.Get() == InPandoraDefinition)
 	{

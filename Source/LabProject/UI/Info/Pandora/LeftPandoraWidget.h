@@ -38,7 +38,7 @@ public:
 	void ClearPandoraEquipSlotSelection();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
-	void RefreshPandoraLoadoutSlots(const UPandoraComponent* PandoraComponent);
+	void RefreshPandoraLoadoutSlots(UPandoraComponent* PandoraComponent);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void SetWeaponImage(int32 Nth, UTexture2D* WeaponImage);

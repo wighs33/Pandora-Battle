@@ -337,7 +337,7 @@ void APdPlayer::ResetDeathStateForRespawn()
 }
 
 // 플레이어의 능력 데이터 소유자를 일시적인 캐릭터가 아니라 PlayerState로 지정한다.
-AActor* APdPlayer::GetAbilitySystemOwnerActor() const
+AActor* APdPlayer::GetAbilitySystemOwnerActor()
 {
 	return GetPlayerState<APdPlayerState>();
 }

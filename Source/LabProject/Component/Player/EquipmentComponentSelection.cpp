@@ -290,8 +290,7 @@ bool UEquipmentComponent::ApplyEquipAbilityCooldown()
 	}
 
 	FGameplayEffectContextHandle EffectContext = AbilitySystem->MakeEffectContext();
-	EffectContext.AddSourceObject(const_cast<UCharacterActionDefinition*>(
-		LoadedDefinition));
+	EffectContext.AddSourceObject(LoadedDefinition);
 	const UGameSettingDefinition* SettingDefinition =
 		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	const TSubclassOf<UGameplayEffect> CooldownEffectClass =

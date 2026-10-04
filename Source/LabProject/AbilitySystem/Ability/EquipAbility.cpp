@@ -224,7 +224,7 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 			CueParameters.Location = Character->GetActorLocation();
 			CueParameters.Instigator = Character;
 			CueParameters.EffectCauser = Character;
-			CueParameters.SourceObject = const_cast<UItemDefinition*>(ItemDefinition);
+			CueParameters.SourceObject = ItemDefinition;
 			K2_ExecuteGameplayCueWithParams(EquipCueTag, CueParameters);
 		};
 

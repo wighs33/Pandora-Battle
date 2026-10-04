@@ -170,7 +170,7 @@ FReply UPandoraTreeWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FK
 	return FReply::Handled();
 }
 
-void UPandoraTreeWidget::SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition)
+void UPandoraTreeWidget::SetPandoraDefinition(const UPandoraDefinition* InPandoraDefinition)
 {
 	if (PandoraDefinition.Get() == InPandoraDefinition)
 	{
@@ -288,7 +288,7 @@ void UPandoraTreeWidget::ResetPandora()
 }
 
 void UPandoraTreeWidget::ShowPandoraDescriptionAtWidget(
-	UPandoraDefinition* InPandoraDefinition,
+	const UPandoraDefinition* InPandoraDefinition,
 	UPandoraTreeComponent* InPandoraTreeComponent,
 	const UWidget* AnchorWidget)
 {
@@ -317,7 +317,7 @@ void UPandoraTreeWidget::ShowPandoraDescriptionAtWidget(
 		return;
 	}
 
-	ActivePandoraDescriptionAnchor = const_cast<UWidget*>(AnchorWidget);
+	ActivePandoraDescriptionAnchor = AnchorWidget;
 	ActivePandoraDescriptionDefinition = InPandoraDefinition;
 	DescriptionWidget->SetPandoraDefinition(InPandoraDefinition);
 	DescriptionWidget->SetPandoraTreeComponent(InPandoraTreeComponent);
@@ -657,9 +657,9 @@ void UPandoraTreeWidget::ResolveTogglePandoraTreeAction()
 	}
 }
 
-bool UPandoraTreeWidget::IsTogglePandoraTreeKey(const FKey& Key) const
+bool UPandoraTreeWidget::IsTogglePandoraTreeKey(const FKey& Key)
 {
-	const_cast<UPandoraTreeWidget*>(this)->ResolveTogglePandoraTreeAction();
+	ResolveTogglePandoraTreeAction();
 	if (!TogglePandoraTreeAction)
 	{
 		return false;

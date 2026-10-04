@@ -82,7 +82,7 @@ private:
 
 private:
 	UPROPERTY(Transient)
-	TObjectPtr<UDefaultProvisionDefinition> ProvisionDefinition;
+	TObjectPtr<const UDefaultProvisionDefinition> ProvisionDefinition;
 
 	TMap<TObjectKey<APlayerController>, FTimerHandle> PendingRetryTimers;
 	TArray<TWeakObjectPtr<APlayerController>> PendingContentControllers;

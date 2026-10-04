@@ -149,9 +149,8 @@ void UInfoMapPanel::BeginContentPreload()
 	UUiSubsystem* UiSubsystem = LocalPlayer
 		? LocalPlayer->GetSubsystem<UUiSubsystem>()
 		: nullptr;
-	UWidgetClassDefinition* WidgetDefinition =
-		const_cast<UWidgetClassDefinition*>(
-			UWidgetClassDefinition::ResolveWidgetClassDefinition(OwnerWidget));
+	const UWidgetClassDefinition* WidgetDefinition =
+		UWidgetClassDefinition::ResolveWidgetClassDefinition(OwnerWidget);
 	if (!UiSubsystem || !WidgetDefinition)
 	{
 		FailContentPreload();

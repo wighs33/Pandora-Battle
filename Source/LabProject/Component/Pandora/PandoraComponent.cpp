@@ -586,7 +586,7 @@ int32 UPandoraComponent::ResolveSelectedPandoraRuntimeLevel(const UPandoraDefini
 	{
 		if (UPandoraTreeComponent* PandoraTreeComponent = PlayerStateOwner->FindComponentByClass<UPandoraTreeComponent>())
 		{
-			PandoraLevel = PandoraTreeComponent->GetCurrentPandoraLevel(const_cast<UPandoraDefinition*>(PandoraDefinition));
+			PandoraLevel = PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition);
 		}
 	}
 
@@ -680,7 +680,7 @@ void UPandoraComponent::NotifyPandoraSelectionChanged()
 		ASC->OnAbilitiesChangedNative.Broadcast();
 	}
 
-	OnPandoraSelectionChanged.Broadcast(const_cast<UPandoraDefinition*>(CurrentPandoraDefinition.Get()));
+	OnPandoraSelectionChanged.Broadcast(CurrentPandoraDefinition);
 }
 
 void UPandoraComponent::NotifyPandoraLoadoutChanged()
@@ -775,7 +775,7 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 	{
 		if (ExistingSlot->PandoraDefinition != PandoraDefinition)
 		{
-			ExistingSlot->PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
+			ExistingSlot->PandoraDefinition = PandoraDefinition;
 			bLoadoutChanged = true;
 		}
 	}
@@ -783,7 +783,7 @@ bool UPandoraComponent::SetPandoraLoadoutSlotInternal(
 	{
 		FPandoraLoadoutSlot& NewSlot = PandoraLoadoutSlots.AddDefaulted_GetRef();
 		NewSlot.Direction = Direction;
-		NewSlot.PandoraDefinition = const_cast<UPandoraDefinition*>(PandoraDefinition);
+		NewSlot.PandoraDefinition = PandoraDefinition;
 		bLoadoutChanged = true;
 	}
 

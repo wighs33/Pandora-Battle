@@ -444,7 +444,7 @@ bool UTrainingRoomMenuPopupWidget::SyncSelectedWeaponFromTrainingBot()
 			return true;
 		}
 
-		SelectedWeaponDefinition = const_cast<UItemDefinition*>(BotWeaponDefinition);
+		SelectedWeaponDefinition = BotWeaponDefinition;
 		SelectedWeaponOptionIndex = FindWeaponOptionIndex(BotWeaponDefinition);
 		SelectedBuiltInButtonWidgetName = NAME_None;
 		if (SelectedWeaponOptionIndex == INDEX_NONE && DoesSoftWeaponDefinitionMatch(DaggerWeaponDefinition, BotWeaponDefinition))

@@ -131,7 +131,7 @@ void UUiSubsystem::ClearWidgetClassDefinition(
 }
 
 TSharedPtr<FContentLease> UUiSubsystem::AcquireUiContent(
-	UWidgetClassDefinition* Definition,
+	const UWidgetClassDefinition* Definition,
 	const EUiContentGroup Group,
 	FSimpleDelegate OnComplete)
 {

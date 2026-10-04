@@ -132,7 +132,7 @@ void UInfoDetailPopup::ShowPandora(
 
 	ActivePandoraAnchor = AnchorWidget;
 	ActivePandoraDefinition = PandoraDefinition;
-	DetailWidget->SetPandoraDefinition(const_cast<UPandoraDefinition*>(PandoraDefinition));
+	DetailWidget->SetPandoraDefinition(PandoraDefinition);
 	DetailWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 	PositionAdjacent(DetailWidget, AnchorWidget, bPlaceLeftOfWidget);
 }

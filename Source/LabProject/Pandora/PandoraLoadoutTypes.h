@@ -15,7 +15,7 @@ struct LABPROJECT_API FPandoraLoadoutSlot
 	EEnum_Direction Direction = EEnum_Direction::Center;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Pandora|Loadout")
-	TObjectPtr<UPandoraDefinition> PandoraDefinition = nullptr;
+	TObjectPtr<const UPandoraDefinition> PandoraDefinition = nullptr;
 };
 
 namespace PandoraLoadout

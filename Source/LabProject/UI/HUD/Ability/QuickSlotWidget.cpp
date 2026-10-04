@@ -279,7 +279,7 @@ void UQuickSlotWidget::AddQuickSlotEntry(
 	AddWidgetToBar(EntryWidget, SlotIndex);
 }
 
-UQuickSlotEntryWidget* UQuickSlotWidget::CreateQuickSlotEntryWidget() const
+UQuickSlotEntryWidget* UQuickSlotWidget::CreateQuickSlotEntryWidget()
 {
 	TSubclassOf<UQuickSlotEntryWidget> ResolvedEntryWidgetClass = ResolveEntryWidgetClass();
 	if (!ResolvedEntryWidgetClass)
@@ -297,7 +297,7 @@ UQuickSlotEntryWidget* UQuickSlotWidget::CreateQuickSlotEntryWidget() const
 		return CreateWidget<UQuickSlotEntryWidget>(OwningPlayer, ResolvedEntryWidgetClass);
 	}
 
-	return CreateWidget<UQuickSlotEntryWidget>(const_cast<UQuickSlotWidget*>(this), ResolvedEntryWidgetClass);
+	return CreateWidget<UQuickSlotEntryWidget>(this, ResolvedEntryWidgetClass);
 }
 
 void UQuickSlotWidget::AddWidgetToBar(UWidget* Widget, const int32 SlotIndex) const

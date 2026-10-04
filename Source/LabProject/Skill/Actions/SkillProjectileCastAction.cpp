@@ -672,7 +672,7 @@ bool USkillProjectileCastAction::ShouldRetargetUsingAim(const FVector& TargetLoc
 
 bool USkillProjectileCastAction::TryResolveProjectileAimTargetLocation(FVector& OutTargetLocation) const
 {
-    const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
+    AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
     const float ConfiguredTargetTraceMaxRange = GetConfiguredTargetTraceMaxRange();
     if (!AvatarActor || ConfiguredTargetTraceMaxRange <= 0.0f)
     {
@@ -708,8 +708,7 @@ bool USkillProjectileCastAction::TryResolveProjectileAimTargetLocation(FVector& 
     }
 
     TArray<AActor*> ActorsToIgnore;
-    ActorsToIgnore.Add(const_cast<AActor*>(AvatarActor));
-    ActorsToIgnore.Add(GetAbility()->GetAvatarActorFromActorInfo());
+    ActorsToIgnore.Add(AvatarActor);
 
     FHitResult ViewHitResult;
     const bool bHit = UKismetSystemLibrary::LineTraceSingleByProfile(

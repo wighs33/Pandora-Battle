@@ -182,7 +182,7 @@ ASkillVisualActor* USkillAbility::GetOrCreatePresentationActor()
 	}
 
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
-	USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
 	UWorld* World = GetWorld();
 	if (!Character || !Character->HasAuthority() || !SkillDataAsset || !World)
 	{

@@ -36,7 +36,7 @@ void UPandoraDescriptionWidget::OnMenuLanguageChanged()
 	SetDetails();
 }
 
-void UPandoraDescriptionWidget::SetPandoraDefinition(UPandoraDefinition* InPandoraDefinition)
+void UPandoraDescriptionWidget::SetPandoraDefinition(const UPandoraDefinition* InPandoraDefinition)
 {
 	PandoraDefinition = InPandoraDefinition;
 

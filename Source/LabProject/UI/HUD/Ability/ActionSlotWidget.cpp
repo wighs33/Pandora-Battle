@@ -169,7 +169,7 @@ void UActionSlotWidget::AddActionSlotEntry(const int32 SlotIndex)
 	AddWidgetToBar(EntryWidget);
 }
 
-UActionSlotEntryWidget* UActionSlotWidget::CreateActionSlotEntryWidget() const
+UActionSlotEntryWidget* UActionSlotWidget::CreateActionSlotEntryWidget()
 {
 	TSubclassOf<UActionSlotEntryWidget> ResolvedEntryWidgetClass = ResolveEntryWidgetClass();
 	if (!ResolvedEntryWidgetClass)
@@ -187,7 +187,7 @@ UActionSlotEntryWidget* UActionSlotWidget::CreateActionSlotEntryWidget() const
 		return CreateWidget<UActionSlotEntryWidget>(OwningPlayer, ResolvedEntryWidgetClass);
 	}
 
-	return CreateWidget<UActionSlotEntryWidget>(const_cast<UActionSlotWidget*>(this), ResolvedEntryWidgetClass);
+	return CreateWidget<UActionSlotEntryWidget>(this, ResolvedEntryWidgetClass);
 }
 
 void UActionSlotWidget::AddWidgetToBar(UWidget* Widget) const

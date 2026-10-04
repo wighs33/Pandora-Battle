@@ -301,7 +301,7 @@ void UAbilitySlotWidget::InitializeAbilityObject()
 		AbilitySpecHandle,
 		bIsInstance);
 
-	AbilityObjectRef = const_cast<UGameplayAbility*>(GameplayAbility);
+	AbilityObjectRef = GameplayAbility;
 }
 
 void UAbilitySlotWidget::ApplyWidgetDefinitionSettings()

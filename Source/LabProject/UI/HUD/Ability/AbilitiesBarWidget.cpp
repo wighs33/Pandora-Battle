@@ -261,7 +261,7 @@ void UAbilitiesBarWidget::AddEmptySlot(const bool bApplyPadding, const int32 Ski
 	AddWidgetToBar(EmptySlotWidget, bApplyPadding);
 }
 
-UUserWidget* UAbilitiesBarWidget::CreateBarWidget(TSubclassOf<UUserWidget> WidgetClass) const
+UUserWidget* UAbilitiesBarWidget::CreateBarWidget(TSubclassOf<UUserWidget> WidgetClass)
 {
 	if (!WidgetClass)
 	{
@@ -273,7 +273,7 @@ UUserWidget* UAbilitiesBarWidget::CreateBarWidget(TSubclassOf<UUserWidget> Widge
 		return CreateWidget<UUserWidget>(OwningPlayer, WidgetClass);
 	}
 
-	return CreateWidget<UUserWidget>(const_cast<UAbilitiesBarWidget*>(this), WidgetClass);
+	return CreateWidget<UUserWidget>(this, WidgetClass);
 }
 
 void UAbilitiesBarWidget::AddWidgetToBar(UUserWidget* Widget, bool bApplyPadding) const
@@ -385,7 +385,7 @@ int32 UAbilitiesBarWidget::GetSelectedPandoraLevel(const UPandoraDefinition* Pan
 
 	const UPandoraTreeComponent* PandoraTreeComponent = GetPandoraTreeComponent();
 	const int32 CurrentLevel = PandoraTreeComponent
-		? PandoraTreeComponent->GetCurrentPandoraLevel(const_cast<UPandoraDefinition*>(PandoraDefinition))
+		? PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition)
 		: 0;
 	return FMath::Clamp(CurrentLevel, 0, PandoraDefinition->GetMaxLevel());
 }

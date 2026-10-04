@@ -87,13 +87,13 @@ void ULeftPandoraWidget::ClearPandoraEquipSlotSelection()
 	bIsSelectedAnyButton = false;
 }
 
-void ULeftPandoraWidget::RefreshPandoraLoadoutSlots(const UPandoraComponent* PandoraComponent)
+void ULeftPandoraWidget::RefreshPandoraLoadoutSlots(UPandoraComponent* PandoraComponent)
 {
 	RebuildPandoraEquipSlotList();
 
-	if (UPandoraComponent* MutablePandoraComponent = const_cast<UPandoraComponent*>(PandoraComponent))
+	if (PandoraComponent)
 	{
-		BindPandoraLoadoutChanged(MutablePandoraComponent);
+		BindPandoraLoadoutChanged(PandoraComponent);
 	}
 
 	const UPandoraTreeComponent* PandoraTreeComponent = BoundPandoraTreeComponent.Get();
@@ -107,8 +107,7 @@ void ULeftPandoraWidget::RefreshPandoraLoadoutSlots(const UPandoraComponent* Pan
 			PandoraComponent ? PandoraComponent->GetPandoraLoadoutDefinition(Direction) : nullptr;
 		const int32 PandoraLevel = PandoraTreeComponent && PandoraDefinition
 			? FMath::Clamp(
-				PandoraTreeComponent->GetCurrentPandoraLevel(
-					const_cast<UPandoraDefinition*>(PandoraDefinition)),
+				PandoraTreeComponent->GetCurrentPandoraLevel(PandoraDefinition),
 				0,
 				PandoraDefinition->GetMaxLevel())
 			: 0;

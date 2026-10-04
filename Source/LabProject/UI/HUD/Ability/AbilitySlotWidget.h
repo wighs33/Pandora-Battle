@@ -104,7 +104,7 @@ private:
 	FGameplayAbilitySpecHandle AbilitySpecHandle;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Ability", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UGameplayAbility> AbilityObjectRef;
+	TObjectPtr<const UGameplayAbility> AbilityObjectRef;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Ability", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UObject> AbilityIconOverride;

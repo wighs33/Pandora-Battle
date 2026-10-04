@@ -41,7 +41,7 @@ private:
 	void UnbindInventoryChangedEvent();
 	void RefreshQuickSlotIconPreload();
 	void AddQuickSlotEntry(int32 SlotIndex, UInventoryComponent* InventoryComponent, USkinEquipmentComponent* SkinEquipmentComponent);
-	UQuickSlotEntryWidget* CreateQuickSlotEntryWidget() const;
+	UQuickSlotEntryWidget* CreateQuickSlotEntryWidget();
 	void AddWidgetToBar(UWidget* Widget, int32 SlotIndex) const;
 	UInventoryComponent* ResolveOwningInventoryComponent() const;
 	USkinEquipmentComponent* ResolveOwningSkinEquipmentComponent() const;

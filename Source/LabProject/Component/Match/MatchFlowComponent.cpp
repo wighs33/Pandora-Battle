@@ -147,7 +147,7 @@ void UMatchFlowComponent::InitializeGameState()
 		return;
 	}
 
-	ExperienceGameState->SetMatchRuleDefinition(const_cast<UMatchRuleDefinition*>(GameMode->GetMatchRuleDefinition()));
+	ExperienceGameState->SetMatchRuleDefinition(GameMode->GetMatchRuleDefinition());
 	ExperienceGameState->SetMatchTimerState(
 		ShouldSuppressServerMatchTimer() ? EMatchTimerPhase::Suppressed : EMatchTimerPhase::Inactive);
 }

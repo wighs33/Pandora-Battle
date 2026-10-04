@@ -96,7 +96,7 @@ public:
 	void RefreshWeaponOptionSelectionVisuals();
 
 	UFUNCTION(BlueprintPure, Category = "!Training|Menu")
-	UItemDefinition* GetSelectedTrainingBotWeaponDefinition() const { return SelectedWeaponDefinition.Get(); }
+	const UItemDefinition* GetSelectedTrainingBotWeaponDefinition() const { return SelectedWeaponDefinition.Get(); }
 
 	UFUNCTION(BlueprintCallable, Category = "!Training|Menu")
 	void SetTrainingBotAttackEnabled(bool bEnabled);
@@ -184,7 +184,7 @@ protected:
 	FLinearColor SelectionBorderSelectedColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Training|Bot")
-	TObjectPtr<UItemDefinition> SelectedWeaponDefinition;
+	TObjectPtr<const UItemDefinition> SelectedWeaponDefinition;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Training|Bot")
 	bool bTrainingBotAttackEnabled = true;

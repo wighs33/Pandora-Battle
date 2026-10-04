@@ -63,7 +63,7 @@ public:
 
 	/** Keeps one explicit-definition UI group resident for the lease lifetime. */
 	TSharedPtr<FContentLease> AcquireUiContent(
-		UWidgetClassDefinition* Definition,
+		const UWidgetClassDefinition* Definition,
 		EUiContentGroup Group,
 		FSimpleDelegate OnComplete = FSimpleDelegate());
 

@@ -106,7 +106,7 @@ protected:
 	void HandlePlayerPawnDefinitionPreloaded(FSoftObjectPath DefinitionPath);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	virtual AActor* GetAbilitySystemOwnerActor() const override;
+	virtual AActor* GetAbilitySystemOwnerActor() override;
 	virtual void ApplyCurrentRotationPolicy(UCharacterMovementComponent* MovementComponent) override;
 	virtual bool ShouldUseContinuousCharacterTick() const override;
 	virtual bool IsAdditionalCharacterRuntimeContentReady() const override;

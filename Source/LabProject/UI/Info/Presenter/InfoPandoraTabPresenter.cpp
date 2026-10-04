@@ -310,7 +310,7 @@ void UInfoPandoraTabPresenter::RefreshLeftPandoraSlots() const
 	}
 
 	const UInfoLoadoutStore* Store = LoadoutStore.Get();
-	const UPandoraComponent* PandoraComponent = Store ? Store->GetPandoraComponent() : nullptr;
+	UPandoraComponent* PandoraComponent = Store ? Store->GetPandoraComponent() : nullptr;
 	LeftPandoraWidget->RefreshPandoraLoadoutSlots(PandoraComponent);
 
 	const auto ResolveWeaponIcon = [](const UItemInstance* WeaponInstance) -> UTexture2D*

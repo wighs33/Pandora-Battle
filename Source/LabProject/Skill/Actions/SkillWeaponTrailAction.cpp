@@ -30,7 +30,7 @@ void USkillWeaponTrailAction::OnStart()
 	TrailAttackTraceEndTask = nullptr;
 	bStartedWeaponTrail = false;
 
-	USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
+	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	if (!SkillDataAsset)
 	{
 		UE_LOG(LogSkillWeaponTrailAction, Warning, TEXT("%s has no source skill definition, so the weapon trail cannot start."),

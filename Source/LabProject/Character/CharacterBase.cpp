@@ -330,15 +330,9 @@ UPdAbilitySystemComponent* ACharacterBase::GetPdAbilitySystemComponent() const
 }
 
 // 별도 재정의가 없으면 능력 데이터의 소유자를 이 캐릭터로 정한다. 플레이어는 PlayerState로 바꾼다.
-AActor* ACharacterBase::GetAbilitySystemOwnerActor() const
+AActor* ACharacterBase::GetAbilitySystemOwnerActor()
 {
-	return const_cast<ACharacterBase*>(this);
-}
-
-// 능력이 실제로 이동·공격·연출을 수행할 대상으로 월드에 있는 이 캐릭터를 지정한다.
-AActor* ACharacterBase::GetAbilitySystemAvatarActor() const
-{
-	return const_cast<ACharacterBase*>(this);
+	return this;
 }
 
 // 공통 초기화가 끝난 캐릭터에 한해 ASC의 소유자·실행 캐릭터 연결과 상태 구독을 준비하도록 요청한다.

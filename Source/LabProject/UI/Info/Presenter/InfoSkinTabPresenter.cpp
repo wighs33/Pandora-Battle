@@ -18,16 +18,21 @@
 
 namespace
 {
+// UMG 목록은 UObject*만 받으므로 읽기 전용 스킨 정의를 이 한 곳에서만 넘긴다. 정의 데이터는 수정하지 않는다.
+void AppendSkinListItem(const USkinDefinition* SkinDefinition, TArray<UObject*>& OutListItems)
+{
+	if (SkinDefinition)
+	{
+		OutListItems.Add(const_cast<USkinDefinition*>(SkinDefinition));
+	}
+}
+
 void AppendSkinListAsObjects(const FSkinList& SkinList, TArray<UObject*>& OutListItems)
 {
 	OutListItems.Reserve(OutListItems.Num() + SkinList.Skins.Num());
 	for (const TObjectPtr<const USkinDefinition>& Skin : SkinList.Skins)
 	{
-		if (const USkinDefinition* SkinDefinition = Skin.Get())
-		{
-			// UMG 목록의 UObject* 인터페이스에 전달하며 정의 데이터는 수정하지 않는다.
-			OutListItems.Add(const_cast<USkinDefinition*>(SkinDefinition));
-		}
+		AppendSkinListItem(Skin.Get(), OutListItems);
 	}
 }
 
@@ -238,7 +243,7 @@ void UInfoSkinTabPresenter::HandleSkinFilterTypeClicked(FGameplayTag TypeTag)
 			{
 				if (SkinDefinition && SkinDefinition->IdTag.MatchesTag(TypeTag))
 				{
-					CurrentSkinList.Add(const_cast<USkinDefinition*>(SkinDefinition));
+					AppendSkinListItem(SkinDefinition, CurrentSkinList);
 				}
 			}
 		}

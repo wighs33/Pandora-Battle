@@ -28,7 +28,7 @@ void AExperienceGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	DOREPLIFETIME_WITH_PARAMS_FAST(AExperienceGameState, MatchTimerState, Params);
 }
 
-void AExperienceGameState::SetMatchRuleDefinition(UMatchRuleDefinition* InMatchRuleDefinition)
+void AExperienceGameState::SetMatchRuleDefinition(const UMatchRuleDefinition* InMatchRuleDefinition)
 {
 	if (MatchRuleDefinition == InMatchRuleDefinition)
 	{

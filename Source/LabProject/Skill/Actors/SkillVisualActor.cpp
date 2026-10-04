@@ -75,7 +75,7 @@ ASkillVisualActor::ASkillVisualActor()
 
 void ASkillVisualActor::InitializePresentation(
 	ACharacterBase* InSourceCharacter,
-	USkillDefinition* InSkillDefinition,
+	const USkillDefinition* InSkillDefinition,
 	const ESkillPresentationFlags InFlags)
 {
 	if (!HasAuthority())
@@ -686,7 +686,7 @@ ACharacterBase* ASkillVisualActor::ResolveSourceCharacter() const
 }
 
 FVector ASkillVisualActor::ResolveCharacterFloorLocation(
-	const ACharacterBase* Character) const
+	ACharacterBase* Character) const
 {
 	if (!Character)
 	{
@@ -694,9 +694,7 @@ FVector ASkillVisualActor::ResolveCharacterFloorLocation(
 	}
 
 	TArray<AActor*> ActorsToIgnore;
-	PdSkillGroundProjection::AddIgnoredActorAndAttachments(
-		ActorsToIgnore,
-		const_cast<ACharacterBase*>(Character));
+	PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, Character);
 	PdSkillGroundProjection::FGroundProjectionResult GroundProjection;
 	if (PdSkillGroundProjection::TryProjectToGround(
 		Character->GetWorld(),

@@ -457,7 +457,7 @@ const USkillDefinition* USkillAbility::ResolveSourceSkillDataAsset(UObject* Sour
 	return Source ? Source->GetSkillDataAsset() : nullptr;
 }
 
-USkillDefinition* USkillAbility::GetSourceSkillDataAsset() const
+const USkillDefinition* USkillAbility::GetSourceSkillDataAsset() const
 {
-	return const_cast<USkillDefinition*>(ResolveSourceSkillDataAsset(GetCurrentSourceObject()));
+	return ResolveSourceSkillDataAsset(GetCurrentSourceObject());
 }

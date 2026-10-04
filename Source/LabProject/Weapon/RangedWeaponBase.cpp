@@ -295,6 +295,11 @@ bool ARangedWeaponBase::SphereTraceMultiForRangedShot(
         5.0f);
 }
 
+TArray<AActor*> ARangedWeaponBase::MakeShotIgnoredActors(AActor* ShooterCharacter) const
+{
+	return { ShooterCharacter, const_cast<ARangedWeaponBase*>(this) };
+}
+
 FVector ARangedWeaponBase::GetAITargetAimLocation(const AActor* TargetActor) const
 {
 	if (!IsValid(TargetActor))

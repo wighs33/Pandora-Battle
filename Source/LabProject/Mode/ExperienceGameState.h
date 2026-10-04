@@ -55,7 +55,7 @@ public:
 
 	UExperienceManagerComponent* GetExperienceManagerComponent() const { return ExperienceManagerComponent; }
 
-	void SetMatchRuleDefinition(UMatchRuleDefinition* InMatchRuleDefinition);
+	void SetMatchRuleDefinition(const UMatchRuleDefinition* InMatchRuleDefinition);
 	const UMatchRuleDefinition* GetMatchRuleDefinition() const { return MatchRuleDefinition; }
 
 	void SetMatchTimerState(EMatchTimerPhase InPhase, float InEndServerTimeSeconds = 0.0f);
@@ -91,7 +91,7 @@ private:
 	TObjectPtr<UExperienceManagerComponent> ExperienceManagerComponent;
 
 	UPROPERTY(ReplicatedUsing = OnRep_MatchRuleDefinition, VisibleInstanceOnly, Category = "!Match Rules", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UMatchRuleDefinition> MatchRuleDefinition;
+	TObjectPtr<const UMatchRuleDefinition> MatchRuleDefinition;
 
 	UPROPERTY(ReplicatedUsing = OnRep_MatchTimerState, VisibleInstanceOnly, Category = "!Match Rules",
 		meta = (AllowPrivateAccess = "true"))
