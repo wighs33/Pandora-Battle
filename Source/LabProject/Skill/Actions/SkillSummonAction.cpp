@@ -19,22 +19,13 @@
 #include "GameplayEffectTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraComponent.h"
+#include "Skill/Actions/SkillTriggerDamage.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillSummonAction)
 
 namespace
 {
 	const FName SummonTriggerComponentName(TEXT("Box"));
-
-bool ShouldRepeatSummonTriggerDamage(const USkillDefinition* SkillDataAsset)
-	{
-		return SkillDataAsset && SkillDataAsset->Damage.bRepeatTriggerDamageWhileOverlapping;
-	}
-
-	double GetSummonTriggerDamageInterval(const USkillDefinition* SkillDataAsset)
-	{
-		return SkillDataAsset ? SkillDataAsset->Damage.TriggerDamageInterval : 0.0;
-	}
 }
 
 void USkillSummonAction::OnStart()
@@ -45,16 +36,17 @@ void USkillSummonAction::OnStart()
 	WaitSummonMontageTriggerTask = nullptr;
 	SummonDurationTask = nullptr;
 	SpawnedSummonActor.Reset();
-	SummonTriggerComponent.Reset();
-	DamagedSummonTriggerActors.Reset();
-	SummonOverlappingActors.Reset();
 	SummonRiseStartLocation = FVector::ZeroVector;
 	SummonRiseFinalLocation = FVector::ZeroVector;
 	SummonRiseFinalRotation = FRotator::ZeroRotator;
 	SummonRiseStartTime = 0.0f;
 	bSummonStarted = false;
 	bSummonRiseFinished = false;
-	bSummonTriggerDamageActive = false;
+	if (!SummonTriggerDamage)
+	{
+		SummonTriggerDamage = NewObject<USkillTriggerDamage>(this);
+	}
+	SummonTriggerDamage->Reset();
 
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	const FSkillSummonSettings* SummonConfig = GetSummonConfig();
@@ -69,6 +61,11 @@ void USkillSummonAction::OnStart()
 		Finish(false);
 		return;
 	}
+
+	SummonTriggerDamage->Configure(
+		SkillDataAsset->Damage,
+		FSkillTriggerHit::CreateUObject(this, &ThisClass::ApplySummonTriggerDamage));
+	SummonTriggerDamage->SetDamageActive(false);
 
 	GetAbility()->StartDurationMovementLock();
 
@@ -94,14 +91,14 @@ void USkillSummonAction::OnStop()
 	{
 		World->GetTimerManager().ClearTimer(SummonRiseTimerHandle);
 		World->GetTimerManager().ClearTimer(SummonTriggerDamageDelayTimerHandle);
-		World->GetTimerManager().ClearTimer(SummonTriggerDamageTickTimerHandle);
 	}
 	SummonRiseTimerHandle.Invalidate();
 	SummonTriggerDamageDelayTimerHandle.Invalidate();
-	SummonTriggerDamageTickTimerHandle.Invalidate();
 
-	DisableSummonTriggerDamage();
-	UnbindSummonTriggerDamage();
+	if (SummonTriggerDamage)
+	{
+		SummonTriggerDamage->Reset();
+	}
 
 	if (SpawnedSummonActor.IsValid() && SpawnedSummonActor->HasAuthority())
 	{
@@ -109,9 +106,6 @@ void USkillSummonAction::OnStop()
 	}
 
 	SpawnedSummonActor.Reset();
-	SummonTriggerComponent.Reset();
-	DamagedSummonTriggerActors.Reset();
-	SummonOverlappingActors.Reset();
 }
 
 const FSkillSummonSettings* USkillSummonAction::GetSummonConfig() const
@@ -628,267 +622,69 @@ float USkillSummonAction::ResolveSummonLifetimeTimerDuration() const
 
 void USkillSummonAction::BindSummonTriggerDamage(AActor* SummonedActor)
 {
-	if (!SummonedActor || !SummonedActor->HasAuthority())
+	if (!SummonedActor || !SummonedActor->HasAuthority() || !SummonTriggerDamage)
 	{
 		return;
 	}
 
-	UPrimitiveComponent* TriggerComponent = FindSummonTriggerComponent(SummonedActor);
+	UPrimitiveComponent* TriggerComponent =
+		USkillTriggerDamage::FindTriggerComponent(SummonedActor, SummonTriggerComponentName, false);
 	if (!TriggerComponent)
 	{
 		return;
 	}
 
-	SummonTriggerComponent = TriggerComponent;
 	if (TriggerComponent->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
 	{
 		TriggerComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	}
 	TriggerComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	TriggerComponent->SetGenerateOverlapEvents(true);
-	TriggerComponent->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleSummonTriggerBeginOverlap);
-	TriggerComponent->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandleSummonTriggerEndOverlap);
-	TriggerComponent->UpdateOverlaps();
-}
-
-void USkillSummonAction::UnbindSummonTriggerDamage()
-{
-	if (UPrimitiveComponent* TriggerComponent = SummonTriggerComponent.Get())
-	{
-		TriggerComponent->OnComponentBeginOverlap.RemoveDynamic(this, &ThisClass::HandleSummonTriggerBeginOverlap);
-		TriggerComponent->OnComponentEndOverlap.RemoveDynamic(this, &ThisClass::HandleSummonTriggerEndOverlap);
-	}
-	SummonOverlappingActors.Reset();
-}
-
-UPrimitiveComponent* USkillSummonAction::FindSummonTriggerComponent(AActor* SummonedActor) const
-{
-	if (!SummonedActor)
-	{
-		return nullptr;
-	}
-
-	TArray<UPrimitiveComponent*> PrimitiveComponents;
-	SummonedActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-
-	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		if (PrimitiveComponent && PrimitiveComponent->GetFName() == SummonTriggerComponentName)
-		{
-			return PrimitiveComponent;
-		}
-	}
-
-	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		if (PrimitiveComponent && PrimitiveComponent->ComponentHasTag(SummonTriggerComponentName))
-		{
-			return PrimitiveComponent;
-		}
-	}
-
-	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		if (PrimitiveComponent && PrimitiveComponent->GetName().Contains(SummonTriggerComponentName.ToString()))
-		{
-			return PrimitiveComponent;
-		}
-	}
-
-	return nullptr;
+	SummonTriggerDamage->Bind(TriggerComponent, false);
 }
 
 void USkillSummonAction::EnableSummonTriggerDamage()
 {
-	if (!SpawnedSummonActor.IsValid() || !SpawnedSummonActor->HasAuthority())
+	AActor* SummonedActor = SpawnedSummonActor.Get();
+	if (!SummonedActor || !SummonedActor->HasAuthority() || !SummonTriggerDamage)
 	{
 		return;
 	}
 
-	if (!SummonTriggerComponent.IsValid())
+	if (!SummonTriggerDamage->IsBound(SummonedActor))
 	{
-		BindSummonTriggerDamage(SpawnedSummonActor.Get());
+		BindSummonTriggerDamage(SummonedActor);
 	}
 
-	if (!SummonTriggerComponent.IsValid())
+	if (SummonTriggerDamage->IsBound(SummonedActor))
 	{
-		return;
-	}
-
-	bSummonTriggerDamageActive = true;
-	ApplySummonTriggerDamageToExistingOverlaps();
-	StartSummonTriggerDamageTickIfNeeded();
-}
-
-void USkillSummonAction::DisableSummonTriggerDamage()
-{
-	bSummonTriggerDamageActive = false;
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SummonTriggerDamageTickTimerHandle);
-	}
-	SummonTriggerDamageTickTimerHandle.Invalidate();
-}
-
-void USkillSummonAction::StartSummonTriggerDamageTickIfNeeded()
-{
-	if (SummonTriggerDamageTickTimerHandle.IsValid())
-	{
-		return;
-	}
-
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	if (!bSummonTriggerDamageActive
-		|| !ShouldRepeatSummonTriggerDamage(SkillDataAsset)
-		|| !SkillDataAsset
-		|| !SkillDataAsset->GetResolvedDamageConfig().GameplayEffectClass
-		|| CalculateSummonTriggerDamageMagnitude() <= 0.0f)
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	const float DamageInterval = static_cast<float>(FMath::Max(GetSummonTriggerDamageInterval(SkillDataAsset), 0.05));
-	World->GetTimerManager().SetTimer(
-		SummonTriggerDamageTickTimerHandle,
-		this,
-		&ThisClass::HandleSummonTriggerDamageTick,
-		DamageInterval,
-		true);
-}
-
-void USkillSummonAction::HandleSummonTriggerDamageTick()
-{
-	if (!bSummonTriggerDamageActive)
-	{
-		return;
-	}
-
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	const bool bAllowRepeatedDamage = ShouldRepeatSummonTriggerDamage(SkillDataAsset);
-	TArray<TWeakObjectPtr<AActor>> DamageTargets;
-	DamageTargets.Reserve(SummonOverlappingActors.Num());
-	for (int32 ActorIndex = SummonOverlappingActors.Num() - 1; ActorIndex >= 0; --ActorIndex)
-	{
-		AActor* OverlappingActor = SummonOverlappingActors[ActorIndex].Get();
-		if (!IsValid(OverlappingActor))
-		{
-			SummonOverlappingActors.RemoveAtSwap(ActorIndex);
-			continue;
-		}
-
-		DamageTargets.Add(OverlappingActor);
-	}
-
-	for (const TWeakObjectPtr<AActor>& TargetPtr : DamageTargets)
-	{
-		AActor* OverlappingActor = TargetPtr.Get();
-		if (!IsValid(OverlappingActor)
-			|| !SummonOverlappingActors.ContainsByPredicate(
-				[OverlappingActor](const TWeakObjectPtr<AActor>& ExistingActor)
-				{
-					return ExistingActor.Get() == OverlappingActor;
-				}))
-		{
-			continue;
-		}
-
-		ApplySummonTriggerDamage(OverlappingActor, bAllowRepeatedDamage);
+		SummonTriggerDamage->SetDamageActive(true);
 	}
 }
 
-void USkillSummonAction::ApplySummonTriggerDamageToExistingOverlaps()
-{
-	UPrimitiveComponent* TriggerComponent = SummonTriggerComponent.Get();
-	if (!TriggerComponent)
-	{
-		return;
-	}
-
-	TriggerComponent->UpdateOverlaps();
-
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	const bool bAllowRepeatedDamage = ShouldRepeatSummonTriggerDamage(SkillDataAsset);
-
-	TArray<AActor*> OverlappingActors;
-	TriggerComponent->GetOverlappingActors(OverlappingActors, ACharacterBase::StaticClass());
-	for (AActor* OverlappingActor : OverlappingActors)
-	{
-		TrackSummonTriggerOverlap(OverlappingActor);
-		ApplySummonTriggerDamage(OverlappingActor, bAllowRepeatedDamage);
-	}
-}
-
-void USkillSummonAction::TrackSummonTriggerOverlap(AActor* OtherActor)
-{
-	if (!IsValid(OtherActor) || !OtherActor->IsA<ACharacterBase>())
-	{
-		return;
-	}
-
-	for (const TWeakObjectPtr<AActor>& ExistingActor : SummonOverlappingActors)
-	{
-		if (ExistingActor.Get() == OtherActor)
-		{
-			return;
-		}
-	}
-
-	SummonOverlappingActors.Add(OtherActor);
-}
-
-void USkillSummonAction::UntrackSummonTriggerOverlap(AActor* OtherActor)
-{
-	if (!OtherActor)
-	{
-		return;
-	}
-
-	SummonOverlappingActors.RemoveAllSwap(
-		[OtherActor](const TWeakObjectPtr<AActor>& ExistingActor)
-		{
-			return !ExistingActor.IsValid() || ExistingActor.Get() == OtherActor;
-		});
-}
-
-void USkillSummonAction::ApplySummonTriggerDamage(AActor* HitActor, const bool bAllowRepeatedDamage)
+// 트리거 추적기가 피해 차례라고 알리면 시전자와 소환물 자신을 빼고 피해를 적용한다. 피해를 시도했으면 true.
+bool USkillSummonAction::ApplySummonTriggerDamage(AActor* DamageSourceActor, AActor* HitActor)
 {
 	AActor* SourceActor = GetAbility()->GetAvatarActorFromActorInfo();
-	if (!bSummonTriggerDamageActive || !IsValid(HitActor) || HitActor == SourceActor || HitActor == SpawnedSummonActor.Get())
+	if (!IsValid(HitActor) || HitActor == SourceActor || HitActor == DamageSourceActor)
 	{
-		return;
-	}
-
-	const FObjectKey HitActorKey(HitActor);
-	if (!bAllowRepeatedDamage && DamagedSummonTriggerActors.Contains(HitActorKey))
-	{
-		return;
+		return false;
 	}
 
 	UAbilitySystemComponent* SourceASC = nullptr;
 	UAbilitySystemComponent* TargetASC = nullptr;
 	if (!ResolveDamageableCharacterTarget(SourceActor, HitActor, SourceASC, TargetASC))
 	{
-		return;
+		return false;
 	}
 
 	const FGameplayEffectSpecHandle DamageSpecHandle = MakeSummonTriggerDamageSpec(CalculateSummonTriggerDamageMagnitude());
 	if (!DamageSpecHandle.IsValid())
 	{
-		return;
+		return false;
 	}
 
 	ApplyDamageWithConfiguredStatus(*SourceASC, *TargetASC, *DamageSpecHandle.Data);
-	if (!bAllowRepeatedDamage)
-	{
-		DamagedSummonTriggerActors.Add(HitActorKey);
-	}
+	return true;
 }
 
 FGameplayEffectSpecHandle USkillSummonAction::MakeSummonTriggerDamageSpec(const float DamageMagnitude) const
@@ -983,35 +779,4 @@ void USkillSummonAction::HandleSummonDurationFinished()
 {
 	SummonDurationTask = nullptr;
 	Finish();
-}
-
-void USkillSummonAction::HandleSummonTriggerBeginOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	const int32 OtherBodyIndex,
-	const bool bFromSweep,
-	const FHitResult& SweepResult)
-{
-	static_cast<void>(OverlappedComponent);
-	static_cast<void>(OtherComp);
-	static_cast<void>(OtherBodyIndex);
-	static_cast<void>(bFromSweep);
-	static_cast<void>(SweepResult);
-
-	TrackSummonTriggerOverlap(OtherActor);
-	ApplySummonTriggerDamage(OtherActor);
-}
-
-void USkillSummonAction::HandleSummonTriggerEndOverlap(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	const int32 OtherBodyIndex)
-{
-	static_cast<void>(OverlappedComponent);
-	static_cast<void>(OtherComp);
-	static_cast<void>(OtherBodyIndex);
-
-	UntrackSummonTriggerOverlap(OtherActor);
 }

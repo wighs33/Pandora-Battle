@@ -5,7 +5,6 @@
 #include "AbilitySystem/Ability/SkillAbility.h"
 #include "Definition/AbilitySystem/SkillSummonSettings.h"
 #include "TimerManager.h"
-#include "UObject/ObjectKey.h"
 #include "SkillSummonAction.generated.h"
 
 class AActor;
@@ -14,11 +13,14 @@ class UAbilityTask_WaitDelay;
 class UAbilityTask_WaitGameplayEvent;
 class UAnimMontage;
 class UNiagaraComponent;
-class UPrimitiveComponent;
+class USkillTriggerDamage;
 struct FGameplayEffectSpecHandle;
 struct FSkillSummonSettings;
 
-/** 소환물의 등장, 상승, 피해 활성화와 수명을 관리한다. */
+/**
+ * 소환물의 등장, 상승, 피해 활성화와 수명을 관리한다.
+ * 소환물 트리거에 겹친 대상의 피해 시점은 USkillTriggerDamage가 정하고, 상승을 마친 뒤에 켠다.
+ */
 UCLASS(meta = (DisplayName = "Summon"))
 class LABPROJECT_API USkillSummonAction : public USkillAction
 {
@@ -38,7 +40,7 @@ protected:
 private:
 	void HandleSummonRiseTick();
 	void EnableSummonTriggerDamage();
-	void HandleSummonTriggerDamageTick();
+	bool ApplySummonTriggerDamage(AActor* DamageSourceActor, AActor* HitActor);
 
 	UFUNCTION()
 	void HandleSummonMontageTriggerEvent(FGameplayEventData Payload);
@@ -51,22 +53,6 @@ private:
 
 	UFUNCTION()
 	void HandleSummonDurationFinished();
-
-	UFUNCTION()
-	void HandleSummonTriggerBeginOverlap(
-		UPrimitiveComponent* OverlappedComponent,
-		AActor* OtherActor,
-		UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex,
-		bool bFromSweep,
-		const FHitResult& SweepResult);
-
-	UFUNCTION()
-	void HandleSummonTriggerEndOverlap(
-		UPrimitiveComponent* OverlappedComponent,
-		AActor* OtherActor,
-		UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	const FSkillSummonSettings* GetSummonConfig() const;
@@ -89,16 +75,8 @@ private:
 	float ResolveSummonActiveDuration() const;
 	float ResolveSummonLifetimeTimerDuration() const;
 	void BindSummonTriggerDamage(AActor* SummonedActor);
-	void UnbindSummonTriggerDamage();
-	UPrimitiveComponent* FindSummonTriggerComponent(AActor* SummonedActor) const;
-	void DisableSummonTriggerDamage();
-	void StartSummonTriggerDamageTickIfNeeded();
-	void ApplySummonTriggerDamageToExistingOverlaps();
-	void ApplySummonTriggerDamage(AActor* HitActor, bool bAllowRepeatedDamage = false);
 	FGameplayEffectSpecHandle MakeSummonTriggerDamageSpec(float DamageMagnitude) const;
 	float CalculateSummonTriggerDamageMagnitude() const;
-	void TrackSummonTriggerOverlap(AActor* OtherActor);
-	void UntrackSummonTriggerOverlap(AActor* OtherActor);
 	void CleanupSummonTasks();
 
 private:
@@ -115,7 +93,7 @@ private:
 	TWeakObjectPtr<AActor> SpawnedSummonActor;
 
 	UPROPERTY(Transient)
-	TWeakObjectPtr<UPrimitiveComponent> SummonTriggerComponent;
+	TObjectPtr<USkillTriggerDamage> SummonTriggerDamage;
 
 	FVector SummonRiseStartLocation = FVector::ZeroVector;
 	FVector SummonRiseFinalLocation = FVector::ZeroVector;
@@ -123,10 +101,6 @@ private:
 	float SummonRiseStartTime = 0.0f;
 	FTimerHandle SummonRiseTimerHandle;
 	FTimerHandle SummonTriggerDamageDelayTimerHandle;
-	FTimerHandle SummonTriggerDamageTickTimerHandle;
-	TSet<FObjectKey> DamagedSummonTriggerActors;
-	TArray<TWeakObjectPtr<AActor>> SummonOverlappingActors;
 	bool bSummonStarted = false;
 	bool bSummonRiseFinished = false;
-	bool bSummonTriggerDamageActive = false;
 };

@@ -18,6 +18,7 @@ class UInventoryComponent;
 class IHudInputInterface;
 class FContentLease;
 class UContentDataSubsystem;
+enum class EInfoUiSection : uint8;
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UControllerInputComponent : public UActorComponent
@@ -51,11 +52,7 @@ private:
 	void HandleCrouchInputStarted(const FInputActionValue& InputValue);
 	void HandleCrouchInputEnded(const FInputActionValue& InputValue);
 	void HandleInteractInput(const FInputActionValue& InputValue);
-	void HandleOpenInfoProfileInputStarted(const FInputActionValue& InputValue);
-	void HandleOpenInfoItemInputStarted(const FInputActionValue& InputValue);
-	void HandleOpenInfoSkinInputStarted(const FInputActionValue& InputValue);
-	void HandleOpenInfoPandoraInputStarted(const FInputActionValue& InputValue);
-	void HandleOpenInfoMapInputStarted(const FInputActionValue& InputValue);
+	void HandleOpenInfoInputStarted(const FInputActionValue& InputValue, EInfoUiSection Section);
 	void HandleOpenSettingUiInputStarted(const FInputActionValue& InputValue);
 	void HandleEscapeInputStarted(const FInputActionValue& InputValue);
 	void HandleOpenLobbyInputStarted(const FInputActionValue& InputValue);
@@ -70,29 +67,11 @@ private:
 	void HandleAttackInputEnded(const FInputActionValue& InputValue);
 	void HandleAimInputStarted(const FInputActionValue& InputValue);
 	void HandleAimInputEnded(const FInputActionValue& InputValue);
-	void HandleGrappleInputStarted(const FInputActionValue& InputValue);
-	void HandleGrappleInputEnded(const FInputActionValue& InputValue);
-	void HandleSkill1InputStarted(const FInputActionValue& InputValue);
-	void HandleSkill1InputEnded(const FInputActionValue& InputValue);
-	void HandleSkill2InputStarted(const FInputActionValue& InputValue);
-	void HandleSkill2InputEnded(const FInputActionValue& InputValue);
-	void HandleSkill3InputStarted(const FInputActionValue& InputValue);
-	void HandleSkill3InputEnded(const FInputActionValue& InputValue);
-	void HandleSkill4InputStarted(const FInputActionValue& InputValue);
-	void HandleSkill4InputEnded(const FInputActionValue& InputValue);
-	void HandleQuickSlot1InputStarted(const FInputActionValue& InputValue);
-	void HandleQuickSlot2InputStarted(const FInputActionValue& InputValue);
-	void HandleQuickSlot3InputStarted(const FInputActionValue& InputValue);
-	void HandleQuickSlot4InputStarted(const FInputActionValue& InputValue);
 	void HandleQuickSlotInputStarted(const FInputActionValue& InputValue, int32 SlotIndex);
-	void HandleGesture1InputStarted(const FInputActionValue& InputValue);
-	void HandleGesture2InputStarted(const FInputActionValue& InputValue);
-	void HandleGesture3InputStarted(const FInputActionValue& InputValue);
-	void HandleGesture4InputStarted(const FInputActionValue& InputValue);
 	void HandleGestureInputStarted(const FInputActionValue& InputValue, int32 GestureSlotIndex);
 	void HandleTargetConfirmInputStarted(const FInputActionValue& InputValue);
-	void HandleAbilityInputStarted(const FInputActionValue& InputValue, const FGameplayTag& InputTag);
-	void HandleAbilityInputEnded(const FInputActionValue& InputValue, const FGameplayTag& InputTag);
+	void HandleAbilityInputStarted(const FInputActionValue& InputValue, FGameplayTag InputTag);
+	void HandleAbilityInputEnded(const FInputActionValue& InputValue, FGameplayTag InputTag);
 	void HandleInputDefinitionPreloadComplete();
 	void HandleInputContentPreloadComplete();
 

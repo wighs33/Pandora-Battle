@@ -101,6 +101,32 @@ void UStatusEffectReplicationComponent::SetStatusEffectStackCount(
 	WriteReplicatedStack(DebuffTag, StackCount);
 }
 
+FActiveGameplayEffectHandle UStatusEffectReplicationComponent::ApplyTrackedStatusEffect(
+	UAbilitySystemComponent& SourceAbilitySystemComponent,
+	UAbilitySystemComponent& TargetAbilitySystemComponent,
+	const UStatusEffectDefinition& StatusEffectDefinition,
+	const FGameplayEffectSpec& StatusEffectSpec)
+{
+	if (!StatusEffectDefinition.CanStack(&TargetAbilitySystemComponent))
+	{
+		return FActiveGameplayEffectHandle();
+	}
+
+	const FActiveGameplayEffectHandle AppliedHandle =
+		SourceAbilitySystemComponent.ApplyGameplayEffectSpecToTarget(StatusEffectSpec, &TargetAbilitySystemComponent);
+	const AActor* TargetActor = TargetAbilitySystemComponent.GetAvatarActor();
+	if (AppliedHandle.WasSuccessfullyApplied() && TargetActor)
+	{
+		if (UStatusEffectReplicationComponent* ReplicationComponent =
+			TargetActor->FindComponentByClass<UStatusEffectReplicationComponent>())
+		{
+			ReplicationComponent->TrackAppliedStatusEffect(&StatusEffectDefinition, AppliedHandle);
+		}
+	}
+
+	return AppliedHandle;
+}
+
 void UStatusEffectReplicationComponent::TrackAppliedStatusEffect(
 	const UStatusEffectDefinition* StatusEffectDefinition,
 	const FActiveGameplayEffectHandle ActiveEffectHandle)

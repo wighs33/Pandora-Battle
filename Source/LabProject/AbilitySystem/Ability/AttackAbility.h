@@ -15,16 +15,8 @@ class LABPROJECT_API UAttackAbility : public UPdGameplayAbility, public IComboAt
 {
 	GENERATED_BODY()
 
-public:
-	// Engine Overrides ------------------------------------------------------------------------------------------------
-	virtual bool CanActivateAbility(
-		FGameplayAbilitySpecHandle Handle,
-		const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayTagContainer* SourceTags = nullptr,
-		const FGameplayTagContainer* TargetTags = nullptr,
-		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
-
 protected:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 

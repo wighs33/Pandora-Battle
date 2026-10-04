@@ -103,12 +103,6 @@ FActiveGameplayEffectHandle USkillAbility::ApplyConfiguredStatusEffectToTarget(c
 	{
 		return FActiveGameplayEffectHandle();
 	}
-	const UStatusEffectDefinition* StatusEffectDefinition = SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
-	if (StatusEffectDefinition && !StatusEffectDefinition->CanStack(TargetAbilitySystemComponent))
-	{
-		return FActiveGameplayEffectHandle();
-	}
-
 	const FGameplayEffectSpecHandle StatusEffectSpecHandle =
 		MakeConfiguredStatusEffectSpec(SkillDataAsset, FallbackStatusEffectClass, FallbackStatusEffectLevel);
 	if (!StatusEffectSpecHandle.IsValid())
@@ -116,19 +110,13 @@ FActiveGameplayEffectHandle USkillAbility::ApplyConfiguredStatusEffectToTarget(c
 		return FActiveGameplayEffectHandle();
 	}
 
-	const FActiveGameplayEffectHandle AppliedHandle =
-		SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(*StatusEffectSpecHandle.Data.Get(), TargetAbilitySystemComponent);
-	AActor* TargetActor = TargetAbilitySystemComponent->GetAvatarActor();
-	if (AppliedHandle.WasSuccessfullyApplied() && StatusEffectDefinition && TargetActor)
-	{
-		if (UStatusEffectReplicationComponent* ReplicationComponent =
-				TargetActor->FindComponentByClass<UStatusEffectReplicationComponent>())
-		{
-			ReplicationComponent->TrackAppliedStatusEffect(StatusEffectDefinition, AppliedHandle);
-		}
-	}
-
-	return AppliedHandle;
+	// 상태 이상 정의 없이 대체 효과만 있으면 쌓기 규칙과 추적 없이 그대로 건다.
+	const UStatusEffectDefinition* StatusEffectDefinition = SkillDataAsset ? SkillDataAsset->StatusEffectDataAsset.Get() : nullptr;
+	const FGameplayEffectSpec& StatusEffectSpec = *StatusEffectSpecHandle.Data.Get();
+	return StatusEffectDefinition
+		? UStatusEffectReplicationComponent::ApplyTrackedStatusEffect(
+			*SourceAbilitySystemComponent, *TargetAbilitySystemComponent, *StatusEffectDefinition, StatusEffectSpec)
+		: SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(StatusEffectSpec, TargetAbilitySystemComponent);
 }
 
 AWeaponBase* USkillAbility::GetCurrentWeaponActorFromAvatar() const

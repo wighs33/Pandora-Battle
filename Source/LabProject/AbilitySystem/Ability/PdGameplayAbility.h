@@ -32,6 +32,14 @@ protected:
 		const FGameplayAbilityActivationInfo ActivationInfo) const override;
 
 public:
+	// bRequiresGroundedAvatar인 능력은 아바타가 공중에 있으면 시작하지 않는다.
+	virtual bool CanActivateAbility(
+		FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayTagContainer* SourceTags = nullptr,
+		const FGameplayTagContainer* TargetTags = nullptr,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+
 	// Public API ------------------------------------------------------------------------------------------------------
 	UPdGameplayAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	ACharacterBase* GetPdCharacterFromActorInfo() const;
@@ -55,6 +63,8 @@ public:
 	static bool SetCostEffectMagnitudes(FGameplayEffectSpecHandle& SpecHandle, float ManaCost, float StaminaCost);
 
 	UAbilityTask_PlayMontageAndWait* CreateDefaultMontageAndWaitTask(UAnimMontage* MontageToPlay);
+	// 공격 속도를 재생 배율로 쓰는 무기 공격 몽타주 태스크. 능력이 끝나도 몽타주는 블렌드 아웃까지 이어진다.
+	UAbilityTask_PlayMontageAndWait* CreateWeaponAttackMontageTask(UAnimMontage* AttackMontage);
 	UAbilityTask_WaitGameplayEvent* CreateWaitGameplayEventTask(
 		const FGameplayTag& EventTag, bool bOnlyTriggerOnce = false, bool bOnlyMatchExact = true);
 	AGameplayAbilityTargetActor* BeginSpawningTargetDataActor(
@@ -92,6 +102,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Activation")
 	bool bAutoActivateWhenGranted = false;
+
+	// 무기 공격처럼 공중에서 시작하지 않는 능력. 파생 능력이 생성자에서 켠다.
+	bool bRequiresGroundedAvatar = false;
 
 private:
 	// 파생 능력 정리 중 들어오는 종료 요청의 재진입을 막는다.

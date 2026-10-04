@@ -98,8 +98,6 @@ private:
 	UObject* ResolveInputIconObject() const;
 
 	static FSlateBrush MakeImageBrush(UObject* ResourceObject);
-	static FSlateBrush MakeImageBrushFromExisting(const FSlateBrush& ExistingBrush, UObject* ResourceObject, FVector2D ImageSize);
-	static float CalculateCooldownPercent(float TimeRemaining, double CooldownDuration);
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability", meta = (ExposeOnSpawn = "true", AllowPrivateAccess = "true"))

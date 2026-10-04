@@ -1,66 +1,117 @@
-#include "Skill/Actions/SkillFieldTriggerDamage.h"
+#include "Skill/Actions/SkillTriggerDamage.h"
 
 #include "Character/CharacterBase.h"
-#include "Common/CollisionChannels.h"
 #include "Components/PrimitiveComponent.h"
+#include "Definition/AbilitySystem/SkillEffectSettings.h"
 #include "Engine/World.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(SkillFieldTriggerDamage)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkillTriggerDamage)
 
-void USkillFieldTriggerDamage::Configure(
-	const FName InTriggerComponentName,
-	const bool bInRepeatWhileOverlapping,
-	const double InRepeatInterval,
-	FSkillFieldTriggerHit InOnHit)
+void USkillTriggerDamage::Configure(const FSkillTopLevelDamageConfig& DamageConfig, FSkillTriggerHit InOnHit)
 {
-	TriggerComponentName = InTriggerComponentName;
-	bRepeatWhileOverlapping = bInRepeatWhileOverlapping;
-	RepeatInterval = InRepeatInterval;
+	bRepeatWhileOverlapping = DamageConfig.bRepeatTriggerDamageWhileOverlapping;
+	RepeatInterval = DamageConfig.TriggerDamageInterval;
 	OnHit = MoveTemp(InOnHit);
 }
 
-void USkillFieldTriggerDamage::Bind(AActor* FieldActor, const bool bDamageExistingOverlaps)
+UPrimitiveComponent* USkillTriggerDamage::FindTriggerComponent(
+	AActor* Actor,
+	const FName ComponentName,
+	const bool bUseAnyPrimitiveAsFallback)
 {
-	UPrimitiveComponent* TriggerComponent = FindTriggerComponent(FieldActor);
+	if (!Actor)
+	{
+		return nullptr;
+	}
+
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	Actor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+	if (PrimitiveComponents.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	if (!ComponentName.IsNone())
+	{
+		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+		{
+			if (PrimitiveComponent && PrimitiveComponent->GetFName() == ComponentName)
+			{
+				return PrimitiveComponent;
+			}
+		}
+
+		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+		{
+			if (PrimitiveComponent && PrimitiveComponent->ComponentHasTag(ComponentName))
+			{
+				return PrimitiveComponent;
+			}
+		}
+
+		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+		{
+			if (PrimitiveComponent && PrimitiveComponent->GetName().Contains(ComponentName.ToString()))
+			{
+				return PrimitiveComponent;
+			}
+		}
+	}
+
+	if (!bUseAnyPrimitiveAsFallback)
+	{
+		return nullptr;
+	}
+
+	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (PrimitiveComponent
+			&& PrimitiveComponent->GetGenerateOverlapEvents()
+			&& PrimitiveComponent->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
+		{
+			return PrimitiveComponent;
+		}
+	}
+
+	return PrimitiveComponents[0];
+}
+
+void USkillTriggerDamage::Bind(UPrimitiveComponent* TriggerComponent, const bool bHitExistingOverlaps)
+{
 	if (!TriggerComponent)
 	{
 		return;
 	}
 
-	// Actor field trigger volumes are gameplay-only overlap queries. Keeping them
-	// as WorldDynamic lets weapon object traces hit the volume and then resolve its
-	// owning character as the damage target.
-	TriggerComponent->SetCollisionProfileName(TEXT("Custom"));
-	TriggerComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	TriggerComponent->SetCollisionObjectType(LabCollisionChannels::OverlapBox());
-	TriggerComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	TriggerComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	TriggerComponent->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
-
-	// Hide only the gameplay collision primitive. Propagating this state from a
-	// root trigger also hides attached particle/Niagara components.
-	TriggerComponent->SetHiddenInGame(true, false);
 	TriggerComponent->SetGenerateOverlapEvents(true);
 	TriggerComponent->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleBeginOverlap);
 	TriggerComponent->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandleEndOverlap);
 	TriggerComponents.AddUnique(TriggerComponent);
-	TriggerComponent->UpdateOverlaps();
-
-	TArray<AActor*> OverlappingActors;
-	TriggerComponent->GetOverlappingActors(OverlappingActors, ACharacterBase::StaticClass());
-	for (AActor* OverlappingActor : OverlappingActors)
-	{
-		Track(FieldActor, OverlappingActor);
-		if (bDamageExistingOverlaps)
-		{
-			Hit(FieldActor, OverlappingActor, false);
-		}
-	}
-
+	TrackExistingOverlaps(TriggerComponent, bHitExistingOverlaps);
 	StartRepeatTickIfNeeded();
 }
 
-void USkillFieldTriggerDamage::Reset()
+void USkillTriggerDamage::SetDamageActive(const bool bActive)
+{
+	bDamageActive = bActive;
+	if (!bActive)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().ClearTimer(RepeatTimerHandle);
+		}
+		RepeatTimerHandle.Invalidate();
+		return;
+	}
+
+	for (UPrimitiveComponent* TriggerComponent : TriggerComponents)
+	{
+		TrackExistingOverlaps(TriggerComponent, true);
+	}
+	StartRepeatTickIfNeeded();
+}
+
+void USkillTriggerDamage::Reset()
 {
 	for (UPrimitiveComponent* TriggerComponent : TriggerComponents)
 	{
@@ -78,21 +129,22 @@ void USkillFieldTriggerDamage::Reset()
 		World->GetTimerManager().ClearTimer(RepeatTimerHandle);
 	}
 	RepeatTimerHandle.Invalidate();
+	bDamageActive = true;
 	TriggerComponents.Reset();
 	DamagedActorsBySource.Reset();
 	DamageSourceActorsByKey.Reset();
 	OverlappingActorsBySource.Reset();
 }
 
-bool USkillFieldTriggerDamage::IsBound(const AActor* FieldActor) const
+bool USkillTriggerDamage::IsBound(const AActor* TriggerOwner) const
 {
-	return FieldActor && TriggerComponents.ContainsByPredicate([FieldActor](const UPrimitiveComponent* TriggerComponent)
+	return TriggerOwner && TriggerComponents.ContainsByPredicate([TriggerOwner](const UPrimitiveComponent* TriggerComponent)
 	{
-		return TriggerComponent && TriggerComponent->GetOwner() == FieldActor;
+		return TriggerComponent && TriggerComponent->GetOwner() == TriggerOwner;
 	});
 }
 
-void USkillFieldTriggerDamage::HandleBeginOverlap(
+void USkillTriggerDamage::HandleBeginOverlap(
 	UPrimitiveComponent* OverlappedComponent,
 	AActor* OtherActor,
 	UPrimitiveComponent* OtherComp,
@@ -110,7 +162,7 @@ void USkillFieldTriggerDamage::HandleBeginOverlap(
 	Hit(DamageSourceActor, OtherActor, false);
 }
 
-void USkillFieldTriggerDamage::HandleEndOverlap(
+void USkillTriggerDamage::HandleEndOverlap(
 	UPrimitiveComponent* OverlappedComponent,
 	AActor* OtherActor,
 	UPrimitiveComponent* OtherComp,
@@ -123,9 +175,9 @@ void USkillFieldTriggerDamage::HandleEndOverlap(
 }
 
 // 겹쳐 있는 대상을 소스별로 다시 맞힌다. 사라진 소스와 대상은 이때 정리한다.
-void USkillFieldTriggerDamage::HandleRepeatTick()
+void USkillTriggerDamage::HandleRepeatTick()
 {
-	if (!bRepeatWhileOverlapping)
+	if (!bRepeatWhileOverlapping || !bDamageActive)
 	{
 		return;
 	}
@@ -197,70 +249,37 @@ void USkillFieldTriggerDamage::HandleRepeatTick()
 	}
 }
 
-// 이름이 같은 컴포넌트, 같은 태그, 이름을 포함하는 컴포넌트 순으로 찾고, 없으면 겹침을 받는 첫 충돌체를 쓴다.
-UPrimitiveComponent* USkillFieldTriggerDamage::FindTriggerComponent(AActor* FieldActor) const
+void USkillTriggerDamage::TrackExistingOverlaps(UPrimitiveComponent* TriggerComponent, const bool bHitExistingOverlaps)
 {
-	if (!FieldActor)
-	{
-		return nullptr;
-	}
-
-	TArray<UPrimitiveComponent*> PrimitiveComponents;
-	FieldActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-	if (PrimitiveComponents.IsEmpty())
-	{
-		return nullptr;
-	}
-
-	if (!TriggerComponentName.IsNone())
-	{
-		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-		{
-			if (PrimitiveComponent && PrimitiveComponent->GetFName() == TriggerComponentName)
-			{
-				return PrimitiveComponent;
-			}
-		}
-
-		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-		{
-			if (PrimitiveComponent && PrimitiveComponent->ComponentHasTag(TriggerComponentName))
-			{
-				return PrimitiveComponent;
-			}
-		}
-
-		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-		{
-			if (PrimitiveComponent && PrimitiveComponent->GetName().Contains(TriggerComponentName.ToString()))
-			{
-				return PrimitiveComponent;
-			}
-		}
-	}
-
-	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		if (PrimitiveComponent
-			&& PrimitiveComponent->GetGenerateOverlapEvents()
-			&& PrimitiveComponent->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
-		{
-			return PrimitiveComponent;
-		}
-	}
-
-	return PrimitiveComponents[0];
-}
-
-void USkillFieldTriggerDamage::StartRepeatTickIfNeeded()
-{
-	UWorld* World = GetWorld();
-	if (!bRepeatWhileOverlapping || RepeatTimerHandle.IsValid() || !World)
+	AActor* DamageSourceActor = TriggerComponent ? TriggerComponent->GetOwner() : nullptr;
+	if (!DamageSourceActor)
 	{
 		return;
 	}
 
-	// 소환 액터와 동일하게, 0 이하의 설정도 타이머 생성 시 최소 0.05초로 보정한다.
+	TriggerComponent->UpdateOverlaps();
+
+	TArray<AActor*> OverlappingActors;
+	TriggerComponent->GetOverlappingActors(OverlappingActors, ACharacterBase::StaticClass());
+	for (AActor* OverlappingActor : OverlappingActors)
+	{
+		Track(DamageSourceActor, OverlappingActor);
+		if (bHitExistingOverlaps)
+		{
+			Hit(DamageSourceActor, OverlappingActor, false);
+		}
+	}
+}
+
+void USkillTriggerDamage::StartRepeatTickIfNeeded()
+{
+	UWorld* World = GetWorld();
+	if (!bRepeatWhileOverlapping || !bDamageActive || RepeatTimerHandle.IsValid() || !World)
+	{
+		return;
+	}
+
+	// 0 이하의 설정도 타이머 생성 시 최소 0.05초로 보정한다.
 	const float DamageInterval = static_cast<float>(FMath::Max(RepeatInterval, 0.05));
 	World->GetTimerManager().SetTimer(
 		RepeatTimerHandle,
@@ -270,7 +289,7 @@ void USkillFieldTriggerDamage::StartRepeatTickIfNeeded()
 		true);
 }
 
-void USkillFieldTriggerDamage::Track(AActor* DamageSourceActor, AActor* OtherActor)
+void USkillTriggerDamage::Track(AActor* DamageSourceActor, AActor* OtherActor)
 {
 	if (!IsValid(DamageSourceActor) || !IsValid(OtherActor) || !OtherActor->IsA<ACharacterBase>())
 	{
@@ -292,7 +311,7 @@ void USkillFieldTriggerDamage::Track(AActor* DamageSourceActor, AActor* OtherAct
 	OverlappingActors.Add(OtherActor);
 }
 
-void USkillFieldTriggerDamage::Untrack(AActor* DamageSourceActor, AActor* OtherActor)
+void USkillTriggerDamage::Untrack(AActor* DamageSourceActor, AActor* OtherActor)
 {
 	if (!DamageSourceActor || !OtherActor)
 	{
@@ -320,9 +339,9 @@ void USkillFieldTriggerDamage::Untrack(AActor* DamageSourceActor, AActor* OtherA
 }
 
 // 반복 피해가 아니면 같은 소스가 같은 대상을 한 번만 맞힌다.
-void USkillFieldTriggerDamage::Hit(AActor* DamageSourceActor, AActor* HitActor, const bool bAllowRepeatedDamage)
+void USkillTriggerDamage::Hit(AActor* DamageSourceActor, AActor* HitActor, const bool bAllowRepeatedDamage)
 {
-	if (!IsValid(DamageSourceActor) || !IsValid(HitActor) || !OnHit.IsBound())
+	if (!bDamageActive || !IsValid(DamageSourceActor) || !IsValid(HitActor) || !OnHit.IsBound())
 	{
 		return;
 	}

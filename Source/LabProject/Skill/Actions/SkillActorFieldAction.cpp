@@ -5,22 +5,22 @@
 #include "Skill/Actors/SkillEffectArea.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
-#include "Definition/Settings/GameSettingDefinition.h"
 #include "Skill/Actors/SkillPowerUpActor.h"
 #include "Skill/Actors/SkillBlackHoleActor.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
+#include "Common/CollisionChannels.h"
 #include "Common/LabGameplayTags.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffectTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Pandora/PandoraSkillSource.h"
-#include "Settings/GameSettingsSubsystem.h"
 #include "Skill/Actions/SkillFieldPlacement.h"
-#include "Skill/Actions/SkillFieldTriggerDamage.h"
+#include "Skill/Actions/SkillTriggerDamage.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillActorFieldAction)
 
@@ -31,14 +31,21 @@ bool HasConfiguredFieldTriggerDamage(const USkillDefinition* SkillDataAsset)
 		return SkillDataAsset && SkillDataAsset->GetResolvedDamageConfig().GameplayEffectClass != nullptr;
 	}
 
-	bool ShouldRepeatFieldTriggerDamage(const USkillDefinition* SkillDataAsset)
+	// Actor field trigger volumes are gameplay-only overlap queries. Keeping them
+	// as WorldDynamic lets weapon object traces hit the volume and then resolve its
+	// owning character as the damage target.
+	void ConfigureFieldTriggerCollision(UPrimitiveComponent& TriggerComponent)
 	{
-		return SkillDataAsset && SkillDataAsset->Damage.bRepeatTriggerDamageWhileOverlapping;
-	}
+		TriggerComponent.SetCollisionProfileName(TEXT("Custom"));
+		TriggerComponent.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		TriggerComponent.SetCollisionObjectType(LabCollisionChannels::OverlapBox());
+		TriggerComponent.SetCollisionResponseToAllChannels(ECR_Ignore);
+		TriggerComponent.SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+		TriggerComponent.SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
 
-	double GetFieldTriggerDamageInterval(const USkillDefinition* SkillDataAsset)
-	{
-		return SkillDataAsset ? SkillDataAsset->Damage.TriggerDamageInterval : 0.0;
+		// Hide only the gameplay collision primitive. Propagating this state from a
+		// root trigger also hides attached particle/Niagara components.
+		TriggerComponent.SetHiddenInGame(true, false);
 	}
 
 	bool IsFieldSourceActorTarget(AActor* SourceActor, AActor* DamageSourceActor, AActor* HitActor)
@@ -93,7 +100,7 @@ void USkillActorFieldAction::OnStart()
 	MovementSpeedEffectHandle.Invalidate();
 	if (!FieldTriggerDamage)
 	{
-		FieldTriggerDamage = NewObject<USkillFieldTriggerDamage>(this);
+		FieldTriggerDamage = NewObject<USkillTriggerDamage>(this);
 	}
 	FieldTriggerDamage->Reset();
 
@@ -118,10 +125,8 @@ void USkillActorFieldAction::OnStart()
 	}
 
 	FieldTriggerDamage->Configure(
-		Settings.TriggerComponentName,
-		ShouldRepeatFieldTriggerDamage(SkillDataAsset),
-		GetFieldTriggerDamageInterval(SkillDataAsset),
-		FSkillFieldTriggerHit::CreateUObject(this, &ThisClass::ApplyFieldTriggerDamage));
+		SkillDataAsset->Damage,
+		FSkillTriggerHit::CreateUObject(this, &ThisClass::ApplyFieldTriggerDamage));
 
 	StartFieldDurationMovementLockIfAllowed();
 	StartWaitFieldMontageTriggerTask();
@@ -142,7 +147,7 @@ void USkillActorFieldAction::OnStart()
 void USkillActorFieldAction::OnStop()
 {
 	CleanupFieldTasks();
-	RemoveFieldMovementSpeedIncrease();
+	GetAbility()->RemoveActiveMovementSpeedBonus(MovementSpeedEffectHandle);
 
 	TSet<AActor*> ActorsWithBoundDamageTriggers;
 	for (AActor* SpawnedActor : SpawnedFieldActors)
@@ -276,7 +281,7 @@ void USkillActorFieldAction::TryCommitAndStartField()
 		return;
 	}
 
-	ApplyFieldMovementSpeedIncrease();
+	GetAbility()->ApplyActiveMovementSpeedBonus(MovementSpeedEffectHandle);
 	GetAbility()->StartConfiguredDefaultFX();
 	GetAbility()->SpawnConfiguredCharacterDecal();
 	StartFieldDurationMovementLockIfAllowed();
@@ -285,79 +290,6 @@ void USkillActorFieldAction::TryCommitAndStartField()
 	{
 		StartFieldRepeatTimer();
 	}
-}
-
-void USkillActorFieldAction::ApplyFieldMovementSpeedIncrease()
-{
-	if (MovementSpeedEffectHandle.IsValid())
-	{
-		return;
-	}
-
-	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-	ACharacterBase* Character = GetAbility()->GetPdCharacterFromActorInfo();
-	UPdAbilitySystemComponent* AbilitySystemComponent = GetAbility()->GetPdAbilitySystemComponentFromActorInfo();
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
-	const TSubclassOf<UGameplayEffect> MovementSpeedEffectClass =
-		SettingDefinition
-			? SettingDefinition->MovementSpeedGameplayEffectClass
-			: nullptr;
-	if (!SkillDataAsset
-		|| !SkillDataAsset->Movement.bOverrideMovementSpeedWhileActive
-		|| !Character
-		|| !Character->HasAuthority()
-		|| !AbilitySystemComponent
-		|| !MovementSpeedEffectClass)
-	{
-		return;
-	}
-
-	const double ConfiguredMovementSpeedIncrease = SkillDataAsset->Movement.MovementSpeedBonusPercent;
-	if (ConfiguredMovementSpeedIncrease <= 0.0)
-	{
-		return;
-	}
-
-	FGameplayEffectSpecHandle MovementSpeedSpec =
-		GetAbility()->MakeOutgoingGameplayEffectSpec(
-			GetAbility()->GetCurrentAbilitySpecHandle(),
-			GetAbility()->GetCurrentActorInfo(),
-			GetAbility()->GetCurrentActivationInfo(),
-			MovementSpeedEffectClass,
-			GetAbility()->GetAbilityLevel());
-	if (!MovementSpeedSpec.IsValid() || !MovementSpeedSpec.Data.IsValid())
-	{
-		return;
-	}
-
-	MovementSpeedSpec.Data->SetSetByCallerMagnitude(
-		LabGameplayTags::Data_MovementSpeed,
-		static_cast<float>(ConfiguredMovementSpeedIncrease));
-	MovementSpeedEffectHandle = GetAbility()->ApplyGameplayEffectSpecToOwner(
-		GetAbility()->GetCurrentAbilitySpecHandle(),
-		GetAbility()->GetCurrentActorInfo(),
-		GetAbility()->GetCurrentActivationInfo(),
-		MovementSpeedSpec);
-}
-
-void USkillActorFieldAction::RemoveFieldMovementSpeedIncrease()
-{
-	if (!MovementSpeedEffectHandle.IsValid())
-	{
-		return;
-	}
-
-	ACharacterBase* Character = GetAbility()->GetPdCharacterFromActorInfo();
-	UPdAbilitySystemComponent* AbilitySystemComponent = GetAbility()->GetPdAbilitySystemComponentFromActorInfo();
-	if (Character && Character->HasAuthority() && AbilitySystemComponent)
-	{
-		AbilitySystemComponent->RemoveActiveGameplayEffect(
-			MovementSpeedEffectHandle,
-			1);
-	}
-
-	MovementSpeedEffectHandle.Invalidate();
 }
 
 void USkillActorFieldAction::StartFieldDurationMovementLockIfAllowed()
@@ -631,14 +563,16 @@ void USkillActorFieldAction::BindFieldTriggerDamage(AActor* SpawnedActor)
 		return;
 	}
 
-	FieldTriggerDamage->Bind(SpawnedActor, Settings.bDamageExistingOverlapsOnSpawn);
+	UPrimitiveComponent* TriggerComponent =
+		USkillTriggerDamage::FindTriggerComponent(SpawnedActor, Settings.TriggerComponentName, true);
+	if (!TriggerComponent)
+	{
+		return;
+	}
+
+	ConfigureFieldTriggerCollision(*TriggerComponent);
+	FieldTriggerDamage->Bind(TriggerComponent, Settings.bDamageExistingOverlapsOnSpawn);
 }
-
-
-
-
-
-
 
 // 트리거 추적기가 피해 차례라고 알리면 대상과 피해를 확인해 적용한다. 피해를 시도했으면 true.
 bool USkillActorFieldAction::ApplyFieldTriggerDamage(AActor* DamageSourceActor, AActor* HitActor)

@@ -22,6 +22,13 @@ namespace
 UBTTask_RangedMoveAndAttack::UBTTask_RangedMoveAndAttack()
 {
 	NodeName = TEXT("Pd Ranged Move And Attack");
+	// 원거리 봇은 근접보다 멀리서 넓게 비켜서며 돈다.
+	MinDistanceFromTarget = 600.0f;
+	MaxDistanceFromTarget = 900.0f;
+	SideStepDistance = 500.0f;
+	MinSideStepMultiplier = -2;
+	AcceptanceRadius = 120.0f;
+	FinishDistanceTolerance = 40.0f;
 	bNotifyTick = true;
 	bNotifyTaskFinished = true;
 
@@ -250,28 +257,6 @@ bool UBTTask_RangedMoveAndAttack::TryAttack(AAIController* AIController, APawn* 
 	return true;
 }
 
-bool UBTTask_RangedMoveAndAttack::BuildMoveDestination(APawn* Pawn, AActor* TargetActor, FVector& OutDestination) const
-{
-	if (!Pawn || !TargetActor)
-	{
-		return false;
-	}
-
-	OutDestination = TrainingBotMovement::BuildSideStepDestination(
-		*Pawn,
-		*TargetActor,
-		MinDistanceFromTarget,
-		MaxDistanceFromTarget,
-		MinSideStepMultiplier,
-		MaxSideStepMultiplier,
-		SideStepDistance);
-	if (bProjectDestinationToNavigation)
-	{
-		OutDestination = TrainingBotMovement::ProjectToNavigation(Pawn->GetWorld(), OutDestination, NavigationProjectionExtent);
-	}
-	return true;
-}
-
 bool UBTTask_RangedMoveAndAttack::BuildRetreatDestination(APawn* Pawn, AActor* TargetActor, FVector& OutDestination) const
 {
 	if (!Pawn || !TargetActor)
@@ -288,10 +273,3 @@ bool UBTTask_RangedMoveAndAttack::BuildRetreatDestination(APawn* Pawn, AActor* T
 	return true;
 }
 
-void UBTTask_RangedMoveAndAttack::UpdateFacing(AAIController* AIController, APawn* Pawn, AActor* TargetActor, float DeltaSeconds) const
-{
-	if (bFaceTargetWhileMoving && AIController && Pawn && TargetActor)
-	{
-		TrainingBotMovement::FaceTarget(*AIController, *Pawn, *TargetActor, DeltaSeconds, FaceTargetRotationInterpSpeed);
-	}
-}

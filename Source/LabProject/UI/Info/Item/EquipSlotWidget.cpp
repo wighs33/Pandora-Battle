@@ -4,11 +4,9 @@
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "GameFramework/PlayerController.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Localization/MenuLocalizationSubsystem.h"
-#include "UI/HUD/PdHUD.h"
 #include "UI/Info/InfoWidget.h"
 #include "UI/Info/Item/ItemSlotDragDropOperation.h"
 
@@ -16,15 +14,6 @@
 
 namespace
 {
-FSlateBrush MakeSolidBrush(const FSlateBrush& SourceBrush, const FLinearColor& TintColor)
-{
-	FSlateBrush Brush = SourceBrush;
-	Brush.SetResourceObject(nullptr);
-	Brush.DrawAs = ESlateBrushDrawType::Box;
-	Brush.TintColor = FSlateColor(TintColor);
-	return Brush;
-}
-
 FLinearColor ApplyBackgroundOpacity(const FLinearColor& Color, const float Opacity)
 {
 	FLinearColor Result = Color;
@@ -48,182 +37,11 @@ FButtonStyle ApplyButtonStyleBackgroundOpacity(const FButtonStyle& SourceStyle, 
 	ApplyBrushOpacity(ButtonStyle.Disabled, Opacity);
 	return ButtonStyle;
 }
-
-FSlateBrush MakeSlotIconBrush(const FSlateBrush& SourceBrush, UTexture2D* IconTexture, const FLinearColor& TintColor)
-{
-	FSlateBrush Brush = SourceBrush;
-	Brush.SetResourceObject(IconTexture);
-	Brush.DrawAs = ESlateBrushDrawType::Image;
-	Brush.TintColor = FSlateColor(TintColor);
-
-	if (IconTexture)
-	{
-		Brush.ImageSize = FVector2D(IconTexture->GetSurfaceWidth(), IconTexture->GetSurfaceHeight());
-	}
-
-	return Brush;
-}
-
-const TCHAR* VisibilityToString(const ESlateVisibility Visibility)
-{
-	switch (Visibility)
-	{
-	case ESlateVisibility::Visible:
-		return TEXT("Visible");
-	case ESlateVisibility::Collapsed:
-		return TEXT("Collapsed");
-	case ESlateVisibility::Hidden:
-		return TEXT("Hidden");
-	case ESlateVisibility::HitTestInvisible:
-		return TEXT("HitTestInvisible");
-	case ESlateVisibility::SelfHitTestInvisible:
-		return TEXT("SelfHitTestInvisible");
-	default:
-		return TEXT("Unknown");
-	}
-}
-
-UInfoWidget* ResolveInfoWidgetFromEquipSlot(const UUserWidget* Widget)
-{
-	const APlayerController* PlayerController = Widget ? Widget->GetOwningPlayer() : nullptr;
-	const APdHUD* Hud = PlayerController ? PlayerController->GetHUD<APdHUD>() : nullptr;
-	return Hud ? Hud->GetInfoWidget() : nullptr;
-}
-}
-
-void UEquipSlotWidget::NativeConstruct()
-{
-	Super::NativeConstruct();
-
-	if (ItemButton)
-	{
-		CacheDefaultButtonStyle();
-		ItemButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleButtonClicked);
-		ItemButton->OnHovered.AddUniqueDynamic(this, &ThisClass::HandleButtonHovered);
-		ItemButton->OnUnhovered.AddUniqueDynamic(this, &ThisClass::HandleButtonUnhovered);
-	}
-}
-
-void UEquipSlotWidget::NativePreConstruct()
-{
-	Super::NativePreConstruct();
-
-	ApplySlotVisual();
-}
-
-void UEquipSlotWidget::NativeDestruct()
-{
-	if (ItemButton)
-	{
-		ItemButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleButtonClicked);
-		ItemButton->OnHovered.RemoveDynamic(this, &ThisClass::HandleButtonHovered);
-		ItemButton->OnUnhovered.RemoveDynamic(this, &ThisClass::HandleButtonUnhovered);
-	}
-
-	Super::NativeDestruct();
-}
-
-void UEquipSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
-{
-	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
-
-	if (UInfoWidget* InfoWidget = ResolveInfoWidgetFromEquipSlot(this))
-	{
-		if (ItemInstance)
-		{
-			InfoWidget->ShowItemDetailAtWidget(ItemInstance, this, false);
-		}
-		else
-		{
-			InfoWidget->HideDetailWidgets();
-		}
-	}
-}
-
-void UEquipSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
-{
-	if (UInfoWidget* InfoWidget = ResolveInfoWidgetFromEquipSlot(this))
-	{
-		InfoWidget->HideDetailWidgets();
-	}
-
-	Super::NativeOnMouseLeave(InMouseEvent);
 }
 
 void UEquipSlotWidget::BroadcastClickedEquipSlot(UEquipSlotWidget* ItemSlot)
 {
 	OnClicked_EquipSlot.Broadcast(ItemSlot ? ItemSlot : this);
-}
-
-bool UEquipSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
-{
-	bIsAcceptedDragHovered = false;
-
-	if (UItemSlotDragDropOperation* ItemDragOperation = Cast<UItemSlotDragDropOperation>(InOperation))
-	{
-		UItemInstance* DroppedItem = ItemDragOperation->GetItemInstance();
-		if (CanAcceptDroppedItem(DroppedItem))
-		{
-			OnDroppedItem_EquipSlot.Broadcast(this, DroppedItem);
-			ApplySlotVisual();
-			return true;
-		}
-}
-
-	ApplySlotVisual();
-	return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
-}
-
-void UEquipSlotWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
-{
-	Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
-
-	bIsAcceptedDragHovered = false;
-	if (UItemSlotDragDropOperation* ItemDragOperation = Cast<UItemSlotDragDropOperation>(InOperation))
-	{
-		bIsAcceptedDragHovered = CanAcceptDroppedItem(ItemDragOperation->GetItemInstance());
-	}
-
-	ApplySlotVisual();
-}
-
-void UEquipSlotWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
-{
-	Super::NativeOnDragLeave(InDragDropEvent, InOperation);
-
-	bIsAcceptedDragHovered = false;
-	ApplySlotVisual();
-}
-
-void UEquipSlotWidget::SetText(const FText& InText)
-{
-	SlotText = InText;
-	ApplySlotVisual();
-}
-
-void UEquipSlotWidget::SetIcon(UTexture2D* InIconTexture)
-{
-	SlotIconTexture = InIconTexture;
-
-	if (!ItemInstance)
-	{
-		CurrentIconTexture = SlotIconTexture;
-		CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
-	}
-
-	ApplySlotVisual();
-}
-
-void UEquipSlotWidget::SetHoverIcon(UTexture2D* InIconTexture)
-{
-	SlotHoverIconTexture = InIconTexture;
-
-	if (!ItemInstance)
-	{
-		CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
-	}
-
-	ApplySlotVisual();
 }
 
 void UEquipSlotWidget::SetPandoraWeaponRequirementIcon(
@@ -240,22 +58,17 @@ void UEquipSlotWidget::SetData(UItemInstance* Target)
 	ItemInstance = Target;
 	const UItemDefinition* ItemDefinition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr;
 
+	ResetSlotIcons();
 	if (!ItemInstance || !ItemDefinition)
 	{
-		bUseSelectedEmptyIcon = false;
 		SlotText = FText::GetEmpty();
-		CurrentIconTexture = SlotIconTexture;
-		CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
 		CurrentItemIconTexture = nullptr;
 
 		ApplySlotVisual();
 		return;
 	}
 
-	bUseSelectedEmptyIcon = false;
 	SlotText = GetLocalization() ? GetLocalization()->GetProductText(ItemDefinition, TEXT("Name"), ItemDefinition->DisplayName) : ItemDefinition->DisplayName;
-	CurrentIconTexture = SlotIconTexture;
-	CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
 	CurrentItemIconTexture = ItemDefinition->IconTexture.Get();
 	ApplySlotVisual();
 }
@@ -270,79 +83,54 @@ void UEquipSlotWidget::OnMenuLanguageChanged()
 	}
 }
 
-void UEquipSlotWidget::SetResolvedEquipTypeTag(const FGameplayTag InResolvedEquipTypeTag)
+bool UEquipSlotWidget::ShowSlotDetail(UInfoWidget& InfoWidget)
 {
-	ResolvedEquipTypeTag = InResolvedEquipTypeTag;
-}
-
-FGameplayTag UEquipSlotWidget::GetAcceptedEquipTypeTag() const
-{
-	return EquipTypeTag.IsValid() ? EquipTypeTag : ResolvedEquipTypeTag;
-}
-
-void UEquipSlotWidget::SetSelected(const bool bInSelected)
-{
-	if (bIsSelected == bInSelected)
+	if (!ItemInstance)
 	{
-		return;
+		return false;
 	}
 
-	bIsSelected = bInSelected;
-	ApplySlotVisual();
+	InfoWidget.ShowItemDetailAtWidget(ItemInstance, this, false);
+	return true;
 }
 
-void UEquipSlotWidget::HandleButtonClicked()
+bool UEquipSlotWidget::CanAcceptDragOperation(UDragDropOperation* Operation) const
+{
+	const UItemSlotDragDropOperation* ItemDragOperation = Cast<UItemSlotDragDropOperation>(Operation);
+	return ItemDragOperation && CanAcceptDroppedItem(ItemDragOperation->GetItemInstance());
+}
+
+void UEquipSlotWidget::BroadcastAcceptedDrop(UDragDropOperation* Operation)
+{
+	OnDroppedItem_EquipSlot.Broadcast(this, CastChecked<UItemSlotDragDropOperation>(Operation)->GetItemInstance());
+}
+
+void UEquipSlotWidget::BroadcastSlotClicked()
 {
 	BroadcastClickedEquipSlot(this);
-}
-
-void UEquipSlotWidget::HandleButtonHovered()
-{
-	bIsButtonHovered = true;
-	ApplySlotVisual();
-}
-
-void UEquipSlotWidget::HandleButtonUnhovered()
-{
-	bIsButtonHovered = false;
-	ApplySlotVisual();
 }
 
 void UEquipSlotWidget::ApplySlotVisual()
 {
 	ApplyButtonBackgroundStyle();
 
-	UTexture2D* NormalIconTexture = GetCurrentIconTexture(false);
-	UTexture2D* HoverIconTexture = GetCurrentIconTexture(true);
-	UTexture2D* DisplayIconTexture = (bIsButtonHovered || bUseSelectedEmptyIcon || bIsAcceptedDragHovered) ? HoverIconTexture : NormalIconTexture;
+	UTexture2D* DisplayIconTexture = GetDisplayIconTexture();
 	const bool bHasSlotIcon = DisplayIconTexture != nullptr;
 	const bool bHasItemIcon = CurrentItemIconTexture != nullptr;
-	const bool bShowingPandoraWeaponRequirement =
-		PandoraWeaponRequirementIconTexture
-		&& DisplayIconTexture == PandoraWeaponRequirementIconTexture;
+	const float SlotIconOpacity =
+		PandoraWeaponRequirementIconTexture && DisplayIconTexture == PandoraWeaponRequirementIconTexture
+			? PandoraWeaponRequirementIconOpacity
+			: 1.0f;
 
 	if (IconImage)
 	{
 		IconImage->SetBrushFromTexture(DisplayIconTexture, false);
-		IconImage->SetRenderOpacity(
-			bShowingPandoraWeaponRequirement
-				? PandoraWeaponRequirementIconOpacity
-				: 1.0f);
+		IconImage->SetRenderOpacity(SlotIconOpacity);
 		IconImage->SetVisibility(bHasSlotIcon && !bHasItemIcon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	else if (bHasSlotIcon && ItemButton && !ItemInstance)
 	{
-		UTexture2D* RestIconTexture = (bUseSelectedEmptyIcon || bIsAcceptedDragHovered) ? HoverIconTexture : NormalIconTexture;
-		const float SlotIconOpacity =
-			bShowingPandoraWeaponRequirement
-				? PandoraWeaponRequirementIconOpacity
-				: 1.0f;
-		FButtonStyle ButtonStyle = bHasDefaultButtonStyle ? DefaultButtonStyle : ItemButton->GetStyle();
-		ButtonStyle.SetNormal(MakeSlotIconBrush(ButtonStyle.Normal, RestIconTexture, FLinearColor(0.9f, 0.9f, 0.9f, SlotIconOpacity)));
-		ButtonStyle.SetHovered(MakeSlotIconBrush(ButtonStyle.Hovered, HoverIconTexture, FLinearColor(1.0f, 1.0f, 1.0f, SlotIconOpacity)));
-		ButtonStyle.SetPressed(MakeSlotIconBrush(ButtonStyle.Pressed, HoverIconTexture, FLinearColor(0.75f, 0.75f, 0.75f, SlotIconOpacity)));
-		ButtonStyle.SetDisabled(MakeSlotIconBrush(ButtonStyle.Disabled, RestIconTexture, FLinearColor(0.35f, 0.35f, 0.35f, SlotIconOpacity)));
-		ItemButton->SetStyle(ButtonStyle);
+		ItemButton->SetStyle(MakeSlotIconButtonStyle(bHasDefaultButtonStyle ? DefaultButtonStyle : ItemButton->GetStyle(), SlotIconOpacity));
 	}
 
 	if (ItemImage)
@@ -351,11 +139,7 @@ void UEquipSlotWidget::ApplySlotVisual()
 		ItemImage->SetVisibility(bHasItemIcon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 
-	if (ApplyText)
-	{
-		ApplyText->SetText(SlotText);
-		ApplyText->SetVisibility((bHasSlotIcon || bHasItemIcon) ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
-	}
+	ApplySlotText(bHasSlotIcon || bHasItemIcon);
 
 	if (QuantityTextBlock)
 	{
@@ -365,11 +149,7 @@ void UEquipSlotWidget::ApplySlotVisual()
 		QuantityTextBlock->SetVisibility(bShowQuantity ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 
-	if (SelectionBorderImage)
-	{
-		SelectionBorderImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		SelectionBorderImage->SetColorAndOpacity(bIsSelected ? SelectionBorderSelectedColor : SelectionBorderDefaultColor);
-	}
+	ApplySelectionBorder();
 }
 
 void UEquipSlotWidget::ApplyButtonBackgroundStyle()
@@ -401,7 +181,7 @@ void UEquipSlotWidget::ApplyButtonBackgroundStyle()
 	ItemButton->SetStyle(ButtonStyle);
 }
 
-bool UEquipSlotWidget::CanAcceptDroppedItem(UItemInstance* DroppedItem) const
+bool UEquipSlotWidget::CanAcceptDroppedItem(const UItemInstance* DroppedItem) const
 {
 	const UItemDefinition* ItemDefinition = DroppedItem ? DroppedItem->ItemDefinition.Get() : nullptr;
 	const FGameplayTag AcceptedTag = GetAcceptedEquipTypeTag();
@@ -423,29 +203,5 @@ UTexture2D* UEquipSlotWidget::GetCurrentIconTexture(const bool bForHover) const
 		return PandoraWeaponRequirementIconTexture.Get();
 	}
 
-	if (bForHover)
-	{
-		if (CurrentHoverIconTexture)
-		{
-			return CurrentHoverIconTexture.Get();
-		}
-
-		if (!ItemInstance && SlotHoverIconTexture)
-		{
-			return SlotHoverIconTexture.Get();
-		}
-	}
-
-	return CurrentIconTexture ? CurrentIconTexture.Get() : SlotIconTexture.Get();
-}
-
-void UEquipSlotWidget::CacheDefaultButtonStyle()
-{
-	if (!ItemButton || bHasDefaultButtonStyle)
-	{
-		return;
-	}
-
-	DefaultButtonStyle = ItemButton->GetStyle();
-	bHasDefaultButtonStyle = true;
+	return Super::GetCurrentIconTexture(bForHover);
 }

@@ -8,7 +8,6 @@
 #include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -30,39 +29,6 @@ namespace
 		{
 			OutActors.AddUnique(AttachedActor);
 		}
-	}
-
-	bool TryApplyDebuffToTarget(
-		const AActor& Projectile,
-		AActor* TargetActor,
-		UAbilitySystemComponent* SourceASC,
-		UAbilitySystemComponent* TargetASC,
-		const FSkillProjectileDamage& Damage)
-	{
-		if (!Projectile.HasAuthority()
-			|| !Damage.DebuffSpec.IsValid()
-			|| !Damage.DebuffSpec.Data.IsValid()
-			|| !IsValid(TargetActor)
-			|| !SourceASC
-			|| !TargetASC
-			|| !Damage.StatusEffect
-			|| !Damage.StatusEffect->CanStack(TargetASC))
-		{
-			return false;
-		}
-
-		const FActiveGameplayEffectHandle AppliedHandle =
-			SourceASC->ApplyGameplayEffectSpecToTarget(*Damage.DebuffSpec.Data.Get(), TargetASC);
-		if (AppliedHandle.WasSuccessfullyApplied())
-		{
-			if (UStatusEffectReplicationComponent* ReplicationComponent =
-				TargetActor->FindComponentByClass<UStatusEffectReplicationComponent>())
-			{
-				ReplicationComponent->TrackAppliedStatusEffect(Damage.StatusEffect, AppliedHandle);
-			}
-		}
-
-		return AppliedHandle.WasSuccessfullyApplied();
 	}
 }
 
@@ -256,9 +222,10 @@ bool PdSkillProjectileHit::ApplyDamageToTarget(
 
 	const FActiveGameplayEffectHandle AppliedHandle =
 		SourceASC->ApplyGameplayEffectSpecToTarget(*Damage.DamageSpec.Data.Get(), TargetASC);
-	if (AppliedHandle.WasSuccessfullyApplied())
+	if (AppliedHandle.WasSuccessfullyApplied() && Damage.StatusEffect && Damage.DebuffSpec.Data.IsValid())
 	{
-		TryApplyDebuffToTarget(Projectile, TargetActor, SourceASC, TargetASC, Damage);
+		UStatusEffectReplicationComponent::ApplyTrackedStatusEffect(
+			*SourceASC, *TargetASC, *Damage.StatusEffect, *Damage.DebuffSpec.Data.Get());
 	}
 
 	return AppliedHandle.WasSuccessfullyApplied();

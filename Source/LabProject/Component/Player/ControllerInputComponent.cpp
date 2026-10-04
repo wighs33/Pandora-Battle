@@ -33,6 +33,8 @@
 #include "Interface/HudInputInterface.h"
 #include "Engine/LocalPlayer.h"
 
+#include <type_traits>
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerInputComponent)
 
 UControllerInputComponent::UControllerInputComponent(const FObjectInitializer& ObjectInitializer)
@@ -307,96 +309,90 @@ bool UControllerInputComponent::CanSwapPandoraAndWeapon(APdPlayer* PlayerCharact
 void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& EnhancedInputComponent,
 	const UControllerInputDefinition& Definition)
 {
-	using FInputActionHandler = void (UControllerInputComponent::*)(const FInputActionValue&);
+	// 창을 여닫는 입력은 일시 정지 중에도 받아야 하므로 액션 자체에 표시한다.
+	const auto Action = [this](const TSoftObjectPtr<UInputAction>& InputAction)
+	{
+		return LoadInputAction(InputAction);
+	};
+	const auto ActionWhilePaused = [this](const TSoftObjectPtr<UInputAction>& InputAction)
+	{
+		UInputAction* LoadedInputAction = LoadInputAction(InputAction);
+		if (LoadedInputAction)
+		{
+			LoadedInputAction->bTriggerWhenPaused = true;
+		}
+		return LoadedInputAction;
+	};
 
-	const auto BindAction = [this, &EnhancedInputComponent](
+	// 슬롯 번호·능력 태그·정보 탭처럼 같은 처리기를 여러 입력이 나눠 쓰면 그 값을 바인딩에 함께 싣는다.
+	const auto Bind = [this, &EnhancedInputComponent]<typename... TPayload>(
 		UInputAction* InputAction,
 		const ETriggerEvent TriggerEvent,
-		const FInputActionHandler Handler,
-		const bool bTriggerWhenPaused)
+		void (UControllerInputComponent::*Handler)(const FInputActionValue&, TPayload...),
+		const std::type_identity_t<TPayload>... Payload)
 	{
-		if (!InputAction || !Handler)
+		if (InputAction)
 		{
-			return;
+			AddInputBindingHandle(
+				EnhancedInputComponent.BindAction(InputAction, TriggerEvent, this, Handler, Payload...).GetHandle());
 		}
-
-		if (bTriggerWhenPaused)
-		{
-			InputAction->bTriggerWhenPaused = true;
-		}
-
-		FEnhancedInputActionEventBinding& Binding =
-			EnhancedInputComponent.BindAction(InputAction, TriggerEvent, this, Handler);
-		AddInputBindingHandle(Binding.GetHandle());
 	};
 
-	const auto BindLoadedAction = [this, &BindAction](
-		const TSoftObjectPtr<UInputAction>& InputAction,
-		const ETriggerEvent TriggerEvent,
-		const FInputActionHandler Handler,
-		const bool bTriggerWhenPaused)
-	{
-		BindAction(LoadInputAction(InputAction), TriggerEvent, Handler, bTriggerWhenPaused);
-	};
-
-	const auto BindStartedCompletedCanceledAction = [&BindAction](
+	// 누르는 동안 유지되는 입력은 떼거나 취소될 때 같은 끝 처리를 받는다.
+	const auto BindPressAndRelease = [&Bind]<typename... TPayload>(
 		UInputAction* InputAction,
-		const FInputActionHandler StartedHandler,
-		const FInputActionHandler EndedHandler)
+		void (UControllerInputComponent::*PressedHandler)(const FInputActionValue&, TPayload...),
+		void (UControllerInputComponent::*ReleasedHandler)(const FInputActionValue&, TPayload...),
+		const std::type_identity_t<TPayload>... Payload)
 	{
-		BindAction(InputAction, ETriggerEvent::Started, StartedHandler, false);
-		BindAction(InputAction, ETriggerEvent::Completed, EndedHandler, false);
-		BindAction(InputAction, ETriggerEvent::Canceled, EndedHandler, false);
+		Bind(InputAction, ETriggerEvent::Started, PressedHandler, Payload...);
+		Bind(InputAction, ETriggerEvent::Completed, ReleasedHandler, Payload...);
+		Bind(InputAction, ETriggerEvent::Canceled, ReleasedHandler, Payload...);
 	};
 
-	const auto BindLoadedStartedCompletedCanceledAction = [this, &BindStartedCompletedCanceledAction](
-		const TSoftObjectPtr<UInputAction>& InputAction,
-		const FInputActionHandler StartedHandler,
-		const FInputActionHandler EndedHandler)
-	{
-		BindStartedCompletedCanceledAction(LoadInputAction(InputAction), StartedHandler, EndedHandler);
-	};
+	Bind(Action(Definition.GetMoveInputAction()), ETriggerEvent::Triggered, &ThisClass::HandleMoveInput);
+	Bind(Action(Definition.GetLookInputAction()), ETriggerEvent::Triggered, &ThisClass::HandleLookInput);
+	BindPressAndRelease(Action(Definition.GetJumpInputAction()), &ThisClass::HandleJumpInputStarted, &ThisClass::HandleJumpInputEnded);
+	BindPressAndRelease(Action(Definition.GetCrouchInputAction()), &ThisClass::HandleCrouchInputStarted, &ThisClass::HandleCrouchInputEnded);
+	Bind(Action(Definition.GetInteractInputAction()), ETriggerEvent::Started, &ThisClass::HandleInteractInput);
+	BindPressAndRelease(Action(Definition.GetAttackInputAction()), &ThisClass::HandleAttackInputStarted, &ThisClass::HandleAttackInputEnded);
+	BindPressAndRelease(Action(Definition.GetAimInputAction()), &ThisClass::HandleAimInputStarted, &ThisClass::HandleAimInputEnded);
+	BindPressAndRelease(Action(Definition.GetGrappleInputAction()),
+		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, LabGameplayTags::Input_Ability_Movement_Grapple);
 
-	BindLoadedAction(Definition.GetMoveInputAction(), ETriggerEvent::Triggered, &ThisClass::HandleMoveInput, false);
-	BindLoadedAction(Definition.GetLookInputAction(), ETriggerEvent::Triggered, &ThisClass::HandleLookInput, false);
-	BindLoadedStartedCompletedCanceledAction(Definition.GetJumpInputAction(), &ThisClass::HandleJumpInputStarted, &ThisClass::HandleJumpInputEnded);
-	BindLoadedStartedCompletedCanceledAction(Definition.GetCrouchInputAction(), &ThisClass::HandleCrouchInputStarted, &ThisClass::HandleCrouchInputEnded);
-	BindLoadedAction(Definition.GetInteractInputAction(), ETriggerEvent::Started, &ThisClass::HandleInteractInput, false);
-	BindLoadedStartedCompletedCanceledAction(Definition.GetAttackInputAction(), &ThisClass::HandleAttackInputStarted, &ThisClass::HandleAttackInputEnded);
-	BindLoadedStartedCompletedCanceledAction(Definition.GetAimInputAction(), &ThisClass::HandleAimInputStarted, &ThisClass::HandleAimInputEnded);
-	BindLoadedStartedCompletedCanceledAction(Definition.GetGrappleInputAction(), &ThisClass::HandleGrappleInputStarted, &ThisClass::HandleGrappleInputEnded);
-	BindLoadedAction(Definition.GetOpenInfoProfileInputAction(), ETriggerEvent::Started, &ThisClass::HandleOpenInfoProfileInputStarted, true);
-	BindLoadedAction(Definition.GetOpenInfoItemInputAction(), ETriggerEvent::Started, &ThisClass::HandleOpenInfoItemInputStarted, true);
-	BindLoadedAction(Definition.GetOpenInfoSkinInputAction(), ETriggerEvent::Started, &ThisClass::HandleOpenInfoSkinInputStarted, true);
-	BindLoadedAction(Definition.GetOpenInfoPandoraInputAction(), ETriggerEvent::Started, &ThisClass::HandleOpenInfoPandoraInputStarted, true);
-	BindLoadedAction(Definition.GetOpenInfoMapInputAction(), ETriggerEvent::Started, &ThisClass::HandleOpenInfoMapInputStarted, true);
-	BindLoadedAction(Definition.GetOpenSettingUiInputAction(), ETriggerEvent::Started, &ThisClass::HandleOpenSettingUiInputStarted, true);
-	BindLoadedAction(Definition.GetEscapeInputAction(), ETriggerEvent::Started, &ThisClass::HandleEscapeInputStarted, true);
-	BindLoadedAction(Definition.GetOpenLobbyInputAction(), ETriggerEvent::Started, &ThisClass::HandleOpenLobbyInputStarted, true);
-	BindLoadedStartedCompletedCanceledAction(
-		Definition.GetSelectPandoraInputAction(),
-		&ThisClass::HandleSelectPandoraInputStarted,
-		&ThisClass::HandleSelectPandoraInputEnded);
-	BindLoadedAction(Definition.GetPandoraTreeInputAction(), ETriggerEvent::Started, &ThisClass::HandlePandoraTreeInputStarted, true);
-	BindLoadedStartedCompletedCanceledAction(
-		Definition.GetScoreboardInputAction(),
-		&ThisClass::HandleScoreboardInputStarted,
-		&ThisClass::HandleScoreboardInputEnded);
-	BindLoadedAction(Definition.GetChatInputAction(), ETriggerEvent::Started, &ThisClass::HandleChatInputStarted, false);
-	BindLoadedAction(Definition.GetChatScrollInputAction(), ETriggerEvent::Triggered, &ThisClass::HandleChatScrollInputTriggered, false);
-	BindLoadedStartedCompletedCanceledAction(Definition.GetSkill1InputAction(), &ThisClass::HandleSkill1InputStarted, &ThisClass::HandleSkill1InputEnded);
-	BindLoadedStartedCompletedCanceledAction(Definition.GetSkill2InputAction(), &ThisClass::HandleSkill2InputStarted, &ThisClass::HandleSkill2InputEnded);
-	BindLoadedStartedCompletedCanceledAction(Definition.GetSkill3InputAction(), &ThisClass::HandleSkill3InputStarted, &ThisClass::HandleSkill3InputEnded);
-	BindLoadedStartedCompletedCanceledAction(Definition.GetSkill4InputAction(), &ThisClass::HandleSkill4InputStarted, &ThisClass::HandleSkill4InputEnded);
-	BindLoadedAction(Definition.GetQuickSlot1InputAction(), ETriggerEvent::Started, &ThisClass::HandleQuickSlot1InputStarted, false);
-	BindLoadedAction(Definition.GetQuickSlot2InputAction(), ETriggerEvent::Started, &ThisClass::HandleQuickSlot2InputStarted, false);
-	BindLoadedAction(Definition.GetQuickSlot3InputAction(), ETriggerEvent::Started, &ThisClass::HandleQuickSlot3InputStarted, false);
-	BindLoadedAction(Definition.GetQuickSlot4InputAction(), ETriggerEvent::Started, &ThisClass::HandleQuickSlot4InputStarted, false);
-	BindLoadedAction(Definition.GetGesture1InputAction(), ETriggerEvent::Started, &ThisClass::HandleGesture1InputStarted, false);
-	BindLoadedAction(Definition.GetGesture2InputAction(), ETriggerEvent::Started, &ThisClass::HandleGesture2InputStarted, false);
-	BindLoadedAction(Definition.GetGesture3InputAction(), ETriggerEvent::Started, &ThisClass::HandleGesture3InputStarted, false);
-	BindLoadedAction(Definition.GetGesture4InputAction(), ETriggerEvent::Started, &ThisClass::HandleGesture4InputStarted, false);
-	BindLoadedAction(Definition.GetTargetConfirmInputAction(), ETriggerEvent::Started, &ThisClass::HandleTargetConfirmInputStarted, false);
+	Bind(ActionWhilePaused(Definition.GetOpenInfoProfileInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenInfoInputStarted, EInfoUiSection::Profile);
+	Bind(ActionWhilePaused(Definition.GetOpenInfoItemInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenInfoInputStarted, EInfoUiSection::Item);
+	Bind(ActionWhilePaused(Definition.GetOpenInfoSkinInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenInfoInputStarted, EInfoUiSection::Skin);
+	Bind(ActionWhilePaused(Definition.GetOpenInfoPandoraInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenInfoInputStarted, EInfoUiSection::Pandora);
+	Bind(ActionWhilePaused(Definition.GetOpenInfoMapInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenInfoInputStarted, EInfoUiSection::Map);
+	Bind(ActionWhilePaused(Definition.GetOpenSettingUiInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenSettingUiInputStarted);
+	Bind(ActionWhilePaused(Definition.GetEscapeInputAction()), ETriggerEvent::Started, &ThisClass::HandleEscapeInputStarted);
+	Bind(ActionWhilePaused(Definition.GetOpenLobbyInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenLobbyInputStarted);
+	BindPressAndRelease(Action(Definition.GetSelectPandoraInputAction()),
+		&ThisClass::HandleSelectPandoraInputStarted, &ThisClass::HandleSelectPandoraInputEnded);
+	Bind(ActionWhilePaused(Definition.GetPandoraTreeInputAction()), ETriggerEvent::Started, &ThisClass::HandlePandoraTreeInputStarted);
+	BindPressAndRelease(Action(Definition.GetScoreboardInputAction()),
+		&ThisClass::HandleScoreboardInputStarted, &ThisClass::HandleScoreboardInputEnded);
+	Bind(Action(Definition.GetChatInputAction()), ETriggerEvent::Started, &ThisClass::HandleChatInputStarted);
+	Bind(Action(Definition.GetChatScrollInputAction()), ETriggerEvent::Triggered, &ThisClass::HandleChatScrollInputTriggered);
+
+	BindPressAndRelease(Action(Definition.GetSkill1InputAction()),
+		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, LabGameplayTags::Input_Ability_Skill1);
+	BindPressAndRelease(Action(Definition.GetSkill2InputAction()),
+		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, LabGameplayTags::Input_Ability_Skill2);
+	BindPressAndRelease(Action(Definition.GetSkill3InputAction()),
+		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, LabGameplayTags::Input_Ability_Skill3);
+	BindPressAndRelease(Action(Definition.GetSkill4InputAction()),
+		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, LabGameplayTags::Input_Ability_Skill4);
+	Bind(Action(Definition.GetQuickSlot1InputAction()), ETriggerEvent::Started, &ThisClass::HandleQuickSlotInputStarted, 0);
+	Bind(Action(Definition.GetQuickSlot2InputAction()), ETriggerEvent::Started, &ThisClass::HandleQuickSlotInputStarted, 1);
+	Bind(Action(Definition.GetQuickSlot3InputAction()), ETriggerEvent::Started, &ThisClass::HandleQuickSlotInputStarted, 2);
+	Bind(Action(Definition.GetQuickSlot4InputAction()), ETriggerEvent::Started, &ThisClass::HandleQuickSlotInputStarted, 3);
+	Bind(Action(Definition.GetGesture1InputAction()), ETriggerEvent::Started, &ThisClass::HandleGestureInputStarted, 0);
+	Bind(Action(Definition.GetGesture2InputAction()), ETriggerEvent::Started, &ThisClass::HandleGestureInputStarted, 1);
+	Bind(Action(Definition.GetGesture3InputAction()), ETriggerEvent::Started, &ThisClass::HandleGestureInputStarted, 2);
+	Bind(Action(Definition.GetGesture4InputAction()), ETriggerEvent::Started, &ThisClass::HandleGestureInputStarted, 3);
+	Bind(Action(Definition.GetTargetConfirmInputAction()), ETriggerEvent::Started, &ThisClass::HandleTargetConfirmInputStarted);
 }
 
 void UControllerInputComponent::HandleMoveInput(const FInputActionValue& InputValue)
@@ -570,49 +566,12 @@ void UControllerInputComponent::HandleInteractInput(const FInputActionValue& Inp
 	PlayerRewardComponent->ApplyInteractRewards(InteractableActor);
 }
 
-void UControllerInputComponent::HandleOpenInfoProfileInputStarted(const FInputActionValue& InputValue)
+void UControllerInputComponent::HandleOpenInfoInputStarted(const FInputActionValue& InputValue, const EInfoUiSection Section)
 {
 	static_cast<void>(InputValue);
 	if (IHudInputInterface* HUD = GetHudInput())
 	{
-		HUD->OpenInfoUiFocused(EInfoUiSection::Profile);
-	}
-}
-
-void UControllerInputComponent::HandleOpenInfoItemInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->OpenInfoUiFocused(EInfoUiSection::Item);
-	}
-}
-
-void UControllerInputComponent::HandleOpenInfoSkinInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->OpenInfoUiFocused(EInfoUiSection::Skin);
-	}
-}
-
-void UControllerInputComponent::HandleOpenInfoPandoraInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->OpenInfoUiFocused(EInfoUiSection::Pandora);
-	}
-}
-
-void UControllerInputComponent::HandleOpenInfoMapInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->OpenInfoUiFocused(EInfoUiSection::Map);
-	}
+		}
 }
 
 void UControllerInputComponent::HandleOpenSettingUiInputStarted(const FInputActionValue& InputValue)
@@ -828,76 +787,6 @@ void UControllerInputComponent::HandleAimInputEnded(const FInputActionValue& Inp
 	}
 }
 
-void UControllerInputComponent::HandleGrappleInputStarted(const FInputActionValue& InputValue)
-{
-	HandleAbilityInputStarted(InputValue, LabGameplayTags::Input_Ability_Movement_Grapple);
-}
-
-void UControllerInputComponent::HandleGrappleInputEnded(const FInputActionValue& InputValue)
-{
-	HandleAbilityInputEnded(InputValue, LabGameplayTags::Input_Ability_Movement_Grapple);
-}
-
-void UControllerInputComponent::HandleSkill1InputStarted(const FInputActionValue& InputValue)
-{
-	HandleAbilityInputStarted(InputValue, LabGameplayTags::Input_Ability_Skill1);
-}
-
-void UControllerInputComponent::HandleSkill1InputEnded(const FInputActionValue& InputValue)
-{
-	HandleAbilityInputEnded(InputValue, LabGameplayTags::Input_Ability_Skill1);
-}
-
-void UControllerInputComponent::HandleSkill2InputStarted(const FInputActionValue& InputValue)
-{
-	HandleAbilityInputStarted(InputValue, LabGameplayTags::Input_Ability_Skill2);
-}
-
-void UControllerInputComponent::HandleSkill2InputEnded(const FInputActionValue& InputValue)
-{
-	HandleAbilityInputEnded(InputValue, LabGameplayTags::Input_Ability_Skill2);
-}
-
-void UControllerInputComponent::HandleSkill3InputStarted(const FInputActionValue& InputValue)
-{
-	HandleAbilityInputStarted(InputValue, LabGameplayTags::Input_Ability_Skill3);
-}
-
-void UControllerInputComponent::HandleSkill3InputEnded(const FInputActionValue& InputValue)
-{
-	HandleAbilityInputEnded(InputValue, LabGameplayTags::Input_Ability_Skill3);
-}
-
-void UControllerInputComponent::HandleSkill4InputStarted(const FInputActionValue& InputValue)
-{
-	HandleAbilityInputStarted(InputValue, LabGameplayTags::Input_Ability_Skill4);
-}
-
-void UControllerInputComponent::HandleSkill4InputEnded(const FInputActionValue& InputValue)
-{
-	HandleAbilityInputEnded(InputValue, LabGameplayTags::Input_Ability_Skill4);
-}
-
-void UControllerInputComponent::HandleQuickSlot1InputStarted(const FInputActionValue& InputValue)
-{
-	HandleQuickSlotInputStarted(InputValue, 0);
-}
-
-void UControllerInputComponent::HandleQuickSlot2InputStarted(const FInputActionValue& InputValue)
-{
-	HandleQuickSlotInputStarted(InputValue, 1);
-}
-
-void UControllerInputComponent::HandleQuickSlot3InputStarted(const FInputActionValue& InputValue)
-{
-	HandleQuickSlotInputStarted(InputValue, 2);
-}
-
-void UControllerInputComponent::HandleQuickSlot4InputStarted(const FInputActionValue& InputValue)
-{
-	HandleQuickSlotInputStarted(InputValue, 3);
-}
-
 void UControllerInputComponent::HandleQuickSlotInputStarted(const FInputActionValue& InputValue, const int32 SlotIndex)
 {
 	static_cast<void>(InputValue);
@@ -914,26 +803,6 @@ void UControllerInputComponent::HandleQuickSlotInputStarted(const FInputActionVa
 	}
 
 	InventoryComponent->UseConsumableQuickSlot(SlotIndex);
-}
-
-void UControllerInputComponent::HandleGesture1InputStarted(const FInputActionValue& InputValue)
-{
-	HandleGestureInputStarted(InputValue, 0);
-}
-
-void UControllerInputComponent::HandleGesture2InputStarted(const FInputActionValue& InputValue)
-{
-	HandleGestureInputStarted(InputValue, 1);
-}
-
-void UControllerInputComponent::HandleGesture3InputStarted(const FInputActionValue& InputValue)
-{
-	HandleGestureInputStarted(InputValue, 2);
-}
-
-void UControllerInputComponent::HandleGesture4InputStarted(const FInputActionValue& InputValue)
-{
-	HandleGestureInputStarted(InputValue, 3);
 }
 
 void UControllerInputComponent::HandleGestureInputStarted(const FInputActionValue& InputValue, const int32 GestureSlotIndex)
@@ -972,7 +841,7 @@ void UControllerInputComponent::HandleTargetConfirmInputStarted(const FInputActi
 	}
 }
 
-void UControllerInputComponent::HandleAbilityInputStarted(const FInputActionValue& InputValue, const FGameplayTag& InputTag)
+void UControllerInputComponent::HandleAbilityInputStarted(const FInputActionValue& InputValue, const FGameplayTag InputTag)
 {
 	static_cast<void>(InputValue);
 
@@ -997,7 +866,7 @@ void UControllerInputComponent::HandleAbilityInputStarted(const FInputActionValu
 	AbilitySystemComponent->HandleAbilityInputPressed(InputTag);
 }
 
-void UControllerInputComponent::HandleAbilityInputEnded(const FInputActionValue& InputValue, const FGameplayTag& InputTag)
+void UControllerInputComponent::HandleAbilityInputEnded(const FInputActionValue& InputValue, const FGameplayTag InputTag)
 {
 	static_cast<void>(InputValue);
 

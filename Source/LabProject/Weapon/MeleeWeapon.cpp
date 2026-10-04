@@ -812,23 +812,16 @@ void AMeleeWeapon::ApplySkillDebuffToTarget(
         ? SourceCharacter->GetPdAbilitySystemComponent()
         : nullptr;
     UPdAbilitySystemComponent* TargetASC = TargetCharacter->GetPdAbilitySystemComponent();
-    if (!SourceASC || !TargetASC || !StatusEffectDefinition || !StatusEffectDefinition->CanStack(TargetASC))
+    if (!SourceASC || !TargetASC || !StatusEffectDefinition)
     {
         return;
     }
 
-    const FActiveGameplayEffectHandle AppliedHandle = SourceASC->ApplyGameplayEffectSpecToTarget(
-        *DebuffEffectSpecHandle.Data.Get(),
-        TargetASC);
-    if (!AppliedHandle.WasSuccessfullyApplied())
-    {
-        return;
-    }
-
-    if (UStatusEffectReplicationComponent* ReplicationComponent = TargetCharacter->GetStatusEffectReplicationComponent())
-    {
-        ReplicationComponent->TrackAppliedStatusEffect(StatusEffectDefinition, AppliedHandle);
-    }
+    UStatusEffectReplicationComponent::ApplyTrackedStatusEffect(
+        *SourceASC,
+        *TargetASC,
+        *StatusEffectDefinition,
+        *DebuffEffectSpecHandle.Data.Get());
 }
 
 bool AMeleeWeapon::ApplyDamageToTarget(AActor* TargetActor)

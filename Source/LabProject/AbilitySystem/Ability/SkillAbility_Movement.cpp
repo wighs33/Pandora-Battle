@@ -3,10 +3,15 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Character/CharacterBase.h"
+#include "Common/LabGameplayTags.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Definition/AbilitySystem/SkillDefinition.h"
+#include "Definition/Settings/GameSettingDefinition.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
+#include "Settings/GameSettingsSubsystem.h"
 
 namespace
 {
@@ -151,6 +156,71 @@ void USkillAbility::StartDurationMovementLock()
 	const bool bWasAlreadyLocked = bAbilityMovementLocked;
 	LockAvatarMovementForAbility();
 	bDurationMovementLockActive = !bWasAlreadyLocked && bAbilityMovementLocked;
+}
+
+void USkillAbility::ApplyActiveMovementSpeedBonus(FActiveGameplayEffectHandle& InOutEffectHandle)
+{
+	if (InOutEffectHandle.IsValid())
+	{
+		return;
+	}
+
+	const USkillDefinition* SkillDataAsset = GetSourceSkillDataAsset();
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
+	UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
+	const UGameSettingDefinition* SettingDefinition =
+		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
+	const TSubclassOf<UGameplayEffect> MovementSpeedEffectClass =
+		SettingDefinition
+			? SettingDefinition->MovementSpeedGameplayEffectClass
+			: nullptr;
+	if (!SkillDataAsset
+		|| !SkillDataAsset->Movement.bOverrideMovementSpeedWhileActive
+		|| SkillDataAsset->Movement.MovementSpeedBonusPercent <= 0.0
+		|| !Character
+		|| !Character->HasAuthority()
+		|| !AbilitySystemComponent
+		|| !MovementSpeedEffectClass)
+	{
+		return;
+	}
+
+	FGameplayEffectSpecHandle MovementSpeedSpec = MakeOutgoingGameplayEffectSpec(
+		GetCurrentAbilitySpecHandle(),
+		GetCurrentActorInfo(),
+		GetCurrentActivationInfo(),
+		MovementSpeedEffectClass,
+		GetAbilityLevel());
+	if (!MovementSpeedSpec.IsValid() || !MovementSpeedSpec.Data.IsValid())
+	{
+		return;
+	}
+
+	MovementSpeedSpec.Data->SetSetByCallerMagnitude(
+		LabGameplayTags::Data_MovementSpeed,
+		static_cast<float>(SkillDataAsset->Movement.MovementSpeedBonusPercent));
+	InOutEffectHandle = ApplyGameplayEffectSpecToOwner(
+		GetCurrentAbilitySpecHandle(),
+		GetCurrentActorInfo(),
+		GetCurrentActivationInfo(),
+		MovementSpeedSpec);
+}
+
+void USkillAbility::RemoveActiveMovementSpeedBonus(FActiveGameplayEffectHandle& InOutEffectHandle)
+{
+	if (!InOutEffectHandle.IsValid())
+	{
+		return;
+	}
+
+	ACharacterBase* Character = GetPdCharacterFromActorInfo();
+	UPdAbilitySystemComponent* AbilitySystemComponent = GetPdAbilitySystemComponentFromActorInfo();
+	if (Character && Character->HasAuthority() && AbilitySystemComponent)
+	{
+		AbilitySystemComponent->RemoveActiveGameplayEffect(InOutEffectHandle, 1);
+	}
+
+	InOutEffectHandle.Invalidate();
 }
 
 void USkillAbility::StopDurationMovementLock()

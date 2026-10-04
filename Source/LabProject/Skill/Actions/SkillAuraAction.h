@@ -37,8 +37,6 @@ private:
 	void StopAuraEffectAreaSpawning();
 	ACharacterBase* ResolveAuraSourceCharacter() const;
 	void SpawnAuraEffectArea(const USkillDefinition* SkillDataAsset);
-	void ApplyMovementSpeedIncrease(const USkillDefinition* SkillDataAsset);
-	void RemoveMovementSpeedIncrease();
 	void StartHealFieldTeamHealing(USkillDefinition* SkillDataAsset);
 	void StopHealFieldTeamHealing();
 	void ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataAsset);

@@ -29,20 +29,10 @@ URangedAttackAbility::URangedAttackAbility(const FObjectInitializer& ObjectIniti
 	AbilityAssetTags.AddTag(LabGameplayTags::Action_RangedAttack);
 	SetAssetTags(AbilityAssetTags);
 	ActivationBlockedTags.AddTag(LabGameplayTags::State_Movement_Airborne);
+	bRequiresGroundedAvatar = true;
 
 	AttackTraceStartEventTag = LabGameplayTags::Notifier_Attack_ComboInputOpen;
 	AttackTraceEndEventTag = LabGameplayTags::Notifier_Attack_ComboInputClose;
-}
-
-bool URangedAttackAbility::CanActivateAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayTagContainer* SourceTags,
-	const FGameplayTagContainer* TargetTags,
-	FGameplayTagContainer* OptionalRelevantTags) const
-{
-	return CheckAvatarGrounded(ActorInfo, OptionalRelevantTags)
-		&& Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
 
 // State helpers
@@ -151,17 +141,7 @@ void URangedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 		}
 	}
 
-	const float AttackSpeedPlayRate = GetAttackSpeedPlayRate();
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this,
-		NAME_None,
-		AttackData.AttackMontage,
-		AttackSpeedPlayRate,
-		NAME_None,
-		false,
-		1.f,
-		0.f,
-		false);
+	UAbilityTask_PlayMontageAndWait* MontageTask = CreateWeaponAttackMontageTask(AttackData.AttackMontage);
 	if (!MontageTask)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);

@@ -3,7 +3,6 @@
 #include "Skill/Actors/SkillEffectArea.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
-#include "Definition/Settings/GameSettingDefinition.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
@@ -15,7 +14,6 @@
 #include "GameFramework/Pawn.h"
 #include "GameplayEffectTypes.h"
 #include "Pandora/PandoraSkillSource.h"
-#include "Settings/GameSettingsSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillAuraAction)
 
@@ -110,7 +108,7 @@ void USkillAuraAction::OnStart()
 	GetAbility()->SpawnConfiguredCharacterDecal();
 	GetAbility()->StartConfiguredDefaultFX();
 	GetAbility()->StartConfiguredCharacterOverlay();
-	ApplyMovementSpeedIncrease(SkillDataAsset);
+	GetAbility()->ApplyActiveMovementSpeedBonus(MovementSpeedEffectHandle);
 	GetAbility()->StartMovementContactDamage();
 	StartAuraEffectAreaSpawning(SkillDataAsset);
 	StartHealFieldTeamHealing(SkillDataAsset);
@@ -126,7 +124,7 @@ void USkillAuraAction::OnStop()
 {
 	StopHealFieldTeamHealing();
 	StopAuraEffectAreaSpawning();
-	RemoveMovementSpeedIncrease();
+	GetAbility()->RemoveActiveMovementSpeedBonus(MovementSpeedEffectHandle);
 	ActiveAuraSkillDataAsset = nullptr;
 	ActiveAuraSourceCharacter.Reset();
 }
@@ -233,73 +231,6 @@ void USkillAuraAction::SpawnAuraEffectArea(const USkillDefinition* SkillDataAsse
 		SpawnedArea->ForceNetUpdate();
 		ActiveAuraEffectAreas.Add(SpawnedArea);
 	}
-}
-
-void USkillAuraAction::ApplyMovementSpeedIncrease(const USkillDefinition* SkillDataAsset)
-{
-	const FAuraSkillConfig* AuraConfig = &Settings;
-	ACharacterBase* Character = GetAbility()->GetPdCharacterFromActorInfo();
-	UPdAbilitySystemComponent* AbilitySystemComponent = GetAbility()->GetPdAbilitySystemComponentFromActorInfo();
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
-	const TSubclassOf<UGameplayEffect> MovementSpeedEffectClass =
-		SettingDefinition
-			? SettingDefinition->MovementSpeedGameplayEffectClass
-			: nullptr;
-	if (MovementSpeedEffectHandle.IsValid()
-		|| !AuraConfig
-		|| !Character
-		|| !Character->HasAuthority()
-		|| !AbilitySystemComponent
-		|| !MovementSpeedEffectClass)
-	{
-		return;
-	}
-
-	if (!SkillDataAsset->Movement.bOverrideMovementSpeedWhileActive || SkillDataAsset->Movement.MovementSpeedBonusPercent <= 0.0)
-	{
-		return;
-	}
-
-	FGameplayEffectSpecHandle MovementSpeedSpec =
-		GetAbility()->MakeOutgoingGameplayEffectSpec(
-			GetAbility()->GetCurrentAbilitySpecHandle(),
-			GetAbility()->GetCurrentActorInfo(),
-			GetAbility()->GetCurrentActivationInfo(),
-			MovementSpeedEffectClass,
-			GetAbility()->GetAbilityLevel());
-	if (!MovementSpeedSpec.IsValid() || !MovementSpeedSpec.Data.IsValid())
-	{
-		return;
-	}
-
-	MovementSpeedSpec.Data->SetSetByCallerMagnitude(
-		LabGameplayTags::Data_MovementSpeed,
-		static_cast<float>(SkillDataAsset->Movement.MovementSpeedBonusPercent));
-	MovementSpeedEffectHandle = GetAbility()->ApplyGameplayEffectSpecToOwner(
-		GetAbility()->GetCurrentAbilitySpecHandle(),
-		GetAbility()->GetCurrentActorInfo(),
-		GetAbility()->GetCurrentActivationInfo(),
-		MovementSpeedSpec);
-}
-
-void USkillAuraAction::RemoveMovementSpeedIncrease()
-{
-	if (!MovementSpeedEffectHandle.IsValid())
-	{
-		return;
-	}
-
-	ACharacterBase* Character = GetAbility()->GetPdCharacterFromActorInfo();
-	UPdAbilitySystemComponent* AbilitySystemComponent = GetAbility()->GetPdAbilitySystemComponentFromActorInfo();
-	if (Character && Character->HasAuthority() && AbilitySystemComponent)
-	{
-		AbilitySystemComponent->RemoveActiveGameplayEffect(
-			MovementSpeedEffectHandle,
-			1);
-	}
-
-	MovementSpeedEffectHandle.Invalidate();
 }
 
 void USkillAuraAction::StartHealFieldTeamHealing(USkillDefinition* SkillDataAsset)

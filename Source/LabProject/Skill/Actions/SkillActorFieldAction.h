@@ -12,12 +12,12 @@ class AActor;
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitGameplayEvent;
 class UAnimMontage;
-class USkillFieldTriggerDamage;
+class USkillTriggerDamage;
 struct FGameplayEffectSpecHandle;
 
 /**
  * 배치 액터의 생성 순서와 반복 생성, 수명을 관리한다.
- * 배치 위치는 PdSkillFieldPlacement가, 트리거에 겹친 대상의 피해 시점은 USkillFieldTriggerDamage가 정한다.
+ * 배치 위치는 PdSkillFieldPlacement가, 트리거에 겹친 대상의 피해 시점은 USkillTriggerDamage가 정한다.
  */
 UCLASS(meta = (DisplayName = "Actor Field"))
 class LABPROJECT_API USkillActorFieldAction : public USkillAction
@@ -61,8 +61,6 @@ private:
 
 	void StartFieldDurationMovementLockIfAllowed();
 	bool ShouldSkipFieldDurationMovementLock() const;
-	void ApplyFieldMovementSpeedIncrease();
-	void RemoveFieldMovementSpeedIncrease();
 
 	void StartFieldSpawnSequence();
 	void StartFieldRepeatTimer();
@@ -110,7 +108,7 @@ private:
 	bool bFieldStarted = false;
 
 	UPROPERTY(Transient)
-	TObjectPtr<USkillFieldTriggerDamage> FieldTriggerDamage;
+	TObjectPtr<USkillTriggerDamage> FieldTriggerDamage;
 
 	FActiveGameplayEffectHandle MovementSpeedEffectHandle;
 };

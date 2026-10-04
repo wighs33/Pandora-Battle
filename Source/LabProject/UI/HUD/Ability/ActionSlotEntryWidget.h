@@ -72,6 +72,7 @@ private:
 	void BindAbilityCooldownChanged();
 	void UnbindAbilityCooldownChanged();
 	void ClearCooldownTimer();
+	void ShowCooldownReady();
 	void SetInputKeyRenderOpacity(float InOpacity) const;
 
 	APdPlayer* ResolveOwningPlayerCharacter() const;
@@ -84,7 +85,6 @@ private:
 	float ResolveCooldownTimeRemaining() const;
 	double ResolveConfiguredCooldownDuration() const;
 
-	static float CalculateCooldownPercent(float TimeRemaining, double CooldownDuration);
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|ActionSlot", meta = (AllowPrivateAccess = "true", ClampMin = "0"))

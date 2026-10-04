@@ -1,5 +1,7 @@
 #include "UI/Common/InputKeyIconResolver.h"
 
+#include "Blueprint/UserWidget.h"
+#include "Components/TextBlock.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Mode/PdPlayerController.h"
 
@@ -37,4 +39,23 @@ FSlateBrush PdInputKeyIconResolver::MakeImageBrushFromExisting(
 	}
 	Brush.SetResourceObject(ResourceObject);
 	return Brush;
+}
+
+void PdInputKeyIconResolver::ApplyInputKeyCaption(
+	const UUserWidget& SlotWidget,
+	UTextBlock& KeyText,
+	UWidget& InputKeyOverlay,
+	UWidget* KeyIcon,
+	const UInputAction* InputAction,
+	const bool bHidden)
+{
+	if (KeyIcon)
+	{
+		KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	const FText Caption = SlotWidget.IsDesignTime() ? KeyText.GetText()
+		: ResolveInputDefinitionKeyText(SlotWidget.GetOwningPlayer(), InputAction);
+	KeyText.SetText(Caption);
+	InputKeyOverlay.SetVisibility(bHidden || Caption.IsEmpty()
+		? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 }

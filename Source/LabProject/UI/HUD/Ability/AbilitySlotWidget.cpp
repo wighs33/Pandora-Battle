@@ -23,6 +23,7 @@
 #include "TimerManager.h"
 #include "UI/Common/InputKeyIconResolver.h"
 #include "UI/Core/WidgetClassDefinition.h"
+#include "UI/HUD/Ability/SlotCooldownDisplay.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitySlotWidget)
 
@@ -164,15 +165,7 @@ void UAbilitySlotWidget::SetInputKeyIcon()
 	// Keep the reflected entry point used by existing Blueprint graphs.
 	if (KeyText && InputKeyOverlay)
 	{
-		if (KeyIcon)
-		{
-			KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
-		}
-		const FText Caption = IsDesignTime() ? KeyText->GetText()
-			: PdInputKeyIconResolver::ResolveInputDefinitionKeyText(GetOwningPlayer(), ResolveInputAction());
-		KeyText->SetText(Caption);
-		InputKeyOverlay->SetVisibility(bHideInputKeyIcon || Caption.IsEmpty()
-			? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		PdInputKeyIconResolver::ApplyInputKeyCaption(*this, *KeyText, *InputKeyOverlay, KeyIcon, ResolveInputAction(), bHideInputKeyIcon);
 		return;
 	}
 
@@ -199,7 +192,7 @@ void UAbilitySlotWidget::SetInputKeyIcon()
 	}
 
 	InputKeyOverlay->SetVisibility(ESlateVisibility::Visible);
-	KeyIcon->SetBrush(MakeImageBrushFromExisting(KeyIcon->GetBrush(), IconObject, InputKeyIconSize));
+	KeyIcon->SetBrush(PdInputKeyIconResolver::MakeImageBrushFromExisting(KeyIcon->GetBrush(), IconObject, InputKeyIconSize));
 }
 
 void UAbilitySlotWidget::CheckForCooldown()
@@ -263,22 +256,7 @@ void UAbilitySlotWidget::UpdateCooldownProgress()
 	{
 		ClearCooldownTimer();
 		TotalCooldownTime = 0.0;
-
-		if (CooldownTimerContainer)
-		{
-			CooldownTimerContainer->SetVisibility(ESlateVisibility::Collapsed);
-		}
-
-		if (CooldownProgress)
-		{
-			CooldownProgress->SetPercent(1.0f);
-		}
-
-		if (TimerText)
-		{
-			TimerText->SetText(FText::GetEmpty());
-		}
-
+		PdSlotCooldownDisplay::ShowReady(CooldownTimerContainer, CooldownProgress, TimerText);
 		SetInputKeyRenderOpacity(bAbilitySlotEnabled ? ReadyInputKeyOpacity : DisabledSlotOpacity);
 		return;
 	}
@@ -294,16 +272,7 @@ void UAbilitySlotWidget::UpdateCooldownProgress()
 		CooldownTimerContainer->SetVisibility(ESlateVisibility::Visible);
 	}
 	SetInputKeyRenderOpacity(CooldownInputKeyOpacity);
-
-	if (CooldownProgress)
-	{
-		CooldownProgress->SetPercent(CalculateCooldownPercent(TimeRemaining, TotalCooldownTime));
-	}
-
-	if (TimerText)
-	{
-		TimerText->SetText(bShowCooldownTimeRemaining ? FText::AsNumber(FMath::CeilToInt(TimeRemaining)) : FText::GetEmpty());
-	}
+	PdSlotCooldownDisplay::ShowRemaining(CooldownProgress, TimerText, TimeRemaining, TotalCooldownTime, bShowCooldownTimeRemaining);
 }
 
 void UAbilitySlotWidget::InitializeAbilityObject()
@@ -608,23 +577,3 @@ FSlateBrush UAbilitySlotWidget::MakeImageBrush(UObject* ResourceObject)
 	return Brush;
 }
 
-FSlateBrush UAbilitySlotWidget::MakeImageBrushFromExisting(const FSlateBrush& ExistingBrush, UObject* ResourceObject, FVector2D ImageSize)
-{
-	FSlateBrush Brush = ExistingBrush;
-	if (ImageSize.X > 0.0f && ImageSize.Y > 0.0f)
-	{
-		Brush.ImageSize = ImageSize;
-	}
-	Brush.SetResourceObject(ResourceObject);
-	return Brush;
-}
-
-float UAbilitySlotWidget::CalculateCooldownPercent(float TimeRemaining, double CooldownDuration)
-{
-	if (CooldownDuration <= UE_SMALL_NUMBER)
-	{
-		return 1.0f;
-	}
-
-	return FMath::Clamp(1.0f - static_cast<float>(TimeRemaining / CooldownDuration), 0.0f, 1.0f);
-}

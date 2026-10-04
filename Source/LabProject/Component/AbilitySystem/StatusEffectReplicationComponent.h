@@ -12,6 +12,7 @@ class UAbilitySystemComponent;
 class UStatusEffectReplicationComponent;
 class UStatusEffectDefinition;
 struct FActiveGameplayEffect;
+struct FGameplayEffectSpec;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
 	FOnStatusEffectStackChanged,
@@ -119,6 +120,16 @@ public:
 	void TrackAppliedStatusEffect(
 		const UStatusEffectDefinition* StatusEffectDefinition,
 		FActiveGameplayEffectHandle ActiveEffectHandle);
+
+	/**
+	 * 대상이 이 상태 이상을 더 쌓을 수 있으면 스택 효과를 걸고, 걸리면 대상의 복제 컴포넌트에 기록한다.
+	 * 쌓을 수 없거나 적용되지 않으면 무효 핸들을 돌려준다.
+	 */
+	static FActiveGameplayEffectHandle ApplyTrackedStatusEffect(
+		UAbilitySystemComponent& SourceAbilitySystemComponent,
+		UAbilitySystemComponent& TargetAbilitySystemComponent,
+		const UStatusEffectDefinition& StatusEffectDefinition,
+		const FGameplayEffectSpec& StatusEffectSpec);
 
 	UFUNCTION(BlueprintPure, Category = "!AbilitySystem|StatusEffect")
 	int32 GetStatusEffectStackCount(FGameplayTag DebuffTag) const;

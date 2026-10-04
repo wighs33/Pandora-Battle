@@ -15,6 +15,7 @@
 #include "TimerManager.h"
 #include "UI/Common/InputKeyIconResolver.h"
 #include "UI/Core/WidgetClassDefinition.h"
+#include "UI/HUD/Ability/SlotCooldownDisplay.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ActionSlotEntryWidget)
 
@@ -129,15 +130,7 @@ void UActionSlotEntryWidget::ApplyInputKeyIcon()
 {
 	if (KeyText && InputKeyOverlay)
 	{
-		if (KeyIcon)
-		{
-			KeyIcon->SetVisibility(ESlateVisibility::Collapsed);
-		}
-		const FText Caption = IsDesignTime() ? KeyText->GetText()
-			: PdInputKeyIconResolver::ResolveInputDefinitionKeyText(GetOwningPlayer(), ResolveInputAction());
-		KeyText->SetText(Caption);
-		InputKeyOverlay->SetVisibility(bHideInputKeyIcon || Caption.IsEmpty()
-			? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		PdInputKeyIconResolver::ApplyInputKeyCaption(*this, *KeyText, *InputKeyOverlay, KeyIcon, ResolveInputAction(), bHideInputKeyIcon);
 		return;
 	}
 
@@ -183,23 +176,7 @@ void UActionSlotEntryWidget::CheckForCooldown()
 	const float TimeRemaining = ResolveCooldownTimeRemaining();
 	if (TimeRemaining <= 0.0f)
 	{
-		ClearCooldownTimer();
-
-		if (CooldownTimerContainer)
-		{
-			CooldownTimerContainer->SetVisibility(ESlateVisibility::Collapsed);
-		}
-		if (CooldownProgress)
-		{
-			CooldownProgress->SetPercent(1.0f);
-		}
-		if (TimerText)
-		{
-			TimerText->SetText(FText::GetEmpty());
-			TimerText->SetVisibility(ESlateVisibility::Collapsed);
-		}
-
-		SetInputKeyRenderOpacity(ReadyInputKeyOpacity);
+		ShowCooldownReady();
 		return;
 	}
 
@@ -235,36 +212,27 @@ void UActionSlotEntryWidget::UpdateCooldownProgress()
 	const float TimeRemaining = ResolveCooldownTimeRemaining();
 	if (TimeRemaining <= 0.0f)
 	{
-		ClearCooldownTimer();
-
-		if (CooldownTimerContainer)
-		{
-			CooldownTimerContainer->SetVisibility(ESlateVisibility::Collapsed);
-		}
-		if (CooldownProgress)
-		{
-			CooldownProgress->SetPercent(1.0f);
-		}
-		if (TimerText)
-		{
-			TimerText->SetText(FText::GetEmpty());
-			TimerText->SetVisibility(ESlateVisibility::Collapsed);
-		}
-
-		SetInputKeyRenderOpacity(ReadyInputKeyOpacity);
+		ShowCooldownReady();
 		return;
 	}
 
-	if (CooldownProgress)
-	{
-		CooldownProgress->SetPercent(CalculateCooldownPercent(TimeRemaining, TotalCooldownTime));
-	}
-
+	PdSlotCooldownDisplay::ShowRemaining(CooldownProgress, TimerText, TimeRemaining, TotalCooldownTime, bShowCooldownTimeRemaining);
 	if (TimerText)
 	{
-		TimerText->SetText(bShowCooldownTimeRemaining ? FText::AsNumber(FMath::CeilToInt(TimeRemaining)) : FText::GetEmpty());
 		TimerText->SetVisibility(bShowCooldownTimeRemaining ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
+}
+
+void UActionSlotEntryWidget::ShowCooldownReady()
+{
+	ClearCooldownTimer();
+	PdSlotCooldownDisplay::ShowReady(CooldownTimerContainer, CooldownProgress, TimerText);
+	if (TimerText)
+	{
+		TimerText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	SetInputKeyRenderOpacity(ReadyInputKeyOpacity);
 }
 
 void UActionSlotEntryWidget::BindAbilityCooldownChanged()
@@ -528,12 +496,3 @@ double UActionSlotEntryWidget::ResolveConfiguredCooldownDuration() const
 	return ActionDefinition ? ActionDefinition->GetCooldownDuration(ActionType) : 0.0;
 }
 
-float UActionSlotEntryWidget::CalculateCooldownPercent(const float TimeRemaining, const double CooldownDuration)
-{
-	if (CooldownDuration <= UE_SMALL_NUMBER)
-	{
-		return 1.0f;
-	}
-
-	return FMath::Clamp(1.0f - static_cast<float>(TimeRemaining / CooldownDuration), 0.0f, 1.0f);
-}

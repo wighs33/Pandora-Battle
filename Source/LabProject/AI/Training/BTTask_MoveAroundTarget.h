@@ -1,10 +1,10 @@
 #pragma once
 
-#include "BehaviorTree/Tasks/BTTask_BlackboardBase.h"
+#include "AI/Training/BTTask_TrainingBotMoveBase.h"
 #include "BTTask_MoveAroundTarget.generated.h"
 
 UCLASS()
-class LABPROJECT_API UBTTask_MoveAroundTarget : public UBTTask_BlackboardBase
+class LABPROJECT_API UBTTask_MoveAroundTarget : public UBTTask_TrainingBotMoveBase
 {
 	GENERATED_BODY()
 
@@ -31,41 +31,12 @@ private:
 	EBTNodeResult::Type StartAttackWindow(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, APawn* Pawn, AActor* TargetActor);
 	EBTNodeResult::Type TickAttackWindow(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, APawn* Pawn, AActor* TargetActor);
 	bool TryAttackAfterMoves(AAIController* AIController, APawn* Pawn, AActor* TargetActor) const;
-	bool BuildMoveDestination(APawn* Pawn, AActor* TargetActor, FVector& OutDestination) const;
 	void ApplyFacingMode(APawn* Pawn, uint8* NodeMemory) const;
-	void UpdateFacing(AAIController* AIController, APawn* Pawn, AActor* TargetActor, float DeltaSeconds) const;
 	void RestoreMovementSettings(APawn* Pawn, uint8* NodeMemory, bool bRestoreFacing) const;
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	float MinDistanceFromTarget = 200.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	float MaxDistanceFromTarget = 300.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	float SideStepDistance = 250.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target")
-	int32 MinSideStepMultiplier = -1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target")
-	int32 MaxSideStepMultiplier = 2;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	float AcceptanceRadius = 100.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	float FinishDistanceTolerance = 25.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target", meta = (ClampMin = "0.0", ForceUnits = "s"))
-	float MaxMoveTime = 4.0f;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target")
 	bool bTreatTimeoutAsSuccess = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target")
-	bool bStopOnOverlap = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target", meta = (ClampMin = "1"))
 	int32 MinMovesBeforeAttack = 1;
@@ -95,20 +66,5 @@ protected:
 	float ComboAttackRequestInterval = 0.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Facing")
-	bool bFaceTargetWhileMoving = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Facing")
 	bool bKeepFacingTargetAfterMove = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Facing", meta = (ClampMin = "0.0", ForceUnits = "deg/s"))
-	float FaceTargetRotationInterpSpeed = 720.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Navigation")
-	bool bProjectDestinationToNavigation = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Navigation", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	float NavigationProjectionExtent = 500.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
-	bool bDrawDebug = false;
 };

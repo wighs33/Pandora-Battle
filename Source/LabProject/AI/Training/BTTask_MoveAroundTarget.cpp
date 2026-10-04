@@ -416,28 +416,6 @@ bool UBTTask_MoveAroundTarget::TryAttackAfterMoves(AAIController* AIController, 
 	return true;
 }
 
-bool UBTTask_MoveAroundTarget::BuildMoveDestination(APawn* Pawn, AActor* TargetActor, FVector& OutDestination) const
-{
-	if (!Pawn || !TargetActor)
-	{
-		return false;
-	}
-
-	OutDestination = TrainingBotMovement::BuildSideStepDestination(
-		*Pawn,
-		*TargetActor,
-		MinDistanceFromTarget,
-		MaxDistanceFromTarget,
-		MinSideStepMultiplier,
-		MaxSideStepMultiplier,
-		SideStepDistance);
-	if (bProjectDestinationToNavigation)
-	{
-		OutDestination = TrainingBotMovement::ProjectToNavigation(Pawn->GetWorld(), OutDestination, NavigationProjectionExtent);
-	}
-	return true;
-}
-
 void UBTTask_MoveAroundTarget::ApplyFacingMode(APawn* Pawn, uint8* NodeMemory) const
 {
 	if (!bFaceTargetWhileMoving || !Pawn)
@@ -466,14 +444,6 @@ void UBTTask_MoveAroundTarget::ApplyFacingMode(APawn* Pawn, uint8* NodeMemory) c
 	MovementComponent->bOrientRotationToMovement = false;
 	MovementComponent->bUseControllerDesiredRotation = true;
 	Character->bUseControllerRotationYaw = true;
-}
-
-void UBTTask_MoveAroundTarget::UpdateFacing(AAIController* AIController, APawn* Pawn, AActor* TargetActor, float DeltaSeconds) const
-{
-	if (bFaceTargetWhileMoving && AIController && Pawn && TargetActor)
-	{
-		TrainingBotMovement::FaceTarget(*AIController, *Pawn, *TargetActor, DeltaSeconds, FaceTargetRotationInterpSpeed);
-	}
 }
 
 void UBTTask_MoveAroundTarget::RestoreMovementSettings(APawn* Pawn, uint8* NodeMemory, bool bRestoreFacing) const

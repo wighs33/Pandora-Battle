@@ -120,6 +120,9 @@ public:
 	void LockAvatarMovementForAbility();
 	void RestoreAvatarMovementForAbility();
 	void StartDurationMovementLock();
+	// 스킬 정의가 켠 '사용 중 이동 속도 증가'를 시전자에게 건다. 이미 건 효과가 있거나 서버가 아니면 그대로 둔다.
+	void ApplyActiveMovementSpeedBonus(FActiveGameplayEffectHandle& InOutEffectHandle);
+	void RemoveActiveMovementSpeedBonus(FActiveGameplayEffectHandle& InOutEffectHandle);
 	void StartMovementContactDamage();
 	void StartConfiguredDefaultFX();
 	void StartConfiguredGroundFX();

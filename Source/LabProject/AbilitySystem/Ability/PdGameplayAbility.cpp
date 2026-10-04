@@ -343,6 +343,17 @@ AActor* UPdGameplayAbility::GetAttackTargetFromAvatar() const
 	return TargetCharacter && TargetCharacter->IsDead() ? nullptr : AttackTarget;
 }
 
+bool UPdGameplayAbility::CanActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	return (!bRequiresGroundedAvatar || CheckAvatarGrounded(ActorInfo, OptionalRelevantTags))
+		&& Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
+}
+
 bool UPdGameplayAbility::CheckAvatarGrounded(
 	const FGameplayAbilityActorInfo* ActorInfo,
 	FGameplayTagContainer* OptionalRelevantTags)
@@ -487,6 +498,12 @@ UAbilityTask_PlayMontageAndWait* UPdGameplayAbility::CreateDefaultMontageAndWait
 
 	return UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 		this, NAME_None, MontageToPlay, 1.0f, NAME_None, true, 1.0f, 0.0f, true);
+}
+
+UAbilityTask_PlayMontageAndWait* UPdGameplayAbility::CreateWeaponAttackMontageTask(UAnimMontage* AttackMontage)
+{
+	return UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+		this, NAME_None, AttackMontage, GetAttackSpeedPlayRate(), NAME_None, false, 1.0f, 0.0f, false);
 }
 
 UAbilityTask_WaitGameplayEvent* UPdGameplayAbility::CreateWaitGameplayEventTask(
