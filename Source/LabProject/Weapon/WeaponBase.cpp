@@ -16,7 +16,6 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
-#include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WeaponBase)
@@ -153,38 +152,6 @@ void AWeaponBase::StopSkillWeaponTrail()
     }
 
     ApplySkillWeaponTrailVisual(false);
-}
-
-void AWeaponBase::PlayComboWindowStartEffect(UNiagaraSystem* EffectSystem)
-{
-    if (!EffectSystem || GetNetMode() == NM_DedicatedServer)
-    {
-        return;
-    }
-
-    ACharacterBase* OwningCharacter = GetOwningCharacter();
-    if (!OwningCharacter || !OwningCharacter->IsPlayerControlled() || !OwningCharacter->IsLocallyControlled())
-    {
-        return;
-    }
-
-    USceneComponent* EffectAttachComponent = OwningCharacter->GetRootComponent();
-    if (!EffectAttachComponent)
-    {
-        return;
-    }
-
-    UNiagaraFunctionLibrary::SpawnSystemAttached(
-        EffectSystem,
-        EffectAttachComponent,
-        NAME_None,
-        FVector::ZeroVector,
-        FRotator::ZeroRotator,
-        EAttachLocation::KeepRelativeOffset,
-        true,
-        true,
-        ENCPoolMethod::AutoRelease,
-        true);
 }
 
 void AWeaponBase::InitializeFromItemDefinition(const UItemDefinition* InItemDefinition)

@@ -26,6 +26,7 @@
 #include "Interface/DamageIndicatorInterface.h"
 #include "Mode/PdPlayerState.h"
 #include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 #include "Definition/Mode/ProjectBootstrapSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterBase)
@@ -587,6 +588,19 @@ void ACharacterBase::ApplyBodyAuraNiagaraWithOffset(const FName ComponentName, U
 		CharacterPresentationComponent->ApplyBodyAuraNiagaraWithOffset(
 			ComponentName, NiagaraSystem, bActivate, bResetSystem, RelativeLocationOffset, RelativeScale);
 	}
+}
+
+void ACharacterBase::PlayLocalComboWindowEffect(UNiagaraSystem* EffectSystem) const
+{
+	USceneComponent* EffectAttachComponent = GetRootComponent();
+	if (!EffectSystem || !EffectAttachComponent || GetNetMode() == NM_DedicatedServer
+		|| !IsPlayerControlled() || !IsLocallyControlled())
+	{
+		return;
+	}
+
+	UNiagaraFunctionLibrary::SpawnSystemAttached(EffectSystem, EffectAttachComponent, NAME_None, FVector::ZeroVector,
+		FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true, true, ENCPoolMethod::AutoRelease, true);
 }
 
 // 끝나는 연출과 현재 오라 이펙트가 일치할 때만 제거해, 뒤이어 적용된 다른 오라를 지우지 않게 한다.

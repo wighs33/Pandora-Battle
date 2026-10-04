@@ -39,8 +39,6 @@ public:
 
     void StopSkillWeaponTrail();
 
-    void PlayComboWindowStartEffect(UNiagaraSystem* EffectSystem);
-
     void InitializeFromItemDefinition(const UItemDefinition* InItemDefinition);
 
     virtual bool ShouldTriggerHitReactOnDamage() const;

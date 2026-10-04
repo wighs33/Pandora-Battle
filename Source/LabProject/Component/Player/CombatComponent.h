@@ -22,6 +22,7 @@ class UAbilitySystemComponent;
 class UGameplayAbility;
 class UAnimMontage;
 class UGameplayEffect;
+class UNiagaraSystem;
 class UPdAbilitySystemComponent;
 struct FOnAttributeChangeData;
 struct FAttackData;
@@ -80,7 +81,7 @@ public:
 	void ClearTemporaryWeaponDamageBonus(UObject* SourceObject);
 
 	bool GetUnarmedAttackData(FAttackData& OutAttackData) const;
-	void PlayUnarmedComboWindowStartEffect() const;
+	UNiagaraSystem* GetUnarmedComboWindowStartEffect() const;
 	void SetUnarmedAttackTraceEnabledForSection(bool bEnabled, FName AttackSectionName);
 	void ResetUnarmedAttackHitTracking();
 

@@ -709,33 +709,27 @@ float UAttackAbility::CalculateCurrentComboDamageMultiplier() const
 	return FMath::Pow(StepMultiplier, static_cast<float>(CurrentSectionIndex));
 }
 
+// 무기를 들었으면 무기 정의의 이펙트를, 맨손이면 맨손 전투 설정의 이펙트를 띄운다.
 void UAttackAbility::PlayConfiguredComboWindowStartEffect()
 {
-	ACharacterBase* Character = GetPdCharacterFromActorInfo();
-	const UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
-	const UItemDefinition* ItemDefinition = EquipmentComponent
-		? EquipmentComponent->GetCurrentWeaponDefinition()
-		: nullptr;
-	AWeaponBase* CurrentWeapon = GetCurrentWeaponActor();
-	UNiagaraSystem* EffectSystem = ItemDefinition
-		? ItemDefinition->WeaponData.Attack.ComboWindowStartEffect.Get()
-		: nullptr;
-	if (CurrentWeapon)
+	const ACharacterBase* Character = GetPdCharacterFromActorInfo();
+	if (!Character)
 	{
-		if (EffectSystem)
-		{
-			CurrentWeapon->PlayComboWindowStartEffect(EffectSystem);
-		}
 		return;
 	}
 
-	if (Character)
+	UNiagaraSystem* EffectSystem = nullptr;
+	if (GetCurrentWeaponActor())
 	{
-		if (UCombatComponent* CombatComponent = Character->GetCombatComponent())
-		{
-			CombatComponent->PlayUnarmedComboWindowStartEffect();
-		}
+		const UEquipmentComponent* EquipmentComponent = Character->GetEquipmentComponent();
+		const UItemDefinition* ItemDefinition = EquipmentComponent ? EquipmentComponent->GetCurrentWeaponDefinition() : nullptr;
+		EffectSystem = ItemDefinition ? ItemDefinition->WeaponData.Attack.ComboWindowStartEffect.Get() : nullptr;
 	}
+	else if (const UCombatComponent* CombatComponent = Character->GetCombatComponent())
+	{
+		EffectSystem = CombatComponent->GetUnarmedComboWindowStartEffect();
+	}
+	Character->PlayLocalComboWindowEffect(EffectSystem);
 }
 
 // Query helpers

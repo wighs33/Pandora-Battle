@@ -130,6 +130,9 @@ public:
 
 	void ClearBodyAuraNiagaraIfMatching(FName ComponentName, const UNiagaraSystem* ExpectedNiagaraSystem);
 
+	/** 콤보 입력 창이 열릴 때의 이펙트를 이 캐릭터를 조작하는 로컬 플레이어 화면에만 띄운다. */
+	void PlayLocalComboWindowEffect(UNiagaraSystem* EffectSystem) const;
+
 	// 경기 팀과 진영, 빙결·사망 상태.
 	int32 GetMatchTeamColorIndex() const;
 

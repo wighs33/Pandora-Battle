@@ -26,7 +26,6 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Mode/PdPlayerController.h"
 #include "Component/Player/EquipmentComponent.h"
-#include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Settings/GameSettingsSubsystem.h"
 #include "Weapon/WeaponBase.h"
@@ -151,35 +150,9 @@ void UCombatComponent::ApplySettings(const FCombatDamageSettings& DamageSettings
 	}
 }
 
-void UCombatComponent::PlayUnarmedComboWindowStartEffect() const
+UNiagaraSystem* UCombatComponent::GetUnarmedComboWindowStartEffect() const
 {
-	ACharacterBase* Character = GetCharacter();
-	if (!UnarmedCombatSettings.ComboWindowStartEffect
-		|| !Character
-		|| Character->GetNetMode() == NM_DedicatedServer
-		|| !Character->IsPlayerControlled()
-		|| !Character->IsLocallyControlled())
-	{
-		return;
-	}
-
-	USceneComponent* EffectAttachComponent = Character->GetRootComponent();
-	if (!EffectAttachComponent)
-	{
-		return;
-	}
-
-	UNiagaraFunctionLibrary::SpawnSystemAttached(
-		UnarmedCombatSettings.ComboWindowStartEffect,
-		EffectAttachComponent,
-		NAME_None,
-		FVector::ZeroVector,
-		FRotator::ZeroRotator,
-		EAttachLocation::KeepRelativeOffset,
-		true,
-		true,
-		ENCPoolMethod::AutoRelease,
-		true);
+	return UnarmedCombatSettings.ComboWindowStartEffect;
 }
 
 // 누르기 입력은 즉시 한 번 처리하고 자동 무기라면 다음 입력을 예약한다.

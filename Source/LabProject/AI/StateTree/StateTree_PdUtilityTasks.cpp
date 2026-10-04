@@ -70,6 +70,16 @@ void RestoreMovementParameters(
 	InstanceData.SavedMovementComponent.Reset();
 	InstanceData.bHasSavedMovementParameters = false;
 }
+
+#if WITH_EDITOR
+// 입력 하나에 연결된 이름이 있으면 그 이름을 넣은 문구를, 없으면 기본 문구를 에디터 설명으로 쓴다.
+FText DescribeWithBoundInput(const FGuid& ID, const FName InputName, const IStateTreeBindingLookup& BindingLookup,
+	const EStateTreeNodeFormatting Formatting, const FText& UnboundText, const FTextFormat& BoundFormat)
+{
+	const FText BoundName = BindingLookup.GetBindingSourceDisplayName(FPropertyBindingPath(ID, InputName), Formatting);
+	return BoundName.IsEmpty() ? UnboundText : FText::Format(BoundFormat, BoundName);
+}
+#endif
 }
 
 FStateTreePdSaveLocationTask::FStateTreePdSaveLocationTask()
@@ -103,13 +113,9 @@ FText FStateTreePdSaveLocationTask::GetDescription(
 	EStateTreeNodeFormatting Formatting) const
 {
 	static_cast<void>(InstanceDataView);
-
-	const FText PawnValue = BindingLookup.GetBindingSourceDisplayName(
-		FPropertyBindingPath(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Pawn)),
-		Formatting);
-	return PawnValue.IsEmpty()
-		? LOCTEXT("SaveLocation", "Save the Actor's location on Enter State")
-		: FText::Format(LOCTEXT("SaveLocationPawn", "Save {0}'s location on Enter State"), PawnValue);
+	return DescribeWithBoundInput(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Pawn), BindingLookup, Formatting,
+		LOCTEXT("SaveLocation", "Save the Actor's location on Enter State"),
+		LOCTEXT("SaveLocationPawn", "Save {0}'s location on Enter State"));
 }
 #endif
 
@@ -162,13 +168,9 @@ FText FStateTreePdTrackPlayerTask::GetDescription(
 	EStateTreeNodeFormatting Formatting) const
 {
 	static_cast<void>(InstanceDataView);
-
-	const FText ControllerValue = BindingLookup.GetBindingSourceDisplayName(
-		FPropertyBindingPath(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Controller)),
-		Formatting);
-	return ControllerValue.IsEmpty()
-		? LOCTEXT("TrackPlayer", "Track perceived player")
-		: FText::Format(LOCTEXT("TrackPlayerController", "Track perceived player from {0}"), ControllerValue);
+	return DescribeWithBoundInput(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Controller), BindingLookup, Formatting,
+		LOCTEXT("TrackPlayer", "Track perceived player"),
+		LOCTEXT("TrackPlayerController", "Track perceived player from {0}"));
 }
 #endif
 
@@ -210,13 +212,9 @@ FText FStateTreePdMovementParametersTask::GetDescription(
 	EStateTreeNodeFormatting Formatting) const
 {
 	static_cast<void>(InstanceDataView);
-
-	const FText PawnValue = BindingLookup.GetBindingSourceDisplayName(
-		FPropertyBindingPath(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Pawn)),
-		Formatting);
-	return PawnValue.IsEmpty()
-		? LOCTEXT("MovementParameters", "Set movement parameters while state is active")
-		: FText::Format(LOCTEXT("MovementParametersPawn", "Set movement parameters on {0}"), PawnValue);
+	return DescribeWithBoundInput(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Pawn), BindingLookup, Formatting,
+		LOCTEXT("MovementParameters", "Set movement parameters while state is active"),
+		LOCTEXT("MovementParametersPawn", "Set movement parameters on {0}"));
 }
 #endif
 
