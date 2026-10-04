@@ -48,7 +48,7 @@ namespace
 }
 
 // 장비 효과는 기본값을 건드리지 않고 수정자로 더해지며, 핸들을 지우면 원래 값과 태그로 돌아오는지 확인한다.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdEquipmentStatsEffectTest, "LabProject.Equipment.StatsEffect",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdEquipmentStatsEffectTest, "LabProject.Unit.Equipment.StatsEffect",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FPdEquipmentStatsEffectTest::RunTest(const FString& Parameters)
 {
@@ -75,7 +75,7 @@ bool FPdEquipmentStatsEffectTest::RunTest(const FString& Parameters)
 }
 
 // 최대 자원이 바뀌는 동안 현재 자원의 비율을 유지하고, 가득 차 있던 자원은 새 최대값까지 채우는지 확인한다.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdScopedResourceRatioTest, "LabProject.Equipment.ResourceRatio",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdScopedResourceRatioTest, "LabProject.Unit.Equipment.ResourceRatio",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FPdScopedResourceRatioTest::RunTest(const FString& Parameters)
 {

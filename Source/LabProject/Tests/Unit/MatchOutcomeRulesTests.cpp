@@ -4,7 +4,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 // 최고 점수자가 한 명이면 그 사람이, 같은 팀끼리 나눠 가지면 그 팀이 이기고, 다른 팀끼리 나눠 가지면 골든킬로 넘어가는지 확인한다.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdMatchOutcomeResolveTest, "LabProject.Match.Outcome.Resolve",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdMatchOutcomeResolveTest, "LabProject.Unit.Match.Outcome.Resolve",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 bool FPdMatchOutcomeResolveTest::RunTest(const FString& Parameters)
 {
@@ -40,7 +40,7 @@ bool FPdMatchOutcomeResolveTest::RunTest(const FString& Parameters)
 }
 
 // 승리 골드는 처치당 보상에서 사망 감점을 빼고 팀 인원 보상을 더하며, 0 아래로 내려가지 않는지 확인한다.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdMatchVictoryGoldTest, "LabProject.Match.Outcome.VictoryGold",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdMatchVictoryGoldTest, "LabProject.Unit.Match.Outcome.VictoryGold",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 bool FPdMatchVictoryGoldTest::RunTest(const FString& Parameters)
 {

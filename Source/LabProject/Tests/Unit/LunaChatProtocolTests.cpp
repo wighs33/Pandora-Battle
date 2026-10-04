@@ -19,7 +19,7 @@ namespace
 }
 
 // 네트워크 조각이 줄과 한글(UTF-8 3바이트) 중간에서 끊겨도 완성된 줄만 순서대로 해석하는지 확인한다.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLunaStreamParserTest, "LabProject.Luna.Protocol.StreamParser",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLunaStreamParserTest, "LabProject.Unit.Luna.Protocol.StreamParser",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 bool FPdLunaStreamParserTest::RunTest(const FString& Parameters)
 {
@@ -65,7 +65,7 @@ bool FPdLunaStreamParserTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLunaReplyTextTest, "LabProject.Luna.Protocol.ReplyText",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLunaReplyTextTest, "LabProject.Unit.Luna.Protocol.ReplyText",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 bool FPdLunaReplyTextTest::RunTest(const FString& Parameters)
 {

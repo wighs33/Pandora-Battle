@@ -27,7 +27,7 @@ namespace
 }
 
 // NIST 벡터와 패딩 경계(55·56·64바이트: 길이 필드가 같은 블록/다음 블록에 들어가는 경우)를 확인한다.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdSha256Test, "LabProject.Backend.AwsSigV4.Sha256",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdSha256Test, "LabProject.Unit.Backend.AwsSigV4.Sha256",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ServerContext | EAutomationTestFlags::EngineFilter)
 bool FPdSha256Test::RunTest(const FString& Parameters)
 {
@@ -49,7 +49,7 @@ bool FPdSha256Test::RunTest(const FString& Parameters)
 }
 
 // RFC 4231 테스트 케이스 2(짧은 키)와 6(블록보다 긴 키)
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdHmacSha256Test, "LabProject.Backend.AwsSigV4.HmacSha256",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdHmacSha256Test, "LabProject.Unit.Backend.AwsSigV4.HmacSha256",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ServerContext | EAutomationTestFlags::EngineFilter)
 bool FPdHmacSha256Test::RunTest(const FString& Parameters)
 {
@@ -65,7 +65,7 @@ bool FPdHmacSha256Test::RunTest(const FString& Parameters)
 
 // AWS SigV4 테스트 모음의 get-vanilla 예제와, 실제 결과 보고 형태(POST + 임시 자격 증명)를 확인한다.
 // 두 번째 기대값은 get-vanilla를 재현한 독립 구현으로 계산했다.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdSigV4SignTest, "LabProject.Backend.AwsSigV4.Sign",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdSigV4SignTest, "LabProject.Unit.Backend.AwsSigV4.Sign",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ServerContext | EAutomationTestFlags::EngineFilter)
 bool FPdSigV4SignTest::RunTest(const FString& Parameters)
 {

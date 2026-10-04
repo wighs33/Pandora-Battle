@@ -6,7 +6,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 // 치명타 판정값이 확률보다 작을 때만 치명타가 나고, 배율은 2배에 치명타 수치 1%씩을 더한 값인지 확인한다.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdCriticalDamageTest, "LabProject.Combat.Damage.CriticalHit",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdCriticalDamageTest, "LabProject.Unit.Combat.Damage.CriticalHit",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 bool FPdCriticalDamageTest::RunTest(const FString& Parameters)
 {
@@ -34,7 +34,7 @@ bool FPdCriticalDamageTest::RunTest(const FString& Parameters)
 }
 
 // 들어온 피해가 상태 저항, 방어력, 보호막 순으로 줄어드는 규칙을 확인한다.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdDamageMitigationTest, "LabProject.Combat.Damage.Mitigation",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdDamageMitigationTest, "LabProject.Unit.Combat.Damage.Mitigation",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 bool FPdDamageMitigationTest::RunTest(const FString& Parameters)
 {
