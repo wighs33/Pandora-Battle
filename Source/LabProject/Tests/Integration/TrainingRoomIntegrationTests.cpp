@@ -12,14 +12,18 @@
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/ControllerInputComponent.h"
-#include "Component/Player/EquipmentEffectComponent.h"
 #include "Component/Player/EquipmentComponent.h"
+#include "Component/Player/EquipmentEffectComponent.h"
+#include "Component/Player/PlayerMatchComponent.h"
+#include "Component/Player/PlayerSpawnComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "EngineUtils.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameModeBase.h"
 #include "InputAction.h"
+#include "Mode/PdPlayerState.h"
 #include "UI/HUD/PdHUD.h"
 #include "UI/Info/InfoWidget.h"
 #include "Weapon/Bow.h"
@@ -57,7 +61,7 @@ namespace
 		return World && It ? *It : nullptr;
 	}
 
-	/** 봇이 움직이거나 공격하지 않게 AI를 멈춘다. 플레이어 쪽 수치만 보고 싶은 테스트에서 쓴다. */
+	/** 봇이 움직이거나 공격하지 않게 AI를 멈추고 공격도 끈다. AI가 나중에 다시 시작해도 공격하지 않는다. */
 	void StopTrainingBot()
 	{
 		AEnemyBase* Bot = GetTrainingBot();
@@ -67,6 +71,17 @@ namespace
 			BotController->GetBrainComponent()->StopLogic(TEXT("Integration test"));
 			BotController->StopMovement();
 		}
+		if (Bot)
+		{
+			Bot->SetAttackEnabled(false);
+		}
+	}
+
+	/** 멈춰 둔 봇에게 공격을 한 번 시킨다. */
+	void CommandBotAttack(AEnemyBase& Bot)
+	{
+		Bot.SetAttackEnabled(true);
+		Bot.Attack();
 	}
 
 	void EquipWeapon(const TCHAR* DefinitionPath)
@@ -189,6 +204,50 @@ namespace
 		PdDamageRules::FOutgoingDamage Damage;
 		return Combat && Equipment && Equipment->GetCurrentWeaponActor()
 			&& Combat->BuildWeaponDamage(*Equipment->GetCurrentWeaponActor(), Damage) ? Damage.Damage : 0.f;
+	}
+
+	float GetHealthAndShield(const ACharacterBase* Character)
+	{
+		const UPdAbilitySystemComponent* Abilities = Character ? Character->GetPdAbilitySystemComponent() : nullptr;
+		return Abilities
+			? Abilities->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) + Abilities->GetNumericAttribute(UBasicAttributeSet::GetShieldAttribute())
+			: -1.f;
+	}
+
+	/** Source의 전투 컴포넌트로 Target에게 큰 피해를 같은 프레임에 두 번 준다. 사망이 한 번만 처리되는지 볼 때 쓴다. */
+	void ApplyLethalDamageTwice(ACharacterBase& Source, ACharacterBase& Target)
+	{
+		PdDamageRules::FOutgoingDamage Lethal;
+		Lethal.Damage = 100000.f;
+		Lethal.bAllowHitReact = false;
+		if (UCombatComponent* Combat = Source.GetCombatComponent())
+		{
+			Combat->ApplyOutgoingDamageToTarget(&Target, Lethal, &Source, &Source);
+			Combat->ApplyOutgoingDamageToTarget(&Target, Lethal, &Source, &Source);
+		}
+	}
+
+	/** 훈련 봇 앞에 플레이어를 세우고 서로 바라보게 한다. */
+	void PlaceFacingEachOther()
+	{
+		ACharacterBase* Player = GetPlayerCharacter();
+		AEnemyBase* Bot = GetTrainingBot();
+		if (!Player || !Bot)
+		{
+			return;
+		}
+		Bot->SetActorLocation(FVector(930.f, 640.f, 218.15f), false, nullptr, ETeleportType::TeleportPhysics);
+		Player->SetActorLocation(FVector(930.f, 740.f, 218.15f), false, nullptr, ETeleportType::TeleportPhysics);
+		Player->SetActorRotation((Bot->GetActorLocation() - Player->GetActorLocation()).GetSafeNormal2D().Rotation());
+		Bot->SetActorRotation((Player->GetActorLocation() - Bot->GetActorLocation()).GetSafeNormal2D().Rotation());
+	}
+
+	int32 GetPlayerDeathCount()
+	{
+		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		const APdPlayerState* PlayerState = Controller ? Controller->GetPlayerState<APdPlayerState>() : nullptr;
+		const UPlayerMatchComponent* Match = PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
+		return Match ? Match->GetDeathCount() : -1;
 	}
 
 	UControllerInputDefinition* GetInputDefinition()
@@ -435,6 +494,138 @@ bool FPdArrowDamageSnapshotTest::RunTest(const FString& Parameters)
 			Shots->Hits[2].WeaponAtImpact == LoadObject<UItemDefinition>(nullptr, GreatswordPath));
 		TestNotEqual(TEXT("대검이 내는 피해는 활과 달라 이 비교가 의미 있다"), Shots->GreatswordOutgoing, Shots->BowOutgoing);
 	});
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdPlayerRespawnRebindTest, "LabProject.Integration.TrainingRoom.PlayerRespawnRebind",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 같은 프레임에 치명상을 두 번 받아도 사망·리스폰은 한 번이고, 리스폰 뒤 장비 효과가 남거나 쌓이지 않으며 다시 공격할 수 있다.
+// ASC는 PlayerState에 남고 캐릭터 쪽 컴포넌트가 다시 연결되는 경로를 본다.
+bool FPdPlayerRespawnRebindTest::RunTest(const FString& Parameters)
+{
+	struct FRespawnState
+	{
+		FEquipmentState BeforeDeath;
+		int32 Respawns = 0;
+		int32 DeathsBefore = 0;
+		float BotHealthBefore = 0.f;
+	};
+	TSharedRef<FRespawnState> State = MakeShared<FRespawnState>();
+
+	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
+	PdIntegrationTest::Step(0.f, []() { StopTrainingBot(); });
+	EquipAndWait(this, GreatswordPath);
+	PdIntegrationTest::Step(1.f, [this, State]()
+	{
+		State->BeforeDeath = CaptureEquipmentState();
+		AGameModeBase* GameMode = UGameplayStatics::GetGameMode(PdIntegrationTest::GetGameWorld());
+		UPlayerSpawnComponent* Spawn = GameMode ? GameMode->FindComponentByClass<UPlayerSpawnComponent>() : nullptr;
+		if (!TestNotNull(TEXT("리스폰 컴포넌트"), Spawn))
+		{
+			return;
+		}
+		Spawn->OnPlayerRespawned.AddLambda([State](APlayerController*, bool) { ++State->Respawns; });
+
+		ACharacterBase* Player = GetPlayerCharacter();
+		AEnemyBase* Bot = GetTrainingBot();
+		if (Player && Bot)
+		{
+			TestFalse(TEXT("치명상 전에 플레이어는 살아 있다"), Player->IsDead() || GetHealthAndShield(Player) <= 0.f);
+			State->DeathsBefore = GetPlayerDeathCount();
+			ApplyLethalDamageTwice(*Bot, *Player);
+			TestTrue(TEXT("치명상을 받은 플레이어는 죽었다"), Player->IsDead());
+			// 훈련장은 리스폰할 때 사망 수를 다시 0으로 돌리므로, 기록은 사망한 그 자리에서 본다.
+			TestEqual(TEXT("치명상 두 번에도 사망은 한 번만 기록된다"), GetPlayerDeathCount() - State->DeathsBefore, 1);
+		}
+	});
+	PdIntegrationTest::WaitUntil(this, TEXT("플레이어 리스폰"), 20.f, [State]()
+	{
+		const ACharacterBase* Player = GetPlayerCharacter();
+		return State->Respawns > 0 && Player && !Player->IsDead() && GetHealthAndShield(Player) > 0.f;
+	});
+	PdIntegrationTest::Step(1.f, [this, State]()
+	{
+		TestEqual(TEXT("리스폰은 한 번만 일어난다"), State->Respawns, 1);
+	});
+	EquipAndWait(this, GreatswordPath);
+	PdIntegrationTest::Step(1.f, [this, State]()
+	{
+		ExpectSameEquipmentState(this, TEXT("리스폰 뒤 대검"), State->BeforeDeath, CaptureEquipmentState());
+		PlaceFacingEachOther();
+		State->BotHealthBefore = GetHealthAndShield(GetTrainingBot());
+		if (UCombatComponent* Combat = GetPlayerCharacter() ? GetPlayerCharacter()->GetCombatComponent() : nullptr)
+		{
+			Combat->StartPrimaryAttack();
+		}
+	});
+	PdIntegrationTest::Step(0.3f, []()
+	{
+		if (UCombatComponent* Combat = GetPlayerCharacter() ? GetPlayerCharacter()->GetCombatComponent() : nullptr)
+		{
+			Combat->StopPrimaryAttack();
+		}
+	});
+	PdIntegrationTest::WaitUntil(this, TEXT("리스폰 뒤 공격이 봇에 피해를 준다"), 5.f,
+		[State]() { return GetHealthAndShield(GetTrainingBot()) < State->BotHealthBefore; });
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdAttackInterruptedByDeathTest, "LabProject.Integration.TrainingRoom.AttackInterruptedByDeath",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 공격을 시작한 봇이 같은 프레임에 치명상을 두 번 받으면 공격이 바로 끊기고, 끊긴 공격은 피해를 주지 않는다.
+// 다시 태어난 봇은 다시 공격할 수 있다(판정·타이머가 남지 않고 공격 상태가 처음으로 돌아감).
+bool FPdAttackInterruptedByDeathTest::RunTest(const FString& Parameters)
+{
+	struct FAttackState
+	{
+		float PlayerHealthBefore = 0.f;
+	};
+	TSharedRef<FAttackState> State = MakeShared<FAttackState>();
+
+	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
+	PdIntegrationTest::Step(0.f, []()
+	{
+		StopTrainingBot();
+		PlaceFacingEachOther();
+	});
+	PdIntegrationTest::Step(0.5f, [this, State]()
+	{
+		ACharacterBase* Player = GetPlayerCharacter();
+		AEnemyBase* Bot = GetTrainingBot();
+		if (!TestNotNull(TEXT("플레이어"), Player) || !TestNotNull(TEXT("훈련 봇"), Bot))
+		{
+			return;
+		}
+		State->PlayerHealthBefore = GetHealthAndShield(Player);
+		CommandBotAttack(*Bot);
+		TestTrue(TEXT("봇이 공격을 시작했다"), Bot->IsAttackInProgress());
+		ApplyLethalDamageTwice(*Player, *Bot);
+		TestTrue(TEXT("치명상을 받은 봇은 죽었다"), Bot->IsDead());
+		TestFalse(TEXT("죽은 봇의 공격은 바로 끊긴다"), Bot->IsAttackInProgress());
+	});
+	PdIntegrationTest::Step(2.f, [this, State]()
+	{
+		TestEqual(TEXT("끊긴 공격은 플레이어에게 피해를 주지 않는다"), GetHealthAndShield(GetPlayerCharacter()), State->PlayerHealthBefore);
+	});
+	PdIntegrationTest::WaitUntil(this, TEXT("훈련 봇 리스폰"), 20.f, []()
+	{
+		const AEnemyBase* Bot = GetTrainingBot();
+		return Bot && !Bot->IsDead() && GetHealthAndShield(Bot) > 0.f;
+	});
+	PdIntegrationTest::Step(1.f, [State]()
+	{
+		StopTrainingBot();
+		PlaceFacingEachOther();
+		State->PlayerHealthBefore = GetHealthAndShield(GetPlayerCharacter());
+		if (AEnemyBase* Bot = GetTrainingBot())
+		{
+			CommandBotAttack(*Bot);
+		}
+	});
+	PdIntegrationTest::WaitUntil(this, TEXT("리스폰한 봇의 공격이 플레이어에게 피해를 준다"), 5.f,
+		[State]() { return GetHealthAndShield(GetPlayerCharacter()) < State->PlayerHealthBefore; });
 	return true;
 }
 
