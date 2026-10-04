@@ -79,7 +79,19 @@ public:
     virtual bool OnWeaponAnimNotifyTiming(FName NotifyName, APdPlayer* PlayerCharacter) override;
 
 private:
+    /** 한 번의 판정에서 검사한 선분과 맞은 결과. 판정 디버그 표시를 켰을 때 클라이언트에 보낸다. */
+    struct FAttackTraceDebugData
+    {
+        TArray<FVector> StartLocations;
+        TArray<FVector> EndLocations;
+        TArray<FHitResult> HitResults;
+    };
+
     void PerformAttackTrace();
+    void CollectAttackTraceIgnoredActors(TArray<AActor*>& OutActorsToIgnore);
+    /** 선분 하나를 맞을 수 있는 몸통과 Pawn 캡슐로 검사하고, 처음 맞은 상대 캐릭터에게 피해를 준다. */
+    void TraceAttackSegment(const FVector& LineStart, const FVector& LineEnd, const TArray<AActor*>& ActorsToIgnore,
+        FAttackTraceDebugData& DebugData);
 
 protected:
     // Internal Helpers ------------------------------------------------------------------------------------------------

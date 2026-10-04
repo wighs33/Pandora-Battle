@@ -275,6 +275,8 @@ private:
 	void CompletePendingItemLoadRequest(uint64 RequestGeneration);
 	void CancelPendingItemLoads();
 	void RefreshWeaponLoadoutPresentationAssets();
+	/** 무기 로드아웃 슬롯에 놓인 무기 정의를 애셋 ID별로 모은다. */
+	void CollectLoadoutWeaponDefinitions(TMap<FPrimaryAssetId, const UItemDefinition*>& OutDefinitions) const;
 	void ReleaseWeaponLoadoutPresentationAssets();
 	void EnsureConsumableQuickSlotArray();
 	void EnsureWeaponLoadoutSlotCount();

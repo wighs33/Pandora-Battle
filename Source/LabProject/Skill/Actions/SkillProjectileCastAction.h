@@ -75,6 +75,10 @@ private:
     void ResumeProjectileMontageAfterAiming();
 
     void WaitForPlayerTargetData();
+    /** 대상 데이터를 받을 수 없을 때, 플레이어가 아직 확정하지 않았으면 액션을 끝내고 아니면 기본 대상으로 쏜다. */
+    void HandleTargetDataUnavailable();
+    /** 조준선·지면 조준 대상 액터에 사거리·충돌 프로필·데칼과 시작 위치를 넣는다. */
+    void ConfigureTargetActor(AGameplayAbilityTargetActor& TargetActor, bool bUsingGroundTargeting);
 
     bool TryValidateServerProjectileTargetLocation(
         const FHitResult& ClientHitResult,

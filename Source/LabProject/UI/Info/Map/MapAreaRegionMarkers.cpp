@@ -29,6 +29,59 @@ namespace
 			| (static_cast<uint64>(MapRegion) << 16)
 			| TeamColorIndex;
 	}
+
+	// 표식 순서가 매번 같도록 플레이어 ID, 같으면 이름 순으로 정렬한다.
+	TArray<APdPlayerState*> CollectSortedPlayerStates(const AGameStateBase& GameState)
+	{
+		TArray<APdPlayerState*> PlayerStates;
+		for (APlayerState* PlayerState : GameState.PlayerArray)
+		{
+			if (APdPlayerState* PdPlayerState = Cast<APdPlayerState>(PlayerState))
+			{
+				PlayerStates.Add(PdPlayerState);
+			}
+		}
+		PlayerStates.Sort([](const APdPlayerState& Left, const APdPlayerState& Right)
+		{
+			if (Left.GetPlayerId() != Right.GetPlayerId())
+			{
+				return Left.GetPlayerId() < Right.GetPlayerId();
+			}
+			return Left.GetName() < Right.GetName();
+		});
+		return PlayerStates;
+	}
+
+	// 플레이어가 있는 지역의 줄에 팀 색 표식을 하나 넣는다. 그 플레이어에게 표식이 필요하면 bOutRequired가 true다.
+	bool AddRegionMarker(UObject& Outer, const FMapAreaRegionBoxes& Boxes, const FMapMarkImages& MarkImages,
+		const APdPlayerState& PlayerState, bool& bOutRequired)
+	{
+		bOutRequired = false;
+		const UPlayerMatchComponent* MatchComponent = PlayerState.GetPlayerMatchComponent();
+		UHorizontalBox* MarkerBox = MatchComponent ? Boxes.Resolve(MatchComponent->GetPlayerMapRegion()) : nullptr;
+		if (!MarkerBox)
+		{
+			return false;
+		}
+		bOutRequired = true;
+
+		UImage* MarkerImage = NewObject<UImage>(&Outer);
+		if (!MarkerImage || !MarkImages.ApplyTeamMark(MarkerImage, MatchComponent->GetMatchTeamColorIndex()))
+		{
+			return false;
+		}
+
+		MarkerImage->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+		MarkerImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+		UHorizontalBoxSlot* MarkerSlot = MarkerBox->AddChildToHorizontalBox(MarkerImage);
+		if (!MarkerSlot)
+		{
+			return false;
+		}
+		MarkerSlot->SetHorizontalAlignment(HAlign_Center);
+		MarkerSlot->SetVerticalAlignment(VAlign_Center);
+		return true;
+	}
 }
 
 UHorizontalBox* FMapAreaRegionBoxes::Resolve(
@@ -73,38 +126,14 @@ void FMapAreaRegionMarkers::Refresh(
 		return;
 	}
 
-	TArray<APdPlayerState*> PlayerStates;
-	for (APlayerState* PlayerState : GameState->PlayerArray)
-	{
-		if (APdPlayerState* PdPlayerState =
-			Cast<APdPlayerState>(PlayerState))
-		{
-			PlayerStates.Add(PdPlayerState);
-		}
-	}
-	PlayerStates.Sort(
-		[](const APdPlayerState& Left, const APdPlayerState& Right)
-		{
-			if (Left.GetPlayerId() != Right.GetPlayerId())
-			{
-				return Left.GetPlayerId() < Right.GetPlayerId();
-			}
-			return Left.GetName() < Right.GetName();
-		});
-
+	const TArray<APdPlayerState*> PlayerStates = CollectSortedPlayerStates(*GameState);
 	TArray<uint64> NewMarkerStateKeys;
 	NewMarkerStateKeys.Reserve(PlayerStates.Num());
 	for (const APdPlayerState* PlayerState : PlayerStates)
 	{
-		if (PlayerState)
-		{
-			NewMarkerStateKeys.Add(
-				MakeMarkerStateKey(*PlayerState));
-		}
+		NewMarkerStateKeys.Add(MakeMarkerStateKey(*PlayerState));
 	}
-
-	if (bMarkerWidgetsComplete
-		&& MarkerStateKeys == NewMarkerStateKeys)
+	if (bMarkerWidgetsComplete && MarkerStateKeys == NewMarkerStateKeys)
 	{
 		return;
 	}
@@ -121,46 +150,13 @@ void FMapAreaRegionMarkers::Refresh(
 	int32 AddedMarkerCount = 0;
 	for (const APdPlayerState* PlayerState : PlayerStates)
 	{
-		const UPlayerMatchComponent* MatchComponent =
-			PlayerState
-				? PlayerState->GetPlayerMatchComponent()
-				: nullptr;
-		if (!MatchComponent)
-		{
-			continue;
-		}
-
-		UHorizontalBox* MarkerBox = Boxes.Resolve(
-			MatchComponent->GetPlayerMapRegion());
-		if (!MarkerBox)
-		{
-			continue;
-		}
-		++RequiredMarkerCount;
-
-		UImage* MarkerImage = NewObject<UImage>(&Outer);
-		if (!MarkerImage
-			|| !MarkImages.ApplyTeamMark(
-				MarkerImage,
-				MatchComponent->GetMatchTeamColorIndex()))
-		{
-			continue;
-		}
-
-		MarkerImage->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-		MarkerImage->SetVisibility(ESlateVisibility::HitTestInvisible);
-		if (UHorizontalBoxSlot* MarkerSlot =
-			MarkerBox->AddChildToHorizontalBox(MarkerImage))
-		{
-			MarkerSlot->SetHorizontalAlignment(HAlign_Center);
-			MarkerSlot->SetVerticalAlignment(VAlign_Center);
-			++AddedMarkerCount;
-		}
+		bool bRequired = false;
+		AddedMarkerCount += AddRegionMarker(Outer, Boxes, MarkImages, *PlayerState, bRequired) ? 1 : 0;
+		RequiredMarkerCount += bRequired ? 1 : 0;
 	}
 
 	MarkerStateKeys = MoveTemp(NewMarkerStateKeys);
-	bMarkerWidgetsComplete =
-		AddedMarkerCount == RequiredMarkerCount;
+	bMarkerWidgetsComplete = AddedMarkerCount == RequiredMarkerCount;
 }
 
 void FMapAreaRegionMarkers::Reset()

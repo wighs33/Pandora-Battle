@@ -11,6 +11,8 @@ class UAbilitySystemComponent;
 class UGameplayEffect;
 class UNiagaraComponent;
 class UCurveFloat;
+class UCharacterMovementComponent;
+struct FOverlapResult;
 class USceneComponent;
 class FLifetimeProperty;
 struct FSkillGameplayEffectConfig;
@@ -63,6 +65,12 @@ private:
 	float CalculateFinishAreaDamageMagnitude(const UAbilitySystemComponent* SourceASC) const;
 	void PullEnemyCharacters(float DeltaSeconds, float GrowthAlpha);
 	void ClearPullRootMotionSources();
+	/** 블랙홀과 시전자를 뺀, 반지름 안의 Pawn 겹침 결과. */
+	void OverlapPawnsInRadius(float Radius, TArray<FOverlapResult>& OutOverlaps) const;
+	/** 이동 컴포넌트에 블랙홀 쪽으로 당기는 루트 모션을 걸거나, 이미 걸려 있으면 반지름·세기를 갱신한다. */
+	void ApplyPullRootMotion(UCharacterMovementComponent& MovementComponent, float Radius, float Strength);
+	/** 이번 틱에 당기지 않은 이동 컴포넌트의 당김 루트 모션을 거둔다. */
+	void ReleasePullsExcept(const TSet<UCharacterMovementComponent*>& PulledMovementComponents);
 	bool IsPullPhaseActive() const;
 	bool ShouldPullCharacter(ACharacterBase* TargetCharacter) const;
 	AActor* ResolveSourceActor() const;

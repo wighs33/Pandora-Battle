@@ -23,6 +23,53 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopWidget)
 
+namespace
+{
+	enum class EShopPurchaseAttempt : uint8
+	{
+		Purchased,
+		NotEnoughGold,
+		AlreadyOwned,
+		Unsupported
+	};
+
+	/** 상품 종류에 맞는 골드 구매를 프로필에 요청한다. 이미 가진 상품은 사지 않는다. 저장은 호출한 쪽이 한다. */
+	EShopPurchaseAttempt PurchaseProductWithGold(UPlayerProfileSubsystem& Profile, UObject* ProductObject,
+		const EShopProductType ProductType, const int32 GoldPrice, const int32 PandoraStartingLevel)
+	{
+		int32 RemainingGold = 0;
+		switch (ProductType)
+		{
+		case EShopProductType::Pandora:
+			if (const UPandoraDefinition* PandoraDefinition = Cast<UPandoraDefinition>(ProductObject))
+			{
+				if (Profile.IsPandoraGranted(PandoraDefinition))
+				{
+					return EShopPurchaseAttempt::AlreadyOwned;
+				}
+				return Profile.TryPurchasePandoraWithGold(PandoraDefinition, GoldPrice, PandoraStartingLevel, RemainingGold, false)
+					? EShopPurchaseAttempt::Purchased
+					: EShopPurchaseAttempt::NotEnoughGold;
+			}
+			return EShopPurchaseAttempt::Unsupported;
+		case EShopProductType::Skin:
+			if (USkinDefinition* SkinDefinition = Cast<USkinDefinition>(ProductObject))
+			{
+				if (Profile.IsSkinGranted(SkinDefinition))
+				{
+					return EShopPurchaseAttempt::AlreadyOwned;
+				}
+				return Profile.TryPurchaseSkinWithGold(SkinDefinition, GoldPrice, RemainingGold, false)
+					? EShopPurchaseAttempt::Purchased
+					: EShopPurchaseAttempt::NotEnoughGold;
+			}
+			return EShopPurchaseAttempt::Unsupported;
+		default:
+			return EShopPurchaseAttempt::Unsupported;
+		}
+	}
+}
+
 void UShopWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -219,8 +266,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 	if (IsPandoraComingSoonProduct(ProductObject, ProductType))
 	{
 		SetMessage(TEXT("Shop.ComingSoon"), PandoraComingSoonText);
-		RefreshUI();
-		SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
+		RefreshAndSelectProduct(ProductObject, ProductType);
 		return false;
 	}
 
@@ -242,82 +288,37 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 		return false;
 	}
 
-	int32 RemainingGold = 0;
-	bool bPurchased = false;
-
-	switch (ProductType)
+	switch (PurchaseProductWithGold(*ProfileSubsystem, ProductObject, ProductType, GoldPrice, PurchasedPandoraStartingLevel))
 	{
-	case EShopProductType::Pandora:
-		{
-			UPandoraDefinition* PandoraDefinition = Cast<UPandoraDefinition>(ProductObject);
-			if (!PandoraDefinition)
-			{
-				SetMessage(TEXT("Shop.Unsupported"), UnsupportedProductTypeText);
-				return false;
-			}
-
-			if (ProfileSubsystem->IsPandoraGranted(PandoraDefinition))
-			{
-				SetMessage(TEXT("Shop.AlreadyOwned"), AlreadyOwnedText);
-				RefreshUI();
-				SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
-				return false;
-			}
-
-			bPurchased = ProfileSubsystem->TryPurchasePandoraWithGold(PandoraDefinition,
-				GoldPrice,
-				PurchasedPandoraStartingLevel,
-				RemainingGold,
-				false);
-			break;
-		}
-	case EShopProductType::Skin:
-		{
-			USkinDefinition* SkinDefinition = Cast<USkinDefinition>(ProductObject);
-			if (!SkinDefinition)
-			{
-				SetMessage(TEXT("Shop.Unsupported"), UnsupportedProductTypeText);
-				return false;
-			}
-
-			if (ProfileSubsystem->IsSkinGranted(SkinDefinition))
-			{
-				SetMessage(TEXT("Shop.AlreadyOwned"), AlreadyOwnedText);
-				RefreshUI();
-				SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
-				return false;
-			}
-
-			bPurchased = ProfileSubsystem->TryPurchaseSkinWithGold(SkinDefinition,
-				GoldPrice,
-				RemainingGold,
-				false);
-			break;
-		}
-	default:
+	case EShopPurchaseAttempt::Unsupported:
 		SetMessage(TEXT("Shop.Unsupported"), UnsupportedProductTypeText);
 		return false;
-	}
-
-	if (!bPurchased)
-	{
-		SetMessage(TEXT("Shop.NeedGold"), NotEnoughGoldText);
-		RefreshUI();
-		SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
+	case EShopPurchaseAttempt::AlreadyOwned:
+		SetMessage(TEXT("Shop.AlreadyOwned"), AlreadyOwnedText);
+		RefreshAndSelectProduct(ProductObject, ProductType);
 		return false;
+	case EShopPurchaseAttempt::NotEnoughGold:
+		SetMessage(TEXT("Shop.NeedGold"), NotEnoughGoldText);
+		RefreshAndSelectProduct(ProductObject, ProductType);
+		return false;
+	case EShopPurchaseAttempt::Purchased:
+		break;
 	}
 
 	SetMessage(TEXT("Shop.Purchased"), PurchaseSucceededTextFormat, ProductObject);
-
 	ProfileSubsystem->SaveProfile();
 	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
 	{
 		PdPlayerController->RequestLocalCosmeticProfileSync();
 	}
+	RefreshAndSelectProduct(ProductObject, ProductType);
+	return true;
+}
 
+void UShopWidget::RefreshAndSelectProduct(UObject* ProductObject, const EShopProductType ProductType)
+{
 	RefreshUI();
 	SelectEntry(FindEntryDataByProduct(ProductObject, ProductType));
-	return true;
 }
 
 void UShopWidget::HandleCloseClicked()

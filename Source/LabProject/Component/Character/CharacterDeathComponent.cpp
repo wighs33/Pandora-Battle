@@ -215,22 +215,7 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 
 	if (USkeletalMeshComponent* CharacterMesh = Character->GetMesh())
 	{
-		CharacterMesh->SetHiddenInGame(false, true);
-		CharacterMesh->SetVisibility(true, true);
-		CharacterMesh->SetSimulatePhysics(false);
-		CharacterMesh->SetAllBodiesSimulatePhysics(false);
-		CharacterMesh->bBlendPhysics = false;
-		CharacterMesh->SetPhysicsBlendWeight(0.0f);
-		CharacterMesh->PutAllRigidBodiesToSleep();
-		if (UCapsuleComponent* Capsule = Character->GetCapsuleComponent())
-		{
-			CharacterMesh->AttachToComponent(Capsule, FAttachmentTransformRules::KeepRelativeTransform);
-		}
-		CharacterMesh->SetRelativeTransform(InitialMeshRelativeTransform, false, nullptr,
-			ETeleportType::TeleportPhysics);
-		CharacterMesh->SetCollisionEnabled(InitialMeshCollisionEnabled);
-		ConfigureWeaponDamageMesh(CharacterMesh);
-		CharacterMesh->SetComponentTickEnabled(true);
+		RestoreMeshForRespawn(*Character, *CharacterMesh);
 	}
 
 	Character->ApplyCameraCollisionIgnoreToCharacterComponents();
@@ -240,23 +225,7 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 		Presentation->RefreshCharacterOverlayMaterial();
 	}
 
-	if (UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement())
-	{
-		if (!MovementComponent->UpdatedComponent)
-		{
-			MovementComponent->SetUpdatedComponent(Character->GetCapsuleComponent());
-		}
-		MovementComponent->Activate(true);
-		MovementComponent->SetComponentTickEnabled(true);
-		MovementComponent->StopMovementImmediately();
-		MovementComponent->ClearAccumulatedForces();
-		const EMovementMode RestoredMovementMode =
-			InitialRespawnMovementMode != MOVE_None
-				? InitialRespawnMovementMode.GetValue()
-				: MOVE_Walking;
-		MovementComponent->SetMovementMode(RestoredMovementMode);
-	}
-
+	RestoreMovementForRespawn(*Character);
 	if (UAbilityStateComponent* AbilityState = Character->GetAbilityStateComponent())
 	{
 		AbilityState->ApplyMovementSpeedFromAttribute();
@@ -279,6 +248,43 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 
 	Character->RefreshHealthBarViewModel();
 	Character->SetHealthBarVisibleForLocalViewer(false);
+}
+
+void UCharacterDeathComponent::RestoreMeshForRespawn(ACharacterBase& Character, USkeletalMeshComponent& CharacterMesh) const
+{
+	CharacterMesh.SetHiddenInGame(false, true);
+	CharacterMesh.SetVisibility(true, true);
+	CharacterMesh.SetSimulatePhysics(false);
+	CharacterMesh.SetAllBodiesSimulatePhysics(false);
+	CharacterMesh.bBlendPhysics = false;
+	CharacterMesh.SetPhysicsBlendWeight(0.0f);
+	CharacterMesh.PutAllRigidBodiesToSleep();
+	if (UCapsuleComponent* Capsule = Character.GetCapsuleComponent())
+	{
+		CharacterMesh.AttachToComponent(Capsule, FAttachmentTransformRules::KeepRelativeTransform);
+	}
+	CharacterMesh.SetRelativeTransform(InitialMeshRelativeTransform, false, nullptr, ETeleportType::TeleportPhysics);
+	CharacterMesh.SetCollisionEnabled(InitialMeshCollisionEnabled);
+	ConfigureWeaponDamageMesh(&CharacterMesh);
+	CharacterMesh.SetComponentTickEnabled(true);
+}
+
+void UCharacterDeathComponent::RestoreMovementForRespawn(ACharacterBase& Character) const
+{
+	UCharacterMovementComponent* MovementComponent = Character.GetCharacterMovement();
+	if (!MovementComponent)
+	{
+		return;
+	}
+	if (!MovementComponent->UpdatedComponent)
+	{
+		MovementComponent->SetUpdatedComponent(Character.GetCapsuleComponent());
+	}
+	MovementComponent->Activate(true);
+	MovementComponent->SetComponentTickEnabled(true);
+	MovementComponent->StopMovementImmediately();
+	MovementComponent->ClearAccumulatedForces();
+	MovementComponent->SetMovementMode(InitialRespawnMovementMode != MOVE_None ? InitialRespawnMovementMode.GetValue() : MOVE_Walking);
 }
 
 float UCharacterDeathComponent::GetSafeDissolveDuration(const float RequestedDuration) const

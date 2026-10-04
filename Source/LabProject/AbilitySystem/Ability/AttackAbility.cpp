@@ -286,25 +286,7 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 	}
 
 	FAttackData AttackData;
-	UEquipmentComponent* EquipmentComponent = Character->GetEquipmentComponent();
-	const bool bHasEquippedWeapon = EquipmentComponent && EquipmentComponent->GetCurrentWeaponDefinition() != nullptr;
-	bool bHasAttackData = bHasEquippedWeapon && EquipmentComponent->GetAttackData(AttackData);
-	if (!bHasAttackData && !bHasEquippedWeapon)
-	{
-		if (UCombatComponent* CombatComponent = Character->GetCombatComponent())
-		{
-			bHasAttackData = CombatComponent->GetUnarmedAttackData(AttackData);
-		}
-	}
-	if (!bHasAttackData)
-	{
-		if (const AEnemyBase* Enemy = Cast<AEnemyBase>(Character))
-		{
-			bHasAttackData = Enemy->GetFallbackAttackData(AttackData);
-		}
-	}
-
-	if (!bHasAttackData || !AttackData.AttackMontage)
+	if (!ResolveAttackData(*Character, AttackData) || !AttackData.AttackMontage)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
@@ -316,6 +298,54 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 		return;
 	}
 
+	ResetComboState();
+	WaitForContinueInput();
+	ListenForAttackWindowEvents();
+
+	UAbilityTask_PlayMontageAndWait* MontageTask = CreateWeaponAttackMontageTask(AttackData.AttackMontage);
+	if (!MontageTask)
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		return;
+	}
+
+	MontageTask->OnCompleted.AddDynamic(this, &UAttackAbility::OnAttackMontageCompleted);
+	MontageTask->OnInterrupted.AddDynamic(this, &UAttackAbility::OnAttackMontageInterrupted);
+	MontageTask->OnCancelled.AddDynamic(this, &UAttackAbility::OnAttackMontageCancelled);
+
+	if (AttackingEffectClass && !HasActiveGameplayEffect(AttackingEffectClass))
+	{
+		ApplyGameplayEffect(AttackingEffectClass, 1.f, 1);
+	}
+
+	FaceCurrentAttackTarget();
+	MontageTask->ReadyForActivation();
+}
+
+bool UAttackAbility::ResolveAttackData(const ACharacterBase& Character, FAttackData& OutAttackData)
+{
+	const UEquipmentComponent* EquipmentComponent = Character.GetEquipmentComponent();
+	const bool bHasEquippedWeapon = EquipmentComponent && EquipmentComponent->GetCurrentWeaponDefinition() != nullptr;
+	bool bHasAttackData = bHasEquippedWeapon && EquipmentComponent->GetAttackData(OutAttackData);
+	if (!bHasAttackData && !bHasEquippedWeapon)
+	{
+		if (const UCombatComponent* CombatComponent = Character.GetCombatComponent())
+		{
+			bHasAttackData = CombatComponent->GetUnarmedAttackData(OutAttackData);
+		}
+	}
+	if (!bHasAttackData)
+	{
+		if (const AEnemyBase* Enemy = Cast<AEnemyBase>(&Character))
+		{
+			bHasAttackData = Enemy->GetFallbackAttackData(OutAttackData);
+		}
+	}
+	return bHasAttackData;
+}
+
+void UAttackAbility::ResetComboState()
+{
 	ResetAttackDamageHitTracking();
 	ResetAttackInputState();
 	bComboInputConsumedForCurrentWindow = false;
@@ -324,8 +354,10 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 	ActiveAttackDamageWindowSectionName = NAME_None;
 	bRestartAttackAfterMontage = false;
 	LastComboWindowEffectSectionName = NAME_None;
-	WaitForContinueInput();
+}
 
+void UAttackAbility::ListenForAttackWindowEvents()
+{
 	if (AttackInputWindowStartEventTag.IsValid())
 	{
 		UAbilityTask_WaitGameplayEvent* AttackInputWindowStartedEventTask =
@@ -384,25 +416,6 @@ void UAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 			JumpSectionEventTask->ReadyForActivation();
 		}
 	}
-
-	UAbilityTask_PlayMontageAndWait* MontageTask = CreateWeaponAttackMontageTask(AttackData.AttackMontage);
-	if (!MontageTask)
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
-		return;
-	}
-
-	MontageTask->OnCompleted.AddDynamic(this, &UAttackAbility::OnAttackMontageCompleted);
-	MontageTask->OnInterrupted.AddDynamic(this, &UAttackAbility::OnAttackMontageInterrupted);
-	MontageTask->OnCancelled.AddDynamic(this, &UAttackAbility::OnAttackMontageCancelled);
-
-	if (AttackingEffectClass && !HasActiveGameplayEffect(AttackingEffectClass))
-	{
-		ApplyGameplayEffect(AttackingEffectClass, 1.f, 1);
-	}
-
-	FaceCurrentAttackTarget();
-	MontageTask->ReadyForActivation();
 }
 
 // Query helpers

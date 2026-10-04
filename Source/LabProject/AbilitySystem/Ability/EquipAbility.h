@@ -7,6 +7,8 @@
 #include "EquipAbility.generated.h"
 
 class UGameplayEffect;
+class ACharacterBase;
+class UAnimMontage;
 class UItemDefinition;
 class UAnimInstance;
 
@@ -52,6 +54,10 @@ protected:
 	void ResolveEquipTransition();
 	void FinalizeEquipCommit();
 	bool CommitPendingEquipIfPossible();
+	/** 장착 연출 큐를 캐릭터 위치에서 실행한다. 큐 태그가 없으면 하지 않는다. */
+	void ExecuteEquipCue(ACharacterBase& Character, const UItemDefinition* ItemDefinition);
+	/** 몽타주의 장착 확정 이벤트를 기다리며 장착 몽타주를 재생한다. 몽타주 작업을 만들지 못하면 false. */
+	bool PlayEquipMontage(UAnimMontage* EquipMontage);
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ability|Effect")

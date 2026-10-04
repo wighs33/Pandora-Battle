@@ -554,20 +554,9 @@ void USkillProjectileCastAction::WaitForPlayerTargetData()
        : TSubclassOf<AGameplayAbilityTargetActor>(AGameplayAbilityTargetActor_SingleLineTrace::StaticClass());
     if (!TargetActorClass)
     {
-       if (GetAbility()->HasPlayerController() && !bPlayerProjectileConfirmed)
-       {
-          Finish(false);
-       }
-       else
-       {
-          FireAtDefaultTarget();
-       }
+       HandleTargetDataUnavailable();
        return;
     }
-
-    const FCollisionProfileName ConfiguredTargetTraceProfile = bUsingGroundTargeting
-       ? Settings.GroundTargetingTraceProfile
-       : Settings.TargetTraceProfile;
 
     if (TargetDataTask)
     {
@@ -585,70 +574,77 @@ void USkillProjectileCastAction::WaitForPlayerTargetData()
     TargetDataTask = PendingTargetDataTask;
     if (!PendingTargetDataTask)
     {
-       if (GetAbility()->HasPlayerController() && !bPlayerProjectileConfirmed)
-       {
-          Finish(false);
-       }
-       else
-       {
-          FireAtDefaultTarget();
-       }
+       HandleTargetDataUnavailable();
        return;
     }
 
     PendingTargetDataTask->ValidData.AddDynamic(this, &ThisClass::HandleTargetDataValid);
     PendingTargetDataTask->Cancelled.AddDynamic(this, &ThisClass::HandleTargetDataCancelled);
 
-    if (AGameplayAbilityTargetActor* SpawnedActor =
-       GetAbility()->BeginSpawningTargetDataActor(PendingTargetDataTask, TargetActorClass))
+    if (AGameplayAbilityTargetActor* SpawnedActor = GetAbility()->BeginSpawningTargetDataActor(PendingTargetDataTask, TargetActorClass))
     {
-       if (AGameplayAbilityTargetActor_Trace* TraceActor = Cast<AGameplayAbilityTargetActor_Trace>(SpawnedActor))
-       {
-          TraceActor->MaxRange = bUsingGroundTargeting ? GetConfiguredGroundTargetingMaxRange() : GetConfiguredTargetTraceMaxRange();
-          TraceActor->TraceProfile = ConfiguredTargetTraceProfile;
-          TraceActor->bTraceAffectsAimPitch = bUsingGroundTargeting
-             ? Settings.bGroundTargetingTraceAffectsAimPitch
-             : Settings.bTraceAffectsAimPitch;
-       }
-
-       if (AGameplayAbilityTargetActor_GroundTrace* GroundTraceActor = Cast<AGameplayAbilityTargetActor_GroundTrace>(SpawnedActor))
-       {
-          GroundTraceActor->CollisionRadius = GetConfiguredGroundTargetingCollisionRadius();
-          GroundTraceActor->CollisionHeight = GetConfiguredGroundTargetingCollisionHeight();
-       }
-
-       if (AGroundTargetActor* DecalTargetActor = Cast<AGroundTargetActor>(SpawnedActor))
-       {
-          DecalTargetActor->ConfigureGroundProjection(
-             GetConfiguredGroundTargetingTraceStartHeight(),
-             GetConfiguredGroundTargetingTraceDepth());
-          DecalTargetActor->Decal = Settings.TargetDecal.Get();
-          DecalTargetActor->DecalSize = GetConfiguredGroundTargetingDecalSize();
-          DecalTargetActor->DecalColor = Settings.TargetDecalColor;
-
-          float DecalStartSize = 0.0f;
-          float DecalTargetSize = 0.0f;
-          float DecalGrowthDuration = 0.0f;
-          if (TryBuildGroundTargetingDecalGrowth(DecalStartSize, DecalTargetSize, DecalGrowthDuration))
-          {
-             DecalTargetActor->ConfigureDecalGrowth(DecalStartSize, DecalTargetSize, DecalGrowthDuration);
-          }
-       }
-
-       SpawnedActor->StartLocation = GetAbility()->MakeTargetLocationInfoFromOwnerActor();
-       SpawnedActor->bDebug = bUsingGroundTargeting ? GetConfiguredDrawGroundTargetingDebug() : GetConfiguredDrawTargetTraceDebug();
+       ConfigureTargetActor(*SpawnedActor, bUsingGroundTargeting);
        GetAbility()->FinishSpawningTargetDataActor(PendingTargetDataTask, SpawnedActor);
     }
 
-    // Finishing an instant target actor can synchronously broadcast target data. The callback may end this ability,
-    // which cleans up TargetDataTask before FinishSpawningTargetDataActor returns. Only activate the task if this is
-    // still the current task and it did not already complete during that callback.
+    // 즉시 확정하는 대상 액터는 생성을 마치는 순간 대상 데이터를 보낼 수 있고, 그 콜백이 능력을 끝내면
+    // FinishSpawningTargetDataActor가 돌아오기 전에 TargetDataTask가 정리된다. 아직 지금 작업이고 콜백 안에서
+    // 끝나지 않았을 때만 작업을 켠다.
     if (TargetDataTask == PendingTargetDataTask
        && IsValid(PendingTargetDataTask)
        && PendingTargetDataTask->GetState() == EGameplayTaskState::AwaitingActivation)
     {
        PendingTargetDataTask->ReadyForActivation();
     }
+}
+
+void USkillProjectileCastAction::HandleTargetDataUnavailable()
+{
+    if (GetAbility()->HasPlayerController() && !bPlayerProjectileConfirmed)
+    {
+       Finish(false);
+    }
+    else
+    {
+       FireAtDefaultTarget();
+    }
+}
+
+void USkillProjectileCastAction::ConfigureTargetActor(AGameplayAbilityTargetActor& TargetActor, const bool bUsingGroundTargeting)
+{
+    if (AGameplayAbilityTargetActor_Trace* TraceActor = Cast<AGameplayAbilityTargetActor_Trace>(&TargetActor))
+    {
+       TraceActor->MaxRange = bUsingGroundTargeting ? GetConfiguredGroundTargetingMaxRange() : GetConfiguredTargetTraceMaxRange();
+       TraceActor->TraceProfile = bUsingGroundTargeting ? Settings.GroundTargetingTraceProfile : Settings.TargetTraceProfile;
+       TraceActor->bTraceAffectsAimPitch = bUsingGroundTargeting
+          ? Settings.bGroundTargetingTraceAffectsAimPitch
+          : Settings.bTraceAffectsAimPitch;
+    }
+
+    if (AGameplayAbilityTargetActor_GroundTrace* GroundTraceActor = Cast<AGameplayAbilityTargetActor_GroundTrace>(&TargetActor))
+    {
+       GroundTraceActor->CollisionRadius = GetConfiguredGroundTargetingCollisionRadius();
+       GroundTraceActor->CollisionHeight = GetConfiguredGroundTargetingCollisionHeight();
+    }
+
+    if (AGroundTargetActor* DecalTargetActor = Cast<AGroundTargetActor>(&TargetActor))
+    {
+       DecalTargetActor->ConfigureGroundProjection(GetConfiguredGroundTargetingTraceStartHeight(), GetConfiguredGroundTargetingTraceDepth());
+       DecalTargetActor->Decal = Settings.TargetDecal.Get();
+       DecalTargetActor->DecalSize = GetConfiguredGroundTargetingDecalSize();
+       DecalTargetActor->DecalColor = Settings.TargetDecalColor;
+
+       float DecalStartSize = 0.0f;
+       float DecalTargetSize = 0.0f;
+       float DecalGrowthDuration = 0.0f;
+       if (TryBuildGroundTargetingDecalGrowth(DecalStartSize, DecalTargetSize, DecalGrowthDuration))
+       {
+          DecalTargetActor->ConfigureDecalGrowth(DecalStartSize, DecalTargetSize, DecalGrowthDuration);
+       }
+    }
+
+    TargetActor.StartLocation = GetAbility()->MakeTargetLocationInfoFromOwnerActor();
+    TargetActor.bDebug = bUsingGroundTargeting ? GetConfiguredDrawGroundTargetingDebug() : GetConfiguredDrawTargetTraceDebug();
 }
 
 bool USkillProjectileCastAction::ShouldRetargetUsingAim(const FVector& TargetLocation) const

@@ -12,6 +12,33 @@ namespace
 	constexpr float UnarmedTraceDebugDrawTime = 1.0f;
 	const FColor UnarmedTraceDebugColor = FColor::Red;
 	const FColor UnarmedTraceDebugHitColor = FColor::Green;
+
+	/** 판정 정의의 시작·끝 소켓 위치. 소켓이 없으면 false이고, 두 소켓이 겹치면 캐릭터 정면으로 1cm 늘린다. */
+	bool ResolveTraceSegment(const FUnarmedAttackTraceDefinition& TraceDefinition, const USkeletalMeshComponent& SourceMesh,
+		const ACharacterBase& SourceCharacter, FVector& OutStart, FVector& OutEnd)
+	{
+		if (TraceDefinition.StartSocketName.IsNone() || !SourceMesh.DoesSocketExist(TraceDefinition.StartSocketName))
+		{
+			return false;
+		}
+		const FName EndSocketName = TraceDefinition.EndSocketName.IsNone() ? TraceDefinition.StartSocketName : TraceDefinition.EndSocketName;
+		if (!SourceMesh.DoesSocketExist(EndSocketName))
+		{
+			return false;
+		}
+		OutStart = SourceMesh.GetSocketLocation(TraceDefinition.StartSocketName);
+		OutEnd = SourceMesh.GetSocketLocation(EndSocketName);
+		if (OutStart.Equals(OutEnd, KINDA_SMALL_NUMBER))
+		{
+			OutEnd = OutStart + SourceCharacter.GetActorForwardVector();
+		}
+		return true;
+	}
+
+	bool IsValidHalfSize(const FVector& HalfSize)
+	{
+		return !HalfSize.ContainsNaN() && HalfSize.X > 0.0f && HalfSize.Y > 0.0f && HalfSize.Z > 0.0f;
+	}
 }
 
 bool FUnarmedAttackSweep::CanSweep(const FUnarmedCombatSettings& Settings)
@@ -92,131 +119,127 @@ void FUnarmedAttackSweep::Sweep(
 	for (int32 TraceIndex = 0; TraceIndex < TraceCount; ++TraceIndex)
 	{
 		const FUnarmedAttackTraceDefinition& TraceDefinition = Settings.AttackTraces[TraceIndex];
-		if (TraceDefinition.StartSocketName.IsNone() || !SourceMesh.DoesSocketExist(TraceDefinition.StartSocketName))
+		FVector TraceStart;
+		FVector TraceEnd;
+		if (!ResolveTraceSegment(TraceDefinition, SourceMesh, SourceCharacter, TraceStart, TraceEnd))
 		{
 			continue;
-		}
-
-		const FName EndSocketName = TraceDefinition.EndSocketName.IsNone()
-			? TraceDefinition.StartSocketName
-			: TraceDefinition.EndSocketName;
-		if (!SourceMesh.DoesSocketExist(EndSocketName))
-		{
-			continue;
-		}
-
-		const FVector TraceStart = SourceMesh.GetSocketLocation(TraceDefinition.StartSocketName);
-		FVector TraceEnd = SourceMesh.GetSocketLocation(EndSocketName);
-		if (TraceStart.Equals(TraceEnd, KINDA_SMALL_NUMBER))
-		{
-			TraceEnd = TraceStart + SourceCharacter.GetActorForwardVector();
 		}
 
 		HitResults.Reset();
-		const FVector TraceHalfSize = TraceDefinition.HalfSize;
-		if (TraceHalfSize.ContainsNaN()
-			|| TraceHalfSize.X <= 0.0f
-			|| TraceHalfSize.Y <= 0.0f
-			|| TraceHalfSize.Z <= 0.0f)
+		if (!IsValidHalfSize(TraceDefinition.HalfSize))
 		{
 			continue;
 		}
-		const FRotator TraceRotation = SourceCharacter.GetActorRotation();
 		if (TraceStart.ContainsNaN() || TraceEnd.ContainsNaN())
 		{
 			PreviousTraceValid[TraceIndex] = 0;
 			continue;
 		}
-		bool bHasPreviousTrace = PreviousTraceValid[TraceIndex] != 0;
-		if (bHasPreviousTrace)
-		{
-			const double TravelDistance = FMath::Max(
-				FVector::Distance(PreviousTraceStartLocations[TraceIndex], TraceStart),
-				FVector::Distance(PreviousTraceEndLocations[TraceIndex], TraceEnd));
-			// 순간이동이나 큰 위치 보정은 이전 위치에서 이어서 휘두른 공격으로 취급하지 않는다.
-			bHasPreviousTrace = FMath::IsFinite(TravelDistance) && TravelDistance <= Settings.MaxTraceTravelDistance;
-		}
-		const FVector PreviousTraceStart = bHasPreviousTrace
-			? PreviousTraceStartLocations[TraceIndex]
-			: TraceStart;
-		const FVector PreviousTraceEnd = bHasPreviousTrace
-			? PreviousTraceEndLocations[TraceIndex]
-			: TraceEnd;
-		const float MaxTravelDistance = FMath::Max(
-			FVector::Distance(PreviousTraceStart, TraceStart),
-			FVector::Distance(PreviousTraceEnd, TraceEnd));
-		const float InterpolationDistance = Settings.TraceInterpolationDistance;
-		const int32 MaxSteps = FMath::Clamp(Settings.MaxTraceInterpolationSteps, 1, 64);
-		const int32 InterpolationCount = FMath::CeilToInt(FMath::Clamp(MaxTravelDistance / InterpolationDistance, 1.0f, static_cast<float>(MaxSteps)));
 
-		for (int32 InterpolationIndex = 1; InterpolationIndex <= InterpolationCount; ++InterpolationIndex)
-		{
-			const float Alpha =
-				static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
-			const FVector InterpolatedTraceStart = FMath::Lerp(PreviousTraceStart, TraceStart, Alpha);
-			const FVector InterpolatedTraceEnd = FMath::Lerp(PreviousTraceEnd, TraceEnd, Alpha);
-			InterpolatedHitResults.Reset();
-			UKismetSystemLibrary::BoxTraceMultiForObjects(
-				&WorldContext,
-				InterpolatedTraceStart,
-				InterpolatedTraceEnd,
-				TraceHalfSize,
-				TraceRotation,
-				Settings.TraceObjectTypes,
-				false,
-				ActorsToIgnore,
-				EDrawDebugTrace::None,
-				InterpolatedHitResults,
-				true,
-				FLinearColor::Red,
-				FLinearColor::Green,
-				UnarmedTraceDebugDrawTime);
-			HitResults.Append(InterpolatedHitResults);
-		}
-
-		PreviousTraceStartLocations[TraceIndex] = TraceStart;
-		PreviousTraceEndLocations[TraceIndex] = TraceEnd;
-		PreviousTraceValid[TraceIndex] = 1;
-
+		const FRotator TraceRotation = SourceCharacter.GetActorRotation();
+		TraceFromPreviousPosition(WorldContext, Settings, TraceIndex, TraceStart, TraceEnd, TraceDefinition.HalfSize, TraceRotation);
 		if (bDrawDebug)
 		{
-			const bool bAnyHit = HitResults.ContainsByPredicate(
-				[this](const FHitResult& Hit)
-				{
-					return Hit.GetActor() && !HitActorsInSection.Contains(Hit.GetActor());
-				});
-			const FColor DrawColor = bAnyHit
-				? UnarmedTraceDebugHitColor
-				: UnarmedTraceDebugColor;
-			DrawDebugBox(World, TraceStart, TraceHalfSize, TraceRotation.Quaternion(), DrawColor, false, UnarmedTraceDebugDrawTime, 0, 1.5f);
-			DrawDebugLine(World, TraceStart, TraceEnd, DrawColor, false, UnarmedTraceDebugDrawTime, 0, 2.0f);
+			DrawTraceDebug(*World, TraceStart, TraceEnd, TraceDefinition.HalfSize, TraceRotation);
 		}
-
-		for (const FHitResult& HitResult : HitResults)
+		if (!ReportNewHits(SourceCharacter, SweepGeneration, OnNewHit))
 		{
-			AActor* HitActor = HitResult.GetActor();
-			if (!HitActor || HitActorsInSection.Contains(HitActor))
-			{
-				continue;
-			}
-
-			ACharacterBase* HitCharacter = Cast<ACharacterBase>(HitActor);
-			if (!HitCharacter || HitCharacter == &SourceCharacter)
-			{
-				continue;
-			}
-
-			if (!SourceCharacter.CanDamageCharacterByTeam(HitCharacter))
-			{
-				continue;
-			}
-
-			HitActorsInSection.Add(HitActor);
-			OnNewHit(HitActor);
-			if (SweepGeneration != Generation)
-			{
-				return;
-			}
+			return;
 		}
 	}
+}
+
+void FUnarmedAttackSweep::TraceFromPreviousPosition(const UObject& WorldContext, const FUnarmedCombatSettings& Settings,
+	const int32 TraceIndex, const FVector& TraceStart, const FVector& TraceEnd, const FVector& TraceHalfSize, const FRotator& TraceRotation)
+{
+	bool bHasPreviousTrace = PreviousTraceValid[TraceIndex] != 0;
+	if (bHasPreviousTrace)
+	{
+		const double TravelDistance = FMath::Max(
+			FVector::Distance(PreviousTraceStartLocations[TraceIndex], TraceStart),
+			FVector::Distance(PreviousTraceEndLocations[TraceIndex], TraceEnd));
+		// 순간이동이나 큰 위치 보정은 이전 위치에서 이어서 휘두른 공격으로 취급하지 않는다.
+		bHasPreviousTrace = FMath::IsFinite(TravelDistance) && TravelDistance <= Settings.MaxTraceTravelDistance;
+	}
+	const FVector PreviousTraceStart = bHasPreviousTrace
+		? PreviousTraceStartLocations[TraceIndex]
+		: TraceStart;
+	const FVector PreviousTraceEnd = bHasPreviousTrace
+		? PreviousTraceEndLocations[TraceIndex]
+		: TraceEnd;
+	const float MaxTravelDistance = FMath::Max(
+		FVector::Distance(PreviousTraceStart, TraceStart),
+		FVector::Distance(PreviousTraceEnd, TraceEnd));
+	const float InterpolationDistance = Settings.TraceInterpolationDistance;
+	const int32 MaxSteps = FMath::Clamp(Settings.MaxTraceInterpolationSteps, 1, 64);
+	const int32 InterpolationCount = FMath::CeilToInt(FMath::Clamp(MaxTravelDistance / InterpolationDistance, 1.0f, static_cast<float>(MaxSteps)));
+
+	for (int32 InterpolationIndex = 1; InterpolationIndex <= InterpolationCount; ++InterpolationIndex)
+	{
+		const float Alpha =
+			static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
+		const FVector InterpolatedTraceStart = FMath::Lerp(PreviousTraceStart, TraceStart, Alpha);
+		const FVector InterpolatedTraceEnd = FMath::Lerp(PreviousTraceEnd, TraceEnd, Alpha);
+		InterpolatedHitResults.Reset();
+		UKismetSystemLibrary::BoxTraceMultiForObjects(
+			&WorldContext,
+			InterpolatedTraceStart,
+			InterpolatedTraceEnd,
+			TraceHalfSize,
+			TraceRotation,
+			Settings.TraceObjectTypes,
+			false,
+			ActorsToIgnore,
+			EDrawDebugTrace::None,
+			InterpolatedHitResults,
+			true,
+			FLinearColor::Red,
+			FLinearColor::Green,
+			UnarmedTraceDebugDrawTime);
+		HitResults.Append(InterpolatedHitResults);
+	}
+
+	PreviousTraceStartLocations[TraceIndex] = TraceStart;
+	PreviousTraceEndLocations[TraceIndex] = TraceEnd;
+	PreviousTraceValid[TraceIndex] = 1;
+}
+
+void FUnarmedAttackSweep::DrawTraceDebug(UWorld& World, const FVector& TraceStart, const FVector& TraceEnd,
+	const FVector& TraceHalfSize, const FRotator& TraceRotation) const
+{
+	const bool bAnyHit = HitResults.ContainsByPredicate([this](const FHitResult& Hit)
+	{
+		return Hit.GetActor() && !HitActorsInSection.Contains(Hit.GetActor());
+	});
+	const FColor DrawColor = bAnyHit ? UnarmedTraceDebugHitColor : UnarmedTraceDebugColor;
+	DrawDebugBox(&World, TraceStart, TraceHalfSize, TraceRotation.Quaternion(), DrawColor, false, UnarmedTraceDebugDrawTime, 0, 1.5f);
+	DrawDebugLine(&World, TraceStart, TraceEnd, DrawColor, false, UnarmedTraceDebugDrawTime, 0, 2.0f);
+}
+
+bool FUnarmedAttackSweep::ReportNewHits(ACharacterBase& SourceCharacter, const uint32 SweepGeneration,
+	const TFunctionRef<void(AActor*)> OnNewHit)
+{
+	for (const FHitResult& HitResult : HitResults)
+	{
+		AActor* HitActor = HitResult.GetActor();
+		if (!HitActor || HitActorsInSection.Contains(HitActor))
+		{
+			continue;
+		}
+
+		ACharacterBase* HitCharacter = Cast<ACharacterBase>(HitActor);
+		if (!HitCharacter || HitCharacter == &SourceCharacter || !SourceCharacter.CanDamageCharacterByTeam(HitCharacter))
+		{
+			continue;
+		}
+
+		HitActorsInSection.Add(HitActor);
+		OnNewHit(HitActor);
+		if (SweepGeneration != Generation)
+		{
+			return false;
+		}
+	}
+	return true;
 }

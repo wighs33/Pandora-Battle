@@ -22,8 +22,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogSkillWeaponTrailAction, Log, All);
 
 void USkillWeaponTrailAction::OnStart()
 {
-	const auto* ActorInfo = GetAbility()->GetCurrentActorInfo();
-
 	TrailMontageTask = nullptr;
 	TrailDurationTask = nullptr;
 	TrailAttackTraceStartTask = nullptr;
@@ -41,28 +39,8 @@ void USkillWeaponTrailAction::OnStart()
 
 	const bool bHasTrailSystem = Settings.TrailNiagaraSystem != nullptr;
 	const bool bUsesSlashHitTrace = Settings.bEnableSlashHitTrace;
-	if (!bHasTrailSystem && !bUsesSlashHitTrace)
-	{
-		Finish(false);
-		return;
-	}
-
-	const ACharacterBase* Character = GetAbility()->GetPdCharacterFromActorInfo();
-	const UEquipmentComponent* Equipment = Character ? Character->GetEquipmentComponent() : nullptr;
-	AWeaponBase* CurrentWeapon = Equipment ? Equipment->GetCurrentWeaponActor() : nullptr;
-	if (!CurrentWeapon)
-	{
-		Finish(false);
-		return;
-	}
-
-	if (bHasTrailSystem && !CurrentWeapon->HasSkillWeaponTrailComponent())
-	{
-		Finish(false);
-		return;
-	}
-
-	if (!GetAbility()->CommitSkill())
+	AWeaponBase* CurrentWeapon = bHasTrailSystem || bUsesSlashHitTrace ? ResolveTrailWeapon(bHasTrailSystem) : nullptr;
+	if (!CurrentWeapon || !GetAbility()->CommitSkill())
 	{
 		Finish(false);
 		return;
@@ -70,33 +48,8 @@ void USkillWeaponTrailAction::OnStart()
 	GetAbility()->StartDurationMovementLock();
 	TrailWeapon = CurrentWeapon;
 
-	const FSkillGameplayEffectConfig AdditionalDamageConfig = SkillDataAsset->GetResolvedDamageConfig();
-	const float AdditionalDamageMagnitude = AdditionalDamageConfig.GameplayEffectClass
-		? GetAbility()->CalculateDamageMagnitude(AdditionalDamageConfig)
-		: 0.0f;
-	const FGameplayEffectSpecHandle DebuffEffectSpecHandle =
-		GetAbility()->MakeConfiguredStatusEffectSpec(SkillDataAsset);
-
 	AMeleeWeapon* MeleeWeapon = Cast<AMeleeWeapon>(CurrentWeapon);
-	if (MeleeWeapon)
-	{
-		MeleeWeapon->ConfigureSkillSlash(
-			Settings.SlashNiagaraSystem,
-			Settings.SlashTransformOffset.GetScale3D(),
-			Settings.SlashTransformOffset.GetLocation(),
-			Settings.SlashSpawnSocketName,
-			Settings.SlashTransformOffset.Rotator(),
-			static_cast<float>(Settings.TrailEndZLengthMultiplier),
-			bUsesSlashHitTrace,
-			AdditionalDamageConfig.GameplayEffectClass,
-			AdditionalDamageConfig.MagnitudeDataTag,
-			AdditionalDamageMagnitude,
-			FMath::Max(GetAbility()->GetAbilityLevel(), 1),
-			GetAbility()->GetCurrentSourceObject(),
-			DebuffEffectSpecHandle,
-			SkillDataAsset->StatusEffectDataAsset.Get());
-	}
-
+	PrepareSlash(MeleeWeapon, *SkillDataAsset);
 	if (bHasTrailSystem && !CurrentWeapon->StartSkillWeaponTrail(Settings.TrailNiagaraSystem))
 	{
 		if (MeleeWeapon)
@@ -111,48 +64,59 @@ void USkillWeaponTrailAction::OnStart()
 
 	if (bUsesSlashHitTrace)
 	{
-		TrailAttackTraceStartTask = GetAbility()->CreateWaitGameplayEventTask(LabGameplayTags::Notifier_Attack_ComboInputOpen);
-		if (ensure(TrailAttackTraceStartTask))
-		{
-			TrailAttackTraceStartTask->EventReceived.AddDynamic(this, &ThisClass::HandleTrailAttackTraceStart);
-			TrailAttackTraceStartTask->ReadyForActivation();
-		}
+		ListenForSlashHitWindow();
+	}
+	WaitForTrailEnd(*SkillDataAsset);
+}
 
-		TrailAttackTraceEndTask = GetAbility()->CreateWaitGameplayEventTask(LabGameplayTags::Notifier_Attack_ComboInputClose);
-		if (ensure(TrailAttackTraceEndTask))
-		{
-			TrailAttackTraceEndTask->EventReceived.AddDynamic(this, &ThisClass::HandleTrailAttackTraceEnd);
-			TrailAttackTraceEndTask->ReadyForActivation();
-		}
+AWeaponBase* USkillWeaponTrailAction::ResolveTrailWeapon(const bool bNeedsTrailComponent) const
+{
+	const ACharacterBase* Character = GetAbility()->GetPdCharacterFromActorInfo();
+	const UEquipmentComponent* Equipment = Character ? Character->GetEquipmentComponent() : nullptr;
+	AWeaponBase* CurrentWeapon = Equipment ? Equipment->GetCurrentWeaponActor() : nullptr;
+	return CurrentWeapon && (!bNeedsTrailComponent || CurrentWeapon->HasSkillWeaponTrailComponent()) ? CurrentWeapon : nullptr;
+}
+
+void USkillWeaponTrailAction::PrepareSlash(AMeleeWeapon* MeleeWeapon, const USkillDefinition& SkillDataAsset)
+{
+	const FSkillGameplayEffectConfig AdditionalDamageConfig = SkillDataAsset.GetResolvedDamageConfig();
+	const float AdditionalDamageMagnitude = AdditionalDamageConfig.GameplayEffectClass
+		? GetAbility()->CalculateDamageMagnitude(AdditionalDamageConfig)
+		: 0.0f;
+	const FGameplayEffectSpecHandle DebuffEffectSpecHandle = GetAbility()->MakeConfiguredStatusEffectSpec(&SkillDataAsset);
+	if (!MeleeWeapon)
+	{
+		return;
 	}
 
-	bool bTrailDurationTimerStarted = false;
-	auto StartDurationTask = [this](const float RequestedDuration) -> bool
+	MeleeWeapon->ConfigureSkillSlash(Settings.SlashNiagaraSystem, Settings.SlashTransformOffset.GetScale3D(),
+		Settings.SlashTransformOffset.GetLocation(), Settings.SlashSpawnSocketName, Settings.SlashTransformOffset.Rotator(),
+		static_cast<float>(Settings.TrailEndZLengthMultiplier), Settings.bEnableSlashHitTrace, AdditionalDamageConfig.GameplayEffectClass,
+		AdditionalDamageConfig.MagnitudeDataTag, AdditionalDamageMagnitude, FMath::Max(GetAbility()->GetAbilityLevel(), 1),
+		GetAbility()->GetCurrentSourceObject(), DebuffEffectSpecHandle, SkillDataAsset.StatusEffectDataAsset.Get());
+}
+
+void USkillWeaponTrailAction::ListenForSlashHitWindow()
+{
+	TrailAttackTraceStartTask = GetAbility()->CreateWaitGameplayEventTask(LabGameplayTags::Notifier_Attack_ComboInputOpen);
+	if (ensure(TrailAttackTraceStartTask))
 	{
-		const float Duration = FMath::Max(RequestedDuration, 0.0f);
-		if (Duration <= 0.0f)
-		{
-			Finish(true);
-			return false;
-		}
+		TrailAttackTraceStartTask->EventReceived.AddDynamic(this, &ThisClass::HandleTrailAttackTraceStart);
+		TrailAttackTraceStartTask->ReadyForActivation();
+	}
 
-		TrailDurationTask = UAbilityTask_WaitDelay::WaitDelay(GetAbility(), Duration);
-		if (!TrailDurationTask)
-		{
-			Finish(false);
-			return false;
-		}
+	TrailAttackTraceEndTask = GetAbility()->CreateWaitGameplayEventTask(LabGameplayTags::Notifier_Attack_ComboInputClose);
+	if (ensure(TrailAttackTraceEndTask))
+	{
+		TrailAttackTraceEndTask->EventReceived.AddDynamic(this, &ThisClass::HandleTrailAttackTraceEnd);
+		TrailAttackTraceEndTask->ReadyForActivation();
+	}
+}
 
-		TrailDurationTask->OnFinish.AddDynamic(this, &ThisClass::HandleTrailDurationFinished);
-		TrailDurationTask->ReadyForActivation();
-
-		return true;
-	};
-
-	// Duration은 액션 시작 시 타이머를 다시 만들지 않고 스킬 종료까지 유지한다.
-	bTrailDurationTimerStarted = GetAbility()->HasDurationDeadline();
-
-	UAnimMontage* TrailMontage = SkillDataAsset->Animation.PrimaryMontage.Get();
+void USkillWeaponTrailAction::WaitForTrailEnd(const USkillDefinition& SkillDataAsset)
+{
+	const auto* ActorInfo = GetAbility()->GetCurrentActorInfo();
+	UAnimMontage* TrailMontage = SkillDataAsset.Animation.PrimaryMontage.Get();
 	if (TrailMontage && ActorInfo && ActorInfo->GetAnimInstance())
 	{
 		TrailMontageTask = GetAbility()->CreateDefaultMontageAndWaitTask(TrailMontage);
@@ -167,10 +131,25 @@ void USkillWeaponTrailAction::OnStart()
 		}
 	}
 
-	if (!bTrailDurationTimerStarted)
+	// Duration은 액션 시작 시 타이머를 다시 만들지 않고 스킬 종료까지 유지한다.
+	if (GetAbility()->HasDurationDeadline())
 	{
-		StartDurationTask(static_cast<float>(SkillDataAsset->Time.Duration));
+		return;
 	}
+	const float Duration = FMath::Max(static_cast<float>(SkillDataAsset.Time.Duration), 0.0f);
+	if (Duration <= 0.0f)
+	{
+		Finish(true);
+		return;
+	}
+	TrailDurationTask = UAbilityTask_WaitDelay::WaitDelay(GetAbility(), Duration);
+	if (!TrailDurationTask)
+	{
+		Finish(false);
+		return;
+	}
+	TrailDurationTask->OnFinish.AddDynamic(this, &ThisClass::HandleTrailDurationFinished);
+	TrailDurationTask->ReadyForActivation();
 }
 
 void USkillWeaponTrailAction::OnStop()

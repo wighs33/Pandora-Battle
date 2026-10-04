@@ -6,6 +6,7 @@
 class AActor;
 class ACharacterBase;
 class USkeletalMeshComponent;
+class UWorld;
 struct FUnarmedCombatSettings;
 
 /**
@@ -42,6 +43,13 @@ public:
 
 private:
 	void ResetPreviousTraces(int32 TraceCount);
+	/** 지난 검사 위치에서 지금 위치까지 나눠 상자 검사를 하고 결과를 HitResults에 모은다. 지금 위치는 다음 검사의 시작으로 남긴다. */
+	void TraceFromPreviousPosition(const UObject& WorldContext, const FUnarmedCombatSettings& Settings, int32 TraceIndex,
+		const FVector& TraceStart, const FVector& TraceEnd, const FVector& HalfSize, const FRotator& Rotation);
+	void DrawTraceDebug(UWorld& World, const FVector& TraceStart, const FVector& TraceEnd, const FVector& HalfSize,
+		const FRotator& Rotation) const;
+	/** HitResults에서 이번 구간에 처음 맞은 상대 캐릭터를 OnNewHit에 넘긴다. 처리 중에 판정이 끝나거나 다시 열리면 false. */
+	bool ReportNewHits(ACharacterBase& SourceCharacter, uint32 SweepGeneration, TFunctionRef<void(AActor*)> OnNewHit);
 
 	TSet<TWeakObjectPtr<AActor>> HitActorsInSection;
 	FName TrackedSectionName = NAME_None;

@@ -9,6 +9,45 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 
+namespace
+{
+	/** 무기 하나의 표현 애셋 경로. 쿡 빌드는 번들 메타데이터가, 메타데이터가 없던 옛 애셋은 불러온 정의의 경로가 채운다. */
+	void CollectWeaponPresentationPaths(const FPrimaryAssetId& AssetId, const UItemDefinition* ItemDefinition,
+		TArray<FSoftObjectPath>& OutPaths)
+	{
+		// 애셋 매니저의 번들 상태는 전역이라, 인벤토리마다 로드아웃이 참조하는 동안 자기 lease를 따로 쥔다.
+		const FAssetBundleEntry BundleEntry =
+			UAssetManager::Get().GetAssetBundleEntry(AssetId, UItemDefinition::GetWeaponPresentationBundleName());
+		if (BundleEntry.IsValid())
+		{
+			for (const FTopLevelAssetPath& AssetPath : BundleEntry.AssetPaths)
+			{
+				OutPaths.AddUnique(FSoftObjectPath(AssetPath));
+			}
+		}
+
+		// 번들 메타데이터보다 먼저 만든 애셋을 위해, 에디터에서는 불러온 정의의 경로도 합친다.
+		// 쿡 빌드에서 이 참조를 담는 일은 여전히 메타데이터가 맡는다.
+		if (IsValid(ItemDefinition))
+		{
+			TArray<FSoftObjectPath> DefinitionPaths;
+			ItemDefinition->GetWeaponPresentationAssetPaths(DefinitionPaths);
+			for (const FSoftObjectPath& AssetPath : DefinitionPaths)
+			{
+				if (!AssetPath.IsNull())
+				{
+					OutPaths.AddUnique(AssetPath);
+				}
+			}
+		}
+
+		OutPaths.RemoveAll([](const FSoftObjectPath& AssetPath)
+		{
+			return AssetPath.IsNull();
+		});
+	}
+}
+
 bool UInventoryComponent::HasPendingItemLoads()
 {
 	CleanupCompletedItemLoadHandles();
@@ -71,23 +110,7 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 	EnsureWeaponLoadoutSlotCount();
 
 	TMap<FPrimaryAssetId, const UItemDefinition*> DesiredItemDefinitions;
-	for (const FGuid& WeaponItemId : WeaponIdsByLoadoutSlot)
-	{
-		const UItemInstance* WeaponInstance = FindItemInstanceById(WeaponItemId);
-		const UItemDefinition* ItemDefinition =
-			IsValid(WeaponInstance) ? WeaponInstance->ItemDefinition.Get() : nullptr;
-		if (!IsValid(ItemDefinition))
-		{
-			continue;
-		}
-
-		const FPrimaryAssetId AssetId = ItemDefinition->GetPrimaryAssetId();
-		if (AssetId.IsValid())
-		{
-			DesiredItemDefinitions.Add(AssetId, ItemDefinition);
-		}
-	}
-
+	CollectLoadoutWeaponDefinitions(DesiredItemDefinitions);
 	for (auto LeaseIt = WeaponLoadoutPresentationLeases.CreateIterator(); LeaseIt; ++LeaseIt)
 	{
 		if (!DesiredItemDefinitions.Contains(LeaseIt.Key()))
@@ -104,10 +127,7 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 		return;
 	}
 
-	UAssetManager& AssetManager = UAssetManager::Get();
-	const FName PresentationBundleName = UItemDefinition::GetWeaponPresentationBundleName();
-	for (const TPair<FPrimaryAssetId, const UItemDefinition*>& DesiredPair
-		: DesiredItemDefinitions)
+	for (const TPair<FPrimaryAssetId, const UItemDefinition*>& DesiredPair : DesiredItemDefinitions)
 	{
 		const FPrimaryAssetId& AssetId = DesiredPair.Key;
 		if (WeaponLoadoutPresentationLeases.Contains(AssetId))
@@ -115,45 +135,9 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 			continue;
 		}
 
-		// AssetManager bundle state is global; each inventory retains its own
-		// lease for the lifetime of its loadout references.
 		TArray<FSoftObjectPath> PresentationAssetPaths;
-		const FAssetBundleEntry BundleEntry =
-			AssetManager.GetAssetBundleEntry(
-				AssetId,
-				PresentationBundleName);
-		if (BundleEntry.IsValid())
-		{
-			for (const FTopLevelAssetPath& AssetPath : BundleEntry.AssetPaths)
-			{
-				PresentationAssetPaths.AddUnique(FSoftObjectPath(AssetPath));
-			}
-		}
-
-		// Merge paths from the loaded definition as an editor-safe fallback for
-		// assets that predate the serialized bundle metadata. The metadata still
-		// remains responsible for including these references in cooked builds.
-		if (IsValid(DesiredPair.Value))
-		{
-			TArray<FSoftObjectPath> DefinitionPaths;
-			DesiredPair.Value->GetWeaponPresentationAssetPaths(DefinitionPaths);
-			for (const FSoftObjectPath& AssetPath : DefinitionPaths)
-			{
-				if (!AssetPath.IsNull())
-				{
-					PresentationAssetPaths.AddUnique(AssetPath);
-				}
-			}
-		}
-
-		PresentationAssetPaths.RemoveAll(
-			[](const FSoftObjectPath& AssetPath)
-			{
-				return AssetPath.IsNull();
-			});
-
-		// A weapon definition with no presentation references has nothing to
-		// preload. Record an empty sentinel so subsequent refreshes stay cheap.
+		CollectWeaponPresentationPaths(AssetId, DesiredPair.Value, PresentationAssetPaths);
+		// 표현 애셋이 없는 무기는 미리 불러올 것이 없다. 빈 표시를 남겨 다음 갱신에서 다시 찾지 않는다.
 		if (PresentationAssetPaths.IsEmpty())
 		{
 			WeaponLoadoutPresentationLeases.Add(AssetId, nullptr);
@@ -174,6 +158,25 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 		}
 
 		WeaponLoadoutPresentationLeases.Add(AssetId, MoveTemp(PresentationLease));
+	}
+}
+
+void UInventoryComponent::CollectLoadoutWeaponDefinitions(TMap<FPrimaryAssetId, const UItemDefinition*>& OutDefinitions) const
+{
+	for (const FGuid& WeaponItemId : WeaponIdsByLoadoutSlot)
+	{
+		const UItemInstance* WeaponInstance = FindItemInstanceById(WeaponItemId);
+		const UItemDefinition* ItemDefinition = IsValid(WeaponInstance) ? WeaponInstance->ItemDefinition.Get() : nullptr;
+		if (!IsValid(ItemDefinition))
+		{
+			continue;
+		}
+
+		const FPrimaryAssetId AssetId = ItemDefinition->GetPrimaryAssetId();
+		if (AssetId.IsValid())
+		{
+			OutDefinitions.Add(AssetId, ItemDefinition);
+		}
 	}
 }
 

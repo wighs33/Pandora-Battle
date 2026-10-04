@@ -8,7 +8,9 @@
 
 class UGameplayEffect;
 class UAbilityTask_WaitInputPress;
+class ACharacterBase;
 class AWeaponBase;
+struct FAttackData;
 
 UCLASS(Blueprintable)
 class LABPROJECT_API UAttackAbility : public UPdGameplayAbility, public IComboAttackInterface
@@ -66,6 +68,12 @@ protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void CleanupAttackState();
 	void ResetAttackInputState();
+	/** 장착 무기의 공격 데이터, 무기가 없으면 맨손 공격 데이터, 그래도 없으면 적의 기본 공격 데이터를 고른다. */
+	static bool ResolveAttackData(const ACharacterBase& Character, FAttackData& OutAttackData);
+	/** 새 공격을 시작할 때 콤보 입력 창·피해 창·재시작 예약을 처음 상태로 돌린다. */
+	void ResetComboState();
+	/** 몽타주가 보내는 입력 창·피해 창 열림·닫힘과 구간 이동 이벤트를 기다린다. 태그가 비어 있는 이벤트는 기다리지 않는다. */
+	void ListenForAttackWindowEvents();
 	void WaitForContinueInput();
 	void RestartAttackAfterMontage();
 

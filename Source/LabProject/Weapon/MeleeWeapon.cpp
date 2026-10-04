@@ -25,6 +25,22 @@
 namespace
 {
     constexpr float AttackTraceInterpolationDistance = 5.0f;
+
+    /** 반지름이 있으면 구로, 없으면 선으로 검사한다. */
+    void TraceForObjects(const UObject* WorldContext, const FVector& Start, const FVector& End, const float Radius,
+        const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes, const TArray<AActor*>& ActorsToIgnore, TArray<FHitResult>& OutHits)
+    {
+        if (Radius > UE_SMALL_NUMBER)
+        {
+            UKismetSystemLibrary::SphereTraceMultiForObjects(WorldContext, Start, End, Radius, ObjectTypes, false, ActorsToIgnore,
+                EDrawDebugTrace::None, OutHits, true, FLinearColor::Red, FLinearColor::Green, 0.1f);
+        }
+        else
+        {
+            UKismetSystemLibrary::LineTraceMultiForObjects(WorldContext, Start, End, ObjectTypes, false, ActorsToIgnore,
+                EDrawDebugTrace::None, OutHits, true, FLinearColor::Red, FLinearColor::Green, 0.1f);
+        }
+    }
 }
 
 AMeleeWeapon::AMeleeWeapon()
@@ -320,120 +336,84 @@ void AMeleeWeapon::PerformAttackTrace()
         return;
     }
 
-    TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-    ObjectTypes.Add(UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody()));
-
-    TArray<TEnumAsByte<EObjectTypeQuery>> CapsuleObjectTypes;
-    CapsuleObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-
     TArray<AActor*> ActorsToIgnore;
-    ActorsToIgnore.Add(this);
-    if (AActor* ParentActor = GetAttachParentActor())
-    {
-        ActorsToIgnore.Add(ParentActor);
-    }
-    if (APawn* OwnerInstigator = GetInstigator())
-    {
-        ActorsToIgnore.Add(OwnerInstigator);
-    }
-    if (ACharacterBase* SourceCharacter = GetOwningCharacter())
-    {
-        ActorsToIgnore.Add(SourceCharacter);
-    }
-
-    TArray<FVector> DebugStartLocations;
-    TArray<FVector> DebugEndLocations;
-    TArray<FHitResult> DebugHitResults;
-
-    auto TraceAttackLine = [this, &ObjectTypes, &CapsuleObjectTypes, &ActorsToIgnore,
-        &DebugStartLocations, &DebugEndLocations, &DebugHitResults](const FVector& LineStart, const FVector& LineEnd)
-    {
-        TArray<FHitResult> HitResults;
-        const float TraceRadius = FMath::Clamp(AttackTraceRadius, 0.0f, 20.0f);
-
-        if (TraceRadius > UE_SMALL_NUMBER)
-        {
-            UKismetSystemLibrary::SphereTraceMultiForObjects(
-                this, LineStart, LineEnd, TraceRadius, ObjectTypes, false, ActorsToIgnore,
-                EDrawDebugTrace::None, HitResults, true, FLinearColor::Red, FLinearColor::Green, 0.1f);
-        }
-        else
-        {
-            UKismetSystemLibrary::LineTraceMultiForObjects(this, LineStart, LineEnd, ObjectTypes, false, ActorsToIgnore,
-                EDrawDebugTrace::None, HitResults, true, FLinearColor::Red, FLinearColor::Green, 0.1f);
-        }
-
-        TArray<FHitResult> CapsuleHitResults;
-        if (TraceRadius > UE_SMALL_NUMBER)
-        {
-            UKismetSystemLibrary::SphereTraceMultiForObjects(
-                this, LineStart, LineEnd, TraceRadius, CapsuleObjectTypes, false, ActorsToIgnore,
-                EDrawDebugTrace::None, CapsuleHitResults, true, FLinearColor::Red, FLinearColor::Green, 0.1f);
-        }
-        else
-        {
-            UKismetSystemLibrary::LineTraceMultiForObjects(
-                this, LineStart, LineEnd, CapsuleObjectTypes, false, ActorsToIgnore,
-                EDrawDebugTrace::None, CapsuleHitResults, true, FLinearColor::Red, FLinearColor::Green, 0.1f);
-        }
-
-        HitResults.Append(CapsuleHitResults);
-        DebugStartLocations.Add(LineStart);
-        DebugEndLocations.Add(LineEnd);
-        DebugHitResults.Append(HitResults);
-
-        for (const FHitResult& HitResult : HitResults)
-        {
-            ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(
-                HitResult.GetActor(), HitResult.GetComponent());
-            if (!TargetCharacter || !CanDamageMeleeTracedHit(HitResult))
-            {
-                continue;
-            }
-
-            HitActorsInCurrentAttack.Add(TargetCharacter);
-            ApplyDamageFromAuthoritativeMeleeTrace(HitResult);
-        }
-    };
-
+    CollectAttackTraceIgnoredActors(ActorsToIgnore);
+    FAttackTraceDebugData DebugData;
     if (!bHasPreviousAttackTraceSegment)
     {
-        TraceAttackLine(TraceStartLocation, TraceEndLocation);
-
-        if (IsAttackDebugVisualizationEnabled())
-        {
-            MulticastDrawInterpolatedAttackTraceDebug(DebugStartLocations, DebugEndLocations, DebugHitResults);
-        }
-
-        PreviousAttackTraceStartLocation = TraceStartLocation;
-        PreviousAttackTraceEndLocation = TraceEndLocation;
-        bHasPreviousAttackTraceSegment = true;
-        return;
+        TraceAttackSegment(TraceStartLocation, TraceEndLocation, ActorsToIgnore, DebugData);
     }
-
-    const float StartTravelDistance = FVector::Distance(PreviousAttackTraceStartLocation, TraceStartLocation);
-    const float EndTravelDistance = FVector::Distance(PreviousAttackTraceEndLocation, TraceEndLocation);
-    const float MaxTravelDistance = FMath::Max(StartTravelDistance, EndTravelDistance);
-    const int32 InterpolationCount = FMath::Max(1,
-        FMath::CeilToInt(MaxTravelDistance / AttackTraceInterpolationDistance));
-
-    for (int32 InterpolationIndex = 1; InterpolationIndex <= InterpolationCount; ++InterpolationIndex)
+    else
     {
-        const float Alpha = static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
-        const FVector InterpolatedStartLocation = FMath::Lerp(PreviousAttackTraceStartLocation, TraceStartLocation,
-            Alpha);
-        const FVector InterpolatedEndLocation = FMath::Lerp(PreviousAttackTraceEndLocation, TraceEndLocation, Alpha);
-        TraceAttackLine(InterpolatedStartLocation, InterpolatedEndLocation);
+        // 지난 판정 위치에서 지금 위치까지 5cm 간격으로 나눠, 빠르게 휘두른 사이에 지나간 대상도 맞힌다.
+        const float StartTravelDistance = FVector::Distance(PreviousAttackTraceStartLocation, TraceStartLocation);
+        const float EndTravelDistance = FVector::Distance(PreviousAttackTraceEndLocation, TraceEndLocation);
+        const float MaxTravelDistance = FMath::Max(StartTravelDistance, EndTravelDistance);
+        const int32 InterpolationCount = FMath::Max(1, FMath::CeilToInt(MaxTravelDistance / AttackTraceInterpolationDistance));
+        for (int32 InterpolationIndex = 1; InterpolationIndex <= InterpolationCount; ++InterpolationIndex)
+        {
+            const float Alpha = static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
+            TraceAttackSegment(FMath::Lerp(PreviousAttackTraceStartLocation, TraceStartLocation, Alpha),
+                FMath::Lerp(PreviousAttackTraceEndLocation, TraceEndLocation, Alpha), ActorsToIgnore, DebugData);
+        }
     }
 
     if (IsAttackDebugVisualizationEnabled())
     {
-        MulticastDrawInterpolatedAttackTraceDebug(DebugStartLocations, DebugEndLocations, DebugHitResults);
+        MulticastDrawInterpolatedAttackTraceDebug(DebugData.StartLocations, DebugData.EndLocations, DebugData.HitResults);
     }
 
     PreviousAttackTraceStartLocation = TraceStartLocation;
     PreviousAttackTraceEndLocation = TraceEndLocation;
     bHasPreviousAttackTraceSegment = true;
+}
+
+void AMeleeWeapon::CollectAttackTraceIgnoredActors(TArray<AActor*>& OutActorsToIgnore)
+{
+    OutActorsToIgnore.Add(this);
+    if (AActor* ParentActor = GetAttachParentActor())
+    {
+        OutActorsToIgnore.Add(ParentActor);
+    }
+    if (APawn* OwnerInstigator = GetInstigator())
+    {
+        OutActorsToIgnore.Add(OwnerInstigator);
+    }
+    if (ACharacterBase* SourceCharacter = GetOwningCharacter())
+    {
+        OutActorsToIgnore.Add(SourceCharacter);
+    }
+}
+
+void AMeleeWeapon::TraceAttackSegment(const FVector& LineStart, const FVector& LineEnd, const TArray<AActor*>& ActorsToIgnore,
+    FAttackTraceDebugData& DebugData)
+{
+    static const TArray<TEnumAsByte<EObjectTypeQuery>> BodyObjectTypes = {
+        UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody())};
+    static const TArray<TEnumAsByte<EObjectTypeQuery>> CapsuleObjectTypes = {UEngineTypes::ConvertToObjectType(ECC_Pawn)};
+
+    const float TraceRadius = FMath::Clamp(AttackTraceRadius, 0.0f, 20.0f);
+    TArray<FHitResult> HitResults;
+    TraceForObjects(this, LineStart, LineEnd, TraceRadius, BodyObjectTypes, ActorsToIgnore, HitResults);
+    TArray<FHitResult> CapsuleHitResults;
+    TraceForObjects(this, LineStart, LineEnd, TraceRadius, CapsuleObjectTypes, ActorsToIgnore, CapsuleHitResults);
+    HitResults.Append(CapsuleHitResults);
+
+    DebugData.StartLocations.Add(LineStart);
+    DebugData.EndLocations.Add(LineEnd);
+    DebugData.HitResults.Append(HitResults);
+
+    for (const FHitResult& HitResult : HitResults)
+    {
+        ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(HitResult.GetActor(), HitResult.GetComponent());
+        if (!TargetCharacter || !CanDamageMeleeTracedHit(HitResult))
+        {
+            continue;
+        }
+
+        HitActorsInCurrentAttack.Add(TargetCharacter);
+        ApplyDamageFromAuthoritativeMeleeTrace(HitResult);
+    }
 }
 
 bool AMeleeWeapon::HasActiveSkillAdditionalDamage() const

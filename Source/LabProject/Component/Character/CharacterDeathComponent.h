@@ -58,6 +58,10 @@ private:
 	void UpdateDeathDissolve(float DeltaSeconds);
 	void SetDeathDissolveValue(float DissolveValue);
 	void ConfigureWeaponDamageMesh(USkeletalMeshComponent* CharacterMesh) const;
+	/** 래그돌을 풀고 메시를 캡슐에 다시 붙여, 처음 저장한 상대 위치와 충돌로 되돌린다. */
+	void RestoreMeshForRespawn(ACharacterBase& Character, USkeletalMeshComponent& CharacterMesh) const;
+	/** 이동 컴포넌트를 다시 켜고 남은 속도·힘을 지운 뒤 처음 이동 모드로 되돌린다. */
+	void RestoreMovementForRespawn(ACharacterBase& Character) const;
 
 private:
 	UPROPERTY(Transient)

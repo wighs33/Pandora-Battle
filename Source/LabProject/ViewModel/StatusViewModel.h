@@ -1,12 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "ViewModel/CommonViewModelBase.h"
 #include "StatusViewModel.generated.h"
 
 class UAbilitySystemComponent;
 class UEquipmentEffectComponent;
 class UCombatComponent;
+class UProjectTagDefinition;
 struct FOnAttributeChangeData;
 
 UCLASS(BlueprintType)
@@ -91,6 +93,10 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshEquipmentComponentBinding();
+	/** 최대 자원 증가율은 능력치 투자분과 장비 보너스를 합쳐 보여 준다. ASC가 없으면 0으로 둔다. */
+	void UpdateMaxResourceIncreasePercents(const TMap<FGameplayTag, float>& EquipmentBonusMagnitudes, const UProjectTagDefinition& TagConfig);
+	/** 장비가 더하는 능력치마다 부호가 붙은 보너스 문구를 만든다. */
+	void UpdateEquipmentBonusTexts(const TMap<FGameplayTag, float>& EquipmentBonusMagnitudes, const UProjectTagDefinition& TagConfig);
 
 	void ClearEquipmentComponentBinding();
 

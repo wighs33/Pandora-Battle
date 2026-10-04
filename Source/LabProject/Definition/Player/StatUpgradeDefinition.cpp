@@ -379,6 +379,149 @@ bool UStatUpgradeDefinition::TryGetExactAttributeDefaultValue(const FGameplayTag
 }
 
 #if WITH_EDITOR
+namespace
+{
+    // 업그레이드 규칙마다 루트 태그·중복·비용 태그를 보고, 그 범주에 속한 속성 기본값이 있는지 확인한다.
+    void ValidateUpgradeRules(FDataValidationContext& Context, EDataValidationResult& Result,
+       const TArray<FStatUpgradeRule>& UpgradeRules, const TArray<FStatAttributeDefaultValue>& AttributeDefaultValues)
+    {
+        TSet<FGameplayTag> UpgradeRootTags;
+        for (int32 EntryIndex = 0; EntryIndex < UpgradeRules.Num(); ++EntryIndex)
+        {
+           const FStatUpgradeRule& Rule = UpgradeRules[EntryIndex];
+           if (!Rule.IsValid())
+           {
+              MarkStatUpgradeInvalid(Context, Result, FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "InvalidUpgradeRule", "UpgradeRules entry {0} requires RootTag."),
+                 FText::AsNumber(EntryIndex)));
+              continue;
+           }
+
+           if (UpgradeRootTags.Contains(Rule.RootTag))
+           {
+              MarkStatUpgradeInvalid(Context, Result, FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "DuplicateUpgradeRule", "UpgradeRules entry {0} duplicates RootTag '{1}'."),
+                 FText::AsNumber(EntryIndex),
+                 FText::FromString(Rule.RootTag.ToString())));
+              continue;
+           }
+
+           UpgradeRootTags.Add(Rule.RootTag);
+
+           ValidateNonNegative(
+              Context,
+              Result,
+              Rule.Cost,
+              FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "UpgradeRuleCostField", "UpgradeRules entry {0} Cost"),
+                 FText::AsNumber(EntryIndex)));
+
+           if (Rule.Cost > 0.f && !Rule.CostPointTag.IsValid())
+           {
+              MarkStatUpgradeInvalid(Context, Result, FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "MissingCostPointTag", "UpgradeRules entry {0} has Cost but no CostPointTag."),
+                 FText::AsNumber(EntryIndex)));
+           }
+           else if (Rule.Cost <= 0.f && Rule.CostPointTag.IsValid())
+           {
+              Context.AddWarning(FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "UnusedCostPointTag", "UpgradeRules entry {0} has CostPointTag, but Cost is zero."),
+                 FText::AsNumber(EntryIndex)));
+           }
+
+           const bool bHasAttributeValueInCategory = AttributeDefaultValues.ContainsByPredicate(
+              [&Rule](const FStatAttributeDefaultValue& AttributeValue)
+              {
+                 return AttributeValue.StatTag.IsValid()
+                    && AttributeValue.StatTag.MatchesTag(Rule.RootTag);
+              });
+           if (!bHasAttributeValueInCategory)
+           {
+              Context.AddWarning(FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "MissingAttributeValueCategory", "UpgradeRules entry {0} has no child Attribute Values entries."),
+                 FText::AsNumber(EntryIndex)));
+           }
+        }
+    }
+
+    // 최대 자원과 현재 자원 태그 짝이 비었거나, 같은 태그끼리 짝이거나, 최대 자원 태그가 겹치는지 본다.
+    void ValidatePairedResources(FDataValidationContext& Context, EDataValidationResult& Result,
+       const TArray<FPairedResourceStatTag>& PairedResourceStatTags)
+    {
+        TSet<FGameplayTag> PairedMaxStatTags;
+        for (int32 EntryIndex = 0; EntryIndex < PairedResourceStatTags.Num(); ++EntryIndex)
+        {
+           const FPairedResourceStatTag& Pair = PairedResourceStatTags[EntryIndex];
+           if (!Pair.IsValid())
+           {
+              MarkStatUpgradeInvalid(Context, Result, FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "InvalidPairedResource", "PairedResourceStatTags entry {0} requires both MaxStatTag and CurrentStatTag."),
+                 FText::AsNumber(EntryIndex)));
+           }
+           else if (Pair.MaxStatTag == Pair.CurrentStatTag)
+           {
+              MarkStatUpgradeInvalid(Context, Result, FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "SelfPairedResource", "PairedResourceStatTags entry {0} cannot use the same tag for max and current resource."),
+                 FText::AsNumber(EntryIndex)));
+           }
+           else if (PairedMaxStatTags.Contains(Pair.MaxStatTag))
+           {
+              MarkStatUpgradeInvalid(Context, Result, FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "DuplicatePairedResource", "PairedResourceStatTags entry {0} duplicates MaxStatTag '{1}'."),
+                 FText::AsNumber(EntryIndex),
+                 FText::FromString(Pair.MaxStatTag.ToString())));
+           }
+           else
+           {
+              PairedMaxStatTags.Add(Pair.MaxStatTag);
+           }
+        }
+    }
+
+    // 속성 기본값마다 태그·중복과 기본값·업그레이드당 증가값이 유한한지 본다.
+    void ValidateAttributeDefaults(FDataValidationContext& Context, EDataValidationResult& Result,
+       const TArray<FStatAttributeDefaultValue>& AttributeDefaultValues)
+    {
+        TSet<FGameplayTag> AttributeDefaultTags;
+        for (int32 EntryIndex = 0; EntryIndex < AttributeDefaultValues.Num(); ++EntryIndex)
+        {
+           const FStatAttributeDefaultValue& AttributeDefault = AttributeDefaultValues[EntryIndex];
+           if (!AttributeDefault.IsValid())
+           {
+              MarkStatUpgradeInvalid(Context, Result, FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "InvalidAttributeValue", "Attribute Values entry {0} requires StatTag."),
+                 FText::AsNumber(EntryIndex)));
+              continue;
+           }
+
+           if (AttributeDefaultTags.Contains(AttributeDefault.StatTag))
+           {
+              MarkStatUpgradeInvalid(Context, Result, FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "DuplicateAttributeValue", "Attribute Values entry {0} duplicates StatTag '{1}'."),
+                 FText::AsNumber(EntryIndex),
+                 FText::FromString(AttributeDefault.StatTag.ToString())));
+              continue;
+           }
+
+           AttributeDefaultTags.Add(AttributeDefault.StatTag);
+           ValidateFinite(
+              Context,
+              Result,
+              AttributeDefault.DefaultValue,
+              FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "AttributeDefaultValueField", "Attribute Values entry {0} DefaultValue"),
+                 FText::AsNumber(EntryIndex)));
+           ValidateFinite(
+              Context,
+              Result,
+              AttributeDefault.ValuePerUpgrade,
+              FText::Format(
+                 NSLOCTEXT("StatUpgradeDefinition", "AttributeValuePerUpgradeField", "Attribute Values entry {0} ValuePerUpgrade"),
+                 FText::AsNumber(EntryIndex)));
+        }
+    }
+}
+
 // 에디터에서 스탯 DataAsset의 태그 중복, 잘못된 비용, 자원 연결, 비정상 수치 등을 미리 검사해 런타임 오류를 막는다.
 EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext& Context) const
 {
@@ -391,135 +534,16 @@ EDataValidationResult UStatUpgradeDefinition::IsDataValid(FDataValidationContext
     ValidatePositive(Context, Result, MaxInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
     ValidateLessOrEqual(Context, Result, MaxInvestedLevel, MaxSupportedInvestedLevel, NSLOCTEXT("StatUpgradeDefinition", "MaxInvestedLevelField", "MaxInvestedLevel"));
 
-    TSet<FGameplayTag> UpgradeRootTags;
-    for (int32 EntryIndex = 0; EntryIndex < UpgradeRules.Num(); ++EntryIndex)
-    {
-       const FStatUpgradeRule& Rule = UpgradeRules[EntryIndex];
-       if (!Rule.IsValid())
-       {
-          MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "InvalidUpgradeRule", "UpgradeRules entry {0} requires RootTag."),
-             FText::AsNumber(EntryIndex)));
-          continue;
-       }
-
-       if (UpgradeRootTags.Contains(Rule.RootTag))
-       {
-          MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "DuplicateUpgradeRule", "UpgradeRules entry {0} duplicates RootTag '{1}'."),
-             FText::AsNumber(EntryIndex),
-             FText::FromString(Rule.RootTag.ToString())));
-          continue;
-       }
-
-       UpgradeRootTags.Add(Rule.RootTag);
-
-       ValidateNonNegative(
-          Context,
-          Result,
-          Rule.Cost,
-          FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "UpgradeRuleCostField", "UpgradeRules entry {0} Cost"),
-             FText::AsNumber(EntryIndex)));
-
-       if (Rule.Cost > 0.f && !Rule.CostPointTag.IsValid())
-       {
-          MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "MissingCostPointTag", "UpgradeRules entry {0} has Cost but no CostPointTag."),
-             FText::AsNumber(EntryIndex)));
-       }
-       else if (Rule.Cost <= 0.f && Rule.CostPointTag.IsValid())
-       {
-          Context.AddWarning(FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "UnusedCostPointTag", "UpgradeRules entry {0} has CostPointTag, but Cost is zero."),
-             FText::AsNumber(EntryIndex)));
-       }
-
-       const bool bHasAttributeValueInCategory = AttributeDefaultValues.ContainsByPredicate(
-          [&Rule](const FStatAttributeDefaultValue& AttributeValue)
-          {
-             return AttributeValue.StatTag.IsValid()
-                && AttributeValue.StatTag.MatchesTag(Rule.RootTag);
-          });
-       if (!bHasAttributeValueInCategory)
-       {
-          Context.AddWarning(FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "MissingAttributeValueCategory", "UpgradeRules entry {0} has no child Attribute Values entries."),
-             FText::AsNumber(EntryIndex)));
-       }
-    }
+    ValidateUpgradeRules(Context, Result, UpgradeRules, AttributeDefaultValues);
 
     if (UpgradeRules.IsEmpty())
     {
        Context.AddWarning(NSLOCTEXT("StatUpgradeDefinition", "NoUpgradeRules", "StatUpgradeDefinition has no upgrade rules."));
     }
 
-    TSet<FGameplayTag> PairedMaxStatTags;
-    for (int32 EntryIndex = 0; EntryIndex < PairedResourceStatTags.Num(); ++EntryIndex)
-    {
-       const FPairedResourceStatTag& Pair = PairedResourceStatTags[EntryIndex];
-       if (!Pair.IsValid())
-       {
-          MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "InvalidPairedResource", "PairedResourceStatTags entry {0} requires both MaxStatTag and CurrentStatTag."),
-             FText::AsNumber(EntryIndex)));
-       }
-       else if (Pair.MaxStatTag == Pair.CurrentStatTag)
-       {
-          MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "SelfPairedResource", "PairedResourceStatTags entry {0} cannot use the same tag for max and current resource."),
-             FText::AsNumber(EntryIndex)));
-       }
-       else if (PairedMaxStatTags.Contains(Pair.MaxStatTag))
-       {
-          MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "DuplicatePairedResource", "PairedResourceStatTags entry {0} duplicates MaxStatTag '{1}'."),
-             FText::AsNumber(EntryIndex),
-             FText::FromString(Pair.MaxStatTag.ToString())));
-       }
-       else
-       {
-          PairedMaxStatTags.Add(Pair.MaxStatTag);
-       }
-    }
+    ValidatePairedResources(Context, Result, PairedResourceStatTags);
 
-    TSet<FGameplayTag> AttributeDefaultTags;
-    for (int32 EntryIndex = 0; EntryIndex < AttributeDefaultValues.Num(); ++EntryIndex)
-    {
-       const FStatAttributeDefaultValue& AttributeDefault = AttributeDefaultValues[EntryIndex];
-       if (!AttributeDefault.IsValid())
-       {
-          MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "InvalidAttributeValue", "Attribute Values entry {0} requires StatTag."),
-             FText::AsNumber(EntryIndex)));
-          continue;
-       }
-
-       if (AttributeDefaultTags.Contains(AttributeDefault.StatTag))
-       {
-          MarkStatUpgradeInvalid(Context, Result, FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "DuplicateAttributeValue", "Attribute Values entry {0} duplicates StatTag '{1}'."),
-             FText::AsNumber(EntryIndex),
-             FText::FromString(AttributeDefault.StatTag.ToString())));
-          continue;
-       }
-
-       AttributeDefaultTags.Add(AttributeDefault.StatTag);
-       ValidateFinite(
-          Context,
-          Result,
-          AttributeDefault.DefaultValue,
-          FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "AttributeDefaultValueField", "Attribute Values entry {0} DefaultValue"),
-             FText::AsNumber(EntryIndex)));
-       ValidateFinite(
-          Context,
-          Result,
-          AttributeDefault.ValuePerUpgrade,
-          FText::Format(
-             NSLOCTEXT("StatUpgradeDefinition", "AttributeValuePerUpgradeField", "Attribute Values entry {0} ValuePerUpgrade"),
-             FText::AsNumber(EntryIndex)));
-    }
+    ValidateAttributeDefaults(Context, Result, AttributeDefaultValues);
 
     return Result;
 }

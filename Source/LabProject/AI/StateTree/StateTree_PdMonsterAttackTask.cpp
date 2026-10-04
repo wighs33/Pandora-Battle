@@ -20,6 +20,98 @@ bool HasReachedTimeout(const float ElapsedTime, const float Timeout)
 {
 	return Timeout > 0.0f && ElapsedTime >= Timeout;
 }
+
+using FAttackTaskData = FStateTreePdMonsterAttackTaskInstanceData;
+
+// 이미 시작한 공격이 끝나기를 기다린다. 끝나면 성공, 완료 제한 시간을 넘기면 실패.
+EStateTreeRunStatus WaitForAttackToFinish(FAttackTaskData& InstanceData, const AEnemyBase& Enemy, const AActor* TargetActor,
+	const bool bAttackInProgress, const float DeltaTime)
+{
+	if (!bAttackInProgress)
+	{
+		return EStateTreeRunStatus::Succeeded;
+	}
+
+	InstanceData.AttackCompletionElapsedTime += DeltaTime;
+	if (HasReachedTimeout(InstanceData.AttackCompletionElapsedTime, InstanceData.AttackCompletionTimeout))
+	{
+		UE_LOG(LogStateTreeMonsterAttack, Warning, TEXT("%s's attack against %s did not finish within %.2f seconds."),
+			*GetNameSafe(&Enemy), *GetNameSafe(TargetActor), InstanceData.AttackCompletionTimeout);
+		return EStateTreeRunStatus::Failed;
+	}
+	return EStateTreeRunStatus::Running;
+}
+
+// 사거리 밖이면 대상 쪽으로 이동을 요청하고, 이동이 멈춘 채 재요청 간격이 지나면 다시 요청한다.
+EStateTreeRunStatus ApproachTarget(FAttackTaskData& InstanceData, const AAIController& AIController, AEnemyBase& Enemy,
+	AActor* TargetActor, const float DeltaTime)
+{
+	InstanceData.bWaitingForAttackStart = false;
+	InstanceData.AttackRetryTimeRemaining = 0.0f;
+	InstanceData.AttackStartElapsedTime = 0.0f;
+	InstanceData.MoveRetryTimeRemaining = FMath::Max(InstanceData.MoveRetryTimeRemaining - DeltaTime, 0.0f);
+	if (!InstanceData.bMoveToTargetWhenOutOfRange)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const bool bNeedsMoveRequest = !InstanceData.bMoveRequested
+		|| (AIController.GetMoveStatus() != EPathFollowingStatus::Moving && InstanceData.MoveRetryTimeRemaining <= 0.0f);
+	if (bNeedsMoveRequest)
+	{
+		if (!Enemy.RequestMoveToAttackTarget(TargetActor))
+		{
+			return EStateTreeRunStatus::Failed;
+		}
+		InstanceData.bMoveRequested = true;
+		InstanceData.MoveRetryTimeRemaining = MoveRequestRetryInterval;
+	}
+	return EStateTreeRunStatus::Running;
+}
+
+// 사거리 안에서는 이동을 멈추고 공격 간격마다 공격을 시도한다. 시작 제한 시간 안에 공격이 시작되지 않으면 실패.
+EStateTreeRunStatus TryStartAttack(FAttackTaskData& InstanceData, AAIController& AIController, AEnemyBase& Enemy,
+	const AActor* TargetActor, const float DeltaTime)
+{
+	if (InstanceData.bMoveRequested || InstanceData.bStopMovementBeforeAttack)
+	{
+		AIController.StopMovement();
+	}
+	InstanceData.bMoveRequested = false;
+	InstanceData.MoveRetryTimeRemaining = 0.0f;
+
+	if (!InstanceData.bWaitingForAttackStart)
+	{
+		InstanceData.bWaitingForAttackStart = true;
+		InstanceData.AttackStartElapsedTime = 0.0f;
+		InstanceData.AttackRetryTimeRemaining = 0.0f;
+	}
+	else
+	{
+		InstanceData.AttackStartElapsedTime += DeltaTime;
+	}
+
+	InstanceData.AttackRetryTimeRemaining = FMath::Max(InstanceData.AttackRetryTimeRemaining - DeltaTime, 0.0f);
+	if (Enemy.IsAttackEnabled() && InstanceData.AttackRetryTimeRemaining <= 0.0f)
+	{
+		Enemy.Attack();
+		InstanceData.AttackRetryTimeRemaining = FMath::Max(InstanceData.AttackRetryInterval, 0.0f);
+		if (Enemy.IsAttackInProgress())
+		{
+			InstanceData.bObservedAttackInProgress = true;
+			InstanceData.AttackCompletionElapsedTime = 0.0f;
+			return EStateTreeRunStatus::Running;
+		}
+	}
+
+	if (HasReachedTimeout(InstanceData.AttackStartElapsedTime, InstanceData.AttackStartTimeout))
+	{
+		UE_LOG(LogStateTreeMonsterAttack, Warning, TEXT("%s could not start an attack against %s within %.2f seconds."),
+			*GetNameSafe(&Enemy), *GetNameSafe(TargetActor), InstanceData.AttackStartTimeout);
+		return EStateTreeRunStatus::Failed;
+	}
+	return EStateTreeRunStatus::Running;
+}
 }
 
 FStateTreePdMonsterAttackTask::FStateTreePdMonsterAttackTask()
@@ -62,23 +154,7 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(FStateTreeExecutionConte
 	const bool bAttackInProgress = Enemy->IsAttackInProgress();
 	if (InstanceData.bObservedAttackInProgress)
 	{
-		if (!bAttackInProgress)
-		{
-			return EStateTreeRunStatus::Succeeded;
-		}
-
-		InstanceData.AttackCompletionElapsedTime += SafeDeltaTime;
-		if (HasReachedTimeout(InstanceData.AttackCompletionElapsedTime, InstanceData.AttackCompletionTimeout))
-		{
-			UE_LOG(LogStateTreeMonsterAttack, Warning,
-				TEXT("%s's attack against %s did not finish within %.2f seconds."),
-				*GetNameSafe(Enemy),
-				*GetNameSafe(TargetActor),
-				InstanceData.AttackCompletionTimeout);
-			return EStateTreeRunStatus::Failed;
-		}
-
-		return EStateTreeRunStatus::Running;
+		return WaitForAttackToFinish(InstanceData, *Enemy, TargetActor, bAttackInProgress, SafeDeltaTime);
 	}
 
 	if (bAttackInProgress)
@@ -94,79 +170,11 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(FStateTreeExecutionConte
 		return EStateTreeRunStatus::Running;
 	}
 
-	const float DistanceToTarget = Enemy->GetAttackDistanceToActor(TargetActor);
-	const float AttackStartDistance = Enemy->GetAttackStartDistance();
-	if (InstanceData.bRequireTargetInAttackRange && DistanceToTarget > AttackStartDistance)
-	{
-		InstanceData.bWaitingForAttackStart = false;
-		InstanceData.AttackRetryTimeRemaining = 0.0f;
-		InstanceData.AttackStartElapsedTime = 0.0f;
-		InstanceData.MoveRetryTimeRemaining = FMath::Max(InstanceData.MoveRetryTimeRemaining - SafeDeltaTime, 0.0f);
-
-		if (!InstanceData.bMoveToTargetWhenOutOfRange)
-		{
-			return EStateTreeRunStatus::Failed;
-		}
-
-		const bool bNeedsMoveRequest = !InstanceData.bMoveRequested
-			|| (AIController->GetMoveStatus() != EPathFollowingStatus::Moving
-			&& InstanceData.MoveRetryTimeRemaining <= 0.0f);
-		if (bNeedsMoveRequest)
-		{
-			if (!Enemy->RequestMoveToAttackTarget(TargetActor))
-			{
-				return EStateTreeRunStatus::Failed;
-			}
-
-			InstanceData.bMoveRequested = true;
-			InstanceData.MoveRetryTimeRemaining = MoveRequestRetryInterval;
-		}
-
-		return EStateTreeRunStatus::Running;
-	}
-
-	if (InstanceData.bMoveRequested || InstanceData.bStopMovementBeforeAttack)
-	{
-		AIController->StopMovement();
-	}
-	InstanceData.bMoveRequested = false;
-	InstanceData.MoveRetryTimeRemaining = 0.0f;
-
-	if (!InstanceData.bWaitingForAttackStart)
-	{
-		InstanceData.bWaitingForAttackStart = true;
-		InstanceData.AttackStartElapsedTime = 0.0f;
-		InstanceData.AttackRetryTimeRemaining = 0.0f;
-	}
-	else
-	{
-		InstanceData.AttackStartElapsedTime += SafeDeltaTime;
-	}
-
-	InstanceData.AttackRetryTimeRemaining = FMath::Max(InstanceData.AttackRetryTimeRemaining - SafeDeltaTime, 0.0f);
-	if (Enemy->IsAttackEnabled() && InstanceData.AttackRetryTimeRemaining <= 0.0f)
-	{
-		Enemy->Attack();
-		InstanceData.AttackRetryTimeRemaining = FMath::Max(InstanceData.AttackRetryInterval, 0.0f);
-
-		if (Enemy->IsAttackInProgress())
-		{
-			InstanceData.bObservedAttackInProgress = true;
-			InstanceData.AttackCompletionElapsedTime = 0.0f;
-			return EStateTreeRunStatus::Running;
-		}
-	}
-
-	if (HasReachedTimeout(InstanceData.AttackStartElapsedTime, InstanceData.AttackStartTimeout))
-	{
-		UE_LOG(LogStateTreeMonsterAttack, Warning, TEXT("%s could not start an attack against %s within %.2f seconds."),
-			*GetNameSafe(Enemy),
-			*GetNameSafe(TargetActor),
-			InstanceData.AttackStartTimeout);
-		return EStateTreeRunStatus::Failed;
-	}
-
-	return EStateTreeRunStatus::Running;
+	const bool bOutOfRange = InstanceData.bRequireTargetInAttackRange
+		&& Enemy->GetAttackDistanceToActor(TargetActor) > Enemy->GetAttackStartDistance();
+	return bOutOfRange
+		? ApproachTarget(InstanceData, *AIController, *Enemy, TargetActor, SafeDeltaTime)
+		: TryStartAttack(InstanceData, *AIController, *Enemy, TargetActor, SafeDeltaTime);
 }
 
 void FStateTreePdMonsterAttackTask::ExitState(FStateTreeExecutionContext& Context,

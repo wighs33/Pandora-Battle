@@ -167,43 +167,25 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	bEquipTransitionResolved = false;
 	bEquipAbilityCommitted = false;
 
-// =================================================================================================================
-
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
-	if (!ensure(Character))
+	UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
+	if (!ensure(Character) || !ensure(EquipmentComponent))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
-
-	UEquipmentComponent* EquipmentComponent = Character->GetEquipmentComponent();
-	if (!ensure(EquipmentComponent))
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
-		return;
-	}
-
-	// =================================================================================================================
 
 	FEquipData EquipData;
 	if (!EquipmentComponent->GetEquipData(EquipData))
 	{
-		// A skill interrupt may clear the requested weapon. Restore the current weapon's layer
-		// and finish without committing a stale equipment request.
+		// 스킬이 끊으면서 요청한 무기를 비웠을 수 있다. 지금 무기의 애니메이션 레이어를 되돌리고, 지난 장착 요청은 확정하지 않고 끝낸다.
 		EquipmentComponent->RefreshCurrentWeaponAnimationLayer();
-		EndAbility(
-			Handle,
-			ActorInfo,
-			ActivationInfo,
-			ActorInfo && ActorInfo->IsNetAuthority(),
-			false);
+		EndAbility(Handle, ActorInfo, ActivationInfo, ActorInfo && ActorInfo->IsNetAuthority(), false);
 		return;
 	}
 	bEquipCommitted = false;
 	ActiveEquipWeaponDefinition = EquipData.ItemDefinition;
 	PendingEquipAnimLayer = EquipData.EquipAnimLayer;
-
-// =================================================================================================================
 
 	if (!ensure(CommitAbility(Handle, ActorInfo, ActivationInfo)))
 	{
@@ -212,36 +194,46 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	}
 	bEquipAbilityCommitted = true;
 
-	const auto ExecuteEquipCue =
-		[this, Character, ItemDefinition = EquipData.ItemDefinition]()
-		{
-			if (!EquipCueTag.IsValid())
-			{
-				return;
-			}
-
-			FGameplayCueParameters CueParameters;
-			CueParameters.Location = Character->GetActorLocation();
-			CueParameters.Instigator = Character;
-			CueParameters.EffectCauser = Character;
-			CueParameters.SourceObject = ItemDefinition;
-			K2_ExecuteGameplayCueWithParams(EquipCueTag, CueParameters);
-		};
-
 	if (EquipmentComponent->ShouldEquipWeaponsWithoutAnimation())
 	{
 		CommitPendingEquipIfPossible();
-		ExecuteEquipCue();
+		ExecuteEquipCue(*Character, EquipData.ItemDefinition);
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
 
-// =================================================================================================================
+	if (!PlayEquipMontage(EquipData.EquipMontage))
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		return;
+	}
+	if (EquipEffectClass)
+	{
+		ApplyGameplayEffect(EquipEffectClass, 1.f, 1);
+	}
+	ExecuteEquipCue(*Character, EquipData.ItemDefinition);
+}
 
+void UEquipAbility::ExecuteEquipCue(ACharacterBase& Character, const UItemDefinition* ItemDefinition)
+{
+	if (!EquipCueTag.IsValid())
+	{
+		return;
+	}
+
+	FGameplayCueParameters CueParameters;
+	CueParameters.Location = Character.GetActorLocation();
+	CueParameters.Instigator = &Character;
+	CueParameters.EffectCauser = &Character;
+	CueParameters.SourceObject = ItemDefinition;
+	K2_ExecuteGameplayCueWithParams(EquipCueTag, CueParameters);
+}
+
+bool UEquipAbility::PlayEquipMontage(UAnimMontage* EquipMontage)
+{
 	if (ensure(CommitEquipEventTag.IsValid()))
 	{
-		UAbilityTask_WaitGameplayEvent* CommitEventTask =
-			CreateWaitGameplayEventTask(CommitEquipEventTag, true);
+		UAbilityTask_WaitGameplayEvent* CommitEventTask = CreateWaitGameplayEventTask(CommitEquipEventTag, true);
 		if (ensure(CommitEventTask))
 		{
 			CommitEventTask->EventReceived.AddDynamic(this, &UEquipAbility::OnEquipCommitTiming);
@@ -249,42 +241,18 @@ void UEquipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 		}
 	}
 
-	// =================================================================================================================
-
 	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this,
-		NAME_None,
-		EquipData.EquipMontage,
-		1.f,
-		NAME_None,
-		false,
-		1.f,
-		0.f,
-		false);
+		this, NAME_None, EquipMontage, 1.f, NAME_None, false, 1.f, 0.f, false);
 	if (!ensure(MontageTask))
 	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
-		return;
+		return false;
 	}
 
-	// =================================================================================================================
 	MontageTask->OnCompleted.AddDynamic(this, &UEquipAbility::OnEquipMontageCompleted);
 	MontageTask->OnInterrupted.AddDynamic(this, &UEquipAbility::OnEquipMontageInterrupted);
 	MontageTask->OnCancelled.AddDynamic(this, &UEquipAbility::OnEquipMontageCancelled);
 	MontageTask->ReadyForActivation();
-
-// =================================================================================================================
-
-// =================================================================================================================
-
-	if (EquipEffectClass)
-	{
-		ApplyGameplayEffect(EquipEffectClass, 1.f, 1);
-	}
-
-	// =================================================================================================================
-
-	ExecuteEquipCue();
+	return true;
 }
 
 void UEquipAbility::OnAbilityEnding()

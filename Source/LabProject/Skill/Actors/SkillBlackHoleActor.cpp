@@ -419,24 +419,8 @@ void ASkillBlackHoleActor::PullEnemyCharacters(const float DeltaSeconds, const f
 		return;
 	}
 
-	FCollisionObjectQueryParams ObjectQueryParams;
-	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
-
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(BlackHolePull), false, this);
-	QueryParams.AddIgnoredActor(this);
-	if (AActor* SourceActor = ResolveSourceActor())
-	{
-		QueryParams.AddIgnoredActor(SourceActor);
-	}
-
 	TArray<FOverlapResult> OverlapResults;
-	World->OverlapMultiByObjectType(
-		OverlapResults,
-		GetActorLocation(),
-		FQuat::Identity,
-		ObjectQueryParams,
-		FCollisionShape::MakeSphere(EffectiveRadius),
-		QueryParams);
+	OverlapPawnsInRadius(EffectiveRadius, OverlapResults);
 
 	TSet<FObjectKey> PulledCharacters;
 	TSet<UCharacterMovementComponent*> AffectedMovementComponents;
@@ -469,48 +453,69 @@ void ASkillBlackHoleActor::PullEnemyCharacters(const float DeltaSeconds, const f
 		}
 
 		AffectedMovementComponents.Add(MovementComponent);
-		TSharedPtr<FRootMotionSource> ExistingSource =
-			MovementComponent->GetRootMotionSource(PullRootMotionSourceName);
-		TSharedPtr<FRootMotionSource_RadialForce> PullSource;
-		if (ExistingSource.IsValid()
-			&& ExistingSource->GetScriptStruct() == FRootMotionSource_RadialForce::StaticStruct())
-		{
-			PullSource = StaticCastSharedPtr<FRootMotionSource_RadialForce>(ExistingSource);
-		}
-		else
-		{
-			if (ExistingSource.IsValid())
-			{
-				MovementComponent->RemoveRootMotionSource(PullRootMotionSourceName);
-			}
-
-			PullSource = MakeShared<FRootMotionSource_RadialForce>();
-			PullSource->InstanceName = PullRootMotionSourceName;
-			PullSource->Priority = 5;
-			PullSource->Duration = -1.0f;
-			PullSource->AccumulateMode = ERootMotionAccumulateMode::Additive;
-			PullSource->bIsPush = false;
-			MovementComponent->ApplyRootMotionSource(PullSource);
-		}
-
-		PullSource->Location = GetActorLocation();
-		PullSource->LocationActor = this;
-		PullSource->Radius = EffectiveRadius;
-		PullSource->Strength = EffectiveSpeed;
-		PullSource->bNoZForce = bPullOnHorizontalPlane;
-
-		if (!ActivePullMovementComponents.Contains(MovementComponent))
-		{
-			ActivePullMovementComponents.Add(MovementComponent);
-		}
-
+		ApplyPullRootMotion(*MovementComponent, EffectiveRadius, EffectiveSpeed);
 		PulledCharacters.Add(FObjectKey(TargetCharacter));
 	}
+	ReleasePullsExcept(AffectedMovementComponents);
+}
 
+void ASkillBlackHoleActor::OverlapPawnsInRadius(const float Radius, TArray<FOverlapResult>& OutOverlaps) const
+{
+	FCollisionObjectQueryParams ObjectQueryParams;
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(BlackHolePull), false, this);
+	QueryParams.AddIgnoredActor(this);
+	if (AActor* SourceActor = ResolveSourceActor())
+	{
+		QueryParams.AddIgnoredActor(SourceActor);
+	}
+	GetWorld()->OverlapMultiByObjectType(OutOverlaps, GetActorLocation(), FQuat::Identity, ObjectQueryParams,
+		FCollisionShape::MakeSphere(Radius), QueryParams);
+}
+
+void ASkillBlackHoleActor::ApplyPullRootMotion(UCharacterMovementComponent& MovementComponent, const float Radius, const float Strength)
+{
+	TSharedPtr<FRootMotionSource> ExistingSource = MovementComponent.GetRootMotionSource(PullRootMotionSourceName);
+	TSharedPtr<FRootMotionSource_RadialForce> PullSource;
+	if (ExistingSource.IsValid() && ExistingSource->GetScriptStruct() == FRootMotionSource_RadialForce::StaticStruct())
+	{
+		PullSource = StaticCastSharedPtr<FRootMotionSource_RadialForce>(ExistingSource);
+	}
+	else
+	{
+		if (ExistingSource.IsValid())
+		{
+			MovementComponent.RemoveRootMotionSource(PullRootMotionSourceName);
+		}
+
+		PullSource = MakeShared<FRootMotionSource_RadialForce>();
+		PullSource->InstanceName = PullRootMotionSourceName;
+		PullSource->Priority = 5;
+		PullSource->Duration = -1.0f;
+		PullSource->AccumulateMode = ERootMotionAccumulateMode::Additive;
+		PullSource->bIsPush = false;
+		MovementComponent.ApplyRootMotionSource(PullSource);
+	}
+
+	PullSource->Location = GetActorLocation();
+	PullSource->LocationActor = this;
+	PullSource->Radius = Radius;
+	PullSource->Strength = Strength;
+	PullSource->bNoZForce = bPullOnHorizontalPlane;
+
+	if (!ActivePullMovementComponents.Contains(&MovementComponent))
+	{
+		ActivePullMovementComponents.Add(&MovementComponent);
+	}
+}
+
+void ASkillBlackHoleActor::ReleasePullsExcept(const TSet<UCharacterMovementComponent*>& PulledMovementComponents)
+{
 	for (int32 Index = ActivePullMovementComponents.Num() - 1; Index >= 0; --Index)
 	{
 		UCharacterMovementComponent* MovementComponent = ActivePullMovementComponents[Index].Get();
-		if (!MovementComponent || !AffectedMovementComponents.Contains(MovementComponent))
+		if (!MovementComponent || !PulledMovementComponents.Contains(MovementComponent))
 		{
 			if (MovementComponent)
 			{

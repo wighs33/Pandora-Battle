@@ -75,6 +75,8 @@ private:
 	void EnsurePlayerSaveLoaded() const;
 	void SetMessage(FName Key, const FText& Fallback, UObject* Product = nullptr) const;
 	UShopEntryViewData* FindEntryDataByProduct(UObject* ProductObject, EShopProductType ProductType) const;
+	/** 목록을 새로 만든 뒤 같은 상품을 다시 고른다. 구매 결과를 보여 줄 때 쓴다. */
+	void RefreshAndSelectProduct(UObject* ProductObject, EShopProductType ProductType);
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")

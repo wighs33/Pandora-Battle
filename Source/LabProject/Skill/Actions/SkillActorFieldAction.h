@@ -66,6 +66,12 @@ private:
 	void StartFieldRepeatTimer();
 	void FinishFieldSpawnSequence();
 	AActor* SpawnFieldActorForSocket(FName SocketName);
+	/** 설정한 충돌 처리로 생성을 시작하고, 막히면 항상 생성으로 다시 시도한다. 생성은 FinishSpawningActor로 마친다. */
+	AActor* BeginDeferredFieldSpawn(UWorld& World, AActor& AvatarActor, const FTransform& SpawnTransform) const;
+	/** 블랙홀·파워업·효과 범위처럼 종류마다 필요한 시전자·판도라 방향·피해 설정을 넘긴다. */
+	void ConfigureSpawnedFieldActor(AActor& SpawnedActor, AActor& AvatarActor) const;
+	/** 설정한 수명을 쓰거나 액터 기본 수명을 두고, 복제하는 액터는 최소 복제 수명보다 짧지 않게 한다. */
+	void ApplyFieldActorLifeSpan(AActor& SpawnedActor, bool bReplicated) const;
 
 	void DestroyFieldActorWhenReplicationIsSafe(
 		AActor* SpawnedActor,

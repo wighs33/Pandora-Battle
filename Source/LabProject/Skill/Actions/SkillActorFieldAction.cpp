@@ -402,43 +402,58 @@ AActor* USkillActorFieldAction::SpawnFieldActorForSocket(const FName SocketName)
 	}
 
 	const FTransform SpawnTransform = PdSkillFieldPlacement::ResolveSpawnTransform(*AvatarActor, Settings, SocketName);
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = AvatarActor;
-	SpawnParams.Instigator = Cast<APawn>(AvatarActor);
-	SpawnParams.SpawnCollisionHandlingOverride = Settings.SpawnCollisionHandling;
-
-	AActor* SpawnedActor = World->SpawnActorDeferred<AActor>(
-		Settings.FieldActorClass,
-		SpawnTransform,
-		SpawnParams.Owner,
-		SpawnParams.Instigator,
-		SpawnParams.SpawnCollisionHandlingOverride);
-
-	if (!SpawnedActor && SpawnParams.SpawnCollisionHandlingOverride != ESpawnActorCollisionHandlingMethod::AlwaysSpawn)
-	{
-		SpawnedActor = World->SpawnActorDeferred<AActor>(
-			Settings.FieldActorClass,
-			SpawnTransform,
-			SpawnParams.Owner,
-			SpawnParams.Instigator,
-			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-	}
-
+	AActor* SpawnedActor = BeginDeferredFieldSpawn(*World, *AvatarActor, SpawnTransform);
 	if (!SpawnedActor)
 	{
 		return nullptr;
 	}
 
-	const bool bShouldReplicateSpawnedActor =
-		Settings.bForceReplicateSpawnedActor || SpawnedActor->IsA<ASkillEffectArea>();
+	const bool bShouldReplicateSpawnedActor = Settings.bForceReplicateSpawnedActor || SpawnedActor->IsA<ASkillEffectArea>();
+	ConfigureSpawnedFieldActor(*SpawnedActor, *AvatarActor);
+	UGameplayStatics::FinishSpawningActor(SpawnedActor, SpawnTransform);
 
+	if (bShouldReplicateSpawnedActor)
+	{
+		// 지연 생성 중인 액터는 초기화 전이라 SetReplicates가 넷 드라이버에 등록하지 못한다.
+		// FinishSpawning 전에 켜면 첫 복제를 조용히 놓칠 수 있어, 생성을 마친 뒤에 켠다.
+		SpawnedActor->SetReplicates(true);
+		SpawnedActor->SetReplicateMovement(true);
+	}
+
+	PdSkillFieldPlacement::AttachToSpawnSocket(*SpawnedActor, *AvatarActor, Settings, SocketName);
+	if (bShouldReplicateSpawnedActor)
+	{
+		SpawnedActor->ForceNetUpdate();
+	}
+	ApplyFieldActorLifeSpan(*SpawnedActor, bShouldReplicateSpawnedActor);
+
+	SpawnedFieldActors.Add(SpawnedActor);
+	BindFieldTriggerDamage(SpawnedActor);
+	return SpawnedActor;
+}
+
+AActor* USkillActorFieldAction::BeginDeferredFieldSpawn(UWorld& World, AActor& AvatarActor, const FTransform& SpawnTransform) const
+{
+	APawn* InstigatorPawn = Cast<APawn>(&AvatarActor);
+	AActor* SpawnedActor = World.SpawnActorDeferred<AActor>(Settings.FieldActorClass, SpawnTransform, &AvatarActor, InstigatorPawn,
+		Settings.SpawnCollisionHandling);
+	if (!SpawnedActor && Settings.SpawnCollisionHandling != ESpawnActorCollisionHandlingMethod::AlwaysSpawn)
+	{
+		SpawnedActor = World.SpawnActorDeferred<AActor>(Settings.FieldActorClass, SpawnTransform, &AvatarActor, InstigatorPawn,
+			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	}
+	return SpawnedActor;
+}
+
+void USkillActorFieldAction::ConfigureSpawnedFieldActor(AActor& SpawnedActor, AActor& AvatarActor) const
+{
 	EEnum_Direction PandoraLoadoutDirection = EEnum_Direction::Center;
 	if (const UPandoraSkillSource* PandoraSource = GetAbility()->GetPandoraSkillSource())
 	{
 		PandoraLoadoutDirection = PandoraSource->GetLoadoutDirection();
 	}
 
-	if (ASkillBlackHoleActor* BlackHoleActor = Cast<ASkillBlackHoleActor>(SpawnedActor))
+	if (ASkillBlackHoleActor* BlackHoleActor = Cast<ASkillBlackHoleActor>(&SpawnedActor))
 	{
 		const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 		FSkillGameplayEffectConfig FinishDamageConfig;
@@ -455,55 +470,34 @@ AActor* USkillActorFieldAction::SpawnFieldActorForSocket(const FName SocketName)
 			PandoraLoadoutDirection);
 	}
 
-	if (ASkillPowerUpActor* PowerUpActor = Cast<ASkillPowerUpActor>(SpawnedActor))
+	if (ASkillPowerUpActor* PowerUpActor = Cast<ASkillPowerUpActor>(&SpawnedActor))
 	{
 		PowerUpActor->ConfigurePresentationSettings(Settings.PowerUpPresentation);
 	}
 
-	if (ASkillEffectArea* EffectArea = Cast<ASkillEffectArea>(SpawnedActor))
+	if (ASkillEffectArea* EffectArea = Cast<ASkillEffectArea>(&SpawnedActor))
 	{
-		EffectArea->SetSourceActor(AvatarActor);
+		EffectArea->SetSourceActor(&AvatarActor);
 		EffectArea->SetIgnoreSourceActor(Settings.bIgnoreSourceActor || Settings.bEffectAreaIgnoreSourceActor);
 		EffectArea->SetAffectEnemiesOnly(Settings.bEffectAreaAffectEnemiesOnly);
 		EffectArea->SetSourcePandoraLoadoutDirection(PandoraLoadoutDirection);
 	}
+}
 
-	UGameplayStatics::FinishSpawningActor(SpawnedActor, SpawnTransform);
-
-	if (bShouldReplicateSpawnedActor)
-	{
-		// SpawnActorDeferred returns before the actor is initialized. SetReplicates
-		// cannot register an actor with the net driver in that state, so enabling it
-		// before FinishSpawning can silently miss the actor's first replication.
-		SpawnedActor->SetReplicates(true);
-		SpawnedActor->SetReplicateMovement(true);
-	}
-
-	PdSkillFieldPlacement::AttachToSpawnSocket(*SpawnedActor, *AvatarActor, Settings, SocketName);
-
-	if (bShouldReplicateSpawnedActor)
-	{
-		SpawnedActor->ForceNetUpdate();
-	}
-
+void USkillActorFieldAction::ApplyFieldActorLifeSpan(AActor& SpawnedActor, const bool bReplicated) const
+{
 	float RequestedLifeSpan = Settings.bUseSpawnedActorLifeSpan && Settings.SpawnedActorLifeSpan > 0.0
 		? static_cast<float>(Settings.SpawnedActorLifeSpan)
-		: SpawnedActor->GetLifeSpan();
-
-	if (RequestedLifeSpan > 0.0f)
+		: SpawnedActor.GetLifeSpan();
+	if (RequestedLifeSpan <= 0.0f)
 	{
-		if (bShouldReplicateSpawnedActor)
-		{
-			RequestedLifeSpan = FMath::Max(
-				RequestedLifeSpan,
-				static_cast<float>(FMath::Max(Settings.MinimumReplicatedActorLifetime, 0.0)));
-		}
-		SpawnedActor->SetLifeSpan(RequestedLifeSpan);
+		return;
 	}
-
-	SpawnedFieldActors.Add(SpawnedActor);
-	BindFieldTriggerDamage(SpawnedActor);
-	return SpawnedActor;
+	if (bReplicated)
+	{
+		RequestedLifeSpan = FMath::Max(RequestedLifeSpan, static_cast<float>(FMath::Max(Settings.MinimumReplicatedActorLifetime, 0.0)));
+	}
+	SpawnedActor.SetLifeSpan(RequestedLifeSpan);
 }
 
 void USkillActorFieldAction::DestroyFieldActorWhenReplicationIsSafe(
