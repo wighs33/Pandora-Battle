@@ -68,12 +68,6 @@ public:
 		return EnemyTrainingBotComponent;
 	}
 
-	UFUNCTION(BlueprintCallable, Category = "!AI|Targeting")
-	void SetAttackTarget(AActor* InAttackTarget);
-
-	UFUNCTION(BlueprintPure, Category = "!AI|Targeting")
-	AActor* GetCachedAttackTarget() const;
-
 	UFUNCTION(BlueprintCallable, Category = "!AI|Combat")
 	virtual void Attack();
 
@@ -155,11 +149,6 @@ protected:
 	void HandleEnemyDefinitionPreloaded();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	virtual TSubclassOf<UUserWidget> ResolveHealthBarWidgetClass(
-		const UWidgetClassDefinition* WidgetDefinition) const override;
-	virtual bool ShouldApplyResolvedHealthBarWidgetClass(
-		UClass* CurrentWidgetClass,
-		TSubclassOf<UUserWidget> ResolvedWidgetClass) const override;
 	virtual bool IsAdditionalCharacterRuntimeContentReady() const override;
 
 	virtual void ModifyResolvedEnemySettings(

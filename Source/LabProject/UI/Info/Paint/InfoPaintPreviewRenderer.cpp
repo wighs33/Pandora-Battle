@@ -6,7 +6,7 @@
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Canvas.h"
 #include "Engine/World.h"

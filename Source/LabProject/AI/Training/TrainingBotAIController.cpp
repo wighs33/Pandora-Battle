@@ -13,6 +13,13 @@ ATrainingBotAIController::ATrainingBotAIController(const FObjectInitializer& Obj
 {
 }
 
+// 블랙보드의 대상 키가 훈련 봇이 공격할 대상의 유일한 저장소다.
+AActor* ATrainingBotAIController::GetSelectedAttackTarget() const
+{
+	const UBlackboardComponent* LocalBlackboard = GetBlackboardComponent();
+	return LocalBlackboard ? Cast<AActor>(LocalBlackboard->GetValueAsObject(TargetActorKeyName)) : nullptr;
+}
+
 void ATrainingBotAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
@@ -111,11 +118,6 @@ void ATrainingBotAIController::SetBlackboardTarget(AActor* InTarget)
 		LocalBlackboard->SetValueAsFloat(AttackRangeKeyName, AttackRange);
 		LocalBlackboard->SetValueAsBool(HasRangedWeaponKeyName, bHasRangedWeapon);
 		LocalBlackboard->SetValueAsBool(HasLineOfSightKeyName, true);
-
-		if (Enemy)
-		{
-			Enemy->SetAttackTarget(InTarget);
-		}
 	}
 	else
 	{
@@ -133,11 +135,6 @@ void ATrainingBotAIController::ClearBlackboardTarget()
 		LocalBlackboard->SetValueAsFloat(AttackRangeKeyName, 0.0f);
 		LocalBlackboard->SetValueAsBool(HasRangedWeaponKeyName, false);
 		LocalBlackboard->SetValueAsBool(HasLineOfSightKeyName, false);
-	}
-
-	if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
-	{
-		Enemy->SetAttackTarget(nullptr);
 	}
 }
 

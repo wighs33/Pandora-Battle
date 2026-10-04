@@ -26,6 +26,9 @@ public:
 
 	FPrimaryAssetId GetDefaultExperienceId() const { return DefaultExperienceId; }
 
+	// 월드가 이 월드 설정을 쓰면 그 기본 Experience를, 아니면 빈 값을 돌려준다.
+	static FPrimaryAssetId FindDefaultExperienceId(const UWorld* World);
+
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Experience", meta = (AllowedTypes = "ExperienceDefinition", AllowPrivateAccess = "true"))
 	FPrimaryAssetId DefaultExperienceId;

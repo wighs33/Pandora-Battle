@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Blueprint/UserWidget.h"
-#include "UI/HUD/Notification/NotificationData.h"
+#include "Common/NotificationData.h"
 #include "RightNotificationsWidget.generated.h"
 
 class UNotificationEntryWidget;

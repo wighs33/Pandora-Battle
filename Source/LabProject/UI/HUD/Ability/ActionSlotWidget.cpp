@@ -11,7 +11,7 @@
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "TimerManager.h"
 #include "UI/HUD/Ability/ActionSlotEntryWidget.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ActionSlotWidget)
 

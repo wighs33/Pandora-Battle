@@ -1,4 +1,4 @@
-#include "GameFeature/GameFeatureAction_AddWidgets.h"
+#include "UI/GameFeature/GameFeatureAction_AddWidgets.h"
 
 #include "AssetRegistry/AssetBundleData.h"
 #include "Engine/LocalPlayer.h"
@@ -6,8 +6,8 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFeature/ActorExtensionWorldSubsystem.h"
 #include "GameFeaturesSubsystemSettings.h"
-#include "Mode/PdHUD.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/HUD/PdHUD.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "UI/Core/UiSubsystem.h"
 #include "Data/ContentLease.h"
 

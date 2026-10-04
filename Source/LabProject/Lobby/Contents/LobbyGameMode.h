@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Experience/ExperienceHostGameMode.h"
 #include "GameFramework/GameModeBase.h"
 #include "UObject/PrimaryAssetId.h"
 #include "LobbyGameMode.generated.h"
@@ -19,7 +20,7 @@ class ULobbyTravelCoordinator;
  * 설정·플레이어 준비·스폰은 각 컴포넌트, 비동기 전장 이동은 TravelCoordinator가 담당한다.
  */
 UCLASS()
-class LABPROJECT_API ALobbyGameMode : public AGameModeBase
+class LABPROJECT_API ALobbyGameMode : public AGameModeBase, public IExperienceHostGameMode
 {
 	GENERATED_BODY()
 
@@ -66,7 +67,7 @@ private:
 	void HandlePlayerRespawned(APlayerController* Player, bool bCreatedPawn);
 	void UpdateDedicatedServerAutoStart();
 	void StartExperienceLoad();
-	FPrimaryAssetId GetConfiguredExperienceId() const;
+	virtual FPrimaryAssetId GetConfiguredExperienceId() const override;
 	UExperienceManagerComponent* GetExperienceManager() const;
 
 private:

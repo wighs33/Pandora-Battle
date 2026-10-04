@@ -65,6 +65,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	const UItemDefinition* GetCurrentWeaponDefinition() const;
+	/** 현재 무기 정의가 바뀔 때(서버 장착·클라이언트 복제) 알린다. 무기별 배율을 쓰는 이동속도 등이 구독한다. */
+	FSimpleMulticastDelegate& OnCurrentWeaponDefinitionChanged() { return CurrentWeaponDefinitionChanged; }
 
 	float GetCurrentWeaponStatMagnitude(FGameplayTag StatTag) const;
 
@@ -106,7 +108,6 @@ private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ACharacterBase* GetCharacter() const;
 	/** 이 캐릭터를 Avatar로 연결한 ASC. 연결 전이나 다른 Pawn으로 넘어간 뒤에는 nullptr. */
-	UPdAbilitySystemComponent* GetReadyAbilitySystem() const;
 	UInventoryComponent* GetInventory() const;
 	UEquipmentEffectComponent* GetEquipmentEffects() const;
 	void BindEquipCooldownTag(UPdAbilitySystemComponent* AbilitySystem);
@@ -185,6 +186,7 @@ protected:
 	bool bEndingPlay = false;
 
 	FAbilitySystemReadySubscription AbilitySystemSubscription;
+	FSimpleMulticastDelegate CurrentWeaponDefinitionChanged;
 	TWeakObjectPtr<UPdAbilitySystemComponent> CooldownTagAbilitySystem;
 	FDelegateHandle EquipCooldownTagChangedDelegateHandle;
 

@@ -58,7 +58,7 @@ void APdPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-// PlayerState 교체 시 엔진 기본 정보와 프로젝트의 플레이어 식별 정보를 인계한다.
+// 로비→경기 인계의 유일한 경로. 심리스 이동으로 PlayerState가 바뀔 때 식별 정보와 로비에서 고른 외형·슬롯을 넘긴다.
 void APdPlayerState::CopyProperties(APlayerState* NewPlayerState)
 {
 	Super::CopyProperties(NewPlayerState);
@@ -70,6 +70,7 @@ void APdPlayerState::CopyProperties(APlayerState* NewPlayerState)
 	}
 
 	TargetPlayerState->SetBackendIdentity(BackendPlayerSessionId, BackendPlayerId);
+	TargetPlayerState->SetLobbyTravelHandoff(LobbyTravelHandoff);
 	if (PlayerMatchComponent && TargetPlayerState->PlayerMatchComponent)
 	{
 		const FPlayerMatchIdentity Identity = PlayerMatchComponent->GetPlayerMatchIdentity();

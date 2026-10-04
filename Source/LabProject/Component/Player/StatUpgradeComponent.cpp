@@ -5,7 +5,7 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "GameFramework/Actor.h"
-#include "Mode/PdPlayerState.h"
+#include "AbilitySystemGlobals.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Definition/Player/StatUpgradeDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
@@ -93,8 +93,7 @@ bool UStatUpgradeComponent::SetPointsForAllCategories(const float Value)
 		return false;
 	}
 
-	APdPlayerState* PlayerState = Cast<APdPlayerState>(OwnerActor);
-	UAbilitySystemComponent* ASC = PlayerState ? PlayerState->GetAbilitySystemComponent() : nullptr;
+	UAbilitySystemComponent* ASC = GetOwnerAbilitySystemComponent();
 	const UBasicAttributeSet* AttributeSet = ASC ? ASC->GetSet<UBasicAttributeSet>() : nullptr;
 	if (!ASC || !AttributeSet)
 	{
@@ -120,7 +119,7 @@ bool UStatUpgradeComponent::SetPointsForAllCategories(const float Value)
 	}
 
 	ASC->ForceReplication();
-	PlayerState->ForceNetUpdate();
+	OwnerActor->ForceNetUpdate();
 	return true;
 }
 
@@ -313,6 +312,5 @@ void UStatUpgradeComponent::ReleaseStatUpgradeDefinitionPreload()
 // 플레이어 상태가 소유한 ASC를 조회한다.
 UAbilitySystemComponent* UStatUpgradeComponent::GetOwnerAbilitySystemComponent() const
 {
-	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	return PlayerState ? PlayerState->GetAbilitySystemComponent() : nullptr;
+	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
 }

@@ -1,4 +1,4 @@
-#include "Localization/UiLanguage.h"
+#include "Common/UiLanguage.h"
 
 const TArray<EGuideLanguage>& UiLanguage::All()
 {

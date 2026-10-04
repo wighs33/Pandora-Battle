@@ -25,7 +25,7 @@ bool UEquipmentComponent::RequestWeaponSelectionForDirection(
 	LatestRequestedWeapon = WeaponInstance;
 	LatestRequestedWeaponDirection = Direction;
 	bHasLatestWeaponRequest = true;
-	const UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem();
+	const UPdAbilitySystemComponent* AbilitySystem = AbilitySystemSubscription.GetReadyAbilitySystem();
 	if (AbilitySystem && AbilitySystem->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon))
 	{
 		return false;
@@ -260,7 +260,7 @@ bool UEquipmentComponent::ApplyEquipAbilityCooldown()
 		return false;
 	}
 
-	UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem();
+	UPdAbilitySystemComponent* AbilitySystem = AbilitySystemSubscription.GetReadyAbilitySystem();
 	if (!AbilitySystem)
 	{
 		return false;

@@ -9,7 +9,7 @@
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Localization/MenuLocalizationSubsystem.h"
-#include "Localization/UiLanguage.h"
+#include "Common/UiLanguage.h"
 #include "Luna/LunaChatSettings.h"
 #include "Online/Backend/BackendHttp.h"
 

@@ -641,9 +641,6 @@ struct LABPROJECT_API FSkinWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Filter", meta = (Categories = "Skin"))
 	FGameplayTag PetTypeTag;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Paint", meta = (DisplayName = "Brush Material"))
-	TSoftObjectPtr<UMaterialInterface> PaintBrushMaterial;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Paint", meta = (DisplayName = "Canvas Display Material"))
 	TSoftObjectPtr<UMaterialInterface> PaintCanvasDisplayMaterial;
 

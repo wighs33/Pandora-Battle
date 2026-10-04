@@ -10,7 +10,6 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
-#include "Definition/UI/WidgetClassDefinition.h"
 #include "Definition/Player/PlayerPawnDefinition.h"
 #include "Engine/GameInstance.h"
 
@@ -406,38 +405,6 @@ bool AEnemyBase::IsDefaultAttributeSetupComplete() const
 {
 	return EnemyCombatComponent
 		&& EnemyCombatComponent->IsDefaultAttributeSetupComplete();
-}
-
-TSubclassOf<UUserWidget>
-AEnemyBase::ResolveHealthBarWidgetClass(
-	const UWidgetClassDefinition* WidgetDefinition) const
-{
-	return WidgetDefinition
-		? WidgetDefinition->GetEnemyAvatarWidgetClass()
-		: nullptr;
-}
-
-bool AEnemyBase::ShouldApplyResolvedHealthBarWidgetClass(
-	UClass* CurrentWidgetClass,
-	TSubclassOf<UUserWidget> ResolvedWidgetClass) const
-{
-	return ResolvedWidgetClass.Get()
-		&& CurrentWidgetClass != ResolvedWidgetClass.Get();
-}
-
-void AEnemyBase::SetAttackTarget(AActor* InAttackTarget)
-{
-	if (EnemyCombatComponent)
-	{
-		EnemyCombatComponent->SetAttackTarget(InAttackTarget);
-	}
-}
-
-AActor* AEnemyBase::GetCachedAttackTarget() const
-{
-	return EnemyCombatComponent
-		? EnemyCombatComponent->GetCachedAttackTarget()
-		: nullptr;
 }
 
 void AEnemyBase::SetUseNearestPlayerWhenTargetUnset(

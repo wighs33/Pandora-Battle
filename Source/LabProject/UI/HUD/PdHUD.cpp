@@ -1,13 +1,16 @@
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
+#include "UI/Common/EditorTransactionReset.h"
 #include "UI/Core/PdUIActionRouter.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Components/Widget.h"
+#include "Component/Player/ControllerPresentationComponent.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
+#include "Mode/ExperienceGameState.h"
 #include "Mode/PdPlayerController.h"
 #include "TimerManager.h"
 #include "UI/Info/Presenter/InfoUiPresenter.h"
@@ -28,13 +31,9 @@
 #include "UI/Pandora/PandoraTreeWidget.h"
 #include "UI/HUD/Notification/RightNotificationsWidget.h"
 #include "UI/HUD/Player/RespawnDelayWidget.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Match/GameResultWidget.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "UI/Common/WidgetLookup.h"
-
-#if WITH_EDITOR
-#include "Editor.h"
-#include "Editor/TransBuffer.h"
-#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdHUD)
 
@@ -55,19 +54,6 @@ namespace
 		default:
 			return EEnum_Direction::Center;
 		}
-	}
-
-	void ResetEditorTransactionBufferIfContainsPieObjects()
-	{
-#if WITH_EDITOR
-		if (GEditor && GEditor->Trans && GEditor->Trans->ContainsPieObjects())
-		{
-			GEditor->ResetTransaction(NSLOCTEXT(
-				"PdHUD",
-				"TransactionContainedHudPieObject",
-				"A HUD PIE object was in the transaction buffer and had to be destroyed"));
-		}
-#endif
 	}
 }
 
@@ -90,12 +76,14 @@ void APdHUD::BeginPlay()
 	EnsureUiRouter();
 	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayerController(),
 		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
+	BindPresentationEvents();
 	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(this, UGameFrameworkComponentManager::NAME_GameActorReady);
 }
 
 void APdHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	PossessedCharacterReadySubscription.Reset();
+	UnbindPresentationEvents();
 	UGameFrameworkComponentManager::RemoveGameFrameworkComponentReceiver(this);
 	RemoveAllUiWidgets();
 	if (UiRouter)
@@ -379,6 +367,113 @@ void APdHUD::ShowRightNotification(const FPdNotificationData& NotificationData)
 	CachedRightNotificationsUI->EnqueueNotification(NotificationData);
 }
 
+void APdHUD::BindPresentationEvents()
+{
+	if (APdPlayerController* Controller = Cast<APdPlayerController>(GetOwningPlayerController()))
+	{
+		PresentationController = Controller;
+		Controller->OnAimCrosshairChanged().AddUObject(this, &ThisClass::HandleAimCrosshairChanged);
+		Controller->OnDamageScreenEffectRequested().AddUObject(this, &ThisClass::ShowDamageScreenEffect);
+		if (UControllerPresentationComponent* Presentation = Controller->GetControllerPresentationComponent())
+		{
+			Presentation->OnRightNotificationRequested().AddUObject(this, &ThisClass::ShowRightNotification);
+			Presentation->OnKillLogEntryRequested().AddUObject(this, &ThisClass::AddKillLogEntry);
+			Presentation->OnGoldenKillAnnouncementRequested().AddUObject(this, &ThisClass::ShowGoldenKillAnnouncement);
+			Presentation->OnRespawnDelayChanged().AddUObject(this, &ThisClass::HandleRespawnDelayChanged);
+			Presentation->OnInGameScoreboardChanged().AddUObject(this, &ThisClass::HandleInGameScoreboardChanged);
+		}
+	}
+
+	// 클라이언트에서는 GameState가 HUD보다 늦게 복제될 수 있어, 아직 없으면 생길 때 구독한다.
+	UWorld* World = GetWorld();
+	if (World && World->GetGameState())
+	{
+		BindGameStateEvents(World->GetGameState());
+	}
+	else if (World)
+	{
+		World->GameStateSetEvent.AddUObject(this, &ThisClass::BindGameStateEvents);
+	}
+}
+
+void APdHUD::BindGameStateEvents(AGameStateBase* GameState)
+{
+	AExperienceGameState* ExperienceGameState = Cast<AExperienceGameState>(GameState);
+	if (!ExperienceGameState || PresentationGameState.Get() == ExperienceGameState)
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GameStateSetEvent.RemoveAll(this);
+	}
+	PresentationGameState = ExperienceGameState;
+	ExperienceGameState->OnMatchTimerChanged().AddUObject(this, &ThisClass::RefreshHudTimerVisibility);
+	ExperienceGameState->OnGameResultReceived().AddUObject(this, &ThisClass::ShowGameResult);
+}
+
+void APdHUD::UnbindPresentationEvents()
+{
+	// HUD가 구독한 알림은 이 HUD 객체 기준으로 한 번에 해제한다.
+	if (APdPlayerController* Controller = PresentationController.Get())
+	{
+		Controller->OnAimCrosshairChanged().RemoveAll(this);
+		Controller->OnDamageScreenEffectRequested().RemoveAll(this);
+		if (UControllerPresentationComponent* Presentation = Controller->GetControllerPresentationComponent())
+		{
+			Presentation->OnRightNotificationRequested().RemoveAll(this);
+			Presentation->OnKillLogEntryRequested().RemoveAll(this);
+			Presentation->OnGoldenKillAnnouncementRequested().RemoveAll(this);
+			Presentation->OnRespawnDelayChanged().RemoveAll(this);
+			Presentation->OnInGameScoreboardChanged().RemoveAll(this);
+		}
+	}
+	if (AExperienceGameState* ExperienceGameState = PresentationGameState.Get())
+	{
+		ExperienceGameState->OnMatchTimerChanged().RemoveAll(this);
+		ExperienceGameState->OnGameResultReceived().RemoveAll(this);
+	}
+	if (UWorld* World = GetWorld())
+	{
+		World->GameStateSetEvent.RemoveAll(this);
+	}
+
+	PresentationController.Reset();
+	PresentationGameState.Reset();
+}
+
+void APdHUD::HandleAimCrosshairChanged(const bool bVisible, const FGameplayTag CrosshairWidgetTag)
+{
+	if (bVisible)
+	{
+		ShowAimCrosshair(CrosshairWidgetTag);
+	}
+	else
+	{
+		HideAimCrosshair();
+	}
+}
+
+// 결과 창은 나가기 전까지 닫히지 않는다.
+void APdHUD::ShowGameResult(const FText& WinnerTitle, const int32 WinnerTeamColorIndex, const FText& MaxKillerName,
+	const int32 MaxKillCount, const TArray<FGameResultPlayerStat>& PlayerStats)
+{
+	const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
+	const TSubclassOf<UGameResultWidget> GameResultWidgetClass = WidgetDefinition ? WidgetDefinition->GetGameResultWidgetClass() : nullptr;
+	APlayerController* Controller = GetOwningPlayerController();
+	UGameResultWidget* GameResultWidget =
+		GameResultWidgetClass && Controller ? CreateWidget<UGameResultWidget>(Controller, GameResultWidgetClass) : nullptr;
+	if (!GameResultWidget)
+	{
+		return;
+	}
+
+	GameResultWidget->SetInfo(WinnerTitle, WinnerTeamColorIndex, MaxKillerName, MaxKillCount, PlayerStats);
+	GameResultWidget->SetCloseOnlyOnExit(true);
+	GameResultWidget->ShowResultScreen();
+}
+
 void APdHUD::ShowDamageScreenEffect(float DamageAmount)
 {
 	if (GetNetMode() == NM_DedicatedServer)
@@ -442,8 +537,17 @@ void APdHUD::AddKillLogEntry(const FKillLogEntry& KillLogEntry)
 	KillLogWidget->AddKillLogEntry(KillLogEntry);
 }
 
-void APdHUD::ShowRespawnDelay(const float DelaySeconds)
+void APdHUD::HandleRespawnDelayChanged(const bool bVisible, const float DelaySeconds)
 {
+	if (!bVisible)
+	{
+		if (URespawnDelayWidget* RespawnDelayWidget = FindRespawnDelayWidget())
+		{
+			RespawnDelayWidget->HideRespawnDelay();
+		}
+		return;
+	}
+
 	if (GetNetMode() == NM_DedicatedServer)
 	{
 		return;
@@ -454,37 +558,27 @@ void APdHUD::ShowRespawnDelay(const float DelaySeconds)
 		CreateAllUi();
 	}
 
-	URespawnDelayWidget* RespawnDelayWidget = FindRespawnDelayWidget();
-	if (!RespawnDelayWidget)
+	if (URespawnDelayWidget* RespawnDelayWidget = FindRespawnDelayWidget())
 	{
+		RespawnDelayWidget->StartRespawnDelay(DelaySeconds);
+	}
+}
+
+void APdHUD::HandleInGameScoreboardChanged(const bool bVisible)
+{
+	if (!bVisible)
+	{
+		if (UHudScoreboardLayer* ScoreboardLayer = GetScoreboardLayer())
+		{
+			ScoreboardLayer->Hide();
+		}
 		return;
 	}
 
-	RespawnDelayWidget->StartRespawnDelay(DelaySeconds);
-}
-
-void APdHUD::HideRespawnDelay()
-{
-	if (URespawnDelayWidget* RespawnDelayWidget = FindRespawnDelayWidget())
-	{
-		RespawnDelayWidget->HideRespawnDelay();
-	}
-}
-
-void APdHUD::ShowInGameScoreboard()
-{
 	EnsureUiRouter();
 	if (UHudScoreboardLayer* ScoreboardLayer = GetScoreboardLayer())
 	{
 		ScoreboardLayer->Show();
-	}
-}
-
-void APdHUD::HideInGameScoreboard()
-{
-	if (UHudScoreboardLayer* ScoreboardLayer = GetScoreboardLayer())
-	{
-		ScoreboardLayer->Hide();
 	}
 }
 
@@ -868,7 +962,7 @@ void APdHUD::RefreshPlayerHudVisibility()
 
 void APdHUD::RemoveAllUiWidgets()
 {
-	ResetEditorTransactionBufferIfContainsPieObjects();
+	PdEditorTransaction::ResetIfContainsPieObjects();
 
 	HideAimCrosshair();
 	CachedDamageScreenEffectWidget = nullptr;
@@ -888,5 +982,14 @@ void APdHUD::RemoveAllUiWidgets()
 		CachedInfoUiPresenter = nullptr;
 	}
 
-	ResetEditorTransactionBufferIfContainsPieObjects();
+	PdEditorTransaction::ResetIfContainsPieObjects();
+}
+
+// 화면 입력 라우터가 게임플레이 입력을 막고 있는지 입력 컴포넌트에 알려 준다.
+bool APdHUD::IsGameplayInputBlockedByUi() const
+{
+	const APlayerController* Controller = GetOwningPlayerController();
+	const ULocalPlayer* LocalPlayer = Controller ? Controller->GetLocalPlayer() : nullptr;
+	const UPdUIActionRouter* Router = LocalPlayer ? LocalPlayer->GetSubsystem<UPdUIActionRouter>() : nullptr;
+	return Router && Router->IsGameplayInputBlocked();
 }

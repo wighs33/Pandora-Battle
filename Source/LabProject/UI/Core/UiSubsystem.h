@@ -13,6 +13,7 @@ enum class EUiScreenLayer : uint8 { Screen, Overlay, Menu, Modal };
 class UCommonActivatableWidget;
 class UAbilitySystemComponent;
 class APlayerController;
+class UGameSettingDefinition;
 class UGameSettingsWidget;
 class UStatusViewModel;
 class UUserWidget;
@@ -57,6 +58,8 @@ public:
 		return bConfiguredWidgetContentReady;
 	}
 	bool IsConfiguredWidgetContentPreloadPending() const { return bConfiguredWidgetContentPreloadPending; }
+	/** 로비 진입 때 붙잡은 로비 화면 콘텐츠를 아직 불러오는 중인지. */
+	bool IsLobbyContentLoading() const;
 
 	/** Keeps one explicit-definition UI group resident for the lease lifetime. */
 	TSharedPtr<FContentLease> AcquireUiContent(
@@ -84,6 +87,9 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleConfiguredWidgetDefinitionLoaded();
+	void HandleCustomMouseCursorSettingsReady(APlayerController* PlayerController, const UGameSettingDefinition& SettingDefinition);
+	void HandleLobbyEntryContentPreloadRequested();
+	void HandleLobbyEntryContentReleased();
 	void RefreshConfiguredWidgetContentState();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -124,6 +130,10 @@ private:
 	TObjectPtr<UGameSettingsWidget> ActiveGameSettings;
 
 	TWeakObjectPtr<UUserWidget> SettingsOwner;
+	FDelegateHandle CustomMouseCursorSettingsHandle;
+	FDelegateHandle LobbyEntryPreloadRequestedHandle;
+	FDelegateHandle LobbyEntryReleasedHandle;
+	TSharedPtr<FContentLease> LobbyContentLease;
 
 	bool bIsDeinitializing = false;
 };

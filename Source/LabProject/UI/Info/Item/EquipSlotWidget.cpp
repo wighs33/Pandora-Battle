@@ -8,7 +8,7 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Localization/MenuLocalizationSubsystem.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "UI/Info/InfoWidget.h"
 #include "UI/Info/Item/ItemSlotDragDropOperation.h"
 

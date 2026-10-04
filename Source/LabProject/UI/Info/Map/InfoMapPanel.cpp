@@ -10,7 +10,7 @@
 #include "Components/PanelWidget.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Definition/Level/LevelDefinition.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"

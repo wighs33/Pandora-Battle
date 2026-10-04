@@ -39,6 +39,9 @@ public:
 
 	void Reset();
 
+	/** 캐릭터 구독에서 그 캐릭터의 ASC가 지금 준비돼 있으면 돌려준다. 준비 전·해제 뒤에는 nullptr이다. */
+	UPdAbilitySystemComponent* GetReadyAbilitySystem() const;
+
 private:
 	TWeakObjectPtr<UAbilityStateComponent> CharacterSource;
 	TWeakObjectPtr<APdPlayerController> ControllerSource;

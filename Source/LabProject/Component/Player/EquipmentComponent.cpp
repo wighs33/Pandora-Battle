@@ -6,7 +6,6 @@
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/Character/AbilityStateComponent.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Component/Player/EquipmentEffectComponent.h"
@@ -14,7 +13,7 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Item/ItemInstance.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Pandora/PandoraLoadoutTypes.h"
@@ -101,18 +100,11 @@ ACharacterBase* UEquipmentComponent::GetCharacter() const
 	return Cast<ACharacterBase>(GetOwner());
 }
 
-UPdAbilitySystemComponent* UEquipmentComponent::GetReadyAbilitySystem() const
-{
-	const ACharacterBase* Character = GetCharacter();
-	const UAbilityStateComponent* AbilityState = Character ? Character->GetAbilityStateComponent() : nullptr;
-	return AbilityState ? AbilityState->GetReadyAbilitySystemComponent() : nullptr;
-}
-
 UInventoryComponent* UEquipmentComponent::GetInventory() const
 {
 	const ACharacterBase* Character = GetCharacter();
-	const APdPlayerState* PlayerState = Character ? Character->GetPlayerState<APdPlayerState>() : nullptr;
-	return PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	const APlayerState* PlayerState = Character ? Character->GetPlayerState<APlayerState>() : nullptr;
+	return PlayerState ? PlayerState->FindComponentByClass<UInventoryComponent>() : nullptr;
 }
 
 UEquipmentEffectComponent* UEquipmentComponent::GetEquipmentEffects() const
@@ -154,18 +146,12 @@ void UEquipmentComponent::SyncWeaponEffect() const
 void UEquipmentComponent::NotifyCurrentWeaponDefinitionChanged()
 {
 	NotifyCurrentWeaponStateChanged();
-	if (const ACharacterBase* CharacterOwner = GetCharacter())
-	{
-		if (UAbilityStateComponent* AbilityState = CharacterOwner->GetAbilityStateComponent())
-		{
-			AbilityState->ApplyMovementSpeedFromAttribute();
-		}
-	}
+	CurrentWeaponDefinitionChanged.Broadcast();
 }
 
 void UEquipmentComponent::NotifyCurrentWeaponStateChanged()
 {
-	if (UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem())
+	if (UPdAbilitySystemComponent* AbilitySystem = AbilitySystemSubscription.GetReadyAbilitySystem())
 	{
 		AbilitySystem->OnAbilitiesChangedNative.Broadcast();
 	}
@@ -451,8 +437,8 @@ void UEquipmentComponent::RefreshPandoraForWeaponChange() const
 	}
 
 	const ACharacterBase* CharacterOwner = GetCharacter();
-	const APdPlayerState* PlayerStateOwner = CharacterOwner ? CharacterOwner->GetPlayerState<APdPlayerState>() : nullptr;
-	if (UPandoraComponent* PandoraComponent = PlayerStateOwner ? PlayerStateOwner->GetPandoraComponent() : nullptr)
+	const APlayerState* PlayerStateOwner = CharacterOwner ? CharacterOwner->GetPlayerState<APlayerState>() : nullptr;
+	if (UPandoraComponent* PandoraComponent = PlayerStateOwner ? PlayerStateOwner->FindComponentByClass<UPandoraComponent>() : nullptr)
 	{
 		PandoraComponent->RefreshCurrentPandoraSkills();
 	}
@@ -462,7 +448,7 @@ bool UEquipmentComponent::TryActivateSingleAbilityTag(const FGameplayTag& Abilit
 {
 	// Pawn이 존재해도 비동기 초기화나 빙의 전환 중에는 ASC의 Avatar가 아직 연결되지 않을 수 있다.
 	// 대기 중인 무기 선택은 유지하고 현재 캐릭터가 연결된 뒤 다시 적용한다.
-	UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem();
+	UPdAbilitySystemComponent* AbilitySystem = AbilitySystemSubscription.GetReadyAbilitySystem();
 	if (!AbilitySystem || !AbilityTag.IsValid())
 	{
 		return false;
@@ -475,13 +461,13 @@ bool UEquipmentComponent::TryActivateSingleAbilityTag(const FGameplayTag& Abilit
 
 bool UEquipmentComponent::HasActiveAbilityWithTags(const FGameplayTagContainer& AbilityTags) const
 {
-	const UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem();
+	const UPdAbilitySystemComponent* AbilitySystem = AbilitySystemSubscription.GetReadyAbilitySystem();
 	return AbilitySystem && !AbilityTags.IsEmpty() && AbilitySystem->HasActiveAbilityWithTags(AbilityTags);
 }
 
 bool UEquipmentComponent::IsDeathTransitionActive() const
 {
-	const UPdAbilitySystemComponent* AbilitySystem = GetReadyAbilitySystem();
+	const UPdAbilitySystemComponent* AbilitySystem = AbilitySystemSubscription.GetReadyAbilitySystem();
 	return AbilitySystem
 		&& (AbilitySystem->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
 			|| AbilitySystem->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f);

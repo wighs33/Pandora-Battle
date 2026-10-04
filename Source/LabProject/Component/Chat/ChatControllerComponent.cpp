@@ -1,16 +1,12 @@
 #include "Component/Chat/ChatControllerComponent.h"
 
-#include "UI/Chat/ChatBoxWidget.h"
-#include "UI/Chat/ChatEntryWidget.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Engine/GameInstance.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "Mode/PdHUD.h"
 #include "Mode/PdPlayerState.h"
-#include "UI/Common/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChatControllerComponent)
 
@@ -21,77 +17,43 @@ UChatControllerComponent::UChatControllerComponent(const FObjectInitializer& Obj
 	SetIsReplicatedByDefault(true);
 }
 
-void UChatControllerComponent::BeginPlay()
-{
-	Super::BeginPlay();
-
-	const APlayerController* PlayerController = Cast<APlayerController>(GetOwner());
-	if (PlayerController && PlayerController->IsLocalController())
-	{
-		EnsureChatBox(false);
-	}
-}
-
 void UChatControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	ChatBoxWidget = nullptr;
+	ChatMessageAdded.Clear();
+	ChatViewCommand.Clear();
+	bChatFocused = false;
 	Super::EndPlay(EndPlayReason);
 }
 
 void UChatControllerComponent::FocusChat()
 {
-	APlayerController* PlayerController = Cast<APlayerController>(GetOwner());
-	if (!PlayerController || !PlayerController->IsLocalController())
+	if (IsLocalChatOwner())
 	{
-		return;
+		ChatViewCommand.Broadcast(EChatViewCommand::Focus);
 	}
-
-	if (!ChatBoxWidget)
-	{
-		EnsureChatBox();
-	}
-
-	if (!ChatBoxWidget)
-	{
-		return;
-	}
-
-	ChatBoxWidget->FocusChat();
 }
 
 void UChatControllerComponent::ExitChat()
 {
-	APlayerController* PlayerController = Cast<APlayerController>(GetOwner());
-	if (!PlayerController || !PlayerController->IsLocalController())
+	if (IsLocalChatOwner())
 	{
-		return;
-	}
-
-	if (ChatBoxWidget)
-	{
-		ChatBoxWidget->ExitChat();
+		ChatViewCommand.Broadcast(EChatViewCommand::Exit);
 	}
 }
 
 bool UChatControllerComponent::IsChatFocused() const
 {
-	return ChatBoxWidget && ChatBoxWidget->IsChatFocused();
+	return bChatFocused;
 }
 
 void UChatControllerComponent::ScrollChat(const bool bUp)
 {
-	if (ChatBoxWidget)
-	{
-		ChatBoxWidget->Scroll(bUp);
-	}
+	ChatViewCommand.Broadcast(bUp ? EChatViewCommand::ScrollUp : EChatViewCommand::ScrollDown);
 }
 
 void UChatControllerComponent::SubmitChatInput()
 {
-	if (ChatBoxWidget)
-	{
-		ChatBoxWidget->SubmitChatInput();
-	}
+	ChatViewCommand.Broadcast(EChatViewCommand::SubmitInput);
 }
 
 void UChatControllerComponent::SubmitChatMessage(const FString& RawMessage)
@@ -107,15 +69,7 @@ void UChatControllerComponent::SubmitChatMessage(const FString& RawMessage)
 
 void UChatControllerComponent::AddChatMessage(const FString& Message)
 {
-	if (!ChatBoxWidget)
-	{
-		EnsureChatBox();
-	}
-
-	if (ChatBoxWidget)
-	{
-		ChatBoxWidget->AddChatMessage(Message);
-	}
+	ChatMessageAdded.Broadcast(Message);
 }
 
 void UChatControllerComponent::Server_SendChatMessage_Implementation(const FString& Message)
@@ -141,45 +95,15 @@ void UChatControllerComponent::Client_AddChatMessage_Implementation(const FStrin
 	AddChatMessage(Message);
 }
 
-bool UChatControllerComponent::EnsureChatBox(const bool bLogIfMissing)
-{
-	APlayerController* PlayerController = Cast<APlayerController>(GetOwner());
-	if (!PlayerController || !PlayerController->IsLocalController())
-	{
-		return false;
-	}
-
-	if (ChatBoxWidget)
-	{
-		return true;
-	}
-
-	ChatBoxWidget = FindChatBoxInPlayerHUD();
-	if (ChatBoxWidget)
-	{
-		ChatBoxWidget->InitializeChat(this, ChatEntryWidgetClass, ScrollMultiplier);
-
-		return true;
-	}
-
-	return false;
-}
-
-UChatBoxWidget* UChatControllerComponent::FindChatBoxInPlayerHUD() const
+bool UChatControllerComponent::IsLocalChatOwner() const
 {
 	const APlayerController* PlayerController = Cast<APlayerController>(GetOwner());
-	const APdHUD* PdHUD = PlayerController ? Cast<APdHUD>(PlayerController->GetHUD()) : nullptr;
-	return PdWidgetLookup::FindFirstWidgetOfType<UChatBoxWidget>(PdHUD ? PdHUD->GetPlayerHudWidget() : nullptr);
+	return PlayerController && PlayerController->IsLocalController();
 }
 
 void UChatControllerComponent::HandleChatInputAction()
 {
-	if (!ChatBoxWidget)
-	{
-		EnsureChatBox();
-	}
-
-	if (ChatBoxWidget && ChatBoxWidget->IsChatFocused())
+	if (bChatFocused)
 	{
 		SubmitChatInput();
 	}

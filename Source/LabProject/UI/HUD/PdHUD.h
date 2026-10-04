@@ -6,12 +6,15 @@
 #include "GameFramework/HUD.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
-#include "UI/Info/InfoUiTypes.h"
-#include "UI/HUD/Notification/NotificationData.h"
+#include "Interface/HudInputInterface.h"
+#include "Common/NotificationData.h"
 #include "PdHUD.generated.h"
 
 class ACharacterBase;
+class AExperienceGameState;
+class AGameStateBase;
 class APdPlayerController;
+struct FGameResultPlayerStat;
 class UInfoUiPresenter;
 class UDamageScreenEffectWidget;
 class UGoldenKillAnnouncementWidget;
@@ -33,7 +36,7 @@ class UUserWidget;
 class UWidgetClassDefinition;
 
 UCLASS()
-class LABPROJECT_API APdHUD : public AHUD
+class LABPROJECT_API APdHUD : public AHUD, public IHudInputInterface
 {
 	GENERATED_BODY()
 
@@ -55,7 +58,7 @@ public:
 
 	void RefreshHudTimerVisibility();
 
-	void OpenInfoUiFocused(EInfoUiSection Section);
+	virtual void OpenInfoUiFocused(EInfoUiSection Section) override;
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
 	void CloseInfoUi();
@@ -81,14 +84,7 @@ public:
 	void UpdateSelectPandoraDirectionFromMouse();
 	void ShowAimCrosshair(FGameplayTag DesiredCrosshairWidgetTag);
 	void HideAimCrosshair();
-	void ShowRightNotification(const FPdNotificationData& NotificationData);
 	void ShowDamageScreenEffect(float DamageAmount);
-	void ShowGoldenKillAnnouncement(const FText& AnnouncementText = FText::GetEmpty());
-	void AddKillLogEntry(const FKillLogEntry& KillLogEntry);
-	void ShowRespawnDelay(float DelaySeconds);
-	void HideRespawnDelay();
-	void ShowInGameScoreboard();
-	void HideInGameScoreboard();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
 	void ToggleSettingsMenu();
@@ -97,7 +93,8 @@ public:
 
 	UInfoWidget* GetInfoWidget() const { return CachedInfoUI; }
 	USelectPandoraWidget* GetSelectPandoraWidget() const { return CachedSelectPandoraUI; }
-	bool IsSelectPandoraUiOpen() const;
+	virtual bool IsSelectPandoraUiOpen() const override;
+	virtual bool IsGameplayInputBlockedByUi() const override;
 	UUserWidget* GetPlayerHudWidget() const { return CachedPlayerHUD; }
 	const UWidgetClassDefinition* GetWidgetClassDefinition() const { return WidgetClassDefinition; }
 
@@ -106,16 +103,29 @@ public:
 	void OpenSettingsMenu();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
-	virtual bool HandleEscapeInput();
+	virtual bool HandleEscapeInput() override;
 
-	void OnOpenSettingsMenuInputStarted(const FInputActionValue& InputValue);
-	void OnSelectPandoraInputStarted(const FInputActionValue& InputValue);
-	bool OnSelectPandoraInputEnded(const FInputActionValue& InputValue);
-	void OnPandoraTreeInputStarted(const FInputActionValue& InputValue);
+	virtual void OnOpenSettingsMenuInputStarted(const FInputActionValue& InputValue) override;
+	virtual void OnSelectPandoraInputStarted(const FInputActionValue& InputValue) override;
+	virtual bool OnSelectPandoraInputEnded(const FInputActionValue& InputValue) override;
+	virtual void OnPandoraTreeInputStarted(const FInputActionValue& InputValue) override;
 
 private:
 	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void HandleSettingsMenuLayerClosed();
+	void HandleAimCrosshairChanged(bool bVisible, FGameplayTag CrosshairWidgetTag);
+	void ShowRightNotification(const FPdNotificationData& NotificationData);
+	void ShowGoldenKillAnnouncement(const FText& AnnouncementText);
+	void AddKillLogEntry(const FKillLogEntry& KillLogEntry);
+	void HandleRespawnDelayChanged(bool bVisible, float DelaySeconds);
+	void HandleInGameScoreboardChanged(bool bVisible);
+	void ShowGameResult(const FText& WinnerTitle, int32 WinnerTeamColorIndex, const FText& MaxKillerName, int32 MaxKillCount,
+		const TArray<FGameResultPlayerStat>& PlayerStats);
+
+	// 게임플레이 쪽은 화면을 직접 부르지 않고 컨트롤러·화면 표시 컴포넌트·GameState에 알린다. HUD는 그 알림을 구독해 그린다.
+	void BindPresentationEvents();
+	void BindGameStateEvents(AGameStateBase* GameState);
+	void UnbindPresentationEvents();
 
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -193,6 +203,9 @@ private:
 	TObjectPtr<URightNotificationsWidget> CachedRightNotificationsUI = nullptr;
 
 	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
+
+	TWeakObjectPtr<APdPlayerController> PresentationController;
+	TWeakObjectPtr<AExperienceGameState> PresentationGameState;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoUiPresenter> CachedInfoUiPresenter = nullptr;

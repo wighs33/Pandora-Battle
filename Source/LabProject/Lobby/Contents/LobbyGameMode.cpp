@@ -10,7 +10,7 @@
 #include "Component/Lobby/LobbyPlayerSetupComponent.h"
 #include "Component/Player/PlayerSpawnComponent.h"
 #include "Lobby/Contents/LobbyGameState.h"
-#include "Lobby/Contents/LobbyHUD.h"
+#include "GameFramework/HUD.h"
 #include "Lobby/Contents/LobbyPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Component/Player/PlayerMatchComponent.h"
@@ -63,7 +63,12 @@ EDataValidationResult ALobbyGameMode::IsDataValid(FDataValidationContext& Contex
 	ValidateClass(PlayerControllerClass, ALobbyPlayerController::StaticClass(), TEXT("PlayerControllerClass"));
 	ValidateClass(GameStateClass, ALobbyGameState::StaticClass(), TEXT("GameStateClass"));
 	ValidateClass(PlayerStateClass, APdPlayerState::StaticClass(), TEXT("PlayerStateClass"));
-	ValidateClass(HUDClass, ALobbyHUD::StaticClass(), TEXT("HUDClass"));
+	// HUD는 UI 쪽 클래스라 BP 데이터로 지정하고, 엔진 기본 HUD가 남아 있지 않은지만 확인한다.
+	if (!HUDClass || HUDClass == AHUD::StaticClass())
+	{
+		Context.AddError(NSLOCTEXT("LobbyGameMode", "MissingLobbyHUD", "HUDClass must be set to the lobby HUD."));
+		Result = EDataValidationResult::Invalid;
+	}
 	ValidateClass(DefaultPawnClass, APdPlayer::StaticClass(), TEXT("DefaultPawnClass"));
 	return Result == EDataValidationResult::Invalid ? Result : EDataValidationResult::Valid;
 }
@@ -81,7 +86,6 @@ ALobbyGameMode::ALobbyGameMode(const FObjectInitializer& ObjectInitializer) : Su
 	PlayerControllerClass = ALobbyPlayerController::StaticClass();
 	GameStateClass = ALobbyGameState::StaticClass();
 	PlayerStateClass = APdPlayerState::StaticClass();
-	HUDClass = ALobbyHUD::StaticClass();
 	DefaultPawnClass = APdPlayer::StaticClass();
 	bUseSeamlessTravel = true;
 }
@@ -336,8 +340,7 @@ void ALobbyGameMode::HandlePlayerRespawned(APlayerController* Player, bool bCrea
 
 FPrimaryAssetId ALobbyGameMode::GetConfiguredExperienceId() const
 {
-	const APdWorldSettings* Settings = GetWorld() ? Cast<APdWorldSettings>(GetWorld()->GetWorldSettings()) : nullptr;
-	return Settings ? Settings->GetDefaultExperienceId() : FPrimaryAssetId();
+	return APdWorldSettings::FindDefaultExperienceId(GetWorld());
 }
 
 UExperienceManagerComponent* ALobbyGameMode::GetExperienceManager() const

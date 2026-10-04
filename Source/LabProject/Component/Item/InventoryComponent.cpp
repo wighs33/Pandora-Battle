@@ -12,7 +12,8 @@
 #include "Item/ItemInstance.h"
 #include "Misc/ScopeExit.h"
 #include "Pandora/PandoraLoadoutTypes.h"
-#include "Mode/PdPlayerState.h"
+#include "AbilitySystemGlobals.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InventoryComponent)
@@ -848,15 +849,7 @@ bool UInventoryComponent::ApplyConsumableItemEffect(const UItemInstance* ItemIns
 		return false;
 	}
 
-	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	UAbilitySystemComponent* AbilitySystemComponent = PlayerState ? PlayerState->GetAbilitySystemComponent() : nullptr;
-	if (!AbilitySystemComponent)
-	{
-		if (const IAbilitySystemInterface* AbilitySystemInterface = Cast<IAbilitySystemInterface>(GetOwner()))
-		{
-			AbilitySystemComponent = AbilitySystemInterface->GetAbilitySystemComponent();
-		}
-	}
+	UAbilitySystemComponent* AbilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
 	if (!AbilitySystemComponent)
 	{
 		return false;

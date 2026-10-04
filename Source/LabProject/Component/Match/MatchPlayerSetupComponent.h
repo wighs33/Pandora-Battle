@@ -48,7 +48,7 @@ private:
 	void ReleaseSkinContentPreload();
 	void FlushPendingGameplayProvisions();
 	void PreparePlayerForGameplayInternal(APlayerController* NewPlayer);
-	void ApplyCachedLobbySkinEquipment(APlayerController* NewPlayer) const;
+	void ApplyLobbySkinEquipment(APlayerController* NewPlayer) const;
 
 public:
 	FSimpleMulticastDelegate OnPlayerGameplayReady;

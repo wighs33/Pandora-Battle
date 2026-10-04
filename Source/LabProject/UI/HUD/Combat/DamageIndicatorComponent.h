@@ -2,12 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Interface/DamageIndicatorInterface.h"
 #include "DamageIndicatorComponent.generated.h"
 
 class ADamageIndicatorActor;
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class LABPROJECT_API UDamageIndicatorComponent : public UActorComponent
+class LABPROJECT_API UDamageIndicatorComponent : public UActorComponent, public IDamageIndicatorInterface
 {
 	GENERATED_BODY()
 
@@ -16,10 +17,10 @@ public:
 	UDamageIndicatorComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "!DamageIndicator")
-	void ShowDamageIndicator(float DamageAmount, FVector WorldLocation, bool bCriticalHit = false);
+	virtual void ShowDamageIndicator(float DamageAmount, FVector WorldLocation, bool bCriticalHit = false) override;
 
 	UFUNCTION(BlueprintPure, Category = "!DamageIndicator")
-	FVector ResolveDamageIndicatorWorldLocation() const;
+	virtual FVector ResolveDamageIndicatorWorldLocation() const override;
 
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------

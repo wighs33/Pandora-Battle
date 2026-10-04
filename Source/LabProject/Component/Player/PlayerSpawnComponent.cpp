@@ -10,7 +10,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/GameModeBase.h"
 #include "Mode/PdPlayerController.h"
-#include "Mode/PdPlayerState.h"
+#include "AbilitySystemGlobals.h"
+#include "GameFramework/PlayerState.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerSpawnComponent)
 
@@ -43,8 +44,8 @@ AActor* UPlayerSpawnComponent::ChooseConfiguredPlayerStart(
 			return AssignedStart->Get();
 		}
 	}
-	const APdPlayerState* PlayerState = Player ? Player->GetPlayerState<APdPlayerState>() : nullptr;
-	const UPlayerMatchComponent* MatchComponent = PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
+	const APlayerState* PlayerState = Player ? Player->GetPlayerState<APlayerState>() : nullptr;
+	const UPlayerMatchComponent* MatchComponent = PlayerState ? PlayerState->FindComponentByClass<UPlayerMatchComponent>() : nullptr;
 	const int32 SpawnIndex = MatchComponent ? MatchComponent->GetMatchSpawnIndex() : INDEX_NONE;
 	if (AActor* TaggedPlayerStart =
 		FindPlayerStartBySpawnIndex(
@@ -366,9 +367,9 @@ void UPlayerSpawnComponent::FinishPlayerRespawn(TWeakObjectPtr<AController> Weak
 		return;
 	}
 
-	if (APdPlayerState* State = Controller->GetPlayerState<APdPlayerState>())
+	if (APlayerState* State = Controller->GetPlayerState<APlayerState>())
 	{
-		if (UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(State->GetAbilitySystemComponent()))
+		if (UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(State)))
 		{
 			ASC->ResetRuntimeStateForRespawn();
 		}

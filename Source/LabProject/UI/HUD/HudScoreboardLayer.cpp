@@ -5,12 +5,12 @@
 #include "GameFramework/GameStateBase.h"
 #include "Component/Match/MatchResultReport.h"
 #include "UI/Match/GameResultWidget.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "TimerManager.h"
 #include "UI/Core/UiScreen.h"
 #include "UI/Core/UiSubsystem.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudScoreboardLayer)
 

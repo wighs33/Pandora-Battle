@@ -10,12 +10,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyGameMode.h"
-#include "Lobby/Contents/LobbyHUD.h"
 #include "Mode/PdPlayerState.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "UI/Lobby/LobbyWidget.h"
 #include "Engine/GameInstance.h"
-#include "UI/Core/LoadingScreenSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyPlayerController)
 
@@ -110,31 +107,22 @@ void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(APdPlayerSta
 
 void ALobbyPlayerController::Client_ShowGameStartConnectingPopup_Implementation()
 {
-	ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	ULoadingScreenSubsystem* LoadingScreen = LocalPlayer ? LocalPlayer->GetSubsystem<ULoadingScreenSubsystem>() : nullptr;
-	if (!LoadingScreen)
+	UGameInstance* GameInstance = GetGameInstance();
+	if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>() : nullptr)
 	{
-		return;
-	}
-
-	LoadingScreen->SetGameStartPreparationPending(true);
-	if (UGameInstance* GameInstance = GetGameInstance())
-	{
-		if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
-			GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>())
-		{
-			LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
-		}
+		LobbyRuntimeSubsystem->SetGameStartPreparationPending(true);
+		LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
 	}
 }
 
 void ALobbyPlayerController::Client_HideGameStartConnectingPopup_Implementation()
 {
-	ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	if (ULoadingScreenSubsystem* LoadingScreen =
-		LocalPlayer ? LocalPlayer->GetSubsystem<ULoadingScreenSubsystem>() : nullptr)
+	UGameInstance* GameInstance = GetGameInstance();
+	if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem =
+		GameInstance ? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>() : nullptr)
 	{
-		LoadingScreen->SetGameStartPreparationPending(false);
+		LobbyRuntimeSubsystem->SetGameStartPreparationPending(false);
 	}
 }
 

@@ -6,7 +6,7 @@
 #include "Component/Player/EquipmentComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "GameFramework/Pawn.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Pandora/PandoraLoadoutTypes.h"
@@ -25,17 +25,17 @@ USelectingPandoraAndWeaponComponent::USelectingPandoraAndWeaponComponent(const F
 void USelectingPandoraAndWeaponComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	const APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>();
+	const APlayerState* PlayerState = GetPlayerState<APlayerState>();
 	if (!PlayerState || !HasAuthority())
 	{
 		return;
 	}
 
-	if (UInventoryComponent* Inventory = PlayerState->GetInventoryComponent())
+	if (UInventoryComponent* Inventory = PlayerState->FindComponentByClass<UInventoryComponent>())
 	{
 		WeaponLoadoutChangedHandle = Inventory->OnWeaponLoadoutChanged.AddUObject(this, &ThisClass::ReapplyIfSelectedLoadoutChanged);
 	}
-	if (UPandoraComponent* PandoraComponent = PlayerState->GetPandoraComponent())
+	if (UPandoraComponent* PandoraComponent = PlayerState->FindComponentByClass<UPandoraComponent>())
 	{
 		PandoraComponent->OnPandoraLoadoutChanged.AddUniqueDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
 	}
@@ -43,13 +43,13 @@ void USelectingPandoraAndWeaponComponent::BeginPlay()
 
 void USelectingPandoraAndWeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (const APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>())
+	if (const APlayerState* PlayerState = GetPlayerState<APlayerState>())
 	{
-		if (UInventoryComponent* Inventory = PlayerState->GetInventoryComponent())
+		if (UInventoryComponent* Inventory = PlayerState->FindComponentByClass<UInventoryComponent>())
 		{
 			Inventory->OnWeaponLoadoutChanged.Remove(WeaponLoadoutChangedHandle);
 		}
-		if (UPandoraComponent* PandoraComponent = PlayerState->GetPandoraComponent())
+		if (UPandoraComponent* PandoraComponent = PlayerState->FindComponentByClass<UPandoraComponent>())
 		{
 			PandoraComponent->OnPandoraLoadoutChanged.RemoveDynamic(this, &ThisClass::HandlePandoraLoadoutChanged);
 		}
@@ -92,7 +92,7 @@ void USelectingPandoraAndWeaponComponent::ServerSelectPandoraAndWeapon_Implement
 // 서버에서 선택 슬롯의 무기와 판도라를 준비된 컴포넌트에 적용하며, Pawn이나 슬롯 내용이 바뀌면 다시 적용할 수 있다.
 void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 {
-	APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>();
+	APlayerState* PlayerState = GetPlayerState<APlayerState>();
 	if (!PlayerState || !HasAuthority())
 	{
 		return;
@@ -114,7 +114,7 @@ void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 	const ACharacterBase* Character = Cast<ACharacterBase>(Pawn);
 	if (UEquipmentComponent* Equipment = Character ? Character->GetEquipmentComponent() : nullptr)
 	{
-		const UInventoryComponent* Inventory = PlayerState->GetInventoryComponent();
+		const UInventoryComponent* Inventory = PlayerState->FindComponentByClass<UInventoryComponent>();
 		if (UItemInstance* SelectedWeapon = Inventory ? Inventory->FindWeaponForLoadoutSlot(SelectedDirection) : nullptr)
 		{
 			Equipment->RequestWeaponSelectionForDirection(SelectedDirection, SelectedWeapon);
@@ -126,7 +126,7 @@ void USelectingPandoraAndWeaponComponent::ApplySelectedPandoraAndWeapon()
 	}
 
 	// 판도라 장착 처리
-	if (UPandoraComponent* PandoraComponent = PlayerState->GetPandoraComponent())
+	if (UPandoraComponent* PandoraComponent = PlayerState->FindComponentByClass<UPandoraComponent>())
 	{
 		const UPandoraDefinition* PandoraDefinition =
 			PandoraComponent->GetPandoraLoadoutDefinition(SelectedDirection);
@@ -167,8 +167,8 @@ EEnum_Direction USelectingPandoraAndWeaponComponent::GetSelectedDirection() cons
 
 FGuid USelectingPandoraAndWeaponComponent::GetSelectedWeaponId() const
 {
-	const APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>();
-	const UInventoryComponent* Inventory = PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	const APlayerState* PlayerState = GetPlayerState<APlayerState>();
+	const UInventoryComponent* Inventory = PlayerState ? PlayerState->FindComponentByClass<UInventoryComponent>() : nullptr;
 	const EEnum_Direction SelectedDirection = GetSelectedDirection();
 	return Inventory && PandoraLoadout::IsLoadoutDirection(SelectedDirection)
 		? Inventory->GetWeaponIdForLoadoutSlot(SelectedDirection)
@@ -177,7 +177,7 @@ FGuid USelectingPandoraAndWeaponComponent::GetSelectedWeaponId() const
 
 const UPandoraDefinition* USelectingPandoraAndWeaponComponent::GetSelectedPandoraDefinition() const
 {
-	const APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>();
-	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	const APlayerState* PlayerState = GetPlayerState<APlayerState>();
+	const UPandoraComponent* PandoraComponent = PlayerState ? PlayerState->FindComponentByClass<UPandoraComponent>() : nullptr;
 	return PandoraComponent ? PandoraComponent->GetPandoraLoadoutDefinition(GetSelectedDirection()) : nullptr;
 }

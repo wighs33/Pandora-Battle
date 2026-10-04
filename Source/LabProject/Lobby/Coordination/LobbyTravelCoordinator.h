@@ -8,9 +8,9 @@
 class ALobbyGameMode;
 class APdPlayerState;
 class APlayerController;
-class ULobbyRuntimeSubsystem;
 enum class ELobbyContentPreloadResult : uint8;
 struct FLobbyMatchMapOption;
+struct FLobbyTravelHandoff;
 
 /** 온라인 세션 시작, 이동 데이터 보관과 콘텐츠 준비를 거쳐 Lobby에서 Match로 비동기 이동한다. */
 UCLASS(Transient)
@@ -40,8 +40,8 @@ private:
 	void PrepareMatchTravel(bool bSuppressMatchTimer);
 	bool ResolveSelectedMatchMap(FString& OutTravelMapName, FLobbyMatchMapOption& OutSelectedMapOption) const;
 	void CacheSelectedMapForTravel(const FLobbyMatchMapOption& SelectedMapOption) const;
-	void CacheLobbyTravelState(ULobbyRuntimeSubsystem* LobbySubsystem) const;
-	void CacheLobbyPlayerTravelState(ULobbyRuntimeSubsystem* LobbySubsystem, const APdPlayerState* LobbyPlayerState) const;
+	void PrepareLobbyTravelHandoffs() const;
+	FLobbyTravelHandoff BuildLobbyTravelHandoff(const APdPlayerState& LobbyPlayerState) const;
 	TMap<FGameplayTag, FName> BuildEquippedSkinNamesBySlot(const APlayerController* PlayerController) const;
 
 	// 콘텐츠 로딩과 클라이언트의 진입 화면을 준비한 후 서버 이동.

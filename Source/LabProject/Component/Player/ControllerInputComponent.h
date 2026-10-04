@@ -15,7 +15,7 @@ class UInputMappingContext;
 class UCombatComponent;
 class UPlayerRewardComponent;
 class UInventoryComponent;
-class APdHUD;
+class IHudInputInterface;
 class FContentLease;
 class UContentDataSubsystem;
 
@@ -98,7 +98,7 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayerController* GetPdController() const;
-	APdHUD* GetPdHUD() const;
+	IHudInputInterface* GetHudInput() const;
 	APdPlayer* GetPlayerCharacter() const;
 	UPlayerRewardComponent* GetPlayerRewardComponent() const;
 	UInventoryComponent* GetPlayerInventoryComponent() const;

@@ -1,11 +1,26 @@
 #include "Pandora/PandoraSkillSource.h"
 
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Component/Pandora/PandoraComponent.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
+#include "Pandora/PandoraSkillSourceOwner.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraSkillSource)
+
+namespace
+{
+	IPandoraSkillSourceOwner* FindSourceOwner(const UObject* Source)
+	{
+		for (UObject* Outer = Source->GetOuter(); Outer; Outer = Outer->GetOuter())
+		{
+			if (IPandoraSkillSourceOwner* Owner = Cast<IPandoraSkillSourceOwner>(Outer))
+			{
+				return Owner;
+			}
+		}
+		return nullptr;
+	}
+}
 
 void UPandoraSkillSource::Initialize(
 	const UPandoraDefinition* InPandoraDefinition,
@@ -53,17 +68,17 @@ void UPandoraSkillSource::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 
 void UPandoraSkillSource::OnRep_Source()
 {
-	if (UPandoraComponent* Pandora = GetTypedOuter<UPandoraComponent>())
+	if (IPandoraSkillSourceOwner* Owner = FindSourceOwner(this))
 	{
-		Pandora->HandleSkillSourceReplicated(this);
+		Owner->HandleSkillSourceReplicated(this);
 	}
 }
 
 void UPandoraSkillSource::PreDestroyFromReplication()
 {
-	if (UPandoraComponent* Pandora = GetTypedOuter<UPandoraComponent>())
+	if (IPandoraSkillSourceOwner* Owner = FindSourceOwner(this))
 	{
-		Pandora->HandleSkillSourceDestroyed(this);
+		Owner->HandleSkillSourceDestroyed(this);
 	}
 	Super::PreDestroyFromReplication();
 }

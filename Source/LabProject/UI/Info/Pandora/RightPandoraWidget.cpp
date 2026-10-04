@@ -4,7 +4,7 @@
 #include "Components/TileView.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RightPandoraWidget)
 

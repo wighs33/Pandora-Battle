@@ -4,7 +4,7 @@
 #include "Components/TileView.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "Item/ItemInstance.h"
 #include "UI/Info/Item/InventorySlotViewData.h"
 

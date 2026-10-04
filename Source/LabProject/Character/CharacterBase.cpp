@@ -8,14 +8,12 @@
 #include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Component/Character/AbilityStateComponent.h"
 #include "Component/Character/CharacterDeathComponent.h"
-#include "Component/Character/CharacterHealthBarComponent.h"
 #include "Component/Character/CharacterPresentationComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/EquipmentEffectComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
-#include "Component/UI/DamageIndicatorComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -23,11 +21,13 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "Definition/Character/CharacterBaseDefinition.h"
-#include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Interface/CharacterHealthBarInterface.h"
+#include "Interface/DamageIndicatorInterface.h"
 #include "Mode/PdPlayerState.h"
 #include "NiagaraComponent.h"
+#include "Definition/Mode/ProjectBootstrapSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterBase)
 
@@ -65,9 +65,16 @@ ACharacterBase::ACharacterBase(const FObjectInitializer& ObjectInitializer) : Su
 	BodyAuraNiagaraComponent->SetupAttachment(GetMesh());
 	BodyAuraNiagaraComponent->SetAutoActivate(false);
 
-	UCharacterHealthBarComponent* CharacterHealthBar = CreateDefaultSubobject<UCharacterHealthBarComponent>(TEXT("WidgetComponent"));
-	CharacterHealthBar->SetupAttachment(GetRootComponent());
-	HealthBarWidget = CharacterHealthBar;
+	// 체력바 위젯 컴포넌트는 UI 쪽 클래스라 프로젝트 설정에서 받는다. 캐릭터 BP는 이 하위 객체의 이름과 클래스로 값을 덮어쓴다.
+	UClass* HealthBarClass = GetDefault<UProjectBootstrapSettings>()->GetCharacterHealthBarComponentClass().Get();
+	ensureMsgf(HealthBarClass, TEXT("Project Bootstrap settings must name a loaded character health bar component class."));
+	HealthBarWidget = Cast<UWidgetComponent>(CreateDefaultSubobject(
+		TEXT("WidgetComponent"),
+		UWidgetComponent::StaticClass(),
+		HealthBarClass ? HealthBarClass : UWidgetComponent::StaticClass(),
+		/*bIsRequired*/ true,
+		/*bIsTransient*/ false));
+	HealthBarWidget->SetupAttachment(GetRootComponent());
 
 	EquipmentComponent = CreateDefaultSubobject<UEquipmentComponent>(TEXT("EquipmentComponent"));
 	EquipmentEffectComponent = CreateDefaultSubobject<UEquipmentEffectComponent>(TEXT("EquipmentEffectComponent"));
@@ -130,7 +137,7 @@ void ACharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		CharacterPresentationComponent->ShutdownPresentation();
 	}
-	if (UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent())
+	if (ICharacterHealthBarInterface* CharacterHealthBar = GetHealthBar())
 	{
 		CharacterHealthBar->ShutdownHealthBar();
 	}
@@ -236,7 +243,7 @@ void ACharacterBase::TryInitializeCharacterRuntime()
 	{
 		CharacterPresentationComponent->InitializePresentation(BodyAuraNiagaraComponent);
 	}
-	if (UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent())
+	if (ICharacterHealthBarInterface* CharacterHealthBar = GetHealthBar())
 	{
 		CharacterHealthBar->InitializeHealthBar();
 	}
@@ -280,7 +287,7 @@ void ACharacterBase::UnPossessed()
 	{
 		CharacterPresentationComponent->UnbindMatchTeamColorChanged();
 	}
-	if (UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent())
+	if (ICharacterHealthBarInterface* CharacterHealthBar = GetHealthBar())
 	{
 		CharacterHealthBar->ShutdownHealthBar();
 	}
@@ -481,34 +488,22 @@ UCombatComponent* ACharacterBase::GetCombatComponent() const
 	return FindComponentByClass<UCombatComponent>();
 }
 
-// 캐릭터에 부착된 피해 숫자 표시 컴포넌트를 찾는다. 해당 연출이 없는 캐릭터에서는 찾지 못할 수 있다.
-UDamageIndicatorComponent* ACharacterBase::GetDamageIndicatorComponent() const
+// 캐릭터에 부착된 피해 숫자 표시를 찾는다. 해당 연출이 없는 캐릭터에서는 찾지 못할 수 있다.
+IDamageIndicatorInterface* ACharacterBase::GetDamageIndicator() const
 {
-	return FindComponentByClass<UDamageIndicatorComponent>();
+	return Cast<IDamageIndicatorInterface>(FindComponentByInterface(UDamageIndicatorInterface::StaticClass()));
 }
 
-// 기존 체력바 위젯 참조를 통해 체력 데이터 연결과 화면 표시를 관리하는 컴포넌트를 제공한다.
-UCharacterHealthBarComponent* ACharacterBase::GetCharacterHealthBarComponent() const
+// 체력바 위젯 컴포넌트를 계약으로 돌려준다. 체력 데이터 연결과 화면 표시는 그쪽이 맡는다.
+ICharacterHealthBarInterface* ACharacterBase::GetHealthBar() const
 {
-	return Cast<UCharacterHealthBarComponent>(HealthBarWidget.Get());
-}
-
-// UI 정의에서 이 캐릭터의 머리 위 체력바에 사용할 위젯 클래스를 선택한다.
-TSubclassOf<UUserWidget> ACharacterBase::ResolveHealthBarWidgetClass(const UWidgetClassDefinition* WidgetDefinition) const
-{
-	return WidgetDefinition ? WidgetDefinition->GetHealthBarWidgetClass() : nullptr;
-}
-
-// 캐릭터에 이미 지정된 체력바 위젯은 유지하고, 비어 있을 때만 정의에서 찾은 위젯으로 채울지 판단한다.
-bool ACharacterBase::ShouldApplyResolvedHealthBarWidgetClass(UClass* CurrentWidgetClass, TSubclassOf<UUserWidget> ResolvedWidgetClass) const
-{
-	return !CurrentWidgetClass && ResolvedWidgetClass != nullptr;
+	return Cast<ICharacterHealthBarInterface>(HealthBarWidget.Get());
 }
 
 // ASC나 체력 데이터가 준비·변경되었을 때 체력바의 데이터 연결을 다시 구성하도록 요청한다.
 void ACharacterBase::RefreshHealthBarViewModel()
 {
-	if (UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent())
+	if (ICharacterHealthBarInterface* CharacterHealthBar = GetHealthBar())
 	{
 		CharacterHealthBar->RefreshViewModel();
 	}
@@ -518,7 +513,7 @@ void ACharacterBase::RefreshHealthBarViewModel()
 void ACharacterBase::UpdateHealthBarVisibilityForLocalViewer(
 	APlayerController* LocalPlayerController, const FVector& CameraLocation, const FRotator& CameraRotation, const float MaxDistanceSquared)
 {
-	if (UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent())
+	if (ICharacterHealthBarInterface* CharacterHealthBar = GetHealthBar())
 	{
 		CharacterHealthBar->UpdateVisibilityForLocalViewer(LocalPlayerController, CameraLocation, CameraRotation, MaxDistanceSquared);
 	}
@@ -527,7 +522,7 @@ void ACharacterBase::UpdateHealthBarVisibilityForLocalViewer(
 // 현재 화면에서 체력바를 표시하거나 숨기도록 요청하며, 사망한 캐릭터는 표시 요청이 있어도 숨긴다.
 void ACharacterBase::SetHealthBarVisibleForLocalViewer(const bool bVisible)
 {
-	if (UCharacterHealthBarComponent* CharacterHealthBar = GetCharacterHealthBarComponent())
+	if (ICharacterHealthBarInterface* CharacterHealthBar = GetHealthBar())
 	{
 		CharacterHealthBar->SetVisibleForLocalViewer(bVisible);
 	}
@@ -688,7 +683,7 @@ void ACharacterBase::HandleDamageTaken(const float DamageAmount, const bool bCri
 // 피해 숫자가 나타날 월드 위치를 구하며, 전용 표시 컴포넌트가 없으면 캐릭터 머리 위 위치를 사용한다.
 FVector ACharacterBase::GetDamageIndicatorWorldLocation() const
 {
-	if (UDamageIndicatorComponent* DamageIndicator = GetDamageIndicatorComponent())
+	if (const IDamageIndicatorInterface* DamageIndicator = GetDamageIndicator())
 	{
 		return DamageIndicator->ResolveDamageIndicatorWorldLocation();
 	}

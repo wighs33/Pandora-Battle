@@ -256,6 +256,25 @@ void UPdAbilitySystemComponent::ReactivateAutoActivatedAbilities()
 	AbilityGrantAndInputManager->ReactivateAutoActivatedAbilities(*this);
 }
 
+void UPdAbilitySystemComponent::SetFinalStrengthDamageProvider(FPdFinalStrengthDamageProvider Provider)
+{
+	FinalStrengthDamageProvider = MoveTemp(Provider);
+}
+
+// 리스폰 때 새 Pawn이 먼저 등록했을 수 있으므로, 등록한 본인일 때만 지운다.
+void UPdAbilitySystemComponent::ClearFinalStrengthDamageProvider(const UObject* Provider)
+{
+	if (FinalStrengthDamageProvider.IsBoundToObject(Provider))
+	{
+		FinalStrengthDamageProvider.Unbind();
+	}
+}
+
+float UPdAbilitySystemComponent::GetFinalStrengthDamage(const float Strength) const
+{
+	return FinalStrengthDamageProvider.IsBound() ? FinalStrengthDamageProvider.Execute(Strength) : 0.f;
+}
+
 // 사망 능력은 유지하고 다른 시전을 취소한다. 종료 중 쿨다운 재생성을 막고, 이미 적용된 쿨다운도 제거한다.
 void UPdAbilitySystemComponent::ResetAbilityRuntimeStateForDeath()
 {

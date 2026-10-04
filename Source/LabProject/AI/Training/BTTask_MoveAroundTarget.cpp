@@ -412,8 +412,6 @@ bool UBTTask_MoveAroundTarget::TryAttackAfterMoves(AAIController* AIController, 
 	}
 
 	UpdateFacing(AIController, Enemy, TargetActor, 0.0f);
-	Enemy->SetAttackTarget(TargetActor);
-
 	Enemy->Attack();
 	return true;
 }

@@ -1,7 +1,6 @@
 #include "Definition/Player/StatUpgradeDefinition.h"
 
 #include "Common/LabGameplayTags.h"
-#include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 
 #if WITH_EDITOR
@@ -320,19 +319,11 @@ bool UStatUpgradeDefinition::TryGetUpgradeMagnitude(const FStatUpgradeBinding& B
        && FMath::IsFinite(OutMagnitude) && OutMagnitude > 0.f;
 }
 
-// HP·MP·스태미나 같은 최대 자원의 순수 기본값을 구한다. 장비나 버프가 섞인 현재값은 사용하지 않는다.
+// HP·MP·스태미나 같은 최대 자원의 순수 기본값을 정의 데이터에서 구한다. 장비나 버프가 섞인 현재값은 사용하지 않는다.
 bool UStatUpgradeDefinition::TryGetResourceBaseValue(const FStatUpgradeBinding& Binding, float& OutValue) const
 {
-    if (!TryGetExactAttributeDefaultValue(Binding.StatTag, OutValue))
-    {
-       FGameplayAttribute Attribute;
-       if (!UBasicAttributeSet::ResolveAttributeFromStatTag(Binding.StatTag, Attribute))
-       {
-          return false;
-       }
-       OutValue = Attribute.GetNumericValue(GetDefault<UBasicAttributeSet>());
-    }
-    return FMath::IsFinite(OutValue) && OutValue > 0.f;
+    return TryGetExactAttributeDefaultValue(Binding.StatTag, OutValue)
+       && FMath::IsFinite(OutValue) && OutValue > 0.f;
 }
 
 // 투자 레벨과 레벨당 증가량을 이용해 현재까지 누적된 실제 스탯 증가량을 계산한다.

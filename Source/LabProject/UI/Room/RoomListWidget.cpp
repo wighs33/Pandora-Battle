@@ -16,7 +16,7 @@
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Core/UiScreen.h"
 #include "UI/Settings/AudioVolumeControl.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RoomListWidget)
 

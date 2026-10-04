@@ -1,4 +1,4 @@
-#include "Definition/UI/WidgetDefinitionFragments.h"
+#include "UI/Core/WidgetDefinitionFragments.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetDefinitionFragments)
 

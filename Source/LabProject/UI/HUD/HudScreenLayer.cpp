@@ -11,7 +11,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 #include "UI/Match/GameResultWidget.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "TimerManager.h"
@@ -25,7 +25,7 @@
 #include "UI/HUD/Notification/RightNotificationsWidget.h"
 #include "UI/Pandora/SelectPandoraWidget.h"
 #include "UI/HUD/Menu/TrainingRoomMenuPopupWidget.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudScreenLayer)
 

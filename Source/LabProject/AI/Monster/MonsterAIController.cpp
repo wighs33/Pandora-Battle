@@ -171,6 +171,11 @@ APawn* AMonsterAIController::GetPerceivedPlayerPawn() const
 		: nullptr;
 }
 
+AActor* AMonsterAIController::GetSelectedAttackTarget() const
+{
+	return GetPerceivedPlayerPawn();
+}
+
 // 추적 유지 거리를 벗어난 표적을 잊고 다른 감지 대상을 찾는다.
 bool AMonsterAIController::ForgetPerceivedPlayerIfOutOfRange()
 {
@@ -334,7 +339,7 @@ bool AMonsterAIController::IsWithinTargetRetentionDistance(
 		<= FMath::Square(RetentionDistance);
 }
 
-// 감지 표적과 캐릭터의 실제 공격 대상을 함께 갱신한다.
+// 감지 표적을 갱신한다. 캐릭터의 공격 대상은 이 값을 읽는다.
 void AMonsterAIController::SetPerceivedPlayerPawn(APawn* PlayerPawn)
 {
 	APawn* ValidTarget = IsValidPerceivedPlayerTarget(PlayerPawn)
@@ -353,10 +358,6 @@ void AMonsterAIController::SetPerceivedPlayerPawn(APawn* PlayerPawn)
 	}
 
 	PerceivedPlayerPawn = ValidTarget;
-	if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
-	{
-		Enemy->SetAttackTarget(ValidTarget);
-	}
 }
 
 // 현재 표적을 안정적으로 유지하고 필요할 때 가장 가까운 감지 플레이어로 교체한다.
@@ -409,20 +410,8 @@ void AMonsterAIController::RefreshPerceivedPlayerPawn(
 		|| CurrentlyPerceivedActors.Contains(CurrentTarget);
 	if (bCurrentTargetIsStillKnown && IsSelectableTarget(CurrentTarget))
 	{
-		// 새 감지 이벤트가 와도 유효한 현재 표적은 유지하고 캐릭터의 공격 대상과 동기화한다.
+		// 새 감지 이벤트가 와도 유효한 현재 표적은 유지한다.
 		SetPerceivedPlayerPawn(CurrentTarget);
-		return;
-	}
-
-	AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn());
-	APawn* CachedCombatTarget =
-		Enemy ? Cast<APawn>(Enemy->GetCachedAttackTarget()) : nullptr;
-	const bool bCachedTargetIsPerceived =
-		KnownActors.Contains(CachedCombatTarget)
-		|| CurrentlyPerceivedActors.Contains(CachedCombatTarget);
-	if (bCachedTargetIsPerceived && IsSelectableTarget(CachedCombatTarget))
-	{
-		SetPerceivedPlayerPawn(CachedCombatTarget);
 		return;
 	}
 

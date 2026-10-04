@@ -592,7 +592,6 @@ void UEnemyTrainingBotComponent::ScheduleRespawn()
 		AIController->StopMovement();
 	}
 
-	Enemy->SetAttackTarget(nullptr);
 	if (UEnemyCombatComponent* Combat =
 			Enemy->GetEnemyCombatComponent())
 	{
@@ -691,7 +690,6 @@ void UEnemyTrainingBotComponent::ResetRuntimeStateForRespawn()
 		AIController->StopMovement();
 	}
 
-	Enemy->SetAttackTarget(nullptr);
 	bHitStunned = false;
 	PreHitStunMovementMode = MOVE_Walking;
 	PreHitStunCustomMovementMode = 0;

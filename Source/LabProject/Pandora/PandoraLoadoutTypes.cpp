@@ -1,7 +1,5 @@
 #include "Pandora/PandoraLoadoutTypes.h"
 
-#include "Component/Item/InventoryComponent.h"
-
 bool PandoraLoadout::IsLoadoutDirection(const EEnum_Direction Direction)
 {
 	return Direction == EEnum_Direction::Left
@@ -39,11 +37,10 @@ int32 PandoraLoadout::GetLoadoutNumberFromDirection(const EEnum_Direction Direct
 	}
 }
 
+// 방향 하나에 대응하는 번호만 그대로 두고, 나머지는 가운데(0)로 돌린다.
 int32 PandoraLoadout::NormalizeLoadoutNumber(const int32 LoadoutNumber)
 {
-	return (LoadoutNumber >= 0 && LoadoutNumber <= UInventoryComponent::WeaponLoadoutSlotCount)
-		? LoadoutNumber
-		: 0;
+	return IsLoadoutDirection(GetDirectionFromLoadoutNumber(LoadoutNumber)) ? LoadoutNumber : 0;
 }
 
 FPandoraLoadoutSlot* PandoraLoadout::FindSlot(TArray<FPandoraLoadoutSlot>& Slots, const EEnum_Direction Direction)

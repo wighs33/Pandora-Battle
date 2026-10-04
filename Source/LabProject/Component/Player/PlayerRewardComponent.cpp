@@ -8,7 +8,7 @@
 #include "Component/Item/InventoryComponent.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Mode/PdPlayerController.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Component/Player/PlayerNotificationComponent.h"
 #include "Component/Player/LevelingComponent.h"
@@ -120,8 +120,8 @@ void UPlayerRewardComponent::HandlePlayerKillRewardLoaded()
 // 처치 경험치를 추첨해 LevelingComponent로 지급하고, 성공한 보상만 획득 알림으로 보낸다.
 void UPlayerRewardComponent::GrantPlayerKillReward()
 {
-	APdPlayerState* PlayerState = GetPdPlayerState();
-	ULevelingComponent* LevelingComponent = PlayerState ? PlayerState->GetLevelingComponent() : nullptr;
+	APlayerState* PlayerState = GetPlayerState<APlayerState>();
+	ULevelingComponent* LevelingComponent = PlayerState ? PlayerState->FindComponentByClass<ULevelingComponent>() : nullptr;
 	const int32 ExperienceReward = LoadedPlayerKillRewardDefinition->RollPlayerKillExperienceReward();
 	if (!LevelingComponent || !LevelingComponent->GrantRewardExperience(ExperienceReward))
 	{
@@ -144,7 +144,7 @@ void UPlayerRewardComponent::ApplyInteractRewards_Implementation(AActor* Interac
 
 bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableActor)
 {
-	APdPlayerState* PlayerState = GetPdPlayerState();
+	APlayerState* PlayerState = GetPlayerState<APlayerState>();
 	if (!PlayerState || !PlayerState->HasAuthority())
 	{
 		return false;
@@ -172,7 +172,7 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 	TArray<FPrimaryAssetId> RewardSkinDefinitions;
 	TArray<FPrimaryAssetId> RewardPandoraDefinitions;
 	UInventoryComponent* InventoryComponent =
-		PlayerState->GetInventoryComponent();
+		PlayerState->FindComponentByClass<UInventoryComponent>();
 	IInteractableInterface::Execute_GetRewardItems(InteractableActor, RewardItemDefinitions);
 	IInteractableInterface::Execute_GetRewardSkins(InteractableActor, RewardSkinDefinitions);
 	IInteractableInterface::Execute_GetRewardPandoras(InteractableActor, RewardPandoraDefinitions);
@@ -198,12 +198,12 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 		}
 	}
 
-	if (USkinComponent* SkinComponent = PlayerState->GetSkinComponent())
+	if (USkinComponent* SkinComponent = PlayerState->FindComponentByClass<USkinComponent>())
 	{
 		SkinComponent->AddSkinsByPrimaryAssetIds(RewardSkinDefinitions);
 	}
 
-	if (UPandoraComponent* PandoraComponent = PlayerState->GetPandoraComponent())
+	if (UPandoraComponent* PandoraComponent = PlayerState->FindComponentByClass<UPandoraComponent>())
 	{
 		PandoraComponent->GrantPandorasByPrimaryAssetIds(RewardPandoraDefinitions);
 	}
@@ -220,11 +220,6 @@ bool UPlayerRewardComponent::ApplyInteractRewardsInternal(AActor* InteractableAc
 	return true;
 }
 
-APdPlayerState* UPlayerRewardComponent::GetPdPlayerState() const
-{
-	return Cast<APdPlayerState>(GetOwner());
-}
-
 UContentDataSubsystem* UPlayerRewardComponent::FindContentDataSubsystem() const
 {
 	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
@@ -234,7 +229,7 @@ UContentDataSubsystem* UPlayerRewardComponent::FindContentDataSubsystem() const
 // 몬스터가 확정한 처치 보상을 플레이어 수명에 보관하고, 같은 정의의 로딩은 공유한다.
 void UPlayerRewardComponent::GrantMonsterDefeatRewards(TSoftObjectPtr<URewardDefinition> RewardDefinition)
 {
-	const APdPlayerState* PlayerState = GetPdPlayerState();
+	const APlayerState* PlayerState = GetPlayerState<APlayerState>();
 	if (!IsValid(PlayerState) || !PlayerState->HasAuthority())
 	{
 		return;
@@ -289,19 +284,19 @@ void UPlayerRewardComponent::HandleMonsterRewardLoaded(FSoftObjectPath Definitio
 // 경험치·소울더스트는 성공한 지급만 알리고, 포션은 인벤토리 추가 완료 후 알린다.
 void UPlayerRewardComponent::ApplyMonsterDefeatRewards(const URewardDefinition* RewardDefinition)
 {
-	APdPlayerState* PlayerState = GetPdPlayerState();
+	APlayerState* PlayerState = GetPlayerState<APlayerState>();
 	if (!IsValid(PlayerState) || !PlayerState->HasAuthority() || !RewardDefinition)
 	{
 		return;
 	}
 	int32 Experience = RewardDefinition->RollMonsterDefeatExperienceReward();
-	ULevelingComponent* Leveling = PlayerState->GetLevelingComponent();
+	ULevelingComponent* Leveling = PlayerState->FindComponentByClass<ULevelingComponent>();
 	if (Experience > 0 && (!Leveling || !Leveling->GrantRewardExperience(Experience)))
 	{
 		Experience = 0;
 	}
 	int32 SoulDust = RewardDefinition->RollMonsterDefeatSoulDustReward();
-	UPandoraTreeComponent* PandoraTree = PlayerState->GetPandoraTreeComponent();
+	UPandoraTreeComponent* PandoraTree = PlayerState->FindComponentByClass<UPandoraTreeComponent>();
 	if (SoulDust > 0 && (!PandoraTree || !PandoraTree->AddSoulDust(SoulDust)))
 	{
 		SoulDust = 0;
@@ -320,13 +315,13 @@ void UPlayerRewardComponent::ApplyMonsterDefeatRewards(const URewardDefinition* 
 		}
 	}
 	const FPrimaryAssetId PotionId = RewardDefinition->RollMonsterDefeatPotionReward();
-	UInventoryComponent* Inventory = PlayerState->GetInventoryComponent();
+	UInventoryComponent* Inventory = PlayerState->FindComponentByClass<UInventoryComponent>();
 	if (PotionId.IsValid() && Inventory)
 	{
 		Inventory->AddItemsByPrimaryAssetIdsWithCompletion({PotionId},
 			FOnPdItemsAdded::CreateWeakLambda(this, [this](const TArray<FPrimaryAssetId>& AddedItems)
 			{
-				APdPlayerState* CurrentPlayerState = GetPdPlayerState();
+				APlayerState* CurrentPlayerState = GetPlayerState<APlayerState>();
 				APdPlayerController* CurrentController = CurrentPlayerState
 					? Cast<APdPlayerController>(CurrentPlayerState->GetPlayerController()) : nullptr;
 				UPlayerNotificationComponent* CurrentNotification = CurrentController ? CurrentController->GetPlayerNotificationComponent() : nullptr;

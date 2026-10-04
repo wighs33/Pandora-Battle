@@ -156,7 +156,6 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(
 		FMath::Max(InstanceData.AttackRetryTimeRemaining - SafeDeltaTime, 0.0f);
 	if (Enemy->IsAttackEnabled() && InstanceData.AttackRetryTimeRemaining <= 0.0f)
 	{
-		Enemy->SetAttackTarget(TargetActor);
 		Enemy->Attack();
 		InstanceData.AttackRetryTimeRemaining =
 			FMath::Max(InstanceData.AttackRetryInterval, 0.0f);

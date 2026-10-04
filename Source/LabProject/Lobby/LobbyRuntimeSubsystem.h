@@ -1,9 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Common/Enum_Direction.h"
 #include "Common/GameResultTypes.h"
-#include "Component/Player/PlayerMatchComponent.h"
 #include "GameplayTagContainer.h"
 #include "Mode/PdLobbyRuntimeTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -16,7 +14,6 @@ class UMaterialInterface;
 class ULevelDefinition;
 class UMatchRuleDefinition;
 class UTexture2D;
-class UUiSubsystem;
 class FContentLease;
 struct FStreamableHandle;
 
@@ -44,8 +41,12 @@ public:
 	void BeginLobbyEntryContentPreload();
 	/** Releases lobby-only UI/data after the game screen has taken ownership. */
 	void ReleaseLobbyEntryContentPreload();
+	/** 로비 정의 데이터를 불러오는 중인지. 로비 화면 콘텐츠의 로딩 여부는 UiSubsystem이 답한다. */
 	bool IsLobbyEntryContentLoading() const;
 	void BeginGameEntryContentPreload();
+	/** 호스트가 경기 시작을 준비하는 동안 켜진다. 로딩 화면이 이 값을 대기 사유로 읽는다. */
+	void SetGameStartPreparationPending(bool bPending) { bGameStartPreparationPending = bPending; }
+	bool IsGameStartPreparationPending() const { return bGameStartPreparationPending; }
 	void ReleaseGameEntryContentPreload();
 
 	ELobbyContentPreloadResult GetGameEntryContentPreloadResult() const
@@ -63,29 +64,10 @@ public:
 	void SetLobbySelectedMapKey(FName MapKey) { LobbySelectedMapKey = MapKey; }
 	FName GetLobbySelectedMapKey() const { return LobbySelectedMapKey; }
 
-	void ResetCachedPlayerMatchIdentities();
-	void CachePlayerMatchIdentityForPlayerState(const APlayerState* PlayerState, const FPlayerMatchIdentity& MatchIdentity);
-	bool TryGetCachedPlayerMatchIdentityForPlayerState(const APlayerState* PlayerState, FPlayerMatchIdentity& OutMatchIdentity) const;
 	FText ResolveDefaultPlayerNickname(
 		const APlayerController* PlayerController,
 		const APlayerState* PlayerState,
 		int32 FallbackIndex) const;
-
-	void ResetCachedLobbyEquippedSkinSlots();
-	void CacheLobbyEquippedSkinSlotsForPlayerState(
-		const APlayerState* PlayerState,
-		const TMap<FGameplayTag, FName>& EquippedSkinNamesBySlot);
-	bool TryGetCachedLobbyEquippedSkinSlotsForPlayerState(
-		const APlayerState* PlayerState,
-		TMap<FGameplayTag, FName>& OutEquippedSkinNamesBySlot) const;
-
-	void ResetCachedLobbyPandoraLoadouts();
-	void CacheLobbyPandoraLoadoutForPlayerState(
-		const APlayerState* PlayerState,
-		const TMap<EEnum_Direction, FName>& PandoraNamesByDirection);
-	bool TryGetCachedLobbyPandoraLoadoutForPlayerState(
-		const APlayerState* PlayerState,
-		TMap<EEnum_Direction, FName>& OutPandoraNamesByDirection) const;
 
 	void ResetLocalLobbyPaintCanvasCache();
 	void CacheLocalLobbyPaintCanvasStroke(
@@ -103,6 +85,10 @@ public:
 	bool ConsumePendingTitleGameResult(FGameResultPresentationData& OutGameResultData);
 	bool HasPendingTitleGameResult() const { return bHasPendingTitleGameResult; }
 
+	/** 로비 진입 준비를 시작하거나 놓을 때 알린다. 로비 화면 콘텐츠는 UI가 이 알림을 받아 직접 붙잡고 놓는다. */
+	FSimpleMulticastDelegate OnLobbyEntryContentPreloadRequested;
+	FSimpleMulticastDelegate OnLobbyEntryContentReleased;
+
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleLevelDefinitionPreloadComplete();
@@ -119,15 +105,12 @@ private:
 	static void FindUnresolvedGameEntryAssets(
 		const TArray<FPrimaryAssetId>& AssetIds,
 		TArray<FPrimaryAssetId>& OutMissingAssetIds);
-	TArray<FString> MakeLobbyPlayerCacheKeys(const APlayerState* PlayerState) const;
 
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<ULevelDefinition> LoadedLevelDefinition;
 
 	TSharedPtr<FContentLease> LevelDefinitionPreloadLease;
-	TMap<TWeakObjectPtr<UUiSubsystem>, TSharedPtr<FContentLease>>
-		LobbyContentLeases;
 	bool bLevelDefinitionPreloadPending = false;
 	bool bLevelDefinitionReady = false;
 
@@ -138,10 +121,6 @@ private:
 
 	FName LobbySelectedMapKey;
 
-	TMap<FString, FPlayerMatchIdentity> CachedPlayerMatchIdentitiesByPlayerKey;
-	TMap<FString, TMap<FGameplayTag, FName>> CachedLobbyEquippedSkinNamesByPlayerKey;
-	TMap<FString, TMap<EEnum_Direction, FName>> CachedLobbyPandoraNamesByPlayerKey;
-
 	UPROPERTY(Transient)
 	FLobbyPaintCanvasFaceDecalCache LocalLobbyPaintCanvasFaceDecalCache;
 
@@ -150,4 +129,6 @@ private:
 
 	UPROPERTY(Transient)
 	bool bHasPendingTitleGameResult = false;
+
+	bool bGameStartPreparationPending = false;
 };

@@ -1,6 +1,6 @@
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 
-#include "Settings/ProjectBootstrapSettings.h"
+#include "Definition/Mode/ProjectBootstrapSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdGameInstanceDefinition)
 

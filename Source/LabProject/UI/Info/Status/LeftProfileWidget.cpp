@@ -10,7 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "UI/HUD/Player/PlayerHudWidget.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"

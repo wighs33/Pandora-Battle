@@ -3,19 +3,21 @@
 #include "Character/CharacterBase.h"
 #include "CommonActivatableWidget.h"
 #include "Component/Experience/ExperienceManagerComponent.h"
+#include "Component/Player/ControllerPresentationComponent.h"
 #include "Data/ContentDataSubsystem.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Lobby/Contents/LobbyGameState.h"
-#include "Lobby/Contents/LobbyHUD.h"
+#include "UI/Lobby/LobbyHUD.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Misc/PackageName.h"
 #include "Mode/ExperienceGameState.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
+#include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "Settings/GameSettingsSubsystem.h"
@@ -204,6 +206,7 @@ void ULoadingScreenSubsystem::RefreshLoadingScreen()
 	const UGameSettingsSubsystem* Settings = GI ? GI->GetSubsystem<UGameSettingsSubsystem>() : nullptr;
 	ULobbyRuntimeSubsystem* Runtime = GI ? GI->GetSubsystem<ULobbyRuntimeSubsystem>() : nullptr;
 	const UOnlineSessionsSubsystem* Online = GI ? GI->GetSubsystem<UOnlineSessionsSubsystem>() : nullptr;
+	const bool bGameStartPreparationPending = Runtime && Runtime->IsGameStartPreparationPending();
 	const bool bFinishingContentPSO = ActiveWaitReasons.Contains(EWaitReason::PipelineCompile);
 	ActiveWaitReasons.Reset();
 	CancelableSessionRequestId = 0;
@@ -212,7 +215,7 @@ void ULoadingScreenSubsystem::RefreshLoadingScreen()
 	{
 		ActiveWaitReasons.Add(EWaitReason::StartupContent);
 	}
-	if (Runtime && Runtime->IsLobbyEntryContentLoading())
+	if ((Runtime && Runtime->IsLobbyEntryContentLoading()) || (UiSubsystem && UiSubsystem->IsLobbyContentLoading()))
 	{
 		ActiveWaitReasons.Add(EWaitReason::LobbyEntryContent);
 	}
@@ -270,6 +273,15 @@ void ULoadingScreenSubsystem::RefreshLoadingScreen()
 			ActiveWaitReasons.Add(EWaitReason::Travel);
 		}
 	}
+	// 맵 이동 직후의 훈련실 일시정지는 컨트롤러가 정하므로 대기 여부만 알려 준다.
+	if (const APdPlayerController* PdController = Cast<APdPlayerController>(GetLocalPlayerController()))
+	{
+		if (UControllerPresentationComponent* Presentation = PdController->GetControllerPresentationComponent())
+		{
+			Presentation->SetLoadingScreenWaiting(HasBlockingWait());
+		}
+	}
+
 	if (ActiveWaitReasons.IsEmpty())
 	{
 		HideConnectingPopup();
@@ -278,12 +290,6 @@ void ULoadingScreenSubsystem::RefreshLoadingScreen()
 	{
 		ShowConnectingPopup(CancelableSessionRequestId != 0 && !bTravelPending && !bGameStartPreparationPending);
 	}
-}
-
-void ULoadingScreenSubsystem::SetGameStartPreparationPending(const bool bPending)
-{
-	bGameStartPreparationPending = bPending;
-	RefreshLoadingScreen();
 }
 
 void ULoadingScreenSubsystem::BeginTravel(UWorld* SourceWorld, const FString& URL)
@@ -300,7 +306,10 @@ void ULoadingScreenSubsystem::BeginTravel(UWorld* SourceWorld, const FString& UR
 		bTravelPending = true;
 	}
 	// The host's preparation transaction now belongs to actual engine travel.
-	bGameStartPreparationPending = false;
+	if (ULobbyRuntimeSubsystem* Runtime = GetLocalPlayer()->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>())
+	{
+		Runtime->SetGameStartPreparationPending(false);
+	}
 	RefreshLoadingScreen();
 }
 
@@ -328,11 +337,11 @@ void ULoadingScreenSubsystem::HandleSeamlessTravelStart(UWorld* World, const FSt
 void ULoadingScreenSubsystem::AbortTravel()
 {
 	bTravelPending = false;
-	bGameStartPreparationPending = false;
 	TravelSourceWorld.Reset();
 	TravelDestinationMap.Reset();
 	if (ULobbyRuntimeSubsystem* Runtime = GetLocalPlayer()->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>())
 	{
+		Runtime->SetGameStartPreparationPending(false);
 		Runtime->ReleaseGameEntryContentPreload();
 	}
 	RefreshLoadingScreen();

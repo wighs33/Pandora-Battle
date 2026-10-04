@@ -1,4 +1,4 @@
-#include "Lobby/Contents/LobbyHUD.h"
+#include "UI/Lobby/LobbyHUD.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Core/UiScreen.h"
 
@@ -179,4 +179,10 @@ void ALobbyHUD::RequestLobbyUIRefresh()
 	{
 		LobbyUIRefreshTimerHandle = World->GetTimerManager().SetTimerForNextTick(this, &ThisClass::RefreshLobbyUI);
 	}
+}
+
+// 입력으로 로비 화면을 다시 열 때도 같은 생성 경로를 쓴다.
+void ALobbyHUD::OpenLobbyUi()
+{
+	CreateLobbyUI();
 }

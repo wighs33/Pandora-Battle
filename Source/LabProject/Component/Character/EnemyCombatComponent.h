@@ -28,8 +28,7 @@ public:
 	void InitializeBehaviorTreeCombat();
 	bool IsRuntimeContentReady() const { return bRuntimeContentReady; }
 
-	void SetAttackTarget(AActor* InAttackTarget);
-	AActor* GetCachedAttackTarget() const;
+	/** 조종 중인 AI 컨트롤러가 고른 대상. 없으면 설정에 따라 가장 가까운 플레이어를 쓴다. */
 	AActor* ResolveAttackTarget() const;
 	bool IsActorValidAttackTarget(const AActor* InActor) const;
 
@@ -85,9 +84,6 @@ private:
 private:
 	UPROPERTY(Transient)
 	FEnemyCombatSettings Settings;
-
-	UPROPERTY(Transient)
-	TObjectPtr<AActor> AttackTarget;
 
 	FTimerHandle InitialCombatTimerHandle;
 	FTimerHandle AttackTimerHandle;

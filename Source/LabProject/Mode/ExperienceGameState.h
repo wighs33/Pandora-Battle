@@ -6,7 +6,6 @@
 #include "ExperienceGameState.generated.h"
 
 class UExperienceManagerComponent;
-class UGameResultWidget;
 class UMatchRuleDefinition;
 class APlayerController;
 
@@ -39,6 +38,9 @@ public:
 	}
 };
 
+DECLARE_MULTICAST_DELEGATE_FiveParams(FPdGameResultReceived, const FText& /*WinnerTitle*/, int32 /*WinnerTeamColorIndex*/,
+	const FText& /*MaxKillerName*/, int32 /*MaxKillCount*/, const TArray<FGameResultPlayerStat>& /*PlayerStats*/);
+
 UCLASS()
 class LABPROJECT_API AExperienceGameState : public AGameStateBase
 {
@@ -60,6 +62,10 @@ public:
 	EMatchTimerPhase GetMatchTimerPhase() const { return MatchTimerState.Phase; }
 	bool TryGetMatchTimerRemainingSeconds(float& OutRemainingSeconds) const;
 
+	// 화면(HUD)이 구독한다. 타이머 상태나 경기 규칙이 바뀌면 타이머 표시를, 경기가 끝나면 결과 창을 그린다.
+	FSimpleMulticastDelegate& OnMatchTimerChanged() { return MatchTimerChanged; }
+	FPdGameResultReceived& OnGameResultReceived() { return GameResultReceived; }
+
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(NetMulticast, Reliable, BlueprintCallable, Category = "!GameResult")
 	void Multicast_ShowGameResult(
@@ -78,7 +84,6 @@ private:
 	void OnRep_MatchTimerState();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void RefreshLocalHudTimer() const;
 	void SaveLocalMatchRecord(APlayerController* LocalPlayerController, const TArray<FGameResultPlayerStat>& PlayerStats) const;
 
 private:
@@ -92,6 +97,6 @@ private:
 		meta = (AllowPrivateAccess = "true"))
 	FReplicatedMatchTimerState MatchTimerState;
 
-	UPROPERTY(EditDefaultsOnly, Category = "!GameResult", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<UGameResultWidget> GameResultWidgetClass;
+	FSimpleMulticastDelegate MatchTimerChanged;
+	FPdGameResultReceived GameResultReceived;
 };

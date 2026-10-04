@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "Interface/AttackTargetSourceInterface.h"
 #include "MonsterAIController.generated.h"
 
 class UStateTree;
@@ -16,12 +17,13 @@ class FContentLease;
 
 /**
  * 몬스터의 감지 대상과 StateTree 실행 수명을 관리한다.
+ * 감지한 플레이어가 곧 몬스터의 공격 대상이며, 캐릭터는 이 값을 읽기만 한다.
  *
  * 조종 중인 몬스터의 정의와 초기화 완료를 기준으로 행동을 시작하며, 공격과 사망 표현은 캐릭터에 맡긴다.
  */
 
 UCLASS(Blueprintable)
-class LABPROJECT_API AMonsterAIController : public AAIController
+class LABPROJECT_API AMonsterAIController : public AAIController, public IAttackTargetSourceInterface
 {
 	GENERATED_BODY()
 
@@ -42,6 +44,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!AI|Monster")
 	APawn* GetPerceivedPlayerPawn() const;
+
+	virtual AActor* GetSelectedAttackTarget() const override;
 
 	/** 현재 표적을 유지할 수 없을 때 감지된 플레이어 중 다음 표적을 선택한다. */
 	void RefreshPerceivedPlayerPawn(

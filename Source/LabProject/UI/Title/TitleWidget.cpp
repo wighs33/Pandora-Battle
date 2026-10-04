@@ -1,5 +1,6 @@
 #include "UI/Title/TitleWidget.h"
 
+#include "UI/Common/EditorTransactionReset.h"
 #include "AudioSlider.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -30,15 +31,10 @@
 #include "UI/Guide/GuideWidget.h"
 #include "UI/Settings/AudioVolumeControl.h"
 #include "UI/Record/RecordWidget.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "UI/Shop/ShopWidget.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Core/UiScreen.h"
-
-#if WITH_EDITOR
-#include "Editor.h"
-#include "Editor/TransBuffer.h"
-#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TitleWidget)
 
@@ -51,19 +47,6 @@ namespace
 	// Where the tail sits across the bubble's width. The tail tip stays on Luna's head and the body grows mostly to the
 	// left, so even a full-width answer (wrap 420 + padding) ends before the Game Settings button at the top right.
 	constexpr float LunaSpeechTailFraction = 0.75f;
-
-	void ResetEditorTransactionBufferIfContainsPieObjects()
-	{
-#if WITH_EDITOR
-		if (GEditor && GEditor->Trans && GEditor->Trans->ContainsPieObjects())
-		{
-			GEditor->ResetTransaction(NSLOCTEXT(
-				"TitleWidget",
-				"TransactionContainedTitleUiPieObject",
-				"A title UI PIE object was in the transaction buffer and had to be destroyed"));
-		}
-#endif
-	}
 
 	void TravelTitleToListenMap(const UObject* WorldContextObject, const FString& MapName)
 	{
@@ -588,7 +571,7 @@ void UTitleWidget::OpenRoomList()
 		return;
 	}
 
-	ResetEditorTransactionBufferIfContainsPieObjects();
+	PdEditorTransaction::ResetIfContainsPieObjects();
 	UGameplayStatics::OpenLevel(this, FName(*RoomMapName));
 }
 
@@ -608,14 +591,14 @@ void UTitleWidget::OpenTrainingRoom()
 			LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
 		}
 	}
-	ResetEditorTransactionBufferIfContainsPieObjects();
+	PdEditorTransaction::ResetIfContainsPieObjects();
 	UGameplayStatics::OpenLevel(this, FName(*TrainingRoomMapName));
 }
 
 void UTitleWidget::OpenShop()
 {
 	LoadLocalProfile();
-	ResetEditorTransactionBufferIfContainsPieObjects();
+	PdEditorTransaction::ResetIfContainsPieObjects();
 
 	const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass();
 	if (!ResolvedShopWidgetClass)
@@ -662,7 +645,7 @@ void UTitleWidget::OpenShop()
 
 void UTitleWidget::OpenGuide()
 {
-	ResetEditorTransactionBufferIfContainsPieObjects();
+	PdEditorTransaction::ResetIfContainsPieObjects();
 
 	APlayerController* PlayerController = GetOwningPlayer();
 	if (!PlayerController)
@@ -721,7 +704,7 @@ void UTitleWidget::OpenGuide()
 
 void UTitleWidget::OpenRecord()
 {
-	ResetEditorTransactionBufferIfContainsPieObjects();
+	PdEditorTransaction::ResetIfContainsPieObjects();
 
 	APlayerController* PlayerController = GetOwningPlayer();
 	if (!PlayerController)
@@ -910,7 +893,7 @@ void UTitleWidget::OpenLobbyAsListenServer() const
 		return;
 	}
 
-	ResetEditorTransactionBufferIfContainsPieObjects();
+	PdEditorTransaction::ResetIfContainsPieObjects();
 	TravelTitleToListenMap(this, LobbyMapName);
 }
 

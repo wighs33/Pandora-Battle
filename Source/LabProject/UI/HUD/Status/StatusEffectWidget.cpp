@@ -8,7 +8,7 @@
 #include "Components/ProgressBar.h"
 #include "GameplayEffectTypes.h"
 #include "Styling/SlateBrush.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatusEffectWidget)
 

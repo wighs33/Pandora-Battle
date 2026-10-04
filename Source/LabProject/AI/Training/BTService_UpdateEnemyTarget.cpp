@@ -37,11 +37,6 @@ void UBTService_UpdateEnemyTarget::TickNode(UBehaviorTreeComponent& OwnerComp, u
 	}
 
 	AActor* Target = Cast<AActor>(Blackboard->GetValueAsObject(TargetActorKey.SelectedKeyName));
-	if (!Enemy->IsActorValidAttackTarget(Target) && bUseCachedTargetWhenBlackboardTargetIsInvalid)
-	{
-		Target = Enemy->GetCachedAttackTarget();
-	}
-
 	if (!Enemy->IsActorValidAttackTarget(Target))
 	{
 		Blackboard->ClearValue(TargetActorKey.SelectedKeyName);
@@ -50,11 +45,8 @@ void UBTService_UpdateEnemyTarget::TickNode(UBehaviorTreeComponent& OwnerComp, u
 		Blackboard->SetValueAsBool(HasRangedWeaponKey.SelectedKeyName, Enemy->IsUsingRangedWeapon());
 		Blackboard->SetValueAsBool(HasLineOfSightKey.SelectedKeyName, false);
 		AIController->ClearFocus(EAIFocusPriority::Gameplay);
-		Enemy->SetAttackTarget(nullptr);
 		return;
 	}
-
-	Enemy->SetAttackTarget(Target);
 
 	const float DistanceToTarget = Enemy->GetAttackDistanceToActor(Target);
 	const float AttackStartDistance = Enemy->GetAttackStartDistance();

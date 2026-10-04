@@ -115,5 +115,5 @@ private:
 	TWeakObjectPtr<USkeletalMeshComponent> ScaledMeshComponent;
 	FVector MeshRelativeScaleBeforeModifiers = FVector::OneVector;
 
-	TWeakObjectPtr<class APdPlayerState> TeamColorBoundPlayerState;
+	TWeakObjectPtr<class APlayerState> TeamColorBoundPlayerState;
 };

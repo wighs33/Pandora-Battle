@@ -1,6 +1,5 @@
 #include "Definition/AbilitySystem/SkillDefinition.h"
 
-#include "Skill/Actions/SkillAction.h"
 #include "Common/LabGameplayTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillDefinition)

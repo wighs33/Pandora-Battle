@@ -4,7 +4,7 @@
 #include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateTypes.h"

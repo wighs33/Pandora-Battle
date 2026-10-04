@@ -5,8 +5,85 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
+#include "Definition/Settings/GameSettingDefinition.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/LocalPlayer.h"
+#include "Engine/Texture2D.h"
+#include "GameFramework/PlayerController.h"
+#include "Widgets/SWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MouseCursorWidget)
+
+namespace
+{
+	constexpr EMouseCursor::Type CustomCursorMappedTypes[] =
+	{
+		EMouseCursor::Default,
+		EMouseCursor::TextEditBeam,
+		EMouseCursor::ResizeLeftRight,
+		EMouseCursor::ResizeUpDown,
+		EMouseCursor::ResizeSouthEast,
+		EMouseCursor::ResizeSouthWest,
+		EMouseCursor::CardinalCross,
+		EMouseCursor::Crosshairs,
+		EMouseCursor::Hand,
+		EMouseCursor::GrabHand,
+		EMouseCursor::GrabHandClosed,
+		EMouseCursor::SlashedCircle,
+		EMouseCursor::EyeDropper,
+		EMouseCursor::Custom,
+	};
+}
+
+bool UMouseCursorWidget::InstallConfiguredCursor(
+	APlayerController* PlayerController,
+	const UGameSettingDefinition& SettingDefinition)
+{
+	UTexture2D* CursorTexture = SettingDefinition.MouseCursorTexture.Get();
+	if (!PlayerController || !CursorTexture)
+	{
+		return false;
+	}
+
+	UMouseCursorWidget* CursorWidget = CreateWidget<UMouseCursorWidget>(PlayerController, StaticClass());
+	if (!CursorWidget)
+	{
+		return false;
+	}
+
+	const EMouseCursor::Type CursorType = SettingDefinition.MouseCursorType.GetValue();
+	CursorWidget->ConfigureCursor(
+		CursorTexture,
+		SettingDefinition.MouseCursorSize,
+		SettingDefinition.MouseCursorHotSpot);
+
+	UGameViewportClient* ViewportClient = nullptr;
+	if (const ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
+	{
+		ViewportClient = LocalPlayer->ViewportClient;
+		if (ViewportClient)
+		{
+			ViewportClient->SetUseSoftwareCursorWidgets(true);
+		}
+	}
+
+	if (ViewportClient)
+	{
+		const TSharedRef<SWidget> CursorSlateWidget = CursorWidget->TakeWidget();
+		for (const EMouseCursor::Type MappedCursorType : CustomCursorMappedTypes)
+		{
+			ViewportClient->SetSoftwareCursorWidget(MappedCursorType, CursorSlateWidget);
+		}
+	}
+	else
+	{
+		PlayerController->SetMouseCursorWidget(CursorType, CursorWidget);
+	}
+
+	PlayerController->DefaultMouseCursor = CursorType;
+	PlayerController->CurrentMouseCursor = CursorType;
+	return true;
+}
 
 void UMouseCursorWidget::ConfigureCursor(UTexture2D* InTexture, const FVector2D InSize, const FVector2D InHotSpot)
 {

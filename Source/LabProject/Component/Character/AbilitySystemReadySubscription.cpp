@@ -49,6 +49,12 @@ void FAbilitySystemReadySubscription::SubscribeToPossessedCharacter(
 	}
 }
 
+UPdAbilitySystemComponent* FAbilitySystemReadySubscription::GetReadyAbilitySystem() const
+{
+	const UAbilityStateComponent* AbilityStateComponent = CharacterSource.Get();
+	return AbilityStateComponent ? AbilityStateComponent->GetReadyAbilitySystemComponent() : nullptr;
+}
+
 void FAbilitySystemReadySubscription::Reset()
 {
 	if (UAbilityStateComponent* AbilityStateComponent = CharacterSource.Get())

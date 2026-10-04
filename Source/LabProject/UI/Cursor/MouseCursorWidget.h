@@ -4,6 +4,8 @@
 #include "Blueprint/UserWidget.h"
 #include "MouseCursorWidget.generated.h"
 
+class APlayerController;
+class UGameSettingDefinition;
 class UImage;
 class UCanvasPanel;
 class USizeBox;
@@ -22,6 +24,9 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Mouse Cursor")
 	void ConfigureCursor(UTexture2D* InTexture, FVector2D InSize, FVector2D InHotSpot);
+
+	/** 설정의 커서 텍스처로 소프트웨어 커서 위젯을 만들어 플레이어 뷰포트에 건다. */
+	static bool InstallConfiguredCursor(APlayerController* PlayerController, const UGameSettingDefinition& SettingDefinition);
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------

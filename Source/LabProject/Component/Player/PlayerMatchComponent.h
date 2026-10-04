@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/PlayerStateComponent.h"
-#include "Map/PlayerMapRegion.h"
+#include "Common/PlayerMapRegion.h"
 #include "PlayerMatchComponent.generated.h"
 
 USTRUCT(BlueprintType)

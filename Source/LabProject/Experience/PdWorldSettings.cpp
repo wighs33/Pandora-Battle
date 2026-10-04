@@ -1,10 +1,11 @@
 #include "Experience/PdWorldSettings.h"
 
-#if WITH_EDITOR
 #include "Engine/World.h"
+
+#if WITH_EDITOR
+#include "Experience/ExperienceHostGameMode.h"
+#include "GameFramework/GameModeBase.h"
 #include "GameMapsSettings.h"
-#include "Lobby/Contents/LobbyGameMode.h"
-#include "Mode/ExperienceGameMode.h"
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdWorldSettings)
@@ -46,10 +47,7 @@ namespace PdWorldSettings
 			|| UsesProjectMapConvention(WorldSettings);
 		return bIsProjectGameMap
 			&& GameModeClass
-			&& (GameModeClass->IsChildOf(
-					AExperienceGameMode::StaticClass())
-				|| GameModeClass->IsChildOf(
-					ALobbyGameMode::StaticClass()));
+			&& GameModeClass->ImplementsInterface(UExperienceHostGameMode::StaticClass());
 	}
 }
 #endif
@@ -57,6 +55,12 @@ namespace PdWorldSettings
 APdWorldSettings::APdWorldSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+FPrimaryAssetId APdWorldSettings::FindDefaultExperienceId(const UWorld* World)
+{
+	const APdWorldSettings* Settings = World ? Cast<APdWorldSettings>(World->GetWorldSettings()) : nullptr;
+	return Settings ? Settings->GetDefaultExperienceId() : FPrimaryAssetId();
 }
 
 #if WITH_EDITOR

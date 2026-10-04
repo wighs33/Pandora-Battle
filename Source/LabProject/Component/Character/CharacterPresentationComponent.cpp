@@ -6,7 +6,7 @@
 #include "Engine/GameInstance.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/ExperienceGameState.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
@@ -124,26 +124,25 @@ void UCharacterPresentationComponent::SetAimOffset(const float InAimYaw, const f
 void UCharacterPresentationComponent::BindMatchTeamColorChanged()
 {
 	ACharacterBase* Character = GetCharacterOwner();
-	APdPlayerState* PdPlayerState = Character ? Character->GetPlayerState<APdPlayerState>() : nullptr;
-	if (TeamColorBoundPlayerState.Get() == PdPlayerState)
+	APlayerState* PlayerState = Character ? Character->GetPlayerState<APlayerState>() : nullptr;
+	if (TeamColorBoundPlayerState.Get() == PlayerState)
 	{
 		return;
 	}
 
 	UnbindMatchTeamColorChanged();
-	TeamColorBoundPlayerState = PdPlayerState;
-	if (PdPlayerState && PdPlayerState->GetPlayerMatchComponent())
+	TeamColorBoundPlayerState = PlayerState;
+	if (UPlayerMatchComponent* MatchComponent = PlayerState ? PlayerState->FindComponentByClass<UPlayerMatchComponent>() : nullptr)
 	{
-		PdPlayerState->GetPlayerMatchComponent()->OnMatchTeamColorChanged.AddUObject(
-			this, &ThisClass::HandleMatchTeamColorChanged);
+		MatchComponent->OnMatchTeamColorChanged.AddUObject(this, &ThisClass::HandleMatchTeamColorChanged);
 	}
 }
 
 void UCharacterPresentationComponent::UnbindMatchTeamColorChanged()
 {
-	if (APdPlayerState* PdPlayerState = TeamColorBoundPlayerState.Get())
+	if (APlayerState* PlayerState = TeamColorBoundPlayerState.Get())
 	{
-		if (UPlayerMatchComponent* MatchComponent = PdPlayerState->GetPlayerMatchComponent())
+		if (UPlayerMatchComponent* MatchComponent = PlayerState->FindComponentByClass<UPlayerMatchComponent>())
 		{
 			MatchComponent->OnMatchTeamColorChanged.RemoveAll(this);
 		}
@@ -196,8 +195,8 @@ void UCharacterPresentationComponent::RefreshCharacterOverlayMaterial()
 
 	// 팀이 없는 캐릭터(적·팀 배정 전 플레이어)는 오버레이를 쓰지 않는다.
 	// PlayerState 도착은 OnRep_PlayerState가, 팀 배정은 OnMatchTeamColorChanged가 이 함수를 다시 호출한다.
-	const APdPlayerState* PdPlayerState = Character->GetPlayerState<APdPlayerState>();
-	const UPlayerMatchComponent* MatchComponent = PdPlayerState ? PdPlayerState->GetPlayerMatchComponent() : nullptr;
+	const APlayerState* PlayerState = Character->GetPlayerState<APlayerState>();
+	const UPlayerMatchComponent* MatchComponent = PlayerState ? PlayerState->FindComponentByClass<UPlayerMatchComponent>() : nullptr;
 	const int32 TeamColorIndex = MatchComponent ? MatchComponent->GetMatchTeamColorIndex() : INDEX_NONE;
 	if (TeamColorIndex == INDEX_NONE)
 	{

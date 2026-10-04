@@ -6,7 +6,8 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Definition/Item/ItemDefinition.h"
-#include "Mode/PdPlayerState.h"
+#include "AbilitySystemGlobals.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Definition/Pandora/PandoraDefinition.h"
@@ -494,10 +495,7 @@ bool UPandoraComponent::SelectPandoraByPrimaryAssetId(
 		return false;
 	}
 
-	APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
-	UPdAbilitySystemComponent* ASC = PlayerStateOwner
-		? Cast<UPdAbilitySystemComponent>(PlayerStateOwner->GetAbilitySystemComponent())
-		: nullptr;
+	UPdAbilitySystemComponent* ASC = GetOwnerAbilitySystemComponent();
 
 	if (!PandoraDefinitionId.IsValid())
 	{
@@ -554,10 +552,7 @@ void UPandoraComponent::RefreshCurrentPandoraSkills()
 		return;
 	}
 
-	APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
-	UPdAbilitySystemComponent* ASC = PlayerStateOwner
-		? Cast<UPdAbilitySystemComponent>(PlayerStateOwner->GetAbilitySystemComponent())
-		: nullptr;
+	UPdAbilitySystemComponent* ASC = GetOwnerAbilitySystemComponent();
 	const int32 RuntimeLevel = ResolveSelectedPandoraRuntimeLevel(CurrentPandoraDefinition);
 
 	const bool bCompatibleWithCurrentWeapon = IsPandoraCompatibleWithCurrentWeapon(CurrentPandoraDefinition);
@@ -587,9 +582,9 @@ bool UPandoraComponent::IsPandoraCompatibleWithCurrentWeapon(const UPandoraDefin
 int32 UPandoraComponent::ResolveSelectedPandoraRuntimeLevel(const UPandoraDefinition* PandoraDefinition) const
 {
 	int32 PandoraLevel = 0;
-	if (const APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner()))
+	if (const APlayerState* PlayerStateOwner = GetPlayerState<APlayerState>())
 	{
-		if (UPandoraTreeComponent* PandoraTreeComponent = PlayerStateOwner->GetPandoraTreeComponent())
+		if (UPandoraTreeComponent* PandoraTreeComponent = PlayerStateOwner->FindComponentByClass<UPandoraTreeComponent>())
 		{
 			PandoraLevel = PandoraTreeComponent->GetCurrentPandoraLevel(const_cast<UPandoraDefinition*>(PandoraDefinition));
 		}
@@ -637,9 +632,15 @@ EEnum_Direction UPandoraComponent::ResolvePandoraSelectionDirection(
 	return EEnum_Direction::Center;
 }
 
+// 판도라 스킬은 소유한 PlayerState의 ASC에 부여한다.
+UPdAbilitySystemComponent* UPandoraComponent::GetOwnerAbilitySystemComponent() const
+{
+	return Cast<UPdAbilitySystemComponent>(UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()));
+}
+
 const UEquipmentComponent* UPandoraComponent::GetCurrentEquipmentComponent() const
 {
-	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
+	const APlayerState* PlayerState = GetPlayerState<APlayerState>();
 	const ACharacterBase* CharacterOwner = PlayerState ? Cast<ACharacterBase>(PlayerState->GetPawn()) : nullptr;
 	return CharacterOwner ? CharacterOwner->GetEquipmentComponent() : nullptr;
 }
@@ -674,9 +675,7 @@ void UPandoraComponent::OnRep_PandoraLoadoutSlots()
 void UPandoraComponent::NotifyPandoraSelectionChanged()
 {
 	// 서버는 스킬 부여와 입력 연결을 마친 뒤, 클라이언트는 선택 복제를 받은 뒤 갱신한다.
-	APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
-	if (UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(
-		PlayerStateOwner ? PlayerStateOwner->GetAbilitySystemComponent() : nullptr))
+	if (UPdAbilitySystemComponent* ASC = GetOwnerAbilitySystemComponent())
 	{
 		ASC->OnAbilitiesChangedNative.Broadcast();
 	}

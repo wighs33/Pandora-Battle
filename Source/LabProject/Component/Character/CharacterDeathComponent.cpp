@@ -7,17 +7,17 @@
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/AbilityStateComponent.h"
-#include "Component/Character/CharacterHealthBarComponent.h"
 #include "Component/Character/CharacterPresentationComponent.h"
 #include "Component/Player/EquipmentComponent.h"
-#include "Component/UI/DamageIndicatorComponent.h"
+#include "Components/WidgetComponent.h"
+#include "Interface/DamageIndicatorInterface.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Component/Player/PlayerSpawnComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Mode/PdHUD.h"
+#include "Mode/PdPlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterDeathComponent)
 
@@ -146,10 +146,9 @@ void UCharacterDeathComponent::ApplyDeathPhysics()
 		return;
 	}
 
-	if (UCharacterHealthBarComponent* HealthBar =
-		Character->GetCharacterHealthBarComponent())
+	if (UWidgetComponent* HealthBarWidget = Character->GetHealthBarWidget())
 	{
-		HealthBar->SetVisibility(false, true);
+		HealthBarWidget->SetVisibility(false, true);
 	}
 
 	if (UCharacterMovementComponent* MovementComponent =
@@ -301,12 +300,8 @@ void UCharacterDeathComponent::ResetDeathStateForRespawn()
 		Character->ResetAnimationToDefault();
 	}
 
-	if (UCharacterHealthBarComponent* HealthBar =
-		Character->GetCharacterHealthBarComponent())
-	{
-		HealthBar->RefreshViewModel();
-		HealthBar->SetVisibleForLocalViewer(false);
-	}
+	Character->RefreshHealthBarViewModel();
+	Character->SetHealthBarVisibleForLocalViewer(false);
 }
 
 float UCharacterDeathComponent::GetSafeDissolveDuration(
@@ -547,8 +542,8 @@ void UCharacterDeathComponent::HandleRemoteDamageTaken(
 	}
 
 	const float DisplayDamageAmount = FMath::Max(DamageAmount, 0.0f);
-	if (UDamageIndicatorComponent* DamageIndicator =
-		Character->GetDamageIndicatorComponent())
+	if (IDamageIndicatorInterface* DamageIndicator =
+		Character->GetDamageIndicator())
 	{
 		DamageIndicator->ShowDamageIndicator(
 			DisplayDamageAmount,
@@ -558,13 +553,9 @@ void UCharacterDeathComponent::HandleRemoteDamageTaken(
 
 	if (DisplayDamageAmount > 0.0f && Character->IsLocallyControlled())
 	{
-		if (APlayerController* PlayerController =
-			Cast<APlayerController>(Character->GetController()))
+		if (APdPlayerController* PlayerController = Cast<APdPlayerController>(Character->GetController()))
 		{
-			if (APdHUD* PdHUD = PlayerController->GetHUD<APdHUD>())
-			{
-				PdHUD->ShowDamageScreenEffect(DisplayDamageAmount);
-			}
+			PlayerController->ShowDamageScreenEffect(DisplayDamageAmount);
 		}
 	}
 	Character->OnDamageTaken(

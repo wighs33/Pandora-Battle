@@ -6,7 +6,7 @@
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
 #include "GameFramework/PlayerController.h"
-#include "Mode/PdHUD.h"
+#include "Mode/PdPlayerController.h"
 #include "Definition/Player/CharacterActionDefinition.h"
 #include "Component/Player/GrappleComponent.h"
 #include "Data/ContentDataSubsystem.h"
@@ -221,16 +221,15 @@ void UGrappleAbility::SetLocalAimPresentation(const bool bEnabled) const
 		Player->SetAbilityCameraOverrideActive(bEnabled, CameraSettings);
 	}
 
-	APlayerController* PlayerController = ActorInfo->PlayerController.Get();
-	if (APdHUD* HUD = PlayerController ? Cast<APdHUD>(PlayerController->GetHUD()) : nullptr)
+	if (APdPlayerController* PlayerController = Cast<APdPlayerController>(ActorInfo->PlayerController.Get()))
 	{
 		if (bEnabled)
 		{
-			HUD->ShowAimCrosshair(LabGameplayTags::UI_Widget_AimCrosshair);
+			PlayerController->ShowAimCrosshair(LabGameplayTags::UI_Widget_AimCrosshair);
 		}
 		else
 		{
-			HUD->HideAimCrosshair();
+			PlayerController->HideAimCrosshair();
 		}
 	}
 }

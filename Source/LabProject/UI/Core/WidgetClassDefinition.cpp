@@ -1,6 +1,6 @@
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
-#include "Definition/UI/WidgetDefinitionFragments.h"
+#include "UI/Core/WidgetDefinitionFragments.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"

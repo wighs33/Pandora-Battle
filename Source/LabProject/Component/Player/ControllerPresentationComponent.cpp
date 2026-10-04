@@ -10,13 +10,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Mode/ExperienceGameMode.h"
 #include "Engine/GameInstance.h"
-#include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
-#include "Mode/PdPlayerState.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
-#include "Common/KillLogTypes.h"
-#include "UI/HUD/Notification/NotificationData.h"
-#include "UI/Core/LoadingScreenSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerPresentationComponent)
 
@@ -117,65 +112,35 @@ void UControllerPresentationComponent::ApplyCameraViewPitchClamp() const
 	}
 }
 
-// 로컬 HUD에 보상이나 상태 알림을 전달한다.
+// 보상이나 상태 알림을 띄우도록 HUD에 알린다.
 void UControllerPresentationComponent::ShowRightNotification(
 	const FPdNotificationData& NotificationData) const
 {
-	if (const APdPlayerController* Controller = GetPdController())
-	{
-		if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
-		{
-			PdHUD->ShowRightNotification(NotificationData);
-		}
-	}
+	RightNotificationRequested.Broadcast(NotificationData);
 }
 
-// 로컬 HUD의 킬 로그에 처치 기록을 추가한다.
+// 처치 기록을 킬 로그에 추가하도록 HUD에 알린다.
 void UControllerPresentationComponent::AddKillLogEntry(const FKillLogEntry& KillLogEntry) const
 {
-	if (const APdPlayerController* Controller = GetPdController())
-	{
-		if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
-		{
-			PdHUD->AddKillLogEntry(KillLogEntry);
-		}
-	}
+	KillLogEntryRequested.Broadcast(KillLogEntry);
 }
 
-// 골든 킬 안내 문구를 로컬 HUD에 표시한다.
+// 골든 킬 안내 문구를 띄우도록 HUD에 알린다.
 void UControllerPresentationComponent::ShowGoldenKillAnnouncement(const FText& AnnouncementText) const
 {
-	if (const APdPlayerController* Controller = GetPdController())
-	{
-		if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
-		{
-			PdHUD->ShowGoldenKillAnnouncement(AnnouncementText);
-		}
-	}
+	GoldenKillAnnouncementRequested.Broadcast(AnnouncementText);
 }
 
-// 부활까지 남은 대기 시간을 HUD에 표시한다.
+// 부활까지 남은 대기 시간을 표시하도록 HUD에 알린다.
 void UControllerPresentationComponent::StartRespawnDelayCountdown(const float DelaySeconds) const
 {
-	if (const APdPlayerController* Controller = GetPdController())
-	{
-		if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
-		{
-			PdHUD->ShowRespawnDelay(FMath::Max(DelaySeconds, 0.0f));
-		}
-	}
+	RespawnDelayChanged.Broadcast(true, FMath::Max(DelaySeconds, 0.0f));
 }
 
-// 부활 대기 표시를 숨긴다.
+// 부활 대기 표시를 숨기도록 HUD에 알린다.
 void UControllerPresentationComponent::HideRespawnDelayCountdown() const
 {
-	if (const APdPlayerController* Controller = GetPdController())
-	{
-		if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
-		{
-			PdHUD->HideRespawnDelay();
-		}
-	}
+	RespawnDelayChanged.Broadcast(false, 0.0f);
 }
 
 // 화면 처리를 소유한 프로젝트 컨트롤러를 조회한다.
@@ -194,6 +159,7 @@ void UControllerPresentationComponent::UpdateTravelLoadingReadyTicker()
 		FTSTicker::RemoveTicker(TravelLoadingReadyTickerHandle);
 		TravelLoadingReadyTickerHandle.Reset();
 	}
+	LoadingScreenWaiting.Reset();
 	TravelLoadingReadyTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateUObject(
 			this,
@@ -201,13 +167,16 @@ void UControllerPresentationComponent::UpdateTravelLoadingReadyTicker()
 		FMath::Max(Settings.TravelLoadingReadyCheckInterval, 0.01f));
 }
 
-// 실제 대기 작업이 끝나면 훈련실의 일시정지만 해제한다. 로딩 상태는 LoadingScreenSubsystem이 관찰한다.
+// 실제 대기 작업이 끝나면 훈련실의 일시정지만 해제한다. 대기 여부는 로딩 화면이 갱신할 때마다 알려 준다.
 bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 {
 	const APdPlayerController* Controller = GetPdController();
-	const ULocalPlayer* LocalPlayer = Controller ? Controller->GetLocalPlayer() : nullptr;
-	const ULoadingScreenSubsystem* LoadingScreen = LocalPlayer ? LocalPlayer->GetSubsystem<ULoadingScreenSubsystem>() : nullptr;
-	const bool bWaiting = LoadingScreen && LoadingScreen->HasBlockingWait();
+	if (Controller && Controller->GetLocalPlayer() && !LoadingScreenWaiting.IsSet())
+	{
+		// 빙의 뒤 로딩 화면의 첫 보고를 기다린다.
+		return true;
+	}
+	const bool bWaiting = LoadingScreenWaiting.Get(false);
 	SetTrainingRoomLoadingPaused(bWaiting);
 	if (!bWaiting) TravelLoadingReadyTickerHandle.Reset();
 	return bWaiting;
@@ -361,32 +330,14 @@ void UControllerPresentationComponent::RefreshAfterRespawn(APawn* RespawnedPawn,
 	Controller->SetViewTarget(RespawnedPawn);
 }
 
-// 소유 플레이어의 점수판을 연다.
+// 소유 플레이어의 점수판을 열도록 HUD에 알린다.
 void UControllerPresentationComponent::ShowInGameScoreboard()
 {
-	if (APdPlayerController* Controller = GetPdController())
-	{
-		if (Controller->IsLocalController())
-		{
-			if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
-			{
-				PdHUD->ShowInGameScoreboard();
-			}
-		}
-	}
+	InGameScoreboardChanged.Broadcast(true);
 }
 
-// 소유 플레이어의 점수판을 닫는다.
+// 소유 플레이어의 점수판을 닫도록 HUD에 알린다.
 void UControllerPresentationComponent::HideInGameScoreboard()
 {
-	if (APdPlayerController* Controller = GetPdController())
-	{
-		if (Controller->IsLocalController())
-		{
-			if (APdHUD* PdHUD = Controller->GetHUD<APdHUD>())
-			{
-				PdHUD->HideInGameScoreboard();
-			}
-		}
-	}
+	InGameScoreboardChanged.Broadcast(false);
 }

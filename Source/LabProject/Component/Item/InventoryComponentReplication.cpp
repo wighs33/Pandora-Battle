@@ -5,7 +5,6 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
 #include "Misc/ScopeExit.h"
-#include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 

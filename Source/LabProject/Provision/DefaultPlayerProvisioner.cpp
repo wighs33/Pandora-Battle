@@ -19,7 +19,6 @@
 #include "Item/ItemInstance.h"
 #include "Engine/GameInstance.h"
 #include "Data/ContentDataSubsystem.h"
-#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Mode/PdPlayerState.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 
@@ -583,32 +582,26 @@ bool UDefaultPlayerProvisioner::ApplyPandoras(APdPlayerState* PlayerState)
 	TMap<EEnum_Direction, FPrimaryAssetId> LoadoutByDirection;
 	if (Mode == EDefaultProvisionMode::Gameplay)
 	{
-		ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(PlayerState->GetGameInstance());
+		// 로비에서 고른 슬롯은 PlayerState가 심리스 이동으로 넘겨받은 값을 쓴다.
 		UContentDataSubsystem* ContentDataSubsystem = UGameInstance::GetSubsystem<UContentDataSubsystem>(PlayerState->GetGameInstance());
-		if (LobbySubsystem && ContentDataSubsystem)
+		if (ContentDataSubsystem)
 		{
-			TMap<EEnum_Direction, FName> CachedNamesByDirection;
-			if (LobbySubsystem->TryGetCachedLobbyPandoraLoadoutForPlayerState(
-					PlayerState,
-					CachedNamesByDirection))
+			for (const TPair<EEnum_Direction, FName>& Pair
+				: PlayerState->GetLobbyTravelHandoff().PandoraNamesByDirection)
 			{
-				for (const TPair<EEnum_Direction, FName>& Pair
-					: CachedNamesByDirection)
+				if (!PandoraLoadout::IsLoadoutDirection(Pair.Key)
+					|| Pair.Value.IsNone())
 				{
-					if (!PandoraLoadout::IsLoadoutDirection(Pair.Key)
-						|| Pair.Value.IsNone())
+					continue;
+				}
+				if (const UPandoraDefinition* PandoraDefinition =
+					ContentDataSubsystem->GetPandoraDefinitionByName(Pair.Value))
+				{
+					const FPrimaryAssetId PandoraId =
+						PandoraDefinition->GetPrimaryAssetId();
+					if (UnlockedPandoraIds.Contains(PandoraId))
 					{
-						continue;
-					}
-					if (const UPandoraDefinition* PandoraDefinition =
-						ContentDataSubsystem->GetPandoraDefinitionByName(Pair.Value))
-					{
-						const FPrimaryAssetId PandoraId =
-							PandoraDefinition->GetPrimaryAssetId();
-						if (UnlockedPandoraIds.Contains(PandoraId))
-						{
-							LoadoutByDirection.Add(Pair.Key, PandoraId);
-						}
+						LoadoutByDirection.Add(Pair.Key, PandoraId);
 					}
 				}
 			}

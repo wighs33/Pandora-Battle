@@ -7,9 +7,9 @@
 #include "Character/CharacterBase.h"
 #include "Common/Enum_Direction.h"
 #include "Common/LabGameplayTags.h"
+#include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Mode/PlayerEliminationSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
-#include "Component/Player/CombatComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BasicAttributeSet)
 
 namespace
@@ -142,19 +142,6 @@ namespace
 		if (Attribute == UBasicAttributeSet::GetCriticalAttribute()) { AttributeSet->SetCritical(ClampStatValue(AttributeSet->GetCritical())); return true; }
 
 		return false;
-	}
-
-	float CalculateFinalStrengthDamage(UBasicAttributeSet* AttributeSet)
-	{
-		if (!AttributeSet)
-		{
-			return 0.f;
-		}
-
-		UAbilitySystemComponent* ASC = AttributeSet->GetOwningAbilitySystemComponent();
-		ACharacterBase* Character = ASC ? Cast<ACharacterBase>(ASC->GetAvatarActor()) : nullptr;
-		UCombatComponent* CombatComponent = Character ? Character->GetCombatComponent() : nullptr;
-		return CombatComponent ? CombatComponent->GetStrengthAdjustedWeaponDamageMagnitude(AttributeSet->GetStrength()) : 0.f;
 	}
 
 	float CalculateFinalArmor(const float TargetArmor, const float TargetFinalStrength)
@@ -593,7 +580,9 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 			? CalculateStatusResistanceMitigatedDamage(AppliedIncomingDamage, TargetStatusResistance)
 			: AppliedIncomingDamage;
 		const float TargetArmor = GetArmor();
-		const float TargetFinalStrength = CalculateFinalStrengthDamage(this);
+		// 방어력은 맞는 쪽 자신의 근력 반영 무기 피해에 비례한다. 그 값은 전투 컴포넌트가 ASC에 등록해 둔 계산으로 얻는다.
+		const UPdAbilitySystemComponent* OwningAbilitySystem = Cast<UPdAbilitySystemComponent>(GetOwningAbilitySystemComponent());
+		const float TargetFinalStrength = OwningAbilitySystem ? OwningAbilitySystem->GetFinalStrengthDamage(GetStrength()) : 0.f;
 		const float MitigatedIncomingDamage = CalculateArmorMitigatedDamage(StatusMitigatedIncomingDamage, TargetArmor, TargetFinalStrength);
 
 		SetIncomingDamage(0.f);

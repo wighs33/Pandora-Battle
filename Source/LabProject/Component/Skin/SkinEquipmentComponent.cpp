@@ -13,7 +13,7 @@
 #include "Data/ContentLease.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Pet/PetCharacter.h"
@@ -290,8 +290,8 @@ bool USkinEquipmentComponent::CanEquipSkinDefinition(const USkinDefinition* Skin
 	if (HasSkinEquipmentAuthority())
 	{
 		const ACharacterBase* CharacterOwner = GetCharacterOwner();
-		const APdPlayerState* PlayerState = CharacterOwner ? CharacterOwner->GetPlayerState<APdPlayerState>() : nullptr;
-		const USkinComponent* SkinComponent = PlayerState ? PlayerState->GetSkinComponent() : nullptr;
+		const APlayerState* PlayerState = CharacterOwner ? CharacterOwner->GetPlayerState<APlayerState>() : nullptr;
+		const USkinComponent* SkinComponent = PlayerState ? PlayerState->FindComponentByClass<USkinComponent>() : nullptr;
 		if (!SkinComponent || !SkinComponent->HasSkinDefinition(SkinDefinition))
 		{
 			return false;

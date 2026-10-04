@@ -4,12 +4,11 @@
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Component/Character/AbilityStateComponent.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EquipmentEffectComponent)
 
@@ -112,8 +111,8 @@ void UEquipmentEffectComponent::HandleAbilitySystemReady(ACharacterBase* Charact
 		AbilitySystem = ReadyAbilitySystem;
 	}
 
-	const APdPlayerState* PlayerState = Character ? Character->GetPlayerState<APdPlayerState>() : nullptr;
-	BindInventory(PlayerState ? PlayerState->GetInventoryComponent() : nullptr);
+	const APlayerState* PlayerState = Character ? Character->GetPlayerState<APlayerState>() : nullptr;
+	BindInventory(PlayerState ? PlayerState->FindComponentByClass<UInventoryComponent>() : nullptr);
 	RefreshEffects();
 }
 
@@ -342,11 +341,6 @@ void UEquipmentEffectComponent::NotifyEquipmentStatsChanged()
 		if (UPdAbilitySystemComponent* TargetAbilitySystem = AbilitySystem.Get())
 		{
 			TargetAbilitySystem->OnAbilitiesChangedNative.Broadcast();
-		}
-		const ACharacterBase* Character = Cast<ACharacterBase>(GetOwner());
-		if (UAbilityStateComponent* AbilityState = Character ? Character->GetAbilityStateComponent() : nullptr)
-		{
-			AbilityState->ApplyMovementSpeedFromAttribute();
 		}
 	}
 	OnEquipmentStatsChanged.Broadcast();

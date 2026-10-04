@@ -14,7 +14,7 @@
 #include "Mode/PdPlayerState.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "UI/Common/ViewModelBinding.h"
 #include "UI/Pandora/PandoraWidgetViewData.h"
 #include "ViewModel/PandoraWidgetViewModel.h"

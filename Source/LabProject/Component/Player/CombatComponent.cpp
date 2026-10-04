@@ -1,6 +1,5 @@
 #include "Component/Player/CombatComponent.h"
 
-#include "AbilitySystem/Ability/AttackAbility.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
@@ -11,6 +10,7 @@
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
+#include "Interface/ComboAttackInterface.h"
 #include "AbilitySystem/Ability/EquipmentAbilityData.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
@@ -27,7 +27,6 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Mode/PdPlayerController.h"
-#include "Mode/PdHUD.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
@@ -73,7 +72,7 @@ void UCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	StopUnarmedAttackTrace();
 	ReleaseUnarmedAttackMontagePreload();
 	AbilitySystemSubscription.Reset();
-	BindAttackSpeed(nullptr);
+	BindAbilitySystem(nullptr);
 	TemporaryWeaponDamageBonuses.Reset();
 	Super::EndPlay(EndPlayReason);
 }
@@ -89,33 +88,37 @@ void UCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 
 void UCombatComponent::HandleAbilitySystemReady(ACharacterBase* Character, UPdAbilitySystemComponent* ReadyAbilitySystem)
 {
-	BindAttackSpeed(ReadyAbilitySystem);
+	BindAbilitySystem(ReadyAbilitySystem);
 }
 
 void UCombatComponent::HandleAbilitySystemReleased(ACharacterBase* Character, UPdAbilitySystemComponent* ReleasedAbilitySystem)
 {
-	BindAttackSpeed(nullptr);
+	BindAbilitySystem(nullptr);
 }
 
-// 공격 속도가 바뀌면 누르고 있는 연사의 다음 입력 시점을 다시 잡는다.
-void UCombatComponent::BindAttackSpeed(UPdAbilitySystemComponent* AbilitySystem)
+// 공격 속도가 바뀌면 누르고 있는 연사의 다음 입력 시점을 다시 잡고,
+// 방어력 계산이 쓰는 근력 반영 무기 피해는 이 컴포넌트가 계산하도록 ASC에 등록한다.
+void UCombatComponent::BindAbilitySystem(UPdAbilitySystemComponent* AbilitySystem)
 {
-	if (AttackSpeedAbilitySystem.Get() == AbilitySystem)
+	if (BoundAbilitySystem.Get() == AbilitySystem)
 	{
 		return;
 	}
 
-	if (UPdAbilitySystemComponent* PreviousAbilitySystem = AttackSpeedAbilitySystem.Get())
+	if (UPdAbilitySystemComponent* PreviousAbilitySystem = BoundAbilitySystem.Get())
 	{
 		PreviousAbilitySystem->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetAttackSpeedAttribute())
 			.Remove(AttackSpeedChangedDelegateHandle);
+		PreviousAbilitySystem->ClearFinalStrengthDamageProvider(this);
 	}
 	AttackSpeedChangedDelegateHandle.Reset();
-	AttackSpeedAbilitySystem = AbilitySystem;
+	BoundAbilitySystem = AbilitySystem;
 	if (AbilitySystem)
 	{
 		AttackSpeedChangedDelegateHandle = AbilitySystem->GetGameplayAttributeValueChangeDelegate(
 			UBasicAttributeSet::GetAttackSpeedAttribute()).AddUObject(this, &ThisClass::HandleAttackSpeedChanged);
+		AbilitySystem->SetFinalStrengthDamageProvider(
+			FPdFinalStrengthDamageProvider::CreateUObject(this, &ThisClass::GetStrengthAdjustedWeaponDamageMagnitude));
 	}
 }
 
@@ -220,9 +223,9 @@ void UCombatComponent::StartAim()
 		return;
 	}
 
-	if (APdHUD* HUD = GetPdHUD())
+	if (APdPlayerController* Controller = Cast<APdPlayerController>(PlayerCharacter->GetController()))
 	{
-		HUD->ShowAimCrosshair(WeaponActor->GetAimCrosshairWidgetTag());
+		Controller->ShowAimCrosshair(WeaponActor->GetAimCrosshairWidgetTag());
 	}
 }
 
@@ -234,9 +237,9 @@ void UCombatComponent::StopAim()
 		return;
 	}
 
-	if (APdHUD* HUD = GetPdHUD())
+	if (APdPlayerController* Controller = Cast<APdPlayerController>(PlayerCharacter->GetController()))
 	{
-		HUD->HideAimCrosshair();
+		Controller->HideAimCrosshair();
 	}
 
 	ARangedWeaponBase* WeaponActor = Cast<ARangedWeaponBase>(GetCurrentWeaponActor());
@@ -273,23 +276,24 @@ void UCombatComponent::ServerRequestNextComboInput_Implementation(
 	}
 	UAbilitySystemComponent* ASC = GetPlayerAbilitySystemComponent();
 	FGameplayAbilitySpec* Spec = ASC ? ASC->FindAbilitySpecFromHandle(AbilityHandle) : nullptr;
-	UAttackAbility* Attack = Spec ? Cast<UAttackAbility>(Spec->GetPrimaryInstance()) : nullptr;
+	UGameplayAbility* Attack = Spec ? Spec->GetPrimaryInstance() : nullptr;
+	IComboAttackInterface* ComboAttack = Cast<IComboAttackInterface>(Attack);
 	const FGameplayTag SelectedTag = GetSelectedAttackAbilityTag(GetCurrentWeaponActor());
-	if (!Attack || !SelectedTag.IsValid() || !Attack->GetAssetTags().HasTagExact(SelectedTag)
+	if (!ComboAttack || !SelectedTag.IsValid() || !Attack->GetAssetTags().HasTagExact(SelectedTag)
 		|| Attack->GetCurrentActivationInfo().GetActivationPredictionKey() != ActivationKey)
 	{
 		return;
 	}
 	if (Spec->IsActive())
 	{
-		if (ClientExpectedSectionName == Attack->GetNextAttackSectionName())
+		if (ClientExpectedSectionName == ComboAttack->GetNextAttackSectionName())
 		{
-			Attack->RequestNextComboInput();
+			ComboAttack->RequestNextComboInput();
 		}
 		return;
 	}
 	// 같은 실행이 자연 종료된 직후의 입력만 한 번 보정한다. 취소·오래된 입력은 재시작하지 않는다.
-	if (Attack->TryConsumeLateComboInput())
+	if (ComboAttack->TryConsumeLateComboInput())
 	{
 		ASC->TryActivateAbility(AbilityHandle);
 	}
@@ -298,13 +302,6 @@ void UCombatComponent::ServerRequestNextComboInput_Implementation(
 APdPlayer* UCombatComponent::GetPlayerOwner() const
 {
 	return Cast<APdPlayer>(GetOwner());
-}
-
-APdHUD* UCombatComponent::GetPdHUD() const
-{
-	const APdPlayer* PlayerCharacter = GetPlayerOwner();
-	const APdPlayerController* Controller = PlayerCharacter ? Cast<APdPlayerController>(PlayerCharacter->GetController()) : nullptr;
-	return Controller ? Cast<APdHUD>(Controller->GetHUD()) : nullptr;
 }
 
 AWeaponBase* UCombatComponent::GetCurrentWeaponActor() const
@@ -321,12 +318,14 @@ UAbilitySystemComponent* UCombatComponent::GetPlayerAbilitySystemComponent() con
 	return PlayerCharacter ? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(PlayerCharacter) : nullptr;
 }
 
-UAttackAbility* UCombatComponent::ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent,
+// 콤보를 받는 공격이 이미 실행 중이면 그 능력을 돌려준다. 콤보 계약이 없으면 nullptr이라 새로 실행한다.
+UGameplayAbility* UCombatComponent::ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent,
 	const FGameplayTagContainer& AbilityTags) const
 {
 	const UPdAbilitySystemComponent* PdASC = Cast<UPdAbilitySystemComponent>(AbilitySystemComponent);
 	const FGameplayAbilitySpec* ActiveAbilitySpec = PdASC ? PdASC->FindActiveAbilitySpecByTags(AbilityTags) : nullptr;
-	return ActiveAbilitySpec ? Cast<UAttackAbility>(ActiveAbilitySpec->GetPrimaryInstance()) : nullptr;
+	UGameplayAbility* ActiveAbility = ActiveAbilitySpec ? ActiveAbilitySpec->GetPrimaryInstance() : nullptr;
+	return Cast<IComboAttackInterface>(ActiveAbility) ? ActiveAbility : nullptr;
 }
 
 void UCombatComponent::ProcessAttackInput()
@@ -368,7 +367,7 @@ void UCombatComponent::ProcessAttackInput()
 		return;
 	}
 
-	if (UAttackAbility* ActiveAttackAbility = ResolveActiveAttackAbility(AbilitySystemComponent, AttackTagContainer))
+	if (UGameplayAbility* ActiveAttackAbility = ResolveActiveAttackAbility(AbilitySystemComponent, AttackTagContainer))
 	{
 		RequestNextAttackSection(ActiveAttackAbility);
 		return;
@@ -420,15 +419,16 @@ FGameplayTag UCombatComponent::GetSelectedAttackAbilityTag(const AWeaponBase* We
 	return WeaponActor ? UProjectTagDefinition::Get(this)->GetCombatAttackAbilityTag() : UProjectTagDefinition::Get(this)->GetCombatPunchAbilityTag();
 }
 
-void UCombatComponent::RequestNextAttackSection(UAttackAbility* ActiveAttackAbility)
+void UCombatComponent::RequestNextAttackSection(UGameplayAbility* ActiveAttackAbility)
 {
-	if (!ActiveAttackAbility)
+	IComboAttackInterface* ComboAttack = Cast<IComboAttackInterface>(ActiveAttackAbility);
+	if (!ComboAttack)
 	{
 		return;
 	}
 
-	const FName ClientExpectedSectionName = ActiveAttackAbility->GetNextAttackSectionName();
-	const bool bAccepted = ActiveAttackAbility->RequestNextComboInput();
+	const FName ClientExpectedSectionName = ComboAttack->GetNextAttackSectionName();
+	const bool bAccepted = ComboAttack->RequestNextComboInput();
 	if (!bAccepted)
 	{
 		return;

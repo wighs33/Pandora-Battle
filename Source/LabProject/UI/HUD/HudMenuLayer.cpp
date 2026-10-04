@@ -2,12 +2,12 @@
 #include "UI/HUD/HudUiRouter.h"
 
 #include "Engine/LocalPlayer.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/HUD/Menu/MenuPopupWidget.h"
 #include "UI/HUD/Menu/TrainingRoomMenuPopupWidget.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudMenuLayer)
 

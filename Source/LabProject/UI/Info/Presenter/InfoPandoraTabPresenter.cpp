@@ -9,7 +9,7 @@
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Engine/Texture2D.h"
 #include "Item/ItemInstance.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Pandora/PandoraLoadoutTypes.h"

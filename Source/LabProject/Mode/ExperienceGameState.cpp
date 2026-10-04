@@ -4,14 +4,11 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "UI/Match/GameResultWidget.h"
 #include "Definition/Match/MatchRuleDefinition.h"
-#include "Mode/PdHUD.h"
 #include "Engine/GameInstance.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
-#include "Definition/UI/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ExperienceGameState)
 
@@ -41,12 +38,12 @@ void AExperienceGameState::SetMatchRuleDefinition(UMatchRuleDefinition* InMatchR
 	MatchRuleDefinition = InMatchRuleDefinition;
 	MARK_PROPERTY_DIRTY_FROM_NAME(AExperienceGameState, MatchRuleDefinition, this);
 	ForceNetUpdate();
-	RefreshLocalHudTimer();
+	MatchTimerChanged.Broadcast();
 }
 
 void AExperienceGameState::OnRep_MatchRuleDefinition()
 {
-	RefreshLocalHudTimer();
+	MatchTimerChanged.Broadcast();
 }
 
 void AExperienceGameState::SetMatchTimerState(
@@ -67,7 +64,7 @@ void AExperienceGameState::SetMatchTimerState(
 	MatchTimerState = NewState;
 	MARK_PROPERTY_DIRTY_FROM_NAME(AExperienceGameState, MatchTimerState, this);
 	ForceNetUpdate();
-	RefreshLocalHudTimer();
+	MatchTimerChanged.Broadcast();
 }
 
 bool AExperienceGameState::TryGetMatchTimerRemainingSeconds(float& OutRemainingSeconds) const
@@ -92,30 +89,7 @@ bool AExperienceGameState::TryGetMatchTimerRemainingSeconds(float& OutRemainingS
 
 void AExperienceGameState::OnRep_MatchTimerState()
 {
-	RefreshLocalHudTimer();
-}
-
-void AExperienceGameState::RefreshLocalHudTimer() const
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
-	{
-		APlayerController* PlayerController = It->Get();
-		if (!PlayerController || !PlayerController->IsLocalController())
-		{
-			continue;
-		}
-
-		if (APdHUD* PdHUD = Cast<APdHUD>(PlayerController->GetHUD()))
-		{
-			PdHUD->RefreshHudTimerVisibility();
-		}
-	}
+	MatchTimerChanged.Broadcast();
 }
 
 void AExperienceGameState::Multicast_ShowGameResult_Implementation(
@@ -133,29 +107,7 @@ void AExperienceGameState::Multicast_ShowGameResult_Implementation(
 	}
 
 	SaveLocalMatchRecord(LocalPlayerController, PlayerStats);
-
-	if (!GameResultWidgetClass)
-	{
-		if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
-		{
-			GameResultWidgetClass = WidgetDefinition->GetGameResultWidgetClass();
-		}
-	}
-
-	if (!GameResultWidgetClass)
-	{
-		return;
-	}
-
-	UGameResultWidget* GameResultWidget = CreateWidget<UGameResultWidget>(LocalPlayerController, GameResultWidgetClass);
-	if (!GameResultWidget)
-	{
-		return;
-	}
-
-	GameResultWidget->SetInfo(WinnerTitle, WinnerTeamColorIndex, MaxKillerName, MaxKillCount, PlayerStats);
-	GameResultWidget->SetCloseOnlyOnExit(true);
-	GameResultWidget->ShowResultScreen();
+	GameResultReceived.Broadcast(WinnerTitle, WinnerTeamColorIndex, MaxKillerName, MaxKillCount, PlayerStats);
 }
 
 void AExperienceGameState::SaveLocalMatchRecord(

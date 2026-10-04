@@ -2,7 +2,7 @@
 
 #include "Components/Image.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "Engine/Texture2D.h"
 
 namespace

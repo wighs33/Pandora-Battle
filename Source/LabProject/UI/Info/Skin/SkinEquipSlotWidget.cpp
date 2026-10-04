@@ -5,7 +5,7 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "GameFramework/PlayerController.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "UI/Info/InfoWidget.h"

@@ -110,6 +110,10 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "!Paint|Render Target")
     FLinearColor ClearColor = FLinearColor::White;
 
+    /** 붓 자국을 렌더 타깃에 찍는 재질. 다른 플레이어의 그림을 재생할 때도 쓰므로 UI 설정이 아닌 컴포넌트가 가진다. */
+    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Material", meta = (DisplayName = "Brush Material"))
+    TSoftObjectPtr<UMaterialInterface> BrushMaterial;
+
     UPROPERTY(EditDefaultsOnly, Category = "!Paint|Material")
     FName BrushTextureParameterName = TEXT("BrushTexture");
 

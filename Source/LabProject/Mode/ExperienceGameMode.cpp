@@ -25,7 +25,6 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Misc/PackageName.h"
 #include "Mode/ExperienceGameState.h"
-#include "Mode/PdHUD.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Online/GameLift/GameLiftServerSubsystem.h"
@@ -58,7 +57,6 @@ AExperienceGameMode::AExperienceGameMode(const FObjectInitializer& ObjectInitial
 	PlayerControllerClass = APdPlayerController::StaticClass();
 	PlayerStateClass = APdPlayerState::StaticClass();
 	DefaultPawnClass = APdPlayer::StaticClass();
-	HUDClass = APdHUD::StaticClass();
 	bUseSeamlessTravel = true;
 
 	// 기존 Blueprint의 컴포넌트 기본값 연결을 보존하기 위해 직렬화된 서브오브젝트 이름은 유지한다.
@@ -386,9 +384,7 @@ void AExperienceGameMode::HandleExperienceLoadFailed(FPrimaryAssetId ExperienceI
 // 현재 맵이 사용할 Experience 식별자를 월드 설정에서 읽는다.
 FPrimaryAssetId AExperienceGameMode::GetConfiguredExperienceId() const
 {
-	const UWorld* World = GetWorld();
-	const APdWorldSettings* Settings = World ? Cast<APdWorldSettings>(World->GetWorldSettings()) : nullptr;
-	return Settings ? Settings->GetDefaultExperienceId() : FPrimaryAssetId();
+	return APdWorldSettings::FindDefaultExperienceId(GetWorld());
 }
 
 // 경기에서 공유하는 필수 Definition을 한 번 로드하고 맵 수명 동안 소유한다.

@@ -19,7 +19,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyGameMode.h"
-#include "Lobby/Contents/LobbyHUD.h"
+#include "UI/Lobby/LobbyHUD.h"
 #include "Mode/PdPlayerState.h"
 #include "UI/Lobby/LobbyUserWidget.h"
 #include "Online/OnlineSessionsSubsystem.h"
@@ -27,7 +27,7 @@
 #include "TimerManager.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "UI/Settings/AudioVolumeControl.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyWidget)
 

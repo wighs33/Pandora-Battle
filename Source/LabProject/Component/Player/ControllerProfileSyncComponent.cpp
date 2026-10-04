@@ -7,7 +7,7 @@
 #include "Engine/GameInstance.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Online/AchievementSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerProfileSyncComponent)
@@ -165,10 +165,10 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 
 	GrantDefaultSkinEntitlementsOnServer();
 
-	APdPlayerState* PdPlayerState = Controller->GetPlayerState<APdPlayerState>();
+	APlayerState* PlayerState = Controller->GetPlayerState<APlayerState>();
 	UGameInstance* GameInstance = Controller->GetGameInstance();
 	if (UPlayerMatchComponent* PlayerMatchComponent =
-		PdPlayerState ? PdPlayerState->GetPlayerMatchComponent() : nullptr)
+		PlayerState ? PlayerState->FindComponentByClass<UPlayerMatchComponent>() : nullptr)
 	{
 		FName CanonicalAchievementId;
 		if (TryResolveCanonicalAchievementId(
@@ -180,7 +180,7 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 		}
 	}
 
-	USkinComponent* SkinComponent = PdPlayerState ? PdPlayerState->GetSkinComponent() : nullptr;
+	USkinComponent* SkinComponent = PlayerState ? PlayerState->FindComponentByClass<USkinComponent>() : nullptr;
 	if (!SkinComponent)
 	{
 		return;
@@ -325,8 +325,8 @@ void UControllerProfileSyncComponent::GrantDefaultSkinEntitlementsOnServer() con
 		return;
 	}
 
-	APdPlayerState* PdPlayerState = Controller->GetPlayerState<APdPlayerState>();
-	USkinComponent* SkinComponent = PdPlayerState ? PdPlayerState->GetSkinComponent() : nullptr;
+	APlayerState* PlayerState = Controller->GetPlayerState<APlayerState>();
+	USkinComponent* SkinComponent = PlayerState ? PlayerState->FindComponentByClass<USkinComponent>() : nullptr;
 	UGameInstance* GameInstance = Controller->GetGameInstance();
 	const UContentDataSubsystem* ContentDataSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;

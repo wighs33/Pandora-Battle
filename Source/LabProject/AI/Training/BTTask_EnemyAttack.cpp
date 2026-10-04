@@ -46,8 +46,6 @@ EBTNodeResult::Type UBTTask_EnemyAttack::ExecuteTask(UBehaviorTreeComponent& Own
 		return EBTNodeResult::Succeeded;
 	}
 
-	Enemy->SetAttackTarget(Target);
-
 	Enemy->Attack();
 	return EBTNodeResult::Succeeded;
 }

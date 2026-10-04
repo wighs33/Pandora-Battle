@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include "WidgetDefinitionFragments.generated.h"
 

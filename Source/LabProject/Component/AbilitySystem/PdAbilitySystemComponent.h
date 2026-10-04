@@ -14,6 +14,8 @@ class UAbilityGrantAndInputManager;
 
 DECLARE_MULTICAST_DELEGATE(FPdAbilitiesChangedNativeDelegate);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPdAbilityRemovedNativeDelegate, const FGameplayAbilitySpec&);
+// 근력을 받아 아바타의 근력 반영 무기 피해를 돌려준다.
+DECLARE_DELEGATE_RetVal_OneParam(float, FPdFinalStrengthDamageProvider, float);
 
 /**
  * 프로젝트의 능력 시스템을 GAS와 연결하는 컴포넌트.
@@ -76,6 +78,12 @@ public:
 	void RestoreResourcesToMaximum();
 	void ReactivateAutoActivatedAbilities();
 
+	// 방어력 감소량의 기준인 근력 반영 무기 피해. 무기·맨손 피해는 아바타의 전투 컴포넌트가 알고 있어서,
+	// 전투 컴포넌트가 ASC 준비 때 계산을 등록하고 해제 때 지운다. 등록이 없으면 0이다.
+	void SetFinalStrengthDamageProvider(FPdFinalStrengthDamageProvider Provider);
+	void ClearFinalStrengthDamageProvider(const UObject* Provider);
+	float GetFinalStrengthDamage(float Strength) const;
+
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleAbilityInputPressed(const FGameplayTag& InputTag);
 	void HandleAbilityInputReleased(const FGameplayTag& InputTag);
@@ -95,6 +103,8 @@ public:
 private:
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Abilities")
 	TObjectPtr<UAbilityGrantAndInputManager> AbilityGrantAndInputManager;
+
+	FPdFinalStrengthDamageProvider FinalStrengthDamageProvider;
 };
 
 /**

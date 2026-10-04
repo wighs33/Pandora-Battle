@@ -7,6 +7,7 @@
 
 class UChatControllerComponent;
 class UChatEntryWidget;
+enum class EChatViewCommand : uint8;
 class UEditableText;
 class UScrollBox;
 
@@ -22,11 +23,6 @@ public:
 	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	void InitializeChat(
-		UChatControllerComponent* InChatControllerComponent,
-		TSubclassOf<UChatEntryWidget> InChatEntryWidgetClass,
-		float InScrollMultiplier);
-
 	UFUNCTION(BlueprintCallable, Category = "!Chat")
 	void FocusChat();
 
@@ -51,8 +47,10 @@ protected:
 private:
 	UFUNCTION()
 	void HandleChatTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+	void HandleChatViewCommand(EChatViewCommand Command);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void SetChatFocused(bool bFocused);
 	void SetChatInputEnabled(bool bEnabled) const;
 	FString GetChatInputText() const;
 	void SetChatInputText(const FText& Text) const;
@@ -75,6 +73,8 @@ protected:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UChatControllerComponent> ChatControllerComponent;
+	FDelegateHandle ChatMessageAddedHandle;
+	FDelegateHandle ChatViewCommandHandle;
 
 	bool bChatFocused = false;
 };

@@ -6,6 +6,7 @@
 #include "Common/RewardNotificationTypes.h"
 #include "Component/Character/AbilitySystemReadySubscription.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
 #include "PdPlayerController.generated.h"
 
 class ACharacterBase;
@@ -22,6 +23,9 @@ class UPlayerNotificationComponent;
 class FContentLease;
 
 DECLARE_LOG_CATEGORY_EXTERN(PdPlayerControllerLog, Log, All);
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FPdAimCrosshairChanged, bool /*bVisible*/, FGameplayTag /*CrosshairWidgetTag*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPdDamageScreenEffectRequested, float /*DamageAmount*/);
 
 /**
  * 플레이어의 네트워크 요청과 컨트롤러 생명주기를 연결한다.
@@ -60,6 +64,13 @@ public:
 	// 입력 정의는 비동기로 적용된다. 입력 키를 표시하는 HUD는 적용될 때마다 이 알림으로 다시 그린다.
 	FDelegateHandle RegisterOnInputDefinitionApplied(const FSimpleDelegate& Delegate);
 	void UnregisterOnInputDefinitionApplied(FDelegateHandle Handle);
+
+	// 조종 캐릭터의 화면 표시 요청. 게임플레이 코드는 HUD를 모른 채 컨트롤러에 알리고, HUD가 이 알림을 구독해 그린다.
+	void ShowAimCrosshair(FGameplayTag CrosshairWidgetTag) { AimCrosshairChanged.Broadcast(true, CrosshairWidgetTag); }
+	void HideAimCrosshair() { AimCrosshairChanged.Broadcast(false, FGameplayTag()); }
+	void ShowDamageScreenEffect(float DamageAmount) { DamageScreenEffectRequested.Broadcast(DamageAmount); }
+	FPdAimCrosshairChanged& OnAimCrosshairChanged() { return AimCrosshairChanged; }
+	FPdDamageScreenEffectRequested& OnDamageScreenEffectRequested() { return DamageScreenEffectRequested; }
 
 	bool RequestExitMatchToTitle();
 
@@ -172,4 +183,6 @@ private:
 	TWeakObjectPtr<ACharacterBase> ObservedPossessedCharacter;
 	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
 	FPdAbilitySystemReadyDelegate OnPossessedCharacterAbilitySystemReady;
+	FPdAimCrosshairChanged AimCrosshairChanged;
+	FPdDamageScreenEffectRequested DamageScreenEffectRequested;
 };

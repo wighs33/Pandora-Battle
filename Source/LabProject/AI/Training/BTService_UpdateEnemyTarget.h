@@ -36,9 +36,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Blackboard")
 	FBlackboardKeySelector HasLineOfSightKey;
 
-	UPROPERTY(EditAnywhere, Category = "Target")
-	bool bUseCachedTargetWhenBlackboardTargetIsInvalid = false;
-
 	UPROPERTY(EditAnywhere, Category = "Auto Attack")
 	bool bAutoAttackWhenInRange = true;
 

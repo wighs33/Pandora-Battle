@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "LobbyHUD.generated.h"
 
 class ULobbyWidget;
@@ -24,6 +24,8 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!Lobby|UI")
 	ULobbyWidget* CreateLobbyUI();
+
+	virtual void OpenLobbyUi() override;
 
 	UFUNCTION()
 	void NotifyLobbyWidgetOpened();

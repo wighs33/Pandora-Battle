@@ -1,5 +1,6 @@
 #include "UI/HUD/Player/PlayerHudWidget.h"
 
+#include "UI/Common/EditorTransactionReset.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/ContentWidget.h"
@@ -17,36 +18,15 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
-#include "Lobby/Contents/LobbyHUD.h"
+#include "UI/Lobby/LobbyHUD.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerState.h"
 #include "Online/AchievementSubsystem.h"
 #include "UI/Common/TeamColorUtils.h"
 #include "UI/HUD/Match/KillBoxWidget.h"
-#include "Definition/UI/WidgetClassDefinition.h"
-
-#if WITH_EDITOR
-#include "Editor.h"
-#include "Editor/TransBuffer.h"
-#endif
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerHudWidget)
-
-namespace
-{
-	void ResetEditorTransactionBufferIfContainsPieObjects()
-	{
-#if WITH_EDITOR
-		if (GEditor && GEditor->Trans && GEditor->Trans->ContainsPieObjects())
-		{
-			GEditor->ResetTransaction(NSLOCTEXT(
-				"PlayerHudWidget",
-				"TransactionContainedPlayerHudPieObject",
-				"A player HUD PIE object was in the transaction buffer and had to be destroyed"));
-		}
-#endif
-	}
-}
 
 void UPlayerHudWidget::InitializePlayerHud(UWidgetClassDefinition* InWidgetClassDefinition)
 {
@@ -90,7 +70,7 @@ void UPlayerHudWidget::NativeDestruct()
 	UnbindSteamAchievementStateChanged();
 	ClearAchievementAvatarRefreshRetry();
 	ClearKillBoxWidgets();
-	ResetEditorTransactionBufferIfContainsPieObjects();
+	PdEditorTransaction::ResetIfContainsPieObjects();
 	Super::NativeDestruct();
 }
 

@@ -18,8 +18,11 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerState.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
+#include "UI/Cursor/MouseCursorWidget.h"
 #include "Data/ContentLease.h"
+#include "Lobby/LobbyRuntimeSubsystem.h"
+#include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "UI/Common/ViewModelBinding.h"
 #include "ViewModel/StatusViewModel.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UiSubsystem)
@@ -38,8 +41,23 @@ void UUiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	PendingConfiguredUiContent.Reset();
 	ConfiguredCoreContentLease.Reset();
 	StatusViewModel = NewObject<UStatusViewModel>(this);
+	if (ULocalPlayerSettingsSubsystem* PlayerSettings = Collection.InitializeDependency<ULocalPlayerSettingsSubsystem>())
+	{
+		CustomMouseCursorSettingsHandle = PlayerSettings->OnCustomMouseCursorSettingsReady.AddUObject(
+			this,
+			&ThisClass::HandleCustomMouseCursorSettingsReady);
+	}
 	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
+	if (ULobbyRuntimeSubsystem* LobbyRuntime = GameInstance ? GameInstance->GetSubsystem<ULobbyRuntimeSubsystem>() : nullptr)
+	{
+		LobbyEntryPreloadRequestedHandle = LobbyRuntime->OnLobbyEntryContentPreloadRequested.AddUObject(
+			this,
+			&ThisClass::HandleLobbyEntryContentPreloadRequested);
+		LobbyEntryReleasedHandle = LobbyRuntime->OnLobbyEntryContentReleased.AddUObject(
+			this,
+			&ThisClass::HandleLobbyEntryContentReleased);
+	}
 	if (UContentDataSubsystem* ContentSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr)
 	{
@@ -58,6 +76,23 @@ void UUiSubsystem::Deinitialize()
 	bIsDeinitializing = true;
 	CloseGameSettings();
 	OnWidgetContentChanged.Clear();
+	if (ULocalPlayerSettingsSubsystem* PlayerSettings =
+		GetLocalPlayer() ? GetLocalPlayer()->GetSubsystem<ULocalPlayerSettingsSubsystem>() : nullptr)
+	{
+		PlayerSettings->OnCustomMouseCursorSettingsReady.Remove(CustomMouseCursorSettingsHandle);
+	}
+	CustomMouseCursorSettingsHandle.Reset();
+	const ULocalPlayer* OwningLocalPlayer = GetLocalPlayer();
+	if (ULobbyRuntimeSubsystem* LobbyRuntime = OwningLocalPlayer && OwningLocalPlayer->GetGameInstance()
+		? OwningLocalPlayer->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>()
+		: nullptr)
+	{
+		LobbyRuntime->OnLobbyEntryContentPreloadRequested.Remove(LobbyEntryPreloadRequestedHandle);
+		LobbyRuntime->OnLobbyEntryContentReleased.Remove(LobbyEntryReleasedHandle);
+	}
+	LobbyEntryPreloadRequestedHandle.Reset();
+	LobbyEntryReleasedHandle.Reset();
+	LobbyContentLease.Reset();
 
 	if (StatusViewModel && StatusViewModel->IsViewModelInitialized())
 	{
@@ -486,4 +521,37 @@ bool UUiSubsystem::CloseGameSettings(const UUserWidget* ExpectedOwner)
 	if (!IsValid(Settings) || !Settings->GetParent()) return false;
 	Settings->CloseSettings();
 	return true;
+}
+
+// 설정 서브시스템이 사용자 지정 커서 설정이 준비됐다고 알리면 커서 위젯을 뷰포트에 건다.
+void UUiSubsystem::HandleCustomMouseCursorSettingsReady(
+	APlayerController* PlayerController,
+	const UGameSettingDefinition& SettingDefinition)
+{
+	UMouseCursorWidget::InstallConfiguredCursor(PlayerController, SettingDefinition);
+}
+
+// 로비 진입 준비가 시작되면 위젯 정의와 로비 화면 콘텐츠를 붙잡는다. 실패한 이전 요청은 다시 시도한다.
+void UUiSubsystem::HandleLobbyEntryContentPreloadRequested()
+{
+	BeginConfiguredWidgetDefinitionPreload();
+	if (LobbyContentLease.IsValid() && LobbyContentLease->HasFailed())
+	{
+		LobbyContentLease.Reset();
+	}
+	if (!LobbyContentLease.IsValid())
+	{
+		LobbyContentLease = AcquireConfiguredUiContent(EUiContentGroup::Lobby);
+	}
+}
+
+// 경기 화면이 자리를 잡으면 로비 전용 화면 콘텐츠를 놓는다.
+void UUiSubsystem::HandleLobbyEntryContentReleased()
+{
+	LobbyContentLease.Reset();
+}
+
+bool UUiSubsystem::IsLobbyContentLoading() const
+{
+	return LobbyContentLease.IsValid() && LobbyContentLease->IsLoading();
 }

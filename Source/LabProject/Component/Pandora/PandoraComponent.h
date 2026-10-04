@@ -6,6 +6,7 @@
 #include "UObject/PrimaryAssetId.h"
 #include "Components/PlayerStateComponent.h"
 #include "Pandora/PandoraLoadoutTypes.h"
+#include "Pandora/PandoraSkillSourceOwner.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "PandoraComponent.generated.h"
 
@@ -79,14 +80,13 @@ struct TStructOpsTypeTraits<FReplicatedPandoraList> : public TStructOpsTypeTrait
  * 성장과 포인트는 트리 컴포넌트에 맡기고, 선택 변경에서는 기존 능력을 유지한다.
  */
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class LABPROJECT_API UPandoraComponent : public UPlayerStateComponent
+class LABPROJECT_API UPandoraComponent : public UPlayerStateComponent, public IPandoraSkillSourceOwner
 {
 	GENERATED_BODY()
 
 private:
 	friend struct FReplicatedPandoraEntry;
 	friend struct FReplicatedPandoraList;
-	friend class UPandoraSkillSource;
 
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
@@ -159,8 +159,8 @@ private:
 	void OnRep_PandoraLoadoutSlots();
 
 	void HandleGrantedAbilityRemoved(const FGameplayAbilitySpec& Spec);
-	void HandleSkillSourceReplicated(UPandoraSkillSource* Source);
-	void HandleSkillSourceDestroyed(UPandoraSkillSource* Source);
+	virtual void HandleSkillSourceReplicated(UPandoraSkillSource* Source) override;
+	virtual void HandleSkillSourceDestroyed(UPandoraSkillSource* Source) override;
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool AddOwnedPandoraEntry(const UPandoraDefinition* PandoraDefinition);
@@ -170,6 +170,7 @@ private:
 	bool HasPandoraAuthority() const;
 	int32 ResolveSelectedPandoraRuntimeLevel(const UPandoraDefinition* PandoraDefinition) const;
 	EEnum_Direction ResolvePandoraSelectionDirection(const UPandoraDefinition* PandoraDefinition, EEnum_Direction RequestedDirection) const;
+	UPdAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
 	const UEquipmentComponent* GetCurrentEquipmentComponent() const;
 	const UItemDefinition* GetCurrentWeaponDefinition() const;
 	EEnum_Direction GetCurrentWeaponLoadoutDirection() const;

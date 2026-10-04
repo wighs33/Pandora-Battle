@@ -4,6 +4,7 @@
 #include "GameFramework/PlayerState.h"
 #include "AbilitySystemInterface.h"
 #include "Component/Player/PlayerMatchComponent.h"
+#include "Mode/PdLobbyRuntimeTypes.h"
 #include "PdPlayerState.generated.h"
 
 class UPandoraComponent;
@@ -56,9 +57,16 @@ public:
 	const FString& GetBackendPlayerSessionId() const { return BackendPlayerSessionId; }
 	const FString& GetBackendPlayerId() const { return BackendPlayerId; }
 
+	// 로비가 경기로 넘기는 외형·판도라 슬롯. 서버 전용 값이며 복제하지 않는다.
+	void SetLobbyTravelHandoff(const FLobbyTravelHandoff& InHandoff) { LobbyTravelHandoff = InHandoff; }
+	const FLobbyTravelHandoff& GetLobbyTravelHandoff() const { return LobbyTravelHandoff; }
+
 private:
 	FString BackendPlayerSessionId;
 	FString BackendPlayerId;
+
+	UPROPERTY(Transient)
+	FLobbyTravelHandoff LobbyTravelHandoff;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Loadout", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USelectingPandoraAndWeaponComponent> SelectingPandoraAndWeaponComponent;

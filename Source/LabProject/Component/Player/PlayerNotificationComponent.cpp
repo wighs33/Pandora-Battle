@@ -10,7 +10,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Mode/PdPlayerController.h"
-#include "UI/HUD/Notification/NotificationData.h"
+#include "Common/NotificationData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerNotificationComponent)
 

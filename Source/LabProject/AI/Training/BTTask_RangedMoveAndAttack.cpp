@@ -246,7 +246,6 @@ bool UBTTask_RangedMoveAndAttack::TryAttack(AAIController* AIController, APawn* 
 	}
 
 	UpdateFacing(AIController, Enemy, TargetActor, 0.0f);
-	Enemy->SetAttackTarget(TargetActor);
 	Enemy->Attack();
 	return true;
 }

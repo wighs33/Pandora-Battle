@@ -16,7 +16,7 @@
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Definition/UI/RecordDefinition.h"
 #include "UI/Record/RecordEntryWidget.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RecordWidget)
 

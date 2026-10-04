@@ -2,10 +2,8 @@
 
 #include "Camera/PlayerCameraManager.h"
 #include "EnhancedInputSubsystems.h"
-#include "Engine/GameViewportClient.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
-#include "Engine/Texture2D.h"
 #include "GameFramework/InputSettings.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerInput.h"
@@ -16,8 +14,6 @@
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Settings/InputSettingsSaveGame.h"
 #include "Settings/GameSettingsSubsystem.h"
-#include "UI/Cursor/MouseCursorWidget.h"
-#include "Widgets/SWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LocalPlayerSettingsSubsystem)
 
@@ -70,24 +66,6 @@ namespace
 		static const FString InputSettingsSaveSlotName(TEXT("InputSettings"));
 		return InputSettingsSaveSlotName;
 	}
-
-	constexpr EMouseCursor::Type CustomCursorMappedTypes[] =
-	{
-		EMouseCursor::Default,
-		EMouseCursor::TextEditBeam,
-		EMouseCursor::ResizeLeftRight,
-		EMouseCursor::ResizeUpDown,
-		EMouseCursor::ResizeSouthEast,
-		EMouseCursor::ResizeSouthWest,
-		EMouseCursor::CardinalCross,
-		EMouseCursor::Crosshairs,
-		EMouseCursor::Hand,
-		EMouseCursor::GrabHand,
-		EMouseCursor::GrabHandClosed,
-		EMouseCursor::SlashedCircle,
-		EMouseCursor::EyeDropper,
-		EMouseCursor::Custom,
-	};
 }
 
 ULocalPlayerSettingsSubsystem* ULocalPlayerSettingsSubsystem::Get(const APlayerController* PlayerController)
@@ -148,49 +126,12 @@ bool ULocalPlayerSettingsSubsystem::ApplyLoadedConfiguredMouseCursor(
 		return false;
 	}
 
-	UTexture2D* CursorTexture = SettingDefinition->MouseCursorTexture.Get();
-	if (!CursorTexture)
+	if (!SettingDefinition->MouseCursorTexture.IsValid() || !OnCustomMouseCursorSettingsReady.IsBound())
 	{
 		return false;
 	}
 
-	UMouseCursorWidget* CursorWidget = CreateWidget<UMouseCursorWidget>(PlayerController, UMouseCursorWidget::StaticClass());
-	if (!CursorWidget)
-	{
-		return false;
-	}
-
-	const EMouseCursor::Type CursorType = SettingDefinition->MouseCursorType.GetValue();
-	CursorWidget->ConfigureCursor(
-		CursorTexture,
-		SettingDefinition->MouseCursorSize,
-		SettingDefinition->MouseCursorHotSpot);
-
-	UGameViewportClient* ViewportClient = nullptr;
-	if (const ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
-	{
-		ViewportClient = LocalPlayer->ViewportClient;
-		if (ViewportClient)
-		{
-			ViewportClient->SetUseSoftwareCursorWidgets(true);
-		}
-	}
-
-	if (ViewportClient)
-	{
-		const TSharedRef<SWidget> CursorSlateWidget = CursorWidget->TakeWidget();
-		for (const EMouseCursor::Type MappedCursorType : CustomCursorMappedTypes)
-		{
-			ViewportClient->SetSoftwareCursorWidget(MappedCursorType, CursorSlateWidget);
-		}
-	}
-	else
-	{
-		PlayerController->SetMouseCursorWidget(CursorType, CursorWidget);
-	}
-
-	PlayerController->DefaultMouseCursor = CursorType;
-	PlayerController->CurrentMouseCursor = CursorType;
+	OnCustomMouseCursorSettingsReady.Broadcast(PlayerController, *SettingDefinition);
 	return true;
 }
 

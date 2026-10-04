@@ -11,6 +11,7 @@ class AController;
 class UAbilitySystemComponent;
 class UActorComponent;
 class UCharacterMovementComponent;
+class UEquipmentComponent;
 class UGameSettingDefinition;
 class UPdAbilitySystemComponent;
 struct FOnAttributeChangeData;
@@ -100,6 +101,8 @@ private:
 	FDelegateHandle MovementSpeedAttributeChangedDelegateHandle;
 	FDelegateHandle MovementStaminaAttributeChangedDelegateHandle;
 	FDelegateHandle MovementMaxStaminaAttributeChangedDelegateHandle;
+	TWeakObjectPtr<UEquipmentComponent> MovementEquipmentComponent;
+	FDelegateHandle WeaponDefinitionChangedDelegateHandle;
 	TWeakObjectPtr<UActorComponent> LowStaminaEffectComponent;
 	FName CachedLowStaminaEffectComponentName = NAME_None;
 

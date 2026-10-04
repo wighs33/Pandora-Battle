@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Component/Match/MatchOutcomeRules.h"
+#include "Experience/ExperienceHostGameMode.h"
 #include "GameFramework/GameModeBase.h"
 #include "UObject/PrimaryAssetId.h"
 #include "ExperienceGameMode.generated.h"
@@ -31,7 +32,7 @@ DECLARE_LOG_CATEGORY_EXTERN(PdExperienceGameModeLog, Log, All);
  * 경기 진행, 스폰 배정, 플레이어 지급의 실행 상태는 각 전용 컴포넌트가 관리한다.
  */
 UCLASS(Blueprintable)
-class LABPROJECT_API AExperienceGameMode : public AGameModeBase
+class LABPROJECT_API AExperienceGameMode : public AGameModeBase, public IExperienceHostGameMode
 {
 	GENERATED_BODY()
 
@@ -89,7 +90,7 @@ protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	bool CanStartGameplay() const;
 	void StartExperienceLoad();
-	FPrimaryAssetId GetConfiguredExperienceId() const;
+	virtual FPrimaryAssetId GetConfiguredExperienceId() const override;
 
 private:
 	UExperienceManagerComponent* GetExperienceManager() const;

@@ -10,6 +10,11 @@ class UInputMappingContext;
 class UInputSettingsSaveGame;
 class UGameSettingDefinition;
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(
+	FOnCustomMouseCursorSettingsReady,
+	APlayerController* /*PlayerController*/,
+	const UGameSettingDefinition& /*SettingDefinition*/);
+
 UCLASS()
 class LABPROJECT_API ULocalPlayerSettingsSubsystem : public ULocalPlayerSubsystem
 {
@@ -36,6 +41,10 @@ public:
 	bool AddInputMappingContext(UInputMappingContext* InputMappingContext, int32 Priority) const;
 	bool RemoveInputMappingContext(UInputMappingContext* InputMappingContext) const;
 	TArray<FKey> QueryKeysMappedToAction(const UInputAction* InputAction) const;
+
+public:
+	/** 사용자 지정 커서 설정이 준비되면 알린다. 커서 위젯을 만들어 뷰포트에 거는 일은 UI가 맡는다. */
+	FOnCustomMouseCursorSettingsReady OnCustomMouseCursorSettingsReady;
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------

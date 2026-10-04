@@ -22,6 +22,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Interface/AttackTargetSourceInterface.h"
 #include "GameFramework/PlayerController.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Weapon/Gun.h"
@@ -275,7 +276,6 @@ void UEnemyCombatComponent::ShutdownRuntime()
 
 	Enemy->GetWorldTimerManager().ClearTimer(InitialCombatTimerHandle);
 	Enemy->GetWorldTimerManager().ClearTimer(AttackTimerHandle);
-	AttackTarget = nullptr;
 	bHandlePossessedWhenContentReady = false;
 	RuntimeContentLease.Reset();
 }
@@ -371,20 +371,6 @@ bool UEnemyCombatComponent::IsActorValidAttackTarget(
 	return IsValidEnemyAttackTarget(GetEnemyOwnerConst(), InActor);
 }
 
-void UEnemyCombatComponent::SetAttackTarget(AActor* InAttackTarget)
-{
-	AttackTarget = IsActorValidAttackTarget(InAttackTarget)
-		? InAttackTarget
-		: nullptr;
-}
-
-AActor* UEnemyCombatComponent::GetCachedAttackTarget() const
-{
-	return IsActorValidAttackTarget(AttackTarget.Get())
-		? AttackTarget.Get()
-		: nullptr;
-}
-
 void UEnemyCombatComponent::SetUseNearestPlayerWhenTargetUnset(
 	const bool bInUseNearestPlayer)
 {
@@ -399,9 +385,12 @@ AActor* UEnemyCombatComponent::ResolveAttackTarget() const
 		return nullptr;
 	}
 
-	if (AActor* CachedTarget = GetCachedAttackTarget())
+	const IAttackTargetSourceInterface* TargetSource =
+		Cast<IAttackTargetSourceInterface>(Enemy->GetController());
+	if (AActor* SelectedTarget = TargetSource ? TargetSource->GetSelectedAttackTarget() : nullptr;
+		IsActorValidAttackTarget(SelectedTarget))
 	{
-		return CachedTarget;
+		return SelectedTarget;
 	}
 
 	if (!Settings.bUseNearestPlayerWhenTargetUnset)
@@ -899,7 +888,6 @@ bool UEnemyCombatComponent::RequestMoveToAttackTarget(
 		return false;
 	}
 
-	SetAttackTarget(InAttackTarget);
 	return MoveToAttackTarget(InAttackTarget);
 }
 

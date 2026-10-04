@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Map/PlayerMapRegion.h"
+#include "Common/PlayerMapRegion.h"
 #include "PlayerMapRegionTrigger.generated.h"
 
 class UBoxComponent;

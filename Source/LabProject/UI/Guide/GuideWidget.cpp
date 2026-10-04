@@ -14,7 +14,7 @@
 #include "Engine/Texture2D.h"
 #include "InputCoreTypes.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "Audio/BgmSubsystem.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 

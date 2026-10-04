@@ -9,7 +9,6 @@
 #include "Animation/AnimMontage.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/DataValidation.h"
-#include "Weapon/WeaponBase.h"
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ItemDefinition)
@@ -51,7 +50,8 @@ namespace
 		const TSoftClassPtr<ClassType>& SoftClass,
 		const TCHAR* FieldName)
 	{
-		if (!SoftClass.IsNull() && !SoftClass.LoadSynchronous())
+		// 클래스 타입을 몰라도 되도록 경로로 불러와 확인한다. 허용 타입은 편집기 속성이 이미 제한한다.
+		if (!SoftClass.IsNull() && !SoftClass.ToSoftObjectPath().TryLoad())
 		{
 			MarkItemInvalid(Context, Result, FText::Format(
 				NSLOCTEXT("ItemDefinition", "InvalidSoftClassReference", "{0} could not be loaded: {1}"),

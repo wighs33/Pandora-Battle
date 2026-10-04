@@ -30,6 +30,11 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkillTargetedAreaAction, Log, All);
 
+USkillTargetedAreaAction::USkillTargetedAreaAction()
+{
+	Settings.TargetActorClass = AGroundTargetActor::StaticClass();
+}
+
 void USkillTargetedAreaAction::OnStart()
 {
 	const auto* ActorInfo = GetAbility()->GetCurrentActorInfo();

@@ -1,7 +1,7 @@
 #include "Component/Lobby/LobbyPlayerStateComponent.h"
 
 #include "Component/Player/PlayerMatchComponent.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
@@ -81,8 +81,8 @@ bool ULobbyPlayerStateComponent::HasAuthority() const
 // 같은 PlayerState가 소유한 식별 정보 컴포넌트를 조회한다.
 UPlayerMatchComponent* ULobbyPlayerStateComponent::GetPlayerMatchComponent() const
 {
-	const APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>();
-	return PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
+	const APlayerState* PlayerState = GetPlayerState<APlayerState>();
+	return PlayerState ? PlayerState->FindComponentByClass<UPlayerMatchComponent>() : nullptr;
 }
 
 // 공통 표시 이름과 로비 입력 상태를 함께 갱신하고 변경된 로비 값만 복제 대상으로 표시한다.

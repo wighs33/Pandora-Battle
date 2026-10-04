@@ -38,6 +38,8 @@ public:
 	FSkillAreaSettings Settings;
 
 	// Public API ------------------------------------------------------------------------------------------------------
+	USkillTargetedAreaAction();
+
 	UFUNCTION(BlueprintCallable, Category = "Skill|AOE")
 	void StartTargeting();
 

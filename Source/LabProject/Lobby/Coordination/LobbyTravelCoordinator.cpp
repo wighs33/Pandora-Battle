@@ -5,7 +5,6 @@
 #include "Common/Enum_Direction.h"
 #include "Common/GameSessionConstants.h"
 #include "Component/Pandora/PandoraComponent.h"
-#include "Component/Player/PlayerMatchComponent.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
@@ -69,7 +68,7 @@ void ULobbyTravelCoordinator::PrepareMatchTravel(bool bSuppressMatchTimer)
 		return;
 	}
 	CacheSelectedMapForTravel(SelectedMapOption);
-	CacheLobbyTravelState(GameMode->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>());
+	PrepareLobbyTravelHandoffs();
 	if (bSuppressMatchTimer) { TravelUrl += FString::Printf(TEXT("?%s=1"), LabGameSession::NoMatchTimerOption); }
 	PreloadContentAndScheduleTravel(TravelUrl);
 }
@@ -110,64 +109,51 @@ void ULobbyTravelCoordinator::CacheSelectedMapForTravel(const FLobbyMatchMapOpti
 	LobbySubsystem->SetLobbySelectedMapKey(SelectedMapOption.MapKey);
 }
 
-// 이전 경기에서 남은 캐시를 비운 후, 현재 참가자들의 매치 식별 정보·스킨·판도라 슬롯을 맵 이동용으로 보관한다.
-void ULobbyTravelCoordinator::CacheLobbyTravelState(ULobbyRuntimeSubsystem* LobbySubsystem) const
+// 현재 참가자마다 장착 스킨과 판도라 슬롯을 PlayerState에 적는다. 매치 식별 정보와 함께 심리스 이동의 CopyProperties로 경기에 넘어간다.
+void ULobbyTravelCoordinator::PrepareLobbyTravelHandoffs() const
 {
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	const AGameStateBase* GameState = GameMode ? GameMode->GetGameState<AGameStateBase>() : nullptr;
-	if (!LobbySubsystem || !GameState)
+	if (!GameState)
 	{
 		return;
 	}
 
-	LobbySubsystem->ResetCachedPlayerMatchIdentities();
-	LobbySubsystem->ResetCachedLobbyEquippedSkinSlots();
-	LobbySubsystem->ResetCachedLobbyPandoraLoadouts();
 	for (APlayerState* PlayerState : GameState->PlayerArray)
 	{
-		if (const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState))
+		if (APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState))
 		{
-			CacheLobbyPlayerTravelState(LobbySubsystem, LobbyPlayerState);
+			LobbyPlayerState->SetLobbyTravelHandoff(BuildLobbyTravelHandoff(*LobbyPlayerState));
 		}
 	}
 }
 
-// 한 참가자의 매치 식별 정보와 장착 스킨, 좌·상·우 판도라 슬롯을 PlayerState 기준으로 로비 서브시스템에 저장한다.
-void ULobbyTravelCoordinator::CacheLobbyPlayerTravelState(
-	ULobbyRuntimeSubsystem* LobbySubsystem, const APdPlayerState* LobbyPlayerState) const
+// 한 참가자의 장착 스킨과 좌·상·우 판도라 슬롯을 애셋 이름으로 모은다.
+FLobbyTravelHandoff ULobbyTravelCoordinator::BuildLobbyTravelHandoff(const APdPlayerState& LobbyPlayerState) const
 {
+	FLobbyTravelHandoff Handoff;
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !LobbySubsystem || !LobbyPlayerState)
-	{
-		return;
-	}
-
-	LobbySubsystem->CachePlayerMatchIdentityForPlayerState(
-		LobbyPlayerState, LobbyPlayerState->GetPlayerMatchComponent()->GetPlayerMatchIdentity());
-
-	const APlayerController* LobbyPlayerController =
-		LobbyPlayerState->GetPlayerController();
-	if (!LobbyPlayerController)
+	const APlayerController* LobbyPlayerController = LobbyPlayerState.GetPlayerController();
+	if (!LobbyPlayerController && GameMode)
 	{
 		for (FConstPlayerControllerIterator It = GameMode->GetWorld()->GetPlayerControllerIterator(); It; ++It)
 		{
-			if (It->Get() && It->Get()->PlayerState == LobbyPlayerState) { LobbyPlayerController = It->Get(); break; }
+			if (It->Get() && It->Get()->PlayerState == &LobbyPlayerState) { LobbyPlayerController = It->Get(); break; }
 		}
 	}
-	LobbySubsystem->CacheLobbyEquippedSkinSlotsForPlayerState(LobbyPlayerState, BuildEquippedSkinNamesBySlot(LobbyPlayerController));
+	Handoff.EquippedSkinNamesBySlot = BuildEquippedSkinNamesBySlot(LobbyPlayerController);
 
-	TMap<EEnum_Direction, FName> PandoraNamesByDirection;
-	if (const UPandoraComponent* PandoraComponent = LobbyPlayerState->GetPandoraComponent())
+	if (const UPandoraComponent* PandoraComponent = LobbyPlayerState.GetPandoraComponent())
 	{
 		for (const EEnum_Direction Direction : {EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right})
 		{
 			if (const UPandoraDefinition* PandoraDefinition = PandoraComponent->GetPandoraLoadoutDefinition(Direction))
 			{
-				PandoraNamesByDirection.Add(Direction, PandoraDefinition->GetFName());
+				Handoff.PandoraNamesByDirection.Add(Direction, PandoraDefinition->GetFName());
 			}
 		}
 	}
-	LobbySubsystem->CacheLobbyPandoraLoadoutForPlayerState(LobbyPlayerState, PandoraNamesByDirection);
+	return Handoff;
 }
 
 // 로비 Pawn의 장착 스킨을 슬롯 태그와 애셋 이름으로 변환해, 새 맵에서 같은 외형을 복구할 수 있게 한다.

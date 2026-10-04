@@ -2,7 +2,6 @@
 
 #include "Character/PdPlayer.h"
 #include "Component/Player/PaintCanvas/PaintCanvasDisplay.h"
-#include "Definition/UI/WidgetClassDefinition.h"
 #include "Engine/Canvas.h"
 #include "Engine/GameInstance.h"
 #include "Engine/Texture2D.h"
@@ -134,11 +133,7 @@ bool UPaintCanvasComponent::EnsurePaintCanvasRenderResources(const bool bResetCa
 
     if (!PaintBrushMaterial)
     {
-       const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
-       UMaterialInterface* BrushMaterialParent = WidgetDefinition
-           ? WidgetDefinition->GetSkinWidgetSettings().PaintBrushMaterial.LoadSynchronous()
-           : nullptr;
-       if (BrushMaterialParent)
+       if (UMaterialInterface* BrushMaterialParent = BrushMaterial.LoadSynchronous())
        {
           PaintBrushMaterial = UMaterialInstanceDynamic::Create(BrushMaterialParent, this);
           if (PaintBrushMaterial)

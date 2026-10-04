@@ -34,8 +34,6 @@ public:
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	bool HasBlockingWait() const { return !ActiveWaitReasons.IsEmpty(); }
-	/** Server travel preparation, paired by LobbyTravelCoordinator's existing client RPCs. */
-	void SetGameStartPreparationPending(bool bPending);
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -78,7 +76,6 @@ private:
 	TSet<EWaitReason> ActiveWaitReasons;
 	bool bIsDeinitializing = false;
 	bool bTravelPending = false;
-	bool bGameStartPreparationPending = false;
 	TWeakObjectPtr<UWorld> TravelSourceWorld;
 	FString TravelDestinationMap;
 	uint64 CancelableSessionRequestId = 0;

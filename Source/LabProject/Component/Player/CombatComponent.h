@@ -12,13 +12,12 @@
 #include "CombatComponent.generated.h"
 
 class AActor;
-class APdHUD;
 class ACharacterBase;
 class APdPlayer;
 class AWeaponBase;
 class FContentLease;
 class UAbilitySystemComponent;
-class UAttackAbility;
+class UGameplayAbility;
 class UAnimMontage;
 class UGameplayEffect;
 class UPdAbilitySystemComponent;
@@ -98,13 +97,12 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ACharacterBase* GetCharacter() const;
-	void BindAttackSpeed(UPdAbilitySystemComponent* AbilitySystem);
+	void BindAbilitySystem(UPdAbilitySystemComponent* AbilitySystem);
 	APdPlayer* GetPlayerOwner() const;
-	APdHUD* GetPdHUD() const;
 	AWeaponBase* GetCurrentWeaponActor() const;
 	UAbilitySystemComponent* GetPlayerAbilitySystemComponent() const;
 
-	UAttackAbility* ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
+	UGameplayAbility* ResolveActiveAttackAbility(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
 	UAnimMontage* GetCachedUnarmedAttackMontage() const;
 	void BeginUnarmedAttackMontagePreload();
 	void ReleaseUnarmedAttackMontagePreload();
@@ -114,7 +112,7 @@ private:
 	bool TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter, AWeaponBase* WeaponActor) const;
 	bool ShouldUseRangedAttackAbility(const AWeaponBase* WeaponActor) const;
 	FGameplayTag GetSelectedAttackAbilityTag(const AWeaponBase* WeaponActor) const;
-	void RequestNextAttackSection(UAttackAbility* ActiveAttackAbility);
+	void RequestNextAttackSection(UGameplayAbility* ActiveAttackAbility);
 	bool TryActivateAttackAbility(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayTagContainer& AbilityTags) const;
 	bool TryStartAutomaticFire();
 	void StartUnarmedAttackTrace();
@@ -173,7 +171,7 @@ protected:
 	uint32 UnarmedAttackTraceGeneration = 0;
 	double LastPrimaryAttackRequestTime = 0.0;
 	FAbilitySystemReadySubscription AbilitySystemSubscription;
-	TWeakObjectPtr<UPdAbilitySystemComponent> AttackSpeedAbilitySystem;
+	TWeakObjectPtr<UPdAbilitySystemComponent> BoundAbilitySystem;
 	FDelegateHandle AttackSpeedChangedDelegateHandle;
 	FTimerHandle UnarmedAttackTraceTimerHandle;
 	FTimerHandle AutomaticFireTimerHandle;

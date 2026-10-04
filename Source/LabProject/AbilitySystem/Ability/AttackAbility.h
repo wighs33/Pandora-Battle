@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "GameplayTagContainer.h"
+#include "Interface/ComboAttackInterface.h"
 #include "AttackAbility.generated.h"
 
 class UGameplayEffect;
@@ -10,7 +11,7 @@ class UAbilityTask_WaitInputPress;
 class AWeaponBase;
 
 UCLASS(Blueprintable)
-class LABPROJECT_API UAttackAbility : public UPdGameplayAbility
+class LABPROJECT_API UAttackAbility : public UPdGameplayAbility, public IComboAttackInterface
 {
 	GENERATED_BODY()
 
@@ -28,12 +29,14 @@ protected:
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 public:
+	// Interface Implementations ---------------------------------------------------------------------------------------
+	virtual FName GetNextAttackSectionName() const override;
+	virtual bool RequestNextComboInput() override;
+	virtual bool TryConsumeLateComboInput() override;
+
 	// Public API ------------------------------------------------------------------------------------------------------
 	UAttackAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	FName GetNextAttackSectionName() const;
-	bool RequestNextComboInput();
-	bool TryConsumeLateComboInput();
 	bool RequestJumpToSection(FName RequestedSectionName);
 
 protected:

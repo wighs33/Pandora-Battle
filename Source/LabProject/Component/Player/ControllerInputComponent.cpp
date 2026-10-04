@@ -11,16 +11,15 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/HUD.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayTagContainer.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Lobby/Contents/LobbyHUD.h"
 #include "Mode/PdPlayerController.h"
-#include "Mode/PdHUD.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/ControllerPresentationComponent.h"
 #include "Definition/Player/ControllerInputDefinition.h"
@@ -31,8 +30,7 @@
 #include "Definition/Level/LevelDefinition.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
-#include "UI/Info/InfoUiTypes.h"
-#include "UI/Core/PdUIActionRouter.h"
+#include "Interface/HudInputInterface.h"
 #include "Engine/LocalPlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerInputComponent)
@@ -575,7 +573,7 @@ void UControllerInputComponent::HandleInteractInput(const FInputActionValue& Inp
 void UControllerInputComponent::HandleOpenInfoProfileInputStarted(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
-	if (APdHUD* HUD = GetPdHUD())
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->OpenInfoUiFocused(EInfoUiSection::Profile);
 	}
@@ -584,7 +582,7 @@ void UControllerInputComponent::HandleOpenInfoProfileInputStarted(const FInputAc
 void UControllerInputComponent::HandleOpenInfoItemInputStarted(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
-	if (APdHUD* HUD = GetPdHUD())
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->OpenInfoUiFocused(EInfoUiSection::Item);
 	}
@@ -593,7 +591,7 @@ void UControllerInputComponent::HandleOpenInfoItemInputStarted(const FInputActio
 void UControllerInputComponent::HandleOpenInfoSkinInputStarted(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
-	if (APdHUD* HUD = GetPdHUD())
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->OpenInfoUiFocused(EInfoUiSection::Skin);
 	}
@@ -602,7 +600,7 @@ void UControllerInputComponent::HandleOpenInfoSkinInputStarted(const FInputActio
 void UControllerInputComponent::HandleOpenInfoPandoraInputStarted(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
-	if (APdHUD* HUD = GetPdHUD())
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->OpenInfoUiFocused(EInfoUiSection::Pandora);
 	}
@@ -611,7 +609,7 @@ void UControllerInputComponent::HandleOpenInfoPandoraInputStarted(const FInputAc
 void UControllerInputComponent::HandleOpenInfoMapInputStarted(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
-	if (APdHUD* HUD = GetPdHUD())
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->OpenInfoUiFocused(EInfoUiSection::Map);
 	}
@@ -629,7 +627,7 @@ void UControllerInputComponent::HandleOpenSettingUiInputStarted(const FInputActi
 		return;
 	}
 
-	if (APdHUD* HUD = GetPdHUD())
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->OnOpenSettingsMenuInputStarted(InputValue);
 	}
@@ -651,7 +649,7 @@ void UControllerInputComponent::HandleEscapeInputStarted(const FInputActionValue
 		}
 	}
 
-	if (APdHUD* HUD = GetPdHUD())
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->HandleEscapeInput();
 		bSelectPandoraActionOpened = false;
@@ -667,9 +665,9 @@ void UControllerInputComponent::HandleOpenLobbyInputStarted(const FInputActionVa
 		return;
 	}
 
-	if (ALobbyHUD* LobbyHUD = Cast<ALobbyHUD>(GetPdHUD()))
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
-		LobbyHUD->CreateLobbyUI();
+		HUD->OpenLobbyUi();
 	}
 }
 
@@ -683,7 +681,7 @@ void UControllerInputComponent::HandleSelectPandoraInputStarted(const FInputActi
 		return;
 	}
 
-	if (APdHUD* HUD = GetPdHUD())
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->OnSelectPandoraInputStarted(InputValue);
 		if (HUD->IsSelectPandoraUiOpen())
@@ -703,7 +701,7 @@ void UControllerInputComponent::HandleSelectPandoraInputEnded(const FInputAction
 	}
 
 	bSelectPandoraActionOpened = false;
-	if (APdHUD* HUD = GetPdHUD())
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->OnSelectPandoraInputEnded(InputValue);
 	}
@@ -713,7 +711,7 @@ void UControllerInputComponent::HandlePandoraTreeInputStarted(const FInputAction
 {
 	static_cast<void>(InputValue);
 
-	if (APdHUD* HUD = GetPdHUD())
+	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->OnPandoraTreeInputStarted(InputValue);
 	}
@@ -1023,10 +1021,10 @@ APdPlayerController* UControllerInputComponent::GetPdController() const
 	return Cast<APdPlayerController>(GetOwner());
 }
 
-APdHUD* UControllerInputComponent::GetPdHUD() const
+IHudInputInterface* UControllerInputComponent::GetHudInput() const
 {
 	const APdPlayerController* Controller = GetPdController();
-	return Controller ? Cast<APdHUD>(Controller->GetHUD()) : nullptr;
+	return Controller ? Cast<IHudInputInterface>(Controller->GetHUD()) : nullptr;
 }
 
 APdPlayer* UControllerInputComponent::GetPlayerCharacter() const
@@ -1038,15 +1036,15 @@ APdPlayer* UControllerInputComponent::GetPlayerCharacter() const
 UPlayerRewardComponent* UControllerInputComponent::GetPlayerRewardComponent() const
 {
 	const APdPlayerController* Controller = GetPdController();
-	APdPlayerState* PlayerState = Controller ? Controller->GetPlayerState<APdPlayerState>() : nullptr;
-	return PlayerState ? PlayerState->GetPlayerRewardComponent() : nullptr;
+	APlayerState* PlayerState = Controller ? Controller->GetPlayerState<APlayerState>() : nullptr;
+	return PlayerState ? PlayerState->FindComponentByClass<UPlayerRewardComponent>() : nullptr;
 }
 
 UInventoryComponent* UControllerInputComponent::GetPlayerInventoryComponent() const
 {
 	const APdPlayerController* Controller = GetPdController();
-	APdPlayerState* PlayerState = Controller ? Controller->GetPlayerState<APdPlayerState>() : nullptr;
-	return PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
+	APlayerState* PlayerState = Controller ? Controller->GetPlayerState<APlayerState>() : nullptr;
+	return PlayerState ? PlayerState->FindComponentByClass<UInventoryComponent>() : nullptr;
 }
 
 UCombatComponent* UControllerInputComponent::GetPlayerCombatComponent() const
@@ -1057,10 +1055,8 @@ UCombatComponent* UControllerInputComponent::GetPlayerCombatComponent() const
 
 bool UControllerInputComponent::IsGameplayInputBlockedByUi() const
 {
-    const APlayerController* Controller = GetPdController();
-    const ULocalPlayer* Player = Controller ? Controller->GetLocalPlayer() : nullptr;
-    const UPdUIActionRouter* Router = Player ? Player->GetSubsystem<UPdUIActionRouter>() : nullptr;
-    return Router && Router->IsGameplayInputBlocked();
+    const IHudInputInterface* HUD = GetHudInput();
+    return HUD && HUD->IsGameplayInputBlockedByUi();
 }
 
 bool UControllerInputComponent::IsOpenLobbyInputAllowed() const

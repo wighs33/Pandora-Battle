@@ -3,7 +3,7 @@
 #include "Components/PanelWidget.h"
 #include "TimerManager.h"
 #include "UI/HUD/Notification/NotificationEntryWidget.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RightNotificationsWidget)
 

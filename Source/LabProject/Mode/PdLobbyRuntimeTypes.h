@@ -1,10 +1,25 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Common/Enum_Direction.h"
+#include "GameplayTagContainer.h"
 #include "PdLobbyRuntimeTypes.generated.h"
 
 class UMaterialInterface;
 class UTexture2D;
+
+/** 로비에서 고른 장착 스킨과 좌·상·우 판도라 슬롯. 경기 서버가 같은 외형과 슬롯을 복구하는 데 쓴다. */
+USTRUCT()
+struct LABPROJECT_API FLobbyTravelHandoff
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TMap<FGameplayTag, FName> EquippedSkinNamesBySlot;
+
+	UPROPERTY()
+	TMap<EEnum_Direction, FName> PandoraNamesByDirection;
+};
 
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FLobbyPaintCanvasStrokeCache

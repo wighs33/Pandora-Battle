@@ -27,6 +27,15 @@ void UChatBoxWidget::NativeConstruct()
 			&ThisClass::HandleChatTextCommitted);
 	}
 	SetChatInputEnabled(false);
+
+	// 채팅 메시지와 입력 명령은 소유 컨트롤러의 채팅 컴포넌트가 알린다.
+	const APlayerController* PlayerController = GetOwningPlayer();
+	ChatControllerComponent = PlayerController ? PlayerController->FindComponentByClass<UChatControllerComponent>() : nullptr;
+	if (ChatControllerComponent)
+	{
+		ChatMessageAddedHandle = ChatControllerComponent->OnChatMessageAdded().AddUObject(this, &ThisClass::AddChatMessage);
+		ChatViewCommandHandle = ChatControllerComponent->OnChatViewCommand().AddUObject(this, &ThisClass::HandleChatViewCommand);
+	}
 }
 
 void UChatBoxWidget::NativeDestruct()
@@ -43,7 +52,15 @@ void UChatBoxWidget::NativeDestruct()
 	{
 		Router->EndChatInput(GetChatInputWidget());
 	}
-	bChatFocused = false;
+	SetChatFocused(false);
+	if (ChatControllerComponent)
+	{
+		ChatControllerComponent->OnChatMessageAdded().Remove(ChatMessageAddedHandle);
+		ChatControllerComponent->OnChatViewCommand().Remove(ChatViewCommandHandle);
+		ChatControllerComponent = nullptr;
+	}
+	ChatMessageAddedHandle.Reset();
+	ChatViewCommandHandle.Reset();
 	Super::NativeDestruct();
 }
 
@@ -58,22 +75,6 @@ FReply UChatBoxWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const
 	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
 }
 
-void UChatBoxWidget::InitializeChat(
-	UChatControllerComponent* InChatControllerComponent,
-	TSubclassOf<UChatEntryWidget> InChatEntryWidgetClass,
-	const float InScrollMultiplier)
-{
-	ChatControllerComponent = InChatControllerComponent;
-
-	if (InChatEntryWidgetClass)
-	{
-		ChatEntryWidgetClass = InChatEntryWidgetClass;
-	}
-
-	ScrollMultiplier = FMath::Max(InScrollMultiplier, 1.0f);
-	SetChatInputEnabled(false);
-}
-
 void UChatBoxWidget::FocusChat()
 {
 	APlayerController* PlayerController = GetOwningPlayer();
@@ -85,14 +86,14 @@ void UChatBoxWidget::FocusChat()
 	}
 
 	SetChatInputEnabled(true);
-	bChatFocused = true;
+	SetChatFocused(true);
 
 	Router->BeginChatInput(ChatInputText);
 }
 
 void UChatBoxWidget::ExitChat()
 {
-	bChatFocused = false;
+	SetChatFocused(false);
 	SetChatInputText(FText::GetEmpty());
 	SetChatInputEnabled(false);
 
@@ -159,6 +160,38 @@ void UChatBoxWidget::HandleChatTextCommitted(const FText& Text, const ETextCommi
 	if (CommitMethod == ETextCommit::OnEnter)
 	{
 		SubmitChatInput();
+	}
+}
+
+void UChatBoxWidget::HandleChatViewCommand(const EChatViewCommand Command)
+{
+	switch (Command)
+	{
+	case EChatViewCommand::Focus:
+		FocusChat();
+		break;
+	case EChatViewCommand::Exit:
+		ExitChat();
+		break;
+	case EChatViewCommand::ScrollUp:
+		Scroll(true);
+		break;
+	case EChatViewCommand::ScrollDown:
+		Scroll(false);
+		break;
+	case EChatViewCommand::SubmitInput:
+		SubmitChatInput();
+		break;
+	}
+}
+
+// 입력 처리는 채팅 컴포넌트가 포커스 여부로 갈라 보내므로, 포커스가 바뀔 때마다 알려 준다.
+void UChatBoxWidget::SetChatFocused(const bool bFocused)
+{
+	bChatFocused = bFocused;
+	if (ChatControllerComponent)
+	{
+		ChatControllerComponent->SetChatFocused(bFocused);
 	}
 }
 

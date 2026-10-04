@@ -5,7 +5,6 @@
 #include "PlayerRewardComponent.generated.h"
 
 class AActor;
-class APdPlayerState;
 class APlayerState;
 class FContentLease;
 class UContentDataSubsystem;
@@ -47,7 +46,6 @@ private:
 	void GrantPlayerKillReward();
 	void ApplyMonsterDefeatRewards(const URewardDefinition* RewardDefinition);
 
-	APdPlayerState* GetPdPlayerState() const;
 	UContentDataSubsystem* FindContentDataSubsystem() const;
 
 private:

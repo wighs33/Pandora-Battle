@@ -6,6 +6,7 @@
 #include "ProjectBootstrapSettings.generated.h"
 
 class UPdGameInstanceDefinition;
+class UWidgetComponent;
 
 /**
  * 네이티브 코드에 콘텐츠 이름을 넣지 않고 프로젝트 초기화 에셋을 선택하며,
@@ -33,6 +34,10 @@ public:
 	{
 		return GameEntryRequiredPrimaryAssetTypes;
 	}
+	const TSoftClassPtr<UWidgetComponent>& GetCharacterHealthBarComponentClass() const
+	{
+		return CharacterHealthBarComponentClass;
+	}
 
 private:
 	UPROPERTY(Config, EditAnywhere, Category = "Content",
@@ -48,4 +53,8 @@ private:
 	/** Every registered asset of these primary asset types is loaded before gameplay. */
 	UPROPERTY(Config, EditAnywhere, Category = "Content|Game Entry")
 	TArray<FPrimaryAssetType> GameEntryRequiredPrimaryAssetTypes;
+
+	/** 캐릭터가 머리 위 체력바로 만드는 위젯 컴포넌트 클래스. 캐릭터 BP는 이 하위 객체의 값을 덮어쓴다. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character|Presentation")
+	TSoftClassPtr<UWidgetComponent> CharacterHealthBarComponentClass;
 };

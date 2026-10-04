@@ -2,14 +2,13 @@
 
 #include "AIController.h"
 #include "AbilitySystem/Ability/Reactive/ReactiveRecoveryAbility.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/CharacterDeathComponent.h"
-#include "Component/Character/CharacterHealthBarComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -59,7 +58,7 @@ void UAbilityStateComponent::InitializeAbilitySystemActorInfo()
 		ClearAbilitySystemActorInfo();
 	}
 	// 이전 Pawn의 늦은 초기화 요청으로 PlayerState의 새 Avatar를 빼앗지 않는다.
-	if (const APdPlayerState* PlayerState = Cast<APdPlayerState>(OwnerActor); PlayerState && PlayerState->GetPawn() != AvatarActor)
+	if (const APlayerState* PlayerState = Cast<APlayerState>(OwnerActor); PlayerState && PlayerState->GetPawn() != AvatarActor)
 	{
 		ClearAbilitySystemActorInfo();
 		return;
@@ -69,10 +68,10 @@ void UAbilityStateComponent::InitializeAbilitySystemActorInfo()
 		UE_LOG(LogAbilityStateComponent, Verbose,
 			TEXT("%s: ASC owner is not available yet; waiting for possession or PlayerState replication."),
 			*GetNameSafe(Character));
-		if (Character && Character->GetCharacterHealthBarComponent())
+		if (Character)
 		{
 			// 체력바 위젯은 ASC 없이도 먼저 붙여 두고, 준비되면 아래 성공 경로에서 값을 연결한다.
-			Character->GetCharacterHealthBarComponent()->RefreshViewModel();
+			Character->RefreshHealthBarViewModel();
 		}
 		return;
 	}
@@ -84,7 +83,7 @@ void UAbilityStateComponent::InitializeAbilitySystemActorInfo()
 	}
 	BoundAbilitySystemComponent = ASC;
 	ASC->InitAbilityActorInfo(OwnerActor, AvatarActor);
-	if (Character->HasAuthority() && OwnerActor->IsA<APdPlayerState>())
+	if (Character->HasAuthority() && OwnerActor->IsA<APlayerState>())
 	{
 		// 플레이어의 기본 패시브이며, 중복 부여 방지는 기존 능력 목록 API가 담당한다.
 		ASC->GrantAbilities({UReactiveRecoveryAbility::StaticClass()});
@@ -100,10 +99,7 @@ void UAbilityStateComponent::InitializeAbilitySystemActorInfo()
 	BindFrozenTagEvent(ASC);
 	RefreshAirborneGameplayTag();
 
-	if (Character->GetCharacterHealthBarComponent())
-	{
-		Character->GetCharacterHealthBarComponent()->RefreshViewModel();
-	}
+	Character->RefreshHealthBarViewModel();
 
 	UE_CLOG(!ASC->GetSet<UBasicAttributeSet>(), LogAbilityStateComponent, Error,
 		TEXT("%s: ASC owner %s has no BasicAttributeSet. It must be a default subobject of the ASC owner."),
@@ -200,6 +196,14 @@ void UAbilityStateComponent::BindMovementSpeedAttributeToASC(UAbilitySystemCompo
 	MovementMaxStaminaAttributeChangedDelegateHandle =
 		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxStaminaAttribute())
 			.AddUObject(this, &ThisClass::HandleMovementAttributesChanged);
+	// 무기마다 이동속도 배율이 달라서, 장착 무기가 바뀌면 다시 계산한다.
+	const ACharacterBase* Character = GetCharacterOwner();
+	if (UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr)
+	{
+		MovementEquipmentComponent = EquipmentComponent;
+		WeaponDefinitionChangedDelegateHandle = EquipmentComponent->OnCurrentWeaponDefinitionChanged()
+			.AddUObject(this, &ThisClass::ApplyMovementSpeedFromAttribute);
+	}
 	ApplyMovementSpeedFromAttribute();
 }
 
@@ -345,9 +349,16 @@ void UAbilityStateComponent::UnbindMovementSpeedAttribute()
 		}
 	}
 
+	if (UEquipmentComponent* EquipmentComponent = MovementEquipmentComponent.Get())
+	{
+		EquipmentComponent->OnCurrentWeaponDefinitionChanged().Remove(WeaponDefinitionChangedDelegateHandle);
+	}
+
 	MovementSpeedAttributeChangedDelegateHandle.Reset();
 	MovementStaminaAttributeChangedDelegateHandle.Reset();
 	MovementMaxStaminaAttributeChangedDelegateHandle.Reset();
+	WeaponDefinitionChangedDelegateHandle.Reset();
+	MovementEquipmentComponent.Reset();
 	MovementAttributesAbilitySystemComponent.Reset();
 }
 

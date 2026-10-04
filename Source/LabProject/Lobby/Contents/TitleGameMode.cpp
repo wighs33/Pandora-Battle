@@ -2,7 +2,6 @@
 
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/World.h"
-#include "Lobby/Contents/TitleHUD.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TitleGameMode)
@@ -12,7 +11,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogTitleGameMode, Log, All);
 ATitleGameMode::ATitleGameMode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	HUDClass = ATitleHUD::StaticClass();
 	DefaultPawnClass = nullptr;
 }
 

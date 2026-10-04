@@ -15,11 +15,9 @@ class UAnimInstance;
 class UAbilityStateComponent;
 class UCharacterBaseDefinition;
 class UCharacterDeathComponent;
-class UCharacterHealthBarComponent;
 class UCharacterMovementComponent;
 class UCharacterPresentationComponent;
 class UCombatComponent;
-class UDamageIndicatorComponent;
 class UEquipmentComponent;
 class UEquipmentEffectComponent;
 class UMaterialInterface;
@@ -28,8 +26,8 @@ class UNiagaraSystem;
 class UPdAbilitySystemComponent;
 class USkinEquipmentComponent;
 class UStatusEffectReplicationComponent;
-class UUserWidget;
-class UWidgetClassDefinition;
+class ICharacterHealthBarInterface;
+class IDamageIndicatorInterface;
 class UWidgetComponent;
 class FContentLease;
 
@@ -85,8 +83,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!AbilitySystem|StatusEffect")
 	UStatusEffectReplicationComponent* GetStatusEffectReplicationComponent() const { return StatusEffectReplicationComponent; }
 
-	UFUNCTION(BlueprintPure, Category = "!Character|Health Bar")
-	UCharacterHealthBarComponent* GetCharacterHealthBarComponent() const;
+	ICharacterHealthBarInterface* GetHealthBar() const;
+	UWidgetComponent* GetHealthBarWidget() const { return HealthBarWidget; }
 
 	UFUNCTION(BlueprintPure, Category = "!Equipment")
 	UEquipmentComponent* GetEquipmentComponent() const;
@@ -100,8 +98,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Skin")
 	USkinEquipmentComponent* GetSkinEquipmentComponent() const { return SkinEquipmentComponent; }
 
-	UFUNCTION(BlueprintPure, Category = "!DamageIndicator")
-	UDamageIndicatorComponent* GetDamageIndicatorComponent() const;
+	IDamageIndicatorInterface* GetDamageIndicator() const;
 
 	// 체력바 데이터 연결과 관찰자별 표시.
 	UFUNCTION(BlueprintCallable, Category = "!ViewModel")
@@ -212,8 +209,6 @@ protected:
 	virtual AActor* GetAbilitySystemAvatarActor() const;
 	virtual void RestoreRotationSettingsAfterFrozen(UCharacterMovementComponent* MovementComponent);
 	virtual void ApplyCurrentRotationPolicy(UCharacterMovementComponent* MovementComponent);
-	virtual TSubclassOf<UUserWidget> ResolveHealthBarWidgetClass(const UWidgetClassDefinition* WidgetDefinition) const;
-	virtual bool ShouldApplyResolvedHealthBarWidgetClass(UClass* CurrentWidgetClass, TSubclassOf<UUserWidget> ResolvedWidgetClass) const;
 	virtual bool ShouldUseContinuousCharacterTick() const;
 	virtual FVector GetDamageIndicatorWorldLocation() const;
 	virtual bool IsAdditionalCharacterRuntimeContentReady() const;
@@ -282,6 +277,5 @@ protected:
 private:
 	friend class UAbilityStateComponent;
 	friend class UCharacterDeathComponent;
-	friend class UCharacterHealthBarComponent;
 	friend class UCharacterPresentationComponent;
 };

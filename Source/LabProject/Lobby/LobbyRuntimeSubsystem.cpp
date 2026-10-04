@@ -13,10 +13,8 @@
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineSubsystem.h"
 #include "GameFramework/OnlineReplStructs.h"
-#include "Pandora/PandoraLoadoutTypes.h"
 #include "Settings/GameSettingsSubsystem.h"
-#include "Settings/ProjectBootstrapSettings.h"
-#include "UI/Core/UiSubsystem.h"
+#include "Definition/Mode/ProjectBootstrapSettings.h"
 #include "Data/ContentLease.h"
 #include "UObject/UObjectGlobals.h"
 
@@ -74,45 +72,7 @@ void ULobbyRuntimeSubsystem::Deinitialize()
 void ULobbyRuntimeSubsystem::BeginLobbyEntryContentPreload()
 {
 	UGameInstance* GameInstance = GetGameInstance();
-	if (GameInstance)
-	{
-		TArray<TWeakObjectPtr<UUiSubsystem>> InvalidUiSubsystems;
-		for (const TPair<TWeakObjectPtr<UUiSubsystem>,
-			TSharedPtr<FContentLease>>& LeasePair :
-			LobbyContentLeases)
-		{
-			if (!LeasePair.Key.IsValid())
-			{
-				InvalidUiSubsystems.Add(LeasePair.Key);
-			}
-		}
-		for (const TWeakObjectPtr<UUiSubsystem>& InvalidUiSubsystem :
-			InvalidUiSubsystems)
-		{
-			LobbyContentLeases.Remove(InvalidUiSubsystem);
-		}
-
-		for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
-		{
-			if (UUiSubsystem* UiSubsystem =
-				LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr)
-			{
-				UiSubsystem->BeginConfiguredWidgetDefinitionPreload();
-				TSharedPtr<FContentLease>& ContentLease =
-					LobbyContentLeases.FindOrAdd(UiSubsystem);
-				if (ContentLease.IsValid()
-					&& ContentLease->HasFailed())
-				{
-					ContentLease.Reset();
-				}
-				if (!ContentLease.IsValid())
-				{
-					ContentLease = UiSubsystem->AcquireConfiguredUiContent(
-						EUiContentGroup::Lobby);
-				}
-			}
-		}
-	}
+	OnLobbyEntryContentPreloadRequested.Broadcast();
 
 	if (UGameSettingsSubsystem* GameSettingsSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UGameSettingsSubsystem>() : nullptr)
@@ -407,49 +367,11 @@ void ULobbyRuntimeSubsystem::HandleLevelDefinitionPreloadComplete()
 
 void ULobbyRuntimeSubsystem::ReleaseLobbyEntryContentPreload()
 {
-	LobbyContentLeases.Reset();
+	OnLobbyEntryContentReleased.Broadcast();
 	LevelDefinitionPreloadLease.Reset();
 	LoadedLevelDefinition = nullptr;
 	bLevelDefinitionPreloadPending = false;
 	bLevelDefinitionReady = false;
-}
-
-void ULobbyRuntimeSubsystem::ResetCachedPlayerMatchIdentities()
-{
-	CachedPlayerMatchIdentitiesByPlayerKey.Reset();
-}
-
-void ULobbyRuntimeSubsystem::CachePlayerMatchIdentityForPlayerState(
-	const APlayerState* PlayerState,
-	const FPlayerMatchIdentity& MatchIdentity)
-{
-	if (!PlayerState)
-	{
-		return;
-	}
-
-	const TArray<FString> Keys = MakeLobbyPlayerCacheKeys(PlayerState);
-	for (const FString& Key : Keys)
-	{
-		CachedPlayerMatchIdentitiesByPlayerKey.Add(Key, MatchIdentity);
-	}
-}
-
-bool ULobbyRuntimeSubsystem::TryGetCachedPlayerMatchIdentityForPlayerState(
-	const APlayerState* PlayerState,
-	FPlayerMatchIdentity& OutMatchIdentity) const
-{
-	const TArray<FString> Keys = MakeLobbyPlayerCacheKeys(PlayerState);
-	for (const FString& Key : Keys)
-	{
-		if (const FPlayerMatchIdentity* FoundMatchIdentity = CachedPlayerMatchIdentitiesByPlayerKey.Find(Key))
-		{
-			OutMatchIdentity = *FoundMatchIdentity;
-			return true;
-		}
-	}
-
-	return false;
 }
 
 FText ULobbyRuntimeSubsystem::ResolveDefaultPlayerNickname(
@@ -519,102 +441,6 @@ FText ULobbyRuntimeSubsystem::ResolveDefaultPlayerNickname(
 	}
 
 	return MakeFallbackNickname(FallbackIndex);
-}
-
-void ULobbyRuntimeSubsystem::ResetCachedLobbyEquippedSkinSlots()
-{
-	CachedLobbyEquippedSkinNamesByPlayerKey.Reset();
-}
-
-void ULobbyRuntimeSubsystem::CacheLobbyEquippedSkinSlotsForPlayerState(
-	const APlayerState* PlayerState,
-	const TMap<FGameplayTag, FName>& EquippedSkinNamesBySlot)
-{
-	if (!PlayerState)
-	{
-		return;
-	}
-
-	TMap<FGameplayTag, FName> CleanEquippedSkinNamesBySlot;
-	for (const TPair<FGameplayTag, FName>& EquippedSkinPair : EquippedSkinNamesBySlot)
-	{
-		if (EquippedSkinPair.Key.IsValid() && !EquippedSkinPair.Value.IsNone())
-		{
-			CleanEquippedSkinNamesBySlot.Add(EquippedSkinPair.Key, EquippedSkinPair.Value);
-		}
-	}
-
-	const TArray<FString> Keys = MakeLobbyPlayerCacheKeys(PlayerState);
-	for (const FString& Key : Keys)
-	{
-		CachedLobbyEquippedSkinNamesByPlayerKey.Add(Key, CleanEquippedSkinNamesBySlot);
-	}
-}
-
-bool ULobbyRuntimeSubsystem::TryGetCachedLobbyEquippedSkinSlotsForPlayerState(
-	const APlayerState* PlayerState,
-	TMap<FGameplayTag, FName>& OutEquippedSkinNamesBySlot) const
-{
-	const TArray<FString> Keys = MakeLobbyPlayerCacheKeys(PlayerState);
-	for (const FString& Key : Keys)
-	{
-		if (const TMap<FGameplayTag, FName>* FoundEquippedSkinNames = CachedLobbyEquippedSkinNamesByPlayerKey.Find(Key))
-		{
-			OutEquippedSkinNamesBySlot = *FoundEquippedSkinNames;
-			return true;
-		}
-	}
-
-	OutEquippedSkinNamesBySlot.Reset();
-	return false;
-}
-
-void ULobbyRuntimeSubsystem::ResetCachedLobbyPandoraLoadouts()
-{
-	CachedLobbyPandoraNamesByPlayerKey.Reset();
-}
-
-void ULobbyRuntimeSubsystem::CacheLobbyPandoraLoadoutForPlayerState(
-	const APlayerState* PlayerState,
-	const TMap<EEnum_Direction, FName>& PandoraNamesByDirection)
-{
-	if (!PlayerState)
-	{
-		return;
-	}
-
-	TMap<EEnum_Direction, FName> CleanPandoraNamesByDirection;
-	for (const TPair<EEnum_Direction, FName>& LoadoutPair : PandoraNamesByDirection)
-	{
-		if (PandoraLoadout::IsLoadoutDirection(LoadoutPair.Key) && !LoadoutPair.Value.IsNone())
-		{
-			CleanPandoraNamesByDirection.Add(LoadoutPair.Key, LoadoutPair.Value);
-		}
-	}
-
-	const TArray<FString> Keys = MakeLobbyPlayerCacheKeys(PlayerState);
-	for (const FString& Key : Keys)
-	{
-		CachedLobbyPandoraNamesByPlayerKey.Add(Key, CleanPandoraNamesByDirection);
-	}
-}
-
-bool ULobbyRuntimeSubsystem::TryGetCachedLobbyPandoraLoadoutForPlayerState(
-	const APlayerState* PlayerState,
-	TMap<EEnum_Direction, FName>& OutPandoraNamesByDirection) const
-{
-	const TArray<FString> Keys = MakeLobbyPlayerCacheKeys(PlayerState);
-	for (const FString& Key : Keys)
-	{
-		if (const TMap<EEnum_Direction, FName>* FoundPandoraNames = CachedLobbyPandoraNamesByPlayerKey.Find(Key))
-		{
-			OutPandoraNamesByDirection = *FoundPandoraNames;
-			return true;
-		}
-	}
-
-	OutPandoraNamesByDirection.Reset();
-	return false;
 }
 
 void ULobbyRuntimeSubsystem::ResetLocalLobbyPaintCanvasCache()
@@ -705,48 +531,7 @@ bool ULobbyRuntimeSubsystem::ConsumePendingTitleGameResult(FGameResultPresentati
 	return true;
 }
 
-TArray<FString> ULobbyRuntimeSubsystem::MakeLobbyPlayerCacheKeys(const APlayerState* PlayerState) const
-{
-	TArray<FString> Keys;
-	if (!PlayerState)
-	{
-		return Keys;
-	}
-
-	const FUniqueNetIdRepl& UniqueId = PlayerState->GetUniqueId();
-	if (UniqueId.IsValid())
-	{
-		if (const FUniqueNetIdPtr UniqueNetId = UniqueId.GetUniqueNetId(); UniqueNetId.IsValid())
-		{
-			Keys.Add(FString::Printf(TEXT("NetId:%s"), *UniqueNetId->ToString()));
-		}
-	}
-
-	if (!PlayerState->SavedNetworkAddress.IsEmpty())
-	{
-		Keys.Add(FString::Printf(TEXT("Addr:%s"), *PlayerState->SavedNetworkAddress));
-	}
-
-	if (PlayerState->GetPlayerId() != INDEX_NONE)
-	{
-		Keys.Add(FString::Printf(TEXT("PlayerId:%d"), PlayerState->GetPlayerId()));
-	}
-
-	const FString PlayerName = PlayerState->GetPlayerName();
-	if (!PlayerName.IsEmpty())
-	{
-		Keys.Add(FString::Printf(TEXT("Name:%s"), *PlayerName));
-	}
-
-	return Keys;
-}
-
 bool ULobbyRuntimeSubsystem::IsLobbyEntryContentLoading() const
 {
-	if (bLevelDefinitionPreloadPending) return true;
-	for (const auto& Entry : LobbyContentLeases)
-	{
-		if (Entry.Value.IsValid() && Entry.Value->IsLoading()) return true;
-	}
-	return false;
+	return bLevelDefinitionPreloadPending;
 }

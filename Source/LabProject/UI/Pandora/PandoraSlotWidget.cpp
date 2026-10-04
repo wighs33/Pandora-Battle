@@ -5,7 +5,7 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "GameFramework/PlayerController.h"
-#include "Mode/PdHUD.h"
+#include "UI/HUD/PdHUD.h"
 #include "Mode/PdPlayerState.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "UI/Info/InfoWidget.h"

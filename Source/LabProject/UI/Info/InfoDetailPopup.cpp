@@ -4,7 +4,7 @@
 #include "Blueprint/SlateBlueprintLibrary.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "GameFramework/PlayerController.h"
 #include "Item/ItemInstance.h"
 #include "Definition/Skin/SkinDefinition.h"

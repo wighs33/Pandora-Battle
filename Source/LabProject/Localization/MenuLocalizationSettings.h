@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
-#include "Localization/UiLanguage.h"
+#include "Common/UiLanguage.h"
 #include "MenuLocalizationSettings.generated.h"
 
 class UDataTable;

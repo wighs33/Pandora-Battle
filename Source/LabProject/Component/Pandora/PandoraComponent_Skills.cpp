@@ -6,7 +6,8 @@
 #include "Common/LabGameplayTags.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraSkillSource.h"
-#include "Mode/PdPlayerState.h"
+#include "AbilitySystemGlobals.h"
+#include "GameFramework/PlayerState.h"
 
 namespace
 {
@@ -126,9 +127,7 @@ void UPandoraComponent::ClearGrantedPandoraContent()
 {
 	const TArray<FGameplayAbilitySpecHandle> Handles = MoveTemp(GrantedPandoraAbilityHandles);
 	GrantedPandoraAbilityHandles.Reset();
-	APdPlayerState* PlayerStateOwner = Cast<APdPlayerState>(GetOwner());
-	if (UPdAbilitySystemComponent* ASC = Cast<UPdAbilitySystemComponent>(
-		PlayerStateOwner ? PlayerStateOwner->GetAbilitySystemComponent() : nullptr))
+	if (UPdAbilitySystemComponent* ASC = GetOwnerAbilitySystemComponent())
 	{
 		RemoveGrantedPandoraSkills(ASC, Handles);
 	}
@@ -189,9 +188,7 @@ void UPandoraComponent::BindAbilityRemoval()
 	{
 		return;
 	}
-	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	UPdAbilitySystemComponent* ASC = PlayerState
-		? Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent()) : nullptr;
+	UPdAbilitySystemComponent* ASC = GetOwnerAbilitySystemComponent();
 	if (ASC && HasPandoraAuthority())
 	{
 		SourceAbilitySystemComponent = ASC;
@@ -276,9 +273,7 @@ void UPandoraComponent::HandleSkillSourceReplicated(UPandoraSkillSource* Source)
 	}
 	// 클라이언트에서는 SourceObject의 약한 참조와 별개로 출처를 보관한다.
 	OwnedSkillSources.AddUnique(Source);
-	const APdPlayerState* PlayerState = Cast<APdPlayerState>(GetOwner());
-	if (UPdAbilitySystemComponent* ASC = PlayerState
-		? Cast<UPdAbilitySystemComponent>(PlayerState->GetAbilitySystemComponent()) : nullptr)
+	if (UPdAbilitySystemComponent* ASC = GetOwnerAbilitySystemComponent())
 	{
 		// LocalPredicted 시전의 성공 응답은 GAS가 확인만 한다. 출처 수신은 UI 준비 상태만 갱신한다.
 		ASC->OnAbilitiesChangedNative.Broadcast();

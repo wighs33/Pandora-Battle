@@ -1,12 +1,13 @@
-#include "Component/Character/CharacterHealthBarComponent.h"
+#include "UI/HUD/Combat/CharacterHealthBarComponent.h"
 
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "Character/CharacterBase.h"
+#include "Character/EnemyBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "GameFramework/PlayerController.h"
 #include "UI/HUD/Combat/EnemyAvatarWidget.h"
 #include "UI/HUD/Combat/EnemyHealthBarWidget.h"
@@ -82,19 +83,25 @@ void UCharacterHealthBarComponent::ConfigureWidget()
 	SetRelativeScale3D(FVector(HealthBarWorldScale));
 	SetVisibility(false, true);
 
+	// 적은 위젯 정의의 아바타 위젯을 항상 쓰고, 그 밖의 캐릭터는 BP가 지정한 위젯이 없을 때만 정의의 체력바를 쓴다.
+	const bool bEnemy = Character->IsA<AEnemyBase>();
 	const UWidgetClassDefinition* WidgetDefinition =
 		UWidgetClassDefinition::ResolveWidgetClassDefinition(Character);
-	const TSubclassOf<UUserWidget> ResolvedWidgetClass =
-		Character->ResolveHealthBarWidgetClass(WidgetDefinition);
+	const TSubclassOf<UUserWidget> ResolvedWidgetClass = !WidgetDefinition
+		? nullptr
+		: bEnemy
+			? WidgetDefinition->GetEnemyAvatarWidgetClass()
+			: WidgetDefinition->GetHealthBarWidgetClass();
 	if (!ResolvedWidgetClass)
 	{
 		return;
 	}
 
 	UClass* CurrentWidgetClass = GetWidgetClass();
-	if (Character->ShouldApplyResolvedHealthBarWidgetClass(
-		CurrentWidgetClass,
-		ResolvedWidgetClass))
+	const bool bApplyResolvedWidgetClass = bEnemy
+		? CurrentWidgetClass != ResolvedWidgetClass.Get()
+		: !CurrentWidgetClass;
+	if (bApplyResolvedWidgetClass)
 	{
 		SetWidgetClass(ResolvedWidgetClass);
 	}

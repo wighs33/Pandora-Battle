@@ -1,4 +1,4 @@
-#include "Component/UI/DamageIndicatorComponent.h"
+#include "UI/HUD/Combat/DamageIndicatorComponent.h"
 
 #include "Character/CharacterBase.h"
 #include "Components/CapsuleComponent.h"

@@ -1,12 +1,13 @@
 #pragma once
 
 #include "DetourCrowdAIController.h"
+#include "Interface/AttackTargetSourceInterface.h"
 #include "TrainingBotAIController.generated.h"
 
 class UBehaviorTree;
 
 UCLASS(Blueprintable)
-class LABPROJECT_API ATrainingBotAIController : public ADetourCrowdAIController
+class LABPROJECT_API ATrainingBotAIController : public ADetourCrowdAIController, public IAttackTargetSourceInterface
 {
 	GENERATED_BODY()
 
@@ -17,6 +18,8 @@ public:
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	ATrainingBotAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	virtual AActor* GetSelectedAttackTarget() const override;
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void RefreshTargetFromPlayers();

@@ -2,7 +2,7 @@
 
 #include "UI/Common/LocalizedMenuWidget.h"
 #include "GameplayTagContainer.h"
-#include "UI/Info/InfoUiTypes.h"
+#include "Common/InfoUiTypes.h"
 #include "UI/Info/Item/LeftEquipmentWidget.h"
 #include "UI/Info/Pandora/LeftPandoraWidget.h"
 #include "UI/Info/Status/LeftProfileWidget.h"

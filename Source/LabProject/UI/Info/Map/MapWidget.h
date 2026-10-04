@@ -1,7 +1,7 @@
 #pragma once
 
 #include "UI/Common/LocalizedMenuWidget.h"
-#include "Definition/UI/WidgetClassDefinition.h"
+#include "UI/Core/WidgetClassDefinition.h"
 #include "MapWidget.generated.h"
 
 class UButton;

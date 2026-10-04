@@ -90,14 +90,7 @@ void UMatchPlayerSetupComponent::InitializeMatchIdentity(APlayerController* NewP
 		return;
 	}
 
-	// 로비 캐시가 없어도 기본 이름과 팀은 초기화하며, 전달받은 식별 정보는 덮어쓰지 않는다.
-	FPlayerMatchIdentity CachedMatchIdentity;
-	if (LobbySubsystem && PlayerMatchComponent->GetPlayerMatchIdentity().Matches(FPlayerMatchIdentity())
-		&& LobbySubsystem->TryGetCachedPlayerMatchIdentityForPlayerState(PdPlayerState, CachedMatchIdentity))
-	{
-		PlayerMatchComponent->SetPlayerMatchIdentity(CachedMatchIdentity);
-	}
-
+	// 로비에서 넘어온 식별 정보는 그대로 두고, 비어 있는 이름과 팀만 기본값으로 채운다.
 	if (PlayerMatchComponent->GetMatchDisplayName().IsEmpty())
 	{
 		int32 FallbackDisplayNameIndex = 1;
@@ -149,7 +142,7 @@ void UMatchPlayerSetupComponent::PreparePlayerForGameplayInternal(APlayerControl
 		return;
 	}
 
-	ApplyCachedLobbySkinEquipment(NewPlayer);
+	ApplyLobbySkinEquipment(NewPlayer);
 	DefaultPlayerProvisioner->ProvisionPlayer(NewPlayer);
 }
 
@@ -268,7 +261,7 @@ bool UMatchPlayerSetupComponent::IsTrainingRoomMap() const
 	return Levels && Levels->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 }
 
-void UMatchPlayerSetupComponent::ApplyCachedLobbySkinEquipment(
+void UMatchPlayerSetupComponent::ApplyLobbySkinEquipment(
 	APlayerController* NewPlayer) const
 {
 	const AExperienceGameMode* GameMode = Cast<AExperienceGameMode>(GetOwner());
@@ -277,7 +270,6 @@ void UMatchPlayerSetupComponent::ApplyCachedLobbySkinEquipment(
 		return;
 	}
 
-	ULobbyRuntimeSubsystem* LobbySubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GameMode->GetGameInstance());
 	UContentDataSubsystem* ContentDataSubsystem = UGameInstance::GetSubsystem<UContentDataSubsystem>(GameMode->GetGameInstance());
 	APdPlayerState* PdPlayerState =
 		NewPlayer->GetPlayerState<APdPlayerState>();
@@ -289,17 +281,15 @@ void UMatchPlayerSetupComponent::ApplyCachedLobbySkinEquipment(
 		PlayerCharacter
 			? PlayerCharacter->GetSkinEquipmentComponent()
 			: nullptr;
-	if (!LobbySubsystem || !ContentDataSubsystem || !PdPlayerState || !PlayerCharacter
+	if (!ContentDataSubsystem || !PdPlayerState || !PlayerCharacter
 		|| !SkinComponent || !SkinEquipmentComponent)
 	{
 		return;
 	}
 
-	TMap<FGameplayTag, FName> EquippedSkinNamesBySlot;
-	if (!LobbySubsystem->TryGetCachedLobbyEquippedSkinSlotsForPlayerState(
-			PdPlayerState,
-			EquippedSkinNamesBySlot)
-		|| EquippedSkinNamesBySlot.IsEmpty())
+	const TMap<FGameplayTag, FName>& EquippedSkinNamesBySlot =
+		PdPlayerState->GetLobbyTravelHandoff().EquippedSkinNamesBySlot;
+	if (EquippedSkinNamesBySlot.IsEmpty())
 	{
 		return;
 	}

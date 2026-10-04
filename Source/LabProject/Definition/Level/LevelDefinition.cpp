@@ -2,7 +2,6 @@
 
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "Misc/PackageName.h"
-#include "UI/Info/Map/MapWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelDefinition)
 
@@ -112,7 +111,7 @@ namespace
 					LevelLabel));
 			}
 			if (!Level.GameplayMapWidgetClass.IsNull()
-				&& !Level.GameplayMapWidgetClass.LoadSynchronous())
+				&& !Level.GameplayMapWidgetClass.ToSoftObjectPath().TryLoad())
 			{
 				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
 					NSLOCTEXT("LevelDefinition", "InvalidGameplayMapWidgetClass", "{0} GameplayMapWidgetClass could not be loaded: {1}"),

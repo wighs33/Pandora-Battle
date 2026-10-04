@@ -3,7 +3,7 @@
 #include "Algo/Compare.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Definition/Pandora/PandoraDefinition.h"
-#include "Mode/PdPlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
@@ -304,8 +304,8 @@ bool UPandoraTreeComponent::HasPandoraTreeAuthority() const
 
 UPandoraComponent* UPandoraTreeComponent::GetOwnerPandoraComponent() const
 {
-	const APdPlayerState* PlayerState = GetPlayerState<APdPlayerState>();
-	return PlayerState ? PlayerState->GetPandoraComponent() : nullptr;
+	const APlayerState* PlayerState = GetPlayerState<APlayerState>();
+	return PlayerState ? PlayerState->FindComponentByClass<UPandoraComponent>() : nullptr;
 }
 
 int32 UPandoraTreeComponent::FindGrantedPandoraIndex(UPandoraDefinition* Pandora) const

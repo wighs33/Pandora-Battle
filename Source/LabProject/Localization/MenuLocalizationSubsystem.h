@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "Localization/UiLanguage.h"
+#include "Common/UiLanguage.h"
 #include "MenuLocalizationSubsystem.generated.h"
 
 class UDataTable;
