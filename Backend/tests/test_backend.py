@@ -208,28 +208,28 @@ class MatchJoinTests(unittest.TestCase):
 
     def test_mode_defaults_to_match_and_rejects_unknown_values(self):
         self.assertEqual(read_mode({}), "match")
-        self.assertEqual(read_mode({"mode": "rpg"}), "rpg")
+        self.assertEqual(read_mode({"mode": "bossraid"}), "bossraid")
         with self.assertRaises(ApiError) as context:
             read_mode({"mode": "battle-royale"})
         self.assertEqual(context.exception.code, "invalid_mode")
 
-    def test_rpg_search_and_new_session_carry_the_mode(self):
+    def test_boss_raid_search_and_new_session_carry_the_mode(self):
         gamelift = FakeGameLift([])
-        self.join(gamelift, mode="rpg")
-        self.assertIn("gameSessionProperties.mode = 'rpg'", gamelift.search_request["FilterExpression"])
-        self.assertEqual(gamelift.created[0]["GameProperties"], [{"Key": "mode", "Value": "rpg"}])
-        self.assertEqual(gamelift.created[0]["Name"], "labproject-rpg")
+        self.join(gamelift, mode="bossraid")
+        self.assertIn("gameSessionProperties.mode = 'bossraid'", gamelift.search_request["FilterExpression"])
+        self.assertEqual(gamelift.created[0]["GameProperties"], [{"Key": "mode", "Value": "bossraid"}])
+        self.assertEqual(gamelift.created[0]["Name"], "labproject-bossraid")
 
     def test_unindexed_fallback_keeps_modes_apart(self):
-        rpg_world = {"GameSessionId": "gsess-rpg", "CurrentPlayerSessionCount": 1, "MaximumPlayerSessionCount": 6,
-                     "GameProperties": [{"Key": "mode", "Value": "rpg"}]}
+        boss_raid_world = {"GameSessionId": "gsess-bossraid", "CurrentPlayerSessionCount": 1, "MaximumPlayerSessionCount": 6,
+                     "GameProperties": [{"Key": "mode", "Value": "bossraid"}]}
         legacy_match = {"GameSessionId": "gsess-legacy", "CurrentPlayerSessionCount": 1, "MaximumPlayerSessionCount": 4}
 
-        gamelift = FakeGameLift([], active_unindexed=[rpg_world, legacy_match])
+        gamelift = FakeGameLift([], active_unindexed=[boss_raid_world, legacy_match])
         self.assertEqual(self.join(gamelift)["playerSessionId"], "psess-gsess-legacy")
 
-        gamelift = FakeGameLift([], active_unindexed=[legacy_match, rpg_world])
-        self.assertEqual(self.join(gamelift, mode="rpg")["playerSessionId"], "psess-gsess-rpg")
+        gamelift = FakeGameLift([], active_unindexed=[legacy_match, boss_raid_world])
+        self.assertEqual(self.join(gamelift, mode="bossraid")["playerSessionId"], "psess-gsess-bossraid")
 
     def test_joins_existing_session_with_free_slot(self):
         gamelift = FakeGameLift(["gsess-full", "gsess-open"], full_sessions=["gsess-full"])

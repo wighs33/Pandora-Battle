@@ -210,9 +210,9 @@ FString ULevelDefinition::GetTrainingRoomTravelMapName() const
 	return ResolveMapPackageName(TrainingLevel);
 }
 
-FString ULevelDefinition::GetRpgTravelMapName() const
+FString ULevelDefinition::GetBossRaidTravelMapName() const
 {
-	return ResolveMapPackageName(RpgLevel);
+	return ResolveMapPackageName(BossRaidLevel);
 }
 
 bool ULevelDefinition::IsLobbyMapName(const FString& LevelName) const
@@ -242,7 +242,7 @@ EDataValidationResult ULevelDefinition::IsDataValid(
 	ValidateRequiredLevel(Context, Result, LobbyLevel, TEXT("LobbyLevel"));
 	ValidateRequiredLevel(Context, Result, RoomLevel, TEXT("RoomLevel"));
 	ValidateRequiredLevel(Context, Result, TrainingLevel, TEXT("TrainingLevel"));
-	ValidateRequiredLevel(Context, Result, RpgLevel, TEXT("RpgLevel"));
+	ValidateRequiredLevel(Context, Result, BossRaidLevel, TEXT("BossRaidLevel"));
 	return Result;
 }
 #endif

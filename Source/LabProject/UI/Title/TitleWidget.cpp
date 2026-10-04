@@ -140,11 +140,11 @@ void UTitleWidget::NativeOnInitialized()
 	}
 }
 
-void UTitleWidget::SetRpgModeEnabled(const bool bEnabled) const
+void UTitleWidget::SetBossRaidEnabled(const bool bEnabled) const
 {
-	if (Btn_RpgMode)
+	if (Btn_BossRaid)
 	{
-		Btn_RpgMode->SetIsEnabled(bEnabled);
+		Btn_BossRaid->SetIsEnabled(bEnabled);
 	}
 }
 
@@ -213,7 +213,7 @@ TArray<FPdButtonClickBinding, TInlineAllocator<10>> UTitleWidget::GetMenuButtonB
 		{ Btn_RoomList, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleRoomListClicked) },
 		{ Btn_QuickMatch, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleQuickMatchClicked) },
 		{ Btn_TrainingMode, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleTrainingModeClicked) },
-		{ Btn_RpgMode, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleRpgModeClicked) },
+		{ Btn_BossRaid, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleBossRaidClicked) },
 		{ Btn_Website, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleWebsiteClicked) },
 		{ Btn_PandoraShop, GET_FUNCTION_NAME_CHECKED(ThisClass, HandlePandoraShopClicked) },
 		{ Btn_Guide, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleGuideClicked) },
@@ -409,9 +409,9 @@ void UTitleWidget::HandleTrainingModeClicked()
 	OpenTrainingRoom();
 }
 
-void UTitleWidget::HandleRpgModeClicked()
+void UTitleWidget::HandleBossRaidClicked()
 {
-	RpgModeRequested.Broadcast();
+	BossRaidRequested.Broadcast();
 }
 
 void UTitleWidget::HandleWebsiteClicked()

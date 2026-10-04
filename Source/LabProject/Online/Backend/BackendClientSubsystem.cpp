@@ -72,13 +72,13 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs JoinMatchCommand(
 		TEXT("pd.Backend.JoinMatch"),
-		TEXT("pd.Backend.JoinMatch [rpg]: ask the backend for a GameLift game session (PvP match, or the RPG shared world) and travel to it."),
+		TEXT("pd.Backend.JoinMatch [bossraid]: ask the backend for a GameLift game session (PvP match, or the boss raid) and travel to it."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
-			const bool bRpg = Args.Num() > 0 && Args[0].Equals(LabGameSession::RpgSessionMode, ESearchCase::IgnoreCase);
+			const bool bBossRaid = Args.Num() > 0 && Args[0].Equals(LabGameSession::BossRaidSessionMode, ESearchCase::IgnoreCase);
 			if (UBackendClientSubsystem* Backend = FindBackendClient(World))
 			{
-				Backend->JoinOnlineMatch(bRpg ? EOnlineMatchMode::Rpg : EOnlineMatchMode::Match);
+				Backend->JoinOnlineMatch(bBossRaid ? EOnlineMatchMode::BossRaid : EOnlineMatchMode::Match);
 			}
 		}));
 
@@ -255,8 +255,8 @@ void UBackendClientSubsystem::SendMatchJoinRequest()
 	}
 
 	const TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
-	Body->SetStringField(TEXT("mode"), PendingMatchMode == EOnlineMatchMode::Rpg
-		? LabGameSession::RpgSessionMode
+	Body->SetStringField(TEXT("mode"), PendingMatchMode == EOnlineMatchMode::BossRaid
+		? LabGameSession::BossRaidSessionMode
 		: LabGameSession::MatchSessionMode);
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = PdBackendHttp::CreateJsonRequest(
 		TEXT("POST"), Url, Body, Settings->GetClientRequestTimeoutSeconds());
@@ -292,7 +292,7 @@ void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResp
 
 	const FString TravelUrl = FString::Printf(TEXT("%s:%d?PlayerSessionId=%s"), *Address, Port, *PlayerSessionId);
 	UE_LOG(LogBackendClient, Log, TEXT("Joining GameLift %s session at %s:%d"),
-		PendingMatchMode == EOnlineMatchMode::Rpg ? LabGameSession::RpgSessionMode : LabGameSession::MatchSessionMode,
+		PendingMatchMode == EOnlineMatchMode::BossRaid ? LabGameSession::BossRaidSessionMode : LabGameSession::MatchSessionMode,
 		*Address, Port);
 	PlayerController->ClientTravel(TravelUrl, TRAVEL_Absolute);
 	FinishMatchJoin(true, FString());

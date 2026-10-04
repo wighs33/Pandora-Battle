@@ -26,8 +26,8 @@ enum class EOnlineMatchMode : uint8
 {
 	/** 로비에서 인원을 모아 한 경기를 하는 PvP 세션 */
 	Match,
-	/** 경기 끝 없이 들어오고 나가는 공유 월드 PvE 세션 */
-	Rpg
+	/** 경기 끝 없이 들어오고 나가는 보스 레이드 PvE 세션 */
+	BossRaid
 };
 
 USTRUCT(BlueprintType)

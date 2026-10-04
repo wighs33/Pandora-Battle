@@ -81,7 +81,7 @@ void AExperienceGameMode::StartPlay()
 {
 	Super::StartPlay();
 	TryStartServerMatch();
-	NotifyRpgWorldReadyIfNeeded();
+	NotifyBossRaidWorldReadyIfNeeded();
 }
 
 // 맵을 떠난 뒤 준비 완료 콜백이 경기를 시작하지 않도록 연결을 정리한다.
@@ -181,8 +181,8 @@ void AExperienceGameMode::Logout(AController* Exiting)
 	TryStartServerMatch();
 
 	// Listen Server는 호스트가 나가면 서버도 끝나지만, 전용 서버는 빈 경기장에 남으므로 로비로 되돌린다.
-	// RPG 공유 월드는 비어도 그대로 열어 두고 다음 참가자를 기다린다.
-	if (GetNetMode() == NM_DedicatedServer && !MatchFlowComponent->IsRpgMode())
+	// 보스 레이드 월드는 비어도 그대로 열어 두고 다음 참가자를 기다린다.
+	if (GetNetMode() == NM_DedicatedServer && !MatchFlowComponent->IsBossRaid())
 	{
 		GetWorldTimerManager().SetTimer(
 			EmptyDedicatedServerLobbyReturnTimerHandle,
@@ -465,11 +465,11 @@ void AExperienceGameMode::ResumeStartingPlayers()
 	TryStartServerMatch();
 }
 
-// RPG 게임 세션은 이 맵이 열려 접속을 받을 수 있을 때 활성화한다. 그 전에는 백엔드가 player session을 만들지 않는다.
+// 보스 레이드 게임 세션은 이 맵이 열려 접속을 받을 수 있을 때 활성화한다. 그 전에는 백엔드가 player session을 만들지 않는다.
 // Experience 로딩은 기다리지 않는다. 로딩 중에 들어온 참가자는 로비에서 넘어온 참가자처럼 준비가 끝난 뒤 스폰된다.
-void AExperienceGameMode::NotifyRpgWorldReadyIfNeeded()
+void AExperienceGameMode::NotifyBossRaidWorldReadyIfNeeded()
 {
-	if (GetNetMode() != NM_DedicatedServer || !MatchFlowComponent->IsRpgMode())
+	if (GetNetMode() != NM_DedicatedServer || !MatchFlowComponent->IsBossRaid())
 	{
 		return;
 	}

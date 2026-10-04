@@ -95,7 +95,7 @@ protected:
 private:
 	UExperienceManagerComponent* GetExperienceManager() const;
 	void ResumeStartingPlayers();
-	void NotifyRpgWorldReadyIfNeeded();
+	void NotifyBossRaidWorldReadyIfNeeded();
 	void BeginRuntimeContentPreload();
 	void HandleRuntimeContentPreloadComplete();
 	void ReleaseRuntimeContentPreload();

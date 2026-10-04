@@ -52,14 +52,14 @@ private:
 	FDelegateHandle LunaReplyUpdatedHandle;
 	FDelegateHandle LunaReplyFinishedHandle;
 
-	// Boss raid: the backend places the player in a GameLift rpg-mode session while Luna reports the progress.
-	void BindRpgMode();
-	void UnbindRpgMode();
-	void HandleRpgModeRequested();
+	// Boss raid: the backend places the player in a GameLift boss raid session while Luna reports the progress.
+	void BindBossRaid();
+	void UnbindBossRaid();
+	void HandleBossRaidRequested();
 	UFUNCTION()
-	void HandleRpgJoinFinished(bool bSucceeded, const FString& ErrorMessage);
+	void HandleBossRaidJoinFinished(bool bSucceeded, const FString& ErrorMessage);
 	/** The backend also reports PvP joins (pd.Backend.JoinMatch); only the request made here is answered. */
-	bool bRpgJoinPending = false;
+	bool bBossRaidJoinPending = false;
 	FTimerHandle TitleBlinkTimer;
 	float TitleBlinkElapsed = -1.f;
 	FTimerHandle TitleSpeechTimer;

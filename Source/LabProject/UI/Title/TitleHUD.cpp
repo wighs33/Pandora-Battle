@@ -34,8 +34,8 @@ namespace
 	const FName LunaGreetingKey(TEXT("Title.LunaGreeting"));
 	const FName LunaChatThinkingKey(TEXT("Title.LunaChatThinking"));
 	const FName LunaChatUnavailableKey(TEXT("Title.LunaChatUnavailable"));
-	const FName RpgModeJoiningKey(TEXT("Title.RpgModeJoining"));
-	const FName RpgModeFailedKey(TEXT("Title.RpgModeFailed"));
+	const FName BossRaidJoiningKey(TEXT("Title.BossRaidJoining"));
+	const FName BossRaidFailedKey(TEXT("Title.BossRaidFailed"));
 }
 
 ATitleHUD::ATitleHUD(const FObjectInitializer& ObjectInitializer)
@@ -185,46 +185,46 @@ void ATitleHUD::UnbindLunaChat()
 	LunaReplyFinishedHandle.Reset();
 }
 
-void ATitleHUD::BindRpgMode()
+void ATitleHUD::BindBossRaid()
 {
 	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
 	if (!TitleWidget || !Backend) return;
-	TitleWidget->OnRpgModeRequested().AddUObject(this, &ATitleHUD::HandleRpgModeRequested);
-	Backend->OnMatchJoinFinished.AddUniqueDynamic(this, &ATitleHUD::HandleRpgJoinFinished);
+	TitleWidget->OnBossRaidRequested().AddUObject(this, &ATitleHUD::HandleBossRaidRequested);
+	Backend->OnMatchJoinFinished.AddUniqueDynamic(this, &ATitleHUD::HandleBossRaidJoinFinished);
 }
 
-void ATitleHUD::UnbindRpgMode()
+void ATitleHUD::UnbindBossRaid()
 {
-	if (TitleWidget) TitleWidget->OnRpgModeRequested().RemoveAll(this);
+	if (TitleWidget) TitleWidget->OnBossRaidRequested().RemoveAll(this);
 	if (UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance()))
 	{
-		Backend->OnMatchJoinFinished.RemoveDynamic(this, &ATitleHUD::HandleRpgJoinFinished);
+		Backend->OnMatchJoinFinished.RemoveDynamic(this, &ATitleHUD::HandleBossRaidJoinFinished);
 	}
-	bRpgJoinPending = false;
+	bBossRaidJoinPending = false;
 }
 
-void ATitleHUD::HandleRpgModeRequested()
+void ATitleHUD::HandleBossRaidRequested()
 {
 	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
 	if (!TitleWidget || !Backend || Backend->IsMatchJoinInProgress()) return;
-	bRpgJoinPending = true;
-	TitleWidget->SetRpgModeEnabled(false);
-	ShowLunaChatText(GetLunaChatLine(RpgModeJoiningKey,
-		NSLOCTEXT("TitleHUD", "RpgModeJoining", "Let me find you a spot in the boss raid...")), true);
+	bBossRaidJoinPending = true;
+	TitleWidget->SetBossRaidEnabled(false);
+	ShowLunaChatText(GetLunaChatLine(BossRaidJoiningKey,
+		NSLOCTEXT("TitleHUD", "BossRaidJoining", "Let me find you a spot in the boss raid...")), true);
 	// Logs in first when needed. A failure can be reported before this call returns.
-	Backend->JoinOnlineMatch(EOnlineMatchMode::Rpg);
+	Backend->JoinOnlineMatch(EOnlineMatchMode::BossRaid);
 }
 
-void ATitleHUD::HandleRpgJoinFinished(const bool bSucceeded, const FString& ErrorMessage)
+void ATitleHUD::HandleBossRaidJoinFinished(const bool bSucceeded, const FString& ErrorMessage)
 {
-	if (!bRpgJoinPending) return;
-	bRpgJoinPending = false;
+	if (!bBossRaidJoinPending) return;
+	bBossRaidJoinPending = false;
 	// On success the client is already travelling to the raid map, and the title closes with this level.
 	if (bSucceeded) return;
 
-	if (TitleWidget) TitleWidget->SetRpgModeEnabled(true);
-	const FText Line = GetLunaChatLine(RpgModeFailedKey,
-		NSLOCTEXT("TitleHUD", "RpgModeFailed", "I couldn't reach the boss raid. Please try again in a moment."));
+	if (TitleWidget) TitleWidget->SetBossRaidEnabled(true);
+	const FText Line = GetLunaChatLine(BossRaidFailedKey,
+		NSLOCTEXT("TitleHUD", "BossRaidFailed", "I couldn't reach the boss raid. Please try again in a moment."));
 	ShowLunaChatText(Line, true);
 	GetWorldTimerManager().SetTimer(TitleSpeechTimer, this, &ATitleHUD::HideTitleSpeech,
 		FMath::Max(ChatReplyMinDuration, Line.ToString().Len() * ChatReplySecondsPerCharacter), false);
@@ -342,7 +342,7 @@ void ATitleHUD::BeginPlay()
 
 	InitializeTitleCharacter();
 	BindLunaChat();
-	BindRpgMode();
+	BindBossRaid();
 	Screen = CreateWidget<UUiScreen>(PlayerController);
 	FUIInputConfig Config(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
@@ -358,7 +358,7 @@ void ATitleHUD::BeginPlay()
 void ATitleHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnbindLunaChat();
-	UnbindRpgMode();
+	UnbindBossRaid();
 	GetWorldTimerManager().ClearTimer(TitleBlinkTimer);
 	TitleBlinkElapsed = -1.f;
 	TitleCharacterMesh->SetMorphTarget(TitleBlinkMorph, 0.f);

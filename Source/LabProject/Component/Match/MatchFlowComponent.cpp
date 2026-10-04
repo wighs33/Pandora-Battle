@@ -135,7 +135,7 @@ AExperienceGameMode* UMatchFlowComponent::GetExperienceGameMode() const
 void UMatchFlowComponent::InitializeTravelOptions(const FString& Options)
 {
 	bMatchTimerSuppressedByTravelOption = IsEnabledTravelOption(Options, LabGameSession::NoMatchTimerOption);
-	bRpgMode = IsEnabledTravelOption(Options, LabGameSession::RpgModeOption);
+	bBossRaid = IsEnabledTravelOption(Options, LabGameSession::BossRaidOption);
 }
 
 void UMatchFlowComponent::InitializeGameState()
@@ -419,11 +419,11 @@ bool UMatchFlowComponent::AbortMatchToTitleForPlayerExit(const APlayerState* Exi
 bool UMatchFlowComponent::ShouldAbortMatchForPlayerExit(const APlayerState* ExitingPlayerState) const
 {
 	const AExperienceGameMode* GameMode = GetExperienceGameMode();
-	// RPG 공유 월드는 누가 나가도 남은 플레이어가 계속 머문다.
+	// 보스 레이드 월드는 누가 나가도 남은 플레이어가 계속 머문다.
 	if (!GameMode
 		|| !GameMode->HasAuthority()
 		|| bGameResultShown
-		|| bRpgMode
+		|| bBossRaid
 		|| !ExitingPlayerState
 		|| !GameMode->IsRuntimeContentReady()
 		|| GameMode->GetPlayerSetupComponent()->IsTrainingRoomMap())
@@ -476,10 +476,10 @@ void UMatchFlowComponent::FinishMatchRuntime()
 	GetWorld()->GetTimerManager().ClearTimer(MatchTimerHandle);
 }
 
-// RPG 모드는 타이머가 끝나지 않으므로 승자 판정·결과·로비 복귀도 일어나지 않는다.
+// 보스 레이드는 타이머가 끝나지 않으므로 승자 판정·결과·로비 복귀도 일어나지 않는다.
 bool UMatchFlowComponent::ShouldSuppressServerMatchTimer() const
 {
-	if (bMatchTimerSuppressedByTravelOption || bRpgMode)
+	if (bMatchTimerSuppressedByTravelOption || bBossRaid)
 	{
 		return true;
 	}

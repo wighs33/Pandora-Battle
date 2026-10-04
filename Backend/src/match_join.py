@@ -5,7 +5,7 @@
 
 요청 본문의 mode로 세션 종류를 나누고, 같은 값을 게임 속성 mode에 넣어 검색과 서버 분기에 쓴다.
 - match(기본): 로비에서 인원을 모아 한 경기를 하는 PvP 세션. 경기가 시작되면 서버가 새 참가를 막는다.
-- rpg: 경기 끝 없이 들어오고 나가는 공유 월드. 서버는 RPG 맵을 연 뒤에 세션을 활성화한다.
+- bossraid: 경기 끝 없이 들어오고 나가는 보스 레이드. 서버는 레이드 맵을 연 뒤에 세션을 활성화한다.
 
 동시에 여러 명이 빈 서버에 요청하면 각자 새 세션을 만들 수 있다. 인원을 모아 한 세션에 넣는 일은
 FlexMatch로 옮길 때 해결한다(Docs/GameLift_Backend.md 참고).
@@ -17,14 +17,14 @@ import time
 
 from common import ApiError, api_handler, json_response, parse_json_body, require_player
 
-# Lambda 제한(29초) 안에서 기다린다. RPG 세션은 서버가 맵을 연 뒤 활성화하므로 경기 세션보다 오래 걸린다.
+# Lambda 제한(29초) 안에서 기다린다. 보스 레이드 세션은 서버가 맵을 연 뒤 활성화하므로 경기 세션보다 오래 걸린다.
 ACTIVE_WAIT_SECONDS = 24.0
 POLL_INTERVAL_SECONDS = 1.0
 
 MODE_PROPERTY = "mode"
 MATCH_MODE = "match"
-RPG_MODE = "rpg"
-SESSION_MODES = (MATCH_MODE, RPG_MODE)
+BOSS_RAID_MODE = "bossraid"
+SESSION_MODES = (MATCH_MODE, BOSS_RAID_MODE)
 
 
 def read_mode(body):
@@ -155,7 +155,7 @@ def handler(event, context):
 
     import boto3
 
-    max_players_variable = "MAX_PLAYERS_PER_RPG_SESSION" if mode == RPG_MODE else "MAX_PLAYERS_PER_SESSION"
+    max_players_variable = "MAX_PLAYERS_PER_BOSS_RAID_SESSION" if mode == BOSS_RAID_MODE else "MAX_PLAYERS_PER_SESSION"
     result = join_or_create(
         boto3.client("gamelift"),
         fleet_id=fleet_id,

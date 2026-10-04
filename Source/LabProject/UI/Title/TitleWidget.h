@@ -21,7 +21,7 @@ class UTextBlock;
 class UWidget;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLunaQuestionSubmitted, const FString& /*Question*/);
-DECLARE_MULTICAST_DELEGATE(FOnRpgModeRequested);
+DECLARE_MULTICAST_DELEGATE(FOnBossRaidRequested);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UTitleWidget : public ULocalizedMenuWidget
@@ -46,10 +46,10 @@ public:
 	/** The player pressed Enter in the question box under Luna. */
 	FOnLunaQuestionSubmitted& OnLunaQuestionSubmitted() { return LunaQuestionSubmitted; }
 
-	/** The player pressed Boss Raid. The title HUD asks the backend for a place in a raid (an rpg-mode session). */
-	FOnRpgModeRequested& OnRpgModeRequested() { return RpgModeRequested; }
+	/** The player pressed Boss Raid. The title HUD asks the backend for a place in a raid (a boss raid session). */
+	FOnBossRaidRequested& OnBossRaidRequested() { return BossRaidRequested; }
 	/** Disabled while the backend places the player, so the request is not sent twice. */
-	void SetRpgModeEnabled(bool bEnabled) const;
+	void SetBossRaidEnabled(bool bEnabled) const;
 
 protected:
 	virtual void OnMenuLanguageChanged() override;
@@ -77,7 +77,7 @@ protected:
 	void HandleExitClicked();
 
 	UFUNCTION()
-	void HandleRpgModeClicked();
+	void HandleBossRaidClicked();
 
 	UFUNCTION()
 	void HandleWebsiteClicked();
@@ -136,9 +136,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_TrainingMode;
 
-	/** Boss Raid: joins an rpg-mode GameLift session on a dedicated server. Shares the training row in WBP_Title. */
+	/** Boss Raid: joins a boss raid GameLift session on a dedicated server. Shares the training row in WBP_Title. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
-	TObjectPtr<UButton> Btn_RpgMode;
+	TObjectPtr<UButton> Btn_BossRaid;
 
 	/** Opens the official website in the system browser. Platforms that cannot open a browser do not show it. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
@@ -219,5 +219,5 @@ private:
 
 	FName LunaSpeechKey;
 	FOnLunaQuestionSubmitted LunaQuestionSubmitted;
-	FOnRpgModeRequested RpgModeRequested;
+	FOnBossRaidRequested BossRaidRequested;
 };

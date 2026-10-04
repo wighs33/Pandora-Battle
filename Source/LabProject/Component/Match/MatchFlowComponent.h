@@ -37,8 +37,8 @@ public:
 	bool HandlePlayerLogout(const APlayerState* ExitingPlayerState);
 
 	bool IsGameResultShown() const { return bGameResultShown; }
-	/** travel 옵션 RpgMode로 연 공유 월드. 경기 타이머·결과·이탈 종료가 없다. */
-	bool IsRpgMode() const { return bRpgMode; }
+	/** travel 옵션 BossRaid로 연 보스 레이드 월드. 경기 타이머·결과·이탈 종료가 없다. */
+	bool IsBossRaid() const { return bBossRaid; }
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -68,7 +68,7 @@ private:
 	bool bGoldenKillActive = false;
 	bool bGameResultShown = false;
 	bool bMatchTimerSuppressedByTravelOption = false;
-	bool bRpgMode = false;
+	bool bBossRaid = false;
 	FTimerHandle MatchTimerHandle;
 	FTimerHandle GameResultLobbyReturnTimerHandle;
 	FDelegateHandle KillScoredHandle;

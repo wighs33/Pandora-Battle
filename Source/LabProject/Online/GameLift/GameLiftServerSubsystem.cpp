@@ -51,16 +51,16 @@ namespace
 		TEXT("After the match ends, maximum seconds to wait for result reports and player exits."),
 		ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarRpgEmptySessionTimeout(
-		TEXT("pd.GameLift.RpgEmptySessionTimeout"),
+	TAutoConsoleVariable<float> CVarBossRaidEmptySessionTimeout(
+		TEXT("pd.GameLift.BossRaidEmptySessionTimeout"),
 		300.0f,
-		TEXT("Seconds an RPG shared-world session may stay empty before the process ends. Players may rejoin meanwhile."),
+		TEXT("Seconds a boss raid session may stay empty before the process ends. Players may rejoin meanwhile."),
 		ECVF_Default);
 
-	TAutoConsoleVariable<float> CVarRpgWorldReadyTimeout(
-		TEXT("pd.GameLift.RpgWorldReadyTimeout"),
+	TAutoConsoleVariable<float> CVarBossRaidWorldReadyTimeout(
+		TEXT("pd.GameLift.BossRaidWorldReadyTimeout"),
 		60.0f,
-		TEXT("Seconds an RPG game session may wait for the shared-world map to load before the process ends."),
+		TEXT("Seconds a boss raid game session may wait for the raid map to load before the process ends."),
 		ECVF_Default);
 
 	constexpr float WatchdogIntervalSeconds = 1.0f;
@@ -297,7 +297,7 @@ void UGameLiftServerSubsystem::NotifyServerReadyForSessions(const UWorld* World)
 #endif
 }
 
-// 경기 세션은 이미 열린 로비가 바로 받는다. RPG 세션은 공유 월드로 이동하고, 그 맵이 준비되면 활성화한다.
+// 경기 세션은 이미 열린 로비가 바로 받는다. 보스 레이드 세션은 레이드 맵으로 이동하고, 그 맵이 준비되면 활성화한다.
 void UGameLiftServerSubsystem::HandleGameSessionStarted(
 	const FString& InGameSessionId,
 	const int32 MaxPlayerSessionCount,
@@ -309,8 +309,8 @@ void UGameLiftServerSubsystem::HandleGameSessionStarted(
 		return;
 	}
 
-	bRpgSession = SessionMode.Equals(LabGameSession::RpgSessionMode, ESearchCase::IgnoreCase);
-	if (!bRpgSession)
+	bBossRaidSession = SessionMode.Equals(LabGameSession::BossRaidSessionMode, ESearchCase::IgnoreCase);
+	if (!bBossRaidSession)
 	{
 		ActivateSession(InGameSessionId, MaxPlayerSessionCount);
 		return;
@@ -319,9 +319,9 @@ void UGameLiftServerSubsystem::HandleGameSessionStarted(
 	PendingGameSessionId = InGameSessionId;
 	PendingMaxPlayerSessionCount = MaxPlayerSessionCount;
 	PendingSinceSeconds = FPlatformTime::Seconds();
-	if (!TravelToRpgWorld())
+	if (!TravelToBossRaidWorld())
 	{
-		EndProcess(TEXT("RPG world could not be opened"));
+		EndProcess(TEXT("Boss raid world could not be opened"));
 	}
 #endif
 }
@@ -338,19 +338,19 @@ void UGameLiftServerSubsystem::ActivatePendingGameSession()
 	ActivateSession(SessionId, PendingMaxPlayerSessionCount);
 }
 
-bool UGameLiftServerSubsystem::TravelToRpgWorld()
+bool UGameLiftServerSubsystem::TravelToBossRaidWorld()
 {
 	UWorld* World = GetGameInstance()->GetWorld();
 	const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
-	const FString MapName = Levels ? Levels->GetRpgTravelMapName() : FString();
+	const FString MapName = Levels ? Levels->GetBossRaidTravelMapName() : FString();
 	if (!World || MapName.IsEmpty())
 	{
-		UE_LOG(LogGameLiftServer, Error, TEXT("RPG game session %s has no RpgLevel to open."), *PendingGameSessionId);
+		UE_LOG(LogGameLiftServer, Error, TEXT("Boss raid game session %s has no BossRaidLevel to open."), *PendingGameSessionId);
 		return false;
 	}
 
-	UE_LOG(LogGameLiftServer, Log, TEXT("RPG game session %s: opening %s before activation."), *PendingGameSessionId, *MapName);
-	return World->ServerTravel(FString::Printf(TEXT("%s?%s=1"), *MapName, LabGameSession::RpgModeOption));
+	UE_LOG(LogGameLiftServer, Log, TEXT("Boss raid game session %s: opening %s before activation."), *PendingGameSessionId, *MapName);
+	return World->ServerTravel(FString::Printf(TEXT("%s?%s=1"), *MapName, LabGameSession::BossRaidOption));
 }
 
 void UGameLiftServerSubsystem::ActivateSession(const FString& InGameSessionId, const int32 MaxPlayerSessionCount)
@@ -368,7 +368,7 @@ void UGameLiftServerSubsystem::ActivateSession(const FString& InGameSessionId, c
 		return;
 	}
 	UE_LOG(LogGameLiftServer, Log, TEXT("GameLift game session activated: %s (%s, max %d players)"),
-		*GameSessionId, bRpgSession ? LabGameSession::RpgSessionMode : LabGameSession::MatchSessionMode,
+		*GameSessionId, bBossRaidSession ? LabGameSession::BossRaidSessionMode : LabGameSession::MatchSessionMode,
 		MaxPlayerSessionCount);
 #endif
 }
@@ -529,11 +529,11 @@ bool UGameLiftServerSubsystem::TickSessionWatchdog(float DeltaSeconds)
 	}
 
 	const double NowSeconds = FPlatformTime::Seconds();
-	// RPG 맵이 열리지 않으면 세션이 활성화되지 않은 채 남는다. 프로세스를 끝내 새 프로세스로 바꾼다.
+	// 보스 레이드 맵이 열리지 않으면 세션이 활성화되지 않은 채 남는다. 프로세스를 끝내 새 프로세스로 바꾼다.
 	if (!PendingGameSessionId.IsEmpty()
-		&& NowSeconds - PendingSinceSeconds >= CVarRpgWorldReadyTimeout.GetValueOnGameThread())
+		&& NowSeconds - PendingSinceSeconds >= CVarBossRaidWorldReadyTimeout.GetValueOnGameThread())
 	{
-		EndProcess(TEXT("RPG world was not ready in time"));
+		EndProcess(TEXT("Boss raid world was not ready in time"));
 		return true;
 	}
 	if (GameSessionId.IsEmpty())
@@ -557,9 +557,9 @@ bool UGameLiftServerSubsystem::TickSessionWatchdog(float DeltaSeconds)
 		return true;
 	}
 
-	// RPG 공유 월드는 잠시 비어도 다시 들어올 수 있게 더 오래 기다린다.
+	// 보스 레이드 월드는 잠시 비어도 다시 들어올 수 있게 더 오래 기다린다.
 	const double EmptySince = bAnyPlayerJoined ? EmptySinceSeconds : SessionActivatedSeconds;
-	const TAutoConsoleVariable<float>& EmptyTimeout = bRpgSession ? CVarRpgEmptySessionTimeout : CVarEmptySessionTimeout;
+	const TAutoConsoleVariable<float>& EmptyTimeout = bBossRaidSession ? CVarBossRaidEmptySessionTimeout : CVarEmptySessionTimeout;
 	const float Timeout = bAnyPlayerJoined
 		? EmptyTimeout.GetValueOnGameThread()
 		: CVarFirstPlayerTimeout.GetValueOnGameThread();
