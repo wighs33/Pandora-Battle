@@ -1,4 +1,6 @@
 #include "UI/Match/GameResultWidget.h"
+#include "Algo/AllOf.h"
+#include "Algo/Compare.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Core/UiScreen.h"
 #include "Input/CommonUIActionRouterBase.h"
@@ -17,6 +19,20 @@
 #include "UI/Common/TeamColorUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameResultWidget)
+
+namespace
+{
+	bool HasSamePlayerStats(const TArray<FGameResultPlayerStat>& Left, const TArray<FGameResultPlayerStat>& Right)
+	{
+		return Algo::Compare(Left, Right, [](const FGameResultPlayerStat& A, const FGameResultPlayerStat& B)
+		{
+			return A.PlayerStateId == B.PlayerStateId && A.KillCount == B.KillCount && A.DeathCount == B.DeathCount
+				&& A.GoldReward == B.GoldReward && A.TeamColorIndex == B.TeamColorIndex
+				&& A.bVictoryRewardEligible == B.bVictoryRewardEligible && A.PlayerName.EqualTo(B.PlayerName)
+				&& A.TeamName.EqualTo(B.TeamName);
+		});
+	}
+}
 
 UGameResultWidget::UGameResultWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -81,11 +97,18 @@ void UGameResultWidget::SetInfo(const FText& InWinnerTitle, const int32 InWinner
 
 void UGameResultWidget::SetInGameScoreboardInfo(const TArray<FGameResultPlayerStat>& InPlayerStats)
 {
+	TArray<FGameResultPlayerStat> SortedPlayerStats = InPlayerStats;
+	MatchResultReport::SortPlayerStats(SortedPlayerStats);
+	// 점수판은 열려 있는 동안 주기적으로 불리므로, 보이는 값이 그대로면 다시 그리지 않는다.
+	if (bInGameScoreboardMode && HasSamePlayerStats(PlayerStats, SortedPlayerStats))
+	{
+		return;
+	}
+
 	bInGameScoreboardMode = true;
 	WinnerTitle = FText::GetEmpty();
 	WinnerTeamColorIndex = INDEX_NONE;
-	PlayerStats = InPlayerStats;
-	MatchResultReport::SortPlayerStats(PlayerStats);
+	PlayerStats = MoveTemp(SortedPlayerStats);
 
 	if (PlayerStats.IsEmpty())
 	{
@@ -239,25 +262,39 @@ void UGameResultWidget::RefreshPlayerStatsList()
 		return;
 	}
 
-	PlayerStatsContainer->ClearChildren();
+	// 항목 위젯은 다시 쓰고, 인원이 바뀐 만큼만 만들거나 지운다. 항목이 아닌 자식이 섞여 있으면 처음부터 채운다.
+	const bool bOnlyEntryWidgets = PlayerStatEntryWidgetClass && Algo::AllOf(PlayerStatsContainer->GetAllChildren(),
+		[this](const UWidget* Child) { return Child && Child->GetClass() == PlayerStatEntryWidgetClass; });
+	if (!bOnlyEntryWidgets)
+	{
+		PlayerStatsContainer->ClearChildren();
+	}
 	if (!PlayerStatEntryWidgetClass)
 	{
 		return;
 	}
+	while (PlayerStatsContainer->GetChildrenCount() > PlayerStats.Num())
+	{
+		PlayerStatsContainer->RemoveChildAt(PlayerStatsContainer->GetChildrenCount() - 1);
+	}
 
 	// PlayerStats는 받을 때 이미 정렬해 두었다.
-	for (const FGameResultPlayerStat& PlayerStat : PlayerStats)
+	for (int32 StatIndex = 0; StatIndex < PlayerStats.Num(); ++StatIndex)
 	{
-		UGameResultPlayerStatEntryWidget* EntryWidget = CreateWidget<UGameResultPlayerStatEntryWidget>(
-			GetOwningPlayer(), PlayerStatEntryWidgetClass);
+		UGameResultPlayerStatEntryWidget* EntryWidget =
+			Cast<UGameResultPlayerStatEntryWidget>(PlayerStatsContainer->GetChildAt(StatIndex));
 		if (!EntryWidget)
 		{
-			continue;
+			EntryWidget = CreateWidget<UGameResultPlayerStatEntryWidget>(GetOwningPlayer(), PlayerStatEntryWidgetClass);
+			if (!EntryWidget)
+			{
+				return;
+			}
+			PlayerStatsContainer->AddChild(EntryWidget);
 		}
 
-		EntryWidget->SetInfo(PlayerStat, WinnerTeamColorIndex);
 		EntryWidget->SetShowReward(bShowRewards && !bInGameScoreboardMode);
-		PlayerStatsContainer->AddChild(EntryWidget);
+		EntryWidget->SetInfo(PlayerStats[StatIndex], WinnerTeamColorIndex);
 	}
 }
 

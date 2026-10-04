@@ -34,6 +34,7 @@ protected:
 private:
 	void InitializeTitleCharacter();
 	void ScheduleTitleBlink();
+	void SetTitleMorph(FName MorphName, float Weight);
 	void BeginTitleBlink();
 	void ShowTitleSpeech();
 	void HideTitleSpeech();
