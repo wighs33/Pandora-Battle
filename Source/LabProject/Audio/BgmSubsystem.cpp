@@ -6,7 +6,6 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
-#include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "Settings/GameSettingsSubsystem.h"
 #include "Sound/SoundBase.h"
@@ -306,9 +305,7 @@ EBgmContext UBgmSubsystem::ResolveWorldBgmContext(UWorld* World) const
 		return EBgmContext::RoomList;
 	}
 
-	const ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem = GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>();
-	const FName SelectedMapKey = LobbyRuntimeSubsystem ? LobbyRuntimeSubsystem->GetLobbySelectedMapKey() : NAME_None;
-	if (SelectedMapKey.ToString().Contains(TEXT("Training"), ESearchCase::IgnoreCase))
+	if (SelectedMatchMapKey.ToString().Contains(TEXT("Training"), ESearchCase::IgnoreCase))
 	{
 		return EBgmContext::TrainingRoom;
 	}

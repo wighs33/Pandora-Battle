@@ -67,7 +67,7 @@ public:
 	const UMatchRuleDefinition* GetLoadedLobbyMatchRuleDefinition() const;
 
 	// 경기를 마치고 로비로 돌아왔을 때 호스트가 고른 맵을 다시 선택하도록 맵 키를 보관한다.
-	void SetLobbySelectedMapKey(FName MapKey) { LobbySelectedMapKey = MapKey; }
+	void SetLobbySelectedMapKey(FName MapKey);
 	FName GetLobbySelectedMapKey() const { return LobbySelectedMapKey; }
 
 	FText ResolveDefaultPlayerNickname(

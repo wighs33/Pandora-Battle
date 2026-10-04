@@ -1,6 +1,6 @@
 #include "Pet/PetCharacter.h"
 
-#include "AI/Pet/PetAIController.h"
+#include "Pet/PetAIController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"

@@ -26,6 +26,9 @@ public:
 
 	void StopBgm();
 
+	/** 로비가 고른 다음 경기 맵. 이름으로 문맥을 알 수 없는 전환 맵에서도 훈련장 BGM을 이어 틀 때 쓴다. */
+	void SetSelectedMatchMapKey(FName MapKey) { SelectedMatchMapKey = MapKey; }
+
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandlePostLoadMapWithWorld(UWorld* LoadedWorld);
@@ -46,6 +49,7 @@ private:
 	TObjectPtr<UAudioComponent> ActiveBgmAudioComponent;
 
 	EBgmContext ActiveBgmContext = EBgmContext::Startup;
+	FName SelectedMatchMapKey;
 	FSoftObjectPath ActiveBgmSoundPath;
 	FDelegateHandle PostLoadMapWithWorldHandle;
 	uint64 BgmLoadGeneration = 0;

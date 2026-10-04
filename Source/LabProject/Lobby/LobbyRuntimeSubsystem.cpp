@@ -1,5 +1,6 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 
+#include "Audio/BgmSubsystem.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Definition/Match/MatchRuleDefinition.h"
@@ -374,6 +375,16 @@ void ULobbyRuntimeSubsystem::ReleaseLobbyEntryContentPreload()
 	LoadedLevelDefinition = nullptr;
 	bLevelDefinitionPreloadPending = false;
 	bLevelDefinitionReady = false;
+}
+
+void ULobbyRuntimeSubsystem::SetLobbySelectedMapKey(const FName MapKey)
+{
+	LobbySelectedMapKey = MapKey;
+	// BGM은 로비를 모르므로 고른 맵을 여기서 알려 준다.
+	if (UBgmSubsystem* BgmSubsystem = GetGameInstance()->GetSubsystem<UBgmSubsystem>())
+	{
+		BgmSubsystem->SetSelectedMatchMapKey(MapKey);
+	}
 }
 
 FText ULobbyRuntimeSubsystem::ResolveDefaultPlayerNickname(
