@@ -3,7 +3,6 @@
 #include "AbilitySystemComponent.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Character/PdPlayer.h"
-#include "Component/Chat/ChatControllerComponent.h"
 #include "Common/LabGameplayTags.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
@@ -17,17 +16,14 @@
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "Component/Item/InventoryComponent.h"
-#include "Kismet/GameplayStatics.h"
 #include "Mode/PdPlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Component/Player/CombatComponent.h"
-#include "Component/Player/ControllerPresentationComponent.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/PlayerActionComponent.h"
 #include "Component/Player/PlayerInteractionComponent.h"
 #include "Component/Player/PlayerRewardComponent.h"
-#include "Definition/Level/LevelDefinition.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
 #include "Interface/HudInputInterface.h"
@@ -566,177 +562,6 @@ void UControllerInputComponent::HandleInteractInput(const FInputActionValue& Inp
 	PlayerRewardComponent->ApplyInteractRewards(InteractableActor);
 }
 
-void UControllerInputComponent::HandleOpenInfoInputStarted(const FInputActionValue& InputValue, const EInfoUiSection Section)
-{
-	static_cast<void>(InputValue);
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->OpenInfoUiFocused(Section);
-	}
-}
-
-void UControllerInputComponent::HandleOpenSettingUiInputStarted(const FInputActionValue& InputValue)
-{
-	const UControllerInputDefinition* Definition = LoadedInputDefinition.Get();
-	if (Definition
-		&& Definition->GetOpenSettingUiInputAction().ToSoftObjectPath()
-			== Definition->GetEscapeInputAction().ToSoftObjectPath())
-	{
-		// A legacy data asset may point both fields at IA_Escape. Let the Escape
-		// handler own that shared action so a single key press is not processed twice.
-		return;
-	}
-
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->OnOpenSettingsMenuInputStarted(InputValue);
-	}
-}
-
-void UControllerInputComponent::HandleEscapeInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-
-	APdPlayerController* Controller = GetPdController();
-	if (Controller)
-	{
-		if (UChatControllerComponent* ChatController =
-			Controller->FindComponentByClass<UChatControllerComponent>();
-			ChatController && ChatController->IsChatFocused())
-		{
-			ChatController->ExitChat();
-			return;
-		}
-	}
-
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->HandleEscapeInput();
-		bSelectPandoraActionOpened = false;
-	}
-}
-
-void UControllerInputComponent::HandleOpenLobbyInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-
-	if (!IsOpenLobbyInputAllowed())
-	{
-		return;
-	}
-
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->OpenLobbyUi();
-	}
-}
-
-void UControllerInputComponent::HandleSelectPandoraInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-
-	APdPlayer* PlayerCharacter = GetPlayerCharacter();
-	if (!CanSwapPandoraAndWeapon(PlayerCharacter))
-	{
-		return;
-	}
-
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->OnSelectPandoraInputStarted(InputValue);
-		if (HUD->IsSelectPandoraUiOpen())
-		{
-			bSelectPandoraActionOpened = true;
-		}
-	}
-}
-
-void UControllerInputComponent::HandleSelectPandoraInputEnded(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-
-	if (!bSelectPandoraActionOpened)
-	{
-		return;
-	}
-
-	bSelectPandoraActionOpened = false;
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->OnSelectPandoraInputEnded(InputValue);
-	}
-}
-
-void UControllerInputComponent::HandlePandoraTreeInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->OnPandoraTreeInputStarted(InputValue);
-	}
-}
-
-void UControllerInputComponent::HandleScoreboardInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-
-	if (APdPlayerController* Controller = GetPdController())
-	{
-		if (UControllerPresentationComponent* Presentation =
-			Controller->GetControllerPresentationComponent())
-		{
-			Presentation->ShowInGameScoreboard();
-		}
-	}
-}
-
-void UControllerInputComponent::HandleScoreboardInputEnded(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-
-	if (APdPlayerController* Controller = GetPdController())
-	{
-		if (UControllerPresentationComponent* Presentation =
-			Controller->GetControllerPresentationComponent())
-		{
-			Presentation->HideInGameScoreboard();
-		}
-	}
-}
-
-void UControllerInputComponent::HandleChatInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-
-	if (APdPlayerController* Controller = GetPdController())
-	{
-		if (UChatControllerComponent* ChatController =
-			Controller->FindComponentByClass<UChatControllerComponent>())
-		{
-			ChatController->HandleChatInputAction();
-		}
-	}
-}
-
-void UControllerInputComponent::HandleChatScrollInputTriggered(const FInputActionValue& InputValue)
-{
-	const float ScrollValue = InputValue.Get<float>();
-	if (FMath::IsNearlyZero(ScrollValue))
-	{
-		return;
-	}
-
-	if (APdPlayerController* Controller = GetPdController())
-	{
-		if (UChatControllerComponent* ChatController =
-			Controller->FindComponentByClass<UChatControllerComponent>())
-		{
-			ChatController->ScrollChat(ScrollValue > 0.0f);
-		}
-	}
-}
-
 void UControllerInputComponent::HandleAttackInputStarted(const FInputActionValue& InputValue)
 {
 	static_cast<void>(InputValue);
@@ -929,21 +754,6 @@ bool UControllerInputComponent::IsGameplayInputBlockedByUi() const
     return HUD && HUD->IsGameplayInputBlockedByUi();
 }
 
-bool UControllerInputComponent::IsOpenLobbyInputAllowed() const
-{
-	const UWorld* World = GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-
-	const ULevelDefinition* Levels =
-		ULevelDefinition::ResolveDefaultDefinition();
-	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
-	return Levels
-		&& Levels->IsLobbyMapName(CurrentLevelName);
-}
-
 void UControllerInputComponent::ReleaseGameplayInput()
 {
     if (UCombatComponent* Combat = GetPlayerCombatComponent())
@@ -967,10 +777,4 @@ void UControllerInputComponent::ReleaseGameplayInput()
             }
         }
     }
-}
-
-void UControllerInputComponent::ReleaseHeldUiInput()
-{
-    HandleSelectPandoraInputEnded(FInputActionValue());
-    HandleScoreboardInputEnded(FInputActionValue());
 }

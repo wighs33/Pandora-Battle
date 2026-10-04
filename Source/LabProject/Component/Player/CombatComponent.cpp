@@ -6,19 +6,14 @@
 #include "Abilities/GameplayAbility.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
 #include "Common/LabGameplayTags.h"
 #include "Interface/ComboAttackInterface.h"
 #include "AbilitySystem/Ability/EquipmentAbilityData.h"
 #include "Definition/Common/ProjectTagDefinition.h"
-#include "Definition/Settings/GameSettingDefinition.h"
 #include "Components/SceneComponent.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
-#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameplayEffect.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -26,8 +21,6 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Mode/PdPlayerController.h"
 #include "Component/Player/EquipmentComponent.h"
-#include "NiagaraSystem.h"
-#include "Settings/GameSettingsSubsystem.h"
 #include "Weapon/WeaponBase.h"
 #include "Weapon/RangedWeaponBase.h"
 
@@ -148,11 +141,6 @@ void UCombatComponent::ApplySettings(const FCombatDamageSettings& DamageSettings
 	{
 		BeginUnarmedAttackMontagePreload();
 	}
-}
-
-UNiagaraSystem* UCombatComponent::GetUnarmedComboWindowStartEffect() const
-{
-	return UnarmedCombatSettings.ComboWindowStartEffect;
 }
 
 // 누르기 입력은 즉시 한 번 처리하고 자동 무기라면 다음 입력을 예약한다.
@@ -654,140 +642,6 @@ bool UCombatComponent::BuildWeaponDamage(const AWeaponBase& Weapon, PdDamageRule
 			Weapon.ShouldTriggerHitReactOnDamage(), OutDamage);
 }
 
-UAnimMontage* UCombatComponent::GetCachedUnarmedAttackMontage() const
-{
-	return CachedUnarmedAttackMontage
-		? CachedUnarmedAttackMontage.Get()
-		: UnarmedCombatSettings.AttackMontage.Get();
-}
-
-void UCombatComponent::BeginUnarmedAttackMontagePreload()
-{
-	ReleaseUnarmedAttackMontagePreload();
-	CachedUnarmedAttackMontage = UnarmedCombatSettings.AttackMontage.Get();
-	if (CachedUnarmedAttackMontage || UnarmedCombatSettings.AttackMontage.IsNull())
-	{
-		return;
-	}
-
-	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	UContentDataSubsystem* ContentSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	if (!ContentSubsystem)
-	{
-		return;
-	}
-
-	UnarmedAttackMontageLease = ContentSubsystem->AcquireContent(
-		TArray<FSoftObjectPath>{UnarmedCombatSettings.AttackMontage.ToSoftObjectPath()},
-		FSimpleDelegate::CreateUObject(
-			this,
-			&ThisClass::HandleUnarmedAttackMontagePreloadComplete));
-}
-
-void UCombatComponent::HandleUnarmedAttackMontagePreloadComplete()
-{
-	CachedUnarmedAttackMontage = UnarmedCombatSettings.AttackMontage.Get();
-}
-
-void UCombatComponent::ReleaseUnarmedAttackMontagePreload()
-{
-	UnarmedAttackMontageLease.Reset();
-	CachedUnarmedAttackMontage = nullptr;
-}
-
-bool UCombatComponent::GetUnarmedAttackData(FAttackData& OutAttackData) const
-{
-	OutAttackData = FAttackData();
-
-	UAnimMontage* AttackMontage = GetCachedUnarmedAttackMontage();
-	if (!AttackMontage)
-	{
-		return false;
-	}
-
-	OutAttackData.AttackMontage = AttackMontage;
-
-	return true;
-}
-
-void UCombatComponent::SetUnarmedAttackTraceEnabledForSection(
-	const bool bEnabled,
-	const FName AttackSectionName)
-{
-	if (!bEnabled)
-	{
-		StopUnarmedAttackTrace();
-		return;
-	}
-
-	if (AttackSectionName.IsNone())
-	{
-		return;
-	}
-
-	UnarmedAttackSweep.EnterSection(AttackSectionName, UnarmedCombatSettings.AttackTraces.Num());
-	StartUnarmedAttackTrace();
-}
-
-void UCombatComponent::ResetUnarmedAttackHitTracking()
-{
-	UnarmedAttackSweep.ResetHitTracking(UnarmedCombatSettings.AttackTraces.Num());
-}
-
-// 공격 판정 창이 열려 있는 동안만 서버가 손·발의 충돌 검사를 반복한다.
-void UCombatComponent::StartUnarmedAttackTrace()
-{
-	UWorld* World = GetWorld();
-	if (bEndingPlay || !HasCombatAuthority() || UnarmedAttackSweep.IsActive() || !World
-		|| !FUnarmedAttackSweep::CanSweep(UnarmedCombatSettings))
-	{
-		return;
-	}
-	UnarmedAttackSweep.Begin(UnarmedCombatSettings.AttackTraces.Num());
-	World->GetTimerManager().SetTimer(UnarmedAttackTraceTimerHandle, this, &ThisClass::PerformUnarmedAttackTrace,
-		UnarmedCombatSettings.TraceInterval, true);
-	// 즉시 타격의 콜백에서 공격이 끝나도 타이머를 다시 등록하지 않는다.
-	PerformUnarmedAttackTrace();
-}
-
-void UCombatComponent::StopUnarmedAttackTrace()
-{
-	UnarmedAttackSweep.End();
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(UnarmedAttackTraceTimerHandle);
-	}
-
-	UnarmedAttackTraceTimerHandle.Invalidate();
-}
-
-void UCombatComponent::PerformUnarmedAttackTrace()
-{
-	AActor* OwnerActor = GetOwner();
-	ACharacterBase* SourceCharacter = GetCharacter();
-	USkeletalMeshComponent* SourceMesh = SourceCharacter ? SourceCharacter->GetMesh() : nullptr;
-	if (bEndingPlay || !UnarmedAttackSweep.IsActive() || !OwnerActor || !HasCombatAuthority() || !SourceCharacter || !SourceMesh || !GetWorld())
-	{
-		return;
-	}
-
-	const UGameSettingDefinition* SettingDefinition =
-		UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
-	const bool bDrawAttackDebug = SettingDefinition
-		&& SettingDefinition->bDrawAttackDebugVisualization;
-	UnarmedAttackSweep.Sweep(*this, UnarmedCombatSettings, *SourceCharacter, *SourceMesh, bDrawAttackDebug,
-		[this](AActor* HitActor)
-		{
-			ApplyUnarmedDamageToTarget(HitActor);
-		});
-}
-
-bool UCombatComponent::ApplyUnarmedDamageToTarget(AActor* TargetActor)
-{
-	return ApplyAttackDamageToTarget(TargetActor, GetUnarmedDamageSourceMagnitude(), GetOwner(), GetOwner(), true);
-}
-
 // 팀·능력치·치명타·피격 반응을 같은 순서로 적용한다. 치명타는 공격자 능력치로 한 번 판정하고,
 // 판정 결과와 피격 반응 여부는 피해 Spec의 태그로 대상 AttributeSet에 전달한다.
 bool UCombatComponent::ApplyAttackDamageToTarget(AActor* TargetActor, const float RawDamage,
@@ -841,18 +695,6 @@ bool UCombatComponent::ApplyOutgoingDamageToTarget(AActor* TargetActor, const Pd
 	}
 	return ApplyDamageEffect(SourceASC, TargetASC, CombatDamageSettings.IncomingDamageEffectClass,
 		Damage.Damage, SourceObject, Source, DamageCauser, DamageSpecTags);
-}
-
-float UCombatComponent::GetUnarmedDamageSourceMagnitude() const
-{
-	if (UnarmedCombatSettings.DamageMagnitude > 0.0f)
-	{
-		return UnarmedCombatSettings.DamageMagnitude;
-	}
-
-	return GetCurrentWeaponActor()
-		? GetWeaponDamageSourceMagnitude()
-		: 0.0f;
 }
 
 bool UCombatComponent::HasCombatAuthority() const

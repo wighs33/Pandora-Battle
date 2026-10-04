@@ -2,6 +2,7 @@
 #include "UI/HUD/HudMenuLayer.h"
 #include "UI/HUD/HudScoreboardLayer.h"
 #include "UI/HUD/HudScreenLayer.h"
+#include "UI/HUD/HudSelectPandoraLayer.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Camera/PlayerCameraManager.h"
@@ -21,7 +22,6 @@
 #include "UI/Pandora/PandoraTreeWidget.h"
 #include "UI/HUD/Player/PlayerHudWidget.h"
 #include "UI/HUD/Notification/RightNotificationsWidget.h"
-#include "UI/Pandora/SelectPandoraWidget.h"
 #include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HudUiRouter)
@@ -44,6 +44,9 @@ void UHudUiRouter::Initialize(APdHUD* InOwnerHud)
 
 	ScoreboardLayer = NewObject<UHudScoreboardLayer>(this);
 	ScoreboardLayer->Initialize(InOwnerHud, this);
+
+	SelectPandoraLayer = NewObject<UHudSelectPandoraLayer>(this);
+	SelectPandoraLayer->Initialize(InOwnerHud);
 }
 
 void UHudUiRouter::Shutdown()
@@ -65,6 +68,7 @@ void UHudUiRouter::Shutdown()
 	MenuLayer = nullptr;
 	ScreenLayer = nullptr;
 	ScoreboardLayer = nullptr;
+	SelectPandoraLayer = nullptr;
 	OwnerHud.Reset();
 }
 
@@ -146,12 +150,9 @@ void UHudUiRouter::EnsureCoreLayers()
 	Hud->ApplyStatusViewModelToPlayerHud();
 	Hud->RefreshHudTimerVisibility();
 
-	if (!Hud->CachedSelectPandoraUI)
+	if (SelectPandoraLayer)
 	{
-		if (const TSubclassOf<USelectPandoraWidget> WidgetClass = Definition->GetSelectPandoraWidgetClass())
-		{
-			Hud->CachedSelectPandoraUI = CreateWidget<USelectPandoraWidget>(Controller, WidgetClass);
-		}
+		SelectPandoraLayer->EnsureWidget(*Controller, *Definition);
 	}
 	if (!Hud->AimCrosshairWidget)
 	{
@@ -174,17 +175,9 @@ void UHudUiRouter::EnsureCoreLayers()
 		Hud->CachedRightNotificationsUI->AddToViewport(20);
 	}
 
-	if (Hud->CachedSelectPandoraUI)
+	if (SelectPandoraLayer)
 	{
-		if (UInfoUiPresenter* Presenter = Hud->GetInfoUiPresenter())
-		{
-			Hud->CachedSelectPandoraUI->OnSelected.RemoveDynamic(
-				Presenter,
-				&UInfoUiPresenter::HandleSelectedPandoraDirection);
-			Hud->CachedSelectPandoraUI->OnSelected.AddUniqueDynamic(
-				Presenter,
-				&UInfoUiPresenter::HandleSelectedPandoraDirection);
-		}
+		SelectPandoraLayer->BindPresenter();
 	}
 }
 
@@ -293,16 +286,9 @@ void UHudUiRouter::ResetLayers()
 		Hud->CachedPlayerHUD = nullptr;
 	}
 	ReleaseInfoLayers();
-	if (Hud->CachedSelectPandoraUI)
+	if (SelectPandoraLayer)
 	{
-		if (UInfoUiPresenter* Presenter = Hud->CachedInfoUiPresenter)
-		{
-			Hud->CachedSelectPandoraUI->OnSelected.RemoveDynamic(
-				Presenter,
-				&UInfoUiPresenter::HandleSelectedPandoraDirection);
-		}
-		Hud->CachedSelectPandoraUI->RemoveFromParent();
-		Hud->CachedSelectPandoraUI = nullptr;
+		SelectPandoraLayer->ReleaseWidget();
 	}
 	if (Hud->CachedRightNotificationsUI)
 	{

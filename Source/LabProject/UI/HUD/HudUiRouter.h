@@ -9,6 +9,7 @@
 class APdHUD;
 class UHudMenuLayer;
 class UHudScoreboardLayer;
+class UHudSelectPandoraLayer;
 class UHudScreenLayer;
 class UUserWidget;
 class UWidget;
@@ -43,6 +44,7 @@ public:
 	UHudMenuLayer* GetMenuLayer() const { return MenuLayer; }
 	UHudScreenLayer* GetScreenLayer() const { return ScreenLayer; }
 	UHudScoreboardLayer* GetScoreboardLayer() const { return ScoreboardLayer; }
+	UHudSelectPandoraLayer* GetSelectPandoraLayer() const { return SelectPandoraLayer; }
 
 	void ShowAimCrosshair(FGameplayTag DesiredCrosshairWidgetTag);
 	void HideAimCrosshair();
@@ -72,6 +74,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UHudScoreboardLayer> ScoreboardLayer;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UHudSelectPandoraLayer> SelectPandoraLayer;
 
 	bool bEnsuringCoreLayers = false;
 	bool bEnsuringInfoLayers = false;

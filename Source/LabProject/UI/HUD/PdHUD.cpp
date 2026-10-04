@@ -3,7 +3,6 @@
 #include "UI/Core/PdUIActionRouter.h"
 
 #include "Blueprint/UserWidget.h"
-#include "Blueprint/WidgetTree.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Components/Widget.h"
 #include "Component/Player/ControllerPresentationComponent.h"
@@ -17,6 +16,7 @@
 #include "UI/HUD/HudMenuLayer.h"
 #include "UI/HUD/HudScoreboardLayer.h"
 #include "UI/HUD/HudScreenLayer.h"
+#include "UI/HUD/HudSelectPandoraLayer.h"
 #include "UI/HUD/HudUiRouter.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Core/UiScreen.h"
@@ -26,7 +26,6 @@
 #include "UI/Info/InfoWidget.h"
 #include "UI/HUD/Match/KillLogWidget.h"
 #include "UI/HUD/Player/PlayerVitalsWidget.h"
-#include "UI/Pandora/SelectPandoraWidget.h"
 #include "UI/Pandora/PandoraTreeWidget.h"
 #include "UI/HUD/Notification/RightNotificationsWidget.h"
 #include "UI/HUD/Player/RespawnDelayWidget.h"
@@ -35,26 +34,6 @@
 #include "UI/Common/WidgetLookup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdHUD)
-
-namespace
-{
-	EEnum_Direction ResolveSelectPandoraDirectionFromIndex(const int32 Index)
-	{
-		switch (Index)
-		{
-		case 0:
-			return EEnum_Direction::Up;
-		case 1:
-			return EEnum_Direction::Right;
-		case 2:
-			return EEnum_Direction::Down;
-		case 3:
-			return EEnum_Direction::Left;
-		default:
-			return EEnum_Direction::Center;
-		}
-	}
-}
 
 APdHUD::APdHUD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -221,37 +200,37 @@ bool APdHUD::IsPlayerHudSuppressedByUi() const
 	const UHudScreenLayer* ScreenLayer = GetScreenLayer();
 	const UHudScoreboardLayer* ScoreboardLayer = GetScoreboardLayer();
 	return (ScreenLayer && ScreenLayer->ShouldSuppressPlayerHud())
-		|| (SelectPandoraScreen && SelectPandoraScreen->IsActivated())
+		|| IsSelectPandoraUiOpen()
 		|| IsEscapeMenuOpen()
 		|| (ScoreboardLayer && ScoreboardLayer->IsOpen());
 }
 
 bool APdHUD::IsSelectPandoraUiOpen() const
 {
-	return SelectPandoraScreen && SelectPandoraScreen->IsActivated();
+	const UHudSelectPandoraLayer* SelectPandoraLayer = GetSelectPandoraLayer();
+	return SelectPandoraLayer && SelectPandoraLayer->IsOpen();
+}
+
+USelectPandoraWidget* APdHUD::GetSelectPandoraWidget() const
+{
+	const UHudSelectPandoraLayer* SelectPandoraLayer = GetSelectPandoraLayer();
+	return SelectPandoraLayer ? SelectPandoraLayer->GetWidget() : nullptr;
 }
 
 void APdHUD::OpenSelectPandoraUi()
 {
-	if (!CachedSelectPandoraUI)
+	if (!GetSelectPandoraWidget())
 	{
 		CreateAllUi();
 	}
 
-	if (!CachedSelectPandoraUI)
+	// 열려 있는 동안 HUD 틱에서 마우스 방향을 고른다.
+	UHudSelectPandoraLayer* SelectPandoraLayer = GetSelectPandoraLayer();
+	if (SelectPandoraLayer && SelectPandoraLayer->Open())
 	{
-		return;
+		SetActorTickEnabled(true);
+		RefreshPlayerHudVisibility();
 	}
-
-    if (IsSelectPandoraUiOpen()) return;
-    SelectPandoraScreen = UUiScreen::CreateBlocking(GetOwningPlayerController(), CachedSelectPandoraUI, nullptr,
-        FSimpleDelegate::CreateWeakLambda(this, [this]() { CloseSelectPandoraUiInternal(false); }), ECommonInputMode::All);
-    GetOwningPlayerController()->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(SelectPandoraScreen, EUiScreenLayer::Overlay);
-    int32 Width = 0, Height = 0;
-    GetOwningPlayerController()->GetViewportSize(Width, Height);
-    GetOwningPlayerController()->SetMouseLocation(Width / 2, Height / 2);
-    SetActorTickEnabled(true);
-    RefreshPlayerHudVisibility();
 }
 
 bool APdHUD::CloseSelectPandoraUi()
@@ -261,70 +240,16 @@ bool APdHUD::CloseSelectPandoraUi()
 
 bool APdHUD::CloseSelectPandoraUiInternal(const bool bCommitSelection)
 {
-	if (!IsSelectPandoraUiOpen()) return false;
-	bool bSelectionWouldChangeLoadout = false;
-	if (CachedSelectPandoraUI)
+	UHudSelectPandoraLayer* SelectPandoraLayer = GetSelectPandoraLayer();
+	if (!SelectPandoraLayer || !SelectPandoraLayer->IsOpen())
 	{
-		if (bCommitSelection)
-		{
-			const EEnum_Direction SelectedDirection = ResolveSelectPandoraDirectionFromIndex(CachedDirIndex);
-			if (UInfoUiPresenter* InfoUiPresenter = GetInfoUiPresenter())
-			{
-				bSelectionWouldChangeLoadout = InfoUiPresenter->WouldSelectedPandoraDirectionChangeLoadout(SelectedDirection);
-			}
-
-			CachedSelectPandoraUI->SetDirection(CachedDirIndex);
-		}
-		CachedSelectPandoraUI->RemoveFromParent();
+		return false;
 	}
 
-    if (SelectPandoraScreen)
-    {
-        SelectPandoraScreen->DeactivateWidget();
-        SelectPandoraScreen = nullptr;
-    }
-    SetActorTickEnabled(false);
-    RefreshPlayerHudVisibility();
+	const bool bSelectionWouldChangeLoadout = SelectPandoraLayer->Close(bCommitSelection);
+	SetActorTickEnabled(false);
+	RefreshPlayerHudVisibility();
 	return bSelectionWouldChangeLoadout;
-}
-
-void APdHUD::UpdateSelectPandoraDirectionFromMouse()
-{
-	APdPlayerController* Controller = GetPdController();
-	if (!Controller || !CachedSelectPandoraUI || !IsSelectPandoraUiOpen() || !WidgetClassDefinition)
-	{
-		return;
-	}
-
-	const FSelectPandoraWidgetSettings& SelectPandoraSettings = WidgetClassDefinition->GetSelectPandoraWidgetSettings();
-
-	int32 ViewportSizeX = 0;
-	int32 ViewportSizeY = 0;
-	Controller->GetViewportSize(ViewportSizeX, ViewportSizeY);
-
-	float MouseX = 0.f;
-	float MouseY = 0.f;
-	Controller->GetMousePosition(MouseX, MouseY);
-
-	const FVector2D MousePosition(MouseX, MouseY);
-	const FVector2D ViewportCenter(static_cast<double>(ViewportSizeX) / 2.0, static_cast<double>(ViewportSizeY) / 2.0);
-	const FVector2D DirectionFromCenter = MousePosition - ViewportCenter;
-
-	if (DirectionFromCenter.Size() < SelectPandoraSettings.DeadZoneRadius)
-	{
-		CachedDirIndex = -1;
-		return;
-	}
-
-	const double SegmentAngle = SelectPandoraSettings.SegmentAngle;
-	if (FMath::IsNearlyZero(SegmentAngle))
-	{
-		return;
-	}
-
-	const double DirectionAngle = FMath::RadiansToDegrees(FMath::Atan2(DirectionFromCenter.Y, DirectionFromCenter.X));
-	const double NormalizedAngle = FMath::Fmod(DirectionAngle + 450.0 + (SegmentAngle / 2.0), 360.0);
-	CachedDirIndex = FMath::FloorToInt(NormalizedAngle / SegmentAngle);
 }
 
 void APdHUD::ShowAimCrosshair(FGameplayTag DesiredCrosshairWidgetTag)
@@ -604,7 +529,7 @@ bool APdHUD::HandleEscapeInput()
 		return true;
 	}
 
-	if (SelectPandoraScreen && SelectPandoraScreen->IsActivated())
+	if (IsSelectPandoraUiOpen())
 	{
 		CloseSelectPandoraUiInternal(false);
 		return true;
@@ -668,7 +593,10 @@ void APdHUD::OnPandoraTreeInputStarted(const FInputActionValue& InputValue)
 void APdHUD::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	UpdateSelectPandoraDirectionFromMouse();
+	if (UHudSelectPandoraLayer* SelectPandoraLayer = GetSelectPandoraLayer())
+	{
+		SelectPandoraLayer->UpdateDirectionFromMouse();
+	}
 }
 
 APdPlayerController* APdHUD::GetPdController() const
@@ -702,6 +630,11 @@ UHudMenuLayer* APdHUD::GetMenuLayer() const
 UHudScoreboardLayer* APdHUD::GetScoreboardLayer() const
 {
 	return UiRouter ? UiRouter->GetScoreboardLayer() : nullptr;
+}
+
+UHudSelectPandoraLayer* APdHUD::GetSelectPandoraLayer() const
+{
+	return UiRouter ? UiRouter->GetSelectPandoraLayer() : nullptr;
 }
 
 bool APdHUD::IsEscapeMenuOpen() const
@@ -741,16 +674,6 @@ UUiSubsystem* APdHUD::GetUiSubsystem() const
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 }
 
-bool APdHUD::ApplyStatusViewModelToWidget(UUserWidget* InWidget)
-{
-	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
-	{
-		return UiSubsystem->ApplyStatusViewModelToWidget(InWidget);
-	}
-
-	return false;
-}
-
 bool APdHUD::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
 {
 	if (UUiSubsystem* UiSubsystem = GetUiSubsystem())
@@ -764,49 +687,19 @@ bool APdHUD::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
 // 플레이어 HUD를 만들 때와 조종 캐릭터의 ASC가 준비될 때 호출된다. ASC가 아직이면 준비 알림에서 다시 적용한다.
 bool APdHUD::ApplyStatusViewModelToPlayerHud()
 {
-	if (!CachedPlayerHUD)
+	UUiSubsystem* UiSubsystem = GetUiSubsystem();
+	if (!CachedPlayerHUD || !UiSubsystem)
 	{
 		return false;
 	}
 
-	bool bFoundPlayerVitals = false;
 	bool bAppliedViewModel = false;
-
-	if (UPlayerVitalsWidget* PlayerVitalsWidget = Cast<UPlayerVitalsWidget>(CachedPlayerHUD))
-	{
-		bFoundPlayerVitals = true;
-		bAppliedViewModel |= ApplyStatusViewModelToWidget(PlayerVitalsWidget);
-	}
-
-	ApplyStatusViewModelToPlayerHudRecursive(CachedPlayerHUD, bFoundPlayerVitals, bAppliedViewModel);
+	PdWidgetLookup::ForEachNestedWidgetOfType<UPlayerVitalsWidget>(CachedPlayerHUD,
+		[UiSubsystem, &bAppliedViewModel](UPlayerVitalsWidget* PlayerVitalsWidget)
+		{
+			bAppliedViewModel |= UiSubsystem->ApplyStatusViewModelToWidget(PlayerVitalsWidget);
+		});
 	return bAppliedViewModel;
-}
-
-void APdHUD::ApplyStatusViewModelToPlayerHudRecursive(UUserWidget* RootWidget, bool& bFoundPlayerVitals, bool& bAppliedViewModel)
-{
-	if (!RootWidget || !RootWidget->WidgetTree)
-	{
-		return;
-	}
-
-	RootWidget->WidgetTree->ForEachWidget([this, &bFoundPlayerVitals, &bAppliedViewModel](UWidget* Widget)
-	{
-		if (!Widget)
-		{
-			return;
-		}
-
-		if (UPlayerVitalsWidget* PlayerVitalsWidget = Cast<UPlayerVitalsWidget>(Widget))
-		{
-			bFoundPlayerVitals = true;
-			bAppliedViewModel |= ApplyStatusViewModelToWidget(PlayerVitalsWidget);
-		}
-
-		if (UUserWidget* ChildUserWidget = Cast<UUserWidget>(Widget))
-		{
-			ApplyStatusViewModelToPlayerHudRecursive(ChildUserWidget, bFoundPlayerVitals, bAppliedViewModel);
-		}
-	});
 }
 
 // 플레이어 HUD에는 아래 위젯들을 종류별로 하나씩만 배치하므로 이름이 아니라 타입으로 찾는다.

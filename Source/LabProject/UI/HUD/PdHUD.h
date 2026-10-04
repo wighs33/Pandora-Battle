@@ -24,6 +24,7 @@ class UKillLogWidget;
 class UHudMenuLayer;
 class UHudScreenLayer;
 class UHudScoreboardLayer;
+class UHudSelectPandoraLayer;
 class UHudUiRouter;
 class UUiScreen;
 class URespawnDelayWidget;
@@ -80,7 +81,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	bool CloseSelectPandoraUi();
 
-	void UpdateSelectPandoraDirectionFromMouse();
 	void ShowAimCrosshair(FGameplayTag DesiredCrosshairWidgetTag);
 	void HideAimCrosshair();
 	void ShowDamageScreenEffect(float DamageAmount);
@@ -91,7 +91,7 @@ public:
 	void RefreshUiBindings();
 
 	UInfoWidget* GetInfoWidget() const { return CachedInfoUI; }
-	USelectPandoraWidget* GetSelectPandoraWidget() const { return CachedSelectPandoraUI; }
+	USelectPandoraWidget* GetSelectPandoraWidget() const;
 	virtual bool IsSelectPandoraUiOpen() const override;
 	virtual bool IsGameplayInputBlockedByUi() const override;
 	UUserWidget* GetPlayerHudWidget() const { return CachedPlayerHUD; }
@@ -143,13 +143,12 @@ private:
 	UHudScreenLayer* GetScreenLayer() const;
 	UHudMenuLayer* GetMenuLayer() const;
 	UHudScoreboardLayer* GetScoreboardLayer() const;
+	UHudSelectPandoraLayer* GetSelectPandoraLayer() const;
 	bool IsEscapeMenuOpen() const;
 	UInfoUiPresenter* GetInfoUiPresenter();
 	UUiSubsystem* GetUiSubsystem() const;
-	bool ApplyStatusViewModelToWidget(UUserWidget* InWidget);
 	bool ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget);
 	bool ApplyStatusViewModelToPlayerHud();
-	void ApplyStatusViewModelToPlayerHudRecursive(UUserWidget* RootWidget, bool& bFoundPlayerVitals, bool& bAppliedViewModel);
 	UDamageScreenEffectWidget* FindDamageScreenEffectWidget();
 	UGoldenKillAnnouncementWidget* FindGoldenKillAnnouncementWidget();
 	UKillLogWidget* FindKillLogWidget();
@@ -166,6 +165,7 @@ private:
 	friend class UHudMenuLayer;
 	friend class UHudScreenLayer;
 	friend class UHudScoreboardLayer;
+	friend class UHudSelectPandoraLayer;
 	friend class UHudUiRouter;
 
 	UPROPERTY(Transient)
@@ -173,9 +173,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UHudUiRouter> UiRouter = nullptr;
-
-	UPROPERTY(Transient)
-	int32 CachedDirIndex = -1;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> AimCrosshairWidget = nullptr;
@@ -211,12 +208,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInfoWidget> CachedInfoUI = nullptr;
-
-	UPROPERTY(Transient)
-	TObjectPtr<USelectPandoraWidget> CachedSelectPandoraUI = nullptr;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UUiScreen> SelectPandoraScreen;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraTreeWidget> CachedPandoraTreeUI = nullptr;
