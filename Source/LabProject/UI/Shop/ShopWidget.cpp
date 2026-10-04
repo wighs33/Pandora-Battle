@@ -25,7 +25,7 @@
 
 namespace
 {
-	enum class EShopPurchaseAttempt : uint8
+	enum class EShopPurchaseResult : uint8
 	{
 		Purchased,
 		NotEnoughGold,
@@ -34,7 +34,7 @@ namespace
 	};
 
 	/** 상품 종류에 맞는 골드 구매를 프로필에 요청한다. 이미 가진 상품은 사지 않는다. 저장은 호출한 쪽이 한다. */
-	EShopPurchaseAttempt PurchaseProductWithGold(UPlayerProfileSubsystem& Profile, UObject* ProductObject,
+	EShopPurchaseResult PurchaseProductWithGold(UPlayerProfileSubsystem& Profile, UObject* ProductObject,
 		const EShopProductType ProductType, const int32 GoldPrice, const int32 PandoraStartingLevel)
 	{
 		int32 RemainingGold = 0;
@@ -45,27 +45,27 @@ namespace
 			{
 				if (Profile.IsPandoraGranted(PandoraDefinition))
 				{
-					return EShopPurchaseAttempt::AlreadyOwned;
+					return EShopPurchaseResult::AlreadyOwned;
 				}
 				return Profile.TryPurchasePandoraWithGold(PandoraDefinition, GoldPrice, PandoraStartingLevel, RemainingGold, false)
-					? EShopPurchaseAttempt::Purchased
-					: EShopPurchaseAttempt::NotEnoughGold;
+					? EShopPurchaseResult::Purchased
+					: EShopPurchaseResult::NotEnoughGold;
 			}
-			return EShopPurchaseAttempt::Unsupported;
+			return EShopPurchaseResult::Unsupported;
 		case EShopProductType::Skin:
 			if (USkinDefinition* SkinDefinition = Cast<USkinDefinition>(ProductObject))
 			{
 				if (Profile.IsSkinGranted(SkinDefinition))
 				{
-					return EShopPurchaseAttempt::AlreadyOwned;
+					return EShopPurchaseResult::AlreadyOwned;
 				}
 				return Profile.TryPurchaseSkinWithGold(SkinDefinition, GoldPrice, RemainingGold, false)
-					? EShopPurchaseAttempt::Purchased
-					: EShopPurchaseAttempt::NotEnoughGold;
+					? EShopPurchaseResult::Purchased
+					: EShopPurchaseResult::NotEnoughGold;
 			}
-			return EShopPurchaseAttempt::Unsupported;
+			return EShopPurchaseResult::Unsupported;
 		default:
-			return EShopPurchaseAttempt::Unsupported;
+			return EShopPurchaseResult::Unsupported;
 		}
 	}
 }
@@ -290,18 +290,18 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 
 	switch (PurchaseProductWithGold(*ProfileSubsystem, ProductObject, ProductType, GoldPrice, PurchasedPandoraStartingLevel))
 	{
-	case EShopPurchaseAttempt::Unsupported:
+	case EShopPurchaseResult::Unsupported:
 		SetMessage(TEXT("Shop.Unsupported"), UnsupportedProductTypeText);
 		return false;
-	case EShopPurchaseAttempt::AlreadyOwned:
+	case EShopPurchaseResult::AlreadyOwned:
 		SetMessage(TEXT("Shop.AlreadyOwned"), AlreadyOwnedText);
 		RefreshAndSelectProduct(ProductObject, ProductType);
 		return false;
-	case EShopPurchaseAttempt::NotEnoughGold:
+	case EShopPurchaseResult::NotEnoughGold:
 		SetMessage(TEXT("Shop.NeedGold"), NotEnoughGoldText);
 		RefreshAndSelectProduct(ProductObject, ProductType);
 		return false;
-	case EShopPurchaseAttempt::Purchased:
+	case EShopPurchaseResult::Purchased:
 		break;
 	}
 
