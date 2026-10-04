@@ -15,7 +15,7 @@ import json
 import os
 import time
 
-from common import ApiError, api_handler, json_response, parse_json_body, require_player
+from common import ApiError, api_handler, aws_client, json_response, parse_json_body, require_player
 
 # Lambda 제한(29초) 안에서 기다린다. 보스 레이드 세션은 서버가 맵을 연 뒤 활성화하므로 경기 세션보다 오래 걸린다.
 ACTIVE_WAIT_SECONDS = 24.0
@@ -153,11 +153,9 @@ def handler(event, context):
     if not fleet_id:
         raise ApiError(503, "fleet_not_configured", "GameLift fleet is not configured for this stage.")
 
-    import boto3
-
     max_players_variable = "MAX_PLAYERS_PER_BOSS_RAID_SESSION" if mode == BOSS_RAID_MODE else "MAX_PLAYERS_PER_SESSION"
     result = join_or_create(
-        boto3.client("gamelift"),
+        aws_client("gamelift"),
         fleet_id=fleet_id,
         location=os.environ.get("GAMELIFT_LOCATION", ""),
         player_id=claims["sub"],

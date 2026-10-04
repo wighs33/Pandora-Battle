@@ -50,11 +50,9 @@ void UPlayerProfileSubsystem::SaveProfile()
 UPdSaveGame* UPlayerProfileSubsystem::GetOrCreateProfile()
 {
 	if (GetGameInstance()->IsDedicatedServerInstance()) return nullptr;
-	if (ProfileSaveGame)
-	{
-		if (EnsureDefaultUnlockedSkins(*ProfileSaveGame)) RequestProfileSave(false);
-		return ProfileSaveGame;
-	}
+	// 기본 스킨 지급은 프로필을 처음 읽거나 초기화할 때만 한다.
+	// 스킨 목록은 GameInstance가 살아 있는 동안 바뀌지 않는다.
+	if (ProfileSaveGame) return ProfileSaveGame;
 
 	bool bRecoveredFromFallback = false;
 	ProfileSaveGame = LoadBestAvailableSaveGame(bRecoveredFromFallback);

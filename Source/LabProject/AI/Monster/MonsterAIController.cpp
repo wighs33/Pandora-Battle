@@ -406,6 +406,17 @@ void AMonsterAIController::RefreshPerceivedPlayerPawn(const AActor* ExcludedActo
 	SetPerceivedPlayerPawn(NewTarget);
 }
 
+void AMonsterAIController::RefreshPerceivedPlayerPawnIfUnusable()
+{
+	APawn* CurrentTarget = PerceivedPlayerPawn.Get();
+	if (CurrentTarget && !bAIStopped && IsValidPerceivedPlayerTarget(CurrentTarget)
+		&& IsWithinTargetRetentionDistance(CurrentTarget))
+	{
+		return;
+	}
+	RefreshPerceivedPlayerPawn();
+}
+
 // 플레이어를 새로 보거나 놓친 결과를 표적 선택 정책에 반영한다.
 void AMonsterAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 {

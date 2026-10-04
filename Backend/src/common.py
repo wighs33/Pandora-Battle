@@ -1,7 +1,7 @@
 """Lambda 공통 코드: 응답 형식, 요청 파싱, 세션 토큰, SSM 비밀 값, DynamoDB 키.
 
-외부 라이브러리 없이 Lambda 기본 런타임(boto3 포함)만 사용한다. boto3는 실제로 AWS를 호출하는 함수 안에서만
-가져오므로, 로컬 단위 테스트는 boto3 없이 실행할 수 있다.
+외부 라이브러리 없이 Lambda 기본 런타임(boto3 포함)만 사용한다. boto3는 실제로 AWS를 호출할 때 처음 가져오므로
+로컬 단위 테스트는 boto3 없이 실행할 수 있고, 클라이언트는 실행 환경마다 한 번 만들어 요청 사이에 다시 쓴다.
 """
 
 import base64
@@ -95,15 +95,26 @@ class ParameterMissing(Exception):
     pass
 
 
+_aws_clients = {}
+
+
+def aws_client(service):
+    """서비스별 boto3 클라이언트를 실행 환경마다 한 번만 만든다. 따뜻한 호출은 만들어 둔 클라이언트와 연결을 그대로 쓴다."""
+    client = _aws_clients.get(service)
+    if client is None:
+        import boto3
+
+        client = _aws_clients[service] = boto3.client(service)
+    return client
+
+
 def get_secure_parameter(name):
     """SSM SecureString 값을 읽는다. 키를 바꾸면 재배포 없이 반영되도록 5분만 캐시한다."""
     cached = _parameter_cache.get(name)
     if cached and time.monotonic() - cached[1] < PARAMETER_CACHE_SECONDS:
         return cached[0]
 
-    import boto3
-
-    client = boto3.client("ssm")
+    client = aws_client("ssm")
     try:
         value = client.get_parameter(Name=name, WithDecryption=True)["Parameter"]["Value"].strip()
     except client.exceptions.ParameterNotFound as error:

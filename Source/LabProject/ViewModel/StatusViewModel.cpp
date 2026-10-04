@@ -491,7 +491,11 @@ void UStatusViewModel::UpdateMaxResourceIncreasePercents(const TMap<FGameplayTag
 		return;
 	}
 
-	const UStatUpgradeDefinition* StatDefinition = StatusViewModel::LoadDefaultStatUpgradeDefinition();
+	if (!CachedStatUpgradeDefinition.IsValid())
+	{
+		CachedStatUpgradeDefinition = StatusViewModel::LoadDefaultStatUpgradeDefinition();
+	}
+	const UStatUpgradeDefinition* StatDefinition = CachedStatUpgradeDefinition.Get();
 	const auto IncreasePercent = [ASCPtr, &EquipmentBonusMagnitudes, StatDefinition](const FGameplayAttribute& Attribute,
 		const FGameplayTag StatTag)
 	{

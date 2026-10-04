@@ -25,6 +25,9 @@
 namespace
 {
     constexpr float AttackTraceInterpolationDistance = 5.0f;
+    // 맨손 판정과 같은 상한이다. 정상적으로 휘두를 때(틱당 80cm 이하)는 닿지 않고,
+    // 서버가 멈칫해 이동이 커진 틱만 묶는다.
+    constexpr int32 MaxAttackTraceInterpolationSteps = 16;
 
     /** 반지름이 있으면 구로, 없으면 선으로 검사한다. */
     void TraceForObjects(const UObject* WorldContext, const FVector& Start, const FVector& End, const float Radius,
@@ -338,10 +341,12 @@ void AMeleeWeapon::PerformAttackTrace()
 
     TArray<AActor*> ActorsToIgnore;
     CollectAttackTraceIgnoredActors(ActorsToIgnore);
+    const bool bDrawDebug = IsAttackDebugVisualizationEnabled();
     FAttackTraceDebugData DebugData;
+    FAttackTraceDebugData* const DebugDataToFill = bDrawDebug ? &DebugData : nullptr;
     if (!bHasPreviousAttackTraceSegment)
     {
-        TraceAttackSegment(TraceStartLocation, TraceEndLocation, ActorsToIgnore, DebugData);
+        TraceAttackSegment(TraceStartLocation, TraceEndLocation, ActorsToIgnore, DebugDataToFill);
     }
     else
     {
@@ -349,16 +354,17 @@ void AMeleeWeapon::PerformAttackTrace()
         const float StartTravelDistance = FVector::Distance(PreviousAttackTraceStartLocation, TraceStartLocation);
         const float EndTravelDistance = FVector::Distance(PreviousAttackTraceEndLocation, TraceEndLocation);
         const float MaxTravelDistance = FMath::Max(StartTravelDistance, EndTravelDistance);
-        const int32 InterpolationCount = FMath::Max(1, FMath::CeilToInt(MaxTravelDistance / AttackTraceInterpolationDistance));
+        const int32 RequiredSteps = FMath::CeilToInt(MaxTravelDistance / AttackTraceInterpolationDistance);
+        const int32 InterpolationCount = FMath::Clamp(RequiredSteps, 1, MaxAttackTraceInterpolationSteps);
         for (int32 InterpolationIndex = 1; InterpolationIndex <= InterpolationCount; ++InterpolationIndex)
         {
             const float Alpha = static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
             TraceAttackSegment(FMath::Lerp(PreviousAttackTraceStartLocation, TraceStartLocation, Alpha),
-                FMath::Lerp(PreviousAttackTraceEndLocation, TraceEndLocation, Alpha), ActorsToIgnore, DebugData);
+                FMath::Lerp(PreviousAttackTraceEndLocation, TraceEndLocation, Alpha), ActorsToIgnore, DebugDataToFill);
         }
     }
 
-    if (IsAttackDebugVisualizationEnabled())
+    if (bDrawDebug)
     {
         MulticastDrawInterpolatedAttackTraceDebug(DebugData.StartLocations, DebugData.EndLocations, DebugData.HitResults);
     }
@@ -386,7 +392,7 @@ void AMeleeWeapon::CollectAttackTraceIgnoredActors(TArray<AActor*>& OutActorsToI
 }
 
 void AMeleeWeapon::TraceAttackSegment(const FVector& LineStart, const FVector& LineEnd, const TArray<AActor*>& ActorsToIgnore,
-    FAttackTraceDebugData& DebugData)
+    FAttackTraceDebugData* DebugData)
 {
     static const TArray<TEnumAsByte<EObjectTypeQuery>> BodyObjectTypes = {
         UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody())};
@@ -399,9 +405,12 @@ void AMeleeWeapon::TraceAttackSegment(const FVector& LineStart, const FVector& L
     TraceForObjects(this, LineStart, LineEnd, TraceRadius, CapsuleObjectTypes, ActorsToIgnore, CapsuleHitResults);
     HitResults.Append(CapsuleHitResults);
 
-    DebugData.StartLocations.Add(LineStart);
-    DebugData.EndLocations.Add(LineEnd);
-    DebugData.HitResults.Append(HitResults);
+    if (DebugData)
+    {
+        DebugData->StartLocations.Add(LineStart);
+        DebugData->EndLocations.Add(LineEnd);
+        DebugData->HitResults.Append(HitResults);
+    }
 
     for (const FHitResult& HitResult : HitResults)
     {

@@ -15,6 +15,7 @@ from common import (
     ApiError,
     ParameterMissing,
     api_handler,
+    aws_client,
     get_secure_parameter,
     issue_token,
     json_response,
@@ -90,9 +91,7 @@ def _login_response(player_id, display_name):
 
 
 def _dynamodb():
-    import boto3
-
-    return boto3.client("dynamodb")
+    return aws_client("dynamodb")
 
 
 def steam_login(event):

@@ -141,7 +141,7 @@ EStateTreeRunStatus FStateTreePdTrackPlayerTask::Tick(FStateTreeExecutionContext
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	if (InstanceData.Controller)
 	{
-		InstanceData.Controller->RefreshPerceivedPlayerPawn();
+		InstanceData.Controller->RefreshPerceivedPlayerPawnIfUnusable();
 	}
 	InstanceData.TargetPlayerPawn = InstanceData.Controller
 		? InstanceData.Controller->GetPerceivedPlayerPawn()

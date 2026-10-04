@@ -15,6 +15,7 @@ class UEquipmentEffectComponent;
 class UInventoryComponent;
 class UAnimInstance;
 class UAnimMontage;
+class UCharacterActionDefinition;
 class UItemDefinition;
 class UItemInstance;
 class UPdAbilitySystemComponent;
@@ -189,6 +190,9 @@ protected:
 	FSimpleMulticastDelegate CurrentWeaponDefinitionChanged;
 	TWeakObjectPtr<UPdAbilitySystemComponent> CooldownTagAbilitySystem;
 	FDelegateHandle EquipCooldownTagChangedDelegateHandle;
+
+	/** 무기 교체 쿨다운 길이를 정하는 기본 행동 정의. 처음 쿨다운을 걸 때 한 번 찾아 둔다. */
+	TWeakObjectPtr<const UCharacterActionDefinition> CachedActionDefinition;
 
 	FWeaponPresentationLoader PresentationLoader;
 	/** 선택이 바뀌거나 해제되면 올려서, 그 전에 요청한 무기 외형 로딩의 완료 콜백을 무시하게 한다. */

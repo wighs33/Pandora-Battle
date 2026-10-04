@@ -2,7 +2,7 @@
 
 import os
 
-from common import api_handler, json_response, player_pk, require_player, PROFILE_SK
+from common import api_handler, aws_client, json_response, player_pk, require_player, PROFILE_SK
 
 RECENT_MATCH_LIMIT = 20
 STAT_FIELDS = ("Matches", "Wins", "Losses", "Draws", "Kills", "Deaths")
@@ -44,9 +44,7 @@ def handler(event, context):
     claims = require_player(event)
     player_id = claims["sub"]
 
-    import boto3
-
-    response = boto3.client("dynamodb").query(
+    response = aws_client("dynamodb").query(
         TableName=os.environ["TABLE_NAME"],
         KeyConditionExpression="PK = :pk",
         ExpressionAttributeValues={":pk": {"S": player_pk(player_id)}},

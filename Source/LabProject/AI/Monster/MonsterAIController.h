@@ -52,6 +52,9 @@ public:
 		const AActor* ExcludedActor = nullptr,
 		APawn* NewlySensedPawn = nullptr);
 
+	/** 현재 표적이 없거나 쓸 수 없을 때만 다음 표적을 고른다. 유효한 표적의 교체는 인지 이벤트가 맡는다. */
+	void RefreshPerceivedPlayerPawnIfUnusable();
+
 	/** 기억 유지 거리를 벗어난 현재 표적만 잊는다. */
 	bool ForgetPerceivedPlayerIfOutOfRange();
 	void StartMonsterStateTreeIfReady();

@@ -59,6 +59,7 @@ struct FStateTreePdTrackPlayerTaskInstanceData
  * AMonsterAIController의 네이티브 인지 경로가 기억한 플레이어를 내보낸다.
  * 인지 델리게이트는 컨트롤러가 가지므로, 이 태스크에 들어가고 나와도
  * 동적 델리게이트 바인딩이 쌓이지 않는다.
+ * 들어갈 때 표적을 고르고, 틱에서는 표적이 없거나 쓸 수 없을 때만 다시 고른다.
  */
 USTRUCT(meta = (DisplayName = "Pd Track Perceived Player", Category = "AI|Perception"))
 struct LABPROJECT_API FStateTreePdTrackPlayerTask : public FStateTreeAITaskBase

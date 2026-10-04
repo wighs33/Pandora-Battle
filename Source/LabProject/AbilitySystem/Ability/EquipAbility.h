@@ -11,6 +11,7 @@ class ACharacterBase;
 class UAnimMontage;
 class UItemDefinition;
 class UAnimInstance;
+class UCharacterActionDefinition;
 
 UCLASS(Blueprintable)
 class LABPROJECT_API UEquipAbility : public UPdGameplayAbility
@@ -85,4 +86,7 @@ protected:
 	bool bEquipAbilityCommitted = false;
 
 	mutable FGameplayTagContainer EquipCooldownTags;
+
+	/** 장착 쿨다운 길이를 정하는 기본 행동 정의. 처음 쿨다운을 걸 때 한 번 찾아 둔다. */
+	mutable TWeakObjectPtr<const UCharacterActionDefinition> CachedActionDefinition;
 };

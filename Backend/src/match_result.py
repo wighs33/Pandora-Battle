@@ -12,6 +12,7 @@ import re
 from common import (
     ApiError,
     api_handler,
+    aws_client,
     ddb_n,
     ddb_s,
     json_response,
@@ -209,8 +210,6 @@ def handler(event, context):
     reported_by = identity.get("userArn") or identity.get("callerId") or ""
     report = validate_report(parse_json_body(event))
 
-    import boto3
-
-    recorded = record_report(boto3.client("dynamodb"), os.environ["TABLE_NAME"], report, reported_by)
+    recorded = record_report(aws_client("dynamodb"), os.environ["TABLE_NAME"], report, reported_by)
     print("match-result matchId=%s recorded=%s reportedBy=%s" % (report["matchId"], recorded, reported_by))
     return json_response(200, {"recorded": recorded, "duplicate": not recorded})
