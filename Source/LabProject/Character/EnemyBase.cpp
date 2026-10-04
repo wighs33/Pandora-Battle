@@ -11,7 +11,6 @@
 #include "Data/ContentLease.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/Player/PlayerPawnDefinition.h"
-#include "Engine/GameInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnemyBase)
 
@@ -147,18 +146,7 @@ void AEnemyBase::BeginEnemyDefinitionPreload()
 		return;
 	}
 
-	const UGameInstance* GameInstance = GetGameInstance();
-	UContentDataSubsystem* ContentSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<UContentDataSubsystem>()
-			: nullptr;
-	if (!ContentSubsystem)
-	{
-		HandleEnemyDefinitionPreloaded();
-		return;
-	}
-
-	EnemyDefinitionLease = ContentSubsystem->AcquireContent(
+	EnemyDefinitionLease = UContentDataSubsystem::AcquireContent(
 		{EnemyDefinition.ToSoftObjectPath()},
 		FSimpleDelegate::CreateUObject(
 			this,

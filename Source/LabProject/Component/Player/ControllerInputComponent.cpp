@@ -571,7 +571,8 @@ void UControllerInputComponent::HandleOpenInfoInputStarted(const FInputActionVal
 	static_cast<void>(InputValue);
 	if (IHudInputInterface* HUD = GetHudInput())
 	{
-		}
+		HUD->OpenInfoUiFocused(Section);
+	}
 }
 
 void UControllerInputComponent::HandleOpenSettingUiInputStarted(const FInputActionValue& InputValue)

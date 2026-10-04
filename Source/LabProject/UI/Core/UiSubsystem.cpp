@@ -139,20 +139,9 @@ TSharedPtr<FContentLease> UUiSubsystem::AcquireUiContent(
 	{
 		return nullptr;
 	}
-	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
-	UContentDataSubsystem* ContentSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	if (!ContentSubsystem)
-	{
-		UE_LOG(PdUiSubsystemLog, Error, TEXT("UI content preload could not start: ContentDataSubsystem is unavailable."));
-		TSharedPtr<FContentLease> Lease = MakeShared<FContentLease>(MoveTemp(OnComplete));
-		Lease->MarkFailed();
-		return Lease;
-	}
 	TArray<FSoftObjectPath> AssetPaths;
 	Definition->GetRuntimePreloadAssetPaths(Group, AssetPaths);
-	return ContentSubsystem->AcquireContent(AssetPaths, MoveTemp(OnComplete));
+	return UContentDataSubsystem::AcquireContent(AssetPaths, MoveTemp(OnComplete));
 }
 
 TSharedPtr<FContentLease> UUiSubsystem::AcquireConfiguredUiContent(
@@ -276,10 +265,6 @@ void UUiSubsystem::BindPendingConfiguredUiContent()
 	{
 		return;
 	}
-	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
-	UContentDataSubsystem* ContentSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	auto PendingRequests = MoveTemp(PendingConfiguredUiContent);
 	PendingConfiguredUiContent.Reset();
 	for (const auto& Request : PendingRequests)
@@ -288,7 +273,7 @@ void UUiSubsystem::BindPendingConfiguredUiContent()
 		{
 			TArray<FSoftObjectPath> AssetPaths;
 			ConfiguredWidgetClassDefinition->GetRuntimePreloadAssetPaths(Request.Key, AssetPaths);
-			Lease->Start(AssetPaths, ContentSubsystem);
+			Lease->Start(AssetPaths);
 		}
 	}
 }

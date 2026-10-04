@@ -7,7 +7,6 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "Engine/AssetManager.h"
-#include "Engine/GameInstance.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
@@ -186,16 +185,7 @@ void APdPlayer::BeginPlayerPawnDefinitionPreload()
 		return;
 	}
 
-	const UGameInstance* GameInstance = GetGameInstance();
-	UContentDataSubsystem* ContentSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	if (!ContentSubsystem)
-	{
-		HandlePlayerPawnDefinitionPreloaded(DefinitionPath);
-		return;
-	}
-
-	PlayerPawnDefinitionLease = ContentSubsystem->AcquireContent(
+	PlayerPawnDefinitionLease = UContentDataSubsystem::AcquireContent(
 		{ DefinitionPath },
 		FSimpleDelegate::CreateWeakLambda(this, [this, DefinitionPath]()
 		{

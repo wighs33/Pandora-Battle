@@ -171,7 +171,7 @@ TSharedPtr<FContentLease> UContentDataSubsystem::AcquireContent(const TArray<FSo
 	FSimpleDelegate OnComplete)
 {
 	TSharedPtr<FContentLease> Lease = MakeShared<FContentLease>(MoveTemp(OnComplete));
-	Lease->Start(AssetPaths, this);
+	Lease->Start(AssetPaths);
 	return Lease;
 }
 

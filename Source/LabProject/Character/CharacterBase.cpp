@@ -21,7 +21,6 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "Definition/Character/CharacterBaseDefinition.h"
-#include "Engine/GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interface/CharacterHealthBarInterface.h"
 #include "Interface/DamageIndicatorInterface.h"
@@ -167,16 +166,7 @@ void ACharacterBase::BeginCharacterDefinitionPreload()
 		return;
 	}
 
-	const UGameInstance* GameInstance = GetGameInstance();
-	UContentDataSubsystem* ContentSubsystem =
-		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
-	if (!ContentSubsystem)
-	{
-		HandleCharacterDefinitionPreloaded();
-		return;
-	}
-
-	CharacterDefinitionLease = ContentSubsystem->AcquireContent(
+	CharacterDefinitionLease = UContentDataSubsystem::AcquireContent(
 		{ CharacterDefinition.ToSoftObjectPath() },
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleCharacterDefinitionPreloaded));
 }

@@ -16,19 +16,10 @@ FContentLease::~FContentLease()
 	Release();
 }
 
-void FContentLease::Start(
-	const TArray<FSoftObjectPath>& AssetPaths,
-	UContentDataSubsystem* ContentSubsystem)
+void FContentLease::Start(const TArray<FSoftObjectPath>& AssetPaths)
 {
 	if (State != EState::Unloaded)
 	{
-		return;
-	}
-
-	if (!ContentSubsystem)
-	{
-		UE_LOG(LogContentLease, Error, TEXT("Content preload could not start: ContentDataSubsystem is unavailable."));
-		MarkFailed();
 		return;
 	}
 
@@ -50,7 +41,7 @@ void FContentLease::Start(
 
 	const TWeakPtr<FContentLease> WeakLease = AsShared();
 	TSharedPtr<FStreamableHandle> NewHandle =
-		ContentSubsystem->PreloadSoftObjectPathsAsync(
+		UContentDataSubsystem::PreloadSoftObjectPathsAsync(
 			ExpectedPaths,
 			FSimpleDelegate::CreateLambda(
 				[WeakLease]()

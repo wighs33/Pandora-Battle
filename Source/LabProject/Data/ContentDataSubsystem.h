@@ -30,15 +30,18 @@ public:
 	void EnsureSkillDataAssetsPreload();
 	bool IsSkillDataAssetsLoading() const { return bSkillDataAssetsPreloadPending; }
 
-	/** 반환된 lease가 살아 있는 동안 콘텐츠를 유지한다. 완료 콜백은 로드가 끝나는 프레임에, 빈 목록이면 다음 ticker에서 전달한다. */
-	TSharedPtr<FContentLease> AcquireContent(const TArray<FSoftObjectPath>& AssetPaths,
+	/**
+	 * 반환된 lease가 살아 있는 동안 콘텐츠를 유지한다. 완료 콜백은 로드가 끝나는 프레임에, 빈 목록이면 다음 ticker에서 전달한다.
+	 * GameInstance가 없는 에디터 월드(레벨에 놓인 액터, 블루프린트 미리보기)에서도 쓸 수 있다.
+	 */
+	static TSharedPtr<FContentLease> AcquireContent(const TArray<FSoftObjectPath>& AssetPaths,
 		FSimpleDelegate OnComplete = FSimpleDelegate());
 
 	/**
 	 * 소프트 참조를 게임 스레드를 막지 않고 미리 로드한다.
 	 * 돌려받은 핸들은 호출한 쪽이 소유하며, 콘텐츠가 더 필요 없으면 해제한다.
 	 */
-	TSharedPtr<FStreamableHandle> PreloadSoftObjectPathsAsync(const TArray<FSoftObjectPath>& AssetPaths,
+	static TSharedPtr<FStreamableHandle> PreloadSoftObjectPathsAsync(const TArray<FSoftObjectPath>& AssetPaths,
 		FSimpleDelegate OnComplete = FSimpleDelegate());
 
 	/**

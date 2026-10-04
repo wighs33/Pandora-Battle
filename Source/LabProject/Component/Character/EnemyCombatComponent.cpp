@@ -14,7 +14,6 @@
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Player/StatUpgradeDefinition.h"
-#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interface/AttackTargetSourceInterface.h"
@@ -118,22 +117,7 @@ void UEnemyCombatComponent::BeginRuntimeContentPreload()
 		return;
 	}
 
-	const UWorld* World = GetWorld();
-	const UGameInstance* GameInstance =
-		World
-			? World->GetGameInstance()
-			: nullptr;
-	UContentDataSubsystem* ContentSubsystem =
-		GameInstance
-			? GameInstance->GetSubsystem<UContentDataSubsystem>()
-			: nullptr;
-	if (!ContentSubsystem)
-	{
-		HandleRuntimeContentPreloaded();
-		return;
-	}
-
-	RuntimeContentLease = ContentSubsystem->AcquireContent(
+	RuntimeContentLease = UContentDataSubsystem::AcquireContent(
 		AssetPaths,
 		FSimpleDelegate::CreateUObject(
 			this,
