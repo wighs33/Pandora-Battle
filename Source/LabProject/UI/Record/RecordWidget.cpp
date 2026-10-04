@@ -147,7 +147,7 @@ void URecordWidget::HandleCloseClicked()
 
 void URecordWidget::OnMenuLanguageChanged()
 {
-	// Entries subscribe independently. Keep the existing rows and scroll position alive.
+	// 항목은 각자 구독한다. 기존 줄과 스크롤 위치를 그대로 둔다.
 
 	ApplyWinCountUI();
 	ApplyTierImage();

@@ -45,8 +45,8 @@ namespace
 {
 	const FName LunaChatHintKey(TEXT("Title.LunaChatHint"));
 
-	// Where the tail sits across the bubble's width. The tail tip stays on Luna's head and the body grows mostly to the
-	// left, so even a full-width answer (wrap 420 + padding) ends before the Game Settings button at the top right.
+	// 말풍선 폭에서 꼬리가 놓이는 위치. 꼬리 끝은 Luna 머리에 두고 몸통은 주로 왼쪽으로 커지므로,
+	// 폭을 다 채운 답(줄바꿈 420 + 여백)도 오른쪽 위 게임 설정 버튼 앞에서 끝난다.
 	constexpr float LunaSpeechTailFraction = 0.75f;
 
 	void TravelTitleToListenMap(const UObject* WorldContextObject, const FString& MapName)
@@ -95,7 +95,7 @@ bool UTitleWidget::ShowLunaSpeechText(const FText& Text, const FVector2D& HeadTo
 	LunaSpeechKey = NAME_None;
 	LunaSpeechText->SetText(Text);
 
-	// The bubble shares the portrait's anchors, so the portrait's layout maps the head point directly.
+	// 말풍선은 초상화와 앵커가 같아서, 초상화 배치로 머리 위치를 바로 옮길 수 있다.
 	const FVector2D PortraitSize = PortraitSlot->GetSize();
 	const FVector2D PortraitTopLeft = PortraitSlot->GetPosition() - PortraitSlot->GetAlignment() * PortraitSize;
 	BubbleSlot->SetPosition(PortraitTopLeft + HeadTopUV * PortraitSize);
@@ -129,11 +129,11 @@ void UTitleWidget::OnMenuLanguageChanged()
 void UTitleWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
-	// Built before NativeConstruct so the localized font pass also covers the bubble text.
+	// NativeConstruct 전에 만들어, 번역 글꼴 적용이 말풍선 텍스트에도 닿게 한다.
 	BuildLunaSpeechBubble();
 	BuildLunaChatInput();
 
-	// Platforms that cannot open a browser do not show the website button.
+	// 브라우저를 열 수 없는 플랫폼에서는 웹사이트 버튼을 보이지 않는다.
 	if (Btn_Website && !FPlatformProcess::CanLaunchURL(*OfficialWebsiteUrl))
 	{
 		Btn_Website->SetVisibility(ESlateVisibility::Collapsed);
@@ -250,7 +250,7 @@ void UTitleWidget::ApplyWidgetDefinitionSettings()
 
 void UTitleWidget::BuildLunaSpeechBubble()
 {
-	// Same canvas as Luna's portrait, one layer above it, so the bubble follows the title's responsive scale.
+	// Luna 초상화와 같은 캔버스에서 한 층 위에 두어, 말풍선이 타이틀의 반응형 크기를 따른다.
 	UCanvasPanel* Canvas = Img_TitleCharacter ? Cast<UCanvasPanel>(Img_TitleCharacter->GetParent()) : nullptr;
 	const UCanvasPanelSlot* PortraitSlot = Img_TitleCharacter ? Cast<UCanvasPanelSlot>(Img_TitleCharacter->Slot) : nullptr;
 	if (!Canvas || !PortraitSlot || !WidgetTree || LunaSpeechBubble)
@@ -258,7 +258,7 @@ void UTitleWidget::BuildLunaSpeechBubble()
 		return;
 	}
 
-	// Colours follow the title menu: panel outline and hint text.
+	// 색은 타이틀 메뉴를 따른다: 패널 외곽선과 안내 문구 색.
 	FSlateBrush TailBrush;
 	TailBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
 	TailBrush.TintColor = FSlateColor(FLinearColor(0.955f, 0.896f, 0.776f));
@@ -270,8 +270,8 @@ void UTitleWidget::BuildLunaSpeechBubble()
 
 	UOverlay* Bubble = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("LunaSpeechBubble"));
 
-	// A rotated square behind the body; only its lower half shows, as the tail pointing at Luna.
-	// The spacers on both sides keep it at LunaSpeechTailFraction of the width, whatever the text length.
+	// 몸통 뒤에 회전한 정사각형을 두고 아래 절반만 보여 Luna를 가리키는 꼬리로 쓴다.
+	// 양쪽 여백 위젯이 글 길이와 상관없이 꼬리를 폭의 LunaSpeechTailFraction 위치에 둔다.
 	UHorizontalBox* TailRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("LunaSpeechTailRow"));
 	UImage* Tail = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("LunaSpeechTail"));
 	Tail->SetBrush(TailBrush);
@@ -312,7 +312,7 @@ void UTitleWidget::BuildLunaSpeechBubble()
 	UCanvasPanelSlot* BubbleSlot = Canvas->AddChildToCanvas(Bubble);
 	BubbleSlot->SetAutoSize(true);
 	BubbleSlot->SetAnchors(PortraitSlot->GetAnchors());
-	BubbleSlot->SetAlignment(FVector2D(LunaSpeechTailFraction, 1.f)); // The tail tip is placed on the head point.
+	BubbleSlot->SetAlignment(FVector2D(LunaSpeechTailFraction, 1.f)); // 꼬리 끝을 머리 위치에 둔다.
 	BubbleSlot->SetZOrder(PortraitSlot->GetZOrder() + 1);
 
 	Bubble->SetVisibility(ESlateVisibility::Collapsed);
@@ -321,7 +321,7 @@ void UTitleWidget::BuildLunaSpeechBubble()
 
 void UTitleWidget::BuildLunaChatInput()
 {
-	// Same canvas and anchors as the portrait, at its lower edge, so the box stays under Luna at every resolution.
+	// 초상화와 같은 캔버스·앵커로 아래 가장자리에 두어, 어떤 해상도에서도 상자가 Luna 아래에 있다.
 	UCanvasPanel* Canvas = Img_TitleCharacter ? Cast<UCanvasPanel>(Img_TitleCharacter->GetParent()) : nullptr;
 	const UCanvasPanelSlot* PortraitSlot = Img_TitleCharacter ? Cast<UCanvasPanelSlot>(Img_TitleCharacter->Slot) : nullptr;
 	if (!Canvas || !PortraitSlot || !WidgetTree || LunaChatInput)
@@ -331,8 +331,8 @@ void UTitleWidget::BuildLunaChatInput()
 
 	LunaChatInput = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("Input_LunaChat"));
 
-	// UE 5.8's SetWidgetStyle hands Slate the address of its argument once the Slate widget exists.
-	// The Slate widget is not built yet here, so the style is copied into the UMG member only.
+	// UE 5.8의 SetWidgetStyle은 Slate 위젯이 생긴 뒤에는 인자의 주소를 Slate에 넘긴다.
+	// 여기서는 Slate 위젯이 아직 없으므로 스타일을 UMG 멤버에만 복사한다.
 	FSlateBrush Background;
 	Background.DrawAs = ESlateBrushDrawType::RoundedBox;
 	Background.TintColor = FSlateColor(FLinearColor(0.955f, 0.896f, 0.776f));
@@ -344,7 +344,7 @@ void UTitleWidget::BuildLunaChatInput()
 	FocusedBackground.OutlineSettings.Color = FSlateColor(FLinearColor(0.905f, 0.640f, 0.260f));
 	FocusedBackground.OutlineSettings.Width = 3.f;
 
-	// The player may type in any language, so the CJK font (which also covers Latin) is used regardless of the menu language.
+	// 플레이어는 어떤 언어로든 입력할 수 있으므로, 메뉴 언어와 상관없이 라틴 문자도 담은 CJK 글꼴을 쓴다.
 	FEditableTextBoxStyle Style = LunaChatInput->GetWidgetStyle();
 	FSlateFontInfo Font = Style.TextStyle.Font;
 	const UGameInstance* GameInstance = GetGameInstance();

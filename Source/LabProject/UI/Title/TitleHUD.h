@@ -39,7 +39,7 @@ private:
 	void HideTitleSpeech();
 	FVector2D GetTitleCharacterHeadTopUV() const;
 
-	// Luna chat: the player's question goes to the local LLM and the streamed answer replaces the rotating tips.
+	// Luna 대화: 플레이어의 질문은 로컬 LLM으로 가고, 스트리밍된 답이 돌아가며 보여 주던 팁을 대신한다.
 	void BindLunaChat();
 	void UnbindLunaChat();
 	void HandleLunaQuestion(const FString& Question);
@@ -47,25 +47,25 @@ private:
 	void HandleLunaReplyFinished(bool bSucceeded, const FString& Reply);
 	void ShowLunaChatText(const FText& Text, bool bSpeaking);
 	FText GetLunaChatLine(FName Key, const FText& Fallback) const;
-	/** While true the rotating tips are paused; the next tip waits ChatTipResumeDelay instead of SpeechHiddenInterval. */
+	/** true인 동안 팁 순환을 멈춘다. 다음 팁은 SpeechHiddenInterval 대신 ChatTipResumeDelay만큼 기다린다. */
 	bool bLunaChatActive = false;
 	FDelegateHandle LunaReplyUpdatedHandle;
 	FDelegateHandle LunaReplyFinishedHandle;
 
-	// Boss raid: the backend places the player in a GameLift boss raid session while Luna reports the progress.
+	// 보스 레이드: Luna가 진행 상황을 알리는 동안 백엔드가 플레이어를 GameLift 보스 레이드 세션에 넣는다.
 	void BindBossRaid();
 	void UnbindBossRaid();
 	void HandleBossRaidRequested();
 	UFUNCTION()
 	void HandleBossRaidJoinFinished(bool bSucceeded, const FString& ErrorMessage);
-	/** The backend also reports PvP joins (pd.Backend.JoinMatch); only the request made here is answered. */
+	/** 백엔드는 PvP 참가(pd.Backend.JoinMatch)도 알리므로, 여기서 보낸 요청에만 답한다. */
 	bool bBossRaidJoinPending = false;
 	FTimerHandle TitleBlinkTimer;
 	float TitleBlinkElapsed = -1.f;
 	FTimerHandle TitleSpeechTimer;
 	float TitleMouthElapsed = -1.f;
 	bool bTitleMouthAvailable = false;
-	/** INDEX_NONE until the greeting is shown, then the last tip number (0 = greeting). */
+	/** 인사말을 보여 주기 전에는 INDEX_NONE이고, 그 뒤에는 마지막 팁 번호다(0 = 인사말). */
 	int32 LastTitleTip = INDEX_NONE;
 
 protected:
@@ -76,29 +76,29 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Blink", meta = (ClampMin = "0.05", Units = "s"))
 	float BlinkDuration = 0.2f;
 
-	/** Luna's guide bubble: how long each line stays visible, and the gap before the next one. */
+	/** Luna 안내 말풍선: 줄마다 보이는 시간과 다음 줄까지의 간격. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Speech", meta = (ClampMin = "0.5", Units = "s"))
 	float SpeechDisplayDuration = 6.f;
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Speech", meta = (ClampMin = "0.1", Units = "s"))
 	float SpeechHiddenInterval = 3.f;
-	/** Length of one 0 -> 1 -> 0 mouth movement while the bubble is visible. */
+	/** 말풍선이 보이는 동안 입이 0 -> 1 -> 0으로 한 번 움직이는 시간. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Speech", meta = (ClampMin = "0.05", Units = "s"))
 	float MouthCycleDuration = 0.3f;
 
-	/** Luna's answer stays visible for at least this long, or longer for long answers (reading time per character). */
+	/** Luna의 답은 최소 이 시간만큼, 긴 답이면 더 오래(글자당 읽는 시간) 보인다. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Chat", meta = (ClampMin = "0.5", Units = "s"))
 	float ChatReplyMinDuration = 5.f;
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Chat", meta = (ClampMin = "0.0", Units = "s"))
 	float ChatReplySecondsPerCharacter = 0.08f;
-	/** After a conversation the tips wait longer, so the player can ask the next question without being interrupted. */
+	/** 대화가 끝나면 팁이 더 오래 기다려, 플레이어가 끊기지 않고 다음 질문을 할 수 있게 한다. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Chat", meta = (ClampMin = "0.1", Units = "s"))
 	float ChatTipResumeDelay = 15.f;
 
-	/** Presentation only. Adjust the mesh and its relative transform in BP_TitleHUD. */
+	/** 표시 전용이다. 메시와 상대 변환은 BP_TitleHUD에서 조정한다. */
 	UPROPERTY(VisibleAnywhere, Category = "!Title|Character")
 	TObjectPtr<USkeletalMeshComponent> TitleCharacterMesh;
 
-	/** Relative location, rotation and FOV define the portrait framing. */
+	/** 상대 위치·회전과 FOV로 초상화 구도를 정한다. */
 	UPROPERTY(VisibleAnywhere, Category = "!Title|Character")
 	TObjectPtr<USceneCaptureComponent2D> TitleCharacterCapture;
 
@@ -108,7 +108,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "!Title|Character")
 	TObjectPtr<UPointLightComponent> TitleCharacterFillLight;
 
-	/** UI composite material; the mesh's own materials remain unchanged. */
+	/** UI 합성용 머티리얼이다. 메시 자체의 머티리얼은 바꾸지 않는다. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character")
 	TObjectPtr<UMaterialInterface> TitleCharacterDisplayMaterial;
 

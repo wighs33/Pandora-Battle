@@ -79,8 +79,8 @@ ULobbyWidget* ALobbyHUD::CreateLobbyUI()
 		return nullptr;
 	}
 
-	// A pending-kill UObject can remain non-null until GC. Treat it as absent so the same
-	// input that requested the lobby can create and display a valid widget immediately.
+	// 삭제 대기 중인 UObject는 GC 전까지 null이 아닐 수 있다. 없는 것으로 보고, 로비를 요청한
+	// 같은 입력이 바로 유효한 위젯을 만들어 보여 줄 수 있게 한다.
 	if (!IsValid(LobbyWidget))
 	{
 		LobbyWidget = nullptr;

@@ -48,9 +48,8 @@ void URightInventoryWidget::SelectInventorySlot(UInventorySlotViewData* SlotView
 		return;
 	}
 
-	// Inventory slots support drag detection, so item-filled entries can consume
-	// the mouse press before TileView performs its normal selection handling.
-	// Clear explicitly to guarantee that only the latest clicked slot is highlighted.
+	// 인벤토리 칸은 드래그를 감지하므로, 아이템이 든 칸은 TileView의 기본 선택 처리보다 먼저
+	// 마우스 누름을 가져갈 수 있다. 마지막으로 누른 칸만 강조되도록 선택을 직접 지운다.
 	TileView->SetSelectionMode(ESelectionMode::Single);
 	TileView->ClearSelection();
 	TileView->SetSelectedItem(SlotViewData);
@@ -96,7 +95,7 @@ void URightInventoryWidget::RebuildTileView()
 	bool bHasCombinableItems = false;
 	for (const TPair<const UItemDefinition*, int32>& DuplicateCandidate : DuplicateCandidateCounts)
 	{
-		// Merging two assigned items is rejected by the inventory component.
+		// 이미 배치된 아이템 두 개를 합치는 요청은 인벤토리 컴포넌트가 거절한다.
 		if (DuplicateCandidate.Value > 1 && DefinitionsWithUnassignedItems.Contains(DuplicateCandidate.Key))
 		{
 			bHasCombinableItems = true;

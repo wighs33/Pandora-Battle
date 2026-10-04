@@ -33,8 +33,8 @@ void UShopPreviewPanelWidget::NativeDestruct()
 
 void UShopPreviewPanelWidget::SetEntryData(UShopEntryViewData* InEntryData)
 {
-	// Catalog refresh replaces view-data objects after a purchase. Preserve the
-	// localized result message while the same product is still selected.
+	// 구매 후 목록을 새로 고치면 표시용 데이터 객체가 바뀐다. 같은 상품이 선택된 동안에는
+	// 번역된 결과 메시지를 유지한다.
 	if (!EntryData || !InEntryData || EntryData->GetProductObject() != InEntryData->GetProductObject()
 		|| EntryData->GetProductType() != InEntryData->GetProductType())
 	{

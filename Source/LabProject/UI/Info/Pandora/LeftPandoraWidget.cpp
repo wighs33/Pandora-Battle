@@ -59,7 +59,7 @@ void ULeftPandoraWidget::SelectPandoraEquipSlot(UPandoraEquipSlotWidget* InSelec
 	const bool bWasSelectedAnyButton = bIsSelectedAnyButton;
 	OnClicked_PandoraEquipSlot.Broadcast(InSelectedPandoraEquipSlot, bWasSelectedAnyButton);
 
-	// A filled slot click can clear selection synchronously through InfoUiPresenter.
+	// 채워진 칸을 누르면 InfoUiPresenter를 거쳐 선택이 그 자리에서 해제될 수 있다.
 	if (SelectedPandoraEquipSlot != InSelectedPandoraEquipSlot || !IsValid(SelectedPandoraEquipSlot))
 	{
 		return;

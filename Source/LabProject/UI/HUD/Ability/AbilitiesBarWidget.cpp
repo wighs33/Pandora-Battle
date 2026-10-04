@@ -292,7 +292,7 @@ void UAbilitiesBarWidget::AddWidgetToBar(UUserWidget* Widget, bool bApplyPadding
 
 void UAbilitiesBarWidget::ApplyEmptySlotKeyText(UUserWidget* Widget, const int32 SkillSlotIndex) const
 {
-	// Empty skill entries are plain UserWidgets rather than UAbilitySlotWidget, so their key caption is found by name.
+	// 빈 스킬 칸은 UAbilitySlotWidget이 아닌 일반 UserWidget이라 키 표시 텍스트를 이름으로 찾는다.
 	UTextBlock* KeyText = Widget ? Cast<UTextBlock>(Widget->GetWidgetFromName(TEXT("KeyText"))) : nullptr;
 	if (!KeyText)
 	{

@@ -76,7 +76,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
 	void SelectMapTab();
 
-	/** Mount the growth drawer in the right-hand space without replacing this screen. */
+	/** 이 화면을 바꾸지 않고 오른쪽 공간에 성장 서랍을 붙인다. */
 	bool AttachPandoraTree(UPandoraTreeWidget* Tree);
 	UFUNCTION(BlueprintPure, Category="!UI|Info|Pandora")
 	bool IsPandoraDrawerExpanded() const { return bPandoraDrawerExpanded; }

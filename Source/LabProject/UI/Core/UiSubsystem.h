@@ -48,7 +48,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!ViewModel")
 	UStatusViewModel* GetStatusViewModel() const { return StatusViewModel; }
 
-	/** Stores the active UI composition once per LocalPlayer. */
+	/** 로컬 플레이어마다 현재 UI 구성을 한 번 저장한다. */
 	void SetWidgetClassDefinition(UWidgetClassDefinition* InWidgetClassDefinition);
 	void ClearWidgetClassDefinition(const UWidgetClassDefinition* ExpectedWidgetClassDefinition);
 	UWidgetClassDefinition* GetWidgetClassDefinition() const { return WidgetClassDefinition; }
@@ -61,13 +61,13 @@ public:
 	/** 로비 진입 때 붙잡은 로비 화면 콘텐츠를 아직 불러오는 중인지. */
 	bool IsLobbyContentLoading() const;
 
-	/** Keeps one explicit-definition UI group resident for the lease lifetime. */
+	/** 명시한 정의의 UI 묶음 하나를 lease가 살아 있는 동안 메모리에 둔다. */
 	TSharedPtr<FContentLease> AcquireUiContent(
 		const UWidgetClassDefinition* Definition,
 		EUiContentGroup Group,
 		FSimpleDelegate OnComplete = FSimpleDelegate());
 
-	/** Queues the request while the configured DA_Widget root is still loading. */
+	/** 설정된 DA_Widget 루트가 아직 로딩 중이면 요청을 대기열에 넣는다. */
 	TSharedPtr<FContentLease> AcquireConfiguredUiContent(
 		EUiContentGroup Group,
 		FSimpleDelegate OnComplete = FSimpleDelegate());
@@ -78,10 +78,10 @@ public:
 	void PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer Layer = EUiScreenLayer::Menu);
 	void OpenGameSettings(UUserWidget* OwnerMenu);
 	bool CloseGameSettings(const UUserWidget* ExpectedOwner = nullptr);
-	/** Whether this world's base screen layer already shows a real CommonUI screen. */
+	/** 이 월드의 기본 화면 층에 실제 CommonUI 화면이 이미 떠 있는지. */
 	bool HasActiveScreen(const UWorld* World) const;
 
-	/** Broadcasts when the widget definition or its core content changes, so waits can be re-evaluated. */
+	/** 위젯 정의나 그 핵심 콘텐츠가 바뀌면 알린다. 로딩 대기는 이 알림으로 다시 판단한다. */
 	FSimpleMulticastDelegate OnWidgetContentChanged;
 
 private:

@@ -148,7 +148,7 @@ void USkinEquipSlotWidget::ApplyButtonBackgroundStyle()
 	{
 		return;
 	}
-	// Preserve the authored frame and its interaction states for equipped skins.
+	// 장착한 스킨에도 작가가 만든 프레임과 상호작용 상태를 그대로 둔다.
 	if (bHasDefaultButtonStyle && DefaultButtonStyle.Normal.GetResourceObject())
 	{
 		ItemButton->SetStyle(DefaultButtonStyle);

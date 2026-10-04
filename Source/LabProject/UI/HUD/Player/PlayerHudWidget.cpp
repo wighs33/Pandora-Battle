@@ -124,7 +124,7 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 	if (!AchievementSubsystem->HasSteamAchievementData())
 	{
 #if WITH_EDITOR
-		// Temporary local HUD preview; does not unlock or select a profile achievement.
+		// 로컬 HUD 임시 미리보기다. 프로필 업적을 해금하거나 선택하지 않는다.
 		if (PlayerAvatarImage && GetWorld() && GetWorld()->IsPlayInEditor())
 		{
 			const UAchievementDefinition* PreviewDefinition = AchievementSubsystem->GetAchievementDefinition();

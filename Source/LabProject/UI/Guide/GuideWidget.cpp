@@ -411,7 +411,7 @@ UButton* UGuideWidget::FindButtonForPage(const int32 PageIndex, const FGuidePage
 
 void UGuideWidget::ApplyPage(const FGuidePageEntry& Page)
 {
-	// Page identity remains the DA_Guide button name; display labels come from the shared catalog.
+	// 페이지 식별자는 계속 DA_Guide의 버튼 이름이고, 표시 이름은 공용 문구 목록에서 가져온다.
 	static const TMap<FName, FName> PageTitles = {
 		{TEXT("Btn_QuickStart"), TEXT("Guide.QuickStart")}, {TEXT("Btn_Controls"), TEXT("Guide.Controls")},
 		{TEXT("Btn_GameRules"), TEXT("Guide.Rules")}, {TEXT("Btn_Modes"), TEXT("Guide.Modes")},
@@ -459,8 +459,8 @@ void UGuideWidget::ApplyImage(UTexture2D* Texture)
 	}
 
 	ImageBorder->SetVisibility(ESlateVisibility::Visible);
-	// The style supplies a ScaleBox around this size box, preserving every original
-	// DA_Guide illustration's aspect ratio instead of stretching it to the panel.
+	// 스타일이 이 SizeBox를 ScaleBox로 감싸, DA_Guide 원본 그림이 패널에 맞춰 늘어나지 않고
+	// 원래 비율을 유지한다.
 	if (USizeBox* ImageSize = Cast<USizeBox>(ImageBorder->GetParent()))
 	{
 		ImageSize->SetWidthOverride(Texture->GetSizeX());

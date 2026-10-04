@@ -47,7 +47,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPaintCanvasWidget> PaintCanvasWidget;
 
-	/** UI-only material that displays the paint RGB while deliberately ignoring render-target alpha. */
+	/** 칠한 RGB를 보여 주되 렌더 타깃의 알파는 일부러 무시하는 UI 전용 머티리얼. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInterface> OpaqueCanvasDisplayMaterial;
 

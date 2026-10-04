@@ -5,7 +5,7 @@
 #include "Common/UiLanguage.h"
 #include "MenuTextRow.generated.h"
 
-/** One stable UI key per row; one editable spreadsheet column per supported language. */
+/** 행마다 바뀌지 않는 UI 키 하나와, 지원 언어마다 편집할 스프레드시트 열 하나를 둔다. */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FMenuTextRow : public FTableRowBase
 {

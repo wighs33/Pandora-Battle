@@ -26,9 +26,9 @@
 
 namespace
 {
-	// Blender's "Key 1" is imported into Luna as "Key_1".
+	// Blender의 "Key 1"은 Luna에 "Key_1"로 들어온다.
 	const FName TitleBlinkMorph(TEXT("Key_1"));
-	// Blender's "Key 2" (mouth) is imported into Luna as "Key_2".
+	// Blender의 "Key 2"(입)는 Luna에 "Key_2"로 들어온다.
 	const FName TitleMouthMorph(TEXT("Key_2"));
 	// DT_MenuText rows: Title.LunaGreeting, then Title.LunaTip01 ... Title.LunaTip20.
 	const FName LunaGreetingKey(TEXT("Title.LunaGreeting"));
@@ -78,7 +78,7 @@ ATitleHUD::ATitleHUD(const FObjectInitializer& ObjectInitializer)
 	TitleCharacterFillLight->SetAttenuationRadius(500);
 	TitleCharacterFillLight->SetCastShadows(false);
 
-	// The title's world view is empty behind UMG; do not meter exposure against it.
+	// 타이틀의 월드 화면은 UMG 뒤에 비어 있으므로, 그 화면으로 노출을 재지 않는다.
 	UPostProcessComponent* TitleExposure = CreateDefaultSubobject<UPostProcessComponent>(TEXT("TitleExposure"));
 	TitleExposure->SetupAttachment(RootComponent);
 	TitleExposure->bUnbound = true;
@@ -92,7 +92,7 @@ void ATitleHUD::InitializeTitleCharacter()
 {
 	if (!TitleWidget || !TitleCharacterMesh->GetSkeletalMeshAsset() || !TitleCharacterDisplayMaterial) return;
 
-	// Keep the portrait's lights away from the level. Only this mesh is captured.
+	// 초상화 조명이 레벨에 닿지 않게 한다. 이 메시만 캡처한다.
 	SetActorLocation(FVector(0, 0, -100000));
 	SetActorHiddenInGame(false);
 	TitleCharacterRenderTarget = NewObject<UTextureRenderTarget2D>(this);
@@ -128,7 +128,7 @@ void ATitleHUD::BeginTitleBlink()
 void ATitleHUD::ShowTitleSpeech()
 {
 	if (!TitleWidget) return;
-	// The greeting always comes first and is never part of the random pool.
+	// 인사말은 항상 처음에 나오고 무작위 목록에는 들어가지 않는다.
 	FName TextKey = LunaGreetingKey;
 	if (LastTitleTip == INDEX_NONE)
 	{
@@ -136,13 +136,13 @@ void ATitleHUD::ShowTitleSpeech()
 	}
 	else
 	{
-		// Any tip except the one just shown.
+		// 방금 보여 준 팁만 빼고 고른다.
 		int32 Tip = FMath::RandRange(1, LastTitleTip > 0 ? LunaChat::TipCount - 1 : LunaChat::TipCount);
 		if (LastTitleTip > 0 && Tip >= LastTitleTip) ++Tip;
 		LastTitleTip = Tip;
 		TextKey = LunaChat::TipKey(Tip);
 	}
-	// The mouth only moves while the bubble is actually visible.
+	// 말풍선이 실제로 보이는 동안에만 입을 움직인다.
 	if (TitleWidget->ShowLunaSpeech(TextKey, GetTitleCharacterHeadTopUV()) && bTitleMouthAvailable)
 	{
 		TitleMouthElapsed = 0.f;
@@ -178,7 +178,7 @@ void ATitleHUD::UnbindLunaChat()
 	{
 		Luna->OnReplyUpdated().Remove(LunaReplyUpdatedHandle);
 		Luna->OnReplyFinished().Remove(LunaReplyFinishedHandle);
-		// Nobody is left to show an answer that is still streaming.
+		// 아직 스트리밍 중인 답을 보여 줄 대상이 없다.
 		Luna->CancelReply();
 	}
 	LunaReplyUpdatedHandle.Reset();
@@ -211,7 +211,7 @@ void ATitleHUD::HandleBossRaidRequested()
 	TitleWidget->SetBossRaidEnabled(false);
 	ShowLunaChatText(GetLunaChatLine(BossRaidJoiningKey,
 		NSLOCTEXT("TitleHUD", "BossRaidJoining", "Let me find you a spot in the boss raid...")), true);
-	// Logs in first when needed. A failure can be reported before this call returns.
+	// 필요하면 먼저 로그인한다. 실패는 이 호출이 돌아오기 전에 알려질 수 있다.
 	Backend->JoinOnlineMatch(EOnlineMatchMode::BossRaid);
 }
 
@@ -219,7 +219,7 @@ void ATitleHUD::HandleBossRaidJoinFinished(const bool bSucceeded, const FString&
 {
 	if (!bBossRaidJoinPending) return;
 	bBossRaidJoinPending = false;
-	// On success the client is already travelling to the raid map, and the title closes with this level.
+	// 성공하면 클라이언트는 이미 레이드 맵으로 이동 중이고, 타이틀은 이 레벨과 함께 닫힌다.
 	if (bSucceeded) return;
 
 	if (TitleWidget) TitleWidget->SetBossRaidEnabled(true);
@@ -234,7 +234,7 @@ void ATitleHUD::HandleLunaQuestion(const FString& Question)
 {
 	ULunaChatSubsystem* Luna = UGameInstance::GetSubsystem<ULunaChatSubsystem>(GetGameInstance());
 	if (!Luna || !Luna->Ask(Question)) return;
-	// Luna listens with her mouth closed until the first words of the answer arrive.
+	// Luna는 답의 첫 단어가 올 때까지 입을 다문 채 듣는다.
 	ShowLunaChatText(GetLunaChatLine(LunaChatThinkingKey,
 		NSLOCTEXT("TitleHUD", "LunaChatThinking", "Hmm, let me think...")), false);
 }
@@ -259,7 +259,7 @@ void ATitleHUD::HandleLunaReplyFinished(const bool bSucceeded, const FString& Re
 void ATitleHUD::ShowLunaChatText(const FText& Text, const bool bSpeaking)
 {
 	if (!TitleWidget) return;
-	// A conversation replaces the rotating tips until its answer has been read.
+	// 대화를 하면 답을 다 읽을 때까지 돌아가며 보여 주던 팁을 대신한다.
 	bLunaChatActive = true;
 	GetWorldTimerManager().ClearTimer(TitleSpeechTimer);
 	const bool bShown = TitleWidget->ShowLunaSpeechText(Text, GetTitleCharacterHeadTopUV());
@@ -282,12 +282,12 @@ FText ATitleHUD::GetLunaChatLine(const FName Key, const FText& Fallback) const
 
 FVector2D ATitleHUD::GetTitleCharacterHeadTopUV() const
 {
-	// Project the top of Luna's bounds through the portrait capture; Img_TitleCharacter shows that render target as is.
+	// Luna 경계의 맨 위를 초상화 캡처로 투영한다. Img_TitleCharacter는 그 렌더 타깃을 그대로 보여 준다.
 	const FBoxSphereBounds& CharacterBounds = TitleCharacterMesh->Bounds;
 	const FVector HeadTop = CharacterBounds.Origin + FVector(0, 0, CharacterBounds.BoxExtent.Z);
 	const FVector ViewPoint = TitleCharacterCapture->GetComponentTransform().InverseTransformPositionNoScale(HeadTop);
 	if (!TitleCharacterRenderTarget || ViewPoint.X <= UE_KINDA_SMALL_NUMBER) return FVector2D(0.5, 0.0);
-	// Scene captures use a horizontal FOV; the vertical extent follows the render target's aspect.
+	// 씬 캡처는 가로 FOV를 쓰고, 세로 범위는 렌더 타깃의 비율을 따른다.
 	const double TanHalfFov = FMath::Tan(FMath::DegreesToRadians(TitleCharacterCapture->FOVAngle * 0.5f));
 	const double Aspect = double(TitleCharacterRenderTarget->SizeX) / FMath::Max(1, TitleCharacterRenderTarget->SizeY);
 	const double U = 0.5 + 0.5 * ViewPoint.Y / (ViewPoint.X * TanHalfFov);
@@ -300,7 +300,7 @@ void ATitleHUD::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	if (TitleMouthElapsed >= 0.f)
 	{
-		// Smooth 0 -> 1 -> 0 per cycle, repeated while the bubble is visible.
+		// 말풍선이 보이는 동안 주기마다 0 -> 1 -> 0으로 부드럽게 반복한다.
 		TitleMouthElapsed += DeltaSeconds;
 		const float MouthPhase = TitleMouthElapsed / FMath::Max(0.05f, MouthCycleDuration);
 		TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.5f - 0.5f * FMath::Cos(2.f * UE_PI * MouthPhase));
@@ -313,7 +313,7 @@ void ATitleHUD::Tick(float DeltaSeconds)
 		ScheduleTitleBlink();
 		return;
 	}
-	// Close quickly, briefly reach full closure, then open a little more slowly.
+	// 빠르게 닫고 잠깐 완전히 닫은 뒤, 조금 더 천천히 연다.
 	const float Weight = Phase < 0.5f
 		? FMath::Clamp(Phase / 0.4f, 0.f, 1.f)
 		: FMath::Clamp((1.f - Phase) / 0.5f, 0.f, 1.f);

@@ -96,7 +96,7 @@ namespace
 					if (StructProperty->Struct == TBaseStructure<FSoftObjectPath>::Get()
 						|| StructProperty->Struct == TBaseStructure<FSoftClassPath>::Get())
 					{
-						// FSoftClassPath and FSoftObjectPath are binary-compatible.
+						// FSoftClassPath와 FSoftObjectPath는 이진 구조가 같다.
 						FoundPath =
 							*reinterpret_cast<const FSoftObjectPath*>(PropertyValue);
 						It.SkipRecursiveProperty();
@@ -133,8 +133,8 @@ void UWidgetClassDefinition::GetRuntimePreloadAssetPaths(
 {
 	TSet<FSoftObjectPath> UniquePaths;
 	FWidgetRuntimeSoftPathCollector Collector(UniquePaths);
-	// Do not reflect over the root object here. It references every fragment and
-	// settings from unrelated screen lifetimes, so collect only effective getters.
+	// 여기서는 루트 객체를 리플렉션으로 훑지 않는다. 루트는 수명이 다른 화면들의 조각과 설정을
+	// 모두 참조하므로, 실제로 쓰는 getter의 결과만 모은다.
 	const auto CollectSettings = [&Collector](const auto& Settings)
 	{
 		using FSettingsType = std::decay_t<decltype(Settings)>;

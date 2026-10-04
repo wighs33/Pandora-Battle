@@ -162,7 +162,7 @@ void UAbilitySlotWidget::SetAbilityImage()
 
 void UAbilitySlotWidget::SetInputKeyIcon()
 {
-	// Keep the reflected entry point used by existing Blueprint graphs.
+	// 기존 블루프린트 그래프가 쓰는 리플렉션 진입점을 남겨 둔다.
 	if (KeyText && InputKeyOverlay)
 	{
 		PdInputKeyIconResolver::ApplyInputKeyCaption(*this, *KeyText, *InputKeyOverlay, KeyIcon, ResolveInputAction(), bHideInputKeyIcon);

@@ -495,8 +495,8 @@ void UPandoraTreeWidget::ApplyWidgetDefinitionSettings()
 		PreviewCameraHideBlendTime = Settings.PreviewCameraHideBlendTime;
 		bReturnCameraOnHide = Settings.bReturnCameraOnHide;
 
-		// Preserve the PandoraTree widget's own preview class (for example,
-		// BP_CharacterPreviewRight). The shared definition is only a fallback.
+		// 판도라 트리 위젯이 가진 미리보기 클래스(예: BP_CharacterPreviewRight)를 그대로 쓴다.
+		// 공용 정의는 대체용일 뿐이다.
 		if (!CharacterPreviewClass)
 		{
 			CharacterPreviewClass = WidgetDefinition->GetCharacterPreviewClass();
@@ -822,7 +822,7 @@ void UPandoraTreeWidget::OnMenuLanguageChanged()
 
 void UPandoraTreeWidget::UpdateDrawerReveal(const float DeltaTime, const float DrawerWidth)
 {
-	// UMG's real-time tick also runs while the training room is paused.
+	// UMG의 실시간 Tick은 훈련장이 일시 정지한 동안에도 돈다.
 	DrawerReveal = FMath::FInterpConstantTo(DrawerReveal, bDrawerClosing ? 0.0f : 1.0f, DeltaTime, 4.0f);
 	if (PandoraDrawerContent)
 	{

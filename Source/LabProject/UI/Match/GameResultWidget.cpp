@@ -290,8 +290,8 @@ void UGameResultWidget::ApplyDisplayModeVisibility()
 		return;
 	}
 
-	// ButtonOverlay contains the result-screen buttons, so keep it interactive for
-	// the final result popup and hide it only while Tab is showing the scoreboard.
+	// ButtonOverlay에 결과 화면 버튼들이 있으므로, 최종 결과 팝업에서는 입력을 받게 두고
+	// Tab으로 스코어보드를 보는 동안에만 숨긴다.
 	UWidget* ButtonOverlay = WidgetTree->FindWidget(TEXT("ButtonOverlay"));
 	if (ButtonOverlay)
 	{

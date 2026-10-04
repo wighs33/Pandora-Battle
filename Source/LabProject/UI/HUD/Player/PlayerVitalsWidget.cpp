@@ -68,7 +68,7 @@ void UPlayerVitalsWidget::BindStaminaAttributeDelegates()
 		return;
 	}
 
-	// Presentation follows the same ASC as the existing MVVM bars, without polling.
+	// 표시는 기존 MVVM 막대와 같은 ASC를 따르고, 주기적으로 값을 묻지 않는다.
 	for (const FGameplayAttribute Attribute : {
 		UBasicAttributeSet::GetHealthAttribute(), UBasicAttributeSet::GetMaxHealthAttribute(),
 		UBasicAttributeSet::GetManaAttribute(), UBasicAttributeSet::GetMaxManaAttribute(),

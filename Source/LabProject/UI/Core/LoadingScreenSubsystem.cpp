@@ -172,7 +172,7 @@ void ULoadingScreenSubsystem::HandleConnectingPopupCanceled()
 	CancelableSessionRequestId = 0;
 	if (UOnlineSessionsSubsystem* Online = GetLocalPlayer()->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>())
 	{
-		// Recheck the request identity: a delayed click must never cancel a later operation.
+		// 요청 번호를 다시 확인한다. 늦게 들어온 클릭이 뒤에 시작된 작업을 취소하면 안 된다.
 		if (RequestId && Online->GetPendingUserRequestId(GetLocalPlayer()) == RequestId
 			&& Online->IsUserRequestCancelable(RequestId))
 		{
@@ -250,7 +250,7 @@ void ULoadingScreenSubsystem::RefreshLoadingScreen()
 	}
 	if (bTravelPending)
 	{
-		// Content completion cannot finish a travel while still in its source world.
+		// 출발 월드에 있는 동안에는 콘텐츠 로딩이 끝나도 맵 이동을 끝내지 않는다.
 		if (IsDestinationPresentationReady()
 			&& !ActiveWaitReasons.Contains(EWaitReason::StartupContent)
 			&& !ActiveWaitReasons.Contains(EWaitReason::LobbyEntryContent)
@@ -295,14 +295,14 @@ void ULoadingScreenSubsystem::BeginTravel(UWorld* SourceWorld, const FString& UR
 	{
 		TravelSourceWorld = SourceWorld;
 		TravelDestinationMap = URL.Left(URL.Find(TEXT("?")) == INDEX_NONE ? URL.Len() : URL.Find(TEXT("?")));
-		// Remote addresses do not identify a map; destination readiness still requires a new world.
+		// 원격 주소로는 맵을 알 수 없으므로, 도착 준비는 여전히 새 월드가 생겨야 끝난다.
 		if (!TravelDestinationMap.StartsWith(TEXT("/Game/")))
 		{
 			TravelDestinationMap.Reset();
 		}
 		bTravelPending = true;
 	}
-	// The host's preparation transaction now belongs to actual engine travel.
+	// 호스트가 시작한 준비 작업은 이제 엔진의 실제 맵 이동이 이어받는다.
 	if (ULobbyRuntimeSubsystem* Runtime = GetLocalPlayer()->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>())
 	{
 		Runtime->SetGameStartPreparationPending(false);
@@ -374,7 +374,7 @@ bool ULoadingScreenSubsystem::IsDestinationPresentationReady() const
 	{
 		return false;
 	}
-	// A failed Experience is terminal too: leave its existing error UI accessible.
+	// Experience 로드 실패도 끝난 상태로 본다. 이미 떠 있는 오류 UI를 쓸 수 있게 둔다.
 	if (const ALobbyGameState* Lobby = World->GetGameState<ALobbyGameState>())
 	{
 		if (Lobby->HasExperienceLoadFailed())
@@ -396,6 +396,6 @@ bool ULoadingScreenSubsystem::IsDestinationPresentationReady() const
 		return Experience->IsExperienceLoaded() && Cast<ACharacterBase>(PC->GetPawn())
 			&& PC->GetPlayerState<APdPlayerState>() && HUD && HUD->GetPlayerHudWidget();
 	}
-	// Title and Room List do not require a character pawn. Their real CommonUI screen must exist.
+	// 타이틀과 방 목록은 캐릭터 Pawn이 필요 없고, 실제 CommonUI 화면만 있으면 된다.
 	return UiSubsystem && UiSubsystem->HasActiveScreen(World);
 }

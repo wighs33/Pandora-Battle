@@ -746,7 +746,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Fragments", meta = (AllowPrivateAccess = "true", IncludeAssetBundles))
 	TObjectPtr<UWidgetMapUIDefinition> MapUI;
 
-	// Settings not owned by one of the domain fragments remain on this asset.
+	// 도메인 조각에 속하지 않는 설정은 이 애셋에 남긴다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PlayerHUD", meta = (AllowPrivateAccess = "true", AssetBundles = "Client"))
 	FPlayerHudWidgetSettings PlayerHudWidgetSettings;
 

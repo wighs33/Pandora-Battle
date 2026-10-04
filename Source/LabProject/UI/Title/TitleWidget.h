@@ -37,18 +37,18 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	void SetTitleCharacterMaterial(UMaterialInterface* Material);
 
-	/** Shows Luna's localized line above her head. HeadTopUV is a point in Img_TitleCharacter's texture space. */
+	/** Luna의 번역된 대사를 머리 위에 보여 준다. HeadTopUV는 Img_TitleCharacter 텍스처 공간의 점이다. */
 	bool ShowLunaSpeech(FName TextKey, const FVector2D& HeadTopUV);
-	/** Shows text that is not a menu line (Luna's generated reply). It is kept as is when the language changes. */
+	/** 메뉴 문구가 아닌 텍스트(Luna가 만든 답)를 보여 준다. 언어가 바뀌어도 그대로 둔다. */
 	bool ShowLunaSpeechText(const FText& Text, const FVector2D& HeadTopUV);
 	void HideLunaSpeech();
 
-	/** The player pressed Enter in the question box under Luna. */
+	/** 플레이어가 Luna 아래 질문 칸에서 Enter를 눌렀다. */
 	FOnLunaQuestionSubmitted& OnLunaQuestionSubmitted() { return LunaQuestionSubmitted; }
 
-	/** The player pressed Boss Raid. The title HUD asks the backend for a place in a raid (a boss raid session). */
+	/** 플레이어가 보스 레이드를 눌렀다. 타이틀 HUD가 백엔드에 레이드 자리(보스 레이드 세션)를 요청한다. */
 	FOnBossRaidRequested& OnBossRaidRequested() { return BossRaidRequested; }
-	/** Disabled while the backend places the player, so the request is not sent twice. */
+	/** 백엔드가 자리를 잡는 동안 꺼서 요청이 두 번 가지 않게 한다. */
 	void SetBossRaidEnabled(bool bEnabled) const;
 
 protected:
@@ -136,11 +136,11 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_TrainingMode;
 
-	/** Boss Raid: joins a boss raid GameLift session on a dedicated server. Shares the training row in WBP_Title. */
+	/** 보스 레이드: 전용 서버의 GameLift 보스 레이드 세션에 들어간다. WBP_Title에서 훈련장 줄을 함께 쓴다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_BossRaid;
 
-	/** Opens the official website in the system browser. Platforms that cannot open a browser do not show it. */
+	/** 공식 웹사이트를 시스템 브라우저로 연다. 브라우저를 열 수 없는 플랫폼에서는 보이지 않는다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_Website;
 

@@ -158,8 +158,8 @@ void UEquipSlotWidget::ApplyButtonBackgroundStyle()
 	{
 		return;
 	}
-	// A texture-backed frame owns its hover/pressed treatment. Do not replace the
-	// authored ornament with a solid rectangle when an item is equipped.
+	// 텍스처 프레임은 마우스 올림·누름 표현을 스스로 가진다. 아이템을 장착해도
+	// 작가가 만든 장식을 단색 사각형으로 바꾸지 않는다.
 	if (bHasDefaultButtonStyle && DefaultButtonStyle.Normal.GetResourceObject())
 	{
 		ItemButton->SetStyle(ApplyButtonStyleBackgroundOpacity(DefaultButtonStyle, ButtonBackgroundOpacity));

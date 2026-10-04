@@ -40,7 +40,7 @@ bool UInfoPaintPreviewRenderer::Show(APdPlayer* Player, UPaintCanvasWidget* Widg
     UPoseableMeshComponent* Mesh = NewObject<UPoseableMeshComponent>(PreviewActor);
     Mesh->SetupAttachment(Root);
     Mesh->SetSkinnedAssetAndUpdate(Source->GetSkeletalMeshAsset());
-    // A fixed reference pose remains readable even when the actual pawn is ragdolled.
+    // 실제 Pawn이 래그돌 상태여도 알아볼 수 있도록 고정된 기준 자세를 쓴다.
     const APdPlayer* DefaultPlayer = Player->GetClass()->GetDefaultObject<APdPlayer>();
     Mesh->SetRelativeTransform(DefaultPlayer->GetMesh()->GetRelativeTransform());
     Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -67,7 +67,7 @@ bool UInfoPaintPreviewRenderer::Show(APdPlayer* Player, UPaintCanvasWidget* Widg
     Decal->DecalSize = Settings.PaintCanvasFaceDecalSize.ComponentMax(FVector::OneVector);
     Decal->SetFadeScreenSize(0);
     Decal->RegisterComponent();
-    // Match the actual application's actor-oriented socket transform, including projection depth.
+    // 투영 깊이까지 포함해, 실제 적용과 같은 액터 기준 소켓 변환을 맞춘다.
     const FVector BaseLocation = Socket.IsNone() ? Root->GetComponentLocation() : Head;
     FTransform DecalTransform = Settings.PaintCanvasFaceDecalTransformOffset
         * FTransform(FQuat::Identity, BaseLocation, FVector::OneVector);
@@ -117,8 +117,8 @@ bool UInfoPaintPreviewRenderer::Show(APdPlayer* Player, UPaintCanvasWidget* Widg
     PreviewBrush.ImageSize = FVector2D(512,512);
     PreviewImage->SetBrush(PreviewBrush);
     Refresh();
-    // Give newly registered scene components and their render resources a frame to initialize.
-    // The core ticker also runs while the Info screen has paused gameplay.
+    // 새로 등록한 씬 컴포넌트와 렌더 리소스가 초기화되도록 한 프레임을 준다.
+    // 코어 ticker는 정보창이 게임플레이를 멈춘 동안에도 돈다.
     InitialCaptureHandle = FTSTicker::GetCoreTicker().AddTicker(
         FTickerDelegate::CreateWeakLambda(this, [this](float)
         {
@@ -131,8 +131,8 @@ bool UInfoPaintPreviewRenderer::Show(APdPlayer* Player, UPaintCanvasWidget* Widg
 
 void UInfoPaintPreviewRenderer::Refresh()
 {
-    // Use the same opaque copy as the real face application; the shared paint target's
-    // accumulated alpha is intentionally not the face decal's opacity.
+    // 실제 얼굴 적용과 같은 불투명 복사본을 쓴다. 공용 칠하기 타깃에 쌓인 알파는
+    // 얼굴 데칼의 불투명도가 아니다.
     if (IsValid(PreviewActor) && SourceCanvas && PreviewCanvas)
     {
         UCanvas* DrawCanvas = nullptr;

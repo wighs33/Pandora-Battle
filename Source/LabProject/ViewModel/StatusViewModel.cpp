@@ -608,7 +608,7 @@ void UStatusViewModel::UpdateHealthData()
 	UE_MVVM_SET_PROPERTY_VALUE(FinalRecovery, StatusViewModel::RoundResourceValue(StatusViewModel::CalculateFinalRecovery(Recovery, CurrentMaxHealth)));
 }
 
-/** Shield related values. */
+/** 보호막 관련 값. */
 void UStatusViewModel::UpdateShieldData()
 {
 	UAbilitySystemComponent* ASCPtr = ASC.Get();

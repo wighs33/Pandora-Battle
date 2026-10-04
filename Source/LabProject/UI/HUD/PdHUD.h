@@ -129,12 +129,12 @@ private:
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	/**
-	 * Returns whether a full-screen or modal UI currently owns the screen and
-	 * should suppress the normal gameplay HUD. Derived HUDs can add their own UI.
+	 * 전체 화면이나 모달 UI가 화면을 차지해 일반 게임플레이 HUD를 숨겨야 하는지 돌려준다.
+	 * 파생 HUD는 자기 UI를 조건에 더할 수 있다.
 	 */
 	virtual bool IsPlayerHudSuppressedByUi() const;
 
-	/** Re-evaluates the gameplay HUD from the shared suppression policy. */
+	/** 공용 숨김 정책으로 게임플레이 HUD 표시 여부를 다시 판단한다. */
 	void RefreshPlayerHudVisibility();
 
 private:

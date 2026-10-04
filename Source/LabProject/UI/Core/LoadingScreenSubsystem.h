@@ -37,7 +37,7 @@ public:
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	/** Rebuilds only the view of existing work. Never begins a wait. */
+	/** 이미 있는 대기 작업의 표시만 다시 만든다. 대기를 새로 시작하지 않는다. */
 	void RefreshLoadingScreen();
 	bool TickLoadingWork(float DeltaTime);
 	void HandlePreClientTravel(const FString& URL, ETravelType TravelType, bool bSeamless);
@@ -67,7 +67,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UUiScreen> ConnectingScreen;
 
-	// A snapshot of work owned by content/session systems, plus the cross-world travel transaction.
+	// 콘텐츠·세션 시스템이 가진 작업의 현재 상태와, 월드를 넘는 맵 이동 작업을 함께 담는다.
 	enum class EWaitReason : uint8
 	{
 		StartupContent, LobbyEntryContent, GameEntryContent, SessionRequest,

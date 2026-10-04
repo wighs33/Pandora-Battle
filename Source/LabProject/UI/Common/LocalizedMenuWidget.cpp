@@ -69,9 +69,8 @@ void ULocalizedMenuWidget::ApplyLocalizedBindings()
 			Info.TypefaceFontName = NAME_None;
 			Text->SetFont(Info);
 		}
-		// Keep editable fields' asset-owned style: nicknames are user content and numeric
-		// inputs need no language-specific font. UE 5.8 SetWidgetStyle also retains the
-		// input style address in Slate, so a temporary style here would be unsafe.
+		// 입력 칸은 애셋에 지정한 스타일을 그대로 둔다. 닉네임은 사용자가 쓴 내용이고 숫자 입력은 언어별 글꼴이 필요 없다.
+		// UE 5.8의 SetWidgetStyle은 입력 스타일의 주소를 Slate에 넘겨 계속 쓰므로, 여기서 임시 스타일을 만들면 안전하지 않다.
 	});
 	for (const auto& Binding : MenuTextBindings)
 	{

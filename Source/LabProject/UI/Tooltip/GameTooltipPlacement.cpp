@@ -49,10 +49,10 @@ void ApplyToButton(UWidget* Widget)
 			const IConsoleVariable* ScaleVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.SoftwareCursorScale"));
 			const float CursorScale = ScaleVariable ? FMath::Max(ScaleVariable->GetFloat(), 0.01f) : 1.0f;
 
-			// MouseCursorWidget puts its image inside a centered root twice the image size.
-			// At the normal software cursor scale, the image begins at pointer - hotspot.
-			// For overridden scales, exclude the full root envelope as well: Slate scales
-			// its allocation separately from the image's fixed canvas offsets.
+			// MouseCursorWidget은 이미지를 이미지 크기 두 배의 가운데 정렬 루트 안에 둔다.
+			// 기본 소프트웨어 커서 배율에서는 이미지가 포인터 - 핫스팟 위치에서 시작한다.
+			// 배율을 바꾼 경우에는 루트 전체 영역도 함께 뺀다. Slate는 할당 영역의 배율을 이미지의
+			// 고정 캔버스 오프셋과 따로 적용하기 때문이다.
 			FVector2D TopLeft = CursorPosition - HotSpot;
 			FVector2D BottomRight = TopLeft + Size;
 			if (!FMath::IsNearlyEqual(CursorScale, 1.0f))

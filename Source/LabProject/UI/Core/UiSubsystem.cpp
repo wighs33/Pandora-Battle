@@ -246,8 +246,8 @@ void UUiSubsystem::HandleConfiguredWidgetDefinitionLoaded()
 		return;
 	}
 
-	// Publish the root definition as soon as it resolves. The Core lease below owns
-	// only always-needed UI; Lobby/InGame/Info/Map are acquired by their screens.
+	// 루트 정의는 불러오는 즉시 알린다. 아래 Core lease는 항상 필요한 UI만 붙잡고,
+	// 로비·게임·정보창·지도 UI는 각 화면이 직접 붙잡는다.
 	if (!bHasExternalWidgetClassDefinition)
 	{
 		WidgetClassDefinition = ConfiguredWidgetClassDefinition;
@@ -383,9 +383,8 @@ bool UUiSubsystem::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
 			return;
 		}
 
-		// ForEachWidget visits nested UUserWidget objects themselves but does not
-		// enter their foreign WidgetTrees. Recurse explicitly so MVVM extensions
-		// attached to those user widgets are never skipped.
+		// ForEachWidget은 안에 든 UUserWidget 자체는 방문하지만 그 위젯의 WidgetTree 안으로는 들어가지 않는다.
+		// 그 위젯들에 붙은 MVVM 확장을 놓치지 않도록 직접 재귀한다.
 		UserWidget->WidgetTree->ForEachWidget(
 			[&BindWidgetTree](UWidget* ChildWidget)
 			{

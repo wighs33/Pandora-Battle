@@ -92,8 +92,8 @@ void UPandoraWidget::NativeTick(const FGeometry& MyGeometry, const float InDelta
 		SetPandoraInfo();
 	}
 
-	// Pandora Tree pauses standalone training gameplay. UMG continues ticking
-	// while paused, whereas UWorld timers do not, so hold progress belongs here.
+	// 판도라 트리는 혼자 하는 훈련장 게임플레이를 멈춘다. 멈춘 동안 UWorld 타이머는 돌지 않지만
+	// UMG Tick은 계속 돌므로, 길게 누르기 진행은 여기서 처리한다.
 	if (bIsButtonHoldActive)
 	{
 		IncrementButtonTimer();
@@ -243,7 +243,7 @@ void UPandoraWidget::SetPandoraInfo()
 		ViewModel->SetAtMaxLevel(ViewData.bAtMaxLevel);
 	}
 
-	// Keep labels readable for locked and unlearned nodes; only the medallion is dimmed.
+	// 잠겼거나 배우지 않은 노드도 이름은 읽을 수 있게 두고, 메달만 어둡게 한다.
 	for (const FName Name : { FName(TEXT("PandoraName")), FName(TEXT("LevelText")) })
 		if (UWidget* Label = GetWidgetFromName(Name)) Label->SetRenderOpacity(1.0f);
 	if (UWidget* Icon = GetWidgetFromName(TEXT("PandoraIcon")))

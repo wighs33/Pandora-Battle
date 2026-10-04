@@ -421,7 +421,7 @@ void ULobbyUserWidget::SetColorBorderByTeamColorIndex(const int32 TeamColorIndex
 
 void ULobbyUserWidget::OnMenuLanguageChanged()
 {
-	// Canonical option strings and their indices are unchanged; only their presentation is translated.
+	// 옵션 원문 문자열과 순서는 그대로이고, 화면에 보이는 문구만 번역한다.
 	if (Cbb_TeamColor)
 	{
 		const int32 Selected = Cbb_TeamColor->GetSelectedIndex();

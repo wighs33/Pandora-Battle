@@ -13,7 +13,7 @@ class UItemInstance;
 class UPandoraComponent;
 class UPandoraDefinition;
 
-/** A single state transition emitted after the store has refreshed its cached read model. */
+/** 저장소가 캐시한 읽기 모델을 갱신한 뒤 내보내는 상태 변화 하나. */
 enum class EInfoLoadoutStateChange : uint8
 {
 	Bindings,
