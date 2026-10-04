@@ -17,8 +17,8 @@ struct FAwsCredentials
  * AWS Signature Version 4 서명.
  *
  * 전용 서버가 API Gateway의 IAM 인증 경로(execute-api)에 결과를 보고할 때 사용한다.
- * 서명만 필요해 AWS C++ SDK를 넣지 않고 SHA-256·HMAC을 직접 구현했으며, 자동화 테스트가
- * NIST·RFC 4231 벡터와 AWS 서명 예제로 검증한다(Tests/AwsSigV4Tests.cpp).
+ * 서명만 필요해 AWS C++ SDK를 넣지 않고 SHA-256·HMAC을 직접 구현했으며, 단위 테스트가
+ * SHA-256 패딩 경계 벡터와 AWS 서명 예제로 검증한다(Tests/Unit/ProtocolTests.cpp).
  */
 namespace PdAwsSigV4
 {

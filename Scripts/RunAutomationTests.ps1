@@ -6,6 +6,7 @@
     단계는 세 가지다.
       1. 에디터 빌드 (LabProjectEditor Win64 Development)
       2. 에디터 프로세스: 단위 테스트(LabProject.Unit.*)와 콘텐츠 연결 테스트(LabProject.Integration.Content.*)
+         단위 테스트는 맵·콘텐츠 없이 도는 게임 규칙(LabProject.Unit.Rules.*)과 외부 프로토콜(LabProject.Unit.Protocol.*)이다.
       3. -game 프로세스: 훈련장 게임 월드의 입력·UI·장비·전투 연결 테스트(LabProject.Integration.TrainingRoom.*)
 
     단계마다 ReportDir 아래에 엔진 리포트(index.json)와 로그를 남긴다.
