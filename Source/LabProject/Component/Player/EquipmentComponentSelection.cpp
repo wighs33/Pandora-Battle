@@ -262,12 +262,8 @@ bool UEquipmentComponent::ApplyEquipAbilityCooldown()
 		return true;
 	}
 
-	if (!CachedActionDefinition.IsValid())
-	{
-		CachedActionDefinition = TSoftObjectPtr<UCharacterActionDefinition>(
-			UCharacterActionDefinition::GetDefaultDefinitionPath()).LoadSynchronous();
-	}
-	const UCharacterActionDefinition* LoadedDefinition = CachedActionDefinition.Get();
+	TSoftObjectPtr<UCharacterActionDefinition> ActionDefinition(UCharacterActionDefinition::GetDefaultDefinitionPath());
+	const UCharacterActionDefinition* LoadedDefinition = ActionDefinition.LoadSynchronous();
 	if (!LoadedDefinition)
 	{
 		return false;

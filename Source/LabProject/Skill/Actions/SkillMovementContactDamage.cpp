@@ -47,10 +47,11 @@ void FSkillMovementContactDamage::Start(USkillAbility& SkillAbility, UObject& Ti
 	if (UWorld* World = SkillAbility.GetWorld())
 	{
 		TimerWorld = World;
+		// 한 프레임 안에서는 캡슐 위치가 같아 다시 판정할 것이 없으므로, 프레임이 느려져도 프레임마다 한 번만 부른다.
 		World->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateWeakLambda(&TimerOwner, [this]()
 		{
 			Tick();
-		}), ContactDamageTickInterval, true);
+		}), ContactDamageTickInterval, {.bLoop = true, .bMaxOncePerFrame = true});
 	}
 }
 

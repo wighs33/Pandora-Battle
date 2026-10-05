@@ -105,8 +105,9 @@ void UCombatComponent::StartUnarmedAttackTrace()
 		return;
 	}
 	UnarmedAttackSweep.Begin(UnarmedCombatSettings.AttackTraces.Num());
+	// 한 프레임 안에서는 포즈가 같아 다시 판정할 것이 없으므로, 프레임이 느려져도 프레임마다 한 번만 부른다.
 	World->GetTimerManager().SetTimer(UnarmedAttackTraceTimerHandle, this, &ThisClass::PerformUnarmedAttackTrace,
-		UnarmedCombatSettings.TraceInterval, true);
+		UnarmedCombatSettings.TraceInterval, {.bLoop = true, .bMaxOncePerFrame = true});
 	// 즉시 타격의 콜백에서 공격이 끝나도 타이머를 다시 등록하지 않는다.
 	PerformUnarmedAttackTrace();
 }

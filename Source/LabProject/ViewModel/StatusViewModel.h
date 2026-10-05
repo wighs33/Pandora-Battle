@@ -9,7 +9,6 @@ class UAbilitySystemComponent;
 class UEquipmentEffectComponent;
 class UCombatComponent;
 class UProjectTagDefinition;
-class UStatUpgradeDefinition;
 struct FOnAttributeChangeData;
 
 UCLASS(BlueprintType)
@@ -353,7 +352,4 @@ protected:
 
 	UPROPERTY()
 	TWeakObjectPtr<UCombatComponent> CombatComponent;
-
-	/** 최대 자원 증가율 계산에 쓰는 기본 능력치 강화 정의. 처음 계산할 때 한 번 찾아 둔다. */
-	TWeakObjectPtr<const UStatUpgradeDefinition> CachedStatUpgradeDefinition;
 };

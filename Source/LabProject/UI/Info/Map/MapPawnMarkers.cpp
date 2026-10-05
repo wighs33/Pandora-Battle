@@ -246,11 +246,10 @@ bool FMapPawnMarkers::PlaceMark(UImage* Mark, const APawn& Pawn, const FMapMarkP
 		return false;
 	}
 
+	// 앵커·정렬·회전 중심은 CreateMark에서 정해 두었으므로 위치와 각도만 갱신한다.
 	const FVector2D MarkPosition = Projection.ToMapPosition(Pawn.GetActorLocation());
 	if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(Mark->Slot))
 	{
-		CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f));
-		CanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
 		CanvasSlot->SetPosition(MarkPosition);
 	}
 	else
@@ -258,7 +257,6 @@ bool FMapPawnMarkers::PlaceMark(UImage* Mark, const APawn& Pawn, const FMapMarkP
 		Mark->SetRenderTranslation(MarkPosition);
 	}
 
-	Mark->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 	Mark->SetRenderTransformAngle(bRotateToPawnForward ? Projection.ToMarkAngle(Pawn.GetActorForwardVector()) : 0.0f);
 	Mark->SetVisibility(ESlateVisibility::HitTestInvisible);
 	return true;

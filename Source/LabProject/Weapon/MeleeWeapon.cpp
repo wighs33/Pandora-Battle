@@ -152,8 +152,9 @@ void AMeleeWeapon::StartAttackTraceInternal(const bool bResetHitActors)
 
     if (UWorld* World = GetWorld())
     {
+        // 한 프레임 안에서는 포즈가 같아 다시 판정할 것이 없으므로, 프레임이 느려져도 프레임마다 한 번만 부른다.
         World->GetTimerManager().SetTimer(AttackTraceTimerHandle, this, &ThisClass::PerformAttackTrace,
-            FMath::Max(AttackTraceInterval, UE_SMALL_NUMBER), true);
+            FMath::Max(AttackTraceInterval, UE_SMALL_NUMBER), {.bLoop = true, .bMaxOncePerFrame = true});
     }
 }
 
@@ -341,12 +342,10 @@ void AMeleeWeapon::PerformAttackTrace()
 
     TArray<AActor*> ActorsToIgnore;
     CollectAttackTraceIgnoredActors(ActorsToIgnore);
-    const bool bDrawDebug = IsAttackDebugVisualizationEnabled();
     FAttackTraceDebugData DebugData;
-    FAttackTraceDebugData* const DebugDataToFill = bDrawDebug ? &DebugData : nullptr;
     if (!bHasPreviousAttackTraceSegment)
     {
-        TraceAttackSegment(TraceStartLocation, TraceEndLocation, ActorsToIgnore, DebugDataToFill);
+        TraceAttackSegment(TraceStartLocation, TraceEndLocation, ActorsToIgnore, DebugData);
     }
     else
     {
@@ -360,11 +359,11 @@ void AMeleeWeapon::PerformAttackTrace()
         {
             const float Alpha = static_cast<float>(InterpolationIndex) / static_cast<float>(InterpolationCount);
             TraceAttackSegment(FMath::Lerp(PreviousAttackTraceStartLocation, TraceStartLocation, Alpha),
-                FMath::Lerp(PreviousAttackTraceEndLocation, TraceEndLocation, Alpha), ActorsToIgnore, DebugDataToFill);
+                FMath::Lerp(PreviousAttackTraceEndLocation, TraceEndLocation, Alpha), ActorsToIgnore, DebugData);
         }
     }
 
-    if (bDrawDebug)
+    if (IsAttackDebugVisualizationEnabled())
     {
         MulticastDrawInterpolatedAttackTraceDebug(DebugData.StartLocations, DebugData.EndLocations, DebugData.HitResults);
     }
@@ -392,7 +391,7 @@ void AMeleeWeapon::CollectAttackTraceIgnoredActors(TArray<AActor*>& OutActorsToI
 }
 
 void AMeleeWeapon::TraceAttackSegment(const FVector& LineStart, const FVector& LineEnd, const TArray<AActor*>& ActorsToIgnore,
-    FAttackTraceDebugData* DebugData)
+    FAttackTraceDebugData& DebugData)
 {
     static const TArray<TEnumAsByte<EObjectTypeQuery>> BodyObjectTypes = {
         UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody())};
@@ -405,12 +404,9 @@ void AMeleeWeapon::TraceAttackSegment(const FVector& LineStart, const FVector& L
     TraceForObjects(this, LineStart, LineEnd, TraceRadius, CapsuleObjectTypes, ActorsToIgnore, CapsuleHitResults);
     HitResults.Append(CapsuleHitResults);
 
-    if (DebugData)
-    {
-        DebugData->StartLocations.Add(LineStart);
-        DebugData->EndLocations.Add(LineEnd);
-        DebugData->HitResults.Append(HitResults);
-    }
+    DebugData.StartLocations.Add(LineStart);
+    DebugData.EndLocations.Add(LineEnd);
+    DebugData.HitResults.Append(HitResults);
 
     for (const FHitResult& HitResult : HitResults)
     {

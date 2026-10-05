@@ -1,6 +1,5 @@
 #include "UI/Match/GameResultWidget.h"
 #include "Algo/AllOf.h"
-#include "Algo/Compare.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Core/UiScreen.h"
 #include "Input/CommonUIActionRouterBase.h"
@@ -19,20 +18,6 @@
 #include "UI/Common/TeamColorUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameResultWidget)
-
-namespace
-{
-	bool HasSamePlayerStats(const TArray<FGameResultPlayerStat>& Left, const TArray<FGameResultPlayerStat>& Right)
-	{
-		return Algo::Compare(Left, Right, [](const FGameResultPlayerStat& A, const FGameResultPlayerStat& B)
-		{
-			return A.PlayerStateId == B.PlayerStateId && A.KillCount == B.KillCount && A.DeathCount == B.DeathCount
-				&& A.GoldReward == B.GoldReward && A.TeamColorIndex == B.TeamColorIndex
-				&& A.bVictoryRewardEligible == B.bVictoryRewardEligible && A.PlayerName.EqualTo(B.PlayerName)
-				&& A.TeamName.EqualTo(B.TeamName);
-		});
-	}
-}
 
 UGameResultWidget::UGameResultWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -97,18 +82,11 @@ void UGameResultWidget::SetInfo(const FText& InWinnerTitle, const int32 InWinner
 
 void UGameResultWidget::SetInGameScoreboardInfo(const TArray<FGameResultPlayerStat>& InPlayerStats)
 {
-	TArray<FGameResultPlayerStat> SortedPlayerStats = InPlayerStats;
-	MatchResultReport::SortPlayerStats(SortedPlayerStats);
-	// 점수판은 열려 있는 동안 주기적으로 불리므로, 보이는 값이 그대로면 다시 그리지 않는다.
-	if (bInGameScoreboardMode && HasSamePlayerStats(PlayerStats, SortedPlayerStats))
-	{
-		return;
-	}
-
 	bInGameScoreboardMode = true;
 	WinnerTitle = FText::GetEmpty();
 	WinnerTeamColorIndex = INDEX_NONE;
-	PlayerStats = MoveTemp(SortedPlayerStats);
+	PlayerStats = InPlayerStats;
+	MatchResultReport::SortPlayerStats(PlayerStats);
 
 	if (PlayerStats.IsEmpty())
 	{

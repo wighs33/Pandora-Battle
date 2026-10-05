@@ -89,12 +89,9 @@ private:
 
     void PerformAttackTrace();
     void CollectAttackTraceIgnoredActors(TArray<AActor*>& OutActorsToIgnore);
-    /**
-     * 선분 하나를 맞을 수 있는 몸통과 Pawn 캡슐로 검사하고, 처음 맞은 상대 캐릭터에게 피해를 준다.
-     * DebugData는 디버그 표시를 켰을 때만 넘긴다.
-     */
+    /** 선분 하나를 맞을 수 있는 몸통과 Pawn 캡슐로 검사하고, 처음 맞은 상대 캐릭터에게 피해를 준다. */
     void TraceAttackSegment(const FVector& LineStart, const FVector& LineEnd, const TArray<AActor*>& ActorsToIgnore,
-        FAttackTraceDebugData* DebugData);
+        FAttackTraceDebugData& DebugData);
 
 protected:
     // Internal Helpers ------------------------------------------------------------------------------------------------

@@ -26,12 +26,8 @@ const FGameplayTagContainer* UEquipAbility::GetCooldownTags() const
 void UEquipAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	if (!CachedActionDefinition.IsValid())
-	{
-		CachedActionDefinition = TSoftObjectPtr<UCharacterActionDefinition>(
-			UCharacterActionDefinition::GetDefaultDefinitionPath()).LoadSynchronous();
-	}
-	const UCharacterActionDefinition* LoadedDefinition = CachedActionDefinition.Get();
+	TSoftObjectPtr<UCharacterActionDefinition> ActionDefinition(UCharacterActionDefinition::GetDefaultDefinitionPath());
+	const UCharacterActionDefinition* LoadedDefinition = ActionDefinition.LoadSynchronous();
 	const float CooldownDuration = LoadedDefinition
 		? static_cast<float>(FMath::Max(
 			LoadedDefinition->GetCooldownDuration(
