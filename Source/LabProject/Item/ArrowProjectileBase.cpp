@@ -11,6 +11,8 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Net/Core/PushModel/PushModel.h"
+#include "Net/UnrealNetwork.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
@@ -83,7 +85,6 @@ void AArrowProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	bHasImpacted = false;
 	bImpactTraceActive = false;
 	PreviousImpactTraceLocation = GetActorLocation();
 	SetActorTickEnabled(false);
@@ -109,6 +110,56 @@ void AArrowProjectileBase::BeginPlay()
 		ArrowMesh->SetHiddenInGame(false);
 		ArrowMesh->SetVisibility(true, true);
 	}
+
+	// 발사와 같은 프레임에 생성된 화살은 첫 복제에서 이미 발사된 상태로 도착하므로 여기서도 연출을 확인한다.
+	bSeenBeforeImpact = !bHasImpacted;
+	RefreshFlightEffects();
+}
+
+void AArrowProjectileBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	DOREPLIFETIME_WITH_PARAMS_FAST(AArrowProjectileBase, bLaunched, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(AArrowProjectileBase, bHasImpacted, Params);
+}
+
+void AArrowProjectileBase::OnRep_FlightState()
+{
+	RefreshFlightEffects();
+}
+
+// 발사음·궤적·충돌음을 각 화면에서 한 번씩 재생한다. 전용 서버는 보고 듣는 사람이 없어 건너뛴다.
+// 꽂힌 뒤에 처음 보게 된 화살(늦게 들어온 플레이어 등)은 지난 일이므로 아무것도 재생하지 않는다.
+void AArrowProjectileBase::RefreshFlightEffects()
+{
+	if (GetNetMode() == NM_DedicatedServer || !HasActorBegunPlay())
+	{
+		return;
+	}
+	if (bLaunched && !bHasImpacted && !bLaunchEffectsPlayed)
+	{
+		bLaunchEffectsPlayed = true;
+		if (LaunchSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, LaunchSound, GetActorLocation());
+		}
+		if (TrailSystem)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAttached(TrailSystem, GetCollisionComponent(), NAME_None, FVector::ZeroVector,
+				FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+		}
+	}
+	if (bHasImpacted && bSeenBeforeImpact && !bImpactEffectsPlayed)
+	{
+		bImpactEffectsPlayed = true;
+		if (ImpactSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, ImpactSound, GetActorLocation());
+		}
+	}
 }
 
 bool AArrowProjectileBase::LaunchArrowActor(const FVector& Direction)
@@ -131,17 +182,6 @@ bool AArrowProjectileBase::LaunchArrowActor(const FVector& Direction)
 		return false;
 	}
 
-	if (LaunchSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, LaunchSound, GetActorLocation());
-	}
-
-	if (TrailSystem)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAttached(TrailSystem, CollisionComponent, NAME_None, FVector::ZeroVector,
-			FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
-	}
-
 	UProjectileMovementComponent* ProjectileMovementComponent = GetProjectileMovementComponent();
 	if (!ProjectileMovementComponent)
 	{
@@ -162,7 +202,10 @@ bool AArrowProjectileBase::LaunchArrowActor(const FVector& Direction)
 		PreviousImpactTraceLocation = GetActorLocation();
 		bImpactTraceActive = true;
 		SetActorTickEnabled(true);
+		bLaunched = true;
+		MARK_PROPERTY_DIRTY_FROM_NAME(AArrowProjectileBase, bLaunched, this);
 	}
+	RefreshFlightEffects();
 	return true;
 }
 
@@ -359,6 +402,7 @@ bool AArrowProjectileBase::TryHandleImpact(AActor* OtherActor, UPrimitiveCompone
 
 	ACharacterBase* DamageTargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(OtherActor, OtherComp);
 	bHasImpacted = true;
+	MARK_PROPERTY_DIRTY_FROM_NAME(AArrowProjectileBase, bHasImpacted, this);
 
 	const ACharacterBase* SourceCharacter = GetOwningCharacter();
 	UCombatComponent* SourceCombat = SourceCharacter ? SourceCharacter->GetCombatComponent() : nullptr;
@@ -384,10 +428,7 @@ bool AArrowProjectileBase::TryHandleImpact(AActor* OtherActor, UPrimitiveCompone
 		CollisionComponent->SetVisibility(false, false);
 	}
 
-	if (ImpactSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, ImpactSound, GetActorLocation());
-	}
+	RefreshFlightEffects();
 
 	SetLifeSpan(ImpactLifeSpan);
 	return true;

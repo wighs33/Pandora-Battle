@@ -22,6 +22,7 @@ protected:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
@@ -52,6 +53,9 @@ protected:
 		FVector NormalImpulse,
 		const FHitResult& Hit);
 
+	UFUNCTION()
+	void OnRep_FlightState();
+
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	UPrimitiveComponent* GetCollisionComponent() const;
 	UProjectileMovementComponent* GetProjectileMovementComponent() const;
@@ -60,6 +64,7 @@ protected:
 	void PerformImpactTrace();
 	void StopProjectileMotion();
 	bool TryHandleImpact(AActor* OtherActor, UPrimitiveComponent* OtherComp);
+	void RefreshFlightEffects();
 
 protected:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "!Arrow|Components")
@@ -89,7 +94,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Arrow|Effects")
 	TObjectPtr<USoundBase> ImpactSound = nullptr;
 
-	UPROPERTY(Transient)
+	/** 발사와 명중은 서버가 정하고, 소리와 궤적은 각 화면이 이 두 값이 바뀌는 것을 보고 재생한다. */
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_FlightState)
+	bool bLaunched = false;
+
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_FlightState)
 	bool bHasImpacted = false;
 
 	UPROPERTY(Transient)
@@ -99,4 +108,11 @@ protected:
 	FVector PreviousImpactTraceLocation = FVector::ZeroVector;
 
 	PdDamageRules::FOutgoingDamage LaunchDamage;
+
+	/** 이 화면에서 연출을 이미 재생했는지. 같은 연출이 두 번 나오지 않게 한다. */
+	bool bLaunchEffectsPlayed = false;
+	bool bImpactEffectsPlayed = false;
+
+	/** 이 화면이 꽂히기 전의 화살을 본 적이 있는지. 처음 봤을 때 이미 꽂혀 있던 화살은 충돌음을 내지 않는다. */
+	bool bSeenBeforeImpact = false;
 };
