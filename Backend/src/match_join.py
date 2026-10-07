@@ -1,6 +1,9 @@
 """POST /match/join: 로그인한 플레이어에게 GameLift 게임 세션 자리를 잡아 주고 접속 정보를 돌려준다.
 
 빈 자리가 있는 세션을 먼저 찾고, 없으면 새 세션을 만든 뒤 ACTIVE가 될 때까지 기다린다.
+같은 모드로 아직 활성화 중인 세션이 있으면 새로 만들지 않고 그 세션을 기다린다.
+한 번의 요청으로 기다릴 수 있는 시간은 API Gateway 한도(30초)에 묶여 있어, 시간 안에 활성화되지 않으면
+session_timeout을 돌려주고 클라이언트가 같은 요청을 다시 보낸다. 다시 온 요청은 같은 세션을 이어서 기다린다.
 클라이언트는 받은 주소로 접속하면서 PlayerSessionId를 URL 옵션으로 보내고, 게임 서버가 AcceptPlayerSession으로 검증한다.
 
 요청 본문의 mode로 세션 종류를 나누고, 같은 값을 게임 속성 mode에 넣어 검색과 서버 분기에 쓴다.
@@ -68,6 +71,17 @@ def search_joinable_sessions(gamelift, fleet_id, location, mode):
     ]
 
 
+def find_activating_session(gamelift, fleet_id, location, mode):
+    """같은 모드로 활성화 중인 세션. 앞 요청이 만들었지만 기다리는 시간 안에 활성화되지 못한 세션을 이어서 기다릴 때 쓴다."""
+    describe = {"FleetId": fleet_id, "StatusFilter": "ACTIVATING", "Limit": 20}
+    if location:
+        describe["Location"] = location
+    for session in gamelift.describe_game_sessions(**describe).get("GameSessions", []):
+        if session_mode(session) == mode:
+            return session
+    return None
+
+
 def try_create_player_session(gamelift, game_session_id, player_id, player_data):
     """자리가 없거나 세션이 더 이상 참가를 받지 않으면 None을 돌려준다."""
     try:
@@ -125,21 +139,27 @@ def join_or_create(
         if player_session:
             return connection_info(player_session)
 
-    request = {
-        "FleetId": fleet_id,
-        "MaximumPlayerSessionCount": max_players,
-        "Name": "labproject-%s" % mode,
-        "GameProperties": [{"Key": MODE_PROPERTY, "Value": mode}],
-    }
-    if location:
-        request["Location"] = location
-    try:
-        game_session = gamelift.create_game_session(**request)["GameSession"]
-    except gamelift.exceptions.FleetCapacityExceededException as error:
-        raise ApiError(503, "no_server_available", "No game server is available right now.") from error
+    # 보스 레이드는 서버가 레이드 맵을 연 뒤 활성화하므로 한 번의 요청으로는 모자랄 수 있다.
+    # 이전 요청이 만든 세션이 아직 활성화 중이면 새 세션을 또 만들지 않고 그 세션을 기다린다.
+    pending_session = find_activating_session(gamelift, fleet_id, location, mode)
+    if pending_session:
+        game_session_id = pending_session["GameSessionId"]
+    else:
+        request = {
+            "FleetId": fleet_id,
+            "MaximumPlayerSessionCount": max_players,
+            "Name": "labproject-%s" % mode,
+            "GameProperties": [{"Key": MODE_PROPERTY, "Value": mode}],
+        }
+        if location:
+            request["Location"] = location
+        try:
+            game_session_id = gamelift.create_game_session(**request)["GameSession"]["GameSessionId"]
+        except gamelift.exceptions.FleetCapacityExceededException as error:
+            raise ApiError(503, "no_server_available", "No game server is available right now.") from error
 
-    wait_until_active(gamelift, game_session["GameSessionId"], sleep, clock, timeout)
-    player_session = try_create_player_session(gamelift, game_session["GameSessionId"], player_id, player_data)
+    wait_until_active(gamelift, game_session_id, sleep, clock, timeout)
+    player_session = try_create_player_session(gamelift, game_session_id, player_id, player_data)
     if not player_session:
         raise ApiError(503, "session_unavailable", "The new game session did not accept the player.")
     return connection_info(player_session)

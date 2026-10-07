@@ -21,6 +21,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogBackendClient, Log, All);
 
 namespace
 {
+	/**
+	 * 백엔드는 한 번에 약 24초만 세션 활성화를 기다린다(API Gateway 30초 한도). 보스 레이드 서버는 맵 준비를 최대 60초까지
+	 * 기다리므로, 시간 초과 응답이면 같은 요청을 이만큼 더 보낸다. 백엔드는 활성화 중인 같은 모드 세션을 이어서 기다린다.
+	 */
+	constexpr int32 MaxMatchJoinTimeoutRetries = 2;
 	FString GetStringField(const TSharedPtr<FJsonObject>& Json, const TCHAR* FieldName)
 	{
 		FString Value;
@@ -226,6 +231,7 @@ void UBackendClientSubsystem::JoinOnlineMatch(const EOnlineMatchMode Mode)
 	}
 
 	bMatchJoinInProgress = true;
+	MatchJoinTimeoutRetries = 0;
 	PendingMatchMode = Mode;
 	if (IsLoggedIn())
 	{
@@ -266,6 +272,14 @@ void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResp
 	if (Response.StatusCode == 401)
 	{
 		HandleUnauthorized();
+	}
+	if (!Response.bSucceeded && Response.ErrorCode == TEXT("session_timeout") && MatchJoinTimeoutRetries < MaxMatchJoinTimeoutRetries)
+	{
+		++MatchJoinTimeoutRetries;
+		UE_LOG(LogBackendClient, Log, TEXT("Game session is still starting; asking the backend again (%d/%d)."),
+			MatchJoinTimeoutRetries, MaxMatchJoinTimeoutRetries);
+		SendMatchJoinRequest();
+		return;
 	}
 	if (!Response.bSucceeded)
 	{

@@ -183,5 +183,6 @@ private:
 	FString DisplayName;
 	bool bJoinMatchAfterLogin = false;
 	bool bMatchJoinInProgress = false;
+	int32 MatchJoinTimeoutRetries = 0;
 	EOnlineMatchMode PendingMatchMode = EOnlineMatchMode::Match;
 };

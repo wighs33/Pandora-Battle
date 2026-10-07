@@ -169,11 +169,12 @@ class FakeGameLift:
         class FleetCapacityExceededException(Exception):
             pass
 
-    def __init__(self, searchable, full_sessions=(), statuses=("ACTIVE",), active_unindexed=()):
+    def __init__(self, searchable, full_sessions=(), statuses=("ACTIVE",), active_unindexed=(), activating=()):
         self.searchable = searchable
         self.full_sessions = set(full_sessions)
         self.statuses = list(statuses)
         self.active_unindexed = list(active_unindexed)
+        self.activating = list(activating)
         self.created = []
         self.player_sessions = []
 
@@ -192,6 +193,8 @@ class FakeGameLift:
         return {"GameSession": {"GameSessionId": "gsess-new"}}
 
     def describe_game_sessions(self, GameSessionId=None, **request):
+        if GameSessionId is None and request.get("StatusFilter") == "ACTIVATING":
+            return {"GameSessions": list(self.activating)}
         if GameSessionId is None:
             # 검색 색인에는 아직 없지만 이미 ACTIVE인 세션(가득 찬 세션, 참가 차단 세션 포함)
             return {"GameSessions": list(self.active_unindexed)}
@@ -256,6 +259,16 @@ class MatchJoinTests(unittest.TestCase):
         gamelift = FakeGameLift([], active_unindexed=unindexed)
         info = self.join(gamelift, location="custom-labproject-dev")
         self.assertEqual(info["playerSessionId"], "psess-gsess-fresh")
+        self.assertEqual(gamelift.created, [])
+
+    def test_waits_for_activating_session_of_same_mode_instead_of_creating(self):
+        activating = [
+            {"GameSessionId": "gsess-match-starting", "GameProperties": [{"Key": "mode", "Value": "match"}]},
+            {"GameSessionId": "gsess-raid-starting", "GameProperties": [{"Key": "mode", "Value": "bossraid"}]},
+        ]
+        gamelift = FakeGameLift([], statuses=("ACTIVATING", "ACTIVE"), activating=activating)
+        info = self.join(gamelift, mode="bossraid")
+        self.assertEqual(info["playerSessionId"], "psess-gsess-raid-starting")
         self.assertEqual(gamelift.created, [])
 
     def test_failed_session_is_reported(self):
