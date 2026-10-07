@@ -45,6 +45,7 @@ class LABPROJECT_API ACharacterBase : public ACharacter, public IAbilitySystemIn
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	// 엔진 생명주기와 조종자·이동 상태 변경.
+	virtual void PreRegisterAllComponents() override;
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -107,6 +108,9 @@ public:
 	void UpdateHealthBarVisibilityForLocalViewer(
 		APlayerController* LocalPlayerController, const FVector& CameraLocation, const FRotator& CameraRotation, float MaxDistanceSquared);
 	void SetHealthBarVisibleForLocalViewer(bool bVisible);
+
+	/** false면 체력이 가득한 동안(피해를 입기 전)에는 체력바를 숨긴다. */
+	virtual bool ShouldShowHealthBarAtFullHealth() const { return true; }
 
 	// 조준 애니메이션·장비 레이어·스킬 외형.
 	UFUNCTION(BlueprintPure, Category = "!Animation|Aim")

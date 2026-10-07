@@ -238,6 +238,13 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(APlayerControl
 		return;
 	}
 
+	if (!Character->ShouldShowHealthBarAtFullHealth() && ASC
+		&& ASC->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) >= ASC->GetNumericAttribute(UBasicAttributeSet::GetMaxHealthAttribute()))
+	{
+		SetVisibleForLocalViewer(false);
+		return;
+	}
+
 	const USkeletalMeshComponent* CharacterMesh = Character->GetMesh();
 	if (Character->IsHidden() || !CharacterMesh || !CharacterMesh->IsVisible())
 	{

@@ -34,6 +34,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
+	virtual ETeamAttitude::Type GetTeamAttitudeTowards(const AActor& Other) const override;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
@@ -89,6 +90,7 @@ protected:
 	void StopWaitingForExperience();
 	void WaitForNavigationData();
 	void StopWaitingForNavigationData();
+	void ApplySightRadiusOverride(float SightRadius);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!AI|Monster", meta = (AllowPrivateAccess = "true"))

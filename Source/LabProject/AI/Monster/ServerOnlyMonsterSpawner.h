@@ -43,6 +43,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (DisplayName = "Monster Class"))
 	TSubclassOf<AMonsterCharacter> MonsterClass;
 
+	/** 켜면 보스 레이드로 연 월드에서만 몬스터를 만든다. 일반 경기에도 쓰는 맵에 보스를 둘 때 켠다. */
+	UPROPERTY(EditAnywhere, Category = "Monster Spawner")
+	bool bSpawnOnlyInBossRaid = false;
+
 	/** 몬스터가 파괴된 뒤 새로 채우기까지의 지연. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Monster Spawner", meta = (ClampMin = "0.0", Units = "s"))
 	float RespawnCooldown = 5.0f;

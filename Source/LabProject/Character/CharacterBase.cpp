@@ -83,6 +83,17 @@ ACharacterBase::ACharacterBase(const FObjectInitializer& ObjectInitializer) : Su
 	ApplyCameraCollisionIgnoreToCharacterComponents();
 }
 
+// 전용 서버는 화면이 없어 애님 그래프의 물리 노드(꼬리·장식의 흔들림)를 볼 일이 없다.
+// 메시가 등록되며 애니메이션을 초기화할 때 노드가 물리 시뮬레이션을 만들므로 그 전에 끈다.
+void ACharacterBase::PreRegisterAllComponents()
+{
+	Super::PreRegisterAllComponents();
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh(); CharacterMesh && IsRunningDedicatedServer())
+	{
+		CharacterMesh->SetAllowRigidBodyAnimNode(false, false);
+	}
+}
+
 // 캐릭터를 GFCM 확장 기능의 수신 대상으로 등록하고, 외형·사망 처리에 필요한 공통 설정 로딩을 시작한다.
 void ACharacterBase::PreInitializeComponents()
 {

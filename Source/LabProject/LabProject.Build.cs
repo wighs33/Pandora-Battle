@@ -47,6 +47,7 @@ public class LabProject : ModuleRules
 			"AnimGraphRuntime",
 			"Niagara",
 			"RenderCore",
+			"RHI",
 			"AssetRegistry",
 			"CableComponent",
 			"Slate",

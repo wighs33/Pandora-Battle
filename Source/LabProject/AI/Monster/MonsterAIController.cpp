@@ -49,9 +49,10 @@ AMonsterAIController::AMonsterAIController(const FObjectInitializer& ObjectIniti
 	NativeSightConfig->AutoSuccessRangeFromLastSeenLocation = 500.0f;
 	NativeSightConfig->SetMaxAge(1.0f);
 	NativeSightConfig->SetStartsEnabled(true);
+	// 적(몬스터가 아닌 폰)만 본다. 다른 몬스터는 아군이라 시야 질의 자체를 만들지 않는다. GetTeamAttitudeTowards 참고.
 	NativeSightConfig->DetectionByAffiliation.bDetectEnemies = true;
-	NativeSightConfig->DetectionByAffiliation.bDetectFriendlies = true;
-	NativeSightConfig->DetectionByAffiliation.bDetectNeutrals = true;
+	NativeSightConfig->DetectionByAffiliation.bDetectFriendlies = false;
+	NativeSightConfig->DetectionByAffiliation.bDetectNeutrals = false;
 	ConfigurePerception();
 }
 
@@ -145,10 +146,21 @@ void AMonsterAIController::OnPossess(APawn* InPawn)
 	{
 		return;
 	}
+	if (const AMonsterCharacter* Monster = Cast<AMonsterCharacter>(InPawn))
+	{
+		ApplySightRadiusOverride(Monster->GetSightRadiusOverride());
+	}
 	AIPerception->SetSenseEnabled(UAISense_Sight::StaticClass(), true);
 	AIPerception->RequestStimuliListenerUpdate();
 	RefreshPerceivedPlayerPawn();
 	StartMonsterStateTreeIfReady();
+}
+
+// 몬스터끼리는 아군, 나머지 폰은 적이다. 시야는 적만 감지하므로 졸개 수백 마리가 서로를 보는 질의(몬스터 수의 제곱)가 생기지 않는다.
+// 플레이어 여부(IsPlayerControlled)로 가르지 않는 이유: 플레이어 폰은 조종되기 전에 감지 대상으로 등록되므로, 그 시점에 적이 아니면 질의가 영영 생기지 않는다.
+ETeamAttitude::Type AMonsterAIController::GetTeamAttitudeTowards(const AActor& Other) const
+{
+	return Other.IsA<AMonsterCharacter>() ? ETeamAttitude::Friendly : ETeamAttitude::Hostile;
 }
 
 // 조종하지 않는 몬스터를 계속 추적하거나 공격하지 않도록 AI를 종료한다.
@@ -186,6 +198,21 @@ bool AMonsterAIController::ForgetPerceivedPlayerIfOutOfRange()
 
 	RefreshPerceivedPlayerPawn(TargetPawn);
 	return true;
+}
+
+// 몬스터가 정한 시야 거리를 이 컨트롤러 전용 사본에 적용한다.
+// 시야 설정 객체는 다른 컨트롤러와 공유될 수 있어(블루프린트 자식은 C++ 기본 객체의 것을 가리킨다) 원본은 고치지 않는다.
+void AMonsterAIController::ApplySightRadiusOverride(const float SightRadius)
+{
+	if (SightRadius <= 0.0f || !NativeSightConfig)
+	{
+		return;
+	}
+	UAISenseConfig_Sight* SightConfig = DuplicateObject(NativeSightConfig.Get(), this);
+	SightConfig->SightRadius = SightRadius;
+	SightConfig->LoseSightRadius = FMath::Max(SightConfig->LoseSightRadius, SightRadius * 1.5f);
+	NativeSightConfig = SightConfig;
+	ConfigurePerception();
 }
 
 // 기본값을 다시 덮지 않고 현재 SightConfig를 감지 컴포넌트에 등록한다.

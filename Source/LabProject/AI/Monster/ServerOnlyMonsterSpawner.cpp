@@ -1,12 +1,13 @@
 #include "AI/Monster/ServerOnlyMonsterSpawner.h"
 
 #include "AI/Monster/MonsterCharacter.h"
+#include "Component/Match/MatchFlowComponent.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "Mode/ExperienceGameMode.h"
 #include "TimerManager.h"
-#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ServerOnlyMonsterSpawner)
 
@@ -14,58 +15,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogServerOnlyMonsterSpawner, Log, All);
 
 namespace
 {
-	FString NormalizePropertyName(FString Name)
+	/** 보스 레이드 여부는 게임 모드가 이동 옵션(BossRaid)으로 정한다. */
+	bool IsBossRaidWorld(const UWorld* World)
 	{
-		Name.ReplaceInline(TEXT(" "), TEXT(""));
-		Name.ReplaceInline(TEXT("_"), TEXT(""));
-		Name.ToLowerInline();
-		return Name;
-	}
-
-	bool SetNumericProperty(UObject* Target, const TCHAR* RequestedName, const double Value)
-	{
-		if (!IsValid(Target))
-		{
-			return false;
-		}
-
-		const FString NormalizedRequestedName = NormalizePropertyName(RequestedName);
-		for (TFieldIterator<FProperty> PropertyIt(Target->GetClass(), EFieldIterationFlags::IncludeSuper);
-			 PropertyIt;
-			 ++PropertyIt)
-		{
-			FProperty* Property = *PropertyIt;
-			const bool bNameMatches = NormalizePropertyName(Property->GetName()) == NormalizedRequestedName
-				|| NormalizePropertyName(Property->GetAuthoredName()) == NormalizedRequestedName;
-
-			if (!bNameMatches)
-			{
-				continue;
-			}
-
-			FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property);
-			if (!NumericProperty)
-			{
-				return false;
-			}
-
-			void* ValueAddress = Property->ContainerPtrToValuePtr<void>(Target);
-			if (NumericProperty->IsFloatingPoint())
-			{
-				NumericProperty->SetFloatingPointPropertyValue(ValueAddress, Value);
-				return true;
-			}
-
-			if (NumericProperty->IsInteger())
-			{
-				NumericProperty->SetIntPropertyValue(ValueAddress, FMath::RoundToInt64(Value));
-				return true;
-			}
-
-			return false;
-		}
-
-		return false;
+		const AExperienceGameMode* GameMode = World ? World->GetAuthGameMode<AExperienceGameMode>() : nullptr;
+		return GameMode && GameMode->GetMatchFlowComponent() && GameMode->GetMatchFlowComponent()->IsBossRaid();
 	}
 }
 
@@ -92,6 +46,10 @@ void AServerOnlyMonsterSpawner::BeginPlay()
 	}
 
 	Super::BeginPlay();
+	if (bSpawnOnlyInBossRaid && !IsBossRaidWorld(GetWorld()))
+	{
+		return;
+	}
 	if (!MonsterClass)
 	{
 		UAssetManager& AssetManager = UAssetManager::Get();
@@ -219,12 +177,7 @@ void AServerOnlyMonsterSpawner::CleanupSpawnedMonster()
 
 bool AServerOnlyMonsterSpawner::ApplyMonsterSpawnParameters(AMonsterCharacter* Monster) const
 {
-	const bool bSetMaxLeash = SetNumericProperty(Monster, TEXT("Max Leash Distance From Spawn Point"),
-		MaxLeashDistanceFromSpawnPoint);
-	const bool bSetMinLeash = SetNumericProperty(Monster, TEXT("Min Leash Distance From Spawn Point To Resume Roaming"),
-		MinLeashDistanceFromSpawnPointToResumeRoaming);
-
-	return bSetMaxLeash && bSetMinLeash;
+	return Monster->SetLeashDistances(MaxLeashDistanceFromSpawnPoint, MinLeashDistanceFromSpawnPointToResumeRoaming);
 }
 
 void AServerOnlyMonsterSpawner::HandleSpawnedMonsterDestroyed(AActor* DestroyedActor)

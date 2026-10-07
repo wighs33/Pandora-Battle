@@ -157,7 +157,14 @@ void UCharacterDeathComponent::ApplyDeathPhysics()
 		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
-	if (USkeletalMeshComponent* CharacterMesh = Character->GetMesh())
+	USkeletalMeshComponent* CharacterMesh = Character->GetMesh();
+	// 래그돌은 각 화면이 따로 시뮬레이션하고 복제하지 않으므로, 아무도 보지 않는 전용 서버에서는 돌리지 않는다.
+	// 시체가 공격 판정을 가로막지 않게 충돌만 끈다. 수백 마리가 한꺼번에 죽을 때 서버 물리 비용이 그만큼 사라진다.
+	if (CharacterMesh && Character->GetNetMode() == NM_DedicatedServer)
+	{
+		CharacterMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+	else if (CharacterMesh)
 	{
 		CharacterMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 		CharacterMesh->SetAllBodiesSimulatePhysics(true);

@@ -69,7 +69,7 @@ bool FPdPreviewWorldEnemyLoadTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("미리보기 월드는 액터를 초기화한다"), World->AreActorsInitialized());
 
 	for (const TCHAR* ClassPath : {TEXT("/Game/StackOBot/AI/BP_Bug.BP_Bug_C"), TEXT("/Game/Actor/Stickman/BP_Enemy.BP_Enemy_C"),
-		TEXT("/Game/Actor/Stickman/BP_TrainingBot.BP_TrainingBot_C")})
+		TEXT("/Game/Actor/Stickman/BP_TrainingBot.BP_TrainingBot_C"), TEXT("/Game/Characters/DragonUsurper/BP_DragonUsurper.BP_DragonUsurper_C")})
 	{
 		UClass* EnemyClass = LoadClass<AActor>(nullptr, ClassPath);
 		TestNotNull(FString::Printf(TEXT("%s 생성"), ClassPath), EnemyClass ? World->SpawnActor<AActor>(EnemyClass, FTransform::Identity) : nullptr);
