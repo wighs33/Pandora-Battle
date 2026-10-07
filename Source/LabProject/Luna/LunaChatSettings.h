@@ -37,8 +37,9 @@ private:
 	UPROPERTY(Config, EditAnywhere, Category = "Ollama")
 	FString Model = TEXT("gemma3:4b");
 
+	/** 가이드에 적힌 내용을 그대로 전하도록 낮게 둔다. 0.6에서는 가이드가 아니라고 한 것도 된다고 답했다. */
 	UPROPERTY(Config, EditAnywhere, Category = "Ollama", meta = (ClampMin = "0.0", ClampMax = "2.0"))
-	float Temperature = 0.6f;
+	float Temperature = 0.2f;
 
 	/** 말풍선에 들어갈 짧은 답만 받도록 생성 토큰 수를 제한한다. */
 	UPROPERTY(Config, EditAnywhere, Category = "Ollama", meta = (ClampMin = "16"))

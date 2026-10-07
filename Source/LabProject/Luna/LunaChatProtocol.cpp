@@ -119,4 +119,62 @@ namespace LunaChat
 		}
 		return Result.TrimStartAndEnd();
 	}
+
+	TArray<FGuideSection> SplitGuideSections(const FString& PageText)
+	{
+		TArray<FString> Lines;
+		PageText.ParseIntoArrayLines(Lines);
+		TArray<FGuideSection> Sections;
+		for (const FString& Line : Lines)
+		{
+			const FString Trimmed = Line.TrimStartAndEnd();
+			if (Trimmed.StartsWith(TEXT("[")) && Trimmed.EndsWith(TEXT("]")))
+			{
+				Sections.AddDefaulted_GetRef().Title = Trimmed.Mid(1, Trimmed.Len() - 2).TrimStartAndEnd();
+			}
+			if (Sections.IsEmpty() || Trimmed.IsEmpty())
+			{
+				continue;
+			}
+			if (Trimmed.StartsWith(TEXT("■")))
+			{
+				Sections.Last().Subtitles.Add(Trimmed.RightChop(1).TrimStart());
+			}
+			Sections.Last().Text += Trimmed + TEXT("\n");
+		}
+		return Sections;
+	}
+
+	FString DescribeGuideSection(const FGuideSection& Section)
+	{
+		return Section.Subtitles.IsEmpty() ? Section.Title : Section.Title + TEXT(": ") + FString::Join(Section.Subtitles, TEXT(", "));
+	}
+
+	TArray<int32> ParseChosenSections(const FString& ResponseBody, const int32 SectionCount, const int32 MaxSections)
+	{
+		TArray<int32> Chosen;
+		TSharedPtr<FJsonObject> Response;
+		const TSharedPtr<FJsonObject>* Message = nullptr;
+		FString Content;
+		TSharedPtr<FJsonObject> Answer;
+		const TArray<TSharedPtr<FJsonValue>>* Numbers = nullptr;
+		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ResponseBody), Response) || !Response.IsValid()
+			|| !Response->TryGetObjectField(TEXT("message"), Message) || !(*Message)->TryGetStringField(TEXT("content"), Content)
+			|| !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Content), Answer) || !Answer.IsValid()
+			|| !Answer->TryGetArrayField(TEXT("sections"), Numbers))
+		{
+			return Chosen;
+		}
+
+		for (const TSharedPtr<FJsonValue>& Number : *Numbers)
+		{
+			double Value = 0.0;
+			const int32 Index = Number->TryGetNumber(Value) ? FMath::RoundToInt32(Value) - 1 : INDEX_NONE;
+			if (Index >= 0 && Index < SectionCount && Chosen.Num() < MaxSections)
+			{
+				Chosen.AddUnique(Index);
+			}
+		}
+		return Chosen;
+	}
 }

@@ -82,7 +82,6 @@ private:
 	void ApplyImage(UTexture2D* Texture);
 	void SelectBoundGuideButton(int32 PageIndex);
 	void ResolveSelectedLanguage();
-	FText ResolvePageContent(const FGuidePageEntry& Page) const;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!Guide")

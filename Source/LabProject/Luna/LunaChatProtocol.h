@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 
 /**
- * Ollama `/api/chat` 스트리밍 응답을 해석하는 순수 로직. 네트워크 없이 자동화 테스트로 검증한다.
+ * Ollama `/api/chat` 응답 해석과 가이드 절 나누기 같은 순수 로직. 네트워크 없이 자동화 테스트로 검증한다.
  */
 namespace LunaChat
 {
@@ -41,4 +41,25 @@ namespace LunaChat
 
 	/** 말풍선에 맞게 마크다운 강조 기호를 빼고 공백과 줄바꿈을 정리한다. */
 	LABPROJECT_API FString ToBubbleText(const FString& Text);
+
+	/** 가이드에서 "[ 제목 ]" 줄부터 다음 "[ 제목 ]" 줄 전까지. 안쪽 "■ 소제목"은 절을 고를 때 힌트로 보여 준다. */
+	struct FGuideSection
+	{
+		FString Title;
+		TArray<FString> Subtitles;
+		/** 빈 줄을 뺀 절 본문(제목 줄 포함) */
+		FString Text;
+	};
+
+	/** 가이드 한 페이지를 절로 나눈다. 첫 "[ 제목 ]" 줄보다 앞의 내용은 어느 절에도 넣지 않는다. */
+	LABPROJECT_API TArray<FGuideSection> SplitGuideSections(const FString& PageText);
+
+	/** 절을 고를 때 보여 줄 이름: "제목: 소제목, 소제목" */
+	LABPROJECT_API FString DescribeGuideSection(const FGuideSection& Section);
+
+	/**
+	 * 절 고르기 응답({"message":{"content":"{\"sections\":[2,5]}"}})에서 고른 절의 인덱스를 꺼낸다.
+	 * 모델은 1부터 번호를 매기므로 0부터 센 인덱스로 바꾸고, 범위 밖이거나 겹친 번호는 버리며, 앞에서부터 MaxSections개까지만 둔다.
+	 */
+	LABPROJECT_API TArray<int32> ParseChosenSections(const FString& ResponseBody, int32 SectionCount, int32 MaxSections);
 }

@@ -10,8 +10,13 @@
 #include "Interfaces/IHttpResponse.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "Common/UiLanguage.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/UI/GuideDefinition.h"
 #include "Luna/LunaChatSettings.h"
 #include "Online/Backend/BackendHttp.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LunaChatSubsystem)
 
@@ -42,6 +47,31 @@ namespace
 	/** 말풍선 한두 줄에 들어가는 길이 */
 	constexpr int32 MaxReplyCharacters = 120;
 
+	/** 답할 때 넣는 가이드 절 수. 절 하나가 200~800자라 두 개면 질문 대부분을 덮으면서 프롬프트가 짧게 유지된다. */
+	constexpr int32 MaxGuideSections = 2;
+
+	/** 절 고르기 응답을 번호 배열로 고정하는 JSON 스키마(Ollama의 format) */
+	const TCHAR* GuideSectionSchema = TEXT("{\"type\":\"object\",\"properties\":{\"sections\":{\"type\":\"array\",\"items\":{\"type\":\"integer\"}}},\"required\":[\"sections\"]}");
+
+	TSharedPtr<FJsonValue> MakeMessage(const FString& Role, const FString& Content)
+	{
+		const TSharedRef<FJsonObject> Message = MakeShared<FJsonObject>();
+		Message->SetStringField(TEXT("role"), Role);
+		Message->SetStringField(TEXT("content"), Content);
+		return MakeShared<FJsonValueObject>(Message);
+	}
+
+	/** 요청이 Ollama에 닿지 못했거나 오류 코드를 받았으면 그 이유를, 아니면 빈 문자열을 돌려준다. */
+	FString DescribeRequestFailure(const FHttpResponsePtr& Response, const bool bConnectedSuccessfully)
+	{
+		if (!bConnectedSuccessfully || !Response.IsValid())
+		{
+			return FString::Printf(TEXT("Could not reach Ollama at %s. Is it running?"), *GetDefault<ULunaChatSettings>()->GetOllamaUrl());
+		}
+		const int32 StatusCode = Response->GetResponseCode();
+		return EHttpResponseCodes::IsOk(StatusCode) ? FString() : FString::Printf(TEXT("Ollama returned HTTP %d."), StatusCode);
+	}
+
 	FAutoConsoleCommandWithWorldAndArgs AskLunaCommand(TEXT("pd.Luna.Ask"),
 		TEXT("pd.Luna.Ask <question>: ask Luna through the local Ollama model."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
@@ -66,6 +96,13 @@ void ULunaChatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		Localization->OnLanguageChanged.AddDynamic(this, &ThisClass::HandleMenuLanguageChanged);
 	}
+	// 가이드는 첫 질문 전에 막지 않고 불러 둔다. 이미지는 가이드 화면이 따로 불러온다.
+	const TSoftObjectPtr<UGuideDefinition>& Guide = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Guide;
+	if (!Guide.IsNull())
+	{
+		GuideLease = UContentDataSubsystem::AcquireContent({Guide.ToSoftObjectPath()},
+			FSimpleDelegate::CreateUObject(this, &ThisClass::RebuildGuideSections));
+	}
 }
 
 void ULunaChatSubsystem::Deinitialize()
@@ -75,6 +112,7 @@ void ULunaChatSubsystem::Deinitialize()
 		Localization->OnLanguageChanged.RemoveDynamic(this, &ThisClass::HandleMenuLanguageChanged);
 	}
 	CancelReply();
+	GuideLease.Reset();
 	Super::Deinitialize();
 }
 
@@ -90,22 +128,60 @@ bool ULunaChatSubsystem::Ask(const FString& Question)
 	CancelReply();
 	PendingQuestion = TrimmedQuestion;
 	ReplyText.Reset();
-	Parser = LunaChat::FStreamParser();
-	StreamBuffer = MakeShared<FLunaChatStreamBuffer, ESPMode::ThreadSafe>();
 	const uint32 RequestSerial = ++ActiveRequestSerial;
-
-	FString Url = Settings->GetOllamaUrl();
-	while (Url.EndsWith(TEXT("/")))
+	UE_LOG(LogLunaChat, Log, TEXT("Asking Luna (%s): %s"), *Settings->GetModel(), *TrimmedQuestion);
+	if (GuideSections.IsEmpty())
 	{
-		Url.LeftChopInline(1);
+		RequestReply({}, RequestSerial);
+	}
+	else
+	{
+		RequestGuideSections(RequestSerial);
+	}
+	return true;
+}
+
+void ULunaChatSubsystem::RequestGuideSections(const uint32 RequestSerial)
+{
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = CreateChatRequest(BuildSectionRequestBody(PendingQuestion));
+	Request->OnProcessRequestComplete().BindWeakLambda(this,
+		[this, RequestSerial](FHttpRequestPtr, const FHttpResponsePtr Response, const bool bConnectedSuccessfully)
+		{
+			HandleGuideSectionsChosen(Response, bConnectedSuccessfully, RequestSerial);
+		});
+	ActiveRequest = Request;
+	Request->ProcessRequest();
+}
+
+void ULunaChatSubsystem::HandleGuideSectionsChosen(
+	const FHttpResponsePtr Response, const bool bConnectedSuccessfully, const uint32 RequestSerial)
+{
+	if (RequestSerial != ActiveRequestSerial || !ActiveRequest.IsValid())
+	{
+		return;
+	}
+	const FString Failure = DescribeRequestFailure(Response, bConnectedSuccessfully);
+	if (!Failure.IsEmpty())
+	{
+		FinishReply(false, Failure);
+		return;
 	}
 
-	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
-	Request->SetVerb(TEXT("POST"));
-	Request->SetURL(Url + TEXT("/api/chat"));
-	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-	Request->SetContentAsString(PdBackendHttp::SerializeJson(BuildRequestBody(TrimmedQuestion)));
-	Request->SetTimeout(Settings->GetRequestTimeoutSeconds());
+	// 맞는 절이 없거나 응답을 해석하지 못하면 안내 문구만으로 답하게 한다.
+	const TArray<int32> Chosen = LunaChat::ParseChosenSections(Response->GetContentAsString(), GuideSections.Num(), MaxGuideSections);
+	for (const int32 Index : Chosen)
+	{
+		UE_LOG(LogLunaChat, Log, TEXT("Guide section for the answer: %s"), *GuideSections[Index].Title);
+	}
+	RequestReply(Chosen, RequestSerial);
+}
+
+void ULunaChatSubsystem::RequestReply(const TArray<int32>& GuideSectionIndices, const uint32 RequestSerial)
+{
+	Parser = LunaChat::FStreamParser();
+	StreamBuffer = MakeShared<FLunaChatStreamBuffer, ESPMode::ThreadSafe>();
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request =
+		CreateChatRequest(BuildRequestBody(PendingQuestion, GuideSectionIndices));
 
 	// 스트림 콜백은 HTTP 스레드에서 오므로 바이트만 쌓고, 해석과 알림은 게임 스레드에서 한다.
 	const TWeakObjectPtr<ThisClass> WeakThis(this);
@@ -129,9 +205,25 @@ bool ULunaChatSubsystem::Ask(const FString& Question)
 		});
 
 	ActiveRequest = Request;
-	UE_LOG(LogLunaChat, Log, TEXT("Asking Luna (%s): %s"), *Settings->GetModel(), *TrimmedQuestion);
 	Request->ProcessRequest();
-	return true;
+}
+
+TSharedRef<IHttpRequest, ESPMode::ThreadSafe> ULunaChatSubsystem::CreateChatRequest(const TSharedRef<FJsonObject>& Body) const
+{
+	const ULunaChatSettings* Settings = GetDefault<ULunaChatSettings>();
+	FString Url = Settings->GetOllamaUrl();
+	while (Url.EndsWith(TEXT("/")))
+	{
+		Url.LeftChopInline(1);
+	}
+
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+	Request->SetVerb(TEXT("POST"));
+	Request->SetURL(Url + TEXT("/api/chat"));
+	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+	Request->SetContentAsString(PdBackendHttp::SerializeJson(Body));
+	Request->SetTimeout(Settings->GetRequestTimeoutSeconds());
+	return Request;
 }
 
 void ULunaChatSubsystem::CancelReply()
@@ -158,6 +250,40 @@ void ULunaChatSubsystem::ResetConversation()
 void ULunaChatSubsystem::HandleMenuLanguageChanged()
 {
 	ResetConversation();
+	RebuildGuideSections();
+}
+
+// 절 이름에 영어 이름을 함께 적어, 플레이어가 쓰는 외래어(크리티컬)와 가이드의 UI 용어(치명타)가 달라도 절을 고를 수 있게 한다.
+// 모든 언어의 가이드는 절 구성이 같으므로 같은 순서의 영어 절을 짝지을 수 있다.
+void ULunaChatSubsystem::RebuildGuideSections()
+{
+	GuideSections.Reset();
+	GuideSectionNames.Reset();
+	const UGuideDefinition* Guide = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Guide.Get();
+	const UMenuLocalizationSubsystem* Localization = GetGameInstance()->GetSubsystem<UMenuLocalizationSubsystem>();
+	if (!Guide)
+	{
+		return;
+	}
+
+	const EGuideLanguage Language = Localization ? Localization->GetLanguage() : Guide->DefaultLanguage;
+	for (const FGuidePageEntry& Page : Guide->Pages)
+	{
+		const TArray<LunaChat::FGuideSection> Sections = LunaChat::SplitGuideSections(Page.GetContent(Language).ToString());
+		const TArray<LunaChat::FGuideSection> EnglishSections =
+			LunaChat::SplitGuideSections(Page.GetContent(EGuideLanguage::English).ToString());
+		const bool bAddEnglishNames = Language != EGuideLanguage::English && EnglishSections.Num() == Sections.Num();
+		for (int32 Index = 0; Index < Sections.Num(); ++Index)
+		{
+			FString Name = LunaChat::DescribeGuideSection(Sections[Index]);
+			if (bAddEnglishNames)
+			{
+				Name += TEXT(" (") + LunaChat::DescribeGuideSection(EnglishSections[Index]) + TEXT(")");
+			}
+			GuideSectionNames.Add(MoveTemp(Name));
+			GuideSections.Add(Sections[Index]);
+		}
+	}
 }
 
 void ULunaChatSubsystem::DrainStream(const uint32 RequestSerial)
@@ -225,16 +351,10 @@ void ULunaChatSubsystem::HandleRequestComplete(
 	Parser.Flush(Content, bDone, Error);
 	ReplyText += Content;
 
-	if (!bConnectedSuccessfully || !Response.IsValid())
+	const FString Failure = DescribeRequestFailure(Response, bConnectedSuccessfully);
+	if (!Failure.IsEmpty() || !Error.IsEmpty())
 	{
-		FinishReply(false, FString::Printf(TEXT("Could not reach Ollama at %s. Is it running?"),
-			*GetDefault<ULunaChatSettings>()->GetOllamaUrl()));
-		return;
-	}
-	const int32 StatusCode = Response->GetResponseCode();
-	if (!Error.IsEmpty() || !EHttpResponseCodes::IsOk(StatusCode))
-	{
-		FinishReply(false, Error.IsEmpty() ? FString::Printf(TEXT("Ollama returned HTTP %d."), StatusCode) : Error);
+		FinishReply(false, Failure.IsEmpty() ? Error : Failure);
 		return;
 	}
 	FinishReply(true, FString());
@@ -266,8 +386,36 @@ void ULunaChatSubsystem::FinishReply(const bool bSucceeded, const FString& Error
 	ReplyFinished.Broadcast(false, FString());
 }
 
-// 게임에 대한 답은 DT_MenuText의 Luna 안내 문구에서만 가져오게 하고, 답하는 언어는 현재 메뉴 언어로 고정한다.
-FString ULunaChatSubsystem::BuildSystemPrompt() const
+// 절 목록과 질문만 보내 답할 때 넣을 절 번호를 받는다. 형식을 JSON 스키마로 고정해 번호만 돌아오게 한다.
+TSharedRef<FJsonObject> ULunaChatSubsystem::BuildSectionRequestBody(const FString& Question) const
+{
+	FString Prompt = FString::Printf(TEXT("Pick the guide sections that answer the player's question. "
+		"Choose at most %d, or none if no section fits.\nSections:\n"), MaxGuideSections);
+	for (int32 Index = 0; Index < GuideSectionNames.Num(); ++Index)
+	{
+		Prompt += FString::Printf(TEXT("%d. %s\n"), Index + 1, *GuideSectionNames[Index]);
+	}
+
+	TSharedPtr<FJsonObject> Schema;
+	FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(GuideSectionSchema), Schema);
+	const TSharedRef<FJsonObject> Options = MakeShared<FJsonObject>();
+	Options->SetNumberField(TEXT("temperature"), 0.0);
+	Options->SetNumberField(TEXT("num_predict"), 32);
+
+	const ULunaChatSettings* Settings = GetDefault<ULunaChatSettings>();
+	const TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
+	Body->SetStringField(TEXT("model"), Settings->GetModel());
+	Body->SetBoolField(TEXT("stream"), false);
+	Body->SetStringField(TEXT("keep_alive"), Settings->GetKeepAlive());
+	Body->SetArrayField(TEXT("messages"), {MakeMessage(TEXT("system"), Prompt), MakeMessage(TEXT("user"), Question)});
+	Body->SetObjectField(TEXT("format"), Schema);
+	Body->SetObjectField(TEXT("options"), Options);
+	return Body;
+}
+
+// 게임에 대한 답은 고른 가이드 절과 Luna 안내 문구에서만 가져오게 하고, 답하는 언어는 현재 메뉴 언어로 고정한다.
+// 가이드 절을 앞에 두고 가장 정확하다고 알려야, 작은 모델이 친절하게 "네"라고 답하며 가이드가 아니라고 한 것을 된다고 하지 않는다.
+FString ULunaChatSubsystem::BuildSystemPrompt(const TArray<int32>& GuideSectionIndices) const
 {
 	const UMenuLocalizationSubsystem* Localization = GetGameInstance()->GetSubsystem<UMenuLocalizationSubsystem>();
 	const EGuideLanguage Language = Localization ? Localization->GetLanguage() : EGuideLanguage::Korean;
@@ -279,12 +427,22 @@ FString ULunaChatSubsystem::BuildSystemPrompt() const
 		"- Always reply in %s (%s), whatever language the player writes in.\n"
 		"- Keep every reply to one or two short sentences, at most about %d characters. Do not use lists, markdown or emoji.\n"
 		"- Speak warmly and politely, in the first person, as Luna.\n"
-		"- Answer questions about the game only from the facts below. If they do not cover the question, say you are not sure "
-		"and suggest the Guide menu on the title screen. Never invent features.\n"
-		"- For questions unrelated to the game, answer briefly and gently bring the conversation back to Pandora Battle.\n"
-		"Game facts:\n"),
+		"- Answer questions about the game only from the guide sections and facts below. The guide sections are the most accurate: "
+		"answer from them first and repeat their facts and formulas exactly. If they say something is not possible, say no. "
+		"If nothing below covers the question, say you are not sure and suggest the Guide menu on the title screen. "
+		"Never invent features.\n"
+		"- For questions unrelated to the game, answer briefly and gently bring the conversation back to Pandora Battle.\n"),
 		*LanguageName, *UiLanguage::NativeName(Language), MaxReplyCharacters);
 
+	if (!GuideSectionIndices.IsEmpty())
+	{
+		Prompt += TEXT("Guide sections:\n");
+		for (const int32 Index : GuideSectionIndices)
+		{
+			Prompt += GuideSections[Index].Text + TEXT("\n");
+		}
+	}
+	Prompt += TEXT("Other facts:\n");
 	if (Localization)
 	{
 		for (int32 TipNumber = 1; TipNumber <= LunaChat::TipCount; ++TipNumber)
@@ -299,24 +457,15 @@ FString ULunaChatSubsystem::BuildSystemPrompt() const
 	return Prompt;
 }
 
-TSharedRef<FJsonObject> ULunaChatSubsystem::BuildRequestBody(const FString& Question) const
+TSharedRef<FJsonObject> ULunaChatSubsystem::BuildRequestBody(const FString& Question, const TArray<int32>& GuideSectionIndices) const
 {
 	const ULunaChatSettings* Settings = GetDefault<ULunaChatSettings>();
-	TArray<TSharedPtr<FJsonValue>> Messages;
-	const auto AddMessage = [&Messages](const FString& Role, const FString& Content)
-	{
-		const TSharedRef<FJsonObject> Message = MakeShared<FJsonObject>();
-		Message->SetStringField(TEXT("role"), Role);
-		Message->SetStringField(TEXT("content"), Content);
-		Messages.Add(MakeShared<FJsonValueObject>(Message));
-	};
-
-	AddMessage(TEXT("system"), BuildSystemPrompt());
+	TArray<TSharedPtr<FJsonValue>> Messages = {MakeMessage(TEXT("system"), BuildSystemPrompt(GuideSectionIndices))};
 	for (const FChatMessage& Message : History)
 	{
-		AddMessage(Message.Role, Message.Content);
+		Messages.Add(MakeMessage(Message.Role, Message.Content));
 	}
-	AddMessage(TEXT("user"), Question);
+	Messages.Add(MakeMessage(TEXT("user"), Question));
 
 	const TSharedRef<FJsonObject> Options = MakeShared<FJsonObject>();
 	Options->SetNumberField(TEXT("temperature"), Settings->GetTemperature());

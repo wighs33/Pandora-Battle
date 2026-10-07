@@ -23,10 +23,6 @@
 namespace
 {
 	constexpr int32 MaxGuideButtonBindings = 12;
-	bool HasGuideText(const FText& Text)
-	{
-		return !Text.IsEmptyOrWhitespace();
-	}
 
 	FText MakeGuideText(const TCHAR* Text)
 	{
@@ -425,7 +421,7 @@ void UGuideWidget::ApplyPage(const FGuidePageEntry& Page)
 	if (Txt_Content)
 	{
 		ApplyContentFont();
-		Txt_Content->SetText(ResolvePageContent(Page));
+		Txt_Content->SetText(Page.GetContent(CurrentLanguage));
 	}
 
 	ApplyImage(Page.Image.Get());
@@ -482,15 +478,6 @@ void UGuideWidget::ResolveSelectedLanguage()
 		CurrentLanguage = Localization->GetLanguage();
 	else if (const UGuideDefinition* Definition = ResolveGuideDefinition())
 		CurrentLanguage = Definition->DefaultLanguage;
-}
-
-FText UGuideWidget::ResolvePageContent(const FGuidePageEntry& Page) const
-{
-	if (const FText* Translation = Page.LocalizedContent.Find(CurrentLanguage); Translation && HasGuideText(*Translation))
-		return *Translation;
-	if (const FText* English = Page.LocalizedContent.Find(EGuideLanguage::English); English && HasGuideText(*English))
-		return *English;
-	return Page.Content;
 }
 
 void UGuideWidget::SelectBoundGuideButton(const int32 PageIndex)

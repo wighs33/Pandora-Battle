@@ -143,4 +143,37 @@ bool FPdLunaStreamTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// Luna가 답에 넣을 가이드 절: "[ 제목 ]" 줄로 나눈 절과, Ollama 구조화 출력으로 받은 절 번호 해석을 확인한다.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLunaGuideSectionTest, "LabProject.Unit.Protocol.LunaGuideSections",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FPdLunaGuideSectionTest::RunTest(const FString& Parameters)
+{
+	const TArray<LunaChat::FGuideSection> Sections = LunaChat::SplitGuideSections(
+		TEXT("제목 없는 머리말\n[ 공격 ]\n\n■ 힘\n• 무기 피해가 늘어납니다.\n\n■ 치명타\n• 2.0 + 치명타 / 100\n  [ 방어 ]\n• 방어력"));
+	if (!TestEqual(TEXT("section count"), Sections.Num(), 2))
+	{
+		return false;
+	}
+	TestEqual(TEXT("text before the first title is dropped"), Sections[0].Title, FString(TEXT("공격")));
+	TestEqual(TEXT("subtitles become the hint"), LunaChat::DescribeGuideSection(Sections[0]), FString(TEXT("공격: 힘, 치명타")));
+	TestEqual(TEXT("blank lines are removed"), Sections[0].Text,
+		FString(TEXT("[ 공격 ]\n■ 힘\n• 무기 피해가 늘어납니다.\n■ 치명타\n• 2.0 + 치명타 / 100\n")));
+	TestEqual(TEXT("indented title"), LunaChat::DescribeGuideSection(Sections[1]), FString(TEXT("방어")));
+
+	// 번호는 1부터 오고, 범위 밖·중복 번호는 버리며 최대 개수까지만 쓴다.
+	const auto Choose = [](const FString& Content, const int32 MaxSections)
+	{
+		const FString Body = FString::Printf(TEXT("{\"model\":\"test\",\"message\":{\"role\":\"assistant\",\"content\":\"%s\"},\"done\":true}"),
+			*Content.ReplaceCharWithEscapedChar());
+		return LunaChat::ParseChosenSections(Body, 5, MaxSections);
+	};
+	TestEqual(TEXT("one-based numbers"), Choose(TEXT("{\"sections\":[2,5]}"), 2), TArray<int32>({1, 4}));
+	TestEqual(TEXT("out of range and duplicates"), Choose(TEXT("{\"sections\":[0,6,3,3,1]}"), 3), TArray<int32>({2, 0}));
+	TestEqual(TEXT("limited to max"), Choose(TEXT("{\"sections\":[1,2,3]}"), 2), TArray<int32>({0, 1}));
+	TestTrue(TEXT("no section fits"), Choose(TEXT("{\"sections\":[]}"), 2).IsEmpty());
+	TestTrue(TEXT("content is not JSON"), Choose(TEXT("1, 2"), 2).IsEmpty());
+	TestTrue(TEXT("response is not JSON"), LunaChat::ParseChosenSections(TEXT("oops"), 5, 2).IsEmpty());
+	return true;
+}
+
 #endif

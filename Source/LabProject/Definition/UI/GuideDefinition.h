@@ -24,6 +24,9 @@ struct LABPROJECT_API FGuidePageEntry
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Guide", meta = (AssetBundles = "Client"))
 	TSoftObjectPtr<UTexture2D> Image;
+
+	/** Language의 본문. 비어 있으면 영어, 영어도 비어 있으면 Content를 쓴다. Luna는 본문을 "[ 제목 ]" 줄마다 절로 나눠 참고한다. */
+	FText GetContent(EGuideLanguage Language) const;
 };
 
 UCLASS(BlueprintType)
