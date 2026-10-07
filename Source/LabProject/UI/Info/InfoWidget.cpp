@@ -772,7 +772,7 @@ void UInfoWidget::RefreshPandoraDrawerLabel()
 		FText::FromString(bPandoraDrawerExpanded ? TEXT("Collapse") : TEXT("Expand")));
 	if (PandoraDrawerAction) PandoraDrawerAction->SetText(Label);
 	if (PandoraDrawerArrow) PandoraDrawerArrow->SetText(FText::FromString(bPandoraDrawerExpanded ? TEXT("‹") : TEXT("›")));
-	if (Btn_PandoraUpgrade) Btn_PandoraUpgrade->SetToolTipText(MenuTextOrFallback(
+	SetHoverTooltip(Btn_PandoraUpgrade, MenuTextOrFallback(
 		bPandoraDrawerExpanded ? TEXT("Pandora.CollapseHint") : TEXT("Pandora.ExpandHint"), Label));
 }
 
