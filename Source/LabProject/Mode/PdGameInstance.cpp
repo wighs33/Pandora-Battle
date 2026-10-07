@@ -1,6 +1,7 @@
 #include "Mode/PdGameInstance.h"
 
 #include "Audio/BgmSubsystem.h"
+#include "Common/BuildVersion.h"
 #include "Engine/Engine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdGameInstance)
@@ -16,6 +17,7 @@ namespace
 void UPdGameInstance::Init()
 {
 	Super::Init();
+	UE_LOG(LogPdGameInstance, Display, TEXT("Build %s"), *PdBuildVersion::GetDisplayString());
 
 	if (IsRunningDedicatedServer())
 	{

@@ -129,3 +129,6 @@ __pycache__/
 # OS junk
 Thumbs.db
 Desktop.ini
+
+# Build number stamp written by CI (Scripts/StampBuildVersion.ps1).
+Source/LabProject/Common/BuildVersionStamp.h

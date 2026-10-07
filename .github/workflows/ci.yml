@@ -1,0 +1,55 @@
+# 푸시마다 에디터를 빌드하고 Unit·Integration 테스트를 돌린다.
+#
+# 빌드 머신(자체 호스팅 러너, 라벨 unreal)에서만 돈다. 저장소가 공개라서 pull_request 트리거는 두지 않는다.
+# 외부 기여자의 PR이 이 PC에서 코드를 실행하지 못하게 하기 위해서다. 러너 준비는 Docs/CI.md를 본다.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 빌드 머신은 한 대라 야간 패키징과 겹치지 않게 줄을 세운다.
+concurrency:
+  group: unreal-build-machine
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: [self-hosted, Windows, unreal]
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 동기화한 에셋과 빌드 산출물(Binaries, Intermediate, DDC)을 다음 실행까지 남긴다.
+          clean: false
+          # 빌드 번호를 커밋 수로 매기므로 전체 이력이 필요하다.
+          fetch-depth: 0
+
+      - name: Sync assets that git does not hold
+        shell: powershell
+        run: .\Scripts\SyncBuildMachineContent.ps1 -SourceProject "$env:PD_ASSET_SOURCE"
+
+      - name: Stamp build version
+        shell: powershell
+        run: .\Scripts\StampBuildVersion.ps1
+
+      - name: Build editor and run tests
+        shell: powershell
+        run: .\Scripts\RunAutomationTests.ps1 -EngineRoot "$env:UE_ROOT"
+
+      - name: Backend unit tests
+        shell: powershell
+        run: python -m unittest discover -s Backend\tests -v
+
+      - name: Upload automation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: automation-reports-${{ github.run_number }}
+          path: Saved/AutomationReports
+          retention-days: 14

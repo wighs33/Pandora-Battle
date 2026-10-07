@@ -2,6 +2,7 @@
 
 #include "UI/Common/ButtonClickBinding.h"
 #include "UI/Common/EditorTransactionReset.h"
+#include "Common/BuildVersion.h"
 #include "AudioSlider.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -134,6 +135,7 @@ void UTitleWidget::NativeOnInitialized()
 	// NativeConstruct 전에 만들어, 번역 글꼴 적용이 말풍선 텍스트에도 닿게 한다.
 	BuildLunaSpeechBubble();
 	BuildLunaChatInput();
+	BuildVersionLabel();
 
 	// 브라우저를 열 수 없는 플랫폼에서는 웹사이트 버튼을 보이지 않는다.
 	if (Btn_Website && !FPlatformProcess::CanLaunchURL(*OfficialWebsiteUrl))
@@ -260,6 +262,35 @@ void UTitleWidget::ApplyWidgetDefinitionSettings()
 		bQuickMatchLAN = Settings.bQuickMatchLAN;
 		bQuickMatchUseLobbies = Settings.bQuickMatchUseLobbies;
 	}
+}
+
+// 화면 오른쪽 아래에 빌드 버전을 작게 둔다. 버그 제보나 스크린샷만 보고도 어느 빌드인지 알 수 있게 한다.
+// 루트는 반응형 크기 조절용 래퍼(ScaleBox → SizeBox)라서, 그 안의 첫 캔버스(디자인 해상도)에 붙여 함께 크기가 바뀌게 한다.
+void UTitleWidget::BuildVersionLabel()
+{
+	UWidget* Widget = WidgetTree ? WidgetTree->RootWidget.Get() : nullptr;
+	while (Widget && !Widget->IsA<UCanvasPanel>())
+	{
+		const UPanelWidget* Wrapper = Cast<UPanelWidget>(Widget);
+		Widget = Wrapper && Wrapper->GetChildrenCount() > 0 ? Wrapper->GetChildAt(0) : nullptr;
+	}
+	UCanvasPanel* Canvas = Cast<UCanvasPanel>(Widget);
+	if (!Canvas)
+	{
+		return;
+	}
+	UTextBlock* VersionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("VersionLabel"));
+	VersionText->SetText(FText::FromString(PdBuildVersion::GetDisplayString()));
+	VersionText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 1.f, 1.f, 0.55f)));
+	FSlateFontInfo Font = VersionText->GetFont();
+	Font.Size = 12;
+	VersionText->SetFont(Font);
+	VersionText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	UCanvasPanelSlot* LabelSlot = Canvas->AddChildToCanvas(VersionText);
+	LabelSlot->SetAnchors(FAnchors(1.f, 1.f));
+	LabelSlot->SetAlignment(FVector2D(1.f, 1.f));
+	LabelSlot->SetPosition(FVector2D(-16.f, -12.f));
+	LabelSlot->SetAutoSize(true);
 }
 
 void UTitleWidget::BuildLunaSpeechBubble()

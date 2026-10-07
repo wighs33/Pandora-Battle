@@ -1,0 +1,67 @@
+# 매일 밤 Windows 클라이언트를 Shipping으로 패키징하고 전용 서버를 빌드·쿡·스테이징한다.
+#
+# 패키지는 용량이 커서 GitHub에 올리지 않고 빌드 머신의 PD_BUILD_ARCHIVE 아래에 남긴다. 로그만 산출물로 올린다.
+# 손으로 돌릴 때(workflow_dispatch) restart_anywhere를 켜면 스테이징 뒤 GameLift Anywhere 서버를 새 빌드로 다시 띄운다.
+name: Nightly package
+
+on:
+  schedule:
+    - cron: "0 18 * * *" # 매일 03:00 KST
+  workflow_dispatch:
+    inputs:
+      restart_anywhere:
+        description: "스테이징 뒤 GameLift Anywhere 서버를 새 빌드로 다시 띄운다(빈 서버일 때만)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unreal-build-machine
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: [self-hosted, Windows, unreal]
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          clean: false
+          fetch-depth: 0
+
+      - name: Sync assets that git does not hold
+        shell: powershell
+        run: .\Scripts\SyncBuildMachineContent.ps1 -SourceProject "$env:PD_ASSET_SOURCE"
+
+      - name: Stamp build version
+        id: version
+        shell: powershell
+        run: |
+          .\Scripts\StampBuildVersion.ps1
+          # 러너 PC의 환경 변수는 워크플로 식(env 컨텍스트)에서 보이지 않아 경로를 단계 출력으로 넘긴다.
+          # PowerShell 5.1의 >> 는 UTF-16으로 쓰므로 GITHUB_OUTPUT에는 UTF-8로 직접 쓴다.
+          $Number = (git rev-list --count HEAD).Trim()
+          $Archive = Join-Path $env:PD_BUILD_ARCHIVE $Number
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "number=$Number`narchive=$Archive`n")
+
+      - name: Package Windows client (Shipping)
+        shell: powershell
+        run: .\Scripts\PackageClient.ps1 -EngineRoot "$env:UE_ROOT" -ArchiveDir "${{ steps.version.outputs.archive }}"
+
+      - name: Build, cook and stage dedicated server
+        shell: powershell
+        run: |
+          $Restart = "${{ github.event.inputs.restart_anywhere }}" -eq "true"
+          .\Scripts\StageServer.ps1 -EngineRoot "$env:UE_ROOT" -SourceEngineRoot "$env:PD_SOURCE_ENGINE" -RestartAnywhere:$Restart
+
+      - name: Upload packaging logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-logs-${{ steps.version.outputs.number }}
+          path: ${{ steps.version.outputs.archive }}\Logs
+          retention-days: 14
+          if-no-files-found: ignore
