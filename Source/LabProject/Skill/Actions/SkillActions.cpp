@@ -15,7 +15,6 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/RootMotionSource.h"
 #include "Kismet/GameplayStatics.h"
-#include "Pandora/PandoraSkillSource.h"
 #include "TimerManager.h"
 #include "Common/CollisionChannels.h"
 
@@ -211,7 +210,7 @@ void USkillSpawnActorAction::OnStart()
 	Spawned->SetReplicates(true);
 	if (ASkillEffectArea* Area = Cast<ASkillEffectArea>(Spawned))
 	{
-		Area->SetSourcePandoraLoadoutDirection(Ability->GetPandoraSkillSource()->GetLoadoutDirection());
+		Area->SetSourcePandoraLoadoutDirection(Ability->GetSourceLoadoutDirection());
 	}
 	UGameplayStatics::FinishSpawningActor(Spawned, Transform);
 	const float ActorLifeSpan = FMath::Max(LifeSpan, 0.01f);

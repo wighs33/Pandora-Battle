@@ -41,6 +41,12 @@ const UPandoraSkillSource* USkillAbility::GetPandoraSkillSource() const
 	return Cast<UPandoraSkillSource>(GetCurrentSourceObject());
 }
 
+EEnum_Direction USkillAbility::GetSourceLoadoutDirection() const
+{
+	const UPandoraSkillSource* PandoraSource = GetPandoraSkillSource();
+	return PandoraSource ? PandoraSource->GetLoadoutDirection() : EEnum_Direction::Center;
+}
+
 bool USkillAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
 	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* RelevantTags) const
@@ -336,9 +342,8 @@ float USkillAbility::GetDamageBonusPercent() const
 
 	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	const UBasicAttributeSet* Attributes = ASC ? ASC->GetSet<UBasicAttributeSet>() : nullptr;
-	const UPandoraSkillSource* PandoraSource = GetPandoraSkillSource();
-	return Attributes && PandoraSource
-		? DamageBonusPercent + Attributes->GetPandoraLoadoutDamageBonusPercent(PandoraSource->GetLoadoutDirection())
+	return Attributes
+		? DamageBonusPercent + Attributes->GetPandoraLoadoutDamageBonusPercent(GetSourceLoadoutDirection())
 		: DamageBonusPercent;
 }
 

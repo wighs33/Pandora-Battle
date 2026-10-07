@@ -18,7 +18,6 @@
 #include "GameFramework/Pawn.h"
 #include "GameplayEffectTypes.h"
 #include "Kismet/GameplayStatics.h"
-#include "Pandora/PandoraSkillSource.h"
 #include "Skill/Actions/SkillFieldPlacement.h"
 #include "Skill/Actions/SkillTriggerDamage.h"
 
@@ -432,11 +431,7 @@ AActor* USkillActorFieldAction::BeginDeferredFieldSpawn(UWorld& World, AActor& A
 
 void USkillActorFieldAction::ConfigureSpawnedFieldActor(AActor& SpawnedActor, AActor& AvatarActor) const
 {
-	EEnum_Direction PandoraLoadoutDirection = EEnum_Direction::Center;
-	if (const UPandoraSkillSource* PandoraSource = GetAbility()->GetPandoraSkillSource())
-	{
-		PandoraLoadoutDirection = PandoraSource->GetLoadoutDirection();
-	}
+	const EEnum_Direction PandoraLoadoutDirection = GetAbility()->GetSourceLoadoutDirection();
 
 	if (ASkillBlackHoleActor* BlackHoleActor = Cast<ASkillBlackHoleActor>(&SpawnedActor))
 	{

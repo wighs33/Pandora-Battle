@@ -13,7 +13,6 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffectTypes.h"
-#include "Pandora/PandoraSkillSource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillAuraAction)
 
@@ -209,7 +208,7 @@ void USkillAuraAction::SpawnAuraEffectArea(const USkillDefinition* SkillDataAsse
 		SpawnedArea->SetSourceActor(Character);
 		SpawnedArea->SetIgnoreSourceActor(AuraConfig->bEffectAreaIgnoreSourceActor);
 		SpawnedArea->SetAffectEnemiesOnly(AuraConfig->bEffectAreaAffectEnemiesOnly);
-		SpawnedArea->SetSourcePandoraLoadoutDirection(GetAbility()->GetPandoraSkillSource()->GetLoadoutDirection());
+		SpawnedArea->SetSourcePandoraLoadoutDirection(GetAbility()->GetSourceLoadoutDirection());
 
 		if (AuraConfig->EffectAreaLifeSpan > 0.0)
 		{

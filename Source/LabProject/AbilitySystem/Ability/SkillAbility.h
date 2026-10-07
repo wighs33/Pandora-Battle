@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "ActiveGameplayEffectHandle.h"
+#include "Common/Enum_Direction.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Engine/OverlapResult.h"
 #include "UObject/ObjectKey.h"
@@ -99,6 +100,9 @@ public:
 
 	// 현재 시전이 Pandora에서 부여된 스킬인 경우에만 Source를 반환한다.
 	const UPandoraSkillSource* GetPandoraSkillSource() const;
+
+	// 시전을 시작한 Pandora 슬롯 방향. Pandora에서 부여되지 않은 스킬은 슬롯이 없어 Center(슬롯 피해 보너스 없음)다.
+	EEnum_Direction GetSourceLoadoutDirection() const;
 
 	// Duration 스킬은 활성화 시 확정한 하나의 종료 시점을 공유한다.
 	bool HasDurationDeadline() const
