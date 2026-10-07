@@ -13,6 +13,7 @@ class USceneCaptureComponent2D;
 class UPointLightComponent;
 class UMaterialInterface;
 class UTextureRenderTarget2D;
+class UAnimSequenceBase;
 
 UCLASS()
 class LABPROJECT_API ATitleHUD : public AHUD
@@ -34,8 +35,9 @@ protected:
 private:
 	void InitializeTitleCharacter();
 	void ScheduleTitleBlink();
-	void SetTitleMorph(FName MorphName, float Weight);
 	void BeginTitleBlink();
+	/** Idle은 메시의 애니메이션 블루프린트가 재생하고, 다른 동작은 그 위에 몽타주로 섞는다. nullptr이면 Idle로 돌아간다. */
+	void PlayTitleAnimation(UAnimSequenceBase* Animation, bool bLoop = true);
 	void ShowTitleSpeech();
 	void HideTitleSpeech();
 	FVector2D GetTitleCharacterHeadTopUV() const;
@@ -68,6 +70,8 @@ private:
 	bool bTitleMouthAvailable = false;
 	/** 인사말을 보여 주기 전에는 INDEX_NONE이고, 그 뒤에는 마지막 팁 번호다(0 = 인사말). */
 	int32 LastTitleTip = INDEX_NONE;
+	/** 같은 동작을 다시 요청하면 처음부터 다시 시작하지 않고 이어서 재생한다. */
+	const UAnimSequenceBase* CurrentTitleAnimation = nullptr;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Blink", meta = (ClampMin = "0.1", Units = "s"))
@@ -94,6 +98,17 @@ protected:
 	/** 대화가 끝나면 팁이 더 오래 기다려, 플레이어가 끊기지 않고 다음 질문을 할 수 있게 한다. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Chat", meta = (ClampMin = "0.1", Units = "s"))
 	float ChatTipResumeDelay = 15.f;
+
+	/** Luna 동작: 첫 인사말, 질문한 뒤 답이 오기 전까지, 말풍선으로 말하는 동안. 그 밖의 시간은 ABP_Luna의 Idle이다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Animation")
+	TObjectPtr<UAnimSequenceBase> GreetingAnimation;
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Animation")
+	TObjectPtr<UAnimSequenceBase> ThinkingAnimation;
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Animation")
+	TObjectPtr<UAnimSequenceBase> TalkingAnimation;
+	/** 동작이 바뀔 때 앞 동작과 섞는 시간. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Animation", meta = (ClampMin = "0.0", Units = "s"))
+	float AnimationBlendTime = 0.3f;
 
 	/** 표시 전용이다. 메시와 상대 변환은 BP_TitleHUD에서 조정한다. */
 	UPROPERTY(VisibleAnywhere, Category = "!Title|Character")

@@ -17,6 +17,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/SkeletalMesh.h"
+#include "Animation/AnimInstance.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "Luna/LunaChatSubsystem.h"
 #include "Online/Backend/BackendClientSubsystem.h"
@@ -47,8 +48,6 @@ ATitleHUD::ATitleHUD(const FObjectInitializer& ObjectInitializer)
 	TitleCharacterMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	TitleCharacterMesh->SetGenerateOverlapEvents(false);
 	TitleCharacterMesh->SetVisibleInSceneCaptureOnly(true);
-	TitleCharacterMesh->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-	TitleCharacterMesh->bForceRefpose = true;
 
 	TitleCharacterCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("TitleCharacterCapture"));
 	TitleCharacterCapture->SetupAttachment(RootComponent);
@@ -61,8 +60,8 @@ ATitleHUD::ATitleHUD(const FObjectInitializer& ObjectInitializer)
 	TitleCharacterCapture->ShowFlags.SetFog(false);
 	TitleCharacterCapture->ShowFlags.SetMotionBlur(false);
 	TitleCharacterCapture->ShowFlags.SetBloom(false);
-	// 기준 포즈에 고정된 메시라 눈·입 모프가 바뀐 프레임에만 다시 캡처한다.
-	TitleCharacterCapture->bCaptureEveryFrame = false;
+	// Luna는 Idle 중에도 움직이므로 매 프레임 다시 캡처한다.
+	TitleCharacterCapture->bCaptureEveryFrame = true;
 	TitleCharacterCapture->bCaptureOnMovement = false;
 
 	TitleCharacterKeyLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("TitleCharacterKeyLight"));
@@ -104,7 +103,6 @@ void ATitleHUD::InitializeTitleCharacter()
 	UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(TitleCharacterDisplayMaterial, this);
 	Material->SetTextureParameterValue(TEXT("CharacterTexture"), TitleCharacterRenderTarget);
 	TitleWidget->SetTitleCharacterMaterial(Material);
-	TitleCharacterCapture->CaptureSceneDeferred();
 	if (TitleCharacterMesh->GetSkeletalMeshAsset()->FindMorphTarget(TitleBlinkMorph))
 	{
 		ScheduleTitleBlink();
@@ -113,21 +111,10 @@ void ATitleHUD::InitializeTitleCharacter()
 	ShowTitleSpeech();
 }
 
-// 모프 값이 바뀔 때만 적용하고 초상화를 다시 캡처하도록 요청한다.
-void ATitleHUD::SetTitleMorph(const FName MorphName, const float Weight)
-{
-	if (FMath::IsNearlyEqual(TitleCharacterMesh->GetMorphTarget(MorphName), Weight))
-	{
-		return;
-	}
-	TitleCharacterMesh->SetMorphTarget(MorphName, Weight);
-	TitleCharacterCapture->CaptureSceneDeferred();
-}
-
 void ATitleHUD::ScheduleTitleBlink()
 {
 	TitleBlinkElapsed = -1.f;
-	SetTitleMorph(TitleBlinkMorph, 0.f);
+	TitleCharacterMesh->SetMorphTarget(TitleBlinkMorph, 0.f);
 	const float MinInterval = FMath::Max(0.1f, BlinkIntervalMin);
 	GetWorldTimerManager().SetTimer(TitleBlinkTimer, this, &ATitleHUD::BeginTitleBlink,
 		FMath::FRandRange(MinInterval, FMath::Max(MinInterval, BlinkIntervalMax)), false);
@@ -136,6 +123,26 @@ void ATitleHUD::ScheduleTitleBlink()
 void ATitleHUD::BeginTitleBlink()
 {
 	TitleBlinkElapsed = 0.f;
+}
+
+// 새 몽타주는 앞 몽타주(또는 Idle)와 AnimationBlendTime 동안 섞이며 넘어가고, 한 번만 하는 동작은 끝나면 Idle로 섞여 돌아간다.
+void ATitleHUD::PlayTitleAnimation(UAnimSequenceBase* Animation, const bool bLoop)
+{
+	UAnimInstance* AnimInstance = TitleCharacterMesh->GetAnimInstance();
+	if (!AnimInstance || Animation == CurrentTitleAnimation) return;
+	CurrentTitleAnimation = Animation;
+	if (!Animation)
+	{
+		AnimInstance->Montage_Stop(AnimationBlendTime);
+		return;
+	}
+	UAnimMontage* Montage = AnimInstance->PlaySlotAnimationAsDynamicMontage(
+		Animation, FAnimSlotGroup::DefaultSlotName, AnimationBlendTime, AnimationBlendTime);
+	if (bLoop)
+	{
+		// 동적 몽타주의 유일한 구간은 "Default"다.
+		AnimInstance->Montage_SetNextSection(TEXT("Default"), TEXT("Default"), Montage);
+	}
 }
 
 void ATitleHUD::ShowTitleSpeech()
@@ -160,6 +167,8 @@ void ATitleHUD::ShowTitleSpeech()
 	{
 		TitleMouthElapsed = 0.f;
 	}
+	const bool bGreeting = TextKey == LunaGreetingKey;
+	PlayTitleAnimation(bGreeting ? GreetingAnimation : TalkingAnimation, !bGreeting);
 	GetWorldTimerManager().SetTimer(TitleSpeechTimer, this, &ATitleHUD::HideTitleSpeech,
 		FMath::Max(0.5f, SpeechDisplayDuration), false);
 }
@@ -168,7 +177,8 @@ void ATitleHUD::HideTitleSpeech()
 {
 	if (TitleWidget) TitleWidget->HideLunaSpeech();
 	TitleMouthElapsed = -1.f;
-	SetTitleMorph(TitleMouthMorph, 0.f);
+	TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.f);
+	PlayTitleAnimation(nullptr);
 	const float NextTipDelay = bLunaChatActive ? ChatTipResumeDelay : SpeechHiddenInterval;
 	bLunaChatActive = false;
 	GetWorldTimerManager().SetTimer(TitleSpeechTimer, this, &ATitleHUD::ShowTitleSpeech,
@@ -276,6 +286,7 @@ void ATitleHUD::ShowLunaChatText(const FText& Text, const bool bSpeaking)
 	bLunaChatActive = true;
 	GetWorldTimerManager().ClearTimer(TitleSpeechTimer);
 	const bool bShown = TitleWidget->ShowLunaSpeechText(Text, GetTitleCharacterHeadTopUV());
+	PlayTitleAnimation(bSpeaking ? TalkingAnimation : ThinkingAnimation);
 	if (bShown && bSpeaking && bTitleMouthAvailable)
 	{
 		if (TitleMouthElapsed < 0.f) TitleMouthElapsed = 0.f;
@@ -283,7 +294,7 @@ void ATitleHUD::ShowLunaChatText(const FText& Text, const bool bSpeaking)
 	else
 	{
 		TitleMouthElapsed = -1.f;
-		SetTitleMorph(TitleMouthMorph, 0.f);
+		TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.f);
 	}
 }
 
@@ -316,7 +327,7 @@ void ATitleHUD::Tick(float DeltaSeconds)
 		// 말풍선이 보이는 동안 주기마다 0 -> 1 -> 0으로 부드럽게 반복한다.
 		TitleMouthElapsed += DeltaSeconds;
 		const float MouthPhase = TitleMouthElapsed / FMath::Max(0.05f, MouthCycleDuration);
-		SetTitleMorph(TitleMouthMorph, 0.5f - 0.5f * FMath::Cos(2.f * UE_PI * MouthPhase));
+		TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.5f - 0.5f * FMath::Cos(2.f * UE_PI * MouthPhase));
 	}
 	if (TitleBlinkElapsed < 0.f) return;
 	TitleBlinkElapsed += DeltaSeconds;
@@ -330,7 +341,7 @@ void ATitleHUD::Tick(float DeltaSeconds)
 	const float Weight = Phase < 0.5f
 		? FMath::Clamp(Phase / 0.4f, 0.f, 1.f)
 		: FMath::Clamp((1.f - Phase) / 0.5f, 0.f, 1.f);
-	SetTitleMorph(TitleBlinkMorph, Weight);
+	TitleCharacterMesh->SetMorphTarget(TitleBlinkMorph, Weight);
 }
 
 void ATitleHUD::BeginPlay()
@@ -371,10 +382,10 @@ void ATitleHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	UnbindBossRaid();
 	GetWorldTimerManager().ClearTimer(TitleBlinkTimer);
 	TitleBlinkElapsed = -1.f;
-	SetTitleMorph(TitleBlinkMorph, 0.f);
+	TitleCharacterMesh->SetMorphTarget(TitleBlinkMorph, 0.f);
 	GetWorldTimerManager().ClearTimer(TitleSpeechTimer);
 	TitleMouthElapsed = -1.f;
-	SetTitleMorph(TitleMouthMorph, 0.f);
+	TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.f);
 	if (TitleWidget) TitleWidget->HideLunaSpeech();
 	TitleCharacterCapture->bCaptureEveryFrame = false;
 	TitleCharacterCapture->TextureTarget = nullptr;
