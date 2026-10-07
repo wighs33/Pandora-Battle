@@ -12,6 +12,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Mode/ExperienceGameState.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "NavigationData.h"
 #include "NavigationSystem.h"
 #include "Perception/AIPerceptionComponent.h"
@@ -161,6 +162,26 @@ void AMonsterAIController::OnPossess(APawn* InPawn)
 ETeamAttitude::Type AMonsterAIController::GetTeamAttitudeTowards(const AActor& Other) const
 {
 	return Other.IsA<AMonsterCharacter>() ? ETeamAttitude::Friendly : ETeamAttitude::Hostile;
+}
+
+// 공격 대상을 쫓을 때는 공격 패턴의 가장 먼 사거리 안에 들어오면 멈춘다.
+// StateTree의 추적 이동은 졸개와 보스가 같은 반경(100cm)을 쓰므로, 그대로 두면 보스가 늘 코앞까지 다가와 먼 거리용 공격(덮치기)을 고를 일이 없다.
+FPathFollowingRequestResult AMonsterAIController::MoveTo(const FAIMoveRequest& MoveRequest, FNavPathSharedPtr* OutPath)
+{
+	// 멈춘 뒤 대상이 조금 움직여도 사거리 안에 남도록 여유를 두고, 공격을 시작할 수 있는 거리보다 멀리서는 멈추지 않는다.
+	constexpr float ChaseStopMargin = 100.0f;
+	const AMonsterCharacter* Monster = Cast<AMonsterCharacter>(GetPawn());
+	const float ChaseStopDistance = Monster
+		? FMath::Min(Monster->GetMaxAttackPatternDistance(), Monster->GetAttackStartDistance()) - ChaseStopMargin
+		: 0.0f;
+	if (!MoveRequest.IsMoveToActorRequest() || MoveRequest.GetGoalActor() != GetSelectedAttackTarget()
+		|| ChaseStopDistance <= MoveRequest.GetAcceptanceRadius())
+	{
+		return Super::MoveTo(MoveRequest, OutPath);
+	}
+	FAIMoveRequest ChaseRequest = MoveRequest;
+	ChaseRequest.SetAcceptanceRadius(ChaseStopDistance);
+	return Super::MoveTo(ChaseRequest, OutPath);
 }
 
 // 조종하지 않는 몬스터를 계속 추적하거나 공격하지 않도록 AI를 종료한다.

@@ -90,6 +90,9 @@ public:
 	const UEnemyBaseDefinition* GetMonsterDefinition() const { return LoadedEnemyDefinition; }
 	float GetSightRadiusOverride() const { return SightRadiusOverride; }
 
+	/** 공격 패턴 중 가장 먼 사거리. 사거리 상한이 없는 패턴이 있으면 0이다. */
+	float GetMaxAttackPatternDistance() const;
+
 	/** 아직 쓰지 않은 페이즈 소환이 있는지. */
 	bool HasPendingPhaseSummon() const { return PhaseSummon.HealthRatio > 0.0f && !bPhaseSummonDone && !bDying; }
 

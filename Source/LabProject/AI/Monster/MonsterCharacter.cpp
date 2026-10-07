@@ -589,6 +589,20 @@ UAnimMontage* AMonsterCharacter::PickAttackMontage(const float TargetDistance) c
 	return BestMontages.IsEmpty() ? nullptr : BestMontages[FMath::RandHelper(BestMontages.Num())];
 }
 
+float AMonsterCharacter::GetMaxAttackPatternDistance() const
+{
+	float MaxDistance = 0.0f;
+	for (const FMonsterAttackPattern& Attack : MonsterAttacks)
+	{
+		if (Attack.MaxDistance <= 0.0f)
+		{
+			return 0.0f;
+		}
+		MaxDistance = FMath::Max(MaxDistance, Attack.MaxDistance);
+	}
+	return MaxDistance;
+}
+
 UAnimMontage* AMonsterCharacter::FindFirstLoadedAttackMontage() const
 {
 	for (const FMonsterAttackPattern& Attack : MonsterAttacks)
