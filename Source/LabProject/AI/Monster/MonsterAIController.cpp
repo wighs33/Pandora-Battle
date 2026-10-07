@@ -367,6 +367,10 @@ void AMonsterAIController::SetPerceivedPlayerPawn(APawn* PlayerPawn)
 	}
 
 	PerceivedPlayerPawn = ValidTarget;
+	if (AMonsterCharacter* Monster = Cast<AMonsterCharacter>(GetPawn()))
+	{
+		Monster->SetReplicatedAttackTarget(ValidTarget);
+	}
 }
 
 // 현재 표적을 안정적으로 유지하고 필요할 때 가장 가까운 감지 플레이어로 교체한다.

@@ -28,6 +28,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "NavigationSystem.h"
+#include "Net/Core/PushModel/PushModel.h"
+#include "Net/UnrealNetwork.h"
 #include "Mode/PdPlayerState.h"
 #include "TimerManager.h"
 
@@ -498,6 +500,30 @@ void AMonsterCharacter::HandleDeath_Implementation()
 void AMonsterCharacter::FinishMonsterDeath()
 {
 	Destroy();
+}
+
+void AMonsterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	DOREPLIFETIME_WITH_PARAMS_FAST(AMonsterCharacter, ReplicatedAttackTarget, Params);
+}
+
+// 서버는 AI가 고른 대상을, 원격 화면은 서버가 복제한 대상을 돌려준다.
+AActor* AMonsterCharacter::GetAttackTarget_Implementation() const
+{
+	return HasAuthority() ? Super::GetAttackTarget_Implementation() : ReplicatedAttackTarget.Get();
+}
+
+void AMonsterCharacter::SetReplicatedAttackTarget(AActor* Target)
+{
+	if (HasAuthority() && ReplicatedAttackTarget != Target)
+	{
+		ReplicatedAttackTarget = Target;
+		MARK_PROPERTY_DIRTY_FROM_NAME(AMonsterCharacter, ReplicatedAttackTarget, this);
+	}
 }
 
 // 기존 GAS 공격이 몬스터 몽타주를 조회하는 호환 경로를 유지한다.

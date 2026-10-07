@@ -79,6 +79,7 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
@@ -90,6 +91,10 @@ public:
 	virtual void Attack() override;
 	virtual bool IsAttackInProgress() const override;
 	virtual bool GetFallbackAttackData(FAttackData& OutAttackData) const override;
+	virtual AActor* GetAttackTarget_Implementation() const override;
+
+	/** 서버가 고른 공격 대상을 원격 화면에 알린다. 원격 화면은 이 값으로 고개를 돌린다. */
+	void SetReplicatedAttackTarget(AActor* Target);
 	void StopMonsterAttack();
 	bool IsMonsterReadyForAI() const;
 	const UEnemyBaseDefinition* GetMonsterDefinition() const { return LoadedEnemyDefinition; }
@@ -284,6 +289,9 @@ private:
 	TWeakObjectPtr<UAnimMontage> CurrentAttackMontage;
 	TWeakObjectPtr<AActor> AttackTurnTarget;
 	TWeakObjectPtr<AAttackTelegraphActor> ActiveTelegraph;
+
+	UPROPERTY(Replicated)
+	TObjectPtr<AActor> ReplicatedAttackTarget;
 	TSharedPtr<FContentLease> MonsterContentLease;
 	bool bMonsterContentPreloadStarted = false;
 	bool bMonsterContentReady = false;
