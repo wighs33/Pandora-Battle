@@ -96,6 +96,7 @@ private:
 	void ApplyWidgetDefinitionSettings();
 	void BuildLunaSpeechBubble();
 	void BuildLunaChatInput();
+	void ApplyBossRaidAvailability();
 	FString GetResolvedLobbyTravelMapName() const;
 	FString GetResolvedRoomTravelMapName() const;
 	FString GetResolvedTrainingRoomTravelMapName() const;

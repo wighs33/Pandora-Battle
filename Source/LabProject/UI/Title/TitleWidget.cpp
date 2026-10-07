@@ -44,6 +44,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogTitleWidget, Log, All);
 namespace
 {
 	const FName LunaChatHintKey(TEXT("Title.LunaChatHint"));
+	const FName BossRaidClosedKey(TEXT("Title.BossRaidClosed"));
 
 	// 말풍선 폭에서 꼬리가 놓이는 위치. 꼬리 끝은 Luna 머리에 두고 몸통은 주로 왼쪽으로 커지므로,
 	// 폭을 다 채운 답(줄바꿈 420 + 여백)도 오른쪽 위 게임 설정 버튼 앞에서 끝난다.
@@ -124,6 +125,7 @@ void UTitleWidget::OnMenuLanguageChanged()
 		LunaChatInput->SetHintText(MenuTextOrFallback(LunaChatHintKey,
 			NSLOCTEXT("TitleWidget", "LunaChatHint", "Ask Luna anything (Enter)")));
 	}
+	ApplyBossRaidAvailability();
 }
 
 void UTitleWidget::NativeOnInitialized()
@@ -144,8 +146,21 @@ void UTitleWidget::SetBossRaidEnabled(const bool bEnabled) const
 {
 	if (Btn_BossRaid)
 	{
-		Btn_BossRaid->SetIsEnabled(bEnabled);
+		Btn_BossRaid->SetIsEnabled(bEnabled && LabGameSession::bBossRaidOpen);
 	}
+}
+
+// 보스 레이드가 닫힌 빌드에서는 버튼을 끄고, 마우스를 올리면 아직 열리지 않았다고 알린다.
+// 기반 클래스가 언어를 바꿀 때 툴팁 연결(버튼 이름)을 다시 적용하므로, 그 뒤에 다시 덮어쓴다.
+void UTitleWidget::ApplyBossRaidAvailability()
+{
+	if (!Btn_BossRaid || LabGameSession::bBossRaidOpen)
+	{
+		return;
+	}
+	Btn_BossRaid->SetIsEnabled(false);
+	SetHoverTooltip(Btn_BossRaid, MenuTextOrFallback(BossRaidClosedKey,
+		NSLOCTEXT("TitleWidget", "BossRaidClosed", "Not open yet.")));
 }
 
 void UTitleWidget::NativeConstruct()
@@ -154,6 +169,7 @@ void UTitleWidget::NativeConstruct()
 	SetIsFocusable(true);
 
 	ApplyWidgetDefinitionSettings();
+	ApplyBossRaidAvailability();
 
 	LoadLocalProfile();
 
