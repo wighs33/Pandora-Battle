@@ -13,6 +13,11 @@
 			]
 		},
 		{
+			"Name": "LabProjectShaders",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
+		},
+		{
 			"Name": "LabProjectEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PreDefault"

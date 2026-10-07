@@ -1,0 +1,53 @@
+// 보스 아웃라인과 피격 플래시. 포스트 프로세스 머티리얼(PP_CombatHighlight)의 Custom 노드가 include해서 쓴다.
+//
+// 대상은 메시의 CustomDepth 스텐실 비트로 고른다(r.CustomDepth=3 필요).
+// - 비트 1(값 1): 아웃라인. 스텐실이 없는 픽셀 중 Thickness 픽셀 안에 비트 1인 픽셀이 있으면 테두리 색을 칠한다.
+//   CustomDepth는 장면 깊이와 따로 그려지므로 벽 뒤에 가려진 보스의 윤곽도 보인다.
+// - 비트 2(값 2): 피격 플래시. 해당 픽셀을 FlashColor 쪽으로 섞는다. 게임 코드가 피격 순간 잠깐 켠다.
+//   CustomDepth가 장면 깊이보다 앞에 있는(실제로 보이는) 픽셀에만 칠해, 벽에 가려진 부분은 번쩍이지 않는다.
+// UV는 장면 텍스처 버퍼 UV(GetDefaultSceneTextureUV), CenterStencil·SceneDepth·CustomDepth는 같은 픽셀의 SceneTexture 값이다.
+// 돌려주는 값: 합성한 장면 색.
+
+#pragma once
+
+uint PdReadStencil(float2 UV)
+{
+	return (uint)(SceneTextureLookup(UV, PPI_CustomStencil, false).r + 0.5);
+}
+
+float3 PdCombatHighlight(float2 UV, float3 SceneColor, float CenterStencil, float SceneDepth, float CustomDepth,
+	float Thickness, float3 OutlineColor, float3 FlashColor, float FlashStrength)
+{
+	const uint Center = (uint)(CenterStencil + 0.5);
+	const bool bVisible = CustomDepth <= SceneDepth + 1.0;
+	if ((Center & 2u) != 0u && bVisible)
+	{
+		return lerp(SceneColor, FlashColor, FlashStrength);
+	}
+	if (Center != 0u)
+	{
+		return SceneColor;
+	}
+
+	// 8방향으로 Thickness 픽셀까지 보고, 가장 가까운 아웃라인 픽셀 거리로 테두리 세기를 정한다.
+	const float2 Texel = View.BufferSizeAndInvSize.zw;
+	const float2 Directions[8] =
+	{
+		float2(1, 0), float2(-1, 0), float2(0, 1), float2(0, -1),
+		float2(0.7071, 0.7071), float2(-0.7071, 0.7071), float2(0.7071, -0.7071), float2(-0.7071, -0.7071)
+	};
+	float Nearest = Thickness + 1.0;
+	for (int Step = 1; Step <= 4; ++Step)
+	{
+		const float Distance = Thickness * Step / 4.0;
+		for (int Index = 0; Index < 8; ++Index)
+		{
+			if ((PdReadStencil(UV + Directions[Index] * Distance * Texel) & 1u) != 0u)
+			{
+				Nearest = min(Nearest, Distance);
+			}
+		}
+	}
+	const float Edge = 1.0 - saturate((Nearest - 1.0) / max(Thickness, 1.0));
+	return lerp(SceneColor, OutlineColor, Edge);
+}

@@ -19,6 +19,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
+#include "EngineUtils.h"
+#include "Engine/PostProcessVolume.h"
 #include "Definition/Item/RewardDefinition.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerState.h"
@@ -105,6 +107,8 @@ AMonsterCharacter::AMonsterCharacter(const FObjectInitializer& ObjectInitializer
 	SetReplicateMovement(true);
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	ContactDamageDataTag = LabGameplayTags::Data_Damage;
+	// 공격 예고 장판 데칼이 몬스터 몸에 묻지 않게 한다. 장판 안에 선 플레이어에게는 묻어 위험을 알린다.
+	GetMesh()->bReceivesDecals = false;
 }
 
 // 이 몬스터에 지정된 정의에서 체력과 피격 표현 설정을 가져온다.
@@ -245,6 +249,8 @@ void AMonsterCharacter::BeginPlay()
 {
 	CacheCollisionComponents();
 	ApplyMeshOptimizations();
+	RefreshHighlightStencil();
+	EnsureHighlightPostProcess();
 	DeactivateDamageSphere();
 	DeactivateAttackSphere();
 	BeginMonsterContentPreload();
@@ -461,6 +467,7 @@ void AMonsterCharacter::HandleDeath_Implementation()
 	bDying = true;
 	SetAttackEnabled(false);
 	StopMonsterAttack();
+	RefreshHighlightStencil();
 	if (AMonsterAIController* MonsterController = Cast<AMonsterAIController>(GetController()))
 	{
 		MonsterController->StopMonsterAI();
@@ -524,7 +531,7 @@ bool AMonsterCharacter::TryPlayMonsterAttackMontage()
 	{
 		return false;
 	}
-	MulticastPlayMonsterAttackMontage(Montage, 1.0f);
+	MulticastPlayMonsterAttackMontage(Montage, 1.0f, Target);
 	if (!HasAttackDamageWindow(*Montage))
 	{
 		ActivateAttackSphere();
@@ -708,7 +715,7 @@ void AMonsterCharacter::StartPhaseSummon()
 		StopMonsterAttack();
 		if (PlayMonsterAttackMontageLocal(Roar, 1.0f))
 		{
-			MulticastPlayMonsterAttackMontage(Roar, 1.0f);
+			MulticastPlayMonsterAttackMontage(Roar, 1.0f, nullptr);
 		}
 	}
 	const int32 CountOverride = CVarPhaseSummonCountOverride.GetValueOnGameThread();
@@ -1061,12 +1068,89 @@ APdPlayerState* AMonsterCharacter::ResolvePlayerStateFromActor(AActor* Actor) co
 }
 
 // 서버에서 이미 시작한 공격 몽타주를 원격 화면에만 재생한다.
-void AMonsterCharacter::MulticastPlayMonsterAttackMontage_Implementation(UAnimMontage* AttackMontage, float PlayRate)
+void AMonsterCharacter::MulticastPlayMonsterAttackMontage_Implementation(UAnimMontage* AttackMontage, float PlayRate, AActor* Target)
 {
 	if (!HasAuthority())
 	{
 		PlayMonsterAttackMontageLocal(AttackMontage, PlayRate);
 	}
+	ShowAttackTelegraph(AttackMontage, PlayRate, Target);
+}
+
+// 공격 예고 장판은 화면을 그리는 인스턴스에서만 띄운다. 공격마다 새로 띄우고, 공격이 끊기면 함께 지운다.
+void AMonsterCharacter::ShowAttackTelegraph(const UAnimMontage* AttackMontage, const float PlayRate, AActor* Target)
+{
+	HideAttackTelegraph();
+	const FMonsterAttackPattern* Attack = AttackMontage
+		? MonsterAttacks.FindByPredicate([AttackMontage](const FMonsterAttackPattern& Pattern) { return Pattern.Montage.Get() == AttackMontage; })
+		: nullptr;
+	if (Attack && !bDying && GetNetMode() != NM_DedicatedServer)
+	{
+		ActiveTelegraph = AAttackTelegraphActor::SpawnForAttack(*this, Attack->Telegraph, AttackTelegraphMaterial, *AttackMontage, PlayRate, Target);
+	}
+}
+
+void AMonsterCharacter::HideAttackTelegraph()
+{
+	if (AAttackTelegraphActor* Telegraph = ActiveTelegraph.Get())
+	{
+		Telegraph->Destroy();
+	}
+	ActiveTelegraph.Reset();
+}
+
+// 윤곽선(스텐실 비트 1)과 피격 플래시(비트 2)를 메시의 CustomDepth 스텐실로 넘긴다. 그리는 쪽은 포스트 프로세스(Shaders/CombatHighlight.ush)다.
+// 스텐실 값만 바꾸는 것은 싸지만 CustomDepth를 켜고 끄면 렌더 상태를 다시 만들므로, 쓰는 몬스터는 살아 있는 동안 켜 둔다.
+void AMonsterCharacter::RefreshHighlightStencil()
+{
+	USkeletalMeshComponent* MonsterMesh = GetMesh();
+	if (!MonsterMesh || GetNetMode() == NM_DedicatedServer || (!bDrawOutline && HitFlashDuration <= 0.0f))
+	{
+		return;
+	}
+	MonsterMesh->SetRenderCustomDepth(!bDying);
+	MonsterMesh->SetCustomDepthStencilValue((bDrawOutline ? 1 : 0) | (bHitFlashActive ? 2 : 0));
+}
+
+// 스텐실을 그리는 포스트 프로세스를 월드에 한 번만 깐다. 이 화면에서만 쓰는 로컬 볼륨이라 복제하지 않는다.
+void AMonsterCharacter::EnsureHighlightPostProcess() const
+{
+	static const FName HighlightTag(TEXT("CombatHighlight"));
+	UWorld* World = GetWorld();
+	if (!HighlightPostProcessMaterial || !World || GetNetMode() == NM_DedicatedServer || (!bDrawOutline && HitFlashDuration <= 0.0f))
+	{
+		return;
+	}
+	for (TActorIterator<APostProcessVolume> It(World); It; ++It)
+	{
+		if (It->ActorHasTag(HighlightTag))
+		{
+			return;
+		}
+	}
+	APostProcessVolume* Volume = World->SpawnActor<APostProcessVolume>();
+	Volume->bUnbound = true;
+	Volume->Tags.Add(HighlightTag);
+	Volume->Settings.WeightedBlendables.Array.Add(FWeightedBlendable(1.0f, HighlightPostProcessMaterial));
+}
+
+// 서버가 확정한 피해 표현에 피격 플래시를 더한다. 화면을 그리는 인스턴스에서만 돈다.
+void AMonsterCharacter::MulticastHandleDamageTaken_Implementation(const float DamageAmount, const bool bCriticalHit, const FVector_NetQuantize WorldLocation)
+{
+	Super::MulticastHandleDamageTaken_Implementation(DamageAmount, bCriticalHit, WorldLocation);
+	if (DamageAmount <= 0.0f || HitFlashDuration <= 0.0f || bDying || GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	bHitFlashActive = true;
+	RefreshHighlightStencil();
+	GetWorldTimerManager().SetTimer(HitFlashTimerHandle, this, &ThisClass::EndHitFlash, HitFlashDuration, false);
+}
+
+void AMonsterCharacter::EndHitFlash()
+{
+	bHitFlashActive = false;
+	RefreshHighlightStencil();
 }
 
 // 취소된 공격이 원격 화면이나 충돌 판정에 남지 않게 한다.
@@ -1074,6 +1158,7 @@ void AMonsterCharacter::MulticastStopMonsterAttack_Implementation()
 {
 	bMonsterAttackActive = false;
 	DeactivateAttackSphere();
+	HideAttackTelegraph();
 	if (UAnimMontage* Montage = CurrentAttackMontage.Get())
 	{
 		StopAnimMontage(Montage);

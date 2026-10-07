@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AI/Monster/AttackTelegraphActor.h"
 #include "Character/EnemyBase.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "GameplayTagContainer.h"
@@ -31,6 +32,10 @@ struct LABPROJECT_API FMonsterAttackPattern
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Animation", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	float MaxDistance = 0.0f;
+
+	/** 바닥에 미리 그리는 공격 범위. 피해 구간이 시작될 때 가득 찬다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Animation")
+	FAttackTelegraphSettings Telegraph;
 
 	/** Distance가 범위 밖으로 벗어난 정도. 범위 안이면 0이다. */
 	float GetDistanceOutsideRange(float Distance) const;
@@ -106,7 +111,7 @@ public:
 private:
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastPlayMonsterAttackMontage(UAnimMontage* AttackMontage, float PlayRate);
+	void MulticastPlayMonsterAttackMontage(UAnimMontage* AttackMontage, float PlayRate, AActor* Target);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastStopMonsterAttack();
@@ -119,6 +124,7 @@ public:
 	virtual void HandleDamageTaken(float DamageAmount, bool bCriticalHit = false, bool bAllowHitReact = true,
 		AActor* DamageInstigator = nullptr, AActor* DamageCauser = nullptr) override;
 	virtual void HandleDeath_Implementation() override;
+	virtual void MulticastHandleDamageTaken_Implementation(float DamageAmount, bool bCriticalHit, FVector_NetQuantize WorldLocation) override;
 
 protected:
 	virtual void HandleCharacterRuntimeInitialized() override;
@@ -163,6 +169,11 @@ private:
 	bool TryPlayMonsterAttackMontage();
 	bool FaceAttackTarget(AActor& Target);
 	bool PlayMonsterAttackMontageLocal(UAnimMontage* AttackMontage, float PlayRate);
+	void ShowAttackTelegraph(const UAnimMontage* AttackMontage, float PlayRate, AActor* Target);
+	void HideAttackTelegraph();
+	void RefreshHighlightStencil();
+	void EnsureHighlightPostProcess() const;
+	void EndHitFlash();
 	UAnimMontage* PickAttackMontage(float TargetDistance) const;
 	UAnimMontage* FindFirstLoadedAttackMontage() const;
 	void BindAttackDamageWindowEvents();
@@ -199,6 +210,10 @@ protected:
 	/** 공격할 때마다 대상과의 거리에 맞는 공격 중 하나를 무작위로 고른다. 맞는 공격이 없으면 거리가 가장 가까운 공격을 쓴다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Animation")
 	TArray<FMonsterAttackPattern> MonsterAttacks;
+
+	/** 공격 예고 장판 데칼 머티리얼(M_AttackTelegraph). 비어 있으면 장판을 그리지 않는다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!AI|Monster|Animation")
+	TObjectPtr<UMaterialInterface> AttackTelegraphMaterial;
 
 	/** 공격 전에 대상과의 각도 차이가 이 값 이하가 될 때까지 회전 속도대로 돈다. 0이면 공격할 때 바로 대상 쪽으로 돌려 세운다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Animation", meta = (ClampMin = "0.0", ClampMax = "180.0", ForceUnits = "deg"))
@@ -238,6 +253,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "!AI|Monster|Optimization", meta = (ClampMin = "1", ClampMax = "8"))
 	int32 ServerAnimationUpdateInterval = 1;
 
+	/** 화면에 윤곽선을 그린다(보스). 벽 뒤에 가려져도 보인다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!AI|Monster|Presentation")
+	bool bDrawOutline = false;
+
+	/** 맞았을 때 몸을 하얗게 번쩍이는 시간. 0이면 끈다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!AI|Monster|Presentation", meta = (ClampMin = "0.0", ForceUnits = "s"))
+	float HitFlashDuration = 0.0f;
+
+	/** 윤곽선과 피격 플래시를 그리는 포스트 프로세스 머티리얼(PP_CombatHighlight). 메시의 CustomDepth 스텐실 비트를 읽는다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!AI|Monster|Presentation")
+	TObjectPtr<UMaterialInterface> HighlightPostProcessMaterial;
+
 	/** 끄면 피해를 입기 전에는 체력바를 숨긴다. 수백 마리가 한꺼번에 나오는 졸개의 체력바가 화면과 UI 비용을 채우지 않게 한다. */
 	UPROPERTY(EditDefaultsOnly, Category = "!AI|Monster|Optimization")
 	bool bShowHealthBarAtFullHealth = true;
@@ -246,6 +273,7 @@ private:
 	FTimerHandle AttackSphereTimerHandle;
 	FTimerHandle DeathDestroyTimerHandle;
 	FTimerHandle MinionSpawnTimerHandle;
+	FTimerHandle HitFlashTimerHandle;
 	FDelegateHandle FrozenTagChangedHandle;
 	FDelegateHandle DamageWindowOpenHandle;
 	FDelegateHandle DamageWindowCloseHandle;
@@ -255,6 +283,7 @@ private:
 	TWeakObjectPtr<UAnimInstance> AttackAnimInstance;
 	TWeakObjectPtr<UAnimMontage> CurrentAttackMontage;
 	TWeakObjectPtr<AActor> AttackTurnTarget;
+	TWeakObjectPtr<AAttackTelegraphActor> ActiveTelegraph;
 	TSharedPtr<FContentLease> MonsterContentLease;
 	bool bMonsterContentPreloadStarted = false;
 	bool bMonsterContentReady = false;
@@ -262,6 +291,7 @@ private:
 	bool bAttackWindowOpen = false;
 	bool bDying = false;
 	bool bPhaseSummonDone = false;
+	bool bHitFlashActive = false;
 	int32 SpawnedMinionCount = 0;
 	int32 MinionCountToSpawn = 0;
 	double NextHitReactTime = 0.0;

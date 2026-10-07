@@ -68,6 +68,12 @@ Content/**
 !Content/effect/m_smoke2.uasset
 !Content/effect/T_Smoke01_SubUV_9x9.uasset
 
+# Boss presentation assets wired to repository code: HLSL materials (Shaders/*.ush), the dragon Control Rig and the pounce travel curve.
+!Content/Materials/M_AttackTelegraph.uasset
+!Content/Materials/PP_CombatHighlight.uasset
+!Content/Characters/DragonUsurper/CR_DragonUsurper.uasset
+!Content/Characters/DragonUsurper/Curve_DragonUsurper_PounceTravel.uasset
+
 # Ignore backup copies of assets
 Content/**/*.pre_restore_*.uasset
 Content/**/*.before_recover_*.uasset

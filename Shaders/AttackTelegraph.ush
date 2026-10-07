@@ -1,0 +1,63 @@
+// 공격 예고 장판. 디퍼드 데칼 머티리얼(M_AttackTelegraph)의 Custom 노드가 include해서 쓴다.
+//
+// 데칼 UV의 가운데를 중심으로 원(HalfAngleDegrees 180) 또는 +U 방향 부채꼴을 그린다.
+// - 테두리: 처음부터 또렷하게 보여 공격 범위를 알린다.
+// - 채움: StartTime부터 FillDuration 동안 중심에서 바깥으로 차오르고, 다 차는 순간 피해가 들어온다.
+// - 줄무늬: 아직 차지 않은 영역에 바깥으로 흐르는 띠를 깔아 공격 방향을 보여 준다.
+// - 다 찬 뒤 EndTime까지는 깜빡이며 판정이 열려 있음을 보여 주고, EndTime 뒤 0.15초 동안 사라진다.
+// 시간은 모두 월드 시간(머티리얼 Time 노드)이라 매 프레임 파라미터를 바꾸지 않아도 된다.
+// 돌려주는 값: rgb = 밝기(머티리얼에서 색을 곱한다), a = 불투명도.
+
+#pragma once
+
+// 거리 Distance가 Width 안이면 1, 바깥으로 Softness만큼 부드럽게 0이 된다.
+float PdTelegraphBand(float Distance, float Width, float Softness)
+{
+	return 1.0 - smoothstep(Width, Width + Softness, abs(Distance));
+}
+
+float4 PdAttackTelegraph(float2 UV, float HalfAngleDegrees, float StartTime, float FillDuration, float EndTime, float Time)
+{
+	const float2 P = UV * 2.0 - 1.0;
+	const float Radius = length(P);
+	const float Angle = degrees(abs(atan2(P.y, P.x)));
+
+	// 화면에서 한 픽셀이 차지하는 UV 크기만큼 경계를 부드럽게 해 멀리서도 계단이 생기지 않게 한다.
+	const float Pixel = max(fwidth(Radius), 1e-4);
+
+	// 모양: 단위 원 안, 부채꼴이면 양쪽 변 안쪽. 변까지의 거리는 반지름 × sin(남은 각도)로 UV 단위로 맞춘다.
+	const bool bCone = HalfAngleDegrees < 179.0;
+	const float SideDistance = Radius * sin(radians(clamp(HalfAngleDegrees - Angle, -90.0, 90.0)));
+	const float InCircle = 1.0 - smoothstep(1.0 - Pixel, 1.0, Radius);
+	const float InSector = bCone ? smoothstep(-Pixel, 0.0, SideDistance) : 1.0;
+	const float Shape = InCircle * InSector;
+
+	// 시간 진행: 채움 비율, 판정 중 여부, 나타나고 사라지는 정도
+	const float Progress = saturate((Time - StartTime) / max(FillDuration, 1e-3));
+	const float Active = step(1.0, Progress) * step(Time, EndTime);
+	const float Fade = saturate((Time - StartTime) / 0.1) * (1.0 - saturate((Time - EndTime) / 0.15));
+
+	// 테두리: 바깥 원호와 부채꼴 양쪽 변
+	const float RimWidth = 0.035;
+	const float OuterRim = smoothstep(1.0 - RimWidth - Pixel, 1.0 - RimWidth, Radius);
+	const float SideRim = bCone ? 1.0 - smoothstep(RimWidth, RimWidth + Pixel, SideDistance) : 0.0;
+	const float Rim = max(OuterRim, SideRim) * Shape;
+
+	// 채움: 차오르는 경계 쪽이 더 밝아 퍼져 나가는 느낌을 준다. 경계에는 밝은 띠를 둔다.
+	const float FillRadius = Progress;
+	const float Filled = (1.0 - smoothstep(FillRadius - Pixel, FillRadius, Radius)) * Shape;
+	const float FillGlow = Filled * (0.25 + 0.35 * saturate(Radius / max(FillRadius, 1e-3)));
+	const float Front = PdTelegraphBand(Radius - FillRadius, 0.01, 0.03) * Shape * step(1e-3, Progress) * (1.0 - Active);
+
+	// 아직 차지 않은 영역의 줄무늬: 반지름 방향으로 흐른다.
+	const float Phase = frac(Radius * 7.0 - Time * 1.2);
+	const float Stripe = smoothstep(0.0, 0.08, Phase) * (1.0 - smoothstep(0.45, 0.53, Phase));
+	const float Unfilled = Stripe * Shape * (1.0 - Filled);
+
+	// 판정 중에는 전체가 빠르게 깜빡인다.
+	const float Pulse = Active * Shape * (0.6 + 0.4 * sin(Time * 25.0));
+
+	const float Intensity = Rim + FillGlow + Front * 1.5 + Unfilled * 0.18 + Pulse;
+	const float Opacity = saturate(Rim * 0.9 + Filled * 0.45 + Front * 0.8 + Unfilled * 0.25 + Pulse * 0.4) * Fade;
+	return float4(Intensity, Intensity, Intensity, Opacity);
+}
