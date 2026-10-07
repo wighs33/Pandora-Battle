@@ -11,6 +11,7 @@
 #include "Provision/DefaultPlayerProvisioner.h"
 
 #include "Character/CharacterBase.h"
+#include "Component/Match/MatchFlowComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Component/Skin/SkinComponent.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
@@ -101,7 +102,8 @@ void UMatchPlayerSetupComponent::InitializeMatchIdentity(APlayerController* NewP
 		PlayerMatchComponent->SetMatchDisplayName(DefaultNickname);
 	}
 
-	if (GameMode->bAssignDefaultTeamWhenLobbyTeamMissing
+	// 보스 레이드는 팀을 두지 않는다(팀 외곽선과 팀별 킬 표시가 없다). 팀 없는 플레이어끼리는 ACharacterBase::IsSameTeam이 한편으로 본다.
+	if (GameMode->bAssignDefaultTeamWhenLobbyTeamMissing && !GameMode->GetMatchFlowComponent()->IsBossRaid()
 		&& PlayerMatchComponent->GetMatchTeamColorIndex() == INDEX_NONE)
 	{
 		PlayerMatchComponent->SetMatchTeamColorIndex(GameMode->DefaultLobbyTeamColorIndex);

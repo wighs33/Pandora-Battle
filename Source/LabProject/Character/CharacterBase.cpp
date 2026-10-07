@@ -628,7 +628,8 @@ int32 ACharacterBase::GetMatchTeamColorIndex() const
 	return MatchComponent ? MatchComponent->GetMatchTeamColorIndex() : INDEX_NONE;
 }
 
-// 두 캐릭터가 모두 유효한 경기 팀 색상 번호를 가지고 그 번호가 같은지 판단한다. FactionId 비교는 하지 않는다.
+// 두 캐릭터의 경기 팀 색상 번호가 같으면 같은 팀이다. 팀 없이 들어오는 보스 레이드에서는 플레이어끼리 모두 한편이고,
+// PlayerState가 없는 몬스터·봇과는 적이다. FactionId 비교는 하지 않는다.
 bool ACharacterBase::IsSameTeam(const ACharacterBase* OtherCharacter) const
 {
 	if (!OtherCharacter)
@@ -637,6 +638,10 @@ bool ACharacterBase::IsSameTeam(const ACharacterBase* OtherCharacter) const
 	}
 	const int32 MyTeamColorIndex = GetMatchTeamColorIndex();
 	const int32 OtherTeamColorIndex = OtherCharacter->GetMatchTeamColorIndex();
+	if (MyTeamColorIndex == INDEX_NONE && OtherTeamColorIndex == INDEX_NONE)
+	{
+		return GetPlayerState() && OtherCharacter->GetPlayerState();
+	}
 	return MyTeamColorIndex != INDEX_NONE && MyTeamColorIndex == OtherTeamColorIndex;
 }
 
