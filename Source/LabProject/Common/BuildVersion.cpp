@@ -25,18 +25,34 @@ FString PdBuildVersion::GetCommit()
 	return TEXT(PD_BUILD_COMMIT);
 }
 
+namespace
+{
+	/** 프로젝트 설정의 버전. 예: "v1.2.0" */
+	FString GetVersionText()
+	{
+		return TEXT("v") + GetDefault<UGeneralProjectSettings>()->ProjectVersion;
+	}
+}
+
 FString PdBuildVersion::GetDisplayString()
 {
-	const FString& ProjectVersion = GetDefault<UGeneralProjectSettings>()->ProjectVersion;
-	const FString Prefix = ProjectVersion.IsEmpty() ? FString() : TEXT("v") + ProjectVersion + TEXT(" · ");
 	if (GetBuildNumber() <= 0)
 	{
-		return Prefix + TEXT("dev");
+		return GetVersionText() + TEXT(" · dev");
 	}
 #if UE_BUILD_SHIPPING
-	// 배포 빌드는 플레이어가 읽기 쉽게 빌드 번호까지만 보여 준다. 빌드 번호는 master의 커밋 수라 커밋은 번호로 찾을 수 있다.
-	return FString::Printf(TEXT("%s#%d"), *Prefix, GetBuildNumber());
+	// 플레이어에게는 버전만 보여 준다. 배포한 커밋은 같은 이름의 git 태그(v1.2.0)로 찾는다.
+	return GetVersionText();
 #else
-	return FString::Printf(TEXT("%s#%d · %s"), *Prefix, GetBuildNumber(), *GetCommit());
+	return FString::Printf(TEXT("%s · %s"), *GetVersionText(), *GetCommit());
 #endif
+}
+
+FString PdBuildVersion::GetLogString()
+{
+	if (GetBuildNumber() <= 0)
+	{
+		return GetVersionText() + TEXT(" · dev");
+	}
+	return FString::Printf(TEXT("%s · #%d · %s"), *GetVersionText(), GetBuildNumber(), *GetCommit());
 }

@@ -4,7 +4,8 @@
 
 .DESCRIPTION
     Source/LabProject/Common/BuildVersionStamp.h를 쓴다. Common/BuildVersion.cpp가 이 파일을 읽어
-    타이틀 화면과 시작 로그에 "v<ProjectVersion> · #<빌드 번호> · <커밋>"을 보여 준다.
+    시작 로그에 "v<ProjectVersion> · #<빌드 번호> · <커밋>"을 남기고, 타이틀 화면에는 "v<ProjectVersion> · <커밋>"을
+    보여 준다(Shipping은 버전만).
     빌드 번호를 주지 않으면 현재 커밋까지의 커밋 수를 쓴다. 워크플로마다 따로 세는 실행 번호와 달리
     푸시 빌드와 야간 빌드의 번호가 겹치지 않고, 같은 커밋은 늘 같은 번호가 된다(체크아웃에 전체 이력이 필요).
     내용이 같으면 파일을 다시 쓰지 않아 불필요한 재컴파일을 막는다. 파일은 git에서 추적하지 않는다.

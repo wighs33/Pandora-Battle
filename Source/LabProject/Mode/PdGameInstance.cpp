@@ -17,7 +17,7 @@ namespace
 void UPdGameInstance::Init()
 {
 	Super::Init();
-	UE_LOG(LogPdGameInstance, Display, TEXT("Build %s"), *PdBuildVersion::GetDisplayString());
+	UE_LOG(LogPdGameInstance, Display, TEXT("Build %s"), *PdBuildVersion::GetLogString());
 
 	if (IsRunningDedicatedServer())
 	{

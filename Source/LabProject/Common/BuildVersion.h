@@ -16,6 +16,9 @@ namespace PdBuildVersion
 	/** 짧은 커밋 해시. 개발 빌드는 빈 문자열. */
 	LABPROJECT_API FString GetCommit();
 
-	/** 화면과 로그에 쓰는 한 줄. 예: "v1.2.0 · #57 · 3f9c2ab", Shipping은 커밋 없이 "v1.2.0 · #57", 개발 빌드는 "v1.2.0 · dev". */
+	/** 타이틀 화면에 쓰는 버전. 예: "v1.2.0 · 3f9c2ab", Shipping은 버전만 "v1.2.0", 개발 빌드는 "v1.2.0 · dev". */
 	LABPROJECT_API FString GetDisplayString();
+
+	/** 시작 로그에 쓰는 한 줄. 빌드 번호까지 넣는다. 예: "v1.2.0 · #57 · 3f9c2ab", 개발 빌드는 "v1.2.0 · dev". */
+	LABPROJECT_API FString GetLogString();
 }
