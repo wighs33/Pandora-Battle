@@ -189,6 +189,7 @@ private:
 	bool SetPaintCanvasWidgetVisible(bool bVisible);
 	void SetCanvasExportButtonVisible(bool bVisible) const;
 	void SetPandoraUpgradeButtonVisible(bool bVisible);
+	void RefreshDragHintVisibility() const;
 	void RefreshPandoraDrawerLabel();
 	void ClosePandoraDrawerForNavigation();
 	void BindLeftSkinPaintCanvasEvents();
@@ -305,6 +306,10 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Paint", meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> Txt_Canvas;
+
+	/** 아이템·스킨을 캐릭터에 끌어 놓으라는 안내. 끌어 놓을 수 있는 아이템·스킨 탭에서만 보인다. */
+	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> Txt_DragHint;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Map", meta = (BindWidgetOptional))
 	TObjectPtr<UOverlay> MapOverlay;

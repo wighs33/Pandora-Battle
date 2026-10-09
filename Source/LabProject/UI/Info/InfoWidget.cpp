@@ -112,6 +112,7 @@ void UInfoWidget::NativeConstruct()
 	BindLeftSkinPaintCanvasEvents();
 	SetCanvasExportButtonVisible(false);
 	SetPandoraUpgradeButtonVisible(FocusedSection == EInfoUiSection::Pandora);
+	RefreshDragHintVisibility();
 	MapPanel->RefreshButtonEnabledState();
 	MapPanel->HideImmediately();
 }
@@ -313,6 +314,7 @@ void UInfoWidget::SelectMapTab()
 
 	FocusedSection = EInfoUiSection::Map;
 	SetPandoraUpgradeButtonVisible(false);
+	RefreshDragHintVisibility();
 	HideDetailWidgets();
 	HideSkinPaintCanvasGroup();
 	PlaySidePanelsSlideOutAnimation();
@@ -649,6 +651,7 @@ void UInfoWidget::SelectSidePanelSection(const EInfoUiSection Section, UWidget* 
 {
 	FocusedSection = Section;
 	SetPandoraUpgradeButtonVisible(Section == EInfoUiSection::Pandora);
+	RefreshDragHintVisibility();
 	if (MapPanel)
 	{
 		MapPanel->PlaySlideOut();
@@ -703,6 +706,15 @@ bool UInfoWidget::SetPaintCanvasWidgetVisible(const bool bVisible)
 	}
 
 	return bPaintCanvasVisible;
+}
+
+void UInfoWidget::RefreshDragHintVisibility() const
+{
+	if (Txt_DragHint)
+	{
+		const bool bCanDropOnCharacter = FocusedSection == EInfoUiSection::Item || FocusedSection == EInfoUiSection::Skin;
+		Txt_DragHint->SetVisibility(bCanDropOnCharacter ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void UInfoWidget::SetCanvasExportButtonVisible(const bool bVisible) const
