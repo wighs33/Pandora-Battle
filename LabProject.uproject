@@ -80,6 +80,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "GF_BossRaid",
+			"Enabled": true
+		},
+		{
 			"Name": "CascadeToNiagaraConverter",
 			"Enabled": true
 		},

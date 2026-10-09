@@ -68,11 +68,20 @@ Content/**
 !Content/effect/m_smoke2.uasset
 !Content/effect/T_Smoke01_SubUV_9x9.uasset
 
-# Boss presentation assets wired to repository code: HLSL materials (Shaders/*.ush), the dragon Control Rig and the pounce travel curve.
+# Boss presentation assets wired to repository code: HLSL materials (Shaders/*.ush).
 !Content/Materials/M_AttackTelegraph.uasset
 !Content/Materials/PP_CombatHighlight.uasset
-!Content/Characters/DragonUsurper/CR_DragonUsurper.uasset
-!Content/Characters/DragonUsurper/Curve_DragonUsurper_PounceTravel.uasset
+
+# Boss raid game feature: same policy as Content, plus the dragon Control Rig and the pounce travel curve.
+Plugins/GameFeatures/GF_BossRaid/Content/**
+!Plugins/GameFeatures/GF_BossRaid/Content/**/
+!Plugins/GameFeatures/GF_BossRaid/Content/GF_BossRaid.uasset
+!Plugins/GameFeatures/GF_BossRaid/Content/**/BP_*.uasset
+!Plugins/GameFeatures/GF_BossRaid/Content/**/ABP_*.uasset
+!Plugins/GameFeatures/GF_BossRaid/Content/**/AM_*.uasset
+!Plugins/GameFeatures/GF_BossRaid/Content/**/DA_*.uasset
+!Plugins/GameFeatures/GF_BossRaid/Content/**/CR_*.uasset
+!Plugins/GameFeatures/GF_BossRaid/Content/**/Curve_*.uasset
 
 # Ignore backup copies of assets
 Content/**/*.pre_restore_*.uasset

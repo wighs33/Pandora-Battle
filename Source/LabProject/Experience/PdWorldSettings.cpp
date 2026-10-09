@@ -46,10 +46,14 @@ APdWorldSettings::APdWorldSettings(const FObjectInitializer& ObjectInitializer)
 {
 }
 
-FPrimaryAssetId APdWorldSettings::FindDefaultExperienceId(const UWorld* World)
+FPrimaryAssetId APdWorldSettings::FindExperienceId(const UWorld* World, const bool bBossRaid)
 {
 	const APdWorldSettings* Settings = World ? Cast<APdWorldSettings>(World->GetWorldSettings()) : nullptr;
-	return Settings ? Settings->GetDefaultExperienceId() : FPrimaryAssetId();
+	if (!Settings)
+	{
+		return FPrimaryAssetId();
+	}
+	return bBossRaid && Settings->BossRaidExperienceId.IsValid() ? Settings->BossRaidExperienceId : Settings->DefaultExperienceId;
 }
 
 #if WITH_EDITOR

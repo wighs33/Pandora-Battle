@@ -371,10 +371,10 @@ void AExperienceGameMode::HandleExperienceLoadFailed(FPrimaryAssetId ExperienceI
 	UE_LOG(PdExperienceGameModeLog, Error, TEXT("Experience load failed. Experience=%s Reason=%s"), *ExperienceId.ToString(), *FailureMessage);
 }
 
-// 현재 맵이 사용할 Experience 식별자를 월드 설정에서 읽는다.
+// 현재 맵이 사용할 Experience 식별자를 월드 설정에서 읽는다. 보스 레이드 여부는 InitGame에서 이동 옵션으로 이미 정해졌다.
 FPrimaryAssetId AExperienceGameMode::GetConfiguredExperienceId() const
 {
-	return APdWorldSettings::FindDefaultExperienceId(GetWorld());
+	return APdWorldSettings::FindExperienceId(GetWorld(), MatchFlowComponent->IsBossRaid());
 }
 
 // 경기에서 공유하는 필수 Definition을 한 번 로드하고 맵 수명 동안 소유한다.

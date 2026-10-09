@@ -1,27 +1,15 @@
 #include "AI/Monster/ServerOnlyMonsterSpawner.h"
 
 #include "AI/Monster/MonsterCharacter.h"
-#include "Component/Match/MatchFlowComponent.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
-#include "Mode/ExperienceGameMode.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ServerOnlyMonsterSpawner)
 
 DEFINE_LOG_CATEGORY_STATIC(LogServerOnlyMonsterSpawner, Log, All);
-
-namespace
-{
-	/** 보스 레이드 여부는 게임 모드가 이동 옵션(BossRaid)으로 정한다. */
-	bool IsBossRaidWorld(const UWorld* World)
-	{
-		const AExperienceGameMode* GameMode = World ? World->GetAuthGameMode<AExperienceGameMode>() : nullptr;
-		return GameMode && GameMode->GetMatchFlowComponent() && GameMode->GetMatchFlowComponent()->IsBossRaid();
-	}
-}
 
 AServerOnlyMonsterSpawner::AServerOnlyMonsterSpawner()
 {
@@ -46,10 +34,6 @@ void AServerOnlyMonsterSpawner::BeginPlay()
 	}
 
 	Super::BeginPlay();
-	if (bSpawnOnlyInBossRaid && !IsBossRaidWorld(GetWorld()))
-	{
-		return;
-	}
 	if (!MonsterClass)
 	{
 		UAssetManager& AssetManager = UAssetManager::Get();

@@ -331,7 +331,7 @@ void ALobbyGameMode::HandlePlayerRespawned(APlayerController* Player, bool bCrea
 
 FPrimaryAssetId ALobbyGameMode::GetConfiguredExperienceId() const
 {
-	return APdWorldSettings::FindDefaultExperienceId(GetWorld());
+	return APdWorldSettings::FindExperienceId(GetWorld(), false);
 }
 
 UExperienceManagerComponent* ALobbyGameMode::GetExperienceManager() const
