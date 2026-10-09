@@ -9,6 +9,7 @@ public class LabProjectEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"Core",
+			"CoreUObject",
 			"StateTreeEditorModule"
 		});
 	}
