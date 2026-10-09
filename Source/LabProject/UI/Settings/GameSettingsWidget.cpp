@@ -125,7 +125,8 @@ UWidget* UGameSettingsWidget::GenerateLanguageOption(FString Option)
 			if (Option == UiLanguage::NativeName(Language)) Font.FontObject = Localization->GetFontForLanguage(Language);
 	}
 	Text->SetFont(Font);
-	Text->SetColorAndOpacity(FSlateColor(FLinearColor(0.08f, 0.04f, 0.1f, 1.f)));
+	// 글자색은 콤보 스타일의 전경색(로비 팀 콤보와 같은 크림색)을 따른다.
+	Text->SetColorAndOpacity(FSlateColor::UseForeground());
 	Text->SetMargin(FMargin(12.f, 6.f));
 	return Text;
 }
