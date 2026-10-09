@@ -119,21 +119,36 @@ void UGameResultWidget::SetShowRewards(const bool bInShowRewards)
 	RefreshUI();
 }
 
+void UGameResultWidget::SetEndedByPlayerExit(const bool bInEndedByPlayerExit)
+{
+	bEndedByPlayerExit = bInEndedByPlayerExit;
+	RefreshUI();
+}
+
+void UGameResultWidget::OnMenuLanguageChanged()
+{
+	RefreshUI();
+}
+
 void UGameResultWidget::RefreshUI()
 {
 	ApplyDisplayModeVisibility();
 
 	if (Txt_WinnerInfo)
 	{
-		const FText DisplayWinnerName = WinnerTitle.IsEmpty() ? UnknownPlayerText : WinnerTitle;
-		Txt_WinnerInfo->SetText(FText::Format(WinnerInfoFormat, DisplayWinnerName));
-		Txt_WinnerInfo->SetColorAndOpacity(LabTeamColorUtils::GetTeamColor(WinnerTeamColorIndex));
+		Txt_WinnerInfo->SetText(FText::Format(WinnerInfoFormat, MakeTitleText()));
+		Txt_WinnerInfo->SetColorAndOpacity(IsTeamVictoryTitle()
+			? FSlateColor(LabTeamColorUtils::GetTeamColor(WinnerTeamColorIndex))
+			: NeutralTitleColor);
 	}
 
 	if (Txt_MostKill)
 	{
-		const FText DisplayMaxKillerName = MaxKillerName.IsEmpty() ? UnknownPlayerText : MaxKillerName;
-		Txt_MostKill->SetText(FText::Format(MostKillFormat, DisplayMaxKillerName, MaxKillCount));
+		// 아직 아무도 처치하지 못했거나 누가 가장 많이 처치했는지 모르면 보여 줄 내용이 없다.
+		const bool bHasTopKiller = MaxKillCount > 0 && !MaxKillerName.IsEmpty();
+		Txt_MostKill->SetVisibility(bHasTopKiller ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		Txt_MostKill->SetText(FText::Format(MenuTextOrFallback(TEXT("Result.MostKillsFormat"), MostKillFormat),
+			MaxKillerName, MaxKillCount));
 	}
 
 	RefreshPlayerStatsList();
@@ -182,6 +197,29 @@ void UGameResultWidget::HandleExitClicked()
     if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
         Screen->DeactivateWidget();
     RemoveFromParent();
+}
+
+// 서버가 보낸 제목은 서버 쪽 언어라, 끝난 사유와 이긴 팀으로 이 화면의 언어에서 다시 만든다.
+FText UGameResultWidget::MakeTitleText() const
+{
+	if (bInGameScoreboardMode)
+	{
+		return MenuText(TEXT("HUD.Scoreboard"));
+	}
+	if (bEndedByPlayerExit)
+	{
+		return MenuTextOrFallback(TEXT("Result.PlayerLeft"), WinnerTitle);
+	}
+	if (IsTeamVictoryTitle())
+	{
+		return FText::Format(MenuText(TEXT("Result.TeamWinsFormat")), MenuText(LabTeamColorUtils::GetTeamTextKey(WinnerTeamColorIndex)));
+	}
+	return WinnerTitle.IsEmpty() ? MenuTextOrFallback(TEXT("Result.UnknownPlayer"), UnknownPlayerText) : WinnerTitle;
+}
+
+bool UGameResultWidget::IsTeamVictoryTitle() const
+{
+	return !bInGameScoreboardMode && !bEndedByPlayerExit && !LabTeamColorUtils::GetTeamTextKey(WinnerTeamColorIndex).IsNone();
 }
 
 FString UGameResultWidget::GetResolvedLobbyTravelMapName() const
@@ -281,7 +319,6 @@ void UGameResultWidget::ApplyDisplayModeVisibility()
 	const bool bShowResultOnlyWidgets = !bInGameScoreboardMode;
 	const bool bShowRewardWidgets = bShowResultOnlyWidgets && bShowRewards;
 
-	SetWidgetVisibleForDisplayMode(Txt_WinnerInfo, bShowResultOnlyWidgets);
 	SetWidgetVisibleForDisplayMode(Txt_Reward, bShowRewardWidgets);
 	if (Btn_Exit)
 	{

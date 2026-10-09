@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
 #include "Common/GameResultTypes.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 #include "GameResultPlayerStatEntryWidget.generated.h"
 
 class UTextBlock;
@@ -10,7 +10,7 @@ class UBorder;
 class UImage;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UGameResultPlayerStatEntryWidget : public UUserWidget
+class LABPROJECT_API UGameResultPlayerStatEntryWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -29,6 +29,8 @@ public:
 	void RefreshUI();
 
 protected:
+	virtual void OnMenuLanguageChanged() override;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!GameResult|Bind")
 	TObjectPtr<UTextBlock> Txt_PlayerName;
 

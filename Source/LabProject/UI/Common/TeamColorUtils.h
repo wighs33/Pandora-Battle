@@ -34,6 +34,14 @@ namespace LabTeamColorUtils
 		}
 	}
 
+	/** 공통 번역표(DT_MenuText)에서 팀 이름을 찾는 키. 팀이 없으면 None이다. */
+	inline FName GetTeamTextKey(const int32 TeamColorIndex)
+	{
+		static const FName Keys[TeamColorCount] = {
+			TEXT("Team.Red"), TEXT("Team.Blue"), TEXT("Team.Yellow"), TEXT("Team.Purple"), TEXT("Team.Green"), TEXT("Team.Orange")};
+		return TeamColorIndex >= 0 && TeamColorIndex < TeamColorCount ? Keys[TeamColorIndex] : NAME_None;
+	}
+
 	inline FLinearColor GetTeamColorTint(const int32 TeamColorIndex)
 	{
 		FLinearColor HsvColor = GetTeamColor(TeamColorIndex).LinearRGBToHSV();

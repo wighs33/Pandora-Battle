@@ -13,6 +13,11 @@ void UGameResultPlayerStatEntryWidget::NativeConstruct()
 	RefreshUI();
 }
 
+void UGameResultPlayerStatEntryWidget::OnMenuLanguageChanged()
+{
+	RefreshUI();
+}
+
 void UGameResultPlayerStatEntryWidget::SetInfo(const FGameResultPlayerStat& InPlayerStat, const int32 InWinnerTeamColorIndex)
 {
 	PlayerStat = InPlayerStat;
@@ -36,12 +41,18 @@ void UGameResultPlayerStatEntryWidget::RefreshUI()
 
 	if (Txt_PlayerName)
 	{
-		Txt_PlayerName->SetText(PlayerStat.PlayerName.IsEmpty() ? UnknownPlayerText : PlayerStat.PlayerName);
+		Txt_PlayerName->SetText(PlayerStat.PlayerName.IsEmpty()
+			? MenuTextOrFallback(TEXT("Result.UnknownPlayer"), UnknownPlayerText)
+			: PlayerStat.PlayerName);
 	}
 
 	if (Txt_TeamName)
 	{
-		Txt_TeamName->SetText(PlayerStat.TeamName.IsEmpty() ? UnknownTeamText : PlayerStat.TeamName);
+		// 서버가 보낸 팀 이름은 서버 쪽 언어라, 팀 번호로 이 화면의 언어에서 다시 찾는다.
+		const FName TeamKey = LabTeamColorUtils::GetTeamTextKey(PlayerStat.TeamColorIndex);
+		Txt_TeamName->SetText(TeamKey.IsNone()
+			? MenuTextOrFallback(TEXT("Result.NoTeam"), UnknownTeamText)
+			: MenuTextOrFallback(TeamKey, PlayerStat.TeamName));
 	}
 
 	if (Txt_Kills)

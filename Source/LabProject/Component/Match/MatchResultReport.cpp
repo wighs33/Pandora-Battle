@@ -129,6 +129,7 @@ FGameResultPresentationData MatchResultReport::BuildPlayerExitResult(const AGame
 {
 	FGameResultPresentationData GameResultData;
 	GameResultData.WinnerTitle = NSLOCTEXT("GameResult", "MatchEndedByPlayerExit", "Match Ended Due to Player Leaving");
+	GameResultData.bEndedByPlayerExit = true;
 	GameResultData.WinnerTeamColorIndex = WinnerTeamColorIndex;
 	GameResultData.bAllowLobbyTravelOnExit = false;
 	GameResultData.bShowRewards = WinnerPlayerState != nullptr;

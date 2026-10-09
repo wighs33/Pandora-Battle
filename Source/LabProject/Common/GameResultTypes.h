@@ -58,4 +58,8 @@ struct LABPROJECT_API FGameResultPresentationData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult")
 	bool bShowRewards = true;
+
+	/** 누가 나가서 경기가 끝났다. 결과 화면은 승리 팀 대신 이 사유를 제목으로 보여 준다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult")
+	bool bEndedByPlayerExit = false;
 };

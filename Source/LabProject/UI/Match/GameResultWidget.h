@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
 #include "Common/GameResultTypes.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 #include "GameResultWidget.generated.h"
 
 class UButton;
@@ -12,7 +12,7 @@ class UTextBlock;
 class UWidget;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UGameResultWidget : public UUserWidget
+class LABPROJECT_API UGameResultWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -47,10 +47,15 @@ public:
 	void SetShowRewards(bool bInShowRewards);
 
 	UFUNCTION(BlueprintCallable, Category = "!GameResult")
+	void SetEndedByPlayerExit(bool bInEndedByPlayerExit);
+
+	UFUNCTION(BlueprintCallable, Category = "!GameResult")
 	void RefreshUI();
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual void OnMenuLanguageChanged() override;
+
 	UFUNCTION()
 	void HandleExitClicked();
 
@@ -61,6 +66,8 @@ protected:
 
 private:
 	FString GetResolvedLobbyTravelMapName() const;
+	FText MakeTitleText() const;
+	bool IsTeamVictoryTitle() const;
 	void RefreshPlayerStatsList();
 	void ApplyDisplayModeVisibility();
 	void SetWidgetVisibleForDisplayMode(UWidget* Widget, bool bVisible) const;
@@ -83,6 +90,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Setup")
 	TSubclassOf<UGameResultPlayerStatEntryWidget> PlayerStatEntryWidgetClass;
+
+	/** 팀 승리가 아닌 제목(점수판, 나간 플레이어로 끝난 경기)의 색. 팀이 이긴 결과는 팀 색을 쓴다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Style")
+	FSlateColor NeutralTitleColor = FSlateColor(FLinearColor(0.846873f, 0.603827f, 0.23074f, 1.0f));
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Text")
 	FText WinnerInfoFormat = NSLOCTEXT("GameResult", "WinnerInfoFormat", "{0}");
@@ -115,4 +126,5 @@ private:
 	bool bExitToLobbyEnabled = true;
 	bool bCloseOnlyOnExit = false;
 	bool bShowRewards = true;
+	bool bEndedByPlayerExit = false;
 };

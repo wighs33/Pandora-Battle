@@ -445,5 +445,6 @@ void ATitleHUD::ShowPendingGameResult()
 		GameResultData.MaxKillerName, GameResultData.MaxKillCount, GameResultData.PlayerStats);
 	GameResultWidget->SetExitToLobbyEnabled(GameResultData.bAllowLobbyTravelOnExit);
 	GameResultWidget->SetShowRewards(GameResultData.bShowRewards);
+	GameResultWidget->SetEndedByPlayerExit(GameResultData.bEndedByPlayerExit);
 	GameResultWidget->ShowResultScreen();
 }
