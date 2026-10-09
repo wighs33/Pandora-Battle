@@ -1,13 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 #include "RespawnDelayWidget.generated.h"
 
 class UTextBlock;
 
 UCLASS()
-class LABPROJECT_API URespawnDelayWidget : public UUserWidget
+class LABPROJECT_API URespawnDelayWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -42,6 +42,8 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "!Respawn", meta = (DisplayName = "On Respawn Delay Finished"))
 	void BP_OnRespawnDelayFinished();
 
+	virtual void OnMenuLanguageChanged() override;
+
 private:
 	void HandleRespawnDelayTick();
 
@@ -53,6 +55,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Respawn|Bind")
 	TObjectPtr<UTextBlock> Txt_RespawnDelay = nullptr;
 
+	/** 번역표(HUD.RespawnIn, HUD.Respawning)에 없을 때 쓰는 문구. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Respawn|Text")
 	FText RespawnDelayFormatText = NSLOCTEXT("RespawnDelay", "RespawnDelayFormatText", "Respawn in {Seconds}");
 

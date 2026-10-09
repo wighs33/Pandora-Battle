@@ -17,7 +17,13 @@ namespace
 {
 	const FText MaxLevelText = NSLOCTEXT("PandoraWidget", "MaxLevel", "MAX");
 
-	FString MakeWeaponTagDisplayName(const FGameplayTag& WeaponTag)
+	FText MenuTextOr(const UMenuLocalizationSubsystem* Localization, const TCHAR* Key, const FText& Fallback)
+	{
+		return Localization ? Localization->GetTextOrFallback(Key, Fallback) : Fallback;
+	}
+
+	/** Item.Weapon.Axe는 번역표의 Weapon.Axe로 찾는다. 번역이 없으면 태그 이름을 쓴다. */
+	FText MakeWeaponTagDisplayName(const FGameplayTag& WeaponTag, const UMenuLocalizationSubsystem* Localization)
 	{
 		FString TagText = WeaponTag.ToString();
 		const FGameplayTag& WeaponTypeRoot = LabGameplayTags::Item_Weapon;
@@ -26,22 +32,18 @@ namespace
 			const FString WeaponTypePrefix = WeaponTypeRoot.ToString() + TEXT(".");
 			TagText.RemoveFromStart(WeaponTypePrefix);
 		}
-		return TagText.Replace(TEXT("."), TEXT(" / "));
+		const FText Fallback = FText::FromString(TagText.Replace(TEXT("."), TEXT(" / ")));
+		return MenuTextOr(Localization, *(TEXT("Weapon.") + TagText), Fallback);
 	}
 
-	FText MakeWeaponRequirementText(const FGameplayTagContainer& RequiredWeaponTags)
+	FText MakeWeaponRequirementText(const FGameplayTagContainer& RequiredWeaponTags, const UMenuLocalizationSubsystem* Localization)
 	{
-		if (RequiredWeaponTags.IsEmpty())
-		{
-			return FText::GetEmpty();
-		}
-
-		TArray<FString> WeaponTypeNames;
+		TArray<FText> WeaponTypeNames;
 		for (const FGameplayTag& WeaponTag : RequiredWeaponTags)
 		{
 			if (WeaponTag.IsValid())
 			{
-				WeaponTypeNames.Add(MakeWeaponTagDisplayName(WeaponTag));
+				WeaponTypeNames.Add(MakeWeaponTagDisplayName(WeaponTag, Localization));
 			}
 		}
 
@@ -51,8 +53,9 @@ namespace
 		}
 
 		return FText::Format(
-			NSLOCTEXT("PandoraDescriptionWidget", "WeaponRequirementFormat", "Required Weapon Type: {0}"),
-			FText::FromString(FString::Join(WeaponTypeNames, TEXT(", "))));
+			MenuTextOr(Localization, TEXT("Pandora.WeaponRequirementFormat"),
+				NSLOCTEXT("PandoraDescriptionWidget", "WeaponRequirementFormat", "Required Weapon Type: {0}")),
+			FText::Join(FText::FromString(TEXT(", ")), WeaponTypeNames));
 	}
 
 	// 해금 판정은 게임플레이 컴포넌트가 맡고, 조건의 표시 문구만 UI에서 만든다.
@@ -70,9 +73,10 @@ namespace
 					FText::AsNumber(Tree->GetCurrentPandoraLevel(Rule.RequiredPandora))));
 			}
 		}
-		return Lines.IsEmpty() ? FText::GetEmpty() : FText::Format(
-			NSLOCTEXT("PandoraTreeComponent", "PandoraUnlockRequirements", "요구 조건\n{0}"),
-			FText::Join(FText::FromString(TEXT("\n")), Lines));
+		const FText Header = MenuTextOr(Localization, TEXT("Pandora.UnlockRequirements"),
+			NSLOCTEXT("PandoraTreeComponent", "PandoraUnlockRequirements", "Requirements"));
+		return Lines.IsEmpty() ? FText::GetEmpty() : FText::Format(FText::FromString(TEXT("{0}\n{1}")),
+			Header, FText::Join(FText::FromString(TEXT("\n")), Lines));
 	}
 }
 
@@ -247,7 +251,7 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(const UPan
 		SkillViewData.CooldownText = FText::Format(CooldownFormat, FText::AsNumber(Skill->Time.CooldownDuration, &NumberFormat));
 	}
 
-	const FText WeaponRequirement = MakeWeaponRequirementText(PandoraDefinition->GetActivatableWeaponTags());
+	const FText WeaponRequirement = MakeWeaponRequirementText(PandoraDefinition->GetActivatableWeaponTags(), Localization);
 	ViewData.WeaponRequirementText = WeaponRequirement;
 	ViewData.WeaponRequirementVisibility = WeaponRequirement.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
 
@@ -257,7 +261,8 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(const UPan
 		FText RequirementText = MakePandoraUnlockRequirementsText(PandoraDefinition, PandoraTreeComponent, Localization);
 		if (RequirementText.IsEmpty())
 		{
-			RequirementText = NSLOCTEXT("PandoraDescriptionWidget", "LockedRequirementFallback", "Unlock requirements are not met.");
+			RequirementText = MenuTextOr(Localization, TEXT("Pandora.UnlockRequirementsUnmet"),
+				NSLOCTEXT("PandoraDescriptionWidget", "LockedRequirementFallback", "Unlock requirements are not met."));
 		}
 
 		ViewData.DescriptionText = RequirementText;

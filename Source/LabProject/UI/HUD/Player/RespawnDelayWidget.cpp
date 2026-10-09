@@ -80,6 +80,11 @@ void URespawnDelayWidget::RefreshUI()
 	Txt_RespawnDelay->SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
+void URespawnDelayWidget::OnMenuLanguageChanged()
+{
+	RefreshUI();
+}
+
 void URespawnDelayWidget::HandleRespawnDelayTick()
 {
 	UWorld* World = GetWorld();
@@ -123,10 +128,10 @@ FText URespawnDelayWidget::FormatRespawnDelayText() const
 {
 	if (!bRespawnDelayActive && RemainingSeconds <= 0.0f)
 	{
-		return FinishedText;
+		return MenuTextOrFallback(TEXT("HUD.Respawning"), FinishedText);
 	}
 
 	FFormatNamedArguments Arguments;
 	Arguments.Add(TEXT("Seconds"), FText::AsNumber(FMath::CeilToInt(FMath::Max(RemainingSeconds, 0.0f))));
-	return FText::Format(RespawnDelayFormatText, Arguments);
+	return FText::Format(MenuTextOrFallback(TEXT("HUD.RespawnIn"), RespawnDelayFormatText), Arguments);
 }

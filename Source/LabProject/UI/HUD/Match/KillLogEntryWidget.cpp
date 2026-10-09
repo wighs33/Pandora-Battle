@@ -10,6 +10,11 @@ void UKillLogEntryWidget::NativeConstruct()
 	RefreshUI();
 }
 
+void UKillLogEntryWidget::OnMenuLanguageChanged()
+{
+	RefreshUI();
+}
+
 void UKillLogEntryWidget::SetInfo(const FKillLogEntry& InKillLogEntry)
 {
 	KillLogEntry = InKillLogEntry;
@@ -42,7 +47,9 @@ void UKillLogEntryWidget::RefreshUI()
 
 	if (Txt_KillMessage)
 	{
-		Txt_KillMessage->SetText(bUseSeparatedNameTextBlocks ? KillConnectorText : BuildKillMessage());
+		Txt_KillMessage->SetText(bUseSeparatedNameTextBlocks
+			? MenuTextOrFallback(TEXT("HUD.KillConnector"), KillConnectorText)
+			: BuildKillMessage());
 		Txt_KillMessage->SetColorAndOpacity(FSlateColor(MessageColor));
 	}
 }
@@ -51,15 +58,15 @@ FText UKillLogEntryWidget::BuildKillMessage() const
 {
 	if (KillLogEntry.bEnvironmentKill)
 	{
-		return FText::Format(EnvironmentKillMessageFormat, KillLogEntry.VictimName);
+		return FText::Format(MenuTextOrFallback(TEXT("HUD.DiedFormat"), EnvironmentKillMessageFormat), KillLogEntry.VictimName);
 	}
 
 	if (KillLogEntry.bSelfKill)
 	{
-		return FText::Format(SelfKillMessageFormat, KillLogEntry.VictimName);
+		return FText::Format(MenuTextOrFallback(TEXT("HUD.SelfKillFormat"), SelfKillMessageFormat), KillLogEntry.VictimName);
 	}
 
-	return FText::Format(KillMessageFormat, KillLogEntry.KillerName, KillLogEntry.VictimName);
+	return FText::Format(MenuTextOrFallback(TEXT("HUD.KillFormat"), KillMessageFormat), KillLogEntry.KillerName, KillLogEntry.VictimName);
 }
 
 bool UKillLogEntryWidget::ShouldUseSeparatedNameTextBlocks() const

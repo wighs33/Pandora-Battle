@@ -9,6 +9,7 @@
 #include "Engine/AssetManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Common/NotificationData.h"
 
@@ -16,9 +17,18 @@
 
 namespace
 {
-	FText FormatRewardNotificationText(const FText& DisplayName)
+	/** 알림 문구는 받는 플레이어의 메뉴 언어로 만든다. 번역표에 없으면 기본 문구를 쓴다. */
+	FText RewardText(const UMenuLocalizationSubsystem* Localization, const TCHAR* Key, const FText& Fallback)
 	{
-		return FText::Format(NSLOCTEXT("PlayerNotificationComponent", "RewardCollectedFormat", "{0} Collected"), DisplayName);
+		return Localization ? Localization->GetTextOrFallback(Key, Fallback) : Fallback;
+	}
+
+	FText FormatRewardNotificationText(const UMenuLocalizationSubsystem* Localization, const UObject* Definition, const FText& DisplayName)
+	{
+		const FText Name = Localization ? Localization->GetProductText(Definition, TEXT("Name"), DisplayName) : DisplayName;
+		return FText::Format(
+			RewardText(Localization, TEXT("HUD.RewardCollectedFormat"), NSLOCTEXT("PlayerNotificationComponent", "RewardCollectedFormat", "{0} Collected")),
+			Name);
 	}
 }
 
@@ -155,6 +165,8 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 		return;
 	}
 
+	const UGameInstance* GameInstance = Controller->GetGameInstance();
+	const UMenuLocalizationSubsystem* Localization = GameInstance ? GameInstance->GetSubsystem<UMenuLocalizationSubsystem>() : nullptr;
 	UAssetManager& AssetManager = UAssetManager::Get();
 	for (const FPdRewardNotification& Reward : Rewards)
 	{
@@ -162,32 +174,35 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 		switch (Reward.Type)
 		{
 		case EPdRewardNotificationType::Item:
-			NotificationData.Text = NSLOCTEXT("PlayerNotificationComponent", "ItemRewardFallback", "Item Collected");
+			NotificationData.Text = RewardText(Localization, TEXT("HUD.ItemCollected"),
+				NSLOCTEXT("PlayerNotificationComponent", "ItemRewardFallback", "Item Collected"));
 			if (const UItemDefinition* Definition = Cast<UItemDefinition>(AssetManager.GetPrimaryAssetObject(Reward.AssetId)))
 			{
 				const FText Name = Definition->DisplayName.IsEmpty() ? FText::FromName(Definition->GetFName()) : Definition->DisplayName;
-				NotificationData.Text = FormatRewardNotificationText(Name);
+				NotificationData.Text = FormatRewardNotificationText(Localization, Definition, Name);
 				NotificationData.IconResource = Definition->IconTexture.Get();
 			}
 			break;
 
 		case EPdRewardNotificationType::Skin:
-			NotificationData.Text = NSLOCTEXT("PlayerNotificationComponent", "SkinRewardFallback", "Skin Collected");
+			NotificationData.Text = RewardText(Localization, TEXT("HUD.SkinCollected"),
+				NSLOCTEXT("PlayerNotificationComponent", "SkinRewardFallback", "Skin Collected"));
 			if (const USkinDefinition* Definition = Cast<USkinDefinition>(AssetManager.GetPrimaryAssetObject(Reward.AssetId)))
 			{
 				const FText Name = Definition->DisplayName.IsEmpty() ? FText::FromName(Definition->GetFName()) : Definition->DisplayName;
-				NotificationData.Text = FormatRewardNotificationText(Name);
+				NotificationData.Text = FormatRewardNotificationText(Localization, Definition, Name);
 				NotificationData.IconResource = Definition->IconTexture.Get();
 			}
 			break;
 
 		case EPdRewardNotificationType::Pandora:
-			NotificationData.Text = NSLOCTEXT("PlayerNotificationComponent", "PandoraRewardFallback", "Pandora Collected");
+			NotificationData.Text = RewardText(Localization, TEXT("HUD.PandoraCollected"),
+				NSLOCTEXT("PlayerNotificationComponent", "PandoraRewardFallback", "Pandora Collected"));
 			if (const UPandoraDefinition* Definition = Cast<UPandoraDefinition>(AssetManager.GetPrimaryAssetObject(Reward.AssetId)))
 			{
 				const FText Name = Definition->GetDisplayName().IsEmpty()
 					? FText::FromName(Definition->GetFName()) : Definition->GetDisplayName();
-				NotificationData.Text = FormatRewardNotificationText(Name);
+				NotificationData.Text = FormatRewardNotificationText(Localization, Definition, Name);
 				NotificationData.IconResource = Definition->GetIconResource();
 			}
 			break;
@@ -197,8 +212,8 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 			NotificationData.Text = FText::Format(
 				NSLOCTEXT("PlayerNotificationComponent", "NumericRewardFormat", "{0} +{1}"),
 				Reward.Type == EPdRewardNotificationType::Experience
-					? NSLOCTEXT("PlayerNotificationComponent", "ExperienceRewardName", "Experience")
-					: NSLOCTEXT("PlayerNotificationComponent", "SoulDustRewardName", "Soul Dust"),
+					? RewardText(Localization, TEXT("HUD.Experience"), NSLOCTEXT("PlayerNotificationComponent", "ExperienceRewardName", "Experience"))
+					: RewardText(Localization, TEXT("HUD.SoulDust"), NSLOCTEXT("PlayerNotificationComponent", "SoulDustRewardName", "Soul Dust")),
 				FText::AsNumber(Reward.Amount));
 			NotificationData.IconResource = Reward.IconPath.ResolveObject();
 			break;

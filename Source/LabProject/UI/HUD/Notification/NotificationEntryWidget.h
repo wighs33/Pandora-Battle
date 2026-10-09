@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Blueprint/UserWidget.h"
 #include "Common/NotificationData.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 #include "NotificationEntryWidget.generated.h"
 
 class UImage;
@@ -9,7 +9,7 @@ class UTextBlock;
 class UWidgetAnimation;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UNotificationEntryWidget : public UUserWidget
+class LABPROJECT_API UNotificationEntryWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 

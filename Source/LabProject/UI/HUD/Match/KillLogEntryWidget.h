@@ -1,14 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
 #include "Common/KillLogTypes.h"
+#include "UI/Common/LocalizedMenuWidget.h"
 #include "KillLogEntryWidget.generated.h"
 
 class UTextBlock;
 
 UCLASS()
-class LABPROJECT_API UKillLogEntryWidget : public UUserWidget
+class LABPROJECT_API UKillLogEntryWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
@@ -22,6 +22,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!KillLog")
 	void RefreshUI();
+
+protected:
+	virtual void OnMenuLanguageChanged() override;
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -38,6 +41,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!KillLog|Bind")
 	TObjectPtr<UTextBlock> Txt_KillMessage = nullptr;
 
+	/** 아래 문구는 번역표(HUD.KillFormat, HUD.KillConnector, HUD.SelfKillFormat, HUD.DiedFormat)에 없을 때 쓴다. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!KillLog|Text")
 	FText KillMessageFormat = NSLOCTEXT("KillLog", "KillMessageFormat", "{0} eliminated {1}");
 
