@@ -6,6 +6,7 @@
     런처 엔진의 UAT BuildCookRun으로 빌드 → 쿡 → 스테이징 → pak → 패키지 → 보관까지 한다.
     결과는 -ArchiveDir에 남고, UAT 로그는 ArchiveDir\Logs로 복사한다.
     Shipping에서는 보스 레이드 버튼이 닫힌다(LabGameSession::bBossRaidOpen).
+    Shipping은 배포용(-distribution)으로 만들어 pak을 더 높은 Oodle 레벨(PackageCompressionLevel_Distribution)로 압축한다.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File Scripts\PackageClient.ps1 -EngineRoot C:\UE\UE_5.8
@@ -34,10 +35,14 @@ New-Item -ItemType Directory -Force $ArchiveDir | Out-Null
 $ArchiveDir = (Resolve-Path $ArchiveDir).Path
 
 $RunUAT = Join-Path $EngineRoot "Engine\Build\BatchFiles\RunUAT.bat"
+$DistributionArgs = @()
+if ($Configuration -eq "Shipping") {
+    $DistributionArgs += "-distribution"
+}
 Write-Host "== 클라이언트 $Configuration 패키징 → $ArchiveDir"
 & $RunUAT BuildCookRun "-project=$Project" -platform=Win64 "-clientconfig=$Configuration" `
     -build -cook -stage -pak -package -archive "-archivedirectory=$ArchiveDir" `
-    -nop4 -unattended -utf8output
+    -nop4 -unattended -utf8output @DistributionArgs
 $ExitCode = $LASTEXITCODE
 
 # UAT 로그는 사용자 AppData에 쌓이므로, 이번 실행에서 생긴 파일만 패키지 옆에 남긴다.
