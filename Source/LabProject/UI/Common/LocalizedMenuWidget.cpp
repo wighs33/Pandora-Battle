@@ -7,7 +7,6 @@
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
-#include "Engine/Font.h"
 #include "Engine/GameInstance.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
@@ -81,16 +80,11 @@ void ULocalizedMenuWidget::ApplyLocalizedBindings()
 {
 	const UMenuLocalizationSubsystem* Localization = GetLocalization();
 	if (!Localization || !WidgetTree) return;
-	UFont* Font = Localization->GetFontForLanguage(Localization->GetLanguage());
-	WidgetTree->ForEachWidget([Font](UWidget* Widget)
+	WidgetTree->ForEachWidget([Localization](UWidget* Widget)
 	{
-		if (!Font) return;
 		if (UTextBlock* Text = Cast<UTextBlock>(Widget))
 		{
-			FSlateFontInfo Info = Text->GetFont();
-			Info.FontObject = Font;
-			Info.TypefaceFontName = NAME_None;
-			Text->SetFont(Info);
+			Localization->ApplyLanguageFont(*Text);
 		}
 		// 입력 칸은 애셋에 지정한 스타일을 그대로 둔다. 닉네임은 사용자가 쓴 내용이고 숫자 입력은 언어별 글꼴이 필요 없다.
 		// UE 5.8의 SetWidgetStyle은 입력 스타일의 주소를 Slate에 넘겨 계속 쓰므로, 여기서 임시 스타일을 만들면 안전하지 않다.

@@ -7,6 +7,7 @@
 
 class UDataTable;
 class UFont;
+class UTextBlock;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMenuLanguageChanged);
 
@@ -33,6 +34,9 @@ public:
 	FText GetProductText(const UObject* Product, FName Field, const FText& Fallback) const;
 
 	UFont* GetFontForLanguage(EGuideLanguage FontLanguage) const;
+
+	/** 글상자를 현재 언어의 글꼴로 바꾼다. 크기·외곽선 같은 나머지 글꼴 설정은 그대로 둔다. */
+	void ApplyLanguageFont(UTextBlock& Text) const;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category="UI|Localization")

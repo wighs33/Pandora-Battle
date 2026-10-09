@@ -2,6 +2,7 @@
 #include "Localization/MenuLocalizationSettings.h"
 #include "Localization/UiSettingsSaveGame.h"
 #include "Definition/UI/MenuTextRow.h"
+#include "Components/TextBlock.h"
 #include "Engine/DataTable.h"
 #include "Engine/Font.h"
 #include "Kismet/GameplayStatics.h"
@@ -64,6 +65,16 @@ FText UMenuLocalizationSubsystem::GetTextOrFallback(FName Key, const FText& Fall
 UFont* UMenuLocalizationSubsystem::GetFontForLanguage(EGuideLanguage FontLanguage) const
 {
 	return UiLanguage::UsesCjkFont(FontLanguage) ? CjkFont.Get() : LatinFont.Get();
+}
+
+void UMenuLocalizationSubsystem::ApplyLanguageFont(UTextBlock& Text) const
+{
+	UFont* Font = GetFontForLanguage(Language);
+	if (!Font) return;
+	FSlateFontInfo Info = Text.GetFont();
+	Info.FontObject = Font;
+	Info.TypefaceFontName = NAME_None;
+	Text.SetFont(Info);
 }
 
 FText UMenuLocalizationSubsystem::GetProductText(const UObject* Product, FName Field, const FText& Fallback) const

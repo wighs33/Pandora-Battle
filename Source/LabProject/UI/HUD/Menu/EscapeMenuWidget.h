@@ -5,6 +5,7 @@
 #include "EscapeMenuWidget.generated.h"
 
 class UButton;
+class UTextBlock;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEscapeMenuClosedSignature, UEscapeMenuWidget*, EscapeMenuWidget);
 
@@ -43,6 +44,7 @@ protected:
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void ApplyMenuText() const;
 	void SetRequestedPause(bool bPaused);
 	void TravelToTitleMap();
 	void ClearDestroySessionDelegate();
@@ -57,6 +59,15 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!Menu|Bind")
 	TObjectPtr<UButton> Btn_Exit;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Menu|Bind")
+	TObjectPtr<UTextBlock> Txt_Title;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Menu|Bind")
+	TObjectPtr<UTextBlock> Txt_Resume;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Menu|Bind")
+	TObjectPtr<UTextBlock> Txt_Exit;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Menu|Exit")
 	bool bDestroySessionOnExit = true;
