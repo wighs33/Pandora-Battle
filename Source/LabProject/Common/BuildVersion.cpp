@@ -33,5 +33,10 @@ FString PdBuildVersion::GetDisplayString()
 	{
 		return Prefix + TEXT("dev");
 	}
+#if UE_BUILD_SHIPPING
+	// 배포 빌드는 플레이어가 읽기 쉽게 빌드 번호까지만 보여 준다. 빌드 번호는 master의 커밋 수라 커밋은 번호로 찾을 수 있다.
+	return FString::Printf(TEXT("%s#%d"), *Prefix, GetBuildNumber());
+#else
 	return FString::Printf(TEXT("%s#%d · %s"), *Prefix, GetBuildNumber(), *GetCommit());
+#endif
 }
