@@ -317,6 +317,23 @@ bool UOnlineSessionsSubsystem::RefreshSessionInterface()
 	return SessionInterface.IsValid();
 }
 
+// SteamNetDriver는 리슨 URL에 bIsLanMatch가 없으면 Steam 소켓으로 연다. -nosteam으로 실행하면 Steam 소켓을 만들 수 없어
+// 대기실이 열리자마자 리슨에 실패해 타이틀로 돌아가므로, LAN 방은 이 옵션으로 IP 소켓을 쓰게 한다.
+void UOnlineSessionsSubsystem::TravelToListenMap(const FString& MapName) const
+{
+	const FNamedOnlineSession* Session = SessionInterface.IsValid() ? SessionInterface->GetNamedSession(NAME_GameSession) : nullptr;
+	const bool bIsLanSession = Session ? Session->SessionSettings.bIsLANMatch : IsNullSubsystemActive();
+	const FString Options = bIsLanSession ? TEXT("listen?bIsLanMatch") : TEXT("listen");
+
+	UWorld* World = GetWorld();
+	if (World && World->GetNetMode() != NM_Client && World->GetNetDriver())
+	{
+		World->ServerTravel(FString::Printf(TEXT("%s?%s"), *MapName, *Options));
+		return;
+	}
+	UGameplayStatics::OpenLevel(World, FName(*MapName), true, Options);
+}
+
 // 플랫폼 없이 로컬 멀티플레이를 시험하는 NULL 서비스를 사용하는지 판단한다.
 bool UOnlineSessionsSubsystem::IsNullSubsystemActive() const
 {

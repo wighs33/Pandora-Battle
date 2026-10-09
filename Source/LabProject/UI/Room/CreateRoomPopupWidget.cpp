@@ -5,29 +5,10 @@
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Definition/Level/LevelDefinition.h"
-#include "Engine/World.h"
-#include "Kismet/GameplayStatics.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CreateRoomPopupWidget)
-
-namespace
-{
-	void TravelRoomToListenMap(const UObject* WorldContextObject, const FString& MapName)
-	{
-		if (UWorld* World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr)
-		{
-			if (World->GetNetMode() != NM_Client && World->GetNetDriver())
-			{
-				World->ServerTravel(FString::Printf(TEXT("%s?listen"), *MapName));
-				return;
-			}
-		}
-
-		UGameplayStatics::OpenLevel(WorldContextObject, FName(*MapName), true, TEXT("listen"));
-	}
-}
 
 void UCreateRoomPopupWidget::NativeConstruct()
 {
@@ -173,7 +154,12 @@ void UCreateRoomPopupWidget::OpenLobbyAsListenServer() const
 		return;
 	}
 
-	TravelRoomToListenMap(this, LobbyMapName);
+	if (const UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
+		: nullptr)
+	{
+		OnlineSessionsSubsystem->TravelToListenMap(LobbyMapName);
+	}
 }
 
 FString UCreateRoomPopupWidget::GetRoomNameInput() const

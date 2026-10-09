@@ -50,20 +50,6 @@ namespace
 	// 말풍선 폭에서 꼬리가 놓이는 위치. 꼬리 끝은 Luna 머리에 두고 몸통은 주로 왼쪽으로 커지므로,
 	// 폭을 다 채운 답(줄바꿈 420 + 여백)도 오른쪽 위 게임 설정 버튼 앞에서 끝난다.
 	constexpr float LunaSpeechTailFraction = 0.75f;
-
-	void TravelTitleToListenMap(const UObject* WorldContextObject, const FString& MapName)
-	{
-		if (UWorld* World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr)
-		{
-			if (World->GetNetMode() != NM_Client && World->GetNetDriver())
-			{
-				World->ServerTravel(FString::Printf(TEXT("%s?listen"), *MapName));
-				return;
-			}
-		}
-
-		UGameplayStatics::OpenLevel(WorldContextObject, FName(*MapName), true, TEXT("listen"));
-	}
 }
 
 void UTitleWidget::SetTitleCharacterMaterial(UMaterialInterface* Material)
@@ -803,7 +789,12 @@ void UTitleWidget::OpenLobbyAsListenServer() const
 	}
 
 	PdEditorTransaction::ResetIfContainsPieObjects();
-	TravelTitleToListenMap(this, LobbyMapName);
+	if (const UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
+		: nullptr)
+	{
+		OnlineSessionsSubsystem->TravelToListenMap(LobbyMapName);
+	}
 }
 
 void UTitleWidget::SetQuickMatchEnabled(const bool bEnabled) const

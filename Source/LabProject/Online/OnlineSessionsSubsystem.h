@@ -85,6 +85,12 @@ public:
 	/** 화면에 보이는 대기는 요청한 로컬 플레이어의 것이다. 취소 뒤 정리는 사용자 대기가 아니다. */
 	uint64 GetPendingUserRequestId(const ULocalPlayer* LocalPlayer) const;
 	bool IsUserRequestCancelable(uint64 RequestId) const;
+
+	/**
+	 * 방금 만든 방을 이 게임이 리슨 서버로 연다. 타이틀의 빠른 매칭과 방 만들기 팝업이 함께 쓴다.
+	 * LAN 방(Steam 없이 실행한 NULL 서비스 포함)은 Steam 소켓 대신 IP 소켓으로 열도록 bIsLanMatch를 붙인다.
+	 */
+	void TravelToListenMap(const FString& MapName) const;
 	bool IsSessionLifecyclePending() const { return ActiveSessionLifecycleOperation != ESessionLifecycleOperation::None; }
 
 	UFUNCTION(BlueprintCallable, Category = "!Online|Session")
