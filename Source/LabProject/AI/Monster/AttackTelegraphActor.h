@@ -36,6 +36,12 @@ struct LABPROJECT_API FAttackTelegraphSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Telegraph",
 		meta = (ClampMin = "1.0", ClampMax = "180.0", ForceUnits = "deg", EditCondition = "Shape == EAttackTelegraphShape::FrontCone"))
 	float HalfAngle = 30.0f;
+
+	/**
+	 * 발이 FeetLocation이고 반지름이 TargetRadius인 캐릭터가 부채꼴 장판 위에 서 있는지. 부채꼴 모양일 때만 참이 될 수 있다.
+	 * Origin은 장판이 놓이는 자리(GetMonsterOrigin)다. 캡슐이 가장자리에 걸쳐도 안으로 보고, 높이는 장판 데칼이 닿는 깊이까지만 본다.
+	 */
+	bool IsInsideFrontCone(const FTransform& Origin, const FVector& FeetLocation, float TargetRadius) const;
 };
 
 /**
@@ -58,6 +64,9 @@ public:
 	/** Monster가 AttackMontage를 재생할 때 장판을 띄운다. 모양이 없거나 몽타주에 피해 구간이 없으면 nullptr이다. */
 	static AAttackTelegraphActor* SpawnForAttack(ACharacter& Monster, const FAttackTelegraphSettings& Settings,
 		UMaterialInterface* Material, const UAnimMontage& AttackMontage, float PlayRate, AActor* Target);
+
+	/** 몬스터 앞쪽 장판이 놓이는 자리: 몬스터 발밑, 몬스터가 보는 방향. 서버의 피해 판정도 이 자리를 기준으로 한다. */
+	static FTransform GetMonsterOrigin(const AActor& Monster);
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "!AI|Monster|Telegraph")

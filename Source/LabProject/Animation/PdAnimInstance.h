@@ -28,6 +28,8 @@ protected:
 		bool bIsFalling = false;
 		bool bIsOnGround = true;
 		bool bIsCrouching = false;
+		bool bFullBodyMontageActive = false;
+		double WorldTimeSeconds = 0.0;
 		bool bIsValid = false;
 	};
 
@@ -51,6 +53,8 @@ protected:
 	void UpdateAcceleration(float DeltaSeconds);
 
 	void UpdateAimingData(const FGameThreadSnapshot& Snapshot);
+
+	void UpdateFullBodyLegBlend(const FGameThreadSnapshot& Snapshot);
 
 	void UpdateGrappleState();
 
@@ -101,6 +105,13 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States", meta = (DisplayName = "Is Grappling"))
 	bool bIsGrappling = false;
 
+	/**
+	 * 전신 몽타주(근접 콤보·피격)를 재생하며 움직일 때 다리에 걷기 모션을 섞는 정도(0~1).
+	 * AnimGraph의 FullBody 슬롯 뒤 다리 블렌드가 이 값으로 Locomotion의 다리를 덮어, 공격하며 움직여도 미끄러지지 않게 한다.
+	 */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
+	float FullBodyLegLocomotionAlpha = 0.f;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Aiming")
 	float AimYaw = 0.f;
 
@@ -115,5 +126,6 @@ private:
 	FVector3f PreviousVelocity = FVector3f::ZeroVector;
 	uint32 GameThreadSourceRevision = 0;
 	uint32 LastProcessedSourceRevision = 0;
+	double LastLegBlendWorldTime = -1.0;
 	bool bHasPreviousVelocity = false;
 };

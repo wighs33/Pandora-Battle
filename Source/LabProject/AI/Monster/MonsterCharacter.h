@@ -169,6 +169,9 @@ private:
 	bool ApplyMonsterDamageToCharacter(ACharacterBase* TargetCharacter);
 	void DeactivateDamageSphere();
 	void ActivateAttackSphere();
+	void ActivateTelegraphAreaDamage();
+	void ApplyTelegraphAreaDamage();
+	const FMonsterAttackPattern* FindAttackPattern(const UAnimMontage* AttackMontage) const;
 	void ApplyMonsterHealthDefaults();
 	void BeginMonsterContentPreload();
 	bool TryPlayMonsterAttackMontage();
@@ -276,6 +279,7 @@ protected:
 
 private:
 	FTimerHandle AttackSphereTimerHandle;
+	FTimerHandle TelegraphAreaTimerHandle;
 	FTimerHandle DeathDestroyTimerHandle;
 	FTimerHandle MinionSpawnTimerHandle;
 	FTimerHandle HitFlashTimerHandle;

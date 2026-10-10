@@ -1,3 +1,4 @@
+#include "AI/Monster/AttackTelegraphActor.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystem/AttributeSet/DamageRules.h"
 #include "AbilitySystem/Effects/EquipmentStatsEffect.h"
@@ -12,8 +13,8 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-// 게임 규칙 단위 테스트: 피해 계산, 경기 승패와 승리 골드, 최대 자원이 바뀔 때의 현재 자원 비율.
-// 훈련장 연결 테스트로는 만들기 어려운 경계값(치명타 확률 경계, NaN, 동점, 음수 점수, 가득 찬 자원)을 본다.
+// 게임 규칙 단위 테스트: 피해 계산, 경기 승패와 승리 골드, 최대 자원이 바뀔 때의 현재 자원 비율, 보스 부채꼴 장판의 피해 범위.
+// 훈련장 연결 테스트로는 만들기 어려운 경계값(치명타 확률 경계, NaN, 동점, 음수 점수, 가득 찬 자원, 장판 가장자리)을 본다.
 
 namespace
 {
@@ -190,6 +191,43 @@ bool FPdResourceRatioTest::RunTest(const FString& Parameters)
 		Test.ApplyEquipmentStats({{LabGameplayTags::Status_Defense_Armor, 10.f}});
 	}
 	TestEqual(TEXT("unrelated stat leaves health alone"), Test.GetHealth(), 50.f);
+	return true;
+}
+
+// 보스 브레스의 피해 범위가 화면에 그린 부채꼴 장판과 같은지 확인한다. 캡슐이 가장자리에 걸치면 맞고, 뒤·위·바깥은 맞지 않는다.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdFrontConeTelegraphTest, "LabProject.Unit.Rules.FrontConeTelegraph",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FPdFrontConeTelegraphTest::RunTest(const FString& Parameters)
+{
+	FAttackTelegraphSettings Cone;
+	Cone.Shape = EAttackTelegraphShape::FrontCone;
+	Cone.Radius = 1600.f;
+	Cone.HalfAngle = 30.f;
+	const FTransform Origin(FRotator::ZeroRotator, FVector(100.f, 200.f, 50.f));
+	const auto IsHit = [&Cone, &Origin](const FVector& Offset, const float CapsuleRadius = 40.f)
+	{
+		return Cone.IsInsideFrontCone(Origin, Origin.GetLocation() + Offset, CapsuleRadius);
+	};
+	const auto AtAngle = [](const float Degrees, const float Distance)
+	{
+		return FRotator(0.f, Degrees, 0.f).Vector() * Distance;
+	};
+
+	TestTrue(TEXT("straight ahead, beyond the old 4 m sphere"), IsHit(FVector(1000.f, 0.f, 0.f)));
+	TestTrue(TEXT("capsule touching the far rim"), IsHit(FVector(1630.f, 0.f, 0.f)));
+	TestFalse(TEXT("past the far rim"), IsHit(FVector(1700.f, 0.f, 0.f)));
+	TestTrue(TEXT("capsule straddling the side edge"), IsHit(AtAngle(32.f, 800.f)));
+	TestFalse(TEXT("clearly outside the side edge"), IsHit(AtAngle(45.f, 800.f)));
+	TestFalse(TEXT("behind the monster"), IsHit(FVector(-500.f, 0.f, 0.f)));
+	TestTrue(TEXT("standing on the monster's feet"), IsHit(FVector::ZeroVector));
+	TestFalse(TEXT("high above the telegraph"), IsHit(FVector(800.f, 0.f, 400.f)));
+
+	const FTransform TurnedOrigin(FRotator(0.f, 90.f, 0.f), Origin.GetLocation());
+	TestTrue(TEXT("follows the monster's facing"), Cone.IsInsideFrontCone(TurnedOrigin, Origin.GetLocation() + FVector(0.f, 1000.f, 0.f), 40.f));
+	TestFalse(TEXT("old forward is now the side"), Cone.IsInsideFrontCone(TurnedOrigin, Origin.GetLocation() + FVector(1000.f, 0.f, 0.f), 40.f));
+
+	Cone.Shape = EAttackTelegraphShape::TargetCircle;
+	TestFalse(TEXT("only cone telegraphs use the cone test"), IsHit(FVector(1000.f, 0.f, 0.f)));
 	return true;
 }
 

@@ -32,6 +32,19 @@ FVector GetFeetLocation(const AActor& Actor)
 }
 }
 
+bool FAttackTelegraphSettings::IsInsideFrontCone(const FTransform& Origin, const FVector& FeetLocation, const float TargetRadius) const
+{
+	const FVector Local = Origin.InverseTransformPositionNoScale(FeetLocation);
+	const float Distance = FVector2D(Local.X, Local.Y).Size();
+	if (Shape != EAttackTelegraphShape::FrontCone || FMath::Abs(Local.Z) > DecalDepth || Distance > Radius + TargetRadius)
+	{
+		return false;
+	}
+	// 부채꼴 밖이어도 옆 가장자리까지의 거리가 캡슐 반지름 안이면 걸친 것으로 본다.
+	const float DegreesOutside = FMath::RadiansToDegrees(FMath::Atan2(FMath::Abs(Local.Y), Local.X)) - HalfAngle;
+	return DegreesOutside <= 0.0f || Distance * FMath::Sin(FMath::DegreesToRadians(FMath::Min(DegreesOutside, 90.0f))) <= TargetRadius;
+}
+
 AAttackTelegraphActor::AAttackTelegraphActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -64,8 +77,9 @@ AAttackTelegraphActor* AAttackTelegraphActor::SpawnForAttack(ACharacter& Monster
 
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = &Monster;
+	const FTransform Origin = GetMonsterOrigin(Monster);
 	AAttackTelegraphActor* Telegraph = World->SpawnActor<AAttackTelegraphActor>(
-		GetFeetLocation(bOnTarget ? *Target : static_cast<const AActor&>(Monster)), FRotator(0.0f, Monster.GetActorRotation().Yaw, 0.0f), SpawnParameters);
+		bOnTarget ? GetFeetLocation(*Target) : Origin.GetLocation(), Origin.Rotator(), SpawnParameters);
 	if (!Telegraph)
 	{
 		return nullptr;
@@ -95,6 +109,11 @@ AAttackTelegraphActor* AAttackTelegraphActor::SpawnForAttack(ACharacter& Monster
 		Telegraph->AttachToActor(&Monster, FAttachmentTransformRules::KeepWorldTransform);
 	}
 	return Telegraph;
+}
+
+FTransform AAttackTelegraphActor::GetMonsterOrigin(const AActor& Monster)
+{
+	return FTransform(FRotator(0.0f, Monster.GetActorRotation().Yaw, 0.0f), GetFeetLocation(Monster));
 }
 
 // 멈출 때까지 대상 발밑을 따라간다.

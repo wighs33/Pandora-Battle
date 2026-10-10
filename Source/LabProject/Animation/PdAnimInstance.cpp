@@ -9,6 +9,16 @@
 #include "Weapon/WeaponBase.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdAnimInstance)
 
+namespace
+{
+	/** 전신 몽타주가 쓰는 AnimGraph 슬롯. */
+	const FName FullBodySlotName(TEXT("FullBody"));
+	/** 이보다 빠르게 움직일 때만 다리에 걷기 모션을 섞는다. 공격 모션의 작은 밀림에는 섞지 않는다. */
+	constexpr float LegLocomotionSpeedThreshold = 50.f;
+	/** 다리 블렌드가 0↔1을 오가는 초당 변화량. 약 0.15초에 다 바뀐다. */
+	constexpr float LegLocomotionBlendRate = 6.5f;
+}
+
 void UPdAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
@@ -68,6 +78,7 @@ void UPdAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 	UpdateMovementStates(Snapshot);
 	UpdateAcceleration(DeltaSeconds);
 	UpdateAimingData(Snapshot);
+	UpdateFullBodyLegBlend(Snapshot);
 }
 
 void UPdAnimInstance::AnimNotify_RedrawBow()
@@ -141,6 +152,8 @@ void UPdAnimInstance::CaptureGameThreadSnapshot()
 	NewSnapshot.bIsFalling = CharacterMovement->IsFalling();
 	NewSnapshot.bIsOnGround = CharacterMovement->IsMovingOnGround();
 	NewSnapshot.bIsCrouching = CharacterMovement->IsCrouching();
+	NewSnapshot.bFullBodyMontageActive = GetSlotMontageGlobalWeight(FullBodySlotName) > 0.f;
+	NewSnapshot.WorldTimeSeconds = Character->GetWorld()->GetTimeSeconds();
 
 	if (const ACharacterBase* PdCharacter = Cast<ACharacterBase>(Character))
 	{
@@ -174,6 +187,8 @@ void UPdAnimInstance::ResetThreadSafeAnimationData()
 
 	AimYaw = 0.f;
 	AimPitch = 0.f;
+	FullBodyLegLocomotionAlpha = 0.f;
+	LastLegBlendWorldTime = -1.0;
 
 	PreviousVelocity = FVector3f::ZeroVector;
 	bHasPreviousVelocity = false;
@@ -216,6 +231,17 @@ void UPdAnimInstance::UpdateAimingData(const FGameThreadSnapshot& Snapshot)
 {
 	AimYaw = Snapshot.AimYaw;
 	AimPitch = Snapshot.AimPitch;
+}
+
+// 블렌드는 월드 시간으로 진행한다. 리슨 서버의 원격 플레이어는 이동 RPC를 받을 때마다 짧게 갱신돼,
+// 애니메이션 DeltaSeconds의 합이 실제 시간보다 훨씬 작게 들어오기 때문이다.
+void UPdAnimInstance::UpdateFullBodyLegBlend(const FGameThreadSnapshot& Snapshot)
+{
+	const float Elapsed = LastLegBlendWorldTime < 0.0 ? 0.f : FMath::Clamp(static_cast<float>(Snapshot.WorldTimeSeconds - LastLegBlendWorldTime), 0.f, 0.1f);
+	LastLegBlendWorldTime = Snapshot.WorldTimeSeconds;
+	const bool bWalkingDuringFullBodyMontage = Snapshot.bFullBodyMontageActive && bIsOnGround && GroundSpeed > LegLocomotionSpeedThreshold;
+	FullBodyLegLocomotionAlpha = FMath::FInterpConstantTo(FullBodyLegLocomotionAlpha, bWalkingDuringFullBodyMontage ? 1.f : 0.f,
+		Elapsed, LegLocomotionBlendRate);
 }
 
 void UPdAnimInstance::UpdateGrappleState()

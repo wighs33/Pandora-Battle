@@ -20,6 +20,7 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "EngineUtils.h"
+#include "Engine/OverlapResult.h"
 #include "Engine/PostProcessVolume.h"
 #include "Definition/Item/RewardDefinition.h"
 #include "Engine/GameInstance.h"
@@ -56,6 +57,8 @@ namespace
 
 	/** 한꺼번에 죽은 시체를 이 범위 안에서 흩어 지운다. 디졸브가 끝난 뒤라 화면에는 차이가 없다. */
 	constexpr float CorpseDestroyJitterSeconds = 1.0f;
+	/** 부채꼴 장판 공격이 피해 구간 동안 범위를 다시 검사하는 간격. */
+	constexpr float TelegraphAreaCheckInterval = 0.1f;
 
 	const TCHAR* const MaxLeashPropertyName = TEXT("Max Leash Distance From Spawn Point");
 	const TCHAR* const MinLeashPropertyName = TEXT("Min Leash Distance From Spawn Point To Resume Roaming");
@@ -881,7 +884,15 @@ void AMonsterCharacter::HandleAttackDamageWindowEvent(const FGameplayEventData* 
 	}
 	if (Payload->EventTag == LabGameplayTags::Notifier_Attack_DamageWindowOpen)
 	{
-		ActivateAttackSphere();
+		const FMonsterAttackPattern* Attack = FindAttackPattern(CurrentAttackMontage.Get());
+		if (Attack && Attack->Telegraph.Shape == EAttackTelegraphShape::FrontCone)
+		{
+			ActivateTelegraphAreaDamage();
+		}
+		else
+		{
+			ActivateAttackSphere();
+		}
 	}
 	else
 	{
@@ -1046,17 +1057,69 @@ void AMonsterCharacter::ActivateAttackSphere()
 	}
 }
 
-// 공격 시간이 끝나거나 취소되면 충돌과 이번 공격의 타격 기록을 정리한다.
+// 공격 시간이 끝나거나 취소되면 충돌·장판 판정과 이번 공격의 타격 기록을 정리한다.
 void AMonsterCharacter::DeactivateAttackSphere()
 {
 	bAttackWindowOpen = false;
 	GetWorldTimerManager().ClearTimer(AttackSphereTimerHandle);
+	GetWorldTimerManager().ClearTimer(TelegraphAreaTimerHandle);
 	if (UPrimitiveComponent* Collision = AttackComponent.Get())
 	{
 		Collision->SetGenerateOverlapEvents(false);
 		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 	AttackHitActorsThisSwing.Reset();
+}
+
+// 부채꼴 장판으로 알린 공격(브레스)은 충돌 구 대신 장판과 같은 범위로 판정한다.
+// 피해 구간 동안 짧은 간격으로 다시 검사해, 구간 중에 장판으로 들어온 대상도 한 번 맞는다.
+void AMonsterCharacter::ActivateTelegraphAreaDamage()
+{
+	if (!HasAuthority() || bDying || !bMonsterAttackActive)
+	{
+		return;
+	}
+	AttackHitActorsThisSwing.Reset();
+	bAttackWindowOpen = true;
+	ApplyTelegraphAreaDamage();
+	GetWorldTimerManager().SetTimer(TelegraphAreaTimerHandle, this, &ThisClass::ApplyTelegraphAreaDamage, TelegraphAreaCheckInterval, true);
+}
+
+void AMonsterCharacter::ApplyTelegraphAreaDamage()
+{
+	const FMonsterAttackPattern* Attack = FindAttackPattern(CurrentAttackMontage.Get());
+	UWorld* World = GetWorld();
+	if (!bAttackWindowOpen || !Attack || !World)
+	{
+		return;
+	}
+	const FTransform Origin = AAttackTelegraphActor::GetMonsterOrigin(*this);
+	TArray<FOverlapResult> Overlaps;
+	World->OverlapMultiByObjectType(Overlaps, Origin.GetLocation(), FQuat::Identity, FCollisionObjectQueryParams(ECC_Pawn),
+		FCollisionShape::MakeSphere(Attack->Telegraph.Radius), FCollisionQueryParams(SCENE_QUERY_STAT(MonsterTelegraphArea), false, this));
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		ACharacterBase* Character = Cast<ACharacterBase>(Overlap.GetActor());
+		if (!Character || AttackHitActorsThisSwing.Contains(Character))
+		{
+			continue;
+		}
+		float CapsuleRadius = 0.0f;
+		float CapsuleHalfHeight = 0.0f;
+		Character->GetSimpleCollisionCylinder(CapsuleRadius, CapsuleHalfHeight);
+		const FVector Feet = Character->GetActorLocation() - FVector(0.0f, 0.0f, CapsuleHalfHeight);
+		if (Attack->Telegraph.IsInsideFrontCone(Origin, Feet, CapsuleRadius))
+		{
+			ApplyAttackDamageToCharacter(Character);
+		}
+	}
+}
+
+const FMonsterAttackPattern* AMonsterCharacter::FindAttackPattern(const UAnimMontage* AttackMontage) const
+{
+	return AttackMontage
+		? MonsterAttacks.FindByPredicate([AttackMontage](const FMonsterAttackPattern& Pattern) { return Pattern.Montage.Get() == AttackMontage; })
+		: nullptr;
 }
 
 // 발사체·무기 등에서 전달된 공격자 정보를 현재 공격에 해당하는 RewardPlayerState로 해석한다.
@@ -1107,9 +1170,7 @@ void AMonsterCharacter::MulticastPlayMonsterAttackMontage_Implementation(UAnimMo
 void AMonsterCharacter::ShowAttackTelegraph(const UAnimMontage* AttackMontage, const float PlayRate, AActor* Target)
 {
 	HideAttackTelegraph();
-	const FMonsterAttackPattern* Attack = AttackMontage
-		? MonsterAttacks.FindByPredicate([AttackMontage](const FMonsterAttackPattern& Pattern) { return Pattern.Montage.Get() == AttackMontage; })
-		: nullptr;
+	const FMonsterAttackPattern* Attack = FindAttackPattern(AttackMontage);
 	if (Attack && !bDying && GetNetMode() != NM_DedicatedServer)
 	{
 		ActiveTelegraph = AAttackTelegraphActor::SpawnForAttack(*this, Attack->Telegraph, AttackTelegraphMaterial, *AttackMontage, PlayRate, Target);

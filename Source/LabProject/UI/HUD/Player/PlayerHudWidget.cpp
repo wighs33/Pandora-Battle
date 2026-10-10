@@ -114,15 +114,15 @@ bool UPlayerHudWidget::RefreshAchievementAvatar()
 	{
 		return false;
 	}
-	if (!AchievementSubsystem->IsSteamAchievementQueryComplete())
-	{
-		AchievementSubsystem->RequestSteamAchievementQuery();
-	}
+	// 조회가 진행 중이면 결과 알림 때 다시 그린다. Steam이 없으면 요청 자체가 실패한다.
+	const bool bSteamQueryPending = !AchievementSubsystem->IsSteamAchievementQueryComplete()
+		&& AchievementSubsystem->RequestSteamAchievementQuery();
 	if (!AchievementSubsystem->HasSteamAchievementData())
 	{
-#if WITH_EDITOR
-		// 로컬 HUD 임시 미리보기다. 프로필 업적을 해금하거나 선택하지 않는다.
-		if (PlayerAvatarImage && GetWorld() && GetWorld()->IsPlayInEditor())
+#if !UE_BUILD_SHIPPING
+		// Steam 업적을 읽을 수 없는 로컬 실행(에디터, -game, -nosteam 개발 빌드)은 기본 업적(첫 항목)을 미리보기로 보여 준다.
+		// 프로필 업적을 해금하거나 선택하지는 않는다. 배포 빌드는 늘 Steam으로 실행되므로 넣지 않는다.
+		if (PlayerAvatarImage && !bSteamQueryPending)
 		{
 			const UAchievementDefinition* PreviewDefinition = AchievementSubsystem->GetAchievementDefinition();
 			if (PreviewDefinition && !PreviewDefinition->Achievements.IsEmpty())
