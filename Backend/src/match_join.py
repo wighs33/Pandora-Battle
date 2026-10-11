@@ -9,6 +9,7 @@ session_timeout을 돌려주고 클라이언트가 같은 요청을 다시 보�
 요청 본문의 mode로 세션 종류를 나누고, 같은 값을 게임 속성 mode에 넣어 검색과 서버 분기에 쓴다.
 - match(기본): 로비에서 인원을 모아 한 경기를 하는 PvP 세션. 경기가 시작되면 서버가 새 참가를 막는다.
 - bossraid: 경기 끝 없이 들어오고 나가는 보스 레이드. 서버는 레이드 맵을 연 뒤에 세션을 활성화한다.
+  운영자가 연 동안에만 받고(boss_raid.py), 닫으면 새 참가만 막는다. 이미 들어간 플레이어는 나갈 때까지 계속한다.
 
 동시에 여러 명이 빈 서버에 요청하면 각자 새 세션을 만들 수 있다. 인원을 모아 한 세션에 넣는 일은
 FlexMatch로 옮길 때 해결한다(Docs/GameLift_Backend.md 참고).
@@ -18,6 +19,7 @@ import json
 import os
 import time
 
+from boss_raid import is_boss_raid_open
 from common import ApiError, api_handler, aws_client, json_response, parse_json_body, require_player
 
 # Lambda 제한(29초) 안에서 기다린다. 보스 레이드 세션은 서버가 맵을 연 뒤 활성화하므로 경기 세션보다 오래 걸린다.
@@ -169,6 +171,8 @@ def join_or_create(
 def handler(event, context):
     claims = require_player(event)
     mode = read_mode(parse_json_body(event))
+    if mode == BOSS_RAID_MODE and not is_boss_raid_open(aws_client("dynamodb"), os.environ["TABLE_NAME"]):
+        raise ApiError(403, "bossraid_closed", "Boss raid is not open right now.")
     fleet_id = os.environ.get("GAMELIFT_FLEET_ID", "")
     if not fleet_id:
         raise ApiError(503, "fleet_not_configured", "GameLift fleet is not configured for this stage.")

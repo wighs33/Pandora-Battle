@@ -61,6 +61,8 @@ private:
 	void HandleBossRaidRequested();
 	UFUNCTION()
 	void HandleBossRaidJoinFinished(bool bSucceeded, const FString& ErrorMessage);
+	UFUNCTION()
+	void HandleBossRaidStatusUpdated(bool bOpen);
 	/** 백엔드는 PvP 참가(pd.Backend.JoinMatch)도 알리므로, 여기서 보낸 요청에만 답한다. */
 	bool bBossRaidJoinPending = false;
 	FTimerHandle TitleBlinkTimer;

@@ -138,6 +138,9 @@ Resources:
                 - gamelift:CreatePlayerSession
               Resource: '*'
             - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt GameTable.Arn
+            - Effect: Allow
               Action: ssm:GetParameter
               Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/token-signing-key
       Events:
@@ -168,6 +171,25 @@ Resources:
             ApiId: !Ref HttpApi
             Method: GET
             Path: /player/me
+
+  # No login needed: the title screen asks before the player logs in. Backend/bossraid.ps1 opens and closes the raid.
+  BossRaidStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: boss_raid.handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt GameTable.Arn
+      Events:
+        Status:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /bossraid/status
 
   # Game servers only. API Gateway verifies the SigV4 signature, so a client session token cannot call it.
   MatchResultFunction:

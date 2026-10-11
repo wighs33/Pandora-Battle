@@ -102,6 +102,7 @@ struct FBackendPlayerProfile
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBackendRequestFinished, bool, bSucceeded, const FString&, ErrorMessage);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBackendProfileReceived, bool, bSucceeded, const FBackendPlayerProfile&, Profile);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBackendBossRaidStatus, bool, bOpen);
 
 /**
  * 클라이언트의 백엔드 로그인, GameLift 매치 참가, 전적 조회를 담당한다.
@@ -138,6 +139,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Backend")
 	void RequestMyProfile();
 
+	/** 보스 레이드가 지금 열려 있는지 묻는다. 운영자가 백엔드에서 열고 닫으며, 로그인 없이 물을 수 있다. */
+	UFUNCTION(BlueprintCallable, Category = "Backend")
+	void RequestBossRaidStatus();
+
+	/** 마지막으로 받은 보스 레이드 개최 여부. 아직 받지 못했으면 닫힌 것으로 본다. */
+	UFUNCTION(BlueprintPure, Category = "Backend")
+	bool IsBossRaidOpen() const { return bBossRaidOpen; }
+
 	/** GameLift 없이 로컬 전용 서버로 전적 기록을 시험한다. 서버는 이 경로의 PlayerId를 검증하지 않는다. */
 	void ConnectToLocalServer(const FString& Address);
 
@@ -164,6 +173,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Backend")
 	FOnBackendProfileReceived OnProfileReceived;
 
+	/** 개최 여부를 받았을 때와, 레이드가 닫혀 참가가 거절됐을 때 알린다. */
+	UPROPERTY(BlueprintAssignable, Category = "Backend")
+	FOnBackendBossRaidStatus OnBossRaidStatusUpdated;
+
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void SendLoginRequest(const TCHAR* Path, const TSharedRef<FJsonObject>& Body);
@@ -173,6 +186,8 @@ private:
 	void HandleMatchJoinResponse(const PdBackendHttp::FResponse& Response);
 	void FinishMatchJoin(bool bSucceeded, const FString& ErrorMessage);
 	void HandleProfileResponse(const PdBackendHttp::FResponse& Response);
+	void HandleBossRaidStatusResponse(const PdBackendHttp::FResponse& Response);
+	void SetBossRaidOpen(bool bOpen);
 	void HandleUnauthorized();
 	FString ResolveSteamDisplayName() const;
 	APlayerController* GetLocalPlayerController() const;
@@ -185,4 +200,5 @@ private:
 	bool bMatchJoinInProgress = false;
 	int32 MatchJoinTimeoutRetries = 0;
 	EOnlineMatchMode PendingMatchMode = EOnlineMatchMode::Match;
+	bool bBossRaidOpen = false;
 };

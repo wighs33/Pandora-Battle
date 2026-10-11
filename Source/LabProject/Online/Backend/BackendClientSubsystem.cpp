@@ -283,6 +283,11 @@ void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResp
 	}
 	if (!Response.bSucceeded)
 	{
+		if (Response.ErrorCode == TEXT("bossraid_closed"))
+		{
+			// 타이틀에서 개최 여부를 받은 뒤에 레이드가 닫혔다.
+			SetBossRaidOpen(false);
+		}
 		FinishMatchJoin(false, FString::Printf(TEXT("%s: %s"), *Response.ErrorCode, *Response.ErrorMessage));
 		return;
 	}
@@ -389,6 +394,39 @@ void UBackendClientSubsystem::HandleProfileResponse(const PdBackendHttp::FRespon
 		*Profile.DisplayName, *Profile.PlayerId, Profile.Stats.Matches, Profile.Stats.Wins, Profile.Stats.Losses,
 		Profile.Stats.Draws, Profile.Stats.Kills, Profile.Stats.Deaths, Profile.RecentMatches.Num());
 	OnProfileReceived.Broadcast(true, Profile);
+}
+
+void UBackendClientSubsystem::RequestBossRaidStatus()
+{
+	const UBackendSettings* Settings = GetDefault<UBackendSettings>();
+	const FString Url = Settings->BuildApiUrl(TEXT("/bossraid/status"));
+	if (Url.IsEmpty())
+	{
+		UE_LOG(LogBackendClient, Warning, TEXT("Boss raid status request needs ApiBaseUrl."));
+		return;
+	}
+
+	PdBackendHttp::Send(
+		PdBackendHttp::CreateJsonRequest(TEXT("GET"), Url, nullptr, Settings->GetClientRequestTimeoutSeconds()),
+		PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleBossRaidStatusResponse));
+}
+
+// 답을 받지 못하면 마지막 값을 그대로 둔다. 참가 요청은 백엔드가 다시 확인한다.
+void UBackendClientSubsystem::HandleBossRaidStatusResponse(const PdBackendHttp::FResponse& Response)
+{
+	bool bOpen = false;
+	if (!Response.bSucceeded || !Response.Json.IsValid() || !Response.Json->TryGetBoolField(TEXT("open"), bOpen))
+	{
+		UE_LOG(LogBackendClient, Warning, TEXT("Boss raid status request failed. %s: %s"), *Response.ErrorCode, *Response.ErrorMessage);
+		return;
+	}
+	SetBossRaidOpen(bOpen);
+}
+
+void UBackendClientSubsystem::SetBossRaidOpen(const bool bOpen)
+{
+	bBossRaidOpen = bOpen;
+	OnBossRaidStatusUpdated.Broadcast(bOpen);
 }
 
 void UBackendClientSubsystem::ConnectToLocalServer(const FString& Address)

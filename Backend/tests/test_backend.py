@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import common  # noqa: E402
 from auth import verify_steam_ticket  # noqa: E402
+from boss_raid import is_boss_raid_open  # noqa: E402
 from common import ApiError  # noqa: E402
 from match_join import join_or_create, read_mode  # noqa: E402
 from match_result import build_transaction, is_duplicate_report, validate_report  # noqa: E402
@@ -275,6 +276,24 @@ class MatchJoinTests(unittest.TestCase):
         with self.assertRaises(ApiError) as context:
             self.join(FakeGameLift([], statuses=("ERROR",)))
         self.assertEqual(context.exception.code, "session_failed")
+
+
+class FakeConfigTable:
+    def __init__(self, items):
+        self.items = items
+
+    def get_item(self, TableName, Key):
+        item = self.items.get((Key["PK"]["S"], Key["SK"]["S"]))
+        return {"Item": item} if item else {}
+
+
+class BossRaidStatusTests(unittest.TestCase):
+    def test_closed_until_the_config_item_opens_it(self):
+        self.assertFalse(is_boss_raid_open(FakeConfigTable({}), "labproject-test"))
+        closed = {("CONFIG", "BOSSRAID"): {"Open": {"BOOL": False}}}
+        self.assertFalse(is_boss_raid_open(FakeConfigTable(closed), "labproject-test"))
+        opened = {("CONFIG", "BOSSRAID"): {"Open": {"BOOL": True}}}
+        self.assertTrue(is_boss_raid_open(FakeConfigTable(opened), "labproject-test"))
 
 
 class PlayerProfileTests(unittest.TestCase):

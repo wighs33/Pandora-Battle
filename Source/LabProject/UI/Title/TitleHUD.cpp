@@ -37,6 +37,7 @@ namespace
 	const FName LunaChatUnavailableKey(TEXT("Title.LunaChatUnavailable"));
 	const FName BossRaidJoiningKey(TEXT("Title.BossRaidJoining"));
 	const FName BossRaidFailedKey(TEXT("Title.BossRaidFailed"));
+	const FName BossRaidClosedKey(TEXT("Title.BossRaidClosed"));
 }
 
 ATitleHUD::ATitleHUD(const FObjectInitializer& ObjectInitializer)
@@ -216,6 +217,10 @@ void ATitleHUD::BindBossRaid()
 	if (!TitleWidget || !Backend) return;
 	TitleWidget->OnBossRaidRequested().AddUObject(this, &ATitleHUD::HandleBossRaidRequested);
 	Backend->OnMatchJoinFinished.AddUniqueDynamic(this, &ATitleHUD::HandleBossRaidJoinFinished);
+	Backend->OnBossRaidStatusUpdated.AddUniqueDynamic(this, &ATitleHUD::HandleBossRaidStatusUpdated);
+	// 운영자가 백엔드에서 열고 닫으므로 타이틀에 올 때마다 다시 묻는다. 답이 오기 전에는 지난번에 받은 값을 보여 준다.
+	TitleWidget->SetBossRaidOpen(Backend->IsBossRaidOpen());
+	Backend->RequestBossRaidStatus();
 }
 
 void ATitleHUD::UnbindBossRaid()
@@ -224,6 +229,7 @@ void ATitleHUD::UnbindBossRaid()
 	if (UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance()))
 	{
 		Backend->OnMatchJoinFinished.RemoveDynamic(this, &ATitleHUD::HandleBossRaidJoinFinished);
+		Backend->OnBossRaidStatusUpdated.RemoveDynamic(this, &ATitleHUD::HandleBossRaidStatusUpdated);
 	}
 	bBossRaidJoinPending = false;
 }
@@ -233,7 +239,7 @@ void ATitleHUD::HandleBossRaidRequested()
 	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
 	if (!TitleWidget || !Backend || Backend->IsMatchJoinInProgress()) return;
 	bBossRaidJoinPending = true;
-	TitleWidget->SetBossRaidEnabled(false);
+	TitleWidget->SetBossRaidJoining(true);
 	ShowLunaChatText(GetLunaChatLine(BossRaidJoiningKey,
 		NSLOCTEXT("TitleHUD", "BossRaidJoining", "Let me find you a spot in the boss raid...")), true);
 	// 필요하면 먼저 로그인한다. 실패는 이 호출이 돌아오기 전에 알려질 수 있다.
@@ -247,12 +253,21 @@ void ATitleHUD::HandleBossRaidJoinFinished(const bool bSucceeded, const FString&
 	// 성공하면 클라이언트는 이미 레이드 맵으로 이동 중이고, 타이틀은 이 레벨과 함께 닫힌다.
 	if (bSucceeded) return;
 
-	if (TitleWidget) TitleWidget->SetBossRaidEnabled(true);
-	const FText Line = GetLunaChatLine(BossRaidFailedKey,
-		NSLOCTEXT("TitleHUD", "BossRaidFailed", "I couldn't reach the boss raid. Please try again in a moment."));
+	if (TitleWidget) TitleWidget->SetBossRaidJoining(false);
+	// 그사이 레이드가 닫혔으면 다시 시도해 보라는 대신 열리지 않았다고 알린다.
+	const UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
+	const FText Line = Backend && !Backend->IsBossRaidOpen()
+		? GetLunaChatLine(BossRaidClosedKey, NSLOCTEXT("TitleHUD", "BossRaidClosed", "Not open yet."))
+		: GetLunaChatLine(BossRaidFailedKey,
+			NSLOCTEXT("TitleHUD", "BossRaidFailed", "I couldn't reach the boss raid. Please try again in a moment."));
 	ShowLunaChatText(Line, true);
 	GetWorldTimerManager().SetTimer(TitleSpeechTimer, this, &ATitleHUD::HideTitleSpeech,
 		FMath::Max(ChatReplyMinDuration, Line.ToString().Len() * ChatReplySecondsPerCharacter), false);
+}
+
+void ATitleHUD::HandleBossRaidStatusUpdated(const bool bOpen)
+{
+	if (TitleWidget) TitleWidget->SetBossRaidOpen(bOpen);
 }
 
 void ATitleHUD::HandleLunaQuestion(const FString& Question)

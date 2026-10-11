@@ -130,25 +130,31 @@ void UTitleWidget::NativeOnInitialized()
 	}
 }
 
-void UTitleWidget::SetBossRaidEnabled(const bool bEnabled) const
+void UTitleWidget::SetBossRaidOpen(const bool bOpen)
 {
-	if (Btn_BossRaid)
-	{
-		Btn_BossRaid->SetIsEnabled(bEnabled && LabGameSession::bBossRaidOpen);
-	}
+	bBossRaidOpen = bOpen;
+	ApplyBossRaidAvailability();
 }
 
-// 보스 레이드가 닫힌 빌드에서는 버튼을 끄고, 마우스를 올리면 아직 열리지 않았다고 알린다.
+void UTitleWidget::SetBossRaidJoining(const bool bJoining)
+{
+	bBossRaidJoining = bJoining;
+	ApplyBossRaidAvailability();
+}
+
+// 보스 레이드가 닫혀 있으면 버튼을 끄고, 마우스를 올리면 아직 열리지 않았다고 알린다.
 // 기반 클래스가 언어를 바꿀 때 툴팁 연결(버튼 이름)을 다시 적용하므로, 그 뒤에 다시 덮어쓴다.
 void UTitleWidget::ApplyBossRaidAvailability()
 {
-	if (!Btn_BossRaid || LabGameSession::bBossRaidOpen)
+	if (!Btn_BossRaid)
 	{
 		return;
 	}
-	Btn_BossRaid->SetIsEnabled(false);
-	SetHoverTooltip(Btn_BossRaid, MenuTextOrFallback(BossRaidClosedKey,
-		NSLOCTEXT("TitleWidget", "BossRaidClosed", "Not open yet.")));
+	Btn_BossRaid->SetIsEnabled(bBossRaidOpen && !bBossRaidJoining);
+	const FName* OpenTooltipKey = MenuTooltipBindings.Find(Btn_BossRaid->GetFName());
+	SetHoverTooltip(Btn_BossRaid, !bBossRaidOpen
+		? MenuTextOrFallback(BossRaidClosedKey, NSLOCTEXT("TitleWidget", "BossRaidClosed", "Not open yet."))
+		: OpenTooltipKey ? MenuText(*OpenTooltipKey) : FText::GetEmpty());
 }
 
 void UTitleWidget::NativeConstruct()

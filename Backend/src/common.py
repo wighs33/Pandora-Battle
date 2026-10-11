@@ -196,10 +196,14 @@ def require_player(event, secret=None):
 
 
 # DynamoDB 키 ---------------------------------------------------------------------------------------------------------
-# 한 테이블에 플레이어 프로필, 플레이어별 경기 기록, 경기 결과를 함께 둔다.
+# 한 테이블에 플레이어 프로필, 플레이어별 경기 기록, 경기 결과와 운영 설정을 함께 둔다.
 #   PK=PLAYER#<id>  SK=PROFILE                     프로필과 누적 전적
 #   PK=PLAYER#<id>  SK=MATCH#<기록 시각>#<경기 ID>   플레이어별 경기 기록(최신순 조회)
 #   PK=MATCH#<id>   SK=RESULT                      경기 전체 결과(중복 보고 방지)
+#   PK=CONFIG       SK=BOSSRAID                    보스 레이드 개최 여부(Open). Backend/bossraid.ps1로 바꾼다.
+
+CONFIG_PK = "CONFIG"
+BOSS_RAID_SK = "BOSSRAID"
 
 def player_pk(player_id):
     return "PLAYER#" + player_id

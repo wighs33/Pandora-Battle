@@ -48,8 +48,10 @@ public:
 
 	/** 플레이어가 보스 레이드를 눌렀다. 타이틀 HUD가 백엔드에 레이드 자리(보스 레이드 세션)를 요청한다. */
 	FOnBossRaidRequested& OnBossRaidRequested() { return BossRaidRequested; }
-	/** 백엔드가 자리를 잡는 동안 꺼서 요청이 두 번 가지 않게 한다. */
-	void SetBossRaidEnabled(bool bEnabled) const;
+	/** 백엔드가 알려 준 개최 여부. 닫혀 있으면 버튼을 끄고, 마우스를 올리면 아직 열리지 않았다고 알린다. */
+	void SetBossRaidOpen(bool bOpen);
+	/** 백엔드가 자리를 잡는 동안 버튼을 꺼서 요청이 두 번 가지 않게 한다. */
+	void SetBossRaidJoining(bool bJoining);
 
 protected:
 	virtual void OnMenuLanguageChanged() override;
@@ -222,4 +224,6 @@ private:
 	FName LunaSpeechKey;
 	FOnLunaQuestionSubmitted LunaQuestionSubmitted;
 	FOnBossRaidRequested BossRaidRequested;
+	bool bBossRaidOpen = false;
+	bool bBossRaidJoining = false;
 };
