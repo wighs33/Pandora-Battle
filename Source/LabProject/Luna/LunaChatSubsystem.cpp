@@ -50,6 +50,12 @@ namespace
 	/** 답할 때 넣는 가이드 절 수. 절 하나가 200~800자라 두 개면 질문 대부분을 덮으면서 프롬프트가 짧게 유지된다. */
 	constexpr int32 MaxGuideSections = 2;
 
+	/**
+	 * 절 고르기 응답의 토큰 한도. 스키마로 고정해도 모델이 JSON 사이에 줄바꿈과 공백을 넣어, 번호 한두 개에 61토큰까지 썼다.
+	 * 32에서는 한국어 질문 14개 중 4개가 잘려 가이드 없이 답했다. 한도는 끝까지 쓰지 않으므로 넉넉히 둔다.
+	 */
+	constexpr int32 MaxSectionChoiceTokens = 128;
+
 	/** 절 고르기 응답을 번호 배열로 고정하는 JSON 스키마(Ollama의 format) */
 	const TCHAR* GuideSectionSchema = TEXT("{\"type\":\"object\",\"properties\":{\"sections\":{\"type\":\"array\",\"items\":{\"type\":\"integer\"}}},\"required\":[\"sections\"]}");
 
@@ -457,7 +463,7 @@ TSharedRef<FJsonObject> ULunaChatSubsystem::BuildSectionRequestBody(const FStrin
 	FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(GuideSectionSchema), Schema);
 	const TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
 	Body->SetArrayField(TEXT("messages"), {MakeMessage(TEXT("system"), Prompt), MakeMessage(TEXT("user"), Question)});
-	ApplyGenerationOptions(*Body, false, 0.0, 32, Schema);
+	ApplyGenerationOptions(*Body, false, 0.0, MaxSectionChoiceTokens, Schema);
 	return Body;
 }
 
