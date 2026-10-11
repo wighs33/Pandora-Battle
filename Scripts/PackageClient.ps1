@@ -5,7 +5,7 @@
 .DESCRIPTION
     런처 엔진의 UAT BuildCookRun으로 빌드 → 쿡 → 스테이징 → pak → 패키지 → 보관까지 한다.
     결과는 -ArchiveDir에 남고, UAT 로그는 ArchiveDir\Logs로 복사한다.
-    Shipping에서는 보스 레이드 버튼이 닫힌다(LabGameSession::bBossRaidOpen).
+    보스 레이드 버튼은 빌드 설정과 관계없이 백엔드의 개최 여부를 따른다(Backend/bossraid.ps1).
     Shipping은 배포용(-distribution)으로 만들어 pak을 더 높은 Oodle 레벨(PackageCompressionLevel_Distribution)로 압축한다.
     에디터 패키징처럼(IncludePrerequisites) VC++ 런타임 설치 파일을 넣어(-prereqs), 런타임이 없는 PC에서는 게임을 켤 때 그 설치를 먼저 띄운다.
 
