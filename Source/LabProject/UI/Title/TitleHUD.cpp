@@ -37,7 +37,7 @@ namespace
 	const FName LunaChatUnavailableKey(TEXT("Title.LunaChatUnavailable"));
 	const FName BossRaidJoiningKey(TEXT("Title.BossRaidJoining"));
 	const FName BossRaidFailedKey(TEXT("Title.BossRaidFailed"));
-	const FName BossRaidClosedKey(TEXT("Title.BossRaidClosed"));
+	const FName BossRaidClosedLineKey(TEXT("Title.BossRaidClosed"));
 }
 
 ATitleHUD::ATitleHUD(const FObjectInitializer& ObjectInitializer)
@@ -257,7 +257,7 @@ void ATitleHUD::HandleBossRaidJoinFinished(const bool bSucceeded, const FString&
 	// 그사이 레이드가 닫혔으면 다시 시도해 보라는 대신 열리지 않았다고 알린다.
 	const UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
 	const FText Line = Backend && !Backend->IsBossRaidOpen()
-		? GetLunaChatLine(BossRaidClosedKey, NSLOCTEXT("TitleHUD", "BossRaidClosed", "Not open yet."))
+		? GetLunaChatLine(BossRaidClosedLineKey, NSLOCTEXT("TitleHUD", "BossRaidClosed", "Not open yet."))
 		: GetLunaChatLine(BossRaidFailedKey,
 			NSLOCTEXT("TitleHUD", "BossRaidFailed", "I couldn't reach the boss raid. Please try again in a moment."));
 	ShowLunaChatText(Line, true);
