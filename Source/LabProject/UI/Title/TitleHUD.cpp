@@ -192,6 +192,8 @@ void ATitleHUD::BindLunaChat()
 	TitleWidget->OnLunaQuestionSubmitted().AddUObject(this, &ATitleHUD::HandleLunaQuestion);
 	LunaReplyUpdatedHandle = Luna->OnReplyUpdated().AddUObject(this, &ATitleHUD::HandleLunaReplyUpdated);
 	LunaReplyFinishedHandle = Luna->OnReplyFinished().AddUObject(this, &ATitleHUD::HandleLunaReplyFinished);
+	// 함께 배포한 모델이 있으면 타이틀에 머무는 동안만 서버를 띄워 둔다.
+	Luna->PrepareModel();
 }
 
 void ATitleHUD::UnbindLunaChat()
@@ -201,8 +203,8 @@ void ATitleHUD::UnbindLunaChat()
 	{
 		Luna->OnReplyUpdated().Remove(LunaReplyUpdatedHandle);
 		Luna->OnReplyFinished().Remove(LunaReplyFinishedHandle);
-		// 아직 스트리밍 중인 답을 보여 줄 대상이 없다.
-		Luna->CancelReply();
+		// 스트리밍 중인 답을 보여 줄 대상이 없어지고, 타이틀 밖에서는 모델이 쓰는 메모리를 돌려준다.
+		Luna->ReleaseModel();
 	}
 	LunaReplyUpdatedHandle.Reset();
 	LunaReplyFinishedHandle.Reset();

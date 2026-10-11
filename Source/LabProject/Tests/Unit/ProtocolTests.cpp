@@ -5,7 +5,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 // 외부 서비스와 주고받는 형식의 단위 테스트: 전용 서버가 경기 결과를 보고할 때 쓰는 AWS SigV4 서명과
-// Luna 채팅의 Ollama 스트리밍 응답 해석. 실제 서비스 없이는 연결 테스트로 볼 수 없어 공개 벡터와 바이트 단위 입력으로 본다.
+// Luna 채팅의 모델 서버(Ollama, 함께 배포한 llama-server) 스트리밍 응답 해석. 실제 서비스 없이는 연결 테스트로 볼 수 없어 공개 벡터와 바이트 단위 입력으로 본다.
 
 namespace
 {
@@ -36,6 +36,13 @@ namespace
 	{
 		return FString::Printf(TEXT("{\"model\":\"test\",\"message\":{\"role\":\"assistant\",\"content\":\"%s\"},\"done\":%s}\n"),
 			*Content, bDone ? TEXT("true") : TEXT("false"));
+	}
+
+	/** llama-server(OpenAI 호환)의 SSE 한 덩어리. 실제 서버처럼 이벤트마다 빈 줄을 둔다. */
+	FString LunaSseChunk(const FString& Content)
+	{
+		return FString::Printf(TEXT("data: {\"choices\":[{\"finish_reason\":null,\"index\":0,\"delta\":{\"content\":\"%s\"}}],\"object\":\"chat.completion.chunk\"}\n\n"),
+			*Content);
 	}
 
 	const FAwsCredentials ExampleCredentials{
@@ -143,7 +150,55 @@ bool FPdLunaStreamTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-// Luna가 답에 넣을 가이드 절: "[ 제목 ]" 줄로 나눈 절과, Ollama 구조화 출력으로 받은 절 번호 해석을 확인한다.
+// 함께 배포한 llama-server의 응답: "data: " 접두사가 붙은 SSE 줄, 내용이 null인 첫 조각, finish_reason과 [DONE], 오류 객체를 읽는다.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLunaOpenAiStreamTest, "LabProject.Unit.Protocol.LunaOpenAiStream",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FPdLunaOpenAiStreamTest::RunTest(const FString& Parameters)
+{
+	const FString RoleChunk = TEXT("data: {\"choices\":[{\"finish_reason\":null,\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null}}]}\n\n");
+	const FString StopChunk = TEXT("data: {\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"delta\":{}}]}\n\n");
+	const FString TimingsChunk = TEXT("data: {\"choices\":[],\"timings\":{\"predicted_n\":9}}\n\n");
+	const TArray<uint8> Stream = Utf8Bytes(RoleChunk + LunaSseChunk(TEXT("안녕하세요, ")) + LunaSseChunk(TEXT("루나예요.")) + StopChunk
+		+ TimingsChunk + TEXT("data: [DONE]\n\n"));
+
+	LunaChat::FStreamParser Parser;
+	FString Content;
+	bool bDone = false;
+	FString Error;
+	bool bDoneBeforeLastChunk = false;
+	for (int32 Index = 0; Index < Stream.Num(); ++Index)
+	{
+		Parser.Append(MakeArrayView(&Stream[Index], 1));
+		Parser.Consume(Content, bDone, Error);
+		bDoneBeforeLastChunk |= bDone && Content != TEXT("안녕하세요, 루나예요.");
+	}
+	TestEqual(TEXT("content"), Content, FString(TEXT("안녕하세요, 루나예요.")));
+	TestTrue(TEXT("done"), bDone);
+	TestFalse(TEXT("not done before the text arrived"), bDoneBeforeLastChunk);
+	TestTrue(TEXT("no error"), Error.IsEmpty());
+
+	// [DONE]만으로도 끝난다.
+	LunaChat::FStreamParser DoneParser;
+	FString DoneContent;
+	bool bOnlyDone = false;
+	FString DoneError;
+	DoneParser.Append(Utf8Bytes(LunaSseChunk(TEXT("끝")) + TEXT("data: [DONE]")));
+	DoneParser.Flush(DoneContent, bOnlyDone, DoneError);
+	TestEqual(TEXT("flushed content"), DoneContent, FString(TEXT("끝")));
+	TestTrue(TEXT("[DONE] ends the stream"), bOnlyDone);
+
+	// OpenAI 호환 서버는 오류를 {"error":{"message":...}} 객체로 보낸다.
+	LunaChat::FStreamParser ErrorParser;
+	FString ErrorContent;
+	bool bErrorDone = false;
+	FString ServerError;
+	ErrorParser.Append(Utf8Bytes(TEXT("{\"error\":{\"code\":400,\"message\":\"context too long\",\"type\":\"invalid_request_error\"}}\n")));
+	ErrorParser.Consume(ErrorContent, bErrorDone, ServerError);
+	TestEqual(TEXT("server error object"), ServerError, FString(TEXT("context too long")));
+	return true;
+}
+
+// Luna가 답에 넣을 가이드 절: "[ 제목 ]" 줄로 나눈 절과, 구조화 출력으로 받은 절 번호 해석을 확인한다.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLunaGuideSectionTest, "LabProject.Unit.Protocol.LunaGuideSections",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FPdLunaGuideSectionTest::RunTest(const FString& Parameters)
@@ -173,6 +228,11 @@ bool FPdLunaGuideSectionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("no section fits"), Choose(TEXT("{\"sections\":[]}"), 2).IsEmpty());
 	TestTrue(TEXT("content is not JSON"), Choose(TEXT("1, 2"), 2).IsEmpty());
 	TestTrue(TEXT("response is not JSON"), LunaChat::ParseChosenSections(TEXT("oops"), 5, 2).IsEmpty());
+
+	// llama-server는 같은 답을 choices[0].message.content에 줄바꿈이 섞인 JSON으로 돌려준다.
+	const FString OpenAiBody = TEXT("{\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"message\":{\"role\":\"assistant\",")
+		TEXT("\"content\":\"{\\n\\\"sections\\\":\\n[\\n  2\\n]\\n}\"}}]}");
+	TestEqual(TEXT("OpenAI-compatible response"), LunaChat::ParseChosenSections(OpenAiBody, 5, 2), TArray<int32>({1}));
 	return true;
 }
 

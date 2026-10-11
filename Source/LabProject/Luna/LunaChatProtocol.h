@@ -2,8 +2,11 @@
 
 #include "CoreMinimal.h"
 
+class FJsonObject;
+
 /**
- * Ollama `/api/chat` 응답 해석과 가이드 절 나누기 같은 순수 로직. 네트워크 없이 자동화 테스트로 검증한다.
+ * 모델 서버 응답 해석과 가이드 절 나누기 같은 순수 로직. 네트워크 없이 자동화 테스트로 검증한다.
+ * 응답은 Ollama `/api/chat`(NDJSON)과 llama-server `/v1/chat/completions`(OpenAI 호환 SSE) 두 형식을 모두 읽는다.
  */
 namespace LunaChat
 {
@@ -13,8 +16,8 @@ namespace LunaChat
 	LABPROJECT_API FName TipKey(int32 TipNumber);
 
 	/**
-	 * 스트리밍 응답은 한 줄에 JSON 하나(NDJSON)다. 네트워크 조각은 줄이나 UTF-8 문자 중간에서 끊길 수 있으므로
-	 * 바이트를 모아 두었다가 줄바꿈까지 도착한 줄만 해석한다.
+	 * 스트리밍 응답은 한 줄에 JSON 하나다(Ollama는 NDJSON, llama-server는 "data: " 접두사가 붙은 SSE).
+	 * 네트워크 조각은 줄이나 UTF-8 문자 중간에서 끊길 수 있으므로 바이트를 모아 두었다가 줄바꿈까지 도착한 줄만 해석한다.
 	 */
 	class LABPROJECT_API FStreamParser
 	{
@@ -23,7 +26,7 @@ namespace LunaChat
 
 		/**
 		 * 완성된 줄을 모두 해석한다. 새로 도착한 답변 조각은 OutContent에 이어 붙인다.
-		 * 마지막 줄(done)을 받았으면 bOutDone, 서버 오류 줄을 받았으면 OutError를 채운다.
+		 * 끝을 알리는 줄(done, finish_reason, [DONE])을 받았으면 bOutDone, 서버 오류 줄을 받았으면 OutError를 채운다.
 		 */
 		void Consume(FString& OutContent, bool& bOutDone, FString& OutError);
 
@@ -35,6 +38,12 @@ namespace LunaChat
 
 		TArray<uint8> Pending;
 	};
+
+	/** 응답의 오류 문구. Ollama는 "error"가 문자열, OpenAI 호환 서버는 {"message": ...} 객체다. 오류가 없으면 빈 문자열 */
+	LABPROJECT_API FString ReadError(const FJsonObject& Json);
+
+	/** 답변 텍스트: Ollama의 message.content, OpenAI 호환의 choices[0].delta.content 또는 choices[0].message.content */
+	LABPROJECT_API bool ReadMessageContent(const FJsonObject& Json, FString& OutContent);
 
 	/** 추론형 모델의 <think>…</think> 구간을 뺀다. 아직 닫히지 않은 구간은 끝까지 숨긴다. */
 	LABPROJECT_API FString StripThinking(const FString& Text);
@@ -58,7 +67,7 @@ namespace LunaChat
 	LABPROJECT_API FString DescribeGuideSection(const FGuideSection& Section);
 
 	/**
-	 * 절 고르기 응답({"message":{"content":"{\"sections\":[2,5]}"}})에서 고른 절의 인덱스를 꺼낸다.
+	 * 절 고르기 응답({"message":{"content":"{\"sections\":[2,5]}"}}, OpenAI 호환은 choices[0].message.content)에서 고른 절의 인덱스를 꺼낸다.
 	 * 모델은 1부터 번호를 매기므로 0부터 센 인덱스로 바꾸고, 범위 밖이거나 겹친 번호는 버리며, 앞에서부터 MaxSections개까지만 둔다.
 	 */
 	LABPROJECT_API TArray<int32> ParseChosenSections(const FString& ResponseBody, int32 SectionCount, int32 MaxSections);

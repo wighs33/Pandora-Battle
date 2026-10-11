@@ -56,7 +56,8 @@ public class LabProject : ModuleRules
 			"Slate",
 			"NavigationSystem",
 			"HTTP",
-			"Json"
+			"Json",
+			"Sockets"
 		});
 
 		if (Target.bBuildEditor)

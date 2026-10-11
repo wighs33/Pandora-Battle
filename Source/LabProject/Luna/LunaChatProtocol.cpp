@@ -47,29 +47,39 @@ namespace LunaChat
 	void FStreamParser::ParseLine(const TConstArrayView<uint8> Line, FString& OutContent, bool& bOutDone, FString& OutError) const
 	{
 		const FUTF8ToTCHAR Converted(reinterpret_cast<const ANSICHAR*>(Line.GetData()), Line.Num());
-		const FString Text(Converted.Length(), Converted.Get());
-		if (Text.TrimStartAndEnd().IsEmpty())
+		FString Text = FString(Converted.Length(), Converted.Get()).TrimStartAndEnd();
+		if (Text.IsEmpty() || Text.StartsWith(TEXT(":")) || Text.StartsWith(TEXT("event:")))
 		{
 			return;
+		}
+
+		// llama-server(OpenAI 호환)는 Server-Sent Events로 "data: {...}" 줄을 보내고 "data: [DONE]"으로 끝낸다.
+		if (Text.StartsWith(TEXT("data:")))
+		{
+			Text = Text.RightChop(5).TrimStart();
+			if (Text == TEXT("[DONE]"))
+			{
+				bOutDone = true;
+				return;
+			}
 		}
 
 		TSharedPtr<FJsonObject> Json;
 		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Json) || !Json.IsValid())
 		{
-			OutError = TEXT("Ollama returned a line that is not JSON.");
+			OutError = TEXT("The model server returned a line that is not JSON.");
 			return;
 		}
 
-		FString Error;
-		if (Json->TryGetStringField(TEXT("error"), Error))
+		const FString Error = ReadError(*Json);
+		if (!Error.IsEmpty())
 		{
 			OutError = Error;
 			return;
 		}
 
-		const TSharedPtr<FJsonObject>* Message = nullptr;
 		FString Content;
-		if (Json->TryGetObjectField(TEXT("message"), Message) && Message && (*Message)->TryGetStringField(TEXT("content"), Content))
+		if (ReadMessageContent(*Json, Content))
 		{
 			OutContent += Content;
 		}
@@ -79,6 +89,50 @@ namespace LunaChat
 		{
 			bOutDone = true;
 		}
+		const TArray<TSharedPtr<FJsonValue>>* Choices = nullptr;
+		FString FinishReason;
+		if (Json->TryGetArrayField(TEXT("choices"), Choices) && !Choices->IsEmpty() && (*Choices)[0]->AsObject().IsValid()
+			&& (*Choices)[0]->AsObject()->TryGetStringField(TEXT("finish_reason"), FinishReason) && !FinishReason.IsEmpty())
+		{
+			bOutDone = true;
+		}
+	}
+
+	FString ReadError(const FJsonObject& Json)
+	{
+		FString Error;
+		if (Json.TryGetStringField(TEXT("error"), Error))
+		{
+			return Error;
+		}
+		const TSharedPtr<FJsonObject>* ErrorObject = nullptr;
+		if (Json.TryGetObjectField(TEXT("error"), ErrorObject) && ErrorObject && (*ErrorObject)->TryGetStringField(TEXT("message"), Error))
+		{
+			return Error;
+		}
+		return FString();
+	}
+
+	bool ReadMessageContent(const FJsonObject& Json, FString& OutContent)
+	{
+		// Ollama: {"message":{"content":"..."}}
+		const TSharedPtr<FJsonObject>* Message = nullptr;
+		if (Json.TryGetObjectField(TEXT("message"), Message) && Message && (*Message)->TryGetStringField(TEXT("content"), OutContent))
+		{
+			return true;
+		}
+
+		// OpenAI 호환: 스트리밍은 choices[0].delta.content, 한 번에 받을 때는 choices[0].message.content
+		const TArray<TSharedPtr<FJsonValue>>* Choices = nullptr;
+		if (!Json.TryGetArrayField(TEXT("choices"), Choices) || Choices->IsEmpty())
+		{
+			return false;
+		}
+		const TSharedPtr<FJsonObject> Choice = (*Choices)[0]->AsObject();
+		const TSharedPtr<FJsonObject>* Part = nullptr;
+		return Choice.IsValid()
+			&& ((Choice->TryGetObjectField(TEXT("delta"), Part) && Part && (*Part)->TryGetStringField(TEXT("content"), OutContent))
+				|| (Choice->TryGetObjectField(TEXT("message"), Part) && Part && (*Part)->TryGetStringField(TEXT("content"), OutContent)));
 	}
 
 	FString StripThinking(const FString& Text)
@@ -154,12 +208,11 @@ namespace LunaChat
 	{
 		TArray<int32> Chosen;
 		TSharedPtr<FJsonObject> Response;
-		const TSharedPtr<FJsonObject>* Message = nullptr;
 		FString Content;
 		TSharedPtr<FJsonObject> Answer;
 		const TArray<TSharedPtr<FJsonValue>>* Numbers = nullptr;
 		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ResponseBody), Response) || !Response.IsValid()
-			|| !Response->TryGetObjectField(TEXT("message"), Message) || !(*Message)->TryGetStringField(TEXT("content"), Content)
+			|| !ReadMessageContent(*Response, Content)
 			|| !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Content), Answer) || !Answer.IsValid()
 			|| !Answer->TryGetArrayField(TEXT("sections"), Numbers))
 		{

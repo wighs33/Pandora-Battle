@@ -5,8 +5,10 @@
 #include "LunaChatSettings.generated.h"
 
 /**
- * 타이틀의 Luna가 대답할 때 쓰는 로컬 LLM(Ollama) 설정.
+ * 타이틀의 Luna가 대답할 때 쓰는 로컬 LLM 설정.
  *
+ * 설치 폴더의 Luna/에 함께 배포한 모델(llama-server + GGUF)이 있으면 게임이 그 서버를 직접 띄워 쓴다.
+ * 없으면 같은 PC에 따로 설치한 Ollama에 묻는다(개발용).
  * ini에서 주소를 바꿀 때는 따옴표로 감싼다(OllamaUrl="http://..."). 따옴표 없는 '//'는 주석으로 잘린다.
  */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Luna Chat"))
@@ -27,6 +29,12 @@ public:
 	const FString& GetKeepAlive() const { return KeepAlive; }
 	int32 GetMaxHistoryTurns() const { return MaxHistoryTurns; }
 	int32 GetMaxQuestionLength() const { return MaxQuestionLength; }
+	const FString& GetLocalBundleFolder() const { return LocalBundleFolder; }
+	const FString& GetLocalServerExecutable() const { return LocalServerExecutable; }
+	const FString& GetLocalModelFile() const { return LocalModelFile; }
+	int32 GetLocalContextSize() const { return LocalContextSize; }
+	const FString& GetLocalServerArguments() const { return LocalServerArguments; }
+	float GetLocalServerStartTimeoutSeconds() const { return LocalServerStartTimeoutSeconds; }
 
 private:
 	/** Ollama 서버 주소. 기본값은 같은 PC의 기본 포트다. */
@@ -59,4 +67,28 @@ private:
 
 	UPROPERTY(Config, EditAnywhere, Category = "Conversation", meta = (ClampMin = "1"))
 	int32 MaxQuestionLength = 120;
+
+	/** 함께 배포하는 모델 폴더. 패키지는 설치 폴더, 개발 실행은 프로젝트 폴더 기준이다. */
+	UPROPERTY(Config, EditAnywhere, Category = "Bundled Model")
+	FString LocalBundleFolder = TEXT("Luna");
+
+	/** llama.cpp의 llama-server 실행 파일(폴더 기준 경로) */
+	UPROPERTY(Config, EditAnywhere, Category = "Bundled Model")
+	FString LocalServerExecutable = TEXT("llama-server.exe");
+
+	/** GGUF 모델 파일(폴더 기준 경로) */
+	UPROPERTY(Config, EditAnywhere, Category = "Bundled Model")
+	FString LocalModelFile = TEXT("models/gemma-3-4b-it-Q4_K_M.gguf");
+
+	/** 문맥 길이. 지정하지 않으면 모델 최대 길이로 잡혀 메모리를 수 GB 더 쓰므로, 프롬프트와 짧은 대화가 들어갈 만큼만 둔다. */
+	UPROPERTY(Config, EditAnywhere, Category = "Bundled Model", meta = (ClampMin = "1024"))
+	int32 LocalContextSize = 4096;
+
+	/** llama-server에 덧붙이는 인자(예: GPU 사용 층 수) */
+	UPROPERTY(Config, EditAnywhere, Category = "Bundled Model")
+	FString LocalServerArguments;
+
+	/** 모델을 메모리에 올리는 데 기다리는 최대 시간. 느린 디스크와 CPU만 있는 PC를 고려한다. */
+	UPROPERTY(Config, EditAnywhere, Category = "Bundled Model", meta = (ClampMin = "5.0", Units = "s"))
+	float LocalServerStartTimeoutSeconds = 120.f;
 };

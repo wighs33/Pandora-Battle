@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Luna/LunaChatProtocol.h"
+#include "Luna/LunaLocalServer.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "LunaChatSubsystem.generated.h"
 
@@ -14,7 +15,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnLunaReplyUpdated, const FString& /*ReplyS
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLunaReplyFinished, bool /*bSucceeded*/, const FString& /*Reply*/);
 
 /**
- * 타이틀의 Luna와 나누는 대화를 로컬 Ollama 모델에 묻고, 답변을 토큰이 도착하는 대로 알린다.
+ * 타이틀의 Luna와 나누는 대화를 로컬 모델에 묻고, 답변을 토큰이 도착하는 대로 알린다.
+ * 게임과 함께 배포한 모델(Luna/ 폴더의 llama-server)이 있으면 그 서버를 띄워 쓰고, 없으면 같은 PC의 Ollama에 묻는다.
  *
  * 시스템 프롬프트는 현재 메뉴 언어, DT_MenuText의 Luna 안내 문구, 가이드에서 질문에 맞는 절로 만든다.
  * 가이드 전체를 넣으면 질문마다 수천 토큰을 다시 처리하고 작은 모델이 내용을 섞으므로, 먼저 짧은 요청으로 절을 고른다.
@@ -36,7 +38,13 @@ public:
 	bool Ask(const FString& Question);
 	void CancelReply();
 	void ResetConversation();
-	bool IsReplying() const { return ActiveRequest.IsValid(); }
+	bool IsReplying() const { return ActiveRequest.IsValid() || bWaitingForServer; }
+
+	/** 함께 배포한 모델이 있으면 서버를 미리 띄워 첫 답을 기다리는 시간을 줄인다. 타이틀 화면이 열릴 때 부른다. */
+	void PrepareModel();
+
+	/** 모델 서버를 끝내 메모리를 돌려준다. 타이틀 화면을 떠날 때 부른다. */
+	void ReleaseModel();
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	FOnLunaReplyUpdated& OnReplyUpdated() { return ReplyUpdated; }
@@ -46,11 +54,16 @@ private:
 	UFUNCTION()
 	void HandleMenuLanguageChanged();
 
+	void HandleServerStateChanged(FLunaLocalServer::EState NewState);
+
 	void HandleGuideSectionsChosen(FHttpResponsePtr Response, bool bConnectedSuccessfully, uint32 RequestSerial);
 	void DrainStream(uint32 RequestSerial);
 	void HandleRequestComplete(FHttpResponsePtr Response, bool bConnectedSuccessfully, uint32 RequestSerial);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	bool UsesBundledServer() const { return LocalServer.IsValid() && LocalServer->IsInstalled(); }
+	void SendQuestion(uint32 RequestSerial);
+
 	/** 메뉴 언어의 가이드를 절로 나눠 둔다. 가이드를 불러왔을 때와 메뉴 언어가 바뀌었을 때 부른다. */
 	void RebuildGuideSections();
 	void RequestGuideSections(uint32 RequestSerial);
@@ -59,6 +72,10 @@ private:
 	TSharedRef<FJsonObject> BuildSectionRequestBody(const FString& Question) const;
 	FString BuildSystemPrompt(const TArray<int32>& GuideSectionIndices) const;
 	TSharedRef<FJsonObject> BuildRequestBody(const FString& Question, const TArray<int32>& GuideSectionIndices) const;
+	/** 서버 종류에 맞게 생성 옵션을 붙인다. Ollama는 options·format, llama-server는 OpenAI 호환 필드를 쓴다. */
+	void ApplyGenerationOptions(FJsonObject& Body, bool bStream, double Temperature, int32 MaxTokens,
+		const TSharedPtr<FJsonObject>& Schema) const;
+	FString DescribeRequestFailure(const FHttpResponsePtr& Response, bool bConnectedSuccessfully) const;
 	void FinishReply(bool bSucceeded, const FString& Error);
 
 	struct FChatMessage
@@ -79,6 +96,9 @@ private:
 	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> ActiveRequest;
 	uint32 ActiveRequestSerial = 0;
 	bool bStreamingResponse = true;
+	/** 질문을 받았지만 함께 배포한 모델 서버가 아직 준비 중이다. */
+	bool bWaitingForServer = false;
+	TUniquePtr<FLunaLocalServer> LocalServer;
 
 	FOnLunaReplyUpdated ReplyUpdated;
 	FOnLunaReplyFinished ReplyFinished;

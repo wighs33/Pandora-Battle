@@ -61,19 +61,8 @@ namespace
 		return MakeShared<FJsonValueObject>(Message);
 	}
 
-	/** 요청이 Ollama에 닿지 못했거나 오류 코드를 받았으면 그 이유를, 아니면 빈 문자열을 돌려준다. */
-	FString DescribeRequestFailure(const FHttpResponsePtr& Response, const bool bConnectedSuccessfully)
-	{
-		if (!bConnectedSuccessfully || !Response.IsValid())
-		{
-			return FString::Printf(TEXT("Could not reach Ollama at %s. Is it running?"), *GetDefault<ULunaChatSettings>()->GetOllamaUrl());
-		}
-		const int32 StatusCode = Response->GetResponseCode();
-		return EHttpResponseCodes::IsOk(StatusCode) ? FString() : FString::Printf(TEXT("Ollama returned HTTP %d."), StatusCode);
-	}
-
 	FAutoConsoleCommandWithWorldAndArgs AskLunaCommand(TEXT("pd.Luna.Ask"),
-		TEXT("pd.Luna.Ask <question>: ask Luna through the local Ollama model."),
+		TEXT("pd.Luna.Ask <question>: ask Luna through the bundled model or the local Ollama."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
@@ -103,6 +92,8 @@ void ULunaChatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		GuideLease = UContentDataSubsystem::AcquireContent({Guide.ToSoftObjectPath()},
 			FSimpleDelegate::CreateUObject(this, &ThisClass::RebuildGuideSections));
 	}
+	LocalServer = MakeUnique<FLunaLocalServer>();
+	LocalServer->OnStateChanged().AddUObject(this, &ThisClass::HandleServerStateChanged);
 }
 
 void ULunaChatSubsystem::Deinitialize()
@@ -112,6 +103,7 @@ void ULunaChatSubsystem::Deinitialize()
 		Localization->OnLanguageChanged.RemoveDynamic(this, &ThisClass::HandleMenuLanguageChanged);
 	}
 	CancelReply();
+	LocalServer.Reset();
 	GuideLease.Reset();
 	Super::Deinitialize();
 }
@@ -129,7 +121,33 @@ bool ULunaChatSubsystem::Ask(const FString& Question)
 	PendingQuestion = TrimmedQuestion;
 	ReplyText.Reset();
 	const uint32 RequestSerial = ++ActiveRequestSerial;
-	UE_LOG(LogLunaChat, Log, TEXT("Asking Luna (%s): %s"), *Settings->GetModel(), *TrimmedQuestion);
+	UE_LOG(LogLunaChat, Log, TEXT("Asking Luna (%s): %s"),
+		UsesBundledServer() ? *Settings->GetLocalModelFile() : *Settings->GetModel(), *TrimmedQuestion);
+	if (!UsesBundledServer() || LocalServer->IsReady())
+	{
+		SendQuestion(RequestSerial);
+		return true;
+	}
+
+	// 모델 서버가 준비되면 이어서 묻는다. 띄우지 못했으면 다음 틱에 실패를 알려, 타이틀이 "생각 중" 문구를 먼저 보여 준 뒤 덮게 한다.
+	bWaitingForServer = true;
+	if (!LocalServer->Start())
+	{
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, RequestSerial](float)
+		{
+			if (RequestSerial == ActiveRequestSerial && bWaitingForServer)
+			{
+				bWaitingForServer = false;
+				FinishReply(false, TEXT("The bundled model server could not start."));
+			}
+			return false;
+		}));
+	}
+	return true;
+}
+
+void ULunaChatSubsystem::SendQuestion(const uint32 RequestSerial)
+{
 	if (GuideSections.IsEmpty())
 	{
 		RequestReply({}, RequestSerial);
@@ -138,7 +156,41 @@ bool ULunaChatSubsystem::Ask(const FString& Question)
 	{
 		RequestGuideSections(RequestSerial);
 	}
-	return true;
+}
+
+void ULunaChatSubsystem::PrepareModel()
+{
+	if (UsesBundledServer())
+	{
+		LocalServer->Start();
+	}
+}
+
+void ULunaChatSubsystem::ReleaseModel()
+{
+	CancelReply();
+	if (LocalServer.IsValid())
+	{
+		LocalServer->Stop();
+	}
+}
+
+void ULunaChatSubsystem::HandleServerStateChanged(const FLunaLocalServer::EState NewState)
+{
+	if (!bWaitingForServer)
+	{
+		return;
+	}
+	if (NewState == FLunaLocalServer::EState::Ready)
+	{
+		bWaitingForServer = false;
+		SendQuestion(ActiveRequestSerial);
+	}
+	else if (NewState == FLunaLocalServer::EState::Failed)
+	{
+		bWaitingForServer = false;
+		FinishReply(false, TEXT("The bundled model server stopped before it was ready."));
+	}
 }
 
 void ULunaChatSubsystem::RequestGuideSections(const uint32 RequestSerial)
@@ -211,7 +263,7 @@ void ULunaChatSubsystem::RequestReply(const TArray<int32>& GuideSectionIndices, 
 TSharedRef<IHttpRequest, ESPMode::ThreadSafe> ULunaChatSubsystem::CreateChatRequest(const TSharedRef<FJsonObject>& Body) const
 {
 	const ULunaChatSettings* Settings = GetDefault<ULunaChatSettings>();
-	FString Url = Settings->GetOllamaUrl();
+	FString Url = UsesBundledServer() ? LocalServer->GetBaseUrl() : Settings->GetOllamaUrl();
 	while (Url.EndsWith(TEXT("/")))
 	{
 		Url.LeftChopInline(1);
@@ -219,7 +271,7 @@ TSharedRef<IHttpRequest, ESPMode::ThreadSafe> ULunaChatSubsystem::CreateChatRequ
 
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 	Request->SetVerb(TEXT("POST"));
-	Request->SetURL(Url + TEXT("/api/chat"));
+	Request->SetURL(Url + (UsesBundledServer() ? TEXT("/v1/chat/completions") : TEXT("/api/chat")));
 	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 	Request->SetContentAsString(PdBackendHttp::SerializeJson(Body));
 	Request->SetTimeout(Settings->GetRequestTimeoutSeconds());
@@ -228,6 +280,11 @@ TSharedRef<IHttpRequest, ESPMode::ThreadSafe> ULunaChatSubsystem::CreateChatRequ
 
 void ULunaChatSubsystem::CancelReply()
 {
+	if (bWaitingForServer)
+	{
+		bWaitingForServer = false;
+		++ActiveRequestSerial;
+	}
 	if (!ActiveRequest.IsValid())
 	{
 		return;
@@ -398,18 +455,9 @@ TSharedRef<FJsonObject> ULunaChatSubsystem::BuildSectionRequestBody(const FStrin
 
 	TSharedPtr<FJsonObject> Schema;
 	FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(GuideSectionSchema), Schema);
-	const TSharedRef<FJsonObject> Options = MakeShared<FJsonObject>();
-	Options->SetNumberField(TEXT("temperature"), 0.0);
-	Options->SetNumberField(TEXT("num_predict"), 32);
-
-	const ULunaChatSettings* Settings = GetDefault<ULunaChatSettings>();
 	const TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
-	Body->SetStringField(TEXT("model"), Settings->GetModel());
-	Body->SetBoolField(TEXT("stream"), false);
-	Body->SetStringField(TEXT("keep_alive"), Settings->GetKeepAlive());
 	Body->SetArrayField(TEXT("messages"), {MakeMessage(TEXT("system"), Prompt), MakeMessage(TEXT("user"), Question)});
-	Body->SetObjectField(TEXT("format"), Schema);
-	Body->SetObjectField(TEXT("options"), Options);
+	ApplyGenerationOptions(*Body, false, 0.0, 32, Schema);
 	return Body;
 }
 
@@ -467,15 +515,57 @@ TSharedRef<FJsonObject> ULunaChatSubsystem::BuildRequestBody(const FString& Ques
 	}
 	Messages.Add(MakeMessage(TEXT("user"), Question));
 
-	const TSharedRef<FJsonObject> Options = MakeShared<FJsonObject>();
-	Options->SetNumberField(TEXT("temperature"), Settings->GetTemperature());
-	Options->SetNumberField(TEXT("num_predict"), Settings->GetMaxReplyTokens());
-
 	const TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
-	Body->SetStringField(TEXT("model"), Settings->GetModel());
-	Body->SetBoolField(TEXT("stream"), true);
-	Body->SetStringField(TEXT("keep_alive"), Settings->GetKeepAlive());
 	Body->SetArrayField(TEXT("messages"), Messages);
-	Body->SetObjectField(TEXT("options"), Options);
+	ApplyGenerationOptions(*Body, true, Settings->GetTemperature(), Settings->GetMaxReplyTokens(), nullptr);
 	return Body;
+}
+
+void ULunaChatSubsystem::ApplyGenerationOptions(FJsonObject& Body, const bool bStream, const double Temperature, const int32 MaxTokens,
+	const TSharedPtr<FJsonObject>& Schema) const
+{
+	Body.SetBoolField(TEXT("stream"), bStream);
+	if (UsesBundledServer())
+	{
+		// llama-server는 모델 하나만 띄우므로 모델 이름이 필요 없다. 스키마는 OpenAI의 response_format으로 넘긴다.
+		Body.SetNumberField(TEXT("temperature"), Temperature);
+		Body.SetNumberField(TEXT("max_tokens"), MaxTokens);
+		if (Schema.IsValid())
+		{
+			const TSharedRef<FJsonObject> JsonSchema = MakeShared<FJsonObject>();
+			JsonSchema->SetStringField(TEXT("name"), TEXT("answer"));
+			JsonSchema->SetObjectField(TEXT("schema"), Schema);
+			const TSharedRef<FJsonObject> Format = MakeShared<FJsonObject>();
+			Format->SetStringField(TEXT("type"), TEXT("json_schema"));
+			Format->SetObjectField(TEXT("json_schema"), JsonSchema);
+			Body.SetObjectField(TEXT("response_format"), Format);
+		}
+		return;
+	}
+
+	const ULunaChatSettings* Settings = GetDefault<ULunaChatSettings>();
+	const TSharedRef<FJsonObject> Options = MakeShared<FJsonObject>();
+	Options->SetNumberField(TEXT("temperature"), Temperature);
+	Options->SetNumberField(TEXT("num_predict"), MaxTokens);
+	Body.SetStringField(TEXT("model"), Settings->GetModel());
+	Body.SetStringField(TEXT("keep_alive"), Settings->GetKeepAlive());
+	Body.SetObjectField(TEXT("options"), Options);
+	if (Schema.IsValid())
+	{
+		Body.SetObjectField(TEXT("format"), Schema);
+	}
+}
+
+// 요청이 모델 서버에 닿지 못했거나 오류 코드를 받았으면 그 이유를, 아니면 빈 문자열을 돌려준다.
+FString ULunaChatSubsystem::DescribeRequestFailure(const FHttpResponsePtr& Response, const bool bConnectedSuccessfully) const
+{
+	const FString Server = UsesBundledServer()
+		? FString(TEXT("the bundled model server"))
+		: FString::Printf(TEXT("Ollama at %s"), *GetDefault<ULunaChatSettings>()->GetOllamaUrl());
+	if (!bConnectedSuccessfully || !Response.IsValid())
+	{
+		return FString::Printf(TEXT("Could not reach %s."), *Server);
+	}
+	const int32 StatusCode = Response->GetResponseCode();
+	return EHttpResponseCodes::IsOk(StatusCode) ? FString() : FString::Printf(TEXT("%s returned HTTP %d."), *Server, StatusCode);
 }
