@@ -4,8 +4,10 @@
 
 .DESCRIPTION
     프로젝트의 Luna\ 폴더에서 llama-server 실행에 필요한 파일과 모델만 골라
-    ContentBuilder\content\PandoraBattle_Luna\에 복사하고, 설치 폴더의 Luna\로 들어가도록 데포 스크립트를 만든다.
+    ContentBuilder\content\PandoraBattle_Luna\Luna\에 복사하고, 그 데포 스크립트를 만든다.
     게임은 설치 폴더(또는 개발 실행에서는 프로젝트 폴더)의 Luna\에서 실행 파일과 모델을 찾는다.
+    Luna\ 폴더를 업로드 폴더 안에 두므로, 데포 경로를 따로 정하지 않는 SteamPipeGUI로 올려도 설치 폴더의 Luna\에 들어간다.
+    (SteamPipeGUI에서는 데포 4972142의 경로를 content\PandoraBattle_Luna로 지정한다.)
 
     Steamworks에서 먼저 할 일(직접 로그인):
       1. 무료 DLC를 만들고 그 DLC에 데포를 추가한다. 그 데포 번호를 -DepotId로 넘긴다.
@@ -28,6 +30,7 @@ $ErrorActionPreference = "Stop"
 if (-not $SourceDir) { $SourceDir = Join-Path $PSScriptRoot "..\Luna" }
 $SourceDir = (Resolve-Path $SourceDir).Path
 $ContentDir = Join-Path $ContentBuilder "content\PandoraBattle_Luna"
+$LunaDir = Join-Path $ContentDir "Luna"
 $ScriptsDir = Join-Path $ContentBuilder "scripts"
 $AppScript = Join-Path $ScriptsDir "app_$AppId.vdf"
 $DepotScript = Join-Path $ScriptsDir "depot_$DepotId.vdf"
@@ -46,11 +49,11 @@ foreach ($Name in $Runtime + $Notices + @($ModelFile)) {
 }
 
 if (Test-Path $ContentDir) { Remove-Item -LiteralPath $ContentDir -Recurse -Force -Confirm:$false }
-New-Item -ItemType Directory -Force (Join-Path $ContentDir "models") | Out-Null
-foreach ($Name in $Runtime + $Notices) { Copy-Item (Join-Path $SourceDir $Name) $ContentDir }
+New-Item -ItemType Directory -Force (Join-Path $LunaDir "models") | Out-Null
+foreach ($Name in $Runtime + $Notices) { Copy-Item (Join-Path $SourceDir $Name) $LunaDir }
 # CPU 종류별 백엔드는 실행할 때 그 PC에 맞는 것 하나를 고르므로 모두 넣는다.
-Get-ChildItem $SourceDir -Filter "ggml-cpu-*.dll" | Copy-Item -Destination $ContentDir
-Copy-Item (Join-Path $SourceDir $ModelFile) (Join-Path $ContentDir "models")
+Get-ChildItem $SourceDir -Filter "ggml-cpu-*.dll" | Copy-Item -Destination $LunaDir
+Copy-Item (Join-Path $SourceDir $ModelFile) (Join-Path $LunaDir "models")
 
 @"
 "DepotBuildConfig"
@@ -60,7 +63,7 @@ Copy-Item (Join-Path $SourceDir $ModelFile) (Join-Path $ContentDir "models")
 	"FileMapping"
 	{
 		"LocalPath" "*"
-		"DepotPath" "Luna"
+		"DepotPath" "."
 		"recursive" "1"
 	}
 }
