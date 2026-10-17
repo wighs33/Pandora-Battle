@@ -72,9 +72,17 @@ private:
 	TSharedRef<FJsonObject> BuildSectionRequestBody(const FString& Question) const;
 	FString BuildSystemPrompt(const TArray<int32>& GuideSectionIndices) const;
 	TSharedRef<FJsonObject> BuildRequestBody(const FString& Question, const TArray<int32>& GuideSectionIndices) const;
+
+	struct FGenerationOptions
+	{
+		bool bStream = false;
+		double Temperature = 0.0;
+		int32 MaxTokens = 0;
+		/** 있으면 답을 이 JSON 스키마 형식으로 고정한다. */
+		TSharedPtr<FJsonObject> Schema;
+	};
 	/** 서버 종류에 맞게 생성 옵션을 붙인다. Ollama는 options·format, llama-server는 OpenAI 호환 필드를 쓴다. */
-	void ApplyGenerationOptions(FJsonObject& Body, bool bStream, double Temperature, int32 MaxTokens,
-		const TSharedPtr<FJsonObject>& Schema) const;
+	void ApplyGenerationOptions(FJsonObject& Body, const FGenerationOptions& Options) const;
 	FString DescribeRequestFailure(const FHttpResponsePtr& Response, bool bConnectedSuccessfully) const;
 	void FinishReply(bool bSucceeded, const FString& Error);
 

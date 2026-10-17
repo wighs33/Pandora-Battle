@@ -105,13 +105,23 @@ bool FLunaLocalServer::Start()
 
 #if PLATFORM_WINDOWS
 	// 게임이 비정상 종료돼도 모델 서버가 메모리를 쥔 채 남지 않도록, 게임 프로세스가 닫히면 함께 끝나는 작업 개체에 넣는다.
-	if (HANDLE Job = CreateJobObjectW(nullptr, nullptr))
+	// 넣지 못해도 서버는 쓸 수 있고 정상 종료 때는 Stop이 끝내므로, 경고만 남긴다.
+	JOBOBJECT_EXTENDED_LIMIT_INFORMATION Limits = {};
+	Limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+	HANDLE Job = CreateJobObjectW(nullptr, nullptr);
+	if (Job && SetInformationJobObject(Job, JobObjectExtendedLimitInformation, &Limits, sizeof(Limits))
+		&& AssignProcessToJobObject(Job, Process.Get()))
 	{
-		JOBOBJECT_EXTENDED_LIMIT_INFORMATION Limits = {};
-		Limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-		SetInformationJobObject(Job, JobObjectExtendedLimitInformation, &Limits, sizeof(Limits));
-		AssignProcessToJobObject(Job, Process.Get());
 		JobHandle = Job;
+	}
+	else
+	{
+		UE_LOG(LogLunaServer, Warning, TEXT("Could not tie the Luna model server to the game process (error %u). It may outlive a crash."),
+			static_cast<uint32>(GetLastError()));
+		if (Job)
+		{
+			CloseHandle(Job);
+		}
 	}
 #endif
 

@@ -463,7 +463,8 @@ TSharedRef<FJsonObject> ULunaChatSubsystem::BuildSectionRequestBody(const FStrin
 	FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(GuideSectionSchema), Schema);
 	const TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
 	Body->SetArrayField(TEXT("messages"), {MakeMessage(TEXT("system"), Prompt), MakeMessage(TEXT("user"), Question)});
-	ApplyGenerationOptions(*Body, false, 0.0, MaxSectionChoiceTokens, Schema);
+	// 같은 질문에는 늘 같은 절을 고르도록 온도를 0으로 둔다.
+	ApplyGenerationOptions(*Body, {.bStream = false, .Temperature = 0.0, .MaxTokens = MaxSectionChoiceTokens, .Schema = Schema});
 	return Body;
 }
 
@@ -523,24 +524,23 @@ TSharedRef<FJsonObject> ULunaChatSubsystem::BuildRequestBody(const FString& Ques
 
 	const TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
 	Body->SetArrayField(TEXT("messages"), Messages);
-	ApplyGenerationOptions(*Body, true, Settings->GetTemperature(), Settings->GetMaxReplyTokens(), nullptr);
+	ApplyGenerationOptions(*Body, {.bStream = true, .Temperature = Settings->GetTemperature(), .MaxTokens = Settings->GetMaxReplyTokens()});
 	return Body;
 }
 
-void ULunaChatSubsystem::ApplyGenerationOptions(FJsonObject& Body, const bool bStream, const double Temperature, const int32 MaxTokens,
-	const TSharedPtr<FJsonObject>& Schema) const
+void ULunaChatSubsystem::ApplyGenerationOptions(FJsonObject& Body, const FGenerationOptions& Options) const
 {
-	Body.SetBoolField(TEXT("stream"), bStream);
+	Body.SetBoolField(TEXT("stream"), Options.bStream);
 	if (UsesBundledServer())
 	{
 		// llama-server는 모델 하나만 띄우므로 모델 이름이 필요 없다. 스키마는 OpenAI의 response_format으로 넘긴다.
-		Body.SetNumberField(TEXT("temperature"), Temperature);
-		Body.SetNumberField(TEXT("max_tokens"), MaxTokens);
-		if (Schema.IsValid())
+		Body.SetNumberField(TEXT("temperature"), Options.Temperature);
+		Body.SetNumberField(TEXT("max_tokens"), Options.MaxTokens);
+		if (Options.Schema.IsValid())
 		{
 			const TSharedRef<FJsonObject> JsonSchema = MakeShared<FJsonObject>();
 			JsonSchema->SetStringField(TEXT("name"), TEXT("answer"));
-			JsonSchema->SetObjectField(TEXT("schema"), Schema);
+			JsonSchema->SetObjectField(TEXT("schema"), Options.Schema);
 			const TSharedRef<FJsonObject> Format = MakeShared<FJsonObject>();
 			Format->SetStringField(TEXT("type"), TEXT("json_schema"));
 			Format->SetObjectField(TEXT("json_schema"), JsonSchema);
@@ -550,15 +550,15 @@ void ULunaChatSubsystem::ApplyGenerationOptions(FJsonObject& Body, const bool bS
 	}
 
 	const ULunaChatSettings* Settings = GetDefault<ULunaChatSettings>();
-	const TSharedRef<FJsonObject> Options = MakeShared<FJsonObject>();
-	Options->SetNumberField(TEXT("temperature"), Temperature);
-	Options->SetNumberField(TEXT("num_predict"), MaxTokens);
+	const TSharedRef<FJsonObject> OllamaOptions = MakeShared<FJsonObject>();
+	OllamaOptions->SetNumberField(TEXT("temperature"), Options.Temperature);
+	OllamaOptions->SetNumberField(TEXT("num_predict"), Options.MaxTokens);
 	Body.SetStringField(TEXT("model"), Settings->GetModel());
 	Body.SetStringField(TEXT("keep_alive"), Settings->GetKeepAlive());
-	Body.SetObjectField(TEXT("options"), Options);
-	if (Schema.IsValid())
+	Body.SetObjectField(TEXT("options"), OllamaOptions);
+	if (Options.Schema.IsValid())
 	{
-		Body.SetObjectField(TEXT("format"), Schema);
+		Body.SetObjectField(TEXT("format"), Options.Schema);
 	}
 }
 
