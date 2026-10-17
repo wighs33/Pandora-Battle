@@ -46,6 +46,10 @@ namespace
 {
 	const FName LunaChatHintKey(TEXT("Title.LunaChatHint"));
 	const FName BossRaidClosedKey(TEXT("Title.BossRaidClosed"));
+	const FName BossRaidNoAttemptsKey(TEXT("Title.BossRaidNoAttempts"));
+	const FName BossRaidHealthKey(TEXT("Title.BossRaidHealth"));
+	const FName BossRaidAttemptsLeftKey(TEXT("Title.BossRaidAttemptsLeft"));
+	const FName BossRaidMyRankKey(TEXT("Title.BossRaidMyRank"));
 
 	// 말풍선 폭에서 꼬리가 놓이는 위치. 꼬리 끝은 Luna 머리에 두고 몸통은 주로 왼쪽으로 커지므로,
 	// 폭을 다 채운 답(줄바꿈 420 + 여백)도 오른쪽 위 게임 설정 버튼 앞에서 끝난다.
@@ -150,11 +154,70 @@ void UTitleWidget::ApplyBossRaidAvailability()
 	{
 		return;
 	}
-	Btn_BossRaid->SetIsEnabled(bBossRaidOpen && !bBossRaidJoining);
+	// 기록을 받기 전에는 남은 도전이 있다고 보고, 참가 요청에서 백엔드가 다시 확인한다.
+	const bool bAttemptsLeft = !BossRaidStanding.bReceived || BossRaidStanding.AttemptsLeft > 0;
+	Btn_BossRaid->SetIsEnabled(bBossRaidOpen && bAttemptsLeft && !bBossRaidJoining);
 	const FName* OpenTooltipKey = MenuTooltipBindings.Find(Btn_BossRaid->GetFName());
-	SetHoverTooltip(Btn_BossRaid, !bBossRaidOpen
+	const FText Availability = !bBossRaidOpen
 		? MenuTextOrFallback(BossRaidClosedKey, NSLOCTEXT("TitleWidget", "BossRaidClosed", "Not open yet."))
-		: OpenTooltipKey ? MenuText(*OpenTooltipKey) : FText::GetEmpty());
+		: !bAttemptsLeft
+		? MenuTextOrFallback(BossRaidNoAttemptsKey,
+			NSLOCTEXT("TitleWidget", "BossRaidNoAttempts", "You've used all of today's attempts. Come back tomorrow!"))
+		: OpenTooltipKey ? MenuText(*OpenTooltipKey) : FText::GetEmpty();
+	FText Tooltip = Availability;
+	if (const FText Details = BuildBossRaidDetails(); !Details.IsEmpty())
+	{
+		Tooltip = Tooltip.IsEmpty() ? Details : FText::Format(INVTEXT("{0}\n\n{1}"), Tooltip, Details);
+	}
+	SetHoverTooltip(Btn_BossRaid, Tooltip);
+}
+
+void UTitleWidget::SetBossRaidDetails(const FBackendBossRaidStatus& Status, const FBackendBossRaidStanding& Standing)
+{
+	BossRaidStatus = Status;
+	BossRaidStanding = Standing;
+	ApplyBossRaidAvailability();
+}
+
+// 보스 체력 63.20%
+// 오늘 남은 도전 2회 · 내 순위 3위 (12,345)
+// 1. 이름  120,000 ...
+FText UTitleWidget::BuildBossRaidDetails() const
+{
+	if (!BossRaidStatus.bHasRaid)
+	{
+		return FText::GetEmpty();
+	}
+
+	TArray<FText> Lines;
+	FNumberFormattingOptions PercentFormat;
+	PercentFormat.MinimumFractionalDigits = 2;
+	PercentFormat.MaximumFractionalDigits = 2;
+	const double HealthPercent = BossRaidStatus.MaxHealth > 0 ? 100.0 * BossRaidStatus.Health / BossRaidStatus.MaxHealth : 0.0;
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("Percent"), FText::AsNumber(HealthPercent, &PercentFormat));
+	Arguments.Add(TEXT("Attempts"), FText::AsNumber(BossRaidStanding.AttemptsLeft));
+	Arguments.Add(TEXT("Rank"), FText::AsNumber(BossRaidStanding.Rank));
+	Arguments.Add(TEXT("Damage"), FText::AsNumber(BossRaidStanding.Damage));
+	Lines.Add(FText::Format(MenuTextOrFallback(BossRaidHealthKey,
+		NSLOCTEXT("TitleWidget", "BossRaidHealth", "Boss health {Percent}%")), Arguments));
+	if (BossRaidStanding.bReceived)
+	{
+		FText Standing = FText::Format(MenuTextOrFallback(BossRaidAttemptsLeftKey,
+			NSLOCTEXT("TitleWidget", "BossRaidAttemptsLeft", "Attempts left today: {Attempts}")), Arguments);
+		if (BossRaidStanding.Rank > 0)
+		{
+			Standing = FText::Format(INVTEXT("{0} · {1}"), Standing, FText::Format(MenuTextOrFallback(BossRaidMyRankKey,
+				NSLOCTEXT("TitleWidget", "BossRaidMyRank", "My rank #{Rank} ({Damage})")), Arguments));
+		}
+		Lines.Add(Standing);
+		for (const FBackendBossRaidRankEntry& Entry : BossRaidStanding.Top)
+		{
+			Lines.Add(FText::Format(INVTEXT("{0}. {1}  {2}"),
+				FText::AsNumber(Entry.Rank), FText::FromString(Entry.Name), FText::AsNumber(Entry.Damage)));
+		}
+	}
+	return FText::Join(FText::FromString(TEXT("\n")), Lines);
 }
 
 void UTitleWidget::NativeConstruct()

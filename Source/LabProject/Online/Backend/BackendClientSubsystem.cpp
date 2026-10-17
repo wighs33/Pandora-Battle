@@ -11,6 +11,7 @@
 #include "Misc/Parse.h"
 #include "Online/Backend/BackendHttp.h"
 #include "Online/Backend/BackendSettings.h"
+#include "Profile/PlayerProfileSubsystem.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemNames.h"
 #include "OnlineSubsystemUtils.h"
@@ -39,6 +40,16 @@ namespace
 	int32 GetIntField(const TSharedPtr<FJsonObject>& Json, const TCHAR* FieldName)
 	{
 		int32 Value = 0;
+		if (Json.IsValid())
+		{
+			Json->TryGetNumberField(FieldName, Value);
+		}
+		return Value;
+	}
+
+	int64 GetInt64Field(const TSharedPtr<FJsonObject>& Json, const TCHAR* FieldName)
+	{
+		int64 Value = 0;
 		if (Json.IsValid())
 		{
 			Json->TryGetNumberField(FieldName, Value);
@@ -209,18 +220,42 @@ void UBackendClientSubsystem::FinishLogin(const bool bSucceeded, const FString& 
 	}
 	OnLoginFinished.Broadcast(bSucceeded, ErrorMessage);
 
-	if (bJoinMatchAfterLogin)
+	TArray<TUniqueFunction<void(bool, const FString&)>> Requests = MoveTemp(RequestsAfterLogin);
+	RequestsAfterLogin.Reset();
+	for (TUniqueFunction<void(bool, const FString&)>& Request : Requests)
 	{
-		bJoinMatchAfterLogin = false;
-		if (bSucceeded)
-		{
-			SendMatchJoinRequest();
-		}
-		else
-		{
-			FinishMatchJoin(false, ErrorMessage);
-		}
+		Request(bSucceeded, ErrorMessage);
 	}
+}
+
+void UBackendClientSubsystem::RunAfterLogin(TUniqueFunction<void(bool bLoggedIn, const FString& LoginError)> Request)
+{
+	if (IsLoggedIn())
+	{
+		Request(true, FString());
+		return;
+	}
+
+	RequestsAfterLogin.Add(MoveTemp(Request));
+	if (LoginState != EBackendLoginState::LoggingIn)
+	{
+		Login();
+	}
+}
+
+TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> UBackendClientSubsystem::CreateAuthorizedRequest(
+	const TCHAR* Verb, const TCHAR* Path) const
+{
+	const UBackendSettings* Settings = GetDefault<UBackendSettings>();
+	const FString Url = Settings->BuildApiUrl(Path);
+	if (Url.IsEmpty() || !IsLoggedIn())
+	{
+		return nullptr;
+	}
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request =
+		PdBackendHttp::CreateJsonRequest(Verb, Url, nullptr, Settings->GetClientRequestTimeoutSeconds());
+	Request->SetHeader(TEXT("Authorization"), TEXT("Bearer ") + SessionToken);
+	return Request;
 }
 
 void UBackendClientSubsystem::JoinOnlineMatch(const EOnlineMatchMode Mode)
@@ -233,17 +268,18 @@ void UBackendClientSubsystem::JoinOnlineMatch(const EOnlineMatchMode Mode)
 	bMatchJoinInProgress = true;
 	MatchJoinTimeoutRetries = 0;
 	PendingMatchMode = Mode;
-	if (IsLoggedIn())
+	LastMatchJoinErrorCode.Reset();
+	RunAfterLogin([this](const bool bLoggedIn, const FString& LoginError)
 	{
-		SendMatchJoinRequest();
-		return;
-	}
-
-	bJoinMatchAfterLogin = true;
-	if (LoginState != EBackendLoginState::LoggingIn)
-	{
-		Login();
-	}
+		if (bLoggedIn)
+		{
+			SendMatchJoinRequest();
+		}
+		else
+		{
+			FinishMatchJoin(false, LoginError);
+		}
+	});
 }
 
 // 백엔드는 빈 자리가 있는 게임 세션을 찾거나 새로 만들고, 이 플레이어의 player session을 예약해 돌려준다.
@@ -283,10 +319,17 @@ void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResp
 	}
 	if (!Response.bSucceeded)
 	{
+		LastMatchJoinErrorCode = Response.ErrorCode;
 		if (Response.ErrorCode == TEXT("bossraid_closed"))
 		{
 			// 타이틀에서 개최 여부를 받은 뒤에 레이드가 닫혔다.
 			SetBossRaidOpen(false);
+		}
+		else if (Response.ErrorCode == TEXT("no_attempts_left"))
+		{
+			BossRaidStanding.bReceived = true;
+			BossRaidStanding.AttemptsLeft = 0;
+			OnBossRaidStandingUpdated.Broadcast();
 		}
 		FinishMatchJoin(false, FString::Printf(TEXT("%s: %s"), *Response.ErrorCode, *Response.ErrorMessage));
 		return;
@@ -311,6 +354,10 @@ void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResp
 		PendingMatchMode == EOnlineMatchMode::BossRaid ? LabGameSession::BossRaidSessionMode : LabGameSession::MatchSessionMode,
 		*Address, Port);
 	PlayerController->ClientTravel(TravelUrl, TRAVEL_Absolute);
+	if (PendingMatchMode == EOnlineMatchMode::BossRaid)
+	{
+		BossRaidStanding.AttemptsLeft = GetIntField(Response.Json, TEXT("attemptsLeft"));
+	}
 	FinishMatchJoin(true, FString());
 }
 
@@ -414,19 +461,134 @@ void UBackendClientSubsystem::RequestBossRaidStatus()
 // 답을 받지 못하면 마지막 값을 그대로 둔다. 참가 요청은 백엔드가 다시 확인한다.
 void UBackendClientSubsystem::HandleBossRaidStatusResponse(const PdBackendHttp::FResponse& Response)
 {
-	bool bOpen = false;
-	if (!Response.bSucceeded || !Response.Json.IsValid() || !Response.Json->TryGetBoolField(TEXT("open"), bOpen))
+	if (!Response.bSucceeded || !Response.Json.IsValid() || !Response.Json->HasTypedField<EJson::Boolean>(TEXT("open")))
 	{
 		UE_LOG(LogBackendClient, Warning, TEXT("Boss raid status request failed. %s: %s"), *Response.ErrorCode, *Response.ErrorMessage);
 		return;
 	}
-	SetBossRaidOpen(bOpen);
+	ReadBossRaidStatus(*Response.Json);
+	SetBossRaidOpen(BossRaidStatus.bOpen);
+}
+
+// GET /bossraid/status와 /bossraid/me가 같은 모양({"open": bool, "raid": 회차 또는 null})으로 돌려준다.
+void UBackendClientSubsystem::ReadBossRaidStatus(const FJsonObject& Json)
+{
+	BossRaidStatus = FBackendBossRaidStatus();
+	Json.TryGetBoolField(TEXT("open"), BossRaidStatus.bOpen);
+	const TSharedPtr<FJsonObject>* Raid = nullptr;
+	if (Json.TryGetObjectField(TEXT("raid"), Raid) && Raid)
+	{
+		BossRaidStatus.bHasRaid = true;
+		(*Raid)->TryGetBoolField(TEXT("defeated"), BossRaidStatus.bDefeated);
+		BossRaidStatus.Health = GetInt64Field(*Raid, TEXT("hp"));
+		BossRaidStatus.MaxHealth = GetInt64Field(*Raid, TEXT("maxHp"));
+		BossRaidStatus.DailyAttempts = GetIntField(*Raid, TEXT("dailyAttempts"));
+		BossRaidStatus.RewardGold = GetIntField(*Raid, TEXT("rewardGold"));
+	}
 }
 
 void UBackendClientSubsystem::SetBossRaidOpen(const bool bOpen)
 {
-	bBossRaidOpen = bOpen;
+	BossRaidStatus.bOpen = bOpen;
 	OnBossRaidStatusUpdated.Broadcast(bOpen);
+}
+
+void UBackendClientSubsystem::RefreshBossRaidStanding()
+{
+	if (bBossRaidStandingInProgress)
+	{
+		return;
+	}
+
+	bBossRaidStandingInProgress = true;
+	RunAfterLogin([this](const bool bLoggedIn, const FString& LoginError)
+	{
+		const TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> Request =
+			bLoggedIn ? CreateAuthorizedRequest(TEXT("POST"), TEXT("/bossraid/claim")) : nullptr;
+		if (!Request.IsValid())
+		{
+			UE_LOG(LogBackendClient, Warning, TEXT("Boss raid standing needs a backend login and ApiBaseUrl. %s"), *LoginError);
+			bBossRaidStandingInProgress = false;
+			return;
+		}
+		PdBackendHttp::Send(Request.ToSharedRef(),
+			PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleBossRaidClaimResponse));
+	});
+}
+
+// 백엔드는 받았다고 기록한 뒤에 골드를 돌려주므로 바로 로컬 프로필에 더한다. 요청이 실패하면 다음에 다시 받는다.
+void UBackendClientSubsystem::HandleBossRaidClaimResponse(const PdBackendHttp::FResponse& Response)
+{
+	if (Response.StatusCode == 401)
+	{
+		HandleUnauthorized();
+	}
+	if (!Response.bSucceeded)
+	{
+		UE_LOG(LogBackendClient, Warning, TEXT("Boss raid reward claim failed. %s: %s"), *Response.ErrorCode, *Response.ErrorMessage);
+	}
+	const int32 Gold = Response.bSucceeded ? GetIntField(Response.Json, TEXT("gold")) : 0;
+	if (Gold > 0)
+	{
+		if (UPlayerProfileSubsystem* Profile = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance()))
+		{
+			Profile->AddGold(Gold);
+		}
+		UE_LOG(LogBackendClient, Log, TEXT("Boss raid reward: %d gold."), Gold);
+		OnBossRaidRewardClaimed.Broadcast(Gold);
+	}
+
+	const TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> Request = CreateAuthorizedRequest(TEXT("GET"), TEXT("/bossraid/me"));
+	if (!Request.IsValid())
+	{
+		bBossRaidStandingInProgress = false;
+		return;
+	}
+	PdBackendHttp::Send(Request.ToSharedRef(),
+		PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleBossRaidStandingResponse));
+}
+
+void UBackendClientSubsystem::HandleBossRaidStandingResponse(const PdBackendHttp::FResponse& Response)
+{
+	bBossRaidStandingInProgress = false;
+	if (Response.StatusCode == 401)
+	{
+		HandleUnauthorized();
+	}
+	if (!Response.bSucceeded || !Response.Json.IsValid())
+	{
+		UE_LOG(LogBackendClient, Warning, TEXT("Boss raid standing request failed. %s: %s"), *Response.ErrorCode, *Response.ErrorMessage);
+		return;
+	}
+
+	ReadBossRaidStatus(*Response.Json);
+	BossRaidStanding = FBackendBossRaidStanding();
+	BossRaidStanding.bReceived = true;
+	BossRaidStanding.AttemptsLeft = GetIntField(Response.Json, TEXT("attemptsLeft"));
+	BossRaidStanding.Damage = GetInt64Field(Response.Json, TEXT("damage"));
+	BossRaidStanding.Rank = GetIntField(Response.Json, TEXT("rank"));
+	const TArray<TSharedPtr<FJsonValue>>* Top = nullptr;
+	if (Response.Json->TryGetArrayField(TEXT("top"), Top) && Top)
+	{
+		for (const TSharedPtr<FJsonValue>& Value : *Top)
+		{
+			const TSharedPtr<FJsonObject> Entry = Value.IsValid() ? Value->AsObject() : nullptr;
+			if (Entry.IsValid())
+			{
+				BossRaidStanding.Top.Add({GetIntField(Entry, TEXT("rank")), GetStringField(Entry, TEXT("name")),
+					GetInt64Field(Entry, TEXT("damage"))});
+			}
+		}
+	}
+	SetBossRaidOpen(BossRaidStatus.bOpen);
+	OnBossRaidStandingUpdated.Broadcast();
+}
+
+bool UBackendClientSubsystem::ConsumeBossRaidPlayed()
+{
+	const bool bPlayed = bBossRaidPlayed;
+	bBossRaidPlayed = false;
+	return bPlayed;
 }
 
 void UBackendClientSubsystem::ConnectToLocalServer(const FString& Address)

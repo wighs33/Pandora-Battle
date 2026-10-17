@@ -63,8 +63,18 @@ private:
 	void HandleBossRaidJoinFinished(bool bSucceeded, const FString& ErrorMessage);
 	UFUNCTION()
 	void HandleBossRaidStatusUpdated(bool bOpen);
+	void HandleBossRaidStandingUpdated();
+	void HandleBossRaidRewardClaimed(int32 Gold);
+	/** Luna가 한 줄을 말하고, 다 읽을 시간이 지나면 말풍선을 닫는다. */
+	void SayLunaLine(const FText& Line);
 	/** 백엔드는 PvP 참가(pd.Backend.JoinMatch)도 알리므로, 여기서 보낸 요청에만 답한다. */
 	bool bBossRaidJoinPending = false;
+	/** 타이틀에 들어올 때 한 번만 보상을 받고 기록을 묻는다. */
+	bool bBossRaidStandingRequested = false;
+	/** 보상 대사를 했으면 같은 순간의 도전 결과 대사로 덮지 않는다. */
+	bool bBossRaidRewardAnnounced = false;
+	FDelegateHandle BossRaidStandingHandle;
+	FDelegateHandle BossRaidRewardHandle;
 	FTimerHandle TitleBlinkTimer;
 	float TitleBlinkElapsed = -1.f;
 	FTimerHandle TitleSpeechTimer;

@@ -6,6 +6,7 @@
 
 class APlayerController;
 class FJsonObject;
+class IHttpRequest;
 
 namespace PdBackendHttp
 {
@@ -100,9 +101,43 @@ struct FBackendPlayerProfile
 	TArray<FBackendMatchRecord> RecentMatches;
 };
 
+/** 운영자가 연 보스 레이드 회차. 모든 서버가 함께 깎는 전역 체력과 회차 규칙이다. */
+struct FBackendBossRaidStatus
+{
+	/** 새 참가를 받는지. 닫혔거나 이미 격파된 회차면 false다. */
+	bool bOpen = false;
+	/** 연 적이 있는 회차가 있는지. 닫힌 뒤에도 순위와 보상은 그 회차로 본다. */
+	bool bHasRaid = false;
+	bool bDefeated = false;
+	int64 Health = 0;
+	int64 MaxHealth = 0;
+	int32 DailyAttempts = 0;
+	int32 RewardGold = 0;
+};
+
+struct FBackendBossRaidRankEntry
+{
+	int32 Rank = 0;
+	FString Name;
+	int64 Damage = 0;
+};
+
+/** 로그인한 플레이어의 지금 회차 기록. */
+struct FBackendBossRaidStanding
+{
+	bool bReceived = false;
+	int32 AttemptsLeft = 0;
+	int64 Damage = 0;
+	/** 딜을 넣기 전에는 0이다. */
+	int32 Rank = 0;
+	TArray<FBackendBossRaidRankEntry> Top;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBackendRequestFinished, bool, bSucceeded, const FString&, ErrorMessage);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBackendProfileReceived, bool, bSucceeded, const FBackendPlayerProfile&, Profile);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBackendBossRaidStatus, bool, bOpen);
+DECLARE_MULTICAST_DELEGATE(FOnBackendBossRaidStandingUpdated);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBackendBossRaidRewardClaimed, int32 /*Gold*/);
 
 /**
  * 클라이언트의 백엔드 로그인, GameLift 매치 참가, 전적 조회를 담당한다.
@@ -145,7 +180,26 @@ public:
 
 	/** 마지막으로 받은 보스 레이드 개최 여부. 아직 받지 못했으면 닫힌 것으로 본다. */
 	UFUNCTION(BlueprintPure, Category = "Backend")
-	bool IsBossRaidOpen() const { return bBossRaidOpen; }
+	bool IsBossRaidOpen() const { return BossRaidStatus.bOpen; }
+
+	const FBackendBossRaidStatus& GetBossRaidStatus() const { return BossRaidStatus; }
+
+	/**
+	 * 격파된 회차의 받지 않은 보상을 받아 로컬 프로필에 골드로 더한 뒤, 오늘 남은 도전과 순위를 묻는다.
+	 * 로그인이 필요하면 먼저 로그인한다. 보상은 백엔드가 회차마다 한 번만 내준다.
+	 */
+	void RefreshBossRaidStanding();
+
+	const FBackendBossRaidStanding& GetBossRaidStanding() const { return BossRaidStanding; }
+
+	/** 보스 레이드 월드에서 이 플레이어의 도전이 시작됐다. 타이틀로 돌아오면 결과(누적 딜, 순위, 남은 도전)를 알린다. */
+	void NoteBossRaidPlayed() { bBossRaidPlayed = true; }
+
+	/** 마지막으로 확인한 뒤 보스 레이드에서 도전했으면 한 번만 true다. */
+	bool ConsumeBossRaidPlayed();
+
+	/** 마지막 매치 참가 실패의 백엔드 오류 코드(예: bossraid_closed, no_attempts_left). 연결 오류면 비어 있다. */
+	const FString& GetLastMatchJoinErrorCode() const { return LastMatchJoinErrorCode; }
 
 	/** GameLift 없이 로컬 전용 서버로 전적 기록을 시험한다. 서버는 이 경로의 PlayerId를 검증하지 않는다. */
 	void ConnectToLocalServer(const FString& Address);
@@ -177,8 +231,16 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Backend")
 	FOnBackendBossRaidStatus OnBossRaidStatusUpdated;
 
+	FOnBackendBossRaidStandingUpdated OnBossRaidStandingUpdated;
+
+	/** 보상 골드를 프로필에 더한 뒤 알린다. */
+	FOnBackendBossRaidRewardClaimed OnBossRaidRewardClaimed;
+
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	/** 로그인돼 있으면 바로, 아니면 로그인이 끝난 뒤 부른다. 로그인에 실패하면 false와 그 오류로 부른다. */
+	void RunAfterLogin(TUniqueFunction<void(bool bLoggedIn, const FString& LoginError)> Request);
+	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> CreateAuthorizedRequest(const TCHAR* Verb, const TCHAR* Path) const;
 	void SendLoginRequest(const TCHAR* Path, const TSharedRef<FJsonObject>& Body);
 	void HandleLoginResponse(const PdBackendHttp::FResponse& Response);
 	void FinishLogin(bool bSucceeded, const FString& ErrorMessage);
@@ -187,6 +249,9 @@ private:
 	void FinishMatchJoin(bool bSucceeded, const FString& ErrorMessage);
 	void HandleProfileResponse(const PdBackendHttp::FResponse& Response);
 	void HandleBossRaidStatusResponse(const PdBackendHttp::FResponse& Response);
+	void HandleBossRaidClaimResponse(const PdBackendHttp::FResponse& Response);
+	void HandleBossRaidStandingResponse(const PdBackendHttp::FResponse& Response);
+	void ReadBossRaidStatus(const FJsonObject& Json);
 	void SetBossRaidOpen(bool bOpen);
 	void HandleUnauthorized();
 	FString ResolveSteamDisplayName() const;
@@ -196,9 +261,13 @@ private:
 	FString SessionToken;
 	FString PlayerId;
 	FString DisplayName;
-	bool bJoinMatchAfterLogin = false;
+	TArray<TUniqueFunction<void(bool, const FString&)>> RequestsAfterLogin;
 	bool bMatchJoinInProgress = false;
 	int32 MatchJoinTimeoutRetries = 0;
 	EOnlineMatchMode PendingMatchMode = EOnlineMatchMode::Match;
-	bool bBossRaidOpen = false;
+	FString LastMatchJoinErrorCode;
+	FBackendBossRaidStatus BossRaidStatus;
+	FBackendBossRaidStanding BossRaidStanding;
+	bool bBossRaidStandingInProgress = false;
+	bool bBossRaidPlayed = false;
 };

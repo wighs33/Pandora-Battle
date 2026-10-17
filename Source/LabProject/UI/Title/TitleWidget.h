@@ -5,6 +5,7 @@
 #include "UI/Common/LocalizedMenuWidget.h"
 #include "FindSessionsCallbackProxy.h"
 #include "Types/SlateEnums.h"
+#include "Online/Backend/BackendClientSubsystem.h"
 #include "TitleWidget.generated.h"
 
 class UButton;
@@ -52,6 +53,13 @@ public:
 	void SetBossRaidOpen(bool bOpen);
 	/** 백엔드가 자리를 잡는 동안 버튼을 꺼서 요청이 두 번 가지 않게 한다. */
 	void SetBossRaidJoining(bool bJoining);
+	/**
+	 * 지금 회차의 전역 체력과 내 기록. 툴팁에 체력, 오늘 남은 도전, 내 순위와 상위 순위를 덧붙이고,
+	 * 오늘 도전을 다 썼으면 버튼을 끈다.
+	 */
+	void SetBossRaidDetails(const FBackendBossRaidStatus& Status, const FBackendBossRaidStanding& Standing);
+	/** 보상 골드처럼 타이틀 밖에서 바뀐 로컬 프로필을 다시 보여 준다. */
+	void RefreshLocalProfile() const { LoadLocalProfile(); }
 
 protected:
 	virtual void OnMenuLanguageChanged() override;
@@ -100,6 +108,7 @@ private:
 	void BuildLunaChatInput();
 	void BuildVersionLabel();
 	void ApplyBossRaidAvailability();
+	FText BuildBossRaidDetails() const;
 	FString GetResolvedLobbyTravelMapName() const;
 	FString GetResolvedRoomTravelMapName() const;
 	FString GetResolvedTrainingRoomTravelMapName() const;
@@ -226,4 +235,6 @@ private:
 	FOnBossRaidRequested BossRaidRequested;
 	bool bBossRaidOpen = false;
 	bool bBossRaidJoining = false;
+	FBackendBossRaidStatus BossRaidStatus;
+	FBackendBossRaidStanding BossRaidStanding;
 };

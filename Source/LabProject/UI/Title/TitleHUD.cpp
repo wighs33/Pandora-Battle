@@ -38,6 +38,9 @@ namespace
 	const FName BossRaidJoiningKey(TEXT("Title.BossRaidJoining"));
 	const FName BossRaidFailedKey(TEXT("Title.BossRaidFailed"));
 	const FName BossRaidClosedLineKey(TEXT("Title.BossRaidClosed"));
+	const FName BossRaidNoAttemptsLineKey(TEXT("Title.BossRaidNoAttempts"));
+	const FName BossRaidResultKey(TEXT("Title.BossRaidResult"));
+	const FName BossRaidRewardKey(TEXT("Title.BossRaidReward"));
 }
 
 ATitleHUD::ATitleHUD(const FObjectInitializer& ObjectInitializer)
@@ -218,6 +221,8 @@ void ATitleHUD::BindBossRaid()
 	TitleWidget->OnBossRaidRequested().AddUObject(this, &ATitleHUD::HandleBossRaidRequested);
 	Backend->OnMatchJoinFinished.AddUniqueDynamic(this, &ATitleHUD::HandleBossRaidJoinFinished);
 	Backend->OnBossRaidStatusUpdated.AddUniqueDynamic(this, &ATitleHUD::HandleBossRaidStatusUpdated);
+	BossRaidStandingHandle = Backend->OnBossRaidStandingUpdated.AddUObject(this, &ATitleHUD::HandleBossRaidStandingUpdated);
+	BossRaidRewardHandle = Backend->OnBossRaidRewardClaimed.AddUObject(this, &ATitleHUD::HandleBossRaidRewardClaimed);
 	// 운영자가 백엔드에서 열고 닫으므로 타이틀에 올 때마다 다시 묻는다. 답이 오기 전에는 지난번에 받은 값을 보여 준다.
 	TitleWidget->SetBossRaidOpen(Backend->IsBossRaidOpen());
 	Backend->RequestBossRaidStatus();
@@ -230,6 +235,8 @@ void ATitleHUD::UnbindBossRaid()
 	{
 		Backend->OnMatchJoinFinished.RemoveDynamic(this, &ATitleHUD::HandleBossRaidJoinFinished);
 		Backend->OnBossRaidStatusUpdated.RemoveDynamic(this, &ATitleHUD::HandleBossRaidStatusUpdated);
+		Backend->OnBossRaidStandingUpdated.Remove(BossRaidStandingHandle);
+		Backend->OnBossRaidRewardClaimed.Remove(BossRaidRewardHandle);
 	}
 	bBossRaidJoinPending = false;
 }
@@ -254,20 +261,66 @@ void ATitleHUD::HandleBossRaidJoinFinished(const bool bSucceeded, const FString&
 	if (bSucceeded) return;
 
 	if (TitleWidget) TitleWidget->SetBossRaidJoining(false);
-	// 그사이 레이드가 닫혔으면 다시 시도해 보라는 대신 열리지 않았다고 알린다.
+	// 그사이 레이드가 닫혔거나 오늘 도전을 다 썼으면 다시 시도해 보라는 대신 그 이유를 알린다.
 	const UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
-	const FText Line = Backend && !Backend->IsBossRaidOpen()
+	if (Backend && Backend->GetLastMatchJoinErrorCode() == TEXT("no_attempts_left"))
+	{
+		SayLunaLine(GetLunaChatLine(BossRaidNoAttemptsLineKey,
+			NSLOCTEXT("TitleHUD", "BossRaidNoAttempts", "You've used all of today's attempts. Come back tomorrow!")));
+		return;
+	}
+	SayLunaLine(Backend && !Backend->IsBossRaidOpen()
 		? GetLunaChatLine(BossRaidClosedLineKey, NSLOCTEXT("TitleHUD", "BossRaidClosed", "Not open yet."))
 		: GetLunaChatLine(BossRaidFailedKey,
-			NSLOCTEXT("TitleHUD", "BossRaidFailed", "I couldn't reach the boss raid. Please try again in a moment."));
+			NSLOCTEXT("TitleHUD", "BossRaidFailed", "I couldn't reach the boss raid. Please try again in a moment.")));
+}
+
+// 회차가 있으면 받을 보상과 내 기록을 한 번 묻는다. 로그인이 안 돼 있으면 백엔드 클라이언트가 먼저 로그인한다.
+void ATitleHUD::HandleBossRaidStatusUpdated(const bool bOpen)
+{
+	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
+	if (TitleWidget) TitleWidget->SetBossRaidOpen(bOpen);
+	if (!Backend) return;
+	if (TitleWidget) TitleWidget->SetBossRaidDetails(Backend->GetBossRaidStatus(), Backend->GetBossRaidStanding());
+	if (Backend->GetBossRaidStatus().bHasRaid && !bBossRaidStandingRequested)
+	{
+		bBossRaidStandingRequested = true;
+		Backend->RefreshBossRaidStanding();
+	}
+}
+
+// 레이드에서 돌아왔으면 Luna가 누적 딜, 순위, 오늘 남은 도전을 알려 준다.
+void ATitleHUD::HandleBossRaidStandingUpdated()
+{
+	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
+	if (!Backend) return;
+	if (TitleWidget) TitleWidget->SetBossRaidDetails(Backend->GetBossRaidStatus(), Backend->GetBossRaidStanding());
+
+	const FBackendBossRaidStanding& Standing = Backend->GetBossRaidStanding();
+	if (!Backend->ConsumeBossRaidPlayed() || bBossRaidRewardAnnounced || Standing.Damage <= 0) return;
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("Damage"), FText::AsNumber(Standing.Damage));
+	Arguments.Add(TEXT("Rank"), FText::AsNumber(Standing.Rank));
+	Arguments.Add(TEXT("Attempts"), FText::AsNumber(Standing.AttemptsLeft));
+	SayLunaLine(FText::Format(GetLunaChatLine(BossRaidResultKey, NSLOCTEXT("TitleHUD", "BossRaidResult",
+		"Nice work! You've dealt {Damage} damage so far, rank #{Rank}. You can try {Attempts} more times today.")), Arguments));
+}
+
+void ATitleHUD::HandleBossRaidRewardClaimed(const int32 Gold)
+{
+	bBossRaidRewardAnnounced = true;
+	if (TitleWidget) TitleWidget->RefreshLocalProfile();
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("Gold"), FText::AsNumber(Gold));
+	SayLunaLine(FText::Format(GetLunaChatLine(BossRaidRewardKey, NSLOCTEXT("TitleHUD", "BossRaidReward",
+		"The boss has fallen! You received {Gold} gold for fighting together.")), Arguments));
+}
+
+void ATitleHUD::SayLunaLine(const FText& Line)
+{
 	ShowLunaChatText(Line, true);
 	GetWorldTimerManager().SetTimer(TitleSpeechTimer, this, &ATitleHUD::HideTitleSpeech,
 		FMath::Max(ChatReplyMinDuration, Line.ToString().Len() * ChatReplySecondsPerCharacter), false);
-}
-
-void ATitleHUD::HandleBossRaidStatusUpdated(const bool bOpen)
-{
-	if (TitleWidget) TitleWidget->SetBossRaidOpen(bOpen);
 }
 
 void ATitleHUD::HandleLunaQuestion(const FString& Question)
