@@ -7,6 +7,7 @@
 
 class UButton;
 class UEditableTextBox;
+class UOnlineSessionsSubsystem;
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UCreateRoomPopupWidget : public ULocalizedMenuWidget
@@ -34,6 +35,7 @@ protected:
 
 private:
 	void ApplyWidgetDefinitionSettings();
+	UOnlineSessionsSubsystem* GetOnlineSessions() const;
 	UButton* GetCreateButton() const;
 	UEditableTextBox* GetRoomNameTextBox() const;
 	FString GetResolvedLobbyTravelMapName() const;

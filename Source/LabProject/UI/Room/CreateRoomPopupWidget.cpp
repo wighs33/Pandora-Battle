@@ -26,6 +26,13 @@ void UCreateRoomPopupWidget::NativeConstruct()
 	{
 		Btn_Cancel->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCancelClicked);
 	}
+
+	// 결과 알림은 화면이 있는 동안 한 번 구독하고, 지금 기다리는 요청의 결과만 처리한다.
+	if (UOnlineSessionsSubsystem* OnlineSessions = GetOnlineSessions())
+	{
+		CreateSessionCompleteHandle =
+			OnlineSessions->OnCreateRoomRequestComplete.AddUObject(this, &ThisClass::HandleCreateSessionComplete);
+	}
 }
 
 void UCreateRoomPopupWidget::NativeDestruct()
@@ -40,23 +47,16 @@ void UCreateRoomPopupWidget::NativeDestruct()
 		Btn_Cancel->OnClicked.RemoveDynamic(this, &ThisClass::HandleCancelClicked);
 	}
 
-	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr)
+	if (UOnlineSessionsSubsystem* OnlineSessions = GetOnlineSessions())
 	{
-		if (CreateSessionCompleteHandle.IsValid())
+		OnlineSessions->OnCreateRoomRequestComplete.Remove(CreateSessionCompleteHandle);
+		if (ActiveCreateRequestId != 0)
 		{
-			OnlineSessionsSubsystem->OnCreateRoomRequestComplete.Remove(CreateSessionCompleteHandle);
-			CreateSessionCompleteHandle.Reset();
-		}
-
-		const uint64 RequestId = ActiveCreateRequestId;
-		ActiveCreateRequestId = 0;
-		if (RequestId != 0)
-		{
-			OnlineSessionsSubsystem->CancelSessionRequest(RequestId);
+			OnlineSessions->CancelSessionRequest(ActiveCreateRequestId);
 		}
 	}
+	CreateSessionCompleteHandle.Reset();
+	ActiveCreateRequestId = 0;
 
 	Super::NativeDestruct();
 }
@@ -76,10 +76,8 @@ void UCreateRoomPopupWidget::HandleCreateClicked()
 {
 	const FString InitialSessionMapName = TEXT("Lobby");
 
-	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr;
-	if (!OnlineSessionsSubsystem)
+	UOnlineSessionsSubsystem* OnlineSessions = GetOnlineSessions();
+	if (!OnlineSessions)
 	{
 		return;
 	}
@@ -89,15 +87,7 @@ void UCreateRoomPopupWidget::HandleCreateClicked()
 		CreateButton->SetIsEnabled(false);
 	}
 
-	if (CreateSessionCompleteHandle.IsValid())
-	{
-		OnlineSessionsSubsystem->OnCreateRoomRequestComplete.Remove(CreateSessionCompleteHandle);
-		CreateSessionCompleteHandle.Reset();
-	}
-
-	CreateSessionCompleteHandle =
-		OnlineSessionsSubsystem->OnCreateRoomRequestComplete.AddUObject(this, &ThisClass::HandleCreateSessionComplete);
-	ActiveCreateRequestId = OnlineSessionsSubsystem->BeginCreateRoomSession(GetOwningLocalPlayer(), GetRoomNameInput(),
+	ActiveCreateRequestId = OnlineSessions->BeginCreateRoomSession(GetOwningLocalPlayer(), GetRoomNameInput(),
 		InitialSessionMapName, MaxPublicConnections, bCreateLAN);
 	if (ActiveCreateRequestId == 0)
 	{
@@ -125,17 +115,6 @@ void UCreateRoomPopupWidget::HandleCreateSessionComplete(const uint64 RequestId,
 	}
 	ActiveCreateRequestId = 0;
 
-	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr)
-	{
-		if (CreateSessionCompleteHandle.IsValid())
-		{
-			OnlineSessionsSubsystem->OnCreateRoomRequestComplete.Remove(CreateSessionCompleteHandle);
-			CreateSessionCompleteHandle.Reset();
-		}
-	}
-
 	if (bWasSuccessful)
 	{
 		OpenLobbyAsListenServer();
@@ -156,12 +135,15 @@ void UCreateRoomPopupWidget::OpenLobbyAsListenServer() const
 		return;
 	}
 
-	if (const UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
-		: nullptr)
+	if (const UOnlineSessionsSubsystem* OnlineSessions = GetOnlineSessions())
 	{
-		OnlineSessionsSubsystem->TravelToListenMap(LobbyMapName);
+		OnlineSessions->TravelToListenMap(LobbyMapName);
 	}
+}
+
+UOnlineSessionsSubsystem* UCreateRoomPopupWidget::GetOnlineSessions() const
+{
+	return GetGameInstance() ? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>() : nullptr;
 }
 
 FString UCreateRoomPopupWidget::GetRoomNameInput() const
